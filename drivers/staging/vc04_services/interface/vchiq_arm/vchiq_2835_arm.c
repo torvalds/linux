@@ -171,8 +171,8 @@ int vchiq_platform_init(struct platform_device *pdev, VCHIQ_STATE_T *state)
 	}
 
 	vchiq_log_info(vchiq_arm_log_level,
-		"vchiq_init - done (slots %x, phys %pad)",
-		(unsigned int)vchiq_slot_zero, &slot_phys);
+		"vchiq_init - done (slots %pK, phys %pad)",
+		vchiq_slot_zero, &slot_phys);
 
 	vchiq_call_connected_callbacks();
 
@@ -386,8 +386,8 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
                            (num_pages * sizeof(pages[0])),
                            GFP_KERNEL);
 
-	vchiq_log_trace(vchiq_arm_log_level,
-		"create_pagelist - %x", (unsigned int)pagelist);
+	vchiq_log_trace(vchiq_arm_log_level, "create_pagelist - %pK",
+			pagelist);
 	if (!pagelist)
 		return -ENOMEM;
 
@@ -511,8 +511,8 @@ free_pagelist(PAGELIST_T *pagelist, int actual)
 	struct page **pages;
 	unsigned int num_pages, i;
 
-	vchiq_log_trace(vchiq_arm_log_level,
-		"free_pagelist - %x, %d", (unsigned int)pagelist, actual);
+	vchiq_log_trace(vchiq_arm_log_level, "free_pagelist - %pK, %d",
+			pagelist, actual);
 
 	num_pages =
 		(pagelist->length + pagelist->offset + PAGE_SIZE - 1) /

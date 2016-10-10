@@ -418,8 +418,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	DEBUG_INITIALISE(g_state.local)
 
 	vchiq_log_trace(vchiq_arm_log_level,
-		 "vchiq_ioctl - instance %x, cmd %s, arg %lx",
-		(unsigned int)instance,
+		"vchiq_ioctl - instance %pK, cmd %s, arg %lx",
+		instance,
 		((_IOC_TYPE(cmd) == VCHIQ_IOC_MAGIC) &&
 		(_IOC_NR(cmd) <= VCHIQ_IOC_MAX)) ?
 		ioctl_names[_IOC_NR(cmd)] : "<invalid>", arg);
@@ -713,8 +713,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				break;
 			}
 			vchiq_log_info(vchiq_arm_log_level,
-				"found bulk_waiter %x for pid %d",
-				(unsigned int)waiter, current->pid);
+				"found bulk_waiter %pK for pid %d", waiter,
+				current->pid);
 			args.userdata = &waiter->bulk_waiter;
 		}
 		status = vchiq_bulk_transfer
@@ -743,8 +743,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			list_add(&waiter->list, &instance->bulk_waiter_list);
 			mutex_unlock(&instance->bulk_waiter_list_mutex);
 			vchiq_log_info(vchiq_arm_log_level,
-				"saved bulk_waiter %x for pid %d",
-				(unsigned int)waiter, current->pid);
+				"saved bulk_waiter %pK for pid %d",
+				waiter, current->pid);
 
 			if (copy_to_user((void __user *)
 				&(((VCHIQ_QUEUE_BULK_TRANSFER_T __user *)
@@ -826,10 +826,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					if (args.msgbufsize < msglen) {
 						vchiq_log_error(
 							vchiq_arm_log_level,
-							"header %x: msgbufsize"
-							" %x < msglen %x",
-							(unsigned int)header,
-							args.msgbufsize,
+							"header %pK: msgbufsize %x < msglen %x",
+							header, args.msgbufsize,
 							msglen);
 						WARN(1, "invalid message "
 							"size\n");
@@ -980,9 +978,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				ret = -EFAULT;
 		} else {
 			vchiq_log_error(vchiq_arm_log_level,
-				"header %x: bufsize %x < size %x",
-				(unsigned int)header, args.bufsize,
-				header->size);
+				"header %pK: bufsize %x < size %x",
+				header, args.bufsize, header->size);
 			WARN(1, "invalid size\n");
 			ret = -EMSGSIZE;
 		}
@@ -1284,9 +1281,8 @@ vchiq_release(struct inode *inode, struct file *file)
 					list);
 				list_del(pos);
 				vchiq_log_info(vchiq_arm_log_level,
-					"bulk_waiter - cleaned up %x "
-					"for pid %d",
-					(unsigned int)waiter, waiter->pid);
+					"bulk_waiter - cleaned up %pK for pid %d",
+					waiter, waiter->pid);
 				kfree(waiter);
 			}
 		}
@@ -1385,9 +1381,8 @@ vchiq_dump_platform_instances(void *dump_context)
 			instance = service->instance;
 			if (instance && !instance->mark) {
 				len = snprintf(buf, sizeof(buf),
-					"Instance %x: pid %d,%s completions "
-						"%d/%d",
-					(unsigned int)instance, instance->pid,
+					"Instance %pK: pid %d,%s completions %d/%d",
+					instance, instance->pid,
 					instance->connected ? " connected, " :
 						"",
 					instance->completion_insert -
@@ -1415,8 +1410,7 @@ vchiq_dump_platform_service_state(void *dump_context, VCHIQ_SERVICE_T *service)
 	char buf[80];
 	int len;
 
-	len = snprintf(buf, sizeof(buf), "  instance %x",
-		(unsigned int)service->instance);
+	len = snprintf(buf, sizeof(buf), "  instance %pK", service->instance);
 
 	if ((service->base.callback == service_callback) &&
 		user_service->is_vchi) {
