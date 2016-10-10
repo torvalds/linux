@@ -57,6 +57,9 @@
 
 #define NCR5380_implementation_fields   /* none */
 
+static u8 (*atari_scsi_reg_read)(unsigned int);
+static void (*atari_scsi_reg_write)(unsigned int, u8);
+
 #define NCR5380_read(reg)               atari_scsi_reg_read(reg)
 #define NCR5380_write(reg, value)       atari_scsi_reg_write(reg, value)
 
@@ -125,9 +128,6 @@ static inline unsigned long SCSI_DMA_GETADR(void)
 }
 
 static void atari_scsi_fetch_restbytes(void);
-
-static u8 (*atari_scsi_reg_read)(unsigned int);
-static void (*atari_scsi_reg_write)(unsigned int, u8);
 
 static unsigned long	atari_dma_residual, atari_dma_startaddr;
 static short		atari_dma_active;

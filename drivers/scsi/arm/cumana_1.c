@@ -29,6 +29,10 @@
 #define NCR5380_implementation_fields	\
 	unsigned ctrl
 
+struct NCR5380_hostdata;
+static u8 cumanascsi_read(struct NCR5380_hostdata *, unsigned int);
+static void cumanascsi_write(struct NCR5380_hostdata *, unsigned int, u8);
+
 #include "../NCR5380.h"
 
 #define CTRL	0x16fc
