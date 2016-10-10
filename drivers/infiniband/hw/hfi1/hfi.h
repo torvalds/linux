@@ -1848,7 +1848,13 @@ extern struct mutex hfi1_mutex;
 static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 						  u16 ctxt_type)
 {
-	u64 base_sc_integrity =
+	u64 base_sc_integrity;
+
+	/* No integrity checks if HFI1_CAP_NO_INTEGRITY is set */
+	if (HFI1_CAP_IS_KSET(NO_INTEGRITY))
+		return 0;
+
+	base_sc_integrity =
 	SEND_CTXT_CHECK_ENABLE_DISALLOW_BYPASS_BAD_PKT_LEN_SMASK
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_PBC_STATIC_RATE_CONTROL_SMASK
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_TOO_LONG_BYPASS_PACKETS_SMASK
@@ -1863,7 +1869,6 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 	| SEND_CTXT_CHECK_ENABLE_CHECK_VL_MAPPING_SMASK
 	| SEND_CTXT_CHECK_ENABLE_CHECK_OPCODE_SMASK
 	| SEND_CTXT_CHECK_ENABLE_CHECK_SLID_SMASK
-	| SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK
 	| SEND_CTXT_CHECK_ENABLE_CHECK_VL_SMASK
 	| SEND_CTXT_CHECK_ENABLE_CHECK_ENABLE_SMASK;
 
@@ -1872,18 +1877,23 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 	else
 		base_sc_integrity |= HFI1_PKT_KERNEL_SC_INTEGRITY;
 
-	if (is_ax(dd))
-		/* turn off send-side job key checks - A0 */
-		return base_sc_integrity &
-		       ~SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
+	/* turn on send-side job key checks if !A0 */
+	if (!is_ax(dd))
+		base_sc_integrity |= SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
+
 	return base_sc_integrity;
 }
 
 static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 {
-	u64 base_sdma_integrity =
+	u64 base_sdma_integrity;
+
+	/* No integrity checks if HFI1_CAP_NO_INTEGRITY is set */
+	if (HFI1_CAP_IS_KSET(NO_INTEGRITY))
+		return 0;
+
+	base_sdma_integrity =
 	SEND_DMA_CHECK_ENABLE_DISALLOW_BYPASS_BAD_PKT_LEN_SMASK
-	| SEND_DMA_CHECK_ENABLE_DISALLOW_PBC_STATIC_RATE_CONTROL_SMASK
 	| SEND_DMA_CHECK_ENABLE_DISALLOW_TOO_LONG_BYPASS_PACKETS_SMASK
 	| SEND_DMA_CHECK_ENABLE_DISALLOW_TOO_LONG_IB_PACKETS_SMASK
 	| SEND_DMA_CHECK_ENABLE_DISALLOW_BAD_PKT_LEN_SMASK
@@ -1895,14 +1905,18 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 	| SEND_DMA_CHECK_ENABLE_CHECK_VL_MAPPING_SMASK
 	| SEND_DMA_CHECK_ENABLE_CHECK_OPCODE_SMASK
 	| SEND_DMA_CHECK_ENABLE_CHECK_SLID_SMASK
-	| SEND_DMA_CHECK_ENABLE_CHECK_JOB_KEY_SMASK
 	| SEND_DMA_CHECK_ENABLE_CHECK_VL_SMASK
 	| SEND_DMA_CHECK_ENABLE_CHECK_ENABLE_SMASK;
 
-	if (is_ax(dd))
-		/* turn off send-side job key checks - A0 */
-		return base_sdma_integrity &
-		       ~SEND_DMA_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
+	if (!HFI1_CAP_IS_KSET(STATIC_RATE_CTRL))
+		base_sdma_integrity |=
+		SEND_DMA_CHECK_ENABLE_DISALLOW_PBC_STATIC_RATE_CONTROL_SMASK;
+
+	/* turn on send-side job key checks if !A0 */
+	if (!is_ax(dd))
+		base_sdma_integrity |=
+			SEND_DMA_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
+
 	return base_sdma_integrity;
 }
 
