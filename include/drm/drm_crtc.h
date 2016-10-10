@@ -1342,7 +1342,7 @@ extern void drm_crtc_cleanup(struct drm_crtc *crtc);
  * Given a registered CRTC, return the index of that CRTC within a DRM
  * device's list of CRTCs.
  */
-static inline unsigned int drm_crtc_index(struct drm_crtc *crtc)
+static inline unsigned int drm_crtc_index(const struct drm_crtc *crtc)
 {
 	return crtc->index;
 }
