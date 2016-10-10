@@ -1697,12 +1697,28 @@ EXPORT_SYMBOL(msleep_interruptible);
 
 static void __sched do_usleep_range(unsigned long min, unsigned long max)
 {
+	ktime_t now, end;
 	ktime_t kmin;
 	u64 delta;
+	int ret;
 
-	kmin = ktime_set(0, min * NSEC_PER_USEC);
+	now = ktime_get();
+	end = ktime_add_us(now, min);
 	delta = (u64)(max - min) * NSEC_PER_USEC;
-	schedule_hrtimeout_range(&kmin, delta, HRTIMER_MODE_REL);
+	do {
+		kmin = ktime_sub(end, now);
+		ret = schedule_hrtimeout_range(&kmin, delta, HRTIMER_MODE_REL);
+
+		/*
+		 * If schedule_hrtimeout_range() returns 0 then we actually
+		 * hit the timeout. If not then we need to re-calculate the
+		 * new timeout ourselves.
+		 */
+		if (ret == 0)
+			break;
+
+		now = ktime_get();
+	} while (ktime_before(now, end));
 }
 
 /**
