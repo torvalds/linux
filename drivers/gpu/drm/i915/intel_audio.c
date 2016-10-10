@@ -245,6 +245,45 @@ static void g4x_audio_codec_enable(struct drm_connector *connector,
 	I915_WRITE(G4X_AUD_CNTL_ST, tmp);
 }
 
+static void hsw_audio_config_update(struct intel_crtc *intel_crtc,
+				    enum port port,
+				    const struct drm_display_mode *adjusted_mode)
+{
+	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
+	struct i915_audio_component *acomp = dev_priv->audio_component;
+	enum pipe pipe = intel_crtc->pipe;
+	int n, rate;
+	u32 tmp;
+
+	tmp = I915_READ(HSW_AUD_CFG(pipe));
+	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
+	tmp &= ~AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK;
+	if (intel_crtc_has_dp_encoder(intel_crtc->config))
+		tmp |= AUD_CONFIG_N_VALUE_INDEX;
+	else
+		tmp |= audio_config_hdmi_pixel_clock(adjusted_mode);
+
+	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
+	if (audio_rate_need_prog(intel_crtc, adjusted_mode)) {
+		if (!acomp)
+			rate = 0;
+		else if (port >= PORT_A && port <= PORT_E)
+			rate = acomp->aud_sample_rate[port];
+		else {
+			DRM_ERROR("invalid port: %d\n", port);
+			rate = 0;
+		}
+
+		n = audio_config_get_n(adjusted_mode, rate);
+		if (n != 0)
+			tmp = audio_config_setup_n_reg(n, tmp);
+		else
+			DRM_DEBUG_KMS("no suitable N value is found\n");
+	}
+
+	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
+}
+
 static void hsw_audio_codec_disable(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -283,11 +322,9 @@ static void hsw_audio_codec_enable(struct drm_connector *connector,
 	struct intel_crtc *intel_crtc = to_intel_crtc(intel_encoder->base.crtc);
 	enum pipe pipe = intel_crtc->pipe;
 	enum port port = intel_encoder->port;
-	struct i915_audio_component *acomp = dev_priv->audio_component;
 	const uint8_t *eld = connector->eld;
 	uint32_t tmp;
 	int len, i;
-	int n, rate;
 
 	DRM_DEBUG_KMS("Enable audio codec on pipe %c, %u bytes ELD\n",
 		      pipe_name(pipe), drm_eld_size(eld));
@@ -323,32 +360,7 @@ static void hsw_audio_codec_enable(struct drm_connector *connector,
 	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
 
 	/* Enable timestamps */
-	tmp = I915_READ(HSW_AUD_CFG(pipe));
-	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
-	tmp &= ~AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK;
-	if (intel_crtc_has_dp_encoder(intel_crtc->config))
-		tmp |= AUD_CONFIG_N_VALUE_INDEX;
-	else
-		tmp |= audio_config_hdmi_pixel_clock(adjusted_mode);
-
-	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
-	if (audio_rate_need_prog(intel_crtc, adjusted_mode)) {
-		if (!acomp)
-			rate = 0;
-		else if (port >= PORT_A && port <= PORT_E)
-			rate = acomp->aud_sample_rate[port];
-		else {
-			DRM_ERROR("invalid port: %d\n", port);
-			rate = 0;
-		}
-		n = audio_config_get_n(adjusted_mode, rate);
-		if (n != 0)
-			tmp = audio_config_setup_n_reg(n, tmp);
-		else
-			DRM_DEBUG_KMS("no suitable N value is found\n");
-	}
-
-	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
+	hsw_audio_config_update(intel_crtc, port, adjusted_mode);
 
 	mutex_unlock(&dev_priv->av_mutex);
 }
