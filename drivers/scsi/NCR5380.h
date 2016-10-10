@@ -239,7 +239,7 @@ struct NCR5380_hostdata {
 	                                   * transfer to handle chip overruns */
 	struct work_struct main_task;
 	struct workqueue_struct *work_q;
-	unsigned long accesses_per_ms;	/* chip register accesses per ms */
+	unsigned long poll_loops;		/* register polling limit */
 };
 
 #ifdef __KERNEL__
@@ -251,6 +251,9 @@ struct NCR5380_cmd {
 #define NCR5380_CMD_SIZE		(sizeof(struct NCR5380_cmd))
 
 #define NCR5380_PIO_CHUNK_SIZE		256
+
+/* Time limit (ms) to poll registers when IRQs are disabled, e.g. during PDMA */
+#define NCR5380_REG_POLL_TIME		10
 
 static inline struct scsi_cmnd *NCR5380_to_scmd(struct NCR5380_cmd *ncmd_ptr)
 {

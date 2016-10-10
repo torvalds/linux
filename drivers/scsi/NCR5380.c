@@ -200,13 +200,9 @@ static int NCR5380_poll_politely2(struct Scsi_Host *instance,
                                   int reg2, int bit2, int val2, int wait)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	unsigned long n = hostdata->poll_loops;
 	unsigned long deadline = jiffies + wait;
-	unsigned long n;
 
-	/* Busy-wait for up to 10 ms */
-	n = min(10000U, jiffies_to_usecs(wait));
-	n *= hostdata->accesses_per_ms;
-	n /= 2000;
 	do {
 		if ((NCR5380_read(reg1) & bit1) == val1)
 			return 0;
@@ -482,6 +478,7 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int i;
 	unsigned long deadline;
+	unsigned long accesses_per_ms;
 
 	instance->max_lun = 7;
 
@@ -530,7 +527,8 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 		++i;
 		cpu_relax();
 	} while (time_is_after_jiffies(deadline));
-	hostdata->accesses_per_ms = i / 256;
+	accesses_per_ms = i / 256;
+	hostdata->poll_loops = NCR5380_REG_POLL_TIME * accesses_per_ms / 2;
 
 	return 0;
 }
