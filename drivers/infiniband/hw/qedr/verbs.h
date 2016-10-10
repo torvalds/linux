@@ -89,4 +89,13 @@ int qedr_post_send(struct ib_qp *, struct ib_send_wr *,
 		   struct ib_send_wr **bad_wr);
 int qedr_post_recv(struct ib_qp *, struct ib_recv_wr *,
 		   struct ib_recv_wr **bad_wr);
+int qedr_process_mad(struct ib_device *ibdev, int process_mad_flags,
+		     u8 port_num, const struct ib_wc *in_wc,
+		     const struct ib_grh *in_grh,
+		     const struct ib_mad_hdr *in_mad,
+		     size_t in_mad_size, struct ib_mad_hdr *out_mad,
+		     size_t *out_mad_size, u16 *out_mad_pkey_index);
+
+int qedr_port_immutable(struct ib_device *ibdev, u8 port_num,
+			struct ib_port_immutable *immutable);
 #endif

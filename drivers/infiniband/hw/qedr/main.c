@@ -79,10 +79,25 @@ static void qedr_get_dev_fw_str(struct ib_device *ibdev, char *str,
 		 (fw_ver >> 8) & 0xFF, fw_ver & 0xFF);
 }
 
+static struct net_device *qedr_get_netdev(struct ib_device *dev, u8 port_num)
+{
+	struct qedr_dev *qdev;
+
+	qdev = get_qedr_dev(dev);
+	dev_hold(qdev->ndev);
+
+	/* The HW vendor's device driver must guarantee
+	 * that this function returns NULL before the net device reaches
+	 * NETDEV_UNREGISTER_FINAL state.
+	 */
+	return qdev->ndev;
+}
+
 static int qedr_register_device(struct qedr_dev *dev)
 {
 	strlcpy(dev->ibdev.name, "qedr%d", IB_DEVICE_NAME_MAX);
 
+	dev->ibdev.node_guid = dev->attr.node_guid;
 	memcpy(dev->ibdev.node_desc, QEDR_NODE_DESC, sizeof(QEDR_NODE_DESC));
 	dev->ibdev.owner = THIS_MODULE;
 	dev->ibdev.uverbs_abi_ver = QEDR_ABI_VERSION;
@@ -151,12 +166,16 @@ static int qedr_register_device(struct qedr_dev *dev)
 	dev->ibdev.post_send = qedr_post_send;
 	dev->ibdev.post_recv = qedr_post_recv;
 
+	dev->ibdev.process_mad = qedr_process_mad;
+	dev->ibdev.get_port_immutable = qedr_port_immutable;
+	dev->ibdev.get_netdev = qedr_get_netdev;
+
 	dev->ibdev.dma_device = &dev->pdev->dev;
 
 	dev->ibdev.get_link_layer = qedr_link_layer;
 	dev->ibdev.get_dev_fw_str = qedr_get_dev_fw_str;
 
-	return 0;
+	return ib_register_device(&dev->ibdev, NULL);
 }
 
 /* This function allocates fast-path status block memory */
@@ -557,6 +576,92 @@ static int qedr_set_device_attr(struct qedr_dev *dev)
 	return 0;
 }
 
+void qedr_unaffiliated_event(void *context,
+			     u8 event_code)
+{
+	pr_err("unaffiliated event not implemented yet\n");
+}
+
+void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
+{
+#define EVENT_TYPE_NOT_DEFINED	0
+#define EVENT_TYPE_CQ		1
+#define EVENT_TYPE_QP		2
+	struct qedr_dev *dev = (struct qedr_dev *)context;
+	union event_ring_data *data = fw_handle;
+	u64 roce_handle64 = ((u64)data->roce_handle.hi << 32) +
+			    data->roce_handle.lo;
+	u8 event_type = EVENT_TYPE_NOT_DEFINED;
+	struct ib_event event;
+	struct ib_cq *ibcq;
+	struct ib_qp *ibqp;
+	struct qedr_cq *cq;
+	struct qedr_qp *qp;
+
+	switch (e_code) {
+	case ROCE_ASYNC_EVENT_CQ_OVERFLOW_ERR:
+		event.event = IB_EVENT_CQ_ERR;
+		event_type = EVENT_TYPE_CQ;
+		break;
+	case ROCE_ASYNC_EVENT_SQ_DRAINED:
+		event.event = IB_EVENT_SQ_DRAINED;
+		event_type = EVENT_TYPE_QP;
+		break;
+	case ROCE_ASYNC_EVENT_QP_CATASTROPHIC_ERR:
+		event.event = IB_EVENT_QP_FATAL;
+		event_type = EVENT_TYPE_QP;
+		break;
+	case ROCE_ASYNC_EVENT_LOCAL_INVALID_REQUEST_ERR:
+		event.event = IB_EVENT_QP_REQ_ERR;
+		event_type = EVENT_TYPE_QP;
+		break;
+	case ROCE_ASYNC_EVENT_LOCAL_ACCESS_ERR:
+		event.event = IB_EVENT_QP_ACCESS_ERR;
+		event_type = EVENT_TYPE_QP;
+		break;
+	default:
+		DP_ERR(dev, "unsupported event %d on handle=%llx\n", e_code,
+		       roce_handle64);
+	}
+
+	switch (event_type) {
+	case EVENT_TYPE_CQ:
+		cq = (struct qedr_cq *)(uintptr_t)roce_handle64;
+		if (cq) {
+			ibcq = &cq->ibcq;
+			if (ibcq->event_handler) {
+				event.device = ibcq->device;
+				event.element.cq = ibcq;
+				ibcq->event_handler(&event, ibcq->cq_context);
+			}
+		} else {
+			WARN(1,
+			     "Error: CQ event with NULL pointer ibcq. Handle=%llx\n",
+			     roce_handle64);
+		}
+		DP_ERR(dev, "CQ event %d on hanlde %p\n", e_code, cq);
+		break;
+	case EVENT_TYPE_QP:
+		qp = (struct qedr_qp *)(uintptr_t)roce_handle64;
+		if (qp) {
+			ibqp = &qp->ibqp;
+			if (ibqp->event_handler) {
+				event.device = ibqp->device;
+				event.element.qp = ibqp;
+				ibqp->event_handler(&event, ibqp->qp_context);
+			}
+		} else {
+			WARN(1,
+			     "Error: QP event with NULL pointer ibqp. Handle=%llx\n",
+			     roce_handle64);
+		}
+		DP_ERR(dev, "QP event %d on hanlde %p\n", e_code, qp);
+		break;
+	default:
+		break;
+	}
+}
+
 static int qedr_init_hw(struct qedr_dev *dev)
 {
 	struct qed_rdma_add_user_out_params out_params;
@@ -585,6 +690,8 @@ static int qedr_init_hw(struct qedr_dev *dev)
 		cur_pbl->pbl_ptr = (u64)p_phys_table;
 	}
 
+	events.affiliated_event = qedr_affiliated_event;
+	events.unaffiliated_event = qedr_unaffiliated_event;
 	events.context = dev;
 
 	in_params->events = &events;
@@ -683,11 +790,13 @@ static struct qedr_dev *qedr_add(struct qed_dev *cdev, struct pci_dev *pdev,
 
 	for (i = 0; i < ARRAY_SIZE(qedr_attributes); i++)
 		if (device_create_file(&dev->ibdev.dev, qedr_attributes[i]))
-			goto reg_err;
+			goto sysfs_err;
 
 	DP_DEBUG(dev, QEDR_MSG_INIT, "qedr driver loaded successfully\n");
 	return dev;
 
+sysfs_err:
+	ib_unregister_device(&dev->ibdev);
 reg_err:
 	qedr_sync_free_irqs(dev);
 irq_err:
@@ -707,6 +816,7 @@ static void qedr_remove(struct qedr_dev *dev)
 	 * of the registered clients.
 	 */
 	qedr_remove_sysfiles(dev);
+	ib_unregister_device(&dev->ibdev);
 
 	qedr_stop_hw(dev);
 	qedr_sync_free_irqs(dev);
