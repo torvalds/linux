@@ -250,6 +250,8 @@ struct ip_set {
 	u8 flags;
 	/* Default timeout value, if enabled */
 	u32 timeout;
+	/* Number of elements (vs timeout) */
+	u32 elements;
 	/* Element data size */
 	size_t dsize;
 	/* Offsets to extensions in elements */

@@ -83,6 +83,7 @@ mtype_flush(struct ip_set *set)
 	if (set->extensions & IPSET_EXT_DESTROY)
 		mtype_ext_cleanup(set);
 	memset(map->members, 0, map->memsize);
+	set->elements = 0;
 }
 
 /* Calculate the actual memory size of the set data */
@@ -105,7 +106,8 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 		goto nla_put_failure;
 	if (mtype_do_head(skb, map) ||
 	    nla_put_net32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref)) ||
-	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize)))
+	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize)) ||
+	    nla_put_net32(skb, IPSET_ATTR_ELEMENTS, htonl(set->elements)))
 		goto nla_put_failure;
 	if (unlikely(ip_set_put_flags(skb, set)))
 		goto nla_put_failure;
@@ -149,6 +151,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	if (ret == IPSET_ADD_FAILED) {
 		if (SET_WITH_TIMEOUT(set) &&
 		    ip_set_timeout_expired(ext_timeout(x, set))) {
+			set->elements--;
 			ret = 0;
 		} else if (!(flags & IPSET_FLAG_EXIST)) {
 			set_bit(e->id, map->members);
@@ -157,6 +160,8 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		/* Element is re-added, cleanup extensions */
 		ip_set_ext_destroy(set, x);
 	}
+	if (ret > 0)
+		set->elements--;
 
 	if (SET_WITH_TIMEOUT(set))
 #ifdef IP_SET_BITMAP_STORED_TIMEOUT
@@ -174,6 +179,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 
 	/* Activate element */
 	set_bit(e->id, map->members);
+	set->elements++;
 
 	return 0;
 }
@@ -190,6 +196,7 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		return -IPSET_ERR_EXIST;
 
 	ip_set_ext_destroy(set, x);
+	set->elements--;
 	if (SET_WITH_TIMEOUT(set) &&
 	    ip_set_timeout_expired(ext_timeout(x, set)))
 		return -IPSET_ERR_EXIST;
@@ -285,6 +292,7 @@ mtype_gc(unsigned long ul_set)
 			if (ip_set_timeout_expired(ext_timeout(x, set))) {
 				clear_bit(id, map->members);
 				ip_set_ext_destroy(set, x);
+				set->elements--;
 			}
 		}
 	spin_unlock_bh(&set->lock);
