@@ -220,6 +220,8 @@
 
 struct NCR5380_hostdata {
 	NCR5380_implementation_fields;		/* Board-specific data */
+	u8 __iomem *io;				/* Remapped 5380 address */
+	u8 __iomem *pdma_io;			/* Remapped PDMA address */
 	unsigned long poll_loops;		/* Register polling limit */
 	spinlock_t lock;			/* Protects this struct */
 	struct scsi_cmnd *connected;		/* Currently connected cmnd */
@@ -230,6 +232,8 @@ struct NCR5380_hostdata {
 	int flags;				/* Board-specific quirks */
 	int dma_len;				/* Requested length of DMA */
 	int read_overruns;	/* Transfer size reduction for DMA erratum */
+	unsigned long io_port;			/* Device IO port */
+	unsigned long base;			/* Device base address */
 	struct list_head unissued;		/* Waiting to be issued */
 	struct scsi_cmnd *selecting;		/* Cmnd to be connected */
 	struct list_head autosense;		/* Priority cmnd queue */
@@ -239,6 +243,7 @@ struct NCR5380_hostdata {
 	unsigned char id_mask;			/* 1 << Host ID */
 	unsigned char id_higher_mask;		/* All bits above id_mask */
 	unsigned char last_message;		/* Last Message Out */
+	unsigned long region_size;		/* Size of address/port range */
 	char info[256];
 };
 

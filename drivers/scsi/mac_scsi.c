@@ -28,8 +28,7 @@
 
 /* Definitions for the core NCR5380 driver. */
 
-#define NCR5380_implementation_fields   unsigned char *pdma_base; \
-                                        int pdma_residual
+#define NCR5380_implementation_fields   int pdma_residual
 
 #define NCR5380_read(reg)               macscsi_read(instance, reg)
 #define NCR5380_write(reg, value)       macscsi_write(instance, reg, value)
@@ -67,12 +66,16 @@ module_param(setup_toshiba_delay, int, 0);
 
 static inline char macscsi_read(struct Scsi_Host *instance, int reg)
 {
-	return in_8(instance->base + (reg << 4));
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+	return in_8(hostdata->io + (reg << 4));
 }
 
 static inline void macscsi_write(struct Scsi_Host *instance, int reg, int value)
 {
-	out_8(instance->base + (reg << 4), value);
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+	out_8(hostdata->io + (reg << 4), value);
 }
 
 #ifndef MODULE
@@ -171,7 +174,7 @@ static int macscsi_pread(struct Scsi_Host *instance,
                          unsigned char *dst, int len)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-	unsigned char *s = hostdata->pdma_base + (INPUT_DATA_REG << 4);
+	unsigned char *s = hostdata->pdma_io + (INPUT_DATA_REG << 4);
 	unsigned char *d = dst;
 	int n = len;
 	int transferred;
@@ -275,7 +278,7 @@ static int macscsi_pwrite(struct Scsi_Host *instance,
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char *s = src;
-	unsigned char *d = hostdata->pdma_base + (OUTPUT_DATA_REG << 4);
+	unsigned char *d = hostdata->pdma_io + (OUTPUT_DATA_REG << 4);
 	int n = len;
 	int transferred;
 
@@ -356,6 +359,7 @@ static struct scsi_host_template mac_scsi_template = {
 static int __init mac_scsi_probe(struct platform_device *pdev)
 {
 	struct Scsi_Host *instance;
+	struct NCR5380_hostdata *hostdata;
 	int error;
 	int host_flags = 0;
 	struct resource *irq, *pio_mem, *pdma_mem = NULL;
@@ -388,17 +392,18 @@ static int __init mac_scsi_probe(struct platform_device *pdev)
 	if (!instance)
 		return -ENOMEM;
 
-	instance->base = pio_mem->start;
 	if (irq)
 		instance->irq = irq->start;
 	else
 		instance->irq = NO_IRQ;
 
-	if (pdma_mem && setup_use_pdma) {
-		struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	hostdata = shost_priv(instance);
+	hostdata->base = pio_mem->start;
+	hostdata->io = (void *)pio_mem->start;
 
-		hostdata->pdma_base = (unsigned char *)pdma_mem->start;
-	} else
+	if (pdma_mem && setup_use_pdma)
+		hostdata->pdma_io = (void *)pdma_mem->start;
+	else
 		host_flags |= FLAG_NO_PSEUDO_DMA;
 
 	host_flags |= setup_toshiba_delay > 0 ? FLAG_TOSHIBA_DELAY : 0;

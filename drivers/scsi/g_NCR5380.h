@@ -17,18 +17,16 @@
 #define DRV_MODULE_NAME "g_NCR5380"
 
 #define NCR5380_read(reg) \
-	ioread8(((struct NCR5380_hostdata *)shost_priv(instance))->iomem + \
+	ioread8(((struct NCR5380_hostdata *)shost_priv(instance))->io + \
 		((struct NCR5380_hostdata *)shost_priv(instance))->offset + \
 		(reg))
 #define NCR5380_write(reg, value) \
-	iowrite8(value, ((struct NCR5380_hostdata *)shost_priv(instance))->iomem + \
+	iowrite8(value, ((struct NCR5380_hostdata *)shost_priv(instance))->io + \
 		((struct NCR5380_hostdata *)shost_priv(instance))->offset + \
 		(reg))
 
 #define NCR5380_implementation_fields \
 	int offset; \
-	void __iomem *iomem; \
-	resource_size_t iomem_size; \
 	int c400_ctl_status; \
 	int c400_blk_cnt; \
 	int c400_host_buf; \

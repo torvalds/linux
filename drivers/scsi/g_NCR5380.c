@@ -115,7 +115,7 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 	unsigned long region_size;
 	struct Scsi_Host *instance;
 	struct NCR5380_hostdata *hostdata;
-	void __iomem *iomem;
+	u8 __iomem *iomem;
 
 	switch (board) {
 	case BOARD_NCR5380:
@@ -201,11 +201,11 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 	}
 	hostdata = shost_priv(instance);
 
-	hostdata->iomem = iomem;
+	hostdata->io = iomem;
+	hostdata->region_size = region_size;
 
 	if (is_pmio) {
-		instance->io_port = base;
-		instance->n_io_port = region_size;
+		hostdata->io_port = base;
 		hostdata->io_width = 1; /* 8-bit PDMA by default */
 		hostdata->offset = 0;
 
@@ -215,7 +215,7 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 		 */
 		switch (board) {
 		case BOARD_NCR53C400:
-			instance->io_port += 8;
+			hostdata->io_port += 8;
 			hostdata->c400_ctl_status = 0;
 			hostdata->c400_blk_cnt = 1;
 			hostdata->c400_host_buf = 4;
@@ -231,8 +231,7 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 			break;
 		}
 	} else {
-		instance->base = base;
-		hostdata->iomem_size = region_size;
+		hostdata->base = base;
 		hostdata->offset = NCR53C400_mem_base;
 		switch (board) {
 		case BOARD_NCR53C400:
@@ -314,17 +313,21 @@ out_release:
 static void generic_NCR5380_release_resources(struct Scsi_Host *instance)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	void __iomem *iomem = hostdata->io;
+	unsigned long io_port = hostdata->io_port;
+	unsigned long base = hostdata->base;
+	unsigned long region_size = hostdata->region_size;
 
 	scsi_remove_host(instance);
 	if (instance->irq != NO_IRQ)
 		free_irq(instance->irq, instance);
 	NCR5380_exit(instance);
-	iounmap(hostdata->iomem);
-	if (instance->io_port)
-		release_region(instance->io_port, instance->n_io_port);
-	else
-		release_mem_region(instance->base, hostdata->iomem_size);
 	scsi_host_put(instance);
+	iounmap(iomem);
+	if (io_port)
+		release_region(io_port, region_size);
+	else
+		release_mem_region(base, region_size);
 }
 
 /**
@@ -356,15 +359,15 @@ static inline int generic_NCR5380_pread(struct Scsi_Host *instance,
 		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
 			; /* FIXME - no timeout */
 
-		if (instance->io_port && hostdata->io_width == 2)
-			insw(instance->io_port + hostdata->c400_host_buf,
+		if (hostdata->io_port && hostdata->io_width == 2)
+			insw(hostdata->io_port + hostdata->c400_host_buf,
 							dst + start, 64);
-		else if (instance->io_port)
-			insb(instance->io_port + hostdata->c400_host_buf,
+		else if (hostdata->io_port)
+			insb(hostdata->io_port + hostdata->c400_host_buf,
 							dst + start, 128);
 		else
 			memcpy_fromio(dst + start,
-				hostdata->iomem + NCR53C400_host_buffer, 128);
+				hostdata->io + NCR53C400_host_buffer, 128);
 
 		start += 128;
 		blocks--;
@@ -374,15 +377,15 @@ static inline int generic_NCR5380_pread(struct Scsi_Host *instance,
 		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
 			; /* FIXME - no timeout */
 
-		if (instance->io_port && hostdata->io_width == 2)
-			insw(instance->io_port + hostdata->c400_host_buf,
+		if (hostdata->io_port && hostdata->io_width == 2)
+			insw(hostdata->io_port + hostdata->c400_host_buf,
 							dst + start, 64);
-		else if (instance->io_port)
-			insb(instance->io_port + hostdata->c400_host_buf,
+		else if (hostdata->io_port)
+			insb(hostdata->io_port + hostdata->c400_host_buf,
 							dst + start, 128);
 		else
 			memcpy_fromio(dst + start,
-				hostdata->iomem + NCR53C400_host_buffer, 128);
+				hostdata->io + NCR53C400_host_buffer, 128);
 
 		start += 128;
 		blocks--;
@@ -431,14 +434,14 @@ static inline int generic_NCR5380_pwrite(struct Scsi_Host *instance,
 		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
 			; // FIXME - timeout
 
-		if (instance->io_port && hostdata->io_width == 2)
-			outsw(instance->io_port + hostdata->c400_host_buf,
+		if (hostdata->io_port && hostdata->io_width == 2)
+			outsw(hostdata->io_port + hostdata->c400_host_buf,
 							src + start, 64);
-		else if (instance->io_port)
-			outsb(instance->io_port + hostdata->c400_host_buf,
+		else if (hostdata->io_port)
+			outsb(hostdata->io_port + hostdata->c400_host_buf,
 							src + start, 128);
 		else
-			memcpy_toio(hostdata->iomem + NCR53C400_host_buffer,
+			memcpy_toio(hostdata->io + NCR53C400_host_buffer,
 			            src + start, 128);
 
 		start += 128;
@@ -448,14 +451,14 @@ static inline int generic_NCR5380_pwrite(struct Scsi_Host *instance,
 		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
 			; // FIXME - no timeout
 
-		if (instance->io_port && hostdata->io_width == 2)
-			outsw(instance->io_port + hostdata->c400_host_buf,
+		if (hostdata->io_port && hostdata->io_width == 2)
+			outsw(hostdata->io_port + hostdata->c400_host_buf,
 							src + start, 64);
-		else if (instance->io_port)
-			outsb(instance->io_port + hostdata->c400_host_buf,
+		else if (hostdata->io_port)
+			outsb(hostdata->io_port + hostdata->c400_host_buf,
 							src + start, 128);
 		else
-			memcpy_toio(hostdata->iomem + NCR53C400_host_buffer,
+			memcpy_toio(hostdata->io + NCR53C400_host_buffer,
 			            src + start, 128);
 
 		start += 128;

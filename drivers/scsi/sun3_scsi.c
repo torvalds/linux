@@ -428,6 +428,7 @@ static struct scsi_host_template sun3_scsi_template = {
 static int __init sun3_scsi_probe(struct platform_device *pdev)
 {
 	struct Scsi_Host *instance;
+	struct NCR5380_hostdata *hostdata;
 	int error;
 	struct resource *irq, *mem;
 	unsigned char *ioaddr;
@@ -502,8 +503,10 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 		goto fail_alloc;
 	}
 
-	instance->io_port = (unsigned long)ioaddr;
 	instance->irq = irq->start;
+
+	hostdata = shost_priv(instance);
+	hostdata->base = (unsigned long)ioaddr;
 
 	error = NCR5380_init(instance, host_flags);
 	if (error)

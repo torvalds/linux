@@ -34,8 +34,10 @@
  * Definitions for the generic 5380 driver.
  */
 
-#define NCR5380_read(reg)		inb(instance->io_port + reg)
-#define NCR5380_write(reg, value)	outb(value, instance->io_port + reg)
+#define priv(instance)	((struct NCR5380_hostdata *)shost_priv(instance))
+
+#define NCR5380_read(reg)		inb(priv(instance)->base + (reg))
+#define NCR5380_write(reg, value)	outb(value, priv(instance)->base + (reg))
 
 #define NCR5380_dma_xfer_len(instance, cmd, phase)	(0)
 #define NCR5380_dma_recv_setup(instance, dst, len)	(0)
@@ -71,6 +73,7 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 			      const struct pci_device_id *id)
 {
 	struct Scsi_Host *shost;
+	struct NCR5380_hostdata *hostdata;
 	unsigned long io;
 	int error = -ENODEV;
 
@@ -88,7 +91,9 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 			sizeof(struct NCR5380_hostdata));
 	if (!shost)
 		goto out_release_region;       
-	shost->io_port = io;
+
+	hostdata = shost_priv(shost);
+	hostdata->base = io;
 
 	/* This card does not seem to raise an interrupt on pdev->irq.
 	 * Steam-powered SCSI controllers run without an IRQ anyway.
@@ -125,7 +130,8 @@ out_host_put:
 static void dmx3191d_remove_one(struct pci_dev *pdev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
-	unsigned long io = shost->io_port;
+	struct NCR5380_hostdata *hostdata = shost_priv(shost);
+	unsigned long io = hostdata->base;
 
 	scsi_remove_host(shost);
 
