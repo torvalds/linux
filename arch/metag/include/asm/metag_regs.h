@@ -179,7 +179,7 @@
 ;   is best to dump these registers immediately at the start of a routine
 ;   using a MSETL or SETL instruction-
 ;
-;   MSETL   [A0StP],D0Ar6,D0Ar4,D0Ar2; Only dump argments expected
+;   MSETL   [A0StP],D0Ar6,D0Ar4,D0Ar2; Only dump arguments expected
 ;or SETL    [A0StP+#8++],D0Ar2       ; Up to two 32-bit args expected
 ;
 ; For non-leaf routines it is always necessary to save and restore at least

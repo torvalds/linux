@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/acpi.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -39,6 +40,15 @@
 #define RT5677_PR_SPACING 0x100
 
 #define RT5677_PR_BASE (RT5677_PR_RANGE_BASE + (0 * RT5677_PR_SPACING))
+
+/* GPIO indexes defined by ACPI */
+enum {
+	RT5677_GPIO_PLUG_DET		= 0,
+	RT5677_GPIO_MIC_PRESENT_L	= 1,
+	RT5677_GPIO_HOTWORD_DET_L	= 2,
+	RT5677_GPIO_DSP_INT		= 3,
+	RT5677_GPIO_HP_AMP_SHDN_L	= 4,
+};
 
 static const struct regmap_range_cfg rt5677_ranges[] = {
 	{
@@ -4657,7 +4667,7 @@ static int rt5677_to_irq(struct gpio_chip *chip, unsigned offset)
 	return regmap_irq_get_virq(data, irq);
 }
 
-static struct gpio_chip rt5677_template_chip = {
+static const struct gpio_chip rt5677_template_chip = {
 	.label			= "rt5677",
 	.owner			= THIS_MODULE,
 	.direction_output	= rt5677_gpio_direction_out,
@@ -4974,12 +4984,14 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5677 = {
 	.resume = rt5677_resume,
 	.set_bias_level = rt5677_set_bias_level,
 	.idle_bias_off = true,
-	.controls = rt5677_snd_controls,
-	.num_controls = ARRAY_SIZE(rt5677_snd_controls),
-	.dapm_widgets = rt5677_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt5677_dapm_widgets),
-	.dapm_routes = rt5677_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt5677_dapm_routes),
+	.component_driver = {
+		.controls		= rt5677_snd_controls,
+		.num_controls		= ARRAY_SIZE(rt5677_snd_controls),
+		.dapm_widgets		= rt5677_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rt5677_dapm_widgets),
+		.dapm_routes		= rt5677_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rt5677_dapm_routes),
+	},
 };
 
 static const struct regmap_config rt5677_regmap_physical = {
@@ -5018,9 +5030,46 @@ static const struct regmap_config rt5677_regmap = {
 static const struct i2c_device_id rt5677_i2c_id[] = {
 	{ "rt5677", RT5677 },
 	{ "rt5676", RT5676 },
+	{ "RT5677CE:00", RT5677 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5677_i2c_id);
+
+static const struct acpi_gpio_params plug_det_gpio = { RT5677_GPIO_PLUG_DET, 0, false };
+static const struct acpi_gpio_params mic_present_gpio = { RT5677_GPIO_MIC_PRESENT_L, 0, false };
+static const struct acpi_gpio_params headphone_enable_gpio = { RT5677_GPIO_HP_AMP_SHDN_L, 0, false };
+
+static const struct acpi_gpio_mapping bdw_rt5677_gpios[] = {
+	{ "plug-det-gpios", &plug_det_gpio, 1 },
+	{ "mic-present-gpios", &mic_present_gpio, 1 },
+	{ "headphone-enable-gpios", &headphone_enable_gpio, 1 },
+	{ NULL },
+};
+
+static void rt5677_read_acpi_properties(struct rt5677_priv *rt5677,
+		struct device *dev)
+{
+	int ret;
+	u32 val;
+
+	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev),
+			bdw_rt5677_gpios);
+	if (ret)
+		dev_warn(dev, "Failed to add driver gpios\n");
+
+	if (!device_property_read_u32(dev, "DCLK", &val))
+		rt5677->pdata.dmic2_clk_pin = val;
+
+	rt5677->pdata.in1_diff = device_property_read_bool(dev, "IN1");
+	rt5677->pdata.in2_diff = device_property_read_bool(dev, "IN2");
+	rt5677->pdata.lout1_diff = device_property_read_bool(dev, "OUT1");
+	rt5677->pdata.lout2_diff = device_property_read_bool(dev, "OUT2");
+	rt5677->pdata.lout3_diff = device_property_read_bool(dev, "OUT3");
+
+	device_property_read_u32(dev, "JD1", &rt5677->pdata.jd1_gpio);
+	device_property_read_u32(dev, "JD2", &rt5677->pdata.jd2_gpio);
+	device_property_read_u32(dev, "JD3", &rt5677->pdata.jd3_gpio);
+}
 
 static void rt5677_read_device_properties(struct rt5677_priv *rt5677,
 		struct device *dev)
@@ -5127,8 +5176,12 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata)
 		rt5677->pdata = *pdata;
-	else
+	else if (i2c->dev.of_node)
 		rt5677_read_device_properties(rt5677, &i2c->dev);
+	else if (ACPI_HANDLE(&i2c->dev))
+		rt5677_read_acpi_properties(rt5677, &i2c->dev);
+	else
+		return -EINVAL;
 
 	/* pow-ldo2 and reset are optional. The codec pins may be statically
 	 * connected on the board without gpios. If the gpio device property

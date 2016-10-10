@@ -25,6 +25,7 @@ static int l2_line_sz;
 int ioc_exists;
 volatile int slc_enable = 1, ioc_enable = 1;
 unsigned long perip_base = ARC_UNCACHED_ADDR_SPACE; /* legacy value for boot */
+unsigned long perip_end = 0xFFFFFFFF; /* legacy value */
 
 void (*_cache_line_loop_ic_fn)(phys_addr_t paddr, unsigned long vaddr,
 			       unsigned long sz, const int cacheop);
@@ -76,7 +77,6 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
 static void read_decode_cache_bcr_arcv2(int cpu)
 {
 	struct cpuinfo_arc_cache *p_slc = &cpuinfo_arc700[cpu].slc;
-	struct bcr_generic uncached_space;
 	struct bcr_generic sbcr;
 
 	struct bcr_slc_cfg {
@@ -95,6 +95,15 @@ static void read_decode_cache_bcr_arcv2(int cpu)
 #endif
 	} cbcr;
 
+	struct bcr_volatile {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+		unsigned int start:4, limit:4, pad:22, order:1, disable:1;
+#else
+		unsigned int disable:1, order:1, pad:22, limit:4, start:4;
+#endif
+	} vol;
+
+
 	READ_BCR(ARC_REG_SLC_BCR, sbcr);
 	if (sbcr.ver) {
 		READ_BCR(ARC_REG_SLC_CFG, slc_cfg);
@@ -107,10 +116,14 @@ static void read_decode_cache_bcr_arcv2(int cpu)
 	if (cbcr.c && ioc_enable)
 		ioc_exists = 1;
 
-	/* Legacy Data Uncached BCR is deprecated from v3 onwards */
-	READ_BCR(ARC_REG_D_UNCACH_BCR, uncached_space);
-	if (uncached_space.ver > 2)
-		perip_base = read_aux_reg(AUX_NON_VOL) & 0xF0000000;
+	/* HS 2.0 didn't have AUX_VOL */
+	if (cpuinfo_arc700[cpu].core.family > 0x51) {
+		READ_BCR(AUX_VOL, vol);
+		perip_base = vol.start << 28;
+		/* HS 3.0 has limit and strict-ordering fields */
+		if (cpuinfo_arc700[cpu].core.family > 0x52)
+			perip_end = (vol.limit << 28) - 1;
+	}
 }
 
 void read_decode_cache_bcr(void)
@@ -920,6 +933,15 @@ void arc_cache_init(void)
 	char str[256];
 
 	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
+
+	/*
+	 * Only master CPU needs to execute rest of function:
+	 *  - Assume SMP so all cores will have same cache config so
+	 *    any geomtry checks will be same for all
+	 *  - IOC setup / dma callbacks only need to be setup once
+	 */
+	if (cpu)
+		return;
 
 	if (IS_ENABLED(CONFIG_ARC_HAS_ICACHE)) {
 		struct cpuinfo_arc_cache *ic = &cpuinfo_arc700[cpu].icache;

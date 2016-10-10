@@ -782,7 +782,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 	struct fb_info *info;
 
-	if (!ifbdev)
+	if (!ifbdev || !ifbdev->fb)
 		return;
 
 	info = ifbdev->helper.fbdev;
@@ -827,31 +827,28 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 
 void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	if (dev_priv->fbdev)
-		drm_fb_helper_hotplug_event(&dev_priv->fbdev->helper);
+	struct intel_fbdev *ifbdev = to_i915(dev)->fbdev;
+
+	if (ifbdev && ifbdev->fb)
+		drm_fb_helper_hotplug_event(&ifbdev->helper);
 }
 
 void intel_fbdev_restore_mode(struct drm_device *dev)
 {
-	int ret;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_fbdev *ifbdev = dev_priv->fbdev;
-	struct drm_fb_helper *fb_helper;
+	struct intel_fbdev *ifbdev = to_i915(dev)->fbdev;
 
 	if (!ifbdev)
 		return;
 
 	intel_fbdev_sync(ifbdev);
+	if (!ifbdev->fb)
+		return;
 
-	fb_helper = &ifbdev->helper;
-
-	ret = drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
-	if (ret) {
+	if (drm_fb_helper_restore_fbdev_mode_unlocked(&ifbdev->helper)) {
 		DRM_DEBUG("failed to restore crtc mode\n");
 	} else {
-		mutex_lock(&fb_helper->dev->struct_mutex);
+		mutex_lock(&dev->struct_mutex);
 		intel_fb_obj_invalidate(ifbdev->fb->obj, ORIGIN_GTT);
-		mutex_unlock(&fb_helper->dev->struct_mutex);
+		mutex_unlock(&dev->struct_mutex);
 	}
 }

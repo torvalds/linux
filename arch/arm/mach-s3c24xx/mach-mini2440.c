@@ -497,9 +497,28 @@ static struct i2c_board_info mini2440_i2c_devs[] __initdata = {
 	},
 };
 
+static struct uda134x_platform_data s3c24xx_uda134x = {
+	.l3 = {
+		.gpio_clk = S3C2410_GPB(4),
+		.gpio_data = S3C2410_GPB(3),
+		.gpio_mode = S3C2410_GPB(2),
+		.use_gpios = 1,
+		.data_hold = 1,
+		.data_setup = 1,
+		.clock_high = 1,
+		.mode_hold = 1,
+		.mode = 1,
+		.mode_setup = 1,
+	},
+	.model = UDA134X_UDA1341,
+};
+
 static struct platform_device uda1340_codec = {
 		.name = "uda134x-codec",
 		.id = -1,
+		.dev = {
+			.platform_data	= &s3c24xx_uda134x,
+		},
 };
 
 static struct platform_device *mini2440_devices[] __initdata = {
@@ -516,6 +535,7 @@ static struct platform_device *mini2440_devices[] __initdata = {
 	&mini2440_button_device,
 	&s3c_device_nand,
 	&s3c_device_sdi,
+	&s3c2440_device_dma,
 	&s3c_device_iis,
 	&uda1340_codec,
 	&mini2440_audio,

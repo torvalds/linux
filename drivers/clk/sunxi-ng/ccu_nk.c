@@ -14,9 +14,9 @@
 #include "ccu_gate.h"
 #include "ccu_nk.h"
 
-void ccu_nk_find_best(unsigned long parent, unsigned long rate,
-		      unsigned int max_n, unsigned int max_k,
-		      unsigned int *n, unsigned int *k)
+static void ccu_nk_find_best(unsigned long parent, unsigned long rate,
+			     unsigned int max_n, unsigned int max_k,
+			     unsigned int *n, unsigned int *k)
 {
 	unsigned long best_rate = 0;
 	unsigned int best_k = 0, best_n = 0;

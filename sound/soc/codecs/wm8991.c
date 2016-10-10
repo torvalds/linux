@@ -111,14 +111,24 @@ static bool wm8991_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
-static const DECLARE_TLV_DB_LINEAR(rec_mix_tlv, -1500, 600);
-static const DECLARE_TLV_DB_LINEAR(in_pga_tlv, -1650, 3000);
-static const DECLARE_TLV_DB_LINEAR(out_mix_tlv, 0, -2100);
-static const DECLARE_TLV_DB_LINEAR(out_pga_tlv, -7300, 600);
-static const DECLARE_TLV_DB_LINEAR(out_omix_tlv, -600, 0);
-static const DECLARE_TLV_DB_LINEAR(out_dac_tlv, -7163, 0);
-static const DECLARE_TLV_DB_LINEAR(in_adc_tlv, -7163, 1763);
-static const DECLARE_TLV_DB_LINEAR(out_sidetone_tlv, -3600, 0);
+static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(in_pga_tlv, -1650, 150, 0);
+static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(out_mix_tlv, -2100, 300, 0);
+static const SNDRV_CTL_TLVD_DECLARE_DB_RANGE(out_pga_tlv,
+	0x00, 0x2f, SNDRV_CTL_TLVD_DB_SCALE_ITEM(SNDRV_CTL_TLVD_DB_GAIN_MUTE, 0, 1),
+	0x30, 0x7f, SNDRV_CTL_TLVD_DB_SCALE_ITEM(-7300, 100, 0),
+);
+static const SNDRV_CTL_TLVD_DECLARE_DB_RANGE(out_dac_tlv,
+	0x00, 0xbf, SNDRV_CTL_TLVD_DB_SCALE_ITEM(-71625, 375, 1),
+	0xc0, 0xff, SNDRV_CTL_TLVD_DB_SCALE_ITEM(0, 0, 0),
+);
+static const SNDRV_CTL_TLVD_DECLARE_DB_RANGE(in_adc_tlv,
+	0x00, 0xef, SNDRV_CTL_TLVD_DB_SCALE_ITEM(-71625, 375, 1),
+	0xf0, 0xff, SNDRV_CTL_TLVD_DB_SCALE_ITEM(17625, 0, 0),
+);
+static const SNDRV_CTL_TLVD_DECLARE_DB_RANGE(out_sidetone_tlv,
+	0x00, 0x0c, SNDRV_CTL_TLVD_DB_SCALE_ITEM(-3600, 300, 0),
+	0x0d, 0x0f, SNDRV_CTL_TLVD_DB_SCALE_ITEM(0, 0, 0),
+);
 
 static int wm899x_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
@@ -398,7 +408,7 @@ static int outmixer_event(struct snd_soc_dapm_widget *w,
 }
 
 /* INMIX dB values */
-static const DECLARE_TLV_DB_LINEAR(in_mix_tlv, -1200, 600);
+static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(in_mix_tlv, -1200, 300, 1);
 
 /* Left In PGA Connections */
 static const struct snd_kcontrol_new wm8991_dapm_lin12_pga_controls[] = {
@@ -1232,16 +1242,18 @@ static struct snd_soc_dai_driver wm8991_dai = {
 	.ops = &wm8991_ops
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8991 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8991 = {
 	.set_bias_level = wm8991_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = wm8991_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8991_snd_controls),
-	.dapm_widgets = wm8991_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8991_dapm_widgets),
-	.dapm_routes = wm8991_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8991_dapm_routes),
+	.component_driver = {
+		.controls		= wm8991_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8991_snd_controls),
+		.dapm_widgets		= wm8991_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8991_dapm_widgets),
+		.dapm_routes		= wm8991_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8991_dapm_routes),
+	},
 };
 
 static const struct regmap_config wm8991_regmap = {

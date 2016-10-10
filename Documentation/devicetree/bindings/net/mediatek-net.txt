@@ -24,14 +24,17 @@ Required properties:
 Optional properties:
 - interrupt-parent: Should be the phandle for the interrupt controller
   that services interrupts for this device
-
+- mediatek,hwlro: the capability if the hardware supports LRO functions
 
 * Ethernet MAC node
 
 Required properties:
 - compatible: Should be "mediatek,eth-mac"
 - reg: The number of the MAC
-- phy-handle: see ethernet.txt file in the same directory.
+- phy-handle: see ethernet.txt file in the same directory and
+	the phy-mode "trgmii" required being provided when reg
+	is equal to 0 and the MAC uses fixed-link to connect
+	with internal switch such as MT7530.
 
 Example:
 
@@ -51,6 +54,7 @@ eth: ethernet@1b100000 {
 	reset-names = "eth";
 	mediatek,ethsys = <&ethsys>;
 	mediatek,pctl = <&syscfg_pctl_a>;
+	mediatek,hwlro;
 	#address-cells = <1>;
 	#size-cells = <0>;
 

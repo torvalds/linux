@@ -221,7 +221,7 @@ int cxl_pci_vphb_add(struct cxl_afu *afu)
 	/* Setup the PHB using arch provided callback */
 	phb->ops = &cxl_pcie_pci_ops;
 	phb->cfg_addr = NULL;
-	phb->cfg_data = 0;
+	phb->cfg_data = NULL;
 	phb->private_data = afu;
 	phb->controller_ops = cxl_pci_controller_ops;
 
@@ -229,6 +229,11 @@ int cxl_pci_vphb_add(struct cxl_afu *afu)
 	pcibios_scan_phb(phb);
 	if (phb->bus == NULL)
 		return -ENXIO;
+
+	/* Set release hook on root bus */
+	pci_set_host_bridge_release(to_pci_host_bridge(phb->bus->bridge),
+				    pcibios_free_controller_deferred,
+				    (void *) phb);
 
 	/* Claim resources. This might need some rework as well depending
 	 * whether we are doing probe-only or not, like assigning unassigned
@@ -256,7 +261,10 @@ void cxl_pci_vphb_remove(struct cxl_afu *afu)
 	afu->phb = NULL;
 
 	pci_remove_root_bus(phb->bus);
-	pcibios_free_controller(phb);
+	/*
+	 * We don't free phb here - that's handled by
+	 * pcibios_free_controller_deferred()
+	 */
 }
 
 static bool _cxl_pci_is_vphb_device(struct pci_controller *phb)

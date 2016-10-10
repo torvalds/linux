@@ -11,6 +11,12 @@
  */
 
 / {
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0>;
+	};
+
 	pwmleds {
 		compatible = "pwm-leds";
 
@@ -223,7 +229,9 @@
 };
 
 &gpmc {
-	ranges = <0 0 0x00000000 0x20000000>;
+	ranges = <0 0 0x30000000 0x1000000>,	/* CS0 */
+		 <4 0 0x2b000000 0x1000000>,	/* CS4 */
+		 <5 0 0x2c000000 0x1000000>;	/* CS5 */
 
 	nand@0,0 {
 		compatible = "ti,omap2-nand";

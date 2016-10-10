@@ -72,8 +72,7 @@ static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
 		/* clear out bits after (52) [0....52.....63] */
 		va &= ~((1ul << (64 - 52)) - 1);
 		va |= ssize << 8;
-		sllp = ((mmu_psize_defs[apsize].sllp & SLB_VSID_L) >> 6) |
-			((mmu_psize_defs[apsize].sllp & SLB_VSID_LP) >> 4);
+		sllp = get_sllp_encoding(apsize);
 		va |= sllp << 5;
 		asm volatile(ASM_FTR_IFCLR("tlbie %0,0", PPC_TLBIE(%1,%0), %2)
 			     : : "r" (va), "r"(0), "i" (CPU_FTR_ARCH_206)
@@ -122,8 +121,7 @@ static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
 		/* clear out bits after(52) [0....52.....63] */
 		va &= ~((1ul << (64 - 52)) - 1);
 		va |= ssize << 8;
-		sllp = ((mmu_psize_defs[apsize].sllp & SLB_VSID_L) >> 6) |
-			((mmu_psize_defs[apsize].sllp & SLB_VSID_LP) >> 4);
+		sllp = get_sllp_encoding(apsize);
 		va |= sllp << 5;
 		asm volatile(".long 0x7c000224 | (%0 << 11) | (0 << 21)"
 			     : : "r"(va) : "memory");
@@ -495,36 +493,6 @@ static void native_hugepage_invalidate(unsigned long vsid,
 }
 #endif
 
-static inline int __hpte_actual_psize(unsigned int lp, int psize)
-{
-	int i, shift;
-	unsigned int mask;
-
-	/* start from 1 ignoring MMU_PAGE_4K */
-	for (i = 1; i < MMU_PAGE_COUNT; i++) {
-
-		/* invalid penc */
-		if (mmu_psize_defs[psize].penc[i] == -1)
-			continue;
-		/*
-		 * encoding bits per actual page size
-		 *        PTE LP     actual page size
-		 *    rrrr rrrz		>=8KB
-		 *    rrrr rrzz		>=16KB
-		 *    rrrr rzzz		>=32KB
-		 *    rrrr zzzz		>=64KB
-		 * .......
-		 */
-		shift = mmu_psize_defs[i].shift - LP_SHIFT;
-		if (shift > LP_BITS)
-			shift = LP_BITS;
-		mask = (1 << shift) - 1;
-		if ((lp & mask) == mmu_psize_defs[psize].penc[i])
-			return i;
-	}
-	return -1;
-}
-
 static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
 			int *psize, int *apsize, int *ssize, unsigned long *vpn)
 {
@@ -540,16 +508,8 @@ static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
 		size   = MMU_PAGE_4K;
 		a_size = MMU_PAGE_4K;
 	} else {
-		for (size = 0; size < MMU_PAGE_COUNT; size++) {
-
-			/* valid entries have a shift value */
-			if (!mmu_psize_defs[size].shift)
-				continue;
-
-			a_size = __hpte_actual_psize(lp, size);
-			if (a_size != -1)
-				break;
-		}
+		size = hpte_page_sizes[lp] & 0xf;
+		a_size = hpte_page_sizes[lp] >> 4;
 	}
 	/* This works for all page sizes, and for 256M and 1T segments */
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
@@ -749,5 +709,5 @@ void __init hpte_init_native(void)
 	mmu_hash_ops.hugepage_invalidate   = native_hugepage_invalidate;
 
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		ppc_md.register_process_table = native_register_proc_table;
+		register_process_table = native_register_proc_table;
 }

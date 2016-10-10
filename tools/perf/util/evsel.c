@@ -253,6 +253,34 @@ struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
+struct perf_evsel *perf_evsel__new_cycles(void)
+{
+	struct perf_event_attr attr = {
+		.type	= PERF_TYPE_HARDWARE,
+		.config	= PERF_COUNT_HW_CPU_CYCLES,
+	};
+	struct perf_evsel *evsel;
+
+	event_attr_init(&attr);
+
+	perf_event_attr__set_max_precise_ip(&attr);
+
+	evsel = perf_evsel__new(&attr);
+	if (evsel == NULL)
+		goto out;
+
+	/* use asprintf() because free(evsel) assumes name is allocated */
+	if (asprintf(&evsel->name, "cycles%.*s",
+		     attr.precise_ip ? attr.precise_ip + 1 : 0, ":ppp") < 0)
+		goto error_free;
+out:
+	return evsel;
+error_free:
+	perf_evsel__delete(evsel);
+	evsel = NULL;
+	goto out;
+}
+
 /*
  * Returns pointer with encoded error via <linux/err.h> interface.
  */
@@ -479,17 +507,17 @@ static int __perf_evsel__hw_cache_name(u64 config, char *bf, size_t size)
 	u8 op, result, type = (config >>  0) & 0xff;
 	const char *err = "unknown-ext-hardware-cache-type";
 
-	if (type > PERF_COUNT_HW_CACHE_MAX)
+	if (type >= PERF_COUNT_HW_CACHE_MAX)
 		goto out_err;
 
 	op = (config >>  8) & 0xff;
 	err = "unknown-ext-hardware-cache-op";
-	if (op > PERF_COUNT_HW_CACHE_OP_MAX)
+	if (op >= PERF_COUNT_HW_CACHE_OP_MAX)
 		goto out_err;
 
 	result = (config >> 16) & 0xff;
 	err = "unknown-ext-hardware-cache-result";
-	if (result > PERF_COUNT_HW_CACHE_RESULT_MAX)
+	if (result >= PERF_COUNT_HW_CACHE_RESULT_MAX)
 		goto out_err;
 
 	err = "invalid-cache";
@@ -854,7 +882,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 		perf_evsel__set_sample_bit(evsel, REGS_INTR);
 	}
 
-	if (target__has_cpu(&opts->target))
+	if (target__has_cpu(&opts->target) || opts->sample_cpu)
 		perf_evsel__set_sample_bit(evsel, CPU);
 
 	if (opts->period)
@@ -1017,21 +1045,31 @@ int perf_evsel__set_filter(struct perf_evsel *evsel, const char *filter)
 	return -1;
 }
 
-int perf_evsel__append_filter(struct perf_evsel *evsel,
-			      const char *op, const char *filter)
+static int perf_evsel__append_filter(struct perf_evsel *evsel,
+				     const char *fmt, const char *filter)
 {
 	char *new_filter;
 
 	if (evsel->filter == NULL)
 		return perf_evsel__set_filter(evsel, filter);
 
-	if (asprintf(&new_filter,"(%s) %s (%s)", evsel->filter, op, filter) > 0) {
+	if (asprintf(&new_filter, fmt, evsel->filter, filter) > 0) {
 		free(evsel->filter);
 		evsel->filter = new_filter;
 		return 0;
 	}
 
 	return -1;
+}
+
+int perf_evsel__append_tp_filter(struct perf_evsel *evsel, const char *filter)
+{
+	return perf_evsel__append_filter(evsel, "(%s) && (%s)", filter);
+}
+
+int perf_evsel__append_addr_filter(struct perf_evsel *evsel, const char *filter)
+{
+	return perf_evsel__append_filter(evsel, "%s,%s", filter);
 }
 
 int perf_evsel__enable(struct perf_evsel *evsel)
@@ -1700,7 +1738,6 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 	data->cpu = data->pid = data->tid = -1;
 	data->stream_id = data->id = data->time = -1ULL;
 	data->period = evsel->attr.sample_period;
-	data->weight = 0;
 	data->cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
 	if (event->header.type != PERF_RECORD_SAMPLE) {
@@ -1907,7 +1944,6 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 		}
 	}
 
-	data->weight = 0;
 	if (type & PERF_SAMPLE_WEIGHT) {
 		OVERFLOW_CHECK_u64(array);
 		data->weight = *array;

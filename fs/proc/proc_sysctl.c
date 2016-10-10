@@ -72,7 +72,7 @@ static DEFINE_SPINLOCK(sysctl_lock);
 
 static void drop_sysctl_table(struct ctl_table_header *header);
 static int sysctl_follow_link(struct ctl_table_header **phead,
-	struct ctl_table **pentry, struct nsproxy *namespaces);
+	struct ctl_table **pentry);
 static int insert_links(struct ctl_table_header *head);
 static void put_links(struct ctl_table_header *header);
 
@@ -319,11 +319,11 @@ static void sysctl_head_finish(struct ctl_table_header *head)
 }
 
 static struct ctl_table_set *
-lookup_header_set(struct ctl_table_root *root, struct nsproxy *namespaces)
+lookup_header_set(struct ctl_table_root *root)
 {
 	struct ctl_table_set *set = &root->default_set;
 	if (root->lookup)
-		set = root->lookup(root, namespaces);
+		set = root->lookup(root);
 	return set;
 }
 
@@ -430,6 +430,7 @@ static int sysctl_perm(struct ctl_table_header *head, struct ctl_table *table, i
 static struct inode *proc_sys_make_inode(struct super_block *sb,
 		struct ctl_table_header *head, struct ctl_table *table)
 {
+	struct ctl_table_root *root = head->root;
 	struct inode *inode;
 	struct proc_inode *ei;
 
@@ -457,6 +458,10 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 		if (is_empty_dir(head))
 			make_empty_dir_inode(inode);
 	}
+
+	if (root->set_ownership)
+		root->set_ownership(head, table, &inode->i_uid, &inode->i_gid);
+
 out:
 	return inode;
 }
@@ -474,7 +479,7 @@ static struct dentry *proc_sys_lookup(struct inode *dir, struct dentry *dentry,
 {
 	struct ctl_table_header *head = grab_header(dir);
 	struct ctl_table_header *h = NULL;
-	struct qstr *name = &dentry->d_name;
+	const struct qstr *name = &dentry->d_name;
 	struct ctl_table *p;
 	struct inode *inode;
 	struct dentry *err = ERR_PTR(-ENOENT);
@@ -491,7 +496,7 @@ static struct dentry *proc_sys_lookup(struct inode *dir, struct dentry *dentry,
 		goto out;
 
 	if (S_ISLNK(p->mode)) {
-		ret = sysctl_follow_link(&h, &p, current->nsproxy);
+		ret = sysctl_follow_link(&h, &p);
 		err = ERR_PTR(ret);
 		if (ret)
 			goto out;
@@ -659,7 +664,7 @@ static bool proc_sys_link_fill_cache(struct file *file,
 
 	if (S_ISLNK(table->mode)) {
 		/* It is not an error if we can not follow the link ignore it */
-		int err = sysctl_follow_link(&head, &table, current->nsproxy);
+		int err = sysctl_follow_link(&head, &table);
 		if (err)
 			goto out;
 	}
@@ -834,7 +839,7 @@ static int sysctl_is_seen(struct ctl_table_header *p)
 	return res;
 }
 
-static int proc_sys_compare(const struct dentry *parent, const struct dentry *dentry,
+static int proc_sys_compare(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	struct ctl_table_header *head;
@@ -976,7 +981,7 @@ static struct ctl_dir *xlate_dir(struct ctl_table_set *set, struct ctl_dir *dir)
 }
 
 static int sysctl_follow_link(struct ctl_table_header **phead,
-	struct ctl_table **pentry, struct nsproxy *namespaces)
+	struct ctl_table **pentry)
 {
 	struct ctl_table_header *head;
 	struct ctl_table_root *root;
@@ -988,7 +993,7 @@ static int sysctl_follow_link(struct ctl_table_header **phead,
 	ret = 0;
 	spin_lock(&sysctl_lock);
 	root = (*pentry)->data;
-	set = lookup_header_set(root, namespaces);
+	set = lookup_header_set(root);
 	dir = xlate_dir(set, (*phead)->parent);
 	if (IS_ERR(dir))
 		ret = PTR_ERR(dir);

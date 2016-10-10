@@ -58,6 +58,9 @@ struct nfs_clone_mount {
  */
 #define NFS_UNSPEC_PORT		(-1)
 
+#define NFS_UNSPEC_RETRANS	(UINT_MAX)
+#define NFS_UNSPEC_TIMEO	(UINT_MAX)
+
 /*
  * Maximum number of pages that readdir can use for creating
  * a vmapped array of pages.
@@ -156,7 +159,7 @@ struct nfs_client *nfs_get_client(const struct nfs_client_initdata *,
 int nfs_probe_fsinfo(struct nfs_server *server, struct nfs_fh *, struct nfs_fattr *);
 void nfs_server_insert_lists(struct nfs_server *);
 void nfs_server_remove_lists(struct nfs_server *);
-void nfs_init_timeout_values(struct rpc_timeout *, int, unsigned int, unsigned int);
+void nfs_init_timeout_values(struct rpc_timeout *to, int proto, int timeo, int retrans);
 int nfs_init_server_rpcclient(struct nfs_server *, const struct rpc_timeout *t,
 		rpc_authflavor_t);
 struct nfs_server *nfs_alloc_server(void);
@@ -362,8 +365,6 @@ int nfs_rename(struct inode *, struct dentry *, struct inode *, struct dentry *)
 int nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync);
 loff_t nfs_file_llseek(struct file *, loff_t, int);
 ssize_t nfs_file_read(struct kiocb *, struct iov_iter *);
-ssize_t nfs_file_splice_read(struct file *, loff_t *, struct pipe_inode_info *,
-			     size_t, unsigned int);
 int nfs_file_mmap(struct file *, struct vm_area_struct *);
 ssize_t nfs_file_write(struct kiocb *, struct iov_iter *);
 int nfs_file_release(struct inode *, struct file *);
@@ -678,11 +679,11 @@ unsigned int nfs_page_length(struct page *page)
 	loff_t i_size = i_size_read(page_file_mapping(page)->host);
 
 	if (i_size > 0) {
-		pgoff_t page_index = page_file_index(page);
+		pgoff_t index = page_index(page);
 		pgoff_t end_index = (i_size - 1) >> PAGE_SHIFT;
-		if (page_index < end_index)
+		if (index < end_index)
 			return PAGE_SIZE;
-		if (page_index == end_index)
+		if (index == end_index)
 			return ((i_size - 1) & ~PAGE_MASK) + 1;
 	}
 	return 0;

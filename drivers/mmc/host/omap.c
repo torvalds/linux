@@ -1016,14 +1016,16 @@ mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 
 		/* Only reconfigure if we have a different burst size */
 		if (*bp != burst) {
-			struct dma_slave_config cfg;
-
-			cfg.src_addr = host->phys_base + OMAP_MMC_REG(host, DATA);
-			cfg.dst_addr = host->phys_base + OMAP_MMC_REG(host, DATA);
-			cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
-			cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
-			cfg.src_maxburst = burst;
-			cfg.dst_maxburst = burst;
+			struct dma_slave_config cfg = {
+				.src_addr = host->phys_base +
+					    OMAP_MMC_REG(host, DATA),
+				.dst_addr = host->phys_base +
+					    OMAP_MMC_REG(host, DATA),
+				.src_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES,
+				.dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES,
+				.src_maxburst = burst,
+				.dst_maxburst = burst,
+			};
 
 			if (dmaengine_slave_config(c, &cfg))
 				goto use_pio;

@@ -78,6 +78,7 @@ EXPORT_SYMBOL(get_pci_dma_ops);
 static int get_phb_number(struct device_node *dn)
 {
 	int ret, phb_id = -1;
+	u32 prop_32;
 	u64 prop;
 
 	/*
@@ -86,8 +87,10 @@ static int get_phb_number(struct device_node *dn)
 	 * reading "ibm,opal-phbid", only present in OPAL environment.
 	 */
 	ret = of_property_read_u64(dn, "ibm,opal-phbid", &prop);
-	if (ret)
-		ret = of_property_read_u32_index(dn, "reg", 1, (u32 *)&prop);
+	if (ret) {
+		ret = of_property_read_u32_index(dn, "reg", 1, &prop_32);
+		prop = prop_32;
+	}
 
 	if (!ret)
 		phb_id = (int)(prop & (MAX_PHBS - 1));
@@ -149,6 +152,42 @@ void pcibios_free_controller(struct pci_controller *phb)
 		kfree(phb);
 }
 EXPORT_SYMBOL_GPL(pcibios_free_controller);
+
+/*
+ * This function is used to call pcibios_free_controller()
+ * in a deferred manner: a callback from the PCI subsystem.
+ *
+ * _*DO NOT*_ call pcibios_free_controller() explicitly if
+ * this is used (or it may access an invalid *phb pointer).
+ *
+ * The callback occurs when all references to the root bus
+ * are dropped (e.g., child buses/devices and their users).
+ *
+ * It's called as .release_fn() of 'struct pci_host_bridge'
+ * which is associated with the 'struct pci_controller.bus'
+ * (root bus) - it expects .release_data to hold a pointer
+ * to 'struct pci_controller'.
+ *
+ * In order to use it, register .release_fn()/release_data
+ * like this:
+ *
+ * pci_set_host_bridge_release(bridge,
+ *                             pcibios_free_controller_deferred
+ *                             (void *) phb);
+ *
+ * e.g. in the pcibios_root_bridge_prepare() callback from
+ * pci_create_root_bus().
+ */
+void pcibios_free_controller_deferred(struct pci_host_bridge *bridge)
+{
+	struct pci_controller *phb = (struct pci_controller *)
+					 bridge->release_data;
+
+	pr_debug("domain %d, dynamic %d\n", phb->global_number, phb->is_dynamic);
+
+	pcibios_free_controller(phb);
+}
+EXPORT_SYMBOL_GPL(pcibios_free_controller_deferred);
 
 /*
  * The function is used to return the minimal alignment
@@ -321,7 +360,7 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 			 line, pin);
 
 		virq = irq_create_mapping(NULL, line);
-		if (virq != NO_IRQ)
+		if (virq)
 			irq_set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
 	} else {
 		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
@@ -330,7 +369,8 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 
 		virq = irq_create_of_mapping(&oirq);
 	}
-	if(virq == NO_IRQ) {
+
+	if (!virq) {
 		pr_debug(" Failed to map !\n");
 		return -1;
 	}

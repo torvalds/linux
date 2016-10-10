@@ -55,6 +55,7 @@
 #include <asm/debug.h>
 #include <asm/kexec.h>
 #include <asm/asm-prototypes.h>
+#include <asm/cpu_has_feature.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>
@@ -829,7 +830,7 @@ int __cpu_disable(void)
 
 	/* Update sibling maps */
 	base = cpu_first_thread_sibling(cpu);
-	for (i = 0; i < threads_per_core; i++) {
+	for (i = 0; i < threads_per_core && base + i < nr_cpu_ids; i++) {
 		cpumask_clear_cpu(cpu, cpu_sibling_mask(base + i));
 		cpumask_clear_cpu(base + i, cpu_sibling_mask(cpu));
 		cpumask_clear_cpu(cpu, cpu_core_mask(base + i));

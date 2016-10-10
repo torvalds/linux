@@ -1572,8 +1572,8 @@ static void at_xdmac_handle_cyclic(struct at_xdmac_chan *atchan)
 	desc = list_first_entry(&atchan->xfers_list, struct at_xdmac_desc, xfer_node);
 	txd = &desc->tx_dma_desc;
 
-	if (txd->callback && (txd->flags & DMA_PREP_INTERRUPT))
-		txd->callback(txd->callback_param);
+	if (txd->flags & DMA_PREP_INTERRUPT)
+		dmaengine_desc_get_callback_invoke(txd, NULL);
 }
 
 static void at_xdmac_tasklet(unsigned long data)
@@ -1616,8 +1616,8 @@ static void at_xdmac_tasklet(unsigned long data)
 
 		if (!at_xdmac_chan_is_cyclic(atchan)) {
 			dma_cookie_complete(txd);
-			if (txd->callback && (txd->flags & DMA_PREP_INTERRUPT))
-				txd->callback(txd->callback_param);
+			if (txd->flags & DMA_PREP_INTERRUPT)
+				dmaengine_desc_get_callback_invoke(txd, NULL);
 		}
 
 		dma_run_dependencies(txd);
@@ -2067,7 +2067,7 @@ err_dma_unregister:
 err_clk_disable:
 	clk_disable_unprepare(atxdmac->clk);
 err_free_irq:
-	free_irq(atxdmac->irq, atxdmac->dma.dev);
+	free_irq(atxdmac->irq, atxdmac);
 	return ret;
 }
 
@@ -2081,7 +2081,7 @@ static int at_xdmac_remove(struct platform_device *pdev)
 	dma_async_device_unregister(&atxdmac->dma);
 	clk_disable_unprepare(atxdmac->clk);
 
-	free_irq(atxdmac->irq, atxdmac->dma.dev);
+	free_irq(atxdmac->irq, atxdmac);
 
 	for (i = 0; i < atxdmac->dma.chancnt; i++) {
 		struct at_xdmac_chan *atchan = &atxdmac->chan[i];

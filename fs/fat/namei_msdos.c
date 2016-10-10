@@ -162,10 +162,10 @@ static int msdos_hash(const struct dentry *dentry, struct qstr *qstr)
  * Compare two msdos names. If either of the names are invalid,
  * we fall back to doing the standard name comparison.
  */
-static int msdos_cmp(const struct dentry *parent, const struct dentry *dentry,
+static int msdos_cmp(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
-	struct fat_mount_options *options = &MSDOS_SB(parent->d_sb)->options;
+	struct fat_mount_options *options = &MSDOS_SB(dentry->d_sb)->options;
 	unsigned char a_msdos_name[MSDOS_NAME], b_msdos_name[MSDOS_NAME];
 	int error;
 

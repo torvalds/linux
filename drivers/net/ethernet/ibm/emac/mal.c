@@ -597,9 +597,8 @@ static int mal_probe(struct platform_device *ofdev)
 		mal->rxde_irq = irq_of_parse_and_map(ofdev->dev.of_node, 4);
 	}
 
-	if (mal->txeob_irq == NO_IRQ || mal->rxeob_irq == NO_IRQ ||
-	    mal->serr_irq == NO_IRQ || mal->txde_irq == NO_IRQ ||
-	    mal->rxde_irq == NO_IRQ) {
+	if (!mal->txeob_irq || !mal->rxeob_irq || !mal->serr_irq ||
+	    !mal->txde_irq  || !mal->rxde_irq) {
 		printk(KERN_ERR
 		       "mal%d: failed to map interrupts !\n", index);
 		err = -ENODEV;

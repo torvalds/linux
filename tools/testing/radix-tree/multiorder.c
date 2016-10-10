@@ -124,6 +124,8 @@ static void multiorder_check(unsigned long index, int order)
 	unsigned long i;
 	unsigned long min = index & ~((1UL << order) - 1);
 	unsigned long max = min + (1UL << order);
+	void **slot;
+	struct item *item2 = item_create(min);
 	RADIX_TREE(tree, GFP_KERNEL);
 
 	printf("Multiorder index %ld, order %d\n", index, order);
@@ -139,13 +141,19 @@ static void multiorder_check(unsigned long index, int order)
 		item_check_absent(&tree, i);
 	for (i = max; i < 2*max; i++)
 		item_check_absent(&tree, i);
+	for (i = min; i < max; i++)
+		assert(radix_tree_insert(&tree, i, item2) == -EEXIST);
+
+	slot = radix_tree_lookup_slot(&tree, index);
+	free(*slot);
+	radix_tree_replace_slot(slot, item2);
 	for (i = min; i < max; i++) {
-		static void *entry = (void *)
-					(0xA0 | RADIX_TREE_EXCEPTIONAL_ENTRY);
-		assert(radix_tree_insert(&tree, i, entry) == -EEXIST);
+		struct item *item = item_lookup(&tree, i);
+		assert(item != 0);
+		assert(item->index == min);
 	}
 
-	assert(item_delete(&tree, index) != 0);
+	assert(item_delete(&tree, min) != 0);
 
 	for (i = 0; i < 2*max; i++)
 		item_check_absent(&tree, i);

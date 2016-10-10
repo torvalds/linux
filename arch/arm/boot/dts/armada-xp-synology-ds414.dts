@@ -110,62 +110,6 @@
 				status = "disabled";
 			};
 
-			spi0: spi@10600 {
-				status = "okay";
-
-				spi-flash@0 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					compatible = "micron,n25q064", "jedec,spi-nor";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <20000000>;
-
-					/*
-					 * Warning!
-					 *
-					 * Synology u-boot uses its compiled-in environment
-					 * and it seems Synology did not care to change u-boot
-					 * default configuration in order to allow saving a
-					 * modified environment at a sensible location. So,
-					 * if you do a 'saveenv' under u-boot, your modified
-					 * environment will be saved at 1MB after the start
-					 * of the flash, i.e. in the middle of the uImage.
-					 * For that reason, it is strongly advised not to
-					 * change the default environment, unless you know
-					 * what you are doing.
-					 */
-					partition@00000000 { /* u-boot */
-						label = "RedBoot";
-						reg = <0x00000000 0x000d0000>; /* 832KB */
-					};
-
-					partition@000c0000 { /* uImage */
-						label = "zImage";
-						reg = <0x000d0000 0x002d0000>; /* 2880KB */
-					};
-
-					partition@003a0000 { /* uInitramfs */
-						label = "rd.gz";
-						reg = <0x003a0000 0x00430000>; /* 4250KB */
-					};
-
-					partition@007d0000 { /* MAC address and serial number */
-						label = "vendor";
-						reg = <0x007d0000 0x00010000>; /* 64KB */
-					};
-
-					partition@007e0000 {
-						label = "RedBoot config";
-						reg = <0x007e0000 0x00010000>; /* 64KB */
-					};
-
-					partition@007f0000 {
-						label = "FIS directory";
-						reg = <0x007f0000 0x00010000>; /* 64KB */
-					};
-				};
-			};
-
 			i2c@11000 {
 				clock-frequency = <400000>;
 				status = "okay";
@@ -360,5 +304,61 @@
 	fan2_alarm_pin: fan2-alarm-pin {
 		marvell,pins = "mpp32";
 		marvell,function = "gpio";
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "micron,n25q064", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <20000000>;
+
+		/*
+		 * Warning!
+		 *
+		 * Synology u-boot uses its compiled-in environment
+		 * and it seems Synology did not care to change u-boot
+		 * default configuration in order to allow saving a
+		 * modified environment at a sensible location. So,
+		 * if you do a 'saveenv' under u-boot, your modified
+		 * environment will be saved at 1MB after the start
+		 * of the flash, i.e. in the middle of the uImage.
+		 * For that reason, it is strongly advised not to
+		 * change the default environment, unless you know
+		 * what you are doing.
+		 */
+		partition@00000000 { /* u-boot */
+			label = "RedBoot";
+			reg = <0x00000000 0x000d0000>; /* 832KB */
+		};
+
+		partition@000c0000 { /* uImage */
+			label = "zImage";
+			reg = <0x000d0000 0x002d0000>; /* 2880KB */
+		};
+
+		partition@003a0000 { /* uInitramfs */
+			label = "rd.gz";
+			reg = <0x003a0000 0x00430000>; /* 4250KB */
+		};
+
+		partition@007d0000 { /* MAC address and serial number */
+			label = "vendor";
+			reg = <0x007d0000 0x00010000>; /* 64KB */
+		};
+
+		partition@007e0000 {
+			label = "RedBoot config";
+			reg = <0x007e0000 0x00010000>; /* 64KB */
+		};
+
+		partition@007f0000 {
+			label = "FIS directory";
+			reg = <0x007f0000 0x00010000>; /* 64KB */
+		};
 	};
 };

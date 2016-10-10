@@ -74,7 +74,7 @@ const struct inode_operations ncp_dir_inode_operations =
  */
 static int ncp_lookup_validate(struct dentry *, unsigned int);
 static int ncp_hash_dentry(const struct dentry *, struct qstr *);
-static int ncp_compare_dentry(const struct dentry *, const struct dentry *,
+static int ncp_compare_dentry(const struct dentry *,
 		unsigned int, const char *, const struct qstr *);
 static int ncp_delete_dentry(const struct dentry *);
 static void ncp_d_prune(struct dentry *dentry);
@@ -154,7 +154,7 @@ ncp_hash_dentry(const struct dentry *dentry, struct qstr *this)
  * the callers will handle races.
  */
 static int
-ncp_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
+ncp_compare_dentry(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	struct inode *pinode;
@@ -162,7 +162,7 @@ ncp_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
 	if (len != name->len)
 		return 1;
 
-	pinode = d_inode_rcu(parent);
+	pinode = d_inode_rcu(dentry->d_parent);
 	if (!pinode)
 		return 1;
 

@@ -442,7 +442,9 @@ __build_packet_message(struct nfnl_log_net *log,
 			if (nla_put_be32(inst->skb, NFULA_IFINDEX_PHYSINDEV,
 					 htonl(indev->ifindex)) ||
 			/* this is the bridge group "brX" */
-			/* rcu_read_lock()ed by nf_hook_slow or nf_log_packet */
+			/* rcu_read_lock()ed by nf_hook_thresh or
+			 * nf_log_packet.
+			 */
 			    nla_put_be32(inst->skb, NFULA_IFINDEX_INDEV,
 					 htonl(br_port_get_rcu(indev)->br->dev->ifindex)))
 				goto nla_put_failure;
@@ -477,7 +479,9 @@ __build_packet_message(struct nfnl_log_net *log,
 			if (nla_put_be32(inst->skb, NFULA_IFINDEX_PHYSOUTDEV,
 					 htonl(outdev->ifindex)) ||
 			/* this is the bridge group "brX" */
-			/* rcu_read_lock()ed by nf_hook_slow or nf_log_packet */
+			/* rcu_read_lock()ed by nf_hook_thresh or
+			 * nf_log_packet.
+			 */
 			    nla_put_be32(inst->skb, NFULA_IFINDEX_OUTDEV,
 					 htonl(br_port_get_rcu(outdev)->br->dev->ifindex)))
 				goto nla_put_failure;
@@ -1147,6 +1151,7 @@ MODULE_ALIAS_NFNL_SUBSYS(NFNL_SUBSYS_ULOG);
 MODULE_ALIAS_NF_LOGGER(AF_INET, 1);
 MODULE_ALIAS_NF_LOGGER(AF_INET6, 1);
 MODULE_ALIAS_NF_LOGGER(AF_BRIDGE, 1);
+MODULE_ALIAS_NF_LOGGER(3, 1); /* NFPROTO_ARP */
 
 module_init(nfnetlink_log_init);
 module_exit(nfnetlink_log_fini);

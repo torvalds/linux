@@ -54,7 +54,7 @@ struct inode *btrfs_new_test_inode(void)
 	return new_inode(test_mnt->mnt_sb);
 }
 
-int btrfs_init_test_fs(void)
+static int btrfs_init_test_fs(void)
 {
 	int ret;
 
@@ -73,7 +73,7 @@ int btrfs_init_test_fs(void)
 	return 0;
 }
 
-void btrfs_destroy_test_fs(void)
+static void btrfs_destroy_test_fs(void)
 {
 	kern_unmount(test_mnt);
 	unregister_filesystem(&test_type);
@@ -128,13 +128,26 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(void)
 	extent_io_tree_init(&fs_info->freed_extents[0], NULL);
 	extent_io_tree_init(&fs_info->freed_extents[1], NULL);
 	fs_info->pinned_extents = &fs_info->freed_extents[0];
+	set_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
+
+	test_mnt->mnt_sb->s_fs_info = fs_info;
+
 	return fs_info;
 }
 
-static void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
+void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
 {
 	struct radix_tree_iter iter;
 	void **slot;
+
+	if (!fs_info)
+		return;
+
+	if (WARN_ON(!test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO,
+			      &fs_info->fs_state)))
+		return;
+
+	test_mnt->mnt_sb->s_fs_info = NULL;
 
 	spin_lock(&fs_info->buffer_lock);
 	radix_tree_for_each_slot(slot, &fs_info->buffer_radix, &iter, 0) {
@@ -167,10 +180,11 @@ void btrfs_free_dummy_root(struct btrfs_root *root)
 {
 	if (!root)
 		return;
+	/* Will be freed by btrfs_free_fs_roots */
+	if (WARN_ON(test_bit(BTRFS_ROOT_IN_RADIX, &root->state)))
+		return;
 	if (root->node)
 		free_extent_buffer(root->node);
-	if (root->fs_info)
-		btrfs_free_dummy_fs_info(root->fs_info);
 	kfree(root);
 }
 
@@ -219,4 +233,47 @@ void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans)
 	trans->transid = 1;
 	INIT_LIST_HEAD(&trans->qgroup_ref_list);
 	trans->type = __TRANS_DUMMY;
+}
+
+int btrfs_run_sanity_tests(void)
+{
+	int ret, i;
+	u32 sectorsize, nodesize;
+	u32 test_sectorsize[] = {
+		PAGE_SIZE,
+	};
+	ret = btrfs_init_test_fs();
+	if (ret)
+		return ret;
+	for (i = 0; i < ARRAY_SIZE(test_sectorsize); i++) {
+		sectorsize = test_sectorsize[i];
+		for (nodesize = sectorsize;
+		     nodesize <= BTRFS_MAX_METADATA_BLOCKSIZE;
+		     nodesize <<= 1) {
+			pr_info("BTRFS: selftest: sectorsize: %u  nodesize: %u\n",
+				sectorsize, nodesize);
+			ret = btrfs_test_free_space_cache(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_extent_buffer_operations(sectorsize,
+				nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_extent_io(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_inodes(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_qgroups(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_free_space_tree(sectorsize, nodesize);
+			if (ret)
+				goto out;
+		}
+	}
+out:
+	btrfs_destroy_test_fs();
+	return ret;
 }

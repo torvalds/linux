@@ -1349,6 +1349,9 @@ static void start_sw_tscdeadline(struct kvm_lapic *apic)
 
 bool kvm_lapic_hv_timer_in_use(struct kvm_vcpu *vcpu)
 {
+	if (!lapic_in_kernel(vcpu))
+		return false;
+
 	return vcpu->arch.apic->lapic_timer.hv_timer_in_use;
 }
 EXPORT_SYMBOL_GPL(kvm_lapic_hv_timer_in_use);
@@ -1758,9 +1761,10 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 		if (value & MSR_IA32_APICBASE_ENABLE) {
 			kvm_apic_set_xapic_id(apic, vcpu->vcpu_id);
 			static_key_slow_dec_deferred(&apic_hw_disabled);
-		} else
+		} else {
 			static_key_slow_inc(&apic_hw_disabled.key);
-		recalculate_apic_map(vcpu->kvm);
+			recalculate_apic_map(vcpu->kvm);
+		}
 	}
 
 	if ((old_value ^ value) & X2APIC_ENABLE) {

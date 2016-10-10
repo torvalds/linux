@@ -118,6 +118,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x8411) }, /* Kyocera GPS Module */
 	{ USB_DEVICE(0x10C4, 0x8418) }, /* IRZ Automation Teleport SG-10 GSM/GPRS Modem */
 	{ USB_DEVICE(0x10C4, 0x846E) }, /* BEI USB Sensor Interface (VCP) */
+	{ USB_DEVICE(0x10C4, 0x8470) }, /* Juniper Networks BX Series System Console */
 	{ USB_DEVICE(0x10C4, 0x8477) }, /* Balluff RFID */
 	{ USB_DEVICE(0x10C4, 0x84B6) }, /* Starizona Hyperion */
 	{ USB_DEVICE(0x10C4, 0x85EA) }, /* AC-Services IBUS-IF */
@@ -496,11 +497,9 @@ static int cp210x_write_reg_block(struct usb_serial_port *port, u8 req,
 	void *dmabuf;
 	int result;
 
-	dmabuf = kmalloc(bufsize, GFP_KERNEL);
+	dmabuf = kmemdup(buf, bufsize, GFP_KERNEL);
 	if (!dmabuf)
 		return -ENOMEM;
-
-	memcpy(dmabuf, buf, bufsize);
 
 	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 			req, REQTYPE_HOST_TO_INTERFACE, 0,

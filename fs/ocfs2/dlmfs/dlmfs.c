@@ -469,7 +469,7 @@ static int dlmfs_mkdir(struct inode * dir,
 {
 	int status;
 	struct inode *inode = NULL;
-	struct qstr *domain = &dentry->d_name;
+	const struct qstr *domain = &dentry->d_name;
 	struct dlmfs_inode_private *ip;
 	struct ocfs2_cluster_connection *conn;
 
@@ -518,7 +518,7 @@ static int dlmfs_create(struct inode *dir,
 {
 	int status = 0;
 	struct inode *inode;
-	struct qstr *name = &dentry->d_name;
+	const struct qstr *name = &dentry->d_name;
 
 	mlog(0, "create %.*s\n", name->len, name->name);
 
@@ -646,7 +646,7 @@ static int __init init_dlmfs_fs(void)
 	}
 	cleanup_inode = 1;
 
-	user_dlm_worker = create_singlethread_workqueue("user_dlm");
+	user_dlm_worker = alloc_workqueue("user_dlm", WQ_MEM_RECLAIM, 0);
 	if (!user_dlm_worker) {
 		status = -ENOMEM;
 		goto bail;

@@ -239,12 +239,9 @@ static void sti_mixer_set_background_area(struct sti_mixer *mixer,
 
 int sti_mixer_set_plane_depth(struct sti_mixer *mixer, struct sti_plane *plane)
 {
-	int plane_id, depth = plane->zorder;
+	int plane_id, depth = plane->drm_plane.state->normalized_zpos;
 	unsigned int i;
 	u32 mask, val;
-
-	if ((depth < 1) || (depth > GAM_MIXER_NB_DEPTH_LEVEL))
-		return 1;
 
 	switch (plane->desc) {
 	case STI_GDP_0:
@@ -278,8 +275,8 @@ int sti_mixer_set_plane_depth(struct sti_mixer *mixer, struct sti_plane *plane)
 			break;
 	}
 
-	mask |= GAM_DEPTH_MASK_ID << (3 * (depth - 1));
-	plane_id = plane_id << (3 * (depth - 1));
+	mask |= GAM_DEPTH_MASK_ID << (3 * depth);
+	plane_id = plane_id << (3 * depth);
 
 	DRM_DEBUG_DRIVER("%s %s depth=%d\n", sti_mixer_to_str(mixer),
 			 sti_plane_to_str(plane), depth);

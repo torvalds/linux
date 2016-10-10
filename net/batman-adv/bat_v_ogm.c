@@ -73,13 +73,12 @@ struct batadv_orig_node *batadv_v_ogm_orig_get(struct batadv_priv *bat_priv,
 	if (!orig_node)
 		return NULL;
 
+	kref_get(&orig_node->refcount);
 	hash_added = batadv_hash_add(bat_priv->orig_hash, batadv_compare_orig,
 				     batadv_choose_orig, orig_node,
 				     &orig_node->hash_entry);
 	if (hash_added != 0) {
-		/* orig_node->refcounter is initialised to 2 by
-		 * batadv_orig_node_new()
-		 */
+		/* remove refcnt for newly created orig_node and hash entry */
 		batadv_orig_node_put(orig_node);
 		batadv_orig_node_put(orig_node);
 		orig_node = NULL;

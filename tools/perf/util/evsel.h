@@ -46,6 +46,7 @@ enum {
 	PERF_EVSEL__CONFIG_TERM_INHERIT,
 	PERF_EVSEL__CONFIG_TERM_MAX_STACK,
 	PERF_EVSEL__CONFIG_TERM_OVERWRITE,
+	PERF_EVSEL__CONFIG_TERM_DRV_CFG,
 	PERF_EVSEL__CONFIG_TERM_MAX,
 };
 
@@ -57,6 +58,7 @@ struct perf_evsel_config_term {
 		u64	freq;
 		bool	time;
 		char	*callgraph;
+		char	*drv_cfg;
 		u64	stack_user;
 		int	max_stack;
 		bool	inherit;
@@ -175,6 +177,8 @@ static inline struct perf_evsel *perf_evsel__newtp(const char *sys, const char *
 	return perf_evsel__newtp_idx(sys, name, 0);
 }
 
+struct perf_evsel *perf_evsel__new_cycles(void);
+
 struct event_format *event_format__new(const char *sys, const char *name);
 
 void perf_evsel__init(struct perf_evsel *evsel,
@@ -231,8 +235,9 @@ void perf_evsel__set_sample_id(struct perf_evsel *evsel,
 			       bool use_sample_identifier);
 
 int perf_evsel__set_filter(struct perf_evsel *evsel, const char *filter);
-int perf_evsel__append_filter(struct perf_evsel *evsel,
-			      const char *op, const char *filter);
+int perf_evsel__append_tp_filter(struct perf_evsel *evsel, const char *filter);
+int perf_evsel__append_addr_filter(struct perf_evsel *evsel,
+				   const char *filter);
 int perf_evsel__apply_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
 			     const char *filter);
 int perf_evsel__enable(struct perf_evsel *evsel);

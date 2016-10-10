@@ -541,12 +541,14 @@ static struct snd_soc_codec_driver soc_codec_dev_ml26124 = {
 	.probe =	ml26124_probe,
 	.set_bias_level = ml26124_set_bias_level,
 	.suspend_bias_off = true,
-	.dapm_widgets = ml26124_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ml26124_dapm_widgets),
-	.dapm_routes = ml26124_intercon,
-	.num_dapm_routes = ARRAY_SIZE(ml26124_intercon),
-	.controls = ml26124_snd_controls,
-	.num_controls = ARRAY_SIZE(ml26124_snd_controls),
+	.component_driver = {
+		.controls		= ml26124_snd_controls,
+		.num_controls		= ARRAY_SIZE(ml26124_snd_controls),
+		.dapm_widgets		= ml26124_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ml26124_dapm_widgets),
+		.dapm_routes		= ml26124_intercon,
+		.num_dapm_routes	= ARRAY_SIZE(ml26124_intercon),
+	},
 };
 
 static const struct regmap_config ml26124_i2c_regmap = {

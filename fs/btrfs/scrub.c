@@ -3785,27 +3785,27 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 	if (fs_info->scrub_workers_refcnt == 0) {
 		if (is_dev_replace)
 			fs_info->scrub_workers =
-				btrfs_alloc_workqueue("scrub", flags,
+				btrfs_alloc_workqueue(fs_info, "scrub", flags,
 						      1, 4);
 		else
 			fs_info->scrub_workers =
-				btrfs_alloc_workqueue("scrub", flags,
+				btrfs_alloc_workqueue(fs_info, "scrub", flags,
 						      max_active, 4);
 		if (!fs_info->scrub_workers)
 			goto fail_scrub_workers;
 
 		fs_info->scrub_wr_completion_workers =
-			btrfs_alloc_workqueue("scrubwrc", flags,
+			btrfs_alloc_workqueue(fs_info, "scrubwrc", flags,
 					      max_active, 2);
 		if (!fs_info->scrub_wr_completion_workers)
 			goto fail_scrub_wr_completion_workers;
 
 		fs_info->scrub_nocow_workers =
-			btrfs_alloc_workqueue("scrubnc", flags, 1, 0);
+			btrfs_alloc_workqueue(fs_info, "scrubnc", flags, 1, 0);
 		if (!fs_info->scrub_nocow_workers)
 			goto fail_scrub_nocow_workers;
 		fs_info->scrub_parity_workers =
-			btrfs_alloc_workqueue("scrubparity", flags,
+			btrfs_alloc_workqueue(fs_info, "scrubparity", flags,
 					      max_active, 2);
 		if (!fs_info->scrub_parity_workers)
 			goto fail_scrub_parity_workers;
@@ -3860,7 +3860,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 
 	if (fs_info->chunk_root->sectorsize != PAGE_SIZE) {
 		/* not supported for data w/o checksums */
-		btrfs_err(fs_info,
+		btrfs_err_rl(fs_info,
 			   "scrub: size assumption sectorsize != PAGE_SIZE "
 			   "(%d != %lu) fails",
 		       fs_info->chunk_root->sectorsize, PAGE_SIZE);

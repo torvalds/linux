@@ -3621,7 +3621,6 @@ static int rbd_init_request(void *data, struct request *rq,
 
 static struct blk_mq_ops rbd_mq_ops = {
 	.queue_rq	= rbd_queue_rq,
-	.map_queue	= blk_mq_map_queue,
 	.init_request	= rbd_init_request,
 };
 
@@ -3950,6 +3949,7 @@ static void rbd_dev_release(struct device *dev)
 	bool need_put = !!rbd_dev->opts;
 
 	ceph_oid_destroy(&rbd_dev->header_oid);
+	ceph_oloc_destroy(&rbd_dev->header_oloc);
 
 	rbd_put_client(rbd_dev->rbd_client);
 	rbd_spec_put(rbd_dev->spec);
@@ -5335,15 +5335,6 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 		goto err_out_client;
 	}
 	spec->pool_id = (u64)rc;
-
-	/* The ceph file layout needs to fit pool id in 32 bits */
-
-	if (spec->pool_id > (u64)U32_MAX) {
-		rbd_warn(NULL, "pool id too large (%llu > %u)",
-				(unsigned long long)spec->pool_id, U32_MAX);
-		rc = -EIO;
-		goto err_out_client;
-	}
 
 	rbd_dev = rbd_dev_create(rbdc, spec, rbd_opts);
 	if (!rbd_dev) {

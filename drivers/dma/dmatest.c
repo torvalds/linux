@@ -56,10 +56,10 @@ module_param(sg_buffers, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(sg_buffers,
 		"Number of scatter gather buffers (default: 1)");
 
-static unsigned int dmatest = 1;
+static unsigned int dmatest;
 module_param(dmatest, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dmatest,
-		"dmatest 0-memcpy 1-slave_sg (default: 1)");
+		"dmatest 0-memcpy 1-slave_sg (default: 0)");
 
 static unsigned int xor_sources = 3;
 module_param(xor_sources, uint, S_IRUGO | S_IWUSR);
@@ -426,7 +426,9 @@ static int dmatest_func(void *data)
 	int			src_cnt;
 	int			dst_cnt;
 	int			i;
-	ktime_t			ktime;
+	ktime_t			ktime, start, diff;
+	ktime_t			filltime = ktime_set(0, 0);
+	ktime_t			comparetime = ktime_set(0, 0);
 	s64			runtime = 0;
 	unsigned long long	total_len = 0;
 
@@ -503,7 +505,7 @@ static int dmatest_func(void *data)
 		total_tests++;
 
 		/* honor alignment restrictions */
-		if (thread->type == DMA_MEMCPY)
+		if (thread->type == DMA_MEMCPY || thread->type == DMA_SG)
 			align = dev->copy_align;
 		else if (thread->type == DMA_XOR)
 			align = dev->xor_align;
@@ -531,6 +533,7 @@ static int dmatest_func(void *data)
 			src_off = 0;
 			dst_off = 0;
 		} else {
+			start = ktime_get();
 			src_off = dmatest_random() % (params->buf_size - len + 1);
 			dst_off = dmatest_random() % (params->buf_size - len + 1);
 
@@ -541,6 +544,9 @@ static int dmatest_func(void *data)
 					  params->buf_size);
 			dmatest_init_dsts(thread->dsts, dst_off, len,
 					  params->buf_size);
+
+			diff = ktime_sub(ktime_get(), start);
+			filltime = ktime_add(filltime, diff);
 		}
 
 		um = dmaengine_get_unmap_data(dev->dev, src_cnt+dst_cnt,
@@ -683,6 +689,7 @@ static int dmatest_func(void *data)
 			continue;
 		}
 
+		start = ktime_get();
 		pr_debug("%s: verifying source buffer...\n", current->comm);
 		error_count = dmatest_verify(thread->srcs, 0, src_off,
 				0, PATTERN_SRC, true);
@@ -703,6 +710,9 @@ static int dmatest_func(void *data)
 				params->buf_size, dst_off + len,
 				PATTERN_DST, false);
 
+		diff = ktime_sub(ktime_get(), start);
+		comparetime = ktime_add(comparetime, diff);
+
 		if (error_count) {
 			result("data error", total_tests, src_off, dst_off,
 			       len, error_count);
@@ -712,7 +722,10 @@ static int dmatest_func(void *data)
 				       dst_off, len, 0);
 		}
 	}
-	runtime = ktime_us_delta(ktime_get(), ktime);
+	ktime = ktime_sub(ktime_get(), ktime);
+	ktime = ktime_sub(ktime, comparetime);
+	ktime = ktime_sub(ktime, filltime);
+	runtime = ktime_to_us(ktime);
 
 	ret = 0;
 err_dstbuf:

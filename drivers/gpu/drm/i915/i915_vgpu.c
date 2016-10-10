@@ -65,9 +65,6 @@ void i915_check_vgpu(struct drm_i915_private *dev_priv)
 
 	BUILD_BUG_ON(sizeof(struct vgt_if) != VGT_PVINFO_SIZE);
 
-	if (!IS_HASWELL(dev_priv))
-		return;
-
 	magic = __raw_i915_read64(dev_priv, vgtif_reg(magic));
 	if (magic != VGT_MAGIC)
 		return;

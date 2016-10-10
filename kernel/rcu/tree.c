@@ -41,7 +41,6 @@
 #include <linux/export.h>
 #include <linux/completion.h>
 #include <linux/moduleparam.h>
-#include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
@@ -60,7 +59,6 @@
 #include "tree.h"
 #include "rcu.h"
 
-MODULE_ALIAS("rcutree");
 #ifdef MODULE_PARAM_PREFIX
 #undef MODULE_PARAM_PREFIX
 #endif
@@ -1848,6 +1846,7 @@ static bool __note_gp_changes(struct rcu_state *rsp, struct rcu_node *rnp,
 			      struct rcu_data *rdp)
 {
 	bool ret;
+	bool need_gp;
 
 	/* Handle the ends of any preceding grace periods first. */
 	if (rdp->completed == rnp->completed &&
@@ -1874,9 +1873,10 @@ static bool __note_gp_changes(struct rcu_state *rsp, struct rcu_node *rnp,
 		 */
 		rdp->gpnum = rnp->gpnum;
 		trace_rcu_grace_period(rsp->name, rdp->gpnum, TPS("cpustart"));
-		rdp->cpu_no_qs.b.norm = true;
+		need_gp = !!(rnp->qsmask & rdp->grpmask);
+		rdp->cpu_no_qs.b.norm = need_gp;
 		rdp->rcu_qs_ctr_snap = __this_cpu_read(rcu_qs_ctr);
-		rdp->core_needs_qs = !!(rnp->qsmask & rdp->grpmask);
+		rdp->core_needs_qs = need_gp;
 		zero_cpu_stall_ticks(rdp);
 		WRITE_ONCE(rdp->gpwrap, false);
 	}
@@ -2344,7 +2344,7 @@ static void rcu_report_qs_rsp(struct rcu_state *rsp, unsigned long flags)
 	WARN_ON_ONCE(!rcu_gp_in_progress(rsp));
 	WRITE_ONCE(rsp->gp_flags, READ_ONCE(rsp->gp_flags) | RCU_GP_FLAG_FQS);
 	raw_spin_unlock_irqrestore_rcu_node(rcu_get_root(rsp), flags);
-	swake_up(&rsp->gp_wq);  /* Memory barrier implied by swake_up() path. */
+	rcu_gp_kthread_wake(rsp);
 }
 
 /*
@@ -2970,7 +2970,7 @@ static void force_quiescent_state(struct rcu_state *rsp)
 	}
 	WRITE_ONCE(rsp->gp_flags, READ_ONCE(rsp->gp_flags) | RCU_GP_FLAG_FQS);
 	raw_spin_unlock_irqrestore_rcu_node(rnp_old, flags);
-	swake_up(&rsp->gp_wq); /* Memory barrier implied by swake_up() path. */
+	rcu_gp_kthread_wake(rsp);
 }
 
 /*
@@ -3792,8 +3792,6 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	rnp = rdp->mynode;
 	mask = rdp->grpmask;
 	raw_spin_lock_rcu_node(rnp);		/* irqs already disabled. */
-	rnp->qsmaskinitnext |= mask;
-	rnp->expmaskinitnext |= mask;
 	if (!rdp->beenonline)
 		WRITE_ONCE(rsp->ncpus, READ_ONCE(rsp->ncpus) + 1);
 	rdp->beenonline = true;	 /* We have now been online. */
@@ -3858,6 +3856,32 @@ int rcutree_dead_cpu(unsigned int cpu)
 		do_nocb_deferred_wakeup(per_cpu_ptr(rsp->rda, cpu));
 	}
 	return 0;
+}
+
+/*
+ * Mark the specified CPU as being online so that subsequent grace periods
+ * (both expedited and normal) will wait on it.  Note that this means that
+ * incoming CPUs are not allowed to use RCU read-side critical sections
+ * until this function is called.  Failing to observe this restriction
+ * will result in lockdep splats.
+ */
+void rcu_cpu_starting(unsigned int cpu)
+{
+	unsigned long flags;
+	unsigned long mask;
+	struct rcu_data *rdp;
+	struct rcu_node *rnp;
+	struct rcu_state *rsp;
+
+	for_each_rcu_flavor(rsp) {
+		rdp = this_cpu_ptr(rsp->rda);
+		rnp = rdp->mynode;
+		mask = rdp->grpmask;
+		raw_spin_lock_irqsave_rcu_node(rnp, flags);
+		rnp->qsmaskinitnext |= mask;
+		rnp->expmaskinitnext |= mask;
+		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+	}
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -4209,8 +4233,10 @@ void __init rcu_init(void)
 	 * or the scheduler are operational.
 	 */
 	pm_notifier(rcu_pm_notify, 0);
-	for_each_online_cpu(cpu)
+	for_each_online_cpu(cpu) {
 		rcutree_prepare_cpu(cpu);
+		rcu_cpu_starting(cpu);
+	}
 }
 
 #include "tree_exp.h"

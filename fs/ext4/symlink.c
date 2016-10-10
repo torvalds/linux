@@ -30,7 +30,6 @@ static const char *ext4_encrypted_get_link(struct dentry *dentry,
 	char *caddr, *paddr = NULL;
 	struct fscrypt_str cstr, pstr;
 	struct fscrypt_symlink_data *sd;
-	loff_t size = min_t(loff_t, i_size_read(inode), PAGE_SIZE - 1);
 	int res;
 	u32 max_size = inode->i_sb->s_blocksize;
 
@@ -49,7 +48,6 @@ static const char *ext4_encrypted_get_link(struct dentry *dentry,
 		if (IS_ERR(cpage))
 			return ERR_CAST(cpage);
 		caddr = page_address(cpage);
-		caddr[size] = 0;
 	}
 
 	/* Symlink is encrypted */
@@ -65,16 +63,14 @@ static const char *ext4_encrypted_get_link(struct dentry *dentry,
 	res = fscrypt_fname_alloc_buffer(inode, cstr.len, &pstr);
 	if (res)
 		goto errout;
-
-	res = fscrypt_fname_disk_to_usr(inode, 0, 0, &cstr, &pstr);
-	if (res < 0)
-		goto errout;
-
 	paddr = pstr.name;
 
+	res = fscrypt_fname_disk_to_usr(inode, 0, 0, &cstr, &pstr);
+	if (res)
+		goto errout;
+
 	/* Null-terminate the name */
-	if (res <= pstr.len)
-		paddr[res] = '\0';
+	paddr[pstr.len] = '\0';
 	if (cpage)
 		put_page(cpage);
 	set_delayed_call(done, kfree_link, paddr);

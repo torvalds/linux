@@ -137,7 +137,7 @@ void __init init_default_cache_policy(unsigned long pmd)
 
 	initial_pmd_value = pmd;
 
-	pmd &= PMD_SECT_TEX(1) | PMD_SECT_BUFFERABLE | PMD_SECT_CACHEABLE;
+	pmd &= PMD_SECT_CACHE_MASK;
 
 	for (i = 0; i < ARRAY_SIZE(cache_policies); i++)
 		if (cache_policies[i].pmd == pmd) {
@@ -243,7 +243,7 @@ __setup("noalign", noalign_setup);
 #define PROT_PTE_S2_DEVICE	PROT_PTE_DEVICE
 #define PROT_SECT_DEVICE	PMD_TYPE_SECT|PMD_SECT_AP_WRITE
 
-static struct mem_type mem_types[] = {
+static struct mem_type mem_types[] __ro_after_init = {
 	[MT_DEVICE] = {		  /* Strongly ordered / ARMv6 shared device */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_SHARED |
 				  L_PTE_SHARED,
@@ -728,7 +728,8 @@ static void *__init late_alloc(unsigned long sz)
 {
 	void *ptr = (void *)__get_free_pages(PGALLOC_GFP, get_order(sz));
 
-	BUG_ON(!ptr);
+	if (!ptr || !pgtable_page_ctor(virt_to_page(ptr)))
+		BUG();
 	return ptr;
 }
 
@@ -1155,9 +1156,18 @@ void __init sanity_check_meminfo(void)
 {
 	phys_addr_t memblock_limit = 0;
 	int highmem = 0;
-	phys_addr_t vmalloc_limit = __pa(vmalloc_min - 1) + 1;
+	u64 vmalloc_limit;
 	struct memblock_region *reg;
 	bool should_use_highmem = false;
+
+	/*
+	 * Let's use our own (unoptimized) equivalent of __pa() that is
+	 * not affected by wrap-arounds when sizeof(phys_addr_t) == 4.
+	 * The result is used as the upper bound on physical memory address
+	 * and may itself be outside the valid range for which phys_addr_t
+	 * and therefore __pa() is defined.
+	 */
+	vmalloc_limit = (u64)(uintptr_t)vmalloc_min - PAGE_OFFSET + PHYS_OFFSET;
 
 	for_each_memblock(memory, reg) {
 		phys_addr_t block_start = reg->base;
@@ -1183,10 +1193,11 @@ void __init sanity_check_meminfo(void)
 			if (reg->size > size_limit) {
 				phys_addr_t overlap_size = reg->size - size_limit;
 
-				pr_notice("Truncating RAM at %pa-%pa to -%pa",
-					  &block_start, &block_end, &vmalloc_limit);
-				memblock_remove(vmalloc_limit, overlap_size);
+				pr_notice("Truncating RAM at %pa-%pa",
+					  &block_start, &block_end);
 				block_end = vmalloc_limit;
+				pr_cont(" to -%pa", &block_end);
+				memblock_remove(vmalloc_limit, overlap_size);
 				should_use_highmem = true;
 			}
 		}

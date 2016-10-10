@@ -652,7 +652,7 @@ static void rcar_du_plane_reset(struct drm_plane *plane)
 	state->source = RCAR_DU_PLANE_MEMORY;
 	state->alpha = 255;
 	state->colorkey = RCAR_DU_COLORKEY_NONE;
-	state->zpos = plane->type == DRM_PLANE_TYPE_PRIMARY ? 0 : 1;
+	state->state.zpos = plane->type == DRM_PLANE_TYPE_PRIMARY ? 0 : 1;
 
 	plane->state = &state->state;
 	plane->state->plane = plane;
@@ -670,8 +670,6 @@ static int rcar_du_plane_atomic_set_property(struct drm_plane *plane,
 		rstate->alpha = val;
 	else if (property == rcdu->props.colorkey)
 		rstate->colorkey = val;
-	else if (property == rcdu->props.zpos)
-		rstate->zpos = val;
 	else
 		return -EINVAL;
 
@@ -690,8 +688,6 @@ static int rcar_du_plane_atomic_get_property(struct drm_plane *plane,
 		*val = rstate->alpha;
 	else if (property == rcdu->props.colorkey)
 		*val = rstate->colorkey;
-	else if (property == rcdu->props.zpos)
-		*val = rstate->zpos;
 	else
 		return -EINVAL;
 
@@ -763,8 +759,7 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 		drm_object_attach_property(&plane->plane.base,
 					   rcdu->props.colorkey,
 					   RCAR_DU_COLORKEY_NONE);
-		drm_object_attach_property(&plane->plane.base,
-					   rcdu->props.zpos, 1);
+		drm_plane_create_zpos_property(&plane->plane, 1, 1, 7);
 	}
 
 	return 0;

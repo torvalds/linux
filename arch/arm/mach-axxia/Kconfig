@@ -7,8 +7,6 @@ config ARCH_AXXIA
 	select ARM_TIMER_SP804
 	select HAVE_ARM_ARCH_TIMER
 	select MFD_SYSCON
-	select MIGHT_HAVE_PCI
-	select PCI_DOMAINS if PCI
 	select ZONE_DMA
 	help
 	  This enables support for the LSI Axxia devices.

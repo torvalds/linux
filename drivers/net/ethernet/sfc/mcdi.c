@@ -548,7 +548,10 @@ static bool efx_mcdi_complete_async(struct efx_mcdi_iface *mcdi, bool timeout)
 		efx_mcdi_display_error(efx, async->cmd, async->inlen, errbuf,
 				       err_len, rc);
 	}
-	async->complete(efx, async->cookie, rc, outbuf, data_len);
+
+	if (async->complete)
+		async->complete(efx, async->cookie, rc, outbuf,
+				min(async->outlen, data_len));
 	kfree(async);
 
 	efx_mcdi_release(mcdi);
@@ -1153,7 +1156,8 @@ void efx_mcdi_flush_async(struct efx_nic *efx)
 	 * acquired locks in the wrong order.
 	 */
 	list_for_each_entry_safe(async, next, &mcdi->async_list, list) {
-		async->complete(efx, async->cookie, -ENETDOWN, NULL, 0);
+		if (async->complete)
+			async->complete(efx, async->cookie, -ENETDOWN, NULL, 0);
 		list_del(&async->list);
 		kfree(async);
 	}

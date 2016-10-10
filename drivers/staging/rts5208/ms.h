@@ -125,7 +125,6 @@
 #define Pro_CatagoryReg		0x06
 #define Pro_ClassReg		0x07
 
-
 #define Pro_SystemParm		0x10
 #define Pro_DataCount1		0x11
 #define Pro_DataCount0		0x12

@@ -310,6 +310,26 @@ int qed_fw_rss_eng(struct qed_hwfn *p_hwfn,
 		   u8 *dst_id);
 
 /**
+ * @brief qed_llh_add_mac_filter - configures a MAC filter in llh
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param p_filter - MAC to add
+ */
+int qed_llh_add_mac_filter(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, u8 *p_filter);
+
+/**
+ * @brief qed_llh_remove_mac_filter - removes a MAC filter from llh
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param p_filter - MAC to remove
+ */
+void qed_llh_remove_mac_filter(struct qed_hwfn *p_hwfn,
+			       struct qed_ptt *p_ptt, u8 *p_filter);
+
+/**
  * *@brief Cleanup of previous driver remains prior to load
  *
  * @param p_hwfn

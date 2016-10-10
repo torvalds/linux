@@ -145,6 +145,11 @@ If you want to add slave support to the bus driver:
 
 * Catch the slave interrupts and send appropriate i2c_slave_events to the backend.
 
+Note that most hardware supports being master _and_ slave on the same bus. So,
+if you extend a bus driver, please make sure that the driver supports that as
+well. In almost all cases, slave support does not need to disable the master
+functionality.
+
 Check the i2c-rcar driver as an example.
 
 

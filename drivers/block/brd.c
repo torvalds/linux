@@ -300,20 +300,20 @@ static void copy_from_brd(void *dst, struct brd_device *brd,
  * Process a single bvec of a bio.
  */
 static int brd_do_bvec(struct brd_device *brd, struct page *page,
-			unsigned int len, unsigned int off, int rw,
+			unsigned int len, unsigned int off, bool is_write,
 			sector_t sector)
 {
 	void *mem;
 	int err = 0;
 
-	if (rw != READ) {
+	if (is_write) {
 		err = copy_to_brd_setup(brd, sector, len);
 		if (err)
 			goto out;
 	}
 
 	mem = kmap_atomic(page);
-	if (rw == READ) {
+	if (!is_write) {
 		copy_from_brd(mem + off, brd, sector, len);
 		flush_dcache_page(page);
 	} else {
@@ -330,7 +330,6 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct block_device *bdev = bio->bi_bdev;
 	struct brd_device *brd = bdev->bd_disk->private_data;
-	int rw;
 	struct bio_vec bvec;
 	sector_t sector;
 	struct bvec_iter iter;
@@ -347,14 +346,12 @@ static blk_qc_t brd_make_request(struct request_queue *q, struct bio *bio)
 		goto out;
 	}
 
-	rw = bio_data_dir(bio);
-
 	bio_for_each_segment(bvec, bio, iter) {
 		unsigned int len = bvec.bv_len;
 		int err;
 
-		err = brd_do_bvec(brd, bvec.bv_page, len,
-					bvec.bv_offset, rw, sector);
+		err = brd_do_bvec(brd, bvec.bv_page, len, bvec.bv_offset,
+					op_is_write(bio_op(bio)), sector);
 		if (err)
 			goto io_error;
 		sector += len >> SECTOR_SHIFT;
@@ -369,11 +366,11 @@ io_error:
 }
 
 static int brd_rw_page(struct block_device *bdev, sector_t sector,
-		       struct page *page, int rw)
+		       struct page *page, bool is_write)
 {
 	struct brd_device *brd = bdev->bd_disk->private_data;
-	int err = brd_do_bvec(brd, page, PAGE_SIZE, 0, rw, sector);
-	page_endio(page, rw & WRITE, err);
+	int err = brd_do_bvec(brd, page, PAGE_SIZE, 0, is_write, sector);
+	page_endio(page, is_write, err);
 	return err;
 }
 

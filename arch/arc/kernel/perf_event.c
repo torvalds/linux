@@ -179,8 +179,8 @@ static int arc_pmu_event_init(struct perf_event *event)
 		if (arc_pmu->ev_hw_idx[event->attr.config] < 0)
 			return -ENOENT;
 		hwc->config |= arc_pmu->ev_hw_idx[event->attr.config];
-		pr_debug("init event %d with h/w %d \'%s\'\n",
-			 (int) event->attr.config, (int) hwc->config,
+		pr_debug("init event %d with h/w %08x \'%s\'\n",
+			 (int)event->attr.config, (int)hwc->config,
 			 arc_pmu_ev_hw_map[event->attr.config]);
 		return 0;
 
@@ -189,6 +189,8 @@ static int arc_pmu_event_init(struct perf_event *event)
 		if (ret < 0)
 			return ret;
 		hwc->config |= arc_pmu->ev_hw_idx[ret];
+		pr_debug("init cache event with h/w %08x \'%s\'\n",
+			 (int)hwc->config, arc_pmu_ev_hw_map[ret]);
 		return 0;
 	default:
 		return -ENOENT;

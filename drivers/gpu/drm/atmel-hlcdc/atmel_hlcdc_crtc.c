@@ -387,7 +387,7 @@ void atmel_hlcdc_crtc_irq(struct drm_crtc *c)
 	atmel_hlcdc_crtc_finish_page_flip(drm_crtc_to_atmel_hlcdc_crtc(c));
 }
 
-void atmel_hlcdc_crtc_reset(struct drm_crtc *crtc)
+static void atmel_hlcdc_crtc_reset(struct drm_crtc *crtc)
 {
 	struct atmel_hlcdc_crtc_state *state;
 

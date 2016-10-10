@@ -210,7 +210,11 @@ static inline void protected_writeback_dcache_line(unsigned long addr)
 
 static inline void protected_writeback_scache_line(unsigned long addr)
 {
+#ifdef CONFIG_EVA
+	protected_cachee_op(Hit_Writeback_Inv_SD, addr);
+#else
 	protected_cache_op(Hit_Writeback_Inv_SD, addr);
+#endif
 }
 
 /*

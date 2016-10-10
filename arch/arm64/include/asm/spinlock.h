@@ -66,8 +66,7 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 	ARM64_LSE_ATOMIC_INSN(
 	/* LL/SC */
 "	stxr	%w1, %w0, %2\n"
-"	nop\n"
-"	nop\n",
+	__nops(2),
 	/* LSE atomics */
 "	mov	%w1, %w0\n"
 "	cas	%w0, %w0, %2\n"
@@ -99,9 +98,7 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 	/* LSE atomics */
 "	mov	%w2, %w5\n"
 "	ldadda	%w2, %w0, %3\n"
-"	nop\n"
-"	nop\n"
-"	nop\n"
+	__nops(3)
 	)
 
 	/* Did we get the lock? */
@@ -165,8 +162,8 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 	"	stlrh	%w1, %0",
 	/* LSE atomics */
 	"	mov	%w1, #1\n"
-	"	nop\n"
-	"	staddlh	%w1, %0")
+	"	staddlh	%w1, %0\n"
+	__nops(1))
 	: "=Q" (lock->owner), "=&r" (tmp)
 	:
 	: "memory");
@@ -212,7 +209,7 @@ static inline void arch_write_lock(arch_rwlock_t *rw)
 	"	cbnz	%w0, 1b\n"
 	"	stxr	%w0, %w2, %1\n"
 	"	cbnz	%w0, 2b\n"
-	"	nop",
+	__nops(1),
 	/* LSE atomics */
 	"1:	mov	%w0, wzr\n"
 	"2:	casa	%w0, %w2, %1\n"
@@ -241,8 +238,7 @@ static inline int arch_write_trylock(arch_rwlock_t *rw)
 	/* LSE atomics */
 	"	mov	%w0, wzr\n"
 	"	casa	%w0, %w2, %1\n"
-	"	nop\n"
-	"	nop")
+	__nops(2))
 	: "=&r" (tmp), "+Q" (rw->lock)
 	: "r" (0x80000000)
 	: "memory");
@@ -290,8 +286,8 @@ static inline void arch_read_lock(arch_rwlock_t *rw)
 	"	add	%w0, %w0, #1\n"
 	"	tbnz	%w0, #31, 1b\n"
 	"	stxr	%w1, %w0, %2\n"
-	"	nop\n"
-	"	cbnz	%w1, 2b",
+	"	cbnz	%w1, 2b\n"
+	__nops(1),
 	/* LSE atomics */
 	"1:	wfe\n"
 	"2:	ldxr	%w0, %2\n"
@@ -317,9 +313,8 @@ static inline void arch_read_unlock(arch_rwlock_t *rw)
 	"	cbnz	%w1, 1b",
 	/* LSE atomics */
 	"	movn	%w0, #0\n"
-	"	nop\n"
-	"	nop\n"
-	"	staddl	%w0, %2")
+	"	staddl	%w0, %2\n"
+	__nops(2))
 	: "=&r" (tmp), "=&r" (tmp2), "+Q" (rw->lock)
 	:
 	: "memory");
@@ -344,7 +339,7 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 	"	tbnz	%w1, #31, 1f\n"
 	"	casa	%w0, %w1, %2\n"
 	"	sbc	%w1, %w1, %w0\n"
-	"	nop\n"
+	__nops(1)
 	"1:")
 	: "=&r" (tmp), "=&r" (tmp2), "+Q" (rw->lock)
 	:
@@ -362,5 +357,15 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 #define arch_spin_relax(lock)	cpu_relax()
 #define arch_read_relax(lock)	cpu_relax()
 #define arch_write_relax(lock)	cpu_relax()
+
+/*
+ * Accesses appearing in program order before a spin_lock() operation
+ * can be reordered with accesses inside the critical section, by virtue
+ * of arch_spin_lock being constructed using acquire semantics.
+ *
+ * In cases where this is problematic (e.g. try_to_wake_up), an
+ * smp_mb__before_spinlock() can restore the required ordering.
+ */
+#define smp_mb__before_spinlock()	smp_mb()
 
 #endif /* __ASM_SPINLOCK_H */

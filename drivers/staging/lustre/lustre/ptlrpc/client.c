@@ -45,6 +45,7 @@
 
 static int ptlrpc_send_new_req(struct ptlrpc_request *req);
 static int ptlrpcd_check_work(struct ptlrpc_request *req);
+static int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async);
 
 /**
  * Initialize passed in client structure \a cl.
@@ -89,7 +90,6 @@ struct ptlrpc_connection *ptlrpc_uuid_to_connection(struct obd_uuid *uuid)
 
 	return c;
 }
-EXPORT_SYMBOL(ptlrpc_uuid_to_connection);
 
 /**
  * Allocate and initialize new bulk descriptor on the sender.
@@ -202,7 +202,7 @@ void __ptlrpc_free_bulk(struct ptlrpc_bulk_desc *desc, int unpin)
 
 	if (unpin) {
 		for (i = 0; i < desc->bd_iov_count; i++)
-			put_page(desc->bd_iov[i].kiov_page);
+			put_page(desc->bd_iov[i].bv_page);
 	}
 
 	kfree(desc);
@@ -283,8 +283,8 @@ int ptlrpc_at_get_net_latency(struct ptlrpc_request *req)
 }
 
 /* Adjust expected network latency */
-static void ptlrpc_at_adj_net_latency(struct ptlrpc_request *req,
-				      unsigned int service_time)
+void ptlrpc_at_adj_net_latency(struct ptlrpc_request *req,
+			       unsigned int service_time)
 {
 	unsigned int nl, oldnl;
 	struct imp_at *at;
@@ -364,31 +364,37 @@ static int ptlrpc_at_recv_early_reply(struct ptlrpc_request *req)
 	}
 
 	rc = unpack_reply(early_req);
-	if (rc == 0) {
-		/* Expecting to increase the service time estimate here */
-		ptlrpc_at_adj_service(req,
-			lustre_msg_get_timeout(early_req->rq_repmsg));
-		ptlrpc_at_adj_net_latency(req,
-			lustre_msg_get_service_time(early_req->rq_repmsg));
-	}
-
-	sptlrpc_cli_finish_early_reply(early_req);
-
-	if (rc != 0) {
+	if (rc) {
+		sptlrpc_cli_finish_early_reply(early_req);
 		spin_lock(&req->rq_lock);
 		return rc;
 	}
 
-	/* Adjust the local timeout for this req */
-	ptlrpc_at_set_req_timeout(req);
+	/*
+	 * Use new timeout value just to adjust the local value for this
+	 * request, don't include it into at_history. It is unclear yet why
+	 * service time increased and should it be counted or skipped, e.g.
+	 * that can be recovery case or some error or server, the real reply
+	 * will add all new data if it is worth to add.
+	 */
+	req->rq_timeout = lustre_msg_get_timeout(early_req->rq_repmsg);
+	lustre_msg_set_timeout(req->rq_reqmsg, req->rq_timeout);
+
+	/* Network latency can be adjusted, it is pure network delays */
+	ptlrpc_at_adj_net_latency(req,
+				  lustre_msg_get_service_time(early_req->rq_repmsg));
+
+	sptlrpc_cli_finish_early_reply(early_req);
 
 	spin_lock(&req->rq_lock);
 	olddl = req->rq_deadline;
 	/*
-	 * server assumes it now has rq_timeout from when it sent the
-	 * early reply, so client should give it at least that long.
+	 * server assumes it now has rq_timeout from when the request
+	 * arrived, so the client should give it at least that long.
+	 * since we don't know the arrival time we'll use the original
+	 * sent time
 	 */
-	req->rq_deadline = ktime_get_real_seconds() + req->rq_timeout +
+	req->rq_deadline = req->rq_sent + req->rq_timeout +
 			   ptlrpc_at_get_net_latency(req);
 
 	DEBUG_REQ(D_ADAPTTO, req,
@@ -884,7 +890,6 @@ struct ptlrpc_request_set *ptlrpc_prep_fcset(int max, set_producer_func func,
 
 	return set;
 }
-EXPORT_SYMBOL(ptlrpc_prep_fcset);
 
 /**
  * Wind down and free request set structure previously allocated with
@@ -1004,7 +1009,6 @@ void ptlrpc_set_add_new_req(struct ptlrpcd_ctl *pc,
 			wake_up(&pc->pc_partners[i]->pc_set->set_waitq);
 	}
 }
-EXPORT_SYMBOL(ptlrpc_set_add_new_req);
 
 /**
  * Based on the current state of the import, determine if the request
@@ -1035,8 +1039,8 @@ static int ptlrpc_import_delay_req(struct obd_import *imp,
 		*status = -EIO;
 	} else if (ptlrpc_send_limit_expired(req)) {
 		/* probably doesn't need to be a D_ERROR after initial testing */
-		DEBUG_REQ(D_ERROR, req, "send limit expired ");
-		*status = -EIO;
+		DEBUG_REQ(D_HA, req, "send limit expired ");
+		*status = -ETIMEDOUT;
 	} else if (req->rq_send_state == LUSTRE_IMP_CONNECTING &&
 		   imp->imp_state == LUSTRE_IMP_CONNECTING) {
 		/* allow CONNECT even if import is invalid */
@@ -1073,36 +1077,42 @@ static int ptlrpc_import_delay_req(struct obd_import *imp,
 }
 
 /**
- * Decide if the error message regarding provided request \a req
- * should be printed to the console or not.
- * Makes it's decision on request status and other properties.
- * Returns 1 to print error on the system console or 0 if not.
+ * Decide if the error message should be printed to the console or not.
+ * Makes its decision based on request type, status, and failure frequency.
+ *
+ * \param[in] req  request that failed and may need a console message
+ *
+ * \retval false if no message should be printed
+ * \retval true  if console message should be printed
  */
-static int ptlrpc_console_allow(struct ptlrpc_request *req)
+static bool ptlrpc_console_allow(struct ptlrpc_request *req)
 {
 	__u32 opc;
-	int err;
 
 	LASSERT(req->rq_reqmsg);
 	opc = lustre_msg_get_opc(req->rq_reqmsg);
 
-	/*
-	 * Suppress particular reconnect errors which are to be expected.  No
-	 * errors are suppressed for the initial connection on an import
-	 */
-	if ((lustre_handle_is_used(&req->rq_import->imp_remote_handle)) &&
-	    (opc == OST_CONNECT || opc == MDS_CONNECT || opc == MGS_CONNECT)) {
-		/* Suppress timed out reconnect requests */
-		if (req->rq_timedout)
-			return 0;
+	/* Suppress particular reconnect errors which are to be expected. */
+	if (opc == OST_CONNECT || opc == MDS_CONNECT || opc == MGS_CONNECT) {
+		int err;
 
-		/* Suppress unavailable/again reconnect requests */
+		/* Suppress timed out reconnect requests */
+		if (lustre_handle_is_used(&req->rq_import->imp_remote_handle) ||
+		    req->rq_timedout)
+			return false;
+
+		/*
+		 * Suppress most unavailable/again reconnect requests, but
+		 * print occasionally so it is clear client is trying to
+		 * connect to a server where no target is running.
+		 */
 		err = lustre_msg_get_status(req->rq_repmsg);
-		if (err == -ENODEV || err == -EAGAIN)
-			return 0;
+		if ((err == -ENODEV || err == -EAGAIN) &&
+		    req->rq_import->imp_conn_cnt % 30 != 20)
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 
 /**
@@ -1116,14 +1126,14 @@ static int ptlrpc_check_status(struct ptlrpc_request *req)
 	err = lustre_msg_get_status(req->rq_repmsg);
 	if (lustre_msg_get_type(req->rq_repmsg) == PTL_RPC_MSG_ERR) {
 		struct obd_import *imp = req->rq_import;
+		lnet_nid_t nid = imp->imp_connection->c_peer.nid;
 		__u32 opc = lustre_msg_get_opc(req->rq_reqmsg);
 
 		if (ptlrpc_console_allow(req))
-			LCONSOLE_ERROR_MSG(0x011, "%s: Communicating with %s, operation %s failed with %d.\n",
+			LCONSOLE_ERROR_MSG(0x011, "%s: operation %s to node %s failed: rc = %d\n",
 					   imp->imp_obd->obd_name,
-					   libcfs_nid2str(
-						   imp->imp_connection->c_peer.nid),
-					   ll_opcode2str(opc), err);
+					   ll_opcode2str(opc),
+					   libcfs_nid2str(nid), err);
 		return err < 0 ? err : -EINVAL;
 	}
 
@@ -1280,7 +1290,7 @@ static int after_reply(struct ptlrpc_request *req)
 		 * some reason. Try to reconnect, and if that fails, punt to
 		 * the upcall.
 		 */
-		if (ll_rpc_recoverable_error(rc)) {
+		if (ptlrpc_recoverable_error(rc)) {
 			if (req->rq_send_state != LUSTRE_IMP_FULL ||
 			    imp->imp_obd->obd_no_recov || imp->imp_dlm_fake) {
 				return rc;
@@ -1628,8 +1638,10 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 			    req->rq_waiting || req->rq_wait_ctx) {
 				int status;
 
-				if (!ptlrpc_unregister_reply(req, 1))
+				if (!ptlrpc_unregister_reply(req, 1)) {
+					ptlrpc_unregister_bulk(req, 1);
 					continue;
+				}
 
 				spin_lock(&imp->imp_lock);
 				if (ptlrpc_import_delay_req(imp, req,
@@ -1995,7 +2007,6 @@ int ptlrpc_expired_set(void *data)
 	 */
 	return 1;
 }
-EXPORT_SYMBOL(ptlrpc_expired_set);
 
 /**
  * Sets rq_intr flag in \a req under spinlock.
@@ -2012,7 +2023,7 @@ EXPORT_SYMBOL(ptlrpc_mark_interrupted);
  * Interrupts (sets interrupted flag) all uncompleted requests in
  * a set \a data. Callback for l_wait_event for interruptible waits.
  */
-void ptlrpc_interrupted_set(void *data)
+static void ptlrpc_interrupted_set(void *data)
 {
 	struct ptlrpc_request_set *set = data;
 	struct list_head *tmp;
@@ -2030,7 +2041,6 @@ void ptlrpc_interrupted_set(void *data)
 		ptlrpc_mark_interrupted(req);
 	}
 }
-EXPORT_SYMBOL(ptlrpc_interrupted_set);
 
 /**
  * Get the smallest timeout in the set; this does NOT set a timeout.
@@ -2074,7 +2084,6 @@ int ptlrpc_set_next_timeout(struct ptlrpc_request_set *set)
 	}
 	return timeout;
 }
-EXPORT_SYMBOL(ptlrpc_set_next_timeout);
 
 /**
  * Send all unset request from the set and then wait until all
@@ -2325,7 +2334,7 @@ EXPORT_SYMBOL(ptlrpc_req_xid);
  * The request owner (i.e. the thread doing the I/O) must call...
  * Returns 0 on success or 1 if unregistering cannot be made.
  */
-int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
+static int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
 {
 	int rc;
 	wait_queue_head_t *wq;
@@ -2390,7 +2399,6 @@ int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(ptlrpc_unregister_reply);
 
 static void ptlrpc_free_request(struct ptlrpc_request *req)
 {
@@ -2451,7 +2459,8 @@ void ptlrpc_free_committed(struct obd_import *imp)
 	       imp->imp_obd->obd_name, imp->imp_peer_committed_transno,
 	       imp->imp_generation);
 
-	if (imp->imp_generation != imp->imp_last_generation_checked)
+	if (imp->imp_generation != imp->imp_last_generation_checked ||
+	    !imp->imp_last_transno_checked)
 		skip_committed_list = false;
 
 	imp->imp_last_transno_checked = imp->imp_peer_committed_transno;
@@ -2499,6 +2508,9 @@ free_req:
 		if (req->rq_import_generation < imp->imp_generation) {
 			DEBUG_REQ(D_RPCTRACE, req, "free stale open request");
 			ptlrpc_free_request(req);
+		} else if (!req->rq_replay) {
+			DEBUG_REQ(D_RPCTRACE, req, "free closed open request");
+			ptlrpc_free_request(req);
 		}
 	}
 }
@@ -2541,7 +2553,6 @@ void ptlrpc_resend_req(struct ptlrpc_request *req)
 	ptlrpc_client_wake_req(req);
 	spin_unlock(&req->rq_lock);
 }
-EXPORT_SYMBOL(ptlrpc_resend_req);
 
 /**
  * Grab additional reference on a request \a req
@@ -2610,7 +2621,6 @@ void ptlrpc_retain_replayable_request(struct ptlrpc_request *req,
 
 	list_add(&req->rq_replay_list, &imp->imp_replay_list);
 }
-EXPORT_SYMBOL(ptlrpc_retain_replayable_request);
 
 /**
  * Send request and wait until it completes.
@@ -2783,7 +2793,6 @@ int ptlrpc_replay_req(struct ptlrpc_request *req)
 	ptlrpcd_add_req(req);
 	return 0;
 }
-EXPORT_SYMBOL(ptlrpc_replay_req);
 
 /**
  * Aborts all in-flight request on import \a imp sending and delayed lists
@@ -2843,7 +2852,6 @@ void ptlrpc_abort_inflight(struct obd_import *imp)
 
 	spin_unlock(&imp->imp_lock);
 }
-EXPORT_SYMBOL(ptlrpc_abort_inflight);
 
 /**
  * Abort all uncompleted requests in request set \a set
@@ -2929,7 +2937,6 @@ __u64 ptlrpc_next_xid(void)
 
 	return next;
 }
-EXPORT_SYMBOL(ptlrpc_next_xid);
 
 /**
  * Get a glimpse at what next xid value might have been.

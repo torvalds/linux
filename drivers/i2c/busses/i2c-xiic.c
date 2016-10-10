@@ -804,7 +804,6 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 	/* add i2c adapter to i2c tree */
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to add adapter\n");
 		xiic_deinit(i2c);
 		goto err_clk_dis;
 	}

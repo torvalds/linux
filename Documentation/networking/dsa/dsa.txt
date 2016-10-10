@@ -227,9 +227,9 @@ to address individual switches in the tree.
 
 dsa_switch: structure describing a switch device in the tree, referencing a
 dsa_switch_tree as a backpointer, slave network devices, master network device,
-and a reference to the backing dsa_switch_driver
+and a reference to the backing dsa_switch_ops
 
-dsa_switch_driver: structure referencing function pointers, see below for a full
+dsa_switch_ops: structure referencing function pointers, see below for a full
 description.
 
 Design limitations
@@ -357,10 +357,10 @@ regular HWMON devices in /sys/class/hwmon/.
 Driver development
 ==================
 
-DSA switch drivers need to implement a dsa_switch_driver structure which will
+DSA switch drivers need to implement a dsa_switch_ops structure which will
 contain the various members described below.
 
-register_switch_driver() registers this dsa_switch_driver in its internal list
+register_switch_driver() registers this dsa_switch_ops in its internal list
 of drivers to probe for. unregister_switch_driver() does the exact opposite.
 
 Unless requested differently by setting the priv_size member accordingly, DSA
@@ -379,7 +379,7 @@ Switch configuration
   buses, return a non-NULL string
 
 - setup: setup function for the switch, this function is responsible for setting
-  up the dsa_switch_driver private structure with all it needs: register maps,
+  up the dsa_switch_ops private structure with all it needs: register maps,
   interrupts, mutexes, locks etc.. This function is also expected to properly
   configure the switch to separate all network interfaces from each other, that
   is, they should be isolated by the switch hardware itself, typically by creating
@@ -584,28 +584,31 @@ of DSA, would be the its port-based VLAN, used by the associated bridge device.
   function that the driver has to call for each MAC address known to be behind
   the given port. A switchdev object is used to carry the VID and FDB info.
 
+- port_mdb_prepare: bridge layer function invoked when the bridge prepares the
+  installation of a multicast database entry. If the operation is not supported,
+  this function should return -EOPNOTSUPP to inform the bridge code to fallback
+  to a software implementation. No hardware setup must be done in this function.
+  See port_fdb_add for this and details.
+
+- port_mdb_add: bridge layer function invoked when the bridge wants to install
+  a multicast database entry, the switch hardware should be programmed with the
+  specified address in the specified VLAN ID in the forwarding database
+  associated with this VLAN ID.
+
+Note: VLAN ID 0 corresponds to the port private database, which, in the context
+of DSA, would be the its port-based VLAN, used by the associated bridge device.
+
+- port_mdb_del: bridge layer function invoked when the bridge wants to remove a
+  multicast database entry, the switch hardware should be programmed to delete
+  the specified MAC address from the specified VLAN ID if it was mapped into
+  this port forwarding database.
+
+- port_mdb_dump: bridge layer function invoked with a switchdev callback
+  function that the driver has to call for each MAC address known to be behind
+  the given port. A switchdev object is used to carry the VID and MDB info.
+
 TODO
 ====
-
-The platform device problem
----------------------------
-DSA is currently implemented as a platform device driver which is far from ideal
-as was discussed in this thread:
-
-http://permalink.gmane.org/gmane.linux.network/329848
-
-This basically prevents the device driver model to be properly used and applied,
-and support non-MDIO, non-MMIO Ethernet connected switches.
-
-Another problem with the platform device driver approach is that it prevents the
-use of a modular switch drivers build due to a circular dependency, illustrated
-here:
-
-http://comments.gmane.org/gmane.linux.network/345803
-
-Attempts of reworking this has been done here:
-
-https://lwn.net/Articles/643149/
 
 Making SWITCHDEV and DSA converge towards an unified codebase
 -------------------------------------------------------------

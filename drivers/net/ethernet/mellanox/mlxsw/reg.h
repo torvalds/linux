@@ -591,6 +591,12 @@ static const struct mlxsw_reg_info mlxsw_reg_sfn = {
  */
 MLXSW_ITEM32(reg, sfn, swid, 0x00, 24, 8);
 
+/* reg_sfn_end
+ * Forces the current session to end.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, sfn, end, 0x04, 20, 1);
+
 /* reg_sfn_num_rec
  * Request: Number of learned notifications and aged-out notification
  * records requested.
@@ -605,6 +611,7 @@ static inline void mlxsw_reg_sfn_pack(char *payload)
 {
 	MLXSW_REG_ZERO(sfn, payload);
 	mlxsw_reg_sfn_swid_set(payload, 0);
+	mlxsw_reg_sfn_end_set(payload, 1);
 	mlxsw_reg_sfn_num_rec_set(payload, MLXSW_REG_SFN_REC_MAX_COUNT);
 }
 
@@ -1385,7 +1392,7 @@ static inline void mlxsw_reg_slcr_pack(char *payload, u16 lag_hash)
 {
 	MLXSW_REG_ZERO(slcr, payload);
 	mlxsw_reg_slcr_pp_set(payload, MLXSW_REG_SLCR_PP_GLOBAL);
-	mlxsw_reg_slcr_type_set(payload, MLXSW_REG_SLCR_TYPE_XOR);
+	mlxsw_reg_slcr_type_set(payload, MLXSW_REG_SLCR_TYPE_CRC);
 	mlxsw_reg_slcr_lag_hash_set(payload, lag_hash);
 }
 
@@ -2131,6 +2138,18 @@ MLXSW_ITEM32(reg, ptys, local_port, 0x00, 16, 8);
  */
 MLXSW_ITEM32(reg, ptys, proto_mask, 0x00, 0, 3);
 
+enum {
+	MLXSW_REG_PTYS_AN_STATUS_NA,
+	MLXSW_REG_PTYS_AN_STATUS_OK,
+	MLXSW_REG_PTYS_AN_STATUS_FAIL,
+};
+
+/* reg_ptys_an_status
+ * Autonegotiation status.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, ptys, an_status, 0x04, 28, 4);
+
 #define MLXSW_REG_PTYS_ETH_SPEED_SGMII			BIT(0)
 #define MLXSW_REG_PTYS_ETH_SPEED_1000BASE_KX		BIT(1)
 #define MLXSW_REG_PTYS_ETH_SPEED_10GBASE_CX4		BIT(2)
@@ -2145,6 +2164,7 @@ MLXSW_ITEM32(reg, ptys, proto_mask, 0x00, 0, 3);
 #define MLXSW_REG_PTYS_ETH_SPEED_10GBASE_ER_LR		BIT(14)
 #define MLXSW_REG_PTYS_ETH_SPEED_40GBASE_SR4		BIT(15)
 #define MLXSW_REG_PTYS_ETH_SPEED_40GBASE_LR4_ER4	BIT(16)
+#define MLXSW_REG_PTYS_ETH_SPEED_50GBASE_SR2		BIT(18)
 #define MLXSW_REG_PTYS_ETH_SPEED_50GBASE_KR4		BIT(19)
 #define MLXSW_REG_PTYS_ETH_SPEED_100GBASE_CR4		BIT(20)
 #define MLXSW_REG_PTYS_ETH_SPEED_100GBASE_SR4		BIT(21)
@@ -2176,6 +2196,13 @@ MLXSW_ITEM32(reg, ptys, eth_proto_admin, 0x18, 0, 32);
  * Access: RO
  */
 MLXSW_ITEM32(reg, ptys, eth_proto_oper, 0x24, 0, 32);
+
+/* reg_ptys_eth_proto_lp_advertise
+ * The protocols that were advertised by the link partner during
+ * autonegotiation.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, ptys, eth_proto_lp_advertise, 0x30, 0, 32);
 
 static inline void mlxsw_reg_ptys_pack(char *payload, u8 local_port,
 				       u32 proto_admin)
@@ -3383,6 +3410,15 @@ MLXSW_ITEM32(reg, ritr, ipv4_fe, 0x04, 29, 1);
  */
 MLXSW_ITEM32(reg, ritr, ipv6_fe, 0x04, 28, 1);
 
+/* reg_ritr_lb_en
+ * Loop-back filter enable for unicast packets.
+ * If the flag is set then loop-back filter for unicast packets is
+ * implemented on the RIF. Multicast packets are always subject to
+ * loop-back filtering.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, lb_en, 0x04, 24, 1);
+
 /* reg_ritr_virtual_router
  * Virtual router ID associated with the router interface.
  * Access: RW
@@ -3484,6 +3520,7 @@ static inline void mlxsw_reg_ritr_pack(char *payload, bool enable,
 	mlxsw_reg_ritr_op_set(payload, op);
 	mlxsw_reg_ritr_rif_set(payload, rif);
 	mlxsw_reg_ritr_ipv4_fe_set(payload, 1);
+	mlxsw_reg_ritr_lb_en_set(payload, 1);
 	mlxsw_reg_ritr_mtu_set(payload, mtu);
 	mlxsw_reg_ritr_if_mac_memcpy_to(payload, mac);
 }
@@ -4000,6 +4037,7 @@ static inline void mlxsw_reg_ralue_pack(char *payload,
 {
 	MLXSW_REG_ZERO(ralue, payload);
 	mlxsw_reg_ralue_protocol_set(payload, protocol);
+	mlxsw_reg_ralue_op_set(payload, op);
 	mlxsw_reg_ralue_virtual_router_set(payload, virtual_router);
 	mlxsw_reg_ralue_prefix_len_set(payload, prefix_len);
 	mlxsw_reg_ralue_entry_type_set(payload,

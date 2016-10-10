@@ -15,7 +15,7 @@ if PM_DEVFREQ_EVENT
 
 config DEVFREQ_EVENT_EXYNOS_NOCP
 	tristate "EXYNOS NoC (Network On Chip) Probe DEVFREQ event Driver"
-	depends on ARCH_EXYNOS
+	depends on ARCH_EXYNOS || COMPILE_TEST
 	select PM_OPP
 	help
 	  This add the devfreq-event driver for Exynos SoC. It provides NoC
@@ -23,11 +23,18 @@ config DEVFREQ_EVENT_EXYNOS_NOCP
 
 config DEVFREQ_EVENT_EXYNOS_PPMU
 	tristate "EXYNOS PPMU (Platform Performance Monitoring Unit) DEVFREQ event Driver"
-	depends on ARCH_EXYNOS
+	depends on ARCH_EXYNOS || COMPILE_TEST
 	select PM_OPP
 	help
 	  This add the devfreq-event driver for Exynos SoC. It provides PPMU
 	  (Platform Performance Monitoring Unit) counters to estimate the
 	  utilization of each module.
+
+config DEVFREQ_EVENT_ROCKCHIP_DFI
+	tristate "ROCKCHIP DFI DEVFREQ event Driver"
+	depends on ARCH_ROCKCHIP
+	help
+	  This add the devfreq-event driver for Rockchip SoC. It provides DFI
+	  (DDR Monitor Module) driver to count ddr load.
 
 endif # PM_DEVFREQ_EVENT

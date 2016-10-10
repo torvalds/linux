@@ -31,6 +31,7 @@
 #include "async-thread.h"
 #include "free-space-cache.h"
 #include "inode-map.h"
+#include "qgroup.h"
 
 /*
  * backref_node, mapping_node and tree_block start with this
@@ -235,12 +236,12 @@ static void backref_cache_cleanup(struct backref_cache *cache)
 	cache->last_trans = 0;
 
 	for (i = 0; i < BTRFS_MAX_LEVEL; i++)
-		BUG_ON(!list_empty(&cache->pending[i]));
-	BUG_ON(!list_empty(&cache->changed));
-	BUG_ON(!list_empty(&cache->detached));
-	BUG_ON(!RB_EMPTY_ROOT(&cache->rb_root));
-	BUG_ON(cache->nr_nodes);
-	BUG_ON(cache->nr_edges);
+		ASSERT(list_empty(&cache->pending[i]));
+	ASSERT(list_empty(&cache->changed));
+	ASSERT(list_empty(&cache->detached));
+	ASSERT(RB_EMPTY_ROOT(&cache->rb_root));
+	ASSERT(!cache->nr_nodes);
+	ASSERT(!cache->nr_edges);
 }
 
 static struct backref_node *alloc_backref_node(struct backref_cache *cache)
@@ -1171,8 +1172,12 @@ out:
 			lower = list_entry(useless.next,
 					   struct backref_node, list);
 			list_del_init(&lower->list);
+			if (lower == node)
+				node = NULL;
 			free_backref_node(cache, lower);
 		}
+
+		free_backref_node(cache, node);
 		return ERR_PTR(err);
 	}
 	ASSERT(!node || !node->detached);
@@ -1719,7 +1724,7 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 					   btrfs_header_owner(leaf),
 					   key.objectid, key.offset);
 		if (ret) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			break;
 		}
 
@@ -1727,7 +1732,7 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 					parent, btrfs_header_owner(leaf),
 					key.objectid, key.offset);
 		if (ret) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			break;
 		}
 	}
@@ -3033,15 +3038,19 @@ int prealloc_file_extent_cluster(struct inode *inode,
 	u64 num_bytes;
 	int nr = 0;
 	int ret = 0;
+	u64 prealloc_start = cluster->start - offset;
+	u64 prealloc_end = cluster->end - offset;
+	u64 cur_offset;
 
 	BUG_ON(cluster->start != cluster->boundary[0]);
 	inode_lock(inode);
 
-	ret = btrfs_check_data_free_space(inode, cluster->start,
-					  cluster->end + 1 - cluster->start);
+	ret = btrfs_check_data_free_space(inode, prealloc_start,
+					  prealloc_end + 1 - prealloc_start);
 	if (ret)
 		goto out;
 
+	cur_offset = prealloc_start;
 	while (nr < cluster->nr) {
 		start = cluster->boundary[nr] - offset;
 		if (nr + 1 < cluster->nr)
@@ -3051,16 +3060,21 @@ int prealloc_file_extent_cluster(struct inode *inode,
 
 		lock_extent(&BTRFS_I(inode)->io_tree, start, end);
 		num_bytes = end + 1 - start;
+		if (cur_offset < start)
+			btrfs_free_reserved_data_space(inode, cur_offset,
+					start - cur_offset);
 		ret = btrfs_prealloc_file_range(inode, 0, start,
 						num_bytes, num_bytes,
 						end + 1, &alloc_hint);
+		cur_offset = end + 1;
 		unlock_extent(&BTRFS_I(inode)->io_tree, start, end);
 		if (ret)
 			break;
 		nr++;
 	}
-	btrfs_free_reserved_data_space(inode, cluster->start,
-				       cluster->end + 1 - cluster->start);
+	if (cur_offset < prealloc_end)
+		btrfs_free_reserved_data_space(inode, cur_offset,
+				       prealloc_end + 1 - cur_offset);
 out:
 	inode_unlock(inode);
 	return ret;
@@ -3912,6 +3926,90 @@ int prepare_to_relocate(struct reloc_control *rc)
 	return 0;
 }
 
+/*
+ * Qgroup fixer for data chunk relocation.
+ * The data relocation is done in the following steps
+ * 1) Copy data extents into data reloc tree
+ * 2) Create tree reloc tree(special snapshot) for related subvolumes
+ * 3) Modify file extents in tree reloc tree
+ * 4) Merge tree reloc tree with original fs tree, by swapping tree blocks
+ *
+ * The problem is, data and tree reloc tree are not accounted to qgroup,
+ * and 4) will only info qgroup to track tree blocks change, not file extents
+ * in the tree blocks.
+ *
+ * The good news is, related data extents are all in data reloc tree, so we
+ * only need to info qgroup to track all file extents in data reloc tree
+ * before commit trans.
+ */
+static int qgroup_fix_relocated_data_extents(struct btrfs_trans_handle *trans,
+					     struct reloc_control *rc)
+{
+	struct btrfs_fs_info *fs_info = rc->extent_root->fs_info;
+	struct inode *inode = rc->data_inode;
+	struct btrfs_root *data_reloc_root = BTRFS_I(inode)->root;
+	struct btrfs_path *path;
+	struct btrfs_key key;
+	int ret = 0;
+
+	if (!fs_info->quota_enabled)
+		return 0;
+
+	/*
+	 * Only for stage where we update data pointers the qgroup fix is
+	 * valid.
+	 * For MOVING_DATA stage, we will miss the timing of swapping tree
+	 * blocks, and won't fix it.
+	 */
+	if (!(rc->stage == UPDATE_DATA_PTRS && rc->extents_found))
+		return 0;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+	key.objectid = btrfs_ino(inode);
+	key.type = BTRFS_EXTENT_DATA_KEY;
+	key.offset = 0;
+
+	ret = btrfs_search_slot(NULL, data_reloc_root, &key, path, 0, 0);
+	if (ret < 0)
+		goto out;
+
+	lock_extent(&BTRFS_I(inode)->io_tree, 0, (u64)-1);
+	while (1) {
+		struct btrfs_file_extent_item *fi;
+
+		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+		if (key.objectid > btrfs_ino(inode))
+			break;
+		if (key.type != BTRFS_EXTENT_DATA_KEY)
+			goto next;
+		fi = btrfs_item_ptr(path->nodes[0], path->slots[0],
+				    struct btrfs_file_extent_item);
+		if (btrfs_file_extent_type(path->nodes[0], fi) !=
+				BTRFS_FILE_EXTENT_REG)
+			goto next;
+		ret = btrfs_qgroup_insert_dirty_extent(trans, fs_info,
+			btrfs_file_extent_disk_bytenr(path->nodes[0], fi),
+			btrfs_file_extent_disk_num_bytes(path->nodes[0], fi),
+			GFP_NOFS);
+		if (ret < 0)
+			break;
+next:
+		ret = btrfs_next_item(data_reloc_root, path);
+		if (ret < 0)
+			break;
+		if (ret > 0) {
+			ret = 0;
+			break;
+		}
+	}
+	unlock_extent(&BTRFS_I(inode)->io_tree, 0 , (u64)-1);
+out:
+	btrfs_free_path(path);
+	return ret;
+}
+
 static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 {
 	struct rb_root blocks = RB_ROOT;
@@ -4098,10 +4196,18 @@ restart:
 
 	/* get rid of pinned extents */
 	trans = btrfs_join_transaction(rc->extent_root);
-	if (IS_ERR(trans))
+	if (IS_ERR(trans)) {
 		err = PTR_ERR(trans);
-	else
-		btrfs_commit_transaction(trans, rc->extent_root);
+		goto out_free;
+	}
+	ret = qgroup_fix_relocated_data_extents(trans, rc);
+	if (ret < 0) {
+		btrfs_abort_transaction(trans, ret);
+		if (!err)
+			err = ret;
+		goto out_free;
+	}
+	btrfs_commit_transaction(trans, rc->extent_root);
 out_free:
 	btrfs_free_block_rsv(rc->extent_root, rc->block_rsv);
 	btrfs_free_path(path);
@@ -4464,10 +4570,16 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 	unset_reloc_control(rc);
 
 	trans = btrfs_join_transaction(rc->extent_root);
-	if (IS_ERR(trans))
+	if (IS_ERR(trans)) {
 		err = PTR_ERR(trans);
-	else
-		err = btrfs_commit_transaction(trans, rc->extent_root);
+		goto out_free;
+	}
+	err = qgroup_fix_relocated_data_extents(trans, rc);
+	if (err < 0) {
+		btrfs_abort_transaction(trans, err);
+		goto out_free;
+	}
+	err = btrfs_commit_transaction(trans, rc->extent_root);
 out_free:
 	kfree(rc);
 out:

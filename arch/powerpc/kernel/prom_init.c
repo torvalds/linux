@@ -42,6 +42,7 @@
 #include <asm/sections.h>
 #include <asm/machdep.h>
 #include <asm/opal.h>
+#include <asm/asm-prototypes.h>
 
 #include <linux/linux_logo.h>
 
@@ -695,7 +696,7 @@ unsigned char ibm_architecture_vec[] = {
 	OV4_MIN_ENT_CAP,		/* minimum VP entitled capacity */
 
 	/* option vector 5: PAPR/OF options */
-	VECTOR_LENGTH(18),		/* length */
+	VECTOR_LENGTH(21),		/* length */
 	0,				/* don't ignore, don't halt */
 	OV5_FEAT(OV5_LPAR) | OV5_FEAT(OV5_SPLPAR) | OV5_FEAT(OV5_LARGE_PAGES) |
 	OV5_FEAT(OV5_DRCONF_MEMORY) | OV5_FEAT(OV5_DONATE_DEDICATE_CPU) |
@@ -726,8 +727,11 @@ unsigned char ibm_architecture_vec[] = {
 	0,
 	0,
 	OV5_FEAT(OV5_PFO_HW_RNG) | OV5_FEAT(OV5_PFO_HW_ENCR) |
-	OV5_FEAT(OV5_PFO_HW_842),
-	OV5_FEAT(OV5_SUB_PROCESSORS),
+	OV5_FEAT(OV5_PFO_HW_842),				/* Byte 17 */
+	0,							/* Byte 18 */
+	0,							/* Byte 19 */
+	0,							/* Byte 20 */
+	OV5_FEAT(OV5_SUB_PROCESSORS),				/* Byte 21 */
 
 	/* option vector 6: IBM PAPR hints */
 	VECTOR_LENGTH(3),		/* length */
@@ -2640,6 +2644,86 @@ static void __init fixup_device_tree_efika(void)
 #define fixup_device_tree_efika()
 #endif
 
+#ifdef CONFIG_PPC_PASEMI_NEMO
+/*
+ * CFE supplied on Nemo is broken in several ways, biggest
+ * problem is that it reassigns ISA interrupts to unused mpic ints.
+ * Add an interrupt-controller property for the io-bridge to use
+ * and correct the ints so we can attach them to an irq_domain
+ */
+static void __init fixup_device_tree_pasemi(void)
+{
+	u32 interrupts[2], parent, rval, val = 0;
+	char *name, *pci_name;
+	phandle iob, node;
+
+	/* Find the root pci node */
+	name = "/pxp@0,e0000000";
+	iob = call_prom("finddevice", 1, 1, ADDR(name));
+	if (!PHANDLE_VALID(iob))
+		return;
+
+	/* check if interrupt-controller node set yet */
+	if (prom_getproplen(iob, "interrupt-controller") !=PROM_ERROR)
+		return;
+
+	prom_printf("adding interrupt-controller property for SB600...\n");
+
+	prom_setprop(iob, name, "interrupt-controller", &val, 0);
+
+	pci_name = "/pxp@0,e0000000/pci@11";
+	node = call_prom("finddevice", 1, 1, ADDR(pci_name));
+	parent = ADDR(iob);
+
+	for( ; prom_next_node(&node); ) {
+		/* scan each node for one with an interrupt */
+		if (!PHANDLE_VALID(node))
+			continue;
+
+		rval = prom_getproplen(node, "interrupts");
+		if (rval == 0 || rval == PROM_ERROR)
+			continue;
+
+		prom_getprop(node, "interrupts", &interrupts, sizeof(interrupts));
+		if ((interrupts[0] < 212) || (interrupts[0] > 222))
+			continue;
+
+		/* found a node, update both interrupts and interrupt-parent */
+		if ((interrupts[0] >= 212) && (interrupts[0] <= 215))
+			interrupts[0] -= 203;
+		if ((interrupts[0] >= 216) && (interrupts[0] <= 220))
+			interrupts[0] -= 213;
+		if (interrupts[0] == 221)
+			interrupts[0] = 14;
+		if (interrupts[0] == 222)
+			interrupts[0] = 8;
+
+		prom_setprop(node, pci_name, "interrupts", interrupts,
+					sizeof(interrupts));
+		prom_setprop(node, pci_name, "interrupt-parent", &parent,
+					sizeof(parent));
+	}
+
+	/*
+	 * The io-bridge has device_type set to 'io-bridge' change it to 'isa'
+	 * so that generic isa-bridge code can add the SB600 and its on-board
+	 * peripherals.
+	 */
+	name = "/pxp@0,e0000000/io-bridge@0";
+	iob = call_prom("finddevice", 1, 1, ADDR(name));
+	if (!PHANDLE_VALID(iob))
+		return;
+
+	/* device_type is already set, just change it. */
+
+	prom_printf("Changing device_type of SB600 node...\n");
+
+	prom_setprop(iob, name, "device_type", "isa", sizeof("isa"));
+}
+#else	/* !CONFIG_PPC_PASEMI_NEMO */
+static inline void fixup_device_tree_pasemi(void) { }
+#endif
+
 static void __init fixup_device_tree(void)
 {
 	fixup_device_tree_maple();
@@ -2647,6 +2731,7 @@ static void __init fixup_device_tree(void)
 	fixup_device_tree_chrp();
 	fixup_device_tree_pmac();
 	fixup_device_tree_efika();
+	fixup_device_tree_pasemi();
 }
 
 static void __init prom_find_boot_cpu(void)
@@ -2940,7 +3025,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 
 	/* Don't print anything after quiesce under OPAL, it crashes OFW */
 	if (of_platform != PLATFORM_OPAL) {
-		prom_printf("Booting Linux via __start() ...\n");
+		prom_printf("Booting Linux via __start() @ 0x%lx ...\n", kbase);
 		prom_debug("->dt_header_start=0x%x\n", hdr);
 	}
 

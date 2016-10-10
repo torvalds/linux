@@ -81,11 +81,14 @@ static int ehci_ci_reset(struct usb_hcd *hcd)
 {
 	struct device *dev = hcd->self.controller;
 	struct ci_hdrc *ci = dev_get_drvdata(dev);
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int ret;
 
 	ret = ehci_setup(hcd);
 	if (ret)
 		return ret;
+
+	ehci->need_io_watchdog = 0;
 
 	ci_platform_configure(ci);
 

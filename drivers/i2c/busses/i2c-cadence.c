@@ -767,7 +767,7 @@ static int cdns_i2c_setclk(unsigned long clk_in, struct cdns_i2c *id)
  * depending on the scaling direction.
  *
  * Return:	NOTIFY_STOP if the rate change should be aborted, NOTIFY_OK
- *		to acknowedge the change, NOTIFY_DONE if the notification is
+ *		to acknowledge the change, NOTIFY_DONE if the notification is
  *		considered irrelevant.
  */
 static int cdns_i2c_clk_notifier_cb(struct notifier_block *nb, unsigned long
@@ -963,10 +963,8 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 	}
 
 	ret = i2c_add_adapter(&id->adap);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "reg adap failed: %d\n", ret);
+	if (ret < 0)
 		goto err_clk_dis;
-	}
 
 	/*
 	 * Cadence I2C controller has a bug wherein it generates

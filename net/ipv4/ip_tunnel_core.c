@@ -69,13 +69,15 @@ void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 
 	skb_scrub_packet(skb, xnet);
 
-	skb_clear_hash(skb);
+	skb_clear_hash_if_not_l4(skb);
 	skb_dst_set(skb, &rt->dst);
 	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 
-	if (skb_iif && proto == IPPROTO_UDP) {
-		/* Arrived from an ingress interface and got udp encapuslated.
-		 * The encapsulated network segment length may exceed dst mtu.
+	if (skb_iif && !(df & htons(IP_DF))) {
+		/* Arrived from an ingress interface, got encapsulated, with
+		 * fragmentation of encapulating frames allowed.
+		 * If skb is gso, the resulting encapsulated network segments
+		 * may exceed dst mtu.
 		 * Allow IP Fragmentation of segments.
 		 */
 		IPCB(skb)->flags |= IPSKB_FRAG_SEGS;

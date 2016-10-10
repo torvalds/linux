@@ -439,7 +439,7 @@ config CRYPTO_CRC32C_INTEL
 
 config CRYPT_CRC32C_VPMSUM
 	tristate "CRC32c CRC algorithm (powerpc64)"
-	depends on PPC64
+	depends on PPC64 && ALTIVEC
 	select CRYPTO_HASH
 	select CRC32
 	help

@@ -37,6 +37,7 @@ _GLOBAL(memset)
 	clrldi	r5,r5,58
 	mtctr	r0
 	beq	5f
+	.balign 16
 4:	std	r4,0(r6)
 	std	r4,8(r6)
 	std	r4,16(r6)
@@ -90,6 +91,7 @@ _GLOBAL(backwards_memcpy)
 	andi.	r0,r6,3
 	mtctr	r7
 	bne	5f
+	.balign 16
 1:	lwz	r7,-4(r4)
 	lwzu	r8,-8(r4)
 	stw	r7,-4(r6)

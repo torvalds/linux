@@ -92,9 +92,7 @@ int capi_conn_req(const char *calledPN, struct sk_buff **skb, int proto)
 		*(skb_put(*skb, 1)) = 0x80;     /* Speech		*/
 		*(skb_put(*skb, 1)) = 0x10;     /* Circuit Mode		*/
 		*(skb_put(*skb, 1)) = 0x23;     /* A-law		*/
-	}
-	else
-	{
+	} else {
 		/* Bearer Capability - Mandatory*/
 		*(skb_put(*skb, 1)) = 2;        /* BC0.Length		*/
 		*(skb_put(*skb, 1)) = 0x88;     /* Digital Information	*/

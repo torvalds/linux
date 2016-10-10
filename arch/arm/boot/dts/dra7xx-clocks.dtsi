@@ -1003,6 +1003,14 @@
 		ti,index-power-of-two;
 	};
 
+	gmac_main_clk: gmac_main_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&gmac_250m_dclk_div>;
+		clock-mult = <1>;
+		clock-div = <2>;
+	};
+
 	l3init_480m_dclk_div: l3init_480m_dclk_div@1ac {
 		#clock-cells = <0>;
 		compatible = "ti,divider-clock";
@@ -1718,13 +1726,12 @@
 		reg = <0x0c00>;
 	};
 
-	gmac_gmii_ref_clk_div: gmac_gmii_ref_clk_div@13d0 {
+	rmii_50mhz_clk_mux: rmii_50mhz_clk_mux@13d0 {
 		#clock-cells = <0>;
-		compatible = "ti,divider-clock";
-		clocks = <&dpll_gmac_m2_ck>;
+		compatible = "ti,mux-clock";
+		clocks = <&dpll_gmac_h11x2_ck>, <&rmii_clk_ck>;
 		ti,bit-shift = <24>;
 		reg = <0x13d0>;
-		ti,dividers = <2>;
 	};
 
 	gmac_rft_clk_mux: gmac_rft_clk_mux@13d0 {

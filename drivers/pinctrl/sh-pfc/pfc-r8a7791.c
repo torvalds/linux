@@ -13,6 +13,10 @@
 
 #include "sh_pfc.h"
 
+/*
+ * Pins 0-23 assigned to GPIO bank 6 can be used for SD interfaces in
+ * which case they support both 3.3V and 1.8V signalling.
+ */
 #define CPU_ALL_PORT(fn, sfx)						\
 	PORT_GP_32(0, fn, sfx),						\
 	PORT_GP_26(1, fn, sfx),						\
@@ -20,7 +24,15 @@
 	PORT_GP_32(3, fn, sfx),						\
 	PORT_GP_32(4, fn, sfx),						\
 	PORT_GP_32(5, fn, sfx),						\
-	PORT_GP_32(6, fn, sfx),						\
+	PORT_GP_CFG_24(6, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE),		\
+	PORT_GP_1(6, 24, fn, sfx),					\
+	PORT_GP_1(6, 25, fn, sfx),					\
+	PORT_GP_1(6, 26, fn, sfx),					\
+	PORT_GP_1(6, 27, fn, sfx),					\
+	PORT_GP_1(6, 28, fn, sfx),					\
+	PORT_GP_1(6, 29, fn, sfx),					\
+	PORT_GP_1(6, 30, fn, sfx),					\
+	PORT_GP_1(6, 31, fn, sfx),					\
 	PORT_GP_26(7, fn, sfx)
 
 enum {
@@ -6404,9 +6416,24 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ },
 };
 
+static int r8a7791_pin_to_pocctrl(struct sh_pfc *pfc, unsigned int pin, u32 *pocctrl)
+{
+	if (pin < RCAR_GP_PIN(6, 0) || pin > RCAR_GP_PIN(6, 23))
+		return -EINVAL;
+
+	*pocctrl = 0xe606008c;
+
+	return 31 - (pin & 0x1f);
+}
+
+static const struct sh_pfc_soc_operations r8a7791_pinmux_ops = {
+	.pin_to_pocctrl = r8a7791_pin_to_pocctrl,
+};
+
 #ifdef CONFIG_PINCTRL_PFC_R8A7791
 const struct sh_pfc_soc_info r8a7791_pinmux_info = {
 	.name = "r8a77910_pfc",
+	.ops = &r8a7791_pinmux_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },

@@ -1455,13 +1455,14 @@ static struct snd_soc_codec_driver soc_codec_dev_da9055 = {
 	.probe			= da9055_probe,
 	.set_bias_level		= da9055_set_bias_level,
 
-	.controls		= da9055_snd_controls,
-	.num_controls		= ARRAY_SIZE(da9055_snd_controls),
-
-	.dapm_widgets		= da9055_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(da9055_dapm_widgets),
-	.dapm_routes		= da9055_audio_map,
-	.num_dapm_routes	= ARRAY_SIZE(da9055_audio_map),
+	.component_driver = {
+		.controls		= da9055_snd_controls,
+		.num_controls		= ARRAY_SIZE(da9055_snd_controls),
+		.dapm_widgets		= da9055_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(da9055_dapm_widgets),
+		.dapm_routes		= da9055_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(da9055_audio_map),
+	},
 };
 
 static const struct regmap_config da9055_regmap_config = {

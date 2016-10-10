@@ -331,6 +331,24 @@ static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
 	return 0;
 }
 
+static int notrace ramoops_pstore_write_buf_user(enum pstore_type_id type,
+						 enum kmsg_dump_reason reason,
+						 u64 *id, unsigned int part,
+						 const char __user *buf,
+						 bool compressed, size_t size,
+						 struct pstore_info *psi)
+{
+	if (type == PSTORE_TYPE_PMSG) {
+		struct ramoops_context *cxt = psi->data;
+
+		if (!cxt->mprz)
+			return -ENOMEM;
+		return persistent_ram_write_user(cxt->mprz, buf, size);
+	}
+
+	return -EINVAL;
+}
+
 static int ramoops_pstore_erase(enum pstore_type_id type, u64 id, int count,
 				struct timespec time, struct pstore_info *psi)
 {
@@ -369,6 +387,7 @@ static struct ramoops_context oops_cxt = {
 		.open	= ramoops_pstore_open,
 		.read	= ramoops_pstore_read,
 		.write_buf	= ramoops_pstore_write_buf,
+		.write_buf_user	= ramoops_pstore_write_buf_user,
 		.erase	= ramoops_pstore_erase,
 	},
 };
@@ -377,13 +396,14 @@ static void ramoops_free_przs(struct ramoops_context *cxt)
 {
 	int i;
 
-	cxt->max_dump_cnt = 0;
 	if (!cxt->przs)
 		return;
 
-	for (i = 0; !IS_ERR_OR_NULL(cxt->przs[i]); i++)
+	for (i = 0; i < cxt->max_dump_cnt; i++)
 		persistent_ram_free(cxt->przs[i]);
+
 	kfree(cxt->przs);
+	cxt->max_dump_cnt = 0;
 }
 
 static int ramoops_init_przs(struct device *dev, struct ramoops_context *cxt,
@@ -408,7 +428,7 @@ static int ramoops_init_przs(struct device *dev, struct ramoops_context *cxt,
 			     GFP_KERNEL);
 	if (!cxt->przs) {
 		dev_err(dev, "failed to initialize a prz array for dumps\n");
-		goto fail_prz;
+		goto fail_mem;
 	}
 
 	for (i = 0; i < cxt->max_dump_cnt; i++) {
@@ -419,6 +439,11 @@ static int ramoops_init_przs(struct device *dev, struct ramoops_context *cxt,
 			err = PTR_ERR(cxt->przs[i]);
 			dev_err(dev, "failed to request mem region (0x%zx@0x%llx): %d\n",
 				cxt->record_size, (unsigned long long)*paddr, err);
+
+			while (i > 0) {
+				i--;
+				persistent_ram_free(cxt->przs[i]);
+			}
 			goto fail_prz;
 		}
 		*paddr += cxt->record_size;
@@ -426,7 +451,9 @@ static int ramoops_init_przs(struct device *dev, struct ramoops_context *cxt,
 
 	return 0;
 fail_prz:
-	ramoops_free_przs(cxt);
+	kfree(cxt->przs);
+fail_mem:
+	cxt->max_dump_cnt = 0;
 	return err;
 }
 
@@ -486,30 +513,21 @@ static int ramoops_parse_dt(struct platform_device *pdev,
 			    struct ramoops_platform_data *pdata)
 {
 	struct device_node *of_node = pdev->dev.of_node;
-	struct device_node *mem_region;
-	struct resource res;
+	struct resource *res;
 	u32 value;
 	int ret;
 
 	dev_dbg(&pdev->dev, "using Device Tree\n");
 
-	mem_region = of_parse_phandle(of_node, "memory-region", 0);
-	if (!mem_region) {
-		dev_err(&pdev->dev, "no memory-region phandle\n");
-		return -ENODEV;
-	}
-
-	ret = of_address_to_resource(mem_region, 0, &res);
-	of_node_put(mem_region);
-	if (ret) {
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
 		dev_err(&pdev->dev,
-			"failed to translate memory-region to resource: %d\n",
-			ret);
-		return ret;
+			"failed to locate DT /reserved-memory resource\n");
+		return -EINVAL;
 	}
 
-	pdata->mem_size = resource_size(&res);
-	pdata->mem_address = res.start;
+	pdata->mem_size = resource_size(res);
+	pdata->mem_address = res->start;
 	pdata->mem_type = of_property_read_bool(of_node, "unbuffered");
 	pdata->dump_oops = !of_property_read_bool(of_node, "no-dump-oops");
 
@@ -617,12 +635,20 @@ static int ramoops_probe(struct platform_device *pdev)
 		cxt->pstore.bufsize = 1024; /* LOG_LINE_MAX */
 	cxt->pstore.bufsize = max(cxt->record_size, cxt->pstore.bufsize);
 	cxt->pstore.buf = kmalloc(cxt->pstore.bufsize, GFP_KERNEL);
-	spin_lock_init(&cxt->pstore.buf_lock);
 	if (!cxt->pstore.buf) {
 		pr_err("cannot allocate pstore buffer\n");
 		err = -ENOMEM;
 		goto fail_clear;
 	}
+	spin_lock_init(&cxt->pstore.buf_lock);
+
+	cxt->pstore.flags = PSTORE_FLAGS_DMESG;
+	if (cxt->console_size)
+		cxt->pstore.flags |= PSTORE_FLAGS_CONSOLE;
+	if (cxt->ftrace_size)
+		cxt->pstore.flags |= PSTORE_FLAGS_FTRACE;
+	if (cxt->pmsg_size)
+		cxt->pstore.flags |= PSTORE_FLAGS_PMSG;
 
 	err = pstore_register(&cxt->pstore);
 	if (err) {
@@ -652,11 +678,11 @@ fail_buf:
 	kfree(cxt->pstore.buf);
 fail_clear:
 	cxt->pstore.bufsize = 0;
-	kfree(cxt->mprz);
+	persistent_ram_free(cxt->mprz);
 fail_init_mprz:
-	kfree(cxt->fprz);
+	persistent_ram_free(cxt->fprz);
 fail_init_fprz:
-	kfree(cxt->cprz);
+	persistent_ram_free(cxt->cprz);
 fail_init_cprz:
 	ramoops_free_przs(cxt);
 fail_out:
@@ -668,7 +694,6 @@ static int ramoops_remove(struct platform_device *pdev)
 	struct ramoops_context *cxt = &oops_cxt;
 
 	pstore_unregister(&cxt->pstore);
-	cxt->max_dump_cnt = 0;
 
 	kfree(cxt->pstore.buf);
 	cxt->pstore.bufsize = 0;

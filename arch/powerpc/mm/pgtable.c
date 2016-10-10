@@ -224,8 +224,8 @@ int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 	if (changed) {
 		if (!is_vm_hugetlb_page(vma))
 			assert_pte_locked(vma->vm_mm, address);
-		__ptep_set_access_flags(ptep, entry);
-		flush_tlb_page_nohash(vma, address);
+		__ptep_set_access_flags(vma->vm_mm, ptep, entry);
+		flush_tlb_page(vma, address);
 	}
 	return changed;
 }

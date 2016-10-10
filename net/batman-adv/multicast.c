@@ -528,7 +528,7 @@ update:
 	}
 
 	return !(mcast_data.flags &
-		 (BATADV_MCAST_WANT_ALL_IPV4 + BATADV_MCAST_WANT_ALL_IPV6));
+		 (BATADV_MCAST_WANT_ALL_IPV4 | BATADV_MCAST_WANT_ALL_IPV6));
 }
 
 /**
@@ -1134,6 +1134,7 @@ void batadv_mcast_init(struct batadv_priv *bat_priv)
 				     BATADV_TVLV_HANDLER_OGM_CIFNOTFND);
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
  * batadv_mcast_flags_print_header - print own mcast flags to debugfs table
  * @bat_priv: the bat priv with all the soft interface information
@@ -1234,6 +1235,7 @@ int batadv_mcast_flags_seq_print_text(struct seq_file *seq, void *offset)
 
 	return 0;
 }
+#endif
 
 /**
  * batadv_mcast_free - free the multicast optimizations structures

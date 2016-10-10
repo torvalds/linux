@@ -58,8 +58,8 @@ do {									\
 } while (0)
 
 #define mlx5_core_err(__dev, format, ...)				\
-	dev_err(&(__dev)->pdev->dev, "%s:%s:%d:(pid %d): " format,	\
-	       (__dev)->priv.name, __func__, __LINE__, current->pid,	\
+	dev_err(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,	\
+		__func__, __LINE__, current->pid,	\
 	       ##__VA_ARGS__)
 
 #define mlx5_core_warn(__dev, format, ...)				\
@@ -75,19 +75,6 @@ enum {
 	MLX5_CMD_TIME, /* print command execution time */
 };
 
-static inline int mlx5_cmd_exec_check_status(struct mlx5_core_dev *dev, u32 *in,
-					     int in_size, u32 *out,
-					     int out_size)
-{
-	int err;
-
-	err = mlx5_cmd_exec(dev, in, in_size, out, out_size);
-	if (err)
-		return err;
-
-	return mlx5_cmd_status_to_err((struct mlx5_outbox_hdr *)out);
-}
-
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
 int mlx5_query_board_id(struct mlx5_core_dev *dev);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev);
@@ -96,7 +83,12 @@ void mlx5_core_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
 		     unsigned long param);
 void mlx5_enter_error_state(struct mlx5_core_dev *dev);
 void mlx5_disable_device(struct mlx5_core_dev *dev);
+int mlx5_sriov_init(struct mlx5_core_dev *dev);
+void mlx5_sriov_cleanup(struct mlx5_core_dev *dev);
+int mlx5_sriov_attach(struct mlx5_core_dev *dev);
+void mlx5_sriov_detach(struct mlx5_core_dev *dev);
 int mlx5_core_sriov_configure(struct pci_dev *dev, int num_vfs);
+bool mlx5_sriov_is_enabled(struct mlx5_core_dev *dev);
 int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id);
 int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id);
 int mlx5_wait_for_vf_pages(struct mlx5_core_dev *dev);
@@ -105,7 +97,38 @@ u32 mlx5_get_msix_vec(struct mlx5_core_dev *dev, int vecidx);
 struct mlx5_eq *mlx5_eqn2eq(struct mlx5_core_dev *dev, int eqn);
 void mlx5_cq_tasklet_cb(unsigned long data);
 
+void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev);
+void mlx5_lag_remove(struct mlx5_core_dev *dev);
+
+void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv);
+void mlx5_remove_device(struct mlx5_interface *intf, struct mlx5_priv *priv);
+void mlx5_attach_device(struct mlx5_core_dev *dev);
+void mlx5_detach_device(struct mlx5_core_dev *dev);
+bool mlx5_device_registered(struct mlx5_core_dev *dev);
+int mlx5_register_device(struct mlx5_core_dev *dev);
+void mlx5_unregister_device(struct mlx5_core_dev *dev);
+void mlx5_add_dev_by_protocol(struct mlx5_core_dev *dev, int protocol);
+void mlx5_remove_dev_by_protocol(struct mlx5_core_dev *dev, int protocol);
+struct mlx5_core_dev *mlx5_get_next_phys_dev(struct mlx5_core_dev *dev);
+void mlx5_dev_list_lock(void);
+void mlx5_dev_list_unlock(void);
+int mlx5_dev_list_trylock(void);
+
+bool mlx5_lag_intf_add(struct mlx5_interface *intf, struct mlx5_priv *priv);
+
 void mlx5e_init(void);
 void mlx5e_cleanup(void);
+
+static inline int mlx5_lag_is_lacp_owner(struct mlx5_core_dev *dev)
+{
+	/* LACP owner conditions:
+	 * 1) Function is physical.
+	 * 2) LAG is supported by FW.
+	 * 3) LAG is managed by driver (currently the only option).
+	 */
+	return  MLX5_CAP_GEN(dev, vport_group_manager) &&
+		   (MLX5_CAP_GEN(dev, num_lag_ports) > 1) &&
+		    MLX5_CAP_GEN(dev, lag_master);
+}
 
 #endif /* __MLX5_CORE_H__ */

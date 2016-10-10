@@ -1320,7 +1320,7 @@ struct il_priv {
 	u64 timestamp;
 
 	union {
-#if defined(CONFIG_IWL3945) || defined(CONFIG_IWL3945_MODULE)
+#if IS_ENABLED(CONFIG_IWL3945)
 		struct {
 			void *shared_virt;
 			dma_addr_t shared_phys;
@@ -1351,7 +1351,7 @@ struct il_priv {
 
 		} _3945;
 #endif
-#if defined(CONFIG_IWL4965) || defined(CONFIG_IWL4965_MODULE)
+#if IS_ENABLED(CONFIG_IWL4965)
 		struct {
 			struct il_rx_phy_res last_phy_res;
 			bool last_phy_res_valid;

@@ -91,18 +91,23 @@ static int is_multimedia_file(const unsigned char *s, const char *sub)
 {
 	size_t slen = strlen(s);
 	size_t sublen = strlen(sub);
+	int i;
 
 	/*
 	 * filename format of multimedia file should be defined as:
-	 * "filename + '.' + extension".
+	 * "filename + '.' + extension + (optional: '.' + temp extension)".
 	 */
 	if (slen < sublen + 2)
 		return 0;
 
-	if (s[slen - sublen - 1] != '.')
-		return 0;
+	for (i = 1; i < slen - sublen; i++) {
+		if (s[i] != '.')
+			continue;
+		if (!strncasecmp(s + i + 1, sub, sublen))
+			return 1;
+	}
 
-	return !strncasecmp(s + slen - sublen, sub, sublen);
+	return 0;
 }
 
 /*
@@ -449,7 +454,7 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 		ostr.name = sd->encrypted_path;
 		ostr.len = disk_link.len;
 		err = fscrypt_fname_usr_to_disk(inode, &istr, &ostr);
-		if (err < 0)
+		if (err)
 			goto err_out;
 
 		sd->len = cpu_to_le16(ostr.len);
@@ -1010,7 +1015,6 @@ static const char *f2fs_encrypted_get_link(struct dentry *dentry,
 	struct fscrypt_str cstr = FSTR_INIT(NULL, 0);
 	struct fscrypt_str pstr = FSTR_INIT(NULL, 0);
 	struct fscrypt_symlink_data *sd;
-	loff_t size = min_t(loff_t, i_size_read(inode), PAGE_SIZE - 1);
 	u32 max_size = inode->i_sb->s_blocksize;
 	int res;
 
@@ -1025,7 +1029,6 @@ static const char *f2fs_encrypted_get_link(struct dentry *dentry,
 	if (IS_ERR(cpage))
 		return ERR_CAST(cpage);
 	caddr = page_address(cpage);
-	caddr[size] = 0;
 
 	/* Symlink is encrypted */
 	sd = (struct fscrypt_symlink_data *)caddr;
@@ -1048,7 +1051,7 @@ static const char *f2fs_encrypted_get_link(struct dentry *dentry,
 		goto errout;
 
 	res = fscrypt_fname_disk_to_usr(inode, 0, 0, &cstr, &pstr);
-	if (res < 0)
+	if (res)
 		goto errout;
 
 	/* this is broken symlink case */
@@ -1060,7 +1063,7 @@ static const char *f2fs_encrypted_get_link(struct dentry *dentry,
 	paddr = pstr.name;
 
 	/* Null-terminate the name */
-	paddr[res] = '\0';
+	paddr[pstr.len] = '\0';
 
 	put_page(cpage);
 	set_delayed_call(done, kfree_link, paddr);

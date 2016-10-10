@@ -1744,6 +1744,7 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
 
 #define HV_PCI_MAP_ATTR_READ		0x01
 #define HV_PCI_MAP_ATTR_WRITE		0x02
+#define HV_PCI_MAP_ATTR_RELAXED_ORDER	0x04
 
 #define HV_PCI_DEVICE_BUILD(b,d,f)	\
 	((((b) & 0xff) << 16) | \

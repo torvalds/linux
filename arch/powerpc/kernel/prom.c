@@ -170,7 +170,7 @@ static struct ibm_pa_feature {
 	 */
 	{CPU_FTR_TM_COMP, 0, 0,
 	 PPC_FEATURE2_HTM_COMP|PPC_FEATURE2_HTM_NOSC_COMP, 22, 0, 0},
-	{0, MMU_FTR_RADIX, 0, 0,		40, 0, 0},
+	{0, MMU_FTR_TYPE_RADIX, 0, 0,		40, 0, 0},
 };
 
 static void __init scan_features(unsigned long node, const unsigned char *ftrs,
@@ -647,14 +647,6 @@ static void __init early_reserve_mem(void)
 #endif
 }
 
-static bool disable_radix;
-static int __init parse_disable_radix(char *p)
-{
-	disable_radix = true;
-	return 0;
-}
-early_param("disable_radix", parse_disable_radix);
-
 void __init early_init_devtree(void *params)
 {
 	phys_addr_t limit;
@@ -744,11 +736,8 @@ void __init early_init_devtree(void *params)
 	 */
 	spinning_secondaries = boot_cpu_count - 1;
 #endif
-	/*
-	 * now fixup radix MMU mode based on kernel command line
-	 */
-	if (disable_radix)
-		cur_cpu_spec->mmu_features &= ~MMU_FTR_RADIX;
+
+	mmu_early_init_devtree();
 
 #ifdef CONFIG_PPC_POWERNV
 	/* Scan and build the list of machine check recoverable ranges */

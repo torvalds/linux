@@ -422,6 +422,7 @@ struct nested_vmx {
 	struct list_head vmcs02_pool;
 	int vmcs02_num;
 	u64 vmcs01_tsc_offset;
+	bool change_vmcs01_virtual_x2apic_mode;
 	/* L2 must run next, and mustn't decide to exit to L1. */
 	bool nested_run_pending;
 	/*
@@ -434,6 +435,8 @@ struct nested_vmx {
 	struct pi_desc *pi_desc;
 	bool pi_pending;
 	u16 posted_intr_nv;
+
+	unsigned long *msr_bitmap;
 
 	struct hrtimer preemption_timer;
 	bool preemption_timer_expired;
@@ -924,7 +927,8 @@ static unsigned long *vmx_msr_bitmap_legacy;
 static unsigned long *vmx_msr_bitmap_longmode;
 static unsigned long *vmx_msr_bitmap_legacy_x2apic;
 static unsigned long *vmx_msr_bitmap_longmode_x2apic;
-static unsigned long *vmx_msr_bitmap_nested;
+static unsigned long *vmx_msr_bitmap_legacy_x2apic_apicv_inactive;
+static unsigned long *vmx_msr_bitmap_longmode_x2apic_apicv_inactive;
 static unsigned long *vmx_vmread_bitmap;
 static unsigned long *vmx_vmwrite_bitmap;
 
@@ -937,6 +941,7 @@ static DEFINE_SPINLOCK(vmx_vpid_lock);
 static struct vmcs_config {
 	int size;
 	int order;
+	u32 basic_cap;
 	u32 revision_id;
 	u32 pin_based_exec_ctrl;
 	u32 cpu_based_exec_ctrl;
@@ -1211,6 +1216,11 @@ static inline bool cpu_has_vmx_ple(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_PAUSE_LOOP_EXITING;
+}
+
+static inline bool cpu_has_vmx_basic_inout(void)
+{
+	return	(((u64)vmcs_config.basic_cap << 32) & VMX_BASIC_INOUT);
 }
 
 static inline bool cpu_need_virtualize_apic_accesses(struct kvm_vcpu *vcpu)
@@ -2198,6 +2208,12 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 			new.control) != old.control);
 }
 
+static void decache_tsc_multiplier(struct vcpu_vmx *vmx)
+{
+	vmx->current_tsc_ratio = vmx->vcpu.arch.tsc_scaling_ratio;
+	vmcs_write64(TSC_MULTIPLIER, vmx->current_tsc_ratio);
+}
+
 /*
  * Switches to specified vcpu, until a matching vcpu_put(), but assumes
  * vcpu mutex is already taken.
@@ -2256,10 +2272,8 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	/* Setup TSC multiplier */
 	if (kvm_has_tsc_control &&
-	    vmx->current_tsc_ratio != vcpu->arch.tsc_scaling_ratio) {
-		vmx->current_tsc_ratio = vcpu->arch.tsc_scaling_ratio;
-		vmcs_write64(TSC_MULTIPLIER, vmx->current_tsc_ratio);
-	}
+	    vmx->current_tsc_ratio != vcpu->arch.tsc_scaling_ratio)
+		decache_tsc_multiplier(vmx);
 
 	vmx_vcpu_pi_load(vcpu, cpu);
 	vmx->host_pkru = read_pkru();
@@ -2508,14 +2522,21 @@ static void vmx_set_msr_bitmap(struct kvm_vcpu *vcpu)
 	unsigned long *msr_bitmap;
 
 	if (is_guest_mode(vcpu))
-		msr_bitmap = vmx_msr_bitmap_nested;
+		msr_bitmap = to_vmx(vcpu)->nested.msr_bitmap;
 	else if (cpu_has_secondary_exec_ctrls() &&
 		 (vmcs_read32(SECONDARY_VM_EXEC_CONTROL) &
 		  SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE)) {
-		if (is_long_mode(vcpu))
-			msr_bitmap = vmx_msr_bitmap_longmode_x2apic;
-		else
-			msr_bitmap = vmx_msr_bitmap_legacy_x2apic;
+		if (enable_apicv && kvm_vcpu_apicv_active(vcpu)) {
+			if (is_long_mode(vcpu))
+				msr_bitmap = vmx_msr_bitmap_longmode_x2apic;
+			else
+				msr_bitmap = vmx_msr_bitmap_legacy_x2apic;
+		} else {
+			if (is_long_mode(vcpu))
+				msr_bitmap = vmx_msr_bitmap_longmode_x2apic_apicv_inactive;
+			else
+				msr_bitmap = vmx_msr_bitmap_legacy_x2apic_apicv_inactive;
+		}
 	} else {
 		if (is_long_mode(vcpu))
 			msr_bitmap = vmx_msr_bitmap_longmode;
@@ -2595,11 +2616,6 @@ static u64 vmx_read_l1_tsc(struct kvm_vcpu *vcpu, u64 host_tsc)
 		to_vmx(vcpu)->nested.vmcs01_tsc_offset :
 		vmcs_read64(TSC_OFFSET);
 	return host_tsc + tsc_offset;
-}
-
-static u64 vmx_read_tsc_offset(struct kvm_vcpu *vcpu)
-{
-	return vmcs_read64(TSC_OFFSET);
 }
 
 /*
@@ -2809,12 +2825,8 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 			vmx->nested.nested_vmx_ept_caps |=
 				VMX_EPT_EXECUTE_ONLY_BIT;
 		vmx->nested.nested_vmx_ept_caps &= vmx_capability.ept;
-		/*
-		 * For nested guests, we don't do anything specific
-		 * for single context invalidation. Hence, only advertise
-		 * support for global context invalidation.
-		 */
-		vmx->nested.nested_vmx_ept_caps |= VMX_EPT_EXTENT_GLOBAL_BIT;
+		vmx->nested.nested_vmx_ept_caps |= VMX_EPT_EXTENT_GLOBAL_BIT |
+			VMX_EPT_EXTENT_CONTEXT_BIT;
 	} else
 		vmx->nested.nested_vmx_ept_caps = 0;
 
@@ -2875,6 +2887,8 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 		*pdata = VMCS12_REVISION | VMX_BASIC_TRUE_CTLS |
 			   ((u64)VMCS12_SIZE << VMX_BASIC_VMCS_SIZE_SHIFT) |
 			   (VMX_BASIC_MEM_TYPE_WB << VMX_BASIC_MEM_TYPE_SHIFT);
+		if (cpu_has_vmx_basic_inout())
+			*pdata |= VMX_BASIC_INOUT;
 		break;
 	case MSR_IA32_VMX_TRUE_PINBASED_CTLS:
 	case MSR_IA32_VMX_PINBASED_CTLS:
@@ -2945,7 +2959,6 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 			vmx->nested.nested_vmx_secondary_ctls_high);
 		break;
 	case MSR_IA32_VMX_EPT_VPID_CAP:
-		/* Currently, no nested vpid support */
 		*pdata = vmx->nested.nested_vmx_ept_caps |
 			((u64)vmx->nested.nested_vmx_vpid_caps << 32);
 		break;
@@ -3456,7 +3469,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 		return -EIO;
 
 	vmcs_conf->size = vmx_msr_high & 0x1fff;
-	vmcs_conf->order = get_order(vmcs_config.size);
+	vmcs_conf->order = get_order(vmcs_conf->size);
+	vmcs_conf->basic_cap = vmx_msr_high & ~0x1fff;
 	vmcs_conf->revision_id = vmx_msr_low;
 
 	vmcs_conf->pin_based_exec_ctrl = _pin_based_exec_control;
@@ -4677,28 +4691,49 @@ static void vmx_disable_intercept_for_msr(u32 msr, bool longmode_only)
 						msr, MSR_TYPE_R | MSR_TYPE_W);
 }
 
-static void vmx_enable_intercept_msr_read_x2apic(u32 msr)
+static void vmx_enable_intercept_msr_read_x2apic(u32 msr, bool apicv_active)
 {
-	__vmx_enable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic,
-			msr, MSR_TYPE_R);
-	__vmx_enable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic,
-			msr, MSR_TYPE_R);
+	if (apicv_active) {
+		__vmx_enable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic,
+				msr, MSR_TYPE_R);
+		__vmx_enable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic,
+				msr, MSR_TYPE_R);
+	} else {
+		__vmx_enable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic_apicv_inactive,
+				msr, MSR_TYPE_R);
+		__vmx_enable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic_apicv_inactive,
+				msr, MSR_TYPE_R);
+	}
 }
 
-static void vmx_disable_intercept_msr_read_x2apic(u32 msr)
+static void vmx_disable_intercept_msr_read_x2apic(u32 msr, bool apicv_active)
 {
-	__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic,
-			msr, MSR_TYPE_R);
-	__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic,
-			msr, MSR_TYPE_R);
+	if (apicv_active) {
+		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic,
+				msr, MSR_TYPE_R);
+		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic,
+				msr, MSR_TYPE_R);
+	} else {
+		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic_apicv_inactive,
+				msr, MSR_TYPE_R);
+		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic_apicv_inactive,
+				msr, MSR_TYPE_R);
+	}
 }
 
-static void vmx_disable_intercept_msr_write_x2apic(u32 msr)
+static void vmx_disable_intercept_msr_write_x2apic(u32 msr, bool apicv_active)
 {
-	__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic,
-			msr, MSR_TYPE_W);
-	__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic,
-			msr, MSR_TYPE_W);
+	if (apicv_active) {
+		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic,
+				msr, MSR_TYPE_W);
+		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic,
+				msr, MSR_TYPE_W);
+	} else {
+		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic_apicv_inactive,
+				msr, MSR_TYPE_W);
+		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode_x2apic_apicv_inactive,
+				msr, MSR_TYPE_W);
+	}
 }
 
 static bool vmx_get_enable_apicv(void)
@@ -5278,29 +5313,30 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (is_guest_mode(vcpu))
-		return;
+	if (!is_guest_mode(vcpu)) {
+		if (!cpu_has_virtual_nmis()) {
+			/*
+			 * Tracking the NMI-blocked state in software is built upon
+			 * finding the next open IRQ window. This, in turn, depends on
+			 * well-behaving guests: They have to keep IRQs disabled at
+			 * least as long as the NMI handler runs. Otherwise we may
+			 * cause NMI nesting, maybe breaking the guest. But as this is
+			 * highly unlikely, we can live with the residual risk.
+			 */
+			vmx->soft_vnmi_blocked = 1;
+			vmx->vnmi_blocked_time = 0;
+		}
 
-	if (!cpu_has_virtual_nmis()) {
-		/*
-		 * Tracking the NMI-blocked state in software is built upon
-		 * finding the next open IRQ window. This, in turn, depends on
-		 * well-behaving guests: They have to keep IRQs disabled at
-		 * least as long as the NMI handler runs. Otherwise we may
-		 * cause NMI nesting, maybe breaking the guest. But as this is
-		 * highly unlikely, we can live with the residual risk.
-		 */
-		vmx->soft_vnmi_blocked = 1;
-		vmx->vnmi_blocked_time = 0;
+		++vcpu->stat.nmi_injections;
+		vmx->nmi_known_unmasked = false;
 	}
 
-	++vcpu->stat.nmi_injections;
-	vmx->nmi_known_unmasked = false;
 	if (vmx->rmode.vm86_active) {
 		if (kvm_inject_realmode_interrupt(vcpu, NMI_VECTOR, 0) != EMULATE_DONE)
 			kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 		return;
 	}
+
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
 			INTR_TYPE_NMI_INTR | INTR_INFO_VALID_MASK | NMI_VECTOR);
 }
@@ -6108,7 +6144,7 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 
 	gla_validity = (exit_qualification >> 7) & 0x3;
-	if (gla_validity != 0x3 && gla_validity != 0x1 && gla_validity != 0) {
+	if (gla_validity == 0x2) {
 		printk(KERN_ERR "EPT: Handling EPT violation failed!\n");
 		printk(KERN_ERR "EPT: GPA: 0x%lx, GVA: 0x%lx\n",
 			(long unsigned int)vmcs_read64(GUEST_PHYSICAL_ADDRESS),
@@ -6359,29 +6395,32 @@ static __init int hardware_setup(void)
 	if (!vmx_msr_bitmap_legacy_x2apic)
 		goto out2;
 
+	vmx_msr_bitmap_legacy_x2apic_apicv_inactive =
+				(unsigned long *)__get_free_page(GFP_KERNEL);
+	if (!vmx_msr_bitmap_legacy_x2apic_apicv_inactive)
+		goto out3;
+
 	vmx_msr_bitmap_longmode = (unsigned long *)__get_free_page(GFP_KERNEL);
 	if (!vmx_msr_bitmap_longmode)
-		goto out3;
+		goto out4;
 
 	vmx_msr_bitmap_longmode_x2apic =
 				(unsigned long *)__get_free_page(GFP_KERNEL);
 	if (!vmx_msr_bitmap_longmode_x2apic)
-		goto out4;
+		goto out5;
 
-	if (nested) {
-		vmx_msr_bitmap_nested =
-			(unsigned long *)__get_free_page(GFP_KERNEL);
-		if (!vmx_msr_bitmap_nested)
-			goto out5;
-	}
+	vmx_msr_bitmap_longmode_x2apic_apicv_inactive =
+				(unsigned long *)__get_free_page(GFP_KERNEL);
+	if (!vmx_msr_bitmap_longmode_x2apic_apicv_inactive)
+		goto out6;
 
 	vmx_vmread_bitmap = (unsigned long *)__get_free_page(GFP_KERNEL);
 	if (!vmx_vmread_bitmap)
-		goto out6;
+		goto out7;
 
 	vmx_vmwrite_bitmap = (unsigned long *)__get_free_page(GFP_KERNEL);
 	if (!vmx_vmwrite_bitmap)
-		goto out7;
+		goto out8;
 
 	memset(vmx_vmread_bitmap, 0xff, PAGE_SIZE);
 	memset(vmx_vmwrite_bitmap, 0xff, PAGE_SIZE);
@@ -6397,12 +6436,10 @@ static __init int hardware_setup(void)
 
 	memset(vmx_msr_bitmap_legacy, 0xff, PAGE_SIZE);
 	memset(vmx_msr_bitmap_longmode, 0xff, PAGE_SIZE);
-	if (nested)
-		memset(vmx_msr_bitmap_nested, 0xff, PAGE_SIZE);
 
 	if (setup_vmcs_config(&vmcs_config) < 0) {
 		r = -EIO;
-		goto out8;
+		goto out9;
 	}
 
 	if (boot_cpu_has(X86_FEATURE_NX))
@@ -6469,20 +6506,35 @@ static __init int hardware_setup(void)
 			vmx_msr_bitmap_legacy, PAGE_SIZE);
 	memcpy(vmx_msr_bitmap_longmode_x2apic,
 			vmx_msr_bitmap_longmode, PAGE_SIZE);
+	memcpy(vmx_msr_bitmap_legacy_x2apic_apicv_inactive,
+			vmx_msr_bitmap_legacy, PAGE_SIZE);
+	memcpy(vmx_msr_bitmap_longmode_x2apic_apicv_inactive,
+			vmx_msr_bitmap_longmode, PAGE_SIZE);
 
 	set_bit(0, vmx_vpid_bitmap); /* 0 is reserved for host */
 
+	/*
+	 * enable_apicv && kvm_vcpu_apicv_active()
+	 */
 	for (msr = 0x800; msr <= 0x8ff; msr++)
-		vmx_disable_intercept_msr_read_x2apic(msr);
+		vmx_disable_intercept_msr_read_x2apic(msr, true);
 
 	/* TMCCT */
-	vmx_enable_intercept_msr_read_x2apic(0x839);
+	vmx_enable_intercept_msr_read_x2apic(0x839, true);
 	/* TPR */
-	vmx_disable_intercept_msr_write_x2apic(0x808);
+	vmx_disable_intercept_msr_write_x2apic(0x808, true);
 	/* EOI */
-	vmx_disable_intercept_msr_write_x2apic(0x80b);
+	vmx_disable_intercept_msr_write_x2apic(0x80b, true);
 	/* SELF-IPI */
-	vmx_disable_intercept_msr_write_x2apic(0x83f);
+	vmx_disable_intercept_msr_write_x2apic(0x83f, true);
+
+	/*
+	 * (enable_apicv && !kvm_vcpu_apicv_active()) ||
+	 * 	!enable_apicv
+	 */
+	/* TPR */
+	vmx_disable_intercept_msr_read_x2apic(0x808, false);
+	vmx_disable_intercept_msr_write_x2apic(0x808, false);
 
 	if (enable_ept) {
 		kvm_mmu_set_mask_ptes(VMX_EPT_READABLE_MASK,
@@ -6529,17 +6581,18 @@ static __init int hardware_setup(void)
 
 	return alloc_kvm_area();
 
-out8:
+out9:
 	free_page((unsigned long)vmx_vmwrite_bitmap);
-out7:
+out8:
 	free_page((unsigned long)vmx_vmread_bitmap);
+out7:
+	free_page((unsigned long)vmx_msr_bitmap_longmode_x2apic_apicv_inactive);
 out6:
-	if (nested)
-		free_page((unsigned long)vmx_msr_bitmap_nested);
-out5:
 	free_page((unsigned long)vmx_msr_bitmap_longmode_x2apic);
-out4:
+out5:
 	free_page((unsigned long)vmx_msr_bitmap_longmode);
+out4:
+	free_page((unsigned long)vmx_msr_bitmap_legacy_x2apic_apicv_inactive);
 out3:
 	free_page((unsigned long)vmx_msr_bitmap_legacy_x2apic);
 out2:
@@ -6555,15 +6608,15 @@ out:
 static __exit void hardware_unsetup(void)
 {
 	free_page((unsigned long)vmx_msr_bitmap_legacy_x2apic);
+	free_page((unsigned long)vmx_msr_bitmap_legacy_x2apic_apicv_inactive);
 	free_page((unsigned long)vmx_msr_bitmap_longmode_x2apic);
+	free_page((unsigned long)vmx_msr_bitmap_longmode_x2apic_apicv_inactive);
 	free_page((unsigned long)vmx_msr_bitmap_legacy);
 	free_page((unsigned long)vmx_msr_bitmap_longmode);
 	free_page((unsigned long)vmx_io_bitmap_b);
 	free_page((unsigned long)vmx_io_bitmap_a);
 	free_page((unsigned long)vmx_vmwrite_bitmap);
 	free_page((unsigned long)vmx_vmread_bitmap);
-	if (nested)
-		free_page((unsigned long)vmx_msr_bitmap_nested);
 
 	free_kvm_area();
 }
@@ -6739,7 +6792,7 @@ static void nested_vmx_abort(struct kvm_vcpu *vcpu, u32 indicator)
 {
 	/* TODO: not to reset guest simply here. */
 	kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
-	pr_warn("kvm: nested vmx abort, indicator %d\n", indicator);
+	pr_debug_ratelimited("kvm: nested vmx abort, indicator %d\n", indicator);
 }
 
 static enum hrtimer_restart vmx_preemption_timer_fn(struct hrtimer *timer)
@@ -7000,16 +7053,21 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 		return 1;
 	}
 
+	if (cpu_has_vmx_msr_bitmap()) {
+		vmx->nested.msr_bitmap =
+				(unsigned long *)__get_free_page(GFP_KERNEL);
+		if (!vmx->nested.msr_bitmap)
+			goto out_msr_bitmap;
+	}
+
 	vmx->nested.cached_vmcs12 = kmalloc(VMCS12_SIZE, GFP_KERNEL);
 	if (!vmx->nested.cached_vmcs12)
-		return -ENOMEM;
+		goto out_cached_vmcs12;
 
 	if (enable_shadow_vmcs) {
 		shadow_vmcs = alloc_vmcs();
-		if (!shadow_vmcs) {
-			kfree(vmx->nested.cached_vmcs12);
-			return -ENOMEM;
-		}
+		if (!shadow_vmcs)
+			goto out_shadow_vmcs;
 		/* mark vmcs as shadow */
 		shadow_vmcs->revision_id |= (1u << 31);
 		/* init shadow vmcs */
@@ -7021,7 +7079,7 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 	vmx->nested.vmcs02_num = 0;
 
 	hrtimer_init(&vmx->nested.preemption_timer, CLOCK_MONOTONIC,
-		     HRTIMER_MODE_REL);
+		     HRTIMER_MODE_REL_PINNED);
 	vmx->nested.preemption_timer.function = vmx_preemption_timer_fn;
 
 	vmx->nested.vmxon = true;
@@ -7029,6 +7087,15 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 	skip_emulated_instruction(vcpu);
 	nested_vmx_succeed(vcpu);
 	return 1;
+
+out_shadow_vmcs:
+	kfree(vmx->nested.cached_vmcs12);
+
+out_cached_vmcs12:
+	free_page((unsigned long)vmx->nested.msr_bitmap);
+
+out_msr_bitmap:
+	return -ENOMEM;
 }
 
 /*
@@ -7103,6 +7170,10 @@ static void free_nested(struct vcpu_vmx *vmx)
 	vmx->nested.vmxon = false;
 	free_vpid(vmx->nested.vpid02);
 	nested_release_vmcs12(vmx);
+	if (vmx->nested.msr_bitmap) {
+		free_page((unsigned long)vmx->nested.msr_bitmap);
+		vmx->nested.msr_bitmap = NULL;
+	}
 	if (enable_shadow_vmcs)
 		free_vmcs(vmx->nested.current_shadow_vmcs);
 	kfree(vmx->nested.cached_vmcs12);
@@ -7609,12 +7680,16 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 
 	switch (type) {
 	case VMX_EPT_EXTENT_GLOBAL:
+	/*
+	 * TODO: track mappings and invalidate
+	 * single context requests appropriately
+	 */
+	case VMX_EPT_EXTENT_CONTEXT:
 		kvm_mmu_sync_roots(vcpu);
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 		nested_vmx_succeed(vcpu);
 		break;
 	default:
-		/* Trap single context invalidation invept calls */
 		BUG_ON(1);
 		break;
 	}
@@ -8420,12 +8495,13 @@ static void vmx_set_virtual_x2apic_mode(struct kvm_vcpu *vcpu, bool set)
 {
 	u32 sec_exec_control;
 
-	/*
-	 * There is not point to enable virtualize x2apic without enable
-	 * apicv
-	 */
-	if (!cpu_has_vmx_virtualize_x2apic_mode() ||
-				!kvm_vcpu_apicv_active(vcpu))
+	/* Postpone execution until vmcs01 is the current VMCS. */
+	if (is_guest_mode(vcpu)) {
+		to_vmx(vcpu)->nested.change_vmcs01_virtual_x2apic_mode = true;
+		return;
+	}
+
+	if (!cpu_has_vmx_virtualize_x2apic_mode())
 		return;
 
 	if (!cpu_need_tpr_shadow(vcpu))
@@ -9473,8 +9549,10 @@ static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
 {
 	int msr;
 	struct page *page;
-	unsigned long *msr_bitmap;
+	unsigned long *msr_bitmap_l1;
+	unsigned long *msr_bitmap_l0 = to_vmx(vcpu)->nested.msr_bitmap;
 
+	/* This shortcut is ok because we support only x2APIC MSRs so far. */
 	if (!nested_cpu_has_virt_x2apic_mode(vmcs12))
 		return false;
 
@@ -9483,63 +9561,37 @@ static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
 		WARN_ON(1);
 		return false;
 	}
-	msr_bitmap = (unsigned long *)kmap(page);
-	if (!msr_bitmap) {
+	msr_bitmap_l1 = (unsigned long *)kmap(page);
+	if (!msr_bitmap_l1) {
 		nested_release_page_clean(page);
 		WARN_ON(1);
 		return false;
 	}
 
+	memset(msr_bitmap_l0, 0xff, PAGE_SIZE);
+
 	if (nested_cpu_has_virt_x2apic_mode(vmcs12)) {
 		if (nested_cpu_has_apic_reg_virt(vmcs12))
 			for (msr = 0x800; msr <= 0x8ff; msr++)
 				nested_vmx_disable_intercept_for_msr(
-					msr_bitmap,
-					vmx_msr_bitmap_nested,
+					msr_bitmap_l1, msr_bitmap_l0,
 					msr, MSR_TYPE_R);
-		/* TPR is allowed */
-		nested_vmx_disable_intercept_for_msr(msr_bitmap,
-				vmx_msr_bitmap_nested,
+
+		nested_vmx_disable_intercept_for_msr(
+				msr_bitmap_l1, msr_bitmap_l0,
 				APIC_BASE_MSR + (APIC_TASKPRI >> 4),
 				MSR_TYPE_R | MSR_TYPE_W);
+
 		if (nested_cpu_has_vid(vmcs12)) {
-			/* EOI and self-IPI are allowed */
 			nested_vmx_disable_intercept_for_msr(
-				msr_bitmap,
-				vmx_msr_bitmap_nested,
+				msr_bitmap_l1, msr_bitmap_l0,
 				APIC_BASE_MSR + (APIC_EOI >> 4),
 				MSR_TYPE_W);
 			nested_vmx_disable_intercept_for_msr(
-				msr_bitmap,
-				vmx_msr_bitmap_nested,
+				msr_bitmap_l1, msr_bitmap_l0,
 				APIC_BASE_MSR + (APIC_SELF_IPI >> 4),
 				MSR_TYPE_W);
 		}
-	} else {
-		/*
-		 * Enable reading intercept of all the x2apic
-		 * MSRs. We should not rely on vmcs12 to do any
-		 * optimizations here, it may have been modified
-		 * by L1.
-		 */
-		for (msr = 0x800; msr <= 0x8ff; msr++)
-			__vmx_enable_intercept_for_msr(
-				vmx_msr_bitmap_nested,
-				msr,
-				MSR_TYPE_R);
-
-		__vmx_enable_intercept_for_msr(
-				vmx_msr_bitmap_nested,
-				APIC_BASE_MSR + (APIC_TASKPRI >> 4),
-				MSR_TYPE_W);
-		__vmx_enable_intercept_for_msr(
-				vmx_msr_bitmap_nested,
-				APIC_BASE_MSR + (APIC_EOI >> 4),
-				MSR_TYPE_W);
-		__vmx_enable_intercept_for_msr(
-				vmx_msr_bitmap_nested,
-				APIC_BASE_MSR + (APIC_SELF_IPI >> 4),
-				MSR_TYPE_W);
 	}
 	kunmap(page);
 	nested_release_page_clean(page);
@@ -9607,7 +9659,7 @@ static int nested_vmx_check_msr_switch(struct kvm_vcpu *vcpu,
 	maxphyaddr = cpuid_maxphyaddr(vcpu);
 	if (!IS_ALIGNED(addr, 16) || addr >> maxphyaddr ||
 	    (addr + count * sizeof(struct vmx_msr_entry) - 1) >> maxphyaddr) {
-		pr_warn_ratelimited(
+		pr_debug_ratelimited(
 			"nVMX: invalid MSR switch (0x%lx, %d, %llu, 0x%08llx)",
 			addr_field, maxphyaddr, count, addr);
 		return -EINVAL;
@@ -9680,13 +9732,13 @@ static u32 nested_vmx_load_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 	for (i = 0; i < count; i++) {
 		if (kvm_vcpu_read_guest(vcpu, gpa + i * sizeof(e),
 					&e, sizeof(e))) {
-			pr_warn_ratelimited(
+			pr_debug_ratelimited(
 				"%s cannot read MSR entry (%u, 0x%08llx)\n",
 				__func__, i, gpa + i * sizeof(e));
 			goto fail;
 		}
 		if (nested_vmx_load_msr_check(vcpu, &e)) {
-			pr_warn_ratelimited(
+			pr_debug_ratelimited(
 				"%s check failed (%u, 0x%x, 0x%x)\n",
 				__func__, i, e.index, e.reserved);
 			goto fail;
@@ -9694,7 +9746,7 @@ static u32 nested_vmx_load_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 		msr.index = e.index;
 		msr.data = e.value;
 		if (kvm_set_msr(vcpu, &msr)) {
-			pr_warn_ratelimited(
+			pr_debug_ratelimited(
 				"%s cannot write MSR (%u, 0x%x, 0x%llx)\n",
 				__func__, i, e.index, e.value);
 			goto fail;
@@ -9715,13 +9767,13 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 		if (kvm_vcpu_read_guest(vcpu,
 					gpa + i * sizeof(e),
 					&e, 2 * sizeof(u32))) {
-			pr_warn_ratelimited(
+			pr_debug_ratelimited(
 				"%s cannot read MSR entry (%u, 0x%08llx)\n",
 				__func__, i, gpa + i * sizeof(e));
 			return -EINVAL;
 		}
 		if (nested_vmx_store_msr_check(vcpu, &e)) {
-			pr_warn_ratelimited(
+			pr_debug_ratelimited(
 				"%s check failed (%u, 0x%x, 0x%x)\n",
 				__func__, i, e.index, e.reserved);
 			return -EINVAL;
@@ -9729,7 +9781,7 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 		msr_info.host_initiated = false;
 		msr_info.index = e.index;
 		if (kvm_get_msr(vcpu, &msr_info)) {
-			pr_warn_ratelimited(
+			pr_debug_ratelimited(
 				"%s cannot read MSR (%u, 0x%x)\n",
 				__func__, i, e.index);
 			return -EINVAL;
@@ -9738,7 +9790,7 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 					 gpa + i * sizeof(e) +
 					     offsetof(struct vmx_msr_entry, value),
 					 &msr_info.data, sizeof(msr_info.data))) {
-			pr_warn_ratelimited(
+			pr_debug_ratelimited(
 				"%s cannot write MSR (%u, 0x%x, 0x%llx)\n",
 				__func__, i, e.index, msr_info.data);
 			return -EINVAL;
@@ -9958,10 +10010,10 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	}
 
 	if (cpu_has_vmx_msr_bitmap() &&
-	    exec_control & CPU_BASED_USE_MSR_BITMAPS) {
-		nested_vmx_merge_msr_bitmap(vcpu, vmcs12);
-		/* MSR_BITMAP will be set by following vmx_set_efer. */
-	} else
+	    exec_control & CPU_BASED_USE_MSR_BITMAPS &&
+	    nested_vmx_merge_msr_bitmap(vcpu, vmcs12))
+		; /* MSR_BITMAP will be set by following vmx_set_efer. */
+	else
 		exec_control &= ~CPU_BASED_USE_MSR_BITMAPS;
 
 	/*
@@ -10012,6 +10064,8 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 			vmx->nested.vmcs01_tsc_offset + vmcs12->tsc_offset);
 	else
 		vmcs_write64(TSC_OFFSET, vmx->nested.vmcs01_tsc_offset);
+	if (kvm_has_tsc_control)
+		decache_tsc_multiplier(vmx);
 
 	if (enable_vpid) {
 		/*
@@ -10507,6 +10561,9 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		vmcs12->guest_pdptr3 = vmcs_read64(GUEST_PDPTR3);
 	}
 
+	if (nested_cpu_has_ept(vmcs12))
+		vmcs12->guest_linear_address = vmcs_readl(GUEST_LINEAR_ADDRESS);
+
 	if (nested_cpu_has_vid(vmcs12))
 		vmcs12->guest_intr_status = vmcs_read16(GUEST_INTR_STATUS);
 
@@ -10768,6 +10825,14 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	else
 		vmcs_set_bits(PIN_BASED_VM_EXEC_CONTROL,
 			      PIN_BASED_VMX_PREEMPTION_TIMER);
+	if (kvm_has_tsc_control)
+		decache_tsc_multiplier(vmx);
+
+	if (vmx->nested.change_vmcs01_virtual_x2apic_mode) {
+		vmx->nested.change_vmcs01_virtual_x2apic_mode = false;
+		vmx_set_virtual_x2apic_mode(vcpu,
+				vcpu->arch.apic_base & X2APIC_ENABLE);
+	}
 
 	/* This is needed for same reason as it was needed in prepare_vmcs02 */
 	vmx->host_rsp = 0;
@@ -10792,7 +10857,7 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	 * We are now running in L2, mmu_notifier will force to reload the
 	 * page's hpa for L2 vmcs. Need to reload it for L1 before entering L1.
 	 */
-	kvm_vcpu_reload_apic_access_page(vcpu);
+	kvm_make_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu);
 
 	/*
 	 * Exiting from L2 to L1, we're now back to L1 which thinks it just
@@ -11176,7 +11241,7 @@ static void vmx_setup_mce(struct kvm_vcpu *vcpu)
 			~FEATURE_CONTROL_LMCE;
 }
 
-static struct kvm_x86_ops vmx_x86_ops = {
+static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = cpu_has_kvm_support,
 	.disabled_by_bios = vmx_disabled_by_bios,
 	.hardware_setup = hardware_setup,
@@ -11273,7 +11338,6 @@ static struct kvm_x86_ops vmx_x86_ops = {
 
 	.has_wbinvd_exit = cpu_has_vmx_wbinvd_exit,
 
-	.read_tsc_offset = vmx_read_tsc_offset,
 	.write_tsc_offset = vmx_write_tsc_offset,
 	.adjust_tsc_offset_guest = vmx_adjust_tsc_offset_guest,
 	.read_l1_tsc = vmx_read_l1_tsc,

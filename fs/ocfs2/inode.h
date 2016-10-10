@@ -123,8 +123,6 @@ static inline struct ocfs2_inode_info *OCFS2_I(struct inode *inode)
 #define INODE_JOURNAL(i) (OCFS2_I(i)->ip_flags & OCFS2_INODE_JOURNAL)
 #define SET_INODE_JOURNAL(i) (OCFS2_I(i)->ip_flags |= OCFS2_INODE_JOURNAL)
 
-extern struct kmem_cache *ocfs2_inode_cache;
-
 extern const struct address_space_operations ocfs2_aops;
 extern const struct ocfs2_caching_operations ocfs2_inode_caching_ops;
 

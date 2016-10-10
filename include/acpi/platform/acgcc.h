@@ -44,6 +44,12 @@
 #ifndef __ACGCC_H__
 #define __ACGCC_H__
 
+/*
+ * Use compiler specific <stdarg.h> is a good practice for even when
+ * -nostdinc is specified (i.e., ACPI_USE_STANDARD_HEADERS undefined.
+ */
+#include <stdarg.h>
+
 #define ACPI_INLINE             __inline__
 
 /* Function name is used for debug output. Non-ANSI, compiler-dependent */
@@ -63,17 +69,6 @@
  * is unused.
  */
 #define ACPI_UNUSED_VAR __attribute__ ((unused))
-
-/*
- * Some versions of gcc implement strchr() with a buggy macro. So,
- * undef it here. Prevents error messages of this form (usually from the
- * file getopt.c):
- *
- * error: logical '&&' with non-zero constant will always evaluate as true
- */
-#ifdef strchr
-#undef strchr
-#endif
 
 /* GCC supports __VA_ARGS__ in macros */
 

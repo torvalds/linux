@@ -37,6 +37,7 @@
 #include <linux/kthread.h>
 #include <linux/ioport.h>
 #include <linux/acpi.h>
+#include <linux/highmem.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/spi.h>
@@ -709,6 +710,13 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 {
 	const bool vmalloced_buf = is_vmalloc_addr(buf);
 	unsigned int max_seg_size = dma_get_max_seg_size(dev);
+#ifdef CONFIG_HIGHMEM
+	const bool kmap_buf = ((unsigned long)buf >= PKMAP_BASE &&
+				(unsigned long)buf < (PKMAP_BASE +
+					(LAST_PKMAP * PAGE_SIZE)));
+#else
+	const bool kmap_buf = false;
+#endif
 	int desc_len;
 	int sgs;
 	struct page *vm_page;
@@ -716,7 +724,7 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 	size_t min;
 	int i, ret;
 
-	if (vmalloced_buf) {
+	if (vmalloced_buf || kmap_buf) {
 		desc_len = min_t(int, max_seg_size, PAGE_SIZE);
 		sgs = DIV_ROUND_UP(len + offset_in_page(buf), desc_len);
 	} else if (virt_addr_valid(buf)) {
@@ -732,10 +740,13 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 
 	for (i = 0; i < sgs; i++) {
 
-		if (vmalloced_buf) {
+		if (vmalloced_buf || kmap_buf) {
 			min = min_t(size_t,
 				    len, desc_len - offset_in_page(buf));
-			vm_page = vmalloc_to_page(buf);
+			if (vmalloced_buf)
+				vm_page = vmalloc_to_page(buf);
+			else
+				vm_page = kmap_to_page(buf);
 			if (!vm_page) {
 				sg_free_table(sgt);
 				return -ENOMEM;
@@ -960,7 +971,7 @@ static int spi_transfer_one_message(struct spi_master *master,
 	struct spi_transfer *xfer;
 	bool keep_cs = false;
 	int ret = 0;
-	unsigned long ms = 1;
+	unsigned long long ms = 1;
 	struct spi_statistics *statm = &master->statistics;
 	struct spi_statistics *stats = &msg->spi->statistics;
 
@@ -991,8 +1002,12 @@ static int spi_transfer_one_message(struct spi_master *master,
 
 			if (ret > 0) {
 				ret = 0;
-				ms = xfer->len * 8 * 1000 / xfer->speed_hz;
+				ms = 8LL * 1000LL * xfer->len;
+				do_div(ms, xfer->speed_hz);
 				ms += ms + 100; /* some tolerance */
+
+				if (ms > UINT_MAX)
+					ms = UINT_MAX;
 
 				ms = wait_for_completion_timeout(&master->xfer_completion,
 								 msecs_to_jiffies(ms));
@@ -1159,6 +1174,7 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 		if (ret < 0) {
 			dev_err(&master->dev, "Failed to power device: %d\n",
 				ret);
+			mutex_unlock(&master->io_mutex);
 			return;
 		}
 	}
@@ -1174,6 +1190,7 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 
 			if (master->auto_runtime_pm)
 				pm_runtime_put(master->dev.parent);
+			mutex_unlock(&master->io_mutex);
 			return;
 		}
 	}

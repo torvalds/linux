@@ -96,11 +96,11 @@
  *    6      6      100 kHz	 6   1000000
  *    7     12       50 kHz	 7   10000000
  */
-const unsigned int dt2811_clk_dividers[] = {
+static const unsigned int dt2811_clk_dividers[] = {
 	1, 10, 2, 3, 4, 5, 6, 12
 };
 
-const unsigned int dt2811_clk_multipliers[] = {
+static const unsigned int dt2811_clk_multipliers[] = {
 	1, 10, 100, 1000, 10000, 100000, 1000000, 10000000
 };
 
@@ -588,8 +588,8 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE |
-			  (it->options[2] == 1) ? SDF_DIFF :
-			  (it->options[2] == 2) ? SDF_COMMON : SDF_GROUND;
+			  ((it->options[2] == 1) ? SDF_DIFF :
+			   (it->options[2] == 2) ? SDF_COMMON : SDF_GROUND);
 	s->n_chan	= (it->options[2] == 1) ? 8 : 16;
 	s->maxdata	= 0x0fff;
 	s->range_table	= board->is_pgh ? &dt2811_pgh_ai_ranges

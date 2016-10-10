@@ -2961,7 +2961,7 @@ static void et131x_get_drvinfo(struct net_device *netdev,
 		sizeof(info->bus_info));
 }
 
-static struct ethtool_ops et131x_ethtool_ops = {
+static const struct ethtool_ops et131x_ethtool_ops = {
 	.get_drvinfo	= et131x_get_drvinfo,
 	.get_regs_len	= et131x_get_regs_len,
 	.get_regs	= et131x_get_regs,

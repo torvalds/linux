@@ -270,7 +270,7 @@ bool shmem_charge(struct inode *inode, long pages)
 		info->alloced -= pages;
 		shmem_recalc_inode(inode);
 		spin_unlock_irqrestore(&info->lock, flags);
-
+		shmem_unacct_blocks(info->flags, pages);
 		return false;
 	}
 	percpu_counter_add(&sbinfo->used_blocks, pages);
@@ -291,6 +291,7 @@ void shmem_uncharge(struct inode *inode, long pages)
 
 	if (sbinfo->max_blocks)
 		percpu_counter_sub(&sbinfo->used_blocks, pages);
+	shmem_unacct_blocks(info->flags, pages);
 }
 
 /*
@@ -1980,7 +1981,7 @@ unsigned long shmem_get_unmapped_area(struct file *file,
 				return addr;
 			sb = shm_mnt->mnt_sb;
 		}
-		if (SHMEM_SB(sb)->huge != SHMEM_HUGE_NEVER)
+		if (SHMEM_SB(sb)->huge == SHMEM_HUGE_NEVER)
 			return addr;
 	}
 
@@ -2308,119 +2309,6 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	*ppos = ((loff_t) index << PAGE_SHIFT) + offset;
 	file_accessed(file);
 	return retval ? retval : error;
-}
-
-static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
-				struct pipe_inode_info *pipe, size_t len,
-				unsigned int flags)
-{
-	struct address_space *mapping = in->f_mapping;
-	struct inode *inode = mapping->host;
-	unsigned int loff, nr_pages, req_pages;
-	struct page *pages[PIPE_DEF_BUFFERS];
-	struct partial_page partial[PIPE_DEF_BUFFERS];
-	struct page *page;
-	pgoff_t index, end_index;
-	loff_t isize, left;
-	int error, page_nr;
-	struct splice_pipe_desc spd = {
-		.pages = pages,
-		.partial = partial,
-		.nr_pages_max = PIPE_DEF_BUFFERS,
-		.flags = flags,
-		.ops = &page_cache_pipe_buf_ops,
-		.spd_release = spd_release_page,
-	};
-
-	isize = i_size_read(inode);
-	if (unlikely(*ppos >= isize))
-		return 0;
-
-	left = isize - *ppos;
-	if (unlikely(left < len))
-		len = left;
-
-	if (splice_grow_spd(pipe, &spd))
-		return -ENOMEM;
-
-	index = *ppos >> PAGE_SHIFT;
-	loff = *ppos & ~PAGE_MASK;
-	req_pages = (len + loff + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	nr_pages = min(req_pages, spd.nr_pages_max);
-
-	spd.nr_pages = find_get_pages_contig(mapping, index,
-						nr_pages, spd.pages);
-	index += spd.nr_pages;
-	error = 0;
-
-	while (spd.nr_pages < nr_pages) {
-		error = shmem_getpage(inode, index, &page, SGP_CACHE);
-		if (error)
-			break;
-		unlock_page(page);
-		spd.pages[spd.nr_pages++] = page;
-		index++;
-	}
-
-	index = *ppos >> PAGE_SHIFT;
-	nr_pages = spd.nr_pages;
-	spd.nr_pages = 0;
-
-	for (page_nr = 0; page_nr < nr_pages; page_nr++) {
-		unsigned int this_len;
-
-		if (!len)
-			break;
-
-		this_len = min_t(unsigned long, len, PAGE_SIZE - loff);
-		page = spd.pages[page_nr];
-
-		if (!PageUptodate(page) || page->mapping != mapping) {
-			error = shmem_getpage(inode, index, &page, SGP_CACHE);
-			if (error)
-				break;
-			unlock_page(page);
-			put_page(spd.pages[page_nr]);
-			spd.pages[page_nr] = page;
-		}
-
-		isize = i_size_read(inode);
-		end_index = (isize - 1) >> PAGE_SHIFT;
-		if (unlikely(!isize || index > end_index))
-			break;
-
-		if (end_index == index) {
-			unsigned int plen;
-
-			plen = ((isize - 1) & ~PAGE_MASK) + 1;
-			if (plen <= loff)
-				break;
-
-			this_len = min(this_len, plen - loff);
-			len = this_len;
-		}
-
-		spd.partial[page_nr].offset = loff;
-		spd.partial[page_nr].len = this_len;
-		len -= this_len;
-		loff = 0;
-		spd.nr_pages++;
-		index++;
-	}
-
-	while (page_nr < nr_pages)
-		put_page(spd.pages[page_nr++]);
-
-	if (spd.nr_pages)
-		error = splice_to_pipe(pipe, &spd);
-
-	splice_shrink_spd(&spd);
-
-	if (error > 0) {
-		*ppos += error;
-		file_accessed(in);
-	}
-	return error;
 }
 
 /*
@@ -3785,7 +3673,7 @@ static const struct file_operations shmem_file_operations = {
 	.read_iter	= shmem_file_read_iter,
 	.write_iter	= generic_file_write_iter,
 	.fsync		= noop_fsync,
-	.splice_read	= shmem_file_splice_read,
+	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.fallocate	= shmem_fallocate,
 #endif
@@ -3975,7 +3863,9 @@ static ssize_t shmem_enabled_store(struct kobject *kobj,
 
 struct kobj_attribute shmem_enabled_attr =
 	__ATTR(shmem_enabled, 0644, shmem_enabled_show, shmem_enabled_store);
+#endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE && CONFIG_SYSFS */
 
+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
 bool shmem_huge_enabled(struct vm_area_struct *vma)
 {
 	struct inode *inode = file_inode(vma->vm_file);
@@ -4006,7 +3896,7 @@ bool shmem_huge_enabled(struct vm_area_struct *vma)
 			return false;
 	}
 }
-#endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE && CONFIG_SYSFS */
+#endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE */
 
 #else /* !CONFIG_SHMEM */
 
@@ -4075,7 +3965,7 @@ EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
 /* common code */
 
-static struct dentry_operations anon_ops = {
+static const struct dentry_operations anon_ops = {
 	.d_dname = simple_dname
 };
 

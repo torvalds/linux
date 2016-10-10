@@ -888,7 +888,7 @@ build_get_pgd_vmalloc64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 		}
 	}
 	if (!did_vmalloc_branch) {
-		if (uasm_in_compat_space_p(swpd) && !uasm_rel_lo(swpd)) {
+		if (single_insn_swpd) {
 			uasm_il_b(p, r, label_vmalloc_done);
 			uasm_i_lui(p, ptr, uasm_rel_hi(swpd));
 		} else {

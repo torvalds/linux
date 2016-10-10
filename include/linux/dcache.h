@@ -130,7 +130,7 @@ struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, unsigned int);
 	int (*d_weak_revalidate)(struct dentry *, unsigned int);
 	int (*d_hash)(const struct dentry *, struct qstr *);
-	int (*d_compare)(const struct dentry *, const struct dentry *,
+	int (*d_compare)(const struct dentry *,
 			unsigned int, const char *, const struct qstr *);
 	int (*d_delete)(const struct dentry *);
 	int (*d_init)(struct dentry *);
@@ -263,7 +263,7 @@ extern void d_rehash(struct dentry *);
  
 extern void d_add(struct dentry *, struct inode *);
 
-extern void dentry_update_name_case(struct dentry *, struct qstr *);
+extern void dentry_update_name_case(struct dentry *, const struct qstr *);
 
 /* used for rename() and baskets */
 extern void d_move(struct dentry *, struct dentry *);

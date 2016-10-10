@@ -222,13 +222,14 @@ int __init opal_event_init(void)
 		/* Get hardware and virtual IRQ */
 		irq = be32_to_cpup(irqs);
 		virq = irq_create_mapping(NULL, irq);
-		if (virq == NO_IRQ) {
+		if (!virq) {
 			pr_warn("Failed to map irq 0x%x\n", irq);
 			continue;
 		}
 
 		/* Install interrupt handler */
-		rc = request_irq(virq, opal_interrupt, 0, "opal", NULL);
+		rc = request_irq(virq, opal_interrupt, IRQF_TRIGGER_LOW,
+				 "opal", NULL);
 		if (rc) {
 			irq_dispose_mapping(virq);
 			pr_warn("Error %d requesting irq %d (0x%x)\n",
@@ -259,7 +260,7 @@ machine_arch_initcall(powernv, opal_event_init);
 int opal_event_request(unsigned int opal_event_nr)
 {
 	if (WARN_ON_ONCE(!opal_event_irqchip.domain))
-		return NO_IRQ;
+		return 0;
 
 	return irq_create_mapping(opal_event_irqchip.domain, opal_event_nr);
 }

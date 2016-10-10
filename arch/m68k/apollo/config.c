@@ -15,7 +15,6 @@
 #include <asm/pgtable.h>
 #include <asm/apollohw.h>
 #include <asm/irq.h>
-#include <asm/rtc.h>
 #include <asm/machdep.h>
 
 u_long sio01_physaddr;

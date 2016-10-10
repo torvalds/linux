@@ -137,8 +137,6 @@ isert_create_qp(struct isert_conn *isert_conn,
 	attr.cap.max_recv_wr = ISERT_QP_MAX_RECV_DTOS + 1;
 	attr.cap.max_rdma_ctxs = ISCSI_DEF_XMIT_CMDS_MAX;
 	attr.cap.max_send_sge = device->ib_device->attrs.max_sge;
-	isert_conn->max_sge = min(device->ib_device->attrs.max_sge,
-				  device->ib_device->attrs.max_sge_rd);
 	attr.cap.max_recv_sge = 1;
 	attr.sq_sig_type = IB_SIGNAL_REQ_WR;
 	attr.qp_type = IB_QPT_RC;
@@ -311,7 +309,7 @@ isert_create_device_ib_res(struct isert_device *device)
 	if (ret)
 		goto out;
 
-	device->pd = ib_alloc_pd(ib_dev);
+	device->pd = ib_alloc_pd(ib_dev, 0);
 	if (IS_ERR(device->pd)) {
 		ret = PTR_ERR(device->pd);
 		isert_err("failed to allocate pd, device %p, ret=%d\n",
@@ -405,6 +403,7 @@ isert_init_conn(struct isert_conn *isert_conn)
 	INIT_LIST_HEAD(&isert_conn->node);
 	init_completion(&isert_conn->login_comp);
 	init_completion(&isert_conn->login_req_comp);
+	init_waitqueue_head(&isert_conn->rem_wait);
 	kref_init(&isert_conn->kref);
 	mutex_init(&isert_conn->mutex);
 	INIT_WORK(&isert_conn->release_work, isert_release_work);
@@ -450,7 +449,7 @@ isert_alloc_login_buf(struct isert_conn *isert_conn,
 
 	isert_conn->login_rsp_buf = kzalloc(ISER_RX_PAYLOAD_SIZE, GFP_KERNEL);
 	if (!isert_conn->login_rsp_buf) {
-		isert_err("Unable to allocate isert_conn->login_rspbuf\n");
+		ret = -ENOMEM;
 		goto out_unmap_login_req_buf;
 	}
 
@@ -580,7 +579,8 @@ isert_connect_release(struct isert_conn *isert_conn)
 	BUG_ON(!device);
 
 	isert_free_rx_descriptors(isert_conn);
-	if (isert_conn->cm_id)
+	if (isert_conn->cm_id &&
+	    !isert_conn->dev_removed)
 		rdma_destroy_id(isert_conn->cm_id);
 
 	if (isert_conn->qp) {
@@ -595,7 +595,10 @@ isert_connect_release(struct isert_conn *isert_conn)
 
 	isert_device_put(device);
 
-	kfree(isert_conn);
+	if (isert_conn->dev_removed)
+		wake_up_interruptible(&isert_conn->rem_wait);
+	else
+		kfree(isert_conn);
 }
 
 static void
@@ -755,6 +758,7 @@ static int
 isert_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 {
 	struct isert_np *isert_np = cma_id->context;
+	struct isert_conn *isert_conn;
 	int ret = 0;
 
 	isert_info("%s (%d): status %d id %p np %p\n",
@@ -775,10 +779,21 @@ isert_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 		break;
 	case RDMA_CM_EVENT_ADDR_CHANGE:    /* FALLTHRU */
 	case RDMA_CM_EVENT_DISCONNECTED:   /* FALLTHRU */
-	case RDMA_CM_EVENT_DEVICE_REMOVAL: /* FALLTHRU */
 	case RDMA_CM_EVENT_TIMEWAIT_EXIT:  /* FALLTHRU */
 		ret = isert_disconnected_handler(cma_id, event->event);
 		break;
+	case RDMA_CM_EVENT_DEVICE_REMOVAL:
+		isert_conn = cma_id->qp->qp_context;
+		isert_conn->dev_removed = true;
+		isert_disconnected_handler(cma_id, event->event);
+		wait_event_interruptible(isert_conn->rem_wait,
+					 isert_conn->state == ISER_CONN_DOWN);
+		kfree(isert_conn);
+		/*
+		 * return non-zero from the callback to destroy
+		 * the rdma cm id
+		 */
+		return 1;
 	case RDMA_CM_EVENT_REJECTED:       /* FALLTHRU */
 	case RDMA_CM_EVENT_UNREACHABLE:    /* FALLTHRU */
 	case RDMA_CM_EVENT_CONNECT_ERROR:

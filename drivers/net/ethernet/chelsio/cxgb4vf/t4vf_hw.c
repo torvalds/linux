@@ -314,8 +314,9 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 }
 
 #define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
-		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G | \
-		     FW_PORT_CAP_SPEED_100G | FW_PORT_CAP_ANEG)
+		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_25G | \
+		     FW_PORT_CAP_SPEED_40G | FW_PORT_CAP_SPEED_100G | \
+		     FW_PORT_CAP_ANEG)
 
 /**
  *	init_link_config - initialize a link's SW state
@@ -639,6 +640,15 @@ int t4vf_bar2_sge_qregs(struct adapter *adapter,
 	return 0;
 }
 
+unsigned int t4vf_get_pf_from_vf(struct adapter *adapter)
+{
+	u32 whoami;
+
+	whoami = t4_read_reg(adapter, T4VF_PL_BASE_ADDR + PL_VF_WHOAMI_A);
+	return (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5 ?
+			SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami));
+}
+
 /**
  *	t4vf_get_sge_params - retrieve adapter Scatter gather Engine parameters
  *	@adapter: the adapter
@@ -716,7 +726,6 @@ int t4vf_get_sge_params(struct adapter *adapter)
 	 * read.
 	 */
 	if (!is_t4(adapter->params.chip)) {
-		u32 whoami;
 		unsigned int pf, s_hps, s_qpp;
 
 		params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
@@ -740,11 +749,7 @@ int t4vf_get_sge_params(struct adapter *adapter)
 		 * register we just read. Do it once here so other code in
 		 * the driver can just use it.
 		 */
-		whoami = t4_read_reg(adapter,
-				     T4VF_PL_BASE_ADDR + PL_VF_WHOAMI_A);
-		pf = CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5 ?
-			SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
-
+		pf = t4vf_get_pf_from_vf(adapter);
 		s_hps = (HOSTPAGESIZEPF0_S +
 			 (HOSTPAGESIZEPF1_S - HOSTPAGESIZEPF0_S) * pf);
 		sge_params->sge_vf_hps =
@@ -1712,8 +1717,12 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 			speed = 1000;
 		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
 			speed = 10000;
+		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_25G))
+			speed = 25000;
 		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
 			speed = 40000;
+		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100G))
+			speed = 100000;
 
 		/*
 		 * Scan all of our "ports" (Virtual Interfaces) looking for
@@ -1806,4 +1815,51 @@ int t4vf_prep_adapter(struct adapter *adapter)
 	}
 
 	return 0;
+}
+
+/**
+ *	t4vf_get_vf_mac_acl - Get the MAC address to be set to
+ *			      the VI of this VF.
+ *	@adapter: The adapter
+ *	@pf: The pf associated with vf
+ *	@naddr: the number of ACL MAC addresses returned in addr
+ *	@addr: Placeholder for MAC addresses
+ *
+ *	Find the MAC address to be set to the VF's VI. The requested MAC address
+ *	is from the host OS via callback in the PF driver.
+ */
+int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int pf,
+			unsigned int *naddr, u8 *addr)
+{
+	struct fw_acl_mac_cmd cmd;
+	int ret;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_ACL_MAC_CMD) |
+				    FW_CMD_REQUEST_F |
+				    FW_CMD_READ_F);
+	cmd.en_to_len16 = cpu_to_be32((unsigned int)FW_LEN16(cmd));
+	ret = t4vf_wr_mbox(adapter, &cmd, sizeof(cmd), &cmd);
+	if (ret)
+		return ret;
+
+	if (cmd.nmac < *naddr)
+		*naddr = cmd.nmac;
+
+	switch (pf) {
+	case 3:
+		memcpy(addr, cmd.macaddr3, sizeof(cmd.macaddr3));
+		break;
+	case 2:
+		memcpy(addr, cmd.macaddr2, sizeof(cmd.macaddr2));
+		break;
+	case 1:
+		memcpy(addr, cmd.macaddr1, sizeof(cmd.macaddr1));
+		break;
+	case 0:
+		memcpy(addr, cmd.macaddr0, sizeof(cmd.macaddr0));
+		break;
+	}
+
+	return ret;
 }

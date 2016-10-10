@@ -319,13 +319,14 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 
 	/*
-	 * since we cannot touch active IDMAC channels, we do not support
-	 * resizing the enabled plane or changing its format
+	 * We support resizing active plane or changing its format by
+	 * forcing CRTC mode change and disabling-enabling plane in plane's
+	 * ->atomic_update callback.
 	 */
 	if (old_fb && (state->src_w != old_state->src_w ||
 			      state->src_h != old_state->src_h ||
 			      fb->pixel_format != old_fb->pixel_format))
-		return -EINVAL;
+		crtc_state->mode_changed = true;
 
 	eba = drm_plane_state_to_eba(state);
 
@@ -336,7 +337,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 
 	if (old_fb && fb->pitches[0] != old_fb->pitches[0])
-		return -EINVAL;
+		crtc_state->mode_changed = true;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_YUV420:
@@ -372,7 +373,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 			return -EINVAL;
 
 		if (old_fb && old_fb->pitches[1] != fb->pitches[1])
-			return -EINVAL;
+			crtc_state->mode_changed = true;
 	}
 
 	return 0;
@@ -392,8 +393,14 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	enum ipu_color_space ics;
 
 	if (old_state->fb) {
-		ipu_plane_atomic_set_base(ipu_plane, old_state);
-		return;
+		struct drm_crtc_state *crtc_state = state->crtc->state;
+
+		if (!crtc_state->mode_changed) {
+			ipu_plane_atomic_set_base(ipu_plane, old_state);
+			return;
+		}
+
+		ipu_disable_plane(plane);
 	}
 
 	switch (ipu_plane->dp_flow) {

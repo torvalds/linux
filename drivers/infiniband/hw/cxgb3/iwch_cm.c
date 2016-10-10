@@ -1396,10 +1396,10 @@ static int pass_accept_req(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	state_set(&child_ep->com, CONNECTING);
 	child_ep->com.tdev = tdev;
 	child_ep->com.cm_id = NULL;
-	child_ep->com.local_addr.sin_family = PF_INET;
+	child_ep->com.local_addr.sin_family = AF_INET;
 	child_ep->com.local_addr.sin_port = req->local_port;
 	child_ep->com.local_addr.sin_addr.s_addr = req->local_ip;
-	child_ep->com.remote_addr.sin_family = PF_INET;
+	child_ep->com.remote_addr.sin_family = AF_INET;
 	child_ep->com.remote_addr.sin_port = req->peer_port;
 	child_ep->com.remote_addr.sin_addr.s_addr = req->peer_ip;
 	get_ep(&parent_ep->com);
@@ -2258,7 +2258,7 @@ int __init iwch_cm_init(void)
 {
 	skb_queue_head_init(&rxq);
 
-	workq = create_singlethread_workqueue("iw_cxgb3");
+	workq = alloc_ordered_workqueue("iw_cxgb3", WQ_MEM_RECLAIM);
 	if (!workq)
 		return -ENOMEM;
 

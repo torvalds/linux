@@ -132,7 +132,7 @@ static int __btrfs_add_inode_defrag(struct inode *inode,
 
 static inline int __need_auto_defrag(struct btrfs_root *root)
 {
-	if (!btrfs_test_opt(root, AUTO_DEFRAG))
+	if (!btrfs_test_opt(root->fs_info, AUTO_DEFRAG))
 		return 0;
 
 	if (btrfs_fs_closing(root->fs_info))
@@ -950,7 +950,7 @@ delete_extent_item:
 			ret = btrfs_del_items(trans, root, path, del_slot,
 					      del_nr);
 			if (ret) {
-				btrfs_abort_transaction(trans, root, ret);
+				btrfs_abort_transaction(trans, ret);
 				break;
 			}
 
@@ -974,7 +974,7 @@ delete_extent_item:
 		path->slots[0] = del_slot;
 		ret = btrfs_del_items(trans, root, path, del_slot, del_nr);
 		if (ret)
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 	}
 
 	leaf = path->nodes[0];
@@ -1190,7 +1190,7 @@ again:
 			goto again;
 		}
 		if (ret < 0) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 
@@ -1278,7 +1278,7 @@ again:
 
 		ret = btrfs_del_items(trans, root, path, del_slot, del_nr);
 		if (ret < 0) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
 	}
@@ -2033,6 +2033,14 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		 */
 		clear_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
 			  &BTRFS_I(inode)->runtime_flags);
+		/*
+		 * An ordered extent might have started before and completed
+		 * already with io errors, in which case the inode was not
+		 * updated and we end up here. So check the inode's mapping
+		 * flags for any errors that might have happened while doing
+		 * writeback of file data.
+		 */
+		ret = btrfs_inode_check_errors(inode);
 		inode_unlock(inode);
 		goto out;
 	}
@@ -2062,7 +2070,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	}
 	trans->sync = true;
 
-	btrfs_init_log_ctx(&ctx);
+	btrfs_init_log_ctx(&ctx, inode);
 
 	ret = btrfs_log_dentry_safe(trans, root, dentry, start, end, &ctx);
 	if (ret < 0) {
@@ -2667,6 +2675,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 
 	alloc_start = round_down(offset, blocksize);
 	alloc_end = round_up(offset + len, blocksize);
+	cur_offset = alloc_start;
 
 	/* Make sure we aren't being give some crap mode */
 	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
@@ -2759,7 +2768,6 @@ static long btrfs_fallocate(struct file *file, int mode,
 
 	/* First, check if we exceed the qgroup limit */
 	INIT_LIST_HEAD(&reserve_list);
-	cur_offset = alloc_start;
 	while (1) {
 		em = btrfs_get_extent(inode, NULL, 0, cur_offset,
 				      alloc_end - cur_offset, 0);
@@ -2786,6 +2794,14 @@ static long btrfs_fallocate(struct file *file, int mode,
 					last_byte - cur_offset);
 			if (ret < 0)
 				break;
+		} else {
+			/*
+			 * Do not need to reserve unwritten extent for this
+			 * range, free reserved data space first, otherwise
+			 * it'll result in false ENOSPC error.
+			 */
+			btrfs_free_reserved_data_space(inode, cur_offset,
+				last_byte - cur_offset);
 		}
 		free_extent_map(em);
 		cur_offset = last_byte;
@@ -2803,6 +2819,9 @@ static long btrfs_fallocate(struct file *file, int mode,
 					range->start,
 					range->len, 1 << inode->i_blkbits,
 					offset + len, &alloc_hint);
+		else
+			btrfs_free_reserved_data_space(inode, range->start,
+						       range->len);
 		list_del(&range->list);
 		kfree(range);
 	}
@@ -2837,18 +2856,11 @@ out_unlock:
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, alloc_start, locked_end,
 			     &cached_state, GFP_KERNEL);
 out:
-	/*
-	 * As we waited the extent range, the data_rsv_map must be empty
-	 * in the range, as written data range will be released from it.
-	 * And for prealloacted extent, it will also be released when
-	 * its metadata is written.
-	 * So this is completely used as cleanup.
-	 */
-	btrfs_qgroup_free_data(inode, alloc_start, alloc_end - alloc_start);
 	inode_unlock(inode);
 	/* Let go of our reservation. */
-	btrfs_free_reserved_data_space(inode, alloc_start,
-				       alloc_end - alloc_start);
+	if (ret != 0)
+		btrfs_free_reserved_data_space(inode, alloc_start,
+				       alloc_end - cur_offset);
 	return ret;
 }
 
@@ -2975,7 +2987,7 @@ int btrfs_auto_defrag_init(void)
 {
 	btrfs_inode_defrag_cachep = kmem_cache_create("btrfs_inode_defrag",
 					sizeof(struct inode_defrag), 0,
-					SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+					SLAB_MEM_SPREAD,
 					NULL);
 	if (!btrfs_inode_defrag_cachep)
 		return -ENOMEM;

@@ -18,6 +18,8 @@
 #include "netlink.h"
 #include "main.h"
 
+#include <linux/atomic.h>
+#include <linux/byteorder/generic.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/genetlink.h>
@@ -26,24 +28,33 @@
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
 #include <linux/printk.h>
+#include <linux/rculist.h>
+#include <linux/rcupdate.h>
+#include <linux/skbuff.h>
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <net/genetlink.h>
 #include <net/netlink.h>
+#include <net/sock.h>
 #include <uapi/linux/batman_adv.h>
 
+#include "bat_algo.h"
+#include "bridge_loop_avoidance.h"
+#include "gateway_client.h"
 #include "hard-interface.h"
+#include "originator.h"
+#include "packet.h"
 #include "soft-interface.h"
 #include "tp_meter.h"
+#include "translation-table.h"
 
-struct sk_buff;
-
-static struct genl_family batadv_netlink_family = {
+struct genl_family batadv_netlink_family = {
 	.id = GENL_ID_GENERATE,
 	.hdrsize = 0,
 	.name = BATADV_NL_NAME,
 	.version = 1,
 	.maxattr = BATADV_ATTR_MAX,
+	.netnsok = true,
 };
 
 /* multicast groups */
@@ -51,11 +62,11 @@ enum batadv_netlink_multicast_groups {
 	BATADV_NL_MCGRP_TPMETER,
 };
 
-static struct genl_multicast_group batadv_netlink_mcgrps[] = {
+static const struct genl_multicast_group batadv_netlink_mcgrps[] = {
 	[BATADV_NL_MCGRP_TPMETER] = { .name = BATADV_NL_MCAST_GROUP_TPMETER },
 };
 
-static struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
+static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_VERSION]		= { .type = NLA_STRING },
 	[BATADV_ATTR_ALGO_NAME]		= { .type = NLA_STRING },
 	[BATADV_ATTR_MESH_IFINDEX]	= { .type = NLA_U32 },
@@ -69,7 +80,42 @@ static struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_TPMETER_TEST_TIME]	= { .type = NLA_U32 },
 	[BATADV_ATTR_TPMETER_BYTES]	= { .type = NLA_U64 },
 	[BATADV_ATTR_TPMETER_COOKIE]	= { .type = NLA_U32 },
+	[BATADV_ATTR_ACTIVE]		= { .type = NLA_FLAG },
+	[BATADV_ATTR_TT_ADDRESS]	= { .len = ETH_ALEN },
+	[BATADV_ATTR_TT_TTVN]		= { .type = NLA_U8 },
+	[BATADV_ATTR_TT_LAST_TTVN]	= { .type = NLA_U8 },
+	[BATADV_ATTR_TT_CRC32]		= { .type = NLA_U32 },
+	[BATADV_ATTR_TT_VID]		= { .type = NLA_U16 },
+	[BATADV_ATTR_TT_FLAGS]		= { .type = NLA_U32 },
+	[BATADV_ATTR_FLAG_BEST]		= { .type = NLA_FLAG },
+	[BATADV_ATTR_LAST_SEEN_MSECS]	= { .type = NLA_U32 },
+	[BATADV_ATTR_NEIGH_ADDRESS]	= { .len = ETH_ALEN },
+	[BATADV_ATTR_TQ]		= { .type = NLA_U8 },
+	[BATADV_ATTR_THROUGHPUT]	= { .type = NLA_U32 },
+	[BATADV_ATTR_BANDWIDTH_UP]	= { .type = NLA_U32 },
+	[BATADV_ATTR_BANDWIDTH_DOWN]	= { .type = NLA_U32 },
+	[BATADV_ATTR_ROUTER]		= { .len = ETH_ALEN },
+	[BATADV_ATTR_BLA_OWN]		= { .type = NLA_FLAG },
+	[BATADV_ATTR_BLA_ADDRESS]	= { .len = ETH_ALEN },
+	[BATADV_ATTR_BLA_VID]		= { .type = NLA_U16 },
+	[BATADV_ATTR_BLA_BACKBONE]	= { .len = ETH_ALEN },
+	[BATADV_ATTR_BLA_CRC]		= { .type = NLA_U16 },
 };
+
+/**
+ * batadv_netlink_get_ifindex - Extract an interface index from a message
+ * @nlh: Message header
+ * @attrtype: Attribute which holds an interface index
+ *
+ * Return: interface index, or 0.
+ */
+int
+batadv_netlink_get_ifindex(const struct nlmsghdr *nlh, int attrtype)
+{
+	struct nlattr *attr = nlmsg_find_attr(nlh, GENL_HDRLEN, attrtype);
+
+	return attr ? nla_get_u32(attr) : 0;
+}
 
 /**
  * batadv_netlink_mesh_info_put - fill in generic information about mesh
@@ -93,8 +139,16 @@ batadv_netlink_mesh_info_put(struct sk_buff *msg, struct net_device *soft_iface)
 	    nla_put_u32(msg, BATADV_ATTR_MESH_IFINDEX, soft_iface->ifindex) ||
 	    nla_put_string(msg, BATADV_ATTR_MESH_IFNAME, soft_iface->name) ||
 	    nla_put(msg, BATADV_ATTR_MESH_ADDRESS, ETH_ALEN,
-		    soft_iface->dev_addr))
+		    soft_iface->dev_addr) ||
+	    nla_put_u8(msg, BATADV_ATTR_TT_TTVN,
+		       (u8)atomic_read(&bat_priv->tt.vn)))
 		goto out;
+
+#ifdef CONFIG_BATMAN_ADV_BLA
+	if (nla_put_u16(msg, BATADV_ATTR_BLA_CRC,
+			ntohs(bat_priv->bla.claim_dest.group)))
+		goto out;
+#endif
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (primary_if && primary_if->if_status == BATADV_IF_ACTIVE) {
@@ -380,6 +434,106 @@ out:
 	return ret;
 }
 
+/**
+ * batadv_netlink_dump_hardif_entry - Dump one hard interface into a message
+ * @msg: Netlink message to dump into
+ * @portid: Port making netlink request
+ * @seq: Sequence number of netlink message
+ * @hard_iface: Hard interface to dump
+ *
+ * Return: error code, or 0 on success
+ */
+static int
+batadv_netlink_dump_hardif_entry(struct sk_buff *msg, u32 portid, u32 seq,
+				 struct batadv_hard_iface *hard_iface)
+{
+	struct net_device *net_dev = hard_iface->net_dev;
+	void *hdr;
+
+	hdr = genlmsg_put(msg, portid, seq, &batadv_netlink_family, NLM_F_MULTI,
+			  BATADV_CMD_GET_HARDIFS);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	if (nla_put_u32(msg, BATADV_ATTR_HARD_IFINDEX,
+			net_dev->ifindex) ||
+	    nla_put_string(msg, BATADV_ATTR_HARD_IFNAME,
+			   net_dev->name) ||
+	    nla_put(msg, BATADV_ATTR_HARD_ADDRESS, ETH_ALEN,
+		    net_dev->dev_addr))
+		goto nla_put_failure;
+
+	if (hard_iface->if_status == BATADV_IF_ACTIVE) {
+		if (nla_put_flag(msg, BATADV_ATTR_ACTIVE))
+			goto nla_put_failure;
+	}
+
+	genlmsg_end(msg, hdr);
+	return 0;
+
+ nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+/**
+ * batadv_netlink_dump_hardifs - Dump all hard interface into a messages
+ * @msg: Netlink message to dump into
+ * @cb: Parameters from query
+ *
+ * Return: error code, or length of reply message on success
+ */
+static int
+batadv_netlink_dump_hardifs(struct sk_buff *msg, struct netlink_callback *cb)
+{
+	struct net *net = sock_net(cb->skb->sk);
+	struct net_device *soft_iface;
+	struct batadv_hard_iface *hard_iface;
+	int ifindex;
+	int portid = NETLINK_CB(cb->skb).portid;
+	int seq = cb->nlh->nlmsg_seq;
+	int skip = cb->args[0];
+	int i = 0;
+
+	ifindex = batadv_netlink_get_ifindex(cb->nlh,
+					     BATADV_ATTR_MESH_IFINDEX);
+	if (!ifindex)
+		return -EINVAL;
+
+	soft_iface = dev_get_by_index(net, ifindex);
+	if (!soft_iface)
+		return -ENODEV;
+
+	if (!batadv_softif_is_valid(soft_iface)) {
+		dev_put(soft_iface);
+		return -ENODEV;
+	}
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
+		if (hard_iface->soft_iface != soft_iface)
+			continue;
+
+		if (i++ < skip)
+			continue;
+
+		if (batadv_netlink_dump_hardif_entry(msg, portid, seq,
+						     hard_iface)) {
+			i--;
+			break;
+		}
+	}
+
+	rcu_read_unlock();
+
+	dev_put(soft_iface);
+
+	cb->args[0] = i;
+
+	return msg->len;
+}
+
 static struct genl_ops batadv_netlink_ops[] = {
 	{
 		.cmd = BATADV_CMD_GET_MESH_INFO,
@@ -399,6 +553,61 @@ static struct genl_ops batadv_netlink_ops[] = {
 		.policy = batadv_netlink_policy,
 		.doit = batadv_netlink_tp_meter_cancel,
 	},
+	{
+		.cmd = BATADV_CMD_GET_ROUTING_ALGOS,
+		.flags = GENL_ADMIN_PERM,
+		.policy = batadv_netlink_policy,
+		.dumpit = batadv_algo_dump,
+	},
+	{
+		.cmd = BATADV_CMD_GET_HARDIFS,
+		.flags = GENL_ADMIN_PERM,
+		.policy = batadv_netlink_policy,
+		.dumpit = batadv_netlink_dump_hardifs,
+	},
+	{
+		.cmd = BATADV_CMD_GET_TRANSTABLE_LOCAL,
+		.flags = GENL_ADMIN_PERM,
+		.policy = batadv_netlink_policy,
+		.dumpit = batadv_tt_local_dump,
+	},
+	{
+		.cmd = BATADV_CMD_GET_TRANSTABLE_GLOBAL,
+		.flags = GENL_ADMIN_PERM,
+		.policy = batadv_netlink_policy,
+		.dumpit = batadv_tt_global_dump,
+	},
+	{
+		.cmd = BATADV_CMD_GET_ORIGINATORS,
+		.flags = GENL_ADMIN_PERM,
+		.policy = batadv_netlink_policy,
+		.dumpit = batadv_orig_dump,
+	},
+	{
+		.cmd = BATADV_CMD_GET_NEIGHBORS,
+		.flags = GENL_ADMIN_PERM,
+		.policy = batadv_netlink_policy,
+		.dumpit = batadv_hardif_neigh_dump,
+	},
+	{
+		.cmd = BATADV_CMD_GET_GATEWAYS,
+		.flags = GENL_ADMIN_PERM,
+		.policy = batadv_netlink_policy,
+		.dumpit = batadv_gw_dump,
+	},
+	{
+		.cmd = BATADV_CMD_GET_BLA_CLAIM,
+		.flags = GENL_ADMIN_PERM,
+		.policy = batadv_netlink_policy,
+		.dumpit = batadv_bla_claim_dump,
+	},
+	{
+		.cmd = BATADV_CMD_GET_BLA_BACKBONE,
+		.flags = GENL_ADMIN_PERM,
+		.policy = batadv_netlink_policy,
+		.dumpit = batadv_bla_backbone_dump,
+	},
+
 };
 
 /**

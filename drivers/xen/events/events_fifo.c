@@ -418,30 +418,18 @@ static int evtchn_fifo_alloc_control_block(unsigned cpu)
 	return ret;
 }
 
-static int evtchn_fifo_cpu_notification(struct notifier_block *self,
-						  unsigned long action,
-						  void *hcpu)
+static int xen_evtchn_cpu_prepare(unsigned int cpu)
 {
-	int cpu = (long)hcpu;
-	int ret = 0;
-
-	switch (action) {
-	case CPU_UP_PREPARE:
-		if (!per_cpu(cpu_control_block, cpu))
-			ret = evtchn_fifo_alloc_control_block(cpu);
-		break;
-	case CPU_DEAD:
-		__evtchn_fifo_handle_events(cpu, true);
-		break;
-	default:
-		break;
-	}
-	return ret < 0 ? NOTIFY_BAD : NOTIFY_OK;
+	if (!per_cpu(cpu_control_block, cpu))
+		return evtchn_fifo_alloc_control_block(cpu);
+	return 0;
 }
 
-static struct notifier_block evtchn_fifo_cpu_notifier = {
-	.notifier_call	= evtchn_fifo_cpu_notification,
-};
+static int xen_evtchn_cpu_dead(unsigned int cpu)
+{
+	__evtchn_fifo_handle_events(cpu, true);
+	return 0;
+}
 
 int __init xen_evtchn_fifo_init(void)
 {
@@ -456,7 +444,9 @@ int __init xen_evtchn_fifo_init(void)
 
 	evtchn_ops = &evtchn_ops_fifo;
 
-	register_cpu_notifier(&evtchn_fifo_cpu_notifier);
+	cpuhp_setup_state_nocalls(CPUHP_XEN_EVTCHN_PREPARE,
+				  "CPUHP_XEN_EVTCHN_PREPARE",
+				  xen_evtchn_cpu_prepare, xen_evtchn_cpu_dead);
 out:
 	put_cpu();
 	return ret;

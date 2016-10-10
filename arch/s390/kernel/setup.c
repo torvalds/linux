@@ -204,11 +204,9 @@ static void __init conmode_default(void)
 #endif
 		}
 	} else if (MACHINE_IS_KVM) {
-		if (sclp.has_vt220 &&
-		    config_enabled(CONFIG_SCLP_VT220_CONSOLE))
+		if (sclp.has_vt220 && IS_ENABLED(CONFIG_SCLP_VT220_CONSOLE))
 			SET_CONSOLE_VT220;
-		else if (sclp.has_linemode &&
-			 config_enabled(CONFIG_SCLP_CONSOLE))
+		else if (sclp.has_linemode && IS_ENABLED(CONFIG_SCLP_CONSOLE))
 			SET_CONSOLE_SCLP;
 		else
 			SET_CONSOLE_HVC;

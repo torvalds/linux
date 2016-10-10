@@ -1054,8 +1054,8 @@ static void __make_request(struct mddev *mddev, struct bio *bio)
 	int i;
 	const int op = bio_op(bio);
 	const int rw = bio_data_dir(bio);
-	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
-	const unsigned long do_fua = (bio->bi_rw & REQ_FUA);
+	const unsigned long do_sync = (bio->bi_opf & REQ_SYNC);
+	const unsigned long do_fua = (bio->bi_opf & REQ_FUA);
 	unsigned long flags;
 	struct md_rdev *blocked_rdev;
 	struct blk_plug_cb *cb;
@@ -1063,6 +1063,8 @@ static void __make_request(struct mddev *mddev, struct bio *bio)
 	int sectors_handled;
 	int max_sectors;
 	int sectors;
+
+	md_write_start(mddev, bio);
 
 	/*
 	 * Register the new request and wait if the reconstruction
@@ -1440,12 +1442,10 @@ static void raid10_make_request(struct mddev *mddev, struct bio *bio)
 
 	struct bio *split;
 
-	if (unlikely(bio->bi_rw & REQ_PREFLUSH)) {
+	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
 		md_flush_request(mddev, bio);
 		return;
 	}
-
-	md_write_start(mddev, bio);
 
 	do {
 
@@ -2465,20 +2465,21 @@ static int narrow_write_error(struct r10bio *r10_bio, int i)
 
 	while (sect_to_write) {
 		struct bio *wbio;
+		sector_t wsector;
 		if (sectors > sect_to_write)
 			sectors = sect_to_write;
 		/* Write at 'sector' for 'sectors' */
 		wbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
 		bio_trim(wbio, sector - bio->bi_iter.bi_sector, sectors);
-		wbio->bi_iter.bi_sector = (r10_bio->devs[i].addr+
-				   choose_data_offset(r10_bio, rdev) +
-				   (sector - r10_bio->sector));
+		wsector = r10_bio->devs[i].addr + (sector - r10_bio->sector);
+		wbio->bi_iter.bi_sector = wsector +
+				   choose_data_offset(r10_bio, rdev);
 		wbio->bi_bdev = rdev->bdev;
 		bio_set_op_attrs(wbio, REQ_OP_WRITE, 0);
 
 		if (submit_bio_wait(wbio) < 0)
 			/* Failure! */
-			ok = rdev_set_badblocks(rdev, sector,
+			ok = rdev_set_badblocks(rdev, wsector,
 						sectors, 0)
 				&& ok;
 
@@ -2533,7 +2534,7 @@ read_more:
 		return;
 	}
 
-	do_sync = (r10_bio->master_bio->bi_rw & REQ_SYNC);
+	do_sync = (r10_bio->master_bio->bi_opf & REQ_SYNC);
 	slot = r10_bio->read_slot;
 	printk_ratelimited(
 		KERN_ERR

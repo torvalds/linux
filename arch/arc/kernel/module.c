@@ -22,13 +22,9 @@ static inline void arc_write_me(unsigned short *addr, unsigned long value)
 	*(addr + 1) = (value & 0xffff);
 }
 
-/* ARC specific section quirks - before relocation loop in generic loader
- *
- * For dwarf unwinding out of modules, this needs to
- * 1. Ensure the .debug_frame is allocatable (ARC Linker bug: despite
- *    -fasynchronous-unwind-tables it doesn't).
- * 2. Since we are iterating thru sec hdr tbl anyways, make a note of
- *    the exact section index, for later use.
+/*
+ * This gets called before relocation loop in generic loader
+ * Make a note of the section index of unwinding section
  */
 int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 			      char *secstr, struct module *mod)
@@ -40,8 +36,7 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 	mod->arch.unw_info = NULL;
 
 	for (i = 1; i < hdr->e_shnum; i++) {
-		if (strcmp(secstr+sechdrs[i].sh_name, ".debug_frame") == 0) {
-			sechdrs[i].sh_flags |= SHF_ALLOC;
+		if (strcmp(secstr+sechdrs[i].sh_name, ".eh_frame") == 0) {
 			mod->arch.unw_sec_idx = i;
 			break;
 		}
@@ -106,10 +101,12 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 		 */
 		relo_type = ELF32_R_TYPE(rel_entry[i].r_info);
 
-		if (likely(R_ARC_32_ME == relo_type))
+		if (likely(R_ARC_32_ME == relo_type))	/* ME ( S + A ) */
 			arc_write_me((unsigned short *)location, relocation);
-		else if (R_ARC_32 == relo_type)
+		else if (R_ARC_32 == relo_type)		/* ( S + A ) */
 			*((Elf32_Addr *) location) = relocation;
+		else if (R_ARC_32_PCREL == relo_type)	/* ( S + A ) - PDATA ) */
+			*((Elf32_Addr *) location) = relocation - location;
 		else
 			goto relo_err;
 

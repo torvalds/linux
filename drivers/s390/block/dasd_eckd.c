@@ -5078,6 +5078,8 @@ static int dasd_eckd_read_message_buffer(struct dasd_device *device,
 		return PTR_ERR(cqr);
 	}
 
+	cqr->lpm = lpum;
+retry:
 	cqr->startdev = device;
 	cqr->memdev = device;
 	cqr->block = NULL;
@@ -5122,6 +5124,14 @@ static int dasd_eckd_read_message_buffer(struct dasd_device *device,
 			(prssdp + 1);
 		memcpy(messages, message_buf,
 		       sizeof(struct dasd_rssd_messages));
+	} else if (cqr->lpm) {
+		/*
+		 * on z/VM we might not be able to do I/O on the requested path
+		 * but instead we get the required information on any path
+		 * so retry with open path mask
+		 */
+		cqr->lpm = 0;
+		goto retry;
 	} else
 		DBF_EVENT_DEVID(DBF_WARNING, device->cdev,
 				"Reading messages failed with rc=%d\n"
@@ -5191,7 +5201,7 @@ static int dasd_eckd_query_host_access(struct dasd_device *device,
 
 	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
-	rc = dasd_sleep_on(cqr);
+	rc = dasd_sleep_on_interruptible(cqr);
 	if (rc == 0) {
 		*data = *host_access;
 	} else {

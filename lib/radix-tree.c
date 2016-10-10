@@ -105,10 +105,10 @@ static unsigned int radix_tree_descend(struct radix_tree_node *parent,
 
 #ifdef CONFIG_RADIX_TREE_MULTIORDER
 	if (radix_tree_is_internal_node(entry)) {
-		unsigned long siboff = get_slot_offset(parent, entry);
-		if (siboff < RADIX_TREE_MAP_SIZE) {
-			offset = siboff;
-			entry = rcu_dereference_raw(parent->slots[offset]);
+		if (is_sibling_entry(parent, entry)) {
+			void **sibentry = (void **) entry_to_node(entry);
+			offset = get_slot_offset(parent, sibentry);
+			entry = rcu_dereference_raw(*sibentry);
 		}
 	}
 #endif
@@ -1583,15 +1583,10 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
 }
 EXPORT_SYMBOL(radix_tree_delete);
 
-struct radix_tree_node *radix_tree_replace_clear_tags(
-			struct radix_tree_root *root,
-			unsigned long index, void *entry)
+void radix_tree_clear_tags(struct radix_tree_root *root,
+			   struct radix_tree_node *node,
+			   void **slot)
 {
-	struct radix_tree_node *node;
-	void **slot;
-
-	__radix_tree_lookup(root, index, &node, &slot);
-
 	if (node) {
 		unsigned int tag, offset = get_slot_offset(node, slot);
 		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
@@ -1600,9 +1595,6 @@ struct radix_tree_node *radix_tree_replace_clear_tags(
 		/* Clear root node tags */
 		root->gfp_mask &= __GFP_BITS_MASK;
 	}
-
-	radix_tree_replace_slot(slot, entry);
-	return node;
 }
 
 /**

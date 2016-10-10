@@ -208,7 +208,7 @@ static void bch_data_insert_start(struct closure *cl)
 	 * Journal writes are marked REQ_PREFLUSH; if the original write was a
 	 * flush, it'll wait on the journal write.
 	 */
-	bio->bi_rw &= ~(REQ_PREFLUSH|REQ_FUA);
+	bio->bi_opf &= ~(REQ_PREFLUSH|REQ_FUA);
 
 	do {
 		unsigned i;
@@ -405,7 +405,7 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 	if (!congested &&
 	    mode == CACHE_MODE_WRITEBACK &&
 	    op_is_write(bio_op(bio)) &&
-	    (bio->bi_rw & REQ_SYNC))
+	    (bio->bi_opf & REQ_SYNC))
 		goto rescale;
 
 	spin_lock(&dc->io_lock);
@@ -668,7 +668,7 @@ static inline struct search *search_alloc(struct bio *bio,
 	s->iop.write_prio	= 0;
 	s->iop.error		= 0;
 	s->iop.flags		= 0;
-	s->iop.flush_journal	= (bio->bi_rw & (REQ_PREFLUSH|REQ_FUA)) != 0;
+	s->iop.flush_journal	= (bio->bi_opf & (REQ_PREFLUSH|REQ_FUA)) != 0;
 	s->iop.wq		= bcache_wq;
 
 	return s;
@@ -694,13 +694,8 @@ static void cached_dev_cache_miss_done(struct closure *cl)
 	if (s->iop.replace_collision)
 		bch_mark_cache_miss_collision(s->iop.c, s->d);
 
-	if (s->iop.bio) {
-		int i;
-		struct bio_vec *bv;
-
-		bio_for_each_segment_all(bv, s->iop.bio, i)
-			__free_page(bv->bv_page);
-	}
+	if (s->iop.bio)
+		bio_free_pages(s->iop.bio);
 
 	cached_dev_bio_complete(cl);
 }
@@ -796,8 +791,8 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 		goto out_submit;
 	}
 
-	if (!(bio->bi_rw & REQ_RAHEAD) &&
-	    !(bio->bi_rw & REQ_META) &&
+	if (!(bio->bi_opf & REQ_RAHEAD) &&
+	    !(bio->bi_opf & REQ_META) &&
 	    s->iop.c->gc_stats.in_use < CUTOFF_CACHE_READA)
 		reada = min_t(sector_t, dc->readahead >> 9,
 			      bdev_sectors(bio->bi_bdev) - bio_end_sector(bio));
@@ -920,7 +915,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 		bch_writeback_add(dc);
 		s->iop.bio = bio;
 
-		if (bio->bi_rw & REQ_PREFLUSH) {
+		if (bio->bi_opf & REQ_PREFLUSH) {
 			/* Also need to send a flush to the backing device */
 			struct bio *flush = bio_alloc_bioset(GFP_NOIO, 0,
 							     dc->disk.bio_split);

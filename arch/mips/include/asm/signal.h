@@ -11,7 +11,7 @@
 
 #include <uapi/asm/signal.h>
 
-#ifdef CONFIG_MIPS32_COMPAT
+#ifdef CONFIG_MIPS32_O32
 extern struct mips_abi mips_abi_32;
 
 #define sig_uses_siginfo(ka, abi)                               \

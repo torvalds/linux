@@ -42,11 +42,26 @@
     caption a.headerlink { opacity: 0; }
     caption a.headerlink:hover { opacity: 1; }
 
-    /* inline literal: drop the borderbox and red color */
+    /* Menu selection and keystrokes */
+
+    span.menuselection {
+	color: blue;
+	font-family: "Courier New", Courier, monospace
+    }
+
+    code.kbd, code.kbd span {
+	color: white;
+	background-color: darkblue;
+	font-weight: bold;
+	font-family: "Courier New", Courier, monospace
+    }
+
+    /* inline literal: drop the borderbox, padding and red color */
 
     code, .rst-content tt, .rst-content code {
         color: inherit;
         border: none;
+        padding: unset;
         background: inherit;
         font-size: 85%;
     }
@@ -54,5 +69,4 @@
     .rst-content tt.literal,.rst-content tt.literal,.rst-content code.literal {
         color: inherit;
     }
-
 }

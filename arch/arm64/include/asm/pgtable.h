@@ -73,7 +73,7 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define pte_write(pte)		(!!(pte_val(pte) & PTE_WRITE))
 #define pte_exec(pte)		(!(pte_val(pte) & PTE_UXN))
 #define pte_cont(pte)		(!!(pte_val(pte) & PTE_CONT))
-#define pte_user(pte)		(!!(pte_val(pte) & PTE_USER))
+#define pte_ng(pte)		(!!(pte_val(pte) & PTE_NG))
 
 #ifdef CONFIG_ARM64_HW_AFDBM
 #define pte_hw_dirty(pte)	(pte_write(pte) && !(pte_val(pte) & PTE_RDONLY))
@@ -84,8 +84,8 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define pte_dirty(pte)		(pte_sw_dirty(pte) || pte_hw_dirty(pte))
 
 #define pte_valid(pte)		(!!(pte_val(pte) & PTE_VALID))
-#define pte_valid_not_user(pte) \
-	((pte_val(pte) & (PTE_VALID | PTE_USER)) == PTE_VALID)
+#define pte_valid_global(pte) \
+	((pte_val(pte) & (PTE_VALID | PTE_NG)) == PTE_VALID)
 #define pte_valid_young(pte) \
 	((pte_val(pte) & (PTE_VALID | PTE_AF)) == (PTE_VALID | PTE_AF))
 
@@ -155,6 +155,16 @@ static inline pte_t pte_mknoncont(pte_t pte)
 	return clear_pte_bit(pte, __pgprot(PTE_CONT));
 }
 
+static inline pte_t pte_clear_rdonly(pte_t pte)
+{
+	return clear_pte_bit(pte, __pgprot(PTE_RDONLY));
+}
+
+static inline pte_t pte_mkpresent(pte_t pte)
+{
+	return set_pte_bit(pte, __pgprot(PTE_VALID));
+}
+
 static inline pmd_t pmd_mkcont(pmd_t pmd)
 {
 	return __pmd(pmd_val(pmd) | PMD_SECT_CONT);
@@ -168,7 +178,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 	 * Only if the new pte is valid and kernel, otherwise TLB maintenance
 	 * or update_mmu_cache() have the necessary barriers.
 	 */
-	if (pte_valid_not_user(pte)) {
+	if (pte_valid_global(pte)) {
 		dsb(ishst);
 		isb();
 	}
@@ -202,7 +212,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			pte_val(pte) &= ~PTE_RDONLY;
 		else
 			pte_val(pte) |= PTE_RDONLY;
-		if (pte_user(pte) && pte_exec(pte) && !pte_special(pte))
+		if (pte_ng(pte) && pte_exec(pte) && !pte_special(pte))
 			__sync_icache_dcache(pte, addr);
 	}
 
@@ -222,6 +232,23 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 	}
 
 	set_pte(ptep, pte);
+}
+
+#define __HAVE_ARCH_PTE_SAME
+static inline int pte_same(pte_t pte_a, pte_t pte_b)
+{
+	pteval_t lhs, rhs;
+
+	lhs = pte_val(pte_a);
+	rhs = pte_val(pte_b);
+
+	if (pte_present(pte_a))
+		lhs &= ~PTE_RDONLY;
+
+	if (pte_present(pte_b))
+		rhs &= ~PTE_RDONLY;
+
+	return (lhs == rhs);
 }
 
 /*

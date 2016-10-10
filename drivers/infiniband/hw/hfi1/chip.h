@@ -82,7 +82,7 @@
  */
 #define CM_VAU 3
 /* HFI link credit count, AKA receive buffer depth (RBUF_DEPTH) */
-#define CM_GLOBAL_CREDITS 0x940
+#define CM_GLOBAL_CREDITS 0x880
 /* Number of PKey entries in the HW */
 #define MAX_PKEY_VALUES 16
 
@@ -254,12 +254,14 @@
 #define FAILED_LNI_VERIFY_CAP2		BIT(10)
 #define FAILED_LNI_CONFIGLT		BIT(11)
 #define HOST_HANDSHAKE_TIMEOUT		BIT(12)
+#define EXTERNAL_DEVICE_REQ_TIMEOUT	BIT(13)
 
 #define FAILED_LNI (FAILED_LNI_POLLING | FAILED_LNI_DEBOUNCE \
 			| FAILED_LNI_ESTBCOMM | FAILED_LNI_OPTEQ \
 			| FAILED_LNI_VERIFY_CAP1 \
 			| FAILED_LNI_VERIFY_CAP2 \
-			| FAILED_LNI_CONFIGLT | HOST_HANDSHAKE_TIMEOUT)
+			| FAILED_LNI_CONFIGLT | HOST_HANDSHAKE_TIMEOUT \
+			| EXTERNAL_DEVICE_REQ_TIMEOUT)
 
 /* DC_DC8051_DBG_ERR_INFO_SET_BY_8051.HOST_MSG - host message flags */
 #define HOST_REQ_DONE		BIT(0)
@@ -640,6 +642,7 @@ extern uint platform_config_load;
 /* SBus commands */
 #define RESET_SBUS_RECEIVER 0x20
 #define WRITE_SBUS_RECEIVER 0x21
+#define READ_SBUS_RECEIVER  0x22
 void sbus_request(struct hfi1_devdata *dd,
 		  u8 receiver_addr, u8 data_addr, u8 command, u32 data_in);
 int sbus_request_slow(struct hfi1_devdata *dd,
@@ -705,6 +708,7 @@ void handle_link_up(struct work_struct *work);
 void handle_link_down(struct work_struct *work);
 void handle_link_downgrade(struct work_struct *work);
 void handle_link_bounce(struct work_struct *work);
+void handle_start_link(struct work_struct *work);
 void handle_sma_message(struct work_struct *work);
 void reset_qsfp(struct hfi1_pportdata *ppd);
 void qsfp_event(struct work_struct *work);
@@ -1334,12 +1338,8 @@ enum {
 u64 get_all_cpu_total(u64 __percpu *cntr);
 void hfi1_start_cleanup(struct hfi1_devdata *dd);
 void hfi1_clear_tids(struct hfi1_ctxtdata *rcd);
-struct hfi1_message_header *hfi1_get_msgheader(
+struct ib_header *hfi1_get_msgheader(
 				struct hfi1_devdata *dd, __le32 *rhf_addr);
-int hfi1_get_base_kinfo(struct hfi1_ctxtdata *rcd,
-			struct hfi1_ctxt_info *kinfo);
-u64 hfi1_gpio_mod(struct hfi1_devdata *dd, u32 target, u32 data, u32 dir,
-		  u32 mask);
 int hfi1_init_ctxt(struct send_context *sc);
 void hfi1_put_tid(struct hfi1_devdata *dd, u32 index,
 		  u32 type, unsigned long pa, u16 order);

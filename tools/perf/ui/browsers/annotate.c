@@ -495,7 +495,7 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	if (!ins__is_call(dl->ins))
 		return false;
 
-	if (map_groups__find_ams(&target, NULL) ||
+	if (map_groups__find_ams(&target) ||
 	    map__rip_2objdump(target.map, target.map->map_ip(target.map,
 							     target.addr)) !=
 	    dl->ops.target.addr) {
@@ -1026,7 +1026,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 			.use_navkeypressed = true,
 		},
 	};
-	int ret = -1;
+	int ret = -1, err;
 	int nr_pcnt = 1;
 	size_t sizeof_bdl = sizeof(struct browser_disasm_line);
 
@@ -1050,8 +1050,11 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 		  (nr_pcnt - 1);
 	}
 
-	if (symbol__annotate(sym, map, sizeof_bdl) < 0) {
-		ui__error("%s", ui_helpline__last_msg);
+	err = symbol__disassemble(sym, map, sizeof_bdl);
+	if (err) {
+		char msg[BUFSIZ];
+		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));
+		ui__error("Couldn't annotate %s:\n%s", sym->name, msg);
 		goto out_free_offsets;
 	}
 

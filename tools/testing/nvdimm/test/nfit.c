@@ -13,6 +13,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/workqueue.h>
 #include <linux/libnvdimm.h>
 #include <linux/vmalloc.h>
 #include <linux/device.h>
@@ -602,7 +603,8 @@ static int nfit_test0_alloc(struct nfit_test *t)
 			return -ENOMEM;
 		sprintf(t->label[i], "label%d", i);
 
-		t->flush[i] = test_alloc(t, sizeof(u64) * NUM_HINTS,
+		t->flush[i] = test_alloc(t, max(PAGE_SIZE,
+					sizeof(u64) * NUM_HINTS),
 				&t->flush_dma[i]);
 		if (!t->flush[i])
 			return -ENOMEM;
@@ -1474,6 +1476,7 @@ static int nfit_test_probe(struct platform_device *pdev)
 	if (nfit_test->setup != nfit_test0_setup)
 		return 0;
 
+	flush_work(&acpi_desc->work);
 	nfit_test->setup_hotplug = 1;
 	nfit_test->setup(nfit_test);
 

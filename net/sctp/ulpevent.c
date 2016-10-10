@@ -383,7 +383,7 @@ sctp_ulpevent_make_remote_error(const struct sctp_association *asoc,
 
 	ch = (sctp_errhdr_t *)(chunk->skb->data);
 	cause = ch->cause;
-	elen = WORD_ROUND(ntohs(ch->length)) - sizeof(sctp_errhdr_t);
+	elen = SCTP_PAD4(ntohs(ch->length)) - sizeof(sctp_errhdr_t);
 
 	/* Pull off the ERROR header.  */
 	skb_pull(chunk->skb, sizeof(sctp_errhdr_t));
@@ -688,7 +688,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	 * MUST ignore the padding bytes.
 	 */
 	len = ntohs(chunk->chunk_hdr->length);
-	padding = WORD_ROUND(len) - len;
+	padding = SCTP_PAD4(len) - len;
 
 	/* Fixup cloned skb with just this chunks data.  */
 	skb_trim(skb, chunk->chunk_end - padding - skb->data);
@@ -702,13 +702,13 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	 */
 	sctp_ulpevent_init(event, 0, skb->len + sizeof(struct sk_buff));
 
-	sctp_ulpevent_receive_data(event, asoc);
-
 	/* And hold the chunk as we need it for getting the IP headers
 	 * later in recvmsg
 	 */
 	sctp_chunk_hold(chunk);
 	event->chunk = chunk;
+
+	sctp_ulpevent_receive_data(event, asoc);
 
 	event->stream = ntohs(chunk->subh.data_hdr->stream);
 	event->ssn = ntohs(chunk->subh.data_hdr->ssn);

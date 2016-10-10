@@ -1333,8 +1333,6 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&gpu->lock);
-
 	/*
 	 * TODO
 	 *
@@ -1348,15 +1346,17 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	if (unlikely(event == ~0U)) {
 		DRM_ERROR("no free event\n");
 		ret = -EBUSY;
-		goto out_unlock;
+		goto out_pm_put;
 	}
 
 	fence = etnaviv_gpu_fence_alloc(gpu);
 	if (!fence) {
 		event_free(gpu, event);
 		ret = -ENOMEM;
-		goto out_unlock;
+		goto out_pm_put;
 	}
+
+	mutex_lock(&gpu->lock);
 
 	gpu->event[event].fence = fence;
 	submit->fence = fence->seqno;
@@ -1395,9 +1395,9 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	hangcheck_timer_reset(gpu);
 	ret = 0;
 
-out_unlock:
 	mutex_unlock(&gpu->lock);
 
+out_pm_put:
 	etnaviv_gpu_pm_put(gpu);
 
 	return ret;

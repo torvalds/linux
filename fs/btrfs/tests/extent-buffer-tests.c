@@ -24,8 +24,9 @@
 
 static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 {
-	struct btrfs_path *path;
-	struct btrfs_root *root;
+	struct btrfs_fs_info *fs_info;
+	struct btrfs_path *path = NULL;
+	struct btrfs_root *root = NULL;
 	struct extent_buffer *eb;
 	struct btrfs_item *item;
 	char *value = "mary had a little lamb";
@@ -40,17 +41,24 @@ static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 
 	test_msg("Running btrfs_split_item tests\n");
 
-	root = btrfs_alloc_dummy_root(sectorsize, nodesize);
+	fs_info = btrfs_alloc_dummy_fs_info();
+	if (!fs_info) {
+		test_msg("Could not allocate fs_info\n");
+		return -ENOMEM;
+	}
+
+	root = btrfs_alloc_dummy_root(fs_info, sectorsize, nodesize);
 	if (IS_ERR(root)) {
 		test_msg("Could not allocate root\n");
-		return PTR_ERR(root);
+		ret = PTR_ERR(root);
+		goto out;
 	}
 
 	path = btrfs_alloc_path();
 	if (!path) {
 		test_msg("Could not allocate path\n");
-		kfree(root);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	path->nodes[0] = eb = alloc_dummy_extent_buffer(NULL, nodesize,
@@ -219,7 +227,8 @@ static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 	}
 out:
 	btrfs_free_path(path);
-	kfree(root);
+	btrfs_free_dummy_root(root);
+	btrfs_free_dummy_fs_info(fs_info);
 	return ret;
 }
 

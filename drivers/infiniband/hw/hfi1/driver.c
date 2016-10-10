@@ -276,7 +276,7 @@ inline int hfi1_rcvbuf_validate(u32 size, u8 type, u16 *encoded)
 static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 		       struct hfi1_packet *packet)
 {
-	struct hfi1_message_header *rhdr = packet->hdr;
+	struct ib_header *rhdr = packet->hdr;
 	u32 rte = rhf_rcv_type_err(packet->rhf);
 	int lnh = be16_to_cpu(rhdr->lrh[0]) & 3;
 	struct hfi1_ibport *ibp = &ppd->ibport_data;
@@ -288,10 +288,9 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 
 	if (packet->rhf & RHF_TID_ERR) {
 		/* For TIDERR and RC QPs preemptively schedule a NAK */
-		struct hfi1_ib_header *hdr = (struct hfi1_ib_header *)rhdr;
-		struct hfi1_other_headers *ohdr = NULL;
+		struct ib_other_headers *ohdr = NULL;
 		u32 tlen = rhf_pkt_len(packet->rhf); /* in bytes */
-		u16 lid  = be16_to_cpu(hdr->lrh[1]);
+		u16 lid  = be16_to_cpu(rhdr->lrh[1]);
 		u32 qp_num;
 		u32 rcv_flags = 0;
 
@@ -301,14 +300,14 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 
 		/* Check for GRH */
 		if (lnh == HFI1_LRH_BTH) {
-			ohdr = &hdr->u.oth;
+			ohdr = &rhdr->u.oth;
 		} else if (lnh == HFI1_LRH_GRH) {
 			u32 vtf;
 
-			ohdr = &hdr->u.l.oth;
-			if (hdr->u.l.grh.next_hdr != IB_GRH_NEXT_HDR)
+			ohdr = &rhdr->u.l.oth;
+			if (rhdr->u.l.grh.next_hdr != IB_GRH_NEXT_HDR)
 				goto drop;
-			vtf = be32_to_cpu(hdr->u.l.grh.version_tclass_flow);
+			vtf = be32_to_cpu(rhdr->u.l.grh.version_tclass_flow);
 			if ((vtf >> IB_GRH_VERSION_SHIFT) != IB_GRH_VERSION)
 				goto drop;
 			rcv_flags |= HFI1_HAS_GRH;
@@ -344,7 +343,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			case IB_QPT_RC:
 				hfi1_rc_hdrerr(
 					rcd,
-					hdr,
+					rhdr,
 					rcv_flags,
 					qp);
 				break;
@@ -392,9 +391,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			u16 rlid;
 			u8 svc_type, sl, sc5;
 
-			sc5  = (be16_to_cpu(rhdr->lrh[0]) >> 12) & 0xf;
-			if (rhf_dc_info(packet->rhf))
-				sc5 |= 0x10;
+			sc5 = hdr2sc(rhdr, packet->rhf);
 			sl = ibp->sc_to_sl[sc5];
 
 			lqpn = be32_to_cpu(bth[1]) & RVT_QPN_MASK;
@@ -450,14 +447,20 @@ static inline void init_packet(struct hfi1_ctxtdata *rcd,
 	packet->rcv_flags = 0;
 }
 
-static void process_ecn(struct rvt_qp *qp, struct hfi1_ib_header *hdr,
-			struct hfi1_other_headers *ohdr,
-			u64 rhf, u32 bth1, struct ib_grh *grh)
+void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
+			       bool do_cnp)
 {
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
-	u32 rqpn = 0;
-	u16 rlid;
-	u8 sc5, svc_type;
+	struct ib_header *hdr = pkt->hdr;
+	struct ib_other_headers *ohdr = pkt->ohdr;
+	struct ib_grh *grh = NULL;
+	u32 rqpn = 0, bth1;
+	u16 rlid, dlid = be16_to_cpu(hdr->lrh[1]);
+	u8 sc, svc_type;
+	bool is_mcast = false;
+
+	if (pkt->rcv_flags & HFI1_HAS_GRH)
+		grh = &hdr->u.l.grh;
 
 	switch (qp->ibqp.qp_type) {
 	case IB_QPT_SMI:
@@ -466,6 +469,8 @@ static void process_ecn(struct rvt_qp *qp, struct hfi1_ib_header *hdr,
 		rlid = be16_to_cpu(hdr->lrh[3]);
 		rqpn = be32_to_cpu(ohdr->u.ud.deth[1]) & RVT_QPN_MASK;
 		svc_type = IB_CC_SVCTYPE_UD;
+		is_mcast = (dlid > be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
+			(dlid != be16_to_cpu(IB_LID_PERMISSIVE));
 		break;
 	case IB_QPT_UC:
 		rlid = qp->remote_ah_attr.dlid;
@@ -481,24 +486,23 @@ static void process_ecn(struct rvt_qp *qp, struct hfi1_ib_header *hdr,
 		return;
 	}
 
-	sc5 = (be16_to_cpu(hdr->lrh[0]) >> 12) & 0xf;
-	if (rhf_dc_info(rhf))
-		sc5 |= 0x10;
+	sc = hdr2sc(hdr, pkt->rhf);
 
-	if (bth1 & HFI1_FECN_SMASK) {
+	bth1 = be32_to_cpu(ohdr->bth[1]);
+	if (do_cnp && (bth1 & HFI1_FECN_SMASK)) {
 		u16 pkey = (u16)be32_to_cpu(ohdr->bth[0]);
-		u16 dlid = be16_to_cpu(hdr->lrh[1]);
 
-		return_cnp(ibp, qp, rqpn, pkey, dlid, rlid, sc5, grh);
+		return_cnp(ibp, qp, rqpn, pkey, dlid, rlid, sc, grh);
 	}
 
-	if (bth1 & HFI1_BECN_SMASK) {
+	if (!is_mcast && (bth1 & HFI1_BECN_SMASK)) {
 		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 		u32 lqpn = bth1 & RVT_QPN_MASK;
-		u8 sl = ibp->sc_to_sl[sc5];
+		u8 sl = ibp->sc_to_sl[sc];
 
 		process_becn(ppd, sl, rlid, lqpn, rqpn, svc_type);
 	}
+
 }
 
 struct ps_mdata {
@@ -594,9 +598,8 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 		__le32 *rhf_addr = (__le32 *)rcd->rcvhdrq + mdata.ps_head +
 					 dd->rhf_offset;
 		struct rvt_qp *qp;
-		struct hfi1_ib_header *hdr;
-		struct hfi1_other_headers *ohdr;
-		struct ib_grh *grh = NULL;
+		struct ib_header *hdr;
+		struct ib_other_headers *ohdr;
 		struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 		u64 rhf = rhf_to_cpu(rhf_addr);
 		u32 etype = rhf_rcv_type(rhf), qpn, bth1;
@@ -612,18 +615,17 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 		if (etype != RHF_RCV_TYPE_IB)
 			goto next;
 
-		hdr = (struct hfi1_ib_header *)
-			hfi1_get_msgheader(dd, rhf_addr);
+		hdr = hfi1_get_msgheader(dd, rhf_addr);
+
 		lnh = be16_to_cpu(hdr->lrh[0]) & 3;
 
-		if (lnh == HFI1_LRH_BTH) {
+		if (lnh == HFI1_LRH_BTH)
 			ohdr = &hdr->u.oth;
-		} else if (lnh == HFI1_LRH_GRH) {
+		else if (lnh == HFI1_LRH_GRH)
 			ohdr = &hdr->u.l.oth;
-			grh = &hdr->u.l.grh;
-		} else {
+		else
 			goto next; /* just in case */
-		}
+
 		bth1 = be32_to_cpu(ohdr->bth[1]);
 		is_ecn = !!(bth1 & (HFI1_FECN_SMASK | HFI1_BECN_SMASK));
 
@@ -639,7 +641,7 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 			goto next;
 		}
 
-		process_ecn(qp, hdr, ohdr, rhf, bth1, grh);
+		process_ecn(qp, packet, true);
 		rcu_read_unlock();
 
 		/* turn off BECN, FECN */
@@ -885,14 +887,15 @@ void set_all_slowpath(struct hfi1_devdata *dd)
 }
 
 static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
-				      struct hfi1_packet packet,
+				      struct hfi1_packet *packet,
 				      struct hfi1_devdata *dd)
 {
 	struct work_struct *lsaw = &rcd->ppd->linkstate_active_work;
-	struct hfi1_message_header *hdr = hfi1_get_msgheader(packet.rcd->dd,
-							     packet.rhf_addr);
+	struct ib_header *hdr = hfi1_get_msgheader(packet->rcd->dd,
+						   packet->rhf_addr);
+	u8 etype = rhf_rcv_type(packet->rhf);
 
-	if (hdr2sc(hdr, packet.rhf) != 0xf) {
+	if (etype == RHF_RCV_TYPE_IB && hdr2sc(hdr, packet->rhf) != 0xf) {
 		int hwstate = read_logical_state(dd);
 
 		if (hwstate != LSTATE_ACTIVE) {
@@ -976,7 +979,7 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread)
 			/* Auto activate link on non-SC15 packet receive */
 			if (unlikely(rcd->ppd->host_link_state ==
 				     HLS_UP_ARMED) &&
-			    set_armed_to_active(rcd, packet, dd))
+			    set_armed_to_active(rcd, &packet, dd))
 				goto bail;
 			last = process_rcv_packet(&packet, thread);
 		}
@@ -1362,6 +1365,7 @@ int process_receive_bypass(struct hfi1_packet *packet)
 
 	dd_dev_err(packet->rcd->dd,
 		   "Bypass packets are not supported in normal operation. Dropping\n");
+	incr_cntr64(&packet->rcd->dd->sw_rcv_bypass_packet_errors);
 	return RHF_RCV_CONTINUE;
 }
 

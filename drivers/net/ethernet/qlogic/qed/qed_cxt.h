@@ -170,6 +170,13 @@ int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
  */
 void qed_cxt_release_cid(struct qed_hwfn *p_hwfn,
 			 u32 cid);
+int qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
+			      enum qed_cxt_elem_type elem_type, u32 iid);
+u32 qed_cxt_get_proto_tid_count(struct qed_hwfn *p_hwfn,
+				enum protocol_type type);
+u32 qed_cxt_get_proto_cid_start(struct qed_hwfn *p_hwfn,
+				enum protocol_type type);
+int qed_cxt_free_proto_ilt(struct qed_hwfn *p_hwfn, enum protocol_type proto);
 
 #define QED_CTX_WORKING_MEM 0
 #define QED_CTX_FL_MEM 1

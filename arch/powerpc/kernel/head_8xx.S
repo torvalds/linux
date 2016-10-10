@@ -151,7 +151,6 @@ turn_on_mmu:
 
 
 #define EXCEPTION_PROLOG_2	\
-	CLR_TOP32(r11);		\
 	stw	r10,_CCR(r11);		/* save registers */ \
 	stw	r12,GPR12(r11);	\
 	stw	r9,GPR9(r11);	\

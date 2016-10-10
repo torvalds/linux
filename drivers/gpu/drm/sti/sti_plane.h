@@ -66,14 +66,12 @@ struct sti_fps_info {
  * @plane:              drm plane it is bound to (if any)
  * @desc:               plane type & id
  * @status:             to know the status of the plane
- * @zorder:             plane z-order
  * @fps_info:           frame per second info
  */
 struct sti_plane {
 	struct drm_plane drm_plane;
 	enum sti_plane_desc desc;
 	enum sti_plane_status status;
-	int zorder;
 	struct sti_fps_info fps_info;
 };
 
@@ -82,10 +80,7 @@ void sti_plane_update_fps(struct sti_plane *plane,
 			  bool new_frame,
 			  bool new_field);
 
-int sti_plane_set_property(struct drm_plane *drm_plane,
-			   struct drm_property *property,
-			   uint64_t val);
-
 void sti_plane_init_property(struct sti_plane *plane,
 			     enum drm_plane_type type);
+void sti_plane_reset(struct drm_plane *plane);
 #endif

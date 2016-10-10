@@ -337,6 +337,7 @@
  */
 #define E_ITS_MOVI_UNMAPPED_INTERRUPT		0x010107
 #define E_ITS_MOVI_UNMAPPED_COLLECTION		0x010109
+#define E_ITS_INT_UNMAPPED_INTERRUPT		0x010307
 #define E_ITS_CLEAR_UNMAPPED_INTERRUPT		0x010507
 #define E_ITS_MAPD_DEVICE_OOR			0x010801
 #define E_ITS_MAPC_PROCNUM_OOR			0x010902
@@ -429,9 +430,9 @@ struct rdists {
 };
 
 struct irq_domain;
-struct device_node;
+struct fwnode_handle;
 int its_cpu_init(void);
-int its_init(struct device_node *node, struct rdists *rdists,
+int its_init(struct fwnode_handle *handle, struct rdists *rdists,
 	     struct irq_domain *domain);
 
 static inline bool gic_enable_sre(void)

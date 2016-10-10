@@ -52,6 +52,7 @@ static void cik_sdma_set_ring_funcs(struct amdgpu_device *adev);
 static void cik_sdma_set_irq_funcs(struct amdgpu_device *adev);
 static void cik_sdma_set_buffer_funcs(struct amdgpu_device *adev);
 static void cik_sdma_set_vm_pte_funcs(struct amdgpu_device *adev);
+static int cik_sdma_soft_reset(void *handle);
 
 MODULE_FIRMWARE("radeon/bonaire_sdma.bin");
 MODULE_FIRMWARE("radeon/bonaire_sdma1.bin");
@@ -1036,6 +1037,8 @@ static int cik_sdma_suspend(void *handle)
 static int cik_sdma_resume(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	cik_sdma_soft_reset(handle);
 
 	return cik_sdma_hw_init(adev);
 }

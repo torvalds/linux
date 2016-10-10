@@ -229,7 +229,7 @@ static irqreturn_t bcm_kona_i2c_isr(int irq, void *devid)
 		       dev->base + TXFCR_OFFSET);
 
 	writel(status & ~ISR_RESERVED_MASK, dev->base + ISR_OFFSET);
-	complete_all(&dev->done);
+	complete(&dev->done);
 
 	return IRQ_HANDLED;
 }
@@ -643,7 +643,7 @@ static int bcm_kona_i2c_xfer(struct i2c_adapter *adapter,
 			if (rc < 0) {
 				dev_err(dev->device,
 					"restart cmd failed rc = %d\n", rc);
-					goto xfer_send_stop;
+				goto xfer_send_stop;
 			}
 		}
 
@@ -858,10 +858,8 @@ static int bcm_kona_i2c_probe(struct platform_device *pdev)
 	adap->dev.of_node = pdev->dev.of_node;
 
 	rc = i2c_add_adapter(adap);
-	if (rc) {
-		dev_err(dev->device, "failed to add adapter\n");
+	if (rc)
 		return rc;
-	}
 
 	dev_info(dev->device, "device registered successfully\n");
 

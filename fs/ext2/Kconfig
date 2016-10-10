@@ -1,5 +1,6 @@
 config EXT2_FS
 	tristate "Second extended fs support"
+	select FS_IOMAP if FS_DAX
 	help
 	  Ext2 is a standard Linux file system for hard disks.
 

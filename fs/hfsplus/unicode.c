@@ -385,10 +385,10 @@ int hfsplus_hash_dentry(const struct dentry *dentry, struct qstr *str)
  * Composed unicode characters are decomposed and case-folding is performed
  * if the appropriate bits are (un)set on the superblock.
  */
-int hfsplus_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
+int hfsplus_compare_dentry(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
-	struct super_block *sb = parent->d_sb;
+	struct super_block *sb = dentry->d_sb;
 	int casefold, decompose, size;
 	int dsize1, dsize2, len1, len2;
 	const u16 *dstr1, *dstr2;

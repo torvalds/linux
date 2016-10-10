@@ -13,6 +13,7 @@
 
 #include <asm/cputable.h>
 #include <linux/mm.h>
+#include <asm/cpu_has_feature.h>
 
 /*
  * This file is included by linux/mman.h, so we can't use cacl_vm_prot_bits()

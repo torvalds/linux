@@ -3756,7 +3756,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 			return -EINVAL;
 		}
 		if ((*prop < QE_CLK_NONE) || (*prop > QE_CLK24)) {
-			pr_err("invalid rx-clock propperty\n");
+			pr_err("invalid rx-clock property\n");
 			return -EINVAL;
 		}
 		ug_info->uf_info.rx_clock = *prop;

@@ -45,8 +45,7 @@ static struct super_block *efivarfs_sb;
  * So we need to perform a case-sensitive match on part 1 and a
  * case-insensitive match on part 2.
  */
-static int efivarfs_d_compare(const struct dentry *parent,
-			      const struct dentry *dentry,
+static int efivarfs_d_compare(const struct dentry *dentry,
 			      unsigned int len, const char *str,
 			      const struct qstr *name)
 {
@@ -158,11 +157,13 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 		goto fail_inode;
 	}
 
+	efivar_entry_size(entry, &size);
+	err = efivar_entry_add(entry, &efivarfs_list);
+	if (err)
+		goto fail_inode;
+
 	/* copied by the above to local storage in the dentry. */
 	kfree(name);
-
-	efivar_entry_size(entry, &size);
-	efivar_entry_add(entry, &efivarfs_list);
 
 	inode_lock(inode);
 	inode->i_private = entry;
@@ -183,7 +184,10 @@ fail:
 
 static int efivarfs_destroy(struct efivar_entry *entry, void *data)
 {
-	efivar_entry_remove(entry);
+	int err = efivar_entry_remove(entry);
+
+	if (err)
+		return err;
 	kfree(entry);
 	return 0;
 }

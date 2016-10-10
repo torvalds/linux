@@ -139,7 +139,7 @@ static int rsctrl_probe(struct platform_device *pdev)
 		}
 
 		if (val >= WDT_MUX_NUMBER) {
-			dev_err(dev, "ti,wdt-list property can contain"
+			dev_err(dev, "ti,wdt-list property can contain "
 				"only numbers < 4\n");
 			return -EINVAL;
 		}

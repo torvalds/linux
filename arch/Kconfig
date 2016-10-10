@@ -336,17 +336,6 @@ config HAVE_ARCH_SECCOMP_FILTER
 	    results in the system call being skipped immediately.
 	  - seccomp syscall wired up
 
-	  For best performance, an arch should use seccomp_phase1 and
-	  seccomp_phase2 directly.  It should call seccomp_phase1 for all
-	  syscalls if TIF_SECCOMP is set, but seccomp_phase1 does not
-	  need to be called from a ptrace-safe context.  It must then
-	  call seccomp_phase2 if seccomp_phase1 returns anything other
-	  than SECCOMP_PHASE1_OK or SECCOMP_PHASE1_SKIP.
-
-	  As an additional optimization, an arch may provide seccomp_data
-	  directly to seccomp_phase1; this avoids multiple calls
-	  to the syscall_xyz helpers for every syscall.
-
 config SECCOMP_FILTER
 	def_bool y
 	depends on HAVE_ARCH_SECCOMP_FILTER && SECCOMP && NET
@@ -460,6 +449,15 @@ config CC_STACKPROTECTOR_STRONG
 	  size by about 2%.
 
 endchoice
+
+config HAVE_ARCH_WITHIN_STACK_FRAMES
+	bool
+	help
+	  An architecture should select this if it can walk the kernel stack
+	  frames to determine if an object is part of either the arguments
+	  or local variables (i.e. that it excludes saved return addresses,
+	  and similar) by implementing an inline arch_within_stack_frames(),
+	  which is used by CONFIG_HARDENED_USERCOPY.
 
 config HAVE_CONTEXT_TRACKING
 	bool
@@ -697,5 +695,39 @@ config ARCH_NO_COHERENT_DMA_MMAP
 
 config CPU_NO_EFFICIENT_FFS
 	def_bool n
+
+config HAVE_ARCH_VMAP_STACK
+	def_bool n
+	help
+	  An arch should select this symbol if it can support kernel stacks
+	  in vmalloc space.  This means:
+
+	  - vmalloc space must be large enough to hold many kernel stacks.
+	    This may rule out many 32-bit architectures.
+
+	  - Stacks in vmalloc space need to work reliably.  For example, if
+	    vmap page tables are created on demand, either this mechanism
+	    needs to work while the stack points to a virtual address with
+	    unpopulated page tables or arch code (switch_to() and switch_mm(),
+	    most likely) needs to ensure that the stack's page table entries
+	    are populated before running on a possibly unpopulated stack.
+
+	  - If the stack overflows into a guard page, something reasonable
+	    should happen.  The definition of "reasonable" is flexible, but
+	    instantly rebooting without logging anything would be unfriendly.
+
+config VMAP_STACK
+	default y
+	bool "Use a virtually-mapped stack"
+	depends on HAVE_ARCH_VMAP_STACK && !KASAN
+	---help---
+	  Enable this if you want the use virtually-mapped kernel stacks
+	  with guard pages.  This causes kernel stack overflows to be
+	  caught immediately rather than causing difficult-to-diagnose
+	  corruption.
+
+	  This is presently incompatible with KASAN because KASAN expects
+	  the stack to map directly to the KASAN shadow map using a formula
+	  that is incorrect if the stack is in vmalloc space.
 
 source "kernel/gcov/Kconfig"

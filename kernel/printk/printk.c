@@ -253,6 +253,17 @@ static int preferred_console = -1;
 int console_set_on_cmdline;
 EXPORT_SYMBOL(console_set_on_cmdline);
 
+#ifdef CONFIG_OF
+static bool of_specified_console;
+
+void console_set_by_of(void)
+{
+	of_specified_console = true;
+}
+#else
+# define of_specified_console false
+#endif
+
 /* Flag: console code may call schedule() */
 static int console_may_schedule;
 
@@ -1930,28 +1941,7 @@ asmlinkage int printk_emit(int facility, int level,
 }
 EXPORT_SYMBOL(printk_emit);
 
-#ifdef CONFIG_PRINTK
-#define define_pr_level(func, loglevel)				\
-asmlinkage __visible void func(const char *fmt, ...)		\
-{								\
-	va_list args;						\
-								\
-	va_start(args, fmt);					\
-	vprintk_default(loglevel, fmt, args);			\
-	va_end(args);						\
-}								\
-EXPORT_SYMBOL(func)
-
-define_pr_level(__pr_emerg, LOGLEVEL_EMERG);
-define_pr_level(__pr_alert, LOGLEVEL_ALERT);
-define_pr_level(__pr_crit, LOGLEVEL_CRIT);
-define_pr_level(__pr_err, LOGLEVEL_ERR);
-define_pr_level(__pr_warn, LOGLEVEL_WARNING);
-define_pr_level(__pr_notice, LOGLEVEL_NOTICE);
-define_pr_level(__pr_info, LOGLEVEL_INFO);
-#endif
-
-int vprintk_default(int level, const char *fmt, va_list args)
+int vprintk_default(const char *fmt, va_list args)
 {
 	int r;
 
@@ -1961,7 +1951,7 @@ int vprintk_default(int level, const char *fmt, va_list args)
 		return r;
 	}
 #endif
-	r = vprintk_emit(0, level, NULL, 0, fmt, args);
+	r = vprintk_emit(0, LOGLEVEL_DEFAULT, NULL, 0, fmt, args);
 
 	return r;
 }
@@ -1994,7 +1984,7 @@ asmlinkage __visible int printk(const char *fmt, ...)
 	int r;
 
 	va_start(args, fmt);
-	r = vprintk_func(LOGLEVEL_DEFAULT, fmt, args);
+	r = vprintk_func(fmt, args);
 	va_end(args);
 
 	return r;
@@ -2668,7 +2658,7 @@ void register_console(struct console *newcon)
 	 *	didn't select a console we take the first one
 	 *	that registers here.
 	 */
-	if (preferred_console < 0) {
+	if (preferred_console < 0 && !of_specified_console) {
 		if (newcon->index < 0)
 			newcon->index = 0;
 		if (newcon->setup == NULL ||

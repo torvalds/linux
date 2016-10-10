@@ -16,6 +16,8 @@ Optional properties:
   See ../clocks/clock-bindings.txt for details.
 - clock-names : Must include the following entry:
   "ext_clock" (External clock provided to the card).
+- post-power-on-delay-ms : Delay in ms after powering the card and
+	de-asserting the reset-gpios (if any)
 
 Example:
 

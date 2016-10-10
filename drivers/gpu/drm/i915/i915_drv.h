@@ -882,11 +882,12 @@ struct i915_gem_context {
 
 	struct i915_ctx_hang_stats hang_stats;
 
-	/* Unique identifier for this context, used by the hw for tracking */
 	unsigned long flags;
 #define CONTEXT_NO_ZEROMAP		BIT(0)
 #define CONTEXT_NO_ERROR_CAPTURE	BIT(1)
-	unsigned hw_id;
+
+	/* Unique identifier for this context, used by the hw for tracking */
+	unsigned int hw_id;
 	u32 user_handle;
 
 	u32 ggtt_alignment;
@@ -1854,6 +1855,7 @@ struct drm_i915_private {
 	enum modeset_restore modeset_restore;
 	struct mutex modeset_restore_lock;
 	struct drm_atomic_state *modeset_restore_state;
+	struct drm_modeset_acquire_ctx reset_ctx;
 
 	struct list_head vm_list; /* Global list of all address spaces */
 	struct i915_ggtt ggtt; /* VM representing the global address space */
@@ -1961,6 +1963,13 @@ struct drm_i915_private {
 	bool suspended_to_idle;
 	struct i915_suspend_saved_registers regfile;
 	struct vlv_s0ix_state vlv_s0ix_state;
+
+	enum {
+		I915_SKL_SAGV_UNKNOWN = 0,
+		I915_SKL_SAGV_DISABLED,
+		I915_SKL_SAGV_ENABLED,
+		I915_SKL_SAGV_NOT_CONTROLLED
+	} skl_sagv_status;
 
 	struct {
 		/*
@@ -3590,6 +3599,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
 /* belongs in i915_gem_gtt.h */
 static inline void i915_gem_chipset_flush(struct drm_i915_private *dev_priv)
 {
+	wmb();
 	if (INTEL_GEN(dev_priv) < 6)
 		intel_gtt_chipset_flush();
 }

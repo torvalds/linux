@@ -493,10 +493,8 @@ static netdev_tx_t gs_can_start_xmit(struct sk_buff *skb,
 
 	/* create a URB, and a buffer for it */
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		netdev_err(netdev, "No memory left for URB\n");
+	if (!urb)
 		goto nomem_urb;
-	}
 
 	hf = usb_alloc_coherent(dev->udev, sizeof(*hf), GFP_ATOMIC,
 				&urb->transfer_dma);
@@ -600,11 +598,8 @@ static int gs_can_open(struct net_device *netdev)
 
 			/* alloc rx urb */
 			urb = usb_alloc_urb(0, GFP_KERNEL);
-			if (!urb) {
-				netdev_err(netdev,
-					   "No memory left for URB\n");
+			if (!urb)
 				return -ENOMEM;
-			}
 
 			/* alloc rx buffer */
 			buf = usb_alloc_coherent(dev->udev,

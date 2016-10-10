@@ -122,8 +122,11 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 	has_full_48bit_ppgtt =
 	       	IS_BROADWELL(dev_priv) || INTEL_GEN(dev_priv) >= 9;
 
-	if (intel_vgpu_active(dev_priv))
-		has_full_ppgtt = false; /* emulation is too hard */
+	if (intel_vgpu_active(dev_priv)) {
+		/* emulation is too hard */
+		has_full_ppgtt = false;
+		has_full_48bit_ppgtt = false;
+	}
 
 	if (!has_aliasing_ppgtt)
 		return 0;
@@ -158,7 +161,7 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 		return 0;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 8 && i915.enable_execlists)
+	if (INTEL_GEN(dev_priv) >= 8 && i915.enable_execlists && has_full_ppgtt)
 		return has_full_48bit_ppgtt ? 3 : 2;
 	else
 		return has_aliasing_ppgtt ? 1 : 0;
@@ -2873,6 +2876,7 @@ void i915_ggtt_cleanup_hw(struct drm_device *dev)
 		struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
 
 		ppgtt->base.cleanup(&ppgtt->base);
+		kfree(ppgtt);
 	}
 
 	i915_gem_cleanup_stolen(dev);

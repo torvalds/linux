@@ -39,7 +39,7 @@ static u8 rtw_rfc1042_header[] = {
        0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00
 };
 
-void rtw_signal_stat_timer_hdl(unsigned long data);
+static void rtw_signal_stat_timer_hdl(unsigned long data);
 
 void _rtw_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv)
 {
@@ -73,7 +73,7 @@ int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 	if (!precvpriv->pallocated_frame_buf)
 		return _FAIL;
 
-	precvpriv->precv_frame_buf = (u8 *)N_BYTE_ALIGMENT((size_t)(precvpriv->pallocated_frame_buf), RXFRAME_ALIGN_SZ);
+	precvpriv->precv_frame_buf = PTR_ALIGN(precvpriv->pallocated_frame_buf, RXFRAME_ALIGN_SZ);
 
 	precvframe = (struct recv_frame *)precvpriv->precv_frame_buf;
 
@@ -2088,7 +2088,7 @@ _recv_entry_drop:
 	return ret;
 }
 
-void rtw_signal_stat_timer_hdl(unsigned long data)
+static void rtw_signal_stat_timer_hdl(unsigned long data)
 {
 	struct adapter *adapter = (struct adapter *)data;
 	struct recv_priv *recvpriv = &adapter->recvpriv;

@@ -30,6 +30,7 @@
 #include <asm/asm.h>
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
+#include <asm/dsemul.h>
 #include <asm/dsp.h>
 #include <asm/fpu.h>
 #include <asm/msa.h>
@@ -68,9 +69,20 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long sp)
 	lose_fpu(0);
 	clear_thread_flag(TIF_MSA_CTX_LIVE);
 	clear_used_math();
+	atomic_set(&current->thread.bd_emu_frame, BD_EMUFRAME_NONE);
 	init_dsp();
 	regs->cp0_epc = pc;
 	regs->regs[29] = sp;
+}
+
+void exit_thread(struct task_struct *tsk)
+{
+	/*
+	 * User threads may have allocated a delay slot emulation frame.
+	 * If so, clean up that allocation.
+	 */
+	if (!(current->flags & PF_KTHREAD))
+		dsemul_thread_cleanup(tsk);
 }
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
@@ -158,6 +170,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 #ifdef CONFIG_MIPS_MT_FPAFF
 	clear_tsk_thread_flag(p, TIF_FPUBOUND);
 #endif /* CONFIG_MIPS_MT_FPAFF */
+
+	atomic_set(&p->thread.bd_emu_frame, BD_EMUFRAME_NONE);
 
 	if (clone_flags & CLONE_SETTLS)
 		ti->tp_value = regs->regs[7];
@@ -555,9 +569,16 @@ static void arch_dump_stack(void *info)
 	dump_stack();
 }
 
-void arch_trigger_all_cpu_backtrace(bool include_self)
+void arch_trigger_cpumask_backtrace(const cpumask_t *mask, bool exclude_self)
 {
-	smp_call_function(arch_dump_stack, NULL, 1);
+	long this_cpu = get_cpu();
+
+	if (cpumask_test_cpu(this_cpu, mask) && !exclude_self)
+		dump_stack();
+
+	smp_call_function_many(mask, arch_dump_stack, NULL, 1);
+
+	put_cpu();
 }
 
 int mips_get_process_fp_mode(struct task_struct *task)
@@ -591,14 +612,14 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 		return -EOPNOTSUPP;
 
 	/* Avoid inadvertently triggering emulation */
-	if ((value & PR_FP_MODE_FR) && cpu_has_fpu &&
-	    !(current_cpu_data.fpu_id & MIPS_FPIR_F64))
+	if ((value & PR_FP_MODE_FR) && raw_cpu_has_fpu &&
+	    !(raw_current_cpu_data.fpu_id & MIPS_FPIR_F64))
 		return -EOPNOTSUPP;
-	if ((value & PR_FP_MODE_FRE) && cpu_has_fpu && !cpu_has_fre)
+	if ((value & PR_FP_MODE_FRE) && raw_cpu_has_fpu && !cpu_has_fre)
 		return -EOPNOTSUPP;
 
 	/* FR = 0 not supported in MIPS R6 */
-	if (!(value & PR_FP_MODE_FR) && cpu_has_fpu && cpu_has_mips_r6)
+	if (!(value & PR_FP_MODE_FR) && raw_cpu_has_fpu && cpu_has_mips_r6)
 		return -EOPNOTSUPP;
 
 	/* Proceed with the mode switch */

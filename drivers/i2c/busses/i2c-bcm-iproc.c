@@ -158,7 +158,7 @@ static irqreturn_t bcm_iproc_i2c_isr(int irq, void *data)
 
 	if (status & BIT(IS_M_START_BUSY_SHIFT)) {
 		iproc_i2c->xfer_is_done = 1;
-		complete_all(&iproc_i2c->done);
+		complete(&iproc_i2c->done);
 	}
 
 	writel(status, iproc_i2c->base + IS_OFFSET);
@@ -488,13 +488,7 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 	adap->dev.parent = &pdev->dev;
 	adap->dev.of_node = pdev->dev.of_node;
 
-	ret = i2c_add_adapter(adap);
-	if (ret) {
-		dev_err(iproc_i2c->device, "failed to add adapter\n");
-		return ret;
-	}
-
-	return 0;
+	return i2c_add_adapter(adap);
 }
 
 static int bcm_iproc_i2c_remove(struct platform_device *pdev)

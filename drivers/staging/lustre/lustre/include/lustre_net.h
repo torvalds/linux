@@ -261,7 +261,10 @@
 
 #define MDS_MAXREQSIZE		(5 * 1024)	/* >= 4736 */
 
-#define OST_MAXREQSIZE		(5 * 1024)
+/**
+ * FIEMAP request can be 4K+ for now
+ */
+#define OST_MAXREQSIZE		(16 * 1024)
 
 /* Macro to hide a typecast. */
 #define ptlrpc_req_async_args(req) ((void *)&req->rq_async_args)
@@ -570,13 +573,13 @@ struct ptlrpc_nrs_pol_ops {
 	 *
 	 * \param[in,out] policy The policy being initialized
 	 */
-	int	(*op_policy_init) (struct ptlrpc_nrs_policy *policy);
+	int	(*op_policy_init)(struct ptlrpc_nrs_policy *policy);
 	/**
 	 * Called during policy unregistration; this operation is optional.
 	 *
 	 * \param[in,out] policy The policy being unregistered/finalized
 	 */
-	void	(*op_policy_fini) (struct ptlrpc_nrs_policy *policy);
+	void	(*op_policy_fini)(struct ptlrpc_nrs_policy *policy);
 	/**
 	 * Called when activating a policy via lprocfs; policies allocate and
 	 * initialize their resources here; this operation is optional.
@@ -585,7 +588,7 @@ struct ptlrpc_nrs_pol_ops {
 	 *
 	 * \see nrs_policy_start_locked()
 	 */
-	int	(*op_policy_start) (struct ptlrpc_nrs_policy *policy);
+	int	(*op_policy_start)(struct ptlrpc_nrs_policy *policy);
 	/**
 	 * Called when deactivating a policy via lprocfs; policies deallocate
 	 * their resources here; this operation is optional
@@ -594,7 +597,7 @@ struct ptlrpc_nrs_pol_ops {
 	 *
 	 * \see nrs_policy_stop0()
 	 */
-	void	(*op_policy_stop) (struct ptlrpc_nrs_policy *policy);
+	void	(*op_policy_stop)(struct ptlrpc_nrs_policy *policy);
 	/**
 	 * Used for policy-specific operations; i.e. not generic ones like
 	 * \e PTLRPC_NRS_CTL_START and \e PTLRPC_NRS_CTL_GET_INFO; analogous
@@ -610,8 +613,8 @@ struct ptlrpc_nrs_pol_ops {
 	 *
 	 * \see ptlrpc_nrs_policy_control()
 	 */
-	int	(*op_policy_ctl) (struct ptlrpc_nrs_policy *policy,
-				  enum ptlrpc_nrs_ctl opc, void *arg);
+	int	(*op_policy_ctl)(struct ptlrpc_nrs_policy *policy,
+				 enum ptlrpc_nrs_ctl opc, void *arg);
 
 	/**
 	 * Called when obtaining references to the resources of the resource
@@ -648,11 +651,11 @@ struct ptlrpc_nrs_pol_ops {
 	 * \see ptlrpc_nrs_req_initialize()
 	 * \see ptlrpc_nrs_hpreq_add_nolock()
 	 */
-	int	(*op_res_get) (struct ptlrpc_nrs_policy *policy,
-			       struct ptlrpc_nrs_request *nrq,
-			       const struct ptlrpc_nrs_resource *parent,
-			       struct ptlrpc_nrs_resource **resp,
-			       bool moving_req);
+	int	(*op_res_get)(struct ptlrpc_nrs_policy *policy,
+			      struct ptlrpc_nrs_request *nrq,
+			      const struct ptlrpc_nrs_resource *parent,
+			      struct ptlrpc_nrs_resource **resp,
+			      bool moving_req);
 	/**
 	 * Called when releasing references taken for resources in the resource
 	 * hierarchy for the request; this operation is optional.
@@ -663,8 +666,8 @@ struct ptlrpc_nrs_pol_ops {
 	 * \see ptlrpc_nrs_req_finalize()
 	 * \see ptlrpc_nrs_hpreq_add_nolock()
 	 */
-	void	(*op_res_put) (struct ptlrpc_nrs_policy *policy,
-			       const struct ptlrpc_nrs_resource *res);
+	void	(*op_res_put)(struct ptlrpc_nrs_policy *policy,
+			      const struct ptlrpc_nrs_resource *res);
 
 	/**
 	 * Obtains a request for handling from the policy, and optionally
@@ -683,8 +686,8 @@ struct ptlrpc_nrs_pol_ops {
 	 * \see ptlrpc_nrs_req_get_nolock()
 	 */
 	struct ptlrpc_nrs_request *
-		(*op_req_get) (struct ptlrpc_nrs_policy *policy, bool peek,
-			       bool force);
+		(*op_req_get)(struct ptlrpc_nrs_policy *policy, bool peek,
+			      bool force);
 	/**
 	 * Called when attempting to add a request to a policy for later
 	 * handling; this operation is mandatory.
@@ -697,8 +700,8 @@ struct ptlrpc_nrs_pol_ops {
 	 *
 	 * \see ptlrpc_nrs_req_add_nolock()
 	 */
-	int	(*op_req_enqueue) (struct ptlrpc_nrs_policy *policy,
-				   struct ptlrpc_nrs_request *nrq);
+	int	(*op_req_enqueue)(struct ptlrpc_nrs_policy *policy,
+				  struct ptlrpc_nrs_request *nrq);
 	/**
 	 * Removes a request from the policy's set of pending requests. Normally
 	 * called after a request has been polled successfully from the policy
@@ -707,8 +710,8 @@ struct ptlrpc_nrs_pol_ops {
 	 * \param[in,out] policy The policy the request \a nrq belongs to
 	 * \param[in,out] nrq    The request to dequeue
 	 */
-	void	(*op_req_dequeue) (struct ptlrpc_nrs_policy *policy,
-				   struct ptlrpc_nrs_request *nrq);
+	void	(*op_req_dequeue)(struct ptlrpc_nrs_policy *policy,
+				  struct ptlrpc_nrs_request *nrq);
 	/**
 	 * Called after the request being carried out. Could be used for
 	 * job/resource control; this operation is optional.
@@ -721,8 +724,8 @@ struct ptlrpc_nrs_pol_ops {
 	 *
 	 * \see ptlrpc_nrs_req_stop_nolock()
 	 */
-	void	(*op_req_stop) (struct ptlrpc_nrs_policy *policy,
-				struct ptlrpc_nrs_request *nrq);
+	void	(*op_req_stop)(struct ptlrpc_nrs_policy *policy,
+			       struct ptlrpc_nrs_request *nrq);
 	/**
 	 * Registers the policy's lprocfs interface with a PTLRPC service.
 	 *
@@ -731,7 +734,7 @@ struct ptlrpc_nrs_pol_ops {
 	 * \retval 0	success
 	 * \retval != 0	error
 	 */
-	int	(*op_lprocfs_init) (struct ptlrpc_service *svc);
+	int	(*op_lprocfs_init)(struct ptlrpc_service *svc);
 	/**
 	 * Unegisters the policy's lprocfs interface with a PTLRPC service.
 	 *
@@ -743,7 +746,7 @@ struct ptlrpc_nrs_pol_ops {
 	 *
 	 * \param[in] svc The service
 	 */
-	void	(*op_lprocfs_fini) (struct ptlrpc_service *svc);
+	void	(*op_lprocfs_fini)(struct ptlrpc_service *svc);
 };
 
 /**
@@ -1628,7 +1631,7 @@ static inline bool ptlrpc_nrs_req_can_move(struct ptlrpc_request *req)
 /**
  * Returns 1 if request buffer at offset \a index was already swabbed
  */
-static inline int lustre_req_swabbed(struct ptlrpc_request *req, int index)
+static inline int lustre_req_swabbed(struct ptlrpc_request *req, size_t index)
 {
 	LASSERT(index < sizeof(req->rq_req_swab_mask) * 8);
 	return req->rq_req_swab_mask & (1 << index);
@@ -1637,7 +1640,7 @@ static inline int lustre_req_swabbed(struct ptlrpc_request *req, int index)
 /**
  * Returns 1 if request reply buffer at offset \a index was already swabbed
  */
-static inline int lustre_rep_swabbed(struct ptlrpc_request *req, int index)
+static inline int lustre_rep_swabbed(struct ptlrpc_request *req, size_t index)
 {
 	LASSERT(index < sizeof(req->rq_rep_swab_mask) * 8);
 	return req->rq_rep_swab_mask & (1 << index);
@@ -1662,7 +1665,8 @@ static inline int ptlrpc_rep_need_swab(struct ptlrpc_request *req)
 /**
  * Mark request buffer at offset \a index that it was already swabbed
  */
-static inline void lustre_set_req_swabbed(struct ptlrpc_request *req, int index)
+static inline void lustre_set_req_swabbed(struct ptlrpc_request *req,
+					  size_t index)
 {
 	LASSERT(index < sizeof(req->rq_req_swab_mask) * 8);
 	LASSERT((req->rq_req_swab_mask & (1 << index)) == 0);
@@ -1672,7 +1676,8 @@ static inline void lustre_set_req_swabbed(struct ptlrpc_request *req, int index)
 /**
  * Mark request reply buffer at offset \a index that it was already swabbed
  */
-static inline void lustre_set_rep_swabbed(struct ptlrpc_request *req, int index)
+static inline void lustre_set_rep_swabbed(struct ptlrpc_request *req,
+					  size_t index)
 {
 	LASSERT(index < sizeof(req->rq_rep_swab_mask) * 8);
 	LASSERT((req->rq_rep_swab_mask & (1 << index)) == 0);
@@ -2403,7 +2408,6 @@ int ptlrpc_send_reply(struct ptlrpc_request *req, int flags);
 int ptlrpc_reply(struct ptlrpc_request *req);
 int ptlrpc_send_error(struct ptlrpc_request *req, int difficult);
 int ptlrpc_error(struct ptlrpc_request *req);
-void ptlrpc_resend_req(struct ptlrpc_request *request);
 int ptlrpc_at_get_net_latency(struct ptlrpc_request *req);
 int ptl_send_rpc(struct ptlrpc_request *request, int noreply);
 int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd);
@@ -2423,23 +2427,17 @@ struct ptlrpc_connection *ptlrpc_uuid_to_connection(struct obd_uuid *uuid);
 
 int ptlrpc_queue_wait(struct ptlrpc_request *req);
 int ptlrpc_replay_req(struct ptlrpc_request *req);
-int ptlrpc_unregister_reply(struct ptlrpc_request *req, int async);
 void ptlrpc_abort_inflight(struct obd_import *imp);
 void ptlrpc_abort_set(struct ptlrpc_request_set *set);
 
 struct ptlrpc_request_set *ptlrpc_prep_set(void);
 struct ptlrpc_request_set *ptlrpc_prep_fcset(int max, set_producer_func func,
 					     void *arg);
-int ptlrpc_set_next_timeout(struct ptlrpc_request_set *);
 int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set);
 int ptlrpc_set_wait(struct ptlrpc_request_set *);
-int ptlrpc_expired_set(void *data);
-void ptlrpc_interrupted_set(void *data);
 void ptlrpc_mark_interrupted(struct ptlrpc_request *req);
 void ptlrpc_set_destroy(struct ptlrpc_request_set *);
 void ptlrpc_set_add_req(struct ptlrpc_request_set *, struct ptlrpc_request *);
-void ptlrpc_set_add_new_req(struct ptlrpcd_ctl *pc,
-			    struct ptlrpc_request *req);
 
 void ptlrpc_free_rq_pool(struct ptlrpc_request_pool *pool);
 int ptlrpc_add_rqs_to_pool(struct ptlrpc_request_pool *pool, int num_rq);
@@ -2611,9 +2609,9 @@ int ptlrpc_reconnect_import(struct obd_import *imp);
  * @{
  */
 int ptlrpc_buf_need_swab(struct ptlrpc_request *req, const int inout,
-			 int index);
+			 u32 index);
 void ptlrpc_buf_set_swabbed(struct ptlrpc_request *req, const int inout,
-			    int index);
+			    u32 index);
 int ptlrpc_unpack_rep_msg(struct ptlrpc_request *req, int len);
 int ptlrpc_unpack_req_msg(struct ptlrpc_request *req, int len);
 
@@ -2632,27 +2630,27 @@ int lustre_shrink_msg(struct lustre_msg *msg, int segment,
 		      unsigned int newlen, int move_data);
 void lustre_free_reply_state(struct ptlrpc_reply_state *rs);
 int __lustre_unpack_msg(struct lustre_msg *m, int len);
-int lustre_msg_hdr_size(__u32 magic, int count);
-int lustre_msg_size(__u32 magic, int count, __u32 *lengths);
-int lustre_msg_size_v2(int count, __u32 *lengths);
-int lustre_packed_msg_size(struct lustre_msg *msg);
-int lustre_msg_early_size(void);
-void *lustre_msg_buf_v2(struct lustre_msg_v2 *m, int n, int min_size);
-void *lustre_msg_buf(struct lustre_msg *m, int n, int minlen);
-int lustre_msg_buflen(struct lustre_msg *m, int n);
-int lustre_msg_bufcount(struct lustre_msg *m);
-char *lustre_msg_string(struct lustre_msg *m, int n, int max_len);
+u32 lustre_msg_hdr_size(__u32 magic, u32 count);
+u32 lustre_msg_size(__u32 magic, int count, __u32 *lengths);
+u32 lustre_msg_size_v2(int count, __u32 *lengths);
+u32 lustre_packed_msg_size(struct lustre_msg *msg);
+u32 lustre_msg_early_size(void);
+void *lustre_msg_buf_v2(struct lustre_msg_v2 *m, u32 n, u32 min_size);
+void *lustre_msg_buf(struct lustre_msg *m, u32 n, u32 minlen);
+u32 lustre_msg_buflen(struct lustre_msg *m, u32 n);
+u32 lustre_msg_bufcount(struct lustre_msg *m);
+char *lustre_msg_string(struct lustre_msg *m, u32 n, u32 max_len);
 __u32 lustre_msghdr_get_flags(struct lustre_msg *msg);
 void lustre_msghdr_set_flags(struct lustre_msg *msg, __u32 flags);
 __u32 lustre_msg_get_flags(struct lustre_msg *msg);
-void lustre_msg_add_flags(struct lustre_msg *msg, int flags);
-void lustre_msg_set_flags(struct lustre_msg *msg, int flags);
-void lustre_msg_clear_flags(struct lustre_msg *msg, int flags);
+void lustre_msg_add_flags(struct lustre_msg *msg, u32 flags);
+void lustre_msg_set_flags(struct lustre_msg *msg, u32 flags);
+void lustre_msg_clear_flags(struct lustre_msg *msg, u32 flags);
 __u32 lustre_msg_get_op_flags(struct lustre_msg *msg);
-void lustre_msg_add_op_flags(struct lustre_msg *msg, int flags);
+void lustre_msg_add_op_flags(struct lustre_msg *msg, u32 flags);
 struct lustre_handle *lustre_msg_get_handle(struct lustre_msg *msg);
 __u32 lustre_msg_get_type(struct lustre_msg *msg);
-void lustre_msg_add_version(struct lustre_msg *msg, int version);
+void lustre_msg_add_version(struct lustre_msg *msg, u32 version);
 __u32 lustre_msg_get_opc(struct lustre_msg *msg);
 __u64 lustre_msg_get_last_committed(struct lustre_msg *msg);
 __u64 *lustre_msg_get_versions(struct lustre_msg *msg);

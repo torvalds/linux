@@ -817,6 +817,11 @@ static int nfs4_set_client(struct nfs_server *server,
 		goto error;
 	}
 
+	if (server->nfs_client == clp) {
+		error = -ELOOP;
+		goto error;
+	}
+
 	/*
 	 * Query for the lease time on clientid setup or renewal
 	 *

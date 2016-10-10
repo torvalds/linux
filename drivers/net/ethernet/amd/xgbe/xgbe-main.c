@@ -861,8 +861,14 @@ static int xgbe_resume(struct device *dev)
 	pdata->lpm_ctrl &= ~MDIO_CTRL1_LPOWER;
 	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_CTRL1, pdata->lpm_ctrl);
 
-	if (netif_running(netdev))
+	if (netif_running(netdev)) {
 		ret = xgbe_powerup(netdev, XGMAC_DRIVER_CONTEXT);
+
+		/* Schedule a restart in case the link or phy state changed
+		 * while we were powered down.
+		 */
+		schedule_work(&pdata->restart_work);
+	}
 
 	DBGPR("<--xgbe_resume\n");
 

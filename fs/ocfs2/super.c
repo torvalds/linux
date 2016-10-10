@@ -2329,7 +2329,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	}
 	cleancache_init_shared_fs(sb);
 
-	osb->ocfs2_wq = create_singlethread_workqueue("ocfs2_wq");
+	osb->ocfs2_wq = alloc_ordered_workqueue("ocfs2_wq", WQ_MEM_RECLAIM);
 	if (!osb->ocfs2_wq) {
 		status = -ENOMEM;
 		mlog_errno(status);

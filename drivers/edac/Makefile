@@ -31,6 +31,7 @@ obj-$(CONFIG_EDAC_I5400)		+= i5400_edac.o
 obj-$(CONFIG_EDAC_I7300)		+= i7300_edac.o
 obj-$(CONFIG_EDAC_I7CORE)		+= i7core_edac.o
 obj-$(CONFIG_EDAC_SBRIDGE)		+= sb_edac.o
+obj-$(CONFIG_EDAC_SKX)			+= skx_edac.o
 obj-$(CONFIG_EDAC_E7XXX)		+= e7xxx_edac.o
 obj-$(CONFIG_EDAC_E752X)		+= e752x_edac.o
 obj-$(CONFIG_EDAC_I82443BXGX)		+= i82443bxgx_edac.o
@@ -50,7 +51,13 @@ amd64_edac_mod-$(CONFIG_EDAC_AMD64_ERROR_INJECTION) += amd64_edac_inj.o
 obj-$(CONFIG_EDAC_AMD64)		+= amd64_edac_mod.o
 
 obj-$(CONFIG_EDAC_PASEMI)		+= pasemi_edac.o
-obj-$(CONFIG_EDAC_MPC85XX)		+= mpc85xx_edac.o
+
+mpc85xx_edac_mod-y			:= fsl_ddr_edac.o mpc85xx_edac.o
+obj-$(CONFIG_EDAC_MPC85XX)		+= mpc85xx_edac_mod.o
+
+layerscape_edac_mod-y			:= fsl_ddr_edac.o layerscape_edac.o
+obj-$(CONFIG_EDAC_LAYERSCAPE)		+= layerscape_edac_mod.o
+
 obj-$(CONFIG_EDAC_MV64X60)		+= mv64x60_edac.o
 obj-$(CONFIG_EDAC_CELL)			+= cell_edac.o
 obj-$(CONFIG_EDAC_PPC4XX)		+= ppc4xx_edac.o

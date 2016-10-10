@@ -200,8 +200,8 @@ config REBOOT_MODE
 config SYSCON_REBOOT_MODE
 	tristate "Generic SYSCON regmap reboot mode driver"
 	depends on OF
+	depends on MFD_SYSCON
 	select REBOOT_MODE
-	select MFD_SYSCON
 	help
 	  Say y here will enable reboot mode driver. This will
 	  get reboot mode arguments and store it in SYSCON mapped

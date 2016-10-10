@@ -85,7 +85,7 @@ const struct ath10k_hw_regs qca99x0_regs = {
 	.ce7_base_address			= 0x0004bc00,
 	/* Note: qca99x0 supports upto 12 Copy Engines. Other than address of
 	 * CE0 and CE1 no other copy engine is directly referred in the code.
-	 * It is not really neccessary to assign address for newly supported
+	 * It is not really necessary to assign address for newly supported
 	 * CEs in this address table.
 	 *	Copy Engine		Address
 	 *	CE8			0x0004c000
@@ -219,3 +219,16 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 	survey->time = CCNT_TO_MSEC(ar, cc);
 	survey->time_busy = CCNT_TO_MSEC(ar, rcc);
 }
+
+const struct ath10k_hw_ops qca988x_ops = {
+};
+
+static int ath10k_qca99x0_rx_desc_get_l3_pad_bytes(struct htt_rx_desc *rxd)
+{
+	return MS(__le32_to_cpu(rxd->msdu_end.qca99x0.info1),
+		  RX_MSDU_END_INFO1_L3_HDR_PAD);
+}
+
+const struct ath10k_hw_ops qca99x0_ops = {
+	.rx_desc_get_l3_pad_bytes = ath10k_qca99x0_rx_desc_get_l3_pad_bytes,
+};

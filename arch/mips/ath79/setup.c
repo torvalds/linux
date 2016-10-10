@@ -203,8 +203,8 @@ void __init plat_mem_setup(void)
 	fdt_start = fw_getenvl("fdt_start");
 	if (fdt_start)
 		__dt_setup_arch((void *)KSEG0ADDR(fdt_start));
-	else if (fw_arg0 == -2)
-		__dt_setup_arch((void *)KSEG0ADDR(fw_arg1));
+	else if (fw_passed_dtb)
+		__dt_setup_arch((void *)KSEG0ADDR(fw_passed_dtb));
 
 	if (mips_machtype != ATH79_MACH_GENERIC_OF) {
 		ath79_reset_base = ioremap_nocache(AR71XX_RESET_BASE,

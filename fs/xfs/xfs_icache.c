@@ -1414,6 +1414,16 @@ xfs_inode_set_eofblocks_tag(
 	struct xfs_perag *pag;
 	int tagged;
 
+	/*
+	 * Don't bother locking the AG and looking up in the radix trees
+	 * if we already know that we have the tag set.
+	 */
+	if (ip->i_flags & XFS_IEOFBLOCKS)
+		return;
+	spin_lock(&ip->i_flags_lock);
+	ip->i_flags |= XFS_IEOFBLOCKS;
+	spin_unlock(&ip->i_flags_lock);
+
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
 	spin_lock(&pag->pag_ici_lock);
 	trace_xfs_inode_set_eofblocks_tag(ip);
@@ -1448,6 +1458,10 @@ xfs_inode_clear_eofblocks_tag(
 {
 	struct xfs_mount *mp = ip->i_mount;
 	struct xfs_perag *pag;
+
+	spin_lock(&ip->i_flags_lock);
+	ip->i_flags &= ~XFS_IEOFBLOCKS;
+	spin_unlock(&ip->i_flags_lock);
 
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
 	spin_lock(&pag->pag_ici_lock);

@@ -85,7 +85,7 @@ static inline int gfs2_check_internal_file_size(struct inode *inode,
 	u64 size = i_size_read(inode);
 	if (size < minsize || size > maxsize)
 		goto err;
-	if (size & ((1 << inode->i_blkbits) - 1))
+	if (size & (BIT(inode->i_blkbits) - 1))
 		goto err;
 	return 0;
 err:

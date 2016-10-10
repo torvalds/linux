@@ -3446,9 +3446,28 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	 * Except for the root, subtree_control must be zero for a cgroup
 	 * with tasks so that child cgroups don't compete against tasks.
 	 */
-	if (enable && cgroup_parent(cgrp) && !list_empty(&cgrp->cset_links)) {
-		ret = -EBUSY;
-		goto out_unlock;
+	if (enable && cgroup_parent(cgrp)) {
+		struct cgrp_cset_link *link;
+
+		/*
+		 * Because namespaces pin csets too, @cgrp->cset_links
+		 * might not be empty even when @cgrp is empty.  Walk and
+		 * verify each cset.
+		 */
+		spin_lock_irq(&css_set_lock);
+
+		ret = 0;
+		list_for_each_entry(link, &cgrp->cset_links, cset_link) {
+			if (css_set_populated(link->cset)) {
+				ret = -EBUSY;
+				break;
+			}
+		}
+
+		spin_unlock_irq(&css_set_lock);
+
+		if (ret)
+			goto out_unlock;
 	}
 
 	/* save and update control masks and prepare csses */
@@ -3899,7 +3918,9 @@ void cgroup_file_notify(struct cgroup_file *cfile)
  * cgroup_task_count - count the number of tasks in a cgroup.
  * @cgrp: the cgroup in question
  *
- * Return the number of tasks in the cgroup.
+ * Return the number of tasks in the cgroup.  The returned number can be
+ * higher than the actual number of tasks due to css_set references from
+ * namespace roots and temporary usages.
  */
 static int cgroup_task_count(const struct cgroup *cgrp)
 {
@@ -5606,6 +5627,12 @@ int __init cgroup_init(void)
 	BUG_ON(cgroup_init_cftypes(NULL, cgroup_dfl_base_files));
 	BUG_ON(cgroup_init_cftypes(NULL, cgroup_legacy_base_files));
 
+	/*
+	 * The latency of the synchronize_sched() is too high for cgroups,
+	 * avoid it at the cost of forcing all readers into the slow path.
+	 */
+	rcu_sync_enter_start(&cgroup_threadgroup_rwsem.rss);
+
 	get_user_ns(init_cgroup_ns.user_ns);
 
 	mutex_lock(&cgroup_mutex);
@@ -6270,6 +6297,12 @@ void cgroup_sk_alloc(struct sock_cgroup_data *skcd)
 	if (cgroup_sk_alloc_disabled)
 		return;
 
+	/* Socket clone path */
+	if (skcd->val) {
+		cgroup_get(sock_cgroup_ptr(skcd));
+		return;
+	}
+
 	rcu_read_lock();
 
 	while (true) {
@@ -6295,6 +6328,16 @@ void cgroup_sk_free(struct sock_cgroup_data *skcd)
 
 /* cgroup namespaces */
 
+static struct ucounts *inc_cgroup_namespaces(struct user_namespace *ns)
+{
+	return inc_ucount(ns, current_euid(), UCOUNT_CGROUP_NAMESPACES);
+}
+
+static void dec_cgroup_namespaces(struct ucounts *ucounts)
+{
+	dec_ucount(ucounts, UCOUNT_CGROUP_NAMESPACES);
+}
+
 static struct cgroup_namespace *alloc_cgroup_ns(void)
 {
 	struct cgroup_namespace *new_ns;
@@ -6316,6 +6359,7 @@ static struct cgroup_namespace *alloc_cgroup_ns(void)
 void free_cgroup_ns(struct cgroup_namespace *ns)
 {
 	put_css_set(ns->root_cset);
+	dec_cgroup_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
 	ns_free_inum(&ns->ns);
 	kfree(ns);
@@ -6327,6 +6371,7 @@ struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,
 					struct cgroup_namespace *old_ns)
 {
 	struct cgroup_namespace *new_ns;
+	struct ucounts *ucounts;
 	struct css_set *cset;
 
 	BUG_ON(!old_ns);
@@ -6340,6 +6385,10 @@ struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,
 	if (!ns_capable(user_ns, CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
 
+	ucounts = inc_cgroup_namespaces(user_ns);
+	if (!ucounts)
+		return ERR_PTR(-ENOSPC);
+
 	/* It is not safe to take cgroup_mutex here */
 	spin_lock_irq(&css_set_lock);
 	cset = task_css_set(current);
@@ -6349,10 +6398,12 @@ struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,
 	new_ns = alloc_cgroup_ns();
 	if (IS_ERR(new_ns)) {
 		put_css_set(cset);
+		dec_cgroup_namespaces(ucounts);
 		return new_ns;
 	}
 
 	new_ns->user_ns = get_user_ns(user_ns);
+	new_ns->ucounts = ucounts;
 	new_ns->root_cset = cset;
 
 	return new_ns;
@@ -6403,12 +6454,18 @@ static void cgroupns_put(struct ns_common *ns)
 	put_cgroup_ns(to_cg_ns(ns));
 }
 
+static struct user_namespace *cgroupns_owner(struct ns_common *ns)
+{
+	return to_cg_ns(ns)->user_ns;
+}
+
 const struct proc_ns_operations cgroupns_operations = {
 	.name		= "cgroup",
 	.type		= CLONE_NEWCGROUP,
 	.get		= cgroupns_get,
 	.put		= cgroupns_put,
 	.install	= cgroupns_install,
+	.owner		= cgroupns_owner,
 };
 
 static __init int cgroup_namespaces_init(void)

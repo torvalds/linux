@@ -188,7 +188,8 @@ void r8712_free_stainfo(struct _adapter *padapter, struct sta_info *psta)
 	_r8712_init_sta_xmit_priv(&psta->sta_xmitpriv);
 	_r8712_init_sta_recv_priv(&psta->sta_recvpriv);
 	/* for A-MPDU Rx reordering buffer control,
-	 * cancel reordering_ctrl_timer */
+	 * cancel reordering_ctrl_timer
+	 */
 	for (i = 0; i < 16; i++) {
 		preorder_ctrl = &psta->recvreorder_ctrl[i];
 		del_timer(&preorder_ctrl->reordering_ctrl_timer);

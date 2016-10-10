@@ -510,6 +510,7 @@ int rvt_driver_cq_init(struct rvt_dev_info *rdi)
 
 	if (rdi->worker)
 		return 0;
+	spin_lock_init(&rdi->n_cqs_lock);
 	rdi->worker = kzalloc(sizeof(*rdi->worker), GFP_KERNEL);
 	if (!rdi->worker)
 		return -ENOMEM;

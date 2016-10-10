@@ -43,6 +43,9 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 	unsigned long fp = frame->fp;
 	unsigned long irq_stack_ptr;
 
+	if (!tsk)
+		tsk = current;
+
 	/*
 	 * Switching between stacks is valid when tracing current and in
 	 * non-preemptible context.
@@ -67,7 +70,7 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 	frame->pc = READ_ONCE_NOCHECK(*(unsigned long *)(fp + 8));
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	if (tsk && tsk->ret_stack &&
+	if (tsk->ret_stack &&
 			(frame->pc == (unsigned long)return_to_handler)) {
 		/*
 		 * This is a case where function graph tracer has
@@ -150,6 +153,27 @@ static int save_trace(struct stackframe *frame, void *d)
 	trace->entries[trace->nr_entries++] = addr;
 
 	return trace->nr_entries >= trace->max_entries;
+}
+
+void save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
+{
+	struct stack_trace_data data;
+	struct stackframe frame;
+
+	data.trace = trace;
+	data.skip = trace->skip;
+	data.no_sched_functions = 0;
+
+	frame.fp = regs->regs[29];
+	frame.sp = regs->sp;
+	frame.pc = regs->pc;
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	frame.graph = current->curr_ret_stack;
+#endif
+
+	walk_stackframe(current, &frame, save_trace, &data);
+	if (trace->nr_entries < trace->max_entries)
+		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 
 void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)

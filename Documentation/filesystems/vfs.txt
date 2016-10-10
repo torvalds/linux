@@ -722,7 +722,7 @@ struct address_space_operations {
 
 	The second case is when a request has been made to invalidate
         some or all pages in an address_space.  This can happen
-        through the fadvice(POSIX_FADV_DONTNEED) system call or by the
+        through the fadvise(POSIX_FADV_DONTNEED) system call or by the
         filesystem explicitly requesting it as nfs and 9fs do (when
         they believe the cache may be out of date with storage) by
         calling invalidate_inode_pages2().
@@ -931,7 +931,7 @@ struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, unsigned int);
 	int (*d_weak_revalidate)(struct dentry *, unsigned int);
 	int (*d_hash)(const struct dentry *, struct qstr *);
-	int (*d_compare)(const struct dentry *, const struct dentry *,
+	int (*d_compare)(const struct dentry *,
 			unsigned int, const char *, const struct qstr *);
 	int (*d_delete)(const struct dentry *);
 	int (*d_init)(struct dentry *);

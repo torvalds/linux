@@ -10,6 +10,8 @@
 #include <asm-generic/uaccess-unaligned.h>
 
 #include <linux/bug.h>
+#include <linux/string.h>
+#include <linux/thread_info.h>
 
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1
@@ -200,35 +202,58 @@ extern long lstrnlen_user(const char __user *, long);
 #define clear_user lclear_user
 #define __clear_user lclear_user
 
-unsigned long copy_to_user(void __user *dst, const void *src, unsigned long len);
-#define __copy_to_user copy_to_user
-unsigned long __copy_from_user(void *dst, const void __user *src, unsigned long len);
-unsigned long copy_in_user(void __user *dst, const void __user *src, unsigned long len);
+unsigned long __must_check __copy_to_user(void __user *dst, const void *src,
+					  unsigned long len);
+unsigned long __must_check __copy_from_user(void *dst, const void __user *src,
+					  unsigned long len);
+unsigned long copy_in_user(void __user *dst, const void __user *src,
+			   unsigned long len);
 #define __copy_in_user copy_in_user
 #define __copy_to_user_inatomic __copy_to_user
 #define __copy_from_user_inatomic __copy_from_user
 
-extern void copy_from_user_overflow(void)
-#ifdef CONFIG_DEBUG_STRICT_USER_COPY_CHECKS
-        __compiletime_error("copy_from_user() buffer size is not provably correct")
-#else
-        __compiletime_warning("copy_from_user() buffer size is not provably correct")
-#endif
-;
+extern void __compiletime_error("usercopy buffer size is too small")
+__bad_copy_user(void);
 
-static inline unsigned long __must_check copy_from_user(void *to,
-                                          const void __user *from,
-                                          unsigned long n)
+static inline void copy_user_overflow(int size, unsigned long count)
 {
-        int sz = __compiletime_object_size(to);
-        int ret = -EFAULT;
+	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
+}
 
-        if (likely(sz == -1 || !__builtin_constant_p(n) || sz >= n))
-                ret = __copy_from_user(to, from, n);
-        else
-                copy_from_user_overflow();
+static __always_inline unsigned long __must_check
+copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	int sz = __compiletime_object_size(to);
+	unsigned long ret = n;
 
-        return ret;
+	if (likely(sz < 0 || sz >= n)) {
+		check_object_size(to, n, false);
+		ret = __copy_from_user(to, from, n);
+	} else if (!__builtin_constant_p(n))
+		copy_user_overflow(sz, n);
+	else
+		__bad_copy_user();
+
+	if (unlikely(ret))
+		memset(to + (n - ret), 0, ret);
+
+	return ret;
+}
+
+static __always_inline unsigned long __must_check
+copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	int sz = __compiletime_object_size(from);
+
+	if (likely(sz < 0 || sz >= n)) {
+		check_object_size(from, n, true);
+		n = __copy_to_user(to, from, n);
+	} else if (!__builtin_constant_p(n))
+		copy_user_overflow(sz, n);
+	else
+		__bad_copy_user();
+
+	return n;
 }
 
 struct pt_regs;

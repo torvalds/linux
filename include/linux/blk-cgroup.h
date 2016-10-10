@@ -45,7 +45,7 @@ struct blkcg {
 	spinlock_t			lock;
 
 	struct radix_tree_root		blkg_tree;
-	struct blkcg_gq			*blkg_hint;
+	struct blkcg_gq	__rcu		*blkg_hint;
 	struct hlist_head		blkg_list;
 
 	struct blkcg_policy_data	*cpd[BLKCG_MAX_POLS];
@@ -714,9 +714,9 @@ static inline bool blkcg_bio_issue_check(struct request_queue *q,
 
 	if (!throtl) {
 		blkg = blkg ?: q->root_blkg;
-		blkg_rwstat_add(&blkg->stat_bytes, bio_op(bio), bio->bi_rw,
+		blkg_rwstat_add(&blkg->stat_bytes, bio_op(bio), bio->bi_opf,
 				bio->bi_iter.bi_size);
-		blkg_rwstat_add(&blkg->stat_ios, bio_op(bio), bio->bi_rw, 1);
+		blkg_rwstat_add(&blkg->stat_ios, bio_op(bio), bio->bi_opf, 1);
 	}
 
 	rcu_read_unlock();

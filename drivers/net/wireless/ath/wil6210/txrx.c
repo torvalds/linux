@@ -873,9 +873,12 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		rc = -EINVAL;
 		goto out_free;
 	}
-	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
 
+	spin_lock_bh(&txdata->lock);
+	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
 	txdata->enabled = 1;
+	spin_unlock_bh(&txdata->lock);
+
 	if (txdata->dot1x_open && (agg_wsize >= 0))
 		wil_addba_tx_request(wil, id, agg_wsize);
 
@@ -950,9 +953,11 @@ int wil_vring_init_bcast(struct wil6210_priv *wil, int id, int size)
 		rc = -EINVAL;
 		goto out_free;
 	}
-	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
 
+	spin_lock_bh(&txdata->lock);
+	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
 	txdata->enabled = 1;
+	spin_unlock_bh(&txdata->lock);
 
 	return 0;
  out_free:

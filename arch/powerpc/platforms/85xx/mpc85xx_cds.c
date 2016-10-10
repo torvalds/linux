@@ -196,7 +196,7 @@ static void mpc85xx_8259_cascade_handler(struct irq_desc *desc)
 {
 	unsigned int cascade_irq = i8259_irq();
 
-	if (cascade_irq != NO_IRQ)
+	if (cascade_irq)
 		/* handle an interrupt from the 8259 */
 		generic_handle_irq(cascade_irq);
 
@@ -247,7 +247,7 @@ static int mpc85xx_cds_8259_attach(void)
 	}
 
 	cascade_irq = irq_of_parse_and_map(cascade_node, 0);
-	if (cascade_irq == NO_IRQ) {
+	if (!cascade_irq) {
 		printk(KERN_ERR "Failed to map cascade interrupt\n");
 		return -ENXIO;
 	}

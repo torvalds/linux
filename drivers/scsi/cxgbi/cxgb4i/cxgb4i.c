@@ -84,6 +84,9 @@ static inline int send_tx_flowc_wr(struct cxgbi_sock *);
 
 static const struct cxgb4_uld_info cxgb4i_uld_info = {
 	.name = DRV_MODULE_NAME,
+	.nrxq = MAX_ULD_QSETS,
+	.rxq_size = 1024,
+	.lro = false,
 	.add = t4_uld_add,
 	.rx_handler = t4_uld_rx_handler,
 	.state_change = t4_uld_state_change,

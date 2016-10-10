@@ -15,7 +15,8 @@ CEC_DQEVENT - Dequeue a CEC event
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct cec_event *argp )
+.. c:function:: int ioctl( int fd, int request, struct cec_event *argp )
+   :name: CEC_DQEVENT
 
 Arguments
 =========
@@ -36,7 +37,7 @@ Description
    and is currently only available as a staging kernel module.
 
 CEC devices can send asynchronous events. These can be retrieved by
-calling :ref:`ioctl CEC_DQEVENT <CEC_DQEVENT>`. If the file descriptor is in
+calling :c:func:`CEC_DQEVENT`. If the file descriptor is in
 non-blocking mode and no event is pending, then it will return -1 and
 set errno to the ``EAGAIN`` error code.
 
@@ -64,7 +65,8 @@ it is guaranteed that the state did change in between the two events.
 
        -  ``phys_addr``
 
-       -  The current physical address.
+       -  The current physical address. This is ``CEC_PHYS_ADDR_INVALID`` if no
+          valid physical address is set.
 
     -  .. row 2
 
@@ -72,7 +74,10 @@ it is guaranteed that the state did change in between the two events.
 
        -  ``log_addr_mask``
 
-       -  The current set of claimed logical addresses.
+       -  The current set of claimed logical addresses. This is 0 if no logical
+          addresses are claimed or if ``phys_addr`` is ``CEC_PHYS_ADDR_INVALID``.
+	  If bit 15 is set (``1 << CEC_LOG_ADDR_UNREGISTERED``) then this device
+	  has the unregistered logical address. In that case all other bits are 0.
 
 
 

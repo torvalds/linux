@@ -1,5 +1,5 @@
 
-CFLAGS += -I. -g -Wall -D_LGPL_SOURCE
+CFLAGS += -I. -g -O2 -Wall -D_LGPL_SOURCE
 LDFLAGS += -lpthread -lurcu
 TARGETS = main
 OFILES = main.o radix-tree.o linux.o test.o tag_check.o find_next_bit.o \

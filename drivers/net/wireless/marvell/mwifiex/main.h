@@ -58,6 +58,7 @@
 #include "sdio.h"
 
 extern const char driver_version[];
+extern bool mfg_mode;
 
 struct mwifiex_adapter;
 struct mwifiex_private;
@@ -675,6 +676,7 @@ struct mwifiex_private {
 	struct mwifiex_user_scan_chan hidden_chan[MWIFIEX_USER_SCAN_CHAN_MAX];
 	u8 assoc_resp_ht_param;
 	bool ht_param_present;
+	u8 random_mac[ETH_ALEN];
 };
 
 
@@ -827,6 +829,8 @@ struct mwifiex_if_ops {
 	void (*deaggr_pkt)(struct mwifiex_adapter *, struct sk_buff *);
 	void (*multi_port_resync)(struct mwifiex_adapter *);
 	bool (*is_port_ready)(struct mwifiex_private *);
+	void (*down_dev)(struct mwifiex_adapter *);
+	void (*up_dev)(struct mwifiex_adapter *);
 };
 
 struct mwifiex_adapter {
@@ -989,6 +993,7 @@ struct mwifiex_adapter {
 	u32 drv_info_size;
 	bool scan_chan_gap_enabled;
 	struct sk_buff_head rx_data_q;
+	bool mfg_mode;
 	struct mwifiex_chan_stats *chan_stats;
 	u32 num_in_chan_stats;
 	int survey_idx;
@@ -1004,6 +1009,7 @@ struct mwifiex_adapter {
 	bool usb_mc_status;
 	bool usb_mc_setup;
 	struct cfg80211_wowlan_nd_info *nd_info;
+	struct ieee80211_regdomain *regd;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);
@@ -1625,4 +1631,5 @@ void mwifiex_debugfs_remove(void);
 void mwifiex_dev_debugfs_init(struct mwifiex_private *priv);
 void mwifiex_dev_debugfs_remove(struct mwifiex_private *priv);
 #endif
+void mwifiex_do_flr(struct mwifiex_adapter *adapter, bool prepare);
 #endif /* !_MWIFIEX_MAIN_H_ */

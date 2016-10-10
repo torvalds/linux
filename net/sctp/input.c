@@ -119,7 +119,13 @@ int sctp_rcv(struct sk_buff *skb)
 		       skb_transport_offset(skb))
 		goto discard_it;
 
-	if (!pskb_may_pull(skb, sizeof(struct sctphdr)))
+	/* If the packet is fragmented and we need to do crc checking,
+	 * it's better to just linearize it otherwise crc computing
+	 * takes longer.
+	 */
+	if ((!(skb_shinfo(skb)->gso_type & SKB_GSO_SCTP) &&
+	     skb_linearize(skb)) ||
+	    !pskb_may_pull(skb, sizeof(struct sctphdr)))
 		goto discard_it;
 
 	/* Pull up the IP header. */
@@ -599,7 +605,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 		/* PMTU discovery (RFC1191) */
 		if (ICMP_FRAG_NEEDED == code) {
 			sctp_icmp_frag_needed(sk, asoc, transport,
-					      WORD_TRUNC(info));
+					      SCTP_TRUNC4(info));
 			goto out_unlock;
 		} else {
 			if (ICMP_PROT_UNREACH == code) {
@@ -667,7 +673,7 @@ static int sctp_rcv_ootb(struct sk_buff *skb)
 		if (ntohs(ch->length) < sizeof(sctp_chunkhdr_t))
 			break;
 
-		ch_end = offset + WORD_ROUND(ntohs(ch->length));
+		ch_end = offset + SCTP_PAD4(ntohs(ch->length));
 		if (ch_end > skb->len)
 			break;
 
@@ -790,27 +796,34 @@ struct sctp_hash_cmp_arg {
 static inline int sctp_hash_cmp(struct rhashtable_compare_arg *arg,
 				const void *ptr)
 {
+	struct sctp_transport *t = (struct sctp_transport *)ptr;
 	const struct sctp_hash_cmp_arg *x = arg->key;
-	const struct sctp_transport *t = ptr;
-	struct sctp_association *asoc = t->asoc;
-	const struct net *net = x->net;
+	struct sctp_association *asoc;
+	int err = 1;
 
 	if (!sctp_cmp_addr_exact(&t->ipaddr, x->paddr))
-		return 1;
-	if (!net_eq(sock_net(asoc->base.sk), net))
-		return 1;
+		return err;
+	if (!sctp_transport_hold(t))
+		return err;
+
+	asoc = t->asoc;
+	if (!net_eq(sock_net(asoc->base.sk), x->net))
+		goto out;
 	if (x->ep) {
 		if (x->ep != asoc->ep)
-			return 1;
+			goto out;
 	} else {
 		if (x->laddr->v4.sin_port != htons(asoc->base.bind_addr.port))
-			return 1;
+			goto out;
 		if (!sctp_bind_addr_match(&asoc->base.bind_addr,
 					  x->laddr, sctp_sk(asoc->base.sk)))
-			return 1;
+			goto out;
 	}
 
-	return 0;
+	err = 0;
+out:
+	sctp_transport_put(t);
+	return err;
 }
 
 static inline u32 sctp_hash_obj(const void *data, u32 len, u32 seed)
@@ -1115,7 +1128,7 @@ static struct sctp_association *__sctp_rcv_walk_lookup(struct net *net,
 		if (ntohs(ch->length) < sizeof(sctp_chunkhdr_t))
 			break;
 
-		ch_end = ((__u8 *)ch) + WORD_ROUND(ntohs(ch->length));
+		ch_end = ((__u8 *)ch) + SCTP_PAD4(ntohs(ch->length));
 		if (ch_end > skb_tail_pointer(skb))
 			break;
 
@@ -1177,9 +1190,6 @@ static struct sctp_association *__sctp_rcv_lookup_harder(struct net *net,
 	if ((skb_shinfo(skb)->gso_type & SKB_GSO_SCTP) == SKB_GSO_SCTP)
 		return NULL;
 
-	if (skb_linearize(skb))
-		return NULL;
-
 	ch = (sctp_chunkhdr_t *) skb->data;
 
 	/* The code below will attempt to walk the chunk and extract
@@ -1187,7 +1197,7 @@ static struct sctp_association *__sctp_rcv_lookup_harder(struct net *net,
 	 * that the chunk length doesn't cause overflow.  Otherwise, we'll
 	 * walk off the end.
 	 */
-	if (WORD_ROUND(ntohs(ch->length)) > skb->len)
+	if (SCTP_PAD4(ntohs(ch->length)) > skb->len)
 		return NULL;
 
 	/* If this is INIT/INIT-ACK look inside the chunk too. */

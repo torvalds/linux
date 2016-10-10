@@ -162,7 +162,10 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PSL_SPAP_V    0x0000000000000001ULL
 
 /****** CXL_PSL_Control ****************************************************/
-#define CXL_PSL_Control_tb 0x0000000000000001ULL
+#define CXL_PSL_Control_tb              (0x1ull << (63-63))
+#define CXL_PSL_Control_Fr              (0x1ull << (63-31))
+#define CXL_PSL_Control_Fs_MASK         (0x3ull << (63-29))
+#define CXL_PSL_Control_Fs_Complete     (0x3ull << (63-29))
 
 /****** CXL_PSL_DLCNTL *****************************************************/
 #define CXL_PSL_DLCNTL_D (0x1ull << (63-28))
@@ -561,7 +564,6 @@ struct cxl_service_layer_ops {
 	u64 (*timebase_read)(struct cxl *adapter);
 	int capi_mode;
 	bool needs_reset_before_disable;
-	int min_pe;
 };
 
 struct cxl_native {
@@ -603,6 +605,7 @@ struct cxl {
 	struct bin_attribute cxl_attr;
 	int adapter_num;
 	int user_irqs;
+	int min_pe;
 	u64 ps_size;
 	u16 psl_rev;
 	u16 base_image;
@@ -854,6 +857,7 @@ int cxl_register_one_irq(struct cxl *adapter, irq_handler_t handler,
 int cxl_check_error(struct cxl_afu *afu);
 int cxl_afu_slbia(struct cxl_afu *afu);
 int cxl_tlb_slb_invalidate(struct cxl *adapter);
+int cxl_data_cache_flush(struct cxl *adapter);
 int cxl_afu_disable(struct cxl_afu *afu);
 int cxl_psl_purge(struct cxl_afu *afu);
 

@@ -186,9 +186,12 @@ static bool check_tick_dependency(atomic_t *dep)
 	return false;
 }
 
-static bool can_stop_full_tick(struct tick_sched *ts)
+static bool can_stop_full_tick(int cpu, struct tick_sched *ts)
 {
 	WARN_ON_ONCE(!irqs_disabled());
+
+	if (unlikely(!cpu_online(cpu)))
+		return false;
 
 	if (check_tick_dependency(&tick_dep_mask))
 		return false;
@@ -843,7 +846,7 @@ static void tick_nohz_full_update_tick(struct tick_sched *ts)
 	if (!ts->tick_stopped && ts->nohz_mode == NOHZ_MODE_INACTIVE)
 		return;
 
-	if (can_stop_full_tick(ts))
+	if (can_stop_full_tick(cpu, ts))
 		tick_nohz_stop_sched_tick(ts, ktime_get(), cpu);
 	else if (ts->tick_stopped)
 		tick_nohz_restart_sched_tick(ts, ktime_get());
@@ -908,10 +911,11 @@ static void __tick_nohz_idle_enter(struct tick_sched *ts)
 	ktime_t now, expires;
 	int cpu = smp_processor_id();
 
+	now = tick_nohz_start_idle(ts);
+
 	if (can_stop_idle_tick(cpu, ts)) {
 		int was_stopped = ts->tick_stopped;
 
-		now = tick_nohz_start_idle(ts);
 		ts->idle_calls++;
 
 		expires = tick_nohz_stop_sched_tick(ts, now, cpu);

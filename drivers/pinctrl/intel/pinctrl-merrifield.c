@@ -11,6 +11,7 @@
 
 #include <linux/bitops.h>
 #include <linux/err.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinconf.h>
@@ -853,7 +854,7 @@ static int mrfld_pinctrl_probe(struct platform_device *pdev)
 	 */
 	nfamilies = ARRAY_SIZE(mrfld_families),
 	families = devm_kmemdup(&pdev->dev, mrfld_families,
-					    nfamilies * sizeof(mrfld_families),
+					    sizeof(mrfld_families),
 					    GFP_KERNEL);
 	if (!families)
 		return -ENOMEM;

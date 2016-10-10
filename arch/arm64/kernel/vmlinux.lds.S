@@ -103,6 +103,7 @@ SECTIONS
 		*(.discard)
 		*(.discard.*)
 		*(.interp .dynamic)
+		*(.dynsym .dynstr .hash)
 	}
 
 	. = KIMAGE_VADDR + TEXT_OFFSET;
@@ -121,6 +122,7 @@ SECTIONS
 			ENTRY_TEXT
 			TEXT_TEXT
 			SCHED_TEXT
+			CPUIDLE_TEXT
 			LOCK_TEXT
 			KPROBES_TEXT
 			HYPERVISOR_TEXT
@@ -174,19 +176,9 @@ SECTIONS
 	.rela : ALIGN(8) {
 		*(.rela .rela*)
 	}
-	.dynsym : ALIGN(8) {
-		*(.dynsym)
-	}
-	.dynstr : {
-		*(.dynstr)
-	}
-	.hash : {
-		*(.hash)
-	}
 
-	__rela_offset	= ADDR(.rela) - KIMAGE_VADDR;
+	__rela_offset	= ABSOLUTE(ADDR(.rela) - KIMAGE_VADDR);
 	__rela_size	= SIZEOF(.rela);
-	__dynsym_offset	= ADDR(.dynsym) - KIMAGE_VADDR;
 
 	. = ALIGN(SEGMENT_ALIGN);
 	__init_end = .;
@@ -194,6 +186,25 @@ SECTIONS
 	_data = .;
 	_sdata = .;
 	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
+
+	/*
+	 * Data written with the MMU off but read with the MMU on requires
+	 * cache lines to be invalidated, discarding up to a Cache Writeback
+	 * Granule (CWG) of data from the cache. Keep the section that
+	 * requires this type of maintenance to be in its own Cache Writeback
+	 * Granule (CWG) area so the cache maintenance operations don't
+	 * interfere with adjacent data.
+	 */
+	.mmuoff.data.write : ALIGN(SZ_2K) {
+		__mmuoff_data_start = .;
+		*(.mmuoff.data.write)
+	}
+	. = ALIGN(SZ_2K);
+	.mmuoff.data.read : {
+		*(.mmuoff.data.read)
+		__mmuoff_data_end = .;
+	}
+
 	PECOFF_EDATA_PADDING
 	_edata = .;
 

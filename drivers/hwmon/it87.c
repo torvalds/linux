@@ -491,7 +491,7 @@ struct it87_sio_data {
 struct it87_data {
 	const struct attribute_group *groups[7];
 	enum chips type;
-	u16 features;
+	u32 features;
 	u8 peci_mask;
 	u8 old_peci_mask;
 
@@ -2011,10 +2011,11 @@ static struct attribute *it87_attributes_in[] = {
 	&sensor_dev_attr_in7_beep.dev_attr.attr,	/* 39 */
 
 	&sensor_dev_attr_in8_input.dev_attr.attr,	/* 40 */
-	&sensor_dev_attr_in9_input.dev_attr.attr,	/* 41 */
-	&sensor_dev_attr_in10_input.dev_attr.attr,	/* 41 */
-	&sensor_dev_attr_in11_input.dev_attr.attr,	/* 41 */
-	&sensor_dev_attr_in12_input.dev_attr.attr,	/* 41 */
+	&sensor_dev_attr_in9_input.dev_attr.attr,
+	&sensor_dev_attr_in10_input.dev_attr.attr,
+	&sensor_dev_attr_in11_input.dev_attr.attr,
+	&sensor_dev_attr_in12_input.dev_attr.attr,
+	NULL
 };
 
 static const struct attribute_group it87_group_in = {

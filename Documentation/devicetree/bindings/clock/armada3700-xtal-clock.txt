@@ -1,0 +1,28 @@
+* Xtal Clock bindings for Marvell Armada 37xx SoCs
+
+Marvell Armada 37xx SoCs allow to determine the xtal clock frequencies by
+reading the gpio latch register.
+
+This node must be a subnode of the node exposing the register address
+of the GPIO block where the gpio latch is located.
+
+Required properties:
+- compatible : shall be one of the following:
+	"marvell,armada-3700-xtal-clock"
+- #clock-cells : from common clock binding; shall be set to 0
+
+Optional properties:
+- clock-output-names : from common clock binding; allows overwrite default clock
+	output names ("xtal")
+
+Example:
+gpio1: gpio@13800 {
+	compatible = "marvell,armada-3700-gpio", "syscon", "simple-mfd";
+	reg = <0x13800 0x1000>;
+
+	xtalclk: xtal-clk {
+		compatible = "marvell,armada-3700-xtal-clock";
+		clock-output-names = "xtal";
+		#clock-cells = <0>;
+	};
+};
