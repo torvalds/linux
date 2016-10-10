@@ -907,6 +907,17 @@ config SENSORS_MCP3021
 	  This driver can also be built as a module.  If so, the module
 	  will be called mcp3021.
 
+config SENSORS_TC654
+	tristate "Microchip TC654/TC655 and compatibles"
+	depends on I2C
+	help
+	  If you say yes here you get support for TC654 and TC655.
+	  The TC654 and TC655 are PWM mode fan speed controllers with
+	  FanSense technology for use with brushless DC fans.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tc654.
+
 config SENSORS_MENF21BMC_HWMON
 	tristate "MEN 14F021P00 BMC Hardware Monitoring"
 	depends on MFD_MENF21BMC
