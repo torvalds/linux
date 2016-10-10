@@ -14,43 +14,29 @@
 #ifndef GENERIC_NCR5380_H
 #define GENERIC_NCR5380_H
 
-#ifndef SCSI_G_NCR5380_MEM
 #define DRV_MODULE_NAME "g_NCR5380"
 
 #define NCR5380_read(reg) \
-	inb(instance->io_port + (reg))
+	ioread8(((struct NCR5380_hostdata *)shost_priv(instance))->iomem + \
+		((struct NCR5380_hostdata *)shost_priv(instance))->offset + \
+		(reg))
 #define NCR5380_write(reg, value) \
-	outb(value, instance->io_port + (reg))
+	iowrite8(value, ((struct NCR5380_hostdata *)shost_priv(instance))->iomem + \
+		((struct NCR5380_hostdata *)shost_priv(instance))->offset + \
+		(reg))
 
 #define NCR5380_implementation_fields \
+	int offset; \
+	void __iomem *iomem; \
+	resource_size_t iomem_size; \
 	int c400_ctl_status; \
 	int c400_blk_cnt; \
 	int c400_host_buf; \
 	int io_width;
 
-#else 
-/* therefore SCSI_G_NCR5380_MEM */
-#define DRV_MODULE_NAME "g_NCR5380_mmio"
-
 #define NCR53C400_mem_base 0x3880
 #define NCR53C400_host_buffer 0x3900
 #define NCR53C400_region_size 0x3a00
-
-#define NCR5380_read(reg) \
-	readb(((struct NCR5380_hostdata *)shost_priv(instance))->iomem + \
-	      NCR53C400_mem_base + (reg))
-#define NCR5380_write(reg, value) \
-	writeb(value, ((struct NCR5380_hostdata *)shost_priv(instance))->iomem + \
-	       NCR53C400_mem_base + (reg))
-
-#define NCR5380_implementation_fields \
-	void __iomem *iomem; \
-	resource_size_t iomem_size; \
-	int c400_ctl_status; \
-	int c400_blk_cnt; \
-	int c400_host_buf;
-
-#endif
 
 #define NCR5380_dma_xfer_len(instance, cmd, phase) \
         generic_NCR5380_dma_xfer_len(instance, cmd)
@@ -73,4 +59,3 @@
 #define BOARD_HP_C2502	4
 
 #endif /* GENERIC_NCR5380_H */
-
