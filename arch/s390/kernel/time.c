@@ -401,6 +401,8 @@ static void clock_sync_local(unsigned long long delta)
 		S390_lowcore.clock_comparator += delta;
 		set_clock_comparator(S390_lowcore.clock_comparator);
 	}
+	/* Adjust the last_update_clock time-stamp. */
+	S390_lowcore.last_update_clock += delta;
 }
 
 /* Single threaded workqueue used for stp sync events */
