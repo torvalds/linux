@@ -86,9 +86,6 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 	int			ret;
 	u32			reg;
 
-	if (!dwc)
-		return;
-
 	mutex_lock(&rockchip->lock);
 
 	if (extcon_get_cable_state_(edev, EXTCON_USB) > 0) {
@@ -99,8 +96,10 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		 * If dr_mode is host only, never to set
 		 * the mode to the peripheral mode.
 		 */
-		if (WARN_ON(dwc->dr_mode == USB_DR_MODE_HOST))
+		if (dwc->dr_mode == USB_DR_MODE_HOST) {
+			dev_warn(rockchip->dev, "USB peripheral not support!\n");
 			goto out;
+		}
 
 		/*
 		 * Assert otg reset can put the dwc in P2 state, it's
@@ -133,8 +132,10 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		 * If dr_mode is device only, never to
 		 * set the mode to the host mode.
 		 */
-		if (WARN_ON(dwc->dr_mode == USB_DR_MODE_PERIPHERAL))
+		if (dwc->dr_mode == USB_DR_MODE_PERIPHERAL) {
+			dev_warn(rockchip->dev, "USB HOST not support!\n");
 			goto out;
+		}
 
 		/*
 		 * Assert otg reset can put the dwc in P2 state, it's
