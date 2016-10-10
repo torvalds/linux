@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_addr.h>
+#include <rdma/ib_user_verbs.h>
 #include <linux/netdevice.h>
 #include <linux/iommu.h>
 #include <net/addrconf.h>
@@ -39,6 +40,8 @@
 #include <linux/qed/qed_chain.h>
 #include <linux/qed/qed_if.h>
 #include "qedr.h"
+#include "verbs.h"
+#include <rdma/qedr-abi.h>
 
 MODULE_DESCRIPTION("QLogic 40G/100G ROCE Driver");
 MODULE_AUTHOR("QLogic Corporation");
@@ -80,6 +83,29 @@ static int qedr_register_device(struct qedr_dev *dev)
 
 	memcpy(dev->ibdev.node_desc, QEDR_NODE_DESC, sizeof(QEDR_NODE_DESC));
 	dev->ibdev.owner = THIS_MODULE;
+	dev->ibdev.uverbs_abi_ver = QEDR_ABI_VERSION;
+
+	dev->ibdev.uverbs_cmd_mask = QEDR_UVERBS(GET_CONTEXT) |
+				     QEDR_UVERBS(QUERY_DEVICE) |
+				     QEDR_UVERBS(QUERY_PORT);
+
+	dev->ibdev.phys_port_cnt = 1;
+	dev->ibdev.num_comp_vectors = dev->num_cnq;
+	dev->ibdev.node_type = RDMA_NODE_IB_CA;
+
+	dev->ibdev.query_device = qedr_query_device;
+	dev->ibdev.query_port = qedr_query_port;
+	dev->ibdev.modify_port = qedr_modify_port;
+
+	dev->ibdev.query_gid = qedr_query_gid;
+	dev->ibdev.add_gid = qedr_add_gid;
+	dev->ibdev.del_gid = qedr_del_gid;
+
+	dev->ibdev.alloc_ucontext = qedr_alloc_ucontext;
+	dev->ibdev.dealloc_ucontext = qedr_dealloc_ucontext;
+	dev->ibdev.mmap = qedr_mmap;
+
+	dev->ibdev.dma_device = &dev->pdev->dev;
 
 	dev->ibdev.get_link_layer = qedr_link_layer;
 	dev->ibdev.get_dev_fw_str = qedr_get_dev_fw_str;

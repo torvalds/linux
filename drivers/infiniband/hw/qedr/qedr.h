@@ -49,6 +49,7 @@
 		 DP_NAME(dev) ? DP_NAME(dev) : "", ## __VA_ARGS__)
 
 #define QEDR_MSG_INIT "INIT"
+#define QEDR_MSG_MISC "MISC"
 
 struct qedr_dev;
 
@@ -175,6 +176,39 @@ struct qedr_dev {
 #define QEDR_MAX_PORT			(1)
 
 #define QEDR_UVERBS(CMD_NAME) (1ull << IB_USER_VERBS_CMD_##CMD_NAME)
+
+#define QEDR_ROCE_PKEY_MAX 1
+#define QEDR_ROCE_PKEY_TABLE_LEN 1
+#define QEDR_ROCE_PKEY_DEFAULT 0xffff
+
+struct qedr_ucontext {
+	struct ib_ucontext ibucontext;
+	struct qedr_dev *dev;
+	struct qedr_pd *pd;
+	u64 dpi_addr;
+	u64 dpi_phys_addr;
+	u32 dpi_size;
+	u16 dpi;
+
+	struct list_head mm_head;
+
+	/* Lock to protect mm list */
+	struct mutex mm_list_lock;
+};
+
+struct qedr_mm {
+	struct {
+		u64 phy_addr;
+		unsigned long len;
+	} key;
+	struct list_head entry;
+};
+
+static inline
+struct qedr_ucontext *get_qedr_ucontext(struct ib_ucontext *ibucontext)
+{
+	return container_of(ibucontext, struct qedr_ucontext, ibucontext);
+}
 
 static inline struct qedr_dev *get_qedr_dev(struct ib_device *ibdev)
 {
