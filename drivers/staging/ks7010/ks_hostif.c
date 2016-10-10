@@ -465,8 +465,6 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 			skb->dev->last_rx = jiffies;
 			netif_rx(skb);
 		} else {
-			printk(KERN_WARNING
-			       "ks_wlan: Memory squeeze, dropping packet.\n");
 			priv->nstats.rx_dropped++;
 		}
 		break;
@@ -500,8 +498,6 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 			skb->dev->last_rx = jiffies;
 			netif_rx(skb);
 		} else {
-			printk(KERN_WARNING
-			       "ks_wlan: Memory squeeze, dropping packet.\n");
 			priv->nstats.rx_dropped++;
 		}
 		break;
@@ -549,7 +545,7 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 		dev->dev_addr[5] = priv->eth_addr[5];
 		dev->dev_addr[6] = 0x00;
 		dev->dev_addr[7] = 0x00;
-		printk(KERN_INFO "ks_wlan: MAC ADDRESS = %pM\n", priv->eth_addr);
+		netdev_info(dev, "MAC ADDRESS = %pM\n", priv->eth_addr);
 		break;
 	case DOT11_PRODUCT_VERSION:
 		/* firmware version */
@@ -557,8 +553,8 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 		priv->version_size = priv->rx_size;
 		memcpy(priv->firmware_version, priv->rxp, priv->rx_size);
 		priv->firmware_version[priv->rx_size] = '\0';
-		printk(KERN_INFO "ks_wlan: firmware ver. = %s\n",
-		       priv->firmware_version);
+		netdev_info(dev, "firmware ver. = %s\n",
+			    priv->firmware_version);
 		hostif_sme_enqueue(priv, SME_GET_PRODUCT_VERSION);
 		/* wake_up_interruptible_all(&priv->confirm_wait); */
 		complete(&priv->confirm_wait);
@@ -578,12 +574,12 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 		} else if (priv->eeprom_sum.type == 1) {
 			if (priv->eeprom_sum.result == 0) {
 				priv->eeprom_checksum = EEPROM_NG;
-				printk("LOCAL_EEPROM_SUM NG\n");
+				netdev_info(dev, "LOCAL_EEPROM_SUM NG\n");
 			} else if (priv->eeprom_sum.result == 1) {
 				priv->eeprom_checksum = EEPROM_OK;
 			}
 		} else {
-			printk("LOCAL_EEPROM_SUM error!\n");
+			netdev_err(dev, "LOCAL_EEPROM_SUM error!\n");
 		}
 		break;
 	default:
@@ -880,7 +876,7 @@ void hostif_stop_confirm(struct ks_wlan_private *priv)
 		netif_carrier_off(netdev);
 		tmp = FORCE_DISCONNECT & priv->connect_status;
 		priv->connect_status = tmp | DISCONNECT_STATUS;
-		printk("IWEVENT: disconnect\n");
+		netdev_info(netdev, "IWEVENT: disconnect\n");
 
 		wrqu0.data.length = 0;
 		wrqu0.data.flags = 0;
@@ -890,7 +886,7 @@ void hostif_stop_confirm(struct ks_wlan_private *priv)
 		    && (old_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
 			eth_zero_addr(wrqu0.ap_addr.sa_data);
 			DPRINTK(3, "IWEVENT: disconnect\n");
-			printk("IWEVENT: disconnect\n");
+			netdev_info(netdev, "IWEVENT: disconnect\n");
 			DPRINTK(3, "disconnect :: scan_ind_count=%d\n",
 				priv->scan_ind_count);
 			wireless_send_event(netdev, SIOCGIWAP, &wrqu0, NULL);
@@ -1096,7 +1092,7 @@ void hostif_event_check(struct ks_wlan_private *priv)
 	case HIF_AP_SET_CONF:
 	default:
 		//DPRINTK(1, "undefined event[%04X]\n", event);
-		printk("undefined event[%04X]\n", event);
+		netdev_err(priv->net_dev, "undefined event[%04X]\n", event);
 		/* wake_up_all(&priv->confirm_wait); */
 		complete(&priv->confirm_wait);
 		break;
@@ -2644,7 +2640,7 @@ void hostif_sme_enqueue(struct ks_wlan_private *priv, unsigned short event)
 	} else {
 		/* in case of buffer overflow */
 		//DPRINTK(2,"sme queue buffer overflow\n");
-		printk("sme queue buffer overflow\n");
+		netdev_err(priv->net_dev, "sme queue buffer overflow\n");
 	}
 
 	tasklet_schedule(&priv->sme_task);
