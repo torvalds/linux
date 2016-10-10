@@ -342,8 +342,8 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 		goto failed;
 	}
 
-	memset(&p80211_hdr, 0, sizeof(union p80211_hdr));
-	memset(&p80211_wep, 0, sizeof(struct p80211_metawep));
+	memset(&p80211_hdr, 0, sizeof(p80211_hdr));
+	memset(&p80211_wep, 0, sizeof(p80211_wep));
 
 	if (netif_queue_stopped(netdev)) {
 		netdev_dbg(netdev, "called when queue stopped.\n");
@@ -381,8 +381,8 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 			goto failed;
 		}
 		/* move the header over */
-		memcpy(&p80211_hdr, skb->data, sizeof(union p80211_hdr));
-		skb_pull(skb, sizeof(union p80211_hdr));
+		memcpy(&p80211_hdr, skb->data, sizeof(p80211_hdr));
+		skb_pull(skb, sizeof(p80211_hdr));
 	} else {
 		if (skb_ether_to_p80211
 		    (wlandev, wlandev->ethconv, skb, &p80211_hdr,
@@ -640,9 +640,9 @@ static int p80211knetdev_set_mac_address(struct net_device *dev, void *addr)
 	resultcode = &dot11req.resultcode;
 
 	/* Set up a dot11req_mibset */
-	memset(&dot11req, 0, sizeof(struct p80211msg_dot11req_mibset));
+	memset(&dot11req, 0, sizeof(dot11req));
 	dot11req.msgcode = DIDmsg_dot11req_mibset;
-	dot11req.msglen = sizeof(struct p80211msg_dot11req_mibset);
+	dot11req.msglen = sizeof(dot11req);
 	memcpy(dot11req.devname,
 	       ((struct wlandevice *)dev->ml_priv)->name, WLAN_DEVNAMELEN_MAX - 1);
 
