@@ -3029,6 +3029,35 @@ static int vmw_cmd_dx_genmips(struct vmw_private *dev_priv,
 				   cmd->body.shaderResourceViewId);
 }
 
+/**
+ * vmw_cmd_dx_transfer_from_buffer -
+ * Validate an SVGA_3D_CMD_DX_TRANSFER_FROM_BUFFER command
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context being used for this batch.
+ * @header: Pointer to the command header in the command stream.
+ */
+static int vmw_cmd_dx_transfer_from_buffer(struct vmw_private *dev_priv,
+					   struct vmw_sw_context *sw_context,
+					   SVGA3dCmdHeader *header)
+{
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXTransferFromBuffer body;
+	} *cmd = container_of(header, typeof(*cmd), header);
+	int ret;
+
+	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+				user_surface_converter,
+				&cmd->body.srcSid, NULL);
+	if (ret != 0)
+		return ret;
+
+	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+				 user_surface_converter,
+				 &cmd->body.destSid, NULL);
+}
+
 static int vmw_cmd_check_not_3d(struct vmw_private *dev_priv,
 				struct vmw_sw_context *sw_context,
 				void *buf, uint32_t *size)
@@ -3379,6 +3408,9 @@ static const struct vmw_cmd_entry vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
 		    &vmw_cmd_buffer_copy_check, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_PRED_COPY_REGION,
 		    &vmw_cmd_pred_copy_check, true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_TRANSFER_FROM_BUFFER,
+		    &vmw_cmd_dx_transfer_from_buffer,
+		    true, false, true),
 };
 
 static int vmw_cmd_check(struct vmw_private *dev_priv,
