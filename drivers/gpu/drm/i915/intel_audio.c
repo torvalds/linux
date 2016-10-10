@@ -81,7 +81,7 @@ static const struct {
 	int clock;
 	int n;
 	int cts;
-} aud_ncts[] = {
+} hdmi_aud_ncts[] = {
 	{ 44100, TMDS_296M, 4459, 234375 },
 	{ 44100, TMDS_297M, 4704, 247500 },
 	{ 48000, TMDS_296M, 5824, 281250 },
@@ -121,15 +121,15 @@ static u32 audio_config_hdmi_pixel_clock(const struct drm_display_mode *adjusted
 	return hdmi_audio_clock[i].config;
 }
 
-static int audio_config_get_n(const struct drm_display_mode *adjusted_mode,
-			      int rate)
+static int audio_config_hdmi_get_n(const struct drm_display_mode *adjusted_mode,
+				   int rate)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(aud_ncts); i++) {
-		if ((rate == aud_ncts[i].sample_rate) &&
-			(adjusted_mode->crtc_clock == aud_ncts[i].clock)) {
-			return aud_ncts[i].n;
+	for (i = 0; i < ARRAY_SIZE(hdmi_aud_ncts); i++) {
+		if (rate == hdmi_aud_ncts[i].sample_rate &&
+		    adjusted_mode->crtc_clock == hdmi_aud_ncts[i].clock) {
+			return hdmi_aud_ncts[i].n;
 		}
 	}
 	return 0;
@@ -256,7 +256,7 @@ hsw_hdmi_audio_config_update(struct intel_crtc *intel_crtc, enum port port,
 
 	if (adjusted_mode->crtc_clock == TMDS_296M ||
 	    adjusted_mode->crtc_clock == TMDS_297M) {
-		n = audio_config_get_n(adjusted_mode, rate);
+		n = audio_config_hdmi_get_n(adjusted_mode, rate);
 		if (n != 0) {
 			tmp &= ~AUD_CONFIG_N_MASK;
 			tmp |= AUD_CONFIG_N(n);
