@@ -183,6 +183,8 @@ static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port)
 	if (ret)
 		return;
 
+	pci_set_master(pdev);
+
 	/* Special DMA address for UART */
 	dma->rx_dma_addr = 0xfffff000;
 	dma->tx_dma_addr = 0xfffff000;
@@ -279,8 +281,6 @@ static int lpss8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
-
-	pci_set_master(pdev);
 
 	lpss = devm_kzalloc(&pdev->dev, sizeof(*lpss), GFP_KERNEL);
 	if (!lpss)
