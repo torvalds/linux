@@ -46,7 +46,7 @@ static inline struct thread_info *current_thread_info(void)
 unsigned long *alloc_thread_stack_node(struct task_struct *, int node);
 void free_thread_stack(unsigned long *);
 
-int threads_init(void);
+void threads_init(void);
 void threads_cleanup(void);
 
 #define TIF_SYSCALL_TRACE		0

@@ -153,26 +153,20 @@ void show_stack(struct task_struct *task, unsigned long *esp)
 {
 }
 
-static inline void pr_early(const char *str)
-{
-	if (lkl_ops->print)
-		lkl_ops->print(str, strlen(str));
-}
-
 /**
  * This is called before the kernel initializes, so no kernel calls (including
  * printk) can't be made yet.
  */
-int threads_init(void)
+void threads_init(void)
 {
-	struct thread_info *ti = &init_thread_union.thread_info;
 	int ret;
+	struct thread_info *ti = &init_thread_union.thread_info;
 
 	ret = init_ti(ti);
 	if (ret < 0)
-		pr_early("lkl: failed to allocate init schedule semaphore\n");
+		lkl_printf("lkl: failed to allocate init schedule semaphore\n");
 
-	return ret;
+	ti->tid = lkl_ops->thread_self();
 }
 
 void threads_cleanup(void)

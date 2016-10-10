@@ -37,9 +37,7 @@ void __init setup_arch(char **cl)
 
 static void __init lkl_run_kernel(void *arg)
 {
-	/* Nobody will ever join us */
-	lkl_ops->thread_detach();
-
+	threads_init();
 	start_kernel();
 }
 
@@ -62,10 +60,6 @@ int __init lkl_start_kernel(struct lkl_host_operations *ops,
 			COMMAND_LINE_SIZE - ret);
 
 	memcpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);
-
-	ret = threads_init();
-	if (ret)
-		return ret;
 
 	init_sem = lkl_ops->sem_alloc(0);
 	if (!init_sem)
