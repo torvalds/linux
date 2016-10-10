@@ -558,7 +558,7 @@ int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
 
 	p9_debug(P9_DEBUG_VFS, "\n");
 
-	retval = inode_change_ok(inode, iattr);
+	retval = setattr_prepare(dentry, iattr);
 	if (retval)
 		return retval;
 

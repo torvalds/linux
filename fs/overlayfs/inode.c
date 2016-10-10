@@ -53,7 +53,7 @@ int ovl_setattr(struct dentry *dentry, struct iattr *attr)
 	 * inode_newsize_ok() will always check against MAX_LFS_FILESIZE and not
 	 * check for a swapfile (which this won't be anyway).
 	 */
-	err = inode_change_ok(dentry->d_inode, attr);
+	err = setattr_prepare(dentry, attr);
 	if (err)
 		return err;
 

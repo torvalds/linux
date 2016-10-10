@@ -2893,7 +2893,7 @@ int ntfs_setattr(struct dentry *dentry, struct iattr *attr)
 	int err;
 	unsigned int ia_valid = attr->ia_valid;
 
-	err = inode_change_ok(vi, attr);
+	err = setattr_prepare(dentry, attr);
 	if (err)
 		goto out;
 	/* We do not support NTFS ACLs yet. */

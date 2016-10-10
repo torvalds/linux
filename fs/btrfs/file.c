@@ -2040,7 +2040,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		 * flags for any errors that might have happened while doing
 		 * writeback of file data.
 		 */
-		ret = btrfs_inode_check_errors(inode);
+		ret = filemap_check_errors(inode->i_mapping);
 		inode_unlock(inode);
 		goto out;
 	}

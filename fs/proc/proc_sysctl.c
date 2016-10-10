@@ -759,7 +759,7 @@ static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
 	if (attr->ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID))
 		return -EPERM;
 
-	error = inode_change_ok(inode, attr);
+	error = setattr_prepare(dentry, attr);
 	if (error)
 		return error;
 

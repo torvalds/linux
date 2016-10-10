@@ -24,9 +24,9 @@ static int orangefs_create(struct inode *dir,
 	struct inode *inode;
 	int ret;
 
-	gossip_debug(GOSSIP_NAME_DEBUG, "%s: %s\n",
+	gossip_debug(GOSSIP_NAME_DEBUG, "%s: %pd\n",
 		     __func__,
-		     dentry->d_name.name);
+		     dentry);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_CREATE);
 	if (!new_op)
@@ -43,9 +43,9 @@ static int orangefs_create(struct inode *dir,
 	ret = service_operation(new_op, __func__, get_interruptible_flag(dir));
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "%s: %s: handle:%pU: fsid:%d: new_op:%p: ret:%d:\n",
+		     "%s: %pd: handle:%pU: fsid:%d: new_op:%p: ret:%d:\n",
 		     __func__,
-		     dentry->d_name.name,
+		     dentry,
 		     &new_op->downcall.resp.create.refn.khandle,
 		     new_op->downcall.resp.create.refn.fs_id,
 		     new_op,
@@ -57,18 +57,18 @@ static int orangefs_create(struct inode *dir,
 	inode = orangefs_new_inode(dir->i_sb, dir, S_IFREG | mode, 0,
 				&new_op->downcall.resp.create.refn);
 	if (IS_ERR(inode)) {
-		gossip_err("%s: Failed to allocate inode for file :%s:\n",
+		gossip_err("%s: Failed to allocate inode for file :%pd:\n",
 			   __func__,
-			   dentry->d_name.name);
+			   dentry);
 		ret = PTR_ERR(inode);
 		goto out;
 	}
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "%s: Assigned inode :%pU: for file :%s:\n",
+		     "%s: Assigned inode :%pU: for file :%pd:\n",
 		     __func__,
 		     get_khandle_from_ino(inode),
-		     dentry->d_name.name);
+		     dentry);
 
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
@@ -76,9 +76,9 @@ static int orangefs_create(struct inode *dir,
 	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "%s: dentry instantiated for %s\n",
+		     "%s: dentry instantiated for %pd\n",
 		     __func__,
-		     dentry->d_name.name);
+		     dentry);
 
 	SetMtimeFlag(parent);
 	dir->i_mtime = dir->i_ctime = current_fs_time(dir->i_sb);
@@ -87,9 +87,9 @@ static int orangefs_create(struct inode *dir,
 out:
 	op_release(new_op);
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "%s: %s: returning %d\n",
+		     "%s: %pd: returning %d\n",
 		     __func__,
-		     dentry->d_name.name,
+		     dentry,
 		     ret);
 	return ret;
 }
@@ -115,8 +115,8 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 	 * -EEXIST on O_EXCL opens, which is broken if we skip this lookup
 	 * in the create path)
 	 */
-	gossip_debug(GOSSIP_NAME_DEBUG, "%s called on %s\n",
-		     __func__, dentry->d_name.name);
+	gossip_debug(GOSSIP_NAME_DEBUG, "%s called on %pd\n",
+		     __func__, dentry);
 
 	if (dentry->d_name.len > (ORANGEFS_NAME_MAX - 1))
 		return ERR_PTR(-ENAMETOOLONG);
@@ -169,9 +169,9 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 
 			gossip_debug(GOSSIP_NAME_DEBUG,
 				     "orangefs_lookup: Adding *negative* dentry "
-				     "%p for %s\n",
+				     "%p for %pd\n",
 				     dentry,
-				     dentry->d_name.name);
+				     dentry);
 
 			d_add(dentry, NULL);
 			res = NULL;
@@ -224,10 +224,10 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 	int ret;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "%s: called on %s\n"
+		     "%s: called on %pd\n"
 		     "  (inode %pU): Parent is %pU | fs_id %d\n",
 		     __func__,
-		     dentry->d_name.name,
+		     dentry,
 		     get_khandle_from_ino(inode),
 		     &parent->refn.khandle,
 		     parent->refn.fs_id);
@@ -326,9 +326,9 @@ static int orangefs_symlink(struct inode *dir,
 	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Inode (Symlink) %pU -> %s\n",
+		     "Inode (Symlink) %pU -> %pd\n",
 		     get_khandle_from_ino(inode),
-		     dentry->d_name.name);
+		     dentry);
 
 	SetMtimeFlag(parent);
 	dir->i_mtime = dir->i_ctime = current_fs_time(dir->i_sb);
@@ -390,9 +390,9 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Inode (Directory) %pU -> %s\n",
+		     "Inode (Directory) %pU -> %pd\n",
 		     get_khandle_from_ino(inode),
-		     dentry->d_name.name);
+		     dentry);
 
 	/*
 	 * NOTE: we have no good way to keep nlink consistent for directories
