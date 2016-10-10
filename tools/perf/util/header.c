@@ -2251,7 +2251,7 @@ int perf_header__fprintf_info(struct perf_session *session, FILE *fp, bool full)
 	struct perf_header *header = &session->header;
 	int fd = perf_data_file__fd(session->file);
 	struct stat st;
-	int ret;
+	int ret, bit;
 
 	hd.fp = fp;
 	hd.full = full;
@@ -2264,6 +2264,14 @@ int perf_header__fprintf_info(struct perf_session *session, FILE *fp, bool full)
 
 	perf_header__process_sections(header, fd, &hd,
 				      perf_file_section__fprintf_info);
+
+	fprintf(fp, "# missing features: ");
+	for_each_clear_bit(bit, header->adds_features, HEADER_LAST_FEATURE) {
+		if (bit)
+			fprintf(fp, "%s ", feat_ops[bit].name);
+	}
+
+	fprintf(fp, "\n");
 	return 0;
 }
 
