@@ -24,9 +24,9 @@
 #include <linux/pci.h>
 #include <linux/ctype.h>
 #include <linux/timer.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static int wep_on_off;
 #define	WEP_OFF		0
