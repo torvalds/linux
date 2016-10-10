@@ -16,6 +16,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
@@ -38,6 +39,7 @@
 struct dwc3_rockchip {
 	int			num_clocks;
 	bool			connected;
+	bool			suspended;
 	struct device		*dev;
 	struct clk		**clks;
 	struct dwc3		*dwc;
@@ -46,6 +48,7 @@ struct dwc3_rockchip {
 	struct notifier_block	device_nb;
 	struct notifier_block	host_nb;
 	struct work_struct	otg_work;
+	struct mutex		lock;
 };
 
 static int dwc3_rockchip_device_notifier(struct notifier_block *nb,
@@ -54,7 +57,8 @@ static int dwc3_rockchip_device_notifier(struct notifier_block *nb,
 	struct dwc3_rockchip *rockchip =
 		container_of(nb, struct dwc3_rockchip, device_nb);
 
-	schedule_work(&rockchip->otg_work);
+	if (!rockchip->suspended)
+		schedule_work(&rockchip->otg_work);
 
 	return NOTIFY_DONE;
 }
@@ -65,7 +69,8 @@ static int dwc3_rockchip_host_notifier(struct notifier_block *nb,
 	struct dwc3_rockchip *rockchip =
 		container_of(nb, struct dwc3_rockchip, host_nb);
 
-	schedule_work(&rockchip->otg_work);
+	if (!rockchip->suspended)
+		schedule_work(&rockchip->otg_work);
 
 	return NOTIFY_DONE;
 }
@@ -84,16 +89,18 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 	if (!dwc)
 		return;
 
+	mutex_lock(&rockchip->lock);
+
 	if (extcon_get_cable_state_(edev, EXTCON_USB) > 0) {
 		if (rockchip->connected)
-			return;
+			goto out;
 
 		/*
 		 * If dr_mode is host only, never to set
 		 * the mode to the peripheral mode.
 		 */
 		if (WARN_ON(dwc->dr_mode == USB_DR_MODE_HOST))
-			return;
+			goto out;
 
 		/*
 		 * Assert otg reset can put the dwc in P2 state, it's
@@ -120,14 +127,14 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		dev_info(rockchip->dev, "USB peripheral connected\n");
 	} else if (extcon_get_cable_state_(edev, EXTCON_USB_HOST) > 0) {
 		if (rockchip->connected)
-			return;
+			goto out;
 
 		/*
 		 * If dr_mode is device only, never to
 		 * set the mode to the host mode.
 		 */
 		if (WARN_ON(dwc->dr_mode == USB_DR_MODE_PERIPHERAL))
-			return;
+			goto out;
 
 		/*
 		 * Assert otg reset can put the dwc in P2 state, it's
@@ -181,10 +188,23 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		dev_info(rockchip->dev, "USB HOST connected\n");
 	} else {
 		if (!rockchip->connected)
-			return;
+			goto out;
 
 		reg = dwc3_readl(dwc->regs, DWC3_GCTL);
 
+		/*
+		 * xhci does not support runtime pm. If HCDs are not removed
+		 * here and and re-added after a cable is inserted, USB3
+		 * connections will not work.
+		 * A clean(er) solution would be to implement runtime pm
+		 * support in xhci. After that is available, this code should
+		 * be removed.
+		 * HCDs have to be removed here to prevent attempts by the
+		 * xhci code to access xhci registers after the call to
+		 * pm_runtime_put_sync_suspend(). On rk3399, this can result
+		 * in a crash under certain circumstances (this was observed
+		 * on 3399 chromebook if the system is running on battery).
+		 */
 		if (DWC3_GCTL_PRTCAP(reg) == DWC3_GCTL_PRTCAP_HOST ||
 		    DWC3_GCTL_PRTCAP(reg) == DWC3_GCTL_PRTCAP_OTG) {
 			hcd = dev_get_drvdata(&dwc->xhci->dev);
@@ -203,6 +223,9 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		rockchip->connected = false;
 		dev_info(rockchip->dev, "USB unconnected\n");
 	}
+
+out:
+	mutex_unlock(&rockchip->lock);
 }
 
 static int dwc3_rockchip_extcon_register(struct dwc3_rockchip *rockchip)
@@ -257,6 +280,7 @@ static void dwc3_rockchip_extcon_unregister(struct dwc3_rockchip *rockchip)
 				   &rockchip->device_nb);
 	extcon_unregister_notifier(rockchip->edev, EXTCON_USB_HOST,
 				   &rockchip->host_nb);
+	cancel_work_sync(&rockchip->otg_work);
 }
 
 static int dwc3_rockchip_probe(struct platform_device *pdev)
@@ -288,7 +312,11 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rockchip);
 
+	mutex_init(&rockchip->lock);
+
 	rockchip->dev = dev;
+
+	mutex_lock(&rockchip->lock);
 
 	for (i = 0; i < rockchip->num_clocks; i++) {
 		struct clk	*clk;
@@ -384,6 +412,8 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 			schedule_work(&rockchip->otg_work);
 	}
 
+	mutex_unlock(&rockchip->lock);
+
 	return ret;
 
 err3:
@@ -404,6 +434,8 @@ err0:
 		clk_put(rockchip->clks[i]);
 	}
 
+	mutex_unlock(&rockchip->lock);
+
 	return ret;
 }
 
@@ -415,13 +447,32 @@ static int dwc3_rockchip_remove(struct platform_device *pdev)
 
 	dwc3_rockchip_extcon_unregister(rockchip);
 
+	/* Restore hcd state before unregistering xhci */
+	if (rockchip->edev && !rockchip->connected) {
+		struct usb_hcd *hcd =
+			dev_get_drvdata(&rockchip->dwc->xhci->dev);
+
+		pm_runtime_get_sync(dev);
+
+		/*
+		 * The xhci code does not expect that HCDs have been removed.
+		 * It will unconditionally call usb_remove_hcd() when the xhci
+		 * driver is unloaded in of_platform_depopulate(). This results
+		 * in a crash if the HCDs were already removed. To avoid this
+		 * crash, add the HCDs here as dummy operation.
+		 * This code should be removed after pm runtime support
+		 * has been added to xhci.
+		 */
+		if (hcd->state == HC_STATE_HALT) {
+			usb_add_hcd(hcd, hcd->irq, IRQF_SHARED);
+			usb_add_hcd(hcd->shared_hcd, hcd->irq, IRQF_SHARED);
+		}
+	}
+
 	of_platform_depopulate(dev);
 
-	if (!rockchip->edev)
-		pm_runtime_put_sync(dev);
-
+	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
-	pm_runtime_set_suspended(dev);
 
 	for (i = 0; i < rockchip->num_clocks; i++) {
 		if (!pm_runtime_status_suspended(dev))
@@ -456,7 +507,27 @@ static int dwc3_rockchip_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int dwc3_rockchip_suspend(struct device *dev)
+{
+	struct dwc3_rockchip *rockchip = dev_get_drvdata(dev);
+
+	rockchip->suspended = true;
+	cancel_work_sync(&rockchip->otg_work);
+
+	return 0;
+}
+
+static int dwc3_rockchip_resume(struct device *dev)
+{
+	struct dwc3_rockchip *rockchip = dev_get_drvdata(dev);
+
+	rockchip->suspended = false;
+
+	return 0;
+}
+
 static const struct dev_pm_ops dwc3_rockchip_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(dwc3_rockchip_suspend, dwc3_rockchip_resume)
 	SET_RUNTIME_PM_OPS(dwc3_rockchip_runtime_suspend,
 			   dwc3_rockchip_runtime_resume, NULL)
 };
