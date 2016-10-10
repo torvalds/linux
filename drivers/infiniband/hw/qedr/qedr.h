@@ -50,6 +50,10 @@
 
 #define QEDR_MSG_INIT "INIT"
 #define QEDR_MSG_MISC "MISC"
+#define QEDR_MSG_CQ   "  CQ"
+#define QEDR_MSG_MR   "  MR"
+
+#define QEDR_CQ_MAGIC_NUMBER   (0x11223344)
 
 struct qedr_dev;
 
@@ -181,6 +185,12 @@ struct qedr_dev {
 #define QEDR_ROCE_PKEY_TABLE_LEN 1
 #define QEDR_ROCE_PKEY_DEFAULT 0xffff
 
+struct qedr_pbl {
+	struct list_head list_entry;
+	void *va;
+	dma_addr_t pa;
+};
+
 struct qedr_ucontext {
 	struct ib_ucontext ibucontext;
 	struct qedr_dev *dev;
@@ -194,6 +204,64 @@ struct qedr_ucontext {
 
 	/* Lock to protect mm list */
 	struct mutex mm_list_lock;
+};
+
+union db_prod64 {
+	struct rdma_pwm_val32_data data;
+	u64 raw;
+};
+
+enum qedr_cq_type {
+	QEDR_CQ_TYPE_GSI,
+	QEDR_CQ_TYPE_KERNEL,
+	QEDR_CQ_TYPE_USER,
+};
+
+struct qedr_pbl_info {
+	u32 num_pbls;
+	u32 num_pbes;
+	u32 pbl_size;
+	u32 pbe_size;
+	bool two_layered;
+};
+
+struct qedr_userq {
+	struct ib_umem *umem;
+	struct qedr_pbl_info pbl_info;
+	struct qedr_pbl *pbl_tbl;
+	u64 buf_addr;
+	size_t buf_len;
+};
+
+struct qedr_cq {
+	struct ib_cq ibcq;
+
+	enum qedr_cq_type cq_type;
+	u32 sig;
+
+	u16 icid;
+
+	/* Lock to protect multiplem CQ's */
+	spinlock_t cq_lock;
+	u8 arm_flags;
+	struct qed_chain pbl;
+
+	void __iomem *db_addr;
+	union db_prod64 db;
+
+	u8 pbl_toggle;
+	union rdma_cqe *latest_cqe;
+	union rdma_cqe *toggle_cqe;
+
+	u32 cq_cons;
+
+	struct qedr_userq q;
+};
+
+struct qedr_pd {
+	struct ib_pd ibpd;
+	u32 pd_id;
+	struct qedr_ucontext *uctx;
 };
 
 struct qedr_mm {
@@ -213,6 +281,16 @@ struct qedr_ucontext *get_qedr_ucontext(struct ib_ucontext *ibucontext)
 static inline struct qedr_dev *get_qedr_dev(struct ib_device *ibdev)
 {
 	return container_of(ibdev, struct qedr_dev, ibdev);
+}
+
+static inline struct qedr_pd *get_qedr_pd(struct ib_pd *ibpd)
+{
+	return container_of(ibpd, struct qedr_pd, ibpd);
+}
+
+static inline struct qedr_cq *get_qedr_cq(struct ib_cq *ibcq)
+{
+	return container_of(ibcq, struct qedr_cq, ibcq);
 }
 
 #endif

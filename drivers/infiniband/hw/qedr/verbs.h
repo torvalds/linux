@@ -40,6 +40,8 @@ int qedr_modify_port(struct ib_device *, u8 port, int mask,
 
 int qedr_query_gid(struct ib_device *, u8 port, int index, union ib_gid *gid);
 
+int qedr_query_pkey(struct ib_device *, u8 port, u16 index, u16 *pkey);
+
 struct ib_ucontext *qedr_alloc_ucontext(struct ib_device *, struct ib_udata *);
 int qedr_dealloc_ucontext(struct ib_ucontext *);
 
@@ -49,4 +51,16 @@ int qedr_del_gid(struct ib_device *device, u8 port_num,
 int qedr_add_gid(struct ib_device *device, u8 port_num,
 		 unsigned int index, const union ib_gid *gid,
 		 const struct ib_gid_attr *attr, void **context);
+struct ib_pd *qedr_alloc_pd(struct ib_device *,
+			    struct ib_ucontext *, struct ib_udata *);
+int qedr_dealloc_pd(struct ib_pd *pd);
+
+struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
+			     const struct ib_cq_init_attr *attr,
+			     struct ib_ucontext *ib_ctx,
+			     struct ib_udata *udata);
+int qedr_resize_cq(struct ib_cq *, int cqe, struct ib_udata *);
+int qedr_destroy_cq(struct ib_cq *);
+int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
+
 #endif
