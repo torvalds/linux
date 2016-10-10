@@ -8619,7 +8619,7 @@ static ssize_t check_direct_IO(struct btrfs_root *root, struct kiocb *iocb,
 		goto out;
 
 	/* If this is a write we don't need to check anymore */
-	if (iov_iter_rw(iter) == WRITE)
+	if (iov_iter_rw(iter) != READ || !iter_is_iovec(iter))
 		return 0;
 	/*
 	 * Check to make sure we don't have duplicate iov_base's in this

@@ -315,15 +315,9 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 		*ppos = kiocb.ki_pos;
 		file_accessed(in);
 	} else if (ret < 0) {
-		if (WARN_ON(to.idx != idx || to.iov_offset)) {
-			/*
-			 * a bogus ->read_iter() has copied something and still
-			 * returned an error instead of a short read.
-			 */
-			to.idx = idx;
-			to.iov_offset = 0;
-			iov_iter_advance(&to, 0); /* to free what was emitted */
-		}
+		to.idx = idx;
+		to.iov_offset = 0;
+		iov_iter_advance(&to, 0); /* to free what was emitted */
 		/*
 		 * callers of ->splice_read() expect -EAGAIN on
 		 * "can't put anything in there", rather than -EFAULT.
