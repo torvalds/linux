@@ -331,6 +331,8 @@ extern size_t ip_set_elem_len(struct ip_set *set, struct nlattr *tb[],
 			      size_t len, size_t align);
 extern int ip_set_get_extensions(struct ip_set *set, struct nlattr *tb[],
 				 struct ip_set_ext *ext);
+extern int ip_set_put_extensions(struct sk_buff *skb, const struct ip_set *set,
+				 const void *e, bool active);
 
 static inline int
 ip_set_get_hostipaddr4(struct nlattr *nla, u32 *ipaddr)
@@ -448,10 +450,6 @@ bitmap_bytes(u32 a, u32 b)
 #include <linux/netfilter/ipset/ip_set_comment.h>
 #include <linux/netfilter/ipset/ip_set_counter.h>
 #include <linux/netfilter/ipset/ip_set_skbinfo.h>
-
-int
-ip_set_put_extensions(struct sk_buff *skb, const struct ip_set *set,
-		      const void *e, bool active);
 
 #define IP_SET_INIT_KEXT(skb, opt, set)			\
 	{ .bytes = (skb)->len, .packets = 1,		\
