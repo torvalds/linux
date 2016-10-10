@@ -1502,6 +1502,15 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 
 	qedr_set_qp_init_params(dev, qp, pd, attrs);
 
+	if (attrs->qp_type == IB_QPT_GSI) {
+		if (udata) {
+			DP_ERR(dev,
+			       "create qp: unexpected udata when creating GSI QP\n");
+			goto err0;
+		}
+		return qedr_create_gsi_qp(dev, attrs, qp);
+	}
+
 	memset(&in_params, 0, sizeof(in_params));
 
 	if (udata) {
@@ -2068,6 +2077,8 @@ int qedr_destroy_qp(struct ib_qp *ibqp)
 		rc = dev->ops->rdma_destroy_qp(dev->rdma_ctx, qp->qed_qp);
 		if (rc)
 			return rc;
+	} else {
+		qedr_destroy_gsi_qp(dev);
 	}
 
 	if (ibqp->uobject && ibqp->uobject->context) {
@@ -2081,6 +2092,27 @@ int qedr_destroy_qp(struct ib_qp *ibqp)
 	kfree(qp);
 
 	return rc;
+}
+
+struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
+{
+	struct qedr_ah *ah;
+
+	ah = kzalloc(sizeof(*ah), GFP_ATOMIC);
+	if (!ah)
+		return ERR_PTR(-ENOMEM);
+
+	ah->attr = *attr;
+
+	return &ah->ibah;
+}
+
+int qedr_destroy_ah(struct ib_ah *ibah)
+{
+	struct qedr_ah *ah = get_qedr_ah(ibah);
+
+	kfree(ah);
+	return 0;
 }
 
 static void free_mr_info(struct qedr_dev *dev, struct mr_info *info)
@@ -2934,6 +2966,9 @@ int qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 	*bad_wr = NULL;
 
+	if (qp->qp_type == IB_QPT_GSI)
+		return qedr_gsi_post_send(ibqp, wr, bad_wr);
+
 	spin_lock_irqsave(&qp->q_lock, flags);
 
 	if ((qp->state == QED_ROCE_QP_STATE_RESET) ||
@@ -2989,6 +3024,9 @@ int qedr_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	struct qedr_dev *dev = qp->dev;
 	unsigned long flags;
 	int status = 0;
+
+	if (qp->qp_type == IB_QPT_GSI)
+		return qedr_gsi_post_recv(ibqp, wr, bad_wr);
 
 	spin_lock_irqsave(&qp->q_lock, flags);
 
@@ -3415,6 +3453,9 @@ int qedr_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	unsigned long flags;
 	int update = 0;
 	int done = 0;
+
+	if (cq->cq_type == QEDR_CQ_TYPE_GSI)
+		return qedr_gsi_poll_cq(ibcq, num_entries, wc);
 
 	spin_lock_irqsave(&cq->cq_lock, flags);
 	old_cons = qed_chain_get_cons_idx_u32(&cq->pbl);

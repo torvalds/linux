@@ -138,6 +138,9 @@ static int qedr_register_device(struct qedr_dev *dev)
 
 	dev->ibdev.query_pkey = qedr_query_pkey;
 
+	dev->ibdev.create_ah = qedr_create_ah;
+	dev->ibdev.destroy_ah = qedr_destroy_ah;
+
 	dev->ibdev.get_dma_mr = qedr_get_dma_mr;
 	dev->ibdev.dereg_mr = qedr_dereg_mr;
 	dev->ibdev.reg_user_mr = qedr_reg_user_mr;

@@ -70,6 +70,9 @@ int qedr_query_qp(struct ib_qp *, struct ib_qp_attr *qp_attr,
 		  int qp_attr_mask, struct ib_qp_init_attr *);
 int qedr_destroy_qp(struct ib_qp *ibqp);
 
+struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr);
+int qedr_destroy_ah(struct ib_ah *ibah);
+
 int qedr_dereg_mr(struct ib_mr *);
 struct ib_mr *qedr_get_dma_mr(struct ib_pd *, int acc);
 
