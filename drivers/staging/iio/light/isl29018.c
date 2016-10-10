@@ -616,12 +616,10 @@ static int isl29018_chip_init(struct isl29018_chip *chip)
 
 	status = isl29018_set_integration_time(chip,
 			isl29018_int_utimes[chip->type][chip->int_time]);
-	if (status < 0) {
+	if (status < 0)
 		dev_err(dev, "Init of isl29018 fails\n");
-		return status;
-	}
 
-	return 0;
+	return status;
 }
 
 static const struct iio_info isl29018_info = {
