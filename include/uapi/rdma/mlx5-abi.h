@@ -30,12 +30,10 @@
  * SOFTWARE.
  */
 
-#ifndef MLX5_IB_USER_H
-#define MLX5_IB_USER_H
+#ifndef MLX5_ABI_USER_H
+#define MLX5_ABI_USER_H
 
 #include <linux/types.h>
-
-#include "mlx5_ib.h"
 
 enum {
 	MLX5_QP_FLAG_SIGNATURE		= 1 << 0,
@@ -49,7 +47,6 @@ enum {
 enum {
 	MLX5_WQ_FLAG_SIGNATURE		= 1 << 0,
 };
-
 
 /* Increment this value if any changes that break userspace ABI
  * compatibility are made.
@@ -121,10 +118,17 @@ struct mlx5_ib_tso_caps {
 	__u32 supported_qpts;
 };
 
+struct mlx5_ib_rss_caps {
+	__u64 rx_hash_fields_mask; /* enum mlx5_rx_hash_fields */
+	__u8 rx_hash_function; /* enum mlx5_rx_hash_function_flags */
+	__u8 reserved[7];
+};
+
 struct mlx5_ib_query_device_resp {
 	__u32	comp_mask;
 	__u32	response_length;
 	struct	mlx5_ib_tso_caps tso_caps;
+	struct	mlx5_ib_rss_caps rss_caps;
 };
 
 struct mlx5_ib_create_cq {
@@ -242,40 +246,4 @@ struct mlx5_ib_modify_wq {
 	__u32	comp_mask;
 	__u32	reserved;
 };
-
-static inline int get_qp_user_index(struct mlx5_ib_ucontext *ucontext,
-				    struct mlx5_ib_create_qp *ucmd,
-				    int inlen,
-				    u32 *user_index)
-{
-	u8 cqe_version = ucontext->cqe_version;
-
-	if (field_avail(struct mlx5_ib_create_qp, uidx, inlen) &&
-	    !cqe_version && (ucmd->uidx == MLX5_IB_DEFAULT_UIDX))
-		return 0;
-
-	if (!!(field_avail(struct mlx5_ib_create_qp, uidx, inlen) !=
-	       !!cqe_version))
-		return -EINVAL;
-
-	return verify_assign_uidx(cqe_version, ucmd->uidx, user_index);
-}
-
-static inline int get_srq_user_index(struct mlx5_ib_ucontext *ucontext,
-				     struct mlx5_ib_create_srq *ucmd,
-				     int inlen,
-				     u32 *user_index)
-{
-	u8 cqe_version = ucontext->cqe_version;
-
-	if (field_avail(struct mlx5_ib_create_srq, uidx, inlen) &&
-	    !cqe_version && (ucmd->uidx == MLX5_IB_DEFAULT_UIDX))
-		return 0;
-
-	if (!!(field_avail(struct mlx5_ib_create_srq, uidx, inlen) !=
-	       !!cqe_version))
-		return -EINVAL;
-
-	return verify_assign_uidx(cqe_version, ucmd->uidx, user_index);
-}
-#endif /* MLX5_IB_USER_H */
+#endif /* MLX5_ABI_USER_H */

@@ -88,7 +88,8 @@ static int iser_create_device_ib_res(struct iser_device *device)
 		  device->comps_used, ib_dev->name,
 		  ib_dev->num_comp_vectors, max_cqe);
 
-	device->pd = ib_alloc_pd(ib_dev);
+	device->pd = ib_alloc_pd(ib_dev,
+		iser_always_reg ? 0 : IB_PD_UNSAFE_GLOBAL_RKEY);
 	if (IS_ERR(device->pd))
 		goto pd_err;
 
@@ -103,26 +104,13 @@ static int iser_create_device_ib_res(struct iser_device *device)
 		}
 	}
 
-	if (!iser_always_reg) {
-		int access = IB_ACCESS_LOCAL_WRITE |
-			     IB_ACCESS_REMOTE_WRITE |
-			     IB_ACCESS_REMOTE_READ;
-
-		device->mr = ib_get_dma_mr(device->pd, access);
-		if (IS_ERR(device->mr))
-			goto cq_err;
-	}
-
 	INIT_IB_EVENT_HANDLER(&device->event_handler, ib_dev,
 			      iser_event_handler);
 	if (ib_register_event_handler(&device->event_handler))
-		goto handler_err;
+		goto cq_err;
 
 	return 0;
 
-handler_err:
-	if (device->mr)
-		ib_dereg_mr(device->mr);
 cq_err:
 	for (i = 0; i < device->comps_used; i++) {
 		struct iser_comp *comp = &device->comps[i];
@@ -154,14 +142,10 @@ static void iser_free_device_ib_res(struct iser_device *device)
 	}
 
 	(void)ib_unregister_event_handler(&device->event_handler);
-	if (device->mr)
-		(void)ib_dereg_mr(device->mr);
 	ib_dealloc_pd(device->pd);
 
 	kfree(device->comps);
 	device->comps = NULL;
-
-	device->mr = NULL;
 	device->pd = NULL;
 }
 

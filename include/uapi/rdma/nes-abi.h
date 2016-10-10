@@ -34,8 +34,8 @@
  *
  */
 
-#ifndef NES_USER_H
-#define NES_USER_H
+#ifndef NES_ABI_USER_H
+#define NES_ABI_USER_H
 
 #include <linux/types.h>
 
@@ -111,4 +111,4 @@ struct nes_create_qp_resp {
 	__u32 nes_drv_opt;
 };
 
-#endif				/* NES_USER_H */
+#endif	/* NES_ABI_USER_H */

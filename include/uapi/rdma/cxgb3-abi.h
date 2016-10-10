@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 Chelsio, Inc. All rights reserved.
+ * Copyright (c) 2006 Chelsio, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -29,10 +29,12 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef __C4IW_USER_H__
-#define __C4IW_USER_H__
+#ifndef CXGB3_ABI_USER_H
+#define CXBG3_ABI_USER_H
 
-#define C4IW_UVERBS_ABI_VERSION	3
+#include <linux/types.h>
+
+#define IWCH_UVERBS_ABI_VERSION	1
 
 /*
  * Make sure that all structs defined in this file remain laid out so
@@ -41,40 +43,34 @@
  * In particular do not use pointer types -- pass pointers in __u64
  * instead.
  */
-struct c4iw_create_cq_resp {
+struct iwch_create_cq_req {
+	__u64 user_rptr_addr;
+};
+
+struct iwch_create_cq_resp_v0 {
 	__u64 key;
-	__u64 gts_key;
-	__u64 memsize;
 	__u32 cqid;
-	__u32 size;
-	__u32 qid_mask;
-	__u32 reserved; /* explicit padding (optional for i386) */
+	__u32 size_log2;
 };
 
-
-enum {
-	C4IW_QPF_ONCHIP = (1<<0)
+struct iwch_create_cq_resp {
+	__u64 key;
+	__u32 cqid;
+	__u32 size_log2;
+	__u32 memsize;
+	__u32 reserved;
 };
 
-struct c4iw_create_qp_resp {
-	__u64 ma_sync_key;
-	__u64 sq_key;
-	__u64 rq_key;
-	__u64 sq_db_gts_key;
-	__u64 rq_db_gts_key;
-	__u64 sq_memsize;
-	__u64 rq_memsize;
-	__u32 sqid;
-	__u32 rqid;
-	__u32 sq_size;
-	__u32 rq_size;
-	__u32 qid_mask;
-	__u32 flags;
+struct iwch_create_qp_resp {
+	__u64 key;
+	__u64 db_key;
+	__u32 qpid;
+	__u32 size_log2;
+	__u32 sq_size_log2;
+	__u32 rq_size_log2;
 };
 
-struct c4iw_alloc_ucontext_resp {
-	__u64 status_page_key;
-	__u32 status_page_size;
-	__u32 reserved; /* explicit padding (optional for i386) */
+struct iwch_reg_user_mr_resp {
+	__u32 pbl_addr;
 };
-#endif
+#endif /* CXGB3_ABI_USER_H */

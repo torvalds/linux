@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2007 Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2009-2010 Chelsio, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -30,19 +29,12 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
-#ifndef MLX4_IB_USER_H
-#define MLX4_IB_USER_H
+#ifndef CXGB4_ABI_USER_H
+#define CXGB4_ABI_USER_H
 
 #include <linux/types.h>
 
-/*
- * Increment this value if any changes that break userspace ABI
- * compatibility are made.
- */
-
-#define MLX4_IB_UVERBS_NO_DEV_CAPS_ABI_VERSION	3
-#define MLX4_IB_UVERBS_ABI_VERSION		4
+#define C4IW_UVERBS_ABI_VERSION	3
 
 /*
  * Make sure that all structs defined in this file remain laid out so
@@ -51,57 +43,39 @@
  * In particular do not use pointer types -- pass pointers in __u64
  * instead.
  */
-
-struct mlx4_ib_alloc_ucontext_resp_v3 {
-	__u32	qp_tab_size;
-	__u16	bf_reg_size;
-	__u16	bf_regs_per_page;
+struct c4iw_create_cq_resp {
+	__u64 key;
+	__u64 gts_key;
+	__u64 memsize;
+	__u32 cqid;
+	__u32 size;
+	__u32 qid_mask;
+	__u32 reserved; /* explicit padding (optional for i386) */
 };
 
-struct mlx4_ib_alloc_ucontext_resp {
-	__u32	dev_caps;
-	__u32	qp_tab_size;
-	__u16	bf_reg_size;
-	__u16	bf_regs_per_page;
-	__u32	cqe_size;
+enum {
+	C4IW_QPF_ONCHIP = (1 << 0)
 };
 
-struct mlx4_ib_alloc_pd_resp {
-	__u32	pdn;
-	__u32	reserved;
+struct c4iw_create_qp_resp {
+	__u64 ma_sync_key;
+	__u64 sq_key;
+	__u64 rq_key;
+	__u64 sq_db_gts_key;
+	__u64 rq_db_gts_key;
+	__u64 sq_memsize;
+	__u64 rq_memsize;
+	__u32 sqid;
+	__u32 rqid;
+	__u32 sq_size;
+	__u32 rq_size;
+	__u32 qid_mask;
+	__u32 flags;
 };
 
-struct mlx4_ib_create_cq {
-	__u64	buf_addr;
-	__u64	db_addr;
+struct c4iw_alloc_ucontext_resp {
+	__u64 status_page_key;
+	__u32 status_page_size;
+	__u32 reserved; /* explicit padding (optional for i386) */
 };
-
-struct mlx4_ib_create_cq_resp {
-	__u32	cqn;
-	__u32	reserved;
-};
-
-struct mlx4_ib_resize_cq {
-	__u64	buf_addr;
-};
-
-struct mlx4_ib_create_srq {
-	__u64	buf_addr;
-	__u64	db_addr;
-};
-
-struct mlx4_ib_create_srq_resp {
-	__u32	srqn;
-	__u32	reserved;
-};
-
-struct mlx4_ib_create_qp {
-	__u64	buf_addr;
-	__u64	db_addr;
-	__u8	log_sq_bb_count;
-	__u8	log_sq_stride;
-	__u8	sq_no_prefetch;
-	__u8	reserved[5];
-};
-
-#endif /* MLX4_IB_USER_H */
+#endif /* CXGB4_ABI_USER_H */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Chelsio, Inc. All rights reserved.
+ * Copyright (c) 2016 Hisilicon Limited.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -29,46 +29,25 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef __IWCH_USER_H__
-#define __IWCH_USER_H__
 
-#define IWCH_UVERBS_ABI_VERSION	1
+#ifndef _HNS_ROCE_USER_H
+#define _HNS_ROCE_USER_H
 
-/*
- * Make sure that all structs defined in this file remain laid out so
- * that they pack the same way on 32-bit and 64-bit architectures (to
- * avoid incompatibility between 32-bit userspace and 64-bit kernels).
- * In particular do not use pointer types -- pass pointers in __u64
- * instead.
- */
-struct iwch_create_cq_req {
-	__u64 user_rptr_addr;
+struct hns_roce_ib_create_cq {
+	__u64   buf_addr;
 };
 
-struct iwch_create_cq_resp_v0 {
-	__u64 key;
-	__u32 cqid;
-	__u32 size_log2;
+struct hns_roce_ib_create_qp {
+	__u64	buf_addr;
+	__u64   db_addr;
+	__u8    log_sq_bb_count;
+	__u8    log_sq_stride;
+	__u8    sq_no_prefetch;
+	__u8    reserved[5];
 };
 
-struct iwch_create_cq_resp {
-	__u64 key;
-	__u32 cqid;
-	__u32 size_log2;
-	__u32 memsize;
-	__u32 reserved;
+struct hns_roce_ib_alloc_ucontext_resp {
+	__u32	qp_tab_size;
 };
 
-struct iwch_create_qp_resp {
-	__u64 key;
-	__u64 db_key;
-	__u32 qpid;
-	__u32 size_log2;
-	__u32 sq_size_log2;
-	__u32 rq_size_log2;
-};
-
-struct iwch_reg_user_mr_resp {
-	__u32 pbl_addr;
-};
-#endif
+#endif /*_HNS_ROCE_USER_H */

@@ -550,6 +550,7 @@ static void uld_init(struct adapter *adap, struct cxgb4_lld_info *lld)
 	lld->max_ird_adapter = adap->params.max_ird_adapter;
 	lld->ulptx_memwrite_dsgl = adap->params.ulptx_memwrite_dsgl;
 	lld->nodeid = dev_to_node(adap->pdev_dev);
+	lld->fr_nsmr_tpte_wr_support = adap->params.fr_nsmr_tpte_wr_support;
 }
 
 static void uld_attach(struct adapter *adap, unsigned int uld)
