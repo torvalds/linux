@@ -519,24 +519,20 @@ out:
 /* Note: sk_callback_lock must be locked before calling this function. */
 static void save_callbacks(struct connection *con, struct sock *sk)
 {
-	lock_sock(sk);
 	con->orig_data_ready = sk->sk_data_ready;
 	con->orig_state_change = sk->sk_state_change;
 	con->orig_write_space = sk->sk_write_space;
 	con->orig_error_report = sk->sk_error_report;
-	release_sock(sk);
 }
 
 static void restore_callbacks(struct connection *con, struct sock *sk)
 {
 	write_lock_bh(&sk->sk_callback_lock);
-	lock_sock(sk);
 	sk->sk_user_data = NULL;
 	sk->sk_data_ready = con->orig_data_ready;
 	sk->sk_state_change = con->orig_state_change;
 	sk->sk_write_space = con->orig_write_space;
 	sk->sk_error_report = con->orig_error_report;
-	release_sock(sk);
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
