@@ -1480,7 +1480,6 @@ static void nvme_rdma_complete_rq(struct request *rq)
 static struct blk_mq_ops nvme_rdma_mq_ops = {
 	.queue_rq	= nvme_rdma_queue_rq,
 	.complete	= nvme_rdma_complete_rq,
-	.map_queue	= blk_mq_map_queue,
 	.init_request	= nvme_rdma_init_request,
 	.exit_request	= nvme_rdma_exit_request,
 	.reinit_request	= nvme_rdma_reinit_request,
@@ -1492,7 +1491,6 @@ static struct blk_mq_ops nvme_rdma_mq_ops = {
 static struct blk_mq_ops nvme_rdma_admin_mq_ops = {
 	.queue_rq	= nvme_rdma_queue_rq,
 	.complete	= nvme_rdma_complete_rq,
-	.map_queue	= blk_mq_map_queue,
 	.init_request	= nvme_rdma_init_admin_request,
 	.exit_request	= nvme_rdma_exit_admin_request,
 	.reinit_request	= nvme_rdma_reinit_request,

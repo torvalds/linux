@@ -3895,7 +3895,6 @@ exit_handler:
 
 static struct blk_mq_ops mtip_mq_ops = {
 	.queue_rq	= mtip_queue_rq,
-	.map_queue	= blk_mq_map_queue,
 	.init_request	= mtip_init_cmd,
 	.exit_request	= mtip_free_cmd,
 	.complete	= mtip_softirq_done_fn,

@@ -125,4 +125,9 @@ config BLOCK_COMPAT
 	depends on BLOCK && COMPAT
 	default y
 
+config BLK_MQ_PCI
+	bool
+	depends on BLOCK && PCI
+	default y
+
 source block/Kconfig.iosched

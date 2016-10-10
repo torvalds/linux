@@ -881,7 +881,6 @@ static int nbd_init_request(void *data, struct request *rq,
 
 static struct blk_mq_ops nbd_mq_ops = {
 	.queue_rq	= nbd_queue_rq,
-	.map_queue	= blk_mq_map_queue,
 	.init_request	= nbd_init_request,
 	.timeout	= nbd_xmit_timeout,
 };
