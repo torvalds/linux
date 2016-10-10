@@ -1098,19 +1098,19 @@ xfs_file_share_range(
 	/* Wait for the completion of any pending IOs on srcfile */
 	ret = xfs_file_wait_for_io(inode_in, pos_in, len);
 	if (ret)
-		goto out_unlock;
+		goto out;
 	ret = xfs_file_wait_for_io(inode_out, pos_out, len);
 	if (ret)
-		goto out_unlock;
+		goto out;
 
 	if (is_dedupe)
 		flags |= XFS_REFLINK_DEDUPE;
 	ret = xfs_reflink_remap_range(XFS_I(inode_in), pos_in, XFS_I(inode_out),
 			pos_out, len, flags);
 	if (ret < 0)
-		goto out_unlock;
+		goto out;
 
-out_unlock:
+out:
 	return ret;
 }
 
