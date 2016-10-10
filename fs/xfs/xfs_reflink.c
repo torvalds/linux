@@ -624,6 +624,7 @@ xfs_reflink_cancel_cow_range(
 	int			error;
 
 	trace_xfs_reflink_cancel_cow_range(ip, offset, count);
+	ASSERT(xfs_is_reflink_inode(ip));
 
 	offset_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
 	if (count == NULLFILEOFF)
@@ -1510,8 +1511,7 @@ xfs_reflink_clear_inode_flag(
 	int			nmaps;
 	int			error = 0;
 
-	if (!(ip->i_d.di_flags2 & XFS_DIFLAG2_REFLINK))
-		return 0;
+	ASSERT(xfs_is_reflink_inode(ip));
 
 	fbno = 0;
 	end = XFS_B_TO_FSB(mp, i_size_read(VFS_I(ip)));
