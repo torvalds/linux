@@ -317,7 +317,7 @@ xfs_file_dio_aio_read(
 	data = *to;
 	ret = __blockdev_direct_IO(iocb, inode, target->bt_bdev, &data,
 			xfs_get_blocks_direct, NULL, NULL, 0);
-	if (ret > 0) {
+	if (ret >= 0) {
 		iocb->ki_pos += ret;
 		iov_iter_advance(to, ret);
 	}
