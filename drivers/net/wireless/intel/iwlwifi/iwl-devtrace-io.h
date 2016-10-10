@@ -1,6 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2009 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -83,6 +84,23 @@ TRACE_EVENT(iwlwifi_dev_iowrite32,
 		  __get_str(dev), __entry->offs, __entry->val)
 );
 
+TRACE_EVENT(iwlwifi_dev_iowrite64,
+	TP_PROTO(const struct device *dev, u64 offs, u64 val),
+	TP_ARGS(dev, offs, val),
+	TP_STRUCT__entry(
+		DEV_ENTRY
+		__field(u64, offs)
+		__field(u64, val)
+	),
+	TP_fast_assign(
+		DEV_ASSIGN;
+		__entry->offs = offs;
+		__entry->val = val;
+	),
+	TP_printk("[%s] write io[%llu] = %llu)",
+		  __get_str(dev), __entry->offs, __entry->val)
+);
+
 TRACE_EVENT(iwlwifi_dev_iowrite_prph32,
 	TP_PROTO(const struct device *dev, u32 offs, u32 val),
 	TP_ARGS(dev, offs, val),
@@ -97,6 +115,23 @@ TRACE_EVENT(iwlwifi_dev_iowrite_prph32,
 		__entry->val = val;
 	),
 	TP_printk("[%s] write PRPH[%#x] = %#x)",
+		  __get_str(dev), __entry->offs, __entry->val)
+);
+
+TRACE_EVENT(iwlwifi_dev_iowrite_prph64,
+	TP_PROTO(const struct device *dev, u64 offs, u64 val),
+	TP_ARGS(dev, offs, val),
+	TP_STRUCT__entry(
+		DEV_ENTRY
+		__field(u64, offs)
+		__field(u64, val)
+	),
+	TP_fast_assign(
+		DEV_ASSIGN;
+		__entry->offs = offs;
+		__entry->val = val;
+	),
+	TP_printk("[%s] write PRPH[%llu] = %llu)",
 		  __get_str(dev), __entry->offs, __entry->val)
 );
 

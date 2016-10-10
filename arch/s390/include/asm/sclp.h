@@ -32,12 +32,19 @@ struct sclp_core_entry {
 	u8 reserved0;
 	u8 : 4;
 	u8 sief2 : 1;
-	u8 : 3;
-	u8 : 3;
+	u8 skey : 1;
+	u8 : 2;
+	u8 : 2;
+	u8 gpere : 1;
 	u8 siif : 1;
 	u8 sigpif : 1;
 	u8 : 3;
-	u8 reserved2[10];
+	u8 reserved2[3];
+	u8 : 2;
+	u8 ib : 1;
+	u8 cei : 1;
+	u8 : 4;
+	u8 reserved3[6];
 	u8 type;
 	u8 reserved1;
 } __attribute__((packed));
@@ -59,6 +66,15 @@ struct sclp_info {
 	unsigned char has_hvs : 1;
 	unsigned char has_esca : 1;
 	unsigned char has_sief2 : 1;
+	unsigned char has_64bscao : 1;
+	unsigned char has_gpere : 1;
+	unsigned char has_cmma : 1;
+	unsigned char has_gsls : 1;
+	unsigned char has_ib : 1;
+	unsigned char has_cei : 1;
+	unsigned char has_pfmfi : 1;
+	unsigned char has_ibs : 1;
+	unsigned char has_skey : 1;
 	unsigned int ibc;
 	unsigned int mtid;
 	unsigned int mtid_cp;
@@ -101,5 +117,6 @@ int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count);
 int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count);
 void sclp_early_detect(void);
 void _sclp_print_early(const char *);
+void sclp_ocf_cpc_name_copy(char *dst);
 
 #endif /* _ASM_S390_SCLP_H */

@@ -15,7 +15,6 @@
 #define __RCAR_DU_ENCODER_H__
 
 #include <drm/drm_crtc.h>
-#include <drm/drm_encoder_slave.h>
 
 struct rcar_du_device;
 struct rcar_du_hdmienc;
@@ -30,16 +29,16 @@ enum rcar_du_encoder_type {
 };
 
 struct rcar_du_encoder {
-	struct drm_encoder_slave slave;
+	struct drm_encoder base;
 	enum rcar_du_output output;
 	struct rcar_du_hdmienc *hdmi;
 	struct rcar_du_lvdsenc *lvds;
 };
 
 #define to_rcar_encoder(e) \
-	container_of(e, struct rcar_du_encoder, slave.base)
+	container_of(e, struct rcar_du_encoder, base)
 
-#define rcar_encoder_to_drm_encoder(e)	(&(e)->slave.base)
+#define rcar_encoder_to_drm_encoder(e)	(&(e)->base)
 
 struct rcar_du_connector {
 	struct drm_connector connector;
@@ -48,9 +47,6 @@ struct rcar_du_connector {
 
 #define to_rcar_connector(c) \
 	container_of(c, struct rcar_du_connector, connector)
-
-struct drm_encoder *
-rcar_du_connector_best_encoder(struct drm_connector *connector);
 
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			 enum rcar_du_encoder_type type,

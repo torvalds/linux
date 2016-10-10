@@ -346,7 +346,7 @@ which have not been so documented, there is no harm in adding kerneldoc
 comments for the future; indeed, this can be a useful activity for
 beginning kernel developers.  The format of these comments, along with some
 information on how to create kerneldoc templates can be found in the file
-Documentation/kernel-doc-nano-HOWTO.txt.
+Documentation/kernel-documentation.rst.
 
 Anybody who reads through a significant amount of existing kernel code will
 note that, often, comments are most notable by their absence.  Once again,

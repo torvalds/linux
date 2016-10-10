@@ -1305,10 +1305,14 @@ il_send_scan_abort(struct il_priv *il)
 static void
 il_complete_scan(struct il_priv *il, bool aborted)
 {
+	struct cfg80211_scan_info info = {
+		.aborted = aborted,
+	};
+
 	/* check if scan was requested from mac80211 */
 	if (il->scan_request) {
 		D_SCAN("Complete scan in mac80211\n");
-		ieee80211_scan_completed(il->hw, aborted);
+		ieee80211_scan_completed(il->hw, &info);
 	}
 
 	il->scan_vif = NULL;

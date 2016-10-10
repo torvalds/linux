@@ -92,7 +92,6 @@ struct bfin_mac_local {
 	int old_speed;
 	int old_duplex;
 
-	struct phy_device *phydev;
 	struct mii_bus *mii_bus;
 
 #if defined(CONFIG_BFIN_MAC_USE_HWSTAMP)

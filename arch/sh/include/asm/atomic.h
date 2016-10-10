@@ -1,6 +1,12 @@
 #ifndef __ASM_SH_ATOMIC_H
 #define __ASM_SH_ATOMIC_H
 
+#if defined(CONFIG_CPU_J2)
+
+#include <asm-generic/atomic.h>
+
+#else
+
 /*
  * Atomic operations that C can't guarantee us.  Useful for
  * resource counting etc..
@@ -62,5 +68,7 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 
 	return c;
 }
+
+#endif /* CONFIG_CPU_J2 */
 
 #endif /* __ASM_SH_ATOMIC_H */

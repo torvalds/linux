@@ -58,7 +58,7 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.vnet.ibm.com>");
 #define VERBOSE_PERFOUT_ERRSTRING(s) \
 	do { if (verbose) pr_alert("%s" PERF_FLAG "!!! %s\n", perf_type, s); } while (0)
 
-torture_param(bool, gp_exp, true, "Use expedited GP wait primitives");
+torture_param(bool, gp_exp, false, "Use expedited GP wait primitives");
 torture_param(int, holdoff, 10, "Holdoff time before test start (s)");
 torture_param(int, nreaders, -1, "Number of RCU reader threads");
 torture_param(int, nwriters, -1, "Number of RCU updater threads");
@@ -96,12 +96,7 @@ static int rcu_perf_writer_state;
 #define MAX_MEAS 10000
 #define MIN_MEAS 100
 
-#if defined(MODULE) || defined(CONFIG_RCU_PERF_TEST_RUNNABLE)
-#define RCUPERF_RUNNABLE_INIT 1
-#else
-#define RCUPERF_RUNNABLE_INIT 0
-#endif
-static int perf_runnable = RCUPERF_RUNNABLE_INIT;
+static int perf_runnable = IS_ENABLED(MODULE);
 module_param(perf_runnable, int, 0444);
 MODULE_PARM_DESC(perf_runnable, "Start rcuperf at boot");
 
@@ -363,8 +358,6 @@ rcu_perf_writer(void *arg)
 	u64 *wdpp = writer_durations[me];
 
 	VERBOSE_PERFOUT_STRING("rcu_perf_writer task started");
-	WARN_ON(rcu_gp_is_expedited() && !rcu_gp_is_normal() && !gp_exp);
-	WARN_ON(rcu_gp_is_normal() && gp_exp);
 	WARN_ON(!wdpp);
 	set_cpus_allowed_ptr(current, cpumask_of(me % nr_cpu_ids));
 	sp.sched_priority = 1;
@@ -631,12 +624,24 @@ rcu_perf_init(void)
 		firsterr = -ENOMEM;
 		goto unwind;
 	}
+	if (rcu_gp_is_expedited() && !rcu_gp_is_normal() && !gp_exp) {
+		VERBOSE_PERFOUT_ERRSTRING("All grace periods expedited, no normal ones to measure!");
+		firsterr = -EINVAL;
+		goto unwind;
+	}
+	if (rcu_gp_is_normal() && gp_exp) {
+		VERBOSE_PERFOUT_ERRSTRING("All grace periods normal, no expedited ones to measure!");
+		firsterr = -EINVAL;
+		goto unwind;
+	}
 	for (i = 0; i < nrealwriters; i++) {
 		writer_durations[i] =
 			kcalloc(MAX_MEAS, sizeof(*writer_durations[i]),
 				GFP_KERNEL);
-		if (!writer_durations[i])
+		if (!writer_durations[i]) {
+			firsterr = -ENOMEM;
 			goto unwind;
+		}
 		firsterr = torture_create_kthread(rcu_perf_writer, (void *)i,
 						  writer_tasks[i]);
 		if (firsterr)

@@ -552,9 +552,9 @@ static const struct pci_id_table pci_dev_descr_haswell_table[] = {
 /* Knight's Landing Support */
 /*
  * KNL's memory channels are swizzled between memory controllers.
- * MC0 is mapped to CH3,5,6 and MC1 is mapped to CH0,1,2
+ * MC0 is mapped to CH3,4,5 and MC1 is mapped to CH0,1,2
  */
-#define knl_channel_remap(channel) ((channel + 3) % 6)
+#define knl_channel_remap(mc, chan) ((mc) ? (chan) : (chan) + 3)
 
 /* Memory controller, TAD tables, error injection - 2-8-0, 2-9-0 (2 of these) */
 #define PCI_DEVICE_ID_INTEL_KNL_IMC_MC       0x7840
@@ -1286,7 +1286,7 @@ static u32 knl_get_mc_route(int entry, u32 reg)
 	mc = GET_BITFIELD(reg, entry*3, (entry*3)+2);
 	chan = GET_BITFIELD(reg, (entry*2) + 18, (entry*2) + 18 + 1);
 
-	return knl_channel_remap(mc*3 + chan);
+	return knl_channel_remap(mc, chan);
 }
 
 /*
@@ -2997,8 +2997,15 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 		} else {
 			char A = *("A");
 
-			channel = knl_channel_remap(channel);
+			/*
+			 * Reported channel is in range 0-2, so we can't map it
+			 * back to mc. To figure out mc we check machine check
+			 * bank register that reported this error.
+			 * bank15 means mc0 and bank16 means mc1.
+			 */
+			channel = knl_channel_remap(m->bank == 16, channel);
 			channel_mask = 1 << channel;
+
 			snprintf(msg, sizeof(msg),
 				"%s%s err_code:%04x:%04x channel:%d (DIMM_%c)",
 				overflow ? " OVERFLOW" : "",

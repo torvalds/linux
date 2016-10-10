@@ -581,24 +581,23 @@ static int fiji_patch_boot_state(struct pp_hwmgr *hwmgr,
 
 static int fiji_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
-
-	if (data->soft_pp_table) {
-		kfree(data->soft_pp_table);
-		data->soft_pp_table = NULL;
-	}
-
 	return phm_hwmgr_backend_fini(hwmgr);
 }
 
 static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	struct fiji_hwmgr *data;
 	uint32_t i;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	bool stay_in_boot;
 	int result;
+
+	data = kzalloc(sizeof(struct fiji_hwmgr), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	hwmgr->backend = data;
 
 	data->dll_default_on = false;
 	data->sram_end = SMC_RAM_END;
@@ -699,7 +698,7 @@ static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	if (0 == result) {
 		struct cgs_system_info sys_info = {0};
 
-		data->is_tlu_enabled = 0;
+		data->is_tlu_enabled = false;
 		hwmgr->platform_descriptor.hardwareActivityPerformanceLevels =
 				FIJI_MAX_HARDWARE_POWERLEVELS;
 		hwmgr->platform_descriptor.hardwarePerformanceLevels = 2;
@@ -734,7 +733,7 @@ static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_GEN_INFO;
 		result = cgs_query_system_info(hwmgr->device, &sys_info);
 		if (result)
-			data->pcie_gen_cap = 0x30007;
+			data->pcie_gen_cap = AMDGPU_DEFAULT_PCIE_GEN_MASK;
 		else
 			data->pcie_gen_cap = (uint32_t)sys_info.value;
 		if (data->pcie_gen_cap & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
@@ -743,7 +742,7 @@ static int fiji_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_MLW;
 		result = cgs_query_system_info(hwmgr->device, &sys_info);
 		if (result)
-			data->pcie_lane_cap = 0x2f0000;
+			data->pcie_lane_cap = AMDGPU_DEFAULT_PCIE_MLW_MASK;
 		else
 			data->pcie_lane_cap = (uint32_t)sys_info.value;
 	} else {
@@ -1236,6 +1235,34 @@ static int fiji_program_voting_clients(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int fiji_clear_voting_clients(struct pp_hwmgr *hwmgr)
+{
+	/* Reset voting clients before disabling DPM */
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+			SCLK_PWRMGT_CNTL, RESET_SCLK_CNT, 1);
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+			SCLK_PWRMGT_CNTL, RESET_BUSY_CNT, 1);
+
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_0, 0);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_1, 0);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_2, 0);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_3, 0);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_4, 0);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_5, 0);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_6, 0);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_7, 0);
+
+	return 0;
+}
+
 /**
 * Get the location of various tables inside the FW image.
 *
@@ -1363,6 +1390,17 @@ static int fiji_copy_and_switch_arb_sets(struct pp_hwmgr *hwmgr,
 }
 
 /**
+* Call SMC to reset S0/S1 to S1 and Reset SMIO to initial value
+*
+* @param    hwmgr  the address of the powerplay hardware manager.
+* @return   if success then 0;
+*/
+static int fiji_reset_to_default(struct pp_hwmgr *hwmgr)
+{
+	return smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_ResetToDefaults);
+}
+
+/**
 * Initial switch from ARB F0->F1
 *
 * @param    hwmgr  the address of the powerplay hardware manager.
@@ -1373,6 +1411,21 @@ static int fiji_initial_switch_from_arbf0_to_f1(struct pp_hwmgr *hwmgr)
 {
 	return fiji_copy_and_switch_arb_sets(hwmgr,
 			MC_CG_ARB_FREQ_F0, MC_CG_ARB_FREQ_F1);
+}
+
+static int fiji_force_switch_to_arbf0(struct pp_hwmgr *hwmgr)
+{
+	uint32_t tmp;
+
+	tmp = (cgs_read_ind_register(hwmgr->device,
+			CGS_IND_REG__SMC, ixSMC_SCRATCH9) &
+			0x0000ff00) >> 8;
+
+	if (tmp == MC_CG_ARB_FREQ_F0)
+		return 0;
+
+	return fiji_copy_and_switch_arb_sets(hwmgr,
+			tmp, MC_CG_ARB_FREQ_F0);
 }
 
 static int fiji_reset_single_dpm_table(struct pp_hwmgr *hwmgr,
@@ -1397,7 +1450,7 @@ static void fiji_setup_pcie_table_entry(
 {
 	dpm_table->dpm_levels[index].value = pcie_gen;
 	dpm_table->dpm_levels[index].param1 = pcie_lanes;
-	dpm_table->dpm_levels[index].enabled = 1;
+	dpm_table->dpm_levels[index].enabled = true;
 }
 
 static int fiji_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
@@ -1609,7 +1662,6 @@ static int fiji_populate_cac_table(struct pp_hwmgr *hwmgr,
 {
 	uint32_t count;
 	uint8_t index;
-	int result = 0;
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -1631,7 +1683,7 @@ static int fiji_populate_cac_table(struct pp_hwmgr *hwmgr,
 						VOLTAGE_SCALE)) / 25);
 	}
 
-	return result;
+	return 0;
 }
 
 /**
@@ -3177,6 +3229,17 @@ static int fiji_enable_ulv(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int fiji_disable_ulv(struct pp_hwmgr *hwmgr)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	struct fiji_ulv_parm *ulv = &(data->ulv);
+
+	if (ulv->ulv_supported)
+		return smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_DisableULV);
+
+	return 0;
+}
+
 static int fiji_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -3186,6 +3249,21 @@ static int fiji_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 					"Attempt to enable Master Deep Sleep switch failed!",
 					return -1);
 	} else {
+		if (smum_send_msg_to_smc(hwmgr->smumgr,
+				PPSMC_MSG_MASTER_DeepSleep_OFF)) {
+			PP_ASSERT_WITH_CODE(false,
+					"Attempt to disable Master Deep Sleep switch failed!",
+					return -1);
+		}
+	}
+
+	return 0;
+}
+
+static int fiji_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
+{
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SclkDeepSleep)) {
 		if (smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_MASTER_DeepSleep_OFF)) {
 			PP_ASSERT_WITH_CODE(false,
@@ -3357,6 +3435,70 @@ static int fiji_start_dpm(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int fiji_disable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+
+	/* disable SCLK dpm */
+	if (!data->sclk_dpm_key_disabled)
+		PP_ASSERT_WITH_CODE(
+				(smum_send_msg_to_smc(hwmgr->smumgr,
+						PPSMC_MSG_DPM_Disable) == 0),
+				"Failed to disable SCLK DPM!",
+				return -1);
+
+	/* disable MCLK dpm */
+	if (!data->mclk_dpm_key_disabled) {
+		PP_ASSERT_WITH_CODE(
+				(smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_MCLKDPM_SetEnabledMask, 1) == 0),
+				"Failed to force MCLK DPM0!",
+				return -1);
+
+		PP_ASSERT_WITH_CODE(
+				(smum_send_msg_to_smc(hwmgr->smumgr,
+						PPSMC_MSG_MCLKDPM_Disable) == 0),
+				"Failed to disable MCLK DPM!",
+				return -1);
+	}
+
+	return 0;
+}
+
+static int fiji_stop_dpm(struct pp_hwmgr *hwmgr)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+
+	/* disable general power management */
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, GENERAL_PWRMGT,
+			GLOBAL_PWRMGT_EN, 0);
+	/* disable sclk deep sleep */
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SCLK_PWRMGT_CNTL,
+			DYNAMIC_PM_EN, 0);
+
+	/* disable PCIE dpm */
+	if (!data->pcie_dpm_key_disabled) {
+		PP_ASSERT_WITH_CODE(
+				(smum_send_msg_to_smc(hwmgr->smumgr,
+						PPSMC_MSG_PCIeDPM_Disable) == 0),
+				"Failed to disable pcie DPM during DPM Stop Function!",
+				return -1);
+	}
+
+	if (fiji_disable_sclk_mclk_dpm(hwmgr)) {
+		printk(KERN_ERR "Failed to disable Sclk DPM and Mclk DPM!");
+		return -1;
+	}
+
+	PP_ASSERT_WITH_CODE(
+			(smum_send_msg_to_smc(hwmgr->smumgr,
+					PPSMC_MSG_Voltage_Cntl_Disable) == 0),
+			"Failed to disable voltage DPM during DPM Stop Function!",
+			return -1);
+
+	return 0;
+}
+
 static void fiji_set_dpm_event_sources(struct pp_hwmgr *hwmgr,
 		uint32_t sources)
 {
@@ -3413,6 +3555,23 @@ static int fiji_enable_auto_throttle_source(struct pp_hwmgr *hwmgr,
 static int fiji_enable_thermal_auto_throttle(struct pp_hwmgr *hwmgr)
 {
 	return fiji_enable_auto_throttle_source(hwmgr, PHM_AutoThrottleSource_Thermal);
+}
+
+static int fiji_disable_auto_throttle_source(struct pp_hwmgr *hwmgr,
+		PHM_AutoThrottleSource source)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+
+	if (data->active_auto_throttle_sources & (1 << source)) {
+		data->active_auto_throttle_sources &= ~(1 << source);
+		fiji_set_dpm_event_sources(hwmgr, data->active_auto_throttle_sources);
+	}
+	return 0;
+}
+
+static int fiji_disable_thermal_auto_throttle(struct pp_hwmgr *hwmgr)
+{
+	return fiji_disable_auto_throttle_source(hwmgr, PHM_AutoThrottleSource_Thermal);
 }
 
 static int fiji_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
@@ -3525,6 +3684,64 @@ static int fiji_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result = fiji_enable_thermal_auto_throttle(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable thermal auto throttle!", result = tmp_result);
+
+	return result;
+}
+
+static int fiji_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
+{
+	int tmp_result, result = 0;
+
+	tmp_result = (fiji_is_dpm_running(hwmgr)) ? 0 : -1;
+	PP_ASSERT_WITH_CODE(tmp_result == 0,
+			"DPM is not running right now, no need to disable DPM!",
+			return 0);
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_ThermalController))
+		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+				GENERAL_PWRMGT, THERMAL_PROTECTION_DIS, 1);
+
+	tmp_result = fiji_disable_power_containment(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable power containment!", result = tmp_result);
+
+	tmp_result = fiji_disable_smc_cac(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable SMC CAC!", result = tmp_result);
+
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+			CG_SPLL_SPREAD_SPECTRUM, SSEN, 0);
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+			GENERAL_PWRMGT, DYN_SPREAD_SPECTRUM_EN, 0);
+
+	tmp_result = fiji_disable_thermal_auto_throttle(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable thermal auto throttle!", result = tmp_result);
+
+	tmp_result = fiji_stop_dpm(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to stop DPM!", result = tmp_result);
+
+	tmp_result = fiji_disable_deep_sleep_master_switch(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable deep sleep master switch!", result = tmp_result);
+
+	tmp_result = fiji_disable_ulv(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable ULV!", result = tmp_result);
+
+	tmp_result = fiji_clear_voting_clients(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to clear voting clients!", result = tmp_result);
+
+	tmp_result = fiji_reset_to_default(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to reset to default!", result = tmp_result);
+
+	tmp_result = fiji_force_switch_to_arbf0(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to force to switch arbf0!", result = tmp_result);
 
 	return result;
 }
@@ -4171,8 +4388,9 @@ static int fiji_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->sclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
 			(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
-		PP_ASSERT_WITH_CODE(true == fiji_is_dpm_running(hwmgr),
-				"Trying to freeze SCLK DPM when DPM is disabled",);
+		PP_ASSERT_WITH_CODE(fiji_is_dpm_running(hwmgr),
+				    "Trying to freeze SCLK DPM when DPM is disabled",
+				    );
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_SCLKDPM_FreezeLevel),
 				"Failed to freeze SCLK DPM during FreezeSclkMclkDPM Function!",
@@ -4182,8 +4400,9 @@ static int fiji_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->mclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
 		 DPMTABLE_OD_UPDATE_MCLK)) {
-		PP_ASSERT_WITH_CODE(true == fiji_is_dpm_running(hwmgr),
-				"Trying to freeze MCLK DPM when DPM is disabled",);
+		PP_ASSERT_WITH_CODE(fiji_is_dpm_running(hwmgr),
+				    "Trying to freeze MCLK DPM when DPM is disabled",
+				    );
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_MCLKDPM_FreezeLevel),
 				"Failed to freeze MCLK DPM during FreezeSclkMclkDPM Function!",
@@ -4353,7 +4572,6 @@ static int fiji_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
 static int fiji_trim_dpm_states(struct pp_hwmgr *hwmgr,
 		const struct fiji_power_state *fiji_ps)
 {
-	int result = 0;
 	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
 	uint32_t high_limit_count;
 
@@ -4373,7 +4591,7 @@ static int fiji_trim_dpm_states(struct pp_hwmgr *hwmgr,
 			fiji_ps->performance_levels[0].memory_clock,
 			fiji_ps->performance_levels[high_limit_count].memory_clock);
 
-	return result;
+	return 0;
 }
 
 static int fiji_generate_dpm_level_enable_mask(
@@ -4632,8 +4850,9 @@ static int fiji_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		(data->need_update_smu7_dpm_table &
 		(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
 
-		PP_ASSERT_WITH_CODE(true == fiji_is_dpm_running(hwmgr),
-				"Trying to Unfreeze SCLK DPM when DPM is disabled",);
+		PP_ASSERT_WITH_CODE(fiji_is_dpm_running(hwmgr),
+				    "Trying to Unfreeze SCLK DPM when DPM is disabled",
+				    );
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_SCLKDPM_UnfreezeLevel),
 			"Failed to unfreeze SCLK DPM during UnFreezeSclkMclkDPM Function!",
@@ -4643,8 +4862,9 @@ static int fiji_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->mclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_MCLK)) {
 
-		PP_ASSERT_WITH_CODE(true == fiji_is_dpm_running(hwmgr),
-				"Trying to Unfreeze MCLK DPM when DPM is disabled",);
+		PP_ASSERT_WITH_CODE(fiji_is_dpm_running(hwmgr),
+				    "Trying to Unfreeze MCLK DPM when DPM is disabled",
+				    );
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_SCLKDPM_UnfreezeLevel),
 		    "Failed to unfreeze MCLK DPM during UnFreezeSclkMclkDPM Function!",
@@ -5071,42 +5291,6 @@ static int fiji_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 				CG_FDO_CTRL2, FDO_PWM_MODE);
 }
 
-static int fiji_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
-{
-	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
-
-	if (!data->soft_pp_table) {
-		data->soft_pp_table = kmemdup(hwmgr->soft_pp_table,
-					      hwmgr->soft_pp_table_size,
-					      GFP_KERNEL);
-		if (!data->soft_pp_table)
-			return -ENOMEM;
-	}
-
-	*table = (char *)&data->soft_pp_table;
-
-	return hwmgr->soft_pp_table_size;
-}
-
-static int fiji_set_pp_table(struct pp_hwmgr *hwmgr, const char *buf, size_t size)
-{
-	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
-
-	if (!data->soft_pp_table) {
-		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
-		if (!data->soft_pp_table)
-			return -ENOMEM;
-	}
-
-	memcpy(data->soft_pp_table, buf, size);
-
-	hwmgr->soft_pp_table = data->soft_pp_table;
-
-	/* TODO: re-init powerplay to implement modified pptable */
-
-	return 0;
-}
-
 static int fiji_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask)
 {
@@ -5276,12 +5460,96 @@ bool fiji_check_smc_update_required_for_display_configuration(struct pp_hwmgr *h
 	return is_update_required;
 }
 
+static int fiji_get_sclk_od(struct pp_hwmgr *hwmgr)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	struct fiji_single_dpm_table *sclk_table = &(data->dpm_table.sclk_table);
+	struct fiji_single_dpm_table *golden_sclk_table =
+			&(data->golden_dpm_table.sclk_table);
+	int value;
+
+	value = (sclk_table->dpm_levels[sclk_table->count - 1].value -
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value) *
+			100 /
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
+
+	return value;
+}
+
+static int fiji_set_sclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	struct fiji_single_dpm_table *golden_sclk_table =
+			&(data->golden_dpm_table.sclk_table);
+	struct pp_power_state  *ps;
+	struct fiji_power_state  *fiji_ps;
+
+	if (value > 20)
+		value = 20;
+
+	ps = hwmgr->request_ps;
+
+	if (ps == NULL)
+		return -EINVAL;
+
+	fiji_ps = cast_phw_fiji_power_state(&ps->hardware);
+
+	fiji_ps->performance_levels[fiji_ps->performance_level_count - 1].engine_clock =
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value *
+			value / 100 +
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
+
+	return 0;
+}
+
+static int fiji_get_mclk_od(struct pp_hwmgr *hwmgr)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	struct fiji_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
+	struct fiji_single_dpm_table *golden_mclk_table =
+			&(data->golden_dpm_table.mclk_table);
+	int value;
+
+	value = (mclk_table->dpm_levels[mclk_table->count - 1].value -
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value) *
+			100 /
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value;
+
+	return value;
+}
+
+static int fiji_set_mclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
+{
+	struct fiji_hwmgr *data = (struct fiji_hwmgr *)(hwmgr->backend);
+	struct fiji_single_dpm_table *golden_mclk_table =
+			&(data->golden_dpm_table.mclk_table);
+	struct pp_power_state  *ps;
+	struct fiji_power_state  *fiji_ps;
+
+	if (value > 20)
+		value = 20;
+
+	ps = hwmgr->request_ps;
+
+	if (ps == NULL)
+		return -EINVAL;
+
+	fiji_ps = cast_phw_fiji_power_state(&ps->hardware);
+
+	fiji_ps->performance_levels[fiji_ps->performance_level_count - 1].memory_clock =
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value *
+			value / 100 +
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value;
+
+	return 0;
+}
 
 static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.backend_init = &fiji_hwmgr_backend_init,
 	.backend_fini = &fiji_hwmgr_backend_fini,
 	.asic_setup = &fiji_setup_asic_task,
 	.dynamic_state_management_enable = &fiji_enable_dpm_tasks,
+	.dynamic_state_management_disable = &fiji_disable_dpm_tasks,
 	.force_dpm_level = &fiji_dpm_force_dpm_level,
 	.get_num_of_pp_table_entries = &tonga_get_number_of_powerplay_table_entries,
 	.get_power_state_size = &fiji_get_power_state_size,
@@ -5314,24 +5582,18 @@ static const struct pp_hwmgr_func fiji_hwmgr_funcs = {
 	.get_fan_control_mode = fiji_get_fan_control_mode,
 	.check_states_equal = fiji_check_states_equal,
 	.check_smc_update_required_for_display_configuration = fiji_check_smc_update_required_for_display_configuration,
-	.get_pp_table = fiji_get_pp_table,
-	.set_pp_table = fiji_set_pp_table,
 	.force_clock_level = fiji_force_clock_level,
 	.print_clock_levels = fiji_print_clock_levels,
+	.get_sclk_od = fiji_get_sclk_od,
+	.set_sclk_od = fiji_set_sclk_od,
+	.get_mclk_od = fiji_get_mclk_od,
+	.set_mclk_od = fiji_set_mclk_od,
 };
 
 int fiji_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_hwmgr  *data;
-	int ret = 0;
-
-	data = kzalloc(sizeof(struct fiji_hwmgr), GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
-
-	hwmgr->backend = data;
 	hwmgr->hwmgr_func = &fiji_hwmgr_funcs;
 	hwmgr->pptable_func = &tonga_pptable_funcs;
 	pp_fiji_thermal_initialize(hwmgr);
-	return ret;
+	return 0;
 }

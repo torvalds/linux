@@ -263,10 +263,6 @@ struct saa7164_i2c {
 	u32				i2c_rc;
 };
 
-struct saa7164_ctrl {
-	struct v4l2_queryctrl v;
-};
-
 struct saa7164_tvnorm {
 	char		*name;
 	v4l2_std_id	id;

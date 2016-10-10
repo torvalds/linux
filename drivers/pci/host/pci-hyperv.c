@@ -732,16 +732,18 @@ static void hv_msi_free(struct irq_domain *domain, struct msi_domain_info *info,
 
 	pdev = msi_desc_to_pci_dev(msi);
 	hbus = info->data;
-	hpdev = get_pcichild_wslot(hbus, devfn_to_wslot(pdev->devfn));
-	if (!hpdev)
+	int_desc = irq_data_get_irq_chip_data(irq_data);
+	if (!int_desc)
 		return;
 
-	int_desc = irq_data_get_irq_chip_data(irq_data);
-	if (int_desc) {
-		irq_data->chip_data = NULL;
-		hv_int_desc_free(hpdev, int_desc);
+	irq_data->chip_data = NULL;
+	hpdev = get_pcichild_wslot(hbus, devfn_to_wslot(pdev->devfn));
+	if (!hpdev) {
+		kfree(int_desc);
+		return;
 	}
 
+	hv_int_desc_free(hpdev, int_desc);
 	put_pcichild(hpdev, hv_pcidev_ref_by_slot);
 }
 
@@ -1657,14 +1659,16 @@ static void hv_pci_onchannelcallback(void *context)
 			continue;
 		}
 
+		/* Zero length indicates there are no more packets. */
+		if (ret || !bytes_recvd)
+			break;
+
 		/*
 		 * All incoming packets must be at least as large as a
 		 * response.
 		 */
-		if (bytes_recvd <= sizeof(struct pci_response)) {
-			kfree(buffer);
-			return;
-		}
+		if (bytes_recvd <= sizeof(struct pci_response))
+			continue;
 		desc = (struct vmpacket_descriptor *)buffer;
 
 		switch (desc->type) {
@@ -1679,8 +1683,7 @@ static void hv_pci_onchannelcallback(void *context)
 			comp_packet->completion_func(comp_packet->compl_ctxt,
 						     response,
 						     bytes_recvd);
-			kfree(buffer);
-			return;
+			break;
 
 		case VM_PKT_DATA_INBAND:
 
@@ -1727,8 +1730,9 @@ static void hv_pci_onchannelcallback(void *context)
 				desc->type, req_id, bytes_recvd);
 			break;
 		}
-		break;
 	}
+
+	kfree(buffer);
 }
 
 /**

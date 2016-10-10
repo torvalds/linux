@@ -71,7 +71,7 @@ int ceph_fscache_register_fs(struct ceph_fs_client* fsc)
 					      &ceph_fscache_fsid_object_def,
 					      fsc, true);
 	if (!fsc->fscache)
-		pr_err("Unable to resgister fsid: %p fscache cookie", fsc);
+		pr_err("Unable to register fsid: %p fscache cookie\n", fsc);
 
 	return 0;
 }

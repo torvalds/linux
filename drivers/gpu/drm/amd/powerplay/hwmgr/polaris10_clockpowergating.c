@@ -106,11 +106,17 @@ int polaris10_phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 	data->uvd_power_gated = bgate;
 
 	if (bgate) {
+		cgs_set_clockgating_state(hwmgr->device,
+				AMD_IP_BLOCK_TYPE_UVD,
+				AMD_CG_STATE_GATE);
 		polaris10_update_uvd_dpm(hwmgr, true);
 		polaris10_phm_powerdown_uvd(hwmgr);
 	} else {
 		polaris10_phm_powerup_uvd(hwmgr);
 		polaris10_update_uvd_dpm(hwmgr, false);
+		cgs_set_clockgating_state(hwmgr->device,
+				AMD_IP_BLOCK_TYPE_UVD,
+				AMD_CG_STATE_UNGATE);
 	}
 
 	return 0;
@@ -125,11 +131,19 @@ int polaris10_phm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 
 	data->vce_power_gated = bgate;
 
-	if (bgate)
+	if (bgate) {
+		cgs_set_clockgating_state(hwmgr->device,
+				AMD_IP_BLOCK_TYPE_VCE,
+				AMD_CG_STATE_GATE);
+		polaris10_update_vce_dpm(hwmgr, true);
 		polaris10_phm_powerdown_vce(hwmgr);
-	else
+	} else {
 		polaris10_phm_powerup_vce(hwmgr);
-
+		polaris10_update_vce_dpm(hwmgr, false);
+		cgs_set_clockgating_state(hwmgr->device,
+				AMD_IP_BLOCK_TYPE_VCE,
+				AMD_CG_STATE_UNGATE);
+	}
 	return 0;
 }
 

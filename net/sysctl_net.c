@@ -46,7 +46,7 @@ static int net_ctl_permissions(struct ctl_table_header *head,
 	kgid_t root_gid = make_kgid(net->user_ns, 0);
 
 	/* Allow network administrator to have same access as root. */
-	if (ns_capable(net->user_ns, CAP_NET_ADMIN) ||
+	if (ns_capable_noaudit(net->user_ns, CAP_NET_ADMIN) ||
 	    uid_eq(root_uid, current_euid())) {
 		int mode = (table->mode >> 6) & 7;
 		return (mode << 6) | (mode << 3) | mode;

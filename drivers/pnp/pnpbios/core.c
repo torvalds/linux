@@ -46,7 +46,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/kernel.h>
@@ -61,6 +60,7 @@
 #include <linux/delay.h>
 #include <linux/acpi.h>
 #include <linux/freezer.h>
+#include <linux/kmod.h>
 #include <linux/kthread.h>
 
 #include <asm/page.h>
@@ -587,6 +587,6 @@ static int __init pnpbios_thread_init(void)
 }
 
 /* Start the kernel thread later: */
-module_init(pnpbios_thread_init);
+device_initcall(pnpbios_thread_init);
 
 EXPORT_SYMBOL(pnpbios_protocol);

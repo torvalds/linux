@@ -27,7 +27,6 @@ enum rmi_f12_object_type {
 };
 
 struct f12_data {
-	struct rmi_function *fn;
 	struct rmi_2d_sensor sensor;
 	struct rmi_2d_sensor_platform_data sensor_pdata;
 

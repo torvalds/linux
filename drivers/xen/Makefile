@@ -10,6 +10,7 @@ CFLAGS_features.o			:= $(nostackp)
 CFLAGS_efi.o				+= -fshort-wchar
 LDFLAGS					+= $(call ld-option, --no-wchar-size-warning)
 
+dom0-$(CONFIG_ARM64) += arm-device.o
 dom0-$(CONFIG_PCI) += pci.o
 dom0-$(CONFIG_USB_SUPPORT) += dbgp.o
 dom0-$(CONFIG_XEN_ACPI) += acpi.o $(xen-pad-y)

@@ -425,7 +425,7 @@ static int cz_dpm_init(struct amdgpu_device *adev)
 	pi->mgcg_cgtt_local1 = 0x0;
 	pi->clock_slow_down_step = 25000;
 	pi->skip_clock_slow_down = 1;
-	pi->enable_nb_ps_policy = 0;
+	pi->enable_nb_ps_policy = false;
 	pi->caps_power_containment = true;
 	pi->caps_cac = true;
 	pi->didt_enabled = false;
@@ -2219,6 +2219,7 @@ static void cz_dpm_powergate_vce(struct amdgpu_device *adev, bool gate)
 			}
 		}
 	} else { /*pi->caps_vce_pg*/
+		pi->vce_power_gated = gate;
 		cz_update_vce_dpm(adev);
 		cz_enable_vce_dpm(adev, !gate);
 	}

@@ -320,7 +320,7 @@ struct cio_iplinfo {
 extern int cio_get_iplinfo(struct cio_iplinfo *iplinfo);
 
 /* Function from drivers/s390/cio/chsc.c */
-int chsc_sstpc(void *page, unsigned int op, u16 ctrl);
+int chsc_sstpc(void *page, unsigned int op, u16 ctrl, u64 *clock_delta);
 int chsc_sstpi(void *page, void *result, size_t size);
 
 #endif

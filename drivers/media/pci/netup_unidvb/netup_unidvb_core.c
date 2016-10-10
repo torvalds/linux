@@ -34,6 +34,7 @@
 #include "cxd2841er.h"
 #include "horus3a.h"
 #include "ascot2e.h"
+#include "helene.h"
 #include "lnbh25.h"
 
 static int spi_enable;
@@ -120,7 +121,8 @@ static int netup_unidvb_tuner_ctrl(void *priv, int is_dvb_tc);
 static void netup_unidvb_queue_cleanup(struct netup_dma *dma);
 
 static struct cxd2841er_config demod_config = {
-	.i2c_addr = 0xc8
+	.i2c_addr = 0xc8,
+	.xtal = SONY_XTAL_24000
 };
 
 static struct horus3a_config horus3a_conf = {
@@ -131,6 +133,12 @@ static struct horus3a_config horus3a_conf = {
 
 static struct ascot2e_config ascot2e_conf = {
 	.i2c_address = 0xc2,
+	.set_tuner_callback = netup_unidvb_tuner_ctrl
+};
+
+static struct helene_config helene_conf = {
+	.i2c_address = 0xc0,
+	.xtal = SONY_HELENE_XTAL_24000,
 	.set_tuner_callback = netup_unidvb_tuner_ctrl
 };
 
@@ -152,6 +160,11 @@ static int netup_unidvb_tuner_ctrl(void *priv, int is_dvb_tc)
 		__func__, dma->num, is_dvb_tc);
 	reg = readb(ndev->bmmio0 + GPIO_REG_IO);
 	mask = (dma->num == 0) ? GPIO_RFA_CTL : GPIO_RFB_CTL;
+
+	/* inverted tuner control in hw rev. 1.4 */
+	if (ndev->rev == NETUP_HW_REV_1_4)
+		is_dvb_tc = !is_dvb_tc;
+
 	if (!is_dvb_tc)
 		reg |= mask;
 	else
@@ -280,7 +293,7 @@ static int netup_unidvb_queue_setup(struct vb2_queue *vq,
 				    unsigned int *nbuffers,
 				    unsigned int *nplanes,
 				    unsigned int sizes[],
-				    void *alloc_ctxs[])
+				    struct device *alloc_devs[])
 {
 	struct netup_dma *dma = vb2_get_drv_priv(vq);
 
@@ -372,7 +385,15 @@ static int netup_unidvb_queue_init(struct netup_dma *dma,
 static int netup_unidvb_dvb_init(struct netup_unidvb_dev *ndev,
 				 int num)
 {
-	struct vb2_dvb_frontend *fe0, *fe1, *fe2;
+	int fe_count = 2;
+	int i = 0;
+	struct vb2_dvb_frontend *fes[2];
+	u8 fe_name[32];
+
+	if (ndev->rev == NETUP_HW_REV_1_3)
+		demod_config.xtal = SONY_XTAL_20500;
+	else
+		demod_config.xtal = SONY_XTAL_24000;
 
 	if (num < 0 || num > 1) {
 		dev_dbg(&ndev->pci_dev->dev,
@@ -381,84 +402,96 @@ static int netup_unidvb_dvb_init(struct netup_unidvb_dev *ndev,
 	}
 	mutex_init(&ndev->frontends[num].lock);
 	INIT_LIST_HEAD(&ndev->frontends[num].felist);
-	if (vb2_dvb_alloc_frontend(&ndev->frontends[num], 1) == NULL ||
-		vb2_dvb_alloc_frontend(
-			&ndev->frontends[num], 2) == NULL ||
-		vb2_dvb_alloc_frontend(
-			&ndev->frontends[num], 3) == NULL) {
-		dev_dbg(&ndev->pci_dev->dev,
-			"%s(): unable to allocate vb2_dvb_frontend\n",
-			__func__);
-		return -ENOMEM;
+
+	for (i = 0; i < fe_count; i++) {
+		if (vb2_dvb_alloc_frontend(&ndev->frontends[num], i+1)
+				== NULL) {
+			dev_err(&ndev->pci_dev->dev,
+					"%s(): unable to allocate vb2_dvb_frontend\n",
+					__func__);
+			return -ENOMEM;
+		}
 	}
-	fe0 = vb2_dvb_get_frontend(&ndev->frontends[num], 1);
-	fe1 = vb2_dvb_get_frontend(&ndev->frontends[num], 2);
-	fe2 = vb2_dvb_get_frontend(&ndev->frontends[num], 3);
-	if (fe0 == NULL || fe1 == NULL || fe2 == NULL) {
-		dev_dbg(&ndev->pci_dev->dev,
-			"%s(): frontends has not been allocated\n", __func__);
-		return -EINVAL;
+
+	for (i = 0; i < fe_count; i++) {
+		fes[i] = vb2_dvb_get_frontend(&ndev->frontends[num], i+1);
+		if (fes[i] == NULL) {
+			dev_err(&ndev->pci_dev->dev,
+				"%s(): frontends has not been allocated\n",
+				__func__);
+			return -EINVAL;
+		}
 	}
-	netup_unidvb_queue_init(&ndev->dma[num], &fe0->dvb.dvbq);
-	netup_unidvb_queue_init(&ndev->dma[num], &fe1->dvb.dvbq);
-	netup_unidvb_queue_init(&ndev->dma[num], &fe2->dvb.dvbq);
-	fe0->dvb.name = "netup_fe0";
-	fe1->dvb.name = "netup_fe1";
-	fe2->dvb.name = "netup_fe2";
-	fe0->dvb.frontend = dvb_attach(cxd2841er_attach_s,
+
+	for (i = 0; i < fe_count; i++) {
+		netup_unidvb_queue_init(&ndev->dma[num], &fes[i]->dvb.dvbq);
+		snprintf(fe_name, sizeof(fe_name), "netup_fe%d", i);
+		fes[i]->dvb.name = fe_name;
+	}
+
+	fes[0]->dvb.frontend = dvb_attach(cxd2841er_attach_s,
 		&demod_config, &ndev->i2c[num].adap);
-	if (fe0->dvb.frontend == NULL) {
+	if (fes[0]->dvb.frontend == NULL) {
 		dev_dbg(&ndev->pci_dev->dev,
 			"%s(): unable to attach DVB-S/S2 frontend\n",
 			__func__);
 		goto frontend_detach;
 	}
-	horus3a_conf.set_tuner_priv = &ndev->dma[num];
-	if (!dvb_attach(horus3a_attach, fe0->dvb.frontend,
-			&horus3a_conf, &ndev->i2c[num].adap)) {
-		dev_dbg(&ndev->pci_dev->dev,
-			"%s(): unable to attach DVB-S/S2 tuner frontend\n",
-			__func__);
-		goto frontend_detach;
+
+	if (ndev->rev == NETUP_HW_REV_1_3) {
+		horus3a_conf.set_tuner_priv = &ndev->dma[num];
+		if (!dvb_attach(horus3a_attach, fes[0]->dvb.frontend,
+					&horus3a_conf, &ndev->i2c[num].adap)) {
+			dev_dbg(&ndev->pci_dev->dev,
+					"%s(): unable to attach HORUS3A DVB-S/S2 tuner frontend\n",
+					__func__);
+			goto frontend_detach;
+		}
+	} else {
+		helene_conf.set_tuner_priv = &ndev->dma[num];
+		if (!dvb_attach(helene_attach_s, fes[0]->dvb.frontend,
+					&helene_conf, &ndev->i2c[num].adap)) {
+			dev_err(&ndev->pci_dev->dev,
+					"%s(): unable to attach HELENE DVB-S/S2 tuner frontend\n",
+					__func__);
+			goto frontend_detach;
+		}
 	}
-	if (!dvb_attach(lnbh25_attach, fe0->dvb.frontend,
+
+	if (!dvb_attach(lnbh25_attach, fes[0]->dvb.frontend,
 			&lnbh25_conf, &ndev->i2c[num].adap)) {
 		dev_dbg(&ndev->pci_dev->dev,
 			"%s(): unable to attach SEC frontend\n", __func__);
 		goto frontend_detach;
 	}
+
 	/* DVB-T/T2 frontend */
-	fe1->dvb.frontend = dvb_attach(cxd2841er_attach_t,
+	fes[1]->dvb.frontend = dvb_attach(cxd2841er_attach_t_c,
 		&demod_config, &ndev->i2c[num].adap);
-	if (fe1->dvb.frontend == NULL) {
+	if (fes[1]->dvb.frontend == NULL) {
 		dev_dbg(&ndev->pci_dev->dev,
-			"%s(): unable to attach DVB-T frontend\n", __func__);
+			"%s(): unable to attach Ter frontend\n", __func__);
 		goto frontend_detach;
 	}
-	fe1->dvb.frontend->id = 1;
-	ascot2e_conf.set_tuner_priv = &ndev->dma[num];
-	if (!dvb_attach(ascot2e_attach, fe1->dvb.frontend,
-			&ascot2e_conf, &ndev->i2c[num].adap)) {
-		dev_dbg(&ndev->pci_dev->dev,
-			"%s(): unable to attach DVB-T tuner frontend\n",
-			__func__);
-		goto frontend_detach;
-	}
-	/* DVB-C/C2 frontend */
-	fe2->dvb.frontend = dvb_attach(cxd2841er_attach_c,
-				&demod_config, &ndev->i2c[num].adap);
-	if (fe2->dvb.frontend == NULL) {
-		dev_dbg(&ndev->pci_dev->dev,
-			"%s(): unable to attach DVB-C frontend\n", __func__);
-		goto frontend_detach;
-	}
-	fe2->dvb.frontend->id = 2;
-	if (!dvb_attach(ascot2e_attach, fe2->dvb.frontend,
-			&ascot2e_conf, &ndev->i2c[num].adap)) {
-		dev_dbg(&ndev->pci_dev->dev,
-			"%s(): unable to attach DVB-T/C tuner frontend\n",
-			__func__);
-		goto frontend_detach;
+	fes[1]->dvb.frontend->id = 1;
+	if (ndev->rev == NETUP_HW_REV_1_3) {
+		ascot2e_conf.set_tuner_priv = &ndev->dma[num];
+		if (!dvb_attach(ascot2e_attach, fes[1]->dvb.frontend,
+					&ascot2e_conf, &ndev->i2c[num].adap)) {
+			dev_dbg(&ndev->pci_dev->dev,
+					"%s(): unable to attach Ter tuner frontend\n",
+					__func__);
+			goto frontend_detach;
+		}
+	} else {
+		helene_conf.set_tuner_priv = &ndev->dma[num];
+		if (!dvb_attach(helene_attach, fes[1]->dvb.frontend,
+					&helene_conf, &ndev->i2c[num].adap)) {
+			dev_err(&ndev->pci_dev->dev,
+					"%s(): unable to attach HELENE Ter tuner frontend\n",
+					__func__);
+			goto frontend_detach;
+		}
 	}
 
 	if (vb2_dvb_register_bus(&ndev->frontends[num],
@@ -730,7 +763,7 @@ static int netup_unidvb_request_mmio(struct pci_dev *pci_dev)
 static int netup_unidvb_request_modules(struct device *dev)
 {
 	static const char * const modules[] = {
-		"lnbh25", "ascot2e", "horus3a", "cxd2841er", NULL
+		"lnbh25", "ascot2e", "horus3a", "cxd2841er", "helene", NULL
 	};
 	const char * const *curr_mod = modules;
 	int err;
@@ -773,6 +806,16 @@ static int netup_unidvb_initdev(struct pci_dev *pci_dev,
 	ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
 	if (!ndev)
 		goto dev_alloc_err;
+
+	/* detect hardware revision */
+	if (pci_dev->device == NETUP_HW_REV_1_3)
+		ndev->rev = NETUP_HW_REV_1_3;
+	else
+		ndev->rev = NETUP_HW_REV_1_4;
+
+	dev_info(&pci_dev->dev,
+		"%s(): board (0x%x) hardware revision 0x%x\n",
+		__func__, pci_dev->device, ndev->rev);
 
 	ndev->old_fw = old_firmware;
 	ndev->wq = create_singlethread_workqueue(NETUP_UNIDVB_NAME);
@@ -932,7 +975,7 @@ wq_create_err:
 	kfree(ndev);
 dev_alloc_err:
 	dev_err(&pci_dev->dev,
-		"%s(): failed to initizalize device\n", __func__);
+		"%s(): failed to initialize device\n", __func__);
 	return -EIO;
 }
 
@@ -972,7 +1015,8 @@ static void netup_unidvb_finidev(struct pci_dev *pci_dev)
 
 
 static struct pci_device_id netup_unidvb_pci_tbl[] = {
-	{ PCI_DEVICE(0x1b55, 0x18f6) },
+	{ PCI_DEVICE(0x1b55, 0x18f6) }, /* hw rev. 1.3 */
+	{ PCI_DEVICE(0x1b55, 0x18f7) }, /* hw rev. 1.4 */
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, netup_unidvb_pci_tbl);

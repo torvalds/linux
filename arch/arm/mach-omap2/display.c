@@ -29,7 +29,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
-#include <video/omapdss.h>
+#include <linux/platform_data/omapdss.h>
 #include "omap_hwmod.h"
 #include "omap_device.h"
 #include "omap-pm.h"

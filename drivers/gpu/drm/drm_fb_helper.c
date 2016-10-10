@@ -227,7 +227,7 @@ static void drm_fb_helper_restore_lut_atomic(struct drm_crtc *crtc)
 	g_base = r_base + crtc->gamma_size;
 	b_base = g_base + crtc->gamma_size;
 
-	crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, 0, crtc->gamma_size);
+	crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, crtc->gamma_size);
 }
 
 /**
@@ -385,7 +385,7 @@ static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 
 	drm_warn_on_modeset_not_all_locked(dev);
 
-	if (fb_helper->atomic)
+	if (dev->mode_config.funcs->atomic_commit)
 		return restore_fbdev_mode_atomic(fb_helper);
 
 	drm_for_each_plane(plane, dev) {
@@ -464,7 +464,7 @@ static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 
 	/* Sometimes user space wants everything disabled, so don't steal the
 	 * display if there's a master. */
-	if (dev->primary->master)
+	if (READ_ONCE(dev->master))
 		return false;
 
 	drm_for_each_crtc(crtc, dev) {
@@ -715,8 +715,6 @@ int drm_fb_helper_init(struct drm_device *dev,
 		fb_helper->crtc_info[i].mode_set.crtc = crtc;
 		i++;
 	}
-
-	fb_helper->atomic = !!drm_core_check_feature(dev, DRIVER_ATOMIC);
 
 	return 0;
 out_free:
@@ -1042,7 +1040,6 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_framebuffer *fb = fb_helper->fb;
-	int pindex;
 
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
 		u32 *palette;
@@ -1074,38 +1071,10 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		    !fb_helper->funcs->gamma_get))
 		return -EINVAL;
 
-	pindex = regno;
+	WARN_ON(fb->bits_per_pixel != 8);
 
-	if (fb->bits_per_pixel == 16) {
-		pindex = regno << 3;
+	fb_helper->funcs->gamma_set(crtc, red, green, blue, regno);
 
-		if (fb->depth == 16 && regno > 63)
-			return -EINVAL;
-		if (fb->depth == 15 && regno > 31)
-			return -EINVAL;
-
-		if (fb->depth == 16) {
-			u16 r, g, b;
-			int i;
-			if (regno < 32) {
-				for (i = 0; i < 8; i++)
-					fb_helper->funcs->gamma_set(crtc, red,
-						green, blue, pindex + i);
-			}
-
-			fb_helper->funcs->gamma_get(crtc, &r,
-						    &g, &b,
-						    pindex >> 1);
-
-			for (i = 0; i < 4; i++)
-				fb_helper->funcs->gamma_set(crtc, r,
-							    green, b,
-							    (pindex >> 1) + i);
-		}
-	}
-
-	if (fb->depth != 16)
-		fb_helper->funcs->gamma_set(crtc, red, green, blue, pindex);
 	return 0;
 }
 
@@ -1373,7 +1342,7 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 		return -EBUSY;
 	}
 
-	if (fb_helper->atomic) {
+	if (dev->mode_config.funcs->atomic_commit) {
 		ret = pan_display_atomic(var, info);
 		goto unlock;
 	}
@@ -2000,7 +1969,18 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 		my_score++;
 
 	connector_funcs = connector->helper_private;
-	encoder = connector_funcs->best_encoder(connector);
+
+	/*
+	 * If the DRM device implements atomic hooks and ->best_encoder() is
+	 * NULL we fallback to the default drm_atomic_helper_best_encoder()
+	 * helper.
+	 */
+	if (fb_helper->dev->mode_config.funcs->atomic_commit &&
+	    !connector_funcs->best_encoder)
+		encoder = drm_atomic_helper_best_encoder(connector);
+	else
+		encoder = connector_funcs->best_encoder(connector);
+
 	if (!encoder)
 		goto out;
 

@@ -897,7 +897,7 @@
 	pinctrl-0 = <&dss_pins>;
 
 	port {
-		dpi_out: endpoint@0 {
+		dpi_out: endpoint {
 			remote-endpoint = <&lcd_in>;
 			data-lines = <24>;
 		};
@@ -974,4 +974,8 @@
 	clocks = <&clk_32k_rtc>, <&clk_32768_ck>;
 	clock-names = "ext-clk", "int-clk";
 	status = "okay";
+};
+
+&cpu {
+	cpu0-supply = <&dcdc2>;
 };

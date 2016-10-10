@@ -73,6 +73,21 @@ config TABLET_USB_KBTAB
 	  To compile this driver as a module, choose M here: the
 	  module will be called kbtab.
 
+config TABLET_USB_PEGASUS
+	tristate "Pegasus Mobile Notetaker Pen input tablet support"
+	depends on USB_ARCH_HAS_HCD
+	select USB
+	help
+	  Say Y here if you want to use the Pegasus Mobile Notetaker,
+	  also known as:
+	  Genie e-note The Notetaker,
+	  Staedtler Digital ballpoint pen 990 01,
+	  IRISnotes Express or
+	  NEWLink Digital Note Taker.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pegasus_notetaker.
+
 config TABLET_SERIAL_WACOM4
 	tristate "Wacom protocol 4 serial tablet support"
 	select SERIO

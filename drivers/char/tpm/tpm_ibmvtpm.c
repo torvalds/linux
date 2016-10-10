@@ -54,21 +54,6 @@ static int ibmvtpm_send_crq(struct vio_dev *vdev, u64 w1, u64 w2)
 }
 
 /**
- * ibmvtpm_get_data - Retrieve ibm vtpm data
- * @dev:	device struct
- *
- * Return value:
- *	vtpm device struct
- */
-static struct ibmvtpm_dev *ibmvtpm_get_data(const struct device *dev)
-{
-	struct tpm_chip *chip = dev_get_drvdata(dev);
-	if (chip)
-		return (struct ibmvtpm_dev *)TPM_VPRIV(chip);
-	return NULL;
-}
-
-/**
  * tpm_ibmvtpm_recv - Receive data after send
  * @chip:	tpm chip struct
  * @buf:	buffer to read
@@ -79,11 +64,9 @@ static struct ibmvtpm_dev *ibmvtpm_get_data(const struct device *dev)
  */
 static int tpm_ibmvtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
-	struct ibmvtpm_dev *ibmvtpm;
+	struct ibmvtpm_dev *ibmvtpm = dev_get_drvdata(&chip->dev);
 	u16 len;
 	int sig;
-
-	ibmvtpm = (struct ibmvtpm_dev *)TPM_VPRIV(chip);
 
 	if (!ibmvtpm->rtce_buf) {
 		dev_err(ibmvtpm->dev, "ibmvtpm device is not ready\n");
@@ -122,12 +105,10 @@ static int tpm_ibmvtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
  */
 static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 {
-	struct ibmvtpm_dev *ibmvtpm;
+	struct ibmvtpm_dev *ibmvtpm = dev_get_drvdata(&chip->dev);
 	struct ibmvtpm_crq crq;
 	__be64 *word = (__be64 *)&crq;
 	int rc, sig;
-
-	ibmvtpm = (struct ibmvtpm_dev *)TPM_VPRIV(chip);
 
 	if (!ibmvtpm->rtce_buf) {
 		dev_err(ibmvtpm->dev, "ibmvtpm device is not ready\n");
@@ -289,8 +270,8 @@ static int ibmvtpm_crq_send_init(struct ibmvtpm_dev *ibmvtpm)
  */
 static int tpm_ibmvtpm_remove(struct vio_dev *vdev)
 {
-	struct ibmvtpm_dev *ibmvtpm = ibmvtpm_get_data(&vdev->dev);
-	struct tpm_chip *chip = dev_get_drvdata(ibmvtpm->dev);
+	struct tpm_chip *chip = dev_get_drvdata(&vdev->dev);
+	struct ibmvtpm_dev *ibmvtpm = dev_get_drvdata(&chip->dev);
 	int rc = 0;
 
 	tpm_chip_unregister(chip);
@@ -327,7 +308,8 @@ static int tpm_ibmvtpm_remove(struct vio_dev *vdev)
  */
 static unsigned long tpm_ibmvtpm_get_desired_dma(struct vio_dev *vdev)
 {
-	struct ibmvtpm_dev *ibmvtpm = ibmvtpm_get_data(&vdev->dev);
+	struct tpm_chip *chip = dev_get_drvdata(&vdev->dev);
+	struct ibmvtpm_dev *ibmvtpm = dev_get_drvdata(&chip->dev);
 
 	/* ibmvtpm initializes at probe time, so the data we are
 	* asking for may not be set yet. Estimate that 4K required
@@ -348,7 +330,8 @@ static unsigned long tpm_ibmvtpm_get_desired_dma(struct vio_dev *vdev)
  */
 static int tpm_ibmvtpm_suspend(struct device *dev)
 {
-	struct ibmvtpm_dev *ibmvtpm = ibmvtpm_get_data(dev);
+	struct tpm_chip *chip = dev_get_drvdata(dev);
+	struct ibmvtpm_dev *ibmvtpm = dev_get_drvdata(&chip->dev);
 	struct ibmvtpm_crq crq;
 	u64 *buf = (u64 *) &crq;
 	int rc = 0;
@@ -400,7 +383,8 @@ static int ibmvtpm_reset_crq(struct ibmvtpm_dev *ibmvtpm)
  */
 static int tpm_ibmvtpm_resume(struct device *dev)
 {
-	struct ibmvtpm_dev *ibmvtpm = ibmvtpm_get_data(dev);
+	struct tpm_chip *chip = dev_get_drvdata(dev);
+	struct ibmvtpm_dev *ibmvtpm = dev_get_drvdata(&chip->dev);
 	int rc = 0;
 
 	do {
@@ -643,7 +627,7 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 
 	crq_q->index = 0;
 
-	TPM_VPRIV(chip) = (void *)ibmvtpm;
+	dev_set_drvdata(&chip->dev, ibmvtpm);
 
 	spin_lock_init(&ibmvtpm->rtce_lock);
 

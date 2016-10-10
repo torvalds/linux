@@ -63,8 +63,7 @@ static void __init orion5x_dt_init(void)
 	if (of_machine_is_compatible("maxtor,shared-storage-2"))
 		mss2_init();
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     orion5x_auxdata_lookup, NULL);
+	of_platform_default_populate(NULL, orion5x_auxdata_lookup, NULL);
 }
 
 static const char *orion5x_dt_compat[] = {

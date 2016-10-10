@@ -21,8 +21,11 @@
 
 #include <trace/events/thp.h>
 
-static int native_update_partition_table(u64 patb1)
+static int native_register_process_table(unsigned long base, unsigned long pg_sz,
+					 unsigned long table_size)
 {
+	unsigned long patb1 = base | table_size | PATB_GR;
+
 	partition_tb->patb1 = cpu_to_be64(patb1);
 	return 0;
 }
@@ -168,7 +171,7 @@ redo:
 	 * of process table here. But our linear mapping also enable us to use
 	 * physical address here.
 	 */
-	ppc_md.update_partition_table(__pa(process_tb) | (PRTB_SIZE_SHIFT - 12) | PATB_GR);
+	register_process_table(__pa(process_tb), 0, PRTB_SIZE_SHIFT - 12);
 	pr_info("Process table %p and radix root for kernel: %p\n", process_tb, init_mm.pgd);
 }
 
@@ -182,7 +185,8 @@ static void __init radix_init_partition_table(void)
 	partition_tb = early_alloc_pgtable(1UL << PATB_SIZE_SHIFT);
 	partition_tb->patb0 = cpu_to_be64(rts_field | __pa(init_mm.pgd) |
 					  RADIX_PGD_INDEX_SIZE | PATB_HR);
-	printk("Partition table %p\n", partition_tb);
+	pr_info("Initializing Radix MMU\n");
+	pr_info("Partition table %p\n", partition_tb);
 
 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 	/*
@@ -194,7 +198,7 @@ static void __init radix_init_partition_table(void)
 
 void __init radix_init_native(void)
 {
-	ppc_md.update_partition_table = native_update_partition_table;
+	register_process_table = native_register_process_table;
 }
 
 static int __init get_idx_from_shift(unsigned int shift)
@@ -260,7 +264,7 @@ static int __init radix_dt_scan_page_sizes(unsigned long node,
 	return 1;
 }
 
-static void __init radix_init_page_sizes(void)
+void __init radix__early_init_devtree(void)
 {
 	int rc;
 
@@ -339,10 +343,10 @@ void __init radix__early_init_mmu(void)
 	__pte_frag_nr = H_PTE_FRAG_NR;
 	__pte_frag_size_shift = H_PTE_FRAG_SIZE_SHIFT;
 
-	radix_init_page_sizes();
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
+		radix_init_native();
 		lpcr = mfspr(SPRN_LPCR);
-		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT);
+		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
 		radix_init_partition_table();
 	}
 
@@ -357,7 +361,7 @@ void radix__early_init_mmu_secondary(void)
 	 */
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
 		lpcr = mfspr(SPRN_LPCR);
-		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT);
+		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
 
 		mtspr(SPRN_PTCR,
 		      __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));

@@ -943,7 +943,7 @@ static int mxc_v2_ooblayout_free(struct mtd_info *mtd, int section,
 	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	int stepsize = nand_chip->ecc.bytes == 9 ? 16 : 26;
 
-	if (section > nand_chip->ecc.steps)
+	if (section >= nand_chip->ecc.steps)
 		return -ERANGE;
 
 	if (!section) {

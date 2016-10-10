@@ -145,6 +145,7 @@ void serial8250_rx_dma_flush(struct uart_8250_port *p)
 		dmaengine_terminate_all(dma->rxchan);
 	}
 }
+EXPORT_SYMBOL_GPL(serial8250_rx_dma_flush);
 
 int serial8250_request_dma(struct uart_8250_port *p)
 {

@@ -45,6 +45,14 @@ struct skl_ipc_header {
 	u32 extension;
 };
 
+#define SKL_DSP_CORES_MAX  2
+
+struct skl_dsp_cores {
+	unsigned int count;
+	enum skl_dsp_states state[SKL_DSP_CORES_MAX];
+	int usage_count[SKL_DSP_CORES_MAX];
+};
+
 struct skl_sst {
 	struct device *dev;
 	struct sst_dsp *dsp;
@@ -60,6 +68,15 @@ struct skl_sst {
 	void (*enable_miscbdcge)(struct device *dev, bool enable);
 	/*Is CGCTL.MISCBDCGE disabled*/
 	bool miscbdcg_disabled;
+
+	/* Populate module information */
+	struct list_head uuid_list;
+
+	/* Is firmware loaded */
+	bool fw_loaded;
+
+	/* multi-core */
+	struct skl_dsp_cores cores;
 };
 
 struct skl_ipc_init_instance_msg {
@@ -136,5 +153,6 @@ void skl_ipc_int_disable(struct sst_dsp *dsp);
 bool skl_ipc_int_status(struct sst_dsp *dsp);
 void skl_ipc_free(struct sst_generic_ipc *ipc);
 int skl_ipc_init(struct device *dev, struct skl_sst *skl);
+void skl_clear_module_cnt(struct sst_dsp *ctx);
 
 #endif /* __SKL_IPC_H */

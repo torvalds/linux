@@ -244,8 +244,8 @@ static int pod_set_system_param_int(struct usb_line6_pod *pod, int value,
 static ssize_t serial_number_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6_pod *pod = usb_get_intfdata(interface);
+	struct snd_card *card = dev_to_snd_card(dev);
+	struct usb_line6_pod *pod = card->private_data;
 
 	return sprintf(buf, "%u\n", pod->serial_number);
 }
@@ -256,8 +256,8 @@ static ssize_t serial_number_show(struct device *dev,
 static ssize_t firmware_version_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6_pod *pod = usb_get_intfdata(interface);
+	struct snd_card *card = dev_to_snd_card(dev);
+	struct usb_line6_pod *pod = card->private_data;
 
 	return sprintf(buf, "%d.%02d\n", pod->firmware_version / 100,
 		       pod->firmware_version % 100);
@@ -269,8 +269,8 @@ static ssize_t firmware_version_show(struct device *dev,
 static ssize_t device_id_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6_pod *pod = usb_get_intfdata(interface);
+	struct snd_card *card = dev_to_snd_card(dev);
+	struct usb_line6_pod *pod = card->private_data;
 
 	return sprintf(buf, "%d\n", pod->device_id);
 }

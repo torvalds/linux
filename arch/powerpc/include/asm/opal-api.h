@@ -158,17 +158,33 @@
 #define OPAL_LEDS_SET_INDICATOR			115
 #define OPAL_CEC_REBOOT2			116
 #define OPAL_CONSOLE_FLUSH			117
-#define OPAL_LAST				117
+#define OPAL_GET_DEVICE_TREE			118
+#define OPAL_PCI_GET_PRESENCE_STATE		119
+#define OPAL_PCI_GET_POWER_STATE		120
+#define OPAL_PCI_SET_POWER_STATE		121
+#define OPAL_INT_GET_XIRR			122
+#define	OPAL_INT_SET_CPPR			123
+#define OPAL_INT_EOI				124
+#define OPAL_INT_SET_MFRR			125
+#define OPAL_PCI_TCE_KILL			126
+#define OPAL_LAST				126
 
 /* Device tree flags */
 
-/* Flags set in power-mgmt nodes in device tree if
- * respective idle states are supported in the platform.
+/*
+ * Flags set in power-mgmt nodes in device tree describing
+ * idle states that are supported in the platform.
  */
+
+#define OPAL_PM_TIMEBASE_STOP		0x00000002
+#define OPAL_PM_LOSE_HYP_CONTEXT	0x00002000
+#define OPAL_PM_LOSE_FULL_CONTEXT	0x00004000
 #define OPAL_PM_NAP_ENABLED		0x00010000
 #define OPAL_PM_SLEEP_ENABLED		0x00020000
 #define OPAL_PM_WINKLE_ENABLED		0x00040000
 #define OPAL_PM_SLEEP_ENABLED_ER1	0x00080000 /* with workaround */
+#define OPAL_PM_STOP_INST_FAST		0x00100000
+#define OPAL_PM_STOP_INST_DEEP		0x00200000
 
 /*
  * OPAL_CONFIG_CPU_IDLE_STATE parameters
@@ -342,6 +358,18 @@ enum OpalPciReinitScope {
 enum OpalPciResetState {
 	OPAL_DEASSERT_RESET = 0,
 	OPAL_ASSERT_RESET   = 1
+};
+
+enum OpalPciSlotPresence {
+	OPAL_PCI_SLOT_EMPTY	= 0,
+	OPAL_PCI_SLOT_PRESENT	= 1
+};
+
+enum OpalPciSlotPower {
+	OPAL_PCI_SLOT_POWER_OFF	= 0,
+	OPAL_PCI_SLOT_POWER_ON	= 1,
+	OPAL_PCI_SLOT_OFFLINE	= 2,
+	OPAL_PCI_SLOT_ONLINE	= 3
 };
 
 enum OpalSlotLedType {
@@ -802,7 +830,7 @@ struct opal_sg_entry {
 };
 
 /*
- * Candiate image SG list.
+ * Candidate image SG list.
  *
  * length = VER | length
  */
@@ -825,6 +853,7 @@ enum {
 	OPAL_PHB_CAPI_MODE_CAPI		= 1,
 	OPAL_PHB_CAPI_MODE_SNOOP_OFF    = 2,
 	OPAL_PHB_CAPI_MODE_SNOOP_ON	= 3,
+	OPAL_PHB_CAPI_MODE_DMA		= 4,
 };
 
 /* OPAL I2C request */
@@ -852,7 +881,7 @@ struct opal_i2c_request {
  * with individual elements being 16 bits wide to fetch the system
  * wide EPOW status. Each element in the buffer will contain the
  * EPOW status in it's bit representation for a particular EPOW sub
- * class as defiend here. So multiple detailed EPOW status bits
+ * class as defined here. So multiple detailed EPOW status bits
  * specific for any sub class can be represented in a single buffer
  * element as it's bit representation.
  */
@@ -889,6 +918,13 @@ enum OpalSysCooling {
 enum {
 	OPAL_REBOOT_NORMAL		= 0,
 	OPAL_REBOOT_PLATFORM_ERROR	= 1,
+};
+
+/* Argument to OPAL_PCI_TCE_KILL */
+enum {
+	OPAL_PCI_TCE_KILL_PAGES,
+	OPAL_PCI_TCE_KILL_PE,
+	OPAL_PCI_TCE_KILL_ALL,
 };
 
 #endif /* __ASSEMBLY__ */

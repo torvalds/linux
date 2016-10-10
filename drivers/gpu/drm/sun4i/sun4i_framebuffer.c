@@ -20,8 +20,7 @@ static void sun4i_de_output_poll_changed(struct drm_device *drm)
 {
 	struct sun4i_drv *drv = drm->dev_private;
 
-	if (drv->fbdev)
-		drm_fbdev_cma_hotplug_event(drv->fbdev);
+	drm_fbdev_cma_hotplug_event(drv->fbdev);
 }
 
 static const struct drm_mode_config_funcs sun4i_de_mode_config_funcs = {

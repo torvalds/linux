@@ -44,7 +44,46 @@
 			clocks = <&dpll_mpu_ck>;
 			clock-names = "cpu";
 
+			operating-points-v2 = <&cpu0_opp_table>;
+			ti,syscon-efuse = <&scm_conf 0x610 0x3f 0>;
+			ti,syscon-rev = <&scm_conf 0x600>;
+
 			clock-latency = <300000>; /* From omap-cpufreq driver */
+		};
+	};
+
+	cpu0_opp_table: opp_table0 {
+		compatible = "operating-points-v2";
+
+		opp50@300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <950000 931000 969000>;
+			opp-supported-hw = <0xFF 0x01>;
+			opp-suspend;
+		};
+
+		opp100@600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1100000 1078000 1122000>;
+			opp-supported-hw = <0xFF 0x04>;
+		};
+
+		opp120@720000000 {
+			opp-hz = /bits/ 64 <720000000>;
+			opp-microvolt = <1200000 1176000 1224000>;
+			opp-supported-hw = <0xFF 0x08>;
+		};
+
+		oppturbo@800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <1260000 1234800 1285200>;
+			opp-supported-hw = <0xFF 0x10>;
+		};
+
+		oppnitro@1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <1325000 1298500 1351500>;
+			opp-supported-hw = <0xFF 0x20>;
 		};
 	};
 
@@ -199,7 +238,7 @@
 			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "edma3_ccint", "emda3_mperr",
+			interrupt-names = "edma3_ccint", "edma3_mperr",
 					  "edma3_ccerrint";
 			dma-requests = <64>;
 			#dma-cells = <2>;
@@ -626,7 +665,6 @@
 			ale_entries = <1024>;
 			bd_ram_size = <0x2000>;
 			no_bd_ram = <0>;
-			rx_descs = <64>;
 			mac_control = <0x20>;
 			slaves = <2>;
 			active_slave = <0>;
@@ -636,7 +674,7 @@
 			syscon = <&scm_conf>;
 
 			davinci_mdio: mdio@4a101000 {
-				compatible = "ti,am4372-mdio","ti,davinci_mdio";
+				compatible = "ti,am4372-mdio","ti,cpsw-mdio","ti,davinci_mdio";
 				reg = <0x4a101000 0x100>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -672,18 +710,24 @@
 			status = "disabled";
 
 			ecap0: ecap@48300100 {
-				compatible = "ti,am4372-ecap","ti,am33xx-ecap";
+				compatible = "ti,am4372-ecap",
+					     "ti,am3352-ecap",
+					     "ti,am33xx-ecap";
 				#pwm-cells = <3>;
 				reg = <0x48300100 0x80>;
-				ti,hwmods = "ecap0";
+				clocks = <&l4ls_gclk>;
+				clock-names = "fck";
 				status = "disabled";
 			};
 
 			ehrpwm0: pwm@48300200 {
-				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				compatible = "ti,am4372-ehrpwm",
+					     "ti,am3352-ehrpwm",
+					     "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48300200 0x80>;
-				ti,hwmods = "ehrpwm0";
+				clocks = <&ehrpwm0_tbclk>, <&l4ls_gclk>;
+				clock-names = "tbclk", "fck";
 				status = "disabled";
 			};
 		};
@@ -698,18 +742,24 @@
 			status = "disabled";
 
 			ecap1: ecap@48302100 {
-				compatible = "ti,am4372-ecap","ti,am33xx-ecap";
+				compatible = "ti,am4372-ecap",
+					     "ti,am3352-ecap",
+					     "ti,am33xx-ecap";
 				#pwm-cells = <3>;
 				reg = <0x48302100 0x80>;
-				ti,hwmods = "ecap1";
+				clocks = <&l4ls_gclk>;
+				clock-names = "fck";
 				status = "disabled";
 			};
 
 			ehrpwm1: pwm@48302200 {
-				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				compatible = "ti,am4372-ehrpwm",
+					     "ti,am3352-ehrpwm",
+					     "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48302200 0x80>;
-				ti,hwmods = "ehrpwm1";
+				clocks = <&ehrpwm1_tbclk>, <&l4ls_gclk>;
+				clock-names = "tbclk", "fck";
 				status = "disabled";
 			};
 		};
@@ -724,18 +774,24 @@
 			status = "disabled";
 
 			ecap2: ecap@48304100 {
-				compatible = "ti,am4372-ecap","ti,am33xx-ecap";
+				compatible = "ti,am4372-ecap",
+					     "ti,am3352-ecap",
+					     "ti,am33xx-ecap";
 				#pwm-cells = <3>;
 				reg = <0x48304100 0x80>;
-				ti,hwmods = "ecap2";
+				clocks = <&l4ls_gclk>;
+				clock-names = "fck";
 				status = "disabled";
 			};
 
 			ehrpwm2: pwm@48304200 {
-				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				compatible = "ti,am4372-ehrpwm",
+					     "ti,am3352-ehrpwm",
+					     "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48304200 0x80>;
-				ti,hwmods = "ehrpwm2";
+				clocks = <&ehrpwm2_tbclk>, <&l4ls_gclk>;
+				clock-names = "tbclk", "fck";
 				status = "disabled";
 			};
 		};
@@ -750,10 +806,13 @@
 			status = "disabled";
 
 			ehrpwm3: pwm@48306200 {
-				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				compatible = "ti,am4372-ehrpwm",
+					     "ti,am3352-ehrpwm",
+					     "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48306200 0x80>;
-				ti,hwmods = "ehrpwm3";
+				clocks = <&ehrpwm3_tbclk>, <&l4ls_gclk>;
+				clock-names = "tbclk", "fck";
 				status = "disabled";
 			};
 		};
@@ -768,10 +827,13 @@
 			status = "disabled";
 
 			ehrpwm4: pwm@48308200 {
-				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				compatible = "ti,am4372-ehrpwm",
+					     "ti,am3352-ehrpwm",
+					     "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x48308200 0x80>;
-				ti,hwmods = "ehrpwm4";
+				clocks = <&ehrpwm4_tbclk>, <&l4ls_gclk>;
+				clock-names = "tbclk", "fck";
 				status = "disabled";
 			};
 		};
@@ -786,10 +848,13 @@
 			status = "disabled";
 
 			ehrpwm5: pwm@4830a200 {
-				compatible = "ti,am4372-ehrpwm","ti,am33xx-ehrpwm";
+				compatible = "ti,am4372-ehrpwm",
+					     "ti,am3352-ehrpwm",
+					     "ti,am33xx-ehrpwm";
 				#pwm-cells = <3>;
 				reg = <0x4830a200 0x80>;
-				ti,hwmods = "ehrpwm5";
+				clocks = <&ehrpwm5_tbclk>, <&l4ls_gclk>;
+				clock-names = "tbclk", "fck";
 				status = "disabled";
 			};
 		};
@@ -841,6 +906,13 @@
 			dmas = <&edma 34 0>,
 				<&edma 33 0>;
 			dma-names = "tx", "rx";
+		};
+
+		rng: rng@48310000 {
+			compatible = "ti,omap4-rng";
+			ti,hwmods = "rng";
+			reg = <0x48310000 0x2000>;
+			interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		mcasp0: mcasp@48038000 {

@@ -96,7 +96,9 @@ struct vfpf_acquire_tlv {
 		u32 driver_version;
 		u16 opaque_fid;	/* ME register value */
 		u8 os_type;	/* VFPF_ACQUIRE_OS_* value */
-		u8 padding[5];
+		u8 eth_fp_hsi_major;
+		u8 eth_fp_hsi_minor;
+		u8 padding[3];
 	} vfdev_info;
 
 	struct vf_pf_resc_request resc_request;
@@ -171,7 +173,14 @@ struct pfvf_acquire_resp_tlv {
 		struct pfvf_stats_info stats_info;
 
 		u8 port_mac[ETH_ALEN];
-		u8 padding2[2];
+
+		/* It's possible PF had to configure an older fastpath HSI
+		 * [in case VF is newer than PF]. This is communicated back
+		 * to the VF. It can also be used in case of error due to
+		 * non-matching versions to shed light in VF about failure.
+		 */
+		u8 major_fp_hsi;
+		u8 minor_fp_hsi;
 	} pfdev_info;
 
 	struct pf_vf_resc {

@@ -340,7 +340,8 @@ CDROMSUBCHNL			Read subchannel data (struct cdrom_subchnl)
 	  EINVAL	format not CDROM_MSF or CDROM_LBA
 
 	notes:
-	  Format is converted to CDROM_MSF on return
+	  Format is converted to CDROM_MSF or CDROM_LBA
+	  as per user request on return
 
 
 

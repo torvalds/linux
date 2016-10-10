@@ -517,8 +517,7 @@ void can_init_proc(void)
 	can_dir = proc_mkdir("can", init_net.proc_net);
 
 	if (!can_dir) {
-		printk(KERN_INFO "can: failed to create /proc/net/can . "
-		       "CONFIG_PROC_FS missing?\n");
+		pr_info("can: failed to create /proc/net/can.\n");
 		return;
 	}
 

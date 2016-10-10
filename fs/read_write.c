@@ -1168,6 +1168,15 @@ COMPAT_SYSCALL_DEFINE5(preadv, compat_ulong_t, fd,
 	return do_compat_preadv64(fd, vec, vlen, pos, 0);
 }
 
+#ifdef __ARCH_WANT_COMPAT_SYS_PREADV64V2
+COMPAT_SYSCALL_DEFINE5(preadv64v2, unsigned long, fd,
+		const struct compat_iovec __user *,vec,
+		unsigned long, vlen, loff_t, pos, int, flags)
+{
+	return do_compat_preadv64(fd, vec, vlen, pos, flags);
+}
+#endif
+
 COMPAT_SYSCALL_DEFINE6(preadv2, compat_ulong_t, fd,
 		const struct compat_iovec __user *,vec,
 		compat_ulong_t, vlen, u32, pos_low, u32, pos_high,
@@ -1264,6 +1273,15 @@ COMPAT_SYSCALL_DEFINE5(pwritev, compat_ulong_t, fd,
 
 	return do_compat_pwritev64(fd, vec, vlen, pos, 0);
 }
+
+#ifdef __ARCH_WANT_COMPAT_SYS_PWRITEV64V2
+COMPAT_SYSCALL_DEFINE5(pwritev64v2, unsigned long, fd,
+		const struct compat_iovec __user *,vec,
+		unsigned long, vlen, loff_t, pos, int, flags)
+{
+	return do_compat_pwritev64(fd, vec, vlen, pos, flags);
+}
+#endif
 
 COMPAT_SYSCALL_DEFINE6(pwritev2, compat_ulong_t, fd,
 		const struct compat_iovec __user *,vec,

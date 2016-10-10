@@ -187,7 +187,8 @@ static void trace_kfree_skb_hit(void *ignore, struct sk_buff *skb, void *locatio
 	trace_drop_common(skb, location);
 }
 
-static void trace_napi_poll_hit(void *ignore, struct napi_struct *napi)
+static void trace_napi_poll_hit(void *ignore, struct napi_struct *napi,
+				int work, int budget)
 {
 	struct dm_hw_stat_delta *new_stat;
 

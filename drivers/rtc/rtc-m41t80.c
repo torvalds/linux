@@ -244,7 +244,7 @@ static int m41t80_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	retval = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON, flags);
 	if (retval < 0) {
-		dev_info(dev, "Unable to enable alarm IRQ %d\n", retval);
+		dev_err(dev, "Unable to enable alarm IRQ %d\n", retval);
 		return retval;
 	}
 	return 0;
@@ -320,10 +320,8 @@ static int m41t80_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	alrm->time.tm_sec  = bcd2bin(alarmvals[4] & 0x7f);
 	alrm->time.tm_min  = bcd2bin(alarmvals[3] & 0x7f);
 	alrm->time.tm_hour = bcd2bin(alarmvals[2] & 0x3f);
-	alrm->time.tm_wday = -1;
 	alrm->time.tm_mday = bcd2bin(alarmvals[1] & 0x3f);
 	alrm->time.tm_mon  = bcd2bin(alarmvals[0] & 0x3f);
-	alrm->time.tm_year = -1;
 
 	alrm->enabled = !!(alarmvals[0] & M41T80_ALMON_AFE);
 	alrm->pending = (flags & M41T80_FLAGS_AF) && alrm->enabled;
@@ -336,6 +334,30 @@ static struct rtc_class_ops m41t80_rtc_ops = {
 	.set_time = m41t80_rtc_set_time,
 	.proc = m41t80_rtc_proc,
 };
+
+#ifdef CONFIG_PM_SLEEP
+static int m41t80_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+
+	if (client->irq >= 0 && device_may_wakeup(dev))
+		enable_irq_wake(client->irq);
+
+	return 0;
+}
+
+static int m41t80_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+
+	if (client->irq >= 0 && device_may_wakeup(dev))
+		disable_irq_wake(client->irq);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(m41t80_pm, m41t80_suspend, m41t80_resume);
 
 static ssize_t flags_show(struct device *dev,
 			  struct device_attribute *attr, char *buf)
@@ -831,10 +853,9 @@ static int m41t80_probe(struct i2c_client *client,
 		return rc;
 	}
 
-	rc = devm_add_action(&client->dev, m41t80_remove_sysfs_group,
-			     &client->dev);
+	rc = devm_add_action_or_reset(&client->dev, m41t80_remove_sysfs_group,
+				      &client->dev);
 	if (rc) {
-		m41t80_remove_sysfs_group(&client->dev);
 		dev_err(&client->dev,
 			"Failed to add sysfs cleanup action: %d\n", rc);
 		return rc;
@@ -873,6 +894,7 @@ static int m41t80_remove(struct i2c_client *client)
 static struct i2c_driver m41t80_driver = {
 	.driver = {
 		.name = "rtc-m41t80",
+		.pm = &m41t80_pm,
 	},
 	.probe = m41t80_probe,
 	.remove = m41t80_remove,

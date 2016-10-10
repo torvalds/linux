@@ -1193,11 +1193,15 @@ error:
 
 static int unreg_umr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 {
+	struct mlx5_core_dev *mdev = dev->mdev;
 	struct umr_common *umrc = &dev->umrc;
 	struct mlx5_ib_umr_context umr_context;
 	struct mlx5_umr_wr umrwr = {};
 	struct ib_send_wr *bad;
 	int err;
+
+	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
+		return 0;
 
 	mlx5_ib_init_umr_context(&umr_context);
 

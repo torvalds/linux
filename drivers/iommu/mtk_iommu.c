@@ -34,7 +34,7 @@
 #include <dt-bindings/memory/mt8173-larb-port.h>
 #include <soc/mediatek/smi.h>
 
-#include "io-pgtable.h"
+#include "mtk_iommu.h"
 
 #define REG_MMU_PT_BASE_ADDR			0x000
 
@@ -93,20 +93,6 @@
 
 #define MTK_PROTECT_PA_ALIGN			128
 
-struct mtk_iommu_suspend_reg {
-	u32				standard_axi_mode;
-	u32				dcm_dis;
-	u32				ctrl_reg;
-	u32				int_control0;
-	u32				int_main_control;
-};
-
-struct mtk_iommu_client_priv {
-	struct list_head		client;
-	unsigned int			mtk_m4u_id;
-	struct device			*m4udev;
-};
-
 struct mtk_iommu_domain {
 	spinlock_t			pgtlock; /* lock for page table */
 
@@ -114,19 +100,6 @@ struct mtk_iommu_domain {
 	struct io_pgtable_ops		*iop;
 
 	struct iommu_domain		domain;
-};
-
-struct mtk_iommu_data {
-	void __iomem			*base;
-	int				irq;
-	struct device			*dev;
-	struct clk			*bclk;
-	phys_addr_t			protect_base; /* protect memory base */
-	struct mtk_iommu_suspend_reg	reg;
-	struct mtk_iommu_domain		*m4u_dom;
-	struct iommu_group		*m4u_group;
-	struct mtk_smi_iommu		smi_imu;      /* SMI larb iommu info */
-	bool                            enable_4GB;
 };
 
 static struct iommu_ops mtk_iommu_ops;
@@ -455,7 +428,6 @@ static int mtk_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 	if (!dev->archdata.iommu) {
 		/* Get the m4u device */
 		m4updev = of_find_device_by_node(args->np);
-		of_node_put(args->np);
 		if (WARN_ON(!m4updev))
 			return -EINVAL;
 
@@ -550,25 +522,6 @@ static int mtk_iommu_hw_init(const struct mtk_iommu_data *data)
 	}
 
 	return 0;
-}
-
-static int compare_of(struct device *dev, void *data)
-{
-	return dev->of_node == data;
-}
-
-static int mtk_iommu_bind(struct device *dev)
-{
-	struct mtk_iommu_data *data = dev_get_drvdata(dev);
-
-	return component_bind_all(dev, &data->smi_imu);
-}
-
-static void mtk_iommu_unbind(struct device *dev)
-{
-	struct mtk_iommu_data *data = dev_get_drvdata(dev);
-
-	component_unbind_all(dev, &data->smi_imu);
 }
 
 static const struct component_master_ops mtk_iommu_com_ops = {

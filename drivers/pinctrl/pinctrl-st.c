@@ -844,7 +844,7 @@ static int st_pctl_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static const inline struct st_pctl_group *st_pctl_find_group_by_name(
+static inline const struct st_pctl_group *st_pctl_find_group_by_name(
 	const struct st_pinctrl *info, const char *name)
 {
 	int i;

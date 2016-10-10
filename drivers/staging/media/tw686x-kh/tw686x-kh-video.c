@@ -130,12 +130,11 @@ static void tw686x_get_format(struct tw686x_video_channel *vc,
 
 static int tw686x_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 			      unsigned int *nplanes, unsigned int sizes[],
-			      void *alloc_ctxs[])
+			      struct device *alloc_devs[])
 {
 	struct tw686x_video_channel *vc = vb2_get_drv_priv(vq);
 	unsigned int size = vc->width * vc->height * vc->format->depth / 8;
 
-	alloc_ctxs[0] = vc->alloc_ctx;
 	if (*nbuffers < 2)
 		*nbuffers = 2;
 
@@ -645,7 +644,6 @@ void tw686x_kh_video_free(struct tw686x_dev *dev)
 		v4l2_ctrl_handler_free(&vc->ctrl_handler);
 		if (vc->device)
 			video_unregister_device(vc->device);
-		vb2_dma_sg_cleanup_ctx(vc->alloc_ctx);
 		for (n = 0; n < 2; n++) {
 			struct dma_desc *descs = &vc->sg_tables[n];
 
@@ -750,13 +748,6 @@ int tw686x_kh_video_init(struct tw686x_dev *dev)
 			goto error;
 		}
 
-		vc->alloc_ctx = vb2_dma_sg_init_ctx(&dev->pci_dev->dev);
-		if (IS_ERR(vc->alloc_ctx)) {
-			pr_warn("Unable to initialize DMA scatter-gather context\n");
-			err = PTR_ERR(vc->alloc_ctx);
-			goto error;
-		}
-
 		vc->vidq.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		vc->vidq.io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 		vc->vidq.drv_priv = vc;
@@ -766,6 +757,7 @@ int tw686x_kh_video_init(struct tw686x_dev *dev)
 		vc->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		vc->vidq.min_buffers_needed = 2;
 		vc->vidq.lock = &vc->vb_mutex;
+		vc->vidq.dev = &dev->pci_dev->dev;
 		vc->vidq.gfp_flags = GFP_DMA32;
 
 		err = vb2_queue_init(&vc->vidq);

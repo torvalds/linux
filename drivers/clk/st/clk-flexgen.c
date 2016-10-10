@@ -267,7 +267,6 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 	const char **parents;
 	int num_parents, i;
 	spinlock_t *rlock = NULL;
-	unsigned long flex_flags = 0;
 	int ret;
 
 	pnode = of_get_parent(np);
@@ -308,11 +307,14 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 	for (i = 0; i < clk_data->clk_num; i++) {
 		struct clk *clk;
 		const char *clk_name;
+		unsigned long flex_flags = 0;
 
 		if (of_property_read_string_index(np, "clock-output-names",
 						  i, &clk_name)) {
 			break;
 		}
+
+		of_clk_detect_critical(np, i, &flex_flags);
 
 		/*
 		 * If we read an empty clock name then the output is unused

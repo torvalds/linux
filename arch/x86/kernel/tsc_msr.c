@@ -1,14 +1,5 @@
 /*
- * tsc_msr.c - MSR based TSC calibration on Intel Atom SoC platforms.
- *
- * TSC in Intel Atom SoC runs at a constant rate which can be figured
- * by this formula:
- * <maximum core-clock to bus-clock ratio> * <maximum resolved frequency>
- * See Intel 64 and IA-32 System Programming Guid section 16.12 and 30.11.5
- * for details.
- * Especially some Intel Atom SoCs don't have PIT(i8254) or HPET, so MSR
- * based calibration is the only option.
- *
+ * tsc_msr.c - TSC frequency enumeration via MSR
  *
  * Copyright (C) 2013 Intel Corporation
  * Author: Bin Gao <bin.gao@intel.com>
@@ -22,18 +13,10 @@
 #include <asm/apic.h>
 #include <asm/param.h>
 
-/* CPU reference clock frequency: in KHz */
-#define FREQ_80		80000
-#define FREQ_83		83200
-#define FREQ_100	99840
-#define FREQ_133	133200
-#define FREQ_166	166400
-
-#define MAX_NUM_FREQS	8
+#define MAX_NUM_FREQS	9
 
 /*
- * According to Intel 64 and IA-32 System Programming Guide,
- * if MSR_PERF_STAT[31] is set, the maximum resolved bus ratio can be
+ * If MSR_PERF_STAT[31] is set, the maximum resolved bus ratio can be
  * read in MSR_PLATFORM_ID[12:8], otherwise in MSR_PERF_STAT[44:40].
  * Unfortunately some Intel Atom SoCs aren't quite compliant to this,
  * so we need manually differentiate SoC families. This is what the
@@ -48,17 +31,18 @@ struct freq_desc {
 
 static struct freq_desc freq_desc_tables[] = {
 	/* PNW */
-	{ 6, 0x27, 0, { 0, 0, 0, 0, 0, FREQ_100, 0, FREQ_83 } },
+	{ 6, 0x27, 0, { 0, 0, 0, 0, 0, 99840, 0, 83200 } },
 	/* CLV+ */
-	{ 6, 0x35, 0, { 0, FREQ_133, 0, 0, 0, FREQ_100, 0, FREQ_83 } },
-	/* TNG */
-	{ 6, 0x4a, 1, { 0, FREQ_100, FREQ_133, 0, 0, 0, 0, 0 } },
-	/* VLV2 */
-	{ 6, 0x37, 1, { FREQ_83, FREQ_100, FREQ_133, FREQ_166, 0, 0, 0, 0 } },
-	/* ANN */
-	{ 6, 0x5a, 1, { FREQ_83, FREQ_100, FREQ_133, FREQ_100, 0, 0, 0, 0 } },
-	/* AIRMONT */
-	{ 6, 0x4c, 1, { FREQ_83, FREQ_100, FREQ_133, FREQ_166, FREQ_80,	0, 0, 0 } },
+	{ 6, 0x35, 0, { 0, 133200, 0, 0, 0, 99840, 0, 83200 } },
+	/* TNG - Intel Atom processor Z3400 series */
+	{ 6, 0x4a, 1, { 0, 100000, 133300, 0, 0, 0, 0, 0 } },
+	/* VLV2 - Intel Atom processor E3000, Z3600, Z3700 series */
+	{ 6, 0x37, 1, { 83300, 100000, 133300, 116700, 80000, 0, 0, 0 } },
+	/* ANN - Intel Atom processor Z3500 series */
+	{ 6, 0x5a, 1, { 83300, 100000, 133300, 100000, 0, 0, 0, 0 } },
+	/* AMT - Intel Atom processor X7-Z8000 and X5-Z8000 series */
+	{ 6, 0x4c, 1, { 83300, 100000, 133300, 116700,
+			80000, 93300, 90000, 88900, 87500 } },
 };
 
 static int match_cpu(u8 family, u8 model)
@@ -79,15 +63,19 @@ static int match_cpu(u8 family, u8 model)
 	(freq_desc_tables[cpu_index].freqs[freq_id])
 
 /*
- * Do MSR calibration only for known/supported CPUs.
+ * MSR-based CPU/TSC frequency discovery for certain CPUs.
  *
- * Returns the calibration value or 0 if MSR calibration failed.
+ * Set global "lapic_timer_frequency" to bus_clock_cycles/jiffy
+ * Return processor base frequency in KHz, or 0 on failure.
  */
-unsigned long try_msr_calibrate_tsc(void)
+unsigned long cpu_khz_from_msr(void)
 {
 	u32 lo, hi, ratio, freq_id, freq;
 	unsigned long res;
 	int cpu_index;
+
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		return 0;
 
 	cpu_index = match_cpu(boot_cpu_data.x86, boot_cpu_data.x86_model);
 	if (cpu_index < 0)
@@ -100,31 +88,17 @@ unsigned long try_msr_calibrate_tsc(void)
 		rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
 		ratio = (hi >> 8) & 0x1f;
 	}
-	pr_info("Maximum core-clock to bus-clock ratio: 0x%x\n", ratio);
-
-	if (!ratio)
-		goto fail;
 
 	/* Get FSB FREQ ID */
 	rdmsr(MSR_FSB_FREQ, lo, hi);
 	freq_id = lo & 0x7;
 	freq = id_to_freq(cpu_index, freq_id);
-	pr_info("Resolved frequency ID: %u, frequency: %u KHz\n",
-				freq_id, freq);
-	if (!freq)
-		goto fail;
 
 	/* TSC frequency = maximum resolved freq * maximum resolved bus ratio */
 	res = freq * ratio;
-	pr_info("TSC runs at %lu KHz\n", res);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	lapic_timer_frequency = (freq * 1000) / HZ;
-	pr_info("lapic_timer_frequency = %d\n", lapic_timer_frequency);
 #endif
 	return res;
-
-fail:
-	pr_warn("Fast TSC calibration using MSR failed\n");
-	return 0;
 }

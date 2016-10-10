@@ -29,6 +29,8 @@ static const struct msm_dsi_config apq8064_dsi_cfg = {
 	},
 	.bus_clk_names = dsi_v2_bus_clk_names,
 	.num_bus_clks = ARRAY_SIZE(dsi_v2_bus_clk_names),
+	.io_start = { 0x4700000, 0x5800000 },
+	.num_dsi = 2,
 };
 
 static const char * const dsi_6g_bus_clk_names[] = {
@@ -48,6 +50,8 @@ static const struct msm_dsi_config msm8974_apq8084_dsi_cfg = {
 	},
 	.bus_clk_names = dsi_6g_bus_clk_names,
 	.num_bus_clks = ARRAY_SIZE(dsi_6g_bus_clk_names),
+	.io_start = { 0xfd922800, 0xfd922b00 },
+	.num_dsi = 2,
 };
 
 static const char * const dsi_8916_bus_clk_names[] = {
@@ -66,6 +70,8 @@ static const struct msm_dsi_config msm8916_dsi_cfg = {
 	},
 	.bus_clk_names = dsi_8916_bus_clk_names,
 	.num_bus_clks = ARRAY_SIZE(dsi_8916_bus_clk_names),
+	.io_start = { 0x1a98000 },
+	.num_dsi = 1,
 };
 
 static const struct msm_dsi_config msm8994_dsi_cfg = {
@@ -84,6 +90,8 @@ static const struct msm_dsi_config msm8994_dsi_cfg = {
 	},
 	.bus_clk_names = dsi_6g_bus_clk_names,
 	.num_bus_clks = ARRAY_SIZE(dsi_6g_bus_clk_names),
+	.io_start = { 0xfd998000, 0xfd9a0000 },
+	.num_dsi = 2,
 };
 
 static const struct msm_dsi_cfg_handler dsi_cfg_handlers[] = {

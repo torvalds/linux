@@ -19,3 +19,16 @@ KernelVersion:	4.4
 Description:
 		High resolution timers directory. Creating a directory here
 		will result in creating a hrtimer trigger in the IIO subsystem.
+
+What:		/config/iio/devices
+Date:		April 2016
+KernelVersion:	4.7
+Description:
+		Industrial IO software devices directory.
+
+What:		/config/iio/devices/dummy
+Date:		April 2016
+KernelVersion:	4.7
+Description:
+		Dummy IIO devices directory. Creating a directory here will result
+		in creating a dummy IIO device in the IIO subystem.

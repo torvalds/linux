@@ -74,6 +74,7 @@ config OF_NET
 config OF_MDIO
 	def_tristate PHYLIB
 	depends on PHYLIB
+	select FIXED_PHY
 	help
 	  OpenFirmware MDIO bus (Ethernet PHY) accessors
 

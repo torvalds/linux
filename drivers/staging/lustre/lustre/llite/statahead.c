@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -174,7 +170,8 @@ static inline int is_omitted_entry(struct ll_statahead_info *sai, __u64 index)
  * Insert it into sai_entries tail when init.
  */
 static struct ll_sa_entry *
-ll_sa_entry_alloc(struct ll_statahead_info *sai, __u64 index,
+ll_sa_entry_alloc(struct dentry *parent,
+		  struct ll_statahead_info *sai, __u64 index,
 		  const char *name, int len)
 {
 	struct ll_inode_info *lli;
@@ -221,7 +218,8 @@ ll_sa_entry_alloc(struct ll_statahead_info *sai, __u64 index,
 	dname = (char *)entry + sizeof(struct ll_sa_entry);
 	memcpy(dname, name, len);
 	dname[len] = 0;
-	entry->se_qstr.hash = full_name_hash(name, len);
+
+	entry->se_qstr.hash = full_name_hash(parent, name, len);
 	entry->se_qstr.len = len;
 	entry->se_qstr.name = dname;
 
@@ -650,7 +648,7 @@ static void ll_post_statahead(struct ll_statahead_info *sai)
 		}
 	}
 
-	it->d.lustre.it_lock_handle = entry->se_handle;
+	it->it_lock_handle = entry->se_handle;
 	rc = md_revalidate_lock(ll_i2mdexp(dir), it, ll_inode2fid(dir), NULL);
 	if (rc != 1) {
 		rc = -EAGAIN;
@@ -704,7 +702,7 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 		 * process enqueues lock on child with parent lock held, eg.
 		 * unlink.
 		 */
-		handle = it->d.lustre.it_lock_handle;
+		handle = it->it_lock_handle;
 		ll_intent_drop_lock(it);
 	}
 
@@ -783,7 +781,7 @@ static int sa_args_init(struct inode *dir, struct inode *child,
 			struct ll_sa_entry *entry, struct md_enqueue_info **pmi,
 			struct ldlm_enqueue_info **pei)
 {
-	struct qstr	      *qstr = &entry->se_qstr;
+	const struct qstr      *qstr = &entry->se_qstr;
 	struct ll_inode_info     *lli  = ll_i2info(dir);
 	struct md_enqueue_info   *minfo;
 	struct ldlm_enqueue_info *einfo;
@@ -854,7 +852,7 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 {
 	struct inode	     *inode = d_inode(dentry);
 	struct lookup_intent      it = { .it_op = IT_GETATTR,
-					 .d.lustre.it_lock_handle = 0 };
+					 .it_lock_handle = 0 };
 	struct md_enqueue_info   *minfo;
 	struct ldlm_enqueue_info *einfo;
 	int rc;
@@ -869,7 +867,7 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 	rc = md_revalidate_lock(ll_i2mdexp(dir), &it, ll_inode2fid(inode),
 				NULL);
 	if (rc == 1) {
-		entry->se_handle = it.d.lustre.it_lock_handle;
+		entry->se_handle = it.it_lock_handle;
 		ll_intent_release(&it);
 		return 1;
 	}
@@ -902,7 +900,7 @@ static void ll_statahead_one(struct dentry *parent, const char *entry_name,
 	int		       rc;
 	int		       rc1;
 
-	entry = ll_sa_entry_alloc(sai, sai->sai_index, entry_name,
+	entry = ll_sa_entry_alloc(parent, sai, sai->sai_index, entry_name,
 				  entry_name_len);
 	if (IS_ERR(entry))
 		return;
@@ -1342,7 +1340,7 @@ enum {
 static int is_first_dirent(struct inode *dir, struct dentry *dentry)
 {
 	struct ll_dir_chain   chain;
-	struct qstr	  *target = &dentry->d_name;
+	const struct qstr  *target = &dentry->d_name;
 	struct page	  *page;
 	__u64		 pos    = 0;
 	int		   dot_de;
@@ -1573,7 +1571,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 		if (entry->se_stat == SA_ENTRY_SUCC && entry->se_inode) {
 			struct inode *inode = entry->se_inode;
 			struct lookup_intent it = { .it_op = IT_GETATTR,
-						    .d.lustre.it_lock_handle =
+						    .it_lock_handle =
 						     entry->se_handle };
 			__u64 bits;
 

@@ -114,7 +114,7 @@ config USB_GADGET_VBUS_DRAW
 
 config USB_GADGET_STORAGE_NUM_BUFFERS
 	int "Number of storage pipeline buffers"
-	range 2 32
+	range 2 256
 	default 2
 	help
 	   Usually 2 buffers are enough to establish a good buffering

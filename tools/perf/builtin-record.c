@@ -13,6 +13,7 @@
 #include "util/util.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
+#include "util/config.h"
 
 #include "util/callchain.h"
 #include "util/cgroup.h"
@@ -118,11 +119,10 @@ backward_rb_find_range(void *buf, int mask, u64 head, u64 *start, u64 *end)
 }
 
 static int
-rb_find_range(struct perf_evlist *evlist,
-	      void *data, int mask, u64 head, u64 old,
-	      u64 *start, u64 *end)
+rb_find_range(void *data, int mask, u64 head, u64 old,
+	      u64 *start, u64 *end, bool backward)
 {
-	if (!evlist->backward) {
+	if (!backward) {
 		*start = old;
 		*end = head;
 		return 0;
@@ -131,9 +131,10 @@ rb_find_range(struct perf_evlist *evlist,
 	return backward_rb_find_range(data, mask, head, start, end);
 }
 
-static int record__mmap_read(struct record *rec, int idx)
+static int
+record__mmap_read(struct record *rec, struct perf_mmap *md,
+		  bool overwrite, bool backward)
 {
-	struct perf_mmap *md = &rec->evlist->mmap[idx];
 	u64 head = perf_mmap__read_head(md);
 	u64 old = md->prev;
 	u64 end = head, start = old;
@@ -142,8 +143,8 @@ static int record__mmap_read(struct record *rec, int idx)
 	void *buf;
 	int rc = 0;
 
-	if (rb_find_range(rec->evlist, data, md->mask, head,
-			  old, &start, &end))
+	if (rb_find_range(data, md->mask, head,
+			  old, &start, &end, backward))
 		return -1;
 
 	if (start == end)
@@ -156,7 +157,7 @@ static int record__mmap_read(struct record *rec, int idx)
 		WARN_ONCE(1, "failed to keep up with mmap data. (warn only once)\n");
 
 		md->prev = head;
-		perf_evlist__mmap_consume(rec->evlist, idx);
+		perf_mmap__consume(md, overwrite || backward);
 		return 0;
 	}
 
@@ -181,7 +182,7 @@ static int record__mmap_read(struct record *rec, int idx)
 	}
 
 	md->prev = head;
-	perf_evlist__mmap_consume(rec->evlist, idx);
+	perf_mmap__consume(md, overwrite || backward);
 out:
 	return rc;
 }
@@ -341,6 +342,40 @@ int auxtrace_record__snapshot_start(struct auxtrace_record *itr __maybe_unused)
 
 #endif
 
+static int record__mmap_evlist(struct record *rec,
+			       struct perf_evlist *evlist)
+{
+	struct record_opts *opts = &rec->opts;
+	char msg[512];
+
+	if (perf_evlist__mmap_ex(evlist, opts->mmap_pages, false,
+				 opts->auxtrace_mmap_pages,
+				 opts->auxtrace_snapshot_mode) < 0) {
+		if (errno == EPERM) {
+			pr_err("Permission error mapping pages.\n"
+			       "Consider increasing "
+			       "/proc/sys/kernel/perf_event_mlock_kb,\n"
+			       "or try again with a smaller value of -m/--mmap_pages.\n"
+			       "(current value: %u,%u)\n",
+			       opts->mmap_pages, opts->auxtrace_mmap_pages);
+			return -errno;
+		} else {
+			pr_err("failed to mmap with %d (%s)\n", errno,
+				str_error_r(errno, msg, sizeof(msg)));
+			if (errno)
+				return -errno;
+			else
+				return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static int record__mmap(struct record *rec)
+{
+	return record__mmap_evlist(rec, rec->evlist);
+}
+
 static int record__open(struct record *rec)
 {
 	char msg[512];
@@ -352,7 +387,7 @@ static int record__open(struct record *rec)
 
 	perf_evlist__config(evlist, opts, &callchain_param);
 
-	evlist__for_each(evlist, pos) {
+	evlist__for_each_entry(evlist, pos) {
 try_again:
 		if (perf_evsel__open(pos, pos->cpus, pos->threads) < 0) {
 			if (perf_evsel__fallback(pos, errno, msg, sizeof(msg))) {
@@ -372,32 +407,14 @@ try_again:
 	if (perf_evlist__apply_filters(evlist, &pos)) {
 		error("failed to set filter \"%s\" on event %s with %d (%s)\n",
 			pos->filter, perf_evsel__name(pos), errno,
-			strerror_r(errno, msg, sizeof(msg)));
+			str_error_r(errno, msg, sizeof(msg)));
 		rc = -1;
 		goto out;
 	}
 
-	if (perf_evlist__mmap_ex(evlist, opts->mmap_pages, false,
-				 opts->auxtrace_mmap_pages,
-				 opts->auxtrace_snapshot_mode) < 0) {
-		if (errno == EPERM) {
-			pr_err("Permission error mapping pages.\n"
-			       "Consider increasing "
-			       "/proc/sys/kernel/perf_event_mlock_kb,\n"
-			       "or try again with a smaller value of -m/--mmap_pages.\n"
-			       "(current value: %u,%u)\n",
-			       opts->mmap_pages, opts->auxtrace_mmap_pages);
-			rc = -errno;
-		} else {
-			pr_err("failed to mmap with %d (%s)\n", errno,
-				strerror_r(errno, msg, sizeof(msg)));
-			if (errno)
-				rc = -errno;
-			else
-				rc = -EINVAL;
-		}
+	rc = record__mmap(rec);
+	if (rc)
 		goto out;
-	}
 
 	session->evlist = evlist;
 	perf_session__set_id_hdr_size(session);
@@ -481,17 +498,30 @@ static struct perf_event_header finished_round_event = {
 	.type = PERF_RECORD_FINISHED_ROUND,
 };
 
-static int record__mmap_read_all(struct record *rec)
+static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evlist,
+				    bool backward)
 {
 	u64 bytes_written = rec->bytes_written;
 	int i;
 	int rc = 0;
+	struct perf_mmap *maps;
 
-	for (i = 0; i < rec->evlist->nr_mmaps; i++) {
-		struct auxtrace_mmap *mm = &rec->evlist->mmap[i].auxtrace_mmap;
+	if (!evlist)
+		return 0;
 
-		if (rec->evlist->mmap[i].base) {
-			if (record__mmap_read(rec, i) != 0) {
+	maps = backward ? evlist->backward_mmap : evlist->mmap;
+	if (!maps)
+		return 0;
+
+	if (backward && evlist->bkw_mmap_state != BKW_MMAP_DATA_PENDING)
+		return 0;
+
+	for (i = 0; i < evlist->nr_mmaps; i++) {
+		struct auxtrace_mmap *mm = &maps[i].auxtrace_mmap;
+
+		if (maps[i].base) {
+			if (record__mmap_read(rec, &maps[i],
+					      evlist->overwrite, backward) != 0) {
 				rc = -1;
 				goto out;
 			}
@@ -511,8 +541,21 @@ static int record__mmap_read_all(struct record *rec)
 	if (bytes_written != rec->bytes_written)
 		rc = record__write(rec, &finished_round_event, sizeof(finished_round_event));
 
+	if (backward)
+		perf_evlist__toggle_bkw_mmap(evlist, BKW_MMAP_EMPTY);
 out:
 	return rc;
+}
+
+static int record__mmap_read_all(struct record *rec)
+{
+	int err;
+
+	err = record__mmap_read_evlist(rec, rec->evlist, false);
+	if (err)
+		return err;
+
+	return record__mmap_read_evlist(rec, rec->evlist, true);
 }
 
 static void record__init_features(struct record *rec)
@@ -561,12 +604,15 @@ record__finish_output(struct record *rec)
 	return;
 }
 
-static int record__synthesize_workload(struct record *rec)
+static int record__synthesize_workload(struct record *rec, bool tail)
 {
 	struct {
 		struct thread_map map;
 		struct thread_map_data map_data;
 	} thread_map;
+
+	if (rec->opts.tail_synthesize != tail)
+		return 0;
 
 	thread_map.map.nr = 1;
 	thread_map.map.map[0].pid = rec->evlist->workload.pid;
@@ -578,7 +624,7 @@ static int record__synthesize_workload(struct record *rec)
 						 rec->opts.proc_map_timeout);
 }
 
-static int record__synthesize(struct record *rec);
+static int record__synthesize(struct record *rec, bool tail);
 
 static int
 record__switch_output(struct record *rec, bool at_exit)
@@ -588,6 +634,10 @@ record__switch_output(struct record *rec, bool at_exit)
 
 	/* Same Size:      "2015122520103046"*/
 	char timestamp[] = "InvalidTimestamp";
+
+	record__synthesize(rec, true);
+	if (target__none(&rec->opts.target))
+		record__synthesize_workload(rec, true);
 
 	rec->samples = 0;
 	record__finish_output(rec);
@@ -611,7 +661,7 @@ record__switch_output(struct record *rec, bool at_exit)
 
 	/* Output tracking events */
 	if (!at_exit) {
-		record__synthesize(rec);
+		record__synthesize(rec, false);
 
 		/*
 		 * In 'perf record --switch-output' without -a,
@@ -623,7 +673,7 @@ record__switch_output(struct record *rec, bool at_exit)
 		 * perf_event__synthesize_thread_map() for those events.
 		 */
 		if (target__none(&rec->opts.target))
-			record__synthesize_workload(rec);
+			record__synthesize_workload(rec, false);
 	}
 	return fd;
 }
@@ -655,7 +705,29 @@ perf_event__synth_time_conv(const struct perf_event_mmap_page *pc __maybe_unused
 	return 0;
 }
 
-static int record__synthesize(struct record *rec)
+static const struct perf_event_mmap_page *
+perf_evlist__pick_pc(struct perf_evlist *evlist)
+{
+	if (evlist) {
+		if (evlist->mmap && evlist->mmap[0].base)
+			return evlist->mmap[0].base;
+		if (evlist->backward_mmap && evlist->backward_mmap[0].base)
+			return evlist->backward_mmap[0].base;
+	}
+	return NULL;
+}
+
+static const struct perf_event_mmap_page *record__pick_pc(struct record *rec)
+{
+	const struct perf_event_mmap_page *pc;
+
+	pc = perf_evlist__pick_pc(rec->evlist);
+	if (pc)
+		return pc;
+	return NULL;
+}
+
+static int record__synthesize(struct record *rec, bool tail)
 {
 	struct perf_session *session = rec->session;
 	struct machine *machine = &session->machines.host;
@@ -664,6 +736,9 @@ static int record__synthesize(struct record *rec)
 	struct perf_tool *tool = &rec->tool;
 	int fd = perf_data_file__fd(file);
 	int err = 0;
+
+	if (rec->opts.tail_synthesize != tail)
+		return 0;
 
 	if (file->is_pipe) {
 		err = perf_event__synthesize_attrs(tool, session,
@@ -692,7 +767,7 @@ static int record__synthesize(struct record *rec)
 		}
 	}
 
-	err = perf_event__synth_time_conv(rec->evlist->mmap[0].base, tool,
+	err = perf_event__synth_time_conv(record__pick_pc(rec), tool,
 					  process_synthesized_event, machine);
 	if (err)
 		goto out;
@@ -828,7 +903,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	machine = &session->machines.host;
 
-	err = record__synthesize(rec);
+	err = record__synthesize(rec, false);
 	if (err < 0)
 		goto out_child;
 
@@ -888,6 +963,17 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	for (;;) {
 		unsigned long long hits = rec->samples;
 
+		/*
+		 * rec->evlist->bkw_mmap_state is possible to be
+		 * BKW_MMAP_EMPTY here: when done == true and
+		 * hits != rec->samples in previous round.
+		 *
+		 * perf_evlist__toggle_bkw_mmap ensure we never
+		 * convert BKW_MMAP_EMPTY to BKW_MMAP_DATA_PENDING.
+		 */
+		if (trigger_is_hit(&switch_output_trigger) || done || draining)
+			perf_evlist__toggle_bkw_mmap(rec->evlist, BKW_MMAP_DATA_PENDING);
+
 		if (record__mmap_read_all(rec) < 0) {
 			trigger_error(&auxtrace_snapshot_trigger);
 			trigger_error(&switch_output_trigger);
@@ -907,7 +993,25 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		}
 
 		if (trigger_is_hit(&switch_output_trigger)) {
+			/*
+			 * If switch_output_trigger is hit, the data in
+			 * overwritable ring buffer should have been collected,
+			 * so bkw_mmap_state should be set to BKW_MMAP_EMPTY.
+			 *
+			 * If SIGUSR2 raise after or during record__mmap_read_all(),
+			 * record__mmap_read_all() didn't collect data from
+			 * overwritable ring buffer. Read again.
+			 */
+			if (rec->evlist->bkw_mmap_state == BKW_MMAP_RUNNING)
+				continue;
 			trigger_ready(&switch_output_trigger);
+
+			/*
+			 * Reenable events in overwrite ring buffer after
+			 * record__mmap_read_all(): we should have collected
+			 * data from it.
+			 */
+			perf_evlist__toggle_bkw_mmap(rec->evlist, BKW_MMAP_RUNNING);
 
 			if (!quiet)
 				fprintf(stderr, "[ perf record: dump data: Woken up %ld times ]\n",
@@ -954,7 +1058,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	if (forks && workload_exec_errno) {
 		char msg[STRERR_BUFSIZE];
-		const char *emsg = strerror_r(workload_exec_errno, msg, sizeof(msg));
+		const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
 		pr_err("Workload failed: %s\n", emsg);
 		err = -1;
 		goto out_child;
@@ -962,6 +1066,9 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	if (!quiet)
 		fprintf(stderr, "[ perf record: Woken up %ld times to write data ]\n", waking);
+
+	if (target__none(&rec->opts.target))
+		record__synthesize_workload(rec, true);
 
 out_child:
 	if (forks) {
@@ -981,6 +1088,7 @@ out_child:
 	} else
 		status = err;
 
+	record__synthesize(rec, true);
 	/* this will be recalculated during process_buildids() */
 	rec->samples = 0;
 
@@ -1267,6 +1375,8 @@ static struct record record = {
 const char record_callchain_help[] = CALLCHAIN_RECORD_HELP
 	"\n\t\t\t\tDefault: fp";
 
+static bool dry_run;
+
 /*
  * XXX Will stay a global variable till we fix builtin-script.c to stop messing
  * with it and switch to use the library functions in perf_evlist that came
@@ -1303,6 +1413,9 @@ struct option __record_options[] = {
 	OPT_BOOLEAN_SET('i', "no-inherit", &record.opts.no_inherit,
 			&record.opts.no_inherit_set,
 			"child tasks do not inherit counters"),
+	OPT_BOOLEAN(0, "tail-synthesize", &record.opts.tail_synthesize,
+		    "synthesize non-sample events at the end of output"),
+	OPT_BOOLEAN(0, "overwrite", &record.opts.overwrite, "use overwrite mode"),
 	OPT_UINTEGER('F', "freq", &record.opts.user_freq, "profile at this frequency"),
 	OPT_CALLBACK('m', "mmap-pages", &record.opts, "pages[,pages]",
 		     "number of mmap data pages and AUX area tracing mmap pages",
@@ -1321,6 +1434,7 @@ struct option __record_options[] = {
 	OPT_BOOLEAN('s', "stat", &record.opts.inherit_stat,
 		    "per thread counts"),
 	OPT_BOOLEAN('d', "data", &record.opts.sample_address, "Record the sample addresses"),
+	OPT_BOOLEAN(0, "sample-cpu", &record.opts.sample_cpu, "Record the sample cpu"),
 	OPT_BOOLEAN_SET('T', "timestamp", &record.opts.sample_time,
 			&record.opts.sample_time_set,
 			"Record the sample timestamps"),
@@ -1386,6 +1500,8 @@ struct option __record_options[] = {
 		    "append timestamp to output filename"),
 	OPT_BOOLEAN(0, "switch-output", &record.switch_output,
 		    "Switch output when receive SIGUSR2"),
+	OPT_BOOLEAN(0, "dry-run", &dry_run,
+		    "Parse options then exit"),
 	OPT_END()
 };
 
@@ -1455,6 +1571,9 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (err)
 		return err;
 
+	if (dry_run)
+		return 0;
+
 	err = bpf__setup_stdout(rec->evlist);
 	if (err) {
 		bpf__strerror_setup_stdout(rec->evlist, err, errbuf, sizeof(errbuf));
@@ -1507,6 +1626,9 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 			disable_buildid_cache();
 		}
 	}
+
+	if (record.opts.overwrite)
+		record.opts.tail_synthesize = true;
 
 	if (rec->evlist->nr_entries == 0 &&
 	    perf_evlist__add_default(rec->evlist) < 0) {

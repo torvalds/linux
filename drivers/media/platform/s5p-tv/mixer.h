@@ -245,8 +245,6 @@ struct mxr_device {
 
 	/** V4L2 device */
 	struct v4l2_device v4l2_dev;
-	/** context of allocator */
-	void *alloc_ctx;
 	/** event wait queue */
 	wait_queue_head_t event_queue;
 	/** state flags */

@@ -30,7 +30,6 @@ static const pem_event_action * const initialize_event[] = {
 	system_config_tasks,
 	setup_asic_tasks,
 	enable_dynamic_state_management_tasks,
-	enable_clock_power_gatings_tasks,
 	get_2d_performance_state_tasks,
 	set_performance_state_tasks,
 	initialize_thermal_controller_tasks,
@@ -140,7 +139,6 @@ static const pem_event_action * const resume_event[] = {
 	setup_asic_tasks,
 	enable_stutter_mode_tasks, /*must do this in boot state and before SMC is started */
 	enable_dynamic_state_management_tasks,
-	enable_clock_power_gatings_tasks,
 	enable_disable_bapm_tasks,
 	initialize_thermal_controller_tasks,
 	get_2d_performance_state_tasks,

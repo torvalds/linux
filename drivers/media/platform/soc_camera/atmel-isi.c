@@ -72,8 +72,6 @@ struct atmel_isi {
 
 	int				sequence;
 
-	struct vb2_alloc_ctx		*alloc_ctx;
-
 	/* Allocate descriptors for dma buffer use */
 	struct fbd			*p_fb_descriptors;
 	dma_addr_t			fb_descriptors_phys;
@@ -305,7 +303,7 @@ static int atmel_isi_wait_status(struct atmel_isi *isi, int wait_reset)
    ------------------------------------------------------------------*/
 static int queue_setup(struct vb2_queue *vq,
 				unsigned int *nbuffers, unsigned int *nplanes,
-				unsigned int sizes[], void *alloc_ctxs[])
+				unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
@@ -322,7 +320,6 @@ static int queue_setup(struct vb2_queue *vq,
 
 	*nplanes = 1;
 	sizes[0] = size;
-	alloc_ctxs[0] = isi->alloc_ctx;
 
 	isi->sequence = 0;
 	isi->active = NULL;
@@ -567,6 +564,7 @@ static int isi_camera_init_videobuf(struct vb2_queue *q,
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &ici->host_lock;
+	q->dev = ici->v4l2_dev.dev;
 
 	return vb2_queue_init(q);
 }
@@ -963,7 +961,6 @@ static int atmel_isi_remove(struct platform_device *pdev)
 					struct atmel_isi, soc_host);
 
 	soc_camera_host_unregister(soc_host);
-	vb2_dma_contig_cleanup_ctx(isi->alloc_ctx);
 	dma_free_coherent(&pdev->dev,
 			sizeof(struct fbd) * MAX_BUFFER_NUM,
 			isi->p_fb_descriptors,
@@ -1067,12 +1064,6 @@ static int atmel_isi_probe(struct platform_device *pdev)
 		list_add(&isi->dma_desc[i].list, &isi->dma_desc_head);
 	}
 
-	isi->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
-	if (IS_ERR(isi->alloc_ctx)) {
-		ret = PTR_ERR(isi->alloc_ctx);
-		goto err_alloc_ctx;
-	}
-
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	isi->regs = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(isi->regs)) {
@@ -1119,8 +1110,6 @@ err_register_soc_camera_host:
 	pm_runtime_disable(&pdev->dev);
 err_req_irq:
 err_ioremap:
-	vb2_dma_contig_cleanup_ctx(isi->alloc_ctx);
-err_alloc_ctx:
 	dma_free_coherent(&pdev->dev,
 			sizeof(struct fbd) * MAX_BUFFER_NUM,
 			isi->p_fb_descriptors,

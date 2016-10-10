@@ -89,22 +89,20 @@ static inline int arp_packet_match(const struct arphdr *arphdr,
 	__be32 src_ipaddr, tgt_ipaddr;
 	long ret;
 
-#define FWINV(bool, invflg) ((bool) ^ !!(arpinfo->invflags & (invflg)))
-
-	if (FWINV((arphdr->ar_op & arpinfo->arpop_mask) != arpinfo->arpop,
-		  ARPT_INV_ARPOP))
+	if (NF_INVF(arpinfo, ARPT_INV_ARPOP,
+		    (arphdr->ar_op & arpinfo->arpop_mask) != arpinfo->arpop))
 		return 0;
 
-	if (FWINV((arphdr->ar_hrd & arpinfo->arhrd_mask) != arpinfo->arhrd,
-		  ARPT_INV_ARPHRD))
+	if (NF_INVF(arpinfo, ARPT_INV_ARPHRD,
+		    (arphdr->ar_hrd & arpinfo->arhrd_mask) != arpinfo->arhrd))
 		return 0;
 
-	if (FWINV((arphdr->ar_pro & arpinfo->arpro_mask) != arpinfo->arpro,
-		  ARPT_INV_ARPPRO))
+	if (NF_INVF(arpinfo, ARPT_INV_ARPPRO,
+		    (arphdr->ar_pro & arpinfo->arpro_mask) != arpinfo->arpro))
 		return 0;
 
-	if (FWINV((arphdr->ar_hln & arpinfo->arhln_mask) != arpinfo->arhln,
-		  ARPT_INV_ARPHLN))
+	if (NF_INVF(arpinfo, ARPT_INV_ARPHLN,
+		    (arphdr->ar_hln & arpinfo->arhln_mask) != arpinfo->arhln))
 		return 0;
 
 	src_devaddr = arpptr;
@@ -115,31 +113,32 @@ static inline int arp_packet_match(const struct arphdr *arphdr,
 	arpptr += dev->addr_len;
 	memcpy(&tgt_ipaddr, arpptr, sizeof(u32));
 
-	if (FWINV(arp_devaddr_compare(&arpinfo->src_devaddr, src_devaddr, dev->addr_len),
-		  ARPT_INV_SRCDEVADDR) ||
-	    FWINV(arp_devaddr_compare(&arpinfo->tgt_devaddr, tgt_devaddr, dev->addr_len),
-		  ARPT_INV_TGTDEVADDR))
+	if (NF_INVF(arpinfo, ARPT_INV_SRCDEVADDR,
+		    arp_devaddr_compare(&arpinfo->src_devaddr, src_devaddr,
+					dev->addr_len)) ||
+	    NF_INVF(arpinfo, ARPT_INV_TGTDEVADDR,
+		    arp_devaddr_compare(&arpinfo->tgt_devaddr, tgt_devaddr,
+					dev->addr_len)))
 		return 0;
 
-	if (FWINV((src_ipaddr & arpinfo->smsk.s_addr) != arpinfo->src.s_addr,
-		  ARPT_INV_SRCIP) ||
-	    FWINV(((tgt_ipaddr & arpinfo->tmsk.s_addr) != arpinfo->tgt.s_addr),
-		  ARPT_INV_TGTIP))
+	if (NF_INVF(arpinfo, ARPT_INV_SRCIP,
+		    (src_ipaddr & arpinfo->smsk.s_addr) != arpinfo->src.s_addr) ||
+	    NF_INVF(arpinfo, ARPT_INV_TGTIP,
+		    (tgt_ipaddr & arpinfo->tmsk.s_addr) != arpinfo->tgt.s_addr))
 		return 0;
 
 	/* Look for ifname matches.  */
 	ret = ifname_compare(indev, arpinfo->iniface, arpinfo->iniface_mask);
 
-	if (FWINV(ret != 0, ARPT_INV_VIA_IN))
+	if (NF_INVF(arpinfo, ARPT_INV_VIA_IN, ret != 0))
 		return 0;
 
 	ret = ifname_compare(outdev, arpinfo->outiface, arpinfo->outiface_mask);
 
-	if (FWINV(ret != 0, ARPT_INV_VIA_OUT))
+	if (NF_INVF(arpinfo, ARPT_INV_VIA_OUT, ret != 0))
 		return 0;
 
 	return 1;
-#undef FWINV
 }
 
 static inline int arp_checkentry(const struct arpt_arp *arp)
@@ -300,23 +299,12 @@ static inline bool unconditional(const struct arpt_entry *e)
 	       memcmp(&e->arp, &uncond, sizeof(uncond)) == 0;
 }
 
-static bool find_jump_target(const struct xt_table_info *t,
-			     const struct arpt_entry *target)
-{
-	struct arpt_entry *iter;
-
-	xt_entry_foreach(iter, t->entries, t->size) {
-		 if (iter == target)
-			return true;
-	}
-	return false;
-}
-
 /* Figures out from what hook each rule can be called: returns 0 if
  * there are loops.  Puts hook bitmask in comefrom.
  */
 static int mark_source_chains(const struct xt_table_info *newinfo,
-			      unsigned int valid_hooks, void *entry0)
+			      unsigned int valid_hooks, void *entry0,
+			      unsigned int *offsets)
 {
 	unsigned int hook;
 
@@ -389,10 +377,11 @@ static int mark_source_chains(const struct xt_table_info *newinfo,
 					   XT_STANDARD_TARGET) == 0 &&
 				    newpos >= 0) {
 					/* This a jump; chase it. */
+					if (!xt_find_jump_offset(offsets, newpos,
+								 newinfo->number))
+						return 0;
 					e = (struct arpt_entry *)
 						(entry0 + newpos);
-					if (!find_jump_target(newinfo, e))
-						return 0;
 				} else {
 					/* ... this is a fallthru */
 					newpos = pos + e->next_offset;
@@ -544,6 +533,7 @@ static int translate_table(struct xt_table_info *newinfo, void *entry0,
 			   const struct arpt_replace *repl)
 {
 	struct arpt_entry *iter;
+	unsigned int *offsets;
 	unsigned int i;
 	int ret = 0;
 
@@ -556,6 +546,9 @@ static int translate_table(struct xt_table_info *newinfo, void *entry0,
 		newinfo->underflow[i] = 0xFFFFFFFF;
 	}
 
+	offsets = xt_alloc_entry_offsets(newinfo->number);
+	if (!offsets)
+		return -ENOMEM;
 	i = 0;
 
 	/* Walk through entries, checking offsets. */
@@ -566,17 +559,20 @@ static int translate_table(struct xt_table_info *newinfo, void *entry0,
 						 repl->underflow,
 						 repl->valid_hooks);
 		if (ret != 0)
-			break;
+			goto out_free;
+		if (i < repl->num_entries)
+			offsets[i] = (void *)iter - entry0;
 		++i;
 		if (strcmp(arpt_get_target(iter)->u.user.name,
 		    XT_ERROR_TARGET) == 0)
 			++newinfo->stacksize;
 	}
 	if (ret != 0)
-		return ret;
+		goto out_free;
 
+	ret = -EINVAL;
 	if (i != repl->num_entries)
-		return -EINVAL;
+		goto out_free;
 
 	/* Check hooks all assigned */
 	for (i = 0; i < NF_ARP_NUMHOOKS; i++) {
@@ -584,13 +580,16 @@ static int translate_table(struct xt_table_info *newinfo, void *entry0,
 		if (!(repl->valid_hooks & (1 << i)))
 			continue;
 		if (newinfo->hook_entry[i] == 0xFFFFFFFF)
-			return -EINVAL;
+			goto out_free;
 		if (newinfo->underflow[i] == 0xFFFFFFFF)
-			return -EINVAL;
+			goto out_free;
 	}
 
-	if (!mark_source_chains(newinfo, repl->valid_hooks, entry0))
-		return -ELOOP;
+	if (!mark_source_chains(newinfo, repl->valid_hooks, entry0, offsets)) {
+		ret = -ELOOP;
+		goto out_free;
+	}
+	kvfree(offsets);
 
 	/* Finally, each sanity check must pass */
 	i = 0;
@@ -610,6 +609,9 @@ static int translate_table(struct xt_table_info *newinfo, void *entry0,
 		return ret;
 	}
 
+	return ret;
+ out_free:
+	kvfree(offsets);
 	return ret;
 }
 

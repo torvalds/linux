@@ -172,12 +172,12 @@ extern void unix_gid_cache_destroy(struct net *net);
  */
 static inline unsigned long hash_str(char const *name, int bits)
 {
-	return hashlen_hash(hashlen_string(name)) >> (32 - bits);
+	return hashlen_hash(hashlen_string(NULL, name)) >> (32 - bits);
 }
 
 static inline unsigned long hash_mem(char const *buf, int length, int bits)
 {
-	return full_name_hash(buf, length) >> (32 - bits);
+	return full_name_hash(NULL, buf, length) >> (32 - bits);
 }
 
 #endif /* __KERNEL__ */

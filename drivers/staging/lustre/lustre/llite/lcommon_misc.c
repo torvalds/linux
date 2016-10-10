@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -100,7 +96,8 @@ int cl_ocd_update(struct obd_device *host,
 	__u64 flags;
 	int   result;
 
-	if (!strcmp(watched->obd_type->typ_name, LUSTRE_OSC_NAME)) {
+	if (!strcmp(watched->obd_type->typ_name, LUSTRE_OSC_NAME) &&
+	    watched->obd_set_up && !watched->obd_stopping) {
 		cli = &watched->u.cli;
 		lco = owner;
 		flags = cli->cl_import->imp_connect_data.ocd_connect_flags;
@@ -115,9 +112,10 @@ int cl_ocd_update(struct obd_device *host,
 		mutex_unlock(&lco->lco_lock);
 		result = 0;
 	} else {
-		CERROR("unexpected notification from %s %s!\n",
+		CERROR("unexpected notification from %s %s (setup:%d,stopping:%d)!\n",
 		       watched->obd_type->typ_name,
-		       watched->obd_name);
+		       watched->obd_name, watched->obd_set_up,
+		       watched->obd_stopping);
 		result = -EINVAL;
 	}
 	return result;

@@ -375,9 +375,14 @@ __acquires(&port->port_lock)
 */
 {
 	struct list_head	*pool = &port->write_pool;
-	struct usb_ep		*in = port->port_usb->in;
+	struct usb_ep		*in;
 	int			status = 0;
 	bool			do_tty_wake = false;
+
+	if (!port->port_usb)
+		return status;
+
+	in = port->port_usb->in;
 
 	while (!port->write_busy && !list_empty(pool)) {
 		struct usb_request	*req;
@@ -907,7 +912,6 @@ static int gs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
 	struct gs_port	*port = tty->driver_data;
 	unsigned long	flags;
-	int		status;
 
 	pr_vdebug("gs_write: ttyGS%d (%p) writing %d bytes\n",
 			port->port_num, tty, count);
@@ -917,7 +921,7 @@ static int gs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 		count = gs_buf_put(&port->port_write_buf, buf, count);
 	/* treat count == 0 as flush_chars() */
 	if (port->port_usb)
-		status = gs_start_tx(port);
+		gs_start_tx(port);
 	spin_unlock_irqrestore(&port->port_lock, flags);
 
 	return count;

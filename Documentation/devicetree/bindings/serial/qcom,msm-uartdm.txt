@@ -28,10 +28,10 @@ Optional properties:
 - dma-names: Should contain "tx" for transmit and "rx" for receive channels
 - qcom,tx-crci: Identificator <u32> for Client Rate Control Interface to be
            used with TX DMA channel. Required when using DMA for transmission
-           with UARTDM v1.3 and bellow.
+           with UARTDM v1.3 and below.
 - qcom,rx-crci: Identificator <u32> for Client Rate Control Interface to be
            used with RX DMA channel. Required when using DMA for reception
-           with UARTDM v1.3 and bellow.
+           with UARTDM v1.3 and below.
 
 Note: Aliases may be defined to ensure the correct ordering of the UARTs.
 The alias serialN will result in the UART being assigned port N.  If any

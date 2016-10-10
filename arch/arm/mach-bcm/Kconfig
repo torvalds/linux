@@ -17,7 +17,7 @@ config ARCH_BCM_IPROC
 	select ARM_GLOBAL_TIMER
 	select COMMON_CLK_IPROC
 	select CLKSRC_MMIO
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select ARM_AMBA
 	select PINCTRL
 	help
@@ -80,7 +80,7 @@ comment "KONA architected SoCs"
 
 config ARCH_BCM_MOBILE
 	bool
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
 	select ARM_GIC
@@ -89,6 +89,7 @@ config ARCH_BCM_MOBILE
 	select HAVE_ARM_ARCH_TIMER
 	select PINCTRL
 	select ARCH_BCM_MOBILE_SMP if SMP
+	select BCM_KONA_TIMER
 	help
 	  This enables support for systems based on Broadcom mobile SoCs.
 
@@ -111,9 +112,17 @@ config ARCH_BCM_21664
 	  Enable support for the BCM21664 family, which includes
 	  BCM21663 and BCM21664 variants.
 
+config ARCH_BCM_23550
+	bool "Broadcom BCM23550 SoC"
+	depends on ARCH_MULTI_V7
+	select ARCH_BCM_MOBILE
+	select HAVE_SMP
+	help
+	  Enable support for the BCM23550.
+
 config ARCH_BCM_MOBILE_L2_CACHE
 	bool "Broadcom mobile SoC level 2 cache support"
-	depends on ARCH_BCM_MOBILE
+	depends on ARCH_BCM_281XX || ARCH_BCM_21664
 	default y
 	select CACHE_L2X0
 	select ARCH_BCM_MOBILE_SMC
@@ -128,7 +137,7 @@ config ARCH_BCM_MOBILE_SMP
 	select HAVE_ARM_SCU
 	select ARM_ERRATA_764369
 	help
-	  SMP support for the BCM281XX and BCM21664 SoC families.
+	  SMP support for the BCM281XX, BCM21664 and BCM23550 SoC families.
 	  Provided as an option so SMP support for SoCs of this type
 	  can be disabled for an SMP-enabled kernel.
 
@@ -137,12 +146,13 @@ comment "Other Architectures"
 config ARCH_BCM2835
 	bool "Broadcom BCM2835 family"
 	depends on ARCH_MULTI_V6 || ARCH_MULTI_V7
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select ARM_AMBA
 	select ARM_ERRATA_411920 if ARCH_MULTI_V6
 	select ARM_TIMER_SP804
 	select HAVE_ARM_ARCH_TIMER if ARCH_MULTI_V7
 	select CLKSRC_OF
+	select BCM2835_TIMER
 	select PINCTRL
 	select PINCTRL_BCM2835
 	help
@@ -176,7 +186,6 @@ config ARCH_BRCMSTB
 	select BRCMSTB_L2_IRQ
 	select BCM7120_L2_IRQ
 	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select SOC_BRCMSTB
 	select SOC_BUS
 	help

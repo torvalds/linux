@@ -41,8 +41,9 @@ nvkm_top_device_new(struct nvkm_top *top)
 }
 
 u32
-nvkm_top_reset(struct nvkm_top *top, enum nvkm_devidx index)
+nvkm_top_reset(struct nvkm_device *device, enum nvkm_devidx index)
 {
+	struct nvkm_top *top = device->top;
 	struct nvkm_top_device *info;
 
 	if (top) {
@@ -56,8 +57,25 @@ nvkm_top_reset(struct nvkm_top *top, enum nvkm_devidx index)
 }
 
 u32
-nvkm_top_intr(struct nvkm_top *top, u32 intr, u64 *psubdevs)
+nvkm_top_intr_mask(struct nvkm_device *device, enum nvkm_devidx devidx)
 {
+	struct nvkm_top *top = device->top;
+	struct nvkm_top_device *info;
+
+	if (top) {
+		list_for_each_entry(info, &top->device, head) {
+			if (info->index == devidx && info->intr >= 0)
+				return BIT(info->intr);
+		}
+	}
+
+	return 0;
+}
+
+u32
+nvkm_top_intr(struct nvkm_device *device, u32 intr, u64 *psubdevs)
+{
+	struct nvkm_top *top = device->top;
 	struct nvkm_top_device *info;
 	u64 subdevs = 0;
 	u32 handled = 0;
@@ -78,8 +96,9 @@ nvkm_top_intr(struct nvkm_top *top, u32 intr, u64 *psubdevs)
 }
 
 enum nvkm_devidx
-nvkm_top_fault(struct nvkm_top *top, int fault)
+nvkm_top_fault(struct nvkm_device *device, int fault)
 {
+	struct nvkm_top *top = device->top;
 	struct nvkm_top_device *info;
 
 	list_for_each_entry(info, &top->device, head) {
@@ -91,8 +110,9 @@ nvkm_top_fault(struct nvkm_top *top, int fault)
 }
 
 enum nvkm_devidx
-nvkm_top_engine(struct nvkm_top *top, int index, int *runl, int *engn)
+nvkm_top_engine(struct nvkm_device *device, int index, int *runl, int *engn)
 {
+	struct nvkm_top *top = device->top;
 	struct nvkm_top_device *info;
 	int n = 0;
 

@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
+#include <linux/string.h>
 #include <errno.h>
 #include <sys/wait.h>
 #include "subcmd-util.h"
@@ -109,7 +110,7 @@ int start_command(struct child_process *cmd)
 
 		if (cmd->dir && chdir(cmd->dir))
 			die("exec %s: cd to %s failed (%s)", cmd->argv[0],
-			    cmd->dir, strerror_r(errno, sbuf, sizeof(sbuf)));
+			    cmd->dir, str_error_r(errno, sbuf, sizeof(sbuf)));
 		if (cmd->env) {
 			for (; *cmd->env; cmd->env++) {
 				if (strchr(*cmd->env, '='))
@@ -173,7 +174,7 @@ static int wait_or_whine(pid_t pid)
 			if (errno == EINTR)
 				continue;
 			fprintf(stderr, " Error: waitpid failed (%s)",
-				strerror_r(errno, sbuf, sizeof(sbuf)));
+				str_error_r(errno, sbuf, sizeof(sbuf)));
 			return -ERR_RUN_COMMAND_WAITPID;
 		}
 		if (waiting != pid)

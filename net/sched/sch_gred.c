@@ -149,7 +149,8 @@ static inline int gred_use_harddrop(struct gred_sched *t)
 	return t->red_flags & TC_RED_HARDDROP;
 }
 
-static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+			struct sk_buff **to_free)
 {
 	struct gred_sched_data *q = NULL;
 	struct gred_sched *t = qdisc_priv(sch);
@@ -237,10 +238,10 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 	q->stats.pdrop++;
 drop:
-	return qdisc_drop(skb, sch);
+	return qdisc_drop(skb, sch, to_free);
 
 congestion_drop:
-	qdisc_drop(skb, sch);
+	qdisc_drop(skb, sch, to_free);
 	return NET_XMIT_CN;
 }
 
@@ -274,40 +275,6 @@ static struct sk_buff *gred_dequeue(struct Qdisc *sch)
 	}
 
 	return NULL;
-}
-
-static unsigned int gred_drop(struct Qdisc *sch)
-{
-	struct sk_buff *skb;
-	struct gred_sched *t = qdisc_priv(sch);
-
-	skb = qdisc_dequeue_tail(sch);
-	if (skb) {
-		unsigned int len = qdisc_pkt_len(skb);
-		struct gred_sched_data *q;
-		u16 dp = tc_index_to_dp(skb);
-
-		if (dp >= t->DPs || (q = t->tab[dp]) == NULL) {
-			net_warn_ratelimited("GRED: Unable to relocate VQ 0x%x while dropping, screwing up backlog\n",
-					     tc_index_to_dp(skb));
-		} else {
-			q->backlog -= len;
-			q->stats.other++;
-
-			if (gred_wred_mode(t)) {
-				if (!sch->qstats.backlog)
-					red_start_of_idle_period(&t->wred_set);
-			} else {
-				if (!q->backlog)
-					red_start_of_idle_period(&q->vars);
-			}
-		}
-
-		qdisc_drop(skb, sch);
-		return len;
-	}
-
-	return 0;
 }
 
 static void gred_reset(struct Qdisc *sch)
@@ -623,7 +590,6 @@ static struct Qdisc_ops gred_qdisc_ops __read_mostly = {
 	.enqueue	=	gred_enqueue,
 	.dequeue	=	gred_dequeue,
 	.peek		=	qdisc_peek_head,
-	.drop		=	gred_drop,
 	.init		=	gred_init,
 	.reset		=	gred_reset,
 	.destroy	=	gred_destroy,

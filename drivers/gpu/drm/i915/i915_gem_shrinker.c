@@ -131,7 +131,16 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 	unsigned long count = 0;
 
 	trace_i915_gem_shrink(dev_priv, target, flags);
-	i915_gem_retire_requests(dev_priv->dev);
+	i915_gem_retire_requests(dev_priv);
+
+	/*
+	 * Unbinding of objects will require HW access; Let us not wake the
+	 * device just to recover a little memory. If absolutely necessary,
+	 * we will force the wake during oom-notifier.
+	 */
+	if ((flags & I915_SHRINK_BOUND) &&
+	    !intel_runtime_pm_get_if_in_use(dev_priv))
+		flags &= ~I915_SHRINK_BOUND;
 
 	/*
 	 * As we may completely rewrite the (un)bound list whilst unbinding
@@ -197,7 +206,10 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 		list_splice(&still_in_list, phase->list);
 	}
 
-	i915_gem_retire_requests(dev_priv->dev);
+	if (flags & I915_SHRINK_BOUND)
+		intel_runtime_pm_put(dev_priv);
+
+	i915_gem_retire_requests(dev_priv);
 
 	return count;
 }
@@ -245,13 +257,15 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(shrinker, struct drm_i915_private, mm.shrinker);
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	struct drm_i915_gem_object *obj;
 	unsigned long count;
 	bool unlock;
 
 	if (!i915_gem_shrinker_lock(dev, &unlock))
 		return 0;
+
+	i915_gem_retire_requests(dev_priv);
 
 	count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list)
@@ -274,7 +288,7 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(shrinker, struct drm_i915_private, mm.shrinker);
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	unsigned long freed;
 	bool unlock;
 
@@ -309,7 +323,7 @@ i915_gem_shrinker_lock_uninterruptible(struct drm_i915_private *dev_priv,
 {
 	unsigned long timeout = msecs_to_jiffies(timeout_ms) + 1;
 
-	while (!i915_gem_shrinker_lock(dev_priv->dev, &slu->unlock)) {
+	while (!i915_gem_shrinker_lock(&dev_priv->drm, &slu->unlock)) {
 		schedule_timeout_killable(1);
 		if (fatal_signal_pending(current))
 			return false;
@@ -330,7 +344,7 @@ i915_gem_shrinker_unlock_uninterruptible(struct drm_i915_private *dev_priv,
 {
 	dev_priv->mm.interruptible = slu->was_interruptible;
 	if (slu->unlock)
-		mutex_unlock(&dev_priv->dev->struct_mutex);
+		mutex_unlock(&dev_priv->drm.struct_mutex);
 }
 
 static int
@@ -345,7 +359,9 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	if (!i915_gem_shrinker_lock_uninterruptible(dev_priv, &slu, 5000))
 		return NOTIFY_DONE;
 
+	intel_runtime_pm_get(dev_priv);
 	freed_pages = i915_gem_shrink_all(dev_priv);
+	intel_runtime_pm_put(dev_priv);
 
 	/* Because we may be allocating inside our own driver, we cannot
 	 * assert that there are no objects with pinned pages that are not
@@ -386,17 +402,35 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 	struct drm_i915_private *dev_priv =
 		container_of(nb, struct drm_i915_private, mm.vmap_notifier);
 	struct shrinker_lock_uninterruptible slu;
-	unsigned long freed_pages;
+	struct i915_vma *vma, *next;
+	unsigned long freed_pages = 0;
+	int ret;
 
 	if (!i915_gem_shrinker_lock_uninterruptible(dev_priv, &slu, 5000))
 		return NOTIFY_DONE;
 
-	freed_pages = i915_gem_shrink(dev_priv, -1UL,
-				      I915_SHRINK_BOUND |
-				      I915_SHRINK_UNBOUND |
-				      I915_SHRINK_ACTIVE |
-				      I915_SHRINK_VMAPS);
+	/* Force everything onto the inactive lists */
+	ret = i915_gem_wait_for_idle(dev_priv);
+	if (ret)
+		goto out;
 
+	intel_runtime_pm_get(dev_priv);
+	freed_pages += i915_gem_shrink(dev_priv, -1UL,
+				       I915_SHRINK_BOUND |
+				       I915_SHRINK_UNBOUND |
+				       I915_SHRINK_ACTIVE |
+				       I915_SHRINK_VMAPS);
+	intel_runtime_pm_put(dev_priv);
+
+	/* We also want to clear any cached iomaps as they wrap vmap */
+	list_for_each_entry_safe(vma, next,
+				 &dev_priv->ggtt.base.inactive_list, vm_link) {
+		unsigned long count = vma->node.size >> PAGE_SHIFT;
+		if (vma->iomap && i915_vma_unbind(vma) == 0)
+			freed_pages += count;
+	}
+
+out:
 	i915_gem_shrinker_unlock_uninterruptible(dev_priv, &slu);
 
 	*(unsigned long *)ptr += freed_pages;

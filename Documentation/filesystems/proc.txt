@@ -436,6 +436,7 @@ Private_Dirty:         0 kB
 Referenced:          892 kB
 Anonymous:             0 kB
 AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
 Shared_Hugetlb:        0 kB
 Private_Hugetlb:       0 kB
 Swap:                  0 kB
@@ -464,6 +465,8 @@ accessed.
 a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
 and a page is modified, the file page is replaced by a private anonymous copy.
 "AnonHugePages" shows the ammount of memory backed by transparent hugepage.
+"ShmemPmdMapped" shows the ammount of shared (shmem/tmpfs) memory backed by
+huge pages.
 "Shared_Hugetlb" and "Private_Hugetlb" show the ammounts of memory backed by
 hugetlbfs page which is *not* counted in "RSS" or "PSS" field for historical
 reasons. And these are not included in {Shared,Private}_{Clean,Dirty} field.
@@ -725,7 +728,7 @@ IRQ, you can set it by doing:
   > echo 1 > /proc/irq/10/smp_affinity
 
 This means that only the first CPU will handle the IRQ, but you can also echo
-5 which means that only the first and fourth CPU can handle the IRQ.
+5 which means that only the first and third CPU can handle the IRQ.
 
 The contents of each smp_affinity file is the same by default:
 
@@ -868,6 +871,9 @@ VmallocTotal:   112216 kB
 VmallocUsed:       428 kB
 VmallocChunk:   111088 kB
 AnonHugePages:   49152 kB
+ShmemHugePages:      0 kB
+ShmemPmdMapped:      0 kB
+
 
     MemTotal: Total usable ram (i.e. physical ram minus a few reserved
               bits and the kernel binary code)
@@ -912,6 +918,9 @@ MemAvailable: An estimate of how much memory is available for starting new
 AnonHugePages: Non-file backed huge pages mapped into userspace page tables
       Mapped: files which have been mmaped, such as libraries
        Shmem: Total memory used by shared memory (shmem) and tmpfs
+ShmemHugePages: Memory used by shared memory (shmem) and tmpfs allocated
+              with huge pages
+ShmemPmdMapped: Shared memory mapped into userspace with huge pages
         Slab: in-kernel data structures cache
 SReclaimable: Part of Slab, that might be reclaimed, such as caches
   SUnreclaim: Part of Slab, that cannot be reclaimed on memory pressure

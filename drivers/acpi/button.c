@@ -53,6 +53,10 @@
 #define ACPI_BUTTON_DEVICE_NAME_LID	"Lid Switch"
 #define ACPI_BUTTON_TYPE_LID		0x05
 
+#define ACPI_BUTTON_LID_INIT_IGNORE	0x00
+#define ACPI_BUTTON_LID_INIT_OPEN	0x01
+#define ACPI_BUTTON_LID_INIT_METHOD	0x02
+
 #define _COMPONENT		ACPI_BUTTON_COMPONENT
 ACPI_MODULE_NAME("button");
 
@@ -105,6 +109,7 @@ struct acpi_button {
 
 static BLOCKING_NOTIFIER_HEAD(acpi_lid_notifier);
 static struct acpi_device *lid_device;
+static u8 lid_init_state = ACPI_BUTTON_LID_INIT_METHOD;
 
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
@@ -113,16 +118,52 @@ static struct acpi_device *lid_device;
 static struct proc_dir_entry *acpi_button_dir;
 static struct proc_dir_entry *acpi_lid_dir;
 
+static int acpi_lid_evaluate_state(struct acpi_device *device)
+{
+	unsigned long long lid_state;
+	acpi_status status;
+
+	status = acpi_evaluate_integer(device->handle, "_LID", NULL, &lid_state);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	return lid_state ? 1 : 0;
+}
+
+static int acpi_lid_notify_state(struct acpi_device *device, int state)
+{
+	struct acpi_button *button = acpi_driver_data(device);
+	int ret;
+
+	/* input layer checks if event is redundant */
+	input_report_switch(button->input, SW_LID, !state);
+	input_sync(button->input);
+
+	if (state)
+		pm_wakeup_event(&device->dev, 0);
+
+	ret = blocking_notifier_call_chain(&acpi_lid_notifier, state, device);
+	if (ret == NOTIFY_DONE)
+		ret = blocking_notifier_call_chain(&acpi_lid_notifier, state,
+						   device);
+	if (ret == NOTIFY_DONE || ret == NOTIFY_OK) {
+		/*
+		 * It is also regarded as success if the notifier_chain
+		 * returns NOTIFY_OK or NOTIFY_DONE.
+		 */
+		ret = 0;
+	}
+	return ret;
+}
+
 static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_device *device = seq->private;
-	acpi_status status;
-	unsigned long long state;
+	int state;
 
-	status = acpi_evaluate_integer(device->handle, "_LID", NULL, &state);
+	state = acpi_lid_evaluate_state(device);
 	seq_printf(seq, "state:      %s\n",
-		   ACPI_FAILURE(status) ? "unsupported" :
-			(state ? "open" : "closed"));
+		   state < 0 ? "unsupported" : (state ? "open" : "closed"));
 	return 0;
 }
 
@@ -191,8 +232,10 @@ remove_dev_dir:
 	acpi_device_dir(device) = NULL;
 remove_lid_dir:
 	remove_proc_entry(ACPI_BUTTON_SUBCLASS_LID, acpi_button_dir);
+	acpi_lid_dir = NULL;
 remove_button_dir:
 	remove_proc_entry(ACPI_BUTTON_CLASS, acpi_root_dir);
+	acpi_button_dir = NULL;
 	goto done;
 }
 
@@ -209,7 +252,9 @@ static int acpi_button_remove_fs(struct acpi_device *device)
 			  acpi_lid_dir);
 	acpi_device_dir(device) = NULL;
 	remove_proc_entry(ACPI_BUTTON_SUBCLASS_LID, acpi_button_dir);
+	acpi_lid_dir = NULL;
 	remove_proc_entry(ACPI_BUTTON_CLASS, acpi_root_dir);
+	acpi_button_dir = NULL;
 
 	return 0;
 }
@@ -231,51 +276,37 @@ EXPORT_SYMBOL(acpi_lid_notifier_unregister);
 
 int acpi_lid_open(void)
 {
-	acpi_status status;
-	unsigned long long state;
-
 	if (!lid_device)
 		return -ENODEV;
 
-	status = acpi_evaluate_integer(lid_device->handle, "_LID", NULL,
-				       &state);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-
-	return !!state;
+	return acpi_lid_evaluate_state(lid_device);
 }
 EXPORT_SYMBOL(acpi_lid_open);
 
-static int acpi_lid_send_state(struct acpi_device *device)
+static int acpi_lid_update_state(struct acpi_device *device)
 {
-	struct acpi_button *button = acpi_driver_data(device);
-	unsigned long long state;
-	acpi_status status;
-	int ret;
+	int state;
 
-	status = acpi_evaluate_integer(device->handle, "_LID", NULL, &state);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
+	state = acpi_lid_evaluate_state(device);
+	if (state < 0)
+		return state;
 
-	/* input layer checks if event is redundant */
-	input_report_switch(button->input, SW_LID, !state);
-	input_sync(button->input);
+	return acpi_lid_notify_state(device, state);
+}
 
-	if (state)
-		pm_wakeup_event(&device->dev, 0);
-
-	ret = blocking_notifier_call_chain(&acpi_lid_notifier, state, device);
-	if (ret == NOTIFY_DONE)
-		ret = blocking_notifier_call_chain(&acpi_lid_notifier, state,
-						   device);
-	if (ret == NOTIFY_DONE || ret == NOTIFY_OK) {
-		/*
-		 * It is also regarded as success if the notifier_chain
-		 * returns NOTIFY_OK or NOTIFY_DONE.
-		 */
-		ret = 0;
+static void acpi_lid_initialize_state(struct acpi_device *device)
+{
+	switch (lid_init_state) {
+	case ACPI_BUTTON_LID_INIT_OPEN:
+		(void)acpi_lid_notify_state(device, 1);
+		break;
+	case ACPI_BUTTON_LID_INIT_METHOD:
+		(void)acpi_lid_update_state(device);
+		break;
+	case ACPI_BUTTON_LID_INIT_IGNORE:
+	default:
+		break;
 	}
-	return ret;
 }
 
 static void acpi_button_notify(struct acpi_device *device, u32 event)
@@ -290,7 +321,7 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 	case ACPI_BUTTON_NOTIFY_STATUS:
 		input = button->input;
 		if (button->type == ACPI_BUTTON_TYPE_LID) {
-			acpi_lid_send_state(device);
+			acpi_lid_update_state(device);
 		} else {
 			int keycode;
 
@@ -335,7 +366,7 @@ static int acpi_button_resume(struct device *dev)
 
 	button->suspended = false;
 	if (button->type == ACPI_BUTTON_TYPE_LID)
-		return acpi_lid_send_state(device);
+		acpi_lid_initialize_state(device);
 	return 0;
 }
 #endif
@@ -416,7 +447,7 @@ static int acpi_button_add(struct acpi_device *device)
 	if (error)
 		goto err_remove_fs;
 	if (button->type == ACPI_BUTTON_TYPE_LID) {
-		acpi_lid_send_state(device);
+		acpi_lid_initialize_state(device);
 		/*
 		 * This assumes there's only one lid device, or if there are
 		 * more we only care about the last one...
@@ -445,5 +476,43 @@ static int acpi_button_remove(struct acpi_device *device)
 	kfree(button);
 	return 0;
 }
+
+static int param_set_lid_init_state(const char *val, struct kernel_param *kp)
+{
+	int result = 0;
+
+	if (!strncmp(val, "open", sizeof("open") - 1)) {
+		lid_init_state = ACPI_BUTTON_LID_INIT_OPEN;
+		pr_info("Notify initial lid state as open\n");
+	} else if (!strncmp(val, "method", sizeof("method") - 1)) {
+		lid_init_state = ACPI_BUTTON_LID_INIT_METHOD;
+		pr_info("Notify initial lid state with _LID return value\n");
+	} else if (!strncmp(val, "ignore", sizeof("ignore") - 1)) {
+		lid_init_state = ACPI_BUTTON_LID_INIT_IGNORE;
+		pr_info("Do not notify initial lid state\n");
+	} else
+		result = -EINVAL;
+	return result;
+}
+
+static int param_get_lid_init_state(char *buffer, struct kernel_param *kp)
+{
+	switch (lid_init_state) {
+	case ACPI_BUTTON_LID_INIT_OPEN:
+		return sprintf(buffer, "open");
+	case ACPI_BUTTON_LID_INIT_METHOD:
+		return sprintf(buffer, "method");
+	case ACPI_BUTTON_LID_INIT_IGNORE:
+		return sprintf(buffer, "ignore");
+	default:
+		return sprintf(buffer, "invalid");
+	}
+	return 0;
+}
+
+module_param_call(lid_init_state,
+		  param_set_lid_init_state, param_get_lid_init_state,
+		  NULL, 0644);
+MODULE_PARM_DESC(lid_init_state, "Behavior for reporting LID initial state");
 
 module_acpi_driver(acpi_button_driver);

@@ -93,6 +93,8 @@ int validate_cpu(void)
 		show_cap_strs(err_flags);
 		putchar('\n');
 		return -1;
+	} else if (check_knl_erratum()) {
+		return -1;
 	} else {
 		return 0;
 	}

@@ -67,11 +67,11 @@
 #define   GUC_WOPCM_OFFSET_VALUE	  0x80000	/* 512KB */
 #define GUC_MAX_IDLE_COUNT		_MMIO(0xC3E4)
 
+/* Defines WOPCM space available to GuC firmware */
 #define GUC_WOPCM_SIZE			_MMIO(0xc050)
-#define   GUC_WOPCM_SIZE_VALUE  	  (0x80 << 12)	/* 512KB */
-
 /* GuC addresses below GUC_WOPCM_TOP don't map through the GTT */
-#define	GUC_WOPCM_TOP			(GUC_WOPCM_SIZE_VALUE)
+#define   GUC_WOPCM_TOP			  (0x80 << 12)	/* 512KB */
+#define   BXT_GUC_WOPCM_RC6_RESERVED	  (0x10 << 12)	/* 64KB  */
 
 #define GEN8_GT_PM_CONFIG		_MMIO(0x138140)
 #define GEN9LP_GT_PM_CONFIG		_MMIO(0x138140)

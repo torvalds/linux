@@ -2,8 +2,7 @@
 #define __TOOLS_LINUX_KERNEL_H
 
 #include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <stddef.h>
 #include <assert.h>
 
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
@@ -70,29 +69,8 @@
 #define cpu_to_le64(x)	(x)
 #define cpu_to_le32(x)	(x)
 
-static inline int
-vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
-{
-	int i;
-	ssize_t ssize = size;
-
-	i = vsnprintf(buf, size, fmt, args);
-
-	return (i >= ssize) ? (ssize - 1) : i;
-}
-
-static inline int scnprintf(char * buf, size_t size, const char * fmt, ...)
-{
-	va_list args;
-	ssize_t ssize = size;
-	int i;
-
-	va_start(args, fmt);
-	i = vsnprintf(buf, size, fmt, args);
-	va_end(args);
-
-	return (i >= ssize) ? (ssize - 1) : i;
-}
+int vscnprintf(char *buf, size_t size, const char *fmt, va_list args);
+int scnprintf(char * buf, size_t size, const char * fmt, ...);
 
 /*
  * This looks more complex than it should be. But we need to

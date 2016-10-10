@@ -370,7 +370,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
 static int go7007_queue_setup(struct vb2_queue *q,
 		unsigned int *num_buffers, unsigned int *num_planes,
-		unsigned int sizes[], void *alloc_ctxs[])
+		unsigned int sizes[], struct device *alloc_devs[])
 {
 	sizes[0] = GO7007_BUF_SIZE;
 	*num_planes = 1;

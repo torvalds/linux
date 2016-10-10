@@ -46,6 +46,7 @@
 
 #include <dt-bindings/clock/meson8b-clkc.h>
 #include <dt-bindings/gpio/meson8b-gpio.h>
+#include <dt-bindings/reset/amlogic,meson8b-reset.h>
 #include "skeleton.dtsi"
 
 / {
@@ -103,6 +104,12 @@
 			      <0xc4300100 0x0100>;
 			interrupt-controller;
 			#interrupt-cells = <3>;
+		};
+
+		reset: reset-controller@c1104404 {
+			compatible = "amlogic,meson8b-reset";
+			reg = <0xc1104404 0x20>;
+			#reset-cells = <1>;
 		};
 
 		wdt: watchdog@c1109900 {

@@ -169,16 +169,27 @@ static inline int lcctl(u64 ctl)
 }
 
 /* Extract CPU counter */
-static inline int ecctr(u64 ctr, u64 *val)
+static inline int __ecctr(u64 ctr, u64 *content)
 {
-	register u64 content asm("4") = 0;
+	register u64 _content asm("4") = 0;
 	int cc;
 
 	asm volatile (
 		"	.insn	rre,0xb2e40000,%0,%2\n"
 		"	ipm	%1\n"
 		"	srl	%1,28\n"
-		: "=d" (content), "=d" (cc) : "d" (ctr) : "cc");
+		: "=d" (_content), "=d" (cc) : "d" (ctr) : "cc");
+	*content = _content;
+	return cc;
+}
+
+/* Extract CPU counter */
+static inline int ecctr(u64 ctr, u64 *val)
+{
+	u64 content;
+	int cc;
+
+	cc = __ecctr(ctr, &content);
 	if (!cc)
 		*val = content;
 	return cc;

@@ -150,9 +150,6 @@ extern ssize_t dvb_ringbuffer_pkt_write(struct dvb_ringbuffer *rbuf, u8* buf,
 
 /**
  * dvb_ringbuffer_pkt_read_user - Read from a packet in the ringbuffer.
- * Note: unlike dvb_ringbuffer_read(), this does NOT update the read pointer
- * in the ringbuffer. You must use dvb_ringbuffer_pkt_dispose() to mark a
- * packet as no longer required.
  *
  * @rbuf: Ringbuffer concerned.
  * @idx: Packet index as returned by dvb_ringbuffer_pkt_next().
@@ -161,9 +158,17 @@ extern ssize_t dvb_ringbuffer_pkt_write(struct dvb_ringbuffer *rbuf, u8* buf,
  * @len: Size of destination buffer.
  *
  * returns Number of bytes read, or -EFAULT.
+ *
+ * .. note::
+ *
+ *    unlike dvb_ringbuffer_read(), this does **NOT** update the read pointer
+ *    in the ringbuffer. You must use dvb_ringbuffer_pkt_dispose() to mark a
+ *    packet as no longer required.
  */
-extern ssize_t dvb_ringbuffer_pkt_read_user(struct dvb_ringbuffer *rbuf, size_t idx,
-				       int offset, u8 __user *buf, size_t len);
+extern ssize_t dvb_ringbuffer_pkt_read_user(struct dvb_ringbuffer *rbuf,
+					    size_t idx,
+				            int offset, u8 __user *buf,
+					    size_t len);
 
 /**
  * dvb_ringbuffer_pkt_read - Read from a packet in the ringbuffer.

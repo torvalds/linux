@@ -1,4 +1,5 @@
 /* Common code for 32 and 64-bit NUMA */
+#include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/string.h>
@@ -7,7 +8,6 @@
 #include <linux/memblock.h>
 #include <linux/mmzone.h>
 #include <linux/ctype.h>
-#include <linux/module.h>
 #include <linux/nodemask.h>
 #include <linux/sched.h>
 #include <linux/topology.h>
@@ -15,7 +15,6 @@
 #include <asm/e820.h>
 #include <asm/proto.h>
 #include <asm/dma.h>
-#include <asm/acpi.h>
 #include <asm/amd_nb.h>
 
 #include "numa_internal.h"

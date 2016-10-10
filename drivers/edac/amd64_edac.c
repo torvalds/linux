@@ -2966,10 +2966,10 @@ static int __init amd64_edac_init(void)
 	int err = -ENODEV;
 	int i;
 
-	opstate_init();
-
 	if (amd_cache_northbridges() < 0)
 		goto err_ret;
+
+	opstate_init();
 
 	err = -ENOMEM;
 	ecc_stngs = kzalloc(amd_nb_num() * sizeof(ecc_stngs[0]), GFP_KERNEL);

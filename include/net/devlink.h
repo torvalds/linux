@@ -90,6 +90,9 @@ struct devlink_ops {
 				       u16 tc_index,
 				       enum devlink_sb_pool_type pool_type,
 				       u32 *p_cur, u32 *p_max);
+
+	int (*eswitch_mode_get)(struct devlink *devlink, u16 *p_mode);
+	int (*eswitch_mode_set)(struct devlink *devlink, u16 mode);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)

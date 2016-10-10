@@ -103,6 +103,26 @@ ds1685_rtc_bin2bcd(struct ds1685_priv *rtc, u8 val, u8 bin_mask, u8 bcd_mask)
 }
 
 /**
+ * s1685_rtc_check_mday - check validity of the day of month.
+ * @rtc: pointer to the ds1685 rtc structure.
+ * @mday: day of month.
+ *
+ * Returns -EDOM if the day of month is not within 1..31 range.
+ */
+static inline int
+ds1685_rtc_check_mday(struct ds1685_priv *rtc, u8 mday)
+{
+	if (rtc->bcd_mode) {
+		if (mday < 0x01 || mday > 0x31 || (mday & 0x0f) > 0x09)
+			return -EDOM;
+	} else {
+		if (mday < 1 || mday > 31)
+			return -EDOM;
+	}
+	return 0;
+}
+
+/**
  * ds1685_rtc_switch_to_bank0 - switch the rtc to bank 0.
  * @rtc: pointer to the ds1685 rtc structure.
  */
@@ -377,6 +397,7 @@ ds1685_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
 	u8 seconds, minutes, hours, mday, ctrlb, ctrlc;
+	int ret;
 
 	/* Fetch the alarm info from the RTC alarm registers. */
 	ds1685_rtc_begin_data_access(rtc);
@@ -388,34 +409,29 @@ ds1685_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	ctrlc	= rtc->read(rtc, RTC_CTRL_C);
 	ds1685_rtc_end_data_access(rtc);
 
-	/* Check month date. */
-	if (!(mday >= 1) && (mday <= 31))
-		return -EDOM;
+	/* Check the month date for validity. */
+	ret = ds1685_rtc_check_mday(rtc, mday);
+	if (ret)
+		return ret;
 
 	/*
 	 * Check the three alarm bytes.
 	 *
 	 * The Linux RTC system doesn't support the "don't care" capability
 	 * of this RTC chip.  We check for it anyways in case support is
-	 * added in the future.
+	 * added in the future and only assign when we care.
 	 */
-	if (unlikely(seconds >= 0xc0))
-		alrm->time.tm_sec = -1;
-	else
+	if (likely(seconds < 0xc0))
 		alrm->time.tm_sec = ds1685_rtc_bcd2bin(rtc, seconds,
 						       RTC_SECS_BCD_MASK,
 						       RTC_SECS_BIN_MASK);
 
-	if (unlikely(minutes >= 0xc0))
-		alrm->time.tm_min = -1;
-	else
+	if (likely(minutes < 0xc0))
 		alrm->time.tm_min = ds1685_rtc_bcd2bin(rtc, minutes,
 						       RTC_MINS_BCD_MASK,
 						       RTC_MINS_BIN_MASK);
 
-	if (unlikely(hours >= 0xc0))
-		alrm->time.tm_hour = -1;
-	else
+	if (likely(hours < 0xc0))
 		alrm->time.tm_hour = ds1685_rtc_bcd2bin(rtc, hours,
 							RTC_HRS_24_BCD_MASK,
 							RTC_HRS_24_BIN_MASK);
@@ -423,11 +439,6 @@ ds1685_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	/* Write the data to rtc_wkalrm. */
 	alrm->time.tm_mday = ds1685_rtc_bcd2bin(rtc, mday, RTC_MDAY_BCD_MASK,
 						RTC_MDAY_BIN_MASK);
-	alrm->time.tm_mon = -1;
-	alrm->time.tm_year = -1;
-	alrm->time.tm_wday = -1;
-	alrm->time.tm_yday = -1;
-	alrm->time.tm_isdst = -1;
 	alrm->enabled = !!(ctrlb & RTC_CTRL_B_AIE);
 	alrm->pending = !!(ctrlc & RTC_CTRL_C_AF);
 
@@ -445,6 +456,7 @@ ds1685_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
 	u8 ctrlb, seconds, minutes, hours, mday;
+	int ret;
 
 	/* Fetch the alarm info and convert to BCD. */
 	seconds	= ds1685_rtc_bin2bcd(rtc, alrm->time.tm_sec,
@@ -461,8 +473,9 @@ ds1685_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 				     RTC_MDAY_BCD_MASK);
 
 	/* Check the month date for validity. */
-	if (!(mday >= 1) && (mday <= 31))
-		return -EDOM;
+	ret = ds1685_rtc_check_mday(rtc, mday);
+	if (ret)
+		return ret;
 
 	/*
 	 * Check the three alarm bytes.

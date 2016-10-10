@@ -153,7 +153,6 @@ static ssize_t qstat_read(struct file *file, char __user *user_buf,
 		 */
 		if ((counter == qstat_pv_latency_kick) ||
 		    (counter == qstat_pv_latency_wake)) {
-			stat = 0;
 			if (kicks)
 				stat = DIV_ROUND_CLOSEST_ULL(stat, kicks);
 		}

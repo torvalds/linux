@@ -1564,7 +1564,7 @@ static int jfs_ci_hash(const struct dentry *dir, struct qstr *this)
 	unsigned long hash;
 	int i;
 
-	hash = init_name_hash();
+	hash = init_name_hash(dir);
 	for (i=0; i < this->len; i++)
 		hash = partial_name_hash(tolower(this->name[i]), hash);
 	this->hash = end_name_hash(hash);
@@ -1572,7 +1572,7 @@ static int jfs_ci_hash(const struct dentry *dir, struct qstr *this)
 	return 0;
 }
 
-static int jfs_ci_compare(const struct dentry *parent, const struct dentry *dentry,
+static int jfs_ci_compare(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	int i, result = 1;

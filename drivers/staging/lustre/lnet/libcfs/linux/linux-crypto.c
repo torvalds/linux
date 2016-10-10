@@ -99,6 +99,7 @@ static int cfs_crypto_hash_alloc(enum cfs_crypto_hash_alg hash_alg,
 					 (*type)->cht_size);
 
 	if (err != 0) {
+		ahash_request_free(*req);
 		crypto_free_ahash(tfm);
 		return err;
 	}

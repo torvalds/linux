@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -503,7 +499,7 @@ static int ldlm_handle_setinfo(struct ptlrpc_request *req)
 
 static inline void ldlm_callback_errmsg(struct ptlrpc_request *req,
 					const char *msg, int rc,
-					struct lustre_handle *handle)
+					const struct lustre_handle *handle)
 {
 	DEBUG_REQ((req->rq_no_reply || rc) ? D_WARNING : D_DLMTRACE, req,
 		  "%s: [nid %s] [rc %d] [lock %#llx]",
@@ -641,7 +637,8 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 		 */
 		if ((ldlm_is_canceling(lock) && ldlm_is_bl_done(lock)) ||
 		    ldlm_is_failed(lock)) {
-			LDLM_DEBUG(lock, "callback on lock %#llx - lock disappeared\n",
+			LDLM_DEBUG(lock,
+				   "callback on lock %#llx - lock disappeared",
 				   dlm_req->lock_handle[0].cookie);
 			unlock_res_and_lock(lock);
 			LDLM_LOCK_RELEASE(lock);
@@ -1011,9 +1008,11 @@ static int ldlm_setup(void)
 		blp->blp_min_threads = LDLM_NTHRS_INIT;
 		blp->blp_max_threads = LDLM_NTHRS_MAX;
 	} else {
-		blp->blp_min_threads = blp->blp_max_threads =
-			min_t(int, LDLM_NTHRS_MAX, max_t(int, LDLM_NTHRS_INIT,
-							 ldlm_num_threads));
+		blp->blp_min_threads = min_t(int, LDLM_NTHRS_MAX,
+					     max_t(int, LDLM_NTHRS_INIT,
+						   ldlm_num_threads));
+
+		blp->blp_max_threads = blp->blp_min_threads;
 	}
 
 	for (i = 0; i < blp->blp_min_threads; i++) {

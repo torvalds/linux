@@ -20,19 +20,14 @@ void handle_syscall(struct uml_pt_regs *r)
 	UPT_SYSCALL_NR(r) = PT_SYSCALL_NR(r->gp);
 	PT_REGS_SET_SYSCALL_RETURN(regs, -ENOSYS);
 
-	/* Do the secure computing check first; failures should be fast. */
-	if (secure_computing() == -1)
-		return;
-
 	if (syscall_trace_enter(regs))
 		goto out;
 
-	/* Update the syscall number after orig_ax has potentially been updated
-	 * with ptrace.
-	 */
-	UPT_SYSCALL_NR(r) = PT_SYSCALL_NR(r->gp);
-	syscall = UPT_SYSCALL_NR(r);
+	/* Do the seccomp check after ptrace; failures should be fast. */
+	if (secure_computing(NULL) == -1)
+		goto out;
 
+	syscall = UPT_SYSCALL_NR(r);
 	if (syscall >= 0 && syscall <= __NR_syscall_max)
 		PT_REGS_SET_SYSCALL_RETURN(regs,
 				EXECUTE_SYSCALL(syscall, regs));

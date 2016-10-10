@@ -189,7 +189,6 @@ static struct drm_driver armada_drm_driver = {
 	.load			= armada_drm_load,
 	.lastclose		= armada_drm_lastclose,
 	.unload			= armada_drm_unload,
-	.set_busid		= drm_platform_set_busid,
 	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= armada_drm_enable_vblank,
 	.disable_vblank		= armada_drm_disable_vblank,
@@ -197,7 +196,7 @@ static struct drm_driver armada_drm_driver = {
 	.debugfs_init		= armada_drm_debugfs_init,
 	.debugfs_cleanup	= armada_drm_debugfs_cleanup,
 #endif
-	.gem_free_object	= armada_gem_free_object,
+	.gem_free_object_unlocked = armada_gem_free_object,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_export	= armada_gem_prime_export,

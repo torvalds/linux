@@ -744,6 +744,7 @@ static int pm8xxx_pin_populate(struct pm8xxx_mpp *pctrl,
 static const struct of_device_id pm8xxx_mpp_of_match[] = {
 	{ .compatible = "qcom,pm8018-mpp" },
 	{ .compatible = "qcom,pm8038-mpp" },
+	{ .compatible = "qcom,pm8058-mpp" },
 	{ .compatible = "qcom,pm8917-mpp" },
 	{ .compatible = "qcom,pm8821-mpp" },
 	{ .compatible = "qcom,pm8921-mpp" },

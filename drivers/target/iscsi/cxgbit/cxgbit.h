@@ -37,7 +37,7 @@
 #include "cxgb4.h"
 #include "cxgb4_uld.h"
 #include "l2t.h"
-#include "cxgb4_ppm.h"
+#include "libcxgb_ppm.h"
 #include "cxgbit_lro.h"
 
 extern struct mutex cdev_list_lock;

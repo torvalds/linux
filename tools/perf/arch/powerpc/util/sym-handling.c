@@ -54,10 +54,6 @@ int arch__compare_symbol_names(const char *namea, const char *nameb)
 #endif
 
 #if defined(_CALL_ELF) && _CALL_ELF == 2
-bool arch__prefers_symtab(void)
-{
-	return true;
-}
 
 #ifdef HAVE_LIBELF_SUPPORT
 void arch__sym_update(struct symbol *s, GElf_Sym *sym)
@@ -100,4 +96,29 @@ void arch__fix_tev_from_maps(struct perf_probe_event *pev,
 			tev->point.offset += lep_offset;
 	}
 }
+
+#ifdef HAVE_LIBELF_SUPPORT
+void arch__post_process_probe_trace_events(struct perf_probe_event *pev,
+					   int ntevs)
+{
+	struct probe_trace_event *tev;
+	struct map *map;
+	struct symbol *sym = NULL;
+	struct rb_node *tmp;
+	int i = 0;
+
+	map = get_target_map(pev->target, pev->uprobes);
+	if (!map || map__load(map, NULL) < 0)
+		return;
+
+	for (i = 0; i < ntevs; i++) {
+		tev = &pev->tevs[i];
+		map__for_each_symbol(map, sym, tmp) {
+			if (map->unmap_ip(map, sym->start) == tev->point.address)
+				arch__fix_tev_from_maps(pev, tev, map, sym);
+		}
+	}
+}
+#endif /* HAVE_LIBELF_SUPPORT */
+
 #endif

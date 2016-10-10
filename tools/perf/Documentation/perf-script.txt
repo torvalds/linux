@@ -116,16 +116,16 @@ OPTIONS
 --fields::
         Comma separated list of fields to print. Options are:
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
-	srcline, period, iregs, brstack, brstacksym, flags.
-        Field list can be prepended with the type, trace, sw or hw,
+        srcline, period, iregs, brstack, brstacksym, flags, bpf-output,
+        callindent. Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
-        e.g., -f sw:comm,tid,time,ip,sym  and -f trace:time,cpu,trace
+        e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace
 
-		perf script -f <fields>
+		perf script -F <fields>
 
 	is equivalent to:
 
-		perf script -f trace:<fields> -f sw:<fields> -f hw:<fields>
+		perf script -F trace:<fields> -F sw:<fields> -F hw:<fields>
 
 	i.e., the specified fields apply to all event types if the type string
 	is not given.
@@ -133,9 +133,9 @@ OPTIONS
 	The arguments are processed in the order received. A later usage can
 	reset a prior request. e.g.:
 
-		-f trace: -f comm,tid,time,ip,sym
+		-F trace: -F comm,tid,time,ip,sym
 
-	The first -f suppresses trace events (field list is ""), but then the
+	The first -F suppresses trace events (field list is ""), but then the
 	second invocation sets the fields to comm,tid,time,ip,sym. In this case a
 	warning is given to the user:
 
@@ -143,9 +143,9 @@ OPTIONS
 
 	Alternatively, consider the order:
 
-		-f comm,tid,time,ip,sym -f trace:
+		-F comm,tid,time,ip,sym -F trace:
 
-	The first -f sets the fields for all events and the second -f
+	The first -F sets the fields for all events and the second -F
 	suppresses trace events. The user is given a warning message about
 	the override, and the result of the above is that only S/W and H/W
 	events are displayed with the given fields.
@@ -154,14 +154,14 @@ OPTIONS
 	event type, a message is displayed to the user that the option is
 	ignored for that type. For example:
 
-		$ perf script -f comm,tid,trace
+		$ perf script -F comm,tid,trace
 		'trace' not valid for hardware events. Ignoring.
 		'trace' not valid for software events. Ignoring.
 
 	Alternatively, if the type is given an invalid field is specified it
 	is an error. For example:
 
-        perf script -v -f sw:comm,tid,trace
+        perf script -v -F sw:comm,tid,trace
         'trace' not valid for software events.
 
 	At this point usage is displayed, and perf-script exits.
@@ -170,10 +170,19 @@ OPTIONS
 	Trace decoding. The flags are "bcrosyiABEx" which stand for branch,
 	call, return, conditional, system, asynchronous, interrupt,
 	transaction abort, trace begin, trace end, and in transaction,
-	respectively.
+	respectively. Known combinations of flags are printed more nicely e.g.
+	"call" for "bc", "return" for "br", "jcc" for "bo", "jmp" for "b",
+	"int" for "bci", "iret" for "bri", "syscall" for "bcs", "sysret" for "brs",
+	"async" for "by", "hw int" for "bcyi", "tx abrt" for "bA", "tr strt" for "bB",
+	"tr end" for "bE". However the "x" flag will be display separately in those
+	cases e.g. "jcc     (x)" for a condition branch within a transaction.
+
+	The callindent field is synthesized and may have a value when
+	Instruction Trace decoding. For calls and returns, it will display the
+	name of the symbol indented with spaces to reflect the stack depth.
 
 	Finally, a user may not set fields to none for all event types.
-	i.e., -f "" is not allowed.
+	i.e., -F "" is not allowed.
 
 	The brstack output includes branch related information with raw addresses using the
 	/v/v/v/v/ syntax in the following order:

@@ -90,14 +90,6 @@ static int mdp4_lvds_connector_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static struct drm_encoder *
-mdp4_lvds_connector_best_encoder(struct drm_connector *connector)
-{
-	struct mdp4_lvds_connector *mdp4_lvds_connector =
-			to_mdp4_lvds_connector(connector);
-	return mdp4_lvds_connector->encoder;
-}
-
 static const struct drm_connector_funcs mdp4_lvds_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = mdp4_lvds_connector_detect,
@@ -111,7 +103,6 @@ static const struct drm_connector_funcs mdp4_lvds_connector_funcs = {
 static const struct drm_connector_helper_funcs mdp4_lvds_connector_helper_funcs = {
 	.get_modes = mdp4_lvds_connector_get_modes,
 	.mode_valid = mdp4_lvds_connector_mode_valid,
-	.best_encoder = mdp4_lvds_connector_best_encoder,
 };
 
 /* initialize connector */

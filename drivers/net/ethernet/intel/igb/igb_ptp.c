@@ -684,6 +684,7 @@ void igb_ptp_rx_hang(struct igb_adapter *adapter)
 	u32 tsyncrxctl = rd32(E1000_TSYNCRXCTL);
 	unsigned long rx_event;
 
+	/* Other hardware uses per-packet timestamps */
 	if (hw->mac.type != e1000_82576)
 		return;
 
@@ -743,7 +744,8 @@ static void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter)
 		}
 	}
 
-	shhwtstamps.hwtstamp = ktime_sub_ns(shhwtstamps.hwtstamp, adjust);
+	shhwtstamps.hwtstamp =
+		ktime_add_ns(shhwtstamps.hwtstamp, adjust);
 
 	skb_tstamp_tx(adapter->ptp_tx_skb, &shhwtstamps);
 	dev_kfree_skb_any(adapter->ptp_tx_skb);
@@ -766,13 +768,32 @@ void igb_ptp_rx_pktstamp(struct igb_q_vector *q_vector,
 			 struct sk_buff *skb)
 {
 	__le64 *regval = (__le64 *)va;
+	struct igb_adapter *adapter = q_vector->adapter;
+	int adjust = 0;
 
 	/* The timestamp is recorded in little endian format.
 	 * DWORD: 0        1        2        3
 	 * Field: Reserved Reserved SYSTIML  SYSTIMH
 	 */
-	igb_ptp_systim_to_hwtstamp(q_vector->adapter, skb_hwtstamps(skb),
+	igb_ptp_systim_to_hwtstamp(adapter, skb_hwtstamps(skb),
 				   le64_to_cpu(regval[1]));
+
+	/* adjust timestamp for the RX latency based on link speed */
+	if (adapter->hw.mac.type == e1000_i210) {
+		switch (adapter->link_speed) {
+		case SPEED_10:
+			adjust = IGB_I210_RX_LATENCY_10;
+			break;
+		case SPEED_100:
+			adjust = IGB_I210_RX_LATENCY_100;
+			break;
+		case SPEED_1000:
+			adjust = IGB_I210_RX_LATENCY_1000;
+			break;
+		}
+	}
+	skb_hwtstamps(skb)->hwtstamp =
+		ktime_sub_ns(skb_hwtstamps(skb)->hwtstamp, adjust);
 }
 
 /**
@@ -824,7 +845,7 @@ void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
 		}
 	}
 	skb_hwtstamps(skb)->hwtstamp =
-		ktime_add_ns(skb_hwtstamps(skb)->hwtstamp, adjust);
+		ktime_sub_ns(skb_hwtstamps(skb)->hwtstamp, adjust);
 
 	/* Update the last_rx_timestamp timer in order to enable watchdog check
 	 * for error case of latched timestamp on a dropped packet.
@@ -1042,6 +1063,13 @@ int igb_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr)
 		-EFAULT : 0;
 }
 
+/**
+ * igb_ptp_init - Initialize PTP functionality
+ * @adapter: Board private structure
+ *
+ * This function is called at device probe to initialize the PTP
+ * functionality.
+ */
 void igb_ptp_init(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
@@ -1064,8 +1092,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->cc.mask = CYCLECOUNTER_MASK(64);
 		adapter->cc.mult = 1;
 		adapter->cc.shift = IGB_82576_TSYNC_SHIFT;
-		/* Dial the nominal frequency. */
-		wr32(E1000_TIMINCA, INCPERIOD_82576 | INCVALUE_82576);
+		adapter->ptp_flags |= IGB_PTP_OVERFLOW_CHECK;
 		break;
 	case e1000_82580:
 	case e1000_i354:
@@ -1084,8 +1111,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->cc.mask = CYCLECOUNTER_MASK(IGB_NBITS_82580);
 		adapter->cc.mult = 1;
 		adapter->cc.shift = 0;
-		/* Enable the timer functions by clearing bit 31. */
-		wr32(E1000_TSAUXC, 0x0);
+		adapter->ptp_flags |= IGB_PTP_OVERFLOW_CHECK;
 		break;
 	case e1000_i210:
 	case e1000_i211:
@@ -1110,43 +1136,23 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.settime64 = igb_ptp_settime_i210;
 		adapter->ptp_caps.enable = igb_ptp_feature_enable_i210;
 		adapter->ptp_caps.verify = igb_ptp_verify_pin;
-		/* Enable the timer functions by clearing bit 31. */
-		wr32(E1000_TSAUXC, 0x0);
 		break;
 	default:
 		adapter->ptp_clock = NULL;
 		return;
 	}
 
-	wrfl();
-
 	spin_lock_init(&adapter->tmreg_lock);
 	INIT_WORK(&adapter->ptp_tx_work, igb_ptp_tx_work);
 
-	/* Initialize the clock and overflow work for devices that need it. */
-	if ((hw->mac.type == e1000_i210) || (hw->mac.type == e1000_i211)) {
-		struct timespec64 ts = ktime_to_timespec64(ktime_get_real());
-
-		igb_ptp_settime_i210(&adapter->ptp_caps, &ts);
-	} else {
-		timecounter_init(&adapter->tc, &adapter->cc,
-				 ktime_to_ns(ktime_get_real()));
-
+	if (adapter->ptp_flags & IGB_PTP_OVERFLOW_CHECK)
 		INIT_DELAYED_WORK(&adapter->ptp_overflow_work,
 				  igb_ptp_overflow_check);
 
-		schedule_delayed_work(&adapter->ptp_overflow_work,
-				      IGB_SYSTIM_OVERFLOW_PERIOD);
-	}
-
-	/* Initialize the time sync interrupts for devices that support it. */
-	if (hw->mac.type >= e1000_82580) {
-		wr32(E1000_TSIM, TSYNC_INTERRUPTS);
-		wr32(E1000_IMS, E1000_IMS_TS);
-	}
-
 	adapter->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
 	adapter->tstamp_config.tx_type = HWTSTAMP_TX_OFF;
+
+	igb_ptp_reset(adapter);
 
 	adapter->ptp_clock = ptp_clock_register(&adapter->ptp_caps,
 						&adapter->pdev->dev);
@@ -1156,7 +1162,30 @@ void igb_ptp_init(struct igb_adapter *adapter)
 	} else {
 		dev_info(&adapter->pdev->dev, "added PHC on %s\n",
 			 adapter->netdev->name);
-		adapter->flags |= IGB_FLAG_PTP;
+		adapter->ptp_flags |= IGB_PTP_ENABLED;
+	}
+}
+
+/**
+ * igb_ptp_suspend - Disable PTP work items and prepare for suspend
+ * @adapter: Board private structure
+ *
+ * This function stops the overflow check work and PTP Tx timestamp work, and
+ * will prepare the device for OS suspend.
+ */
+void igb_ptp_suspend(struct igb_adapter *adapter)
+{
+	if (!(adapter->ptp_flags & IGB_PTP_ENABLED))
+		return;
+
+	if (adapter->ptp_flags & IGB_PTP_OVERFLOW_CHECK)
+		cancel_delayed_work_sync(&adapter->ptp_overflow_work);
+
+	cancel_work_sync(&adapter->ptp_tx_work);
+	if (adapter->ptp_tx_skb) {
+		dev_kfree_skb_any(adapter->ptp_tx_skb);
+		adapter->ptp_tx_skb = NULL;
+		clear_bit_unlock(__IGB_PTP_TX_IN_PROGRESS, &adapter->state);
 	}
 }
 
@@ -1168,33 +1197,13 @@ void igb_ptp_init(struct igb_adapter *adapter)
  **/
 void igb_ptp_stop(struct igb_adapter *adapter)
 {
-	switch (adapter->hw.mac.type) {
-	case e1000_82576:
-	case e1000_82580:
-	case e1000_i354:
-	case e1000_i350:
-		cancel_delayed_work_sync(&adapter->ptp_overflow_work);
-		break;
-	case e1000_i210:
-	case e1000_i211:
-		/* No delayed work to cancel. */
-		break;
-	default:
-		return;
-	}
-
-	cancel_work_sync(&adapter->ptp_tx_work);
-	if (adapter->ptp_tx_skb) {
-		dev_kfree_skb_any(adapter->ptp_tx_skb);
-		adapter->ptp_tx_skb = NULL;
-		clear_bit_unlock(__IGB_PTP_TX_IN_PROGRESS, &adapter->state);
-	}
+	igb_ptp_suspend(adapter);
 
 	if (adapter->ptp_clock) {
 		ptp_clock_unregister(adapter->ptp_clock);
 		dev_info(&adapter->pdev->dev, "removed PHC on %s\n",
 			 adapter->netdev->name);
-		adapter->flags &= ~IGB_FLAG_PTP;
+		adapter->ptp_flags &= ~IGB_PTP_ENABLED;
 	}
 }
 
@@ -1208,9 +1217,6 @@ void igb_ptp_reset(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	unsigned long flags;
-
-	if (!(adapter->flags & IGB_FLAG_PTP))
-		return;
 
 	/* reset the tstamp_config */
 	igb_ptp_set_timestamp_mode(adapter, &adapter->tstamp_config);
@@ -1248,4 +1254,10 @@ void igb_ptp_reset(struct igb_adapter *adapter)
 	}
 out:
 	spin_unlock_irqrestore(&adapter->tmreg_lock, flags);
+
+	wrfl();
+
+	if (adapter->ptp_flags & IGB_PTP_OVERFLOW_CHECK)
+		schedule_delayed_work(&adapter->ptp_overflow_work,
+				      IGB_SYSTIM_OVERFLOW_PERIOD);
 }

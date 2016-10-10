@@ -931,6 +931,25 @@ static void dma_do_tasklet(unsigned long data)
 static int mmp_pdma_remove(struct platform_device *op)
 {
 	struct mmp_pdma_device *pdev = platform_get_drvdata(op);
+	struct mmp_pdma_phy *phy;
+	int i, irq = 0, irq_num = 0;
+
+
+	for (i = 0; i < pdev->dma_channels; i++) {
+		if (platform_get_irq(op, i) > 0)
+			irq_num++;
+	}
+
+	if (irq_num != pdev->dma_channels) {
+		irq = platform_get_irq(op, 0);
+		devm_free_irq(&op->dev, irq, pdev);
+	} else {
+		for (i = 0; i < pdev->dma_channels; i++) {
+			phy = &pdev->phy[i];
+			irq = platform_get_irq(op, i);
+			devm_free_irq(&op->dev, irq, phy);
+		}
+	}
 
 	dma_async_device_unregister(&pdev->device);
 	return 0;

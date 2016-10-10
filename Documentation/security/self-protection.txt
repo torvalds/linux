@@ -183,8 +183,9 @@ provide meaningful defenses.
 ### Canaries, blinding, and other secrets
 
 It should be noted that things like the stack canary discussed earlier
-are technically statistical defenses, since they rely on a (leakable)
-secret value.
+are technically statistical defenses, since they rely on a secret value,
+and such values may become discoverable through an information exposure
+flaw.
 
 Blinding literal values for things like JITs, where the executable
 contents may be partially under the control of userspace, need a similar
@@ -199,8 +200,8 @@ working?) in order to maximize their success.
 Since the location of kernel memory is almost always instrumental in
 mounting a successful attack, making the location non-deterministic
 raises the difficulty of an exploit. (Note that this in turn makes
-the value of leaks higher, since they may be used to discover desired
-memory locations.)
+the value of information exposures higher, since they may be used to
+discover desired memory locations.)
 
 #### Text and module base
 
@@ -222,14 +223,21 @@ become more difficult to locate.
 Much of the kernel's dynamic memory (e.g. kmalloc, vmalloc, etc) ends up
 being relatively deterministic in layout due to the order of early-boot
 initializations. If the base address of these areas is not the same
-between boots, targeting them is frustrated, requiring a leak specific
-to the region.
+between boots, targeting them is frustrated, requiring an information
+exposure specific to the region.
+
+#### Structure layout
+
+By performing a per-build randomization of the layout of sensitive
+structures, attacks must either be tuned to known kernel builds or expose
+enough kernel memory to determine structure layouts before manipulating
+them.
 
 
-## Preventing Leaks
+## Preventing Information Exposures
 
 Since the locations of sensitive structures are the primary target for
-attacks, it is important to defend against leaks of both kernel memory
+attacks, it is important to defend against exposure of both kernel memory
 addresses and kernel memory contents (since they may contain kernel
 addresses or other sensitive things like canary values).
 
@@ -250,8 +258,8 @@ sure structure holes are cleared.
 When releasing memory, it is best to poison the contents (clear stack on
 syscall return, wipe heap memory on a free), to avoid reuse attacks that
 rely on the old contents of memory. This frustrates many uninitialized
-variable attacks, stack info leaks, heap info leaks, and use-after-free
-attacks.
+variable attacks, stack content exposures, heap content exposures, and
+use-after-free attacks.
 
 ### Destination tracking
 

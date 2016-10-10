@@ -14,15 +14,6 @@
 #include "sti_drv.h"
 #include "sti_plane.h"
 
-/* (Background) < GDP0 < GDP1 < HQVDP0 < GDP2 < GDP3 < (ForeGround) */
-enum sti_plane_desc sti_plane_default_zorder[] = {
-	STI_GDP_0,
-	STI_GDP_1,
-	STI_HQVDP_0,
-	STI_GDP_2,
-	STI_GDP_3,
-};
-
 const char *sti_plane_to_str(struct sti_plane *plane)
 {
 	switch (plane->desc) {
@@ -45,25 +36,15 @@ const char *sti_plane_to_str(struct sti_plane *plane)
 
 #define STI_FPS_INTERVAL_MS     3000
 
-static int sti_plane_timespec_ms_diff(struct timespec lhs, struct timespec rhs)
-{
-	struct timespec tmp_ts = timespec_sub(lhs, rhs);
-	u64 tmp_ns = (u64)timespec_to_ns(&tmp_ts);
-
-	do_div(tmp_ns, NSEC_PER_MSEC);
-
-	return (u32)tmp_ns;
-}
-
 void sti_plane_update_fps(struct sti_plane *plane,
 			  bool new_frame,
 			  bool new_field)
 {
-	struct timespec now;
+	ktime_t now;
 	struct sti_fps_info *fps;
 	int fpks, fipks, ms_since_last, num_frames, num_fields;
 
-	getrawmonotonic(&now);
+	now = ktime_get();
 
 	/* Compute number of frame updates */
 	fps = &plane->fps_info;
@@ -76,7 +57,7 @@ void sti_plane_update_fps(struct sti_plane *plane,
 		return;
 
 	fps->curr_frame_counter++;
-	ms_since_last = sti_plane_timespec_ms_diff(now, fps->last_timestamp);
+	ms_since_last = ktime_to_ms(ktime_sub(now, fps->last_timestamp));
 	num_frames = fps->curr_frame_counter - fps->last_frame_counter;
 
 	if (num_frames <= 0  || ms_since_last < STI_FPS_INTERVAL_MS)
@@ -106,77 +87,46 @@ void sti_plane_update_fps(struct sti_plane *plane,
 			 plane->fps_info.fips_str);
 }
 
-static void sti_plane_destroy(struct drm_plane *drm_plane)
+static int sti_plane_get_default_zpos(enum drm_plane_type type)
 {
-	DRM_DEBUG_DRIVER("\n");
-
-	drm_plane_helper_disable(drm_plane);
-	drm_plane_cleanup(drm_plane);
-}
-
-static int sti_plane_set_property(struct drm_plane *drm_plane,
-				  struct drm_property *property,
-				  uint64_t val)
-{
-	struct drm_device *dev = drm_plane->dev;
-	struct sti_private *private = dev->dev_private;
-	struct sti_plane *plane = to_sti_plane(drm_plane);
-
-	DRM_DEBUG_DRIVER("\n");
-
-	if (property == private->plane_zorder_property) {
-		plane->zorder = val;
+	switch (type) {
+	case DRM_PLANE_TYPE_PRIMARY:
 		return 0;
+	case DRM_PLANE_TYPE_OVERLAY:
+		return 1;
+	case DRM_PLANE_TYPE_CURSOR:
+		return 7;
 	}
-
-	return -EINVAL;
+	return 0;
 }
 
-static void sti_plane_attach_zorder_property(struct drm_plane *drm_plane)
+void sti_plane_reset(struct drm_plane *plane)
 {
-	struct drm_device *dev = drm_plane->dev;
-	struct sti_private *private = dev->dev_private;
-	struct sti_plane *plane = to_sti_plane(drm_plane);
-	struct drm_property *prop;
+	drm_atomic_helper_plane_reset(plane);
+	plane->state->zpos = sti_plane_get_default_zpos(plane->type);
+}
 
-	prop = private->plane_zorder_property;
-	if (!prop) {
-		prop = drm_property_create_range(dev, 0, "zpos", 1,
-						 GAM_MIXER_NB_DEPTH_LEVEL);
-		if (!prop)
-			return;
+static void sti_plane_attach_zorder_property(struct drm_plane *drm_plane,
+					     enum drm_plane_type type)
+{
+	int zpos = sti_plane_get_default_zpos(type);
 
-		private->plane_zorder_property = prop;
+	switch (type) {
+	case DRM_PLANE_TYPE_PRIMARY:
+	case DRM_PLANE_TYPE_OVERLAY:
+		drm_plane_create_zpos_property(drm_plane, zpos, 0, 6);
+		break;
+	case DRM_PLANE_TYPE_CURSOR:
+		drm_plane_create_zpos_immutable_property(drm_plane, zpos);
+		break;
 	}
-
-	drm_object_attach_property(&drm_plane->base, prop, plane->zorder);
 }
 
 void sti_plane_init_property(struct sti_plane *plane,
 			     enum drm_plane_type type)
 {
-	unsigned int i;
+	sti_plane_attach_zorder_property(&plane->drm_plane, type);
 
-	for (i = 0; i < ARRAY_SIZE(sti_plane_default_zorder); i++)
-		if (sti_plane_default_zorder[i] == plane->desc)
-			break;
-
-	plane->zorder = i + 1;
-
-	if (type == DRM_PLANE_TYPE_OVERLAY)
-		sti_plane_attach_zorder_property(&plane->drm_plane);
-
-	DRM_DEBUG_DRIVER("drm plane:%d mapped to %s with zorder:%d\n",
-			 plane->drm_plane.base.id,
-			 sti_plane_to_str(plane), plane->zorder);
+	DRM_DEBUG_DRIVER("drm plane:%d mapped to %s\n",
+			 plane->drm_plane.base.id, sti_plane_to_str(plane));
 }
-
-struct drm_plane_funcs sti_plane_helpers_funcs = {
-	.update_plane = drm_atomic_helper_update_plane,
-	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = sti_plane_destroy,
-	.set_property = sti_plane_set_property,
-	.reset = drm_atomic_helper_plane_reset,
-	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
-};

@@ -44,6 +44,7 @@ config SND_SOC_RCAR
 
 config SND_SOC_RSRC_CARD
 	tristate "Renesas Sampling Rate Convert Sound Card"
+	select SND_SIMPLE_CARD_UTILS
 	help
 	  This option enables simple sound if you need sampling rate convert
 

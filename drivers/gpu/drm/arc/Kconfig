@@ -2,7 +2,6 @@ config DRM_ARCPGU
 	tristate "ARC PGU"
 	depends on DRM && OF
 	select DRM_KMS_CMA_HELPER
-	select DRM_KMS_FB_HELPER
 	select DRM_KMS_HELPER
 	help
 	  Choose this option if you have an ARC PGU controller.

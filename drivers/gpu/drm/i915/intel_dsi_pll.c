@@ -55,12 +55,10 @@ static int dsi_calc_mnp(struct drm_i915_private *dev_priv,
 			struct intel_crtc_state *config,
 			int target_dsi_clk)
 {
-	unsigned int calc_m = 0, calc_p = 0;
 	unsigned int m_min, m_max, p_min = 2, p_max = 6;
 	unsigned int m, n, p;
-	int ref_clk;
-	int delta = target_dsi_clk;
-	u32 m_seed;
+	unsigned int calc_m, calc_p;
+	int delta, ref_clk;
 
 	/* target_dsi_clk is expected in kHz */
 	if (target_dsi_clk < 300000 || target_dsi_clk > 1150000) {
@@ -80,6 +78,10 @@ static int dsi_calc_mnp(struct drm_i915_private *dev_priv,
 		m_max = 92;
 	}
 
+	calc_p = p_min;
+	calc_m = m_min;
+	delta = abs(target_dsi_clk - (m_min * ref_clk) / (p_min * n));
+
 	for (m = m_min; m <= m_max && delta; m++) {
 		for (p = p_min; p <= p_max && delta; p++) {
 			/*
@@ -97,11 +99,10 @@ static int dsi_calc_mnp(struct drm_i915_private *dev_priv,
 	}
 
 	/* register has log2(N1), this works fine for powers of two */
-	n = ffs(n) - 1;
-	m_seed = lfsr_converts[calc_m - 62];
 	config->dsi_pll.ctrl = 1 << (DSI_PLL_P1_POST_DIV_SHIFT + calc_p - 2);
-	config->dsi_pll.div = n << DSI_PLL_N1_DIV_SHIFT |
-		m_seed << DSI_PLL_M1_DIV_SHIFT;
+	config->dsi_pll.div =
+		(ffs(n) - 1) << DSI_PLL_N1_DIV_SHIFT |
+		(u32)lfsr_converts[calc_m - 62] << DSI_PLL_M1_DIV_SHIFT;
 
 	return 0;
 }
@@ -113,7 +114,7 @@ static int dsi_calc_mnp(struct drm_i915_private *dev_priv,
 static int vlv_compute_dsi_pll(struct intel_encoder *encoder,
 			       struct intel_crtc_state *config)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	int ret;
 	u32 dsi_clk;
@@ -234,8 +235,11 @@ static void bxt_disable_dsi_pll(struct intel_encoder *encoder)
 	 * PLL lock should deassert within 200us.
 	 * Wait up to 1ms before timing out.
 	 */
-	if (wait_for((I915_READ(BXT_DSI_PLL_ENABLE)
-					& BXT_DSI_PLL_LOCKED) == 0, 1))
+	if (intel_wait_for_register(dev_priv,
+				    BXT_DSI_PLL_ENABLE,
+				    BXT_DSI_PLL_LOCKED,
+				    0,
+				    1))
 		DRM_ERROR("Timeout waiting for PLL lock deassertion\n");
 }
 
@@ -321,7 +325,7 @@ static u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
 	u32 dsi_clk;
 	u32 dsi_ratio;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	/* Divide by zero */
 	if (!pipe_bpp) {
@@ -356,7 +360,7 @@ u32 intel_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
 static void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 {
 	u32 temp;
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 
 	temp = I915_READ(MIPI_CTRL(port));
@@ -370,7 +374,7 @@ static void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port,
 				   const struct intel_crtc_state *config)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 tmp;
 	u32 dsi_rate = 0;
 	u32 pll_ratio = 0;
@@ -465,7 +469,7 @@ static int bxt_compute_dsi_pll(struct intel_encoder *encoder,
 static void bxt_enable_dsi_pll(struct intel_encoder *encoder,
 			       const struct intel_crtc_state *config)
 {
-	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 	u32 val;
@@ -486,7 +490,11 @@ static void bxt_enable_dsi_pll(struct intel_encoder *encoder,
 	I915_WRITE(BXT_DSI_PLL_ENABLE, val);
 
 	/* Timeout and fail if PLL not locked */
-	if (wait_for(I915_READ(BXT_DSI_PLL_ENABLE) & BXT_DSI_PLL_LOCKED, 1)) {
+	if (intel_wait_for_register(dev_priv,
+				    BXT_DSI_PLL_ENABLE,
+				    BXT_DSI_PLL_LOCKED,
+				    BXT_DSI_PLL_LOCKED,
+				    1)) {
 		DRM_ERROR("Timed out waiting for DSI PLL to lock\n");
 		return;
 	}
@@ -542,7 +550,7 @@ static void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 {
 	u32 tmp;
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* Clear old configurations */
 	tmp = I915_READ(BXT_MIPI_CLOCK_CTL);

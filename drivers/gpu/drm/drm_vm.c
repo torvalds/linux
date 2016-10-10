@@ -80,7 +80,7 @@ static pgprot_t drm_dma_prot(uint32_t map_type, struct vm_area_struct *vma)
 	pgprot_t tmp = vm_get_page_prot(vma->vm_flags);
 
 #if defined(__powerpc__) && defined(CONFIG_NOT_COHERENT_CACHE)
-	tmp |= _PAGE_NO_CACHE;
+	tmp = pgprot_noncached_wc(tmp);
 #endif
 	return tmp;
 }
@@ -593,7 +593,7 @@ static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 			 * pages and mappings in fault()
 			 */
 #if defined(__powerpc__)
-			pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
+			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 #endif
 			vma->vm_ops = &drm_vm_ops;
 			break;
@@ -669,58 +669,4 @@ void drm_legacy_vma_flush(struct drm_device *dev)
 		list_del(&vma->head);
 		kfree(vma);
 	}
-}
-
-int drm_vma_info(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct drm_vma_entry *pt;
-	struct vm_area_struct *vma;
-	unsigned long vma_count = 0;
-#if defined(__i386__)
-	unsigned int pgprot;
-#endif
-
-	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry(pt, &dev->vmalist, head)
-		vma_count++;
-
-	seq_printf(m, "vma use count: %lu, high_memory = %pK, 0x%pK\n",
-		   vma_count, high_memory,
-		   (void *)(unsigned long)virt_to_phys(high_memory));
-
-	list_for_each_entry(pt, &dev->vmalist, head) {
-		vma = pt->vma;
-		if (!vma)
-			continue;
-		seq_printf(m,
-			   "\n%5d 0x%pK-0x%pK %c%c%c%c%c%c 0x%08lx000",
-			   pt->pid,
-			   (void *)vma->vm_start, (void *)vma->vm_end,
-			   vma->vm_flags & VM_READ ? 'r' : '-',
-			   vma->vm_flags & VM_WRITE ? 'w' : '-',
-			   vma->vm_flags & VM_EXEC ? 'x' : '-',
-			   vma->vm_flags & VM_MAYSHARE ? 's' : 'p',
-			   vma->vm_flags & VM_LOCKED ? 'l' : '-',
-			   vma->vm_flags & VM_IO ? 'i' : '-',
-			   vma->vm_pgoff);
-
-#if defined(__i386__)
-		pgprot = pgprot_val(vma->vm_page_prot);
-		seq_printf(m, " %c%c%c%c%c%c%c%c%c",
-			   pgprot & _PAGE_PRESENT ? 'p' : '-',
-			   pgprot & _PAGE_RW ? 'w' : 'r',
-			   pgprot & _PAGE_USER ? 'u' : 's',
-			   pgprot & _PAGE_PWT ? 't' : 'b',
-			   pgprot & _PAGE_PCD ? 'u' : 'c',
-			   pgprot & _PAGE_ACCESSED ? 'a' : '-',
-			   pgprot & _PAGE_DIRTY ? 'd' : '-',
-			   pgprot & _PAGE_PSE ? 'm' : 'k',
-			   pgprot & _PAGE_GLOBAL ? 'g' : 'l');
-#endif
-		seq_printf(m, "\n");
-	}
-	mutex_unlock(&dev->struct_mutex);
-	return 0;
 }

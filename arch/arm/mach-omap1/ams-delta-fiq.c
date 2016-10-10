@@ -137,7 +137,7 @@ void __init ams_delta_init_fiq(void)
 		fiq_buffer[i] = 0;
 
 	/*
-	 * FIQ mode r9 always points to the fiq_buffer, becauses the FIQ isr
+	 * FIQ mode r9 always points to the fiq_buffer, because the FIQ isr
 	 * will run in an unpredictable context. The fiq_buffer is the FIQ isr's
 	 * only means of communication with the IRQ level and other kernel
 	 * context code.

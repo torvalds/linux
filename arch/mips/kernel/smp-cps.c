@@ -46,8 +46,8 @@ static unsigned core_vpe_count(unsigned core)
 	if (threads_disabled)
 		return 1;
 
-	if ((!config_enabled(CONFIG_MIPS_MT_SMP) || !cpu_has_mipsmt)
-		&& (!config_enabled(CONFIG_CPU_MIPSR6) || !cpu_has_vp))
+	if ((!IS_ENABLED(CONFIG_MIPS_MT_SMP) || !cpu_has_mipsmt)
+		&& (!IS_ENABLED(CONFIG_CPU_MIPSR6) || !cpu_has_vp))
 		return 1;
 
 	mips_cm_lock_other(core, 0);
@@ -206,7 +206,7 @@ err_out:
 	}
 }
 
-static void boot_core(unsigned core)
+static void boot_core(unsigned int core, unsigned int vpe_id)
 {
 	u32 access, stat, seq_state;
 	unsigned timeout;
@@ -233,8 +233,9 @@ static void boot_core(unsigned core)
 		mips_cpc_lock_other(core);
 
 		if (mips_cm_revision() >= CM_REV_CM3) {
-			/* Run VP0 following the reset */
-			write_cpc_co_vp_run(0x1);
+			/* Run only the requested VP following the reset */
+			write_cpc_co_vp_stop(0xf);
+			write_cpc_co_vp_run(1 << vpe_id);
 
 			/*
 			 * Ensure that the VP_RUN register is written before the
@@ -306,7 +307,7 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 
 	if (!test_bit(core, core_power)) {
 		/* Boot a VPE on a powered down core */
-		boot_core(core);
+		boot_core(core, vpe_id);
 		goto out;
 	}
 
@@ -397,6 +398,7 @@ static int cps_cpu_disable(void)
 	atomic_sub(1 << cpu_vpe_id(&current_cpu_data), &core_cfg->vpe_mask);
 	smp_mb__after_atomic();
 	set_cpu_online(cpu, false);
+	calculate_cpu_foreign_map();
 	cpumask_clear_cpu(cpu, &cpu_callin_map);
 
 	return 0;
@@ -411,14 +413,16 @@ static enum {
 
 void play_dead(void)
 {
-	unsigned cpu, core;
+	unsigned int cpu, core, vpe_id;
 
 	local_irq_disable();
 	idle_task_exit();
 	cpu = smp_processor_id();
 	cpu_death = CPU_DEATH_POWER;
 
-	if (cpu_has_mipsmt) {
+	pr_debug("CPU%d going offline\n", cpu);
+
+	if (cpu_has_mipsmt || cpu_has_vp) {
 		core = cpu_data[cpu].core;
 
 		/* Look for another online VPE within the core */
@@ -439,10 +443,21 @@ void play_dead(void)
 	complete(&cpu_death_chosen);
 
 	if (cpu_death == CPU_DEATH_HALT) {
-		/* Halt this TC */
-		write_c0_tchalt(TCHALT_H);
-		instruction_hazard();
+		vpe_id = cpu_vpe_id(&cpu_data[cpu]);
+
+		pr_debug("Halting core %d VP%d\n", core, vpe_id);
+		if (cpu_has_mipsmt) {
+			/* Halt this TC */
+			write_c0_tchalt(TCHALT_H);
+			instruction_hazard();
+		} else if (cpu_has_vp) {
+			write_cpc_cl_vp_stop(1 << vpe_id);
+
+			/* Ensure that the VP_STOP register is written */
+			wmb();
+		}
 	} else {
+		pr_debug("Gating power to core %d\n", core);
 		/* Power down the core */
 		cps_pm_enter_state(CPS_PM_POWER_GATED);
 	}
@@ -469,6 +484,7 @@ static void wait_for_sibling_halt(void *ptr_cpu)
 static void cps_cpu_die(unsigned int cpu)
 {
 	unsigned core = cpu_data[cpu].core;
+	unsigned int vpe_id = cpu_vpe_id(&cpu_data[cpu]);
 	unsigned stat;
 	int err;
 
@@ -497,10 +513,12 @@ static void cps_cpu_die(unsigned int cpu)
 		 * in which case the CPC will refuse to power down the core.
 		 */
 		do {
+			mips_cm_lock_other(core, 0);
 			mips_cpc_lock_other(core);
 			stat = read_cpc_co_stat_conf();
 			stat &= CPC_Cx_STAT_CONF_SEQSTATE_MSK;
 			mips_cpc_unlock_other();
+			mips_cm_unlock_other();
 		} while (stat != CPC_Cx_STAT_CONF_SEQSTATE_D0 &&
 			 stat != CPC_Cx_STAT_CONF_SEQSTATE_D2 &&
 			 stat != CPC_Cx_STAT_CONF_SEQSTATE_U2);
@@ -517,6 +535,12 @@ static void cps_cpu_die(unsigned int cpu)
 					       (void *)(unsigned long)cpu, 1);
 		if (err)
 			panic("Failed to call remote sibling CPU\n");
+	} else if (cpu_has_vp) {
+		do {
+			mips_cm_lock_other(core, vpe_id);
+			stat = read_cpc_co_vp_running();
+			mips_cm_unlock_other();
+		} while (stat & (1 << vpe_id));
 	}
 }
 

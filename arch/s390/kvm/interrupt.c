@@ -28,9 +28,6 @@
 #include "gaccess.h"
 #include "trace-s390.h"
 
-#define IOINT_SCHID_MASK 0x0000ffff
-#define IOINT_SSID_MASK 0x00030000
-#define IOINT_CSSID_MASK 0x03fc0000
 #define PFAULT_INIT 0x0600
 #define PFAULT_DONE 0x0680
 #define VIRTIO_PARAM 0x0d00
@@ -821,7 +818,14 @@ static int __must_check __deliver_io(struct kvm_vcpu *vcpu,
 					struct kvm_s390_interrupt_info,
 					list);
 	if (inti) {
-		VCPU_EVENT(vcpu, 4, "deliver: I/O 0x%llx", inti->type);
+		if (inti->type & KVM_S390_INT_IO_AI_MASK)
+			VCPU_EVENT(vcpu, 4, "%s", "deliver: I/O (AI)");
+		else
+			VCPU_EVENT(vcpu, 4, "deliver: I/O %x ss %x schid %04x",
+			inti->io.subchannel_id >> 8,
+			inti->io.subchannel_id >> 1 & 0x3,
+			inti->io.subchannel_nr);
+
 		vcpu->stat.deliver_io_int++;
 		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id,
 				inti->type,
@@ -991,6 +995,11 @@ void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu)
 		swake_up(&vcpu->wq);
 		vcpu->stat.halt_wakeup++;
 	}
+	/*
+	 * The VCPU might not be sleeping but is executing the VSIE. Let's
+	 * kick it, so it leaves the SIE to process the request.
+	 */
+	kvm_s390_vsie_kick(vcpu);
 }
 
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer)
@@ -1415,6 +1424,13 @@ static int __inject_io(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 	}
 	fi->counters[FIRQ_CNTR_IO] += 1;
 
+	if (inti->type & KVM_S390_INT_IO_AI_MASK)
+		VM_EVENT(kvm, 4, "%s", "inject: I/O (AI)");
+	else
+		VM_EVENT(kvm, 4, "inject: I/O %x ss %x schid %04x",
+			inti->io.subchannel_id >> 8,
+			inti->io.subchannel_id >> 1 & 0x3,
+			inti->io.subchannel_nr);
 	isc = int_word_to_isc(inti->io.io_int_word);
 	list = &fi->lists[FIRQ_LIST_IO_ISC_0 + isc];
 	list_add_tail(&inti->list, list);
@@ -1531,13 +1547,6 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 		inti->mchk.mcic = s390int->parm64;
 		break;
 	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
-		if (inti->type & KVM_S390_INT_IO_AI_MASK)
-			VM_EVENT(kvm, 5, "%s", "inject: I/O (AI)");
-		else
-			VM_EVENT(kvm, 5, "inject: I/O css %x ss %x schid %04x",
-				 s390int->type & IOINT_CSSID_MASK,
-				 s390int->type & IOINT_SSID_MASK,
-				 s390int->type & IOINT_SCHID_MASK);
 		inti->io.subchannel_id = s390int->parm >> 16;
 		inti->io.subchannel_nr = s390int->parm & 0x0000ffffu;
 		inti->io.io_int_parm = s390int->parm64 >> 32;
@@ -2237,7 +2246,8 @@ static int set_adapter_int(struct kvm_kernel_irq_routing_entry *e,
 	return ret;
 }
 
-int kvm_set_routing_entry(struct kvm_kernel_irq_routing_entry *e,
+int kvm_set_routing_entry(struct kvm *kvm,
+			  struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue)
 {
 	int ret;

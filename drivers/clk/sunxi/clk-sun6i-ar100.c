@@ -10,7 +10,7 @@
 
 #include <linux/bitops.h>
 #include <linux/clk-provider.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
@@ -91,32 +91,17 @@ static int sun6i_a31_ar100_clk_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int sun6i_a31_ar100_clk_remove(struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-	struct clk *clk = platform_get_drvdata(pdev);
-
-	sunxi_factors_unregister(np, clk);
-
-	return 0;
-}
-
 static const struct of_device_id sun6i_a31_ar100_clk_dt_ids[] = {
 	{ .compatible = "allwinner,sun6i-a31-ar100-clk" },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, sun6i_a31_ar100_clk_dt_ids);
 
 static struct platform_driver sun6i_a31_ar100_clk_driver = {
 	.driver = {
 		.name = "sun6i-a31-ar100-clk",
 		.of_match_table = sun6i_a31_ar100_clk_dt_ids,
+		.suppress_bind_attrs = true,
 	},
 	.probe = sun6i_a31_ar100_clk_probe,
-	.remove = sun6i_a31_ar100_clk_remove,
 };
-module_platform_driver(sun6i_a31_ar100_clk_driver);
-
-MODULE_AUTHOR("Boris BREZILLON <boris.brezillon@free-electrons.com>");
-MODULE_DESCRIPTION("Allwinner A31 AR100 clock Driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(sun6i_a31_ar100_clk_driver);
