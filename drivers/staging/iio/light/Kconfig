@@ -4,7 +4,7 @@
 menu "Light sensors"
 
 config SENSORS_ISL29018
-	tristate "ISL 29018 light and proximity sensor"
+	tristate "Intersil 29018 light and proximity sensor"
 	depends on I2C
 	select REGMAP_I2C
 	default n
