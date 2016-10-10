@@ -317,5 +317,30 @@ static inline int NCR5380_poll_politely(struct NCR5380_hostdata *hostdata,
 						reg, bit, val, wait);
 }
 
+static int NCR5380_dma_xfer_len(struct NCR5380_hostdata *,
+                                struct scsi_cmnd *);
+static int NCR5380_dma_send_setup(struct NCR5380_hostdata *,
+                                  unsigned char *, int);
+static int NCR5380_dma_recv_setup(struct NCR5380_hostdata *,
+                                  unsigned char *, int);
+static int NCR5380_dma_residual(struct NCR5380_hostdata *);
+
+static inline int NCR5380_dma_xfer_none(struct NCR5380_hostdata *hostdata,
+                                        struct scsi_cmnd *cmd)
+{
+	return 0;
+}
+
+static inline int NCR5380_dma_setup_none(struct NCR5380_hostdata *hostdata,
+                                         unsigned char *data, int count)
+{
+	return 0;
+}
+
+static inline int NCR5380_dma_residual_none(struct NCR5380_hostdata *hostdata)
+{
+	return 0;
+}
+
 #endif				/* __KERNEL__ */
 #endif				/* NCR5380_H */

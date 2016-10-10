@@ -33,11 +33,10 @@
 #define NCR5380_read(reg)           in_8(hostdata->io + ((reg) << 4))
 #define NCR5380_write(reg, value)   out_8(hostdata->io + ((reg) << 4), value)
 
-#define NCR5380_dma_xfer_len(instance, cmd, phase) \
-        macscsi_dma_xfer_len(instance, cmd)
+#define NCR5380_dma_xfer_len            macscsi_dma_xfer_len
 #define NCR5380_dma_recv_setup          macscsi_pread
 #define NCR5380_dma_send_setup          macscsi_pwrite
-#define NCR5380_dma_residual(instance)  (hostdata->pdma_residual)
+#define NCR5380_dma_residual            macscsi_dma_residual
 
 #define NCR5380_intr                    macscsi_intr
 #define NCR5380_queue_command           macscsi_queue_command
@@ -152,10 +151,9 @@ __asm__ __volatile__					\
      : "0"(s), "1"(d), "2"(n)				\
      : "d0")
 
-static int macscsi_pread(struct Scsi_Host *instance,
-                         unsigned char *dst, int len)
+static inline int macscsi_pread(struct NCR5380_hostdata *hostdata,
+                                unsigned char *dst, int len)
 {
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char *s = hostdata->pdma_io + (INPUT_DATA_REG << 4);
 	unsigned char *d = dst;
 	int n = len;
@@ -181,16 +179,16 @@ static int macscsi_pread(struct Scsi_Host *instance,
 		if (!(NCR5380_read(BUS_AND_STATUS_REG) & BASR_PHASE_MATCH))
 			return 0;
 
-		dsprintk(NDEBUG_PSEUDO_DMA, instance,
+		dsprintk(NDEBUG_PSEUDO_DMA, hostdata->host,
 		         "%s: bus error (%d/%d)\n", __func__, transferred, len);
-		NCR5380_dprint(NDEBUG_PSEUDO_DMA, instance);
+		NCR5380_dprint(NDEBUG_PSEUDO_DMA, hostdata->host);
 		d = dst + transferred;
 		n = len - transferred;
 	}
 
 	scmd_printk(KERN_ERR, hostdata->connected,
 	            "%s: phase mismatch or !DRQ\n", __func__);
-	NCR5380_dprint(NDEBUG_PSEUDO_DMA, instance);
+	NCR5380_dprint(NDEBUG_PSEUDO_DMA, hostdata->host);
 	return -1;
 }
 
@@ -255,10 +253,9 @@ __asm__ __volatile__					\
      : "0"(s), "1"(d), "2"(n)				\
      : "d0")
 
-static int macscsi_pwrite(struct Scsi_Host *instance,
-                          unsigned char *src, int len)
+static inline int macscsi_pwrite(struct NCR5380_hostdata *hostdata,
+                                 unsigned char *src, int len)
 {
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char *s = src;
 	unsigned char *d = hostdata->pdma_io + (OUTPUT_DATA_REG << 4);
 	int n = len;
@@ -290,30 +287,33 @@ static int macscsi_pwrite(struct Scsi_Host *instance,
 			return 0;
 		}
 
-		dsprintk(NDEBUG_PSEUDO_DMA, instance,
+		dsprintk(NDEBUG_PSEUDO_DMA, hostdata->host,
 		         "%s: bus error (%d/%d)\n", __func__, transferred, len);
-		NCR5380_dprint(NDEBUG_PSEUDO_DMA, instance);
+		NCR5380_dprint(NDEBUG_PSEUDO_DMA, hostdata->host);
 		s = src + transferred;
 		n = len - transferred;
 	}
 
 	scmd_printk(KERN_ERR, hostdata->connected,
 	            "%s: phase mismatch or !DRQ\n", __func__);
-	NCR5380_dprint(NDEBUG_PSEUDO_DMA, instance);
+	NCR5380_dprint(NDEBUG_PSEUDO_DMA, hostdata->host);
 
 	return -1;
 }
 
-static int macscsi_dma_xfer_len(struct Scsi_Host *instance,
+static int macscsi_dma_xfer_len(struct NCR5380_hostdata *hostdata,
                                 struct scsi_cmnd *cmd)
 {
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-
 	if (hostdata->flags & FLAG_NO_PSEUDO_DMA ||
 	    cmd->SCp.this_residual < 16)
 		return 0;
 
 	return cmd->SCp.this_residual;
+}
+
+static int macscsi_dma_residual(struct NCR5380_hostdata *hostdata)
+{
+	return hostdata->pdma_residual;
 }
 
 #include "NCR5380.c"

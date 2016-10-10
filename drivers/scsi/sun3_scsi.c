@@ -51,12 +51,10 @@
 #define NCR5380_abort                   sun3scsi_abort
 #define NCR5380_info                    sun3scsi_info
 
-#define NCR5380_dma_recv_setup(instance, data, count) (count)
-#define NCR5380_dma_send_setup(instance, data, count) (count)
-#define NCR5380_dma_residual(instance) \
-        sun3scsi_dma_residual(instance)
-#define NCR5380_dma_xfer_len(instance, cmd, phase) \
-        sun3scsi_dma_xfer_len(cmd->SCp.this_residual, cmd)
+#define NCR5380_dma_xfer_len            sun3scsi_dma_xfer_len
+#define NCR5380_dma_recv_setup          sun3scsi_dma_count
+#define NCR5380_dma_send_setup          sun3scsi_dma_count
+#define NCR5380_dma_residual            sun3scsi_dma_residual
 
 #define NCR5380_acquire_dma_irq(instance)    (1)
 #define NCR5380_release_dma_irq(instance)
@@ -143,8 +141,8 @@ static irqreturn_t scsi_sun3_intr(int irq, void *dev)
 }
 
 /* sun3scsi_dma_setup() -- initialize the dma controller for a read/write */
-static unsigned long sun3scsi_dma_setup(struct Scsi_Host *instance,
-                                void *data, unsigned long count, int write_flag)
+static int sun3scsi_dma_setup(struct NCR5380_hostdata *hostdata,
+                              unsigned char *data, int count, int write_flag)
 {
 	void *addr;
 
@@ -196,9 +194,10 @@ static unsigned long sun3scsi_dma_setup(struct Scsi_Host *instance,
 	dregs->csr |= CSR_FIFO;
 	
 	if(dregs->fifo_count != count) { 
-		shost_printk(KERN_ERR, instance, "FIFO mismatch %04x not %04x\n",
+		shost_printk(KERN_ERR, hostdata->host,
+		             "FIFO mismatch %04x not %04x\n",
 		             dregs->fifo_count, (unsigned int) count);
-		NCR5380_dprint(NDEBUG_DMA, instance);
+		NCR5380_dprint(NDEBUG_DMA, hostdata->host);
 	}
 
 	/* setup udc */
@@ -233,14 +232,34 @@ static unsigned long sun3scsi_dma_setup(struct Scsi_Host *instance,
 
 }
 
-static inline unsigned long sun3scsi_dma_residual(struct Scsi_Host *instance)
+static int sun3scsi_dma_count(struct NCR5380_hostdata *hostdata,
+                              unsigned char *data, int count)
+{
+	return count;
+}
+
+static inline int sun3scsi_dma_recv_setup(struct NCR5380_hostdata *hostdata,
+                                          unsigned char *data, int count)
+{
+	return sun3scsi_dma_setup(hostdata, data, count, 0);
+}
+
+static inline int sun3scsi_dma_send_setup(struct NCR5380_hostdata *hostdata,
+                                          unsigned char *data, int count)
+{
+	return sun3scsi_dma_setup(hostdata, data, count, 1);
+}
+
+static int sun3scsi_dma_residual(struct NCR5380_hostdata *hostdata)
 {
 	return last_residual;
 }
 
-static inline unsigned long sun3scsi_dma_xfer_len(unsigned long wanted_len,
-                                                  struct scsi_cmnd *cmd)
+static int sun3scsi_dma_xfer_len(struct NCR5380_hostdata *hostdata,
+                                 struct scsi_cmnd *cmd)
 {
+	int wanted_len = cmd->SCp.this_residual;
+
 	if (wanted_len < DMA_MIN_SIZE || cmd->request->cmd_type != REQ_TYPE_FS)
 		return 0;
 

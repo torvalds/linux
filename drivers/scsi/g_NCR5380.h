@@ -32,11 +32,10 @@
 #define NCR53C400_host_buffer 0x3900
 #define NCR53C400_region_size 0x3a00
 
-#define NCR5380_dma_xfer_len(instance, cmd, phase) \
-        generic_NCR5380_dma_xfer_len(instance, cmd)
+#define NCR5380_dma_xfer_len		generic_NCR5380_dma_xfer_len
 #define NCR5380_dma_recv_setup		generic_NCR5380_pread
 #define NCR5380_dma_send_setup		generic_NCR5380_pwrite
-#define NCR5380_dma_residual(instance)	(0)
+#define NCR5380_dma_residual		NCR5380_dma_residual_none
 
 #define NCR5380_intr generic_NCR5380_intr
 #define NCR5380_queue_command generic_NCR5380_queue_command

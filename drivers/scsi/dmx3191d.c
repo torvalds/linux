@@ -37,10 +37,10 @@
 #define NCR5380_read(reg)		inb(hostdata->base + (reg))
 #define NCR5380_write(reg, value)	outb(value, hostdata->base + (reg))
 
-#define NCR5380_dma_xfer_len(instance, cmd, phase)	(0)
-#define NCR5380_dma_recv_setup(instance, dst, len)	(0)
-#define NCR5380_dma_send_setup(instance, src, len)	(0)
-#define NCR5380_dma_residual(instance)			(0)
+#define NCR5380_dma_xfer_len		NCR5380_dma_xfer_none
+#define NCR5380_dma_recv_setup		NCR5380_dma_setup_none
+#define NCR5380_dma_send_setup		NCR5380_dma_setup_none
+#define NCR5380_dma_residual		NCR5380_dma_residual_none
 
 #define NCR5380_implementation_fields	/* none */
 

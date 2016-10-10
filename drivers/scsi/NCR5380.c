@@ -121,9 +121,10 @@
  *
  * Either real DMA *or* pseudo DMA may be implemented
  *
- * NCR5380_dma_write_setup(instance, src, count) - initialize
- * NCR5380_dma_read_setup(instance, dst, count) - initialize
- * NCR5380_dma_residual(instance); - residual count
+ * NCR5380_dma_xfer_len   - determine size of DMA/PDMA transfer
+ * NCR5380_dma_send_setup - execute DMA/PDMA from memory to 5380
+ * NCR5380_dma_recv_setup - execute DMA/PDMA from 5380 to memory
+ * NCR5380_dma_residual   - residual byte count
  *
  * The generic driver is initialized by calling NCR5380_init(instance),
  * after setting the appropriate host specific fields and ID.  If the
@@ -871,7 +872,7 @@ static void NCR5380_dma_complete(struct Scsi_Host *instance)
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
 
-	transferred = hostdata->dma_len - NCR5380_dma_residual(instance);
+	transferred = hostdata->dma_len - NCR5380_dma_residual(hostdata);
 	hostdata->dma_len = 0;
 
 	data = (unsigned char **)&hostdata->connected->SCp.ptr;
@@ -1578,9 +1579,9 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 		 * starting the NCR. This is also the cleaner way for the TT.
 		 */
 		if (p & SR_IO)
-			result = NCR5380_dma_recv_setup(instance, d, c);
+			result = NCR5380_dma_recv_setup(hostdata, d, c);
 		else
-			result = NCR5380_dma_send_setup(instance, d, c);
+			result = NCR5380_dma_send_setup(hostdata, d, c);
 	}
 
 	/*
@@ -1612,9 +1613,9 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 		 * NCR access, else the DMA setup gets trashed!
 		 */
 		if (p & SR_IO)
-			result = NCR5380_dma_recv_setup(instance, d, c);
+			result = NCR5380_dma_recv_setup(hostdata, d, c);
 		else
-			result = NCR5380_dma_send_setup(instance, d, c);
+			result = NCR5380_dma_send_setup(hostdata, d, c);
 	}
 
 	/* On failure, NCR5380_dma_xxxx_setup() returns a negative int. */
@@ -1754,22 +1755,26 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				NCR5380_dprint_phase(NDEBUG_INFORMATION, instance);
 			}
 #ifdef CONFIG_SUN3
-			if (phase == PHASE_CMDOUT) {
-				void *d;
-				unsigned long count;
+			if (phase == PHASE_CMDOUT &&
+			    sun3_dma_setup_done != cmd) {
+				int count;
 
 				if (!cmd->SCp.this_residual && cmd->SCp.buffers_residual) {
-					count = cmd->SCp.buffer->length;
-					d = sg_virt(cmd->SCp.buffer);
-				} else {
-					count = cmd->SCp.this_residual;
-					d = cmd->SCp.ptr;
+					++cmd->SCp.buffer;
+					--cmd->SCp.buffers_residual;
+					cmd->SCp.this_residual = cmd->SCp.buffer->length;
+					cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
 				}
 
-				if (sun3_dma_setup_done != cmd &&
-				    sun3scsi_dma_xfer_len(count, cmd) > 0) {
-					sun3scsi_dma_setup(instance, d, count,
-					                   rq_data_dir(cmd->request));
+				count = sun3scsi_dma_xfer_len(hostdata, cmd);
+
+				if (count > 0) {
+					if (rq_data_dir(cmd->request))
+						sun3scsi_dma_send_setup(hostdata,
+						                        cmd->SCp.ptr, count);
+					else
+						sun3scsi_dma_recv_setup(hostdata,
+						                        cmd->SCp.ptr, count);
 					sun3_dma_setup_done = cmd;
 				}
 #ifdef SUN3_SCSI_VME
@@ -1830,7 +1835,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 
 				transfersize = 0;
 				if (!cmd->device->borken)
-					transfersize = NCR5380_dma_xfer_len(instance, cmd, phase);
+					transfersize = NCR5380_dma_xfer_len(hostdata, cmd);
 
 				if (transfersize > 0) {
 					len = transfersize;
@@ -2207,22 +2212,25 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 	}
 
 #ifdef CONFIG_SUN3
-	{
-		void *d;
-		unsigned long count;
+	if (sun3_dma_setup_done != tmp) {
+		int count;
 
 		if (!tmp->SCp.this_residual && tmp->SCp.buffers_residual) {
-			count = tmp->SCp.buffer->length;
-			d = sg_virt(tmp->SCp.buffer);
-		} else {
-			count = tmp->SCp.this_residual;
-			d = tmp->SCp.ptr;
+			++tmp->SCp.buffer;
+			--tmp->SCp.buffers_residual;
+			tmp->SCp.this_residual = tmp->SCp.buffer->length;
+			tmp->SCp.ptr = sg_virt(tmp->SCp.buffer);
 		}
 
-		if (sun3_dma_setup_done != tmp &&
-		    sun3scsi_dma_xfer_len(count, tmp) > 0) {
-			sun3scsi_dma_setup(instance, d, count,
-			                   rq_data_dir(tmp->request));
+		count = sun3scsi_dma_xfer_len(hostdata, tmp);
+
+		if (count > 0) {
+			if (rq_data_dir(tmp->request))
+				sun3scsi_dma_send_setup(hostdata,
+				                        tmp->SCp.ptr, count);
+			else
+				sun3scsi_dma_recv_setup(hostdata,
+				                        tmp->SCp.ptr, count);
 			sun3_dma_setup_done = tmp;
 		}
 	}

@@ -17,10 +17,10 @@
 #define NCR5380_read(reg)		cumanascsi_read(hostdata, reg)
 #define NCR5380_write(reg, value)	cumanascsi_write(hostdata, reg, value)
 
-#define NCR5380_dma_xfer_len(instance, cmd, phase)	(cmd->transfersize)
+#define NCR5380_dma_xfer_len		cumanascsi_dma_xfer_len
 #define NCR5380_dma_recv_setup		cumanascsi_pread
 #define NCR5380_dma_send_setup		cumanascsi_pwrite
-#define NCR5380_dma_residual(instance)	(0)
+#define NCR5380_dma_residual		NCR5380_dma_residual_none
 
 #define NCR5380_intr			cumanascsi_intr
 #define NCR5380_queue_command		cumanascsi_queue_command
@@ -40,12 +40,12 @@ static void cumanascsi_write(struct NCR5380_hostdata *, unsigned int, u8);
 #define L(v)	(((v)<<16)|((v) & 0x0000ffff))
 #define H(v)	(((v)>>16)|((v) & 0xffff0000))
 
-static inline int cumanascsi_pwrite(struct Scsi_Host *host,
+static inline int cumanascsi_pwrite(struct NCR5380_hostdata *hostdata,
                                     unsigned char *addr, int len)
 {
   unsigned long *laddr;
-  u8 __iomem *base = priv(host)->io;
-  u8 __iomem *dma = priv(host)->pdma_io + 0x2000;
+  u8 __iomem *base = hostdata->io;
+  u8 __iomem *dma = hostdata->pdma_io + 0x2000;
 
   if(!len) return 0;
 
@@ -100,19 +100,19 @@ static inline int cumanascsi_pwrite(struct Scsi_Host *host,
     }
   }
 end:
-  writeb(priv(host)->ctrl | 0x40, base + CTRL);
+  writeb(hostdata->ctrl | 0x40, base + CTRL);
 
 	if (len)
 		return -1;
 	return 0;
 }
 
-static inline int cumanascsi_pread(struct Scsi_Host *host,
+static inline int cumanascsi_pread(struct NCR5380_hostdata *hostdata,
                                    unsigned char *addr, int len)
 {
   unsigned long *laddr;
-  u8 __iomem *base = priv(host)->io;
-  u8 __iomem *dma = priv(host)->pdma_io + 0x2000;
+  u8 __iomem *base = hostdata->io;
+  u8 __iomem *dma = hostdata->pdma_io + 0x2000;
 
   if(!len) return 0;
 
@@ -166,11 +166,17 @@ static inline int cumanascsi_pread(struct Scsi_Host *host,
     }
   }
 end:
-  writeb(priv(host)->ctrl | 0x40, base + CTRL);
+  writeb(hostdata->ctrl | 0x40, base + CTRL);
 
 	if (len)
 		return -1;
 	return 0;
+}
+
+static int cumanascsi_dma_xfer_len(struct NCR5380_hostdata *hostdata,
+                                   struct scsi_cmnd *cmd)
+{
+	return cmd->transfersize;
 }
 
 static u8 cumanascsi_read(struct NCR5380_hostdata *hostdata,
