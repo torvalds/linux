@@ -2250,8 +2250,17 @@ int perf_header__fprintf_info(struct perf_session *session, FILE *fp, bool full)
 	struct header_print_data hd;
 	struct perf_header *header = &session->header;
 	int fd = perf_data_file__fd(session->file);
+	struct stat st;
+	int ret;
+
 	hd.fp = fp;
 	hd.full = full;
+
+	ret = fstat(fd, &st);
+	if (ret == -1)
+		return -1;
+
+	fprintf(fp, "# captured on: %s", ctime(&st.st_ctime));
 
 	perf_header__process_sections(header, fd, &hd,
 				      perf_file_section__fprintf_info);
