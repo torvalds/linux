@@ -378,7 +378,7 @@ static void lnc_free(struct ubifs_zbranch *zbr)
 }
 
 /**
- * tnc_read_node_nm - read a "hashed" leaf node.
+ * tnc_read_hashed_node - read a "hashed" leaf node.
  * @c: UBIFS file-system description object
  * @zbr: key and position of the node
  * @node: node is returned here
@@ -388,8 +388,8 @@ static void lnc_free(struct ubifs_zbranch *zbr)
  * added to LNC. Returns zero in case of success or a negative negative error
  * code in case of failure.
  */
-static int tnc_read_node_nm(struct ubifs_info *c, struct ubifs_zbranch *zbr,
-			    void *node)
+static int tnc_read_hashed_node(struct ubifs_info *c, struct ubifs_zbranch *zbr,
+				void *node)
 {
 	int err;
 
@@ -1454,7 +1454,7 @@ again:
 		 * In this case the leaf node cache gets used, so we pass the
 		 * address of the zbranch and keep the mutex locked
 		 */
-		err = tnc_read_node_nm(c, zt, node);
+		err = tnc_read_hashed_node(c, zt, node);
 		goto out;
 	}
 	if (safely) {
@@ -1817,7 +1817,7 @@ static int do_lookup_nm(struct ubifs_info *c, const union ubifs_key *key,
 		goto out_unlock;
 	}
 
-	err = tnc_read_node_nm(c, &znode->zbranch[n], node);
+	err = tnc_read_hashed_node(c, &znode->zbranch[n], node);
 
 out_unlock:
 	mutex_unlock(&c->tnc_mutex);
@@ -2815,7 +2815,7 @@ struct ubifs_dent_node *ubifs_tnc_next_ent(struct ubifs_info *c,
 		goto out_free;
 	}
 
-	err = tnc_read_node_nm(c, zbr, dent);
+	err = tnc_read_hashed_node(c, zbr, dent);
 	if (unlikely(err))
 		goto out_free;
 
