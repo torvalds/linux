@@ -84,6 +84,7 @@ int rvt_driver_mr_init(struct rvt_dev_info *rdi)
 		lkey_table_size = rdi->dparms.lkey_table_size;
 	}
 	rdi->lkey_table.max = 1 << lkey_table_size;
+	rdi->lkey_table.shift = 32 - lkey_table_size;
 	lk_tab_size = rdi->lkey_table.max * sizeof(*rdi->lkey_table.table);
 	rdi->lkey_table.table = (struct rvt_mregion __rcu **)
 			       vmalloc_node(lk_tab_size, rdi->dparms.node);
@@ -774,7 +775,6 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 	struct rvt_mregion *mr;
 	unsigned n, m;
 	size_t off;
-	struct rvt_dev_info *dev = ib_to_rvt(pd->ibpd.device);
 
 	/*
 	 * We use LKEY == zero for kernel virtual addresses
@@ -782,6 +782,8 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 	 */
 	rcu_read_lock();
 	if (sge->lkey == 0) {
+		struct rvt_dev_info *dev = ib_to_rvt(pd->ibpd.device);
+
 		if (pd->user)
 			goto bail;
 		mr = rcu_dereference(dev->dma_mr);
@@ -798,8 +800,7 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 		isge->n = 0;
 		goto ok;
 	}
-	mr = rcu_dereference(
-		rkt->table[(sge->lkey >> (32 - dev->dparms.lkey_table_size))]);
+	mr = rcu_dereference(rkt->table[sge->lkey >> rkt->shift]);
 	if (unlikely(!mr || atomic_read(&mr->lkey_invalid) ||
 		     mr->lkey != sge->lkey || mr->pd != &pd->ibpd))
 		goto bail;
@@ -899,8 +900,7 @@ int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 		goto ok;
 	}
 
-	mr = rcu_dereference(
-		rkt->table[(rkey >> (32 - dev->dparms.lkey_table_size))]);
+	mr = rcu_dereference(rkt->table[rkey >> rkt->shift]);
 	if (unlikely(!mr || atomic_read(&mr->lkey_invalid) ||
 		     mr->lkey != rkey || qp->ibqp.pd != mr->pd))
 		goto bail;
