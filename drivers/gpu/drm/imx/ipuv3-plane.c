@@ -103,8 +103,7 @@ drm_plane_state_to_vbo(struct drm_plane_state *state)
 	       (state->src_x >> 16) / 2 - eba;
 }
 
-static void ipu_plane_atomic_set_base(struct ipu_plane *ipu_plane,
-				      struct drm_plane_state *old_state)
+static void ipu_plane_atomic_set_base(struct ipu_plane *ipu_plane)
 {
 	struct drm_plane *plane = &ipu_plane->base;
 	struct drm_plane_state *state = plane->state;
@@ -118,7 +117,7 @@ static void ipu_plane_atomic_set_base(struct ipu_plane *ipu_plane,
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_YUV420:
 	case DRM_FORMAT_YVU420:
-		if (old_state->fb)
+		if (!drm_atomic_crtc_needs_modeset(crtc_state))
 			break;
 
 		/*
@@ -393,7 +392,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		struct drm_crtc_state *crtc_state = state->crtc->state;
 
 		if (!drm_atomic_crtc_needs_modeset(crtc_state)) {
-			ipu_plane_atomic_set_base(ipu_plane, old_state);
+			ipu_plane_atomic_set_base(ipu_plane);
 			return;
 		}
 	}
@@ -438,7 +437,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	ipu_cpmem_set_high_priority(ipu_plane->ipu_ch);
 	ipu_idmac_set_double_buffer(ipu_plane->ipu_ch, 1);
 	ipu_cpmem_set_stride(ipu_plane->ipu_ch, state->fb->pitches[0]);
-	ipu_plane_atomic_set_base(ipu_plane, old_state);
+	ipu_plane_atomic_set_base(ipu_plane);
 	ipu_plane_enable(ipu_plane);
 }
 
