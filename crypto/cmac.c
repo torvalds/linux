@@ -243,6 +243,7 @@ static int cmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	case 8:
 		break;
 	default:
+		err = -EINVAL;
 		goto out_put_alg;
 	}
 
