@@ -5072,7 +5072,7 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (btrfs_root_readonly(root))
 		return -EROFS;
 
-	err = inode_change_ok(inode, attr);
+	err = setattr_prepare(dentry, attr);
 	if (err)
 		return err;
 
@@ -8619,7 +8619,7 @@ static ssize_t check_direct_IO(struct btrfs_root *root, struct kiocb *iocb,
 		goto out;
 
 	/* If this is a write we don't need to check anymore */
-	if (iov_iter_rw(iter) == WRITE)
+	if (iov_iter_rw(iter) != READ || !iter_is_iovec(iter))
 		return 0;
 	/*
 	 * Check to make sure we don't have duplicate iov_base's in this
@@ -10542,21 +10542,6 @@ out_inode:
 	unlock_new_inode(inode);
 	goto out;
 
-}
-
-/* Inspired by filemap_check_errors() */
-int btrfs_inode_check_errors(struct inode *inode)
-{
-	int ret = 0;
-
-	if (test_bit(AS_ENOSPC, &inode->i_mapping->flags) &&
-	    test_and_clear_bit(AS_ENOSPC, &inode->i_mapping->flags))
-		ret = -ENOSPC;
-	if (test_bit(AS_EIO, &inode->i_mapping->flags) &&
-	    test_and_clear_bit(AS_EIO, &inode->i_mapping->flags))
-		ret = -EIO;
-
-	return ret;
 }
 
 static const struct inode_operations btrfs_dir_inode_operations = {

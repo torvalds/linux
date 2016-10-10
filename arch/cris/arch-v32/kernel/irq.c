@@ -471,9 +471,8 @@ init_IRQ(void)
 	irq_set_default_host(domain);
 	of_node_put(np);
 
-	for (i = FIRST_IRQ, j = 0; j < NBR_INTR_VECT; i++, j++) {
+	for (i = FIRST_IRQ, j = 0; j < NBR_INTR_VECT && j < MACH_IRQS; i++, j++)
 		set_exception_vector(i, interrupt[j]);
-	}
 
 	/* Mark Timer and IPI IRQs as CPU local */
 	irq_allocations[TIMER0_INTR_VECT - FIRST_IRQ].cpu = CPU_FIXED;

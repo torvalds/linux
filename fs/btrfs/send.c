@@ -4329,7 +4329,7 @@ static int __process_new_xattr(int num, struct btrfs_key *di_key,
 	int ret;
 	struct send_ctx *sctx = ctx;
 	struct fs_path *p;
-	posix_acl_xattr_header dummy_acl;
+	struct posix_acl_xattr_header dummy_acl;
 
 	p = fs_path_alloc();
 	if (!p)

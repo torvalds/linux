@@ -374,7 +374,7 @@ static const struct mv_cesa_req_ops mv_cesa_ahash_req_ops = {
 	.complete = mv_cesa_ahash_complete,
 };
 
-static int mv_cesa_ahash_init(struct ahash_request *req,
+static void mv_cesa_ahash_init(struct ahash_request *req,
 			      struct mv_cesa_op_ctx *tmpl, bool algo_le)
 {
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
@@ -390,8 +390,6 @@ static int mv_cesa_ahash_init(struct ahash_request *req,
 	creq->op_tmpl = *tmpl;
 	creq->len = 0;
 	creq->algo_le = algo_le;
-
-	return 0;
 }
 
 static inline int mv_cesa_ahash_cra_init(struct crypto_tfm *tfm)
@@ -405,15 +403,16 @@ static inline int mv_cesa_ahash_cra_init(struct crypto_tfm *tfm)
 	return 0;
 }
 
-static int mv_cesa_ahash_cache_req(struct ahash_request *req, bool *cached)
+static bool mv_cesa_ahash_cache_req(struct ahash_request *req)
 {
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
+	bool cached = false;
 
-	if (creq->cache_ptr + req->nbytes < 64 && !creq->last_req) {
-		*cached = true;
+	if (creq->cache_ptr + req->nbytes < CESA_MAX_HASH_BLOCK_SIZE && !creq->last_req) {
+		cached = true;
 
 		if (!req->nbytes)
-			return 0;
+			return cached;
 
 		sg_pcopy_to_buffer(req->src, creq->src_nents,
 				   creq->cache + creq->cache_ptr,
@@ -422,7 +421,7 @@ static int mv_cesa_ahash_cache_req(struct ahash_request *req, bool *cached)
 		creq->cache_ptr += req->nbytes;
 	}
 
-	return 0;
+	return cached;
 }
 
 static struct mv_cesa_op_ctx *
@@ -455,7 +454,6 @@ mv_cesa_dma_add_frag(struct mv_cesa_tdma_chain *chain,
 
 static int
 mv_cesa_ahash_dma_add_cache(struct mv_cesa_tdma_chain *chain,
-			    struct mv_cesa_ahash_dma_iter *dma_iter,
 			    struct mv_cesa_ahash_req *creq,
 			    gfp_t flags)
 {
@@ -586,7 +584,7 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 	 * Add the cache (left-over data from a previous block) first.
 	 * This will never overflow the SRAM size.
 	 */
-	ret = mv_cesa_ahash_dma_add_cache(&basereq->chain, &iter, creq, flags);
+	ret = mv_cesa_ahash_dma_add_cache(&basereq->chain, creq, flags);
 	if (ret)
 		goto err_free_tdma;
 
@@ -668,7 +666,6 @@ err:
 static int mv_cesa_ahash_req_init(struct ahash_request *req, bool *cached)
 {
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
-	int ret;
 
 	creq->src_nents = sg_nents_for_len(req->src, req->nbytes);
 	if (creq->src_nents < 0) {
@@ -676,17 +673,15 @@ static int mv_cesa_ahash_req_init(struct ahash_request *req, bool *cached)
 		return creq->src_nents;
 	}
 
-	ret = mv_cesa_ahash_cache_req(req, cached);
-	if (ret)
-		return ret;
+	*cached = mv_cesa_ahash_cache_req(req);
 
 	if (*cached)
 		return 0;
 
 	if (cesa_dev->caps->has_tdma)
-		ret = mv_cesa_ahash_dma_req_init(req);
-
-	return ret;
+		return mv_cesa_ahash_dma_req_init(req);
+	else
+		return 0;
 }
 
 static int mv_cesa_ahash_queue_req(struct ahash_request *req)
@@ -805,12 +800,13 @@ static int mv_cesa_md5_init(struct ahash_request *req)
 	struct mv_cesa_op_ctx tmpl = { };
 
 	mv_cesa_set_op_cfg(&tmpl, CESA_SA_DESC_CFG_MACM_MD5);
+
+	mv_cesa_ahash_init(req, &tmpl, true);
+
 	creq->state[0] = MD5_H0;
 	creq->state[1] = MD5_H1;
 	creq->state[2] = MD5_H2;
 	creq->state[3] = MD5_H3;
-
-	mv_cesa_ahash_init(req, &tmpl, true);
 
 	return 0;
 }
@@ -873,13 +869,14 @@ static int mv_cesa_sha1_init(struct ahash_request *req)
 	struct mv_cesa_op_ctx tmpl = { };
 
 	mv_cesa_set_op_cfg(&tmpl, CESA_SA_DESC_CFG_MACM_SHA1);
+
+	mv_cesa_ahash_init(req, &tmpl, false);
+
 	creq->state[0] = SHA1_H0;
 	creq->state[1] = SHA1_H1;
 	creq->state[2] = SHA1_H2;
 	creq->state[3] = SHA1_H3;
 	creq->state[4] = SHA1_H4;
-
-	mv_cesa_ahash_init(req, &tmpl, false);
 
 	return 0;
 }
@@ -942,6 +939,9 @@ static int mv_cesa_sha256_init(struct ahash_request *req)
 	struct mv_cesa_op_ctx tmpl = { };
 
 	mv_cesa_set_op_cfg(&tmpl, CESA_SA_DESC_CFG_MACM_SHA256);
+
+	mv_cesa_ahash_init(req, &tmpl, false);
+
 	creq->state[0] = SHA256_H0;
 	creq->state[1] = SHA256_H1;
 	creq->state[2] = SHA256_H2;
@@ -950,8 +950,6 @@ static int mv_cesa_sha256_init(struct ahash_request *req)
 	creq->state[5] = SHA256_H5;
 	creq->state[6] = SHA256_H6;
 	creq->state[7] = SHA256_H7;
-
-	mv_cesa_ahash_init(req, &tmpl, false);
 
 	return 0;
 }

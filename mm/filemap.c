@@ -1941,7 +1941,7 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		file_accessed(file);
 
 		retval = mapping->a_ops->direct_IO(iocb, &data);
-		if (retval > 0) {
+		if (retval >= 0) {
 			iocb->ki_pos += retval;
 			iov_iter_advance(iter, retval);
 		}
