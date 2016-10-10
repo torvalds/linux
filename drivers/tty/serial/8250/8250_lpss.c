@@ -184,6 +184,7 @@ static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port)
 		return;
 
 	pci_set_master(pdev);
+	pci_try_set_mwi(pdev);
 
 	/* Special DMA address for UART */
 	dma->rx_dma_addr = 0xfffff000;
