@@ -38,7 +38,7 @@ static int __pci_mmap_fits(struct pci_dev *pdev, int num,
 	unsigned long nr, start, size;
 	int shift = sparse ? 5 : 0;
 
-	nr = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	nr = vma_pages(vma);
 	start = vma->vm_pgoff;
 	size = ((pci_resource_len(pdev, num) - 1) >> (PAGE_SHIFT - shift)) + 1;
 
@@ -255,7 +255,7 @@ static int __legacy_mmap_fits(struct pci_controller *hose,
 {
 	unsigned long nr, start, size;
 
-	nr = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	nr = vma_pages(vma);
 	start = vma->vm_pgoff;
 	size = ((res_size - 1) >> PAGE_SHIFT) + 1;
 
