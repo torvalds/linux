@@ -196,15 +196,18 @@ static void flush_tx_list(struct rvt_qp *qp)
 static void flush_iowait(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
-	struct hfi1_ibdev *dev = to_idev(qp->ibqp.device);
 	unsigned long flags;
+	seqlock_t *lock = priv->s_iowait.lock;
 
-	write_seqlock_irqsave(&dev->iowait_lock, flags);
+	if (!lock)
+		return;
+	write_seqlock_irqsave(lock, flags);
 	if (!list_empty(&priv->s_iowait.list)) {
 		list_del_init(&priv->s_iowait.list);
+		priv->s_iowait.lock = NULL;
 		rvt_put_qp(qp);
 	}
-	write_sequnlock_irqrestore(&dev->iowait_lock, flags);
+	write_sequnlock_irqrestore(lock, flags);
 }
 
 static inline int opa_mtu_enum_to_int(int mtu)
@@ -543,6 +546,7 @@ static int iowait_sleep(
 			ibp->rvp.n_dmawait++;
 			qp->s_flags |= RVT_S_WAIT_DMA_DESC;
 			list_add_tail(&priv->s_iowait.list, &sde->dmawait);
+			priv->s_iowait.lock = &dev->iowait_lock;
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_DMA_DESC);
 			rvt_get_qp(qp);
 		}
@@ -964,6 +968,7 @@ void notify_error_qp(struct rvt_qp *qp)
 	if (!list_empty(&priv->s_iowait.list) && !(qp->s_flags & RVT_S_BUSY)) {
 		qp->s_flags &= ~RVT_S_ANY_WAIT_IO;
 		list_del_init(&priv->s_iowait.list);
+		priv->s_iowait.lock = NULL;
 		rvt_put_qp(qp);
 	}
 	write_sequnlock(&dev->iowait_lock);

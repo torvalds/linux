@@ -1580,6 +1580,7 @@ static void sc_piobufavail(struct send_context *sc)
 		qp = iowait_to_qp(wait);
 		priv = qp->priv;
 		list_del_init(&priv->s_iowait.list);
+		priv->s_iowait.lock = NULL;
 		/* refcount held until actual wake up */
 		qps[n++] = qp;
 	}

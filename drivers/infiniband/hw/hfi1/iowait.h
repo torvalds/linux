@@ -64,6 +64,7 @@ struct sdma_engine;
 /**
  * struct iowait - linkage for delayed progress/waiting
  * @list: used to add/insert into QP/PQ wait lists
+ * @lock: uses to record the list head lock
  * @tx_head: overflow list of sdma_txreq's
  * @sleep: no space callback
  * @wakeup: space callback wakeup
@@ -91,6 +92,11 @@ struct sdma_engine;
  * so sleeping is not allowed.
  *
  * The wait_dma member along with the iow
+ *
+ * The lock field is used by waiters to record
+ * the seqlock_t that guards the list head.
+ * Waiters explicity know that, but the destroy
+ * code that unwaits QPs does not.
  */
 
 struct iowait {
@@ -103,6 +109,7 @@ struct iowait {
 		unsigned seq);
 	void (*wakeup)(struct iowait *wait, int reason);
 	void (*sdma_drained)(struct iowait *wait);
+	seqlock_t *lock;
 	struct work_struct iowork;
 	wait_queue_head_t wait_dma;
 	wait_queue_head_t wait_pio;
@@ -141,6 +148,7 @@ static inline void iowait_init(
 	void (*sdma_drained)(struct iowait *wait))
 {
 	wait->count = 0;
+	wait->lock = NULL;
 	INIT_LIST_HEAD(&wait->list);
 	INIT_LIST_HEAD(&wait->tx_head);
 	INIT_WORK(&wait->iowork, func);

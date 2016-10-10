@@ -694,6 +694,7 @@ static void mem_timer(unsigned long data)
 		qp = iowait_to_qp(wait);
 		priv = qp->priv;
 		list_del_init(&priv->s_iowait.list);
+		priv->s_iowait.lock = NULL;
 		/* refcount held until actual wake up */
 		if (!list_empty(list))
 			mod_timer(&dev->mem_timer, jiffies + 1);
@@ -769,6 +770,7 @@ static int wait_kmem(struct hfi1_ibdev *dev,
 				mod_timer(&dev->mem_timer, jiffies + 1);
 			qp->s_flags |= RVT_S_WAIT_KMEM;
 			list_add_tail(&priv->s_iowait.list, &dev->memwait);
+			priv->s_iowait.lock = &dev->iowait_lock;
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_KMEM);
 			rvt_get_qp(qp);
 		}
@@ -980,6 +982,7 @@ static int pio_wait(struct rvt_qp *qp,
 			qp->s_flags |= flag;
 			was_empty = list_empty(&sc->piowait);
 			list_add_tail(&priv->s_iowait.list, &sc->piowait);
+			priv->s_iowait.lock = &dev->iowait_lock;
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_PIO);
 			rvt_get_qp(qp);
 			/* counting: only call wantpiobuf_intr if first user */
@@ -1632,6 +1635,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	setup_timer(&dev->mem_timer, mem_timer, (unsigned long)dev);
 
 	seqlock_init(&dev->iowait_lock);
+	seqlock_init(&dev->txwait_lock);
 	INIT_LIST_HEAD(&dev->txwait);
 	INIT_LIST_HEAD(&dev->memwait);
 
