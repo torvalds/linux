@@ -64,8 +64,8 @@ if which stress-ng; then
 	exclude="chmod,filename,link,mknod,symlink,xattr"
     fi
     stress-ng --class filesystem --all 0 --timeout 10 \
-	      --exclude fiemap,$exclude --fallocate-bytes 50m \
-	      --sync-file-bytes 50m
+	      --exclude fiemap,$exclude --fallocate-bytes 10m \
+	      --sync-file-bytes 10m
 else
     echo "could not find stress-ng, skipping"
 fi
