@@ -411,7 +411,7 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	}
 
 	retval = gpiochip_irqchip_add(&priv->chip, &mrfld_irqchip, irq_base,
-				      handle_simple_irq, IRQ_TYPE_NONE);
+				      handle_bad_irq, IRQ_TYPE_NONE);
 	if (retval) {
 		dev_err(&pdev->dev, "could not connect irqchip to gpiochip\n");
 		return retval;
