@@ -219,27 +219,27 @@
 #define FLAG_TOSHIBA_DELAY		128	/* Allow for borken CD-ROMs */
 
 struct NCR5380_hostdata {
-	NCR5380_implementation_fields;		/* implementation specific */
-	struct Scsi_Host *host;			/* Host backpointer */
-	unsigned char id_mask, id_higher_mask;	/* 1 << id, all bits greater */
-	unsigned char busy[8];			/* index = target, bit = lun */
-	int dma_len;				/* requested length of DMA */
-	unsigned char last_message;		/* last message OUT */
-	struct scsi_cmnd *connected;		/* currently connected cmnd */
-	struct scsi_cmnd *selecting;		/* cmnd to be connected */
-	struct list_head unissued;		/* waiting to be issued */
-	struct list_head autosense;		/* priority issue queue */
-	struct list_head disconnected;		/* waiting for reconnect */
-	spinlock_t lock;			/* protects this struct */
-	int flags;
-	struct scsi_eh_save ses;
-	struct scsi_cmnd *sensing;
+	NCR5380_implementation_fields;		/* Board-specific data */
+	unsigned long poll_loops;		/* Register polling limit */
+	spinlock_t lock;			/* Protects this struct */
+	struct scsi_cmnd *connected;		/* Currently connected cmnd */
+	struct list_head disconnected;		/* Waiting for reconnect */
+	struct Scsi_Host *host;			/* SCSI host backpointer */
+	struct workqueue_struct *work_q;	/* SCSI host work queue */
+	struct work_struct main_task;		/* Work item for main loop */
+	int flags;				/* Board-specific quirks */
+	int dma_len;				/* Requested length of DMA */
+	int read_overruns;	/* Transfer size reduction for DMA erratum */
+	struct list_head unissued;		/* Waiting to be issued */
+	struct scsi_cmnd *selecting;		/* Cmnd to be connected */
+	struct list_head autosense;		/* Priority cmnd queue */
+	struct scsi_cmnd *sensing;		/* Cmnd needing autosense */
+	struct scsi_eh_save ses;		/* Cmnd state saved for EH */
+	unsigned char busy[8];			/* Index = target, bit = lun */
+	unsigned char id_mask;			/* 1 << Host ID */
+	unsigned char id_higher_mask;		/* All bits above id_mask */
+	unsigned char last_message;		/* Last Message Out */
 	char info[256];
-	int read_overruns;                /* number of bytes to cut from a
-	                                   * transfer to handle chip overruns */
-	struct work_struct main_task;
-	struct workqueue_struct *work_q;
-	unsigned long poll_loops;		/* register polling limit */
 };
 
 #ifdef __KERNEL__
