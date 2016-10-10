@@ -1507,7 +1507,7 @@ xfs_reflink_clear_inode_flag(
 	xfs_extlen_t		aglen;
 	xfs_agblock_t		rbno;
 	xfs_extlen_t		rlen;
-	struct xfs_bmbt_irec	map[2];
+	struct xfs_bmbt_irec	map;
 	int			nmaps;
 	int			error = 0;
 
@@ -1521,37 +1521,29 @@ xfs_reflink_clear_inode_flag(
 		 * Look for extents in the file.  Skip holes, delalloc, or
 		 * unwritten extents; they can't be reflinked.
 		 */
-		error = xfs_bmapi_read(ip, fbno, end - fbno, map, &nmaps, 0);
+		error = xfs_bmapi_read(ip, fbno, end - fbno, &map, &nmaps, 0);
 		if (error)
 			return error;
 		if (nmaps == 0)
 			break;
-		if (map[0].br_startblock == HOLESTARTBLOCK ||
-		    map[0].br_startblock == DELAYSTARTBLOCK ||
-		    ISUNWRITTEN(&map[0]))
+		if (map.br_startblock == HOLESTARTBLOCK ||
+		    map.br_startblock == DELAYSTARTBLOCK ||
+		    ISUNWRITTEN(&map))
 			goto next;
 
-		map[1] = map[0];
-		while (map[1].br_blockcount) {
-			agno = XFS_FSB_TO_AGNO(mp, map[1].br_startblock);
-			agbno = XFS_FSB_TO_AGBNO(mp, map[1].br_startblock);
-			aglen = map[1].br_blockcount;
+		agno = XFS_FSB_TO_AGNO(mp, map.br_startblock);
+		agbno = XFS_FSB_TO_AGBNO(mp, map.br_startblock);
+		aglen = map.br_blockcount;
 
-			error = xfs_reflink_find_shared(mp, agno, agbno, aglen,
-					&rbno, &rlen, false);
-			if (error)
-				return error;
-			/* Is there still a shared block here? */
-			if (rbno != NULLAGBLOCK)
-				return 0;
-
-			map[1].br_blockcount -= aglen;
-			map[1].br_startoff += aglen;
-			map[1].br_startblock += aglen;
-		}
-
+		error = xfs_reflink_find_shared(mp, agno, agbno, aglen,
+				&rbno, &rlen, false);
+		if (error)
+			return error;
+		/* Is there still a shared block here? */
+		if (rbno != NULLAGBLOCK)
+			return 0;
 next:
-		fbno = map[0].br_startoff + map[0].br_blockcount;
+		fbno = map.br_startoff + map.br_blockcount;
 	}
 
 	/*
