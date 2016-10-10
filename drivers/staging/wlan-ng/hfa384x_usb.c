@@ -531,7 +531,7 @@ static void hfa384x_usb_defer(struct work_struct *data)
  */
 void hfa384x_create(struct hfa384x *hw, struct usb_device *usb)
 {
-	memset(hw, 0, sizeof(struct hfa384x));
+	memset(hw, 0, sizeof(*hw));
 	hw->usb = usb;
 
 	/* set up the endpoints */
