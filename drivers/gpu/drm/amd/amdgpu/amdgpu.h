@@ -770,6 +770,16 @@ struct amdgpu_scratch {
 /*
  * GFX configurations
  */
+#define AMDGPU_GFX_MAX_SE 4
+#define AMDGPU_GFX_MAX_SH_PER_SE 2
+
+struct amdgpu_rb_config {
+	uint32_t rb_backend_disable;
+	uint32_t user_rb_backend_disable;
+	uint32_t raster_config;
+	uint32_t raster_config_1;
+};
+
 struct amdgpu_gca_config {
 	unsigned max_shader_engines;
 	unsigned max_tile_pipes;
@@ -798,6 +808,8 @@ struct amdgpu_gca_config {
 
 	uint32_t tile_mode_array[32];
 	uint32_t macrotile_mode_array[16];
+
+	struct amdgpu_rb_config rb_config[AMDGPU_GFX_MAX_SE][AMDGPU_GFX_MAX_SH_PER_SE];
 };
 
 struct amdgpu_cu_info {
