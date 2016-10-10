@@ -1,6 +1,8 @@
 #ifndef _ASM_LKL_PTRACE_H
 #define _ASM_LKL_PTRACE_H
 
+#include <linux/errno.h>
+
 struct task_struct;
 
 #define user_mode(regs) 0
