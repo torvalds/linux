@@ -135,20 +135,6 @@ static int audio_config_get_n(const struct drm_display_mode *adjusted_mode,
 	return 0;
 }
 
-static uint32_t audio_config_setup_n_reg(int n, uint32_t val)
-{
-	int n_low, n_up;
-	uint32_t tmp = val;
-
-	n_low = n & 0xfff;
-	n_up = (n >> 12) & 0xff;
-	tmp &= ~(AUD_CONFIG_UPPER_N_MASK | AUD_CONFIG_LOWER_N_MASK);
-	tmp |= ((n_up << AUD_CONFIG_UPPER_N_SHIFT) |
-			(n_low << AUD_CONFIG_LOWER_N_SHIFT) |
-			AUD_CONFIG_N_PROG_ENABLE);
-	return tmp;
-}
-
 static bool intel_eld_uptodate(struct drm_connector *connector,
 			       i915_reg_t reg_eldv, uint32_t bits_eldv,
 			       i915_reg_t reg_elda, uint32_t bits_elda,
@@ -271,10 +257,13 @@ hsw_hdmi_audio_config_update(struct intel_crtc *intel_crtc, enum port port,
 	if (adjusted_mode->crtc_clock == TMDS_296M ||
 	    adjusted_mode->crtc_clock == TMDS_297M) {
 		n = audio_config_get_n(adjusted_mode, rate);
-		if (n != 0)
-			tmp = audio_config_setup_n_reg(n, tmp);
-		else
+		if (n != 0) {
+			tmp &= ~AUD_CONFIG_N_MASK;
+			tmp |= AUD_CONFIG_N(n);
+			tmp |= AUD_CONFIG_N_PROG_ENABLE;
+		} else {
 			DRM_DEBUG_KMS("no suitable N value is found\n");
+		}
 	}
 
 	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
