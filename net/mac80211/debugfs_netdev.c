@@ -477,6 +477,7 @@ IEEE80211_IF_FILE_RW(tdls_wider_bw);
 IEEE80211_IF_FILE(num_mcast_sta, u.ap.num_mcast_sta, ATOMIC);
 IEEE80211_IF_FILE(num_sta_ps, u.ap.ps.num_sta_ps, ATOMIC);
 IEEE80211_IF_FILE(dtim_count, u.ap.ps.dtim_count, DEC);
+IEEE80211_IF_FILE(num_mcast_sta_vlan, u.vlan.num_mcast_sta, ATOMIC);
 
 static ssize_t ieee80211_if_fmt_num_buffered_multicast(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
@@ -684,6 +685,13 @@ static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD_MODE(tkip_mic_test, 0200);
 }
 
+static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
+{
+	/* add num_mcast_sta_vlan using name num_mcast_sta */
+	debugfs_create_file("num_mcast_sta", 0400, sdata->vif.debugfs_dir,
+			    sdata, &num_mcast_sta_vlan_ops);
+}
+
 static void add_ibss_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD_MODE(tsf, 0600);
@@ -786,6 +794,9 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 		break;
 	case NL80211_IFTYPE_AP:
 		add_ap_files(sdata);
+		break;
+	case NL80211_IFTYPE_AP_VLAN:
+		add_vlan_files(sdata);
 		break;
 	case NL80211_IFTYPE_WDS:
 		add_wds_files(sdata);
