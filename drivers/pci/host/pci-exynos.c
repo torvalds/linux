@@ -102,32 +102,32 @@ struct exynos_pcie {
 #define PCIE_PHY_TRSV3_PD_TSV		(0x1 << 7)
 #define PCIE_PHY_TRSV3_LVCC		0x31c
 
-static inline void exynos_elb_writel(struct exynos_pcie *pcie, u32 val, u32 reg)
+static void exynos_elb_writel(struct exynos_pcie *pcie, u32 val, u32 reg)
 {
 	writel(val, pcie->elbi_base + reg);
 }
 
-static inline u32 exynos_elb_readl(struct exynos_pcie *pcie, u32 reg)
+static u32 exynos_elb_readl(struct exynos_pcie *pcie, u32 reg)
 {
 	return readl(pcie->elbi_base + reg);
 }
 
-static inline void exynos_phy_writel(struct exynos_pcie *pcie, u32 val, u32 reg)
+static void exynos_phy_writel(struct exynos_pcie *pcie, u32 val, u32 reg)
 {
 	writel(val, pcie->phy_base + reg);
 }
 
-static inline u32 exynos_phy_readl(struct exynos_pcie *pcie, u32 reg)
+static u32 exynos_phy_readl(struct exynos_pcie *pcie, u32 reg)
 {
 	return readl(pcie->phy_base + reg);
 }
 
-static inline void exynos_blk_writel(struct exynos_pcie *pcie, u32 val, u32 reg)
+static void exynos_blk_writel(struct exynos_pcie *pcie, u32 val, u32 reg)
 {
 	writel(val, pcie->block_base + reg);
 }
 
-static inline u32 exynos_blk_readl(struct exynos_pcie *pcie, u32 reg)
+static u32 exynos_blk_readl(struct exynos_pcie *pcie, u32 reg)
 {
 	return readl(pcie->block_base + reg);
 }
@@ -427,7 +427,7 @@ static void exynos_pcie_enable_interrupts(struct pcie_port *pp)
 		exynos_pcie_msi_init(pp);
 }
 
-static inline u32 exynos_pcie_readl_rc(struct pcie_port *pp, u32 reg)
+static u32 exynos_pcie_readl_rc(struct pcie_port *pp, u32 reg)
 {
 	u32 val;
 
@@ -437,7 +437,7 @@ static inline u32 exynos_pcie_readl_rc(struct pcie_port *pp, u32 reg)
 	return val;
 }
 
-static inline void exynos_pcie_writel_rc(struct pcie_port *pp, u32 reg, u32 val)
+static void exynos_pcie_writel_rc(struct pcie_port *pp, u32 reg, u32 val)
 {
 	exynos_pcie_sideband_dbi_w_mode(pp, true);
 	writel(val, pp->dbi_base + reg);
