@@ -688,11 +688,7 @@ static int i915_audio_component_sync_audio_rate(struct device *kdev, int port,
 	struct i915_audio_component *acomp = dev_priv->audio_component;
 	int err = 0;
 
-	/* HSW, BDW, SKL, KBL need this fix */
-	if (!IS_SKYLAKE(dev_priv) &&
-	    !IS_KABYLAKE(dev_priv) &&
-	    !IS_BROADWELL(dev_priv) &&
-	    !IS_HASWELL(dev_priv))
+	if (!HAS_DDI(dev_priv))
 		return 0;
 
 	i915_audio_component_get_power(kdev);
