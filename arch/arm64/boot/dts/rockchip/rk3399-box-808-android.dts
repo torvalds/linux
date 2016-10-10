@@ -349,6 +349,7 @@
 				regulator-name = "vdd_log";
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <1350000>;
+				regulator-ramp-delay = <6001>;
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
@@ -361,6 +362,7 @@
 				regulator-name = "vdd_cpu_l";
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <1350000>;
+				regulator-ramp-delay = <6001>;
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {

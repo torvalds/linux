@@ -126,6 +126,7 @@
 				regulator-name = "vdd_gpu";
 				regulator-min-microvolt = <712500>;
 				regulator-max-microvolt = <1500000>;
+				regulator-ramp-delay = <8000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
@@ -163,6 +164,7 @@
 				regulator-boot-on;
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <1350000>;
+				regulator-ramp-delay = <6001>;
 				regulator-name = "vdd_cpu_b";
 				regulator-state-mem {
 					regulator-off-in-suspend;
@@ -174,6 +176,7 @@
 				regulator-boot-on;
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <1350000>;
+				regulator-ramp-delay = <6001>;
 				regulator-name = "vdd_cpu_l";
 				regulator-state-mem {
 					regulator-off-in-suspend;
