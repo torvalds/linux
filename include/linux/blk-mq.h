@@ -7,12 +7,6 @@
 struct blk_mq_tags;
 struct blk_flush_queue;
 
-struct blk_mq_cpu_notifier {
-	struct list_head list;
-	void *data;
-	int (*notify)(void *data, unsigned long action, unsigned int cpu);
-};
-
 struct blk_mq_hw_ctx {
 	struct {
 		spinlock_t		lock;
@@ -53,7 +47,7 @@ struct blk_mq_hw_ctx {
 
 	struct delayed_work	delay_work;
 
-	struct blk_mq_cpu_notifier	cpu_notifier;
+	struct hlist_node	cpuhp_dead;
 	struct kobject		kobj;
 
 	unsigned long		poll_considered;
