@@ -251,8 +251,9 @@ static void hsw_audio_config_update(struct intel_crtc *intel_crtc,
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
 	struct i915_audio_component *acomp = dev_priv->audio_component;
+	int rate = acomp ? acomp->aud_sample_rate[port] : 0;
 	enum pipe pipe = intel_crtc->pipe;
-	int n, rate;
+	int n;
 	u32 tmp;
 
 	tmp = I915_READ(HSW_AUD_CFG(pipe));
@@ -265,15 +266,6 @@ static void hsw_audio_config_update(struct intel_crtc *intel_crtc,
 
 	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
 	if (audio_rate_need_prog(intel_crtc, adjusted_mode)) {
-		if (!acomp)
-			rate = 0;
-		else if (port >= PORT_A && port <= PORT_E)
-			rate = acomp->aud_sample_rate[port];
-		else {
-			DRM_ERROR("invalid port: %d\n", port);
-			rate = 0;
-		}
-
 		n = audio_config_get_n(adjusted_mode, rate);
 		if (n != 0)
 			tmp = audio_config_setup_n_reg(n, tmp);
