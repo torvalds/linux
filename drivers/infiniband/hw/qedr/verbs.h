@@ -81,4 +81,9 @@ int qedr_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 
 struct ib_mr *qedr_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 			    u32 max_num_sg);
+int qedr_poll_cq(struct ib_cq *, int num_entries, struct ib_wc *wc);
+int qedr_post_send(struct ib_qp *, struct ib_send_wr *,
+		   struct ib_send_wr **bad_wr);
+int qedr_post_recv(struct ib_qp *, struct ib_recv_wr *,
+		   struct ib_recv_wr **bad_wr);
 #endif

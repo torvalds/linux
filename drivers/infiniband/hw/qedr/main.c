@@ -102,7 +102,10 @@ static int qedr_register_device(struct qedr_dev *dev)
 				     QEDR_UVERBS(QUERY_QP) |
 				     QEDR_UVERBS(DESTROY_QP) |
 				     QEDR_UVERBS(REG_MR) |
-				     QEDR_UVERBS(DEREG_MR);
+				     QEDR_UVERBS(DEREG_MR) |
+				     QEDR_UVERBS(POLL_CQ) |
+				     QEDR_UVERBS(POST_SEND) |
+				     QEDR_UVERBS(POST_RECV);
 
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = dev->num_cnq;
@@ -140,6 +143,10 @@ static int qedr_register_device(struct qedr_dev *dev)
 	dev->ibdev.reg_user_mr = qedr_reg_user_mr;
 	dev->ibdev.alloc_mr = qedr_alloc_mr;
 	dev->ibdev.map_mr_sg = qedr_map_mr_sg;
+
+	dev->ibdev.poll_cq = qedr_poll_cq;
+	dev->ibdev.post_send = qedr_post_send;
+	dev->ibdev.post_recv = qedr_post_recv;
 
 	dev->ibdev.dma_device = &dev->pdev->dev;
 

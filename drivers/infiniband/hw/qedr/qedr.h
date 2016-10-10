@@ -410,6 +410,25 @@ struct qedr_mr {
 	u32 npages;
 };
 
+#define SET_FIELD2(value, name, flag) ((value) |= ((flag) << (name ## _SHIFT)))
+
+#define QEDR_RESP_IMM	(RDMA_CQE_RESPONDER_IMM_FLG_MASK << \
+			 RDMA_CQE_RESPONDER_IMM_FLG_SHIFT)
+#define QEDR_RESP_RDMA	(RDMA_CQE_RESPONDER_RDMA_FLG_MASK << \
+			 RDMA_CQE_RESPONDER_RDMA_FLG_SHIFT)
+#define QEDR_RESP_RDMA_IMM (QEDR_RESP_IMM | QEDR_RESP_RDMA)
+
+static inline void qedr_inc_sw_cons(struct qedr_qp_hwq_info *info)
+{
+	info->cons = (info->cons + 1) % info->max_wr;
+	info->wqe_cons++;
+}
+
+static inline void qedr_inc_sw_prod(struct qedr_qp_hwq_info *info)
+{
+	info->prod = (info->prod + 1) % info->max_wr;
+}
+
 static inline int qedr_get_dmac(struct qedr_dev *dev,
 				struct ib_ah_attr *ah_attr, u8 *mac_addr)
 {
