@@ -140,6 +140,18 @@ config GP2AP020A00F
 	  To compile this driver as a module, choose M here: the
 	  module will be called gp2ap020a00f.
 
+config SENSORS_ISL29018
+	tristate "Intersil 29018 light and proximity sensor"
+	depends on I2C
+	select REGMAP_I2C
+	default n
+	help
+	 If you say yes here you get support for ambient light sensing and
+	 proximity infrared sensing from Intersil ISL29018.
+	 This driver will provide the measurements of ambient light intensity
+	 in lux, proximity infrared sensing and normal infrared sensing.
+	 Data from sensor is accessible via sysfs.
+
 config ISL29125
 	tristate "Intersil ISL29125 digital color light sensor"
 	depends on I2C
