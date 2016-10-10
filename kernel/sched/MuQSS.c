@@ -694,26 +694,27 @@ static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
 	 * remote lock we're migrating it to before enabling them.
 	 */
 	if (unlikely(task_on_rq_migrating(prev))) {
-		struct rq *rq2 = task_rq(prev);
-
+		/*
+		 * We move the ownership of prev to the new cpu now. ttwu can't
+		 * activate prev to the wrong cpu since it has to grab this
+		 * runqueue in ttwu_remote.
+		 */
+		task_thread_info(prev)->cpu = prev->wake_cpu;
 		raw_spin_unlock(&rq->lock);
 
 		raw_spin_lock(&prev->pi_lock);
-		rq_lock(rq2);
+		rq = __task_rq_lock(prev);
 		/* Check that someone else hasn't already queued prev */
-		if (likely(task_on_rq_migrating(prev) && !task_queued(prev))) {
-			enqueue_task(prev, rq2);
+		if (likely(!task_queued(prev))) {
+			enqueue_task(prev, rq);
 			prev->on_rq = TASK_ON_RQ_QUEUED;
 			/* Wake up the CPU if it's not already running */
-			resched_if_idle(rq2);
+			resched_if_idle(rq);
 		}
-		rq_unlock(rq2);
 		raw_spin_unlock(&prev->pi_lock);
-
-		local_irq_enable();
-	} else
+	}
 #endif
-		raw_spin_unlock_irq(&rq->lock);
+	raw_spin_unlock_irq(&rq->lock);
 }
 
 static inline bool deadline_before(u64 deadline, u64 time)
@@ -1287,13 +1288,30 @@ void set_task_cpu(struct task_struct *p, unsigned int cpu)
 	 */
 	smp_wmb();
 
+	if (task_running(rq, p)) {
+		/*
+		 * We should only be calling this on a running task if we're
+		 * holding rq lock.
+		 */
+		lockdep_assert_held(&rq->lock);
+
+		/*
+		 * We can't change the task_thread_info cpu on a running task
+		 * as p will still be protected by the rq lock of the cpu it
+		 * is still running on so we set the wake_cpu for it to be
+		 * lazily updated once off the cpu.
+		 */
+		p->wake_cpu = cpu;
+		return;
+	}
+
 	if ((queued = task_queued(p)))
 		dequeue_task(p, rq);
 	/*
 	 * If a task is running here it will have the cpu updated but will
 	 * have to be forced onto another runqueue within return_task.
 	 */
-	task_thread_info(p)->cpu = cpu;
+	task_thread_info(p)->cpu = p->wake_cpu = cpu;
 	if (queued)
 		enqueue_task(p, cpu_rq(cpu));
 }
@@ -1328,7 +1346,7 @@ static inline void return_task(struct task_struct *p, struct rq *rq,
 		 * CPU and we need its lock. Tag it to be moved with as the
 		 * lock is dropped in finish_lock_switch.
 		 */
-		if (unlikely(task_cpu(p) != cpu))
+		if (unlikely(p->wake_cpu != cpu))
 			p->on_rq = TASK_ON_RQ_MIGRATING;
 		else
 #endif
