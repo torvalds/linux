@@ -1008,6 +1008,31 @@ static void send_vblank_event(struct drm_device *dev,
  * period. This helper function implements exactly the required vblank arming
  * behaviour.
  *
+ * NOTE: Drivers using this to send out the event in struct &drm_crtc_state
+ * as part of an atomic commit must ensure that the next vblank happens at
+ * exactly the same time as the atomic commit is committed to the hardware. This
+ * function itself does **not** protect again the next vblank interrupt racing
+ * with either this function call or the atomic commit operation. A possible
+ * sequence could be:
+ *
+ * 1. Driver commits new hardware state into vblank-synchronized registers.
+ * 2. A vblank happens, committing the hardware state. Also the corresponding
+ *    vblank interrupt is fired off and fully processed by the interrupt
+ *    handler.
+ * 3. The atomic commit operation proceeds to call drm_crtc_arm_vblank_event().
+ * 4. The event is only send out for the next vblank, which is wrong.
+ *
+ * An equivalent race can happen when the driver calls
+ * drm_crtc_arm_vblank_event() before writing out the new hardware state.
+ *
+ * The only way to make this work safely is to prevent the vblank from firing
+ * (and the hardware from committing anything else) until the entire atomic
+ * commit sequence has run to completion. If the hardware does not have such a
+ * feature (e.g. using a "go" bit), then it is unsafe to use this functions.
+ * Instead drivers need to manually send out the event from their interrupt
+ * handler by calling drm_crtc_send_vblank_event() and make sure that there's no
+ * possible race with the hardware committing the atomic update.
+ *
  * Caller must hold event lock. Caller must also hold a vblank reference for
  * the event @e, which will be dropped when the next vblank arrives.
  */
@@ -1030,8 +1055,11 @@ EXPORT_SYMBOL(drm_crtc_arm_vblank_event);
  * @crtc: the source CRTC of the vblank event
  * @e: the event to send
  *
- * Updates sequence # and timestamp on event, and sends it to userspace.
- * Caller must hold event lock.
+ * Updates sequence # and timestamp on event for the most recently processed
+ * vblank, and sends it to userspace.  Caller must hold event lock.
+ *
+ * See drm_crtc_arm_vblank_event() for a helper which can be used in certain
+ * situation, especially to send out events for atomic commit operations.
  */
 void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
 				struct drm_pending_vblank_event *e)

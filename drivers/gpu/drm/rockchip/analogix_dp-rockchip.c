@@ -85,6 +85,9 @@ static void analogix_dp_psr_set(struct drm_encoder *encoder, bool enabled)
 	struct rockchip_dp_device *dp = to_dp(encoder);
 	unsigned long flags;
 
+	if (!analogix_dp_psr_supported(dp->dev))
+		return;
+
 	dev_dbg(dp->dev, "%s PSR...\n", enabled ? "Entry" : "Exit");
 
 	spin_lock_irqsave(&dp->psr_lock, flags);

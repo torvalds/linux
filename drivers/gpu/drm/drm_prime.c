@@ -28,6 +28,7 @@
 
 #include <linux/export.h>
 #include <linux/dma-buf.h>
+#include <linux/rbtree.h>
 #include <drm/drmP.h>
 #include <drm/drm_gem.h>
 
@@ -61,9 +62,11 @@
  */
 
 struct drm_prime_member {
-	struct list_head entry;
 	struct dma_buf *dma_buf;
 	uint32_t handle;
+
+	struct rb_node dmabuf_rb;
+	struct rb_node handle_rb;
 };
 
 struct drm_prime_attachment {
@@ -75,6 +78,7 @@ static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv,
 				    struct dma_buf *dma_buf, uint32_t handle)
 {
 	struct drm_prime_member *member;
+	struct rb_node **p, *rb;
 
 	member = kmalloc(sizeof(*member), GFP_KERNEL);
 	if (!member)
@@ -83,18 +87,56 @@ static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv,
 	get_dma_buf(dma_buf);
 	member->dma_buf = dma_buf;
 	member->handle = handle;
-	list_add(&member->entry, &prime_fpriv->head);
+
+	rb = NULL;
+	p = &prime_fpriv->dmabufs.rb_node;
+	while (*p) {
+		struct drm_prime_member *pos;
+
+		rb = *p;
+		pos = rb_entry(rb, struct drm_prime_member, dmabuf_rb);
+		if (dma_buf > pos->dma_buf)
+			p = &rb->rb_right;
+		else
+			p = &rb->rb_left;
+	}
+	rb_link_node(&member->dmabuf_rb, rb, p);
+	rb_insert_color(&member->dmabuf_rb, &prime_fpriv->dmabufs);
+
+	rb = NULL;
+	p = &prime_fpriv->handles.rb_node;
+	while (*p) {
+		struct drm_prime_member *pos;
+
+		rb = *p;
+		pos = rb_entry(rb, struct drm_prime_member, handle_rb);
+		if (handle > pos->handle)
+			p = &rb->rb_right;
+		else
+			p = &rb->rb_left;
+	}
+	rb_link_node(&member->handle_rb, rb, p);
+	rb_insert_color(&member->handle_rb, &prime_fpriv->handles);
+
 	return 0;
 }
 
 static struct dma_buf *drm_prime_lookup_buf_by_handle(struct drm_prime_file_private *prime_fpriv,
 						      uint32_t handle)
 {
-	struct drm_prime_member *member;
+	struct rb_node *rb;
 
-	list_for_each_entry(member, &prime_fpriv->head, entry) {
+	rb = prime_fpriv->handles.rb_node;
+	while (rb) {
+		struct drm_prime_member *member;
+
+		member = rb_entry(rb, struct drm_prime_member, handle_rb);
 		if (member->handle == handle)
 			return member->dma_buf;
+		else if (member->handle < handle)
+			rb = rb->rb_right;
+		else
+			rb = rb->rb_left;
 	}
 
 	return NULL;
@@ -104,14 +146,23 @@ static int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpri
 				       struct dma_buf *dma_buf,
 				       uint32_t *handle)
 {
-	struct drm_prime_member *member;
+	struct rb_node *rb;
 
-	list_for_each_entry(member, &prime_fpriv->head, entry) {
+	rb = prime_fpriv->dmabufs.rb_node;
+	while (rb) {
+		struct drm_prime_member *member;
+
+		member = rb_entry(rb, struct drm_prime_member, dmabuf_rb);
 		if (member->dma_buf == dma_buf) {
 			*handle = member->handle;
 			return 0;
+		} else if (member->dma_buf < dma_buf) {
+			rb = rb->rb_right;
+		} else {
+			rb = rb->rb_left;
 		}
 	}
+
 	return -ENOENT;
 }
 
@@ -166,13 +217,24 @@ static void drm_gem_map_detach(struct dma_buf *dma_buf,
 void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpriv,
 					struct dma_buf *dma_buf)
 {
-	struct drm_prime_member *member, *safe;
+	struct rb_node *rb;
 
-	list_for_each_entry_safe(member, safe, &prime_fpriv->head, entry) {
+	rb = prime_fpriv->dmabufs.rb_node;
+	while (rb) {
+		struct drm_prime_member *member;
+
+		member = rb_entry(rb, struct drm_prime_member, dmabuf_rb);
 		if (member->dma_buf == dma_buf) {
+			rb_erase(&member->handle_rb, &prime_fpriv->handles);
+			rb_erase(&member->dmabuf_rb, &prime_fpriv->dmabufs);
+
 			dma_buf_put(dma_buf);
-			list_del(&member->entry);
 			kfree(member);
+			return;
+		} else if (member->dma_buf < dma_buf) {
+			rb = rb->rb_right;
+		} else {
+			rb = rb->rb_left;
 		}
 	}
 }
@@ -759,12 +821,13 @@ EXPORT_SYMBOL(drm_prime_gem_destroy);
 
 void drm_prime_init_file_private(struct drm_prime_file_private *prime_fpriv)
 {
-	INIT_LIST_HEAD(&prime_fpriv->head);
 	mutex_init(&prime_fpriv->lock);
+	prime_fpriv->dmabufs = RB_ROOT;
+	prime_fpriv->handles = RB_ROOT;
 }
 
 void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv)
 {
 	/* by now drm_gem_release should've made sure the list is empty */
-	WARN_ON(!list_empty(&prime_fpriv->head));
+	WARN_ON(!RB_EMPTY_ROOT(&prime_fpriv->dmabufs));
 }

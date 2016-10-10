@@ -89,7 +89,6 @@ void drm_dev_printk(const struct device *dev, const char *level,
 EXPORT_SYMBOL(drm_dev_printk);
 
 void drm_printk(const char *level, unsigned int category,
-		const char *function_name, const char *prefix,
 		const char *format, ...)
 {
 	struct va_format vaf;
@@ -102,7 +101,9 @@ void drm_printk(const char *level, unsigned int category,
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	printk("%s" DRM_PRINTK_FMT, level, function_name, prefix, &vaf);
+	printk("%s" "[" DRM_NAME ":%ps]%s %pV",
+	       level, __builtin_return_address(0),
+	       strcmp(level, KERN_ERR) == 0 ? " *ERROR*" : "", &vaf);
 
 	va_end(args);
 }
