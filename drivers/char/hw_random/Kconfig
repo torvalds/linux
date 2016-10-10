@@ -244,7 +244,7 @@ config HW_RANDOM_TX4939
 
 config HW_RANDOM_MXC_RNGA
 	tristate "Freescale i.MX RNGA Random Number Generator"
-	depends on ARCH_HAS_RNGA
+	depends on SOC_IMX31
 	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
