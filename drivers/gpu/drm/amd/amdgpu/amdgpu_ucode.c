@@ -232,9 +232,12 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_firmware_info *ucode,
 		return 0;
 
 	header = (const struct common_firmware_header *)ucode->fw->data;
+
+	ucode->ucode_size = le32_to_cpu(header->ucode_size_bytes);
+
 	memcpy(ucode->kaddr, (void *)((uint8_t *)ucode->fw->data +
-		le32_to_cpu(header->ucode_array_offset_bytes)),
-		le32_to_cpu(header->ucode_size_bytes));
+	       le32_to_cpu(header->ucode_array_offset_bytes)),
+	       ucode->ucode_size);
 
 	return 0;
 }

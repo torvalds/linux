@@ -161,6 +161,8 @@ struct amdgpu_firmware_info {
 	uint64_t mc_addr;
 	/* kernel linear address */
 	void *kaddr;
+	/* ucode_size_bytes */
+	uint32_t ucode_size;
 };
 
 void amdgpu_ucode_print_mc_hdr(const struct common_firmware_header *hdr);
