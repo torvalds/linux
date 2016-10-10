@@ -9507,6 +9507,8 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->mac.ops   = *ii->mac_ops;
 	hw->mac.type  = ii->mac;
 	hw->mvals     = ii->mvals;
+	if (ii->link_ops)
+		hw->link.ops  = *ii->link_ops;
 
 	/* EEPROM */
 	hw->eeprom.ops = *ii->eeprom_ops;
