@@ -2477,13 +2477,6 @@ int __ieee80211_request_smps_ap(struct ieee80211_sub_if_data *sdata,
 	    smps_mode == IEEE80211_SMPS_AUTOMATIC)
 		return 0;
 
-	 /* If no associated stations, there's no need to do anything */
-	if (!atomic_read(&sdata->u.ap.num_mcast_sta)) {
-		sdata->smps_mode = smps_mode;
-		ieee80211_queue_work(&sdata->local->hw, &sdata->recalc_smps);
-		return 0;
-	}
-
 	ht_dbg(sdata,
 	       "SMPS %d requested in AP mode, sending Action frame to %d stations\n",
 	       smps_mode, atomic_read(&sdata->u.ap.num_mcast_sta));
