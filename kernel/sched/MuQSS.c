@@ -795,7 +795,6 @@ static void update_load_avg(struct rq *rq)
 static void dequeue_task(struct task_struct *p, struct rq *rq)
 {
 	skiplist_delete(rq->sl, &p->node);
-	sched_info_dequeued(task_rq(p), p);
 	update_load_avg(rq);
 }
 
@@ -883,13 +882,7 @@ static void enqueue_task(struct task_struct *p, struct rq *rq)
 	 */
 	randseed = (rq->niffies >> 10) & 0xFFFFFFFF;
 	skiplist_insert(rq->sl, &p->node, sl_id, p, randseed);
-	sched_info_queued(rq, p);
 	update_load_avg(rq);
-}
-
-static inline void requeue_task(struct task_struct *p)
-{
-	sched_info_queued(task_rq(p), p);
 }
 
 /*
@@ -1242,6 +1235,7 @@ static void activate_task(struct task_struct *p, struct rq *rq)
 		atomic_dec(&grq.nr_uninterruptible);
 
 	enqueue_task(p, rq);
+	sched_info_queued(rq, p);
 	p->on_rq = TASK_ON_RQ_QUEUED;
 	atomic_inc(&grq.nr_running);
 	inc_qnr();
@@ -1256,6 +1250,7 @@ static inline void deactivate_task(struct task_struct *p, struct rq *rq)
 	if (task_contributes_to_load(p))
 		atomic_inc(&grq.nr_uninterruptible);
 
+	sched_info_dequeued(rq, p);
 	p->on_rq = 0;
 	atomic_dec(&grq.nr_running);
 	update_load_avg(rq);
@@ -3321,7 +3316,6 @@ static void task_running_tick(struct rq *rq)
 	p = rq->curr;
 
 	rq_lock(rq);
-	requeue_task(p);
 	__set_tsk_resched(p);
 	rq_unlock(rq);
 }
@@ -5023,7 +5017,6 @@ SYSCALL_DEFINE0(sched_yield)
 	p = current;
 	rq = this_rq_lock();
 	schedstat_inc(task_rq(p), yld_count);
-	requeue_task(p);
 
 	/*
 	 * Since we are going to call schedule() anyway, there's
