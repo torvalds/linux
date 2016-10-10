@@ -2120,12 +2120,6 @@ void wake_up_new_task(struct task_struct *p)
 	rq_curr = rq->curr;
 
 	/*
-	 * Reinit new task deadline as its creator deadline could have changed
-	 * since call to dup_task_struct().
-	 */
-	p->deadline = rq->rq_deadline;
-
-	/*
 	 * Make sure we do not leak PI boosting priority to the child.
 	 */
 	p->prio = rq_curr->normal_prio;
