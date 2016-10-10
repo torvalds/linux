@@ -148,18 +148,6 @@ static uint32_t audio_config_setup_n_reg(int n, uint32_t val)
 	return tmp;
 }
 
-/* check whether N/CTS/M need be set manually */
-static bool audio_rate_need_prog(struct intel_crtc *crtc,
-				 const struct drm_display_mode *mode)
-{
-	if (((mode->clock == TMDS_297M) ||
-		 (mode->clock == TMDS_296M)) &&
-		intel_crtc_has_type(crtc->config, INTEL_OUTPUT_HDMI))
-		return true;
-	else
-		return false;
-}
-
 static bool intel_eld_uptodate(struct drm_connector *connector,
 			       i915_reg_t reg_eldv, uint32_t bits_eldv,
 			       i915_reg_t reg_elda, uint32_t bits_elda,
@@ -245,9 +233,26 @@ static void g4x_audio_codec_enable(struct drm_connector *connector,
 	I915_WRITE(G4X_AUD_CNTL_ST, tmp);
 }
 
-static void hsw_audio_config_update(struct intel_crtc *intel_crtc,
-				    enum port port,
-				    const struct drm_display_mode *adjusted_mode)
+static void
+hsw_dp_audio_config_update(struct intel_crtc *intel_crtc, enum port port,
+			   const struct drm_display_mode *adjusted_mode)
+{
+	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
+	enum pipe pipe = intel_crtc->pipe;
+	u32 tmp;
+
+	tmp = I915_READ(HSW_AUD_CFG(pipe));
+	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
+	tmp &= ~AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK;
+	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
+	tmp |= AUD_CONFIG_N_VALUE_INDEX;
+
+	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
+}
+
+static void
+hsw_hdmi_audio_config_update(struct intel_crtc *intel_crtc, enum port port,
+			     const struct drm_display_mode *adjusted_mode)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
 	struct i915_audio_component *acomp = dev_priv->audio_component;
@@ -259,13 +264,11 @@ static void hsw_audio_config_update(struct intel_crtc *intel_crtc,
 	tmp = I915_READ(HSW_AUD_CFG(pipe));
 	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
 	tmp &= ~AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK;
-	if (intel_crtc_has_dp_encoder(intel_crtc->config))
-		tmp |= AUD_CONFIG_N_VALUE_INDEX;
-	else
-		tmp |= audio_config_hdmi_pixel_clock(adjusted_mode);
-
 	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
-	if (audio_rate_need_prog(intel_crtc, adjusted_mode)) {
+	tmp |= audio_config_hdmi_pixel_clock(adjusted_mode);
+
+	if (adjusted_mode->clock == TMDS_296M ||
+	    adjusted_mode->clock == TMDS_297M) {
 		n = audio_config_get_n(adjusted_mode, rate);
 		if (n != 0)
 			tmp = audio_config_setup_n_reg(n, tmp);
@@ -274,6 +277,16 @@ static void hsw_audio_config_update(struct intel_crtc *intel_crtc,
 	}
 
 	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
+}
+
+static void
+hsw_audio_config_update(struct intel_crtc *intel_crtc, enum port port,
+			const struct drm_display_mode *adjusted_mode)
+{
+	if (intel_crtc_has_dp_encoder(intel_crtc->config))
+		hsw_dp_audio_config_update(intel_crtc, port, adjusted_mode);
+	else
+		hsw_hdmi_audio_config_update(intel_crtc, port, adjusted_mode);
 }
 
 static void hsw_audio_codec_disable(struct intel_encoder *encoder)
