@@ -105,8 +105,6 @@ static int dtt200u_fe_set_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dtt200u_fe_state *state = fe->demodulator_priv;
-	int i;
-	enum fe_status st;
 	u16 freq = fep->frequency / 250000;
 	u8 bwbuf[2] = { SET_BANDWIDTH, 0 },freqbuf[3] = { SET_RF_FREQ, 0, 0 };
 
@@ -129,13 +127,6 @@ static int dtt200u_fe_set_frontend(struct dvb_frontend *fe)
 	freqbuf[1] = freq & 0xff;
 	freqbuf[2] = (freq >> 8) & 0xff;
 	dvb_usb_generic_write(state->d,freqbuf,3);
-
-	for (i = 0; i < 30; i++) {
-		msleep(20);
-		dtt200u_fe_read_status(fe, &st);
-		if (st & FE_TIMEDOUT)
-			continue;
-	}
 
 	return 0;
 }
