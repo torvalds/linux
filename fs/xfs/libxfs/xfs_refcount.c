@@ -1643,7 +1643,7 @@ xfs_refcount_recover_cow_leftovers(
 	error = xfs_btree_query_range(cur, &low, &high,
 			xfs_refcount_recover_extent, &debris);
 	if (error)
-		goto out_error;
+		goto out_cursor;
 	xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
 	xfs_buf_relse(agbp);
 
@@ -1675,14 +1675,8 @@ xfs_refcount_recover_cow_leftovers(
 
 		error = xfs_trans_commit(tp);
 		if (error)
-			goto out_cancel;
+			goto out_free;
 	}
-	goto out_free;
-
-out_defer:
-	xfs_defer_cancel(&dfops);
-out_cancel:
-	xfs_trans_cancel(tp);
 
 out_free:
 	/* Free the leftover list */
@@ -1690,11 +1684,15 @@ out_free:
 		list_del(&rr->rr_list);
 		kmem_free(rr);
 	}
-
 	return error;
 
-out_error:
+out_cursor:
 	xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
 	xfs_buf_relse(agbp);
-	return error;
+	goto out_free;
+
+out_defer:
+	xfs_defer_cancel(&dfops);
+	xfs_trans_cancel(tp);
+	goto out_free;
 }
