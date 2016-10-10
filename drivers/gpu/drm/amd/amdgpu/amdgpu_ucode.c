@@ -273,7 +273,6 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 
 	amdgpu_bo_unreserve(*bo);
 
-	fw_offset = 0;
 	for (i = 0; i < AMDGPU_UCODE_ID_MAXIMUM; i++) {
 		ucode = &adev->firmware.ucode[i];
 		if (ucode->fw) {

@@ -3159,6 +3159,7 @@ static int dce_v11_0_sw_fini(void *handle)
 
 	dce_v11_0_afmt_fini(adev);
 
+	drm_mode_config_cleanup(adev->ddev);
 	adev->mode_info.mode_config_initialized = false;
 
 	return 0;
