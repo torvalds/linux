@@ -866,3 +866,51 @@ void mlx5_port_module_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe)
 			       module_num, mlx5_pme_status[module_status - 1],
 			       mlx5_pme_error[error_type]);
 }
+
+int mlx5_query_mtpps(struct mlx5_core_dev *mdev, u32 *mtpps, u32 mtpps_size)
+{
+	u32 in[MLX5_ST_SZ_DW(mtpps_reg)] = {0};
+
+	return mlx5_core_access_reg(mdev, in, sizeof(in), mtpps,
+				    mtpps_size, MLX5_REG_MTPPS, 0, 0);
+}
+
+int mlx5_set_mtpps(struct mlx5_core_dev *mdev, u32 *mtpps, u32 mtpps_size)
+{
+	u32 out[MLX5_ST_SZ_DW(mtpps_reg)] = {0};
+
+	return mlx5_core_access_reg(mdev, mtpps, mtpps_size, out,
+				    sizeof(out), MLX5_REG_MTPPS, 0, 1);
+}
+
+int mlx5_query_mtppse(struct mlx5_core_dev *mdev, u8 pin, u8 *arm, u8 *mode)
+{
+	u32 out[MLX5_ST_SZ_DW(mtppse_reg)] = {0};
+	u32 in[MLX5_ST_SZ_DW(mtppse_reg)] = {0};
+	int err = 0;
+
+	MLX5_SET(mtppse_reg, in, pin, pin);
+
+	err = mlx5_core_access_reg(mdev, in, sizeof(in), out,
+				   sizeof(out), MLX5_REG_MTPPSE, 0, 0);
+	if (err)
+		return err;
+
+	*arm = MLX5_GET(mtppse_reg, in, event_arm);
+	*mode = MLX5_GET(mtppse_reg, in, event_generation_mode);
+
+	return err;
+}
+
+int mlx5_set_mtppse(struct mlx5_core_dev *mdev, u8 pin, u8 arm, u8 mode)
+{
+	u32 out[MLX5_ST_SZ_DW(mtppse_reg)] = {0};
+	u32 in[MLX5_ST_SZ_DW(mtppse_reg)] = {0};
+
+	MLX5_SET(mtppse_reg, in, pin, pin);
+	MLX5_SET(mtppse_reg, in, event_arm, arm);
+	MLX5_SET(mtppse_reg, in, event_generation_mode, mode);
+
+	return mlx5_core_access_reg(mdev, in, sizeof(in), out,
+				    sizeof(out), MLX5_REG_MTPPSE, 0, 1);
+}
