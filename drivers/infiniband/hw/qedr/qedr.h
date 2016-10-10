@@ -52,6 +52,9 @@
 #define QEDR_MSG_MISC "MISC"
 #define QEDR_MSG_CQ   "  CQ"
 #define QEDR_MSG_MR   "  MR"
+#define QEDR_MSG_RQ   "  RQ"
+#define QEDR_MSG_SQ   "  SQ"
+#define QEDR_MSG_QP   "  QP"
 
 #define QEDR_CQ_MAGIC_NUMBER   (0x11223344)
 
@@ -143,6 +146,8 @@ struct qedr_dev {
 	u32			dp_module;
 	u8			dp_level;
 	u8			num_hwfns;
+	uint			wq_multiplier;
+
 };
 
 #define QEDR_MAX_SQ_PBL			(0x8000)
@@ -272,6 +277,122 @@ struct qedr_mm {
 	struct list_head entry;
 };
 
+union db_prod32 {
+	struct rdma_pwm_val16_data data;
+	u32 raw;
+};
+
+struct qedr_qp_hwq_info {
+	/* WQE Elements */
+	struct qed_chain pbl;
+	u64 p_phys_addr_tbl;
+	u32 max_sges;
+
+	/* WQE */
+	u16 prod;
+	u16 cons;
+	u16 wqe_cons;
+	u16 max_wr;
+
+	/* DB */
+	void __iomem *db;
+	union db_prod32 db_data;
+};
+
+#define QEDR_INC_SW_IDX(p_info, index)					\
+	do {								\
+		p_info->index = (p_info->index + 1) &			\
+				qed_chain_get_capacity(p_info->pbl)	\
+	} while (0)
+
+enum qedr_qp_err_bitmap {
+	QEDR_QP_ERR_SQ_FULL = 1,
+	QEDR_QP_ERR_RQ_FULL = 2,
+	QEDR_QP_ERR_BAD_SR = 4,
+	QEDR_QP_ERR_BAD_RR = 8,
+	QEDR_QP_ERR_SQ_PBL_FULL = 16,
+	QEDR_QP_ERR_RQ_PBL_FULL = 32,
+};
+
+struct qedr_qp {
+	struct ib_qp ibqp;	/* must be first */
+	struct qedr_dev *dev;
+
+	struct qedr_qp_hwq_info sq;
+	struct qedr_qp_hwq_info rq;
+
+	u32 max_inline_data;
+
+	/* Lock for QP's */
+	spinlock_t q_lock;
+	struct qedr_cq *sq_cq;
+	struct qedr_cq *rq_cq;
+	struct qedr_srq *srq;
+	enum qed_roce_qp_state state;
+	u32 id;
+	struct qedr_pd *pd;
+	enum ib_qp_type qp_type;
+	struct qed_rdma_qp *qed_qp;
+	u32 qp_id;
+	u16 icid;
+	u16 mtu;
+	int sgid_idx;
+	u32 rq_psn;
+	u32 sq_psn;
+	u32 qkey;
+	u32 dest_qp_num;
+
+	/* Relevant to qps created from kernel space only (ULPs) */
+	u8 prev_wqe_size;
+	u16 wqe_cons;
+	u32 err_bitmap;
+	bool signaled;
+
+	/* SQ shadow */
+	struct {
+		u64 wr_id;
+		enum ib_wc_opcode opcode;
+		u32 bytes_len;
+		u8 wqe_size;
+		bool signaled;
+		dma_addr_t icrc_mapping;
+		u32 *icrc;
+		struct qedr_mr *mr;
+	} *wqe_wr_id;
+
+	/* RQ shadow */
+	struct {
+		u64 wr_id;
+		struct ib_sge sg_list[RDMA_MAX_SGE_PER_RQ_WQE];
+		u8 wqe_size;
+
+		u16 vlan_id;
+		int rc;
+	} *rqe_wr_id;
+
+	/* Relevant to qps created from user space only (applications) */
+	struct qedr_userq usq;
+	struct qedr_userq urq;
+};
+
+static inline int qedr_get_dmac(struct qedr_dev *dev,
+				struct ib_ah_attr *ah_attr, u8 *mac_addr)
+{
+	union ib_gid zero_sgid = { { 0 } };
+	struct in6_addr in6;
+
+	if (!memcmp(&ah_attr->grh.dgid, &zero_sgid, sizeof(union ib_gid))) {
+		DP_ERR(dev, "Local port GID not supported\n");
+		eth_zero_addr(mac_addr);
+		return -EINVAL;
+	}
+
+	memcpy(&in6, ah_attr->grh.dgid.raw, sizeof(in6));
+	ether_addr_copy(mac_addr, ah_attr->dmac);
+
+	return 0;
+}
+
 static inline
 struct qedr_ucontext *get_qedr_ucontext(struct ib_ucontext *ibucontext)
 {
@@ -293,4 +414,8 @@ static inline struct qedr_cq *get_qedr_cq(struct ib_cq *ibcq)
 	return container_of(ibcq, struct qedr_cq, ibcq);
 }
 
+static inline struct qedr_qp *get_qedr_qp(struct ib_qp *ibqp)
+{
+	return container_of(ibqp, struct qedr_qp, ibqp);
+}
 #endif

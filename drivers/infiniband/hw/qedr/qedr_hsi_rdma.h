@@ -158,6 +158,17 @@ struct rdma_srq_sge {
 	__le32 l_key;
 };
 
+/* Rdma doorbell data for SQ and RQ */
+struct rdma_pwm_val16_data {
+	__le16 icid;
+	__le16 value;
+};
+
+union rdma_pwm_val16_data_union {
+	struct rdma_pwm_val16_data as_struct;
+	__le32 as_dword;
+};
+
 /* Rdma doorbell data for CQ */
 struct rdma_pwm_val32_data {
 	__le16 icid;
