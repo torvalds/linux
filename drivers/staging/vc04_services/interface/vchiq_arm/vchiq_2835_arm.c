@@ -48,9 +48,6 @@
 #define dmac_map_area			__glue(_CACHE,_dma_map_area)
 #define dmac_unmap_area 		__glue(_CACHE,_dma_unmap_area)
 
-extern void dmac_map_area(const void *, size_t, int);
-extern void dmac_unmap_area(const void *, size_t, int);
-
 #define TOTAL_SLOTS (VCHIQ_SLOT_ZERO_SLOTS + 2 * 32)
 
 #define VCHIQ_ARM_ADDRESS(x) ((void *)((char *)x + g_virt_to_bus_offset))
