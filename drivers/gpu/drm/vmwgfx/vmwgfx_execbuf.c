@@ -4275,9 +4275,6 @@ void __vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 	ttm_bo_unref(&query_val.bo);
 	ttm_bo_unref(&pinned_val.bo);
 	vmw_dmabuf_unreference(&dev_priv->pinned_bo);
-	DRM_INFO("Dummy query bo pin count: %d\n",
-		 dev_priv->dummy_query_bo->pin_count);
-
 out_unlock:
 	return;
 
