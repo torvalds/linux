@@ -1570,8 +1570,7 @@ next:
  */
 STATIC int
 xfs_reflink_try_clear_inode_flag(
-	struct xfs_inode	*ip,
-	xfs_off_t		old_isize)
+	struct xfs_inode	*ip)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
@@ -1584,9 +1583,6 @@ xfs_reflink_try_clear_inode_flag(
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
-
-	if (old_isize != i_size_read(VFS_I(ip)))
-		goto cancel;
 
 	error = xfs_reflink_clear_inode_flag(ip, &tp);
 	if (error)
@@ -1630,7 +1626,7 @@ xfs_reflink_unshare(
 
 	/* Try to CoW the selected ranges */
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	fbno = XFS_B_TO_FSB(mp, offset);
+	fbno = XFS_B_TO_FSBT(mp, offset);
 	isize = i_size_read(VFS_I(ip));
 	end = XFS_B_TO_FSB(mp, offset + len);
 	error = xfs_reflink_dirty_extents(ip, fbno, end, isize);
@@ -1643,12 +1639,10 @@ xfs_reflink_unshare(
 	if (error)
 		goto out;
 
-	/* Turn off the reflink flag if we unshared the whole file */
-	if (offset == 0 && len == isize) {
-		error = xfs_reflink_try_clear_inode_flag(ip, isize);
-		if (error)
-			goto out;
-	}
+	/* Turn off the reflink flag if possible. */
+	error = xfs_reflink_try_clear_inode_flag(ip);
+	if (error)
+		goto out;
 
 	return 0;
 
