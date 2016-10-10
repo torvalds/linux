@@ -43,8 +43,8 @@
 
 #define NCR5380_implementation_fields   /* none */
 
-#define NCR5380_read(reg)               sun3scsi_read(reg)
-#define NCR5380_write(reg, value)       sun3scsi_write(reg, value)
+#define NCR5380_read(reg)               in_8(hostdata->io + (reg))
+#define NCR5380_write(reg, value)       out_8(hostdata->io + (reg), value)
 
 #define NCR5380_queue_command           sun3scsi_queue_command
 #define NCR5380_bus_reset               sun3scsi_bus_reset
@@ -82,27 +82,12 @@ module_param(setup_hostid, int, 0);
 #define SUN3_DVMA_BUFSIZE 0xe000
 
 static struct scsi_cmnd *sun3_dma_setup_done;
-static unsigned char *sun3_scsi_regp;
 static volatile struct sun3_dma_regs *dregs;
 static struct sun3_udc_regs *udc_regs;
 static unsigned char *sun3_dma_orig_addr;
 static unsigned long sun3_dma_orig_count;
 static int sun3_dma_active;
 static unsigned long last_residual;
-
-/*
- * NCR 5380 register access functions
- */
-
-static inline unsigned char sun3scsi_read(int reg)
-{
-	return in_8(sun3_scsi_regp + reg);
-}
-
-static inline void sun3scsi_write(int reg, int value)
-{
-	out_8(sun3_scsi_regp + reg, value);
-}
 
 #ifndef SUN3_SCSI_VME
 /* dma controller register access functions */
@@ -431,7 +416,7 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 	struct NCR5380_hostdata *hostdata;
 	int error;
 	struct resource *irq, *mem;
-	unsigned char *ioaddr;
+	void __iomem *ioaddr;
 	int host_flags = 0;
 #ifdef SUN3_SCSI_VME
 	int i;
@@ -494,8 +479,6 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 	}
 #endif
 
-	sun3_scsi_regp = ioaddr;
-
 	instance = scsi_host_alloc(&sun3_scsi_template,
 	                           sizeof(struct NCR5380_hostdata));
 	if (!instance) {
@@ -506,7 +489,8 @@ static int __init sun3_scsi_probe(struct platform_device *pdev)
 	instance->irq = irq->start;
 
 	hostdata = shost_priv(instance);
-	hostdata->base = (unsigned long)ioaddr;
+	hostdata->base = mem->start;
+	hostdata->io = ioaddr;
 
 	error = NCR5380_init(instance, host_flags);
 	if (error)
@@ -555,13 +539,15 @@ fail_init:
 fail_alloc:
 	if (udc_regs)
 		dvma_free(udc_regs);
-	iounmap(sun3_scsi_regp);
+	iounmap(ioaddr);
 	return error;
 }
 
 static int __exit sun3_scsi_remove(struct platform_device *pdev)
 {
 	struct Scsi_Host *instance = platform_get_drvdata(pdev);
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	void __iomem *ioaddr = hostdata->io;
 
 	scsi_remove_host(instance);
 	free_irq(instance->irq, instance);
@@ -569,7 +555,7 @@ static int __exit sun3_scsi_remove(struct platform_device *pdev)
 	scsi_host_put(instance);
 	if (udc_regs)
 		dvma_free(udc_regs);
-	iounmap(sun3_scsi_regp);
+	iounmap(ioaddr);
 	return 0;
 }
 

@@ -34,10 +34,8 @@
  * Definitions for the generic 5380 driver.
  */
 
-#define priv(instance)	((struct NCR5380_hostdata *)shost_priv(instance))
-
-#define NCR5380_read(reg)		inb(priv(instance)->base + (reg))
-#define NCR5380_write(reg, value)	outb(value, priv(instance)->base + (reg))
+#define NCR5380_read(reg)		inb(hostdata->base + (reg))
+#define NCR5380_write(reg, value)	outb(value, hostdata->base + (reg))
 
 #define NCR5380_dma_xfer_len(instance, cmd, phase)	(0)
 #define NCR5380_dma_recv_setup(instance, dst, len)	(0)

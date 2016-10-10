@@ -14,8 +14,8 @@
 #include <scsi/scsi_host.h>
 
 #define priv(host)			((struct NCR5380_hostdata *)(host)->hostdata)
-#define NCR5380_read(reg)		cumanascsi_read(instance, reg)
-#define NCR5380_write(reg, value)	cumanascsi_write(instance, reg, value)
+#define NCR5380_read(reg)		cumanascsi_read(hostdata, reg)
+#define NCR5380_write(reg, value)	cumanascsi_write(hostdata, reg, value)
 
 #define NCR5380_dma_xfer_len(instance, cmd, phase)	(cmd->transfersize)
 #define NCR5380_dma_recv_setup		cumanascsi_pread
@@ -169,30 +169,32 @@ end:
 	return 0;
 }
 
-static unsigned char cumanascsi_read(struct Scsi_Host *host, unsigned int reg)
+static u8 cumanascsi_read(struct NCR5380_hostdata *hostdata,
+                          unsigned int reg)
 {
-	u8 __iomem *base = priv(host)->io;
-	unsigned char val;
+	u8 __iomem *base = hostdata->io;
+	u8 val;
 
 	writeb(0, base + CTRL);
 
 	val = readb(base + 0x2100 + (reg << 2));
 
-	priv(host)->ctrl = 0x40;
+	hostdata->ctrl = 0x40;
 	writeb(0x40, base + CTRL);
 
 	return val;
 }
 
-static void cumanascsi_write(struct Scsi_Host *host, unsigned int reg, unsigned int value)
+static void cumanascsi_write(struct NCR5380_hostdata *hostdata,
+                             unsigned int reg, u8 value)
 {
-	u8 __iomem *base = priv(host)->io;
+	u8 __iomem *base = hostdata->io;
 
 	writeb(0, base + CTRL);
 
 	writeb(value, base + 0x2100 + (reg << 2));
 
-	priv(host)->ctrl = 0x40;
+	hostdata->ctrl = 0x40;
 	writeb(0x40, base + CTRL);
 }
 

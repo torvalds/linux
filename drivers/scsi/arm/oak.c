@@ -16,10 +16,8 @@
 
 #define priv(host)			((struct NCR5380_hostdata *)(host)->hostdata)
 
-#define NCR5380_read(reg) \
-	readb(priv(instance)->io + ((reg) << 2))
-#define NCR5380_write(reg, value) \
-	writeb(value, priv(instance)->io + ((reg) << 2))
+#define NCR5380_read(reg)           readb(hostdata->io + ((reg) << 2))
+#define NCR5380_write(reg, value)   writeb(value, hostdata->io + ((reg) << 2))
 
 #define NCR5380_dma_xfer_len(instance, cmd, phase)	(0)
 #define NCR5380_dma_recv_setup		oakscsi_pread

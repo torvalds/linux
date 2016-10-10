@@ -196,8 +196,9 @@ static inline void initialize_SCp(struct scsi_cmnd *cmd)
  */
 
 static int NCR5380_poll_politely2(struct Scsi_Host *instance,
-                                  int reg1, int bit1, int val1,
-                                  int reg2, int bit2, int val2, int wait)
+                                  unsigned int reg1, u8 bit1, u8 val1,
+                                  unsigned int reg2, u8 bit2, u8 val2,
+                                  unsigned long wait)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned long n = hostdata->poll_loops;
@@ -284,6 +285,7 @@ mrs[] = {
 
 static void NCR5380_print(struct Scsi_Host *instance)
 {
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char status, data, basr, mr, icr, i;
 
 	data = NCR5380_read(CURRENT_SCSI_DATA_REG);
@@ -333,6 +335,7 @@ static struct {
 
 static void NCR5380_print_phase(struct Scsi_Host *instance)
 {
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char status;
 	int i;
 
@@ -1316,6 +1319,7 @@ static int NCR5380_transfer_pio(struct Scsi_Host *instance,
 				unsigned char *phase, int *count,
 				unsigned char **data)
 {
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char p = *phase, tmp;
 	int c = *count;
 	unsigned char *d = *data;
@@ -1438,6 +1442,7 @@ static int NCR5380_transfer_pio(struct Scsi_Host *instance,
 
 static void do_reset(struct Scsi_Host *instance)
 {
+	struct NCR5380_hostdata __maybe_unused *hostdata = shost_priv(instance);
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -1460,6 +1465,7 @@ static void do_reset(struct Scsi_Host *instance)
 
 static int do_abort(struct Scsi_Host *instance)
 {
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char *msgptr, phase, tmp;
 	int len;
 	int rc;

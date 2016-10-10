@@ -126,8 +126,8 @@ static inline unsigned long SCSI_DMA_GETADR(void)
 
 static void atari_scsi_fetch_restbytes(void);
 
-static unsigned char (*atari_scsi_reg_read)(unsigned char reg);
-static void (*atari_scsi_reg_write)(unsigned char reg, unsigned char value);
+static u8 (*atari_scsi_reg_read)(unsigned int);
+static void (*atari_scsi_reg_write)(unsigned int, u8);
 
 static unsigned long	atari_dma_residual, atari_dma_startaddr;
 static short		atari_dma_active;
@@ -658,30 +658,30 @@ static unsigned long atari_dma_xfer_len(unsigned long wanted_len,
  * NCR5380_write call these functions via function pointers.
  */
 
-static unsigned char atari_scsi_tt_reg_read(unsigned char reg)
+static u8 atari_scsi_tt_reg_read(unsigned int reg)
 {
 	return tt_scsi_regp[reg * 2];
 }
 
-static void atari_scsi_tt_reg_write(unsigned char reg, unsigned char value)
+static void atari_scsi_tt_reg_write(unsigned int reg, u8 value)
 {
 	tt_scsi_regp[reg * 2] = value;
 }
 
-static unsigned char atari_scsi_falcon_reg_read(unsigned char reg)
+static u8 atari_scsi_falcon_reg_read(unsigned int reg)
 {
 	unsigned long flags;
-	unsigned char result;
+	u8 result;
 
 	reg += 0x88;
 	local_irq_save(flags);
 	dma_wd.dma_mode_status = (u_short)reg;
-	result = (u_char)dma_wd.fdc_acces_seccount;
+	result = (u8)dma_wd.fdc_acces_seccount;
 	local_irq_restore(flags);
 	return result;
 }
 
-static void atari_scsi_falcon_reg_write(unsigned char reg, unsigned char value)
+static void atari_scsi_falcon_reg_write(unsigned int reg, u8 value)
 {
 	unsigned long flags;
 

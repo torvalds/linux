@@ -30,8 +30,8 @@
 
 #define NCR5380_implementation_fields   int pdma_residual
 
-#define NCR5380_read(reg)               macscsi_read(instance, reg)
-#define NCR5380_write(reg, value)       macscsi_write(instance, reg, value)
+#define NCR5380_read(reg)           in_8(hostdata->io + ((reg) << 4))
+#define NCR5380_write(reg, value)   out_8(hostdata->io + ((reg) << 4), value)
 
 #define NCR5380_dma_xfer_len(instance, cmd, phase) \
         macscsi_dma_xfer_len(instance, cmd)
@@ -59,24 +59,6 @@ static int setup_hostid = -1;
 module_param(setup_hostid, int, 0);
 static int setup_toshiba_delay = -1;
 module_param(setup_toshiba_delay, int, 0);
-
-/*
- * NCR 5380 register access functions
- */
-
-static inline char macscsi_read(struct Scsi_Host *instance, int reg)
-{
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-
-	return in_8(hostdata->io + (reg << 4));
-}
-
-static inline void macscsi_write(struct Scsi_Host *instance, int reg, int value)
-{
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-
-	out_8(hostdata->io + (reg << 4), value);
-}
 
 #ifndef MODULE
 static int __init mac_scsi_setup(char *str)
