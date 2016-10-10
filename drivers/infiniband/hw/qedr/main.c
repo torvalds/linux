@@ -724,6 +724,38 @@ static void qedr_shutdown(struct qedr_dev *dev)
 	qedr_remove(dev);
 }
 
+static void qedr_mac_address_change(struct qedr_dev *dev)
+{
+	union ib_gid *sgid = &dev->sgid_tbl[0];
+	u8 guid[8], mac_addr[6];
+	int rc;
+
+	/* Update SGID */
+	ether_addr_copy(&mac_addr[0], dev->ndev->dev_addr);
+	guid[0] = mac_addr[0] ^ 2;
+	guid[1] = mac_addr[1];
+	guid[2] = mac_addr[2];
+	guid[3] = 0xff;
+	guid[4] = 0xfe;
+	guid[5] = mac_addr[3];
+	guid[6] = mac_addr[4];
+	guid[7] = mac_addr[5];
+	sgid->global.subnet_prefix = cpu_to_be64(0xfe80000000000000LL);
+	memcpy(&sgid->raw[8], guid, sizeof(guid));
+
+	/* Update LL2 */
+	rc = dev->ops->roce_ll2_set_mac_filter(dev->cdev,
+					       dev->gsi_ll2_mac_address,
+					       dev->ndev->dev_addr);
+
+	ether_addr_copy(dev->gsi_ll2_mac_address, dev->ndev->dev_addr);
+
+	qedr_ib_dispatch_event(dev, 1, IB_EVENT_GID_CHANGE);
+
+	if (rc)
+		DP_ERR(dev, "Error updating mac filter\n");
+}
+
 /* event handling via NIC driver ensures that all the NIC specific
  * initialization done before RoCE driver notifies
  * event to stack.
@@ -741,7 +773,7 @@ static void qedr_notify(struct qedr_dev *dev, enum qede_roce_event event)
 		qedr_shutdown(dev);
 		break;
 	case QEDE_CHANGE_ADDR:
-		qedr_ib_dispatch_event(dev, 1, IB_EVENT_GID_CHANGE);
+		qedr_mac_address_change(dev);
 		break;
 	default:
 		pr_err("Event not supported\n");

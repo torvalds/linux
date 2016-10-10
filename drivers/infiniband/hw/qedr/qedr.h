@@ -147,7 +147,7 @@ struct qedr_dev {
 	u8			dp_level;
 	u8			num_hwfns;
 	uint			wq_multiplier;
-
+	u8			gsi_ll2_mac_address[ETH_ALEN];
 };
 
 #define QEDR_MAX_SQ_PBL			(0x8000)
