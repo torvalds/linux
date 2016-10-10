@@ -12,12 +12,14 @@
 	operating-points = <
 		/* kHz	uV */
 		528000	1175000
-		99000	950000
+		396000	1025000
+		198000	950000
 	>;
 	fsl,soc-operating-points = <
 		/* KHz	uV */
 		528000	1175000
-		99000	1175000
+		396000	1175000
+		198000	1175000
 	>;
 	arm-supply = <&reg_arm>;
 	soc-supply = <&reg_soc>;
