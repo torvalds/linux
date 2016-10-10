@@ -121,13 +121,14 @@ static u32 audio_config_hdmi_pixel_clock(const struct drm_display_mode *adjusted
 	return hdmi_audio_clock[i].config;
 }
 
-static int audio_config_get_n(const struct drm_display_mode *mode, int rate)
+static int audio_config_get_n(const struct drm_display_mode *adjusted_mode,
+			      int rate)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(aud_ncts); i++) {
 		if ((rate == aud_ncts[i].sample_rate) &&
-			(mode->clock == aud_ncts[i].clock)) {
+			(adjusted_mode->crtc_clock == aud_ncts[i].clock)) {
 			return aud_ncts[i].n;
 		}
 	}
@@ -267,8 +268,8 @@ hsw_hdmi_audio_config_update(struct intel_crtc *intel_crtc, enum port port,
 	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
 	tmp |= audio_config_hdmi_pixel_clock(adjusted_mode);
 
-	if (adjusted_mode->clock == TMDS_296M ||
-	    adjusted_mode->clock == TMDS_297M) {
+	if (adjusted_mode->crtc_clock == TMDS_296M ||
+	    adjusted_mode->crtc_clock == TMDS_297M) {
 		n = audio_config_get_n(adjusted_mode, rate);
 		if (n != 0)
 			tmp = audio_config_setup_n_reg(n, tmp);
