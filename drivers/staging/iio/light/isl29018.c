@@ -399,6 +399,7 @@ static int isl29018_write_raw(struct iio_dev *indio_dev,
 
 write_done:
 	mutex_unlock(&chip->lock);
+
 	return ret;
 }
 
@@ -464,6 +465,7 @@ static int isl29018_read_raw(struct iio_dev *indio_dev,
 
 read_done:
 	mutex_unlock(&chip->lock);
+
 	return ret;
 }
 
@@ -726,6 +728,7 @@ static int isl29018_probe(struct i2c_client *client,
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
 		return -ENOMEM;
+
 	chip = iio_priv(indio_dev);
 
 	i2c_set_clientdata(client, indio_dev);
@@ -765,6 +768,7 @@ static int isl29018_probe(struct i2c_client *client,
 	indio_dev->name = name;
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
+
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
@@ -782,6 +786,7 @@ static int isl29018_suspend(struct device *dev)
 	chip->suspended = true;
 
 	mutex_unlock(&chip->lock);
+
 	return 0;
 }
 
@@ -797,6 +802,7 @@ static int isl29018_resume(struct device *dev)
 		chip->suspended = false;
 
 	mutex_unlock(&chip->lock);
+
 	return err;
 }
 
