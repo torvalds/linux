@@ -995,7 +995,7 @@ static irqreturn_t __maybe_unused NCR5380_intr(int irq, void *dev_id)
 		}
 		handled = 1;
 	} else {
-		shost_printk(KERN_NOTICE, instance, "interrupt without IRQ bit\n");
+		dsprintk(NDEBUG_INTR, instance, "interrupt without IRQ bit\n");
 #ifdef SUN3_SCSI_VME
 		dregs->csr |= CSR_DMA_ENABLE;
 #endif
