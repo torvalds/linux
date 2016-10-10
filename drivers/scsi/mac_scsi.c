@@ -161,7 +161,7 @@ static int macscsi_pread(struct Scsi_Host *instance,
 	int n = len;
 	int transferred;
 
-	while (!NCR5380_poll_politely(instance, BUS_AND_STATUS_REG,
+	while (!NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG,
 	                              BASR_DRQ | BASR_PHASE_MATCH,
 	                              BASR_DRQ | BASR_PHASE_MATCH, HZ / 64)) {
 		CP_IO_TO_MEM(s, d, n);
@@ -174,7 +174,7 @@ static int macscsi_pread(struct Scsi_Host *instance,
 			return 0;
 
 		/* Target changed phase early? */
-		if (NCR5380_poll_politely2(instance, STATUS_REG, SR_REQ, SR_REQ,
+		if (NCR5380_poll_politely2(hostdata, STATUS_REG, SR_REQ, SR_REQ,
 		                           BUS_AND_STATUS_REG, BASR_ACK, BASR_ACK, HZ / 64) < 0)
 			scmd_printk(KERN_ERR, hostdata->connected,
 			            "%s: !REQ and !ACK\n", __func__);
@@ -264,7 +264,7 @@ static int macscsi_pwrite(struct Scsi_Host *instance,
 	int n = len;
 	int transferred;
 
-	while (!NCR5380_poll_politely(instance, BUS_AND_STATUS_REG,
+	while (!NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG,
 	                              BASR_DRQ | BASR_PHASE_MATCH,
 	                              BASR_DRQ | BASR_PHASE_MATCH, HZ / 64)) {
 		CP_MEM_TO_IO(s, d, n);
@@ -273,7 +273,7 @@ static int macscsi_pwrite(struct Scsi_Host *instance,
 		hostdata->pdma_residual = len - transferred;
 
 		/* Target changed phase early? */
-		if (NCR5380_poll_politely2(instance, STATUS_REG, SR_REQ, SR_REQ,
+		if (NCR5380_poll_politely2(hostdata, STATUS_REG, SR_REQ, SR_REQ,
 		                           BUS_AND_STATUS_REG, BASR_ACK, BASR_ACK, HZ / 64) < 0)
 			scmd_printk(KERN_ERR, hostdata->connected,
 			            "%s: !REQ and !ACK\n", __func__);
@@ -282,7 +282,7 @@ static int macscsi_pwrite(struct Scsi_Host *instance,
 
 		/* No bus error. */
 		if (n == 0) {
-			if (NCR5380_poll_politely(instance, TARGET_COMMAND_REG,
+			if (NCR5380_poll_politely(hostdata, TARGET_COMMAND_REG,
 			                          TCR_LAST_BYTE_SENT,
 			                          TCR_LAST_BYTE_SENT, HZ / 64) < 0)
 				scmd_printk(KERN_ERR, hostdata->connected,

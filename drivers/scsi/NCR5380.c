@@ -178,7 +178,7 @@ static inline void initialize_SCp(struct scsi_cmnd *cmd)
 
 /**
  * NCR5380_poll_politely2 - wait for two chip register values
- * @instance: controller to poll
+ * @hostdata: host private data
  * @reg1: 5380 register to poll
  * @bit1: Bitmask to check
  * @val1: Expected value
@@ -195,12 +195,11 @@ static inline void initialize_SCp(struct scsi_cmnd *cmd)
  * Returns 0 if either or both event(s) occurred otherwise -ETIMEDOUT.
  */
 
-static int NCR5380_poll_politely2(struct Scsi_Host *instance,
+static int NCR5380_poll_politely2(struct NCR5380_hostdata *hostdata,
                                   unsigned int reg1, u8 bit1, u8 val1,
                                   unsigned int reg2, u8 bit2, u8 val2,
                                   unsigned long wait)
 {
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned long n = hostdata->poll_loops;
 	unsigned long deadline = jiffies + wait;
 
@@ -561,7 +560,7 @@ static int NCR5380_maybe_reset_bus(struct Scsi_Host *instance)
 		case 3:
 		case 5:
 			shost_printk(KERN_ERR, instance, "SCSI bus busy, waiting up to five seconds\n");
-			NCR5380_poll_politely(instance,
+			NCR5380_poll_politely(hostdata,
 			                      STATUS_REG, SR_BSY, 0, 5 * HZ);
 			break;
 		case 2:
@@ -1076,7 +1075,7 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 	 */
 
 	spin_unlock_irq(&hostdata->lock);
-	err = NCR5380_poll_politely2(instance, MODE_REG, MR_ARBITRATE, 0,
+	err = NCR5380_poll_politely2(hostdata, MODE_REG, MR_ARBITRATE, 0,
 	                INITIATOR_COMMAND_REG, ICR_ARBITRATION_PROGRESS,
 	                                       ICR_ARBITRATION_PROGRESS, HZ);
 	spin_lock_irq(&hostdata->lock);
@@ -1202,7 +1201,7 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 	 * selection.
 	 */
 
-	err = NCR5380_poll_politely(instance, STATUS_REG, SR_BSY, SR_BSY,
+	err = NCR5380_poll_politely(hostdata, STATUS_REG, SR_BSY, SR_BSY,
 	                            msecs_to_jiffies(250));
 
 	if ((NCR5380_read(STATUS_REG) & (SR_SEL | SR_IO)) == (SR_SEL | SR_IO)) {
@@ -1248,7 +1247,7 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 
 	/* Wait for start of REQ/ACK handshake */
 
-	err = NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, SR_REQ, HZ);
+	err = NCR5380_poll_politely(hostdata, STATUS_REG, SR_REQ, SR_REQ, HZ);
 	spin_lock_irq(&hostdata->lock);
 	if (err < 0) {
 		shost_printk(KERN_ERR, instance, "select: REQ timeout\n");
@@ -1338,7 +1337,7 @@ static int NCR5380_transfer_pio(struct Scsi_Host *instance,
 		 * valid
 		 */
 
-		if (NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, SR_REQ, HZ) < 0)
+		if (NCR5380_poll_politely(hostdata, STATUS_REG, SR_REQ, SR_REQ, HZ) < 0)
 			break;
 
 		dsprintk(NDEBUG_HANDSHAKE, instance, "REQ asserted\n");
@@ -1383,7 +1382,7 @@ static int NCR5380_transfer_pio(struct Scsi_Host *instance,
 			NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ACK);
 		}
 
-		if (NCR5380_poll_politely(instance,
+		if (NCR5380_poll_politely(hostdata,
 		                          STATUS_REG, SR_REQ, 0, 5 * HZ) < 0)
 			break;
 
@@ -1483,7 +1482,7 @@ static int do_abort(struct Scsi_Host *instance)
 	 * the target sees, so we just handshake.
 	 */
 
-	rc = NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, SR_REQ, 10 * HZ);
+	rc = NCR5380_poll_politely(hostdata, STATUS_REG, SR_REQ, SR_REQ, 10 * HZ);
 	if (rc < 0)
 		goto timeout;
 
@@ -1494,7 +1493,7 @@ static int do_abort(struct Scsi_Host *instance)
 	if (tmp != PHASE_MSGOUT) {
 		NCR5380_write(INITIATOR_COMMAND_REG,
 		              ICR_BASE | ICR_ASSERT_ATN | ICR_ASSERT_ACK);
-		rc = NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, 0, 3 * HZ);
+		rc = NCR5380_poll_politely(hostdata, STATUS_REG, SR_REQ, 0, 3 * HZ);
 		if (rc < 0)
 			goto timeout;
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ATN);
@@ -1682,12 +1681,12 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 			 * byte.
 			 */
 
-			if (NCR5380_poll_politely(instance, BUS_AND_STATUS_REG,
+			if (NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG,
 			                          BASR_DRQ, BASR_DRQ, HZ) < 0) {
 				result = -1;
 				shost_printk(KERN_ERR, instance, "PDMA read: DRQ timeout\n");
 			}
-			if (NCR5380_poll_politely(instance, STATUS_REG,
+			if (NCR5380_poll_politely(hostdata, STATUS_REG,
 			                          SR_REQ, 0, HZ) < 0) {
 				result = -1;
 				shost_printk(KERN_ERR, instance, "PDMA read: !REQ timeout\n");
@@ -1698,7 +1697,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 			 * Wait for the last byte to be sent.  If REQ is being asserted for
 			 * the byte we're interested, we'll ACK it and it will go false.
 			 */
-			if (NCR5380_poll_politely2(instance,
+			if (NCR5380_poll_politely2(hostdata,
 			     BUS_AND_STATUS_REG, BASR_DRQ, BASR_DRQ,
 			     BUS_AND_STATUS_REG, BASR_PHASE_MATCH, 0, HZ) < 0) {
 				result = -1;
@@ -2077,7 +2076,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 			} /* switch(phase) */
 		} else {
 			spin_unlock_irq(&hostdata->lock);
-			NCR5380_poll_politely(instance, STATUS_REG, SR_REQ, SR_REQ, HZ);
+			NCR5380_poll_politely(hostdata, STATUS_REG, SR_REQ, SR_REQ, HZ);
 			spin_lock_irq(&hostdata->lock);
 		}
 	}
@@ -2123,7 +2122,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 	 */
 
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_BSY);
-	if (NCR5380_poll_politely(instance,
+	if (NCR5380_poll_politely(hostdata,
 	                          STATUS_REG, SR_SEL, 0, 2 * HZ) < 0) {
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 		return;
@@ -2134,7 +2133,7 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 	 * Wait for target to go into MSGIN.
 	 */
 
-	if (NCR5380_poll_politely(instance,
+	if (NCR5380_poll_politely(hostdata,
 	                          STATUS_REG, SR_REQ, SR_REQ, 2 * HZ) < 0) {
 		do_abort(instance);
 		return;

@@ -302,15 +302,15 @@ static void NCR5380_reselect(struct Scsi_Host *instance);
 static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *, struct scsi_cmnd *);
 static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase, int *count, unsigned char **data);
 static int NCR5380_transfer_pio(struct Scsi_Host *instance, unsigned char *phase, int *count, unsigned char **data);
-static int NCR5380_poll_politely2(struct Scsi_Host *,
+static int NCR5380_poll_politely2(struct NCR5380_hostdata *,
                                   unsigned int, u8, u8,
                                   unsigned int, u8, u8, unsigned long);
 
-static inline int NCR5380_poll_politely(struct Scsi_Host *instance,
+static inline int NCR5380_poll_politely(struct NCR5380_hostdata *hostdata,
                                         unsigned int reg, u8 bit, u8 val,
                                         unsigned long wait)
 {
-	return NCR5380_poll_politely2(instance, reg, bit, val,
+	return NCR5380_poll_politely2(hostdata, reg, bit, val,
 						reg, bit, val, wait);
 }
 
