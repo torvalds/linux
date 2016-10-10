@@ -698,6 +698,7 @@ static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
 
 		raw_spin_unlock(&rq->lock);
 
+		raw_spin_lock(&prev->pi_lock);
 		rq_lock(rq2);
 		/* Check that someone else hasn't already queued prev */
 		if (likely(task_on_rq_migrating(prev) && !task_queued(prev))) {
@@ -707,6 +708,7 @@ static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
 			resched_if_idle(rq2);
 		}
 		rq_unlock(rq2);
+		raw_spin_unlock(&prev->pi_lock);
 
 		local_irq_enable();
 	} else
