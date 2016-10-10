@@ -52,11 +52,9 @@ static inline void store_clock_comparator(__u64 *time)
 
 void clock_comparator_work(void);
 
-void __init ptff_init(void);
+void __init time_early_init(void);
 
 extern unsigned char ptff_function_mask[16];
-extern unsigned long lpar_offset;
-extern unsigned long initial_leap_seconds;
 
 /* Function codes for the ptff instruction. */
 #define PTFF_QAF	0x00	/* query available functions */

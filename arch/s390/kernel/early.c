@@ -467,7 +467,7 @@ void __init startup_init(void)
 	ipl_save_parameters();
 	rescue_initrd();
 	clear_bss_section();
-	ptff_init();
+	time_early_init();
 	init_kernel_storage_key();
 	lockdep_off();
 	setup_lowcore_early();

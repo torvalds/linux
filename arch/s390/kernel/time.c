@@ -59,13 +59,14 @@ ATOMIC_NOTIFIER_HEAD(s390_epoch_delta_notifier);
 EXPORT_SYMBOL(s390_epoch_delta_notifier);
 
 unsigned char ptff_function_mask[16];
-unsigned long lpar_offset;
-unsigned long initial_leap_seconds;
+
+static unsigned long long lpar_offset;
+static unsigned long long initial_leap_seconds;
 
 /*
  * Get time offsets with PTFF
  */
-void __init ptff_init(void)
+void __init time_early_init(void)
 {
 	struct ptff_qto qto;
 	struct ptff_qui qui;
@@ -80,7 +81,7 @@ void __init ptff_init(void)
 
 	/* get initial leap seconds */
 	if (ptff_query(PTFF_QUI) && ptff(&qui, sizeof(qui), PTFF_QUI) == 0)
-		initial_leap_seconds = (unsigned long)
+		initial_leap_seconds = (unsigned long long)
 			((long) qui.old_leap * 4096000000L);
 }
 
@@ -121,18 +122,6 @@ void clock_comparator_work(void)
 	S390_lowcore.clock_comparator = -1ULL;
 	cd = this_cpu_ptr(&comparators);
 	cd->event_handler(cd);
-}
-
-/*
- * Fixup the clock comparator.
- */
-static void fixup_clock_comparator(unsigned long long delta)
-{
-	/* If nobody is waiting there's nothing to fix. */
-	if (S390_lowcore.clock_comparator == -1ULL)
-		return;
-	S390_lowcore.clock_comparator += delta;
-	set_clock_comparator(S390_lowcore.clock_comparator);
 }
 
 static int s390_next_event(unsigned long delta,
@@ -384,6 +373,36 @@ static inline int check_sync_clock(void)
 	return rc;
 }
 
+/*
+ * Apply clock delta to the global data structures.
+ * This is called once on the CPU that performed the clock sync.
+ */
+static void clock_sync_global(unsigned long long delta)
+{
+	struct ptff_qto qto;
+
+	/* Fixup the monotonic sched clock. */
+	sched_clock_base_cc += delta;
+	/* Update LPAR offset. */
+	if (ptff_query(PTFF_QTO) && ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
+		lpar_offset = qto.tod_epoch_difference;
+	/* Call the TOD clock change notifier. */
+	atomic_notifier_call_chain(&s390_epoch_delta_notifier, 0, &delta);
+}
+
+/*
+ * Apply clock delta to the per-CPU data structures of this CPU.
+ * This is called for each online CPU after the call to clock_sync_global.
+ */
+static void clock_sync_local(unsigned long long delta)
+{
+	/* Add the delta to the clock comparator. */
+	if (S390_lowcore.clock_comparator != -1ULL) {
+		S390_lowcore.clock_comparator += delta;
+		set_clock_comparator(S390_lowcore.clock_comparator);
+	}
+}
+
 /* Single threaded workqueue used for stp sync events */
 static struct workqueue_struct *time_sync_wq;
 
@@ -397,30 +416,8 @@ static void __init time_init_wq(void)
 struct clock_sync_data {
 	atomic_t cpus;
 	int in_sync;
-	unsigned long long fixup_cc;
+	unsigned long long clock_delta;
 };
-
-static void clock_sync_cpu(struct clock_sync_data *sync)
-{
-	atomic_dec(&sync->cpus);
-	enable_sync_clock();
-	while (sync->in_sync == 0) {
-		__udelay(1);
-		/*
-		 * A different cpu changes *in_sync. Therefore use
-		 * barrier() to force memory access.
-		 */
-		barrier();
-	}
-	if (sync->in_sync != 1)
-		/* Didn't work. Clear per-cpu in sync bit again. */
-		disable_sync_clock(NULL);
-	/*
-	 * This round of TOD syncing is done. Set the clock comparator
-	 * to the next tick and let the processor continue.
-	 */
-	fixup_clock_comparator(sync->fixup_cc);
-}
 
 /*
  * Server Time Protocol (STP) code.
@@ -523,54 +520,46 @@ void stp_queue_work(void)
 
 static int stp_sync_clock(void *data)
 {
-	static int first;
+	struct clock_sync_data *sync = data;
 	unsigned long long clock_delta;
-	struct clock_sync_data *stp_sync;
-	struct ptff_qto qto;
+	static int first;
 	int rc;
 
-	stp_sync = data;
-
-	if (xchg(&first, 1) == 1) {
-		/* Slave */
-		clock_sync_cpu(stp_sync);
-		return 0;
-	}
-
-	/* Wait until all other cpus entered the sync function. */
-	while (atomic_read(&stp_sync->cpus) != 0)
-		cpu_relax();
-
 	enable_sync_clock();
-
-	rc = 0;
-	if (stp_info.todoff[0] || stp_info.todoff[1] ||
-	    stp_info.todoff[2] || stp_info.todoff[3] ||
-	    stp_info.tmd != 2) {
-		rc = chsc_sstpc(stp_page, STP_OP_SYNC, 0, &clock_delta);
-		if (rc == 0) {
-			/* fixup the monotonic sched clock */
-			sched_clock_base_cc += clock_delta;
-			if (ptff_query(PTFF_QTO) &&
-			    ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
-				/* Update LPAR offset */
-				lpar_offset = qto.tod_epoch_difference;
-			atomic_notifier_call_chain(&s390_epoch_delta_notifier,
-						   0, &clock_delta);
-			stp_sync->fixup_cc = clock_delta;
-			fixup_clock_comparator(clock_delta);
-			rc = chsc_sstpi(stp_page, &stp_info,
-					sizeof(struct stp_sstpi));
-			if (rc == 0 && stp_info.tmd != 2)
-				rc = -EAGAIN;
+	if (xchg(&first, 1) == 0) {
+		/* Wait until all other cpus entered the sync function. */
+		while (atomic_read(&sync->cpus) != 0)
+			cpu_relax();
+		rc = 0;
+		if (stp_info.todoff[0] || stp_info.todoff[1] ||
+		    stp_info.todoff[2] || stp_info.todoff[3] ||
+		    stp_info.tmd != 2) {
+			rc = chsc_sstpc(stp_page, STP_OP_SYNC, 0,
+					&clock_delta);
+			if (rc == 0) {
+				sync->clock_delta = clock_delta;
+				clock_sync_global(clock_delta);
+				rc = chsc_sstpi(stp_page, &stp_info,
+						sizeof(struct stp_sstpi));
+				if (rc == 0 && stp_info.tmd != 2)
+					rc = -EAGAIN;
+			}
 		}
+		sync->in_sync = rc ? -EAGAIN : 1;
+		xchg(&first, 0);
+	} else {
+		/* Slave */
+		atomic_dec(&sync->cpus);
+		/* Wait for in_sync to be set. */
+		while (READ_ONCE(sync->in_sync) == 0)
+			__udelay(1);
 	}
-	if (rc) {
+	if (sync->in_sync != 1)
+		/* Didn't work. Clear per-cpu in sync bit again. */
 		disable_sync_clock(NULL);
-		stp_sync->in_sync = -EAGAIN;
-	} else
-		stp_sync->in_sync = 1;
-	xchg(&first, 0);
+	/* Apply clock delta to per-CPU fields of this CPU. */
+	clock_sync_local(sync->clock_delta);
+
 	return 0;
 }
 
