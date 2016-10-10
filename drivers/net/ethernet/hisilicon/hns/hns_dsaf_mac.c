@@ -644,21 +644,6 @@ hns_mac_phy_parse_addr(struct device *dev, struct fwnode_handle *fwnode)
 	return addr;
 }
 
-static int hns_mac_phydev_match(struct device *dev, void *fwnode)
-{
-	return dev->fwnode == fwnode;
-}
-
-static struct
-platform_device *hns_mac_find_platform_device(struct fwnode_handle *fwnode)
-{
-	struct device *dev;
-
-	dev = bus_find_device(&platform_bus_type, NULL,
-			      fwnode, hns_mac_phydev_match);
-	return dev ? to_platform_device(dev) : NULL;
-}
-
 static int
 hns_mac_register_phydev(struct mii_bus *mdio, struct hns_mac_cb *mac_cb,
 			u32 addr)
@@ -724,7 +709,7 @@ static void hns_mac_register_phy(struct hns_mac_cb *mac_cb)
 		return;
 
 	/* dev address in adev */
-	pdev = hns_mac_find_platform_device(acpi_fwnode_handle(args.adev));
+	pdev = hns_dsaf_find_platform_device(acpi_fwnode_handle(args.adev));
 	mii_bus = platform_get_drvdata(pdev);
 	rc = hns_mac_register_phydev(mii_bus, mac_cb, addr);
 	if (!rc)

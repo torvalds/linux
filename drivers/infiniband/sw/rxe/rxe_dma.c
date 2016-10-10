@@ -117,6 +117,21 @@ static void rxe_unmap_sg(struct ib_device *dev,
 	WARN_ON(!valid_dma_direction(direction));
 }
 
+static int rxe_map_sg_attrs(struct ib_device *dev, struct scatterlist *sgl,
+			    int nents, enum dma_data_direction direction,
+			    unsigned long attrs)
+{
+	return rxe_map_sg(dev, sgl, nents, direction);
+}
+
+static void rxe_unmap_sg_attrs(struct ib_device *dev,
+			       struct scatterlist *sg, int nents,
+			       enum dma_data_direction direction,
+			       unsigned long attrs)
+{
+	rxe_unmap_sg(dev, sg, nents, direction);
+}
+
 static void rxe_sync_single_for_cpu(struct ib_device *dev,
 				    u64 addr,
 				    size_t size, enum dma_data_direction dir)
@@ -159,6 +174,8 @@ struct ib_dma_mapping_ops rxe_dma_mapping_ops = {
 	.unmap_page		= rxe_dma_unmap_page,
 	.map_sg			= rxe_map_sg,
 	.unmap_sg		= rxe_unmap_sg,
+	.map_sg_attrs		= rxe_map_sg_attrs,
+	.unmap_sg_attrs		= rxe_unmap_sg_attrs,
 	.sync_single_for_cpu	= rxe_sync_single_for_cpu,
 	.sync_single_for_device	= rxe_sync_single_for_device,
 	.alloc_coherent		= rxe_dma_alloc_coherent,

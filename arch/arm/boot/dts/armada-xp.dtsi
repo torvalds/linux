@@ -84,19 +84,6 @@
 				wt-override;
 			};
 
-			spi0: spi@10600 {
-				compatible = "marvell,armada-xp-spi",
-						"marvell,orion-spi";
-				pinctrl-0 = <&spi0_pins>;
-				pinctrl-names = "default";
-			};
-
-			spi1: spi@10680 {
-				compatible = "marvell,armada-xp-spi",
-						"marvell,orion-spi";
-			};
-
-
 			i2c0: i2c@11000 {
 				compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
 				reg = <0x11000 0x100>;
@@ -362,6 +349,12 @@
 		marvell,function = "spi0";
 	};
 
+	spi1_pins: spi1-pins {
+		marvell,pins = "mpp13", "mpp14",
+			       "mpp16", "mpp17";
+		marvell,function = "spi1";
+	};
+
 	uart2_pins: uart2-pins {
 		marvell,pins = "mpp42", "mpp43";
 		marvell,function = "uart2";
@@ -371,4 +364,16 @@
 		marvell,pins = "mpp44", "mpp45";
 		marvell,function = "uart3";
 	};
+};
+
+&spi0 {
+	compatible = "marvell,armada-xp-spi", "marvell,orion-spi";
+	pinctrl-0 = <&spi0_pins>;
+	pinctrl-names = "default";
+};
+
+&spi1 {
+	compatible = "marvell,armada-xp-spi", "marvell,orion-spi";
+	pinctrl-0 = <&spi1_pins>;
+	pinctrl-names = "default";
 };

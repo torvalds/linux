@@ -32,23 +32,20 @@ void blk_mq_wake_waiters(struct request_queue *q);
 /*
  * CPU hotplug helpers
  */
-struct blk_mq_cpu_notifier;
-void blk_mq_init_cpu_notifier(struct blk_mq_cpu_notifier *notifier,
-			      int (*fn)(void *, unsigned long, unsigned int),
-			      void *data);
-void blk_mq_register_cpu_notifier(struct blk_mq_cpu_notifier *notifier);
-void blk_mq_unregister_cpu_notifier(struct blk_mq_cpu_notifier *notifier);
-void blk_mq_cpu_init(void);
 void blk_mq_enable_hotplug(void);
 void blk_mq_disable_hotplug(void);
 
 /*
  * CPU -> queue mappings
  */
-extern unsigned int *blk_mq_make_queue_map(struct blk_mq_tag_set *set);
-extern int blk_mq_update_queue_map(unsigned int *map, unsigned int nr_queues,
-				   const struct cpumask *online_mask);
+int blk_mq_map_queues(struct blk_mq_tag_set *set);
 extern int blk_mq_hw_queue_to_node(unsigned int *map, unsigned int);
+
+static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
+		int cpu)
+{
+	return q->queue_hw_ctx[q->mq_map[cpu]];
+}
 
 /*
  * sysfs helpers

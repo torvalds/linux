@@ -17,8 +17,6 @@ struct blk_mq_tags {
 
 	struct request **rqs;
 	struct list_head page_list;
-
-	cpumask_var_t cpumask;
 };
 
 

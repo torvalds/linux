@@ -1,7 +1,7 @@
 #include "omap2420.dtsi"
 
 / {
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x8000000>; /* 128 MB */
 	};

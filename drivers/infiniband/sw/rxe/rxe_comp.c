@@ -567,7 +567,8 @@ int rxe_completer(void *arg)
 	state = COMPST_GET_ACK;
 
 	while (1) {
-		pr_debug("state = %s\n", comp_state_name[state]);
+		pr_debug("qp#%d state = %s\n", qp_num(qp),
+			 comp_state_name[state]);
 		switch (state) {
 		case COMPST_GET_ACK:
 			skb = skb_dequeue(&qp->resp_pkts);
@@ -709,7 +710,8 @@ int rxe_completer(void *arg)
 					qp->comp.rnr_retry--;
 
 				qp->req.need_retry = 1;
-				pr_debug("set rnr nak timer\n");
+				pr_debug("qp#%d set rnr nak timer\n",
+					 qp_num(qp));
 				mod_timer(&qp->rnr_nak_timer,
 					  jiffies + rnrnak_jiffies(aeth_syn(pkt)
 						& ~AETH_TYPE_MASK));

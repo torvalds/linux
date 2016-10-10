@@ -52,6 +52,19 @@
  */
 
 static unsigned int mx31lite_pins[] = {
+	/* UART1 */
+	MX31_PIN_CTS1__CTS1,
+	MX31_PIN_RTS1__RTS1,
+	MX31_PIN_TXD1__TXD1,
+	MX31_PIN_RXD1__RXD1,
+	/* SPI 0 */
+	MX31_PIN_CSPI1_SCLK__SCLK,
+	MX31_PIN_CSPI1_MOSI__MOSI,
+	MX31_PIN_CSPI1_MISO__MISO,
+	MX31_PIN_CSPI1_SPI_RDY__SPI_RDY,
+	MX31_PIN_CSPI1_SS0__SS0,
+	MX31_PIN_CSPI1_SS1__SS1,
+	MX31_PIN_CSPI1_SS2__SS2,
 	/* LAN9117 IRQ pin */
 	IOMUX_MODE(MX31_PIN_SFS6, IOMUX_CONFIG_GPIO),
 	/* SPI 1 */
@@ -62,6 +75,23 @@ static unsigned int mx31lite_pins[] = {
 	MX31_PIN_CSPI2_SS0__SS0,
 	MX31_PIN_CSPI2_SS1__SS1,
 	MX31_PIN_CSPI2_SS2__SS2,
+};
+
+/* UART */
+static const struct imxuart_platform_data uart_pdata __initconst = {
+	.flags = IMXUART_HAVE_RTSCTS,
+};
+
+/* SPI */
+static int spi0_internal_chipselect[] = {
+	MXC_SPI_CS(0),
+	MXC_SPI_CS(1),
+	MXC_SPI_CS(2),
+};
+
+static const struct spi_imx_master spi0_pdata __initconst = {
+	.chipselect	= spi0_internal_chipselect,
+	.num_chipselect	= ARRAY_SIZE(spi0_internal_chipselect),
 };
 
 static const struct mxc_nand_platform_data
@@ -103,13 +133,13 @@ static struct platform_device smsc911x_device = {
  * The MC13783 is the only hard-wired SPI device on the module.
  */
 
-static int spi_internal_chipselect[] = {
+static int spi1_internal_chipselect[] = {
 	MXC_SPI_CS(0),
 };
 
 static const struct spi_imx_master spi1_pdata __initconst = {
-	.chipselect	= spi_internal_chipselect,
-	.num_chipselect	= ARRAY_SIZE(spi_internal_chipselect),
+	.chipselect	= spi1_internal_chipselect,
+	.num_chipselect	= ARRAY_SIZE(spi1_internal_chipselect),
 };
 
 static struct mc13xxx_platform_data mc13783_pdata __initdata = {
@@ -200,8 +230,6 @@ static struct platform_device physmap_flash_device = {
 	.num_resources = 1,
 };
 
-
-
 /*
  * This structure defines the MX31 memory map.
  */
@@ -233,29 +261,30 @@ static struct regulator_consumer_supply dummy_supplies[] = {
 
 static void __init mx31lite_init(void)
 {
-	int ret;
-
 	imx31_soc_init();
-
-	switch (mx31lite_baseboard) {
-	case MX31LITE_NOBOARD:
-		break;
-	case MX31LITE_DB:
-		mx31lite_db_init();
-		break;
-	default:
-		printk(KERN_ERR "Illegal mx31lite_baseboard type %d\n",
-				mx31lite_baseboard);
-	}
 
 	mxc_iomux_setup_multiple_pins(mx31lite_pins, ARRAY_SIZE(mx31lite_pins),
 				      "mx31lite");
+
+	imx31_add_imx_uart0(&uart_pdata);
+	imx31_add_spi_imx0(&spi0_pdata);
 
 	/* NOR and NAND flash */
 	platform_device_register(&physmap_flash_device);
 	imx31_add_mxc_nand(&mx31lite_nand_board_info);
 
 	imx31_add_spi_imx1(&spi1_pdata);
+
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
+}
+
+static void __init mx31lite_late(void)
+{
+	int ret;
+
+	if (mx31lite_baseboard == MX31LITE_DB)
+		mx31lite_db_init();
+
 	mc13783_spi_dev.irq = gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3));
 	spi_register_board_info(&mc13783_spi_dev, 1);
 
@@ -264,8 +293,6 @@ static void __init mx31lite_init(void)
 			ULPI_OTG_DRVVBUS_EXT);
 	if (usbh2_pdata.otg)
 		imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
-
-	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
 	/* SMSC9117 IRQ pin */
 	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_SFS6), "sms9117-irq");
@@ -294,5 +321,6 @@ MACHINE_START(MX31LITE, "LogicPD i.MX31 SOM")
 	.init_irq = mx31_init_irq,
 	.init_time	= mx31lite_timer_init,
 	.init_machine = mx31lite_init,
+	.init_late	= mx31lite_late,
 	.restart	= mxc_restart,
 MACHINE_END

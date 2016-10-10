@@ -2,6 +2,7 @@
 
 /include/ "skeleton.dtsi"
 
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-msm8660.h>
 #include <dt-bindings/soc/qcom,gsbi.h>
@@ -159,21 +160,50 @@
 						     "qcom,ssbi-gpio";
 					reg = <0x150>;
 					interrupt-parent = <&pmicintc>;
-					interrupts = <192 1>, <193 1>, <194 1>,
-						     <195 1>, <196 1>, <197 1>,
-						     <198 1>, <199 1>, <200 1>,
-						     <201 1>, <202 1>, <203 1>,
-						     <204 1>, <205 1>, <206 1>,
-						     <207 1>, <208 1>, <209 1>,
-						     <210 1>, <211 1>, <212 1>,
-						     <213 1>, <214 1>, <215 1>,
-						     <216 1>, <217 1>, <218 1>,
-						     <219 1>, <220 1>, <221 1>,
-						     <222 1>, <223 1>, <224 1>,
-						     <225 1>, <226 1>, <227 1>,
-						     <228 1>, <229 1>, <230 1>,
-						     <231 1>, <232 1>, <233 1>,
-						     <234 1>, <235 1>;
+					interrupts = <192 IRQ_TYPE_NONE>,
+						     <193 IRQ_TYPE_NONE>,
+						     <194 IRQ_TYPE_NONE>,
+						     <195 IRQ_TYPE_NONE>,
+						     <196 IRQ_TYPE_NONE>,
+						     <197 IRQ_TYPE_NONE>,
+						     <198 IRQ_TYPE_NONE>,
+						     <199 IRQ_TYPE_NONE>,
+						     <200 IRQ_TYPE_NONE>,
+						     <201 IRQ_TYPE_NONE>,
+						     <202 IRQ_TYPE_NONE>,
+						     <203 IRQ_TYPE_NONE>,
+						     <204 IRQ_TYPE_NONE>,
+						     <205 IRQ_TYPE_NONE>,
+						     <206 IRQ_TYPE_NONE>,
+						     <207 IRQ_TYPE_NONE>,
+						     <208 IRQ_TYPE_NONE>,
+						     <209 IRQ_TYPE_NONE>,
+						     <210 IRQ_TYPE_NONE>,
+						     <211 IRQ_TYPE_NONE>,
+						     <212 IRQ_TYPE_NONE>,
+						     <213 IRQ_TYPE_NONE>,
+						     <214 IRQ_TYPE_NONE>,
+						     <215 IRQ_TYPE_NONE>,
+						     <216 IRQ_TYPE_NONE>,
+						     <217 IRQ_TYPE_NONE>,
+						     <218 IRQ_TYPE_NONE>,
+						     <219 IRQ_TYPE_NONE>,
+						     <220 IRQ_TYPE_NONE>,
+						     <221 IRQ_TYPE_NONE>,
+						     <222 IRQ_TYPE_NONE>,
+						     <223 IRQ_TYPE_NONE>,
+						     <224 IRQ_TYPE_NONE>,
+						     <225 IRQ_TYPE_NONE>,
+						     <226 IRQ_TYPE_NONE>,
+						     <227 IRQ_TYPE_NONE>,
+						     <228 IRQ_TYPE_NONE>,
+						     <229 IRQ_TYPE_NONE>,
+						     <230 IRQ_TYPE_NONE>,
+						     <231 IRQ_TYPE_NONE>,
+						     <232 IRQ_TYPE_NONE>,
+						     <233 IRQ_TYPE_NONE>,
+						     <234 IRQ_TYPE_NONE>,
+						     <235 IRQ_TYPE_NONE>;
 					gpio-controller;
 					#gpio-cells = <2>;
 
@@ -187,9 +217,18 @@
 					#gpio-cells = <2>;
 					interrupt-parent = <&pmicintc>;
 					interrupts =
-					<128 1>, <129 1>, <130 1>, <131 1>,
-					<132 1>, <133 1>, <134 1>, <135 1>,
-					<136 1>, <137 1>, <138 1>, <139 1>;
+					<128 IRQ_TYPE_NONE>,
+					<129 IRQ_TYPE_NONE>,
+					<130 IRQ_TYPE_NONE>,
+					<131 IRQ_TYPE_NONE>,
+					<132 IRQ_TYPE_NONE>,
+					<133 IRQ_TYPE_NONE>,
+					<134 IRQ_TYPE_NONE>,
+					<135 IRQ_TYPE_NONE>,
+					<136 IRQ_TYPE_NONE>,
+					<137 IRQ_TYPE_NONE>,
+					<138 IRQ_TYPE_NONE>,
+					<139 IRQ_TYPE_NONE>;
 				};
 
 				pwrkey@1c {

@@ -2118,12 +2118,6 @@ config PADATA
 	depends on SMP
 	bool
 
-# Can be selected by architectures with broken toolchains
-# that get confused by correct const<->read_only section
-# mappings
-config BROKEN_RODATA
-	bool
-
 config ASN1
 	tristate
 	help

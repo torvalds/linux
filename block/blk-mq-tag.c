@@ -141,8 +141,7 @@ static int bt_get(struct blk_mq_alloc_data *data, struct sbitmap_queue *bt,
 		io_schedule();
 
 		data->ctx = blk_mq_get_ctx(data->q);
-		data->hctx = data->q->mq_ops->map_queue(data->q,
-				data->ctx->cpu);
+		data->hctx = blk_mq_map_queue(data->q, data->ctx->cpu);
 		if (data->flags & BLK_MQ_REQ_RESERVED) {
 			bt = &data->hctx->tags->breserved_tags;
 		} else {
@@ -399,11 +398,6 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 	if (!tags)
 		return NULL;
 
-	if (!zalloc_cpumask_var(&tags->cpumask, GFP_KERNEL)) {
-		kfree(tags);
-		return NULL;
-	}
-
 	tags->nr_tags = total_tags;
 	tags->nr_reserved_tags = reserved_tags;
 
@@ -414,7 +408,6 @@ void blk_mq_free_tags(struct blk_mq_tags *tags)
 {
 	sbitmap_queue_free(&tags->bitmap_tags);
 	sbitmap_queue_free(&tags->breserved_tags);
-	free_cpumask_var(tags->cpumask);
 	kfree(tags);
 }
 
@@ -453,7 +446,7 @@ u32 blk_mq_unique_tag(struct request *rq)
 	int hwq = 0;
 
 	if (q->mq_ops) {
-		hctx = q->mq_ops->map_queue(q, rq->mq_ctx->cpu);
+		hctx = blk_mq_map_queue(q, rq->mq_ctx->cpu);
 		hwq = hctx->queue_num;
 	}
 
