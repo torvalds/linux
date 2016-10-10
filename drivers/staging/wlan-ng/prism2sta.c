@@ -1102,8 +1102,7 @@ static void prism2sta_inf_hostscanresults(struct wlandevice *wlandev,
 
 	kfree(hw->scanresults);
 
-	hw->scanresults = kmemdup(inf, sizeof(struct hfa384x_inf_frame),
-				  GFP_ATOMIC);
+	hw->scanresults = kmemdup(inf, sizeof(*inf), GFP_ATOMIC);
 
 	if (nbss == 0)
 		nbss = -1;
@@ -1888,8 +1887,8 @@ static struct wlandevice *create_wlan(void)
 	struct hfa384x *hw = NULL;
 
 	/* Alloc our structures */
-	wlandev = kzalloc(sizeof(struct wlandevice), GFP_KERNEL);
-	hw = kzalloc(sizeof(struct hfa384x), GFP_KERNEL);
+	wlandev = kzalloc(sizeof(*wlandev), GFP_KERNEL);
+	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
 
 	if (!wlandev || !hw) {
 		kfree(wlandev);
