@@ -1128,7 +1128,7 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 			mmdc_offset_array[i]);
 	}
 
-	if (cpu_is_imx6sll() && pm_info->ddr_type == IMX_DDR_TYPE_LPDDR3) {
+	if (cpu_is_imx6sll() && pm_info->ddr_type == IMX_MMDC_DDR_TYPE_LPDDR3) {
 		pm_info->mmdc_val[0][1] = 0x8000;
 		pm_info->mmdc_val[2][1] = 0xa1390003;
 		pm_info->mmdc_val[3][1] = 0x470000;

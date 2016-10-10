@@ -63,6 +63,7 @@
 #define IMX_DDR_TYPE_DDR3		0
 #define IMX_DDR_TYPE_LPDDR2		1
 #define IMX_DDR_TYPE_LPDDR3		2
+#define IMX_MMDC_DDR_TYPE_LPDDR3	3
 
 
 
