@@ -35,17 +35,37 @@
 #define VMW_RES_HT_ORDER 12
 
 /**
+ * enum vmw_resource_relocation_type - Relocation type for resources
+ *
+ * @vmw_res_rel_normal: Traditional relocation. The resource id in the
+ * command stream is replaced with the actual id after validation.
+ * @vmw_res_rel_nop: NOP relocation. The command is unconditionally replaced
+ * with a NOP.
+ * @vmw_res_rel_cond_nop: Conditional NOP relocation. If the resource id
+ * after validation is -1, the command is replaced with a NOP. Otherwise no
+ * action.
+ */
+enum vmw_resource_relocation_type {
+	vmw_res_rel_normal,
+	vmw_res_rel_nop,
+	vmw_res_rel_cond_nop,
+	vmw_res_rel_max
+};
+
+/**
  * struct vmw_resource_relocation - Relocation info for resources
  *
  * @head: List head for the software context's relocation list.
  * @res: Non-ref-counted pointer to the resource.
  * @offset: Offset of single byte entries into the command buffer where the
  * id that needs fixup is located.
+ * @rel_type: Type of relocation.
  */
 struct vmw_resource_relocation {
 	struct list_head head;
 	const struct vmw_resource *res;
-	unsigned long offset;
+	u32 offset:29;
+	enum vmw_resource_relocation_type rel_type:3;
 };
 
 /**
@@ -421,10 +441,13 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
  * @res: The resource.
  * @offset: Offset into the command buffer currently being parsed where the
  * id that needs fixup is located. Granularity is one byte.
+ * @rel_type: Relocation type.
  */
 static int vmw_resource_relocation_add(struct list_head *list,
 				       const struct vmw_resource *res,
-				       unsigned long offset)
+				       unsigned long offset,
+				       enum vmw_resource_relocation_type
+				       rel_type)
 {
 	struct vmw_resource_relocation *rel;
 
@@ -436,6 +459,7 @@ static int vmw_resource_relocation_add(struct list_head *list,
 
 	rel->res = res;
 	rel->offset = offset;
+	rel->rel_type = rel_type;
 	list_add_tail(&rel->head, list);
 
 	return 0;
@@ -470,12 +494,24 @@ static void vmw_resource_relocations_apply(uint32_t *cb,
 {
 	struct vmw_resource_relocation *rel;
 
+	/* Validate the struct vmw_resource_relocation member size */
+	BUILD_BUG_ON(SVGA_CB_MAX_SIZE >= (1 << 29));
+	BUILD_BUG_ON(vmw_res_rel_max >= (1 << 3));
+
 	list_for_each_entry(rel, list, head) {
 		u32 *addr = (u32 *)((unsigned long) cb + rel->offset);
-		if (likely(rel->res != NULL))
+		switch (rel->rel_type) {
+		case vmw_res_rel_normal:
 			*addr = rel->res->id;
-		else
+			break;
+		case vmw_res_rel_nop:
 			*addr = SVGA_3D_CMD_NOP;
+			break;
+		default:
+			if (rel->res->id == -1)
+				*addr = SVGA_3D_CMD_NOP;
+			break;
+		}
 	}
 }
 
@@ -668,7 +704,8 @@ static int vmw_cmd_res_reloc_add(struct vmw_private *dev_priv,
 	ret = vmw_resource_relocation_add(&sw_context->res_relocations,
 					  res,
 					  vmw_ptr_diff(sw_context->buf_start,
-						       id_loc));
+						       id_loc),
+					  vmw_res_rel_normal);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -734,7 +771,8 @@ vmw_cmd_res_check(struct vmw_private *dev_priv,
 
 		return vmw_resource_relocation_add
 			(&sw_context->res_relocations, res,
-			 vmw_ptr_diff(sw_context->buf_start, id_loc));
+			 vmw_ptr_diff(sw_context->buf_start, id_loc),
+			 vmw_res_rel_normal);
 	}
 
 	ret = vmw_user_resource_lookup_handle(dev_priv,
@@ -2158,7 +2196,8 @@ static int vmw_cmd_shader_define(struct vmw_private *dev_priv,
 	return vmw_resource_relocation_add(&sw_context->res_relocations,
 					   NULL,
 					   vmw_ptr_diff(sw_context->buf_start,
-							&cmd->header.id));
+							&cmd->header.id),
+					   vmw_res_rel_nop);
 }
 
 /**
@@ -2202,7 +2241,8 @@ static int vmw_cmd_shader_destroy(struct vmw_private *dev_priv,
 	return vmw_resource_relocation_add(&sw_context->res_relocations,
 					   NULL,
 					   vmw_ptr_diff(sw_context->buf_start,
-							&cmd->header.id));
+							&cmd->header.id),
+					   vmw_res_rel_nop);
 }
 
 /**
@@ -2859,8 +2899,7 @@ static int vmw_cmd_dx_cid_check(struct vmw_private *dev_priv,
  * @header: Pointer to the command header in the command stream.
  *
  * Check that the view exists, and if it was not created using this
- * command batch, make sure it's validated (present in the device) so that
- * the remove command will not confuse the device.
+ * command batch, conditionally make this command a NOP.
  */
 static int vmw_cmd_dx_view_remove(struct vmw_private *dev_priv,
 				  struct vmw_sw_context *sw_context,
@@ -2888,10 +2927,16 @@ static int vmw_cmd_dx_view_remove(struct vmw_private *dev_priv,
 		return ret;
 
 	/*
-	 * Add view to the validate list iff it was not created using this
-	 * command batch.
+	 * If the view wasn't created during this command batch, it might
+	 * have been removed due to a context swapout, so add a
+	 * relocation to conditionally make this command a NOP to avoid
+	 * device errors.
 	 */
-	return vmw_view_res_val_add(sw_context, view);
+	return vmw_resource_relocation_add(&sw_context->res_relocations,
+					   view,
+					   vmw_ptr_diff(sw_context->buf_start,
+							&cmd->header.id),
+					   vmw_res_rel_cond_nop);
 }
 
 /**
