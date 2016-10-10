@@ -22,6 +22,7 @@
 #define mtype_kadt		IPSET_TOKEN(MTYPE, _kadt)
 #define mtype_uadt		IPSET_TOKEN(MTYPE, _uadt)
 #define mtype_destroy		IPSET_TOKEN(MTYPE, _destroy)
+#define mtype_memsize		IPSET_TOKEN(MTYPE, _memsize)
 #define mtype_flush		IPSET_TOKEN(MTYPE, _flush)
 #define mtype_head		IPSET_TOKEN(MTYPE, _head)
 #define mtype_same_set		IPSET_TOKEN(MTYPE, _same_set)
@@ -84,12 +85,20 @@ mtype_flush(struct ip_set *set)
 	memset(map->members, 0, map->memsize);
 }
 
+/* Calculate the actual memory size of the set data */
+static size_t
+mtype_memsize(const struct mtype *map, size_t dsize)
+{
+	return sizeof(*map) + map->memsize +
+	       map->elements * dsize;
+}
+
 static int
 mtype_head(struct ip_set *set, struct sk_buff *skb)
 {
 	const struct mtype *map = set->data;
 	struct nlattr *nested;
-	size_t memsize = sizeof(*map) + map->memsize;
+	size_t memsize = mtype_memsize(map, set->dsize);
 
 	nested = ipset_nest_start(skb, IPSET_ATTR_DATA);
 	if (!nested)
