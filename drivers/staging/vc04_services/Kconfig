@@ -1,6 +1,6 @@
 config BCM2835_VCHIQ
 	tristate "Videocore VCHIQ"
-	depends on RASPBERRYPI_FIRMWARE && BROKEN
+	depends on RASPBERRYPI_FIRMWARE || COMPILE_TEST
 	default y
 	help
 		Kernel to VideoCore communication interface for the
