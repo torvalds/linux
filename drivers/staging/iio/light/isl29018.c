@@ -529,30 +529,6 @@ static const struct attribute_group isl29023_group = {
 	.attrs = isl29023_attributes,
 };
 
-static int isl29035_detect(struct isl29018_chip *chip)
-{
-	int status;
-	unsigned int id;
-	struct device *dev = regmap_get_device(chip->regmap);
-
-	status = regmap_read(chip->regmap, ISL29035_REG_DEVICE_ID, &id);
-	if (status < 0) {
-		dev_err(dev,
-			"Error reading ID register with error %d\n",
-			status);
-		return status;
-	}
-
-	id = (id & ISL29035_DEVICE_ID_MASK) >> ISL29035_DEVICE_ID_SHIFT;
-
-	if (id != ISL29035_DEVICE_ID)
-		return -ENODEV;
-
-	/* Clear brownout bit */
-	return regmap_update_bits(chip->regmap, ISL29035_REG_DEVICE_ID,
-				  ISL29035_BOUT_MASK, 0);
-}
-
 enum {
 	isl29018,
 	isl29023,
@@ -565,7 +541,25 @@ static int isl29018_chip_init(struct isl29018_chip *chip)
 	struct device *dev = regmap_get_device(chip->regmap);
 
 	if (chip->type == isl29035) {
-		status = isl29035_detect(chip);
+		unsigned int id;
+
+		status = regmap_read(chip->regmap, ISL29035_REG_DEVICE_ID, &id);
+		if (status < 0) {
+			dev_err(dev,
+				"Error reading ID register with error %d\n",
+				status);
+			return status;
+		}
+
+		id = (id & ISL29035_DEVICE_ID_MASK) >> ISL29035_DEVICE_ID_SHIFT;
+
+		if (id != ISL29035_DEVICE_ID)
+			return -ENODEV;
+
+		/* Clear brownout bit */
+		status = regmap_update_bits(chip->regmap,
+					    ISL29035_REG_DEVICE_ID,
+					    ISL29035_BOUT_MASK, 0);
 		if (status < 0)
 			return status;
 	}
