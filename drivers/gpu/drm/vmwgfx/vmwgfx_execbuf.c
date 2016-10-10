@@ -39,7 +39,7 @@
  *
  * @head: List head for the software context's relocation list.
  * @res: Non-ref-counted pointer to the resource.
- * @offset: Offset of 4 byte entries into the command buffer where the
+ * @offset: Offset of single byte entries into the command buffer where the
  * id that needs fixup is located.
  */
 struct vmw_resource_relocation {
@@ -109,7 +109,18 @@ static int vmw_bo_to_validate_list(struct vmw_sw_context *sw_context,
 				   struct vmw_dma_buffer *vbo,
 				   bool validate_as_mob,
 				   uint32_t *p_val_node);
-
+/**
+ * vmw_ptr_diff - Compute the offset from a to b in bytes
+ *
+ * @a: A starting pointer.
+ * @b: A pointer offset in the same address space.
+ *
+ * Returns: The offset in bytes between the two pointers.
+ */
+static size_t vmw_ptr_diff(void *a, void *b)
+{
+	return (unsigned long) b - (unsigned long) a;
+}
 
 /**
  * vmw_resources_unreserve - unreserve resources previously reserved for
@@ -409,7 +420,7 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
  * @list: Pointer to head of relocation list.
  * @res: The resource.
  * @offset: Offset into the command buffer currently being parsed where the
- * id that needs fixup is located. Granularity is 4 bytes.
+ * id that needs fixup is located. Granularity is one byte.
  */
 static int vmw_resource_relocation_add(struct list_head *list,
 				       const struct vmw_resource *res,
@@ -460,10 +471,11 @@ static void vmw_resource_relocations_apply(uint32_t *cb,
 	struct vmw_resource_relocation *rel;
 
 	list_for_each_entry(rel, list, head) {
+		u32 *addr = (u32 *)((unsigned long) cb + rel->offset);
 		if (likely(rel->res != NULL))
-			cb[rel->offset] = rel->res->id;
+			*addr = rel->res->id;
 		else
-			cb[rel->offset] = SVGA_3D_CMD_NOP;
+			*addr = SVGA_3D_CMD_NOP;
 	}
 }
 
@@ -655,7 +667,8 @@ static int vmw_cmd_res_reloc_add(struct vmw_private *dev_priv,
 	*p_val = NULL;
 	ret = vmw_resource_relocation_add(&sw_context->res_relocations,
 					  res,
-					  id_loc - sw_context->buf_start);
+					  vmw_ptr_diff(sw_context->buf_start,
+						       id_loc));
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -721,7 +734,7 @@ vmw_cmd_res_check(struct vmw_private *dev_priv,
 
 		return vmw_resource_relocation_add
 			(&sw_context->res_relocations, res,
-			 id_loc - sw_context->buf_start);
+			 vmw_ptr_diff(sw_context->buf_start, id_loc));
 	}
 
 	ret = vmw_user_resource_lookup_handle(dev_priv,
@@ -2143,10 +2156,9 @@ static int vmw_cmd_shader_define(struct vmw_private *dev_priv,
 		return ret;
 
 	return vmw_resource_relocation_add(&sw_context->res_relocations,
-					   NULL, &cmd->header.id -
-					   sw_context->buf_start);
-
-	return 0;
+					   NULL,
+					   vmw_ptr_diff(sw_context->buf_start,
+							&cmd->header.id));
 }
 
 /**
@@ -2188,10 +2200,9 @@ static int vmw_cmd_shader_destroy(struct vmw_private *dev_priv,
 		return ret;
 
 	return vmw_resource_relocation_add(&sw_context->res_relocations,
-					   NULL, &cmd->header.id -
-					   sw_context->buf_start);
-
-	return 0;
+					   NULL,
+					   vmw_ptr_diff(sw_context->buf_start,
+							&cmd->header.id));
 }
 
 /**
