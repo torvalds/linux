@@ -2082,3 +2082,368 @@ int qedr_destroy_qp(struct ib_qp *ibqp)
 
 	return rc;
 }
+
+static void free_mr_info(struct qedr_dev *dev, struct mr_info *info)
+{
+	struct qedr_pbl *pbl, *tmp;
+
+	if (info->pbl_table)
+		list_add_tail(&info->pbl_table->list_entry,
+			      &info->free_pbl_list);
+
+	if (!list_empty(&info->inuse_pbl_list))
+		list_splice(&info->inuse_pbl_list, &info->free_pbl_list);
+
+	list_for_each_entry_safe(pbl, tmp, &info->free_pbl_list, list_entry) {
+		list_del(&pbl->list_entry);
+		qedr_free_pbl(dev, &info->pbl_info, pbl);
+	}
+}
+
+static int init_mr_info(struct qedr_dev *dev, struct mr_info *info,
+			size_t page_list_len, bool two_layered)
+{
+	struct qedr_pbl *tmp;
+	int rc;
+
+	INIT_LIST_HEAD(&info->free_pbl_list);
+	INIT_LIST_HEAD(&info->inuse_pbl_list);
+
+	rc = qedr_prepare_pbl_tbl(dev, &info->pbl_info,
+				  page_list_len, two_layered);
+	if (rc)
+		goto done;
+
+	info->pbl_table = qedr_alloc_pbl_tbl(dev, &info->pbl_info, GFP_KERNEL);
+	if (!info->pbl_table) {
+		rc = -ENOMEM;
+		goto done;
+	}
+
+	DP_DEBUG(dev, QEDR_MSG_MR, "pbl_table_pa = %pa\n",
+		 &info->pbl_table->pa);
+
+	/* in usual case we use 2 PBLs, so we add one to free
+	 * list and allocating another one
+	 */
+	tmp = qedr_alloc_pbl_tbl(dev, &info->pbl_info, GFP_KERNEL);
+	if (!tmp) {
+		DP_DEBUG(dev, QEDR_MSG_MR, "Extra PBL is not allocated\n");
+		goto done;
+	}
+
+	list_add_tail(&tmp->list_entry, &info->free_pbl_list);
+
+	DP_DEBUG(dev, QEDR_MSG_MR, "extra pbl_table_pa = %pa\n", &tmp->pa);
+
+done:
+	if (rc)
+		free_mr_info(dev, info);
+
+	return rc;
+}
+
+struct ib_mr *qedr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
+			       u64 usr_addr, int acc, struct ib_udata *udata)
+{
+	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
+	struct qedr_mr *mr;
+	struct qedr_pd *pd;
+	int rc = -ENOMEM;
+
+	pd = get_qedr_pd(ibpd);
+	DP_DEBUG(dev, QEDR_MSG_MR,
+		 "qedr_register user mr pd = %d start = %lld, len = %lld, usr_addr = %lld, acc = %d\n",
+		 pd->pd_id, start, len, usr_addr, acc);
+
+	if (acc & IB_ACCESS_REMOTE_WRITE && !(acc & IB_ACCESS_LOCAL_WRITE))
+		return ERR_PTR(-EINVAL);
+
+	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	if (!mr)
+		return ERR_PTR(rc);
+
+	mr->type = QEDR_MR_USER;
+
+	mr->umem = ib_umem_get(ibpd->uobject->context, start, len, acc, 0);
+	if (IS_ERR(mr->umem)) {
+		rc = -EFAULT;
+		goto err0;
+	}
+
+	rc = init_mr_info(dev, &mr->info, ib_umem_page_count(mr->umem), 1);
+	if (rc)
+		goto err1;
+
+	qedr_populate_pbls(dev, mr->umem, mr->info.pbl_table,
+			   &mr->info.pbl_info);
+
+	rc = dev->ops->rdma_alloc_tid(dev->rdma_ctx, &mr->hw_mr.itid);
+	if (rc) {
+		DP_ERR(dev, "roce alloc tid returned an error %d\n", rc);
+		goto err1;
+	}
+
+	/* Index only, 18 bit long, lkey = itid << 8 | key */
+	mr->hw_mr.tid_type = QED_RDMA_TID_REGISTERED_MR;
+	mr->hw_mr.key = 0;
+	mr->hw_mr.pd = pd->pd_id;
+	mr->hw_mr.local_read = 1;
+	mr->hw_mr.local_write = (acc & IB_ACCESS_LOCAL_WRITE) ? 1 : 0;
+	mr->hw_mr.remote_read = (acc & IB_ACCESS_REMOTE_READ) ? 1 : 0;
+	mr->hw_mr.remote_write = (acc & IB_ACCESS_REMOTE_WRITE) ? 1 : 0;
+	mr->hw_mr.remote_atomic = (acc & IB_ACCESS_REMOTE_ATOMIC) ? 1 : 0;
+	mr->hw_mr.mw_bind = false;
+	mr->hw_mr.pbl_ptr = mr->info.pbl_table[0].pa;
+	mr->hw_mr.pbl_two_level = mr->info.pbl_info.two_layered;
+	mr->hw_mr.pbl_page_size_log = ilog2(mr->info.pbl_info.pbl_size);
+	mr->hw_mr.page_size_log = ilog2(mr->umem->page_size);
+	mr->hw_mr.fbo = ib_umem_offset(mr->umem);
+	mr->hw_mr.length = len;
+	mr->hw_mr.vaddr = usr_addr;
+	mr->hw_mr.zbva = false;
+	mr->hw_mr.phy_mr = false;
+	mr->hw_mr.dma_mr = false;
+
+	rc = dev->ops->rdma_register_tid(dev->rdma_ctx, &mr->hw_mr);
+	if (rc) {
+		DP_ERR(dev, "roce register tid returned an error %d\n", rc);
+		goto err2;
+	}
+
+	mr->ibmr.lkey = mr->hw_mr.itid << 8 | mr->hw_mr.key;
+	if (mr->hw_mr.remote_write || mr->hw_mr.remote_read ||
+	    mr->hw_mr.remote_atomic)
+		mr->ibmr.rkey = mr->hw_mr.itid << 8 | mr->hw_mr.key;
+
+	DP_DEBUG(dev, QEDR_MSG_MR, "register user mr lkey: %x\n",
+		 mr->ibmr.lkey);
+	return &mr->ibmr;
+
+err2:
+	dev->ops->rdma_free_tid(dev->rdma_ctx, mr->hw_mr.itid);
+err1:
+	qedr_free_pbl(dev, &mr->info.pbl_info, mr->info.pbl_table);
+err0:
+	kfree(mr);
+	return ERR_PTR(rc);
+}
+
+int qedr_dereg_mr(struct ib_mr *ib_mr)
+{
+	struct qedr_mr *mr = get_qedr_mr(ib_mr);
+	struct qedr_dev *dev = get_qedr_dev(ib_mr->device);
+	int rc = 0;
+
+	rc = dev->ops->rdma_deregister_tid(dev->rdma_ctx, mr->hw_mr.itid);
+	if (rc)
+		return rc;
+
+	dev->ops->rdma_free_tid(dev->rdma_ctx, mr->hw_mr.itid);
+
+	if ((mr->type != QEDR_MR_DMA) && (mr->type != QEDR_MR_FRMR))
+		qedr_free_pbl(dev, &mr->info.pbl_info, mr->info.pbl_table);
+
+	/* it could be user registered memory. */
+	if (mr->umem)
+		ib_umem_release(mr->umem);
+
+	kfree(mr);
+
+	return rc;
+}
+
+struct qedr_mr *__qedr_alloc_mr(struct ib_pd *ibpd, int max_page_list_len)
+{
+	struct qedr_pd *pd = get_qedr_pd(ibpd);
+	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
+	struct qedr_mr *mr;
+	int rc = -ENOMEM;
+
+	DP_DEBUG(dev, QEDR_MSG_MR,
+		 "qedr_alloc_frmr pd = %d max_page_list_len= %d\n", pd->pd_id,
+		 max_page_list_len);
+
+	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	if (!mr)
+		return ERR_PTR(rc);
+
+	mr->dev = dev;
+	mr->type = QEDR_MR_FRMR;
+
+	rc = init_mr_info(dev, &mr->info, max_page_list_len, 1);
+	if (rc)
+		goto err0;
+
+	rc = dev->ops->rdma_alloc_tid(dev->rdma_ctx, &mr->hw_mr.itid);
+	if (rc) {
+		DP_ERR(dev, "roce alloc tid returned an error %d\n", rc);
+		goto err0;
+	}
+
+	/* Index only, 18 bit long, lkey = itid << 8 | key */
+	mr->hw_mr.tid_type = QED_RDMA_TID_FMR;
+	mr->hw_mr.key = 0;
+	mr->hw_mr.pd = pd->pd_id;
+	mr->hw_mr.local_read = 1;
+	mr->hw_mr.local_write = 0;
+	mr->hw_mr.remote_read = 0;
+	mr->hw_mr.remote_write = 0;
+	mr->hw_mr.remote_atomic = 0;
+	mr->hw_mr.mw_bind = false;
+	mr->hw_mr.pbl_ptr = 0;
+	mr->hw_mr.pbl_two_level = mr->info.pbl_info.two_layered;
+	mr->hw_mr.pbl_page_size_log = ilog2(mr->info.pbl_info.pbl_size);
+	mr->hw_mr.fbo = 0;
+	mr->hw_mr.length = 0;
+	mr->hw_mr.vaddr = 0;
+	mr->hw_mr.zbva = false;
+	mr->hw_mr.phy_mr = true;
+	mr->hw_mr.dma_mr = false;
+
+	rc = dev->ops->rdma_register_tid(dev->rdma_ctx, &mr->hw_mr);
+	if (rc) {
+		DP_ERR(dev, "roce register tid returned an error %d\n", rc);
+		goto err1;
+	}
+
+	mr->ibmr.lkey = mr->hw_mr.itid << 8 | mr->hw_mr.key;
+	mr->ibmr.rkey = mr->ibmr.lkey;
+
+	DP_DEBUG(dev, QEDR_MSG_MR, "alloc frmr: %x\n", mr->ibmr.lkey);
+	return mr;
+
+err1:
+	dev->ops->rdma_free_tid(dev->rdma_ctx, mr->hw_mr.itid);
+err0:
+	kfree(mr);
+	return ERR_PTR(rc);
+}
+
+struct ib_mr *qedr_alloc_mr(struct ib_pd *ibpd,
+			    enum ib_mr_type mr_type, u32 max_num_sg)
+{
+	struct qedr_dev *dev;
+	struct qedr_mr *mr;
+
+	if (mr_type != IB_MR_TYPE_MEM_REG)
+		return ERR_PTR(-EINVAL);
+
+	mr = __qedr_alloc_mr(ibpd, max_num_sg);
+
+	if (IS_ERR(mr))
+		return ERR_PTR(-EINVAL);
+
+	dev = mr->dev;
+
+	return &mr->ibmr;
+}
+
+static int qedr_set_page(struct ib_mr *ibmr, u64 addr)
+{
+	struct qedr_mr *mr = get_qedr_mr(ibmr);
+	struct qedr_pbl *pbl_table;
+	struct regpair *pbe;
+	u32 pbes_in_page;
+
+	if (unlikely(mr->npages == mr->info.pbl_info.num_pbes)) {
+		DP_ERR(mr->dev, "qedr_set_page failes when %d\n", mr->npages);
+		return -ENOMEM;
+	}
+
+	DP_DEBUG(mr->dev, QEDR_MSG_MR, "qedr_set_page pages[%d] = 0x%llx\n",
+		 mr->npages, addr);
+
+	pbes_in_page = mr->info.pbl_info.pbl_size / sizeof(u64);
+	pbl_table = mr->info.pbl_table + (mr->npages / pbes_in_page);
+	pbe = (struct regpair *)pbl_table->va;
+	pbe +=  mr->npages % pbes_in_page;
+	pbe->lo = cpu_to_le32((u32)addr);
+	pbe->hi = cpu_to_le32((u32)upper_32_bits(addr));
+
+	mr->npages++;
+
+	return 0;
+}
+
+static void handle_completed_mrs(struct qedr_dev *dev, struct mr_info *info)
+{
+	int work = info->completed - info->completed_handled - 1;
+
+	DP_DEBUG(dev, QEDR_MSG_MR, "Special FMR work = %d\n", work);
+	while (work-- > 0 && !list_empty(&info->inuse_pbl_list)) {
+		struct qedr_pbl *pbl;
+
+		/* Free all the page list that are possible to be freed
+		 * (all the ones that were invalidated), under the assumption
+		 * that if an FMR was completed successfully that means that
+		 * if there was an invalidate operation before it also ended
+		 */
+		pbl = list_first_entry(&info->inuse_pbl_list,
+				       struct qedr_pbl, list_entry);
+		list_del(&pbl->list_entry);
+		list_add_tail(&pbl->list_entry, &info->free_pbl_list);
+		info->completed_handled++;
+	}
+}
+
+int qedr_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
+		   int sg_nents, unsigned int *sg_offset)
+{
+	struct qedr_mr *mr = get_qedr_mr(ibmr);
+
+	mr->npages = 0;
+
+	handle_completed_mrs(mr->dev, &mr->info);
+	return ib_sg_to_pages(ibmr, sg, sg_nents, NULL, qedr_set_page);
+}
+
+struct ib_mr *qedr_get_dma_mr(struct ib_pd *ibpd, int acc)
+{
+	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
+	struct qedr_pd *pd = get_qedr_pd(ibpd);
+	struct qedr_mr *mr;
+	int rc;
+
+	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
+
+	mr->type = QEDR_MR_DMA;
+
+	rc = dev->ops->rdma_alloc_tid(dev->rdma_ctx, &mr->hw_mr.itid);
+	if (rc) {
+		DP_ERR(dev, "roce alloc tid returned an error %d\n", rc);
+		goto err1;
+	}
+
+	/* index only, 18 bit long, lkey = itid << 8 | key */
+	mr->hw_mr.tid_type = QED_RDMA_TID_REGISTERED_MR;
+	mr->hw_mr.pd = pd->pd_id;
+	mr->hw_mr.local_read = 1;
+	mr->hw_mr.local_write = (acc & IB_ACCESS_LOCAL_WRITE) ? 1 : 0;
+	mr->hw_mr.remote_read = (acc & IB_ACCESS_REMOTE_READ) ? 1 : 0;
+	mr->hw_mr.remote_write = (acc & IB_ACCESS_REMOTE_WRITE) ? 1 : 0;
+	mr->hw_mr.remote_atomic = (acc & IB_ACCESS_REMOTE_ATOMIC) ? 1 : 0;
+	mr->hw_mr.dma_mr = true;
+
+	rc = dev->ops->rdma_register_tid(dev->rdma_ctx, &mr->hw_mr);
+	if (rc) {
+		DP_ERR(dev, "roce register tid returned an error %d\n", rc);
+		goto err2;
+	}
+
+	mr->ibmr.lkey = mr->hw_mr.itid << 8 | mr->hw_mr.key;
+	if (mr->hw_mr.remote_write || mr->hw_mr.remote_read ||
+	    mr->hw_mr.remote_atomic)
+		mr->ibmr.rkey = mr->hw_mr.itid << 8 | mr->hw_mr.key;
+
+	DP_DEBUG(dev, QEDR_MSG_MR, "get dma mr: lkey = %x\n", mr->ibmr.lkey);
+	return &mr->ibmr;
+
+err2:
+	dev->ops->rdma_free_tid(dev->rdma_ctx, mr->hw_mr.itid);
+err1:
+	kfree(mr);
+	return ERR_PTR(rc);
+}

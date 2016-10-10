@@ -375,6 +375,41 @@ struct qedr_qp {
 	struct qedr_userq urq;
 };
 
+struct qedr_ah {
+	struct ib_ah ibah;
+	struct ib_ah_attr attr;
+};
+
+enum qedr_mr_type {
+	QEDR_MR_USER,
+	QEDR_MR_KERNEL,
+	QEDR_MR_DMA,
+	QEDR_MR_FRMR,
+};
+
+struct mr_info {
+	struct qedr_pbl *pbl_table;
+	struct qedr_pbl_info pbl_info;
+	struct list_head free_pbl_list;
+	struct list_head inuse_pbl_list;
+	u32 completed;
+	u32 completed_handled;
+};
+
+struct qedr_mr {
+	struct ib_mr ibmr;
+	struct ib_umem *umem;
+
+	struct qed_rdma_register_tid_in_params hw_mr;
+	enum qedr_mr_type type;
+
+	struct qedr_dev *dev;
+	struct mr_info info;
+
+	u64 *pages;
+	u32 npages;
+};
+
 static inline int qedr_get_dmac(struct qedr_dev *dev,
 				struct ib_ah_attr *ah_attr, u8 *mac_addr)
 {
@@ -417,5 +452,10 @@ static inline struct qedr_cq *get_qedr_cq(struct ib_cq *ibcq)
 static inline struct qedr_qp *get_qedr_qp(struct ib_qp *ibqp)
 {
 	return container_of(ibqp, struct qedr_qp, ibqp);
+}
+
+static inline struct qedr_mr *get_qedr_mr(struct ib_mr *ibmr)
+{
+	return container_of(ibmr, struct qedr_mr, ibmr);
 }
 #endif
