@@ -600,6 +600,20 @@
  *
  * @NL80211_CMD_SET_WDS_PEER: Set the MAC address of the peer on a WDS interface.
  *
+ * @NL80211_CMD_SET_MULTICAST_TO_UNICAST: Configure if this AP should perform
+ *	multicast to unicast conversion. When enabled, all multicast packets
+ *	with ethertype ARP, IPv4 or IPv6 (possibly within an 802.1Q header)
+ *	will be sent out to each station once with the destination (multicast)
+ *	MAC address replaced by the station's MAC address. Note that this may
+ *	break certain expectations of the receiver, e.g. the ability to drop
+ *	unicast IP packets encapsulated in multicast L2 frames, or the ability
+ *	to not send destination unreachable messages in such cases.
+ *	This can only be toggled per BSS. Configure this on an interface of
+ *	type %NL80211_IFTYPE_AP. It applies to all its VLAN interfaces
+ *	(%NL80211_IFTYPE_AP_VLAN), except for those in 4addr (WDS) mode.
+ *	If %NL80211_ATTR_MULTICAST_TO_UNICAST_ENABLED is not present with this
+ *	command, the feature is disabled.
+ *
  * @NL80211_CMD_JOIN_MESH: Join a mesh. The mesh ID must be given, and initial
  *	mesh config parameters may be given.
  * @NL80211_CMD_LEAVE_MESH: Leave the mesh network -- no special arguments, the
@@ -1068,6 +1082,8 @@ enum nl80211_commands {
 	NL80211_CMD_DEL_NAN_FUNCTION,
 	NL80211_CMD_CHANGE_NAN_CONFIG,
 	NL80211_CMD_NAN_MATCH,
+
+	NL80211_CMD_SET_MULTICAST_TO_UNICAST,
 
 	/* add new commands above here */
 
@@ -1950,6 +1966,9 @@ enum nl80211_commands {
  *	Request/Response frame protection. This attribute contains the 16 octet
  *	STA Nonce followed by 16 octets of AP Nonce.
  *
+ * @NL80211_ATTR_MULTICAST_TO_UNICAST_ENABLED: Indicates whether or not multicast
+ *	packets should be send out as unicast to all stations (flag attribute).
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -2351,6 +2370,8 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_FILS_KEK,
 	NL80211_ATTR_FILS_NONCES,
+
+	NL80211_ATTR_MULTICAST_TO_UNICAST_ENABLED,
 
 	/* add attributes here, update the policy in nl80211.c */
 

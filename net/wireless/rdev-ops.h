@@ -562,6 +562,18 @@ static inline int rdev_set_wds_peer(struct cfg80211_registered_device *rdev,
 	return ret;
 }
 
+static inline int
+rdev_set_multicast_to_unicast(struct cfg80211_registered_device *rdev,
+			      struct net_device *dev,
+			      const bool enabled)
+{
+	int ret;
+	trace_rdev_set_multicast_to_unicast(&rdev->wiphy, dev, enabled);
+	ret = rdev->ops->set_multicast_to_unicast(&rdev->wiphy, dev, enabled);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
+
 static inline void rdev_rfkill_poll(struct cfg80211_registered_device *rdev)
 {
 	trace_rdev_rfkill_poll(&rdev->wiphy);

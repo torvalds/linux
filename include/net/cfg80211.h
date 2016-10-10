@@ -2742,6 +2742,8 @@ struct cfg80211_nan_func {
  * @nan_change_conf: changes NAN configuration. The changed parameters must
  *	be specified in @changes (using &enum cfg80211_nan_conf_changes);
  *	All other parameters must be ignored.
+ *
+ * @set_multicast_to_unicast: configure multicast to unicast conversion for BSS
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -3018,6 +3020,10 @@ struct cfg80211_ops {
 				   struct wireless_dev *wdev,
 				   struct cfg80211_nan_conf *conf,
 				   u32 changes);
+
+	int	(*set_multicast_to_unicast)(struct wiphy *wiphy,
+					    struct net_device *dev,
+					    const bool enabled);
 };
 
 /*
