@@ -726,15 +726,13 @@ static ssize_t dasd_ff_store(struct device *dev, struct device_attribute *attr,
 	      const char *buf, size_t count)
 {
 	struct dasd_devmap *devmap;
-	int val;
-	char *endp;
+	unsigned int val;
 
 	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
 
-	val = simple_strtoul(buf, &endp, 0);
-	if (((endp + 1) < (buf + count)) || (val > 1))
+	if (kstrtouint(buf, 0, &val) || val > 1)
 		return -EINVAL;
 
 	spin_lock(&dasd_devmap_lock);
@@ -773,15 +771,13 @@ dasd_ro_store(struct device *dev, struct device_attribute *attr,
 {
 	struct dasd_devmap *devmap;
 	struct dasd_device *device;
-	int val;
-	char *endp;
+	unsigned int val;
 
 	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
 
-	val = simple_strtoul(buf, &endp, 0);
-	if (((endp + 1) < (buf + count)) || (val > 1))
+	if (kstrtouint(buf, 0, &val) || val > 1)
 		return -EINVAL;
 
 	spin_lock(&dasd_devmap_lock);
@@ -824,15 +820,13 @@ dasd_erplog_store(struct device *dev, struct device_attribute *attr,
 	      const char *buf, size_t count)
 {
 	struct dasd_devmap *devmap;
-	int val;
-	char *endp;
+	unsigned int val;
 
 	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
 
-	val = simple_strtoul(buf, &endp, 0);
-	if (((endp + 1) < (buf + count)) || (val > 1))
+	if (kstrtouint(buf, 0, &val) || val > 1)
 		return -EINVAL;
 
 	spin_lock(&dasd_devmap_lock);
@@ -871,16 +865,14 @@ dasd_use_diag_store(struct device *dev, struct device_attribute *attr,
 		    const char *buf, size_t count)
 {
 	struct dasd_devmap *devmap;
+	unsigned int val;
 	ssize_t rc;
-	int val;
-	char *endp;
 
 	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
 	if (IS_ERR(devmap))
 		return PTR_ERR(devmap);
 
-	val = simple_strtoul(buf, &endp, 0);
-	if (((endp + 1) < (buf + count)) || (val > 1))
+	if (kstrtouint(buf, 0, &val) || val > 1)
 		return -EINVAL;
 
 	spin_lock(&dasd_devmap_lock);
@@ -1198,8 +1190,8 @@ dasd_eer_store(struct device *dev, struct device_attribute *attr,
 	       const char *buf, size_t count)
 {
 	struct dasd_devmap *devmap;
-	int val, rc;
-	char *endp;
+	unsigned int val;
+	int rc;
 
 	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
 	if (IS_ERR(devmap))
@@ -1207,8 +1199,7 @@ dasd_eer_store(struct device *dev, struct device_attribute *attr,
 	if (!devmap->device)
 		return -ENODEV;
 
-	val = simple_strtoul(buf, &endp, 0);
-	if (((endp + 1) < (buf + count)) || (val > 1))
+	if (kstrtouint(buf, 0, &val) || val > 1)
 		return -EINVAL;
 
 	if (val) {
