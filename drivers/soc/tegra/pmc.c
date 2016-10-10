@@ -45,13 +45,13 @@
 #include <soc/tegra/pmc.h>
 
 #define PMC_CNTRL			0x0
-#define  PMC_CNTRL_MAIN_RST		BIT(4)
-#define  PMC_CNTRL_SYSCLK_POLARITY	BIT(10) /* sys clk polarity */
-#define  PMC_CNTRL_SYSCLK_OE		BIT(11) /* system clock enable */
-#define  PMC_CNTRL_SIDE_EFFECT_LP0	BIT(14) /* LP0 when CPU pwr gated */
-#define  PMC_CNTRL_CPU_PWRREQ_POLARITY	BIT(15) /* CPU pwr req polarity */
-#define  PMC_CNTRL_CPU_PWRREQ_OE	BIT(16) /* CPU pwr req enable */
 #define  PMC_CNTRL_INTR_POLARITY	BIT(17) /* inverts INTR polarity */
+#define  PMC_CNTRL_CPU_PWRREQ_OE	BIT(16) /* CPU pwr req enable */
+#define  PMC_CNTRL_CPU_PWRREQ_POLARITY	BIT(15) /* CPU pwr req polarity */
+#define  PMC_CNTRL_SIDE_EFFECT_LP0	BIT(14) /* LP0 when CPU pwr gated */
+#define  PMC_CNTRL_SYSCLK_OE		BIT(11) /* system clock enable */
+#define  PMC_CNTRL_SYSCLK_POLARITY	BIT(10) /* sys clk polarity */
+#define  PMC_CNTRL_MAIN_RST		BIT(4)
 
 #define DPD_SAMPLE			0x020
 #define  DPD_SAMPLE_ENABLE		BIT(0)
