@@ -191,8 +191,8 @@ static irqreturn_t artpec6_pcie_msi_handler(int irq, void *arg)
 	return dw_handle_msi_irq(pp);
 }
 
-static int __init artpec6_add_pcie_port(struct pcie_port *pp,
-					struct platform_device *pdev)
+static int artpec6_add_pcie_port(struct pcie_port *pp,
+				 struct platform_device *pdev)
 {
 	int ret;
 

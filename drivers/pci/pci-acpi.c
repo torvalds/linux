@@ -452,6 +452,27 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	return error;
 }
 
+static pci_power_t acpi_pci_get_power_state(struct pci_dev *dev)
+{
+	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
+	static const pci_power_t state_conv[] = {
+		[ACPI_STATE_D0]      = PCI_D0,
+		[ACPI_STATE_D1]      = PCI_D1,
+		[ACPI_STATE_D2]      = PCI_D2,
+		[ACPI_STATE_D3_HOT]  = PCI_D3hot,
+		[ACPI_STATE_D3_COLD] = PCI_D3cold,
+	};
+	int state;
+
+	if (!adev || !acpi_device_power_manageable(adev))
+		return PCI_UNKNOWN;
+
+	if (acpi_device_get_power(adev, &state) || state == ACPI_STATE_UNKNOWN)
+		return PCI_UNKNOWN;
+
+	return state_conv[state];
+}
+
 static bool acpi_pci_can_wakeup(struct pci_dev *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
@@ -534,6 +555,7 @@ static bool acpi_pci_need_resume(struct pci_dev *dev)
 static const struct pci_platform_pm_ops acpi_pci_platform_pm = {
 	.is_manageable = acpi_pci_power_manageable,
 	.set_state = acpi_pci_set_power_state,
+	.get_state = acpi_pci_get_power_state,
 	.choose_state = acpi_pci_choose_state,
 	.sleep_wake = acpi_pci_sleep_wake,
 	.run_wake = acpi_pci_run_wake,

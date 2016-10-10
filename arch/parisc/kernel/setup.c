@@ -38,6 +38,7 @@
 #include <linux/export.h>
 
 #include <asm/processor.h>
+#include <asm/sections.h>
 #include <asm/pdc.h>
 #include <asm/led.h>
 #include <asm/machdep.h>	/* for pa7300lc_init() proto */
@@ -140,6 +141,13 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	printk(KERN_CONT ".\n");
 
+	/*
+	 * Check if initial kernel page mappings are sufficient.
+	 * panic early if not, else we may access kernel functions
+	 * and variables which can't be reached.
+	 */
+	if (__pa((unsigned long) &_end) >= KERNEL_INITIAL_SIZE)
+		panic("KERNEL_INITIAL_ORDER too small!");
 
 	pdc_console_init();
 

@@ -352,7 +352,7 @@ static int pmc_probe(struct platform_device *ofdev)
 		return -ENODEV;
 
 	pmc_irq = irq_of_parse_and_map(np, 0);
-	if (pmc_irq != NO_IRQ) {
+	if (pmc_irq) {
 		ret = request_irq(pmc_irq, pmc_irq_handler, IRQF_SHARED,
 		                  "pmc", ofdev);
 
@@ -400,7 +400,7 @@ out_syscr:
 out_pmc:
 	iounmap(pmc_regs);
 out:
-	if (pmc_irq != NO_IRQ)
+	if (pmc_irq)
 		free_irq(pmc_irq, ofdev);
 
 	return ret;

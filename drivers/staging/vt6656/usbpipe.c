@@ -28,8 +28,9 @@
  *	vnt_control_in_u8 - Read one byte from MEM/BB/MAC/EEPROM
  *
  * Revision History:
- *      04-05-2004 Jerry Chen:  Initial release
- *      11-24-2004 Warren Hsu: Add ControlvWriteByte,ControlvReadByte,ControlvMaskByte
+ *      04-05-2004 Jerry Chen: Initial release
+ *      11-24-2004 Warren Hsu: Add ControlvWriteByte,ControlvReadByte,
+ *                             ControlvMaskByte
  *
  */
 

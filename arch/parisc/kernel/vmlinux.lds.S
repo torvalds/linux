@@ -69,6 +69,7 @@ SECTIONS
 	.text ALIGN(PAGE_SIZE) : {
 		TEXT_TEXT
 		SCHED_TEXT
+		CPUIDLE_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
 		IRQENTRY_TEXT
@@ -137,8 +138,6 @@ SECTIONS
 
 	/* BSS */
 	BSS_SECTION(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE)
-
-	/* bootmap is allocated in setup_bootmem() directly behind bss. */
 
 	. = ALIGN(HUGEPAGE_SIZE);
 	_end = . ;

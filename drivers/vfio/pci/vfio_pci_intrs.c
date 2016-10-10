@@ -250,6 +250,7 @@ static irqreturn_t vfio_msihandler(int irq, void *arg)
 static int vfio_msi_enable(struct vfio_pci_device *vdev, int nvec, bool msix)
 {
 	struct pci_dev *pdev = vdev->pdev;
+	unsigned int flag = msix ? PCI_IRQ_MSIX : PCI_IRQ_MSI;
 	int ret;
 
 	if (!is_irq_none(vdev))
@@ -259,35 +260,13 @@ static int vfio_msi_enable(struct vfio_pci_device *vdev, int nvec, bool msix)
 	if (!vdev->ctx)
 		return -ENOMEM;
 
-	if (msix) {
-		int i;
-
-		vdev->msix = kzalloc(nvec * sizeof(struct msix_entry),
-				     GFP_KERNEL);
-		if (!vdev->msix) {
-			kfree(vdev->ctx);
-			return -ENOMEM;
-		}
-
-		for (i = 0; i < nvec; i++)
-			vdev->msix[i].entry = i;
-
-		ret = pci_enable_msix_range(pdev, vdev->msix, 1, nvec);
-		if (ret < nvec) {
-			if (ret > 0)
-				pci_disable_msix(pdev);
-			kfree(vdev->msix);
-			kfree(vdev->ctx);
-			return ret;
-		}
-	} else {
-		ret = pci_enable_msi_range(pdev, 1, nvec);
-		if (ret < nvec) {
-			if (ret > 0)
-				pci_disable_msi(pdev);
-			kfree(vdev->ctx);
-			return ret;
-		}
+	/* return the number of supported vectors if we can't get all: */
+	ret = pci_alloc_irq_vectors(pdev, 1, nvec, flag);
+	if (ret < nvec) {
+		if (ret > 0)
+			pci_free_irq_vectors(pdev);
+		kfree(vdev->ctx);
+		return ret;
 	}
 
 	vdev->num_ctx = nvec;
@@ -315,7 +294,7 @@ static int vfio_msi_set_vector_signal(struct vfio_pci_device *vdev,
 	if (vector < 0 || vector >= vdev->num_ctx)
 		return -EINVAL;
 
-	irq = msix ? vdev->msix[vector].vector : pdev->irq + vector;
+	irq = pci_irq_vector(pdev, vector);
 
 	if (vdev->ctx[vector].trigger) {
 		free_irq(irq, vdev->ctx[vector].trigger);
@@ -408,11 +387,14 @@ static void vfio_msi_disable(struct vfio_pci_device *vdev, bool msix)
 
 	vfio_msi_set_block(vdev, 0, vdev->num_ctx, NULL, msix);
 
-	if (msix) {
-		pci_disable_msix(vdev->pdev);
-		kfree(vdev->msix);
-	} else
-		pci_disable_msi(pdev);
+	pci_free_irq_vectors(pdev);
+
+	/*
+	 * Both disable paths above use pci_intx_for_msi() to clear DisINTx
+	 * via their shutdown paths.  Restore for NoINTx devices.
+	 */
+	if (vdev->nointx)
+		pci_intx(pdev, 0);
 
 	vdev->irq_type = VFIO_PCI_NUM_IRQS;
 	vdev->num_ctx = 0;

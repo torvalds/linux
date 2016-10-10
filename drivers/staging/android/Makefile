@@ -4,4 +4,3 @@ obj-y					+= ion/
 
 obj-$(CONFIG_ASHMEM)			+= ashmem.o
 obj-$(CONFIG_ANDROID_LOW_MEMORY_KILLER)	+= lowmemorykiller.o
-obj-$(CONFIG_SW_SYNC)			+= sw_sync.o sync_debug.o

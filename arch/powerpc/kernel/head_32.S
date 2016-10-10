@@ -266,7 +266,6 @@ __secondary_hold_acknowledge:
 
 
 #define EXCEPTION_PROLOG_2	\
-	CLR_TOP32(r11);		\
 	stw	r10,_CCR(r11);		/* save registers */ \
 	stw	r12,GPR12(r11);	\
 	stw	r9,GPR9(r11);	\
@@ -862,7 +861,6 @@ __secondary_start:
 	/* ptr to phys current thread */
 	tophys(r4,r2)
 	addi	r4,r4,THREAD	/* phys address of our thread_struct */
-	CLR_TOP32(r4)
 	mtspr	SPRN_SPRG_THREAD,r4
 	li	r3,0
 	mtspr	SPRN_SPRG_RTAS,r3	/* 0 => not in RTAS */
@@ -949,7 +947,6 @@ start_here:
 	/* ptr to phys current thread */
 	tophys(r4,r2)
 	addi	r4,r4,THREAD	/* init task's THREAD */
-	CLR_TOP32(r4)
 	mtspr	SPRN_SPRG_THREAD,r4
 	li	r3,0
 	mtspr	SPRN_SPRG_RTAS,r3	/* 0 => not in RTAS */

@@ -226,7 +226,7 @@ void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu,
 	 */
 	vcpu->arch.purr += get_tb() - vcpu->arch.entry_tb;
 	vcpu->arch.spurr += get_tb() - vcpu->arch.entry_tb;
-	vcpu->arch.vtb += get_vtb() - vcpu->arch.entry_vtb;
+	to_book3s(vcpu)->vtb += get_vtb() - vcpu->arch.entry_vtb;
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		vcpu->arch.ic += mfspr(SPRN_IC) - vcpu->arch.entry_ic;
 	svcpu->in_use = false;
@@ -448,6 +448,8 @@ void kvmppc_set_pvr_pr(struct kvm_vcpu *vcpu, u32 pvr)
 	case PVR_POWER7:
 	case PVR_POWER7p:
 	case PVR_POWER8:
+	case PVR_POWER8E:
+	case PVR_POWER8NVL:
 		vcpu->arch.hflags |= BOOK3S_HFLAG_MULTI_PGSIZE |
 			BOOK3S_HFLAG_NEW_TLBIE;
 		break;
@@ -1361,6 +1363,9 @@ static int kvmppc_get_one_reg_pr(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_HIOR:
 		*val = get_reg_val(id, to_book3s(vcpu)->hior);
 		break;
+	case KVM_REG_PPC_VTB:
+		*val = get_reg_val(id, to_book3s(vcpu)->vtb);
+		break;
 	case KVM_REG_PPC_LPCR:
 	case KVM_REG_PPC_LPCR_64:
 		/*
@@ -1396,6 +1401,9 @@ static int kvmppc_set_one_reg_pr(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_HIOR:
 		to_book3s(vcpu)->hior = set_reg_val(id, *val);
 		to_book3s(vcpu)->hior_explicit = true;
+		break;
+	case KVM_REG_PPC_VTB:
+		to_book3s(vcpu)->vtb = set_reg_val(id, *val);
 		break;
 	case KVM_REG_PPC_LPCR:
 	case KVM_REG_PPC_LPCR_64:

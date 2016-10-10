@@ -87,6 +87,15 @@
 #define L310_CACHE_ID_RTL_R3P2		0x08
 #define L310_CACHE_ID_RTL_R3P3		0x09
 
+#define L2X0_EVENT_CNT_CTRL_ENABLE	BIT(0)
+
+#define L2X0_EVENT_CNT_CFG_SRC_SHIFT	2
+#define L2X0_EVENT_CNT_CFG_SRC_MASK	0xf
+#define L2X0_EVENT_CNT_CFG_SRC_DISABLED	0
+#define L2X0_EVENT_CNT_CFG_INT_DISABLED	0
+#define L2X0_EVENT_CNT_CFG_INT_INCR	1
+#define L2X0_EVENT_CNT_CFG_INT_OVERFLOW	2
+
 /* L2C auxiliary control register - bits common to L2C-210/220/310 */
 #define L2C_AUX_CTRL_WAY_SIZE_SHIFT		17
 #define L2C_AUX_CTRL_WAY_SIZE_MASK		(7 << 17)
@@ -155,6 +164,16 @@ static inline int l2x0_of_init(u32 aux_val, u32 aux_mask)
 {
 	return -ENODEV;
 }
+#endif
+
+#ifdef CONFIG_CACHE_L2X0_PMU
+void l2x0_pmu_register(void __iomem *base, u32 part);
+void l2x0_pmu_suspend(void);
+void l2x0_pmu_resume(void);
+#else
+static inline void l2x0_pmu_register(void __iomem *base, u32 part) {}
+static inline void l2x0_pmu_suspend(void) {}
+static inline void l2x0_pmu_resume(void) {}
 #endif
 
 struct l2x0_regs {

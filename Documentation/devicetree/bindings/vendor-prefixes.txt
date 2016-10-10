@@ -76,6 +76,7 @@ digilent	Diglent, Inc.
 dlg	Dialog Semiconductor
 dlink	D-Link Corporation
 dmo	Data Modul AG
+domintech	Domintech Co., Ltd.
 dptechnics	DPTechnics
 dragino	Dragino Technology Co., Limited
 ea	Embedded Artists AB
@@ -100,6 +101,7 @@ ezchip	EZchip Semiconductor
 fcs	Fairchild Semiconductor
 firefly	Firefly
 focaltech	FocalTech Systems Co.,Ltd
+friendlyarm	Guangzhou FriendlyARM Computer Tech Co., Ltd
 fsl	Freescale Semiconductor
 ge	General Electric Company
 geekbuying	GeekBuying
@@ -136,6 +138,7 @@ innolux	Innolux Corporation
 intel	Intel Corporation
 intercontrol	Inter Control Group
 invensense	InvenSense Inc.
+inversepath	Inverse Path
 iom	Iomega Corporation
 isee	ISEE 2007 S.L.
 isil	Intersil
@@ -279,6 +282,7 @@ toshiba	Toshiba Corporation
 toumaz	Toumaz
 tpk	TPK U.S.A. LLC
 tplink	TP-LINK Technologies Co., Ltd.
+tpo	TPO
 tronfy	Tronfy
 tronsmart	Tronsmart
 truly	Truly Semiconductors Limited

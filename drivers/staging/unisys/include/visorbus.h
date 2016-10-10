@@ -34,8 +34,9 @@
 #include <linux/poll.h>
 #include <linux/kernel.h>
 #include <linux/uuid.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
 
-#include "periodic_work.h"
 #include "channel.h"
 
 struct visor_driver;
@@ -65,8 +66,6 @@ struct visor_channeltype_descriptor {
  * struct visor_driver - Information provided by each visor driver when it
  * registers with the visorbus driver.
  * @name:		Name of the visor driver.
- * @version:		The numbered version of the driver (x.x.xxx).
- * @vertag:		A human readable version string.
  * @owner:		The module owner.
  * @channel_types:	Types of channels handled by this driver, ending with
  *			a zero GUID. Our specialized BUS.match() method knows
@@ -93,12 +92,9 @@ struct visor_channeltype_descriptor {
  * @resume:		Behaves similar to pause.
  * @driver:		Private reference to the device driver. For use by bus
  *			driver only.
- * @version_attr:	Private version field. For use by bus driver only.
  */
 struct visor_driver {
 	const char *name;
-	const char *version;
-	const char *vertag;
 	struct module *owner;
 	struct visor_channeltype_descriptor *channel_types;
 	int (*probe)(struct visor_device *dev);
@@ -111,7 +107,6 @@ struct visor_driver {
 
 	/* These fields are for private use by the bus driver only. */
 	struct device_driver driver;
-	struct driver_attribute version_attr;
 };
 
 #define to_visor_driver(x) ((x) ? \
@@ -120,33 +115,33 @@ struct visor_driver {
 /**
  * struct visor_device - A device type for things "plugged" into the visorbus
  * bus
- * visorchannel:		Points to the channel that the device is
+ * @visorchannel:		Points to the channel that the device is
  *				associated with.
- * channel_type_guid:		Identifies the channel type to the bus driver.
- * device:			Device struct meant for use by the bus driver
+ * @channel_type_guid:		Identifies the channel type to the bus driver.
+ * @device:			Device struct meant for use by the bus driver
  *				only.
- * list_all:			Used by the bus driver to enumerate devices.
- * periodic_work:		Device work queue. Private use by bus driver
- *				only.
- * being_removed:		Indicates that the device is being removed from
+ * @list_all:			Used by the bus driver to enumerate devices.
+ * @timer:		        Timer fired periodically to do interrupt-type
+ *				activity.
+ * @being_removed:		Indicates that the device is being removed from
  *				the bus. Private bus driver use only.
- * visordriver_callback_lock:	Used by the bus driver to lock when handling
+ * @visordriver_callback_lock:	Used by the bus driver to lock when handling
  *				channel events.
- * pausing:			Indicates that a change towards a paused state.
+ * @pausing:			Indicates that a change towards a paused state.
  *				is in progress. Only modified by the bus driver.
- * resuming:			Indicates that a change towards a running state
+ * @resuming:			Indicates that a change towards a running state
  *				is in progress. Only modified by the bus driver.
- * chipset_bus_no:		Private field used by the bus driver.
- * chipset_dev_no:		Private field used the bus driver.
- * state:			Used to indicate the current state of the
+ * @chipset_bus_no:		Private field used by the bus driver.
+ * @chipset_dev_no:		Private field used the bus driver.
+ * @state:			Used to indicate the current state of the
  *				device.
- * inst:			Unique GUID for this instance of the device.
- * name:			Name of the device.
- * pending_msg_hdr:		For private use by bus driver to respond to
+ * @inst:			Unique GUID for this instance of the device.
+ * @name:			Name of the device.
+ * @pending_msg_hdr:		For private use by bus driver to respond to
  *				hypervisor requests.
- * vbus_hdr_info:		A pointer to header info. Private use by bus
+ * @vbus_hdr_info:		A pointer to header info. Private use by bus
  *				driver.
- * partition_uuid:		Indicates client partion id. This should be the
+ * @partition_uuid:		Indicates client partion id. This should be the
  *				same across all visor_devices in the current
  *				guest. Private use by bus driver only.
  */
@@ -157,9 +152,10 @@ struct visor_device {
 	/* These fields are for private use by the bus driver only. */
 	struct device device;
 	struct list_head list_all;
-	struct periodic_work *periodic_work;
+	struct timer_list timer;
+	bool timer_active;
 	bool being_removed;
-	struct semaphore visordriver_callback_lock;
+	struct mutex visordriver_callback_lock;
 	bool pausing;
 	bool resuming;
 	u32 chipset_bus_no;
@@ -174,7 +170,6 @@ struct visor_device {
 
 #define to_visor_device(x) container_of(x, struct visor_device, device)
 
-#ifndef STANDALONE_CLIENT
 int visorbus_register_visor_driver(struct visor_driver *);
 void visorbus_unregister_visor_driver(struct visor_driver *);
 int visorbus_read_channel(struct visor_device *dev,
@@ -183,50 +178,34 @@ int visorbus_read_channel(struct visor_device *dev,
 int visorbus_write_channel(struct visor_device *dev,
 			   unsigned long offset, void *src,
 			   unsigned long nbytes);
-int visorbus_clear_channel(struct visor_device *dev,
-			   unsigned long offset, u8 ch, unsigned long nbytes);
 void visorbus_enable_channel_interrupts(struct visor_device *dev);
 void visorbus_disable_channel_interrupts(struct visor_device *dev);
-#endif
 
-/* Note that for visorchannel_create()
- * <channel_bytes> and <guid> arguments may be 0 if we are a channel CLIENT.
- * In this case, the values can simply be read from the channel header.
+/* Levels of severity for diagnostic events, in order from lowest severity to
+ * highest (i.e. fatal errors are the most severe, and should always be logged,
+ * but info events rarely need to be logged except during debugging). The
+ * values DIAG_SEVERITY_ENUM_BEGIN and DIAG_SEVERITY_ENUM_END are not valid
+ * severity values.  They exist merely to dilineate the list, so that future
+ * additions won't require changes to the driver (i.e. when checking for
+ * out-of-range severities in SetSeverity). The values DIAG_SEVERITY_OVERRIDE
+ * and DIAG_SEVERITY_SHUTOFF are not valid severity values for logging events
+ * but they are valid for controlling the amount of event data. Changes made
+ * to the enum, need to be reflected in s-Par.
  */
-struct visorchannel *visorchannel_create(u64 physaddr,
-					 unsigned long channel_bytes,
-					 gfp_t gfp, uuid_le guid);
-struct visorchannel *visorchannel_create_with_lock(u64 physaddr,
-						   unsigned long channel_bytes,
-						   gfp_t gfp, uuid_le guid);
-void visorchannel_destroy(struct visorchannel *channel);
-int visorchannel_read(struct visorchannel *channel, ulong offset,
-		      void *local, ulong nbytes);
-int visorchannel_write(struct visorchannel *channel, ulong offset,
-		       void *local, ulong nbytes);
-int visorchannel_clear(struct visorchannel *channel, ulong offset,
-		       u8 ch, ulong nbytes);
-bool visorchannel_signalremove(struct visorchannel *channel, u32 queue,
-			       void *msg);
-bool visorchannel_signalinsert(struct visorchannel *channel, u32 queue,
-			       void *msg);
-bool visorchannel_signalempty(struct visorchannel *channel, u32 queue);
+enum diag_severity {
+	DIAG_SEVERITY_VERBOSE = 0,
+	DIAG_SEVERITY_INFO = 1,
+	DIAG_SEVERITY_WARNING = 2,
+	DIAG_SEVERITY_ERR = 3,
+	DIAG_SEVERITY_PRINT = 4,
+};
 
-int visorchannel_signalqueue_slots_avail(struct visorchannel *channel,
-					 u32 queue);
-int visorchannel_signalqueue_max_slots(struct visorchannel *channel, u32 queue);
-u64 visorchannel_get_physaddr(struct visorchannel *channel);
-ulong visorchannel_get_nbytes(struct visorchannel *channel);
-char *visorchannel_id(struct visorchannel *channel, char *s);
-char *visorchannel_zoneid(struct visorchannel *channel, char *s);
-u64 visorchannel_get_clientpartition(struct visorchannel *channel);
-int visorchannel_set_clientpartition(struct visorchannel *channel,
-				     u64 partition_handle);
+int visorchannel_signalremove(struct visorchannel *channel, u32 queue,
+			      void *msg);
+int visorchannel_signalinsert(struct visorchannel *channel, u32 queue,
+			      void *msg);
+bool visorchannel_signalempty(struct visorchannel *channel, u32 queue);
 uuid_le visorchannel_get_uuid(struct visorchannel *channel);
-char *visorchannel_uuid_id(uuid_le *guid, char *s);
-void visorchannel_debug(struct visorchannel *channel, int num_queues,
-			struct seq_file *seq, u32 off);
-void __iomem *visorchannel_get_header(struct visorchannel *channel);
 
 #define BUS_ROOT_DEVICE		UINT_MAX
 struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,

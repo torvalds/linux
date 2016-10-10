@@ -51,28 +51,16 @@ xfs_rui_item_free(
 		kmem_zone_free(xfs_rui_zone, ruip);
 }
 
-/*
- * This returns the number of iovecs needed to log the given rui item.
- * We only need 1 iovec for an rui item.  It just logs the rui_log_format
- * structure.
- */
-static inline int
-xfs_rui_item_sizeof(
-	struct xfs_rui_log_item *ruip)
-{
-	return sizeof(struct xfs_rui_log_format) +
-			(ruip->rui_format.rui_nextents - 1) *
-			sizeof(struct xfs_map_extent);
-}
-
 STATIC void
 xfs_rui_item_size(
 	struct xfs_log_item	*lip,
 	int			*nvecs,
 	int			*nbytes)
 {
+	struct xfs_rui_log_item	*ruip = RUI_ITEM(lip);
+
 	*nvecs += 1;
-	*nbytes += xfs_rui_item_sizeof(RUI_ITEM(lip));
+	*nbytes += xfs_rui_log_format_sizeof(ruip->rui_format.rui_nextents);
 }
 
 /*
@@ -97,7 +85,7 @@ xfs_rui_item_format(
 	ruip->rui_format.rui_size = 1;
 
 	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_RUI_FORMAT, &ruip->rui_format,
-			xfs_rui_item_sizeof(ruip));
+			xfs_rui_log_format_sizeof(ruip->rui_format.rui_nextents));
 }
 
 /*
@@ -205,16 +193,12 @@ xfs_rui_init(
 
 {
 	struct xfs_rui_log_item		*ruip;
-	uint				size;
 
 	ASSERT(nextents > 0);
-	if (nextents > XFS_RUI_MAX_FAST_EXTENTS) {
-		size = (uint)(sizeof(struct xfs_rui_log_item) +
-			((nextents - 1) * sizeof(struct xfs_map_extent)));
-		ruip = kmem_zalloc(size, KM_SLEEP);
-	} else {
+	if (nextents > XFS_RUI_MAX_FAST_EXTENTS)
+		ruip = kmem_zalloc(xfs_rui_log_item_sizeof(nextents), KM_SLEEP);
+	else
 		ruip = kmem_zone_zalloc(xfs_rui_zone, KM_SLEEP);
-	}
 
 	xfs_log_item_init(mp, &ruip->rui_item, XFS_LI_RUI, &xfs_rui_item_ops);
 	ruip->rui_format.rui_nextents = nextents;
@@ -239,14 +223,12 @@ xfs_rui_copy_format(
 	uint				len;
 
 	src_rui_fmt = buf->i_addr;
-	len = sizeof(struct xfs_rui_log_format) +
-			(src_rui_fmt->rui_nextents - 1) *
-			sizeof(struct xfs_map_extent);
+	len = xfs_rui_log_format_sizeof(src_rui_fmt->rui_nextents);
 
 	if (buf->i_len != len)
 		return -EFSCORRUPTED;
 
-	memcpy((char *)dst_rui_fmt, (char *)src_rui_fmt, len);
+	memcpy(dst_rui_fmt, src_rui_fmt, len);
 	return 0;
 }
 

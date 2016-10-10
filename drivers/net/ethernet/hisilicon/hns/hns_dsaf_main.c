@@ -2780,7 +2780,7 @@ module_platform_driver(g_dsaf_driver);
  * @enable: false - request reset , true - drop reset
  * retuen 0 - success , negative -fail
  */
-int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool enable)
+int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset)
 {
 	struct dsaf_device *dsaf_dev;
 	struct platform_device *pdev;
@@ -2809,24 +2809,44 @@ int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool enable)
 		{DSAF_ROCE_SL_1, DSAF_ROCE_SL_1, DSAF_ROCE_SL_3},
 	};
 
-	if (!is_of_node(dsaf_fwnode)) {
-		pr_err("hisi_dsaf: Only support DT node!\n");
+	/* find the platform device corresponding to fwnode */
+	if (is_of_node(dsaf_fwnode)) {
+		pdev = of_find_device_by_node(to_of_node(dsaf_fwnode));
+	} else if (is_acpi_device_node(dsaf_fwnode)) {
+		pdev = hns_dsaf_find_platform_device(dsaf_fwnode);
+	} else {
+		pr_err("fwnode is neither OF or ACPI type\n");
 		return -EINVAL;
 	}
-	pdev = of_find_device_by_node(to_of_node(dsaf_fwnode));
+
+	/* check if we were a success in fetching pdev */
+	if (!pdev) {
+		pr_err("couldn't find platform device for node\n");
+		return -ENODEV;
+	}
+
+	/* retrieve the dsaf_device from the driver data */
 	dsaf_dev = dev_get_drvdata(&pdev->dev);
+	if (!dsaf_dev) {
+		dev_err(&pdev->dev, "dsaf_dev is NULL\n");
+		return -ENODEV;
+	}
+
+	/* now, make sure we are running on compatible SoC */
 	if (AE_IS_VER1(dsaf_dev->dsaf_ver)) {
 		dev_err(dsaf_dev->dev, "%s v1 chip doesn't support RoCE!\n",
 			dsaf_dev->ae_dev.name);
 		return -ENODEV;
 	}
 
-	if (!enable) {
-		/* Reset rocee-channels in dsaf and rocee */
-		hns_dsaf_srst_chns(dsaf_dev, DSAF_CHNS_MASK, false);
-		hns_dsaf_roce_srst(dsaf_dev, false);
+	/* do reset or de-reset according to the flag */
+	if (!dereset) {
+		/* reset rocee-channels in dsaf and rocee */
+		dsaf_dev->misc_op->hns_dsaf_srst_chns(dsaf_dev, DSAF_CHNS_MASK,
+						      false);
+		dsaf_dev->misc_op->hns_dsaf_roce_srst(dsaf_dev, false);
 	} else {
-		/* Configure dsaf tx roce correspond to port map and sl map */
+		/* configure dsaf tx roce correspond to port map and sl map */
 		mp = dsaf_read_dev(dsaf_dev, DSAF_ROCE_PORT_MAP_REG);
 		for (i = 0; i < DSAF_ROCE_CREDIT_CHN; i++)
 			dsaf_set_field(mp, 7 << i * 3, i * 3,
@@ -2840,12 +2860,13 @@ int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool enable)
 				       sl_map[i][DSAF_ROCE_6PORT_MODE]);
 		dsaf_write_dev(dsaf_dev, DSAF_ROCE_SL_MAP_REG, sl);
 
-		/* De-reset rocee-channels in dsaf and rocee */
-		hns_dsaf_srst_chns(dsaf_dev, DSAF_CHNS_MASK, true);
+		/* de-reset rocee-channels in dsaf and rocee */
+		dsaf_dev->misc_op->hns_dsaf_srst_chns(dsaf_dev, DSAF_CHNS_MASK,
+						      true);
 		msleep(SRST_TIME_INTERVAL);
-		hns_dsaf_roce_srst(dsaf_dev, true);
+		dsaf_dev->misc_op->hns_dsaf_roce_srst(dsaf_dev, true);
 
-		/* Eanble dsaf channel rocee credit */
+		/* enable dsaf channel rocee credit */
 		credit = dsaf_read_dev(dsaf_dev, DSAF_SBM_ROCEE_CFG_REG_REG);
 		dsaf_set_bit(credit, DSAF_SBM_ROCEE_CFG_CRD_EN_B, 0);
 		dsaf_write_dev(dsaf_dev, DSAF_SBM_ROCEE_CFG_REG_REG, credit);

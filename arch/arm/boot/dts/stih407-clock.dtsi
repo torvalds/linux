@@ -42,7 +42,7 @@
 
 			clockgen_a9_pll: clockgen-a9-pll {
 				#clock-cells = <1>;
-				compatible = "st,stih407-plls-c32-a9", "st,clkgen-plls-c32";
+				compatible = "st,stih407-clkgen-plla9";
 
 				clocks = <&clk_sysin>;
 
@@ -55,7 +55,7 @@
 		 */
 		clk_m_a9: clk-m-a9@92b0000 {
 			#clock-cells = <0>;
-			compatible = "st,stih407-clkgen-a9-mux", "st,clkgen-mux";
+			compatible = "st,stih407-clkgen-a9-mux";
 			reg = <0x92b0000 0x10000>;
 
 			clocks = <&clockgen_a9_pll 0>,
@@ -96,7 +96,7 @@
 
 			clk_s_a0_pll: clk-s-a0-pll {
 				#clock-cells = <1>;
-				compatible = "st,stih407-plls-c32-a0", "st,clkgen-plls-c32";
+				compatible = "st,clkgen-pll0";
 
 				clocks = <&clk_sysin>;
 
@@ -117,7 +117,7 @@
 
 		clk_s_c0_quadfs: clk-s-c0-quadfs@9103000 {
 			#clock-cells = <1>;
-			compatible = "st,stih407-quadfs660-C", "st,quadfs";
+			compatible = "st,quadfs-pll";
 			reg = <0x9103000 0x1000>;
 
 			clocks = <&clk_sysin>;
@@ -134,7 +134,7 @@
 
 			clk_s_c0_pll0: clk-s-c0-pll0 {
 				#clock-cells = <1>;
-				compatible = "st,plls-c32-cx_0", "st,clkgen-plls-c32";
+				compatible = "st,clkgen-pll0";
 
 				clocks = <&clk_sysin>;
 
@@ -143,7 +143,7 @@
 
 			clk_s_c0_pll1: clk-s-c0-pll1 {
 				#clock-cells = <1>;
-				compatible = "st,plls-c32-cx_1", "st,clkgen-plls-c32";
+				compatible = "st,clkgen-pll1";
 
 				clocks = <&clk_sysin>;
 
@@ -199,7 +199,7 @@
 
 		clk_s_d0_quadfs: clk-s-d0-quadfs@9104000 {
 			#clock-cells = <1>;
-			compatible = "st,stih407-quadfs660-D", "st,quadfs";
+			compatible = "st,quadfs";
 			reg = <0x9104000 0x1000>;
 
 			clocks = <&clk_sysin>;
@@ -216,7 +216,7 @@
 
 			clk_s_d0_flexgen: clk-s-d0-flexgen {
 				#clock-cells = <1>;
-				compatible = "st,flexgen";
+				compatible = "st,flexgen-audio", "st,flexgen";
 
 				clocks = <&clk_s_d0_quadfs 0>,
 					 <&clk_s_d0_quadfs 1>,
@@ -233,7 +233,7 @@
 
 		clk_s_d2_quadfs: clk-s-d2-quadfs@9106000 {
 			#clock-cells = <1>;
-			compatible = "st,stih407-quadfs660-D", "st,quadfs";
+			compatible = "st,quadfs";
 			reg = <0x9106000 0x1000>;
 
 			clocks = <&clk_sysin>;
@@ -256,7 +256,7 @@
 
 			clk_s_d2_flexgen: clk-s-d2-flexgen {
 				#clock-cells = <1>;
-				compatible = "st,flexgen";
+				compatible = "st,flexgen-video", "st,flexgen";
 
 				clocks = <&clk_s_d2_quadfs 0>,
 					 <&clk_s_d2_quadfs 1>,
@@ -287,7 +287,7 @@
 
 		clk_s_d3_quadfs: clk-s-d3-quadfs@9107000 {
 			#clock-cells = <1>;
-			compatible = "st,stih407-quadfs660-D", "st,quadfs";
+			compatible = "st,quadfs";
 			reg = <0x9107000 0x1000>;
 
 			clocks = <&clk_sysin>;

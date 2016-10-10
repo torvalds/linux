@@ -82,7 +82,7 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 			if (priority) {
 				list_del(&item->oic_item);
 				list_add(&item->oic_item,
-					     &imp->imp_conn_list);
+					 &imp->imp_conn_list);
 				item->oic_last_attempt = 0;
 			}
 			CDEBUG(D_HA, "imp %p@%s: found existing conn %s%s\n",
@@ -102,7 +102,7 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 			list_add(&imp_conn->oic_item, &imp->imp_conn_list);
 		else
 			list_add_tail(&imp_conn->oic_item,
-					  &imp->imp_conn_list);
+				      &imp->imp_conn_list);
 		CDEBUG(D_HA, "imp %p@%s: add connection %s at %s\n",
 		       imp, imp->imp_obd->obd_name, uuid->uuid,
 		       (priority ? "head" : "tail"));
@@ -299,12 +299,14 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	       min_t(unsigned int, LUSTRE_CFG_BUFLEN(lcfg, 2),
 		     sizeof(server_uuid)));
 
-	cli->cl_dirty = 0;
+	cli->cl_dirty_pages = 0;
 	cli->cl_avail_grant = 0;
-	/* FIXME: Should limit this for the sum of all cl_dirty_max. */
-	cli->cl_dirty_max = OSC_MAX_DIRTY_DEFAULT * 1024 * 1024;
-	if (cli->cl_dirty_max >> PAGE_SHIFT > totalram_pages / 8)
-		cli->cl_dirty_max = totalram_pages << (PAGE_SHIFT - 3);
+	/* FIXME: Should limit this for the sum of all cl_dirty_max_pages. */
+	/*
+	 * cl_dirty_max_pages may be changed at connect time in
+	 * ptlrpc_connect_interpret().
+	 */
+	client_adjust_max_dirty(cli);
 	INIT_LIST_HEAD(&cli->cl_cache_waiters);
 	INIT_LIST_HEAD(&cli->cl_loi_ready_list);
 	INIT_LIST_HEAD(&cli->cl_loi_hp_ready_list);
@@ -326,11 +328,11 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	/* lru for osc. */
 	INIT_LIST_HEAD(&cli->cl_lru_osc);
 	atomic_set(&cli->cl_lru_shrinkers, 0);
-	atomic_set(&cli->cl_lru_busy, 0);
-	atomic_set(&cli->cl_lru_in_list, 0);
+	atomic_long_set(&cli->cl_lru_busy, 0);
+	atomic_long_set(&cli->cl_lru_in_list, 0);
 	INIT_LIST_HEAD(&cli->cl_lru_list);
 	spin_lock_init(&cli->cl_lru_list_lock);
-	atomic_set(&cli->cl_unstable_count, 0);
+	atomic_long_set(&cli->cl_unstable_count, 0);
 
 	init_waitqueue_head(&cli->cl_destroy_waitq);
 	atomic_set(&cli->cl_destroy_in_flight, 0);
@@ -360,7 +362,7 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	cli->cl_chunkbits = PAGE_SHIFT;
 
 	if (!strcmp(name, LUSTRE_MDC_NAME)) {
-		cli->cl_max_rpcs_in_flight = MDC_MAX_RIF_DEFAULT;
+		cli->cl_max_rpcs_in_flight = OBD_MAX_RIF_DEFAULT;
 	} else if (totalram_pages >> (20 - PAGE_SHIFT) <= 128 /* MB */) {
 		cli->cl_max_rpcs_in_flight = 2;
 	} else if (totalram_pages >> (20 - PAGE_SHIFT) <= 256 /* MB */) {
@@ -368,7 +370,7 @@ int client_obd_setup(struct obd_device *obddev, struct lustre_cfg *lcfg)
 	} else if (totalram_pages >> (20 - PAGE_SHIFT) <= 512 /* MB */) {
 		cli->cl_max_rpcs_in_flight = 4;
 	} else {
-		cli->cl_max_rpcs_in_flight = OSC_MAX_RIF_DEFAULT;
+		cli->cl_max_rpcs_in_flight = OBD_MAX_RIF_DEFAULT;
 	}
 	rc = ldlm_get_ref();
 	if (rc) {
@@ -534,7 +536,7 @@ int client_disconnect_export(struct obd_export *exp)
 	imp = cli->cl_import;
 
 	down_write(&cli->cl_sem);
-	CDEBUG(D_INFO, "disconnect %s - %d\n", obd->obd_name,
+	CDEBUG(D_INFO, "disconnect %s - %zu\n", obd->obd_name,
 	       cli->cl_conn_count);
 
 	if (!cli->cl_conn_count) {
@@ -690,7 +692,7 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 	if (rs->rs_transno > exp->exp_last_committed) {
 		/* not committed already */
 		list_add_tail(&rs->rs_obd_list,
-				  &exp->exp_uncommitted_replies);
+			      &exp->exp_uncommitted_replies);
 	}
 	spin_unlock(&exp->exp_uncommitted_replies_lock);
 
@@ -795,7 +797,7 @@ void ldlm_dump_export_locks(struct obd_export *exp)
 		CERROR("dumping locks for export %p,ignore if the unmount doesn't hang\n",
 		       exp);
 		list_for_each_entry(lock, &exp->exp_locks_list,
-					l_exp_refs_link)
+				    l_exp_refs_link)
 			LDLM_ERROR(lock, "lock:");
 	}
 	spin_unlock(&exp->exp_locks_list_guard);

@@ -454,6 +454,12 @@
 		*(.spinlock.text)					\
 		VMLINUX_SYMBOL(__lock_text_end) = .;
 
+#define CPUIDLE_TEXT							\
+		ALIGN_FUNCTION();					\
+		VMLINUX_SYMBOL(__cpuidle_text_start) = .;		\
+		*(.cpuidle.text)					\
+		VMLINUX_SYMBOL(__cpuidle_text_end) = .;
+
 #define KPROBES_TEXT							\
 		ALIGN_FUNCTION();					\
 		VMLINUX_SYMBOL(__kprobes_text_start) = .;		\

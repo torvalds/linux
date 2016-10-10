@@ -789,7 +789,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	 * Will be set to real fs blocksize later.
 	 *
 	 * Linux 2.4.10 and later refuse to read blocks smaller than
-	 * the hardsect size for the device. But we also need to read at 
+	 * the logical block size for the device. But we also need to read at
 	 * least 1k to get the second 512 bytes of the volume.
 	 * -WD 10-26-01
 	 */ 

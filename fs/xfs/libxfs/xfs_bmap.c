@@ -47,6 +47,7 @@
 #include "xfs_attr_leaf.h"
 #include "xfs_filestream.h"
 #include "xfs_rmap.h"
+#include "xfs_ag_resv.h"
 
 
 kmem_zone_t		*xfs_bmap_free_item_zone;
@@ -1388,7 +1389,7 @@ xfs_bmap_search_multi_extents(
  * Else, *lastxp will be set to the index of the found
  * entry; *gotp will contain the entry.
  */
-STATIC xfs_bmbt_rec_host_t *                 /* pointer to found extent entry */
+xfs_bmbt_rec_host_t *                 /* pointer to found extent entry */
 xfs_bmap_search_extents(
 	xfs_inode_t     *ip,            /* incore inode pointer */
 	xfs_fileoff_t   bno,            /* block number searched for */
@@ -3347,7 +3348,8 @@ xfs_bmap_adjacent(
 
 	mp = ap->ip->i_mount;
 	nullfb = *ap->firstblock == NULLFSBLOCK;
-	rt = XFS_IS_REALTIME_INODE(ap->ip) && ap->userdata;
+	rt = XFS_IS_REALTIME_INODE(ap->ip) &&
+		xfs_alloc_is_userdata(ap->datatype);
 	fb_agno = nullfb ? NULLAGNUMBER : XFS_FSB_TO_AGNO(mp, *ap->firstblock);
 	/*
 	 * If allocating at eof, and there's a previous real block,
@@ -3501,7 +3503,8 @@ xfs_bmap_longest_free_extent(
 	}
 
 	longest = xfs_alloc_longest_free_extent(mp, pag,
-					xfs_alloc_min_freelist(mp, pag));
+				xfs_alloc_min_freelist(mp, pag),
+				xfs_ag_resv_needed(pag, XFS_AG_RESV_NONE));
 	if (*blen < longest)
 		*blen = longest;
 
@@ -3622,7 +3625,7 @@ xfs_bmap_btalloc(
 {
 	xfs_mount_t	*mp;		/* mount point structure */
 	xfs_alloctype_t	atype = 0;	/* type for allocation routines */
-	xfs_extlen_t	align;		/* minimum allocation alignment */
+	xfs_extlen_t	align = 0;	/* minimum allocation alignment */
 	xfs_agnumber_t	fb_agno;	/* ag number of ap->firstblock */
 	xfs_agnumber_t	ag;
 	xfs_alloc_arg_t	args;
@@ -3645,7 +3648,8 @@ xfs_bmap_btalloc(
 	else if (mp->m_dalign)
 		stripe_align = mp->m_dalign;
 
-	align = ap->userdata ? xfs_get_extsz_hint(ap->ip) : 0;
+	if (xfs_alloc_is_userdata(ap->datatype))
+		align = xfs_get_extsz_hint(ap->ip);
 	if (unlikely(align)) {
 		error = xfs_bmap_extsize_align(mp, &ap->got, &ap->prev,
 						align, 0, ap->eof, 0, ap->conv,
@@ -3658,7 +3662,8 @@ xfs_bmap_btalloc(
 	nullfb = *ap->firstblock == NULLFSBLOCK;
 	fb_agno = nullfb ? NULLAGNUMBER : XFS_FSB_TO_AGNO(mp, *ap->firstblock);
 	if (nullfb) {
-		if (ap->userdata && xfs_inode_is_filestream(ap->ip)) {
+		if (xfs_alloc_is_userdata(ap->datatype) &&
+		    xfs_inode_is_filestream(ap->ip)) {
 			ag = xfs_filestream_lookup_ag(ap->ip);
 			ag = (ag != NULLAGNUMBER) ? ag : 0;
 			ap->blkno = XFS_AGB_TO_FSB(mp, ag, 0);
@@ -3698,7 +3703,8 @@ xfs_bmap_btalloc(
 		 * enough for the request.  If one isn't found, then adjust
 		 * the minimum allocation size to the largest space found.
 		 */
-		if (ap->userdata && xfs_inode_is_filestream(ap->ip))
+		if (xfs_alloc_is_userdata(ap->datatype) &&
+		    xfs_inode_is_filestream(ap->ip))
 			error = xfs_bmap_btalloc_filestreams(ap, &args, &blen);
 		else
 			error = xfs_bmap_btalloc_nullfb(ap, &args, &blen);
@@ -3781,9 +3787,9 @@ xfs_bmap_btalloc(
 	}
 	args.minleft = ap->minleft;
 	args.wasdel = ap->wasdel;
-	args.isfl = 0;
-	args.userdata = ap->userdata;
-	if (ap->userdata & XFS_ALLOC_USERDATA_ZERO)
+	args.resv = XFS_AG_RESV_NONE;
+	args.datatype = ap->datatype;
+	if (ap->datatype & XFS_ALLOC_USERDATA_ZERO)
 		args.ip = ap->ip;
 
 	error = xfs_alloc_vextent(&args);
@@ -3877,7 +3883,8 @@ STATIC int
 xfs_bmap_alloc(
 	struct xfs_bmalloca	*ap)	/* bmap alloc argument struct */
 {
-	if (XFS_IS_REALTIME_INODE(ap->ip) && ap->userdata)
+	if (XFS_IS_REALTIME_INODE(ap->ip) &&
+	    xfs_alloc_is_userdata(ap->datatype))
 		return xfs_bmap_rtalloc(ap);
 	return xfs_bmap_btalloc(ap);
 }
@@ -4074,7 +4081,7 @@ xfs_bmapi_read(
 	return 0;
 }
 
-STATIC int
+int
 xfs_bmapi_reserve_delalloc(
 	struct xfs_inode	*ip,
 	xfs_fileoff_t		aoff,
@@ -4170,91 +4177,6 @@ out_unreserve_quota:
 	return error;
 }
 
-/*
- * Map file blocks to filesystem blocks, adding delayed allocations as needed.
- */
-int
-xfs_bmapi_delay(
-	struct xfs_inode	*ip,	/* incore inode */
-	xfs_fileoff_t		bno,	/* starting file offs. mapped */
-	xfs_filblks_t		len,	/* length to map in file */
-	struct xfs_bmbt_irec	*mval,	/* output: map values */
-	int			*nmap,	/* i/o: mval size/count */
-	int			flags)	/* XFS_BMAPI_... */
-{
-	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
-	struct xfs_bmbt_irec	got;	/* current file extent record */
-	struct xfs_bmbt_irec	prev;	/* previous file extent record */
-	xfs_fileoff_t		obno;	/* old block number (offset) */
-	xfs_fileoff_t		end;	/* end of mapped file region */
-	xfs_extnum_t		lastx;	/* last useful extent number */
-	int			eof;	/* we've hit the end of extents */
-	int			n = 0;	/* current extent index */
-	int			error = 0;
-
-	ASSERT(*nmap >= 1);
-	ASSERT(*nmap <= XFS_BMAP_MAX_NMAP);
-	ASSERT(!(flags & ~XFS_BMAPI_ENTIRE));
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-
-	if (unlikely(XFS_TEST_ERROR(
-	    (XFS_IFORK_FORMAT(ip, XFS_DATA_FORK) != XFS_DINODE_FMT_EXTENTS &&
-	     XFS_IFORK_FORMAT(ip, XFS_DATA_FORK) != XFS_DINODE_FMT_BTREE),
-	     mp, XFS_ERRTAG_BMAPIFORMAT, XFS_RANDOM_BMAPIFORMAT))) {
-		XFS_ERROR_REPORT("xfs_bmapi_delay", XFS_ERRLEVEL_LOW, mp);
-		return -EFSCORRUPTED;
-	}
-
-	if (XFS_FORCED_SHUTDOWN(mp))
-		return -EIO;
-
-	XFS_STATS_INC(mp, xs_blk_mapw);
-
-	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
-		error = xfs_iread_extents(NULL, ip, XFS_DATA_FORK);
-		if (error)
-			return error;
-	}
-
-	xfs_bmap_search_extents(ip, bno, XFS_DATA_FORK, &eof, &lastx, &got, &prev);
-	end = bno + len;
-	obno = bno;
-
-	while (bno < end && n < *nmap) {
-		if (eof || got.br_startoff > bno) {
-			error = xfs_bmapi_reserve_delalloc(ip, bno, len, &got,
-							   &prev, &lastx, eof);
-			if (error) {
-				if (n == 0) {
-					*nmap = 0;
-					return error;
-				}
-				break;
-			}
-		}
-
-		/* set up the extent map to return. */
-		xfs_bmapi_trim_map(mval, &got, &bno, len, obno, end, n, flags);
-		xfs_bmapi_update_map(&mval, &bno, &len, obno, end, &n, flags);
-
-		/* If we're done, stop now. */
-		if (bno >= end || n >= *nmap)
-			break;
-
-		/* Else go on to the next record. */
-		prev = got;
-		if (++lastx < ifp->if_bytes / sizeof(xfs_bmbt_rec_t))
-			xfs_bmbt_get_all(xfs_iext_get_ext(ifp, lastx), &got);
-		else
-			eof = 1;
-	}
-
-	*nmap = n;
-	return 0;
-}
-
-
 static int
 xfs_bmapi_allocate(
 	struct xfs_bmalloca	*bma)
@@ -4287,15 +4209,21 @@ xfs_bmapi_allocate(
 	}
 
 	/*
-	 * Indicate if this is the first user data in the file, or just any
-	 * user data. And if it is userdata, indicate whether it needs to
-	 * be initialised to zero during allocation.
+	 * Set the data type being allocated. For the data fork, the first data
+	 * in the file is treated differently to all other allocations. For the
+	 * attribute fork, we only need to ensure the allocated range is not on
+	 * the busy list.
 	 */
 	if (!(bma->flags & XFS_BMAPI_METADATA)) {
-		bma->userdata = (bma->offset == 0) ?
-			XFS_ALLOC_INITIAL_USER_DATA : XFS_ALLOC_USERDATA;
+		bma->datatype = XFS_ALLOC_NOBUSY;
+		if (whichfork == XFS_DATA_FORK) {
+			if (bma->offset == 0)
+				bma->datatype |= XFS_ALLOC_INITIAL_USER_DATA;
+			else
+				bma->datatype |= XFS_ALLOC_USERDATA;
+		}
 		if (bma->flags & XFS_BMAPI_ZERO)
-			bma->userdata |= XFS_ALLOC_USERDATA_ZERO;
+			bma->datatype |= XFS_ALLOC_USERDATA_ZERO;
 	}
 
 	bma->minlen = (bma->flags & XFS_BMAPI_CONTIG) ? bma->length : 1;
@@ -4565,7 +4493,7 @@ xfs_bmapi_write(
 	bma.tp = tp;
 	bma.ip = ip;
 	bma.total = total;
-	bma.userdata = 0;
+	bma.datatype = 0;
 	bma.dfops = dfops;
 	bma.firstblock = firstblock;
 

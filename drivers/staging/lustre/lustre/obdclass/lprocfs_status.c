@@ -96,6 +96,12 @@ static const char * const obd_connect_names[] = {
 	"pingless",
 	"flock_deadlock",
 	"disp_stripe",
+	"open_by_fid",
+	"lfsck",
+	"unknown",
+	"unlink_close",
+	"unknown",
+	"dir_stripe",
 	"unknown",
 	NULL
 };
@@ -309,7 +315,7 @@ struct dentry *ldebugfs_add_simple(struct dentry *root,
 }
 EXPORT_SYMBOL_GPL(ldebugfs_add_simple);
 
-static struct file_operations lprocfs_generic_fops = { };
+static const struct file_operations lprocfs_generic_fops = { };
 
 int ldebugfs_add_vars(struct dentry *parent,
 		      struct lprocfs_vars *list,
@@ -615,7 +621,6 @@ void lprocfs_stats_collect(struct lprocfs_stats *stats, int idx,
 
 	lprocfs_stats_unlock(stats, LPROCFS_GET_NUM_CPU, &flags);
 }
-EXPORT_SYMBOL(lprocfs_stats_collect);
 
 /**
  * Append a space separated list of current set flags to str.
@@ -1043,7 +1048,6 @@ int lprocfs_stats_alloc_one(struct lprocfs_stats *stats, unsigned int cpuid)
 	}
 	return rc;
 }
-EXPORT_SYMBOL(lprocfs_stats_alloc_one);
 
 struct lprocfs_stats *lprocfs_alloc_stats(unsigned int num,
 					  enum lprocfs_stats_flags flags)
@@ -1546,6 +1550,146 @@ void lprocfs_oh_clear(struct obd_histogram *oh)
 	spin_unlock(&oh->oh_lock);
 }
 EXPORT_SYMBOL(lprocfs_oh_clear);
+
+int lprocfs_wr_root_squash(const char __user *buffer, unsigned long count,
+			   struct root_squash_info *squash, char *name)
+{
+	char kernbuf[64], *tmp, *errmsg;
+	unsigned long uid, gid;
+	int rc;
+
+	if (count >= sizeof(kernbuf)) {
+		errmsg = "string too long";
+		rc = -EINVAL;
+		goto failed_noprint;
+	}
+	if (copy_from_user(kernbuf, buffer, count)) {
+		errmsg = "bad address";
+		rc = -EFAULT;
+		goto failed_noprint;
+	}
+	kernbuf[count] = '\0';
+
+	/* look for uid gid separator */
+	tmp = strchr(kernbuf, ':');
+	if (!tmp) {
+		errmsg = "needs uid:gid format";
+		rc = -EINVAL;
+		goto failed;
+	}
+	*tmp = '\0';
+	tmp++;
+
+	/* parse uid */
+	if (kstrtoul(kernbuf, 0, &uid) != 0) {
+		errmsg = "bad uid";
+		rc = -EINVAL;
+		goto failed;
+	}
+	/* parse gid */
+	if (kstrtoul(tmp, 0, &gid) != 0) {
+		errmsg = "bad gid";
+		rc = -EINVAL;
+		goto failed;
+	}
+
+	squash->rsi_uid = uid;
+	squash->rsi_gid = gid;
+
+	LCONSOLE_INFO("%s: root_squash is set to %u:%u\n",
+		      name, squash->rsi_uid, squash->rsi_gid);
+	return count;
+
+failed:
+	if (tmp) {
+		tmp--;
+		*tmp = ':';
+	}
+	CWARN("%s: failed to set root_squash to \"%s\", %s, rc = %d\n",
+	      name, kernbuf, errmsg, rc);
+	return rc;
+failed_noprint:
+	CWARN("%s: failed to set root_squash due to %s, rc = %d\n",
+	      name, errmsg, rc);
+	return rc;
+}
+EXPORT_SYMBOL(lprocfs_wr_root_squash);
+
+int lprocfs_wr_nosquash_nids(const char __user *buffer, unsigned long count,
+			     struct root_squash_info *squash, char *name)
+{
+	char *kernbuf = NULL, *errmsg;
+	struct list_head tmp;
+	int len = count;
+	int rc;
+
+	if (count > 4096) {
+		errmsg = "string too long";
+		rc = -EINVAL;
+		goto failed;
+	}
+
+	kernbuf = kzalloc(count + 1, GFP_NOFS);
+	if (!kernbuf) {
+		errmsg = "no memory";
+		rc = -ENOMEM;
+		goto failed;
+	}
+
+	if (copy_from_user(kernbuf, buffer, count)) {
+		errmsg = "bad address";
+		rc = -EFAULT;
+		goto failed;
+	}
+	kernbuf[count] = '\0';
+
+	if (count > 0 && kernbuf[count - 1] == '\n')
+		len = count - 1;
+
+	if ((len == 4 && !strncmp(kernbuf, "NONE", len)) ||
+	    (len == 5 && !strncmp(kernbuf, "clear", len))) {
+		/* empty string is special case */
+		down_write(&squash->rsi_sem);
+		if (!list_empty(&squash->rsi_nosquash_nids))
+			cfs_free_nidlist(&squash->rsi_nosquash_nids);
+		up_write(&squash->rsi_sem);
+		LCONSOLE_INFO("%s: nosquash_nids is cleared\n", name);
+		kfree(kernbuf);
+		return count;
+	}
+
+	INIT_LIST_HEAD(&tmp);
+	if (cfs_parse_nidlist(kernbuf, count, &tmp) <= 0) {
+		errmsg = "can't parse";
+		rc = -EINVAL;
+		goto failed;
+	}
+	LCONSOLE_INFO("%s: nosquash_nids set to %s\n",
+		      name, kernbuf);
+	kfree(kernbuf);
+	kernbuf = NULL;
+
+	down_write(&squash->rsi_sem);
+	if (!list_empty(&squash->rsi_nosquash_nids))
+		cfs_free_nidlist(&squash->rsi_nosquash_nids);
+	list_splice(&tmp, &squash->rsi_nosquash_nids);
+	up_write(&squash->rsi_sem);
+
+	return count;
+
+failed:
+	if (kernbuf) {
+		CWARN("%s: failed to set nosquash_nids to \"%s\", %s rc = %d\n",
+		      name, kernbuf, errmsg, rc);
+		kfree(kernbuf);
+		kernbuf = NULL;
+	} else {
+		CWARN("%s: failed to set nosquash_nids due to %s rc = %d\n",
+		      name, errmsg, rc);
+	}
+	return rc;
+}
+EXPORT_SYMBOL(lprocfs_wr_nosquash_nids);
 
 static ssize_t lustre_attr_show(struct kobject *kobj,
 				struct attribute *attr, char *buf)

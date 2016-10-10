@@ -44,6 +44,7 @@
 #include "xfs_error.h"
 #include "xfs_dir2.h"
 #include "xfs_rmap_item.h"
+#include "xfs_buf_item.h"
 
 #define BLK_AVG(blk1, blk2)	((blk1+blk2) >> 1)
 
@@ -381,6 +382,15 @@ xlog_recover_iodone(
 						SHUTDOWN_META_IO_ERROR);
 		}
 	}
+
+	/*
+	 * On v5 supers, a bli could be attached to update the metadata LSN.
+	 * Clean it up.
+	 */
+	if (bp->b_fspriv)
+		xfs_buf_item_relse(bp);
+	ASSERT(bp->b_fspriv == NULL);
+
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp);
 }
@@ -2360,12 +2370,14 @@ static void
 xlog_recover_validate_buf_type(
 	struct xfs_mount	*mp,
 	struct xfs_buf		*bp,
-	xfs_buf_log_format_t	*buf_f)
+	xfs_buf_log_format_t	*buf_f,
+	xfs_lsn_t		current_lsn)
 {
 	struct xfs_da_blkinfo	*info = bp->b_addr;
 	__uint32_t		magic32;
 	__uint16_t		magic16;
 	__uint16_t		magicda;
+	char			*warnmsg = NULL;
 
 	/*
 	 * We can only do post recovery validation on items on CRC enabled
@@ -2404,31 +2416,27 @@ xlog_recover_validate_buf_type(
 			bp->b_ops = &xfs_rmapbt_buf_ops;
 			break;
 		default:
-			xfs_warn(mp, "Bad btree block magic!");
-			ASSERT(0);
+			warnmsg = "Bad btree block magic!";
 			break;
 		}
 		break;
 	case XFS_BLFT_AGF_BUF:
 		if (magic32 != XFS_AGF_MAGIC) {
-			xfs_warn(mp, "Bad AGF block magic!");
-			ASSERT(0);
+			warnmsg = "Bad AGF block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_agf_buf_ops;
 		break;
 	case XFS_BLFT_AGFL_BUF:
 		if (magic32 != XFS_AGFL_MAGIC) {
-			xfs_warn(mp, "Bad AGFL block magic!");
-			ASSERT(0);
+			warnmsg = "Bad AGFL block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_agfl_buf_ops;
 		break;
 	case XFS_BLFT_AGI_BUF:
 		if (magic32 != XFS_AGI_MAGIC) {
-			xfs_warn(mp, "Bad AGI block magic!");
-			ASSERT(0);
+			warnmsg = "Bad AGI block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_agi_buf_ops;
@@ -2438,8 +2446,7 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_GDQUOT_BUF:
 #ifdef CONFIG_XFS_QUOTA
 		if (magic16 != XFS_DQUOT_MAGIC) {
-			xfs_warn(mp, "Bad DQUOT block magic!");
-			ASSERT(0);
+			warnmsg = "Bad DQUOT block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_dquot_buf_ops;
@@ -2451,16 +2458,14 @@ xlog_recover_validate_buf_type(
 		break;
 	case XFS_BLFT_DINO_BUF:
 		if (magic16 != XFS_DINODE_MAGIC) {
-			xfs_warn(mp, "Bad INODE block magic!");
-			ASSERT(0);
+			warnmsg = "Bad INODE block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_inode_buf_ops;
 		break;
 	case XFS_BLFT_SYMLINK_BUF:
 		if (magic32 != XFS_SYMLINK_MAGIC) {
-			xfs_warn(mp, "Bad symlink block magic!");
-			ASSERT(0);
+			warnmsg = "Bad symlink block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_symlink_buf_ops;
@@ -2468,8 +2473,7 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_DIR_BLOCK_BUF:
 		if (magic32 != XFS_DIR2_BLOCK_MAGIC &&
 		    magic32 != XFS_DIR3_BLOCK_MAGIC) {
-			xfs_warn(mp, "Bad dir block magic!");
-			ASSERT(0);
+			warnmsg = "Bad dir block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_dir3_block_buf_ops;
@@ -2477,8 +2481,7 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_DIR_DATA_BUF:
 		if (magic32 != XFS_DIR2_DATA_MAGIC &&
 		    magic32 != XFS_DIR3_DATA_MAGIC) {
-			xfs_warn(mp, "Bad dir data magic!");
-			ASSERT(0);
+			warnmsg = "Bad dir data magic!";
 			break;
 		}
 		bp->b_ops = &xfs_dir3_data_buf_ops;
@@ -2486,8 +2489,7 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_DIR_FREE_BUF:
 		if (magic32 != XFS_DIR2_FREE_MAGIC &&
 		    magic32 != XFS_DIR3_FREE_MAGIC) {
-			xfs_warn(mp, "Bad dir3 free magic!");
-			ASSERT(0);
+			warnmsg = "Bad dir3 free magic!";
 			break;
 		}
 		bp->b_ops = &xfs_dir3_free_buf_ops;
@@ -2495,8 +2497,7 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_DIR_LEAF1_BUF:
 		if (magicda != XFS_DIR2_LEAF1_MAGIC &&
 		    magicda != XFS_DIR3_LEAF1_MAGIC) {
-			xfs_warn(mp, "Bad dir leaf1 magic!");
-			ASSERT(0);
+			warnmsg = "Bad dir leaf1 magic!";
 			break;
 		}
 		bp->b_ops = &xfs_dir3_leaf1_buf_ops;
@@ -2504,8 +2505,7 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_DIR_LEAFN_BUF:
 		if (magicda != XFS_DIR2_LEAFN_MAGIC &&
 		    magicda != XFS_DIR3_LEAFN_MAGIC) {
-			xfs_warn(mp, "Bad dir leafn magic!");
-			ASSERT(0);
+			warnmsg = "Bad dir leafn magic!";
 			break;
 		}
 		bp->b_ops = &xfs_dir3_leafn_buf_ops;
@@ -2513,8 +2513,7 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_DA_NODE_BUF:
 		if (magicda != XFS_DA_NODE_MAGIC &&
 		    magicda != XFS_DA3_NODE_MAGIC) {
-			xfs_warn(mp, "Bad da node magic!");
-			ASSERT(0);
+			warnmsg = "Bad da node magic!";
 			break;
 		}
 		bp->b_ops = &xfs_da3_node_buf_ops;
@@ -2522,24 +2521,21 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_ATTR_LEAF_BUF:
 		if (magicda != XFS_ATTR_LEAF_MAGIC &&
 		    magicda != XFS_ATTR3_LEAF_MAGIC) {
-			xfs_warn(mp, "Bad attr leaf magic!");
-			ASSERT(0);
+			warnmsg = "Bad attr leaf magic!";
 			break;
 		}
 		bp->b_ops = &xfs_attr3_leaf_buf_ops;
 		break;
 	case XFS_BLFT_ATTR_RMT_BUF:
 		if (magic32 != XFS_ATTR3_RMT_MAGIC) {
-			xfs_warn(mp, "Bad attr remote magic!");
-			ASSERT(0);
+			warnmsg = "Bad attr remote magic!";
 			break;
 		}
 		bp->b_ops = &xfs_attr3_rmt_buf_ops;
 		break;
 	case XFS_BLFT_SB_BUF:
 		if (magic32 != XFS_SB_MAGIC) {
-			xfs_warn(mp, "Bad SB block magic!");
-			ASSERT(0);
+			warnmsg = "Bad SB block magic!";
 			break;
 		}
 		bp->b_ops = &xfs_sb_buf_ops;
@@ -2556,6 +2552,40 @@ xlog_recover_validate_buf_type(
 			 xfs_blft_from_flags(buf_f));
 		break;
 	}
+
+	/*
+	 * Nothing else to do in the case of a NULL current LSN as this means
+	 * the buffer is more recent than the change in the log and will be
+	 * skipped.
+	 */
+	if (current_lsn == NULLCOMMITLSN)
+		return;
+
+	if (warnmsg) {
+		xfs_warn(mp, warnmsg);
+		ASSERT(0);
+	}
+
+	/*
+	 * We must update the metadata LSN of the buffer as it is written out to
+	 * ensure that older transactions never replay over this one and corrupt
+	 * the buffer. This can occur if log recovery is interrupted at some
+	 * point after the current transaction completes, at which point a
+	 * subsequent mount starts recovery from the beginning.
+	 *
+	 * Write verifiers update the metadata LSN from log items attached to
+	 * the buffer. Therefore, initialize a bli purely to carry the LSN to
+	 * the verifier. We'll clean it up in our ->iodone() callback.
+	 */
+	if (bp->b_ops) {
+		struct xfs_buf_log_item	*bip;
+
+		ASSERT(!bp->b_iodone || bp->b_iodone == xlog_recover_iodone);
+		bp->b_iodone = xlog_recover_iodone;
+		xfs_buf_item_init(bp, mp);
+		bip = bp->b_fspriv;
+		bip->bli_item.li_lsn = current_lsn;
+	}
 }
 
 /*
@@ -2569,7 +2599,8 @@ xlog_recover_do_reg_buffer(
 	struct xfs_mount	*mp,
 	xlog_recover_item_t	*item,
 	struct xfs_buf		*bp,
-	xfs_buf_log_format_t	*buf_f)
+	xfs_buf_log_format_t	*buf_f,
+	xfs_lsn_t		current_lsn)
 {
 	int			i;
 	int			bit;
@@ -2642,7 +2673,7 @@ xlog_recover_do_reg_buffer(
 	/* Shouldn't be any more regions */
 	ASSERT(i == item->ri_total);
 
-	xlog_recover_validate_buf_type(mp, bp, buf_f);
+	xlog_recover_validate_buf_type(mp, bp, buf_f, current_lsn);
 }
 
 /*
@@ -2685,7 +2716,7 @@ xlog_recover_do_dquot_buffer(
 	if (log->l_quotaoffs_flag & type)
 		return false;
 
-	xlog_recover_do_reg_buffer(mp, item, bp, buf_f);
+	xlog_recover_do_reg_buffer(mp, item, bp, buf_f, NULLCOMMITLSN);
 	return true;
 }
 
@@ -2773,7 +2804,8 @@ xlog_recover_buffer_pass2(
 	 */
 	lsn = xlog_recover_get_buf_lsn(mp, bp);
 	if (lsn && lsn != -1 && XFS_LSN_CMP(lsn, current_lsn) >= 0) {
-		xlog_recover_validate_buf_type(mp, bp, buf_f);
+		trace_xfs_log_recover_buf_skip(log, buf_f);
+		xlog_recover_validate_buf_type(mp, bp, buf_f, NULLCOMMITLSN);
 		goto out_release;
 	}
 
@@ -2789,7 +2821,7 @@ xlog_recover_buffer_pass2(
 		if (!dirty)
 			goto out_release;
 	} else {
-		xlog_recover_do_reg_buffer(mp, item, bp, buf_f);
+		xlog_recover_do_reg_buffer(mp, item, bp, buf_f, current_lsn);
 	}
 
 	/*
@@ -3846,14 +3878,13 @@ STATIC int
 xlog_recover_commit_trans(
 	struct xlog		*log,
 	struct xlog_recover	*trans,
-	int			pass)
+	int			pass,
+	struct list_head	*buffer_list)
 {
 	int				error = 0;
-	int				error2;
 	int				items_queued = 0;
 	struct xlog_recover_item	*item;
 	struct xlog_recover_item	*next;
-	LIST_HEAD			(buffer_list);
 	LIST_HEAD			(ra_list);
 	LIST_HEAD			(done_list);
 
@@ -3876,7 +3907,7 @@ xlog_recover_commit_trans(
 			items_queued++;
 			if (items_queued >= XLOG_RECOVER_COMMIT_QUEUE_MAX) {
 				error = xlog_recover_items_pass2(log, trans,
-						&buffer_list, &ra_list);
+						buffer_list, &ra_list);
 				list_splice_tail_init(&ra_list, &done_list);
 				items_queued = 0;
 			}
@@ -3894,15 +3925,14 @@ out:
 	if (!list_empty(&ra_list)) {
 		if (!error)
 			error = xlog_recover_items_pass2(log, trans,
-					&buffer_list, &ra_list);
+					buffer_list, &ra_list);
 		list_splice_tail_init(&ra_list, &done_list);
 	}
 
 	if (!list_empty(&done_list))
 		list_splice_init(&done_list, &trans->r_itemq);
 
-	error2 = xfs_buf_delwri_submit(&buffer_list);
-	return error ? error : error2;
+	return error;
 }
 
 STATIC void
@@ -4085,7 +4115,8 @@ xlog_recovery_process_trans(
 	char			*dp,
 	unsigned int		len,
 	unsigned int		flags,
-	int			pass)
+	int			pass,
+	struct list_head	*buffer_list)
 {
 	int			error = 0;
 	bool			freeit = false;
@@ -4109,7 +4140,8 @@ xlog_recovery_process_trans(
 		error = xlog_recover_add_to_cont_trans(log, trans, dp, len);
 		break;
 	case XLOG_COMMIT_TRANS:
-		error = xlog_recover_commit_trans(log, trans, pass);
+		error = xlog_recover_commit_trans(log, trans, pass,
+						  buffer_list);
 		/* success or fail, we are now done with this transaction. */
 		freeit = true;
 		break;
@@ -4191,10 +4223,12 @@ xlog_recover_process_ophdr(
 	struct xlog_op_header	*ohead,
 	char			*dp,
 	char			*end,
-	int			pass)
+	int			pass,
+	struct list_head	*buffer_list)
 {
 	struct xlog_recover	*trans;
 	unsigned int		len;
+	int			error;
 
 	/* Do we understand who wrote this op? */
 	if (ohead->oh_clientid != XFS_TRANSACTION &&
@@ -4221,8 +4255,39 @@ xlog_recover_process_ophdr(
 		return 0;
 	}
 
+	/*
+	 * The recovered buffer queue is drained only once we know that all
+	 * recovery items for the current LSN have been processed. This is
+	 * required because:
+	 *
+	 * - Buffer write submission updates the metadata LSN of the buffer.
+	 * - Log recovery skips items with a metadata LSN >= the current LSN of
+	 *   the recovery item.
+	 * - Separate recovery items against the same metadata buffer can share
+	 *   a current LSN. I.e., consider that the LSN of a recovery item is
+	 *   defined as the starting LSN of the first record in which its
+	 *   transaction appears, that a record can hold multiple transactions,
+	 *   and/or that a transaction can span multiple records.
+	 *
+	 * In other words, we are allowed to submit a buffer from log recovery
+	 * once per current LSN. Otherwise, we may incorrectly skip recovery
+	 * items and cause corruption.
+	 *
+	 * We don't know up front whether buffers are updated multiple times per
+	 * LSN. Therefore, track the current LSN of each commit log record as it
+	 * is processed and drain the queue when it changes. Use commit records
+	 * because they are ordered correctly by the logging code.
+	 */
+	if (log->l_recovery_lsn != trans->r_lsn &&
+	    ohead->oh_flags & XLOG_COMMIT_TRANS) {
+		error = xfs_buf_delwri_submit(buffer_list);
+		if (error)
+			return error;
+		log->l_recovery_lsn = trans->r_lsn;
+	}
+
 	return xlog_recovery_process_trans(log, trans, dp, len,
-					   ohead->oh_flags, pass);
+					   ohead->oh_flags, pass, buffer_list);
 }
 
 /*
@@ -4240,7 +4305,8 @@ xlog_recover_process_data(
 	struct hlist_head	rhash[],
 	struct xlog_rec_header	*rhead,
 	char			*dp,
-	int			pass)
+	int			pass,
+	struct list_head	*buffer_list)
 {
 	struct xlog_op_header	*ohead;
 	char			*end;
@@ -4254,6 +4320,7 @@ xlog_recover_process_data(
 	if (xlog_header_check_recover(log->l_mp, rhead))
 		return -EIO;
 
+	trace_xfs_log_recover_record(log, rhead, pass);
 	while ((dp < end) && num_logops) {
 
 		ohead = (struct xlog_op_header *)dp;
@@ -4262,7 +4329,7 @@ xlog_recover_process_data(
 
 		/* errors will abort recovery */
 		error = xlog_recover_process_ophdr(log, rhash, rhead, ohead,
-						    dp, end, pass);
+						   dp, end, pass, buffer_list);
 		if (error)
 			return error;
 
@@ -4685,7 +4752,8 @@ xlog_recover_process(
 	struct hlist_head	rhash[],
 	struct xlog_rec_header	*rhead,
 	char			*dp,
-	int			pass)
+	int			pass,
+	struct list_head	*buffer_list)
 {
 	int			error;
 	__le32			crc;
@@ -4732,7 +4800,8 @@ xlog_recover_process(
 	if (error)
 		return error;
 
-	return xlog_recover_process_data(log, rhash, rhead, dp, pass);
+	return xlog_recover_process_data(log, rhash, rhead, dp, pass,
+					 buffer_list);
 }
 
 STATIC int
@@ -4793,9 +4862,11 @@ xlog_do_recovery_pass(
 	char			*offset;
 	xfs_buf_t		*hbp, *dbp;
 	int			error = 0, h_size, h_len;
+	int			error2 = 0;
 	int			bblks, split_bblks;
 	int			hblks, split_hblks, wrapped_hblks;
 	struct hlist_head	rhash[XLOG_RHASH_SIZE];
+	LIST_HEAD		(buffer_list);
 
 	ASSERT(head_blk != tail_blk);
 	rhead_blk = 0;
@@ -4981,7 +5052,7 @@ xlog_do_recovery_pass(
 			}
 
 			error = xlog_recover_process(log, rhash, rhead, offset,
-						     pass);
+						     pass, &buffer_list);
 			if (error)
 				goto bread_err2;
 
@@ -5012,7 +5083,8 @@ xlog_do_recovery_pass(
 		if (error)
 			goto bread_err2;
 
-		error = xlog_recover_process(log, rhash, rhead, offset, pass);
+		error = xlog_recover_process(log, rhash, rhead, offset, pass,
+					     &buffer_list);
 		if (error)
 			goto bread_err2;
 
@@ -5025,10 +5097,17 @@ xlog_do_recovery_pass(
  bread_err1:
 	xlog_put_bp(hbp);
 
+	/*
+	 * Submit buffers that have been added from the last record processed,
+	 * regardless of error status.
+	 */
+	if (!list_empty(&buffer_list))
+		error2 = xfs_buf_delwri_submit(&buffer_list);
+
 	if (error && first_bad)
 		*first_bad = rhead_blk;
 
-	return error;
+	return error ? error : error2;
 }
 
 /*

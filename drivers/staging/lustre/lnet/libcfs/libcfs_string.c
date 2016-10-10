@@ -229,8 +229,6 @@ cfs_str2num_check(char *str, int nob, unsigned *num,
 	char *endp, cache;
 	int rc;
 
-	str = cfs_trimwhite(str);
-
 	/**
 	 * kstrouint can only handle strings composed
 	 * of only numbers. We need to scan the string

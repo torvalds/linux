@@ -38,7 +38,6 @@
 #define DEBUG_SUBSYSTEM S_LLITE
 
 #include "../include/obd.h"
-#include "../include/lustre_lite.h"
 #include "llite_internal.h"
 #include "vvp_internal.h"
 
@@ -368,12 +367,6 @@ int cl_sb_fini(struct super_block *sb)
 		CERROR("Cannot cleanup cl-stack due to memory shortage.\n");
 		result = PTR_ERR(env);
 	}
-	/*
-	 * If mount failed (sbi->ll_cl == NULL), and this there are no other
-	 * mounts, stop device types manually (this usually happens
-	 * automatically when last device is destroyed).
-	 */
-	lu_types_stop();
 	return result;
 }
 

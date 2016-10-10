@@ -35,7 +35,6 @@
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_cache.h>
 #include "mlx5_ib.h"
-#include "user.h"
 
 static void mlx5_ib_cq_comp(struct mlx5_core_cq *cq)
 {

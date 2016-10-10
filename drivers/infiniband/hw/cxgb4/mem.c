@@ -695,7 +695,7 @@ struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd,
 	mhp->attr.pdid = php->pdid;
 	mhp->attr.type = FW_RI_STAG_NSMR;
 	mhp->attr.stag = stag;
-	mhp->attr.state = 1;
+	mhp->attr.state = 0;
 	mmid = (stag) >> 8;
 	mhp->ibmr.rkey = mhp->ibmr.lkey = stag;
 	if (insert_handle(rhp, &rhp->mmidr, mhp, mmid)) {

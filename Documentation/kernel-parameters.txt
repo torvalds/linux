@@ -460,6 +460,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			driver will print ACPI tables for AMD IOMMU during
 			IOMMU initialization.
 
+	amd_iommu_intr=	[HW,X86-64]
+			Specifies one of the following AMD IOMMU interrupt
+			remapping modes:
+			legacy     - Use legacy interrupt remapping mode.
+			vapic      - Use virtual APIC mode, which allows IOMMU
+			             to inject interrupts directly into guest.
+			             This mode requires kvm-amd.avic=1.
+			             (Default when IOMMU HW support is present.)
+
 	amijoy.map=	[HW,JOY] Amiga joystick support
 			Map of devices attached to JOY0DAT and JOY1DAT
 			Format: <a>,<b>
@@ -1656,6 +1665,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			modules and initcalls.
 
 	initrd=		[BOOT] Specify the location of the initial ramdisk
+
+	init_pkru=	[x86] Specify the default memory protection keys rights
+			register contents for all processes.  0x55555554 by
+			default (disallow access to all but pkey 0).  Can
+			override in debugfs after boot.
 
 	inport.irq=	[HW] Inport (ATI XL and Microsoft) busmouse driver
 			Format: <irq>

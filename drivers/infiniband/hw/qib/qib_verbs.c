@@ -1370,7 +1370,8 @@ static int qib_modify_device(struct ib_device *device,
 	}
 
 	if (device_modify_mask & IB_DEVICE_MODIFY_NODE_DESC) {
-		memcpy(device->node_desc, device_modify->node_desc, 64);
+		memcpy(device->node_desc, device_modify->node_desc,
+		       IB_DEVICE_NODE_DESC_MAX);
 		for (i = 0; i < dd->num_pports; i++) {
 			struct qib_ibport *ibp = &dd->pport[i].ibport_data;
 

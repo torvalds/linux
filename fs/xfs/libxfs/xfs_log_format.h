@@ -647,8 +647,16 @@ struct xfs_rui_log_format {
 	__uint16_t		rui_size;	/* size of this item */
 	__uint32_t		rui_nextents;	/* # extents to free */
 	__uint64_t		rui_id;		/* rui identifier */
-	struct xfs_map_extent	rui_extents[1];	/* array of extents to rmap */
+	struct xfs_map_extent	rui_extents[];	/* array of extents to rmap */
 };
+
+static inline size_t
+xfs_rui_log_format_sizeof(
+	unsigned int		nr)
+{
+	return sizeof(struct xfs_rui_log_format) +
+			nr * sizeof(struct xfs_map_extent);
+}
 
 /*
  * This is the structure used to lay out an rud log item in the

@@ -2321,36 +2321,6 @@ out_mutex:
 	return ret;
 }
 
-static ssize_t ocfs2_file_splice_read(struct file *in,
-				      loff_t *ppos,
-				      struct pipe_inode_info *pipe,
-				      size_t len,
-				      unsigned int flags)
-{
-	int ret = 0, lock_level = 0;
-	struct inode *inode = file_inode(in);
-
-	trace_ocfs2_file_splice_read(inode, in, in->f_path.dentry,
-			(unsigned long long)OCFS2_I(inode)->ip_blkno,
-			in->f_path.dentry->d_name.len,
-			in->f_path.dentry->d_name.name, len);
-
-	/*
-	 * See the comment in ocfs2_file_read_iter()
-	 */
-	ret = ocfs2_inode_lock_atime(inode, in->f_path.mnt, &lock_level);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto bail;
-	}
-	ocfs2_inode_unlock(inode, lock_level);
-
-	ret = generic_file_splice_read(in, ppos, pipe, len, flags);
-
-bail:
-	return ret;
-}
-
 static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
 				   struct iov_iter *to)
 {
@@ -2509,7 +2479,7 @@ const struct file_operations ocfs2_fops = {
 #endif
 	.lock		= ocfs2_lock,
 	.flock		= ocfs2_flock,
-	.splice_read	= ocfs2_file_splice_read,
+	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.fallocate	= ocfs2_fallocate,
 };
@@ -2554,7 +2524,7 @@ const struct file_operations ocfs2_fops_no_plocks = {
 	.compat_ioctl   = ocfs2_compat_ioctl,
 #endif
 	.flock		= ocfs2_flock,
-	.splice_read	= ocfs2_file_splice_read,
+	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.fallocate	= ocfs2_fallocate,
 };

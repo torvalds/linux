@@ -227,3 +227,5 @@ obj-$(CONFIG_UCS2_STRING) += ucs2_string.o
 obj-$(CONFIG_UBSAN) += ubsan.o
 
 UBSAN_SANITIZE_ubsan.o := n
+
+obj-$(CONFIG_SBITMAP) += sbitmap.o

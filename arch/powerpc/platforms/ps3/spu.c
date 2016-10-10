@@ -284,7 +284,7 @@ fail_alloc_2:
 fail_alloc_1:
 	ps3_spe_irq_destroy(spu->irqs[0]);
 fail_alloc_0:
-	spu->irqs[0] = spu->irqs[1] = spu->irqs[2] = NO_IRQ;
+	spu->irqs[0] = spu->irqs[1] = spu->irqs[2] = 0;
 	return result;
 }
 
@@ -334,7 +334,7 @@ static int ps3_destroy_spu(struct spu *spu)
 	ps3_spe_irq_destroy(spu->irqs[1]);
 	ps3_spe_irq_destroy(spu->irqs[0]);
 
-	spu->irqs[0] = spu->irqs[1] = spu->irqs[2] = NO_IRQ;
+	spu->irqs[0] = spu->irqs[1] = spu->irqs[2] = 0;
 
 	spu_unmap(spu);
 

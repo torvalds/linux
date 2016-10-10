@@ -122,6 +122,14 @@ int hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 #endif
 }
 
+static void hid_sensor_set_power_work(struct work_struct *work)
+{
+	struct hid_sensor_common *attrb = container_of(work,
+						       struct hid_sensor_common,
+						       work);
+	_hid_sensor_power_state(attrb, true);
+}
+
 static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 						bool state)
 {
@@ -130,6 +138,7 @@ static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 
 void hid_sensor_remove_trigger(struct hid_sensor_common *attrb)
 {
+	cancel_work_sync(&attrb->work);
 	iio_trigger_unregister(attrb->trigger);
 	iio_trigger_free(attrb->trigger);
 }
@@ -170,6 +179,9 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 		goto error_unreg_trigger;
 
 	iio_device_set_drvdata(indio_dev, attrb);
+
+	INIT_WORK(&attrb->work, hid_sensor_set_power_work);
+
 	pm_suspend_ignore_children(&attrb->pdev->dev, true);
 	pm_runtime_enable(&attrb->pdev->dev);
 	/* Default to 3 seconds, but can be changed from sysfs */
@@ -187,8 +199,7 @@ error_ret:
 }
 EXPORT_SYMBOL(hid_sensor_setup_trigger);
 
-#ifdef CONFIG_PM
-static int hid_sensor_suspend(struct device *dev)
+static int __maybe_unused hid_sensor_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
@@ -197,21 +208,27 @@ static int hid_sensor_suspend(struct device *dev)
 	return _hid_sensor_power_state(attrb, false);
 }
 
-static int hid_sensor_resume(struct device *dev)
+static int __maybe_unused hid_sensor_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct hid_sensor_common *attrb = iio_device_get_drvdata(indio_dev);
-
-	return _hid_sensor_power_state(attrb, true);
+	schedule_work(&attrb->work);
+	return 0;
 }
 
-#endif
+static int __maybe_unused hid_sensor_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct hid_sensor_common *attrb = iio_device_get_drvdata(indio_dev);
+	return _hid_sensor_power_state(attrb, true);
+}
 
 const struct dev_pm_ops hid_sensor_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(hid_sensor_suspend, hid_sensor_resume)
 	SET_RUNTIME_PM_OPS(hid_sensor_suspend,
-			   hid_sensor_resume, NULL)
+			   hid_sensor_runtime_resume, NULL)
 };
 EXPORT_SYMBOL(hid_sensor_pm_ops);
 

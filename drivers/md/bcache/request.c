@@ -694,13 +694,8 @@ static void cached_dev_cache_miss_done(struct closure *cl)
 	if (s->iop.replace_collision)
 		bch_mark_cache_miss_collision(s->iop.c, s->d);
 
-	if (s->iop.bio) {
-		int i;
-		struct bio_vec *bv;
-
-		bio_for_each_segment_all(bv, s->iop.bio, i)
-			__free_page(bv->bv_page);
-	}
+	if (s->iop.bio)
+		bio_free_pages(s->iop.bio);
 
 	cached_dev_bio_complete(cl);
 }

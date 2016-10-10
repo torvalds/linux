@@ -309,6 +309,16 @@ out_undo:
 
 
 #ifdef CONFIG_NET_NS
+static struct ucounts *inc_net_namespaces(struct user_namespace *ns)
+{
+	return inc_ucount(ns, current_euid(), UCOUNT_NET_NAMESPACES);
+}
+
+static void dec_net_namespaces(struct ucounts *ucounts)
+{
+	dec_ucount(ucounts, UCOUNT_NET_NAMESPACES);
+}
+
 static struct kmem_cache *net_cachep;
 static struct workqueue_struct *netns_wq;
 
@@ -350,19 +360,27 @@ void net_drop_ns(void *p)
 struct net *copy_net_ns(unsigned long flags,
 			struct user_namespace *user_ns, struct net *old_net)
 {
+	struct ucounts *ucounts;
 	struct net *net;
 	int rv;
 
 	if (!(flags & CLONE_NEWNET))
 		return get_net(old_net);
 
+	ucounts = inc_net_namespaces(user_ns);
+	if (!ucounts)
+		return ERR_PTR(-ENOSPC);
+
 	net = net_alloc();
-	if (!net)
+	if (!net) {
+		dec_net_namespaces(ucounts);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	get_user_ns(user_ns);
 
 	mutex_lock(&net_mutex);
+	net->ucounts = ucounts;
 	rv = setup_net(net, user_ns);
 	if (rv == 0) {
 		rtnl_lock();
@@ -371,6 +389,7 @@ struct net *copy_net_ns(unsigned long flags,
 	}
 	mutex_unlock(&net_mutex);
 	if (rv < 0) {
+		dec_net_namespaces(ucounts);
 		put_user_ns(user_ns);
 		net_drop_ns(net);
 		return ERR_PTR(rv);
@@ -443,6 +462,7 @@ static void cleanup_net(struct work_struct *work)
 	/* Finally it is safe to free my network namespace structure */
 	list_for_each_entry_safe(net, tmp, &net_exit_list, exit_list) {
 		list_del_init(&net->exit_list);
+		dec_net_namespaces(net->ucounts);
 		put_user_ns(net->user_ns);
 		net_drop_ns(net);
 	}
@@ -1004,11 +1024,17 @@ static int netns_install(struct nsproxy *nsproxy, struct ns_common *ns)
 	return 0;
 }
 
+static struct user_namespace *netns_owner(struct ns_common *ns)
+{
+	return to_net_ns(ns)->user_ns;
+}
+
 const struct proc_ns_operations netns_operations = {
 	.name		= "net",
 	.type		= CLONE_NEWNET,
 	.get		= netns_get,
 	.put		= netns_put,
 	.install	= netns_install,
+	.owner		= netns_owner,
 };
 #endif

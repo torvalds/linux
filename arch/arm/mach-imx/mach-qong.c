@@ -251,7 +251,6 @@ static void __init qong_init(void)
 
 	mxc_init_imx_uart();
 	qong_init_nor_mtd();
-	qong_init_fpga();
 	imx31_add_imx2_wdt();
 }
 
@@ -268,5 +267,6 @@ MACHINE_START(QONG, "Dave/DENX QongEVB-LITE")
 	.init_irq = mx31_init_irq,
 	.init_time	= qong_timer_init,
 	.init_machine = qong_init,
+	.init_late	= qong_init_fpga,
 	.restart	= mxc_restart,
 MACHINE_END

@@ -17,8 +17,6 @@
 
 #include <linux/types.h>
 
-#include "ultrainputreport.h"
-
 /* Identifies mouse and keyboard activity which is specified by the firmware to
  *  the host using the cmsimpleinput protocol.  @ingroup coretypes
  */

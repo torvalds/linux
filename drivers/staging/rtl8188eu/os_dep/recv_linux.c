@@ -24,7 +24,6 @@
 /* alloc os related resource in struct recv_frame */
 void rtw_os_recv_resource_alloc(struct recv_frame *precvframe)
 {
-	precvframe->pkt_newalloc = NULL;
 	precvframe->pkt = NULL;
 }
 

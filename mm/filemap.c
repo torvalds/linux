@@ -1687,6 +1687,10 @@ static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
 	unsigned int prev_offset;
 	int error = 0;
 
+	if (unlikely(*ppos >= inode->i_sb->s_maxbytes))
+		return -EINVAL;
+	iov_iter_truncate(iter, inode->i_sb->s_maxbytes);
+
 	index = *ppos >> PAGE_SHIFT;
 	prev_index = ra->prev_pos >> PAGE_SHIFT;
 	prev_offset = ra->prev_pos & (PAGE_SIZE-1);
@@ -1721,7 +1725,9 @@ find_page:
 			 * wait_on_page_locked is used to avoid unnecessarily
 			 * serialisations and why it's safe.
 			 */
-			wait_on_page_locked_killable(page);
+			error = wait_on_page_locked_killable(page);
+			if (unlikely(error))
+				goto readpage_error;
 			if (PageUptodate(page))
 				goto page_ok;
 
@@ -1923,16 +1929,18 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		struct address_space *mapping = file->f_mapping;
 		struct inode *inode = mapping->host;
+		struct iov_iter data = *iter;
 		loff_t size;
 
 		size = i_size_read(inode);
 		retval = filemap_write_and_wait_range(mapping, iocb->ki_pos,
 					iocb->ki_pos + count - 1);
-		if (!retval) {
-			struct iov_iter data = *iter;
-			retval = mapping->a_ops->direct_IO(iocb, &data);
-		}
+		if (retval < 0)
+			goto out;
 
+		file_accessed(file);
+
+		retval = mapping->a_ops->direct_IO(iocb, &data);
 		if (retval > 0) {
 			iocb->ki_pos += retval;
 			iov_iter_advance(iter, retval);
@@ -1948,10 +1956,8 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		 * DAX files, so don't bother trying.
 		 */
 		if (retval < 0 || !iov_iter_count(iter) || iocb->ki_pos >= size ||
-		    IS_DAX(inode)) {
-			file_accessed(file);
+		    IS_DAX(inode))
 			goto out;
-		}
 	}
 
 	retval = do_generic_file_read(file, &iocb->ki_pos, iter, retval);

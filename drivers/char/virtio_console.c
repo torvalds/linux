@@ -889,7 +889,7 @@ static int pipe_to_sg(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 		return 0;
 
 	/* Try lock this page */
-	if (buf->ops->steal(pipe, buf) == 0) {
+	if (pipe_buf_steal(pipe, buf) == 0) {
 		/* Get reference and unlock page for moving */
 		get_page(buf->page);
 		unlock_page(buf->page);

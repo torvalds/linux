@@ -368,7 +368,7 @@ static struct omap_usb_config h3_usb_config __initdata = {
 
 #if IS_ENABLED(CONFIG_USB_OMAP)
 	.hmc_mode       = 19,   /* 0:host(off) 1:dev|otg 2:disabled */
-#elif  defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+#elif IS_ENABLED(CONFIG_USB_OHCI_HCD)
 	/* NONSTANDARD CABLE NEEDED (B-to-Mini-B) */
 	.hmc_mode       = 20,   /* 1:dev|otg(off) 1:host 2:disabled */
 #endif

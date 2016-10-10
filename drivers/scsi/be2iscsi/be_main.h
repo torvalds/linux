@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2015 Emulex
+ * Copyright (C) 2005 - 2016 Broadcom
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -7,10 +7,10 @@
  * as published by the Free Software Foundation.  The full GNU General
  * Public License is included in this distribution in the file called COPYING.
  *
- * Written by: Jayamohan Kallickal (jayamohan.kallickal@avagotech.com)
+ * Written by: Jayamohan Kallickal (jayamohan.kallickal@broadcom.com)
  *
  * Contact Information:
- * linux-drivers@avagotech.com
+ * linux-drivers@broadcom.com
  *
  * Emulex
  * 3333 Susan Street
@@ -36,7 +36,7 @@
 #include <scsi/scsi_transport_iscsi.h>
 
 #define DRV_NAME		"be2iscsi"
-#define BUILD_STR		"11.0.0.0"
+#define BUILD_STR		"11.2.0.0"
 #define BE_NAME			"Emulex OneConnect" \
 				"Open-iSCSI Driver version" BUILD_STR
 #define DRV_DESC		BE_NAME " " "Driver"
@@ -82,36 +82,12 @@
 #define BEISCSI_MAX_FRAGS_INIT	192
 #define BE_NUM_MSIX_ENTRIES	1
 
-#define MPU_EP_CONTROL          0
-#define MPU_EP_SEMAPHORE        0xac
-#define BE2_SOFT_RESET          0x5c
-#define BE2_PCI_ONLINE0         0xb0
-#define BE2_PCI_ONLINE1         0xb4
-#define BE2_SET_RESET           0x80
-#define BE2_MPU_IRAM_ONLINE     0x00000080
-
 #define BE_SENSE_INFO_SIZE		258
 #define BE_ISCSI_PDU_HEADER_SIZE	64
 #define BE_MIN_MEM_SIZE			16384
 #define MAX_CMD_SZ			65536
 #define IIOC_SCSI_DATA                  0x05	/* Write Operation */
 
-#define INVALID_SESS_HANDLE	0xFFFFFFFF
-
-/**
- * Adapter States
- **/
-#define BE_ADAPTER_LINK_UP	0x001
-#define BE_ADAPTER_LINK_DOWN	0x002
-#define BE_ADAPTER_PCI_ERR	0x004
-#define BE_ADAPTER_CHECK_BOOT	0x008
-
-
-#define BEISCSI_CLEAN_UNLOAD	0x01
-#define BEISCSI_EEH_UNLOAD	0x02
-
-#define BE_GET_BOOT_RETRIES	45
-#define BE_GET_BOOT_TO		20
 /**
  * hardware needs the async PDU buffers to be posted in multiples of 8
  * So have atleast 8 of them by default
@@ -378,7 +354,6 @@ struct beiscsi_hba {
 	struct sgl_handle **eh_sgl_hndl_base;
 	spinlock_t io_sgl_lock;
 	spinlock_t mgmt_sgl_lock;
-	spinlock_t isr_lock;
 	spinlock_t async_pdu_lock;
 	unsigned int age;
 	struct list_head hba_queue;
@@ -390,7 +365,6 @@ struct beiscsi_hba {
 	struct ulp_cid_info *cid_array_info[BEISCSI_ULP_COUNT];
 	struct iscsi_endpoint **ep_array;
 	struct beiscsi_conn **conn_table;
-	struct iscsi_boot_kset *boot_kset;
 	struct Scsi_Host *shost;
 	struct iscsi_iface *ipv4_iface;
 	struct iscsi_iface *ipv6_iface;
@@ -418,12 +392,33 @@ struct beiscsi_hba {
 		unsigned long ulp_supported;
 	} fw_config;
 
-	unsigned int state;
+	unsigned long state;
+#define BEISCSI_HBA_ONLINE	0
+#define BEISCSI_HBA_LINK_UP	1
+#define BEISCSI_HBA_BOOT_FOUND	2
+#define BEISCSI_HBA_BOOT_WORK	3
+#define BEISCSI_HBA_UER_SUPP	4
+#define BEISCSI_HBA_PCI_ERR	5
+#define BEISCSI_HBA_FW_TIMEOUT	6
+#define BEISCSI_HBA_IN_UE	7
+#define BEISCSI_HBA_IN_TPE	8
+
+/* error bits */
+#define BEISCSI_HBA_IN_ERR	((1 << BEISCSI_HBA_PCI_ERR) | \
+				 (1 << BEISCSI_HBA_FW_TIMEOUT) | \
+				 (1 << BEISCSI_HBA_IN_UE) | \
+				 (1 << BEISCSI_HBA_IN_TPE))
+
 	u8 optic_state;
-	int get_boot;
-	bool fw_timeout;
-	bool ue_detected;
-	struct delayed_work beiscsi_hw_check_task;
+	struct delayed_work eqd_update;
+	/* update EQ delay timer every 1000ms */
+#define BEISCSI_EQD_UPDATE_INTERVAL	1000
+	struct timer_list hw_check;
+	/* check for UE every 1000ms */
+#define BEISCSI_UE_DETECT_INTERVAL	1000
+	u32 ue2rp;
+	struct delayed_work recover_port;
+	struct work_struct sess_work;
 
 	bool mac_addr_set;
 	u8 mac_address[ETH_ALEN];
@@ -435,7 +430,6 @@ struct beiscsi_hba {
 	struct be_ctrl_info ctrl;
 	unsigned int generation;
 	unsigned int interface_handle;
-	struct mgmt_session_info boot_sess;
 	struct invalidate_command_table inv_tbl[128];
 
 	struct be_aic_obj aic_obj[MAX_CPUS];
@@ -444,7 +438,28 @@ struct beiscsi_hba {
 			struct scatterlist *sg,
 			uint32_t num_sg, uint32_t xferlen,
 			uint32_t writedir);
+	struct boot_struct {
+		int retry;
+		unsigned int tag;
+		unsigned int s_handle;
+		struct be_dma_mem nonemb_cmd;
+		enum {
+			BEISCSI_BOOT_REOPEN_SESS = 1,
+			BEISCSI_BOOT_GET_SHANDLE,
+			BEISCSI_BOOT_GET_SINFO,
+			BEISCSI_BOOT_LOGOUT_SESS,
+			BEISCSI_BOOT_CREATE_KSET,
+		} action;
+		struct mgmt_session_info boot_sess;
+		struct iscsi_boot_kset *boot_kset;
+	} boot_struct;
+	struct work_struct boot_work;
 };
+
+#define beiscsi_hba_in_error(phba) ((phba)->state & BEISCSI_HBA_IN_ERR)
+#define beiscsi_hba_is_online(phba) \
+	(!beiscsi_hba_in_error((phba)) && \
+	 test_bit(BEISCSI_HBA_ONLINE, &phba->state))
 
 struct beiscsi_session {
 	struct pci_pool *bhs_pool;
@@ -508,6 +523,7 @@ struct beiscsi_io_task {
 	struct sgl_handle *psgl_handle;
 	struct beiscsi_conn *conn;
 	struct scsi_cmnd *scsi_cmnd;
+	int num_sg;
 	struct hwi_wrb_context *pwrb_context;
 	unsigned int cmd_sn;
 	unsigned int flags;
@@ -592,79 +608,80 @@ struct amap_beiscsi_offload_params {
 	u8 max_recv_data_segment_length[32];
 };
 
-/* void hwi_complete_drvr_msgs(struct beiscsi_conn *beiscsi_conn,
-		struct beiscsi_hba *phba, struct sol_cqe *psol);*/
-
-struct async_pdu_handle {
+struct hd_async_handle {
 	struct list_head link;
 	struct be_bus_address pa;
 	void *pbuffer;
-	unsigned int consumed;
-	unsigned char index;
-	unsigned char is_header;
-	unsigned short cri;
-	unsigned long buffer_len;
+	u32 buffer_len;
+	u16 index;
+	u16 cri;
+	u8 is_header;
+	u8 is_final;
 };
 
-struct hwi_async_entry {
-	struct {
-		unsigned char hdr_received;
-		unsigned char hdr_len;
-		unsigned short bytes_received;
+/**
+ * This has list of async PDUs that are waiting to be processed.
+ * Buffers live in this list for a brief duration before they get
+ * processed and posted back to hardware.
+ * Note that we don't really need one cri_wait_queue per async_entry.
+ * We need one cri_wait_queue per CRI. Its easier to manage if this
+ * is tagged along with the async_entry.
+ */
+struct hd_async_entry {
+	struct cri_wait_queue {
+		unsigned short hdr_len;
+		unsigned int bytes_received;
 		unsigned int bytes_needed;
 		struct list_head list;
-	} wait_queue;
-
-	struct list_head header_busy_list;
-	struct list_head data_busy_list;
+	} wq;
+	/* handles posted to FW resides here */
+	struct hd_async_handle *header;
+	struct hd_async_handle *data;
 };
 
-struct hwi_async_pdu_context {
-	struct {
-		struct be_bus_address pa_base;
-		void *va_base;
-		void *ring_base;
-		struct async_pdu_handle *handle_base;
+struct hd_async_buf_context {
+	struct be_bus_address pa_base;
+	void *va_base;
+	void *ring_base;
+	struct hd_async_handle *handle_base;
+	u16 free_entries;
+	u32 buffer_size;
+	/**
+	 * Once iSCSI layer finishes processing an async PDU, the
+	 * handles used for the PDU are added to this list.
+	 * They are posted back to FW in groups of 8.
+	 */
+	struct list_head free_list;
+};
 
-		unsigned int host_write_ptr;
-		unsigned int ep_read_ptr;
-		unsigned int writables;
-
-		unsigned int free_entries;
-		unsigned int busy_entries;
-
-		struct list_head free_list;
-	} async_header;
-
-	struct {
-		struct be_bus_address pa_base;
-		void *va_base;
-		void *ring_base;
-		struct async_pdu_handle *handle_base;
-
-		unsigned int host_write_ptr;
-		unsigned int ep_read_ptr;
-		unsigned int writables;
-
-		unsigned int free_entries;
-		unsigned int busy_entries;
-		struct list_head free_list;
-	} async_data;
-
-	unsigned int buffer_size;
-	unsigned int num_entries;
+/**
+ * hd_async_context is declared for each ULP supporting iSCSI function.
+ */
+struct hd_async_context {
+	struct hd_async_buf_context async_header;
+	struct hd_async_buf_context async_data;
+	u16 num_entries;
+	/**
+	 * When unsol PDU is in, it needs to be chained till all the bytes are
+	 * received and then processing is done. hd_async_entry is created
+	 * based on the cid_count for each ULP. When unsol PDU comes in based
+	 * on the conn_id it needs to be added to the correct async_entry wq.
+	 * Below defined cid_to_async_cri_map is used to reterive the
+	 * async_cri_map for a particular connection.
+	 *
+	 * This array is initialized after beiscsi_create_wrb_rings returns.
+	 *
+	 * - this method takes more memory space, fixed to 2K
+	 * - any support for connections greater than this the array size needs
+	 * to be incremented
+	 */
 #define BE_GET_ASYNC_CRI_FROM_CID(cid) (pasync_ctx->cid_to_async_cri_map[cid])
 	unsigned short cid_to_async_cri_map[BE_MAX_SESSION];
 	/**
-	 * This is a varying size list! Do not add anything
-	 * after this entry!!
+	 * This is a variable size array. Don`t add anything after this field!!
 	 */
-	struct hwi_async_entry *async_entry;
+	struct hd_async_entry *async_entry;
 };
-
-#define PDUCQE_CODE_MASK	0x0000003F
-#define PDUCQE_DPL_MASK		0xFFFF0000
-#define PDUCQE_INDEX_MASK	0x0000FFFF
 
 struct i_t_dpdu_cqe {
 	u32 dw[4];
@@ -845,7 +862,6 @@ struct wrb_handle *alloc_wrb_handle(struct beiscsi_hba *phba, unsigned int cid,
 void
 free_mgmt_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle);
 
-void beiscsi_process_all_cqs(struct work_struct *work);
 void beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn,
 				     struct iscsi_task *task);
 
@@ -855,11 +871,6 @@ void hwi_ring_cq_db(struct beiscsi_hba *phba,
 
 unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq, int budget);
 void beiscsi_process_mcc_cq(struct beiscsi_hba *phba);
-
-static inline bool beiscsi_error(struct beiscsi_hba *phba)
-{
-	return phba->ue_detected || phba->fw_timeout;
-}
 
 struct pdu_nop_out {
 	u32 dw[12];
@@ -1067,10 +1078,17 @@ struct hwi_context_memory {
 	struct be_queue_info be_cq[MAX_CPUS - 1];
 
 	struct be_queue_info *be_wrbq;
+	/**
+	 * Create array of ULP number for below entries as DEFQ
+	 * will be created for both ULP if iSCSI Protocol is
+	 * loaded on both ULP.
+	 */
 	struct be_queue_info be_def_hdrq[BEISCSI_ULP_COUNT];
 	struct be_queue_info be_def_dataq[BEISCSI_ULP_COUNT];
-	struct hwi_async_pdu_context *pasync_ctx[BEISCSI_ULP_COUNT];
+	struct hd_async_context *pasync_ctx[BEISCSI_ULP_COUNT];
 };
+
+void beiscsi_start_boot_work(struct beiscsi_hba *phba, unsigned int s_handle);
 
 /* Logging related definitions */
 #define BEISCSI_LOG_INIT	0x0001	/* Initialization events */

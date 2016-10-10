@@ -43,18 +43,6 @@
  */
 
 static unsigned int lilly_db_board_pins[] __initdata = {
-	MX31_PIN_CTS1__CTS1,
-	MX31_PIN_RTS1__RTS1,
-	MX31_PIN_TXD1__TXD1,
-	MX31_PIN_RXD1__RXD1,
-	MX31_PIN_CTS2__CTS2,
-	MX31_PIN_RTS2__RTS2,
-	MX31_PIN_TXD2__TXD2,
-	MX31_PIN_RXD2__RXD2,
-	MX31_PIN_CSPI3_MOSI__RXD3,
-	MX31_PIN_CSPI3_MISO__TXD3,
-	MX31_PIN_CSPI3_SCLK__RTS3,
-	MX31_PIN_CSPI3_SPI_RDY__CTS3,
 	MX31_PIN_SD1_DATA3__SD1_DATA3,
 	MX31_PIN_SD1_DATA2__SD1_DATA2,
 	MX31_PIN_SD1_DATA1__SD1_DATA1,
@@ -84,11 +72,6 @@ static unsigned int lilly_db_board_pins[] __initdata = {
 	MX31_PIN_FPSHIFT__FPSHIFT,
 	MX31_PIN_DRDY0__DRDY0,
 	MX31_PIN_CONTRAST__CONTRAST,
-};
-
-/* UART */
-static const struct imxuart_platform_data uart_pdata __initconst = {
-	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 /* MMC support */
@@ -203,9 +186,6 @@ void __init mx31lilly_db_init(void)
 	mxc_iomux_setup_multiple_pins(lilly_db_board_pins,
 					ARRAY_SIZE(lilly_db_board_pins),
 					"development board pins");
-	imx31_add_imx_uart0(&uart_pdata);
-	imx31_add_imx_uart1(&uart_pdata);
-	imx31_add_imx_uart2(&uart_pdata);
 	imx31_add_mxc_mmc(0, &mmc_pdata);
 	mx31lilly_init_fb();
 }

@@ -3668,6 +3668,12 @@ static int adap_init0(struct adapter *adap)
 		adap->params.ulptx_memwrite_dsgl = (ret == 0 && val[0] != 0);
 	}
 
+	/* See if FW supports FW_RI_FR_NSMR_TPTE_WR work request */
+	params[0] = FW_PARAM_DEV(RI_FR_NSMR_TPTE_WR);
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
+			      1, params, val);
+	adap->params.fr_nsmr_tpte_wr_support = (ret == 0 && val[0] != 0);
+
 	/*
 	 * Get device capabilities so we can determine what resources we need
 	 * to manage.

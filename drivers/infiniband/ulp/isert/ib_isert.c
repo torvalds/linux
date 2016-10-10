@@ -309,7 +309,7 @@ isert_create_device_ib_res(struct isert_device *device)
 	if (ret)
 		goto out;
 
-	device->pd = ib_alloc_pd(ib_dev);
+	device->pd = ib_alloc_pd(ib_dev, 0);
 	if (IS_ERR(device->pd)) {
 		ret = PTR_ERR(device->pd);
 		isert_err("failed to allocate pd, device %p, ret=%d\n",

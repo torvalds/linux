@@ -582,7 +582,7 @@ static void gsc_hpdi_init_plx9080(struct comedi_device *dev)
 	bits |= PLX_DMAMODE_DEMAND;
 	/* enable local burst mode */
 	bits |= PLX_DMAMODE_BURSTEN;
-	bits |= PLX_DMAMODE_WIDTH32;
+	bits |= PLX_DMAMODE_WIDTH_32;
 	writel(bits, plx_iobase + PLX_REG_DMAMODE0);
 }
 

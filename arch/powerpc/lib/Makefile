@@ -22,7 +22,7 @@ obj64-$(CONFIG_SMP)	+= locks.o
 obj64-$(CONFIG_ALTIVEC)	+= vmx-helper.o
 
 ifeq ($(CONFIG_GENERIC_CSUM),)
-obj-y			+= checksum_$(CONFIG_WORD_SIZE).o checksum_wrappers.o
+obj-y			+= checksum_$(BITS).o checksum_wrappers.o
 endif
 
 obj-$(CONFIG_PPC_EMULATE_SSTEP)	+= sstep.o ldstfp.o

@@ -99,6 +99,10 @@ static int ics_deliver_irq(struct kvmppc_xics *xics, u32 irq, u32 level)
 		return 0;
 	}
 
+	/* Record which CPU this arrived on for passed-through interrupts */
+	if (state->host_irq)
+		state->intr_cpu = raw_smp_processor_id();
+
 	/* Attempt delivery */
 	icp_deliver_irq(xics, NULL, irq);
 
@@ -812,7 +816,7 @@ static noinline int kvmppc_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 	return H_SUCCESS;
 }
 
-static noinline int kvmppc_xics_rm_complete(struct kvm_vcpu *vcpu, u32 hcall)
+int kvmppc_xics_rm_complete(struct kvm_vcpu *vcpu, u32 hcall)
 {
 	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
 	struct kvmppc_icp *icp = vcpu->arch.icp;
@@ -841,6 +845,7 @@ static noinline int kvmppc_xics_rm_complete(struct kvm_vcpu *vcpu, u32 hcall)
 
 	return H_SUCCESS;
 }
+EXPORT_SYMBOL_GPL(kvmppc_xics_rm_complete);
 
 int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 req)
 {
@@ -892,6 +897,21 @@ EXPORT_SYMBOL_GPL(kvmppc_xics_hcall);
 
 /* -- Initialisation code etc. -- */
 
+static void xics_debugfs_irqmap(struct seq_file *m,
+				struct kvmppc_passthru_irqmap *pimap)
+{
+	int i;
+
+	if (!pimap)
+		return;
+	seq_printf(m, "========\nPIRQ mappings: %d maps\n===========\n",
+				pimap->n_mapped);
+	for (i = 0; i < pimap->n_mapped; i++)  {
+		seq_printf(m, "r_hwirq=%x, v_hwirq=%x\n",
+			pimap->mapped[i].r_hwirq, pimap->mapped[i].v_hwirq);
+	}
+}
+
 static int xics_debug_show(struct seq_file *m, void *private)
 {
 	struct kvmppc_xics *xics = m->private;
@@ -912,6 +932,8 @@ static int xics_debug_show(struct seq_file *m, void *private)
 	t_rm_reject = 0;
 	t_check_resend = 0;
 	t_reject = 0;
+
+	xics_debugfs_irqmap(m, kvm->arch.pimap);
 
 	seq_printf(m, "=========\nICP state\n=========\n");
 
@@ -1252,6 +1274,8 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 {
 	struct kvmppc_xics *xics = kvm->arch.xics;
 
+	if (!xics)
+		return -ENODEV;
 	return ics_deliver_irq(xics, irq, level);
 }
 
@@ -1418,3 +1442,34 @@ int kvm_irq_map_chip_pin(struct kvm *kvm, unsigned irqchip, unsigned pin)
 {
 	return pin;
 }
+
+void kvmppc_xics_set_mapped(struct kvm *kvm, unsigned long irq,
+			    unsigned long host_irq)
+{
+	struct kvmppc_xics *xics = kvm->arch.xics;
+	struct kvmppc_ics *ics;
+	u16 idx;
+
+	ics = kvmppc_xics_find_ics(xics, irq, &idx);
+	if (!ics)
+		return;
+
+	ics->irq_state[idx].host_irq = host_irq;
+	ics->irq_state[idx].intr_cpu = -1;
+}
+EXPORT_SYMBOL_GPL(kvmppc_xics_set_mapped);
+
+void kvmppc_xics_clr_mapped(struct kvm *kvm, unsigned long irq,
+			    unsigned long host_irq)
+{
+	struct kvmppc_xics *xics = kvm->arch.xics;
+	struct kvmppc_ics *ics;
+	u16 idx;
+
+	ics = kvmppc_xics_find_ics(xics, irq, &idx);
+	if (!ics)
+		return;
+
+	ics->irq_state[idx].host_irq = 0;
+}
+EXPORT_SYMBOL_GPL(kvmppc_xics_clr_mapped);

@@ -359,6 +359,12 @@ static inline void free_signal_struct(struct signal_struct *sig)
 {
 	taskstats_tgid_free(sig);
 	sched_autogroup_exit(sig);
+	/*
+	 * __mmdrop is not safe to call from softirq context on x86 due to
+	 * pgd_dtor so postpone it to the async context
+	 */
+	if (sig->oom_mm)
+		mmdrop_async(sig->oom_mm);
 	kmem_cache_free(signal_cachep, sig);
 }
 
@@ -418,6 +424,7 @@ int arch_task_struct_size __read_mostly;
 
 void __init fork_init(void)
 {
+	int i;
 #ifndef CONFIG_ARCH_TASK_STRUCT_ALLOCATOR
 #ifndef ARCH_MIN_TASKALIGN
 #define ARCH_MIN_TASKALIGN	L1_CACHE_BYTES
@@ -437,6 +444,10 @@ void __init fork_init(void)
 	init_task.signal->rlim[RLIMIT_NPROC].rlim_max = max_threads/2;
 	init_task.signal->rlim[RLIMIT_SIGPENDING] =
 		init_task.signal->rlim[RLIMIT_NPROC];
+
+	for (i = 0; i < UCOUNT_COUNTS; i++) {
+		init_user_ns.ucount_max[i] = max_threads/2;
+	}
 }
 
 int __weak arch_dup_task_struct(struct task_struct *dst,
@@ -843,6 +854,7 @@ static inline void __mmput(struct mm_struct *mm)
 	ksm_exit(mm);
 	khugepaged_exit(mm); /* must run before exit_mmap */
 	exit_mmap(mm);
+	mm_put_huge_zero_page(mm);
 	set_mm_exe_file(mm, NULL);
 	if (!list_empty(&mm->mmlist)) {
 		spin_lock(&mmlist_lock);
@@ -851,6 +863,7 @@ static inline void __mmput(struct mm_struct *mm)
 	}
 	if (mm->binfmt)
 		module_put(mm->binfmt->module);
+	set_bit(MMF_OOM_SKIP, &mm->flags);
 	mmdrop(mm);
 }
 

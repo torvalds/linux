@@ -200,7 +200,7 @@ xfs_setfilesize_trans_alloc(
  * Update on-disk file size now that data has been written to disk.
  */
 STATIC int
-xfs_setfilesize(
+__xfs_setfilesize(
 	struct xfs_inode	*ip,
 	struct xfs_trans	*tp,
 	xfs_off_t		offset,
@@ -225,6 +225,23 @@ xfs_setfilesize(
 	return xfs_trans_commit(tp);
 }
 
+int
+xfs_setfilesize(
+	struct xfs_inode	*ip,
+	xfs_off_t		offset,
+	size_t			size)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
+	int			error;
+
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0, 0, &tp);
+	if (error)
+		return error;
+
+	return __xfs_setfilesize(ip, tp, offset, size);
+}
+
 STATIC int
 xfs_setfilesize_ioend(
 	struct xfs_ioend	*ioend,
@@ -247,7 +264,7 @@ xfs_setfilesize_ioend(
 		return error;
 	}
 
-	return xfs_setfilesize(ip, tp, ioend->io_offset, ioend->io_size);
+	return __xfs_setfilesize(ip, tp, ioend->io_offset, ioend->io_size);
 }
 
 /*
@@ -1336,13 +1353,12 @@ xfs_end_io_direct_write(
 {
 	struct inode		*inode = file_inode(iocb->ki_filp);
 	struct xfs_inode	*ip = XFS_I(inode);
-	struct xfs_mount	*mp = ip->i_mount;
 	uintptr_t		flags = (uintptr_t)private;
 	int			error = 0;
 
 	trace_xfs_end_io_direct_write(ip, offset, size);
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return -EIO;
 
 	if (size <= 0)
@@ -1380,14 +1396,9 @@ xfs_end_io_direct_write(
 
 		error = xfs_iomap_write_unwritten(ip, offset, size);
 	} else if (flags & XFS_DIO_FLAG_APPEND) {
-		struct xfs_trans *tp;
-
 		trace_xfs_end_io_direct_write_append(ip, offset, size);
 
-		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0, 0,
-				&tp);
-		if (!error)
-			error = xfs_setfilesize(ip, tp, offset, size);
+		error = xfs_setfilesize(ip, offset, size);
 	}
 
 	return error;

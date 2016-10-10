@@ -19,7 +19,7 @@
 	model = "CompuLab CL-SOM-AM57x";
 	compatible = "compulab,cl-som-am57x", "ti,am5728", "ti,dra742", "ti,dra74", "ti,dra7";
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x20000000>; /* 512 MB - minimal configuration */
 	};
@@ -29,7 +29,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&leds_pins_default>;
 
-		led@0 {
+		led0 {
 			label = "cl-som-am57x:green";
 			gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";

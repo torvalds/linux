@@ -366,7 +366,6 @@ static int nforce2_probe_smb(struct pci_dev *dev, int bar, int alt_reg,
 
 	error = i2c_add_adapter(&smbus->adapter);
 	if (error) {
-		dev_err(&smbus->adapter.dev, "Failed to register adapter.\n");
 		release_region(smbus->base, smbus->size);
 		return error;
 	}

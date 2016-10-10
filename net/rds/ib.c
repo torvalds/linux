@@ -160,7 +160,7 @@ static void rds_ib_add_one(struct ib_device *device)
 	rds_ibdev->max_responder_resources = device->attrs.max_qp_rd_atom;
 
 	rds_ibdev->dev = device;
-	rds_ibdev->pd = ib_alloc_pd(device);
+	rds_ibdev->pd = ib_alloc_pd(device, 0);
 	if (IS_ERR(rds_ibdev->pd)) {
 		rds_ibdev->pd = NULL;
 		goto put_dev;

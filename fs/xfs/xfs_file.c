@@ -269,6 +269,8 @@ xfs_file_dio_aio_read(
 		return -EINVAL;
 	}
 
+	file_accessed(iocb->ki_filp);
+
 	/*
 	 * Locking is a bit tricky here. If we take an exclusive lock for direct
 	 * IO, we effectively serialise all new concurrent read IO to this file
@@ -323,7 +325,6 @@ xfs_file_dio_aio_read(
 	}
 	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
 
-	file_accessed(iocb->ki_filp);
 	return ret;
 }
 
@@ -332,10 +333,7 @@ xfs_file_dax_read(
 	struct kiocb		*iocb,
 	struct iov_iter		*to)
 {
-	struct address_space	*mapping = iocb->ki_filp->f_mapping;
-	struct inode		*inode = mapping->host;
-	struct xfs_inode	*ip = XFS_I(inode);
-	struct iov_iter		data = *to;
+	struct xfs_inode	*ip = XFS_I(iocb->ki_filp->f_mapping->host);
 	size_t			count = iov_iter_count(to);
 	ssize_t			ret = 0;
 
@@ -345,11 +343,7 @@ xfs_file_dax_read(
 		return 0; /* skip atime */
 
 	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
-	ret = dax_do_io(iocb, inode, &data, xfs_get_blocks_direct, NULL, 0);
-	if (ret > 0) {
-		iocb->ki_pos += ret;
-		iov_iter_advance(to, ret);
-	}
+	ret = iomap_dax_rw(iocb, to, &xfs_iomap_ops);
 	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
 
 	file_accessed(iocb->ki_filp);
@@ -396,45 +390,6 @@ xfs_file_read_iter(
 
 	if (ret > 0)
 		XFS_STATS_ADD(mp, xs_read_bytes, ret);
-	return ret;
-}
-
-STATIC ssize_t
-xfs_file_splice_read(
-	struct file		*infilp,
-	loff_t			*ppos,
-	struct pipe_inode_info	*pipe,
-	size_t			count,
-	unsigned int		flags)
-{
-	struct xfs_inode	*ip = XFS_I(infilp->f_mapping->host);
-	ssize_t			ret;
-
-	XFS_STATS_INC(ip->i_mount, xs_read_calls);
-
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
-		return -EIO;
-
-	trace_xfs_file_splice_read(ip, count, *ppos);
-
-	/*
-	 * DAX inodes cannot ues the page cache for splice, so we have to push
-	 * them through the VFS IO path. This means it goes through
-	 * ->read_iter, which for us takes the XFS_IOLOCK_SHARED. Hence we
-	 * cannot lock the splice operation at this level for DAX inodes.
-	 */
-	if (IS_DAX(VFS_I(ip))) {
-		ret = default_file_splice_read(infilp, ppos, pipe, count,
-					       flags);
-		goto out;
-	}
-
-	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
-	ret = generic_file_splice_read(infilp, ppos, pipe, count, flags);
-	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
-out:
-	if (ret > 0)
-		XFS_STATS_ADD(ip->i_mount, xs_read_bytes, ret);
 	return ret;
 }
 
@@ -711,70 +666,32 @@ xfs_file_dax_write(
 	struct kiocb		*iocb,
 	struct iov_iter		*from)
 {
-	struct address_space	*mapping = iocb->ki_filp->f_mapping;
-	struct inode		*inode = mapping->host;
+	struct inode		*inode = iocb->ki_filp->f_mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
-	struct xfs_mount	*mp = ip->i_mount;
-	ssize_t			ret = 0;
-	int			unaligned_io = 0;
-	int			iolock;
-	struct iov_iter		data;
+	int			iolock = XFS_IOLOCK_EXCL;
+	ssize_t			ret, error = 0;
+	size_t			count;
+	loff_t			pos;
 
-	/* "unaligned" here means not aligned to a filesystem block */
-	if ((iocb->ki_pos & mp->m_blockmask) ||
-	    ((iocb->ki_pos + iov_iter_count(from)) & mp->m_blockmask)) {
-		unaligned_io = 1;
-		iolock = XFS_IOLOCK_EXCL;
-	} else if (mapping->nrpages) {
-		iolock = XFS_IOLOCK_EXCL;
-	} else {
-		iolock = XFS_IOLOCK_SHARED;
-	}
 	xfs_rw_ilock(ip, iolock);
-
 	ret = xfs_file_aio_write_checks(iocb, from, &iolock);
 	if (ret)
 		goto out;
 
-	/*
-	 * Yes, even DAX files can have page cache attached to them:  A zeroed
-	 * page is inserted into the pagecache when we have to serve a write
-	 * fault on a hole.  It should never be dirtied and can simply be
-	 * dropped from the pagecache once we get real data for the page.
-	 *
-	 * XXX: This is racy against mmap, and there's nothing we can do about
-	 * it. dax_do_io() should really do this invalidation internally as
-	 * it will know if we've allocated over a holei for this specific IO and
-	 * if so it needs to update the mapping tree and invalidate existing
-	 * PTEs over the newly allocated range. Remove this invalidation when
-	 * dax_do_io() is fixed up.
-	 */
-	if (mapping->nrpages) {
-		loff_t end = iocb->ki_pos + iov_iter_count(from) - 1;
+	pos = iocb->ki_pos;
+	count = iov_iter_count(from);
 
-		ret = invalidate_inode_pages2_range(mapping,
-						    iocb->ki_pos >> PAGE_SHIFT,
-						    end >> PAGE_SHIFT);
-		WARN_ON_ONCE(ret);
+	trace_xfs_file_dax_write(ip, count, pos);
+
+	ret = iomap_dax_rw(iocb, from, &xfs_iomap_ops);
+	if (ret > 0 && iocb->ki_pos > i_size_read(inode)) {
+		i_size_write(inode, iocb->ki_pos);
+		error = xfs_setfilesize(ip, pos, ret);
 	}
 
-	if (iolock == XFS_IOLOCK_EXCL && !unaligned_io) {
-		xfs_rw_ilock_demote(ip, XFS_IOLOCK_EXCL);
-		iolock = XFS_IOLOCK_SHARED;
-	}
-
-	trace_xfs_file_dax_write(ip, iov_iter_count(from), iocb->ki_pos);
-
-	data = *from;
-	ret = dax_do_io(iocb, inode, &data, xfs_get_blocks_direct,
-			xfs_end_io_direct_write, 0);
-	if (ret > 0) {
-		iocb->ki_pos += ret;
-		iov_iter_advance(from, ret);
-	}
 out:
 	xfs_rw_iunlock(ip, iolock);
-	return ret;
+	return error ? error : ret;
 }
 
 STATIC ssize_t
@@ -1513,7 +1430,7 @@ xfs_filemap_page_mkwrite(
 	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
 
 	if (IS_DAX(inode)) {
-		ret = dax_mkwrite(vma, vmf, xfs_get_blocks_dax_fault);
+		ret = iomap_dax_fault(vma, vmf, &xfs_iomap_ops);
 	} else {
 		ret = iomap_page_mkwrite(vma, vmf, &xfs_iomap_ops);
 		ret = block_page_mkwrite_return(ret);
@@ -1547,7 +1464,7 @@ xfs_filemap_fault(
 		 * changes to xfs_get_blocks_direct() to map unwritten extent
 		 * ioend for conversion on read-only mappings.
 		 */
-		ret = dax_fault(vma, vmf, xfs_get_blocks_dax_fault);
+		ret = iomap_dax_fault(vma, vmf, &xfs_iomap_ops);
 	} else
 		ret = filemap_fault(vma, vmf);
 	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
@@ -1652,7 +1569,7 @@ const struct file_operations xfs_file_operations = {
 	.llseek		= xfs_file_llseek,
 	.read_iter	= xfs_file_read_iter,
 	.write_iter	= xfs_file_write_iter,
-	.splice_read	= xfs_file_splice_read,
+	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.unlocked_ioctl	= xfs_file_ioctl,
 #ifdef CONFIG_COMPAT
@@ -1662,6 +1579,7 @@ const struct file_operations xfs_file_operations = {
 	.open		= xfs_file_open,
 	.release	= xfs_file_release,
 	.fsync		= xfs_file_fsync,
+	.get_unmapped_area = thp_get_unmapped_area,
 	.fallocate	= xfs_file_fallocate,
 };
 

@@ -14,7 +14,7 @@
 #include <linux/mman.h>
 #include <linux/signal.h>
 #include <linux/mm.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/init.h>
 #include <linux/perf_event.h>
 #include <linux/interrupt.h>
