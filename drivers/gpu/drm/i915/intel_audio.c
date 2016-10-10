@@ -671,10 +671,8 @@ static int i915_audio_component_sync_audio_rate(struct device *kdev, int port,
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	struct intel_encoder *intel_encoder;
 	struct intel_crtc *crtc;
-	struct drm_display_mode *mode;
+	struct drm_display_mode *adjusted_mode;
 	struct i915_audio_component *acomp = dev_priv->audio_component;
-	u32 tmp;
-	int n;
 	int err = 0;
 
 	/* HSW, BDW, SKL, KBL need this fix */
@@ -700,33 +698,12 @@ static int i915_audio_component_sync_audio_rate(struct device *kdev, int port,
 	crtc = to_intel_crtc(intel_encoder->base.crtc);
 	pipe = crtc->pipe;
 
-	mode = &crtc->config->base.adjusted_mode;
+	adjusted_mode = &crtc->config->base.adjusted_mode;
 
 	/* port must be valid now, otherwise the pipe will be invalid */
 	acomp->aud_sample_rate[port] = rate;
 
-	/* 2. check whether to set the N/CTS/M manually or not */
-	if (!audio_rate_need_prog(crtc, mode)) {
-		tmp = I915_READ(HSW_AUD_CFG(pipe));
-		tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
-		I915_WRITE(HSW_AUD_CFG(pipe), tmp);
-		goto unlock;
-	}
-
-	n = audio_config_get_n(mode, rate);
-	if (n == 0) {
-		DRM_DEBUG_KMS("Using automatic mode for N value on port %c\n",
-					  port_name(port));
-		tmp = I915_READ(HSW_AUD_CFG(pipe));
-		tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
-		I915_WRITE(HSW_AUD_CFG(pipe), tmp);
-		goto unlock;
-	}
-
-	/* 3. set the N/CTS/M */
-	tmp = I915_READ(HSW_AUD_CFG(pipe));
-	tmp = audio_config_setup_n_reg(n, tmp);
-	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
+	hsw_audio_config_update(crtc, port, adjusted_mode);
 
  unlock:
 	mutex_unlock(&dev_priv->av_mutex);
