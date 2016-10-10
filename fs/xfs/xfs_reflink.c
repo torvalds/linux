@@ -1437,7 +1437,7 @@ xfs_reflink_dirty_extents(
 	xfs_off_t		flen;
 	struct xfs_bmbt_irec	map[2];
 	int			nmaps;
-	int			error;
+	int			error = 0;
 
 	while (end - fbno > 0) {
 		nmaps = 1;
