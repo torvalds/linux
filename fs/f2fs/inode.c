@@ -387,6 +387,8 @@ retry:
 		f2fs_lock_op(sbi);
 		err = remove_inode_page(inode);
 		f2fs_unlock_op(sbi);
+		if (err == -ENOENT)
+			err = 0;
 	}
 
 	/* give more chances, if ENOMEM case */
@@ -426,6 +428,18 @@ void handle_failed_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct node_info ni;
+
+	/*
+	 * clear nlink of inode in order to release resource of inode
+	 * immediately.
+	 */
+	clear_nlink(inode);
+
+	/*
+	 * we must call this to avoid inode being remained as dirty, resulting
+	 * in a panic when flushing dirty inodes in gdirty_list.
+	 */
+	update_inode_page(inode);
 
 	/* don't make bad inode, since it becomes a regular file. */
 	unlock_new_inode(inode);
