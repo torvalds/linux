@@ -252,6 +252,7 @@ retry:
 int update_inode(struct inode *inode, struct page *node_page)
 {
 	struct f2fs_inode *ri;
+	struct extent_tree *et = F2FS_I(inode)->extent_tree;
 
 	f2fs_inode_synced(inode);
 
@@ -267,11 +268,13 @@ int update_inode(struct inode *inode, struct page *node_page)
 	ri->i_size = cpu_to_le64(i_size_read(inode));
 	ri->i_blocks = cpu_to_le64(inode->i_blocks);
 
-	if (F2FS_I(inode)->extent_tree)
-		set_raw_extent(&F2FS_I(inode)->extent_tree->largest,
-							&ri->i_ext);
-	else
+	if (et) {
+		read_lock(&et->lock);
+		set_raw_extent(&et->largest, &ri->i_ext);
+		read_unlock(&et->lock);
+	} else {
 		memset(&ri->i_ext, 0, sizeof(ri->i_ext));
+	}
 	set_raw_inline(inode, ri);
 
 	ri->i_atime = cpu_to_le64(inode->i_atime.tv_sec);
