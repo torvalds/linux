@@ -973,8 +973,9 @@ static int read_write(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		} else {
 			chip->rw_fail_cnt[lun]++;
 			if (srb->sc_data_direction == DMA_FROM_DEVICE)
-				set_sense_type(chip, lun,
-					SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
+				set_sense_type
+					(chip, lun,
+					 SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 			else
 				set_sense_type(chip, lun,
 					       SENSE_TYPE_MEDIA_WRITE_ERR);
@@ -1981,8 +1982,9 @@ static int read_phy_register(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 			retval = rtsx_read_phy_register(chip, addr + i, &val);
 			if (retval != STATUS_SUCCESS) {
 				vfree(buf);
-				set_sense_type(chip, SCSI_LUN(srb),
-					SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
+				set_sense_type
+					(chip, SCSI_LUN(srb),
+					 SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 				rtsx_trace(chip);
 				return TRANSPORT_FAILED;
 			}
