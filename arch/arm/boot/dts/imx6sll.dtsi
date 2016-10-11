@@ -90,14 +90,18 @@
 
 		ckil: clock@0 {
 			compatible = "fixed-clock";
+			reg = <0>;
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
+			clock-output-names = "ckil";
 		};
 
-		osc: osc@1 {
+		osc: clock@1 {
 			compatible = "fixed-clock";
+			reg = <1>;
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
+			clock-output-names = "osc";
 		};
 
 		ipp_di0: clock@2 {
