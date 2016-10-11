@@ -652,7 +652,7 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 		return STATUS_FAIL;
 	}
 
-	mcu_cnt = (u8)(125/clk + 3);
+	mcu_cnt = (u8)(125 / clk + 3);
 	if (mcu_cnt > 7)
 		mcu_cnt = 7;
 
