@@ -400,7 +400,7 @@ void set_sense_data(struct rtsx_chip *chip, unsigned int lun, u8 err_code,
 		    u8 sense_key, u32 info, u8 asc, u8 ascq, u8 sns_key_info0,
 		u16 sns_key_info1)
 {
-	struct sense_data_t *sense = &(chip->sense_buffer[lun]);
+	struct sense_data_t *sense = &chip->sense_buffer[lun];
 
 	sense->err_code = err_code;
 	sense->sense_key = sense_key;
@@ -436,7 +436,7 @@ static int test_unit_ready(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 #ifdef SUPPORT_SD_LOCK
 	if (get_lun_card(chip, SCSI_LUN(srb)) == SD_CARD) {
-		struct sd_info *sd_card = &(chip->sd_card);
+		struct sd_info *sd_card = &chip->sd_card;
 
 		if (sd_card->sd_lock_notify) {
 			sd_card->sd_lock_notify = 0;
@@ -615,10 +615,10 @@ static int request_sense(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
 	struct sense_data_t *sense;
 	unsigned int lun = SCSI_LUN(srb);
-	struct ms_info *ms_card = &(chip->ms_card);
+	struct ms_info *ms_card = &chip->ms_card;
 	unsigned char *tmp, *buf;
 
-	sense = &(chip->sense_buffer[lun]);
+	sense = &chip->sense_buffer[lun];
 
 	if ((get_lun_card(chip, lun) == MS_CARD) &&
 	    ms_card->pro_under_formatting) {
@@ -661,7 +661,7 @@ static int request_sense(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 static void ms_mode_sense(struct rtsx_chip *chip, u8 cmd,
 			  int lun, u8 *buf, int buf_len)
 {
-	struct ms_info *ms_card = &(chip->ms_card);
+	struct ms_info *ms_card = &chip->ms_card;
 	int sys_info_offset;
 	int data_size = buf_len;
 	bool support_format = false;
@@ -854,7 +854,7 @@ static int mode_sense(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 static int read_write(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
 #ifdef SUPPORT_SD_LOCK
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 #endif
 	unsigned int lun = SCSI_LUN(srb);
 	int retval;
@@ -1346,7 +1346,7 @@ static int write_mem(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 static int get_sd_csd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	unsigned int lun = SCSI_LUN(srb);
 
 	if (!check_card_ready(chip, lun)) {
@@ -1522,9 +1522,9 @@ static int set_variable(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 	if (srb->cmnd[3] == 1) {
 		/* Variable Clock */
-		struct xd_info *xd_card = &(chip->xd_card);
-		struct sd_info *sd_card = &(chip->sd_card);
-		struct ms_info *ms_card = &(chip->ms_card);
+		struct xd_info *xd_card = &chip->xd_card;
+		struct sd_info *sd_card = &chip->sd_card;
+		struct ms_info *ms_card = &chip->ms_card;
 
 		switch (srb->cmnd[4]) {
 		case XD_CARD:
@@ -1586,9 +1586,9 @@ static int get_variable(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	unsigned int lun = SCSI_LUN(srb);
 
 	if (srb->cmnd[3] == 1) {
-		struct xd_info *xd_card = &(chip->xd_card);
-		struct sd_info *sd_card = &(chip->sd_card);
-		struct ms_info *ms_card = &(chip->ms_card);
+		struct xd_info *xd_card = &chip->xd_card;
+		struct sd_info *sd_card = &chip->sd_card;
+		struct ms_info *ms_card = &chip->ms_card;
 		u8 tmp;
 
 		switch (srb->cmnd[4]) {
@@ -1668,8 +1668,8 @@ static int dma_access_ring_buffer(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 static int get_dev_status(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
-	struct ms_info *ms_card = &(chip->ms_card);
+	struct sd_info *sd_card = &chip->sd_card;
+	struct ms_info *ms_card = &chip->ms_card;
 	int buf_len;
 	unsigned int lun = SCSI_LUN(srb);
 	u8 card = get_lun_card(chip, lun);
@@ -2671,7 +2671,7 @@ static int read_status(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	if (get_lun_card(chip, lun) == XD_CARD) {
 		rtsx_status[13] = 0x40;
 	} else if (get_lun_card(chip, lun) == SD_CARD) {
-		struct sd_info *sd_card = &(chip->sd_card);
+		struct sd_info *sd_card = &chip->sd_card;
 
 		rtsx_status[13] = 0x20;
 		if (CHK_SD(sd_card)) {
@@ -2687,7 +2687,7 @@ static int read_status(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 				rtsx_status[13] |= 0x04;
 		}
 	} else if (get_lun_card(chip, lun) == MS_CARD) {
-		struct ms_info *ms_card = &(chip->ms_card);
+		struct ms_info *ms_card = &chip->ms_card;
 
 		if (CHK_MSPRO(ms_card)) {
 			rtsx_status[13] = 0x38;
@@ -2916,7 +2916,7 @@ void led_shine(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 static int ms_format_cmnd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	struct ms_info *ms_card = &(chip->ms_card);
+	struct ms_info *ms_card = &chip->ms_card;
 	unsigned int lun = SCSI_LUN(srb);
 	bool quick_format;
 	int retval;
@@ -2987,7 +2987,7 @@ static int ms_format_cmnd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 #ifdef SUPPORT_PCGL_1P18
 static int get_ms_information(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	struct ms_info *ms_card = &(chip->ms_card);
+	struct ms_info *ms_card = &chip->ms_card;
 	unsigned int lun = SCSI_LUN(srb);
 	u8 dev_info_id, data_len;
 	u8 *buf;
@@ -3165,7 +3165,7 @@ static int sd_extension_cmnd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 #ifdef SUPPORT_MAGIC_GATE
 static int mg_report_key(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	struct ms_info *ms_card = &(chip->ms_card);
+	struct ms_info *ms_card = &chip->ms_card;
 	unsigned int lun = SCSI_LUN(srb);
 	int retval;
 	u8 key_format;
@@ -3278,7 +3278,7 @@ static int mg_report_key(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 static int mg_send_key(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	struct ms_info *ms_card = &(chip->ms_card);
+	struct ms_info *ms_card = &chip->ms_card;
 	unsigned int lun = SCSI_LUN(srb);
 	int retval;
 	u8 key_format;
@@ -3416,9 +3416,9 @@ static int mg_send_key(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 int rtsx_scsi_handler(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
 #ifdef SUPPORT_SD_LOCK
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 #endif
-	struct ms_info *ms_card = &(chip->ms_card);
+	struct ms_info *ms_card = &chip->ms_card;
 	unsigned int lun = SCSI_LUN(srb);
 	int result;
 
