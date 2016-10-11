@@ -645,7 +645,7 @@ static inline bool task_queued(struct task_struct *p)
 	return !skiplist_node_empty(&p->node);
 }
 
-static void enqueue_task(struct task_struct *p, struct rq *rq);
+static void enqueue_task(struct rq *rq, struct task_struct *p, int flags);
 
 static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
 {
@@ -692,7 +692,7 @@ static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
 		rq = __task_rq_lock(prev);
 		/* Check that someone else hasn't already queued prev */
 		if (likely(!task_queued(prev))) {
-			enqueue_task(prev, rq);
+			enqueue_task(rq, prev, 0);
 			prev->on_rq = TASK_ON_RQ_QUEUED;
 			/* Wake up the CPU if it's not already running */
 			resched_if_idle(rq);
@@ -785,10 +785,12 @@ static void update_load_avg(struct rq *rq)
  * and does not require a full look up. Thus it occurs in O(k) time where k
  * is the "level" of the list the task was stored at - usually < 4, max 8.
  */
-static void dequeue_task(struct task_struct *p, struct rq *rq)
+static void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 {
 	skiplist_delete(rq->sl, &p->node);
 	update_clocks(rq);
+	if (!(flags & DEQUEUE_SAVE))
+		sched_info_dequeued(task_rq(p), p);
 	update_load_avg(rq);
 }
 
@@ -834,7 +836,7 @@ static inline bool needs_other_cpu(struct task_struct *p, int cpu)
 /*
  * Adding to the runqueue. Enter with rq locked.
  */
-static void enqueue_task(struct task_struct *p, struct rq *rq)
+static void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 {
 	unsigned int randseed;
 	u64 sl_id;
@@ -875,6 +877,8 @@ static void enqueue_task(struct task_struct *p, struct rq *rq)
 	 * so mask out ~microseconds as the random seed for skiplist insertion.
 	 */
 	update_clocks(rq);
+	if (!(flags & ENQUEUE_RESTORE))
+		sched_info_queued(rq, p);
 	randseed = (rq->niffies >> 10) & 0xFFFFFFFF;
 	skiplist_insert(rq->sl, &p->node, sl_id, p, randseed);
 	update_load_avg(rq);
@@ -1228,8 +1232,7 @@ static void activate_task(struct task_struct *p, struct rq *rq)
 	if (task_contributes_to_load(p))
 		atomic_dec(&grq.nr_uninterruptible);
 
-	enqueue_task(p, rq);
-	sched_info_queued(rq, p);
+	enqueue_task(rq, p, 0);
 	p->on_rq = TASK_ON_RQ_QUEUED;
 	atomic_inc(&grq.nr_running);
 	inc_qnr();
@@ -1244,7 +1247,6 @@ static inline void deactivate_task(struct task_struct *p, struct rq *rq)
 	if (task_contributes_to_load(p))
 		atomic_inc(&grq.nr_uninterruptible);
 
-	sched_info_dequeued(rq, p);
 	p->on_rq = 0;
 	atomic_dec(&grq.nr_running);
 }
@@ -1296,14 +1298,10 @@ void set_task_cpu(struct task_struct *p, unsigned int cpu)
 	}
 
 	if ((queued = task_queued(p)))
-		dequeue_task(p, rq);
-	/*
-	 * If a task is running here it will have the cpu updated but will
-	 * have to be forced onto another runqueue within return_task.
-	 */
+		dequeue_task(rq, p, DEQUEUE_SAVE);
 	task_thread_info(p)->cpu = p->wake_cpu = cpu;
 	if (queued)
-		enqueue_task(p, cpu_rq(cpu));
+		enqueue_task(cpu_rq(cpu), p, ENQUEUE_RESTORE);
 }
 #endif /* CONFIG_SMP */
 
@@ -1313,7 +1311,7 @@ void set_task_cpu(struct task_struct *p, unsigned int cpu)
  */
 static inline void take_task(struct rq *rq, int cpu, struct task_struct *p)
 {
-	dequeue_task(p, task_rq(p));
+	dequeue_task(task_rq(p), p, 0);
 	set_task_cpu(p, cpu);
 	dec_qnr();
 }
@@ -1340,7 +1338,7 @@ static inline void return_task(struct task_struct *p, struct rq *rq,
 			p->on_rq = TASK_ON_RQ_MIGRATING;
 		else
 #endif
-			enqueue_task(p, rq);
+			enqueue_task(rq, p, 0);
 	}
 }
 
@@ -4088,8 +4086,8 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 		if (prio > oldprio)
 			resched_task(p);
 	} else if (task_queued(p)) {
-		dequeue_task(p, rq);
-		enqueue_task(p, rq);
+		dequeue_task(rq, p, DEQUEUE_SAVE);
+		enqueue_task(rq, p, ENQUEUE_RESTORE);
 		if (prio < oldprio)
 			try_preempt(p, rq);
 	}
@@ -4139,8 +4137,8 @@ void set_user_nice(struct task_struct *p, long nice)
 	p->prio = effective_prio(p);
 
 	if (task_queued(p)) {
-		dequeue_task(p, rq);
-		enqueue_task(p, rq);
+		dequeue_task(rq, p, DEQUEUE_SAVE);
+		enqueue_task(rq, p, ENQUEUE_RESTORE);
 		if (new_static < old_static)
 			try_preempt(p, rq);
 	} else if (task_running(rq, p)) {
@@ -4294,8 +4292,8 @@ static void __setscheduler(struct task_struct *p, struct rq *rq, int policy,
 		reset_rq_task(rq, p);
 		resched_task(p);
 	} else if (task_queued(p)) {
-		dequeue_task(p, rq);
-		enqueue_task(p, rq);
+		dequeue_task(rq, p, DEQUEUE_SAVE);
+		enqueue_task(rq, p, ENQUEUE_RESTORE);
 		if (p->prio < oldprio || p->rt_priority > oldrtprio)
 			try_preempt(p, rq);
 	}
