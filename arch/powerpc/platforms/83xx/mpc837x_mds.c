@@ -79,10 +79,7 @@ out:
  */
 static void __init mpc837x_mds_setup_arch(void)
 {
-	if (ppc_md.progress)
-		ppc_md.progress("mpc837x_mds_setup_arch()", 0);
-
-	mpc83xx_setup_pci();
+	mpc83xx_setup_arch();
 	mpc837xmds_usb_cfg();
 }
 

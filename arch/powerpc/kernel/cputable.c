@@ -1248,6 +1248,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.mmu_features		= MMU_FTR_TYPE_8xx,
 		.icache_bsize		= 16,
 		.dcache_bsize		= 16,
+		.machine_check		= machine_check_8xx,
 		.platform		= "ppc823",
 	},
 #endif /* CONFIG_8xx */
