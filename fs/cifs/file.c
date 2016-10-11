@@ -739,6 +739,15 @@ reopen_success:
 	 * to the server to get the new inode info.
 	 */
 
+	/*
+	 * If the server returned a read oplock and we have mandatory brlocks,
+	 * set oplock level to None.
+	 */
+	if (server->ops->is_read_op(oplock) && cifs_has_mand_locks(cinode)) {
+		cifs_dbg(FYI, "Reset oplock val from read to None due to mand locks\n");
+		oplock = 0;
+	}
+
 	server->ops->set_fid(cfile, &cfile->fid, oplock);
 	if (oparms.reconnect)
 		cifs_relock_file(cfile);
