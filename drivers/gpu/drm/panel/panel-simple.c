@@ -555,6 +555,33 @@ static const struct panel_desc auo_b133htn01 = {
 	},
 };
 
+static const struct drm_display_mode auo_t215hvn01_mode = {
+	.clock = 148800,
+	.hdisplay = 1920,
+	.hsync_start = 1920 + 88,
+	.hsync_end = 1920 + 88 + 44,
+	.htotal = 1920 + 88 + 44 + 148,
+	.vdisplay = 1080,
+	.vsync_start = 1080 + 4,
+	.vsync_end = 1080 + 4 + 5,
+	.vtotal = 1080 + 4 + 5 + 36,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc auo_t215hvn01 = {
+	.modes = &auo_t215hvn01_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 430,
+		.height = 270,
+	},
+	.delay = {
+		.disable = 5,
+		.unprepare = 1000,
+	}
+};
+
 static const struct drm_display_mode avic_tm070ddh03_mode = {
 	.clock = 51200,
 	.hdisplay = 1024,
@@ -1598,6 +1625,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "auo,b133xtn01",
 		.data = &auo_b133xtn01,
+	}, {
+		.compatible = "auo,t215hvn01",
+		.data = &auo_t215hvn01,
 	}, {
 		.compatible = "avic,tm070ddh03",
 		.data = &avic_tm070ddh03,
