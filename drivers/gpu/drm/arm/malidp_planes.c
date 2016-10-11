@@ -27,12 +27,24 @@
 #define   LAYER_H_FLIP			(1 << 10)
 #define   LAYER_V_FLIP			(1 << 11)
 #define   LAYER_ROT_MASK		(0xf << 8)
+#define   LAYER_COMP_MASK		(0x3 << 12)
+#define   LAYER_COMP_PIXEL		(0x3 << 12)
+#define   LAYER_COMP_PLANE		(0x2 << 12)
+#define MALIDP_LAYER_COMPOSE		0x008
 #define MALIDP_LAYER_SIZE		0x00c
 #define   LAYER_H_VAL(x)		(((x) & 0x1fff) << 0)
 #define   LAYER_V_VAL(x)		(((x) & 0x1fff) << 16)
 #define MALIDP_LAYER_COMP_SIZE		0x010
 #define MALIDP_LAYER_OFFSET		0x014
 #define MALIDP_LAYER_STRIDE		0x018
+
+/*
+ * This 4-entry look-up-table is used to determine the full 8-bit alpha value
+ * for formats with 1- or 2-bit alpha channels.
+ * We set it to give 100%/0% opacity for 1-bit formats and 100%/66%/33%/0%
+ * opacity for 2-bit formats.
+ */
+#define MALIDP_ALPHA_LUT 0xffaa5500
 
 static void malidp_de_plane_destroy(struct drm_plane *plane)
 {
@@ -150,7 +162,7 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	const struct malidp_hw_regmap *map;
 	u8 format_id;
 	u16 ptr;
-	u32 format, src_w, src_h, dest_w, dest_h, val = 0;
+	u32 format, src_w, src_h, dest_w, dest_h, val;
 	int num_planes, i;
 
 	mp = to_malidp_plane(plane);
@@ -194,9 +206,9 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 			LAYER_V_VAL(plane->state->crtc_y),
 			mp->layer->base + MALIDP_LAYER_OFFSET);
 
-	/* first clear the rotation bits in the register */
-	malidp_hw_clearbits(mp->hwdev, LAYER_ROT_MASK,
-			    mp->layer->base + MALIDP_LAYER_CONTROL);
+	/* first clear the rotation bits */
+	val = malidp_hw_read(mp->hwdev, mp->layer->base + MALIDP_LAYER_CONTROL);
+	val &= ~LAYER_ROT_MASK;
 
 	/* setup the rotation and axis flip bits */
 	if (plane->state->rotation & DRM_ROTATE_MASK)
@@ -206,11 +218,18 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	if (plane->state->rotation & DRM_REFLECT_Y)
 		val |= LAYER_H_FLIP;
 
+	/*
+	 * always enable pixel alpha blending until we have a way to change
+	 * blend modes
+	 */
+	val &= ~LAYER_COMP_MASK;
+	val |= LAYER_COMP_PIXEL;
+
 	/* set the 'enable layer' bit */
 	val |= LAYER_ENABLE;
 
-	malidp_hw_setbits(mp->hwdev, val,
-			  mp->layer->base + MALIDP_LAYER_CONTROL);
+	malidp_hw_write(mp->hwdev, val,
+			mp->layer->base + MALIDP_LAYER_CONTROL);
 }
 
 static void malidp_de_plane_disable(struct drm_plane *plane,
@@ -279,6 +298,8 @@ int malidp_de_planes_init(struct drm_device *drm)
 			continue;
 
 		drm_plane_create_rotation_property(&plane->base, DRM_ROTATE_0, flags);
+		malidp_hw_write(malidp->dev, MALIDP_ALPHA_LUT,
+				plane->layer->base + MALIDP_LAYER_COMPOSE);
 	}
 
 	kfree(formats);
