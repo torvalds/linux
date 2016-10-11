@@ -51,8 +51,6 @@ prototypes:
 	int (*rmdir) (struct inode *,struct dentry *);
 	int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
 	int (*rename) (struct inode *, struct dentry *,
-			struct inode *, struct dentry *);
-	int (*rename2) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
 	const char *(*get_link) (struct dentry *, struct inode *, void **);
@@ -61,10 +59,7 @@ prototypes:
 	int (*get_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *, struct dentry *, struct kstat *);
-	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);
-	ssize_t (*getxattr) (struct dentry *, const char *, void *, size_t);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
-	int (*removexattr) (struct dentry *, const char *);
 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start, u64 len);
 	void (*update_time)(struct inode *, struct timespec *, int);
 	int (*atomic_open)(struct inode *, struct dentry *,
@@ -83,30 +78,43 @@ symlink:	yes
 mkdir:		yes
 unlink:		yes (both)
 rmdir:		yes (both)	(see below)
-rename:		yes (all)	(see below)
-rename2:	yes (all)	(see below)
+rename:	yes (all)	(see below)
 readlink:	no
 get_link:	no
 setattr:	yes
 permission:	no (may not block if called in rcu-walk mode)
 get_acl:	no
 getattr:	no
-setxattr:	yes
-getxattr:	no
 listxattr:	no
-removexattr:	yes
 fiemap:		no
 update_time:	no
 atomic_open:	yes
 tmpfile:	no
 
+
 	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_mutex on
 victim.
-	cross-directory ->rename() and rename2() has (per-superblock)
-->s_vfs_rename_sem.
+	cross-directory ->rename() has (per-superblock) ->s_vfs_rename_sem.
 
 See Documentation/filesystems/directory-locking for more detailed discussion
 of the locking scheme for directory operations.
+
+----------------------- xattr_handler operations -----------------------
+prototypes:
+	bool (*list)(struct dentry *dentry);
+	int (*get)(const struct xattr_handler *handler, struct dentry *dentry,
+		   struct inode *inode, const char *name, void *buffer,
+		   size_t size);
+	int (*set)(const struct xattr_handler *handler, struct dentry *dentry,
+		   struct inode *inode, const char *name, const void *buffer,
+		   size_t size, int flags);
+
+locking rules:
+	all may block
+		i_mutex(inode)
+list:		no
+get:		no
+set:		yes
 
 --------------------------- super_operations ---------------------------
 prototypes:

@@ -4059,7 +4059,7 @@ err:
 	inode_inc_iversion(inode);
 	inode_inc_iversion(dir);
 	inode->i_ctime = dir->i_mtime =
-		dir->i_ctime = current_fs_time(inode->i_sb);
+		dir->i_ctime = current_time(inode);
 	ret = btrfs_update_inode(trans, root, dir);
 out:
 	return ret;
@@ -4202,7 +4202,7 @@ int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 
 	btrfs_i_size_write(dir, dir->i_size - name_len * 2);
 	inode_inc_iversion(dir);
-	dir->i_mtime = dir->i_ctime = current_fs_time(dir->i_sb);
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	ret = btrfs_update_inode_fallback(trans, root, dir);
 	if (ret)
 		btrfs_abort_transaction(trans, ret);
@@ -4965,7 +4965,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 		inode_inc_iversion(inode);
 		if (!(mask & (ATTR_CTIME | ATTR_MTIME)))
 			inode->i_ctime = inode->i_mtime =
-				current_fs_time(inode->i_sb);
+				current_time(inode);
 	}
 
 	if (newsize > oldsize) {
@@ -5072,7 +5072,7 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (btrfs_root_readonly(root))
 		return -EROFS;
 
-	err = inode_change_ok(inode, attr);
+	err = setattr_prepare(dentry, attr);
 	if (err)
 		return err;
 
@@ -5672,7 +5672,7 @@ static struct inode *new_simple_dir(struct super_block *s,
 	inode->i_op = &btrfs_dir_ro_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	inode->i_mode = S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO;
-	inode->i_mtime = current_fs_time(inode->i_sb);
+	inode->i_mtime = current_time(inode);
 	inode->i_atime = inode->i_mtime;
 	inode->i_ctime = inode->i_mtime;
 	BTRFS_I(inode)->i_otime = inode->i_mtime;
@@ -6258,7 +6258,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	inode_init_owner(inode, dir, mode);
 	inode_set_bytes(inode, 0);
 
-	inode->i_mtime = current_fs_time(inode->i_sb);
+	inode->i_mtime = current_time(inode);
 	inode->i_atime = inode->i_mtime;
 	inode->i_ctime = inode->i_mtime;
 	BTRFS_I(inode)->i_otime = inode->i_mtime;
@@ -6372,7 +6372,7 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 			   name_len * 2);
 	inode_inc_iversion(parent_inode);
 	parent_inode->i_mtime = parent_inode->i_ctime =
-		current_fs_time(parent_inode->i_sb);
+		current_time(parent_inode);
 	ret = btrfs_update_inode(trans, root, parent_inode);
 	if (ret)
 		btrfs_abort_transaction(trans, ret);
@@ -6590,7 +6590,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	BTRFS_I(inode)->dir_index = 0ULL;
 	inc_nlink(inode);
 	inode_inc_iversion(inode);
-	inode->i_ctime = current_fs_time(inode->i_sb);
+	inode->i_ctime = current_time(inode);
 	ihold(inode);
 	set_bit(BTRFS_INODE_COPY_EVERYTHING, &BTRFS_I(inode)->runtime_flags);
 
@@ -8619,7 +8619,7 @@ static ssize_t check_direct_IO(struct btrfs_root *root, struct kiocb *iocb,
 		goto out;
 
 	/* If this is a write we don't need to check anymore */
-	if (iov_iter_rw(iter) == WRITE)
+	if (iov_iter_rw(iter) != READ || !iter_is_iovec(iter))
 		return 0;
 	/*
 	 * Check to make sure we don't have duplicate iov_base's in this
@@ -9493,7 +9493,7 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	struct btrfs_root *dest = BTRFS_I(new_dir)->root;
 	struct inode *new_inode = new_dentry->d_inode;
 	struct inode *old_inode = old_dentry->d_inode;
-	struct timespec ctime = CURRENT_TIME;
+	struct timespec ctime = current_time(old_inode);
 	struct dentry *parent;
 	u64 old_ino = btrfs_ino(old_inode);
 	u64 new_ino = btrfs_ino(new_inode);
@@ -9861,7 +9861,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	inode_inc_iversion(old_inode);
 	old_dir->i_ctime = old_dir->i_mtime =
 	new_dir->i_ctime = new_dir->i_mtime =
-	old_inode->i_ctime = current_fs_time(old_dir->i_sb);
+	old_inode->i_ctime = current_time(old_dir);
 
 	if (old_dentry->d_parent != new_dentry->d_parent)
 		btrfs_record_unlink_dir(trans, old_dir, old_inode, 1);
@@ -9886,7 +9886,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	if (new_inode) {
 		inode_inc_iversion(new_inode);
-		new_inode->i_ctime = current_fs_time(new_inode->i_sb);
+		new_inode->i_ctime = current_time(new_inode);
 		if (unlikely(btrfs_ino(new_inode) ==
 			     BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)) {
 			root_objectid = BTRFS_I(new_inode)->location.objectid;
@@ -10404,7 +10404,7 @@ next:
 		*alloc_hint = ins.objectid + ins.offset;
 
 		inode_inc_iversion(inode);
-		inode->i_ctime = current_fs_time(inode->i_sb);
+		inode->i_ctime = current_time(inode);
 		BTRFS_I(inode)->flags |= BTRFS_INODE_PREALLOC;
 		if (!(mode & FALLOC_FL_KEEP_SIZE) &&
 		    (actual_len > inode->i_size) &&
@@ -10544,21 +10544,6 @@ out_inode:
 
 }
 
-/* Inspired by filemap_check_errors() */
-int btrfs_inode_check_errors(struct inode *inode)
-{
-	int ret = 0;
-
-	if (test_bit(AS_ENOSPC, &inode->i_mapping->flags) &&
-	    test_and_clear_bit(AS_ENOSPC, &inode->i_mapping->flags))
-		ret = -ENOSPC;
-	if (test_bit(AS_EIO, &inode->i_mapping->flags) &&
-	    test_and_clear_bit(AS_EIO, &inode->i_mapping->flags))
-		ret = -EIO;
-
-	return ret;
-}
-
 static const struct inode_operations btrfs_dir_inode_operations = {
 	.getattr	= btrfs_getattr,
 	.lookup		= btrfs_lookup,
@@ -10567,14 +10552,11 @@ static const struct inode_operations btrfs_dir_inode_operations = {
 	.link		= btrfs_link,
 	.mkdir		= btrfs_mkdir,
 	.rmdir		= btrfs_rmdir,
-	.rename2	= btrfs_rename2,
+	.rename		= btrfs_rename2,
 	.symlink	= btrfs_symlink,
 	.setattr	= btrfs_setattr,
 	.mknod		= btrfs_mknod,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
 	.listxattr	= btrfs_listxattr,
-	.removexattr	= generic_removexattr,
 	.permission	= btrfs_permission,
 	.get_acl	= btrfs_get_acl,
 	.set_acl	= btrfs_set_acl,
@@ -10648,10 +10630,7 @@ static const struct address_space_operations btrfs_symlink_aops = {
 static const struct inode_operations btrfs_file_inode_operations = {
 	.getattr	= btrfs_getattr,
 	.setattr	= btrfs_setattr,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
 	.listxattr      = btrfs_listxattr,
-	.removexattr	= generic_removexattr,
 	.permission	= btrfs_permission,
 	.fiemap		= btrfs_fiemap,
 	.get_acl	= btrfs_get_acl,
@@ -10662,10 +10641,7 @@ static const struct inode_operations btrfs_special_inode_operations = {
 	.getattr	= btrfs_getattr,
 	.setattr	= btrfs_setattr,
 	.permission	= btrfs_permission,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
 	.listxattr	= btrfs_listxattr,
-	.removexattr	= generic_removexattr,
 	.get_acl	= btrfs_get_acl,
 	.set_acl	= btrfs_set_acl,
 	.update_time	= btrfs_update_time,
@@ -10676,10 +10652,7 @@ static const struct inode_operations btrfs_symlink_inode_operations = {
 	.getattr	= btrfs_getattr,
 	.setattr	= btrfs_setattr,
 	.permission	= btrfs_permission,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
 	.listxattr	= btrfs_listxattr,
-	.removexattr	= generic_removexattr,
 	.update_time	= btrfs_update_time,
 };
 

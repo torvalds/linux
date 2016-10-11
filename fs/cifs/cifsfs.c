@@ -896,35 +896,26 @@ const struct inode_operations cifs_dir_inode_ops = {
 	.link = cifs_hardlink,
 	.mkdir = cifs_mkdir,
 	.rmdir = cifs_rmdir,
-	.rename2 = cifs_rename2,
+	.rename = cifs_rename2,
 	.permission = cifs_permission,
 	.setattr = cifs_setattr,
 	.symlink = cifs_symlink,
 	.mknod   = cifs_mknod,
-	.setxattr = generic_setxattr,
-	.getxattr = generic_getxattr,
 	.listxattr = cifs_listxattr,
-	.removexattr = generic_removexattr,
 };
 
 const struct inode_operations cifs_file_inode_ops = {
 	.setattr = cifs_setattr,
 	.getattr = cifs_getattr,
 	.permission = cifs_permission,
-	.setxattr = generic_setxattr,
-	.getxattr = generic_getxattr,
 	.listxattr = cifs_listxattr,
-	.removexattr = generic_removexattr,
 };
 
 const struct inode_operations cifs_symlink_inode_ops = {
 	.readlink = generic_readlink,
 	.get_link = cifs_get_link,
 	.permission = cifs_permission,
-	.setxattr = generic_setxattr,
-	.getxattr = generic_getxattr,
 	.listxattr = cifs_listxattr,
-	.removexattr = generic_removexattr,
 };
 
 static int cifs_clone_file_range(struct file *src_file, loff_t off,

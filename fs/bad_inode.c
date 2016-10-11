@@ -100,25 +100,8 @@ static int bad_inode_setattr(struct dentry *direntry, struct iattr *attrs)
 	return -EIO;
 }
 
-static int bad_inode_setxattr(struct dentry *dentry, struct inode *inode,
-		const char *name, const void *value, size_t size, int flags)
-{
-	return -EIO;
-}
-
-static ssize_t bad_inode_getxattr(struct dentry *dentry, struct inode *inode,
-			const char *name, void *buffer, size_t size)
-{
-	return -EIO;
-}
-
 static ssize_t bad_inode_listxattr(struct dentry *dentry, char *buffer,
 			size_t buffer_size)
-{
-	return -EIO;
-}
-
-static int bad_inode_removexattr(struct dentry *dentry, const char *name)
 {
 	return -EIO;
 }
@@ -133,7 +116,7 @@ static const struct inode_operations bad_inode_ops =
 	.mkdir		= bad_inode_mkdir,
 	.rmdir		= bad_inode_rmdir,
 	.mknod		= bad_inode_mknod,
-	.rename2	= bad_inode_rename2,
+	.rename		= bad_inode_rename2,
 	.readlink	= bad_inode_readlink,
 	/* follow_link must be no-op, otherwise unmounting this inode
 	   won't work */
@@ -142,10 +125,7 @@ static const struct inode_operations bad_inode_ops =
 	.permission	= bad_inode_permission,
 	.getattr	= bad_inode_getattr,
 	.setattr	= bad_inode_setattr,
-	.setxattr	= bad_inode_setxattr,
-	.getxattr	= bad_inode_getxattr,
 	.listxattr	= bad_inode_listxattr,
-	.removexattr	= bad_inode_removexattr,
 };
 
 
@@ -173,8 +153,9 @@ void make_bad_inode(struct inode *inode)
 
 	inode->i_mode = S_IFREG;
 	inode->i_atime = inode->i_mtime = inode->i_ctime =
-		current_fs_time(inode->i_sb);
+		current_time(inode);
 	inode->i_op = &bad_inode_ops;	
+	inode->i_opflags &= ~IOP_XATTR;
 	inode->i_fop = &bad_file_ops;	
 }
 EXPORT_SYMBOL(make_bad_inode);

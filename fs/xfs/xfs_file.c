@@ -319,7 +319,7 @@ xfs_file_dio_aio_read(
 	data = *to;
 	ret = __blockdev_direct_IO(iocb, inode, target->bt_bdev, &data,
 			xfs_get_blocks_direct, NULL, NULL, 0);
-	if (ret > 0) {
+	if (ret >= 0) {
 		iocb->ki_pos += ret;
 		iov_iter_advance(to, ret);
 	}
@@ -901,7 +901,7 @@ xfs_file_fallocate(
 
 		iattr.ia_valid = ATTR_SIZE;
 		iattr.ia_size = new_size;
-		error = xfs_setattr_size(ip, &iattr);
+		error = xfs_vn_setattr_size(file_dentry(file), &iattr);
 		if (error)
 			goto out_unlock;
 	}

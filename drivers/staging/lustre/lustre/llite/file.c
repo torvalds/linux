@@ -1121,8 +1121,8 @@ ll_file_io_generic(const struct lu_env *env, struct vvp_io_args *args,
 	struct cl_io	 *io;
 	ssize_t	       result;
 
-	CDEBUG(D_VFSTRACE, "file: %s, type: %d ppos: %llu, count: %zu\n",
-	       file->f_path.dentry->d_name.name, iot, *ppos, count);
+	CDEBUG(D_VFSTRACE, "file: %pD, type: %d ppos: %llu, count: %zu\n",
+	       file, iot, *ppos, count);
 
 restart:
 	io = vvp_env_thread_io(env);
@@ -3268,10 +3268,7 @@ const struct inode_operations ll_file_inode_operations = {
 	.setattr	= ll_setattr,
 	.getattr	= ll_getattr,
 	.permission	= ll_inode_permission,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
 	.listxattr	= ll_listxattr,
-	.removexattr	= generic_removexattr,
 	.fiemap		= ll_fiemap,
 	.get_acl	= ll_get_acl,
 };

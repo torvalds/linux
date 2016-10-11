@@ -384,7 +384,7 @@ out:
 			file_accessed(file);
 		} else {
 			SetMtimeFlag(orangefs_inode);
-			inode->i_mtime = CURRENT_TIME;
+			inode->i_mtime = current_time(inode);
 			mark_inode_dirty_sync(inode);
 		}
 	}
@@ -611,8 +611,8 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 static int orangefs_file_release(struct inode *inode, struct file *file)
 {
 	gossip_debug(GOSSIP_FILE_DEBUG,
-		     "orangefs_file_release: called on %s\n",
-		     file->f_path.dentry->d_name.name);
+		     "orangefs_file_release: called on %pD\n",
+		     file);
 
 	orangefs_flush_inode(inode);
 
