@@ -1404,22 +1404,22 @@ static int sd_switch_function(struct rtsx_chip *chip, u8 bus_width)
 	for (i = 0; i < 4; i++) {
 		switch ((u8)(chip->sd_speed_prior >> (i*8))) {
 		case SDR104_SUPPORT:
-			if ((sd_card->func_group1_mask & SDR104_SUPPORT_MASK)
-					&& chip->sdr104_en) {
+			if ((sd_card->func_group1_mask & SDR104_SUPPORT_MASK) &&
+			    chip->sdr104_en) {
 				func_to_switch = SDR104_SUPPORT;
 			}
 			break;
 
 		case DDR50_SUPPORT:
-			if ((sd_card->func_group1_mask & DDR50_SUPPORT_MASK)
-					&& chip->ddr50_en) {
+			if ((sd_card->func_group1_mask & DDR50_SUPPORT_MASK) &&
+			    chip->ddr50_en) {
 				func_to_switch = DDR50_SUPPORT;
 			}
 			break;
 
 		case SDR50_SUPPORT:
-			if ((sd_card->func_group1_mask & SDR50_SUPPORT_MASK)
-					&& chip->sdr50_en) {
+			if ((sd_card->func_group1_mask & SDR50_SUPPORT_MASK) &&
+			    chip->sdr50_en) {
 				func_to_switch = SDR50_SUPPORT;
 			}
 			break;
@@ -3746,11 +3746,11 @@ int sd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 start_sector,
 	    ((sd_card->pre_dir != srb->sc_data_direction) ||
 	    ((sd_card->pre_sec_addr + sd_card->pre_sec_cnt) !=
 	    start_sector))) {
-		if ((sd_card->pre_sec_cnt < 0x80)
-				&& (sd_card->pre_dir == DMA_FROM_DEVICE)
-				&& !CHK_SD30_SPEED(sd_card)
-				&& !CHK_SD_HS(sd_card)
-				&& !CHK_MMC_HS(sd_card)) {
+		if ((sd_card->pre_sec_cnt < 0x80) &&
+		    (sd_card->pre_dir == DMA_FROM_DEVICE) &&
+		    !CHK_SD30_SPEED(sd_card) &&
+		    !CHK_SD_HS(sd_card) &&
+		    !CHK_MMC_HS(sd_card)) {
 			sd_send_cmd_get_rsp(chip, SEND_STATUS, sd_card->sd_addr,
 					    SD_RSP_TYPE_R1, NULL, 0);
 		}
@@ -3773,10 +3773,10 @@ int sd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 start_sector,
 			goto RW_FAIL;
 		}
 
-		if ((sd_card->pre_sec_cnt < 0x80)
-				&& !CHK_SD30_SPEED(sd_card)
-				&& !CHK_SD_HS(sd_card)
-				&& !CHK_MMC_HS(sd_card)) {
+		if ((sd_card->pre_sec_cnt < 0x80) &&
+		    !CHK_SD30_SPEED(sd_card) &&
+		    !CHK_SD_HS(sd_card) &&
+		    !CHK_MMC_HS(sd_card)) {
 			sd_send_cmd_get_rsp(chip, SEND_STATUS, sd_card->sd_addr,
 					    SD_RSP_TYPE_R1, NULL, 0);
 		}
