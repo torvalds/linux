@@ -2264,7 +2264,6 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 			 * our own buffer, now let the real VM do its job and
 			 * go down in flames if truly OOM.
 			 */
-			i915_gem_shrink_all(dev_priv);
 			page = shmem_read_mapping_page(mapping, i);
 			if (IS_ERR(page)) {
 				ret = PTR_ERR(page);
