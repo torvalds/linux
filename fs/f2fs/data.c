@@ -880,7 +880,6 @@ int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	struct buffer_head map_bh;
 	sector_t start_blk, last_blk;
 	pgoff_t next_pgofs;
-	loff_t isize;
 	u64 logical = 0, phys = 0, size = 0;
 	u32 flags = 0;
 	int ret = 0;
@@ -896,13 +895,6 @@ int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	}
 
 	inode_lock(inode);
-
-	isize = i_size_read(inode);
-	if (start >= isize)
-		goto out;
-
-	if (start + len > isize)
-		len = isize - start;
 
 	if (logical_to_blk(inode, len) == 0)
 		len = blk_to_logical(inode, 1);
@@ -922,13 +914,11 @@ next:
 	/* HOLE */
 	if (!buffer_mapped(&map_bh)) {
 		start_blk = next_pgofs;
-		/* Go through holes util pass the EOF */
-		if (blk_to_logical(inode, start_blk) < isize)
+
+		if (blk_to_logical(inode, start_blk) < blk_to_logical(inode,
+					F2FS_I_SB(inode)->max_file_blocks))
 			goto prep_next;
-		/* Found a hole beyond isize means no more extents.
-		 * Note that the premise is that filesystems don't
-		 * punch holes beyond isize and keep size unchanged.
-		 */
+
 		flags |= FIEMAP_EXTENT_LAST;
 	}
 
