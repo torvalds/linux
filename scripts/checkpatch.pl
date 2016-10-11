@@ -704,6 +704,16 @@ sub seed_camelcase_file {
 	}
 }
 
+sub is_maintained_obsolete {
+	my ($filename) = @_;
+
+	return 0 if (!(-e "$root/scripts/get_maintainer.pl"));
+
+	my $status = `perl $root/scripts/get_maintainer.pl --status --nom --nol --nogit --nogit-fallback $filename 2>&1`;
+
+	return $status =~ /obsolete/i;
+}
+
 my $camelcase_seeded = 0;
 sub seed_camelcase_includes {
 	return if ($camelcase_seeded);
@@ -2289,6 +2299,10 @@ sub process {
 		}
 
 		if ($found_file) {
+			if (is_maintained_obsolete($realfile)) {
+				WARN("OBSOLETE",
+				     "$realfile is marked as 'obsolete' in the MAINTAINERS hierarchy.  No unnecessary modifications please.\n");
+			}
 			if ($realfile =~ m@^(?:drivers/net/|net/|drivers/staging/)@) {
 				$check = 1;
 			} else {
