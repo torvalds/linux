@@ -2916,6 +2916,72 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 	return !r ? 4 : r;
 }
 
+static uint32_t wave_read_ind(struct amdgpu_device *adev, uint32_t SQ_INDEX, uint32_t SQ_DATA, uint32_t simd, uint32_t wave, uint32_t address)
+{
+	WREG32(SQ_INDEX, (wave & 0xF) | ((simd & 0x3) << 4) | (address << 16) | (1 << 13));
+	return RREG32(SQ_DATA);
+}
+
+static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
+					size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = f->f_inode->i_private;
+	int r, x;
+	ssize_t result=0;
+	uint32_t offset, se, sh, cu, wave, simd, data[16];
+
+	if (size & 3 || *pos & 3)
+		return -EINVAL;
+
+	/* decode offset */
+	offset = (*pos & 0x7F);
+	se = ((*pos >> 7) & 0xFF);
+	sh = ((*pos >> 15) & 0xFF);
+	cu = ((*pos >> 23) & 0xFF);
+	wave = ((*pos >> 31) & 0xFF);
+	simd = ((*pos >> 37) & 0xFF);
+	*pos &= 0x7F;
+
+	/* switch to the specific se/sh/cu */
+	mutex_lock(&adev->grbm_idx_mutex);
+	amdgpu_gfx_select_se_sh(adev, se, sh, cu);
+
+	x = 0;
+	if (adev->family == AMDGPU_FAMILY_CZ || adev->family == AMDGPU_FAMILY_VI) {
+		/* type 0 wave data */
+		data[x++] = 0;
+		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x12);
+		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x18);
+		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x19);
+		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x27E);
+		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x27F);
+		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x14);
+		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x1A);
+		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x1B);
+	} else {
+		return -EINVAL;
+	}
+
+	amdgpu_gfx_select_se_sh(adev, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
+	mutex_unlock(&adev->grbm_idx_mutex);
+
+	while (size && (*pos < x * 4)) {
+		uint32_t value;
+
+		value = data[*pos >> 2];
+		r = put_user(value, (uint32_t *)buf);
+		if (r)
+			return r;
+
+		result += 4;
+		buf += 4;
+		*pos += 4;
+		size -= 4;
+	}
+
+	return result;
+}
+
 static const struct file_operations amdgpu_debugfs_regs_fops = {
 	.owner = THIS_MODULE,
 	.read = amdgpu_debugfs_regs_read,
@@ -2953,6 +3019,12 @@ static const struct file_operations amdgpu_debugfs_sensors_fops = {
 	.llseek = default_llseek
 };
 
+static const struct file_operations amdgpu_debugfs_wave_fops = {
+	.owner = THIS_MODULE,
+	.read = amdgpu_debugfs_wave_read,
+	.llseek = default_llseek
+};
+
 static const struct file_operations *debugfs_regs[] = {
 	&amdgpu_debugfs_regs_fops,
 	&amdgpu_debugfs_regs_didt_fops,
@@ -2960,6 +3032,7 @@ static const struct file_operations *debugfs_regs[] = {
 	&amdgpu_debugfs_regs_smc_fops,
 	&amdgpu_debugfs_gca_config_fops,
 	&amdgpu_debugfs_sensors_fops,
+	&amdgpu_debugfs_wave_fops,
 };
 
 static const char *debugfs_regs_names[] = {
@@ -2969,6 +3042,7 @@ static const char *debugfs_regs_names[] = {
 	"amdgpu_regs_smc",
 	"amdgpu_gca_config",
 	"amdgpu_sensors",
+	"amdgpu_wave",
 };
 
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
