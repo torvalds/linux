@@ -1222,6 +1222,9 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
 			ret = f2fs_do_zero_range(&dn, index, end);
 			f2fs_put_dnode(&dn);
 			f2fs_unlock_op(sbi);
+
+			f2fs_balance_fs(sbi, dn.node_changed);
+
 			if (ret)
 				goto out;
 
