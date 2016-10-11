@@ -384,7 +384,7 @@ re_probe:
 	if (test_remove) {
 		test_remove = false;
 
-		if (dev->bus && dev->bus->remove)
+		if (dev->bus->remove)
 			dev->bus->remove(dev);
 		else if (drv->remove)
 			drv->remove(dev);
