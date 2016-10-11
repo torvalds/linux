@@ -112,7 +112,7 @@ static int tt3650_ci_msg(struct dvb_usb_device *d, u8 cmd, u8 *data,
 	if (!data || (write_len > 64 - 4) || (read_len > 64 - 4)) {
 		err("%s: transfer data invalid", __func__);
 		return -EIO;
-	};
+	}
 
 	mutex_lock(&state->ca_mutex);
 	id = state->c++;
