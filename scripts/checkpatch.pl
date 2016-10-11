@@ -3005,18 +3005,23 @@ sub process {
 
 # Block comment * alignment
 		if ($prevline =~ /$;[ \t]*$/ &&			#ends in comment
-		    (($prevrawline =~ /^\+.*?\/\*/ &&		#starting /*
+		    $line =~ /^\+[ \t]*$;/ &&			#leading comment
+		    $rawline =~ /^\+[ \t]*\*/ &&		#leading *
+		    (($prevrawline =~ /^\+.*?\/\*/ &&		#leading /*
 		      $prevrawline !~ /\*\/[ \t]*$/) ||		#no trailing */
-		     $prevrawline =~ /^\+[ \t]*\*/) &&		#starting *
-		    $rawline =~ /^\+[ \t]*\*/) {		#rawline *
+		     $prevrawline =~ /^\+[ \t]*\*/)) {		#leading *
+			my $oldindent;
 			$prevrawline =~ m@^\+([ \t]*/?)\*@;
-			my $oldindent = expand_tabs($1);
+			if (defined($1)) {
+				$oldindent = expand_tabs($1);
+			} else {
+				$prevrawline =~ m@^\+(.*/?)\*@;
+				$oldindent = expand_tabs($1);
+			}
 			$rawline =~ m@^\+([ \t]*)\*@;
 			my $newindent = $1;
-			my $test_comment = '^\\+' . "$;" x (length($newindent) + 1);
 			$newindent = expand_tabs($newindent);
-			if ($line =~ /$test_comment/ &&
-			    length($oldindent) ne length($newindent)) {
+			if (length($oldindent) ne length($newindent)) {
 				WARN("BLOCK_COMMENT_STYLE",
 				     "Block comments should align the * on each line\n" . $hereprev);
 			}
