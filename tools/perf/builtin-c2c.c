@@ -71,6 +71,7 @@ struct perf_c2c {
 	int			 node_info;
 
 	bool			 show_src;
+	bool			 show_all;
 	bool			 use_stdio;
 	bool			 stats_only;
 	bool			 symbol_full;
@@ -1773,8 +1774,8 @@ static bool he__display(struct hist_entry *he, struct c2c_stats *stats)
 	struct c2c_hist_entry *c2c_he;
 	double ld_dist;
 
-	/* XXX Disabled for now, till we get a command line switch to control this */
-	return true;
+	if (c2c.show_all)
+		return true;
 
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
 
@@ -2513,6 +2514,8 @@ static int perf_c2c__report(int argc, const char **argv)
 		    "Display full length of symbols"),
 	OPT_BOOLEAN(0, "no-source", &no_source,
 		    "Do not display Source Line column"),
+	OPT_BOOLEAN(0, "show-all", &c2c.show_all,
+		    "Show all captured HITM lines."),
 	OPT_CALLBACK_DEFAULT('g', "call-graph", &callchain_param,
 			     "print_type,threshold[,print_limit],order,sort_key[,branch],value",
 			     callchain_help, &parse_callchain_opt,
