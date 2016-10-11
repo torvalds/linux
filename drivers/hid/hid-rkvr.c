@@ -51,19 +51,32 @@ struct keymap_t {
 	__u16 key_volup_down:1;
 	__u16 key_voldn_up:1;
 	__u16 key_voldn_down:1;
+	__u16 key_esc_up:1;
+	__u16 key_esc_down:1;
+	/*for touch panel **/
+	__u16 key_up_pressed:1;
+	__u16 key_up_released:1;
+	__u16 key_down_pressed:1;
+	__u16 key_down_released:1;
+	__u16 key_left_pressed:1;
+	__u16 key_left_released:1;
+	__u16 key_right_pressed:1;
+	__u16 key_right_released:1;
+	__u16 key_enter_pressed:1;
+	__u16 key_enter_released:1;
 	__u16 key_pressed:1;
-};
+} __packed;
 
 union rkvr_data_t {
 	struct rkvr_data {
 		__u8 buf_head[6];
 		__u8 buf_sensortemperature[2];
 		__u8 buf_sensor[40];
-		__u8 buf_reserve[12];
+		__u8 buf_reserve[10];
 		struct keymap_t key_map;
 	} rkvr_data;
 	__u8 buf[62];
-};
+} __packed;
 
 static int rkvr_major;
 static struct cdev rkvr_cdev;
@@ -523,6 +536,26 @@ static int rkvr_keys_event(struct hid_device *hdev, void *data, unsigned long le
 		rkvr_send_key_event(input, KEY_VOLUMEDOWN, 0);
 	else if (rkvr_data->rkvr_data.key_map.key_voldn_down)
 		rkvr_send_key_event(input, KEY_VOLUMEDOWN, 1);
+	else if (rkvr_data->rkvr_data.key_map.key_esc_up)
+		rkvr_send_key_event(input, KEY_ESC, 0);
+	else if (rkvr_data->rkvr_data.key_map.key_esc_down)
+		rkvr_send_key_event(input, KEY_ESC, 1);
+	else if (rkvr_data->rkvr_data.key_map.key_up_pressed) {
+		rkvr_send_key_event(input, KEY_UP, 1);
+		rkvr_send_key_event(input, KEY_UP, 0);
+	} else if (rkvr_data->rkvr_data.key_map.key_down_pressed) {
+		rkvr_send_key_event(input, KEY_DOWN, 1);
+		rkvr_send_key_event(input, KEY_DOWN, 0);
+	} else if (rkvr_data->rkvr_data.key_map.key_left_pressed) {
+		rkvr_send_key_event(input, KEY_LEFT, 1);
+		rkvr_send_key_event(input, KEY_LEFT, 0);
+	} else if (rkvr_data->rkvr_data.key_map.key_right_pressed) {
+		rkvr_send_key_event(input, KEY_RIGHT, 1);
+		rkvr_send_key_event(input, KEY_RIGHT, 0);
+	} else if (rkvr_data->rkvr_data.key_map.key_enter_pressed) {
+		rkvr_send_key_event(input, KEY_ENTER, 1);
+		rkvr_send_key_event(input, KEY_ENTER, 0);
+	}
 	return 0;
 }
 
@@ -940,7 +973,13 @@ static unsigned int key_codes[] = {
 	KEY_POWER,
 	KEY_VOLUMEUP,
 	KEY_VOLUMEDOWN,
-	KEY_WAKEUP
+	KEY_WAKEUP,
+	KEY_ESC,
+	KEY_LEFT,
+	KEY_RIGHT,
+	KEY_UP,
+	KEY_DOWN,
+	KEY_ENTER
 };
 
 static int __must_check rkvr_keys_probe(struct hid_device *hdev)
