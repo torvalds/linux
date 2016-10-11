@@ -1298,10 +1298,10 @@ void set_task_cpu(struct task_struct *p, unsigned int cpu)
 	}
 
 	if ((queued = task_queued(p)))
-		dequeue_task(rq, p, DEQUEUE_SAVE);
+		dequeue_task(rq, p, 0);
 	task_thread_info(p)->cpu = p->wake_cpu = cpu;
 	if (queued)
-		enqueue_task(cpu_rq(cpu), p, ENQUEUE_RESTORE);
+		enqueue_task(cpu_rq(cpu), p, 0);
 }
 #endif /* CONFIG_SMP */
 
