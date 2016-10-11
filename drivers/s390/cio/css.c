@@ -729,28 +729,24 @@ channel_subsystem_release(struct device *dev)
 	kfree(css);
 }
 
-static ssize_t
-css_cm_enable_show(struct device *dev, struct device_attribute *attr,
-		   char *buf)
+static ssize_t cm_enable_show(struct device *dev, struct device_attribute *a,
+			      char *buf)
 {
 	struct channel_subsystem *css = to_css(dev);
 	int ret;
 
-	if (!css)
-		return 0;
 	mutex_lock(&css->mutex);
 	ret = sprintf(buf, "%x\n", css->cm_enabled);
 	mutex_unlock(&css->mutex);
 	return ret;
 }
 
-static ssize_t
-css_cm_enable_store(struct device *dev, struct device_attribute *attr,
-		    const char *buf, size_t count)
+static ssize_t cm_enable_store(struct device *dev, struct device_attribute *a,
+			       const char *buf, size_t count)
 {
 	struct channel_subsystem *css = to_css(dev);
-	int ret;
 	unsigned long val;
+	int ret;
 
 	ret = kstrtoul(buf, 16, &val);
 	if (ret)
@@ -769,8 +765,28 @@ css_cm_enable_store(struct device *dev, struct device_attribute *attr,
 	mutex_unlock(&css->mutex);
 	return ret < 0 ? ret : count;
 }
+static DEVICE_ATTR_RW(cm_enable);
 
-static DEVICE_ATTR(cm_enable, 0644, css_cm_enable_show, css_cm_enable_store);
+static umode_t cm_enable_mode(struct kobject *kobj, struct attribute *attr,
+			      int index)
+{
+	return css_chsc_characteristics.secm ? attr->mode : 0;
+}
+
+static struct attribute *cssdev_cm_attrs[] = {
+	&dev_attr_cm_enable.attr,
+	NULL,
+};
+
+static struct attribute_group cssdev_cm_attr_group = {
+	.attrs = cssdev_cm_attrs,
+	.is_visible = cm_enable_mode,
+};
+
+static const struct attribute_group *cssdev_attr_groups[] = {
+	&cssdev_cm_attr_group,
+	NULL,
+};
 
 static int __init setup_css(int nr)
 {
@@ -798,6 +814,7 @@ static int __init setup_css(int nr)
 	css->cssid = chsc_get_cssid(nr);
 
 	dev_set_name(&css->device, "css%x", nr);
+	css->device.groups = cssdev_attr_groups;
 	css->device.release = channel_subsystem_release;
 	tod_high = (u32) (get_tod_clock() >> 32);
 	css_generate_pgid(css, tod_high);
@@ -931,16 +948,11 @@ static int __init css_bus_init(void)
 			put_device(&css->device);
 			goto out_unregister;
 		}
-		if (css_chsc_characteristics.secm) {
-			ret = device_create_file(&css->device,
-						 &dev_attr_cm_enable);
-			if (ret)
-				goto out_device;
-		}
 		ret = device_register(&css->pseudo_subchannel->dev);
 		if (ret) {
 			put_device(&css->pseudo_subchannel->dev);
-			goto out_file;
+			device_unregister(&css->device);
+			goto out_unregister;
 		}
 	}
 	ret = register_reboot_notifier(&css_reboot_notifier);
@@ -957,12 +969,6 @@ static int __init css_bus_init(void)
 	isc_register(IO_SCH_ISC);
 
 	return 0;
-out_file:
-	if (css_chsc_characteristics.secm)
-		device_remove_file(&channel_subsystems[i]->device,
-				   &dev_attr_cm_enable);
-out_device:
-	device_unregister(&channel_subsystems[i]->device);
 out_unregister:
 	while (i > 0) {
 		struct channel_subsystem *css;
@@ -971,9 +977,6 @@ out_unregister:
 		css = channel_subsystems[i];
 		device_unregister(&css->pseudo_subchannel->dev);
 		css->pseudo_subchannel = NULL;
-		if (css_chsc_characteristics.secm)
-			device_remove_file(&css->device,
-					   &dev_attr_cm_enable);
 		device_unregister(&css->device);
 	}
 	bus_unregister(&css_bus_type);
@@ -993,8 +996,6 @@ static void __init css_bus_cleanup(void)
 	for_each_css(css) {
 		device_unregister(&css->pseudo_subchannel->dev);
 		css->pseudo_subchannel = NULL;
-		if (css_chsc_characteristics.secm)
-			device_remove_file(&css->device, &dev_attr_cm_enable);
 		device_unregister(&css->device);
 	}
 	bus_unregister(&css_bus_type);
