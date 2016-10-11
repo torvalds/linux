@@ -70,6 +70,8 @@ struct drm_plane_state *malidp_duplicate_plane_state(struct drm_plane *plane)
 		m_state = to_malidp_plane_state(plane->state);
 		__drm_atomic_helper_plane_duplicate_state(plane, &state->base);
 		state->rotmem_size = m_state->rotmem_size;
+		state->format = m_state->format;
+		state->n_planes = m_state->n_planes;
 	}
 
 	return &state->base;
@@ -99,8 +101,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	struct malidp_plane *mp = to_malidp_plane(plane);
 	struct malidp_plane_state *ms = to_malidp_plane_state(state);
 	struct drm_framebuffer *fb;
-	int n_planes, i;
-	u8 format_id;
+	int i;
 	u32 src_w, src_h;
 
 	if (!state->crtc || !state->fb)
@@ -108,13 +109,13 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 
 	fb = state->fb;
 
-	format_id = malidp_hw_get_format_id(&mp->hwdev->map, mp->layer->id,
+	ms->format = malidp_hw_get_format_id(&mp->hwdev->map, mp->layer->id,
 					    fb->pixel_format);
-	if (format_id == MALIDP_INVALID_FORMAT_ID)
+	if (ms->format == MALIDP_INVALID_FORMAT_ID)
 		return -EINVAL;
 
-	n_planes = drm_format_num_planes(fb->pixel_format);
-	for (i = 0; i < n_planes; i++) {
+	ms->n_planes = drm_format_num_planes(fb->pixel_format);
+	for (i = 0; i < ms->n_planes; i++) {
 		if (!malidp_hw_pitch_valid(mp->hwdev, fb->pitches[i])) {
 			DRM_DEBUG_KMS("Invalid pitch %u for plane %d\n",
 				      fb->pitches[i], i);
@@ -160,17 +161,13 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	struct drm_gem_cma_object *obj;
 	struct malidp_plane *mp;
 	const struct malidp_hw_regmap *map;
-	u8 format_id;
+	struct malidp_plane_state *ms = to_malidp_plane_state(plane->state);
 	u16 ptr;
-	u32 format, src_w, src_h, dest_w, dest_h, val;
-	int num_planes, i;
+	u32 src_w, src_h, dest_w, dest_h, val;
+	int i;
 
 	mp = to_malidp_plane(plane);
-
 	map = &mp->hwdev->map;
-	format = plane->state->fb->pixel_format;
-	format_id = malidp_hw_get_format_id(map, mp->layer->id, format);
-	num_planes = drm_format_num_planes(format);
 
 	/* convert src values from Q16 fixed point to integer */
 	src_w = plane->state->src_w >> 16;
@@ -183,9 +180,9 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 		dest_h = plane->state->crtc_h;
 	}
 
-	malidp_hw_write(mp->hwdev, format_id, mp->layer->base);
+	malidp_hw_write(mp->hwdev, ms->format, mp->layer->base);
 
-	for (i = 0; i < num_planes; i++) {
+	for (i = 0; i < ms->n_planes; i++) {
 		/* calculate the offset for the layer's plane registers */
 		ptr = mp->layer->ptr + (i << 4);
 
