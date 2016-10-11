@@ -722,6 +722,18 @@ static void channel_subsystem_release(struct device *dev)
 	kfree(css);
 }
 
+static ssize_t real_cssid_show(struct device *dev, struct device_attribute *a,
+			       char *buf)
+{
+	struct channel_subsystem *css = to_css(dev);
+
+	if (css->cssid < 0)
+		return -EINVAL;
+
+	return sprintf(buf, "%x\n", css->cssid);
+}
+static DEVICE_ATTR_RO(real_cssid);
+
 static ssize_t cm_enable_show(struct device *dev, struct device_attribute *a,
 			      char *buf)
 {
@@ -766,6 +778,15 @@ static umode_t cm_enable_mode(struct kobject *kobj, struct attribute *attr,
 	return css_chsc_characteristics.secm ? attr->mode : 0;
 }
 
+static struct attribute *cssdev_attrs[] = {
+	&dev_attr_real_cssid.attr,
+	NULL,
+};
+
+static struct attribute_group cssdev_attr_group = {
+	.attrs = cssdev_attrs,
+};
+
 static struct attribute *cssdev_cm_attrs[] = {
 	&dev_attr_cm_enable.attr,
 	NULL,
@@ -777,6 +798,7 @@ static struct attribute_group cssdev_cm_attr_group = {
 };
 
 static const struct attribute_group *cssdev_attr_groups[] = {
+	&cssdev_attr_group,
 	&cssdev_cm_attr_group,
 	NULL,
 };
