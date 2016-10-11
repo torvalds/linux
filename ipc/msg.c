@@ -167,7 +167,7 @@ static inline void ss_del(struct msg_sender *mss)
 }
 
 static void ss_wakeup(struct list_head *h,
-		      struct wake_q_head *wake_q, int kill)
+		      struct wake_q_head *wake_q, bool kill)
 {
 	struct msg_sender *mss, *t;
 
@@ -204,7 +204,7 @@ static void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 	WAKE_Q(wake_q);
 
 	expunge_all(msq, -EIDRM, &wake_q);
-	ss_wakeup(&msq->q_senders, &wake_q, 1);
+	ss_wakeup(&msq->q_senders, &wake_q, true);
 	msg_rmid(ns, msq);
 	ipc_unlock_object(&msq->q_perm);
 	wake_up_q(&wake_q);
@@ -388,7 +388,7 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 		 * Sleeping senders might be able to send
 		 * due to a larger queue size.
 		 */
-		ss_wakeup(&msq->q_senders, &wake_q, 0);
+		ss_wakeup(&msq->q_senders, &wake_q, false);
 		ipc_unlock_object(&msq->q_perm);
 		wake_up_q(&wake_q);
 
@@ -882,7 +882,7 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, int msgfl
 			msq->q_cbytes -= msg->m_ts;
 			atomic_sub(msg->m_ts, &ns->msg_bytes);
 			atomic_dec(&ns->msg_hdrs);
-			ss_wakeup(&msq->q_senders, &wake_q, 0);
+			ss_wakeup(&msq->q_senders, &wake_q, false);
 
 			goto out_unlock0;
 		}
