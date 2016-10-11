@@ -28,6 +28,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include <dt-bindings/pinctrl/sun4i-a10.h>
+
 #include "../core.h"
 #include "pinctrl-sunxi.h"
 
@@ -163,9 +165,9 @@ static int sunxi_pctrl_parse_bias_prop(struct device_node *node)
 		return -EINVAL;
 
 	switch (val) {
-	case 1:
+	case SUN4I_PINCTRL_PULL_UP:
 		return PIN_CONFIG_BIAS_PULL_UP;
-	case 2:
+	case SUN4I_PINCTRL_PULL_DOWN:
 		return PIN_CONFIG_BIAS_PULL_DOWN;
 	}
 
