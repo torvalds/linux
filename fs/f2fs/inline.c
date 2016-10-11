@@ -136,8 +136,10 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 	fio.old_blkaddr = dn->data_blkaddr;
 	write_data_page(dn, &fio);
 	f2fs_wait_on_page_writeback(page, DATA, true);
-	if (dirty)
+	if (dirty) {
 		inode_dec_dirty_pages(dn->inode);
+		remove_dirty_inode(dn->inode);
+	}
 
 	/* this converted inline_data should be recovered. */
 	set_inode_flag(dn->inode, FI_APPEND_WRITE);
