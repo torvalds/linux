@@ -261,8 +261,6 @@ int __weak arch_sd_sibling_asym_packing(void)
 struct rq *uprq;
 #endif /* CONFIG_SMP */
 
-static inline void update_rq_clock(struct rq *rq);
-
 /*
  * Sanity check should sched_clock return bogus values. We make sure it does
  * not appear to go backwards, and use jiffies to determine the maximum and
@@ -296,27 +294,6 @@ static inline int cpu_of(struct rq *rq)
 }
 #endif
 
-/*
- * Niffies are a globally increasing nanosecond counter. Whenever a runqueue
- * clock is updated with the rq->lock held, it is an opportunity to update the
- * niffies value. Any CPU can update it by adding how much its clock has
- * increased since it last updated niffies, minus any added niffies by other
- * CPUs.
- */
-static inline void update_clocks(struct rq *rq)
-{
-	s64 ndiff;
-	long jdiff;
-
-	update_rq_clock(rq);
-	ndiff = rq->clock - rq->old_clock;
-	rq->old_clock = rq->clock;
-	jdiff = jiffies - rq->last_jiffy;
-	niffy_diff(&ndiff, jdiff);
-	rq->last_jiffy += jdiff;
-	rq->niffies += ndiff;
-}
-
 #include "stats.h"
 
 #ifndef prepare_arch_switch
@@ -345,6 +322,30 @@ static inline void update_rq_clock(struct rq *rq)
 		return;
 	rq->clock += delta;
 	update_rq_clock_task(rq, delta);
+}
+
+/*
+ * Niffies are a globally increasing nanosecond counter. They're only used by
+ * update_load_avg and time_slice_expired, however deadlines are based on them
+ * across CPUs. Update them whenever we will call one of those functions, and
+ * synchronise them across CPUs whenever we hold both runqueue locks.
+ */
+static inline void update_clocks(struct rq *rq)
+{
+	s64 ndiff;
+	long jdiff;
+
+	update_rq_clock(rq);
+	ndiff = rq->clock - rq->old_clock;
+	if (unlikely(!ndiff))
+		return;
+	rq->old_clock = rq->clock;
+	ndiff -= rq->niffies - rq->last_niffy;
+	jdiff = jiffies - rq->last_jiffy;
+	niffy_diff(&ndiff, jdiff);
+	rq->last_jiffy += jdiff;
+	rq->niffies += ndiff;
+	rq->last_niffy = rq->niffies;
 }
 
 static inline int task_current(struct rq *rq, struct task_struct *p)
@@ -526,12 +527,6 @@ static inline void rq_lock_irq(struct rq *rq)
 	raw_spin_lock_irq(&rq->lock);
 }
 
-static inline void time_lock_rq(struct rq *rq)
-{
-	rq_lock(rq);
-	update_clocks(rq);
-}
-
 static inline void rq_unlock_irq(struct rq *rq)
 	__releases(rq->lock)
 {
@@ -566,15 +561,6 @@ static inline struct rq
 		raw_spin_unlock(&rq->lock);
 		raw_spin_unlock_irqrestore(&p->pi_lock, *flags);
 	}
-	return rq;
-}
-
-static inline struct rq
-*time_task_rq_lock(struct task_struct *p, unsigned long *flags)
-{
-	struct rq *rq = task_rq_lock(p, flags);
-
-	update_clocks(rq);
 	return rq;
 }
 
@@ -770,6 +756,8 @@ static inline int rq_load(struct rq *rq)
  * Update the load average for feeding into cpu frequency governors. Use a
  * rough estimate of a rolling average with ~ time constant of 32ms.
  * 80/128 ~ 0.63. * 80 / 32768 / 128 == * 5 / 262144
+ * Make sure a call to update_clocks has been made before calling this to get
+ * an updated rq->niffies.
  */
 static void update_load_avg(struct rq *rq)
 {
@@ -783,7 +771,9 @@ static void update_load_avg(struct rq *rq)
 			load = 0;
 		load += curload * curload * SCHED_CAPACITY_SCALE * us_interval * 5 / 262144;
 		rq->load_avg = load;
-	}
+	} else
+		return;
+
 	rq->load_update = rq->clock;
 	if (likely(rq->cpu == smp_processor_id()))
 		cpufreq_trigger(rq->niffies, rq->load_avg);
@@ -798,6 +788,7 @@ static void update_load_avg(struct rq *rq)
 static void dequeue_task(struct task_struct *p, struct rq *rq)
 {
 	skiplist_delete(rq->sl, &p->node);
+	update_clocks(rq);
 	update_load_avg(rq);
 }
 
@@ -883,6 +874,7 @@ static void enqueue_task(struct task_struct *p, struct rq *rq)
 	 * Some architectures don't have better than microsecond resolution
 	 * so mask out ~microseconds as the random seed for skiplist insertion.
 	 */
+	update_clocks(rq);
 	randseed = (rq->niffies >> 10) & 0xFFFFFFFF;
 	skiplist_insert(rq->sl, &p->node, sl_id, p, randseed);
 	update_load_avg(rq);
@@ -1220,7 +1212,6 @@ static int effective_prio(struct task_struct *p)
 static void activate_task(struct task_struct *p, struct rq *rq)
 {
 	resched_if_idle(rq);
-	update_clocks(rq);
 
 	/*
 	 * Sleep time is in units of nanosecs, so shift by 20 to get a
@@ -1256,7 +1247,6 @@ static inline void deactivate_task(struct task_struct *p, struct rq *rq)
 	sched_info_dequeued(rq, p);
 	p->on_rq = 0;
 	atomic_dec(&grq.nr_running);
-	update_load_avg(rq);
 }
 
 #ifdef CONFIG_SMP
@@ -1687,7 +1677,6 @@ static int ttwu_remote(struct task_struct *p, int wake_flags)
 
 	rq = __task_rq_lock(p);
 	if (likely(task_on_rq_queued(p))) {
-		update_clocks(rq);
 		ttwu_do_wakeup(rq, p, wake_flags);
 		ret = 1;
 	}
@@ -2131,6 +2120,7 @@ void wake_up_new_task(struct task_struct *p)
 	if (unlikely(needs_other_cpu(p, task_cpu(p))))
  		set_task_cpu(p, cpumask_any(tsk_cpus_allowed(p)));
 	rq = __task_rq_lock(p);
+	update_clocks(rq);
 	rq_curr = rq->curr;
 
 	/*
@@ -3044,7 +3034,7 @@ static inline u64 do_task_delta_exec(struct task_struct *p, struct rq *rq)
 	 * thread, breaking clock_gettime().
 	 */
 	if (p == rq->curr && task_on_rq_queued(p)) {
-		update_clocks(rq);
+		update_rq_clock(rq);
 		ns = rq->clock_task - rq->rq_last_ran;
 		if (unlikely((s64)ns < 0))
 			ns = 0;
@@ -3350,8 +3340,8 @@ void scheduler_tick(void)
 
 	sched_clock_tick();
 	update_rq_clock(rq);
-	update_cpu_clock_tick(rq, rq->curr);
 	update_load_avg(rq);
+	update_cpu_clock_tick(rq, rq->curr);
 	if (!rq_idle(rq))
 		task_running_tick(rq);
 	else
@@ -3438,7 +3428,8 @@ static inline void preempt_latency_stop(int val) { }
 
 /*
  * The time_slice is only refilled when it is empty and that is when we set a
- * new deadline.
+ * new deadline. Make sure update_clocks has been called recently to update
+ * rq->niffies.
  */
 static void time_slice_expired(struct task_struct *p, struct rq *rq)
 {
@@ -3820,12 +3811,15 @@ static void __sched notrace __schedule(bool preempt)
 		next = idle;
 		schedstat_inc(rq, sched_goidle);
 		set_cpuidle_map(cpu);
+		update_load_avg(rq);
 	} else {
 		next = earliest_deadline_task(rq, cpu, idle);
 		if (likely(next->prio != PRIO_LIMIT))
 			clear_cpuidle_map(cpu);
-		else
+		else {
 			set_cpuidle_map(cpu);
+			update_load_avg(rq);
+		}
 	}
 
 	if (likely(prev != next)) {
@@ -4127,7 +4121,7 @@ void set_user_nice(struct task_struct *p, long nice)
 	 * We have to be careful, if called from sys_setpriority(),
 	 * the task might be in the middle of scheduling on another CPU.
 	 */
-	rq = time_task_rq_lock(p, &flags);
+	rq = task_rq_lock(p, &flags);
 	/*
 	 * The RT priorities are set via sched_setscheduler(), but we still
 	 * allow the 'normal' nice value to be set - but as expected
@@ -4468,7 +4462,6 @@ recheck:
 		task_rq_unlock(rq, p, &flags);
 		goto recheck;
 	}
-	update_clocks(rq);
 	p->sched_reset_on_fork = reset_on_fork;
 
 	__setscheduler(p, rq, policy, param->sched_priority, pi);

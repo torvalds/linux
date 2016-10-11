@@ -20,12 +20,16 @@ struct rq {
 
 	raw_spinlock_t lock;
 
-	/* Stored data about rq->curr to work outside grq lock */
+	/* Stored data about rq->curr to work outside rq lock */
 	u64 rq_deadline;
 	unsigned int rq_policy;
 	int rq_time_slice;
 	u64 rq_last_ran;
 	int rq_prio;
+
+	unsigned long last_jiffy; /* Last jiffy this RQ updated rq clock */
+	u64 niffies; /* Last time this RQ updated rq clock */
+	u64 last_niffy; /* Last niffies as updated by local clock */
 
 	u64 load_update; /* When we last updated load */
 	unsigned long load_avg; /* Rolling load average */
@@ -50,8 +54,6 @@ struct rq {
 	int *cpu_locality; /* CPU relative cache distance */
 	struct rq **rq_order; /* RQs ordered by relative cache distance */
 
-	unsigned long last_jiffy; /* Last jiffy this RQ updated rq clock */
-	u64 niffies; /* Last time this RQ updated rq clock */
 #ifdef CONFIG_SCHED_SMT
 	cpumask_t thread_mask;
 	bool (*siblings_idle)(struct rq *rq);
