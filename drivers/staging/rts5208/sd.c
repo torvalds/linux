@@ -56,21 +56,21 @@ static u16 REG_SD_DCMPS1_CTL;
 
 static inline void sd_set_err_code(struct rtsx_chip *chip, u8 err_code)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 
 	sd_card->err_code |= err_code;
 }
 
 static inline void sd_clr_err_code(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 
 	sd_card->err_code = 0;
 }
 
 static inline int sd_check_err_code(struct rtsx_chip *chip, u8 err_code)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 
 	return sd_card->err_code & err_code;
 }
@@ -126,7 +126,7 @@ static int sd_check_data0_status(struct rtsx_chip *chip)
 static int sd_send_cmd_get_rsp(struct rtsx_chip *chip, u8 cmd_idx,
 		u32 arg, u8 rsp_type, u8 *rsp, int rsp_len)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	int timeout = 100;
 	u16 reg_addr;
@@ -285,7 +285,7 @@ static int sd_read_data(struct rtsx_chip *chip,
 			u16 blk_cnt, u8 bus_width, u8 *buf, int buf_len,
 			int timeout)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	int i;
 
@@ -356,7 +356,7 @@ static int sd_write_data(struct rtsx_chip *chip, u8 trans_mode,
 		u8 *cmd, int cmd_len, u16 byte_cnt, u16 blk_cnt, u8 bus_width,
 		u8 *buf, int buf_len, int timeout)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	int i;
 
@@ -424,7 +424,7 @@ static int sd_write_data(struct rtsx_chip *chip, u8 trans_mode,
 
 static int sd_check_csd(struct rtsx_chip *chip, char check_wp)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	int i;
 	u8 csd_ver, trans_speed;
@@ -534,7 +534,7 @@ static int sd_check_csd(struct rtsx_chip *chip, char check_wp)
 static int sd_set_sample_push_timing(struct rtsx_chip *chip)
 {
 	int retval;
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	u8 val = 0;
 
 	if ((chip->sd_ctl & SD_PUSH_POINT_CTL_MASK) == SD_PUSH_POINT_DELAY)
@@ -573,7 +573,7 @@ static int sd_set_sample_push_timing(struct rtsx_chip *chip)
 
 static void sd_choose_proper_clock(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 
 	if (CHK_SD_SDR104(sd_card)) {
 		if (chip->asic_code)
@@ -637,7 +637,7 @@ static int sd_set_clock_divider(struct rtsx_chip *chip, u8 clk_div)
 
 static int sd_set_init_para(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 
 	retval = sd_set_sample_push_timing(chip);
@@ -659,7 +659,7 @@ static int sd_set_init_para(struct rtsx_chip *chip)
 
 int sd_select_card(struct rtsx_chip *chip, int select)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	u8 cmd_idx, cmd_type;
 	u32 addr;
@@ -686,7 +686,7 @@ int sd_select_card(struct rtsx_chip *chip, int select)
 #ifdef SUPPORT_SD_LOCK
 static int sd_update_lock_status(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	u8 rsp[5];
 
@@ -717,7 +717,7 @@ static int sd_update_lock_status(struct rtsx_chip *chip)
 static int sd_wait_state_data_ready(struct rtsx_chip *chip, u8 state,
 				u8 data_ready, int polling_cnt)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval, i;
 	u8 rsp[5];
 
@@ -903,7 +903,7 @@ static int sd_reset_dcm(struct rtsx_chip *chip, u8 tune_dir)
 
 static int sd_change_phase(struct rtsx_chip *chip, u8 sample_point, u8 tune_dir)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	u16 SD_VP_CTL, SD_DCMPS_CTL;
 	u8 val;
 	int retval;
@@ -1060,7 +1060,7 @@ Fail:
 
 static int sd_check_spec(struct rtsx_chip *chip, u8 bus_width)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	u8 cmd[5], buf[8];
 
@@ -1217,7 +1217,7 @@ static int sd_query_switch_result(struct rtsx_chip *chip, u8 func_group,
 static int sd_check_switch_mode(struct rtsx_chip *chip, u8 mode,
 		u8 func_group, u8 func_to_switch, u8 bus_width)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	u8 cmd[5], buf[64];
 
@@ -1379,7 +1379,7 @@ static int sd_check_switch(struct rtsx_chip *chip,
 
 static int sd_switch_function(struct rtsx_chip *chip, u8 bus_width)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	int i;
 	u8 func_to_switch = 0;
@@ -1611,7 +1611,7 @@ static int sd_sdr_tuning_rx_cmd(struct rtsx_chip *chip, u8 sample_point)
 
 static int sd_ddr_tuning_rx_cmd(struct rtsx_chip *chip, u8 sample_point)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	u8 cmd[5];
 
@@ -1651,7 +1651,7 @@ static int sd_ddr_tuning_rx_cmd(struct rtsx_chip *chip, u8 sample_point)
 
 static int mmc_ddr_tunning_rx_cmd(struct rtsx_chip *chip, u8 sample_point)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	u8 cmd[5], bus_width;
 
@@ -1691,7 +1691,7 @@ static int mmc_ddr_tunning_rx_cmd(struct rtsx_chip *chip, u8 sample_point)
 
 static int sd_sdr_tuning_tx_cmd(struct rtsx_chip *chip, u8 sample_point)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 
 	retval = sd_change_phase(chip, sample_point, TUNE_TX);
@@ -1730,7 +1730,7 @@ static int sd_sdr_tuning_tx_cmd(struct rtsx_chip *chip, u8 sample_point)
 
 static int sd_ddr_tuning_tx_cmd(struct rtsx_chip *chip, u8 sample_point)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	u8 cmd[5], bus_width;
 
@@ -1795,7 +1795,7 @@ static int sd_ddr_tuning_tx_cmd(struct rtsx_chip *chip, u8 sample_point)
 static u8 sd_search_final_phase(struct rtsx_chip *chip, u32 phase_map,
 				u8 tune_dir)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	struct timing_phase_path path[MAX_PHASE + 1];
 	int i, j, cont_path_cnt;
 	bool new_block;
@@ -1913,7 +1913,7 @@ Search_Finish:
 
 static int sd_tuning_rx(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	int i, j;
 	u32 raw_phase_map[3], phase_map;
@@ -1974,7 +1974,7 @@ static int sd_tuning_rx(struct rtsx_chip *chip)
 
 static int sd_ddr_pre_tuning_tx(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	int i;
 	u32 phase_map;
@@ -2039,7 +2039,7 @@ static int sd_ddr_pre_tuning_tx(struct rtsx_chip *chip)
 
 static int sd_tuning_tx(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	int i, j;
 	u32 raw_phase_map[3], phase_map;
@@ -2193,7 +2193,7 @@ static int mmc_ddr_tuning(struct rtsx_chip *chip)
 
 int sd_switch_clock(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	int re_tuning = 0;
 
@@ -2231,7 +2231,7 @@ int sd_switch_clock(struct rtsx_chip *chip)
 
 static int sd_prepare_reset(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 
 	if (chip->asic_code)
@@ -2478,7 +2478,7 @@ static int sd_dummy_clock(struct rtsx_chip *chip)
 
 static int sd_read_lba0(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	u8 cmd[5], bus_width;
 
@@ -2512,7 +2512,7 @@ static int sd_read_lba0(struct rtsx_chip *chip)
 
 static int sd_check_wp_state(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	u32 val;
 	u16 sd_card_type;
@@ -2562,7 +2562,7 @@ static int sd_check_wp_state(struct rtsx_chip *chip)
 
 static int reset_sd(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	bool hi_cap_flow = false;
 	int retval, i = 0, j = 0, k = 0;
 	bool sd_dont_switch = false;
@@ -2925,7 +2925,7 @@ Status_Fail:
 
 static int mmc_test_switch_bus(struct rtsx_chip *chip, u8 width)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	u8 buf[8] = {0}, bus_width, *ptr;
 	u16 byte_cnt;
@@ -3054,7 +3054,7 @@ static int mmc_test_switch_bus(struct rtsx_chip *chip, u8 width)
 
 static int mmc_switch_timing_bus(struct rtsx_chip *chip, bool switch_ddr)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 	u8 *ptr, card_type, card_type_mask = 0;
 
@@ -3178,7 +3178,7 @@ static int mmc_switch_timing_bus(struct rtsx_chip *chip, bool switch_ddr)
 
 static int reset_mmc(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval, i = 0, j = 0, k = 0;
 	bool switch_ddr = true;
 	u8 rsp[16];
@@ -3392,7 +3392,7 @@ MMC_UNLOCK_ENTRY:
 
 int reset_sd_card(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 
 	sd_init_reg_addr(chip);
@@ -3505,7 +3505,7 @@ int reset_sd_card(struct rtsx_chip *chip)
 
 static int reset_mmc_only(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 
 	sd_card->sd_type = 0;
@@ -3574,7 +3574,7 @@ static int reset_mmc_only(struct rtsx_chip *chip)
 
 static int wait_data_buf_ready(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int i, retval;
 
 	for (i = 0; i < WAIT_DATA_READY_RTY_CNT; i++) {
@@ -3607,7 +3607,7 @@ static int wait_data_buf_ready(struct rtsx_chip *chip)
 
 void sd_stop_seq_mode(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 
 	if (sd_card->seq_mode) {
@@ -3632,7 +3632,7 @@ void sd_stop_seq_mode(struct rtsx_chip *chip)
 
 static inline int sd_auto_tune_clock(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 
 	if (chip->asic_code) {
@@ -3681,7 +3681,7 @@ static inline int sd_auto_tune_clock(struct rtsx_chip *chip)
 int sd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 start_sector,
 	u16 sector_cnt)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	u32 data_addr;
 	u8 cfg2;
 	int retval;
@@ -4172,7 +4172,7 @@ int ext_sd_get_rsp(struct rtsx_chip *chip, int len, u8 *rsp, u8 rsp_type)
 
 int sd_pass_thru_mode(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	unsigned int lun = SCSI_LUN(srb);
 	int len;
 	u8 buf[18] = {
@@ -4285,7 +4285,7 @@ static inline int get_rsp_type(struct scsi_cmnd *srb, u8 *rsp_type,
 
 int sd_execute_no_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	unsigned int lun = SCSI_LUN(srb);
 	int retval, rsp_len;
 	u8 cmd_idx, rsp_type;
@@ -4420,7 +4420,7 @@ SD_Execute_Cmd_Failed:
 
 int sd_execute_read_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	unsigned int lun = SCSI_LUN(srb);
 	int retval, rsp_len, i;
 	bool read_err = false, cmd13_checkbit = false;
@@ -4682,7 +4682,7 @@ SD_Execute_Read_Cmd_Failed:
 
 int sd_execute_write_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	unsigned int lun = SCSI_LUN(srb);
 	int retval, rsp_len, i;
 	bool write_err = false, cmd13_checkbit = false;
@@ -5062,7 +5062,7 @@ SD_Execute_Write_Cmd_Failed:
 
 int sd_get_cmd_rsp(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	unsigned int lun = SCSI_LUN(srb);
 	int count;
 	u16 data_len;
@@ -5104,7 +5104,7 @@ int sd_get_cmd_rsp(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 int sd_hw_rst(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	unsigned int lun = SCSI_LUN(srb);
 	int retval;
 
@@ -5174,7 +5174,7 @@ int sd_hw_rst(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 void sd_cleanup_work(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 
 	if (sd_card->seq_mode) {
 		dev_dbg(rtsx_dev(chip), "SD: stop transmission\n");
@@ -5230,7 +5230,7 @@ int sd_power_off_card3v3(struct rtsx_chip *chip)
 
 int release_sd_card(struct rtsx_chip *chip)
 {
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 	int retval;
 
 	chip->card_ready &= ~SD_CARD;
