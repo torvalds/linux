@@ -53,6 +53,23 @@
 #define SOC_TPLG_PASS_START	SOC_TPLG_PASS_MANIFEST
 #define SOC_TPLG_PASS_END	SOC_TPLG_PASS_BE_DAI
 
+
+/*
+ * Old version of ABI structs, supported for backward compatibility.
+ */
+
+/* Manifest v4 */
+struct snd_soc_tplg_manifest_v4 {
+	__le32 size;		/* in bytes of this structure */
+	__le32 control_elems;	/* number of control elements */
+	__le32 widget_elems;	/* number of widget elements */
+	__le32 graph_elems;	/* number of graph elements */
+	__le32 pcm_elems;	/* number of PCM elements */
+	__le32 dai_link_elems;	/* number of DAI link elements */
+	struct snd_soc_tplg_private priv;
+} __packed;
+
+/* topology context */
 struct soc_tplg {
 	const struct firmware *fw;
 
@@ -1798,27 +1815,81 @@ static int soc_tplg_be_dai_elems_load(struct soc_tplg *tplg,
 	return 0;
 }
 
+/**
+ * manifest_new_ver - Create a new version of manifest from the old version
+ * of source.
+ * @toplogy: topology context
+ * @src: old version of manifest as a source
+ * @manifest: latest version of manifest created from the source
+ *
+ * Support from vesion 4. Users need free the returned manifest manually.
+ */
+static int manifest_new_ver(struct soc_tplg *tplg,
+			    struct snd_soc_tplg_manifest *src,
+			    struct snd_soc_tplg_manifest **manifest)
+{
+	struct snd_soc_tplg_manifest *dest;
+	struct snd_soc_tplg_manifest_v4 *src_v4;
+
+	*manifest = NULL;
+
+	if (src->size != sizeof(*src_v4)) {
+		dev_err(tplg->dev, "ASoC: invalid manifest size\n");
+		return -EINVAL;
+	}
+
+	dev_warn(tplg->dev, "ASoC: old version of manifest\n");
+
+	src_v4 = (struct snd_soc_tplg_manifest_v4 *)src;
+	dest = kzalloc(sizeof(*dest) + src_v4->priv.size, GFP_KERNEL);
+	if (!dest)
+		return -ENOMEM;
+
+	dest->size = sizeof(*dest);	/* size of latest abi version */
+	dest->control_elems = src_v4->control_elems;
+	dest->widget_elems = src_v4->widget_elems;
+	dest->graph_elems = src_v4->graph_elems;
+	dest->pcm_elems = src_v4->pcm_elems;
+	dest->dai_link_elems = src_v4->dai_link_elems;
+	dest->priv.size = src_v4->priv.size;
+	if (dest->priv.size)
+		memcpy(dest->priv.data, src_v4->priv.data,
+		       src_v4->priv.size);
+
+	*manifest = dest;
+	return 0;
+}
 
 static int soc_tplg_manifest_load(struct soc_tplg *tplg,
 				  struct snd_soc_tplg_hdr *hdr)
 {
-	struct snd_soc_tplg_manifest *manifest;
+	struct snd_soc_tplg_manifest *manifest, *_manifest;
+	bool abi_match;
+	int err;
 
 	if (tplg->pass != SOC_TPLG_PASS_MANIFEST)
 		return 0;
 
 	manifest = (struct snd_soc_tplg_manifest *)tplg->pos;
-	if (manifest->size != sizeof(*manifest)) {
-		dev_err(tplg->dev, "ASoC: invalid manifest size\n");
-		return -EINVAL;
+
+	/* check ABI version by size, create a new manifest if abi not match */
+	if (manifest->size == sizeof(*manifest)) {
+		abi_match = true;
+		_manifest = manifest;
+	} else {
+		abi_match = false;
+		err = manifest_new_ver(tplg, manifest, &_manifest);
+		if (err < 0)
+			return err;
 	}
 
-	tplg->pos += sizeof(struct snd_soc_tplg_manifest);
-
+	/* pass control to component driver for optional further init */
 	if (tplg->comp && tplg->ops && tplg->ops->manifest)
-		return tplg->ops->manifest(tplg->comp, manifest);
+		return tplg->ops->manifest(tplg->comp, _manifest);
 
-	dev_err(tplg->dev, "ASoC: Firmware manifest not supported\n");
+	if (!abi_match)	/* free the duplicated one */
+		kfree(_manifest);
+
 	return 0;
 }
 
