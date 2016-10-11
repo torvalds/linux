@@ -1997,6 +1997,50 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
 	intel_hdmi->aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
 }
 
+static u8 intel_hdmi_ddc_pin(struct drm_i915_private *dev_priv,
+			     enum port port)
+{
+	const struct ddi_vbt_port_info *info =
+		&dev_priv->vbt.ddi_port_info[port];
+	u8 ddc_pin;
+
+	if (info->alternate_ddc_pin) {
+		DRM_DEBUG_KMS("Using DDC pin 0x%x for port %c (VBT)\n",
+			      info->alternate_ddc_pin, port_name(port));
+		return info->alternate_ddc_pin;
+	}
+
+	switch (port) {
+	case PORT_B:
+		if (IS_BROXTON(dev_priv))
+			ddc_pin = GMBUS_PIN_1_BXT;
+		else
+			ddc_pin = GMBUS_PIN_DPB;
+		break;
+	case PORT_C:
+		if (IS_BROXTON(dev_priv))
+			ddc_pin = GMBUS_PIN_2_BXT;
+		else
+			ddc_pin = GMBUS_PIN_DPC;
+		break;
+	case PORT_D:
+		if (IS_CHERRYVIEW(dev_priv))
+			ddc_pin = GMBUS_PIN_DPD_CHV;
+		else
+			ddc_pin = GMBUS_PIN_DPD;
+		break;
+	default:
+		MISSING_CASE(port);
+		ddc_pin = GMBUS_PIN_DPB;
+		break;
+	}
+
+	DRM_DEBUG_KMS("Using DDC pin 0x%x for port %c (platform default)\n",
+		      ddc_pin, port_name(port));
+
+	return ddc_pin;
+}
+
 void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 			       struct intel_connector *intel_connector)
 {
@@ -2006,7 +2050,6 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = intel_dig_port->port;
-	uint8_t alternate_ddc_pin;
 
 	DRM_DEBUG_KMS("Adding HDMI connector on port %c\n",
 		      port_name(port));
@@ -2019,12 +2062,10 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	connector->doublescan_allowed = 0;
 	connector->stereo_allowed = 1;
 
+	intel_hdmi->ddc_bus = intel_hdmi_ddc_pin(dev_priv, port);
+
 	switch (port) {
 	case PORT_B:
-		if (IS_BROXTON(dev_priv))
-			intel_hdmi->ddc_bus = GMBUS_PIN_1_BXT;
-		else
-			intel_hdmi->ddc_bus = GMBUS_PIN_DPB;
 		/*
 		 * On BXT A0/A1, sw needs to activate DDIA HPD logic and
 		 * interrupts to check the external panel connection.
@@ -2035,46 +2076,17 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 			intel_encoder->hpd_pin = HPD_PORT_B;
 		break;
 	case PORT_C:
-		if (IS_BROXTON(dev_priv))
-			intel_hdmi->ddc_bus = GMBUS_PIN_2_BXT;
-		else
-			intel_hdmi->ddc_bus = GMBUS_PIN_DPC;
 		intel_encoder->hpd_pin = HPD_PORT_C;
 		break;
 	case PORT_D:
-		if (WARN_ON(IS_BROXTON(dev_priv)))
-			intel_hdmi->ddc_bus = GMBUS_PIN_DISABLED;
-		else if (IS_CHERRYVIEW(dev_priv))
-			intel_hdmi->ddc_bus = GMBUS_PIN_DPD_CHV;
-		else
-			intel_hdmi->ddc_bus = GMBUS_PIN_DPD;
 		intel_encoder->hpd_pin = HPD_PORT_D;
 		break;
 	case PORT_E:
-		/* On SKL PORT E doesn't have seperate GMBUS pin
-		 *  We rely on VBT to set a proper alternate GMBUS pin. */
-		alternate_ddc_pin =
-			dev_priv->vbt.ddi_port_info[PORT_E].alternate_ddc_pin;
-		switch (alternate_ddc_pin) {
-		case DDC_PIN_B:
-			intel_hdmi->ddc_bus = GMBUS_PIN_DPB;
-			break;
-		case DDC_PIN_C:
-			intel_hdmi->ddc_bus = GMBUS_PIN_DPC;
-			break;
-		case DDC_PIN_D:
-			intel_hdmi->ddc_bus = GMBUS_PIN_DPD;
-			break;
-		default:
-			MISSING_CASE(alternate_ddc_pin);
-		}
 		intel_encoder->hpd_pin = HPD_PORT_E;
 		break;
-	case PORT_A:
-		intel_encoder->hpd_pin = HPD_PORT_A;
-		/* Internal port only for eDP. */
 	default:
-		BUG();
+		MISSING_CASE(port);
+		return;
 	}
 
 	if (IS_VALLEYVIEW(dev)) {
