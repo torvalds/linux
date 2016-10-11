@@ -229,11 +229,10 @@ static void xilinx_pcie_destroy_msi(unsigned int irq)
 
 /**
  * xilinx_pcie_assign_msi - Allocate MSI number
- * @port: PCIe port structure
  *
  * Return: A valid IRQ on success and error value on failure.
  */
-static int xilinx_pcie_assign_msi(struct xilinx_pcie_port *port)
+static int xilinx_pcie_assign_msi(void)
 {
 	int pos;
 
@@ -276,7 +275,7 @@ static int xilinx_pcie_msi_setup_irq(struct msi_controller *chip,
 	struct msi_msg msg;
 	phys_addr_t msg_addr;
 
-	hwirq = xilinx_pcie_assign_msi(port);
+	hwirq = xilinx_pcie_assign_msi();
 	if (hwirq < 0)
 		return hwirq;
 
