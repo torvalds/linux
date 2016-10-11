@@ -2782,14 +2782,15 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 	struct net_device *lowerdev = NULL;
 
 	if (conf->flags & VXLAN_F_GPE) {
-		if (conf->flags & ~VXLAN_F_ALLOWED_GPE)
-			return -EINVAL;
 		/* For now, allow GPE only together with COLLECT_METADATA.
 		 * This can be relaxed later; in such case, the other side
 		 * of the PtP link will have to be provided.
 		 */
-		if (!(conf->flags & VXLAN_F_COLLECT_METADATA))
+		if ((conf->flags & ~VXLAN_F_ALLOWED_GPE) ||
+		    !(conf->flags & VXLAN_F_COLLECT_METADATA)) {
+			pr_info("unsupported combination of extensions\n");
 			return -EINVAL;
+		}
 
 		vxlan_raw_setup(dev);
 	} else {
@@ -2842,6 +2843,9 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 			dev->mtu = lowerdev->mtu - (use_ipv6 ? VXLAN6_HEADROOM : VXLAN_HEADROOM);
 
 		needed_headroom = lowerdev->hard_header_len;
+	} else if (vxlan_addr_multicast(&dst->remote_ip)) {
+		pr_info("multicast destination requires interface to be specified\n");
+		return -EINVAL;
 	}
 
 	if (conf->mtu) {
@@ -2874,8 +2878,10 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 		     tmp->cfg.saddr.sa.sa_family == AF_INET6) == use_ipv6 &&
 		    tmp->cfg.dst_port == vxlan->cfg.dst_port &&
 		    (tmp->flags & VXLAN_F_RCV_FLAGS) ==
-		    (vxlan->flags & VXLAN_F_RCV_FLAGS))
-		return -EEXIST;
+		    (vxlan->flags & VXLAN_F_RCV_FLAGS)) {
+			pr_info("duplicate VNI %u\n", be32_to_cpu(conf->vni));
+			return -EEXIST;
+		}
 	}
 
 	dev->ethtool_ops = &vxlan_ethtool_ops;
@@ -2909,7 +2915,6 @@ static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[])
 {
 	struct vxlan_config conf;
-	int err;
 
 	memset(&conf, 0, sizeof(conf));
 
@@ -3018,26 +3023,7 @@ static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 	if (tb[IFLA_MTU])
 		conf.mtu = nla_get_u32(tb[IFLA_MTU]);
 
-	err = vxlan_dev_configure(src_net, dev, &conf);
-	switch (err) {
-	case -ENODEV:
-		pr_info("ifindex %d does not exist\n", conf.remote_ifindex);
-		break;
-
-	case -EPERM:
-		pr_info("IPv6 is disabled via sysctl\n");
-		break;
-
-	case -EEXIST:
-		pr_info("duplicate VNI %u\n", be32_to_cpu(conf.vni));
-		break;
-
-	case -EINVAL:
-		pr_info("unsupported combination of extensions\n");
-		break;
-	}
-
-	return err;
+	return vxlan_dev_configure(src_net, dev, &conf);
 }
 
 static void vxlan_dellink(struct net_device *dev, struct list_head *head)

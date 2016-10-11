@@ -778,7 +778,14 @@ static int addrconf_fixup_forwarding(struct ctl_table *table, int *p, int newf)
 	}
 
 	if (p == &net->ipv6.devconf_all->forwarding) {
+		int old_dflt = net->ipv6.devconf_dflt->forwarding;
+
 		net->ipv6.devconf_dflt->forwarding = newf;
+		if ((!newf) ^ (!old_dflt))
+			inet6_netconf_notify_devconf(net, NETCONFA_FORWARDING,
+						     NETCONFA_IFINDEX_DEFAULT,
+						     net->ipv6.devconf_dflt);
+
 		addrconf_forward_change(net, newf);
 		if ((!newf) ^ (!old))
 			inet6_netconf_notify_devconf(net, NETCONFA_FORWARDING,
@@ -1941,6 +1948,7 @@ errdad:
 	spin_unlock_bh(&ifp->lock);
 
 	addrconf_mod_dad_work(ifp, 0);
+	in6_ifa_put(ifp);
 }
 
 /* Join to solicited addr multicast group.
@@ -3850,6 +3858,7 @@ static void addrconf_dad_work(struct work_struct *w)
 		addrconf_dad_begin(ifp);
 		goto out;
 	} else if (action == DAD_ABORT) {
+		in6_ifa_hold(ifp);
 		addrconf_dad_stop(ifp, 1);
 		if (disable_ipv6)
 			addrconf_ifdown(idev->dev, 0);
@@ -6025,7 +6034,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 static int __addrconf_sysctl_register(struct net *net, char *dev_name,
 		struct inet6_dev *idev, struct ipv6_devconf *p)
 {
-	int i;
+	int i, ifindex;
 	struct ctl_table *table;
 	char path[sizeof("net/ipv6/conf/") + IFNAMSIZ];
 
@@ -6045,6 +6054,13 @@ static int __addrconf_sysctl_register(struct net *net, char *dev_name,
 	if (!p->sysctl_header)
 		goto free;
 
+	if (!strcmp(dev_name, "all"))
+		ifindex = NETCONFA_IFINDEX_ALL;
+	else if (!strcmp(dev_name, "default"))
+		ifindex = NETCONFA_IFINDEX_DEFAULT;
+	else
+		ifindex = idev->dev->ifindex;
+	inet6_netconf_notify_devconf(net, NETCONFA_ALL, ifindex, p);
 	return 0;
 
 free:

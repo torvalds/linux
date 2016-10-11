@@ -50,6 +50,10 @@ static const struct mtk_ethtool_stats {
 	MTK_ETHTOOL_STAT(rx_flow_control_packets),
 };
 
+static const char * const mtk_clks_source_name[] = {
+	"ethif", "esw", "gp1", "gp2"
+};
+
 void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg)
 {
 	__raw_writel(val, eth->base + reg);
@@ -291,7 +295,7 @@ err_phy:
 static int mtk_mdio_init(struct mtk_eth *eth)
 {
 	struct device_node *mii_np;
-	int err;
+	int ret;
 
 	mii_np = of_get_child_by_name(eth->dev->of_node, "mdio-bus");
 	if (!mii_np) {
@@ -300,13 +304,13 @@ static int mtk_mdio_init(struct mtk_eth *eth)
 	}
 
 	if (!of_device_is_available(mii_np)) {
-		err = 0;
+		ret = -ENODEV;
 		goto err_put_node;
 	}
 
-	eth->mii_bus = mdiobus_alloc();
+	eth->mii_bus = devm_mdiobus_alloc(eth->dev);
 	if (!eth->mii_bus) {
-		err = -ENOMEM;
+		ret = -ENOMEM;
 		goto err_put_node;
 	}
 
@@ -317,19 +321,11 @@ static int mtk_mdio_init(struct mtk_eth *eth)
 	eth->mii_bus->parent = eth->dev;
 
 	snprintf(eth->mii_bus->id, MII_BUS_ID_SIZE, "%s", mii_np->name);
-	err = of_mdiobus_register(eth->mii_bus, mii_np);
-	if (err)
-		goto err_free_bus;
-
-	return 0;
-
-err_free_bus:
-	mdiobus_free(eth->mii_bus);
+	ret = of_mdiobus_register(eth->mii_bus, mii_np);
 
 err_put_node:
 	of_node_put(mii_np);
-	eth->mii_bus = NULL;
-	return err;
+	return ret;
 }
 
 static void mtk_mdio_cleanup(struct mtk_eth *eth)
@@ -338,8 +334,6 @@ static void mtk_mdio_cleanup(struct mtk_eth *eth)
 		return;
 
 	mdiobus_unregister(eth->mii_bus);
-	of_node_put(eth->mii_bus->dev.of_node);
-	mdiobus_free(eth->mii_bus);
 }
 
 static inline void mtk_irq_disable(struct mtk_eth *eth, u32 mask)
@@ -588,14 +582,15 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	dma_addr_t mapped_addr;
 	unsigned int nr_frags;
 	int i, n_desc = 1;
-	u32 txd4 = 0;
+	u32 txd4 = 0, fport;
 
 	itxd = ring->next_free;
 	if (itxd == ring->last_free)
 		return -ENOMEM;
 
 	/* set the forward port */
-	txd4 |= (mac->id + 1) << TX_DMA_FPORT_SHIFT;
+	fport = (mac->id + 1) << TX_DMA_FPORT_SHIFT;
+	txd4 |= fport;
 
 	tx_buf = mtk_desc_to_tx_buf(ring, itxd);
 	memset(tx_buf, 0, sizeof(*tx_buf));
@@ -653,7 +648,7 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 			WRITE_ONCE(txd->txd3, (TX_DMA_SWC |
 					       TX_DMA_PLEN0(frag_map_size) |
 					       last_frag * TX_DMA_LS0));
-			WRITE_ONCE(txd->txd4, 0);
+			WRITE_ONCE(txd->txd4, fport);
 
 			tx_buf->skb = (struct sk_buff *)MTK_DMA_DUMMY_DESC;
 			tx_buf = mtk_desc_to_tx_buf(ring, txd);
@@ -865,7 +860,7 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		/* receive data */
 		skb = build_skb(data, ring->frag_size);
 		if (unlikely(!skb)) {
-			put_page(virt_to_head_page(new_data));
+			skb_free_frag(new_data);
 			netdev->stats.rx_dropped++;
 			goto release_desc;
 		}
@@ -1506,10 +1501,7 @@ static void mtk_uninit(struct net_device *dev)
 	struct mtk_eth *eth = mac->hw;
 
 	phy_disconnect(mac->phy_dev);
-	mtk_mdio_cleanup(eth);
 	mtk_irq_disable(eth, ~0);
-	free_irq(eth->irq[1], dev);
-	free_irq(eth->irq[2], dev);
 }
 
 static int mtk_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -1813,6 +1805,7 @@ static int mtk_probe(struct platform_device *pdev)
 	if (!eth)
 		return -ENOMEM;
 
+	eth->dev = &pdev->dev;
 	eth->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(eth->base))
 		return PTR_ERR(eth->base);
@@ -1847,21 +1840,21 @@ static int mtk_probe(struct platform_device *pdev)
 			return -ENXIO;
 		}
 	}
+	for (i = 0; i < ARRAY_SIZE(eth->clks); i++) {
+		eth->clks[i] = devm_clk_get(eth->dev,
+					    mtk_clks_source_name[i]);
+		if (IS_ERR(eth->clks[i])) {
+			if (PTR_ERR(eth->clks[i]) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+			return -ENODEV;
+		}
+	}
 
-	eth->clk_ethif = devm_clk_get(&pdev->dev, "ethif");
-	eth->clk_esw = devm_clk_get(&pdev->dev, "esw");
-	eth->clk_gp1 = devm_clk_get(&pdev->dev, "gp1");
-	eth->clk_gp2 = devm_clk_get(&pdev->dev, "gp2");
-	if (IS_ERR(eth->clk_esw) || IS_ERR(eth->clk_gp1) ||
-	    IS_ERR(eth->clk_gp2) || IS_ERR(eth->clk_ethif))
-		return -ENODEV;
+	clk_prepare_enable(eth->clks[MTK_CLK_ETHIF]);
+	clk_prepare_enable(eth->clks[MTK_CLK_ESW]);
+	clk_prepare_enable(eth->clks[MTK_CLK_GP1]);
+	clk_prepare_enable(eth->clks[MTK_CLK_GP2]);
 
-	clk_prepare_enable(eth->clk_ethif);
-	clk_prepare_enable(eth->clk_esw);
-	clk_prepare_enable(eth->clk_gp1);
-	clk_prepare_enable(eth->clk_gp2);
-
-	eth->dev = &pdev->dev;
 	eth->msg_enable = netif_msg_init(mtk_msg_level, MTK_DEFAULT_MSG_ENABLE);
 	INIT_WORK(&eth->pending_work, mtk_pending_work);
 
@@ -1903,15 +1896,24 @@ err_free_dev:
 static int mtk_remove(struct platform_device *pdev)
 {
 	struct mtk_eth *eth = platform_get_drvdata(pdev);
+	int i;
 
-	clk_disable_unprepare(eth->clk_ethif);
-	clk_disable_unprepare(eth->clk_esw);
-	clk_disable_unprepare(eth->clk_gp1);
-	clk_disable_unprepare(eth->clk_gp2);
+	/* stop all devices to make sure that dma is properly shut down */
+	for (i = 0; i < MTK_MAC_COUNT; i++) {
+		if (!eth->netdev[i])
+			continue;
+		mtk_stop(eth->netdev[i]);
+	}
+
+	clk_disable_unprepare(eth->clks[MTK_CLK_ETHIF]);
+	clk_disable_unprepare(eth->clks[MTK_CLK_ESW]);
+	clk_disable_unprepare(eth->clks[MTK_CLK_GP1]);
+	clk_disable_unprepare(eth->clks[MTK_CLK_GP2]);
 
 	netif_napi_del(&eth->tx_napi);
 	netif_napi_del(&eth->rx_napi);
 	mtk_cleanup(eth);
+	mtk_mdio_cleanup(eth);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
@@ -1921,6 +1923,7 @@ const struct of_device_id of_mtk_match[] = {
 	{ .compatible = "mediatek,mt7623-eth" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, of_mtk_match);
 
 static struct platform_driver mtk_driver = {
 	.probe = mtk_probe,

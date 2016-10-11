@@ -65,6 +65,7 @@ config MIPS
 	select ARCH_CLOCKSOURCE_DATA
 	select HANDLE_DOMAIN_IRQ
 	select HAVE_EXIT_THREAD
+	select HAVE_REGS_AND_STACK_ACCESS_API
 
 menu "Machine selection"
 

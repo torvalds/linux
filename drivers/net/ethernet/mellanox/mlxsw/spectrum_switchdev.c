@@ -167,8 +167,8 @@ static int mlxsw_sp_port_attr_stp_state_set(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static int __mlxsw_sp_port_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				     u16 idx_begin, u16 idx_end, bool set,
-				     bool only_uc)
+				     u16 idx_begin, u16 idx_end, bool uc_set,
+				     bool bm_set)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	u16 local_port = mlxsw_sp_port->local_port;
@@ -187,28 +187,22 @@ static int __mlxsw_sp_port_flood_set(struct mlxsw_sp_port *mlxsw_sp_port,
 		return -ENOMEM;
 
 	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_UC, idx_begin,
-			    table_type, range, local_port, set);
+			    table_type, range, local_port, uc_set);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
 	if (err)
-		goto buffer_out;
-
-	/* Flooding control allows one to decide whether a given port will
-	 * flood unicast traffic for which there is no FDB entry.
-	 */
-	if (only_uc)
 		goto buffer_out;
 
 	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_BM, idx_begin,
-			    table_type, range, local_port, set);
+			    table_type, range, local_port, bm_set);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
 	if (err)
 		goto err_flood_bm_set;
-	else
-		goto buffer_out;
+
+	goto buffer_out;
 
 err_flood_bm_set:
 	mlxsw_reg_sftr_pack(sftr_pl, MLXSW_SP_FLOOD_TABLE_UC, idx_begin,
-			    table_type, range, local_port, !set);
+			    table_type, range, local_port, !uc_set);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sftr), sftr_pl);
 buffer_out:
 	kfree(sftr_pl);
@@ -257,8 +251,7 @@ int mlxsw_sp_vport_flood_set(struct mlxsw_sp_port *mlxsw_sp_vport, u16 fid,
 	 * the start of the vFIDs range.
 	 */
 	vfid = mlxsw_sp_fid_to_vfid(fid);
-	return __mlxsw_sp_port_flood_set(mlxsw_sp_vport, vfid, vfid, set,
-					 false);
+	return __mlxsw_sp_port_flood_set(mlxsw_sp_vport, vfid, vfid, set, set);
 }
 
 static int mlxsw_sp_port_attr_br_flags_set(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -460,6 +453,9 @@ static int __mlxsw_sp_port_fid_join(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct mlxsw_sp_fid *f;
 
+	if (test_bit(fid, mlxsw_sp_port->active_vlans))
+		return 0;
+
 	f = mlxsw_sp_fid_find(mlxsw_sp_port->mlxsw_sp, fid);
 	if (!f) {
 		f = mlxsw_sp_fid_create(mlxsw_sp_port->mlxsw_sp, fid);
@@ -517,7 +513,7 @@ static int mlxsw_sp_port_fid_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 
 	err = __mlxsw_sp_port_flood_set(mlxsw_sp_port, fid_begin, fid_end,
-					true, false);
+					mlxsw_sp_port->uc_flood, true);
 	if (err)
 		goto err_port_flood_set;
 

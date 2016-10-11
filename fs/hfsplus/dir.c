@@ -530,9 +530,13 @@ static int hfsplus_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 }
 
 static int hfsplus_rename(struct inode *old_dir, struct dentry *old_dentry,
-			  struct inode *new_dir, struct dentry *new_dentry)
+			  struct inode *new_dir, struct dentry *new_dentry,
+			  unsigned int flags)
 {
 	int res;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	/* Unlink destination if it already exists */
 	if (d_really_is_positive(new_dentry)) {

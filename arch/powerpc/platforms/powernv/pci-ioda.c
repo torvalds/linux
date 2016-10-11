@@ -124,6 +124,13 @@ static inline bool pnv_pci_is_m64(struct pnv_phb *phb, struct resource *r)
 		r->start < (phb->ioda.m64_base + phb->ioda.m64_size));
 }
 
+static inline bool pnv_pci_is_m64_flags(unsigned long resource_flags)
+{
+	unsigned long flags = (IORESOURCE_MEM_64 | IORESOURCE_PREFETCH);
+
+	return (resource_flags & flags) == flags;
+}
+
 static struct pnv_ioda_pe *pnv_ioda_init_pe(struct pnv_phb *phb, int pe_no)
 {
 	phb->ioda.pe_array[pe_no].phb = phb;
@@ -2217,7 +2224,7 @@ static long pnv_pci_ioda2_set_window(struct iommu_table_group *table_group,
 
 	pnv_pci_link_table_and_group(phb->hose->node, num,
 			tbl, &pe->table_group);
-	pnv_pci_phb3_tce_invalidate_pe(pe);
+	pnv_pci_ioda2_tce_invalidate_pe(pe);
 
 	return 0;
 }
@@ -2355,7 +2362,7 @@ static long pnv_pci_ioda2_unset_window(struct iommu_table_group *table_group,
 	if (ret)
 		pe_warn(pe, "Unmapping failed, ret = %ld\n", ret);
 	else
-		pnv_pci_phb3_tce_invalidate_pe(pe);
+		pnv_pci_ioda2_tce_invalidate_pe(pe);
 
 	pnv_pci_unlink_table_and_group(table_group->tables[num], table_group);
 
@@ -2871,7 +2878,7 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 		res = &pdev->resource[i + PCI_IOV_RESOURCES];
 		if (!res->flags || res->parent)
 			continue;
-		if (!pnv_pci_is_m64(phb, res)) {
+		if (!pnv_pci_is_m64_flags(res->flags)) {
 			dev_warn(&pdev->dev, "Don't support SR-IOV with"
 					" non M64 VF BAR%d: %pR. \n",
 				 i, res);
@@ -3096,7 +3103,7 @@ static resource_size_t pnv_pci_window_alignment(struct pci_bus *bus,
 	 * alignment for any 64-bit resource, PCIe doesn't care and
 	 * bridges only do 64-bit prefetchable anyway.
 	 */
-	if (phb->ioda.m64_segsize && (type & IORESOURCE_MEM_64))
+	if (phb->ioda.m64_segsize && pnv_pci_is_m64_flags(type))
 		return phb->ioda.m64_segsize;
 	if (type & IORESOURCE_MEM)
 		return phb->ioda.m32_segsize;
@@ -3426,7 +3433,17 @@ static void pnv_ioda_release_pe(struct pnv_ioda_pe *pe)
 		}
 	}
 
-	pnv_ioda_free_pe(pe);
+	/*
+	 * The PE for root bus can be removed because of hotplug in EEH
+	 * recovery for fenced PHB error. We need to mark the PE dead so
+	 * that it can be populated again in PCI hot add path. The PE
+	 * shouldn't be destroyed as it's the global reserved resource.
+	 */
+	if (phb->ioda.root_pe_populated &&
+	    phb->ioda.root_pe_idx == pe->pe_number)
+		phb->ioda.root_pe_populated = false;
+	else
+		pnv_ioda_free_pe(pe);
 }
 
 static void pnv_pci_release_device(struct pci_dev *pdev)
@@ -3442,7 +3459,17 @@ static void pnv_pci_release_device(struct pci_dev *pdev)
 	if (!pdn || pdn->pe_number == IODA_INVALID_PE)
 		return;
 
+	/*
+	 * PCI hotplug can happen as part of EEH error recovery. The @pdn
+	 * isn't removed and added afterwards in this scenario. We should
+	 * set the PE number in @pdn to an invalid one. Otherwise, the PE's
+	 * device count is decreased on removing devices while failing to
+	 * be increased on adding devices. It leads to unbalanced PE's device
+	 * count and eventually make normal PCI hotplug path broken.
+	 */
 	pe = &phb->ioda.pe_array[pdn->pe_number];
+	pdn->pe_number = IODA_INVALID_PE;
+
 	WARN_ON(--pe->device_count < 0);
 	if (pe->device_count == 0)
 		pnv_ioda_release_pe(pe);

@@ -1554,6 +1554,7 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 
 abort:
 	esw_enable_vport(esw, 0, UC_ADDR_CHANGE);
+	esw->mode = SRIOV_NONE;
 	return err;
 }
 

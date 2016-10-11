@@ -368,6 +368,8 @@ ebt_check_match(struct ebt_entry_match *m, struct xt_mtchk_param *par,
 
 	match = xt_find_match(NFPROTO_BRIDGE, m->u.name, 0);
 	if (IS_ERR(match) || match->family != NFPROTO_BRIDGE) {
+		if (!IS_ERR(match))
+			module_put(match->me);
 		request_module("ebt_%s", m->u.name);
 		match = xt_find_match(NFPROTO_BRIDGE, m->u.name, 0);
 	}

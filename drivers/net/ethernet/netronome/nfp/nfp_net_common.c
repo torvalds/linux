@@ -41,7 +41,6 @@
  *          Chris Telfer <chris.telfer@netronome.com>
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -1441,10 +1440,6 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 
 		nfp_net_set_hash(nn->netdev, skb, rxd);
 
-		/* Pad small frames to minimum */
-		if (skb_put_padto(skb, 60))
-			break;
-
 		/* Stats update */
 		u64_stats_update_begin(&r_vec->rx_sync);
 		r_vec->rx_pkts++;
@@ -2049,12 +2044,16 @@ static int nfp_net_netdev_open(struct net_device *netdev)
 
 	nn->rx_rings = kcalloc(nn->num_rx_rings, sizeof(*nn->rx_rings),
 			       GFP_KERNEL);
-	if (!nn->rx_rings)
+	if (!nn->rx_rings) {
+		err = -ENOMEM;
 		goto err_free_lsc;
+	}
 	nn->tx_rings = kcalloc(nn->num_tx_rings, sizeof(*nn->tx_rings),
 			       GFP_KERNEL);
-	if (!nn->tx_rings)
+	if (!nn->tx_rings) {
+		err = -ENOMEM;
 		goto err_free_rx_rings;
+	}
 
 	for (r = 0; r < nn->num_r_vecs; r++) {
 		err = nfp_net_prepare_vector(nn, &nn->r_vecs[r], r);

@@ -371,11 +371,15 @@ static bool omfs_fill_chain(struct inode *dir, struct dir_context *ctx,
 }
 
 static int omfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-		struct inode *new_dir, struct dentry *new_dentry)
+		       struct inode *new_dir, struct dentry *new_dentry,
+		       unsigned int flags)
 {
 	struct inode *new_inode = d_inode(new_dentry);
 	struct inode *old_inode = d_inode(old_dentry);
 	int err;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	if (new_inode) {
 		/* overwriting existing file/dir */

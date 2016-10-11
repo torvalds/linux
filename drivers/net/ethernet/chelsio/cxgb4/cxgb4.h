@@ -419,8 +419,8 @@ struct link_config {
 	unsigned short supported;        /* link capabilities */
 	unsigned short advertising;      /* advertised capabilities */
 	unsigned short lp_advertising;   /* peer advertised capabilities */
-	unsigned short requested_speed;  /* speed user has requested */
-	unsigned short speed;            /* actual link speed */
+	unsigned int   requested_speed;  /* speed user has requested */
+	unsigned int   speed;            /* actual link speed */
 	unsigned char  requested_fc;     /* flow control user has requested */
 	unsigned char  fc;               /* actual link flow control */
 	unsigned char  autoneg;          /* autonegotiating? */

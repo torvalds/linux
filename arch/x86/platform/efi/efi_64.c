@@ -245,7 +245,7 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 	 * text and allocate a new stack because we can't rely on the
 	 * stack pointer being < 4GB.
 	 */
-	if (!IS_ENABLED(CONFIG_EFI_MIXED))
+	if (!IS_ENABLED(CONFIG_EFI_MIXED) || efi_is_native())
 		return 0;
 
 	/*

@@ -87,6 +87,13 @@ void __init add_memory_region(phys_addr_t start, phys_addr_t size, long type)
 	int x = boot_mem_map.nr_map;
 	int i;
 
+	/*
+	 * If the region reaches the top of the physical address space, adjust
+	 * the size slightly so that (start + size) doesn't overflow
+	 */
+	if (start + size - 1 == (phys_addr_t)ULLONG_MAX)
+		--size;
+
 	/* Sanity check */
 	if (start + size < start) {
 		pr_warn("Trying to add an invalid memory region, skipped\n");

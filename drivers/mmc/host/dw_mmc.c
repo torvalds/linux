@@ -1112,11 +1112,12 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 
 		div = (host->bus_hz != clock) ? DIV_ROUND_UP(div, 2) : 0;
 
-		dev_info(&slot->mmc->class_dev,
-			 "Bus speed (slot %d) = %dHz (slot req %dHz, actual %dHZ div = %d)\n",
-			 slot->id, host->bus_hz, clock,
-			 div ? ((host->bus_hz / div) >> 1) :
-			 host->bus_hz, div);
+		if (clock != slot->__clk_old || force_clkinit)
+			dev_info(&slot->mmc->class_dev,
+				 "Bus speed (slot %d) = %dHz (slot req %dHz, actual %dHZ div = %d)\n",
+				 slot->id, host->bus_hz, clock,
+				 div ? ((host->bus_hz / div) >> 1) :
+				 host->bus_hz, div);
 
 		/* disable clock */
 		mci_writel(host, CLKENA, 0);
@@ -1139,6 +1140,9 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 
 		/* inform CIU */
 		mci_send_cmd(slot, sdmmc_cmd_bits, 0);
+
+		/* keep the last clock value that was requested from core */
+		slot->__clk_old = clock;
 	}
 
 	host->current_speed = clock;

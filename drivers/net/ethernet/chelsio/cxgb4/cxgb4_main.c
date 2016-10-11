@@ -4305,10 +4305,17 @@ static const struct pci_error_handlers cxgb4_eeh = {
 	.resume         = eeh_resume,
 };
 
+/* Return true if the Link Configuration supports "High Speeds" (those greater
+ * than 1Gb/s).
+ */
 static inline bool is_x_10g_port(const struct link_config *lc)
 {
-	return (lc->supported & FW_PORT_CAP_SPEED_10G) != 0 ||
-	       (lc->supported & FW_PORT_CAP_SPEED_40G) != 0;
+	unsigned int speeds, high_speeds;
+
+	speeds = FW_PORT_CAP_SPEED_V(FW_PORT_CAP_SPEED_G(lc->supported));
+	high_speeds = speeds & ~(FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G);
+
+	return high_speeds != 0;
 }
 
 static inline void init_rspq(struct adapter *adap, struct sge_rspq *q,
@@ -4756,8 +4763,12 @@ static void print_port_info(const struct net_device *dev)
 		bufp += sprintf(bufp, "1000/");
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
 		bufp += sprintf(bufp, "10G/");
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_25G)
+		bufp += sprintf(bufp, "25G/");
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G)
 		bufp += sprintf(bufp, "40G/");
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100G)
+		bufp += sprintf(bufp, "100G/");
 	if (bufp != buf)
 		--bufp;
 	sprintf(bufp, "BASE-%s", t4_get_port_type_description(pi->port_type));

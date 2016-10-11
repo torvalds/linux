@@ -424,10 +424,8 @@ static int xgene_mdio_remove(struct platform_device *pdev)
 	mdiobus_unregister(mdio_bus);
 	mdiobus_free(mdio_bus);
 
-	if (dev->of_node) {
-		if (IS_ERR(pdata->clk))
-			clk_disable_unprepare(pdata->clk);
-	}
+	if (dev->of_node)
+		clk_disable_unprepare(pdata->clk);
 
 	return 0;
 }

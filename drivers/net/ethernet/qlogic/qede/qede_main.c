@@ -2520,7 +2520,8 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	edev->ops->register_ops(cdev, &qede_ll_ops, edev);
 
 #ifdef CONFIG_DCB
-	qede_set_dcbnl_ops(edev->ndev);
+	if (!IS_VF(edev))
+		qede_set_dcbnl_ops(edev->ndev);
 #endif
 
 	INIT_DELAYED_WORK(&edev->sp_task, qede_sp_task);

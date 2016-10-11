@@ -2265,6 +2265,12 @@ enum fw_port_cap {
 	FW_PORT_CAP_802_3_ASM_DIR	= 0x8000,
 };
 
+#define FW_PORT_CAP_SPEED_S     0
+#define FW_PORT_CAP_SPEED_M     0x3f
+#define FW_PORT_CAP_SPEED_V(x)  ((x) << FW_PORT_CAP_SPEED_S)
+#define FW_PORT_CAP_SPEED_G(x) \
+	(((x) >> FW_PORT_CAP_SPEED_S) & FW_PORT_CAP_SPEED_M)
+
 enum fw_port_mdi {
 	FW_PORT_CAP_MDI_UNCHANGED,
 	FW_PORT_CAP_MDI_AUTO,

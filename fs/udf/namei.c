@@ -1093,7 +1093,8 @@ static int udf_link(struct dentry *old_dentry, struct inode *dir,
  * higher-level routines.
  */
 static int udf_rename(struct inode *old_dir, struct dentry *old_dentry,
-		      struct inode *new_dir, struct dentry *new_dentry)
+		      struct inode *new_dir, struct dentry *new_dentry,
+		      unsigned int flags)
 {
 	struct inode *old_inode = d_inode(old_dentry);
 	struct inode *new_inode = d_inode(new_dentry);
@@ -1104,6 +1105,9 @@ static int udf_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int retval = -ENOENT;
 	struct kernel_lb_addr tloc;
 	struct udf_inode_info *old_iinfo = UDF_I(old_inode);
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	ofi = udf_find_entry(old_dir, &old_dentry->d_name, &ofibh, &ocfi);
 	if (IS_ERR(ofi)) {

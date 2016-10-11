@@ -10,6 +10,7 @@
 #include <asm-generic/uaccess-unaligned.h>
 
 #include <linux/bug.h>
+#include <linux/string.h>
 
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1
@@ -221,7 +222,7 @@ static inline unsigned long __must_check copy_from_user(void *to,
                                           unsigned long n)
 {
         int sz = __compiletime_object_size(to);
-        int ret = -EFAULT;
+        unsigned long ret = n;
 
         if (likely(sz == -1 || sz >= n))
                 ret = __copy_from_user(to, from, n);
@@ -230,6 +231,8 @@ static inline unsigned long __must_check copy_from_user(void *to,
 	else
                 __bad_copy_user();
 
+	if (unlikely(ret))
+		memset(to + (n - ret), 0, ret);
         return ret;
 }
 

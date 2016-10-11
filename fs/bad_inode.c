@@ -133,7 +133,7 @@ static const struct inode_operations bad_inode_ops =
 	.mkdir		= bad_inode_mkdir,
 	.rmdir		= bad_inode_rmdir,
 	.mknod		= bad_inode_mknod,
-	.rename2	= bad_inode_rename2,
+	.rename		= bad_inode_rename2,
 	.readlink	= bad_inode_readlink,
 	/* follow_link must be no-op, otherwise unmounting this inode
 	   won't work */

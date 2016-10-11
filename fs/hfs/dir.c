@@ -286,9 +286,13 @@ static int hfs_remove(struct inode *dir, struct dentry *dentry)
  * XXX: how do you handle must_be dir?
  */
 static int hfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-		      struct inode *new_dir, struct dentry *new_dentry)
+		      struct inode *new_dir, struct dentry *new_dentry,
+		      unsigned int flags)
 {
 	int res;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	/* Unlink destination if it already exists */
 	if (d_really_is_positive(new_dentry)) {

@@ -1,7 +1,7 @@
 /dts-v1/;
 #include "bcm2837.dtsi"
-#include "../../../../arm/boot/dts/bcm2835-rpi.dtsi"
-#include "../../../../arm/boot/dts/bcm283x-rpi-smsc9514.dtsi"
+#include "bcm2835-rpi.dtsi"
+#include "bcm283x-rpi-smsc9514.dtsi"
 
 / {
 	compatible = "raspberrypi,3-model-b", "brcm,bcm2837";

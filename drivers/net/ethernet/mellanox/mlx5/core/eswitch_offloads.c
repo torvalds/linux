@@ -446,7 +446,7 @@ out:
 
 static int esw_offloads_start(struct mlx5_eswitch *esw)
 {
-	int err, num_vfs = esw->dev->priv.sriov.num_vfs;
+	int err, err1, num_vfs = esw->dev->priv.sriov.num_vfs;
 
 	if (esw->mode != SRIOV_LEGACY) {
 		esw_warn(esw->dev, "Can't set offloads mode, SRIOV legacy not enabled\n");
@@ -455,8 +455,12 @@ static int esw_offloads_start(struct mlx5_eswitch *esw)
 
 	mlx5_eswitch_disable_sriov(esw);
 	err = mlx5_eswitch_enable_sriov(esw, num_vfs, SRIOV_OFFLOADS);
-	if (err)
-		esw_warn(esw->dev, "Failed set eswitch to offloads, err %d\n", err);
+	if (err) {
+		esw_warn(esw->dev, "Failed setting eswitch to offloads, err %d\n", err);
+		err1 = mlx5_eswitch_enable_sriov(esw, num_vfs, SRIOV_LEGACY);
+		if (err1)
+			esw_warn(esw->dev, "Failed setting eswitch back to legacy, err %d\n", err);
+	}
 	return err;
 }
 
@@ -508,12 +512,16 @@ create_ft_err:
 
 static int esw_offloads_stop(struct mlx5_eswitch *esw)
 {
-	int err, num_vfs = esw->dev->priv.sriov.num_vfs;
+	int err, err1, num_vfs = esw->dev->priv.sriov.num_vfs;
 
 	mlx5_eswitch_disable_sriov(esw);
 	err = mlx5_eswitch_enable_sriov(esw, num_vfs, SRIOV_LEGACY);
-	if (err)
-		esw_warn(esw->dev, "Failed set eswitch legacy mode. err %d\n", err);
+	if (err) {
+		esw_warn(esw->dev, "Failed setting eswitch to legacy, err %d\n", err);
+		err1 = mlx5_eswitch_enable_sriov(esw, num_vfs, SRIOV_OFFLOADS);
+		if (err1)
+			esw_warn(esw->dev, "Failed setting eswitch back to offloads, err %d\n", err);
+	}
 
 	return err;
 }

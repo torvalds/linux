@@ -821,7 +821,7 @@ config DETECT_HUNG_TASK
 	help
 	  Say Y here to enable the kernel to detect "hung tasks",
 	  which are bugs that cause the task to be stuck in
-	  uninterruptible "D" state indefinitiley.
+	  uninterruptible "D" state indefinitely.
 
 	  When a hung task is detected, the kernel will print the
 	  current stack trace (which you should report), but the

@@ -718,8 +718,12 @@ out:
 }
 
 static int logfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-			struct inode *new_dir, struct dentry *new_dentry)
+			struct inode *new_dir, struct dentry *new_dentry,
+			unsigned int flags)
 {
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
+
 	if (d_really_is_positive(new_dentry))
 		return logfs_rename_target(old_dir, old_dentry,
 					   new_dir, new_dentry);

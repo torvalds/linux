@@ -796,27 +796,34 @@ struct sctp_hash_cmp_arg {
 static inline int sctp_hash_cmp(struct rhashtable_compare_arg *arg,
 				const void *ptr)
 {
+	struct sctp_transport *t = (struct sctp_transport *)ptr;
 	const struct sctp_hash_cmp_arg *x = arg->key;
-	const struct sctp_transport *t = ptr;
-	struct sctp_association *asoc = t->asoc;
-	const struct net *net = x->net;
+	struct sctp_association *asoc;
+	int err = 1;
 
 	if (!sctp_cmp_addr_exact(&t->ipaddr, x->paddr))
-		return 1;
-	if (!net_eq(sock_net(asoc->base.sk), net))
-		return 1;
+		return err;
+	if (!sctp_transport_hold(t))
+		return err;
+
+	asoc = t->asoc;
+	if (!net_eq(sock_net(asoc->base.sk), x->net))
+		goto out;
 	if (x->ep) {
 		if (x->ep != asoc->ep)
-			return 1;
+			goto out;
 	} else {
 		if (x->laddr->v4.sin_port != htons(asoc->base.bind_addr.port))
-			return 1;
+			goto out;
 		if (!sctp_bind_addr_match(&asoc->base.bind_addr,
 					  x->laddr, sctp_sk(asoc->base.sk)))
-			return 1;
+			goto out;
 	}
 
-	return 0;
+	err = 0;
+out:
+	sctp_transport_put(t);
+	return err;
 }
 
 static inline u32 sctp_hash_obj(const void *data, u32 len, u32 seed)

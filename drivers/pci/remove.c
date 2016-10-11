@@ -40,6 +40,7 @@ static void pci_destroy_dev(struct pci_dev *dev)
 	list_del(&dev->bus_list);
 	up_write(&pci_bus_sem);
 
+	pci_bridge_d3_device_removed(dev);
 	pci_free_resources(dev);
 	put_device(&dev->dev);
 }
@@ -95,8 +96,6 @@ static void pci_remove_bus_device(struct pci_dev *dev)
 		pci_remove_bus(bus);
 		dev->subordinate = NULL;
 	}
-
-	pci_bridge_d3_device_removed(dev);
 
 	pci_destroy_dev(dev);
 }

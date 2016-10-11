@@ -3162,7 +3162,6 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		pci_hard_reset = ath10k_pci_qca988x_chip_reset;
 		break;
 	case QCA9887_1_0_DEVICE_ID:
-		dev_warn(&pdev->dev, "QCA9887 support is still experimental, there are likely bugs. You have been warned.\n");
 		hw_rev = ATH10K_HW_QCA9887;
 		pci_ps = false;
 		pci_soft_reset = ath10k_pci_warm_reset;

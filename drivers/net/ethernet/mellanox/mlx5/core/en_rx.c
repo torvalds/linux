@@ -637,24 +637,32 @@ bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 static void mlx5e_lro_update_hdr(struct sk_buff *skb, struct mlx5_cqe64 *cqe,
 				 u32 cqe_bcnt)
 {
-	struct ethhdr	*eth	= (struct ethhdr *)(skb->data);
-	struct iphdr	*ipv4	= (struct iphdr *)(skb->data + ETH_HLEN);
-	struct ipv6hdr	*ipv6	= (struct ipv6hdr *)(skb->data + ETH_HLEN);
+	struct ethhdr	*eth = (struct ethhdr *)(skb->data);
+	struct iphdr	*ipv4;
+	struct ipv6hdr	*ipv6;
 	struct tcphdr	*tcp;
+	int network_depth = 0;
+	__be16 proto;
+	u16 tot_len;
 
 	u8 l4_hdr_type = get_cqe_l4_hdr_type(cqe);
 	int tcp_ack = ((CQE_L4_HDR_TYPE_TCP_ACK_NO_DATA  == l4_hdr_type) ||
 		       (CQE_L4_HDR_TYPE_TCP_ACK_AND_DATA == l4_hdr_type));
 
-	u16 tot_len = cqe_bcnt - ETH_HLEN;
+	skb->mac_len = ETH_HLEN;
+	proto = __vlan_get_protocol(skb, eth->h_proto, &network_depth);
 
-	if (eth->h_proto == htons(ETH_P_IP)) {
-		tcp = (struct tcphdr *)(skb->data + ETH_HLEN +
+	ipv4 = (struct iphdr *)(skb->data + network_depth);
+	ipv6 = (struct ipv6hdr *)(skb->data + network_depth);
+	tot_len = cqe_bcnt - network_depth;
+
+	if (proto == htons(ETH_P_IP)) {
+		tcp = (struct tcphdr *)(skb->data + network_depth +
 					sizeof(struct iphdr));
 		ipv6 = NULL;
 		skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
 	} else {
-		tcp = (struct tcphdr *)(skb->data + ETH_HLEN +
+		tcp = (struct tcphdr *)(skb->data + network_depth +
 					sizeof(struct ipv6hdr));
 		ipv4 = NULL;
 		skb_shinfo(skb)->gso_type = SKB_GSO_TCPV6;

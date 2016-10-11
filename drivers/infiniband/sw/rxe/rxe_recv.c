@@ -312,7 +312,7 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 		 * make a copy of the skb to post to the next qp
 		 */
 		skb_copy = (mce->qp_list.next != &mcg->qp_list) ?
-				skb_clone(skb, GFP_KERNEL) : NULL;
+				skb_clone(skb, GFP_ATOMIC) : NULL;
 
 		pkt->qp = qp;
 		rxe_add_ref(qp);

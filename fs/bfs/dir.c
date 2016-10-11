@@ -207,13 +207,17 @@ out_brelse:
 }
 
 static int bfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-			struct inode *new_dir, struct dentry *new_dentry)
+		      struct inode *new_dir, struct dentry *new_dentry,
+		      unsigned int flags)
 {
 	struct inode *old_inode, *new_inode;
 	struct buffer_head *old_bh, *new_bh;
 	struct bfs_dirent *old_de, *new_de;
 	struct bfs_sb_info *info;
 	int error = -ENOENT;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	old_bh = new_bh = NULL;
 	old_inode = d_inode(old_dentry);

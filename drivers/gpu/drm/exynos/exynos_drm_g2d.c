@@ -1475,8 +1475,8 @@ static int g2d_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int g2d_suspend(struct device *dev)
+#ifdef CONFIG_PM
+static int g2d_runtime_suspend(struct device *dev)
 {
 	struct g2d_data *g2d = dev_get_drvdata(dev);
 
@@ -1489,25 +1489,6 @@ static int g2d_suspend(struct device *dev)
 		usleep_range(500, 1000);
 
 	flush_work(&g2d->runqueue_work);
-
-	return 0;
-}
-
-static int g2d_resume(struct device *dev)
-{
-	struct g2d_data *g2d = dev_get_drvdata(dev);
-
-	g2d->suspended = false;
-	g2d_exec_runqueue(g2d);
-
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_PM
-static int g2d_runtime_suspend(struct device *dev)
-{
-	struct g2d_data *g2d = dev_get_drvdata(dev);
 
 	clk_disable_unprepare(g2d->gate_clk);
 
@@ -1523,12 +1504,16 @@ static int g2d_runtime_resume(struct device *dev)
 	if (ret < 0)
 		dev_warn(dev, "failed to enable clock.\n");
 
+	g2d->suspended = false;
+	g2d_exec_runqueue(g2d);
+
 	return ret;
 }
 #endif
 
 static const struct dev_pm_ops g2d_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(g2d_suspend, g2d_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(g2d_runtime_suspend, g2d_runtime_resume, NULL)
 };
 

@@ -82,6 +82,8 @@ struct nvme_rdma_request {
 
 enum nvme_rdma_queue_flags {
 	NVME_RDMA_Q_CONNECTED = (1 << 0),
+	NVME_RDMA_IB_QUEUE_ALLOCATED = (1 << 1),
+	NVME_RDMA_Q_DELETING = (1 << 2),
 };
 
 struct nvme_rdma_queue {
@@ -291,6 +293,7 @@ static int nvme_rdma_reinit_request(void *data, struct request *rq)
 	if (IS_ERR(req->mr)) {
 		ret = PTR_ERR(req->mr);
 		req->mr = NULL;
+		goto out;
 	}
 
 	req->mr->need_inval = false;
@@ -480,9 +483,14 @@ out_err:
 
 static void nvme_rdma_destroy_queue_ib(struct nvme_rdma_queue *queue)
 {
-	struct nvme_rdma_device *dev = queue->device;
-	struct ib_device *ibdev = dev->dev;
+	struct nvme_rdma_device *dev;
+	struct ib_device *ibdev;
 
+	if (!test_and_clear_bit(NVME_RDMA_IB_QUEUE_ALLOCATED, &queue->flags))
+		return;
+
+	dev = queue->device;
+	ibdev = dev->dev;
 	rdma_destroy_qp(queue->cm_id);
 	ib_free_cq(queue->ib_cq);
 
@@ -533,6 +541,7 @@ static int nvme_rdma_create_queue_ib(struct nvme_rdma_queue *queue,
 		ret = -ENOMEM;
 		goto out_destroy_qp;
 	}
+	set_bit(NVME_RDMA_IB_QUEUE_ALLOCATED, &queue->flags);
 
 	return 0;
 
@@ -585,11 +594,13 @@ static int nvme_rdma_init_queue(struct nvme_rdma_ctrl *ctrl,
 		goto out_destroy_cm_id;
 	}
 
+	clear_bit(NVME_RDMA_Q_DELETING, &queue->flags);
 	set_bit(NVME_RDMA_Q_CONNECTED, &queue->flags);
 
 	return 0;
 
 out_destroy_cm_id:
+	nvme_rdma_destroy_queue_ib(queue);
 	rdma_destroy_id(queue->cm_id);
 	return ret;
 }
@@ -608,7 +619,7 @@ static void nvme_rdma_free_queue(struct nvme_rdma_queue *queue)
 
 static void nvme_rdma_stop_and_free_queue(struct nvme_rdma_queue *queue)
 {
-	if (!test_and_clear_bit(NVME_RDMA_Q_CONNECTED, &queue->flags))
+	if (test_and_set_bit(NVME_RDMA_Q_DELETING, &queue->flags))
 		return;
 	nvme_rdma_stop_queue(queue);
 	nvme_rdma_free_queue(queue);
@@ -652,7 +663,7 @@ static int nvme_rdma_init_io_queues(struct nvme_rdma_ctrl *ctrl)
 	return 0;
 
 out_free_queues:
-	for (; i >= 1; i--)
+	for (i--; i >= 1; i--)
 		nvme_rdma_stop_and_free_queue(&ctrl->queues[i]);
 
 	return ret;
@@ -761,8 +772,13 @@ static void nvme_rdma_error_recovery_work(struct work_struct *work)
 {
 	struct nvme_rdma_ctrl *ctrl = container_of(work,
 			struct nvme_rdma_ctrl, err_work);
+	int i;
 
 	nvme_stop_keep_alive(&ctrl->ctrl);
+
+	for (i = 0; i < ctrl->queue_count; i++)
+		clear_bit(NVME_RDMA_Q_CONNECTED, &ctrl->queues[i].flags);
+
 	if (ctrl->queue_count > 1)
 		nvme_stop_queues(&ctrl->ctrl);
 	blk_mq_stop_hw_queues(ctrl->ctrl.admin_q);
@@ -1305,58 +1321,6 @@ out_destroy_queue_ib:
 	return ret;
 }
 
-/**
- * nvme_rdma_device_unplug() - Handle RDMA device unplug
- * @queue:      Queue that owns the cm_id that caught the event
- *
- * DEVICE_REMOVAL event notifies us that the RDMA device is about
- * to unplug so we should take care of destroying our RDMA resources.
- * This event will be generated for each allocated cm_id.
- *
- * In our case, the RDMA resources are managed per controller and not
- * only per queue. So the way we handle this is we trigger an implicit
- * controller deletion upon the first DEVICE_REMOVAL event we see, and
- * hold the event inflight until the controller deletion is completed.
- *
- * One exception that we need to handle is the destruction of the cm_id
- * that caught the event. Since we hold the callout until the controller
- * deletion is completed, we'll deadlock if the controller deletion will
- * call rdma_destroy_id on this queue's cm_id. Thus, we claim ownership
- * of destroying this queue before-hand, destroy the queue resources,
- * then queue the controller deletion which won't destroy this queue and
- * we destroy the cm_id implicitely by returning a non-zero rc to the callout.
- */
-static int nvme_rdma_device_unplug(struct nvme_rdma_queue *queue)
-{
-	struct nvme_rdma_ctrl *ctrl = queue->ctrl;
-	int ret = 0;
-
-	/* Own the controller deletion */
-	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING))
-		return 0;
-
-	dev_warn(ctrl->ctrl.device,
-		"Got rdma device removal event, deleting ctrl\n");
-
-	/* Get rid of reconnect work if its running */
-	cancel_delayed_work_sync(&ctrl->reconnect_work);
-
-	/* Disable the queue so ctrl delete won't free it */
-	if (test_and_clear_bit(NVME_RDMA_Q_CONNECTED, &queue->flags)) {
-		/* Free this queue ourselves */
-		nvme_rdma_stop_queue(queue);
-		nvme_rdma_destroy_queue_ib(queue);
-
-		/* Return non-zero so the cm_id will destroy implicitly */
-		ret = 1;
-	}
-
-	/* Queue controller deletion */
-	queue_work(nvme_rdma_wq, &ctrl->delete_work);
-	flush_work(&ctrl->delete_work);
-	return ret;
-}
-
 static int nvme_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		struct rdma_cm_event *ev)
 {
@@ -1398,8 +1362,8 @@ static int nvme_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		nvme_rdma_error_recovery(queue->ctrl);
 		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
-		/* return 1 means impliciy CM ID destroy */
-		return nvme_rdma_device_unplug(queue);
+		/* device removal is handled via the ib_client API */
+		break;
 	default:
 		dev_err(queue->ctrl->ctrl.device,
 			"Unexpected RDMA CM event (%d)\n", ev->event);
@@ -1700,15 +1664,19 @@ static int __nvme_rdma_del_ctrl(struct nvme_rdma_ctrl *ctrl)
 static int nvme_rdma_del_ctrl(struct nvme_ctrl *nctrl)
 {
 	struct nvme_rdma_ctrl *ctrl = to_rdma_ctrl(nctrl);
-	int ret;
+	int ret = 0;
 
+	/*
+	 * Keep a reference until all work is flushed since
+	 * __nvme_rdma_del_ctrl can free the ctrl mem
+	 */
+	if (!kref_get_unless_zero(&ctrl->ctrl.kref))
+		return -EBUSY;
 	ret = __nvme_rdma_del_ctrl(ctrl);
-	if (ret)
-		return ret;
-
-	flush_work(&ctrl->delete_work);
-
-	return 0;
+	if (!ret)
+		flush_work(&ctrl->delete_work);
+	nvme_put_ctrl(&ctrl->ctrl);
+	return ret;
 }
 
 static void nvme_rdma_remove_ctrl_work(struct work_struct *work)
@@ -2005,11 +1973,48 @@ static struct nvmf_transport_ops nvme_rdma_transport = {
 	.create_ctrl	= nvme_rdma_create_ctrl,
 };
 
+static void nvme_rdma_add_one(struct ib_device *ib_device)
+{
+}
+
+static void nvme_rdma_remove_one(struct ib_device *ib_device, void *client_data)
+{
+	struct nvme_rdma_ctrl *ctrl;
+
+	/* Delete all controllers using this device */
+	mutex_lock(&nvme_rdma_ctrl_mutex);
+	list_for_each_entry(ctrl, &nvme_rdma_ctrl_list, list) {
+		if (ctrl->device->dev != ib_device)
+			continue;
+		dev_info(ctrl->ctrl.device,
+			"Removing ctrl: NQN \"%s\", addr %pISp\n",
+			ctrl->ctrl.opts->subsysnqn, &ctrl->addr);
+		__nvme_rdma_del_ctrl(ctrl);
+	}
+	mutex_unlock(&nvme_rdma_ctrl_mutex);
+
+	flush_workqueue(nvme_rdma_wq);
+}
+
+static struct ib_client nvme_rdma_ib_client = {
+	.name   = "nvme_rdma",
+	.add = nvme_rdma_add_one,
+	.remove = nvme_rdma_remove_one
+};
+
 static int __init nvme_rdma_init_module(void)
 {
+	int ret;
+
 	nvme_rdma_wq = create_workqueue("nvme_rdma_wq");
 	if (!nvme_rdma_wq)
 		return -ENOMEM;
+
+	ret = ib_register_client(&nvme_rdma_ib_client);
+	if (ret) {
+		destroy_workqueue(nvme_rdma_wq);
+		return ret;
+	}
 
 	nvmf_register_transport(&nvme_rdma_transport);
 	return 0;
@@ -2017,15 +2022,8 @@ static int __init nvme_rdma_init_module(void)
 
 static void __exit nvme_rdma_cleanup_module(void)
 {
-	struct nvme_rdma_ctrl *ctrl;
-
 	nvmf_unregister_transport(&nvme_rdma_transport);
-
-	mutex_lock(&nvme_rdma_ctrl_mutex);
-	list_for_each_entry(ctrl, &nvme_rdma_ctrl_list, list)
-		__nvme_rdma_del_ctrl(ctrl);
-	mutex_unlock(&nvme_rdma_ctrl_mutex);
-
+	ib_unregister_client(&nvme_rdma_ib_client);
 	destroy_workqueue(nvme_rdma_wq);
 }
 

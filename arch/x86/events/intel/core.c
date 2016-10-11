@@ -1730,9 +1730,11 @@ static __initconst const u64 knl_hw_cache_extra_regs
  * disabled state if called consecutively.
  *
  * During consecutive calls, the same disable value will be written to related
- * registers, so the PMU state remains unchanged. hw.state in
- * intel_bts_disable_local will remain PERF_HES_STOPPED too in consecutive
- * calls.
+ * registers, so the PMU state remains unchanged.
+ *
+ * intel_bts events don't coexist with intel PMU's BTS events because of
+ * x86_add_exclusive(x86_lbr_exclusive_lbr); there's no need to keep them
+ * disabled around intel PMU's event batching etc, only inside the PMI handler.
  */
 static void __intel_pmu_disable_all(void)
 {
@@ -1742,8 +1744,6 @@ static void __intel_pmu_disable_all(void)
 
 	if (test_bit(INTEL_PMC_IDX_FIXED_BTS, cpuc->active_mask))
 		intel_pmu_disable_bts();
-	else
-		intel_bts_disable_local();
 
 	intel_pmu_pebs_disable_all();
 }
@@ -1771,8 +1771,7 @@ static void __intel_pmu_enable_all(int added, bool pmi)
 			return;
 
 		intel_pmu_enable_bts(event->hw.config);
-	} else
-		intel_bts_enable_local();
+	}
 }
 
 static void intel_pmu_enable_all(int added)
@@ -2073,6 +2072,7 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 	 */
 	if (!x86_pmu.late_ack)
 		apic_write(APIC_LVTPC, APIC_DM_NMI);
+	intel_bts_disable_local();
 	__intel_pmu_disable_all();
 	handled = intel_pmu_drain_bts_buffer();
 	handled += intel_bts_interrupt();
@@ -2172,6 +2172,7 @@ done:
 	/* Only restore PMU state when it's active. See x86_pmu_disable(). */
 	if (cpuc->enabled)
 		__intel_pmu_enable_all(0, true);
+	intel_bts_enable_local();
 
 	/*
 	 * Only unmask the NMI after the overflow counters

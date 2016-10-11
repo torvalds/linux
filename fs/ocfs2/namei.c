@@ -1203,7 +1203,8 @@ static void ocfs2_double_unlock(struct inode *inode1, struct inode *inode2)
 static int ocfs2_rename(struct inode *old_dir,
 			struct dentry *old_dentry,
 			struct inode *new_dir,
-			struct dentry *new_dentry)
+			struct dentry *new_dentry,
+			unsigned int flags)
 {
 	int status = 0, rename_lock = 0, parents_locked = 0, target_exists = 0;
 	int old_child_locked = 0, new_child_locked = 0, update_dot_dot = 0;
@@ -1227,6 +1228,9 @@ static int ocfs2_rename(struct inode *old_dir,
 	struct ocfs2_dir_lookup_result orphan_insert = { NULL, };
 	struct ocfs2_dir_lookup_result target_insert = { NULL, };
 	bool should_add_orphan = false;
+
+	if (flags)
+		return -EINVAL;
 
 	/* At some point it might be nice to break this function up a
 	 * bit. */
