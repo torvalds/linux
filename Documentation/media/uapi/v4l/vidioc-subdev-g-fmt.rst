@@ -15,7 +15,11 @@ VIDIOC_SUBDEV_G_FMT - VIDIOC_SUBDEV_S_FMT - Get or set the data format on a subd
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_format *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_FMT, struct v4l2_subdev_format *argp )
+    :name: VIDIOC_SUBDEV_G_FMT
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_FMT, struct v4l2_subdev_format *argp )
+    :name: VIDIOC_SUBDEV_S_FMT
 
 
 Arguments
@@ -23,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_SUBDEV_G_FMT, VIDIOC_SUBDEV_S_FMT
 
 ``argp``
 
@@ -37,7 +38,7 @@ These ioctls are used to negotiate the frame format at specific subdev
 pads in the image pipeline.
 
 To retrieve the current format applications set the ``pad`` field of a
-struct :ref:`v4l2_subdev_format <v4l2-subdev-format>` to the desired
+struct :c:type:`v4l2_subdev_format` to the desired
 pad number as reported by the media API and the ``which`` field to
 ``V4L2_SUBDEV_FORMAT_ACTIVE``. When they call the
 ``VIDIOC_SUBDEV_G_FMT`` ioctl with a pointer to this structure the
@@ -48,7 +49,7 @@ To change the current format applications set both the ``pad`` and
 the ``VIDIOC_SUBDEV_S_FMT`` ioctl with a pointer to this structure the
 driver verifies the requested format, adjusts it based on the hardware
 capabilities and configures the device. Upon return the struct
-:ref:`v4l2_subdev_format <v4l2-subdev-format>` contains the current
+:c:type:`v4l2_subdev_format` contains the current
 format as would be returned by a ``VIDIOC_SUBDEV_G_FMT`` call.
 
 Applications can query the device capabilities by setting the ``which``
@@ -75,50 +76,34 @@ format to match what the hardware can provide. The modified format
 should be as close as possible to the original request.
 
 
-.. _v4l2-subdev-format:
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+
+.. c:type:: v4l2_subdev_format
 
 .. flat-table:: struct v4l2_subdev_format
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``pad``
-
-       -  Pad number as reported by the media controller API.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``which``
-
-       -  Format to modified, from enum
-	  :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
-
-    -  .. row 3
-
-       -  struct :ref:`v4l2_mbus_framefmt <v4l2-mbus-framefmt>`
-
-       -  ``format``
-
-       -  Definition of an image format, see :ref:`v4l2-mbus-framefmt` for
-	  details.
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``reserved``\ [8]
-
-       -  Reserved for future extensions. Applications and drivers must set
-	  the array to zero.
+    * - __u32
+      - ``pad``
+      - Pad number as reported by the media controller API.
+    * - __u32
+      - ``which``
+      - Format to modified, from enum
+	:ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
+    * - struct :c:type:`v4l2_mbus_framefmt`
+      - ``format``
+      - Definition of an image format, see :c:type:`v4l2_mbus_framefmt` for
+	details.
+    * - __u32
+      - ``reserved``\ [8]
+      - Reserved for future extensions. Applications and drivers must set
+	the array to zero.
 
 
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _v4l2-subdev-format-whence:
 
@@ -127,22 +112,12 @@ should be as close as possible to the original request.
     :stub-columns: 0
     :widths:       3 1 4
 
-
-    -  .. row 1
-
-       -  V4L2_SUBDEV_FORMAT_TRY
-
-       -  0
-
-       -  Try formats, used for querying device capabilities.
-
-    -  .. row 2
-
-       -  V4L2_SUBDEV_FORMAT_ACTIVE
-
-       -  1
-
-       -  Active formats, applied to the hardware.
+    * - V4L2_SUBDEV_FORMAT_TRY
+      - 0
+      - Try formats, used for querying device capabilities.
+    * - V4L2_SUBDEV_FORMAT_ACTIVE
+      - 1
+      - Active formats, applied to the hardware.
 
 
 Return Value
@@ -159,7 +134,7 @@ EBUSY
     fix the problem first. Only returned by ``VIDIOC_SUBDEV_S_FMT``
 
 EINVAL
-    The struct :ref:`v4l2_subdev_format <v4l2-subdev-format>`
+    The struct :c:type:`v4l2_subdev_format`
     ``pad`` references a non-existing pad, or the ``which`` field
     references a non-existing format.
 

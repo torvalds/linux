@@ -853,6 +853,7 @@ static int s5pcsis_probe(struct platform_device *pdev)
 	state->format.width = S5PCSIS_DEF_PIX_WIDTH;
 	state->format.height = S5PCSIS_DEF_PIX_HEIGHT;
 
+	state->sd.entity.function = MEDIA_ENT_F_IO_V4L;
 	state->pads[CSIS_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	state->pads[CSIS_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&state->sd.entity,

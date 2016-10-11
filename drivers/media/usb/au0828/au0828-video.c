@@ -928,7 +928,7 @@ void au0828_stop_vbi_streaming(struct vb2_queue *vq)
 	del_timer_sync(&dev->vbi_timeout);
 }
 
-static struct vb2_ops au0828_video_qops = {
+static const struct vb2_ops au0828_video_qops = {
 	.queue_setup     = queue_setup,
 	.buf_prepare     = buffer_prepare,
 	.buf_queue       = buffer_queue,

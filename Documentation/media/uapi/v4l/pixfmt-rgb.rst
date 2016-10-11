@@ -11,9 +11,6 @@ RGB Formats
     :maxdepth: 1
 
     pixfmt-packed-rgb
-    pixfmt-sbggr8
-    pixfmt-sgbrg8
-    pixfmt-sgrbg8
     pixfmt-srggb8
     pixfmt-sbggr16
     pixfmt-srggb10

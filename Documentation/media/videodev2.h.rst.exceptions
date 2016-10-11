@@ -15,115 +15,115 @@ ignore symbol V4L2_TUNER_DIGITAL_TV
 ignore symbol V4L2_COLORSPACE_BT878
 
 # Documented enum v4l2_field
-replace symbol V4L2_FIELD_ALTERNATE v4l2-field
-replace symbol V4L2_FIELD_ANY v4l2-field
-replace symbol V4L2_FIELD_BOTTOM v4l2-field
-replace symbol V4L2_FIELD_INTERLACED v4l2-field
-replace symbol V4L2_FIELD_INTERLACED_BT v4l2-field
-replace symbol V4L2_FIELD_INTERLACED_TB v4l2-field
-replace symbol V4L2_FIELD_NONE v4l2-field
-replace symbol V4L2_FIELD_SEQ_BT v4l2-field
-replace symbol V4L2_FIELD_SEQ_TB v4l2-field
-replace symbol V4L2_FIELD_TOP v4l2-field
+replace symbol V4L2_FIELD_ALTERNATE :c:type:`v4l2_field`
+replace symbol V4L2_FIELD_ANY :c:type:`v4l2_field`
+replace symbol V4L2_FIELD_BOTTOM :c:type:`v4l2_field`
+replace symbol V4L2_FIELD_INTERLACED :c:type:`v4l2_field`
+replace symbol V4L2_FIELD_INTERLACED_BT :c:type:`v4l2_field`
+replace symbol V4L2_FIELD_INTERLACED_TB :c:type:`v4l2_field`
+replace symbol V4L2_FIELD_NONE :c:type:`v4l2_field`
+replace symbol V4L2_FIELD_SEQ_BT :c:type:`v4l2_field`
+replace symbol V4L2_FIELD_SEQ_TB :c:type:`v4l2_field`
+replace symbol V4L2_FIELD_TOP :c:type:`v4l2_field`
 
 # Documented enum v4l2_buf_type
-replace symbol V4L2_BUF_TYPE_SDR_CAPTURE v4l2-buf-type
-replace symbol V4L2_BUF_TYPE_SDR_OUTPUT v4l2-buf-type
-replace symbol V4L2_BUF_TYPE_SLICED_VBI_CAPTURE v4l2-buf-type
-replace symbol V4L2_BUF_TYPE_SLICED_VBI_OUTPUT v4l2-buf-type
-replace symbol V4L2_BUF_TYPE_VBI_CAPTURE v4l2-buf-type
-replace symbol V4L2_BUF_TYPE_VBI_OUTPUT v4l2-buf-type
-replace symbol V4L2_BUF_TYPE_VIDEO_CAPTURE v4l2-buf-type
-replace symbol V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE v4l2-buf-type
-replace symbol V4L2_BUF_TYPE_VIDEO_OUTPUT v4l2-buf-type
-replace symbol V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE v4l2-buf-type
-replace symbol V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY v4l2-buf-type
-replace symbol V4L2_BUF_TYPE_VIDEO_OVERLAY v4l2-buf-type
+replace symbol V4L2_BUF_TYPE_SDR_CAPTURE :c:type:`v4l2_buf_type`
+replace symbol V4L2_BUF_TYPE_SDR_OUTPUT :c:type:`v4l2_buf_type`
+replace symbol V4L2_BUF_TYPE_SLICED_VBI_CAPTURE :c:type:`v4l2_buf_type`
+replace symbol V4L2_BUF_TYPE_SLICED_VBI_OUTPUT :c:type:`v4l2_buf_type`
+replace symbol V4L2_BUF_TYPE_VBI_CAPTURE :c:type:`v4l2_buf_type`
+replace symbol V4L2_BUF_TYPE_VBI_OUTPUT :c:type:`v4l2_buf_type`
+replace symbol V4L2_BUF_TYPE_VIDEO_CAPTURE :c:type:`v4l2_buf_type`
+replace symbol V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE :c:type:`v4l2_buf_type`
+replace symbol V4L2_BUF_TYPE_VIDEO_OUTPUT :c:type:`v4l2_buf_type`
+replace symbol V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE :c:type:`v4l2_buf_type`
+replace symbol V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY :c:type:`v4l2_buf_type`
+replace symbol V4L2_BUF_TYPE_VIDEO_OVERLAY :c:type:`v4l2_buf_type`
 
 # Documented enum v4l2_tuner_type
-replace symbol V4L2_TUNER_ANALOG_TV v4l2-tuner-type
-replace symbol V4L2_TUNER_RADIO v4l2-tuner-type
-replace symbol V4L2_TUNER_RF v4l2-tuner-type
-replace symbol V4L2_TUNER_SDR v4l2-tuner-type
+replace symbol V4L2_TUNER_ANALOG_TV :c:type:`v4l2_tuner_type`
+replace symbol V4L2_TUNER_RADIO :c:type:`v4l2_tuner_type`
+replace symbol V4L2_TUNER_RF :c:type:`v4l2_tuner_type`
+replace symbol V4L2_TUNER_SDR :c:type:`v4l2_tuner_type`
 
 # Documented enum v4l2_memory
-replace symbol V4L2_MEMORY_DMABUF v4l2-memory
-replace symbol V4L2_MEMORY_MMAP v4l2-memory
-replace symbol V4L2_MEMORY_OVERLAY v4l2-memory
-replace symbol V4L2_MEMORY_USERPTR v4l2-memory
+replace symbol V4L2_MEMORY_DMABUF :c:type:`v4l2_memory`
+replace symbol V4L2_MEMORY_MMAP :c:type:`v4l2_memory`
+replace symbol V4L2_MEMORY_OVERLAY :c:type:`v4l2_memory`
+replace symbol V4L2_MEMORY_USERPTR :c:type:`v4l2_memory`
 
 # Documented enum v4l2_colorspace
-replace symbol V4L2_COLORSPACE_470_SYSTEM_BG v4l2-colorspace
-replace symbol V4L2_COLORSPACE_470_SYSTEM_M v4l2-colorspace
-replace symbol V4L2_COLORSPACE_ADOBERGB v4l2-colorspace
-replace symbol V4L2_COLORSPACE_BT2020 v4l2-colorspace
-replace symbol V4L2_COLORSPACE_DCI_P3 v4l2-colorspace
-replace symbol V4L2_COLORSPACE_DEFAULT v4l2-colorspace
-replace symbol V4L2_COLORSPACE_JPEG v4l2-colorspace
-replace symbol V4L2_COLORSPACE_RAW v4l2-colorspace
-replace symbol V4L2_COLORSPACE_REC709 v4l2-colorspace
-replace symbol V4L2_COLORSPACE_SMPTE170M v4l2-colorspace
-replace symbol V4L2_COLORSPACE_SMPTE240M v4l2-colorspace
-replace symbol V4L2_COLORSPACE_SRGB v4l2-colorspace
+replace symbol V4L2_COLORSPACE_470_SYSTEM_BG :c:type:`v4l2_colorspace`
+replace symbol V4L2_COLORSPACE_470_SYSTEM_M :c:type:`v4l2_colorspace`
+replace symbol V4L2_COLORSPACE_ADOBERGB :c:type:`v4l2_colorspace`
+replace symbol V4L2_COLORSPACE_BT2020 :c:type:`v4l2_colorspace`
+replace symbol V4L2_COLORSPACE_DCI_P3 :c:type:`v4l2_colorspace`
+replace symbol V4L2_COLORSPACE_DEFAULT :c:type:`v4l2_colorspace`
+replace symbol V4L2_COLORSPACE_JPEG :c:type:`v4l2_colorspace`
+replace symbol V4L2_COLORSPACE_RAW :c:type:`v4l2_colorspace`
+replace symbol V4L2_COLORSPACE_REC709 :c:type:`v4l2_colorspace`
+replace symbol V4L2_COLORSPACE_SMPTE170M :c:type:`v4l2_colorspace`
+replace symbol V4L2_COLORSPACE_SMPTE240M :c:type:`v4l2_colorspace`
+replace symbol V4L2_COLORSPACE_SRGB :c:type:`v4l2_colorspace`
 
 # Documented enum v4l2_xfer_func
-replace symbol V4L2_XFER_FUNC_709 v4l2-xfer-func
-replace symbol V4L2_XFER_FUNC_ADOBERGB v4l2-xfer-func
-replace symbol V4L2_XFER_FUNC_DCI_P3 v4l2-xfer-func
-replace symbol V4L2_XFER_FUNC_DEFAULT v4l2-xfer-func
-replace symbol V4L2_XFER_FUNC_NONE v4l2-xfer-func
-replace symbol V4L2_XFER_FUNC_SMPTE2084 v4l2-xfer-func
-replace symbol V4L2_XFER_FUNC_SMPTE240M v4l2-xfer-func
-replace symbol V4L2_XFER_FUNC_SRGB v4l2-xfer-func
+replace symbol V4L2_XFER_FUNC_709 :c:type:`v4l2_xfer_func`
+replace symbol V4L2_XFER_FUNC_ADOBERGB :c:type:`v4l2_xfer_func`
+replace symbol V4L2_XFER_FUNC_DCI_P3 :c:type:`v4l2_xfer_func`
+replace symbol V4L2_XFER_FUNC_DEFAULT :c:type:`v4l2_xfer_func`
+replace symbol V4L2_XFER_FUNC_NONE :c:type:`v4l2_xfer_func`
+replace symbol V4L2_XFER_FUNC_SMPTE2084 :c:type:`v4l2_xfer_func`
+replace symbol V4L2_XFER_FUNC_SMPTE240M :c:type:`v4l2_xfer_func`
+replace symbol V4L2_XFER_FUNC_SRGB :c:type:`v4l2_xfer_func`
 
 # Documented enum v4l2_ycbcr_encoding
-replace symbol V4L2_YCBCR_ENC_601 v4l2-ycbcr-encoding
-replace symbol V4L2_YCBCR_ENC_709 v4l2-ycbcr-encoding
-replace symbol V4L2_YCBCR_ENC_BT2020 v4l2-ycbcr-encoding
-replace symbol V4L2_YCBCR_ENC_BT2020_CONST_LUM v4l2-ycbcr-encoding
-replace symbol V4L2_YCBCR_ENC_DEFAULT v4l2-ycbcr-encoding
-replace symbol V4L2_YCBCR_ENC_SYCC v4l2-ycbcr-encoding
-replace symbol V4L2_YCBCR_ENC_XV601 v4l2-ycbcr-encoding
-replace symbol V4L2_YCBCR_ENC_XV709 v4l2-ycbcr-encoding
-replace symbol V4L2_YCBCR_ENC_SMPTE240M v4l2-ycbcr-encoding
+replace symbol V4L2_YCBCR_ENC_601 :c:type:`v4l2_ycbcr_encoding`
+replace symbol V4L2_YCBCR_ENC_709 :c:type:`v4l2_ycbcr_encoding`
+replace symbol V4L2_YCBCR_ENC_BT2020 :c:type:`v4l2_ycbcr_encoding`
+replace symbol V4L2_YCBCR_ENC_BT2020_CONST_LUM :c:type:`v4l2_ycbcr_encoding`
+replace symbol V4L2_YCBCR_ENC_DEFAULT :c:type:`v4l2_ycbcr_encoding`
+replace symbol V4L2_YCBCR_ENC_SYCC :c:type:`v4l2_ycbcr_encoding`
+replace symbol V4L2_YCBCR_ENC_XV601 :c:type:`v4l2_ycbcr_encoding`
+replace symbol V4L2_YCBCR_ENC_XV709 :c:type:`v4l2_ycbcr_encoding`
+replace symbol V4L2_YCBCR_ENC_SMPTE240M :c:type:`v4l2_ycbcr_encoding`
 
 # Documented enum v4l2_quantization
-replace symbol V4L2_QUANTIZATION_DEFAULT v4l2-quantization
-replace symbol V4L2_QUANTIZATION_FULL_RANGE v4l2-quantization
-replace symbol V4L2_QUANTIZATION_LIM_RANGE v4l2-quantization
+replace symbol V4L2_QUANTIZATION_DEFAULT :c:type:`v4l2_quantization`
+replace symbol V4L2_QUANTIZATION_FULL_RANGE :c:type:`v4l2_quantization`
+replace symbol V4L2_QUANTIZATION_LIM_RANGE :c:type:`v4l2_quantization`
 
 # Documented enum v4l2_priority
-replace symbol V4L2_PRIORITY_BACKGROUND v4l2-priority
-replace symbol V4L2_PRIORITY_DEFAULT v4l2-priority
-replace symbol V4L2_PRIORITY_INTERACTIVE v4l2-priority
-replace symbol V4L2_PRIORITY_RECORD v4l2-priority
-replace symbol V4L2_PRIORITY_UNSET v4l2-priority
+replace symbol V4L2_PRIORITY_BACKGROUND :c:type:`v4l2_priority`
+replace symbol V4L2_PRIORITY_DEFAULT :c:type:`v4l2_priority`
+replace symbol V4L2_PRIORITY_INTERACTIVE :c:type:`v4l2_priority`
+replace symbol V4L2_PRIORITY_RECORD :c:type:`v4l2_priority`
+replace symbol V4L2_PRIORITY_UNSET :c:type:`v4l2_priority`
 
 # Documented enum v4l2_frmsizetypes
-replace symbol V4L2_FRMSIZE_TYPE_CONTINUOUS v4l2-frmsizetypes
-replace symbol V4L2_FRMSIZE_TYPE_DISCRETE v4l2-frmsizetypes
-replace symbol V4L2_FRMSIZE_TYPE_STEPWISE v4l2-frmsizetypes
+replace symbol V4L2_FRMSIZE_TYPE_CONTINUOUS :c:type:`v4l2_frmsizetypes`
+replace symbol V4L2_FRMSIZE_TYPE_DISCRETE :c:type:`v4l2_frmsizetypes`
+replace symbol V4L2_FRMSIZE_TYPE_STEPWISE :c:type:`v4l2_frmsizetypes`
 
 # Documented enum frmivaltypes
-replace symbol V4L2_FRMIVAL_TYPE_CONTINUOUS v4l2-frmivaltypes
-replace symbol V4L2_FRMIVAL_TYPE_DISCRETE v4l2-frmivaltypes
-replace symbol V4L2_FRMIVAL_TYPE_STEPWISE v4l2-frmivaltypes
+replace symbol V4L2_FRMIVAL_TYPE_CONTINUOUS :c:type:`v4l2_frmivaltypes`
+replace symbol V4L2_FRMIVAL_TYPE_DISCRETE :c:type:`v4l2_frmivaltypes`
+replace symbol V4L2_FRMIVAL_TYPE_STEPWISE :c:type:`v4l2_frmivaltypes`
 
-# Documented enum v4l2-ctrl-type
+# Documented enum :c:type:`v4l2_ctrl_type`
 replace symbol V4L2_CTRL_COMPOUND_TYPES vidioc_queryctrl
 
-replace symbol V4L2_CTRL_TYPE_BITMASK v4l2-ctrl-type
-replace symbol V4L2_CTRL_TYPE_BOOLEAN v4l2-ctrl-type
-replace symbol V4L2_CTRL_TYPE_BUTTON v4l2-ctrl-type
-replace symbol V4L2_CTRL_TYPE_CTRL_CLASS v4l2-ctrl-type
-replace symbol V4L2_CTRL_TYPE_INTEGER v4l2-ctrl-type
-replace symbol V4L2_CTRL_TYPE_INTEGER64 v4l2-ctrl-type
-replace symbol V4L2_CTRL_TYPE_INTEGER_MENU v4l2-ctrl-type
-replace symbol V4L2_CTRL_TYPE_MENU v4l2-ctrl-type
-replace symbol V4L2_CTRL_TYPE_STRING v4l2-ctrl-type
-replace symbol V4L2_CTRL_TYPE_U16 v4l2-ctrl-type
-replace symbol V4L2_CTRL_TYPE_U32 v4l2-ctrl-type
-replace symbol V4L2_CTRL_TYPE_U8 v4l2-ctrl-type
+replace symbol V4L2_CTRL_TYPE_BITMASK :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_BOOLEAN :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_BUTTON :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_CTRL_CLASS :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_INTEGER :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_INTEGER64 :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_INTEGER_MENU :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_MENU :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_STRING :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_U16 :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_U32 :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_U8 :c:type:`v4l2_ctrl_type`
 
 # V4L2 capability defines
 replace define V4L2_CAP_VIDEO_CAPTURE device-capabilities
@@ -152,9 +152,10 @@ replace define V4L2_CAP_READWRITE device-capabilities
 replace define V4L2_CAP_ASYNCIO device-capabilities
 replace define V4L2_CAP_STREAMING device-capabilities
 replace define V4L2_CAP_DEVICE_CAPS device-capabilities
+replace define V4L2_CAP_TOUCH device-capabilities
 
 # V4L2 pix flags
-replace define V4L2_PIX_FMT_PRIV_MAGIC v4l2-pix-format
+replace define V4L2_PIX_FMT_PRIV_MAGIC :c:type:`v4l2_pix_format`
 replace define V4L2_PIX_FMT_FLAG_PREMUL_ALPHA reserved-formats
 
 # V4L2 format flags
@@ -204,7 +205,7 @@ replace define V4L2_FBUF_FLAG_SRC_CHROMAKEY framebuffer-flags
 # Used on VIDIOC_G_PARM
 
 replace define V4L2_MODE_HIGHQUALITY parm-flags
-replace define V4L2_CAP_TIMEPERFRAME v4l2-captureparm
+replace define V4L2_CAP_TIMEPERFRAME :c:type:`v4l2_captureparm`
 
 # The V4L2_STD_foo are all defined at v4l2_std_id table
 
@@ -257,22 +258,24 @@ replace define V4L2_STD_ALL v4l2-std-id
 
 # V4L2 DT BT timings definitions
 
-replace define V4L2_DV_PROGRESSIVE v4l2-bt-timings
-replace define V4L2_DV_INTERLACED v4l2-bt-timings
+replace define V4L2_DV_PROGRESSIVE :c:type:`v4l2_bt_timings`
+replace define V4L2_DV_INTERLACED :c:type:`v4l2_bt_timings`
 
-replace define V4L2_DV_VSYNC_POS_POL v4l2-bt-timings
-replace define V4L2_DV_HSYNC_POS_POL v4l2-bt-timings
+replace define V4L2_DV_VSYNC_POS_POL :c:type:`v4l2_bt_timings`
+replace define V4L2_DV_HSYNC_POS_POL :c:type:`v4l2_bt_timings`
 
 replace define V4L2_DV_BT_STD_CEA861 dv-bt-standards
 replace define V4L2_DV_BT_STD_DMT dv-bt-standards
 replace define V4L2_DV_BT_STD_CVT dv-bt-standards
 replace define V4L2_DV_BT_STD_GTF dv-bt-standards
+replace define V4L2_DV_BT_STD_SDI dv-bt-standards
 
 replace define V4L2_DV_FL_REDUCED_BLANKING dv-bt-standards
 replace define V4L2_DV_FL_CAN_REDUCE_FPS dv-bt-standards
 replace define V4L2_DV_FL_REDUCED_FPS dv-bt-standards
 replace define V4L2_DV_FL_HALF_LINE dv-bt-standards
 replace define V4L2_DV_FL_IS_CE_VIDEO dv-bt-standards
+replace define V4L2_DV_FL_FIRST_FIELD_EXTRA_LINE dv-bt-standards
 
 replace define V4L2_DV_BT_656_1120 dv-timing-types
 
@@ -285,6 +288,7 @@ replace define V4L2_DV_BT_CAP_CUSTOM framebuffer-cap
 
 replace define V4L2_INPUT_TYPE_TUNER input-type
 replace define V4L2_INPUT_TYPE_CAMERA input-type
+replace define V4L2_INPUT_TYPE_TOUCH input-type
 
 replace define V4L2_IN_ST_NO_POWER input-status
 replace define V4L2_IN_ST_NO_SIGNAL input-status
@@ -299,6 +303,8 @@ replace define V4L2_IN_ST_NO_CARRIER input-status
 replace define V4L2_IN_ST_MACROVISION input-status
 replace define V4L2_IN_ST_NO_ACCESS input-status
 replace define V4L2_IN_ST_VTR input-status
+replace define V4L2_IN_ST_NO_V_LOCK input-status
+replace define V4L2_IN_ST_NO_STD_LOCK input-status
 
 replace define V4L2_IN_CAP_DV_TIMINGS input-capabilities
 replace define V4L2_IN_CAP_STD input-capabilities
@@ -385,11 +391,11 @@ replace define V4L2_AUDMODE_AVL audio-mode
 
 # MPEG
 
-replace define V4L2_ENC_IDX_FRAME_I v4l2-enc-idx
-replace define V4L2_ENC_IDX_FRAME_P v4l2-enc-idx
-replace define V4L2_ENC_IDX_FRAME_B v4l2-enc-idx
-replace define V4L2_ENC_IDX_FRAME_MASK v4l2-enc-idx
-replace define V4L2_ENC_IDX_ENTRIES v4l2-enc-idx
+replace define V4L2_ENC_IDX_FRAME_I :c:type:`v4l2_enc_idx`
+replace define V4L2_ENC_IDX_FRAME_P :c:type:`v4l2_enc_idx`
+replace define V4L2_ENC_IDX_FRAME_B :c:type:`v4l2_enc_idx`
+replace define V4L2_ENC_IDX_FRAME_MASK :c:type:`v4l2_enc_idx`
+replace define V4L2_ENC_IDX_ENTRIES :c:type:`v4l2_enc_idx`
 
 replace define V4L2_ENC_CMD_START encoder-cmds
 replace define V4L2_ENC_CMD_STOP encoder-cmds
@@ -416,10 +422,10 @@ replace define V4L2_DEC_START_FMT_GOP decoder-cmds
 replace define V4L2_VBI_UNSYNC vbifmt-flags
 replace define V4L2_VBI_INTERLACED vbifmt-flags
 
-replace define V4L2_VBI_ITU_525_F1_START v4l2-vbi-format
-replace define V4L2_VBI_ITU_525_F2_START v4l2-vbi-format
-replace define V4L2_VBI_ITU_625_F1_START v4l2-vbi-format
-replace define V4L2_VBI_ITU_625_F2_START v4l2-vbi-format
+replace define V4L2_VBI_ITU_525_F1_START :c:type:`v4l2_vbi_format`
+replace define V4L2_VBI_ITU_525_F2_START :c:type:`v4l2_vbi_format`
+replace define V4L2_VBI_ITU_625_F1_START :c:type:`v4l2_vbi_format`
+replace define V4L2_VBI_ITU_625_F2_START :c:type:`v4l2_vbi_format`
 
 
 replace define V4L2_SLICED_TELETEXT_B vbi-services
@@ -454,7 +460,7 @@ replace define V4L2_EVENT_CTRL_CH_RANGE ctrl-changes-flags
 
 replace define V4L2_EVENT_SRC_CH_RESOLUTION src-changes-flags
 
-replace define V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ v4l2-event-motion-det
+replace define V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ :c:type:`v4l2_event_motion_det`
 
 replace define V4L2_EVENT_SUB_FL_SEND_INITIAL event-flags
 replace define V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK event-flags

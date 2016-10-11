@@ -527,7 +527,7 @@ static void bdisp_stop_streaming(struct vb2_queue *q)
 	pm_runtime_put(ctx->bdisp_dev->dev);
 }
 
-static struct vb2_ops bdisp_qops = {
+static const struct vb2_ops bdisp_qops = {
 	.queue_setup     = bdisp_queue_setup,
 	.buf_prepare     = bdisp_buf_prepare,
 	.buf_queue       = bdisp_buf_queue,

@@ -312,6 +312,9 @@ static struct rmi_function_handler *fn_handlers[] = {
 #ifdef CONFIG_RMI4_F30
 	&rmi_f30_handler,
 #endif
+#ifdef CONFIG_RMI4_F54
+	&rmi_f54_handler,
+#endif
 };
 
 static void __rmi_unregister_function_handlers(int start_idx)

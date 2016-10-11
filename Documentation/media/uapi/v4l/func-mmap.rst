@@ -21,8 +21,8 @@ Synopsis
     #include <sys/mman.h>
 
 
-.. cpp:function:: void *mmap( void *start, size_t length, int prot, int flags, int fd, off_t offset )
-
+.. c:function:: void *mmap( void *start, size_t length, int prot, int flags, int fd, off_t offset )
+    :name: v4l2-mmap
 
 Arguments
 =========
@@ -37,9 +37,9 @@ Arguments
 ``length``
     Length of the memory area to map. This must be the same value as
     returned by the driver in the struct
-    :ref:`v4l2_buffer <v4l2-buffer>` ``length`` field for the
+    :c:type:`v4l2_buffer` ``length`` field for the
     single-planar API, and the same value as returned by the driver in
-    the struct :ref:`v4l2_plane <v4l2-plane>` ``length`` field for
+    the struct :c:type:`v4l2_plane` ``length`` field for
     the multi-planar API.
 
 ``prot``
@@ -78,7 +78,9 @@ Arguments
     ``MAP_SHARED`` allows applications to share the mapped memory with
     other (e. g. child-) processes.
 
-    .. note:: The Linux ``videobuf`` module  which is used by some
+    .. note::
+
+       The Linux ``videobuf`` module  which is used by some
        drivers supports only ``MAP_SHARED``. ``MAP_PRIVATE`` requests
        copy-on-write semantics. V4L2 applications should not set the
        ``MAP_PRIVATE``, ``MAP_DENYWRITE``, ``MAP_EXECUTABLE`` or ``MAP_ANON``
@@ -90,9 +92,9 @@ Arguments
 ``offset``
     Offset of the buffer in device memory. This must be the same value
     as returned by the driver in the struct
-    :ref:`v4l2_buffer <v4l2-buffer>` ``m`` union ``offset`` field for
+    :c:type:`v4l2_buffer` ``m`` union ``offset`` field for
     the single-planar API, and the same value as returned by the driver
-    in the struct :ref:`v4l2_plane <v4l2-plane>` ``m`` union
+    in the struct :c:type:`v4l2_plane` ``m`` union
     ``mem_offset`` field for the multi-planar API.
 
 

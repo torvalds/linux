@@ -739,7 +739,7 @@ static int dvb_pll_init(struct dvb_frontend *fe)
 	return -EINVAL;
 }
 
-static struct dvb_tuner_ops dvb_pll_tuner_ops = {
+static const struct dvb_tuner_ops dvb_pll_tuner_ops = {
 	.release = dvb_pll_release,
 	.sleep = dvb_pll_sleep,
 	.init = dvb_pll_init,

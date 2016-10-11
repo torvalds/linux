@@ -32,3 +32,4 @@ For more details see the file COPYING in the source distribution of Linux.
     kapi/dtv-core
     kapi/rc-core
     kapi/mc-core
+    kapi/cec-core

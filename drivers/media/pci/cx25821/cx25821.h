@@ -293,7 +293,6 @@ struct cx25821_dev {
 	u32 audio_upstream_riscbuf_size;
 	u32 audio_upstream_databuf_size;
 	int _audioframe_index;
-	struct workqueue_struct *_irq_audio_queues;
 	struct work_struct _audio_work_entry;
 	char *input_audiofilename;
 

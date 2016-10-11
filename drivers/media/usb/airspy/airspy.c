@@ -605,7 +605,7 @@ static void airspy_stop_streaming(struct vb2_queue *vq)
 	mutex_unlock(&s->v4l2_lock);
 }
 
-static struct vb2_ops airspy_vb2_ops = {
+static const struct vb2_ops airspy_vb2_ops = {
 	.queue_setup            = airspy_queue_setup,
 	.buf_queue              = airspy_buf_queue,
 	.start_streaming        = airspy_start_streaming,
