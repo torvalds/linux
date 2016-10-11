@@ -2208,6 +2208,15 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
+static unsigned long swiotlb_max_size(void)
+{
+#if IS_ENABLED(CONFIG_SWIOTLB)
+	return rounddown(swiotlb_nr_tbl() << IO_TLB_SHIFT, PAGE_SIZE);
+#else
+	return 0;
+#endif
+}
+
 static int
 i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 {
@@ -2219,6 +2228,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	struct sgt_iter sgt_iter;
 	struct page *page;
 	unsigned long last_pfn = 0;	/* suppress gcc warning */
+	unsigned long max_segment;
 	int ret;
 	gfp_t gfp;
 
@@ -2228,6 +2238,10 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	 */
 	BUG_ON(obj->base.read_domains & I915_GEM_GPU_DOMAINS);
 	BUG_ON(obj->base.write_domain & I915_GEM_GPU_DOMAINS);
+
+	max_segment = swiotlb_max_size();
+	if (!max_segment)
+		max_segment = obj->base.size;
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (st == NULL)
@@ -2270,15 +2284,9 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 				goto err_pages;
 			}
 		}
-#ifdef CONFIG_SWIOTLB
-		if (swiotlb_nr_tbl()) {
-			st->nents++;
-			sg_set_page(sg, page, PAGE_SIZE, 0);
-			sg = sg_next(sg);
-			continue;
-		}
-#endif
-		if (!i || page_to_pfn(page) != last_pfn + 1) {
+		if (!i ||
+		    sg->length >= max_segment ||
+		    page_to_pfn(page) != last_pfn + 1) {
 			if (i)
 				sg = sg_next(sg);
 			st->nents++;
@@ -2291,9 +2299,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 		/* Check that the i965g/gm workaround works. */
 		WARN_ON((gfp & __GFP_DMA32) && (last_pfn >= 0x00100000UL));
 	}
-#ifdef CONFIG_SWIOTLB
-	if (!swiotlb_nr_tbl())
-#endif
+	if (sg) /* loop terminated early; short sg table */
 		sg_mark_end(sg);
 	obj->pages = st;
 
