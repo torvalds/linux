@@ -635,7 +635,7 @@ static void f2fs_submit_bio_wait_endio(struct bio *bio)
 }
 
 /* this function is copied from blkdev_issue_discard from block/blk-lib.c */
-int __f2fs_issue_discard_async(struct f2fs_sb_info *sbi, sector_t sector,
+static int __f2fs_issue_discard_async(struct f2fs_sb_info *sbi, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags)
 {
 	struct block_device *bdev = sbi->sb->s_bdev;
