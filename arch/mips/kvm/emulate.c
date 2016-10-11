@@ -856,6 +856,8 @@ enum emulation_result kvm_mips_emul_tlbr(struct kvm_vcpu *vcpu)
 static void kvm_mips_invalidate_guest_tlb(struct kvm_vcpu *vcpu,
 					  struct kvm_mips_tlb *tlb)
 {
+	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
+	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
 	int cpu, i;
 	bool user;
 
@@ -879,8 +881,8 @@ static void kvm_mips_invalidate_guest_tlb(struct kvm_vcpu *vcpu,
 		if (i == cpu)
 			continue;
 		if (user)
-			vcpu->arch.guest_user_asid[i] = 0;
-		vcpu->arch.guest_kernel_asid[i] = 0;
+			cpu_context(i, user_mm) = 0;
+		cpu_context(i, kern_mm) = 0;
 	}
 
 	preempt_enable();
@@ -1056,6 +1058,7 @@ enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 					   struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
 	enum emulation_result er = EMULATE_DONE;
 	u32 rt, rd, sel;
 	unsigned long curr_pc;
@@ -1178,13 +1181,11 @@ enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 					 */
 					preempt_disable();
 					cpu = smp_processor_id();
-					kvm_get_new_mmu_context(&vcpu->arch.guest_kernel_mm,
+					kvm_get_new_mmu_context(kern_mm,
 								cpu, vcpu);
-					vcpu->arch.guest_kernel_asid[cpu] =
-						vcpu->arch.guest_kernel_mm.context.asid[cpu];
 					for_each_possible_cpu(i)
 						if (i != cpu)
-							vcpu->arch.guest_kernel_asid[i] = 0;
+							cpu_context(i, kern_mm) = 0;
 					preempt_enable();
 				}
 				kvm_write_c0_guest_entryhi(cop0,

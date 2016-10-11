@@ -413,6 +413,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 /* Must be called with preemption disabled, just before entering guest */
 static void kvm_mips_check_asids(struct kvm_vcpu *vcpu)
 {
+	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	int i, cpu = smp_processor_id();
 	unsigned int gasid;
@@ -426,13 +427,10 @@ static void kvm_mips_check_asids(struct kvm_vcpu *vcpu)
 	if (!KVM_GUEST_KERNEL_MODE(vcpu)) {
 		gasid = kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID;
 		if (gasid != vcpu->arch.last_user_gasid) {
-			kvm_get_new_mmu_context(&vcpu->arch.guest_user_mm, cpu,
-						vcpu);
-			vcpu->arch.guest_user_asid[cpu] =
-				vcpu->arch.guest_user_mm.context.asid[cpu];
+			kvm_get_new_mmu_context(user_mm, cpu, vcpu);
 			for_each_possible_cpu(i)
 				if (i != cpu)
-					vcpu->arch.guest_user_asid[cpu] = 0;
+					cpu_context(i, user_mm) = 0;
 			vcpu->arch.last_user_gasid = gasid;
 		}
 	}

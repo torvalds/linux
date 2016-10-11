@@ -321,9 +321,7 @@ struct kvm_vcpu_arch {
 	/* S/W Based TLB for guest */
 	struct kvm_mips_tlb guest_tlb[KVM_MIPS_GUEST_TLB_SIZE];
 
-	/* Cached guest kernel/user ASIDs */
-	u32 guest_user_asid[NR_CPUS];
-	u32 guest_kernel_asid[NR_CPUS];
+	/* Guest kernel/user [partial] mm */
 	struct mm_struct guest_kernel_mm, guest_user_mm;
 
 	/* Guest ASID of last user mode execution */

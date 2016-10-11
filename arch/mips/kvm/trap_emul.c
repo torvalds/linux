@@ -635,32 +635,29 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 
 static int kvm_trap_emul_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
-	unsigned long asid_mask = cpu_asid_mask(&cpu_data[cpu]);
+	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
+	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
 
 	/* Allocate new kernel and user ASIDs if needed */
 
-	if ((vcpu->arch.guest_kernel_asid[cpu] ^ asid_cache(cpu)) &
+	if ((cpu_context(cpu, kern_mm) ^ asid_cache(cpu)) &
 						asid_version_mask(cpu)) {
-		kvm_get_new_mmu_context(&vcpu->arch.guest_kernel_mm, cpu, vcpu);
-		vcpu->arch.guest_kernel_asid[cpu] =
-		    vcpu->arch.guest_kernel_mm.context.asid[cpu];
+		kvm_get_new_mmu_context(kern_mm, cpu, vcpu);
 
 		kvm_debug("[%d]: cpu_context: %#lx\n", cpu,
 			  cpu_context(cpu, current->mm));
-		kvm_debug("[%d]: Allocated new ASID for Guest Kernel: %#x\n",
-			  cpu, vcpu->arch.guest_kernel_asid[cpu]);
+		kvm_debug("[%d]: Allocated new ASID for Guest Kernel: %#lx\n",
+			  cpu, cpu_context(cpu, kern_mm));
 	}
 
-	if ((vcpu->arch.guest_user_asid[cpu] ^ asid_cache(cpu)) &
+	if ((cpu_context(cpu, user_mm) ^ asid_cache(cpu)) &
 						asid_version_mask(cpu)) {
-		kvm_get_new_mmu_context(&vcpu->arch.guest_user_mm, cpu, vcpu);
-		vcpu->arch.guest_user_asid[cpu] =
-		    vcpu->arch.guest_user_mm.context.asid[cpu];
+		kvm_get_new_mmu_context(user_mm, cpu, vcpu);
 
 		kvm_debug("[%d]: cpu_context: %#lx\n", cpu,
 			  cpu_context(cpu, current->mm));
-		kvm_debug("[%d]: Allocated new ASID for Guest User: %#x\n", cpu,
-			  vcpu->arch.guest_user_asid[cpu]);
+		kvm_debug("[%d]: Allocated new ASID for Guest User: %#lx\n",
+			  cpu, cpu_context(cpu, user_mm));
 	}
 
 	/*
@@ -670,11 +667,9 @@ static int kvm_trap_emul_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	 */
 	if (current->flags & PF_VCPU) {
 		if (KVM_GUEST_KERNEL_MODE(vcpu))
-			write_c0_entryhi(vcpu->arch.guest_kernel_asid[cpu] &
-					 asid_mask);
+			write_c0_entryhi(cpu_asid(cpu, kern_mm));
 		else
-			write_c0_entryhi(vcpu->arch.guest_user_asid[cpu] &
-					 asid_mask);
+			write_c0_entryhi(cpu_asid(cpu, user_mm));
 		ehb();
 	}
 

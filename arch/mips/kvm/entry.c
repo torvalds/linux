@@ -12,6 +12,7 @@
  */
 
 #include <linux/kvm_host.h>
+#include <linux/log2.h>
 #include <asm/msa.h>
 #include <asm/setup.h>
 #include <asm/uasm.h>
@@ -286,23 +287,26 @@ static void *kvm_mips_build_enter_guest(void *addr)
 	uasm_i_andi(&p, T0, T0, KSU_USER | ST0_ERL | ST0_EXL);
 	uasm_i_xori(&p, T0, T0, KSU_USER);
 	uasm_il_bnez(&p, &r, T0, label_kernel_asid);
-	 UASM_i_ADDIU(&p, T1, K1,
-		      offsetof(struct kvm_vcpu_arch, guest_kernel_asid));
+	 UASM_i_ADDIU(&p, T1, K1, offsetof(struct kvm_vcpu_arch,
+					   guest_kernel_mm.context.asid));
 	/* else user */
-	UASM_i_ADDIU(&p, T1, K1,
-		     offsetof(struct kvm_vcpu_arch, guest_user_asid));
+	UASM_i_ADDIU(&p, T1, K1, offsetof(struct kvm_vcpu_arch,
+					  guest_user_mm.context.asid));
 	uasm_l_kernel_asid(&l, p);
 
 	/* t1: contains the base of the ASID array, need to get the cpu id  */
 	/* smp_processor_id */
 	uasm_i_lw(&p, T2, offsetof(struct thread_info, cpu), GP);
-	/* x4 */
-	uasm_i_sll(&p, T2, T2, 2);
+	/* index the ASID array */
+	uasm_i_sll(&p, T2, T2, ilog2(sizeof(long)));
 	UASM_i_ADDU(&p, T3, T1, T2);
-	uasm_i_lw(&p, K0, 0, T3);
+	UASM_i_LW(&p, K0, 0, T3);
 #ifdef CONFIG_MIPS_ASID_BITS_VARIABLE
-	/* x sizeof(struct cpuinfo_mips)/4 */
-	uasm_i_addiu(&p, T3, ZERO, sizeof(struct cpuinfo_mips)/4);
+	/*
+	 * reuse ASID array offset
+	 * cpuinfo_mips is a multiple of sizeof(long)
+	 */
+	uasm_i_addiu(&p, T3, ZERO, sizeof(struct cpuinfo_mips)/sizeof(long));
 	uasm_i_mul(&p, T2, T2, T3);
 
 	UASM_i_LA_mostly(&p, AT, (long)&cpu_data[0].asid_mask);

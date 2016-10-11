@@ -38,18 +38,18 @@ EXPORT_SYMBOL_GPL(kvm_mips_instance);
 
 static u32 kvm_mips_get_kernel_asid(struct kvm_vcpu *vcpu)
 {
+	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
 	int cpu = smp_processor_id();
 
-	return vcpu->arch.guest_kernel_asid[cpu] &
-			cpu_asid_mask(&cpu_data[cpu]);
+	return cpu_asid(cpu, kern_mm);
 }
 
 static u32 kvm_mips_get_user_asid(struct kvm_vcpu *vcpu)
 {
+	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
 	int cpu = smp_processor_id();
 
-	return vcpu->arch.guest_user_asid[cpu] &
-			cpu_asid_mask(&cpu_data[cpu]);
+	return cpu_asid(cpu, user_mm);
 }
 
 inline u32 kvm_mips_get_commpage_asid(struct kvm_vcpu *vcpu)
