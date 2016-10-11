@@ -1338,7 +1338,8 @@ retry:
 			if (unlikely(f2fs_cp_error(sbi))) {
 				f2fs_put_page(last_page, 0);
 				pagevec_release(&pvec);
-				return -EIO;
+				ret = -EIO;
+				goto out;
 			}
 
 			if (!IS_DNODE(page) || !is_cold_node(page))
@@ -1411,7 +1412,7 @@ continue_unlock:
 		unlock_page(last_page);
 		goto retry;
 	}
-
+out:
 	if (nwritten)
 		f2fs_submit_merged_bio_cond(sbi, NULL, NULL, ino, NODE, WRITE);
 	return ret ? -EIO: 0;
