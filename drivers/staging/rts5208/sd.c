@@ -969,7 +969,9 @@ static int sd_change_phase(struct rtsx_chip *chip, u8 sample_point, u8 tune_dir)
 			}
 			udelay(50);
 			retval = rtsx_write_register(chip, SD_VP_CTL, 0xFF,
-						     PHASE_CHANGE | PHASE_NOT_RESET | sample_point);
+						     PHASE_CHANGE |
+						     PHASE_NOT_RESET |
+						     sample_point);
 			if (retval) {
 				rtsx_trace(chip);
 				return retval;
@@ -983,7 +985,8 @@ static int sd_change_phase(struct rtsx_chip *chip, u8 sample_point, u8 tune_dir)
 			}
 			udelay(50);
 			retval = rtsx_write_register(chip, SD_VP_CTL, 0xFF,
-						     PHASE_NOT_RESET | sample_point);
+						     PHASE_NOT_RESET |
+						     sample_point);
 			if (retval) {
 				rtsx_trace(chip);
 				return retval;
@@ -2289,31 +2292,36 @@ static int sd_pull_ctl_disable(struct rtsx_chip *chip)
 
 	if (CHECK_PID(chip, 0x5208)) {
 		retval = rtsx_write_register(chip, CARD_PULL_CTL1, 0xFF,
-					     XD_D3_PD | SD_D7_PD | SD_CLK_PD | SD_D5_PD);
+					     XD_D3_PD | SD_D7_PD | SD_CLK_PD |
+					     SD_D5_PD);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
 		}
 		retval = rtsx_write_register(chip, CARD_PULL_CTL2, 0xFF,
-					     SD_D6_PD | SD_D0_PD | SD_D1_PD | XD_D5_PD);
+					     SD_D6_PD | SD_D0_PD | SD_D1_PD |
+					     XD_D5_PD);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
 		}
 		retval = rtsx_write_register(chip, CARD_PULL_CTL3, 0xFF,
-					     SD_D4_PD | XD_CE_PD | XD_CLE_PD | XD_CD_PU);
+					     SD_D4_PD | XD_CE_PD | XD_CLE_PD |
+					     XD_CD_PU);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
 		}
 		retval = rtsx_write_register(chip, CARD_PULL_CTL4, 0xFF,
-					     XD_RDY_PD | SD_D3_PD | SD_D2_PD | XD_ALE_PD);
+					     XD_RDY_PD | SD_D3_PD | SD_D2_PD |
+					     XD_ALE_PD);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
 		}
 		retval = rtsx_write_register(chip, CARD_PULL_CTL5, 0xFF,
-					     MS_INS_PU | SD_WP_PD | SD_CD_PU | SD_CMD_PD);
+					     MS_INS_PU | SD_WP_PD | SD_CD_PU |
+					     SD_CMD_PD);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
