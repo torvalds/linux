@@ -1060,6 +1060,8 @@ static long rk818_cg_init_usb(struct rk818_charger *cg)
 
 		cg->cable_edev = edev;
 
+		schedule_delayed_work(&cg->host_work, 0);
+
 		CG_INFO("register typec extcon evt notifier\n");
 	} else {
 		INIT_DELAYED_WORK(&cg->usb_work, rk818_cg_bc_evt_worker);
