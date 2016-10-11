@@ -251,6 +251,14 @@
 		vibrator-gpio = <&gpio4 30 GPIO_ACTIVE_LOW>;
 		status = "okay";
 	};
+
+	rk_headset {
+		compatible = "rockchip_headset";
+		headset_gpio = <&gpio4 28 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hp_det>;
+		io-channels = <&saradc 2>;
+	};
 };
 
 &dfi {
@@ -839,12 +847,9 @@
 		#sound-dai-cells = <0>;
 		compatible = "everest,es8316";
 		reg = <0x11>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det>;
 		clocks = <&cru SCLK_I2S_8CH_OUT>;
 		clock-names = "mclk";
 		spk-con-gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
-		hp-det-gpio = <&gpio4 28 GPIO_ACTIVE_HIGH>;
 	};
 };
 
