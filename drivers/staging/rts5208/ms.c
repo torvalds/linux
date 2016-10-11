@@ -2646,7 +2646,8 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 
 	disable_cnt = segment->disable_count;
 
-	segment->get_index = segment->set_index = 0;
+	segment->get_index = 0;
+	segment->set_index = 0;
 	segment->unused_blk_cnt = 0;
 
 	for (phy_blk = start; phy_blk < end; phy_blk++) {
