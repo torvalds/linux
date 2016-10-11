@@ -754,10 +754,10 @@ static void ms_mode_sense(struct rtsx_chip *chip, u8 cmd,
 static int mode_sense(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
 	unsigned int lun = SCSI_LUN(srb);
-	unsigned int dataSize;
+	unsigned int data_size;
 	int status;
 	bool pro_formatter_flag;
-	unsigned char pageCode, *buf;
+	unsigned char page_code, *buf;
 	u8 card = get_lun_card(chip, lun);
 
 #ifndef SUPPORT_MAGIC_GATE
@@ -770,11 +770,11 @@ static int mode_sense(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 #endif
 
 	pro_formatter_flag = false;
-	dataSize = 8;
+	data_size = 8;
 #ifdef SUPPORT_MAGIC_GATE
 	if ((chip->lun2card[lun] & MS_CARD)) {
 		if (!card || (card == MS_CARD)) {
-			dataSize = 108;
+			data_size = 108;
 			if (chip->mspro_formatter_enable)
 				pro_formatter_flag = true;
 		}
@@ -783,28 +783,28 @@ static int mode_sense(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	if (card == MS_CARD) {
 		if (chip->mspro_formatter_enable) {
 			pro_formatter_flag = true;
-			dataSize = 108;
+			data_size = 108;
 		}
 	}
 #endif
 
-	buf = kmalloc(dataSize, GFP_KERNEL);
+	buf = kmalloc(data_size, GFP_KERNEL);
 	if (!buf) {
 		rtsx_trace(chip);
 		return TRANSPORT_ERROR;
 	}
 
-	pageCode = srb->cmnd[2] & 0x3f;
+	page_code = srb->cmnd[2] & 0x3f;
 
-	if ((pageCode == 0x3F) || (pageCode == 0x1C) ||
-	    (pageCode == 0x00) ||
-		(pro_formatter_flag && (pageCode == 0x20))) {
+	if ((page_code == 0x3F) || (page_code == 0x1C) ||
+	    (page_code == 0x00) ||
+		(pro_formatter_flag && (page_code == 0x20))) {
 		if (srb->cmnd[0] == MODE_SENSE) {
-			if ((pageCode == 0x3F) || (pageCode == 0x20)) {
+			if ((page_code == 0x3F) || (page_code == 0x20)) {
 				ms_mode_sense(chip, srb->cmnd[0],
-					      lun, buf, dataSize);
+					      lun, buf, data_size);
 			} else {
-				dataSize = 4;
+				data_size = 4;
 				buf[0] = 0x03;
 				buf[1] = 0x00;
 				if (check_card_wp(chip, lun))
@@ -815,11 +815,11 @@ static int mode_sense(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 				buf[3] = 0x00;
 			}
 		} else {
-			if ((pageCode == 0x3F) || (pageCode == 0x20)) {
+			if ((page_code == 0x3F) || (page_code == 0x20)) {
 				ms_mode_sense(chip, srb->cmnd[0],
-					      lun, buf, dataSize);
+					      lun, buf, data_size);
 			} else {
-				dataSize = 8;
+				data_size = 8;
 				buf[0] = 0x00;
 				buf[1] = 0x06;
 				buf[2] = 0x00;
@@ -842,7 +842,7 @@ static int mode_sense(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 	if (status == TRANSPORT_GOOD) {
 		unsigned int len = min_t(unsigned int, scsi_bufflen(srb),
-					dataSize);
+					data_size);
 		rtsx_stor_set_xfer_buf(buf, len, srb);
 		scsi_set_resid(srb, scsi_bufflen(srb) - len);
 	}
@@ -981,7 +981,7 @@ static int read_write(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		}
 		retval = TRANSPORT_FAILED;
 		rtsx_trace(chip);
-		goto Exit;
+		goto exit;
 	} else {
 		chip->rw_fail_cnt[lun] = 0;
 		retval = TRANSPORT_GOOD;
@@ -989,7 +989,7 @@ static int read_write(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 	scsi_set_resid(srb, 0);
 
-Exit:
+exit:
 	return retval;
 }
 
@@ -2356,11 +2356,11 @@ static int write_efuse(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 				       SENSE_TYPE_MEDIA_WRITE_ERR);
 			result = TRANSPORT_FAILED;
 			rtsx_trace(chip);
-			goto Exit;
+			goto exit;
 		}
 	}
 
-Exit:
+exit:
 	vfree(buf);
 
 	retval = card_power_off(chip, SPI_CARD);
