@@ -438,7 +438,7 @@ static int rtsx_control_thread(void *__dev)
 		/* has the command aborted ? */
 		if (rtsx_chk_stat(chip, RTSX_STAT_ABORT)) {
 			chip->srb->result = DID_ABORT << 16;
-			goto SkipForAbort;
+			goto skip_for_abort;
 		}
 
 		scsi_unlock(host);
@@ -485,7 +485,7 @@ static int rtsx_control_thread(void *__dev)
 		else if (chip->srb->result != DID_ABORT << 16) {
 			chip->srb->scsi_done(chip->srb);
 		} else {
-SkipForAbort:
+skip_for_abort:
 			dev_err(&dev->pci->dev, "scsi command aborted\n");
 		}
 
@@ -602,7 +602,7 @@ static irqreturn_t rtsx_interrupt(int irq, void *dev_id)
 			dev->trans_result = TRANS_RESULT_FAIL;
 			if (dev->done)
 				complete(dev->done);
-			goto Exit;
+			goto exit;
 		}
 	}
 
@@ -624,7 +624,7 @@ static irqreturn_t rtsx_interrupt(int irq, void *dev_id)
 		}
 	}
 
-Exit:
+exit:
 	spin_unlock(&dev->reg_lock);
 	return IRQ_HANDLED;
 }
