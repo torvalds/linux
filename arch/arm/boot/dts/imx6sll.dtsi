@@ -143,7 +143,7 @@
 		};
 
 		L2: l2-cache@00a02000 {
-			compatible = "arm,lp310-cache";
+			compatible = "arm,pl310-cache";
 			reg = <0x00a02000 0x1000>;
 			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
 			cache-unified;
