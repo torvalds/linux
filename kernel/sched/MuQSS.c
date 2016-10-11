@@ -1859,6 +1859,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 	smp_cond_load_acquire(&p->on_cpu, !VAL);
 
 	p->sched_contributes_to_load = !!task_contributes_to_load(p);
+	p->state = TASK_WAKING;
 
 	cpu = select_best_cpu(p);
 	if (task_cpu(p) != cpu)
