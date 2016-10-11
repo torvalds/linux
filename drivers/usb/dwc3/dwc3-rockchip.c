@@ -392,10 +392,6 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 		goto err2;
 
 	if (rockchip->edev) {
-		pm_runtime_set_autosuspend_delay(&child_pdev->dev,
-						 DWC3_ROCKCHIP_AUTOSUSPEND_DELAY);
-		pm_runtime_allow(&child_pdev->dev);
-
 		if (rockchip->dwc->dr_mode == USB_DR_MODE_HOST ||
 		    rockchip->dwc->dr_mode == USB_DR_MODE_OTG) {
 			struct usb_hcd *hcd =
@@ -411,6 +407,10 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 			}
 		}
 
+		pm_runtime_set_autosuspend_delay(&child_pdev->dev,
+						 DWC3_ROCKCHIP_AUTOSUSPEND_DELAY);
+		pm_runtime_allow(&child_pdev->dev);
+		pm_runtime_suspend(&child_pdev->dev);
 		pm_runtime_put_sync(dev);
 
 		if ((extcon_get_cable_state_(rockchip->edev,
