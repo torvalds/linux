@@ -738,7 +738,6 @@ static void f2fs_put_super(struct super_block *sb)
 	 * In addition, EIO will skip do checkpoint, we need this as well.
 	 */
 	release_ino_entry(sbi, true);
-	release_discard_addrs(sbi);
 
 	f2fs_leave_shrinker(sbi);
 	mutex_unlock(&sbi->umount_mutex);
