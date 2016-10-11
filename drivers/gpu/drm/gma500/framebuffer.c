@@ -298,7 +298,6 @@ static struct drm_framebuffer *psb_framebuffer_create
  *	psbfb_alloc		-	allocate frame buffer memory
  *	@dev: the DRM device
  *	@aligned_size: space needed
- *	@force: fall back to GEM buffers if need be
  *
  *	Allocate the frame buffer. In the usual case we get a GTT range that
  *	is stolen memory backed and life is simple. If there isn't sufficient
