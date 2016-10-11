@@ -225,7 +225,7 @@ struct cpudata {
 static struct cpudata **all_cpu_data;
 
 /**
- * struct pid_adjust_policy - Stores static PID configuration data
+ * struct pstate_adjust_policy - Stores static PID configuration data
  * @sample_rate_ms:	PID calculation sample rate in ms
  * @sample_rate_ns:	Sample rate calculation in ns
  * @deadband:		PID deadband
