@@ -1046,7 +1046,7 @@ static void bgmac_enable(struct bgmac *bgmac)
 
 	mode = (bgmac_read(bgmac, BGMAC_DEV_STATUS) & BGMAC_DS_MM_MASK) >>
 		BGMAC_DS_MM_SHIFT;
-	if (bgmac->feature_flags & BGMAC_FEAT_CLKCTLST || mode != 0)
+	if (!(bgmac->feature_flags & BGMAC_FEAT_CLKCTLST) || mode != 0)
 		bgmac_set(bgmac, BCMA_CLKCTLST, BCMA_CLKCTLST_FORCEHT);
 	if (bgmac->feature_flags & BGMAC_FEAT_CLKCTLST && mode == 2)
 		bgmac_cco_ctl_maskset(bgmac, 1, ~0,

@@ -507,6 +507,9 @@ static void setup_sgmii_internal_phy(struct fman_mac *memac,
 {
 	u16 tmp_reg16;
 
+	if (WARN_ON(!memac->pcsphy))
+		return;
+
 	/* SGMII mode */
 	tmp_reg16 = IF_MODE_SGMII_EN;
 	if (!fixed_link)
@@ -1151,7 +1154,8 @@ struct fman_mac *memac_config(struct fman_mac_params *params)
 	/* Save FMan revision */
 	fman_get_revision(memac->fm, &memac->fm_rev_info);
 
-	if (memac->phy_if == PHY_INTERFACE_MODE_SGMII) {
+	if (memac->phy_if == PHY_INTERFACE_MODE_SGMII ||
+	    memac->phy_if == PHY_INTERFACE_MODE_QSGMII) {
 		if (!params->internal_phy_node) {
 			pr_err("PCS PHY node is not available\n");
 			memac_free(memac);

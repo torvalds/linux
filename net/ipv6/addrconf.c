@@ -5729,6 +5729,7 @@ int addrconf_sysctl_ignore_routes_with_linkdown(struct ctl_table *ctl,
 	return ret;
 }
 
+static int minus_one = -1;
 static const int one = 1;
 static const int two_five_five = 255;
 
@@ -5789,7 +5790,8 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.rtr_solicits,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &minus_one,
 	},
 	{
 		.procname	= "router_solicitation_interval",
