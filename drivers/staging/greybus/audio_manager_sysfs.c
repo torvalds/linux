@@ -71,10 +71,11 @@ static ssize_t manager_sysfs_dump_store(
 		num = gb_audio_manager_dump_module(id);
 		if (num)
 			return num;
-	} else if (!strncmp("all", buf, 3))
+	} else if (!strncmp("all", buf, 3)) {
 		gb_audio_manager_dump_all();
-	else
+	} else {
 		return -EINVAL;
+	}
 
 	return count;
 }
