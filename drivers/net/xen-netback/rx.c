@@ -425,6 +425,8 @@ void xenvif_rx_skb(struct xenvif_queue *queue)
 
 	xenvif_rx_next_skb(queue, &pkt);
 
+	queue->last_rx_time = jiffies;
+
 	do {
 		struct xen_netif_rx_request *req;
 		struct xen_netif_rx_response *rsp;
