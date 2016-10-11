@@ -2979,6 +2979,25 @@ sub process {
 			     "Block comments use a trailing */ on a separate line\n" . $herecurr);
 		}
 
+# Block comment * alignment
+		if ($prevline =~ /$;[ \t]*$/ &&			#ends in comment
+		    (($prevrawline =~ /^\+.*?\/\*/ &&		#starting /*
+		      $prevrawline !~ /\*\/[ \t]*$/) ||		#no trailing */
+		     $prevrawline =~ /^\+[ \t]*\*/) &&		#starting *
+		    $rawline =~ /^\+[ \t]*\*/) {		#rawline *
+			$prevrawline =~ m@^\+([ \t]*/?)\*@;
+			my $oldindent = expand_tabs($1);
+			$rawline =~ m@^\+([ \t]*)\*@;
+			my $newindent = $1;
+			my $test_comment = '^\\+' . "$;" x (length($newindent) + 1);
+			$newindent = expand_tabs($newindent);
+			if ($line =~ /$test_comment/ &&
+			    length($oldindent) ne length($newindent)) {
+				WARN("BLOCK_COMMENT_STYLE",
+				     "Block comments should align the * on each line\n" . $hereprev);
+			}
+		}
+
 # check for missing blank lines after struct/union declarations
 # with exceptions for various attributes and macros
 		if ($prevline =~ /^[\+ ]};?\s*$/ &&
