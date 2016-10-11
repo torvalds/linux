@@ -313,7 +313,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 
 	if (!pipe) {
 		pr_err("could not open pipe file descriptor\n");
-		goto fail_dput;
+		goto fail_put_pid;
 	}
 	ret = autofs_prepare_pipe(pipe);
 	if (ret < 0)
@@ -334,14 +334,14 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 fail_fput:
 	pr_err("pipe file descriptor does not contain proper ops\n");
 	fput(pipe);
-	/* fall through */
+fail_put_pid:
+	put_pid(sbi->oz_pgrp);
 fail_dput:
 	dput(root);
 	goto fail_free;
 fail_ino:
 	kfree(ino);
 fail_free:
-	put_pid(sbi->oz_pgrp);
 	kfree(sbi);
 	s->s_fs_info = NULL;
 	return ret;
