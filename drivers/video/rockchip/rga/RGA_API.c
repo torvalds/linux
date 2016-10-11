@@ -25,7 +25,7 @@ extern rga_service_info rga_service;
 void
 matrix_cal(const struct rga_req *msg, TILE_INFO *tile)
 {
-    uint32_t x_time, y_time;
+    uint64_t x_time, y_time;
     uint64_t sina, cosa;
 
     int s_act_w, s_act_h, d_act_w, d_act_h;
