@@ -100,9 +100,9 @@ void try_to_switch_sdio_ctrl(struct rtsx_chip *chip)
 	if ((reg1 & 0xC0) && (reg2 & 0xC0)) {
 		chip->sd_int = 1;
 		rtsx_write_register(chip, SDIO_CTRL, 0xFF,
-				SDIO_BUS_CTRL | SDIO_CD_CTRL);
+				    SDIO_BUS_CTRL | SDIO_CD_CTRL);
 		rtsx_write_register(chip, PWR_GATE_CTRL,
-				LDO3318_PWR_MASK, LDO_ON);
+				    LDO3318_PWR_MASK, LDO_ON);
 	}
 }
 
@@ -133,7 +133,7 @@ void dynamic_configure_sdio_aspm(struct rtsx_chip *chip)
 		if (!chip->sdio_aspm) {
 			dev_dbg(rtsx_dev(chip), "SDIO enter ASPM!\n");
 			rtsx_write_register(chip, ASPM_FORCE_CTL, 0xFC,
-					0x30 | (chip->aspm_level[1] << 2));
+					    0x30 | (chip->aspm_level[1] << 2));
 			chip->sdio_aspm = 1;
 		}
 	} else {
@@ -300,7 +300,7 @@ static void release_sdio(struct rtsx_chip *chip)
 {
 	if (chip->sd_io) {
 		rtsx_write_register(chip, CARD_STOP, SD_STOP | SD_CLR_ERR,
-				SD_STOP | SD_CLR_ERR);
+				    SD_STOP | SD_CLR_ERR);
 
 		if (chip->chip_insert_with_sdio) {
 			chip->chip_insert_with_sdio = 0;
@@ -449,7 +449,7 @@ void rtsx_reinit_cards(struct rtsx_chip *chip, int reset_chip)
 
 #ifdef DISABLE_CARD_INT
 void card_cd_debounce(struct rtsx_chip *chip, unsigned long *need_reset,
-		unsigned long *need_release)
+		      unsigned long *need_release)
 {
 	u8 release_map = 0, reset_map = 0;
 
@@ -502,13 +502,13 @@ void card_cd_debounce(struct rtsx_chip *chip, unsigned long *need_reset,
 
 		reset_map = 0;
 		if (!(chip->card_exist & XD_CARD) &&
-				(xd_cnt > (DEBOUNCE_CNT-1)))
+		    (xd_cnt > (DEBOUNCE_CNT - 1)))
 			reset_map |= XD_CARD;
 		if (!(chip->card_exist & SD_CARD) &&
-				(sd_cnt > (DEBOUNCE_CNT-1)))
+		    (sd_cnt > (DEBOUNCE_CNT - 1)))
 			reset_map |= SD_CARD;
 		if (!(chip->card_exist & MS_CARD) &&
-				(ms_cnt > (DEBOUNCE_CNT-1)))
+		    (ms_cnt > (DEBOUNCE_CNT - 1)))
 			reset_map |= MS_CARD;
 	}
 
@@ -556,8 +556,10 @@ void rtsx_init_cards(struct rtsx_chip *chip)
 		if (chip->need_release) {
 			if (chip->ocp_stat & (CARD_OC_NOW | CARD_OC_EVER))
 				rtsx_write_register(chip, OCPCLR,
-						CARD_OC_INT_CLR | CARD_OC_CLR,
-						CARD_OC_INT_CLR | CARD_OC_CLR);
+						    CARD_OC_INT_CLR |
+						    CARD_OC_CLR,
+						    CARD_OC_INT_CLR |
+						    CARD_OC_CLR);
 			chip->ocp_stat = 0;
 		}
 #endif
@@ -590,9 +592,9 @@ void rtsx_init_cards(struct rtsx_chip *chip)
 			release_xd_card(chip);
 
 			if (CHECK_PID(chip, 0x5288) &&
-					CHECK_BARO_PKG(chip, QFN))
+			    CHECK_BARO_PKG(chip, QFN))
 				rtsx_write_register(chip, HOST_SLEEP_STATE,
-						0xC0, 0xC0);
+						    0xC0, 0xC0);
 		}
 
 		if (chip->need_release & MS_CARD) {
@@ -681,9 +683,9 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 	rtsx_add_cmd(chip, WRITE_REG_CMD, SSC_CTL1, SSC_RSTB, SSC_RSTB);
 	if (sd_vpclk_phase_reset) {
 		rtsx_add_cmd(chip, WRITE_REG_CMD, SD_VPCLK0_CTL,
-			PHASE_NOT_RESET, 0);
+			     PHASE_NOT_RESET, 0);
 		rtsx_add_cmd(chip, WRITE_REG_CMD, SD_VPCLK0_CTL,
-			PHASE_NOT_RESET, PHASE_NOT_RESET);
+			     PHASE_NOT_RESET, PHASE_NOT_RESET);
 	}
 
 	retval = rtsx_send_cmd(chip, 0, WAIT_TIME);
@@ -850,7 +852,7 @@ int switch_normal_clock(struct rtsx_chip *chip, int clk)
 }
 
 void trans_dma_enable(enum dma_data_direction dir, struct rtsx_chip *chip,
-		u32 byte_cnt, u8 pack_size)
+		      u32 byte_cnt, u8 pack_size)
 {
 	if (pack_size > DMA_1024)
 		pack_size = DMA_512;
@@ -864,11 +866,11 @@ void trans_dma_enable(enum dma_data_direction dir, struct rtsx_chip *chip,
 
 	if (dir == DMA_FROM_DEVICE) {
 		rtsx_add_cmd(chip, WRITE_REG_CMD, DMACTL,
-			0x03 | DMA_PACK_SIZE_MASK,
+			     0x03 | DMA_PACK_SIZE_MASK,
 			     DMA_DIR_FROM_CARD | DMA_EN | pack_size);
 	} else {
 		rtsx_add_cmd(chip, WRITE_REG_CMD, DMACTL,
-			0x03 | DMA_PACK_SIZE_MASK,
+			     0x03 | DMA_PACK_SIZE_MASK,
 			     DMA_DIR_TO_CARD | DMA_EN | pack_size);
 	}
 
@@ -978,7 +980,7 @@ int card_power_off(struct rtsx_chip *chip, u8 card)
 }
 
 int card_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
-	u32 sec_addr, u16 sec_cnt)
+	    u32 sec_addr, u16 sec_cnt)
 {
 	int retval;
 	unsigned int lun = SCSI_LUN(srb);
@@ -1115,7 +1117,7 @@ void turn_on_led(struct rtsx_chip *chip, u8 gpio)
 {
 	if (CHECK_PID(chip, 0x5288))
 		rtsx_write_register(chip, CARD_GPIO, (u8)(1 << gpio),
-				(u8)(1 << gpio));
+				    (u8)(1 << gpio));
 	else
 		rtsx_write_register(chip, CARD_GPIO, (u8)(1 << gpio), 0);
 }
@@ -1126,7 +1128,7 @@ void turn_off_led(struct rtsx_chip *chip, u8 gpio)
 		rtsx_write_register(chip, CARD_GPIO, (u8)(1 << gpio), 0);
 	else
 		rtsx_write_register(chip, CARD_GPIO, (u8)(1 << gpio),
-				(u8)(1 << gpio));
+				    (u8)(1 << gpio));
 }
 
 int detect_card_cd(struct rtsx_chip *chip, int card)
