@@ -122,7 +122,10 @@ static int slave_configure(struct scsi_device *sdev)
 /* we use this macro to help us write into the buffer */
 #undef SPRINTF
 #define SPRINTF(args...) \
-	do { if (pos < buffer+length) pos += sprintf(pos, ## args); } while (0)
+	do { \
+		if (pos < buffer + length) \
+			pos += sprintf(pos, ## args); \
+	} while (0)
 
 /* queue a command */
 /* This is always called with scsi_lock(host) held */
