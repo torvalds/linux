@@ -1328,7 +1328,7 @@ static int reset_ms_pro(struct rtsx_chip *chip)
 #endif
 
 #ifdef XC_POWERCLASS
-Retry:
+retry:
 #endif
 	retval = ms_pro_reset_flow(chip, 1);
 	if (retval != STATUS_SUCCESS) {
@@ -1379,7 +1379,7 @@ Retry:
 							   change_power_class);
 				if (retval != STATUS_SUCCESS) {
 					change_power_class--;
-					goto Retry;
+					goto retry;
 				}
 			}
 		}
