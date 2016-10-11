@@ -130,16 +130,20 @@
 #define PRDCT_REV_LEN           4               /* Product LOT Length       */
 
 /* Dynamic flag definitions: used in set_bit() etc. */
-#define RTSX_FLIDX_TRANS_ACTIVE		18  /* 0x00040000 transfer is active	 */
-#define RTSX_FLIDX_ABORTING		20  /* 0x00100000 abort is in progress	 */
-#define RTSX_FLIDX_DISCONNECTING	21  /* 0x00200000 disconnect in progress */
+/* 0x00040000 transfer is active */
+#define RTSX_FLIDX_TRANS_ACTIVE		18
+/* 0x00100000 abort is in progress */
+#define RTSX_FLIDX_ABORTING		20
+/* 0x00200000 disconnect in progress */
+#define RTSX_FLIDX_DISCONNECTING	21
 
 #define ABORTING_OR_DISCONNECTING	((1UL << US_FLIDX_ABORTING) | \
 					 (1UL << US_FLIDX_DISCONNECTING))
 
-#define RTSX_FLIDX_RESETTING		22  /* 0x00400000 device reset in progress */
-#define RTSX_FLIDX_TIMED_OUT		23  /* 0x00800000 SCSI midlayer timed out  */
-
+/* 0x00400000 device reset in progress */
+#define RTSX_FLIDX_RESETTING		22
+/* 0x00800000 SCSI midlayer timed out  */
+#define RTSX_FLIDX_TIMED_OUT		23
 #define DRCT_ACCESS_DEV         0x00    /* Direct Access Device      */
 #define RMB_DISC                0x80    /* The Device is Removable   */
 #define ANSI_SCSI2              0x02    /* Based on ANSI-SCSI2       */
