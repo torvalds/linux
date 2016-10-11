@@ -629,24 +629,30 @@ struct pipe_inode_info *alloc_pipe_info(void)
 	if (pipe == NULL)
 		goto out_free_uid;
 
-	if (!too_many_pipe_buffers_hard(user)) {
-		if (too_many_pipe_buffers_soft(user))
-			pipe_bufs = 1;
-		pipe->bufs = kcalloc(pipe_bufs,
-				     sizeof(struct pipe_buffer),
-				     GFP_KERNEL_ACCOUNT);
+	account_pipe_buffers(user, 0, pipe_bufs);
+
+	if (too_many_pipe_buffers_soft(user)) {
+		account_pipe_buffers(user, pipe_bufs, 1);
+		pipe_bufs = 1;
 	}
+
+	if (too_many_pipe_buffers_hard(user))
+		goto out_revert_acct;
+
+	pipe->bufs = kcalloc(pipe_bufs, sizeof(struct pipe_buffer),
+			     GFP_KERNEL_ACCOUNT);
 
 	if (pipe->bufs) {
 		init_waitqueue_head(&pipe->wait);
 		pipe->r_counter = pipe->w_counter = 1;
 		pipe->buffers = pipe_bufs;
 		pipe->user = user;
-		account_pipe_buffers(user, 0, pipe_bufs);
 		mutex_init(&pipe->mutex);
 		return pipe;
 	}
 
+out_revert_acct:
+	account_pipe_buffers(user, pipe_bufs, 0);
 	kfree(pipe);
 out_free_uid:
 	free_uid(user);
