@@ -161,10 +161,7 @@ static inline u32 dw_pcie_readl_unroll(struct pcie_port *pp, u32 index, u32 reg)
 {
 	u32 offset = PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(index);
 
-	if (pp->ops->readl_rc)
-		return pp->ops->readl_rc(pp, pp->dbi_base + offset + reg);
-
-	return readl(pp->dbi_base + offset + reg);
+	return dw_pcie_readl_rc(pp, offset + reg);
 }
 
 static inline void dw_pcie_writel_unroll(struct pcie_port *pp, u32 index,
@@ -172,10 +169,7 @@ static inline void dw_pcie_writel_unroll(struct pcie_port *pp, u32 index,
 {
 	u32 offset = PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(index);
 
-	if (pp->ops->writel_rc)
-		pp->ops->writel_rc(pp, val, pp->dbi_base + offset + reg);
-	else
-		writel(val, pp->dbi_base + offset + reg);
+	dw_pcie_writel_rc(pp, val, offset + reg);
 }
 
 static int dw_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
