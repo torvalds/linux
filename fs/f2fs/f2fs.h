@@ -2071,7 +2071,7 @@ void move_node_page(struct page *, int);
 int fsync_node_pages(struct f2fs_sb_info *, struct inode *,
 			struct writeback_control *, bool);
 int sync_node_pages(struct f2fs_sb_info *, struct writeback_control *);
-void build_free_nids(struct f2fs_sb_info *);
+void build_free_nids(struct f2fs_sb_info *, bool);
 bool alloc_nid(struct f2fs_sb_info *, nid_t *);
 void alloc_nid_done(struct f2fs_sb_info *, nid_t);
 void alloc_nid_failed(struct f2fs_sb_info *, nid_t);
