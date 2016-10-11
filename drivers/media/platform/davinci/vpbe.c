@@ -818,7 +818,6 @@ static int vpbe_probe(struct platform_device *pdev)
 {
 	struct vpbe_device *vpbe_dev;
 	struct vpbe_config *cfg;
-	int ret = -EINVAL;
 
 	if (!pdev->dev.platform_data) {
 		v4l2_err(pdev->dev.driver, "No platform data\n");
@@ -830,7 +829,7 @@ static int vpbe_probe(struct platform_device *pdev)
 	    !cfg->osd.module_name[0] ||
 	    !cfg->venc.module_name[0]) {
 		v4l2_err(pdev->dev.driver, "vpbe display module names not defined\n");
-		return ret;
+		return -EINVAL;
 	}
 
 	vpbe_dev = kzalloc(sizeof(*vpbe_dev), GFP_KERNEL);
