@@ -74,6 +74,8 @@
 #define RS_32_1(val, bits)      (u32)(val >> bits)
 #define I40E_HI_DWORD(x)        ((u32)((((x) >> 16) >> 16) & 0xFFFFFFFF))
 
+#define QS_HANDLE_UNKNOWN       0xffff
+
 #define LS_64(val, field) (((u64)val << field ## _SHIFT) & (field ## _MASK))
 
 #define RS_64(val, field) ((u64)(val & field ## _MASK) >> field ## _SHIFT)

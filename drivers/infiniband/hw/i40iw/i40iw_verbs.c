@@ -254,7 +254,6 @@ static void i40iw_alloc_push_page(struct i40iw_device *iwdev, struct i40iw_sc_qp
 {
 	struct i40iw_cqp_request *cqp_request;
 	struct cqp_commands_info *cqp_info;
-	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
 	enum i40iw_status_code status;
 
 	if (qp->push_idx != I40IW_INVALID_PUSH_PAGE_INDEX)
@@ -270,7 +269,7 @@ static void i40iw_alloc_push_page(struct i40iw_device *iwdev, struct i40iw_sc_qp
 	cqp_info->cqp_cmd = OP_MANAGE_PUSH_PAGE;
 	cqp_info->post_sq = 1;
 
-	cqp_info->in.u.manage_push_page.info.qs_handle = dev->qs_handle;
+	cqp_info->in.u.manage_push_page.info.qs_handle = qp->qs_handle;
 	cqp_info->in.u.manage_push_page.info.free_page = 0;
 	cqp_info->in.u.manage_push_page.cqp = &iwdev->cqp.sc_cqp;
 	cqp_info->in.u.manage_push_page.scratch = (uintptr_t)cqp_request;
@@ -292,7 +291,6 @@ static void i40iw_dealloc_push_page(struct i40iw_device *iwdev, struct i40iw_sc_
 {
 	struct i40iw_cqp_request *cqp_request;
 	struct cqp_commands_info *cqp_info;
-	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
 	enum i40iw_status_code status;
 
 	if (qp->push_idx == I40IW_INVALID_PUSH_PAGE_INDEX)
@@ -307,7 +305,7 @@ static void i40iw_dealloc_push_page(struct i40iw_device *iwdev, struct i40iw_sc_
 	cqp_info->post_sq = 1;
 
 	cqp_info->in.u.manage_push_page.info.push_idx = qp->push_idx;
-	cqp_info->in.u.manage_push_page.info.qs_handle = dev->qs_handle;
+	cqp_info->in.u.manage_push_page.info.qs_handle = qp->qs_handle;
 	cqp_info->in.u.manage_push_page.info.free_page = 1;
 	cqp_info->in.u.manage_push_page.cqp = &iwdev->cqp.sc_cqp;
 	cqp_info->in.u.manage_push_page.scratch = (uintptr_t)cqp_request;

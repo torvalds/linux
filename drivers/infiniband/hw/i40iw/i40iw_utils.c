@@ -712,6 +712,51 @@ enum i40iw_status_code i40iw_cqp_sds_cmd(struct i40iw_sc_dev *dev,
 }
 
 /**
+ * i40iw_qp_suspend_resume - cqp command for suspend/resume
+ * @dev: hardware control device structure
+ * @qp: hardware control qp
+ * @suspend: flag if suspend or resume
+ */
+void i40iw_qp_suspend_resume(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp, bool suspend)
+{
+	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
+	struct i40iw_cqp_request *cqp_request;
+	struct i40iw_sc_cqp *cqp = dev->cqp;
+	struct cqp_commands_info *cqp_info;
+	enum i40iw_status_code status;
+
+	cqp_request = i40iw_get_cqp_request(&iwdev->cqp, false);
+	if (!cqp_request)
+		return;
+
+	cqp_info = &cqp_request->info;
+	cqp_info->cqp_cmd = (suspend) ? OP_SUSPEND : OP_RESUME;
+	cqp_info->in.u.suspend_resume.cqp = cqp;
+	cqp_info->in.u.suspend_resume.qp = qp;
+	cqp_info->in.u.suspend_resume.scratch = (uintptr_t)cqp_request;
+	status = i40iw_handle_cqp_op(iwdev, cqp_request);
+	if (status)
+		i40iw_pr_err("CQP-OP QP Suspend/Resume fail");
+}
+
+/**
+ * i40iw_qp_mss_modify - modify mss for qp
+ * @dev: hardware control device structure
+ * @qp: hardware control qp
+ */
+void i40iw_qp_mss_modify(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp)
+{
+	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
+	struct i40iw_qp *iwqp = (struct i40iw_qp *)qp->back_qp;
+	struct i40iw_modify_qp_info info;
+
+	memset(&info, 0, sizeof(info));
+	info.mss_change = true;
+	info.new_mss = dev->mss;
+	i40iw_hw_modify_qp(iwdev, iwqp, &info, false);
+}
+
+/**
  * i40iw_term_modify_qp - modify qp for term message
  * @qp: hardware control qp
  * @next_state: qp's next state

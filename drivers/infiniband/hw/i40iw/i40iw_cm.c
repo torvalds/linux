@@ -221,6 +221,7 @@ static void i40iw_get_addr_info(struct i40iw_cm_node *cm_node,
 	memcpy(cm_info->rem_addr, cm_node->rem_addr, sizeof(cm_info->rem_addr));
 	cm_info->loc_port = cm_node->loc_port;
 	cm_info->rem_port = cm_node->rem_port;
+	cm_info->user_pri = cm_node->user_pri;
 }
 
 /**
@@ -396,6 +397,7 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 	u32 opts_len = 0;
 	u32 pd_len = 0;
 	u32 hdr_len = 0;
+	u16 vtag;
 
 	sqbuf = i40iw_puda_get_bufpool(dev->ilq);
 	if (!sqbuf)
@@ -445,7 +447,8 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 		ether_addr_copy(ethh->h_source, cm_node->loc_mac);
 		if (cm_node->vlan_id < VLAN_TAG_PRESENT) {
 			((struct vlan_ethhdr *)ethh)->h_vlan_proto = htons(ETH_P_8021Q);
-			((struct vlan_ethhdr *)ethh)->h_vlan_TCI = htons(cm_node->vlan_id);
+			vtag = (cm_node->user_pri << VLAN_PRIO_SHIFT) | cm_node->vlan_id;
+			((struct vlan_ethhdr *)ethh)->h_vlan_TCI = htons(vtag);
 
 			((struct vlan_ethhdr *)ethh)->h_vlan_encapsulated_proto = htons(ETH_P_IP);
 		} else {
@@ -474,7 +477,8 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 		ether_addr_copy(ethh->h_source, cm_node->loc_mac);
 		if (cm_node->vlan_id < VLAN_TAG_PRESENT) {
 			((struct vlan_ethhdr *)ethh)->h_vlan_proto = htons(ETH_P_8021Q);
-			((struct vlan_ethhdr *)ethh)->h_vlan_TCI = htons(cm_node->vlan_id);
+			vtag = (cm_node->user_pri << VLAN_PRIO_SHIFT) | cm_node->vlan_id;
+			((struct vlan_ethhdr *)ethh)->h_vlan_TCI = htons(vtag);
 			((struct vlan_ethhdr *)ethh)->h_vlan_encapsulated_proto = htons(ETH_P_IPV6);
 		} else {
 			ethh->h_proto = htons(ETH_P_IPV6);
@@ -1880,6 +1884,7 @@ static int i40iw_dec_refcnt_listen(struct i40iw_cm_core *cm_core,
 			nfo.loc_port = listener->loc_port;
 			nfo.ipv4 = listener->ipv4;
 			nfo.vlan_id = listener->vlan_id;
+			nfo.user_pri = listener->user_pri;
 
 			if (!list_empty(&listener->child_listen_list)) {
 				i40iw_del_multiple_qhash(listener->iwdev, &nfo, listener);
@@ -2138,6 +2143,11 @@ static struct i40iw_cm_node *i40iw_make_cm_node(
 	/* set our node specific transport info */
 	cm_node->ipv4 = cm_info->ipv4;
 	cm_node->vlan_id = cm_info->vlan_id;
+	if ((cm_node->vlan_id == I40IW_NO_VLAN) && iwdev->dcb)
+		cm_node->vlan_id = 0;
+	cm_node->user_pri = cm_info->user_pri;
+	if (listener)
+		cm_node->user_pri = listener->user_pri;
 	memcpy(cm_node->loc_addr, cm_info->loc_addr, sizeof(cm_node->loc_addr));
 	memcpy(cm_node->rem_addr, cm_info->rem_addr, sizeof(cm_node->rem_addr));
 	cm_node->loc_port = cm_info->loc_port;
@@ -3055,6 +3065,7 @@ void i40iw_receive_ilq(struct i40iw_sc_dev *dev, struct i40iw_puda_buf *rbuf)
 	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
 	struct i40iw_cm_core *cm_core = &iwdev->cm_core;
 	struct vlan_ethhdr *ethh;
+	u16 vtag;
 
 	/* if vlan, then maclen = 18 else 14 */
 	iph = (struct iphdr *)rbuf->iph;
@@ -3068,7 +3079,9 @@ void i40iw_receive_ilq(struct i40iw_sc_dev *dev, struct i40iw_puda_buf *rbuf)
 	ethh = (struct vlan_ethhdr *)rbuf->mem.va;
 
 	if (ethh->h_vlan_proto == htons(ETH_P_8021Q)) {
-		cm_info.vlan_id = ntohs(ethh->h_vlan_TCI) & VLAN_VID_MASK;
+		vtag = ntohs(ethh->h_vlan_TCI);
+		cm_info.user_pri = (vtag & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+		cm_info.vlan_id = vtag & VLAN_VID_MASK;
 		i40iw_debug(cm_core->dev,
 			    I40IW_DEBUG_CM,
 			    "%s vlan_id=%d\n",
@@ -3309,6 +3322,8 @@ static void i40iw_cm_init_tsa_conn(struct i40iw_qp *iwqp,
 
 	ctx_info->tcp_info_valid = true;
 	ctx_info->iwarp_info_valid = true;
+	ctx_info->add_to_qoslist = true;
+	ctx_info->user_pri = cm_node->user_pri;
 
 	i40iw_init_tcp_ctx(cm_node, &tcp_info, iwqp);
 	if (cm_node->snd_mark_en) {
@@ -3326,6 +3341,7 @@ static void i40iw_cm_init_tsa_conn(struct i40iw_qp *iwqp,
 	/* once tcp_info is set, no need to do it again */
 	ctx_info->tcp_info_valid = false;
 	ctx_info->iwarp_info_valid = false;
+	ctx_info->add_to_qoslist = false;
 }
 
 /**
@@ -3759,6 +3775,9 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		i40iw_netdev_vlan_ipv6(cm_info.loc_addr, &cm_info.vlan_id, NULL);
 	}
 	cm_info.cm_id = cm_id;
+	cm_info.user_pri = rt_tos2priority(cm_id->tos);
+	i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_DCB, "%s TOS:[%d] UP:[%d]\n",
+		    __func__, cm_id->tos, cm_info.user_pri);
 	if ((cm_info.ipv4 && (laddr->sin_addr.s_addr != raddr->sin_addr.s_addr)) ||
 	    (!cm_info.ipv4 && memcmp(laddr6->sin6_addr.in6_u.u6_addr32,
 				     raddr6->sin6_addr.in6_u.u6_addr32,
@@ -3903,6 +3922,11 @@ int i40iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	}
 
 	cm_id->provider_data = cm_listen_node;
+
+	cm_listen_node->user_pri = rt_tos2priority(cm_id->tos);
+	cm_info.user_pri = cm_listen_node->user_pri;
+	i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_DCB, "%s TOS:[%d] UP:[%d]\n",
+		    __func__, cm_id->tos, cm_listen_node->user_pri);
 
 	if (!cm_listen_node->reused_node) {
 		if (wildcard) {

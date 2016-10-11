@@ -368,7 +368,7 @@ struct i40iw_cm_info {
 	u32 rem_addr[4];
 	u16 vlan_id;
 	int backlog;
-	u16 user_pri;
+	u8 user_pri;
 	bool ipv4;
 };
 

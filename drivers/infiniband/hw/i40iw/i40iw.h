@@ -210,6 +210,12 @@ struct i40iw_msix_vector {
 	u32 ceq_id;
 };
 
+struct l2params_work {
+	struct work_struct work;
+	struct i40iw_device *iwdev;
+	struct i40iw_l2params l2params;
+};
+
 #define I40IW_MSIX_TABLE_SIZE   65
 
 struct virtchnl_work {
@@ -514,6 +520,9 @@ void i40iw_add_pdusecount(struct i40iw_pd *iwpd);
 void i40iw_hw_modify_qp(struct i40iw_device *iwdev, struct i40iw_qp *iwqp,
 			struct i40iw_modify_qp_info *info, bool wait);
 
+void i40iw_qp_suspend_resume(struct i40iw_sc_dev *dev,
+			     struct i40iw_sc_qp *qp,
+			     bool suspend);
 enum i40iw_status_code i40iw_manage_qhash(struct i40iw_device *iwdev,
 					  struct i40iw_cm_info *cminfo,
 					  enum i40iw_quad_entry_type etype,

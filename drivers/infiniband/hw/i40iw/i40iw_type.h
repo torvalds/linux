@@ -397,6 +397,9 @@ struct i40iw_sc_qp {
 	bool virtual_map;
 	bool flush_sq;
 	bool flush_rq;
+	u8 user_pri;
+	struct list_head list;
+	bool on_qoslist;
 	bool sq_flush;
 	enum i40iw_flush_opcode flush_code;
 	enum i40iw_term_eventtypes eventtype;
@@ -422,6 +425,12 @@ struct i40iw_vchnl_if {
 struct i40iw_vchnl_vf_msg_buffer {
 	struct i40iw_virtchnl_op_buf vchnl_msg;
 	char parm_buffer[I40IW_VCHNL_MAX_VF_MSG_SIZE - 1];
+};
+
+struct i40iw_qos {
+	struct list_head qplist;
+	spinlock_t lock;	/* qos list */
+	u16 qs_handle;
 };
 
 struct i40iw_vfdev {
@@ -482,7 +491,8 @@ struct i40iw_sc_dev {
 	const struct i40iw_vf_cqp_ops *iw_vf_cqp_ops;
 
 	struct i40iw_hmc_fpm_misc hmc_fpm_misc;
-	u16 qs_handle;
+	struct i40iw_qos qos[I40IW_MAX_USER_PRIORITY];
+	u16 mss;
 	u32 debug_mask;
 	u16 exception_lan_queue;
 	u8 hmc_fn_id;
@@ -564,7 +574,7 @@ struct i40iw_device_init_info {
 	struct i40iw_hw *hw;
 	void __iomem *bar0;
 	enum i40iw_status_code (*vchnl_send)(struct i40iw_sc_dev *, u32, u8 *, u16);
-	u16 qs_handle;
+	struct i40iw_l2params l2params;
 	u16 exception_lan_queue;
 	u8 hmc_fn_id;
 	bool is_pf;
@@ -722,6 +732,8 @@ struct i40iw_qp_host_ctx_info {
 	bool iwarp_info_valid;
 	bool err_rq_idx_valid;
 	u16 err_rq_idx;
+	bool add_to_qoslist;
+	u8 user_pri;
 };
 
 struct i40iw_aeqe_info {
@@ -886,7 +898,7 @@ struct i40iw_qhash_table_info {
 	bool ipv4_valid;
 	u8 mac_addr[6];
 	u16 vlan_id;
-	u16 qs_handle;
+	u8 user_pri;
 	u32 qp_num;
 	u32 dest_ip[4];
 	u32 src_ip[4];

@@ -359,6 +359,9 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 				continue;
 			i40iw_cm_disconn(iwqp);
 			break;
+		case I40IW_AE_QP_SUSPEND_COMPLETE:
+			i40iw_qp_suspend_resume(dev, &iwqp->sc_qp, false);
+			break;
 		case I40IW_AE_TERMINATE_SENT:
 			i40iw_terminate_send_fin(qp);
 			break;
@@ -404,19 +407,18 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 		case I40IW_AE_LCE_CQ_CATASTROPHIC:
 		case I40IW_AE_UDA_XMIT_DGRAM_TOO_LONG:
 		case I40IW_AE_UDA_XMIT_IPADDR_MISMATCH:
-		case I40IW_AE_QP_SUSPEND_COMPLETE:
 			ctx_info->err_rq_idx_valid = false;
 		default:
-				if (!info->sq && ctx_info->err_rq_idx_valid) {
-					ctx_info->err_rq_idx = info->wqe_idx;
-					ctx_info->tcp_info_valid = false;
-					ctx_info->iwarp_info_valid = false;
-					ret = dev->iw_priv_qp_ops->qp_setctx(&iwqp->sc_qp,
-									     iwqp->host_ctx.va,
-									     ctx_info);
-				}
-				i40iw_terminate_connection(qp, info);
-				break;
+			if (!info->sq && ctx_info->err_rq_idx_valid) {
+				ctx_info->err_rq_idx = info->wqe_idx;
+				ctx_info->tcp_info_valid = false;
+				ctx_info->iwarp_info_valid = false;
+				ret = dev->iw_priv_qp_ops->qp_setctx(&iwqp->sc_qp,
+								     iwqp->host_ctx.va,
+								     ctx_info);
+			}
+			i40iw_terminate_connection(qp, info);
+			break;
 		}
 		if (info->qp)
 			i40iw_rem_ref(&iwqp->ibqp);
@@ -560,6 +562,7 @@ enum i40iw_status_code i40iw_manage_qhash(struct i40iw_device *iwdev,
 	}
 
 	info->ipv4_valid = cminfo->ipv4;
+	info->user_pri = cminfo->user_pri;
 	ether_addr_copy(info->mac_addr, iwdev->netdev->dev_addr);
 	info->qp_num = cpu_to_le32(dev->ilq->qp_id);
 	info->dest_port = cpu_to_le16(cminfo->loc_port);

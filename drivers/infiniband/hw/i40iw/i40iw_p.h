@@ -65,6 +65,8 @@ enum i40iw_status_code i40iw_pf_init_vfhmc(struct i40iw_sc_dev *dev, u8 vf_hmc_f
 					   u32 *vf_cnt_array);
 
 /* cqp misc functions */
+void i40iw_change_l2params(struct i40iw_sc_dev *dev, struct i40iw_l2params *l2params);
+void i40iw_qp_add_qos(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp);
 
 void i40iw_terminate_send_fin(struct i40iw_sc_qp *qp);
 

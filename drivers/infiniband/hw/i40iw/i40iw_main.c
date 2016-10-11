@@ -939,7 +939,7 @@ static enum i40iw_status_code i40iw_initialize_ilq(struct i40iw_device *iwdev)
 	info.rq_size = 8192;
 	info.buf_size = 1024;
 	info.tx_buf_cnt = 16384;
-	info.mss = iwdev->mss;
+	info.mss = iwdev->sc_dev.mss;
 	info.receive = i40iw_receive_ilq;
 	info.xmit_complete = i40iw_free_sqbuf;
 	status = i40iw_puda_create_rsrc(&iwdev->sc_dev, &info);
@@ -967,7 +967,7 @@ static enum i40iw_status_code i40iw_initialize_ieq(struct i40iw_device *iwdev)
 	info.sq_size = 8192;
 	info.rq_size = 8192;
 	info.buf_size = 2048;
-	info.mss = iwdev->mss;
+	info.mss = iwdev->sc_dev.mss;
 	info.tx_buf_cnt = 16384;
 	status = i40iw_puda_create_rsrc(&iwdev->sc_dev, &info);
 	if (status)
@@ -1296,6 +1296,9 @@ static enum i40iw_status_code i40iw_initialize_dev(struct i40iw_device *iwdev,
 	struct i40iw_device_init_info info;
 	struct i40iw_dma_mem mem;
 	u32 size;
+	u16 last_qset = I40IW_NO_QSET;
+	u16 qset;
+	u32 i;
 
 	memset(&info, 0, sizeof(info));
 	size = sizeof(struct i40iw_hmc_pble_rsrc) + sizeof(struct i40iw_hmc_info) +
@@ -1325,7 +1328,16 @@ static enum i40iw_status_code i40iw_initialize_dev(struct i40iw_device *iwdev,
 	info.bar0 = ldev->hw_addr;
 	info.hw = &iwdev->hw;
 	info.debug_mask = debug;
-	info.qs_handle = ldev->params.qos.prio_qos[0].qs_handle;
+	info.l2params.mss =
+		(ldev->params.mtu) ? ldev->params.mtu - I40IW_MTU_TO_MSS : I40IW_DEFAULT_MSS;
+	for (i = 0; i < I40E_CLIENT_MAX_USER_PRIORITY; i++) {
+		qset = ldev->params.qos.prio_qos[i].qs_handle;
+		info.l2params.qs_handle_list[i] = qset;
+		if (last_qset == I40IW_NO_QSET)
+			last_qset = qset;
+		else if ((qset != last_qset) && (qset != I40IW_NO_QSET))
+			iwdev->dcb = true;
+	}
 	info.exception_lan_queue = 1;
 	info.vchnl_send = i40iw_virtchnl_send;
 	status = i40iw_device_init(&iwdev->sc_dev, &info);
@@ -1416,6 +1428,8 @@ static void i40iw_deinit_device(struct i40iw_device *iwdev, bool reset, bool del
 	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
 
 	i40iw_pr_info("state = %d\n", iwdev->init_state);
+	if (iwdev->param_wq)
+		destroy_workqueue(iwdev->param_wq);
 
 	switch (iwdev->init_state) {
 	case RDMA_DEV_REGISTERED:
@@ -1630,6 +1644,9 @@ static int i40iw_open(struct i40e_info *ldev, struct i40e_client *client)
 		iwdev->init_state = RDMA_DEV_REGISTERED;
 		iwdev->iw_status = 1;
 		i40iw_port_ibevent(iwdev);
+		iwdev->param_wq = alloc_ordered_workqueue("l2params", WQ_MEM_RECLAIM);
+		if(iwdev->param_wq == NULL)
+			break;
 		i40iw_pr_info("i40iw_open completed\n");
 		return 0;
 	} while (0);
@@ -1640,25 +1657,58 @@ static int i40iw_open(struct i40e_info *ldev, struct i40e_client *client)
 }
 
 /**
- * i40iw_l2param_change : handle qs handles for qos and mss change
+ * i40iw_l2params_worker - worker for l2 params change
+ * @work: work pointer for l2 params
+ */
+static void i40iw_l2params_worker(struct work_struct *work)
+{
+	struct l2params_work *dwork =
+	    container_of(work, struct l2params_work, work);
+	struct i40iw_device *iwdev = dwork->iwdev;
+
+	i40iw_change_l2params(&iwdev->sc_dev, &dwork->l2params);
+	atomic_dec(&iwdev->params_busy);
+	kfree(work);
+}
+
+/**
+ * i40iw_l2param_change - handle qs handles for qos and mss change
  * @ldev: lan device information
  * @client: client for paramater change
  * @params: new parameters from L2
  */
-static void i40iw_l2param_change(struct i40e_info *ldev,
-				 struct i40e_client *client,
+static void i40iw_l2param_change(struct i40e_info *ldev, struct i40e_client *client,
 				 struct i40e_params *params)
 {
 	struct i40iw_handler *hdl;
+	struct i40iw_l2params *l2params;
+	struct l2params_work *work;
 	struct i40iw_device *iwdev;
+	int i;
 
 	hdl = i40iw_find_i40e_handler(ldev);
 	if (!hdl)
 		return;
 
 	iwdev = &hdl->device;
-	if (params->mtu)
-		iwdev->mss = params->mtu - I40IW_MTU_TO_MSS;
+
+	if (atomic_read(&iwdev->params_busy))
+		return;
+
+
+	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+	if (!work)
+		return;
+
+	atomic_inc(&iwdev->params_busy);
+
+	work->iwdev = iwdev;
+	l2params = &work->l2params;
+	for (i = 0; i < I40E_CLIENT_MAX_USER_PRIORITY; i++)
+		l2params->qs_handle_list[i] = params->qos.prio_qos[i].qs_handle;
+
+	INIT_WORK(&work->work, i40iw_l2params_worker);
+	queue_work(iwdev->param_wq, &work->work);
 }
 
 /**

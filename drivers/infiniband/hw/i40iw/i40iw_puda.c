@@ -608,7 +608,8 @@ static enum i40iw_status_code i40iw_puda_qp_create(struct i40iw_puda_rsrc *rsrc)
 		ukqp->wqe_alloc_reg = (u32 __iomem *)(i40iw_get_hw_addr(qp->pd->dev) +
 						    I40E_VFPE_WQEALLOC1);
 
-	qp->qs_handle = qp->dev->qs_handle;
+	qp->user_pri = 0;
+	i40iw_qp_add_qos(rsrc->dev, qp);
 	i40iw_puda_qp_setctx(rsrc);
 	ret = i40iw_puda_qp_wqe(rsrc);
 	if (ret)
