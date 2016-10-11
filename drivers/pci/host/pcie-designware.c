@@ -157,14 +157,14 @@ void dw_pcie_writel_rc(struct pcie_port *pp, u32 reg, u32 val)
 		writel(val, pp->dbi_base + reg);
 }
 
-static inline u32 dw_pcie_readl_unroll(struct pcie_port *pp, u32 index, u32 reg)
+static u32 dw_pcie_readl_unroll(struct pcie_port *pp, u32 index, u32 reg)
 {
 	u32 offset = PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(index);
 
 	return dw_pcie_readl_rc(pp, offset + reg);
 }
 
-static inline void dw_pcie_writel_unroll(struct pcie_port *pp, u32 index,
+static void dw_pcie_writel_unroll(struct pcie_port *pp, u32 index,
 					 u32 val, u32 reg)
 {
 	u32 offset = PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(index);
