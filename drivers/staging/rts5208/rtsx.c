@@ -536,7 +536,6 @@ static int rtsx_polling_thread(void *__dev)
 	wait_timeout((delay_use + 5) * 1000);
 
 	for (;;) {
-
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(msecs_to_jiffies(POLLING_INTERVAL));
 
