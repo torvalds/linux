@@ -2105,6 +2105,8 @@ void exit_sem(struct task_struct *tsk)
 		struct list_head tasks;
 		int semid, i;
 
+		cond_resched();
+
 		rcu_read_lock();
 		un = list_entry_rcu(ulp->list_proc.next,
 				    struct sem_undo, list_proc);
