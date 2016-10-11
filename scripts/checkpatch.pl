@@ -54,6 +54,7 @@ my $min_conf_desc_length = 4;
 my $spelling_file = "$D/spelling.txt";
 my $codespell = 0;
 my $codespellfile = "/usr/share/codespell/dictionary.txt";
+my $conststructsfile = "$D/const_structs.checkpatch";
 my $color = 1;
 my $allow_c99_comments = 1;
 
@@ -623,6 +624,29 @@ if ($codespell) {
 }
 
 $misspellings = join("|", sort keys %spelling_fix) if keys %spelling_fix;
+
+my $const_structs = "";
+if (open(my $conststructs, '<', $conststructsfile)) {
+	while (<$conststructs>) {
+		my $line = $_;
+
+		$line =~ s/\s*\n?$//g;
+		$line =~ s/^\s*//g;
+
+		next if ($line =~ m/^\s*#/);
+		next if ($line =~ m/^\s*$/);
+		if ($line =~ /\s/) {
+			print("$conststructsfile: '$line' invalid - ignored\n");
+			next;
+		}
+
+		$const_structs .= '|' if ($const_structs ne "");
+		$const_structs .= $line;
+	}
+	close($conststructsfile);
+} else {
+	warn "No structs that should be const will be found - file '$conststructsfile': $!\n";
+}
 
 sub build_types {
 	my $mods = "(?x:  \n" . join("|\n  ", (@modifierList, @modifierListFile)) . "\n)";
@@ -5912,46 +5936,6 @@ sub process {
 		}
 
 # check for various structs that are normally const (ops, kgdb, device_tree)
-		my $const_structs = qr{
-				acpi_dock_ops|
-				address_space_operations|
-				backlight_ops|
-				block_device_operations|
-				dentry_operations|
-				dev_pm_ops|
-				dma_map_ops|
-				extent_io_ops|
-				file_lock_operations|
-				file_operations|
-				hv_ops|
-				ide_dma_ops|
-				intel_dvo_dev_ops|
-				item_operations|
-				iwl_ops|
-				kgdb_arch|
-				kgdb_io|
-				kset_uevent_ops|
-				lock_manager_operations|
-				microcode_ops|
-				mtrr_ops|
-				neigh_ops|
-				nlmsvc_binding|
-				of_device_id|
-				pci_raw_ops|
-				pipe_buf_operations|
-				platform_hibernation_ops|
-				platform_suspend_ops|
-				proto_ops|
-				rpc_pipe_ops|
-				seq_operations|
-				snd_ac97_build_ops|
-				soc_pcmcia_socket_ops|
-				stacktrace_ops|
-				sysfs_ops|
-				tty_operations|
-				uart_ops|
-				usb_mon_operations|
-				wd_ops}x;
 		if ($line !~ /\bconst\b/ &&
 		    $line =~ /\bstruct\s+($const_structs)\b/) {
 			WARN("CONST_STRUCT",
