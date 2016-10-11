@@ -165,6 +165,8 @@ static int sunxi_pctrl_parse_bias_prop(struct device_node *node)
 		return -EINVAL;
 
 	switch (val) {
+	case SUN4I_PINCTRL_NO_PULL:
+		return PIN_CONFIG_BIAS_DISABLE;
 	case SUN4I_PINCTRL_PULL_UP:
 		return PIN_CONFIG_BIAS_PULL_UP;
 	case SUN4I_PINCTRL_PULL_DOWN:
@@ -400,6 +402,12 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 			writel((val & ~mask)
 				| dlevel << sunxi_dlevel_offset(pin),
 				pctl->membase + sunxi_dlevel_reg(pin));
+			break;
+		case PIN_CONFIG_BIAS_DISABLE:
+			val = readl(pctl->membase + sunxi_pull_reg(pin));
+			mask = PULL_PINS_MASK << sunxi_pull_offset(pin);
+			writel((val & ~mask),
+			       pctl->membase + sunxi_pull_reg(pin));
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
 			val = readl(pctl->membase + sunxi_pull_reg(pin));
