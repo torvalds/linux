@@ -560,11 +560,11 @@ void __kthread_init_worker(struct kthread_worker *worker,
 				const char *name,
 				struct lock_class_key *key)
 {
+	memset(worker, 0, sizeof(struct kthread_worker));
 	spin_lock_init(&worker->lock);
 	lockdep_set_class_and_name(&worker->lock, key, name);
 	INIT_LIST_HEAD(&worker->work_list);
 	INIT_LIST_HEAD(&worker->delayed_work_list);
-	worker->task = NULL;
 }
 EXPORT_SYMBOL_GPL(__kthread_init_worker);
 
@@ -594,6 +594,10 @@ int kthread_worker_fn(void *worker_ptr)
 	 */
 	WARN_ON(worker->task && worker->task != current);
 	worker->task = current;
+
+	if (worker->flags & KTW_FREEZABLE)
+		set_freezable();
+
 repeat:
 	set_current_state(TASK_INTERRUPTIBLE);	/* mb paired w/ kthread_stop */
 
@@ -627,7 +631,8 @@ repeat:
 EXPORT_SYMBOL_GPL(kthread_worker_fn);
 
 static struct kthread_worker *
-__kthread_create_worker(int cpu, const char namefmt[], va_list args)
+__kthread_create_worker(int cpu, unsigned int flags,
+			const char namefmt[], va_list args)
 {
 	struct kthread_worker *worker;
 	struct task_struct *task;
@@ -657,6 +662,7 @@ __kthread_create_worker(int cpu, const char namefmt[], va_list args)
 	if (IS_ERR(task))
 		goto fail_task;
 
+	worker->flags = flags;
 	worker->task = task;
 	wake_up_process(task);
 	return worker;
@@ -668,6 +674,7 @@ fail_task:
 
 /**
  * kthread_create_worker - create a kthread worker
+ * @flags: flags modifying the default behavior of the worker
  * @namefmt: printf-style name for the kthread worker (task).
  *
  * Returns a pointer to the allocated worker on success, ERR_PTR(-ENOMEM)
@@ -675,13 +682,13 @@ fail_task:
  * when the worker was SIGKILLed.
  */
 struct kthread_worker *
-kthread_create_worker(const char namefmt[], ...)
+kthread_create_worker(unsigned int flags, const char namefmt[], ...)
 {
 	struct kthread_worker *worker;
 	va_list args;
 
 	va_start(args, namefmt);
-	worker = __kthread_create_worker(-1, namefmt, args);
+	worker = __kthread_create_worker(-1, flags, namefmt, args);
 	va_end(args);
 
 	return worker;
@@ -692,6 +699,7 @@ EXPORT_SYMBOL(kthread_create_worker);
  * kthread_create_worker_on_cpu - create a kthread worker and bind it
  *	it to a given CPU and the associated NUMA node.
  * @cpu: CPU number
+ * @flags: flags modifying the default behavior of the worker
  * @namefmt: printf-style name for the kthread worker (task).
  *
  * Use a valid CPU number if you want to bind the kthread worker
@@ -705,13 +713,14 @@ EXPORT_SYMBOL(kthread_create_worker);
  * when the worker was SIGKILLed.
  */
 struct kthread_worker *
-kthread_create_worker_on_cpu(int cpu, const char namefmt[], ...)
+kthread_create_worker_on_cpu(int cpu, unsigned int flags,
+			     const char namefmt[], ...)
 {
 	struct kthread_worker *worker;
 	va_list args;
 
 	va_start(args, namefmt);
-	worker = __kthread_create_worker(cpu, namefmt, args);
+	worker = __kthread_create_worker(cpu, flags, namefmt, args);
 	va_end(args);
 
 	return worker;
