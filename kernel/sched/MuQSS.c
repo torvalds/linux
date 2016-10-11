@@ -117,7 +117,7 @@
 
 #define rq_idle(rq)		((rq)->rq_prio == PRIO_LIMIT)
 
-#define ISO_PERIOD		((5 * HZ * num_online_cpus()) + 1)
+#define ISO_PERIOD		(5 * HZ)
 
 #define SCHED_PRIO(p)		((p) + MAX_RT_PRIO)
 #define STOP_PRIO		(MAX_RT_PRIO - 1)
@@ -177,7 +177,7 @@ static inline int timeslice(void)
 
 /*
  * The global runqueue data that all CPUs work off. Contains either atomic
- * variables or iso variables protected by iso_lock.
+ * variables and a cpu bitmap set atomically.
  */
 struct global_rq {
 	atomic_t nr_running;
@@ -186,11 +186,7 @@ struct global_rq {
 	atomic_t qnr; /* queued not running */
 #ifdef CONFIG_SMP
 	cpumask_t cpu_idle_map;
-	bool idle_cpus;
 #endif
-	raw_spinlock_t iso_lock;
-	int iso_ticks;
-	bool iso_refractory;
 };
 
 #ifdef CONFIG_SMP
@@ -817,9 +813,9 @@ static bool idleprio_suitable(struct task_struct *p)
  * To determine if a task of SCHED_ISO can run in pseudo-realtime, we check
  * that the iso_refractory flag is not set.
  */
-static bool isoprio_suitable(void)
+static inline bool isoprio_suitable(struct rq *rq)
 {
-	return !grq.iso_refractory;
+	return !rq->iso_refractory;
 }
 
 /*
@@ -844,7 +840,7 @@ static void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 	if (!rt_task(p)) {
 		/* Check it hasn't gotten rt from PI */
 		if ((idleprio_task(p) && idleprio_suitable(p)) ||
-		   (iso_task(p) && isoprio_suitable()))
+		   (iso_task(p) && isoprio_suitable(rq)))
 			p->prio = p->normal_prio;
 		else
 			p->prio = NORMAL_PRIO;
@@ -3205,37 +3201,12 @@ void account_idle_ticks(unsigned long ticks)
 }
 #endif
 
-static inline void grq_iso_lock(void)
-	__acquires(grq.iso_lock)
-{
-	raw_spin_lock(&grq.iso_lock);
-}
-
-static inline void grq_iso_unlock(void)
-	__releases(grq.iso_lock)
-{
-	raw_spin_unlock(&grq.iso_lock);
-}
-
 /*
  * Functions to test for when SCHED_ISO tasks have used their allocated
- * quota as real time scheduling and convert them back to SCHED_NORMAL.
- * Where possible, the data is tested lockless, to avoid grabbing iso_lock
- * because the occasional inaccurate result won't matter. However the
- * tick data is only ever modified under lock. iso_refractory is only simply
- * set to 0 or 1 so it's not worth grabbing the lock yet again for that.
+ * quota as real time scheduling and convert them back to SCHED_NORMAL. All
+ * data is modified only by the local runqueue during scheduler_tick with
+ * interrupts disabled.
  */
-static bool set_iso_refractory(void)
-{
-	grq.iso_refractory = true;
-	return grq.iso_refractory;
-}
-
-static bool clear_iso_refractory(void)
-{
-	grq.iso_refractory = false;
-	return grq.iso_refractory;
-}
 
 /*
  * Test if SCHED_ISO tasks have run longer than their alloted period as RT
@@ -3243,35 +3214,27 @@ static bool clear_iso_refractory(void)
  * for unsetting the flag. 115/128 is ~90/100 as a fast shift instead of a
  * slow division.
  */
-static bool test_ret_isorefractory(struct rq *rq)
+static inline void iso_tick(struct rq *rq)
 {
-	if (likely(!grq.iso_refractory)) {
-		if (grq.iso_ticks > ISO_PERIOD * sched_iso_cpu)
-			return set_iso_refractory();
-	} else {
-		if (grq.iso_ticks < ISO_PERIOD * (sched_iso_cpu * 115 / 128))
-			return clear_iso_refractory();
+	rq->iso_ticks = rq->iso_ticks * (ISO_PERIOD - 1) / ISO_PERIOD;
+	rq->iso_ticks += 100;
+	if (rq->iso_ticks > ISO_PERIOD * sched_iso_cpu) {
+		rq->iso_refractory = true;
+		if (unlikely(rq->iso_ticks > ISO_PERIOD * 100))
+			rq->iso_ticks = ISO_PERIOD * 100;
 	}
-	return grq.iso_refractory;
-}
-
-static void iso_tick(void)
-{
-	grq_iso_lock();
-	grq.iso_ticks += 100;
-	grq_iso_unlock();
 }
 
 /* No SCHED_ISO task was running so decrease rq->iso_ticks */
-static inline void no_iso_tick(void)
+static inline void no_iso_tick(struct rq *rq, int ticks)
 {
-	if (grq.iso_ticks) {
-		grq_iso_lock();
-		grq.iso_ticks -= grq.iso_ticks / ISO_PERIOD + 1;
-		if (unlikely(grq.iso_refractory && grq.iso_ticks <
-		    ISO_PERIOD * (sched_iso_cpu * 115 / 128)))
-			clear_iso_refractory();
-		grq_iso_unlock();
+	if (rq->iso_ticks > 0 || rq->iso_refractory) {
+		rq->iso_ticks = rq->iso_ticks * (ISO_PERIOD - ticks) / ISO_PERIOD;
+		if (rq->iso_ticks < ISO_PERIOD * (sched_iso_cpu * 115 / 128)) {
+			rq->iso_refractory = false;
+			if (unlikely(rq->iso_ticks < 0))
+				rq->iso_ticks = 0;
+		}
 	}
 }
 
@@ -3285,28 +3248,31 @@ static void task_running_tick(struct rq *rq)
 	 * order to prevent SCHED_ISO tasks from causing starvation in the
 	 * presence of true RT tasks we account those as iso_ticks as well.
 	 */
-	if ((rt_queue(rq) || (iso_queue(rq) && !grq.iso_refractory))) {
-		if (grq.iso_ticks <= (ISO_PERIOD * 128) - 128)
-			iso_tick();
-	} else
-		no_iso_tick();
-
-	if (iso_queue(rq)) {
-		if (unlikely(test_ret_isorefractory(rq))) {
-			if (rq_running_iso(rq)) {
-				/*
-				 * SCHED_ISO task is running as RT and limit
-				 * has been hit. Force it to reschedule as
-				 * SCHED_NORMAL by zeroing its time_slice
-				 */
-				rq->rq_time_slice = 0;
-			}
-		}
-	}
+	if (rt_queue(rq) || rq_running_iso(rq))
+		iso_tick(rq);
+	else
+		no_iso_tick(rq, 1);
 
 	/* SCHED_FIFO tasks never run out of timeslice. */
 	if (rq->rq_policy == SCHED_FIFO)
 		return;
+
+	if (iso_queue(rq)) {
+		if (rq_running_iso(rq)) {
+			if (rq->iso_refractory) {
+			/*
+			 * SCHED_ISO task is running as RT and limit
+			 * has been hit. Force it to reschedule as
+			 * SCHED_NORMAL by zeroing its time_slice
+			 */
+			rq->rq_time_slice = 0;
+			}
+		} else if (!rq->iso_refractory) {
+			/* Can now run again ISO. Reschedule to pick up prio */
+			goto out_resched;
+		}
+	}
+
 	/*
 	 * Tasks that were scheduled in the first half of a tick are not
 	 * allowed to run into the 2nd half of the next tick if they will
@@ -3320,7 +3286,7 @@ static void task_running_tick(struct rq *rq)
 			rq->rq_time_slice = 0;
 	} else if (rq->rq_time_slice >= RESCHED_US)
 			return;
-
+out_resched:
 	p = rq->curr;
 
 	rq_lock(rq);
@@ -3344,7 +3310,8 @@ void scheduler_tick(void)
 	if (!rq_idle(rq))
 		task_running_tick(rq);
 	else
-		no_iso_tick();
+		no_iso_tick(rq, rq->last_scheduler_tick - rq->last_jiffy);
+	rq->last_scheduler_tick = rq->last_jiffy;
 	rq->last_tick = rq->clock;
 	perf_event_task_tick();
 }
@@ -3619,6 +3586,7 @@ static inline void set_rq_task(struct rq *rq, struct task_struct *p)
 
 static void reset_rq_task(struct rq *rq, struct task_struct *p)
 {
+	rq->rq_deadline = p->deadline;
 	rq->rq_policy = p->policy;
 	rq->rq_prio = p->prio;
 #ifdef CONFIG_SMT_NICE
@@ -4396,7 +4364,7 @@ recheck:
 				case SCHED_ISO:
 					if (policy == SCHED_ISO)
 						goto out;
-					if (policy == SCHED_NORMAL)
+					if (policy != SCHED_NORMAL)
 						return -EPERM;
 					break;
 				case SCHED_BATCH:
@@ -7496,9 +7464,6 @@ void __init sched_init(void)
 	atomic_set(&grq.nr_running, 0);
 	atomic_set(&grq.nr_uninterruptible, 0);
 	atomic64_set(&grq.nr_switches, 0);
-	raw_spin_lock_init(&grq.iso_lock);
-	grq.iso_ticks = 0;
-	grq.iso_refractory = false;
 	skiplist_node_init(&init_task.node);
 
 #ifdef CONFIG_SMP
@@ -7527,6 +7492,8 @@ void __init sched_init(void)
 			      rq->iowait_pc = rq->idle_pc = 0;
 		rq->dither = false;
 		set_rq_task(rq, &init_task);
+		rq->iso_ticks = 0;
+		rq->iso_refractory = false;
 #ifdef CONFIG_SMP
 		rq->sd = NULL;
 		rq->rd = NULL;

@@ -27,6 +27,7 @@ struct rq {
 	u64 rq_last_ran;
 	int rq_prio;
 
+	unsigned long last_scheduler_tick; /* Last jiffy this RQ ticked */
 	unsigned long last_jiffy; /* Last jiffy this RQ updated rq clock */
 	u64 niffies; /* Last time this RQ updated rq clock */
 	u64 last_niffy; /* Last niffies as updated by local clock */
@@ -78,6 +79,9 @@ struct rq {
 	u64 clock, old_clock, last_tick;
 	u64 clock_task;
 	bool dither;
+
+	int iso_ticks;
+	bool iso_refractory;
 
 #ifdef CONFIG_SCHEDSTATS
 
