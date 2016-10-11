@@ -4836,7 +4836,7 @@ sub process {
 # check if any macro arguments are reused (ignore '...' and 'type')
 			foreach my $arg (@def_args) {
 			        next if ($arg =~ /\.\.\./);
-			        next if ($arg =~ /^type$/);
+			        next if ($arg =~ /^type$/i);
 				my $tmp = $define_stmt;
 				$tmp =~ s/\b(typeof|__typeof__|__builtin\w+|typecheck\s*\(\s*$Type\s*,|\#+)\s*\(*\s*$arg\s*\)*\b//g;
 				$tmp =~ s/\#\s*$arg\b//g;
@@ -4845,6 +4845,13 @@ sub process {
 				if ($use_cnt > 1) {
 					CHK("MACRO_ARG_REUSE",
 					    "Macro argument reuse '$arg' - possible side-effects?\n" . "$herectx");
+				    }
+# check if any macro arguments may have other precedence issues
+				if ($define_stmt =~ m/($Operators)?\s*\b$arg\b\s*($Operators)?/m &&
+				    ((defined($1) && $1 ne ',') ||
+				     (defined($2) && $2 ne ','))) {
+					CHK("MACRO_ARG_PRECEDENCE",
+					    "Macro argument '$arg' may be better as '($arg)' to avoid precedence issues\n" . "$herectx");
 				}
 			}
 
