@@ -1930,7 +1930,7 @@ static s32 Handle_Get_InActiveTime(struct wilc_vif *vif,
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
 
 	stamac = wid.val;
-	memcpy(stamac, strHostIfStaInactiveT->mac, ETH_ALEN);
+	ether_addr_copy(stamac, strHostIfStaInactiveT->mac);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
@@ -2166,7 +2166,7 @@ static void Handle_DelStation(struct wilc_vif *vif,
 
 	pu8CurrByte = wid.val;
 
-	memcpy(pu8CurrByte, pstrDelStaParam->mac_addr, ETH_ALEN);
+	ether_addr_copy(pu8CurrByte, pstrDelStaParam->mac_addr);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
