@@ -1108,6 +1108,44 @@ intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	return ret;
 }
 
+static enum port intel_aux_port(struct drm_i915_private *dev_priv,
+				enum port port)
+{
+	const struct ddi_vbt_port_info *info =
+		&dev_priv->vbt.ddi_port_info[port];
+	enum port aux_port;
+
+	if (!info->alternate_aux_channel) {
+		DRM_DEBUG_KMS("using AUX %c for port %c (platform default)\n",
+			      port_name(port), port_name(port));
+		return port;
+	}
+
+	switch (info->alternate_aux_channel) {
+	case DP_AUX_A:
+		aux_port = PORT_A;
+		break;
+	case DP_AUX_B:
+		aux_port = PORT_B;
+		break;
+	case DP_AUX_C:
+		aux_port = PORT_C;
+		break;
+	case DP_AUX_D:
+		aux_port = PORT_D;
+		break;
+	default:
+		MISSING_CASE(info->alternate_aux_channel);
+		aux_port = PORT_A;
+		break;
+	}
+
+	DRM_DEBUG_KMS("using AUX %c for port %c (VBT)\n",
+		      port_name(aux_port), port_name(port));
+
+	return aux_port;
+}
+
 static i915_reg_t g4x_aux_ctl_reg(struct drm_i915_private *dev_priv,
 				       enum port port)
 {
@@ -1168,36 +1206,9 @@ static i915_reg_t ilk_aux_data_reg(struct drm_i915_private *dev_priv,
 	}
 }
 
-/*
- * On SKL we don't have Aux for port E so we rely
- * on VBT to set a proper alternate aux channel.
- */
-static enum port skl_porte_aux_port(struct drm_i915_private *dev_priv)
-{
-	const struct ddi_vbt_port_info *info =
-		&dev_priv->vbt.ddi_port_info[PORT_E];
-
-	switch (info->alternate_aux_channel) {
-	case DP_AUX_A:
-		return PORT_A;
-	case DP_AUX_B:
-		return PORT_B;
-	case DP_AUX_C:
-		return PORT_C;
-	case DP_AUX_D:
-		return PORT_D;
-	default:
-		MISSING_CASE(info->alternate_aux_channel);
-		return PORT_A;
-	}
-}
-
 static i915_reg_t skl_aux_ctl_reg(struct drm_i915_private *dev_priv,
 				       enum port port)
 {
-	if (port == PORT_E)
-		port = skl_porte_aux_port(dev_priv);
-
 	switch (port) {
 	case PORT_A:
 	case PORT_B:
@@ -1213,9 +1224,6 @@ static i915_reg_t skl_aux_ctl_reg(struct drm_i915_private *dev_priv,
 static i915_reg_t skl_aux_data_reg(struct drm_i915_private *dev_priv,
 					enum port port, int index)
 {
-	if (port == PORT_E)
-		port = skl_porte_aux_port(dev_priv);
-
 	switch (port) {
 	case PORT_A:
 	case PORT_B:
@@ -1253,7 +1261,8 @@ static i915_reg_t intel_aux_data_reg(struct drm_i915_private *dev_priv,
 static void intel_aux_reg_init(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
-	enum port port = dp_to_dig_port(intel_dp)->port;
+	enum port port = intel_aux_port(dev_priv,
+					dp_to_dig_port(intel_dp)->port);
 	int i;
 
 	intel_dp->aux_ch_ctl_reg = intel_aux_ctl_reg(dev_priv, port);
