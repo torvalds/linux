@@ -2404,7 +2404,7 @@ static int setup_display(const char *str)
 	for (__tok = strtok_r(__buf, __sep, &__tmp); __tok;	\
 	     __tok = strtok_r(NULL,  __sep, &__tmp))
 
-static int build_cl_output(char *cl_sort)
+static int build_cl_output(char *cl_sort, bool no_source)
 {
 	char *tok, *tmp, *buf = strdup(cl_sort);
 	bool add_pid   = false;
@@ -2426,7 +2426,7 @@ static int build_cl_output(char *cl_sort)
 			add_iaddr = true;
 			add_sym   = true;
 			add_dso   = true;
-			add_src   = true;
+			add_src   = no_source ? false : true;
 		} else if (!strcmp(tok, "dso")) {
 			add_dso = true;
 		} else if (strcmp(tok, "offset")) {
@@ -2462,14 +2462,14 @@ static int build_cl_output(char *cl_sort)
 	return 0;
 }
 
-static int setup_coalesce(const char *coalesce)
+static int setup_coalesce(const char *coalesce, bool no_source)
 {
 	const char *c = coalesce ?: coalesce_default;
 
 	if (asprintf(&c2c.cl_sort, "offset,%s", c) < 0)
 		return -ENOMEM;
 
-	if (build_cl_output(c2c.cl_sort))
+	if (build_cl_output(c2c.cl_sort, no_source))
 		return -1;
 
 	if (asprintf(&c2c.cl_resort, "offset,%s",
@@ -2494,6 +2494,7 @@ static int perf_c2c__report(int argc, const char **argv)
 	char callchain_default_opt[] = CALLCHAIN_DEFAULT_OPT;
 	const char *display = NULL;
 	const char *coalesce = NULL;
+	bool no_source = false;
 	const struct option c2c_options[] = {
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
@@ -2510,6 +2511,8 @@ static int perf_c2c__report(int argc, const char **argv)
 		    "Use the stdio interface"),
 	OPT_BOOLEAN(0, "full-symbols", &c2c.symbol_full,
 		    "Display full length of symbols"),
+	OPT_BOOLEAN(0, "no-source", &no_source,
+		    "Do not display Source Line column"),
 	OPT_CALLBACK_DEFAULT('g', "call-graph", &callchain_param,
 			     "print_type,threshold[,print_limit],order,sort_key[,branch],value",
 			     callchain_help, &parse_callchain_opt,
@@ -2545,7 +2548,7 @@ static int perf_c2c__report(int argc, const char **argv)
 	if (err)
 		goto out;
 
-	err = setup_coalesce(coalesce);
+	err = setup_coalesce(coalesce, no_source);
 	if (err) {
 		pr_debug("Failed to initialize hists\n");
 		goto out;

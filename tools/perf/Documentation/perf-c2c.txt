@@ -94,6 +94,9 @@ REPORT OPTIONS
 --full-symbols::
 	Display full length of symbols.
 
+--no-source::
+	Do not display Source:Line column.
+
 C2C RECORD
 ----------
 The perf c2c record command setup options related to HITM cacheline analysis
