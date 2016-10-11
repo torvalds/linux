@@ -2879,6 +2879,21 @@ skl_wm_plane_id(const struct intel_plane *plane)
 	}
 }
 
+/*
+ * FIXME: We still don't have the proper code detect if we need to apply the WA,
+ * so assume we'll always need it in order to avoid underruns.
+ */
+static bool skl_needs_memory_bw_wa(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+
+	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv) ||
+	    IS_KABYLAKE(dev_priv))
+		return true;
+
+	return false;
+}
+
 static bool
 intel_has_sagv(struct drm_i915_private *dev_priv)
 {
@@ -2999,9 +3014,10 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct drm_crtc *crtc;
+	struct intel_crtc *crtc;
+	struct intel_plane *plane;
 	enum pipe pipe;
-	int level, plane;
+	int level, id, latency;
 
 	if (!intel_has_sagv(dev_priv))
 		return false;
@@ -3019,27 +3035,36 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 
 	/* Since we're now guaranteed to only have one active CRTC... */
 	pipe = ffs(intel_state->active_crtcs) - 1;
-	crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+	crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 
-	if (crtc->state->mode.flags & DRM_MODE_FLAG_INTERLACE)
+	if (crtc->base.state->mode.flags & DRM_MODE_FLAG_INTERLACE)
 		return false;
 
-	for_each_plane(dev_priv, pipe, plane) {
+	for_each_intel_plane_on_crtc(dev, crtc, plane) {
+		id = skl_wm_plane_id(plane);
+
 		/* Skip this plane if it's not enabled */
-		if (intel_state->wm_results.plane[pipe][plane][0] == 0)
+		if (intel_state->wm_results.plane[pipe][id][0] == 0)
 			continue;
 
 		/* Find the highest enabled wm level for this plane */
 		for (level = ilk_wm_max_level(dev);
-		     intel_state->wm_results.plane[pipe][plane][level] == 0; --level)
+		     intel_state->wm_results.plane[pipe][id][level] == 0; --level)
 		     { }
+
+		latency = dev_priv->wm.skl_latency[level];
+
+		if (skl_needs_memory_bw_wa(intel_state) &&
+		    plane->base.state->fb->modifier[0] ==
+		    I915_FORMAT_MOD_X_TILED)
+			latency += 15;
 
 		/*
 		 * If any of the planes on this pipe don't enable wm levels
 		 * that incur memory latencies higher then 30µs we can't enable
 		 * the SAGV
 		 */
-		if (dev_priv->wm.skl_latency[level] < SKL_SAGV_BLOCK_TIME)
+		if (latency < SKL_SAGV_BLOCK_TIME)
 			return false;
 	}
 
@@ -3549,11 +3574,17 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	uint32_t width = 0, height = 0;
 	uint32_t plane_pixel_rate;
 	uint32_t y_tile_minimum, y_min_scanlines;
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(cstate->base.state);
+	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
 
 	if (latency == 0 || !cstate->base.active || !intel_pstate->base.visible) {
 		*enabled = false;
 		return 0;
 	}
+
+	if (apply_memory_bw_wa && fb->modifier[0] == I915_FORMAT_MOD_X_TILED)
+		latency += 15;
 
 	width = drm_rect_width(&intel_pstate->base.src) >> 16;
 	height = drm_rect_height(&intel_pstate->base.src) >> 16;
@@ -3606,6 +3637,8 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 				 plane_blocks_per_line);
 
 	y_tile_minimum = plane_blocks_per_line * y_min_scanlines;
+	if (apply_memory_bw_wa)
+		y_tile_minimum *= 2;
 
 	if (fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
 	    fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED) {
