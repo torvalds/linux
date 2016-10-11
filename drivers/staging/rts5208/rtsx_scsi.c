@@ -3022,10 +3022,13 @@ static int get_ms_information(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		return TRANSPORT_FAILED;
 	}
 
-	if (dev_info_id == 0x15)
-		buf_len = data_len = 0x3A;
-	else
-		buf_len = data_len = 0x6A;
+	if (dev_info_id == 0x15) {
+		buf_len = 0x3A;
+		data_len = 0x3A;
+	} else {
+		buf_len = 0x6A;
+		data_len = 0x6A;
+	}
 
 	buf = kmalloc(buf_len, GFP_KERNEL);
 	if (!buf) {
