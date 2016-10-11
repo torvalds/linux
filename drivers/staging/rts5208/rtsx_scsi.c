@@ -2896,14 +2896,15 @@ void led_shine(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	unsigned int lun = SCSI_LUN(srb);
 	u16 sec_cnt;
 
-	if ((srb->cmnd[0] == READ_10) || (srb->cmnd[0] == WRITE_10))
+	if ((srb->cmnd[0] == READ_10) || (srb->cmnd[0] == WRITE_10)) {
 		sec_cnt = ((u16)(srb->cmnd[7]) << 8) | srb->cmnd[8];
-	else if ((srb->cmnd[0] == READ_6) || (srb->cmnd[0] == WRITE_6)) {
+	} else if ((srb->cmnd[0] == READ_6) || (srb->cmnd[0] == WRITE_6)) {
 		sec_cnt = srb->cmnd[4];
 		if (sec_cnt == 0)
 			sec_cnt = 256;
-	} else
+	} else {
 		return;
+	}
 
 	if (chip->rw_cap[lun] >= GPIO_TOGGLE_THRESHOLD) {
 		toggle_gpio(chip, LED_GPIO);
