@@ -805,9 +805,9 @@ static int ms_confirm_cpu_startup(struct rtsx_chip *chip)
 	}
 
 	if (val & INT_REG_ERR) {
-		if (val & INT_REG_CMDNK)
+		if (val & INT_REG_CMDNK) {
 			chip->card_wp |= (MS_CARD);
-		else {
+		} else {
 			rtsx_trace(chip);
 			return STATUS_FAIL;
 		}
