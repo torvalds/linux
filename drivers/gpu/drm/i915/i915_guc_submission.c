@@ -451,6 +451,18 @@ int i915_guc_wq_reserve(struct drm_i915_gem_request *request)
 	return ret;
 }
 
+void i915_guc_wq_unreserve(struct drm_i915_gem_request *request)
+{
+	const size_t wqi_size = sizeof(struct guc_wq_item);
+	struct i915_guc_client *gc = request->i915->guc.execbuf_client;
+
+	GEM_BUG_ON(READ_ONCE(gc->wq_rsvd) < wqi_size);
+
+	spin_lock(&gc->wq_lock);
+	gc->wq_rsvd -= wqi_size;
+	spin_unlock(&gc->wq_lock);
+}
+
 /* Construct a Work Item and append it to the GuC's Work Queue */
 static void guc_wq_item_append(struct i915_guc_client *gc,
 			       struct drm_i915_gem_request *rq)

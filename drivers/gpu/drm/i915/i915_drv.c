@@ -1786,15 +1786,6 @@ void i915_reset(struct drm_i915_private *dev_priv)
 		goto error;
 	}
 
-	/*
-	 * rps/rc6 re-init is necessary to restore state lost after the
-	 * reset and the re-install of gt irqs. Skip for ironlake per
-	 * previous concerns that it doesn't respond well to some forms
-	 * of re-init after reset.
-	 */
-	intel_sanitize_gt_powersave(dev_priv);
-	intel_autoenable_gt_powersave(dev_priv);
-
 wakeup:
 	wake_up_bit(&error->flags, I915_RESET_IN_PROGRESS);
 	return;
@@ -1872,7 +1863,17 @@ static int i915_pm_resume(struct device *kdev)
 /* freeze: before creating the hibernation_image */
 static int i915_pm_freeze(struct device *kdev)
 {
-	return i915_pm_suspend(kdev);
+	int ret;
+
+	ret = i915_pm_suspend(kdev);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_freeze(kdev_to_i915(kdev));
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static int i915_pm_freeze_late(struct device *kdev)

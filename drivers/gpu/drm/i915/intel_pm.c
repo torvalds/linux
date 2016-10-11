@@ -2127,32 +2127,34 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[8])
 				GEN9_MEM_LATENCY_LEVEL_MASK;
 
 		/*
+		 * If a level n (n > 1) has a 0us latency, all levels m (m >= n)
+		 * need to be disabled. We make sure to sanitize the values out
+		 * of the punit to satisfy this requirement.
+		 */
+		for (level = 1; level <= max_level; level++) {
+			if (wm[level] == 0) {
+				for (i = level + 1; i <= max_level; i++)
+					wm[i] = 0;
+				break;
+			}
+		}
+
+		/*
 		 * WaWmMemoryReadLatency:skl
 		 *
 		 * punit doesn't take into account the read latency so we need
-		 * to add 2us to the various latency levels we retrieve from
-		 * the punit.
-		 *   - W0 is a bit special in that it's the only level that
-		 *   can't be disabled if we want to have display working, so
-		 *   we always add 2us there.
-		 *   - For levels >=1, punit returns 0us latency when they are
-		 *   disabled, so we respect that and don't add 2us then
-		 *
-		 * Additionally, if a level n (n > 1) has a 0us latency, all
-		 * levels m (m >= n) need to be disabled. We make sure to
-		 * sanitize the values out of the punit to satisfy this
-		 * requirement.
+		 * to add 2us to the various latency levels we retrieve from the
+		 * punit when level 0 response data us 0us.
 		 */
-		wm[0] += 2;
-		for (level = 1; level <= max_level; level++)
-			if (wm[level] != 0)
+		if (wm[0] == 0) {
+			wm[0] += 2;
+			for (level = 1; level <= max_level; level++) {
+				if (wm[level] == 0)
+					break;
 				wm[level] += 2;
-			else {
-				for (i = level + 1; i <= max_level; i++)
-					wm[i] = 0;
-
-				break;
 			}
+		}
+
 	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		uint64_t sskpd = I915_READ64(MCH_SSKPD);
 
@@ -2877,6 +2879,19 @@ skl_wm_plane_id(const struct intel_plane *plane)
 	}
 }
 
+static bool
+intel_has_sagv(struct drm_i915_private *dev_priv)
+{
+	if (IS_KABYLAKE(dev_priv))
+		return true;
+
+	if (IS_SKYLAKE(dev_priv) &&
+	    dev_priv->sagv_status != I915_SAGV_NOT_CONTROLLED)
+		return true;
+
+	return false;
+}
+
 /*
  * SAGV dynamically adjusts the system agent voltage and clock frequencies
  * depending on power and performance requirements. The display engine access
@@ -2889,12 +2904,14 @@ skl_wm_plane_id(const struct intel_plane *plane)
  *  - We're not using an interlaced display configuration
  */
 int
-skl_enable_sagv(struct drm_i915_private *dev_priv)
+intel_enable_sagv(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	if (dev_priv->skl_sagv_status == I915_SKL_SAGV_NOT_CONTROLLED ||
-	    dev_priv->skl_sagv_status == I915_SKL_SAGV_ENABLED)
+	if (!intel_has_sagv(dev_priv))
+		return 0;
+
+	if (dev_priv->sagv_status == I915_SAGV_ENABLED)
 		return 0;
 
 	DRM_DEBUG_KMS("Enabling the SAGV\n");
@@ -2910,21 +2927,21 @@ skl_enable_sagv(struct drm_i915_private *dev_priv)
 	 * Some skl systems, pre-release machines in particular,
 	 * don't actually have an SAGV.
 	 */
-	if (ret == -ENXIO) {
+	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
 		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
-		dev_priv->skl_sagv_status = I915_SKL_SAGV_NOT_CONTROLLED;
+		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
 		return 0;
 	} else if (ret < 0) {
 		DRM_ERROR("Failed to enable the SAGV\n");
 		return ret;
 	}
 
-	dev_priv->skl_sagv_status = I915_SKL_SAGV_ENABLED;
+	dev_priv->sagv_status = I915_SAGV_ENABLED;
 	return 0;
 }
 
 static int
-skl_do_sagv_disable(struct drm_i915_private *dev_priv)
+intel_do_sagv_disable(struct drm_i915_private *dev_priv)
 {
 	int ret;
 	uint32_t temp = GEN9_SAGV_DISABLE;
@@ -2938,19 +2955,21 @@ skl_do_sagv_disable(struct drm_i915_private *dev_priv)
 }
 
 int
-skl_disable_sagv(struct drm_i915_private *dev_priv)
+intel_disable_sagv(struct drm_i915_private *dev_priv)
 {
 	int ret, result;
 
-	if (dev_priv->skl_sagv_status == I915_SKL_SAGV_NOT_CONTROLLED ||
-	    dev_priv->skl_sagv_status == I915_SKL_SAGV_DISABLED)
+	if (!intel_has_sagv(dev_priv))
+		return 0;
+
+	if (dev_priv->sagv_status == I915_SAGV_DISABLED)
 		return 0;
 
 	DRM_DEBUG_KMS("Disabling the SAGV\n");
 	mutex_lock(&dev_priv->rps.hw_lock);
 
 	/* bspec says to keep retrying for at least 1 ms */
-	ret = wait_for(result = skl_do_sagv_disable(dev_priv), 1);
+	ret = wait_for(result = intel_do_sagv_disable(dev_priv), 1);
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	if (ret == -ETIMEDOUT) {
@@ -2962,20 +2981,20 @@ skl_disable_sagv(struct drm_i915_private *dev_priv)
 	 * Some skl systems, pre-release machines in particular,
 	 * don't actually have an SAGV.
 	 */
-	if (result == -ENXIO) {
+	if (IS_SKYLAKE(dev_priv) && result == -ENXIO) {
 		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
-		dev_priv->skl_sagv_status = I915_SKL_SAGV_NOT_CONTROLLED;
+		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
 		return 0;
 	} else if (result < 0) {
 		DRM_ERROR("Failed to disable the SAGV\n");
 		return result;
 	}
 
-	dev_priv->skl_sagv_status = I915_SKL_SAGV_DISABLED;
+	dev_priv->sagv_status = I915_SAGV_DISABLED;
 	return 0;
 }
 
-bool skl_can_enable_sagv(struct drm_atomic_state *state)
+bool intel_can_enable_sagv(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -2983,6 +3002,9 @@ bool skl_can_enable_sagv(struct drm_atomic_state *state)
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 	int level, plane;
+
+	if (!intel_has_sagv(dev_priv))
+		return false;
 
 	/*
 	 * SKL workaround: bspec recommends we disable the SAGV when we have
@@ -3472,28 +3494,13 @@ static uint32_t skl_wm_method1(uint32_t pixel_rate, uint8_t cpp, uint32_t latenc
 }
 
 static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
-			       uint32_t horiz_pixels, uint8_t cpp,
-			       uint64_t tiling, uint32_t latency)
+			       uint32_t latency, uint32_t plane_blocks_per_line)
 {
 	uint32_t ret;
-	uint32_t plane_bytes_per_line, plane_blocks_per_line;
 	uint32_t wm_intermediate_val;
 
 	if (latency == 0)
 		return UINT_MAX;
-
-	plane_bytes_per_line = horiz_pixels * cpp;
-
-	if (tiling == I915_FORMAT_MOD_Y_TILED ||
-	    tiling == I915_FORMAT_MOD_Yf_TILED) {
-		plane_bytes_per_line *= 4;
-		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
-		plane_blocks_per_line /= 4;
-	} else if (tiling == DRM_FORMAT_MOD_NONE) {
-		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512) + 1;
-	} else {
-		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
-	}
 
 	wm_intermediate_val = latency * pixel_rate;
 	ret = DIV_ROUND_UP(wm_intermediate_val, pipe_htotal * 1000) *
@@ -3545,6 +3552,7 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	uint8_t cpp;
 	uint32_t width = 0, height = 0;
 	uint32_t plane_pixel_rate;
+	uint32_t y_tile_minimum, y_min_scanlines;
 
 	if (latency == 0 || !cstate->base.active || !intel_pstate->base.visible) {
 		*enabled = false;
@@ -3560,38 +3568,51 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	plane_pixel_rate = skl_adjusted_plane_pixel_rate(cstate, intel_pstate);
 
+	if (intel_rotation_90_or_270(pstate->rotation)) {
+		int cpp = (fb->pixel_format == DRM_FORMAT_NV12) ?
+			drm_format_plane_cpp(fb->pixel_format, 1) :
+			drm_format_plane_cpp(fb->pixel_format, 0);
+
+		switch (cpp) {
+		case 1:
+			y_min_scanlines = 16;
+			break;
+		case 2:
+			y_min_scanlines = 8;
+			break;
+		default:
+			WARN(1, "Unsupported pixel depth for rotation");
+		case 4:
+			y_min_scanlines = 4;
+			break;
+		}
+	} else {
+		y_min_scanlines = 4;
+	}
+
+	plane_bytes_per_line = width * cpp;
+	if (fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
+	    fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED) {
+		plane_blocks_per_line =
+		      DIV_ROUND_UP(plane_bytes_per_line * y_min_scanlines, 512);
+		plane_blocks_per_line /= y_min_scanlines;
+	} else if (fb->modifier[0] == DRM_FORMAT_MOD_NONE) {
+		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512)
+					+ 1;
+	} else {
+		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
+	}
+
 	method1 = skl_wm_method1(plane_pixel_rate, cpp, latency);
 	method2 = skl_wm_method2(plane_pixel_rate,
 				 cstate->base.adjusted_mode.crtc_htotal,
-				 width,
-				 cpp,
-				 fb->modifier[0],
-				 latency);
+				 latency,
+				 plane_blocks_per_line);
 
-	plane_bytes_per_line = width * cpp;
-	plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
+	y_tile_minimum = plane_blocks_per_line * y_min_scanlines;
 
 	if (fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
 	    fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED) {
-		uint32_t min_scanlines = 4;
-		uint32_t y_tile_minimum;
-		if (intel_rotation_90_or_270(pstate->rotation)) {
-			int cpp = (fb->pixel_format == DRM_FORMAT_NV12) ?
-				drm_format_plane_cpp(fb->pixel_format, 1) :
-				drm_format_plane_cpp(fb->pixel_format, 0);
-
-			switch (cpp) {
-			case 1:
-				min_scanlines = 16;
-				break;
-			case 2:
-				min_scanlines = 8;
-				break;
-			case 8:
-				WARN(1, "Unsupported pixel depth for rotation");
-			}
-		}
-		y_tile_minimum = plane_blocks_per_line * min_scanlines;
 		selected_result = max(method2, y_tile_minimum);
 	} else {
 		if ((ddb_allocation / plane_blocks_per_line) >= 1)
@@ -3605,10 +3626,12 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 
 	if (level >= 1 && level <= 7) {
 		if (fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
-		    fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED)
-			res_lines += 4;
-		else
+		    fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED) {
+			res_blocks += y_tile_minimum;
+			res_lines += y_min_scanlines;
+		} else {
 			res_blocks++;
+		}
 	}
 
 	if (res_blocks >= ddb_allocation || res_lines > 31) {
@@ -3939,6 +3962,41 @@ pipes_modified(struct drm_atomic_state *state)
 	return ret;
 }
 
+int
+skl_ddb_add_affected_planes(struct intel_crtc_state *cstate)
+{
+	struct drm_atomic_state *state = cstate->base.state;
+	struct drm_device *dev = state->dev;
+	struct drm_crtc *crtc = cstate->base.crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct skl_ddb_allocation *new_ddb = &intel_state->wm_results.ddb;
+	struct skl_ddb_allocation *cur_ddb = &dev_priv->wm.skl_hw.ddb;
+	struct drm_plane_state *plane_state;
+	struct drm_plane *plane;
+	enum pipe pipe = intel_crtc->pipe;
+	int id;
+
+	WARN_ON(!drm_atomic_get_existing_crtc_state(state, crtc));
+
+	drm_for_each_plane_mask(plane, dev, crtc->state->plane_mask) {
+		id = skl_wm_plane_id(to_intel_plane(plane));
+
+		if (skl_ddb_entry_equal(&cur_ddb->plane[pipe][id],
+					&new_ddb->plane[pipe][id]) &&
+		    skl_ddb_entry_equal(&cur_ddb->y_plane[pipe][id],
+					&new_ddb->y_plane[pipe][id]))
+			continue;
+
+		plane_state = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(plane_state))
+			return PTR_ERR(plane_state);
+	}
+
+	return 0;
+}
+
 static int
 skl_compute_ddb(struct drm_atomic_state *state)
 {
@@ -4003,7 +4061,7 @@ skl_compute_ddb(struct drm_atomic_state *state)
 		if (ret)
 			return ret;
 
-		ret = drm_atomic_add_affected_planes(state, &intel_crtc->base);
+		ret = skl_ddb_add_affected_planes(cstate);
 		if (ret)
 			return ret;
 	}
