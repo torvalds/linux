@@ -62,6 +62,8 @@ unsigned char ptff_function_mask[16];
 
 static unsigned long long lpar_offset;
 static unsigned long long initial_leap_seconds;
+static unsigned long long tod_steering_end;
+static unsigned long long tod_steering_delta;
 
 /*
  * Get time offsets with PTFF
@@ -71,8 +73,13 @@ void __init time_early_init(void)
 	struct ptff_qto qto;
 	struct ptff_qui qui;
 
+	/* Initialize TOD steering parameters */
+	tod_steering_end = sched_clock_base_cc;
+	vdso_data->ts_end = tod_steering_end;
+
 	if (!test_facility(28))
 		return;
+
 	ptff(&ptff_function_mask, sizeof(ptff_function_mask), PTFF_QAF);
 
 	/* get LPAR offset */
@@ -204,7 +211,22 @@ void read_boot_clock64(struct timespec64 *ts)
 
 static cycle_t read_tod_clock(struct clocksource *cs)
 {
-	return get_tod_clock();
+	unsigned long long now, adj;
+
+	preempt_disable(); /* protect from changes to steering parameters */
+	now = get_tod_clock();
+	adj = tod_steering_end - now;
+	if (unlikely((s64) adj >= 0))
+		/*
+		 * manually steer by 1 cycle every 2^16 cycles. This
+		 * corresponds to shifting the tod delta by 15. 1s is
+		 * therefore steered in ~9h. The adjust will decrease
+		 * over time, until it finally reaches 0.
+		 */
+		now += ((s64) tod_steering_delta < 0) ?
+			(adj >> 15) : -(adj >> 15);
+	preempt_enable();
+	return now;
 }
 
 static struct clocksource clocksource_tod = {
@@ -379,10 +401,27 @@ static inline int check_sync_clock(void)
  */
 static void clock_sync_global(unsigned long long delta)
 {
+	unsigned long now, adj;
 	struct ptff_qto qto;
 
 	/* Fixup the monotonic sched clock. */
 	sched_clock_base_cc += delta;
+	/* Adjust TOD steering parameters. */
+	vdso_data->tb_update_count++;
+	now = get_tod_clock();
+	adj = tod_steering_end - now;
+	if (unlikely((s64) adj >= 0))
+		/* Calculate how much of the old adjustment is left. */
+		tod_steering_delta = ((s64) tod_steering_delta < 0) ?
+			-(adj >> 15) : (adj >> 15);
+	tod_steering_delta += delta;
+	if ((abs(tod_steering_delta) >> 48) != 0)
+		panic("TOD clock sync offset %lli is too large to drift\n",
+		      tod_steering_delta);
+	tod_steering_end = now + (abs(tod_steering_delta) << 15);
+	vdso_data->ts_dir = (tod_steering_delta < 0) ? 0 : 1;
+	vdso_data->ts_end = tod_steering_end;
+	vdso_data->tb_update_count++;
 	/* Update LPAR offset. */
 	if (ptff_query(PTFF_QTO) && ptff(&qto, sizeof(qto), PTFF_QTO) == 0)
 		lpar_offset = qto.tod_epoch_difference;

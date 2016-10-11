@@ -79,6 +79,8 @@ int main(void)
 	OFFSET(__VDSO_ECTG_OK, vdso_data, ectg_available);
 	OFFSET(__VDSO_TK_MULT, vdso_data, tk_mult);
 	OFFSET(__VDSO_TK_SHIFT, vdso_data, tk_shift);
+	OFFSET(__VDSO_TS_DIR, vdso_data, ts_dir);
+	OFFSET(__VDSO_TS_END, vdso_data, ts_end);
 	OFFSET(__VDSO_ECTG_BASE, vdso_per_cpu_data, ectg_timer_base);
 	OFFSET(__VDSO_ECTG_USER, vdso_per_cpu_data, ectg_user_time);
 	OFFSET(__VDSO_CPU_NR, vdso_per_cpu_data, cpu_nr);
