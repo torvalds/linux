@@ -759,7 +759,7 @@ sub is_maintained_obsolete {
 
 	return 0 if (!(-e "$root/scripts/get_maintainer.pl"));
 
-	my $status = `perl $root/scripts/get_maintainer.pl --status --nom --nol --nogit --nogit-fallback $filename 2>&1`;
+	my $status = `perl $root/scripts/get_maintainer.pl --status --nom --nol --nogit --nogit-fallback -f $filename 2>&1`;
 
 	return $status =~ /obsolete/i;
 }
