@@ -1786,7 +1786,7 @@ static void scan_nat_page(struct f2fs_sb_info *sbi,
 	}
 }
 
-void build_free_nids(struct f2fs_sb_info *sbi)
+void __build_free_nids(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
@@ -1840,6 +1840,13 @@ void build_free_nids(struct f2fs_sb_info *sbi)
 					nm_i->ra_nid_pages, META_NAT, false);
 }
 
+void build_free_nids(struct f2fs_sb_info *sbi)
+{
+	mutex_lock(&NM_I(sbi)->build_lock);
+	__build_free_nids(sbi);
+	mutex_unlock(&NM_I(sbi)->build_lock);
+}
+
 /*
  * If this function returns success, caller can obtain a new nid
  * from second parameter of this function.
@@ -1876,9 +1883,7 @@ retry:
 	spin_unlock(&nm_i->free_nid_list_lock);
 
 	/* Let's scan nat pages and its caches to get free nids */
-	mutex_lock(&nm_i->build_lock);
 	build_free_nids(sbi);
-	mutex_unlock(&nm_i->build_lock);
 	goto retry;
 }
 
