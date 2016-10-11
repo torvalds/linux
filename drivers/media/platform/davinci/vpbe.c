@@ -107,7 +107,7 @@ static int vpbe_find_encoder_sd_index(struct vpbe_config *cfg,
 static int vpbe_g_cropcap(struct vpbe_device *vpbe_dev,
 			  struct v4l2_cropcap *cropcap)
 {
-	if (NULL == cropcap)
+	if (!cropcap)
 		return -EINVAL;
 	cropcap->bounds.left = 0;
 	cropcap->bounds.top = 0;
@@ -149,7 +149,7 @@ static int vpbe_get_mode_info(struct vpbe_device *vpbe_dev, char *mode,
 	int curr_output = output_index;
 	int i;
 
-	if (NULL == mode)
+	if (!mode)
 		return -EINVAL;
 
 	for (i = 0; i < cfg->outputs[curr_output].num_modes; i++) {
@@ -166,7 +166,7 @@ static int vpbe_get_mode_info(struct vpbe_device *vpbe_dev, char *mode,
 static int vpbe_get_current_mode_info(struct vpbe_device *vpbe_dev,
 				      struct vpbe_enc_mode_info *mode_info)
 {
-	if (NULL == mode_info)
+	if (!mode_info)
 		return -EINVAL;
 
 	*mode_info = vpbe_dev->current_timings;
@@ -356,7 +356,7 @@ static int vpbe_s_dv_timings(struct vpbe_device *vpbe_dev,
 
 	ret = v4l2_subdev_call(vpbe_dev->encoders[sd_index], video,
 					s_dv_timings, dv_timings);
-	if (!ret && (vpbe_dev->amp != NULL)) {
+	if (!ret && vpbe_dev->amp) {
 		/* Call amplifier subdevice */
 		ret = v4l2_subdev_call(vpbe_dev->amp, video,
 				s_dv_timings, dv_timings);
@@ -512,7 +512,7 @@ static int vpbe_set_mode(struct vpbe_device *vpbe_dev,
 	int ret = 0;
 	int i;
 
-	if ((NULL == mode_info) || (NULL == mode_info->name))
+	if (!mode_info || !mode_info->name)
 		return -EINVAL;
 
 	for (i = 0; i < cfg->outputs[out_index].num_modes; i++) {
@@ -536,7 +536,7 @@ static int vpbe_set_mode(struct vpbe_device *vpbe_dev,
 	}
 
 	/* Only custom timing should reach here */
-	if (preset_mode == NULL)
+	if (!preset_mode)
 		return -EINVAL;
 
 	mutex_lock(&vpbe_dev->lock);
@@ -570,9 +570,9 @@ static int platform_device_get(struct device *dev, void *data)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct vpbe_device *vpbe_dev = data;
 
-	if (strstr(pdev->name, "vpbe-osd") != NULL)
+	if (strstr(pdev->name, "vpbe-osd"))
 		vpbe_dev->osd_device = platform_get_drvdata(pdev);
-	if (strstr(pdev->name, "vpbe-venc") != NULL)
+	if (strstr(pdev->name, "vpbe-venc"))
 		vpbe_dev->venc_device = dev_get_platdata(&pdev->dev);
 
 	return 0;
@@ -606,7 +606,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	 * from the platform device by iteration of platform drivers and
 	 * matching with device name
 	 */
-	if (NULL == vpbe_dev || NULL == dev) {
+	if (!vpbe_dev || !dev) {
 		printk(KERN_ERR "Null device pointers.\n");
 		return -ENODEV;
 	}
@@ -652,7 +652,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	vpbe_dev->venc = venc_sub_dev_init(&vpbe_dev->v4l2_dev,
 					   vpbe_dev->cfg->venc.module_name);
 	/* register venc sub device */
-	if (vpbe_dev->venc == NULL) {
+	if (!vpbe_dev->venc) {
 		v4l2_err(&vpbe_dev->v4l2_dev,
 			"vpbe unable to init venc sub device\n");
 		ret = -ENODEV;
@@ -660,8 +660,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	}
 	/* initialize osd device */
 	osd_device = vpbe_dev->osd_device;
-
-	if (NULL != osd_device->ops.initialize) {
+	if (osd_device->ops.initialize) {
 		err = osd_device->ops.initialize(osd_device);
 		if (err) {
 			v4l2_err(&vpbe_dev->v4l2_dev,
@@ -679,7 +678,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	vpbe_dev->encoders = kmalloc_array(num_encoders,
 					   sizeof(*vpbe_dev->encoders),
 					   GFP_KERNEL);
-	if (NULL == vpbe_dev->encoders) {
+	if (!vpbe_dev->encoders) {
 		ret = -ENOMEM;
 		goto fail_dev_unregister;
 	}
@@ -713,7 +712,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	}
 	/* Add amplifier subdevice for dm365 */
 	if ((strcmp(vpbe_dev->cfg->module_name, "dm365-vpbe-display") == 0) &&
-			vpbe_dev->cfg->amp != NULL) {
+	   vpbe_dev->cfg->amp) {
 		amp_info = vpbe_dev->cfg->amp;
 		if (amp_info->is_i2c) {
 			vpbe_dev->amp = v4l2_i2c_new_subdev_board(
@@ -821,7 +820,7 @@ static int vpbe_probe(struct platform_device *pdev)
 	struct vpbe_config *cfg;
 	int ret = -EINVAL;
 
-	if (pdev->dev.platform_data == NULL) {
+	if (!pdev->dev.platform_data) {
 		v4l2_err(pdev->dev.driver, "No platform data\n");
 		return -ENODEV;
 	}
