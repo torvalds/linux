@@ -428,6 +428,7 @@
 };
 
 &usb_host0_ehci {
+	no-relinquish-port;
 	status = "okay";
 };
 
