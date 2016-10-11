@@ -313,7 +313,7 @@ static inline bool is_recoverable_dnode(struct page *page)
 				((unsigned char *)ckpt + crc_offset)));
 		cp_ver |= (crc << 32);
 	}
-	return cpu_to_le64(cp_ver) == cpver_of_node(page);
+	return cp_ver == cpver_of_node(page);
 }
 
 /*
