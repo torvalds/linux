@@ -226,7 +226,7 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 			phy_power_off(dwc->usb3_generic_phy);
 		}
 
-		pm_runtime_put_sync(dwc->dev);
+		pm_runtime_put_sync_suspend(dwc->dev);
 
 		rockchip->connected = false;
 		dev_info(rockchip->dev, "USB unconnected\n");
