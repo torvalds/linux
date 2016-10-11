@@ -17,6 +17,7 @@ Contents:
    driver-api/index
    media/index
    gpu/index
+   80211/index
 
 Indices and tables
 ==================
