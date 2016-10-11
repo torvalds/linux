@@ -39,7 +39,6 @@
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/reboot.h>
-#include <linux/kconfig.h>
 #include <linux/leds.h>
 
 #include <linux/mtd/mtd.h>

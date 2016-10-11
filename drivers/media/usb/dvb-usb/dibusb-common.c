@@ -9,7 +9,6 @@
  * see Documentation/dvb/README.dvb-usb for more information
  */
 
-#include <linux/kconfig.h>
 #include "dibusb.h"
 
 /* Max transfer size done by I2C transfer functions */

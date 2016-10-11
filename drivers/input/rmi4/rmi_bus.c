@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/kconfig.h>
 #include <linux/list.h>
 #include <linux/pm.h>
 #include <linux/rmi.h>
