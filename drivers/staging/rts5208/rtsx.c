@@ -107,8 +107,10 @@ static int slave_configure(struct scsi_device *sdev)
 	 * the actual value or the modified one, depending on where the
 	 * data comes from.
 	 */
-	if (sdev->scsi_level < SCSI_2)
-		sdev->scsi_level = sdev->sdev_target->scsi_level = SCSI_2;
+	if (sdev->scsi_level < SCSI_2) {
+		sdev->scsi_level = SCSI_2;
+		sdev->sdev_target->scsi_level = SCSI_2;
+	}
 
 	return 0;
 }
