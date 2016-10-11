@@ -291,18 +291,18 @@ struct sense_data_t {
 #define CARD_EXIST		(XD_EXIST | MS_EXIST | SD_EXIST)
 
 /* Bus interrupt enable register */
-#define CMD_DONE_INT_EN		(1 << 31)
-#define DATA_DONE_INT_EN	(1 << 30)
-#define TRANS_OK_INT_EN		(1 << 29)
-#define TRANS_FAIL_INT_EN	(1 << 28)
-#define XD_INT_EN		(1 << 27)
-#define MS_INT_EN		(1 << 26)
-#define SD_INT_EN		(1 << 25)
-#define GPIO0_INT_EN		(1 << 24)
-#define OC_INT_EN		(1 << 23)
+#define CMD_DONE_INT_EN		BIT(31)
+#define DATA_DONE_INT_EN	BIT(30)
+#define TRANS_OK_INT_EN		BIT(29)
+#define TRANS_FAIL_INT_EN	BIT(28)
+#define XD_INT_EN		BIT(27)
+#define MS_INT_EN		BIT(26)
+#define SD_INT_EN		BIT(25)
+#define GPIO0_INT_EN		BIT(24)
+#define OC_INT_EN		BIT(23)
 #define DELINK_INT_EN		GPIO0_INT_EN
-#define MS_OC_INT_EN		(1 << 23)
-#define SD_OC_INT_EN		(1 << 22)
+#define MS_OC_INT_EN		BIT(23)
+#define SD_OC_INT_EN		BIT(22)
 
 #define READ_REG_CMD		0
 #define WRITE_REG_CMD		1
@@ -319,10 +319,10 @@ struct sense_data_t {
 #define MS_NR		3
 #define XD_NR		4
 #define SPI_NR		7
-#define SD_CARD		(1 << SD_NR)
-#define MS_CARD		(1 << MS_NR)
-#define XD_CARD		(1 << XD_NR)
-#define SPI_CARD	(1 << SPI_NR)
+#define SD_CARD		BIT(SD_NR)
+#define MS_CARD		BIT(MS_NR)
+#define XD_CARD		BIT(XD_NR)
+#define SPI_CARD	BIT(SPI_NR)
 
 #define MAX_ALLOWED_LUN_CNT	8
 
