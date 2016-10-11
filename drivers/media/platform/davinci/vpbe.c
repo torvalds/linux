@@ -680,8 +680,6 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 					   sizeof(*vpbe_dev->encoders),
 					   GFP_KERNEL);
 	if (NULL == vpbe_dev->encoders) {
-		v4l2_err(&vpbe_dev->v4l2_dev,
-			"unable to allocate memory for encoders sub devices");
 		ret = -ENOMEM;
 		goto fail_dev_unregister;
 	}
@@ -837,10 +835,9 @@ static int vpbe_probe(struct platform_device *pdev)
 	}
 
 	vpbe_dev = kzalloc(sizeof(*vpbe_dev), GFP_KERNEL);
-	if (vpbe_dev == NULL) {
-		v4l2_err(pdev->dev.driver, "Unable to allocate memory for vpbe_device\n");
+	if (!vpbe_dev)
 		return -ENOMEM;
-	}
+
 	vpbe_dev->cfg = cfg;
 	vpbe_dev->ops = vpbe_dev_ops;
 	vpbe_dev->pdev = &pdev->dev;
