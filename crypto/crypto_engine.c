@@ -47,7 +47,7 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 
 	/* If another context is idling then defer */
 	if (engine->idling) {
-		queue_kthread_work(&engine->kworker, &engine->pump_requests);
+		kthread_queue_work(&engine->kworker, &engine->pump_requests);
 		goto out;
 	}
 
@@ -58,7 +58,7 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 
 		/* Only do teardown in the thread */
 		if (!in_kthread) {
-			queue_kthread_work(&engine->kworker,
+			kthread_queue_work(&engine->kworker,
 					   &engine->pump_requests);
 			goto out;
 		}
@@ -189,7 +189,7 @@ int crypto_transfer_cipher_request(struct crypto_engine *engine,
 	ret = ablkcipher_enqueue_request(&engine->queue, req);
 
 	if (!engine->busy && need_pump)
-		queue_kthread_work(&engine->kworker, &engine->pump_requests);
+		kthread_queue_work(&engine->kworker, &engine->pump_requests);
 
 	spin_unlock_irqrestore(&engine->queue_lock, flags);
 	return ret;
@@ -231,7 +231,7 @@ int crypto_transfer_hash_request(struct crypto_engine *engine,
 	ret = ahash_enqueue_request(&engine->queue, req);
 
 	if (!engine->busy && need_pump)
-		queue_kthread_work(&engine->kworker, &engine->pump_requests);
+		kthread_queue_work(&engine->kworker, &engine->pump_requests);
 
 	spin_unlock_irqrestore(&engine->queue_lock, flags);
 	return ret;
@@ -284,7 +284,7 @@ void crypto_finalize_cipher_request(struct crypto_engine *engine,
 
 	req->base.complete(&req->base, err);
 
-	queue_kthread_work(&engine->kworker, &engine->pump_requests);
+	kthread_queue_work(&engine->kworker, &engine->pump_requests);
 }
 EXPORT_SYMBOL_GPL(crypto_finalize_cipher_request);
 
@@ -321,7 +321,7 @@ void crypto_finalize_hash_request(struct crypto_engine *engine,
 
 	req->base.complete(&req->base, err);
 
-	queue_kthread_work(&engine->kworker, &engine->pump_requests);
+	kthread_queue_work(&engine->kworker, &engine->pump_requests);
 }
 EXPORT_SYMBOL_GPL(crypto_finalize_hash_request);
 
@@ -345,7 +345,7 @@ int crypto_engine_start(struct crypto_engine *engine)
 	engine->running = true;
 	spin_unlock_irqrestore(&engine->queue_lock, flags);
 
-	queue_kthread_work(&engine->kworker, &engine->pump_requests);
+	kthread_queue_work(&engine->kworker, &engine->pump_requests);
 
 	return 0;
 }
@@ -422,7 +422,7 @@ struct crypto_engine *crypto_engine_alloc_init(struct device *dev, bool rt)
 	crypto_init_queue(&engine->queue, CRYPTO_ENGINE_MAX_QLEN);
 	spin_lock_init(&engine->queue_lock);
 
-	init_kthread_worker(&engine->kworker);
+	kthread_init_worker(&engine->kworker);
 	engine->kworker_task = kthread_run(kthread_worker_fn,
 					   &engine->kworker, "%s",
 					   engine->name);
@@ -430,7 +430,7 @@ struct crypto_engine *crypto_engine_alloc_init(struct device *dev, bool rt)
 		dev_err(dev, "failed to create crypto request pump task\n");
 		return NULL;
 	}
-	init_kthread_work(&engine->pump_requests, crypto_pump_work);
+	kthread_init_work(&engine->pump_requests, crypto_pump_work);
 
 	if (engine->rt) {
 		dev_info(dev, "will run requests pump with realtime priority\n");
@@ -455,7 +455,7 @@ int crypto_engine_exit(struct crypto_engine *engine)
 	if (ret)
 		return ret;
 
-	flush_kthread_worker(&engine->kworker);
+	kthread_flush_worker(&engine->kworker);
 	kthread_stop(engine->kworker_task);
 
 	return 0;
