@@ -3802,13 +3802,15 @@ static inline bool smu7_are_power_levels_equal(const struct smu7_performance_lev
 
 int smu7_check_states_equal(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *pstate1, const struct pp_hw_power_state *pstate2, bool *equal)
 {
-	const struct smu7_power_state *psa = cast_const_phw_smu7_power_state(pstate1);
-	const struct smu7_power_state *psb = cast_const_phw_smu7_power_state(pstate2);
+	const struct smu7_power_state *psa;
+	const struct smu7_power_state *psb;
 	int i;
 
 	if (pstate1 == NULL || pstate2 == NULL || equal == NULL)
 		return -EINVAL;
 
+	psa = cast_const_phw_smu7_power_state(pstate1);
+	psb = cast_const_phw_smu7_power_state(pstate2);
 	/* If the two states don't even have the same number of performance levels they cannot be the same state. */
 	if (psa->performance_level_count != psb->performance_level_count) {
 		*equal = false;
