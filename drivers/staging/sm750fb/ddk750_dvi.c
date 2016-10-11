@@ -1,6 +1,6 @@
 #define USE_DVICHIP
 #ifdef USE_DVICHIP
-#include "ddk750_help.h"
+#include "ddk750_chip.h"
 #include "ddk750_reg.h"
 #include "ddk750_dvi.h"
 #include "ddk750_sii164.h"

@@ -6,6 +6,14 @@
 #endif
 
 #include <linux/io.h>
+#include <linux/ioport.h>
+#include <linux/uaccess.h>
+
+/* software control endianness */
+#define PEEK32(addr) readl(addr + mmio750)
+#define POKE32(addr, data) writel(data, addr + mmio750)
+
+extern void __iomem *mmio750;
 
 /* This is all the chips recognized by this library */
 typedef enum _logical_chip_type_t {
@@ -68,9 +76,9 @@ struct initchip_param {
 };
 
 logical_chip_type_t sm750_get_chip_type(void);
+void sm750_set_chip_type(unsigned short devId, char revId);
 unsigned int calcPllValue(unsigned int request, struct  pll_value *pll);
 unsigned int formatPllReg(struct pll_value *pPLL);
-void ddk750_set_mmio(void __iomem *, unsigned short, char);
 unsigned int ddk750_getVMSize(void);
 int ddk750_initHw(struct initchip_param *);
 

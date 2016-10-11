@@ -1,4 +1,4 @@
-#include "ddk750_help.h"
+#include "ddk750_chip.h"
 #include "ddk750_reg.h"
 #include "ddk750_power.h"
 

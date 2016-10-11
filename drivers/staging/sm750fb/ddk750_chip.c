@@ -1,33 +1,32 @@
 #include <linux/kernel.h>
 #include <linux/sizes.h>
 
-#include "ddk750_help.h"
 #include "ddk750_reg.h"
 #include "ddk750_chip.h"
 #include "ddk750_power.h"
 
 #define MHz(x) ((x) * 1000000)
 
+static logical_chip_type_t chip;
+
 logical_chip_type_t sm750_get_chip_type(void)
 {
-	unsigned short physicalID;
-	char physicalRev;
-	logical_chip_type_t chip;
+	return chip;
+}
 
-	physicalID = devId750; /* either 0x718 or 0x750 */
-	physicalRev = revId750;
-
-	if (physicalID == 0x718)
+void sm750_set_chip_type(unsigned short devId, char revId)
+{
+	if (devId == 0x718)
 		chip = SM718;
-	else if (physicalID == 0x750) {
+	else if (devId == 0x750) {
 		chip = SM750;
 		/* SM750 and SM750LE are different in their revision ID only. */
-		if (physicalRev == SM750LE_REVISION_ID)
+		if (revId == SM750LE_REVISION_ID) {
 			chip = SM750LE;
+			pr_info("found sm750le\n");
+		}
 	} else
 		chip = SM_UNKNOWN;
-
-	return chip;
 }
 
 static unsigned int get_mxclk_freq(void)

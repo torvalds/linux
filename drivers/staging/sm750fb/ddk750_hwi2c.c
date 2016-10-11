@@ -1,6 +1,6 @@
 #define USE_HW_I2C
 #ifdef USE_HW_I2C
-#include "ddk750_help.h"
+#include "ddk750_chip.h"
 #include "ddk750_reg.h"
 #include "ddk750_hwi2c.h"
 #include "ddk750_power.h"

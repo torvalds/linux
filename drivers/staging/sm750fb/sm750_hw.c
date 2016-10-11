@@ -23,6 +23,8 @@
 #include "ddk750.h"
 #include "sm750_accel.h"
 
+void __iomem *mmio750;
+
 int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 {
 	int ret;
@@ -59,7 +61,8 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	sm750_dev->accel.dprBase = sm750_dev->pvReg + DE_BASE_ADDR_TYPE1;
 	sm750_dev->accel.dpPortBase = sm750_dev->pvReg + DE_PORT_ADDR_TYPE1;
 
-	ddk750_set_mmio(sm750_dev->pvReg, sm750_dev->devid, sm750_dev->revid);
+	mmio750 = sm750_dev->pvReg;
+	sm750_set_chip_type(sm750_dev->devid, sm750_dev->revid);
 
 	sm750_dev->vidmem_start = pci_resource_start(pdev, 0);
 	/* don't use pdev_resource[x].end - resource[x].start to

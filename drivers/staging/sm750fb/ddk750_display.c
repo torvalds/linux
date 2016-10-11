@@ -1,5 +1,5 @@
 #include "ddk750_reg.h"
-#include "ddk750_help.h"
+#include "ddk750_chip.h"
 #include "ddk750_display.h"
 #include "ddk750_power.h"
 #include "ddk750_dvi.h"

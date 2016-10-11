@@ -1,5 +1,4 @@
 
-#include "ddk750_help.h"
 #include "ddk750_reg.h"
 #include "ddk750_mode.h"
 #include "ddk750_chip.h"
