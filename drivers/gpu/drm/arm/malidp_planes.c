@@ -235,6 +235,8 @@ int malidp_de_planes_init(struct drm_device *drm)
 	struct malidp_plane *plane = NULL;
 	enum drm_plane_type plane_type;
 	unsigned long crtcs = 1 << drm->mode_config.num_crtc;
+	unsigned long flags = DRM_ROTATE_0 | DRM_ROTATE_90 | DRM_ROTATE_180 |
+			      DRM_ROTATE_270 | DRM_REFLECT_X | DRM_REFLECT_Y;
 	u32 *formats;
 	int ret, i, j, n;
 
@@ -267,23 +269,16 @@ int malidp_de_planes_init(struct drm_device *drm)
 		if (ret < 0)
 			goto cleanup;
 
-		/* SMART layer can't be rotated */
-		if (id != DE_SMART) {
-			unsigned long flags = DRM_ROTATE_0 |
-					      DRM_ROTATE_90 |
-					      DRM_ROTATE_180 |
-					      DRM_ROTATE_270 |
-					      DRM_REFLECT_X |
-					      DRM_REFLECT_Y;
-			drm_plane_create_rotation_property(&plane->base,
-							   DRM_ROTATE_0,
-							   flags);
-		}
-
 		drm_plane_helper_add(&plane->base,
 				     &malidp_de_plane_helper_funcs);
 		plane->hwdev = malidp->dev;
 		plane->layer = &map->layers[i];
+
+		/* Skip the features which the SMART layer doesn't have */
+		if (id == DE_SMART)
+			continue;
+
+		drm_plane_create_rotation_property(&plane->base, DRM_ROTATE_0, flags);
 	}
 
 	kfree(formats);
