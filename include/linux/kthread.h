@@ -168,6 +168,10 @@ bool kthread_queue_delayed_work(struct kthread_worker *worker,
 				struct kthread_delayed_work *dwork,
 				unsigned long delay);
 
+bool kthread_mod_delayed_work(struct kthread_worker *worker,
+			      struct kthread_delayed_work *dwork,
+			      unsigned long delay);
+
 void kthread_flush_work(struct kthread_work *work);
 void kthread_flush_worker(struct kthread_worker *worker);
 
