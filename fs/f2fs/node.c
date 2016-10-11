@@ -1203,6 +1203,7 @@ static void flush_inline_data(struct f2fs_sb_info *sbi, nid_t ino)
 
 	ret = f2fs_write_inline_data(inode, page);
 	inode_dec_dirty_pages(inode);
+	remove_dirty_inode(inode);
 	if (ret)
 		set_page_dirty(page);
 page_out:
