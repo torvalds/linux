@@ -86,16 +86,29 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 {
 	struct malidp_plane *mp = to_malidp_plane(plane);
 	struct malidp_plane_state *ms = to_malidp_plane_state(state);
+	struct drm_framebuffer *fb;
+	int n_planes, i;
 	u8 format_id;
 	u32 src_w, src_h;
 
 	if (!state->crtc || !state->fb)
 		return 0;
 
+	fb = state->fb;
+
 	format_id = malidp_hw_get_format_id(&mp->hwdev->map, mp->layer->id,
-					    state->fb->pixel_format);
+					    fb->pixel_format);
 	if (format_id == MALIDP_INVALID_FORMAT_ID)
 		return -EINVAL;
+
+	n_planes = drm_format_num_planes(fb->pixel_format);
+	for (i = 0; i < n_planes; i++) {
+		if (!malidp_hw_pitch_valid(mp->hwdev, fb->pitches[i])) {
+			DRM_DEBUG_KMS("Invalid pitch %u for plane %d\n",
+				      fb->pitches[i], i);
+			return -EINVAL;
+		}
+	}
 
 	src_w = state->src_w >> 16;
 	src_h = state->src_h >> 16;
