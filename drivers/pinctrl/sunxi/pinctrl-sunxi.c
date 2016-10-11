@@ -145,6 +145,110 @@ static int sunxi_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static bool sunxi_pctrl_has_bias_prop(struct device_node *node)
+{
+	return of_find_property(node, "allwinner,pull", NULL);
+}
+
+static bool sunxi_pctrl_has_drive_prop(struct device_node *node)
+{
+	return of_find_property(node, "allwinner,drive", NULL);
+}
+
+static int sunxi_pctrl_parse_bias_prop(struct device_node *node)
+{
+	u32 val;
+
+	if (of_property_read_u32(node, "allwinner,pull", &val))
+		return -EINVAL;
+
+	switch (val) {
+	case 1:
+		return PIN_CONFIG_BIAS_PULL_UP;
+	case 2:
+		return PIN_CONFIG_BIAS_PULL_DOWN;
+	}
+
+	return -EINVAL;
+}
+
+static int sunxi_pctrl_parse_drive_prop(struct device_node *node)
+{
+	u32 val;
+
+	if (of_property_read_u32(node, "allwinner,drive", &val))
+		return -EINVAL;
+
+	return (val + 1) * 10;
+}
+
+static const char *sunxi_pctrl_parse_function_prop(struct device_node *node)
+{
+	const char *function;
+	int ret;
+
+	ret = of_property_read_string(node, "allwinner,function", &function);
+	if (!ret)
+		return function;
+
+	return NULL;
+}
+
+static const char *sunxi_pctrl_find_pins_prop(struct device_node *node,
+					      int *npins)
+{
+	int count;
+
+	count = of_property_count_strings(node, "allwinner,pins");
+	if (count > 0) {
+		*npins = count;
+		return "allwinner,pins";
+	}
+
+	return NULL;
+}
+
+static unsigned long *sunxi_pctrl_build_pin_config(struct device_node *node,
+						   unsigned int *len)
+{
+	unsigned long *pinconfig;
+	unsigned int configlen = 0, idx = 0;
+
+	if (sunxi_pctrl_has_drive_prop(node))
+		configlen++;
+	if (sunxi_pctrl_has_bias_prop(node))
+		configlen++;
+
+	pinconfig = kzalloc(configlen * sizeof(*pinconfig), GFP_KERNEL);
+	if (!pinconfig)
+		return NULL;
+
+	if (sunxi_pctrl_has_drive_prop(node)) {
+		int drive = sunxi_pctrl_parse_drive_prop(node);
+		if (drive < 0)
+			goto err_free;
+
+		pinconfig[idx++] = pinconf_to_config_packed(PIN_CONFIG_DRIVE_STRENGTH,
+							  drive);
+	}
+
+	if (sunxi_pctrl_has_bias_prop(node)) {
+		int pull = sunxi_pctrl_parse_bias_prop(node);
+		if (pull < 0)
+			goto err_free;
+
+		pinconfig[idx++] = pinconf_to_config_packed(pull, 0);
+	}
+
+
+	*len = configlen;
+	return pinconfig;
+
+err_free:
+	kfree(pinconfig);
+	return NULL;
+}
+
 static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 				      struct device_node *node,
 				      struct pinctrl_map **map,
@@ -153,38 +257,45 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	unsigned long *pinconfig;
 	struct property *prop;
-	const char *function;
+	const char *function, *pin_prop;
 	const char *group;
-	int ret, nmaps, i = 0;
-	u32 val;
+	int ret, npins, nmaps, configlen = 0, i = 0;
 
 	*map = NULL;
 	*num_maps = 0;
 
-	ret = of_property_read_string(node, "allwinner,function", &function);
-	if (ret) {
-		dev_err(pctl->dev,
-			"missing allwinner,function property in node %s\n",
+	function = sunxi_pctrl_parse_function_prop(node);
+	if (!function) {
+		dev_err(pctl->dev, "missing function property in node %s\n",
 			node->name);
 		return -EINVAL;
 	}
 
-	nmaps = of_property_count_strings(node, "allwinner,pins") * 2;
-	if (nmaps < 0) {
-		dev_err(pctl->dev,
-			"missing allwinner,pins property in node %s\n",
+	pin_prop = sunxi_pctrl_find_pins_prop(node, &npins);
+	if (!pin_prop) {
+		dev_err(pctl->dev, "missing pins property in node %s\n",
 			node->name);
 		return -EINVAL;
 	}
 
+	/*
+	 * We have two maps for each pin: one for the function, one
+	 * for the configuration (bias, strength, etc)
+	 */
+	nmaps = npins * 2;
 	*map = kmalloc(nmaps * sizeof(struct pinctrl_map), GFP_KERNEL);
 	if (!*map)
 		return -ENOMEM;
 
-	of_property_for_each_string(node, "allwinner,pins", prop, group) {
+	pinconfig = sunxi_pctrl_build_pin_config(node, &configlen);
+	if (!pinconfig) {
+		ret = -EINVAL;
+		goto err_free_map;
+	}
+
+	of_property_for_each_string(node, pin_prop, prop, group) {
 		struct sunxi_pinctrl_group *grp =
 			sunxi_pinctrl_find_group_by_name(pctl, group);
-		int j = 0, configlen = 0;
 
 		if (!grp) {
 			dev_err(pctl->dev, "unknown pin %s", group);
@@ -207,34 +318,6 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 		(*map)[i].type = PIN_MAP_TYPE_CONFIGS_GROUP;
 		(*map)[i].data.configs.group_or_pin = group;
-
-		if (of_find_property(node, "allwinner,drive", NULL))
-			configlen++;
-		if (of_find_property(node, "allwinner,pull", NULL))
-			configlen++;
-
-		pinconfig = kzalloc(configlen * sizeof(*pinconfig), GFP_KERNEL);
-		if (!pinconfig) {
-			kfree(*map);
-			return -ENOMEM;
-		}
-
-		if (!of_property_read_u32(node, "allwinner,drive", &val)) {
-			u16 strength = (val + 1) * 10;
-			pinconfig[j++] =
-				pinconf_to_config_packed(PIN_CONFIG_DRIVE_STRENGTH,
-							 strength);
-		}
-
-		if (!of_property_read_u32(node, "allwinner,pull", &val)) {
-			enum pin_config_param pull = PIN_CONFIG_END;
-			if (val == 1)
-				pull = PIN_CONFIG_BIAS_PULL_UP;
-			else if (val == 2)
-				pull = PIN_CONFIG_BIAS_PULL_DOWN;
-			pinconfig[j++] = pinconf_to_config_packed(pull, 0);
-		}
-
 		(*map)[i].data.configs.configs = pinconfig;
 		(*map)[i].data.configs.num_configs = configlen;
 
@@ -244,19 +327,18 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*num_maps = nmaps;
 
 	return 0;
+
+err_free_map:
+	kfree(map);
+	return ret;
 }
 
 static void sunxi_pctrl_dt_free_map(struct pinctrl_dev *pctldev,
 				    struct pinctrl_map *map,
 				    unsigned num_maps)
 {
-	int i;
-
-	for (i = 0; i < num_maps; i++) {
-		if (map[i].type == PIN_MAP_TYPE_CONFIGS_GROUP)
-			kfree(map[i].data.configs.configs);
-	}
-
+	/* All the maps have the same pin config, free only the first one */
+	kfree(map[0].data.configs.configs);
 	kfree(map);
 }
 
