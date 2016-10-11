@@ -432,31 +432,36 @@ static int ms_pull_ctl_disable(struct rtsx_chip *chip)
 
 	if (CHECK_PID(chip, 0x5208)) {
 		retval = rtsx_write_register(chip, CARD_PULL_CTL1, 0xFF,
-					     MS_D1_PD | MS_D2_PD | MS_CLK_PD | MS_D6_PD);
+					     MS_D1_PD | MS_D2_PD | MS_CLK_PD |
+					     MS_D6_PD);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
 		}
 		retval = rtsx_write_register(chip, CARD_PULL_CTL2, 0xFF,
-					     MS_D3_PD | MS_D0_PD | MS_BS_PD | XD_D4_PD);
+					     MS_D3_PD | MS_D0_PD | MS_BS_PD |
+					     XD_D4_PD);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
 		}
 		retval = rtsx_write_register(chip, CARD_PULL_CTL3, 0xFF,
-					     MS_D7_PD | XD_CE_PD | XD_CLE_PD | XD_CD_PU);
+					     MS_D7_PD | XD_CE_PD | XD_CLE_PD |
+					     XD_CD_PU);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
 		}
 		retval = rtsx_write_register(chip, CARD_PULL_CTL4, 0xFF,
-					     XD_RDY_PD | SD_D3_PD | SD_D2_PD | XD_ALE_PD);
+					     XD_RDY_PD | SD_D3_PD | SD_D2_PD |
+					     XD_ALE_PD);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
 		}
 		retval = rtsx_write_register(chip, CARD_PULL_CTL5, 0xFF,
-					     MS_INS_PU | SD_WP_PD | SD_CD_PU | SD_CMD_PD);
+					     MS_INS_PU | SD_WP_PD | SD_CD_PU |
+					     SD_CMD_PD);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
@@ -616,14 +621,20 @@ static int ms_prepare_reset(struct rtsx_chip *chip)
 
 	if (chip->asic_code) {
 		retval = rtsx_write_register(chip, MS_CFG, 0xFF,
-					     SAMPLE_TIME_RISING | PUSH_TIME_DEFAULT | NO_EXTEND_TOGGLE | MS_BUS_WIDTH_1);
+					     SAMPLE_TIME_RISING |
+					     PUSH_TIME_DEFAULT |
+					     NO_EXTEND_TOGGLE |
+					     MS_BUS_WIDTH_1);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
 		}
 	} else {
 		retval = rtsx_write_register(chip, MS_CFG, 0xFF,
-					     SAMPLE_TIME_FALLING | PUSH_TIME_DEFAULT | NO_EXTEND_TOGGLE | MS_BUS_WIDTH_1);
+					     SAMPLE_TIME_FALLING |
+					     PUSH_TIME_DEFAULT |
+					     NO_EXTEND_TOGGLE |
+					     MS_BUS_WIDTH_1);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
@@ -2375,7 +2386,9 @@ RE_SEARCH:
 
 		retval = rtsx_write_register(chip, MS_CFG,
 					     0x58 | MS_NO_CHECK_INT,
-					     MS_BUS_WIDTH_4 | PUSH_TIME_ODD | MS_NO_CHECK_INT);
+					     MS_BUS_WIDTH_4 |
+					     PUSH_TIME_ODD |
+					     MS_NO_CHECK_INT);
 		if (retval) {
 			rtsx_trace(chip);
 			return retval;
@@ -2999,12 +3012,13 @@ static int mspro_rw_multi_sector(struct scsi_cmnd *srb,
 	}
 
 	if (ms_card->seq_mode) {
-		if ((ms_card->pre_dir != srb->sc_data_direction)
-				|| ((ms_card->pre_sec_addr + ms_card->pre_sec_cnt) != start_sector)
-				|| (mode_2k && (ms_card->seq_mode & MODE_512_SEQ))
-				|| (!mode_2k && (ms_card->seq_mode & MODE_2K_SEQ))
-				|| !(val & MS_INT_BREQ)
-				|| ((ms_card->total_sec_cnt + sector_cnt) > 0xFE00)) {
+		if ((ms_card->pre_dir != srb->sc_data_direction) ||
+		    ((ms_card->pre_sec_addr + ms_card->pre_sec_cnt) !=
+		     start_sector) ||
+		    (mode_2k && (ms_card->seq_mode & MODE_512_SEQ)) ||
+		    (!mode_2k && (ms_card->seq_mode & MODE_2K_SEQ)) ||
+		    !(val & MS_INT_BREQ) ||
+		    ((ms_card->total_sec_cnt + sector_cnt) > 0xFE00)) {
 			ms_card->seq_mode = 0;
 			ms_card->total_sec_cnt = 0;
 			if (val & MS_INT_BREQ) {
@@ -3014,7 +3028,8 @@ static int mspro_rw_multi_sector(struct scsi_cmnd *srb,
 					return STATUS_FAIL;
 				}
 
-				rtsx_write_register(chip, RBCTL, RB_FLUSH, RB_FLUSH);
+				rtsx_write_register(chip, RBCTL, RB_FLUSH,
+						    RB_FLUSH);
 			}
 		}
 	}
@@ -3109,7 +3124,8 @@ static int mspro_read_format_progress(struct rtsx_chip *chip,
 	}
 
 	if (!(tmp & MS_INT_BREQ)) {
-		if ((tmp & (MS_INT_CED | MS_INT_BREQ | MS_INT_CMDNK | MS_INT_ERR)) == MS_INT_CED) {
+		if ((tmp & (MS_INT_CED | MS_INT_BREQ | MS_INT_CMDNK |
+			    MS_INT_ERR)) == MS_INT_CED) {
 			ms_card->format_status = FORMAT_SUCCESS;
 			return STATUS_SUCCESS;
 		}
@@ -3396,11 +3412,17 @@ static int ms_read_multiple_pages(struct rtsx_chip *chip, u16 phy_blk,
 				if (retval != STATUS_SUCCESS) {
 					if (!(chip->card_wp & MS_CARD)) {
 						reset_ms(chip);
-						ms_set_page_status(log_blk, setPS_NG, extra, MS_EXTRA_SIZE);
-						ms_write_extra_data(chip, phy_blk,
-								page_addr, extra, MS_EXTRA_SIZE);
+						ms_set_page_status
+							(log_blk, setPS_NG,
+							 extra,
+							 MS_EXTRA_SIZE);
+						ms_write_extra_data
+							(chip, phy_blk,
+							 page_addr, extra,
+							 MS_EXTRA_SIZE);
 					}
-					ms_set_err_code(chip, MS_FLASH_READ_ERROR);
+					ms_set_err_code(chip,
+							MS_FLASH_READ_ERROR);
 					rtsx_trace(chip);
 					return STATUS_FAIL;
 				}
@@ -3883,8 +3905,9 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 				return STATUS_FAIL;
 			}
 #endif
-			old_blk = ms_get_l2p_tbl(chip, seg_no,
-						log_blk - ms_start_idx[seg_no]);
+			old_blk = ms_get_l2p_tbl
+					(chip, seg_no,
+					 log_blk - ms_start_idx[seg_no]);
 			new_blk  = ms_get_unused_block(chip, seg_no);
 			if ((old_blk == 0xFFFF) || (new_blk == 0xFFFF)) {
 				set_sense_type(chip, lun,
@@ -3896,8 +3919,10 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			retval = ms_prepare_write(chip, old_blk, new_blk,
 						  log_blk, start_page);
 			if (retval != STATUS_SUCCESS) {
-				if (detect_card_cd(chip, MS_CARD) != STATUS_SUCCESS) {
-					set_sense_type(chip, lun,
+				if (detect_card_cd(chip, MS_CARD) !=
+				    STATUS_SUCCESS) {
+					set_sense_type
+						(chip, lun,
 						SENSE_TYPE_MEDIA_NOT_PRESENT);
 					rtsx_trace(chip);
 					return STATUS_FAIL;
@@ -4048,8 +4073,10 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 			retval = ms_finish_write(chip, old_blk, new_blk,
 						 log_blk, end_page);
 			if (retval != STATUS_SUCCESS) {
-				if (detect_card_cd(chip, MS_CARD) != STATUS_SUCCESS) {
-					set_sense_type(chip, lun,
+				if (detect_card_cd(chip, MS_CARD) !=
+				    STATUS_SUCCESS) {
+					set_sense_type
+						(chip, lun,
 						SENSE_TYPE_MEDIA_NOT_PRESENT);
 					rtsx_trace(chip);
 					return STATUS_FAIL;
@@ -4627,7 +4654,8 @@ int mg_set_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	if (retval != STATUS_SUCCESS) {
 		if (ms_card->mg_auth == 0) {
 			if ((buf[5] & 0xC0) != 0)
-				set_sense_type(chip, lun,
+				set_sense_type
+					(chip, lun,
 					SENSE_TYPE_MG_KEY_FAIL_NOT_ESTAB);
 			else
 				set_sense_type(chip, lun,
@@ -4666,7 +4694,9 @@ int mg_set_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 			rtsx_clear_ms_error(chip);
 			if (ms_card->mg_auth == 0) {
 				if ((buf[5] & 0xC0) != 0)
-					set_sense_type(chip, lun, SENSE_TYPE_MG_KEY_FAIL_NOT_ESTAB);
+					set_sense_type
+					    (chip, lun,
+					     SENSE_TYPE_MG_KEY_FAIL_NOT_ESTAB);
 				else
 					set_sense_type(chip, lun,
 						       SENSE_TYPE_MG_WRITE_ERR);
@@ -4686,8 +4716,9 @@ int mg_set_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		rtsx_clear_ms_error(chip);
 		if (ms_card->mg_auth == 0) {
 			if ((buf[5] & 0xC0) != 0)
-				set_sense_type(chip, lun,
-					SENSE_TYPE_MG_KEY_FAIL_NOT_ESTAB);
+				set_sense_type
+				    (chip, lun,
+				     SENSE_TYPE_MG_KEY_FAIL_NOT_ESTAB);
 			else
 				set_sense_type(chip, lun,
 					       SENSE_TYPE_MG_WRITE_ERR);
@@ -4722,7 +4753,8 @@ void ms_cleanup_work(struct rtsx_chip *chip)
 		}
 	}
 #ifdef MS_DELAY_WRITE
-	else if ((!CHK_MSPRO(ms_card)) && ms_card->delay_write.delay_write_flag) {
+	else if ((!CHK_MSPRO(ms_card)) &&
+		 ms_card->delay_write.delay_write_flag) {
 		dev_dbg(rtsx_dev(chip), "MS: delay write\n");
 		ms_delay_write(chip);
 		ms_card->cleanup_counter = 0;
