@@ -728,9 +728,10 @@ static int rtsx_scan_thread(void *__dev)
 		dev_info(&dev->pci->dev,
 			 "%s: waiting for device to settle before scanning\n",
 			 CR_DRIVER_NAME);
-		wait_event_interruptible_timeout(dev->delay_wait,
-				rtsx_chk_stat(chip, RTSX_STAT_DISCONNECT),
-				delay_use * HZ);
+		wait_event_interruptible_timeout
+			(dev->delay_wait,
+			 rtsx_chk_stat(chip, RTSX_STAT_DISCONNECT),
+			 delay_use * HZ);
 	}
 
 	/* If the device is still connected, perform the scanning */
