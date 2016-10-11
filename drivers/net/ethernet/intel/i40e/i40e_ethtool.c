@@ -216,7 +216,6 @@ enum i40e_ethtool_test_id {
 	I40E_ETH_TEST_REG = 0,
 	I40E_ETH_TEST_EEPROM,
 	I40E_ETH_TEST_INTR,
-	I40E_ETH_TEST_LOOPBACK,
 	I40E_ETH_TEST_LINK,
 };
 
@@ -224,7 +223,6 @@ static const char i40e_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Register test  (offline)",
 	"Eeprom test    (offline)",
 	"Interrupt test (offline)",
-	"Loopback test  (offline)",
 	"Link test   (on/offline)"
 };
 
@@ -1744,17 +1742,6 @@ static int i40e_intr_test(struct net_device *netdev, u64 *data)
 	return *data;
 }
 
-static int i40e_loopback_test(struct net_device *netdev, u64 *data)
-{
-	struct i40e_netdev_priv *np = netdev_priv(netdev);
-	struct i40e_pf *pf = np->vsi->back;
-
-	netif_info(pf, hw, netdev, "loopback test not implemented\n");
-	*data = 0;
-
-	return *data;
-}
-
 static inline bool i40e_active_vfs(struct i40e_pf *pf)
 {
 	struct i40e_vf *vfs = pf->vf;
@@ -1790,7 +1777,6 @@ static void i40e_diag_test(struct net_device *netdev,
 			data[I40E_ETH_TEST_REG]		= 1;
 			data[I40E_ETH_TEST_EEPROM]	= 1;
 			data[I40E_ETH_TEST_INTR]	= 1;
-			data[I40E_ETH_TEST_LOOPBACK]	= 1;
 			data[I40E_ETH_TEST_LINK]	= 1;
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 			clear_bit(__I40E_TESTING, &pf->state);
@@ -1818,9 +1804,6 @@ static void i40e_diag_test(struct net_device *netdev,
 		if (i40e_intr_test(netdev, &data[I40E_ETH_TEST_INTR]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		if (i40e_loopback_test(netdev, &data[I40E_ETH_TEST_LOOPBACK]))
-			eth_test->flags |= ETH_TEST_FL_FAILED;
-
 		/* run reg test last, a reset is required after it */
 		if (i40e_reg_test(netdev, &data[I40E_ETH_TEST_REG]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
@@ -1841,7 +1824,6 @@ static void i40e_diag_test(struct net_device *netdev,
 		data[I40E_ETH_TEST_REG] = 0;
 		data[I40E_ETH_TEST_EEPROM] = 0;
 		data[I40E_ETH_TEST_INTR] = 0;
-		data[I40E_ETH_TEST_LOOPBACK] = 0;
 	}
 
 skip_ol_tests:

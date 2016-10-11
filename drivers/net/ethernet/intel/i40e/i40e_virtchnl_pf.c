@@ -991,7 +991,7 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 	if (vf->lan_vsi_idx == 0)
 		goto complete_reset;
 
-	i40e_vsi_control_rings(pf->vsi[vf->lan_vsi_idx], false);
+	i40e_vsi_stop_rings(pf->vsi[vf->lan_vsi_idx]);
 complete_reset:
 	/* reallocate VF resources to reset the VSI state */
 	i40e_free_vf_res(vf);
@@ -1032,8 +1032,7 @@ void i40e_free_vfs(struct i40e_pf *pf)
 	i40e_notify_client_of_vf_enable(pf, 0);
 	for (i = 0; i < pf->num_alloc_vfs; i++)
 		if (test_bit(I40E_VF_STAT_INIT, &pf->vf[i].vf_states))
-			i40e_vsi_control_rings(pf->vsi[pf->vf[i].lan_vsi_idx],
-					       false);
+			i40e_vsi_stop_rings(pf->vsi[pf->vf[i].lan_vsi_idx]);
 
 	/* Disable IOV before freeing resources. This lets any VF drivers
 	 * running in the host get themselves cleaned up before we yank
@@ -1759,7 +1758,7 @@ static int i40e_vc_enable_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 		goto error_param;
 	}
 
-	if (i40e_vsi_control_rings(pf->vsi[vf->lan_vsi_idx], true))
+	if (i40e_vsi_start_rings(pf->vsi[vf->lan_vsi_idx]))
 		aq_ret = I40E_ERR_TIMEOUT;
 error_param:
 	/* send the response to the VF */
@@ -1798,8 +1797,7 @@ static int i40e_vc_disable_queues_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 		goto error_param;
 	}
 
-	if (i40e_vsi_control_rings(pf->vsi[vf->lan_vsi_idx], false))
-		aq_ret = I40E_ERR_TIMEOUT;
+	i40e_vsi_stop_rings(pf->vsi[vf->lan_vsi_idx]);
 
 error_param:
 	/* send the response to the VF */
@@ -2139,9 +2137,8 @@ static int i40e_vc_remove_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 	}
 
 	for (i = 0; i < vfl->num_elements; i++) {
-		int ret = i40e_vsi_kill_vlan(vsi, vfl->vlan_id[i]);
-		if (!ret)
-			vf->num_vlan--;
+		i40e_vsi_kill_vlan(vsi, vfl->vlan_id[i]);
+		vf->num_vlan--;
 
 		if (test_bit(I40E_VF_STAT_UC_PROMISC, &vf->vf_states))
 			i40e_aq_set_vsi_uc_promisc_on_vlan(&pf->hw, vsi->seid,
@@ -2153,11 +2150,6 @@ static int i40e_vc_remove_vlan_msg(struct i40e_vf *vf, u8 *msg, u16 msglen)
 							   false,
 							   vfl->vlan_id[i],
 							   NULL);
-
-		if (ret)
-			dev_err(&pf->pdev->dev,
-				"Unable to delete VLAN filter %d for VF %d, error %d\n",
-				vfl->vlan_id[i], vf->vf_id, ret);
 	}
 
 error_param:
@@ -2835,13 +2827,8 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 
 	if (vsi->info.pvid) {
 		/* kill old VLAN */
-		ret = i40e_vsi_kill_vlan(vsi, (le16_to_cpu(vsi->info.pvid) &
-					       VLAN_VID_MASK));
-		if (ret) {
-			dev_info(&vsi->back->pdev->dev,
-				 "remove VLAN failed, ret=%d, aq_err=%d\n",
-				 ret, pf->hw.aq.asq_last_status);
-		}
+		i40e_vsi_kill_vlan(vsi, (le16_to_cpu(vsi->info.pvid) &
+					 VLAN_VID_MASK));
 	}
 	if (vlan_id || qos)
 		ret = i40e_vsi_add_pvid(vsi, vlanprio);

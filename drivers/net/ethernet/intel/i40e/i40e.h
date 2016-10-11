@@ -773,7 +773,8 @@ void i40e_service_event_schedule(struct i40e_pf *pf);
 void i40e_notify_client_of_vf_msg(struct i40e_vsi *vsi, u32 vf_id,
 				  u8 *msg, u16 len);
 
-int i40e_vsi_control_rings(struct i40e_vsi *vsi, bool enable);
+int i40e_vsi_start_rings(struct i40e_vsi *vsi);
+void i40e_vsi_stop_rings(struct i40e_vsi *vsi);
 int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count);
 struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags, u16 uplink_seid,
 				u16 downlink_seid, u8 enabled_tc);
@@ -849,7 +850,7 @@ int i40e_close(struct net_device *netdev);
 int i40e_vsi_open(struct i40e_vsi *vsi);
 void i40e_vlan_stripping_disable(struct i40e_vsi *vsi);
 int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid);
-int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid);
+void i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid);
 struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi,
 					     const u8 *macaddr);
 int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, const u8 *macaddr);

@@ -2503,10 +2503,8 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
  * i40e_vsi_kill_vlan - Remove vsi membership for given vlan
  * @vsi: the vsi being configured
  * @vid: vlan id to be removed (0 = untagged only , -1 = any)
- *
- * Return: 0 on success or negative otherwise
  **/
-int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
+void i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
 {
 	struct net_device *netdev = vsi->netdev;
 	struct i40e_mac_filter *f;
@@ -2530,7 +2528,6 @@ int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
 	 * applying the new filter changes
 	 */
 	i40e_service_event_schedule(vsi->back);
-	return 0;
 }
 
 /**
@@ -4017,27 +4014,33 @@ static int i40e_vsi_control_rx(struct i40e_vsi *vsi, bool enable)
 }
 
 /**
- * i40e_vsi_control_rings - Start or stop a VSI's rings
+ * i40e_vsi_start_rings - Start a VSI's rings
  * @vsi: the VSI being configured
- * @enable: start or stop the rings
  **/
-int i40e_vsi_control_rings(struct i40e_vsi *vsi, bool request)
+int i40e_vsi_start_rings(struct i40e_vsi *vsi)
 {
 	int ret = 0;
 
 	/* do rx first for enable and last for disable */
-	if (request) {
-		ret = i40e_vsi_control_rx(vsi, request);
-		if (ret)
-			return ret;
-		ret = i40e_vsi_control_tx(vsi, request);
-	} else {
-		/* Ignore return value, we need to shutdown whatever we can */
-		i40e_vsi_control_tx(vsi, request);
-		i40e_vsi_control_rx(vsi, request);
-	}
+	ret = i40e_vsi_control_rx(vsi, true);
+	if (ret)
+		return ret;
+	ret = i40e_vsi_control_tx(vsi, true);
 
 	return ret;
+}
+
+/**
+ * i40e_vsi_stop_rings - Stop a VSI's rings
+ * @vsi: the VSI being configured
+ **/
+void i40e_vsi_stop_rings(struct i40e_vsi *vsi)
+{
+	/* do rx first for enable and last for disable
+	 * Ignore return value, we need to shutdown whatever we can
+	 */
+	i40e_vsi_control_tx(vsi, false);
+	i40e_vsi_control_rx(vsi, false);
 }
 
 /**
@@ -5238,7 +5241,7 @@ static int i40e_up_complete(struct i40e_vsi *vsi)
 		i40e_configure_msi_and_legacy(vsi);
 
 	/* start rings */
-	err = i40e_vsi_control_rings(vsi, true);
+	err = i40e_vsi_start_rings(vsi);
 	if (err)
 		return err;
 
@@ -5335,7 +5338,7 @@ void i40e_down(struct i40e_vsi *vsi)
 		netif_tx_disable(vsi->netdev);
 	}
 	i40e_vsi_disable_irq(vsi);
-	i40e_vsi_control_rings(vsi, false);
+	i40e_vsi_stop_rings(vsi);
 	i40e_napi_disable_all(vsi);
 
 	for (i = 0; i < vsi->num_queue_pairs; i++) {
