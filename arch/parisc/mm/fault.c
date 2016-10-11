@@ -204,6 +204,16 @@ static const char * const trap_description[] = {
 	[28] "Unaligned data reference trap",
 };
 
+const char *trap_name(unsigned long code)
+{
+	const char *t = NULL;
+
+	if (code < ARRAY_SIZE(trap_description))
+		t = trap_description[code];
+
+	return t ? t : "Unknown trap";
+}
+
 /*
  * Print out info about fatal segfaults, if the show_unhandled_signals
  * sysctl is set:
@@ -213,8 +223,6 @@ show_signal_msg(struct pt_regs *regs, unsigned long code,
 		unsigned long address, struct task_struct *tsk,
 		struct vm_area_struct *vma)
 {
-	const char *trap_name = NULL;
-
 	if (!unhandled_signal(tsk, SIGSEGV))
 		return;
 
@@ -226,10 +234,7 @@ show_signal_msg(struct pt_regs *regs, unsigned long code,
 	    tsk->comm, code, address);
 	print_vma_addr(KERN_CONT " in ", regs->iaoq[0]);
 
-	if (code < ARRAY_SIZE(trap_description))
-		trap_name = trap_description[code];
-	pr_warn(KERN_CONT " trap #%lu: %s%c", code,
-		trap_name ? trap_name : "unknown",
+	pr_cont(" trap #%lu: %s%c", code, trap_name(code),
 		vma ? ',':'\n');
 
 	if (vma)
