@@ -1402,7 +1402,7 @@ static int sd_switch_function(struct rtsx_chip *chip, u8 bus_width)
 
 	/* Function Group 1: Access Mode */
 	for (i = 0; i < 4; i++) {
-		switch ((u8)(chip->sd_speed_prior >> (i*8))) {
+		switch ((u8)(chip->sd_speed_prior >> (i * 8))) {
 		case SDR104_SUPPORT:
 			if ((sd_card->func_group1_mask & SDR104_SUPPORT_MASK) &&
 			    chip->sdr104_en) {
@@ -1436,7 +1436,6 @@ static int sd_switch_function(struct rtsx_chip *chip, u8 bus_width)
 
 		if (func_to_switch)
 			break;
-
 	}
 	dev_dbg(rtsx_dev(chip), "SD_FUNC_GROUP_1: func_to_switch = 0x%02x",
 		func_to_switch);
@@ -1502,7 +1501,7 @@ static int sd_switch_function(struct rtsx_chip *chip, u8 bus_width)
 	func_to_switch = 0xFF;
 
 	for (i = 0; i < 4; i++) {
-		switch ((u8)(chip->sd_current_prior >> (i*8))) {
+		switch ((u8)(chip->sd_current_prior >> (i * 8))) {
 		case CURRENT_LIMIT_800:
 			if (sd_card->func_group4_mask & CURRENT_LIMIT_800_MASK)
 				func_to_switch = CURRENT_LIMIT_800;
@@ -3804,7 +3803,7 @@ int sd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 start_sector,
 			     0x03, SD_BUS_WIDTH_1);
 
 	if (sd_card->seq_mode) {
-		cfg2 = SD_NO_CALCULATE_CRC7 | SD_CHECK_CRC16|
+		cfg2 = SD_NO_CALCULATE_CRC7 | SD_CHECK_CRC16 |
 			SD_NO_WAIT_BUSY_END | SD_NO_CHECK_CRC7 |
 			SD_RSP_LEN_0;
 		rtsx_add_cmd(chip, WRITE_REG_CMD, REG_SD_CFG2, 0xFF, cfg2);
