@@ -511,7 +511,6 @@ static inline void napi_enable(struct napi_struct *n)
 	clear_bit(NAPI_STATE_NPSVC, &n->state);
 }
 
-#ifdef CONFIG_SMP
 /**
  *	napi_synchronize - wait until NAPI is not running
  *	@n: napi context
@@ -522,12 +521,12 @@ static inline void napi_enable(struct napi_struct *n)
  */
 static inline void napi_synchronize(const struct napi_struct *n)
 {
-	while (test_bit(NAPI_STATE_SCHED, &n->state))
-		msleep(1);
+	if (IS_ENABLED(CONFIG_SMP))
+		while (test_bit(NAPI_STATE_SCHED, &n->state))
+			msleep(1);
+	else
+		barrier();
 }
-#else
-# define napi_synchronize(n)	barrier()
-#endif
 
 enum netdev_queue_state_t {
 	__QUEUE_STATE_DRV_XOFF,
@@ -3037,6 +3036,7 @@ static inline void napi_free_frags(struct napi_struct *napi)
 	napi->skb = NULL;
 }
 
+bool netdev_is_rx_handler_busy(struct net_device *dev);
 int netdev_rx_handler_register(struct net_device *dev,
 			       rx_handler_func_t *rx_handler,
 			       void *rx_handler_data);

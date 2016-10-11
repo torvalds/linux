@@ -48,7 +48,6 @@
 #include <linux/tipc_netlink.h>
 #include "core.h"
 #include "bearer.h"
-#include "msg.h"
 
 /* IANA assigned UDP port */
 #define UDP_PORT_DEFAULT	6118
@@ -224,10 +223,6 @@ static int tipc_udp_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct udp_bearer *ub;
 	struct tipc_bearer *b;
-	int usr = msg_user(buf_msg(skb));
-
-	if ((usr == LINK_PROTOCOL) || (usr == NAME_DISTRIBUTOR))
-		skb_linearize(skb);
 
 	ub = rcu_dereference_sk_user_data(sk);
 	if (!ub) {

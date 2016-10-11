@@ -1164,7 +1164,9 @@ fpu_emul:
 		regs->regs[31] = r31;
 		regs->cp0_epc = epc;
 		if (!used_math()) {     /* First time FPU user.  */
+			preempt_disable();
 			err = init_fpu();
+			preempt_enable();
 			set_used_math();
 		}
 		lose_fpu(1);    /* Save FPU state for the emulator. */

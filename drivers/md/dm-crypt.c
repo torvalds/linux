@@ -1928,6 +1928,13 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 		return DM_MAPIO_REMAPPED;
 	}
 
+	/*
+	 * Check if bio is too large, split as needed.
+	 */
+	if (unlikely(bio->bi_iter.bi_size > (BIO_MAX_PAGES << PAGE_SHIFT)) &&
+	    bio_data_dir(bio) == WRITE)
+		dm_accept_partial_bio(bio, ((BIO_MAX_PAGES << PAGE_SHIFT) >> SECTOR_SHIFT));
+
 	io = dm_per_bio_data(bio, cc->per_bio_data_size);
 	crypt_io_init(io, cc, bio, dm_target_offset(ti, bio->bi_iter.bi_sector));
 	io->ctx.req = (struct ablkcipher_request *)(io + 1);

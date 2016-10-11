@@ -236,7 +236,7 @@ static int ad7192_setup(struct ad7192_state *st,
 			st->mclk = pdata->ext_clk_hz;
 		else
 			st->mclk = AD7192_INT_FREQ_MHZ;
-			break;
+		break;
 	default:
 		ret = -EINVAL;
 		goto out;

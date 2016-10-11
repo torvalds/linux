@@ -959,10 +959,11 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 
 	if (S_ISLNK(root_inode->i_mode)) {
 		char *name = follow_link(host_root_path);
-		if (IS_ERR(name))
+		if (IS_ERR(name)) {
 			err = PTR_ERR(name);
-		else
-			err = read_name(root_inode, name);
+			goto out_put;
+		}
+		err = read_name(root_inode, name);
 		kfree(name);
 		if (err)
 			goto out_put;
