@@ -676,7 +676,6 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 	unsigned int ofs_in_node, last_ofs_in_node;
 	blkcnt_t prealloc;
 	struct extent_info ei;
-	bool allocated = false;
 	block_t blkaddr;
 
 	if (!maxblocks)
@@ -735,10 +734,8 @@ next_block:
 				}
 			} else {
 				err = __allocate_data_block(&dn);
-				if (!err) {
+				if (!err)
 					set_inode_flag(inode, FI_APPEND_WRITE);
-					allocated = true;
-				}
 			}
 			if (err)
 				goto sync_out;
@@ -793,7 +790,6 @@ skip:
 		err = reserve_new_blocks(&dn, prealloc);
 		if (err)
 			goto sync_out;
-		allocated = dn.node_changed;
 
 		map->m_len += dn.ofs_in_node - ofs_in_node;
 		if (prealloc && dn.ofs_in_node != last_ofs_in_node + 1) {
@@ -812,9 +808,8 @@ skip:
 
 	if (create) {
 		f2fs_unlock_op(sbi);
-		f2fs_balance_fs(sbi, allocated);
+		f2fs_balance_fs(sbi, dn.node_changed);
 	}
-	allocated = false;
 	goto next_dnode;
 
 sync_out:
@@ -822,7 +817,7 @@ sync_out:
 unlock_out:
 	if (create) {
 		f2fs_unlock_op(sbi);
-		f2fs_balance_fs(sbi, allocated);
+		f2fs_balance_fs(sbi, dn.node_changed);
 	}
 out:
 	trace_f2fs_map_blocks(inode, map, err);
