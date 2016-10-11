@@ -2258,7 +2258,8 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 	if (!mddev->events && super_init_validation(rs, rdev))
 		return -EINVAL;
 
-	if (le32_to_cpu(sb->compat_features) != FEATURE_FLAG_SUPPORTS_V190) {
+	if (le32_to_cpu(sb->compat_features) &&
+	    le32_to_cpu(sb->compat_features) != FEATURE_FLAG_SUPPORTS_V190) {
 		rs->ti->error = "Unable to assemble array: Unknown flag(s) in compatible feature flags";
 		return -EINVAL;
 	}
