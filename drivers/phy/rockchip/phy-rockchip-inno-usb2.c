@@ -138,6 +138,7 @@ struct rockchip_chg_det_reg {
  * @idrise_det_clr: id rise detection clear register.
  * @utmi_avalid: utmi vbus avalid status register.
  * @utmi_bvalid: utmi vbus bvalid status register.
+ * @utmi_iddig: otg port id pin status register.
  * @utmi_ls: utmi linestate state register.
  * @utmi_hstdet: utmi host disconnect register.
  */
@@ -157,6 +158,7 @@ struct rockchip_usb2phy_port_cfg {
 	struct usb2phy_reg	idrise_det_clr;
 	struct usb2phy_reg	utmi_avalid;
 	struct usb2phy_reg	utmi_bvalid;
+	struct usb2phy_reg	utmi_iddig;
 	struct usb2phy_reg	utmi_ls;
 	struct usb2phy_reg	utmi_hstdet;
 };
@@ -235,6 +237,7 @@ struct rockchip_usb2phy_port {
  * @chg_type: USB charger types.
  * @dcd_retries: The retry count used to track Data contact
  *		 detection process.
+ * @edev_self: represent the source of extcon.
  * @edev: extcon device for notification registration
  * @phy_cfg: phy register configuration, assigned by driver data.
  * @ports: phy port instance.
@@ -1099,6 +1102,7 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 					  struct device_node *child_np)
 {
 	int ret;
+	int iddig;
 
 	rport->port_id = USB2PHY_PORT_OTG;
 	rport->port_cfg = &rphy->phy_cfg->port_cfgs[USB2PHY_PORT_OTG];
@@ -1201,6 +1205,14 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		if (ret) {
 			dev_err(rphy->dev, "failed to request otg-id irq handle\n");
 			return ret;
+		}
+
+		iddig = property_enabled(rphy->grf, &rport->port_cfg->utmi_iddig);
+		if (!iddig) {
+			extcon_set_state(rphy->edev, EXTCON_USB, false);
+			extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
+		} else {
+			extcon_set_state(rphy->edev, EXTCON_USB_HOST, false);
 		}
 	}
 
@@ -1519,6 +1531,7 @@ static const struct rockchip_usb2phy_cfg rk3228_phy_cfgs[] = {
 				.ls_det_st	= { 0x0690, 2, 2, 0, 1 },
 				.ls_det_clr	= { 0x06a0, 2, 2, 0, 1 },
 				.utmi_bvalid	= { 0x0480, 4, 4, 0, 1 },
+				.utmi_iddig	= { 0x0480, 1, 1, 0, 1 },
 				.utmi_ls	= { 0x0480, 3, 2, 0, 1 },
 			},
 			[USB2PHY_PORT_HOST] = {
@@ -1585,6 +1598,7 @@ static const struct rockchip_usb2phy_cfg rk3328_phy_cfgs[] = {
 				.ls_det_clr	= { 0x0118, 0, 0, 0, 1 },
 				.utmi_avalid	= { 0x0120, 10, 10, 0, 1 },
 				.utmi_bvalid	= { 0x0120, 9, 9, 0, 1 },
+				.utmi_iddig	= { 0x0120, 6, 6, 0, 1 },
 				.utmi_ls	= { 0x0120, 5, 4, 0, 1 },
 			},
 			[USB2PHY_PORT_HOST] = {
@@ -1672,6 +1686,7 @@ static const struct rockchip_usb2phy_cfg rk3399_phy_cfgs[] = {
 				.ls_det_clr	= { 0xe3d0, 2, 2, 0, 1 },
 				.utmi_avalid	= { 0xe2ac, 7, 7, 0, 1 },
 				.utmi_bvalid	= { 0xe2ac, 12, 12, 0, 1 },
+				.utmi_iddig     = { 0xe2ac, 8, 8, 0, 1 },
 				.utmi_ls	= { 0xe2ac, 14, 13, 0, 1 },
 			},
 			[USB2PHY_PORT_HOST] = {
@@ -1718,6 +1733,7 @@ static const struct rockchip_usb2phy_cfg rk3399_phy_cfgs[] = {
 				.ls_det_clr	= { 0xe3d0, 7, 7, 0, 1 },
 				.utmi_avalid	= { 0xe2ac, 10, 10, 0, 1 },
 				.utmi_bvalid    = { 0xe2ac, 16, 16, 0, 1 },
+				.utmi_iddig     = { 0xe2ac, 11, 11, 0, 1 },
 				.utmi_ls	= { 0xe2ac, 18, 17, 0, 1 },
 			},
 			[USB2PHY_PORT_HOST] = {
