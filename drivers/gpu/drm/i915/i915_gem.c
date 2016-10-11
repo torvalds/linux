@@ -1813,8 +1813,7 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 		view.params.partial.offset = rounddown(page_offset, chunk_size);
 		view.params.partial.size =
 			min_t(unsigned int, chunk_size,
-			      (area->vm_end - area->vm_start) / PAGE_SIZE -
-			      view.params.partial.offset);
+			      vma_pages(area) - view.params.partial.offset);
 
 		/* If the partial covers the entire object, just create a
 		 * normal VMA.
