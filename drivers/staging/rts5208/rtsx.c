@@ -485,7 +485,7 @@ SkipForAbort:
 		}
 
 		if (rtsx_chk_stat(chip, RTSX_STAT_ABORT)) {
-			complete(&(dev->notify));
+			complete(&dev->notify);
 
 			rtsx_set_stat(chip, RTSX_STAT_IDLE);
 		}
@@ -519,9 +519,9 @@ static int rtsx_polling_thread(void *__dev)
 {
 	struct rtsx_dev *dev = __dev;
 	struct rtsx_chip *chip = dev->chip;
-	struct sd_info *sd_card = &(chip->sd_card);
-	struct xd_info *xd_card = &(chip->xd_card);
-	struct ms_info *ms_card = &(chip->ms_card);
+	struct sd_info *sd_card = &chip->sd_card;
+	struct xd_info *xd_card = &chip->xd_card;
+	struct ms_info *ms_card = &chip->ms_card;
 
 	sd_card->cleanup_counter = 0;
 	xd_card->cleanup_counter = 0;
@@ -890,7 +890,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	init_completion(&dev->cmnd_ready);
 	init_completion(&dev->control_exit);
 	init_completion(&dev->polling_exit);
-	init_completion(&(dev->notify));
+	init_completion(&dev->notify);
 	init_completion(&dev->scanning_done);
 	init_waitqueue_head(&dev->delay_wait);
 
