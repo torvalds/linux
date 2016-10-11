@@ -3100,7 +3100,7 @@ static int ms_sp_cmnd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 }
 
 #ifdef SUPPORT_CPRM
-static int sd_extention_cmnd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
+static int sd_extension_cmnd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
 	unsigned int lun = SCSI_LUN(srb);
 	int result;
@@ -3510,7 +3510,7 @@ int rtsx_scsi_handler(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	case SD_EXECUTE_WRITE:
 	case SD_GET_RSP:
 	case SD_HW_RST:
-		result = sd_extention_cmnd(srb, chip);
+		result = sd_extension_cmnd(srb, chip);
 		break;
 #endif
 
