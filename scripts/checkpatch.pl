@@ -541,6 +541,32 @@ our $mode_perms_world_writable = qr{
 	0[0-7][0-7][2367]
 }x;
 
+our %mode_permission_string_types = (
+	"S_IRWXU" => 0700,
+	"S_IRUSR" => 0400,
+	"S_IWUSR" => 0200,
+	"S_IXUSR" => 0100,
+	"S_IRWXG" => 0070,
+	"S_IRGRP" => 0040,
+	"S_IWGRP" => 0020,
+	"S_IXGRP" => 0010,
+	"S_IRWXO" => 0007,
+	"S_IROTH" => 0004,
+	"S_IWOTH" => 0002,
+	"S_IXOTH" => 0001,
+	"S_IRWXUGO" => 0777,
+	"S_IRUGO" => 0444,
+	"S_IWUGO" => 0222,
+	"S_IXUGO" => 0111,
+);
+
+#Create a search pattern for all these strings to speed up a loop below
+our $mode_perms_string_search = "";
+foreach my $entry (keys %mode_permission_string_types) {
+	$mode_perms_string_search .= '|' if ($mode_perms_string_search ne "");
+	$mode_perms_string_search .= $entry;
+}
+
 our $allowed_asm_includes = qr{(?x:
 	irq|
 	memory|
@@ -6003,19 +6029,30 @@ sub process {
 					$arg_pos--;
 					$skip_args = "(?:\\s*$FuncArg\\s*,\\s*){$arg_pos,$arg_pos}";
 				}
-				my $test = "\\b$func\\s*\\(${skip_args}([\\d]+)\\s*[,\\)]";
+				my $test = "\\b$func\\s*\\(${skip_args}($FuncArg(?:\\|\\s*$FuncArg)*)\\s*[,\\)]";
 				if ($line =~ /$test/) {
 					my $val = $1;
 					$val = $6 if ($skip_args ne "");
-
-					if ($val !~ /^0$/ &&
-					    (($val =~ /^$Int$/ && $val !~ /^$Octal$/) ||
-					     length($val) ne 4)) {
+					if (($val =~ /^$Int$/ && $val !~ /^$Octal$/) ||
+					    ($val =~ /^$Octal$/ && length($val) ne 4)) {
 						ERROR("NON_OCTAL_PERMISSIONS",
 						      "Use 4 digit octal (0777) not decimal permissions\n" . $herecurr);
-					} elsif ($val =~ /^$Octal$/ && (oct($val) & 02)) {
+					}
+					if ($val =~ /^$Octal$/ && (oct($val) & 02)) {
 						ERROR("EXPORTED_WORLD_WRITABLE",
 						      "Exporting writable files is usually an error. Consider more restrictive permissions.\n" . $herecurr);
+					}
+					if ($val =~ /\b$mode_perms_string_search\b/) {
+						my $to = 0;
+						while ($val =~ /\b($mode_perms_string_search)\b(?:\s*\|\s*)?\s*/g) {
+							$to |=  $mode_permission_string_types{$1};
+						}
+						my $new = sprintf("%04o", $to);
+						if (WARN("SYMBOLIC_PERMS",
+							 "Symbolic permissions are not preferred. Consider using octal permissions $new.\n" . $herecurr) &&
+						    $fix) {
+							$fixed[$fixlinenr] =~ s/\Q$val\E/$new/;
+						}
 					}
 				}
 			}
