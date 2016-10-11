@@ -676,9 +676,9 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	 * store venc sd index.
 	 */
 	num_encoders = vpbe_dev->cfg->num_ext_encoders + 1;
-	vpbe_dev->encoders = kmalloc(
-				sizeof(struct v4l2_subdev *)*num_encoders,
-				GFP_KERNEL);
+	vpbe_dev->encoders = kmalloc_array(num_encoders,
+					   sizeof(*vpbe_dev->encoders),
+					   GFP_KERNEL);
 	if (NULL == vpbe_dev->encoders) {
 		v4l2_err(&vpbe_dev->v4l2_dev,
 			"unable to allocate memory for encoders sub devices");
