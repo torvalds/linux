@@ -34,8 +34,6 @@
 #include <asm/current.h>
 #include <linux/uaccess.h>
 
-/* #define DEBUG */
-
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
