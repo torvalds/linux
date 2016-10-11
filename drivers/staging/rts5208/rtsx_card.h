@@ -1030,7 +1030,7 @@ u8 get_lun_card(struct rtsx_chip *chip, unsigned int lun);
 static inline u32 get_card_size(struct rtsx_chip *chip, unsigned int lun)
 {
 #ifdef SUPPORT_SD_LOCK
-	struct sd_info *sd_card = &(chip->sd_card);
+	struct sd_info *sd_card = &chip->sd_card;
 
 	if ((get_lun_card(chip, lun) == SD_CARD) &&
 	    (sd_card->sd_lock_status & SD_LOCKED))
