@@ -957,12 +957,12 @@ void rtsx_stop_cmd(struct rtsx_chip *chip, int card);
 int rtsx_write_register(struct rtsx_chip *chip, u16 addr, u8 mask, u8 data);
 int rtsx_read_register(struct rtsx_chip *chip, u16 addr, u8 *data);
 int rtsx_write_cfg_dw(struct rtsx_chip *chip,
-		u8 func_no, u16 addr, u32 mask, u32 val);
+		      u8 func_no, u16 addr, u32 mask, u32 val);
 int rtsx_read_cfg_dw(struct rtsx_chip *chip, u8 func_no, u16 addr, u32 *val);
 int rtsx_write_cfg_seq(struct rtsx_chip *chip,
-		u8 func, u16 addr, u8 *buf, int len);
+		       u8 func, u16 addr, u8 *buf, int len);
 int rtsx_read_cfg_seq(struct rtsx_chip *chip,
-		u8 func, u16 addr, u8 *buf, int len);
+		      u8 func, u16 addr, u8 *buf, int len);
 int rtsx_write_phy_register(struct rtsx_chip *chip, u8 addr, u16 val);
 int rtsx_read_phy_register(struct rtsx_chip *chip, u8 addr, u16 *val);
 int rtsx_read_efuse(struct rtsx_chip *chip, u8 addr, u8 *val);
