@@ -356,7 +356,7 @@ struct drm_connector_funcs {
 	 *
 	 * This optional hook should be used to unregister the additional
 	 * userspace interfaces attached to the connector from
-	 * late_unregister(). It is called from drm_connector_unregister(),
+	 * late_register(). It is called from drm_connector_unregister(),
 	 * early in the driver unload sequence to disable userspace access
 	 * before data structures are torndown.
 	 */
@@ -376,7 +376,7 @@ struct drm_connector_funcs {
 	 * @atomic_duplicate_state:
 	 *
 	 * Duplicate the current atomic state for this connector and return it.
-	 * The core and helpers gurantee that any atomic state duplicated with
+	 * The core and helpers guarantee that any atomic state duplicated with
 	 * this hook and still owned by the caller (i.e. not transferred to the
 	 * driver by calling ->atomic_commit() from struct
 	 * &drm_mode_config_funcs) will be cleaned up by calling the

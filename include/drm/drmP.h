@@ -1011,8 +1011,11 @@ static inline int drm_debugfs_remove_files(const struct drm_info_list *files,
 }
 #endif
 
+struct dma_buf_export_info;
+
 extern struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
-		struct drm_gem_object *obj, int flags);
+					    struct drm_gem_object *obj,
+					    int flags);
 extern int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 		struct drm_file *file_priv, uint32_t handle, uint32_t flags,
 		int *prime_fd);
@@ -1020,6 +1023,8 @@ extern struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 		struct dma_buf *dma_buf);
 extern int drm_gem_prime_fd_to_handle(struct drm_device *dev,
 		struct drm_file *file_priv, int prime_fd, uint32_t *handle);
+struct dma_buf *drm_gem_dmabuf_export(struct drm_device *dev,
+				      struct dma_buf_export_info *exp_info);
 extern void drm_gem_dmabuf_release(struct dma_buf *dma_buf);
 
 extern int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,

@@ -125,7 +125,33 @@ static void drm_simple_kms_plane_atomic_update(struct drm_plane *plane,
 	pipe->funcs->update(pipe, pstate);
 }
 
+static int drm_simple_kms_plane_prepare_fb(struct drm_plane *plane,
+					   struct drm_plane_state *state)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
+	if (!pipe->funcs || !pipe->funcs->prepare_fb)
+		return 0;
+
+	return pipe->funcs->prepare_fb(pipe, state);
+}
+
+static void drm_simple_kms_plane_cleanup_fb(struct drm_plane *plane,
+					    struct drm_plane_state *state)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
+	if (!pipe->funcs || !pipe->funcs->cleanup_fb)
+		return;
+
+	pipe->funcs->cleanup_fb(pipe, state);
+}
+
 static const struct drm_plane_helper_funcs drm_simple_kms_plane_helper_funcs = {
+	.prepare_fb = drm_simple_kms_plane_prepare_fb,
+	.cleanup_fb = drm_simple_kms_plane_cleanup_fb,
 	.atomic_check = drm_simple_kms_plane_atomic_check,
 	.atomic_update = drm_simple_kms_plane_atomic_update,
 };

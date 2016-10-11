@@ -250,10 +250,10 @@ int drm_connector_init(struct drm_device *dev,
 	connector->debugfs_entry = NULL;
 out_put_type_id:
 	if (ret)
-		ida_remove(connector_ida, connector->connector_type_id);
+		ida_simple_remove(connector_ida, connector->connector_type_id);
 out_put_id:
 	if (ret)
-		ida_remove(&config->connector_ida, connector->index);
+		ida_simple_remove(&config->connector_ida, connector->index);
 out_put:
 	if (ret)
 		drm_mode_object_unregister(dev, &connector->base);
@@ -341,11 +341,11 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	list_for_each_entry_safe(mode, t, &connector->modes, head)
 		drm_mode_remove(connector, mode);
 
-	ida_remove(&drm_connector_enum_list[connector->connector_type].ida,
-		   connector->connector_type_id);
+	ida_simple_remove(&drm_connector_enum_list[connector->connector_type].ida,
+			  connector->connector_type_id);
 
-	ida_remove(&dev->mode_config.connector_ida,
-		   connector->index);
+	ida_simple_remove(&dev->mode_config.connector_ida,
+			  connector->index);
 
 	kfree(connector->display_info.bus_formats);
 	drm_mode_object_unregister(dev, &connector->base);

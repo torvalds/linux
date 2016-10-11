@@ -547,7 +547,7 @@ armada_gem_prime_export(struct drm_device *dev, struct drm_gem_object *obj,
 	exp_info.flags = O_RDWR;
 	exp_info.priv = obj;
 
-	return dma_buf_export(&exp_info);
+	return drm_gem_dmabuf_export(dev, &exp_info);
 }
 
 struct drm_gem_object *

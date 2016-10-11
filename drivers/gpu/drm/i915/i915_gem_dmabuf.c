@@ -283,7 +283,7 @@ struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 			return ERR_PTR(ret);
 	}
 
-	dma_buf = dma_buf_export(&exp_info);
+	dma_buf = drm_gem_dmabuf_export(dev, &exp_info);
 	if (IS_ERR(dma_buf))
 		return dma_buf;
 
