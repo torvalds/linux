@@ -29,7 +29,7 @@
 
 static inline void spi_set_err_code(struct rtsx_chip *chip, u8 err_code)
 {
-	struct spi_info *spi = &(chip->spi);
+	struct spi_info *spi = &chip->spi;
 
 	spi->err_code = err_code;
 }
@@ -57,7 +57,7 @@ static int spi_init(struct rtsx_chip *chip)
 
 static int spi_set_init_para(struct rtsx_chip *chip)
 {
-	struct spi_info *spi = &(chip->spi);
+	struct spi_info *spi = &chip->spi;
 	int retval;
 
 	retval = rtsx_write_register(chip, SPI_CLK_DIVIDER1, 0xFF,
@@ -134,7 +134,7 @@ static int sf_polling_status(struct rtsx_chip *chip, int msec)
 
 static int sf_enable_write(struct rtsx_chip *chip, u8 ins)
 {
-	struct spi_info *spi = &(chip->spi);
+	struct spi_info *spi = &chip->spi;
 	int retval;
 
 	if (!spi->write_en)
@@ -163,7 +163,7 @@ static int sf_enable_write(struct rtsx_chip *chip, u8 ins)
 
 static int sf_disable_write(struct rtsx_chip *chip, u8 ins)
 {
-	struct spi_info *spi = &(chip->spi);
+	struct spi_info *spi = &chip->spi;
 	int retval;
 
 	if (!spi->write_en)
@@ -518,11 +518,11 @@ int spi_write_eeprom(struct rtsx_chip *chip, u16 addr, u8 val)
 
 int spi_get_status(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	struct spi_info *spi = &(chip->spi);
+	struct spi_info *spi = &chip->spi;
 
 	dev_dbg(rtsx_dev(chip), "spi_get_status: err_code = 0x%x\n",
 		spi->err_code);
-	rtsx_stor_set_xfer_buf(&(spi->err_code),
+	rtsx_stor_set_xfer_buf(&spi->err_code,
 			min_t(int, scsi_bufflen(srb), 1), srb);
 	scsi_set_resid(srb, scsi_bufflen(srb) - 1);
 
@@ -531,7 +531,7 @@ int spi_get_status(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 int spi_set_parameter(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
-	struct spi_info *spi = &(chip->spi);
+	struct spi_info *spi = &chip->spi;
 
 	spi_set_err_code(chip, SPI_NO_ERR);
 
