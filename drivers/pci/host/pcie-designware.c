@@ -164,8 +164,8 @@ static u32 dw_pcie_readl_unroll(struct pcie_port *pp, u32 index, u32 reg)
 	return dw_pcie_readl_rc(pp, offset + reg);
 }
 
-static void dw_pcie_writel_unroll(struct pcie_port *pp, u32 index,
-					 u32 val, u32 reg)
+static void dw_pcie_writel_unroll(struct pcie_port *pp, u32 index, u32 reg,
+				  u32 val)
 {
 	u32 offset = PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(index);
 
@@ -196,20 +196,20 @@ static void dw_pcie_prog_outbound_atu(struct pcie_port *pp, int index,
 	u32 retries, val;
 
 	if (pp->iatu_unroll_enabled) {
-		dw_pcie_writel_unroll(pp, index,
-			lower_32_bits(cpu_addr), PCIE_ATU_UNR_LOWER_BASE);
-		dw_pcie_writel_unroll(pp, index,
-			upper_32_bits(cpu_addr), PCIE_ATU_UNR_UPPER_BASE);
-		dw_pcie_writel_unroll(pp, index,
-			lower_32_bits(cpu_addr + size - 1), PCIE_ATU_UNR_LIMIT);
-		dw_pcie_writel_unroll(pp, index,
-			lower_32_bits(pci_addr), PCIE_ATU_UNR_LOWER_TARGET);
-		dw_pcie_writel_unroll(pp, index,
-			upper_32_bits(pci_addr), PCIE_ATU_UNR_UPPER_TARGET);
-		dw_pcie_writel_unroll(pp, index,
-			type, PCIE_ATU_UNR_REGION_CTRL1);
-		dw_pcie_writel_unroll(pp, index,
-			PCIE_ATU_ENABLE, PCIE_ATU_UNR_REGION_CTRL2);
+		dw_pcie_writel_unroll(pp, index, PCIE_ATU_UNR_LOWER_BASE,
+			lower_32_bits(cpu_addr));
+		dw_pcie_writel_unroll(pp, index, PCIE_ATU_UNR_UPPER_BASE,
+			upper_32_bits(cpu_addr));
+		dw_pcie_writel_unroll(pp, index, PCIE_ATU_UNR_LIMIT,
+			lower_32_bits(cpu_addr + size - 1));
+		dw_pcie_writel_unroll(pp, index, PCIE_ATU_UNR_LOWER_TARGET,
+			lower_32_bits(pci_addr));
+		dw_pcie_writel_unroll(pp, index, PCIE_ATU_UNR_UPPER_TARGET,
+			upper_32_bits(pci_addr));
+		dw_pcie_writel_unroll(pp, index, PCIE_ATU_UNR_REGION_CTRL1,
+			type);
+		dw_pcie_writel_unroll(pp, index, PCIE_ATU_UNR_REGION_CTRL2,
+			PCIE_ATU_ENABLE);
 	} else {
 		dw_pcie_writel_rc(pp, PCIE_ATU_VIEWPORT,
 				  PCIE_ATU_REGION_OUTBOUND | index);
