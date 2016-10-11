@@ -987,8 +987,7 @@ static int fsl_ifc_nand_probe(struct platform_device *dev)
 		ifc_nand_ctrl->addr = NULL;
 		fsl_ifc_ctrl_dev->nand = ifc_nand_ctrl;
 
-		spin_lock_init(&ifc_nand_ctrl->controller.lock);
-		init_waitqueue_head(&ifc_nand_ctrl->controller.wq);
+		nand_hw_control_init(&ifc_nand_ctrl->controller);
 	} else {
 		ifc_nand_ctrl = fsl_ifc_ctrl_dev->nand;
 	}

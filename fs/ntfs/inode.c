@@ -2813,7 +2813,7 @@ done:
 	 * for real.
 	 */
 	if (!IS_NOCMTIME(VFS_I(base_ni)) && !IS_RDONLY(VFS_I(base_ni))) {
-		struct timespec now = current_fs_time(VFS_I(base_ni)->i_sb);
+		struct timespec now = current_time(VFS_I(base_ni));
 		int sync_it = 0;
 
 		if (!timespec_equal(&VFS_I(base_ni)->i_mtime, &now) ||

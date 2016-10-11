@@ -355,7 +355,7 @@ static struct inode *openprom_iget(struct super_block *sb, ino_t ino)
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	if (inode->i_state & I_NEW) {
-		inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+		inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 		if (inode->i_ino == OPENPROM_ROOT_INO) {
 			inode->i_op = &openprom_inode_operations;
 			inode->i_fop = &openprom_operations;

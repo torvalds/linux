@@ -647,7 +647,7 @@ static int fuse_symlink(struct inode *dir, struct dentry *entry,
 void fuse_update_ctime(struct inode *inode)
 {
 	if (!IS_NOCMTIME(inode)) {
-		inode->i_ctime = current_fs_time(inode->i_sb);
+		inode->i_ctime = current_time(inode);
 		mark_inode_dirty_sync(inode);
 	}
 }
@@ -1793,7 +1793,7 @@ static const struct inode_operations fuse_dir_inode_operations = {
 	.symlink	= fuse_symlink,
 	.unlink		= fuse_unlink,
 	.rmdir		= fuse_rmdir,
-	.rename2	= fuse_rename2,
+	.rename		= fuse_rename2,
 	.link		= fuse_link,
 	.setattr	= fuse_setattr,
 	.create		= fuse_create,
@@ -1801,10 +1801,7 @@ static const struct inode_operations fuse_dir_inode_operations = {
 	.mknod		= fuse_mknod,
 	.permission	= fuse_permission,
 	.getattr	= fuse_getattr,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
 	.listxattr	= fuse_listxattr,
-	.removexattr	= generic_removexattr,
 	.get_acl	= fuse_get_acl,
 	.set_acl	= fuse_set_acl,
 };
@@ -1824,10 +1821,7 @@ static const struct inode_operations fuse_common_inode_operations = {
 	.setattr	= fuse_setattr,
 	.permission	= fuse_permission,
 	.getattr	= fuse_getattr,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
 	.listxattr	= fuse_listxattr,
-	.removexattr	= generic_removexattr,
 	.get_acl	= fuse_get_acl,
 	.set_acl	= fuse_set_acl,
 };
@@ -1837,10 +1831,7 @@ static const struct inode_operations fuse_symlink_inode_operations = {
 	.get_link	= fuse_get_link,
 	.readlink	= generic_readlink,
 	.getattr	= fuse_getattr,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
 	.listxattr	= fuse_listxattr,
-	.removexattr	= generic_removexattr,
 };
 
 void fuse_init_common(struct inode *inode)

@@ -20,6 +20,7 @@
 #include <linux/namei.h>
 #include <linux/security.h>
 #include <linux/slab.h>
+#include <linux/xattr.h>
 #include "internal.h"
 
 #define CACHEFILES_KEYBUF_SIZE 512
@@ -799,13 +800,11 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 	}
 
 	ret = -EPERM;
-	if (!d_backing_inode(subdir)->i_op->setxattr ||
-	    !d_backing_inode(subdir)->i_op->getxattr ||
+	if (!(d_backing_inode(subdir)->i_opflags & IOP_XATTR) ||
 	    !d_backing_inode(subdir)->i_op->lookup ||
 	    !d_backing_inode(subdir)->i_op->mkdir ||
 	    !d_backing_inode(subdir)->i_op->create ||
-	    (!d_backing_inode(subdir)->i_op->rename &&
-	     !d_backing_inode(subdir)->i_op->rename2) ||
+	    !d_backing_inode(subdir)->i_op->rename ||
 	    !d_backing_inode(subdir)->i_op->rmdir ||
 	    !d_backing_inode(subdir)->i_op->unlink)
 		goto check_error;

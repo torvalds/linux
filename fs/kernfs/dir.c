@@ -1096,12 +1096,16 @@ static int kernfs_iop_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 static int kernfs_iop_rename(struct inode *old_dir, struct dentry *old_dentry,
-			     struct inode *new_dir, struct dentry *new_dentry)
+			     struct inode *new_dir, struct dentry *new_dentry,
+			     unsigned int flags)
 {
 	struct kernfs_node *kn  = old_dentry->d_fsdata;
 	struct kernfs_node *new_parent = new_dir->i_private;
 	struct kernfs_syscall_ops *scops = kernfs_root(kn)->syscall_ops;
 	int ret;
+
+	if (flags)
+		return -EINVAL;
 
 	if (!scops || !scops->rename)
 		return -EPERM;
@@ -1126,9 +1130,6 @@ const struct inode_operations kernfs_dir_iops = {
 	.permission	= kernfs_iop_permission,
 	.setattr	= kernfs_iop_setattr,
 	.getattr	= kernfs_iop_getattr,
-	.setxattr	= kernfs_iop_setxattr,
-	.removexattr	= kernfs_iop_removexattr,
-	.getxattr	= kernfs_iop_getxattr,
 	.listxattr	= kernfs_iop_listxattr,
 
 	.mkdir		= kernfs_iop_mkdir,
