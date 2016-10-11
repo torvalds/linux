@@ -125,7 +125,7 @@ static int slave_configure(struct scsi_device *sdev)
 /* queue a command */
 /* This is always called with scsi_lock(host) held */
 static int queuecommand_lck(struct scsi_cmnd *srb,
-			void (*done)(struct scsi_cmnd *))
+			    void (*done)(struct scsi_cmnd *))
 {
 	struct rtsx_dev *dev = host_to_rtsx(srb->device->host);
 	struct rtsx_chip *chip = dev->chip;
@@ -844,7 +844,7 @@ static void rtsx_init_options(struct rtsx_chip *chip)
 }
 
 static int rtsx_probe(struct pci_dev *pci,
-				const struct pci_device_id *pci_id)
+		      const struct pci_device_id *pci_id)
 {
 	struct Scsi_Host *host;
 	struct rtsx_dev *dev;
