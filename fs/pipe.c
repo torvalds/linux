@@ -1027,6 +1027,7 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 {
 	struct pipe_buffer *bufs;
 	unsigned int size, nr_pages;
+	long ret = 0;
 
 	size = round_pipe_size(arg);
 	nr_pages = size >> PAGE_SHIFT;
@@ -1034,13 +1035,26 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	if (!nr_pages)
 		return -EINVAL;
 
-	if (!capable(CAP_SYS_RESOURCE) && size > pipe_max_size)
+	/*
+	 * If trying to increase the pipe capacity, check that an
+	 * unprivileged user is not trying to exceed various limits
+	 * (soft limit check here, hard limit check just below).
+	 * Decreasing the pipe capacity is always permitted, even
+	 * if the user is currently over a limit.
+	 */
+	if (nr_pages > pipe->buffers &&
+			size > pipe_max_size && !capable(CAP_SYS_RESOURCE))
 		return -EPERM;
 
-	if ((too_many_pipe_buffers_hard(pipe->user) ||
-			too_many_pipe_buffers_soft(pipe->user)) &&
-			!capable(CAP_SYS_RESOURCE) && !capable(CAP_SYS_ADMIN))
-		return -EPERM;
+	account_pipe_buffers(pipe->user, pipe->buffers, nr_pages);
+
+	if (nr_pages > pipe->buffers &&
+			(too_many_pipe_buffers_hard(pipe->user) ||
+			 too_many_pipe_buffers_soft(pipe->user)) &&
+			!capable(CAP_SYS_RESOURCE) && !capable(CAP_SYS_ADMIN)) {
+		ret = -EPERM;
+		goto out_revert_acct;
+	}
 
 	/*
 	 * We can shrink the pipe, if arg >= pipe->nrbufs. Since we don't
@@ -1048,13 +1062,17 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	 * again like we would do for growing. If the pipe currently
 	 * contains more buffers than arg, then return busy.
 	 */
-	if (nr_pages < pipe->nrbufs)
-		return -EBUSY;
+	if (nr_pages < pipe->nrbufs) {
+		ret = -EBUSY;
+		goto out_revert_acct;
+	}
 
 	bufs = kcalloc(nr_pages, sizeof(*bufs),
 		       GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
-	if (unlikely(!bufs))
-		return -ENOMEM;
+	if (unlikely(!bufs)) {
+		ret = -ENOMEM;
+		goto out_revert_acct;
+	}
 
 	/*
 	 * The pipe array wraps around, so just start the new one at zero
@@ -1077,12 +1095,15 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 			memcpy(bufs + head, pipe->bufs, tail * sizeof(struct pipe_buffer));
 	}
 
-	account_pipe_buffers(pipe->user, pipe->buffers, nr_pages);
 	pipe->curbuf = 0;
 	kfree(pipe->bufs);
 	pipe->bufs = bufs;
 	pipe->buffers = nr_pages;
 	return nr_pages * PAGE_SIZE;
+
+out_revert_acct:
+	account_pipe_buffers(pipe->user, nr_pages, pipe->buffers);
+	return ret;
 }
 
 /*
