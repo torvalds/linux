@@ -624,13 +624,6 @@ void resched_task(struct task_struct *p)
 	smp_send_reschedule(cpu);
 }
 
-/* Entered with rq locked */
-static inline void resched_if_idle(struct rq *rq)
-{
-	if (rq_idle(rq) && rq->online)
-		resched_task(rq->curr);
-}
-
 /*
  * A task that is not running or queued will not have a node set.
  * A task that is queued but not running will have a node set.
@@ -642,6 +635,7 @@ static inline bool task_queued(struct task_struct *p)
 }
 
 static void enqueue_task(struct rq *rq, struct task_struct *p, int flags);
+static inline void resched_if_idle(struct rq *rq);
 
 static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
 {
@@ -748,6 +742,8 @@ static inline int rq_load(struct rq *rq)
 	return rq->sl->entries + !rq_idle(rq);
 }
 
+static inline bool rq_local(struct rq *rq);
+
 /*
  * Update the load average for feeding into cpu frequency governors. Use a
  * rough estimate of a rolling average with ~ time constant of 32ms.
@@ -771,7 +767,7 @@ static void update_load_avg(struct rq *rq)
 		return;
 
 	rq->load_update = rq->clock;
-	if (likely(rq->cpu == smp_processor_id()))
+	if (likely(rq_local(rq)))
 		cpufreq_trigger(rq->niffies, rq->load_avg);
 }
 
@@ -816,17 +812,6 @@ static bool idleprio_suitable(struct task_struct *p)
 static inline bool isoprio_suitable(struct rq *rq)
 {
 	return !rq->iso_refractory;
-}
-
-/*
- * Check to see if p can run on cpu, and if not, whether there are any online
- * CPUs it can run on instead.
- */
-static inline bool needs_other_cpu(struct task_struct *p, int cpu)
-{
-	if (unlikely(!cpumask_test_cpu(cpu, &p->cpus_allowed)))
-		return true;
-	return false;
 }
 
 /*
@@ -920,6 +905,17 @@ static inline int queued_notrunning(void)
 }
 
 #ifdef CONFIG_SMP
+/* Entered with rq locked */
+static inline void resched_if_idle(struct rq *rq)
+{
+	if (rq_idle(rq) && rq->online)
+		resched_task(rq->curr);
+}
+
+static inline bool rq_local(struct rq *rq)
+{
+	return (rq->cpu == smp_processor_id());
+}
 #ifdef CONFIG_SMT_NICE
 static const cpumask_t *thread_cpumask(int cpu);
 
@@ -1043,7 +1039,7 @@ static void resched_curr(struct rq *rq)
 	/* We're doing this without holding the rq lock if it's not task_rq */
 	set_tsk_need_resched(rq->curr);
 
-	if (rq->cpu == smp_processor_id()) {
+	if (rq_local(rq)) {
 		set_preempt_need_resched();
 		return;
 	}
@@ -1152,6 +1148,11 @@ static inline void resched_suitable_idle(struct task_struct *p)
 	if (suitable_idle_cpus(p))
 		resched_best_idle(p, task_cpu(p));
 }
+
+static inline struct rq *rq_order(struct rq *rq, int cpu)
+{
+	return rq->rq_order[cpu];
+}
 #else /* CONFIG_SMP */
 static inline void set_cpuidle_map(int cpu)
 {
@@ -1173,6 +1174,25 @@ static inline void resched_suitable_idle(struct task_struct *p)
 static inline void resched_curr(struct rq *rq)
 {
 	resched_task(rq->curr);
+}
+
+static inline void resched_if_idle(struct rq *rq)
+{
+}
+
+static inline bool rq_local(struct rq *rq)
+{
+	return true;
+}
+
+static inline struct rq *rq_order(struct rq *rq, int cpu)
+{
+	return rq;
+}
+
+static inline bool smt_schedule(struct task_struct *p, struct rq *rq)
+{
+	return true;
 }
 #endif /* CONFIG_SMP */
 
@@ -1323,7 +1343,7 @@ static inline void return_task(struct task_struct *p, struct rq *rq,
 		deactivate_task(p, rq);
 	else {
 		inc_qnr();
-#if CONFIG_SMP
+#ifdef CONFIG_SMP
 		/*
 		 * set_task_cpu was called on the running task that doesn't
 		 * want to deactivate so it has to be enqueued to a different
@@ -1508,6 +1528,16 @@ can_preempt(struct task_struct *p, int prio, u64 deadline)
 }
 
 #ifdef CONFIG_SMP
+/*
+ * Check to see if p can run on cpu, and if not, whether there are any online
+ * CPUs it can run on instead.
+ */
+static inline bool needs_other_cpu(struct task_struct *p, int cpu)
+{
+	if (unlikely(!cpumask_test_cpu(cpu, &p->cpus_allowed)))
+		return true;
+	return false;
+}
 #define cpu_online_map		(*(cpumask_t *)cpu_online_mask)
 #ifdef CONFIG_HOTPLUG_CPU
 /*
@@ -1710,7 +1740,6 @@ void scheduler_ipi(void)
 	 */
 	preempt_fold_need_resched();
 }
-#endif
 
 /*
  * For a task that's just being woken up we have a valuable balancing
@@ -1750,6 +1779,17 @@ static inline int select_best_cpu(struct task_struct *p)
 	}
 	return best_rq->cpu;
 }
+#else /* CONFIG_SMP */
+static inline int select_best_cpu(struct task_struct *p)
+{
+	return 0;
+}
+
+static struct rq *resched_best_idle(struct task_struct *p, int cpu)
+{
+	return NULL;
+}
+#endif /* CONFIG_SMP */
 
 static void ttwu_queue(struct task_struct *p, int cpu, int wake_flags)
 {
@@ -3460,7 +3500,7 @@ task_struct *earliest_deadline_task(struct rq *rq, int cpu, struct task_struct *
 	int i, best_entries = 0;
 
 	for (i = 0; i < num_possible_cpus(); i++) {
-		struct rq *other_rq = rq->rq_order[i];
+		struct rq *other_rq = rq_order(rq, i);
 		int entries = other_rq->sl->entries;
 		struct task_struct *p;
 
