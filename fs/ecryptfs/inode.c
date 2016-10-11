@@ -1005,15 +1005,14 @@ ecryptfs_setxattr(struct dentry *dentry, struct inode *inode,
 		  const char *name, const void *value,
 		  size_t size, int flags)
 {
-	int rc = 0;
+	int rc;
 	struct dentry *lower_dentry;
 
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	if (!d_inode(lower_dentry)->i_op->setxattr) {
+	if (!(d_inode(lower_dentry)->i_opflags & IOP_XATTR)) {
 		rc = -EOPNOTSUPP;
 		goto out;
 	}
-
 	rc = vfs_setxattr(lower_dentry, name, value, size, flags);
 	if (!rc && inode)
 		fsstack_copy_attr_all(inode, d_inode(lower_dentry));
@@ -1025,15 +1024,14 @@ ssize_t
 ecryptfs_getxattr_lower(struct dentry *lower_dentry, struct inode *lower_inode,
 			const char *name, void *value, size_t size)
 {
-	int rc = 0;
+	int rc;
 
-	if (!lower_inode->i_op->getxattr) {
+	if (!(lower_inode->i_opflags & IOP_XATTR)) {
 		rc = -EOPNOTSUPP;
 		goto out;
 	}
 	inode_lock(lower_inode);
-	rc = lower_inode->i_op->getxattr(lower_dentry, lower_inode,
-					 name, value, size);
+	rc = __vfs_getxattr(lower_dentry, lower_inode, name, value, size);
 	inode_unlock(lower_inode);
 out:
 	return rc;
@@ -1066,19 +1064,22 @@ out:
 	return rc;
 }
 
-static int ecryptfs_removexattr(struct dentry *dentry, const char *name)
+static int ecryptfs_removexattr(struct dentry *dentry, struct inode *inode,
+				const char *name)
 {
-	int rc = 0;
+	int rc;
 	struct dentry *lower_dentry;
+	struct inode *lower_inode;
 
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	if (!d_inode(lower_dentry)->i_op->removexattr) {
+	lower_inode = ecryptfs_inode_to_lower(inode);
+	if (!(lower_inode->i_opflags & IOP_XATTR)) {
 		rc = -EOPNOTSUPP;
 		goto out;
 	}
-	inode_lock(d_inode(lower_dentry));
-	rc = d_inode(lower_dentry)->i_op->removexattr(lower_dentry, name);
-	inode_unlock(d_inode(lower_dentry));
+	inode_lock(lower_inode);
+	rc = __vfs_removexattr(lower_dentry, name);
+	inode_unlock(lower_inode);
 out:
 	return rc;
 }
@@ -1089,10 +1090,7 @@ const struct inode_operations ecryptfs_symlink_iops = {
 	.permission = ecryptfs_permission,
 	.setattr = ecryptfs_setattr,
 	.getattr = ecryptfs_getattr_link,
-	.setxattr = ecryptfs_setxattr,
-	.getxattr = ecryptfs_getxattr,
 	.listxattr = ecryptfs_listxattr,
-	.removexattr = ecryptfs_removexattr
 };
 
 const struct inode_operations ecryptfs_dir_iops = {
@@ -1107,18 +1105,43 @@ const struct inode_operations ecryptfs_dir_iops = {
 	.rename = ecryptfs_rename,
 	.permission = ecryptfs_permission,
 	.setattr = ecryptfs_setattr,
-	.setxattr = ecryptfs_setxattr,
-	.getxattr = ecryptfs_getxattr,
 	.listxattr = ecryptfs_listxattr,
-	.removexattr = ecryptfs_removexattr
 };
 
 const struct inode_operations ecryptfs_main_iops = {
 	.permission = ecryptfs_permission,
 	.setattr = ecryptfs_setattr,
 	.getattr = ecryptfs_getattr,
-	.setxattr = ecryptfs_setxattr,
-	.getxattr = ecryptfs_getxattr,
 	.listxattr = ecryptfs_listxattr,
-	.removexattr = ecryptfs_removexattr
+};
+
+static int ecryptfs_xattr_get(const struct xattr_handler *handler,
+			      struct dentry *dentry, struct inode *inode,
+			      const char *name, void *buffer, size_t size)
+{
+	return ecryptfs_getxattr(dentry, inode, name, buffer, size);
+}
+
+static int ecryptfs_xattr_set(const struct xattr_handler *handler,
+			      struct dentry *dentry, struct inode *inode,
+			      const char *name, const void *value, size_t size,
+			      int flags)
+{
+	if (value)
+		return ecryptfs_setxattr(dentry, inode, name, value, size, flags);
+	else {
+		BUG_ON(flags != XATTR_REPLACE);
+		return ecryptfs_removexattr(dentry, inode, name);
+	}
+}
+
+const struct xattr_handler ecryptfs_xattr_handler = {
+	.prefix = "",  /* match anything */
+	.get = ecryptfs_xattr_get,
+	.set = ecryptfs_xattr_set,
+};
+
+const struct xattr_handler *ecryptfs_xattr_handlers[] = {
+	&ecryptfs_xattr_handler,
+	NULL
 };

@@ -323,6 +323,35 @@ Whoever sets up the inode is responsible for filling in the "i_op" field. This
 is a pointer to a "struct inode_operations" which describes the methods that
 can be performed on individual inodes.
 
+struct xattr_handlers
+---------------------
+
+On filesystems that support extended attributes (xattrs), the s_xattr
+superblock field points to a NULL-terminated array of xattr handlers.  Extended
+attributes are name:value pairs.
+
+  name: Indicates that the handler matches attributes with the specified name
+	(such as "system.posix_acl_access"); the prefix field must be NULL.
+
+  prefix: Indicates that the handler matches all attributes with the specified
+	name prefix (such as "user."); the name field must be NULL.
+
+  list: Determine if attributes matching this xattr handler should be listed
+	for a particular dentry.  Used by some listxattr implementations like
+	generic_listxattr.
+
+  get: Called by the VFS to get the value of a particular extended attribute.
+	This method is called by the getxattr(2) system call.
+
+  set: Called by the VFS to set the value of a particular extended attribute.
+	When the new value is NULL, called to remove a particular extended
+	attribute.  This method is called by the the setxattr(2) and
+	removexattr(2) system calls.
+
+When none of the xattr handlers of a filesystem match the specified attribute
+name or when a filesystem doesn't support extended attributes, the various
+*xattr(2) system calls return -EOPNOTSUPP.
+
 
 The Inode Object
 ================
@@ -356,10 +385,7 @@ struct inode_operations {
 	int (*get_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *mnt, struct dentry *, struct kstat *);
-	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);
-	ssize_t (*getxattr) (struct dentry *, const char *, void *, size_t);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
-	int (*removexattr) (struct dentry *, const char *);
 	void (*update_time)(struct inode *, struct timespec *, int);
 	int (*atomic_open)(struct inode *, struct dentry *, struct file *,
 			unsigned open_flag, umode_t create_mode, int *opened);
@@ -463,19 +489,8 @@ otherwise noted.
   getattr: called by the VFS to get attributes of a file. This method
   	is called by stat(2) and related system calls.
 
-  setxattr: called by the VFS to set an extended attribute for a file.
-  	Extended attribute is a name:value pair associated with an
-  	inode. This method is called by setxattr(2) system call.
-
-  getxattr: called by the VFS to retrieve the value of an extended
-  	attribute name. This method is called by getxattr(2) function
-  	call.
-
   listxattr: called by the VFS to list all extended attributes for a
-  	given file. This method is called by listxattr(2) system call.
-
-  removexattr: called by the VFS to remove an extended attribute from
-  	a file. This method is called by removexattr(2) system call.
+	given file. This method is called by the listxattr(2) system call.
 
   update_time: called by the VFS to update a specific time or the i_version of
   	an inode.  If this is not defined the VFS will update the inode itself

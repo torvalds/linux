@@ -275,10 +275,10 @@ static bool ovl_is_opaquedir(struct dentry *dentry)
 	char val;
 	struct inode *inode = dentry->d_inode;
 
-	if (!S_ISDIR(inode->i_mode) || !inode->i_op->getxattr)
+	if (!S_ISDIR(inode->i_mode) || !(inode->i_opflags & IOP_XATTR))
 		return false;
 
-	res = inode->i_op->getxattr(dentry, inode, OVL_XATTR_OPAQUE, &val, 1);
+	res = __vfs_getxattr(dentry, inode, OVL_XATTR_OPAQUE, &val, 1);
 	if (res == 1 && val == 'y')
 		return true;
 

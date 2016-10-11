@@ -15,6 +15,7 @@
 #include <linux/mpage.h>
 #include <linux/sched.h>
 #include <linux/uio.h>
+#include <linux/xattr.h>
 
 #include "hfs_fs.h"
 #include "btree.h"
@@ -687,7 +688,5 @@ static const struct file_operations hfs_file_operations = {
 static const struct inode_operations hfs_file_inode_operations = {
 	.lookup		= hfs_file_lookup,
 	.setattr	= hfs_inode_setattr,
-	.setxattr	= hfs_setxattr,
-	.getxattr	= hfs_getxattr,
-	.listxattr	= hfs_listxattr,
+	.listxattr	= generic_listxattr,
 };
