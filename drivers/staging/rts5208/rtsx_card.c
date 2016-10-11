@@ -986,7 +986,7 @@ int card_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 	unsigned int lun = SCSI_LUN(srb);
 	int i;
 
-	if (chip->rw_card[lun] == NULL) {
+	if (!chip->rw_card[lun]) {
 		rtsx_trace(chip);
 		return STATUS_FAIL;
 	}
