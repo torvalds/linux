@@ -125,10 +125,7 @@ static int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data,
 	u16 i;
 
 	/* find existing FDIR VSI */
-	vsi = NULL;
-	for (i = 0; i < pf->num_alloc_vsi; i++)
-		if (pf->vsi[i] && pf->vsi[i]->type == I40E_VSI_FDIR)
-			vsi = pf->vsi[i];
+	vsi = i40e_find_vsi_by_type(pf, I40E_VSI_FDIR);
 	if (!vsi)
 		return -ENOENT;
 

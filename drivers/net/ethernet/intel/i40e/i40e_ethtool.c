@@ -1768,17 +1768,7 @@ static inline bool i40e_active_vfs(struct i40e_pf *pf)
 
 static inline bool i40e_active_vmdqs(struct i40e_pf *pf)
 {
-	struct i40e_vsi **vsi = pf->vsi;
-	int i;
-
-	for (i = 0; i < pf->num_alloc_vsi; i++) {
-		if (!vsi[i])
-			continue;
-		if (vsi[i]->type == I40E_VSI_VMDQ2)
-			return true;
-	}
-
-	return false;
+	return !!i40e_find_vsi_by_type(pf, I40E_VSI_VMDQ2);
 }
 
 static void i40e_diag_test(struct net_device *netdev,

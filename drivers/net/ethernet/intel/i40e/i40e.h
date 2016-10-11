@@ -723,6 +723,25 @@ int i40e_get_rss(struct i40e_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 void i40e_fill_rss_lut(struct i40e_pf *pf, u8 *lut,
 		       u16 rss_table_size, u16 rss_size);
 struct i40e_vsi *i40e_find_vsi_from_id(struct i40e_pf *pf, u16 id);
+/**
+ * i40e_find_vsi_by_type - Find and return Flow Director VSI
+ * @pf: PF to search for VSI
+ * @type: Value indicating type of VSI we are looking for
+ **/
+static inline struct i40e_vsi *
+i40e_find_vsi_by_type(struct i40e_pf *pf, u16 type)
+{
+	int i;
+
+	for (i = 0; i < pf->num_alloc_vsi; i++) {
+		struct i40e_vsi *vsi = pf->vsi[i];
+
+		if (vsi && vsi->type == type)
+			return vsi;
+	}
+
+	return NULL;
+}
 void i40e_update_stats(struct i40e_vsi *vsi);
 void i40e_update_eth_stats(struct i40e_vsi *vsi);
 struct rtnl_link_stats64 *i40e_get_vsi_stats_struct(struct i40e_vsi *vsi);

@@ -6718,7 +6718,6 @@ static int i40e_vsi_clear(struct i40e_vsi *vsi);
 static void i40e_fdir_sb_setup(struct i40e_pf *pf)
 {
 	struct i40e_vsi *vsi;
-	int i;
 
 	/* quick workaround for an NVM issue that leaves a critical register
 	 * uninitialized
@@ -6729,6 +6728,7 @@ static void i40e_fdir_sb_setup(struct i40e_pf *pf)
 			0xeacb7d61, 0xaa4f05b6, 0x9c5c89ed, 0xfc425ddb,
 			0xa4654832, 0xfc7461d4, 0x8f827619, 0xf5c63c21,
 			0x95b3a76d};
+		int i;
 
 		for (i = 0; i <= I40E_GLQF_HKEY_MAX_INDEX; i++)
 			wr32(&pf->hw, I40E_GLQF_HKEY(i), hkey[i]);
@@ -6738,13 +6738,7 @@ static void i40e_fdir_sb_setup(struct i40e_pf *pf)
 		return;
 
 	/* find existing VSI and see if it needs configuring */
-	vsi = NULL;
-	for (i = 0; i < pf->num_alloc_vsi; i++) {
-		if (pf->vsi[i] && pf->vsi[i]->type == I40E_VSI_FDIR) {
-			vsi = pf->vsi[i];
-			break;
-		}
-	}
+	vsi = i40e_find_vsi_by_type(pf, I40E_VSI_FDIR);
 
 	/* create a new VSI if none exists */
 	if (!vsi) {
@@ -6766,15 +6760,12 @@ static void i40e_fdir_sb_setup(struct i40e_pf *pf)
  **/
 static void i40e_fdir_teardown(struct i40e_pf *pf)
 {
-	int i;
+	struct i40e_vsi *vsi;
 
 	i40e_fdir_filter_exit(pf);
-	for (i = 0; i < pf->num_alloc_vsi; i++) {
-		if (pf->vsi[i] && pf->vsi[i]->type == I40E_VSI_FDIR) {
-			i40e_vsi_release(pf->vsi[i]);
-			break;
-		}
-	}
+	vsi = i40e_find_vsi_by_type(pf, I40E_VSI_FDIR);
+	if (vsi)
+		i40e_vsi_release(vsi);
 }
 
 /**
