@@ -820,8 +820,8 @@ config RTC_DRV_RV3029_HWMON
 
 comment "Platform RTC drivers"
 
-# this 'CMOS' RTC driver is arch dependent because <asm-generic/rtc.h>
-# requires <asm/mc146818rtc.h> defining CMOS_READ/CMOS_WRITE, and a
+# this 'CMOS' RTC driver is arch dependent because it requires
+# <asm/mc146818rtc.h> defining CMOS_READ/CMOS_WRITE, and a
 # global rtc_lock ... it's not yet just another platform_device.
 
 config RTC_DRV_CMOS
