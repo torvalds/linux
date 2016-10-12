@@ -1209,7 +1209,6 @@ static struct pci_driver lynxfb_driver = {
 static int __init lynxfb_init(void)
 {
 	char *option;
-	int ret;
 
 #ifdef MODULE
 	option = g_option;
@@ -1219,8 +1218,7 @@ static int __init lynxfb_init(void)
 #endif
 
 	lynxfb_setup(option);
-	ret = pci_register_driver(&lynxfb_driver);
-	return ret;
+	return pci_register_driver(&lynxfb_driver);
 }
 module_init(lynxfb_init);
 
