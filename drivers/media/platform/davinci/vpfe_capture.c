@@ -511,7 +511,7 @@ static int vpfe_open(struct file *file)
 	}
 
 	/* Allocate memory for the file handle object */
-	fh = kmalloc(sizeof(struct vpfe_fh), GFP_KERNEL);
+	fh = kmalloc(sizeof(*fh), GFP_KERNEL);
 	if (!fh)
 		return -ENOMEM;
 
