@@ -267,8 +267,6 @@ static int __init ls_pcie_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	platform_set_drvdata(pdev, pcie);
-
 	return 0;
 }
 
