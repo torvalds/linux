@@ -1563,21 +1563,21 @@ static ssize_t buffer_write (struct device *dev, struct device_attribute *attr,
 {
 	struct netiucv_priv *priv = dev_get_drvdata(dev);
 	struct net_device *ndev = priv->conn->netdev;
-	char         *e;
-	int          bs1;
+	unsigned int bs1;
+	int rc;
 
 	IUCV_DBF_TEXT(trace, 3, __func__);
 	if (count >= 39)
 		return -EINVAL;
 
-	bs1 = simple_strtoul(buf, &e, 0);
+	rc = kstrtouint(buf, 0, &bs1);
 
-	if (e && (!isspace(*e))) {
-		IUCV_DBF_TEXT_(setup, 2, "buffer_write: invalid char %02x\n",
-			*e);
+	if (rc == -EINVAL) {
+		IUCV_DBF_TEXT_(setup, 2, "buffer_write: invalid char %s\n",
+			buf);
 		return -EINVAL;
 	}
-	if (bs1 > NETIUCV_BUFSIZE_MAX) {
+	if ((rc == -ERANGE) || (bs1 > NETIUCV_BUFSIZE_MAX)) {
 		IUCV_DBF_TEXT_(setup, 2,
 			"buffer_write: buffer size %d too large\n",
 			bs1);
