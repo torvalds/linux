@@ -482,6 +482,8 @@ static int bcm2048_set_rds_no_lock(struct bcm2048_device *bdev, u8 rds_on)
 					   flags);
 		memset(&bdev->rds_info, 0, sizeof(bdev->rds_info));
 	}
+	if (err)
+		return err;
 
 	return bcm2048_send_command(bdev, BCM2048_I2C_FM_RDS_SYSTEM,
 				    bdev->cache_fm_rds_system);
