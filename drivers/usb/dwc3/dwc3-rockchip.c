@@ -501,6 +501,8 @@ static int dwc3_rockchip_runtime_suspend(struct device *dev)
 	for (i = 0; i < rockchip->num_clocks; i++)
 		clk_disable(rockchip->clks[i]);
 
+	device_init_wakeup(dev, false);
+
 	return 0;
 }
 
@@ -511,6 +513,8 @@ static int dwc3_rockchip_runtime_resume(struct device *dev)
 
 	for (i = 0; i < rockchip->num_clocks; i++)
 		clk_enable(rockchip->clks[i]);
+
+	device_init_wakeup(dev, true);
 
 	return 0;
 }
