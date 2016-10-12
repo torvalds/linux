@@ -12,6 +12,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-evb-rev2-android-next.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-evb-rev2-cros.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-evb-rev3-android.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-evb-rev3-android-edp.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-evb-rev3-android-edp-next.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-evb-rev3-cros.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-fpga.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-gru-gru.dtb
