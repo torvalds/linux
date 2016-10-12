@@ -617,14 +617,12 @@ static int tuner_probe(struct i2c_client *client,
 
 	if (show_i2c) {
 		unsigned char buffer[16];
-		int i, rc;
+		int rc;
 
 		memset(buffer, 0, sizeof(buffer));
 		rc = i2c_master_recv(client, buffer, sizeof(buffer));
-		tuner_info("I2C RECV = ");
-		for (i = 0; i < rc; i++)
-			printk(KERN_CONT "%02x ", buffer[i]);
-		printk("\n");
+		if (rc >= 0)
+			tuner_info("I2C RECV = %*ph\n", rc, buffer);
 	}
 
 	/* autodetection code based on the i2c addr */
