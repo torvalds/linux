@@ -290,6 +290,8 @@ i915_vma_put_fence(struct i915_vma *vma)
 {
 	struct drm_i915_fence_reg *fence = vma->fence;
 
+	assert_rpm_wakelock_held(to_i915(vma->vm->dev));
+
 	if (!fence)
 		return 0;
 
@@ -341,6 +343,8 @@ i915_vma_get_fence(struct i915_vma *vma)
 	struct drm_i915_fence_reg *fence;
 	struct i915_vma *set = i915_gem_object_is_tiled(vma->obj) ? vma : NULL;
 
+	assert_rpm_wakelock_held(to_i915(vma->vm->dev));
+
 	/* Just update our place in the LRU if our fence is getting reused. */
 	if (vma->fence) {
 		fence = vma->fence;
@@ -371,6 +375,12 @@ void i915_gem_restore_fences(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int i;
 
+	/* Note that this may be called outside of struct_mutex, by
+	 * runtime suspend/resume. The barrier we require is enforced by
+	 * rpm itself - all access to fences/GTT are only within an rpm
+	 * wakeref, and to acquire that wakeref you must pass through here.
+	 */
+
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
 		struct i915_vma *vma = reg->vma;
@@ -379,10 +389,17 @@ void i915_gem_restore_fences(struct drm_device *dev)
 		 * Commit delayed tiling changes if we have an object still
 		 * attached to the fence, otherwise just clear the fence.
 		 */
-		if (vma && !i915_gem_object_is_tiled(vma->obj))
-			vma = NULL;
+		if (vma && !i915_gem_object_is_tiled(vma->obj)) {
+			GEM_BUG_ON(!reg->dirty);
+			GEM_BUG_ON(vma->obj->fault_mappable);
 
-		fence_update(reg, vma);
+			list_move(&reg->link, &dev_priv->mm.fence_list);
+			vma->fence = NULL;
+			vma = NULL;
+		}
+
+		fence_write(reg, vma);
+		reg->vma = vma;
 	}
 }
 
