@@ -1510,9 +1510,9 @@ static int nvme_delete_queue(struct nvme_queue *nvmeq, u8 opcode)
 	return 0;
 }
 
-static void nvme_disable_io_queues(struct nvme_dev *dev)
+static void nvme_disable_io_queues(struct nvme_dev *dev, int queues)
 {
-	int pass, queues = dev->online_queues - 1;
+	int pass;
 	unsigned long timeout;
 	u8 opcode = nvme_admin_delete_sq;
 
@@ -1648,7 +1648,7 @@ static void nvme_pci_disable(struct nvme_dev *dev)
 
 static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 {
-	int i;
+	int i, queues;
 	u32 csts = -1;
 
 	del_timer_sync(&dev->watchdog_timer);
@@ -1659,6 +1659,7 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 		csts = readl(dev->bar + NVME_REG_CSTS);
 	}
 
+	queues = dev->online_queues - 1;
 	for (i = dev->queue_count - 1; i > 0; i--)
 		nvme_suspend_queue(dev->queues[i]);
 
@@ -1670,7 +1671,7 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 		if (dev->queue_count)
 			nvme_suspend_queue(dev->queues[0]);
 	} else {
-		nvme_disable_io_queues(dev);
+		nvme_disable_io_queues(dev, queues);
 		nvme_disable_admin_queue(dev, shutdown);
 	}
 	nvme_pci_disable(dev);
