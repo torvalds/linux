@@ -532,32 +532,6 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 
 static void i915_gem_fini(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	/*
-	 * Neither the BIOS, ourselves or any other kernel
-	 * expects the system to be in execlists mode on startup,
-	 * so we need to reset the GPU back to legacy mode. And the only
-	 * known way to disable logical contexts is through a GPU reset.
-	 *
-	 * So in order to leave the system in a known default configuration,
-	 * always reset the GPU upon unload. Afterwards we then clean up the
-	 * GEM state tracking, flushing off the requests and leaving the
-	 * system in a known idle state.
-	 *
-	 * Note that is of the upmost importance that the GPU is idle and
-	 * all stray writes are flushed *before* we dismantle the backing
-	 * storage for the pinned objects.
-	 *
-	 * However, since we are uncertain that reseting the GPU on older
-	 * machines is a good idea, we don't - just in case it leaves the
-	 * machine in an unusable condition.
-	 */
-	if (HAS_HW_CONTEXTS(dev)) {
-		int reset = intel_gpu_reset(dev_priv, ALL_ENGINES);
-		WARN_ON(reset && reset != -ENODEV);
-	}
-
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_engines(dev);
 	i915_gem_context_fini(dev);
@@ -636,6 +610,8 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	return 0;
 
 cleanup_gem:
+	if (i915_gem_suspend(dev))
+		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
 	i915_gem_fini(dev);
 cleanup_irq:
 	intel_guc_fini(dev);
