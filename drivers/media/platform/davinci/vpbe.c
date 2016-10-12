@@ -230,7 +230,7 @@ static int vpbe_set_output(struct vpbe_device *vpbe_dev, int index)
 	u32 if_params;
 	int enc_out_index;
 	int sd_index;
-	int ret = 0;
+	int ret;
 
 	if (index >= cfg->num_outputs)
 		return -EINVAL;
