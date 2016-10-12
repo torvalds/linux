@@ -509,7 +509,6 @@ static int vpbe_set_mode(struct vpbe_device *vpbe_dev,
 	struct v4l2_dv_timings dv_timings;
 	struct osd_state *osd_device;
 	int out_index = vpbe_dev->current_out_index;
-	int ret = 0;
 	int i;
 
 	if (!mode_info || !mode_info->name)
@@ -549,8 +548,7 @@ static int vpbe_set_mode(struct vpbe_device *vpbe_dev,
 		vpbe_dev->current_timings.upper_margin);
 
 	mutex_unlock(&vpbe_dev->lock);
-
-	return ret;
+	return 0;
 }
 
 static int vpbe_set_default_mode(struct vpbe_device *vpbe_dev)
