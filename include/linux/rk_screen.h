@@ -54,7 +54,7 @@ struct overscan {
 	unsigned char bottom;
 };
 
-/* Screen description 
+/* Screen description
 *type:LVDS,RGB,MIPI,MCU
 *lvds_fromat:lvds data format,set it if the screen is lvds
 *face:thi display output face,18bit,24bit,etc
@@ -62,11 +62,12 @@ struct overscan {
 */
 struct rk_screen {
 	u16 type;
-	u16 lvds_format; 
+	u16 refresh_mode;
+	u16 lvds_format;
 	u16 face;
 	u16 color_mode;
-	u8 lcdc_id;   
-	u8 screen_id; 
+	u8 lcdc_id;
+	u8 screen_id;
 	struct fb_videomode mode;
 	u32 post_dsp_stx;
 	u32 post_dsp_sty;

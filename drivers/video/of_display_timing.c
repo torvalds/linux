@@ -107,6 +107,10 @@ static int of_parse_display_timing(const struct device_node *np,
 		dt->flags |= val ? DISPLAY_FLAGS_SWAP_RB : 0;
 	if (!of_property_read_u32(np, "screen-type", &val))
 		dt->screen_type = val;
+	if (!of_property_read_u32(np, "refresh-mode", &val))
+		dt->refresh_mode = val;
+	else
+		dt->refresh_mode = 0;
 	if (!of_property_read_u32(np, "lvds-format", &val))
 		dt->lvds_format = val;
 	if (!of_property_read_u32(np, "out-face", &val))

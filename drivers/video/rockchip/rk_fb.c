@@ -500,6 +500,7 @@ int rk_fb_video_mode_from_timing(const struct display_timing *dt,
 	screen->mode.yres = dt->vactive.typ;
 	screen->mode.vsync_len = dt->vsync_len.typ;
 	screen->type = dt->screen_type;
+	screen->refresh_mode = dt->refresh_mode;
 	screen->lvds_format = dt->lvds_format;
 	screen->face = dt->face;
 	screen->color_mode = dt->color_mode;
