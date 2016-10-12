@@ -915,14 +915,15 @@ static struct dentry *create_buf_file_callback(const char *filename,
 {
 	struct dentry *buf_file;
 
-	if (!parent)
-		return NULL;
-
 	/* This to enable the use of a single buffer for the relay channel and
 	 * correspondingly have a single file exposed to User, through which
 	 * it can collect the logs in order without any post-processing.
+	 * Need to set 'is_global' even if parent is NULL for early logging.
 	 */
 	*is_global = 1;
+
+	if (!parent)
+		return NULL;
 
 	/* Not using the channel filename passed as an argument, since for each
 	 * channel relay appends the corresponding CPU number to the filename
@@ -956,12 +957,39 @@ static void guc_log_remove_relay_file(struct intel_guc *guc)
 	relay_close(guc->log.relay_chan);
 }
 
-static int guc_log_create_relay_file(struct intel_guc *guc)
+static int guc_log_create_relay_channel(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct rchan *guc_log_relay_chan;
-	struct dentry *log_dir;
 	size_t n_subbufs, subbuf_size;
+
+	/* Keep the size of sub buffers same as shared log buffer */
+	subbuf_size = guc->log.vma->obj->base.size;
+
+	/* Store up to 8 snapshots, which is large enough to buffer sufficient
+	 * boot time logs and provides enough leeway to User, in terms of
+	 * latency, for consuming the logs from relay. Also doesn't take
+	 * up too much memory.
+	 */
+	n_subbufs = 8;
+
+	guc_log_relay_chan = relay_open(NULL, NULL, subbuf_size,
+					n_subbufs, &relay_callbacks, dev_priv);
+	if (!guc_log_relay_chan) {
+		DRM_ERROR("Couldn't create relay chan for GuC logging\n");
+		return -ENOMEM;
+	}
+
+	GEM_BUG_ON(guc_log_relay_chan->subbuf_size < subbuf_size);
+	guc->log.relay_chan = guc_log_relay_chan;
+	return 0;
+}
+
+static int guc_log_create_relay_file(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct dentry *log_dir;
+	int ret;
 
 	/* For now create the log file in /sys/kernel/debug/dri/0 dir */
 	log_dir = dev_priv->drm.primary->debugfs_root;
@@ -982,26 +1010,12 @@ static int guc_log_create_relay_file(struct intel_guc *guc)
 		return -ENODEV;
 	}
 
-	/* Keep the size of sub buffers same as shared log buffer */
-	subbuf_size = guc->log.vma->obj->base.size;
-
-	/* Store up to 8 snapshots, which is large enough to buffer sufficient
-	 * boot time logs and provides enough leeway to User, in terms of
-	 * latency, for consuming the logs from relay. Also doesn't take
-	 * up too much memory.
-	 */
-	n_subbufs = 8;
-
-	guc_log_relay_chan = relay_open("guc_log", log_dir, subbuf_size,
-					n_subbufs, &relay_callbacks, dev_priv);
-	if (!guc_log_relay_chan) {
-		DRM_ERROR("Couldn't create relay chan for GuC logging\n");
-		return -ENOMEM;
+	ret = relay_late_setup_files(guc->log.relay_chan, "guc_log", log_dir);
+	if (ret) {
+		DRM_ERROR("Couldn't associate relay chan with file %d\n", ret);
+		return ret;
 	}
 
-	GEM_BUG_ON(guc_log_relay_chan->subbuf_size < subbuf_size);
-	/* FIXME: Cover the update under a lock ? */
-	guc->log.relay_chan = guc_log_relay_chan;
 	return 0;
 }
 
@@ -1021,7 +1035,6 @@ static void guc_move_to_next_buf(struct intel_guc *guc)
 
 static void *guc_get_write_buffer(struct intel_guc *guc)
 {
-	/* FIXME: Cover the check under a lock ? */
 	if (!guc->log.relay_chan)
 		return NULL;
 
@@ -1229,6 +1242,16 @@ static int guc_log_create_extras(struct intel_guc *guc)
 		}
 
 		guc->log.buf_addr = vaddr;
+	}
+
+	if (!guc->log.relay_chan) {
+		/* Create a relay channel, so that we have buffers for storing
+		 * the GuC firmware logs, the channel will be linked with a file
+		 * later on when debugfs is registered.
+		 */
+		ret = guc_log_create_relay_channel(guc);
+		if (ret)
+			return ret;
 	}
 
 	if (!guc->log.flush_wq) {
