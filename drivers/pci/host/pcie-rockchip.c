@@ -972,7 +972,7 @@ static int rockchip_pcie_prog_ob_atu(struct rockchip_pcie *rockchip,
 		return -EINVAL;
 	if (region_no == 0) {
 		if (AXI_REGION_0_SIZE < (2ULL << num_pass_bits))
-		return -EINVAL;
+			return -EINVAL;
 	}
 	if (region_no != 0) {
 		if (AXI_REGION_SIZE < (2ULL << num_pass_bits))
