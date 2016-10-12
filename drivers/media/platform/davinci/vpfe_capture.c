@@ -615,9 +615,8 @@ static irqreturn_t vpfe_isr(int irq, void *dev_id)
 			 * interleavely or separately in memory, reconfigure
 			 * the CCDC memory address
 			 */
-			if (field == V4L2_FIELD_SEQ_TB) {
+			if (field == V4L2_FIELD_SEQ_TB)
 				vpfe_schedule_bottom_field(vpfe_dev);
-			}
 			goto clear_intr;
 		}
 		/*
