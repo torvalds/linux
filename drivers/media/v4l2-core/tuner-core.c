@@ -503,8 +503,7 @@ static int tuner_s_type_addr(struct v4l2_subdev *sd,
 		set_type(c, tun_setup->type, tun_setup->mode_mask,
 			 tun_setup->config, tun_setup->tuner_callback);
 	} else
-		tuner_dbg("set addr discarded for type %i, mask %x. "
-			  "Asked to change tuner at addr 0x%02x, with mask %x\n",
+		tuner_dbg("set addr discarded for type %i, mask %x. Asked to change tuner at addr 0x%02x, with mask %x\n",
 			  t->type, t->mode_mask,
 			  tun_setup->addr, tun_setup->mode_mask);
 
@@ -809,8 +808,8 @@ static int set_mode(struct tuner *t, enum v4l2_tuner_type mode)
 
 	if (mode != t->mode) {
 		if (check_mode(t, mode) == -EINVAL) {
-			tuner_dbg("Tuner doesn't support mode %d. "
-				  "Putting tuner to sleep\n", mode);
+			tuner_dbg("Tuner doesn't support mode %d. Putting tuner to sleep\n",
+				  mode);
 			t->standby = true;
 			if (analog_ops->standby)
 				analog_ops->standby(&t->fe);
