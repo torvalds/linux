@@ -87,8 +87,8 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 		return -EINVAL;
 
 	if (reg_debug) {
-		printk(KERN_DEBUG "(pipe 0x%08x): "
-			"IN:  %02x %02x %02x %02x %02x %02x %02x %02x ",
+		printk(KERN_DEBUG
+			"(pipe 0x%08x): IN:  %02x %02x %02x %02x %02x %02x %02x %02x ",
 			pipe,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			req, 0, 0,
@@ -165,8 +165,8 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 	if (reg_debug) {
 		int byte;
 
-		printk(KERN_DEBUG "(pipe 0x%08x): "
-			"OUT: %02x %02x %02x %02x %02x %02x %02x %02x >>>",
+		printk(KERN_DEBUG
+			"(pipe 0x%08x): OUT: %02x %02x %02x %02x %02x %02x %02x %02x >>>",
 			pipe,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			req, 0, 0,
@@ -942,8 +942,7 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 		usb_bufs->transfer_buffer[i] = usb_alloc_coherent(dev->udev,
 			sb_size, GFP_KERNEL, &urb->transfer_dma);
 		if (!usb_bufs->transfer_buffer[i]) {
-			em28xx_err("unable to allocate %i bytes for transfer"
-					" buffer %i%s\n",
+			em28xx_err("unable to allocate %i bytes for transfer buffer %i%s\n",
 					sb_size, i,
 					in_interrupt() ? " while in int" : "");
 			em28xx_uninit_usb_xfer(dev, mode);

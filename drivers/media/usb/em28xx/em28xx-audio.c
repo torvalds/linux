@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2006 Markus Rechberger <mrechberger@gmail.com>
  *
- *  Copyright (C) 2007-2014 Mauro Carvalho Chehab
+ *  Copyright (C) 2007-2016 Mauro Carvalho Chehab
  *	- Port to work with the in-kernel driver
  *	- Cleanups, fixes, alsa-controls, etc.
  *
@@ -254,8 +254,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 	int nonblock, ret = 0;
 
 	if (!dev) {
-		em28xx_err("BUG: em28xx can't find device struct."
-				" Can't proceed with open\n");
+		em28xx_err("BUG: em28xx can't find device struct. Can't proceed with open\n");
 		return -ENODEV;
 	}
 
@@ -902,10 +901,9 @@ static int em28xx_audio_init(struct em28xx *dev)
 
 	kref_get(&dev->ref);
 
-	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2006 Markus "
-			 "Rechberger\n");
+	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2006 Markus Rechberger\n");
 	printk(KERN_INFO
-	       "em28xx-audio.c: Copyright (C) 2007-2014 Mauro Carvalho Chehab\n");
+	       "em28xx-audio.c: Copyright (C) 2007-2016 Mauro Carvalho Chehab\n");
 
 	err = snd_card_new(&dev->udev->dev, index[devnr], "Em28xx Audio",
 			   THIS_MODULE, 0, &card);

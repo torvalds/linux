@@ -505,8 +505,7 @@ static void em28xx_copy_video(struct em28xx *dev,
 
 		if ((char *)startwrite + lencopy > (char *)buf->vb_buf +
 		    buf->length) {
-			em28xx_isocdbg("Overflow of %zu bytes past buffer end"
-				       "(2)\n",
+			em28xx_isocdbg("Overflow of %zu bytes past buffer end(2)\n",
 				       ((char *)startwrite + lencopy) -
 				       ((char *)buf->vb_buf + buf->length));
 			lencopy = remain = (char *)buf->vb_buf + buf->length -
@@ -2204,8 +2203,7 @@ static int em28xx_v4l2_close(struct file *filp)
 		em28xx_videodbg("setting alternate 0\n");
 		errCode = usb_set_interface(dev->udev, 0, 0);
 		if (errCode < 0) {
-			em28xx_errdev("cannot change alternate number to "
-					"0 (error=%i)\n", errCode);
+			em28xx_errdev("cannot change alternate number to 0 (error=%i)\n", errCode);
 		}
 	}
 

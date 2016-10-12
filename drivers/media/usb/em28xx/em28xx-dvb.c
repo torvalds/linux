@@ -934,8 +934,7 @@ static int em28xx_attach_xc3028(u8 addr, struct em28xx *dev)
 	cfg.ctrl  = &ctl;
 
 	if (!dev->dvb->fe[0]) {
-		em28xx_errdev("/2: dvb frontend not attached. "
-				"Can't attach xc3028\n");
+		em28xx_errdev("/2: dvb frontend not attached. Can't attach xc3028\n");
 		return -EINVAL;
 	}
 
@@ -1937,8 +1936,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		}
 		break;
 	default:
-		em28xx_errdev("/2: The frontend of your DVB/ATSC card"
-				" isn't supported yet\n");
+		em28xx_errdev("/2: The frontend of your DVB/ATSC card isn't supported yet\n");
 		break;
 	}
 	if (NULL == dvb->fe[0]) {

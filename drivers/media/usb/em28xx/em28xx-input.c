@@ -703,8 +703,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 
 	if (dev->board.ir_codes == NULL && !dev->board.has_ir_i2c) {
 		/* No remote control support */
-		em28xx_warn("Remote control support is not available for "
-				"this card.\n");
+		em28xx_warn("Remote control support is not available for this card.\n");
 		return 0;
 	}
 
