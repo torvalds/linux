@@ -244,11 +244,6 @@ ssize_t add_to_pipe(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 }
 EXPORT_SYMBOL(add_to_pipe);
 
-void spd_release_page(struct splice_pipe_desc *spd, unsigned int i)
-{
-	put_page(spd->pages[i]);
-}
-
 /*
  * Check if we need to grow the arrays holding pages and partial page
  * descriptions.
