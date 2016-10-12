@@ -37,6 +37,7 @@
 #include <linux/rockchip/common.h>
 #include <dt-bindings/clock/rk_system_status.h>
 #include <soc/rockchip/rkfb_dmc.h>
+#include <linux/of_gpio.h>
 
 #include "rk322x_lcdc.h"
 
@@ -645,6 +646,9 @@ static int vop_pre_init(struct rk_lcdc_driver *dev_drv)
 		vop_msk_reg(vop_dev, SYS_CTRL, V_AUTO_GATING_EN(0));
 	vop_msk_reg(vop_dev, DSP_CTRL1, V_DITHER_UP_EN(1));
 	vop_cfg_done(vop_dev);
+	if ((dev_drv->cur_screen->refresh_mode == SCREEN_CMD_MODE) &&
+	    (support_uboot_display() == 0))
+		vop_msk_reg(vop_dev, SYS_CTRL, V_EDPI_WMS_MODE(1));
 	vop_dev->pre_init = true;
 
 	return 0;
@@ -5027,6 +5031,36 @@ int vop_register_dmc(void)
 	return 0;
 }
 
+static int vop_wms_refresh(struct rk_lcdc_driver *dev_drv)
+{
+	struct vop_device *vop_dev =
+	    container_of(dev_drv, struct vop_device, driver);
+
+	if (unlikely(!vop_dev->clk_on)) {
+		dev_info_ratelimited(vop_dev->dev, "%s,clk_on = %d\n",
+				     __func__, vop_dev->clk_on);
+		return 0;
+	}
+	vop_msk_reg_nobak(vop_dev, SYS_CTRL, V_EDPI_WMS_FS(1));
+	vop_msk_reg(vop_dev, SYS_CTRL, V_EDPI_WMS_MODE(0));
+	vop_msk_reg(vop_dev, SYS_CTRL, V_EDPI_WMS_MODE(1));
+
+	if (dev_drv->trsm_ops && dev_drv->trsm_ops->refresh)
+		dev_drv->trsm_ops->refresh(0, 0, dev_drv->cur_screen->mode.xres,
+					   dev_drv->cur_screen->mode.yres);
+
+	return 0;
+}
+
+static irqreturn_t te_irq_handle(int irq, void *dev_id)
+{
+	struct rk_lcdc_driver *dev_drv  = (struct rk_lcdc_driver *)dev_id;
+
+	vop_wms_refresh(dev_drv);
+
+	return IRQ_HANDLED;
+}
+
 static int vop_probe(struct platform_device *pdev)
 {
 	struct vop_device *vop_dev = NULL;
@@ -5037,6 +5071,7 @@ static int vop_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	int prop;
 	int ret = 0;
+	int te_pin;
 
 	/* if the primary lcdc has not registered ,the extend
 	 * lcdc register later
@@ -5152,6 +5187,27 @@ static int vop_probe(struct platform_device *pdev)
 
 	rk322x_pdev = pdev;
 
+	if (dev_drv->cur_screen->refresh_mode == SCREEN_CMD_MODE) {
+		te_pin = of_get_named_gpio_flags(np, "te-gpio", 0, NULL);
+		if (IS_ERR_VALUE(te_pin)) {
+			dev_err(dev, "define te pin for cmd mode!\n");
+			return 0;
+		}
+		ret = devm_gpio_request(dev, te_pin, "vop-te-gpio");
+		if (ret) {
+			dev_err(dev, "request gpio %d failed\n", te_pin);
+			return 0;
+		}
+		gpio_direction_input(te_pin);
+		dev_drv->te_irq = gpio_to_irq(te_pin);
+		ret = devm_request_threaded_irq(dev,
+						dev_drv->te_irq,
+						NULL, te_irq_handle,
+						IRQ_TYPE_EDGE_FALLING | IRQF_ONESHOT,
+						"te_irq", dev_drv);
+		if (ret < 0)
+			dev_err(dev, "request te irq failed, ret: %d\n", ret);
+	}
 	return 0;
 }
 
