@@ -211,11 +211,13 @@ static void guc_params_init(struct drm_i915_private *dev_priv)
 	params[GUC_CTL_FEATURE] |= GUC_CTL_DISABLE_SCHEDULER |
 			GUC_CTL_VCS2_ENABLED;
 
+	params[GUC_CTL_LOG_PARAMS] = guc->log_flags;
+
 	if (i915.guc_log_level >= 0) {
-		params[GUC_CTL_LOG_PARAMS] = guc->log_flags;
 		params[GUC_CTL_DEBUG] =
 			i915.guc_log_level << GUC_LOG_VERBOSITY_SHIFT;
-	}
+	} else
+		params[GUC_CTL_DEBUG] = GUC_LOG_DISABLED;
 
 	if (guc->ads_vma) {
 		u32 ads = i915_ggtt_offset(guc->ads_vma) >> PAGE_SHIFT;

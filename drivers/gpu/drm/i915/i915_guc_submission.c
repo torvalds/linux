@@ -853,9 +853,6 @@ static void guc_log_create(struct intel_guc *guc)
 	unsigned long offset;
 	uint32_t size, flags;
 
-	if (i915.guc_log_level < GUC_LOG_VERBOSITY_MIN)
-		return;
-
 	if (i915.guc_log_level > GUC_LOG_VERBOSITY_MAX)
 		i915.guc_log_level = GUC_LOG_VERBOSITY_MAX;
 
