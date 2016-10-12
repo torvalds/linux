@@ -281,7 +281,6 @@ void vpfe_unregister_ccdc_device(struct ccdc_hw_device *dev)
 	mutex_lock(&ccdc_lock);
 	ccdc_dev = NULL;
 	mutex_unlock(&ccdc_lock);
-	return;
 }
 EXPORT_SYMBOL(vpfe_unregister_ccdc_device);
 
