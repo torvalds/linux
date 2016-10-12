@@ -241,10 +241,7 @@ static void vvp_vmpage_error(struct inode *inode, struct page *vmpage, int ioret
 		obj->vob_discard_page_warned = 0;
 	} else {
 		SetPageError(vmpage);
-		if (ioret == -ENOSPC)
-			set_bit(AS_ENOSPC, &inode->i_mapping->flags);
-		else
-			set_bit(AS_EIO, &inode->i_mapping->flags);
+		mapping_set_error(inode->i_mapping, ioret);
 
 		if ((ioret == -ESHUTDOWN || ioret == -EINTR) &&
 		    obj->vob_discard_page_warned == 0) {
