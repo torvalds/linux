@@ -862,7 +862,7 @@ static void guc_log_create(struct intel_guc *guc)
 		GUC_LOG_ISR_PAGES + 1 +
 		GUC_LOG_CRASH_PAGES + 1) << PAGE_SHIFT;
 
-	vma = guc->log_vma;
+	vma = guc->log.vma;
 	if (!vma) {
 		vma = guc_allocate_vma(guc, size);
 		if (IS_ERR(vma)) {
@@ -871,7 +871,7 @@ static void guc_log_create(struct intel_guc *guc)
 			return;
 		}
 
-		guc->log_vma = vma;
+		guc->log.vma = vma;
 	}
 
 	/* each allocated unit is a page */
@@ -881,7 +881,7 @@ static void guc_log_create(struct intel_guc *guc)
 		(GUC_LOG_CRASH_PAGES << GUC_LOG_CRASH_SHIFT);
 
 	offset = i915_ggtt_offset(vma) >> PAGE_SHIFT; /* in pages */
-	guc->log_flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
+	guc->log.flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
 }
 
 static void guc_policies_init(struct guc_policies *policies)
@@ -1065,7 +1065,7 @@ void i915_guc_submission_fini(struct drm_i915_private *dev_priv)
 	struct intel_guc *guc = &dev_priv->guc;
 
 	i915_vma_unpin_and_release(&guc->ads_vma);
-	i915_vma_unpin_and_release(&guc->log_vma);
+	i915_vma_unpin_and_release(&guc->log.vma);
 
 	if (guc->ctx_pool_vma)
 		ida_destroy(&guc->ctx_ids);

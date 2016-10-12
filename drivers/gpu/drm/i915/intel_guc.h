@@ -123,10 +123,14 @@ struct intel_guc_fw {
 	uint32_t ucode_offset;
 };
 
+struct intel_guc_log {
+	uint32_t flags;
+	struct i915_vma *vma;
+};
+
 struct intel_guc {
 	struct intel_guc_fw guc_fw;
-	uint32_t log_flags;
-	struct i915_vma *log_vma;
+	struct intel_guc_log log;
 
 	struct i915_vma *ads_vma;
 	struct i915_vma *ctx_pool_vma;

@@ -2500,10 +2500,10 @@ static int i915_guc_log_dump(struct seq_file *m, void *data)
 	struct drm_i915_gem_object *obj;
 	int i = 0, pg;
 
-	if (!dev_priv->guc.log_vma)
+	if (!dev_priv->guc.log.vma)
 		return 0;
 
-	obj = dev_priv->guc.log_vma->obj;
+	obj = dev_priv->guc.log.vma->obj;
 	for (pg = 0; pg < obj->base.size / PAGE_SIZE; pg++) {
 		u32 *log = kmap_atomic(i915_gem_object_get_page(obj, pg));
 
