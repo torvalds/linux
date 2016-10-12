@@ -13,6 +13,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/dw_mmc.h>
 #include <linux/of_address.h>
+#include <linux/mmc/slot-gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
