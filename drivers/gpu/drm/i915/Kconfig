@@ -60,6 +60,18 @@ config DRM_I915_CAPTURE_ERROR
 
 	  If in doubt, say "Y".
 
+config DRM_I915_COMPRESS_ERROR
+	bool "Compress GPU error state"
+	depends on DRM_I915_CAPTURE_ERROR
+	select ZLIB_DEFLATE
+	default y
+	help
+	  This option selects ZLIB_DEFLATE if it isn't already
+	  selected and causes any error state captured upon a GPU hang
+	  to be compressed using zlib.
+
+	  If in doubt, say "Y".
+
 config DRM_I915_USERPTR
 	bool "Always enable userptr support"
 	depends on DRM_I915

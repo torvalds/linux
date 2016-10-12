@@ -820,9 +820,10 @@ struct drm_i915_error_state {
 		struct intel_instdone instdone;
 
 		struct drm_i915_error_object {
-			int page_count;
 			u64 gtt_offset;
 			u64 gtt_size;
+			int page_count;
+			int unused;
 			u32 *pages[0];
 		} *ringbuffer, *batchbuffer, *wa_batchbuffer, *ctx, *hws_page;
 
