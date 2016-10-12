@@ -1167,26 +1167,25 @@ static ssize_t
 dasd_eer_store(struct device *dev, struct device_attribute *attr,
 	       const char *buf, size_t count)
 {
-	struct dasd_devmap *devmap;
+	struct dasd_device *device;
 	unsigned int val;
-	int rc;
+	int rc = 0;
 
-	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
-	if (IS_ERR(devmap))
-		return PTR_ERR(devmap);
-	if (!devmap->device)
-		return -ENODEV;
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return PTR_ERR(device);
 
 	if (kstrtouint(buf, 0, &val) || val > 1)
 		return -EINVAL;
 
-	if (val) {
-		rc = dasd_eer_enable(devmap->device);
-		if (rc)
-			return rc;
-	} else
-		dasd_eer_disable(devmap->device);
-	return count;
+	if (val)
+		rc = dasd_eer_enable(device);
+	else
+		dasd_eer_disable(device);
+
+	dasd_put_device(device);
+
+	return rc ? : count;
 }
 
 static DEVICE_ATTR(eer_enabled, 0644, dasd_eer_show, dasd_eer_store);
