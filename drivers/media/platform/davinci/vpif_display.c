@@ -1274,8 +1274,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	vpif_obj.config = pdev->dev.platform_data;
 	subdev_count = vpif_obj.config->subdev_count;
 	subdevdata = vpif_obj.config->subdevinfo;
-	vpif_obj.sd = kzalloc(sizeof(struct v4l2_subdev *) * subdev_count,
-								GFP_KERNEL);
+	vpif_obj.sd = kcalloc(subdev_count, sizeof(*vpif_obj.sd), GFP_KERNEL);
 	if (vpif_obj.sd == NULL) {
 		vpif_err("unable to allocate memory for subdevice pointers\n");
 		err = -ENOMEM;
