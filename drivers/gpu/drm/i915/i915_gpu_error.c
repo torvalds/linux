@@ -341,9 +341,21 @@ void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...)
 }
 
 static void print_error_obj(struct drm_i915_error_state_buf *m,
+			    struct intel_engine_cs *engine,
+			    const char *name,
 			    struct drm_i915_error_object *obj)
 {
 	int page, offset, elt;
+
+	if (!obj)
+		return;
+
+	if (name) {
+		err_printf(m, "%s --- %s = 0x%08x %08x\n",
+			   engine ? engine->name : "global", name,
+			   upper_32_bits(obj->gtt_offset),
+			   lower_32_bits(obj->gtt_offset));
+	}
 
 	for (page = offset = 0; page < obj->page_count; page++) {
 		for (elt = 0; elt < PAGE_SIZE/4; elt++) {
@@ -370,8 +382,8 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct drm_i915_error_state *error = error_priv->error;
 	struct drm_i915_error_object *obj;
-	int i, j, offset, elt;
 	int max_hangcheck_score;
+	int i, j;
 
 	if (!error) {
 		err_printf(m, "no error state collected\n");
@@ -491,15 +503,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			err_printf(m, " --- gtt_offset = 0x%08x %08x\n",
 				   upper_32_bits(obj->gtt_offset),
 				   lower_32_bits(obj->gtt_offset));
-			print_error_obj(m, obj);
-		}
-
-		obj = ee->wa_batchbuffer;
-		if (obj) {
-			err_printf(m, "%s (w/a) --- gtt_offset = 0x%08x\n",
-				   dev_priv->engine[i].name,
-				   lower_32_bits(obj->gtt_offset));
-			print_error_obj(m, obj);
+			print_error_obj(m, &dev_priv->engine[i], NULL, obj);
 		}
 
 		if (ee->num_requests) {
@@ -531,77 +535,23 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			}
 		}
 
-		if ((obj = ee->ringbuffer)) {
-			err_printf(m, "%s --- ringbuffer = 0x%08x\n",
-				   dev_priv->engine[i].name,
-				   lower_32_bits(obj->gtt_offset));
-			print_error_obj(m, obj);
-		}
+		print_error_obj(m, &dev_priv->engine[i],
+				"ringbuffer", ee->ringbuffer);
 
-		if ((obj = ee->hws_page)) {
-			u64 hws_offset = obj->gtt_offset;
-			u32 *hws_page = &obj->pages[0][0];
+		print_error_obj(m, &dev_priv->engine[i],
+				"HW Status", ee->hws_page);
 
-			if (i915.enable_execlists) {
-				hws_offset += LRC_PPHWSP_PN * PAGE_SIZE;
-				hws_page = &obj->pages[LRC_PPHWSP_PN][0];
-			}
-			err_printf(m, "%s --- HW Status = 0x%08llx\n",
-				   dev_priv->engine[i].name, hws_offset);
-			offset = 0;
-			for (elt = 0; elt < PAGE_SIZE/16; elt += 4) {
-				err_printf(m, "[%04x] %08x %08x %08x %08x\n",
-					   offset,
-					   hws_page[elt],
-					   hws_page[elt+1],
-					   hws_page[elt+2],
-					   hws_page[elt+3]);
-				offset += 16;
-			}
-		}
+		print_error_obj(m, &dev_priv->engine[i],
+				"HW context", ee->ctx);
 
-		obj = ee->wa_ctx;
-		if (obj) {
-			u64 wa_ctx_offset = obj->gtt_offset;
-			u32 *wa_ctx_page = &obj->pages[0][0];
-			struct intel_engine_cs *engine = &dev_priv->engine[RCS];
-			u32 wa_ctx_size = (engine->wa_ctx.indirect_ctx.size +
-					   engine->wa_ctx.per_ctx.size);
+		print_error_obj(m, &dev_priv->engine[i],
+				"WA context", ee->wa_ctx);
 
-			err_printf(m, "%s --- WA ctx batch buffer = 0x%08llx\n",
-				   dev_priv->engine[i].name, wa_ctx_offset);
-			offset = 0;
-			for (elt = 0; elt < wa_ctx_size; elt += 4) {
-				err_printf(m, "[%04x] %08x %08x %08x %08x\n",
-					   offset,
-					   wa_ctx_page[elt + 0],
-					   wa_ctx_page[elt + 1],
-					   wa_ctx_page[elt + 2],
-					   wa_ctx_page[elt + 3]);
-				offset += 16;
-			}
-		}
-
-		if ((obj = ee->ctx)) {
-			err_printf(m, "%s --- HW Context = 0x%08x\n",
-				   dev_priv->engine[i].name,
-				   lower_32_bits(obj->gtt_offset));
-			print_error_obj(m, obj);
-		}
+		print_error_obj(m, &dev_priv->engine[i],
+				"WA batchbuffer", ee->wa_batchbuffer);
 	}
 
-	if ((obj = error->semaphore)) {
-		err_printf(m, "Semaphore page = 0x%08x\n",
-			   lower_32_bits(obj->gtt_offset));
-		for (elt = 0; elt < PAGE_SIZE/16; elt += 4) {
-			err_printf(m, "[%04x] %08x %08x %08x %08x\n",
-				   elt * 4,
-				   obj->pages[0][elt],
-				   obj->pages[0][elt+1],
-				   obj->pages[0][elt+2],
-				   obj->pages[0][elt+3]);
-		}
-	}
+	print_error_obj(m, NULL, "Semaphores", error->semaphore);
 
 	if (error->overlay)
 		intel_overlay_print_error_state(m, error->overlay);
