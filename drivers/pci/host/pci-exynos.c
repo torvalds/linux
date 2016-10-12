@@ -425,22 +425,20 @@ static void exynos_pcie_enable_interrupts(struct pcie_port *pp)
 		exynos_pcie_msi_init(pp);
 }
 
-static inline u32 exynos_pcie_readl_rc(struct pcie_port *pp,
-				       void __iomem *dbi_base)
+static inline u32 exynos_pcie_readl_rc(struct pcie_port *pp, u32 reg)
 {
 	u32 val;
 
 	exynos_pcie_sideband_dbi_r_mode(pp, true);
-	val = readl(dbi_base);
+	val = readl(pp->dbi_base + reg);
 	exynos_pcie_sideband_dbi_r_mode(pp, false);
 	return val;
 }
 
-static inline void exynos_pcie_writel_rc(struct pcie_port *pp,
-					u32 val, void __iomem *dbi_base)
+static inline void exynos_pcie_writel_rc(struct pcie_port *pp, u32 reg, u32 val)
 {
 	exynos_pcie_sideband_dbi_w_mode(pp, true);
-	writel(val, dbi_base);
+	writel(val, pp->dbi_base + reg);
 	exynos_pcie_sideband_dbi_w_mode(pp, false);
 }
 
