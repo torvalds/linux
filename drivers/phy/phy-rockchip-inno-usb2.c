@@ -81,6 +81,7 @@ enum usb_chg_state {
 static const unsigned int rockchip_usb2phy_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
+	EXTCON_USB_VBUS_EN,
 	EXTCON_CHG_USB_SDP,
 	EXTCON_CHG_USB_CDP,
 	EXTCON_CHG_USB_DCP,
@@ -1011,13 +1012,16 @@ static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 		property_enable(rphy, &rport->port_cfg->idfall_det_clr,
 				true);
 		extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
+		extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, true);
 	} else if (property_enabled(rphy, &rport->port_cfg->idrise_det_st)) {
 		property_enable(rphy, &rport->port_cfg->idrise_det_clr,
 				true);
 		extcon_set_state(rphy->edev, EXTCON_USB_HOST, false);
+		extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, false);
 	}
 
 	extcon_sync(rphy->edev, EXTCON_USB_HOST);
+	extcon_sync(rphy->edev, EXTCON_USB_VBUS_EN);
 
 	mutex_unlock(&rport->mutex);
 
@@ -1135,8 +1139,10 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		if (!iddig) {
 			extcon_set_state(rphy->edev, EXTCON_USB, false);
 			extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
+			extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, true);
 		} else {
 			extcon_set_state(rphy->edev, EXTCON_USB_HOST, false);
+			extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, false);
 		}
 	}
 
