@@ -43,7 +43,18 @@
 			regulator-name = "usb_otg1_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio4 0 0>;
+			gpio = <&gpio4 0 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&swbst_reg>;
+		};
+
+		reg_usb_otg2_vbus: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "usb_otg2_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio4 2 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 			vin-supply = <&swbst_reg>;
 		};
@@ -208,6 +219,7 @@
 				MX6SLL_PAD_KEY_COL4__GPIO4_IO00 0x17059
 				MX6SLL_PAD_REF_CLK_32K__GPIO3_IO22 0x17059 /* SD3 CD */
 				MX6SLL_PAD_KEY_COL6__GPIO4_IO04 0x17059 /*SD3 RESET */
+				MX6SLL_PAD_KEY_COL5__GPIO4_IO02 0x17059
 			>;
 		};
 
@@ -368,6 +380,13 @@
 	srp-disable;
 	hnp-disable;
 	adp-disable;
+	status = "okay";
+};
+
+&usbotg2 {
+	vbus-supply = <&reg_usb_otg2_vbus>;
+	dr_mode = "host";
+	disable-over-current;
 	status = "okay";
 };
 
