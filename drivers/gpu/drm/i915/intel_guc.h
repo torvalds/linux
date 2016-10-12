@@ -157,6 +157,9 @@ struct intel_guc {
 
 	uint64_t submissions[I915_NUM_ENGINES];
 	uint32_t last_seqno[I915_NUM_ENGINES];
+
+	/* To serialize the Host2GuC actions */
+	struct mutex action_lock;
 };
 
 /* intel_guc_loader.c */

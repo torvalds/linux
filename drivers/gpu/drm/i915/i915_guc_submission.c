@@ -87,6 +87,7 @@ static int host2guc_action(struct intel_guc *guc, u32 *data, u32 len)
 	if (WARN_ON(len < 1 || len > 15))
 		return -EINVAL;
 
+	mutex_lock(&guc->action_lock);
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	dev_priv->guc.action_count += 1;
@@ -125,6 +126,7 @@ static int host2guc_action(struct intel_guc *guc, u32 *data, u32 len)
 	dev_priv->guc.action_status = status;
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	mutex_unlock(&guc->action_lock);
 
 	return ret;
 }
@@ -1366,6 +1368,7 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 
 	guc->ctx_pool_vma = vma;
 	ida_init(&guc->ctx_ids);
+	mutex_init(&guc->action_lock);
 	guc_log_create(guc);
 	guc_addon_create(guc);
 
