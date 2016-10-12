@@ -104,9 +104,9 @@
 #define   GUC_LOG_ALLOC_IN_MEGABYTE	(1 << 3)
 #define   GUC_LOG_CRASH_PAGES		1
 #define   GUC_LOG_CRASH_SHIFT		4
-#define   GUC_LOG_DPC_PAGES		3
+#define   GUC_LOG_DPC_PAGES		7
 #define   GUC_LOG_DPC_SHIFT		6
-#define   GUC_LOG_ISR_PAGES		3
+#define   GUC_LOG_ISR_PAGES		7
 #define   GUC_LOG_ISR_SHIFT		9
 #define   GUC_LOG_BUF_ADDR_SHIFT	12
 
@@ -437,9 +437,9 @@ enum guc_log_buffer_type {
  *        |   Crash dump state header     |
  * Page1  +-------------------------------+
  *        |           ISR logs            |
- * Page5  +-------------------------------+
- *        |           DPC logs            |
  * Page9  +-------------------------------+
+ *        |           DPC logs            |
+ * Page17 +-------------------------------+
  *        |         Crash Dump logs       |
  *        +-------------------------------+
  *
