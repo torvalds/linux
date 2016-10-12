@@ -183,6 +183,16 @@ static int host2guc_logbuffer_flush_complete(struct intel_guc *guc)
 	return host2guc_action(guc, data, 1);
 }
 
+static int host2guc_force_logbuffer_flush(struct intel_guc *guc)
+{
+	u32 data[2];
+
+	data[0] = HOST2GUC_ACTION_FORCE_LOG_BUFFER_FLUSH;
+	data[1] = 0;
+
+	return host2guc_action(guc, data, 2);
+}
+
 /*
  * Initialise, update, or clear doorbell data shared with the GuC
  *
@@ -1554,6 +1564,26 @@ void i915_guc_capture_logs(struct drm_i915_private *dev_priv)
 	intel_runtime_pm_get(dev_priv);
 	host2guc_logbuffer_flush_complete(&dev_priv->guc);
 	intel_runtime_pm_put(dev_priv);
+}
+
+void i915_guc_flush_logs(struct drm_i915_private *dev_priv)
+{
+	if (!i915.enable_guc_submission || (i915.guc_log_level < 0))
+		return;
+
+	/* First disable the interrupts, will be renabled afterwards */
+	gen9_disable_guc_interrupts(dev_priv);
+
+	/* Before initiating the forceful flush, wait for any pending/ongoing
+	 * flush to complete otherwise forceful flush may not actually happen.
+	 */
+	flush_work(&dev_priv->guc.log.flush_work);
+
+	/* Ask GuC to update the log buffer state */
+	host2guc_force_logbuffer_flush(&dev_priv->guc);
+
+	/* GuC would have updated log buffer by now, so capture it */
+	i915_guc_capture_logs(dev_priv);
 }
 
 void i915_guc_unregister(struct drm_i915_private *dev_priv)
