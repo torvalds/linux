@@ -610,8 +610,8 @@ u64 vnt_get_next_tbtt(u64 tsf, u16 beacon_interval)
 	beacon_int = beacon_interval * 1024;
 
 	/* Next TBTT =
-	*	((local_current_TSF / beacon_interval) + 1) * beacon_interval
-	*/
+	 *	((local_current_TSF / beacon_interval) + 1) * beacon_interval
+	 */
 	if (beacon_int) {
 		do_div(tsf, beacon_int);
 		tsf += 1;
