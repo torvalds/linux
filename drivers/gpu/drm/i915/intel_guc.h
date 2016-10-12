@@ -126,6 +126,9 @@ struct intel_guc_fw {
 struct intel_guc_log {
 	uint32_t flags;
 	struct i915_vma *vma;
+	void *buf_addr;
+	struct workqueue_struct *flush_wq;
+	struct work_struct flush_work;
 };
 
 struct intel_guc {
@@ -170,5 +173,6 @@ int i915_guc_wq_reserve(struct drm_i915_gem_request *rq);
 void i915_guc_wq_unreserve(struct drm_i915_gem_request *request);
 void i915_guc_submission_disable(struct drm_i915_private *dev_priv);
 void i915_guc_submission_fini(struct drm_i915_private *dev_priv);
+void i915_guc_capture_logs(struct drm_i915_private *dev_priv);
 
 #endif

@@ -1669,7 +1669,33 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 gt_iir)
 {
 	if (gt_iir & GEN9_GUC_TO_HOST_INT_EVENT) {
-		/* TODO: Handle events for which GuC interrupted host */
+		/* Sample the log buffer flush related bits & clear them out now
+		 * itself from the message identity register to minimize the
+		 * probability of losing a flush interrupt, when there are back
+		 * to back flush interrupts.
+		 * There can be a new flush interrupt, for different log buffer
+		 * type (like for ISR), whilst Host is handling one (for DPC).
+		 * Since same bit is used in message register for ISR & DPC, it
+		 * could happen that GuC sets the bit for 2nd interrupt but Host
+		 * clears out the bit on handling the 1st interrupt.
+		 */
+		u32 msg, flush;
+
+		msg = I915_READ(SOFT_SCRATCH(15));
+		flush = msg & (GUC2HOST_MSG_CRASH_DUMP_POSTED |
+			       GUC2HOST_MSG_FLUSH_LOG_BUFFER);
+		if (flush) {
+			/* Clear the message bits that are handled */
+			I915_WRITE(SOFT_SCRATCH(15), msg & ~flush);
+
+			/* Handle flush interrupt in bottom half */
+			queue_work(dev_priv->guc.log.flush_wq,
+				   &dev_priv->guc.log.flush_work);
+		} else {
+			/* Not clearing of unhandled event bits won't result in
+			 * re-triggering of the interrupt.
+			 */
+		}
 	}
 }
 
