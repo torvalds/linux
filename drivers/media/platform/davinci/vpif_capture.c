@@ -731,7 +731,7 @@ static int vpif_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct channel_obj *ch = video_get_drvdata(vdev);
-	int ret = 0;
+	int ret;
 
 	vpif_dbg(2, debug, "vpif_querystd\n");
 
