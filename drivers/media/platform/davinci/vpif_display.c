@@ -363,7 +363,7 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 	struct channel_obj *ch;
 	struct common_obj *common;
 	int fid = -1, i;
-	int channel_id = 0;
+	int channel_id;
 
 	channel_id = *(int *)(dev_id);
 	if (!vpif_intr_status(channel_id + 2))
