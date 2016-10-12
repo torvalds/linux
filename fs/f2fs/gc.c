@@ -848,15 +848,15 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 
 	for (segno = start_segno; segno < end_segno; segno++) {
 
-		if (get_valid_blocks(sbi, segno, 1) == 0 ||
-					unlikely(f2fs_cp_error(sbi)))
-			goto next;
-
 		/* find segment summary of victim */
 		sum_page = find_get_page(META_MAPPING(sbi),
 					GET_SUM_BLOCK(sbi, segno));
-		f2fs_bug_on(sbi, !PageUptodate(sum_page));
 		f2fs_put_page(sum_page, 0);
+
+		if (get_valid_blocks(sbi, segno, 1) == 0 ||
+				!PageUptodate(sum_page) ||
+				unlikely(f2fs_cp_error(sbi)))
+			goto next;
 
 		sum = page_address(sum_page);
 		f2fs_bug_on(sbi, type != GET_SUM_TYPE((&sum->footer)));
