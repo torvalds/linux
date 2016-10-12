@@ -960,6 +960,12 @@ static void ci_apply_state_adjust_rules(struct amdgpu_device *adev,
 		sclk = ps->performance_levels[0].sclk;
 	}
 
+	if (adev->pm.pm_display_cfg.min_core_set_clock > sclk)
+		sclk = adev->pm.pm_display_cfg.min_core_set_clock;
+
+	if (adev->pm.pm_display_cfg.min_mem_set_clock > mclk)
+		mclk = adev->pm.pm_display_cfg.min_mem_set_clock;
+
 	if (rps->vce_active) {
 		if (sclk < adev->pm.dpm.vce_states[adev->pm.dpm.vce_level].sclk)
 			sclk = adev->pm.dpm.vce_states[adev->pm.dpm.vce_level].sclk;
