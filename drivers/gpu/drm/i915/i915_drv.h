@@ -3564,9 +3564,6 @@ void i915_error_state_get(struct drm_device *dev,
 void i915_error_state_put(struct i915_error_state_file_priv *error_priv);
 void i915_destroy_error_state(struct drm_device *dev);
 
-void i915_get_engine_instdone(struct drm_i915_private *dev_priv,
-			      enum intel_engine_id engine_id,
-			      struct intel_instdone *instdone);
 const char *i915_cache_level_str(struct drm_i915_private *i915, int type);
 
 /* i915_cmd_parser.c */

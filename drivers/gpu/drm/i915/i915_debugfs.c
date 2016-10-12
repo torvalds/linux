@@ -1339,7 +1339,7 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		seqno[id] = intel_engine_get_seqno(engine);
 	}
 
-	i915_get_engine_instdone(dev_priv, RCS, &instdone);
+	intel_engine_get_instdone(&dev_priv->engine[RCS], &instdone);
 
 	intel_runtime_pm_put(dev_priv);
 

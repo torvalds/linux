@@ -349,3 +349,107 @@ u64 intel_engine_get_last_batch_head(struct intel_engine_cs *engine)
 
 	return bbaddr;
 }
+
+const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
+{
+	switch (type) {
+	case I915_CACHE_NONE: return " uncached";
+	case I915_CACHE_LLC: return HAS_LLC(i915) ? " LLC" : " snooped";
+	case I915_CACHE_L3_LLC: return " L3+LLC";
+	case I915_CACHE_WT: return " WT";
+	default: return "";
+	}
+}
+
+static inline uint32_t
+read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
+		  int subslice, i915_reg_t reg)
+{
+	uint32_t mcr;
+	uint32_t ret;
+	enum forcewake_domains fw_domains;
+
+	fw_domains = intel_uncore_forcewake_for_reg(dev_priv, reg,
+						    FW_REG_READ);
+	fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
+						     GEN8_MCR_SELECTOR,
+						     FW_REG_READ | FW_REG_WRITE);
+
+	spin_lock_irq(&dev_priv->uncore.lock);
+	intel_uncore_forcewake_get__locked(dev_priv, fw_domains);
+
+	mcr = I915_READ_FW(GEN8_MCR_SELECTOR);
+	/*
+	 * The HW expects the slice and sublice selectors to be reset to 0
+	 * after reading out the registers.
+	 */
+	WARN_ON_ONCE(mcr & (GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK));
+	mcr &= ~(GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK);
+	mcr |= GEN8_MCR_SLICE(slice) | GEN8_MCR_SUBSLICE(subslice);
+	I915_WRITE_FW(GEN8_MCR_SELECTOR, mcr);
+
+	ret = I915_READ_FW(reg);
+
+	mcr &= ~(GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK);
+	I915_WRITE_FW(GEN8_MCR_SELECTOR, mcr);
+
+	intel_uncore_forcewake_put__locked(dev_priv, fw_domains);
+	spin_unlock_irq(&dev_priv->uncore.lock);
+
+	return ret;
+}
+
+/* NB: please notice the memset */
+void intel_engine_get_instdone(struct intel_engine_cs *engine,
+			       struct intel_instdone *instdone)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	u32 mmio_base = engine->mmio_base;
+	int slice;
+	int subslice;
+
+	memset(instdone, 0, sizeof(*instdone));
+
+	switch (INTEL_GEN(dev_priv)) {
+	default:
+		instdone->instdone = I915_READ(RING_INSTDONE(mmio_base));
+
+		if (engine->id != RCS)
+			break;
+
+		instdone->slice_common = I915_READ(GEN7_SC_INSTDONE);
+		for_each_instdone_slice_subslice(dev_priv, slice, subslice) {
+			instdone->sampler[slice][subslice] =
+				read_subslice_reg(dev_priv, slice, subslice,
+						  GEN7_SAMPLER_INSTDONE);
+			instdone->row[slice][subslice] =
+				read_subslice_reg(dev_priv, slice, subslice,
+						  GEN7_ROW_INSTDONE);
+		}
+		break;
+	case 7:
+		instdone->instdone = I915_READ(RING_INSTDONE(mmio_base));
+
+		if (engine->id != RCS)
+			break;
+
+		instdone->slice_common = I915_READ(GEN7_SC_INSTDONE);
+		instdone->sampler[0][0] = I915_READ(GEN7_SAMPLER_INSTDONE);
+		instdone->row[0][0] = I915_READ(GEN7_ROW_INSTDONE);
+
+		break;
+	case 6:
+	case 5:
+	case 4:
+		instdone->instdone = I915_READ(RING_INSTDONE(mmio_base));
+
+		if (engine->id == RCS)
+			/* HACK: Using the wrong struct member */
+			instdone->slice_common = I915_READ(GEN4_INSTDONE1);
+		break;
+	case 3:
+	case 2:
+		instdone->instdone = I915_READ(GEN2_INSTDONE);
+		break;
+	}
+}

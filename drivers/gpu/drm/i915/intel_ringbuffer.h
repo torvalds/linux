@@ -550,6 +550,9 @@ static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine)
 
 int init_workarounds_ring(struct intel_engine_cs *engine);
 
+void intel_engine_get_instdone(struct intel_engine_cs *engine,
+			       struct intel_instdone *instdone);
+
 /*
  * Arbitrary size for largest possible 'add request' sequence. The code paths
  * are complex and variable. Empirical measurement shows that the worst case

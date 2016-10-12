@@ -2588,7 +2588,7 @@ static void i915_report_and_clear_eir(struct drm_i915_private *dev_priv)
 
 	pr_err("render error detected, EIR: 0x%08x\n", eir);
 
-	i915_get_engine_instdone(dev_priv, RCS, &instdone);
+	intel_engine_get_instdone(&dev_priv->engine[RCS], &instdone);
 
 	if (IS_G4X(dev_priv)) {
 		if (eir & (GM45_ERROR_MEM_PRIV | GM45_ERROR_CP_PRIV)) {
@@ -3001,7 +3001,7 @@ static bool subunits_stuck(struct intel_engine_cs *engine)
 	if (engine->id != RCS)
 		return true;
 
-	i915_get_engine_instdone(dev_priv, RCS, &instdone);
+	intel_engine_get_instdone(engine, &instdone);
 
 	/* There might be unstable subunit states even when
 	 * actual head is not moving. Filter out the unstable ones by
