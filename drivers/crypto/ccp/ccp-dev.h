@@ -278,7 +278,7 @@ struct ccp_cmd_queue {
 	/* Private LSB that is assigned to this queue, or -1 if none.
 	 * Bitmap for my private LSB, unused otherwise
 	 */
-	unsigned int lsb;
+	int lsb;
 	DECLARE_BITMAP(lsbmap, PLSB_MAP_SIZE);
 
 	/* Queue processing thread */
