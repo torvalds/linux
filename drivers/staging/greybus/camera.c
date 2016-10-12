@@ -1119,7 +1119,7 @@ static ssize_t gb_camera_debugfs_write(struct file *file,
 	char *kbuf;
 
 	if (len > 1024)
-	       return -EINVAL;
+		return -EINVAL;
 
 	kbuf = kmalloc(len + 1, GFP_KERNEL);
 	if (!kbuf)
