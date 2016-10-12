@@ -302,8 +302,7 @@ static char *netiucv_printuser(struct iucv_connection *conn)
 	if (memcmp(conn->userdata, iucvMagic_ebcdic, 16)) {
 		tmp_uid[8] = '\0';
 		tmp_udat[16] = '\0';
-		memcpy(tmp_uid, conn->userid, 8);
-		memcpy(tmp_uid, netiucv_printname(tmp_uid, 8), 8);
+		memcpy(tmp_uid, netiucv_printname(conn->userid, 8), 8);
 		memcpy(tmp_udat, conn->userdata, 16);
 		EBCASC(tmp_udat, 16);
 		memcpy(tmp_udat, netiucv_printname(tmp_udat, 16), 16);
