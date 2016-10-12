@@ -1257,10 +1257,19 @@ static int guc_log_create_extras(struct intel_guc *guc)
 	if (!guc->log.flush_wq) {
 		INIT_WORK(&guc->log.flush_work, guc_capture_logs_work);
 
-		/* Need a dedicated wq to process log buffer flush interrupts
-		 * from GuC without much delay so as to avoid any loss of logs.
+		 /*
+		 * GuC log buffer flush work item has to do register access to
+		 * send the ack to GuC and this work item, if not synced before
+		 * suspend, can potentially get executed after the GFX device is
+		 * suspended.
+		 * By marking the WQ as freezable, we don't have to bother about
+		 * flushing of this work item from the suspend hooks, the pending
+		 * work item if any will be either executed before the suspend
+		 * or scheduled later on resume. This way the handling of work
+		 * item can be kept same between system suspend & rpm suspend.
 		 */
-		guc->log.flush_wq = alloc_ordered_workqueue("i915-guc_log", WQ_HIGHPRI);
+		guc->log.flush_wq = alloc_ordered_workqueue("i915-guc_log",
+							    WQ_HIGHPRI | WQ_FREEZABLE);
 		if (guc->log.flush_wq == NULL) {
 			DRM_ERROR("Couldn't allocate the wq for GuC logging\n");
 			return -ENOMEM;
