@@ -702,15 +702,13 @@ static int gb_gpio_probe(struct gbphy_device *gbphy_dev,
 	ret = gb_gpio_irqchip_add(gpio, irqc, 0,
 				   handle_level_irq, IRQ_TYPE_NONE);
 	if (ret) {
-		dev_err(&connection->bundle->dev,
-			"failed to add irq chip: %d\n", ret);
+		dev_err(&gbphy_dev->dev, "failed to add irq chip: %d\n", ret);
 		goto exit_line_free;
 	}
 
 	ret = gpiochip_add(gpio);
 	if (ret) {
-		dev_err(&connection->bundle->dev,
-			"failed to add gpio chip: %d\n", ret);
+		dev_err(&gbphy_dev->dev, "failed to add gpio chip: %d\n", ret);
 		goto exit_gpio_irqchip_remove;
 	}
 
