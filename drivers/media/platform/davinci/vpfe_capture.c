@@ -512,11 +512,9 @@ static int vpfe_open(struct file *file)
 
 	/* Allocate memory for the file handle object */
 	fh = kmalloc(sizeof(struct vpfe_fh), GFP_KERNEL);
-	if (NULL == fh) {
-		v4l2_err(&vpfe_dev->v4l2_dev,
-			"unable to allocate memory for file handle object\n");
+	if (!fh)
 		return -ENOMEM;
-	}
+
 	/* store pointer to fh in private_data member of file */
 	file->private_data = fh;
 	fh->vpfe_dev = vpfe_dev;
@@ -1851,11 +1849,8 @@ static int vpfe_probe(struct platform_device *pdev)
 
 	/* Allocate memory for ccdc configuration */
 	ccdc_cfg = kmalloc(sizeof(struct ccdc_config), GFP_KERNEL);
-	if (NULL == ccdc_cfg) {
-		v4l2_err(pdev->dev.driver,
-			 "Memory allocation failed for ccdc_cfg\n");
+	if (!ccdc_cfg)
 		goto probe_free_dev_mem;
-	}
 
 	mutex_lock(&ccdc_lock);
 
@@ -1942,8 +1937,6 @@ static int vpfe_probe(struct platform_device *pdev)
 				     sizeof(*vpfe_dev->sd),
 				     GFP_KERNEL);
 	if (NULL == vpfe_dev->sd) {
-		v4l2_err(&vpfe_dev->v4l2_dev,
-			"unable to allocate memory for subdevice pointers\n");
 		ret = -ENOMEM;
 		goto probe_out_video_unregister;
 	}
