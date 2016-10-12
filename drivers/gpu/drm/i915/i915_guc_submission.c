@@ -1057,11 +1057,12 @@ static unsigned int guc_get_log_buffer_size(enum guc_log_buffer_type type)
 
 static void guc_read_update_log_buffer(struct intel_guc *guc)
 {
+	unsigned int buffer_size, read_offset, write_offset, bytes_to_copy, full_cnt;
 	struct guc_log_buffer_state *log_buf_state, *log_buf_snapshot_state;
 	struct guc_log_buffer_state log_buf_state_local;
-	unsigned int buffer_size, write_offset, full_cnt;
 	enum guc_log_buffer_type type;
 	void *src_data, *dst_data;
+	bool new_overflow;
 
 	if (WARN_ON(!guc->log.buf_addr))
 		return;
@@ -1084,12 +1085,13 @@ static void guc_read_update_log_buffer(struct intel_guc *guc)
 		memcpy(&log_buf_state_local, log_buf_state,
 		       sizeof(struct guc_log_buffer_state));
 		buffer_size = guc_get_log_buffer_size(type);
+		read_offset = log_buf_state_local.read_ptr;
 		write_offset = log_buf_state_local.sampled_write_ptr;
 		full_cnt = log_buf_state_local.buffer_full_cnt;
 
 		/* Bookkeeping stuff */
 		guc->log.flush_count[type] += log_buf_state_local.flush_to_file;
-		guc_check_log_buf_overflow(guc, type, full_cnt);
+		new_overflow = guc_check_log_buf_overflow(guc, type, full_cnt);
 
 		/* Update the state of shared log buffer */
 		log_buf_state->read_ptr = write_offset;
@@ -1112,7 +1114,27 @@ static void guc_read_update_log_buffer(struct intel_guc *guc)
 		log_buf_snapshot_state++;
 
 		/* Now copy the actual logs. */
-		memcpy(dst_data, src_data, buffer_size);
+		if (unlikely(new_overflow)) {
+			/* copy the whole buffer in case of overflow */
+			read_offset = 0;
+			write_offset = buffer_size;
+		} else if (unlikely((read_offset > buffer_size) ||
+				    (write_offset > buffer_size))) {
+			DRM_ERROR("invalid log buffer state\n");
+			/* copy whole buffer as offsets are unreliable */
+			read_offset = 0;
+			write_offset = buffer_size;
+		}
+
+		/* Just copy the newly written data */
+		if (read_offset > write_offset) {
+			memcpy(dst_data, src_data, write_offset);
+			bytes_to_copy = buffer_size - read_offset;
+		} else {
+			bytes_to_copy = write_offset - read_offset;
+		}
+		memcpy(dst_data + read_offset,
+		       src_data + read_offset, bytes_to_copy);
 
 		src_data += buffer_size;
 		dst_data += buffer_size;
