@@ -496,6 +496,8 @@ struct rk_fb_trsm_ops {
 	int (*disable)(void);
 	int (*dsp_pwr_on) (void);
 	int (*dsp_pwr_off) (void);
+	void (*refresh)(unsigned int xpos, unsigned int ypos,
+		       unsigned int xsize, unsigned int ysize);
 };
 
 struct rk_lcdc_drv_ops {
@@ -670,6 +672,7 @@ struct rk_fb_reg_data {
 
 struct rk_lcdc_driver {
 	char name[6];
+	int  te_irq;
 	int  id;
 	int  prop;
 	struct device *dev;

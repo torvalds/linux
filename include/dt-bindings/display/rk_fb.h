@@ -81,6 +81,9 @@
 
 #define IS_YUV_COLOR(x)                ((x) >= COLOR_YCBCR)
 
+#define SCREEN_VIDEO_MODE	0
+#define SCREEN_CMD_MODE		1
+
 /* fb win map */
 #define FB_DEFAULT_ORDER		0
 #define FB0_WIN2_FB1_WIN1_FB2_WIN0	12
