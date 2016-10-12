@@ -303,18 +303,18 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	new_val = dev_priv->pm_irq_mask;
+	new_val = dev_priv->pm_imr;
 	new_val &= ~interrupt_mask;
 	new_val |= (~enabled_irq_mask & interrupt_mask);
 
-	if (new_val != dev_priv->pm_irq_mask) {
-		dev_priv->pm_irq_mask = new_val;
-		I915_WRITE(gen6_pm_imr(dev_priv), dev_priv->pm_irq_mask);
+	if (new_val != dev_priv->pm_imr) {
+		dev_priv->pm_imr = new_val;
+		I915_WRITE(gen6_pm_imr(dev_priv), dev_priv->pm_imr);
 		POSTING_READ(gen6_pm_imr(dev_priv));
 	}
 }
 
-void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+void gen6_unmask_pm_irq(struct drm_i915_private *dev_priv, u32 mask)
 {
 	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
 		return;
@@ -322,28 +322,54 @@ void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
 	snb_update_pm_irq(dev_priv, mask, mask);
 }
 
-static void __gen6_disable_pm_irq(struct drm_i915_private *dev_priv,
-				  uint32_t mask)
+static void __gen6_mask_pm_irq(struct drm_i915_private *dev_priv, u32 mask)
 {
 	snb_update_pm_irq(dev_priv, mask, 0);
 }
 
-void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+void gen6_mask_pm_irq(struct drm_i915_private *dev_priv, u32 mask)
 {
 	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
 		return;
 
-	__gen6_disable_pm_irq(dev_priv, mask);
+	__gen6_mask_pm_irq(dev_priv, mask);
+}
+
+void gen6_reset_pm_iir(struct drm_i915_private *dev_priv, u32 reset_mask)
+{
+	i915_reg_t reg = gen6_pm_iir(dev_priv);
+
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	I915_WRITE(reg, reset_mask);
+	I915_WRITE(reg, reset_mask);
+	POSTING_READ(reg);
+}
+
+void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, u32 enable_mask)
+{
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	dev_priv->pm_ier |= enable_mask;
+	I915_WRITE(gen6_pm_ier(dev_priv), dev_priv->pm_ier);
+	gen6_unmask_pm_irq(dev_priv, enable_mask);
+	/* unmask_pm_irq provides an implicit barrier (POSTING_READ) */
+}
+
+void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, u32 disable_mask)
+{
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	dev_priv->pm_ier &= ~disable_mask;
+	__gen6_mask_pm_irq(dev_priv, disable_mask);
+	I915_WRITE(gen6_pm_ier(dev_priv), dev_priv->pm_ier);
+	/* though a barrier is missing here, but don't really need a one */
 }
 
 void gen6_reset_rps_interrupts(struct drm_i915_private *dev_priv)
 {
-	i915_reg_t reg = gen6_pm_iir(dev_priv);
-
 	spin_lock_irq(&dev_priv->irq_lock);
-	I915_WRITE(reg, dev_priv->pm_rps_events);
-	I915_WRITE(reg, dev_priv->pm_rps_events);
-	POSTING_READ(reg);
+	gen6_reset_pm_iir(dev_priv, dev_priv->pm_rps_events);
 	dev_priv->rps.pm_iir = 0;
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
@@ -357,8 +383,6 @@ void gen6_enable_rps_interrupts(struct drm_i915_private *dev_priv)
 	WARN_ON_ONCE(dev_priv->rps.pm_iir);
 	WARN_ON_ONCE(I915_READ(gen6_pm_iir(dev_priv)) & dev_priv->pm_rps_events);
 	dev_priv->rps.interrupts_enabled = true;
-	I915_WRITE(gen6_pm_ier(dev_priv), I915_READ(gen6_pm_ier(dev_priv)) |
-				dev_priv->pm_rps_events);
 	gen6_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 
 	spin_unlock_irq(&dev_priv->irq_lock);
@@ -379,9 +403,7 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(GEN6_PMINTRMSK, gen6_sanitize_rps_pm_mask(dev_priv, ~0u));
 
-	__gen6_disable_pm_irq(dev_priv, dev_priv->pm_rps_events);
-	I915_WRITE(gen6_pm_ier(dev_priv), I915_READ(gen6_pm_ier(dev_priv)) &
-				~dev_priv->pm_rps_events);
+	gen6_disable_pm_irq(dev_priv, dev_priv->pm_rps_events);
 
 	spin_unlock_irq(&dev_priv->irq_lock);
 	synchronize_irq(dev_priv->drm.irq);
@@ -1085,7 +1107,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	pm_iir = dev_priv->rps.pm_iir;
 	dev_priv->rps.pm_iir = 0;
 	/* Make sure not to corrupt PMIMR state used by ringbuffer on GEN6 */
-	gen6_enable_pm_irq(dev_priv, dev_priv->pm_rps_events);
+	gen6_unmask_pm_irq(dev_priv, dev_priv->pm_rps_events);
 	client_boost = dev_priv->rps.client_boost;
 	dev_priv->rps.client_boost = false;
 	spin_unlock_irq(&dev_priv->irq_lock);
@@ -1586,7 +1608,7 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 {
 	if (pm_iir & dev_priv->pm_rps_events) {
 		spin_lock(&dev_priv->irq_lock);
-		gen6_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
+		gen6_mask_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
 		if (dev_priv->rps.interrupts_enabled) {
 			dev_priv->rps.pm_iir |= pm_iir & dev_priv->pm_rps_events;
 			schedule_work(&dev_priv->rps.work);
@@ -3545,11 +3567,13 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 		 * RPS interrupts will get enabled/disabled on demand when RPS
 		 * itself is enabled/disabled.
 		 */
-		if (HAS_VEBOX(dev))
+		if (HAS_VEBOX(dev_priv)) {
 			pm_irqs |= PM_VEBOX_USER_INTERRUPT;
+			dev_priv->pm_ier |= PM_VEBOX_USER_INTERRUPT;
+		}
 
-		dev_priv->pm_irq_mask = 0xffffffff;
-		GEN5_IRQ_INIT(GEN6_PM, dev_priv->pm_irq_mask, pm_irqs);
+		dev_priv->pm_imr = 0xffffffff;
+		GEN5_IRQ_INIT(GEN6_PM, dev_priv->pm_imr, pm_irqs);
 	}
 }
 
@@ -3669,14 +3693,15 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 	if (HAS_L3_DPF(dev_priv))
 		gt_interrupts[0] |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 
-	dev_priv->pm_irq_mask = 0xffffffff;
+	dev_priv->pm_ier = 0x0;
+	dev_priv->pm_imr = ~dev_priv->pm_ier;
 	GEN8_IRQ_INIT_NDX(GT, 0, ~gt_interrupts[0], gt_interrupts[0]);
 	GEN8_IRQ_INIT_NDX(GT, 1, ~gt_interrupts[1], gt_interrupts[1]);
 	/*
 	 * RPS interrupts will get enabled/disabled on demand when RPS itself
 	 * is enabled/disabled.
 	 */
-	GEN8_IRQ_INIT_NDX(GT, 2, dev_priv->pm_irq_mask, 0);
+	GEN8_IRQ_INIT_NDX(GT, 2, dev_priv->pm_imr, dev_priv->pm_ier);
 	GEN8_IRQ_INIT_NDX(GT, 3, ~gt_interrupts[3], gt_interrupts[3]);
 }
 
