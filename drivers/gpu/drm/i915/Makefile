@@ -42,7 +42,6 @@ i915-y += i915_cmd_parser.o \
 	  i915_gem_stolen.o \
 	  i915_gem_tiling.o \
 	  i915_gem_userptr.o \
-	  i915_gpu_error.o \
 	  i915_trace_points.o \
 	  intel_breadcrumbs.o \
 	  intel_engine_cs.o \
@@ -106,6 +105,9 @@ i915-y += dvo_ch7017.o \
 	  intel_panel.o \
 	  intel_sdvo.o \
 	  intel_tv.o
+
+# Post-mortem debug and GPU hang state capture
+i915-$(CONFIG_DRM_I915_CAPTURE_ERROR) += i915_gpu_error.o
 
 # virtual gpu code
 i915-y += i915_vgpu.o

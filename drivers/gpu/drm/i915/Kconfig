@@ -46,6 +46,19 @@ config DRM_I915_PRELIMINARY_HW_SUPPORT
 
 	  If in doubt, say "N".
 
+config DRM_I915_CAPTURE_ERROR
+	bool "Enable capturing GPU state following a hang"
+	depends on DRM_I915
+	default y
+	help
+	  This option enables capturing the GPU state when a hang is detected.
+	  This information is vital for triaging hangs and assists in debugging.
+	  Please report any hang to
+            https://bugs.freedesktop.org/enter_bug.cgi?product=DRI
+	  for triaging.
+
+	  If in doubt, say "Y".
+
 config DRM_I915_USERPTR
 	bool "Always enable userptr support"
 	depends on DRM_I915

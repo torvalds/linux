@@ -3544,6 +3544,8 @@ static inline void intel_display_crc_init(struct drm_i915_private *dev_priv) {}
 #endif
 
 /* i915_gpu_error.c */
+#if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
+
 __printf(2, 3)
 void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...);
 int i915_error_state_to_str(struct drm_i915_error_state_buf *estr,
@@ -3563,6 +3565,20 @@ void i915_error_state_get(struct drm_device *dev,
 			  struct i915_error_state_file_priv *error_priv);
 void i915_error_state_put(struct i915_error_state_file_priv *error_priv);
 void i915_destroy_error_state(struct drm_device *dev);
+
+#else
+
+static inline void i915_capture_error_state(struct drm_i915_private *dev_priv,
+					    u32 engine_mask,
+					    const char *error_msg)
+{
+}
+
+static inline void i915_destroy_error_state(struct drm_device *dev)
+{
+}
+
+#endif
 
 const char *i915_cache_level_str(struct drm_i915_private *i915, int type);
 

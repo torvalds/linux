@@ -1470,6 +1470,8 @@ void intel_cleanup_overlay(struct drm_i915_private *dev_priv)
 	kfree(dev_priv->overlay);
 }
 
+#if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
+
 struct intel_overlay_error_state {
 	struct overlay_registers regs;
 	unsigned long base;
@@ -1587,3 +1589,5 @@ intel_overlay_print_error_state(struct drm_i915_error_state_buf *m,
 	P(UVSCALEV);
 #undef P
 }
+
+#endif

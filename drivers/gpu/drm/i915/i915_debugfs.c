@@ -960,6 +960,8 @@ static int i915_hws_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
+
 static ssize_t
 i915_error_state_write(struct file *filp,
 		       const char __user *ubuf,
@@ -1041,6 +1043,8 @@ static const struct file_operations i915_error_state_fops = {
 	.llseek = default_llseek,
 	.release = i915_error_state_release,
 };
+
+#endif
 
 static int
 i915_next_seqno_get(void *data, u64 *val)
@@ -5398,7 +5402,9 @@ static const struct i915_debugfs_files {
 	{"i915_ring_missed_irq", &i915_ring_missed_irq_fops},
 	{"i915_ring_test_irq", &i915_ring_test_irq_fops},
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},
+#if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 	{"i915_error_state", &i915_error_state_fops},
+#endif
 	{"i915_next_seqno", &i915_next_seqno_fops},
 	{"i915_display_crc_ctl", &i915_display_crc_ctl_fops},
 	{"i915_pri_wm_latency", &i915_pri_wm_latency_fops},

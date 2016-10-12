@@ -1464,6 +1464,9 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 	struct drm_i915_error_state *error;
 	unsigned long flags;
 
+	if (!i915.error_capture)
+		return;
+
 	if (READ_ONCE(dev_priv->gpu_error.first_error))
 		return;
 
