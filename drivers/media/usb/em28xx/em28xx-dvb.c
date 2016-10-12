@@ -21,11 +21,12 @@
  the Free Software Foundation; either version 2 of the License.
  */
 
+#include "em28xx.h"
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
 
-#include "em28xx.h"
 #include <media/v4l2-common.h>
 #include <dvb_demux.h>
 #include <dvb_net.h>
@@ -734,7 +735,7 @@ static int em28xx_pctv_290e_set_lna(struct dvb_frontend *fe)
 
 	ret = gpio_request_one(dvb->lna_gpio, flags, NULL);
 	if (ret)
-		em28xx_errdev("gpio request failed %d\n", ret);
+		pr_err("gpio request failed %d\n", ret);
 	else
 		gpio_free(dvb->lna_gpio);
 
@@ -934,19 +935,19 @@ static int em28xx_attach_xc3028(u8 addr, struct em28xx *dev)
 	cfg.ctrl  = &ctl;
 
 	if (!dev->dvb->fe[0]) {
-		em28xx_errdev("/2: dvb frontend not attached. Can't attach xc3028\n");
+		pr_err("/2: dvb frontend not attached. Can't attach xc3028\n");
 		return -EINVAL;
 	}
 
 	fe = dvb_attach(xc2028_attach, dev->dvb->fe[0], &cfg);
 	if (!fe) {
-		em28xx_errdev("/2: xc3028 attach failed\n");
+		pr_err("/2: xc3028 attach failed\n");
 		dvb_frontend_detach(dev->dvb->fe[0]);
 		dev->dvb->fe[0] = NULL;
 		return -EINVAL;
 	}
 
-	em28xx_info("%s/2: xc3028 attached\n", dev->name);
+	pr_info("%s/2: xc3028 attached\n", dev->name);
 
 	return 0;
 }
@@ -1116,13 +1117,12 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		return 0;
 	}
 
-	em28xx_info("Binding DVB extension\n");
+	pr_info("Binding DVB extension\n");
 
 	dvb = kzalloc(sizeof(struct em28xx_dvb), GFP_KERNEL);
-	if (dvb == NULL) {
-		em28xx_info("em28xx_dvb: memory allocation failed\n");
+	if (!dvb)
 		return -ENOMEM;
-	}
+
 	dev->dvb = dvb;
 	dvb->fe[0] = dvb->fe[1] = NULL;
 
@@ -1141,7 +1141,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 					   EM28XX_DVB_NUM_ISOC_PACKETS);
 	}
 	if (result) {
-		em28xx_errdev("em28xx_dvb: failed to pre-allocate USB transfer buffers for DVB.\n");
+		pr_err("em28xx_dvb: failed to pre-allocate USB transfer buffers for DVB.\n");
 		kfree(dvb);
 		dev->dvb = NULL;
 		return result;
@@ -1320,7 +1320,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			result = gpio_request_one(dvb->lna_gpio,
 						  GPIOF_OUT_INIT_LOW, NULL);
 			if (result)
-				em28xx_errdev("gpio request failed %d\n",
+				pr_err("gpio request failed %d\n",
 					      result);
 			else
 				gpio_free(dvb->lna_gpio);
@@ -1936,11 +1936,11 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		}
 		break;
 	default:
-		em28xx_errdev("/2: The frontend of your DVB/ATSC card isn't supported yet\n");
+		pr_err("/2: The frontend of your DVB/ATSC card isn't supported yet\n");
 		break;
 	}
 	if (NULL == dvb->fe[0]) {
-		em28xx_errdev("/2: frontend initialization failed\n");
+		pr_err("/2: frontend initialization failed\n");
 		result = -EINVAL;
 		goto out_free;
 	}
@@ -1955,7 +1955,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	if (result < 0)
 		goto out_free;
 
-	em28xx_info("DVB extension successfully initialized\n");
+	pr_info("DVB extension successfully initialized\n");
 
 	kref_get(&dev->ref);
 
@@ -1995,7 +1995,7 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 	if (!dev->dvb)
 		return 0;
 
-	em28xx_info("Closing DVB extension\n");
+	pr_info("Closing DVB extension\n");
 
 	dvb = dev->dvb;
 
@@ -2053,17 +2053,17 @@ static int em28xx_dvb_suspend(struct em28xx *dev)
 	if (!dev->board.has_dvb)
 		return 0;
 
-	em28xx_info("Suspending DVB extension\n");
+	pr_info("Suspending DVB extension\n");
 	if (dev->dvb) {
 		struct em28xx_dvb *dvb = dev->dvb;
 
 		if (dvb->fe[0]) {
 			ret = dvb_frontend_suspend(dvb->fe[0]);
-			em28xx_info("fe0 suspend %d\n", ret);
+			pr_info("fe0 suspend %d\n", ret);
 		}
 		if (dvb->fe[1]) {
 			dvb_frontend_suspend(dvb->fe[1]);
-			em28xx_info("fe1 suspend %d\n", ret);
+			pr_info("fe1 suspend %d\n", ret);
 		}
 	}
 
@@ -2080,18 +2080,18 @@ static int em28xx_dvb_resume(struct em28xx *dev)
 	if (!dev->board.has_dvb)
 		return 0;
 
-	em28xx_info("Resuming DVB extension\n");
+	pr_info("Resuming DVB extension\n");
 	if (dev->dvb) {
 		struct em28xx_dvb *dvb = dev->dvb;
 
 		if (dvb->fe[0]) {
 			ret = dvb_frontend_resume(dvb->fe[0]);
-			em28xx_info("fe0 resume %d\n", ret);
+			pr_info("fe0 resume %d\n", ret);
 		}
 
 		if (dvb->fe[1]) {
 			ret = dvb_frontend_resume(dvb->fe[1]);
-			em28xx_info("fe1 resume %d\n", ret);
+			pr_info("fe1 resume %d\n", ret);
 		}
 	}
 

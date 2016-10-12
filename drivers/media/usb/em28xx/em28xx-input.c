@@ -21,6 +21,8 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include "em28xx.h"
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -28,8 +30,6 @@
 #include <linux/usb.h>
 #include <linux/slab.h>
 #include <linux/bitrev.h>
-
-#include "em28xx.h"
 
 #define EM28XX_SNAPSHOT_KEY				KEY_CAMERA
 #define EM28XX_BUTTONS_DEBOUNCED_QUERY_INTERVAL		500 /* [ms] */
@@ -567,7 +567,7 @@ static int em28xx_register_snapshot_button(struct em28xx *dev)
 	struct input_dev *input_dev;
 	int err;
 
-	em28xx_info("Registering snapshot button...\n");
+	pr_info("Registering snapshot button...\n");
 	input_dev = input_allocate_device();
 	if (!input_dev)
 		return -ENOMEM;
@@ -591,7 +591,7 @@ static int em28xx_register_snapshot_button(struct em28xx *dev)
 
 	err = input_register_device(input_dev);
 	if (err) {
-		em28xx_errdev("input_register_device failed\n");
+		pr_err("input_register_device failed\n");
 		input_free_device(input_dev);
 		return err;
 	}
@@ -631,7 +631,7 @@ static void em28xx_init_buttons(struct em28xx *dev)
 		} else if (button->role == EM28XX_BUTTON_ILLUMINATION) {
 			/* Check sanity */
 			if (!em28xx_find_led(dev, EM28XX_LED_ILLUMINATION)) {
-				em28xx_errdev("BUG: illumination button defined, but no illumination LED.\n");
+				pr_err("BUG: illumination button defined, but no illumination LED.\n");
 				goto next_button;
 			}
 		}
@@ -667,7 +667,7 @@ static void em28xx_shutdown_buttons(struct em28xx *dev)
 	dev->num_button_polling_addresses = 0;
 	/* Deregister input devices */
 	if (dev->sbutton_input_dev != NULL) {
-		em28xx_info("Deregistering snapshot button\n");
+		pr_info("Deregistering snapshot button\n");
 		input_unregister_device(dev->sbutton_input_dev);
 		dev->sbutton_input_dev = NULL;
 	}
@@ -696,18 +696,18 @@ static int em28xx_ir_init(struct em28xx *dev)
 		i2c_rc_dev_addr = em28xx_probe_i2c_ir(dev);
 		if (!i2c_rc_dev_addr) {
 			dev->board.has_ir_i2c = 0;
-			em28xx_warn("No i2c IR remote control device found.\n");
+			pr_warn("No i2c IR remote control device found.\n");
 			return -ENODEV;
 		}
 	}
 
 	if (dev->board.ir_codes == NULL && !dev->board.has_ir_i2c) {
 		/* No remote control support */
-		em28xx_warn("Remote control support is not available for this card.\n");
+		pr_warn("Remote control support is not available for this card.\n");
 		return 0;
 	}
 
-	em28xx_info("Registering input extension\n");
+	pr_info("Registering input extension\n");
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	if (!ir)
@@ -810,7 +810,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 	if (err)
 		goto error;
 
-	em28xx_info("Input extension successfully initalized\n");
+	pr_info("Input extension successfully initalized\n");
 
 	return 0;
 
@@ -831,7 +831,7 @@ static int em28xx_ir_fini(struct em28xx *dev)
 		return 0;
 	}
 
-	em28xx_info("Closing input extension\n");
+	pr_info("Closing input extension\n");
 
 	em28xx_shutdown_buttons(dev);
 
@@ -860,7 +860,7 @@ static int em28xx_ir_suspend(struct em28xx *dev)
 	if (dev->is_audio_only)
 		return 0;
 
-	em28xx_info("Suspending input extension\n");
+	pr_info("Suspending input extension\n");
 	if (ir)
 		cancel_delayed_work_sync(&ir->work);
 	cancel_delayed_work_sync(&dev->buttons_query_work);
@@ -877,7 +877,7 @@ static int em28xx_ir_resume(struct em28xx *dev)
 	if (dev->is_audio_only)
 		return 0;
 
-	em28xx_info("Resuming input extension\n");
+	pr_info("Resuming input extension\n");
 	/* if suspend calls ir_raw_event_unregister(), the should call
 	   ir_raw_event_register() */
 	if (ir)

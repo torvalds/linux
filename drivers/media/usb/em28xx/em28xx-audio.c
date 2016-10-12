@@ -25,6 +25,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "em28xx.h"
+
 #include <linux/kernel.h>
 #include <linux/usb.h>
 #include <linux/init.h>
@@ -44,7 +46,6 @@
 #include <sound/tlv.h>
 #include <sound/ac97_codec.h>
 #include <media/v4l2-common.h>
-#include "em28xx.h"
 
 static int debug;
 module_param(debug, int, 0644);
@@ -164,7 +165,7 @@ static void em28xx_audio_isocirq(struct urb *urb)
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status < 0)
-		em28xx_errdev("resubmit of audio urb failed (error=%i)\n",
+		pr_err("resubmit of audio urb failed (error=%i)\n",
 			      status);
 	return;
 }
@@ -182,7 +183,7 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 
 		errCode = usb_submit_urb(dev->adev.urb[i], GFP_ATOMIC);
 		if (errCode) {
-			em28xx_errdev("submit of audio urb failed (error=%i)\n",
+			pr_err("submit of audio urb failed (error=%i)\n",
 				      errCode);
 			em28xx_deinit_isoc_audio(dev);
 			atomic_set(&dev->adev.stream_started, 0);
@@ -254,7 +255,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 	int nonblock, ret = 0;
 
 	if (!dev) {
-		em28xx_err("BUG: em28xx can't find device struct. Can't proceed with open\n");
+		pr_err("BUG: em28xx can't find device struct. Can't proceed with open\n");
 		return -ENODEV;
 	}
 
@@ -317,7 +318,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 err:
 	mutex_unlock(&dev->lock);
 
-	em28xx_err("Error while configuring em28xx mixer\n");
+	pr_err("Error while configuring em28xx mixer\n");
 	return ret;
 }
 
@@ -755,7 +756,7 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 	intf = usb_ifnum_to_if(dev->udev, dev->ifnum);
 
 	if (intf->num_altsetting <= alt) {
-		em28xx_errdev("alt %d doesn't exist on interface %d\n",
+		pr_err("alt %d doesn't exist on interface %d\n",
 			      dev->ifnum, alt);
 		return -ENODEV;
 	}
@@ -771,14 +772,14 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 	}
 
 	if (!ep) {
-		em28xx_errdev("Couldn't find an audio endpoint");
+		pr_err("Couldn't find an audio endpoint");
 		return -ENODEV;
 	}
 
 	ep_size = em28xx_audio_ep_packet_size(dev->udev, ep);
 	interval = 1 << (ep->bInterval - 1);
 
-	em28xx_info("Endpoint 0x%02x %s on intf %d alt %d interval = %d, size %d\n",
+	pr_info("Endpoint 0x%02x %s on intf %d alt %d interval = %d, size %d\n",
 		    EM28XX_EP_AUDIO, usb_speed_string(dev->udev->speed),
 		     dev->ifnum, alt,
 		     interval,
@@ -819,7 +820,7 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 	if (urb_size > ep_size * npackets)
 		npackets = DIV_ROUND_UP(urb_size, ep_size);
 
-	em28xx_info("Number of URBs: %d, with %d packets and %d size\n",
+	pr_info("Number of URBs: %d, with %d packets and %d size\n",
 		    num_urb, npackets, urb_size);
 
 	/* Estimate the bytes per period */
@@ -857,7 +858,7 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 		buf = usb_alloc_coherent(dev->udev, npackets * ep_size, GFP_ATOMIC,
 					 &urb->transfer_dma);
 		if (!buf) {
-			em28xx_errdev("usb_alloc_coherent failed!\n");
+			pr_err("usb_alloc_coherent failed!\n");
 			em28xx_audio_free_urb(dev);
 			return -ENOMEM;
 		}
@@ -897,7 +898,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 		return 0;
 	}
 
-	em28xx_info("Binding audio extension\n");
+	pr_info("Binding audio extension\n");
 
 	kref_get(&dev->ref);
 
@@ -953,7 +954,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 	if (err < 0)
 		goto urb_free;
 
-	em28xx_info("Audio extension successfully initialized\n");
+	pr_info("Audio extension successfully initialized\n");
 	return 0;
 
 urb_free:
@@ -978,7 +979,7 @@ static int em28xx_audio_fini(struct em28xx *dev)
 		return 0;
 	}
 
-	em28xx_info("Closing audio extension\n");
+	pr_info("Closing audio extension\n");
 
 	if (dev->adev.sndcard) {
 		snd_card_disconnect(dev->adev.sndcard);
@@ -1002,7 +1003,7 @@ static int em28xx_audio_suspend(struct em28xx *dev)
 	if (dev->usb_audio_type != EM28XX_USB_AUDIO_VENDOR)
 		return 0;
 
-	em28xx_info("Suspending audio extension\n");
+	pr_info("Suspending audio extension\n");
 	em28xx_deinit_isoc_audio(dev);
 	atomic_set(&dev->adev.stream_started, 0);
 	return 0;
@@ -1016,7 +1017,7 @@ static int em28xx_audio_resume(struct em28xx *dev)
 	if (dev->usb_audio_type != EM28XX_USB_AUDIO_VENDOR)
 		return 0;
 
-	em28xx_info("Resuming audio extension\n");
+	pr_info("Resuming audio extension\n");
 	/* Nothing to do other than schedule_work() ?? */
 	schedule_work(&dev->adev.wq_trigger);
 	return 0;

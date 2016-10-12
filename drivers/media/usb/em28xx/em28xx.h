@@ -29,6 +29,8 @@
 #define EM28XX_VERSION "0.2.2"
 #define DRIVER_DESC    "Empia em28xx device driver"
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
@@ -796,21 +798,5 @@ void em28xx_free_device(struct kref *ref);
 /* Provided by em28xx-camera.c */
 int em28xx_detect_sensor(struct em28xx *dev);
 int em28xx_init_camera(struct em28xx *dev);
-
-/* printk macros */
-
-#define em28xx_err(fmt, arg...) do {\
-	printk(KERN_ERR fmt , ##arg); } while (0)
-
-#define em28xx_errdev(fmt, arg...) do {\
-	printk(KERN_ERR "%s: "fmt,\
-			dev->name , ##arg); } while (0)
-
-#define em28xx_info(fmt, arg...) do {\
-	printk(KERN_INFO "%s: "fmt,\
-			dev->name , ##arg); } while (0)
-#define em28xx_warn(fmt, arg...) do {\
-	printk(KERN_WARNING "%s: "fmt,\
-			dev->name , ##arg); } while (0)
 
 #endif

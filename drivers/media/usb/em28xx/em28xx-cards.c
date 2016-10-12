@@ -23,6 +23,8 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "em28xx.h"
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -39,7 +41,6 @@
 #include <media/v4l2-common.h>
 #include <sound/ac97_codec.h>
 
-#include "em28xx.h"
 
 #define DRIVER_NAME         "em28xx"
 
@@ -2677,7 +2678,7 @@ static int em28xx_wait_until_ac97_features_equals(struct em28xx *dev,
 		msleep(50);
 	}
 
-	em28xx_warn("AC97 registers access is not reliable !\n");
+	pr_warn("AC97 registers access is not reliable !\n");
 	return -ETIMEDOUT;
 }
 
@@ -2831,12 +2832,12 @@ static int em28xx_hint_board(struct em28xx *dev)
 			dev->model = em28xx_eeprom_hash[i].model;
 			dev->tuner_type = em28xx_eeprom_hash[i].tuner;
 
-			em28xx_errdev("Your board has no unique USB ID.\n");
-			em28xx_errdev("A hint were successfully done, based on eeprom hash.\n");
-			em28xx_errdev("This method is not 100%% failproof.\n");
-			em28xx_errdev("If the board were missdetected, please email this log to:\n");
-			em28xx_errdev("\tV4L Mailing List  <linux-media@vger.kernel.org>\n");
-			em28xx_errdev("Board detected as %s\n",
+			pr_err("Your board has no unique USB ID.\n");
+			pr_err("A hint were successfully done, based on eeprom hash.\n");
+			pr_err("This method is not 100%% failproof.\n");
+			pr_err("If the board were missdetected, please email this log to:\n");
+			pr_err("\tV4L Mailing List  <linux-media@vger.kernel.org>\n");
+			pr_err("Board detected as %s\n",
 				      em28xx_boards[dev->model].name);
 
 			return 0;
@@ -2860,28 +2861,28 @@ static int em28xx_hint_board(struct em28xx *dev)
 		if (dev->i2c_hash == em28xx_i2c_hash[i].hash) {
 			dev->model = em28xx_i2c_hash[i].model;
 			dev->tuner_type = em28xx_i2c_hash[i].tuner;
-			em28xx_errdev("Your board has no unique USB ID.\n");
-			em28xx_errdev("A hint were successfully done, based on i2c devicelist hash.\n");
-			em28xx_errdev("This method is not 100%% failproof.\n");
-			em28xx_errdev("If the board were missdetected, please email this log to:\n");
-			em28xx_errdev("\tV4L Mailing List  <linux-media@vger.kernel.org>\n");
-			em28xx_errdev("Board detected as %s\n",
+			pr_err("Your board has no unique USB ID.\n");
+			pr_err("A hint were successfully done, based on i2c devicelist hash.\n");
+			pr_err("This method is not 100%% failproof.\n");
+			pr_err("If the board were missdetected, please email this log to:\n");
+			pr_err("\tV4L Mailing List  <linux-media@vger.kernel.org>\n");
+			pr_err("Board detected as %s\n",
 				      em28xx_boards[dev->model].name);
 
 			return 0;
 		}
 	}
 
-	em28xx_errdev("Your board has no unique USB ID and thus need a hint to be detected.\n");
-	em28xx_errdev("You may try to use card=<n> insmod option to workaround that.\n");
-	em28xx_errdev("Please send an email with this log to:\n");
-	em28xx_errdev("\tV4L Mailing List <linux-media@vger.kernel.org>\n");
-	em28xx_errdev("Board eeprom hash is 0x%08lx\n", dev->hash);
-	em28xx_errdev("Board i2c devicelist hash is 0x%08lx\n", dev->i2c_hash);
+	pr_err("Your board has no unique USB ID and thus need a hint to be detected.\n");
+	pr_err("You may try to use card=<n> insmod option to workaround that.\n");
+	pr_err("Please send an email with this log to:\n");
+	pr_err("\tV4L Mailing List <linux-media@vger.kernel.org>\n");
+	pr_err("Board eeprom hash is 0x%08lx\n", dev->hash);
+	pr_err("Board i2c devicelist hash is 0x%08lx\n", dev->i2c_hash);
 
-	em28xx_errdev("Here is a list of valid choices for the card=<n> insmod option:\n");
+	pr_err("Here is a list of valid choices for the card=<n> insmod option:\n");
 	for (i = 0; i < em28xx_bcount; i++) {
-		em28xx_errdev("    card=%d -> %s\n",
+		pr_err("    card=%d -> %s\n",
 			      i, em28xx_boards[i].name);
 	}
 	return -1;
@@ -2916,7 +2917,7 @@ static void em28xx_card_setup(struct em28xx *dev)
 		 * hash identities which has not been determined as yet.
 		 */
 		if (em28xx_hint_board(dev) < 0)
-			em28xx_errdev("Board not discovered\n");
+			pr_err("Board not discovered\n");
 		else {
 			em28xx_set_model(dev);
 			em28xx_pre_card_setup(dev);
@@ -2926,7 +2927,7 @@ static void em28xx_card_setup(struct em28xx *dev)
 		em28xx_set_model(dev);
 	}
 
-	em28xx_info("Identified as %s (card=%d)\n",
+	pr_info("Identified as %s (card=%d)\n",
 		    dev->board.name, dev->model);
 
 	dev->tuner_type = em28xx_boards[dev->model].tuner_type;
@@ -3025,10 +3026,10 @@ static void em28xx_card_setup(struct em28xx *dev)
 	}
 
 	if (dev->board.valid == EM28XX_BOARD_NOT_VALIDATED) {
-		em28xx_errdev("\n\n");
-		em28xx_errdev("The support for this board weren't valid yet.\n");
-		em28xx_errdev("Please send a report of having this working\n");
-		em28xx_errdev("not to V4L mailing list (and/or to other addresses)\n\n");
+		pr_err("\n\n");
+		pr_err("The support for this board weren't valid yet.\n");
+		pr_err("Please send a report of having this working\n");
+		pr_err("not to V4L mailing list (and/or to other addresses)\n\n");
 	}
 
 	/* Free eeprom data memory */
@@ -3211,7 +3212,7 @@ void em28xx_free_device(struct kref *ref)
 {
 	struct em28xx *dev = kref_to_dev(ref);
 
-	em28xx_info("Freeing device\n");
+	pr_info("Freeing device\n");
 
 	if (!dev->disconnected)
 		em28xx_release_resources(dev);
@@ -3349,7 +3350,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		/* Resets I2C speed */
 		retval = em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->board.i2c_speed);
 		if (retval < 0) {
-			em28xx_errdev("%s: em28xx_write_reg failed! retval [%d]\n",
+			pr_err("%s: em28xx_write_reg failed! retval [%d]\n",
 				      __func__, retval);
 			return retval;
 		}
@@ -3363,7 +3364,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	else
 		retval = em28xx_i2c_register(dev, 0, EM28XX_I2C_ALGO_EM28XX);
 	if (retval < 0) {
-		em28xx_errdev("%s: em28xx_i2c_register bus 0 - error [%d]!\n",
+		pr_err("%s: em28xx_i2c_register bus 0 - error [%d]!\n",
 			      __func__, retval);
 		return retval;
 	}
@@ -3377,7 +3378,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			retval = em28xx_i2c_register(dev, 1,
 						     EM28XX_I2C_ALGO_EM28XX);
 		if (retval < 0) {
-			em28xx_errdev("%s: em28xx_i2c_register bus 1 - error [%d]!\n",
+			pr_err("%s: em28xx_i2c_register bus 1 - error [%d]!\n",
 				      __func__, retval);
 
 			em28xx_i2c_unregister(dev, 0);
@@ -3427,7 +3428,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	/* Don't register audio interfaces */
 	if (interface->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
-		em28xx_err(DRIVER_NAME
+		pr_err(DRIVER_NAME
 			" audio device (%04x:%04x): interface %i, class %i\n",
 			le16_to_cpu(udev->descriptor.idVendor),
 			le16_to_cpu(udev->descriptor.idProduct),
@@ -3441,7 +3442,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		em28xx_err(DRIVER_NAME ": out of memory!\n");
 		retval = -ENOMEM;
 		goto err;
 	}
@@ -3451,7 +3451,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 				kmalloc(sizeof(dev->alt_max_pkt_size_isoc[0]) *
 					interface->num_altsetting, GFP_KERNEL);
 	if (dev->alt_max_pkt_size_isoc == NULL) {
-		em28xx_errdev("out of memory!\n");
 		kfree(dev);
 		retval = -ENOMEM;
 		goto err;
@@ -3604,7 +3603,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 		if (uif->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
 			if (has_vendor_audio)
-				em28xx_err("em28xx: device seems to have vendor AND usb audio class interfaces !\n"
+				pr_err("em28xx: device seems to have vendor AND usb audio class interfaces !\n"
 					   "\t\tThe vendor interface will be ignored. Please contact the developers <linux-media@vger.kernel.org>\n");
 			dev->usb_audio_type = EM28XX_USB_AUDIO_CLASS;
 			break;
@@ -3661,13 +3660,13 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	if (has_video) {
 		if (!dev->analog_ep_isoc || (try_bulk && dev->analog_ep_bulk))
 			dev->analog_xfer_bulk = 1;
-		em28xx_info("analog set to %s mode.\n",
+		pr_info("analog set to %s mode.\n",
 			    dev->analog_xfer_bulk ? "bulk" : "isoc");
 	}
 	if (has_dvb) {
 		if (!dev->dvb_ep_isoc || (try_bulk && dev->dvb_ep_bulk))
 			dev->dvb_xfer_bulk = 1;
-		em28xx_info("dvb set to %s mode.\n",
+		pr_info("dvb set to %s mode.\n",
 			    dev->dvb_xfer_bulk ? "bulk" : "isoc");
 	}
 
@@ -3715,7 +3714,7 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 
 	dev->disconnected = 1;
 
-	em28xx_info("Disconnecting %s\n", dev->name);
+	pr_info("Disconnecting %s\n", dev->name);
 
 	flush_request_modules(dev);
 
