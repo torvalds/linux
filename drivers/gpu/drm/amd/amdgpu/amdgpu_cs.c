@@ -872,7 +872,7 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 	}
 
 	if (p->job->vm) {
-		p->job->vm_pd_addr = amdgpu_bo_gpu_offset(vm->page_directory);
+		p->job->vm_pd_addr = amdgpu_bo_gpu_offset(vm->root.bo);
 
 		r = amdgpu_bo_vm_update_pte(p);
 		if (r)

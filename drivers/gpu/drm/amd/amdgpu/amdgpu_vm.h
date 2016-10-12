@@ -79,6 +79,10 @@ struct amdgpu_bo_list_entry;
 struct amdgpu_vm_pt {
 	struct amdgpu_bo	*bo;
 	uint64_t		addr;
+
+	/* array of page tables, one for each directory entry */
+	struct amdgpu_vm_pt	*entries;
+	unsigned		last_entry_used;
 };
 
 struct amdgpu_vm {
@@ -98,13 +102,9 @@ struct amdgpu_vm {
 	struct list_head	freed;
 
 	/* contains the page directory */
-	struct amdgpu_bo	*page_directory;
-	unsigned		max_pde_used;
+	struct amdgpu_vm_pt     root;
 	struct dma_fence	*last_dir_update;
 	uint64_t		last_eviction_counter;
-
-	/* array of page tables, one for each page directory entry */
-	struct amdgpu_vm_pt	*page_tables;
 
 	/* for id and flush management per ring */
 	struct amdgpu_vm_id	*ids[AMDGPU_MAX_RINGS];
