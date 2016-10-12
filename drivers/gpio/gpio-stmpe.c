@@ -409,7 +409,7 @@ static irqreturn_t stmpe_gpio_irq(int irq, void *dev)
 		 * 801/1801/1600, bits are cleared when read.
 		 * Edge detect register is not present on 801/1600/1801
 		 */
-		if (stmpe->partnum != STMPE801 || stmpe->partnum != STMPE1600 ||
+		if (stmpe->partnum != STMPE801 && stmpe->partnum != STMPE1600 &&
 		    stmpe->partnum != STMPE1801) {
 			stmpe_reg_write(stmpe, statmsbreg + i, status[i]);
 			stmpe_reg_write(stmpe,
