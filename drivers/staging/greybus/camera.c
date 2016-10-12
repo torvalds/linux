@@ -289,6 +289,7 @@ static const int gb_camera_configure_streams_validate_response(
 
 	for (i = 0; i < resp->num_streams; i++) {
 		struct gb_camera_stream_config_response *cfg = &resp->config[i];
+
 		if (cfg->padding) {
 			gcam_err(gcam, "stream #%u padding != 0\n", i);
 			return -EIO;
