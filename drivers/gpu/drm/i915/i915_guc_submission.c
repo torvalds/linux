@@ -1016,6 +1016,29 @@ static void *guc_get_write_buffer(struct intel_guc *guc)
 	return relay_reserve(guc->log.relay_chan, 0);
 }
 
+static bool
+guc_check_log_buf_overflow(struct intel_guc *guc,
+			   enum guc_log_buffer_type type, unsigned int full_cnt)
+{
+	unsigned int prev_full_cnt = guc->log.prev_overflow_count[type];
+	bool overflow = false;
+
+	if (full_cnt != prev_full_cnt) {
+		overflow = true;
+
+		guc->log.prev_overflow_count[type] = full_cnt;
+		guc->log.total_overflow_count[type] += full_cnt - prev_full_cnt;
+
+		if (full_cnt < prev_full_cnt) {
+			/* buffer_full_cnt is a 4 bit counter */
+			guc->log.total_overflow_count[type] += 16;
+		}
+		DRM_ERROR_RATELIMITED("GuC log buffer overflow\n");
+	}
+
+	return overflow;
+}
+
 static unsigned int guc_get_log_buffer_size(enum guc_log_buffer_type type)
 {
 	switch (type) {
@@ -1036,7 +1059,7 @@ static void guc_read_update_log_buffer(struct intel_guc *guc)
 {
 	struct guc_log_buffer_state *log_buf_state, *log_buf_snapshot_state;
 	struct guc_log_buffer_state log_buf_state_local;
-	unsigned int buffer_size, write_offset;
+	unsigned int buffer_size, write_offset, full_cnt;
 	enum guc_log_buffer_type type;
 	void *src_data, *dst_data;
 
@@ -1062,6 +1085,11 @@ static void guc_read_update_log_buffer(struct intel_guc *guc)
 		       sizeof(struct guc_log_buffer_state));
 		buffer_size = guc_get_log_buffer_size(type);
 		write_offset = log_buf_state_local.sampled_write_ptr;
+		full_cnt = log_buf_state_local.buffer_full_cnt;
+
+		/* Bookkeeping stuff */
+		guc->log.flush_count[type] += log_buf_state_local.flush_to_file;
+		guc_check_log_buf_overflow(guc, type, full_cnt);
 
 		/* Update the state of shared log buffer */
 		log_buf_state->read_ptr = write_offset;
@@ -1099,6 +1127,7 @@ static void guc_read_update_log_buffer(struct intel_guc *guc)
 		 * getting consumed by User at a slow rate.
 		 */
 		DRM_ERROR_RATELIMITED("no sub-buffer to capture logs\n");
+		guc->log.capture_miss_count++;
 	}
 }
 

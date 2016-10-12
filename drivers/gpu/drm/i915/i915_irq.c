@@ -1691,6 +1691,8 @@ static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 gt_iir)
 			/* Handle flush interrupt in bottom half */
 			queue_work(dev_priv->guc.log.flush_wq,
 				   &dev_priv->guc.log.flush_work);
+
+			dev_priv->guc.log.flush_interrupt_count++;
 		} else {
 			/* Not clearing of unhandled event bits won't result in
 			 * re-triggering of the interrupt.
