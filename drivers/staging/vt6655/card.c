@@ -257,7 +257,7 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 		BBbWriteEmbedded(priv, 0x88, 0x02);
 		bySlot = C_SLOT_LONG;
 		bySIFS = C_SIFS_BG;
-		byDIFS = C_SIFS_BG + 2*C_SLOT_LONG;
+		byDIFS = C_SIFS_BG + 2 * C_SLOT_LONG;
 		byCWMaxMin = 0xA5;
 	} else { /* PK_TYPE_11GA & PK_TYPE_11GB */
 		MACvSetBBType(priv->PortOffset, BB_TYPE_11G);
@@ -285,7 +285,7 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 			byDIFS = C_SIFS_BG + 2 * C_SLOT_SHORT;
 		} else {
 			bySlot = C_SLOT_LONG;
-			byDIFS = C_SIFS_BG + 2*C_SLOT_LONG;
+			byDIFS = C_SIFS_BG + 2 * C_SLOT_LONG;
 		}
 
 		byCWMaxMin = 0xa4;
