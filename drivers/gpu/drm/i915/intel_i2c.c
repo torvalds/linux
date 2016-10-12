@@ -467,13 +467,9 @@ do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 					       struct intel_gmbus,
 					       adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
-	const unsigned int fw =
-		intel_uncore_forcewake_for_reg(dev_priv, GMBUS0,
-					       FW_REG_READ | FW_REG_WRITE);
 	int i = 0, inc, try = 0;
 	int ret = 0;
 
-	intel_uncore_forcewake_get(dev_priv, fw);
 retry:
 	I915_WRITE_FW(GMBUS0, bus->reg0);
 
@@ -575,7 +571,6 @@ timeout:
 	ret = -EAGAIN;
 
 out:
-	intel_uncore_forcewake_put(dev_priv, fw);
 	return ret;
 }
 
