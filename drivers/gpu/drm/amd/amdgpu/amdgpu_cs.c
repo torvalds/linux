@@ -777,7 +777,7 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 	struct amdgpu_bo *bo;
 	int i, r;
 
-	r = amdgpu_vm_update_page_directory(adev, vm);
+	r = amdgpu_vm_update_directories(adev, vm);
 	if (r)
 		return r;
 

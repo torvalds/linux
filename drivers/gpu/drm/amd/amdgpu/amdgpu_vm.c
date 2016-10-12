@@ -700,24 +700,24 @@ static uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr)
 }
 
 /*
- * amdgpu_vm_update_pdes - make sure that page directory is valid
+ * amdgpu_vm_update_level - update a single level in the hierarchy
  *
  * @adev: amdgpu_device pointer
  * @vm: requested vm
- * @start: start of GPU address range
- * @end: end of GPU address range
+ * @parent: parent directory
  *
- * Allocates new page tables if necessary
- * and updates the page directory.
+ * Makes sure all entries in @parent are up to date.
  * Returns 0 for success, error for failure.
  */
-int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
-				    struct amdgpu_vm *vm)
+static int amdgpu_vm_update_level(struct amdgpu_device *adev,
+				  struct amdgpu_vm *vm,
+				  struct amdgpu_vm_pt *parent,
+				  unsigned level)
 {
 	struct amdgpu_bo *shadow;
 	struct amdgpu_ring *ring;
 	uint64_t pd_addr, shadow_addr;
-	uint32_t incr = AMDGPU_VM_PTE_COUNT * 8;
+	uint32_t incr = amdgpu_vm_bo_size(adev, level + 1);
 	uint64_t last_pde = ~0, last_pt = ~0, last_shadow = ~0;
 	unsigned count = 0, pt_idx, ndw;
 	struct amdgpu_job *job;
@@ -726,16 +726,19 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 
 	int r;
 
+	if (!parent->entries)
+		return 0;
 	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
-	shadow = vm->root.bo->shadow;
 
 	/* padding, etc. */
 	ndw = 64;
 
 	/* assume the worst case */
-	ndw += vm->root.last_entry_used * 6;
+	ndw += parent->last_entry_used * 6;
 
-	pd_addr = amdgpu_bo_gpu_offset(vm->root.bo);
+	pd_addr = amdgpu_bo_gpu_offset(parent->bo);
+
+	shadow = parent->bo->shadow;
 	if (shadow) {
 		r = amdgpu_ttm_bind(&shadow->tbo, &shadow->tbo.mem);
 		if (r)
@@ -754,9 +757,9 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 	params.adev = adev;
 	params.ib = &job->ibs[0];
 
-	/* walk over the address space and update the page directory */
-	for (pt_idx = 0; pt_idx <= vm->root.last_entry_used; ++pt_idx) {
-		struct amdgpu_bo *bo = vm->root.entries[pt_idx].bo;
+	/* walk over the address space and update the directory */
+	for (pt_idx = 0; pt_idx <= parent->last_entry_used; ++pt_idx) {
+		struct amdgpu_bo *bo = parent->entries[pt_idx].bo;
 		uint64_t pde, pt;
 
 		if (bo == NULL)
@@ -772,10 +775,10 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 		}
 
 		pt = amdgpu_bo_gpu_offset(bo);
-		if (vm->root.entries[pt_idx].addr == pt)
+		if (parent->entries[pt_idx].addr == pt)
 			continue;
 
-		vm->root.entries[pt_idx].addr = pt;
+		parent->entries[pt_idx].addr = pt;
 
 		pde = pd_addr + pt_idx * 8;
 		if (((last_pde + 8 * count) != pde) ||
@@ -820,32 +823,60 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 
 	if (params.ib->length_dw == 0) {
 		amdgpu_job_free(job);
-		return 0;
-	}
-
-	amdgpu_ring_pad_ib(ring, params.ib);
-	amdgpu_sync_resv(adev, &job->sync, vm->root.bo->tbo.resv,
-			 AMDGPU_FENCE_OWNER_VM);
-	if (shadow)
-		amdgpu_sync_resv(adev, &job->sync, shadow->tbo.resv,
+	} else {
+		amdgpu_ring_pad_ib(ring, params.ib);
+		amdgpu_sync_resv(adev, &job->sync, parent->bo->tbo.resv,
 				 AMDGPU_FENCE_OWNER_VM);
+		if (shadow)
+			amdgpu_sync_resv(adev, &job->sync, shadow->tbo.resv,
+					 AMDGPU_FENCE_OWNER_VM);
 
-	WARN_ON(params.ib->length_dw > ndw);
-	r = amdgpu_job_submit(job, ring, &vm->entity,
-			      AMDGPU_FENCE_OWNER_VM, &fence);
-	if (r)
-		goto error_free;
+		WARN_ON(params.ib->length_dw > ndw);
+		r = amdgpu_job_submit(job, ring, &vm->entity,
+				AMDGPU_FENCE_OWNER_VM, &fence);
+		if (r)
+			goto error_free;
 
-	amdgpu_bo_fence(vm->root.bo, fence, true);
-	dma_fence_put(vm->last_dir_update);
-	vm->last_dir_update = dma_fence_get(fence);
-	dma_fence_put(fence);
+		amdgpu_bo_fence(parent->bo, fence, true);
+		dma_fence_put(vm->last_dir_update);
+		vm->last_dir_update = dma_fence_get(fence);
+		dma_fence_put(fence);
+	}
+	/*
+	 * Recurse into the subdirectories. This recursion is harmless because
+	 * we only have a maximum of 5 layers.
+	 */
+	for (pt_idx = 0; pt_idx <= parent->last_entry_used; ++pt_idx) {
+		struct amdgpu_vm_pt *entry = &parent->entries[pt_idx];
+
+		if (!entry->bo)
+			continue;
+
+		r = amdgpu_vm_update_level(adev, vm, entry, level + 1);
+		if (r)
+			return r;
+	}
 
 	return 0;
 
 error_free:
 	amdgpu_job_free(job);
 	return r;
+}
+
+/*
+ * amdgpu_vm_update_directories - make sure that all directories are valid
+ *
+ * @adev: amdgpu_device pointer
+ * @vm: requested vm
+ *
+ * Makes sure all directories are up to date.
+ * Returns 0 for success, error for failure.
+ */
+int amdgpu_vm_update_directories(struct amdgpu_device *adev,
+				 struct amdgpu_vm *vm)
+{
+	return amdgpu_vm_update_level(adev, vm, &vm->root, 0);
 }
 
 /**
