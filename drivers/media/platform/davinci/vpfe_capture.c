@@ -1817,7 +1817,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	struct vpfe_device *vpfe_dev;
 	struct i2c_adapter *i2c_adap;
 	struct video_device *vfd;
-	int ret = -ENOMEM, i, j;
+	int ret, i, j;
 	int num_subdevs = 0;
 
 	/* Get the pointer to the device object */
@@ -1826,7 +1826,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	if (!vpfe_dev) {
 		v4l2_err(pdev->dev.driver,
 			"Failed to allocate memory for vpfe_dev\n");
-		return ret;
+		return -ENOMEM;
 	}
 
 	vpfe_dev->pdev = &pdev->dev;
