@@ -3268,26 +3268,40 @@ EXPORT_SYMBOL(dw_mci_remove);
 
 
 #ifdef CONFIG_PM
-/*
- * TODO: we should probably disable the clock to the card in the suspend path.
- */
-int dw_mci_suspend(struct dw_mci *host)
+int dw_mci_runtime_suspend(struct device *dev)
 {
+	struct dw_mci *host = dev_get_drvdata(dev);
+
 	if (host->use_dma && host->dma_ops->exit)
 		host->dma_ops->exit(host);
 
+	clk_disable_unprepare(host->ciu_clk);
+
+	if (host->cur_slot &&
+	    (mmc_can_gpio_cd(host->cur_slot->mmc) ||
+	     !mmc_card_is_removable(host->cur_slot->mmc)))
+		clk_disable_unprepare(host->biu_clk);
+
 	return 0;
 }
-EXPORT_SYMBOL(dw_mci_suspend);
+EXPORT_SYMBOL(dw_mci_runtime_suspend);
 
-int dw_mci_resume(struct dw_mci *host)
+int dw_mci_runtime_resume(struct device *dev)
 {
-	int i, ret;
+	int i, ret = 0;
+	struct dw_mci *host = dev_get_drvdata(dev);
 
-	if (!dw_mci_ctrl_reset(host, SDMMC_CTRL_ALL_RESET_FLAGS)) {
-		ret = -ENODEV;
-		return ret;
+	if (host->cur_slot &&
+	    (mmc_can_gpio_cd(host->cur_slot->mmc) ||
+	     !mmc_card_is_removable(host->cur_slot->mmc))) {
+		ret = clk_prepare_enable(host->biu_clk);
+		if (ret)
+			return ret;
 	}
+
+	ret = clk_prepare_enable(host->ciu_clk);
+	if (ret)
+		return ret;
 
 	if (host->use_dma && host->dma_ops->init)
 		host->dma_ops->init(host);
@@ -3296,8 +3310,8 @@ int dw_mci_resume(struct dw_mci *host)
 	 * Restore the initial value at FIFOTH register
 	 * And Invalidate the prev_blksz with zero
 	 */
-	mci_writel(host, FIFOTH, host->fifoth_val);
-	host->prev_blksz = 0;
+	 mci_writel(host, FIFOTH, host->fifoth_val);
+	 host->prev_blksz = 0;
 
 	/* Put in max timeout */
 	mci_writel(host, TMOUT, 0xFFFFFFFF);
@@ -3322,48 +3336,7 @@ int dw_mci_resume(struct dw_mci *host)
 	/* Now that slots are all setup, we can enable card detect */
 	dw_mci_enable_cd(host);
 
-	return 0;
-}
-EXPORT_SYMBOL(dw_mci_resume);
-
-int dw_mci_runtime_suspend(struct device *dev)
-{
-	int err = 0;
-	struct dw_mci *host = dev_get_drvdata(dev);
-
-	err = dw_mci_suspend(host);
-	if (err)
-		return err;
-
-	clk_disable_unprepare(host->ciu_clk);
-
-	if (host->cur_slot &&
-	    (mmc_can_gpio_cd(host->cur_slot->mmc) ||
-	     !mmc_card_is_removable(host->cur_slot->mmc)))
-		clk_disable_unprepare(host->biu_clk);
-
-	return err;
-}
-EXPORT_SYMBOL(dw_mci_runtime_suspend);
-
-int dw_mci_runtime_resume(struct device *dev)
-{
-	int ret = 0;
-	struct dw_mci *host = dev_get_drvdata(dev);
-
-	if (host->cur_slot &&
-	    (mmc_can_gpio_cd(host->cur_slot->mmc) ||
-	     !mmc_card_is_removable(host->cur_slot->mmc))) {
-		ret = clk_prepare_enable(host->biu_clk);
-		if (ret)
-			return ret;
-	}
-
-	ret = clk_prepare_enable(host->ciu_clk);
-	if (ret)
-		return ret;
-
-	return dw_mci_resume(host);
+	return ret;
 }
 EXPORT_SYMBOL(dw_mci_runtime_resume);
 #endif /* CONFIG_PM */
