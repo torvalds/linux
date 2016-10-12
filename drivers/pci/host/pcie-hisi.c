@@ -33,7 +33,7 @@
 struct hisi_pcie;
 
 struct pcie_soc_ops {
-	int (*hisi_pcie_link_up)(struct hisi_pcie *pcie);
+	int (*hisi_pcie_link_up)(struct hisi_pcie *hisi_pcie);
 };
 
 struct hisi_pcie {
@@ -44,15 +44,15 @@ struct hisi_pcie {
 	struct pcie_soc_ops *soc_ops;
 };
 
-static inline void hisi_pcie_apb_writel(struct hisi_pcie *pcie,
+static inline void hisi_pcie_apb_writel(struct hisi_pcie *hisi_pcie,
 					u32 val, u32 reg)
 {
-	writel(val, pcie->reg_base + reg);
+	writel(val, hisi_pcie->reg_base + reg);
 }
 
-static inline u32 hisi_pcie_apb_readl(struct hisi_pcie *pcie, u32 reg)
+static inline u32 hisi_pcie_apb_readl(struct hisi_pcie *hisi_pcie, u32 reg)
 {
-	return readl(pcie->reg_base + reg);
+	return readl(hisi_pcie->reg_base + reg);
 }
 
 /* HipXX PCIe host only supports 32-bit config access */
@@ -61,12 +61,12 @@ static int hisi_pcie_cfg_read(struct pcie_port *pp, int where, int size,
 {
 	u32 reg;
 	u32 reg_val;
-	struct hisi_pcie *pcie = to_hisi_pcie(pp);
+	struct hisi_pcie *hisi_pcie = to_hisi_pcie(pp);
 	void *walker = &reg_val;
 
 	walker += (where & 0x3);
 	reg = where & ~0x3;
-	reg_val = hisi_pcie_apb_readl(pcie, reg);
+	reg_val = hisi_pcie_apb_readl(hisi_pcie, reg);
 
 	if (size == 1)
 		*val = *(u8 __force *) walker;
@@ -86,21 +86,21 @@ static int hisi_pcie_cfg_write(struct pcie_port *pp, int where, int  size,
 {
 	u32 reg_val;
 	u32 reg;
-	struct hisi_pcie *pcie = to_hisi_pcie(pp);
+	struct hisi_pcie *hisi_pcie = to_hisi_pcie(pp);
 	void *walker = &reg_val;
 
 	walker += (where & 0x3);
 	reg = where & ~0x3;
 	if (size == 4)
-		hisi_pcie_apb_writel(pcie, val, reg);
+		hisi_pcie_apb_writel(hisi_pcie, val, reg);
 	else if (size == 2) {
-		reg_val = hisi_pcie_apb_readl(pcie, reg);
+		reg_val = hisi_pcie_apb_readl(hisi_pcie, reg);
 		*(u16 __force *) walker = val;
-		hisi_pcie_apb_writel(pcie, reg_val, reg);
+		hisi_pcie_apb_writel(hisi_pcie, reg_val, reg);
 	} else if (size == 1) {
-		reg_val = hisi_pcie_apb_readl(pcie, reg);
+		reg_val = hisi_pcie_apb_readl(hisi_pcie, reg);
 		*(u8 __force *) walker = val;
-		hisi_pcie_apb_writel(pcie, reg_val, reg);
+		hisi_pcie_apb_writel(hisi_pcie, reg_val, reg);
 	} else
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
