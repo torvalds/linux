@@ -234,9 +234,11 @@
 
 extern int dw_mci_probe(struct dw_mci *host);
 extern void dw_mci_remove(struct dw_mci *host);
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 extern int dw_mci_suspend(struct dw_mci *host);
 extern int dw_mci_resume(struct dw_mci *host);
+extern int dw_mci_runtime_suspend(struct device *device);
+extern int dw_mci_runtime_resume(struct device *device);
 #endif
 
 /**

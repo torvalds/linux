@@ -3267,7 +3267,7 @@ EXPORT_SYMBOL(dw_mci_remove);
 
 
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 /*
  * TODO: we should probably disable the clock to the card in the suspend path.
  */
@@ -3325,7 +3325,35 @@ int dw_mci_resume(struct dw_mci *host)
 	return 0;
 }
 EXPORT_SYMBOL(dw_mci_resume);
-#endif /* CONFIG_PM_SLEEP */
+
+int dw_mci_runtime_suspend(struct device *dev)
+{
+	int err = 0;
+	struct dw_mci *host = dev_get_drvdata(dev);
+
+	err = dw_mci_suspend(host);
+	if (err)
+		return err;
+
+	clk_disable_unprepare(host->ciu_clk);
+
+	return err;
+}
+EXPORT_SYMBOL(dw_mci_runtime_suspend);
+
+int dw_mci_runtime_resume(struct device *dev)
+{
+	int ret = 0;
+	struct dw_mci *host = dev_get_drvdata(dev);
+
+	ret = clk_prepare_enable(host->ciu_clk);
+	if (ret)
+		return ret;
+
+	return dw_mci_resume(host);
+}
+EXPORT_SYMBOL(dw_mci_runtime_resume);
+#endif /* CONFIG_PM */
 
 static int __init dw_mci_init(void)
 {
