@@ -784,11 +784,19 @@ struct cfg80211_csa_settings {
  * @iftype_num: array with the number of interfaces of each interface
  *	type.  The index is the interface type as specified in &enum
  *	nl80211_iftype.
+ * @beacon_int_gcd: a value specifying GCD of all beaconing interfaces,
+ *	the GCD of a single value is considered the value itself, so for
+ *	a single interface this should be set to that interface's beacon
+ *	interval
+ * @beacon_int_different: a flag indicating whether or not all beacon
+ *	intervals (of beaconing interfaces) are different or not.
  */
 struct iface_combination_params {
 	int num_different_channels;
 	u8 radar_detect;
 	int iftype_num[NUM_NL80211_IFTYPES];
+	u32 beacon_int_gcd;
+	bool beacon_int_different;
 };
 
 /**
@@ -3100,6 +3108,12 @@ struct ieee80211_iface_limit {
  *	only in special cases.
  * @radar_detect_widths: bitmap of channel widths supported for radar detection
  * @radar_detect_regions: bitmap of regions supported for radar detection
+ * @beacon_int_min_gcd: This interface combination supports different
+ *	beacon intervals.
+ *	= 0 - all beacon intervals for different interface must be same.
+ *	> 0 - any beacon interval for the interface part of this combination AND
+ *	      *GCD* of all beacon intervals from beaconing interfaces of this
+ *	      combination must be greater or equal to this value.
  *
  * With this structure the driver can describe which interface
  * combinations it supports concurrently.
@@ -3158,6 +3172,7 @@ struct ieee80211_iface_combination {
 	bool beacon_int_infra_match;
 	u8 radar_detect_widths;
 	u8 radar_detect_regions;
+	u32 beacon_int_min_gcd;
 };
 
 struct ieee80211_txrx_stypes {

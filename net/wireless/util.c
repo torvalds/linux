@@ -1559,24 +1559,46 @@ bool ieee80211_chandef_to_operating_class(struct cfg80211_chan_def *chandef,
 EXPORT_SYMBOL(ieee80211_chandef_to_operating_class);
 
 int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
-				 u32 beacon_int)
+				 enum nl80211_iftype iftype, u32 beacon_int)
 {
 	struct wireless_dev *wdev;
-	int res = 0;
+	struct iface_combination_params params = {
+		.beacon_int_gcd = beacon_int,	/* GCD(n) = n */
+	};
 
 	if (beacon_int < 10 || beacon_int > 10000)
 		return -EINVAL;
 
+	params.iftype_num[iftype] = 1;
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		if (!wdev->beacon_interval)
 			continue;
-		if (wdev->beacon_interval != beacon_int) {
-			res = -EINVAL;
-			break;
+
+		params.iftype_num[wdev->iftype]++;
+	}
+
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
+		u32 bi_prev = wdev->beacon_interval;
+
+		if (!wdev->beacon_interval)
+			continue;
+
+		/* slight optimisation - skip identical BIs */
+		if (wdev->beacon_interval == beacon_int)
+			continue;
+
+		params.beacon_int_different = true;
+
+		/* Get the GCD */
+		while (bi_prev != 0) {
+			u32 tmp_bi = bi_prev;
+
+			bi_prev = params.beacon_int_gcd % bi_prev;
+			params.beacon_int_gcd = tmp_bi;
 		}
 	}
 
-	return res;
+	return cfg80211_check_combinations(&rdev->wiphy, &params);
 }
 
 int cfg80211_iter_combinations(struct wiphy *wiphy,
@@ -1651,6 +1673,15 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 		 */
 		if ((all_iftypes & used_iftypes) != used_iftypes)
 			goto cont;
+
+		if (params->beacon_int_gcd) {
+			if (c->beacon_int_min_gcd &&
+			    params->beacon_int_gcd < c->beacon_int_min_gcd)
+				return -EINVAL;
+			if (!c->beacon_int_min_gcd &&
+			    params->beacon_int_different)
+				goto cont;
+		}
 
 		/* This combination covered all interface types and
 		 * supported the requested numbers, so we're good.
