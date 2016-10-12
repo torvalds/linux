@@ -235,6 +235,7 @@ static const struct of_device_id slic_ds26522_match[] = {
 	 },
 	{},
 };
+MODULE_DEVICE_TABLE(of, slic_ds26522_match);
 
 static struct spi_driver slic_ds26522_driver = {
 	.driver = {
