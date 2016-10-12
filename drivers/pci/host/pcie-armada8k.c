@@ -73,10 +73,11 @@ struct armada8k_pcie {
 static int armada8k_pcie_link_up(struct pcie_port *pp)
 {
 	struct armada8k_pcie *pcie = to_armada8k_pcie(pp);
+	void __iomem *base = pcie->base;
 	u32 reg;
 	u32 mask = PCIE_GLB_STS_RDLH_LINK_UP | PCIE_GLB_STS_PHY_LINK_UP;
 
-	reg = readl(pcie->base + PCIE_GLOBAL_STATUS_REG);
+	reg = readl(base + PCIE_GLOBAL_STATUS_REG);
 
 	if ((reg & mask) == mask)
 		return 1;
