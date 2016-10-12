@@ -91,6 +91,7 @@ phys_addr_t ks_dw_pcie_get_msi_addr(struct pcie_port *pp)
 void ks_dw_pcie_handle_msi_irq(struct keystone_pcie *ks_pcie, int offset)
 {
 	struct pcie_port *pp = &ks_pcie->pp;
+	struct device *dev = pp->dev;
 	u32 pending, vector;
 	int src, virq;
 
@@ -104,7 +105,7 @@ void ks_dw_pcie_handle_msi_irq(struct keystone_pcie *ks_pcie, int offset)
 		if (BIT(src) & pending) {
 			vector = offset + (src << 3);
 			virq = irq_linear_revmap(pp->irq_domain, vector);
-			dev_dbg(pp->dev, "irq: bit %d, vector %d, virq %d\n",
+			dev_dbg(dev, "irq: bit %d, vector %d, virq %d\n",
 				src, vector, virq);
 			generic_handle_irq(virq);
 		}
@@ -215,6 +216,7 @@ static const struct irq_domain_ops ks_dw_pcie_msi_domain_ops = {
 int ks_dw_pcie_msi_host_init(struct pcie_port *pp, struct msi_controller *chip)
 {
 	struct keystone_pcie *ks_pcie = to_keystone_pcie(pp);
+	struct device *dev = pp->dev;
 	int i;
 
 	pp->irq_domain = irq_domain_add_linear(ks_pcie->msi_intc_np,
@@ -222,7 +224,7 @@ int ks_dw_pcie_msi_host_init(struct pcie_port *pp, struct msi_controller *chip)
 					&ks_dw_pcie_msi_domain_ops,
 					chip);
 	if (!pp->irq_domain) {
-		dev_err(pp->dev, "irq domain init failed\n");
+		dev_err(dev, "irq domain init failed\n");
 		return -ENXIO;
 	}
 
@@ -243,6 +245,7 @@ void ks_dw_pcie_enable_legacy_irqs(struct keystone_pcie *ks_pcie)
 void ks_dw_pcie_handle_legacy_irq(struct keystone_pcie *ks_pcie, int offset)
 {
 	struct pcie_port *pp = &ks_pcie->pp;
+	struct device *dev = pp->dev;
 	u32 pending;
 	int virq;
 
@@ -250,8 +253,7 @@ void ks_dw_pcie_handle_legacy_irq(struct keystone_pcie *ks_pcie, int offset)
 
 	if (BIT(0) & pending) {
 		virq = irq_linear_revmap(ks_pcie->legacy_irq_domain, offset);
-		dev_dbg(pp->dev, ": irq: irq_offset %d, virq %d\n", offset,
-			virq);
+		dev_dbg(dev, ": irq: irq_offset %d, virq %d\n", offset, virq);
 		generic_handle_irq(virq);
 	}
 
@@ -506,12 +508,13 @@ int __init ks_dw_pcie_host_init(struct keystone_pcie *ks_pcie,
 				struct device_node *msi_intc_np)
 {
 	struct pcie_port *pp = &ks_pcie->pp;
-	struct platform_device *pdev = to_platform_device(pp->dev);
+	struct device *dev = pp->dev;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *res;
 
 	/* Index 0 is the config reg. space address */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pp->dbi_base = devm_ioremap_resource(pp->dev, res);
+	pp->dbi_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(pp->dbi_base))
 		return PTR_ERR(pp->dbi_base);
 
@@ -524,7 +527,7 @@ int __init ks_dw_pcie_host_init(struct keystone_pcie *ks_pcie,
 
 	/* Index 1 is the application reg. space address */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	ks_pcie->va_app_base = devm_ioremap_resource(pp->dev, res);
+	ks_pcie->va_app_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ks_pcie->va_app_base))
 		return PTR_ERR(ks_pcie->va_app_base);
 
@@ -537,7 +540,7 @@ int __init ks_dw_pcie_host_init(struct keystone_pcie *ks_pcie,
 					&ks_dw_pcie_legacy_irq_domain_ops,
 					NULL);
 	if (!ks_pcie->legacy_irq_domain) {
-		dev_err(pp->dev, "Failed to add irq domain for legacy irqs\n");
+		dev_err(dev, "Failed to add irq domain for legacy irqs\n");
 		return -EINVAL;
 	}
 
