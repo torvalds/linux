@@ -66,16 +66,13 @@ MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 
 #define em28xx_videodbg(fmt, arg...) do {\
 	if (video_debug) \
-		printk(KERN_INFO "%s %s :"fmt, \
-			 dev->name, __func__ , ##arg); } while (0)
+		printk(KERN_DEBUG pr_fmt("video: %s: " fmt), \
+			 __func__, ##arg); } while (0)
 
-#define em28xx_isocdbg(fmt, arg...) \
-do {\
-	if (isoc_debug) { \
-		printk(KERN_INFO "%s %s :"fmt, \
-			 dev->name, __func__ , ##arg); \
-	} \
-  } while (0)
+#define em28xx_isocdbg(fmt, arg...) do {\
+	if (isoc_debug) \
+		printk(KERN_DEBUG pr_fmt("isoc: %s: " fmt), \
+			 __func__, ##arg); } while (0)
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC " - v4l2 interface");
@@ -415,7 +412,7 @@ set_alt:
 	errCode = usb_set_interface(dev->udev, dev->ifnum, dev->alt);
 	if (errCode < 0) {
 		pr_err("cannot change alternate number to %d (error=%i)\n",
-			      dev->alt, errCode);
+		       dev->alt, errCode);
 		return errCode;
 	}
 	return 0;
@@ -2049,7 +2046,7 @@ static int em28xx_v4l2_open(struct file *filp)
 	ret = v4l2_fh_open(filp);
 	if (ret) {
 		pr_err("%s: v4l2_fh_open() returned error %d\n",
-			      __func__, ret);
+		       __func__, ret);
 		mutex_unlock(&dev->lock);
 		return ret;
 	}
@@ -2115,17 +2112,17 @@ static int em28xx_v4l2_fini(struct em28xx *dev)
 
 	if (video_is_registered(&v4l2->radio_dev)) {
 		pr_info("V4L2 device %s deregistered\n",
-			    video_device_node_name(&v4l2->radio_dev));
+			video_device_node_name(&v4l2->radio_dev));
 		video_unregister_device(&v4l2->radio_dev);
 	}
 	if (video_is_registered(&v4l2->vbi_dev)) {
 		pr_info("V4L2 device %s deregistered\n",
-			    video_device_node_name(&v4l2->vbi_dev));
+			video_device_node_name(&v4l2->vbi_dev));
 		video_unregister_device(&v4l2->vbi_dev);
 	}
 	if (video_is_registered(&v4l2->vdev)) {
 		pr_info("V4L2 device %s deregistered\n",
-			    video_device_node_name(&v4l2->vdev));
+			video_device_node_name(&v4l2->vdev));
 		video_unregister_device(&v4l2->vdev);
 	}
 
@@ -2525,7 +2522,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	ret = em28xx_audio_setup(dev);
 	if (ret < 0) {
 		pr_err("%s: Error while setting audio - error [%d]!\n",
-			      __func__, ret);
+		       __func__, ret);
 		goto unregister_dev;
 	}
 	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
@@ -2553,7 +2550,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 		ret = em28xx_write_reg(dev, EM2820_R08_GPIO_CTRL, 0xf7);
 		if (ret < 0) {
 			pr_err("%s: em28xx_write_reg - msp34xx(1) failed! error [%d]\n",
-				      __func__, ret);
+			       __func__, ret);
 			goto unregister_dev;
 		}
 		msleep(3);
@@ -2561,7 +2558,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 		ret = em28xx_write_reg(dev, EM2820_R08_GPIO_CTRL, 0xff);
 		if (ret < 0) {
 			pr_err("%s: em28xx_write_reg - msp34xx(2) failed! error [%d]\n",
-				      __func__, ret);
+			       __func__, ret);
 			goto unregister_dev;
 		}
 		msleep(3);
@@ -2662,8 +2659,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	ret = video_register_device(&v4l2->vdev, VFL_TYPE_GRABBER,
 				    video_nr[dev->devno]);
 	if (ret) {
-		pr_err("unable to register video device (error=%i).\n",
-			      ret);
+		pr_err("unable to register video device (error=%i).\n", ret);
 		goto unregister_dev;
 	}
 
@@ -2707,7 +2703,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 			goto unregister_dev;
 		}
 		pr_info("Registered radio device as %s\n",
-			    video_device_node_name(&v4l2->radio_dev));
+			video_device_node_name(&v4l2->radio_dev));
 	}
 
 	/* Init entities at the Media Controller */
@@ -2723,11 +2719,11 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 #endif
 
 	pr_info("V4L2 video device registered as %s\n",
-		    video_device_node_name(&v4l2->vdev));
+		video_device_node_name(&v4l2->vdev));
 
 	if (video_is_registered(&v4l2->vbi_dev))
 		pr_info("V4L2 VBI device registered as %s\n",
-			    video_device_node_name(&v4l2->vbi_dev));
+			video_device_node_name(&v4l2->vbi_dev));
 
 	/* Save some power by putting tuner to sleep */
 	v4l2_device_call_all(&v4l2->v4l2_dev, 0, core, s_power, 0);
@@ -2745,17 +2741,17 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 unregister_dev:
 	if (video_is_registered(&v4l2->radio_dev)) {
 		pr_info("V4L2 device %s deregistered\n",
-			    video_device_node_name(&v4l2->radio_dev));
+			video_device_node_name(&v4l2->radio_dev));
 		video_unregister_device(&v4l2->radio_dev);
 	}
 	if (video_is_registered(&v4l2->vbi_dev)) {
 		pr_info("V4L2 device %s deregistered\n",
-			    video_device_node_name(&v4l2->vbi_dev));
+			video_device_node_name(&v4l2->vbi_dev));
 		video_unregister_device(&v4l2->vbi_dev);
 	}
 	if (video_is_registered(&v4l2->vdev)) {
 		pr_info("V4L2 device %s deregistered\n",
-			    video_device_node_name(&v4l2->vdev));
+			video_device_node_name(&v4l2->vdev));
 		video_unregister_device(&v4l2->vdev);
 	}
 

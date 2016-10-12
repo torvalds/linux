@@ -21,12 +21,13 @@
    02110-1301, USA.
  */
 
+#include "em28xx.h"
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/hardirq.h>
 #include <linux/init.h>
 
-#include "em28xx.h"
 #include "em28xx-v4l.h"
 
 /* ------------------------------------------------------------------ */
@@ -63,8 +64,8 @@ static int vbi_buffer_prepare(struct vb2_buffer *vb)
 	size = v4l2->vbi_width * v4l2->vbi_height * 2;
 
 	if (vb2_plane_size(vb, 0) < size) {
-		printk(KERN_INFO "%s data will not fit into plane (%lu < %lu)\n",
-		       __func__, vb2_plane_size(vb, 0), size);
+		pr_info("%s data will not fit into plane (%lu < %lu)\n",
+			__func__, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
 	vb2_set_plane_payload(vb, 0, size);

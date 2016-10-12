@@ -56,9 +56,8 @@ MODULE_PARM_DESC(debug, "activates debug info");
 
 #define dprintk(fmt, arg...) do {					\
 	    if (debug)							\
-		printk(KERN_INFO "em28xx-audio %s: " fmt,		\
-				  __func__, ##arg);		\
-	} while (0)
+		printk(KERN_DEBUG pr_fmt("audio: %s: " fmt),		\
+			 __func__, ##arg); } while (0)
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 
@@ -902,9 +901,8 @@ static int em28xx_audio_init(struct em28xx *dev)
 
 	kref_get(&dev->ref);
 
-	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2006 Markus Rechberger\n");
-	printk(KERN_INFO
-	       "em28xx-audio.c: Copyright (C) 2007-2016 Mauro Carvalho Chehab\n");
+	pr_info("em28xx-audio.c: Copyright (C) 2006 Markus Rechberger\n");
+	pr_info("em28xx-audio.c: Copyright (C) 2007-2016 Mauro Carvalho Chehab\n");
 
 	err = snd_card_new(&dev->udev->dev, index[devnr], "Em28xx Audio",
 			   THIS_MODULE, 0, &card);

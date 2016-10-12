@@ -458,7 +458,7 @@ static int em28xx_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_type)
 	case CHIP_ID_EM28178:
 		return em2874_ir_change_protocol(rc_dev, rc_type);
 	default:
-		printk("Unrecognized em28xx chip id 0x%02x: IR not supported\n",
+		pr_err("Unrecognized em28xx chip id 0x%02x: IR not supported\n",
 		       dev->chip_id);
 		return -EINVAL;
 	}

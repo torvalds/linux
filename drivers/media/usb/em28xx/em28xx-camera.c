@@ -121,13 +121,13 @@ static int em28xx_probe_sensor_micron(struct em28xx *dev)
 		if (ret < 0) {
 			if (ret != -ENXIO)
 				pr_err("couldn't read from i2c device 0x%02x: error %i\n",
-					      client.addr << 1, ret);
+				       client.addr << 1, ret);
 			continue;
 		}
 		ret = i2c_master_recv(&client, (u8 *)&id_be, 2);
 		if (ret < 0) {
 			pr_err("couldn't read from i2c device 0x%02x: error %i\n",
-				      client.addr << 1, ret);
+			       client.addr << 1, ret);
 			continue;
 		}
 		id = be16_to_cpu(id_be);
@@ -136,13 +136,13 @@ static int em28xx_probe_sensor_micron(struct em28xx *dev)
 		ret = i2c_master_send(&client, &reg, 1);
 		if (ret < 0) {
 			pr_err("couldn't read from i2c device 0x%02x: error %i\n",
-				      client.addr << 1, ret);
+			       client.addr << 1, ret);
 			continue;
 		}
 		ret = i2c_master_recv(&client, (u8 *)&id_be, 2);
 		if (ret < 0) {
 			pr_err("couldn't read from i2c device 0x%02x: error %i\n",
-				      client.addr << 1, ret);
+			       client.addr << 1, ret);
 			continue;
 		}
 		/* Validate chip ID to be sure we have a Micron device */
@@ -180,8 +180,7 @@ static int em28xx_probe_sensor_micron(struct em28xx *dev)
 			dev->em28xx_sensor = EM28XX_MT9M001;
 			break;
 		default:
-			pr_info("unknown Micron sensor detected: 0x%04x\n",
-				    id);
+			pr_info("unknown Micron sensor detected: 0x%04x\n", id);
 			return 0;
 		}
 
@@ -219,7 +218,7 @@ static int em28xx_probe_sensor_omnivision(struct em28xx *dev)
 		if (ret < 0) {
 			if (ret != -ENXIO)
 				pr_err("couldn't read from i2c device 0x%02x: error %i\n",
-					      client.addr << 1, ret);
+				       client.addr << 1, ret);
 			continue;
 		}
 		id = ret << 8;
@@ -227,7 +226,7 @@ static int em28xx_probe_sensor_omnivision(struct em28xx *dev)
 		ret = i2c_smbus_read_byte_data(&client, reg);
 		if (ret < 0) {
 			pr_err("couldn't read from i2c device 0x%02x: error %i\n",
-				      client.addr << 1, ret);
+			       client.addr << 1, ret);
 			continue;
 		}
 		id += ret;
@@ -239,7 +238,7 @@ static int em28xx_probe_sensor_omnivision(struct em28xx *dev)
 		ret = i2c_smbus_read_byte_data(&client, reg);
 		if (ret < 0) {
 			pr_err("couldn't read from i2c device 0x%02x: error %i\n",
-				      client.addr << 1, ret);
+			       client.addr << 1, ret);
 			continue;
 		}
 		id = ret << 8;
@@ -247,7 +246,7 @@ static int em28xx_probe_sensor_omnivision(struct em28xx *dev)
 		ret = i2c_smbus_read_byte_data(&client, reg);
 		if (ret < 0) {
 			pr_err("couldn't read from i2c device 0x%02x: error %i\n",
-				      client.addr << 1, ret);
+			       client.addr << 1, ret);
 			continue;
 		}
 		id += ret;
@@ -286,7 +285,7 @@ static int em28xx_probe_sensor_omnivision(struct em28xx *dev)
 			break;
 		default:
 			pr_info("unknown OmniVision sensor detected: 0x%04x\n",
-				    id);
+				id);
 			return 0;
 		}
 

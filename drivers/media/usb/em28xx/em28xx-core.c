@@ -48,12 +48,12 @@ MODULE_VERSION(EM28XX_VERSION);
 
 static unsigned int core_debug;
 module_param(core_debug, int, 0644);
-MODULE_PARM_DESC(core_debug, "enable debug messages [core]");
+MODULE_PARM_DESC(core_debug, "enable debug messages [core and isoc]");
 
 #define em28xx_coredbg(fmt, arg...) do {\
 	if (core_debug) \
-		printk(KERN_INFO "%s %s :"fmt, \
-			 dev->name, __func__ , ##arg); } while (0)
+		printk(KERN_DEBUG pr_fmt("core: %s: " fmt), \
+			 __func__, ##arg); } while (0)
 
 static unsigned int reg_debug;
 module_param(reg_debug, int, 0644);
@@ -61,14 +61,14 @@ MODULE_PARM_DESC(reg_debug, "enable debug messages [URB reg]");
 
 #define em28xx_regdbg(fmt, arg...) do {\
 	if (reg_debug) \
-		printk(KERN_INFO "%s %s :"fmt, \
-			 dev->name, __func__ , ##arg); } while (0)
+		printk(KERN_DEBUG pr_fmt("reg: %s: " fmt), \
+		       __func__, ##arg); } while (0)
 
 /* FIXME */
 #define em28xx_isocdbg(fmt, arg...) do {\
 	if (core_debug) \
-		printk(KERN_INFO "%s %s :"fmt, \
-			 dev->name, __func__ , ##arg); } while (0)
+		printk(KERN_DEBUG pr_fmt("isoc: %s: " fmt), \
+		       __func__, ##arg); } while (0)
 
 /*
  * em28xx_read_reg_req()
@@ -102,7 +102,7 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 			      0x0000, reg, dev->urb_buf, len, HZ);
 	if (ret < 0) {
 		if (reg_debug)
-			printk(KERN_CONT " failed!\n");
+			pr_cont(" failed!\n");
 		mutex_unlock(&dev->ctrl_urb_lock);
 		return usb_translate_errors(ret);
 	}
@@ -115,10 +115,10 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 	if (reg_debug) {
 		int byte;
 
-		printk(KERN_CONT "<<<");
+		pr_cont("<<<");
 		for (byte = 0; byte < len; byte++)
-			printk(KERN_CONT " %02x", (unsigned char)buf[byte]);
-		printk(KERN_CONT "\n");
+			pr_cont(" %02x", (unsigned char)buf[byte]);
+		pr_cont("\n");
 	}
 
 	return ret;
@@ -174,8 +174,8 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 			len & 0xff, len >> 8);
 
 		for (byte = 0; byte < len; byte++)
-			printk(KERN_CONT " %02x", (unsigned char)buf[byte]);
-		printk(KERN_CONT "\n");
+			pr_cont(" %02x", (unsigned char)buf[byte]);
+		pr_cont("\n");
 	}
 
 	mutex_lock(&dev->ctrl_urb_lock);
@@ -541,7 +541,7 @@ int em28xx_audio_setup(struct em28xx *dev)
 		else
 			i2s_samplerates = 3;
 		pr_info("I2S Audio (%d sample rate(s))\n",
-			    i2s_samplerates);
+			i2s_samplerates);
 		/* Skip the code that does AC97 vendor detection */
 		dev->audio_mode.ac97 = EM28XX_NO_AC97;
 		goto init_audio;
@@ -596,7 +596,7 @@ init_audio:
 		break;
 	case EM28XX_AC97_SIGMATEL:
 		pr_info("Sigmatel audio processor detected (stac 97%02x)\n",
-			    vid & 0xff);
+			vid & 0xff);
 		break;
 	case EM28XX_AC97_OTHER:
 		pr_warn("Unknown AC97 audio processor detected!\n");
@@ -884,7 +884,7 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 		if ((xfer_bulk && !dev->dvb_ep_bulk) ||
 		    (!xfer_bulk && !dev->dvb_ep_isoc)) {
 			pr_err("no endpoint for DVB mode and transfer type %d\n",
-				      xfer_bulk > 0);
+			       xfer_bulk > 0);
 			return -EINVAL;
 		}
 		usb_bufs = &dev->usb_ctl.digital_bufs;
@@ -892,7 +892,7 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 		if ((xfer_bulk && !dev->analog_ep_bulk) ||
 		    (!xfer_bulk && !dev->analog_ep_isoc)) {
 			pr_err("no endpoint for analog mode and transfer type %d\n",
-				      xfer_bulk > 0);
+			       xfer_bulk > 0);
 			return -EINVAL;
 		}
 		usb_bufs = &dev->usb_ctl.analog_bufs;
@@ -940,8 +940,8 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 			sb_size, GFP_KERNEL, &urb->transfer_dma);
 		if (!usb_bufs->transfer_buffer[i]) {
 			pr_err("unable to allocate %i bytes for transfer buffer %i%s\n",
-					sb_size, i,
-					in_interrupt() ? " while in int" : "");
+			       sb_size, i,
+			       in_interrupt() ? " while in int" : "");
 			em28xx_uninit_usb_xfer(dev, mode);
 			return -ENOMEM;
 		}
@@ -1022,7 +1022,7 @@ int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
 		rc = usb_clear_halt(dev->udev, usb_bufs->urb[0]->pipe);
 		if (rc < 0) {
 			pr_err("failed to clear USB bulk endpoint stall/halt condition (error=%i)\n",
-				   rc);
+			       rc);
 			em28xx_uninit_usb_xfer(dev, mode);
 			return rc;
 		}
@@ -1037,8 +1037,7 @@ int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
 	for (i = 0; i < usb_bufs->num_bufs; i++) {
 		rc = usb_submit_urb(usb_bufs->urb[i], GFP_ATOMIC);
 		if (rc) {
-			pr_err("submit of urb %i failed (error=%i)\n", i,
-				   rc);
+			pr_err("submit of urb %i failed (error=%i)\n", i, rc);
 			em28xx_uninit_usb_xfer(dev, mode);
 			return rc;
 		}
@@ -1071,7 +1070,7 @@ int em28xx_register_extension(struct em28xx_ops *ops)
 		ops->init(dev);
 	}
 	mutex_unlock(&em28xx_devlist_mutex);
-	printk(KERN_INFO "em28xx: Registered (%s) extension\n", ops->name);
+	pr_info("em28xx: Registered (%s) extension\n", ops->name);
 	return 0;
 }
 EXPORT_SYMBOL(em28xx_register_extension);
@@ -1086,7 +1085,7 @@ void em28xx_unregister_extension(struct em28xx_ops *ops)
 	}
 	list_del(&ops->next);
 	mutex_unlock(&em28xx_devlist_mutex);
-	printk(KERN_INFO "Em28xx: Removed (%s) extension\n", ops->name);
+	pr_info("Em28xx: Removed (%s) extension\n", ops->name);
 }
 EXPORT_SYMBOL(em28xx_unregister_extension);
 
