@@ -780,8 +780,8 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 		goto error_free;
 
 	amdgpu_bo_fence(vm->page_directory, fence, true);
-	dma_fence_put(vm->page_directory_fence);
-	vm->page_directory_fence = dma_fence_get(fence);
+	dma_fence_put(vm->last_dir_update);
+	vm->last_dir_update = dma_fence_get(fence);
 	dma_fence_put(fence);
 
 	return 0;
@@ -1913,7 +1913,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	if (r)
 		goto err;
 
-	vm->page_directory_fence = NULL;
+	vm->last_dir_update = NULL;
 
 	r = amdgpu_bo_create(adev, pd_size, align, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
@@ -1996,7 +1996,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 
 	amdgpu_bo_unref(&vm->page_directory->shadow);
 	amdgpu_bo_unref(&vm->page_directory);
-	dma_fence_put(vm->page_directory_fence);
+	dma_fence_put(vm->last_dir_update);
 }
 
 /**

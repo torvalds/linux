@@ -781,7 +781,7 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 	if (r)
 		return r;
 
-	r = amdgpu_sync_fence(adev, &p->job->sync, vm->page_directory_fence);
+	r = amdgpu_sync_fence(adev, &p->job->sync, vm->last_dir_update);
 	if (r)
 		return r;
 
