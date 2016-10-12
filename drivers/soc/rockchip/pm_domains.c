@@ -9,6 +9,7 @@
  */
 
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/err.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
@@ -105,12 +106,24 @@ static bool rockchip_pmu_domain_is_idle(struct rockchip_pm_domain *pd)
 	return (val & pd_info->idle_mask) == pd_info->idle_mask;
 }
 
+static unsigned int rockchip_pmu_read_ack(struct rockchip_pmu *pmu)
+{
+	unsigned int val;
+
+	regmap_read(pmu->regmap, pmu->info->ack_offset, &val);
+	return val;
+}
+
 static int rockchip_pmu_set_idle_request(struct rockchip_pm_domain *pd,
 					 bool idle)
 {
 	const struct rockchip_domain_info *pd_info = pd->info;
+	struct generic_pm_domain *genpd = &pd->genpd;
 	struct rockchip_pmu *pmu = pd->pmu;
+	unsigned int target_ack;
 	unsigned int val;
+	bool is_idle;
+	int ret;
 
 	if (pd_info->req_mask == 0)
 		return 0;
@@ -120,12 +133,26 @@ static int rockchip_pmu_set_idle_request(struct rockchip_pm_domain *pd,
 
 	dsb(sy);
 
-	do {
-		regmap_read(pmu->regmap, pmu->info->ack_offset, &val);
-	} while ((val & pd_info->ack_mask) != (idle ? pd_info->ack_mask : 0));
+	/* Wait util idle_ack = 1 */
+	target_ack = idle ? pd_info->ack_mask : 0;
+	ret = readx_poll_timeout_atomic(rockchip_pmu_read_ack, pmu, val,
+					(val & pd_info->ack_mask) == target_ack,
+					0, 10000);
+	if (ret) {
+		dev_err(pmu->dev,
+			"failed to get ack on domain '%s', val=0x%x\n",
+			genpd->name, val);
+		return ret;
+	}
 
-	while (rockchip_pmu_domain_is_idle(pd) != idle)
-		cpu_relax();
+	ret = readx_poll_timeout_atomic(rockchip_pmu_domain_is_idle, pd,
+					is_idle, is_idle == idle, 0, 10000);
+	if (ret) {
+		dev_err(pmu->dev,
+			"failed to set idle on domain '%s', val=%d\n",
+			genpd->name, is_idle);
+		return ret;
+	}
 
 	return 0;
 }
@@ -198,6 +225,8 @@ static void rockchip_do_pmu_set_power_domain(struct rockchip_pm_domain *pd,
 					     bool on)
 {
 	struct rockchip_pmu *pmu = pd->pmu;
+	struct generic_pm_domain *genpd = &pd->genpd;
+	bool is_on;
 
 	if (pd->info->pwr_mask == 0)
 		return;
@@ -207,8 +236,13 @@ static void rockchip_do_pmu_set_power_domain(struct rockchip_pm_domain *pd,
 
 	dsb(sy);
 
-	while (rockchip_pmu_domain_is_on(pd) != on)
-		cpu_relax();
+	if (readx_poll_timeout_atomic(rockchip_pmu_domain_is_on, pd, is_on,
+				      is_on == on, 0, 10000)) {
+		dev_err(pmu->dev,
+			"failed to set domain '%s', val=%d\n",
+			genpd->name, is_on);
+		return;
+	}
 }
 
 static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
