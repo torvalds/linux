@@ -84,6 +84,29 @@ enum amd_powergating_state {
 	AMD_PG_STATE_UNGATE,
 };
 
+struct amd_vce_state {
+	/* vce clocks */
+	u32 evclk;
+	u32 ecclk;
+	/* gpu clocks */
+	u32 sclk;
+	u32 mclk;
+	u8 clk_idx;
+	u8 pstate;
+};
+
+
+#define AMD_MAX_VCE_LEVELS 6
+
+enum amd_vce_level {
+	AMD_VCE_LEVEL_AC_ALL = 0,     /* AC, All cases */
+	AMD_VCE_LEVEL_DC_EE = 1,      /* DC, entropy encoding */
+	AMD_VCE_LEVEL_DC_LL_LOW = 2,  /* DC, low latency queue, res <= 720 */
+	AMD_VCE_LEVEL_DC_LL_HIGH = 3, /* DC, low latency queue, 1080 >= res > 720 */
+	AMD_VCE_LEVEL_DC_GP_LOW = 4,  /* DC, general purpose queue, res <= 720 */
+	AMD_VCE_LEVEL_DC_GP_HIGH = 5, /* DC, general purpose queue, 1080 >= res > 720 */
+};
+
 /* CG flags */
 #define AMD_CG_SUPPORT_GFX_MGCG			(1 << 0)
 #define AMD_CG_SUPPORT_GFX_MGLS			(1 << 1)

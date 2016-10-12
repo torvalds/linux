@@ -5689,7 +5689,7 @@ static int ci_parse_power_table(struct amdgpu_device *adev)
 	adev->pm.dpm.num_ps = state_array->ucNumEntries;
 
 	/* fill in the vce power states */
-	for (i = 0; i < AMDGPU_MAX_VCE_LEVELS; i++) {
+	for (i = 0; i < AMD_MAX_VCE_LEVELS; i++) {
 		u32 sclk, mclk;
 		clock_array_index = adev->pm.dpm.vce_states[i].clk_idx;
 		clock_info = (union pplib_clock_info *)

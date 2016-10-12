@@ -52,17 +52,6 @@ enum amdgpu_dpm_event_src {
 	AMDGPU_DPM_EVENT_SRC_DIGIAL_OR_EXTERNAL = 4
 };
 
-#define AMDGPU_MAX_VCE_LEVELS 6
-
-enum amdgpu_vce_level {
-	AMDGPU_VCE_LEVEL_AC_ALL = 0,     /* AC, All cases */
-	AMDGPU_VCE_LEVEL_DC_EE = 1,      /* DC, entropy encoding */
-	AMDGPU_VCE_LEVEL_DC_LL_LOW = 2,  /* DC, low latency queue, res <= 720 */
-	AMDGPU_VCE_LEVEL_DC_LL_HIGH = 3, /* DC, low latency queue, 1080 >= res > 720 */
-	AMDGPU_VCE_LEVEL_DC_GP_LOW = 4,  /* DC, general purpose queue, res <= 720 */
-	AMDGPU_VCE_LEVEL_DC_GP_HIGH = 5, /* DC, general purpose queue, 1080 >= res > 720 */
-};
-
 struct amdgpu_ps {
 	u32 caps; /* vbios flags */
 	u32 class; /* vbios flags */
@@ -74,7 +63,7 @@ struct amdgpu_ps {
 	u32 evclk;
 	u32 ecclk;
 	bool vce_active;
-	enum amdgpu_vce_level vce_level;
+	enum amd_vce_level vce_level;
 	/* asic priv */
 	void *ps_priv;
 };
@@ -257,17 +246,6 @@ enum amdgpu_dpm_forced_level {
 	AMDGPU_DPM_FORCED_LEVEL_MANUAL = 3,
 };
 
-struct amdgpu_vce_state {
-	/* vce clocks */
-	u32 evclk;
-	u32 ecclk;
-	/* gpu clocks */
-	u32 sclk;
-	u32 mclk;
-	u8 clk_idx;
-	u8 pstate;
-};
-
 struct amdgpu_dpm_funcs {
 	int (*get_temperature)(struct amdgpu_device *adev);
 	int (*pre_set_power_state)(struct amdgpu_device *adev);
@@ -409,8 +387,8 @@ struct amdgpu_dpm {
 	/* default uvd power state */
 	struct amdgpu_ps        *uvd_ps;
 	/* vce requirements */
-	struct amdgpu_vce_state vce_states[AMDGPU_MAX_VCE_LEVELS];
-	enum amdgpu_vce_level vce_level;
+	struct amd_vce_state vce_states[AMD_MAX_VCE_LEVELS];
+	enum amd_vce_level vce_level;
 	enum amd_pm_state_type state;
 	enum amd_pm_state_type user_state;
 	u32                     platform_caps;

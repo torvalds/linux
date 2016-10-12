@@ -1211,7 +1211,7 @@ static int ppt_get_num_of_vce_state_table_entries_v1_0(struct pp_hwmgr *hwmgr)
 }
 
 static int ppt_get_vce_state_table_entry_v1_0(struct pp_hwmgr *hwmgr, uint32_t i,
-		struct pp_vce_state *vce_state, void **clock_info, uint32_t *flag)
+		struct amd_vce_state *vce_state, void **clock_info, uint32_t *flag)
 {
 	const ATOM_Tonga_VCE_State_Record *vce_state_record;
 	ATOM_Tonga_SCLK_Dependency_Record *sclk_dep_record;
@@ -1315,7 +1315,7 @@ int get_powerplay_table_entry_v1_0(struct pp_hwmgr *hwmgr,
 
 	hwmgr->num_vce_state_tables = i = ppt_get_num_of_vce_state_table_entries_v1_0(hwmgr);
 
-	if ((i != 0) && (i <= PP_MAX_VCE_LEVELS)) {
+	if ((i != 0) && (i <= AMD_MAX_VCE_LEVELS)) {
 		for (j = 0; j < i; j++)
 			ppt_get_vce_state_table_entry_v1_0(hwmgr, j, &(hwmgr->vce_states[j]), NULL, &flags);
 	}

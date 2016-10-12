@@ -1135,7 +1135,7 @@ void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable)
 			mutex_lock(&adev->pm.mutex);
 			adev->pm.dpm.vce_active = true;
 			/* XXX select vce level based on ring/task */
-			adev->pm.dpm.vce_level = AMDGPU_VCE_LEVEL_AC_ALL;
+			adev->pm.dpm.vce_level = AMD_VCE_LEVEL_AC_ALL;
 			mutex_unlock(&adev->pm.mutex);
 		} else {
 			mutex_lock(&adev->pm.mutex);
