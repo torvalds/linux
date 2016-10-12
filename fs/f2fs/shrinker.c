@@ -26,8 +26,8 @@ static unsigned long __count_nat_entries(struct f2fs_sb_info *sbi)
 
 static unsigned long __count_free_nids(struct f2fs_sb_info *sbi)
 {
-	if (NM_I(sbi)->fcnt > MAX_FREE_NIDS)
-		return NM_I(sbi)->fcnt - MAX_FREE_NIDS;
+	if (NM_I(sbi)->nid_cnt[FREE_NID_LIST] > MAX_FREE_NIDS)
+		return NM_I(sbi)->nid_cnt[FREE_NID_LIST] - MAX_FREE_NIDS;
 	return 0;
 }
 
