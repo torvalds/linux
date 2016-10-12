@@ -11,6 +11,38 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ *
+ * The ROCKCHIP Type-C PHY has two PLL clocks. The first PLL clock
+ * is used for USB3, the second PLL clock is used for DP. This Type-C PHY has
+ * 3 working modes: USB3 only mode, DP only mode, and USB3+DP mode.
+ * At USB3 only mode, both PLL clocks need to be initialized, this allows the
+ * PHY to switch mode between USB3 and USB3+DP, without disconnecting the USB
+ * device.
+ * In The DP only mode, only the DP PLL needs to be powered on, and the 4 lanes
+ * are all used for DP.
+ *
+ * This driver gets extcon cable state and property, then decides which mode to
+ * select:
+ *
+ * 1. USB3 only mode:
+ *    EXTCON_USB or EXTCON_USB_HOST state is true, and
+ *    EXTCON_PROP_USB_SS property is true.
+ *    EXTCON_DISP_DP state is false.
+ *
+ * 2. DP only mode:
+ *    EXTCON_DISP_DP state is true, and
+ *    EXTCON_PROP_USB_SS property is false.
+ *    If EXTCON_USB_HOST state is true, it is DP + USB2 mode, since the USB2 phy
+ *    is a separate phy, so this case is still DP only mode.
+ *
+ * 3. USB3+DP mode:
+ *    EXTCON_USB_HOST and EXTCON_DISP_DP are both true, and
+ *    EXTCON_PROP_USB_SS property is true.
+ *
+ * This Type-C PHY driver supports normal and flip orientation. The orientation
+ * is reported by the EXTCON_PROP_USB_TYPEC_POLARITY property: true is flip
+ * orientation, false is normal orientation.
+ *
  */
 
 #include <linux/clk.h>
@@ -209,13 +241,6 @@
 #define DP_PLL_DATA_RATE_HBR		((2 << 12) | (4 << 8))
 #define DP_PLL_DATA_RATE_HBR2		((1 << 12) | (2 << 8))
 
-#define GRF_SOC_CON26			0x6268
-#define UPHY_DP_SEL			BIT(3)
-#define UPHY_DP_SEL_MASK		BIT(19)
-#define DPTX_HPD_SEL			(3 << 12)
-#define DPTX_HPD_DEL			(2 << 12)
-#define DPTX_HPD_SEL_MASK		(3 << 28)
-
 #define DP_MODE_A0			BIT(4)
 #define DP_MODE_A2			BIT(6)
 #define DP_MODE_ENTER_A0		0xc101
@@ -242,14 +267,12 @@ struct rockchip_usb3phy_port_cfg {
 	struct usb3phy_reg usb3tousb2_en;
 	struct usb3phy_reg external_psm;
 	struct usb3phy_reg pipe_status;
-	struct usb3phy_reg uphy_dp_sel;
 };
 
 struct rockchip_typec_phy {
 	struct device *dev;
 	void __iomem *base;
 	struct extcon_dev *extcon;
-	struct phy *phy[2];
 	struct regmap *grf_regs;
 	struct clk *clk_core;
 	struct clk *clk_ref;
@@ -269,7 +292,7 @@ struct phy_reg {
 	u32 addr;
 };
 
-struct phy_reg usb_pll_cfg[] = {
+struct phy_reg usb3_pll_cfg[] = {
 	{ 0xf0,		CMN_PLL0_VCOCAL_INIT },
 	{ 0x18,		CMN_PLL0_VCOCAL_ITER },
 	{ 0xd0,		CMN_PLL0_INTDIV },
@@ -333,13 +356,14 @@ static void tcphy_cfg_24m(struct rockchip_typec_phy *tcphy)
 	writel(rdata, tcphy->base + CMN_DIAG_HSCLK_SEL);
 }
 
-static void tcphy_cfg_usb_pll(struct rockchip_typec_phy *tcphy)
+static void tcphy_cfg_usb3_pll(struct rockchip_typec_phy *tcphy)
 {
 	u32 i;
 
 	/* load the configuration of PLL0 */
-	for (i = 0; i < ARRAY_SIZE(usb_pll_cfg); i++)
-		writel(usb_pll_cfg[i].value, tcphy->base + usb_pll_cfg[i].addr);
+	for (i = 0; i < ARRAY_SIZE(usb3_pll_cfg); i++)
+		writel(usb3_pll_cfg[i].value,
+		       tcphy->base + usb3_pll_cfg[i].addr);
 }
 
 static void tcphy_cfg_dp_pll(struct rockchip_typec_phy *tcphy)
@@ -355,7 +379,7 @@ static void tcphy_cfg_dp_pll(struct rockchip_typec_phy *tcphy)
 		writel(dp_pll_cfg[i].value, tcphy->base + dp_pll_cfg[i].addr);
 }
 
-static void tcphy_tx_usb_cfg_lane(struct rockchip_typec_phy *tcphy, u32 lane)
+static void tcphy_tx_usb3_cfg_lane(struct rockchip_typec_phy *tcphy, u32 lane)
 {
 	writel(0x7799, tcphy->base + TX_PSC_A0(lane));
 	writel(0x7798, tcphy->base + TX_PSC_A1(lane));
@@ -365,7 +389,7 @@ static void tcphy_tx_usb_cfg_lane(struct rockchip_typec_phy *tcphy, u32 lane)
 	writel(0xbf, tcphy->base + XCVR_DIAG_BIDI_CTRL(lane));
 }
 
-static void tcphy_rx_usb_cfg_lane(struct rockchip_typec_phy *tcphy, u32 lane)
+static void tcphy_rx_usb3_cfg_lane(struct rockchip_typec_phy *tcphy, u32 lane)
 {
 	writel(0xa6fd, tcphy->base + RX_PSC_A0(lane));
 	writel(0xa6fd, tcphy->base + RX_PSC_A1(lane));
@@ -541,16 +565,16 @@ static int tcphy_phy_init(struct rockchip_typec_phy *tcphy, u8 mode)
 
 		writel(PIN_ASSIGN_C_E, tcphy->base + PMA_LANE_CFG);
 	} else {
-		tcphy_cfg_usb_pll(tcphy);
+		tcphy_cfg_usb3_pll(tcphy);
 		tcphy_cfg_dp_pll(tcphy);
 		if (tcphy->flip) {
-			tcphy_tx_usb_cfg_lane(tcphy, 3);
-			tcphy_rx_usb_cfg_lane(tcphy, 2);
+			tcphy_tx_usb3_cfg_lane(tcphy, 3);
+			tcphy_rx_usb3_cfg_lane(tcphy, 2);
 			tcphy_dp_cfg_lane(tcphy, 0);
 			tcphy_dp_cfg_lane(tcphy, 1);
 		} else {
-			tcphy_tx_usb_cfg_lane(tcphy, 0);
-			tcphy_rx_usb_cfg_lane(tcphy, 1);
+			tcphy_tx_usb3_cfg_lane(tcphy, 0);
+			tcphy_rx_usb3_cfg_lane(tcphy, 1);
 			tcphy_dp_cfg_lane(tcphy, 2);
 			tcphy_dp_cfg_lane(tcphy, 3);
 		}
@@ -619,17 +643,25 @@ static int tcphy_get_mode(struct rockchip_typec_phy *tcphy)
 	if (ufp) {
 		mode = MODE_UFP_USB;
 		id = EXTCON_USB;
-	} else if (dfp && dp) {
-		mode = MODE_DFP_USB | MODE_DFP_DP;
 	} else if (dp) {
 		mode = MODE_DFP_DP;
 		id = EXTCON_DISP_DP;
+
+		ret = extcon_get_property(edev, id, EXTCON_PROP_USB_SS,
+					  &property);
+		if (ret) {
+			dev_err(tcphy->dev, "get superspeed property failed\n");
+			return ret;
+		}
+
+		if (property.intval)
+			mode |= MODE_DFP_USB;
 	}
 
 	ret = extcon_get_property(edev, id, EXTCON_PROP_USB_TYPEC_POLARITY,
 				  &property);
 	if (ret) {
-		dev_err(tcphy->dev, "get property failed\n");
+		dev_err(tcphy->dev, "get polarity property failed\n");
 		return ret;
 	}
 
@@ -654,10 +686,9 @@ static int rockchip_usb3_phy_power_on(struct phy *phy)
 		goto unlock_ret;
 	}
 
-	if (!(new_mode & (MODE_DFP_USB | MODE_UFP_USB))) {
-		ret = -ENODEV;
+	/* DP-only mode; fall back to USB2 */
+	if (!(new_mode & (MODE_DFP_USB | MODE_UFP_USB)))
 		goto unlock_ret;
-	}
 
 	if (tcphy->mode == new_mode)
 		goto unlock_ret;
@@ -712,7 +743,6 @@ static const struct phy_ops rockchip_usb3_phy_ops = {
 static int rockchip_dp_phy_power_on(struct phy *phy)
 {
 	struct rockchip_typec_phy *tcphy = phy_get_drvdata(phy);
-	struct rockchip_usb3phy_port_cfg *cfg = &tcphy->port_cfgs;
 	int new_mode, ret = 0;
 	u32 val;
 
@@ -743,8 +773,6 @@ static int rockchip_dp_phy_power_on(struct phy *phy)
 		tcphy_phy_init(tcphy, new_mode);
 	}
 
-	property_enable(tcphy, &cfg->uphy_dp_sel, 1);
-
 	ret = readx_poll_timeout(readl, tcphy->base + DP_MODE_CTL,
 				 val, val & DP_MODE_A2, 1000,
 				 PHY_MODE_SET_TIMEOUT);
@@ -766,9 +794,6 @@ static int rockchip_dp_phy_power_on(struct phy *phy)
 		goto power_on_finish;
 	}
 
-	regmap_write(tcphy->grf_regs, GRF_SOC_CON26,
-		     DPTX_HPD_SEL_MASK | DPTX_HPD_SEL);
-
 	tcphy->mode |= MODE_DFP_DP;
 
 power_on_finish:
@@ -789,8 +814,6 @@ static int rockchip_dp_phy_power_off(struct phy *phy)
 		goto unlock;
 
 	tcphy->mode &= ~MODE_DFP_DP;
-	regmap_write(tcphy->grf_regs, GRF_SOC_CON26,
-		     DPTX_HPD_SEL_MASK | DPTX_HPD_DEL);
 
 	writel(DP_MODE_ENTER_A2, tcphy->base + DP_MODE_CTL);
 
@@ -853,11 +876,6 @@ static int tcphy_parse_dt(struct rockchip_typec_phy *tcphy,
 	if (ret)
 		return ret;
 
-	ret = tcphy_get_param(dev, &cfg->uphy_dp_sel,
-			      "rockchip,uphy-dp-sel");
-	if (ret)
-		return ret;
-
 	tcphy->grf_regs = syscon_regmap_lookup_by_phandle(dev->of_node,
 							  "rockchip,grf");
 	if (IS_ERR(tcphy->grf_regs)) {
@@ -913,26 +931,11 @@ static void typec_phy_pre_init(struct rockchip_typec_phy *tcphy)
 	tcphy->mode = MODE_DISCONNECT;
 }
 
-static struct phy *tcphy_phy_xlate(struct device *dev,
-				   struct of_phandle_args *args)
-{
-	struct rockchip_typec_phy *tcphy = dev_get_drvdata(dev);
-	int i;
-
-	if (WARN_ON(args->args[0] >= 2))
-		return ERR_PTR(-ENODEV);
-
-	for (i = 0; i < 2; i++) {
-		if (i == args->args[0])
-			return tcphy->phy[i];
-	}
-
-	return ERR_PTR(-ENODEV);
-}
-
 static int rockchip_typec_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct device_node *child_np;
 	struct rockchip_typec_phy *tcphy;
 	struct phy_provider *phy_provider;
 	struct resource *res;
@@ -966,22 +969,28 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 		}
 	}
 
-	tcphy->phy[0] = devm_phy_create(dev, NULL, &rockchip_dp_phy_ops);
-	if (IS_ERR(tcphy->phy[0])) {
-		dev_err(dev, "failed to create DP phy\n");
-		return PTR_ERR(tcphy->phy[0]);
+	for_each_available_child_of_node(np, child_np) {
+		struct phy *phy;
+
+		if (!of_node_cmp(child_np->name, "dp-port"))
+			phy = devm_phy_create(dev, child_np,
+					      &rockchip_dp_phy_ops);
+		else if (!of_node_cmp(child_np->name, "usb3-port"))
+			phy = devm_phy_create(dev, child_np,
+					      &rockchip_usb3_phy_ops);
+		else
+			continue;
+
+		if (IS_ERR(phy)) {
+			dev_err(dev, "failed to create phy: %s\n",
+				child_np->name);
+			return PTR_ERR(phy);
+		}
+
+		phy_set_drvdata(phy, tcphy);
 	}
 
-	tcphy->phy[1] = devm_phy_create(dev, NULL, &rockchip_usb3_phy_ops);
-	if (IS_ERR(tcphy->phy[1])) {
-		dev_err(dev, "failed to create USB3 phy\n");
-		return PTR_ERR(tcphy->phy[1]);
-	}
-
-	phy_set_drvdata(tcphy->phy[0], tcphy);
-	phy_set_drvdata(tcphy->phy[1], tcphy);
-
-	phy_provider = devm_of_phy_provider_register(dev, tcphy_phy_xlate);
+	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (IS_ERR(phy_provider)) {
 		dev_err(dev, "Failed to register phy provider\n");
 		return PTR_ERR(phy_provider);
