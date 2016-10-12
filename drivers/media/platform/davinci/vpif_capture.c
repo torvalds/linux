@@ -375,7 +375,7 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 	struct vpif_device *dev = &vpif_obj;
 	struct common_obj *common;
 	struct channel_obj *ch;
-	int channel_id = 0;
+	int channel_id;
 	int fid = -1, i;
 
 	channel_id = *(int *)(dev_id);
