@@ -450,6 +450,8 @@ struct i915_ggtt {
 	bool do_idle_maps;
 
 	int mtrr;
+
+	struct drm_mm_node error_capture;
 };
 
 struct i915_hw_ppgtt {

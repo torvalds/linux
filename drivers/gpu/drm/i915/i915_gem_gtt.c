@@ -2717,10 +2717,20 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	 */
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	unsigned long hole_start, hole_end;
+	struct i915_hw_ppgtt *ppgtt;
 	struct drm_mm_node *entry;
 	int ret;
 
 	ret = intel_vgt_balloon(dev_priv);
+	if (ret)
+		return ret;
+
+	/* Reserve a mappable slot for our lockless error capture */
+	ret = drm_mm_insert_node_in_range_generic(&ggtt->base.mm,
+						  &ggtt->error_capture,
+						  4096, 0, -1,
+						  0, ggtt->mappable_end,
+						  0, 0);
 	if (ret)
 		return ret;
 
@@ -2738,25 +2748,21 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 			       true);
 
 	if (USES_PPGTT(dev_priv) && !USES_FULL_PPGTT(dev_priv)) {
-		struct i915_hw_ppgtt *ppgtt;
-
 		ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
-		if (!ppgtt)
-			return -ENOMEM;
-
-		ret = __hw_ppgtt_init(ppgtt, dev_priv);
-		if (ret) {
-			kfree(ppgtt);
-			return ret;
+		if (!ppgtt) {
+			ret = -ENOMEM;
+			goto err;
 		}
 
-		if (ppgtt->base.allocate_va_range)
+		ret = __hw_ppgtt_init(ppgtt, dev_priv);
+		if (ret)
+			goto err_ppgtt;
+
+		if (ppgtt->base.allocate_va_range) {
 			ret = ppgtt->base.allocate_va_range(&ppgtt->base, 0,
 							    ppgtt->base.total);
-		if (ret) {
-			ppgtt->base.cleanup(&ppgtt->base);
-			kfree(ppgtt);
-			return ret;
+			if (ret)
+				goto err_ppgtt_cleanup;
 		}
 
 		ppgtt->base.clear_range(&ppgtt->base,
@@ -2770,6 +2776,14 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	}
 
 	return 0;
+
+err_ppgtt_cleanup:
+	ppgtt->base.cleanup(&ppgtt->base);
+err_ppgtt:
+	kfree(ppgtt);
+err:
+	drm_mm_remove_node(&ggtt->error_capture);
+	return ret;
 }
 
 /**
@@ -2787,6 +2801,9 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 	}
 
 	i915_gem_cleanup_stolen(&dev_priv->drm);
+
+	if (drm_mm_node_allocated(&ggtt->error_capture))
+		drm_mm_remove_node(&ggtt->error_capture);
 
 	if (drm_mm_initialized(&ggtt->base.mm)) {
 		intel_vgt_deballoon(dev_priv);
