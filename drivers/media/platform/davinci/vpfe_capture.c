@@ -384,7 +384,7 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe_dev,
 	};
 	struct v4l2_mbus_framefmt *mbus_fmt = &fmt.format;
 	struct v4l2_pix_format *pix = &vpfe_dev->fmt.fmt.pix;
-	int i, ret = 0;
+	int i, ret;
 
 	for (i = 0; i < ARRAY_SIZE(vpfe_standards); i++) {
 		if (vpfe_standards[i].std_id & std_id) {
@@ -453,7 +453,7 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe_dev,
 
 static int vpfe_initialize_device(struct vpfe_device *vpfe_dev)
 {
-	int ret = 0;
+	int ret;
 
 	/* set first input of current subdevice as the current input */
 	vpfe_dev->current_input = 0;
@@ -978,7 +978,7 @@ static int vpfe_s_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 	const struct vpfe_pixel_format *pix_fmts;
-	int ret = 0;
+	int ret;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_s_fmt_vid_cap\n");
 
@@ -1110,7 +1110,7 @@ static int vpfe_s_input(struct file *file, void *priv, unsigned int index)
 	int subdev_index, inp_index;
 	struct vpfe_route *route;
 	u32 input = 0, output = 0;
-	int ret = -EINVAL;
+	int ret;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_s_input\n");
 
@@ -1176,7 +1176,7 @@ static int vpfe_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 	struct vpfe_subdev_info *sdinfo;
-	int ret = 0;
+	int ret;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_querystd\n");
 
@@ -1195,7 +1195,7 @@ static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 	struct vpfe_subdev_info *sdinfo;
-	int ret = 0;
+	int ret;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_s_std\n");
 
@@ -1344,7 +1344,7 @@ static int vpfe_reqbufs(struct file *file, void *priv,
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 	struct vpfe_fh *fh = file->private_data;
-	int ret = 0;
+	int ret;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_reqbufs\n");
 
@@ -1476,7 +1476,7 @@ static int vpfe_streamon(struct file *file, void *priv,
 	struct vpfe_fh *fh = file->private_data;
 	struct vpfe_subdev_info *sdinfo;
 	unsigned long addr;
-	int ret = 0;
+	int ret;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_streamon\n");
 
@@ -1559,7 +1559,7 @@ static int vpfe_streamoff(struct file *file, void *priv,
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 	struct vpfe_fh *fh = file->private_data;
 	struct vpfe_subdev_info *sdinfo;
-	int ret = 0;
+	int ret;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_streamoff\n");
 
@@ -1645,7 +1645,7 @@ static int vpfe_s_selection(struct file *file, void *priv,
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 	struct v4l2_rect rect = sel->r;
-	int ret = 0;
+	int ret;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_s_selection\n");
 
@@ -1703,7 +1703,7 @@ static long vpfe_param_handler(struct file *file, void *priv,
 		bool valid_prio, unsigned int cmd, void *param)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
-	int ret = 0;
+	int ret;
 
 	v4l2_dbg(2, debug, &vpfe_dev->v4l2_dev, "vpfe_param_handler\n");
 
