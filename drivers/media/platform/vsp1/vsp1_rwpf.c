@@ -66,11 +66,15 @@ static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
 	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
-	struct v4l2_rect *crop;
+	int ret = 0;
+
+	mutex_lock(&rwpf->entity.lock);
 
 	config = vsp1_entity_get_pad_config(&rwpf->entity, cfg, fmt->which);
-	if (!config)
-		return -EINVAL;
+	if (!config) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	/* Default to YUV if the requested format is not supported. */
 	if (fmt->format.code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
@@ -85,7 +89,7 @@ static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 		 */
 		format->code = fmt->format.code;
 		fmt->format = *format;
-		return 0;
+		goto done;
 	}
 
 	format->code = fmt->format.code;
@@ -98,19 +102,25 @@ static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 
 	fmt->format = *format;
 
-	/* Update the sink crop rectangle. */
-	crop = vsp1_rwpf_get_crop(rwpf, config);
-	crop->left = 0;
-	crop->top = 0;
-	crop->width = fmt->format.width;
-	crop->height = fmt->format.height;
+	if (rwpf->entity.type == VSP1_ENTITY_RPF) {
+		struct v4l2_rect *crop;
+
+		/* Update the sink crop rectangle. */
+		crop = vsp1_rwpf_get_crop(rwpf, config);
+		crop->left = 0;
+		crop->top = 0;
+		crop->width = fmt->format.width;
+		crop->height = fmt->format.height;
+	}
 
 	/* Propagate the format to the source pad. */
 	format = vsp1_entity_get_pad_format(&rwpf->entity, config,
 					    RWPF_PAD_SOURCE);
 	*format = fmt->format;
 
-	return 0;
+done:
+	mutex_unlock(&rwpf->entity.lock);
+	return ret;
 }
 
 static int vsp1_rwpf_get_selection(struct v4l2_subdev *subdev,
@@ -120,14 +130,22 @@ static int vsp1_rwpf_get_selection(struct v4l2_subdev *subdev,
 	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
 	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
+	int ret = 0;
 
-	/* Cropping is implemented on the sink pad. */
-	if (sel->pad != RWPF_PAD_SINK)
+	/*
+	 * Cropping is only supported on the RPF and is implemented on the sink
+	 * pad.
+	 */
+	if (rwpf->entity.type == VSP1_ENTITY_WPF || sel->pad != RWPF_PAD_SINK)
 		return -EINVAL;
+
+	mutex_lock(&rwpf->entity.lock);
 
 	config = vsp1_entity_get_pad_config(&rwpf->entity, cfg, sel->which);
-	if (!config)
-		return -EINVAL;
+	if (!config) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
@@ -144,10 +162,13 @@ static int vsp1_rwpf_get_selection(struct v4l2_subdev *subdev,
 		break;
 
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
 
-	return 0;
+done:
+	mutex_unlock(&rwpf->entity.lock);
+	return ret;
 }
 
 static int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
@@ -158,21 +179,27 @@ static int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
 	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
+	int ret = 0;
 
-	/* Cropping is implemented on the sink pad. */
-	if (sel->pad != RWPF_PAD_SINK)
+	/*
+	 * Cropping is only supported on the RPF and is implemented on the sink
+	 * pad.
+	 */
+	if (rwpf->entity.type == VSP1_ENTITY_WPF || sel->pad != RWPF_PAD_SINK)
 		return -EINVAL;
 
 	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
-	config = vsp1_entity_get_pad_config(&rwpf->entity, cfg, sel->which);
-	if (!config)
-		return -EINVAL;
+	mutex_lock(&rwpf->entity.lock);
 
-	/* Make sure the crop rectangle is entirely contained in the image. The
-	 * WPF top and left offsets are limited to 255.
-	 */
+	config = vsp1_entity_get_pad_config(&rwpf->entity, cfg, sel->which);
+	if (!config) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	/* Make sure the crop rectangle is entirely contained in the image. */
 	format = vsp1_entity_get_pad_format(&rwpf->entity, config,
 					    RWPF_PAD_SINK);
 
@@ -188,10 +215,6 @@ static int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
 
 	sel->r.left = min_t(unsigned int, sel->r.left, format->width - 2);
 	sel->r.top = min_t(unsigned int, sel->r.top, format->height - 2);
-	if (rwpf->entity.type == VSP1_ENTITY_WPF) {
-		sel->r.left = min_t(unsigned int, sel->r.left, 255);
-		sel->r.top = min_t(unsigned int, sel->r.top, 255);
-	}
 	sel->r.width = min_t(unsigned int, sel->r.width,
 			     format->width - sel->r.left);
 	sel->r.height = min_t(unsigned int, sel->r.height,
@@ -206,7 +229,9 @@ static int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
 	format->width = crop->width;
 	format->height = crop->height;
 
-	return 0;
+done:
+	mutex_unlock(&rwpf->entity.lock);
+	return ret;
 }
 
 const struct v4l2_subdev_pad_ops vsp1_rwpf_pad_ops = {

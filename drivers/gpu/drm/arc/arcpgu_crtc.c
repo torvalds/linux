@@ -183,8 +183,6 @@ static void arc_pgu_plane_atomic_update(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs arc_pgu_plane_helper_funcs = {
-	.prepare_fb = NULL,
-	.cleanup_fb = NULL,
 	.atomic_update = arc_pgu_plane_atomic_update,
 };
 

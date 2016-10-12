@@ -19,7 +19,6 @@
 #include <linux/export.h>
 
 #include <drm/drm_sysfs.h>
-#include <drm/drm_core.h>
 #include <drm/drmP.h>
 #include "drm_internal.h"
 
@@ -37,12 +36,7 @@ static char *drm_devnode(struct device *dev, umode_t *mode)
 	return kasprintf(GFP_KERNEL, "dri/%s", dev_name(dev));
 }
 
-static CLASS_ATTR_STRING(version, S_IRUGO,
-		CORE_NAME " "
-		__stringify(CORE_MAJOR) "."
-		__stringify(CORE_MINOR) "."
-		__stringify(CORE_PATCHLEVEL) " "
-		CORE_DATE);
+static CLASS_ATTR_STRING(version, S_IRUGO, "drm 1.1.0 20060810");
 
 /**
  * drm_sysfs_init - initialize sysfs helpers

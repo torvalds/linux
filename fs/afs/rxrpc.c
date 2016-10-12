@@ -418,7 +418,7 @@ static void afs_deliver_to_call(struct afs_call *call)
 						     &call->abort_code);
 			if (ret == -EINPROGRESS || ret == -EAGAIN)
 				return;
-			if (ret == 1) {
+			if (ret == 1 || ret < 0) {
 				call->state = AFS_CALL_COMPLETE;
 				goto done;
 			}

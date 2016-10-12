@@ -717,7 +717,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 static int start_streaming(struct vb2_queue *vq, unsigned int count);
 static void stop_streaming(struct vb2_queue *vq);
 
-static struct vb2_ops s2255_video_qops = {
+static const struct vb2_ops s2255_video_qops = {
 	.queue_setup = queue_setup,
 	.buf_prepare = buffer_prepare,
 	.buf_queue = buffer_queue,

@@ -833,13 +833,13 @@ static inline size_t __pipe_get_pages(struct iov_iter *i,
 				size_t *start)
 {
 	struct pipe_inode_info *pipe = i->pipe;
-	size_t n = push_pipe(i, maxsize, &idx, start);
+	ssize_t n = push_pipe(i, maxsize, &idx, start);
 	if (!n)
 		return -EFAULT;
 
 	maxsize = n;
 	n += *start;
-	while (n >= PAGE_SIZE) {
+	while (n > 0) {
 		get_page(*pages++ = pipe->bufs[idx].page);
 		idx = next_idx(idx, pipe);
 		n -= PAGE_SIZE;

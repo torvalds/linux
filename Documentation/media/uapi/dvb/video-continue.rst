@@ -11,11 +11,13 @@ Name
 
 VIDEO_CONTINUE
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_CONTINUE)
+.. c:function:: int ioctl(fd, VIDEO_CONTINUE)
+    :name: VIDEO_CONTINUE
 
 
 Arguments

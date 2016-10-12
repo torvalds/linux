@@ -20,8 +20,8 @@ Synopsis
     #include <unistd.h>
 
 
-.. cpp:function:: ssize_t read( int fd, void *buf, size_t count )
-
+.. c:function:: ssize_t read( int fd, void *buf, size_t count )
+    :name: v4l2-read
 
 Arguments
 =========
@@ -30,8 +30,10 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``buf``
-``count``
+   Buffer to be filled
 
+``count``
+  Max number of bytes to read
 
 Description
 ===========

@@ -608,15 +608,17 @@ static void ade_rdma_set(void __iomem *base, struct drm_framebuffer *fb,
 			 u32 ch, u32 y, u32 in_h, u32 fmt)
 {
 	struct drm_gem_cma_object *obj = drm_fb_cma_get_gem_obj(fb, 0);
+	char *format_name;
 	u32 reg_ctrl, reg_addr, reg_size, reg_stride, reg_space, reg_en;
 	u32 stride = fb->pitches[0];
 	u32 addr = (u32)obj->paddr + y * stride;
 
 	DRM_DEBUG_DRIVER("rdma%d: (y=%d, height=%d), stride=%d, paddr=0x%x\n",
 			 ch + 1, y, in_h, stride, (u32)obj->paddr);
+	format_name = drm_get_format_name(fb->pixel_format);
 	DRM_DEBUG_DRIVER("addr=0x%x, fb:%dx%d, pixel_format=%d(%s)\n",
-			 addr, fb->width, fb->height, fmt,
-			 drm_get_format_name(fb->pixel_format));
+			 addr, fb->width, fb->height, fmt, format_name);
+	kfree(format_name);
 
 	/* get reg offset */
 	reg_ctrl = RD_CH_CTRL(ch);
@@ -815,19 +817,6 @@ static void ade_disable_channel(struct ade_plane *aplane)
 	ade_compositor_routing_disable(base, ch);
 }
 
-static int ade_plane_prepare_fb(struct drm_plane *plane,
-				const struct drm_plane_state *new_state)
-{
-	/* do nothing */
-	return 0;
-}
-
-static void ade_plane_cleanup_fb(struct drm_plane *plane,
-				 const struct drm_plane_state *old_state)
-{
-	/* do nothing */
-}
-
 static int ade_plane_atomic_check(struct drm_plane *plane,
 				  struct drm_plane_state *state)
 {
@@ -895,8 +884,6 @@ static void ade_plane_atomic_disable(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs ade_plane_helper_funcs = {
-	.prepare_fb = ade_plane_prepare_fb,
-	.cleanup_fb = ade_plane_cleanup_fb,
 	.atomic_check = ade_plane_atomic_check,
 	.atomic_update = ade_plane_atomic_update,
 	.atomic_disable = ade_plane_atomic_disable,

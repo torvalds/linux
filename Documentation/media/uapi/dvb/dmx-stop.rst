@@ -15,29 +15,15 @@ DMX_STOP
 Synopsis
 --------
 
-.. cpp:function:: int ioctl( int fd, int request = DMX_STOP)
+.. c:function:: int ioctl( int fd, DMX_STOP)
+    :name: DMX_STOP
 
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals DMX_STOP for this command.
-
+``fd``
+    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
 
 Description
 -----------

@@ -60,9 +60,35 @@ struct drm_simple_display_pipe_funcs {
 	 *
 	 * This function is called when the underlying plane state is updated.
 	 * This hook is optional.
+	 *
+	 * This is the function drivers should submit the
+	 * &drm_pending_vblank_event from. Using either
+	 * drm_crtc_arm_vblank_event(), when the driver supports vblank
+	 * interrupt handling, or drm_crtc_send_vblank_event() directly in case
+	 * the hardware lacks vblank support entirely.
 	 */
 	void (*update)(struct drm_simple_display_pipe *pipe,
 		       struct drm_plane_state *plane_state);
+
+	/**
+	 * @prepare_fb:
+	 *
+	 * Optional, called by struct &drm_plane_helper_funcs ->prepare_fb .
+	 * Please read the documentation for the ->prepare_fb hook in
+	 * struct &drm_plane_helper_funcs for more details.
+	 */
+	int (*prepare_fb)(struct drm_simple_display_pipe *pipe,
+			  struct drm_plane_state *plane_state);
+
+	/**
+	 * @cleanup_fb:
+	 *
+	 * Optional, called by struct &drm_plane_helper_funcs ->cleanup_fb .
+	 * Please read the documentation for the ->cleanup_fb hook in
+	 * struct &drm_plane_helper_funcs for more details.
+	 */
+	void (*cleanup_fb)(struct drm_simple_display_pipe *pipe,
+			   struct drm_plane_state *plane_state);
 };
 
 /**
@@ -84,6 +110,11 @@ struct drm_simple_display_pipe {
 
 	const struct drm_simple_display_pipe_funcs *funcs;
 };
+
+int drm_simple_display_pipe_attach_bridge(struct drm_simple_display_pipe *pipe,
+					  struct drm_bridge *bridge);
+
+void drm_simple_display_pipe_detach_bridge(struct drm_simple_display_pipe *pipe);
 
 int drm_simple_display_pipe_init(struct drm_device *dev,
 			struct drm_simple_display_pipe *pipe,

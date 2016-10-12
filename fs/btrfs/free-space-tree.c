@@ -107,7 +107,7 @@ search_free_space_info(struct btrfs_trans_handle *trans,
 	if (ret < 0)
 		return ERR_PTR(ret);
 	if (ret != 0) {
-		btrfs_warn(fs_info, "missing free space info for %llu\n",
+		btrfs_warn(fs_info, "missing free space info for %llu",
 			   block_group->key.objectid);
 		ASSERT(0);
 		return ERR_PTR(-ENOENT);
@@ -261,7 +261,8 @@ int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 	btrfs_release_path(path);
 
 	if (extent_count != expected_extent_count) {
-		btrfs_err(fs_info, "incorrect extent count for %llu; counted %u, expected %u",
+		btrfs_err(fs_info,
+			  "incorrect extent count for %llu; counted %u, expected %u",
 			  block_group->key.objectid, extent_count,
 			  expected_extent_count);
 		ASSERT(0);
@@ -442,7 +443,8 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 	}
 
 	if (extent_count != expected_extent_count) {
-		btrfs_err(fs_info, "incorrect extent count for %llu; counted %u, expected %u",
+		btrfs_err(fs_info,
+			  "incorrect extent count for %llu; counted %u, expected %u",
 			  block_group->key.objectid, extent_count,
 			  expected_extent_count);
 		ASSERT(0);
@@ -1163,7 +1165,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	fs_info->creating_free_space_tree = 1;
+	set_bit(BTRFS_FS_CREATING_FREE_SPACE_TREE, &fs_info->flags);
 	free_space_root = btrfs_create_tree(trans, fs_info,
 					    BTRFS_FREE_SPACE_TREE_OBJECTID);
 	if (IS_ERR(free_space_root)) {
@@ -1183,7 +1185,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 	}
 
 	btrfs_set_fs_compat_ro(fs_info, FREE_SPACE_TREE);
-	fs_info->creating_free_space_tree = 0;
+	clear_bit(BTRFS_FS_CREATING_FREE_SPACE_TREE, &fs_info->flags);
 
 	ret = btrfs_commit_transaction(trans, tree_root);
 	if (ret)
@@ -1192,7 +1194,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 	return 0;
 
 abort:
-	fs_info->creating_free_space_tree = 0;
+	clear_bit(BTRFS_FS_CREATING_FREE_SPACE_TREE, &fs_info->flags);
 	btrfs_abort_transaction(trans, ret);
 	btrfs_end_transaction(trans, tree_root);
 	return ret;
@@ -1480,7 +1482,8 @@ static int load_free_space_bitmaps(struct btrfs_caching_control *caching_ctl,
 	}
 
 	if (extent_count != expected_extent_count) {
-		btrfs_err(fs_info, "incorrect extent count for %llu; counted %u, expected %u",
+		btrfs_err(fs_info,
+			  "incorrect extent count for %llu; counted %u, expected %u",
 			  block_group->key.objectid, extent_count,
 			  expected_extent_count);
 		ASSERT(0);
@@ -1542,7 +1545,8 @@ static int load_free_space_extents(struct btrfs_caching_control *caching_ctl,
 	}
 
 	if (extent_count != expected_extent_count) {
-		btrfs_err(fs_info, "incorrect extent count for %llu; counted %u, expected %u",
+		btrfs_err(fs_info,
+			  "incorrect extent count for %llu; counted %u, expected %u",
 			  block_group->key.objectid, extent_count,
 			  expected_extent_count);
 		ASSERT(0);

@@ -1397,7 +1397,7 @@ int ubifs_update_time(struct inode *inode, struct timespec *time,
 #endif
 
 /**
- * update_ctime - update mtime and ctime of an inode.
+ * update_mctime - update mtime and ctime of an inode.
  * @inode: inode to update
  *
  * This function updates mtime and ctime of the inode if it is not equivalent to

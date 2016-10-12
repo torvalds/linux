@@ -57,14 +57,14 @@ static struct attribute ttm_bo_count = {
 static inline int ttm_mem_type_from_place(const struct ttm_place *place,
 					  uint32_t *mem_type)
 {
-	int i;
+	int pos;
 
-	for (i = 0; i <= TTM_PL_PRIV5; i++)
-		if (place->flags & (1 << i)) {
-			*mem_type = i;
-			return 0;
-		}
-	return -EINVAL;
+	pos = ffs(place->flags & TTM_PL_MASK_MEM);
+	if (unlikely(!pos))
+		return -EINVAL;
+
+	*mem_type = pos - 1;
+	return 0;
 }
 
 static void ttm_mem_type_debug(struct ttm_bo_device *bdev, int mem_type)
@@ -354,14 +354,12 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 
 	if (!(old_man->flags & TTM_MEMTYPE_FLAG_FIXED) &&
 	    !(new_man->flags & TTM_MEMTYPE_FLAG_FIXED))
-		ret = ttm_bo_move_ttm(bo, evict, interruptible, no_wait_gpu,
-				      mem);
+		ret = ttm_bo_move_ttm(bo, interruptible, no_wait_gpu, mem);
 	else if (bdev->driver->move)
 		ret = bdev->driver->move(bo, evict, interruptible,
 					 no_wait_gpu, mem);
 	else
-		ret = ttm_bo_move_memcpy(bo, evict, interruptible,
-					 no_wait_gpu, mem);
+		ret = ttm_bo_move_memcpy(bo, interruptible, no_wait_gpu, mem);
 
 	if (ret) {
 		if (bdev->driver->move_notify) {

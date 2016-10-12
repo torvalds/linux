@@ -78,7 +78,6 @@ extern struct module __this_module;
 
 #elif defined(CONFIG_TRIM_UNUSED_KSYMS)
 
-#include <linux/kconfig.h>
 #include <generated/autoksyms.h>
 
 #define __EXPORT_SYMBOL(sym, sec)				\

@@ -1086,20 +1086,20 @@ static int mtk_hdmi_output_init(struct mtk_hdmi *hdmi)
 	return 0;
 }
 
-void mtk_hdmi_audio_enable(struct mtk_hdmi *hdmi)
+static void mtk_hdmi_audio_enable(struct mtk_hdmi *hdmi)
 {
 	mtk_hdmi_aud_enable_packet(hdmi, true);
 	hdmi->audio_enable = true;
 }
 
-void mtk_hdmi_audio_disable(struct mtk_hdmi *hdmi)
+static void mtk_hdmi_audio_disable(struct mtk_hdmi *hdmi)
 {
 	mtk_hdmi_aud_enable_packet(hdmi, false);
 	hdmi->audio_enable = false;
 }
 
-int mtk_hdmi_audio_set_param(struct mtk_hdmi *hdmi,
-			     struct hdmi_audio_param *param)
+static int mtk_hdmi_audio_set_param(struct mtk_hdmi *hdmi,
+				    struct hdmi_audio_param *param)
 {
 	if (!hdmi->audio_enable) {
 		dev_err(hdmi->dev, "hdmi audio is in disable state!\n");
@@ -1624,7 +1624,8 @@ static void mtk_hdmi_audio_shutdown(struct device *dev, void *data)
 	mtk_hdmi_audio_disable(hdmi);
 }
 
-int mtk_hdmi_audio_digital_mute(struct device *dev, void *data, bool enable)
+static int
+mtk_hdmi_audio_digital_mute(struct device *dev, void *data, bool enable)
 {
 	struct mtk_hdmi *hdmi = dev_get_drvdata(dev);
 

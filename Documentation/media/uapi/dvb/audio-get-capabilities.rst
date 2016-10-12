@@ -11,11 +11,13 @@ Name
 
 AUDIO_GET_CAPABILITIES
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(int fd, int request = AUDIO_GET_CAPABILITIES, unsigned int *cap)
+.. c:function:: int ioctl(int fd, AUDIO_GET_CAPABILITIES, unsigned int *cap)
+    :name: AUDIO_GET_CAPABILITIES
 
 
 Arguments
@@ -26,19 +28,13 @@ Arguments
     :stub-columns: 0
 
 
-    -  .. row 1
+    -
 
        -  int fd
 
        -  File descriptor returned by a previous call to open().
 
-    -  .. row 2
-
-       -  int request
-
-       -  Equals AUDIO_GET_CAPABILITIES for this command.
-
-    -  .. row 3
+    -
 
        -  unsigned int \*cap
 

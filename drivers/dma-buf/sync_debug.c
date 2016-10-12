@@ -135,10 +135,16 @@ static void sync_print_sync_file(struct seq_file *s,
 	int i;
 
 	seq_printf(s, "[%p] %s: %s\n", sync_file, sync_file->name,
-		   sync_status_str(atomic_read(&sync_file->status)));
+		   sync_status_str(!fence_is_signaled(sync_file->fence)));
 
-	for (i = 0; i < sync_file->num_fences; ++i)
-		sync_print_fence(s, sync_file->cbs[i].fence, true);
+	if (fence_is_array(sync_file->fence)) {
+		struct fence_array *array = to_fence_array(sync_file->fence);
+
+		for (i = 0; i < array->num_fences; ++i)
+			sync_print_fence(s, array->fences[i], true);
+	} else {
+		sync_print_fence(s, sync_file->fence, true);
+	}
 }
 
 static int sync_debugfs_show(struct seq_file *s, void *unused)

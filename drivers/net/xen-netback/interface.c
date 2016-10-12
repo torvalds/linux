@@ -149,17 +149,8 @@ static u16 xenvif_select_queue(struct net_device *dev, struct sk_buff *skb,
 	struct xenvif *vif = netdev_priv(dev);
 	unsigned int size = vif->hash.size;
 
-	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE) {
-		u16 index = fallback(dev, skb) % dev->real_num_tx_queues;
-
-		/* Make sure there is no hash information in the socket
-		 * buffer otherwise it would be incorrectly forwarded
-		 * to the frontend.
-		 */
-		skb_clear_hash(skb);
-
-		return index;
-	}
+	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE)
+		return fallback(dev, skb) % dev->real_num_tx_queues;
 
 	xenvif_set_skb_hash(vif, skb);
 
@@ -207,6 +198,13 @@ static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	cb = XENVIF_RX_CB(skb);
 	cb->expires = jiffies + vif->drain_timeout;
+
+	/* If there is no hash algorithm configured then make sure there
+	 * is no hash information in the socket buffer otherwise it
+	 * would be incorrectly forwarded to the frontend.
+	 */
+	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE)
+		skb_clear_hash(skb);
 
 	xenvif_rx_queue_tail(queue, skb);
 	xenvif_kick_thread(queue);
@@ -319,9 +317,9 @@ static netdev_features_t xenvif_fix_features(struct net_device *dev,
 
 	if (!vif->can_sg)
 		features &= ~NETIF_F_SG;
-	if (~(vif->gso_mask | vif->gso_prefix_mask) & GSO_BIT(TCPV4))
+	if (~(vif->gso_mask) & GSO_BIT(TCPV4))
 		features &= ~NETIF_F_TSO;
-	if (~(vif->gso_mask | vif->gso_prefix_mask) & GSO_BIT(TCPV6))
+	if (~(vif->gso_mask) & GSO_BIT(TCPV6))
 		features &= ~NETIF_F_TSO6;
 	if (!vif->ip_csum)
 		features &= ~NETIF_F_IP_CSUM;
@@ -467,7 +465,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	dev->netdev_ops	= &xenvif_netdev_ops;
 	dev->hw_features = NETIF_F_SG |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		NETIF_F_TSO | NETIF_F_TSO6;
+		NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_FRAGLIST;
 	dev->features = dev->hw_features | NETIF_F_RXCSUM;
 	dev->ethtool_ops = &xenvif_ethtool_ops;
 
