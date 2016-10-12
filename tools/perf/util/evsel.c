@@ -28,6 +28,7 @@
 #include "debug.h"
 #include "trace-event.h"
 #include "stat.h"
+#include "util/parse-branch-options.h"
 
 static struct {
 	bool sample_id_all;
@@ -707,6 +708,14 @@ static void apply_config_terms(struct perf_evsel *evsel,
 			break;
 		case PERF_EVSEL__CONFIG_TERM_CALLGRAPH:
 			callgraph_buf = term->val.callgraph;
+			break;
+		case PERF_EVSEL__CONFIG_TERM_BRANCH:
+			if (term->val.branch && strcmp(term->val.branch, "no")) {
+				perf_evsel__set_sample_bit(evsel, BRANCH_STACK);
+				parse_branch_str(term->val.branch,
+						 &attr->branch_sample_type);
+			} else
+				perf_evsel__reset_sample_bit(evsel, BRANCH_STACK);
 			break;
 		case PERF_EVSEL__CONFIG_TERM_STACK_USER:
 			dump_size = term->val.stack_user;
