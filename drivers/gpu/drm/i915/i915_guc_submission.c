@@ -1148,18 +1148,16 @@ static void guc_read_update_log_buffer(struct intel_guc *guc)
 
 		/* Just copy the newly written data */
 		if (read_offset > write_offset) {
-			memcpy(dst_data, src_data, write_offset);
+			i915_memcpy_from_wc(dst_data, src_data, write_offset);
 			bytes_to_copy = buffer_size - read_offset;
 		} else {
 			bytes_to_copy = write_offset - read_offset;
 		}
-		memcpy(dst_data + read_offset,
-		       src_data + read_offset, bytes_to_copy);
+		i915_memcpy_from_wc(dst_data + read_offset,
+				    src_data + read_offset, bytes_to_copy);
 
 		src_data += buffer_size;
 		dst_data += buffer_size;
-
-		/* FIXME: invalidate/flush for log buffer needed */
 	}
 
 	if (log_buf_snapshot_state)
@@ -1219,8 +1217,11 @@ static int guc_log_create_extras(struct intel_guc *guc)
 		return 0;
 
 	if (!guc->log.buf_addr) {
-		/* Create a vmalloc mapping of log buffer pages */
-		vaddr = i915_gem_object_pin_map(guc->log.vma->obj, I915_MAP_WB);
+		/* Create a WC (Uncached for read) vmalloc mapping of log
+		 * buffer pages, so that we can directly get the data
+		 * (up-to-date) from memory.
+		 */
+		vaddr = i915_gem_object_pin_map(guc->log.vma->obj, I915_MAP_WC);
 		if (IS_ERR(vaddr)) {
 			ret = PTR_ERR(vaddr);
 			DRM_ERROR("Couldn't map log buffer pages %d\n", ret);
@@ -1263,6 +1264,16 @@ static void guc_log_create(struct intel_guc *guc)
 
 	vma = guc->log.vma;
 	if (!vma) {
+		/* We require SSE 4.1 for fast reads from the GuC log buffer and
+		 * it should be present on the chipsets supporting GuC based
+		 * submisssions.
+		 */
+		if (WARN_ON(!i915_memcpy_from_wc(NULL, NULL, 0))) {
+			/* logging will not be enabled */
+			i915.guc_log_level = -1;
+			return;
+		}
+
 		vma = guc_allocate_vma(guc, size);
 		if (IS_ERR(vma)) {
 			/* logging will be off */
