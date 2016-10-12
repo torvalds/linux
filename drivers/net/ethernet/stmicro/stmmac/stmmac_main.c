@@ -1709,8 +1709,8 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 
 	if (init_ptp) {
 		ret = stmmac_init_ptp(priv);
-		if (ret && ret != -EOPNOTSUPP)
-			pr_warn("%s: failed PTP initialisation\n", __func__);
+		if (ret)
+			netdev_warn(priv->dev, "PTP support cannot init.\n");
 	}
 
 #ifdef CONFIG_DEBUG_FS
