@@ -102,7 +102,7 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 			      0x0000, reg, dev->urb_buf, len, HZ);
 	if (ret < 0) {
 		if (reg_debug)
-			printk(" failed!\n");
+			printk(KERN_CONT " failed!\n");
 		mutex_unlock(&dev->ctrl_urb_lock);
 		return usb_translate_errors(ret);
 	}
@@ -115,10 +115,10 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 	if (reg_debug) {
 		int byte;
 
-		printk("<<<");
+		printk(KERN_CONT "<<<");
 		for (byte = 0; byte < len; byte++)
-			printk(" %02x", (unsigned char)buf[byte]);
-		printk("\n");
+			printk(KERN_CONT " %02x", (unsigned char)buf[byte]);
+		printk(KERN_CONT "\n");
 	}
 
 	return ret;
@@ -174,8 +174,8 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 			len & 0xff, len >> 8);
 
 		for (byte = 0; byte < len; byte++)
-			printk(" %02x", (unsigned char)buf[byte]);
-		printk("\n");
+			printk(KERN_CONT " %02x", (unsigned char)buf[byte]);
+		printk(KERN_CONT "\n");
 	}
 
 	mutex_lock(&dev->ctrl_urb_lock);
