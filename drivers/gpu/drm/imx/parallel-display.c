@@ -33,6 +33,7 @@ struct imx_parallel_display {
 	void *edid;
 	int edid_len;
 	u32 bus_format;
+	u32 bus_flags;
 	struct drm_display_mode mode;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
@@ -80,6 +81,7 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 			return -EINVAL;
 
 		ret = of_get_drm_display_mode(np, &imxpd->mode,
+					      &imxpd->bus_flags,
 					      OF_USE_NATIVE_MODE);
 		if (ret)
 			return ret;
@@ -125,11 +127,13 @@ static int imx_pd_encoder_atomic_check(struct drm_encoder *encoder,
 	struct drm_display_info *di = &conn_state->connector->display_info;
 	struct imx_parallel_display *imxpd = enc_to_imxpd(encoder);
 
-	imx_crtc_state->bus_flags = di->bus_flags;
-	if (!imxpd->bus_format && di->num_bus_formats)
+	if (!imxpd->bus_format && di->num_bus_formats) {
+		imx_crtc_state->bus_flags = di->bus_flags;
 		imx_crtc_state->bus_format = di->bus_formats[0];
-	else
+	} else {
+		imx_crtc_state->bus_flags = imxpd->bus_flags;
 		imx_crtc_state->bus_format = imxpd->bus_format;
+	}
 	imx_crtc_state->di_hsync_pin = 2;
 	imx_crtc_state->di_vsync_pin = 3;
 
@@ -289,8 +293,10 @@ static void imx_pd_unbind(struct device *dev, struct device *master,
 {
 	struct imx_parallel_display *imxpd = dev_get_drvdata(dev);
 
-	imxpd->encoder.funcs->destroy(&imxpd->encoder);
-	imxpd->connector.funcs->destroy(&imxpd->connector);
+	if (imxpd->bridge)
+		drm_bridge_detach(imxpd->bridge);
+	if (imxpd->panel)
+		drm_panel_detach(imxpd->panel);
 
 	kfree(imxpd->edid);
 }

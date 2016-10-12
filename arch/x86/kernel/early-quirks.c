@@ -317,16 +317,11 @@ static phys_addr_t __init i85x_stolen_base(int num, int slot, int func,
 static phys_addr_t __init i865_stolen_base(int num, int slot, int func,
 					   size_t stolen_size)
 {
-	u16 toud;
+	u16 toud = 0;
 
-	/*
-	 * FIXME is the graphics stolen memory region
-	 * always at TOUD? Ie. is it always the last
-	 * one to be allocated by the BIOS?
-	 */
 	toud = read_pci_config_16(0, 0, 0, I865_TOUD);
 
-	return (phys_addr_t)toud << 16;
+	return (phys_addr_t)(toud << 16) + i845_tseg_size();
 }
 
 static phys_addr_t __init gen3_stolen_base(int num, int slot, int func,
@@ -512,8 +507,7 @@ static const struct pci_device_id intel_early_ids[] __initconst = {
 	INTEL_I915GM_IDS(&gen3_early_ops),
 	INTEL_I945G_IDS(&gen3_early_ops),
 	INTEL_I945GM_IDS(&gen3_early_ops),
-	INTEL_VLV_M_IDS(&gen6_early_ops),
-	INTEL_VLV_D_IDS(&gen6_early_ops),
+	INTEL_VLV_IDS(&gen6_early_ops),
 	INTEL_PINEVIEW_IDS(&gen3_early_ops),
 	INTEL_I965G_IDS(&gen3_early_ops),
 	INTEL_G33_IDS(&gen3_early_ops),
@@ -526,10 +520,8 @@ static const struct pci_device_id intel_early_ids[] __initconst = {
 	INTEL_SNB_M_IDS(&gen6_early_ops),
 	INTEL_IVB_M_IDS(&gen6_early_ops),
 	INTEL_IVB_D_IDS(&gen6_early_ops),
-	INTEL_HSW_D_IDS(&gen6_early_ops),
-	INTEL_HSW_M_IDS(&gen6_early_ops),
-	INTEL_BDW_M_IDS(&gen8_early_ops),
-	INTEL_BDW_D_IDS(&gen8_early_ops),
+	INTEL_HSW_IDS(&gen6_early_ops),
+	INTEL_BDW_IDS(&gen8_early_ops),
 	INTEL_CHV_IDS(&chv_early_ops),
 	INTEL_SKL_IDS(&gen9_early_ops),
 	INTEL_BXT_IDS(&gen9_early_ops),

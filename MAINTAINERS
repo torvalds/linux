@@ -4122,6 +4122,14 @@ S:	Orphan / Obsolete
 F:	drivers/gpu/drm/i810/
 F:	include/uapi/drm/i810_drm.h
 
+DRM DRIVERS FOR MEDIATEK
+M:	CK Hu <ck.hu@mediatek.com>
+M:	Philipp Zabel <p.zabel@pengutronix.de>
+L:	dri-devel@lists.freedesktop.org
+S:	Supported
+F:	drivers/gpu/drm/mediatek/
+F:	Documentation/devicetree/bindings/display/mediatek/
+
 DRM DRIVER FOR MSM ADRENO GPU
 M:	Rob Clark <robdclark@gmail.com>
 L:	linux-arm-msm@vger.kernel.org

@@ -20,6 +20,7 @@
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
 #include "rockchip_drm_fb.h"
+#include "rockchip_drm_fbdev.h"
 
 #define PREFERRED_BPP		32
 #define to_drm_private(x) \
