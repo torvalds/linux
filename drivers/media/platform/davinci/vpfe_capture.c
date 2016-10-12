@@ -1109,7 +1109,7 @@ static int vpfe_s_input(struct file *file, void *priv, unsigned int index)
 	struct vpfe_subdev_info *sdinfo;
 	int subdev_index, inp_index;
 	struct vpfe_route *route;
-	u32 input = 0, output = 0;
+	u32 input, output;
 	int ret;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_s_input\n");
@@ -1142,6 +1142,9 @@ static int vpfe_s_input(struct file *file, void *priv, unsigned int index)
 	if (route && sdinfo->can_route) {
 		input = route->input;
 		output = route->output;
+	} else {
+		input = 0;
+		output = 0;
 	}
 
 	if (sd)
