@@ -191,6 +191,7 @@ struct pnfs_layout_hdr {
 	struct list_head	plh_layouts;   /* other client layouts */
 	struct list_head	plh_bulk_destroy;
 	struct list_head	plh_segs;      /* layout segments list */
+	struct list_head	plh_return_segs; /* invalid layout segments */
 	unsigned long		plh_block_lgets; /* block LAYOUTGET if >0 */
 	unsigned long		plh_retry_timestamp;
 	unsigned long		plh_flags;
@@ -293,7 +294,10 @@ struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 					       enum pnfs_iomode iomode,
 					       bool strict_iomode,
 					       gfp_t gfp_flags);
-void pnfs_clear_layoutreturn_waitbit(struct pnfs_layout_hdr *lo);
+void pnfs_layoutreturn_free_lsegs(struct pnfs_layout_hdr *lo,
+		const struct pnfs_layout_range *range,
+		u32 seq,
+		const nfs4_stateid *stateid);
 
 void pnfs_generic_layout_insert_lseg(struct pnfs_layout_hdr *lo,
 		   struct pnfs_layout_segment *lseg,

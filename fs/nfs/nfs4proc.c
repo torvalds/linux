@@ -8572,21 +8572,12 @@ static void nfs4_layoutreturn_release(void *calldata)
 {
 	struct nfs4_layoutreturn *lrp = calldata;
 	struct pnfs_layout_hdr *lo = lrp->args.layout;
-	LIST_HEAD(freeme);
 
 	dprintk("--> %s\n", __func__);
-	spin_lock(&lo->plh_inode->i_lock);
-	if (lrp->res.lrs_present) {
-		pnfs_mark_matching_lsegs_invalid(lo, &freeme,
-				&lrp->args.range,
-				be32_to_cpu(lrp->args.stateid.seqid));
-		pnfs_set_layout_stateid(lo, &lrp->res.stateid, true);
-	} else
-		pnfs_mark_layout_stateid_invalid(lo, &freeme);
-	pnfs_clear_layoutreturn_waitbit(lo);
-	spin_unlock(&lo->plh_inode->i_lock);
+	pnfs_layoutreturn_free_lsegs(lo, &lrp->args.range,
+			be32_to_cpu(lrp->args.stateid.seqid),
+			lrp->res.lrs_present ? &lrp->res.stateid : NULL);
 	nfs4_sequence_free_slot(&lrp->res.seq_res);
-	pnfs_free_lseg_list(&freeme);
 	pnfs_put_layout_hdr(lrp->args.layout);
 	nfs_iput_and_deactive(lrp->inode);
 	kfree(calldata);
