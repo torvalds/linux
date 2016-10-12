@@ -134,6 +134,47 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 }
 
 /**
+ * amdgpu_vm_validate_layer - validate a single page table level
+ *
+ * @parent: parent page table level
+ * @validate: callback to do the validation
+ * @param: parameter for the validation callback
+ *
+ * Validate the page table BOs on command submission if neccessary.
+ */
+static int amdgpu_vm_validate_level(struct amdgpu_vm_pt *parent,
+				    int (*validate)(void *, struct amdgpu_bo *),
+				    void *param)
+{
+	unsigned i;
+	int r;
+
+	if (!parent->entries)
+		return 0;
+
+	for (i = 0; i <= parent->last_entry_used; ++i) {
+		struct amdgpu_vm_pt *entry = &parent->entries[i];
+
+		if (!entry->bo)
+			continue;
+
+		r = validate(param, entry->bo);
+		if (r)
+			return r;
+
+		/*
+		 * Recurse into the sub directory. This is harmless because we
+		 * have only a maximum of 5 layers.
+		 */
+		r = amdgpu_vm_validate_level(entry, validate, param);
+		if (r)
+			return r;
+	}
+
+	return r;
+}
+
+/**
  * amdgpu_vm_validate_pt_bos - validate the page table BOs
  *
  * @adev: amdgpu device pointer
@@ -148,8 +189,6 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			      void *param)
 {
 	uint64_t num_evictions;
-	unsigned i;
-	int r;
 
 	/* We only need to validate the page tables
 	 * if they aren't already valid.
@@ -158,19 +197,7 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (num_evictions == vm->last_eviction_counter)
 		return 0;
 
-	/* add the vm page table to the list */
-	for (i = 0; i <= vm->root.last_entry_used; ++i) {
-		struct amdgpu_bo *bo = vm->root.entries[i].bo;
-
-		if (!bo)
-			continue;
-
-		r = validate(param, bo);
-		if (r)
-			return r;
-	}
-
-	return 0;
+	return amdgpu_vm_validate_level(&vm->root, validate, param);
 }
 
 /**
