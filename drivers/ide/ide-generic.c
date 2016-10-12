@@ -96,10 +96,10 @@ static int __init ide_generic_init(void)
 		printk(KERN_INFO DRV_NAME ": please use \"probe_mask=0x3f\" "
 		     "module parameter for probing all legacy ISA IDE ports\n");
 
-		if (primary == 0)
+		if (primary)
 			probe_mask |= 0x1;
 
-		if (secondary == 0)
+		if (secondary)
 			probe_mask |= 0x2;
 	} else
 		printk(KERN_INFO DRV_NAME ": enforcing probing of I/O ports "
