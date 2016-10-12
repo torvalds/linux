@@ -522,5 +522,6 @@ extern void __init pgtable_cache_init(void);
 #ifndef __ASSEMBLY__
 extern void __init paging_init(void);
 #endif /* !__ASSEMBLY__ */
+#define HAVE_ARCH_UNMAPPED_AREA
 
 #endif /* _ASM_PGTABLE_H */

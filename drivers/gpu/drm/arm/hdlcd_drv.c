@@ -326,8 +326,8 @@ static int hdlcd_drm_bind(struct device *dev)
 		return -ENOMEM;
 
 	drm = drm_dev_alloc(&hdlcd_driver, dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	drm->dev_private = hdlcd;
 	dev_set_drvdata(dev, drm);

@@ -10,7 +10,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/kconfig.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>

@@ -267,6 +267,17 @@ static void octeon_crash_shutdown(struct pt_regs *regs)
 	default_machine_crash_shutdown(regs);
 }
 
+#ifdef CONFIG_SMP
+void octeon_crash_smp_send_stop(void)
+{
+	int cpu;
+
+	/* disable watchdogs */
+	for_each_online_cpu(cpu)
+		cvmx_write_csr(CVMX_CIU_WDOGX(cpu_logical_map(cpu)), 0);
+}
+#endif
+
 #endif /* CONFIG_KEXEC */
 
 #ifdef CONFIG_CAVIUM_RESERVE32
@@ -911,6 +922,9 @@ void __init prom_init(void)
 	_machine_kexec_shutdown = octeon_shutdown;
 	_machine_crash_shutdown = octeon_crash_shutdown;
 	_machine_kexec_prepare = octeon_kexec_prepare;
+#ifdef CONFIG_SMP
+	_crash_smp_send_stop = octeon_crash_smp_send_stop;
+#endif
 #endif
 
 	octeon_user_io_init();

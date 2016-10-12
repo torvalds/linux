@@ -85,15 +85,12 @@ struct sync_file_info {
 #define SYNC_IOC_MERGE		_IOWR(SYNC_IOC_MAGIC, 3, struct sync_merge_data)
 
 /**
- * DOC: SYNC_IOC_FENCE_INFO - get detailed information on a fence
+ * DOC: SYNC_IOC_FILE_INFO - get detailed information on a sync_file
  *
- * Takes a struct sync_file_info_data with extra space allocated for pt_info.
- * Caller should write the size of the buffer into len.  On return, len is
- * updated to reflect the total size of the sync_file_info_data including
- * pt_info.
- *
- * pt_info is a buffer containing sync_pt_infos for every sync_pt in the fence.
- * To iterate over the sync_pt_infos, use the sync_pt_info.len field.
+ * Takes a struct sync_file_info. If num_fences is 0, the field is updated
+ * with the actual number of fences. If num_fences is > 0, the system will
+ * use the pointer provided on sync_fence_info to return up to num_fences of
+ * struct sync_fence_info, with detailed fence information.
  */
 #define SYNC_IOC_FILE_INFO	_IOWR(SYNC_IOC_MAGIC, 4, struct sync_file_info)
 

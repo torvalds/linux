@@ -8,7 +8,6 @@
 #include <linux/irqdomain.h>
 #include <linux/lockdep.h>
 #include <linux/pinctrl/pinctrl.h>
-#include <linux/kconfig.h>
 
 struct gpio_desc;
 struct of_phandle_args;

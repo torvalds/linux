@@ -26,22 +26,22 @@ ignore define MAX_DTV_STATS
 ignore define DTV_IOCTL_MAX_MSGS
 
 # Stats enum is documented altogether
-replace enum fecap_scale_params frontend-stat-properties
+replace enum fecap_scale_params :ref:`frontend-stat-properties`
 replace symbol FE_SCALE_COUNTER frontend-stat-properties
 replace symbol FE_SCALE_DECIBEL frontend-stat-properties
 replace symbol FE_SCALE_NOT_AVAILABLE frontend-stat-properties
 replace symbol FE_SCALE_RELATIVE frontend-stat-properties
 
 # the same reference is used for both get and set ioctls
-replace ioctl FE_SET_PROPERTY FE_GET_PROPERTY
+replace ioctl FE_SET_PROPERTY :c:type:`FE_GET_PROPERTY`
 
 # Ignore struct used only internally at Kernel
 ignore struct dtv_cmds_h
 
 # Typedefs that use the enum reference
-replace typedef fe_sec_voltage_t fe-sec-voltage
+replace typedef fe_sec_voltage_t :c:type:`fe_sec_voltage`
 
 # Replaces for flag constants
-replace define FE_TUNE_MODE_ONESHOT fe_set_frontend_tune_mode
+replace define FE_TUNE_MODE_ONESHOT :c:func:`FE_SET_FRONTEND_TUNE_MODE`
 replace define LNA_AUTO dtv-lna
 replace define NO_STREAM_ID_FILTER dtv-stream-id

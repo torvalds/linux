@@ -103,7 +103,7 @@ struct flush_queue {
 	struct flush_queue_entry *entries;
 };
 
-DEFINE_PER_CPU(struct flush_queue, flush_queue);
+static DEFINE_PER_CPU(struct flush_queue, flush_queue);
 
 static atomic_t queue_timer_on;
 static struct timer_list queue_timer;
@@ -1361,7 +1361,8 @@ static u64 *alloc_pte(struct protection_domain *domain,
 
 			__npte = PM_LEVEL_PDE(level, virt_to_phys(page));
 
-			if (cmpxchg64(pte, __pte, __npte)) {
+			/* pte could have been changed somewhere. */
+			if (cmpxchg64(pte, __pte, __npte) != __pte) {
 				free_page((unsigned long)page);
 				continue;
 			}
@@ -1740,6 +1741,9 @@ static void dma_ops_domain_free(struct dma_ops_domain *dom)
 	put_iova_domain(&dom->iovad);
 
 	free_pagetable(&dom->domain);
+
+	if (dom->domain.id)
+		domain_id_free(dom->domain.id);
 
 	kfree(dom);
 }
@@ -3649,7 +3653,7 @@ static struct irq_remap_table *get_irq_table(u16 devid, bool ioapic)
 
 	table = irq_lookup_table[devid];
 	if (table)
-		goto out;
+		goto out_unlock;
 
 	alias = amd_iommu_alias_table[devid];
 	table = irq_lookup_table[alias];
@@ -3663,7 +3667,7 @@ static struct irq_remap_table *get_irq_table(u16 devid, bool ioapic)
 	/* Nothing there yet, allocate new irq remapping table */
 	table = kzalloc(sizeof(*table), GFP_ATOMIC);
 	if (!table)
-		goto out;
+		goto out_unlock;
 
 	/* Initialize table spin-lock */
 	spin_lock_init(&table->lock);
@@ -3676,7 +3680,7 @@ static struct irq_remap_table *get_irq_table(u16 devid, bool ioapic)
 	if (!table->table) {
 		kfree(table);
 		table = NULL;
-		goto out;
+		goto out_unlock;
 	}
 
 	if (!AMD_IOMMU_GUEST_IR_GA(amd_iommu_guest_ir))
@@ -4153,6 +4157,7 @@ static int irq_remapping_alloc(struct irq_domain *domain, unsigned int virq,
 	}
 	if (index < 0) {
 		pr_warn("Failed to allocate IRTE\n");
+		ret = index;
 		goto out_free_parent;
 	}
 

@@ -581,7 +581,7 @@ static void init_tio(struct dm_rq_target_io *tio, struct request *rq,
 	if (!md->init_tio_pdu)
 		memset(&tio->info, 0, sizeof(tio->info));
 	if (md->kworker_task)
-		init_kthread_work(&tio->work, map_tio_request);
+		kthread_init_work(&tio->work, map_tio_request);
 }
 
 static struct dm_rq_target_io *dm_old_prep_tio(struct request *rq,
@@ -831,7 +831,7 @@ static void dm_old_request_fn(struct request_queue *q)
 		tio = tio_from_request(rq);
 		/* Establish tio->ti before queuing work (map_tio_request) */
 		tio->ti = ti;
-		queue_kthread_work(&md->kworker, &tio->work);
+		kthread_queue_work(&md->kworker, &tio->work);
 		BUG_ON(!irqs_disabled());
 	}
 }
@@ -853,7 +853,7 @@ int dm_old_init_request_queue(struct mapped_device *md)
 	blk_queue_prep_rq(md->queue, dm_old_prep_fn);
 
 	/* Initialize the request-based DM worker thread */
-	init_kthread_worker(&md->kworker);
+	kthread_init_worker(&md->kworker);
 	md->kworker_task = kthread_run(kthread_worker_fn, &md->kworker,
 				       "kdmwork-%s", dm_device_name(md));
 	if (IS_ERR(md->kworker_task))

@@ -474,7 +474,7 @@ static void xvip_dma_stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irq(&dma->queued_lock);
 }
 
-static struct vb2_ops xvip_dma_queue_qops = {
+static const struct vb2_ops xvip_dma_queue_qops = {
 	.queue_setup = xvip_dma_queue_setup,
 	.buf_prepare = xvip_dma_buffer_prepare,
 	.buf_queue = xvip_dma_buffer_queue,

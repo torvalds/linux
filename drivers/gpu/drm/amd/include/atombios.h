@@ -494,6 +494,7 @@ typedef struct _COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V3
   union
   {
     ATOM_COMPUTE_CLOCK_FREQ  ulClock;         //Input Parameter
+    ULONG ulClockParams;                      //ULONG access for BE
     ATOM_S_MPLL_FB_DIVIDER   ulFbDiv;         //Output Parameter
   };
   UCHAR   ucRefDiv;                           //Output Parameter
@@ -526,6 +527,7 @@ typedef struct _COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V5
   union
   {
     ATOM_COMPUTE_CLOCK_FREQ  ulClock;         //Input Parameter
+    ULONG ulClockParams;                      //ULONG access for BE
     ATOM_S_MPLL_FB_DIVIDER   ulFbDiv;         //Output Parameter
   };
   UCHAR   ucRefDiv;                           //Output Parameter

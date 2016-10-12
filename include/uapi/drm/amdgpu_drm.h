@@ -77,6 +77,10 @@ extern "C" {
 #define AMDGPU_GEM_CREATE_NO_CPU_ACCESS		(1 << 1)
 /* Flag that USWC attributes should be used for GTT */
 #define AMDGPU_GEM_CREATE_CPU_GTT_USWC		(1 << 2)
+/* Flag that the memory should be in VRAM and cleared */
+#define AMDGPU_GEM_CREATE_VRAM_CLEARED		(1 << 3)
+/* Flag that create shadow bo(GTT) while allocating vram bo */
+#define AMDGPU_GEM_CREATE_SHADOW		(1 << 4)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */
@@ -481,6 +485,8 @@ struct drm_amdgpu_cs_chunk_data {
 #define AMDGPU_INFO_DEV_INFO			0x16
 /* visible vram usage */
 #define AMDGPU_INFO_VIS_VRAM_USAGE		0x17
+/* number of TTM buffer evictions */
+#define AMDGPU_INFO_NUM_EVICTIONS		0x18
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff
@@ -643,6 +649,7 @@ struct drm_amdgpu_info_hw_ip {
  * Supported GPU families
  */
 #define AMDGPU_FAMILY_UNKNOWN			0
+#define AMDGPU_FAMILY_SI			110 /* Hainan, Oland, Verde, Pitcairn, Tahiti */
 #define AMDGPU_FAMILY_CI			120 /* Bonaire, Hawaii */
 #define AMDGPU_FAMILY_KV			125 /* Kaveri, Kabini, Mullins */
 #define AMDGPU_FAMILY_VI			130 /* Iceland, Tonga */

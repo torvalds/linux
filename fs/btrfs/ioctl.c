@@ -1903,8 +1903,9 @@ static noinline int may_destroy_subvol(struct btrfs_root *root)
 		btrfs_dir_item_key_to_cpu(path->nodes[0], di, &key);
 		if (key.objectid == root->root_key.objectid) {
 			ret = -EPERM;
-			btrfs_err(root->fs_info, "deleting default subvolume "
-				  "%llu is not allowed", key.objectid);
+			btrfs_err(root->fs_info,
+				  "deleting default subvolume %llu is not allowed",
+				  key.objectid);
 			goto out;
 		}
 		btrfs_release_path(path);
@@ -4097,8 +4098,8 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	if (IS_ERR_OR_NULL(di)) {
 		btrfs_free_path(path);
 		btrfs_end_transaction(trans, root);
-		btrfs_err(new_root->fs_info, "Umm, you don't have the default dir"
-			   "item, this isn't going to work");
+		btrfs_err(new_root->fs_info,
+			  "Umm, you don't have the default diritem, this isn't going to work");
 		ret = -ENOENT;
 		goto out;
 	}
@@ -5307,8 +5308,9 @@ static int btrfs_ioctl_set_fslabel(struct file *file, void __user *arg)
 		return -EFAULT;
 
 	if (strnlen(label, BTRFS_LABEL_SIZE) == BTRFS_LABEL_SIZE) {
-		btrfs_err(root->fs_info, "unable to set label with more than %d bytes",
-		       BTRFS_LABEL_SIZE - 1);
+		btrfs_err(root->fs_info,
+			  "unable to set label with more than %d bytes",
+			  BTRFS_LABEL_SIZE - 1);
 		return -EINVAL;
 	}
 

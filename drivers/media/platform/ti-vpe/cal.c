@@ -1379,7 +1379,7 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 	cal_runtime_put(ctx->dev);
 }
 
-static struct vb2_ops cal_video_qops = {
+static const struct vb2_ops cal_video_qops = {
 	.queue_setup		= cal_queue_setup,
 	.buf_prepare		= cal_buffer_prepare,
 	.buf_queue		= cal_buffer_queue,

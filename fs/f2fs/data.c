@@ -75,7 +75,7 @@ static void f2fs_write_end_io(struct bio *bio)
 		fscrypt_pullback_bio_page(&page, true);
 
 		if (unlikely(bio->bi_error)) {
-			set_bit(AS_EIO, &page->mapping->flags);
+			mapping_set_error(page->mapping, -EIO);
 			f2fs_stop_checkpoint(sbi, true);
 		}
 		end_page_writeback(page);

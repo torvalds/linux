@@ -934,4 +934,16 @@
 		V4L2_DV_FL_REDUCED_BLANKING) \
 }
 
+/* SDI timings definitions */
+
+/* SMPTE-125M */
+#define V4L2_DV_BT_SDI_720X487I60 { \
+	.type = V4L2_DV_BT_656_1120, \
+	V4L2_INIT_BT_TIMINGS(720, 487, 1, \
+		V4L2_DV_HSYNC_POS_POL, \
+		13500000, 16, 121, 0, 0, 19, 0, 0, 19, 0, \
+		V4L2_DV_BT_STD_SDI, \
+		V4L2_DV_FL_FIRST_FIELD_EXTRA_LINE) \
+}
+
 #endif

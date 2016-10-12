@@ -1086,7 +1086,6 @@ MODULE_DEVICE_TABLE(of, tvp7002_of_match);
 static struct i2c_driver tvp7002_driver = {
 	.driver = {
 		.of_match_table = of_match_ptr(tvp7002_of_match),
-		.owner = THIS_MODULE,
 		.name = TVP7002_MODULE_NAME,
 	},
 	.probe = tvp7002_probe,

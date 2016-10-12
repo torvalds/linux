@@ -128,7 +128,8 @@ static int bochs_bo_verify_access(struct ttm_buffer_object *bo,
 {
 	struct bochs_bo *bochsbo = bochs_bo(bo);
 
-	return drm_vma_node_verify_access(&bochsbo->gem.vma_node, filp);
+	return drm_vma_node_verify_access(&bochsbo->gem.vma_node,
+					  filp->private_data);
 }
 
 static int bochs_ttm_io_mem_reserve(struct ttm_bo_device *bdev,

@@ -191,109 +191,48 @@ Control IDs
 
 
 
+.. tabularcolumns:: |p{5.5cm}|p{12cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
+    :widths: 11 24
 
-
-    -  .. row 1
-
-       -  ``V4L2_COLORFX_NONE``
-
-       -  Color effect is disabled.
-
-    -  .. row 2
-
-       -  ``V4L2_COLORFX_ANTIQUE``
-
-       -  An aging (old photo) effect.
-
-    -  .. row 3
-
-       -  ``V4L2_COLORFX_ART_FREEZE``
-
-       -  Frost color effect.
-
-    -  .. row 4
-
-       -  ``V4L2_COLORFX_AQUA``
-
-       -  Water color, cool tone.
-
-    -  .. row 5
-
-       -  ``V4L2_COLORFX_BW``
-
-       -  Black and white.
-
-    -  .. row 6
-
-       -  ``V4L2_COLORFX_EMBOSS``
-
-       -  Emboss, the highlights and shadows replace light/dark boundaries
-	  and low contrast areas are set to a gray background.
-
-    -  .. row 7
-
-       -  ``V4L2_COLORFX_GRASS_GREEN``
-
-       -  Grass green.
-
-    -  .. row 8
-
-       -  ``V4L2_COLORFX_NEGATIVE``
-
-       -  Negative.
-
-    -  .. row 9
-
-       -  ``V4L2_COLORFX_SEPIA``
-
-       -  Sepia tone.
-
-    -  .. row 10
-
-       -  ``V4L2_COLORFX_SKETCH``
-
-       -  Sketch.
-
-    -  .. row 11
-
-       -  ``V4L2_COLORFX_SKIN_WHITEN``
-
-       -  Skin whiten.
-
-    -  .. row 12
-
-       -  ``V4L2_COLORFX_SKY_BLUE``
-
-       -  Sky blue.
-
-    -  .. row 13
-
-       -  ``V4L2_COLORFX_SOLARIZATION``
-
-       -  Solarization, the image is partially reversed in tone, only color
-	  values above or below a certain threshold are inverted.
-
-    -  .. row 14
-
-       -  ``V4L2_COLORFX_SILHOUETTE``
-
-       -  Silhouette (outline).
-
-    -  .. row 15
-
-       -  ``V4L2_COLORFX_VIVID``
-
-       -  Vivid colors.
-
-    -  .. row 16
-
-       -  ``V4L2_COLORFX_SET_CBCR``
-
-       -  The Cb and Cr chroma components are replaced by fixed coefficients
-	  determined by ``V4L2_CID_COLORFX_CBCR`` control.
+    * - ``V4L2_COLORFX_NONE``
+      - Color effect is disabled.
+    * - ``V4L2_COLORFX_ANTIQUE``
+      - An aging (old photo) effect.
+    * - ``V4L2_COLORFX_ART_FREEZE``
+      - Frost color effect.
+    * - ``V4L2_COLORFX_AQUA``
+      - Water color, cool tone.
+    * - ``V4L2_COLORFX_BW``
+      - Black and white.
+    * - ``V4L2_COLORFX_EMBOSS``
+      - Emboss, the highlights and shadows replace light/dark boundaries
+	and low contrast areas are set to a gray background.
+    * - ``V4L2_COLORFX_GRASS_GREEN``
+      - Grass green.
+    * - ``V4L2_COLORFX_NEGATIVE``
+      - Negative.
+    * - ``V4L2_COLORFX_SEPIA``
+      - Sepia tone.
+    * - ``V4L2_COLORFX_SKETCH``
+      - Sketch.
+    * - ``V4L2_COLORFX_SKIN_WHITEN``
+      - Skin whiten.
+    * - ``V4L2_COLORFX_SKY_BLUE``
+      - Sky blue.
+    * - ``V4L2_COLORFX_SOLARIZATION``
+      - Solarization, the image is partially reversed in tone, only color
+	values above or below a certain threshold are inverted.
+    * - ``V4L2_COLORFX_SILHOUETTE``
+      - Silhouette (outline).
+    * - ``V4L2_COLORFX_VIVID``
+      - Vivid colors.
+    * - ``V4L2_COLORFX_SET_CBCR``
+      - The Cb and Cr chroma components are replaced by fixed coefficients
+	determined by ``V4L2_CID_COLORFX_CBCR`` control.
 
 
 

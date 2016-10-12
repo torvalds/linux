@@ -129,7 +129,7 @@ struct hackrf_dev {
 	struct list_head rx_buffer_list;
 	struct list_head tx_buffer_list;
 	spinlock_t buffer_list_lock; /* Protects buffer_list */
-	unsigned sequence;	     /* Buffer sequence counter */
+	unsigned int sequence;	     /* Buffer sequence counter */
 	unsigned int vb_full;        /* vb is full and packets dropped */
 	unsigned int vb_empty;       /* vb is empty and packets dropped */
 
@@ -891,7 +891,7 @@ static void hackrf_stop_streaming(struct vb2_queue *vq)
 	mutex_unlock(&dev->v4l2_lock);
 }
 
-static struct vb2_ops hackrf_vb2_ops = {
+static const struct vb2_ops hackrf_vb2_ops = {
 	.queue_setup            = hackrf_queue_setup,
 	.buf_queue              = hackrf_buf_queue,
 	.start_streaming        = hackrf_start_streaming,

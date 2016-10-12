@@ -232,7 +232,7 @@ struct bttv_fh {
 	const struct bttv_format *ovfmt;
 	struct bttv_overlay      ov;
 
-	/* Application called VIDIOC_S_CROP. */
+	/* Application called VIDIOC_S_SELECTION. */
 	int                      do_crop;
 
 	/* vbi capture */

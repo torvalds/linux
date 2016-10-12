@@ -20,7 +20,6 @@
 #include <linux/usb/ehci_def.h>
 #include <linux/delay.h>
 #include <linux/serial_core.h>
-#include <linux/kconfig.h>
 #include <linux/kgdb.h>
 #include <linux/kthread.h>
 #include <asm/io.h>

@@ -17,6 +17,13 @@ config DRM_ANALOGIX_ANX78XX
 	  the HDMI output of an application processor to MyDP
 	  or DisplayPort.
 
+config DRM_DUMB_VGA_DAC
+	tristate "Dumb VGA DAC Bridge support"
+	depends on OF
+	select DRM_KMS_HELPER
+	help
+	  Support for RGB to VGA DAC based bridges
+
 config DRM_DW_HDMI
 	tristate
 	select DRM_KMS_HELPER
