@@ -90,8 +90,9 @@ SECTIONS
 	/* Start of data section */
 	_sdata = .;
 
-	RO_DATA_SECTION(8)
-
+	/* Architecturally we need to keep __gp below 0x1000000 and thus
+	 * in front of RO_DATA_SECTION() which stores lots of tracepoint
+	 * and ftrace symbols. */
 #ifdef CONFIG_64BIT
 	. = ALIGN(16);
 	/* Linkage tables */
@@ -105,6 +106,12 @@ SECTIONS
 		*(.dlt)
 	}
 #endif
+
+	RO_DATA_SECTION(8)
+
+	/* RO because of BUILDTIME_EXTABLE_SORT */
+	EXCEPTION_TABLE(8)
+	NOTES
 
 	/* unwind info */
 	.PARISC.unwind : {
@@ -120,9 +127,6 @@ SECTIONS
 	 */
 	. = ALIGN(HUGEPAGE_SIZE);
 	data_start = .;
-
-	EXCEPTION_TABLE(8)
-	NOTES
 
 	/* Data */
 	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, PAGE_SIZE)
