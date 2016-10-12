@@ -67,8 +67,8 @@
 #define PM_INFO_MMDC_IO_NUM_OFFSET		0x54
 #define PM_INFO_MMDC_IO_VAL_OFFSET		0x58
 /* below offsets depends on MX6_MAX_MMDC_IO_NUM(36) definition */
-#define PM_INFO_MMDC_NUM_OFFSET			0x178
-#define PM_INFO_MMDC_VAL_OFFSET			0x17C
+#define PM_INFO_MMDC_NUM_OFFSET			0x208
+#define PM_INFO_MMDC_VAL_OFFSET			0x20C
 
 #define MX6Q_SRC_GPR1	0x20
 #define MX6Q_SRC_GPR2	0x24
@@ -250,7 +250,7 @@
 	add	r7, r7, r0
 10:
 	ldr	r8, [r7], #0x4
-	ldr	r9, [r7], #0x4
+	ldr	r9, [r7], #0x8
 	str	r9, [r10, r8]
 	subs	r6, r6, #0x1
 	bne	10b
@@ -281,7 +281,7 @@
 	add	r7, r7, r0
 11:
 	ldr	r8, [r7], #0x4
-	ldr	r9, [r7], #0x4
+	ldr	r9, [r7], #0x8
 	str	r9, [r10, r8]
 	subs	r6, r6, #0x1
 	bne	11b
@@ -540,30 +540,15 @@ poll_dvfs_set_ch1:
 skip_self_refresh_ch1:
 	/* use r11 to store the IO address */
 	ldr	r11, [r0, #PM_INFO_MX6Q_IOMUXC_V_OFFSET]
-	ldr	r6, =0x0
-	ldr	r7, [r0, #PM_INFO_MMDC_IO_NUM_OFFSET]
+	ldr	r6, [r0, #PM_INFO_MMDC_IO_NUM_OFFSET]
 	ldr	r8, =PM_INFO_MMDC_IO_VAL_OFFSET
 	add	r8, r8, r0
-	/* LPDDR2's last 3 IOs need special setting */
-	cmp	r3, #IMX_DDR_TYPE_LPDDR2
-	subeq	r7, r7, #0x3
 set_mmdc_io_lpm:
-	ldr	r9, [r8], #0x8
-	str	r6, [r11, r9]
-	subs	r7, r7, #0x1
+	ldr	r7, [r8], #0x8
+	ldr	r9, [r8], #0x4
+	str	r9, [r11, r7]
+	subs	r6, r6, #0x1
 	bne	set_mmdc_io_lpm
-
-	cmp 	r3, #IMX_DDR_TYPE_LPDDR2
-	bne	set_mmdc_io_lpm_done
-	ldr	r6, =0x1000
-	ldr	r9, [r8], #0x8
-	str	r6, [r11, r9]
-	ldr	r9, [r8], #0x8
-	str	r6, [r11, r9]
-	ldr	r6, =0x80000
-	ldr	r9, [r8]
-	str	r6, [r11, r9]
-set_mmdc_io_lpm_done:
 
 	/* check whether it supports Mega/Fast off */
 	ldr	r6, [r0, #PM_INFO_MMDC_NUM_OFFSET]

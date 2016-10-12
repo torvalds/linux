@@ -422,11 +422,10 @@ static const u32 imx6ul_mmdc_lpddr2_offset[] __initconst = {
 };
 
 static const u32 imx6sll_mmdc_io_offset[] __initconst = {
-	0x30c, 0x310, 0x314, 0x318, /* DQM0 ~ DQM3 */
-	0x5c4, 0x5cc, 0x5d4, 0x5d8, /* GPR_B0DS ~ GPR_B3DS */
-	0x300, 0x31c, 0x338, 0x5ac, /* CAS, RAS, SDCLK_0, GPR_ADDS */
-	0x33c, 0x340, 0x5b0, 0x5c0, /* SODT0, SODT1, MODE_CTL, MODE */
-	0x330, 0x334, 0x320,        /* SDCKE0, SDCKE1, RESET */
+	0x294, 0x298, 0x29c, 0x2a0, /* DQM0 ~ DQM3 */
+	0x544, 0x54c, 0x554, 0x558, /* GPR_B0DS ~ GPR_B3DS */
+	0x530, 0x540, 0x2ac, 0x52c, /* MODE_CTL, MODE, SDCLK_0, GPR_ADDDS */
+	0x2a4, 0x2a8,		    /* SDCKE0, SDCKE1*/
 };
 
 static const u32 imx6sll_mmdc_lpddr3_offset[] __initconst = {
@@ -592,7 +591,7 @@ struct imx6_cpu_pm_info {
 	struct imx6_pm_base anatop_base;
 	u32 ttbr1; /* Store TTBR1 */
 	u32 mmdc_io_num; /* Number of MMDC IOs which need saved/restored. */
-	u32 mmdc_io_val[MX6_MAX_MMDC_IO_NUM][2]; /* To save offset and value */
+	u32 mmdc_io_val[MX6_MAX_MMDC_IO_NUM][3]; /* To save offset, value, low power settings */
 	u32 mmdc_num; /* Number of MMDC registers which need saved/restored. */
 	u32 mmdc_val[MX6_MAX_MMDC_NUM][2];
 } __aligned(8);
@@ -1117,6 +1116,20 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 		pm_info->mmdc_io_val[i][1] =
 			readl_relaxed(pm_info->iomuxc_base.vbase +
 			mmdc_io_offset_array[i]);
+		pm_info->mmdc_io_val[i][2] = 0;
+	}
+
+	/* i.MX6SLL has no DRAM RESET pin */
+	if (cpu_is_imx6sll()) {
+			pm_info->mmdc_io_val[pm_info->mmdc_io_num - 2][2] = 0x1000;
+			pm_info->mmdc_io_val[pm_info->mmdc_io_num - 1][2] = 0x1000;
+	} else {
+		if (pm_info->ddr_type == IMX_DDR_TYPE_LPDDR2) {
+			/* for LPDDR2, CKE0/1 and RESET pin need special setting */
+			pm_info->mmdc_io_val[pm_info->mmdc_io_num - 3][2] = 0x1000;
+			pm_info->mmdc_io_val[pm_info->mmdc_io_num - 2][2] = 0x1000;
+			pm_info->mmdc_io_val[pm_info->mmdc_io_num - 1][2] = 0x80000;
+		}
 	}
 
 	/* initialize MMDC settings */
