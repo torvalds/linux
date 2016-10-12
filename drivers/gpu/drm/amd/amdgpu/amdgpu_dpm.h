@@ -387,6 +387,7 @@ struct amdgpu_dpm {
 	/* default uvd power state */
 	struct amdgpu_ps        *uvd_ps;
 	/* vce requirements */
+	u32                  num_of_vce_states;
 	struct amd_vce_state vce_states[AMD_MAX_VCE_LEVELS];
 	enum amd_vce_level vce_level;
 	enum amd_pm_state_type state;

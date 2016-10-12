@@ -553,9 +553,10 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 				entry = (ATOM_PPLIB_VCE_Clock_Voltage_Limit_Record *)
 					((u8 *)entry + sizeof(ATOM_PPLIB_VCE_Clock_Voltage_Limit_Record));
 			}
-			for (i = 0; i < states->numEntries; i++) {
-				if (i >= AMD_MAX_VCE_LEVELS)
-					break;
+			adev->pm.dpm.num_of_vce_states =
+					states->numEntries > AMD_MAX_VCE_LEVELS ?
+					AMD_MAX_VCE_LEVELS : states->numEntries;
+			for (i = 0; i < adev->pm.dpm.num_of_vce_states; i++) {
 				vce_clk = (VCEClockInfo *)
 					((u8 *)&array->entries[0] +
 					 (state_entry->ucVCEClockInfoIndex * sizeof(VCEClockInfo)));
