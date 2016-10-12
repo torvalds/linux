@@ -62,6 +62,11 @@
         #address-cells = <1>;
         #size-cells = <1>;
 
+        cma_0:region@0 {
+           region_name = "cma_0";
+           reg = <0 0x02a00000>;
+           linux,contiguous-region;
+        };
         };
 
         gic:interrupt-controller{
@@ -118,6 +123,14 @@
                 dev_name = "ppmgr";
                 status = "okay";
                 reserve-memory = <0x01000000>; // 16M
+        };
+
+    amvenc_avc{
+                compatible = "amlogic,amvenc_avc";
+                dev_name = "amvenc_avc.0";
+                status = "okay";
+                linux,contiguous-region = <&cma_0>;
+                reserve-iomap = "true";
         };
 
     ion_dev{
