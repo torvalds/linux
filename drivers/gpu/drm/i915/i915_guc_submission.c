@@ -193,6 +193,16 @@ static int host2guc_force_logbuffer_flush(struct intel_guc *guc)
 	return host2guc_action(guc, data, 2);
 }
 
+static int host2guc_logging_control(struct intel_guc *guc, u32 control_val)
+{
+	u32 data[2];
+
+	data[0] = HOST2GUC_ACTION_UK_LOG_ENABLE_LOGGING;
+	data[1] = control_val;
+
+	return host2guc_action(guc, data, 2);
+}
+
 /*
  * Initialise, update, or clear doorbell data shared with the GuC
  *
@@ -1604,4 +1614,53 @@ void i915_guc_register(struct drm_i915_private *dev_priv)
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	guc_log_late_setup(&dev_priv->guc);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
+}
+
+int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val)
+{
+	union guc_log_control log_param;
+	int ret;
+
+	log_param.value = control_val;
+
+	if (log_param.verbosity < GUC_LOG_VERBOSITY_MIN ||
+	    log_param.verbosity > GUC_LOG_VERBOSITY_MAX)
+		return -EINVAL;
+
+	/* This combination doesn't make sense & won't have any effect */
+	if (!log_param.logging_enabled && (i915.guc_log_level < 0))
+		return 0;
+
+	ret = host2guc_logging_control(&dev_priv->guc, log_param.value);
+	if (ret < 0) {
+		DRM_DEBUG_DRIVER("host2guc action failed %d\n", ret);
+		return ret;
+	}
+
+	i915.guc_log_level = log_param.verbosity;
+
+	/* If log_level was set as -1 at boot time, then the relay channel file
+	 * wouldn't have been created by now and interrupts also would not have
+	 * been enabled.
+	 */
+	if (!dev_priv->guc.log.relay_chan) {
+		ret = guc_log_late_setup(&dev_priv->guc);
+		if (!ret)
+			gen9_enable_guc_interrupts(dev_priv);
+	} else if (!log_param.logging_enabled) {
+		/* Once logging is disabled, GuC won't generate logs & send an
+		 * interrupt. But there could be some data in the log buffer
+		 * which is yet to be captured. So request GuC to update the log
+		 * buffer state and then collect the left over logs.
+		 */
+		i915_guc_flush_logs(dev_priv);
+
+		/* As logging is disabled, update log level to reflect that */
+		i915.guc_log_level = -1;
+	} else {
+		/* In case interrupts were disabled, enable them now */
+		gen9_enable_guc_interrupts(dev_priv);
+	}
+
+	return ret;
 }
