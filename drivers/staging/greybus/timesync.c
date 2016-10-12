@@ -807,11 +807,11 @@ static int gb_timesync_schedule(struct gb_timesync_svc *timesync_svc, int state)
 		return -EINVAL;
 
 	mutex_lock(&timesync_svc->mutex);
-	if (timesync_svc->state !=  GB_TIMESYNC_STATE_INVALID) {
+	if (timesync_svc->state !=  GB_TIMESYNC_STATE_INVALID)
 		gb_timesync_set_state_atomic(timesync_svc, state);
-	} else {
+	else
 		ret = -ENODEV;
-	}
+
 	mutex_unlock(&timesync_svc->mutex);
 	return ret;
 }
