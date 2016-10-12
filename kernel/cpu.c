@@ -228,7 +228,7 @@ static struct {
 	.wq = __WAIT_QUEUE_HEAD_INITIALIZER(cpu_hotplug.wq),
 	.lock = __MUTEX_INITIALIZER(cpu_hotplug.lock),
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-	.dep_map = {.name = "cpu_hotplug.lock" },
+	.dep_map = STATIC_LOCKDEP_MAP_INIT("cpu_hotplug.dep_map", &cpu_hotplug.dep_map),
 #endif
 };
 
