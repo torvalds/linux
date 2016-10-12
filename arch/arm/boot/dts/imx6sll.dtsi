@@ -500,7 +500,8 @@
 			};
 
 			usbphy1: usbphy@020c9000 {
-				compatible = "fsl,imx6sll-usbphy", "fsl,imx23-usbphy";
+				compatible = "fsl,imx6sll-usbphy", "fsl,imx6ul-usbphy",
+						"fsl,imx23-usbphy";
 				reg = <0x020c9000 0x1000>;
 				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SLL_CLK_USBPHY1>;
@@ -509,7 +510,8 @@
 			};
 
 			usbphy2: usbphy@020ca000 {
-				compatible = "fsl,imx6sll-usbphy", "fsl,imx23-usbphy";
+				compatible = "fsl,imx6sll-usbphy", "fsl,imx6ul-usbphy",
+						"fsl,imx23-usbphy";
 				reg = <0x020ca000 0x1000>;
 				interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SLL_CLK_USBPHY2>;
@@ -655,7 +657,8 @@
 			ranges;
 
 			usbotg1: usb@02184000 {
-				compatible = "fsl,imx6sll-usb", "fsl,imx27-usb";
+				compatible = "fsl,imx6sll-usb", "fsl,imx6ul-usb",
+						"fsl,imx27-usb";
 				reg = <0x02184000 0x200>;
 				interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SLL_CLK_USBOH3>;
@@ -669,7 +672,8 @@
 			};
 
 			usbotg2: usb@02184200 {
-				compatible = "fsl,imx6sll-usb", "fsl,imx27-usb";
+				compatible = "fsl,imx6sll-usb", "fsl,imx6ul-usb",
+						"fsl,imx27-usb";
 				reg = <0x02184200 0x200>;
 				interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SLL_CLK_USBOH3>;
@@ -683,7 +687,8 @@
 
 			usbmisc: usbmisc@02184800 {
 				#index-cells = <1>;
-				compatible = "fsl,imx6sll-usbmisc", "fsl,imx6q-usbmisc";
+				compatible = "fsl,imx6sll-usbmisc", "fsl,imx6ul-usbmisc",
+						"fsl,imx6q-usbmisc";
 				reg = <0x02184800 0x200>;
 			};
 
