@@ -291,10 +291,10 @@ static void vpif_stop_streaming(struct vb2_queue *vq)
 		vb2_buffer_done(&common->cur_frm->vb.vb2_buf,
 				VB2_BUF_STATE_ERROR);
 	} else {
-		if (common->cur_frm != NULL)
+		if (common->cur_frm)
 			vb2_buffer_done(&common->cur_frm->vb.vb2_buf,
 					VB2_BUF_STATE_ERROR);
-		if (common->next_frm != NULL)
+		if (common->next_frm)
 			vb2_buffer_done(&common->next_frm->vb.vb2_buf,
 					VB2_BUF_STATE_ERROR);
 	}
@@ -648,7 +648,7 @@ static int vpif_input_to_subdev(
 	vpif_dbg(2, debug, "vpif_input_to_subdev\n");
 
 	subdev_name = chan_cfg->inputs[input_index].subdev_name;
-	if (subdev_name == NULL)
+	if (!subdev_name)
 		return -1;
 
 	/* loop through the sub device list to get the sub device info */
@@ -764,7 +764,7 @@ static int vpif_g_std(struct file *file, void *priv, v4l2_std_id *std)
 
 	vpif_dbg(2, debug, "vpif_g_std\n");
 
-	if (config->chan_config[ch->channel_id].inputs == NULL)
+	if (!config->chan_config[ch->channel_id].inputs)
 		return -ENODATA;
 
 	chan_cfg = &config->chan_config[ch->channel_id];
@@ -794,7 +794,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 
 	vpif_dbg(2, debug, "vpif_s_std\n");
 
-	if (config->chan_config[ch->channel_id].inputs == NULL)
+	if (!config->chan_config[ch->channel_id].inputs)
 		return -ENODATA;
 
 	chan_cfg = &config->chan_config[ch->channel_id];
@@ -1050,7 +1050,7 @@ vpif_enum_dv_timings(struct file *file, void *priv,
 	struct v4l2_input input;
 	int ret;
 
-	if (config->chan_config[ch->channel_id].inputs == NULL)
+	if (!config->chan_config[ch->channel_id].inputs)
 		return -ENODATA;
 
 	chan_cfg = &config->chan_config[ch->channel_id];
@@ -1084,7 +1084,7 @@ vpif_query_dv_timings(struct file *file, void *priv,
 	struct v4l2_input input;
 	int ret;
 
-	if (config->chan_config[ch->channel_id].inputs == NULL)
+	if (!config->chan_config[ch->channel_id].inputs)
 		return -ENODATA;
 
 	chan_cfg = &config->chan_config[ch->channel_id];
@@ -1120,7 +1120,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 	struct v4l2_input input;
 	int ret;
 
-	if (config->chan_config[ch->channel_id].inputs == NULL)
+	if (!config->chan_config[ch->channel_id].inputs)
 		return -ENODATA;
 
 	chan_cfg = &config->chan_config[ch->channel_id];
@@ -1213,7 +1213,7 @@ static int vpif_g_dv_timings(struct file *file, void *priv,
 	struct vpif_capture_chan_config *chan_cfg;
 	struct v4l2_input input;
 
-	if (config->chan_config[ch->channel_id].inputs == NULL)
+	if (!config->chan_config[ch->channel_id].inputs)
 		return -ENODATA;
 
 	chan_cfg = &config->chan_config[ch->channel_id];
@@ -1460,7 +1460,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 
 	subdev_count = vpif_obj.config->subdev_count;
 	vpif_obj.sd = kcalloc(subdev_count, sizeof(*vpif_obj.sd), GFP_KERNEL);
-	if (vpif_obj.sd == NULL) {
+	if (!vpif_obj.sd) {
 		err = -ENOMEM;
 		goto vpif_unregister;
 	}
