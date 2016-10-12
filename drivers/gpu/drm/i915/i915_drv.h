@@ -778,6 +778,7 @@ struct drm_i915_error_state {
 	struct intel_overlay_error_state *overlay;
 	struct intel_display_error_state *display;
 	struct drm_i915_error_object *semaphore;
+	struct drm_i915_error_object *guc_log;
 
 	struct drm_i915_error_engine {
 		int engine_id;
