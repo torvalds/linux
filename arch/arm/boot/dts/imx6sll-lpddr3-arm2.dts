@@ -223,6 +223,28 @@
 			>;
 		};
 
+		pinctrl_usdhc1_100mhz: usdhc1grp_100mhz {
+			fsl,pins = <
+				MX6SLL_PAD_SD1_CMD__SD1_CMD	0x170b9
+				MX6SLL_PAD_SD1_CLK__SD1_CLK	0x170b9
+				MX6SLL_PAD_SD1_DATA0__SD1_DATA0	0x170b9
+				MX6SLL_PAD_SD1_DATA1__SD1_DATA1	0x170b9
+				MX6SLL_PAD_SD1_DATA2__SD1_DATA2	0x170b9
+				MX6SLL_PAD_SD1_DATA3__SD1_DATA3	0x170b9
+			>;
+		};
+
+		pinctrl_usdhc1_200mhz: usdhc1grp_200mhz {
+			fsl,pins = <
+				MX6SLL_PAD_SD1_CMD__SD1_CMD	0x170f9
+				MX6SLL_PAD_SD1_CLK__SD1_CLK	0x170f9
+				MX6SLL_PAD_SD1_DATA0__SD1_DATA0	0x170f9
+				MX6SLL_PAD_SD1_DATA1__SD1_DATA1	0x170f9
+				MX6SLL_PAD_SD1_DATA2__SD1_DATA2	0x170f9
+				MX6SLL_PAD_SD1_DATA3__SD1_DATA3	0x170f9
+			>;
+		};
+
 		pinctrl_usdhc2: usdhc2grp {
 			fsl,pins = <
 				MX6SLL_PAD_SD2_CMD__SD2_CMD	0x17059
@@ -269,8 +291,10 @@
 };
 
 &usdhc1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc1>;
+	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	cd-gpios = <&gpio4 7 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio4 22 GPIO_ACTIVE_HIGH>;
 	keep-power-in-suspend;
