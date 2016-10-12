@@ -170,6 +170,7 @@ static void gen5_assert_iir_is_zero(struct drm_i915_private *dev_priv,
 } while (0)
 
 static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
+static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
 
 /* For display hotplug interrupt */
 static inline void
@@ -415,6 +416,38 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 	 */
 	cancel_work_sync(&dev_priv->rps.work);
 	gen6_reset_rps_interrupts(dev_priv);
+}
+
+void gen9_reset_guc_interrupts(struct drm_i915_private *dev_priv)
+{
+	spin_lock_irq(&dev_priv->irq_lock);
+	gen6_reset_pm_iir(dev_priv, dev_priv->pm_guc_events);
+	spin_unlock_irq(&dev_priv->irq_lock);
+}
+
+void gen9_enable_guc_interrupts(struct drm_i915_private *dev_priv)
+{
+	spin_lock_irq(&dev_priv->irq_lock);
+	if (!dev_priv->guc.interrupts_enabled) {
+		WARN_ON_ONCE(I915_READ(gen6_pm_iir(dev_priv)) &
+				       dev_priv->pm_guc_events);
+		dev_priv->guc.interrupts_enabled = true;
+		gen6_enable_pm_irq(dev_priv, dev_priv->pm_guc_events);
+	}
+	spin_unlock_irq(&dev_priv->irq_lock);
+}
+
+void gen9_disable_guc_interrupts(struct drm_i915_private *dev_priv)
+{
+	spin_lock_irq(&dev_priv->irq_lock);
+	dev_priv->guc.interrupts_enabled = false;
+
+	gen6_disable_pm_irq(dev_priv, dev_priv->pm_guc_events);
+
+	spin_unlock_irq(&dev_priv->irq_lock);
+	synchronize_irq(dev_priv->drm.irq);
+
+	gen9_reset_guc_interrupts(dev_priv);
 }
 
 /**
@@ -1346,11 +1379,13 @@ static irqreturn_t gen8_gt_irq_ack(struct drm_i915_private *dev_priv,
 			DRM_ERROR("The master control interrupt lied (GT3)!\n");
 	}
 
-	if (master_ctl & GEN8_GT_PM_IRQ) {
+	if (master_ctl & (GEN8_GT_PM_IRQ | GEN8_GT_GUC_IRQ)) {
 		gt_iir[2] = I915_READ_FW(GEN8_GT_IIR(2));
-		if (gt_iir[2] & dev_priv->pm_rps_events) {
+		if (gt_iir[2] & (dev_priv->pm_rps_events |
+				 dev_priv->pm_guc_events)) {
 			I915_WRITE_FW(GEN8_GT_IIR(2),
-				      gt_iir[2] & dev_priv->pm_rps_events);
+				      gt_iir[2] & (dev_priv->pm_rps_events |
+						   dev_priv->pm_guc_events));
 			ret = IRQ_HANDLED;
 		} else
 			DRM_ERROR("The master control interrupt lied (PM)!\n");
@@ -1382,6 +1417,9 @@ static void gen8_gt_irq_handler(struct drm_i915_private *dev_priv,
 
 	if (gt_iir[2] & dev_priv->pm_rps_events)
 		gen6_rps_irq_handler(dev_priv, gt_iir[2]);
+
+	if (gt_iir[2] & dev_priv->pm_guc_events)
+		gen9_guc_irq_handler(dev_priv, gt_iir[2]);
 }
 
 static bool bxt_port_hotplug_long_detect(enum port port, u32 val)
@@ -1625,6 +1663,13 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 
 		if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT)
 			DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
+	}
+}
+
+static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 gt_iir)
+{
+	if (gt_iir & GEN9_GUC_TO_HOST_INT_EVENT) {
+		/* TODO: Handle events for which GuC interrupted host */
 	}
 }
 
@@ -3699,7 +3744,7 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 	GEN8_IRQ_INIT_NDX(GT, 1, ~gt_interrupts[1], gt_interrupts[1]);
 	/*
 	 * RPS interrupts will get enabled/disabled on demand when RPS itself
-	 * is enabled/disabled.
+	 * is enabled/disabled. Same wil be the case for GuC interrupts.
 	 */
 	GEN8_IRQ_INIT_NDX(GT, 2, dev_priv->pm_imr, dev_priv->pm_ier);
 	GEN8_IRQ_INIT_NDX(GT, 3, ~gt_interrupts[3], gt_interrupts[3]);
@@ -4484,6 +4529,9 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 
 	INIT_WORK(&dev_priv->rps.work, gen6_pm_rps_work);
 	INIT_WORK(&dev_priv->l3_parity.error_work, ivybridge_parity_work);
+
+	if (HAS_GUC_SCHED(dev))
+		dev_priv->pm_guc_events = GEN9_GUC_TO_HOST_INT_EVENT;
 
 	/* Let's track the enabled rps events */
 	if (IS_VALLEYVIEW(dev_priv))

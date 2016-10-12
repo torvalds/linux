@@ -485,6 +485,7 @@ int intel_guc_setup(struct drm_device *dev)
 	}
 
 	guc_interrupts_release(dev_priv);
+	gen9_reset_guc_interrupts(dev_priv);
 
 	guc_fw->guc_fw_load_status = GUC_FIRMWARE_PENDING;
 
@@ -529,6 +530,9 @@ int intel_guc_setup(struct drm_device *dev)
 		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
 
 	if (i915.enable_guc_submission) {
+		if (i915.guc_log_level >= 0)
+			gen9_enable_guc_interrupts(dev_priv);
+
 		err = i915_guc_submission_enable(dev_priv);
 		if (err)
 			goto fail;

@@ -132,6 +132,9 @@ struct intel_guc {
 	struct intel_guc_fw guc_fw;
 	struct intel_guc_log log;
 
+	/* GuC2Host interrupt related state */
+	bool interrupts_enabled;
+
 	struct i915_vma *ads_vma;
 	struct i915_vma *ctx_pool_vma;
 	struct ida ctx_ids;

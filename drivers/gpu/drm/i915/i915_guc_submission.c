@@ -1086,6 +1086,8 @@ int intel_guc_suspend(struct drm_device *dev)
 	if (guc->guc_fw.guc_fw_load_status != GUC_FIRMWARE_SUCCESS)
 		return 0;
 
+	gen9_disable_guc_interrupts(dev_priv);
+
 	ctx = dev_priv->kernel_context;
 
 	data[0] = HOST2GUC_ACTION_ENTER_S_STATE;
@@ -1111,6 +1113,9 @@ int intel_guc_resume(struct drm_device *dev)
 
 	if (guc->guc_fw.guc_fw_load_status != GUC_FIRMWARE_SUCCESS)
 		return 0;
+
+	if (i915.guc_log_level >= 0)
+		gen9_enable_guc_interrupts(dev_priv);
 
 	ctx = dev_priv->kernel_context;
 

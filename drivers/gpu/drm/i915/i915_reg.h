@@ -6016,6 +6016,7 @@ enum {
 #define  GEN8_DE_PIPE_A_IRQ		(1<<16)
 #define  GEN8_DE_PIPE_IRQ(pipe)		(1<<(16+(pipe)))
 #define  GEN8_GT_VECS_IRQ		(1<<6)
+#define  GEN8_GT_GUC_IRQ		(1<<5)
 #define  GEN8_GT_PM_IRQ			(1<<4)
 #define  GEN8_GT_VCS2_IRQ		(1<<3)
 #define  GEN8_GT_VCS1_IRQ		(1<<2)
@@ -6026,6 +6027,16 @@ enum {
 #define GEN8_GT_IMR(which) _MMIO(0x44304 + (0x10 * (which)))
 #define GEN8_GT_IIR(which) _MMIO(0x44308 + (0x10 * (which)))
 #define GEN8_GT_IER(which) _MMIO(0x4430c + (0x10 * (which)))
+
+#define GEN9_GUC_TO_HOST_INT_EVENT	(1<<31)
+#define GEN9_GUC_EXEC_ERROR_EVENT	(1<<30)
+#define GEN9_GUC_DISPLAY_EVENT		(1<<29)
+#define GEN9_GUC_SEMA_SIGNAL_EVENT	(1<<28)
+#define GEN9_GUC_IOMMU_MSG_EVENT	(1<<27)
+#define GEN9_GUC_DB_RING_EVENT		(1<<26)
+#define GEN9_GUC_DMA_DONE_EVENT		(1<<25)
+#define GEN9_GUC_FATAL_ERROR_EVENT	(1<<24)
+#define GEN9_GUC_NOTIFICATION_EVENT	(1<<23)
 
 #define GEN8_RCS_IRQ_SHIFT 0
 #define GEN8_BCS_IRQ_SHIFT 16
