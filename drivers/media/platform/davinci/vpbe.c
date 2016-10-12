@@ -297,19 +297,19 @@ out:
 static int vpbe_set_default_output(struct vpbe_device *vpbe_dev)
 {
 	struct vpbe_config *cfg = vpbe_dev->cfg;
-	int ret = 0;
 	int i;
 
 	for (i = 0; i < cfg->num_outputs; i++) {
 		if (!strcmp(def_output,
 			    cfg->outputs[i].output.name)) {
-			ret = vpbe_set_output(vpbe_dev, i);
+			int ret = vpbe_set_output(vpbe_dev, i);
+
 			if (!ret)
 				vpbe_dev->current_out_index = i;
 			return ret;
 		}
 	}
-	return ret;
+	return 0;
 }
 
 /**
