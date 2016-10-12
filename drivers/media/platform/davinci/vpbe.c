@@ -254,20 +254,20 @@ static int vpbe_set_output(struct vpbe_device *vpbe_dev, int index)
 		sd_index = vpbe_find_encoder_sd_index(cfg, index);
 		if (sd_index < 0) {
 			ret = -EINVAL;
-			goto out;
+			goto unlock;
 		}
 
 		if_params = cfg->outputs[index].if_params;
 		venc_device->setup_if_config(if_params);
 		if (ret)
-			goto out;
+			goto unlock;
 	}
 
 	/* Set output at the encoder */
 	ret = v4l2_subdev_call(vpbe_dev->encoders[sd_index], video,
 				       s_routing, 0, enc_out_index, 0);
 	if (ret)
-		goto out;
+		goto unlock;
 
 	/*
 	 * It is assumed that venc or extenal encoder will set a default
@@ -289,7 +289,7 @@ static int vpbe_set_output(struct vpbe_device *vpbe_dev, int index)
 		vpbe_dev->current_sd_index = sd_index;
 		vpbe_dev->current_out_index = index;
 	}
-out:
+unlock:
 	mutex_unlock(&vpbe_dev->lock);
 	return ret;
 }
