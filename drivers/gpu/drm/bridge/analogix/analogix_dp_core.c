@@ -929,6 +929,8 @@ int analogix_dp_get_modes(struct drm_connector *connector)
 	struct edid *edid = (struct edid *)dp->edid;
 	int num_modes = 0;
 
+	pm_runtime_get_sync(dp->dev);
+
 	if (analogix_dp_handle_edid(dp) == 0) {
 		drm_mode_connector_update_edid_property(&dp->connector, edid);
 		num_modes += drm_add_edid_modes(&dp->connector, edid);
@@ -939,6 +941,8 @@ int analogix_dp_get_modes(struct drm_connector *connector)
 
 	if (dp->plat_data->get_modes)
 		num_modes += dp->plat_data->get_modes(dp->plat_data, connector);
+
+	pm_runtime_put(dp->dev);
 
 	return num_modes;
 }
@@ -960,11 +964,16 @@ enum drm_connector_status
 analogix_dp_detect(struct drm_connector *connector, bool force)
 {
 	struct analogix_dp_device *dp = to_dp(connector);
+	enum drm_connector_status status = connector_status_connected;
+
+	pm_runtime_get_sync(dp->dev);
 
 	if (analogix_dp_detect_hpd(dp))
-		return connector_status_disconnected;
+		status = connector_status_disconnected;
 
-	return connector_status_connected;
+	pm_runtime_put(dp->dev);
+
+	return status;
 }
 
 static void analogix_dp_connector_destroy(struct drm_connector *connector)
