@@ -1938,8 +1938,9 @@ static int vpfe_probe(struct platform_device *pdev)
 	video_set_drvdata(&vpfe_dev->video_dev, vpfe_dev);
 	i2c_adap = i2c_get_adapter(vpfe_cfg->i2c_adapter_id);
 	num_subdevs = vpfe_cfg->num_subdevs;
-	vpfe_dev->sd = kmalloc(sizeof(struct v4l2_subdev *) * num_subdevs,
-				GFP_KERNEL);
+	vpfe_dev->sd = kmalloc_array(num_subdevs,
+				     sizeof(*vpfe_dev->sd),
+				     GFP_KERNEL);
 	if (NULL == vpfe_dev->sd) {
 		v4l2_err(&vpfe_dev->v4l2_dev,
 			"unable to allocate memory for subdevice pointers\n");
