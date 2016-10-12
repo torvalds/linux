@@ -800,7 +800,7 @@ static void r4k_flush_icache_range(unsigned long start, unsigned long end)
 		 * If address-based cache ops don't require an SMP call, then
 		 * use them exclusively for small flushes.
 		 */
-		size = start - end;
+		size = end - start;
 		cache_size = icache_size;
 		if (!cpu_has_ic_fills_f_dc) {
 			size *= 2;

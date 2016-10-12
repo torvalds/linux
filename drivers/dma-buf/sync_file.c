@@ -150,6 +150,7 @@ static int sync_file_set_fence(struct sync_file *sync_file,
 	 */
 	if (num_fences == 1) {
 		sync_file->fence = fences[0];
+		kfree(fences);
 	} else {
 		array = fence_array_create(num_fences, fences,
 					   fence_context_alloc(1), 1, false);
@@ -253,10 +254,8 @@ static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
 	for (; i_b < b_num_fences; i_b++)
 		add_fence(fences, &i, b_fences[i_b]);
 
-	if (i == 0) {
-		add_fence(fences, &i, a_fences[0]);
-		i++;
-	}
+	if (i == 0)
+		fences[i++] = fence_get(a_fences[0]);
 
 	if (num_fences > i) {
 		nfences = krealloc(fences, i * sizeof(*fences),
@@ -306,7 +305,8 @@ static unsigned int sync_file_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &sync_file->wq, wait);
 
-	if (!test_and_set_bit(POLL_ENABLED, &sync_file->fence->flags)) {
+	if (!poll_does_not_wait(wait) &&
+	    !test_and_set_bit(POLL_ENABLED, &sync_file->fence->flags)) {
 		if (fence_add_callback(sync_file->fence, &sync_file->cb,
 				       fence_check_cb_func) < 0)
 			wake_up_all(&sync_file->wq);

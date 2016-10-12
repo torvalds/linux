@@ -70,13 +70,15 @@ static void mtk_atomic_complete(struct mtk_drm_private *private,
 	 *
 	 *     drm_atomic_helper_commit_modeset_disables(dev, state);
 	 *     drm_atomic_helper_commit_modeset_enables(dev, state);
-	 *     drm_atomic_helper_commit_planes(dev, state, true);
+	 *     drm_atomic_helper_commit_planes(dev, state,
+	 *                                     DRM_PLANE_COMMIT_ACTIVE_ONLY);
 	 *
 	 * See the kerneldoc entries for these three functions for more details.
 	 */
 	drm_atomic_helper_commit_modeset_disables(drm, state);
 	drm_atomic_helper_commit_modeset_enables(drm, state);
-	drm_atomic_helper_commit_planes(drm, state, true);
+	drm_atomic_helper_commit_planes(drm, state,
+					DRM_PLANE_COMMIT_ACTIVE_ONLY);
 
 	drm_atomic_helper_wait_for_vblanks(drm, state);
 
@@ -292,8 +294,8 @@ static int mtk_drm_bind(struct device *dev)
 	int ret;
 
 	drm = drm_dev_alloc(&mtk_drm_driver, dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	drm->dev_private = private;
 	private->drm = drm;

@@ -27,6 +27,7 @@
 #include "backref.h"
 #include "hash.h"
 #include "compression.h"
+#include "qgroup.h"
 
 /* magic values for the inode_only field in btrfs_log_inode:
  *
@@ -679,6 +680,21 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 		ins.offset = btrfs_file_extent_disk_num_bytes(eb, item);
 		ins.type = BTRFS_EXTENT_ITEM_KEY;
 		offset = key->offset - btrfs_file_extent_offset(eb, item);
+
+		/*
+		 * Manually record dirty extent, as here we did a shallow
+		 * file extent item copy and skip normal backref update,
+		 * but modifying extent tree all by ourselves.
+		 * So need to manually record dirty extent for qgroup,
+		 * as the owner of the file extent changed from log tree
+		 * (doesn't affect qgroup) to fs/file tree(affects qgroup)
+		 */
+		ret = btrfs_qgroup_insert_dirty_extent(trans, root->fs_info,
+				btrfs_file_extent_disk_bytenr(eb, item),
+				btrfs_file_extent_disk_num_bytes(eb, item),
+				GFP_NOFS);
+		if (ret < 0)
+			goto out;
 
 		if (ins.objectid > 0) {
 			u64 csum_start;
@@ -2807,7 +2823,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 */
 	mutex_unlock(&root->log_mutex);
 
-	btrfs_init_log_ctx(&root_log_ctx);
+	btrfs_init_log_ctx(&root_log_ctx, NULL);
 
 	mutex_lock(&log_root_tree->log_mutex);
 	atomic_inc(&log_root_tree->log_batch);
@@ -2851,6 +2867,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	if (log_root_tree->log_transid_committed >= root_log_ctx.log_transid) {
 		blk_finish_plug(&plug);
+		list_del_init(&root_log_ctx.list);
 		mutex_unlock(&log_root_tree->log_mutex);
 		ret = root_log_ctx.log_ret;
 		goto out;
@@ -4741,7 +4758,8 @@ again:
 			if (ret < 0) {
 				err = ret;
 				goto out_unlock;
-			} else if (ret > 0) {
+			} else if (ret > 0 && ctx &&
+				   other_ino != btrfs_ino(ctx->inode)) {
 				struct btrfs_key inode_key;
 				struct inode *other_inode;
 

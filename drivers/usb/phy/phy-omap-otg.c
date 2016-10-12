@@ -140,6 +140,8 @@ static int omap_otg_probe(struct platform_device *pdev)
 		 (rev >> 4) & 0xf, rev & 0xf, config->extcon, otg_dev->id,
 		 otg_dev->vbus);
 
+	platform_set_drvdata(pdev, otg_dev);
+
 	return 0;
 }
 

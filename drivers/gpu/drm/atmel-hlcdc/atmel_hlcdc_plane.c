@@ -320,19 +320,19 @@ atmel_hlcdc_plane_update_pos_and_size(struct atmel_hlcdc_plane *plane,
 			u32 *coeff_tab = heo_upscaling_ycoef;
 			u32 max_memsize;
 
-			if (state->crtc_w < state->src_w)
+			if (state->crtc_h < state->src_h)
 				coeff_tab = heo_downscaling_ycoef;
 			for (i = 0; i < ARRAY_SIZE(heo_upscaling_ycoef); i++)
 				atmel_hlcdc_layer_update_cfg(&plane->layer,
 							     33 + i,
 							     0xffffffff,
 							     coeff_tab[i]);
-			factor = ((8 * 256 * state->src_w) - (256 * 4)) /
-				 state->crtc_w;
+			factor = ((8 * 256 * state->src_h) - (256 * 4)) /
+				 state->crtc_h;
 			factor++;
-			max_memsize = ((factor * state->crtc_w) + (256 * 4)) /
+			max_memsize = ((factor * state->crtc_h) + (256 * 4)) /
 				      2048;
-			if (max_memsize > state->src_w)
+			if (max_memsize > state->src_h)
 				factor--;
 			factor_reg |= (factor << 16) | 0x80000000;
 		}
@@ -755,7 +755,7 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 }
 
 static int atmel_hlcdc_plane_prepare_fb(struct drm_plane *p,
-					const struct drm_plane_state *new_state)
+					struct drm_plane_state *new_state)
 {
 	/*
 	 * FIXME: we should avoid this const -> non-const cast but it's
@@ -780,7 +780,7 @@ static int atmel_hlcdc_plane_prepare_fb(struct drm_plane *p,
 }
 
 static void atmel_hlcdc_plane_cleanup_fb(struct drm_plane *p,
-				const struct drm_plane_state *old_state)
+					 struct drm_plane_state *old_state)
 {
 	/*
 	 * FIXME: we should avoid this const -> non-const cast but it's

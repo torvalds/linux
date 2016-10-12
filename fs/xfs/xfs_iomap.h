@@ -35,5 +35,6 @@ void xfs_bmbt_to_iomap(struct xfs_inode *, struct iomap *,
 		struct xfs_bmbt_irec *);
 
 extern struct iomap_ops xfs_iomap_ops;
+extern struct iomap_ops xfs_xattr_iomap_ops;
 
 #endif /* __XFS_IOMAP_H__*/

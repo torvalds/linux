@@ -127,18 +127,19 @@ _GLOBAL(csum_partial_copy_generic)
 	stw	r7,12(r1)
 	stw	r8,8(r1)
 
-	rlwinm	r0,r4,3,0x8
-	rlwnm	r6,r6,r0,0,31	/* odd destination address: rotate one byte */
-	cmplwi	cr7,r0,0	/* is destination address even ? */
 	addic	r12,r6,0
 	addi	r6,r4,-4
 	neg	r0,r4
 	addi	r4,r3,-4
 	andi.	r0,r0,CACHELINE_MASK	/* # bytes to start of cache line */
+	crset	4*cr7+eq
 	beq	58f
 
 	cmplw	0,r5,r0			/* is this more than total to do? */
 	blt	63f			/* if not much to do */
+	rlwinm	r7,r6,3,0x8
+	rlwnm	r12,r12,r7,0,31	/* odd destination address: rotate one byte */
+	cmplwi	cr7,r7,0	/* is destination address even ? */
 	andi.	r8,r0,3			/* get it word-aligned first */
 	mtctr	r8
 	beq+	61f

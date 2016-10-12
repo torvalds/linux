@@ -169,7 +169,7 @@ static int kirin_gem_cma_dumb_create(struct drm_file *file,
 
 static struct drm_driver kirin_drm_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
-				  DRIVER_ATOMIC | DRIVER_HAVE_IRQ,
+				  DRIVER_ATOMIC,
 	.fops			= &kirin_drm_fops,
 
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
@@ -207,8 +207,8 @@ static int kirin_drm_bind(struct device *dev)
 	int ret;
 
 	drm_dev = drm_dev_alloc(driver, dev);
-	if (!drm_dev)
-		return -ENOMEM;
+	if (IS_ERR(drm_dev))
+		return PTR_ERR(drm_dev);
 
 	drm_dev->platformdev = to_platform_device(dev);
 

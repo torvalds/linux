@@ -457,7 +457,7 @@ atmel_hlcdc_dc_atomic_complete(struct atmel_hlcdc_dc_commit *commit)
 
 	/* Apply the atomic update. */
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
-	drm_atomic_helper_commit_planes(dev, old_state, false);
+	drm_atomic_helper_commit_planes(dev, old_state, 0);
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 
 	drm_atomic_helper_wait_for_vblanks(dev, old_state);
@@ -797,8 +797,8 @@ static int atmel_hlcdc_dc_drm_probe(struct platform_device *pdev)
 	int ret;
 
 	ddev = drm_dev_alloc(&atmel_hlcdc_dc_driver, &pdev->dev);
-	if (!ddev)
-		return -ENOMEM;
+	if (IS_ERR(ddev))
+		return PTR_ERR(ddev);
 
 	ret = atmel_hlcdc_dc_load(ddev);
 	if (ret)

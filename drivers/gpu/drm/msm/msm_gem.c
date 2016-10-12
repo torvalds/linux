@@ -196,10 +196,19 @@ int msm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct drm_device *dev = obj->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 	struct page **pages;
 	unsigned long pfn;
 	pgoff_t pgoff;
 	int ret;
+
+	/* This should only happen if userspace tries to pass a mmap'd
+	 * but unfaulted gem bo vaddr into submit ioctl, triggering
+	 * a page fault while struct_mutex is already held.  This is
+	 * not a valid use-case so just bail.
+	 */
+	if (priv->struct_mutex_task == current)
+		return VM_FAULT_SIGBUS;
 
 	/* Make sure we don't parallel update on a fault, nor move or remove
 	 * something from beneath our feet
@@ -584,18 +593,16 @@ int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	bool write = !!(op & MSM_PREP_WRITE);
+	unsigned long remain =
+		op & MSM_PREP_NOSYNC ? 0 : timeout_to_jiffies(timeout);
+	long ret;
 
-	if (op & MSM_PREP_NOSYNC) {
-		if (!reservation_object_test_signaled_rcu(msm_obj->resv, write))
-			return -EBUSY;
-	} else {
-		int ret;
-
-		ret = reservation_object_wait_timeout_rcu(msm_obj->resv, write,
-				true, timeout_to_jiffies(timeout));
-		if (ret <= 0)
-			return ret == 0 ? -ETIMEDOUT : ret;
-	}
+	ret = reservation_object_wait_timeout_rcu(msm_obj->resv, write,
+						  true,  remain);
+	if (ret == 0)
+		return remain == 0 ? -EBUSY : -ETIMEDOUT;
+	else if (ret < 0)
+		return ret;
 
 	/* TODO cache maintenance */
 

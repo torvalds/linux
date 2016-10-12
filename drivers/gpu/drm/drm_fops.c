@@ -199,7 +199,6 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 
 	filp->private_data = priv;
 	priv->filp = filp;
-	priv->uid = current_euid();
 	priv->pid = get_pid(task_pid(current));
 	priv->minor = minor;
 

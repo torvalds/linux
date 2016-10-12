@@ -63,21 +63,39 @@ enum ipu_csi_dest {
 /*
  * Enumeration of IPU rotation modes
  */
+#define IPU_ROT_BIT_VFLIP (1 << 0)
+#define IPU_ROT_BIT_HFLIP (1 << 1)
+#define IPU_ROT_BIT_90    (1 << 2)
+
 enum ipu_rotate_mode {
 	IPU_ROTATE_NONE = 0,
-	IPU_ROTATE_VERT_FLIP,
-	IPU_ROTATE_HORIZ_FLIP,
-	IPU_ROTATE_180,
-	IPU_ROTATE_90_RIGHT,
-	IPU_ROTATE_90_RIGHT_VFLIP,
-	IPU_ROTATE_90_RIGHT_HFLIP,
-	IPU_ROTATE_90_LEFT,
+	IPU_ROTATE_VERT_FLIP = IPU_ROT_BIT_VFLIP,
+	IPU_ROTATE_HORIZ_FLIP = IPU_ROT_BIT_HFLIP,
+	IPU_ROTATE_180 = (IPU_ROT_BIT_VFLIP | IPU_ROT_BIT_HFLIP),
+	IPU_ROTATE_90_RIGHT = IPU_ROT_BIT_90,
+	IPU_ROTATE_90_RIGHT_VFLIP = (IPU_ROT_BIT_90 | IPU_ROT_BIT_VFLIP),
+	IPU_ROTATE_90_RIGHT_HFLIP = (IPU_ROT_BIT_90 | IPU_ROT_BIT_HFLIP),
+	IPU_ROTATE_90_LEFT = (IPU_ROT_BIT_90 |
+			      IPU_ROT_BIT_VFLIP | IPU_ROT_BIT_HFLIP),
 };
+
+/* 90-degree rotations require the IRT unit */
+#define ipu_rot_mode_is_irt(m) (((m) & IPU_ROT_BIT_90) != 0)
 
 enum ipu_color_space {
 	IPUV3_COLORSPACE_RGB,
 	IPUV3_COLORSPACE_YUV,
 	IPUV3_COLORSPACE_UNKNOWN,
+};
+
+/*
+ * Enumeration of VDI MOTION select
+ */
+enum ipu_motion_sel {
+	MOTION_NONE = 0,
+	LOW_MOTION,
+	MED_MOTION,
+	HIGH_MOTION,
 };
 
 struct ipuv3_channel;
@@ -97,6 +115,14 @@ enum ipu_channel_irq {
 #define IPUV3_CHANNEL_CSI2			 2
 #define IPUV3_CHANNEL_CSI3			 3
 #define IPUV3_CHANNEL_VDI_MEM_IC_VF		 5
+/*
+ * NOTE: channels 6,7 are unused in the IPU and are not IDMAC channels,
+ * but the direct CSI->VDI linking is handled the same way as IDMAC
+ * channel linking in the FSU via the IPU_FS_PROC_FLOW registers, so
+ * these channel names are used to support the direct CSI->VDI link.
+ */
+#define IPUV3_CHANNEL_CSI_DIRECT		 6
+#define IPUV3_CHANNEL_CSI_VDI_PREV		 7
 #define IPUV3_CHANNEL_MEM_VDI_PREV		 8
 #define IPUV3_CHANNEL_MEM_VDI_CUR		 9
 #define IPUV3_CHANNEL_MEM_VDI_NEXT		10
@@ -133,6 +159,7 @@ enum ipu_channel_irq {
 #define IPUV3_CHANNEL_ROT_PP_MEM		50
 #define IPUV3_CHANNEL_MEM_BG_SYNC_ALPHA		51
 #define IPUV3_CHANNEL_MEM_BG_ASYNC_ALPHA	52
+#define IPUV3_NUM_CHANNELS			64
 
 int ipu_map_irq(struct ipu_soc *ipu, int irq);
 int ipu_idmac_channel_irq(struct ipu_soc *ipu, struct ipuv3_channel *channel,
@@ -176,6 +203,10 @@ int ipu_idmac_get_current_buffer(struct ipuv3_channel *channel);
 bool ipu_idmac_buffer_is_ready(struct ipuv3_channel *channel, u32 buf_num);
 void ipu_idmac_select_buffer(struct ipuv3_channel *channel, u32 buf_num);
 void ipu_idmac_clear_buffer(struct ipuv3_channel *channel, u32 buf_num);
+int ipu_fsu_link(struct ipu_soc *ipu, int src_ch, int sink_ch);
+int ipu_fsu_unlink(struct ipu_soc *ipu, int src_ch, int sink_ch);
+int ipu_idmac_link(struct ipuv3_channel *src, struct ipuv3_channel *sink);
+int ipu_idmac_unlink(struct ipuv3_channel *src, struct ipuv3_channel *sink);
 
 /*
  * IPU Channel Parameter Memory (cpmem) functions
@@ -333,6 +364,19 @@ int ipu_ic_disable(struct ipu_ic *ic);
 struct ipu_ic *ipu_ic_get(struct ipu_soc *ipu, enum ipu_ic_task task);
 void ipu_ic_put(struct ipu_ic *ic);
 void ipu_ic_dump(struct ipu_ic *ic);
+
+/*
+ * IPU Video De-Interlacer (vdi) functions
+ */
+struct ipu_vdi;
+void ipu_vdi_set_field_order(struct ipu_vdi *vdi, v4l2_std_id std, u32 field);
+void ipu_vdi_set_motion(struct ipu_vdi *vdi, enum ipu_motion_sel motion_sel);
+void ipu_vdi_setup(struct ipu_vdi *vdi, u32 code, int xres, int yres);
+void ipu_vdi_unsetup(struct ipu_vdi *vdi);
+int ipu_vdi_enable(struct ipu_vdi *vdi);
+int ipu_vdi_disable(struct ipu_vdi *vdi);
+struct ipu_vdi *ipu_vdi_get(struct ipu_soc *ipu);
+void ipu_vdi_put(struct ipu_vdi *vdi);
 
 /*
  * IPU Sensor Multiple FIFO Controller (SMFC) functions

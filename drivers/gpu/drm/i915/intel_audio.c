@@ -51,10 +51,10 @@
  * related registers. (The notable exception is the power management, not
  * covered here.)
  *
- * The struct i915_audio_component is used to interact between the graphics
- * and audio drivers. The struct i915_audio_component_ops *ops in it is
+ * The struct &i915_audio_component is used to interact between the graphics
+ * and audio drivers. The struct &i915_audio_component_ops @ops in it is
  * defined in graphics driver and called in audio driver. The
- * struct i915_audio_component_audio_ops *audio_ops is called from i915 driver.
+ * struct &i915_audio_component_audio_ops @audio_ops is called from i915 driver.
  */
 
 static const struct {

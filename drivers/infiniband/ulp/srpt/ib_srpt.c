@@ -522,6 +522,11 @@ static int srpt_refresh_port(struct srpt_port *sport)
 	if (ret)
 		goto err_query_port;
 
+	snprintf(sport->port_guid, sizeof(sport->port_guid),
+		"0x%016llx%016llx",
+		be64_to_cpu(sport->gid.global.subnet_prefix),
+		be64_to_cpu(sport->gid.global.interface_id));
+
 	if (!sport->mad_agent) {
 		memset(&reg_req, 0, sizeof(reg_req));
 		reg_req.mgmt_class = IB_MGMT_CLASS_DEVICE_MGMT;
@@ -2548,10 +2553,6 @@ static void srpt_add_one(struct ib_device *device)
 			       sdev->device->name, i);
 			goto err_ring;
 		}
-		snprintf(sport->port_guid, sizeof(sport->port_guid),
-			"0x%016llx%016llx",
-			be64_to_cpu(sport->gid.global.subnet_prefix),
-			be64_to_cpu(sport->gid.global.interface_id));
 	}
 
 	spin_lock(&srpt_dev_lock);

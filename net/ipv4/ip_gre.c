@@ -370,7 +370,6 @@ static void __gre_xmit(struct sk_buff *skb, struct net_device *dev,
 			 tunnel->parms.o_flags, proto, tunnel->parms.o_key,
 			 htonl(tunnel->o_seqno));
 
-	skb_set_inner_protocol(skb, proto);
 	ip_tunnel_xmit(skb, dev, tnl_params, tnl_params->protocol);
 }
 

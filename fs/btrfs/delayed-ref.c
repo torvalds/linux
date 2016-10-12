@@ -541,7 +541,6 @@ add_delayed_ref_head(struct btrfs_fs_info *fs_info,
 	struct btrfs_delayed_ref_head *existing;
 	struct btrfs_delayed_ref_head *head_ref = NULL;
 	struct btrfs_delayed_ref_root *delayed_refs;
-	struct btrfs_qgroup_extent_record *qexisting;
 	int count_mod = 1;
 	int must_insert_reserved = 0;
 
@@ -606,10 +605,8 @@ add_delayed_ref_head(struct btrfs_fs_info *fs_info,
 		qrecord->num_bytes = num_bytes;
 		qrecord->old_roots = NULL;
 
-		qexisting = btrfs_qgroup_insert_dirty_extent(fs_info,
-							     delayed_refs,
-							     qrecord);
-		if (qexisting)
+		if(btrfs_qgroup_insert_dirty_extent_nolock(fs_info,
+					delayed_refs, qrecord))
 			kfree(qrecord);
 	}
 

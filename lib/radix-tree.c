@@ -105,10 +105,10 @@ static unsigned int radix_tree_descend(struct radix_tree_node *parent,
 
 #ifdef CONFIG_RADIX_TREE_MULTIORDER
 	if (radix_tree_is_internal_node(entry)) {
-		unsigned long siboff = get_slot_offset(parent, entry);
-		if (siboff < RADIX_TREE_MAP_SIZE) {
-			offset = siboff;
-			entry = rcu_dereference_raw(parent->slots[offset]);
+		if (is_sibling_entry(parent, entry)) {
+			void **sibentry = (void **) entry_to_node(entry);
+			offset = get_slot_offset(parent, sibentry);
+			entry = rcu_dereference_raw(*sibentry);
 		}
 	}
 #endif

@@ -60,7 +60,8 @@ static void ipu_crtc_enable(struct drm_crtc *crtc)
 	ipu_di_enable(ipu_crtc->di);
 }
 
-static void ipu_crtc_disable(struct drm_crtc *crtc)
+static void ipu_crtc_atomic_disable(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_crtc_state)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
@@ -75,6 +76,11 @@ static void ipu_crtc_disable(struct drm_crtc *crtc)
 		crtc->state->event = NULL;
 	}
 	spin_unlock_irq(&crtc->dev->event_lock);
+
+	/* always disable planes on the CRTC */
+	drm_atomic_helper_disable_planes_on_crtc(old_crtc_state, true);
+
+	drm_crtc_vblank_off(crtc);
 }
 
 static void imx_drm_crtc_reset(struct drm_crtc *crtc)
@@ -120,9 +126,14 @@ static void imx_drm_crtc_destroy_state(struct drm_crtc *crtc,
 	kfree(to_imx_crtc_state(state));
 }
 
+static void imx_drm_crtc_destroy(struct drm_crtc *crtc)
+{
+	imx_drm_remove_crtc(to_ipu_crtc(crtc)->imx_crtc);
+}
+
 static const struct drm_crtc_funcs ipu_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
-	.destroy = drm_crtc_cleanup,
+	.destroy = imx_drm_crtc_destroy,
 	.page_flip = drm_atomic_helper_page_flip,
 	.reset = imx_drm_crtc_reset,
 	.atomic_duplicate_state = imx_drm_crtc_duplicate_state,
@@ -174,6 +185,8 @@ static int ipu_crtc_atomic_check(struct drm_crtc *crtc,
 static void ipu_crtc_atomic_begin(struct drm_crtc *crtc,
 				  struct drm_crtc_state *old_crtc_state)
 {
+	drm_crtc_vblank_on(crtc);
+
 	spin_lock_irq(&crtc->dev->event_lock);
 	if (crtc->state->event) {
 		WARN_ON(drm_crtc_vblank_get(crtc));
@@ -241,7 +254,7 @@ static const struct drm_crtc_helper_funcs ipu_helper_funcs = {
 	.mode_set_nofb = ipu_crtc_mode_set_nofb,
 	.atomic_check = ipu_crtc_atomic_check,
 	.atomic_begin = ipu_crtc_atomic_begin,
-	.disable = ipu_crtc_disable,
+	.atomic_disable = ipu_crtc_atomic_disable,
 	.enable = ipu_crtc_enable,
 };
 
@@ -408,8 +421,6 @@ static void ipu_drm_unbind(struct device *dev, struct device *master,
 	void *data)
 {
 	struct ipu_crtc *ipu_crtc = dev_get_drvdata(dev);
-
-	imx_drm_remove_crtc(ipu_crtc->imx_crtc);
 
 	ipu_put_resources(ipu_crtc);
 	if (ipu_crtc->plane[1])

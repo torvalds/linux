@@ -5922,7 +5922,6 @@ bail:
 }
 
 static int ocfs2_replay_truncate_records(struct ocfs2_super *osb,
-					 handle_t *handle,
 					 struct inode *data_alloc_inode,
 					 struct buffer_head *data_alloc_bh)
 {
@@ -5935,11 +5934,19 @@ static int ocfs2_replay_truncate_records(struct ocfs2_super *osb,
 	struct ocfs2_truncate_log *tl;
 	struct inode *tl_inode = osb->osb_tl_inode;
 	struct buffer_head *tl_bh = osb->osb_tl_bh;
+	handle_t *handle;
 
 	di = (struct ocfs2_dinode *) tl_bh->b_data;
 	tl = &di->id2.i_dealloc;
 	i = le16_to_cpu(tl->tl_used) - 1;
 	while (i >= 0) {
+		handle = ocfs2_start_trans(osb, OCFS2_TRUNCATE_LOG_FLUSH_ONE_REC);
+		if (IS_ERR(handle)) {
+			status = PTR_ERR(handle);
+			mlog_errno(status);
+			goto bail;
+		}
+
 		/* Caller has given us at least enough credits to
 		 * update the truncate log dinode */
 		status = ocfs2_journal_access_di(handle, INODE_CACHE(tl_inode), tl_bh,
@@ -5974,12 +5981,7 @@ static int ocfs2_replay_truncate_records(struct ocfs2_super *osb,
 			}
 		}
 
-		status = ocfs2_extend_trans(handle,
-				OCFS2_TRUNCATE_LOG_FLUSH_ONE_REC);
-		if (status < 0) {
-			mlog_errno(status);
-			goto bail;
-		}
+		ocfs2_commit_trans(osb, handle);
 		i--;
 	}
 
@@ -5994,7 +5996,6 @@ int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 {
 	int status;
 	unsigned int num_to_flush;
-	handle_t *handle;
 	struct inode *tl_inode = osb->osb_tl_inode;
 	struct inode *data_alloc_inode = NULL;
 	struct buffer_head *tl_bh = osb->osb_tl_bh;
@@ -6038,21 +6039,11 @@ int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 		goto out_mutex;
 	}
 
-	handle = ocfs2_start_trans(osb, OCFS2_TRUNCATE_LOG_FLUSH_ONE_REC);
-	if (IS_ERR(handle)) {
-		status = PTR_ERR(handle);
-		mlog_errno(status);
-		goto out_unlock;
-	}
-
-	status = ocfs2_replay_truncate_records(osb, handle, data_alloc_inode,
+	status = ocfs2_replay_truncate_records(osb, data_alloc_inode,
 					       data_alloc_bh);
 	if (status < 0)
 		mlog_errno(status);
 
-	ocfs2_commit_trans(osb, handle);
-
-out_unlock:
 	brelse(data_alloc_bh);
 	ocfs2_inode_unlock(data_alloc_inode, 1);
 
@@ -6413,42 +6404,33 @@ static int ocfs2_free_cached_blocks(struct ocfs2_super *osb,
 		goto out_mutex;
 	}
 
-	handle = ocfs2_start_trans(osb, OCFS2_SUBALLOC_FREE);
-	if (IS_ERR(handle)) {
-		ret = PTR_ERR(handle);
-		mlog_errno(ret);
-		goto out_unlock;
-	}
-
 	while (head) {
 		if (head->free_bg)
 			bg_blkno = head->free_bg;
 		else
 			bg_blkno = ocfs2_which_suballoc_group(head->free_blk,
 							      head->free_bit);
+		handle = ocfs2_start_trans(osb, OCFS2_SUBALLOC_FREE);
+		if (IS_ERR(handle)) {
+			ret = PTR_ERR(handle);
+			mlog_errno(ret);
+			goto out_unlock;
+		}
+
 		trace_ocfs2_free_cached_blocks(
 		     (unsigned long long)head->free_blk, head->free_bit);
 
 		ret = ocfs2_free_suballoc_bits(handle, inode, di_bh,
 					       head->free_bit, bg_blkno, 1);
-		if (ret) {
+		if (ret)
 			mlog_errno(ret);
-			goto out_journal;
-		}
 
-		ret = ocfs2_extend_trans(handle, OCFS2_SUBALLOC_FREE);
-		if (ret) {
-			mlog_errno(ret);
-			goto out_journal;
-		}
+		ocfs2_commit_trans(osb, handle);
 
 		tmp = head;
 		head = head->free_next;
 		kfree(tmp);
 	}
-
-out_journal:
-	ocfs2_commit_trans(osb, handle);
 
 out_unlock:
 	ocfs2_inode_unlock(inode, 1);

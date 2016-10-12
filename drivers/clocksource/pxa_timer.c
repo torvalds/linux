@@ -21,6 +21,8 @@
 #include <linux/of_irq.h>
 #include <linux/sched_clock.h>
 
+#include <clocksource/pxa.h>
+
 #include <asm/div64.h>
 
 #define OSMR0		0x00	/* OS Timer 0 Match Register */

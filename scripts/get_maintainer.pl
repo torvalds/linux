@@ -2136,8 +2136,10 @@ sub vcs_file_exists {
 
     my $cmd = $VCS_cmds{"file_exists_cmd"};
     $cmd =~ s/(\$\w+)/$1/eeg;		# interpolate $cmd
-
+    $cmd .= " 2>&1";
     $exists = &{$VCS_cmds{"execute_cmd"}}($cmd);
+
+    return 0 if ($? != 0);
 
     return $exists;
 }

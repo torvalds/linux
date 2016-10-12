@@ -89,7 +89,7 @@ int virtio_gpu_fence_emit(struct virtio_gpu_device *vgdev,
 	(*fence)->drv = drv;
 	(*fence)->seq = ++drv->sync_seq;
 	fence_init(&(*fence)->f, &virtio_fence_ops, &drv->lock,
-		   0, (*fence)->seq);
+		   drv->context, (*fence)->seq);
 	fence_get(&(*fence)->f);
 	list_add_tail(&(*fence)->node, &drv->fences);
 	spin_unlock_irqrestore(&drv->lock, irq_flags);

@@ -1757,21 +1757,14 @@ static int f2fs_ioc_set_encryption_policy(struct file *filp, unsigned long arg)
 {
 	struct fscrypt_policy policy;
 	struct inode *inode = file_inode(filp);
-	int ret;
 
 	if (copy_from_user(&policy, (struct fscrypt_policy __user *)arg,
 							sizeof(policy)))
 		return -EFAULT;
 
-	ret = mnt_want_write_file(filp);
-	if (ret)
-		return ret;
-
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
-	ret = fscrypt_process_policy(inode, &policy);
 
-	mnt_drop_write_file(filp);
-	return ret;
+	return fscrypt_process_policy(filp, &policy);
 }
 
 static int f2fs_ioc_get_encryption_policy(struct file *filp, unsigned long arg)
@@ -2086,15 +2079,19 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
 	if (unlikely(f2fs_readonly(src->i_sb)))
 		return -EROFS;
 
-	if (S_ISDIR(src->i_mode) || S_ISDIR(dst->i_mode))
-		return -EISDIR;
+	if (!S_ISREG(src->i_mode) || !S_ISREG(dst->i_mode))
+		return -EINVAL;
 
 	if (f2fs_encrypted_inode(src) || f2fs_encrypted_inode(dst))
 		return -EOPNOTSUPP;
 
 	inode_lock(src);
-	if (src != dst)
-		inode_lock(dst);
+	if (src != dst) {
+		if (!inode_trylock(dst)) {
+			ret = -EBUSY;
+			goto out;
+		}
+	}
 
 	ret = -EINVAL;
 	if (pos_in + len > src->i_size || pos_in + len < pos_in)
@@ -2152,6 +2149,7 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
 out_unlock:
 	if (src != dst)
 		inode_unlock(dst);
+out:
 	inode_unlock(src);
 	return ret;
 }

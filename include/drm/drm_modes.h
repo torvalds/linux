@@ -27,6 +27,13 @@
 #ifndef __DRM_MODES_H__
 #define __DRM_MODES_H__
 
+#include <linux/hdmi.h>
+
+#include <drm/drm_mode_object.h>
+#include <drm/drm_connector.h>
+
+struct videomode;
+
 /*
  * Note on terminology:  here, for brevity and convenience, we refer to connector
  * control chips as 'CRTCs'.  They can control any type of connector, VGA, LVDS,
@@ -400,20 +407,7 @@ struct drm_display_mode {
 	enum hdmi_picture_aspect picture_aspect_ratio;
 };
 
-/* mode specified on the command line */
-struct drm_cmdline_mode {
-	bool specified;
-	bool refresh_specified;
-	bool bpp_specified;
-	int xres, yres;
-	int bpp;
-	int refresh;
-	bool rb;
-	bool interlace;
-	bool cvt;
-	bool margins;
-	enum drm_connector_force force;
-};
+#define obj_to_mode(x) container_of(x, struct drm_display_mode, base)
 
 /**
  * drm_mode_is_stereo - check for stereo mode flags

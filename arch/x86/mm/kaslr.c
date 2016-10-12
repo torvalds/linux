@@ -77,7 +77,7 @@ static inline unsigned long get_padding(struct kaslr_memory_region *region)
  */
 static inline bool kaslr_memory_enabled(void)
 {
-	return kaslr_enabled() && !config_enabled(CONFIG_KASAN);
+	return kaslr_enabled() && !IS_ENABLED(CONFIG_KASAN);
 }
 
 /* Initialize base and padding for each memory region randomized with KASLR */

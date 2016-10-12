@@ -657,6 +657,15 @@ void drm_display_mode_to_videomode(const struct drm_display_mode *dmode,
 }
 EXPORT_SYMBOL_GPL(drm_display_mode_to_videomode);
 
+/**
+ * drm_bus_flags_from_videomode - extract information about pixelclk and
+ * DE polarity from videomode and store it in a separate variable
+ * @vm: videomode structure to use
+ * @bus_flags: information about pixelclk and DE polarity will be stored here
+ *
+ * Sets DRM_BUS_FLAG_DE_(LOW|HIGH) and DRM_BUS_FLAG_PIXDATA_(POS|NEG)EDGE
+ * in @bus_flags according to DISPLAY_FLAGS found in @vm
+ */
 void drm_bus_flags_from_videomode(const struct videomode *vm, u32 *bus_flags)
 {
 	*bus_flags = 0;
@@ -677,6 +686,7 @@ EXPORT_SYMBOL_GPL(drm_bus_flags_from_videomode);
  * of_get_drm_display_mode - get a drm_display_mode from devicetree
  * @np: device_node with the timing specification
  * @dmode: will be set to the return value
+ * @bus_flags: information about pixelclk and DE polarity
  * @index: index into the list of display timings in devicetree
  *
  * This function is expensive and should only be used, if only one mode is to be

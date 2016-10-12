@@ -366,8 +366,6 @@ Domain`_ references.
 Cross-referencing from reStructuredText
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. highlight:: none
-
 To cross-reference the functions and types defined in the kernel-doc comments
 from reStructuredText documents, please use the `Sphinx C Domain`_
 references. For example::
@@ -389,8 +387,6 @@ For further details, please refer to the `Sphinx C Domain`_ documentation.
 
 Function documentation
 ----------------------
-
-.. highlight:: c
 
 The general format of a function and function-like macro kernel-doc comment is::
 
@@ -571,8 +567,6 @@ DocBook XML [DEPRECATED]
 
 Converting DocBook to Sphinx
 ----------------------------
-
-.. highlight:: none
 
 Over time, we expect all of the documents under ``Documentation/DocBook`` to be
 converted to Sphinx and reStructuredText. For most DocBook XML documents, a good

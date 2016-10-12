@@ -29,6 +29,7 @@ struct radeon_atpx {
 	acpi_handle handle;
 	struct radeon_atpx_functions functions;
 	bool is_hybrid;
+	bool dgpu_req_power_for_displays;
 };
 
 static struct radeon_atpx_priv {
@@ -70,6 +71,10 @@ bool radeon_has_atpx_dgpu_power_cntl(void) {
 
 bool radeon_is_atpx_hybrid(void) {
 	return radeon_atpx_priv.atpx.is_hybrid;
+}
+
+bool radeon_atpx_dgpu_req_power_for_displays(void) {
+	return radeon_atpx_priv.atpx.dgpu_req_power_for_displays;
 }
 
 /**
@@ -198,16 +203,7 @@ static int radeon_atpx_validate(struct radeon_atpx *atpx)
 	atpx->is_hybrid = false;
 	if (valid_bits & ATPX_MS_HYBRID_GFX_SUPPORTED) {
 		printk("ATPX Hybrid Graphics\n");
-#if 1
-		/* This is a temporary hack until the D3 cold support
-		 * makes it upstream.  The ATPX power_control method seems
-		 * to still work on even if the system should be using
-		 * the new standardized hybrid D3 cold ACPI interface.
-		 */
-		atpx->functions.power_cntl = true;
-#else
 		atpx->functions.power_cntl = false;
-#endif
 		atpx->is_hybrid = true;
 	}
 

@@ -617,10 +617,13 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 		 * use dmaengine if possible.
 		 * It will use pio handler if impossible.
 		 */
-		if (usb_endpoint_dir_in(desc))
+		if (usb_endpoint_dir_in(desc)) {
 			pipe->handler = &usbhs_fifo_dma_push_handler;
-		else
+		} else {
 			pipe->handler = &usbhs_fifo_dma_pop_handler;
+			usbhs_xxxsts_clear(priv, BRDYSTS,
+					   usbhs_pipe_number(pipe));
+		}
 
 		ret = 0;
 	}
@@ -1073,7 +1076,7 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 
 	gpriv->transceiver = usb_get_phy(USB_PHY_TYPE_UNDEFINED);
 	dev_info(dev, "%stransceiver found\n",
-		 gpriv->transceiver ? "" : "no ");
+		 !IS_ERR(gpriv->transceiver) ? "" : "no ");
 
 	/*
 	 * CAUTION

@@ -453,7 +453,7 @@ static struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
 	struct rpc_xprt_switch *xps;
 
 	if (args->bc_xprt && args->bc_xprt->xpt_bc_xps) {
-		WARN_ON(args->protocol != XPRT_TRANSPORT_BC_TCP);
+		WARN_ON_ONCE(!(args->protocol & XPRT_TRANSPORT_BC));
 		xps = args->bc_xprt->xpt_bc_xps;
 		xprt_switch_get(xps);
 	} else {
@@ -520,7 +520,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	char servername[48];
 
 	if (args->bc_xprt) {
-		WARN_ON(args->protocol != XPRT_TRANSPORT_BC_TCP);
+		WARN_ON_ONCE(!(args->protocol & XPRT_TRANSPORT_BC));
 		xprt = args->bc_xprt->xpt_bc_xprt;
 		if (xprt) {
 			xprt_get(xprt);

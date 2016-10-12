@@ -605,6 +605,7 @@ struct hfi1_pportdata {
 	struct work_struct freeze_work;
 	struct work_struct link_downgrade_work;
 	struct work_struct link_bounce_work;
+	struct delayed_work start_link_work;
 	/* host link state variables */
 	struct mutex hls_lock;
 	u32 host_link_state;
@@ -659,6 +660,7 @@ struct hfi1_pportdata {
 	u8 linkinit_reason;
 	u8 local_tx_rate;	/* rate given to 8051 firmware */
 	u8 last_pstate;		/* info only */
+	u8 qsfp_retry_count;
 
 	/* placeholders for IB MAD packet settings */
 	u8 overrun_threshold;
@@ -1272,9 +1274,26 @@ static inline int hdr2sc(struct hfi1_message_header *hdr, u64 rhf)
 	       ((!!(rhf_dc_info(rhf))) << 4);
 }
 
+#define HFI1_JKEY_WIDTH       16
+#define HFI1_JKEY_MASK        (BIT(16) - 1)
+#define HFI1_ADMIN_JKEY_RANGE 32
+
+/*
+ * J_KEYs are split and allocated in the following groups:
+ *   0 - 31    - users with administrator privileges
+ *  32 - 63    - kernel protocols using KDETH packets
+ *  64 - 65535 - all other users using KDETH packets
+ */
 static inline u16 generate_jkey(kuid_t uid)
 {
-	return from_kuid(current_user_ns(), uid) & 0xffff;
+	u16 jkey = from_kuid(current_user_ns(), uid) & HFI1_JKEY_MASK;
+
+	if (capable(CAP_SYS_ADMIN))
+		jkey &= HFI1_ADMIN_JKEY_RANGE - 1;
+	else if (jkey < 64)
+		jkey |= BIT(HFI1_JKEY_WIDTH - 1);
+
+	return jkey;
 }
 
 /*
@@ -1656,7 +1675,6 @@ struct cc_state *get_cc_state_protected(struct hfi1_pportdata *ppd)
 struct hfi1_devdata *hfi1_init_dd(struct pci_dev *,
 				  const struct pci_device_id *);
 void hfi1_free_devdata(struct hfi1_devdata *);
-void cc_state_reclaim(struct rcu_head *rcu);
 struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra);
 
 /* LED beaconing functions */
@@ -1788,7 +1806,7 @@ extern unsigned int hfi1_max_mtu;
 extern unsigned int hfi1_cu;
 extern unsigned int user_credit_return_threshold;
 extern int num_user_contexts;
-extern unsigned n_krcvqs;
+extern unsigned long n_krcvqs;
 extern uint krcvqs[];
 extern int krcvqsset;
 extern uint kdeth_qp;

@@ -38,7 +38,6 @@
  *         Rolf Neugebauer <rolf.neugebauer@netronome.com>
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -134,7 +133,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	}
 
 	nfp_net_get_fw_version(&fw_ver, ctrl_bar);
-	if (fw_ver.class != NFP_NET_CFG_VERSION_CLASS_GENERIC) {
+	if (fw_ver.resv || fw_ver.class != NFP_NET_CFG_VERSION_CLASS_GENERIC) {
 		dev_err(&pdev->dev, "Unknown Firmware ABI %d.%d.%d.%d\n",
 			fw_ver.resv, fw_ver.class, fw_ver.major, fw_ver.minor);
 		err = -EINVAL;
@@ -142,9 +141,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* Determine stride */
-	if (nfp_net_fw_ver_eq(&fw_ver, 0, 0, 0, 0) ||
-	    nfp_net_fw_ver_eq(&fw_ver, 0, 0, 0, 1) ||
-	    nfp_net_fw_ver_eq(&fw_ver, 0, 0, 0x12, 0x48)) {
+	if (nfp_net_fw_ver_eq(&fw_ver, 0, 0, 0, 1)) {
 		stride = 2;
 		tx_bar_no = NFP_NET_Q0_BAR;
 		rx_bar_no = NFP_NET_Q1_BAR;

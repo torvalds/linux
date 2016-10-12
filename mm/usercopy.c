@@ -83,7 +83,7 @@ static bool overlaps(const void *ptr, unsigned long n, unsigned long low,
 	unsigned long check_high = check_low + n;
 
 	/* Does not overlap if entirely above or entirely below. */
-	if (check_low >= high || check_high < low)
+	if (check_low >= high || check_high <= low)
 		return false;
 
 	return true;
@@ -124,7 +124,7 @@ static inline const char *check_kernel_text_object(const void *ptr,
 static inline const char *check_bogus_address(const void *ptr, unsigned long n)
 {
 	/* Reject if object wraps past end of memory. */
-	if (ptr + n < ptr)
+	if ((unsigned long)ptr + n < (unsigned long)ptr)
 		return "<wrapped address>";
 
 	/* Reject if NULL or ZERO-allocation. */
@@ -134,29 +134,14 @@ static inline const char *check_bogus_address(const void *ptr, unsigned long n)
 	return NULL;
 }
 
-static inline const char *check_heap_object(const void *ptr, unsigned long n,
-					    bool to_user)
+/* Checks for allocs that are marked in some way as spanning multiple pages. */
+static inline const char *check_page_span(const void *ptr, unsigned long n,
+					  struct page *page, bool to_user)
 {
-	struct page *page, *endpage;
+#ifdef CONFIG_HARDENED_USERCOPY_PAGESPAN
 	const void *end = ptr + n - 1;
+	struct page *endpage;
 	bool is_reserved, is_cma;
-
-	/*
-	 * Some architectures (arm64) return true for virt_addr_valid() on
-	 * vmalloced addresses. Work around this by checking for vmalloc
-	 * first.
-	 */
-	if (is_vmalloc_addr(ptr))
-		return NULL;
-
-	if (!virt_addr_valid(ptr))
-		return NULL;
-
-	page = virt_to_head_page(ptr);
-
-	/* Check slab allocator for flags and size. */
-	if (PageSlab(page))
-		return __check_heap_object(ptr, n, page);
 
 	/*
 	 * Sometimes the kernel data regions are not marked Reserved (see
@@ -186,7 +171,7 @@ static inline const char *check_heap_object(const void *ptr, unsigned long n,
 		   ((unsigned long)end & (unsigned long)PAGE_MASK)))
 		return NULL;
 
-	/* Allow if start and end are inside the same compound page. */
+	/* Allow if fully inside the same compound (__GFP_COMP) page. */
 	endpage = virt_to_head_page(end);
 	if (likely(endpage == page))
 		return NULL;
@@ -199,20 +184,47 @@ static inline const char *check_heap_object(const void *ptr, unsigned long n,
 	is_reserved = PageReserved(page);
 	is_cma = is_migrate_cma_page(page);
 	if (!is_reserved && !is_cma)
-		goto reject;
+		return "<spans multiple pages>";
 
 	for (ptr += PAGE_SIZE; ptr <= end; ptr += PAGE_SIZE) {
 		page = virt_to_head_page(ptr);
 		if (is_reserved && !PageReserved(page))
-			goto reject;
+			return "<spans Reserved and non-Reserved pages>";
 		if (is_cma && !is_migrate_cma_page(page))
-			goto reject;
+			return "<spans CMA and non-CMA pages>";
 	}
+#endif
 
 	return NULL;
+}
 
-reject:
-	return "<spans multiple pages>";
+static inline const char *check_heap_object(const void *ptr, unsigned long n,
+					    bool to_user)
+{
+	struct page *page;
+
+	/*
+	 * Some architectures (arm64) return true for virt_addr_valid() on
+	 * vmalloced addresses. Work around this by checking for vmalloc
+	 * first.
+	 *
+	 * We also need to check for module addresses explicitly since we
+	 * may copy static data from modules to userspace
+	 */
+	if (is_vmalloc_or_module_addr(ptr))
+		return NULL;
+
+	if (!virt_addr_valid(ptr))
+		return NULL;
+
+	page = virt_to_head_page(ptr);
+
+	/* Check slab allocator for flags and size. */
+	if (PageSlab(page))
+		return __check_heap_object(ptr, n, page);
+
+	/* Verify object does not incorrectly span multiple pages. */
+	return check_page_span(ptr, n, page, to_user);
 }
 
 /*

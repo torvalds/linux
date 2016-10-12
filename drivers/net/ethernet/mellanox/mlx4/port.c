@@ -52,7 +52,7 @@
 
 #define MLX4_FLAG_V_IGNORE_FCS_MASK		0x2
 #define MLX4_IGNORE_FCS_MASK			0x1
-#define MLNX4_TX_MAX_NUMBER			8
+#define MLX4_TC_MAX_NUMBER			8
 
 void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table)
 {
@@ -2022,7 +2022,7 @@ int mlx4_max_tc(struct mlx4_dev *dev)
 	u8 num_tc = dev->caps.max_tc_eth;
 
 	if (!num_tc)
-		num_tc = MLNX4_TX_MAX_NUMBER;
+		num_tc = MLX4_TC_MAX_NUMBER;
 
 	return num_tc;
 }

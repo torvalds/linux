@@ -566,6 +566,8 @@ cont:
 						     PAGE_SET_WRITEBACK |
 						     page_error_op |
 						     PAGE_END_WRITEBACK);
+			btrfs_free_reserved_data_space_noquota(inode, start,
+						end - start + 1);
 			goto free_pages_out;
 		}
 	}
@@ -742,7 +744,7 @@ retry:
 		lock_extent(io_tree, async_extent->start,
 			    async_extent->start + async_extent->ram_size - 1);
 
-		ret = btrfs_reserve_extent(root,
+		ret = btrfs_reserve_extent(root, async_extent->ram_size,
 					   async_extent->compressed_size,
 					   async_extent->compressed_size,
 					   0, alloc_hint, &ins, 1, 1);
@@ -969,7 +971,8 @@ static noinline int cow_file_range(struct inode *inode,
 				     EXTENT_DEFRAG, PAGE_UNLOCK |
 				     PAGE_CLEAR_DIRTY | PAGE_SET_WRITEBACK |
 				     PAGE_END_WRITEBACK);
-
+			btrfs_free_reserved_data_space_noquota(inode, start,
+						end - start + 1);
 			*nr_written = *nr_written +
 			     (end - start + PAGE_SIZE) / PAGE_SIZE;
 			*page_started = 1;
@@ -989,7 +992,7 @@ static noinline int cow_file_range(struct inode *inode,
 		unsigned long op;
 
 		cur_alloc_size = disk_num_bytes;
-		ret = btrfs_reserve_extent(root, cur_alloc_size,
+		ret = btrfs_reserve_extent(root, cur_alloc_size, cur_alloc_size,
 					   root->sectorsize, 0, alloc_hint,
 					   &ins, 1, 1);
 		if (ret < 0)
@@ -1489,8 +1492,10 @@ out_check:
 		extent_clear_unlock_delalloc(inode, cur_offset,
 					     cur_offset + num_bytes - 1,
 					     locked_page, EXTENT_LOCKED |
-					     EXTENT_DELALLOC, PAGE_UNLOCK |
-					     PAGE_SET_PRIVATE2);
+					     EXTENT_DELALLOC |
+					     EXTENT_CLEAR_DATA_RESV,
+					     PAGE_UNLOCK | PAGE_SET_PRIVATE2);
+
 		if (!nolock && nocow)
 			btrfs_end_write_no_snapshoting(root);
 		cur_offset = extent_end;
@@ -1807,7 +1812,9 @@ static void btrfs_clear_bit_hook(struct inode *inode,
 			return;
 
 		if (root->root_key.objectid != BTRFS_DATA_RELOC_TREE_OBJECTID
-		    && do_list && !(state->state & EXTENT_NORESERVE))
+		    && do_list && !(state->state & EXTENT_NORESERVE)
+		    && (*bits & (EXTENT_DO_ACCOUNTING |
+		    EXTENT_CLEAR_DATA_RESV)))
 			btrfs_free_reserved_data_space_noquota(inode,
 					state->start, len);
 
@@ -7251,7 +7258,7 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 	int ret;
 
 	alloc_hint = get_extent_allocation_hint(inode, start, len);
-	ret = btrfs_reserve_extent(root, len, root->sectorsize, 0,
+	ret = btrfs_reserve_extent(root, len, len, root->sectorsize, 0,
 				   alloc_hint, &ins, 1, 1);
 	if (ret)
 		return ERR_PTR(ret);
@@ -7751,6 +7758,13 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 				ret = PTR_ERR(em2);
 				goto unlock_err;
 			}
+			/*
+			 * For inode marked NODATACOW or extent marked PREALLOC,
+			 * use the existing or preallocated extent, so does not
+			 * need to adjust btrfs_space_info's bytes_may_use.
+			 */
+			btrfs_free_reserved_data_space_noquota(inode,
+					start, len);
 			goto unlock;
 		}
 	}
@@ -7785,7 +7799,6 @@ unlock:
 			i_size_write(inode, start + len);
 
 		adjust_dio_outstanding_extents(inode, dio_data, len);
-		btrfs_free_reserved_data_space(inode, start, len);
 		WARN_ON(dio_data->reserve < len);
 		dio_data->reserve -= len;
 		dio_data->unsubmitted_oe_range_end = start + len;
@@ -10306,6 +10319,7 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 	u64 last_alloc = (u64)-1;
 	int ret = 0;
 	bool own_trans = true;
+	u64 end = start + num_bytes - 1;
 
 	if (trans)
 		own_trans = false;
@@ -10327,8 +10341,8 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 		 * sized chunks.
 		 */
 		cur_bytes = min(cur_bytes, last_alloc);
-		ret = btrfs_reserve_extent(root, cur_bytes, min_size, 0,
-					   *alloc_hint, &ins, 1, 0);
+		ret = btrfs_reserve_extent(root, cur_bytes, cur_bytes,
+				min_size, 0, *alloc_hint, &ins, 1, 0);
 		if (ret) {
 			if (own_trans)
 				btrfs_end_transaction(trans, root);
@@ -10414,6 +10428,9 @@ next:
 		if (own_trans)
 			btrfs_end_transaction(trans, root);
 	}
+	if (cur_offset < end)
+		btrfs_free_reserved_data_space(inode, cur_offset,
+			end - cur_offset + 1);
 	return ret;
 }
 

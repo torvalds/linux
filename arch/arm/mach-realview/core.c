@@ -93,7 +93,8 @@ static struct smsc911x_platform_config smsc911x_config = {
 };
 
 static struct smc91x_platdata smc91x_platdata = {
-	.flags = SMC91X_USE_32BIT | SMC91X_NOWAIT,
+	.flags = SMC91X_USE_8BIT | SMC91X_USE_16BIT | SMC91X_USE_32BIT |
+		 SMC91X_NOWAIT,
 };
 
 static struct platform_device realview_eth_device = {

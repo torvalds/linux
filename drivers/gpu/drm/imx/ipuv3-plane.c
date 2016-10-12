@@ -213,8 +213,12 @@ static void ipu_plane_enable(struct ipu_plane *ipu_plane)
 		ipu_dp_enable_channel(ipu_plane->dp);
 }
 
-static void ipu_plane_disable(struct ipu_plane *ipu_plane)
+static int ipu_disable_plane(struct drm_plane *plane)
 {
+	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
+
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
 	ipu_idmac_wait_busy(ipu_plane->ipu_ch, 50);
 
 	if (ipu_plane->dp)
@@ -223,15 +227,6 @@ static void ipu_plane_disable(struct ipu_plane *ipu_plane)
 	ipu_dmfc_disable_channel(ipu_plane->dmfc);
 	if (ipu_plane->dp)
 		ipu_dp_disable(ipu_plane->ipu);
-}
-
-static int ipu_disable_plane(struct drm_plane *plane)
-{
-	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
-	ipu_plane_disable(ipu_plane);
 
 	return 0;
 }
@@ -242,7 +237,6 @@ static void ipu_plane_destroy(struct drm_plane *plane)
 
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
-	ipu_disable_plane(plane);
 	drm_plane_cleanup(plane);
 	kfree(ipu_plane);
 }
@@ -319,13 +313,16 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 
 	/*
-	 * since we cannot touch active IDMAC channels, we do not support
-	 * resizing the enabled plane or changing its format
+	 * We support resizing active plane or changing its format by
+	 * forcing CRTC mode change in plane's ->atomic_check callback
+	 * and disabling all affected active planes in CRTC's ->atomic_disable
+	 * callback.  The planes will be reenabled in plane's ->atomic_update
+	 * callback.
 	 */
 	if (old_fb && (state->src_w != old_state->src_w ||
 			      state->src_h != old_state->src_h ||
 			      fb->pixel_format != old_fb->pixel_format))
-		return -EINVAL;
+		crtc_state->mode_changed = true;
 
 	eba = drm_plane_state_to_eba(state);
 
@@ -336,7 +333,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 
 	if (old_fb && fb->pitches[0] != old_fb->pitches[0])
-		return -EINVAL;
+		crtc_state->mode_changed = true;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_YUV420:
@@ -372,7 +369,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 			return -EINVAL;
 
 		if (old_fb && old_fb->pitches[1] != fb->pitches[1])
-			return -EINVAL;
+			crtc_state->mode_changed = true;
 	}
 
 	return 0;
@@ -392,8 +389,12 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	enum ipu_color_space ics;
 
 	if (old_state->fb) {
-		ipu_plane_atomic_set_base(ipu_plane, old_state);
-		return;
+		struct drm_crtc_state *crtc_state = state->crtc->state;
+
+		if (!drm_atomic_crtc_needs_modeset(crtc_state)) {
+			ipu_plane_atomic_set_base(ipu_plane, old_state);
+			return;
+		}
 	}
 
 	switch (ipu_plane->dp_flow) {

@@ -1451,7 +1451,8 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, int vport_num,
 
 	esw_debug(esw->dev, "Enabling VPORT(%d)\n", vport_num);
 
-	if (vport_num) { /* Only VFs need ACLs for VST and spoofchk filtering */
+	/* Only VFs need ACLs for VST and spoofchk filtering */
+	if (vport_num && esw->mode == SRIOV_LEGACY) {
 		esw_vport_ingress_config(esw, vport);
 		esw_vport_egress_config(esw, vport);
 	}
@@ -1502,7 +1503,7 @@ static void esw_disable_vport(struct mlx5_eswitch *esw, int vport_num)
 	 */
 	esw_vport_change_handle_locked(vport);
 	vport->enabled_events = 0;
-	if (vport_num) {
+	if (vport_num && esw->mode == SRIOV_LEGACY) {
 		esw_vport_disable_egress_acl(esw, vport);
 		esw_vport_disable_ingress_acl(esw, vport);
 	}
@@ -1553,6 +1554,7 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 
 abort:
 	esw_enable_vport(esw, 0, UC_ADDR_CHANGE);
+	esw->mode = SRIOV_NONE;
 	return err;
 }
 
@@ -1767,7 +1769,7 @@ int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
 			       vport, err);
 
 	mutex_lock(&esw->state_lock);
-	if (evport->enabled)
+	if (evport->enabled && esw->mode == SRIOV_LEGACY)
 		err = esw_vport_ingress_config(esw, evport);
 	mutex_unlock(&esw->state_lock);
 	return err;
@@ -1839,7 +1841,7 @@ int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 	mutex_lock(&esw->state_lock);
 	evport->vlan = vlan;
 	evport->qos = qos;
-	if (evport->enabled) {
+	if (evport->enabled && esw->mode == SRIOV_LEGACY) {
 		err = esw_vport_ingress_config(esw, evport);
 		if (err)
 			goto out;
@@ -1868,10 +1870,11 @@ int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,
 	mutex_lock(&esw->state_lock);
 	pschk = evport->spoofchk;
 	evport->spoofchk = spoofchk;
-	if (evport->enabled)
+	if (evport->enabled && esw->mode == SRIOV_LEGACY) {
 		err = esw_vport_ingress_config(esw, evport);
-	if (err)
-		evport->spoofchk = pschk;
+		if (err)
+			evport->spoofchk = pschk;
+	}
 	mutex_unlock(&esw->state_lock);
 
 	return err;

@@ -657,9 +657,12 @@ static int __init fdt_find_uefi_params(unsigned long node, const char *uname,
 		}
 
 		if (subnode) {
-			node = of_get_flat_dt_subnode_by_name(node, subnode);
-			if (node < 0)
+			int err = of_get_flat_dt_subnode_by_name(node, subnode);
+
+			if (err < 0)
 				return 0;
+
+			node = err;
 		}
 
 		return __find_uefi_params(node, info, dt_params[i].params);

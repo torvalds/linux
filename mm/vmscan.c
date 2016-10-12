@@ -1665,7 +1665,7 @@ static bool inactive_reclaimable_pages(struct lruvec *lruvec,
 
 	for (zid = sc->reclaim_idx; zid >= 0; zid--) {
 		zone = &pgdat->node_zones[zid];
-		if (!populated_zone(zone))
+		if (!managed_zone(zone))
 			continue;
 
 		if (zone_page_state_snapshot(zone, NR_ZONE_LRU_BASE +
@@ -2036,7 +2036,7 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
 		struct zone *zone = &pgdat->node_zones[zid];
 		unsigned long inactive_zone, active_zone;
 
-		if (!populated_zone(zone))
+		if (!managed_zone(zone))
 			continue;
 
 		inactive_zone = zone_page_state(zone,
@@ -2171,7 +2171,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
 
 		for (z = 0; z < MAX_NR_ZONES; z++) {
 			struct zone *zone = &pgdat->node_zones[z];
-			if (!populated_zone(zone))
+			if (!managed_zone(zone))
 				continue;
 
 			total_high_wmark += high_wmark_pages(zone);
@@ -2303,23 +2303,6 @@ out:
 	}
 }
 
-#ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
-static void init_tlb_ubc(void)
-{
-	/*
-	 * This deliberately does not clear the cpumask as it's expensive
-	 * and unnecessary. If there happens to be data in there then the
-	 * first SWAP_CLUSTER_MAX pages will send an unnecessary IPI and
-	 * then will be cleared.
-	 */
-	current->tlb_ubc.flush_required = false;
-}
-#else
-static inline void init_tlb_ubc(void)
-{
-}
-#endif /* CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH */
-
 /*
  * This is a basic per-node page freer.  Used by both kswapd and direct reclaim.
  */
@@ -2354,8 +2337,6 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
 	 */
 	scan_adjusted = (global_reclaim(sc) && !current_is_kswapd() &&
 			 sc->priority == DEF_PRIORITY);
-
-	init_tlb_ubc();
 
 	blk_start_plug(&plug);
 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
@@ -2510,7 +2491,7 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
 	/* If compaction would go ahead or the allocation would succeed, stop */
 	for (z = 0; z <= sc->reclaim_idx; z++) {
 		struct zone *zone = &pgdat->node_zones[z];
-		if (!populated_zone(zone))
+		if (!managed_zone(zone))
 			continue;
 
 		switch (compaction_suitable(zone, sc->order, 0, sc->reclaim_idx)) {
@@ -2840,7 +2821,7 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
 
 	for (i = 0; i <= ZONE_NORMAL; i++) {
 		zone = &pgdat->node_zones[i];
-		if (!populated_zone(zone) ||
+		if (!managed_zone(zone) ||
 		    pgdat_reclaimable_pages(pgdat) == 0)
 			continue;
 
@@ -3141,7 +3122,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, int classzone_idx)
 	for (i = 0; i <= classzone_idx; i++) {
 		struct zone *zone = pgdat->node_zones + i;
 
-		if (!populated_zone(zone))
+		if (!managed_zone(zone))
 			continue;
 
 		if (!zone_balanced(zone, order, classzone_idx))
@@ -3169,7 +3150,7 @@ static bool kswapd_shrink_node(pg_data_t *pgdat,
 	sc->nr_to_reclaim = 0;
 	for (z = 0; z <= sc->reclaim_idx; z++) {
 		zone = pgdat->node_zones + z;
-		if (!populated_zone(zone))
+		if (!managed_zone(zone))
 			continue;
 
 		sc->nr_to_reclaim += max(high_wmark_pages(zone), SWAP_CLUSTER_MAX);
@@ -3242,7 +3223,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
 		if (buffer_heads_over_limit) {
 			for (i = MAX_NR_ZONES - 1; i >= 0; i--) {
 				zone = pgdat->node_zones + i;
-				if (!populated_zone(zone))
+				if (!managed_zone(zone))
 					continue;
 
 				sc.reclaim_idx = i;
@@ -3262,7 +3243,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
 		 */
 		for (i = classzone_idx; i >= 0; i--) {
 			zone = pgdat->node_zones + i;
-			if (!populated_zone(zone))
+			if (!managed_zone(zone))
 				continue;
 
 			if (zone_balanced(zone, sc.order, classzone_idx))
@@ -3508,7 +3489,7 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
 	pg_data_t *pgdat;
 	int z;
 
-	if (!populated_zone(zone))
+	if (!managed_zone(zone))
 		return;
 
 	if (!cpuset_zone_allowed(zone, GFP_KERNEL | __GFP_HARDWALL))
@@ -3522,7 +3503,7 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
 	/* Only wake kswapd if all zones are unbalanced */
 	for (z = 0; z <= classzone_idx; z++) {
 		zone = pgdat->node_zones + z;
-		if (!populated_zone(zone))
+		if (!managed_zone(zone))
 			continue;
 
 		if (zone_balanced(zone, order, classzone_idx))

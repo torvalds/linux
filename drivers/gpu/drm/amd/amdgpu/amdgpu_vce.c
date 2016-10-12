@@ -210,6 +210,8 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
  */
 int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 {
+	unsigned i;
+
 	if (adev->vce.vcpu_bo == NULL)
 		return 0;
 
@@ -217,8 +219,8 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 
 	amdgpu_bo_unref(&adev->vce.vcpu_bo);
 
-	amdgpu_ring_fini(&adev->vce.ring[0]);
-	amdgpu_ring_fini(&adev->vce.ring[1]);
+	for (i = 0; i < adev->vce.num_rings; i++)
+		amdgpu_ring_fini(&adev->vce.ring[i]);
 
 	release_firmware(adev->vce.fw);
 	mutex_destroy(&adev->vce.idle_mutex);
@@ -282,8 +284,8 @@ int amdgpu_vce_resume(struct amdgpu_device *adev)
 
 	hdr = (const struct common_firmware_header *)adev->vce.fw->data;
 	offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
-	memcpy(cpu_addr, (adev->vce.fw->data) + offset,
-		(adev->vce.fw->size) - offset);
+	memcpy_toio(cpu_addr, adev->vce.fw->data + offset,
+		    adev->vce.fw->size - offset);
 
 	amdgpu_bo_kunmap(adev->vce.vcpu_bo);
 
@@ -303,9 +305,12 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work)
 {
 	struct amdgpu_device *adev =
 		container_of(work, struct amdgpu_device, vce.idle_work.work);
+	unsigned i, count = 0;
 
-	if ((amdgpu_fence_count_emitted(&adev->vce.ring[0]) == 0) &&
-	    (amdgpu_fence_count_emitted(&adev->vce.ring[1]) == 0)) {
+	for (i = 0; i < adev->vce.num_rings; i++)
+		count += amdgpu_fence_count_emitted(&adev->vce.ring[i]);
+
+	if (count == 0) {
 		if (adev->pm.dpm_enabled) {
 			amdgpu_dpm_enable_vce(adev, false);
 		} else {
@@ -634,7 +639,11 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 	uint32_t allocated = 0;
 	uint32_t tmp, handle = 0;
 	uint32_t *size = &tmp;
-	int i, r = 0, idx = 0;
+	int i, r, idx = 0;
+
+	r = amdgpu_cs_sysvm_access_required(p);
+	if (r)
+		return r;
 
 	while (idx < ib->length_dw) {
 		uint32_t len = amdgpu_get_ib_value(p, ib_idx, idx);
@@ -687,6 +696,21 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 		case 0x04000008: /* rdo */
 		case 0x04000009: /* vui */
 		case 0x05000002: /* auxiliary buffer */
+		case 0x05000009: /* clock table */
+			break;
+
+		case 0x0500000c: /* hw config */
+			switch (p->adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_CIK
+			case CHIP_KAVERI:
+			case CHIP_MULLINS:
+#endif
+			case CHIP_CARRIZO:
+				break;
+			default:
+				r = -EINVAL;
+				goto out;
+			}
 			break;
 
 		case 0x03000001: /* encode */
@@ -799,6 +823,18 @@ void amdgpu_vce_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
 	amdgpu_ring_write(ring, VCE_CMD_END);
 }
 
+unsigned amdgpu_vce_ring_get_emit_ib_size(struct amdgpu_ring *ring)
+{
+	return
+		4; /* amdgpu_vce_ring_emit_ib */
+}
+
+unsigned amdgpu_vce_ring_get_dma_frame_size(struct amdgpu_ring *ring)
+{
+	return
+		6; /* amdgpu_vce_ring_emit_fence  x1 no user fence */
+}
+
 /**
  * amdgpu_vce_ring_test_ring - test if VCE ring is working
  *
@@ -850,8 +886,8 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	struct fence *fence = NULL;
 	long r;
 
-	/* skip vce ring1 ib test for now, since it's not reliable */
-	if (ring == &ring->adev->vce.ring[1])
+	/* skip vce ring1/2 ib test for now, since it's not reliable */
+	if (ring != &ring->adev->vce.ring[0])
 		return 0;
 
 	r = amdgpu_vce_get_create_msg(ring, 1, NULL);

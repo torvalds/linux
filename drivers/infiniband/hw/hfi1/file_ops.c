@@ -183,6 +183,7 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 	if (fd) {
 		fd->rec_cpu_num = -1; /* no cpu affinity by default */
 		fd->mm = current->mm;
+		atomic_inc(&fd->mm->mm_count);
 	}
 
 	fp->private_data = fd;
@@ -222,7 +223,7 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 		ret = assign_ctxt(fp, &uinfo);
 		if (ret < 0)
 			return ret;
-		setup_ctxt(fp);
+		ret = setup_ctxt(fp);
 		if (ret)
 			return ret;
 		ret = user_init(fp);
@@ -779,6 +780,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	mutex_unlock(&hfi1_mutex);
 	hfi1_free_ctxtdata(dd, uctxt);
 done:
+	mmdrop(fdata->mm);
 	kobject_put(&dd->kobj);
 	kfree(fdata);
 	return 0;

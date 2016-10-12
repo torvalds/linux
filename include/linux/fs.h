@@ -574,6 +574,7 @@ static inline void mapping_allow_writable(struct address_space *mapping)
 
 struct posix_acl;
 #define ACL_NOT_CACHED ((void *)(-1))
+#define ACL_DONT_CACHE ((void *)(-3))
 
 static inline struct posix_acl *
 uncached_acl_sentinel(struct task_struct *task)

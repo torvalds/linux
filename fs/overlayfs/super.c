@@ -814,6 +814,10 @@ retry:
 		struct kstat stat = {
 			.mode = S_IFDIR | 0,
 		};
+		struct iattr attr = {
+			.ia_valid = ATTR_MODE,
+			.ia_mode = stat.mode,
+		};
 
 		if (work->d_inode) {
 			err = -EEXIST;
@@ -821,12 +825,27 @@ retry:
 				goto out_dput;
 
 			retried = true;
-			ovl_cleanup(dir, work);
+			ovl_workdir_cleanup(dir, mnt, work, 0);
 			dput(work);
 			goto retry;
 		}
 
 		err = ovl_create_real(dir, work, &stat, NULL, NULL, true);
+		if (err)
+			goto out_dput;
+
+		err = vfs_removexattr(work, XATTR_NAME_POSIX_ACL_DEFAULT);
+		if (err && err != -ENODATA && err != -EOPNOTSUPP)
+			goto out_dput;
+
+		err = vfs_removexattr(work, XATTR_NAME_POSIX_ACL_ACCESS);
+		if (err && err != -ENODATA && err != -EOPNOTSUPP)
+			goto out_dput;
+
+		/* Clear any inherited mode bits */
+		inode_lock(work->d_inode);
+		err = notify_change(work, &attr, NULL);
+		inode_unlock(work->d_inode);
 		if (err)
 			goto out_dput;
 	}
@@ -967,10 +986,19 @@ static unsigned int ovl_split_lowerdirs(char *str)
 	return ctr;
 }
 
-static int ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
-				   struct dentry *dentry, struct inode *inode,
-				   const char *name, const void *value,
-				   size_t size, int flags)
+static int __maybe_unused
+ovl_posix_acl_xattr_get(const struct xattr_handler *handler,
+			struct dentry *dentry, struct inode *inode,
+			const char *name, void *buffer, size_t size)
+{
+	return ovl_xattr_get(dentry, handler->name, buffer, size);
+}
+
+static int __maybe_unused
+ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
+			struct dentry *dentry, struct inode *inode,
+			const char *name, const void *value,
+			size_t size, int flags)
 {
 	struct dentry *workdir = ovl_workdir(dentry);
 	struct inode *realinode = ovl_inode_real(inode, NULL);
@@ -998,19 +1026,22 @@ static int ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 
 	posix_acl_release(acl);
 
-	return ovl_setxattr(dentry, inode, handler->name, value, size, flags);
+	err = ovl_xattr_set(dentry, handler->name, value, size, flags);
+	if (!err)
+		ovl_copyattr(ovl_inode_real(inode, NULL), inode);
+
+	return err;
 
 out_acl_release:
 	posix_acl_release(acl);
 	return err;
 }
 
-static int ovl_other_xattr_set(const struct xattr_handler *handler,
-			       struct dentry *dentry, struct inode *inode,
-			       const char *name, const void *value,
-			       size_t size, int flags)
+static int ovl_own_xattr_get(const struct xattr_handler *handler,
+			     struct dentry *dentry, struct inode *inode,
+			     const char *name, void *buffer, size_t size)
 {
-	return ovl_setxattr(dentry, inode, name, value, size, flags);
+	return -EPERM;
 }
 
 static int ovl_own_xattr_set(const struct xattr_handler *handler,
@@ -1021,40 +1052,57 @@ static int ovl_own_xattr_set(const struct xattr_handler *handler,
 	return -EPERM;
 }
 
-static const struct xattr_handler ovl_posix_acl_access_xattr_handler = {
+static int ovl_other_xattr_get(const struct xattr_handler *handler,
+			       struct dentry *dentry, struct inode *inode,
+			       const char *name, void *buffer, size_t size)
+{
+	return ovl_xattr_get(dentry, name, buffer, size);
+}
+
+static int ovl_other_xattr_set(const struct xattr_handler *handler,
+			       struct dentry *dentry, struct inode *inode,
+			       const char *name, const void *value,
+			       size_t size, int flags)
+{
+	return ovl_xattr_set(dentry, name, value, size, flags);
+}
+
+static const struct xattr_handler __maybe_unused
+ovl_posix_acl_access_xattr_handler = {
 	.name = XATTR_NAME_POSIX_ACL_ACCESS,
 	.flags = ACL_TYPE_ACCESS,
+	.get = ovl_posix_acl_xattr_get,
 	.set = ovl_posix_acl_xattr_set,
 };
 
-static const struct xattr_handler ovl_posix_acl_default_xattr_handler = {
+static const struct xattr_handler __maybe_unused
+ovl_posix_acl_default_xattr_handler = {
 	.name = XATTR_NAME_POSIX_ACL_DEFAULT,
 	.flags = ACL_TYPE_DEFAULT,
+	.get = ovl_posix_acl_xattr_get,
 	.set = ovl_posix_acl_xattr_set,
 };
 
 static const struct xattr_handler ovl_own_xattr_handler = {
 	.prefix	= OVL_XATTR_PREFIX,
+	.get = ovl_own_xattr_get,
 	.set = ovl_own_xattr_set,
 };
 
 static const struct xattr_handler ovl_other_xattr_handler = {
 	.prefix	= "", /* catch all */
+	.get = ovl_other_xattr_get,
 	.set = ovl_other_xattr_set,
 };
 
 static const struct xattr_handler *ovl_xattr_handlers[] = {
+#ifdef CONFIG_FS_POSIX_ACL
 	&ovl_posix_acl_access_xattr_handler,
 	&ovl_posix_acl_default_xattr_handler,
+#endif
 	&ovl_own_xattr_handler,
 	&ovl_other_xattr_handler,
 	NULL
-};
-
-static const struct xattr_handler *ovl_xattr_noacl_handlers[] = {
-	&ovl_own_xattr_handler,
-	&ovl_other_xattr_handler,
-	NULL,
 };
 
 static int ovl_fill_super(struct super_block *sb, void *data, int silent)
@@ -1132,7 +1180,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	err = -EINVAL;
 	stacklen = ovl_split_lowerdirs(lowertmp);
 	if (stacklen > OVL_MAX_STACK) {
-		pr_err("overlayfs: too many lower directries, limit is %d\n",
+		pr_err("overlayfs: too many lower directories, limit is %d\n",
 		       OVL_MAX_STACK);
 		goto out_free_lowertmp;
 	} else if (!ufs->config.upperdir && stacklen == 1) {
@@ -1269,10 +1317,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_magic = OVERLAYFS_SUPER_MAGIC;
 	sb->s_op = &ovl_super_operations;
-	if (IS_ENABLED(CONFIG_FS_POSIX_ACL))
-		sb->s_xattr = ovl_xattr_handlers;
-	else
-		sb->s_xattr = ovl_xattr_noacl_handlers;
+	sb->s_xattr = ovl_xattr_handlers;
 	sb->s_root = root_dentry;
 	sb->s_fs_info = ufs;
 	sb->s_flags |= MS_POSIXACL;

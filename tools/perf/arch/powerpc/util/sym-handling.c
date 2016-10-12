@@ -97,6 +97,7 @@ void arch__fix_tev_from_maps(struct perf_probe_event *pev,
 	}
 }
 
+#ifdef HAVE_LIBELF_SUPPORT
 void arch__post_process_probe_trace_events(struct perf_probe_event *pev,
 					   int ntevs)
 {
@@ -118,5 +119,6 @@ void arch__post_process_probe_trace_events(struct perf_probe_event *pev,
 		}
 	}
 }
+#endif /* HAVE_LIBELF_SUPPORT */
 
 #endif

@@ -25,7 +25,6 @@
 #include <drm/drmP.h>
 #include <drm/drm_mm.h>
 #include <drm/drm_vma_manager.h>
-#include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/rbtree.h>
@@ -252,9 +251,9 @@ EXPORT_SYMBOL(drm_vma_offset_remove);
 /**
  * drm_vma_node_allow - Add open-file to list of allowed users
  * @node: Node to modify
- * @filp: Open file to add
+ * @tag: Tag of file to remove
  *
- * Add @filp to the list of allowed open-files for this node. If @filp is
+ * Add @tag to the list of allowed open-files for this node. If @tag is
  * already on this list, the ref-count is incremented.
  *
  * The list of allowed-users is preserved across drm_vma_offset_add() and
@@ -269,7 +268,7 @@ EXPORT_SYMBOL(drm_vma_offset_remove);
  * RETURNS:
  * 0 on success, negative error code on internal failure (out-of-mem)
  */
-int drm_vma_node_allow(struct drm_vma_offset_node *node, struct file *filp)
+int drm_vma_node_allow(struct drm_vma_offset_node *node, struct drm_file *tag)
 {
 	struct rb_node **iter;
 	struct rb_node *parent = NULL;
@@ -290,10 +289,10 @@ int drm_vma_node_allow(struct drm_vma_offset_node *node, struct file *filp)
 		parent = *iter;
 		entry = rb_entry(*iter, struct drm_vma_offset_file, vm_rb);
 
-		if (filp == entry->vm_filp) {
+		if (tag == entry->vm_tag) {
 			entry->vm_count++;
 			goto unlock;
-		} else if (filp > entry->vm_filp) {
+		} else if (tag > entry->vm_tag) {
 			iter = &(*iter)->rb_right;
 		} else {
 			iter = &(*iter)->rb_left;
@@ -305,7 +304,7 @@ int drm_vma_node_allow(struct drm_vma_offset_node *node, struct file *filp)
 		goto unlock;
 	}
 
-	new->vm_filp = filp;
+	new->vm_tag = tag;
 	new->vm_count = 1;
 	rb_link_node(&new->vm_rb, parent, iter);
 	rb_insert_color(&new->vm_rb, &node->vm_files);
@@ -321,17 +320,18 @@ EXPORT_SYMBOL(drm_vma_node_allow);
 /**
  * drm_vma_node_revoke - Remove open-file from list of allowed users
  * @node: Node to modify
- * @filp: Open file to remove
+ * @tag: Tag of file to remove
  *
- * Decrement the ref-count of @filp in the list of allowed open-files on @node.
- * If the ref-count drops to zero, remove @filp from the list. You must call
- * this once for every drm_vma_node_allow() on @filp.
+ * Decrement the ref-count of @tag in the list of allowed open-files on @node.
+ * If the ref-count drops to zero, remove @tag from the list. You must call
+ * this once for every drm_vma_node_allow() on @tag.
  *
  * This is locked against concurrent access internally.
  *
- * If @filp is not on the list, nothing is done.
+ * If @tag is not on the list, nothing is done.
  */
-void drm_vma_node_revoke(struct drm_vma_offset_node *node, struct file *filp)
+void drm_vma_node_revoke(struct drm_vma_offset_node *node,
+			 struct drm_file *tag)
 {
 	struct drm_vma_offset_file *entry;
 	struct rb_node *iter;
@@ -341,13 +341,13 @@ void drm_vma_node_revoke(struct drm_vma_offset_node *node, struct file *filp)
 	iter = node->vm_files.rb_node;
 	while (likely(iter)) {
 		entry = rb_entry(iter, struct drm_vma_offset_file, vm_rb);
-		if (filp == entry->vm_filp) {
+		if (tag == entry->vm_tag) {
 			if (!--entry->vm_count) {
 				rb_erase(&entry->vm_rb, &node->vm_files);
 				kfree(entry);
 			}
 			break;
-		} else if (filp > entry->vm_filp) {
+		} else if (tag > entry->vm_tag) {
 			iter = iter->rb_right;
 		} else {
 			iter = iter->rb_left;
@@ -361,9 +361,9 @@ EXPORT_SYMBOL(drm_vma_node_revoke);
 /**
  * drm_vma_node_is_allowed - Check whether an open-file is granted access
  * @node: Node to check
- * @filp: Open-file to check for
+ * @tag: Tag of file to remove
  *
- * Search the list in @node whether @filp is currently on the list of allowed
+ * Search the list in @node whether @tag is currently on the list of allowed
  * open-files (see drm_vma_node_allow()).
  *
  * This is locked against concurrent access internally.
@@ -372,7 +372,7 @@ EXPORT_SYMBOL(drm_vma_node_revoke);
  * true iff @filp is on the list
  */
 bool drm_vma_node_is_allowed(struct drm_vma_offset_node *node,
-			     struct file *filp)
+			     struct drm_file *tag)
 {
 	struct drm_vma_offset_file *entry;
 	struct rb_node *iter;
@@ -382,9 +382,9 @@ bool drm_vma_node_is_allowed(struct drm_vma_offset_node *node,
 	iter = node->vm_files.rb_node;
 	while (likely(iter)) {
 		entry = rb_entry(iter, struct drm_vma_offset_file, vm_rb);
-		if (filp == entry->vm_filp)
+		if (tag == entry->vm_tag)
 			break;
-		else if (filp > entry->vm_filp)
+		else if (tag > entry->vm_tag)
 			iter = iter->rb_right;
 		else
 			iter = iter->rb_left;

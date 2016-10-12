@@ -1623,6 +1623,9 @@ void __init enable_IR_x2apic(void)
 	unsigned long flags;
 	int ret, ir_stat;
 
+	if (skip_ioapic_setup)
+		return;
+
 	ir_stat = irq_remapping_prepare();
 	if (ir_stat < 0 && !x2apic_supported())
 		return;
@@ -2090,7 +2093,6 @@ int generic_processor_info(int apicid, int version)
 		return -EINVAL;
 	}
 
-	num_processors++;
 	if (apicid == boot_cpu_physical_apicid) {
 		/*
 		 * x86_bios_cpu_apicid is required to have processors listed
@@ -2113,9 +2115,12 @@ int generic_processor_info(int apicid, int version)
 
 		pr_warning("APIC: Package limit reached. Processor %d/0x%x ignored.\n",
 			   thiscpu, apicid);
+
 		disabled_cpus++;
 		return -ENOSPC;
 	}
+
+	num_processors++;
 
 	/*
 	 * Validate version

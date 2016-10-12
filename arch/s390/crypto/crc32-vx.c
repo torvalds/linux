@@ -51,6 +51,9 @@ u32 crc32c_le_vgfm_16(u32 crc, unsigned char const *buf, size_t size);
 		struct kernel_fpu vxstate;				    \
 		unsigned long prealign, aligned, remaining;		    \
 									    \
+		if (datalen < VX_MIN_LEN + VX_ALIGN_MASK)		    \
+			return ___crc32_sw(crc, data, datalen);		    \
+									    \
 		if ((unsigned long)data & VX_ALIGN_MASK) {		    \
 			prealign = VX_ALIGNMENT -			    \
 				  ((unsigned long)data & VX_ALIGN_MASK);    \
@@ -58,9 +61,6 @@ u32 crc32c_le_vgfm_16(u32 crc, unsigned char const *buf, size_t size);
 			crc = ___crc32_sw(crc, data, prealign);		    \
 			data = (void *)((unsigned long)data + prealign);    \
 		}							    \
-									    \
-		if (datalen < VX_MIN_LEN)				    \
-			return ___crc32_sw(crc, data, datalen);		    \
 									    \
 		aligned = datalen & ~VX_ALIGN_MASK;			    \
 		remaining = datalen & VX_ALIGN_MASK;			    \

@@ -520,7 +520,13 @@ struct drm_color_lut {
 
 #define DRM_MODE_PAGE_FLIP_EVENT 0x01
 #define DRM_MODE_PAGE_FLIP_ASYNC 0x02
-#define DRM_MODE_PAGE_FLIP_FLAGS (DRM_MODE_PAGE_FLIP_EVENT|DRM_MODE_PAGE_FLIP_ASYNC)
+#define DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE 0x4
+#define DRM_MODE_PAGE_FLIP_TARGET_RELATIVE 0x8
+#define DRM_MODE_PAGE_FLIP_TARGET (DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE | \
+				   DRM_MODE_PAGE_FLIP_TARGET_RELATIVE)
+#define DRM_MODE_PAGE_FLIP_FLAGS (DRM_MODE_PAGE_FLIP_EVENT | \
+				  DRM_MODE_PAGE_FLIP_ASYNC | \
+				  DRM_MODE_PAGE_FLIP_TARGET)
 
 /*
  * Request a page flip on the specified crtc.
@@ -543,8 +549,7 @@ struct drm_color_lut {
  * 'as soon as possible', meaning that it not delay waiting for vblank.
  * This may cause tearing on the screen.
  *
- * The reserved field must be zero until we figure out something
- * clever to use it for.
+ * The reserved field must be zero.
  */
 
 struct drm_mode_crtc_page_flip {
@@ -552,6 +557,34 @@ struct drm_mode_crtc_page_flip {
 	__u32 fb_id;
 	__u32 flags;
 	__u32 reserved;
+	__u64 user_data;
+};
+
+/*
+ * Request a page flip on the specified crtc.
+ *
+ * Same as struct drm_mode_crtc_page_flip, but supports new flags and
+ * re-purposes the reserved field:
+ *
+ * The sequence field must be zero unless either of the
+ * DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE/RELATIVE flags is specified. When
+ * the ABSOLUTE flag is specified, the sequence field denotes the absolute
+ * vblank sequence when the flip should take effect. When the RELATIVE
+ * flag is specified, the sequence field denotes the relative (to the
+ * current one when the ioctl is called) vblank sequence when the flip
+ * should take effect. NOTE: DRM_IOCTL_WAIT_VBLANK must still be used to
+ * make sure the vblank sequence before the target one has passed before
+ * calling this ioctl. The purpose of the
+ * DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE/RELATIVE flags is merely to clarify
+ * the target for when code dealing with a page flip runs during a
+ * vertical blank period.
+ */
+
+struct drm_mode_crtc_page_flip_target {
+	__u32 crtc_id;
+	__u32 fb_id;
+	__u32 flags;
+	__u32 sequence;
 	__u64 user_data;
 };
 

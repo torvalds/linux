@@ -33,6 +33,20 @@
 
 static LIST_HEAD(module_list);
 
+static const u32 tilcdc_rev1_formats[] = { DRM_FORMAT_RGB565 };
+
+static const u32 tilcdc_straight_formats[] = { DRM_FORMAT_RGB565,
+					       DRM_FORMAT_BGR888,
+					       DRM_FORMAT_XBGR8888 };
+
+static const u32 tilcdc_crossed_formats[] = { DRM_FORMAT_BGR565,
+					      DRM_FORMAT_RGB888,
+					      DRM_FORMAT_XRGB8888 };
+
+static const u32 tilcdc_legacy_formats[] = { DRM_FORMAT_RGB565,
+					     DRM_FORMAT_RGB888,
+					     DRM_FORMAT_XRGB8888 };
+
 void tilcdc_module_init(struct tilcdc_module *mod, const char *name,
 		const struct tilcdc_module_ops *funcs)
 {
@@ -61,8 +75,8 @@ static void tilcdc_fb_output_poll_changed(struct drm_device *dev)
 	drm_fbdev_cma_hotplug_event(priv->fbdev);
 }
 
-int tilcdc_atomic_check(struct drm_device *dev,
-			struct drm_atomic_state *state)
+static int tilcdc_atomic_check(struct drm_device *dev,
+			       struct drm_atomic_state *state)
 {
 	int ret;
 
@@ -118,7 +132,7 @@ static int tilcdc_commit(struct drm_device *dev,
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
-	drm_atomic_helper_commit_planes(dev, state, false);
+	drm_atomic_helper_commit_planes(dev, state, 0);
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
@@ -170,12 +184,9 @@ static int cpufreq_transition(struct notifier_block *nb,
 {
 	struct tilcdc_drm_private *priv = container_of(nb,
 			struct tilcdc_drm_private, freq_transition);
-	if (val == CPUFREQ_POSTCHANGE) {
-		if (priv->lcd_fck_rate != clk_get_rate(priv->clk)) {
-			priv->lcd_fck_rate = clk_get_rate(priv->clk);
-			tilcdc_crtc_update_clk(priv->crtc);
-		}
-	}
+
+	if (val == CPUFREQ_POSTCHANGE)
+		tilcdc_crtc_update_clk(priv->crtc);
 
 	return 0;
 }
@@ -188,8 +199,6 @@ static int cpufreq_transition(struct notifier_block *nb,
 static int tilcdc_unload(struct drm_device *dev)
 {
 	struct tilcdc_drm_private *priv = dev->dev_private;
-
-	tilcdc_crtc_disable(priv->crtc);
 
 	tilcdc_remove_external_encoders(dev);
 
@@ -226,7 +235,6 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	struct platform_device *pdev = dev->platformdev;
 	struct device_node *node = pdev->dev.of_node;
 	struct tilcdc_drm_private *priv;
-	struct tilcdc_module *mod;
 	struct resource *res;
 	u32 bpp = 0;
 	int ret;
@@ -270,7 +278,6 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	}
 
 #ifdef CONFIG_CPU_FREQ
-	priv->lcd_fck_rate = clk_get_rate(priv->clk);
 	priv->freq_transition.notifier_call = cpufreq_transition;
 	ret = cpufreq_register_notifier(&priv->freq_transition,
 			CPUFREQ_TRANSITION_NOTIFIER);
@@ -318,6 +325,37 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 
 	pm_runtime_put_sync(dev->dev);
 
+	if (priv->rev == 1) {
+		DBG("Revision 1 LCDC supports only RGB565 format");
+		priv->pixelformats = tilcdc_rev1_formats;
+		priv->num_pixelformats = ARRAY_SIZE(tilcdc_rev1_formats);
+		bpp = 16;
+	} else {
+		const char *str = "\0";
+
+		of_property_read_string(node, "blue-and-red-wiring", &str);
+		if (0 == strcmp(str, "crossed")) {
+			DBG("Configured for crossed blue and red wires");
+			priv->pixelformats = tilcdc_crossed_formats;
+			priv->num_pixelformats =
+				ARRAY_SIZE(tilcdc_crossed_formats);
+			bpp = 32; /* Choose bpp with RGB support for fbdef */
+		} else if (0 == strcmp(str, "straight")) {
+			DBG("Configured for straight blue and red wires");
+			priv->pixelformats = tilcdc_straight_formats;
+			priv->num_pixelformats =
+				ARRAY_SIZE(tilcdc_straight_formats);
+			bpp = 16; /* Choose bpp with RGB support for fbdef */
+		} else {
+			DBG("Blue and red wiring '%s' unknown, use legacy mode",
+			    str);
+			priv->pixelformats = tilcdc_legacy_formats;
+			priv->num_pixelformats =
+				ARRAY_SIZE(tilcdc_legacy_formats);
+			bpp = 16; /* This is just a guess */
+		}
+	}
+
 	ret = modeset_init(dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to initialize mode setting\n");
@@ -331,7 +369,7 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 		if (ret < 0)
 			goto fail_mode_config_cleanup;
 
-		ret = tilcdc_add_external_encoders(dev, &bpp);
+		ret = tilcdc_add_external_encoders(dev);
 		if (ret < 0)
 			goto fail_component_cleanup;
 	}
@@ -354,15 +392,6 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 		goto fail_vblank_cleanup;
 	}
 
-	list_for_each_entry(mod, &module_list, list) {
-		DBG("%s: preferred_bpp: %d", mod->name, mod->preferred_bpp);
-		bpp = mod->preferred_bpp;
-		if (bpp > 0)
-			break;
-	}
-
-	drm_helper_disable_unused_functions(dev);
-
 	drm_mode_config_reset(dev);
 
 	priv->fbdev = drm_fbdev_cma_init(dev, bpp,
@@ -383,12 +412,12 @@ fail_irq_uninstall:
 fail_vblank_cleanup:
 	drm_vblank_cleanup(dev);
 
-fail_mode_config_cleanup:
-	drm_mode_config_cleanup(dev);
-
 fail_component_cleanup:
 	if (priv->is_componentized)
 		component_unbind_all(dev->dev, dev);
+
+fail_mode_config_cleanup:
+	drm_mode_config_cleanup(dev);
 
 fail_external_cleanup:
 	tilcdc_remove_external_encoders(dev);

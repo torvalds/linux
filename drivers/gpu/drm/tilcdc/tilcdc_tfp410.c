@@ -23,6 +23,7 @@
 #include <drm/drm_atomic_helper.h>
 
 #include "tilcdc_drv.h"
+#include "tilcdc_tfp410.h"
 
 struct tfp410_module {
 	struct tilcdc_module base;
@@ -326,8 +327,6 @@ static int tfp410_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "could not get i2c bus phandle\n");
 		goto fail;
 	}
-
-	mod->preferred_bpp = dvi_info.bpp;
 
 	i2c_node = of_find_node_by_phandle(i2c_phandle);
 	if (!i2c_node) {

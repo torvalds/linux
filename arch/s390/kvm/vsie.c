@@ -584,7 +584,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		/* Validity 0x0044 will be checked by SIE */
 		if (rc)
 			goto unpin;
-		scb_s->gvrd = hpa;
+		scb_s->riccbd = hpa;
 	}
 	return 0;
 unpin:

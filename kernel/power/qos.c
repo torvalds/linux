@@ -482,7 +482,16 @@ void pm_qos_update_request(struct pm_qos_request *req,
 		return;
 	}
 
-	cancel_delayed_work_sync(&req->work);
+	/*
+	 * This function may be called very early during boot, for example,
+	 * from of_clk_init(), where irq needs to stay disabled.
+	 * cancel_delayed_work_sync() assumes that irq is enabled on
+	 * invocation and re-enables it on return.  Avoid calling it until
+	 * workqueue is initialized.
+	 */
+	if (keventd_up())
+		cancel_delayed_work_sync(&req->work);
+
 	__pm_qos_update_request(req, new_value);
 }
 EXPORT_SYMBOL_GPL(pm_qos_update_request);
