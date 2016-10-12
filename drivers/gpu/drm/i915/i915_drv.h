@@ -746,6 +746,8 @@ struct drm_i915_error_state {
 	struct kref ref;
 	struct timeval time;
 
+	struct drm_i915_private *i915;
+
 	char error_msg[128];
 	bool simulated;
 	int iommu;

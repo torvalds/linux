@@ -28,6 +28,7 @@
  */
 
 #include <generated/utsrelease.h>
+#include <linux/stop_machine.h>
 #include "i915_drv.h"
 
 static const char *engine_str(int engine)
@@ -744,14 +745,12 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 
 	dst->page_count = num_pages;
 	while (num_pages--) {
-		unsigned long flags;
 		void *d;
 
 		d = kmalloc(PAGE_SIZE, GFP_ATOMIC);
 		if (d == NULL)
 			goto unwind;
 
-		local_irq_save(flags);
 		if (use_ggtt) {
 			void __iomem *s;
 
@@ -770,15 +769,10 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 
 			page = i915_gem_object_get_page(src, i);
 
-			drm_clflush_pages(&page, 1);
-
 			s = kmap_atomic(page);
 			memcpy(d, s, PAGE_SIZE);
 			kunmap_atomic(s);
-
-			drm_clflush_pages(&page, 1);
 		}
-		local_irq_restore(flags);
 
 		dst->pages[i++] = d;
 		reloc_offset += PAGE_SIZE;
@@ -1447,6 +1441,31 @@ static void i915_capture_gen_state(struct drm_i915_private *dev_priv,
 	       sizeof(error->device_info));
 }
 
+static int capture(void *data)
+{
+	struct drm_i915_error_state *error = data;
+
+	/* Ensure that what we readback from memory matches what the GPU sees */
+	wbinvd();
+
+	i915_capture_gen_state(error->i915, error);
+	i915_capture_reg_state(error->i915, error);
+	i915_gem_record_fences(error->i915, error);
+	i915_gem_record_rings(error->i915, error);
+	i915_capture_active_buffers(error->i915, error);
+	i915_capture_pinned_buffers(error->i915, error);
+
+	do_gettimeofday(&error->time);
+
+	error->overlay = intel_overlay_capture_error_state(error->i915);
+	error->display = intel_display_capture_error_state(error->i915);
+
+	/* And make sure we don't leave trash in the CPU cache */
+	wbinvd();
+
+	return 0;
+}
+
 /**
  * i915_capture_error_state - capture an error record for later analysis
  * @dev: drm device
@@ -1478,18 +1497,9 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 	}
 
 	kref_init(&error->ref);
+	error->i915 = dev_priv;
 
-	i915_capture_gen_state(dev_priv, error);
-	i915_capture_reg_state(dev_priv, error);
-	i915_gem_record_fences(dev_priv, error);
-	i915_gem_record_rings(dev_priv, error);
-	i915_capture_active_buffers(dev_priv, error);
-	i915_capture_pinned_buffers(dev_priv, error);
-
-	do_gettimeofday(&error->time);
-
-	error->overlay = intel_overlay_capture_error_state(dev_priv);
-	error->display = intel_display_capture_error_state(dev_priv);
+	stop_machine(capture, error, NULL);
 
 	i915_error_capture_msg(dev_priv, error, engine_mask, error_msg);
 	DRM_INFO("%s\n", error->error_msg);

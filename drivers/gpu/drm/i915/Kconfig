@@ -4,6 +4,7 @@ config DRM_I915
 	depends on X86 && PCI
 	select INTEL_GTT
 	select INTERVAL_TREE
+	select STOP_MACHINE
 	# we need shmfs for the swappable backing store, and in particular
 	# the shmem_readpage() which depends upon tmpfs
 	select SHMEM
