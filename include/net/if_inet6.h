@@ -191,7 +191,6 @@ struct inet6_dev {
 	int			dead;
 
 	u8			rndid[8];
-	struct timer_list	regen_timer;
 	struct list_head	tempaddr_list;
 
 	struct in6_addr		token;
