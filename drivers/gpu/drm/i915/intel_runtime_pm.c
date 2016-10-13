@@ -288,7 +288,6 @@ void intel_display_set_init_power(struct drm_i915_private *dev_priv,
 static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
-	struct drm_device *dev = &dev_priv->drm;
 
 	/*
 	 * After we re-enable the power well, if we touch VGA register 0x3d5
@@ -304,7 +303,7 @@ static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 	outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
 	vga_put(pdev, VGA_RSRC_LEGACY_IO);
 
-	if (IS_BROADWELL(dev))
+	if (IS_BROADWELL(dev_priv))
 		gen8_irq_power_well_post_enable(dev_priv,
 						1 << PIPE_C | 1 << PIPE_B);
 }

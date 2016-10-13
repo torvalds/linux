@@ -540,8 +540,8 @@ void intel_color_init(struct drm_crtc *crtc)
 	} else if (IS_HASWELL(dev)) {
 		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
 		dev_priv->display.load_luts = haswell_load_luts;
-	} else if (IS_BROADWELL(dev) || IS_SKYLAKE(dev) ||
-		   IS_BROXTON(dev) || IS_KABYLAKE(dev)) {
+	} else if (IS_BROADWELL(dev_priv) || IS_SKYLAKE(dev_priv) ||
+		   IS_BROXTON(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
 		dev_priv->display.load_luts = broadwell_load_luts;
 	} else {

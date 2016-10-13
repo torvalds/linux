@@ -542,12 +542,12 @@ ivb_update_plane(struct drm_plane *plane,
 	if (fb->modifier[0] == I915_FORMAT_MOD_X_TILED)
 		sprctl |= SPRITE_TILED;
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		sprctl &= ~SPRITE_TRICKLE_FEED_DISABLE;
 	else
 		sprctl |= SPRITE_TRICKLE_FEED_DISABLE;
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		sprctl |= SPRITE_PIPE_CSC_ENABLE;
 
 	/* Sizes are 0 based */
@@ -566,7 +566,7 @@ ivb_update_plane(struct drm_plane *plane,
 		sprctl |= SPRITE_ROTATE_180;
 
 		/* HSW and BDW does this automagically in hardware */
-		if (!IS_HASWELL(dev) && !IS_BROADWELL(dev)) {
+		if (!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv)) {
 			x += src_w;
 			y += src_h;
 		}
@@ -590,7 +590,7 @@ ivb_update_plane(struct drm_plane *plane,
 
 	/* HSW consolidates SPRTILEOFF and SPRLINOFF into a single SPROFFSET
 	 * register */
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		I915_WRITE(SPROFFSET(pipe), (y << 16) | x);
 	else if (fb->modifier[0] == I915_FORMAT_MOD_X_TILED)
 		I915_WRITE(SPRTILEOFF(pipe), (y << 16) | x);

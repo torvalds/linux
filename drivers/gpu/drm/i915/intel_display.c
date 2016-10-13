@@ -3139,7 +3139,7 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 	dspcntr |= DISPLAY_PLANE_ENABLE;
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		dspcntr |= DISPPLANE_PIPE_CSC_ENABLE;
 
 	switch (fb->pixel_format) {
@@ -3168,7 +3168,7 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	if (fb->modifier[0] == I915_FORMAT_MOD_X_TILED)
 		dspcntr |= DISPPLANE_TILED;
 
-	if (!IS_HASWELL(dev) && !IS_BROADWELL(dev))
+	if (!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv))
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
 	intel_add_fb_offsets(&x, &y, plane_state, 0);
@@ -3179,7 +3179,7 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	if (rotation == DRM_ROTATE_180) {
 		dspcntr |= DISPPLANE_ROTATE_180;
 
-		if (!IS_HASWELL(dev) && !IS_BROADWELL(dev)) {
+		if (!IS_HASWELL(dev_priv) && !IS_BROADWELL(dev_priv)) {
 			x += (crtc_state->pipe_src_w - 1);
 			y += (crtc_state->pipe_src_h - 1);
 		}
@@ -3196,7 +3196,7 @@ static void ironlake_update_primary_plane(struct drm_plane *primary,
 	I915_WRITE(DSPSURF(plane),
 		   intel_fb_gtt_offset(fb, rotation) +
 		   intel_crtc->dspaddr_offset);
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		I915_WRITE(DSPOFFSET(plane), (y << 16) | x);
 	} else {
 		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
@@ -4877,7 +4877,7 @@ void hsw_enable_ips(struct intel_crtc *crtc)
 	 */
 
 	assert_plane_enabled(dev_priv, crtc->plane);
-	if (IS_BROADWELL(dev)) {
+	if (IS_BROADWELL(dev_priv)) {
 		mutex_lock(&dev_priv->rps.hw_lock);
 		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0xc0000000));
 		mutex_unlock(&dev_priv->rps.hw_lock);
@@ -4909,7 +4909,7 @@ void hsw_disable_ips(struct intel_crtc *crtc)
 		return;
 
 	assert_plane_enabled(dev_priv, crtc->plane);
-	if (IS_BROADWELL(dev)) {
+	if (IS_BROADWELL(dev_priv)) {
 		mutex_lock(&dev_priv->rps.hw_lock);
 		WARN_ON(sandybridge_pcode_write(dev_priv, DISPLAY_IPS_CONTROL, 0));
 		mutex_unlock(&dev_priv->rps.hw_lock);
@@ -5852,7 +5852,7 @@ static void intel_update_max_cdclk(struct drm_device *dev)
 		dev_priv->max_cdclk_freq = skl_calc_cdclk(max_cdclk, vco);
 	} else if (IS_BROXTON(dev)) {
 		dev_priv->max_cdclk_freq = 624000;
-	} else if (IS_BROADWELL(dev))  {
+	} else if (IS_BROADWELL(dev_priv))  {
 		/*
 		 * FIXME with extra cooling we can allow
 		 * 540 MHz for ULX and 675 Mhz for ULT.
@@ -7021,6 +7021,7 @@ static int pipe_required_fdi_lanes(struct intel_crtc_state *crtc_state)
 static int ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 				     struct intel_crtc_state *pipe_config)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_atomic_state *state = pipe_config->base.state;
 	struct intel_crtc *other_crtc;
 	struct intel_crtc_state *other_crtc_state;
@@ -7033,7 +7034,7 @@ static int ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 		return -EINVAL;
 	}
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		if (pipe_config->fdi_lanes > 2) {
 			DRM_DEBUG_KMS("only 2 lanes on haswell, required: %i lanes\n",
 				      pipe_config->fdi_lanes);
@@ -9881,7 +9882,7 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 	fb->bits_per_pixel = drm_format_plane_cpp(fourcc, 0) * 8;
 
 	base = I915_READ(DSPSURF(pipe)) & 0xfffff000;
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		offset = I915_READ(DSPOFFSET(pipe));
 	} else {
 		if (plane_config->tiling)
@@ -17244,7 +17245,7 @@ intel_display_print_error_state(struct drm_i915_error_state_buf *m,
 		return;
 
 	err_printf(m, "Num Pipes: %d\n", INTEL_INFO(dev)->num_pipes);
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		err_printf(m, "PWR_WELL_CTL2: %08x\n",
 			   error->power_well_driver);
 	for_each_pipe(dev_priv, i) {

@@ -3480,7 +3480,7 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 		level = I915_CACHE_LLC;
 		break;
 	case I915_CACHING_DISPLAY:
-		level = HAS_WT(dev) ? I915_CACHE_WT : I915_CACHE_NONE;
+		level = HAS_WT(dev_priv) ? I915_CACHE_WT : I915_CACHE_NONE;
 		break;
 	default:
 		return -EINVAL;
@@ -3538,7 +3538,8 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 * with that bit in the PTE to main memory with just one PIPE_CONTROL.
 	 */
 	ret = i915_gem_object_set_cache_level(obj,
-					      HAS_WT(obj->base.dev) ? I915_CACHE_WT : I915_CACHE_NONE);
+					      HAS_WT(to_i915(obj->base.dev)) ?
+					      I915_CACHE_WT : I915_CACHE_NONE);
 	if (ret) {
 		vma = ERR_PTR(ret);
 		goto err_unpin_display;

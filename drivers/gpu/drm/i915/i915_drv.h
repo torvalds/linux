@@ -2658,7 +2658,7 @@ struct drm_i915_cmd_table {
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
 #define IS_CHERRYVIEW(dev)	(INTEL_INFO(dev)->is_cherryview)
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
-#define IS_BROADWELL(dev)	(INTEL_INFO(dev)->is_broadwell)
+#define IS_BROADWELL(dev_priv)	((dev_priv)->info.is_broadwell)
 #define IS_SKYLAKE(dev)	(INTEL_INFO(dev)->is_skylake)
 #define IS_BROXTON(dev)		(INTEL_INFO(dev)->is_broxton)
 #define IS_KABYLAKE(dev)	(INTEL_INFO(dev)->is_kabylake)
@@ -2765,8 +2765,8 @@ struct drm_i915_cmd_table {
 #define HAS_LLC(dev)		(INTEL_INFO(dev)->has_llc)
 #define HAS_SNOOP(dev)		(INTEL_INFO(dev)->has_snoop)
 #define HAS_EDRAM(dev)		(!!(__I915__(dev)->edram_cap & EDRAM_ENABLED))
-#define HAS_WT(dev)		((IS_HASWELL(dev) || IS_BROADWELL(dev)) && \
-				 HAS_EDRAM(dev))
+#define HAS_WT(dev_priv)	((IS_HASWELL(dev_priv) || \
+				 IS_BROADWELL(dev_priv)) && HAS_EDRAM(dev_priv))
 #define HWS_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->hws_needs_physical)
 
 #define HAS_HW_CONTEXTS(dev)	(INTEL_INFO(dev)->has_hw_contexts)
