@@ -5874,7 +5874,7 @@ static void intel_update_max_cdclk(struct drm_device *dev)
 			dev_priv->max_cdclk_freq = 675000;
 	} else if (IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->max_cdclk_freq = 320000;
-	} else if (IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev_priv)) {
 		dev_priv->max_cdclk_freq = 400000;
 	} else {
 		/* otherwise assume cdclk is fixed */
@@ -6838,7 +6838,7 @@ static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	if (!intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_DSI)) {
 		if (IS_CHERRYVIEW(dev_priv))
 			chv_disable_pll(dev_priv, pipe);
-		else if (IS_VALLEYVIEW(dev))
+		else if (IS_VALLEYVIEW(dev_priv))
 			vlv_disable_pll(dev_priv, pipe);
 		else
 			i9xx_disable_pll(intel_crtc);
@@ -8904,7 +8904,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 
 	if (IS_CHERRYVIEW(dev_priv))
 		chv_crtc_clock_get(crtc, pipe_config);
-	else if (IS_VALLEYVIEW(dev))
+	else if (IS_VALLEYVIEW(dev_priv))
 		vlv_crtc_clock_get(crtc, pipe_config);
 	else
 		i9xx_crtc_clock_get(crtc, pipe_config);

@@ -253,7 +253,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 
 	if (HAS_PCH_LPT(dev_priv))
 		max_clock = 180000;
-	else if (IS_VALLEYVIEW(dev))
+	else if (IS_VALLEYVIEW(dev_priv))
 		/*
 		 * 270 MHz due to current DPLL limits,
 		 * DAC limit supposedly 355 MHz.
@@ -423,7 +423,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	if (HAS_PCH_SPLIT(dev_priv))
 		return intel_ironlake_crt_detect_hotplug(connector);
 
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev_priv))
 		return valleyview_crt_detect_hotplug(connector);
 
 	/*
@@ -850,7 +850,7 @@ void intel_crt_init(struct drm_device *dev)
 
 	if (HAS_PCH_SPLIT(dev_priv))
 		adpa_reg = PCH_ADPA;
-	else if (IS_VALLEYVIEW(dev))
+	else if (IS_VALLEYVIEW(dev_priv))
 		adpa_reg = VLV_ADPA;
 	else
 		adpa_reg = ADPA;

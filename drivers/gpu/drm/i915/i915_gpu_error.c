@@ -1424,7 +1424,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	 */
 
 	/* 1: Registers specific to a single generation */
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev_priv)) {
 		error->gtier[0] = I915_READ(GTIER);
 		error->ier = I915_READ(VLV_IER);
 		error->forcewake = I915_READ_FW(FORCEWAKE_VLV);
@@ -1473,7 +1473,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 		error->gtier[0] = I915_READ(GTIER);
 	} else if (IS_GEN2(dev)) {
 		error->ier = I915_READ16(IER);
-	} else if (!IS_VALLEYVIEW(dev)) {
+	} else if (!IS_VALLEYVIEW(dev_priv)) {
 		error->ier = I915_READ(IER);
 	}
 	error->eir = I915_READ(EIR);

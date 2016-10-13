@@ -1350,7 +1350,7 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 	} else if (IS_CHERRYVIEW(dev_priv)) {
 		divisor = chv_dpll;
 		count = ARRAY_SIZE(chv_dpll);
-	} else if (IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev_priv)) {
 		divisor = vlv_dpll;
 		count = ARRAY_SIZE(vlv_dpll);
 	}
@@ -1790,7 +1790,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 			trans_dp &= ~TRANS_DP_ENH_FRAMING;
 		I915_WRITE(TRANS_DP_CTL(crtc->pipe), trans_dp);
 	} else {
-		if (!HAS_PCH_SPLIT(dev_priv) && !IS_VALLEYVIEW(dev) &&
+		if (!HAS_PCH_SPLIT(dev_priv) && !IS_VALLEYVIEW(dev_priv) &&
 		    !IS_CHERRYVIEW(dev_priv) &&
 		    pipe_config->limited_color_range)
 			intel_dp->DP |= DP_COLOR_RANGE_16_235;
@@ -3351,7 +3351,7 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 			mask = DDI_BUF_EMP_MASK;
 	} else if (IS_CHERRYVIEW(dev_priv)) {
 		signal_levels = chv_signal_levels(intel_dp);
-	} else if (IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev_priv)) {
 		signal_levels = vlv_signal_levels(intel_dp);
 	} else if (IS_GEN7(dev) && port == PORT_A) {
 		signal_levels = gen7_edp_signal_levels(train_set);
@@ -5801,7 +5801,7 @@ bool intel_dp_init(struct drm_device *dev,
 		intel_encoder->enable = vlv_enable_dp;
 		intel_encoder->post_disable = chv_post_disable_dp;
 		intel_encoder->post_pll_disable = chv_dp_post_pll_disable;
-	} else if (IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev_priv)) {
 		intel_encoder->pre_pll_enable = vlv_dp_pre_pll_enable;
 		intel_encoder->pre_enable = vlv_pre_enable_dp;
 		intel_encoder->enable = vlv_enable_dp;
