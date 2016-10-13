@@ -59,6 +59,7 @@ struct pca963x_chipdef {
 	u8			grpfreq;
 	u8			ledout_base;
 	int			n_leds;
+	unsigned int		scaling;
 };
 
 static struct pca963x_chipdef pca963x_chipdefs[] = {
@@ -189,6 +190,14 @@ static int pca963x_led_set(struct led_classdev *led_cdev,
 	return pca963x_brightness(pca963x, value);
 }
 
+static unsigned int pca963x_period_scale(struct pca963x_led *pca963x,
+	unsigned int val)
+{
+	unsigned int scaling = pca963x->chip->chipdef->scaling;
+
+	return scaling ? DIV_ROUND_CLOSEST(val * scaling, 1000) : val;
+}
+
 static int pca963x_blink_set(struct led_classdev *led_cdev,
 		unsigned long *delay_on, unsigned long *delay_off)
 {
@@ -207,14 +216,14 @@ static int pca963x_blink_set(struct led_classdev *led_cdev,
 		time_off = 500;
 	}
 
-	period = time_on + time_off;
+	period = pca963x_period_scale(pca963x, time_on + time_off);
 
 	/* If period not supported by hardware, default to someting sane. */
 	if ((period < PCA963X_BLINK_PERIOD_MIN) ||
 	    (period > PCA963X_BLINK_PERIOD_MAX)) {
 		time_on = 500;
 		time_off = 500;
-		period = time_on + time_off;
+		period = pca963x_period_scale(pca963x, 1000);
 	}
 
 	/*
@@ -222,7 +231,7 @@ static int pca963x_blink_set(struct led_classdev *led_cdev,
 	 *	(time_on / period) = (GDC / 256) ->
 	 *		GDC = ((time_on * 256) / period)
 	 */
-	gdc = (time_on * 256) / period;
+	gdc = (pca963x_period_scale(pca963x, time_on) * 256) / period;
 
 	/*
 	 * From manual: period = ((GFRQ + 1) / 24) in seconds.
@@ -293,6 +302,9 @@ pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
 		pdata->blink_type = PCA963X_HW_BLINK;
 	else
 		pdata->blink_type = PCA963X_SW_BLINK;
+
+	if (of_property_read_u32(np, "nxp,period-scale", &chip->scaling))
+		chip->scaling = 1000;
 
 	return pdata;
 }
