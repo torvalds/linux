@@ -263,8 +263,7 @@ jit_get_next_entry(struct jit_buf_desc *jd)
 		return NULL;
 
 	if (id >= JIT_CODE_MAX) {
-		pr_warning("next_entry: unknown prefix %d, skipping\n", id);
-		return NULL;
+		pr_warning("next_entry: unknown record type %d, skipping\n", id);
 	}
 	if (bs > jd->bufsize) {
 		void *n;
@@ -322,7 +321,8 @@ jit_get_next_entry(struct jit_buf_desc *jd)
 		break;
 	case JIT_CODE_MAX:
 	default:
-		return NULL;
+		/* skip unknown record (we have read them) */
+		break;
 	}
 	return jr;
 }
