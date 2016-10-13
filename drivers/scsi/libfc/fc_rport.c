@@ -1705,6 +1705,15 @@ static void fc_rport_recv_els_req(struct fc_lport *lport, struct fc_frame *fp)
 	case RPORT_ST_READY:
 	case RPORT_ST_ADISC:
 		break;
+	case RPORT_ST_PLOGI:
+		if (fc_frame_payload_op(fp) == ELS_PRLI) {
+			FC_RPORT_DBG(rdata, "Reject ELS PRLI "
+				     "while in state %s\n",
+				     fc_rport_state(rdata));
+			mutex_unlock(&rdata->rp_mutex);
+			kref_put(&rdata->kref, lport->tt.rport_destroy);
+			goto busy;
+		}
 	default:
 		FC_RPORT_DBG(rdata,
 			     "Reject ELS 0x%02x while in state %s\n",
@@ -1752,6 +1761,14 @@ reject:
 	els_data.explan = ELS_EXPL_PLOGI_REQD;
 	lport->tt.seq_els_rsp_send(fp, ELS_LS_RJT, &els_data);
 	fc_frame_free(fp);
+	return;
+
+busy:
+	els_data.reason = ELS_RJT_BUSY;
+	els_data.explan = ELS_EXPL_NONE;
+	lport->tt.seq_els_rsp_send(fp, ELS_LS_RJT, &els_data);
+	fc_frame_free(fp);
+	return;
 }
 
 /**
