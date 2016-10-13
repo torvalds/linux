@@ -204,8 +204,6 @@ struct scsi_info {
 	struct list_head waiting_rsp;
 #define NO_QUEUE                    0x00
 #define WAIT_ENABLED                0X01
-	/* driver has received an initialize command */
-#define PART_UP_WAIT_ENAB           0x02
 #define WAIT_CONNECTION             0x04
 	/* have established a connection */
 #define CONNECTED                   0x08
