@@ -2168,6 +2168,8 @@ static bool fcoe_match(struct net_device *netdev)
  */
 static void fcoe_dcb_create(struct fcoe_interface *fcoe)
 {
+	int ctlr_prio = TC_PRIO_BESTEFFORT;
+	int fcoe_prio = TC_PRIO_INTERACTIVE;
 #ifdef CONFIG_DCB
 	int dcbx;
 	u8 fup, up;
@@ -2194,10 +2196,12 @@ static void fcoe_dcb_create(struct fcoe_interface *fcoe)
 			fup = dcb_getapp(netdev, &app);
 		}
 
-		fcoe->priority = ffs(up) ? ffs(up) - 1 : 0;
-		ctlr->priority = ffs(fup) ? ffs(fup) - 1 : fcoe->priority;
+		fcoe_prio = ffs(up) ? ffs(up) - 1 : 0;
+		ctlr_prio = ffs(fup) ? ffs(fup) - 1 : fcoe_prio;
 	}
 #endif
+	fcoe->priority = fcoe_prio;
+	ctlr->priority = ctlr_prio;
 }
 
 enum fcoe_create_link_state {
