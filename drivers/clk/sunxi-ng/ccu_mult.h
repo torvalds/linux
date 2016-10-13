@@ -2,6 +2,7 @@
 #define _CCU_MULT_H_
 
 #include "ccu_common.h"
+#include "ccu_frac.h"
 #include "ccu_mux.h"
 
 struct ccu_mult_internal {
@@ -23,6 +24,7 @@ struct ccu_mult_internal {
 struct ccu_mult {
 	u32			enable;
 
+	struct ccu_frac_internal	frac;
 	struct ccu_mult_internal	mult;
 	struct ccu_mux_internal	mux;
 	struct ccu_common	common;

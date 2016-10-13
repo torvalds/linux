@@ -75,6 +75,9 @@ static unsigned long ccu_mult_recalc_rate(struct clk_hw *hw,
 	unsigned long val;
 	u32 reg;
 
+	if (ccu_frac_helper_is_enabled(&cm->common, &cm->frac))
+		return ccu_frac_helper_read_rate(&cm->common, &cm->frac);
+
 	reg = readl(cm->common.base + cm->common.reg);
 	val = reg >> cm->mult.shift;
 	val &= (1 << cm->mult.width) - 1;
@@ -101,6 +104,11 @@ static int ccu_mult_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct _ccu_mult _cm;
 	unsigned long flags;
 	u32 reg;
+
+	if (ccu_frac_helper_has_rate(&cm->common, &cm->frac, rate))
+		return ccu_frac_helper_set_rate(&cm->common, &cm->frac, rate);
+	else
+		ccu_frac_helper_disable(&cm->common, &cm->frac);
 
 	ccu_mux_helper_adjust_parent_for_prediv(&cm->common, &cm->mux, -1,
 						&parent_rate);
