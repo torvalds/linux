@@ -36,7 +36,7 @@
 
 #include <linux/isdnif.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 
 
 #include "pcbit.h"

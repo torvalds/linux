@@ -36,8 +36,8 @@
 
 #include <linux/skbuff.h>
 
-#include <asm/io.h>
-#include <asm/string.h>
+#include <linux/io.h>
+#include <linux/string.h>
 
 #include <linux/isdnif.h>
 
