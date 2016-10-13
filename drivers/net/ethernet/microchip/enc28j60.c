@@ -1544,7 +1544,6 @@ static const struct net_device_ops enc28j60_netdev_ops = {
 	.ndo_set_rx_mode	= enc28j60_set_multicast_list,
 	.ndo_set_mac_address	= enc28j60_set_mac_address,
 	.ndo_tx_timeout		= enc28j60_tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 

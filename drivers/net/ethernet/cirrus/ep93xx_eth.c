@@ -749,7 +749,6 @@ static const struct net_device_ops ep93xx_netdev_ops = {
 	.ndo_start_xmit		= ep93xx_xmit,
 	.ndo_do_ioctl		= ep93xx_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 

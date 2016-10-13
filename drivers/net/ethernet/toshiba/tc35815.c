@@ -747,7 +747,6 @@ static const struct net_device_ops tc35815_netdev_ops = {
 	.ndo_tx_timeout		= tc35815_tx_timeout,
 	.ndo_do_ioctl		= tc35815_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= tc35815_poll_controller,

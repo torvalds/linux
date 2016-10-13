@@ -184,7 +184,6 @@ static const struct net_device_ops nfeth_netdev_ops = {
 	.ndo_start_xmit		= nfeth_xmit,
 	.ndo_tx_timeout		= nfeth_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 

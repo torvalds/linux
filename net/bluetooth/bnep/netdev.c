@@ -211,7 +211,6 @@ static const struct net_device_ops bnep_netdev_ops = {
 	.ndo_set_rx_mode     = bnep_net_set_mc_list,
 	.ndo_set_mac_address = bnep_net_set_mac_addr,
 	.ndo_tx_timeout      = bnep_net_timeout,
-	.ndo_change_mtu	     = eth_change_mtu,
 
 };
 

@@ -1225,7 +1225,6 @@ static const struct net_device_ops ioc3_netdev_ops = {
 	.ndo_do_ioctl		= ioc3_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= ioc3_set_mac_address,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)

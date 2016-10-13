@@ -2669,7 +2669,6 @@ static const struct net_device_ops hme_netdev_ops = {
 	.ndo_tx_timeout		= happy_meal_tx_timeout,
 	.ndo_get_stats		= happy_meal_get_stats,
 	.ndo_set_rx_mode	= happy_meal_set_multicast,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };

@@ -1379,7 +1379,6 @@ static const struct net_device_ops ixp4xx_netdev_ops = {
 	.ndo_start_xmit = eth_xmit,
 	.ndo_set_rx_mode = eth_set_mcast_list,
 	.ndo_do_ioctl = eth_ioctl,
-	.ndo_change_mtu = eth_change_mtu,
 	.ndo_set_mac_address = eth_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
 };
