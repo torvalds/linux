@@ -4691,12 +4691,15 @@ unsigned int lpfc_fcp_look_ahead = LPFC_LOOK_AHEAD_OFF;
 #		HBA supports DIX Type 1: Host to HBA  Type 1 protection
 #
 */
-unsigned int lpfc_prot_mask = SHOST_DIF_TYPE1_PROTECTION |
-			      SHOST_DIX_TYPE0_PROTECTION |
-			      SHOST_DIX_TYPE1_PROTECTION;
-
-module_param(lpfc_prot_mask, uint, S_IRUGO);
-MODULE_PARM_DESC(lpfc_prot_mask, "host protection mask");
+LPFC_ATTR(prot_mask,
+	(SHOST_DIF_TYPE1_PROTECTION |
+	SHOST_DIX_TYPE0_PROTECTION |
+	SHOST_DIX_TYPE1_PROTECTION),
+	0,
+	(SHOST_DIF_TYPE1_PROTECTION |
+	SHOST_DIX_TYPE0_PROTECTION |
+	SHOST_DIX_TYPE1_PROTECTION),
+	"T10-DIF host protection capabilities mask");
 
 /*
 # lpfc_prot_guard: i
@@ -4706,9 +4709,9 @@ MODULE_PARM_DESC(lpfc_prot_mask, "host protection mask");
 #	- Default will result in registering capabilities for all guard types
 #
 */
-unsigned char lpfc_prot_guard = SHOST_DIX_GUARD_IP;
-module_param(lpfc_prot_guard, byte, S_IRUGO);
-MODULE_PARM_DESC(lpfc_prot_guard, "host protection guard type");
+LPFC_ATTR(prot_guard,
+	SHOST_DIX_GUARD_IP, SHOST_DIX_GUARD_CRC, SHOST_DIX_GUARD_IP,
+	"T10-DIF host protection guard type");
 
 /*
  * Delay initial NPort discovery when Clean Address bit is cleared in
@@ -5828,6 +5831,8 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	phba->cfg_oas_flags = 0;
 	phba->cfg_oas_priority = 0;
 	lpfc_enable_bg_init(phba, lpfc_enable_bg);
+	lpfc_prot_mask_init(phba, lpfc_prot_mask);
+	lpfc_prot_guard_init(phba, lpfc_prot_guard);
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		phba->cfg_poll = 0;
 	else

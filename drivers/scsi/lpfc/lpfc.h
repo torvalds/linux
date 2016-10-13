@@ -746,6 +746,8 @@ struct lpfc_hba {
 	uint32_t cfg_oas_priority;
 	uint32_t cfg_XLanePriority;
 	uint32_t cfg_enable_bg;
+	uint32_t cfg_prot_mask;
+	uint32_t cfg_prot_guard;
 	uint32_t cfg_hostmem_hgp;
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_aer_support;
