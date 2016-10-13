@@ -2659,7 +2659,7 @@ struct drm_i915_cmd_table {
 #define IS_CHERRYVIEW(dev)	(INTEL_INFO(dev)->is_cherryview)
 #define IS_HASWELL(dev_priv)	((dev_priv)->info.is_haswell)
 #define IS_BROADWELL(dev_priv)	((dev_priv)->info.is_broadwell)
-#define IS_SKYLAKE(dev)	(INTEL_INFO(dev)->is_skylake)
+#define IS_SKYLAKE(dev_priv)	((dev_priv)->info.is_skylake)
 #define IS_BROXTON(dev)		(INTEL_INFO(dev)->is_broxton)
 #define IS_KABYLAKE(dev_priv)	((dev_priv)->info.is_kabylake)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
