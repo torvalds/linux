@@ -786,14 +786,9 @@ new_range:
 		fake_numa_create_new_node(((start + size) >> PAGE_SHIFT), &nid);
 		node_set_online(nid);
 
-		if (!(size = numa_enforce_memory_limit(start, size))) {
-			if (--ranges)
-				goto new_range;
-			else
-				continue;
-		}
-
-		memblock_set_node(start, size, &memblock.memory, nid);
+		size = numa_enforce_memory_limit(start, size);
+		if (size)
+			memblock_set_node(start, size, &memblock.memory, nid);
 
 		if (--ranges)
 			goto new_range;
