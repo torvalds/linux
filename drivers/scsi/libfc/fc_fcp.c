@@ -460,6 +460,22 @@ static inline struct fc_frame *fc_fcp_frame_alloc(struct fc_lport *lport,
 }
 
 /**
+ * get_fsp_rec_tov() - Helper function to get REC_TOV
+ * @fsp: the FCP packet
+ *
+ * Returns rec tov in jiffies as rpriv->e_d_tov + 1 second
+ */
+static inline unsigned int get_fsp_rec_tov(struct fc_fcp_pkt *fsp)
+{
+	struct fc_rport_libfc_priv *rpriv = fsp->rport->dd_data;
+	unsigned int e_d_tov = FC_DEF_E_D_TOV;
+
+	if (rpriv && rpriv->e_d_tov > e_d_tov)
+		e_d_tov = rpriv->e_d_tov;
+	return msecs_to_jiffies(e_d_tov) + HZ;
+}
+
+/**
  * fc_fcp_recv_data() - Handler for receiving SCSI-FCP data from a target
  * @fsp: The FCP packet the data is on
  * @fp:	 The data frame
@@ -562,8 +578,10 @@ crc_err:
 	 * and completes the transfer, call the completion handler.
 	 */
 	if (unlikely(fsp->state & FC_SRB_RCV_STATUS) &&
-	    fsp->xfer_len == fsp->data_len - fsp->scsi_resid)
+	    fsp->xfer_len == fsp->data_len - fsp->scsi_resid) {
+		FC_FCP_DBG( fsp, "complete out-of-order sequence\n" );
 		fc_fcp_complete_locked(fsp);
+	}
 	return;
 err:
 	fc_fcp_recovery(fsp, host_bcode);
@@ -943,7 +961,7 @@ static void fc_fcp_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 				   "len %x, data len %x\n",
 				   fsp->rport->port_id,
 				   fsp->xfer_len, expected_len, fsp->data_len);
-			fc_fcp_timer_set(fsp, 2);
+			fc_fcp_timer_set(fsp, get_fsp_rec_tov(fsp));
 			return;
 		}
 		fsp->status_code = FC_DATA_OVRRUN;
@@ -1149,22 +1167,6 @@ static int fc_fcp_pkt_send(struct fc_lport *lport, struct fc_fcp_pkt *fsp)
 	}
 
 	return rc;
-}
-
-/**
- * get_fsp_rec_tov() - Helper function to get REC_TOV
- * @fsp: the FCP packet
- *
- * Returns rec tov in jiffies as rpriv->e_d_tov + 1 second
- */
-static inline unsigned int get_fsp_rec_tov(struct fc_fcp_pkt *fsp)
-{
-	struct fc_rport_libfc_priv *rpriv = fsp->rport->dd_data;
-	unsigned int e_d_tov = FC_DEF_E_D_TOV;
-
-	if (rpriv && rpriv->e_d_tov > e_d_tov)
-		e_d_tov = rpriv->e_d_tov;
-	return msecs_to_jiffies(e_d_tov) + HZ;
 }
 
 /**
