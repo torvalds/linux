@@ -1896,14 +1896,7 @@ static long ibmvscsis_mad(struct scsi_info *vscsi, struct viosrp_crq *crq)
 
 		pr_debug("mad: type %d\n", be32_to_cpu(mad->type));
 
-		if (be16_to_cpu(mad->length) < 0) {
-			dev_err(&vscsi->dev, "mad: length is < 0\n");
-			ibmvscsis_post_disconnect(vscsi,
-						  ERR_DISCONNECT_RECONNECT, 0);
-			rc = SRP_VIOLATION;
-		} else {
-			rc = ibmvscsis_process_mad(vscsi, iue);
-		}
+		rc = ibmvscsis_process_mad(vscsi, iue);
 
 		pr_debug("mad: status %hd, rc %ld\n", be16_to_cpu(mad->status),
 			 rc);
@@ -2523,7 +2516,6 @@ static void ibmvscsis_parse_cmd(struct scsi_info *vscsi,
 		dev_err(&vscsi->dev, "0x%llx: parsing SRP descriptor table failed.\n",
 			srp->tag);
 		goto fail;
-		return;
 	}
 
 	cmd->rsp.sol_not = srp->sol_not;
@@ -3282,7 +3274,8 @@ static int ibmvscsis_probe(struct vio_dev *vdev,
 	INIT_LIST_HEAD(&vscsi->waiting_rsp);
 	INIT_LIST_HEAD(&vscsi->active_q);
 
-	snprintf(vscsi->tport.tport_name, 256, "%s", dev_name(&vdev->dev));
+	snprintf(vscsi->tport.tport_name, IBMVSCSIS_NAMELEN, "%s",
+		 dev_name(&vdev->dev));
 
 	pr_debug("probe tport_name: %s\n", vscsi->tport.tport_name);
 
