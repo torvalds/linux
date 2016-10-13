@@ -703,7 +703,6 @@ static void nfs_init_lock_context(struct nfs_lock_context *l_ctx)
 {
 	atomic_set(&l_ctx->count, 1);
 	l_ctx->lockowner.l_owner = current->files;
-	l_ctx->lockowner.l_pid = current->tgid;
 	INIT_LIST_HEAD(&l_ctx->list);
 	atomic_set(&l_ctx->io_count, 0);
 }
@@ -715,8 +714,6 @@ static struct nfs_lock_context *__nfs_find_lock_context(struct nfs_open_context 
 
 	do {
 		if (pos->lockowner.l_owner != current->files)
-			continue;
-		if (pos->lockowner.l_pid != current->tgid)
 			continue;
 		atomic_inc(&pos->count);
 		return pos;

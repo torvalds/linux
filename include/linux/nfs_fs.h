@@ -57,7 +57,6 @@ struct nfs_access_entry {
 
 struct nfs_lockowner {
 	fl_owner_t l_owner;
-	pid_t l_pid;
 };
 
 struct nfs_lock_context {

@@ -2947,7 +2947,6 @@ static int _nfs4_do_setattr(struct inode *inode,
 	} else if (truncate && state != NULL) {
 		struct nfs_lockowner lockowner = {
 			.l_owner = current->files,
-			.l_pid = current->tgid,
 		};
 		if (!nfs4_valid_open_stateid(state))
 			return -EBADF;
