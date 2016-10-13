@@ -504,6 +504,7 @@ static void pmu_add_cpu_aliases(struct list_head *head)
 	struct pmu_events_map *map;
 	struct pmu_event *pe;
 	char *cpuid;
+	static bool printed;
 
 	cpuid = getenv("PERF_CPUID");
 	if (cpuid)
@@ -513,7 +514,10 @@ static void pmu_add_cpu_aliases(struct list_head *head)
 	if (!cpuid)
 		return;
 
-	pr_debug("Using CPUID %s\n", cpuid);
+	if (!printed) {
+		pr_debug("Using CPUID %s\n", cpuid);
+		printed = true;
+	}
 
 	i = 0;
 	while (1) {
