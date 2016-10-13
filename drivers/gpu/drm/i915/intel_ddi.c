@@ -1020,13 +1020,13 @@ static void bxt_ddi_clock_get(struct intel_encoder *encoder,
 void intel_ddi_clock_get(struct intel_encoder *encoder,
 			 struct intel_crtc_state *pipe_config)
 {
-	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (INTEL_INFO(dev)->gen <= 8)
+	if (INTEL_GEN(dev_priv) <= 8)
 		hsw_ddi_clock_get(encoder, pipe_config);
-	else if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
+	else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		skl_ddi_clock_get(encoder, pipe_config);
-	else if (IS_BROXTON(dev))
+	else if (IS_BROXTON(dev_priv))
 		bxt_ddi_clock_get(encoder, pipe_config);
 }
 
@@ -1081,14 +1081,14 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 bool intel_ddi_pll_select(struct intel_crtc *intel_crtc,
 			  struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
 	struct intel_encoder *intel_encoder =
 		intel_ddi_get_crtc_new_encoder(crtc_state);
 
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		return skl_ddi_pll_select(intel_crtc, crtc_state,
 					  intel_encoder);
-	else if (IS_BROXTON(dev))
+	else if (IS_BROXTON(dev_priv))
 		return bxt_ddi_pll_select(intel_crtc, crtc_state,
 					  intel_encoder);
 	else
@@ -1742,7 +1742,7 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
 		intel_edp_panel_off(intel_dp);
 	}
 
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		I915_WRITE(DPLL_CTRL2, (I915_READ(DPLL_CTRL2) |
 					DPLL_CTRL2_DDI_CLK_OFF(port)));
 	else if (INTEL_INFO(dev)->gen < 9)

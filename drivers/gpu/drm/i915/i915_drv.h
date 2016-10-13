@@ -2661,7 +2661,7 @@ struct drm_i915_cmd_table {
 #define IS_BROADWELL(dev_priv)	((dev_priv)->info.is_broadwell)
 #define IS_SKYLAKE(dev)	(INTEL_INFO(dev)->is_skylake)
 #define IS_BROXTON(dev)		(INTEL_INFO(dev)->is_broxton)
-#define IS_KABYLAKE(dev)	(INTEL_INFO(dev)->is_kabylake)
+#define IS_KABYLAKE(dev_priv)	((dev_priv)->info.is_kabylake)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 #define IS_HSW_EARLY_SDV(dev_priv) (IS_HASWELL(dev_priv) && \
 				    (INTEL_DEVID(dev_priv) & 0xFF00) == 0x0C00)
@@ -2728,8 +2728,8 @@ struct drm_i915_cmd_table {
 #define KBL_REVID_D0		0x3
 #define KBL_REVID_E0		0x4
 
-#define IS_KBL_REVID(p, since, until) \
-	(IS_KABYLAKE(p) && IS_REVID(p, since, until))
+#define IS_KBL_REVID(dev_priv, since, until) \
+	(IS_KABYLAKE(dev_priv) && IS_REVID(dev_priv, since, until))
 
 /*
  * The genX designation typically refers to the render engine, so render

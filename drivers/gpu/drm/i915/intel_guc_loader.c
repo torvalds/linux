@@ -736,7 +736,7 @@ void intel_guc_init(struct drm_device *dev)
 		fw_path = I915_BXT_GUC_UCODE;
 		guc_fw->guc_fw_major_wanted = BXT_FW_MAJOR;
 		guc_fw->guc_fw_minor_wanted = BXT_FW_MINOR;
-	} else if (IS_KABYLAKE(dev)) {
+	} else if (IS_KABYLAKE(dev_priv)) {
 		fw_path = I915_KBL_GUC_UCODE;
 		guc_fw->guc_fw_major_wanted = KBL_FW_MAJOR;
 		guc_fw->guc_fw_minor_wanted = KBL_FW_MINOR;

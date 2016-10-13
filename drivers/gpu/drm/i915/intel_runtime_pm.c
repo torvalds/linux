@@ -2594,7 +2594,7 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 
 	power_domains->initializing = true;
 
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		skl_display_core_init(dev_priv, resume);
 	} else if (IS_BROXTON(dev)) {
 		bxt_display_core_init(dev_priv, resume);
