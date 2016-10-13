@@ -1007,10 +1007,8 @@ static int xlr_net_probe(struct platform_device *pdev)
 	 */
 	adapter = (struct xlr_adapter *)
 		devm_kzalloc(&pdev->dev, sizeof(*adapter), GFP_KERNEL);
-	if (!adapter) {
-		err = -ENOMEM;
-		return err;
-	}
+	if (!adapter)
+		return -ENOMEM;
 
 	/*
 	 * XLR and XLS have 1 and 2 NAE controller respectively
