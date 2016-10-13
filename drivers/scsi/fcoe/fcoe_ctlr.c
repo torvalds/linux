@@ -2754,10 +2754,20 @@ static int fcoe_ctlr_vn_recv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		struct fc_rport_priv rdata;
 		struct fcoe_rport frport;
 	} buf;
-	int rc;
+	int rc, vlan_id = 0;
 
 	fiph = (struct fip_header *)skb->data;
 	sub = fiph->fip_subcode;
+
+	if (fip->lp->vlan)
+		vlan_id = skb_vlan_tag_get_id(skb);
+
+	if (vlan_id && vlan_id != fip->lp->vlan) {
+		LIBFCOE_FIP_DBG(fip, "vn_recv drop frame sub %x vlan %d\n",
+				sub, vlan_id);
+		rc = -EAGAIN;
+		goto drop;
+	}
 
 	rc = fcoe_ctlr_vn_parse(fip, skb, &buf.rdata);
 	if (rc) {
