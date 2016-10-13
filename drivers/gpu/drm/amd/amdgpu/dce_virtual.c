@@ -37,6 +37,9 @@
 #include "dce_v11_0.h"
 #include "dce_virtual.h"
 
+#define DCE_VIRTUAL_VBLANK_PERIOD 16666666
+
+
 static void dce_virtual_set_display_funcs(struct amdgpu_device *adev);
 static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev);
 static int dce_virtual_connector_encoder_init(struct amdgpu_device *adev,
