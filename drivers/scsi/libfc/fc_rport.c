@@ -1296,13 +1296,15 @@ static void fc_rport_rtv_resp(struct fc_seq *sp, struct fc_frame *fp,
 			tov = ntohl(rtv->rtv_r_a_tov);
 			if (tov == 0)
 				tov = 1;
-			rdata->r_a_tov = tov;
+			if (tov > rdata->r_a_tov)
+				rdata->r_a_tov = tov;
 			tov = ntohl(rtv->rtv_e_d_tov);
 			if (toq & FC_ELS_RTV_EDRES)
 				tov /= 1000000;
 			if (tov == 0)
 				tov = 1;
-			rdata->e_d_tov = tov;
+			if (tov > rdata->e_d_tov)
+				rdata->e_d_tov = tov;
 		}
 	}
 

@@ -1777,7 +1777,7 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 	if ((csp_flags & FC_SP_FT_FPORT) == 0) {
 		if (e_d_tov > lport->e_d_tov)
 			lport->e_d_tov = e_d_tov;
-		lport->r_a_tov = 2 * e_d_tov;
+		lport->r_a_tov = 2 * lport->e_d_tov;
 		fc_lport_set_port_id(lport, did, fp);
 		printk(KERN_INFO "host%d: libfc: "
 		       "Port (%6.6x) entered "
@@ -1789,8 +1789,10 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 				   get_unaligned_be64(
 					   &flp->fl_wwnn));
 	} else {
-		lport->e_d_tov = e_d_tov;
-		lport->r_a_tov = r_a_tov;
+		if (e_d_tov > lport->e_d_tov)
+			lport->e_d_tov = e_d_tov;
+		if (r_a_tov > lport->r_a_tov)
+			lport->r_a_tov = r_a_tov;
 		fc_host_fabric_name(lport->host) =
 			get_unaligned_be64(&flp->fl_wwnn);
 		fc_lport_set_port_id(lport, did, fp);
