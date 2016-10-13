@@ -876,6 +876,9 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	if (!newscreen)
 		return -ENOMEM;
 
+	if (vc == sel_cons)
+		clear_selection();
+
 	old_rows = vc->vc_rows;
 	old_row_size = vc->vc_size_row;
 
