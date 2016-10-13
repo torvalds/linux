@@ -233,7 +233,7 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 static struct drm_i915_gem_request *alloc_request(struct intel_overlay *overlay)
 {
 	struct drm_i915_private *dev_priv = overlay->i915;
-	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
+	struct intel_engine_cs *engine = dev_priv->engine[RCS];
 
 	return i915_gem_request_alloc(engine, dev_priv->kernel_context);
 }

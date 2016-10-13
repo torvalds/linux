@@ -1808,7 +1808,7 @@ struct drm_i915_private {
 
 	struct pci_dev *bridge_dev;
 	struct i915_gem_context *kernel_context;
-	struct intel_engine_cs engine[I915_NUM_ENGINES];
+	struct intel_engine_cs *engine[I915_NUM_ENGINES];
 	struct i915_vma *semaphore;
 	u32 next_seqno;
 
@@ -2125,19 +2125,11 @@ static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
 }
 
 /* Simple iterator over all initialised engines */
-#define for_each_engine(engine__, dev_priv__) \
-	for ((engine__) = &(dev_priv__)->engine[0]; \
-	     (engine__) < &(dev_priv__)->engine[I915_NUM_ENGINES]; \
-	     (engine__)++) \
-		for_each_if (intel_engine_initialized(engine__))
-
-/* Iterator with engine_id */
-#define for_each_engine_id(engine__, dev_priv__, id__) \
-	for ((engine__) = &(dev_priv__)->engine[0], (id__) = 0; \
-	     (engine__) < &(dev_priv__)->engine[I915_NUM_ENGINES]; \
-	     (engine__)++) \
-		for_each_if (((id__) = (engine__)->id, \
-			      intel_engine_initialized(engine__)))
+#define for_each_engine(engine__, dev_priv__, id__) \
+	for ((id__) = 0; \
+	     (id__) < I915_NUM_ENGINES; \
+	     (id__)++) \
+		for_each_if ((engine__) = (dev_priv__)->engine[(id__)])
 
 #define __mask_next_bit(mask) ({					\
 	int __idx = ffs(mask) - 1;					\
@@ -2148,7 +2140,7 @@ static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
 /* Iterator over subset of engines selected by mask */
 #define for_each_engine_masked(engine__, dev_priv__, mask__, tmp__) \
 	for (tmp__ = mask__ & INTEL_INFO(dev_priv__)->ring_mask;	\
-	     tmp__ ? (engine__ = &(dev_priv__)->engine[__mask_next_bit(tmp__)]), 1 : 0; )
+	     tmp__ ? (engine__ = (dev_priv__)->engine[__mask_next_bit(tmp__)]), 1 : 0; )
 
 enum hdmi_force_audio {
 	HDMI_AUDIO_OFF_DVI = -2,	/* no aux data for HDMI-DVI converter */

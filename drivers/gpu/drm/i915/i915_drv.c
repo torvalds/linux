@@ -255,16 +255,16 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = dev_priv->overlay ? 1 : 0;
 		break;
 	case I915_PARAM_HAS_BSD:
-		value = intel_engine_initialized(&dev_priv->engine[VCS]);
+		value = !!dev_priv->engine[VCS];
 		break;
 	case I915_PARAM_HAS_BLT:
-		value = intel_engine_initialized(&dev_priv->engine[BCS]);
+		value = !!dev_priv->engine[BCS];
 		break;
 	case I915_PARAM_HAS_VEBOX:
-		value = intel_engine_initialized(&dev_priv->engine[VECS]);
+		value = !!dev_priv->engine[VECS];
 		break;
 	case I915_PARAM_HAS_BSD2:
-		value = intel_engine_initialized(&dev_priv->engine[VCS2]);
+		value = !!dev_priv->engine[VCS2];
 		break;
 	case I915_PARAM_HAS_EXEC_CONSTANTS:
 		value = INTEL_GEN(dev_priv) >= 4;
@@ -1707,10 +1707,11 @@ int i915_resume_switcheroo(struct drm_device *dev)
 static void disable_engines_irq(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 
 	/* Ensure irq handler finishes, and not run again. */
 	disable_irq(dev_priv->drm.irq);
-	for_each_engine(engine, dev_priv)
+	for_each_engine(engine, dev_priv, id)
 		tasklet_kill(&engine->irq_tasklet);
 }
 

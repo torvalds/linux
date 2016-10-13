@@ -1228,7 +1228,7 @@ static int gen8_rcs_signal(struct drm_i915_gem_request *req)
 	if (ret)
 		return ret;
 
-	for_each_engine_id(waiter, dev_priv, id) {
+	for_each_engine(waiter, dev_priv, id) {
 		u64 gtt_offset = req->engine->semaphore.signal_ggtt[id];
 		if (gtt_offset == MI_SEMAPHORE_SYNC_INVALID)
 			continue;
@@ -1265,7 +1265,7 @@ static int gen8_xcs_signal(struct drm_i915_gem_request *req)
 	if (ret)
 		return ret;
 
-	for_each_engine_id(waiter, dev_priv, id) {
+	for_each_engine(waiter, dev_priv, id) {
 		u64 gtt_offset = req->engine->semaphore.signal_ggtt[id];
 		if (gtt_offset == MI_SEMAPHORE_SYNC_INVALID)
 			continue;
@@ -1292,6 +1292,7 @@ static int gen6_signal(struct drm_i915_gem_request *req)
 	struct intel_ring *ring = req->ring;
 	struct drm_i915_private *dev_priv = req->i915;
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	int ret, num_rings;
 
 	num_rings = INTEL_INFO(dev_priv)->num_rings;
@@ -1299,7 +1300,7 @@ static int gen6_signal(struct drm_i915_gem_request *req)
 	if (ret)
 		return ret;
 
-	for_each_engine(engine, dev_priv) {
+	for_each_engine(engine, dev_priv, id) {
 		i915_reg_t mbox_reg;
 
 		if (!(BIT(engine->hw_id) & GEN6_SEMAPHORES_MASK))
@@ -2091,9 +2092,6 @@ void intel_engine_cleanup(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv;
 
-	if (!intel_engine_initialized(engine))
-		return;
-
 	dev_priv = engine->i915;
 
 	if (engine->buffer) {
@@ -2120,13 +2118,16 @@ void intel_engine_cleanup(struct intel_engine_cs *engine)
 	intel_ring_context_unpin(dev_priv->kernel_context, engine);
 
 	engine->i915 = NULL;
+	dev_priv->engine[engine->id] = NULL;
+	kfree(engine);
 }
 
 void intel_legacy_submission_resume(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 
-	for_each_engine(engine, dev_priv) {
+	for_each_engine(engine, dev_priv, id) {
 		engine->buffer->head = engine->buffer->tail;
 		engine->buffer->last_retired_head = -1;
 	}

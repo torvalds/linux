@@ -395,12 +395,6 @@ struct intel_engine_cs {
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 };
 
-static inline bool
-intel_engine_initialized(const struct intel_engine_cs *engine)
-{
-	return engine->i915 != NULL;
-}
-
 static inline unsigned
 intel_engine_flag(const struct intel_engine_cs *engine)
 {
@@ -421,7 +415,7 @@ intel_engine_sync_index(struct intel_engine_cs *engine,
 	 * vcs2 -> 0 = rcs, 1 = vcs, 2 = bcs, 3 = vecs;
 	 */
 
-	idx = (other - engine) - 1;
+	idx = (other->id - engine->id) - 1;
 	if (idx < 0)
 		idx += I915_NUM_ENGINES;
 

@@ -1648,9 +1648,6 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv;
 
-	if (!intel_engine_initialized(engine))
-		return;
-
 	/*
 	 * Tasklet cannot be active at this point due intel_mark_active/idle
 	 * so this is just for documentation.
@@ -1677,13 +1674,16 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 
 	lrc_destroy_wa_ctx_obj(engine);
 	engine->i915 = NULL;
+	dev_priv->engine[engine->id] = NULL;
+	kfree(engine);
 }
 
 void intel_execlists_enable_submission(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 
-	for_each_engine(engine, dev_priv)
+	for_each_engine(engine, dev_priv, id)
 		engine->submit_request = execlists_submit_request;
 }
 
@@ -2151,6 +2151,7 @@ void intel_lr_context_resume(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
+	enum intel_engine_id id;
 
 	/* Because we emit WA_TAIL_DWORDS there may be a disparity
 	 * between our bookkeeping in ce->ring->head and ce->ring->tail and
@@ -2163,7 +2164,7 @@ void intel_lr_context_resume(struct drm_i915_private *dev_priv)
 	 * simplicity, we just zero everything out.
 	 */
 	list_for_each_entry(ctx, &dev_priv->context_list, link) {
-		for_each_engine(engine, dev_priv) {
+		for_each_engine(engine, dev_priv, id) {
 			struct intel_context *ce = &ctx->engine[engine->id];
 			u32 *reg;
 

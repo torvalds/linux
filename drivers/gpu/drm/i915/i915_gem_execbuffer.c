@@ -1599,12 +1599,12 @@ eb_select_engine(struct drm_i915_private *dev_priv,
 			return NULL;
 		}
 
-		engine = &dev_priv->engine[_VCS(bsd_idx)];
+		engine = dev_priv->engine[_VCS(bsd_idx)];
 	} else {
-		engine = &dev_priv->engine[user_ring_map[user_ring_id]];
+		engine = dev_priv->engine[user_ring_map[user_ring_id]];
 	}
 
-	if (!intel_engine_initialized(engine)) {
+	if (!engine) {
 		DRM_DEBUG("execbuf with invalid ring: %u\n", user_ring_id);
 		return NULL;
 	}

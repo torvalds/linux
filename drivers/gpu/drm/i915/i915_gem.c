@@ -2626,10 +2626,11 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 void i915_gem_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 
 	i915_gem_retire_requests(dev_priv);
 
-	for_each_engine(engine, dev_priv)
+	for_each_engine(engine, dev_priv, id)
 		i915_gem_reset_engine(engine);
 
 	i915_gem_restore_fences(&dev_priv->drm);
@@ -2677,12 +2678,13 @@ static void i915_gem_cleanup_engine(struct intel_engine_cs *engine)
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 	set_bit(I915_WEDGED, &dev_priv->gpu_error.flags);
 
 	i915_gem_context_lost(dev_priv);
-	for_each_engine(engine, dev_priv)
+	for_each_engine(engine, dev_priv, id)
 		i915_gem_cleanup_engine(engine);
 	mod_delayed_work(dev_priv->wq, &dev_priv->gt.idle_work, 0);
 
@@ -2721,6 +2723,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
 		container_of(work, typeof(*dev_priv), gt.idle_work.work);
 	struct drm_device *dev = &dev_priv->drm;
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	bool rearm_hangcheck;
 
 	if (!READ_ONCE(dev_priv->gt.awake))
@@ -2743,7 +2746,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	if (dev_priv->gt.active_engines)
 		goto out_unlock;
 
-	for_each_engine(engine, dev_priv)
+	for_each_engine(engine, dev_priv, id)
 		i915_gem_batch_pool_fini(&engine->batch_pool);
 
 	GEM_BUG_ON(!dev_priv->gt.awake);
@@ -2936,9 +2939,10 @@ int i915_gem_wait_for_idle(struct drm_i915_private *dev_priv,
 			   unsigned int flags)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	int ret;
 
-	for_each_engine(engine, dev_priv) {
+	for_each_engine(engine, dev_priv, id) {
 		if (engine->last_context == NULL)
 			continue;
 
@@ -3181,7 +3185,7 @@ i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 	 */
 	wmb();
 	if (INTEL_GEN(dev_priv) >= 6 && !HAS_LLC(dev_priv))
-		POSTING_READ(RING_ACTHD(dev_priv->engine[RCS].mmio_base));
+		POSTING_READ(RING_ACTHD(dev_priv->engine[RCS]->mmio_base));
 
 	intel_fb_obj_flush(obj, false, write_origin(obj, I915_GEM_DOMAIN_GTT));
 
@@ -4416,6 +4420,7 @@ i915_gem_init_hw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	int ret;
 
 	/* Double layer security blanket, see i915_gem_init() */
@@ -4459,7 +4464,7 @@ i915_gem_init_hw(struct drm_device *dev)
 	}
 
 	/* Need to do basic initialisation of all rings first: */
-	for_each_engine(engine, dev_priv) {
+	for_each_engine(engine, dev_priv, id) {
 		ret = engine->init_hw(engine);
 		if (ret)
 			goto out;
@@ -4558,15 +4563,10 @@ i915_gem_cleanup_engines(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 
-	for_each_engine(engine, dev_priv)
+	for_each_engine(engine, dev_priv, id)
 		dev_priv->gt.cleanup_engine(engine);
-}
-
-static void
-init_engine_lists(struct intel_engine_cs *engine)
-{
-	INIT_LIST_HEAD(&engine->request_list);
 }
 
 void
@@ -4605,7 +4605,6 @@ void
 i915_gem_load_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	int i;
 
 	dev_priv->objects =
 		kmem_cache_create("i915_gem_object",
@@ -4629,8 +4628,6 @@ i915_gem_load_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->mm.unbound_list);
 	INIT_LIST_HEAD(&dev_priv->mm.bound_list);
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
-	for (i = 0; i < I915_NUM_ENGINES; i++)
-		init_engine_lists(&dev_priv->engine[i]);
 	INIT_DELAYED_WORK(&dev_priv->gt.retire_work,
 			  i915_gem_retire_work_handler);
 	INIT_DELAYED_WORK(&dev_priv->gt.idle_work,

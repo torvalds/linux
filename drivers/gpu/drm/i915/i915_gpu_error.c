@@ -632,7 +632,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 			len += scnprintf(buf + len, sizeof(buf), "%s%s",
 					 first ? "" : ", ",
-					 dev_priv->engine[j].name);
+					 dev_priv->engine[j]->name);
 			first = 0;
 		}
 		scnprintf(buf + len, sizeof(buf), ")");
@@ -650,7 +650,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 		obj = ee->batchbuffer;
 		if (obj) {
-			err_puts(m, dev_priv->engine[i].name);
+			err_puts(m, dev_priv->engine[i]->name);
 			if (ee->pid != -1)
 				err_printf(m, " (submitted by %s [%d])",
 					   ee->comm,
@@ -658,12 +658,12 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			err_printf(m, " --- gtt_offset = 0x%08x %08x\n",
 				   upper_32_bits(obj->gtt_offset),
 				   lower_32_bits(obj->gtt_offset));
-			print_error_obj(m, &dev_priv->engine[i], NULL, obj);
+			print_error_obj(m, dev_priv->engine[i], NULL, obj);
 		}
 
 		if (ee->num_requests) {
 			err_printf(m, "%s --- %d requests\n",
-				   dev_priv->engine[i].name,
+				   dev_priv->engine[i]->name,
 				   ee->num_requests);
 			for (j = 0; j < ee->num_requests; j++)
 				error_print_request(m, " ", &ee->requests[j]);
@@ -671,10 +671,10 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 		if (IS_ERR(ee->waiters)) {
 			err_printf(m, "%s --- ? waiters [unable to acquire spinlock]\n",
-				   dev_priv->engine[i].name);
+				   dev_priv->engine[i]->name);
 		} else if (ee->num_waiters) {
 			err_printf(m, "%s --- %d waiters\n",
-				   dev_priv->engine[i].name,
+				   dev_priv->engine[i]->name,
 				   ee->num_waiters);
 			for (j = 0; j < ee->num_waiters; j++) {
 				err_printf(m, " seqno 0x%08x for %s [%d]\n",
@@ -684,19 +684,19 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			}
 		}
 
-		print_error_obj(m, &dev_priv->engine[i],
+		print_error_obj(m, dev_priv->engine[i],
 				"ringbuffer", ee->ringbuffer);
 
-		print_error_obj(m, &dev_priv->engine[i],
+		print_error_obj(m, dev_priv->engine[i],
 				"HW Status", ee->hws_page);
 
-		print_error_obj(m, &dev_priv->engine[i],
+		print_error_obj(m, dev_priv->engine[i],
 				"HW context", ee->ctx);
 
-		print_error_obj(m, &dev_priv->engine[i],
+		print_error_obj(m, dev_priv->engine[i],
 				"WA context", ee->wa_ctx);
 
-		print_error_obj(m, &dev_priv->engine[i],
+		print_error_obj(m, dev_priv->engine[i],
 				"WA batchbuffer", ee->wa_batchbuffer);
 	}
 
@@ -977,7 +977,7 @@ static void gen8_record_semaphore_state(struct drm_i915_error_state *error,
 	if (!error->semaphore)
 		return;
 
-	for_each_engine_id(to, dev_priv, id) {
+	for_each_engine(to, dev_priv, id) {
 		int idx;
 		u16 signal_offset;
 		u32 *tmp;
@@ -1247,14 +1247,14 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 		i915_error_object_create(dev_priv, dev_priv->semaphore);
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
-		struct intel_engine_cs *engine = &dev_priv->engine[i];
+		struct intel_engine_cs *engine = dev_priv->engine[i];
 		struct drm_i915_error_engine *ee = &error->engine[i];
 		struct drm_i915_gem_request *request;
 
 		ee->pid = -1;
 		ee->engine_id = -1;
 
-		if (!intel_engine_initialized(engine))
+		if (!engine)
 			continue;
 
 		ee->engine_id = i;

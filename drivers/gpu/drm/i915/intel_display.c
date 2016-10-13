@@ -12243,19 +12243,19 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		work->flip_count = I915_READ(PIPE_FLIPCOUNT_G4X(pipe)) + 1;
 
 	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
-		engine = &dev_priv->engine[BCS];
+		engine = dev_priv->engine[BCS];
 		if (fb->modifier[0] != old_fb->modifier[0])
 			/* vlv: DISPLAY_FLIP fails to change tiling */
 			engine = NULL;
 	} else if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
-		engine = &dev_priv->engine[BCS];
+		engine = dev_priv->engine[BCS];
 	} else if (INTEL_INFO(dev)->gen >= 7) {
 		engine = i915_gem_active_get_engine(&obj->last_write,
 						    &obj->base.dev->struct_mutex);
 		if (engine == NULL || engine->id != RCS)
-			engine = &dev_priv->engine[BCS];
+			engine = dev_priv->engine[BCS];
 	} else {
-		engine = &dev_priv->engine[RCS];
+		engine = dev_priv->engine[RCS];
 	}
 
 	mmio_flip = use_mmio_flip(engine, obj);
