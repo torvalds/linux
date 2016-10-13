@@ -485,15 +485,8 @@ int stb0899_read_regs(struct stb0899_state *state, unsigned int reg, u8 *buf, u3
 	    (((reg & 0xff00) == 0xf200) || ((reg & 0xff00) == 0xf600)))
 		_stb0899_read_reg(state, (reg | 0x00ff));
 
-	if (unlikely(*state->verbose >= FE_DEBUGREG)) {
-		int i;
-
-		printk(KERN_DEBUG "%s [0x%04x]:", __func__, reg);
-		for (i = 0; i < count; i++) {
-			printk(" %02x", buf[i]);
-		}
-		printk("\n");
-	}
+	dprintk(state->verbose, FE_DEBUGREG, 1,
+		"%s [0x%04x]: %*ph", __func__, reg, count, buf);
 
 	return 0;
 err:
@@ -522,14 +515,8 @@ int stb0899_write_regs(struct stb0899_state *state, unsigned int reg, u8 *data, 
 	buf[1] = reg & 0xff;
 	memcpy(&buf[2], data, count);
 
-	if (unlikely(*state->verbose >= FE_DEBUGREG)) {
-		int i;
-
-		printk(KERN_DEBUG "%s [0x%04x]:", __func__, reg);
-		for (i = 0; i < count; i++)
-			printk(" %02x", data[i]);
-		printk("\n");
-	}
+	dprintk(state->verbose, FE_DEBUGREG, 1,
+		"%s [0x%04x]: %*ph", __func__, reg, count, data);
 	ret = i2c_transfer(state->i2c, &i2c_msg, 1);
 
 	/*
