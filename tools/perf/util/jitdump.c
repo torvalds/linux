@@ -180,6 +180,12 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 			header.elf_mach,
 			jd->use_arch_timestamp);
 
+	if (header.version > JITHEADER_VERSION) {
+		pr_err("wrong jitdump version %u, expected " STR(JITHEADER_VERSION),
+			header.version);
+		goto error;
+	}
+
 	if (header.flags & JITDUMP_FLAGS_RESERVED) {
 		pr_err("jitdump file contains invalid or unsupported flags 0x%llx\n",
 		       (unsigned long long)header.flags & JITDUMP_FLAGS_RESERVED);
