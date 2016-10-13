@@ -91,13 +91,16 @@
 #define FRAME_BTA_ACK			BIT(14)
 #define ENABLE_LOW_POWER		(0x3f << 8)
 #define ENABLE_LOW_POWER_MASK		(0x3f << 8)
-#define VID_MODE_TYPE_BURST_SYNC_PULSES		0x2
-#define VID_MODE_TYPE_MASK			0x3
+#define VID_MODE_TYPE_BURST_SYNC_PULSES	0x0
+#define VID_MODE_TYPE_BURST_SYNC_EVENTS	0x1
+#define VID_MODE_TYPE_BURST		0x2
 
 #define DSI_VID_PKT_SIZE		0x3c
 #define VID_PKT_SIZE(p)			(((p) & 0x3fff) << 0)
 #define VID_PKT_MAX_SIZE		0x3fff
 
+#define DSI_VID_NUM_CHUMKS		0x40
+#define DSI_VID_NULL_PKT_SIZE		0x44
 #define DSI_VID_HSA_TIME		0x48
 #define DSI_VID_HBP_TIME		0x4c
 #define DSI_VID_HLINE_TIME		0x50
@@ -690,7 +693,7 @@ static void dw_mipi_dsi_video_mode_config(struct dw_mipi_dsi *dsi)
 {
 	u32 val;
 
-	val = VID_MODE_TYPE_BURST_SYNC_PULSES | ENABLE_LOW_POWER;
+	val = VID_MODE_TYPE_BURST | ENABLE_LOW_POWER;
 
 	dsi_write(dsi, DSI_VID_MODE_CFG, val);
 }
