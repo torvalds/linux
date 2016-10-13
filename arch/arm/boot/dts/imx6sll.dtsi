@@ -616,7 +616,7 @@
 					<GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SLL_CLK_DUMMY>,
 					 <&clks IMX6SLL_CLK_PXP>;
-				clock-names = "pxp-ipg", "disp-axi";
+				clock-names = "pxp_ipg", "pxp_axi";
 				status = "disabled";
 			};
 
