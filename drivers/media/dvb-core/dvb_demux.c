@@ -36,8 +36,6 @@
 
 #include "dvb_demux.h"
 
-#define NOBUFS
-
 static int dvb_demux_tscheck;
 module_param(dvb_demux_tscheck, int, 0644);
 MODULE_PARM_DESC(dvb_demux_tscheck,
@@ -663,8 +661,7 @@ out:
 }
 
 static int dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
-			   enum dmx_ts_pes pes_type,
-			   size_t circular_buffer_size, ktime_t timeout)
+			   enum dmx_ts_pes pes_type, ktime_t timeout)
 {
 	struct dvb_demux_feed *feed = (struct dvb_demux_feed *)ts_feed;
 	struct dvb_demux *demux = feed->demux;
@@ -694,22 +691,9 @@ static int dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	dvb_demux_feed_add(feed);
 
 	feed->pid = pid;
-	feed->buffer_size = circular_buffer_size;
 	feed->timeout = timeout;
 	feed->ts_type = ts_type;
 	feed->pes_type = pes_type;
-
-	if (feed->buffer_size) {
-#ifdef NOBUFS
-		feed->buffer = NULL;
-#else
-		feed->buffer = vmalloc(feed->buffer_size);
-		if (!feed->buffer) {
-			mutex_unlock(&demux->mutex);
-			return -ENOMEM;
-		}
-#endif
-	}
 
 	feed->state = DMX_STATE_READY;
 	mutex_unlock(&demux->mutex);
@@ -799,7 +783,6 @@ static int dvbdmx_allocate_ts_feed(struct dmx_demux *dmx,
 	feed->demux = demux;
 	feed->pid = 0xffff;
 	feed->peslen = 0xfffa;
-	feed->buffer = NULL;
 
 	(*ts_feed) = &feed->feed.ts;
 	(*ts_feed)->parent = dmx;
@@ -836,10 +819,6 @@ static int dvbdmx_release_ts_feed(struct dmx_demux *dmx,
 		mutex_unlock(&demux->mutex);
 		return -EINVAL;
 	}
-#ifndef NOBUFS
-	vfree(feed->buffer);
-	feed->buffer = NULL;
-#endif
 
 	feed->state = DMX_STATE_FREE;
 	feed->filter->state = DMX_STATE_FREE;
@@ -891,8 +870,7 @@ static int dmx_section_feed_allocate_filter(struct dmx_section_feed *feed,
 }
 
 static int dmx_section_feed_set(struct dmx_section_feed *feed,
-				u16 pid, size_t circular_buffer_size,
-				int check_crc)
+				u16 pid, int check_crc)
 {
 	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *)feed;
 	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
@@ -906,18 +884,7 @@ static int dmx_section_feed_set(struct dmx_section_feed *feed,
 	dvb_demux_feed_add(dvbdmxfeed);
 
 	dvbdmxfeed->pid = pid;
-	dvbdmxfeed->buffer_size = circular_buffer_size;
 	dvbdmxfeed->feed.sec.check_crc = check_crc;
-
-#ifdef NOBUFS
-	dvbdmxfeed->buffer = NULL;
-#else
-	dvbdmxfeed->buffer = vmalloc(dvbdmxfeed->buffer_size);
-	if (!dvbdmxfeed->buffer) {
-		mutex_unlock(&dvbdmx->mutex);
-		return -ENOMEM;
-	}
-#endif
 
 	dvbdmxfeed->state = DMX_STATE_READY;
 	mutex_unlock(&dvbdmx->mutex);
@@ -1077,7 +1044,6 @@ static int dvbdmx_allocate_section_feed(struct dmx_demux *demux,
 	dvbdmxfeed->feed.sec.secbufp = dvbdmxfeed->feed.sec.seclen = 0;
 	dvbdmxfeed->feed.sec.tsfeedp = 0;
 	dvbdmxfeed->filter = NULL;
-	dvbdmxfeed->buffer = NULL;
 
 	(*feed) = &dvbdmxfeed->feed.sec;
 	(*feed)->is_filtering = 0;
@@ -1106,10 +1072,6 @@ static int dvbdmx_release_section_feed(struct dmx_demux *demux,
 		mutex_unlock(&dvbdmx->mutex);
 		return -EINVAL;
 	}
-#ifndef NOBUFS
-	vfree(dvbdmxfeed->buffer);
-	dvbdmxfeed->buffer = NULL;
-#endif
 	dvbdmxfeed->state = DMX_STATE_FREE;
 
 	dvb_demux_feed_del(dvbdmxfeed);
