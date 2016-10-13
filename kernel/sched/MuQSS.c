@@ -2165,16 +2165,21 @@ static inline void init_schedstats(void) {}
 void wake_up_new_task(struct task_struct *p)
 {
 	struct task_struct *parent, *rq_curr;
+	struct rq *rq, *new_rq;
 	unsigned long flags;
-	struct rq *rq;
 
 	parent = p->parent;
 
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
 	p->state = TASK_RUNNING;
-	if (unlikely(needs_other_cpu(p, task_cpu(p))))
+	/* Task_rq can't change yet on a new task */
+	new_rq = rq = task_rq(p);
+	if (unlikely(needs_other_cpu(p, task_cpu(p)))) {
 		set_task_cpu(p, valid_task_cpu(p));
-	rq = __task_rq_lock(p);
+		new_rq = task_rq(p);
+	}
+
+	double_rq_lock(rq, new_rq);
 	update_clocks(rq);
 	rq_curr = rq->curr;
 
@@ -2210,9 +2215,11 @@ void wake_up_new_task(struct task_struct *p)
 			time_slice_expired(p, rq);
 			if (suitable_idle_cpus(p))
 				resched_best_idle(p, task_cpu(p));
+			else if (unlikely(rq != new_rq))
+				try_preempt(p, new_rq);
 		} else {
 			p->time_slice = rq->rq_time_slice;
-			if (rq_curr == parent && !suitable_idle_cpus(p)) {
+			if (rq_curr == parent && rq == new_rq && !suitable_idle_cpus(p)) {
 				/*
 				 * The VM isn't cloned, so we're in a good position to
 				 * do child-runs-first in anticipation of an exec. This
@@ -2220,13 +2227,14 @@ void wake_up_new_task(struct task_struct *p)
 				 */
 				__set_tsk_resched(rq_curr);
 			} else
-				try_preempt(p, rq);
+				try_preempt(p, new_rq);
 		}
 	} else {
 		time_slice_expired(p, rq);
-		try_preempt(p, rq);
+		try_preempt(p, new_rq);
 	}
-	task_rq_unlock(rq, p, &flags);
+	double_rq_unlock(rq, new_rq);
+	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 }
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
