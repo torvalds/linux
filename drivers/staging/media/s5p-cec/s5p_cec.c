@@ -231,7 +231,7 @@ static int s5p_cec_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int s5p_cec_runtime_suspend(struct device *dev)
+static int __maybe_unused s5p_cec_runtime_suspend(struct device *dev)
 {
 	struct s5p_cec_dev *cec = dev_get_drvdata(dev);
 
@@ -239,7 +239,7 @@ static int s5p_cec_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int s5p_cec_runtime_resume(struct device *dev)
+static int __maybe_unused s5p_cec_runtime_resume(struct device *dev)
 {
 	struct s5p_cec_dev *cec = dev_get_drvdata(dev);
 	int ret;
