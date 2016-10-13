@@ -82,7 +82,7 @@ struct i740fb_par {
 #define DACSPEED24_SD	128
 #define DACSPEED32	86
 
-static struct fb_fix_screeninfo i740fb_fix = {
+static const struct fb_fix_screeninfo i740fb_fix = {
 	.id =		"i740fb",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_TRUECOLOR,
