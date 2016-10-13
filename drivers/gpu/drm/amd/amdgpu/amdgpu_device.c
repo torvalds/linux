@@ -2958,12 +2958,13 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x14);
 		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x1A);
 		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x1B);
-	} else {
-		return -EINVAL;
 	}
 
 	amdgpu_gfx_select_se_sh(adev, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
 	mutex_unlock(&adev->grbm_idx_mutex);
+
+	if (!x)
+		return -EINVAL;
 
 	while (size && (*pos < x * 4)) {
 		uint32_t value;
