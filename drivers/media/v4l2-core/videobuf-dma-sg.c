@@ -156,6 +156,7 @@ static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
 {
 	unsigned long first, last;
 	int err, rw = 0;
+	unsigned int flags = FOLL_FORCE;
 
 	dma->direction = direction;
 	switch (dma->direction) {
@@ -178,13 +179,15 @@ static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
 	if (NULL == dma->pages)
 		return -ENOMEM;
 
+	if (rw == READ)
+		flags |= FOLL_WRITE;
+
 	dprintk(1, "init user [0x%lx+0x%lx => %d pages]\n",
 		data, size, dma->nr_pages);
 
 	err = get_user_pages(current, current->mm,
 			     data & PAGE_MASK, dma->nr_pages,
-			     rw == READ, 1, /* force */
-			     dma->pages, NULL);
+			     flags, dma->pages, NULL);
 
 	if (err != dma->nr_pages) {
 		dma->nr_pages = (err >= 0) ? err : 0;

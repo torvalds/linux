@@ -2724,7 +2724,6 @@ static int cryptocop_ioctl_process(struct inode *inode, struct file *filp, unsig
 			     (unsigned long int)(oper.indata + prev_ix),
 			     noinpages,
 			     0,  /* read access only for in data */
-			     0, /* no force */
 			     inpages,
 			     NULL);
 
@@ -2740,8 +2739,7 @@ static int cryptocop_ioctl_process(struct inode *inode, struct file *filp, unsig
 				     current->mm,
 				     (unsigned long int)oper.cipher_outdata,
 				     nooutpages,
-				     1, /* write access for out data */
-				     0, /* no force */
+				     FOLL_WRITE, /* write access for out data */
 				     outpages,
 				     NULL);
 		up_read(&current->mm->mmap_sem);
