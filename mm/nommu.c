@@ -160,18 +160,11 @@ finish_or_fault:
  * - don't permit access to VMAs that don't support it, such as I/O mappings
  */
 long get_user_pages(unsigned long start, unsigned long nr_pages,
-		    int write, int force, struct page **pages,
+		    unsigned int gup_flags, struct page **pages,
 		    struct vm_area_struct **vmas)
 {
-	int flags = 0;
-
-	if (write)
-		flags |= FOLL_WRITE;
-	if (force)
-		flags |= FOLL_FORCE;
-
-	return __get_user_pages(current, current->mm, start, nr_pages, flags,
-				pages, vmas, NULL);
+	return __get_user_pages(current, current->mm, start, nr_pages,
+				gup_flags, pages, vmas, NULL);
 }
 EXPORT_SYMBOL(get_user_pages);
 
@@ -179,10 +172,7 @@ long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
 			    unsigned int gup_flags, struct page **pages,
 			    int *locked)
 {
-	int write = gup_flags & FOLL_WRITE;
-	int force = gup_flags & FOLL_FORCE;
-
-	return get_user_pages(start, nr_pages, write, force, pages, NULL);
+	return get_user_pages(start, nr_pages, gup_flags, pages, NULL);
 }
 EXPORT_SYMBOL(get_user_pages_locked);
 
