@@ -4007,39 +4007,10 @@ lpfc_sriov_nr_virtfn_store(struct device *dev, struct device_attribute *attr,
 	return rc;
 }
 
-static int lpfc_sriov_nr_virtfn = LPFC_DEF_VFN_PER_PFN;
-module_param(lpfc_sriov_nr_virtfn, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(lpfc_sriov_nr_virtfn, "Enable PCIe device SR-IOV virtual fn");
+LPFC_ATTR(sriov_nr_virtfn, LPFC_DEF_VFN_PER_PFN, 0, LPFC_MAX_VFN_PER_PFN,
+	"Enable PCIe device SR-IOV virtual fn");
+
 lpfc_param_show(sriov_nr_virtfn)
-
-/**
- * lpfc_sriov_nr_virtfn_init - Set the initial sr-iov virtual function enable
- * @phba: lpfc_hba pointer.
- * @val: link speed value.
- *
- * Description:
- * If val is in a valid range [0,255], then set the adapter's initial
- * cfg_sriov_nr_virtfn field. If it's greater than the maximum, the maximum
- * number shall be used instead. It will be up to the driver's probe_one
- * routine to determine whether the device's SR-IOV is supported or not.
- *
- * Returns:
- * zero if val saved.
- * -EINVAL val out of range
- **/
-static int
-lpfc_sriov_nr_virtfn_init(struct lpfc_hba *phba, int val)
-{
-	if (val >= 0 && val <= LPFC_MAX_VFN_PER_PFN) {
-		phba->cfg_sriov_nr_virtfn = val;
-		return 0;
-	}
-
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"3017 Enabling %d virtual functions is not "
-			"allowed.\n", val);
-	return -EINVAL;
-}
 static DEVICE_ATTR(lpfc_sriov_nr_virtfn, S_IRUGO | S_IWUSR,
 		   lpfc_sriov_nr_virtfn_show, lpfc_sriov_nr_virtfn_store);
 
