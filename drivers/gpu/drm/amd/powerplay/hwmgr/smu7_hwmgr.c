@@ -1030,20 +1030,19 @@ static int smu7_disable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	/* disable SCLK dpm */
-	if (!data->sclk_dpm_key_disabled)
-		PP_ASSERT_WITH_CODE(
-				(smum_send_msg_to_smc(hwmgr->smumgr,
-						PPSMC_MSG_DPM_Disable) == 0),
-				"Failed to disable SCLK DPM!",
-				return -EINVAL);
+	if (!data->sclk_dpm_key_disabled) {
+		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
+				"Trying to disable SCLK DPM when DPM is disabled",
+				return 0);
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_DPM_Disable);
+	}
 
 	/* disable MCLK dpm */
 	if (!data->mclk_dpm_key_disabled) {
-		PP_ASSERT_WITH_CODE(
-				(smum_send_msg_to_smc(hwmgr->smumgr,
-						PPSMC_MSG_MCLKDPM_Disable) == 0),
-				"Failed to disable MCLK DPM!",
-				return -EINVAL);
+		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
+				"Trying to disable MCLK DPM when DPM is disabled",
+				return 0);
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_MCLKDPM_Disable);
 	}
 
 	return 0;
@@ -1069,10 +1068,13 @@ static int smu7_stop_dpm(struct pp_hwmgr *hwmgr)
 				return -EINVAL);
 	}
 
-	if (smu7_disable_sclk_mclk_dpm(hwmgr)) {
-		printk(KERN_ERR "Failed to disable Sclk DPM and Mclk DPM!");
-		return -EINVAL;
-	}
+	smu7_disable_sclk_mclk_dpm(hwmgr);
+
+	PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
+			"Trying to disable voltage DPM when DPM is disabled",
+			return 0);
+
+	smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_Voltage_Cntl_Disable);
 
 	return 0;
 }
@@ -1305,6 +1307,12 @@ int smu7_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result = smu7_disable_thermal_auto_throttle(hwmgr);
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
 			"Failed to disable thermal auto throttle!", result = tmp_result);
+
+	if (1 == PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON)) {
+		PP_ASSERT_WITH_CODE((0 == smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_DisableAvfs)),
+					"Failed to disable AVFS!",
+					return -EINVAL);
+	}
 
 	tmp_result = smu7_stop_dpm(hwmgr);
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
@@ -4328,6 +4336,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.set_mclk_od = smu7_set_mclk_od,
 	.get_clock_by_type = smu7_get_clock_by_type,
 	.read_sensor = smu7_read_sensor,
+	.dynamic_state_management_disable = smu7_disable_dpm_tasks,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,
