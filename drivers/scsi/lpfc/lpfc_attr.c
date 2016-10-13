@@ -4393,12 +4393,10 @@ LPFC_VPORT_ATTR_RW(first_burst_size, 0, 0, 65536,
 # to limit the I/O completion time to the parameter value.
 # The value is set in milliseconds.
 */
-static int lpfc_max_scsicmpl_time;
-module_param(lpfc_max_scsicmpl_time, int, S_IRUGO);
-MODULE_PARM_DESC(lpfc_max_scsicmpl_time,
+LPFC_VPORT_ATTR(max_scsicmpl_time, 0, 0, 60000,
 	"Use command completion time to control queue depth");
+
 lpfc_vport_param_show(max_scsicmpl_time);
-lpfc_vport_param_init(max_scsicmpl_time, 0, 0, 60000);
 static int
 lpfc_max_scsicmpl_time_set(struct lpfc_vport *vport, int val)
 {
