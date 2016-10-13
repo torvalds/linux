@@ -137,7 +137,7 @@ static void _rtl92s_set_antennadiff(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
-	char ant_pwr_diff = 0;
+	s8 ant_pwr_diff = 0;
 	u32	u4reg_val = 0;
 
 	if (rtlphy->rf_type == RF_2T2R) {

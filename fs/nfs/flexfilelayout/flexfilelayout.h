@@ -84,7 +84,6 @@ struct nfs4_ff_layout_mirror {
 	struct nfs4_ff_layoutstat	read_stat;
 	struct nfs4_ff_layoutstat	write_stat;
 	ktime_t				start_time;
-	ktime_t				last_report_time;
 	u32				report_interval;
 };
 
@@ -101,6 +100,7 @@ struct nfs4_flexfile_layout {
 	struct pnfs_ds_commit_info commit_info;
 	struct list_head	mirrors;
 	struct list_head	error_list; /* nfs4_ff_layout_ds_err */
+	ktime_t			last_report_time; /* Layoutstat report times */
 };
 
 static inline struct nfs4_flexfile_layout *

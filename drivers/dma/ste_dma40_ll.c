@@ -10,7 +10,7 @@
 
 #include "ste_dma40_ll.h"
 
-u8 d40_width_to_bits(enum dma_slave_buswidth width)
+static u8 d40_width_to_bits(enum dma_slave_buswidth width)
 {
 	if (width == DMA_SLAVE_BUSWIDTH_1_BYTE)
 		return STEDMA40_ESIZE_8_BIT;

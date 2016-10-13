@@ -24,10 +24,8 @@
 #define GMAC_QX_TX_FLOW_CTRL(x)		(0x70 + x * 4)
 #define GMAC_INT_STATUS			0x000000b0
 #define GMAC_INT_EN			0x000000b4
-#define GMAC_AN_CTRL			0x000000e0
-#define GMAC_AN_STATUS			0x000000e4
-#define GMAC_AN_ADV			0x000000e8
-#define GMAC_AN_LPA			0x000000ec
+#define GMAC_PCS_BASE			0x000000e0
+#define GMAC_PHYIF_CONTROL_STATUS	0x000000f8
 #define GMAC_PMT			0x000000c0
 #define GMAC_VERSION			0x00000110
 #define GMAC_DEBUG			0x00000114
@@ -54,8 +52,17 @@
 #define GMAC_TX_FLOW_CTRL_PT_SHIFT	16
 
 /*  MAC Interrupt bitmap*/
+#define GMAC_INT_RGSMIIS		BIT(0)
+#define GMAC_INT_PCS_LINK		BIT(1)
+#define GMAC_INT_PCS_ANE		BIT(2)
+#define GMAC_INT_PCS_PHYIS		BIT(3)
 #define GMAC_INT_PMT_EN			BIT(4)
 #define GMAC_INT_LPI_EN			BIT(5)
+
+#define	GMAC_PCS_IRQ_DEFAULT	(GMAC_INT_RGSMIIS | GMAC_INT_PCS_LINK |	\
+				 GMAC_INT_PCS_ANE)
+
+#define	GMAC_INT_DEFAULT_MASK	GMAC_INT_PMT_EN
 
 enum dwmac4_irq_status {
 	time_stamp_irq = 0x00001000,
@@ -64,18 +71,7 @@ enum dwmac4_irq_status {
 	mmc_rx_irq = 0x00000200,
 	mmc_irq = 0x00000100,
 	pmt_irq = 0x00000010,
-	pcs_ane_irq = 0x00000004,
-	pcs_link_irq = 0x00000002,
 };
-
-/* MAC Auto-Neg bitmap*/
-#define	GMAC_AN_CTRL_RAN		BIT(9)
-#define	GMAC_AN_CTRL_ANE		BIT(12)
-#define GMAC_AN_CTRL_ELE		BIT(14)
-#define GMAC_AN_FD			BIT(5)
-#define GMAC_AN_HD			BIT(6)
-#define GMAC_AN_PSE_MASK		GENMASK(8, 7)
-#define GMAC_AN_PSE_SHIFT		7
 
 /* MAC PMT bitmap */
 enum power_event {
@@ -249,6 +245,23 @@ enum power_event {
 #define MTL_DEBUG_RRCSTS_RSTAT		2
 #define MTL_DEBUG_RRCSTS_FLUSH		3
 #define MTL_DEBUG_RWCSTS		BIT(0)
+
+/* SGMII/RGMII status register */
+#define GMAC_PHYIF_CTRLSTATUS_TC		BIT(0)
+#define GMAC_PHYIF_CTRLSTATUS_LUD		BIT(1)
+#define GMAC_PHYIF_CTRLSTATUS_SMIDRXS		BIT(4)
+#define GMAC_PHYIF_CTRLSTATUS_LNKMOD		BIT(16)
+#define GMAC_PHYIF_CTRLSTATUS_SPEED		GENMASK(18, 17)
+#define GMAC_PHYIF_CTRLSTATUS_SPEED_SHIFT	17
+#define GMAC_PHYIF_CTRLSTATUS_LNKSTS		BIT(19)
+#define GMAC_PHYIF_CTRLSTATUS_JABTO		BIT(20)
+#define GMAC_PHYIF_CTRLSTATUS_FALSECARDET	BIT(21)
+/* LNKMOD */
+#define GMAC_PHYIF_CTRLSTATUS_LNKMOD_MASK	0x1
+/* LNKSPEED */
+#define GMAC_PHYIF_CTRLSTATUS_SPEED_125		0x2
+#define GMAC_PHYIF_CTRLSTATUS_SPEED_25		0x1
+#define GMAC_PHYIF_CTRLSTATUS_SPEED_2_5		0x0
 
 extern const struct stmmac_dma_ops dwmac4_dma_ops;
 extern const struct stmmac_dma_ops dwmac410_dma_ops;

@@ -518,13 +518,21 @@ static int w8001_setup_touch(struct w8001 *w8001, char *basename,
 		w8001->pktlen = W8001_PKTLEN_TOUCH2FG;
 
 		__set_bit(BTN_TOOL_DOUBLETAP, dev->keybit);
-		input_mt_init_slots(dev, 2, 0);
+		error = input_mt_init_slots(dev, 2, 0);
+		if (error) {
+			dev_err(&w8001->serio->dev,
+				"failed to initialize MT slots: %d\n", error);
+			return error;
+		}
+
 		input_set_abs_params(dev, ABS_MT_POSITION_X,
 					0, touch.x, 0, 0);
 		input_set_abs_params(dev, ABS_MT_POSITION_Y,
 					0, touch.y, 0, 0);
 		input_set_abs_params(dev, ABS_MT_TOOL_TYPE,
 					0, MT_TOOL_MAX, 0, 0);
+		input_abs_set_res(dev, ABS_MT_POSITION_X, touch.panel_res);
+		input_abs_set_res(dev, ABS_MT_POSITION_Y, touch.panel_res);
 
 		strlcat(basename, " 2FG", basename_sz);
 		if (w8001->max_pen_x && w8001->max_pen_y)

@@ -29,6 +29,33 @@
 
 char dsa_driver_version[] = "0.1";
 
+static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
+{
+	/* Just return the original SKB */
+	return skb;
+}
+
+static const struct dsa_device_ops none_ops = {
+	.xmit	= dsa_slave_notag_xmit,
+	.rcv	= NULL,
+};
+
+const struct dsa_device_ops *dsa_device_ops[DSA_TAG_LAST] = {
+#ifdef CONFIG_NET_DSA_TAG_DSA
+	[DSA_TAG_PROTO_DSA] = &dsa_netdev_ops,
+#endif
+#ifdef CONFIG_NET_DSA_TAG_EDSA
+	[DSA_TAG_PROTO_EDSA] = &edsa_netdev_ops,
+#endif
+#ifdef CONFIG_NET_DSA_TAG_TRAILER
+	[DSA_TAG_PROTO_TRAILER] = &trailer_netdev_ops,
+#endif
+#ifdef CONFIG_NET_DSA_TAG_BRCM
+	[DSA_TAG_PROTO_BRCM] = &brcm_netdev_ops,
+#endif
+	[DSA_TAG_PROTO_NONE] = &none_ops,
+};
 
 /* switch driver registration ***********************************************/
 static DEFINE_MUTEX(dsa_switch_drivers_mutex);
@@ -180,39 +207,98 @@ __ATTRIBUTE_GROUPS(dsa_hwmon);
 #endif /* CONFIG_NET_DSA_HWMON */
 
 /* basic switch operations **************************************************/
-static int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct net_device *master)
+int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct device *dev,
+		      struct device_node *port_dn, int port)
 {
-	struct dsa_chip_data *cd = ds->cd;
-	struct device_node *port_dn;
 	struct phy_device *phydev;
-	int ret, port, mode;
+	int ret, mode;
+
+	if (of_phy_is_fixed_link(port_dn)) {
+		ret = of_phy_register_fixed_link(port_dn);
+		if (ret) {
+			dev_err(dev, "failed to register fixed PHY\n");
+			return ret;
+		}
+		phydev = of_phy_find_device(port_dn);
+
+		mode = of_get_phy_mode(port_dn);
+		if (mode < 0)
+			mode = PHY_INTERFACE_MODE_NA;
+		phydev->interface = mode;
+
+		genphy_config_init(phydev);
+		genphy_read_status(phydev);
+		if (ds->drv->adjust_link)
+			ds->drv->adjust_link(ds, port, phydev);
+	}
+
+	return 0;
+}
+
+static int dsa_cpu_dsa_setups(struct dsa_switch *ds, struct device *dev)
+{
+	struct device_node *port_dn;
+	int ret, port;
 
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
 		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
 			continue;
 
-		port_dn = cd->port_dn[port];
-		if (of_phy_is_fixed_link(port_dn)) {
-			ret = of_phy_register_fixed_link(port_dn);
-			if (ret) {
-				netdev_err(master,
-					   "failed to register fixed PHY\n");
-				return ret;
-			}
-			phydev = of_phy_find_device(port_dn);
-
-			mode = of_get_phy_mode(port_dn);
-			if (mode < 0)
-				mode = PHY_INTERFACE_MODE_NA;
-			phydev->interface = mode;
-
-			genphy_config_init(phydev);
-			genphy_read_status(phydev);
-			if (ds->drv->adjust_link)
-				ds->drv->adjust_link(ds, port, phydev);
-		}
+		port_dn = ds->ports[port].dn;
+		ret = dsa_cpu_dsa_setup(ds, dev, port_dn, port);
+		if (ret)
+			return ret;
 	}
 	return 0;
+}
+
+const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol)
+{
+	const struct dsa_device_ops *ops;
+
+	if (tag_protocol >= DSA_TAG_LAST)
+		return ERR_PTR(-EINVAL);
+	ops = dsa_device_ops[tag_protocol];
+
+	if (!ops)
+		return ERR_PTR(-ENOPROTOOPT);
+
+	return ops;
+}
+
+int dsa_cpu_port_ethtool_setup(struct dsa_switch *ds)
+{
+	struct net_device *master;
+	struct ethtool_ops *cpu_ops;
+
+	master = ds->dst->master_netdev;
+	if (ds->master_netdev)
+		master = ds->master_netdev;
+
+	cpu_ops = devm_kzalloc(ds->dev, sizeof(*cpu_ops), GFP_KERNEL);
+	if (!cpu_ops)
+		return -ENOMEM;
+
+	memcpy(&ds->dst->master_ethtool_ops, master->ethtool_ops,
+	       sizeof(struct ethtool_ops));
+	ds->dst->master_orig_ethtool_ops = master->ethtool_ops;
+	memcpy(cpu_ops, &ds->dst->master_ethtool_ops,
+	       sizeof(struct ethtool_ops));
+	dsa_cpu_port_ethtool_init(cpu_ops);
+	master->ethtool_ops = cpu_ops;
+
+	return 0;
+}
+
+void dsa_cpu_port_ethtool_restore(struct dsa_switch *ds)
+{
+	struct net_device *master;
+
+	master = ds->dst->master_netdev;
+	if (ds->master_netdev)
+		master = ds->master_netdev;
+
+	master->ethtool_ops = ds->dst->master_orig_ethtool_ops;
 }
 
 static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
@@ -243,6 +329,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 			}
 			dst->cpu_switch = index;
 			dst->cpu_port = i;
+			ds->cpu_port_mask |= 1 << i;
 		} else if (!strcmp(name, "dsa")) {
 			ds->dsa_port_mask |= 1 << i;
 		} else {
@@ -267,36 +354,16 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	 * switch.
 	 */
 	if (dst->cpu_switch == index) {
-		switch (drv->tag_protocol) {
-#ifdef CONFIG_NET_DSA_TAG_DSA
-		case DSA_TAG_PROTO_DSA:
-			dst->rcv = dsa_netdev_ops.rcv;
-			break;
-#endif
-#ifdef CONFIG_NET_DSA_TAG_EDSA
-		case DSA_TAG_PROTO_EDSA:
-			dst->rcv = edsa_netdev_ops.rcv;
-			break;
-#endif
-#ifdef CONFIG_NET_DSA_TAG_TRAILER
-		case DSA_TAG_PROTO_TRAILER:
-			dst->rcv = trailer_netdev_ops.rcv;
-			break;
-#endif
-#ifdef CONFIG_NET_DSA_TAG_BRCM
-		case DSA_TAG_PROTO_BRCM:
-			dst->rcv = brcm_netdev_ops.rcv;
-			break;
-#endif
-		case DSA_TAG_PROTO_NONE:
-			break;
-		default:
-			ret = -ENOPROTOOPT;
+		dst->tag_ops = dsa_resolve_tag_protocol(drv->tag_protocol);
+		if (IS_ERR(dst->tag_ops)) {
+			ret = PTR_ERR(dst->tag_ops);
 			goto out;
 		}
 
-		dst->tag_protocol = drv->tag_protocol;
+		dst->rcv = dst->tag_ops->rcv;
 	}
+
+	memcpy(ds->rtable, cd->rtable, sizeof(ds->rtable));
 
 	/*
 	 * Do basic register setup.
@@ -309,22 +376,25 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	if (ret < 0)
 		goto out;
 
-	ds->slave_mii_bus = devm_mdiobus_alloc(parent);
-	if (ds->slave_mii_bus == NULL) {
-		ret = -ENOMEM;
-		goto out;
+	if (!ds->slave_mii_bus && drv->phy_read) {
+		ds->slave_mii_bus = devm_mdiobus_alloc(parent);
+		if (!ds->slave_mii_bus) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		dsa_slave_mii_bus_init(ds);
+
+		ret = mdiobus_register(ds->slave_mii_bus);
+		if (ret < 0)
+			goto out;
 	}
-	dsa_slave_mii_bus_init(ds);
-
-	ret = mdiobus_register(ds->slave_mii_bus);
-	if (ret < 0)
-		goto out;
-
 
 	/*
 	 * Create network devices for physical switch ports.
 	 */
 	for (i = 0; i < DSA_MAX_PORTS; i++) {
+		ds->ports[i].dn = cd->port_dn[i];
+
 		if (!(ds->enabled_port_mask & (1 << i)))
 			continue;
 
@@ -337,12 +407,16 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	}
 
 	/* Perform configuration of the CPU and DSA ports */
-	ret = dsa_cpu_dsa_setup(ds, dst->master_netdev);
+	ret = dsa_cpu_dsa_setups(ds, parent);
 	if (ret < 0) {
 		netdev_err(dst->master_netdev, "[%d] : can't configure CPU and DSA ports\n",
 			   index);
 		ret = 0;
 	}
+
+	ret = dsa_cpu_port_ethtool_setup(ds);
+	if (ret)
+		return ret;
 
 #ifdef CONFIG_NET_DSA_HWMON
 	/* If the switch provides a temperature sensor,
@@ -420,11 +494,21 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	return ds;
 }
 
+void dsa_cpu_dsa_destroy(struct device_node *port_dn)
+{
+	struct phy_device *phydev;
+
+	if (of_phy_is_fixed_link(port_dn)) {
+		phydev = of_phy_find_device(port_dn);
+		if (phydev) {
+			phy_device_free(phydev);
+			fixed_phy_unregister(phydev);
+		}
+	}
+}
+
 static void dsa_switch_destroy(struct dsa_switch *ds)
 {
-	struct device_node *port_dn;
-	struct phy_device *phydev;
-	struct dsa_chip_data *cd = ds->cd;
 	int port;
 
 #ifdef CONFIG_NET_DSA_HWMON
@@ -437,26 +521,25 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 		if (!(ds->enabled_port_mask & (1 << port)))
 			continue;
 
-		if (!ds->ports[port])
+		if (!ds->ports[port].netdev)
 			continue;
 
-		dsa_slave_destroy(ds->ports[port]);
+		dsa_slave_destroy(ds->ports[port].netdev);
 	}
 
-	/* Remove any fixed link PHYs */
+	/* Disable configuration of the CPU and DSA ports */
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
-		port_dn = cd->port_dn[port];
-		if (of_phy_is_fixed_link(port_dn)) {
-			phydev = of_phy_find_device(port_dn);
-			if (phydev) {
-				phy_device_free(phydev);
-				of_node_put(port_dn);
-				fixed_phy_unregister(phydev);
-			}
-		}
+		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
+			continue;
+		dsa_cpu_dsa_destroy(ds->ports[port].dn);
+
+		/* Clearing a bit which is not set does no harm */
+		ds->cpu_port_mask |= ~(1 << port);
+		ds->dsa_port_mask |= ~(1 << port);
 	}
 
-	mdiobus_unregister(ds->slave_mii_bus);
+	if (ds->slave_mii_bus && ds->drv->phy_read)
+		mdiobus_unregister(ds->slave_mii_bus);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -469,7 +552,7 @@ static int dsa_switch_suspend(struct dsa_switch *ds)
 		if (!dsa_is_port_initialized(ds, i))
 			continue;
 
-		ret = dsa_slave_suspend(ds->ports[i]);
+		ret = dsa_slave_suspend(ds->ports[i].netdev);
 		if (ret)
 			return ret;
 	}
@@ -495,7 +578,7 @@ static int dsa_switch_resume(struct dsa_switch *ds)
 		if (!dsa_is_port_initialized(ds, i))
 			continue;
 
-		ret = dsa_slave_resume(ds->ports[i]);
+		ret = dsa_slave_resume(ds->ports[i].netdev);
 		if (ret)
 			return ret;
 	}
@@ -587,17 +670,6 @@ static int dsa_of_setup_routing_table(struct dsa_platform_data *pd,
 	if (link_sw_addr >= pd->nr_chips)
 		return -EINVAL;
 
-	/* First time routing table allocation */
-	if (!cd->rtable) {
-		cd->rtable = kmalloc_array(pd->nr_chips, sizeof(s8),
-					   GFP_KERNEL);
-		if (!cd->rtable)
-			return -ENOMEM;
-
-		/* default to no valid uplink/downlink */
-		memset(cd->rtable, -1, pd->nr_chips * sizeof(s8));
-	}
-
 	cd->rtable[link_sw_addr] = port_index;
 
 	return 0;
@@ -639,7 +711,6 @@ static void dsa_of_free_platform_data(struct dsa_platform_data *pd)
 			kfree(pd->chip[i].port_names[port_index]);
 			port_index++;
 		}
-		kfree(pd->chip[i].rtable);
 
 		/* Drop our reference to the MDIO bus device */
 		if (pd->chip[i].host_dev)
@@ -703,10 +774,16 @@ static int dsa_of_probe(struct device *dev)
 
 	chip_index = -1;
 	for_each_available_child_of_node(np, child) {
+		int i;
+
 		chip_index++;
 		cd = &pd->chip[chip_index];
 
 		cd->of_node = child;
+
+		/* Initialize the routing table */
+		for (i = 0; i < DSA_MAX_SWITCHES; ++i)
+			cd->rtable[i] = DSA_RTABLE_NONE;
 
 		/* When assigning the host device, increment its refcount */
 		cd->host_dev = get_device(&mdio_bus->dev);
@@ -930,6 +1007,8 @@ static void dsa_remove_dst(struct dsa_switch_tree *dst)
 		if (ds)
 			dsa_switch_destroy(ds);
 	}
+
+	dsa_cpu_port_ethtool_restore(dst->ds[0]);
 
 	dev_put(dst->master_netdev);
 }

@@ -37,8 +37,8 @@
 
 #ifndef __ASSEMBLY__
 
-static inline int __pcpu_sigp(u16 addr, u8 order, unsigned long parm,
-			      u32 *status)
+static inline int ____pcpu_sigp(u16 addr, u8 order, unsigned long parm,
+				u32 *status)
 {
 	register unsigned long reg1 asm ("1") = parm;
 	int cc;
@@ -48,8 +48,19 @@ static inline int __pcpu_sigp(u16 addr, u8 order, unsigned long parm,
 		"	ipm	%0\n"
 		"	srl	%0,28\n"
 		: "=d" (cc), "+d" (reg1) : "d" (addr), "a" (order) : "cc");
+	*status = reg1;
+	return cc;
+}
+
+static inline int __pcpu_sigp(u16 addr, u8 order, unsigned long parm,
+			      u32 *status)
+{
+	u32 _status;
+	int cc;
+
+	cc = ____pcpu_sigp(addr, order, parm, &_status);
 	if (status && cc == 1)
-		*status = reg1;
+		*status = _status;
 	return cc;
 }
 

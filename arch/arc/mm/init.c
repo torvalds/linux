@@ -220,7 +220,7 @@ void __init mem_init(void)
 /*
  * free_initmem: Free all the __init memory.
  */
-void __init_refok free_initmem(void)
+void __ref free_initmem(void)
 {
 	free_initmem_default(-1);
 }

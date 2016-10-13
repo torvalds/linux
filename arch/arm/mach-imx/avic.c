@@ -55,23 +55,20 @@ static void __iomem *avic_base;
 static struct irq_domain *domain;
 
 #ifdef CONFIG_FIQ
-static int avic_set_irq_fiq(unsigned int irq, unsigned int type)
+static int avic_set_irq_fiq(unsigned int hwirq, unsigned int type)
 {
-	struct irq_data *d = irq_get_irq_data(irq);
 	unsigned int irqt;
 
-	irq = d->hwirq;
-
-	if (irq >= AVIC_NUM_IRQS)
+	if (hwirq >= AVIC_NUM_IRQS)
 		return -EINVAL;
 
-	if (irq < AVIC_NUM_IRQS / 2) {
-		irqt = imx_readl(avic_base + AVIC_INTTYPEL) & ~(1 << irq);
-		imx_writel(irqt | (!!type << irq), avic_base + AVIC_INTTYPEL);
+	if (hwirq < AVIC_NUM_IRQS / 2) {
+		irqt = imx_readl(avic_base + AVIC_INTTYPEL) & ~(1 << hwirq);
+		imx_writel(irqt | (!!type << hwirq), avic_base + AVIC_INTTYPEL);
 	} else {
-		irq -= AVIC_NUM_IRQS / 2;
-		irqt = imx_readl(avic_base + AVIC_INTTYPEH) & ~(1 << irq);
-		imx_writel(irqt | (!!type << irq), avic_base + AVIC_INTTYPEH);
+		hwirq -= AVIC_NUM_IRQS / 2;
+		irqt = imx_readl(avic_base + AVIC_INTTYPEH) & ~(1 << hwirq);
+		imx_writel(irqt | (!!type << hwirq), avic_base + AVIC_INTTYPEH);
 	}
 
 	return 0;

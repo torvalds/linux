@@ -78,14 +78,10 @@ void dump_trace(dump_trace_func_t func, void *data, struct task_struct *task,
 	sp = __dump_trace(func, data, sp,
 			  S390_lowcore.async_stack + frame_size - ASYNC_SIZE,
 			  S390_lowcore.async_stack + frame_size);
-	if (task)
-		__dump_trace(func, data, sp,
-			     (unsigned long)task_stack_page(task),
-			     (unsigned long)task_stack_page(task) + THREAD_SIZE);
-	else
-		__dump_trace(func, data, sp,
-			     S390_lowcore.thread_info,
-			     S390_lowcore.thread_info + THREAD_SIZE);
+	task = task ?: current;
+	__dump_trace(func, data, sp,
+		     (unsigned long)task_stack_page(task),
+		     (unsigned long)task_stack_page(task) + THREAD_SIZE);
 }
 EXPORT_SYMBOL_GPL(dump_trace);
 

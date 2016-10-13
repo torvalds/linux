@@ -15,7 +15,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
@@ -39,9 +39,11 @@
 
 #include "emxx_udc.h"
 
+#define	DRIVER_DESC	"EMXX UDC driver"
 #define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
 
 static const char	driver_name[] = "emxx_udc";
+static const char	driver_desc[] = DRIVER_DESC;
 
 /*===========================================================================*/
 /* Prototype */
@@ -3296,6 +3298,28 @@ static void nbu2ss_drv_shutdown(struct platform_device *pdev)
 }
 
 /*-------------------------------------------------------------------------*/
+static int nbu2ss_drv_remove(struct platform_device *pdev)
+{
+	struct nbu2ss_udc	*udc;
+	struct nbu2ss_ep	*ep;
+	int	i;
+
+	udc = &udc_controller;
+
+	for (i = 0; i < NUM_ENDPOINTS; i++) {
+		ep = &udc->ep[i];
+		if (ep->virt_buf)
+			dma_free_coherent(NULL, PAGE_SIZE,
+				(void *)ep->virt_buf, ep->phys_buf);
+	}
+
+	/* Interrupt Handler - Release */
+	free_irq(INT_VBUS, udc);
+
+	return 0;
+}
+
+/*-------------------------------------------------------------------------*/
 static int nbu2ss_drv_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct nbu2ss_udc	*udc;
@@ -3347,12 +3371,16 @@ static int nbu2ss_drv_resume(struct platform_device *pdev)
 static struct platform_driver udc_driver = {
 	.probe		= nbu2ss_drv_probe,
 	.shutdown	= nbu2ss_drv_shutdown,
+	.remove		= nbu2ss_drv_remove,
 	.suspend	= nbu2ss_drv_suspend,
 	.resume		= nbu2ss_drv_resume,
 	.driver		= {
-		.name			= driver_name,
-		.suppress_bind_attrs	= true,
+		.name	= driver_name,
 	},
 };
 
-builtin_platform_driver(udc_driver);
+module_platform_driver(udc_driver);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Renesas Electronics Corporation");
+MODULE_LICENSE("GPL");

@@ -558,7 +558,6 @@ out_sendbuf:
 
 out_fail:
 	rpcrdma_buffer_put(req);
-	r_xprt->rx_stats.failed_marshal_count++;
 	return NULL;
 }
 
@@ -590,8 +589,19 @@ xprt_rdma_free(void *buffer)
 	rpcrdma_buffer_put(req);
 }
 
-/*
+/**
+ * xprt_rdma_send_request - marshal and send an RPC request
+ * @task: RPC task with an RPC message in rq_snd_buf
+ *
+ * Return values:
+ *        0:	The request has been sent
+ * ENOTCONN:	Caller needs to invoke connect logic then call again
+ *  ENOBUFS:	Call again later to send the request
+ *      EIO:	A permanent error occurred. The request was not sent,
+ *		and don't try it again
+ *
  * send_request invokes the meat of RPC RDMA. It must do the following:
+ *
  *  1.  Marshal the RPC request into an RPC RDMA request, which means
  *	putting a header in front of data, and creating IOVs for RDMA
  *	from those in the request.
@@ -600,7 +610,6 @@ xprt_rdma_free(void *buffer)
  *	the request (rpcrdma_ep_post).
  *  4.  No partial sends are possible in the RPC-RDMA protocol (as in UDP).
  */
-
 static int
 xprt_rdma_send_request(struct rpc_task *task)
 {
@@ -609,6 +618,9 @@ xprt_rdma_send_request(struct rpc_task *task)
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	int rc = 0;
+
+	/* On retransmit, remove any previously registered chunks */
+	r_xprt->rx_ia.ri_ops->ro_unmap_safe(r_xprt, req, false);
 
 	rc = rpcrdma_marshal_req(rqst);
 	if (rc < 0)
@@ -630,11 +642,12 @@ xprt_rdma_send_request(struct rpc_task *task)
 	return 0;
 
 failed_marshal:
-	r_xprt->rx_stats.failed_marshal_count++;
 	dprintk("RPC:       %s: rpcrdma_marshal_req failed, status %i\n",
 		__func__, rc);
 	if (rc == -EIO)
-		return -EIO;
+		r_xprt->rx_stats.failed_marshal_count++;
+	if (rc != -ENOTCONN)
+		return rc;
 drop_connection:
 	xprt_disconnect_done(xprt);
 	return -ENOTCONN;	/* implies disconnect */
@@ -660,7 +673,7 @@ void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 		   xprt->stat.bad_xids,
 		   xprt->stat.req_u,
 		   xprt->stat.bklog_u);
-	seq_printf(seq, "%lu %lu %lu %llu %llu %llu %llu %lu %lu %lu %lu\n",
+	seq_printf(seq, "%lu %lu %lu %llu %llu %llu %llu %lu %lu %lu %lu ",
 		   r_xprt->rx_stats.read_chunk_count,
 		   r_xprt->rx_stats.write_chunk_count,
 		   r_xprt->rx_stats.reply_chunk_count,
@@ -672,6 +685,10 @@ void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 		   r_xprt->rx_stats.failed_marshal_count,
 		   r_xprt->rx_stats.bad_reply_count,
 		   r_xprt->rx_stats.nomsg_call_count);
+	seq_printf(seq, "%lu %lu %lu\n",
+		   r_xprt->rx_stats.mrs_recovered,
+		   r_xprt->rx_stats.mrs_orphaned,
+		   r_xprt->rx_stats.mrs_allocated);
 }
 
 static int
@@ -741,7 +758,6 @@ void xprt_rdma_cleanup(void)
 			__func__, rc);
 
 	rpcrdma_destroy_wq();
-	frwr_destroy_recovery_wq();
 
 	rc = xprt_unregister_transport(&xprt_rdma_bc);
 	if (rc)
@@ -753,20 +769,13 @@ int xprt_rdma_init(void)
 {
 	int rc;
 
-	rc = frwr_alloc_recovery_wq();
+	rc = rpcrdma_alloc_wq();
 	if (rc)
 		return rc;
-
-	rc = rpcrdma_alloc_wq();
-	if (rc) {
-		frwr_destroy_recovery_wq();
-		return rc;
-	}
 
 	rc = xprt_register_transport(&xprt_rdma);
 	if (rc) {
 		rpcrdma_destroy_wq();
-		frwr_destroy_recovery_wq();
 		return rc;
 	}
 
@@ -774,7 +783,6 @@ int xprt_rdma_init(void)
 	if (rc) {
 		xprt_unregister_transport(&xprt_rdma);
 		rpcrdma_destroy_wq();
-		frwr_destroy_recovery_wq();
 		return rc;
 	}
 

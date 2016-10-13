@@ -121,7 +121,7 @@ int snd_ak4114_create(struct snd_card *card,
 
       __fail:
 	snd_ak4114_free(chip);
-	return err < 0 ? err : -EIO;
+	return err;
 }
 EXPORT_SYMBOL(snd_ak4114_create);
 

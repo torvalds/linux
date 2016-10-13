@@ -36,6 +36,19 @@ enum fiji_pt_config_reg_type {
 #define POWERCONTAINMENT_FEATURE_TDCLimit        0x00000002
 #define POWERCONTAINMENT_FEATURE_PkgPwrLimit     0x00000004
 
+#define DIDT_SQ_CTRL0__UNUSED_0_MASK             0xffffffc0
+#define DIDT_SQ_CTRL0__UNUSED_0__SHIFT           0x6
+#define DIDT_TD_CTRL0__UNUSED_0_MASK             0xffffffc0
+#define DIDT_TD_CTRL0__UNUSED_0__SHIFT           0x6
+#define DIDT_TCP_CTRL0__UNUSED_0_MASK            0xffffffc0
+#define DIDT_TCP_CTRL0__UNUSED_0__SHIFT          0x6
+#define DIDT_SQ_TUNING_CTRL__UNUSED_0_MASK                 0xe0000000
+#define DIDT_SQ_TUNING_CTRL__UNUSED_0__SHIFT               0x0000001d
+#define DIDT_TD_TUNING_CTRL__UNUSED_0_MASK                 0xe0000000
+#define DIDT_TD_TUNING_CTRL__UNUSED_0__SHIFT               0x0000001d
+#define DIDT_TCP_TUNING_CTRL__UNUSED_0_MASK                0xe0000000
+#define DIDT_TCP_TUNING_CTRL__UNUSED_0__SHIFT              0x0000001d
+
 struct fiji_pt_config_reg {
 	uint32_t                           offset;
 	uint32_t                           mask;
@@ -58,7 +71,9 @@ void fiji_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr);
 int fiji_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr);
 int fiji_populate_pm_fuses(struct pp_hwmgr *hwmgr);
 int fiji_enable_smc_cac(struct pp_hwmgr *hwmgr);
+int fiji_disable_smc_cac(struct pp_hwmgr *hwmgr);
 int fiji_enable_power_containment(struct pp_hwmgr *hwmgr);
+int fiji_disable_power_containment(struct pp_hwmgr *hwmgr);
 int fiji_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n);
 int fiji_power_control_set_level(struct pp_hwmgr *hwmgr);
 

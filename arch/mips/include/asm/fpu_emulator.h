@@ -24,7 +24,7 @@
 #define _ASM_FPU_EMULATOR_H
 
 #include <linux/sched.h>
-#include <asm/break.h>
+#include <asm/dsemul.h>
 #include <asm/thread_info.h>
 #include <asm/inst.h>
 #include <asm/local.h>
@@ -60,26 +60,15 @@ do {									\
 #define MIPS_FPU_EMU_INC_STATS(M) do { } while (0)
 #endif /* CONFIG_DEBUG_FS */
 
-extern int mips_dsemul(struct pt_regs *regs, mips_instruction ir,
-	unsigned long cpc);
-extern int do_dsemulret(struct pt_regs *xcp);
 extern int fpu_emulator_cop1Handler(struct pt_regs *xcp,
 				    struct mips_fpu_struct *ctx, int has_fpu,
 				    void *__user *fault_addr);
 int process_fpemu_return(int sig, void __user *fault_addr,
 			 unsigned long fcr31);
+int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
+		  unsigned long *contpc);
 int mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 		     unsigned long *contpc);
-
-/*
- * Instruction inserted following the badinst to further tag the sequence
- */
-#define BD_COOKIE 0x0000bd36	/* tne $0, $0 with baggage */
-
-/*
- * Break instruction with special math emu break code set
- */
-#define BREAK_MATH(micromips) (((micromips) ? 0x7 : 0xd) | (BRK_MEMU << 16))
 
 #define SIGNALLING_NAN 0x7ff800007ff80000LL
 

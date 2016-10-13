@@ -32,6 +32,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ADAU1977_SPI if SPI_MASTER
 	select SND_SOC_ADAU1977_I2C if I2C
 	select SND_SOC_ADAU1701 if I2C
+	select SND_SOC_ADAU7002
 	select SND_SOC_ADS117X
 	select SND_SOC_AK4104 if SPI_MASTER
 	select SND_SOC_AK4535 if I2C
@@ -46,6 +47,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_BT_SCO
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
 	select SND_SOC_CS35L32 if I2C
+	select SND_SOC_CS35L33 if I2C
 	select SND_SOC_CS42L51_I2C if I2C
 	select SND_SOC_CS42L52 if I2C && INPUT
 	select SND_SOC_CS42L56 if I2C && INPUT
@@ -57,6 +59,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS42XX8_I2C if I2C
 	select SND_SOC_CS4349 if I2C
 	select SND_SOC_CS47L24 if MFD_CS47L24
+	select SND_SOC_CS53L30 if I2C
 	select SND_SOC_CX20442 if TTY
 	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_DA7213 if I2C
@@ -84,6 +87,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX98925 if I2C
 	select SND_SOC_MAX98926 if I2C
 	select SND_SOC_MAX9850 if I2C
+	select SND_SOC_MAX9860 if I2C
 	select SND_SOC_MAX9768 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_MC13783 if MFD_MC13XXX
@@ -269,8 +273,12 @@ config SND_SOC_AD1980
 config SND_SOC_AD73311
 	tristate
 
+config SND_SOC_ADAU_UTILS
+	tristate
+
 config SND_SOC_ADAU1373
 	tristate
+	select SND_SOC_ADAU_UTILS
 
 config SND_SOC_ADAU1701
 	tristate "Analog Devices ADAU1701 CODEC"
@@ -280,6 +288,7 @@ config SND_SOC_ADAU1701
 config SND_SOC_ADAU17X1
 	tristate
 	select SND_SOC_SIGMADSP_REGMAP
+	select SND_SOC_ADAU_UTILS
 
 config SND_SOC_ADAU1761
 	tristate
@@ -321,6 +330,9 @@ config SND_SOC_ADAU1977_I2C
 	tristate
 	select SND_SOC_ADAU1977
 	select REGMAP_I2C
+
+config SND_SOC_ADAU7002
+	tristate "Analog Devices ADAU7002 Stereo PDM-to-I2S/TDM Converter"
 
 config SND_SOC_ADAV80X
 	tristate
@@ -371,13 +383,17 @@ config SND_SOC_ALC5632
 	tristate
 
 config SND_SOC_BT_SCO
-	tristate
+	tristate "Dummy BT SCO codec driver"
 
 config SND_SOC_CQ0093VC
 	tristate
 
 config SND_SOC_CS35L32
 	tristate "Cirrus Logic CS35L32 CODEC"
+	depends on I2C
+
+config SND_SOC_CS35L33
+	tristate "Cirrus Logic CS35L33 CODEC"
 	depends on I2C
 
 config SND_SOC_CS42L51
@@ -449,6 +465,11 @@ config SND_SOC_CS4349
 
 config SND_SOC_CS47L24
 	tristate
+
+# Cirrus Logic Quad-Channel ADC
+config SND_SOC_CS53L30
+	tristate "Cirrus Logic CS53L30 CODEC"
+	depends on I2C
 
 config SND_SOC_CX20442
 	tristate
@@ -536,6 +557,10 @@ config SND_SOC_MAX98357A
 config SND_SOC_MAX98371
        tristate
 
+config SND_SOC_MAX98504
+	tristate "Maxim MAX98504 speaker amplifier"
+	depends on I2C
+
 config SND_SOC_MAX9867
 	tristate
 
@@ -547,6 +572,11 @@ config SND_SOC_MAX98926
 
 config SND_SOC_MAX9850
 	tristate
+
+config SND_SOC_MAX9860
+	tristate "Maxim MAX9860 Mono Audio Voice Codec"
+	depends on I2C
+	select REGMAP_I2C
 
 config SND_SOC_PCM1681
 	tristate "Texas Instruments PCM1681 CODEC"
@@ -642,6 +672,9 @@ config SND_SOC_RT298
 	depends on I2C
 
 config SND_SOC_RT5514
+	tristate
+
+config SND_SOC_RT5514_SPI
 	tristate
 
 config SND_SOC_RT5616
@@ -969,7 +1002,8 @@ config SND_SOC_WM8983
 	tristate
 
 config SND_SOC_WM8985
-	tristate
+	tristate "Wolfson Microelectronics WM8985 and WM8758 codec driver"
+	depends on SND_SOC_I2C_AND_SPI
 
 config SND_SOC_WM8988
 	tristate

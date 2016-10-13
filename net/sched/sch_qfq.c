@@ -460,7 +460,8 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		if (tca[TCA_RATE]) {
 			err = gen_replace_estimator(&cl->bstats, NULL,
 						    &cl->rate_est,
-						    qdisc_root_sleeping_lock(sch),
+						    NULL,
+						    qdisc_root_sleeping_running(sch),
 						    tca[TCA_RATE]);
 			if (err)
 				return err;
@@ -486,7 +487,8 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (tca[TCA_RATE]) {
 		err = gen_new_estimator(&cl->bstats, NULL,
 					&cl->rate_est,
-					qdisc_root_sleeping_lock(sch),
+					NULL,
+					qdisc_root_sleeping_running(sch),
 					tca[TCA_RATE]);
 		if (err)
 			goto destroy_class;
@@ -663,7 +665,8 @@ static int qfq_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 	xstats.weight = cl->agg->class_weight;
 	xstats.lmax = cl->agg->lmax;
 
-	if (gnet_stats_copy_basic(d, NULL, &cl->bstats) < 0 ||
+	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
+				  d, NULL, &cl->bstats) < 0 ||
 	    gnet_stats_copy_rate_est(d, &cl->bstats, &cl->rate_est) < 0 ||
 	    gnet_stats_copy_queue(d, NULL,
 				  &cl->qdisc->qstats, cl->qdisc->q.qlen) < 0)
@@ -1150,6 +1153,7 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 	if (!skb)
 		return NULL;
 
+	qdisc_qstats_backlog_dec(sch, skb);
 	sch->q.qlen--;
 	qdisc_bstats_update(sch, skb);
 
@@ -1214,7 +1218,8 @@ static struct qfq_aggregate *qfq_choose_next_agg(struct qfq_sched *q)
 	return agg;
 }
 
-static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+		       struct sk_buff **to_free)
 {
 	struct qfq_sched *q = qdisc_priv(sch);
 	struct qfq_class *cl;
@@ -1237,11 +1242,11 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 				     qdisc_pkt_len(skb));
 		if (err) {
 			cl->qstats.drops++;
-			return qdisc_drop(skb, sch);
+			return qdisc_drop(skb, sch, to_free);
 		}
 	}
 
-	err = qdisc_enqueue(skb, cl->qdisc);
+	err = qdisc_enqueue(skb, cl->qdisc, to_free);
 	if (unlikely(err != NET_XMIT_SUCCESS)) {
 		pr_debug("qfq_enqueue: enqueue failed %d\n", err);
 		if (net_xmit_drop_count(err)) {
@@ -1252,6 +1257,7 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	bstats_update(&cl->bstats, skb);
+	qdisc_qstats_backlog_inc(sch, skb);
 	++sch->q.qlen;
 
 	agg = cl->agg;
@@ -1422,52 +1428,6 @@ static void qfq_qlen_notify(struct Qdisc *sch, unsigned long arg)
 		qfq_deactivate_class(q, cl);
 }
 
-static unsigned int qfq_drop_from_slot(struct qfq_sched *q,
-				       struct hlist_head *slot)
-{
-	struct qfq_aggregate *agg;
-	struct qfq_class *cl;
-	unsigned int len;
-
-	hlist_for_each_entry(agg, slot, next) {
-		list_for_each_entry(cl, &agg->active, alist) {
-
-			if (!cl->qdisc->ops->drop)
-				continue;
-
-			len = cl->qdisc->ops->drop(cl->qdisc);
-			if (len > 0) {
-				if (cl->qdisc->q.qlen == 0)
-					qfq_deactivate_class(q, cl);
-
-				return len;
-			}
-		}
-	}
-	return 0;
-}
-
-static unsigned int qfq_drop(struct Qdisc *sch)
-{
-	struct qfq_sched *q = qdisc_priv(sch);
-	struct qfq_group *grp;
-	unsigned int i, j, len;
-
-	for (i = 0; i <= QFQ_MAX_INDEX; i++) {
-		grp = &q->groups[i];
-		for (j = 0; j < QFQ_MAX_SLOTS; j++) {
-			len = qfq_drop_from_slot(q, &grp->slots[j]);
-			if (len > 0) {
-				sch->q.qlen--;
-				return len;
-			}
-		}
-
-	}
-
-	return 0;
-}
-
 static int qfq_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct qfq_sched *q = qdisc_priv(sch);
@@ -1518,6 +1478,7 @@ static void qfq_reset_qdisc(struct Qdisc *sch)
 			qdisc_reset(cl->qdisc);
 		}
 	}
+	sch->qstats.backlog = 0;
 	sch->q.qlen = 0;
 }
 
@@ -1562,7 +1523,6 @@ static struct Qdisc_ops qfq_qdisc_ops __read_mostly = {
 	.enqueue	= qfq_enqueue,
 	.dequeue	= qfq_dequeue,
 	.peek		= qdisc_peek_dequeued,
-	.drop		= qfq_drop,
 	.init		= qfq_init_qdisc,
 	.reset		= qfq_reset_qdisc,
 	.destroy	= qfq_destroy_qdisc,

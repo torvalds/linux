@@ -4,7 +4,7 @@
  *  Copyright (C) 2002-2004 John Belmonte
  *  Copyright (C) 2008 Philip Langdale
  *  Copyright (C) 2010 Pierre Ducroquet
- *  Copyright (C) 2014-2015 Azael Avalos
+ *  Copyright (C) 2014-2016 Azael Avalos
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#define TOSHIBA_ACPI_VERSION	"0.23"
+#define TOSHIBA_ACPI_VERSION	"0.24"
 #define PROC_INTERFACE_VERSION	1
 
 #include <linux/kernel.h>
@@ -53,6 +53,7 @@
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/rfkill.h>
+#include <linux/iio/iio.h>
 #include <linux/toshiba.h>
 #include <acpi/video.h>
 
@@ -134,6 +135,7 @@ MODULE_LICENSE("GPL");
 
 /* Field definitions */
 #define HCI_ACCEL_MASK			0x7fff
+#define HCI_ACCEL_DIRECTION_MASK	0x8000
 #define HCI_HOTKEY_DISABLE		0x0b
 #define HCI_HOTKEY_ENABLE		0x09
 #define HCI_HOTKEY_SPECIAL_FUNCTIONS	0x10
@@ -178,6 +180,7 @@ struct toshiba_acpi_dev {
 	struct led_classdev eco_led;
 	struct miscdevice miscdev;
 	struct rfkill *wwan_rfk;
+	struct iio_dev *indio_dev;
 
 	int force_fan;
 	int last_key_event;
@@ -1958,28 +1961,6 @@ static ssize_t touchpad_show(struct device *dev,
 }
 static DEVICE_ATTR_RW(touchpad);
 
-static ssize_t position_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
-	u32 xyval, zval, tmp;
-	u16 x, y, z;
-	int ret;
-
-	xyval = zval = 0;
-	ret = toshiba_accelerometer_get(toshiba, &xyval, &zval);
-	if (ret < 0)
-		return ret;
-
-	x = xyval & HCI_ACCEL_MASK;
-	tmp = xyval >> HCI_MISC_SHIFT;
-	y = tmp & HCI_ACCEL_MASK;
-	z = zval & HCI_ACCEL_MASK;
-
-	return sprintf(buf, "%d %d %d\n", x, y, z);
-}
-static DEVICE_ATTR_RO(position);
-
 static ssize_t usb_sleep_charge_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
@@ -2350,7 +2331,6 @@ static struct attribute *toshiba_attributes[] = {
 	&dev_attr_available_kbd_modes.attr,
 	&dev_attr_kbd_backlight_timeout.attr,
 	&dev_attr_touchpad.attr,
-	&dev_attr_position.attr,
 	&dev_attr_usb_sleep_charge.attr,
 	&dev_attr_sleep_functions_on_battery.attr,
 	&dev_attr_usb_rapid_charge.attr,
@@ -2377,8 +2357,6 @@ static umode_t toshiba_sysfs_is_visible(struct kobject *kobj,
 		exists = (drv->kbd_mode == SCI_KBD_MODE_AUTO) ? true : false;
 	else if (attr == &dev_attr_touchpad.attr)
 		exists = (drv->touchpad_supported) ? true : false;
-	else if (attr == &dev_attr_position.attr)
-		exists = (drv->accelerometer_supported) ? true : false;
 	else if (attr == &dev_attr_usb_sleep_charge.attr)
 		exists = (drv->usb_sleep_charge_supported) ? true : false;
 	else if (attr == &dev_attr_sleep_functions_on_battery.attr)
@@ -2418,6 +2396,81 @@ static void toshiba_acpi_kbd_bl_work(struct work_struct *work)
 					dev_name(&acpi_dev->dev),
 					0x92, 0);
 }
+
+/*
+ * IIO device
+ */
+
+enum toshiba_iio_accel_chan {
+	AXIS_X,
+	AXIS_Y,
+	AXIS_Z
+};
+
+static int toshiba_iio_accel_get_axis(enum toshiba_iio_accel_chan chan)
+{
+	u32 xyval, zval;
+	int ret;
+
+	ret = toshiba_accelerometer_get(toshiba_acpi, &xyval, &zval);
+	if (ret < 0)
+		return ret;
+
+	switch (chan) {
+	case AXIS_X:
+		return xyval & HCI_ACCEL_DIRECTION_MASK ?
+			-(xyval & HCI_ACCEL_MASK) : xyval & HCI_ACCEL_MASK;
+	case AXIS_Y:
+		return (xyval >> HCI_MISC_SHIFT) & HCI_ACCEL_DIRECTION_MASK ?
+			-((xyval >> HCI_MISC_SHIFT) & HCI_ACCEL_MASK) :
+			(xyval >> HCI_MISC_SHIFT) & HCI_ACCEL_MASK;
+	case AXIS_Z:
+		return zval & HCI_ACCEL_DIRECTION_MASK ?
+			-(zval & HCI_ACCEL_MASK) : zval & HCI_ACCEL_MASK;
+	}
+
+	return ret;
+}
+
+static int toshiba_iio_accel_read_raw(struct iio_dev *indio_dev,
+				      struct iio_chan_spec const *chan,
+				      int *val, int *val2, long mask)
+{
+	int ret;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_RAW:
+		ret = toshiba_iio_accel_get_axis(chan->channel);
+		if (ret == -EIO || ret == -ENODEV)
+			return ret;
+
+		*val = ret;
+
+		return IIO_VAL_INT;
+	}
+
+	return -EINVAL;
+}
+
+#define TOSHIBA_IIO_ACCEL_CHANNEL(axis, chan) { \
+	.type = IIO_ACCEL, \
+	.modified = 1, \
+	.channel = chan, \
+	.channel2 = IIO_MOD_##axis, \
+	.output = 1, \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
+}
+
+static const struct iio_chan_spec toshiba_iio_accel_channels[] = {
+	TOSHIBA_IIO_ACCEL_CHANNEL(X, AXIS_X),
+	TOSHIBA_IIO_ACCEL_CHANNEL(Y, AXIS_Y),
+	TOSHIBA_IIO_ACCEL_CHANNEL(Z, AXIS_Z),
+};
+
+static const struct iio_info toshiba_iio_accel_info = {
+	.driver_module = THIS_MODULE,
+	.read_raw = &toshiba_iio_accel_read_raw,
+};
 
 /*
  * Misc device
@@ -2904,6 +2957,11 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev)
 
 	remove_toshiba_proc_entries(dev);
 
+	if (dev->accelerometer_supported && dev->indio_dev) {
+		iio_device_unregister(dev->indio_dev);
+		iio_device_free(dev->indio_dev);
+	}
+
 	if (dev->sysfs_created)
 		sysfs_remove_group(&dev->acpi_dev->dev.kobj,
 				   &toshiba_attr_group);
@@ -3051,6 +3109,30 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 	dev->touchpad_supported = !ret;
 
 	toshiba_accelerometer_available(dev);
+	if (dev->accelerometer_supported) {
+		dev->indio_dev = iio_device_alloc(sizeof(*dev));
+		if (!dev->indio_dev) {
+			pr_err("Unable to allocate iio device\n");
+			goto iio_error;
+		}
+
+		pr_info("Registering Toshiba accelerometer iio device\n");
+
+		dev->indio_dev->info = &toshiba_iio_accel_info;
+		dev->indio_dev->name = "Toshiba accelerometer";
+		dev->indio_dev->dev.parent = &acpi_dev->dev;
+		dev->indio_dev->modes = INDIO_DIRECT_MODE;
+		dev->indio_dev->channels = toshiba_iio_accel_channels;
+		dev->indio_dev->num_channels =
+					ARRAY_SIZE(toshiba_iio_accel_channels);
+
+		ret = iio_device_register(dev->indio_dev);
+		if (ret < 0) {
+			pr_err("Unable to register iio device\n");
+			iio_device_free(dev->indio_dev);
+		}
+	}
+iio_error:
 
 	toshiba_usb_sleep_charge_available(dev);
 

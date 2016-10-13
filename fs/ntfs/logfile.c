@@ -821,7 +821,7 @@ map_vcn:
 			 * completed ignore errors afterwards as we can assume
 			 * that if one buffer worked all of them will work.
 			 */
-			submit_bh(WRITE, bh);
+			submit_bh(REQ_OP_WRITE, 0, bh);
 			if (should_wait) {
 				should_wait = false;
 				wait_on_buffer(bh);

@@ -48,7 +48,7 @@ static void __init sun8i_a23_mbus_setup(struct device_node *node)
 		return;
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
-	if (!reg) {
+	if (IS_ERR(reg)) {
 		pr_err("Could not get registers for sun8i-mbus-clk\n");
 		goto err_free_parents;
 	}

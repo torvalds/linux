@@ -27,7 +27,8 @@
 #include <drm/drmP.h>
 #include "gpu_scheduler.h"
 
-struct amd_sched_fence *amd_sched_fence_create(struct amd_sched_entity *s_entity, void *owner)
+struct amd_sched_fence *amd_sched_fence_create(struct amd_sched_entity *entity,
+					       void *owner)
 {
 	struct amd_sched_fence *fence = NULL;
 	unsigned seq;
@@ -36,46 +37,37 @@ struct amd_sched_fence *amd_sched_fence_create(struct amd_sched_entity *s_entity
 	if (fence == NULL)
 		return NULL;
 
-	INIT_LIST_HEAD(&fence->scheduled_cb);
 	fence->owner = owner;
-	fence->sched = s_entity->sched;
+	fence->sched = entity->sched;
 	spin_lock_init(&fence->lock);
 
-	seq = atomic_inc_return(&s_entity->fence_seq);
-	fence_init(&fence->base, &amd_sched_fence_ops, &fence->lock,
-		   s_entity->fence_context, seq);
+	seq = atomic_inc_return(&entity->fence_seq);
+	fence_init(&fence->scheduled, &amd_sched_fence_ops_scheduled,
+		   &fence->lock, entity->fence_context, seq);
+	fence_init(&fence->finished, &amd_sched_fence_ops_finished,
+		   &fence->lock, entity->fence_context + 1, seq);
 
 	return fence;
 }
 
-void amd_sched_fence_signal(struct amd_sched_fence *fence)
+void amd_sched_fence_scheduled(struct amd_sched_fence *fence)
 {
-	int ret = fence_signal(&fence->base);
+	int ret = fence_signal(&fence->scheduled);
+
 	if (!ret)
-		FENCE_TRACE(&fence->base, "signaled from irq context\n");
+		FENCE_TRACE(&fence->scheduled, "signaled from irq context\n");
 	else
-		FENCE_TRACE(&fence->base, "was already signaled\n");
+		FENCE_TRACE(&fence->scheduled, "was already signaled\n");
 }
 
-void amd_sched_job_pre_schedule(struct amd_gpu_scheduler *sched ,
-				struct amd_sched_job *s_job)
+void amd_sched_fence_finished(struct amd_sched_fence *fence)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&sched->job_list_lock, flags);
-	list_add_tail(&s_job->node, &sched->ring_mirror_list);
-	sched->ops->begin_job(s_job);
-	spin_unlock_irqrestore(&sched->job_list_lock, flags);
-}
+	int ret = fence_signal(&fence->finished);
 
-void amd_sched_fence_scheduled(struct amd_sched_fence *s_fence)
-{
-	struct fence_cb *cur, *tmp;
-
-	set_bit(AMD_SCHED_FENCE_SCHEDULED_BIT, &s_fence->base.flags);
-	list_for_each_entry_safe(cur, tmp, &s_fence->scheduled_cb, node) {
-		list_del_init(&cur->node);
-		cur->func(&s_fence->base, cur);
-	}
+	if (!ret)
+		FENCE_TRACE(&fence->finished, "signaled from irq context\n");
+	else
+		FENCE_TRACE(&fence->finished, "was already signaled\n");
 }
 
 static const char *amd_sched_fence_get_driver_name(struct fence *fence)
@@ -105,6 +97,8 @@ static void amd_sched_fence_free(struct rcu_head *rcu)
 {
 	struct fence *f = container_of(rcu, struct fence, rcu);
 	struct amd_sched_fence *fence = to_amd_sched_fence(f);
+
+	fence_put(fence->parent);
 	kmem_cache_free(sched_fence_slab, fence);
 }
 
@@ -116,16 +110,41 @@ static void amd_sched_fence_free(struct rcu_head *rcu)
  * This function is called when the reference count becomes zero.
  * It just RCU schedules freeing up the fence.
  */
-static void amd_sched_fence_release(struct fence *f)
+static void amd_sched_fence_release_scheduled(struct fence *f)
 {
-	call_rcu(&f->rcu, amd_sched_fence_free);
+	struct amd_sched_fence *fence = to_amd_sched_fence(f);
+
+	call_rcu(&fence->finished.rcu, amd_sched_fence_free);
 }
 
-const struct fence_ops amd_sched_fence_ops = {
+/**
+ * amd_sched_fence_release_scheduled - drop extra reference
+ *
+ * @f: fence
+ *
+ * Drop the extra reference from the scheduled fence to the base fence.
+ */
+static void amd_sched_fence_release_finished(struct fence *f)
+{
+	struct amd_sched_fence *fence = to_amd_sched_fence(f);
+
+	fence_put(&fence->scheduled);
+}
+
+const struct fence_ops amd_sched_fence_ops_scheduled = {
 	.get_driver_name = amd_sched_fence_get_driver_name,
 	.get_timeline_name = amd_sched_fence_get_timeline_name,
 	.enable_signaling = amd_sched_fence_enable_signaling,
 	.signaled = NULL,
 	.wait = fence_default_wait,
-	.release = amd_sched_fence_release,
+	.release = amd_sched_fence_release_scheduled,
+};
+
+const struct fence_ops amd_sched_fence_ops_finished = {
+	.get_driver_name = amd_sched_fence_get_driver_name,
+	.get_timeline_name = amd_sched_fence_get_timeline_name,
+	.enable_signaling = amd_sched_fence_enable_signaling,
+	.signaled = NULL,
+	.wait = fence_default_wait,
+	.release = amd_sched_fence_release_finished,
 };

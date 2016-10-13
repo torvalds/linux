@@ -1,0 +1,40 @@
+# Ignore header name
+ignore define _UAPI_DVBVIDEO_H_
+
+# This is a deprecated obscure API. Just ignore things we don't know
+ignore define VIDEO_CMD_PLAY
+ignore define VIDEO_CMD_STOP
+ignore define VIDEO_CMD_FREEZE
+ignore define VIDEO_CMD_CONTINUE
+ignore define VIDEO_CMD_FREEZE_TO_BLACK
+ignore define VIDEO_CMD_STOP_TO_BLACK
+ignore define VIDEO_CMD_STOP_IMMEDIATELY
+ignore define VIDEO_PLAY_FMT_NONE
+ignore define VIDEO_PLAY_FMT_GOP
+ignore define VIDEO_VSYNC_FIELD_UNKNOWN
+ignore define VIDEO_VSYNC_FIELD_ODD
+ignore define VIDEO_VSYNC_FIELD_EVEN
+ignore define VIDEO_VSYNC_FIELD_PROGRESSIVE
+ignore define VIDEO_EVENT_SIZE_CHANGED
+ignore define VIDEO_EVENT_FRAME_RATE_CHANGED
+ignore define VIDEO_EVENT_DECODER_STOPPED
+ignore define VIDEO_EVENT_VSYNC
+ignore define VIDEO_CAP_MPEG1
+ignore define VIDEO_CAP_MPEG2
+ignore define VIDEO_CAP_SYS
+ignore define VIDEO_CAP_PROG
+ignore define VIDEO_CAP_SPU
+ignore define VIDEO_CAP_NAVI
+ignore define VIDEO_CAP_CSS
+
+# some typedefs should point to struct/enums
+replace typedef video_format_t video-format
+replace typedef video_system_t video-system
+replace typedef video_displayformat_t video-displayformat
+replace typedef video_size_t video-size
+replace typedef video_stream_source_t video-stream-source
+replace typedef video_play_state_t video-play-state
+replace typedef video_highlight_t video-highlight
+replace typedef video_spu_t video-spu
+replace typedef video_spu_palette_t video-spu-palette
+replace typedef video_navi_pack_t video-navi-pack

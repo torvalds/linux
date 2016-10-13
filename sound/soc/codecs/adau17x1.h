@@ -22,13 +22,18 @@ enum adau17x1_pll_src {
 };
 
 enum adau17x1_clk_src {
+	/* Automatically configure PLL based on the sample rate */
+	ADAU17X1_CLK_SRC_PLL_AUTO,
 	ADAU17X1_CLK_SRC_MCLK,
 	ADAU17X1_CLK_SRC_PLL,
 };
 
+struct clk;
+
 struct adau {
 	unsigned int sysclk;
 	unsigned int pll_freq;
+	struct clk *mclk;
 
 	enum adau17x1_clk_src clk_src;
 	enum adau17x1_type type;
@@ -52,6 +57,7 @@ int adau17x1_add_routes(struct snd_soc_codec *codec);
 int adau17x1_probe(struct device *dev, struct regmap *regmap,
 	enum adau17x1_type type, void (*switch_mode)(struct device *dev),
 	const char *firmware_name);
+void adau17x1_remove(struct device *dev);
 int adau17x1_set_micbias_voltage(struct snd_soc_codec *codec,
 	enum adau17x1_micbias_voltage micbias);
 bool adau17x1_readable_register(struct device *dev, unsigned int reg);

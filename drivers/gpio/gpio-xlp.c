@@ -19,6 +19,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/acpi.h>
 
 /*
  * XLP GPIO has multiple 32 bit registers for each feature where each register
@@ -299,7 +300,6 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	struct gpio_chip *gc;
 	struct resource *iores;
 	struct xlp_gpio_priv *priv;
-	const struct of_device_id *of_id;
 	void __iomem *gpio_base;
 	int irq_base, irq, err;
 	int ngpio;
@@ -321,13 +321,26 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	of_id = of_match_device(xlp_gpio_of_ids, &pdev->dev);
-	if (!of_id) {
-		dev_err(&pdev->dev, "Failed to get soc type!\n");
-		return -ENODEV;
-	}
+	if (pdev->dev.of_node) {
+		const struct of_device_id *of_id;
 
-	soc_type = (uintptr_t) of_id->data;
+		of_id = of_match_device(xlp_gpio_of_ids, &pdev->dev);
+		if (!of_id) {
+			dev_err(&pdev->dev, "Unable to match OF ID\n");
+			return -ENODEV;
+		}
+		soc_type = (uintptr_t) of_id->data;
+	} else {
+		const struct acpi_device_id *acpi_id;
+
+		acpi_id = acpi_match_device(pdev->dev.driver->acpi_match_table,
+						&pdev->dev);
+		if (!acpi_id || !acpi_id->driver_data) {
+			dev_err(&pdev->dev, "Unable to match ACPI ID\n");
+			return -ENODEV;
+		}
+		soc_type = (uintptr_t) acpi_id->driver_data;
+	}
 
 	switch (soc_type) {
 	case XLP_GPIO_VARIANT_XLP832:
@@ -388,14 +401,16 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	gc->get = xlp_gpio_get;
 
 	spin_lock_init(&priv->lock);
-	/* XLP has fixed IRQ range for GPIO interrupts */
-	if (soc_type == GPIO_VARIANT_VULCAN)
-		irq_base = irq_alloc_descs(-1, 0, gc->ngpio, 0);
-	else
+
+	/* XLP(MIPS) has fixed range for GPIO IRQs, Vulcan(ARM64) does not */
+	if (soc_type != GPIO_VARIANT_VULCAN) {
 		irq_base = irq_alloc_descs(-1, XLP_GPIO_IRQ_BASE, gc->ngpio, 0);
-	if (irq_base < 0) {
-		dev_err(&pdev->dev, "Failed to allocate IRQ numbers\n");
-		return irq_base;
+		if (irq_base < 0) {
+			dev_err(&pdev->dev, "Failed to allocate IRQ numbers\n");
+			return irq_base;
+		}
+	} else {
+		irq_base = 0;
 	}
 
 	err = gpiochip_add_data(gc, priv);
@@ -423,10 +438,19 @@ out_free_desc:
 	return err;
 }
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id xlp_gpio_acpi_match[] = {
+	{ "BRCM9006", GPIO_VARIANT_VULCAN },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, xlp_gpio_acpi_match);
+#endif
+
 static struct platform_driver xlp_gpio_driver = {
 	.driver		= {
 		.name	= "xlp-gpio",
 		.of_match_table = xlp_gpio_of_ids,
+		.acpi_match_table = ACPI_PTR(xlp_gpio_acpi_match),
 	},
 	.probe		= xlp_gpio_probe,
 };

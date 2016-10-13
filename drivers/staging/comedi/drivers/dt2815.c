@@ -1,55 +1,55 @@
 /*
-   comedi/drivers/dt2815.c
-   Hardware driver for Data Translation DT2815
-
-   COMEDI - Linux Control and Measurement Device Interface
-   Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+ * comedi/drivers/dt2815.c
+ * Hardware driver for Data Translation DT2815
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 /*
-Driver: dt2815
-Description: Data Translation DT2815
-Author: ds
-Status: mostly complete, untested
-Devices: [Data Translation] DT2815 (dt2815)
-
-I'm not sure anyone has ever tested this board.  If you have information
-contrary, please update.
-
-Configuration options:
-  [0] - I/O port base base address
-  [1] - IRQ (unused)
-  [2] - Voltage unipolar/bipolar configuration
-	0 == unipolar 5V  (0V -- +5V)
-	1 == bipolar 5V  (-5V -- +5V)
-  [3] - Current offset configuration
-	0 == disabled  (0mA -- +32mAV)
-	1 == enabled  (+4mA -- +20mAV)
-  [4] - Firmware program configuration
-	0 == program 1 (see manual table 5-4)
-	1 == program 2 (see manual table 5-4)
-	2 == program 3 (see manual table 5-4)
-	3 == program 4 (see manual table 5-4)
-  [5] - Analog output 0 range configuration
-	0 == voltage
-	1 == current
-  [6] - Analog output 1 range configuration (same options)
-  [7] - Analog output 2 range configuration (same options)
-  [8] - Analog output 3 range configuration (same options)
-  [9] - Analog output 4 range configuration (same options)
-  [10] - Analog output 5 range configuration (same options)
-  [11] - Analog output 6 range configuration (same options)
-  [12] - Analog output 7 range configuration (same options)
-*/
+ * Driver: dt2815
+ * Description: Data Translation DT2815
+ * Author: ds
+ * Status: mostly complete, untested
+ * Devices: [Data Translation] DT2815 (dt2815)
+ *
+ * I'm not sure anyone has ever tested this board.  If you have information
+ * contrary, please update.
+ *
+ * Configuration options:
+ * [0] - I/O port base base address
+ * [1] - IRQ (unused)
+ * [2] - Voltage unipolar/bipolar configuration
+ *	0 == unipolar 5V  (0V -- +5V)
+ *	1 == bipolar 5V  (-5V -- +5V)
+ * [3] - Current offset configuration
+ *	0 == disabled  (0mA -- +32mAV)
+ *	1 == enabled  (+4mA -- +20mAV)
+ * [4] - Firmware program configuration
+ *	0 == program 1 (see manual table 5-4)
+ *	1 == program 2 (see manual table 5-4)
+ *	2 == program 3 (see manual table 5-4)
+ *	3 == program 4 (see manual table 5-4)
+ * [5] - Analog output 0 range configuration
+ *	0 == voltage
+ *	1 == current
+ * [6] - Analog output 1 range configuration (same options)
+ * [7] - Analog output 2 range configuration (same options)
+ * [8] - Analog output 3 range configuration (same options)
+ * [9] - Analog output 4 range configuration (same options)
+ * [10] - Analog output 5 range configuration (same options)
+ * [11] - Analog output 6 range configuration (same options)
+ * [12] - Analog output 7 range configuration (same options)
+ */
 
 #include <linux/module.h>
 #include "../comedidev.h"
@@ -120,27 +120,27 @@ static int dt2815_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 /*
-  options[0]   Board base address
-  options[1]   IRQ (not applicable)
-  options[2]   Voltage unipolar/bipolar configuration
-		0 == unipolar 5V  (0V -- +5V)
-		1 == bipolar 5V  (-5V -- +5V)
-  options[3]   Current offset configuration
-		0 == disabled  (0mA -- +32mAV)
-		1 == enabled  (+4mA -- +20mAV)
-  options[4]   Firmware program configuration
-		0 == program 1 (see manual table 5-4)
-		1 == program 2 (see manual table 5-4)
-		2 == program 3 (see manual table 5-4)
-		3 == program 4 (see manual table 5-4)
-  options[5]   Analog output 0 range configuration
-		0 == voltage
-		1 == current
-  options[6]   Analog output 1 range configuration
-  ...
-  options[12]   Analog output 7 range configuration
-		0 == voltage
-		1 == current
+ * options[0]   Board base address
+ * options[1]   IRQ (not applicable)
+ * options[2]   Voltage unipolar/bipolar configuration
+ *		0 == unipolar 5V  (0V -- +5V)
+ *		1 == bipolar 5V  (-5V -- +5V)
+ * options[3]   Current offset configuration
+ *		0 == disabled  (0mA -- +32mAV)
+ *		1 == enabled  (+4mA -- +20mAV)
+ * options[4]   Firmware program configuration
+ *		0 == program 1 (see manual table 5-4)
+ *		1 == program 2 (see manual table 5-4)
+ *		2 == program 3 (see manual table 5-4)
+ *		3 == program 4 (see manual table 5-4)
+ * options[5]   Analog output 0 range configuration
+ *		0 == voltage
+ *		1 == current
+ * options[6]   Analog output 1 range configuration
+ * ...
+ * options[12]   Analog output 7 range configuration
+ *		0 == voltage
+ *		1 == current
  */
 
 static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)

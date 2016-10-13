@@ -358,16 +358,20 @@ static int fanotify_release(struct inode *ignored, struct file *file)
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 	struct fanotify_perm_event_info *event, *next;
+	struct fsnotify_event *fsn_event;
 
 	/*
-	 * There may be still new events arriving in the notification queue
-	 * but since userspace cannot use fanotify fd anymore, no event can
-	 * enter or leave access_list by now.
+	 * Stop new events from arriving in the notification queue. since
+	 * userspace cannot use fanotify fd anymore, no event can enter or
+	 * leave access_list by now either.
+	 */
+	fsnotify_group_stop_queueing(group);
+
+	/*
+	 * Process all permission events on access_list and notification queue
+	 * and simulate reply from userspace.
 	 */
 	spin_lock(&group->fanotify_data.access_lock);
-
-	atomic_inc(&group->fanotify_data.bypass_perm);
-
 	list_for_each_entry_safe(event, next, &group->fanotify_data.access_list,
 				 fae.fse.list) {
 		pr_debug("%s: found group=%p event=%p\n", __func__, group,
@@ -379,12 +383,21 @@ static int fanotify_release(struct inode *ignored, struct file *file)
 	spin_unlock(&group->fanotify_data.access_lock);
 
 	/*
-	 * Since bypass_perm is set, newly queued events will not wait for
-	 * access response. Wake up the already sleeping ones now.
-	 * synchronize_srcu() in fsnotify_destroy_group() will wait for all
-	 * processes sleeping in fanotify_handle_event() waiting for access
-	 * response and thus also for all permission events to be freed.
+	 * Destroy all non-permission events. For permission events just
+	 * dequeue them and set the response. They will be freed once the
+	 * response is consumed and fanotify_get_response() returns.
 	 */
+	mutex_lock(&group->notification_mutex);
+	while (!fsnotify_notify_queue_is_empty(group)) {
+		fsn_event = fsnotify_remove_first_event(group);
+		if (!(fsn_event->mask & FAN_ALL_PERM_EVENTS))
+			fsnotify_destroy_event(group, fsn_event);
+		else
+			FANOTIFY_PE(fsn_event)->response = FAN_ALLOW;
+	}
+	mutex_unlock(&group->notification_mutex);
+
+	/* Response for all permission events it set, wakeup waiters */
 	wake_up(&group->fanotify_data.access_waitq);
 #endif
 
@@ -755,7 +768,6 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	spin_lock_init(&group->fanotify_data.access_lock);
 	init_waitqueue_head(&group->fanotify_data.access_waitq);
 	INIT_LIST_HEAD(&group->fanotify_data.access_list);
-	atomic_set(&group->fanotify_data.bypass_perm, 0);
 #endif
 	switch (flags & FAN_ALL_CLASS_BITS) {
 	case FAN_CLASS_NOTIF:

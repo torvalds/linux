@@ -53,11 +53,9 @@ struct old_serial_port {
 	unsigned int port;
 	unsigned int irq;
 	upf_t        flags;
-	unsigned char hub6;
 	unsigned char io_type;
 	unsigned char __iomem *iomem_base;
 	unsigned short iomem_reg_shift;
-	unsigned long irqflags;
 };
 
 struct serial8250_config {
@@ -130,6 +128,16 @@ void serial8250_rpm_get(struct uart_8250_port *p);
 void serial8250_rpm_put(struct uart_8250_port *p);
 int serial8250_em485_init(struct uart_8250_port *p);
 void serial8250_em485_destroy(struct uart_8250_port *p);
+
+static inline void serial8250_out_MCR(struct uart_8250_port *up, int value)
+{
+	serial_out(up, UART_MCR, value);
+}
+
+static inline int serial8250_in_MCR(struct uart_8250_port *up)
+{
+	return serial_in(up, UART_MCR);
+}
 
 #if defined(__alpha__) && !defined(CONFIG_PCI)
 /*
@@ -237,9 +245,3 @@ static inline int serial_index(struct uart_port *port)
 {
 	return port->minor - 64;
 }
-
-#if 0
-#define DEBUG_INTR(fmt...)	printk(fmt)
-#else
-#define DEBUG_INTR(fmt...)	do { } while (0)
-#endif

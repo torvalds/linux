@@ -686,8 +686,7 @@ static struct iommu_gather_ops arm_smmu_gather_ops = {
 
 static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
 {
-	int flags, ret;
-	u32 fsr, fsynr, resume;
+	u32 fsr, fsynr;
 	unsigned long iova;
 	struct iommu_domain *domain = dev;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
@@ -701,34 +700,15 @@ static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
 	if (!(fsr & FSR_FAULT))
 		return IRQ_NONE;
 
-	if (fsr & FSR_IGN)
-		dev_err_ratelimited(smmu->dev,
-				    "Unexpected context fault (fsr 0x%x)\n",
-				    fsr);
-
 	fsynr = readl_relaxed(cb_base + ARM_SMMU_CB_FSYNR0);
-	flags = fsynr & FSYNR0_WNR ? IOMMU_FAULT_WRITE : IOMMU_FAULT_READ;
-
 	iova = readq_relaxed(cb_base + ARM_SMMU_CB_FAR);
-	if (!report_iommu_fault(domain, smmu->dev, iova, flags)) {
-		ret = IRQ_HANDLED;
-		resume = RESUME_RETRY;
-	} else {
-		dev_err_ratelimited(smmu->dev,
-		    "Unhandled context fault: iova=0x%08lx, fsynr=0x%x, cb=%d\n",
-		    iova, fsynr, cfg->cbndx);
-		ret = IRQ_NONE;
-		resume = RESUME_TERMINATE;
-	}
 
-	/* Clear the faulting FSR */
+	dev_err_ratelimited(smmu->dev,
+	"Unhandled context fault: fsr=0x%x, iova=0x%08lx, fsynr=0x%x, cb=%d\n",
+			    fsr, iova, fsynr, cfg->cbndx);
+
 	writel(fsr, cb_base + ARM_SMMU_CB_FSR);
-
-	/* Retry or terminate any stalled transactions */
-	if (fsr & FSR_SS)
-		writel_relaxed(resume, cb_base + ARM_SMMU_CB_RESUME);
-
-	return ret;
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t arm_smmu_global_fault(int irq, void *dev)
@@ -837,7 +817,7 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 	}
 
 	/* SCTLR */
-	reg = SCTLR_CFCFG | SCTLR_CFIE | SCTLR_CFRE | SCTLR_M | SCTLR_EAE_SBOP;
+	reg = SCTLR_CFIE | SCTLR_CFRE | SCTLR_M | SCTLR_EAE_SBOP;
 	if (stage1)
 		reg |= SCTLR_S1_ASIDPNE;
 #ifdef __BIG_ENDIAN
@@ -987,8 +967,8 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	 * handler seeing a half-initialised domain state.
 	 */
 	irq = smmu->irqs[smmu->num_global_irqs + cfg->irptndx];
-	ret = request_irq(irq, arm_smmu_context_fault, IRQF_SHARED,
-			  "arm-smmu-context-fault", domain);
+	ret = devm_request_irq(smmu->dev, irq, arm_smmu_context_fault,
+			       IRQF_SHARED, "arm-smmu-context-fault", domain);
 	if (ret < 0) {
 		dev_err(smmu->dev, "failed to request context IRQ %d (%u)\n",
 			cfg->irptndx, irq);
@@ -1028,7 +1008,7 @@ static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
 
 	if (cfg->irptndx != INVALID_IRPTNDX) {
 		irq = smmu->irqs[smmu->num_global_irqs + cfg->irptndx];
-		free_irq(irq, domain);
+		devm_free_irq(smmu->dev, irq, domain);
 	}
 
 	free_io_pgtable_ops(smmu_domain->pgtbl_ops);
@@ -1986,15 +1966,15 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < smmu->num_global_irqs; ++i) {
-		err = request_irq(smmu->irqs[i],
-				  arm_smmu_global_fault,
-				  IRQF_SHARED,
-				  "arm-smmu global fault",
-				  smmu);
+		err = devm_request_irq(smmu->dev, smmu->irqs[i],
+				       arm_smmu_global_fault,
+				       IRQF_SHARED,
+				       "arm-smmu global fault",
+				       smmu);
 		if (err) {
 			dev_err(dev, "failed to request global IRQ %d (%u)\n",
 				i, smmu->irqs[i]);
-			goto out_free_irqs;
+			goto out_put_masters;
 		}
 	}
 
@@ -2005,10 +1985,6 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 
 	arm_smmu_device_reset(smmu);
 	return 0;
-
-out_free_irqs:
-	while (i--)
-		free_irq(smmu->irqs[i], smmu);
 
 out_put_masters:
 	for (node = rb_first(&smmu->masters); node; node = rb_next(node)) {
@@ -2050,7 +2026,7 @@ static int arm_smmu_device_remove(struct platform_device *pdev)
 		dev_err(dev, "removing device with active domains!\n");
 
 	for (i = 0; i < smmu->num_global_irqs; ++i)
-		free_irq(smmu->irqs[i], smmu);
+		devm_free_irq(smmu->dev, smmu->irqs[i], smmu);
 
 	/* Turn the thing off */
 	writel(sCR0_CLIENTPD, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sCR0);
@@ -2096,8 +2072,10 @@ static int __init arm_smmu_init(void)
 #endif
 
 #ifdef CONFIG_PCI
-	if (!iommu_present(&pci_bus_type))
+	if (!iommu_present(&pci_bus_type)) {
+		pci_request_acs();
 		bus_set_iommu(&pci_bus_type, &arm_smmu_ops);
+	}
 #endif
 
 	return 0;

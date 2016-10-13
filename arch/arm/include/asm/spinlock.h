@@ -6,6 +6,8 @@
 #endif
 
 #include <linux/prefetch.h>
+#include <asm/barrier.h>
+#include <asm/processor.h>
 
 /*
  * sev and wfe are ARMv6K extensions.  Uniprocessor ARMv6 may not have the K
@@ -50,8 +52,21 @@ static inline void dsb_sev(void)
  * memory.
  */
 
-#define arch_spin_unlock_wait(lock) \
-	do { while (arch_spin_is_locked(lock)) cpu_relax(); } while (0)
+static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
+{
+	u16 owner = READ_ONCE(lock->tickets.owner);
+
+	for (;;) {
+		arch_spinlock_t tmp = READ_ONCE(*lock);
+
+		if (tmp.tickets.owner == tmp.tickets.next ||
+		    tmp.tickets.owner != owner)
+			break;
+
+		wfe();
+	}
+	smp_acquire__after_ctrl_dep();
+}
 
 #define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
 

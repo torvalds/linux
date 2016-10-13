@@ -346,25 +346,25 @@ static inline int ctnetlink_label_size(const struct nf_conn *ct)
 
 	if (!labels)
 		return 0;
-	return nla_total_size(labels->words * sizeof(long));
+	return nla_total_size(sizeof(labels->bits));
 }
 
 static int
 ctnetlink_dump_labels(struct sk_buff *skb, const struct nf_conn *ct)
 {
 	struct nf_conn_labels *labels = nf_ct_labels_find(ct);
-	unsigned int len, i;
+	unsigned int i;
 
 	if (!labels)
 		return 0;
 
-	len = labels->words * sizeof(long);
 	i = 0;
 	do {
 		if (labels->bits[i] != 0)
-			return nla_put(skb, CTA_LABELS, len, labels->bits);
+			return nla_put(skb, CTA_LABELS, sizeof(labels->bits),
+				       labels->bits);
 		i++;
-	} while (i < labels->words);
+	} while (i < ARRAY_SIZE(labels->bits));
 
 	return 0;
 }
@@ -1894,6 +1894,8 @@ static int ctnetlink_new_conntrack(struct net *net, struct sock *ctnl,
 
 			if (!cda[CTA_TUPLE_ORIG] || !cda[CTA_TUPLE_REPLY])
 				return -EINVAL;
+			if (otuple.dst.protonum != rtuple.dst.protonum)
+				return -EINVAL;
 
 			ct = ctnetlink_create_conntrack(net, &zone, cda, &otuple,
 							&rtuple, u3);
@@ -2362,12 +2364,8 @@ ctnetlink_glue_attach_expect(const struct nlattr *attr, struct nf_conn *ct,
 		return PTR_ERR(exp);
 
 	err = nf_ct_expect_related_report(exp, portid, report);
-	if (err < 0) {
-		nf_ct_expect_put(exp);
-		return err;
-	}
-
-	return 0;
+	nf_ct_expect_put(exp);
+	return err;
 }
 
 static void ctnetlink_glue_seqadj(struct sk_buff *skb, struct nf_conn *ct,

@@ -128,9 +128,7 @@ machine_arch_initcall(twr_p1025, mpc85xx_common_publish_devices);
 
 static int __init twr_p1025_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "fsl,TWR-P1025");
+	return of_machine_is_compatible("fsl,TWR-P1025");
 }
 
 define_machine(twr_p1025) {

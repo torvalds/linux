@@ -167,7 +167,7 @@ static int vic_suspend(void)
 	return 0;
 }
 
-struct syscore_ops vic_syscore_ops = {
+static struct syscore_ops vic_syscore_ops = {
 	.suspend	= vic_suspend,
 	.resume		= vic_resume,
 };
@@ -517,7 +517,8 @@ int __init vic_init_cascaded(void __iomem *base, unsigned int parent_irq,
 EXPORT_SYMBOL_GPL(vic_init_cascaded);
 
 #ifdef CONFIG_OF
-int __init vic_of_init(struct device_node *node, struct device_node *parent)
+static int __init vic_of_init(struct device_node *node,
+			      struct device_node *parent)
 {
 	void __iomem *regs;
 	u32 interrupt_mask = ~0;

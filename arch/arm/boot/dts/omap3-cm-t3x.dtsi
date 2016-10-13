@@ -57,7 +57,7 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	tv0: connector@1 {
+	tv0: connector {
 		compatible = "svideo-connector";
 		label = "tv";
 

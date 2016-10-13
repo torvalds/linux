@@ -115,7 +115,8 @@ static void choke_zap_tail_holes(struct choke_sched_data *q)
 }
 
 /* Drop packet from queue array by creating a "hole" */
-static void choke_drop_by_idx(struct Qdisc *sch, unsigned int idx)
+static void choke_drop_by_idx(struct Qdisc *sch, unsigned int idx,
+			      struct sk_buff **to_free)
 {
 	struct choke_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *skb = q->tab[idx];
@@ -129,7 +130,7 @@ static void choke_drop_by_idx(struct Qdisc *sch, unsigned int idx)
 
 	qdisc_qstats_backlog_dec(sch, skb);
 	qdisc_tree_reduce_backlog(sch, 1, qdisc_pkt_len(skb));
-	qdisc_drop(skb, sch);
+	qdisc_drop(skb, sch, to_free);
 	--sch->q.qlen;
 }
 
@@ -261,7 +262,8 @@ static bool choke_match_random(const struct choke_sched_data *q,
 	return choke_match_flow(oskb, nskb);
 }
 
-static int choke_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+static int choke_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+			 struct sk_buff **to_free)
 {
 	int ret = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 	struct choke_sched_data *q = qdisc_priv(sch);
@@ -288,7 +290,7 @@ static int choke_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		/* Draw a packet at random from queue and compare flow */
 		if (choke_match_random(q, skb, &idx)) {
 			q->stats.matched++;
-			choke_drop_by_idx(sch, idx);
+			choke_drop_by_idx(sch, idx, to_free);
 			goto congestion_drop;
 		}
 
@@ -331,16 +333,16 @@ static int choke_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	q->stats.pdrop++;
-	return qdisc_drop(skb, sch);
+	return qdisc_drop(skb, sch, to_free);
 
 congestion_drop:
-	qdisc_drop(skb, sch);
+	qdisc_drop(skb, sch, to_free);
 	return NET_XMIT_CN;
 
 other_drop:
 	if (ret & __NET_XMIT_BYPASS)
 		qdisc_qstats_drop(sch);
-	kfree_skb(skb);
+	__qdisc_drop(skb, to_free);
 	return ret;
 }
 
@@ -365,22 +367,6 @@ static struct sk_buff *choke_dequeue(struct Qdisc *sch)
 	return skb;
 }
 
-static unsigned int choke_drop(struct Qdisc *sch)
-{
-	struct choke_sched_data *q = qdisc_priv(sch);
-	unsigned int len;
-
-	len = qdisc_queue_drop(sch);
-	if (len > 0)
-		q->stats.other++;
-	else {
-		if (!red_is_idling(&q->vars))
-			red_start_of_idle_period(&q->vars);
-	}
-
-	return len;
-}
-
 static void choke_reset(struct Qdisc *sch)
 {
 	struct choke_sched_data *q = qdisc_priv(sch);
@@ -391,11 +377,11 @@ static void choke_reset(struct Qdisc *sch)
 		q->head = (q->head + 1) & q->tab_mask;
 		if (!skb)
 			continue;
-		qdisc_qstats_backlog_dec(sch, skb);
-		--sch->q.qlen;
-		qdisc_drop(skb, sch);
+		rtnl_qdisc_drop(skb, sch);
 	}
 
+	sch->q.qlen = 0;
+	sch->qstats.backlog = 0;
 	memset(q->tab, 0, (q->tab_mask + 1) * sizeof(struct sk_buff *));
 	q->head = q->tail = 0;
 	red_restart(&q->vars);
@@ -471,7 +457,7 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt)
 				dropped += qdisc_pkt_len(skb);
 				qdisc_qstats_backlog_dec(sch, skb);
 				--sch->q.qlen;
-				qdisc_drop(skb, sch);
+				rtnl_qdisc_drop(skb, sch);
 			}
 			qdisc_tree_reduce_backlog(sch, oqlen - sch->q.qlen, dropped);
 			q->head = 0;
@@ -569,7 +555,6 @@ static struct Qdisc_ops choke_qdisc_ops __read_mostly = {
 	.enqueue	=	choke_enqueue,
 	.dequeue	=	choke_dequeue,
 	.peek		=	choke_peek_head,
-	.drop		=	choke_drop,
 	.init		=	choke_init,
 	.destroy	=	choke_destroy,
 	.reset		=	choke_reset,

@@ -1,8 +1,0 @@
-This driver is deprecated and will be removed soon unless someone will start
-the work to convert this driver to the vb2 framework and remove the
-soc-camera dependency.
-
-Note that trivial patches will not be accepted anymore, only a full conversion.
-
-If you want to convert this driver, please contact the linux-media mailinglist
-(see http://linuxtv.org/lists.php).

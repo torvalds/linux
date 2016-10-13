@@ -17,10 +17,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/acpi.h>
 #include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/module.h>
 #include <linux/of.h>
+
+#include <asm/acpi.h>
 
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
@@ -29,7 +32,7 @@ static int cpu_to_node_map[NR_CPUS] = { [0 ... NR_CPUS-1] = NUMA_NO_NODE };
 
 static int numa_distance_cnt;
 static u8 *numa_distance;
-static int numa_off;
+static bool numa_off;
 
 static __init int numa_parse_early_param(char *opt)
 {
@@ -37,7 +40,7 @@ static __init int numa_parse_early_param(char *opt)
 		return -EINVAL;
 	if (!strncmp(opt, "off", 3)) {
 		pr_info("%s\n", "NUMA turned off");
-		numa_off = 1;
+		numa_off = true;
 	}
 	return 0;
 }
@@ -131,25 +134,25 @@ void __init early_map_cpu_to_node(unsigned int cpu, int nid)
  * numa_add_memblk - Set node id to memblk
  * @nid: NUMA node ID of the new memblk
  * @start: Start address of the new memblk
- * @size:  Size of the new memblk
+ * @end:  End address of the new memblk
  *
  * RETURNS:
  * 0 on success, -errno on failure.
  */
-int __init numa_add_memblk(int nid, u64 start, u64 size)
+int __init numa_add_memblk(int nid, u64 start, u64 end)
 {
 	int ret;
 
-	ret = memblock_set_node(start, size, &memblock.memory, nid);
+	ret = memblock_set_node(start, (end - start), &memblock.memory, nid);
 	if (ret < 0) {
 		pr_err("NUMA: memblock [0x%llx - 0x%llx] failed to add on node %d\n",
-			start, (start + size - 1), nid);
+			start, (end - 1), nid);
 		return ret;
 	}
 
 	node_set(nid, numa_nodes_parsed);
 	pr_info("NUMA: Adding memblock [0x%llx - 0x%llx] on node %d\n",
-			start, (start + size - 1), nid);
+			start, (end - 1), nid);
 	return ret;
 }
 
@@ -362,12 +365,15 @@ static int __init dummy_numa_init(void)
 	int ret;
 	struct memblock_region *mblk;
 
-	pr_info("%s\n", "No NUMA configuration found");
+	if (numa_off)
+		pr_info("NUMA disabled\n"); /* Forced off on command line. */
+	else
+		pr_info("No NUMA configuration found\n");
 	pr_info("NUMA: Faking a node at [mem %#018Lx-%#018Lx]\n",
 	       0LLU, PFN_PHYS(max_pfn) - 1);
 
 	for_each_memblock(memory, mblk) {
-		ret = numa_add_memblk(0, mblk->base, mblk->size);
+		ret = numa_add_memblk(0, mblk->base, mblk->base + mblk->size);
 		if (!ret)
 			continue;
 
@@ -375,7 +381,7 @@ static int __init dummy_numa_init(void)
 		return ret;
 	}
 
-	numa_off = 1;
+	numa_off = true;
 	return 0;
 }
 
@@ -388,7 +394,9 @@ static int __init dummy_numa_init(void)
 void __init arm64_numa_init(void)
 {
 	if (!numa_off) {
-		if (!numa_init(of_numa_init))
+		if (!acpi_disabled && !numa_init(arm64_acpi_numa_init))
+			return;
+		if (acpi_disabled && !numa_init(of_numa_init))
 			return;
 	}
 

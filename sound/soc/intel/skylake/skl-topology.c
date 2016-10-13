@@ -379,43 +379,6 @@ static void skl_tplg_update_module_params(struct snd_soc_dapm_widget *w,
 }
 
 /*
- * A pipe can have multiple modules, each of them will be a DAPM widget as
- * well. While managing a pipeline we need to get the list of all the
- * widgets in a pipelines, so this helper - skl_tplg_get_pipe_widget() helps
- * to get the SKL type widgets in that pipeline
- */
-static int skl_tplg_alloc_pipe_widget(struct device *dev,
-	struct snd_soc_dapm_widget *w, struct skl_pipe *pipe)
-{
-	struct skl_module_cfg *src_module = NULL;
-	struct snd_soc_dapm_path *p = NULL;
-	struct skl_pipe_module *p_module = NULL;
-
-	p_module = devm_kzalloc(dev, sizeof(*p_module), GFP_KERNEL);
-	if (!p_module)
-		return -ENOMEM;
-
-	p_module->w = w;
-	list_add_tail(&p_module->node, &pipe->w_list);
-
-	snd_soc_dapm_widget_for_each_sink_path(w, p) {
-		if ((p->sink->priv == NULL)
-				&& (!is_skl_dsp_widget_type(w)))
-			continue;
-
-		if ((p->sink->priv != NULL) && p->connect
-				&& is_skl_dsp_widget_type(p->sink)) {
-
-			src_module = p->sink->priv;
-			if (pipe->ppl_id == src_module->pipe->ppl_id)
-				skl_tplg_alloc_pipe_widget(dev,
-							p->sink, pipe);
-		}
-	}
-	return 0;
-}
-
-/*
  * some modules can have multiple params set from user control and
  * need to be set after module is initialized. If set_param flag is
  * set module params will be done after module is initialised.
@@ -448,7 +411,7 @@ static int skl_tplg_set_module_params(struct snd_soc_dapm_widget *w,
 
 			if (bc->set_params == SKL_PARAM_SET) {
 				ret = skl_set_module_params(ctx,
-						(u32 *)bc->params, bc->max,
+						(u32 *)bc->params, bc->size,
 						bc->param_id, mconfig);
 				if (ret < 0)
 					return ret;
@@ -483,7 +446,7 @@ static int skl_tplg_set_module_init_data(struct snd_soc_dapm_widget *w)
 				continue;
 
 			mconfig->formats_config.caps = (u32 *)&bc->params;
-			mconfig->formats_config.caps_size = bc->max;
+			mconfig->formats_config.caps_size = bc->size;
 
 			break;
 		}
@@ -514,8 +477,6 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		if (!skl_is_pipe_mcps_avail(skl, mconfig))
 			return -ENOMEM;
 
-		skl_tplg_alloc_pipe_mcps(skl, mconfig);
-
 		if (mconfig->is_loadable && ctx->dsp->fw_ops.load_mod) {
 			ret = ctx->dsp->fw_ops.load_mod(ctx->dsp,
 				mconfig->id.module_id, mconfig->guid);
@@ -539,6 +500,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		if (ret < 0)
 			return ret;
 
+		skl_tplg_alloc_pipe_mcps(skl, mconfig);
 		ret = skl_tplg_set_module_params(w, ctx);
 		if (ret < 0)
 			return ret;
@@ -591,9 +553,6 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	if (!skl_is_pipe_mem_avail(skl, mconfig))
 		return -ENOMEM;
 
-	skl_tplg_alloc_pipe_mem(skl, mconfig);
-	skl_tplg_alloc_pipe_mcps(skl, mconfig);
-
 	/*
 	 * Create a list of modules for pipe.
 	 * This list contains modules from source to sink
@@ -602,19 +561,8 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	if (ret < 0)
 		return ret;
 
-	/*
-	 * we create a w_list of all widgets in that pipe. This list is not
-	 * freed on PMD event as widgets within a pipe are static. This
-	 * saves us cycles to get widgets in pipe every time.
-	 *
-	 * So if we have already initialized all the widgets of a pipeline
-	 * we skip, so check for list_empty and create the list if empty
-	 */
-	if (list_empty(&s_pipe->w_list)) {
-		ret = skl_tplg_alloc_pipe_widget(ctx->dev, w, s_pipe);
-		if (ret < 0)
-			return ret;
-	}
+	skl_tplg_alloc_pipe_mem(skl, mconfig);
+	skl_tplg_alloc_pipe_mcps(skl, mconfig);
 
 	/* Init all pipe modules from source to sink */
 	ret = skl_tplg_init_pipe_modules(skl, s_pipe);
@@ -949,13 +897,17 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 	struct skl_pipe *s_pipe = mconfig->pipe;
 	int ret = 0;
 
+	if (s_pipe->state == SKL_PIPE_INVALID)
+		return -EINVAL;
+
 	skl_tplg_free_pipe_mcps(skl, mconfig);
 	skl_tplg_free_pipe_mem(skl, mconfig);
 
 	list_for_each_entry(w_module, &s_pipe->w_list, node) {
 		dst_module = w_module->w->priv;
 
-		skl_tplg_free_pipe_mcps(skl, dst_module);
+		if (mconfig->m_state >= SKL_MODULE_INIT_DONE)
+			skl_tplg_free_pipe_mcps(skl, dst_module);
 		if (src_module == NULL) {
 			src_module = dst_module;
 			continue;
@@ -1102,7 +1054,7 @@ static int skl_tplg_tlv_control_get(struct snd_kcontrol *kcontrol,
 
 	if (w->power)
 		skl_get_module_params(skl->skl_sst, (u32 *)bc->params,
-				      bc->max, bc->param_id, mconfig);
+				      bc->size, bc->param_id, mconfig);
 
 	/* decrement size for TLV header */
 	size -= 2 * sizeof(u32);
@@ -1136,6 +1088,10 @@ static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
 	struct skl *skl = get_skl_ctx(w->dapm->dev);
 
 	if (ac->params) {
+		if (size > ac->max)
+			return -EINVAL;
+
+		ac->size = size;
 		/*
 		 * if the param_is is of type Vendor, firmware expects actual
 		 * parameter id and size from the control.
@@ -1151,11 +1107,44 @@ static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
 
 		if (w->power)
 			return skl_set_module_params(skl->skl_sst,
-						(u32 *)ac->params, ac->max,
+						(u32 *)ac->params, ac->size,
 						ac->param_id, mconfig);
 	}
 
 	return 0;
+}
+
+/*
+ * Fill the dma id for host and link. In case of passthrough
+ * pipeline, this will both host and link in the same
+ * pipeline, so need to copy the link and host based on dev_type
+ */
+static void skl_tplg_fill_dma_id(struct skl_module_cfg *mcfg,
+				struct skl_pipe_params *params)
+{
+	struct skl_pipe *pipe = mcfg->pipe;
+
+	if (pipe->passthru) {
+		switch (mcfg->dev_type) {
+		case SKL_DEVICE_HDALINK:
+			pipe->p_params->link_dma_id = params->link_dma_id;
+			break;
+
+		case SKL_DEVICE_HDAHOST:
+			pipe->p_params->host_dma_id = params->host_dma_id;
+			break;
+
+		default:
+			break;
+		}
+		pipe->p_params->s_fmt = params->s_fmt;
+		pipe->p_params->ch = params->ch;
+		pipe->p_params->s_freq = params->s_freq;
+		pipe->p_params->stream = params->stream;
+
+	} else {
+		memcpy(pipe->p_params, params, sizeof(*params));
+	}
 }
 
 /*
@@ -1168,10 +1157,9 @@ int skl_tplg_update_pipe_params(struct device *dev,
 			struct skl_module_cfg *mconfig,
 			struct skl_pipe_params *params)
 {
-	struct skl_pipe *pipe = mconfig->pipe;
 	struct skl_module_fmt *format = NULL;
 
-	memcpy(pipe->p_params, params, sizeof(*params));
+	skl_tplg_fill_dma_id(mconfig, params);
 
 	if (params->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		format = &mconfig->in_fmt[0];
@@ -1358,12 +1346,11 @@ static int skl_tplg_be_fill_pipe_params(struct snd_soc_dai *dai,
 				struct skl_module_cfg *mconfig,
 				struct skl_pipe_params *params)
 {
-	struct skl_pipe *pipe = mconfig->pipe;
 	struct nhlt_specific_cfg *cfg;
 	struct skl *skl = get_skl_ctx(dai->dev);
 	int link_type = skl_tplg_be_link_type(mconfig->dev_type);
 
-	memcpy(pipe->p_params, params, sizeof(*params));
+	skl_tplg_fill_dma_id(mconfig, params);
 
 	if (link_type == NHLT_LINK_HDA)
 		return 0;
@@ -1554,6 +1541,55 @@ static void skl_tplg_fill_fmt(struct skl_module_fmt *dst_fmt,
 	}
 }
 
+static void skl_clear_pin_config(struct snd_soc_platform *platform,
+				struct snd_soc_dapm_widget *w)
+{
+	int i;
+	struct skl_module_cfg *mconfig;
+	struct skl_pipe *pipe;
+
+	if (!strncmp(w->dapm->component->name, platform->component.name,
+					strlen(platform->component.name))) {
+		mconfig = w->priv;
+		pipe = mconfig->pipe;
+		for (i = 0; i < mconfig->max_in_queue; i++) {
+			mconfig->m_in_pin[i].in_use = false;
+			mconfig->m_in_pin[i].pin_state = SKL_PIN_UNBIND;
+		}
+		for (i = 0; i < mconfig->max_out_queue; i++) {
+			mconfig->m_out_pin[i].in_use = false;
+			mconfig->m_out_pin[i].pin_state = SKL_PIN_UNBIND;
+		}
+		pipe->state = SKL_PIPE_INVALID;
+		mconfig->m_state = SKL_MODULE_UNINIT;
+	}
+}
+
+void skl_cleanup_resources(struct skl *skl)
+{
+	struct skl_sst *ctx = skl->skl_sst;
+	struct snd_soc_platform *soc_platform = skl->platform;
+	struct snd_soc_dapm_widget *w;
+	struct snd_soc_card *card;
+
+	if (soc_platform == NULL)
+		return;
+
+	card = soc_platform->component.card;
+	if (!card || !card->instantiated)
+		return;
+
+	skl->resource.mem = 0;
+	skl->resource.mcps = 0;
+
+	list_for_each_entry(w, &card->widgets, list) {
+		if (is_skl_dsp_widget_type(w) && (w->priv != NULL))
+			skl_clear_pin_config(soc_platform, w);
+	}
+
+	skl_clear_module_cnt(ctx->dsp);
+}
+
 /*
  * Topology core widget load callback
  *
@@ -1584,6 +1620,10 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 
 	w->priv = mconfig;
 	memcpy(&mconfig->guid, &dfw_config->uuid, 16);
+
+	ret = snd_skl_get_module_info(skl->skl_sst, mconfig->guid, dfw_config);
+	if (ret < 0)
+		return ret;
 
 	mconfig->id.module_id = dfw_config->module_id;
 	mconfig->id.instance_id = dfw_config->instance_id;
@@ -1683,6 +1723,7 @@ static int skl_init_algo_data(struct device *dev, struct soc_bytes_ext *be,
 	ac->max = dfw_ac->max;
 	ac->param_id = dfw_ac->param_id;
 	ac->set_params = dfw_ac->set_params;
+	ac->size = dfw_ac->max;
 
 	if (ac->max) {
 		ac->params = (char *) devm_kzalloc(dev, ac->max, GFP_KERNEL);
@@ -1733,6 +1774,60 @@ static struct snd_soc_tplg_ops skl_tplg_ops  = {
 	.bytes_ext_ops_count = ARRAY_SIZE(skl_tlv_ops),
 };
 
+/*
+ * A pipe can have multiple modules, each of them will be a DAPM widget as
+ * well. While managing a pipeline we need to get the list of all the
+ * widgets in a pipelines, so this helper - skl_tplg_create_pipe_widget_list()
+ * helps to get the SKL type widgets in that pipeline
+ */
+static int skl_tplg_create_pipe_widget_list(struct snd_soc_platform *platform)
+{
+	struct snd_soc_dapm_widget *w;
+	struct skl_module_cfg *mcfg = NULL;
+	struct skl_pipe_module *p_module = NULL;
+	struct skl_pipe *pipe;
+
+	list_for_each_entry(w, &platform->component.card->widgets, list) {
+		if (is_skl_dsp_widget_type(w) && w->priv != NULL) {
+			mcfg = w->priv;
+			pipe = mcfg->pipe;
+
+			p_module = devm_kzalloc(platform->dev,
+						sizeof(*p_module), GFP_KERNEL);
+			if (!p_module)
+				return -ENOMEM;
+
+			p_module->w = w;
+			list_add_tail(&p_module->node, &pipe->w_list);
+		}
+	}
+
+	return 0;
+}
+
+static void skl_tplg_set_pipe_type(struct skl *skl, struct skl_pipe *pipe)
+{
+	struct skl_pipe_module *w_module;
+	struct snd_soc_dapm_widget *w;
+	struct skl_module_cfg *mconfig;
+	bool host_found = false, link_found = false;
+
+	list_for_each_entry(w_module, &pipe->w_list, node) {
+		w = w_module->w;
+		mconfig = w->priv;
+
+		if (mconfig->dev_type == SKL_DEVICE_HDAHOST)
+			host_found = true;
+		else if (mconfig->dev_type != SKL_DEVICE_NONE)
+			link_found = true;
+	}
+
+	if (host_found && link_found)
+		pipe->passthru = true;
+	else
+		pipe->passthru = false;
+}
+
 /* This will be read from topology manifest, currently defined here */
 #define SKL_MAX_MCPS 30000000
 #define SKL_FW_MAX_MEM 1000000
@@ -1746,6 +1841,7 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 	const struct firmware *fw;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	struct skl *skl = ebus_to_skl(ebus);
+	struct skl_pipeline *ppl;
 
 	ret = request_firmware(&fw, skl->tplg_name, bus->dev);
 	if (ret < 0) {
@@ -1775,6 +1871,12 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 	skl->resource.max_mem = SKL_FW_MAX_MEM;
 
 	skl->tplg = fw;
+	ret = skl_tplg_create_pipe_widget_list(platform);
+	if (ret < 0)
+		return ret;
+
+	list_for_each_entry(ppl, &skl->ppl_list, node)
+		skl_tplg_set_pipe_type(skl, ppl->pipe);
 
 	return 0;
 }

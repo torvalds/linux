@@ -50,6 +50,7 @@ enum {
 	FRA_FWMASK,	/* mask for netfilter mark */
 	FRA_OIFNAME,
 	FRA_PAD,
+	FRA_L3MDEV,	/* iif or oif is l3mdev goto its table */
 	__FRA_MAX
 };
 

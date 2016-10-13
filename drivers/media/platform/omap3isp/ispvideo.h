@@ -171,7 +171,6 @@ struct isp_video {
 	bool error;
 
 	/* Video buffers queue */
-	void *alloc_ctx;
 	struct vb2_queue *queue;
 	struct mutex queue_lock;	/* protects the queue */
 	spinlock_t irqlock;		/* protects dmaqueue */

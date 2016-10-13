@@ -215,9 +215,10 @@ static int __hpp__sort_acc(struct hist_entry *a, struct hist_entry *b,
 
 static int hpp__width_fn(struct perf_hpp_fmt *fmt,
 			 struct perf_hpp *hpp __maybe_unused,
-			 struct perf_evsel *evsel)
+			 struct hists *hists)
 {
 	int len = fmt->user_len ?: fmt->len;
+	struct perf_evsel *evsel = hists_to_evsel(hists);
 
 	if (symbol_conf.event_group)
 		len = max(len, evsel->nr_members * fmt->len);
@@ -229,9 +230,9 @@ static int hpp__width_fn(struct perf_hpp_fmt *fmt,
 }
 
 static int hpp__header_fn(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-			  struct perf_evsel *evsel)
+			  struct hists *hists)
 {
-	int len = hpp__width_fn(fmt, hpp, evsel);
+	int len = hpp__width_fn(fmt, hpp, hists);
 	return scnprintf(hpp->buf, hpp->size, "%*s", len, fmt->name);
 }
 
@@ -632,7 +633,7 @@ unsigned int hists__sort_list_width(struct hists *hists)
 		else
 			ret += 2;
 
-		ret += fmt->width(fmt, &dummy_hpp, hists_to_evsel(hists));
+		ret += fmt->width(fmt, &dummy_hpp, hists);
 	}
 
 	if (verbose && hists__has(hists, sym)) /* Addr + origin */
@@ -657,7 +658,7 @@ unsigned int hists__overhead_width(struct hists *hists)
 		else
 			ret += 2;
 
-		ret += fmt->width(fmt, &dummy_hpp, hists_to_evsel(hists));
+		ret += fmt->width(fmt, &dummy_hpp, hists);
 	}
 
 	return ret;
@@ -765,7 +766,7 @@ int perf_hpp__setup_hists_formats(struct perf_hpp_list *list,
 	if (!symbol_conf.report_hierarchy)
 		return 0;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		hists = evsel__hists(evsel);
 
 		perf_hpp_list__for_each_sort_list(list, fmt) {

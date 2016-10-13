@@ -111,4 +111,11 @@ bool rcu_is_watching(void);
 
 void rcu_all_qs(void);
 
+/* RCUtree hotplug events */
+int rcutree_prepare_cpu(unsigned int cpu);
+int rcutree_online_cpu(unsigned int cpu);
+int rcutree_offline_cpu(unsigned int cpu);
+int rcutree_dead_cpu(unsigned int cpu);
+int rcutree_dying_cpu(unsigned int cpu);
+
 #endif /* __LINUX_RCUTREE_H */

@@ -5,12 +5,12 @@ This document will describe OCFS2 online file check feature.
 
 Introduction
 ============
-OCFS2 is often used in high-availaibility systems. However, OCFS2 usually
+OCFS2 is often used in high-availability systems. However, OCFS2 usually
 converts the filesystem to read-only when encounters an error. This may not be
 necessary, since turning the filesystem read-only would affect other running
 processes as well, decreasing availability.
 Then, a mount option (errors=continue) is introduced, which would return the
--EIO errno to the calling process and terminate furhter processing so that the
+-EIO errno to the calling process and terminate further processing so that the
 filesystem is not corrupted further. The filesystem is not converted to
 read-only, and the problematic file's inode number is reported in the kernel
 log. The user can try to check/fix this file via online filecheck feature.
@@ -44,7 +44,7 @@ There is a sysfs directory for each OCFS2 file system mounting:
 
   /sys/fs/ocfs2/<devname>/filecheck
 
-Here, <devname> indicates the name of OCFS2 volumn device which has been already
+Here, <devname> indicates the name of OCFS2 volume device which has been already
 mounted. The file above would accept inode numbers. This could be used to
 communicate with kernel space, tell which file(inode number) will be checked or
 fixed. Currently, three operations are supported, which includes checking
@@ -76,14 +76,14 @@ The output is like this:
 This time, the <ERROR> column indicates whether this fix is successful or not.
 
 3. The record cache is used to store the history of check/fix results. It's
-defalut size is 10, and can be adjust between the range of 10 ~ 100. You can
+default size is 10, and can be adjust between the range of 10 ~ 100. You can
 adjust the size like this:
 
   # echo "<size>" > /sys/fs/ocfs2/<devname>/filecheck/set
 
 Fixing stuff
 ============
-On receivng the inode, the filesystem would read the inode and the
+On receiving the inode, the filesystem would read the inode and the
 file metadata. In case of errors, the filesystem would fix the errors
 and report the problems it fixed in the kernel log. As a precautionary measure,
 the inode must first be checked for errors before performing a final fix.

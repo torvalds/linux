@@ -20,6 +20,8 @@
 
 #include <linux/bitmap.h>
 
+#include "log.h"
+
 /* shift the packet array by n places. */
 static void batadv_bitmap_shift_left(unsigned long *seq_bits, s32 n)
 {

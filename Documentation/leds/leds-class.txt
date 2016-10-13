@@ -11,7 +11,7 @@ brightness support so will just be turned on for non-zero brightness settings.
 The class also introduces the optional concept of an LED trigger. A trigger
 is a kernel based source of led events. Triggers can either be simple or
 complex. A simple trigger isn't configurable and is designed to slot into
-existing subsystems with minimal additional code. Examples are the ide-disk,
+existing subsystems with minimal additional code. Examples are the disk-activity,
 nand-disk and sharpsl-charge triggers. With led triggers disabled, the code
 optimises away.
 

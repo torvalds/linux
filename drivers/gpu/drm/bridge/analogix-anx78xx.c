@@ -986,16 +986,8 @@ unlock:
 	return num_modes;
 }
 
-static struct drm_encoder *anx78xx_best_encoder(struct drm_connector *connector)
-{
-	struct anx78xx *anx78xx = connector_to_anx78xx(connector);
-
-	return anx78xx->bridge.encoder;
-}
-
 static const struct drm_connector_helper_funcs anx78xx_connector_helper_funcs = {
 	.get_modes = anx78xx_get_modes,
-	.best_encoder = anx78xx_best_encoder,
 };
 
 static enum drm_connector_status anx78xx_detect(struct drm_connector *connector,

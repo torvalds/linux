@@ -72,6 +72,9 @@
 #define NUM_MAC_INDEX_DRIVER	MAC_INDEX_AUX
 #define NUM_MAC_INDEX		(MAC_INDEX_AUX + 1)
 
+#define IWL_MVM_STATION_COUNT	16
+#define IWL_MVM_TDLS_STA_COUNT	4
+
 enum iwl_ac {
 	AC_BK,
 	AC_BE,

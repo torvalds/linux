@@ -34,6 +34,7 @@ struct pstore_read_data {
 	int *count;
 	struct timespec *timespec;
 	bool *compressed;
+	ssize_t *ecc_notice_size;
 	char **buf;
 };
 
@@ -69,6 +70,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
 			*cb_data->compressed = true;
 		else
 			*cb_data->compressed = false;
+		*cb_data->ecc_notice_size = 0;
 	} else if (sscanf(name, "dump-type%u-%u-%d-%lu",
 		   cb_data->type, &part, &cnt, &time) == 4) {
 		*cb_data->id = generic_id(time, part, cnt);
@@ -76,6 +78,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
 		cb_data->timespec->tv_sec = time;
 		cb_data->timespec->tv_nsec = 0;
 		*cb_data->compressed = false;
+		*cb_data->ecc_notice_size = 0;
 	} else if (sscanf(name, "dump-type%u-%u-%lu",
 			  cb_data->type, &part, &time) == 3) {
 		/*
@@ -88,6 +91,7 @@ static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
 		cb_data->timespec->tv_sec = time;
 		cb_data->timespec->tv_nsec = 0;
 		*cb_data->compressed = false;
+		*cb_data->ecc_notice_size = 0;
 	} else
 		return 0;
 
@@ -210,6 +214,7 @@ static int efi_pstore_sysfs_entry_iter(void *data, struct efivar_entry **pos)
 static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 			       int *count, struct timespec *timespec,
 			       char **buf, bool *compressed,
+			       ssize_t *ecc_notice_size,
 			       struct pstore_info *psi)
 {
 	struct pstore_read_data data;
@@ -220,6 +225,7 @@ static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 	data.count = count;
 	data.timespec = timespec;
 	data.compressed = compressed;
+	data.ecc_notice_size = ecc_notice_size;
 	data.buf = buf;
 
 	*data.buf = kzalloc(EFIVARS_DATA_SIZE_MAX, GFP_KERNEL);
@@ -393,6 +399,13 @@ static __init int efivars_pstore_init(void)
 
 static __exit void efivars_pstore_exit(void)
 {
+	if (!efi_pstore_info.bufsize)
+		return;
+
+	pstore_unregister(&efi_pstore_info);
+	kfree(efi_pstore_info.buf);
+	efi_pstore_info.buf = NULL;
+	efi_pstore_info.bufsize = 0;
 }
 
 module_init(efivars_pstore_init);

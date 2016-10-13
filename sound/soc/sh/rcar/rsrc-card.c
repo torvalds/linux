@@ -20,6 +20,7 @@
 #include <sound/jack.h>
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
+#include <sound/simple_card_utils.h>
 
 struct rsrc_card_of_data {
 	const char *prefix;
@@ -46,25 +47,13 @@ static const struct of_device_id rsrc_card_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rsrc_card_of_match);
 
-#define DAI_NAME_NUM	32
-struct rsrc_card_dai {
-	unsigned int sysclk;
-	unsigned int tx_slot_mask;
-	unsigned int rx_slot_mask;
-	int slots;
-	int slot_width;
-	struct clk *clk;
-	char dai_name[DAI_NAME_NUM];
-};
-
 #define IDX_CPU		0
 #define IDX_CODEC	1
 struct rsrc_card_priv {
 	struct snd_soc_card snd_card;
 	struct snd_soc_codec_conf codec_conf;
-	struct rsrc_card_dai *dai_props;
+	struct asoc_simple_dai *dai_props;
 	struct snd_soc_dai_link *dai_link;
-	int dai_num;
 	u32 convert_rate;
 	u32 convert_channels;
 };
@@ -77,7 +66,7 @@ static int rsrc_card_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct rsrc_card_priv *priv =	snd_soc_card_get_drvdata(rtd->card);
-	struct rsrc_card_dai *dai_props =
+	struct asoc_simple_dai *dai_props =
 		rsrc_priv_to_props(priv, rtd->num);
 
 	return clk_prepare_enable(dai_props->clk);
@@ -87,7 +76,7 @@ static void rsrc_card_shutdown(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct rsrc_card_priv *priv =	snd_soc_card_get_drvdata(rtd->card);
-	struct rsrc_card_dai *dai_props =
+	struct asoc_simple_dai *dai_props =
 		rsrc_priv_to_props(priv, rtd->num);
 
 	clk_disable_unprepare(dai_props->clk);
@@ -103,7 +92,7 @@ static int rsrc_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 	struct rsrc_card_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai;
 	struct snd_soc_dai_link *dai_link;
-	struct rsrc_card_dai *dai_props;
+	struct asoc_simple_dai *dai_props;
 	int num = rtd->num;
 	int ret;
 
@@ -159,44 +148,13 @@ static int rsrc_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static int rsrc_card_parse_daifmt(struct device_node *node,
-				  struct device_node *codec,
-				  struct rsrc_card_priv *priv,
-				  struct snd_soc_dai_link *dai_link,
-				  unsigned int *retfmt)
-{
-	struct device_node *bitclkmaster = NULL;
-	struct device_node *framemaster = NULL;
-	unsigned int daifmt;
-
-	daifmt = snd_soc_of_parse_daifmt(node, NULL,
-					 &bitclkmaster, &framemaster);
-	daifmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
-
-	if (!bitclkmaster && !framemaster)
-		return -EINVAL;
-
-	if (codec == bitclkmaster)
-		daifmt |= (codec == framemaster) ?
-			SND_SOC_DAIFMT_CBM_CFM : SND_SOC_DAIFMT_CBM_CFS;
-	else
-		daifmt |= (codec == framemaster) ?
-			SND_SOC_DAIFMT_CBS_CFM : SND_SOC_DAIFMT_CBS_CFS;
-
-	of_node_put(bitclkmaster);
-	of_node_put(framemaster);
-
-	*retfmt = daifmt;
-
-	return 0;
-}
-
 static int rsrc_card_parse_links(struct device_node *np,
 				 struct rsrc_card_priv *priv,
 				 int idx, bool is_fe)
 {
+	struct device *dev = rsrc_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = rsrc_priv_to_link(priv, idx);
-	struct rsrc_card_dai *dai_props = rsrc_priv_to_props(priv, idx);
+	struct asoc_simple_dai *dai_props = rsrc_priv_to_props(priv, idx);
 	struct of_phandle_args args;
 	int ret;
 
@@ -232,9 +190,11 @@ static int rsrc_card_parse_links(struct device_node *np,
 		if (ret < 0)
 			return ret;
 
-		/* set dai_name */
-		snprintf(dai_props->dai_name, DAI_NAME_NUM, "fe.%s",
-			 dai_link->cpu_dai_name);
+		ret = asoc_simple_card_set_dailink_name(dev, dai_link,
+							"fe.%s",
+							dai_link->cpu_dai_name);
+		if (ret < 0)
+			return ret;
 
 		/*
 		 * In soc_bind_dai_link() will check cpu name after
@@ -248,7 +208,6 @@ static int rsrc_card_parse_links(struct device_node *np,
 		if (!args.args_count)
 			dai_link->cpu_dai_name = NULL;
 	} else {
-		struct device *dev = rsrc_priv_to_dev(priv);
 		const struct rsrc_card_of_data *of_data;
 
 		of_data = of_device_get_match_data(dev);
@@ -266,6 +225,12 @@ static int rsrc_card_parse_links(struct device_node *np,
 		if (ret < 0)
 			return ret;
 
+		ret = asoc_simple_card_set_dailink_name(dev, dai_link,
+							"be.%s",
+							dai_link->codec_dai_name);
+		if (ret < 0)
+			return ret;
+
 		/* additional name prefix */
 		if (of_data) {
 			priv->codec_conf.of_node = dai_link->codec_of_node;
@@ -276,18 +241,12 @@ static int rsrc_card_parse_links(struct device_node *np,
 						      dai_link->codec_of_node,
 						      "audio-prefix");
 		}
-
-		/* set dai_name */
-		snprintf(dai_props->dai_name, DAI_NAME_NUM, "be.%s",
-			 dai_link->codec_dai_name);
 	}
 
 	/* Simple Card assumes platform == cpu */
 	dai_link->platform_of_node	= dai_link->cpu_of_node;
 	dai_link->dpcm_playback		= 1;
 	dai_link->dpcm_capture		= 1;
-	dai_link->name			= dai_props->dai_name;
-	dai_link->stream_name		= dai_props->dai_name;
 	dai_link->ops			= &rsrc_card_ops;
 	dai_link->init			= rsrc_card_dai_init;
 
@@ -299,7 +258,7 @@ static int rsrc_card_parse_clk(struct device_node *np,
 			       int idx, bool is_fe)
 {
 	struct snd_soc_dai_link *dai_link = rsrc_priv_to_link(priv, idx);
-	struct rsrc_card_dai *dai_props = rsrc_priv_to_props(priv, idx);
+	struct asoc_simple_dai *dai_props = rsrc_priv_to_props(priv, idx);
 	struct clk *clk;
 	struct device_node *of_np = is_fe ?	dai_link->cpu_of_node :
 						dai_link->codec_of_node;
@@ -336,7 +295,7 @@ static int rsrc_card_dai_sub_link_of(struct device_node *node,
 {
 	struct device *dev = rsrc_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = rsrc_priv_to_link(priv, idx);
-	struct rsrc_card_dai *dai_props = rsrc_priv_to_props(priv, idx);
+	struct asoc_simple_dai *dai_props = rsrc_priv_to_props(priv, idx);
 	int ret;
 
 	ret = rsrc_card_parse_links(np, priv, idx, is_fe);
@@ -348,7 +307,7 @@ static int rsrc_card_dai_sub_link_of(struct device_node *node,
 		return ret;
 
 	dev_dbg(dev, "\t%s / %04x / %d\n",
-		dai_props->dai_name,
+		dai_link->name,
 		dai_link->dai_fmt,
 		dai_props->sysclk);
 
@@ -358,6 +317,7 @@ static int rsrc_card_dai_sub_link_of(struct device_node *node,
 static int rsrc_card_dai_link_of(struct device_node *node,
 				 struct rsrc_card_priv *priv)
 {
+	struct device *dev = rsrc_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link;
 	struct device_node *np;
 	unsigned int daifmt = 0;
@@ -370,8 +330,8 @@ static int rsrc_card_dai_link_of(struct device_node *node,
 		dai_link = rsrc_priv_to_link(priv, i);
 
 		if (strcmp(np->name, "codec") == 0) {
-			ret = rsrc_card_parse_daifmt(node, np, priv,
-						     dai_link, &daifmt);
+			ret = asoc_simple_card_parse_daifmt(dev, node, np,
+							    NULL, &daifmt);
 			if (ret < 0)
 				return ret;
 			break;
@@ -402,7 +362,7 @@ static int rsrc_card_parse_of(struct device_node *node,
 			      struct device *dev)
 {
 	const struct rsrc_card_of_data *of_data = of_device_get_match_data(dev);
-	struct rsrc_card_dai *props;
+	struct asoc_simple_dai *props;
 	struct snd_soc_dai_link *links;
 	int ret;
 	int num;
@@ -418,7 +378,6 @@ static int rsrc_card_parse_of(struct device_node *node,
 
 	priv->dai_props	= props;
 	priv->dai_link	= links;
-	priv->dai_num	= num;
 
 	/* Init snd_soc_card */
 	priv->snd_card.owner			= THIS_MODULE;
@@ -436,9 +395,6 @@ static int rsrc_card_parse_of(struct device_node *node,
 					       "audio-routing");
 	}
 
-	/* Parse the card name from DT */
-	snd_soc_of_parse_card_name(&priv->snd_card, "card-name");
-
 	/* sampling rate convert */
 	of_property_read_u32(node, "convert-rate", &priv->convert_rate);
 
@@ -454,8 +410,9 @@ static int rsrc_card_parse_of(struct device_node *node,
 	if (ret < 0)
 		return ret;
 
-	if (!priv->snd_card.name)
-		priv->snd_card.name = priv->snd_card.dai_link->name;
+	ret = asoc_simple_card_parse_card_name(&priv->snd_card, "card-");
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }

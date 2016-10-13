@@ -112,6 +112,7 @@ struct sti_tvout {
 	struct drm_encoder *hdmi;
 	struct drm_encoder *hda;
 	struct drm_encoder *dvo;
+	bool debugfs_registered;
 };
 
 struct sti_tvout_encoder {
@@ -515,13 +516,7 @@ static int tvout_dbg_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct sti_tvout *tvout = (struct sti_tvout *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
 	struct drm_crtc *crtc;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(s, "TVOUT: (vaddr = 0x%p)", tvout->regs);
 
@@ -587,7 +582,6 @@ static int tvout_dbg_show(struct seq_file *s, void *data)
 	DBGFS_DUMP(TVO_AUX_IN_VID_FORMAT);
 	seq_puts(s, "\n");
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -632,8 +626,37 @@ static void sti_tvout_encoder_destroy(struct drm_encoder *encoder)
 	kfree(sti_encoder);
 }
 
+static int sti_tvout_late_register(struct drm_encoder *encoder)
+{
+	struct sti_tvout *tvout = to_sti_tvout(encoder);
+	int ret;
+
+	if (tvout->debugfs_registered)
+		return 0;
+
+	ret = tvout_debugfs_init(tvout, encoder->dev->primary);
+	if (ret)
+		return ret;
+
+	tvout->debugfs_registered = true;
+	return 0;
+}
+
+static void sti_tvout_early_unregister(struct drm_encoder *encoder)
+{
+	struct sti_tvout *tvout = to_sti_tvout(encoder);
+
+	if (!tvout->debugfs_registered)
+		return;
+
+	tvout_debugfs_exit(tvout, encoder->dev->primary);
+	tvout->debugfs_registered = false;
+}
+
 static const struct drm_encoder_funcs sti_tvout_encoder_funcs = {
 	.destroy = sti_tvout_encoder_destroy,
+	.late_register = sti_tvout_late_register,
+	.early_unregister = sti_tvout_early_unregister,
 };
 
 static void sti_dvo_encoder_enable(struct drm_encoder *encoder)
@@ -820,9 +843,6 @@ static int sti_tvout_bind(struct device *dev, struct device *master, void *data)
 
 	sti_tvout_create_encoders(drm_dev, tvout);
 
-	if (tvout_debugfs_init(tvout, drm_dev->primary))
-		DRM_ERROR("TVOUT debugfs setup failed\n");
-
 	return 0;
 }
 
@@ -830,11 +850,8 @@ static void sti_tvout_unbind(struct device *dev, struct device *master,
 	void *data)
 {
 	struct sti_tvout *tvout = dev_get_drvdata(dev);
-	struct drm_device *drm_dev = data;
 
 	sti_tvout_destroy_encoders(tvout);
-
-	tvout_debugfs_exit(tvout, drm_dev->primary);
 }
 
 static const struct component_ops sti_tvout_ops = {

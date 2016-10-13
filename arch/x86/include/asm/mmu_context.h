@@ -155,7 +155,7 @@ static inline void arch_exit_mmap(struct mm_struct *mm)
 #ifdef CONFIG_X86_64
 static inline bool is_64bit_mm(struct mm_struct *mm)
 {
-	return	!config_enabled(CONFIG_IA32_EMULATION) ||
+	return	!IS_ENABLED(CONFIG_IA32_EMULATION) ||
 		!(mm->context.ia32_compat == TIF_IA32);
 }
 #else

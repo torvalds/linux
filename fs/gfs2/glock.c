@@ -575,7 +575,6 @@ static void delete_work_func(struct work_struct *work)
 {
 	struct gfs2_glock *gl = container_of(work, struct gfs2_glock, gl_delete);
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct gfs2_inode *ip;
 	struct inode *inode;
 	u64 no_addr = gl->gl_name.ln_number;
 
@@ -585,13 +584,7 @@ static void delete_work_func(struct work_struct *work)
 	if (test_bit(GLF_INODE_CREATING, &gl->gl_flags))
 		goto out;
 
-	ip = gl->gl_object;
-	/* Note: Unsafe to dereference ip as we don't hold right refs/locks */
-
-	if (ip)
-		inode = gfs2_ilookup(sdp->sd_vfs, no_addr);
-	else
-		inode = gfs2_lookup_by_inum(sdp, no_addr, NULL, GFS2_BLKST_UNLINKED);
+	inode = gfs2_lookup_by_inum(sdp, no_addr, NULL, GFS2_BLKST_UNLINKED);
 	if (inode && !IS_ERR(inode)) {
 		d_prune_aliases(inode);
 		iput(inode);
@@ -808,7 +801,7 @@ void gfs2_holder_uninit(struct gfs2_holder *gh)
 {
 	put_pid(gh->gh_owner_pid);
 	gfs2_glock_put(gh->gh_gl);
-	gh->gh_gl = NULL;
+	gfs2_holder_mark_uninitialized(gh);
 	gh->gh_ip = 0;
 }
 

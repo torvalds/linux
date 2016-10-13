@@ -625,7 +625,7 @@ out:
 static void altera_tse_adjust_link(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = dev->phydev;
 	int new_state = 0;
 
 	/* only change config if there is a link */
@@ -815,6 +815,7 @@ static int init_phy(struct net_device *dev)
 		phydev = of_phy_connect(dev, phynode,
 			&altera_tse_adjust_link, 0, priv->phy_iface);
 	}
+	of_node_put(phynode);
 
 	if (!phydev) {
 		netdev_err(dev, "Could not find the PHY\n");
@@ -845,7 +846,6 @@ static int init_phy(struct net_device *dev)
 	netdev_dbg(dev, "attached to PHY %d UID 0x%08x Link = %d\n",
 		   phydev->mdio.addr, phydev->phy_id, phydev->link);
 
-	priv->phydev = phydev;
 	return 0;
 }
 
@@ -1172,8 +1172,8 @@ static int tse_open(struct net_device *dev)
 
 	spin_unlock_irqrestore(&priv->rxdma_irq_lock, flags);
 
-	if (priv->phydev)
-		phy_start(priv->phydev);
+	if (dev->phydev)
+		phy_start(dev->phydev);
 
 	napi_enable(&priv->napi);
 	netif_start_queue(dev);
@@ -1205,8 +1205,8 @@ static int tse_shutdown(struct net_device *dev)
 	unsigned long int flags;
 
 	/* Stop the PHY */
-	if (priv->phydev)
-		phy_stop(priv->phydev);
+	if (dev->phydev)
+		phy_stop(dev->phydev);
 
 	netif_stop_queue(dev);
 	napi_disable(&priv->napi);
@@ -1545,10 +1545,9 @@ err_free_netdev:
 static int altera_tse_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
-	struct altera_tse_private *priv = netdev_priv(ndev);
 
-	if (priv->phydev)
-		phy_disconnect(priv->phydev);
+	if (ndev->phydev)
+		phy_disconnect(ndev->phydev);
 
 	platform_set_drvdata(pdev, NULL);
 	altera_tse_mdio_destroy(ndev);

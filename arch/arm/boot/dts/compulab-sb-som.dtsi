@@ -40,7 +40,7 @@
 		};
 	};
 
-	hdmi_conn: connector@0 {
+	hdmi_conn: connector {
 		compatible = "hdmi-connector";
 		label = "hdmi";
 

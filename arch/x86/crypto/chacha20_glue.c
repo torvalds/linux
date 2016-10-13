@@ -70,7 +70,7 @@ static int chacha20_simd(struct blkcipher_desc *desc, struct scatterlist *dst,
 	struct blkcipher_walk walk;
 	int err;
 
-	if (!may_use_simd())
+	if (nbytes <= CHACHA20_BLOCK_SIZE || !may_use_simd())
 		return crypto_chacha20_crypt(desc, dst, src, nbytes);
 
 	state = (u32 *)roundup((uintptr_t)state_buf, CHACHA20_STATE_ALIGN);

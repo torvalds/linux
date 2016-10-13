@@ -1112,7 +1112,7 @@ static u32 mlx4_en_get_rxfh_indir_size(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 
-	return priv->rx_ring_num;
+	return rounddown_pow_of_two(priv->rx_ring_num);
 }
 
 static u32 mlx4_en_get_rxfh_key_size(struct net_device *netdev)
@@ -1146,19 +1146,17 @@ static int mlx4_en_get_rxfh(struct net_device *dev, u32 *ring_index, u8 *key,
 			    u8 *hfunc)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_rss_map *rss_map = &priv->rss_map;
-	int rss_rings;
-	size_t n = priv->rx_ring_num;
+	u32 n = mlx4_en_get_rxfh_indir_size(dev);
+	u32 i, rss_rings;
 	int err = 0;
 
-	rss_rings = priv->prof->rss_rings ?: priv->rx_ring_num;
-	rss_rings = 1 << ilog2(rss_rings);
+	rss_rings = priv->prof->rss_rings ?: n;
+	rss_rings = rounddown_pow_of_two(rss_rings);
 
-	while (n--) {
+	for (i = 0; i < n; i++) {
 		if (!ring_index)
 			break;
-		ring_index[n] = rss_map->qps[n % rss_rings].qpn -
-			rss_map->base_qpn;
+		ring_index[i] = i % rss_rings;
 	}
 	if (key)
 		memcpy(key, priv->rss_key, MLX4_EN_RSS_KEY_SIZE);
@@ -1171,6 +1169,7 @@ static int mlx4_en_set_rxfh(struct net_device *dev, const u32 *ring_index,
 			    const u8 *key, const u8 hfunc)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
+	u32 n = mlx4_en_get_rxfh_indir_size(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int port_up = 0;
 	int err = 0;
@@ -1180,18 +1179,18 @@ static int mlx4_en_set_rxfh(struct net_device *dev, const u32 *ring_index,
 	/* Calculate RSS table size and make sure flows are spread evenly
 	 * between rings
 	 */
-	for (i = 0; i < priv->rx_ring_num; i++) {
+	for (i = 0; i < n; i++) {
 		if (!ring_index)
-			continue;
+			break;
 		if (i > 0 && !ring_index[i] && !rss_rings)
 			rss_rings = i;
 
-		if (ring_index[i] != (i % (rss_rings ?: priv->rx_ring_num)))
+		if (ring_index[i] != (i % (rss_rings ?: n)))
 			return -EINVAL;
 	}
 
 	if (!rss_rings)
-		rss_rings = priv->rx_ring_num;
+		rss_rings = n;
 
 	/* RSS table size must be an order of 2 */
 	if (!is_power_of_2(rss_rings))
@@ -1730,6 +1729,12 @@ static int mlx4_en_set_channels(struct net_device *dev,
 	    !channel->tx_count || !channel->rx_count)
 		return -EINVAL;
 
+	if (channel->tx_count * MLX4_EN_NUM_UP <= priv->xdp_ring_num) {
+		en_err(priv, "Minimum %d tx channels required with XDP on\n",
+		       priv->xdp_ring_num / MLX4_EN_NUM_UP + 1);
+		return -EINVAL;
+	}
+
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
@@ -1751,7 +1756,8 @@ static int mlx4_en_set_channels(struct net_device *dev,
 
 	mlx4_en_safe_replace_resources(priv, tmp);
 
-	netif_set_real_num_tx_queues(dev, priv->tx_ring_num);
+	netif_set_real_num_tx_queues(dev, priv->tx_ring_num -
+							priv->xdp_ring_num);
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
 
 	if (dev->num_tc)

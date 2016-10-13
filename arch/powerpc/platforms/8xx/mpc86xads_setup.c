@@ -118,8 +118,7 @@ static void __init mpc86xads_setup_arch(void)
 
 static int __init mpc86xads_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-	return of_flat_dt_is_compatible(root, "fsl,mpc866ads");
+	return of_machine_is_compatible("fsl,mpc866ads");
 }
 
 static const struct of_device_id of_bus_ids[] __initconst = {

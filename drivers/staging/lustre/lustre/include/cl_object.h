@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -2326,7 +2322,8 @@ void cl_lock_descr_print(const struct lu_env *env, void *cookie,
  */
 struct cl_client_cache {
 	/**
-	 * # of users (OSCs)
+	 * # of client cache refcount
+	 * # of users (OSCs) + 2 (held by llite and lov)
 	 */
 	atomic_t		ccc_users;
 	/**
@@ -2360,6 +2357,13 @@ struct cl_client_cache {
         wait_queue_head_t	ccc_unstable_waitq;
 
 };
+
+/**
+ * cl_cache functions
+ */
+struct cl_client_cache *cl_cache_init(unsigned long lru_page_max);
+void cl_cache_incref(struct cl_client_cache *cache);
+void cl_cache_decref(struct cl_client_cache *cache);
 
 /** @} cl_page */
 

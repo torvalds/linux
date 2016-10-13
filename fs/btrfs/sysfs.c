@@ -326,6 +326,7 @@ SPACE_INFO_ATTR(bytes_used);
 SPACE_INFO_ATTR(bytes_pinned);
 SPACE_INFO_ATTR(bytes_reserved);
 SPACE_INFO_ATTR(bytes_may_use);
+SPACE_INFO_ATTR(bytes_readonly);
 SPACE_INFO_ATTR(disk_used);
 SPACE_INFO_ATTR(disk_total);
 BTRFS_ATTR(total_bytes_pinned, btrfs_space_info_show_total_bytes_pinned);
@@ -337,6 +338,7 @@ static struct attribute *space_info_attrs[] = {
 	BTRFS_ATTR_PTR(bytes_pinned),
 	BTRFS_ATTR_PTR(bytes_reserved),
 	BTRFS_ATTR_PTR(bytes_may_use),
+	BTRFS_ATTR_PTR(bytes_readonly),
 	BTRFS_ATTR_PTR(disk_used),
 	BTRFS_ATTR_PTR(disk_total),
 	BTRFS_ATTR_PTR(total_bytes_pinned),

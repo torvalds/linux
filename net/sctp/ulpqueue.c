@@ -204,7 +204,9 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 	/* If the socket is just going to throw this away, do not
 	 * even try to deliver it.
 	 */
-	if (sock_flag(sk, SOCK_DEAD) || (sk->sk_shutdown & RCV_SHUTDOWN))
+	if (sk->sk_shutdown & RCV_SHUTDOWN &&
+	    (sk->sk_shutdown & SEND_SHUTDOWN ||
+	     !sctp_ulpevent_is_notification(event)))
 		goto out_free;
 
 	if (!sctp_ulpevent_is_notification(event)) {

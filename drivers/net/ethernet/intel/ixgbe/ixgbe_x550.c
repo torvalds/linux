@@ -1618,6 +1618,8 @@ static void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
 
+	mac->ops.setup_fc = ixgbe_setup_fc_x550em;
+
 	switch (mac->ops.get_media_type(hw)) {
 	case ixgbe_media_type_fiber:
 		/* CS4227 does not support autoneg, so disable the laser control
@@ -1627,7 +1629,6 @@ static void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
 		mac->ops.enable_tx_laser = NULL;
 		mac->ops.flap_tx_laser = NULL;
 		mac->ops.setup_link = ixgbe_setup_mac_link_multispeed_fiber;
-		mac->ops.setup_fc = ixgbe_setup_fc_x550em;
 		switch (hw->device_id) {
 		case IXGBE_DEV_ID_X550EM_A_SFP_N:
 			mac->ops.setup_mac_link = ixgbe_setup_mac_link_sfp_n;
@@ -1655,7 +1656,6 @@ static void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
 			mac->ops.setup_link = ixgbe_setup_sgmii;
 		break;
 	default:
-		mac->ops.setup_fc = ixgbe_setup_fc_x550em;
 		break;
 	}
 }

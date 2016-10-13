@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -348,18 +344,6 @@ int ll_file_release(struct inode *inode, struct file *file)
 	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p)\n",
 	       PFID(ll_inode2fid(inode)), inode);
 
-#ifdef CONFIG_FS_POSIX_ACL
-	if (sbi->ll_flags & LL_SBI_RMT_CLIENT && is_root_inode(inode)) {
-		struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
-
-		if (unlikely(fd->fd_flags & LL_FILE_RMTACL)) {
-			fd->fd_flags &= ~LL_FILE_RMTACL;
-			rct_del(&sbi->ll_rct, current_pid());
-			et_search_free(&sbi->ll_et, current_pid());
-		}
-	}
-#endif
-
 	if (!is_root_inode(inode))
 		ll_stats_ops_tally(sbi, LPROC_LL_RELEASE, 1);
 	fd = LUSTRE_FPRIVATE(file);
@@ -415,7 +399,19 @@ static int ll_intent_file_open(struct dentry *dentry, void *lmm,
 	 * parameters. No need for the open lock
 	 */
 	if (!lmm && lmmsize == 0) {
-		itp->it_flags |= MDS_OPEN_LOCK;
+		struct ll_dentry_data *ldd = ll_d2d(dentry);
+		/*
+		 * If we came via ll_iget_for_nfs, then we need to request
+		 * struct ll_dentry_data *ldd = ll_d2d(file->f_dentry);
+		 *
+		 * NB: when ldd is NULL, it must have come via normal
+		 * lookup path only, since ll_iget_for_nfs always calls
+		 * ll_d_init().
+		 */
+		if (ldd && ldd->lld_nfs_dentry) {
+			ldd->lld_nfs_dentry = 0;
+			itp->it_flags |= MDS_OPEN_LOCK;
+		}
 		if (itp->it_flags & FMODE_WRITE)
 			opc = LUSTRE_OPC_CREATE;
 	}
@@ -453,7 +449,7 @@ static int ll_intent_file_open(struct dentry *dentry, void *lmm,
 	}
 
 	rc = ll_prep_inode(&inode, req, NULL, itp);
-	if (!rc && itp->d.lustre.it_lock_mode)
+	if (!rc && itp->it_lock_mode)
 		ll_set_lock_data(sbi->ll_md_exp, inode, itp, NULL);
 
 out:
@@ -480,13 +476,12 @@ void ll_ioepoch_open(struct ll_inode_info *lli, __u64 ioepoch)
 static int ll_och_fill(struct obd_export *md_exp, struct lookup_intent *it,
 		       struct obd_client_handle *och)
 {
-	struct ptlrpc_request *req = it->d.lustre.it_data;
 	struct mdt_body *body;
 
-	body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
+	body = req_capsule_server_get(&it->it_request->rq_pill, &RMF_MDT_BODY);
 	och->och_fh = body->handle;
 	och->och_fid = body->fid1;
-	och->och_lease_handle.cookie = it->d.lustre.it_lock_handle;
+	och->och_lease_handle.cookie = it->it_lock_handle;
 	och->och_magic = OBD_CLIENT_HANDLE_MAGIC;
 	och->och_flags = it->it_flags;
 
@@ -504,7 +499,6 @@ static int ll_local_open(struct file *file, struct lookup_intent *it,
 	LASSERT(fd);
 
 	if (och) {
-		struct ptlrpc_request *req = it->d.lustre.it_data;
 		struct mdt_body *body;
 		int rc;
 
@@ -512,13 +506,19 @@ static int ll_local_open(struct file *file, struct lookup_intent *it,
 		if (rc != 0)
 			return rc;
 
-		body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
+		body = req_capsule_server_get(&it->it_request->rq_pill,
+					      &RMF_MDT_BODY);
 		ll_ioepoch_open(lli, body->ioepoch);
 	}
 
 	LUSTRE_FPRIVATE(file) = fd;
 	ll_readahead_init(inode, &fd->fd_ras);
 	fd->fd_omode = it->it_flags & (FMODE_READ | FMODE_WRITE | FMODE_EXEC);
+
+	/* ll_cl_context initialize */
+	rwlock_init(&fd->fd_lock);
+	INIT_LIST_HEAD(&fd->fd_lccs);
+
 	return 0;
 }
 
@@ -574,7 +574,7 @@ int ll_file_open(struct inode *inode, struct file *file)
 		return 0;
 	}
 
-	if (!it || !it->d.lustre.it_disposition) {
+	if (!it || !it->it_disposition) {
 		/* Convert f_flags into access mode. We cannot use file->f_mode,
 		 * because everything but O_ACCMODE mask was stripped from
 		 * there
@@ -644,7 +644,7 @@ restart:
 		}
 	} else {
 		LASSERT(*och_usecount == 0);
-		if (!it->d.lustre.it_disposition) {
+		if (!it->it_disposition) {
 			/* We cannot just request lock handle now, new ELC code
 			 * means that one of other OPEN locks for this file
 			 * could be cancelled, and since blocking ast handler
@@ -681,7 +681,7 @@ restart:
 
 		LASSERTF(it_disposition(it, DISP_ENQ_OPEN_REF),
 			 "inode %p: disposition %x, status %d\n", inode,
-			 it_disposition(it, ~0), it->d.lustre.it_status);
+			 it_disposition(it, ~0), it->it_status);
 
 		rc = ll_local_open(file, it, fd, *och_p);
 		if (rc)
@@ -724,7 +724,7 @@ out_openerr:
 	}
 
 	if (it && it_disposition(it, DISP_ENQ_OPEN_REF)) {
-		ptlrpc_req_finished(it->d.lustre.it_data);
+		ptlrpc_req_finished(it->it_request);
 		it_clear_disposition(it, DISP_ENQ_OPEN_REF);
 	}
 
@@ -865,12 +865,12 @@ ll_lease_open(struct inode *inode, struct file *file, fmode_t fmode,
 
 	/* already get lease, handle lease lock */
 	ll_set_lock_data(sbi->ll_md_exp, inode, &it, NULL);
-	if (it.d.lustre.it_lock_mode == 0 ||
-	    it.d.lustre.it_lock_bits != MDS_INODELOCK_OPEN) {
+	if (it.it_lock_mode == 0 ||
+	    it.it_lock_bits != MDS_INODELOCK_OPEN) {
 		/* open lock must return for lease */
 		CERROR(DFID "lease granted but no open lock, %d/%llu.\n",
-		       PFID(ll_inode2fid(inode)), it.d.lustre.it_lock_mode,
-		       it.d.lustre.it_lock_bits);
+		       PFID(ll_inode2fid(inode)), it.it_lock_mode,
+		       it.it_lock_bits);
 		rc = -EPROTO;
 		goto out_close;
 	}
@@ -880,10 +880,10 @@ ll_lease_open(struct inode *inode, struct file *file, fmode_t fmode,
 
 out_close:
 	/* Cancel open lock */
-	if (it.d.lustre.it_lock_mode != 0) {
+	if (it.it_lock_mode != 0) {
 		ldlm_lock_decref_and_cancel(&och->och_lease_handle,
-					    it.d.lustre.it_lock_mode);
-		it.d.lustre.it_lock_mode = 0;
+					    it.it_lock_mode);
+		it.it_lock_mode = 0;
 		och->och_lease_handle.cookie = 0ULL;
 	}
 	rc2 = ll_close_inode_openhandle(sbi->ll_md_exp, inode, och, NULL);
@@ -1178,7 +1178,9 @@ restart:
 			CERROR("Unknown IO type - %u\n", vio->vui_io_subtype);
 			LBUG();
 		}
+		ll_cl_add(file, env, io);
 		result = cl_io_loop(env, io);
+		ll_cl_remove(file, env);
 		if (args->via_io_subtype == IO_NORMAL)
 			up_read(&lli->lli_trunc_sem);
 		if (write_mutex_locked)
@@ -1397,7 +1399,7 @@ int ll_lov_setstripe_ea_info(struct inode *inode, struct dentry *dentry,
 	rc = ll_intent_file_open(dentry, lum, lum_size, &oit);
 	if (rc)
 		goto out_unlock;
-	rc = oit.d.lustre.it_status;
+	rc = oit.it_status;
 	if (rc < 0)
 		goto out_req_free;
 
@@ -1410,7 +1412,7 @@ out_unlock:
 out:
 	return rc;
 out_req_free:
-	ptlrpc_req_finished((struct ptlrpc_request *) oit.d.lustre.it_data);
+	ptlrpc_req_finished((struct ptlrpc_request *)oit.it_request);
 	goto out;
 }
 
@@ -1698,7 +1700,7 @@ int ll_release_openhandle(struct inode *inode, struct lookup_intent *it)
 out:
 	/* this one is in place of ll_file_open */
 	if (it_disposition(it, DISP_ENQ_OPEN_REF)) {
-		ptlrpc_req_finished(it->d.lustre.it_data);
+		ptlrpc_req_finished(it->it_request);
 		it_clear_disposition(it, DISP_ENQ_OPEN_REF);
 	}
 	return rc;
@@ -2972,8 +2974,11 @@ static int __ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 		 * here to preserve get_cwd functionality on 2.6.
 		 * Bug 10503
 		 */
-		if (!d_inode(dentry)->i_nlink)
+		if (!d_inode(dentry)->i_nlink) {
+			spin_lock(&inode->i_lock);
 			d_lustre_invalidate(dentry, 0);
+			spin_unlock(&inode->i_lock);
+		}
 
 		ll_lookup_finish_locks(&oit, inode);
 	} else if (!ll_have_md_lock(d_inode(dentry), &ibits, LCK_MINMODE)) {
@@ -3124,6 +3129,9 @@ struct posix_acl *ll_get_acl(struct inode *inode, int type)
 	spin_lock(&lli->lli_lock);
 	/* VFS' acl_permission_check->check_acl will release the refcount */
 	acl = posix_acl_dup(lli->lli_posix_acl);
+#ifdef CONFIG_FS_POSIX_ACL
+	forget_cached_acl(inode, type);
+#endif
 	spin_unlock(&lli->lli_lock);
 
 	return acl;
@@ -3149,9 +3157,6 @@ int ll_inode_permission(struct inode *inode, int mask)
 
 	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), inode mode %x mask %o\n",
 	       PFID(ll_inode2fid(inode)), inode, inode->i_mode, mask);
-
-	if (ll_i2sbi(inode)->ll_flags & LL_SBI_RMT_CLIENT)
-		return lustre_check_remote_perm(inode, mask);
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_INODE_PERM, 1);
 	rc = generic_permission(inode, mask);
@@ -3601,13 +3606,13 @@ again:
 
 	rc = md_enqueue(sbi->ll_md_exp, &einfo, &it, op_data, &lockh,
 			NULL, 0, NULL, 0);
-	ptlrpc_req_finished(it.d.lustre.it_data);
-	it.d.lustre.it_data = NULL;
+	ptlrpc_req_finished(it.it_request);
+	it.it_request = NULL;
 
 	ll_finish_md_op_data(op_data);
 
-	mode = it.d.lustre.it_lock_mode;
-	it.d.lustre.it_lock_mode = 0;
+	mode = it.it_lock_mode;
+	it.it_lock_mode = 0;
 	ll_intent_drop_lock(&it);
 
 	if (rc == 0) {

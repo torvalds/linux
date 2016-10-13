@@ -1,0 +1,36 @@
+What:		/config/acpi
+Date:		July 2016
+KernelVersion:	4.8
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		This represents the ACPI subsystem entry point directory. It
+		contains sub-groups corresponding to ACPI configurable options.
+
+What:		/config/acpi/table
+Date:		July 2016
+KernelVersion:	4.8
+Description:
+
+		This group contains the configuration for user defined ACPI
+		tables. The attributes of a user define table are:
+
+		aml 		- a binary attribute that the user can use to
+				fill in the ACPI aml definitions. Once the aml
+				data is written to this file and the file is
+				closed the table will be loaded and ACPI devices
+				will be enumerated. To check if the operation is
+				successful the user must check the error code
+				for close(). If the operation is successful,
+				subsequent writes to this attribute will fail.
+
+		The rest of the attributes are read-only and are valid only
+		after the table has been loaded by filling the aml entry:
+
+		signature 	- ASCII table signature
+		length 		- length of table in bytes, including the header
+		revision 	- ACPI Specification minor version number
+		oem_id 		- ASCII OEM identification
+		oem_table_id 	- ASCII OEM table identification
+		oem_revision 	- OEM revision number
+		asl_compiler_id - ASCII ASL compiler vendor ID
+		asl_compiler_revision - ASL compiler version

@@ -341,14 +341,11 @@ static int pcf8563_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *tm)
 		"%s: raw data is min=%02x, hr=%02x, mday=%02x, wday=%02x\n",
 		__func__, buf[0], buf[1], buf[2], buf[3]);
 
+	tm->time.tm_sec = 0;
 	tm->time.tm_min = bcd2bin(buf[0] & 0x7F);
 	tm->time.tm_hour = bcd2bin(buf[1] & 0x3F);
 	tm->time.tm_mday = bcd2bin(buf[2] & 0x3F);
 	tm->time.tm_wday = bcd2bin(buf[3] & 0x7);
-	tm->time.tm_mon = -1;
-	tm->time.tm_year = -1;
-	tm->time.tm_yday = -1;
-	tm->time.tm_isdst = -1;
 
 	err = pcf8563_get_alarm_mode(client, &tm->enabled, &tm->pending);
 	if (err < 0)

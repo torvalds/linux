@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -251,7 +247,7 @@ int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async)
 
 	/* Let's setup deadline for reply unlink. */
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BULK_UNLINK) &&
-	    async && req->rq_bulk_deadline == 0)
+	    async && req->rq_bulk_deadline == 0 && cfs_fail_val == 0)
 		req->rq_bulk_deadline = ktime_get_real_seconds() + LONG_UNLINK;
 
 	if (ptlrpc_client_bulk_active(req) == 0)	/* completed or */
@@ -270,7 +266,7 @@ int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async)
 		return 1;				/* never registered */
 
 	/* Move to "Unregistering" phase as bulk was not unlinked yet. */
-	ptlrpc_rqphase_move(req, RQ_PHASE_UNREGISTERING);
+	ptlrpc_rqphase_move(req, RQ_PHASE_UNREG_BULK);
 
 	/* Do not wait for unlink to finish. */
 	if (async)
@@ -581,19 +577,18 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	}
 
 	spin_lock(&request->rq_lock);
-	/* If the MD attach succeeds, there _will_ be a reply_in callback */
-	request->rq_receiving_reply = !noreply;
-	request->rq_req_unlink = 1;
 	/* We are responsible for unlinking the reply buffer */
-	request->rq_reply_unlink = !noreply;
+	request->rq_reply_unlinked = noreply;
+	request->rq_receiving_reply = !noreply;
 	/* Clear any flags that may be present from previous sends. */
+	request->rq_req_unlinked = 0;
 	request->rq_replied = 0;
 	request->rq_err = 0;
 	request->rq_timedout = 0;
 	request->rq_net_err = 0;
 	request->rq_resend = 0;
 	request->rq_restart = 0;
-	request->rq_reply_truncate = 0;
+	request->rq_reply_truncated = 0;
 	spin_unlock(&request->rq_lock);
 
 	if (!noreply) {
@@ -608,7 +603,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 		reply_md.user_ptr = &request->rq_reply_cbid;
 		reply_md.eq_handle = ptlrpc_eq_h;
 
-		/* We must see the unlink callback to unset rq_reply_unlink,
+		/* We must see the unlink callback to set rq_reply_unlinked,
 		 * so we can't auto-unlink
 		 */
 		rc = LNetMDAttach(reply_me_h, reply_md, LNET_RETAIN,
@@ -637,7 +632,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 
 	OBD_FAIL_TIMEOUT(OBD_FAIL_PTLRPC_DELAY_SEND, request->rq_timeout + 5);
 
-	ktime_get_real_ts64(&request->rq_arrival_time);
+	ktime_get_real_ts64(&request->rq_sent_tv);
 	request->rq_sent = ktime_get_real_seconds();
 	/* We give the server rq_timeout secs to process the req, and
 	 * add the network latency for our local timeout.
@@ -655,9 +650,10 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 			  connection,
 			  request->rq_request_portal,
 			  request->rq_xid, 0);
-	if (rc == 0)
+	if (likely(rc == 0))
 		goto out;
 
+	request->rq_req_unlinked = 1;
 	ptlrpc_req_finished(request);
 	if (noreply)
 		goto out;

@@ -9,6 +9,8 @@
  * version 2 as published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt)	"OF: resolver: " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -313,6 +315,11 @@ int of_resolve_phandles(struct device_node *resolve)
 	phandle phandle, phandle_delta;
 	int err;
 
+	if (!resolve)
+		pr_err("%s: null node\n", __func__);
+	if (resolve && !of_node_check_flag(resolve, OF_DETACHED))
+		pr_err("%s: node %s not detached\n", __func__,
+			 resolve->full_name);
 	/* the resolve node must exist, and be detached */
 	if (!resolve || !of_node_check_flag(resolve, OF_DETACHED))
 		return -EINVAL;
@@ -369,6 +376,7 @@ int of_resolve_phandles(struct device_node *resolve)
 
 	/* we need to fixup, but no root symbols... */
 	if (!root_sym) {
+		pr_err("%s: no symbols in root of device tree.\n", __func__);
 		err = -EINVAL;
 		goto out;
 	}

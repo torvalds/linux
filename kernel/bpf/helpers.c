@@ -101,7 +101,7 @@ const struct bpf_func_proto bpf_get_prandom_u32_proto = {
 
 static u64 bpf_get_smp_processor_id(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 {
-	return raw_smp_processor_id();
+	return smp_processor_id();
 }
 
 const struct bpf_func_proto bpf_get_smp_processor_id_proto = {

@@ -1274,17 +1274,17 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 		struct pebs_record_nhm *p = at;
 		u64 pebs_status;
 
-		/* PEBS v3 has accurate status bits */
+		pebs_status = p->status & cpuc->pebs_enabled;
+		pebs_status &= (1ULL << x86_pmu.max_pebs_events) - 1;
+
+		/* PEBS v3 has more accurate status bits */
 		if (x86_pmu.intel_cap.pebs_format >= 3) {
-			for_each_set_bit(bit, (unsigned long *)&p->status,
-					 MAX_PEBS_EVENTS)
+			for_each_set_bit(bit, (unsigned long *)&pebs_status,
+					 x86_pmu.max_pebs_events)
 				counts[bit]++;
 
 			continue;
 		}
-
-		pebs_status = p->status & cpuc->pebs_enabled;
-		pebs_status &= (1ULL << x86_pmu.max_pebs_events) - 1;
 
 		/*
 		 * On some CPUs the PEBS status can be zero when PEBS is
@@ -1333,8 +1333,11 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 			continue;
 
 		event = cpuc->events[bit];
-		WARN_ON_ONCE(!event);
-		WARN_ON_ONCE(!event->attr.precise_ip);
+		if (WARN_ON_ONCE(!event))
+			continue;
+
+		if (WARN_ON_ONCE(!event->attr.precise_ip))
+			continue;
 
 		/* log dropped samples number */
 		if (error[bit])

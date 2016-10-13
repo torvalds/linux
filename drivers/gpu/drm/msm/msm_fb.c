@@ -49,24 +49,16 @@ static void msm_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	for (i = 0; i < n; i++) {
 		struct drm_gem_object *bo = msm_fb->planes[i];
-		if (bo)
-			drm_gem_object_unreference_unlocked(bo);
+
+		drm_gem_object_unreference_unlocked(bo);
 	}
 
 	kfree(msm_fb);
 }
 
-static int msm_framebuffer_dirty(struct drm_framebuffer *fb,
-		struct drm_file *file_priv, unsigned flags, unsigned color,
-		struct drm_clip_rect *clips, unsigned num_clips)
-{
-	return 0;
-}
-
 static const struct drm_framebuffer_funcs msm_framebuffer_funcs = {
 	.create_handle = msm_framebuffer_create_handle,
 	.destroy = msm_framebuffer_destroy,
-	.dirty = msm_framebuffer_dirty,
 };
 
 #ifdef CONFIG_DEBUG_FS

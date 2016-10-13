@@ -5,6 +5,7 @@
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
+#include <asm/kaslr.h>
 
 /*
  * These are used to make use of C type-checking..
@@ -53,10 +54,16 @@ typedef struct { pteval_t pte; } pte_t;
 #define PGDIR_MASK	(~(PGDIR_SIZE - 1))
 
 /* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
-#define MAXMEM		 _AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
-#define VMALLOC_START    _AC(0xffffc90000000000, UL)
-#define VMALLOC_END      _AC(0xffffe8ffffffffff, UL)
-#define VMEMMAP_START	 _AC(0xffffea0000000000, UL)
+#define MAXMEM		_AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
+#define VMALLOC_SIZE_TB	_AC(32, UL)
+#define __VMALLOC_BASE	_AC(0xffffc90000000000, UL)
+#define VMEMMAP_START	_AC(0xffffea0000000000, UL)
+#ifdef CONFIG_RANDOMIZE_MEMORY
+#define VMALLOC_START	vmalloc_base
+#else
+#define VMALLOC_START	__VMALLOC_BASE
+#endif /* CONFIG_RANDOMIZE_MEMORY */
+#define VMALLOC_END	(VMALLOC_START + _AC((VMALLOC_SIZE_TB << 40) - 1, UL))
 #define MODULES_VADDR    (__START_KERNEL_map + KERNEL_IMAGE_SIZE)
 #define MODULES_END      _AC(0xffffffffff000000, UL)
 #define MODULES_LEN   (MODULES_END - MODULES_VADDR)

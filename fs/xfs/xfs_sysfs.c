@@ -634,6 +634,9 @@ xfs_error_get_cfg(
 {
 	struct xfs_error_cfg	*cfg;
 
+	if (error < 0)
+		error = -error;
+
 	switch (error) {
 	case EIO:
 		cfg = &mp->m_error_cfg[error_class][XFS_ERR_EIO];

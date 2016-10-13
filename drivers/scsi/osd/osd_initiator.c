@@ -726,7 +726,7 @@ static int _osd_req_list_objects(struct osd_request *or,
 		return PTR_ERR(bio);
 	}
 
-	bio->bi_rw &= ~REQ_WRITE;
+	bio_set_op_attrs(bio, REQ_OP_READ, 0);
 	or->in.bio = bio;
 	or->in.total_bytes = bio->bi_iter.bi_size;
 	return 0;
@@ -824,7 +824,7 @@ void osd_req_write(struct osd_request *or,
 {
 	_osd_req_encode_common(or, OSD_ACT_WRITE, obj, offset, len);
 	WARN_ON(or->out.bio || or->out.total_bytes);
-	WARN_ON(0 == (bio->bi_rw & REQ_WRITE));
+	WARN_ON(!op_is_write(bio_op(bio)));
 	or->out.bio = bio;
 	or->out.total_bytes = len;
 }
@@ -839,7 +839,7 @@ int osd_req_write_kern(struct osd_request *or,
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	bio->bi_rw |= REQ_WRITE; /* FIXME: bio_set_dir() */
+	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 	osd_req_write(or, obj, offset, bio, len);
 	return 0;
 }
@@ -875,7 +875,7 @@ void osd_req_read(struct osd_request *or,
 {
 	_osd_req_encode_common(or, OSD_ACT_READ, obj, offset, len);
 	WARN_ON(or->in.bio || or->in.total_bytes);
-	WARN_ON(bio->bi_rw & REQ_WRITE);
+	WARN_ON(op_is_write(bio_op(bio)));
 	or->in.bio = bio;
 	or->in.total_bytes = len;
 }
@@ -956,7 +956,7 @@ static int _osd_req_finalize_cdb_cont(struct osd_request *or, const u8 *cap_key)
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	bio->bi_rw |= REQ_WRITE;
+	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 	/* integrity check the continuation before the bio is linked
 	 * with the other data segments since the continuation
@@ -1077,7 +1077,7 @@ int osd_req_write_sg_kern(struct osd_request *or,
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	bio->bi_rw |= REQ_WRITE;
+	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 	osd_req_write_sg(or, obj, bio, sglist, numentries);
 
 	return 0;
@@ -1558,18 +1558,25 @@ static int _osd_req_finalize_data_integrity(struct osd_request *or,
 static struct request *_make_request(struct request_queue *q, bool has_write,
 			      struct _osd_io_info *oii, gfp_t flags)
 {
-	if (oii->bio)
-		return blk_make_request(q, oii->bio, flags);
-	else {
-		struct request *req;
+	struct request *req;
+	struct bio *bio = oii->bio;
+	int ret;
 
-		req = blk_get_request(q, has_write ? WRITE : READ, flags);
-		if (IS_ERR(req))
-			return req;
-
-		blk_rq_set_block_pc(req);
+	req = blk_get_request(q, has_write ? WRITE : READ, flags);
+	if (IS_ERR(req))
 		return req;
+	blk_rq_set_block_pc(req);
+
+	for_each_bio(bio) {
+		struct bio *bounce_bio = bio;
+
+		blk_queue_bounce(req->q, &bounce_bio);
+		ret = blk_rq_append_bio(req, bounce_bio);
+		if (ret)
+			return ERR_PTR(ret);
 	}
+
+	return req;
 }
 
 static int _init_blk_request(struct osd_request *or,

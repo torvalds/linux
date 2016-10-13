@@ -38,7 +38,7 @@ gm200_gr_rops(struct gf100_gr *gr)
 	return nvkm_rd32(gr->base.engine.subdev.device, 0x12006c);
 }
 
-static void
+void
 gm200_gr_init_gpc_mmu(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;

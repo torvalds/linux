@@ -10,6 +10,7 @@ can-dev-y			:= dev.o
 
 can-dev-$(CONFIG_CAN_LEDS)	+= led.o
 
+obj-y				+= rcar/
 obj-y				+= spi/
 obj-y				+= usb/
 obj-y				+= softing/
@@ -24,7 +25,6 @@ obj-$(CONFIG_CAN_IFI_CANFD)	+= ifi_canfd/
 obj-$(CONFIG_CAN_JANZ_ICAN3)	+= janz-ican3.o
 obj-$(CONFIG_CAN_MSCAN)		+= mscan/
 obj-$(CONFIG_CAN_M_CAN)		+= m_can/
-obj-$(CONFIG_CAN_RCAR)		+= rcar_can.o
 obj-$(CONFIG_CAN_SJA1000)	+= sja1000/
 obj-$(CONFIG_CAN_SUN4I)		+= sun4i_can.o
 obj-$(CONFIG_CAN_TI_HECC)	+= ti_hecc.o

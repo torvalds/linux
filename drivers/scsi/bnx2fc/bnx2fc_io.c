@@ -1758,7 +1758,7 @@ static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
 		if ((fcp_rsp_len == 4) || (fcp_rsp_len == 8)) {
 			/* Only for task management function */
 			io_req->fcp_rsp_code = rq_data[3];
-			printk(KERN_ERR PFX "fcp_rsp_code = %d\n",
+			BNX2FC_IO_DBG(io_req, "fcp_rsp_code = %d\n",
 				io_req->fcp_rsp_code);
 		}
 

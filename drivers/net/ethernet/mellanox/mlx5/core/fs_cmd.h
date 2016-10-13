@@ -76,4 +76,16 @@ int mlx5_cmd_fc_alloc(struct mlx5_core_dev *dev, u16 *id);
 int mlx5_cmd_fc_free(struct mlx5_core_dev *dev, u16 id);
 int mlx5_cmd_fc_query(struct mlx5_core_dev *dev, u16 id,
 		      u64 *packets, u64 *bytes);
+
+struct mlx5_cmd_fc_bulk;
+
+struct mlx5_cmd_fc_bulk *
+mlx5_cmd_fc_bulk_alloc(struct mlx5_core_dev *dev, u16 id, int num);
+void mlx5_cmd_fc_bulk_free(struct mlx5_cmd_fc_bulk *b);
+int
+mlx5_cmd_fc_bulk_query(struct mlx5_core_dev *dev, struct mlx5_cmd_fc_bulk *b);
+void mlx5_cmd_fc_bulk_get(struct mlx5_core_dev *dev,
+			  struct mlx5_cmd_fc_bulk *b, u16 id,
+			  u64 *packets, u64 *bytes);
+
 #endif

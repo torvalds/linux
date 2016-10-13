@@ -35,7 +35,7 @@
 #include <linux/suspend.h>
 #include <linux/slab.h>
 
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 
 #include "dss.h"
 #include "dss_features.h"
@@ -208,8 +208,6 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 		core.default_display_name = def_disp_name;
 	else if (pdata->default_display_name)
 		core.default_display_name = pdata->default_display_name;
-	else if (pdata->default_device)
-		core.default_display_name = pdata->default_device->name;
 
 	register_pm_notifier(&omap_dss_pm_notif_block);
 

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -200,7 +196,7 @@ static int __init lnet_init(void)
 		 * Have to schedule a separate thread to avoid deadlocking
 		 * in modload
 		 */
-		(void) kthread_run(lnet_configure, NULL, "lnet_initd");
+		(void)kthread_run(lnet_configure, NULL, "lnet_initd");
 	}
 
 	return 0;

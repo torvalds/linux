@@ -68,7 +68,7 @@ static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)
 		struct tegra_bo *bo = fb->planes[i];
 
 		if (bo) {
-			if (bo->pages && bo->vaddr)
+			if (bo->pages)
 				vunmap(bo->vaddr);
 
 			drm_gem_object_unreference_unlocked(&bo->gem);

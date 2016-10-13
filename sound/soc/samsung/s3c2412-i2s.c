@@ -177,7 +177,8 @@ static int s3c2412_iis_dev_probe(struct platform_device *pdev)
 	}
 
 	ret = samsung_asoc_dma_platform_register(&pdev->dev,
-						 pdata->dma_filter);
+						 pdata->dma_filter,
+						 NULL, NULL);
 	if (ret)
 		pr_err("failed to register the DMA: %d\n", ret);
 

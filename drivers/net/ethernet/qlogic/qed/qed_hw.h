@@ -254,6 +254,10 @@ void qed_dmae_info_free(struct qed_hwfn *p_hwfn);
 
 union qed_qm_pq_params {
 	struct {
+		u8 q_idx;
+	} iscsi;
+
+	struct {
 		u8 tc;
 	}	core;
 
@@ -262,11 +266,15 @@ union qed_qm_pq_params {
 		u8	vf_id;
 		u8	tc;
 	}	eth;
+
+	struct {
+		u8 dcqcn;
+		u8 qpid;	/* roce relative */
+	} roce;
 };
 
 u16 qed_get_qm_pq(struct qed_hwfn *p_hwfn,
-		  enum protocol_type proto,
-		  union qed_qm_pq_params *params);
+		  enum protocol_type proto, union qed_qm_pq_params *params);
 
 int qed_init_fw_data(struct qed_dev *cdev,
 		     const u8 *fw_data);

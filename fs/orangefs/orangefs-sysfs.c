@@ -61,10 +61,21 @@
  *			Slots are requested and waited for,
  *			the wait times out after slot_timeout_secs.
  *
+ * What:		/sys/fs/orangefs/dcache_timeout_msecs
+ * Date:		Jul 2016
+ * Contact:		Martin Brandenburg <martin@omnibond.com>
+ * Description:
+ *			Time lookup is valid in milliseconds.
+ *
+ * What:		/sys/fs/orangefs/getattr_timeout_msecs
+ * Date:		Jul 2016
+ * Contact:		Martin Brandenburg <martin@omnibond.com>
+ * Description:
+ *			Time getattr is valid in milliseconds.
  *
  * What:		/sys/fs/orangefs/acache/...
  * Date:		Jun 2015
- * Contact:		Mike Marshall <hubcap@omnibond.com>
+ * Contact:		Martin Brandenburg <martin@omnibond.com>
  * Description:
  * 			Attribute cache configurable settings.
  *
@@ -117,6 +128,8 @@ struct orangefs_obj {
 	int perf_history_size;
 	int perf_time_interval_secs;
 	int slot_timeout_secs;
+	int dcache_timeout_msecs;
+	int getattr_timeout_msecs;
 };
 
 struct acache_orangefs_obj {
@@ -658,6 +671,20 @@ static ssize_t sysfs_int_show(char *kobj_id, char *buf, void *attr)
 				       "%d\n",
 				       slot_timeout_secs);
 			goto out;
+		} else if (!strcmp(orangefs_attr->attr.name,
+				   "dcache_timeout_msecs")) {
+			rc = scnprintf(buf,
+				       PAGE_SIZE,
+				       "%d\n",
+				       dcache_timeout_msecs);
+			goto out;
+		} else if (!strcmp(orangefs_attr->attr.name,
+				   "getattr_timeout_msecs")) {
+			rc = scnprintf(buf,
+				       PAGE_SIZE,
+				       "%d\n",
+				       getattr_timeout_msecs);
+			goto out;
 		} else {
 			goto out;
 		}
@@ -733,6 +760,12 @@ static ssize_t int_store(struct orangefs_obj *orangefs_obj,
 		goto out;
 	} else if (!strcmp(attr->attr.name, "slot_timeout_secs")) {
 		rc = kstrtoint(buf, 0, &slot_timeout_secs);
+		goto out;
+	} else if (!strcmp(attr->attr.name, "dcache_timeout_msecs")) {
+		rc = kstrtoint(buf, 0, &dcache_timeout_msecs);
+		goto out;
+	} else if (!strcmp(attr->attr.name, "getattr_timeout_msecs")) {
+		rc = kstrtoint(buf, 0, &getattr_timeout_msecs);
 		goto out;
 	} else {
 		goto out;
@@ -1361,6 +1394,12 @@ static struct orangefs_attribute op_timeout_secs_attribute =
 static struct orangefs_attribute slot_timeout_secs_attribute =
 	__ATTR(slot_timeout_secs, 0664, int_orangefs_show, int_store);
 
+static struct orangefs_attribute dcache_timeout_msecs_attribute =
+	__ATTR(dcache_timeout_msecs, 0664, int_orangefs_show, int_store);
+
+static struct orangefs_attribute getattr_timeout_msecs_attribute =
+	__ATTR(getattr_timeout_msecs, 0664, int_orangefs_show, int_store);
+
 static struct orangefs_attribute perf_counter_reset_attribute =
 	__ATTR(perf_counter_reset,
 	       0664,
@@ -1382,6 +1421,8 @@ static struct orangefs_attribute perf_time_interval_secs_attribute =
 static struct attribute *orangefs_default_attrs[] = {
 	&op_timeout_secs_attribute.attr,
 	&slot_timeout_secs_attribute.attr,
+	&dcache_timeout_msecs_attribute.attr,
+	&getattr_timeout_msecs_attribute.attr,
 	&perf_counter_reset_attribute.attr,
 	&perf_history_size_attribute.attr,
 	&perf_time_interval_secs_attribute.attr,

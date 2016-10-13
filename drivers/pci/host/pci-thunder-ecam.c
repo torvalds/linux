@@ -7,13 +7,12 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/of_pci.h>
 #include <linux/of.h>
+#include <linux/pci-ecam.h>
 #include <linux/platform_device.h>
-
-#include "../ecam.h"
 
 static void set_val(u32 v, int where, int size, u32 *val)
 {
@@ -360,7 +359,6 @@ static const struct of_device_id thunder_ecam_of_match[] = {
 	{ .compatible = "cavium,pci-host-thunder-ecam" },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, thunder_ecam_of_match);
 
 static int thunder_ecam_probe(struct platform_device *pdev)
 {
@@ -374,7 +372,4 @@ static struct platform_driver thunder_ecam_driver = {
 	},
 	.probe = thunder_ecam_probe,
 };
-module_platform_driver(thunder_ecam_driver);
-
-MODULE_DESCRIPTION("Thunder ECAM PCI host driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(thunder_ecam_driver);

@@ -10,16 +10,23 @@
 #define __QETH_L3_H__
 
 #include "qeth_core.h"
+#include <linux/hashtable.h>
 
 #define QETH_SNIFF_AVAIL	0x0008
 
 struct qeth_ipaddr {
-	struct list_head entry;
+	struct hlist_node hnode;
 	enum qeth_ip_types type;
 	enum qeth_ipa_setdelip_flags set_flags;
 	enum qeth_ipa_setdelip_flags del_flags;
-	int is_multicast;
-	int users;
+	u8 is_multicast:1;
+	u8 in_progress:1;
+	u8 disp_flag:2;
+
+	/* is changed only for normal ip addresses
+	 * for non-normal addresses it always is  1
+	 */
+	int  ref_counter;
 	enum qeth_prot_versions proto;
 	unsigned char mac[OSA_ADDR_LEN];
 	union {
@@ -32,7 +39,24 @@ struct qeth_ipaddr {
 			unsigned int pfxlen;
 		} a6;
 	} u;
+
 };
+static inline  u64 qeth_l3_ipaddr_hash(struct qeth_ipaddr *addr)
+{
+	u64  ret = 0;
+	u8 *point;
+
+	if (addr->proto == QETH_PROT_IPV6) {
+		point = (u8 *) &addr->u.a6.addr;
+		ret = get_unaligned((u64 *)point) ^
+			get_unaligned((u64 *) (point + 8));
+	}
+	if (addr->proto == QETH_PROT_IPV4) {
+		point = (u8 *) &addr->u.a4.addr;
+		ret = get_unaligned((u32 *) point);
+	}
+	return ret;
+}
 
 struct qeth_ipato_entry {
 	struct list_head entry;
@@ -60,6 +84,5 @@ int qeth_l3_is_addr_covered_by_ipato(struct qeth_card *, struct qeth_ipaddr *);
 struct qeth_ipaddr *qeth_l3_get_addr_buffer(enum qeth_prot_versions);
 int qeth_l3_add_ip(struct qeth_card *, struct qeth_ipaddr *);
 int qeth_l3_delete_ip(struct qeth_card *, struct qeth_ipaddr *);
-void qeth_l3_set_ip_addr_list(struct qeth_card *);
 
 #endif /* __QETH_L3_H__ */

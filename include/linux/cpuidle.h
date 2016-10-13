@@ -252,4 +252,22 @@ static inline int cpuidle_register_governor(struct cpuidle_governor *gov)
 #define CPUIDLE_DRIVER_STATE_START	0
 #endif
 
+#define CPU_PM_CPU_IDLE_ENTER(low_level_idle_enter, idx)	\
+({								\
+	int __ret;						\
+								\
+	if (!idx) {						\
+		cpu_do_idle();					\
+		return idx;					\
+	}							\
+								\
+	__ret = cpu_pm_enter();					\
+	if (!__ret) {						\
+		__ret = low_level_idle_enter(idx);		\
+		cpu_pm_exit();					\
+	}							\
+								\
+	__ret ? -1 : idx;					\
+})
+
 #endif /* _LINUX_CPUIDLE_H */

@@ -40,12 +40,15 @@
 #include "fragmentation.h"
 #include "hard-interface.h"
 #include "icmp_socket.h"
+#include "log.h"
 #include "network-coding.h"
 #include "originator.h"
 #include "packet.h"
 #include "send.h"
 #include "soft-interface.h"
+#include "tp_meter.h"
 #include "translation-table.h"
+#include "tvlv.h"
 
 static int batadv_route_unicast_packet(struct sk_buff *skb,
 				       struct batadv_hard_iface *recv_if);
@@ -268,10 +271,19 @@ static int batadv_recv_my_icmp_packet(struct batadv_priv *bat_priv,
 		icmph->ttl = BATADV_TTL;
 
 		res = batadv_send_skb_to_orig(skb, orig_node, NULL);
-		if (res != NET_XMIT_DROP)
-			ret = NET_RX_SUCCESS;
+		if (res == -1)
+			goto out;
+
+		ret = NET_RX_SUCCESS;
 
 		break;
+	case BATADV_TP:
+		if (!pskb_may_pull(skb, sizeof(struct batadv_icmp_tp_packet)))
+			goto out;
+
+		batadv_tp_meter_recv(bat_priv, skb);
+		ret = NET_RX_SUCCESS;
+		goto out;
 	default:
 		/* drop unknown type */
 		goto out;
@@ -290,7 +302,7 @@ static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_orig_node *orig_node = NULL;
 	struct batadv_icmp_packet *icmp_packet;
-	int ret = NET_RX_DROP;
+	int res, ret = NET_RX_DROP;
 
 	icmp_packet = (struct batadv_icmp_packet *)skb->data;
 
@@ -321,7 +333,8 @@ static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 	icmp_packet->msg_type = BATADV_TTL_EXCEEDED;
 	icmp_packet->ttl = BATADV_TTL;
 
-	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)
+	res = batadv_send_skb_to_orig(skb, orig_node, NULL);
+	if (res != -1)
 		ret = NET_RX_SUCCESS;
 
 out:
@@ -341,7 +354,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 	struct ethhdr *ethhdr;
 	struct batadv_orig_node *orig_node = NULL;
 	int hdr_size = sizeof(struct batadv_icmp_header);
-	int ret = NET_RX_DROP;
+	int res, ret = NET_RX_DROP;
 
 	/* drop packet if it has not necessary minimum size */
 	if (unlikely(!pskb_may_pull(skb, hdr_size)))
@@ -408,7 +421,8 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 	icmph->ttl--;
 
 	/* route it */
-	if (batadv_send_skb_to_orig(skb, orig_node, recv_if) != NET_XMIT_DROP)
+	res = batadv_send_skb_to_orig(skb, orig_node, recv_if);
+	if (res != -1)
 		ret = NET_RX_SUCCESS;
 
 out:
@@ -456,6 +470,29 @@ static int batadv_check_unicast_packet(struct batadv_priv *bat_priv,
 }
 
 /**
+ * batadv_last_bonding_get - Get last_bonding_candidate of orig_node
+ * @orig_node: originator node whose last bonding candidate should be retrieved
+ *
+ * Return: last bonding candidate of router or NULL if not found
+ *
+ * The object is returned with refcounter increased by 1.
+ */
+static struct batadv_orig_ifinfo *
+batadv_last_bonding_get(struct batadv_orig_node *orig_node)
+{
+	struct batadv_orig_ifinfo *last_bonding_candidate;
+
+	spin_lock_bh(&orig_node->neigh_list_lock);
+	last_bonding_candidate = orig_node->last_bonding_candidate;
+
+	if (last_bonding_candidate)
+		kref_get(&last_bonding_candidate->refcount);
+	spin_unlock_bh(&orig_node->neigh_list_lock);
+
+	return last_bonding_candidate;
+}
+
+/**
  * batadv_last_bonding_replace - Replace last_bonding_candidate of orig_node
  * @orig_node: originator node whose bonding candidates should be replaced
  * @new_candidate: new bonding candidate or NULL
@@ -492,7 +529,7 @@ batadv_find_router(struct batadv_priv *bat_priv,
 		   struct batadv_orig_node *orig_node,
 		   struct batadv_hard_iface *recv_if)
 {
-	struct batadv_algo_ops *bao = bat_priv->bat_algo_ops;
+	struct batadv_algo_ops *bao = bat_priv->algo_ops;
 	struct batadv_neigh_node *first_candidate_router = NULL;
 	struct batadv_neigh_node *next_candidate_router = NULL;
 	struct batadv_neigh_node *router, *cand_router = NULL;
@@ -525,7 +562,7 @@ batadv_find_router(struct batadv_priv *bat_priv,
 	 * router - obviously there are no other candidates.
 	 */
 	rcu_read_lock();
-	last_candidate = orig_node->last_bonding_candidate;
+	last_candidate = batadv_last_bonding_get(orig_node);
 	if (last_candidate)
 		last_cand_router = rcu_dereference(last_candidate->router);
 
@@ -546,9 +583,9 @@ batadv_find_router(struct batadv_priv *bat_priv,
 		/* alternative candidate should be good enough to be
 		 * considered
 		 */
-		if (!bao->bat_neigh_is_similar_or_better(cand_router,
-							 cand->if_outgoing,
-							 router, recv_if))
+		if (!bao->neigh.is_similar_or_better(cand_router,
+						     cand->if_outgoing, router,
+						     recv_if))
 			goto next;
 
 		/* don't use the same router twice */
@@ -617,6 +654,9 @@ next:
 		batadv_orig_ifinfo_put(next_candidate);
 	}
 
+	if (last_candidate)
+		batadv_orig_ifinfo_put(last_candidate);
+
 	return router;
 }
 
@@ -671,6 +711,8 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 
 	len = skb->len;
 	res = batadv_send_skb_to_orig(skb, orig_node, recv_if);
+	if (res == -1)
+		goto out;
 
 	/* translate transmit result into receive result */
 	if (res == NET_XMIT_SUCCESS) {
@@ -678,12 +720,9 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 		batadv_inc_counter(bat_priv, BATADV_CNT_FORWARD);
 		batadv_add_counter(bat_priv, BATADV_CNT_FORWARD_BYTES,
 				   len + ETH_HLEN);
-
-		ret = NET_RX_SUCCESS;
-	} else if (res == NET_XMIT_POLICED) {
-		/* skb was buffered and consumed */
-		ret = NET_RX_SUCCESS;
 	}
+
+	ret = NET_RX_SUCCESS;
 
 out:
 	if (orig_node)
@@ -1032,6 +1071,8 @@ int batadv_recv_frag_packet(struct sk_buff *skb,
 	orig_node_src = batadv_orig_hash_find(bat_priv, frag_packet->orig);
 	if (!orig_node_src)
 		goto out;
+
+	skb->priority = frag_packet->priority + 256;
 
 	/* Route the fragment if it is not for us and too big to be merged. */
 	if (!batadv_is_my_mac(bat_priv, frag_packet->dest) &&

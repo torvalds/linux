@@ -96,7 +96,7 @@ extern unsigned int HPAGE_SHIFT;
 extern phys_addr_t memstart_addr;
 extern phys_addr_t kernstart_addr;
 
-#ifdef CONFIG_RELOCATABLE_PPC32
+#if defined(CONFIG_RELOCATABLE) && defined(CONFIG_PPC32)
 extern long long virt_phys_offset;
 #endif
 
@@ -139,9 +139,9 @@ extern long long virt_phys_offset;
  * determine MEMORY_START until then.  However we can determine PHYSICAL_START
  * from information at hand (program counter, TLB lookup).
  *
- * On BookE with RELOCATABLE (RELOCATABLE_PPC32)
+ * On BookE with RELOCATABLE && PPC32
  *
- *   With RELOCATABLE_PPC32,  we support loading the kernel at any physical 
+ *   With RELOCATABLE && PPC32,  we support loading the kernel at any physical
  *   address without any restriction on the page alignment.
  *
  *   We find the runtime address of _stext and relocate ourselves based on 

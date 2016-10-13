@@ -30,11 +30,11 @@ nvbios_rammapTe(struct nvkm_bios *bios, u8 *ver, u8 *hdr,
 		u8 *cnt, u8 *len, u8 *snr, u8 *ssz)
 {
 	struct bit_entry bit_P;
-	u16 rammap = 0x0000;
+	u32 rammap = 0x0000;
 
 	if (!bit_entry(bios, 'P', &bit_P)) {
 		if (bit_P.version == 2)
-			rammap = nvbios_rd16(bios, bit_P.offset + 4);
+			rammap = nvbios_rd32(bios, bit_P.offset + 4);
 
 		if (rammap) {
 			*ver = nvbios_rd08(bios, rammap + 0);
@@ -61,7 +61,7 @@ nvbios_rammapEe(struct nvkm_bios *bios, int idx,
 		u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	u8  snr, ssz;
-	u16 rammap = nvbios_rammapTe(bios, ver, hdr, cnt, len, &snr, &ssz);
+	u32 rammap = nvbios_rammapTe(bios, ver, hdr, cnt, len, &snr, &ssz);
 	if (rammap && idx < *cnt) {
 		rammap = rammap + *hdr + (idx * (*len + (snr * ssz)));
 		*hdr = *len;

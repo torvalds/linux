@@ -22,7 +22,7 @@
 
 #define RMR_CSRE 0x00000001
 
-void pq2_restart(char *cmd)
+void __noreturn pq2_restart(char *cmd)
 {
 	local_irq_disable();
 	setbits32(&cpm2_immr->im_clkrst.car_rmr, RMR_CSRE);

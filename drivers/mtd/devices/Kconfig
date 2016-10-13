@@ -113,12 +113,12 @@ config MTD_SST25L
 	  if you want to specify device partitioning.
 
 config MTD_BCM47XXSFLASH
-	tristate "R/O support for serial flash on BCMA bus"
-	depends on BCMA_SFLASH
+	tristate "Support for serial flash on BCMA bus"
+	depends on BCMA_SFLASH && (MIPS || ARM)
 	help
 	  BCMA bus can have various flash memories attached, they are
 	  registered by bcma as platform devices. This enables driver for
-	  serial flash memories (only read-only mode is implemented).
+	  serial flash memories.
 
 config MTD_SLRAM
 	tristate "Uncached system RAM"
@@ -170,18 +170,6 @@ config MTDRAM_ERASE_SIZE
 	  device emulated by the MTDRAM driver.  If the MTDRAM driver is built
 	  as a module, it is also possible to specify this as a parameter when
 	  loading the module.
-
-#If not a module (I don't want to test it as a module)
-config MTDRAM_ABS_POS
-	hex "SRAM Hexadecimal Absolute position or 0"
-	depends on MTD_MTDRAM=y
-	default "0"
-	help
-	  If you have system RAM accessible by the CPU but not used by Linux
-	  in normal operation, you can give the physical address at which the
-	  available RAM starts, and the MTDRAM driver will use it instead of
-	  allocating space from Linux's available memory. Otherwise, leave
-	  this set to zero. Most people will want to leave this as zero.
 
 config MTD_BLOCK2MTD
 	tristate "MTD using block device"

@@ -391,7 +391,7 @@ static irqreturn_t mma9551_event_handler(int irq, void *private)
 	iio_push_event(indio_dev,
 		       IIO_MOD_EVENT_CODE(IIO_INCLI, 0, (mma_axis + 1),
 					  IIO_EV_TYPE_ROC, IIO_EV_DIR_RISING),
-		       iio_get_time_ns());
+		       iio_get_time_ns(indio_dev));
 
 out:
 	mutex_unlock(&data->mutex);

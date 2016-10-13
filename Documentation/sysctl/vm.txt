@@ -61,6 +61,7 @@ Currently, these files are in /proc/sys/vm:
 - swappiness
 - user_reserve_kbytes
 - vfs_cache_pressure
+- watermark_scale_factor
 - zone_reclaim_mode
 
 ==============================================================

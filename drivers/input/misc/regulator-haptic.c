@@ -124,7 +124,7 @@ regulator_haptic_parse_dt(struct device *dev, struct regulator_haptic *haptic)
 
 	node = dev->of_node;
 	if(!node) {
-		dev_err(dev, "Missing dveice tree data\n");
+		dev_err(dev, "Missing device tree data\n");
 		return -EINVAL;
 	}
 

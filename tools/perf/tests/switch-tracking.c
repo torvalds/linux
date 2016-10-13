@@ -432,7 +432,7 @@ int test__switch_tracking(int subtest __maybe_unused)
 	}
 
 	/* Check non-tracking events are not tracking */
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel != tracking_evsel) {
 			if (evsel->attr.mmap || evsel->attr.comm) {
 				pr_debug("Non-tracking event is tracking\n");

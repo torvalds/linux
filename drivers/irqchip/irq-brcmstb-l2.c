@@ -112,8 +112,8 @@ static void brcmstb_l2_intc_resume(struct irq_data *d)
 	irq_gc_unlock(gc);
 }
 
-int __init brcmstb_l2_intc_of_init(struct device_node *np,
-					struct device_node *parent)
+static int __init brcmstb_l2_intc_of_init(struct device_node *np,
+					  struct device_node *parent)
 {
 	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 	struct brcmstb_l2_intc_data *data;

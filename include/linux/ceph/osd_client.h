@@ -9,6 +9,7 @@
 #include <linux/ceph/types.h>
 #include <linux/ceph/osdmap.h>
 #include <linux/ceph/messenger.h>
+#include <linux/ceph/msgpool.h>
 #include <linux/ceph/auth.h>
 #include <linux/ceph/pagelist.h>
 

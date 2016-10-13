@@ -139,7 +139,7 @@ void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct msm_drm_private *priv = gpu->dev->dev_private;
 	struct msm_ringbuffer *ring = gpu->rb;
-	unsigned i, ibs = 0;
+	unsigned i;
 
 	for (i = 0; i < submit->nr_cmds; i++) {
 		switch (submit->cmd[i].type) {
@@ -155,17 +155,10 @@ void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 				CP_INDIRECT_BUFFER_PFE : CP_INDIRECT_BUFFER_PFD, 2);
 			OUT_RING(ring, submit->cmd[i].iova);
 			OUT_RING(ring, submit->cmd[i].size);
-			ibs++;
+			OUT_PKT2(ring);
 			break;
 		}
 	}
-
-	/* on a320, at least, we seem to need to pad things out to an
-	 * even number of qwords to avoid issue w/ CP hanging on wrap-
-	 * around:
-	 */
-	if (ibs % 2)
-		OUT_PKT2(ring);
 
 	OUT_PKT0(ring, REG_AXXX_CP_SCRATCH_REG2, 1);
 	OUT_RING(ring, submit->fence->seqno);
@@ -407,7 +400,7 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		return ret;
 	}
 
-	adreno_gpu->memptrs = msm_gem_vaddr(adreno_gpu->memptrs_bo);
+	adreno_gpu->memptrs = msm_gem_get_vaddr(adreno_gpu->memptrs_bo);
 	if (IS_ERR(adreno_gpu->memptrs)) {
 		dev_err(drm->dev, "could not vmap memptrs\n");
 		return -ENOMEM;
@@ -426,8 +419,12 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 void adreno_gpu_cleanup(struct adreno_gpu *gpu)
 {
 	if (gpu->memptrs_bo) {
+		if (gpu->memptrs)
+			msm_gem_put_vaddr(gpu->memptrs_bo);
+
 		if (gpu->memptrs_iova)
 			msm_gem_put_iova(gpu->memptrs_bo, gpu->base.id);
+
 		drm_gem_object_unreference_unlocked(gpu->memptrs_bo);
 	}
 	release_firmware(gpu->pm4);

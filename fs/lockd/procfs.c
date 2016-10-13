@@ -64,7 +64,6 @@ static const struct file_operations lockd_end_grace_operations = {
 	.read		= nlm_end_grace_read,
 	.llseek		= default_llseek,
 	.release	= simple_transaction_release,
-	.owner		= THIS_MODULE,
 };
 
 int __init

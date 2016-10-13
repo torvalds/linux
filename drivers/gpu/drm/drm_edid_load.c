@@ -271,7 +271,7 @@ int drm_load_edid_firmware(struct drm_connector *connector)
 	 * by commas, search through the list looking for one that
 	 * matches the connector.
 	 *
-	 * If there's one or more that don't't specify a connector, keep
+	 * If there's one or more that doesn't specify a connector, keep
 	 * the last one found one as a fallback.
 	 */
 	fwstr = kstrdup(edid_firmware, GFP_KERNEL);

@@ -1,4 +1,4 @@
-/* Nehalem/SandBridge/Haswell uncore support */
+/* Nehalem/SandBridge/Haswell/Broadwell/Skylake uncore support */
 #include "uncore.h"
 
 /* Uncore IMC PCI IDs */
@@ -9,6 +9,7 @@
 #define PCI_DEVICE_ID_INTEL_HSW_U_IMC	0x0a04
 #define PCI_DEVICE_ID_INTEL_BDW_IMC	0x1604
 #define PCI_DEVICE_ID_INTEL_SKL_IMC	0x191f
+#define PCI_DEVICE_ID_INTEL_SKL_U_IMC	0x190c
 
 /* SNB event control */
 #define SNB_UNC_CTL_EV_SEL_MASK			0x000000ff
@@ -64,6 +65,10 @@
 #define NHM_UNC_PERFEVTSEL0                     0x3c0
 #define NHM_UNC_UNCORE_PMC0                     0x3b0
 
+/* SKL uncore global control */
+#define SKL_UNC_PERF_GLOBAL_CTL			0xe01
+#define SKL_UNC_GLOBAL_CTL_CORE_ALL		((1 << 5) - 1)
+
 DEFINE_UNCORE_FORMAT_ATTR(event, event, "config:0-7");
 DEFINE_UNCORE_FORMAT_ATTR(umask, umask, "config:8-15");
 DEFINE_UNCORE_FORMAT_ATTR(edge, edge, "config:18");
@@ -95,6 +100,12 @@ static void snb_uncore_msr_init_box(struct intel_uncore_box *box)
 	}
 }
 
+static void snb_uncore_msr_enable_box(struct intel_uncore_box *box)
+{
+	wrmsrl(SNB_UNC_PERF_GLOBAL_CTL,
+		SNB_UNC_GLOBAL_CTL_EN | SNB_UNC_GLOBAL_CTL_CORE_ALL);
+}
+
 static void snb_uncore_msr_exit_box(struct intel_uncore_box *box)
 {
 	if (box->pmu->pmu_idx == 0)
@@ -122,6 +133,7 @@ static struct attribute_group snb_uncore_format_group = {
 
 static struct intel_uncore_ops snb_uncore_msr_ops = {
 	.init_box	= snb_uncore_msr_init_box,
+	.enable_box	= snb_uncore_msr_enable_box,
 	.exit_box	= snb_uncore_msr_exit_box,
 	.disable_event	= snb_uncore_msr_disable_event,
 	.enable_event	= snb_uncore_msr_enable_event,
@@ -177,6 +189,67 @@ void snb_uncore_cpu_init(void)
 	uncore_msr_uncores = snb_msr_uncores;
 	if (snb_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
 		snb_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
+}
+
+static void skl_uncore_msr_init_box(struct intel_uncore_box *box)
+{
+	if (box->pmu->pmu_idx == 0) {
+		wrmsrl(SKL_UNC_PERF_GLOBAL_CTL,
+			SNB_UNC_GLOBAL_CTL_EN | SKL_UNC_GLOBAL_CTL_CORE_ALL);
+	}
+}
+
+static void skl_uncore_msr_enable_box(struct intel_uncore_box *box)
+{
+	wrmsrl(SKL_UNC_PERF_GLOBAL_CTL,
+		SNB_UNC_GLOBAL_CTL_EN | SKL_UNC_GLOBAL_CTL_CORE_ALL);
+}
+
+static void skl_uncore_msr_exit_box(struct intel_uncore_box *box)
+{
+	if (box->pmu->pmu_idx == 0)
+		wrmsrl(SKL_UNC_PERF_GLOBAL_CTL, 0);
+}
+
+static struct intel_uncore_ops skl_uncore_msr_ops = {
+	.init_box	= skl_uncore_msr_init_box,
+	.enable_box	= skl_uncore_msr_enable_box,
+	.exit_box	= skl_uncore_msr_exit_box,
+	.disable_event	= snb_uncore_msr_disable_event,
+	.enable_event	= snb_uncore_msr_enable_event,
+	.read_counter	= uncore_msr_read_counter,
+};
+
+static struct intel_uncore_type skl_uncore_cbox = {
+	.name		= "cbox",
+	.num_counters   = 4,
+	.num_boxes	= 5,
+	.perf_ctr_bits	= 44,
+	.fixed_ctr_bits	= 48,
+	.perf_ctr	= SNB_UNC_CBO_0_PER_CTR0,
+	.event_ctl	= SNB_UNC_CBO_0_PERFEVTSEL0,
+	.fixed_ctr	= SNB_UNC_FIXED_CTR,
+	.fixed_ctl	= SNB_UNC_FIXED_CTR_CTRL,
+	.single_fixed	= 1,
+	.event_mask	= SNB_UNC_RAW_EVENT_MASK,
+	.msr_offset	= SNB_UNC_CBO_MSR_OFFSET,
+	.ops		= &skl_uncore_msr_ops,
+	.format_group	= &snb_uncore_format_group,
+	.event_descs	= snb_uncore_events,
+};
+
+static struct intel_uncore_type *skl_msr_uncores[] = {
+	&skl_uncore_cbox,
+	&snb_uncore_arb,
+	NULL,
+};
+
+void skl_uncore_cpu_init(void)
+{
+	uncore_msr_uncores = skl_msr_uncores;
+	if (skl_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
+		skl_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
+	snb_uncore_arb.ops = &skl_uncore_msr_ops;
 }
 
 enum {
@@ -544,6 +617,11 @@ static const struct pci_device_id skl_uncore_pci_ids[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SKL_IMC),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
 	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SKL_U_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+
 	{ /* end: all zeroes */ },
 };
 
@@ -587,6 +665,7 @@ static const struct imc_uncore_pci_dev desktop_imc_pci_ids[] = {
 	IMC_DEV(HSW_U_IMC, &hsw_uncore_pci_driver),  /* 4th Gen Core ULT Mobile Processor */
 	IMC_DEV(BDW_IMC, &bdw_uncore_pci_driver),    /* 5th Gen Core U */
 	IMC_DEV(SKL_IMC, &skl_uncore_pci_driver),    /* 6th Gen Core */
+	IMC_DEV(SKL_U_IMC, &skl_uncore_pci_driver),  /* 6th Gen Core U */
 	{  /* end marker */ }
 };
 

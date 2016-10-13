@@ -339,6 +339,20 @@ config MV_XOR
 	---help---
 	  Enable support for the Marvell XOR engine.
 
+config MV_XOR_V2
+	bool "Marvell XOR engine version 2 support "
+	depends on ARM64
+	select DMA_ENGINE
+	select DMA_ENGINE_RAID
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	select GENERIC_MSI_IRQ_DOMAIN
+	---help---
+	  Enable support for the Marvell version 2 XOR engine.
+
+	  This engine provides acceleration for copy, XOR and RAID6
+	  operations, and is available on Marvell Armada 7K and 8K
+	  platforms.
+
 config MXS_DMA
 	bool "MXS DMA support"
 	depends on SOC_IMX23 || SOC_IMX28 || SOC_IMX6Q || SOC_IMX6UL
@@ -519,19 +533,31 @@ config XGENE_DMA
 	help
 	  Enable support for the APM X-Gene SoC DMA engine.
 
-config XILINX_VDMA
-	tristate "Xilinx AXI VDMA Engine"
+config XILINX_DMA
+	tristate "Xilinx AXI DMAS Engine"
 	depends on (ARCH_ZYNQ || MICROBLAZE || ARM64)
 	select DMA_ENGINE
 	help
 	  Enable support for Xilinx AXI VDMA Soft IP.
 
-	  This engine provides high-bandwidth direct memory access
+	  AXI VDMA engine provides high-bandwidth direct memory access
 	  between memory and AXI4-Stream video type target
 	  peripherals including peripherals which support AXI4-
 	  Stream Video Protocol.  It has two stream interfaces/
 	  channels, Memory Mapped to Stream (MM2S) and Stream to
 	  Memory Mapped (S2MM) for the data transfers.
+	  AXI CDMA engine provides high-bandwidth direct memory access
+	  between a memory-mapped source address and a memory-mapped
+	  destination address.
+	  AXI DMA engine provides high-bandwidth one dimensional direct
+	  memory access between memory and AXI4-Stream target peripherals.
+
+config XILINX_ZYNQMP_DMA
+	tristate "Xilinx ZynqMP DMA Engine"
+	depends on (ARCH_ZYNQ || MICROBLAZE || ARM64)
+	select DMA_ENGINE
+	help
+	  Enable support for Xilinx ZynqMP DMA controller.
 
 config ZX_DMA
 	tristate "ZTE ZX296702 DMA support"

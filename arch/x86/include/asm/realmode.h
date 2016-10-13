@@ -58,7 +58,15 @@ extern unsigned char boot_gdt[];
 extern unsigned char secondary_startup_64[];
 #endif
 
+static inline size_t real_mode_size_needed(void)
+{
+	if (real_mode_header)
+		return 0;	/* already allocated. */
+
+	return ALIGN(real_mode_blob_end - real_mode_blob, PAGE_SIZE);
+}
+
+void set_real_mode_mem(phys_addr_t mem, size_t size);
 void reserve_real_mode(void);
-void setup_real_mode(void);
 
 #endif /* _ARCH_X86_REALMODE_H */

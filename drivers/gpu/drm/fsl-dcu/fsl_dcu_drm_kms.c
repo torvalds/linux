@@ -37,23 +37,22 @@ int fsl_dcu_drm_modeset_init(struct fsl_dcu_drm_device *fsl_dev)
 
 	ret = fsl_dcu_drm_crtc_create(fsl_dev);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = fsl_dcu_drm_encoder_create(fsl_dev, &fsl_dev->crtc);
 	if (ret)
-		goto fail_encoder;
+		goto err;
 
-	ret = fsl_dcu_drm_connector_create(fsl_dev, &fsl_dev->encoder);
+	ret = fsl_dcu_create_outputs(fsl_dev);
 	if (ret)
-		goto fail_connector;
+		goto err;
 
 	drm_mode_config_reset(fsl_dev->drm);
 	drm_kms_helper_poll_init(fsl_dev->drm);
 
 	return 0;
-fail_encoder:
-	fsl_dev->crtc.funcs->destroy(&fsl_dev->crtc);
-fail_connector:
-	fsl_dev->encoder.funcs->destroy(&fsl_dev->encoder);
+
+err:
+	drm_mode_config_cleanup(fsl_dev->drm);
 	return ret;
 }

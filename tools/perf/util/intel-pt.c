@@ -39,6 +39,7 @@
 #include "auxtrace.h"
 #include "tsc.h"
 #include "intel-pt.h"
+#include "config.h"
 
 #include "intel-pt-decoder/intel-pt-log.h"
 #include "intel-pt-decoder/intel-pt-decoder.h"
@@ -556,7 +557,7 @@ static bool intel_pt_exclude_kernel(struct intel_pt *pt)
 {
 	struct perf_evsel *evsel;
 
-	evlist__for_each(pt->session->evlist, evsel) {
+	evlist__for_each_entry(pt->session->evlist, evsel) {
 		if (intel_pt_get_config(pt, &evsel->attr, NULL) &&
 		    !evsel->attr.exclude_kernel)
 			return false;
@@ -572,7 +573,7 @@ static bool intel_pt_return_compression(struct intel_pt *pt)
 	if (!pt->noretcomp_bit)
 		return true;
 
-	evlist__for_each(pt->session->evlist, evsel) {
+	evlist__for_each_entry(pt->session->evlist, evsel) {
 		if (intel_pt_get_config(pt, &evsel->attr, &config) &&
 		    (config & pt->noretcomp_bit))
 			return false;
@@ -592,7 +593,7 @@ static unsigned int intel_pt_mtc_period(struct intel_pt *pt)
 	for (shift = 0, config = pt->mtc_freq_bits; !(config & 1); shift++)
 		config >>= 1;
 
-	evlist__for_each(pt->session->evlist, evsel) {
+	evlist__for_each_entry(pt->session->evlist, evsel) {
 		if (intel_pt_get_config(pt, &evsel->attr, &config))
 			return (config & pt->mtc_freq_bits) >> shift;
 	}
@@ -608,7 +609,7 @@ static bool intel_pt_timeless_decoding(struct intel_pt *pt)
 	if (!pt->tsc_bit || !pt->cap_user_time_zero)
 		return true;
 
-	evlist__for_each(pt->session->evlist, evsel) {
+	evlist__for_each_entry(pt->session->evlist, evsel) {
 		if (!(evsel->attr.sample_type & PERF_SAMPLE_TIME))
 			return true;
 		if (intel_pt_get_config(pt, &evsel->attr, &config)) {
@@ -625,7 +626,7 @@ static bool intel_pt_tracing_kernel(struct intel_pt *pt)
 {
 	struct perf_evsel *evsel;
 
-	evlist__for_each(pt->session->evlist, evsel) {
+	evlist__for_each_entry(pt->session->evlist, evsel) {
 		if (intel_pt_get_config(pt, &evsel->attr, NULL) &&
 		    !evsel->attr.exclude_kernel)
 			return true;
@@ -642,7 +643,7 @@ static bool intel_pt_have_tsc(struct intel_pt *pt)
 	if (!pt->tsc_bit)
 		return false;
 
-	evlist__for_each(pt->session->evlist, evsel) {
+	evlist__for_each_entry(pt->session->evlist, evsel) {
 		if (intel_pt_get_config(pt, &evsel->attr, &config)) {
 			if (config & pt->tsc_bit)
 				have_tsc = true;
@@ -1233,7 +1234,7 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 	if (!(state->type & INTEL_PT_BRANCH))
 		return 0;
 
-	if (pt->synth_opts.callchain)
+	if (pt->synth_opts.callchain || pt->synth_opts.thread_stack)
 		thread_stack__event(ptq->thread, ptq->flags, state->from_ip,
 				    state->to_ip, ptq->insn_len,
 				    state->trace_nr);
@@ -1850,7 +1851,7 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 	u64 id;
 	int err;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type == pt->pmu_type && evsel->ids) {
 			found = true;
 			break;
@@ -1930,7 +1931,7 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 		pt->sample_transactions = true;
 		pt->transactions_id = id;
 		id += 1;
-		evlist__for_each(evlist, evsel) {
+		evlist__for_each_entry(evlist, evsel) {
 			if (evsel->id && evsel->id[0] == pt->transactions_id) {
 				if (evsel->name)
 					zfree(&evsel->name);
@@ -1968,7 +1969,7 @@ static struct perf_evsel *intel_pt_find_sched_switch(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
 
-	evlist__for_each_reverse(evlist, evsel) {
+	evlist__for_each_entry_reverse(evlist, evsel) {
 		const char *name = perf_evsel__name(evsel);
 
 		if (!strcmp(name, "sched:sched_switch"))
@@ -1982,7 +1983,7 @@ static bool intel_pt_find_switch(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.context_switch)
 			return true;
 	}
@@ -2136,6 +2137,9 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 			pt->synth_opts.branches = false;
 			pt->synth_opts.callchain = true;
 		}
+		if (session->itrace_synth_opts)
+			pt->synth_opts.thread_stack =
+				session->itrace_synth_opts->thread_stack;
 	}
 
 	if (pt->synth_opts.log)

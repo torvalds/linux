@@ -30,7 +30,7 @@ Optional subnodes:
 					  sub-nodes. This container may be
 					  omitted when the card has only one
 					  DAI link. See the examples and the
-					  section bellow.
+					  section below.
 
 Dai-link subnode properties and subnodes:
 

@@ -29,6 +29,8 @@
 #define QL_VND_SET_FLASH_UPDATE_CAPS    0x16
 #define QL_VND_GET_BBCR_DATA    0x17
 #define QL_VND_GET_PRIV_STATS	0x18
+#define QL_VND_DPORT_DIAGNOSTICS	0x19
+#define QL_VND_GET_PRIV_STATS_EX	0x1A
 
 /* BSG Vendor specific subcode returns */
 #define EXT_STATUS_OK			0
@@ -266,4 +268,15 @@ struct  qla_bbcr_data {
 	uint16_t  mbx1;			/* Port state */
 	uint8_t   reserved[9];
 } __packed;
+
+struct qla_dport_diag {
+	uint16_t options;
+	uint32_t buf[16];
+	uint8_t  unused[62];
+} __packed;
+
+/* D_Port options */
+#define QLA_DPORT_RESULT	0x0
+#define QLA_DPORT_START		0x2
+
 #endif

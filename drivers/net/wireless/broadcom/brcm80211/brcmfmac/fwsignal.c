@@ -2101,7 +2101,7 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 
 	brcmf_dbg(DATA, "tx proto=0x%X\n", ntohs(eh->h_proto));
 	/* determine the priority */
-	if (!skb->priority)
+	if ((skb->priority == 0) || (skb->priority > 7))
 		skb->priority = cfg80211_classify8021d(skb, NULL);
 
 	drvr->tx_multicast += !!multicast;
@@ -2469,10 +2469,22 @@ void brcmf_fws_bustxfail(struct brcmf_fws_info *fws, struct sk_buff *skb)
 void brcmf_fws_bus_blocked(struct brcmf_pub *drvr, bool flow_blocked)
 {
 	struct brcmf_fws_info *fws = drvr->fws;
+	struct brcmf_if *ifp;
+	int i;
 
-	fws->bus_flow_blocked = flow_blocked;
-	if (!flow_blocked)
-		brcmf_fws_schedule_deq(fws);
-	else
-		fws->stats.bus_flow_block++;
+	if (fws->avoid_queueing) {
+		for (i = 0; i < BRCMF_MAX_IFS; i++) {
+			ifp = drvr->iflist[i];
+			if (!ifp || !ifp->ndev)
+				continue;
+			brcmf_txflowblock_if(ifp, BRCMF_NETIF_STOP_REASON_FLOW,
+					     flow_blocked);
+		}
+	} else {
+		fws->bus_flow_blocked = flow_blocked;
+		if (!flow_blocked)
+			brcmf_fws_schedule_deq(fws);
+		else
+			fws->stats.bus_flow_block++;
+	}
 }

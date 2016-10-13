@@ -151,8 +151,8 @@
 	phy-mode = "rmii";
 	phy-handle = <&ethphy1>;
 	status = "okay";
-	phy-reset-gpios = <&gpio2 15 GPIO_ACTIVE_LOW>;
-	phy-reset-duration = <11>;
+	phy-reset-gpios = <&gpio1 28 GPIO_ACTIVE_LOW>;
+	phy-reset-duration = <1>;
 
 	mdio {
 		#address-cells = <1>;
@@ -286,7 +286,7 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 

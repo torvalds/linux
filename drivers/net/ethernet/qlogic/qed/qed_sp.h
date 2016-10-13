@@ -63,6 +63,32 @@ union ramrod_data {
 	struct vport_update_ramrod_data vport_update;
 	struct vport_filter_update_ramrod_data vport_filter_update;
 
+	struct rdma_init_func_ramrod_data rdma_init_func;
+	struct rdma_close_func_ramrod_data rdma_close_func;
+	struct rdma_register_tid_ramrod_data rdma_register_tid;
+	struct rdma_deregister_tid_ramrod_data rdma_deregister_tid;
+	struct roce_create_qp_resp_ramrod_data roce_create_qp_resp;
+	struct roce_create_qp_req_ramrod_data roce_create_qp_req;
+	struct roce_modify_qp_resp_ramrod_data roce_modify_qp_resp;
+	struct roce_modify_qp_req_ramrod_data roce_modify_qp_req;
+	struct roce_query_qp_resp_ramrod_data roce_query_qp_resp;
+	struct roce_query_qp_req_ramrod_data roce_query_qp_req;
+	struct roce_destroy_qp_resp_ramrod_data roce_destroy_qp_resp;
+	struct roce_destroy_qp_req_ramrod_data roce_destroy_qp_req;
+	struct rdma_create_cq_ramrod_data rdma_create_cq;
+	struct rdma_resize_cq_ramrod_data rdma_resize_cq;
+	struct rdma_destroy_cq_ramrod_data rdma_destroy_cq;
+	struct rdma_srq_create_ramrod_data rdma_create_srq;
+	struct rdma_srq_destroy_ramrod_data rdma_destroy_srq;
+	struct rdma_srq_modify_ramrod_data rdma_modify_srq;
+
+	struct iscsi_slow_path_hdr iscsi_empty;
+	struct iscsi_init_ramrod_params iscsi_init;
+	struct iscsi_spe_func_dstry iscsi_destroy;
+	struct iscsi_spe_conn_offload iscsi_conn_offload;
+	struct iscsi_conn_update_ramrod_params iscsi_conn_update;
+	struct iscsi_spe_conn_termination iscsi_conn_terminate;
+
 	struct vf_start_ramrod_data vf_start;
 	struct vf_stop_ramrod_data vf_stop;
 };

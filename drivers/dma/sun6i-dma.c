@@ -865,7 +865,7 @@ static enum dma_status sun6i_dma_tx_status(struct dma_chan *chan,
 	size_t bytes = 0;
 
 	ret = dma_cookie_status(chan, cookie, state);
-	if (ret == DMA_COMPLETE)
+	if (ret == DMA_COMPLETE || !state)
 		return ret;
 
 	spin_lock_irqsave(&vchan->vc.lock, flags);

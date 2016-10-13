@@ -233,7 +233,6 @@ struct chain_config {
  * @pdev: pointer to FIMC-IS platform device
  * @pctrl: pointer to pinctrl structure for this device
  * @v4l2_dev: pointer to top the level v4l2_device
- * @alloc_ctx: videobuf2 memory allocator context
  * @lock: mutex serializing video device and the subdev operations
  * @slock: spinlock protecting this data structure and the hw registers
  * @clocks: FIMC-LITE gate clock
@@ -256,7 +255,6 @@ struct fimc_is {
 	struct fimc_is_sensor		sensor[FIMC_IS_SENSORS_NUM];
 	struct fimc_is_setfile		setfile;
 
-	struct vb2_alloc_ctx		*alloc_ctx;
 	struct v4l2_ctrl_handler	ctrl_handler;
 
 	struct mutex			lock;

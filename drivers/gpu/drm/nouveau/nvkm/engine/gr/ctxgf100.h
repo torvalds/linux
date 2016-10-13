@@ -101,6 +101,8 @@ void gm200_grctx_generate_405b60(struct gf100_gr *);
 
 extern const struct gf100_grctx_func gm20b_grctx;
 
+extern const struct gf100_grctx_func gp100_grctx;
+
 /* context init value lists */
 
 extern const struct gf100_gr_pack gf100_grctx_pack_icmd[];

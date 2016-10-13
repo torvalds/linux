@@ -375,6 +375,12 @@ static int virtio_gpu_bo_move(struct ttm_buffer_object *bo,
 			      bool no_wait_gpu,
 			      struct ttm_mem_reg *new_mem)
 {
+	int ret;
+
+	ret = ttm_bo_wait(bo, interruptible, no_wait_gpu);
+	if (ret)
+		return ret;
+
 	virtio_gpu_move_null(bo, new_mem);
 	return 0;
 }

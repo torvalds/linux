@@ -156,15 +156,18 @@ static int __init pit_clockevent_init(unsigned long rate, int irq)
 	return 0;
 }
 
-static void __init pit_timer_init(struct device_node *np)
+static int __init pit_timer_init(struct device_node *np)
 {
 	struct clk *pit_clk;
 	void __iomem *timer_base;
 	unsigned long clk_rate;
-	int irq;
+	int irq, ret;
 
 	timer_base = of_iomap(np, 0);
-	BUG_ON(!timer_base);
+	if (!timer_base) {
+		pr_err("Failed to iomap");
+		return -ENXIO;
+	}
 
 	/*
 	 * PIT0 and PIT1 can be chained to build a 64-bit timer,
@@ -175,12 +178,16 @@ static void __init pit_timer_init(struct device_node *np)
 	clkevt_base = timer_base + PITn_OFFSET(3);
 
 	irq = irq_of_parse_and_map(np, 0);
-	BUG_ON(irq <= 0);
+	if (irq <= 0)
+		return -EINVAL;
 
 	pit_clk = of_clk_get(np, 0);
-	BUG_ON(IS_ERR(pit_clk));
+	if (IS_ERR(pit_clk))
+		return PTR_ERR(pit_clk);
 
-	BUG_ON(clk_prepare_enable(pit_clk));
+	ret = clk_prepare_enable(pit_clk);
+	if (ret)
+		return ret;
 
 	clk_rate = clk_get_rate(pit_clk);
 	cycle_per_jiffy = clk_rate / (HZ);
@@ -188,8 +195,10 @@ static void __init pit_timer_init(struct device_node *np)
 	/* enable the pit module */
 	__raw_writel(~PITMCR_MDIS, timer_base + PITMCR);
 
-	BUG_ON(pit_clocksource_init(clk_rate));
+	ret = pit_clocksource_init(clk_rate);
+	if (ret)
+		return ret;
 
-	pit_clockevent_init(clk_rate, irq);
+	return pit_clockevent_init(clk_rate, irq);
 }
 CLOCKSOURCE_OF_DECLARE(vf610, "fsl,vf610-pit", pit_timer_init);

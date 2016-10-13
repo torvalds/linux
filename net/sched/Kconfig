@@ -494,6 +494,16 @@ config NET_CLS_FLOWER
 	  To compile this code as a module, choose M here: the module will
 	  be called cls_flower.
 
+config NET_CLS_MATCHALL
+	tristate "Match-all classifier"
+	select NET_CLS
+	---help---
+	  If you say Y here, you will be able to classify packets based on
+	  nothing. Every packet will match.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called cls_matchall.
+
 config NET_EMATCH
 	bool "Extended Matches"
 	select NET_CLS

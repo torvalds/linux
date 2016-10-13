@@ -185,7 +185,7 @@
  *  x = processor mask
  *  y = op. point index
  *  z = processor freq. step index
- * I haven't yet decyphered result codes
+ * I haven't yet deciphered result codes
  *
  */
 #define SMU_CMD_POWER_COMMAND			0xaa
@@ -469,13 +469,6 @@ extern void smu_restart(void);
 struct rtc_time;
 extern int smu_get_rtc_time(struct rtc_time *time, int spinwait);
 extern int smu_set_rtc_time(struct rtc_time *time, int spinwait);
-
-/*
- * SMU command buffer absolute address, exported by pmac_setup,
- * this is allocated very early during boot.
- */
-extern unsigned long smu_cmdbuf_abs;
-
 
 /*
  * Kernel asynchronous i2c interface
