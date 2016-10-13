@@ -47,7 +47,7 @@ static struct nd_region *to_region(struct pmem_device *pmem)
 	return to_nd_region(to_dev(pmem)->parent);
 }
 
-static void pmem_clear_poison(struct pmem_device *pmem, phys_addr_t offset,
+static int pmem_clear_poison(struct pmem_device *pmem, phys_addr_t offset,
 		unsigned int len)
 {
 	struct device *dev = to_dev(pmem);
@@ -62,8 +62,12 @@ static void pmem_clear_poison(struct pmem_device *pmem, phys_addr_t offset,
 				__func__, (unsigned long long) sector,
 				cleared / 512, cleared / 512 > 1 ? "s" : "");
 		badblocks_clear(&pmem->bb, sector, cleared / 512);
+	} else {
+		return -EIO;
 	}
+
 	invalidate_pmem(pmem->virt_addr + offset, len);
+	return 0;
 }
 
 static void write_pmem(void *pmem_addr, struct page *page,
@@ -123,7 +127,7 @@ static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 		flush_dcache_page(page);
 		write_pmem(pmem_addr, page, off, len);
 		if (unlikely(bad_pmem)) {
-			pmem_clear_poison(pmem, pmem_off, len);
+			rc = pmem_clear_poison(pmem, pmem_off, len);
 			write_pmem(pmem_addr, page, off, len);
 		}
 	}
