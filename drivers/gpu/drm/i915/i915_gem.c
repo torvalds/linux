@@ -4388,30 +4388,28 @@ void i915_gem_init_swizzling(struct drm_device *dev)
 		BUG();
 }
 
-static void init_unused_ring(struct drm_device *dev, u32 base)
+static void init_unused_ring(struct drm_i915_private *dev_priv, u32 base)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	I915_WRITE(RING_CTL(base), 0);
 	I915_WRITE(RING_HEAD(base), 0);
 	I915_WRITE(RING_TAIL(base), 0);
 	I915_WRITE(RING_START(base), 0);
 }
 
-static void init_unused_rings(struct drm_device *dev)
+static void init_unused_rings(struct drm_i915_private *dev_priv)
 {
-	if (IS_I830(dev)) {
-		init_unused_ring(dev, PRB1_BASE);
-		init_unused_ring(dev, SRB0_BASE);
-		init_unused_ring(dev, SRB1_BASE);
-		init_unused_ring(dev, SRB2_BASE);
-		init_unused_ring(dev, SRB3_BASE);
-	} else if (IS_GEN2(dev)) {
-		init_unused_ring(dev, SRB0_BASE);
-		init_unused_ring(dev, SRB1_BASE);
-	} else if (IS_GEN3(dev)) {
-		init_unused_ring(dev, PRB1_BASE);
-		init_unused_ring(dev, PRB2_BASE);
+	if (IS_I830(dev_priv)) {
+		init_unused_ring(dev_priv, PRB1_BASE);
+		init_unused_ring(dev_priv, SRB0_BASE);
+		init_unused_ring(dev_priv, SRB1_BASE);
+		init_unused_ring(dev_priv, SRB2_BASE);
+		init_unused_ring(dev_priv, SRB3_BASE);
+	} else if (IS_GEN2(dev_priv)) {
+		init_unused_ring(dev_priv, SRB0_BASE);
+		init_unused_ring(dev_priv, SRB1_BASE);
+	} else if (IS_GEN3(dev_priv)) {
+		init_unused_ring(dev_priv, PRB1_BASE);
+		init_unused_ring(dev_priv, PRB2_BASE);
 	}
 }
 
@@ -4430,7 +4428,7 @@ i915_gem_init_hw(struct drm_device *dev)
 		I915_WRITE(HSW_IDICR, I915_READ(HSW_IDICR) | IDIHASHMSK(0xf));
 
 	if (IS_HASWELL(dev))
-		I915_WRITE(MI_PREDICATE_RESULT_2, IS_HSW_GT3(dev) ?
+		I915_WRITE(MI_PREDICATE_RESULT_2, IS_HSW_GT3(dev_priv) ?
 			   LOWER_SLICE_ENABLED : LOWER_SLICE_DISABLED);
 
 	if (HAS_PCH_NOP(dev_priv)) {
@@ -4453,7 +4451,7 @@ i915_gem_init_hw(struct drm_device *dev)
 	 * will prevent c3 entry. Makes sure all unused rings
 	 * are totally idle.
 	 */
-	init_unused_rings(dev);
+	init_unused_rings(dev_priv);
 
 	BUG_ON(!dev_priv->kernel_context);
 

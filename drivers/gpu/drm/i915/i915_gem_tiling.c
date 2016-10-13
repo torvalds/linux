@@ -62,6 +62,7 @@
 static bool
 i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int tile_width;
 
 	/* Linear is always fine */
@@ -72,7 +73,7 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 		return false;
 
 	if (IS_GEN2(dev) ||
-	    (tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev)))
+	    (tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev_priv)))
 		tile_width = 128;
 	else
 		tile_width = 512;

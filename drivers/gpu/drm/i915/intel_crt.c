@@ -431,7 +431,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	 * to get a reliable result.
 	 */
 
-	if (IS_G4X(dev) && !IS_GM45(dev))
+	if (IS_G4X(dev_priv) && !IS_GM45(dev_priv))
 		tries = 2;
 	else
 		tries = 1;
@@ -894,7 +894,7 @@ void intel_crt_init(struct drm_device *dev)
 
 	crt->base.type = INTEL_OUTPUT_ANALOG;
 	crt->base.cloneable = (1 << INTEL_OUTPUT_DVO) | (1 << INTEL_OUTPUT_HDMI);
-	if (IS_I830(dev))
+	if (IS_I830(dev_priv))
 		crt->base.crtc_mask = (1 << 0);
 	else
 		crt->base.crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);

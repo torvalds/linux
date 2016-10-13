@@ -334,12 +334,12 @@ void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 		val |= enable ? PINEVIEW_SELF_REFRESH_EN : 0;
 		I915_WRITE(DSPFW3, val);
 		POSTING_READ(DSPFW3);
-	} else if (IS_I945G(dev) || IS_I945GM(dev)) {
+	} else if (IS_I945G(dev_priv) || IS_I945GM(dev_priv)) {
 		val = enable ? _MASKED_BIT_ENABLE(FW_BLC_SELF_EN) :
 			       _MASKED_BIT_DISABLE(FW_BLC_SELF_EN);
 		I915_WRITE(FW_BLC_SELF, val);
 		POSTING_READ(FW_BLC_SELF);
-	} else if (IS_I915GM(dev)) {
+	} else if (IS_I915GM(dev_priv)) {
 		/*
 		 * FIXME can't find a bit like this for 915G, and
 		 * and yet it does have the related watermark in
@@ -648,8 +648,10 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 	u32 reg;
 	unsigned long wm;
 
-	latency = intel_get_cxsr_latency(IS_PINEVIEW_G(dev), dev_priv->is_ddr3,
-					 dev_priv->fsb_freq, dev_priv->mem_freq);
+	latency = intel_get_cxsr_latency(IS_PINEVIEW_G(dev_priv),
+					 dev_priv->is_ddr3,
+					 dev_priv->fsb_freq,
+					 dev_priv->mem_freq);
 	if (!latency) {
 		DRM_DEBUG_KMS("Unknown FSB/MEM found, disable CxSR\n");
 		intel_set_memory_cxsr(dev_priv, false);
@@ -1579,7 +1581,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 
 	DRM_DEBUG_KMS("FIFO watermarks - A: %d, B: %d\n", planea_wm, planeb_wm);
 
-	if (IS_I915GM(dev) && enabled) {
+	if (IS_I915GM(dev_priv) && enabled) {
 		struct drm_i915_gem_object *obj;
 
 		obj = intel_fb_obj(enabled->primary->state->fb);
@@ -1609,7 +1611,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 		unsigned long line_time_us;
 		int entries;
 
-		if (IS_I915GM(dev) || IS_I945GM(dev))
+		if (IS_I915GM(dev_priv) || IS_I945GM(dev_priv))
 			cpp = 4;
 
 		line_time_us = max(htotal * 1000 / clock, 1);
@@ -1623,7 +1625,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 		if (srwm < 0)
 			srwm = 1;
 
-		if (IS_I945G(dev) || IS_I945GM(dev))
+		if (IS_I945G(dev_priv) || IS_I945GM(dev_priv))
 			I915_WRITE(FW_BLC_SELF,
 				   FW_BLC_SELF_FIFO_MASK | (srwm & 0xff));
 		else
@@ -6943,7 +6945,7 @@ static void ironlake_init_clock_gating(struct drm_device *dev)
 	 * The bit 22 of 0x42004
 	 * The bit 7,8,9 of 0x42020.
 	 */
-	if (IS_IRONLAKE_M(dev)) {
+	if (IS_IRONLAKE_M(dev_priv)) {
 		/* WaFbcAsynchFlipDisableFbcQueue:ilk */
 		I915_WRITE(ILK_DISPLAY_CHICKEN1,
 			   I915_READ(ILK_DISPLAY_CHICKEN1) |
@@ -7353,7 +7355,7 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 		   CHICKEN3_DGMG_DONE_FIX_DISABLE);
 
 	/* WaDisablePSDDualDispatchEnable:ivb */
-	if (IS_IVB_GT1(dev))
+	if (IS_IVB_GT1(dev_priv))
 		I915_WRITE(GEN7_HALF_SLICE_CHICKEN1,
 			   _MASKED_BIT_ENABLE(GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE));
 
@@ -7369,7 +7371,7 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 			GEN7_WA_FOR_GEN7_L3_CONTROL);
 	I915_WRITE(GEN7_L3_CHICKEN_MODE_REGISTER,
 		   GEN7_WA_L3_CHICKEN_MODE);
-	if (IS_IVB_GT1(dev))
+	if (IS_IVB_GT1(dev_priv))
 		I915_WRITE(GEN7_ROW_CHICKEN2,
 			   _MASKED_BIT_ENABLE(DOP_CLOCK_GATING_DISABLE));
 	else {
@@ -7563,7 +7565,7 @@ static void g4x_init_clock_gating(struct drm_device *dev)
 	dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE |
 		OVRUNIT_CLOCK_GATE_DISABLE |
 		OVCUNIT_CLOCK_GATE_DISABLE;
-	if (IS_GM45(dev))
+	if (IS_GM45(dev_priv))
 		dspclk_gate |= DSSUNIT_CLOCK_GATE_DISABLE;
 	I915_WRITE(DSPCLK_GATE_D, dspclk_gate);
 
@@ -7770,7 +7772,7 @@ void intel_init_pm(struct drm_device *dev)
 		vlv_setup_wm_latency(dev);
 		dev_priv->display.update_wm = vlv_update_wm;
 	} else if (IS_PINEVIEW(dev)) {
-		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev),
+		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev_priv),
 					    dev_priv->is_ddr3,
 					    dev_priv->fsb_freq,
 					    dev_priv->mem_freq)) {

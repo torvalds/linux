@@ -949,10 +949,8 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 	return (val & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP;
 }
 
-static bool intel_lvds_supported(struct drm_device *dev)
+static bool intel_lvds_supported(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	/* With the introduction of the PCH we gained a dedicated
 	 * LVDS presence pin, use it. */
 	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv))
@@ -960,7 +958,8 @@ static bool intel_lvds_supported(struct drm_device *dev)
 
 	/* Otherwise LVDS was only attached to mobile products,
 	 * except for the inglorious 830gm */
-	if (INTEL_INFO(dev)->gen <= 4 && IS_MOBILE(dev) && !IS_I830(dev))
+	if (INTEL_GEN(dev_priv) <= 4 &&
+	    IS_MOBILE(dev_priv) && !IS_I830(dev_priv))
 		return true;
 
 	return false;
@@ -992,7 +991,7 @@ void intel_lvds_init(struct drm_device *dev)
 	int pipe;
 	u8 pin;
 
-	if (!intel_lvds_supported(dev))
+	if (!intel_lvds_supported(dev_priv))
 		return;
 
 	/* Skip init on machines we know falsely report LVDS */

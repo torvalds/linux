@@ -188,12 +188,14 @@ static void intel_detect_pch(struct drm_device *dev)
 				dev_priv->pch_type = PCH_LPT;
 				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
 				WARN_ON(!IS_HASWELL(dev) && !IS_BROADWELL(dev));
-				WARN_ON(IS_HSW_ULT(dev) || IS_BDW_ULT(dev));
+				WARN_ON(IS_HSW_ULT(dev_priv) ||
+					IS_BDW_ULT(dev_priv));
 			} else if (id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_LPT;
 				DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
 				WARN_ON(!IS_HASWELL(dev) && !IS_BROADWELL(dev));
-				WARN_ON(!IS_HSW_ULT(dev) && !IS_BDW_ULT(dev));
+				WARN_ON(!IS_HSW_ULT(dev_priv) &&
+					!IS_BDW_ULT(dev_priv));
 			} else if (id == INTEL_PCH_SPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_SPT;
 				DRM_DEBUG_KMS("Found SunrisePoint PCH\n");
@@ -422,7 +424,7 @@ intel_setup_mchbar(struct drm_device *dev)
 
 	dev_priv->mchbar_need_disable = false;
 
-	if (IS_I915G(dev) || IS_I915GM(dev)) {
+	if (IS_I915G(dev_priv) || IS_I915GM(dev_priv)) {
 		pci_read_config_dword(dev_priv->bridge_dev, DEVEN, &temp);
 		enabled = !!(temp & DEVEN_MCHBAR_EN);
 	} else {
@@ -440,7 +442,7 @@ intel_setup_mchbar(struct drm_device *dev)
 	dev_priv->mchbar_need_disable = true;
 
 	/* Space is allocated or reserved, so enable it. */
-	if (IS_I915G(dev) || IS_I915GM(dev)) {
+	if (IS_I915G(dev_priv) || IS_I915GM(dev_priv)) {
 		pci_write_config_dword(dev_priv->bridge_dev, DEVEN,
 				       temp | DEVEN_MCHBAR_EN);
 	} else {
@@ -456,7 +458,7 @@ intel_teardown_mchbar(struct drm_device *dev)
 	int mchbar_reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 
 	if (dev_priv->mchbar_need_disable) {
-		if (IS_I915G(dev) || IS_I915GM(dev)) {
+		if (IS_I915G(dev_priv) || IS_I915GM(dev_priv)) {
 			u32 deven_val;
 
 			pci_read_config_dword(dev_priv->bridge_dev, DEVEN,
@@ -1053,7 +1055,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	 * be lost or delayed, but we use them anyways to avoid
 	 * stuck interrupts on some machines.
 	 */
-	if (!IS_I945G(dev) && !IS_I945GM(dev)) {
+	if (!IS_I945G(dev_priv) && !IS_I945GM(dev_priv)) {
 		if (pci_enable_msi(pdev) < 0)
 			DRM_DEBUG_DRIVER("can't enable MSI");
 	}

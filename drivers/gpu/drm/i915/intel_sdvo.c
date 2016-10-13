@@ -1296,7 +1296,8 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 
 	if (INTEL_INFO(dev)->gen >= 4) {
 		/* done in crtc_mode_set as the dpll_md reg must be written early */
-	} else if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev)) {
+	} else if (IS_I945G(dev_priv) || IS_I945GM(dev_priv) ||
+		   IS_G33(dev_priv)) {
 		/* done in crtc_mode_set as it lives inside the dpll register */
 	} else {
 		sdvox |= (crtc_state->pixel_multiplier - 1)
@@ -1389,7 +1390,7 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	 * encoder->get_config we so already have a valid pixel multplier on all
 	 * other platfroms.
 	 */
-	if (IS_I915G(dev) || IS_I915GM(dev)) {
+	if (IS_I915G(dev_priv) || IS_I915GM(dev_priv)) {
 		pipe_config->pixel_multiplier =
 			((sdvox & SDVO_PORT_MULTIPLY_MASK)
 			 >> SDVO_PORT_MULTIPLY_SHIFT) + 1;
@@ -1595,15 +1596,15 @@ static bool intel_sdvo_get_capabilities(struct intel_sdvo *intel_sdvo, struct in
 
 static uint16_t intel_sdvo_get_hotplug_support(struct intel_sdvo *intel_sdvo)
 {
-	struct drm_device *dev = intel_sdvo->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(intel_sdvo->base.base.dev);
 	uint16_t hotplug;
 
-	if (!I915_HAS_HOTPLUG(dev))
+	if (!I915_HAS_HOTPLUG(dev_priv))
 		return 0;
 
 	/* HW Erratum: SDVO Hotplug is broken on all i945G chips, there's noise
 	 * on the line. */
-	if (IS_I945G(dev) || IS_I945GM(dev))
+	if (IS_I945G(dev_priv) || IS_I945GM(dev_priv))
 		return 0;
 
 	if (!intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_HOT_PLUG_SUPPORT,

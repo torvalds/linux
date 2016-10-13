@@ -3653,7 +3653,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 
 	ibx_irq_postinstall(dev);
 
-	if (IS_IRONLAKE_M(dev)) {
+	if (IS_IRONLAKE_M(dev_priv)) {
 		/* Enable PCU event interrupts
 		 *
 		 * spinlocking not required here for correctness since interrupt

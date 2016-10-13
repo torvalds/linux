@@ -1230,10 +1230,9 @@ void assert_panel_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 static void assert_cursor(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, bool state)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	bool cur_state;
 
-	if (IS_845G(dev) || IS_I865G(dev))
+	if (IS_845G(dev_priv) || IS_I865G(dev_priv))
 		cur_state = I915_READ(CURCNTR(PIPE_A)) & CURSOR_ENABLE;
 	else
 		cur_state = I915_READ(CURCNTR(pipe)) & CURSOR_MODE;
@@ -1617,11 +1616,11 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
 	assert_pipe_disabled(dev_priv, crtc->pipe);
 
 	/* PLL is protected by panel, make sure we can write it */
-	if (IS_MOBILE(dev) && !IS_I830(dev))
+	if (IS_MOBILE(dev_priv) && !IS_I830(dev_priv))
 		assert_panel_unlocked(dev_priv, crtc->pipe);
 
 	/* Enable DVO 2x clock on both PLLs if necessary */
-	if (IS_I830(dev) && intel_num_dvo_pipes(dev) > 0) {
+	if (IS_I830(dev_priv) && intel_num_dvo_pipes(dev) > 0) {
 		/*
 		 * It appears to be important that we don't enable this
 		 * for the current pipe before otherwise configuring the
@@ -1686,7 +1685,7 @@ static void i9xx_disable_pll(struct intel_crtc *crtc)
 	enum pipe pipe = crtc->pipe;
 
 	/* Disable DVO 2x clock on both PLLs if necessary */
-	if (IS_I830(dev) &&
+	if (IS_I830(dev_priv) &&
 	    intel_crtc_has_type(crtc->config, INTEL_OUTPUT_DVO) &&
 	    !intel_num_dvo_pipes(dev)) {
 		I915_WRITE(DPLL(PIPE_B),
@@ -5390,7 +5389,7 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 /* IPS only exists on ULT machines and is tied to pipe A. */
 static bool hsw_crtc_supports_ips(struct intel_crtc *crtc)
 {
-	return HAS_IPS(crtc->base.dev) && crtc->pipe == PIPE_A;
+	return HAS_IPS(to_i915(crtc->base.dev)) && crtc->pipe == PIPE_A;
 }
 
 static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
@@ -5862,9 +5861,9 @@ static void intel_update_max_cdclk(struct drm_device *dev)
 		 */
 		if (I915_READ(FUSE_STRAP) & HSW_CDCLK_LIMIT)
 			dev_priv->max_cdclk_freq = 450000;
-		else if (IS_BDW_ULX(dev))
+		else if (IS_BDW_ULX(dev_priv))
 			dev_priv->max_cdclk_freq = 450000;
-		else if (IS_BDW_ULT(dev))
+		else if (IS_BDW_ULT(dev_priv))
 			dev_priv->max_cdclk_freq = 540000;
 		else
 			dev_priv->max_cdclk_freq = 675000;
@@ -7223,7 +7222,7 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		adjusted_mode->crtc_hsync_start == adjusted_mode->crtc_hdisplay)
 		return -EINVAL;
 
-	if (HAS_IPS(dev))
+	if (HAS_IPS(dev_priv))
 		hsw_compute_ips_config(crtc, pipe_config);
 
 	if (pipe_config->has_pch_encoder)
@@ -7361,7 +7360,7 @@ static int haswell_get_display_clock_speed(struct drm_device *dev)
 		return 450000;
 	else if (freq == LCPLL_CLK_FREQ_450)
 		return 450000;
-	else if (IS_HSW_ULT(dev))
+	else if (IS_HSW_ULT(dev_priv))
 		return 337500;
 	else
 		return 540000;
@@ -7531,7 +7530,7 @@ static unsigned int intel_hpll_vco(struct drm_device *dev)
 	uint8_t tmp = 0;
 
 	/* FIXME other chipsets? */
-	if (IS_GM45(dev))
+	if (IS_GM45(dev_priv))
 		vco_table = ctg_vco;
 	else if (IS_G4X(dev))
 		vco_table = elk_vco;
@@ -8150,7 +8149,7 @@ static void i9xx_compute_dpll(struct intel_crtc *crtc,
 	else
 		dpll |= DPLLB_MODE_DAC_SERIAL;
 
-	if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev)) {
+	if (IS_I945G(dev_priv) || IS_I945GM(dev_priv) || IS_G33(dev_priv)) {
 		dpll |= (crtc_state->pixel_multiplier - 1)
 			<< SDVO_MULTIPLIER_SHIFT_HIRES;
 	}
@@ -8229,7 +8228,8 @@ static void i8xx_compute_dpll(struct intel_crtc *crtc,
 			dpll |= PLL_P2_DIVIDE_BY_4;
 	}
 
-	if (!IS_I830(dev) && intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DVO))
+	if (!IS_I830(dev_priv) &&
+	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DVO))
 		dpll |= DPLL_DVO_2X_MODE;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
@@ -8652,7 +8652,8 @@ static void i9xx_get_pfit_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t tmp;
 
-	if (INTEL_INFO(dev)->gen <= 3 && (IS_I830(dev) || !IS_MOBILE(dev)))
+	if (INTEL_GEN(dev_priv) <= 3 &&
+	    (IS_I830(dev_priv) || !IS_MOBILE(dev_priv)))
 		return;
 
 	tmp = I915_READ(PFIT_CONTROL);
@@ -8862,7 +8863,8 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 			((tmp & DPLL_MD_UDI_MULTIPLIER_MASK)
 			 >> DPLL_MD_UDI_MULTIPLIER_SHIFT) + 1;
 		pipe_config->dpll_hw_state.dpll_md = tmp;
-	} else if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev)) {
+	} else if (IS_I945G(dev_priv) || IS_I945GM(dev_priv) ||
+		   IS_G33(dev_priv)) {
 		tmp = I915_READ(DPLL(crtc->pipe));
 		pipe_config->pixel_multiplier =
 			((tmp & SDVO_MULTIPLIER_MASK)
@@ -8880,7 +8882,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 		 * on 830. Filter it out here so that we don't
 		 * report errors due to that.
 		 */
-		if (IS_I830(dev))
+		if (IS_I830(dev_priv))
 			pipe_config->dpll_hw_state.dpll &= ~DPLL_DVO_2X_MODE;
 
 		pipe_config->dpll_hw_state.fp0 = I915_READ(FP0(crtc->pipe));
@@ -10902,13 +10904,13 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 
 	I915_WRITE(CURPOS(pipe), pos);
 
-	if (IS_845G(dev) || IS_I865G(dev))
+	if (IS_845G(dev_priv) || IS_I865G(dev_priv))
 		i845_update_cursor(crtc, base, plane_state);
 	else
 		i9xx_update_cursor(crtc, base, plane_state);
 }
 
-static bool cursor_size_ok(struct drm_device *dev,
+static bool cursor_size_ok(struct drm_i915_private *dev_priv,
 			   uint32_t width, uint32_t height)
 {
 	if (width == 0 || height == 0)
@@ -10920,11 +10922,11 @@ static bool cursor_size_ok(struct drm_device *dev,
 	 * the precision of the register. Everything else requires
 	 * square cursors, limited to a few power-of-two sizes.
 	 */
-	if (IS_845G(dev) || IS_I865G(dev)) {
+	if (IS_845G(dev_priv) || IS_I865G(dev_priv)) {
 		if ((width & 63) != 0)
 			return false;
 
-		if (width > (IS_845G(dev) ? 64 : 512))
+		if (width > (IS_845G(dev_priv) ? 64 : 512))
 			return false;
 
 		if (height > 1023)
@@ -10933,7 +10935,7 @@ static bool cursor_size_ok(struct drm_device *dev,
 		switch (width | height) {
 		case 256:
 		case 128:
-			if (IS_GEN2(dev))
+			if (IS_GEN2(dev_priv))
 				return false;
 		case 64:
 			break;
@@ -11375,7 +11377,7 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 		else
 			port_clock = i9xx_calc_dpll_params(refclk, &clock);
 	} else {
-		u32 lvds = IS_I830(dev) ? 0 : I915_READ(LVDS);
+		u32 lvds = IS_I830(dev_priv) ? 0 : I915_READ(LVDS);
 		bool is_lvds = (pipe == 1) && (lvds & LVDS_PORT_EN);
 
 		if (is_lvds) {
@@ -14656,6 +14658,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		       struct drm_plane_state *new_state)
 {
 	struct drm_device *dev = plane->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->state->fb);
@@ -14707,7 +14710,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 
 	if (plane->type == DRM_PLANE_TYPE_CURSOR &&
 	    INTEL_INFO(dev)->cursor_needs_physical) {
-		int align = IS_I830(dev) ? 16 * 1024 : 256;
+		int align = IS_I830(dev_priv) ? 16 * 1024 : 256;
 		ret = i915_gem_object_attach_phys(obj, align);
 		if (ret)
 			DRM_DEBUG_KMS("failed to attach phys object\n");
@@ -15029,7 +15032,8 @@ intel_check_cursor_plane(struct drm_plane *plane,
 		return 0;
 
 	/* Check for which cursor types we support */
-	if (!cursor_size_ok(plane->dev, state->base.crtc_w, state->base.crtc_h)) {
+	if (!cursor_size_ok(to_i915(plane->dev), state->base.crtc_w,
+			    state->base.crtc_h)) {
 		DRM_DEBUG("Cursor dimension %dx%d not supported\n",
 			  state->base.crtc_w, state->base.crtc_h);
 		return -EINVAL;
@@ -15323,7 +15327,7 @@ static bool intel_crt_present(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen >= 9)
 		return false;
 
-	if (IS_HSW_ULT(dev) || IS_BDW_ULT(dev))
+	if (IS_HSW_ULT(dev_priv) || IS_BDW_ULT(dev_priv))
 		return false;
 
 	if (IS_CHERRYVIEW(dev))
@@ -16382,8 +16386,8 @@ void intel_modeset_init(struct drm_device *dev)
 		dev->mode_config.max_height = 8192;
 	}
 
-	if (IS_845G(dev) || IS_I865G(dev)) {
-		dev->mode_config.cursor_width = IS_845G(dev) ? 64 : 512;
+	if (IS_845G(dev_priv) || IS_I865G(dev_priv)) {
+		dev->mode_config.cursor_width = IS_845G(dev_priv) ? 64 : 512;
 		dev->mode_config.cursor_height = 1023;
 	} else if (IS_GEN2(dev)) {
 		dev->mode_config.cursor_width = GEN2_CURSOR_WIDTH;
