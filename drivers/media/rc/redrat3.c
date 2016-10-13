@@ -581,7 +581,7 @@ static void redrat3_reset(struct redrat3_dev *rr3)
 
 static void redrat3_get_firmware_rev(struct redrat3_dev *rr3)
 {
-	int rc = 0;
+	int rc;
 	char *buffer;
 
 	buffer = kcalloc(RR3_FW_VERSION_LEN + 1, sizeof(*buffer), GFP_KERNEL);
