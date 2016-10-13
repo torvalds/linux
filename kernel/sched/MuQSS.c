@@ -2195,22 +2195,21 @@ void wake_up_new_task(struct task_struct *p)
 	 * Share the timeslice between parent and child, thus the
 	 * total amount of pending timeslices in the system doesn't change,
 	 * resulting in more scheduling fairness. If it's negative, it won't
-	 * matter since that's the same as being 0. current's time_slice is
-	 * actually in rq_time_slice when it's running, as is its last_ran
-	 * value. rq->rq_deadline is only modified within schedule() so it
-	 * is always equal to current->deadline.
+	 * matter since that's the same as being 0. rq->rq_deadline is only
+	 * modified within schedule() so it is always equal to
+	 * current->deadline.
 	 */
 	p->last_ran = rq->rq_last_ran;
 	if (likely(rq_curr->policy != SCHED_FIFO)) {
-		rq->rq_time_slice /= 2;
-		if (unlikely(rq->rq_time_slice < RESCHED_US)) {
+		rq_curr->time_slice /= 2;
+		if (unlikely(rq_curr->time_slice < RESCHED_US)) {
 			/*
 			 * Forking task has run out of timeslice. Reschedule it and
 			 * start its child with a new time slice and deadline. The
 			 * child will end up running first because its deadline will
 			 * be slightly earlier.
 			 */
-			rq->rq_time_slice = 0;
+			rq_curr->time_slice = 0;
 			__set_tsk_resched(rq_curr);
 			time_slice_expired(p, rq);
 			if (suitable_idle_cpus(p))
@@ -2218,7 +2217,7 @@ void wake_up_new_task(struct task_struct *p)
 			else if (unlikely(rq != new_rq))
 				try_preempt(p, new_rq);
 		} else {
-			p->time_slice = rq->rq_time_slice;
+			p->time_slice = rq_curr->time_slice;
 			if (rq_curr == parent && rq == new_rq && !suitable_idle_cpus(p)) {
 				/*
 				 * The VM isn't cloned, so we're in a good position to
@@ -3037,7 +3036,7 @@ ts_account:
 		s64 time_diff = rq->clock - rq->timekeep_clock;
 
 		niffy_diff(&time_diff, 1);
-		rq->rq_time_slice -= NS_TO_US(time_diff);
+		p->time_slice -= NS_TO_US(time_diff);
 	}
 
 	rq->rq_last_ran = rq->clock_task;
@@ -3074,7 +3073,7 @@ ts_account:
 		s64 time_diff = rq->clock - rq->timekeep_clock;
 
 		niffy_diff(&time_diff, 1);
-		rq->rq_time_slice -= NS_TO_US(time_diff);
+		p->time_slice -= NS_TO_US(time_diff);
 	}
 
 	rq->rq_last_ran = rq->clock_task;
@@ -3333,7 +3332,7 @@ static void task_running_tick(struct rq *rq)
 			 * has been hit. Force it to reschedule as
 			 * SCHED_NORMAL by zeroing its time_slice
 			 */
-			rq->rq_time_slice = 0;
+			p->time_slice = 0;
 			}
 		} else if (!rq->iso_refractory) {
 			/* Can now run again ISO. Reschedule to pick up prio */
@@ -3348,11 +3347,11 @@ static void task_running_tick(struct rq *rq)
 	 * less than RESCHED_US μs of time slice left they will be rescheduled.
 	 */
 	if (rq->dither) {
-		if (rq->rq_time_slice > HALF_JIFFY_US)
+		if (p->time_slice > HALF_JIFFY_US)
 			return;
 		else
-			rq->rq_time_slice = 0;
-	} else if (rq->rq_time_slice >= RESCHED_US)
+			p->time_slice = 0;
+	} else if (p->time_slice >= RESCHED_US)
 			return;
 out_resched:
 	p = rq->curr;
@@ -3641,7 +3640,6 @@ static inline void schedule_debug(struct task_struct *prev)
  */
 static inline void set_rq_task(struct rq *rq, struct task_struct *p)
 {
-	rq->rq_time_slice = p->time_slice;
 	rq->rq_deadline = p->deadline;
 	rq->rq_last_ran = p->last_ran = rq->clock_task;
 	rq->rq_prio = p->prio;
@@ -3833,7 +3831,6 @@ static void __sched notrace __schedule(bool preempt)
 	idle = rq->idle;
 	if (idle != prev) {
 		/* Update all the information stored on struct rq */
-		prev->time_slice = rq->rq_time_slice;
 		prev->deadline = rq->rq_deadline;
 		check_deadline(prev, rq);
 		prev->last_ran = rq->clock_task;
@@ -5175,6 +5172,7 @@ EXPORT_SYMBOL(yield);
  */
 int __sched yield_to(struct task_struct *p, bool preempt)
 {
+	struct task_struct *rq_p;
 	struct rq *rq, *p_rq;
 	unsigned long flags;
 	int yielded = 0;
@@ -5202,8 +5200,9 @@ again:
 	yielded = 1;
 	if (p->deadline > rq->rq_deadline)
 		p->deadline = rq->rq_deadline;
-	p->time_slice += rq->rq_time_slice;
-	rq->rq_time_slice = 0;
+	rq_p = rq->curr;
+	p->time_slice += rq_p->time_slice;
+	rq_p->time_slice = 0;
 	if (p->time_slice > timeslice())
 		p->time_slice = timeslice();
 	if (preempt && rq != p_rq)
