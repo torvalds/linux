@@ -201,6 +201,32 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 }
 
 /**
+ * amdgpu_vm_move_level_in_lru - move one level of PT BOs to the LRU tail
+ *
+ * @adev: amdgpu device instance
+ * @vm: vm providing the BOs
+ *
+ * Move the PT BOs to the tail of the LRU.
+ */
+static void amdgpu_vm_move_level_in_lru(struct amdgpu_vm_pt *parent)
+{
+	unsigned i;
+
+	if (!parent->entries)
+		return;
+
+	for (i = 0; i <= parent->last_entry_used; ++i) {
+		struct amdgpu_vm_pt *entry = &parent->entries[i];
+
+		if (!entry->bo)
+			continue;
+
+		ttm_bo_move_to_lru_tail(&entry->bo->tbo);
+		amdgpu_vm_move_level_in_lru(entry);
+	}
+}
+
+/**
  * amdgpu_vm_move_pt_bos_in_lru - move the PT BOs to the LRU tail
  *
  * @adev: amdgpu device instance
@@ -212,17 +238,9 @@ void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
 				  struct amdgpu_vm *vm)
 {
 	struct ttm_bo_global *glob = adev->mman.bdev.glob;
-	unsigned i;
 
 	spin_lock(&glob->lru_lock);
-	for (i = 0; i <= vm->root.last_entry_used; ++i) {
-		struct amdgpu_bo *bo = vm->root.entries[i].bo;
-
-		if (!bo)
-			continue;
-
-		ttm_bo_move_to_lru_tail(&bo->tbo);
-	}
+	amdgpu_vm_move_level_in_lru(&vm->root);
 	spin_unlock(&glob->lru_lock);
 }
 
