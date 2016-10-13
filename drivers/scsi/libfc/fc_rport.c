@@ -287,8 +287,10 @@ static void fc_rport_work(struct work_struct *work)
 		kref_get(&rdata->kref);
 		mutex_unlock(&rdata->rp_mutex);
 
-		if (!rport)
+		if (!rport) {
+			FC_RPORT_DBG(rdata, "No rport!\n");
 			rport = fc_remote_port_add(lport->host, 0, &ids);
+		}
 		if (!rport) {
 			FC_RPORT_DBG(rdata, "Failed to add the rport\n");
 			lport->tt.rport_logoff(rdata);
@@ -389,8 +391,10 @@ static void fc_rport_work(struct work_struct *work)
 			 * Re-open for events.  Reissue READY event if ready.
 			 */
 			rdata->event = RPORT_EV_NONE;
-			if (rdata->rp_state == RPORT_ST_READY)
+			if (rdata->rp_state == RPORT_ST_READY) {
+				FC_RPORT_DBG(rdata, "work reopen\n");
 				fc_rport_enter_ready(rdata);
+			}
 			mutex_unlock(&rdata->rp_mutex);
 		}
 		break;
@@ -568,6 +572,7 @@ static void fc_rport_timeout(struct work_struct *work)
 	struct fc_lport *lport = rdata->local_port;
 
 	mutex_lock(&rdata->rp_mutex);
+	FC_RPORT_DBG(rdata, "Port timeout, state %s\n", fc_rport_state(rdata));
 
 	switch (rdata->rp_state) {
 	case RPORT_ST_FLOGI:
@@ -1095,6 +1100,7 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 		struct fc_els_spp spp;
 	} *pp;
 	struct fc_els_spp temp_spp;
+	struct fc_els_ls_rjt *rjt;
 	struct fc4_prov *prov;
 	u32 roles = FC_RPORT_ROLE_UNKNOWN;
 	u32 fcp_parm = 0;
@@ -1167,8 +1173,10 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 		fc_rport_enter_rtv(rdata);
 
 	} else {
-		FC_RPORT_DBG(rdata, "Bad ELS response for PRLI command\n");
-		fc_rport_error_retry(rdata, fp);
+		rjt = fc_frame_payload_get(fp, sizeof(*rjt));
+		FC_RPORT_DBG(rdata, "PRLI ELS rejected, reason %x expl %x\n",
+			     rjt->er_reason, rjt->er_explan);
+		fc_rport_error_retry(rdata, NULL);
 	}
 
 out:
@@ -1602,8 +1610,12 @@ static void fc_rport_recv_els_req(struct fc_lport *lport, struct fc_frame *fp)
 	struct fc_seq_els_data els_data;
 
 	rdata = lport->tt.rport_lookup(lport, fc_frame_sid(fp));
-	if (!rdata)
+	if (!rdata) {
+		FC_RPORT_ID_DBG(lport, fc_frame_sid(fp),
+				"Received ELS 0x%02x from non-logged-in port\n",
+				fc_frame_payload_op(fp));
 		goto reject;
+	}
 
 	mutex_lock(&rdata->rp_mutex);
 
@@ -1614,6 +1626,9 @@ static void fc_rport_recv_els_req(struct fc_lport *lport, struct fc_frame *fp)
 	case RPORT_ST_ADISC:
 		break;
 	default:
+		FC_RPORT_DBG(rdata,
+			     "Reject ELS 0x%02x while in state %s\n",
+			     fc_frame_payload_op(fp), fc_rport_state(rdata));
 		mutex_unlock(&rdata->rp_mutex);
 		kref_put(&rdata->kref, lport->tt.rport_destroy);
 		goto reject;

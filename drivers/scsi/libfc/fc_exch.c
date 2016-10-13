@@ -362,8 +362,10 @@ static inline void fc_exch_timer_set_locked(struct fc_exch *ep,
 
 	fc_exch_hold(ep);		/* hold for timer */
 	if (!queue_delayed_work(fc_exch_workqueue, &ep->timeout_work,
-				msecs_to_jiffies(timer_msec)))
+				msecs_to_jiffies(timer_msec))) {
+		FC_EXCH_DBG(ep, "Exchange already queued\n");
 		fc_exch_release(ep);
+	}
 }
 
 /**
@@ -632,9 +634,13 @@ static int fc_exch_abort_locked(struct fc_exch *ep,
 	struct fc_frame *fp;
 	int error;
 
+	FC_EXCH_DBG(ep, "exch: abort, time %d msecs\n", timer_msec);
 	if (ep->esb_stat & (ESB_ST_COMPLETE | ESB_ST_ABNORMAL) ||
-	    ep->state & (FC_EX_DONE | FC_EX_RST_CLEANUP))
+	    ep->state & (FC_EX_DONE | FC_EX_RST_CLEANUP)) {
+		FC_EXCH_DBG(ep, "exch: already completed esb %x state %x\n",
+			    ep->esb_stat, ep->state);
 		return -ENXIO;
+	}
 
 	/*
 	 * Send the abort on a new sequence if possible.
@@ -758,7 +764,7 @@ static void fc_exch_timeout(struct work_struct *work)
 	u32 e_stat;
 	int rc = 1;
 
-	FC_EXCH_DBG(ep, "Exchange timed out\n");
+	FC_EXCH_DBG(ep, "Exchange timed out state %x\n", ep->state);
 
 	spin_lock_bh(&ep->ex_lock);
 	if (ep->state & (FC_EX_RST_CLEANUP | FC_EX_DONE))
@@ -1263,8 +1269,10 @@ static void fc_seq_send_ack(struct fc_seq *sp, const struct fc_frame *rx_fp)
 	 */
 	if (fc_sof_needs_ack(fr_sof(rx_fp))) {
 		fp = fc_frame_alloc(lport, 0);
-		if (!fp)
+		if (!fp) {
+			FC_EXCH_DBG(ep, "Drop ACK request, out of memory\n");
 			return;
+		}
 
 		fh = fc_frame_header_get(fp);
 		fh->fh_r_ctl = FC_RCTL_ACK_1;
@@ -1317,13 +1325,18 @@ static void fc_exch_send_ba_rjt(struct fc_frame *rx_fp,
 	struct fc_frame_header *rx_fh;
 	struct fc_frame_header *fh;
 	struct fc_ba_rjt *rp;
+	struct fc_seq *sp;
 	struct fc_lport *lport;
 	unsigned int f_ctl;
 
 	lport = fr_dev(rx_fp);
+	sp = fr_seq(rx_fp);
 	fp = fc_frame_alloc(lport, sizeof(*rp));
-	if (!fp)
+	if (!fp) {
+		FC_EXCH_DBG(fc_seq_exch(sp),
+			     "Drop BA_RJT request, out of memory\n");
 		return;
+	}
 	fh = fc_frame_header_get(fp);
 	rx_fh = fc_frame_header_get(rx_fp);
 
@@ -1388,14 +1401,17 @@ static void fc_exch_recv_abts(struct fc_exch *ep, struct fc_frame *rx_fp)
 	if (!ep)
 		goto reject;
 
+	FC_EXCH_DBG(ep, "exch: ABTS received\n");
 	fp = fc_frame_alloc(ep->lp, sizeof(*ap));
-	if (!fp)
+	if (!fp) {
+		FC_EXCH_DBG(ep, "Drop ABTS request, out of memory\n");
 		goto free;
+	}
 
 	spin_lock_bh(&ep->ex_lock);
 	if (ep->esb_stat & ESB_ST_COMPLETE) {
 		spin_unlock_bh(&ep->ex_lock);
-
+		FC_EXCH_DBG(ep, "exch: ABTS rejected, exchange complete\n");
 		fc_frame_free(fp);
 		goto reject;
 	}
@@ -1789,11 +1805,16 @@ static void fc_seq_ls_acc(struct fc_frame *rx_fp)
 	struct fc_lport *lport;
 	struct fc_els_ls_acc *acc;
 	struct fc_frame *fp;
+	struct fc_seq *sp;
 
 	lport = fr_dev(rx_fp);
+	sp = fr_seq(rx_fp);
 	fp = fc_frame_alloc(lport, sizeof(*acc));
-	if (!fp)
+	if (!fp) {
+		FC_EXCH_DBG(fc_seq_exch(sp),
+			    "exch: drop LS_ACC, out of memory\n");
 		return;
+	}
 	acc = fc_frame_payload_get(fp, sizeof(*acc));
 	memset(acc, 0, sizeof(*acc));
 	acc->la_cmd = ELS_LS_ACC;
@@ -1816,11 +1837,16 @@ static void fc_seq_ls_rjt(struct fc_frame *rx_fp, enum fc_els_rjt_reason reason,
 	struct fc_lport *lport;
 	struct fc_els_ls_rjt *rjt;
 	struct fc_frame *fp;
+	struct fc_seq *sp;
 
 	lport = fr_dev(rx_fp);
+	sp = fr_seq(rx_fp);
 	fp = fc_frame_alloc(lport, sizeof(*rjt));
-	if (!fp)
+	if (!fp) {
+		FC_EXCH_DBG(fc_seq_exch(sp),
+			    "exch: drop LS_ACC, out of memory\n");
 		return;
+	}
 	rjt = fc_frame_payload_get(fp, sizeof(*rjt));
 	memset(rjt, 0, sizeof(*rjt));
 	rjt->er_cmd = ELS_LS_RJT;
@@ -1980,15 +2006,23 @@ static void fc_exch_els_rec(struct fc_frame *rfp)
 	ep = fc_exch_lookup(lport,
 			    sid == fc_host_port_id(lport->host) ? oxid : rxid);
 	explan = ELS_EXPL_OXID_RXID;
-	if (!ep)
+	if (!ep) {
+		FC_LPORT_DBG(lport,
+			     "REC request from %x: rxid %x oxid %x not found\n",
+			     sid, rxid, oxid);
 		goto reject;
+	}
+	FC_EXCH_DBG(ep, "REC request from %x: rxid %x oxid %x\n",
+		    sid, rxid, oxid);
 	if (ep->oid != sid || oxid != ep->oxid)
 		goto rel;
 	if (rxid != FC_XID_UNKNOWN && rxid != ep->rxid)
 		goto rel;
 	fp = fc_frame_alloc(lport, sizeof(*acc));
-	if (!fp)
+	if (!fp) {
+		FC_EXCH_DBG(ep, "Drop REC request, out of memory\n");
 		goto out;
+	}
 
 	acc = fc_frame_payload_get(fp, sizeof(*acc));
 	memset(acc, 0, sizeof(*acc));
@@ -2181,6 +2215,7 @@ static void fc_exch_rrq(struct fc_exch *ep)
 		return;
 
 retry:
+	FC_EXCH_DBG(ep, "exch: RRQ send failed\n");
 	spin_lock_bh(&ep->ex_lock);
 	if (ep->state & (FC_EX_RST_CLEANUP | FC_EX_DONE)) {
 		spin_unlock_bh(&ep->ex_lock);
@@ -2223,6 +2258,8 @@ static void fc_exch_els_rrq(struct fc_frame *fp)
 	if (!ep)
 		goto reject;
 	spin_lock_bh(&ep->ex_lock);
+	FC_EXCH_DBG(ep, "RRQ request from %x: xid %x rxid %x oxid %x\n",
+		    sid, xid, ntohs(rp->rrq_rx_id), ntohs(rp->rrq_ox_id));
 	if (ep->oxid != ntohs(rp->rrq_ox_id))
 		goto unlock_reject;
 	if (ep->rxid != ntohs(rp->rrq_rx_id) &&
