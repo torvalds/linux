@@ -28,6 +28,8 @@
 /* Enables DVBv3 compatibility bits at the headers */
 #define __DVB_CORE__
 
+#define pr_fmt(fmt) "dvb_frontend: " fmt
+
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -66,6 +68,9 @@ module_param(dvb_powerdown_on_sleep, int, 0644);
 MODULE_PARM_DESC(dvb_powerdown_on_sleep, "0: do not power down, 1: turn LNB voltage off on sleep (default)");
 module_param(dvb_mfe_wait_time, int, 0644);
 MODULE_PARM_DESC(dvb_mfe_wait_time, "Wait up to <mfe_wait_time> seconds on open() for multi-frontend to become available (default:5 seconds)");
+
+#define dprintk(fmt, arg...) \
+	printk(KERN_DEBUG pr_fmt("%s: " fmt), __func__, ##arg)
 
 #define FESTATE_IDLE 1
 #define FESTATE_RETUNE 2
@@ -2356,7 +2361,8 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 			int i;
 			u8 last = 1;
 			if (dvb_frontend_debug)
-				printk("%s switch command: 0x%04lx\n", __func__, swcmd);
+				dprintk("%s switch command: 0x%04lx\n",
+					__func__, swcmd);
 			nexttime = ktime_get_boottime();
 			if (dvb_frontend_debug)
 				tv[0] = nexttime;
@@ -2379,10 +2385,10 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 					dvb_frontend_sleep_until(&nexttime, 8000);
 			}
 			if (dvb_frontend_debug) {
-				printk("%s(%d): switch delay (should be 32k followed by all 8k\n",
+				dprintk("%s(%d): switch delay (should be 32k followed by all 8k)\n",
 					__func__, fe->dvb->num);
 				for (i = 1; i < 10; i++)
-					printk("%d: %d\n", i,
+					pr_info("%d: %d\n", i,
 					(int) ktime_us_delta(tv[i], tv[i-1]));
 			}
 			err = 0;
