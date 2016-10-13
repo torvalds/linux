@@ -25,6 +25,10 @@
 #include "genelf.h"
 #include "../util/jitdump.h"
 
+#ifndef NT_GNU_BUILD_ID
+#define NT_GNU_BUILD_ID 3
+#endif
+
 #define JVMTI
 
 #define BUILD_ID_URANDOM /* different uuid for each run */
