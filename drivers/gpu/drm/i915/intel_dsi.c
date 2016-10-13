@@ -1346,7 +1346,7 @@ static int intel_dsi_set_property(struct drm_connector *connector,
 			DRM_DEBUG_KMS("no scaling not supported\n");
 			return -EINVAL;
 		}
-		if (HAS_GMCH_DISPLAY(dev) &&
+		if (HAS_GMCH_DISPLAY(to_i915(dev)) &&
 		    val == DRM_MODE_SCALE_CENTER) {
 			DRM_DEBUG_KMS("centering not supported\n");
 			return -EINVAL;

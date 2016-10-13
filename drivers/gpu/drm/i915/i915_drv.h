@@ -2859,7 +2859,7 @@ struct drm_i915_cmd_table {
 #define HAS_PCH_NOP(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_NOP)
 #define HAS_PCH_SPLIT(dev_priv) (INTEL_PCH_TYPE(dev_priv) != PCH_NONE)
 
-#define HAS_GMCH_DISPLAY(dev) (INTEL_INFO(dev)->has_gmch_display)
+#define HAS_GMCH_DISPLAY(dev_priv) ((dev_priv)->info.has_gmch_display)
 
 /* DPF == dynamic parity feature */
 #define HAS_L3_DPF(dev) (INTEL_INFO(dev)->has_l3_dpf)

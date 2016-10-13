@@ -5034,7 +5034,7 @@ intel_pre_disable_primary_noatomic(struct drm_crtc *crtc)
 	 * event which is after the vblank start event, so we need to have a
 	 * wait-for-vblank between disabling the plane and the pipe.
 	 */
-	if (HAS_GMCH_DISPLAY(dev)) {
+	if (HAS_GMCH_DISPLAY(dev_priv)) {
 		intel_set_memory_cxsr(dev_priv, false);
 		dev_priv->wm.vlv.cxsr = false;
 		intel_wait_for_vblank(dev, pipe);
@@ -5099,7 +5099,7 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 			intel_pre_disable_primary(&crtc->base);
 	}
 
-	if (pipe_config->disable_cxsr && HAS_GMCH_DISPLAY(dev)) {
+	if (pipe_config->disable_cxsr && HAS_GMCH_DISPLAY(dev_priv)) {
 		crtc->wm.cxsr_allowed = false;
 
 		/*
@@ -10893,7 +10893,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 		pos |= y << CURSOR_Y_SHIFT;
 
 		/* ILK+ do this automagically */
-		if (HAS_GMCH_DISPLAY(dev) &&
+		if (HAS_GMCH_DISPLAY(dev_priv) &&
 		    plane_state->base.rotation == DRM_ROTATE_180) {
 			base += (plane_state->base.crtc_h *
 				 plane_state->base.crtc_w - 1) * 4;
@@ -16591,7 +16591,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	if (crtc->active && !intel_crtc_has_encoders(crtc))
 		intel_crtc_disable_noatomic(&crtc->base);
 
-	if (crtc->active || HAS_GMCH_DISPLAY(dev)) {
+	if (crtc->active || HAS_GMCH_DISPLAY(dev_priv)) {
 		/*
 		 * We start out with underrun reporting disabled to avoid races.
 		 * For correct bookkeeping mark this on active crtcs.

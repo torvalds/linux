@@ -254,7 +254,7 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 	old = !intel_crtc->cpu_fifo_underrun_disabled;
 	intel_crtc->cpu_fifo_underrun_disabled = !enable;
 
-	if (HAS_GMCH_DISPLAY(dev))
+	if (HAS_GMCH_DISPLAY(dev_priv))
 		i9xx_set_fifo_underrun_reporting(dev, pipe, enable, old);
 	else if (IS_GEN5(dev) || IS_GEN6(dev))
 		ironlake_set_fifo_underrun_reporting(dev, pipe, enable);
