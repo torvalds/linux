@@ -100,7 +100,7 @@ struct hw_info_t {
 struct ks_sdio_packet {
 	struct ks_sdio_packet *next;
 	u16 nb;
-	u8 buffer[0] __attribute__ ((aligned(4)));
+	u8 buffer[0] __aligned(4);
 };
 
 struct ks_sdio_card {
