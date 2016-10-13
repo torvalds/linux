@@ -713,6 +713,7 @@ static struct rela *find_switch_table(struct objtool_file *file,
 				      struct instruction *insn)
 {
 	struct rela *text_rela, *rodata_rela;
+	struct instruction *orig_insn = insn;
 
 	text_rela = find_rela_by_dest_range(insn->sec, insn->offset, insn->len);
 	if (text_rela && text_rela->sym == file->rodata->sym) {
@@ -733,9 +734,15 @@ static struct rela *find_switch_table(struct objtool_file *file,
 
 	/* case 3 */
 	func_for_each_insn_continue_reverse(file, func, insn) {
-		if (insn->type == INSN_JUMP_UNCONDITIONAL ||
-		    insn->type == INSN_JUMP_DYNAMIC)
+		if (insn->type == INSN_JUMP_DYNAMIC)
 			break;
+
+		/* allow small jumps within the range */
+		if (insn->type == INSN_JUMP_UNCONDITIONAL &&
+		    insn->jump_dest &&
+		    (insn->jump_dest->offset <= insn->offset ||
+		     insn->jump_dest->offset >= orig_insn->offset))
+		    break;
 
 		text_rela = find_rela_by_dest_range(insn->sec, insn->offset,
 						    insn->len);
