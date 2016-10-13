@@ -2199,7 +2199,7 @@ void wake_up_new_task(struct task_struct *p)
 	 * modified within schedule() so it is always equal to
 	 * current->deadline.
 	 */
-	p->last_ran = rq->rq_last_ran;
+	p->last_ran = rq_curr->last_ran;
 	if (likely(rq_curr->policy != SCHED_FIFO)) {
 		rq_curr->time_slice /= 2;
 		if (unlikely(rq_curr->time_slice < RESCHED_US)) {
@@ -3009,7 +3009,7 @@ static void pc_user_time(struct rq *rq, struct task_struct *p,
 static void
 update_cpu_clock_tick(struct rq *rq, struct task_struct *p)
 {
-	long account_ns = rq->clock_task - rq->rq_last_ran;
+	long account_ns = rq->clock_task - p->last_ran;
 	struct task_struct *idle = rq->idle;
 	unsigned long account_pc;
 
@@ -3039,7 +3039,7 @@ ts_account:
 		p->time_slice -= NS_TO_US(time_diff);
 	}
 
-	rq->rq_last_ran = rq->clock_task;
+	p->last_ran = rq->clock_task;
 	rq->timekeep_clock = rq->clock;
 }
 
@@ -3051,7 +3051,7 @@ ts_account:
 static void
 update_cpu_clock_switch(struct rq *rq, struct task_struct *p)
 {
-	long account_ns = rq->clock_task - rq->rq_last_ran;
+	long account_ns = rq->clock_task - p->last_ran;
 	struct task_struct *idle = rq->idle;
 	unsigned long account_pc;
 
@@ -3076,7 +3076,7 @@ ts_account:
 		p->time_slice -= NS_TO_US(time_diff);
 	}
 
-	rq->rq_last_ran = rq->clock_task;
+	p->last_ran = rq->clock_task;
 	rq->timekeep_clock = rq->clock;
 }
 
@@ -3097,7 +3097,7 @@ static inline u64 do_task_delta_exec(struct task_struct *p, struct rq *rq)
 	 */
 	if (p == rq->curr && task_on_rq_queued(p)) {
 		update_rq_clock(rq);
-		ns = rq->clock_task - rq->rq_last_ran;
+		ns = rq->clock_task - p->last_ran;
 		if (unlikely((s64)ns < 0))
 			ns = 0;
 	}
@@ -3641,7 +3641,7 @@ static inline void schedule_debug(struct task_struct *prev)
 static inline void set_rq_task(struct rq *rq, struct task_struct *p)
 {
 	rq->rq_deadline = p->deadline;
-	rq->rq_last_ran = p->last_ran = rq->clock_task;
+	p->last_ran = rq->clock_task;
 	rq->rq_prio = p->prio;
 #ifdef CONFIG_SMT_NICE
 	rq->rq_mm = p->mm;
