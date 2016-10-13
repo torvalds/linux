@@ -897,7 +897,7 @@ static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
 {
 	struct device *dev = rr3->dev;
 	struct rc_dev *rc;
-	int ret = -ENODEV;
+	int ret;
 	u16 prod = le16_to_cpu(rr3->udev->descriptor.idProduct);
 
 	rc = rc_allocate_device();
