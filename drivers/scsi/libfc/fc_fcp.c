@@ -122,6 +122,7 @@ static void fc_fcp_srr_error(struct fc_fcp_pkt *, struct fc_frame *);
 #define FC_HRD_ERROR		9
 #define FC_CRC_ERROR		10
 #define FC_TIMED_OUT		11
+#define FC_TRANS_RESET		12
 
 /*
  * Error recovery timeout values.
@@ -283,7 +284,7 @@ static int fc_fcp_send_abort(struct fc_fcp_pkt *fsp)
  * fc_io_compl() will notify the SCSI-ml that the I/O is done.
  * The SCSI-ml will retry the command.
  */
-static void fc_fcp_retry_cmd(struct fc_fcp_pkt *fsp)
+static void fc_fcp_retry_cmd(struct fc_fcp_pkt *fsp, int status_code)
 {
 	if (fsp->seq_ptr) {
 		fsp->lp->tt.exch_done(fsp->seq_ptr);
@@ -292,7 +293,7 @@ static void fc_fcp_retry_cmd(struct fc_fcp_pkt *fsp)
 
 	fsp->state &= ~FC_SRB_ABORT_PENDING;
 	fsp->io_status = 0;
-	fsp->status_code = FC_ERROR;
+	fsp->status_code = status_code;
 	fc_fcp_complete_locked(fsp);
 }
 
@@ -1208,7 +1209,7 @@ static void fc_fcp_error(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 		return;
 
 	if (error == -FC_EX_CLOSED) {
-		fc_fcp_retry_cmd(fsp);
+		fc_fcp_retry_cmd(fsp, FC_ERROR);
 		goto unlock;
 	}
 
@@ -1531,10 +1532,11 @@ static void fc_fcp_rec_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 			 */
 			if (rjt->er_explan == ELS_EXPL_OXID_RXID &&
 			    fsp->xfer_len == 0) {
-				fc_fcp_retry_cmd(fsp);
+				fsp->state |= FC_SRB_ABORTED;
+				fc_fcp_retry_cmd(fsp, FC_TRANS_RESET);
 				break;
 			}
-			fc_fcp_recovery(fsp, FC_ERROR);
+			fc_fcp_recovery(fsp, FC_TRANS_RESET);
 			break;
 		}
 	} else if (opcode == ELS_LS_ACC) {
@@ -1630,7 +1632,7 @@ static void fc_fcp_rec_error(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 	case -FC_EX_CLOSED:
 		FC_FCP_DBG(fsp, "REC %p fid %6.6x exchange closed\n",
 			   fsp, fsp->rport->port_id);
-		fc_fcp_retry_cmd(fsp);
+		fc_fcp_retry_cmd(fsp, FC_ERROR);
 		break;
 
 	default:
@@ -1729,7 +1731,7 @@ static void fc_fcp_srr(struct fc_fcp_pkt *fsp, enum fc_rctl r_ctl, u32 offset)
 	fc_fcp_pkt_hold(fsp);		/* hold for outstanding SRR */
 	return;
 retry:
-	fc_fcp_retry_cmd(fsp);
+	fc_fcp_retry_cmd(fsp, FC_TRANS_RESET);
 }
 
 /**
@@ -1801,7 +1803,7 @@ static void fc_fcp_srr_error(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 		FC_FCP_DBG(fsp, "SRR error, exchange closed\n");
 		/* fall through */
 	default:
-		fc_fcp_retry_cmd(fsp);
+		fc_fcp_retry_cmd(fsp, FC_ERROR);
 		break;
 	}
 	fc_fcp_unlock_pkt(fsp);
@@ -2013,6 +2015,11 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 		FC_FCP_DBG(fsp, "Returning DID_RESET to scsi-ml "
 			   "due to FC_CMD_RESET\n");
 		sc_cmd->result = (DID_RESET << 16);
+		break;
+	case FC_TRANS_RESET:
+		FC_FCP_DBG(fsp, "Returning DID_SOFT_ERROR to scsi-ml "
+			   "due to FC_TRANS_RESET\n");
+		sc_cmd->result = (DID_SOFT_ERROR << 16);
 		break;
 	case FC_HRD_ERROR:
 		FC_FCP_DBG(fsp, "Returning DID_NO_CONNECT to scsi-ml "
