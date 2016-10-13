@@ -36,7 +36,6 @@
 #include <net/arp.h>
 #include <net/route.h>
 #include <net/sock.h>
-#include <net/udp.h>
 #include <net/pkt_sched.h>
 
 #include "hyperv_net.h"
