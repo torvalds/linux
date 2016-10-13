@@ -7,6 +7,7 @@
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <asm/asm-compat.h>
+#include <asm/ppc_asm.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 
@@ -132,10 +133,7 @@ extern long __put_user_bad(void);
 		"3:	li %0,%3\n"				\
 		"	b 2b\n"					\
 		".previous\n"					\
-		".section __ex_table,\"a\"\n"			\
-			PPC_LONG_ALIGN "\n"			\
-			PPC_LONG "1b,3b\n"			\
-		".previous"					\
+		EX_TABLE(1b, 3b)				\
 		: "=r" (err)					\
 		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err))
 
@@ -152,11 +150,8 @@ extern long __put_user_bad(void);
 		"4:	li %0,%3\n"				\
 		"	b 3b\n"					\
 		".previous\n"					\
-		".section __ex_table,\"a\"\n"			\
-			PPC_LONG_ALIGN "\n"			\
-			PPC_LONG "1b,4b\n"			\
-			PPC_LONG "2b,4b\n"			\
-		".previous"					\
+		EX_TABLE(1b, 4b)				\
+		EX_TABLE(2b, 4b)				\
 		: "=r" (err)					\
 		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err))
 #endif /* __powerpc64__ */
@@ -215,10 +210,7 @@ extern long __get_user_bad(void);
 		"	li %1,0\n"			\
 		"	b 2b\n"				\
 		".previous\n"				\
-		".section __ex_table,\"a\"\n"		\
-			PPC_LONG_ALIGN "\n"		\
-			PPC_LONG "1b,3b\n"		\
-		".previous"				\
+		EX_TABLE(1b, 3b)			\
 		: "=r" (err), "=r" (x)			\
 		: "b" (addr), "i" (-EFAULT), "0" (err))
 
@@ -237,11 +229,8 @@ extern long __get_user_bad(void);
 		"	li %1+1,0\n"			\
 		"	b 3b\n"				\
 		".previous\n"				\
-		".section __ex_table,\"a\"\n"		\
-			PPC_LONG_ALIGN "\n"		\
-			PPC_LONG "1b,4b\n"		\
-			PPC_LONG "2b,4b\n"		\
-		".previous"				\
+		EX_TABLE(1b, 4b)			\
+		EX_TABLE(2b, 4b)			\
 		: "=r" (err), "=&r" (x)			\
 		: "b" (addr), "i" (-EFAULT), "0" (err))
 #endif /* __powerpc64__ */
