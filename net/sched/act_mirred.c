@@ -54,6 +54,20 @@ static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
 static int mirred_net_id;
 static struct tc_action_ops act_mirred_ops;
 
+static bool dev_is_mac_header_xmit(const struct net_device *dev)
+{
+	switch (dev->type) {
+	case ARPHRD_TUNNEL:
+	case ARPHRD_TUNNEL6:
+	case ARPHRD_SIT:
+	case ARPHRD_IPGRE:
+	case ARPHRD_VOID:
+	case ARPHRD_NONE:
+		return false;
+	}
+	return true;
+}
+
 static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a, int ovr,
 			   int bind)
@@ -96,19 +110,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 				tcf_hash_release(*a, bind);
 			return -ENODEV;
 		}
-		switch (dev->type) {
-		case ARPHRD_TUNNEL:
-		case ARPHRD_TUNNEL6:
-		case ARPHRD_SIT:
-		case ARPHRD_IPGRE:
-		case ARPHRD_VOID:
-		case ARPHRD_NONE:
-			mac_header_xmit = false;
-			break;
-		default:
-			mac_header_xmit = true;
-			break;
-		}
+		mac_header_xmit = dev_is_mac_header_xmit(dev);
 	} else {
 		dev = NULL;
 	}
