@@ -485,7 +485,8 @@ static unsigned int packet_length(const struct sk_buff *skb)
 {
 	unsigned int length = skb->len - ETH_HLEN;
 
-	if (skb_vlan_tagged(skb))
+	if (!skb_vlan_tag_present(skb) &&
+	    eth_type_vlan(skb->protocol))
 		length -= VLAN_HLEN;
 
 	/* Don't subtract for multiple VLAN tags. Most (all?) drivers allow
