@@ -258,6 +258,17 @@ static void fc_fcp_timer_set(struct fc_fcp_pkt *fsp, unsigned long delay)
 		mod_timer(&fsp->timer, jiffies + delay);
 }
 
+static void fc_fcp_abort_done(struct fc_fcp_pkt *fsp)
+{
+	fsp->state |= FC_SRB_ABORTED;
+	fsp->state &= ~FC_SRB_ABORT_PENDING;
+
+	if (fsp->wait_for_comp)
+		complete(&fsp->tm_done);
+	else
+		fc_fcp_complete_locked(fsp);
+}
+
 /**
  * fc_fcp_send_abort() - Send an abort for exchanges associated with a
  *			 fcp_pkt
@@ -265,6 +276,8 @@ static void fc_fcp_timer_set(struct fc_fcp_pkt *fsp, unsigned long delay)
  */
 static int fc_fcp_send_abort(struct fc_fcp_pkt *fsp)
 {
+	int rc;
+
 	if (!fsp->seq_ptr)
 		return -EINVAL;
 
@@ -272,7 +285,16 @@ static int fc_fcp_send_abort(struct fc_fcp_pkt *fsp)
 	put_cpu();
 
 	fsp->state |= FC_SRB_ABORT_PENDING;
-	return fsp->lp->tt.seq_exch_abort(fsp->seq_ptr, 0);
+	rc = fsp->lp->tt.seq_exch_abort(fsp->seq_ptr, 0);
+	/*
+	 * ->seq_exch_abort() might return -ENXIO if
+	 * the sequence is already completed
+	 */
+	if (rc == -ENXIO) {
+		fc_fcp_abort_done(fsp);
+		rc = 0;
+	}
+	return rc;
 }
 
 /**
@@ -729,15 +751,8 @@ static void fc_fcp_abts_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 		ba_done = 0;
 	}
 
-	if (ba_done) {
-		fsp->state |= FC_SRB_ABORTED;
-		fsp->state &= ~FC_SRB_ABORT_PENDING;
-
-		if (fsp->wait_for_comp)
-			complete(&fsp->tm_done);
-		else
-			fc_fcp_complete_locked(fsp);
-	}
+	if (ba_done)
+		fc_fcp_abort_done(fsp);
 }
 
 /**
@@ -1243,6 +1258,11 @@ static int fc_fcp_pkt_abort(struct fc_fcp_pkt *fsp)
 	if (fc_fcp_send_abort(fsp)) {
 		FC_FCP_DBG(fsp, "failed to send abort\n");
 		return FAILED;
+	}
+
+	if (fsp->state & FC_SRB_ABORTED) {
+		FC_FCP_DBG(fsp, "target abort cmd  completed\n");
+		return SUCCESS;
 	}
 
 	init_completion(&fsp->tm_done);
