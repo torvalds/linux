@@ -37,10 +37,6 @@
 #include "dvb_demux.h"
 
 #define NOBUFS
-/*
-** #define DVB_DEMUX_SECTION_LOSS_LOG to monitor payload loss in the syslog
-*/
-// #define DVB_DEMUX_SECTION_LOSS_LOG
 
 static int dvb_demux_tscheck;
 module_param(dvb_demux_tscheck, int, 0644);
@@ -194,7 +190,7 @@ static void dvb_dmx_swfilter_section_new(struct dvb_demux_feed *feed)
 {
 	struct dmx_section_feed *sec = &feed->feed.sec;
 
-#ifdef DVB_DEMUX_SECTION_LOSS_LOG
+#ifdef CONFIG_DVB_DEMUX_SECTION_LOSS_LOG
 	if (sec->secbufp < sec->tsfeedp) {
 		int i, n = sec->tsfeedp - sec->secbufp;
 
@@ -247,7 +243,7 @@ static int dvb_dmx_swfilter_section_copy_dump(struct dvb_demux_feed *feed,
 		return 0;
 
 	if (sec->tsfeedp + len > DMX_MAX_SECFEED_SIZE) {
-#ifdef DVB_DEMUX_SECTION_LOSS_LOG
+#ifdef CONFIG_DVB_DEMUX_SECTION_LOSS_LOG
 		dprintk("dvb_demux.c section buffer full loss: %d/%d\n",
 		       sec->tsfeedp + len - DMX_MAX_SECFEED_SIZE,
 		       DMX_MAX_SECFEED_SIZE);
@@ -281,7 +277,7 @@ static int dvb_dmx_swfilter_section_copy_dump(struct dvb_demux_feed *feed,
 		/* dump [secbuf .. secbuf+seclen) */
 		if (feed->pusi_seen)
 			dvb_dmx_swfilter_section_feed(feed);
-#ifdef DVB_DEMUX_SECTION_LOSS_LOG
+#ifdef CONFIG_DVB_DEMUX_SECTION_LOSS_LOG
 		else
 			dprintk("dvb_demux.c pusi not seen, discarding section data\n");
 #endif
@@ -317,7 +313,7 @@ static int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed,
 	}
 
 	if (!ccok || dc_i) {
-#ifdef DVB_DEMUX_SECTION_LOSS_LOG
+#ifdef CONFIG_DVB_DEMUX_SECTION_LOSS_LOG
 		dprintk("dvb_demux.c discontinuity detected %d bytes lost\n",
 			count);
 		/*
@@ -349,7 +345,7 @@ static int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed,
 			dvb_dmx_swfilter_section_copy_dump(feed, after,
 							   after_len);
 		}
-#ifdef DVB_DEMUX_SECTION_LOSS_LOG
+#ifdef CONFIG_DVB_DEMUX_SECTION_LOSS_LOG
 		else if (count > 0)
 			dprintk("dvb_demux.c PUSI=1 but %d bytes lost\n",
 				count);
