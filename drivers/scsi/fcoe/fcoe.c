@@ -63,6 +63,14 @@ unsigned int fcoe_debug_logging;
 module_param_named(debug_logging, fcoe_debug_logging, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(debug_logging, "a bit mask of logging levels");
 
+unsigned int fcoe_e_d_tov = 2 * 1000;
+module_param_named(e_d_tov, fcoe_e_d_tov, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(e_d_tov, "E_D_TOV in ms, default 2000");
+
+unsigned int fcoe_r_a_tov = 2 * 2 * 1000;
+module_param_named(r_a_tov, fcoe_r_a_tov, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(r_a_tov, "R_A_TOV in ms, default 4000");
+
 static DEFINE_MUTEX(fcoe_config_mutex);
 
 static struct workqueue_struct *fcoe_wq;
@@ -633,8 +641,8 @@ static int fcoe_lport_config(struct fc_lport *lport)
 	lport->qfull = 0;
 	lport->max_retry_count = 3;
 	lport->max_rport_retry_count = 3;
-	lport->e_d_tov = 2 * 1000;	/* FC-FS default */
-	lport->r_a_tov = 2 * 2 * 1000;
+	lport->e_d_tov = fcoe_e_d_tov;
+	lport->r_a_tov = fcoe_r_a_tov;
 	lport->service_params = (FCP_SPPF_INIT_FCN | FCP_SPPF_RD_XRDY_DIS |
 				 FCP_SPPF_RETRY | FCP_SPPF_CONF_COMPL);
 	lport->does_npiv = 1;
