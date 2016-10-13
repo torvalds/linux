@@ -775,13 +775,13 @@ static bool g4x_check_srwm(struct drm_device *dev,
 		      display_wm, cursor_wm);
 
 	if (display_wm > display->max_wm) {
-		DRM_DEBUG_KMS("display watermark is too large(%d/%ld), disabling\n",
+		DRM_DEBUG_KMS("display watermark is too large(%d/%u), disabling\n",
 			      display_wm, display->max_wm);
 		return false;
 	}
 
 	if (cursor_wm > cursor->max_wm) {
-		DRM_DEBUG_KMS("cursor watermark is too large(%d/%ld), disabling\n",
+		DRM_DEBUG_KMS("cursor watermark is too large(%d/%u), disabling\n",
 			      cursor_wm, cursor->max_wm);
 		return false;
 	}
