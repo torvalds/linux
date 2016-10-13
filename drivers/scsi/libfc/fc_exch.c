@@ -2140,7 +2140,7 @@ static struct fc_seq *fc_exch_seq_send(struct fc_lport *lport,
 	ep->resp = resp;
 	ep->destructor = destructor;
 	ep->arg = arg;
-	ep->r_a_tov = FC_DEF_R_A_TOV;
+	ep->r_a_tov = lport->r_a_tov;
 	ep->lp = lport;
 	sp = &ep->seq;
 
