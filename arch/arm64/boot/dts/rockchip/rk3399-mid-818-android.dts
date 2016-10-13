@@ -1187,7 +1187,7 @@
 &cdn_dp_fb {
 	status = "okay";
 	extcon = <&fusb0>;
-	phys = <&tcphy0 0>;
+	phys = <&tcphy0_dp>;
 	dp_vop_sel = <DISPLAY_SOURCE_LCDC1>;
 };
 
