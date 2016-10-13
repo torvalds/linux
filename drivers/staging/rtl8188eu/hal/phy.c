@@ -40,12 +40,11 @@ static u32 cal_bit_shift(u32 bitmask)
 
 u32 phy_query_bb_reg(struct adapter *adapt, u32 regaddr, u32 bitmask)
 {
-	u32 return_value = 0, original_value, bit_shift;
+	u32 original_value, bit_shift;
 
 	original_value = usb_read32(adapt, regaddr);
 	bit_shift = cal_bit_shift(bitmask);
-	return_value = (original_value & bitmask) >> bit_shift;
-	return return_value;
+	return (original_value & bitmask) >> bit_shift;
 }
 
 void phy_set_bb_reg(struct adapter *adapt, u32 regaddr, u32 bitmask, u32 data)
@@ -119,12 +118,11 @@ static void rf_serial_write(struct adapter *adapt,
 u32 rtw_hal_read_rfreg(struct adapter *adapt, enum rf_radio_path rf_path,
 		     u32 reg_addr, u32 bit_mask)
 {
-	u32 original_value, readback_value, bit_shift;
+	u32 original_value, bit_shift;
 
 	original_value = rf_serial_read(adapt, rf_path, reg_addr);
 	bit_shift =  cal_bit_shift(bit_mask);
-	readback_value = (original_value & bit_mask) >> bit_shift;
-	return readback_value;
+	return (original_value & bit_mask) >> bit_shift;
 }
 
 void phy_set_rf_reg(struct adapter *adapt, enum rf_radio_path rf_path,
