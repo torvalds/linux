@@ -81,7 +81,7 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		container_of(work, struct dwc3_rockchip, otg_work);
 	struct dwc3		*dwc = rockchip->dwc;
 	struct extcon_dev	*edev = rockchip->edev;
-	struct usb_hcd		*hcd = dev_get_drvdata(&dwc->xhci->dev);
+	struct usb_hcd		*hcd;
 	unsigned long		flags;
 	int			ret;
 	u32			reg;
@@ -179,6 +179,8 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		 * when booting.
 		 */
 		usleep_range(10000, 11000);
+
+		hcd = dev_get_drvdata(&dwc->xhci->dev);
 
 		if (hcd->state == HC_STATE_HALT) {
 			usb_add_hcd(hcd, hcd->irq, IRQF_SHARED);
