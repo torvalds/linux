@@ -60,11 +60,12 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 	struct nlattr *tb[TCA_MIRRED_MAX + 1];
+	bool mac_header_xmit = false;
 	struct tc_mirred *parm;
 	struct tcf_mirred *m;
 	struct net_device *dev;
-	int ret, ok_push = 0;
 	bool exists = false;
+	int ret;
 
 	if (nla == NULL)
 		return -EINVAL;
@@ -102,10 +103,10 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		case ARPHRD_IPGRE:
 		case ARPHRD_VOID:
 		case ARPHRD_NONE:
-			ok_push = 0;
+			mac_header_xmit = false;
 			break;
 		default:
-			ok_push = 1;
+			mac_header_xmit = true;
 			break;
 		}
 	} else {
@@ -136,7 +137,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			dev_put(rcu_dereference_protected(m->tcfm_dev, 1));
 		dev_hold(dev);
 		rcu_assign_pointer(m->tcfm_dev, dev);
-		m->tcfm_ok_push = ok_push;
+		m->tcfm_mac_header_xmit = mac_header_xmit;
 	}
 
 	if (ret == ACT_P_CREATED) {
@@ -181,7 +182,7 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 		goto out;
 
 	if (!(at & AT_EGRESS)) {
-		if (m->tcfm_ok_push)
+		if (m->tcfm_mac_header_xmit)
 			skb_push_rcsum(skb2, skb->mac_len);
 	}
 

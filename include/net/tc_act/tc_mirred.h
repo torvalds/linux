@@ -8,7 +8,7 @@ struct tcf_mirred {
 	struct tc_action	common;
 	int			tcfm_eaction;
 	int			tcfm_ifindex;
-	int			tcfm_ok_push;
+	bool			tcfm_mac_header_xmit;
 	struct net_device __rcu	*tcfm_dev;
 	struct list_head	tcfm_list;
 };
