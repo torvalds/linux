@@ -536,7 +536,7 @@ static void redrat3_reset(struct redrat3_dev *rr3)
 	struct device *dev = rr3->dev;
 	int rc, rxpipe, txpipe;
 	u8 *val;
-	int len = sizeof(u8);
+	size_t const len = sizeof(*val);
 
 	rxpipe = usb_rcvctrlpipe(udev, 0);
 	txpipe = usb_sndctrlpipe(udev, 0);
