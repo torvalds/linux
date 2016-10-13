@@ -284,9 +284,33 @@
 			dma-requests = <32>;
 		};
 
+		lsp0crm: clock-controller@1420000 {
+			compatible = "zte,zx296718-lsp0crm";
+			reg = <0x01420000 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		lsp1crm: clock-controller@1430000 {
+			compatible = "zte,zx296718-lsp1crm";
+			reg = <0x01430000 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		topcrm: clock-controller@1461000 {
+			compatible = "zte,zx296718-topcrm";
+			reg = <0x01461000 0x1000>;
+			#clock-cells = <1>;
+		};
+
 		sysctrl: sysctrl@1463000 {
 			compatible = "zte,zx296718-sysctrl", "syscon";
 			reg = <0x1463000 0x1000>;
+		};
+
+		audiocrm: clock-controller@1480000 {
+			compatible = "zte,zx296718-audiocrm";
+			reg = <0x01480000 0x1000>;
+			#clock-cells = <1>;
 		};
 	};
 };
