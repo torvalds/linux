@@ -47,6 +47,7 @@
 #include "lpfc_compat.h"
 #include "lpfc_debugfs.h"
 #include "lpfc_vport.h"
+#include "lpfc_version.h"
 
 /* There are only four IOCB completion types. */
 typedef enum _lpfc_iocb_type {
@@ -6289,6 +6290,25 @@ lpfc_sli4_repost_els_sgl_list(struct lpfc_hba *phba)
 	return 0;
 }
 
+void
+lpfc_set_host_data(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
+{
+	uint32_t len;
+
+	len = sizeof(struct lpfc_mbx_set_host_data) -
+		sizeof(struct lpfc_sli4_cfg_mhdr);
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_SET_HOST_DATA, len,
+			 LPFC_SLI4_MBX_EMBED);
+
+	mbox->u.mqe.un.set_host_data.param_id = LPFC_SET_HOST_OS_DRIVER_VERSION;
+	mbox->u.mqe.un.set_host_data.param_len = 8;
+	snprintf(mbox->u.mqe.un.set_host_data.data,
+		 LPFC_HOST_OS_DRIVER_VERSION_SIZE,
+		 "Linux %s v"LPFC_DRIVER_VERSION,
+		 (phba->hba_flag & HBA_FCOE_MODE) ? "FCoE" : "FC");
+}
+
 /**
  * lpfc_sli4_hba_setup - SLI4 device intialization PCI function
  * @phba: Pointer to HBA context object.
@@ -6538,6 +6558,15 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 				"2920 Failed to alloc Resource IDs "
 				"rc = x%x\n", rc);
 		goto out_free_mbox;
+	}
+
+	lpfc_set_host_data(phba, mboxq);
+
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	if (rc) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_SLI,
+				"2134 Failed to set host os driver version %x",
+				rc);
 	}
 
 	/* Read the port's service parameters. */
