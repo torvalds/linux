@@ -86,7 +86,8 @@ struct intel_tv {
 };
 
 struct video_levels {
-	int blank, black, burst;
+	u16 blank, black;
+	u8 burst;
 };
 
 struct color_conversion {
@@ -339,34 +340,43 @@ static const struct video_levels component_levels = {
 
 struct tv_mode {
 	const char *name;
-	int clock;
-	int refresh; /* in millihertz (for precision) */
+
+	u32 clock;
+	u16 refresh; /* in millihertz (for precision) */
 	u32 oversample;
-	int hsync_end, hblank_start, hblank_end, htotal;
-	bool progressive, trilevel_sync, component_only;
-	int vsync_start_f1, vsync_start_f2, vsync_len;
-	bool veq_ena;
-	int veq_start_f1, veq_start_f2, veq_len;
-	int vi_end_f1, vi_end_f2, nbr_end;
-	bool burst_ena;
-	int hburst_start, hburst_len;
-	int vburst_start_f1, vburst_end_f1;
-	int vburst_start_f2, vburst_end_f2;
-	int vburst_start_f3, vburst_end_f3;
-	int vburst_start_f4, vburst_end_f4;
+	u8 hsync_end;
+	u16 hblank_start, hblank_end, htotal;
+	bool progressive : 1, trilevel_sync : 1, component_only : 1;
+	u8 vsync_start_f1, vsync_start_f2, vsync_len;
+	bool veq_ena : 1;
+	u8 veq_start_f1, veq_start_f2, veq_len;
+	u8 vi_end_f1, vi_end_f2;
+	u16 nbr_end;
+	bool burst_ena : 1;
+	u8 hburst_start, hburst_len;
+	u8 vburst_start_f1;
+	u16 vburst_end_f1;
+	u8 vburst_start_f2;
+	u16 vburst_end_f2;
+	u8 vburst_start_f3;
+	u16 vburst_end_f3;
+	u8 vburst_start_f4;
+	u16 vburst_end_f4;
 	/*
 	 * subcarrier programming
 	 */
-	int dda2_size, dda3_size, dda1_inc, dda2_inc, dda3_inc;
+	u16 dda2_size, dda3_size;
+	u8 dda1_inc;
+	u16 dda2_inc, dda3_inc;
 	u32 sc_reset;
-	bool pal_burst;
+	bool pal_burst : 1;
 	/*
 	 * blank/black levels
 	 */
 	const struct video_levels *composite_levels, *svideo_levels;
 	const struct color_conversion *composite_color, *svideo_color;
 	const u32 *filter_table;
-	int max_srcw;
+	u16 max_srcw;
 };
 
 
