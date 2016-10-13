@@ -2811,7 +2811,7 @@ struct drm_i915_cmd_table {
 
 #define HAS_DP_MST(dev)	(INTEL_INFO(dev)->has_dp_mst)
 
-#define HAS_DDI(dev)		(INTEL_INFO(dev)->has_ddi)
+#define HAS_DDI(dev_priv)	((dev_priv)->info.has_ddi)
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
 #define HAS_PSR(dev)		(INTEL_INFO(dev)->has_psr)
 #define HAS_RUNTIME_PM(dev)	(INTEL_INFO(dev)->has_runtime_pm)
@@ -2850,8 +2850,10 @@ struct drm_i915_cmd_table {
 #define HAS_PCH_KBP(dev) (INTEL_PCH_TYPE(dev) == PCH_KBP)
 #define HAS_PCH_SPT(dev) (INTEL_PCH_TYPE(dev) == PCH_SPT)
 #define HAS_PCH_LPT(dev) (INTEL_PCH_TYPE(dev) == PCH_LPT)
-#define HAS_PCH_LPT_LP(dev) (__I915__(dev)->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE)
-#define HAS_PCH_LPT_H(dev) (__I915__(dev)->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE)
+#define HAS_PCH_LPT_LP(dev_priv) \
+	((dev_priv)->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE)
+#define HAS_PCH_LPT_H(dev_priv) \
+	((dev_priv)->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE)
 #define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)
 #define HAS_PCH_IBX(dev) (INTEL_PCH_TYPE(dev) == PCH_IBX)
 #define HAS_PCH_NOP(dev) (INTEL_PCH_TYPE(dev) == PCH_NOP)

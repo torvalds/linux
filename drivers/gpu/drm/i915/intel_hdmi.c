@@ -50,7 +50,7 @@ assert_hdmi_port_disabled(struct intel_hdmi *intel_hdmi)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t enabled_bits;
 
-	enabled_bits = HAS_DDI(dev) ? DDI_BUF_CTL_ENABLE : SDVO_ENABLE;
+	enabled_bits = HAS_DDI(dev_priv) ? DDI_BUF_CTL_ENABLE : SDVO_ENABLE;
 
 	WARN(I915_READ(intel_hdmi->hdmi_reg) & enabled_bits,
 	     "HDMI port enabled, expecting disabled\n");
@@ -1312,7 +1312,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 			       struct drm_connector_state *conn_state)
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
-	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	int clock_8bpc = pipe_config->base.adjusted_mode.crtc_clock;
 	int clock_12bpc = clock_8bpc * 3 / 2;
@@ -1339,7 +1339,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 		clock_12bpc *= 2;
 	}
 
-	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev))
+	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv))
 		pipe_config->has_pch_encoder = true;
 
 	if (pipe_config->has_hdmi_sink && intel_hdmi->has_audio)
@@ -1892,7 +1892,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_hdmi->write_infoframe = g4x_write_infoframe;
 		intel_hdmi->set_infoframes = g4x_set_infoframes;
 		intel_hdmi->infoframe_enabled = g4x_infoframe_enabled;
-	} else if (HAS_DDI(dev)) {
+	} else if (HAS_DDI(dev_priv)) {
 		intel_hdmi->write_infoframe = hsw_write_infoframe;
 		intel_hdmi->set_infoframes = hsw_set_infoframes;
 		intel_hdmi->infoframe_enabled = hsw_infoframe_enabled;
@@ -1906,7 +1906,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_hdmi->infoframe_enabled = cpt_infoframe_enabled;
 	}
 
-	if (HAS_DDI(dev))
+	if (HAS_DDI(dev_priv))
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;
 	else
 		intel_connector->get_hw_state = intel_connector_get_hw_state;

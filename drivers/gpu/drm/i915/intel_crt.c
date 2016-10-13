@@ -280,13 +280,13 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *pipe_config,
 				     struct drm_connector_state *conn_state)
 {
-	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_SPLIT(dev_priv))
 		pipe_config->has_pch_encoder = true;
 
 	/* LPT FDI RX only supports 8bpc. */
-	if (HAS_PCH_LPT(dev)) {
+	if (HAS_PCH_LPT(dev_priv)) {
 		if (pipe_config->bw_constrained && pipe_config->pipe_bpp < 24) {
 			DRM_DEBUG_KMS("LPT only supports 24bpp\n");
 			return false;
@@ -296,7 +296,7 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 	}
 
 	/* FDI must always be 2.7 GHz */
-	if (HAS_DDI(dev))
+	if (HAS_DDI(dev_priv))
 		pipe_config->port_clock = 135000 * 2;
 
 	return true;
@@ -917,7 +917,7 @@ void intel_crt_init(struct drm_device *dev)
 	if (I915_HAS_HOTPLUG(dev) &&
 	    !dmi_check_system(intel_spurious_crt_detect))
 		crt->base.hpd_pin = HPD_CRT;
-	if (HAS_DDI(dev)) {
+	if (HAS_DDI(dev_priv)) {
 		crt->base.port = PORT_E;
 		crt->base.get_config = hsw_crt_get_config;
 		crt->base.get_hw_state = intel_ddi_get_hw_state;

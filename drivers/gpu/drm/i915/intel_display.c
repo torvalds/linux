@@ -1187,19 +1187,17 @@ void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
 			onoff(state), onoff(cur_state));
 }
 
-void assert_panel_unlocked(struct drm_i915_private *dev_priv,
-			   enum pipe pipe)
+void assert_panel_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	i915_reg_t pp_reg;
 	u32 val;
 	enum pipe panel_pipe = PIPE_A;
 	bool locked = true;
 
-	if (WARN_ON(HAS_DDI(dev)))
+	if (WARN_ON(HAS_DDI(dev_priv)))
 		return;
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (HAS_PCH_SPLIT(dev_priv)) {
 		u32 port_sel;
 
 		pp_reg = PP_CONTROL(0);
@@ -1209,7 +1207,7 @@ void assert_panel_unlocked(struct drm_i915_private *dev_priv,
 		    I915_READ(PCH_LVDS) & LVDS_PIPEB_SELECT)
 			panel_pipe = PIPE_B;
 		/* XXX: else fix for eDP */
-	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		/* presumably write lock depends on pipe, not port select */
 		pp_reg = PP_CONTROL(pipe);
 		panel_pipe = pipe;
@@ -5696,13 +5694,13 @@ static enum intel_display_power_domain port_to_aux_power_domain(enum port port)
 enum intel_display_power_domain
 intel_display_port_power_domain(struct intel_encoder *intel_encoder)
 {
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
 	struct intel_digital_port *intel_dig_port;
 
 	switch (intel_encoder->type) {
 	case INTEL_OUTPUT_UNKNOWN:
 		/* Only DDI platforms should ever use this output type */
-		WARN_ON_ONCE(!HAS_DDI(dev));
+		WARN_ON_ONCE(!HAS_DDI(dev_priv));
 	case INTEL_OUTPUT_DP:
 	case INTEL_OUTPUT_HDMI:
 	case INTEL_OUTPUT_EDP:
@@ -5723,7 +5721,7 @@ intel_display_port_power_domain(struct intel_encoder *intel_encoder)
 enum intel_display_power_domain
 intel_display_port_aux_power_domain(struct intel_encoder *intel_encoder)
 {
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
 	struct intel_digital_port *intel_dig_port;
 
 	switch (intel_encoder->type) {
@@ -5736,7 +5734,7 @@ intel_display_port_aux_power_domain(struct intel_encoder *intel_encoder)
 		 * what's the status of the given connectors, play safe and
 		 * run the DP detection too.
 		 */
-		WARN_ON_ONCE(!HAS_DDI(dev));
+		WARN_ON_ONCE(!HAS_DDI(dev_priv));
 	case INTEL_OUTPUT_DP:
 	case INTEL_OUTPUT_EDP:
 		intel_dig_port = enc_to_dig_port(&intel_encoder->base);
@@ -9196,7 +9194,8 @@ static void lpt_enable_clkout_dp(struct drm_device *dev, bool with_spread,
 
 	if (WARN(with_fdi && !with_spread, "FDI requires downspread\n"))
 		with_spread = true;
-	if (WARN(HAS_PCH_LPT_LP(dev) && with_fdi, "LP PCH doesn't have FDI\n"))
+	if (WARN(HAS_PCH_LPT_LP(dev_priv) &&
+	    with_fdi, "LP PCH doesn't have FDI\n"))
 		with_fdi = false;
 
 	mutex_lock(&dev_priv->sb_lock);
@@ -9219,7 +9218,7 @@ static void lpt_enable_clkout_dp(struct drm_device *dev, bool with_spread,
 		}
 	}
 
-	reg = HAS_PCH_LPT_LP(dev) ? SBI_GEN0 : SBI_DBUFF0;
+	reg = HAS_PCH_LPT_LP(dev_priv) ? SBI_GEN0 : SBI_DBUFF0;
 	tmp = intel_sbi_read(dev_priv, reg, SBI_ICLK);
 	tmp |= SBI_GEN0_CFG_BUFFENABLE_DISABLE;
 	intel_sbi_write(dev_priv, reg, tmp, SBI_ICLK);
@@ -9235,7 +9234,7 @@ static void lpt_disable_clkout_dp(struct drm_device *dev)
 
 	mutex_lock(&dev_priv->sb_lock);
 
-	reg = HAS_PCH_LPT_LP(dev) ? SBI_GEN0 : SBI_DBUFF0;
+	reg = HAS_PCH_LPT_LP(dev_priv) ? SBI_GEN0 : SBI_DBUFF0;
 	tmp = intel_sbi_read(dev_priv, reg, SBI_ICLK);
 	tmp &= ~SBI_GEN0_CFG_BUFFENABLE_DISABLE;
 	intel_sbi_write(dev_priv, reg, tmp, SBI_ICLK);
@@ -10203,7 +10202,7 @@ void hsw_enable_pc8(struct drm_i915_private *dev_priv)
 
 	DRM_DEBUG_KMS("Enabling package C8+\n");
 
-	if (HAS_PCH_LPT_LP(dev)) {
+	if (HAS_PCH_LPT_LP(dev_priv)) {
 		val = I915_READ(SOUTH_DSPCLK_GATE_D);
 		val &= ~PCH_LP_PARTITION_LEVEL_DISABLE;
 		I915_WRITE(SOUTH_DSPCLK_GATE_D, val);
@@ -10223,7 +10222,7 @@ void hsw_disable_pc8(struct drm_i915_private *dev_priv)
 	hsw_restore_lcpll(dev_priv);
 	lpt_init_pch_refclk(dev);
 
-	if (HAS_PCH_LPT_LP(dev)) {
+	if (HAS_PCH_LPT_LP(dev_priv)) {
 		val = I915_READ(SOUTH_DSPCLK_GATE_D);
 		val |= PCH_LP_PARTITION_LEVEL_DISABLE;
 		I915_WRITE(SOUTH_DSPCLK_GATE_D, val);
@@ -10845,7 +10844,7 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base,
 		}
 		cntl |= pipe << 28; /* Connect to correct pipe */
 
-		if (HAS_DDI(dev))
+		if (HAS_DDI(dev_priv))
 			cntl |= CURSOR_PIPE_CSC_ENABLE;
 
 		if (plane_state->base.rotation == DRM_ROTATE_180)
@@ -12745,6 +12744,7 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 				   const char *context)
 {
 	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_plane *plane;
 	struct intel_plane *intel_plane;
 	struct intel_plane_state *state;
@@ -12827,7 +12827,7 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 			      pipe_config->dpll_hw_state.ctrl1,
 			      pipe_config->dpll_hw_state.cfgcr1,
 			      pipe_config->dpll_hw_state.cfgcr2);
-	} else if (HAS_DDI(dev)) {
+	} else if (HAS_DDI(dev_priv)) {
 		DRM_DEBUG_KMS("dpll_hw_state: wrpll: 0x%x spll: 0x%x\n",
 			      pipe_config->dpll_hw_state.wrpll,
 			      pipe_config->dpll_hw_state.spll);
@@ -12905,7 +12905,7 @@ static bool check_digital_port_conflicts(struct drm_atomic_state *state)
 		switch (encoder->type) {
 			unsigned int port_mask;
 		case INTEL_OUTPUT_UNKNOWN:
-			if (WARN_ON(!HAS_DDI(dev)))
+			if (WARN_ON(!HAS_DDI(to_i915(dev))))
 				break;
 		case INTEL_OUTPUT_DP:
 		case INTEL_OUTPUT_HDMI:
@@ -13729,7 +13729,7 @@ intel_modeset_verify_disabled(struct drm_device *dev)
 
 static void update_scanline_offset(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	/*
 	 * The scanline counter increments at the leading edge of hsync.
@@ -13749,7 +13749,7 @@ static void update_scanline_offset(struct intel_crtc *crtc)
 	 * there's an extra 1 line difference. So we need to add two instead of
 	 * one to the value.
 	 */
-	if (IS_GEN2(dev)) {
+	if (IS_GEN2(dev_priv)) {
 		const struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
 		int vtotal;
 
@@ -13758,7 +13758,7 @@ static void update_scanline_offset(struct intel_crtc *crtc)
 			vtotal /= 2;
 
 		crtc->scanline_offset = vtotal - 1;
-	} else if (HAS_DDI(dev) &&
+	} else if (HAS_DDI(dev_priv) &&
 		   intel_crtc_has_type(crtc->config, INTEL_OUTPUT_HDMI)) {
 		crtc->scanline_offset = 2;
 	} else
@@ -15327,11 +15327,12 @@ static bool intel_crt_present(struct drm_device *dev)
 	if (IS_CHERRYVIEW(dev))
 		return false;
 
-	if (HAS_PCH_LPT_H(dev) && I915_READ(SFUSE_STRAP) & SFUSE_STRAP_CRT_DISABLED)
+	if (HAS_PCH_LPT_H(dev_priv) &&
+	    I915_READ(SFUSE_STRAP) & SFUSE_STRAP_CRT_DISABLED)
 		return false;
 
 	/* DDI E can't be used if DDI A requires 4 lanes */
-	if (HAS_DDI(dev) && I915_READ(DDI_BUF_CTL(PORT_A)) & DDI_A_4_LANES)
+	if (HAS_DDI(dev_priv) && I915_READ(DDI_BUF_CTL(PORT_A)) & DDI_A_4_LANES)
 		return false;
 
 	if (!dev_priv->vbt.int_crt_support)
@@ -15405,7 +15406,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		intel_ddi_init(dev, PORT_C);
 
 		intel_dsi_init(dev);
-	} else if (HAS_DDI(dev)) {
+	} else if (HAS_DDI(dev_priv)) {
 		int found;
 
 		/*

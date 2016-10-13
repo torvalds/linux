@@ -1565,7 +1565,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	max_clock = common_len - 1;
 
-	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev) && port != PORT_A)
+	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
 
 	pipe_config->has_drrs = false;
@@ -1707,7 +1707,7 @@ found:
 		to_intel_atomic_state(pipe_config->base.state)->cdclk_pll_vco = vco;
 	}
 
-	if (!HAS_DDI(dev))
+	if (!HAS_DDI(dev_priv))
 		intel_dp_set_clock(encoder, pipe_config);
 
 	return true;
@@ -2632,7 +2632,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 		DRM_DEBUG_KMS("Using DP training pattern TPS%d\n",
 			      dp_train_pat & DP_TRAINING_PATTERN_MASK);
 
-	if (HAS_DDI(dev)) {
+	if (HAS_DDI(dev_priv)) {
 		uint32_t temp = I915_READ(DP_TP_CTL(port));
 
 		if (dp_train_pat & DP_LINK_SCRAMBLING_DISABLE)
@@ -3339,7 +3339,7 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 	uint32_t signal_levels, mask = 0;
 	uint8_t train_set = intel_dp->train_set[0];
 
-	if (HAS_DDI(dev)) {
+	if (HAS_DDI(dev_priv)) {
 		signal_levels = ddi_signal_levels(intel_dp);
 
 		if (IS_BROXTON(dev))
@@ -3398,7 +3398,7 @@ void intel_dp_set_idle_link_train(struct intel_dp *intel_dp)
 	enum port port = intel_dig_port->port;
 	uint32_t val;
 
-	if (!HAS_DDI(dev))
+	if (!HAS_DDI(dev_priv))
 		return;
 
 	val = I915_READ(DP_TP_CTL(port));
@@ -3433,7 +3433,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t DP = intel_dp->DP;
 
-	if (WARN_ON(HAS_DDI(dev)))
+	if (WARN_ON(HAS_DDI(dev_priv)))
 		return;
 
 	if (WARN_ON((I915_READ(intel_dp->output_reg) & DP_PORT_EN) == 0))
@@ -5659,7 +5659,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	else
 		intel_dp->get_aux_send_ctl = g4x_get_aux_send_ctl;
 
-	if (HAS_DDI(dev))
+	if (HAS_DDI(dev_priv))
 		intel_dp->prepare_link_retrain = intel_ddi_prepare_link_retrain;
 
 	/* Preserve the current hw state. */
@@ -5701,7 +5701,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
-	if (HAS_DDI(dev))
+	if (HAS_DDI(dev_priv))
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;
 	else
 		intel_connector->get_hw_state = intel_connector_get_hw_state;
