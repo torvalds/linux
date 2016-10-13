@@ -5600,7 +5600,7 @@ struct target_nrg schedtune_target_nrg;
 
 /*
  * System energy normalization
- * Returns the normalized value, in the range [0..SCHED_LOAD_SCALE],
+ * Returns the normalized value, in the range [0..SCHED_CAPACITY_SCALE],
  * corresponding to the specified energy variation.
  */
 static inline int
@@ -5620,7 +5620,7 @@ normalize_energy(int energy_diff)
 	normalized_nrg = (energy_diff < 0) ? -energy_diff : energy_diff;
 
 	/* Scale by energy magnitude */
-	normalized_nrg <<= SCHED_LOAD_SHIFT;
+	normalized_nrg <<= SCHED_CAPACITY_SHIFT;
 
 	/* Normalize on max energy for target platform */
 	normalized_nrg = reciprocal_divide(
