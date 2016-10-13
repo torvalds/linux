@@ -10312,6 +10312,7 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 	int i, rc = 0;
 	struct lpfc_dmabuf *dmabuf, *next;
 	uint32_t offset = 0, temp_offset = 0;
+	uint32_t magic_number, ftype, fid, fsize;
 
 	/* It can be null in no-wait mode, sanity check */
 	if (!fw) {
@@ -10320,18 +10321,19 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 	}
 	image = (struct lpfc_grp_hdr *)fw->data;
 
+	magic_number = be32_to_cpu(image->magic_number);
+	ftype = bf_get_be32(lpfc_grp_hdr_file_type, image);
+	fid = bf_get_be32(lpfc_grp_hdr_id, image),
+	fsize = be32_to_cpu(image->size);
+
 	INIT_LIST_HEAD(&dma_buffer_list);
-	if ((be32_to_cpu(image->magic_number) != LPFC_GROUP_OJECT_MAGIC_NUM) ||
-	    (bf_get_be32(lpfc_grp_hdr_file_type, image) !=
-	     LPFC_FILE_TYPE_GROUP) ||
-	    (bf_get_be32(lpfc_grp_hdr_id, image) != LPFC_FILE_ID_GROUP) ||
-	    (be32_to_cpu(image->size) != fw->size)) {
+	if ((magic_number != LPFC_GROUP_OJECT_MAGIC_G5 &&
+	     magic_number != LPFC_GROUP_OJECT_MAGIC_G6) ||
+	    ftype != LPFC_FILE_TYPE_GROUP || fsize != fw->size) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3022 Invalid FW image found. "
-				"Magic:%x Type:%x ID:%x\n",
-				be32_to_cpu(image->magic_number),
-				bf_get_be32(lpfc_grp_hdr_file_type, image),
-				bf_get_be32(lpfc_grp_hdr_id, image));
+				"Magic:%x Type:%x ID:%x Size %d %ld\n",
+				magic_number, ftype, fid, fsize, fw->size);
 		rc = -EINVAL;
 		goto release_out;
 	}

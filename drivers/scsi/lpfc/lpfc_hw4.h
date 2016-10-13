@@ -3996,7 +3996,8 @@ union lpfc_wqe128 {
 	struct gen_req64_wqe gen_req;
 };
 
-#define LPFC_GROUP_OJECT_MAGIC_NUM		0xfeaa0001
+#define LPFC_GROUP_OJECT_MAGIC_G5		0xfeaa0001
+#define LPFC_GROUP_OJECT_MAGIC_G6		0xfeaa0003
 #define LPFC_FILE_TYPE_GROUP			0xf7
 #define LPFC_FILE_ID_GROUP			0xa2
 struct lpfc_grp_hdr {
