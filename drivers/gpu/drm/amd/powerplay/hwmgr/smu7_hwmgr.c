@@ -1452,8 +1452,10 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_clock_voltage_dependency_table *sclk_table = NULL;
 
 
-	if (table_info != NULL)
-		sclk_table = table_info->vdd_dep_on_sclk;
+	if (table_info == NULL)
+		return -EINVAL;
+
+	sclk_table = table_info->vdd_dep_on_sclk;
 
 	for (i = 0; i < SMU7_MAX_LEAKAGE_COUNT; i++) {
 		vv_id = ATOM_VIRTUAL_VOLTAGE_ID0 + i;
