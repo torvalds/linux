@@ -1268,7 +1268,7 @@ static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
 }
 
 /**
- * fc_rport_els_rtv_resp() - Handler for Request Timeout Value (RTV) responses
+ * fc_rport_rtv_resp() - Handler for Request Timeout Value (RTV) responses
  * @sp:	       The sequence the RTV was on
  * @fp:	       The RTV response frame
  * @rdata_arg: The remote port that sent the RTV response
@@ -1371,6 +1371,41 @@ static void fc_rport_enter_rtv(struct fc_rport_priv *rdata)
 		fc_rport_error_retry(rdata, -FC_EX_XMIT_ERR);
 		kref_put(&rdata->kref, lport->tt.rport_destroy);
 	}
+}
+
+/**
+ * fc_rport_recv_rtv_req() - Handler for Read Timeout Value (RTV) requests
+ * @rdata: The remote port that sent the RTV request
+ * @in_fp: The RTV request frame
+ *
+ * Locking Note:  Called with the lport and rport locks held.
+ */
+static void fc_rport_recv_rtv_req(struct fc_rport_priv *rdata,
+				  struct fc_frame *in_fp)
+{
+	struct fc_lport *lport = rdata->local_port;
+	struct fc_frame *fp;
+	struct fc_els_rtv_acc *rtv;
+	struct fc_seq_els_data rjt_data;
+
+	FC_RPORT_DBG(rdata, "Received RTV request\n");
+
+	fp = fc_frame_alloc(lport, sizeof(*rtv));
+	if (!fp) {
+		rjt_data.reason = ELS_RJT_UNAB;
+		rjt_data.reason = ELS_EXPL_INSUF_RES;
+		lport->tt.seq_els_rsp_send(in_fp, ELS_LS_RJT, &rjt_data);
+		goto drop;
+	}
+	rtv = fc_frame_payload_get(fp, sizeof(*rtv));
+	rtv->rtv_cmd = ELS_LS_ACC;
+	rtv->rtv_r_a_tov = htonl(lport->r_a_tov);
+	rtv->rtv_e_d_tov = htonl(lport->e_d_tov);
+	rtv->rtv_toq = 0;
+	fc_fill_reply_hdr(fp, in_fp, FC_RCTL_ELS_REP, 0);
+	lport->tt.frame_send(lport, fp);
+drop:
+	fc_frame_free(in_fp);
 }
 
 /**
@@ -1678,6 +1713,9 @@ static void fc_rport_recv_els_req(struct fc_lport *lport, struct fc_frame *fp)
 	case ELS_RLS:
 		fc_rport_recv_rls_req(rdata, fp);
 		break;
+	case ELS_RTV:
+		fc_rport_recv_rtv_req(rdata, fp);
+		break;
 	default:
 		fc_frame_free(fp);	/* can't happen */
 		break;
@@ -1729,6 +1767,7 @@ static void fc_rport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 	case ELS_RRQ:
 	case ELS_REC:
 	case ELS_RLS:
+	case ELS_RTV:
 		fc_rport_recv_els_req(lport, fp);
 		break;
 	default:
