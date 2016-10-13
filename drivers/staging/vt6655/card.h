@@ -46,7 +46,7 @@
 
 #define CB_MAX_CHANNEL_24G      14
 #define CB_MAX_CHANNEL_5G       42
-#define CB_MAX_CHANNEL          (CB_MAX_CHANNEL_24G+CB_MAX_CHANNEL_5G)
+#define CB_MAX_CHANNEL          (CB_MAX_CHANNEL_24G + CB_MAX_CHANNEL_5G)
 
 typedef enum _CARD_PKT_TYPE {
 	PKT_TYPE_802_11_BCN,

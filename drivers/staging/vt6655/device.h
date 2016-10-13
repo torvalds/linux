@@ -279,12 +279,12 @@ struct vnt_private {
 	unsigned char byOFDMPwrG;
 	unsigned char byCurPwr;
 	char	 byCurPwrdBm;
-	unsigned char abyCCKPwrTbl[CB_MAX_CHANNEL_24G+1];
-	unsigned char abyOFDMPwrTbl[CB_MAX_CHANNEL+1];
-	char	abyCCKDefaultPwr[CB_MAX_CHANNEL_24G+1];
-	char	abyOFDMDefaultPwr[CB_MAX_CHANNEL+1];
-	char	abyRegPwr[CB_MAX_CHANNEL+1];
-	char	abyLocalPwr[CB_MAX_CHANNEL+1];
+	unsigned char abyCCKPwrTbl[CB_MAX_CHANNEL_24G + 1];
+	unsigned char abyOFDMPwrTbl[CB_MAX_CHANNEL + 1];
+	char	abyCCKDefaultPwr[CB_MAX_CHANNEL_24G + 1];
+	char	abyOFDMDefaultPwr[CB_MAX_CHANNEL + 1];
+	char	abyRegPwr[CB_MAX_CHANNEL + 1];
+	char	abyLocalPwr[CB_MAX_CHANNEL + 1];
 
 	/* BaseBand Loopback Use */
 	unsigned char byBBCR4d;
