@@ -777,10 +777,8 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 	sample_lens = kcalloc(RR3_DRIVER_MAXLENS,
 			      sizeof(*sample_lens),
 			      GFP_KERNEL);
-	if (!sample_lens) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!sample_lens)
+		return -ENOMEM;
 
 	irdata = kzalloc(sizeof(*irdata), GFP_KERNEL);
 	if (!irdata) {
@@ -848,8 +846,8 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 		ret = count;
 
 out:
-	kfree(sample_lens);
 	kfree(irdata);
+	kfree(sample_lens);
 
 	rr3->transmitting = false;
 	/* rr3 re-enables rc detector because it was enabled before */
