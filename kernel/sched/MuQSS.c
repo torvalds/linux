@@ -1284,7 +1284,7 @@ void set_task_cpu(struct task_struct *p, unsigned int cpu)
 	WARN_ON_ONCE(debug_locks && !(lockdep_is_held(&p->pi_lock) ||
 				      lockdep_is_held(&task_rq(p)->lock)));
 #endif
-	if (task_cpu(p) == cpu)
+	if (p->wake_cpu == cpu)
 		return;
 	trace_sched_migrate_task(p, cpu);
 	perf_event_task_migrate(p);
@@ -1296,7 +1296,7 @@ void set_task_cpu(struct task_struct *p, unsigned int cpu)
 	 */
 	smp_wmb();
 
-	if (task_running(rq, p) && rq->online) {
+	if (task_running(rq, p)) {
 		/*
 		 * We should only be calling this on a running task if we're
 		 * holding rq lock.
@@ -5818,15 +5818,17 @@ static void bind_zero(int src_cpu)
 
 	do_each_thread(t, p) {
 		if (cpumask_test_cpu(src_cpu, tsk_cpus_allowed(p))) {
-			cpumask_clear_cpu(src_cpu, tsk_cpus_allowed(p));
-			cpumask_set_cpu(0, tsk_cpus_allowed(p));
+			bool local = (task_cpu(p) == src_cpu);
+
+			/* task_running is the cpu stopper thread */
+			if (local && task_running(task_rq(p), p))
+				continue;
+			atomic_clear_cpu(src_cpu, tsk_cpus_allowed(p));
+			atomic_set_cpu(0, tsk_cpus_allowed(p));
 			p->zerobound = true;
 			bound++;
-			if (task_cpu(p) == src_cpu) {
+			if (local)
 				set_task_cpu(p, 0);
-				if (task_running(task_rq(p), p))
-					resched_task(p);
-			}
 		}
 	} while_each_thread(t, p);
 
