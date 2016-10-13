@@ -306,10 +306,10 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		}
 
 		for (i = 0; i < adev->num_ip_blocks; i++) {
-			if (adev->ip_blocks[i].type == type &&
-			    adev->ip_block_status[i].valid) {
-				ip.hw_ip_version_major = adev->ip_blocks[i].major;
-				ip.hw_ip_version_minor = adev->ip_blocks[i].minor;
+			if (adev->ip_blocks[i].version->type == type &&
+			    adev->ip_blocks[i].status.valid) {
+				ip.hw_ip_version_major = adev->ip_blocks[i].version->major;
+				ip.hw_ip_version_minor = adev->ip_blocks[i].version->minor;
 				ip.capabilities_flags = 0;
 				ip.available_rings = ring_mask;
 				ip.ib_start_alignment = ib_start_alignment;
@@ -345,8 +345,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		}
 
 		for (i = 0; i < adev->num_ip_blocks; i++)
-			if (adev->ip_blocks[i].type == type &&
-			    adev->ip_block_status[i].valid &&
+			if (adev->ip_blocks[i].version->type == type &&
+			    adev->ip_blocks[i].status.valid &&
 			    count < AMDGPU_HW_IP_INSTANCE_MAX_COUNT)
 				count++;
 

@@ -1190,7 +1190,7 @@ static int cik_sdma_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs cik_sdma_ip_funcs = {
+static const struct amd_ip_funcs cik_sdma_ip_funcs = {
 	.name = "cik_sdma",
 	.early_init = cik_sdma_early_init,
 	.late_init = NULL,
@@ -1342,3 +1342,12 @@ static void cik_sdma_set_vm_pte_funcs(struct amdgpu_device *adev)
 		adev->vm_manager.vm_pte_num_rings = adev->sdma.num_instances;
 	}
 }
+
+const struct amdgpu_ip_block_version cik_sdma_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SDMA,
+	.major = 2,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &cik_sdma_ip_funcs,
+};

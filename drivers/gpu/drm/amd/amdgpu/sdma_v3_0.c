@@ -1527,7 +1527,7 @@ static int sdma_v3_0_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs sdma_v3_0_ip_funcs = {
+static const struct amd_ip_funcs sdma_v3_0_ip_funcs = {
 	.name = "sdma_v3_0",
 	.early_init = sdma_v3_0_early_init,
 	.late_init = NULL,
@@ -1683,3 +1683,21 @@ static void sdma_v3_0_set_vm_pte_funcs(struct amdgpu_device *adev)
 		adev->vm_manager.vm_pte_num_rings = adev->sdma.num_instances;
 	}
 }
+
+const struct amdgpu_ip_block_version sdma_v3_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SDMA,
+	.major = 3,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &sdma_v3_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version sdma_v3_1_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SDMA,
+	.major = 3,
+	.minor = 1,
+	.rev = 0,
+	.funcs = &sdma_v3_0_ip_funcs,
+};

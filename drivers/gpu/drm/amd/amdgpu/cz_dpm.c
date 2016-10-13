@@ -2296,3 +2296,12 @@ static void cz_dpm_set_funcs(struct amdgpu_device *adev)
 	if (NULL == adev->pm.funcs)
 		adev->pm.funcs = &cz_dpm_funcs;
 }
+
+const struct amdgpu_ip_block_version cz_dpm_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SMC,
+	.major = 8,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &cz_dpm_ip_funcs,
+};

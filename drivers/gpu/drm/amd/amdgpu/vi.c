@@ -858,734 +858,6 @@ static void vi_enable_doorbell_aperture(struct amdgpu_device *adev,
 	WREG32(mmBIF_DOORBELL_APER_EN, tmp);
 }
 
-/* topaz has no DCE, UVD, VCE */
-static const struct amdgpu_ip_block_version topaz_ip_blocks[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vi_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 7,
-		.minor = 4,
-		.rev = 0,
-		.funcs = &gmc_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 2,
-		.minor = 4,
-		.rev = 0,
-		.funcs = &iceland_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gfx_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 2,
-		.minor = 4,
-		.rev = 0,
-		.funcs = &sdma_v2_4_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version topaz_ip_blocks_vd[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vi_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 7,
-		.minor = 4,
-		.rev = 0,
-		.funcs = &gmc_v7_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 2,
-		.minor = 4,
-		.rev = 0,
-		.funcs = &iceland_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 1,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &dce_virtual_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gfx_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 2,
-		.minor = 4,
-		.rev = 0,
-		.funcs = &sdma_v2_4_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version tonga_ip_blocks[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vi_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gmc_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &tonga_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 10,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &dce_v10_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gfx_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &sdma_v3_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 5,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &uvd_v5_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v3_0_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version tonga_ip_blocks_vd[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vi_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gmc_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &tonga_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 10,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &dce_virtual_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gfx_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &sdma_v3_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 5,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &uvd_v5_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v3_0_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version fiji_ip_blocks[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vi_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 8,
-		.minor = 5,
-		.rev = 0,
-		.funcs = &gmc_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &tonga_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 10,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &dce_v10_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gfx_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &sdma_v3_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 6,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &uvd_v6_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v3_0_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version fiji_ip_blocks_vd[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vi_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 8,
-		.minor = 5,
-		.rev = 0,
-		.funcs = &gmc_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &tonga_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 10,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &dce_virtual_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gfx_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &sdma_v3_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 6,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &uvd_v6_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v3_0_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version polaris11_ip_blocks[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vi_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 8,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &gmc_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 3,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &tonga_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 11,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &dce_v11_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gfx_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 3,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &sdma_v3_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 6,
-		.minor = 3,
-		.rev = 0,
-		.funcs = &uvd_v6_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 3,
-		.minor = 4,
-		.rev = 0,
-		.funcs = &vce_v3_0_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version polaris11_ip_blocks_vd[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vi_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 8,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &gmc_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 3,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &tonga_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 7,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 11,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &dce_virtual_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gfx_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 3,
-		.minor = 1,
-		.rev = 0,
-		.funcs = &sdma_v3_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 6,
-		.minor = 3,
-		.rev = 0,
-		.funcs = &uvd_v6_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 3,
-		.minor = 4,
-		.rev = 0,
-		.funcs = &vce_v3_0_ip_funcs,
-	},
-};
-
-static const struct amdgpu_ip_block_version cz_ip_blocks[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vi_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gmc_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cz_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 11,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &dce_v11_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gfx_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &sdma_v3_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 6,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &uvd_v6_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v3_0_ip_funcs,
-	},
-#if defined(CONFIG_DRM_AMD_ACP)
-	{
-		.type = AMD_IP_BLOCK_TYPE_ACP,
-		.major = 2,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &acp_ip_funcs,
-	},
-#endif
-};
-
-static const struct amdgpu_ip_block_version cz_ip_blocks_vd[] =
-{
-	/* ORDER MATTERS! */
-	{
-		.type = AMD_IP_BLOCK_TYPE_COMMON,
-		.major = 2,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vi_common_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gmc_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_IH,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &cz_ih_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SMC,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &amdgpu_pp_ip_funcs
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_DCE,
-		.major = 11,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &dce_virtual_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_GFX,
-		.major = 8,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &gfx_v8_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_SDMA,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &sdma_v3_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_UVD,
-		.major = 6,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &uvd_v6_0_ip_funcs,
-	},
-	{
-		.type = AMD_IP_BLOCK_TYPE_VCE,
-		.major = 3,
-		.minor = 0,
-		.rev = 0,
-		.funcs = &vce_v3_0_ip_funcs,
-	},
-#if defined(CONFIG_DRM_AMD_ACP)
-	{
-		.type = AMD_IP_BLOCK_TYPE_ACP,
-		.major = 2,
-		.minor = 2,
-		.rev = 0,
-		.funcs = &acp_ip_funcs,
-	},
-#endif
-};
-
-int vi_set_ip_blocks(struct amdgpu_device *adev)
-{
-	if (adev->enable_virtual_display) {
-		switch (adev->asic_type) {
-		case CHIP_TOPAZ:
-			adev->ip_blocks = topaz_ip_blocks_vd;
-			adev->num_ip_blocks = ARRAY_SIZE(topaz_ip_blocks_vd);
-			break;
-		case CHIP_FIJI:
-			adev->ip_blocks = fiji_ip_blocks_vd;
-			adev->num_ip_blocks = ARRAY_SIZE(fiji_ip_blocks_vd);
-			break;
-		case CHIP_TONGA:
-			adev->ip_blocks = tonga_ip_blocks_vd;
-			adev->num_ip_blocks = ARRAY_SIZE(tonga_ip_blocks_vd);
-			break;
-		case CHIP_POLARIS11:
-		case CHIP_POLARIS10:
-			adev->ip_blocks = polaris11_ip_blocks_vd;
-			adev->num_ip_blocks = ARRAY_SIZE(polaris11_ip_blocks_vd);
-			break;
-
-		case CHIP_CARRIZO:
-		case CHIP_STONEY:
-			adev->ip_blocks = cz_ip_blocks_vd;
-			adev->num_ip_blocks = ARRAY_SIZE(cz_ip_blocks_vd);
-			break;
-		default:
-			/* FIXME: not supported yet */
-			return -EINVAL;
-		}
-	} else {
-		switch (adev->asic_type) {
-		case CHIP_TOPAZ:
-			adev->ip_blocks = topaz_ip_blocks;
-			adev->num_ip_blocks = ARRAY_SIZE(topaz_ip_blocks);
-			break;
-		case CHIP_FIJI:
-			adev->ip_blocks = fiji_ip_blocks;
-			adev->num_ip_blocks = ARRAY_SIZE(fiji_ip_blocks);
-			break;
-		case CHIP_TONGA:
-			adev->ip_blocks = tonga_ip_blocks;
-			adev->num_ip_blocks = ARRAY_SIZE(tonga_ip_blocks);
-			break;
-		case CHIP_POLARIS11:
-		case CHIP_POLARIS10:
-			adev->ip_blocks = polaris11_ip_blocks;
-			adev->num_ip_blocks = ARRAY_SIZE(polaris11_ip_blocks);
-			break;
-		case CHIP_CARRIZO:
-		case CHIP_STONEY:
-			adev->ip_blocks = cz_ip_blocks;
-			adev->num_ip_blocks = ARRAY_SIZE(cz_ip_blocks);
-			break;
-		default:
-			/* FIXME: not supported yet */
-			return -EINVAL;
-		}
-	}
-
-	return 0;
-}
-
 #define ATI_REV_ID_FUSE_MACRO__ADDRESS      0xC0014044
 #define ATI_REV_ID_FUSE_MACRO__SHIFT        9
 #define ATI_REV_ID_FUSE_MACRO__MASK         0x00001E00
@@ -1985,7 +1257,7 @@ static int vi_common_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs vi_common_ip_funcs = {
+static const struct amd_ip_funcs vi_common_ip_funcs = {
 	.name = "vi_common",
 	.early_init = vi_common_early_init,
 	.late_init = NULL,
@@ -2002,3 +1274,110 @@ const struct amd_ip_funcs vi_common_ip_funcs = {
 	.set_powergating_state = vi_common_set_powergating_state,
 };
 
+static const struct amdgpu_ip_block_version vi_common_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_COMMON,
+	.major = 1,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &vi_common_ip_funcs,
+};
+
+int vi_set_ip_blocks(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	case CHIP_TOPAZ:
+		/* topaz has no DCE, UVD, VCE */
+		amdgpu_ip_block_add(adev, &vi_common_ip_block);
+		amdgpu_ip_block_add(adev, &gmc_v7_4_ip_block);
+		amdgpu_ip_block_add(adev, &iceland_ih_ip_block);
+		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
+		if (adev->enable_virtual_display)
+			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
+		amdgpu_ip_block_add(adev, &gfx_v8_0_ip_block);
+		amdgpu_ip_block_add(adev, &sdma_v2_4_ip_block);
+		break;
+	case CHIP_FIJI:
+		amdgpu_ip_block_add(adev, &vi_common_ip_block);
+		amdgpu_ip_block_add(adev, &gmc_v8_5_ip_block);
+		amdgpu_ip_block_add(adev, &tonga_ih_ip_block);
+		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
+		if (adev->enable_virtual_display)
+			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
+		else
+			amdgpu_ip_block_add(adev, &dce_v10_1_ip_block);
+		amdgpu_ip_block_add(adev, &gfx_v8_0_ip_block);
+		amdgpu_ip_block_add(adev, &sdma_v3_0_ip_block);
+		amdgpu_ip_block_add(adev, &uvd_v6_0_ip_block);
+		amdgpu_ip_block_add(adev, &vce_v3_0_ip_block);
+		break;
+	case CHIP_TONGA:
+		amdgpu_ip_block_add(adev, &vi_common_ip_block);
+		amdgpu_ip_block_add(adev, &gmc_v8_0_ip_block);
+		amdgpu_ip_block_add(adev, &tonga_ih_ip_block);
+		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
+		if (adev->enable_virtual_display)
+			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
+		else
+			amdgpu_ip_block_add(adev, &dce_v10_0_ip_block);
+		amdgpu_ip_block_add(adev, &gfx_v8_0_ip_block);
+		amdgpu_ip_block_add(adev, &sdma_v3_0_ip_block);
+		amdgpu_ip_block_add(adev, &uvd_v5_0_ip_block);
+		amdgpu_ip_block_add(adev, &vce_v3_0_ip_block);
+		break;
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS10:
+		amdgpu_ip_block_add(adev, &vi_common_ip_block);
+		amdgpu_ip_block_add(adev, &gmc_v8_1_ip_block);
+		amdgpu_ip_block_add(adev, &tonga_ih_ip_block);
+		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
+		if (adev->enable_virtual_display)
+			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
+		else
+			amdgpu_ip_block_add(adev, &dce_v11_2_ip_block);
+		amdgpu_ip_block_add(adev, &gfx_v8_0_ip_block);
+		amdgpu_ip_block_add(adev, &sdma_v3_1_ip_block);
+		amdgpu_ip_block_add(adev, &uvd_v6_3_ip_block);
+		amdgpu_ip_block_add(adev, &vce_v3_4_ip_block);
+		break;
+	case CHIP_CARRIZO:
+		amdgpu_ip_block_add(adev, &vi_common_ip_block);
+		amdgpu_ip_block_add(adev, &gmc_v8_0_ip_block);
+		amdgpu_ip_block_add(adev, &cz_ih_ip_block);
+		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
+		if (adev->enable_virtual_display)
+			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
+		else
+			amdgpu_ip_block_add(adev, &dce_v11_0_ip_block);
+		amdgpu_ip_block_add(adev, &gfx_v8_0_ip_block);
+		amdgpu_ip_block_add(adev, &sdma_v3_0_ip_block);
+		amdgpu_ip_block_add(adev, &uvd_v6_0_ip_block);
+		amdgpu_ip_block_add(adev, &vce_v3_1_ip_block);
+#if defined(CONFIG_DRM_AMD_ACP)
+		amdgpu_ip_block_add(adev, &acp_ip_block);
+#endif
+		break;
+	case CHIP_STONEY:
+		amdgpu_ip_block_add(adev, &vi_common_ip_block);
+		amdgpu_ip_block_add(adev, &gmc_v8_0_ip_block);
+		amdgpu_ip_block_add(adev, &cz_ih_ip_block);
+		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
+		if (adev->enable_virtual_display)
+			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
+		else
+			amdgpu_ip_block_add(adev, &dce_v11_0_ip_block);
+		amdgpu_ip_block_add(adev, &gfx_v8_1_ip_block);
+		amdgpu_ip_block_add(adev, &sdma_v3_0_ip_block);
+		amdgpu_ip_block_add(adev, &uvd_v6_2_ip_block);
+		amdgpu_ip_block_add(adev, &vce_v3_4_ip_block);
+#if defined(CONFIG_DRM_AMD_ACP)
+		amdgpu_ip_block_add(adev, &acp_ip_block);
+#endif
+		break;
+	default:
+		/* FIXME: not supported yet */
+		return -EINVAL;
+	}
+
+	return 0;
+}

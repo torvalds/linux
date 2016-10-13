@@ -3206,7 +3206,7 @@ static int gfx_v6_0_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs gfx_v6_0_ip_funcs = {
+static const struct amd_ip_funcs gfx_v6_0_ip_funcs = {
 	.name = "gfx_v6_0",
 	.early_init = gfx_v6_0_early_init,
 	.late_init = NULL,
@@ -3344,3 +3344,12 @@ static void gfx_v6_0_get_cu_info(struct amdgpu_device *adev)
 	cu_info->number = active_cu_number;
 	cu_info->ao_cu_mask = ao_cu_mask;
 }
+
+const struct amdgpu_ip_block_version gfx_v6_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_GFX,
+	.major = 6,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &gfx_v6_0_ip_funcs,
+};

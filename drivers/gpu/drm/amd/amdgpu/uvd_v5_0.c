@@ -774,7 +774,7 @@ static int uvd_v5_0_set_powergating_state(void *handle,
 	}
 }
 
-const struct amd_ip_funcs uvd_v5_0_ip_funcs = {
+static const struct amd_ip_funcs uvd_v5_0_ip_funcs = {
 	.name = "uvd_v5_0",
 	.early_init = uvd_v5_0_early_init,
 	.late_init = NULL,
@@ -831,3 +831,12 @@ static void uvd_v5_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->uvd.irq.num_types = 1;
 	adev->uvd.irq.funcs = &uvd_v5_0_irq_funcs;
 }
+
+const struct amdgpu_ip_block_version uvd_v5_0_ip_block =
+{
+		.type = AMD_IP_BLOCK_TYPE_UVD,
+		.major = 5,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &uvd_v5_0_ip_funcs,
+};

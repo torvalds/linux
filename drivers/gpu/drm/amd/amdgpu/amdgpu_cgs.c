@@ -626,11 +626,11 @@ static int amdgpu_cgs_set_clockgating_state(struct cgs_device *cgs_device,
 	int i, r = -1;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
 
-		if (adev->ip_blocks[i].type == block_type) {
-			r = adev->ip_blocks[i].funcs->set_clockgating_state(
+		if (adev->ip_blocks[i].version->type == block_type) {
+			r = adev->ip_blocks[i].version->funcs->set_clockgating_state(
 								(void *)adev,
 									state);
 			break;
@@ -647,11 +647,11 @@ static int amdgpu_cgs_set_powergating_state(struct cgs_device *cgs_device,
 	int i, r = -1;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_block_status[i].valid)
+		if (!adev->ip_blocks[i].status.valid)
 			continue;
 
-		if (adev->ip_blocks[i].type == block_type) {
-			r = adev->ip_blocks[i].funcs->set_powergating_state(
+		if (adev->ip_blocks[i].version->type == block_type) {
+			r = adev->ip_blocks[i].version->funcs->set_powergating_state(
 								(void *)adev,
 									state);
 			break;

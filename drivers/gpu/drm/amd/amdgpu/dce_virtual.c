@@ -574,7 +574,7 @@ static int dce_virtual_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs dce_virtual_ip_funcs = {
+static const struct amd_ip_funcs dce_virtual_ip_funcs = {
 	.name = "dce_virtual",
 	.early_init = dce_virtual_early_init,
 	.late_init = NULL,
@@ -824,3 +824,11 @@ static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev)
 	adev->crtc_irq.funcs = &dce_virtual_crtc_irq_funcs;
 }
 
+const struct amdgpu_ip_block_version dce_virtual_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_DCE,
+	.major = 1,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &dce_virtual_ip_funcs,
+};

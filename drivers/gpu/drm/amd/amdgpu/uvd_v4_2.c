@@ -723,7 +723,7 @@ static int uvd_v4_2_set_powergating_state(void *handle,
 	}
 }
 
-const struct amd_ip_funcs uvd_v4_2_ip_funcs = {
+static const struct amd_ip_funcs uvd_v4_2_ip_funcs = {
 	.name = "uvd_v4_2",
 	.early_init = uvd_v4_2_early_init,
 	.late_init = NULL,
@@ -780,3 +780,12 @@ static void uvd_v4_2_set_irq_funcs(struct amdgpu_device *adev)
 	adev->uvd.irq.num_types = 1;
 	adev->uvd.irq.funcs = &uvd_v4_2_irq_funcs;
 }
+
+const struct amdgpu_ip_block_version uvd_v4_2_ip_block =
+{
+		.type = AMD_IP_BLOCK_TYPE_UVD,
+		.major = 4,
+		.minor = 2,
+		.rev = 0,
+		.funcs = &uvd_v4_2_ip_funcs,
+};

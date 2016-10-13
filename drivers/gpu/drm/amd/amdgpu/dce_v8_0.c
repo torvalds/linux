@@ -3308,7 +3308,7 @@ static int dce_v8_0_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs dce_v8_0_ip_funcs = {
+static const struct amd_ip_funcs dce_v8_0_ip_funcs = {
 	.name = "dce_v8_0",
 	.early_init = dce_v8_0_early_init,
 	.late_init = NULL,
@@ -3638,3 +3638,48 @@ static void dce_v8_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->hpd_irq.num_types = AMDGPU_HPD_LAST;
 	adev->hpd_irq.funcs = &dce_v8_0_hpd_irq_funcs;
 }
+
+const struct amdgpu_ip_block_version dce_v8_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_DCE,
+	.major = 8,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &dce_v8_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version dce_v8_1_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_DCE,
+	.major = 8,
+	.minor = 1,
+	.rev = 0,
+	.funcs = &dce_v8_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version dce_v8_2_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_DCE,
+	.major = 8,
+	.minor = 2,
+	.rev = 0,
+	.funcs = &dce_v8_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version dce_v8_3_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_DCE,
+	.major = 8,
+	.minor = 3,
+	.rev = 0,
+	.funcs = &dce_v8_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version dce_v8_5_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_DCE,
+	.major = 8,
+	.minor = 5,
+	.rev = 0,
+	.funcs = &dce_v8_0_ip_funcs,
+};

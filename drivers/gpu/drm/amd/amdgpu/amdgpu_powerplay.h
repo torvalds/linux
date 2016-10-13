@@ -28,6 +28,6 @@
 
 #include "amd_shared.h"
 
-extern const struct amd_ip_funcs amdgpu_pp_ip_funcs;
+extern const struct amdgpu_ip_block_version amdgpu_pp_ip_block;
 
 #endif /* __AMDGPU_POWERPLAY_H__ */

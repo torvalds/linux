@@ -195,21 +195,38 @@ int amdgpu_wait_for_idle(struct amdgpu_device *adev,
 bool amdgpu_is_idle(struct amdgpu_device *adev,
 		    enum amd_ip_block_type block_type);
 
+#define AMDGPU_MAX_IP_NUM 16
+
+struct amdgpu_ip_block_status {
+	bool valid;
+	bool sw;
+	bool hw;
+	bool late_initialized;
+	bool hang;
+};
+
 struct amdgpu_ip_block_version {
-	enum amd_ip_block_type type;
-	u32 major;
-	u32 minor;
-	u32 rev;
+	const enum amd_ip_block_type type;
+	const u32 major;
+	const u32 minor;
+	const u32 rev;
 	const struct amd_ip_funcs *funcs;
+};
+
+struct amdgpu_ip_block {
+	struct amdgpu_ip_block_status status;
+	const struct amdgpu_ip_block_version *version;
 };
 
 int amdgpu_ip_block_version_cmp(struct amdgpu_device *adev,
 				enum amd_ip_block_type type,
 				u32 major, u32 minor);
 
-const struct amdgpu_ip_block_version * amdgpu_get_ip_block(
-					struct amdgpu_device *adev,
-					enum amd_ip_block_type type);
+struct amdgpu_ip_block * amdgpu_get_ip_block(struct amdgpu_device *adev,
+					     enum amd_ip_block_type type);
+
+int amdgpu_ip_block_add(struct amdgpu_device *adev,
+			const struct amdgpu_ip_block_version *ip_block_version);
 
 /* provided by hw blocks that can move/clear data.  e.g., gfx or sdma */
 struct amdgpu_buffer_funcs {
@@ -1271,14 +1288,6 @@ typedef void (*amdgpu_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
 typedef uint32_t (*amdgpu_block_rreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
 typedef void (*amdgpu_block_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t, uint32_t);
 
-struct amdgpu_ip_block_status {
-	bool valid;
-	bool sw;
-	bool hw;
-	bool late_initialized;
-	bool hang;
-};
-
 struct amdgpu_device {
 	struct device			*dev;
 	struct drm_device		*ddev;
@@ -1434,9 +1443,8 @@ struct amdgpu_device {
 	/* GDS */
 	struct amdgpu_gds		gds;
 
-	const struct amdgpu_ip_block_version *ip_blocks;
+	struct amdgpu_ip_block          ip_blocks[AMDGPU_MAX_IP_NUM];
 	int				num_ip_blocks;
-	struct amdgpu_ip_block_status	*ip_block_status;
 	struct mutex	mn_lock;
 	DECLARE_HASHTABLE(mn_hash, 7);
 

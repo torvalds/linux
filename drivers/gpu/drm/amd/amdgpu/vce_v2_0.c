@@ -592,7 +592,7 @@ static int vce_v2_0_set_powergating_state(void *handle,
 		return vce_v2_0_start(adev);
 }
 
-const struct amd_ip_funcs vce_v2_0_ip_funcs = {
+static const struct amd_ip_funcs vce_v2_0_ip_funcs = {
 	.name = "vce_v2_0",
 	.early_init = vce_v2_0_early_init,
 	.late_init = NULL,
@@ -646,4 +646,13 @@ static void vce_v2_0_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->vce.irq.num_types = 1;
 	adev->vce.irq.funcs = &vce_v2_0_irq_funcs;
+};
+
+const struct amdgpu_ip_block_version vce_v2_0_ip_block =
+{
+		.type = AMD_IP_BLOCK_TYPE_VCE,
+		.major = 2,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &vce_v2_0_ip_funcs,
 };

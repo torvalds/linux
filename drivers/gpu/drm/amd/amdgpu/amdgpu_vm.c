@@ -346,7 +346,7 @@ error:
 static bool amdgpu_vm_ring_has_compute_vm_bug(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	const struct amdgpu_ip_block_version *ip_block;
+	const struct amdgpu_ip_block *ip_block;
 
 	if (ring->funcs->type != AMDGPU_RING_TYPE_COMPUTE)
 		/* only compute rings */
@@ -356,10 +356,10 @@ static bool amdgpu_vm_ring_has_compute_vm_bug(struct amdgpu_ring *ring)
 	if (!ip_block)
 		return false;
 
-	if (ip_block->major <= 7) {
+	if (ip_block->version->major <= 7) {
 		/* gfx7 has no workaround */
 		return true;
-	} else if (ip_block->major == 8) {
+	} else if (ip_block->version->major == 8) {
 		if (adev->gfx.mec_fw_version >= 673)
 			/* gfx8 is fixed in MEC firmware 673 */
 			return false;

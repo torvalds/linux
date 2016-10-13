@@ -8011,3 +8011,11 @@ static void si_dpm_set_irq_funcs(struct amdgpu_device *adev)
 	adev->pm.dpm.thermal.irq.funcs = &si_dpm_irq_funcs;
 }
 
+const struct amdgpu_ip_block_version si_dpm_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SMC,
+	.major = 6,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &si_dpm_ip_funcs,
+};

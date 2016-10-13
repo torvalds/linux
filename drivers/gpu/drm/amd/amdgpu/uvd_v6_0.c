@@ -1001,7 +1001,7 @@ static int uvd_v6_0_set_powergating_state(void *handle,
 	}
 }
 
-const struct amd_ip_funcs uvd_v6_0_ip_funcs = {
+static const struct amd_ip_funcs uvd_v6_0_ip_funcs = {
 	.name = "uvd_v6_0",
 	.early_init = uvd_v6_0_early_init,
 	.late_init = NULL,
@@ -1096,3 +1096,30 @@ static void uvd_v6_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->uvd.irq.num_types = 1;
 	adev->uvd.irq.funcs = &uvd_v6_0_irq_funcs;
 }
+
+const struct amdgpu_ip_block_version uvd_v6_0_ip_block =
+{
+		.type = AMD_IP_BLOCK_TYPE_UVD,
+		.major = 6,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &uvd_v6_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version uvd_v6_2_ip_block =
+{
+		.type = AMD_IP_BLOCK_TYPE_UVD,
+		.major = 6,
+		.minor = 2,
+		.rev = 0,
+		.funcs = &uvd_v6_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version uvd_v6_3_ip_block =
+{
+		.type = AMD_IP_BLOCK_TYPE_UVD,
+		.major = 6,
+		.minor = 3,
+		.rev = 0,
+		.funcs = &uvd_v6_0_ip_funcs,
+};

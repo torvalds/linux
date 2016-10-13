@@ -5087,7 +5087,7 @@ static int gfx_v7_0_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs gfx_v7_0_ip_funcs = {
+static const struct amd_ip_funcs gfx_v7_0_ip_funcs = {
 	.name = "gfx_v7_0",
 	.early_init = gfx_v7_0_early_init,
 	.late_init = gfx_v7_0_late_init,
@@ -5270,3 +5270,39 @@ static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev)
 	cu_info->number = active_cu_number;
 	cu_info->ao_cu_mask = ao_cu_mask;
 }
+
+const struct amdgpu_ip_block_version gfx_v7_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_GFX,
+	.major = 7,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &gfx_v7_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version gfx_v7_1_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_GFX,
+	.major = 7,
+	.minor = 1,
+	.rev = 0,
+	.funcs = &gfx_v7_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version gfx_v7_2_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_GFX,
+	.major = 7,
+	.minor = 2,
+	.rev = 0,
+	.funcs = &gfx_v7_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version gfx_v7_3_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_GFX,
+	.major = 7,
+	.minor = 3,
+	.rev = 0,
+	.funcs = &gfx_v7_0_ip_funcs,
+};
