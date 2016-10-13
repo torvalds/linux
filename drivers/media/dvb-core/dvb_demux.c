@@ -110,21 +110,23 @@ static inline int dvb_dmx_swfilter_payload(struct dvb_demux_feed *feed,
 {
 	int count = payload(buf);
 	int p;
-	//int ccok;
-	//u8 cc;
+#ifdef CONFIG_DVB_DEMUX_SECTION_LOSS_LOG
+	int ccok;
+	u8 cc;
+#endif
 
 	if (count == 0)
 		return -1;
 
 	p = 188 - count;
 
-	/*
+#ifdef CONFIG_DVB_DEMUX_SECTION_LOSS_LOG
 	cc = buf[3] & 0x0f;
 	ccok = ((feed->cc + 1) & 0x0f) == cc;
 	feed->cc = cc;
 	if (!ccok)
 		dprintk("missed packet!\n");
-	*/
+#endif
 
 	if (buf[1] & 0x40)	// PUSI ?
 		feed->peslen = 0xfffa;
