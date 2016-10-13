@@ -373,27 +373,29 @@ static void *kmap_page_dma(struct i915_page_dma *p)
 /* We use the flushing unmap only with ppgtt structures:
  * page directories, page tables and scratch pages.
  */
-static void kunmap_page_dma(struct drm_device *dev, void *vaddr)
+static void kunmap_page_dma(struct drm_i915_private *dev_priv, void *vaddr)
 {
 	/* There are only few exceptions for gen >=6. chv and bxt.
 	 * And we are not sure about the latter so play safe for now.
 	 */
-	if (IS_CHERRYVIEW(dev) || IS_BROXTON(dev))
+	if (IS_CHERRYVIEW(dev_priv) || IS_BROXTON(dev_priv))
 		drm_clflush_virt_range(vaddr, PAGE_SIZE);
 
 	kunmap_atomic(vaddr);
 }
 
 #define kmap_px(px) kmap_page_dma(px_base(px))
-#define kunmap_px(ppgtt, vaddr) kunmap_page_dma((ppgtt)->base.dev, (vaddr))
+#define kunmap_px(ppgtt, vaddr) \
+		kunmap_page_dma(to_i915((ppgtt)->base.dev), (vaddr))
 
 #define setup_px(dev, px) setup_page_dma((dev), px_base(px))
 #define cleanup_px(dev, px) cleanup_page_dma((dev), px_base(px))
-#define fill_px(dev, px, v) fill_page_dma((dev), px_base(px), (v))
-#define fill32_px(dev, px, v) fill_page_dma_32((dev), px_base(px), (v))
+#define fill_px(dev_priv, px, v) fill_page_dma((dev_priv), px_base(px), (v))
+#define fill32_px(dev_priv, px, v) \
+		fill_page_dma_32((dev_priv), px_base(px), (v))
 
-static void fill_page_dma(struct drm_device *dev, struct i915_page_dma *p,
-			  const uint64_t val)
+static void fill_page_dma(struct drm_i915_private *dev_priv,
+			  struct i915_page_dma *p, const uint64_t val)
 {
 	int i;
 	uint64_t * const vaddr = kmap_page_dma(p);
@@ -401,17 +403,17 @@ static void fill_page_dma(struct drm_device *dev, struct i915_page_dma *p,
 	for (i = 0; i < 512; i++)
 		vaddr[i] = val;
 
-	kunmap_page_dma(dev, vaddr);
+	kunmap_page_dma(dev_priv, vaddr);
 }
 
-static void fill_page_dma_32(struct drm_device *dev, struct i915_page_dma *p,
-			     const uint32_t val32)
+static void fill_page_dma_32(struct drm_i915_private *dev_priv,
+			     struct i915_page_dma *p, const uint32_t val32)
 {
 	uint64_t v = val32;
 
 	v = v << 32 | val32;
 
-	fill_page_dma(dev, p, v);
+	fill_page_dma(dev_priv, p, v);
 }
 
 static int
@@ -474,7 +476,7 @@ static void gen8_initialize_pt(struct i915_address_space *vm,
 	scratch_pte = gen8_pte_encode(vm->scratch_page.daddr,
 				      I915_CACHE_LLC, true);
 
-	fill_px(vm->dev, pt, scratch_pte);
+	fill_px(to_i915(vm->dev), pt, scratch_pte);
 }
 
 static void gen6_initialize_pt(struct i915_address_space *vm,
@@ -487,7 +489,7 @@ static void gen6_initialize_pt(struct i915_address_space *vm,
 	scratch_pte = vm->pte_encode(vm->scratch_page.daddr,
 				     I915_CACHE_LLC, true, 0);
 
-	fill32_px(vm->dev, pt, scratch_pte);
+	fill32_px(to_i915(vm->dev), pt, scratch_pte);
 }
 
 static struct i915_page_directory *alloc_pd(struct drm_device *dev)
@@ -534,7 +536,7 @@ static void gen8_initialize_pd(struct i915_address_space *vm,
 
 	scratch_pde = gen8_pde_encode(px_dma(vm->scratch_pt), I915_CACHE_LLC);
 
-	fill_px(vm->dev, pd, scratch_pde);
+	fill_px(to_i915(vm->dev), pd, scratch_pde);
 }
 
 static int __pdp_init(struct drm_device *dev,
@@ -615,7 +617,7 @@ static void gen8_initialize_pdp(struct i915_address_space *vm,
 
 	scratch_pdpe = gen8_pdpe_encode(px_dma(vm->scratch_pd), I915_CACHE_LLC);
 
-	fill_px(vm->dev, pdp, scratch_pdpe);
+	fill_px(to_i915(vm->dev), pdp, scratch_pdpe);
 }
 
 static void gen8_initialize_pml4(struct i915_address_space *vm,
@@ -626,7 +628,7 @@ static void gen8_initialize_pml4(struct i915_address_space *vm,
 	scratch_pml4e = gen8_pml4e_encode(px_dma(vm->scratch_pdp),
 					  I915_CACHE_LLC);
 
-	fill_px(vm->dev, pml4, scratch_pml4e);
+	fill_px(to_i915(vm->dev), pml4, scratch_pml4e);
 }
 
 static void
@@ -2137,7 +2139,7 @@ static void gtt_write_workarounds(struct drm_device *dev)
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_CHV);
 	else if (IS_SKYLAKE(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL);
-	else if (IS_BROXTON(dev))
+	else if (IS_BROXTON(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT);
 }
 
@@ -2918,7 +2920,7 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 	 * resort to an uncached mapping. The WC issue is easily caught by the
 	 * readback check when writing GTT PTE entries.
 	 */
-	if (IS_BROXTON(ggtt->base.dev))
+	if (IS_BROXTON(to_i915(ggtt->base.dev)))
 		ggtt->gsm = ioremap_nocache(phys_addr, size);
 	else
 		ggtt->gsm = ioremap_wc(phys_addr, size);
@@ -3290,7 +3292,7 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 	ggtt->base.closed = false;
 
 	if (INTEL_INFO(dev)->gen >= 8) {
-		if (IS_CHERRYVIEW(dev) || IS_BROXTON(dev))
+		if (IS_CHERRYVIEW(dev_priv) || IS_BROXTON(dev_priv))
 			chv_setup_private_ppat(dev_priv);
 		else
 			bdw_setup_private_ppat(dev_priv);

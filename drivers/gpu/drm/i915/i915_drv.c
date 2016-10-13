@@ -2414,7 +2414,7 @@ static int intel_runtime_resume(struct device *kdev)
 	if (IS_GEN6(dev_priv))
 		intel_init_pch_refclk(dev);
 
-	if (IS_BROXTON(dev)) {
+	if (IS_BROXTON(dev_priv)) {
 		bxt_disable_dc9(dev_priv);
 		bxt_display_core_init(dev_priv, true);
 		if (dev_priv->csr.dmc_payload &&

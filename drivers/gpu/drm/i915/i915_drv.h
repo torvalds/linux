@@ -2660,7 +2660,7 @@ struct drm_i915_cmd_table {
 #define IS_HASWELL(dev_priv)	((dev_priv)->info.is_haswell)
 #define IS_BROADWELL(dev_priv)	((dev_priv)->info.is_broadwell)
 #define IS_SKYLAKE(dev_priv)	((dev_priv)->info.is_skylake)
-#define IS_BROXTON(dev)		(INTEL_INFO(dev)->is_broxton)
+#define IS_BROXTON(dev_priv)	((dev_priv)->info.is_broxton)
 #define IS_KABYLAKE(dev_priv)	((dev_priv)->info.is_kabylake)
 #define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 #define IS_HSW_EARLY_SDV(dev_priv) (IS_HASWELL(dev_priv) && \
@@ -2720,7 +2720,8 @@ struct drm_i915_cmd_table {
 #define BXT_REVID_B0		0x3
 #define BXT_REVID_C0		0x9
 
-#define IS_BXT_REVID(p, since, until) (IS_BROXTON(p) && IS_REVID(p, since, until))
+#define IS_BXT_REVID(dev_priv, since, until) \
+	(IS_BROXTON(dev_priv) && IS_REVID(dev_priv, since, until))
 
 #define KBL_REVID_A0		0x0
 #define KBL_REVID_B0		0x1

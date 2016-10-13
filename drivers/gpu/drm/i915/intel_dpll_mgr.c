@@ -1853,7 +1853,7 @@ void intel_shared_dpll_init(struct drm_device *dev)
 
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		dpll_mgr = &skl_pll_mgr;
-	else if (IS_BROXTON(dev))
+	else if (IS_BROXTON(dev_priv))
 		dpll_mgr = &bxt_pll_mgr;
 	else if (HAS_DDI(dev_priv))
 		dpll_mgr = &hsw_pll_mgr;

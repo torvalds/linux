@@ -437,11 +437,11 @@ static void vlv_dsi_device_ready(struct intel_encoder *encoder)
 
 static void intel_dsi_device_ready(struct intel_encoder *encoder)
 {
-	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		vlv_dsi_device_ready(encoder);
-	else if (IS_BROXTON(dev))
+	else if (IS_BROXTON(dev_priv))
 		bxt_dsi_device_ready(encoder);
 }
 
@@ -464,7 +464,7 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder)
 	}
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		i915_reg_t port_ctrl = IS_BROXTON(dev) ?
+		i915_reg_t port_ctrl = IS_BROXTON(dev_priv) ?
 			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(port);
 		u32 temp;
 
@@ -494,7 +494,7 @@ static void intel_dsi_port_disable(struct intel_encoder *encoder)
 	enum port port;
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		i915_reg_t port_ctrl = IS_BROXTON(dev) ?
+		i915_reg_t port_ctrl = IS_BROXTON(dev_priv) ?
 			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(port);
 		u32 temp;
 
@@ -656,7 +656,6 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 
 static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 {
-	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
@@ -664,7 +663,7 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 	DRM_DEBUG_KMS("\n");
 	for_each_dsi_port(port, intel_dsi->ports) {
 		/* Common bit for both MIPI Port A & MIPI Port C on VLV/CHV */
-		i915_reg_t port_ctrl = IS_BROXTON(dev) ?
+		i915_reg_t port_ctrl = IS_BROXTON(dev_priv) ?
 			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(PORT_A);
 		u32 val;
 
@@ -762,7 +761,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 
 	/* XXX: this only works for one DSI output */
 	for_each_dsi_port(port, intel_dsi->ports) {
-		i915_reg_t ctrl_reg = IS_BROXTON(dev) ?
+		i915_reg_t ctrl_reg = IS_BROXTON(dev_priv) ?
 			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(port);
 		bool enabled = I915_READ(ctrl_reg) & DPI_ENABLE;
 
@@ -970,11 +969,11 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 static void intel_dsi_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
-	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 pclk;
 	DRM_DEBUG_KMS("\n");
 
-	if (IS_BROXTON(dev))
+	if (IS_BROXTON(dev_priv))
 		bxt_dsi_get_pipe_config(encoder, pipe_config);
 
 	pclk = intel_dsi_get_pclk(encoder, pipe_config->pipe_bpp,
@@ -1066,7 +1065,7 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 	hbp = txbyteclkhs(hbp, bpp, lane_count, intel_dsi->burst_mode_ratio);
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		if (IS_BROXTON(dev)) {
+		if (IS_BROXTON(dev_priv)) {
 			/*
 			 * Program hdisplay and vdisplay on MIPI transcoder.
 			 * This is different from calculated hactive and
@@ -1153,7 +1152,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 			tmp &= ~READ_REQUEST_PRIORITY_MASK;
 			I915_WRITE(MIPI_CTRL(port), tmp |
 					READ_REQUEST_PRIORITY_HIGH);
-		} else if (IS_BROXTON(dev)) {
+		} else if (IS_BROXTON(dev_priv)) {
 			enum pipe pipe = intel_crtc->pipe;
 
 			tmp = I915_READ(MIPI_CTRL(port));
@@ -1242,7 +1241,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 		I915_WRITE(MIPI_INIT_COUNT(port),
 				txclkesc(intel_dsi->escape_clk_div, 100));
 
-		if (IS_BROXTON(dev) && (!intel_dsi->dual_link)) {
+		if (IS_BROXTON(dev_priv) && (!intel_dsi->dual_link)) {
 			/*
 			 * BXT spec says write MIPI_INIT_COUNT for
 			 * both the ports, even if only one is
@@ -1452,7 +1451,7 @@ void intel_dsi_init(struct drm_device *dev)
 
 	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		dev_priv->mipi_mmio_base = VLV_MIPI_BASE;
-	} else if (IS_BROXTON(dev)) {
+	} else if (IS_BROXTON(dev_priv)) {
 		dev_priv->mipi_mmio_base = BXT_MIPI_BASE;
 	} else {
 		DRM_ERROR("Unsupported Mipi device to reg base");

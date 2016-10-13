@@ -378,16 +378,16 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	I915_WRITE(GUC_SHIM_CONTROL, GUC_SHIM_CONTROL_VALUE);
 
 	/* WaDisableMinuteIaClockGating:bxt */
-	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
+	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1)) {
 		I915_WRITE(GUC_SHIM_CONTROL, (I915_READ(GUC_SHIM_CONTROL) &
 					      ~GUC_ENABLE_MIA_CLOCK_GATING));
 	}
 
 	/* WaC6DisallowByGfxPause:bxt */
-	if (IS_BXT_REVID(dev, 0, BXT_REVID_B0))
+	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_B0))
 		I915_WRITE(GEN6_GFXPAUSE, 0x30FFF);
 
-	if (IS_BROXTON(dev))
+	if (IS_BROXTON(dev_priv))
 		I915_WRITE(GEN9LP_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 	else
 		I915_WRITE(GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
@@ -732,7 +732,7 @@ void intel_guc_init(struct drm_device *dev)
 		fw_path = I915_SKL_GUC_UCODE;
 		guc_fw->guc_fw_major_wanted = SKL_FW_MAJOR;
 		guc_fw->guc_fw_minor_wanted = SKL_FW_MINOR;
-	} else if (IS_BROXTON(dev)) {
+	} else if (IS_BROXTON(dev_priv)) {
 		fw_path = I915_BXT_GUC_UCODE;
 		guc_fw->guc_fw_major_wanted = BXT_FW_MAJOR;
 		guc_fw->guc_fw_minor_wanted = BXT_FW_MINOR;
