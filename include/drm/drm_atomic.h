@@ -365,8 +365,17 @@ int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);
  *
  * To give drivers flexibility struct &drm_crtc_state has 3 booleans to track
  * whether the state CRTC changed enough to need a full modeset cycle:
- * connectors_changed, mode_changed and active_change. This helper simply
+ * connectors_changed, mode_changed and active_changed. This helper simply
  * combines these three to compute the overall need for a modeset for @state.
+ *
+ * The atomic helper code sets these booleans, but drivers can and should
+ * change them appropriately to accurately represent whether a modeset is
+ * really needed. In general, drivers should avoid full modesets whenever
+ * possible.
+ *
+ * For example if the CRTC mode has changed, and the hardware is able to enact
+ * the requested mode change without going through a full modeset, the driver
+ * should clear mode_changed during its ->atomic_check.
  */
 static inline bool
 drm_atomic_crtc_needs_modeset(struct drm_crtc_state *state)

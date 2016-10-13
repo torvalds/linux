@@ -116,6 +116,11 @@ struct drm_plane_helper_funcs;
  * never return in a failure from the ->atomic_check callback. Userspace assumes
  * that a DPMS On will always succeed. In other words: @enable controls resource
  * assignment, @active controls the actual hardware state.
+ *
+ * The three booleans active_changed, connectors_changed and mode_changed are
+ * intended to indicate whether a full modeset is needed, rather than strictly
+ * describing what has changed in a commit.
+ * See also: drm_atomic_crtc_needs_modeset()
  */
 struct drm_crtc_state {
 	struct drm_crtc *crtc;

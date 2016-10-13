@@ -458,10 +458,11 @@ mode_fixup(struct drm_atomic_state *state)
  * removed from the crtc.
  * crtc_state->active_changed is set when crtc_state->active changes,
  * which is used for dpms.
+ * See also: drm_atomic_crtc_needs_modeset()
  *
  * IMPORTANT:
  *
- * Drivers which update ->mode_changed (e.g. in their ->atomic_check hooks if a
+ * Drivers which set ->mode_changed (e.g. in their ->atomic_check hooks if a
  * plane update can't be done without a full modeset) _must_ call this function
  * afterwards after that change. It is permitted to call this function multiple
  * times for the same update, e.g. when the ->atomic_check functions depend upon
@@ -510,9 +511,9 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 
 	for_each_connector_in_state(state, connector, connector_state, i) {
 		/*
-		 * This only sets crtc->mode_changed for routing changes,
-		 * drivers must set crtc->mode_changed themselves when connector
-		 * properties need to be updated.
+		 * This only sets crtc->connectors_changed for routing changes,
+		 * drivers must set crtc->connectors_changed themselves when
+		 * connector properties need to be updated.
 		 */
 		ret = update_connector_routing(state, connector,
 					       connector_state);
