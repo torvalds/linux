@@ -1011,7 +1011,7 @@ xgene_pmu_dev_ctx *acpi_get_pmu_hw_inf(struct xgene_pmu *xgene_pmu,
 	rc = acpi_dev_get_resources(adev, &resource_list,
 				    acpi_pmu_dev_add_resource, &res);
 	acpi_dev_free_resource_list(&resource_list);
-	if (rc < 0 || IS_ERR(&res)) {
+	if (rc < 0) {
 		dev_err(dev, "PMU type %d: No resource address found\n", type);
 		goto err;
 	}
