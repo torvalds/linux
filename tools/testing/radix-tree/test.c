@@ -122,7 +122,7 @@ void item_full_scan(struct radix_tree_root *root, unsigned long start,
 	int nfound;
 	int i;
 
-//	printf("%s(0x%08lx, 0x%08lx, %d)\n", __FUNCTION__, start, nr, chunk);
+//	printf("%s(0x%08lx, 0x%08lx, %d)\n", __func__, start, nr, chunk);
 
 	while ((nfound = radix_tree_gang_lookup(root, (void **)items, into,
 					chunk))) {
