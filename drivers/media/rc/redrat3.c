@@ -480,10 +480,8 @@ static u32 redrat3_get_timeout(struct redrat3_dev *rr3)
 
 	len = sizeof(*tmp);
 	tmp = kzalloc(len, GFP_KERNEL);
-	if (!tmp) {
-		dev_warn(rr3->dev, "Memory allocation faillure\n");
+	if (!tmp)
 		return timeout;
-	}
 
 	pipe = usb_rcvctrlpipe(rr3->udev, 0);
 	ret = usb_control_msg(rr3->udev, pipe, RR3_GET_IR_PARAM,
@@ -544,10 +542,8 @@ static void redrat3_reset(struct redrat3_dev *rr3)
 	txpipe = usb_sndctrlpipe(udev, 0);
 
 	val = kmalloc(len, GFP_KERNEL);
-	if (!val) {
-		dev_err(dev, "Memory allocation failure\n");
+	if (!val)
 		return;
-	}
 
 	*val = 0x01;
 	rc = usb_control_msg(udev, rxpipe, RR3_RESET,
@@ -589,10 +585,8 @@ static void redrat3_get_firmware_rev(struct redrat3_dev *rr3)
 	char *buffer;
 
 	buffer = kcalloc(RR3_FW_VERSION_LEN + 1, sizeof(*buffer), GFP_KERNEL);
-	if (!buffer) {
-		dev_err(rr3->dev, "Memory allocation failure\n");
+	if (!buffer)
 		return;
-	}
 
 	rc = usb_control_msg(rr3->udev, usb_rcvctrlpipe(rr3->udev, 0),
 			     RR3_FW_VERSION,
@@ -909,10 +903,8 @@ static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
 	u16 prod = le16_to_cpu(rr3->udev->descriptor.idProduct);
 
 	rc = rc_allocate_device();
-	if (!rc) {
-		dev_err(dev, "remote input dev allocation failed\n");
+	if (!rc)
 		goto out;
-	}
 
 	snprintf(rr3->name, sizeof(rr3->name), "RedRat3%s Infrared Remote Transceiver (%04x:%04x)",
 		 prod == USB_RR3IIUSB_PRODUCT_ID ? "-II" : "",
@@ -1001,10 +993,8 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 
 	/* allocate memory for our device state and initialize it */
 	rr3 = kzalloc(sizeof(*rr3), GFP_KERNEL);
-	if (rr3 == NULL) {
-		dev_err(dev, "Memory allocation failure\n");
+	if (!rr3)
 		goto no_endpoints;
-	}
 
 	rr3->dev = &intf->dev;
 
@@ -1016,10 +1006,8 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 	rr3->ep_in = ep_in;
 	rr3->bulk_in_buf = usb_alloc_coherent(udev,
 		le16_to_cpu(ep_in->wMaxPacketSize), GFP_KERNEL, &rr3->dma_in);
-	if (!rr3->bulk_in_buf) {
-		dev_err(dev, "Read buffer allocation failure\n");
+	if (!rr3->bulk_in_buf)
 		goto error;
-	}
 
 	pipe = usb_rcvbulkpipe(udev, ep_in->bEndpointAddress);
 	usb_fill_bulk_urb(rr3->read_urb, udev, pipe, rr3->bulk_in_buf,
