@@ -91,6 +91,8 @@
 #define UART_UBRC	0xac
 #define UART_UTS	0xb4
 
+#define IOMUXC_GPR5_CLOCK_AFCG_X_BYPASS_MASK	0xf800
+
 extern unsigned long iram_tlb_base_addr;
 extern unsigned long iram_tlb_phys_addr;
 
@@ -1243,6 +1245,7 @@ void __init imx6dl_pm_init(void)
 void __init imx6sl_pm_init(void)
 {
 	struct device_node *np;
+	struct regmap *gpr;
 
 	if (cpu_is_imx6sll()) {
 		imx6_pm_common_init(&imx6sll_pm_data);
@@ -1250,6 +1253,11 @@ void __init imx6sl_pm_init(void)
 			"/soc/aips-bus@02000000/spba-bus@02000000/serial@02020000");
 		if (np)
 			console_base = of_iomap(np, 0);
+		/* i.MX6SLL has bus auto clock gating function */
+		gpr = syscon_regmap_lookup_by_compatible("fsl,imx6q-iomuxc-gpr");
+		if (!IS_ERR(gpr))
+			regmap_update_bits(gpr, IOMUXC_GPR5,
+				IOMUXC_GPR5_CLOCK_AFCG_X_BYPASS_MASK, 0);
 		return;
 	}
 
