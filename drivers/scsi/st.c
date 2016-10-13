@@ -4821,9 +4821,8 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
 		current->mm,
 		uaddr,
 		nr_pages,
-		rw == READ,
-		0, /* don't force */
-		pages);
+		pages,
+		rw == READ ? FOLL_WRITE : 0); /* don't force */
 
 	/* Errors and no page mapped should return here */
 	if (res < nr_pages)
