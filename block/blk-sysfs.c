@@ -10,6 +10,7 @@
 #include <linux/blktrace_api.h>
 #include <linux/blk-mq.h>
 #include <linux/blk-cgroup.h>
+#include <linux/wbt.h>
 
 #include "blk.h"
 #include "blk-mq.h"
@@ -39,6 +40,19 @@ queue_var_store(unsigned long *var, const char *page, size_t count)
 	*var = v;
 
 	return count;
+}
+
+static ssize_t queue_var_store64(u64 *var, const char *page)
+{
+	int err;
+	u64 v;
+
+	err = kstrtou64(page, 10, &v);
+	if (err < 0)
+		return err;
+
+	*var = v;
+	return 0;
 }
 
 static ssize_t queue_requests_show(struct request_queue *q, char *page)
@@ -347,6 +361,58 @@ static ssize_t queue_poll_store(struct request_queue *q, const char *page,
 	return ret;
 }
 
+static ssize_t queue_wb_win_show(struct request_queue *q, char *page)
+{
+	if (!q->rq_wb)
+		return -EINVAL;
+
+	return sprintf(page, "%llu\n", div_u64(q->rq_wb->win_nsec, 1000));
+}
+
+static ssize_t queue_wb_win_store(struct request_queue *q, const char *page,
+				  size_t count)
+{
+	ssize_t ret;
+	u64 val;
+
+	if (!q->rq_wb)
+		return -EINVAL;
+
+	ret = queue_var_store64(&val, page);
+	if (ret < 0)
+		return ret;
+
+	q->rq_wb->win_nsec = val * 1000ULL;
+	wbt_update_limits(q->rq_wb);
+	return count;
+}
+
+static ssize_t queue_wb_lat_show(struct request_queue *q, char *page)
+{
+	if (!q->rq_wb)
+		return -EINVAL;
+
+	return sprintf(page, "%llu\n", div_u64(q->rq_wb->min_lat_nsec, 1000));
+}
+
+static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
+				  size_t count)
+{
+	ssize_t ret;
+	u64 val;
+
+	if (!q->rq_wb)
+		return -EINVAL;
+
+	ret = queue_var_store64(&val, page);
+	if (ret < 0)
+		return ret;
+
+	q->rq_wb->min_lat_nsec = val * 1000ULL;
+	wbt_update_limits(q->rq_wb);
+	return count;
+}
+
 static ssize_t queue_wc_show(struct request_queue *q, char *page)
 {
 	if (test_bit(QUEUE_FLAG_WC, &q->queue_flags))
@@ -551,6 +617,18 @@ static struct queue_sysfs_entry queue_stats_entry = {
 	.show = queue_stats_show,
 };
 
+static struct queue_sysfs_entry queue_wb_lat_entry = {
+	.attr = {.name = "wbt_lat_usec", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_wb_lat_show,
+	.store = queue_wb_lat_store,
+};
+
+static struct queue_sysfs_entry queue_wb_win_entry = {
+	.attr = {.name = "wbt_window_usec", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_wb_win_show,
+	.store = queue_wb_win_store,
+};
+
 static struct attribute *default_attrs[] = {
 	&queue_requests_entry.attr,
 	&queue_ra_entry.attr,
@@ -579,6 +657,8 @@ static struct attribute *default_attrs[] = {
 	&queue_wc_entry.attr,
 	&queue_dax_entry.attr,
 	&queue_stats_entry.attr,
+	&queue_wb_lat_entry.attr,
+	&queue_wb_win_entry.attr,
 	NULL,
 };
 
@@ -693,6 +773,49 @@ struct kobj_type blk_queue_ktype = {
 	.release	= blk_release_queue,
 };
 
+static void blk_wb_stat_get(void *data, struct blk_rq_stat *stat)
+{
+	blk_queue_stat_get(data, stat);
+}
+
+static void blk_wb_stat_clear(void *data)
+{
+	blk_stat_clear(data);
+}
+
+static bool blk_wb_stat_is_current(struct blk_rq_stat *stat)
+{
+	return blk_stat_is_current(stat);
+}
+
+static struct wb_stat_ops wb_stat_ops = {
+	.get		= blk_wb_stat_get,
+	.is_current	= blk_wb_stat_is_current,
+	.clear		= blk_wb_stat_clear,
+};
+
+static void blk_wb_init(struct request_queue *q)
+{
+	struct rq_wb *rwb;
+
+	rwb = wbt_init(&q->backing_dev_info, &wb_stat_ops, q);
+
+	/*
+	 * If this fails, we don't get throttling
+	 */
+	if (IS_ERR(rwb))
+		return;
+
+	if (blk_queue_nonrot(q))
+		rwb->min_lat_nsec = 2000000ULL;
+	else
+		rwb->min_lat_nsec = 75000000ULL;
+
+	wbt_set_queue_depth(rwb, blk_queue_depth(q));
+	wbt_set_write_cache(rwb, test_bit(QUEUE_FLAG_WC, &q->queue_flags));
+	q->rq_wb = rwb;
+}
+
 int blk_register_queue(struct gendisk *disk)
 {
 	int ret;
@@ -731,6 +854,8 @@ int blk_register_queue(struct gendisk *disk)
 
 	if (q->mq_ops)
 		blk_mq_register_disk(disk);
+
+	blk_wb_init(q);
 
 	if (!q->request_fn)
 		return 0;

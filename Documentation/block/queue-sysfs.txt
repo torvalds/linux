@@ -169,5 +169,18 @@ This is the number of bytes the device can write in a single write-same
 command.  A value of '0' means write-same is not supported by this
 device.
 
+wb_lat_usec (RW)
+----------------
+If the device is registered for writeback throttling, then this file shows
+the target minimum read latency. If this latency is exceeded in a given
+window of time (see wb_window_usec), then the writeback throttling will start
+scaling back writes.
+
+wb_window_usec (RW)
+-------------------
+If the device is registered for writeback throttling, then this file shows
+the value of the monitoring window in which we'll look at the target
+latency. See wb_lat_usec.
+
 
 Jens Axboe <jens.axboe@oracle.com>, February 2009

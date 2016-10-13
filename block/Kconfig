@@ -4,6 +4,7 @@
 menuconfig BLOCK
        bool "Enable the block layer" if EXPERT
        default y
+       select WBT
        help
 	 Provide block layer support for the kernel.
 
