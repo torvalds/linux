@@ -648,6 +648,10 @@ struct lpfc_hba {
 #define HBA_FCP_IOQ_FLUSH	0x8000 /* FCP I/O queues being flushed */
 #define HBA_FW_DUMP_OP		0x10000 /* Skips fn reset before FW dump */
 #define HBA_RECOVERABLE_UE	0x20000 /* Firmware supports recoverable UE */
+#define HBA_FORCED_LINK_SPEED	0x40000 /*
+					 * Firmware supports Forced Link Speed
+					 * capability
+					 */
 	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/
 	struct lpfc_dmabuf slim2p;
 

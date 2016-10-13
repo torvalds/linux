@@ -5185,6 +5185,48 @@ no_dd_data:
 	return rc;
 }
 
+static int
+lpfc_forced_link_speed(struct fc_bsg_job *job)
+{
+	struct Scsi_Host *shost = job->shost;
+	struct lpfc_vport *vport = shost_priv(shost);
+	struct lpfc_hba *phba = vport->phba;
+	struct forced_link_speed_support_reply *forced_reply;
+	int rc = 0;
+
+	if (job->request_len <
+	    sizeof(struct fc_bsg_request) +
+	    sizeof(struct get_forced_link_speed_support)) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
+				"0048 Received FORCED_LINK_SPEED request "
+				"below minimum size\n");
+		rc = -EINVAL;
+		goto job_error;
+	}
+
+	forced_reply = (struct forced_link_speed_support_reply *)
+		job->reply->reply_data.vendor_reply.vendor_rsp;
+
+	if (job->reply_len <
+	    sizeof(struct fc_bsg_request) +
+	    sizeof(struct forced_link_speed_support_reply)) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
+				"0049 Received FORCED_LINK_SPEED reply below "
+				"minimum size\n");
+		rc = -EINVAL;
+		goto job_error;
+	}
+
+	forced_reply->supported = (phba->hba_flag & HBA_FORCED_LINK_SPEED)
+				   ? LPFC_FORCED_LINK_SPEED_SUPPORTED
+				   : LPFC_FORCED_LINK_SPEED_NOT_SUPPORTED;
+job_error:
+	job->reply->result = rc;
+	if (rc == 0)
+		job->job_done(job);
+	return rc;
+}
+
 /**
  * lpfc_bsg_hst_vendor - process a vendor-specific fc_bsg_job
  * @job: fc_bsg_job to handle
@@ -5226,6 +5268,9 @@ lpfc_bsg_hst_vendor(struct fc_bsg_job *job)
 	case LPFC_BSG_VENDOR_MENLO_CMD:
 	case LPFC_BSG_VENDOR_MENLO_DATA:
 		rc = lpfc_menlo_cmd(job);
+		break;
+	case LPFC_BSG_VENDOR_FORCED_LINK_SPEED:
+		rc = lpfc_forced_link_speed(job);
 		break;
 	default:
 		rc = -EINVAL;

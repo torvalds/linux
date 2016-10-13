@@ -3668,7 +3668,12 @@ lpfc_link_speed_store(struct device *dev, struct device_attribute *attr,
 	int nolip = 0;
 	const char *val_buf = buf;
 	int err;
-	uint32_t prev_val;
+	uint32_t prev_val, if_type;
+
+	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
+	if (if_type == LPFC_SLI_INTF_IF_TYPE_2 &&
+	    phba->hba_flag & HBA_FORCED_LINK_SPEED)
+		return -EPERM;
 
 	if (!strncmp(buf, "nolip ", strlen("nolip "))) {
 		nolip = 1;

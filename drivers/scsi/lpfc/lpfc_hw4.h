@@ -2290,6 +2290,9 @@ struct lpfc_mbx_read_config {
 #define lpfc_mbx_rd_conf_r_a_tov_SHIFT		0
 #define lpfc_mbx_rd_conf_r_a_tov_MASK		0x0000FFFF
 #define lpfc_mbx_rd_conf_r_a_tov_WORD		word6
+#define lpfc_mbx_rd_conf_link_speed_SHIFT	16
+#define lpfc_mbx_rd_conf_link_speed_MASK	0x0000FFFF
+#define lpfc_mbx_rd_conf_link_speed_WORD	word6
 	uint32_t rsvd_7;
 	uint32_t rsvd_8;
 	uint32_t word9;

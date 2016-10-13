@@ -6931,6 +6931,8 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 	struct lpfc_mbx_get_func_cfg *get_func_cfg;
 	struct lpfc_rsrc_desc_fcfcoe *desc;
 	char *pdesc_0;
+	uint16_t forced_link_speed;
+	uint32_t if_type;
 	int length, i, rc = 0, rc2;
 
 	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -7023,6 +7025,58 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 
 	if (rc)
 		goto read_cfg_out;
+
+	/* Update link speed if forced link speed is supported */
+	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
+	if (if_type == LPFC_SLI_INTF_IF_TYPE_2) {
+		forced_link_speed =
+			bf_get(lpfc_mbx_rd_conf_link_speed, rd_config);
+		if (forced_link_speed) {
+			phba->hba_flag |= HBA_FORCED_LINK_SPEED;
+
+			switch (forced_link_speed) {
+			case LINK_SPEED_1G:
+				phba->cfg_link_speed =
+					LPFC_USER_LINK_SPEED_1G;
+				break;
+			case LINK_SPEED_2G:
+				phba->cfg_link_speed =
+					LPFC_USER_LINK_SPEED_2G;
+				break;
+			case LINK_SPEED_4G:
+				phba->cfg_link_speed =
+					LPFC_USER_LINK_SPEED_4G;
+				break;
+			case LINK_SPEED_8G:
+				phba->cfg_link_speed =
+					LPFC_USER_LINK_SPEED_8G;
+				break;
+			case LINK_SPEED_10G:
+				phba->cfg_link_speed =
+					LPFC_USER_LINK_SPEED_10G;
+				break;
+			case LINK_SPEED_16G:
+				phba->cfg_link_speed =
+					LPFC_USER_LINK_SPEED_16G;
+				break;
+			case LINK_SPEED_32G:
+				phba->cfg_link_speed =
+					LPFC_USER_LINK_SPEED_32G;
+				break;
+			case 0xffff:
+				phba->cfg_link_speed =
+					LPFC_USER_LINK_SPEED_AUTO;
+				break;
+			default:
+				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+						"0047 Unrecognized link "
+						"speed : %d\n",
+						forced_link_speed);
+				phba->cfg_link_speed =
+					LPFC_USER_LINK_SPEED_AUTO;
+			}
+		}
+	}
 
 	/* Reset the DFT_HBA_Q_DEPTH to the max xri  */
 	length = phba->sli4_hba.max_cfg_param.max_xri -
