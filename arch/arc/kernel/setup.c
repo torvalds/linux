@@ -272,9 +272,7 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 
 	FIX_PTR(cpu);
 
-	n += scnprintf(buf + n, len - n,
-		       "Vector Table\t: %#x\nPeripherals\t: %#lx:%#lx\n",
-		       cpu->vec_base, perip_base, perip_end);
+	n += scnprintf(buf + n, len - n, "Vector Table\t: %#x\n", cpu->vec_base);
 
 	if (cpu->extn.fpu_sp || cpu->extn.fpu_dp)
 		n += scnprintf(buf + n, len - n, "FPU\t\t: %s%s\n",

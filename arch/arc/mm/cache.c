@@ -53,18 +53,15 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
 	PR_CACHE(&cpuinfo_arc700[c].icache, CONFIG_ARC_HAS_ICACHE, "I-Cache");
 	PR_CACHE(&cpuinfo_arc700[c].dcache, CONFIG_ARC_HAS_DCACHE, "D-Cache");
 
-	if (!is_isa_arcv2())
-                return buf;
-
 	p = &cpuinfo_arc700[c].slc;
 	if (p->ver)
 		n += scnprintf(buf + n, len - n,
 			       "SLC\t\t: %uK, %uB Line%s\n",
 			       p->sz_k, p->line_len, IS_USED_RUN(slc_enable));
 
-	if (ioc_exists)
-		n += scnprintf(buf + n, len - n, "IOC\t\t:%s\n",
-				IS_DISABLED_RUN(ioc_enable));
+	n += scnprintf(buf + n, len - n, "Peripherals\t: %#lx%s%s\n",
+		       perip_base,
+		       IS_AVAIL3(ioc_exists, ioc_enable, ", IO-Coherency "));
 
 	return buf;
 }
