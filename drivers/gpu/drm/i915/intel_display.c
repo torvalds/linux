@@ -1784,7 +1784,6 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 					   enum pipe pipe)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	i915_reg_t reg;
@@ -1797,7 +1796,7 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	assert_fdi_tx_enabled(dev_priv, pipe);
 	assert_fdi_rx_enabled(dev_priv, pipe);
 
-	if (HAS_PCH_CPT(dev)) {
+	if (HAS_PCH_CPT(dev_priv)) {
 		/* Workaround: Set the timing override bit before enabling the
 		 * pch transcoder. */
 		reg = TRANS_CHICKEN2(pipe);
@@ -1875,7 +1874,6 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 static void ironlake_disable_pch_transcoder(struct drm_i915_private *dev_priv,
 					    enum pipe pipe)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	i915_reg_t reg;
 	uint32_t val;
 
@@ -1896,7 +1894,7 @@ static void ironlake_disable_pch_transcoder(struct drm_i915_private *dev_priv,
 				    50))
 		DRM_ERROR("failed to disable transcoder %c\n", pipe_name(pipe));
 
-	if (HAS_PCH_CPT(dev)) {
+	if (HAS_PCH_CPT(dev_priv)) {
 		/* Workaround: Clear the timing override chicken bit again. */
 		reg = TRANS_CHICKEN2(pipe);
 		val = I915_READ(reg);
@@ -3710,7 +3708,7 @@ static void intel_update_pipe_config(struct intel_crtc *crtc,
 
 		if (pipe_config->pch_pfit.enabled)
 			skylake_pfit_enable(crtc);
-	} else if (HAS_PCH_SPLIT(dev)) {
+	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		if (pipe_config->pch_pfit.enabled)
 			ironlake_pfit_enable(crtc);
 		else if (old_crtc_state->pch_pfit.enabled)
@@ -3741,7 +3739,7 @@ static void intel_fdi_normal_train(struct drm_crtc *crtc)
 
 	reg = FDI_RX_CTL(pipe);
 	temp = I915_READ(reg);
-	if (HAS_PCH_CPT(dev)) {
+	if (HAS_PCH_CPT(dev_priv)) {
 		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
 		temp |= FDI_LINK_TRAIN_NORMAL_CPT;
 	} else {
@@ -3899,7 +3897,7 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 
 	reg = FDI_RX_CTL(pipe);
 	temp = I915_READ(reg);
-	if (HAS_PCH_CPT(dev)) {
+	if (HAS_PCH_CPT(dev_priv)) {
 		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
 		temp |= FDI_LINK_TRAIN_PATTERN_1_CPT;
 	} else {
@@ -3952,7 +3950,7 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 
 	reg = FDI_RX_CTL(pipe);
 	temp = I915_READ(reg);
-	if (HAS_PCH_CPT(dev)) {
+	if (HAS_PCH_CPT(dev_priv)) {
 		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
 		temp |= FDI_LINK_TRAIN_PATTERN_2_CPT;
 	} else {
@@ -4206,7 +4204,7 @@ static void ironlake_fdi_disable(struct drm_crtc *crtc)
 	udelay(100);
 
 	/* Ironlake workaround, disable clock pointer after downing FDI */
-	if (HAS_PCH_IBX(dev))
+	if (HAS_PCH_IBX(dev_priv))
 		I915_WRITE(FDI_RX_CHICKEN(pipe), FDI_RX_PHASE_SYNC_POINTER_OVR);
 
 	/* still set train pattern 1 */
@@ -4218,7 +4216,7 @@ static void ironlake_fdi_disable(struct drm_crtc *crtc)
 
 	reg = FDI_RX_CTL(pipe);
 	temp = I915_READ(reg);
-	if (HAS_PCH_CPT(dev)) {
+	if (HAS_PCH_CPT(dev_priv)) {
 		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
 		temp |= FDI_LINK_TRAIN_PATTERN_1_CPT;
 	} else {
@@ -4554,7 +4552,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 
 	/* We need to program the right clock selection before writing the pixel
 	 * mutliplier into the DPLL. */
-	if (HAS_PCH_CPT(dev)) {
+	if (HAS_PCH_CPT(dev_priv)) {
 		u32 sel;
 
 		temp = I915_READ(PCH_DPLL_SEL);
@@ -4584,7 +4582,8 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	intel_fdi_normal_train(crtc);
 
 	/* For PCH DP, enable TRANS_DP_CTL */
-	if (HAS_PCH_CPT(dev) && intel_crtc_has_dp_encoder(intel_crtc->config)) {
+	if (HAS_PCH_CPT(dev_priv) &&
+	    intel_crtc_has_dp_encoder(intel_crtc->config)) {
 		const struct drm_display_mode *adjusted_mode =
 			&intel_crtc->config->base.adjusted_mode;
 		u32 bpc = (I915_READ(PIPECONF(pipe)) & PIPECONF_BPC_MASK) >> 5;
@@ -5378,7 +5377,7 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_encoders_enable(crtc, pipe_config, old_state);
 
-	if (HAS_PCH_CPT(dev))
+	if (HAS_PCH_CPT(dev_priv))
 		cpt_verify_modeset(dev, intel_crtc->pipe);
 
 	/* Must wait for vblank to avoid spurious PCH FIFO underruns */
@@ -5560,7 +5559,7 @@ static void ironlake_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	if (intel_crtc->config->has_pch_encoder) {
 		ironlake_disable_pch_transcoder(dev_priv, pipe);
 
-		if (HAS_PCH_CPT(dev)) {
+		if (HAS_PCH_CPT(dev_priv)) {
 			i915_reg_t reg;
 			u32 temp;
 
@@ -8946,7 +8945,7 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 		}
 	}
 
-	if (HAS_PCH_IBX(dev)) {
+	if (HAS_PCH_IBX(dev_priv)) {
 		has_ck505 = dev_priv->vbt.display_clock_mode;
 		can_ssc = has_ck505;
 	} else {
@@ -9342,9 +9341,11 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
  */
 void intel_init_pch_refclk(struct drm_device *dev)
 {
-	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv))
 		ironlake_init_pch_refclk(dev);
-	else if (HAS_PCH_LPT(dev))
+	else if (HAS_PCH_LPT(dev_priv))
 		lpt_init_pch_refclk(dev);
 }
 
@@ -9473,7 +9474,7 @@ static void ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		if ((intel_panel_use_ssc(dev_priv) &&
 		     dev_priv->vbt.lvds_ssc_freq == 100000) ||
-		    (HAS_PCH_IBX(dev) && intel_is_dual_link_lvds(dev)))
+		    (HAS_PCH_IBX(dev_priv) && intel_is_dual_link_lvds(dev)))
 			factor = 25;
 	} else if (crtc_state->sdvo_tv_clock)
 		factor = 20;
@@ -11311,7 +11312,7 @@ static int i9xx_pll_refclk(struct drm_device *dev,
 
 	if ((dpll & PLL_REF_INPUT_MASK) == PLLB_REF_INPUT_SPREADSPECTRUMIN)
 		return dev_priv->vbt.lvds_ssc_freq;
-	else if (HAS_PCH_SPLIT(dev))
+	else if (HAS_PCH_SPLIT(dev_priv))
 		return 120000;
 	else if (!IS_GEN2(dev))
 		return 96000;
@@ -14896,6 +14897,7 @@ const struct drm_plane_funcs intel_plane_funcs = {
 static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 						    int pipe)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *primary = NULL;
 	struct intel_plane_state *state = NULL;
 	const uint32_t *intel_primary_formats;
@@ -14930,7 +14932,7 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 
 		primary->update_plane = skylake_update_primary_plane;
 		primary->disable_plane = skylake_disable_primary_plane;
-	} else if (HAS_PCH_SPLIT(dev)) {
+	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		intel_primary_formats = i965_primary_formats;
 		num_formats = ARRAY_SIZE(i965_primary_formats);
 
@@ -15438,7 +15440,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		     dev_priv->vbt.ddi_port_info[PORT_E].supports_hdmi))
 			intel_ddi_init(dev, PORT_E);
 
-	} else if (HAS_PCH_SPLIT(dev)) {
+	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		int found;
 		dpd_is_edp = intel_dp_is_edp(dev, PORT_D);
 
@@ -16357,7 +16359,7 @@ void intel_modeset_init(struct drm_device *dev)
 	 * BIOS isn't using it, don't assume it will work even if the VBT
 	 * indicates as much.
 	 */
-	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
+	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv)) {
 		bool bios_lvds_use_ssc = !!(I915_READ(PCH_DREF_CONTROL) &
 					    DREF_SSC1_ENABLE);
 
@@ -16906,7 +16908,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev)
 		vlv_wm_get_hw_state(dev);
 	else if (IS_GEN9(dev))
 		skl_wm_get_hw_state(dev);
-	else if (HAS_PCH_SPLIT(dev))
+	else if (HAS_PCH_SPLIT(dev_priv))
 		ilk_wm_get_hw_state(dev);
 
 	for_each_intel_crtc(dev, crtc) {

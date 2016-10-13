@@ -84,7 +84,7 @@ static bool intel_crt_get_hw_state(struct intel_encoder *encoder,
 	if (!(tmp & ADPA_DAC_ENABLE))
 		goto out;
 
-	if (HAS_PCH_CPT(dev))
+	if (HAS_PCH_CPT(dev_priv))
 		*pipe = PORT_TO_PIPE_CPT(tmp);
 	else
 		*pipe = PORT_TO_PIPE(tmp);
@@ -165,16 +165,16 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder,
 		adpa |= ADPA_VSYNC_ACTIVE_HIGH;
 
 	/* For CPT allow 3 pipe config, for others just use A or B */
-	if (HAS_PCH_LPT(dev))
+	if (HAS_PCH_LPT(dev_priv))
 		; /* Those bits don't exist here */
-	else if (HAS_PCH_CPT(dev))
+	else if (HAS_PCH_CPT(dev_priv))
 		adpa |= PORT_TRANS_SEL_CPT(crtc->pipe);
 	else if (crtc->pipe == 0)
 		adpa |= ADPA_PIPE_A_SELECT;
 	else
 		adpa |= ADPA_PIPE_B_SELECT;
 
-	if (!HAS_PCH_SPLIT(dev))
+	if (!HAS_PCH_SPLIT(dev_priv))
 		I915_WRITE(BCLRPAT(crtc->pipe), 0);
 
 	switch (mode) {
@@ -241,7 +241,8 @@ intel_crt_mode_valid(struct drm_connector *connector,
 		     struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
-	int max_dotclk = to_i915(dev)->max_dotclk_freq;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	int max_dotclk = dev_priv->max_dotclk_freq;
 	int max_clock;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
@@ -250,7 +251,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 	if (mode->clock < 25000)
 		return MODE_CLOCK_LOW;
 
-	if (HAS_PCH_LPT(dev))
+	if (HAS_PCH_LPT(dev_priv))
 		max_clock = 180000;
 	else if (IS_VALLEYVIEW(dev))
 		/*
@@ -269,7 +270,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 		return MODE_CLOCK_HIGH;
 
 	/* The FDI receiver on LPT only supports 8bpc and only has 2 lanes. */
-	if (HAS_PCH_LPT(dev) &&
+	if (HAS_PCH_LPT(dev_priv) &&
 	    (ironlake_get_lanes_required(mode->clock, 270000, 24) > 2))
 		return MODE_CLOCK_HIGH;
 
@@ -312,7 +313,7 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 
 	/* The first time through, trigger an explicit detection cycle */
 	if (crt->force_hotplug_required) {
-		bool turn_off_dac = HAS_PCH_SPLIT(dev);
+		bool turn_off_dac = HAS_PCH_SPLIT(dev_priv);
 		u32 save_adpa;
 
 		crt->force_hotplug_required = 0;
@@ -419,7 +420,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	bool ret = false;
 	int i, tries = 0;
 
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_SPLIT(dev_priv))
 		return intel_ironlake_crt_detect_hotplug(connector);
 
 	if (IS_VALLEYVIEW(dev))
@@ -847,7 +848,7 @@ void intel_crt_init(struct drm_device *dev)
 	i915_reg_t adpa_reg;
 	u32 adpa;
 
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_SPLIT(dev_priv))
 		adpa_reg = PCH_ADPA;
 	else if (IS_VALLEYVIEW(dev))
 		adpa_reg = VLV_ADPA;
@@ -907,7 +908,7 @@ void intel_crt_init(struct drm_device *dev)
 	crt->adpa_reg = adpa_reg;
 
 	crt->base.compute_config = intel_crt_compute_config;
-	if (HAS_PCH_SPLIT(dev)) {
+	if (HAS_PCH_SPLIT(dev_priv)) {
 		crt->base.disable = pch_disable_crt;
 		crt->base.post_disable = pch_post_disable_crt;
 	} else {
@@ -944,7 +945,7 @@ void intel_crt_init(struct drm_device *dev)
 	 * polarity and link reversal bits or not, instead of relying on the
 	 * BIOS.
 	 */
-	if (HAS_PCH_LPT(dev)) {
+	if (HAS_PCH_LPT(dev_priv)) {
 		u32 fdi_config = FDI_RX_POLARITY_REVERSED_LPT |
 				 FDI_RX_LINK_REVERSAL_OVERRIDE;
 

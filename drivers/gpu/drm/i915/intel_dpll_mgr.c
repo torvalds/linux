@@ -1857,7 +1857,7 @@ void intel_shared_dpll_init(struct drm_device *dev)
 		dpll_mgr = &bxt_pll_mgr;
 	else if (HAS_DDI(dev_priv))
 		dpll_mgr = &hsw_pll_mgr;
-	else if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
+	else if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv))
 		dpll_mgr = &pch_pll_mgr;
 
 	if (!dpll_mgr) {

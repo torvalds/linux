@@ -864,7 +864,7 @@ static void intel_hdmi_prepare(struct intel_encoder *encoder)
 	intel_dp_dual_mode_set_tmds_output(intel_hdmi, true);
 
 	hdmi_val = SDVO_ENCODING_HDMI;
-	if (!HAS_PCH_SPLIT(dev) && crtc->config->limited_color_range)
+	if (!HAS_PCH_SPLIT(dev_priv) && crtc->config->limited_color_range)
 		hdmi_val |= HDMI_COLOR_RANGE_16_235;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		hdmi_val |= SDVO_VSYNC_ACTIVE_HIGH;
@@ -879,7 +879,7 @@ static void intel_hdmi_prepare(struct intel_encoder *encoder)
 	if (crtc->config->has_hdmi_sink)
 		hdmi_val |= HDMI_MODE_SELECT_HDMI;
 
-	if (HAS_PCH_CPT(dev))
+	if (HAS_PCH_CPT(dev_priv))
 		hdmi_val |= SDVO_PIPE_SEL_CPT(crtc->pipe);
 	else if (IS_CHERRYVIEW(dev))
 		hdmi_val |= SDVO_PIPE_SEL_CHV(crtc->pipe);
@@ -911,7 +911,7 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 	if (!(tmp & SDVO_ENABLE))
 		goto out;
 
-	if (HAS_PCH_CPT(dev))
+	if (HAS_PCH_CPT(dev_priv))
 		*pipe = PORT_TO_PIPE_CPT(tmp);
 	else if (IS_CHERRYVIEW(dev))
 		*pipe = SDVO_PORT_TO_PIPE_CHV(tmp);
@@ -956,7 +956,7 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 	if (tmp & SDVO_AUDIO_ENABLE)
 		pipe_config->has_audio = true;
 
-	if (!HAS_PCH_SPLIT(dev) &&
+	if (!HAS_PCH_SPLIT(dev_priv) &&
 	    tmp & HDMI_COLOR_RANGE_16_235)
 		pipe_config->limited_color_range = true;
 
@@ -1141,7 +1141,7 @@ static void intel_disable_hdmi(struct intel_encoder *encoder,
 	 * to transcoder A after disabling it to allow the
 	 * matching DP port to be enabled on transcoder A.
 	 */
-	if (HAS_PCH_IBX(dev) && crtc->pipe == PIPE_B) {
+	if (HAS_PCH_IBX(dev_priv) && crtc->pipe == PIPE_B) {
 		/*
 		 * We get CPU/PCH FIFO underruns on the other pipe when
 		 * doing the workaround. Sweep them under the rug.
@@ -1896,7 +1896,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_hdmi->write_infoframe = hsw_write_infoframe;
 		intel_hdmi->set_infoframes = hsw_set_infoframes;
 		intel_hdmi->infoframe_enabled = hsw_infoframe_enabled;
-	} else if (HAS_PCH_IBX(dev)) {
+	} else if (HAS_PCH_IBX(dev_priv)) {
 		intel_hdmi->write_infoframe = ibx_write_infoframe;
 		intel_hdmi->set_infoframes = ibx_set_infoframes;
 		intel_hdmi->infoframe_enabled = ibx_infoframe_enabled;
@@ -1929,6 +1929,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 void intel_hdmi_init(struct drm_device *dev,
 		     i915_reg_t hdmi_reg, enum port port)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_digital_port *intel_dig_port;
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
@@ -1949,7 +1950,7 @@ void intel_hdmi_init(struct drm_device *dev,
 			 DRM_MODE_ENCODER_TMDS, "HDMI %c", port_name(port));
 
 	intel_encoder->compute_config = intel_hdmi_compute_config;
-	if (HAS_PCH_SPLIT(dev)) {
+	if (HAS_PCH_SPLIT(dev_priv)) {
 		intel_encoder->disable = pch_disable_hdmi;
 		intel_encoder->post_disable = pch_post_disable_hdmi;
 	} else {
@@ -1970,9 +1971,9 @@ void intel_hdmi_init(struct drm_device *dev,
 		intel_encoder->post_disable = vlv_hdmi_post_disable;
 	} else {
 		intel_encoder->pre_enable = intel_hdmi_pre_enable;
-		if (HAS_PCH_CPT(dev))
+		if (HAS_PCH_CPT(dev_priv))
 			intel_encoder->enable = cpt_enable_hdmi;
-		else if (HAS_PCH_IBX(dev))
+		else if (HAS_PCH_IBX(dev_priv))
 			intel_encoder->enable = ibx_enable_hdmi;
 		else
 			intel_encoder->enable = g4x_enable_hdmi;

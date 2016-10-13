@@ -633,7 +633,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 	unsigned int pin;
 	int ret;
 
-	if (HAS_PCH_NOP(dev))
+	if (HAS_PCH_NOP(dev_priv))
 		return 0;
 
 	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))

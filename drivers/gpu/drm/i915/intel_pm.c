@@ -7426,7 +7426,7 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	snpcr |= GEN6_MBC_SNPCR_MED;
 	I915_WRITE(GEN6_MBCUNIT_SNPCR, snpcr);
 
-	if (!HAS_PCH_NOP(dev))
+	if (!HAS_PCH_NOP(dev_priv))
 		cpt_init_clock_gating(dev);
 
 	gen6_check_mch_setup(dev);
@@ -7669,7 +7669,7 @@ void intel_init_clock_gating(struct drm_device *dev)
 
 void intel_suspend_hw(struct drm_device *dev)
 {
-	if (HAS_PCH_LPT(dev))
+	if (HAS_PCH_LPT(to_i915(dev)))
 		lpt_suspend_hw(dev);
 }
 
@@ -7745,7 +7745,7 @@ void intel_init_pm(struct drm_device *dev)
 		skl_setup_wm_latency(dev);
 		dev_priv->display.update_wm = skl_update_wm;
 		dev_priv->display.compute_global_watermarks = skl_compute_wm;
-	} else if (HAS_PCH_SPLIT(dev)) {
+	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		ilk_setup_wm_latency(dev);
 
 		if ((IS_GEN5(dev) && dev_priv->wm.pri_latency[1] &&

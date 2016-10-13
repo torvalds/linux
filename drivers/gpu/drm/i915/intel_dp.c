@@ -1336,13 +1336,14 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 		   struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	const struct dp_link_dpll *divisor = NULL;
 	int i, count = 0;
 
 	if (IS_G4X(dev)) {
 		divisor = gen4_dpll;
 		count = ARRAY_SIZE(gen4_dpll);
-	} else if (HAS_PCH_SPLIT(dev)) {
+	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		divisor = pch_dpll;
 		count = ARRAY_SIZE(pch_dpll);
 	} else if (IS_CHERRYVIEW(dev)) {
@@ -1776,7 +1777,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 			intel_dp->DP |= DP_ENHANCED_FRAMING;
 
 		intel_dp->DP |= crtc->pipe << 29;
-	} else if (HAS_PCH_CPT(dev) && port != PORT_A) {
+	} else if (HAS_PCH_CPT(dev_priv) && port != PORT_A) {
 		u32 trans_dp;
 
 		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
@@ -1788,7 +1789,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 			trans_dp &= ~TRANS_DP_ENH_FRAMING;
 		I915_WRITE(TRANS_DP_CTL(crtc->pipe), trans_dp);
 	} else {
-		if (!HAS_PCH_SPLIT(dev) && !IS_VALLEYVIEW(dev) &&
+		if (!HAS_PCH_SPLIT(dev_priv) && !IS_VALLEYVIEW(dev) &&
 		    !IS_CHERRYVIEW(dev) && pipe_config->limited_color_range)
 			intel_dp->DP |= DP_COLOR_RANGE_16_235;
 
@@ -2442,7 +2443,7 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 
 	if (IS_GEN7(dev) && port == PORT_A) {
 		*pipe = PORT_TO_PIPE_CPT(tmp);
-	} else if (HAS_PCH_CPT(dev) && port != PORT_A) {
+	} else if (HAS_PCH_CPT(dev_priv) && port != PORT_A) {
 		enum pipe p;
 
 		for_each_pipe(dev_priv, p) {
@@ -2485,7 +2486,7 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 
 	pipe_config->has_audio = tmp & DP_AUDIO_OUTPUT_ENABLE && port != PORT_A;
 
-	if (HAS_PCH_CPT(dev) && port != PORT_A) {
+	if (HAS_PCH_CPT(dev_priv) && port != PORT_A) {
 		u32 trans_dp = I915_READ(TRANS_DP_CTL(crtc->pipe));
 
 		if (trans_dp & TRANS_DP_HSYNC_ACTIVE_HIGH)
@@ -2511,8 +2512,8 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 
 	pipe_config->base.adjusted_mode.flags |= flags;
 
-	if (!HAS_PCH_SPLIT(dev) && !IS_VALLEYVIEW(dev) &&
-	    !IS_CHERRYVIEW(dev) && tmp & DP_COLOR_RANGE_16_235)
+	if (!HAS_PCH_SPLIT(dev_priv) && !IS_VALLEYVIEW(dev_priv) &&
+	    !IS_CHERRYVIEW(dev_priv) && tmp & DP_COLOR_RANGE_16_235)
 		pipe_config->limited_color_range = true;
 
 	pipe_config->lane_count =
@@ -2659,7 +2660,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 		I915_WRITE(DP_TP_CTL(port), temp);
 
 	} else if ((IS_GEN7(dev) && port == PORT_A) ||
-		   (HAS_PCH_CPT(dev) && port != PORT_A)) {
+		   (HAS_PCH_CPT(dev_priv) && port != PORT_A)) {
 		*DP &= ~DP_LINK_TRAIN_MASK_CPT;
 
 		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
@@ -2989,7 +2990,7 @@ intel_dp_voltage_max(struct intel_dp *intel_dp)
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 	else if (IS_GEN7(dev) && port == PORT_A)
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
-	else if (HAS_PCH_CPT(dev) && port != PORT_A)
+	else if (HAS_PCH_CPT(dev_priv) && port != PORT_A)
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 	else
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
@@ -3442,7 +3443,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	DRM_DEBUG_KMS("\n");
 
 	if ((IS_GEN7(dev) && port == PORT_A) ||
-	    (HAS_PCH_CPT(dev) && port != PORT_A)) {
+	    (HAS_PCH_CPT(dev_priv) && port != PORT_A)) {
 		DP &= ~DP_LINK_TRAIN_MASK_CPT;
 		DP |= DP_LINK_TRAIN_PAT_IDLE_CPT;
 	} else {
@@ -3464,7 +3465,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	 * to transcoder A after disabling it to allow the
 	 * matching HDMI port to be enabled on transcoder A.
 	 */
-	if (HAS_PCH_IBX(dev) && crtc->pipe == PIPE_B && port != PORT_A) {
+	if (HAS_PCH_IBX(dev_priv) && crtc->pipe == PIPE_B && port != PORT_A) {
 		/*
 		 * We get CPU/PCH FIFO underruns on the other pipe when
 		 * doing the workaround. Sweep them under the rug.
@@ -5085,7 +5086,7 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 	 * power sequencer any more. */
 	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		port_sel = PANEL_PORT_SELECT_VLV(port);
-	} else if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
+	} else if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv)) {
 		if (port == PORT_A)
 			port_sel = PANEL_PORT_SELECT_DPA;
 		else
@@ -5649,7 +5650,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_dp->get_aux_clock_divider = skl_get_aux_clock_divider;
 	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		intel_dp->get_aux_clock_divider = hsw_get_aux_clock_divider;
-	else if (HAS_PCH_SPLIT(dev))
+	else if (HAS_PCH_SPLIT(dev_priv))
 		intel_dp->get_aux_clock_divider = ilk_get_aux_clock_divider;
 	else
 		intel_dp->get_aux_clock_divider = g4x_get_aux_clock_divider;

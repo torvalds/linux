@@ -430,7 +430,7 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 	 * infrastructure is not there yet.
 	 */
 
-	if (HAS_PCH_IBX(connector->dev)) {
+	if (HAS_PCH_IBX(dev_priv)) {
 		hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID(pipe);
 		aud_config = IBX_AUD_CFG(pipe);
 		aud_cntl_st = IBX_AUD_CNTL_ST(pipe);
