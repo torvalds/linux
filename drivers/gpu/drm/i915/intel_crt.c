@@ -771,7 +771,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 
 	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->vbt.crt_ddc_pin);
 	ret = intel_crt_ddc_get_modes(connector, i2c);
-	if (ret || !IS_G4X(dev))
+	if (ret || !IS_G4X(dev_priv))
 		goto out;
 
 	/* Try to probe digital port for output in DVI-I -> VGA mode. */

@@ -3071,7 +3071,7 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 	    fb->modifier[0] == I915_FORMAT_MOD_X_TILED)
 		dspcntr |= DISPPLANE_TILED;
 
-	if (IS_G4X(dev))
+	if (IS_G4X(dev_priv))
 		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
 	intel_add_fb_offsets(&x, &y, plane_state, 0);
@@ -7224,7 +7224,7 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	/* Cantiga+ cannot handle modes with a hsync front porch of 0.
 	 * WaPruneModeWithIncorrectHsyncOffset:ctg,elk,ilk,snb,ivb,vlv,hsw.
 	 */
-	if ((INTEL_INFO(dev)->gen > 4 || IS_G4X(dev)) &&
+	if ((INTEL_GEN(dev_priv) > 4 || IS_G4X(dev_priv)) &&
 		adjusted_mode->crtc_hsync_start == adjusted_mode->crtc_hdisplay)
 		return -EINVAL;
 
@@ -7538,7 +7538,7 @@ static unsigned int intel_hpll_vco(struct drm_device *dev)
 	/* FIXME other chipsets? */
 	if (IS_GM45(dev_priv))
 		vco_table = ctg_vco;
-	else if (IS_G4X(dev))
+	else if (IS_G4X(dev_priv))
 		vco_table = elk_vco;
 	else if (IS_CRESTLINE(dev))
 		vco_table = cl_vco;
@@ -8172,7 +8172,7 @@ static void i9xx_compute_dpll(struct intel_crtc *crtc,
 		dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT_PINEVIEW;
 	else {
 		dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
-		if (IS_G4X(dev) && reduced_clock)
+		if (IS_G4X(dev_priv) && reduced_clock)
 			dpll |= (1 << (reduced_clock->p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
 	}
 	switch (clock->p2) {
@@ -8414,7 +8414,8 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 		pipeconf |= PIPECONF_DOUBLE_WIDE;
 
 	/* only g4x and later have fancy bpc/dither controls */
-	if (IS_G4X(dev) || IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	if (IS_G4X(dev_priv) || IS_VALLEYVIEW(dev_priv) ||
+	    IS_CHERRYVIEW(dev_priv)) {
 		/* Bspec claims that we can't use dithering for 30bpp pipes. */
 		if (intel_crtc->config->dither && intel_crtc->config->pipe_bpp != 30)
 			pipeconf |= PIPECONF_DITHER_EN |
@@ -8831,7 +8832,8 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	if (!(tmp & PIPECONF_ENABLE))
 		goto out;
 
-	if (IS_G4X(dev) || IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	if (IS_G4X(dev_priv) || IS_VALLEYVIEW(dev_priv) ||
+	    IS_CHERRYVIEW(dev_priv)) {
 		switch (tmp & PIPECONF_BPC_MASK) {
 		case PIPECONF_6BPC:
 			pipe_config->pipe_bpp = 18;
@@ -11580,7 +11582,7 @@ static bool __pageflip_finished_cs(struct intel_crtc *crtc,
 	 * really needed there. But since ctg has the registers,
 	 * include it in the check anyway.
 	 */
-	if (INTEL_INFO(dev)->gen < 5 && !IS_G4X(dev))
+	if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv))
 		return true;
 
 	/*
@@ -12243,7 +12245,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	atomic_inc(&intel_crtc->unpin_work_count);
 
-	if (INTEL_INFO(dev)->gen >= 5 || IS_G4X(dev))
+	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		work->flip_count = I915_READ(PIPE_FLIPCOUNT_G4X(pipe)) + 1;
 
 	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
@@ -12703,15 +12705,16 @@ static int
 compute_baseline_pipe_bpp(struct intel_crtc *crtc,
 			  struct intel_crtc_state *pipe_config)
 {
-	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct drm_atomic_state *state;
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
 	int bpp, i;
 
-	if ((IS_G4X(dev) || IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)))
+	if ((IS_G4X(dev_priv) || IS_VALLEYVIEW(dev_priv) ||
+	    IS_CHERRYVIEW(dev_priv)))
 		bpp = 10*3;
-	else if (INTEL_INFO(dev)->gen >= 5)
+	else if (INTEL_GEN(dev_priv) >= 5)
 		bpp = 12*3;
 	else
 		bpp = 8*3;
@@ -13402,7 +13405,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 	PIPE_CONF_CHECK_X(dsi_pll.ctrl);
 	PIPE_CONF_CHECK_X(dsi_pll.div);
 
-	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5)
+	if (IS_G4X(dev_priv) || INTEL_GEN(dev_priv) >= 5)
 		PIPE_CONF_CHECK_I(pipe_bpp);
 
 	PIPE_CONF_CHECK_CLOCK_FUZZY(base.adjusted_mode.crtc_clock);
@@ -14964,7 +14967,7 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 					       intel_primary_formats, num_formats,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "plane 1%c", pipe_name(pipe));
-	else if (INTEL_INFO(dev)->gen >= 5 || IS_G4X(dev))
+	else if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		ret = drm_universal_plane_init(dev, &primary->base, 0,
 					       &intel_plane_funcs,
 					       intel_primary_formats, num_formats,
@@ -15525,12 +15528,12 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(GEN3_SDVOB) & SDVO_DETECTED) {
 			DRM_DEBUG_KMS("probing SDVOB\n");
 			found = intel_sdvo_init(dev, GEN3_SDVOB, PORT_B);
-			if (!found && IS_G4X(dev)) {
+			if (!found && IS_G4X(dev_priv)) {
 				DRM_DEBUG_KMS("probing HDMI on SDVOB\n");
 				intel_hdmi_init(dev, GEN4_HDMIB, PORT_B);
 			}
 
-			if (!found && IS_G4X(dev))
+			if (!found && IS_G4X(dev_priv))
 				intel_dp_init(dev, DP_B, PORT_B);
 		}
 
@@ -15543,16 +15546,15 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		if (!found && (I915_READ(GEN3_SDVOC) & SDVO_DETECTED)) {
 
-			if (IS_G4X(dev)) {
+			if (IS_G4X(dev_priv)) {
 				DRM_DEBUG_KMS("probing HDMI on SDVOC\n");
 				intel_hdmi_init(dev, GEN4_HDMIC, PORT_C);
 			}
-			if (IS_G4X(dev))
+			if (IS_G4X(dev_priv))
 				intel_dp_init(dev, DP_C, PORT_C);
 		}
 
-		if (IS_G4X(dev) &&
-		    (I915_READ(DP_D) & DP_DETECTED))
+		if (IS_G4X(dev_priv) && (I915_READ(DP_D) & DP_DETECTED))
 			intel_dp_init(dev, DP_D, PORT_D);
 	} else if (IS_GEN2(dev))
 		intel_dvo_init(dev);

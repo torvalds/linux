@@ -204,7 +204,8 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		return 0;
 
 	/* make sure we don't clobber the GTT if it's within stolen memory */
-	if (INTEL_INFO(dev)->gen <= 4 && !IS_G33(dev) && !IS_G4X(dev)) {
+	if (INTEL_GEN(dev_priv) <= 4 && !IS_G33(dev_priv) &&
+	    !IS_G4X(dev_priv)) {
 		struct {
 			u32 start, end;
 		} stolen[2] = {
@@ -437,7 +438,7 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	case 3:
 		break;
 	case 4:
-		if (IS_G4X(dev))
+		if (IS_G4X(dev_priv))
 			g4x_get_stolen_reserved(dev_priv, &reserved_base,
 						&reserved_size);
 		break;

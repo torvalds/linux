@@ -38,7 +38,7 @@ static void i915_save_display(struct drm_device *dev)
 		dev_priv->regfile.saveDSPARB = I915_READ(DSPARB);
 
 	/* save FBC interval */
-	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev))
+	if (HAS_FBC(dev_priv) && INTEL_GEN(dev_priv) <= 4 && !IS_G4X(dev_priv))
 		dev_priv->regfile.saveFBC_CONTROL = I915_READ(FBC_CONTROL);
 }
 
@@ -54,7 +54,7 @@ static void i915_restore_display(struct drm_device *dev)
 	intel_fbc_global_disable(dev_priv);
 
 	/* restore FBC interval */
-	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev))
+	if (HAS_FBC(dev_priv) && INTEL_GEN(dev_priv) <= 4 && !IS_G4X(dev_priv))
 		I915_WRITE(FBC_CONTROL, dev_priv->regfile.saveFBC_CONTROL);
 
 	i915_redisable_vga(dev);

@@ -326,7 +326,7 @@ void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 		I915_WRITE(FW_BLC_SELF_VLV, enable ? FW_CSPWRDWNEN : 0);
 		POSTING_READ(FW_BLC_SELF_VLV);
 		dev_priv->wm.vlv.cxsr = enable;
-	} else if (IS_G4X(dev) || IS_CRESTLINE(dev)) {
+	} else if (IS_G4X(dev_priv) || IS_CRESTLINE(dev_priv)) {
 		I915_WRITE(FW_BLC_SELF, enable ? FW_BLC_SELF_EN : 0);
 		POSTING_READ(FW_BLC_SELF);
 	} else if (IS_PINEVIEW(dev)) {
@@ -7789,7 +7789,7 @@ void intel_init_pm(struct drm_device *dev)
 			dev_priv->display.update_wm = NULL;
 		} else
 			dev_priv->display.update_wm = pineview_update_wm;
-	} else if (IS_G4X(dev)) {
+	} else if (IS_G4X(dev_priv)) {
 		dev_priv->display.update_wm = g4x_update_wm;
 	} else if (IS_GEN4(dev)) {
 		dev_priv->display.update_wm = i965_update_wm;

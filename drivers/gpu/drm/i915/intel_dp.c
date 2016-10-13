@@ -1341,7 +1341,7 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 	const struct dp_link_dpll *divisor = NULL;
 	int i, count = 0;
 
-	if (IS_G4X(dev)) {
+	if (IS_G4X(dev_priv)) {
 		divisor = gen4_dpll;
 		count = ARRAY_SIZE(gen4_dpll);
 	} else if (HAS_PCH_SPLIT(dev_priv)) {

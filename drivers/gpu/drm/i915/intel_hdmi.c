@@ -1889,7 +1889,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_hdmi->write_infoframe = vlv_write_infoframe;
 		intel_hdmi->set_infoframes = vlv_set_infoframes;
 		intel_hdmi->infoframe_enabled = vlv_infoframe_enabled;
-	} else if (IS_G4X(dev)) {
+	} else if (IS_G4X(dev_priv)) {
 		intel_hdmi->write_infoframe = g4x_write_infoframe;
 		intel_hdmi->set_infoframes = g4x_set_infoframes;
 		intel_hdmi->infoframe_enabled = g4x_infoframe_enabled;
@@ -1996,7 +1996,7 @@ void intel_hdmi_init(struct drm_device *dev,
 	 * to work on real hardware. And since g4x can send infoframes to
 	 * only one port anyway, nothing is lost by allowing it.
 	 */
-	if (IS_G4X(dev))
+	if (IS_G4X(dev_priv))
 		intel_encoder->cloneable |= 1 << INTEL_OUTPUT_HDMI;
 
 	intel_dig_port->port = port;

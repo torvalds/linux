@@ -2645,7 +2645,7 @@ struct drm_i915_cmd_table {
 #define IS_BROADWATER(dev)	(INTEL_INFO(dev)->is_broadwater)
 #define IS_CRESTLINE(dev)	(INTEL_INFO(dev)->is_crestline)
 #define IS_GM45(dev_priv)	(INTEL_DEVID(dev_priv) == 0x2A42)
-#define IS_G4X(dev)		(INTEL_INFO(dev)->is_g4x)
+#define IS_G4X(dev_priv)	((dev_priv)->info.is_g4x)
 #define IS_PINEVIEW_G(dev_priv)	(INTEL_DEVID(dev_priv) == 0xa001)
 #define IS_PINEVIEW_M(dev_priv)	(INTEL_DEVID(dev_priv) == 0xa011)
 #define IS_PINEVIEW(dev)	(INTEL_INFO(dev)->is_pineview)
