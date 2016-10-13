@@ -193,8 +193,8 @@ static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 		fl6->fl6_dport = htons(7001);
 		fl6->fl6_sport = htons(7000);
 		dst = ip6_route_output(&init_net, NULL, fl6);
-		if (IS_ERR(dst)) {
-			_leave(" [route err %ld]", PTR_ERR(dst));
+		if (dst->error) {
+			_leave(" [route err %d]", dst->error);
 			return;
 		}
 		break;
