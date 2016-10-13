@@ -1547,11 +1547,11 @@ static int rt5663_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 			msleep(sleep_time[i]);
 			val = snd_soc_read(codec, RT5663_EM_JACK_TYPE_2) &
 				0x0003;
+			dev_dbg(codec->dev, "%s: MX-00e7 val=%x sleep %d\n",
+				__func__, val, sleep_time[i]);
 			i++;
 			if (val == 0x1 || val == 0x2 || val == 0x3)
 				break;
-			dev_dbg(codec->dev, "%s: MX-00e7 val=%x sleep %d\n",
-				__func__, val, sleep_time[i]);
 		}
 		dev_dbg(codec->dev, "%s val = %d\n", __func__, val);
 		switch (val) {
