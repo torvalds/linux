@@ -403,8 +403,6 @@ static void fc_fcp_can_queue_ramp_down(struct fc_lport *lport)
 	if (!can_queue)
 		can_queue = 1;
 	lport->host->can_queue = can_queue;
-	shost_printk(KERN_ERR, lport->host, "libfc: Could not allocate frame.\n"
-		     "Reducing can_queue to %d.\n", can_queue);
 
 unlock:
 	spin_unlock_irqrestore(lport->host->host_lock, flags);
@@ -431,6 +429,9 @@ static inline struct fc_frame *fc_fcp_frame_alloc(struct fc_lport *lport,
 	put_cpu();
 	/* error case */
 	fc_fcp_can_queue_ramp_down(lport);
+	shost_printk(KERN_ERR, lport->host,
+		     "libfc: Could not allocate frame, "
+		     "reducing can_queue to %d.\n", lport->host->can_queue);
 	return NULL;
 }
 
@@ -1860,8 +1861,13 @@ int fc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *sc_cmd)
 	rpriv = rport->dd_data;
 
 	if (!fc_fcp_lport_queue_ready(lport)) {
-		if (lport->qfull)
+		if (lport->qfull) {
 			fc_fcp_can_queue_ramp_down(lport);
+			shost_printk(KERN_ERR, lport->host,
+				     "libfc: queue full, "
+				     "reducing can_queue to %d.\n",
+				     lport->host->can_queue);
+		}
 		rc = SCSI_MLQUEUE_HOST_BUSY;
 		goto out;
 	}
