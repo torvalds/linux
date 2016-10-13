@@ -15,15 +15,7 @@ DPMS_t;
 }
 
 void ddk750_setDPMS(DPMS_t);
-
-/*
- * This function sets the current power mode
- */
 void set_power_mode(unsigned int powerMode);
-
-/*
- * This function sets current gate
- */
 void set_current_gate(unsigned int gate);
 
 /*
