@@ -588,7 +588,7 @@ static void redrat3_get_firmware_rev(struct redrat3_dev *rr3)
 	int rc = 0;
 	char *buffer;
 
-	buffer = kzalloc(sizeof(char) * (RR3_FW_VERSION_LEN + 1), GFP_KERNEL);
+	buffer = kcalloc(RR3_FW_VERSION_LEN + 1, sizeof(*buffer), GFP_KERNEL);
 	if (!buffer) {
 		dev_err(rr3->dev, "Memory allocation failure\n");
 		return;
@@ -780,7 +780,9 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 	/* rr3 will disable rc detector on transmit */
 	rr3->transmitting = true;
 
-	sample_lens = kzalloc(sizeof(int) * RR3_DRIVER_MAXLENS, GFP_KERNEL);
+	sample_lens = kcalloc(RR3_DRIVER_MAXLENS,
+			      sizeof(*sample_lens),
+			      GFP_KERNEL);
 	if (!sample_lens) {
 		ret = -ENOMEM;
 		goto out;
