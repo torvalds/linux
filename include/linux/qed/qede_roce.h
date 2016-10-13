@@ -68,7 +68,7 @@ void qede_roce_unregister_driver(struct qedr_driver *drv);
 
 bool qede_roce_supported(struct qede_dev *dev);
 
-#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
+#if IS_ENABLED(CONFIG_QED_RDMA)
 int qede_roce_dev_add(struct qede_dev *dev);
 void qede_roce_dev_event_open(struct qede_dev *dev);
 void qede_roce_dev_event_close(struct qede_dev *dev);

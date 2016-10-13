@@ -38,6 +38,7 @@
 #include "qed_mcp.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
+#include "qed_roce.h"
 
 #define QED_LL2_RX_REGISTERED(ll2)	((ll2)->rx_queue.b_cb_registred)
 #define QED_LL2_TX_REGISTERED(ll2)	((ll2)->tx_queue.b_cb_registred)

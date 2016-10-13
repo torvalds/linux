@@ -129,15 +129,10 @@ static void qed_bmap_release_id(struct qed_hwfn *p_hwfn,
 	}
 }
 
-u32 qed_rdma_get_sb_id(void *p_hwfn, u32 rel_sb_id)
+static u32 qed_rdma_get_sb_id(void *p_hwfn, u32 rel_sb_id)
 {
 	/* First sb id for RoCE is after all the l2 sb */
 	return FEAT_NUM((struct qed_hwfn *)p_hwfn, QED_PF_L2_QUE) + rel_sb_id;
-}
-
-u32 qed_rdma_query_cau_timer_res(void *rdma_cxt)
-{
-	return QED_CAU_DEF_RX_TIMER_RES;
 }
 
 static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
@@ -275,7 +270,7 @@ free_rdma_info:
 	return rc;
 }
 
-void qed_rdma_resc_free(struct qed_hwfn *p_hwfn)
+static void qed_rdma_resc_free(struct qed_hwfn *p_hwfn)
 {
 	struct qed_rdma_info *p_rdma_info = p_hwfn->p_rdma_info;
 
@@ -527,6 +522,26 @@ static int qed_rdma_start_fw(struct qed_hwfn *p_hwfn,
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
+static int qed_rdma_alloc_tid(void *rdma_cxt, u32 *itid)
+{
+	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
+	int rc;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Allocate TID\n");
+
+	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
+	rc = qed_rdma_bmap_alloc_id(p_hwfn,
+				    &p_hwfn->p_rdma_info->tid_map, itid);
+	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
+	if (rc)
+		goto out;
+
+	rc = qed_cxt_dynamic_ilt_alloc(p_hwfn, QED_ELEM_TASK, *itid);
+out:
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Allocate TID - done, rc = %d\n", rc);
+	return rc;
+}
+
 static int qed_rdma_reserve_lkey(struct qed_hwfn *p_hwfn)
 {
 	struct qed_rdma_device *dev = p_hwfn->p_rdma_info->dev;
@@ -573,7 +588,7 @@ static int qed_rdma_setup(struct qed_hwfn *p_hwfn,
 	return qed_rdma_start_fw(p_hwfn, params, p_ptt);
 }
 
-int qed_rdma_stop(void *rdma_cxt)
+static int qed_rdma_stop(void *rdma_cxt)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 	struct rdma_close_func_ramrod_data *p_ramrod;
@@ -629,8 +644,8 @@ out:
 	return rc;
 }
 
-int qed_rdma_add_user(void *rdma_cxt,
-		      struct qed_rdma_add_user_out_params *out_params)
+static int qed_rdma_add_user(void *rdma_cxt,
+			     struct qed_rdma_add_user_out_params *out_params)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 	u32 dpi_start_offset;
@@ -664,7 +679,7 @@ int qed_rdma_add_user(void *rdma_cxt,
 	return rc;
 }
 
-struct qed_rdma_port *qed_rdma_query_port(void *rdma_cxt)
+static struct qed_rdma_port *qed_rdma_query_port(void *rdma_cxt)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 	struct qed_rdma_port *p_port = p_hwfn->p_rdma_info->port;
@@ -680,7 +695,7 @@ struct qed_rdma_port *qed_rdma_query_port(void *rdma_cxt)
 	return p_port;
 }
 
-struct qed_rdma_device *qed_rdma_query_device(void *rdma_cxt)
+static struct qed_rdma_device *qed_rdma_query_device(void *rdma_cxt)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 
@@ -690,7 +705,7 @@ struct qed_rdma_device *qed_rdma_query_device(void *rdma_cxt)
 	return p_hwfn->p_rdma_info->dev;
 }
 
-void qed_rdma_free_tid(void *rdma_cxt, u32 itid)
+static void qed_rdma_free_tid(void *rdma_cxt, u32 itid)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 
@@ -701,27 +716,7 @@ void qed_rdma_free_tid(void *rdma_cxt, u32 itid)
 	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
 }
 
-int qed_rdma_alloc_tid(void *rdma_cxt, u32 *itid)
-{
-	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
-	int rc;
-
-	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Allocate TID\n");
-
-	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
-	rc = qed_rdma_bmap_alloc_id(p_hwfn,
-				    &p_hwfn->p_rdma_info->tid_map, itid);
-	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
-	if (rc)
-		goto out;
-
-	rc = qed_cxt_dynamic_ilt_alloc(p_hwfn, QED_ELEM_TASK, *itid);
-out:
-	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Allocate TID - done, rc = %d\n", rc);
-	return rc;
-}
-
-void qed_rdma_cnq_prod_update(void *rdma_cxt, u8 qz_offset, u16 prod)
+static void qed_rdma_cnq_prod_update(void *rdma_cxt, u8 qz_offset, u16 prod)
 {
 	struct qed_hwfn *p_hwfn;
 	u16 qz_num;
@@ -816,7 +811,7 @@ static int qed_rdma_get_int(struct qed_dev *cdev, struct qed_int_info *info)
 	return 0;
 }
 
-int qed_rdma_alloc_pd(void *rdma_cxt, u16 *pd)
+static int qed_rdma_alloc_pd(void *rdma_cxt, u16 *pd)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 	u32 returned_id;
@@ -1985,9 +1980,9 @@ int qed_roce_destroy_qp(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp)
 	return 0;
 }
 
-int qed_rdma_query_qp(void *rdma_cxt,
-		      struct qed_rdma_qp *qp,
-		      struct qed_rdma_query_qp_out_params *out_params)
+static int qed_rdma_query_qp(void *rdma_cxt,
+			     struct qed_rdma_qp *qp,
+			     struct qed_rdma_query_qp_out_params *out_params)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 	int rc;
@@ -2022,7 +2017,7 @@ int qed_rdma_query_qp(void *rdma_cxt,
 	return rc;
 }
 
-int qed_rdma_destroy_qp(void *rdma_cxt, struct qed_rdma_qp *qp)
+static int qed_rdma_destroy_qp(void *rdma_cxt, struct qed_rdma_qp *qp)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 	int rc = 0;
@@ -2215,9 +2210,9 @@ static int qed_roce_modify_qp(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-int qed_rdma_modify_qp(void *rdma_cxt,
-		       struct qed_rdma_qp *qp,
-		       struct qed_rdma_modify_qp_in_params *params)
+static int qed_rdma_modify_qp(void *rdma_cxt,
+			      struct qed_rdma_qp *qp,
+			      struct qed_rdma_modify_qp_in_params *params)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 	enum qed_roce_qp_state prev_state;
@@ -2312,8 +2307,9 @@ int qed_rdma_modify_qp(void *rdma_cxt,
 	return rc;
 }
 
-int qed_rdma_register_tid(void *rdma_cxt,
-			  struct qed_rdma_register_tid_in_params *params)
+static int
+qed_rdma_register_tid(void *rdma_cxt,
+		      struct qed_rdma_register_tid_in_params *params)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 	struct rdma_register_tid_ramrod_data *p_ramrod;
@@ -2450,7 +2446,7 @@ int qed_rdma_register_tid(void *rdma_cxt,
 	return rc;
 }
 
-int qed_rdma_deregister_tid(void *rdma_cxt, u32 itid)
+static int qed_rdma_deregister_tid(void *rdma_cxt, u32 itid)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 	struct rdma_deregister_tid_ramrod_data *p_ramrod;
@@ -2561,7 +2557,8 @@ void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	qed_rdma_dpm_conf(p_hwfn, p_ptt);
 }
 
-int qed_rdma_start(void *rdma_cxt, struct qed_rdma_start_in_params *params)
+static int qed_rdma_start(void *rdma_cxt,
+			  struct qed_rdma_start_in_params *params)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 	struct qed_ptt *p_ptt;
@@ -2601,7 +2598,7 @@ static int qed_rdma_init(struct qed_dev *cdev,
 	return qed_rdma_start(QED_LEADING_HWFN(cdev), params);
 }
 
-void qed_rdma_remove_user(void *rdma_cxt, u16 dpi)
+static void qed_rdma_remove_user(void *rdma_cxt, u16 dpi)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 

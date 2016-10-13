@@ -47,13 +47,8 @@
 #define TM_ALIGN        BIT(TM_SHIFT)
 #define TM_ELEM_SIZE    4
 
-/* ILT constants */
-#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
 /* For RoCE we configure to 64K to cover for RoCE max tasks 256K purpose. */
-#define ILT_DEFAULT_HW_P_SIZE		4
-#else
-#define ILT_DEFAULT_HW_P_SIZE		3
-#endif
+#define ILT_DEFAULT_HW_P_SIZE	(IS_ENABLED(CONFIG_QED_RDMA) ? 4 : 3)
 
 #define ILT_PAGE_IN_BYTES(hw_p_size)	(1U << ((hw_p_size) + 12))
 #define ILT_CFG_REG(cli, reg)	PSWRQ2_REG_ ## cli ## _ ## reg ## _RT_OFFSET
