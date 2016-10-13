@@ -190,6 +190,7 @@ struct inet6_dev {
 	__u32			if_flags;
 	int			dead;
 
+	u32			desync_factor;
 	u8			rndid[8];
 	struct list_head	tempaddr_list;
 

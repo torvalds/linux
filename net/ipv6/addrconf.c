@@ -422,6 +422,7 @@ static struct inet6_dev *ipv6_add_dev(struct net_device *dev)
 #endif
 
 	INIT_LIST_HEAD(&ndev->tempaddr_list);
+	ndev->desync_factor = U32_MAX;
 	if ((dev->flags&IFF_LOOPBACK) ||
 	    dev->type == ARPHRD_TUNNEL ||
 	    dev->type == ARPHRD_TUNNEL6 ||
@@ -1183,6 +1184,7 @@ static int ipv6_create_tempaddr(struct inet6_ifaddr *ifp, struct inet6_ifaddr *i
 	int ret = 0;
 	u32 addr_flags;
 	unsigned long now = jiffies;
+	long max_desync_factor;
 
 	write_lock_bh(&idev->lock);
 	if (ift) {
@@ -1218,20 +1220,41 @@ retry:
 	ipv6_try_regen_rndid(idev, tmpaddr);
 	memcpy(&addr.s6_addr[8], idev->rndid, 8);
 	age = (now - ifp->tstamp) / HZ;
-	tmp_valid_lft = min_t(__u32,
-			      ifp->valid_lft,
-			      idev->cnf.temp_valid_lft + age);
-	tmp_prefered_lft = min_t(__u32,
-				 ifp->prefered_lft,
-				 idev->cnf.temp_prefered_lft + age -
-				 idev->cnf.max_desync_factor);
-	tmp_plen = ifp->prefix_len;
-	tmp_tstamp = ifp->tstamp;
-	spin_unlock_bh(&ifp->lock);
 
 	regen_advance = idev->cnf.regen_max_retry *
 			idev->cnf.dad_transmits *
 			NEIGH_VAR(idev->nd_parms, RETRANS_TIME) / HZ;
+
+	/* recalculate max_desync_factor each time and update
+	 * idev->desync_factor if it's larger
+	 */
+	max_desync_factor = min_t(__u32,
+				  idev->cnf.max_desync_factor,
+				  idev->cnf.temp_prefered_lft - regen_advance);
+
+	if (unlikely(idev->desync_factor > max_desync_factor)) {
+		if (max_desync_factor > 0) {
+			get_random_bytes(&idev->desync_factor,
+					 sizeof(idev->desync_factor));
+			idev->desync_factor %= max_desync_factor;
+		} else {
+			idev->desync_factor = 0;
+		}
+	}
+
+	tmp_valid_lft = min_t(__u32,
+			      ifp->valid_lft,
+			      idev->cnf.temp_valid_lft + age);
+	tmp_prefered_lft = idev->cnf.temp_prefered_lft + age -
+			    idev->desync_factor;
+	/* guard against underflow in case of concurrent updates to cnf */
+	if (unlikely(tmp_prefered_lft < 0))
+		tmp_prefered_lft = 0;
+	tmp_prefered_lft = min_t(__u32, ifp->prefered_lft, tmp_prefered_lft);
+	tmp_plen = ifp->prefix_len;
+	tmp_tstamp = ifp->tstamp;
+	spin_unlock_bh(&ifp->lock);
+
 	write_unlock_bh(&idev->lock);
 
 	/* A temporary address is created only if this calculated Preferred
@@ -2316,7 +2339,7 @@ static void manage_tempaddrs(struct inet6_dev *idev,
 			max_valid = 0;
 
 		max_prefered = idev->cnf.temp_prefered_lft -
-			       idev->cnf.max_desync_factor - age;
+			       idev->desync_factor - age;
 		if (max_prefered < 0)
 			max_prefered = 0;
 
