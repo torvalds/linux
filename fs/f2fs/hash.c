@@ -70,8 +70,7 @@ static void str2hashbuf(const unsigned char *msg, size_t len,
 		*buf++ = pad;
 }
 
-f2fs_hash_t f2fs_dentry_hash(const struct qstr *name_info,
-				struct f2fs_filename *fname)
+f2fs_hash_t f2fs_dentry_hash(const struct qstr *name_info)
 {
 	__u32 hash;
 	f2fs_hash_t f2fs_hash;
@@ -79,10 +78,6 @@ f2fs_hash_t f2fs_dentry_hash(const struct qstr *name_info,
 	__u32 in[8], buf[4];
 	const unsigned char *name = name_info->name;
 	size_t len = name_info->len;
-
-	/* encrypted bigname case */
-	if (fname && !fname->disk_name.name)
-		return cpu_to_le32(fname->hash);
 
 	if (is_dot_dotdot(name_info))
 		return 0;
