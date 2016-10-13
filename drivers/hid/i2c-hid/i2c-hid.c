@@ -956,6 +956,13 @@ static int i2c_hid_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	if (client->irq < 0) {
+		if (client->irq != -EPROBE_DEFER)
+			dev_err(&client->dev,
+				"HID over i2c doesn't have a valid IRQ\n");
+		return client->irq;
+	}
+
 	ihid = kzalloc(sizeof(struct i2c_hid), GFP_KERNEL);
 	if (!ihid)
 		return -ENOMEM;
