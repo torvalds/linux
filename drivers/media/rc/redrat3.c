@@ -902,7 +902,7 @@ static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
 
 	rc = rc_allocate_device();
 	if (!rc)
-		goto out;
+		return NULL;
 
 	snprintf(rr3->name, sizeof(rr3->name), "RedRat3%s Infrared Remote Transceiver (%04x:%04x)",
 		 prod == USB_RR3IIUSB_PRODUCT_ID ? "-II" : "",
