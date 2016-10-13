@@ -761,6 +761,7 @@ dasd_ro_store(struct device *dev, struct device_attribute *attr,
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct dasd_device *device;
+	unsigned long flags;
 	unsigned int val;
 	int rc;
 
@@ -775,10 +776,22 @@ dasd_ro_store(struct device *dev, struct device_attribute *attr,
 	if (IS_ERR(device))
 		return PTR_ERR(device);
 
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	val = val || test_bit(DASD_FLAG_DEVICE_RO, &device->flags);
-	if (device->block && device->block->gdp)
-		set_disk_ro(device->block->gdp, val);
 
+	if (!device->block || !device->block->gdp ||
+	    test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+		goto out;
+	}
+	/* Increase open_count to avoid losing the block device */
+	atomic_inc(&device->block->open_count);
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+
+	set_disk_ro(device->block->gdp, val);
+	atomic_dec(&device->block->open_count);
+
+out:
 	dasd_put_device(device);
 
 	return count;
