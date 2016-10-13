@@ -617,7 +617,9 @@ static int rsi_program_bb_rf(struct rsi_common *common)
  *
  * Return: 0 on success, corresponding negative error code on failure.
  */
-int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode)
+int rsi_set_vap_capabilities(struct rsi_common *common,
+			     enum opmode mode,
+			     u8 vap_status)
 {
 	struct sk_buff *skb = NULL;
 	struct rsi_vap_caps *vap_caps;
@@ -642,6 +644,7 @@ int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode)
 					     FRAME_DESC_SZ) |
 					     (RSI_WIFI_MGMT_Q << 12));
 	vap_caps->desc_word[1] = cpu_to_le16(VAP_CAPABILITIES);
+	vap_caps->desc_word[2] = cpu_to_le16(vap_status << 8);
 	vap_caps->desc_word[4] = cpu_to_le16(mode |
 					     (common->channel_width << 8));
 	vap_caps->desc_word[7] = cpu_to_le16((vap_id << 8) |
