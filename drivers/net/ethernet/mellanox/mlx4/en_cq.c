@@ -127,7 +127,15 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 		/* For TX we use the same irq per
 		ring we assigned for the RX    */
 		struct mlx4_en_cq *rx_cq;
+		int xdp_index;
 
+		/* The xdp tx irq must align with the rx ring that forwards to
+		 * it, so reindex these from 0. This should only happen when
+		 * tx_ring_num is not a multiple of rx_ring_num.
+		 */
+		xdp_index = (priv->xdp_ring_num - priv->tx_ring_num) + cq_idx;
+		if (xdp_index >= 0)
+			cq_idx = xdp_index;
 		cq_idx = cq_idx % priv->rx_ring_num;
 		rx_cq = priv->rx_cq[cq_idx];
 		cq->vector = rx_cq->vector;
