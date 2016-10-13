@@ -3372,6 +3372,7 @@ static const struct x86_cpu_id sbridge_cpuids[] = {
 	ICPU(INTEL_FAM6_BROADWELL_X,	  pci_dev_descr_broadwell_table),
 	ICPU(INTEL_FAM6_BROADWELL_XEON_D, pci_dev_descr_broadwell_table),
 	ICPU(INTEL_FAM6_XEON_PHI_KNL,	  pci_dev_descr_knl_table),
+	ICPU(INTEL_FAM6_XEON_PHI_KNM,	  pci_dev_descr_knl_table),
 	{ }
 };
 MODULE_DEVICE_TABLE(x86cpu, sbridge_cpuids);
