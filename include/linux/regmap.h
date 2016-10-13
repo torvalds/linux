@@ -15,6 +15,7 @@
 
 #include <linux/list.h>
 #include <linux/rbtree.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/bug.h>
 #include <linux/lockdep.h>
