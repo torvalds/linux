@@ -51,7 +51,7 @@ static unsigned int get_mxclk_freq(void)
  *
  * Input: Frequency to be set.
  */
-static void setChipClock(unsigned int frequency)
+static void set_chip_clock(unsigned int frequency)
 {
 	struct pll_value pll;
 	unsigned int ulActualMxClk;
@@ -68,19 +68,19 @@ static void setChipClock(unsigned int frequency)
 		pll.clockType = MXCLK_PLL;
 
 		/*
-		* Call calcPllValue() to fill the other fields of PLL structure.
+		* Call calc_pll_value() to fill the other fields of PLL structure.
 		* Sometime, the chip cannot set up the exact clock
 		* required by the User.
-		* Return value of calcPllValue gives the actual possible clock.
+		* Return value of calc_pll_value gives the actual possible clock.
 		*/
-		ulActualMxClk = calcPllValue(frequency, &pll);
+		ulActualMxClk = calc_pll_value(frequency, &pll);
 
 		/* Master Clock Control: MXCLK_PLL */
-		POKE32(MXCLK_PLL_CTRL, formatPllReg(&pll));
+		POKE32(MXCLK_PLL_CTRL, format_pll_reg(&pll));
 	}
 }
 
-static void setMemoryClock(unsigned int frequency)
+static void set_memory_clock(unsigned int frequency)
 {
 	unsigned int reg, divisor;
 
@@ -119,7 +119,7 @@ static void setMemoryClock(unsigned int frequency)
 			break;
 		}
 
-		setCurrentGate(reg);
+		set_current_gate(reg);
 	}
 }
 
@@ -131,7 +131,7 @@ static void setMemoryClock(unsigned int frequency)
  * NOTE:
  *      The maximum frequency the engine can run is 168MHz.
  */
-static void setMasterClock(unsigned int frequency)
+static void set_master_clock(unsigned int frequency)
 {
 	unsigned int reg, divisor;
 
@@ -169,11 +169,11 @@ static void setMasterClock(unsigned int frequency)
 			break;
 		}
 
-		setCurrentGate(reg);
+		set_current_gate(reg);
 		}
 }
 
-unsigned int ddk750_getVMSize(void)
+unsigned int ddk750_get_vm_size(void)
 {
 	unsigned int reg;
 	unsigned int data;
@@ -205,18 +205,18 @@ unsigned int ddk750_getVMSize(void)
 	return data;
 }
 
-int ddk750_initHw(struct initchip_param *pInitParam)
+int ddk750_init_hw(struct initchip_param *pInitParam)
 {
 	unsigned int reg;
 
 	if (pInitParam->powerMode != 0)
 		pInitParam->powerMode = 0;
-	setPowerMode(pInitParam->powerMode);
+	set_power_mode(pInitParam->powerMode);
 
 	/* Enable display power gate & LOCALMEM power gate*/
 	reg = PEEK32(CURRENT_GATE);
 	reg |= (CURRENT_GATE_DISPLAY | CURRENT_GATE_LOCALMEM);
-	setCurrentGate(reg);
+	set_current_gate(reg);
 
 	if (sm750_get_chip_type() != SM750LE) {
 		/*	set panel pll and graphic mode via mmio_88 */
@@ -232,13 +232,13 @@ int ddk750_initHw(struct initchip_param *pInitParam)
 	}
 
 	/* Set the Main Chip Clock */
-	setChipClock(MHz((unsigned int)pInitParam->chipClock));
+	set_chip_clock(MHz((unsigned int)pInitParam->chipClock));
 
 	/* Set up memory clock. */
-	setMemoryClock(MHz(pInitParam->memClock));
+	set_memory_clock(MHz(pInitParam->memClock));
 
 	/* Set up master clock */
-	setMasterClock(MHz(pInitParam->masterClock));
+	set_master_clock(MHz(pInitParam->masterClock));
 
 
 	/* Reset the memory controller.
@@ -304,7 +304,7 @@ int ddk750_initHw(struct initchip_param *pInitParam)
  * M = {1,...,255}
  * N = {2,...,15}
  */
-unsigned int calcPllValue(unsigned int request_orig, struct pll_value *pll)
+unsigned int calc_pll_value(unsigned int request_orig, struct pll_value *pll)
 {
 	/* as sm750 register definition,
 	 * N located in 2,15 and M located in 1,255
@@ -372,7 +372,7 @@ unsigned int calcPllValue(unsigned int request_orig, struct pll_value *pll)
 	return ret;
 }
 
-unsigned int formatPllReg(struct pll_value *pPLL)
+unsigned int format_pll_reg(struct pll_value *pPLL)
 {
 #ifndef VALIDATION_CHIP
 	unsigned int POD = pPLL->POD;

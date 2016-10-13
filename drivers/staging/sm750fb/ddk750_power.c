@@ -29,7 +29,7 @@ static unsigned int getPowerMode(void)
  * SM50x can operate in one of three modes: 0, 1 or Sleep.
  * On hardware reset, power mode 0 is default.
  */
-void setPowerMode(unsigned int powerMode)
+void set_power_mode(unsigned int powerMode)
 {
 	unsigned int control_value = 0;
 
@@ -72,7 +72,7 @@ void setPowerMode(unsigned int powerMode)
 	POKE32(POWER_MODE_CTRL, control_value);
 }
 
-void setCurrentGate(unsigned int gate)
+void set_current_gate(unsigned int gate)
 {
 	unsigned int gate_reg;
 	unsigned int mode;
@@ -111,7 +111,7 @@ void enable2DEngine(unsigned int enable)
 	else
 		gate &= ~(CURRENT_GATE_DE | CURRENT_GATE_CSC);
 
-	setCurrentGate(gate);
+	set_current_gate(gate);
 }
 
 void enableDMA(unsigned int enable)
@@ -125,7 +125,7 @@ void enableDMA(unsigned int enable)
 	else
 		gate &= ~CURRENT_GATE_DMA;
 
-	setCurrentGate(gate);
+	set_current_gate(gate);
 }
 
 /*
@@ -142,7 +142,7 @@ void enableGPIO(unsigned int enable)
 	else
 		gate &= ~CURRENT_GATE_GPIO;
 
-	setCurrentGate(gate);
+	set_current_gate(gate);
 }
 
 /*
@@ -159,7 +159,7 @@ void enableI2C(unsigned int enable)
 	else
 		gate &= ~CURRENT_GATE_I2C;
 
-	setCurrentGate(gate);
+	set_current_gate(gate);
 }
 
 

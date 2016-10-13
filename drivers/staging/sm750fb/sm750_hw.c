@@ -68,9 +68,9 @@ int hw_sm750_map(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	/* don't use pdev_resource[x].end - resource[x].start to
 	 * calculate the resource size, it's only the maximum available
 	 * size but not the actual size, using
-	 * @ddk750_getVMSize function can be safe.
+	 * @ddk750_get_vm_size function can be safe.
 	 */
-	sm750_dev->vidmem_size = ddk750_getVMSize();
+	sm750_dev->vidmem_size = ddk750_get_vm_size();
 	pr_info("video memory phyAddr = %lx, size = %u bytes\n",
 		sm750_dev->vidmem_start, sm750_dev->vidmem_size);
 
@@ -103,7 +103,7 @@ int hw_sm750_inithw(struct sm750_dev *sm750_dev, struct pci_dev *pdev)
 	if (parm->master_clk == 0)
 		parm->master_clk = parm->chip_clk / 3;
 
-	ddk750_initHw((struct initchip_param *)&sm750_dev->initParm);
+	ddk750_init_hw((struct initchip_param *)&sm750_dev->initParm);
 	/* for sm718, open pci burst */
 	if (sm750_dev->devid == 0x718) {
 		POKE32(SYSTEM_CTRL,
