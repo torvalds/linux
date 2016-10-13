@@ -1730,6 +1730,8 @@ out:
 	rcu_read_unlock();
 }
 
+static bool sched_smp_initialized __read_mostly;
+
 #ifdef CONFIG_SMP
 void scheduler_ipi(void)
 {
@@ -1741,6 +1743,22 @@ void scheduler_ipi(void)
 	preempt_fold_need_resched();
 }
 
+static int valid_task_cpu(struct task_struct *p)
+{
+	cpumask_t valid_mask;
+
+	if (p->flags & PF_KTHREAD)
+		cpumask_and(&valid_mask, tsk_cpus_allowed(p), cpu_online_mask);
+	else
+		cpumask_and(&valid_mask, tsk_cpus_allowed(p), cpu_active_mask);
+
+	if (unlikely(!cpumask_weight(&valid_mask))) {
+		WARN_ON(sched_smp_initialized);
+		return smp_processor_id();
+	}
+	return cpumask_any(&valid_mask);
+}
+
 /*
  * For a task that's just being woken up we have a valuable balancing
  * opportunity so choose the nearest cache most lightly loaded runqueue.
@@ -1749,22 +1767,21 @@ void scheduler_ipi(void)
 static inline int select_best_cpu(struct task_struct *p)
 {
 	unsigned int idlest = ~0U;
-	struct rq *rq, *best_rq;
+	struct rq *rq = NULL;
 	int i;
 
 	if (suitable_idle_cpus(p)) {
 		int cpu = task_cpu(p);
 
 		if (unlikely(needs_other_cpu(p, cpu)))
-			cpu = cpumask_any(tsk_cpus_allowed(p));
+			cpu = valid_task_cpu(p);
 		rq = resched_best_idle(p, cpu);
 		if (likely(rq))
 			return rq->cpu;
 	}
-	best_rq = rq = task_rq(p);
 
 	for (i = 0; i < num_possible_cpus(); i++) {
-		struct rq *other_rq = rq->rq_order[i];
+		struct rq *other_rq = task_rq(p)->rq_order[i];
 		int entries;
 
 		if (!other_rq->online)
@@ -1775,11 +1792,18 @@ static inline int select_best_cpu(struct task_struct *p)
 		if (entries >= idlest)
 			continue;
 		idlest = entries;
-		best_rq = other_rq;
+		rq = other_rq;
 	}
-	return best_rq->cpu;
+	if (unlikely(!rq))
+		return smp_processor_id();
+	return rq->cpu;
 }
 #else /* CONFIG_SMP */
+static int valid_task_cpu(struct task_struct *p)
+{
+	return 0;
+}
+
 static inline int select_best_cpu(struct task_struct *p)
 {
 	return 0;
@@ -2153,7 +2177,7 @@ void wake_up_new_task(struct task_struct *p)
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
 	p->state = TASK_RUNNING;
 	if (unlikely(needs_other_cpu(p, task_cpu(p))))
- 		set_task_cpu(p, cpumask_any(tsk_cpus_allowed(p)));
+		set_task_cpu(p, valid_task_cpu(p));
 	rq = __task_rq_lock(p);
 	update_clocks(rq);
 	rq_curr = rq->curr;
@@ -5423,7 +5447,7 @@ void do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask)
 		lockdep_assert_held(&rq->lock);
 	}
 	if (needs_other_cpu(p, task_cpu(p)))
-		set_task_cpu(p, cpumask_any(tsk_cpus_allowed(p)));
+		set_task_cpu(p, valid_task_cpu(p));
 }
 #endif
 
@@ -5777,8 +5801,6 @@ int set_cpus_allowed_ptr(struct task_struct *p, const struct cpumask *new_mask)
 	return __set_cpus_allowed_ptr(p, new_mask, false);
 }
 EXPORT_SYMBOL_GPL(set_cpus_allowed_ptr);
-
-static bool sched_smp_initialized __read_mostly;
 
 #ifdef CONFIG_HOTPLUG_CPU
 /*
