@@ -65,6 +65,9 @@
 #define I2C_ADDR_OFFSET_TEN_BIT	0xa000
 #define I2C_ADDR_OFFSET_SLAVE	0x1000
 
+#define I2C_ADDR_7BITS_MAX	0x77
+#define I2C_ADDR_7BITS_COUNT	(I2C_ADDR_7BITS_MAX + 1)
+
 /* core_lock protects i2c_adapter_idr, and guarantees
    that device detection, deletion of detected devices, and attach_adapter
    calls are serialized */
@@ -896,6 +899,25 @@ static void i2c_init_recovery(struct i2c_adapter *adap)
 	adap->bus_recovery_info = NULL;
 }
 
+static int i2c_smbus_host_notify_to_irq(const struct i2c_client *client)
+{
+	struct i2c_adapter *adap = client->adapter;
+	unsigned int irq;
+
+	if (!adap->host_notify_domain)
+		return -ENXIO;
+
+	if (client->flags & I2C_CLIENT_TEN)
+		return -EINVAL;
+
+	irq = irq_find_mapping(adap->host_notify_domain, client->addr);
+	if (!irq)
+		irq = irq_create_mapping(adap->host_notify_domain,
+					 client->addr);
+
+	return irq > 0 ? irq : -ENXIO;
+}
+
 static int i2c_device_probe(struct device *dev)
 {
 	struct i2c_client	*client = i2c_verify_client(dev);
@@ -917,6 +939,14 @@ static int i2c_device_probe(struct device *dev)
 		}
 		if (irq == -EPROBE_DEFER)
 			return irq;
+		/*
+		 * ACPI and OF did not find any useful IRQ, try to see
+		 * if Host Notify can be used.
+		 */
+		if (irq < 0) {
+			dev_dbg(dev, "Using Host Notify IRQ\n");
+			irq = i2c_smbus_host_notify_to_irq(client);
+		}
 		if (irq < 0)
 			irq = 0;
 
@@ -1866,6 +1896,79 @@ static const struct i2c_lock_operations i2c_adapter_lock_ops = {
 	.unlock_bus =  i2c_adapter_unlock_bus,
 };
 
+static void i2c_host_notify_irq_teardown(struct i2c_adapter *adap)
+{
+	struct irq_domain *domain = adap->host_notify_domain;
+	irq_hw_number_t hwirq;
+
+	if (!domain)
+		return;
+
+	for (hwirq = 0 ; hwirq < I2C_ADDR_7BITS_COUNT ; hwirq++)
+		irq_dispose_mapping(irq_find_mapping(domain, hwirq));
+
+	irq_domain_remove(domain);
+	adap->host_notify_domain = NULL;
+}
+
+static int i2c_host_notify_irq_map(struct irq_domain *h,
+					  unsigned int virq,
+					  irq_hw_number_t hw_irq_num)
+{
+	irq_set_chip_and_handler(virq, &dummy_irq_chip, handle_simple_irq);
+
+	return 0;
+}
+
+static const struct irq_domain_ops i2c_host_notify_irq_ops = {
+	.map = i2c_host_notify_irq_map,
+};
+
+static int i2c_setup_host_notify_irq_domain(struct i2c_adapter *adap)
+{
+	struct irq_domain *domain;
+
+	if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_HOST_NOTIFY))
+		return 0;
+
+	domain = irq_domain_create_linear(adap->dev.fwnode,
+					  I2C_ADDR_7BITS_COUNT,
+					  &i2c_host_notify_irq_ops, adap);
+	if (!domain)
+		return -ENOMEM;
+
+	adap->host_notify_domain = domain;
+
+	return 0;
+}
+
+/**
+ * i2c_handle_smbus_host_notify - Forward a Host Notify event to the correct
+ * I2C client.
+ * @adap: the adapter
+ * @addr: the I2C address of the notifying device
+ * Context: can't sleep
+ *
+ * Helper function to be called from an I2C bus driver's interrupt
+ * handler. It will schedule the Host Notify IRQ.
+ */
+int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr)
+{
+	int irq;
+
+	if (!adap)
+		return -EINVAL;
+
+	irq = irq_find_mapping(adap->host_notify_domain, addr);
+	if (irq <= 0)
+		return -ENXIO;
+
+	generic_handle_irq(irq);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(i2c_handle_smbus_host_notify);
+
 static int i2c_register_adapter(struct i2c_adapter *adap)
 {
 	int res = -EINVAL;
@@ -1896,6 +1999,14 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	/* Set default timeout to 1 second if not already set */
 	if (adap->timeout == 0)
 		adap->timeout = HZ;
+
+	/* register soft irqs for Host Notify */
+	res = i2c_setup_host_notify_irq_domain(adap);
+	if (res) {
+		pr_err("adapter '%s': can't create Host Notify IRQs (%d)\n",
+		       adap->name, res);
+		goto out_list;
+	}
 
 	dev_set_name(&adap->dev, "i2c-%d", adap->nr);
 	adap->dev.bus = &i2c_bus_type;
@@ -2133,6 +2244,8 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
 
 	pm_runtime_disable(&adap->dev);
+
+	i2c_host_notify_irq_teardown(adap);
 
 	/* wait until all references to the device are gone
 	 *

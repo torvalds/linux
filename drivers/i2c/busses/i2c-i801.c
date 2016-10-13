@@ -269,7 +269,6 @@ struct i801_priv {
 	 */
 	bool acpi_reserved;
 	struct mutex acpi_lock;
-	struct smbus_host_notify *host_notify;
 };
 
 #define FEATURE_SMBUS_PEC	BIT(0)
@@ -585,10 +584,10 @@ static irqreturn_t i801_host_notify_isr(struct i801_priv *priv)
 
 	/*
 	 * With the tested platforms, reading SMBNTFDDAT (22 + (p)->smba)
-	 * always returns 0 and is safe to read.
-	 * We just use 0 given we have no use of the data right now.
+	 * always returns 0. Our current implementation doesn't provide
+	 * data, so we just ignore it.
 	 */
-	i2c_handle_smbus_host_notify(priv->host_notify, addr, 0);
+	i2c_handle_smbus_host_notify(&priv->adapter, addr);
 
 	/* clear Host Notify bit and return */
 	outb_p(SMBSLVSTS_HST_NTFY_STS, SMBSLVSTS(priv));
@@ -951,17 +950,12 @@ static u32 i801_func(struct i2c_adapter *adapter)
 		I2C_FUNC_SMBUS_HOST_NOTIFY : 0);
 }
 
-static int i801_enable_host_notify(struct i2c_adapter *adapter)
+static void i801_enable_host_notify(struct i2c_adapter *adapter)
 {
 	struct i801_priv *priv = i2c_get_adapdata(adapter);
 
 	if (!(priv->features & FEATURE_HOST_NOTIFY))
-		return -ENOTSUPP;
-
-	if (!priv->host_notify)
-		priv->host_notify = i2c_setup_smbus_host_notify(adapter);
-	if (!priv->host_notify)
-		return -ENOMEM;
+		return;
 
 	priv->original_slvcmd = inb_p(SMBSLVCMD(priv));
 
@@ -971,8 +965,6 @@ static int i801_enable_host_notify(struct i2c_adapter *adapter)
 
 	/* clear Host Notify bit to allow a new notification */
 	outb_p(SMBSLVSTS_HST_NTFY_STS, SMBSLVSTS(priv));
-
-	return 0;
 }
 
 static void i801_disable_host_notify(struct i801_priv *priv)
@@ -1647,14 +1639,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		return err;
 	}
 
-	/*
-	 * Enable Host Notify for chips that supports it.
-	 * It is done after i2c_add_adapter() so that we are sure the work queue
-	 * is not used if i2c_add_adapter() fails.
-	 */
-	err = i801_enable_host_notify(&priv->adapter);
-	if (err && err != -ENOTSUPP)
-		dev_warn(&dev->dev, "Unable to enable SMBus Host Notify\n");
+	i801_enable_host_notify(&priv->adapter);
 
 	i801_probe_optional_slaves(priv);
 	/* We ignore errors - multiplexing is optional */
@@ -1705,11 +1690,8 @@ static int i801_resume(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct i801_priv *priv = pci_get_drvdata(pci_dev);
-	int err;
 
-	err = i801_enable_host_notify(&priv->adapter);
-	if (err && err != -ENOTSUPP)
-		dev_warn(dev, "Unable to enable SMBus Host Notify\n");
+	i801_enable_host_notify(&priv->adapter);
 
 	return 0;
 }
