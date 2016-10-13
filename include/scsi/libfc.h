@@ -355,7 +355,8 @@ struct fc_fcp_pkt {
 
 	/* Timeout/error related information */
 	struct timer_list timer;
-	int	          wait_for_comp;
+	int		  wait_for_comp;
+	int		  timer_delay;
 	u32		  recov_retry;
 	struct fc_seq	  *recov_seq;
 	struct completion tm_done;

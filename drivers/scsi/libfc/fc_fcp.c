@@ -254,8 +254,10 @@ static inline void fc_fcp_unlock_pkt(struct fc_fcp_pkt *fsp)
  */
 static void fc_fcp_timer_set(struct fc_fcp_pkt *fsp, unsigned long delay)
 {
-	if (!(fsp->state & FC_SRB_COMPL))
+	if (!(fsp->state & FC_SRB_COMPL)) {
 		mod_timer(&fsp->timer, jiffies + delay);
+		fsp->timer_delay = delay;
+	}
 }
 
 static void fc_fcp_abort_done(struct fc_fcp_pkt *fsp)
@@ -932,6 +934,11 @@ static void fc_fcp_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 			 * Wait a at least one jiffy to see if it is delivered.
 			 * If this expires without data, we may do SRR.
 			 */
+			if (fsp->lp->qfull) {
+				FC_FCP_DBG(fsp, "tgt %6.6x queue busy retry\n",
+					   fsp->rport->port_id);
+				return;
+			}
 			FC_FCP_DBG(fsp, "tgt %6.6x xfer len %zx data underrun "
 				   "len %x, data len %x\n",
 				   fsp->rport->port_id,
@@ -1434,8 +1441,15 @@ static void fc_fcp_timeout(unsigned long data)
 	if (fsp->cdb_cmd.fc_tm_flags)
 		goto unlock;
 
-	FC_FCP_DBG(fsp, "fcp timeout, flags %x state %x\n",
-		   rpriv->flags, fsp->state);
+	if (fsp->lp->qfull) {
+		FC_FCP_DBG(fsp, "fcp timeout, resetting timer delay %d\n",
+			   fsp->timer_delay);
+		setup_timer(&fsp->timer, fc_fcp_timeout, (unsigned long)fsp);
+		fc_fcp_timer_set(fsp, fsp->timer_delay);
+		goto unlock;
+	}
+	FC_FCP_DBG(fsp, "fcp timeout, delay %d flags %x state %x\n",
+		   fsp->timer_delay, rpriv->flags, fsp->state);
 	fsp->state |= FC_SRB_FCP_PROCESSING_TMO;
 
 	if (rpriv->flags & FC_RP_FLAGS_REC_SUPPORTED)
