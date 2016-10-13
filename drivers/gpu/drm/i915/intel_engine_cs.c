@@ -116,6 +116,7 @@ int intel_engines_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_device_info *device_info = mkwrite_device_info(dev_priv);
+	unsigned int ring_mask = INTEL_INFO(dev_priv)->ring_mask;
 	unsigned int mask = 0;
 	int (*init)(struct intel_engine_cs *engine);
 	struct intel_engine_cs *engine;
@@ -123,8 +124,8 @@ int intel_engines_init(struct drm_device *dev)
 	unsigned int i;
 	int ret;
 
-	WARN_ON(INTEL_INFO(dev_priv)->ring_mask == 0);
-	WARN_ON(INTEL_INFO(dev_priv)->ring_mask &
+	WARN_ON(ring_mask == 0);
+	WARN_ON(ring_mask &
 		GENMASK(sizeof(mask) * BITS_PER_BYTE - 1, I915_NUM_ENGINES));
 
 	for (i = 0; i < ARRAY_SIZE(intel_engines); i++) {
@@ -155,7 +156,7 @@ int intel_engines_init(struct drm_device *dev)
 	 * are added to the driver by a warning and disabling the forgotten
 	 * engines.
 	 */
-	if (WARN_ON(mask != INTEL_INFO(dev_priv)->ring_mask))
+	if (WARN_ON(mask != ring_mask))
 		device_info->ring_mask = mask;
 
 	device_info->num_rings = hweight32(mask);
