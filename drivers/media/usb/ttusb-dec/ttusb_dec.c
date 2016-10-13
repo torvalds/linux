@@ -36,7 +36,6 @@
 
 #include "dmxdev.h"
 #include "dvb_demux.h"
-#include "dvb_filter.h"
 #include "dvb_frontend.h"
 #include "dvb_net.h"
 #include "ttusbdecfe.h"
@@ -90,6 +89,15 @@ enum ttusb_dec_interface {
 	TTUSB_DEC_INTERFACE_INITIAL,
 	TTUSB_DEC_INTERFACE_IN,
 	TTUSB_DEC_INTERFACE_OUT
+};
+
+typedef int (dvb_filter_pes2ts_cb_t) (void *, unsigned char *);
+
+struct dvb_filter_pes2ts {
+	unsigned char buf[188];
+	unsigned char cc;
+	dvb_filter_pes2ts_cb_t *cb;
+	void *priv;
 };
 
 struct ttusb_dec {
@@ -200,6 +208,54 @@ static u16 rc_keys[] = {
 	KEY_M,
 	KEY_RADIO
 };
+
+static void dvb_filter_pes2ts_init(struct dvb_filter_pes2ts *p2ts,
+				   unsigned short pid,
+				   dvb_filter_pes2ts_cb_t *cb, void *priv)
+{
+	unsigned char *buf=p2ts->buf;
+
+	buf[0]=0x47;
+	buf[1]=(pid>>8);
+	buf[2]=pid&0xff;
+	p2ts->cc=0;
+	p2ts->cb=cb;
+	p2ts->priv=priv;
+}
+
+static int dvb_filter_pes2ts(struct dvb_filter_pes2ts *p2ts,
+			     unsigned char *pes, int len, int payload_start)
+{
+	unsigned char *buf=p2ts->buf;
+	int ret=0, rest;
+
+	//len=6+((pes[4]<<8)|pes[5]);
+
+	if (payload_start)
+		buf[1]|=0x40;
+	else
+		buf[1]&=~0x40;
+	while (len>=184) {
+		buf[3]=0x10|((p2ts->cc++)&0x0f);
+		memcpy(buf+4, pes, 184);
+		if ((ret=p2ts->cb(p2ts->priv, buf)))
+			return ret;
+		len-=184; pes+=184;
+		buf[1]&=~0x40;
+	}
+	if (!len)
+		return 0;
+	buf[3]=0x30|((p2ts->cc++)&0x0f);
+	rest=183-len;
+	if (rest) {
+		buf[5]=0x00;
+		if (rest-1)
+			memset(buf+6, 0xff, rest-1);
+	}
+	buf[4]=rest;
+	memcpy(buf+5+rest, pes, len);
+	return p2ts->cb(p2ts->priv, buf);
+}
 
 static void ttusb_dec_set_model(struct ttusb_dec *dec,
 				enum ttusb_dec_model model);
