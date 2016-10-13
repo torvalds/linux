@@ -1045,7 +1045,7 @@ static bool pipe_dsl_stopped(struct drm_device *dev, enum pipe pipe)
 	u32 line1, line2;
 	u32 line_mask;
 
-	if (IS_GEN2(dev))
+	if (IS_GEN2(dev_priv))
 		line_mask = DSL_LINEMASK_GEN2;
 	else
 		line_mask = DSL_LINEMASK_GEN3;
@@ -3945,7 +3945,7 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	temp = I915_READ(reg);
 	temp &= ~FDI_LINK_TRAIN_NONE;
 	temp |= FDI_LINK_TRAIN_PATTERN_2;
-	if (IS_GEN6(dev)) {
+	if (IS_GEN6(dev_priv)) {
 		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
 		/* SNB-B */
 		temp |= FDI_LINK_TRAIN_400MV_0DB_SNB_B;
@@ -4983,7 +4983,7 @@ intel_post_enable_primary(struct drm_crtc *crtc)
 	 * FIXME: Need to fix the logic to work when we turn off all planes
 	 * but leave the pipe running.
 	 */
-	if (IS_GEN2(dev))
+	if (IS_GEN2(dev_priv))
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	/* Underruns don't always raise interrupts, so check manually. */
@@ -5006,7 +5006,7 @@ intel_pre_disable_primary(struct drm_crtc *crtc)
 	 * FIXME: Need to fix the logic to work when we turn off all planes
 	 * but leave the pipe running.
 	 */
-	if (IS_GEN2(dev))
+	if (IS_GEN2(dev_priv))
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 
 	/*
@@ -6773,7 +6773,7 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_crtc->active = true;
 
-	if (!IS_GEN2(dev))
+	if (!IS_GEN2(dev_priv))
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	intel_encoders_pre_enable(crtc, pipe_config, old_state);
@@ -6821,7 +6821,7 @@ static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	 * On gen2 planes are double buffered but the pipe isn't, so we must
 	 * wait for planes to fully turn off before disabling the pipe.
 	 */
-	if (IS_GEN2(dev))
+	if (IS_GEN2(dev_priv))
 		intel_wait_for_vblank(dev, pipe);
 
 	intel_encoders_disable(crtc, old_crtc_state, old_state);
@@ -6846,7 +6846,7 @@ static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
 
 	intel_encoders_post_pll_disable(crtc, old_crtc_state, old_state);
 
-	if (!IS_GEN2(dev))
+	if (!IS_GEN2(dev_priv))
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 }
 
@@ -9844,7 +9844,7 @@ static void ironlake_get_pfit_config(struct intel_crtc *crtc,
 		/* We currently do not free assignements of panel fitters on
 		 * ivb/hsw (since we don't use the higher upscaling modes which
 		 * differentiates them) so just WARN about this case for now. */
-		if (IS_GEN7(dev)) {
+		if (IS_GEN7(dev_priv)) {
 			WARN_ON((tmp & PF_PIPE_SEL_MASK_IVB) !=
 				PF_PIPE_SEL_IVB(crtc->pipe));
 		}
@@ -11320,7 +11320,7 @@ static int i9xx_pll_refclk(struct drm_device *dev,
 		return dev_priv->vbt.lvds_ssc_freq;
 	else if (HAS_PCH_SPLIT(dev_priv))
 		return 120000;
-	else if (!IS_GEN2(dev))
+	else if (!IS_GEN2(dev_priv))
 		return 96000;
 	else
 		return 48000;
@@ -11353,7 +11353,7 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 		clock.m2 = (fp & FP_M2_DIV_MASK) >> FP_M2_DIV_SHIFT;
 	}
 
-	if (!IS_GEN2(dev)) {
+	if (!IS_GEN2(dev_priv)) {
 		if (IS_PINEVIEW(dev))
 			clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK_PINEVIEW) >>
 				DPLL_FPA01_P1_POST_DIV_SHIFT_PINEVIEW);
@@ -11852,6 +11852,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 				 struct drm_i915_gem_request *req,
 				 uint32_t flags)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_ring *ring = req->ring;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t plane_bit = 0;
@@ -11880,7 +11881,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 		 * 48bits addresses, and we need a NOOP for the batch size to
 		 * stay even.
 		 */
-		if (IS_GEN8(dev))
+		if (IS_GEN8(dev_priv))
 			len += 2;
 	}
 
@@ -11917,7 +11918,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 		intel_ring_emit(ring, ~(DERRMR_PIPEA_PRI_FLIP_DONE |
 					  DERRMR_PIPEB_PRI_FLIP_DONE |
 					  DERRMR_PIPEC_PRI_FLIP_DONE));
-		if (IS_GEN8(dev))
+		if (IS_GEN8(dev_priv))
 			intel_ring_emit(ring, MI_STORE_REGISTER_MEM_GEN8 |
 					      MI_SRM_LRM_GLOBAL_GTT);
 		else
@@ -11926,7 +11927,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 		intel_ring_emit_reg(ring, DERRMR);
 		intel_ring_emit(ring,
 				i915_ggtt_offset(req->engine->scratch) + 256);
-		if (IS_GEN8(dev)) {
+		if (IS_GEN8(dev_priv)) {
 			intel_ring_emit(ring, 0);
 			intel_ring_emit(ring, MI_NOOP);
 		}
@@ -15320,7 +15321,7 @@ static bool has_edp_a(struct drm_device *dev)
 	if ((I915_READ(DP_A) & DP_DETECTED) == 0)
 		return false;
 
-	if (IS_GEN5(dev) && (I915_READ(FUSE_STRAP) & ILK_eDP_A_DISABLE))
+	if (IS_GEN5(dev_priv) && (I915_READ(FUSE_STRAP) & ILK_eDP_A_DISABLE))
 		return false;
 
 	return true;
@@ -15522,7 +15523,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		}
 
 		intel_dsi_init(dev);
-	} else if (!IS_GEN2(dev) && !IS_PINEVIEW(dev)) {
+	} else if (!IS_GEN2(dev_priv) && !IS_PINEVIEW(dev_priv)) {
 		bool found = false;
 
 		if (I915_READ(GEN3_SDVOB) & SDVO_DETECTED) {
@@ -15556,7 +15557,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		if (IS_G4X(dev_priv) && (I915_READ(DP_D) & DP_DETECTED))
 			intel_dp_init(dev, DP_D, PORT_D);
-	} else if (IS_GEN2(dev))
+	} else if (IS_GEN2(dev_priv))
 		intel_dvo_init(dev);
 
 	if (SUPPORTS_TV(dev))
@@ -16381,10 +16382,10 @@ void intel_modeset_init(struct drm_device *dev)
 		}
 	}
 
-	if (IS_GEN2(dev)) {
+	if (IS_GEN2(dev_priv)) {
 		dev->mode_config.max_width = 2048;
 		dev->mode_config.max_height = 2048;
-	} else if (IS_GEN3(dev)) {
+	} else if (IS_GEN3(dev_priv)) {
 		dev->mode_config.max_width = 4096;
 		dev->mode_config.max_height = 4096;
 	} else {
@@ -16395,7 +16396,7 @@ void intel_modeset_init(struct drm_device *dev)
 	if (IS_845G(dev_priv) || IS_I865G(dev_priv)) {
 		dev->mode_config.cursor_width = IS_845G(dev_priv) ? 64 : 512;
 		dev->mode_config.cursor_height = 1023;
-	} else if (IS_GEN2(dev)) {
+	} else if (IS_GEN2(dev_priv)) {
 		dev->mode_config.cursor_width = GEN2_CURSOR_WIDTH;
 		dev->mode_config.cursor_height = GEN2_CURSOR_HEIGHT;
 	} else {
@@ -16916,7 +16917,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev)
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		vlv_wm_get_hw_state(dev);
-	else if (IS_GEN9(dev))
+	else if (IS_GEN9(dev_priv))
 		skl_wm_get_hw_state(dev);
 	else if (HAS_PCH_SPLIT(dev_priv))
 		ilk_wm_get_hw_state(dev);

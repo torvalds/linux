@@ -3330,7 +3330,7 @@ static void ironlake_irq_reset(struct drm_device *dev)
 	I915_WRITE(HWSTAM, 0xffffffff);
 
 	GEN5_IRQ_RESET(DE);
-	if (IS_GEN7(dev))
+	if (IS_GEN7(dev_priv))
 		I915_WRITE(GEN7_ERR_INT, 0xffffffff);
 
 	gen5_gt_irq_reset(dev);
@@ -3596,7 +3596,7 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 	}
 
 	gt_irqs |= GT_RENDER_USER_INTERRUPT;
-	if (IS_GEN5(dev)) {
+	if (IS_GEN5(dev_priv)) {
 		gt_irqs |= ILK_BSD_USER_INTERRUPT;
 	} else {
 		gt_irqs |= GT_BLT_USER_INTERRUPT | GT_BSD_USER_INTERRUPT;

@@ -610,7 +610,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		err_printf(m, "DONE_REG: 0x%08x\n", error->done_reg);
 	}
 
-	if (IS_GEN7(dev))
+	if (IS_GEN7(dev_priv))
 		err_printf(m, "ERR_INT: 0x%08x\n", error->err_int);
 
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
@@ -1430,7 +1430,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 		error->forcewake = I915_READ_FW(FORCEWAKE_VLV);
 	}
 
-	if (IS_GEN7(dev))
+	if (IS_GEN7(dev_priv))
 		error->err_int = I915_READ(GEN7_ERR_INT);
 
 	if (INTEL_INFO(dev)->gen >= 8) {
@@ -1438,7 +1438,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 		error->fault_data1 = I915_READ(GEN8_FAULT_TLB_DATA1);
 	}
 
-	if (IS_GEN6(dev)) {
+	if (IS_GEN6(dev_priv)) {
 		error->forcewake = I915_READ_FW(FORCEWAKE);
 		error->gab_ctl = I915_READ(GAB_CTL);
 		error->gfx_mode = I915_READ(GFX_MODE);
@@ -1455,7 +1455,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	}
 
 	/* 3: Feature specific registers */
-	if (IS_GEN6(dev) || IS_GEN7(dev)) {
+	if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv)) {
 		error->gam_ecochk = I915_READ(GAM_ECOCHK);
 		error->gac_eco = I915_READ(GAC_ECO_BITS);
 	}
@@ -1471,7 +1471,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		error->ier = I915_READ(DEIER);
 		error->gtier[0] = I915_READ(GTIER);
-	} else if (IS_GEN2(dev)) {
+	} else if (IS_GEN2(dev_priv)) {
 		error->ier = I915_READ16(IER);
 	} else if (!IS_VALLEYVIEW(dev_priv)) {
 		error->ier = I915_READ(IER);

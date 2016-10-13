@@ -2060,11 +2060,11 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	int ret;
 
 	ppgtt->base.pte_encode = ggtt->base.pte_encode;
-	if (intel_vgpu_active(dev_priv) || IS_GEN6(dev))
+	if (intel_vgpu_active(dev_priv) || IS_GEN6(dev_priv))
 		ppgtt->switch_mm = gen6_mm_switch;
 	else if (IS_HASWELL(dev_priv))
 		ppgtt->switch_mm = hsw_mm_switch;
-	else if (IS_GEN7(dev))
+	else if (IS_GEN7(dev_priv))
 		ppgtt->switch_mm = gen7_mm_switch;
 	else
 		BUG();
@@ -2161,6 +2161,8 @@ static int i915_ppgtt_init(struct i915_hw_ppgtt *ppgtt,
 
 int i915_ppgtt_init_hw(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
 	gtt_write_workarounds(dev);
 
 	/* In the case of execlists, PPGTT is enabled by the context descriptor
@@ -2172,9 +2174,9 @@ int i915_ppgtt_init_hw(struct drm_device *dev)
 	if (!USES_PPGTT(dev))
 		return 0;
 
-	if (IS_GEN6(dev))
+	if (IS_GEN6(dev_priv))
 		gen6_ppgtt_enable(dev);
-	else if (IS_GEN7(dev))
+	else if (IS_GEN7(dev_priv))
 		gen7_ppgtt_enable(dev);
 	else if (INTEL_INFO(dev)->gen >= 8)
 		gen8_ppgtt_enable(dev);

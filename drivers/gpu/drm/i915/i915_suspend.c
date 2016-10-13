@@ -70,7 +70,7 @@ int i915_save_state(struct drm_device *dev)
 
 	i915_save_display(dev);
 
-	if (IS_GEN4(dev))
+	if (IS_GEN4(dev_priv))
 		pci_read_config_word(pdev, GCDGMBUS,
 				     &dev_priv->regfile.saveGCDGMBUS);
 
@@ -116,7 +116,7 @@ int i915_restore_state(struct drm_device *dev)
 
 	i915_gem_restore_fences(dev);
 
-	if (IS_GEN4(dev))
+	if (IS_GEN4(dev_priv))
 		pci_write_config_word(pdev, GCDGMBUS,
 				      dev_priv->regfile.saveGCDGMBUS);
 	i915_restore_display(dev);

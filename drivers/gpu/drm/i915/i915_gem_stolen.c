@@ -215,7 +215,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		u64 ggtt_start, ggtt_end;
 
 		ggtt_start = I915_READ(PGTBL_CTL);
-		if (IS_GEN4(dev))
+		if (IS_GEN4(dev_priv))
 			ggtt_start = (ggtt_start & PGTBL_ADDRESS_LO_MASK) |
 				     (ggtt_start & PGTBL_ADDRESS_HI_MASK) << 28;
 		else
@@ -271,7 +271,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		 * GEN3 firmware likes to smash pci bridges into the stolen
 		 * range. Apparently this works.
 		 */
-		if (r == NULL && !IS_GEN3(dev)) {
+		if (r == NULL && !IS_GEN3(dev_priv)) {
 			DRM_ERROR("conflict detected with stolen region: [0x%08x - 0x%08x]\n",
 				  base, base + (uint32_t)ggtt->stolen_size);
 			base = 0;

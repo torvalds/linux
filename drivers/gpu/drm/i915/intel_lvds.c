@@ -1071,7 +1071,7 @@ void intel_lvds_init(struct drm_device *dev)
 	intel_encoder->cloneable = 0;
 	if (HAS_PCH_SPLIT(dev_priv))
 		intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
-	else if (IS_GEN4(dev))
+	else if (IS_GEN4(dev_priv))
 		intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 	else
 		intel_encoder->crtc_mask = (1 << 1);
