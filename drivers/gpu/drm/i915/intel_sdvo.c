@@ -307,7 +307,7 @@ static bool intel_sdvo_read_byte(struct intel_sdvo *intel_sdvo, u8 addr, u8 *ch)
 static const struct _sdvo_cmd_name {
 	u8 cmd;
 	const char *name;
-} sdvo_cmd_names[] = {
+} __attribute__ ((packed)) sdvo_cmd_names[] = {
 	SDVO_CMD_NAME_ENTRY(SDVO_CMD_RESET),
 	SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_DEVICE_CAPS),
 	SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_FIRMWARE_REV),
