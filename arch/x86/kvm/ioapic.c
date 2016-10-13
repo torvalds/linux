@@ -580,7 +580,7 @@ static void kvm_ioapic_reset(struct kvm_ioapic *ioapic)
 	ioapic->irr = 0;
 	ioapic->irr_delivered = 0;
 	ioapic->id = 0;
-	memset(ioapic->irq_eoi, 0x00, IOAPIC_NUM_PINS);
+	memset(ioapic->irq_eoi, 0x00, sizeof(ioapic->irq_eoi));
 	rtc_irq_eoi_tracking_reset(ioapic);
 }
 
