@@ -79,7 +79,7 @@ struct arcfb_par {
 	spinlock_t lock;
 };
 
-static struct fb_fix_screeninfo arcfb_fix = {
+static const struct fb_fix_screeninfo arcfb_fix = {
 	.id =		"arcfb",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_MONO01,
@@ -89,7 +89,7 @@ static struct fb_fix_screeninfo arcfb_fix = {
 	.accel =	FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo arcfb_var = {
+static const struct fb_var_screeninfo arcfb_var = {
 	.xres		= 128,
 	.yres		= 64,
 	.xres_virtual	= 128,

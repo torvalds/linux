@@ -150,7 +150,7 @@ static irqreturn_t qpnp_tm_isr(int irq, void *data)
 {
 	struct qpnp_tm_chip *chip = data;
 
-	thermal_zone_device_update(chip->tz_dev);
+	thermal_zone_device_update(chip->tz_dev, THERMAL_EVENT_UNSPECIFIED);
 
 	return IRQ_HANDLED;
 }
