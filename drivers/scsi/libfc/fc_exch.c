@@ -2005,8 +2005,7 @@ static void fc_exch_els_rec(struct fc_frame *rfp)
 	enum fc_els_rjt_reason reason = ELS_RJT_LOGIC;
 	enum fc_els_rjt_explan explan;
 	u32 sid;
-	u16 rxid;
-	u16 oxid;
+	u16 xid, rxid, oxid;
 
 	lport = fr_dev(rfp);
 	rp = fc_frame_payload_get(rfp, sizeof(*rp));
@@ -2017,9 +2016,18 @@ static void fc_exch_els_rec(struct fc_frame *rfp)
 	rxid = ntohs(rp->rec_rx_id);
 	oxid = ntohs(rp->rec_ox_id);
 
-	ep = fc_exch_lookup(lport,
-			    sid == fc_host_port_id(lport->host) ? oxid : rxid);
 	explan = ELS_EXPL_OXID_RXID;
+	if (sid == fc_host_port_id(lport->host))
+		xid = oxid;
+	else
+		xid = rxid;
+	if (xid == FC_XID_UNKNOWN) {
+		FC_LPORT_DBG(lport,
+			     "REC request from %x: invalid rxid %x oxid %x\n",
+			     sid, rxid, oxid);
+		goto reject;
+	}
+	ep = fc_exch_lookup(lport, xid);
 	if (!ep) {
 		FC_LPORT_DBG(lport,
 			     "REC request from %x: rxid %x oxid %x not found\n",
