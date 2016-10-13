@@ -727,14 +727,14 @@ int snd_intelhad_init_audio_ctrl(struct snd_pcm_substream *substream,
 int snd_intelhad_prog_buffer(struct snd_intelhad *intelhaddata,
 					int start, int end);
 int snd_intelhad_invd_buffer(int start, int end);
-inline int snd_intelhad_read_len(struct snd_intelhad *intelhaddata);
+int snd_intelhad_read_len(struct snd_intelhad *intelhaddata);
 void had_build_channel_allocation_map(struct snd_intelhad *intelhaddata);
 
 /* Register access functions */
-inline int had_get_hwstate(struct snd_intelhad *intelhaddata);
-inline int had_get_caps(enum had_caps_list query_element, void *capabilties);
-inline int had_set_caps(enum had_caps_list set_element, void *capabilties);
-inline int had_read_register(uint32_t reg_addr, uint32_t *data);
-inline int had_write_register(uint32_t reg_addr, uint32_t data);
-inline int had_read_modify(uint32_t reg_addr, uint32_t data, uint32_t mask);
+int had_get_hwstate(struct snd_intelhad *intelhaddata);
+int had_get_caps(enum had_caps_list query_element, void *capabilties);
+int had_set_caps(enum had_caps_list set_element, void *capabilties);
+int had_read_register(uint32_t reg_addr, uint32_t *data);
+int had_write_register(uint32_t reg_addr, uint32_t data);
+int had_read_modify(uint32_t reg_addr, uint32_t data, uint32_t mask);
 #endif

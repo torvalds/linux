@@ -197,7 +197,7 @@ static const struct snd_pcm_hardware snd_intel_hadstream = {
 
 /* Register access functions */
 
-inline int had_get_hwstate(struct snd_intelhad *intelhaddata)
+int had_get_hwstate(struct snd_intelhad *intelhaddata)
 {
 	/* Check for device presence -SW state */
 	if (intelhaddata->drv_status == HAD_DRV_DISCONNECTED) {
@@ -220,7 +220,7 @@ inline int had_get_hwstate(struct snd_intelhad *intelhaddata)
 	return 0;
 }
 
-inline int had_get_caps(enum had_caps_list query, void *caps)
+int had_get_caps(enum had_caps_list query, void *caps)
 {
 	int retval;
 	struct snd_intelhad *intelhaddata = had_data;
@@ -233,7 +233,7 @@ inline int had_get_caps(enum had_caps_list query, void *caps)
 	return retval;
 }
 
-inline int had_set_caps(enum had_caps_list set_element, void *caps)
+int had_set_caps(enum had_caps_list set_element, void *caps)
 {
 	int retval;
 	struct snd_intelhad *intelhaddata = had_data;
@@ -246,7 +246,7 @@ inline int had_set_caps(enum had_caps_list set_element, void *caps)
 	return retval;
 }
 
-inline int had_read_register(uint32_t offset, uint32_t *data)
+int had_read_register(uint32_t offset, uint32_t *data)
 {
 	int retval;
 	struct snd_intelhad *intelhaddata = had_data;
@@ -260,7 +260,7 @@ inline int had_read_register(uint32_t offset, uint32_t *data)
 	return retval;
 }
 
-inline int had_write_register(uint32_t offset, uint32_t data)
+int had_write_register(uint32_t offset, uint32_t data)
 {
 	int retval;
 	struct snd_intelhad *intelhaddata = had_data;
@@ -274,7 +274,7 @@ inline int had_write_register(uint32_t offset, uint32_t data)
 	return retval;
 }
 
-inline int had_read_modify(uint32_t offset, uint32_t data, uint32_t mask)
+int had_read_modify(uint32_t offset, uint32_t data, uint32_t mask)
 {
 	int retval;
 	struct snd_intelhad *intelhaddata = had_data;
