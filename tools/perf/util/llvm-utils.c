@@ -339,7 +339,7 @@ dump_obj(const char *path, void *obj_buf, size_t size)
 	char *p;
 
 	if (!obj_path) {
-		pr_warning("WARNING: No enough memory, skip object dumping\n");
+		pr_warning("WARNING: Not enough memory, skip object dumping\n");
 		return;
 	}
 
