@@ -335,7 +335,7 @@ int cl_object_getstripe(const struct lu_env *env, struct cl_object *obj,
 		if (obj->co_ops->coo_getstripe) {
 			result = obj->co_ops->coo_getstripe(env, obj, uarg);
 			if (result)
-			break;
+				break;
 		}
 	}
 	return result;
