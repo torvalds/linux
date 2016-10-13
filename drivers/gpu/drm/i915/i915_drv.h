@@ -2865,7 +2865,7 @@ struct drm_i915_cmd_table {
 #define HAS_GMCH_DISPLAY(dev_priv) ((dev_priv)->info.has_gmch_display)
 
 /* DPF == dynamic parity feature */
-#define HAS_L3_DPF(dev) (INTEL_INFO(dev)->has_l3_dpf)
+#define HAS_L3_DPF(dev_priv) ((dev_priv)->info.has_l3_dpf)
 #define NUM_L3_SLICES(dev_priv) (IS_HSW_GT3(dev_priv) ? \
 				 2 : HAS_L3_DPF(dev_priv))
 
