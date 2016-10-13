@@ -201,9 +201,12 @@ EXPORT_SYMBOL(get_user_pages);
 
 long get_user_pages_locked(struct task_struct *tsk, struct mm_struct *mm,
 			   unsigned long start, unsigned long nr_pages,
-			   int write, int force, struct page **pages,
+			   unsigned int gup_flags, struct page **pages,
 			   int *locked)
 {
+	int write = gup_flags & FOLL_WRITE;
+	int force = gup_flags & FOLL_FORCE;
+
 	return get_user_pages(tsk, mm, start, nr_pages, write, force,
 			      pages, NULL);
 }
