@@ -706,13 +706,15 @@ static int gen8_48b_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	return gen8_write_pdp(req, 0, px_dma(&ppgtt->pml4));
 }
 
-static void gen8_ppgtt_clear_pt(struct i915_address_space *vm,
+/* Removes entries from a single page table, releasing it if it's empty.
+ * Caller can use the return value to update higher-level entries.
+ */
+static bool gen8_ppgtt_clear_pt(struct i915_address_space *vm,
 				struct i915_page_table *pt,
 				uint64_t start,
 				uint64_t length)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-
 	unsigned int pte_start = gen8_pte_index(start);
 	unsigned int num_entries = gen8_pte_count(start, length);
 	uint64_t pte;
@@ -721,9 +723,14 @@ static void gen8_ppgtt_clear_pt(struct i915_address_space *vm,
 						 I915_CACHE_LLC);
 
 	if (WARN_ON(!px_page(pt)))
-		return;
+		return false;
 
 	bitmap_clear(pt->used_ptes, pte_start, num_entries);
+
+	if (bitmap_empty(pt->used_ptes, GEN8_PTES)) {
+		free_pt(vm->dev, pt);
+		return true;
+	}
 
 	pt_vaddr = kmap_px(pt);
 
@@ -731,53 +738,111 @@ static void gen8_ppgtt_clear_pt(struct i915_address_space *vm,
 		pt_vaddr[pte] = scratch_pte;
 
 	kunmap_px(ppgtt, pt_vaddr);
+
+	return false;
 }
 
-static void gen8_ppgtt_clear_pd(struct i915_address_space *vm,
+/* Removes entries from a single page dir, releasing it if it's empty.
+ * Caller can use the return value to update higher-level entries
+ */
+static bool gen8_ppgtt_clear_pd(struct i915_address_space *vm,
 				struct i915_page_directory *pd,
 				uint64_t start,
 				uint64_t length)
 {
+	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	struct i915_page_table *pt;
 	uint64_t pde;
+	gen8_pde_t *pde_vaddr;
+	gen8_pde_t scratch_pde = gen8_pde_encode(px_dma(vm->scratch_pt),
+						 I915_CACHE_LLC);
 
 	gen8_for_each_pde(pt, pd, start, length, pde) {
 		if (WARN_ON(!pd->page_table[pde]))
 			break;
 
-		gen8_ppgtt_clear_pt(vm, pt, start, length);
+		if (gen8_ppgtt_clear_pt(vm, pt, start, length)) {
+			__clear_bit(pde, pd->used_pdes);
+			pde_vaddr = kmap_px(pd);
+			pde_vaddr[pde] = scratch_pde;
+			kunmap_px(ppgtt, pde_vaddr);
+		}
 	}
+
+	if (bitmap_empty(pd->used_pdes, I915_PDES)) {
+		free_pd(vm->dev, pd);
+		return true;
+	}
+
+	return false;
 }
 
-static void gen8_ppgtt_clear_pdp(struct i915_address_space *vm,
+/* Removes entries from a single page dir pointer, releasing it if it's empty.
+ * Caller can use the return value to update higher-level entries
+ */
+static bool gen8_ppgtt_clear_pdp(struct i915_address_space *vm,
 				 struct i915_page_directory_pointer *pdp,
 				 uint64_t start,
 				 uint64_t length)
 {
+	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	struct i915_page_directory *pd;
 	uint64_t pdpe;
+	gen8_ppgtt_pdpe_t *pdpe_vaddr;
+	gen8_ppgtt_pdpe_t scratch_pdpe =
+		gen8_pdpe_encode(px_dma(vm->scratch_pd), I915_CACHE_LLC);
 
 	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
 		if (WARN_ON(!pdp->page_directory[pdpe]))
 			break;
 
-		gen8_ppgtt_clear_pd(vm, pd, start, length);
+		if (gen8_ppgtt_clear_pd(vm, pd, start, length)) {
+			__clear_bit(pdpe, pdp->used_pdpes);
+			if (USES_FULL_48BIT_PPGTT(vm->dev)) {
+				pdpe_vaddr = kmap_px(pdp);
+				pdpe_vaddr[pdpe] = scratch_pdpe;
+				kunmap_px(ppgtt, pdpe_vaddr);
+			}
+		}
 	}
+
+	if (USES_FULL_48BIT_PPGTT(vm->dev) &&
+	    bitmap_empty(pdp->used_pdpes, I915_PDPES_PER_PDP(vm->dev))) {
+		free_pdp(vm->dev, pdp);
+		return true;
+	}
+
+	return false;
 }
 
+/* Removes entries from a single pml4.
+ * This is the top-level structure in 4-level page tables used on gen8+.
+ * Empty entries are always scratch pml4e.
+ */
 static void gen8_ppgtt_clear_pml4(struct i915_address_space *vm,
 				  struct i915_pml4 *pml4,
 				  uint64_t start,
 				  uint64_t length)
 {
+	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 	struct i915_page_directory_pointer *pdp;
 	uint64_t pml4e;
+	gen8_ppgtt_pml4e_t *pml4e_vaddr;
+	gen8_ppgtt_pml4e_t scratch_pml4e =
+		gen8_pml4e_encode(px_dma(vm->scratch_pdp), I915_CACHE_LLC);
+
+	GEM_BUG_ON(!USES_FULL_48BIT_PPGTT(vm->dev));
 
 	gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
 		if (WARN_ON(!pml4->pdps[pml4e]))
 			break;
 
-		gen8_ppgtt_clear_pdp(vm, pdp, start, length);
+		if (gen8_ppgtt_clear_pdp(vm, pdp, start, length)) {
+			__clear_bit(pml4e, pml4->used_pml4es);
+			pml4e_vaddr = kmap_px(pml4);
+			pml4e_vaddr[pml4e] = scratch_pml4e;
+			kunmap_px(ppgtt, pml4e_vaddr);
+		}
 	}
 }
 
