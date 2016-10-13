@@ -784,7 +784,6 @@ struct dwc3_scratchpad_array {
  * @ep0state: state of endpoint zero
  * @link_state: link state
  * @speed: device speed (super, high, full, low)
- * @mem: points to start of memory which is used for this struct.
  * @hwparams: copy of hwparams registers
  * @root: debugfs root folder pointer
  * @regset: debugfs pointer to regdump file
@@ -933,8 +932,6 @@ struct dwc3 {
 
 	u8			num_out_eps;
 	u8			num_in_eps;
-
-	void			*mem;
 
 	struct dwc3_hwparams	hwparams;
 	struct dentry		*root;
