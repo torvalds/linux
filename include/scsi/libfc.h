@@ -390,6 +390,7 @@ struct fc_seq {
 
 #define FC_EX_DONE		(1 << 0) /* ep is completed */
 #define FC_EX_RST_CLEANUP	(1 << 1) /* reset is forcing completion */
+#define FC_EX_QUARANTINE	(1 << 2) /* exch is quarantined */
 
 /**
  * struct fc_exch - Fibre Channel Exchange

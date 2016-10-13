@@ -94,6 +94,7 @@ struct fc_exch_pool {
 struct fc_exch_mgr {
 	struct fc_exch_pool __percpu *pool;
 	mempool_t	*ep_pool;
+	struct fc_lport	*lport;
 	enum fc_class	class;
 	struct kref	kref;
 	u16		min_xid;
@@ -408,6 +409,8 @@ static int fc_exch_done_locked(struct fc_exch *ep)
 	return rc;
 }
 
+static struct fc_exch fc_quarantine_exch;
+
 /**
  * fc_exch_ptr_get() - Return an exchange from an exchange pool
  * @pool:  Exchange Pool to get an exchange from
@@ -452,14 +455,17 @@ static void fc_exch_delete(struct fc_exch *ep)
 
 	/* update cache of free slot */
 	index = (ep->xid - ep->em->min_xid) >> fc_cpu_order;
-	if (pool->left == FC_XID_UNKNOWN)
-		pool->left = index;
-	else if (pool->right == FC_XID_UNKNOWN)
-		pool->right = index;
-	else
-		pool->next_index = index;
-
-	fc_exch_ptr_set(pool, index, NULL);
+	if (!(ep->state & FC_EX_QUARANTINE)) {
+		if (pool->left == FC_XID_UNKNOWN)
+			pool->left = index;
+		else if (pool->right == FC_XID_UNKNOWN)
+			pool->right = index;
+		else
+			pool->next_index = index;
+		fc_exch_ptr_set(pool, index, NULL);
+	} else {
+		fc_exch_ptr_set(pool, index, &fc_quarantine_exch);
+	}
 	list_del(&ep->ex_list);
 	spin_unlock_bh(&pool->lock);
 	fc_exch_release(ep);	/* drop hold for exch in mp */
@@ -921,14 +927,14 @@ static struct fc_exch *fc_exch_alloc(struct fc_lport *lport,
  */
 static struct fc_exch *fc_exch_find(struct fc_exch_mgr *mp, u16 xid)
 {
+	struct fc_lport *lport = mp->lport;
 	struct fc_exch_pool *pool;
 	struct fc_exch *ep = NULL;
 	u16 cpu = xid & fc_cpu_mask;
 
 	if (cpu >= nr_cpu_ids || !cpu_possible(cpu)) {
-		printk_ratelimited(KERN_ERR
-			"libfc: lookup request for XID = %d, "
-			"indicates invalid CPU %d\n", xid, cpu);
+		pr_err("host%u: lport %6.6x: xid %d invalid CPU %d\n:",
+		       lport->host->host_no, lport->port_id, xid, cpu);
 		return NULL;
 	}
 
@@ -936,6 +942,10 @@ static struct fc_exch *fc_exch_find(struct fc_exch_mgr *mp, u16 xid)
 		pool = per_cpu_ptr(mp->pool, cpu);
 		spin_lock_bh(&pool->lock);
 		ep = fc_exch_ptr_get(pool, (xid - mp->min_xid) >> fc_cpu_order);
+		if (ep == &fc_quarantine_exch) {
+			FC_LPORT_DBG(lport, "xid %x quarantined\n", xid);
+			ep = NULL;
+		}
 		if (ep) {
 			WARN_ON(ep->xid != xid);
 			fc_exch_hold(ep);
@@ -2434,6 +2444,7 @@ struct fc_exch_mgr *fc_exch_mgr_alloc(struct fc_lport *lport,
 		return NULL;
 
 	mp->class = class;
+	mp->lport = lport;
 	/* adjust em exch xid range for offload */
 	mp->min_xid = min_xid;
 

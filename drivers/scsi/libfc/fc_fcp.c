@@ -1529,13 +1529,14 @@ static void fc_fcp_rec_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 				   fsp->rport->port_id, rjt->er_reason,
 				   rjt->er_explan);
 			/*
-			 * If no data transfer, the command frame got dropped
-			 * so we just retry.  If data was transferred, we
-			 * lost the response but the target has no record,
-			 * so we abort and retry.
+			 * If response got lost or is stuck in the
+			 * queue somewhere we have no idea if and when
+			 * the response will be received. So quarantine
+			 * the xid and retry the command.
 			 */
-			if (rjt->er_explan == ELS_EXPL_OXID_RXID &&
-			    fsp->xfer_len == 0) {
+			if (rjt->er_explan == ELS_EXPL_OXID_RXID) {
+				struct fc_exch *ep = fc_seq_exch(fsp->seq_ptr);
+				ep->state |= FC_EX_QUARANTINE;
 				fsp->state |= FC_SRB_ABORTED;
 				fc_fcp_retry_cmd(fsp, FC_TRANS_RESET);
 				break;
