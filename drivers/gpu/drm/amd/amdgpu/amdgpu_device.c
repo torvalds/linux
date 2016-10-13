@@ -2075,7 +2075,8 @@ static bool amdgpu_check_soft_reset(struct amdgpu_device *adev)
 		if (!adev->ip_block_status[i].valid)
 			continue;
 		if (adev->ip_blocks[i].funcs->check_soft_reset)
-			adev->ip_blocks[i].funcs->check_soft_reset(adev);
+			adev->ip_block_status[i].hang =
+				adev->ip_blocks[i].funcs->check_soft_reset(adev);
 		if (adev->ip_block_status[i].hang) {
 			DRM_INFO("IP block:%d is hang!\n", i);
 			asic_hang = true;
@@ -2104,12 +2105,20 @@ static int amdgpu_pre_soft_reset(struct amdgpu_device *adev)
 
 static bool amdgpu_need_full_reset(struct amdgpu_device *adev)
 {
-	if (adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang ||
-	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_SMC].hang ||
-	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_ACP].hang ||
-	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_DCE].hang) {
-		DRM_INFO("Some block need full reset!\n");
-		return true;
+	int i;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_block_status[i].valid)
+			continue;
+		if ((adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_GMC) ||
+		    (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_SMC) ||
+		    (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_ACP) ||
+		    (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_DCE)) {
+			if (adev->ip_block_status[i].hang) {
+				DRM_INFO("Some block need full reset!\n");
+				return true;
+			}
+		}
 	}
 	return false;
 }

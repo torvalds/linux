@@ -3188,25 +3188,17 @@ static int dce_v10_0_wait_for_idle(void *handle)
 	return 0;
 }
 
-static int dce_v10_0_check_soft_reset(void *handle)
+static bool dce_v10_0_check_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (dce_v10_0_is_display_hung(adev))
-		adev->ip_block_status[AMD_IP_BLOCK_TYPE_DCE].hang = true;
-	else
-		adev->ip_block_status[AMD_IP_BLOCK_TYPE_DCE].hang = false;
-
-	return 0;
+	return dce_v10_0_is_display_hung(adev);
 }
 
 static int dce_v10_0_soft_reset(void *handle)
 {
 	u32 srbm_soft_reset = 0, tmp;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_DCE].hang)
-		return 0;
 
 	if (dce_v10_0_is_display_hung(adev))
 		srbm_soft_reset |= SRBM_SOFT_RESET__SOFT_RESET_DC_MASK;
