@@ -335,16 +335,24 @@ static ssize_t store_ctlr_enabled(struct device *dev,
 				  const char *buf, size_t count)
 {
 	struct fcoe_ctlr_device *ctlr = dev_to_ctlr(dev);
+	bool enabled;
 	int rc;
+
+	if (*buf == '1')
+		enabled = true;
+	else if (*buf == '0')
+		enabled = false;
+	else
+		return -EINVAL;
 
 	switch (ctlr->enabled) {
 	case FCOE_CTLR_ENABLED:
-		if (*buf == '1')
+		if (enabled)
 			return count;
 		ctlr->enabled = FCOE_CTLR_DISABLED;
 		break;
 	case FCOE_CTLR_DISABLED:
-		if (*buf == '0')
+		if (!enabled)
 			return count;
 		ctlr->enabled = FCOE_CTLR_ENABLED;
 		break;
