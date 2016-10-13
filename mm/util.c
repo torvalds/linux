@@ -624,7 +624,7 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
 	if (len > buflen)
 		len = buflen;
 
-	res = access_process_vm(task, arg_start, buffer, len, 0);
+	res = access_process_vm(task, arg_start, buffer, len, FOLL_FORCE);
 
 	/*
 	 * If the nul at the end of args has been overwritten, then
@@ -639,7 +639,8 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
 			if (len > buflen - res)
 				len = buflen - res;
 			res += access_process_vm(task, env_start,
-						 buffer+res, len, 0);
+						 buffer+res, len,
+						 FOLL_FORCE);
 			res = strnlen(buffer, res);
 		}
 	}

@@ -3951,20 +3951,16 @@ int access_remote_vm(struct mm_struct *mm, unsigned long addr,
  * Do not walk the page table directly, use get_user_pages
  */
 int access_process_vm(struct task_struct *tsk, unsigned long addr,
-		void *buf, int len, int write)
+		void *buf, int len, unsigned int gup_flags)
 {
 	struct mm_struct *mm;
 	int ret;
-	unsigned int flags = FOLL_FORCE;
 
 	mm = get_task_mm(tsk);
 	if (!mm)
 		return 0;
 
-	if (write)
-		flags |= FOLL_WRITE;
-
-	ret = __access_remote_vm(tsk, mm, addr, buf, len, flags);
+	ret = __access_remote_vm(tsk, mm, addr, buf, len, gup_flags);
 
 	mmput(mm);
 
