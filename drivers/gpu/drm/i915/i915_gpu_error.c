@@ -382,7 +382,7 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 {
 	err_printf(m, "%s command stream:\n", engine_str(ee->engine_id));
 	err_printf(m, "  START: 0x%08x\n", ee->start);
-	err_printf(m, "  HEAD:  0x%08x\n [0x%08x]", ee->head, ee->rq_head);
+	err_printf(m, "  HEAD:  0x%08x [0x%08x]\n", ee->head, ee->rq_head);
 	err_printf(m, "  TAIL:  0x%08x [0x%08x, 0x%08x]\n",
 		   ee->tail, ee->rq_post, ee->rq_tail);
 	err_printf(m, "  CTL:   0x%08x\n", ee->ctl);
