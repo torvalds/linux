@@ -2758,7 +2758,6 @@ void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
 void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
-	struct drm_device *dev = &dev_priv->drm;
 	struct device *kdev = &pdev->dev;
 
 	pm_runtime_set_autosuspend_delay(kdev, 10000); /* 10s */
@@ -2770,7 +2769,7 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 	 * so the driver's own RPM reference tracking asserts also work on
 	 * platforms without RPM support.
 	 */
-	if (!HAS_RUNTIME_PM(dev)) {
+	if (!HAS_RUNTIME_PM(dev_priv)) {
 		pm_runtime_dont_use_autosuspend(kdev);
 		pm_runtime_get_sync(kdev);
 	} else {

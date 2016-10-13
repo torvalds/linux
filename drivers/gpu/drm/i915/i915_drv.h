@@ -2814,12 +2814,12 @@ struct drm_i915_cmd_table {
 #define HAS_DDI(dev_priv)	((dev_priv)->info.has_ddi)
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
 #define HAS_PSR(dev)		(INTEL_INFO(dev)->has_psr)
-#define HAS_RUNTIME_PM(dev)	(INTEL_INFO(dev)->has_runtime_pm)
 #define HAS_RC6(dev)		(INTEL_INFO(dev)->has_rc6)
 #define HAS_RC6p(dev)		(INTEL_INFO(dev)->has_rc6p)
 
 #define HAS_CSR(dev)	(INTEL_INFO(dev)->has_csr)
 
+#define HAS_RUNTIME_PM(dev_priv) ((dev_priv)->info.has_runtime_pm)
 /*
  * For now, anything with a GuC requires uCode loading, and then supports
  * command submission once loaded. But these are logically independent
