@@ -357,8 +357,8 @@ static int imx_drm_bind(struct device *dev)
 	int ret;
 
 	drm = drm_dev_alloc(&imx_drm_driver, dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	imxdrm = devm_kzalloc(dev, sizeof(*imxdrm), GFP_KERNEL);
 	if (!imxdrm) {
