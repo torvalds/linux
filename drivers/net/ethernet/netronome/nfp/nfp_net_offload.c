@@ -128,7 +128,7 @@ nfp_net_bpf_get_act(struct nfp_net *nn, struct tc_cls_bpf_offload *cls_bpf)
 		if (is_tcf_gact_shot(a))
 			return NN_ACT_TC_DROP;
 
-		if (is_tcf_mirred_redirect(a) &&
+		if (is_tcf_mirred_egress_redirect(a) &&
 		    tcf_mirred_ifindex(a) == nn->netdev->ifindex)
 			return NN_ACT_TC_REDIR;
 	}

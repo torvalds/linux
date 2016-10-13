@@ -1237,8 +1237,10 @@ static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	tcf_exts_to_list(cls->exts, &actions);
 	list_for_each_entry(a, &actions, list) {
-		if (!is_tcf_mirred_mirror(a) || protocol != htons(ETH_P_ALL))
+		if (!is_tcf_mirred_egress_mirror(a) ||
+		    protocol != htons(ETH_P_ALL)) {
 			return -ENOTSUPP;
+		}
 
 		err = mlxsw_sp_port_add_cls_matchall_mirror(mlxsw_sp_port, cls,
 							    a, ingress);

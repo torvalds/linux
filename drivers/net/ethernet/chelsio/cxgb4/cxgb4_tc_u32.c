@@ -113,7 +113,7 @@ static int fill_action_fields(struct adapter *adap,
 		}
 
 		/* Re-direct to specified port in hardware. */
-		if (is_tcf_mirred_redirect(a)) {
+		if (is_tcf_mirred_egress_redirect(a)) {
 			struct net_device *n_dev;
 			unsigned int i, index;
 			bool found = false;

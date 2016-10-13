@@ -14,7 +14,7 @@ struct tcf_mirred {
 };
 #define to_mirred(a) ((struct tcf_mirred *)a)
 
-static inline bool is_tcf_mirred_redirect(const struct tc_action *a)
+static inline bool is_tcf_mirred_egress_redirect(const struct tc_action *a)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	if (a->ops && a->ops->type == TCA_ACT_MIRRED)
@@ -23,7 +23,7 @@ static inline bool is_tcf_mirred_redirect(const struct tc_action *a)
 	return false;
 }
 
-static inline bool is_tcf_mirred_mirror(const struct tc_action *a)
+static inline bool is_tcf_mirred_egress_mirror(const struct tc_action *a)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	if (a->ops && a->ops->type == TCA_ACT_MIRRED)

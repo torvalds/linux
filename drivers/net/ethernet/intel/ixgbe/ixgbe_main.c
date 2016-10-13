@@ -8410,7 +8410,7 @@ static int parse_tc_actions(struct ixgbe_adapter *adapter,
 		}
 
 		/* Redirect to a VF or a offloaded macvlan */
-		if (is_tcf_mirred_redirect(a)) {
+		if (is_tcf_mirred_egress_redirect(a)) {
 			int ifindex = tcf_mirred_ifindex(a);
 
 			err = handle_redirect_action(adapter, ifindex, queue,
