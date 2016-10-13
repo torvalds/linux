@@ -827,14 +827,18 @@ static struct fc_exch *fc_exch_em_alloc(struct fc_lport *lport,
 
 	/* peek cache of free slot */
 	if (pool->left != FC_XID_UNKNOWN) {
-		index = pool->left;
-		pool->left = FC_XID_UNKNOWN;
-		goto hit;
+		if (!WARN_ON(fc_exch_ptr_get(pool, pool->left))) {
+			index = pool->left;
+			pool->left = FC_XID_UNKNOWN;
+			goto hit;
+		}
 	}
 	if (pool->right != FC_XID_UNKNOWN) {
-		index = pool->right;
-		pool->right = FC_XID_UNKNOWN;
-		goto hit;
+		if (!WARN_ON(fc_exch_ptr_get(pool, pool->right))) {
+			index = pool->right;
+			pool->right = FC_XID_UNKNOWN;
+			goto hit;
+		}
 	}
 
 	index = pool->next_index;
@@ -1782,7 +1786,10 @@ static void fc_exch_recv_bls(struct fc_exch_mgr *mp, struct fc_frame *fp)
 				fc_frame_free(fp);
 			break;
 		case FC_RCTL_BA_ABTS:
-			fc_exch_recv_abts(ep, fp);
+			if (ep)
+				fc_exch_recv_abts(ep, fp);
+			else
+				fc_frame_free(fp);
 			break;
 		default:			/* ignore junk */
 			fc_frame_free(fp);
