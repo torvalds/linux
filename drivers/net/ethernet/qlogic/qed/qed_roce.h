@@ -95,26 +95,6 @@ struct qed_rdma_info {
 	enum protocol_type proto;
 };
 
-struct qed_rdma_resize_cq_in_params {
-	u16 icid;
-	u32 cq_size;
-	bool pbl_two_level;
-	u64 pbl_ptr;
-	u16 pbl_num_pages;
-	u8 pbl_page_size_log;
-};
-
-struct qed_rdma_resize_cq_out_params {
-	u32 prod;
-	u32 cons;
-};
-
-struct qed_rdma_resize_cnq_in_params {
-	u32 cnq_id;
-	u32 pbl_page_size_log;
-	u64 pbl_ptr;
-};
-
 struct qed_rdma_qp {
 	struct regpair qp_handle;
 	struct regpair qp_handle_async;

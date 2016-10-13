@@ -497,12 +497,13 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
 			num_cons = qed_cxt_get_proto_cid_count(p_hwfn,
 							       PROTOCOLID_ROCE,
-							       0) * 2;
+							       NULL) * 2;
 			n_eqes += num_cons + 2 * MAX_NUM_VFS_BB;
 		} else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
 			num_cons =
 			    qed_cxt_get_proto_cid_count(p_hwfn,
-							PROTOCOLID_ISCSI, 0);
+							PROTOCOLID_ISCSI,
+							NULL);
 			n_eqes += 2 * num_cons;
 		}
 

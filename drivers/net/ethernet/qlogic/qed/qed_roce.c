@@ -157,7 +157,8 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn,
 	p_hwfn->p_rdma_info = p_rdma_info;
 	p_rdma_info->proto = PROTOCOLID_ROCE;
 
-	num_cons = qed_cxt_get_proto_cid_count(p_hwfn, p_rdma_info->proto, 0);
+	num_cons = qed_cxt_get_proto_cid_count(p_hwfn, p_rdma_info->proto,
+					       NULL);
 
 	p_rdma_info->num_qps = num_cons / 2;
 
@@ -831,7 +832,7 @@ static int qed_rdma_alloc_pd(void *rdma_cxt, u16 *pd)
 	return rc;
 }
 
-void qed_rdma_free_pd(void *rdma_cxt, u16 pd)
+static void qed_rdma_free_pd(void *rdma_cxt, u16 pd)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 
@@ -868,8 +869,9 @@ qed_rdma_toggle_bit_create_resize_cq(struct qed_hwfn *p_hwfn, u16 icid)
 	return toggle_bit;
 }
 
-int qed_rdma_create_cq(void *rdma_cxt,
-		       struct qed_rdma_create_cq_in_params *params, u16 *icid)
+static int qed_rdma_create_cq(void *rdma_cxt,
+			      struct qed_rdma_create_cq_in_params *params,
+			      u16 *icid)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 	struct qed_rdma_info *p_info = p_hwfn->p_rdma_info;
@@ -952,98 +954,10 @@ err:
 	return rc;
 }
 
-int qed_rdma_resize_cq(void *rdma_cxt,
-		       struct qed_rdma_resize_cq_in_params *in_params,
-		       struct qed_rdma_resize_cq_out_params *out_params)
-{
-	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
-	struct rdma_resize_cq_output_params *p_ramrod_res;
-	struct rdma_resize_cq_ramrod_data *p_ramrod;
-	enum qed_rdma_toggle_bit toggle_bit;
-	struct qed_sp_init_data init_data;
-	struct qed_spq_entry *p_ent;
-	dma_addr_t ramrod_res_phys;
-	u8 fw_return_code;
-	int rc = -ENOMEM;
-
-	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", in_params->icid);
-
-	p_ramrod_res =
-	    (struct rdma_resize_cq_output_params *)
-	    dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
-			       sizeof(struct rdma_resize_cq_output_params),
-			       &ramrod_res_phys, GFP_KERNEL);
-	if (!p_ramrod_res) {
-		DP_NOTICE(p_hwfn,
-			  "qed resize cq failed: cannot allocate memory (ramrod)\n");
-		return rc;
-	}
-
-	/* Get SPQ entry */
-	memset(&init_data, 0, sizeof(init_data));
-	init_data.cid = in_params->icid;
-	init_data.opaque_fid = p_hwfn->hw_info.opaque_fid;
-	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
-
-	rc = qed_sp_init_request(p_hwfn, &p_ent,
-				 RDMA_RAMROD_RESIZE_CQ,
-				 p_hwfn->p_rdma_info->proto, &init_data);
-	if (rc)
-		goto err;
-
-	p_ramrod = &p_ent->ramrod.rdma_resize_cq;
-
-	p_ramrod->flags = 0;
-
-	/* toggle the bit for every resize or create cq for a given icid */
-	toggle_bit = qed_rdma_toggle_bit_create_resize_cq(p_hwfn,
-							  in_params->icid);
-
-	SET_FIELD(p_ramrod->flags,
-		  RDMA_RESIZE_CQ_RAMROD_DATA_TOGGLE_BIT, toggle_bit);
-
-	SET_FIELD(p_ramrod->flags,
-		  RDMA_RESIZE_CQ_RAMROD_DATA_IS_TWO_LEVEL_PBL,
-		  in_params->pbl_two_level);
-
-	p_ramrod->pbl_log_page_size = in_params->pbl_page_size_log - 12;
-	p_ramrod->pbl_num_pages = cpu_to_le16(in_params->pbl_num_pages);
-	p_ramrod->max_cqes = cpu_to_le32(in_params->cq_size);
-	DMA_REGPAIR_LE(p_ramrod->pbl_addr, in_params->pbl_ptr);
-	DMA_REGPAIR_LE(p_ramrod->output_params_addr, ramrod_res_phys);
-
-	rc = qed_spq_post(p_hwfn, p_ent, &fw_return_code);
-	if (rc)
-		goto err;
-
-	if (fw_return_code != RDMA_RETURN_OK) {
-		DP_NOTICE(p_hwfn, "fw_return_code = %d\n", fw_return_code);
-		rc = -EINVAL;
-		goto err;
-	}
-
-	out_params->prod = le32_to_cpu(p_ramrod_res->old_cq_prod);
-	out_params->cons = le32_to_cpu(p_ramrod_res->old_cq_cons);
-
-	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
-			  sizeof(struct rdma_resize_cq_output_params),
-			  p_ramrod_res, ramrod_res_phys);
-
-	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Resized CQ, rc = %d\n", rc);
-
-	return rc;
-
-err:	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
-			  sizeof(struct rdma_resize_cq_output_params),
-			  p_ramrod_res, ramrod_res_phys);
-	DP_NOTICE(p_hwfn, "Resized CQ, Failed - rc = %d\n", rc);
-
-	return rc;
-}
-
-int qed_rdma_destroy_cq(void *rdma_cxt,
-			struct qed_rdma_destroy_cq_in_params *in_params,
-			struct qed_rdma_destroy_cq_out_params *out_params)
+static int
+qed_rdma_destroy_cq(void *rdma_cxt,
+		    struct qed_rdma_destroy_cq_in_params *in_params,
+		    struct qed_rdma_destroy_cq_out_params *out_params)
 {
 	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 	struct rdma_destroy_cq_output_params *p_ramrod_res;
@@ -1164,7 +1078,7 @@ static enum roce_flavor qed_roce_mode_to_flavor(enum roce_mode roce_mode)
 	return flavor;
 }
 
-int qed_roce_alloc_cid(struct qed_hwfn *p_hwfn, u16 *cid)
+static int qed_roce_alloc_cid(struct qed_hwfn *p_hwfn, u16 *cid)
 {
 	struct qed_rdma_info *p_rdma_info = p_hwfn->p_rdma_info;
 	u32 responder_icid;
@@ -1788,9 +1702,9 @@ err:
 	return rc;
 }
 
-int qed_roce_query_qp(struct qed_hwfn *p_hwfn,
-		      struct qed_rdma_qp *qp,
-		      struct qed_rdma_query_qp_out_params *out_params)
+static int qed_roce_query_qp(struct qed_hwfn *p_hwfn,
+			     struct qed_rdma_qp *qp,
+			     struct qed_rdma_query_qp_out_params *out_params)
 {
 	struct roce_query_qp_resp_output_params *p_resp_ramrod_res;
 	struct roce_query_qp_req_output_params *p_req_ramrod_res;
@@ -1931,7 +1845,7 @@ err_resp:
 	return rc;
 }
 
-int qed_roce_destroy_qp(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp)
+static int qed_roce_destroy_qp(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp)
 {
 	u32 num_invalidated_mw = 0;
 	u32 num_bound_mw = 0;
@@ -2033,7 +1947,7 @@ static int qed_rdma_destroy_qp(void *rdma_cxt, struct qed_rdma_qp *qp)
 	return rc;
 }
 
-struct qed_rdma_qp *
+static struct qed_rdma_qp *
 qed_rdma_create_qp(void *rdma_cxt,
 		   struct qed_rdma_create_qp_in_params *in_params,
 		   struct qed_rdma_create_qp_out_params *out_params)

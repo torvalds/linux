@@ -1430,7 +1430,7 @@ static int qed_set_led(struct qed_dev *cdev, enum qed_led_mode mode)
 	return status;
 }
 
-struct qed_selftest_ops qed_selftest_ops_pass = {
+static struct qed_selftest_ops qed_selftest_ops_pass = {
 	.selftest_memory = &qed_selftest_memory,
 	.selftest_interrupt = &qed_selftest_interrupt,
 	.selftest_register = &qed_selftest_register,
