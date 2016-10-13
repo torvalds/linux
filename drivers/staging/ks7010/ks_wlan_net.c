@@ -50,10 +50,10 @@ static const long frequency_list[] = { 2412, 2417, 2422, 2427, 2432, 2437, 2442,
 /* A few details needed for WEP (Wireless Equivalent Privacy) */
 #define MAX_KEY_SIZE 13	/* 128 (?) bits */
 #define MIN_KEY_SIZE  5	/* 40 bits RC4 - WEP */
-typedef struct wep_key_t {
+struct wep_key {
 	u16 len;
 	u8 key[16];	/* 40-bit and 104-bit keys */
-} wep_key_t;
+};
 
 /* Backward compatibility */
 #ifndef IW_ENCODE_NOKEY
@@ -899,7 +899,7 @@ static int ks_wlan_set_encode(struct net_device *dev,
 	struct ks_wlan_private *priv =
 	    (struct ks_wlan_private *)netdev_priv(dev);
 
-	wep_key_t key;
+	struct wep_key key;
 	int index = (dwrq->flags & IW_ENCODE_INDEX);
 	int current_index = priv->reg.wep_index;
 	int i;
