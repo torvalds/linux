@@ -1748,7 +1748,7 @@ static void gen7_ppgtt_enable(struct drm_device *dev)
 	I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_PPGTT_CACHE64B);
 
 	ecochk = I915_READ(GAM_ECOCHK);
-	if (IS_HASWELL(dev)) {
+	if (IS_HASWELL(dev_priv)) {
 		ecochk |= ECOCHK_PPGTT_WB_HSW;
 	} else {
 		ecochk |= ECOCHK_PPGTT_LLC_IVB;
@@ -2060,7 +2060,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->base.pte_encode = ggtt->base.pte_encode;
 	if (intel_vgpu_active(dev_priv) || IS_GEN6(dev))
 		ppgtt->switch_mm = gen6_mm_switch;
-	else if (IS_HASWELL(dev))
+	else if (IS_HASWELL(dev_priv))
 		ppgtt->switch_mm = hsw_mm_switch;
 	else if (IS_GEN7(dev))
 		ppgtt->switch_mm = gen7_mm_switch;

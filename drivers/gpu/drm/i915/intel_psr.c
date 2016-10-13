@@ -268,7 +268,7 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp)
 	val |= max_sleep_time << EDP_PSR_MAX_SLEEP_TIME_SHIFT;
 	val |= idle_frames << EDP_PSR_IDLE_FRAME_SHIFT;
 
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev_priv))
 		val |= EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES;
 
 	if (dev_priv->psr.link_standby)
@@ -360,14 +360,14 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
-	if (IS_HASWELL(dev) &&
+	if (IS_HASWELL(dev_priv) &&
 	    I915_READ(HSW_STEREO_3D_CTL(intel_crtc->config->cpu_transcoder)) &
 		      S3D_ENABLE) {
 		DRM_DEBUG_KMS("PSR condition failed: Stereo 3D is Enabled\n");
 		return false;
 	}
 
-	if (IS_HASWELL(dev) &&
+	if (IS_HASWELL(dev_priv) &&
 	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
 		return false;

@@ -326,7 +326,7 @@ static void haswell_load_luts(struct drm_crtc_state *crtc_state)
 	 * Workaround : Do not read or write the pipe palette/gamma data while
 	 * GAMMA_MODE is configured for split gamma and IPS_CTL has IPS enabled.
 	 */
-	if (IS_HASWELL(dev) && intel_crtc_state->ips_enabled &&
+	if (IS_HASWELL(dev_priv) && intel_crtc_state->ips_enabled &&
 	    (intel_crtc_state->gamma_mode == GAMMA_MODE_MODE_SPLIT)) {
 		hsw_disable_ips(intel_crtc);
 		reenable_ips = true;
@@ -537,7 +537,7 @@ void intel_color_init(struct drm_crtc *crtc)
 	if (IS_CHERRYVIEW(dev)) {
 		dev_priv->display.load_csc_matrix = cherryview_load_csc_matrix;
 		dev_priv->display.load_luts = cherryview_load_luts;
-	} else if (IS_HASWELL(dev)) {
+	} else if (IS_HASWELL(dev_priv)) {
 		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
 		dev_priv->display.load_luts = haswell_load_luts;
 	} else if (IS_BROADWELL(dev_priv) || IS_SKYLAKE(dev_priv) ||

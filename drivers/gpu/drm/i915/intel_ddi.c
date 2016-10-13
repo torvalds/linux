@@ -1189,7 +1189,7 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 			 * eDP when not using the panel fitter, and when not
 			 * using motion blur mitigation (which we don't
 			 * support). */
-			if (IS_HASWELL(dev) &&
+			if (IS_HASWELL(dev_priv) &&
 			    (intel_crtc->config->pch_pfit.enabled ||
 			     intel_crtc->config->pch_pfit.force_thru))
 				temp |= TRANS_DDI_EDP_INPUT_A_ONOFF;

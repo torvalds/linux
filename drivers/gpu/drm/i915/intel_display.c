@@ -5501,7 +5501,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	/* If we change the relative order between pipe/planes enabling, we need
 	 * to change the workaround. */
 	hsw_workaround_pipe = pipe_config->hsw_workaround_pipe;
-	if (IS_HASWELL(dev) && hsw_workaround_pipe != INVALID_PIPE) {
+	if (IS_HASWELL(dev_priv) && hsw_workaround_pipe != INVALID_PIPE) {
 		intel_wait_for_vblank(dev, hsw_workaround_pipe);
 		intel_wait_for_vblank(dev, hsw_workaround_pipe);
 	}
@@ -8299,7 +8299,7 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc)
 	 * programmed with the VTOTAL_EDP value. Same for VTOTAL_C. This is
 	 * documented on the DDI_FUNC_CTL register description, EDP Input Select
 	 * bits. */
-	if (IS_HASWELL(dev) && cpu_transcoder == TRANSCODER_EDP &&
+	if (IS_HASWELL(dev_priv) && cpu_transcoder == TRANSCODER_EDP &&
 	    (pipe == PIPE_B || pipe == PIPE_C))
 		I915_WRITE(VTOTAL(pipe), I915_READ(VTOTAL(cpu_transcoder)));
 
@@ -10026,7 +10026,7 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 	I915_STATE_WARN(I915_READ(PP_STATUS(0)) & PP_ON, "Panel power on\n");
 	I915_STATE_WARN(I915_READ(BLC_PWM_CPU_CTL2) & BLM_PWM_ENABLE,
 	     "CPU PWM1 enabled\n");
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev_priv))
 		I915_STATE_WARN(I915_READ(HSW_BLC_PWM2_CTL) & BLM_PWM_ENABLE,
 		     "CPU PWM2 enabled\n");
 	I915_STATE_WARN(I915_READ(BLC_PWM_PCH_CTL1) & BLM_PCH_PWM_ENABLE,
@@ -10046,9 +10046,7 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 
 static uint32_t hsw_read_dcomp(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
-
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev_priv))
 		return I915_READ(D_COMP_HSW);
 	else
 		return I915_READ(D_COMP_BDW);
@@ -10056,9 +10054,7 @@ static uint32_t hsw_read_dcomp(struct drm_i915_private *dev_priv)
 
 static void hsw_write_dcomp(struct drm_i915_private *dev_priv, uint32_t val)
 {
-	struct drm_device *dev = &dev_priv->drm;
-
-	if (IS_HASWELL(dev)) {
+	if (IS_HASWELL(dev_priv)) {
 		mutex_lock(&dev_priv->rps.hw_lock);
 		if (sandybridge_pcode_write(dev_priv, GEN6_PCODE_WRITE_D_COMP,
 					    val))
@@ -10735,7 +10731,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 			ironlake_get_pfit_config(crtc, pipe_config);
 	}
 
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev_priv))
 		pipe_config->ips_enabled = hsw_crtc_supports_ips(crtc) &&
 			(I915_READ(IPS_CTL) & IPS_ENABLE);
 
@@ -13195,6 +13191,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 			  struct intel_crtc_state *pipe_config,
 			  bool adjust)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	bool ret = true;
 
 #define INTEL_ERR_OR_DBG_KMS(fmt, ...) \
@@ -13340,7 +13337,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 
 	PIPE_CONF_CHECK_I(pixel_multiplier);
 	PIPE_CONF_CHECK_I(has_hdmi_sink);
-	if ((INTEL_INFO(dev)->gen < 8 && !IS_HASWELL(dev)) ||
+	if ((INTEL_GEN(dev_priv) < 8 && !IS_HASWELL(dev_priv)) ||
 	    IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		PIPE_CONF_CHECK_I(limited_color_range);
 	PIPE_CONF_CHECK_I(has_infoframe);
@@ -13381,7 +13378,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 	}
 
 	/* BDW+ don't expose a synchronous way to read the state */
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev_priv))
 		PIPE_CONF_CHECK_I(ips_enabled);
 
 	PIPE_CONF_CHECK_I(double_wide);
@@ -17262,7 +17259,7 @@ intel_display_print_error_state(struct drm_i915_error_state_buf *m,
 			err_printf(m, "  SIZE: %08x\n", error->plane[i].size);
 			err_printf(m, "  POS: %08x\n", error->plane[i].pos);
 		}
-		if (INTEL_INFO(dev)->gen <= 7 && !IS_HASWELL(dev))
+		if (INTEL_GEN(dev_priv) <= 7 && !IS_HASWELL(dev_priv))
 			err_printf(m, "  ADDR: %08x\n", error->plane[i].addr);
 		if (INTEL_INFO(dev)->gen >= 4) {
 			err_printf(m, "  SURF: %08x\n", error->plane[i].surface);

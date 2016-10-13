@@ -2657,7 +2657,7 @@ struct drm_i915_cmd_table {
 				 INTEL_DEVID(dev_priv) == 0x015a)
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
 #define IS_CHERRYVIEW(dev)	(INTEL_INFO(dev)->is_cherryview)
-#define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
+#define IS_HASWELL(dev_priv)	((dev_priv)->info.is_haswell)
 #define IS_BROADWELL(dev_priv)	((dev_priv)->info.is_broadwell)
 #define IS_SKYLAKE(dev)	(INTEL_INFO(dev)->is_skylake)
 #define IS_BROXTON(dev)		(INTEL_INFO(dev)->is_broxton)

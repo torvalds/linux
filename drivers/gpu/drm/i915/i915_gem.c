@@ -4428,7 +4428,7 @@ i915_gem_init_hw(struct drm_device *dev)
 	if (HAS_EDRAM(dev) && INTEL_GEN(dev_priv) < 9)
 		I915_WRITE(HSW_IDICR, I915_READ(HSW_IDICR) | IDIHASHMSK(0xf));
 
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev_priv))
 		I915_WRITE(MI_PREDICATE_RESULT_2, IS_HSW_GT3(dev_priv) ?
 			   LOWER_SLICE_ENABLED : LOWER_SLICE_DISABLED);
 

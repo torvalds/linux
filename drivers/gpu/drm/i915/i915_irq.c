@@ -3591,8 +3591,8 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 	dev_priv->gt_irq_mask = ~0;
 	if (HAS_L3_DPF(dev)) {
 		/* L3 parity interrupt is always unmasked. */
-		dev_priv->gt_irq_mask = ~GT_PARITY_ERROR(dev);
-		gt_irqs |= GT_PARITY_ERROR(dev);
+		dev_priv->gt_irq_mask = ~GT_PARITY_ERROR(dev_priv);
+		gt_irqs |= GT_PARITY_ERROR(dev_priv);
 	}
 
 	gt_irqs |= GT_RENDER_USER_INTERRUPT;
