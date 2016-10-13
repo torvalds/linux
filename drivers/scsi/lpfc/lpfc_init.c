@@ -7256,6 +7256,7 @@ int
 lpfc_sli4_queue_create(struct lpfc_hba *phba)
 {
 	struct lpfc_queue *qdesc;
+	uint32_t wqesize;
 	int idx;
 
 	/*
@@ -7340,15 +7341,10 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 		phba->sli4_hba.fcp_cq[idx] = qdesc;
 
 		/* Create Fast Path FCP WQs */
-		if (phba->fcp_embed_io) {
-			qdesc = lpfc_sli4_queue_alloc(phba,
-						      LPFC_WQE128_SIZE,
-						      LPFC_WQE128_DEF_COUNT);
-		} else {
-			qdesc = lpfc_sli4_queue_alloc(phba,
-						      phba->sli4_hba.wq_esize,
-						      phba->sli4_hba.wq_ecount);
-		}
+		wqesize = (phba->fcp_embed_io) ?
+				LPFC_WQE128_SIZE : phba->sli4_hba.wq_esize;
+		qdesc = lpfc_sli4_queue_alloc(phba, wqesize,
+						phba->sli4_hba.wq_ecount);
 		if (!qdesc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0503 Failed allocate fast-path FCP "
