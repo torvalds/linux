@@ -581,7 +581,7 @@ static int
 jit_process_dump(struct jit_buf_desc *jd)
 {
 	union jr_entry *jr;
-	int ret;
+	int ret = 0;
 
 	while ((jr = jit_get_next_entry(jd))) {
 		switch(jr->prefix.id) {
