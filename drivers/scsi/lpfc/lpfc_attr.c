@@ -3779,6 +3779,9 @@ static DEVICE_ATTR(lpfc_link_speed, S_IRUGO | S_IWUSR,
 #       1  = aer supported and enabled (default)
 # Value range is [0,1]. Default value is 1.
 */
+LPFC_ATTR(aer_support, 1, 0, 1,
+	"Enable PCIe device AER support");
+lpfc_param_show(aer_support)
 
 /**
  * lpfc_aer_support_store - Set the adapter for aer support
@@ -3859,46 +3862,6 @@ lpfc_aer_support_store(struct device *dev, struct device_attribute *attr,
 		break;
 	}
 	return rc;
-}
-
-static int lpfc_aer_support = 1;
-module_param(lpfc_aer_support, int, S_IRUGO);
-MODULE_PARM_DESC(lpfc_aer_support, "Enable PCIe device AER support");
-lpfc_param_show(aer_support)
-
-/**
- * lpfc_aer_support_init - Set the initial adapters aer support flag
- * @phba: lpfc_hba pointer.
- * @val: enable aer or disable aer flag.
- *
- * Description:
- * If val is in a valid range [0,1], then set the adapter's initial
- * cfg_aer_support field. It will be up to the driver's probe_one
- * routine to determine whether the device's AER support can be set
- * or not.
- *
- * Notes:
- * If the value is not in range log a kernel error message, and
- * choose the default value of setting AER support and return.
- *
- * Returns:
- * zero if val saved.
- * -EINVAL val out of range
- **/
-static int
-lpfc_aer_support_init(struct lpfc_hba *phba, int val)
-{
-	if (val == 0 || val == 1) {
-		phba->cfg_aer_support = val;
-		return 0;
-	}
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"2712 lpfc_aer_support attribute value %d out "
-			"of range, allowed values are 0|1, setting it "
-			"to default value of 1\n", val);
-	/* By default, try to enable AER on a device */
-	phba->cfg_aer_support = 1;
-	return -EINVAL;
 }
 
 static DEVICE_ATTR(lpfc_aer_support, S_IRUGO | S_IWUSR,
