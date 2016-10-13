@@ -370,8 +370,7 @@ static void reloc_cache_fini(struct reloc_cache *cache)
 
 			ggtt->base.clear_range(&ggtt->base,
 					       cache->node.start,
-					       cache->node.size,
-					       true);
+					       cache->node.size);
 			drm_mm_remove_node(&cache->node);
 		} else {
 			i915_vma_unpin((struct i915_vma *)cache->node.mm);
