@@ -1359,7 +1359,7 @@ static inline unsigned int drm_crtc_index(const struct drm_crtc *crtc)
  * Given a registered CRTC, return the mask bit of that CRTC for an
  * encoder's possible_crtcs field.
  */
-static inline uint32_t drm_crtc_mask(struct drm_crtc *crtc)
+static inline uint32_t drm_crtc_mask(const struct drm_crtc *crtc)
 {
 	return 1 << drm_crtc_index(crtc);
 }
