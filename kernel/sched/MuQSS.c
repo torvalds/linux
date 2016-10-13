@@ -1296,7 +1296,7 @@ void set_task_cpu(struct task_struct *p, unsigned int cpu)
 	 */
 	smp_wmb();
 
-	if (task_running(rq, p)) {
+	if (task_running(rq, p) && rq->online) {
 		/*
 		 * We should only be calling this on a running task if we're
 		 * holding rq lock.
@@ -2033,6 +2033,7 @@ int sched_fork(unsigned long __maybe_unused clone_flags, struct task_struct *p)
 	 */
 
 	/* Should be reset in fork.c but done here for ease of MuQSS patching */
+	p->on_cpu =
 	p->on_rq =
 	p->utime =
 	p->stime =
@@ -2075,7 +2076,6 @@ int sched_fork(unsigned long __maybe_unused clone_flags, struct task_struct *p)
 	if (unlikely(sched_info_on()))
 		memset(&p->sched_info, 0, sizeof(p->sched_info));
 #endif
-	p->on_cpu = 0;
 	init_task_preempt_count(p);
 
 	put_cpu();
