@@ -3297,6 +3297,9 @@ static int ibmvscsis_probe(struct vio_dev *vdev,
 	strncat(vscsi->eye, vdev->name, MAX_EYE);
 
 	vscsi->dds.unit_id = vdev->unit_address;
+	strncpy(vscsi->dds.partition_name, partition_name,
+		sizeof(vscsi->dds.partition_name));
+	vscsi->dds.partition_num = partition_number;
 
 	spin_lock_bh(&ibmvscsis_dev_lock);
 	list_add_tail(&vscsi->list, &ibmvscsis_dev_list);
@@ -3495,7 +3498,7 @@ static int ibmvscsis_get_system_info(void)
 
 	num = of_get_property(rootdn, "ibm,partition-no", NULL);
 	if (num)
-		partition_number = *num;
+		partition_number = of_read_number(num, 1);
 
 	of_node_put(rootdn);
 
