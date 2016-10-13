@@ -832,10 +832,11 @@ struct drm_i915_error_state {
 		struct drm_i915_error_request {
 			long jiffies;
 			pid_t pid;
+			u32 context;
 			u32 seqno;
 			u32 head;
 			u32 tail;
-		} *requests;
+		} *requests, execlist[2];
 
 		struct drm_i915_error_waiter {
 			char comm[TASK_COMM_LEN];

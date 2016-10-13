@@ -363,6 +363,20 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 			   ee->instdone.row[slice][subslice]);
 }
 
+static void error_print_request(struct drm_i915_error_state_buf *m,
+				const char *prefix,
+				struct drm_i915_error_request *erq)
+{
+	if (!erq->seqno)
+		return;
+
+	err_printf(m, "%s pid %d, seqno %8x:%08x, emitted %dms ago, head %08x, tail %08x\n",
+		   prefix, erq->pid,
+		   erq->context, erq->seqno,
+		   jiffies_to_msecs(jiffies - erq->jiffies),
+		   erq->head, erq->tail);
+}
+
 static void error_print_engine(struct drm_i915_error_state_buf *m,
 			       struct drm_i915_error_engine *ee)
 {
@@ -434,6 +448,8 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  hangcheck: %s [%d]\n",
 		   hangcheck_action_to_str(ee->hangcheck_action),
 		   ee->hangcheck_score);
+	error_print_request(m, "  ELSP[0]: ", &ee->execlist[0]);
+	error_print_request(m, "  ELSP[1]: ", &ee->execlist[1]);
 }
 
 void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...)
@@ -649,14 +665,8 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			err_printf(m, "%s --- %d requests\n",
 				   dev_priv->engine[i].name,
 				   ee->num_requests);
-			for (j = 0; j < ee->num_requests; j++) {
-				err_printf(m, "  pid %d, seqno 0x%08x, emitted %ld, head 0x%08x, tail 0x%08x\n",
-					   ee->requests[j].pid,
-					   ee->requests[j].seqno,
-					   ee->requests[j].jiffies,
-					   ee->requests[j].head,
-					   ee->requests[j].tail);
-			}
+			for (j = 0; j < ee->num_requests; j++)
+				error_print_request(m, " ", &ee->requests[j]);
 		}
 
 		if (IS_ERR(ee->waiters)) {
@@ -1155,6 +1165,20 @@ static void error_record_engine_registers(struct drm_i915_error_state *error,
 	}
 }
 
+static void record_request(struct drm_i915_gem_request *request,
+			   struct drm_i915_error_request *erq)
+{
+	erq->context = request->ctx->hw_id;
+	erq->seqno = request->fence.seqno;
+	erq->jiffies = request->emitted_jiffies;
+	erq->head = request->head;
+	erq->tail = request->tail;
+
+	rcu_read_lock();
+	erq->pid = request->ctx->pid ? pid_nr(request->ctx->pid) : 0;
+	rcu_read_unlock();
+}
+
 static void engine_record_requests(struct intel_engine_cs *engine,
 				   struct drm_i915_gem_request *first,
 				   struct drm_i915_error_engine *ee)
@@ -1178,8 +1202,6 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 	count = 0;
 	request = first;
 	list_for_each_entry_from(request, &engine->request_list, link) {
-		struct drm_i915_error_request *erq;
-
 		if (count >= ee->num_requests) {
 			/*
 			 * If the ring request list was changed in
@@ -1199,17 +1221,20 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 			break;
 		}
 
-		erq = &ee->requests[count++];
-		erq->seqno = request->fence.seqno;
-		erq->jiffies = request->emitted_jiffies;
-		erq->head = request->head;
-		erq->tail = request->tail;
-
-		rcu_read_lock();
-		erq->pid = request->ctx->pid ? pid_nr(request->ctx->pid) : 0;
-		rcu_read_unlock();
+		record_request(request, &ee->requests[count++]);
 	}
 	ee->num_requests = count;
+}
+
+static void error_record_engine_execlists(struct intel_engine_cs *engine,
+					  struct drm_i915_error_engine *ee)
+{
+	unsigned int n;
+
+	for (n = 0; n < ARRAY_SIZE(engine->execlist_port); n++)
+		if (engine->execlist_port[n].request)
+			record_request(engine->execlist_port[n].request,
+				       &ee->execlist[n]);
 }
 
 static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
@@ -1236,6 +1261,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 
 		error_record_engine_registers(error, engine, ee);
 		error_record_engine_waiters(engine, ee);
+		error_record_engine_execlists(engine, ee);
 
 		request = i915_gem_find_active_request(engine);
 		if (request) {
