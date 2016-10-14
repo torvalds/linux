@@ -3941,10 +3941,9 @@ static void hsw_trans_edp_pipe_A_crc_wa(struct drm_i915_private *dev_priv,
 
 	ret = drm_atomic_commit(state);
 out:
-	drm_modeset_unlock_all(dev);
 	WARN(ret, "Toggling workaround to %i returns %i\n", enable, ret);
-	if (ret)
-		drm_atomic_state_free(state);
+	drm_modeset_unlock_all(dev);
+	drm_atomic_state_put(state);
 }
 
 static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,

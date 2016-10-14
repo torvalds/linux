@@ -69,7 +69,7 @@ static void exynos_atomic_commit_complete(struct exynos_atomic_commit *commit)
 
 	drm_atomic_helper_cleanup_planes(dev, state);
 
-	drm_atomic_state_free(state);
+	drm_atomic_state_put(state);
 
 	spin_lock(&priv->lock);
 	priv->pending &= ~commit->crtcs;
@@ -254,6 +254,7 @@ int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
 
 	drm_atomic_helper_swap_state(state, true);
 
+	drm_atomic_state_get(state);
 	if (nonblock)
 		schedule_work(&commit->work);
 	else

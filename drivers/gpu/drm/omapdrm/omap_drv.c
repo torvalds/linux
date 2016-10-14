@@ -105,7 +105,7 @@ static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
 
 	dispc_runtime_put();
 
-	drm_atomic_state_free(old_state);
+	drm_atomic_state_put(old_state);
 
 	/* Complete the commit, wake up any waiter. */
 	spin_lock(&priv->commit.lock);
@@ -176,6 +176,7 @@ static int omap_atomic_commit(struct drm_device *dev,
 	/* Swap the state, this is the point of no return. */
 	drm_atomic_helper_swap_state(state, true);
 
+	drm_atomic_state_get(state);
 	if (nonblock)
 		schedule_work(&commit->work);
 	else

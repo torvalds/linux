@@ -367,9 +367,7 @@ fail:
 	if (ret == -EDEADLK)
 		goto backoff;
 
-	if (ret != 0)
-		drm_atomic_state_free(state);
-
+	drm_atomic_state_put(state);
 	return ret;
 
 backoff:
@@ -1361,16 +1359,13 @@ retry:
 	info->var.xoffset = var->xoffset;
 	info->var.yoffset = var->yoffset;
 
-
 fail:
 	drm_atomic_clean_old_fb(dev, plane_mask, ret);
 
 	if (ret == -EDEADLK)
 		goto backoff;
 
-	if (ret != 0)
-		drm_atomic_state_free(state);
-
+	drm_atomic_state_put(state);
 	return ret;
 
 backoff:
