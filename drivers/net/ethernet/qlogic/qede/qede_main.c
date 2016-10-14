@@ -171,9 +171,13 @@ static struct pci_driver qede_pci_driver = {
 #endif
 };
 
-static void qede_force_mac(void *dev, u8 *mac)
+static void qede_force_mac(void *dev, u8 *mac, bool forced)
 {
 	struct qede_dev *edev = dev;
+
+	/* MAC hints take effect only if we haven't set one already */
+	if (is_valid_ether_addr(edev->ndev->dev_addr) && !forced)
+		return;
 
 	ether_addr_copy(edev->ndev->dev_addr, mac);
 	ether_addr_copy(edev->primary_mac, mac);

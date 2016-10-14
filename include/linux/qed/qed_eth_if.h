@@ -129,7 +129,7 @@ struct qed_tunn_params {
 
 struct qed_eth_cb_ops {
 	struct qed_common_cb_ops common;
-	void (*force_mac) (void *dev, u8 *mac);
+	void (*force_mac) (void *dev, u8 *mac, bool forced);
 };
 
 #ifdef CONFIG_DCB

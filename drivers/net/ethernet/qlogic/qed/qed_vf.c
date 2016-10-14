@@ -1230,8 +1230,8 @@ static void qed_handle_bulletin_change(struct qed_hwfn *hwfn)
 
 	is_mac_exist = qed_vf_bulletin_get_forced_mac(hwfn, mac,
 						      &is_mac_forced);
-	if (is_mac_exist && is_mac_forced && cookie)
-		ops->force_mac(cookie, mac);
+	if (is_mac_exist && cookie)
+		ops->force_mac(cookie, mac, !!is_mac_forced);
 
 	/* Always update link configuration according to bulletin */
 	qed_link_update(hwfn);
