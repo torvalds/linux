@@ -658,7 +658,7 @@ wbcir_tx(struct rc_dev *dev, unsigned *b, unsigned count)
 	unsigned i;
 	unsigned long flags;
 
-	buf = kmalloc(count * sizeof(*b), GFP_KERNEL);
+	buf = kmalloc_array(count, sizeof(*b), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
