@@ -63,13 +63,11 @@ static ssize_t ap_request_count_show(struct device *dev,
 				     char *buf)
 {
 	struct ap_card *ac = to_ap_card(dev);
-	struct ap_queue *aq;
 	unsigned int req_cnt;
 
 	req_cnt = 0;
 	spin_lock_bh(&ap_list_lock);
-	for_each_ap_queue(aq, ac)
-		req_cnt += aq->total_request_count;
+	req_cnt = atomic_read(&ac->total_request_count);
 	spin_unlock_bh(&ap_list_lock);
 	return snprintf(buf, PAGE_SIZE, "%d\n", req_cnt);
 }

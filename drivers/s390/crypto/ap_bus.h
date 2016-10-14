@@ -195,6 +195,7 @@ struct ap_card {
 	unsigned int functions;		/* AP device function bitfield. */
 	int queue_depth;		/* AP queue depth.*/
 	int id;				/* AP card number. */
+	atomic_t total_request_count;	/* # requests ever for this AP device.*/
 };
 
 #define to_ap_card(x) container_of((x), struct ap_card, ap_dev.device)
@@ -211,7 +212,7 @@ struct ap_queue {
 	enum ap_state state;		/* State of the AP device. */
 	int pendingq_count;		/* # requests on pendingq list. */
 	int requestq_count;		/* # requests on requestq list. */
-	int total_request_count;	/* # requests ever for this AP device. */
+	int total_request_count;	/* # requests ever for this AP device.*/
 	int request_timeout;		/* Request timout in jiffies. */
 	struct timer_list timeout;	/* Timer for request timeouts. */
 	struct list_head pendingq;	/* List of message sent to AP queue. */
