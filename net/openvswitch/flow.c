@@ -343,7 +343,7 @@ static int parse_vlan(struct sk_buff *skb, struct sw_flow_key *key)
 	key->eth.cvlan.tci = 0;
 	key->eth.cvlan.tpid = 0;
 
-	if (likely(skb_vlan_tag_present(skb))) {
+	if (skb_vlan_tag_present(skb)) {
 		key->eth.vlan.tci = htons(skb->vlan_tci);
 		key->eth.vlan.tpid = skb->vlan_proto;
 	} else {

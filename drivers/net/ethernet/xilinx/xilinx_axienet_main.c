@@ -431,8 +431,7 @@ static void axienet_setoptions(struct net_device *ndev, u32 options)
 	lp->options |= options;
 }
 
-static void __axienet_device_reset(struct axienet_local *lp,
-				   struct device *dev, off_t offset)
+static void __axienet_device_reset(struct axienet_local *lp, off_t offset)
 {
 	u32 timeout;
 	/* Reset Axi DMA. This would reset Axi Ethernet core as well. The reset
@@ -468,8 +467,8 @@ static void axienet_device_reset(struct net_device *ndev)
 	u32 axienet_status;
 	struct axienet_local *lp = netdev_priv(ndev);
 
-	__axienet_device_reset(lp, &ndev->dev, XAXIDMA_TX_CR_OFFSET);
-	__axienet_device_reset(lp, &ndev->dev, XAXIDMA_RX_CR_OFFSET);
+	__axienet_device_reset(lp, XAXIDMA_TX_CR_OFFSET);
+	__axienet_device_reset(lp, XAXIDMA_RX_CR_OFFSET);
 
 	lp->max_frm_size = XAE_MAX_VLAN_FRAME_SIZE;
 	lp->options |= XAE_OPTION_VLAN;
@@ -1338,8 +1337,8 @@ static void axienet_dma_err_handler(unsigned long data)
 	axienet_iow(lp, XAE_MDIO_MC_OFFSET, (mdio_mcreg &
 		    ~XAE_MDIO_MC_MDIOEN_MASK));
 
-	__axienet_device_reset(lp, &ndev->dev, XAXIDMA_TX_CR_OFFSET);
-	__axienet_device_reset(lp, &ndev->dev, XAXIDMA_RX_CR_OFFSET);
+	__axienet_device_reset(lp, XAXIDMA_TX_CR_OFFSET);
+	__axienet_device_reset(lp, XAXIDMA_RX_CR_OFFSET);
 
 	axienet_iow(lp, XAE_MDIO_MC_OFFSET, mdio_mcreg);
 	axienet_mdio_wait_until_ready(lp);
