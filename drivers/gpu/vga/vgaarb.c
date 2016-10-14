@@ -1022,21 +1022,16 @@ static ssize_t vga_arb_write(struct file *file, const char __user *buf,
 
 	unsigned int io_state;
 
-	char *kbuf, *curr_pos;
+	char kbuf[64], *curr_pos;
 	size_t remaining = count;
 
 	int ret_val;
 	int i;
 
-
-	kbuf = kmalloc(count + 1, GFP_KERNEL);
-	if (!kbuf)
-		return -ENOMEM;
-
-	if (copy_from_user(kbuf, buf, count)) {
-		kfree(kbuf);
+	if (count >= sizeof(kbuf))
+		return -EINVAL;
+	if (copy_from_user(kbuf, buf, count))
 		return -EFAULT;
-	}
 	curr_pos = kbuf;
 	kbuf[count] = '\0';	/* Just to make sure... */
 
@@ -1259,11 +1254,9 @@ static ssize_t vga_arb_write(struct file *file, const char __user *buf,
 		goto done;
 	}
 	/* If we got here, the message written is not part of the protocol! */
-	kfree(kbuf);
 	return -EPROTO;
 
 done:
-	kfree(kbuf);
 	return ret_val;
 }
 
