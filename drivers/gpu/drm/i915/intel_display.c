@@ -1926,6 +1926,18 @@ void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv)
 	I915_WRITE(TRANS_CHICKEN2(PIPE_A), val);
 }
 
+enum transcoder intel_crtc_pch_transcoder(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	WARN_ON(!crtc->config->has_pch_encoder);
+
+	if (HAS_PCH_LPT(dev_priv))
+		return TRANSCODER_A;
+	else
+		return (enum transcoder) crtc->pipe;
+}
+
 /**
  * intel_enable_pipe - enable a pipe, asserting requirements
  * @crtc: crtc responsible for the pipe
@@ -1939,7 +1951,6 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum pipe pipe = crtc->pipe;
 	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
-	enum pipe pch_transcoder;
 	i915_reg_t reg;
 	u32 val;
 
@@ -1948,11 +1959,6 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 	assert_planes_disabled(dev_priv, pipe);
 	assert_cursor_disabled(dev_priv, pipe);
 	assert_sprites_disabled(dev_priv, pipe);
-
-	if (HAS_PCH_LPT(dev_priv))
-		pch_transcoder = TRANSCODER_A;
-	else
-		pch_transcoder = pipe;
 
 	/*
 	 * A pipe without a PLL won't actually be able to drive bits from
@@ -1967,7 +1973,8 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 	} else {
 		if (crtc->config->has_pch_encoder) {
 			/* if driving the PCH, we need FDI enabled */
-			assert_fdi_rx_pll_enabled(dev_priv, pch_transcoder);
+			assert_fdi_rx_pll_enabled(dev_priv,
+						  (enum pipe) intel_crtc_pch_transcoder(crtc));
 			assert_fdi_tx_pll_enabled(dev_priv,
 						  (enum pipe) cpu_transcoder);
 		}
