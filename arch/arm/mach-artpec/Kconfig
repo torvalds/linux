@@ -14,6 +14,7 @@ config MACH_ARTPEC6
 	select HAVE_ARM_ARCH_TIMER
 	select HAVE_ARM_SCU
 	select HAVE_ARM_TWD if SMP
+	select MFD_SYSCON
 	help
 	  Support for Axis ARTPEC-6 ARM Cortex A9 Platform
 
