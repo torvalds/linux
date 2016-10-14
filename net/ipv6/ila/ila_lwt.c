@@ -6,29 +6,80 @@
 #include <linux/socket.h>
 #include <linux/types.h>
 #include <net/checksum.h>
+#include <net/dst_cache.h>
 #include <net/ip.h>
 #include <net/ip6_fib.h>
+#include <net/ip6_route.h>
 #include <net/lwtunnel.h>
 #include <net/protocol.h>
 #include <uapi/linux/ila.h>
 #include "ila.h"
 
-static inline struct ila_params *ila_params_lwtunnel(
-	struct lwtunnel_state *lwstate)
+struct ila_lwt {
+	struct ila_params p;
+	struct dst_cache dst_cache;
+	u32 connected : 1;
+};
+
+static inline struct ila_lwt *ila_lwt_lwtunnel(
+	struct lwtunnel_state *lwt)
 {
-	return (struct ila_params *)lwstate->data;
+	return (struct ila_lwt *)lwt->data;
+}
+
+static inline struct ila_params *ila_params_lwtunnel(
+	struct lwtunnel_state *lwt)
+{
+	return &ila_lwt_lwtunnel(lwt)->p;
 }
 
 static int ila_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	struct dst_entry *dst = skb_dst(skb);
+	struct dst_entry *orig_dst = skb_dst(skb);
+	struct ila_lwt *ilwt = ila_lwt_lwtunnel(orig_dst->lwtstate);
+	struct dst_entry *dst;
+	int err = -EINVAL;
 
 	if (skb->protocol != htons(ETH_P_IPV6))
 		goto drop;
 
-	ila_update_ipv6_locator(skb, ila_params_lwtunnel(dst->lwtstate), true);
+	ila_update_ipv6_locator(skb, ila_params_lwtunnel(orig_dst->lwtstate),
+				true);
 
-	return dst->lwtstate->orig_output(net, sk, skb);
+	dst = dst_cache_get(&ilwt->dst_cache);
+	if (unlikely(!dst)) {
+		struct ipv6hdr *ip6h = ipv6_hdr(skb);
+		struct flowi6 fl6;
+
+		/* Lookup a route for the new destination. Take into
+		 * account that the base route may already have a gateway.
+		 */
+
+		memset(&fl6, 0, sizeof(fl6));
+		fl6.flowi6_oif = orig_dst->dev->ifindex;
+		fl6.flowi6_iif = LOOPBACK_IFINDEX;
+		fl6.daddr = *rt6_nexthop((struct rt6_info *)orig_dst,
+					 &ip6h->daddr);
+
+		dst = ip6_route_output(net, NULL, &fl6);
+		if (dst->error) {
+			err = -EHOSTUNREACH;
+			dst_release(dst);
+			goto drop;
+		}
+
+		dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), NULL, 0);
+		if (IS_ERR(dst)) {
+			err = PTR_ERR(dst);
+			goto drop;
+		}
+
+		if (ilwt->connected)
+			dst_cache_set_ip6(&ilwt->dst_cache, dst, &fl6.saddr);
+	}
+
+	skb_dst_set(skb, dst);
+	return dst_output(net, sk, skb);
 
 drop:
 	kfree_skb(skb);
@@ -60,6 +111,7 @@ static int ila_build_state(struct net_device *dev, struct nlattr *nla,
 			   unsigned int family, const void *cfg,
 			   struct lwtunnel_state **ts)
 {
+	struct ila_lwt *ilwt;
 	struct ila_params *p;
 	struct nlattr *tb[ILA_ATTR_MAX + 1];
 	size_t encap_len = sizeof(*p);
@@ -71,7 +123,7 @@ static int ila_build_state(struct net_device *dev, struct nlattr *nla,
 	if (family != AF_INET6)
 		return -EINVAL;
 
-	if (cfg6->fc_dst_len < sizeof(struct ila_locator) + 1) {
+	if (cfg6->fc_dst_len < 8 * sizeof(struct ila_locator) + 3) {
 		/* Need to have full locator and at least type field
 		 * included in destination
 		 */
@@ -99,6 +151,13 @@ static int ila_build_state(struct net_device *dev, struct nlattr *nla,
 	if (!newts)
 		return -ENOMEM;
 
+	ilwt = ila_lwt_lwtunnel(newts);
+	ret = dst_cache_init(&ilwt->dst_cache, GFP_ATOMIC);
+	if (ret) {
+		kfree(newts);
+		return ret;
+	}
+
 	newts->len = encap_len;
 	p = ila_params_lwtunnel(newts);
 
@@ -120,9 +179,17 @@ static int ila_build_state(struct net_device *dev, struct nlattr *nla,
 	newts->flags |= LWTUNNEL_STATE_OUTPUT_REDIRECT |
 			LWTUNNEL_STATE_INPUT_REDIRECT;
 
+	if (cfg6->fc_dst_len == 8 * sizeof(struct in6_addr))
+		ilwt->connected = 1;
+
 	*ts = newts;
 
 	return 0;
+}
+
+static void ila_destroy_state(struct lwtunnel_state *lwt)
+{
+	dst_cache_destroy(&ila_lwt_lwtunnel(lwt)->dst_cache);
 }
 
 static int ila_fill_encap_info(struct sk_buff *skb,
@@ -159,6 +226,7 @@ static int ila_encap_cmp(struct lwtunnel_state *a, struct lwtunnel_state *b)
 
 static const struct lwtunnel_encap_ops ila_encap_ops = {
 	.build_state = ila_build_state,
+	.destroy_state = ila_destroy_state,
 	.output = ila_output,
 	.input = ila_input,
 	.fill_encap = ila_fill_encap_info,
