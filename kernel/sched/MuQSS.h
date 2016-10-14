@@ -44,6 +44,8 @@ struct rq {
 	skiplist_node node;
 	skiplist *sl;
 #ifdef CONFIG_SMP
+	struct task_struct *preempt; /* Preempt triggered on this task */
+
 	int cpu;		/* cpu of this runqueue */
 	bool online;
 

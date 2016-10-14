@@ -1032,6 +1032,8 @@ static void resched_curr(struct rq *rq)
 	if (test_tsk_need_resched(rq->curr))
 		return;
 
+	rq->preempt = rq->curr;
+
 	/* We're doing this without holding the rq lock if it's not task_rq */
 	set_tsk_need_resched(rq->curr);
 
@@ -1118,6 +1120,24 @@ bool cpus_share_cache(int this_cpu, int that_cpu)
 	return (this_rq->cpu_locality[that_cpu] < 3);
 }
 
+/* As per resched_curr but only will resched idle task */
+static inline void resched_idle(struct rq *rq)
+{
+	if (test_tsk_need_resched(rq->idle))
+		return;
+
+	rq->preempt = rq->idle;
+
+	set_tsk_need_resched(rq->idle);
+
+	if (rq_local(rq)) {
+		set_preempt_need_resched();
+		return;
+	}
+
+	smp_send_reschedule(rq->cpu);
+}
+
 static struct rq *resched_best_idle(struct task_struct *p, int cpu)
 {
 	cpumask_t tmpmask;
@@ -1129,13 +1149,7 @@ static struct rq *resched_best_idle(struct task_struct *p, int cpu)
 	rq = cpu_rq(best_cpu);
 	if (!smt_schedule(p, rq))
 		return NULL;
-	/*
-	 * Given we do this lockless, do one last check that the rq is still
-	 * idle by the time we get here
-	 */
-	if (unlikely(!rq_idle(rq)))
-		return NULL;
-	resched_curr(rq);
+	resched_idle(rq);
 	return rq;
 }
 
@@ -3752,6 +3766,7 @@ static void __sched notrace __schedule(bool preempt)
 	cpu = smp_processor_id();
 	rq = cpu_rq(cpu);
 	prev = rq->curr;
+	idle = rq->idle;
 
 	/*
 	 * do_exit() calls schedule() with preemption disabled as an exception;
@@ -3776,6 +3791,22 @@ static void __sched notrace __schedule(bool preempt)
 	 */
 	smp_mb__before_spinlock();
 	rq_lock(rq);
+#ifdef CONFIG_SMP
+	if (rq->preempt) {
+		/*
+		 * Make sure resched_curr hasn't triggered a preemption
+		 * locklessly on a task that has since scheduled away. Spurious
+		 * wakeup of idle is okay though.
+		 */
+		if (unlikely(preempt && prev != idle && !test_tsk_need_resched(prev))) {
+			rq->preempt = NULL;
+			clear_preempt_need_resched();
+			rq_unlock_irq(rq);
+			return;
+		}
+		rq->preempt = NULL;
+	}
+#endif
 
 	switch_count = &prev->nivcsw;
 	if (!preempt && prev->state) {
@@ -3817,7 +3848,6 @@ static void __sched notrace __schedule(bool preempt)
 	clear_tsk_need_resched(prev);
 	clear_preempt_need_resched();
 
-	idle = rq->idle;
 	if (idle != prev) {
 		/* Update all the information stored on struct rq */
 		prev->deadline = rq->rq_deadline;
