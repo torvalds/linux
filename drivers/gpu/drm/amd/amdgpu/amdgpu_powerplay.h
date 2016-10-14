@@ -23,11 +23,11 @@
  *
  */
 
-#ifndef __AMDGPU_POPWERPLAY_H__
-#define __AMDGPU_POPWERPLAY_H__
+#ifndef __AMDGPU_POWERPLAY_H__
+#define __AMDGPU_POWERPLAY_H__
 
 #include "amd_shared.h"
 
 extern const struct amd_ip_funcs amdgpu_pp_ip_funcs;
 
-#endif /* __AMDSOC_DM_H__ */
+#endif /* __AMDGPU_POWERPLAY_H__ */
