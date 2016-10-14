@@ -121,12 +121,60 @@ static int fjes_get_settings(struct net_device *netdev,
 	return 0;
 }
 
+static int fjes_get_regs_len(struct net_device *netdev)
+{
+#define FJES_REGS_LEN	37
+	return FJES_REGS_LEN * sizeof(u32);
+}
+
+static void fjes_get_regs(struct net_device *netdev,
+			  struct ethtool_regs *regs, void *p)
+{
+	struct fjes_adapter *adapter = netdev_priv(netdev);
+	struct fjes_hw *hw = &adapter->hw;
+	u32 *regs_buff = p;
+
+	memset(p, 0, FJES_REGS_LEN * sizeof(u32));
+
+	regs->version = 1;
+
+	/* Information registers */
+	regs_buff[0] = rd32(XSCT_OWNER_EPID);
+	regs_buff[1] = rd32(XSCT_MAX_EP);
+
+	/* Device Control registers */
+	regs_buff[4] = rd32(XSCT_DCTL);
+
+	/* Command Control registers */
+	regs_buff[8] = rd32(XSCT_CR);
+	regs_buff[9] = rd32(XSCT_CS);
+	regs_buff[10] = rd32(XSCT_SHSTSAL);
+	regs_buff[11] = rd32(XSCT_SHSTSAH);
+
+	regs_buff[13] = rd32(XSCT_REQBL);
+	regs_buff[14] = rd32(XSCT_REQBAL);
+	regs_buff[15] = rd32(XSCT_REQBAH);
+
+	regs_buff[17] = rd32(XSCT_RESPBL);
+	regs_buff[18] = rd32(XSCT_RESPBAL);
+	regs_buff[19] = rd32(XSCT_RESPBAH);
+
+	/* Interrupt Control registers */
+	regs_buff[32] = rd32(XSCT_IS);
+	regs_buff[33] = rd32(XSCT_IMS);
+	regs_buff[34] = rd32(XSCT_IMC);
+	regs_buff[35] = rd32(XSCT_IG);
+	regs_buff[36] = rd32(XSCT_ICTL);
+}
+
 static const struct ethtool_ops fjes_ethtool_ops = {
 		.get_settings		= fjes_get_settings,
 		.get_drvinfo		= fjes_get_drvinfo,
 		.get_ethtool_stats = fjes_get_ethtool_stats,
 		.get_strings      = fjes_get_strings,
 		.get_sset_count   = fjes_get_sset_count,
+		.get_regs		= fjes_get_regs,
+		.get_regs_len		= fjes_get_regs_len,
 };
 
 void fjes_set_ethtool_ops(struct net_device *netdev)
