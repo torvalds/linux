@@ -816,12 +816,13 @@ static const struct hdmi_video_timing hdmi_mode[] = {
 		.interface = OUT_P888,
 	},
 	{
+		/* AUO 3.81 */
 		.mode = {
-			.name = "2160x1200@90Hz",
-			.refresh = 90,
+			.name = "2160x1200@75Hz",
+			.refresh = 75,
 			.xres = 2160,
 			.yres = 1200,
-			.pixclock = 297000000,
+			.pixclock = 245000000,
 			.left_margin = 100,
 			.right_margin = 420,
 			.upper_margin = 3,
@@ -838,12 +839,13 @@ static const struct hdmi_video_timing hdmi_mode[] = {
 		.interface = OUT_P888,
 	},
 	{
+		/* sharp 2.89 */
 		.mode = {
-			.name = "2880x1440@90Hz",
-			.refresh = 90,
+			.name = "2880x1440@75Hz",
+			.refresh = 75,
 			.xres = 2880,
 			.yres = 1440,
-			.pixclock = 403000000,
+			.pixclock = 340000000,
 			.left_margin = 100,
 			.right_margin = 50,
 			.upper_margin = 8,
@@ -855,6 +857,29 @@ static const struct hdmi_video_timing hdmi_mode[] = {
 			.flag = 0,
 		},
 		.vic = HDMI_VIDEO_DISCRETE_VR | 4,
+		.vic_2nd = 0,
+		.pixelrepeat = 1,
+		.interface = OUT_P888,
+	},
+	{
+		/* RAYKEN 5.46 */
+		.mode = {
+			.name = "1440x2560@60Hz",
+			.refresh = 60,
+			.xres = 1440,
+			.yres = 2560,
+			.pixclock = 269390000,
+			.left_margin = 50,
+			.right_margin = 200,
+			.upper_margin = 20,
+			.lower_margin = 20,
+			.hsync_len = 20,
+			.vsync_len = 10,
+			.sync = 0,
+			.vmode = 0,
+			.flag = 0,
+		},
+		.vic = HDMI_VIDEO_DISCRETE_VR | 5,
 		.vic_2nd = 0,
 		.pixelrepeat = 1,
 		.interface = OUT_P888,
