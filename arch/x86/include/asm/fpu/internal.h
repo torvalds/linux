@@ -552,27 +552,15 @@ static inline int fpregs_active(void)
  *
  * This is a two-stage process:
  *
- *  - switch_fpu_prepare() saves the old state and
- *    sets the new state of the CR0.TS bit. This is
- *    done within the context of the old process.
+ *  - switch_fpu_prepare() saves the old state.
+ *    This is done within the context of the old process.
  *
  *  - switch_fpu_finish() restores the new state as
  *    necessary.
  */
-typedef struct { int preload; } fpu_switch_t;
-
-static inline fpu_switch_t
-switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
+static inline void
+switch_fpu_prepare(struct fpu *old_fpu, int cpu)
 {
-	fpu_switch_t fpu;
-
-	/*
-	 * If the task has used the math, pre-load the FPU on xsave processors
-	 * or if the past 5 consecutive context-switches used math.
-	 */
-	fpu.preload = static_cpu_has(X86_FEATURE_FPU) &&
-		      new_fpu->fpstate_active;
-
 	if (old_fpu->fpregs_active) {
 		if (!copy_fpregs_to_fpstate(old_fpu))
 			old_fpu->last_cpu = -1;
@@ -584,16 +572,6 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 		trace_x86_fpu_regs_deactivated(old_fpu);
 	} else
 		old_fpu->last_cpu = -1;
-
-	if (fpu.preload) {
-		if (fpregs_state_valid(new_fpu, cpu))
-			fpu.preload = 0;
-		else
-			prefetch(&new_fpu->state);
-		fpregs_activate(new_fpu);
-	}
-
-	return fpu;
 }
 
 /*
@@ -601,15 +579,19 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
  */
 
 /*
- * By the time this gets called, we've already cleared CR0.TS and
- * given the process the FPU if we are going to preload the FPU
- * state - all we need to do is to conditionally restore the register
- * state itself.
+ * Set up the userspace FPU context for the new task, if the task
+ * has used the FPU.
  */
-static inline void switch_fpu_finish(struct fpu *new_fpu, fpu_switch_t fpu_switch)
+static inline void switch_fpu_finish(struct fpu *new_fpu, int cpu)
 {
-	if (fpu_switch.preload)
-		copy_kernel_to_fpregs(&new_fpu->state);
+	bool preload = static_cpu_has(X86_FEATURE_FPU) &&
+		       new_fpu->fpstate_active;
+
+	if (preload) {
+		if (!fpregs_state_valid(new_fpu, cpu))
+			copy_kernel_to_fpregs(&new_fpu->state);
+		fpregs_activate(new_fpu);
+	}
 }
 
 /*
