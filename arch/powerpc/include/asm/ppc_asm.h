@@ -785,9 +785,9 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
  */
 #define EX_TABLE(_fault, _target)		\
 	stringify_in_c(.section __ex_table,"a";)\
-	PPC_LONG_ALIGN stringify_in_c(;)	\
-	PPC_LONG stringify_in_c(_fault;)	\
-	PPC_LONG stringify_in_c(_target;)	\
+	stringify_in_c(.balign 4;)		\
+	stringify_in_c(.long (_fault) - . ;)	\
+	stringify_in_c(.long (_target) - . ;)	\
 	stringify_in_c(.previous)
 
 #endif /* _ASM_POWERPC_PPC_ASM_H */

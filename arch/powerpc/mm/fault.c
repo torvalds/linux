@@ -512,7 +512,7 @@ void bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 
 	/* Are we prepared to handle this fault?  */
 	if ((entry = search_exception_tables(regs->nip)) != NULL) {
-		regs->nip = entry->fixup;
+		regs->nip = extable_fixup(entry);
 		return;
 	}
 

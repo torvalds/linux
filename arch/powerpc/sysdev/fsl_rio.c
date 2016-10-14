@@ -111,7 +111,7 @@ int fsl_rio_mcheck_exception(struct pt_regs *regs)
 			out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR),
 				 0);
 			regs->msr |= MSR_RI;
-			regs->nip = entry->fixup;
+			regs->nip = extable_fixup(entry);
 			return 1;
 		}
 	}

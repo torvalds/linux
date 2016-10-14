@@ -73,19 +73,23 @@ extern char __stop___ex_table[];
 #error implement UCONTEXT_NIA
 #endif
 
+struct extbl_entry {
+	int insn;
+	int fixup;
+};
 
 static void segv_handler(int signr, siginfo_t *info, void *ptr)
 {
 	ucontext_t *uc = (ucontext_t *)ptr;
 	unsigned long addr = (unsigned long)info->si_addr;
 	unsigned long *ip = &UCONTEXT_NIA(uc);
-	unsigned long *ex_p = (unsigned long *)__start___ex_table;
+	struct extbl_entry *entry = (struct extbl_entry *)__start___ex_table;
 
-	while (ex_p < (unsigned long *)__stop___ex_table) {
+	while (entry < (struct extbl_entry *)__stop___ex_table) {
 		unsigned long insn, fixup;
 
-		insn = *ex_p++;
-		fixup = *ex_p++;
+		insn  = (unsigned long)&entry->insn + entry->insn;
+		fixup = (unsigned long)&entry->fixup + entry->fixup;
 
 		if (insn == *ip) {
 			*ip = fixup;

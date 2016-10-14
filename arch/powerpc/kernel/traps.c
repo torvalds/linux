@@ -365,7 +365,7 @@ static inline int check_io_access(struct pt_regs *regs)
 			       (*nip & 0x100)? "OUT to": "IN from",
 			       regs->gpr[rb] - _IO_BASE, nip);
 			regs->msr |= MSR_RI;
-			regs->nip = entry->fixup;
+			regs->nip = extable_fixup(entry);
 			return 1;
 		}
 	}
