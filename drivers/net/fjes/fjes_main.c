@@ -30,7 +30,7 @@
 #include "fjes_trace.h"
 
 #define MAJ 1
-#define MIN 1
+#define MIN 2
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN)
 #define DRV_NAME	"fjes"
 char fjes_driver_name[] = DRV_NAME;
