@@ -329,7 +329,7 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 				  int param_length, const u8 params[],
 				  int *result_length, u8 cmd_result[])
 {
-	int result, actual_len, i;
+	int result, actual_len;
 	u8 *b;
 
 	dprintk("%s\n", __func__);
@@ -353,10 +353,8 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 		memcpy(&b[4], params, param_length);
 
 	if (debug) {
-		printk("%s: command: ", __func__);
-		for (i = 0; i < param_length + 4; i++)
-			printk("0x%02X ", b[i]);
-		printk("\n");
+		printk(KERN_DEBUG "%s: command: %*ph\n",
+		       __func__, param_length, b);
 	}
 
 	result = usb_bulk_msg(dec->udev, dec->command_pipe, b,
@@ -381,10 +379,8 @@ static int ttusb_dec_send_command(struct ttusb_dec *dec, const u8 command,
 		return result;
 	} else {
 		if (debug) {
-			printk("%s: result: ", __func__);
-			for (i = 0; i < actual_len; i++)
-				printk("0x%02X ", b[i]);
-			printk("\n");
+			printk(KERN_DEBUG "%s: result: %*ph\n",
+			       __func__, actual_len, b);
 		}
 
 		if (result_length)
