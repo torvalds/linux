@@ -1257,6 +1257,8 @@ static int fjes_probe(struct platform_device *plat_dev)
 
 	netif_carrier_off(netdev);
 
+	fjes_dbg_adapter_init(adapter);
+
 	return 0;
 
 err_hw_exit:
@@ -1273,6 +1275,8 @@ static int fjes_remove(struct platform_device *plat_dev)
 	struct net_device *netdev = dev_get_drvdata(&plat_dev->dev);
 	struct fjes_adapter *adapter = netdev_priv(netdev);
 	struct fjes_hw *hw = &adapter->hw;
+
+	fjes_dbg_adapter_exit(adapter);
 
 	cancel_delayed_work_sync(&adapter->interrupt_watch_task);
 	cancel_work_sync(&adapter->unshare_watch_task);
@@ -1478,9 +1482,13 @@ static int __init fjes_init_module(void)
 	pr_info("%s - version %s - %s\n",
 		fjes_driver_string, fjes_driver_version, fjes_copyright);
 
+	fjes_dbg_init();
+
 	result = platform_driver_register(&fjes_driver);
-	if (result < 0)
+	if (result < 0) {
+		fjes_dbg_exit();
 		return result;
+	}
 
 	result = acpi_bus_register_driver(&fjes_acpi_driver);
 	if (result < 0)
@@ -1490,6 +1498,7 @@ static int __init fjes_init_module(void)
 
 fail_acpi_driver:
 	platform_driver_unregister(&fjes_driver);
+	fjes_dbg_exit();
 	return result;
 }
 
@@ -1500,6 +1509,7 @@ static void __exit fjes_exit_module(void)
 {
 	acpi_bus_unregister_driver(&fjes_acpi_driver);
 	platform_driver_unregister(&fjes_driver);
+	fjes_dbg_exit();
 }
 
 module_exit(fjes_exit_module);
