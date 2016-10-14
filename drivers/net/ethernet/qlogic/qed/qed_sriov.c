@@ -109,7 +109,8 @@ static int qed_sp_vf_stop(struct qed_hwfn *p_hwfn,
 }
 
 static bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
-				  int rel_vf_id, bool b_enabled_only)
+				  int rel_vf_id,
+				  bool b_enabled_only, bool b_non_malicious)
 {
 	if (!p_hwfn->pf_iov_info) {
 		DP_NOTICE(p_hwfn->cdev, "No iov info\n");
@@ -122,6 +123,10 @@ static bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
 
 	if ((!p_hwfn->pf_iov_info->vfs_array[rel_vf_id].b_init) &&
 	    b_enabled_only)
+		return false;
+
+	if ((p_hwfn->pf_iov_info->vfs_array[rel_vf_id].b_malicious) &&
+	    b_non_malicious)
 		return false;
 
 	return true;
@@ -138,7 +143,8 @@ static struct qed_vf_info *qed_iov_get_vf_info(struct qed_hwfn *p_hwfn,
 		return NULL;
 	}
 
-	if (qed_iov_is_valid_vfid(p_hwfn, relative_vf_id, b_enabled_only))
+	if (qed_iov_is_valid_vfid(p_hwfn, relative_vf_id,
+				  b_enabled_only, false))
 		vf = &p_hwfn->pf_iov_info->vfs_array[relative_vf_id];
 	else
 		DP_ERR(p_hwfn, "qed_iov_get_vf_info: VF[%d] is not enabled\n",
@@ -542,7 +548,8 @@ int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
 	return 0;
 }
 
-static bool qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn, int vfid)
+bool _qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn,
+			      int vfid, bool b_fail_malicious)
 {
 	/* Check PF supports sriov */
 	if (IS_VF(p_hwfn->cdev) || !IS_QED_SRIOV(p_hwfn->cdev) ||
@@ -550,10 +557,15 @@ static bool qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn, int vfid)
 		return false;
 
 	/* Check VF validity */
-	if (!qed_iov_is_valid_vfid(p_hwfn, vfid, true))
+	if (!qed_iov_is_valid_vfid(p_hwfn, vfid, true, b_fail_malicious))
 		return false;
 
 	return true;
+}
+
+bool qed_iov_pf_sanity_check(struct qed_hwfn *p_hwfn, int vfid)
+{
+	return _qed_iov_pf_sanity_check(p_hwfn, vfid, true);
 }
 
 static void qed_iov_set_vf_to_disable(struct qed_dev *cdev,
@@ -651,6 +663,9 @@ static int qed_iov_enable_vf_access(struct qed_hwfn *p_hwfn,
 	qed_iov_vf_pglue_clear_err(p_hwfn, p_ptt, QED_VF_ABS_ID(p_hwfn, vf));
 
 	qed_iov_vf_igu_reset(p_hwfn, p_ptt, vf);
+
+	/* It's possible VF was previously considered malicious */
+	vf->b_malicious = false;
 
 	rc = qed_mcp_config_vf_msix(p_hwfn, p_ptt, vf->abs_vf_id, vf->num_sbs);
 	if (rc)
@@ -2804,6 +2819,13 @@ qed_iov_execute_vf_flr_cleanup(struct qed_hwfn *p_hwfn,
 			return rc;
 		}
 
+		/* Workaround to make VF-PF channel ready, as FW
+		 * doesn't do that as a part of FLR.
+		 */
+		REG_WR(p_hwfn,
+		       GTT_BAR0_MAP_REG_USDM_RAM +
+		       USTORM_VF_PF_CHANNEL_READY_OFFSET(vfid), 1);
+
 		/* VF_STOPPED has to be set only after final cleanup
 		 * but prior to re-enabling the VF.
 		 */
@@ -2942,7 +2964,8 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 	mbx->first_tlv = mbx->req_virt->first_tlv;
 
 	/* check if tlv type is known */
-	if (qed_iov_tlv_supported(mbx->first_tlv.tl.type)) {
+	if (qed_iov_tlv_supported(mbx->first_tlv.tl.type) &&
+	    !p_vf->b_malicious) {
 		switch (mbx->first_tlv.tl.type) {
 		case CHANNEL_TLV_ACQUIRE:
 			qed_iov_vf_mbx_acquire(p_hwfn, p_ptt, p_vf);
@@ -2984,6 +3007,15 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 			qed_iov_vf_mbx_release(p_hwfn, p_ptt, p_vf);
 			break;
 		}
+	} else if (qed_iov_tlv_supported(mbx->first_tlv.tl.type)) {
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "VF [%02x] - considered malicious; Ignoring TLV [%04x]\n",
+			   p_vf->abs_vf_id, mbx->first_tlv.tl.type);
+
+		qed_iov_prepare_resp(p_hwfn, p_ptt, p_vf,
+				     mbx->first_tlv.tl.type,
+				     sizeof(struct pfvf_def_resp_tlv),
+				     PFVF_STATUS_MALICIOUS);
 	} else {
 		/* unknown TLV - this may belong to a VF driver from the future
 		 * - a version written after this PF driver was written, which
@@ -3033,20 +3065,30 @@ static void qed_iov_pf_get_and_clear_pending_events(struct qed_hwfn *p_hwfn,
 	memset(p_pending_events, 0, sizeof(u64) * QED_VF_ARRAY_LENGTH);
 }
 
+static struct qed_vf_info *qed_sriov_get_vf_from_absid(struct qed_hwfn *p_hwfn,
+						       u16 abs_vfid)
+{
+	u8 min = (u8) p_hwfn->cdev->p_iov_info->first_vf_in_pf;
+
+	if (!_qed_iov_pf_sanity_check(p_hwfn, (int)abs_vfid - min, false)) {
+		DP_VERBOSE(p_hwfn,
+			   QED_MSG_IOV,
+			   "Got indication for VF [abs 0x%08x] that cannot be handled by PF\n",
+			   abs_vfid);
+		return NULL;
+	}
+
+	return &p_hwfn->pf_iov_info->vfs_array[(u8) abs_vfid - min];
+}
+
 static int qed_sriov_vfpf_msg(struct qed_hwfn *p_hwfn,
 			      u16 abs_vfid, struct regpair *vf_msg)
 {
-	u8 min = (u8)p_hwfn->cdev->p_iov_info->first_vf_in_pf;
-	struct qed_vf_info *p_vf;
-
-	if (!qed_iov_pf_sanity_check(p_hwfn, (int)abs_vfid - min)) {
-		DP_VERBOSE(p_hwfn,
-			   QED_MSG_IOV,
-			   "Got a message from VF [abs 0x%08x] that cannot be handled by PF\n",
+	struct qed_vf_info *p_vf = qed_sriov_get_vf_from_absid(p_hwfn,
 			   abs_vfid);
+
+	if (!p_vf)
 		return 0;
-	}
-	p_vf = &p_hwfn->pf_iov_info->vfs_array[(u8)abs_vfid - min];
 
 	/* List the physical address of the request so that handler
 	 * could later on copy the message from it.
@@ -3060,6 +3102,23 @@ static int qed_sriov_vfpf_msg(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+static void qed_sriov_vfpf_malicious(struct qed_hwfn *p_hwfn,
+				     struct malicious_vf_eqe_data *p_data)
+{
+	struct qed_vf_info *p_vf;
+
+	p_vf = qed_sriov_get_vf_from_absid(p_hwfn, p_data->vf_id);
+
+	if (!p_vf)
+		return;
+
+	DP_INFO(p_hwfn,
+		"VF [%d] - Malicious behavior [%02x]\n",
+		p_vf->abs_vf_id, p_data->err_id);
+
+	p_vf->b_malicious = true;
+}
+
 int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
 			u8 opcode, __le16 echo, union event_ring_data *data)
 {
@@ -3067,6 +3126,9 @@ int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
 	case COMMON_EVENT_VF_PF_CHANNEL:
 		return qed_sriov_vfpf_msg(p_hwfn, le16_to_cpu(echo),
 					  &data->vf_pf_channel.msg_addr);
+	case COMMON_EVENT_MALICIOUS_VF:
+		qed_sriov_vfpf_malicious(p_hwfn, &data->malicious_vf);
+		return 0;
 	default:
 		DP_INFO(p_hwfn->cdev, "Unknown sriov eqe event 0x%02x\n",
 			opcode);
@@ -3083,7 +3145,7 @@ u16 qed_iov_get_next_active_vf(struct qed_hwfn *p_hwfn, u16 rel_vf_id)
 		goto out;
 
 	for (i = rel_vf_id; i < p_iov->total_vfs; i++)
-		if (qed_iov_is_valid_vfid(p_hwfn, rel_vf_id, true))
+		if (qed_iov_is_valid_vfid(p_hwfn, rel_vf_id, true, false))
 			return i;
 
 out:
@@ -3130,6 +3192,12 @@ static void qed_iov_bulletin_set_forced_mac(struct qed_hwfn *p_hwfn,
 		return;
 	}
 
+	if (vf_info->b_malicious) {
+		DP_NOTICE(p_hwfn->cdev,
+			  "Can't set forced MAC to malicious VF [%d]\n", vfid);
+		return;
+	}
+
 	feature = 1 << MAC_ADDR_FORCED;
 	memcpy(vf_info->bulletin.p_virt->mac, mac, ETH_ALEN);
 
@@ -3150,6 +3218,12 @@ static void qed_iov_bulletin_set_forced_vlan(struct qed_hwfn *p_hwfn,
 	if (!vf_info) {
 		DP_NOTICE(p_hwfn->cdev,
 			  "Can not set forced MAC, invalid vfid [%d]\n", vfid);
+		return;
+	}
+
+	if (vf_info->b_malicious) {
+		DP_NOTICE(p_hwfn->cdev,
+			  "Can't set forced vlan to malicious VF [%d]\n", vfid);
 		return;
 	}
 
@@ -3367,7 +3441,7 @@ int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled)
 		qed_for_each_vf(hwfn, j) {
 			int k;
 
-			if (!qed_iov_is_valid_vfid(hwfn, j, true))
+			if (!qed_iov_is_valid_vfid(hwfn, j, true, false))
 				continue;
 
 			/* Wait until VF is disabled before releasing */
@@ -3425,7 +3499,7 @@ static int qed_sriov_enable(struct qed_dev *cdev, int num)
 		num_sbs = min_t(int, sb_cnt_info.sb_free_blk, limit);
 
 		for (i = 0; i < num; i++) {
-			if (!qed_iov_is_valid_vfid(hwfn, i, false))
+			if (!qed_iov_is_valid_vfid(hwfn, i, false, true))
 				continue;
 
 			rc = qed_iov_init_hw_for_vf(hwfn,
@@ -3477,7 +3551,7 @@ static int qed_sriov_pf_set_mac(struct qed_dev *cdev, u8 *mac, int vfid)
 		return -EINVAL;
 	}
 
-	if (!qed_iov_is_valid_vfid(&cdev->hwfns[0], vfid, true)) {
+	if (!qed_iov_is_valid_vfid(&cdev->hwfns[0], vfid, true, true)) {
 		DP_VERBOSE(cdev, QED_MSG_IOV,
 			   "Cannot set VF[%d] MAC (VF is not active)\n", vfid);
 		return -EINVAL;
@@ -3509,7 +3583,7 @@ static int qed_sriov_pf_set_vlan(struct qed_dev *cdev, u16 vid, int vfid)
 		return -EINVAL;
 	}
 
-	if (!qed_iov_is_valid_vfid(&cdev->hwfns[0], vfid, true)) {
+	if (!qed_iov_is_valid_vfid(&cdev->hwfns[0], vfid, true, true)) {
 		DP_VERBOSE(cdev, QED_MSG_IOV,
 			   "Cannot set VF[%d] MAC (VF is not active)\n", vfid);
 		return -EINVAL;
@@ -3543,7 +3617,7 @@ static int qed_get_vf_config(struct qed_dev *cdev,
 	if (IS_VF(cdev))
 		return -EINVAL;
 
-	if (!qed_iov_is_valid_vfid(&cdev->hwfns[0], vf_id, true)) {
+	if (!qed_iov_is_valid_vfid(&cdev->hwfns[0], vf_id, true, false)) {
 		DP_VERBOSE(cdev, QED_MSG_IOV,
 			   "VF index [%d] isn't active\n", vf_id);
 		return -EINVAL;
@@ -3647,7 +3721,7 @@ static int qed_set_vf_link_state(struct qed_dev *cdev,
 	if (IS_VF(cdev))
 		return -EINVAL;
 
-	if (!qed_iov_is_valid_vfid(&cdev->hwfns[0], vf_id, true)) {
+	if (!qed_iov_is_valid_vfid(&cdev->hwfns[0], vf_id, true, true)) {
 		DP_VERBOSE(cdev, QED_MSG_IOV,
 			   "VF index [%d] isn't active\n", vf_id);
 		return -EINVAL;

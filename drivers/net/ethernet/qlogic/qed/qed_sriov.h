@@ -132,6 +132,7 @@ struct qed_vf_info {
 	struct qed_iov_vf_mbx vf_mbx;
 	enum vf_state state;
 	bool b_init;
+	bool b_malicious;
 	u8 to_disable;
 
 	struct qed_bulletin bulletin;
