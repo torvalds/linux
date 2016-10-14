@@ -1593,7 +1593,6 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	struct device *dev = ictx->dev;
 	unsigned long flags;
 	u32 kc;
-	int i;
 	u64 scancode;
 	int press_type = 0;
 	int msec;
@@ -1664,10 +1663,8 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	}
 
 	if (debug) {
-		printk(KERN_INFO "intf%d decoded packet: ", intf);
-		for (i = 0; i < len; ++i)
-			printk("%02x ", buf[i]);
-		printk("\n");
+		printk(KERN_INFO "intf%d decoded packet: %*ph\n",
+		       intf, len, buf);
 	}
 
 	press_type = imon_parse_press_type(ictx, buf, ktype);
