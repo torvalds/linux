@@ -61,7 +61,7 @@ obj-y	+= entry.o reipl.o relocate_kernel.o
 
 extra-y				+= head.o head64.o vmlinux.lds
 
-obj-$(CONFIG_MODULES)		+= s390_ksyms.o module.o
+obj-$(CONFIG_MODULES)		+= module.o
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_SCHED_TOPOLOGY)	+= topology.o
 obj-$(CONFIG_HIBERNATION)	+= suspend.o swsusp.o
