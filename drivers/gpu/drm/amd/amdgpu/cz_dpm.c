@@ -1250,7 +1250,8 @@ static void cz_update_current_ps(struct amdgpu_device *adev,
 
 	pi->current_ps = *ps;
 	pi->current_rps = *rps;
-	pi->current_rps.ps_priv = ps;
+	pi->current_rps.ps_priv = &pi->current_ps;
+	adev->pm.dpm.current_ps = &pi->current_rps;
 
 }
 
@@ -1262,7 +1263,8 @@ static void cz_update_requested_ps(struct amdgpu_device *adev,
 
 	pi->requested_ps = *ps;
 	pi->requested_rps = *rps;
-	pi->requested_rps.ps_priv = ps;
+	pi->requested_rps.ps_priv = &pi->requested_ps;
+	adev->pm.dpm.requested_ps = &pi->requested_rps;
 
 }
 

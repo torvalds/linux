@@ -3171,6 +3171,7 @@ static void ni_update_current_ps(struct amdgpu_device *adev,
 	eg_pi->current_rps = *rps;
 	ni_pi->current_ps = *new_ps;
 	eg_pi->current_rps.ps_priv = &ni_pi->current_ps;
+	adev->pm.dpm.current_ps = &eg_pi->current_rps;
 }
 
 static void ni_update_requested_ps(struct amdgpu_device *adev,
@@ -3183,6 +3184,7 @@ static void ni_update_requested_ps(struct amdgpu_device *adev,
 	eg_pi->requested_rps = *rps;
 	ni_pi->requested_ps = *new_ps;
 	eg_pi->requested_rps.ps_priv = &ni_pi->requested_ps;
+	adev->pm.dpm.requested_ps = &eg_pi->requested_rps;
 }
 
 static void ni_set_uvd_clock_before_set_eng_clock(struct amdgpu_device *adev,
