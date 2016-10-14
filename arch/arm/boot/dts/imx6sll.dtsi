@@ -63,6 +63,7 @@
 				198000		1175000
 			>;
 			clock-latency = <61036>; /* two CLK32 periods */
+			fsl,low-power-run;
 			clocks = <&clks IMX6SLL_CLK_ARM>,
 				 <&clks IMX6SLL_CLK_PLL2_PFD2>,
 				 <&clks IMX6SLL_CLK_STEP>,
@@ -129,6 +130,26 @@
 		compatible = "simple-bus";
 		interrupt-parent = <&gpc>;
 		ranges;
+
+		busfreq {
+			compatible = "fsl,imx_busfreq";
+			clocks = <&clks IMX6SLL_CLK_PLL2_PFD2>, <&clks IMX6SLL_CLK_PLL2_198M>,
+				 <&clks IMX6SLL_CLK_PLL2_BUS>, <&clks IMX6SLL_CLK_ARM>,
+				 <&clks IMX6SLL_CLK_PLL3_USB_OTG>, <&clks IMX6SLL_CLK_PERIPH>,
+				 <&clks IMX6SLL_CLK_PERIPH_PRE>, <&clks IMX6SLL_CLK_PERIPH_CLK2>,
+				 <&clks IMX6SLL_CLK_PERIPH_CLK2_SEL>, <&clks IMX6SLL_CLK_OSC>,
+				 <&clks IMX6SLL_CLK_AHB>, <&clks IMX6SLL_CLK_AXI_PODF>,
+				 <&clks IMX6SLL_CLK_PERIPH2>, <&clks IMX6SLL_CLK_PERIPH2_PRE>,
+				 <&clks IMX6SLL_CLK_PERIPH2_CLK2>, <&clks IMX6SLL_CLK_PERIPH2_CLK2_SEL>,
+				 <&clks IMX6SLL_CLK_STEP>, <&clks IMX6SLL_CLK_MMDC_P0_FAST>, <&clks IMX6SLL_PLL1_BYPASS_SRC>,
+				 <&clks IMX6SLL_PLL1_BYPASS>, <&clks IMX6SLL_CLK_PLL1_SYS>, <&clks IMX6SLL_CLK_PLL1_SW>,
+				 <&clks IMX6SLL_CLK_PLL1>;
+			clock-names = "pll2_pfd2_396m", "pll2_198m", "pll2_bus", "arm", "pll3_usb_otg",
+				      "periph", "periph_pre", "periph_clk2", "periph_clk2_sel", "osc",
+				      "ahb", "ocram", "periph2", "periph2_pre", "periph2_clk2", "periph2_clk2_sel",
+				      "step", "mmdc", "pll1_bypass_src", "pll1_bypass", "pll1_sys", "pll1_sw", "pll1";
+			fsl,max_ddr_freq = <400000000>;
+		};
 
 		ocrams: sram@00900000 {
 			compatible = "fsl,lpm-sram";
