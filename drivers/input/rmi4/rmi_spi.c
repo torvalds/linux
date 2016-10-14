@@ -396,6 +396,13 @@ static inline int rmi_spi_of_probe(struct spi_device *spi,
 }
 #endif
 
+static void rmi_spi_unregister_transport(void *data)
+{
+	struct rmi_spi_xport *rmi_spi = data;
+
+	rmi_unregister_transport_device(&rmi_spi->xport);
+}
+
 static int rmi_spi_probe(struct spi_device *spi)
 {
 	struct rmi_spi_xport *rmi_spi;
@@ -464,21 +471,17 @@ static int rmi_spi_probe(struct spi_device *spi)
 		dev_err(&spi->dev, "failed to register transport.\n");
 		return retval;
 	}
+	retval = devm_add_action_or_reset(&spi->dev,
+					  rmi_spi_unregister_transport,
+					  rmi_spi);
+	if (retval)
+		return retval;
 
 	retval = rmi_spi_init_irq(spi);
 	if (retval < 0)
 		return retval;
 
 	dev_info(&spi->dev, "registered RMI SPI driver\n");
-	return 0;
-}
-
-static int rmi_spi_remove(struct spi_device *spi)
-{
-	struct rmi_spi_xport *rmi_spi = spi_get_drvdata(spi);
-
-	rmi_unregister_transport_device(&rmi_spi->xport);
-
 	return 0;
 }
 
@@ -577,7 +580,6 @@ static struct spi_driver rmi_spi_driver = {
 	},
 	.id_table	= rmi_id,
 	.probe		= rmi_spi_probe,
-	.remove		= rmi_spi_remove,
 };
 
 module_spi_driver(rmi_spi_driver);
