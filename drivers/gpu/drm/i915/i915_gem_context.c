@@ -192,7 +192,7 @@ i915_gem_alloc_context_obj(struct drm_device *dev, size_t size)
 	 * This is only applicable for Ivy Bridge devices since
 	 * later platforms don't have L3 control bits in the PTE.
 	 */
-	if (IS_IVYBRIDGE(dev)) {
+	if (IS_IVYBRIDGE(to_i915(dev))) {
 		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_L3_LLC);
 		/* Failure shouldn't ever happen this early */
 		if (WARN_ON(ret)) {

@@ -114,7 +114,7 @@ static bool i915_error_injected(struct drm_i915_private *dev_priv)
 		      fmt, ##__VA_ARGS__)
 
 
-static enum intel_pch intel_virt_detect_pch(struct drm_device *dev)
+static enum intel_pch intel_virt_detect_pch(struct drm_i915_private *dev_priv)
 {
 	enum intel_pch ret = PCH_NOP;
 
@@ -125,16 +125,16 @@ static enum intel_pch intel_virt_detect_pch(struct drm_device *dev)
 	 * make an educated guess as to which PCH is really there.
 	 */
 
-	if (IS_GEN5(dev)) {
+	if (IS_GEN5(dev_priv)) {
 		ret = PCH_IBX;
 		DRM_DEBUG_KMS("Assuming Ibex Peak PCH\n");
-	} else if (IS_GEN6(dev) || IS_IVYBRIDGE(dev)) {
+	} else if (IS_GEN6(dev_priv) || IS_IVYBRIDGE(dev_priv)) {
 		ret = PCH_CPT;
 		DRM_DEBUG_KMS("Assuming CouarPoint PCH\n");
-	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		ret = PCH_LPT;
 		DRM_DEBUG_KMS("Assuming LynxPoint PCH\n");
-	} else if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
+	} else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		ret = PCH_SPT;
 		DRM_DEBUG_KMS("Assuming SunrisePoint PCH\n");
 	}
@@ -178,12 +178,14 @@ static void intel_detect_pch(struct drm_device *dev)
 			} else if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_CPT;
 				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
-				WARN_ON(!(IS_GEN6(dev) || IS_IVYBRIDGE(dev)));
+				WARN_ON(!(IS_GEN6(dev_priv) ||
+					IS_IVYBRIDGE(dev_priv)));
 			} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
 				/* PantherPoint is CPT compatible */
 				dev_priv->pch_type = PCH_CPT;
 				DRM_DEBUG_KMS("Found PantherPoint PCH\n");
-				WARN_ON(!(IS_GEN6(dev) || IS_IVYBRIDGE(dev)));
+				WARN_ON(!(IS_GEN6(dev_priv) ||
+					IS_IVYBRIDGE(dev_priv)));
 			} else if (id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_LPT;
 				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
@@ -217,7 +219,8 @@ static void intel_detect_pch(struct drm_device *dev)
 					    PCI_SUBVENDOR_ID_REDHAT_QUMRANET &&
 				    pch->subsystem_device ==
 					    PCI_SUBDEVICE_ID_QEMU)) {
-				dev_priv->pch_type = intel_virt_detect_pch(dev);
+				dev_priv->pch_type =
+					intel_virt_detect_pch(dev_priv);
 			} else
 				continue;
 

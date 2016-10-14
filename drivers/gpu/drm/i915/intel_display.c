@@ -3727,7 +3727,7 @@ static void intel_fdi_normal_train(struct drm_crtc *crtc)
 	/* enable normal train */
 	reg = FDI_TX_CTL(pipe);
 	temp = I915_READ(reg);
-	if (IS_IVYBRIDGE(dev)) {
+	if (IS_IVYBRIDGE(dev_priv)) {
 		temp &= ~FDI_LINK_TRAIN_NONE_IVB;
 		temp |= FDI_LINK_TRAIN_NONE_IVB | FDI_TX_ENHANCE_FRAME_ENABLE;
 	} else {
@@ -3752,7 +3752,7 @@ static void intel_fdi_normal_train(struct drm_crtc *crtc)
 	udelay(1000);
 
 	/* IVB wants error correction enabled */
-	if (IS_IVYBRIDGE(dev))
+	if (IS_IVYBRIDGE(dev_priv))
 		I915_WRITE(reg, I915_READ(reg) | FDI_FS_ERRC_ENABLE |
 			   FDI_FE_ERRC_ENABLE);
 }
@@ -4538,7 +4538,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 
 	assert_pch_transcoder_disabled(dev_priv, pipe);
 
-	if (IS_IVYBRIDGE(dev))
+	if (IS_IVYBRIDGE(dev_priv))
 		ivybridge_update_fdi_bc_bifurcation(intel_crtc);
 
 	/* Write the TU size bits before fdi link training, so that error
@@ -4852,7 +4852,7 @@ static void ironlake_pfit_enable(struct intel_crtc *crtc)
 		 * as some pre-programmed values are broken,
 		 * e.g. x201.
 		 */
-		if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
+		if (IS_IVYBRIDGE(dev_priv) || IS_HASWELL(dev_priv))
 			I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3 |
 						 PF_PIPE_SEL_IVB(pipe));
 		else
@@ -12249,7 +12249,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		if (fb->modifier[0] != old_fb->modifier[0])
 			/* vlv: DISPLAY_FLIP fails to change tiling */
 			engine = NULL;
-	} else if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
+	} else if (IS_IVYBRIDGE(dev_priv) || IS_HASWELL(dev_priv)) {
 		engine = dev_priv->engine[BCS];
 	} else if (INTEL_INFO(dev)->gen >= 7) {
 		engine = i915_gem_active_get_engine(&obj->last_write,
@@ -12525,7 +12525,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	 * cstate->update_wm was already set above, so this flag will
 	 * take effect when we commit and program watermarks.
 	 */
-	if (plane->type == DRM_PLANE_TYPE_OVERLAY && IS_IVYBRIDGE(dev) &&
+	if (plane->type == DRM_PLANE_TYPE_OVERLAY && IS_IVYBRIDGE(dev_priv) &&
 	    needs_scaling(to_intel_plane_state(plane_state)) &&
 	    !needs_scaling(old_plane_state))
 		pipe_config->disable_lp_wm = true;

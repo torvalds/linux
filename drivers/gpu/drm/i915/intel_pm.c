@@ -2191,14 +2191,15 @@ static void intel_fixup_spr_wm_latency(struct drm_device *dev, uint16_t wm[5])
 		wm[0] = 13;
 }
 
-static void intel_fixup_cur_wm_latency(struct drm_device *dev, uint16_t wm[5])
+static void intel_fixup_cur_wm_latency(struct drm_i915_private *dev_priv,
+				       uint16_t wm[5])
 {
 	/* ILK cursor LP0 latency is 1300 ns */
-	if (IS_GEN5(dev))
+	if (IS_GEN5(dev_priv))
 		wm[0] = 13;
 
 	/* WaDoubleCursorLP3Latency:ivb */
-	if (IS_IVYBRIDGE(dev))
+	if (IS_IVYBRIDGE(dev_priv))
 		wm[3] *= 2;
 }
 
@@ -2294,7 +2295,7 @@ static void ilk_setup_wm_latency(struct drm_device *dev)
 	       sizeof(dev_priv->wm.pri_latency));
 
 	intel_fixup_spr_wm_latency(dev, dev_priv->wm.spr_latency);
-	intel_fixup_cur_wm_latency(dev, dev_priv->wm.cur_latency);
+	intel_fixup_cur_wm_latency(dev_priv, dev_priv->wm.cur_latency);
 
 	intel_print_wm_latency(dev, "Primary", dev_priv->wm.pri_latency);
 	intel_print_wm_latency(dev, "Sprite", dev_priv->wm.spr_latency);
@@ -2522,7 +2523,7 @@ static void ilk_wm_merge(struct drm_device *dev,
 	int last_enabled_level = max_level;
 
 	/* ILK/SNB/IVB: LP1+ watermarks only w/ single pipe */
-	if ((INTEL_INFO(dev)->gen <= 6 || IS_IVYBRIDGE(dev)) &&
+	if ((INTEL_GEN(dev_priv) <= 6 || IS_IVYBRIDGE(dev_priv)) &&
 	    config->num_pipes_active > 1)
 		last_enabled_level = 0;
 
@@ -4625,7 +4626,7 @@ void ilk_wm_get_hw_state(struct drm_device *dev)
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hw->partitioning = (I915_READ(WM_MISC) & WM_MISC_DATA_PARTITION_5_6) ?
 			INTEL_DDB_PART_5_6 : INTEL_DDB_PART_1_2;
-	else if (IS_IVYBRIDGE(dev))
+	else if (IS_IVYBRIDGE(dev_priv))
 		hw->partitioning = (I915_READ(DISP_ARB_CTL2) & DISP_DATA_PARTITION_5_6) ?
 			INTEL_DDB_PART_5_6 : INTEL_DDB_PART_1_2;
 

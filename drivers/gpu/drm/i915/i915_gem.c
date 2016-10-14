@@ -4432,7 +4432,7 @@ i915_gem_init_hw(struct drm_device *dev)
 			   LOWER_SLICE_ENABLED : LOWER_SLICE_DISABLED);
 
 	if (HAS_PCH_NOP(dev_priv)) {
-		if (IS_IVYBRIDGE(dev)) {
+		if (IS_IVYBRIDGE(dev_priv)) {
 			u32 temp = I915_READ(GEN7_MSG_CTL);
 			temp &= ~(WAIT_FOR_PCH_FLR_ACK | WAIT_FOR_PCH_RESET_ACK);
 			I915_WRITE(GEN7_MSG_CTL, temp);
