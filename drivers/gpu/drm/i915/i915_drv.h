@@ -2862,6 +2862,8 @@ struct drm_i915_cmd_table {
 
 #define HAS_GMCH_DISPLAY(dev_priv) ((dev_priv)->info.has_gmch_display)
 
+#define HAS_LSPCON(dev_priv) (IS_GEN9(dev_priv))
+
 /* DPF == dynamic parity feature */
 #define HAS_L3_DPF(dev_priv) ((dev_priv)->info.has_l3_dpf)
 #define NUM_L3_SLICES(dev_priv) (IS_HSW_GT3(dev_priv) ? \
@@ -3629,6 +3631,9 @@ bool intel_bios_is_port_dp_dual_mode(struct drm_i915_private *dev_priv, enum por
 bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv, enum port *port);
 bool intel_bios_is_port_hpd_inverted(struct drm_i915_private *dev_priv,
 				     enum port port);
+bool intel_bios_is_lspcon_present(struct drm_i915_private *dev_priv,
+				enum port port);
+
 
 /* intel_opregion.c */
 #ifdef CONFIG_ACPI
