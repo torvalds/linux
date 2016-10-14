@@ -534,7 +534,7 @@ void intel_color_init(struct drm_crtc *crtc)
 
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
-	if (IS_CHERRYVIEW(dev)) {
+	if (IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->display.load_csc_matrix = cherryview_load_csc_matrix;
 		dev_priv->display.load_luts = cherryview_load_luts;
 	} else if (IS_HASWELL(dev_priv)) {

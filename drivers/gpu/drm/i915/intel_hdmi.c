@@ -881,7 +881,7 @@ static void intel_hdmi_prepare(struct intel_encoder *encoder)
 
 	if (HAS_PCH_CPT(dev_priv))
 		hdmi_val |= SDVO_PIPE_SEL_CPT(crtc->pipe);
-	else if (IS_CHERRYVIEW(dev))
+	else if (IS_CHERRYVIEW(dev_priv))
 		hdmi_val |= SDVO_PIPE_SEL_CHV(crtc->pipe);
 	else
 		hdmi_val |= SDVO_PIPE_SEL(crtc->pipe);
@@ -913,7 +913,7 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 
 	if (HAS_PCH_CPT(dev_priv))
 		*pipe = PORT_TO_PIPE_CPT(tmp);
-	else if (IS_CHERRYVIEW(dev))
+	else if (IS_CHERRYVIEW(dev_priv))
 		*pipe = SDVO_PORT_TO_PIPE_CHV(tmp);
 	else
 		*pipe = PORT_TO_PIPE(tmp);
@@ -1885,7 +1885,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 		BUG();
 	}
 
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		intel_hdmi->write_infoframe = vlv_write_infoframe;
 		intel_hdmi->set_infoframes = vlv_set_infoframes;
 		intel_hdmi->infoframe_enabled = vlv_infoframe_enabled;
@@ -1959,7 +1959,7 @@ void intel_hdmi_init(struct drm_device *dev,
 	}
 	intel_encoder->get_hw_state = intel_hdmi_get_hw_state;
 	intel_encoder->get_config = intel_hdmi_get_config;
-	if (IS_CHERRYVIEW(dev)) {
+	if (IS_CHERRYVIEW(dev_priv)) {
 		intel_encoder->pre_pll_enable = chv_hdmi_pre_pll_enable;
 		intel_encoder->pre_enable = chv_hdmi_pre_enable;
 		intel_encoder->enable = vlv_enable_hdmi;
@@ -1982,7 +1982,7 @@ void intel_hdmi_init(struct drm_device *dev,
 
 	intel_encoder->type = INTEL_OUTPUT_HDMI;
 	intel_encoder->port = port;
-	if (IS_CHERRYVIEW(dev)) {
+	if (IS_CHERRYVIEW(dev_priv)) {
 		if (port == PORT_D)
 			intel_encoder->crtc_mask = 1 << 2;
 		else

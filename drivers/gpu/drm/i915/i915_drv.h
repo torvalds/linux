@@ -2656,7 +2656,7 @@ struct drm_i915_cmd_table {
 				 INTEL_DEVID(dev_priv) == 0x0152 || \
 				 INTEL_DEVID(dev_priv) == 0x015a)
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
-#define IS_CHERRYVIEW(dev)	(INTEL_INFO(dev)->is_cherryview)
+#define IS_CHERRYVIEW(dev_priv)	((dev_priv)->info.is_cherryview)
 #define IS_HASWELL(dev_priv)	((dev_priv)->info.is_haswell)
 #define IS_BROADWELL(dev_priv)	((dev_priv)->info.is_broadwell)
 #define IS_SKYLAKE(dev_priv)	((dev_priv)->info.is_skylake)
@@ -3847,11 +3847,11 @@ __raw_write(64, q)
 #define INTEL_BROADCAST_RGB_FULL 1
 #define INTEL_BROADCAST_RGB_LIMITED 2
 
-static inline i915_reg_t i915_vgacntrl_reg(struct drm_device *dev)
+static inline i915_reg_t i915_vgacntrl_reg(struct drm_i915_private *dev_priv)
 {
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		return VLV_VGACNTRL;
-	else if (INTEL_INFO(dev)->gen >= 5)
+	else if (INTEL_GEN(dev_priv) >= 5)
 		return CPU_VGACNTRL;
 	else
 		return VGACNTRL;

@@ -450,7 +450,7 @@ vlv_update_plane(struct drm_plane *dplane,
 	if (key->flags & I915_SET_COLORKEY_SOURCE)
 		sprctl |= SP_SOURCE_KEY;
 
-	if (IS_CHERRYVIEW(dev) && pipe == PIPE_B)
+	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B)
 		chv_update_csc(intel_plane, fb->pixel_format);
 
 	I915_WRITE(SPSTRIDE(pipe, plane), fb->pitches[0]);
@@ -944,6 +944,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_intel_sprite_colorkey *set = data;
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
@@ -955,7 +956,7 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 	if ((set->flags & (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE)) == (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE))
 		return -EINVAL;
 
-	if ((IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) &&
+	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	    set->flags & I915_SET_COLORKEY_DESTINATION)
 		return -EINVAL;
 
@@ -1042,6 +1043,7 @@ static uint32_t skl_plane_formats[] = {
 int
 intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *intel_plane = NULL;
 	struct intel_plane_state *state = NULL;
 	unsigned long possible_crtcs;
@@ -1084,7 +1086,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 
 	case 7:
 	case 8:
-		if (IS_IVYBRIDGE(to_i915(dev))) {
+		if (IS_IVYBRIDGE(dev_priv)) {
 			intel_plane->can_scale = true;
 			intel_plane->max_downscale = 2;
 		} else {
@@ -1092,7 +1094,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 			intel_plane->max_downscale = 1;
 		}
 
-		if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 			intel_plane->update_plane = vlv_update_plane;
 			intel_plane->disable_plane = vlv_disable_plane;
 

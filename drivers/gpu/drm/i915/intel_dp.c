@@ -344,7 +344,7 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 	DP |= DP_PORT_WIDTH(1);
 	DP |= DP_LINK_TRAIN_PAT_1;
 
-	if (IS_CHERRYVIEW(dev))
+	if (IS_CHERRYVIEW(dev_priv))
 		DP |= DP_PIPE_SELECT_CHV(pipe);
 	else if (pipe == PIPE_B)
 		DP |= DP_PIPEB_SELECT;
@@ -356,10 +356,10 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 	 * So enable temporarily it if it's not already enabled.
 	 */
 	if (!pll_enabled) {
-		release_cl_override = IS_CHERRYVIEW(dev) &&
+		release_cl_override = IS_CHERRYVIEW(dev_priv) &&
 			!chv_phy_powergate_ch(dev_priv, phy, ch, true);
 
-		if (vlv_force_pll_on(dev, pipe, IS_CHERRYVIEW(dev) ?
+		if (vlv_force_pll_on(dev, pipe, IS_CHERRYVIEW(dev_priv) ?
 				     &chv_dpll[0].dpll : &vlv_dpll[0].dpll)) {
 			DRM_ERROR("Failed to force on pll for pipe %c!\n",
 				  pipe_name(pipe));
@@ -570,7 +570,7 @@ void intel_power_sequencer_reset(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = &dev_priv->drm;
 	struct intel_encoder *encoder;
 
-	if (WARN_ON(!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) &&
+	if (WARN_ON(!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv) &&
 		    !IS_BROXTON(dev_priv)))
 		return;
 
@@ -664,7 +664,7 @@ static int edp_notify_handler(struct notifier_block *this, unsigned long code,
 
 	pps_lock(intel_dp);
 
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		enum pipe pipe = vlv_power_sequencer_pipe(intel_dp);
 		i915_reg_t pp_ctrl_reg, pp_div_reg;
 		u32 pp_div;
@@ -692,7 +692,7 @@ static bool edp_have_panel_power(struct intel_dp *intel_dp)
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
-	if ((IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) &&
+	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	    intel_dp->pps_pipe == INVALID_PIPE)
 		return false;
 
@@ -706,7 +706,7 @@ static bool edp_have_panel_vdd(struct intel_dp *intel_dp)
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
-	if ((IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) &&
+	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	    intel_dp->pps_pipe == INVALID_PIPE)
 		return false;
 
@@ -1347,7 +1347,7 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		divisor = pch_dpll;
 		count = ARRAY_SIZE(pch_dpll);
-	} else if (IS_CHERRYVIEW(dev)) {
+	} else if (IS_CHERRYVIEW(dev_priv)) {
 		divisor = chv_dpll;
 		count = ARRAY_SIZE(chv_dpll);
 	} else if (IS_VALLEYVIEW(dev)) {
@@ -1791,7 +1791,8 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 		I915_WRITE(TRANS_DP_CTL(crtc->pipe), trans_dp);
 	} else {
 		if (!HAS_PCH_SPLIT(dev_priv) && !IS_VALLEYVIEW(dev) &&
-		    !IS_CHERRYVIEW(dev) && pipe_config->limited_color_range)
+		    !IS_CHERRYVIEW(dev_priv) &&
+		    pipe_config->limited_color_range)
 			intel_dp->DP |= DP_COLOR_RANGE_16_235;
 
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
@@ -1803,7 +1804,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder,
 		if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
 			intel_dp->DP |= DP_ENHANCED_FRAMING;
 
-		if (IS_CHERRYVIEW(dev))
+		if (IS_CHERRYVIEW(dev_priv))
 			intel_dp->DP |= DP_PIPE_SELECT_CHV(crtc->pipe);
 		else if (crtc->pipe == PIPE_B)
 			intel_dp->DP |= DP_PIPEB_SELECT;
@@ -2459,7 +2460,7 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 
 		DRM_DEBUG_KMS("No pipe for dp port 0x%x found\n",
 			      i915_mmio_reg_offset(intel_dp->output_reg));
-	} else if (IS_CHERRYVIEW(dev)) {
+	} else if (IS_CHERRYVIEW(dev_priv)) {
 		*pipe = DP_PORT_TO_PIPE_CHV(tmp);
 	} else {
 		*pipe = PORT_TO_PIPE(tmp);
@@ -2681,7 +2682,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 		}
 
 	} else {
-		if (IS_CHERRYVIEW(dev))
+		if (IS_CHERRYVIEW(dev_priv))
 			*DP &= ~DP_LINK_TRAIN_MASK_CHV;
 		else
 			*DP &= ~DP_LINK_TRAIN_MASK;
@@ -2697,7 +2698,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 			*DP |= DP_LINK_TRAIN_PAT_2;
 			break;
 		case DP_TRAINING_PATTERN_3:
-			if (IS_CHERRYVIEW(dev)) {
+			if (IS_CHERRYVIEW(dev_priv)) {
 				*DP |= DP_LINK_TRAIN_PAT_3_CHV;
 			} else {
 				DRM_DEBUG_KMS("TPS3 not supported, using TPS2 instead\n");
@@ -2747,7 +2748,7 @@ static void intel_enable_dp(struct intel_encoder *encoder,
 
 	pps_lock(intel_dp);
 
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		vlv_init_panel_power_sequencer(intel_dp);
 
 	intel_dp_enable_port(intel_dp, pipe_config);
@@ -2758,10 +2759,10 @@ static void intel_enable_dp(struct intel_encoder *encoder,
 
 	pps_unlock(intel_dp);
 
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		unsigned int lane_mask = 0x0;
 
-		if (IS_CHERRYVIEW(dev))
+		if (IS_CHERRYVIEW(dev_priv))
 			lane_mask = intel_dp_unused_lane_mask(pipe_config->lane_count);
 
 		vlv_wait_port_ready(dev_priv, dp_to_dig_port(intel_dp),
@@ -2987,7 +2988,7 @@ intel_dp_voltage_max(struct intel_dp *intel_dp)
 		if (dev_priv->vbt.edp.low_vswing && port == PORT_A)
 			return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
-	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 	else if (IS_GEN7(dev) && port == PORT_A)
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
@@ -3348,7 +3349,7 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 			signal_levels = 0;
 		else
 			mask = DDI_BUF_EMP_MASK;
-	} else if (IS_CHERRYVIEW(dev)) {
+	} else if (IS_CHERRYVIEW(dev_priv)) {
 		signal_levels = chv_signal_levels(intel_dp);
 	} else if (IS_VALLEYVIEW(dev)) {
 		signal_levels = vlv_signal_levels(intel_dp);
@@ -3448,7 +3449,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 		DP &= ~DP_LINK_TRAIN_MASK_CPT;
 		DP |= DP_LINK_TRAIN_PAT_IDLE_CPT;
 	} else {
-		if (IS_CHERRYVIEW(dev))
+		if (IS_CHERRYVIEW(dev_priv))
 			DP &= ~DP_LINK_TRAIN_MASK_CHV;
 		else
 			DP &= ~DP_LINK_TRAIN_MASK;
@@ -5085,7 +5086,7 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 
 	/* Haswell doesn't have any port selection bits for the panel
 	 * power sequencer any more. */
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		port_sel = PANEL_PORT_SELECT_VLV(port);
 	} else if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv)) {
 		if (port == PORT_A)
@@ -5114,7 +5115,9 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 static void intel_dp_pps_init(struct drm_device *dev,
 			      struct intel_dp *intel_dp)
 {
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		vlv_initial_power_sequencer_setup(intel_dp);
 	} else {
 		intel_dp_init_panel_power_sequencer(dev, intel_dp);
@@ -5584,7 +5587,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	}
 	mutex_unlock(&dev->mode_config.mutex);
 
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		intel_dp->edp_notifier.notifier_call = edp_notify_handler;
 		register_reboot_notifier(&intel_dp->edp_notifier);
 
@@ -5593,7 +5596,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		 * If the current pipe isn't valid, try the PPS pipe, and if that
 		 * fails just assume pipe A.
 		 */
-		if (IS_CHERRYVIEW(dev))
+		if (IS_CHERRYVIEW(dev_priv))
 			pipe = DP_PORT_TO_PIPE_CHV(intel_dp->DP);
 		else
 			pipe = PORT_TO_PIPE(intel_dp->DP);
@@ -5682,7 +5685,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_encoder->type = INTEL_OUTPUT_EDP;
 
 	/* eDP only on port B and/or C on vlv/chv */
-	if (WARN_ON((IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) &&
+	if (WARN_ON((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 		    is_edp(intel_dp) && port != PORT_B && port != PORT_C))
 		return false;
 
@@ -5792,7 +5795,7 @@ bool intel_dp_init(struct drm_device *dev,
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	intel_encoder->get_config = intel_dp_get_config;
 	intel_encoder->suspend = intel_dp_encoder_suspend;
-	if (IS_CHERRYVIEW(dev)) {
+	if (IS_CHERRYVIEW(dev_priv)) {
 		intel_encoder->pre_pll_enable = chv_dp_pre_pll_enable;
 		intel_encoder->pre_enable = chv_pre_enable_dp;
 		intel_encoder->enable = vlv_enable_dp;
@@ -5815,7 +5818,7 @@ bool intel_dp_init(struct drm_device *dev,
 	intel_dig_port->max_lanes = 4;
 
 	intel_encoder->type = INTEL_OUTPUT_DP;
-	if (IS_CHERRYVIEW(dev)) {
+	if (IS_CHERRYVIEW(dev_priv)) {
 		if (port == PORT_D)
 			intel_encoder->crtc_mask = 1 << 2;
 		else

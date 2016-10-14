@@ -740,7 +740,6 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	struct drm_device *dev = encoder->base.dev;
 	enum intel_display_power_domain power_domain;
 	enum port port;
 	bool active = false;
@@ -770,7 +769,8 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 		 * bit in port C control register does not get set. As a
 		 * workaround, check pipe B conf instead.
 		 */
-		if ((IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) && port == PORT_C)
+		if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
+		    port == PORT_C)
 			enabled = I915_READ(PIPECONF(PIPE_B)) & PIPECONF_ENABLE;
 
 		/* Try command mode if video mode not enabled */
@@ -1137,7 +1137,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 	}
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 			/*
 			 * escape clock divider, 20MHz, shared for A and C.
 			 * device ready must be off when doing this! txclkesc?
@@ -1449,7 +1449,7 @@ void intel_dsi_init(struct drm_device *dev)
 	if (!intel_bios_is_dsi_present(dev_priv, &port))
 		return;
 
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->mipi_mmio_base = VLV_MIPI_BASE;
 	} else if (IS_BROXTON(dev_priv)) {
 		dev_priv->mipi_mmio_base = BXT_MIPI_BASE;

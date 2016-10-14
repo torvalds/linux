@@ -2598,7 +2598,7 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 		skl_display_core_init(dev_priv, resume);
 	} else if (IS_BROXTON(dev_priv)) {
 		bxt_display_core_init(dev_priv, resume);
-	} else if (IS_CHERRYVIEW(dev)) {
+	} else if (IS_CHERRYVIEW(dev_priv)) {
 		mutex_lock(&power_domains->lock);
 		chv_phy_control_init(dev_priv);
 		mutex_unlock(&power_domains->lock);

@@ -849,7 +849,7 @@ static bool vlv_PLL_is_optimal(struct drm_device *dev, int target_freq,
 	 * For CHV ignore the error and consider only the P value.
 	 * Prefer a bigger P value based on HW requirements.
 	 */
-	if (IS_CHERRYVIEW(dev)) {
+	if (IS_CHERRYVIEW(to_i915(dev))) {
 		*error_ppm = 0;
 
 		return calculated_clock->p > best_clock->p;
@@ -1332,7 +1332,7 @@ static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
 			     "plane %d assertion failure, should be off on pipe %c but is still active\n",
 			     sprite, pipe_name(pipe));
 		}
-	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		for_each_sprite(dev_priv, pipe, sprite) {
 			u32 val = I915_READ(SPCNTR(pipe, sprite));
 			I915_STATE_WARN(val & SP_ENABLE,
@@ -3033,7 +3033,7 @@ static void i9xx_update_primary_plane(struct drm_plane *primary,
 			   ((crtc_state->pipe_src_h - 1) << 16) |
 			   (crtc_state->pipe_src_w - 1));
 		I915_WRITE(DSPPOS(plane), 0);
-	} else if (IS_CHERRYVIEW(dev) && plane == PLANE_B) {
+	} else if (IS_CHERRYVIEW(dev_priv) && plane == PLANE_B) {
 		I915_WRITE(PRIMSIZE(plane),
 			   ((crtc_state->pipe_src_h - 1) << 16) |
 			   (crtc_state->pipe_src_w - 1));
@@ -5872,7 +5872,7 @@ static void intel_update_max_cdclk(struct drm_device *dev)
 			dev_priv->max_cdclk_freq = 540000;
 		else
 			dev_priv->max_cdclk_freq = 675000;
-	} else if (IS_CHERRYVIEW(dev)) {
+	} else if (IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->max_cdclk_freq = 320000;
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->max_cdclk_freq = 400000;
@@ -6674,7 +6674,7 @@ static void valleyview_modeset_commit_cdclk(struct drm_atomic_state *old_state)
 	 */
 	intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
 
-	if (IS_CHERRYVIEW(dev))
+	if (IS_CHERRYVIEW(dev_priv))
 		cherryview_set_cdclk(dev, req_cdclk);
 	else
 		valleyview_set_cdclk(dev, req_cdclk);
@@ -6702,7 +6702,7 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_set_pipe_timings(intel_crtc);
 	intel_set_pipe_src_size(intel_crtc);
 
-	if (IS_CHERRYVIEW(dev) && pipe == PIPE_B) {
+	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
 		struct drm_i915_private *dev_priv = to_i915(dev);
 
 		I915_WRITE(CHV_BLEND(pipe), CHV_BLEND_LEGACY);
@@ -6717,7 +6717,7 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_encoders_pre_pll_enable(crtc, pipe_config, old_state);
 
-	if (IS_CHERRYVIEW(dev)) {
+	if (IS_CHERRYVIEW(dev_priv)) {
 		chv_prepare_pll(intel_crtc, intel_crtc->config);
 		chv_enable_pll(intel_crtc, intel_crtc->config);
 	} else {
@@ -6836,7 +6836,7 @@ static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	intel_encoders_post_disable(crtc, old_crtc_state, old_state);
 
 	if (!intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_DSI)) {
-		if (IS_CHERRYVIEW(dev))
+		if (IS_CHERRYVIEW(dev_priv))
 			chv_disable_pll(dev_priv, pipe);
 		else if (IS_VALLEYVIEW(dev))
 			vlv_disable_pll(dev_priv, pipe);
@@ -7803,8 +7803,8 @@ static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
 		 * for gen < 8) and if DRRS is supported (to make sure the
 		 * registers are not unnecessarily accessed).
 		 */
-		if (m2_n2 && (IS_CHERRYVIEW(dev) || INTEL_INFO(dev)->gen < 8) &&
-			crtc->config->has_drrs) {
+		if (m2_n2 && (IS_CHERRYVIEW(dev_priv) ||
+		    INTEL_GEN(dev_priv) < 8) && crtc->config->has_drrs) {
 			I915_WRITE(PIPE_DATA_M2(transcoder),
 					TU_SIZE(m2_n2->tu) | m2_n2->gmch_m);
 			I915_WRITE(PIPE_DATA_N2(transcoder), m2_n2->gmch_n);
@@ -8106,7 +8106,7 @@ int vlv_force_pll_on(struct drm_device *dev, enum pipe pipe,
 	pipe_config->pixel_multiplier = 1;
 	pipe_config->dpll = *dpll;
 
-	if (IS_CHERRYVIEW(dev)) {
+	if (IS_CHERRYVIEW(to_i915(dev))) {
 		chv_compute_dpll(crtc, pipe_config);
 		chv_prepare_pll(crtc, pipe_config);
 		chv_enable_pll(crtc, pipe_config);
@@ -8131,7 +8131,7 @@ int vlv_force_pll_on(struct drm_device *dev, enum pipe pipe,
  */
 void vlv_force_pll_off(struct drm_device *dev, enum pipe pipe)
 {
-	if (IS_CHERRYVIEW(dev))
+	if (IS_CHERRYVIEW(to_i915(dev)))
 		chv_disable_pll(to_i915(dev), pipe);
 	else
 		vlv_disable_pll(to_i915(dev), pipe);
@@ -8455,7 +8455,7 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 	} else
 		pipeconf |= PIPECONF_PROGRESSIVE;
 
-	if ((IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) &&
+	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	     intel_crtc->config->limited_color_range)
 		pipeconf |= PIPECONF_COLOR_RANGE_SELECT;
 
@@ -8849,7 +8849,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 		}
 	}
 
-	if ((IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) &&
+	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	    (tmp & PIPECONF_COLOR_RANGE_SELECT))
 		pipe_config->limited_color_range = true;
 
@@ -8863,7 +8863,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 
 	if (INTEL_INFO(dev)->gen >= 4) {
 		/* No way to read it out on pipes B and C */
-		if (IS_CHERRYVIEW(dev) && crtc->pipe != PIPE_A)
+		if (IS_CHERRYVIEW(dev_priv) && crtc->pipe != PIPE_A)
 			tmp = dev_priv->chv_dpll_md[crtc->pipe];
 		else
 			tmp = I915_READ(DPLL_MD(crtc->pipe));
@@ -8884,7 +8884,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 		pipe_config->pixel_multiplier = 1;
 	}
 	pipe_config->dpll_hw_state.dpll = I915_READ(DPLL(crtc->pipe));
-	if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev)) {
+	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv)) {
 		/*
 		 * DPLL_DVO_2X_MODE must be enabled for both DPLLs
 		 * on 830. Filter it out here so that we don't
@@ -8902,7 +8902,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 						     DPLL_PORTB_READY_MASK);
 	}
 
-	if (IS_CHERRYVIEW(dev))
+	if (IS_CHERRYVIEW(dev_priv))
 		chv_crtc_clock_get(crtc, pipe_config);
 	else if (IS_VALLEYVIEW(dev))
 		vlv_crtc_clock_get(crtc, pipe_config);
@@ -12248,7 +12248,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		work->flip_count = I915_READ(PIPE_FLIPCOUNT_G4X(pipe)) + 1;
 
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		engine = dev_priv->engine[BCS];
 		if (fb->modifier[0] != old_fb->modifier[0])
 			/* vlv: DISPLAY_FLIP fails to change tiling */
@@ -13346,7 +13346,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 	PIPE_CONF_CHECK_I(pixel_multiplier);
 	PIPE_CONF_CHECK_I(has_hdmi_sink);
 	if ((INTEL_GEN(dev_priv) < 8 && !IS_HASWELL(dev_priv)) ||
-	    IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+	    IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		PIPE_CONF_CHECK_I(limited_color_range);
 	PIPE_CONF_CHECK_I(has_infoframe);
 
@@ -15066,7 +15066,7 @@ intel_check_cursor_plane(struct drm_plane *plane,
 	 * display power well must be turned off and on again.
 	 * Refuse the put the cursor into that compromised position.
 	 */
-	if (IS_CHERRYVIEW(plane->dev) && pipe == PIPE_C &&
+	if (IS_CHERRYVIEW(to_i915(plane->dev)) && pipe == PIPE_C &&
 	    state->base.visible && state->base.crtc_x < 0) {
 		DRM_DEBUG_KMS("CHV cursor C not allowed to straddle the left screen edge\n");
 		return -EINVAL;
@@ -15336,7 +15336,7 @@ static bool intel_crt_present(struct drm_device *dev)
 	if (IS_HSW_ULT(dev_priv) || IS_BDW_ULT(dev_priv))
 		return false;
 
-	if (IS_CHERRYVIEW(dev))
+	if (IS_CHERRYVIEW(dev_priv))
 		return false;
 
 	if (HAS_PCH_LPT_H(dev_priv) &&
@@ -15477,7 +15477,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		if (I915_READ(PCH_DP_D) & DP_DETECTED)
 			intel_dp_init(dev, PCH_DP_D, PORT_D);
-	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		bool has_edp, has_port;
 
 		/*
@@ -15509,7 +15509,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if ((I915_READ(VLV_HDMIC) & SDVO_DETECTED || has_port) && !has_edp)
 			intel_hdmi_init(dev, VLV_HDMIC, PORT_C);
 
-		if (IS_CHERRYVIEW(dev)) {
+		if (IS_CHERRYVIEW(dev_priv)) {
 			/*
 			 * eDP not supported on port D,
 			 * so no need to worry about it
@@ -15627,10 +15627,10 @@ static const struct drm_framebuffer_funcs intel_fb_funcs = {
 };
 
 static
-u32 intel_fb_pitch_limit(struct drm_device *dev, uint64_t fb_modifier,
-			 uint32_t pixel_format)
+u32 intel_fb_pitch_limit(struct drm_i915_private *dev_priv,
+			 uint64_t fb_modifier, uint32_t pixel_format)
 {
-	u32 gen = INTEL_INFO(dev)->gen;
+	u32 gen = INTEL_INFO(dev_priv)->gen;
 
 	if (gen >= 9) {
 		int cpp = drm_format_plane_cpp(pixel_format, 0);
@@ -15639,7 +15639,8 @@ u32 intel_fb_pitch_limit(struct drm_device *dev, uint64_t fb_modifier,
 		 *  pixels and 32K bytes."
 		 */
 		return min(8192 * cpp, 32768);
-	} else if (gen >= 5 && !IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev)) {
+	} else if (gen >= 5 && !IS_VALLEYVIEW(dev_priv) &&
+		   !IS_CHERRYVIEW(dev_priv)) {
 		return 32*1024;
 	} else if (gen >= 4) {
 		if (fb_modifier == I915_FORMAT_MOD_X_TILED)
@@ -15726,7 +15727,7 @@ static int intel_framebuffer_init(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	pitch_limit = intel_fb_pitch_limit(dev, mode_cmd->modifier[0],
+	pitch_limit = intel_fb_pitch_limit(dev_priv, mode_cmd->modifier[0],
 					   mode_cmd->pixel_format);
 	if (mode_cmd->pitches[0] > pitch_limit) {
 		DRM_DEBUG("%s pitch (%u) must be at less than %d\n",
@@ -15764,7 +15765,7 @@ static int intel_framebuffer_init(struct drm_device *dev,
 		}
 		break;
 	case DRM_FORMAT_ABGR8888:
-		if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) &&
+		if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv) &&
 		    INTEL_INFO(dev)->gen < 9) {
 			format_name = drm_get_format_name(mode_cmd->pixel_format);
 			DRM_DEBUG("unsupported pixel format: %s\n", format_name);
@@ -15783,7 +15784,7 @@ static int intel_framebuffer_init(struct drm_device *dev,
 		}
 		break;
 	case DRM_FORMAT_ABGR2101010:
-		if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev)) {
+		if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv)) {
 			format_name = drm_get_format_name(mode_cmd->pixel_format);
 			DRM_DEBUG("unsupported pixel format: %s\n", format_name);
 			kfree(format_name);
@@ -16230,7 +16231,7 @@ static void i915_disable_vga(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u8 sr1;
-	i915_reg_t vga_reg = i915_vgacntrl_reg(dev);
+	i915_reg_t vga_reg = i915_vgacntrl_reg(dev_priv);
 
 	/* WaEnableVGAAccessThroughIOPort:ctg,elk,ilk,snb,ivb,vlv,hsw */
 	vga_get_uninterruptible(pdev, VGA_RSRC_LEGACY_IO);
@@ -16675,7 +16676,7 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 void i915_redisable_vga_power_on(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	i915_reg_t vga_reg = i915_vgacntrl_reg(dev);
+	i915_reg_t vga_reg = i915_vgacntrl_reg(dev_priv);
 
 	if (!(I915_READ(vga_reg) & VGA_DISP_DISABLE)) {
 		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");
@@ -16913,7 +16914,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev)
 		pll->on = false;
 	}
 
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		vlv_wm_get_hw_state(dev);
 	else if (IS_GEN9(dev))
 		skl_wm_get_hw_state(dev);
