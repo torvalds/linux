@@ -1769,6 +1769,8 @@ void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc,
 bool intel_can_enable_sagv(struct drm_atomic_state *state);
 int intel_enable_sagv(struct drm_i915_private *dev_priv);
 int intel_disable_sagv(struct drm_i915_private *dev_priv);
+bool skl_wm_level_equals(const struct skl_wm_level *l1,
+			 const struct skl_wm_level *l2);
 bool skl_ddb_allocation_equals(const struct skl_ddb_allocation *old,
 			       const struct skl_ddb_allocation *new,
 			       enum pipe pipe);

@@ -3886,6 +3886,20 @@ void skl_write_cursor_wm(struct intel_crtc *intel_crtc,
 			    &ddb->plane[pipe][PLANE_CURSOR]);
 }
 
+bool skl_wm_level_equals(const struct skl_wm_level *l1,
+			 const struct skl_wm_level *l2)
+{
+	if (l1->plane_en != l2->plane_en)
+		return false;
+
+	/* If both planes aren't enabled, the rest shouldn't matter */
+	if (!l1->plane_en)
+		return true;
+
+	return (l1->plane_res_l == l2->plane_res_l &&
+		l1->plane_res_b == l2->plane_res_b);
+}
+
 static inline bool skl_ddb_entries_overlap(const struct skl_ddb_entry *a,
 					   const struct skl_ddb_entry *b)
 {
