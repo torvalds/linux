@@ -2966,19 +2966,13 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 	return !r ? 4 : r;
 }
 
-static uint32_t wave_read_ind(struct amdgpu_device *adev, uint32_t SQ_INDEX, uint32_t SQ_DATA, uint32_t simd, uint32_t wave, uint32_t address)
-{
-	WREG32(SQ_INDEX, (wave & 0xF) | ((simd & 0x3) << 4) | (address << 16) | (1 << 13));
-	return RREG32(SQ_DATA);
-}
-
 static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
 	struct amdgpu_device *adev = f->f_inode->i_private;
 	int r, x;
 	ssize_t result=0;
-	uint32_t offset, se, sh, cu, wave, simd, data[16];
+	uint32_t offset, se, sh, cu, wave, simd, data[32];
 
 	if (size & 3 || *pos & 3)
 		return -EINVAL;
@@ -2990,25 +2984,14 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 	cu = ((*pos >> 23) & 0xFF);
 	wave = ((*pos >> 31) & 0xFF);
 	simd = ((*pos >> 37) & 0xFF);
-	*pos &= 0x7F;
 
 	/* switch to the specific se/sh/cu */
 	mutex_lock(&adev->grbm_idx_mutex);
 	amdgpu_gfx_select_se_sh(adev, se, sh, cu);
 
 	x = 0;
-	if (adev->family == AMDGPU_FAMILY_CZ || adev->family == AMDGPU_FAMILY_VI) {
-		/* type 0 wave data */
-		data[x++] = 0;
-		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x12);
-		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x18);
-		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x19);
-		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x27E);
-		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x27F);
-		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x14);
-		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x1A);
-		data[x++] = wave_read_ind(adev, 0x2378, 0x2379, simd, wave, 0x1B);
-	}
+	if (adev->gfx.funcs->read_wave_data)
+		adev->gfx.funcs->read_wave_data(adev, simd, wave, data, &x);
 
 	amdgpu_gfx_select_se_sh(adev, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
 	mutex_unlock(&adev->grbm_idx_mutex);
@@ -3016,17 +2999,17 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 	if (!x)
 		return -EINVAL;
 
-	while (size && (*pos < x * 4)) {
+	while (size && (offset < x * 4)) {
 		uint32_t value;
 
-		value = data[*pos >> 2];
+		value = data[offset >> 2];
 		r = put_user(value, (uint32_t *)buf);
 		if (r)
 			return r;
 
 		result += 4;
 		buf += 4;
-		*pos += 4;
+		offset += 4;
 		size -= 4;
 	}
 
