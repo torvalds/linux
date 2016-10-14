@@ -308,6 +308,7 @@ config MFD_DLN2
 
 config MFD_EXYNOS_LPASS
 	tristate "Samsung Exynos SoC Low Power Audio Subsystem"
+	depends on ARCH_EXYNOS || COMPILE_TEST
 	select MFD_CORE
 	select REGMAP_MMIO
 	help
