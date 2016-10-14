@@ -185,8 +185,10 @@ int stmmac_ptp_register(struct stmmac_priv *priv)
 	priv->ptp_clock = ptp_clock_register(&priv->ptp_clock_ops,
 					     priv->device);
 	if (IS_ERR(priv->ptp_clock)) {
+		int ret = PTR_ERR(priv->ptp_clock);
+
 		priv->ptp_clock = NULL;
-		return PTR_ERR(priv->ptp_clock);
+		return ret;
 	}
 
 	spin_lock_init(&priv->ptp_lock);
