@@ -4073,6 +4073,58 @@ skl_copy_wm_for_pipe(struct skl_wm_values *dst,
 	       sizeof(dst->ddb.plane[pipe]));
 }
 
+static void
+skl_print_wm_changes(const struct drm_atomic_state *state)
+{
+	const struct drm_device *dev = state->dev;
+	const struct drm_i915_private *dev_priv = to_i915(dev);
+	const struct intel_atomic_state *intel_state =
+		to_intel_atomic_state(state);
+	const struct drm_crtc *crtc;
+	const struct drm_crtc_state *cstate;
+	const struct drm_plane *plane;
+	const struct intel_plane *intel_plane;
+	const struct drm_plane_state *pstate;
+	const struct skl_ddb_allocation *old_ddb = &dev_priv->wm.skl_hw.ddb;
+	const struct skl_ddb_allocation *new_ddb = &intel_state->wm_results.ddb;
+	enum pipe pipe;
+	int id;
+	int i, j;
+
+	for_each_crtc_in_state(state, crtc, cstate, i) {
+		pipe = to_intel_crtc(crtc)->pipe;
+
+		for_each_plane_in_state(state, plane, pstate, j) {
+			const struct skl_ddb_entry *old, *new;
+
+			intel_plane = to_intel_plane(plane);
+			id = skl_wm_plane_id(intel_plane);
+			old = &old_ddb->plane[pipe][id];
+			new = &new_ddb->plane[pipe][id];
+
+			if (intel_plane->pipe != pipe)
+				continue;
+
+			if (skl_ddb_entry_equal(old, new))
+				continue;
+
+			if (id != PLANE_CURSOR) {
+				DRM_DEBUG_ATOMIC("[PLANE:%d:plane %d%c] ddb (%d - %d) -> (%d - %d)\n",
+						 plane->base.id, id + 1,
+						 pipe_name(pipe),
+						 old->start, old->end,
+						 new->start, new->end);
+			} else {
+				DRM_DEBUG_ATOMIC("[PLANE:%d:cursor %c] ddb (%d - %d) -> (%d - %d)\n",
+						 plane->base.id,
+						 pipe_name(pipe),
+						 old->start, old->end,
+						 new->start, new->end);
+			}
+		}
+	}
+}
+
 static int
 skl_compute_wm(struct drm_atomic_state *state)
 {
@@ -4133,6 +4185,8 @@ skl_compute_wm(struct drm_atomic_state *state)
 
 		intel_cstate->update_wm_pre = true;
 	}
+
+	skl_print_wm_changes(state);
 
 	return 0;
 }
