@@ -802,6 +802,7 @@ config GPIO_TPIC2810
 
 config GPIO_TS4900
 	tristate "Technologic Systems FPGA I2C GPIO"
+	depends on SOC_IMX6 || COMPILE_TEST
 	select REGMAP_I2C
 	help
 	  Say yes here to enabled the GPIO driver for Technologic's FPGA core.
