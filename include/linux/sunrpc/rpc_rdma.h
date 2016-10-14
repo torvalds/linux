@@ -46,6 +46,10 @@
 #define RPCRDMA_VERSION		1
 #define rpcrdma_version		cpu_to_be32(RPCRDMA_VERSION)
 
+enum {
+	RPCRDMA_V1_DEF_INLINE_SIZE	= 1024,
+};
+
 struct rpcrdma_segment {
 	__be32 rs_handle;	/* Registered memory handle */
 	__be32 rs_length;	/* Length of the chunk in bytes */
