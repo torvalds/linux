@@ -491,18 +491,18 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 				"read" : "write"));
 			if ((ret > 0) || !(msgs[idx].flags & I2C_M_RD)) {
 				if (cnt > 8) cnt = 8;
-				printk(" [");
+				printk(KERN_CONT " [");
 				for (offs = 0; offs < (cnt>8?8:cnt); offs++) {
-					if (offs) printk(" ");
-					printk("%02x",msgs[idx].buf[offs]);
+					if (offs) printk(KERN_CONT " ");
+					printk(KERN_CONT "%02x",msgs[idx].buf[offs]);
 				}
-				if (offs < cnt) printk(" ...");
-				printk("]");
+				if (offs < cnt) printk(KERN_CONT " ...");
+				printk(KERN_CONT "]");
 			}
 			if (idx+1 == num) {
-				printk(" result=%d",ret);
+				printk(KERN_CONT " result=%d",ret);
 			}
-			printk("\n");
+			printk(KERN_CONT "\n");
 		}
 		if (!num) {
 			printk(KERN_INFO
