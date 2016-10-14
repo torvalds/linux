@@ -207,11 +207,14 @@ static int process_read_event(struct perf_tool *tool,
 
 	if (rep->show_threads) {
 		const char *name = evsel ? perf_evsel__name(evsel) : "unknown";
-		perf_read_values_add_value(&rep->show_threads_values,
+		int err = perf_read_values_add_value(&rep->show_threads_values,
 					   event->read.pid, event->read.tid,
 					   event->read.id,
 					   name,
 					   event->read.value);
+
+		if (err)
+			return err;
 	}
 
 	dump_printf(": %d %d %s %" PRIu64 "\n", event->read.pid, event->read.tid,
@@ -539,8 +542,11 @@ static int __cmd_report(struct report *rep)
 		}
 	}
 
-	if (rep->show_threads)
-		perf_read_values_init(&rep->show_threads_values);
+	if (rep->show_threads) {
+		ret = perf_read_values_init(&rep->show_threads_values);
+		if (ret)
+			return ret;
+	}
 
 	ret = report__setup_sample_type(rep);
 	if (ret) {
