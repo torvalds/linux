@@ -61,7 +61,7 @@ MODULE_PARM_DESC(be_max_phys_size,
 		"memory that can be allocated. Range is 16 - 128");
 
 #define beiscsi_disp_param(_name)\
-ssize_t	\
+static ssize_t	\
 beiscsi_##_name##_disp(struct device *dev,\
 			struct device_attribute *attrib, char *buf)	\
 {	\
@@ -74,7 +74,7 @@ beiscsi_##_name##_disp(struct device *dev,\
 }
 
 #define beiscsi_change_param(_name, _minval, _maxval, _defaval)\
-int \
+static int \
 beiscsi_##_name##_change(struct beiscsi_hba *phba, uint32_t val)\
 {\
 	if (val >= _minval && val <= _maxval) {\
@@ -93,7 +93,7 @@ beiscsi_##_name##_change(struct beiscsi_hba *phba, uint32_t val)\
 }
 
 #define beiscsi_store_param(_name)  \
-ssize_t \
+static ssize_t \
 beiscsi_##_name##_store(struct device *dev,\
 			 struct device_attribute *attr, const char *buf,\
 			 size_t count) \
@@ -112,7 +112,7 @@ beiscsi_##_name##_store(struct device *dev,\
 }
 
 #define beiscsi_init_param(_name, _minval, _maxval, _defval) \
-int \
+static int \
 beiscsi_##_name##_init(struct beiscsi_hba *phba, uint32_t val) \
 { \
 	if (val >= _minval && val <= _maxval) {\
@@ -4584,7 +4584,7 @@ free_hndls:
 	io_task->cmd_bhs = NULL;
 	return -ENOMEM;
 }
-int beiscsi_iotask_v2(struct iscsi_task *task, struct scatterlist *sg,
+static int beiscsi_iotask_v2(struct iscsi_task *task, struct scatterlist *sg,
 		       unsigned int num_sg, unsigned int xferlen,
 		       unsigned int writedir)
 {
@@ -4973,7 +4973,7 @@ static int beiscsi_bsg_request(struct bsg_job *job)
 	return rc;
 }
 
-void beiscsi_hba_attrs_init(struct beiscsi_hba *phba)
+static void beiscsi_hba_attrs_init(struct beiscsi_hba *phba)
 {
 	/* Set the logging parameter */
 	beiscsi_log_enable_init(phba, beiscsi_log_enable);

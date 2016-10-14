@@ -14,14 +14,8 @@
 #ifndef GENERIC_NCR5380_H
 #define GENERIC_NCR5380_H
 
-#define __STRVAL(x) #x
-#define STRVAL(x) __STRVAL(x)
-
 #ifndef SCSI_G_NCR5380_MEM
 #define DRV_MODULE_NAME "g_NCR5380"
-
-#define NCR5380_map_type int
-#define NCR5380_map_name port
 
 #define NCR5380_read(reg) \
 	inb(instance->io_port + (reg))
@@ -38,8 +32,6 @@
 /* therefore SCSI_G_NCR5380_MEM */
 #define DRV_MODULE_NAME "g_NCR5380_mmio"
 
-#define NCR5380_map_type unsigned long
-#define NCR5380_map_name base
 #define NCR53C400_mem_base 0x3880
 #define NCR53C400_host_buffer 0x3900
 #define NCR53C400_region_size 0x3a00
