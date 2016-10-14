@@ -640,12 +640,14 @@
 			};
 
 			dcp: dcp@020fc000 {
+				compatible = "fsl,imx6sl-dcp";
 				reg = <0x020fc000 0x4000>;
 				interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
-				status = "disabled";
-			};
+				clocks = <&clks IMX6SLL_CLK_DCP>;
+				clock-names = "dcp";
+			}; 
 		};
 
 		aips2: aips-bus@02100000 {
@@ -770,6 +772,13 @@
 			mmdc: mmdc@021b0000 {
 				compatible = "fsl,imx6sll-mmdc", "fsl,imx6q-mmdc";
 				reg = <0x021b0000 0x4000>;
+			};
+
+			rngb: rngb@021b4000 {
+				compatible = "fsl,imx6sl-rng", "fsl,imx-rng", "imx-rng";
+				reg = <0x021b4000 0x4000>;
+				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+				clocks =  <&clks IMX6SLL_CLK_DUMMY>;
 			};
 
 			ocotp: ocotp-ctrl@021bc000 {
