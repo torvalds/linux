@@ -986,10 +986,10 @@ restart_search:
 
 static void amdgpu_dpm_change_power_state_locked(struct amdgpu_device *adev)
 {
-	int i;
 	struct amdgpu_ps *ps;
 	enum amd_pm_state_type dpm_state;
 	int ret;
+	bool equal;
 
 	/* if dpm init failed */
 	if (!adev->pm.dpm_enabled)
@@ -1009,46 +1009,6 @@ static void amdgpu_dpm_change_power_state_locked(struct amdgpu_device *adev)
 	else
 		return;
 
-	/* no need to reprogram if nothing changed unless we are on BTC+ */
-	if (adev->pm.dpm.current_ps == adev->pm.dpm.requested_ps) {
-		/* vce just modifies an existing state so force a change */
-		if (ps->vce_active != adev->pm.dpm.vce_active)
-			goto force;
-		if (adev->flags & AMD_IS_APU) {
-			/* for APUs if the num crtcs changed but state is the same,
-			 * all we need to do is update the display configuration.
-			 */
-			if (adev->pm.dpm.new_active_crtcs != adev->pm.dpm.current_active_crtcs) {
-				/* update display watermarks based on new power state */
-				amdgpu_display_bandwidth_update(adev);
-				/* update displays */
-				amdgpu_dpm_display_configuration_changed(adev);
-				adev->pm.dpm.current_active_crtcs = adev->pm.dpm.new_active_crtcs;
-				adev->pm.dpm.current_active_crtc_count = adev->pm.dpm.new_active_crtc_count;
-			}
-			return;
-		} else {
-			/* for BTC+ if the num crtcs hasn't changed and state is the same,
-			 * nothing to do, if the num crtcs is > 1 and state is the same,
-			 * update display configuration.
-			 */
-			if (adev->pm.dpm.new_active_crtcs ==
-			    adev->pm.dpm.current_active_crtcs) {
-				return;
-			} else if ((adev->pm.dpm.current_active_crtc_count > 1) &&
-				   (adev->pm.dpm.new_active_crtc_count > 1)) {
-				/* update display watermarks based on new power state */
-				amdgpu_display_bandwidth_update(adev);
-				/* update displays */
-				amdgpu_dpm_display_configuration_changed(adev);
-				adev->pm.dpm.current_active_crtcs = adev->pm.dpm.new_active_crtcs;
-				adev->pm.dpm.current_active_crtc_count = adev->pm.dpm.new_active_crtc_count;
-				return;
-			}
-		}
-	}
-
-force:
 	if (amdgpu_dpm == 1) {
 		printk("switching from power state:\n");
 		amdgpu_dpm_print_power_state(adev, adev->pm.dpm.current_ps);
@@ -1059,30 +1019,20 @@ force:
 	/* update whether vce is active */
 	ps->vce_active = adev->pm.dpm.vce_active;
 
+	amdgpu_dpm_display_configuration_changed(adev);
+
 	ret = amdgpu_dpm_pre_set_power_state(adev);
 	if (ret)
 		return;
 
-	/* update display watermarks based on new power state */
-	amdgpu_display_bandwidth_update(adev);
+	if ((0 != amgdpu_dpm_check_state_equal(adev, adev->pm.dpm.current_ps, adev->pm.dpm.requested_ps, &equal)))
+		equal = false;
 
-	/* wait for the rings to drain */
-	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
-		struct amdgpu_ring *ring = adev->rings[i];
-		if (ring && ring->ready)
-			amdgpu_fence_wait_empty(ring);
-	}
+	if (equal)
+		return;
 
-	/* program the new power state */
 	amdgpu_dpm_set_power_state(adev);
-
-	/* update current power state */
-	adev->pm.dpm.current_ps = adev->pm.dpm.requested_ps;
-
 	amdgpu_dpm_post_set_power_state(adev);
-
-	/* update displays */
-	amdgpu_dpm_display_configuration_changed(adev);
 
 	adev->pm.dpm.current_active_crtcs = adev->pm.dpm.new_active_crtcs;
 	adev->pm.dpm.current_active_crtc_count = adev->pm.dpm.new_active_crtc_count;
@@ -1276,20 +1226,20 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 	struct drm_device *ddev = adev->ddev;
 	struct drm_crtc *crtc;
 	struct amdgpu_crtc *amdgpu_crtc;
+	int i = 0;
 
 	if (!adev->pm.dpm_enabled)
 		return;
 
+	amdgpu_display_bandwidth_update(adev);
+
+	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
+		struct amdgpu_ring *ring = adev->rings[i];
+		if (ring && ring->ready)
+			amdgpu_fence_wait_empty(ring);
+	}
+
 	if (adev->pp_enabled) {
-		int i = 0;
-
-		amdgpu_display_bandwidth_update(adev);
-		for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
-			struct amdgpu_ring *ring = adev->rings[i];
-			if (ring && ring->ready)
-				amdgpu_fence_wait_empty(ring);
-		}
-
 		amdgpu_dpm_dispatch_task(adev, AMD_PP_EVENT_DISPLAY_CONFIG_CHANGE, NULL, NULL);
 	} else {
 		mutex_lock(&adev->pm.mutex);
