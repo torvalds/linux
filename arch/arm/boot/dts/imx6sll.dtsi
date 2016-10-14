@@ -585,7 +585,7 @@
 				reg = <0x020e4000 0x4000>;
 			};
 
-			csi: csi@0x0e8000 {
+			csi: csi@020e8000 {
 				compatible = "fsl,imx6sll-csi", "fsl,imx6s-csi";
 				reg = <0x020e8000 0x4000>;
 				interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
