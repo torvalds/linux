@@ -1,7 +1,7 @@
 /*
  * imx-hdmi-dma.c  --  HDMI DMA driver for ALSA Soc Audio Layer
  *
- * Copyright (C) 2011-2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2011-2016 Freescale Semiconductor, Inc.
  *
  * based on imx-pcm-dma-mx2.c
  * Copyright 2009 Sascha Hauer <s.hauer@pengutronix.de>
@@ -455,7 +455,7 @@ static void hdmi_dma_data_copy(struct snd_pcm_substream *substream,
 	if (runtime->access != SNDRV_PCM_ACCESS_MMAP_INTERLEAVED)
 		return;
 
-	appl_bytes =  runtime->status->hw_ptr * (runtime->frame_bits / 8);
+	appl_bytes =  (runtime->status->hw_ptr % (priv->buffer_bytes/(runtime->frame_bits/8))) * (runtime->frame_bits/8);
 	if (type == 'p')
 		appl_bytes += 2 * priv->period_bytes;
 	offset = appl_bytes % priv->buffer_bytes;
