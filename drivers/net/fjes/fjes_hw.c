@@ -752,6 +752,7 @@ void fjes_hw_raise_epstop(struct fjes_hw *hw)
 		case EP_PARTNER_SHARED:
 			fjes_hw_raise_interrupt(hw, epidx,
 						REG_ICTL_MASK_TXRX_STOP_REQ);
+			hw->ep_shm_info[epidx].ep_stats.send_intr_unshare += 1;
 			break;
 		default:
 			break;
@@ -1062,6 +1063,9 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 				break;
 			}
 			mutex_unlock(&hw->hw_info.lock);
+
+			hw->ep_shm_info[epidx].ep_stats
+					      .com_regist_buf_exec += 1;
 		}
 
 		if (test_bit(epidx, &unshare_bit)) {
@@ -1085,6 +1089,9 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 
 			mutex_unlock(&hw->hw_info.lock);
 
+			hw->ep_shm_info[epidx].ep_stats
+					      .com_unregist_buf_exec += 1;
+
 			if (ret == 0) {
 				spin_lock_irqsave(&hw->rx_status_lock, flags);
 				fjes_hw_setup_epbuf(
@@ -1098,6 +1105,8 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 		if (test_bit(epidx, &irq_bit)) {
 			fjes_hw_raise_interrupt(hw, epidx,
 						REG_ICTL_MASK_TXRX_STOP_REQ);
+
+			hw->ep_shm_info[epidx].ep_stats.send_intr_unshare += 1;
 
 			set_bit(epidx, &hw->txrx_stop_req_bit);
 			spin_lock_irqsave(&hw->rx_status_lock, flags);

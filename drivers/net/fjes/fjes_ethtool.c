@@ -49,10 +49,18 @@ static const struct fjes_stats fjes_gstrings_stats[] = {
 	FJES_STAT("tx_dropped", stats64.tx_dropped),
 };
 
+#define FJES_EP_STATS_LEN 14
+#define FJES_STATS_LEN \
+	(ARRAY_SIZE(fjes_gstrings_stats) + \
+	 ((&((struct fjes_adapter *)netdev_priv(netdev))->hw)->max_epid - 1) * \
+	 FJES_EP_STATS_LEN)
+
 static void fjes_get_ethtool_stats(struct net_device *netdev,
 				   struct ethtool_stats *stats, u64 *data)
 {
 	struct fjes_adapter *adapter = netdev_priv(netdev);
+	struct fjes_hw *hw = &adapter->hw;
+	int epidx;
 	char *p;
 	int i;
 
@@ -61,11 +69,39 @@ static void fjes_get_ethtool_stats(struct net_device *netdev,
 		data[i] = (fjes_gstrings_stats[i].sizeof_stat == sizeof(u64))
 			? *(u64 *)p : *(u32 *)p;
 	}
+	for (epidx = 0; epidx < hw->max_epid; epidx++) {
+		if (epidx == hw->my_epid)
+			continue;
+		data[i++] = hw->ep_shm_info[epidx].ep_stats
+				.com_regist_buf_exec;
+		data[i++] = hw->ep_shm_info[epidx].ep_stats
+				.com_unregist_buf_exec;
+		data[i++] = hw->ep_shm_info[epidx].ep_stats.send_intr_rx;
+		data[i++] = hw->ep_shm_info[epidx].ep_stats.send_intr_unshare;
+		data[i++] = hw->ep_shm_info[epidx].ep_stats
+				.send_intr_zoneupdate;
+		data[i++] = hw->ep_shm_info[epidx].ep_stats.recv_intr_rx;
+		data[i++] = hw->ep_shm_info[epidx].ep_stats.recv_intr_unshare;
+		data[i++] = hw->ep_shm_info[epidx].ep_stats.recv_intr_stop;
+		data[i++] = hw->ep_shm_info[epidx].ep_stats
+				.recv_intr_zoneupdate;
+		data[i++] = hw->ep_shm_info[epidx].ep_stats.tx_buffer_full;
+		data[i++] = hw->ep_shm_info[epidx].ep_stats
+				.tx_dropped_not_shared;
+		data[i++] = hw->ep_shm_info[epidx].ep_stats
+				.tx_dropped_ver_mismatch;
+		data[i++] = hw->ep_shm_info[epidx].ep_stats
+				.tx_dropped_buf_size_mismatch;
+		data[i++] = hw->ep_shm_info[epidx].ep_stats
+				.tx_dropped_vlanid_mismatch;
+	}
 }
 
 static void fjes_get_strings(struct net_device *netdev,
 			     u32 stringset, u8 *data)
 {
+	struct fjes_adapter *adapter = netdev_priv(netdev);
+	struct fjes_hw *hw = &adapter->hw;
 	u8 *p = data;
 	int i;
 
@@ -76,6 +112,38 @@ static void fjes_get_strings(struct net_device *netdev,
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
+		for (i = 0; i < hw->max_epid; i++) {
+			if (i == hw->my_epid)
+				continue;
+			sprintf(p, "ep%u_com_regist_buf_exec", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "ep%u_com_unregist_buf_exec", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "ep%u_send_intr_rx", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "ep%u_send_intr_unshare", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "ep%u_send_intr_zoneupdate", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "ep%u_recv_intr_rx", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "ep%u_recv_intr_unshare", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "ep%u_recv_intr_stop", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "ep%u_recv_intr_zoneupdate", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "ep%u_tx_buffer_full", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "ep%u_tx_dropped_not_shared", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "ep%u_tx_dropped_ver_mismatch", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "ep%u_tx_dropped_buf_size_mismatch", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "ep%u_tx_dropped_vlanid_mismatch", i);
+			p += ETH_GSTRING_LEN;
+		}
 		break;
 	}
 }
@@ -84,7 +152,7 @@ static int fjes_get_sset_count(struct net_device *netdev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
-		return ARRAY_SIZE(fjes_gstrings_stats);
+		return FJES_STATS_LEN;
 	default:
 		return -EOPNOTSUPP;
 	}

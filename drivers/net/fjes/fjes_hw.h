@@ -228,6 +228,24 @@ union ep_buffer_info {
 
 };
 
+/* statistics of EP */
+struct fjes_drv_ep_stats {
+	u64 com_regist_buf_exec;
+	u64 com_unregist_buf_exec;
+	u64 send_intr_rx;
+	u64 send_intr_unshare;
+	u64 send_intr_zoneupdate;
+	u64 recv_intr_rx;
+	u64 recv_intr_unshare;
+	u64 recv_intr_stop;
+	u64 recv_intr_zoneupdate;
+	u64 tx_buffer_full;
+	u64 tx_dropped_not_shared;
+	u64 tx_dropped_ver_mismatch;
+	u64 tx_dropped_buf_size_mismatch;
+	u64 tx_dropped_vlanid_mismatch;
+};
+
 /* buffer pair for Extended Partition */
 struct ep_share_mem_info {
 	struct epbuf_handler {
@@ -238,6 +256,7 @@ struct ep_share_mem_info {
 	} tx, rx;
 
 	struct rtnl_link_stats64 net_stats;
+	struct fjes_drv_ep_stats ep_stats;
 
 	u16 tx_status_work;
 
