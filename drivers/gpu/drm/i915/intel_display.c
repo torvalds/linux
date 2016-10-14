@@ -13462,30 +13462,66 @@ static void verify_wm_state(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct skl_ddb_allocation hw_ddb, *sw_ddb;
-	struct skl_ddb_entry *hw_entry, *sw_entry;
+	struct skl_pipe_wm hw_wm, *sw_wm;
+	struct skl_plane_wm *hw_plane_wm, *sw_plane_wm;
+	struct skl_ddb_entry *hw_ddb_entry, *sw_ddb_entry;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	const enum pipe pipe = intel_crtc->pipe;
-	int plane;
+	int plane, level, max_level = ilk_wm_max_level(dev_priv);
 
 	if (INTEL_INFO(dev)->gen < 9 || !new_state->active)
 		return;
+
+	skl_pipe_wm_get_hw_state(crtc, &hw_wm);
+	sw_wm = &intel_crtc->wm.active.skl;
 
 	skl_ddb_get_hw_state(dev_priv, &hw_ddb);
 	sw_ddb = &dev_priv->wm.skl_hw.ddb;
 
 	/* planes */
 	for_each_plane(dev_priv, pipe, plane) {
-		hw_entry = &hw_ddb.plane[pipe][plane];
-		sw_entry = &sw_ddb->plane[pipe][plane];
+		hw_plane_wm = &hw_wm.planes[plane];
+		sw_plane_wm = &sw_wm->planes[plane];
 
-		if (skl_ddb_entry_equal(hw_entry, sw_entry))
-			continue;
+		/* Watermarks */
+		for (level = 0; level <= max_level; level++) {
+			if (skl_wm_level_equals(&hw_plane_wm->wm[level],
+						&sw_plane_wm->wm[level]))
+				continue;
 
-		DRM_ERROR("mismatch in DDB state pipe %c plane %d "
-			  "(expected (%u,%u), found (%u,%u))\n",
-			  pipe_name(pipe), plane + 1,
-			  sw_entry->start, sw_entry->end,
-			  hw_entry->start, hw_entry->end);
+			DRM_ERROR("mismatch in WM pipe %c plane %d level %d (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
+				  pipe_name(pipe), plane + 1, level,
+				  sw_plane_wm->wm[level].plane_en,
+				  sw_plane_wm->wm[level].plane_res_b,
+				  sw_plane_wm->wm[level].plane_res_l,
+				  hw_plane_wm->wm[level].plane_en,
+				  hw_plane_wm->wm[level].plane_res_b,
+				  hw_plane_wm->wm[level].plane_res_l);
+		}
+
+		if (!skl_wm_level_equals(&hw_plane_wm->trans_wm,
+					 &sw_plane_wm->trans_wm)) {
+			DRM_ERROR("mismatch in trans WM pipe %c plane %d (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
+				  pipe_name(pipe), plane + 1,
+				  sw_plane_wm->trans_wm.plane_en,
+				  sw_plane_wm->trans_wm.plane_res_b,
+				  sw_plane_wm->trans_wm.plane_res_l,
+				  hw_plane_wm->trans_wm.plane_en,
+				  hw_plane_wm->trans_wm.plane_res_b,
+				  hw_plane_wm->trans_wm.plane_res_l);
+		}
+
+		/* DDB */
+		hw_ddb_entry = &hw_ddb.plane[pipe][plane];
+		sw_ddb_entry = &sw_ddb->plane[pipe][plane];
+
+		if (!skl_ddb_entry_equal(hw_ddb_entry, sw_ddb_entry)) {
+			DRM_ERROR("mismatch in DDB state pipe %c plane %d "
+				  "(expected (%u,%u), found (%u,%u))\n",
+				  pipe_name(pipe), plane + 1,
+				  sw_ddb_entry->start, sw_ddb_entry->end,
+				  hw_ddb_entry->start, hw_ddb_entry->end);
+		}
 	}
 
 	/*
@@ -13495,15 +13531,47 @@ static void verify_wm_state(struct drm_crtc *crtc,
 	 * once the plane becomes visible, we can skip this check
 	 */
 	if (intel_crtc->cursor_addr) {
-		hw_entry = &hw_ddb.plane[pipe][PLANE_CURSOR];
-		sw_entry = &sw_ddb->plane[pipe][PLANE_CURSOR];
+		hw_plane_wm = &hw_wm.planes[PLANE_CURSOR];
+		sw_plane_wm = &sw_wm->planes[PLANE_CURSOR];
 
-		if (!skl_ddb_entry_equal(hw_entry, sw_entry)) {
+		/* Watermarks */
+		for (level = 0; level <= max_level; level++) {
+			if (skl_wm_level_equals(&hw_plane_wm->wm[level],
+						&sw_plane_wm->wm[level]))
+				continue;
+
+			DRM_ERROR("mismatch in WM pipe %c cursor level %d (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
+				  pipe_name(pipe), level,
+				  sw_plane_wm->wm[level].plane_en,
+				  sw_plane_wm->wm[level].plane_res_b,
+				  sw_plane_wm->wm[level].plane_res_l,
+				  hw_plane_wm->wm[level].plane_en,
+				  hw_plane_wm->wm[level].plane_res_b,
+				  hw_plane_wm->wm[level].plane_res_l);
+		}
+
+		if (!skl_wm_level_equals(&hw_plane_wm->trans_wm,
+					 &sw_plane_wm->trans_wm)) {
+			DRM_ERROR("mismatch in trans WM pipe %c cursor (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
+				  pipe_name(pipe),
+				  sw_plane_wm->trans_wm.plane_en,
+				  sw_plane_wm->trans_wm.plane_res_b,
+				  sw_plane_wm->trans_wm.plane_res_l,
+				  hw_plane_wm->trans_wm.plane_en,
+				  hw_plane_wm->trans_wm.plane_res_b,
+				  hw_plane_wm->trans_wm.plane_res_l);
+		}
+
+		/* DDB */
+		hw_ddb_entry = &hw_ddb.plane[pipe][PLANE_CURSOR];
+		sw_ddb_entry = &sw_ddb->plane[pipe][PLANE_CURSOR];
+
+		if (!skl_ddb_entry_equal(hw_ddb_entry, sw_ddb_entry)) {
 			DRM_ERROR("mismatch in DDB state pipe %c cursor "
 				  "(expected (%u,%u), found (%u,%u))\n",
 				  pipe_name(pipe),
-				  sw_entry->start, sw_entry->end,
-				  hw_entry->start, hw_entry->end);
+				  sw_ddb_entry->start, sw_ddb_entry->end,
+				  hw_ddb_entry->start, hw_ddb_entry->end);
 		}
 	}
 }
