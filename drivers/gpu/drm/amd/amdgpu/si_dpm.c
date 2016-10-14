@@ -7957,6 +7957,57 @@ static int si_dpm_early_init(void *handle)
 	return 0;
 }
 
+static inline bool si_are_power_levels_equal(const struct rv7xx_pl  *si_cpl1,
+						const struct rv7xx_pl *si_cpl2)
+{
+	return ((si_cpl1->mclk == si_cpl2->mclk) &&
+		  (si_cpl1->sclk == si_cpl2->sclk) &&
+		  (si_cpl1->pcie_gen == si_cpl2->pcie_gen) &&
+		  (si_cpl1->vddc == si_cpl2->vddc) &&
+		  (si_cpl1->vddci == si_cpl2->vddci));
+}
+
+static int si_check_state_equal(struct amdgpu_device *adev,
+				struct amdgpu_ps *cps,
+				struct amdgpu_ps *rps,
+				bool *equal)
+{
+	struct si_ps *si_cps;
+	struct si_ps *si_rps;
+	int i;
+
+	if (adev == NULL || cps == NULL || rps == NULL || equal == NULL)
+		return -EINVAL;
+
+	si_cps = si_get_ps(cps);
+	si_rps = si_get_ps(rps);
+
+	if (si_cps == NULL) {
+		printk("si_cps is NULL\n");
+		*equal = false;
+		return 0;
+	}
+
+	if (si_cps->performance_level_count != si_rps->performance_level_count) {
+		*equal = false;
+		return 0;
+	}
+
+	for (i = 0; i < si_cps->performance_level_count; i++) {
+		if (!si_are_power_levels_equal(&(si_cps->performance_levels[i]),
+					&(si_rps->performance_levels[i]))) {
+			*equal = false;
+			return 0;
+		}
+	}
+
+	/* If all performance levels are the same try to use the UVD clocks to break the tie.*/
+	*equal = ((cps->vclk == rps->vclk) && (cps->dclk == rps->dclk));
+	*equal &= ((cps->evclk == rps->evclk) && (cps->ecclk == rps->ecclk));
+
+	return 0;
+}
+
 
 const struct amd_ip_funcs si_dpm_ip_funcs = {
 	.name = "si_dpm",
@@ -7991,6 +8042,7 @@ static const struct amdgpu_dpm_funcs si_dpm_funcs = {
 	.get_fan_control_mode = &si_dpm_get_fan_control_mode,
 	.set_fan_speed_percent = &si_dpm_set_fan_speed_percent,
 	.get_fan_speed_percent = &si_dpm_get_fan_speed_percent,
+	.check_state_equal = &si_check_state_equal,
 	.get_vce_clock_state = amdgpu_get_vce_clock_state,
 };
 
