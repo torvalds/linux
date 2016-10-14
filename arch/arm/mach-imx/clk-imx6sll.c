@@ -360,6 +360,17 @@ static void __init imx6sll_clocks_init(struct device_node *ccm_node)
 		clk_prepare_enable(clks[IMX6SLL_CLK_USBPHY2_GATE]);
 	}
 
+	/* Lower the AHB clock rate before changing the clock source. */
+	imx_clk_set_rate(clks[IMX6SLL_CLK_AHB], 99000000);
+
+	/* Change periph_pre clock to pll2_bus to adjust AXI rate to 264MHz */
+	imx_clk_set_parent(clks[IMX6SLL_CLK_PERIPH_CLK2_SEL], clks[IMX6SLL_CLK_PLL3_USB_OTG]);
+	imx_clk_set_parent(clks[IMX6SLL_CLK_PERIPH], clks[IMX6SLL_CLK_PERIPH_CLK2]);
+	imx_clk_set_parent(clks[IMX6SLL_CLK_PERIPH_PRE], clks[IMX6SLL_CLK_PLL2_BUS]);
+	imx_clk_set_parent(clks[IMX6SLL_CLK_PERIPH], clks[IMX6SLL_CLK_PERIPH_PRE]);
+
+	imx_clk_set_rate(clks[IMX6SLL_CLK_AHB], 132000000);
+
 	/* Set initial power mode */
 	imx6q_set_lpm(WAIT_CLOCKED);
 }
