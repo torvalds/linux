@@ -2599,9 +2599,6 @@ static void grow_halt_poll_ns(struct kvmppc_vcore *vc)
 		vc->halt_poll_ns = 10000;
 	else
 		vc->halt_poll_ns *= halt_poll_ns_grow;
-
-	if (vc->halt_poll_ns > halt_poll_ns)
-		vc->halt_poll_ns = halt_poll_ns;
 }
 
 static void shrink_halt_poll_ns(struct kvmppc_vcore *vc)
@@ -2721,6 +2718,8 @@ out:
 		else if (vc->halt_poll_ns < halt_poll_ns &&
 				block_ns < halt_poll_ns)
 			grow_halt_poll_ns(vc);
+		if (vc->halt_poll_ns > halt_poll_ns)
+			vc->halt_poll_ns = halt_poll_ns;
 	} else
 		vc->halt_poll_ns = 0;
 
