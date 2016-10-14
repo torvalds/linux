@@ -49,9 +49,9 @@ static void __init imx6sl_init_late(void)
 
 	/* cpuidle will be enabled later for i.MX6SLL */
 	if (cpu_is_imx6sll())
-		return;
-
-	imx6sl_cpuidle_init();
+		imx6sll_cpuidle_init();
+	else
+		imx6sl_cpuidle_init();
 }
 
 static void __init imx6sl_init_machine(void)
