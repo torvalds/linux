@@ -103,9 +103,9 @@ static long ccu_nk_round_rate(struct clk_hw *hw, unsigned long rate,
 		rate *= nk->fixed_post_div;
 
 	_nk.min_n = nk->n.min;
-	_nk.max_n = 1 << nk->n.width;
+	_nk.max_n = nk->n.max ?: 1 << nk->n.width;
 	_nk.min_k = nk->k.min;
-	_nk.max_k = 1 << nk->k.width;
+	_nk.max_k = nk->k.max ?: 1 << nk->k.width;
 
 	ccu_nk_find_best(*parent_rate, rate, &_nk);
 	rate = *parent_rate * _nk.n * _nk.k;
@@ -128,9 +128,9 @@ static int ccu_nk_set_rate(struct clk_hw *hw, unsigned long rate,
 		rate = rate * nk->fixed_post_div;
 
 	_nk.min_n = nk->n.min;
-	_nk.max_n = 1 << nk->n.width;
+	_nk.max_n = nk->n.max ?: 1 << nk->n.width;
 	_nk.min_k = nk->k.min;
-	_nk.max_k = 1 << nk->k.width;
+	_nk.max_k = nk->k.max ?: 1 << nk->k.width;
 
 	ccu_nk_find_best(parent_rate, rate, &_nk);
 

@@ -10,24 +10,26 @@ struct ccu_mult_internal {
 	u8	shift;
 	u8	width;
 	u8	min;
+	u8	max;
 };
 
-#define _SUNXI_CCU_MULT_OFFSET_MIN(_shift, _width, _offset, _min)	\
+#define _SUNXI_CCU_MULT_OFFSET_MIN_MAX(_shift, _width, _offset, _min, _max) \
 	{								\
 		.min	= _min,						\
+		.max	= _max,						\
 		.offset	= _offset,					\
 		.shift	= _shift,					\
 		.width	= _width,					\
 	}
 
 #define _SUNXI_CCU_MULT_MIN(_shift, _width, _min)	\
-	_SUNXI_CCU_MULT_OFFSET_MIN(_shift, _width, 1, _min)
+	_SUNXI_CCU_MULT_OFFSET_MIN_MAX(_shift, _width, 1, _min, 0)
 
 #define _SUNXI_CCU_MULT_OFFSET(_shift, _width, _offset)	\
-	_SUNXI_CCU_MULT_OFFSET_MIN(_shift, _width, _offset, 1)
+	_SUNXI_CCU_MULT_OFFSET_MIN_MAX(_shift, _width, _offset, 1, 0)
 
 #define _SUNXI_CCU_MULT(_shift, _width)		\
-	_SUNXI_CCU_MULT_OFFSET_MIN(_shift, _width, 1, 1)
+	_SUNXI_CCU_MULT_OFFSET_MIN_MAX(_shift, _width, 1, 1, 0)
 
 struct ccu_mult {
 	u32			enable;

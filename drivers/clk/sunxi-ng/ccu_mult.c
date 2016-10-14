@@ -41,7 +41,12 @@ static unsigned long ccu_mult_round_rate(struct ccu_mux_internal *mux,
 	struct _ccu_mult _cm;
 
 	_cm.min = cm->mult.min;
-	_cm.max = 1 << cm->mult.width;
+
+	if (cm->mult.max)
+		_cm.max = cm->mult.max;
+	else
+		_cm.max = (1 << cm->mult.width) + cm->mult.offset - 1;
+
 	ccu_mult_find_best(parent_rate, rate, &_cm);
 
 	return parent_rate * _cm.mult;
@@ -114,7 +119,12 @@ static int ccu_mult_set_rate(struct clk_hw *hw, unsigned long rate,
 						&parent_rate);
 
 	_cm.min = cm->mult.min;
-	_cm.max = 1 << cm->mult.width;
+
+	if (cm->mult.max)
+		_cm.max = cm->mult.max;
+	else
+		_cm.max = (1 << cm->mult.width) + cm->mult.offset - 1;
+
 	ccu_mult_find_best(parent_rate, rate, &_cm);
 
 	spin_lock_irqsave(cm->common.lock, flags);
