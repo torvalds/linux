@@ -5506,7 +5506,8 @@ brcmf_notify_connect_status_ap(struct brcmf_cfg80211_info *cfg,
 	u32 reason = e->reason;
 	struct station_info sinfo;
 
-	brcmf_dbg(CONN, "event %d, reason %d\n", event, reason);
+	brcmf_dbg(CONN, "event %s (%u), reason %d\n",
+		  brcmf_fweh_event_name(event), event, reason);
 	if (event == BRCMF_E_LINK && reason == BRCMF_E_REASON_LINK_BSSCFG_DIS &&
 	    ndev != cfg_to_ndev(cfg)) {
 		brcmf_dbg(CONN, "AP mode link down\n");
