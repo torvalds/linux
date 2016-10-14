@@ -33,6 +33,25 @@
 static LIST_HEAD(mirred_list);
 static DEFINE_SPINLOCK(mirred_list_lock);
 
+static bool tcf_mirred_is_act_redirect(int action)
+{
+	return action == TCA_EGRESS_REDIR || action == TCA_INGRESS_REDIR;
+}
+
+static u32 tcf_mirred_act_direction(int action)
+{
+	switch (action) {
+	case TCA_EGRESS_REDIR:
+	case TCA_EGRESS_MIRROR:
+		return AT_EGRESS;
+	case TCA_INGRESS_REDIR:
+	case TCA_INGRESS_MIRROR:
+		return AT_INGRESS;
+	default:
+		BUG();
+	}
+}
+
 static void tcf_mirred_release(struct tc_action *a, int bind)
 {
 	struct tcf_mirred *m = to_mirred(a);
@@ -54,17 +73,32 @@ static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
 static int mirred_net_id;
 static struct tc_action_ops act_mirred_ops;
 
+static bool dev_is_mac_header_xmit(const struct net_device *dev)
+{
+	switch (dev->type) {
+	case ARPHRD_TUNNEL:
+	case ARPHRD_TUNNEL6:
+	case ARPHRD_SIT:
+	case ARPHRD_IPGRE:
+	case ARPHRD_VOID:
+	case ARPHRD_NONE:
+		return false;
+	}
+	return true;
+}
+
 static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a, int ovr,
 			   int bind)
 {
 	struct tc_action_net *tn = net_generic(net, mirred_net_id);
 	struct nlattr *tb[TCA_MIRRED_MAX + 1];
+	bool mac_header_xmit = false;
 	struct tc_mirred *parm;
 	struct tcf_mirred *m;
 	struct net_device *dev;
-	int ret, ok_push = 0;
 	bool exists = false;
+	int ret;
 
 	if (nla == NULL)
 		return -EINVAL;
@@ -82,6 +116,8 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	switch (parm->eaction) {
 	case TCA_EGRESS_MIRROR:
 	case TCA_EGRESS_REDIR:
+	case TCA_INGRESS_REDIR:
+	case TCA_INGRESS_MIRROR:
 		break;
 	default:
 		if (exists)
@@ -95,19 +131,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 				tcf_hash_release(*a, bind);
 			return -ENODEV;
 		}
-		switch (dev->type) {
-		case ARPHRD_TUNNEL:
-		case ARPHRD_TUNNEL6:
-		case ARPHRD_SIT:
-		case ARPHRD_IPGRE:
-		case ARPHRD_VOID:
-		case ARPHRD_NONE:
-			ok_push = 0;
-			break;
-		default:
-			ok_push = 1;
-			break;
-		}
+		mac_header_xmit = dev_is_mac_header_xmit(dev);
 	} else {
 		dev = NULL;
 	}
@@ -136,7 +160,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			dev_put(rcu_dereference_protected(m->tcfm_dev, 1));
 		dev_hold(dev);
 		rcu_assign_pointer(m->tcfm_dev, dev);
-		m->tcfm_ok_push = ok_push;
+		m->tcfm_mac_header_xmit = mac_header_xmit;
 	}
 
 	if (ret == ACT_P_CREATED) {
@@ -153,15 +177,20 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 		      struct tcf_result *res)
 {
 	struct tcf_mirred *m = to_mirred(a);
+	bool m_mac_header_xmit;
 	struct net_device *dev;
 	struct sk_buff *skb2;
-	int retval, err;
+	int retval, err = 0;
+	int m_eaction;
+	int mac_len;
 	u32 at;
 
 	tcf_lastuse_update(&m->tcf_tm);
 	bstats_cpu_update(this_cpu_ptr(m->common.cpu_bstats), skb);
 
 	rcu_read_lock();
+	m_mac_header_xmit = READ_ONCE(m->tcfm_mac_header_xmit);
+	m_eaction = READ_ONCE(m->tcfm_eaction);
 	retval = READ_ONCE(m->tcf_action);
 	dev = rcu_dereference(m->tcfm_dev);
 	if (unlikely(!dev)) {
@@ -180,23 +209,36 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 	if (!skb2)
 		goto out;
 
-	if (!(at & AT_EGRESS)) {
-		if (m->tcfm_ok_push)
+	/* If action's target direction differs than filter's direction,
+	 * and devices expect a mac header on xmit, then mac push/pull is
+	 * needed.
+	 */
+	if (at != tcf_mirred_act_direction(m_eaction) && m_mac_header_xmit) {
+		if (at & AT_EGRESS) {
+			/* caught at egress, act ingress: pull mac */
+			mac_len = skb_network_header(skb) - skb_mac_header(skb);
+			skb_pull_rcsum(skb2, mac_len);
+		} else {
+			/* caught at ingress, act egress: push mac */
 			skb_push_rcsum(skb2, skb->mac_len);
+		}
 	}
 
 	/* mirror is always swallowed */
-	if (m->tcfm_eaction != TCA_EGRESS_MIRROR)
+	if (tcf_mirred_is_act_redirect(m_eaction))
 		skb2->tc_verd = SET_TC_FROM(skb2->tc_verd, at);
 
 	skb2->skb_iif = skb->dev->ifindex;
 	skb2->dev = dev;
-	err = dev_queue_xmit(skb2);
+	if (tcf_mirred_act_direction(m_eaction) & AT_EGRESS)
+		err = dev_queue_xmit(skb2);
+	else
+		err = netif_receive_skb(skb2);
 
 	if (err) {
 out:
 		qstats_overlimit_inc(this_cpu_ptr(m->common.cpu_qstats));
-		if (m->tcfm_eaction != TCA_EGRESS_MIRROR)
+		if (tcf_mirred_is_act_redirect(m_eaction))
 			retval = TC_ACT_SHOT;
 	}
 	rcu_read_unlock();
