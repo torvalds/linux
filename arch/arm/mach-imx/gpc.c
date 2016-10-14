@@ -380,13 +380,6 @@ static struct pu_domain imx6q_pu_domain = {
 		.name = "PU",
 		.power_off = imx6q_pm_pu_power_off,
 		.power_on = imx6q_pm_pu_power_on,
-		.states = {
-			[0] = {
-				.power_off_latency_ns = 25000,
-				.power_on_latency_ns = 2000000,
-			},
-		},
-		.state_count = 1,
 	},
 };
 
@@ -429,6 +422,16 @@ static int imx_gpc_genpd_init(struct device *dev, struct regulator *pu_reg)
 
 	if (!IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS))
 		return 0;
+
+	imx6q_pu_domain.base.states = devm_kzalloc(dev,
+					sizeof(*imx6q_pu_domain.base.states),
+					GFP_KERNEL);
+	if (!imx6q_pu_domain.base.states)
+		return -ENOMEM;
+
+	imx6q_pu_domain.base.states[0].power_off_latency_ns = 25000;
+	imx6q_pu_domain.base.states[0].power_on_latency_ns = 2000000;
+	imx6q_pu_domain.base.state_count = 1;
 
 	pm_genpd_init(&imx6q_pu_domain.base, NULL, false);
 	return of_genpd_add_provider_onecell(dev->of_node,

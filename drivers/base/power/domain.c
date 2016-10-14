@@ -1282,6 +1282,21 @@ out:
 }
 EXPORT_SYMBOL_GPL(pm_genpd_remove_subdomain);
 
+static int genpd_set_default_power_state(struct generic_pm_domain *genpd)
+{
+	struct genpd_power_state *state;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return -ENOMEM;
+
+	genpd->states = state;
+	genpd->state_count = 1;
+	genpd->free = state;
+
+	return 0;
+}
+
 /**
  * pm_genpd_init - Initialize a generic I/O PM domain object.
  * @genpd: PM domain object to initialize.
@@ -1293,6 +1308,8 @@ EXPORT_SYMBOL_GPL(pm_genpd_remove_subdomain);
 int pm_genpd_init(struct generic_pm_domain *genpd,
 		  struct dev_power_governor *gov, bool is_off)
 {
+	int ret;
+
 	if (IS_ERR_OR_NULL(genpd))
 		return -EINVAL;
 
@@ -1325,19 +1342,12 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 		genpd->dev_ops.start = pm_clk_resume;
 	}
 
-	if (genpd->state_idx >= GENPD_MAX_NUM_STATES) {
-		pr_warn("Initial state index out of bounds.\n");
-		genpd->state_idx = GENPD_MAX_NUM_STATES - 1;
-	}
-
-	if (genpd->state_count > GENPD_MAX_NUM_STATES) {
-		pr_warn("Limiting states to  %d\n", GENPD_MAX_NUM_STATES);
-		genpd->state_count = GENPD_MAX_NUM_STATES;
-	}
-
 	/* Use only one "off" state if there were no states declared */
-	if (genpd->state_count == 0)
-		genpd->state_count = 1;
+	if (genpd->state_count == 0) {
+		ret = genpd_set_default_power_state(genpd);
+		if (ret)
+			return ret;
+	}
 
 	mutex_lock(&gpd_list_lock);
 	list_add(&genpd->gpd_list_node, &gpd_list);
@@ -1377,6 +1387,7 @@ static int genpd_remove(struct generic_pm_domain *genpd)
 	list_del(&genpd->gpd_list_node);
 	mutex_unlock(&genpd->lock);
 	cancel_work_sync(&genpd->power_off_work);
+	kfree(genpd->free);
 	pr_debug("%s: removed %s\n", __func__, genpd->name);
 
 	return 0;
