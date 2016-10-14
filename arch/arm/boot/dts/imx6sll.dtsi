@@ -276,7 +276,7 @@
 				};
 
 				ssi1: ssi@02028000 {
-					compatible = "fsl,imx6sll-ssi", "fsl-imx51-ssi";
+					compatible = "fsl,imx6sll-ssi", "fsl,imx51-ssi";
 					reg = <0x02028000 0x4000>;
 					interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 					dmas = <&sdma 37 22 0>, <&sdma 38 22 0>;
@@ -600,13 +600,12 @@
 				compatible = "fsl,imx6sll-sdma", "fsl,imx35-sdma";
 				reg = <0x020ec000 0x4000>;
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX6SLL_CLK_DUMMY>,
-					 <&clks IMX6SLL_CLK_DUMMY>;
+				clocks = <&clks IMX6SLL_CLK_SDMA>,
+					 <&clks IMX6SLL_CLK_SDMA>;
 				clock-names = "ipg", "ahb";
 				#dma-cells = <3>;
 				iram = <&ocram>;
-				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx6q-bin";
-				status = "disabled";
+				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx6q.bin";
 			};
 
 			pxp: pxp@020f0000 {

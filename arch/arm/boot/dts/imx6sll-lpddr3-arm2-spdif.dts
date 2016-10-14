@@ -1,0 +1,36 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6sll-lpddr3-arm2.dts"
+
+/ {
+
+	sound-spdif {
+		compatible = "fsl,imx-audio-spdif",
+			   "fsl,imx6sl-evk-spdif";
+		model = "imx-spdif";
+		spdif-controller = <&spdif>;
+		spdif-out;
+	};
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spdif>;
+	assigned-clocks = <&clks IMX6SLL_CLK_SPDIF_SEL>,
+			<&clks IMX6SLL_CLK_SPDIF_PODF>;
+	assigned-clock-parents = <&clks IMX6SLL_CLK_PLL4_AUDIO_DIV>;
+	assigned-clock-rates = <0>, <98304000>;
+	status = "okay";
+};
+
+&usdhc2 {
+	status = "disabled";
+};
+
+
