@@ -2365,6 +2365,8 @@ static void qede_init_ndev(struct qede_dev *edev)
 
 	qede_set_ethtool_ops(ndev);
 
+	ndev->priv_flags = IFF_UNICAST_FLT;
+
 	/* user-changeble features */
 	hw_features = NETIF_F_GRO | NETIF_F_SG |
 		      NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
@@ -3937,7 +3939,7 @@ static void qede_config_rx_mode(struct net_device *ndev)
 
 	/* Check for promiscuous */
 	if ((ndev->flags & IFF_PROMISC) ||
-	    (uc_count > 15)) { /* @@@TBD resource allocation - 1 */
+	    (uc_count > edev->dev_info.num_mac_filters - 1)) {
 		accept_flags = QED_FILTER_RX_MODE_TYPE_PROMISC;
 	} else {
 		/* Add MAC filters according to the unicast secondary macs */
