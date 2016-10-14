@@ -355,8 +355,7 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 	props->max_qp = hr_dev->caps.num_qps;
 	props->max_qp_wr = hr_dev->caps.max_wqes;
 	props->device_cap_flags = IB_DEVICE_PORT_ACTIVE_EVENT |
-				  IB_DEVICE_RC_RNR_NAK_GEN |
-				  IB_DEVICE_LOCAL_DMA_LKEY;
+				  IB_DEVICE_RC_RNR_NAK_GEN;
 	props->max_sge = hr_dev->caps.max_sq_sg;
 	props->max_sge_rd = 1;
 	props->max_cq = hr_dev->caps.num_cqs;
@@ -370,6 +369,25 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 	props->local_ca_ack_delay = hr_dev->caps.local_ca_ack_delay;
 
 	return 0;
+}
+
+static struct net_device *hns_roce_get_netdev(struct ib_device *ib_dev,
+					      u8 port_num)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
+	struct net_device *ndev;
+
+	if (port_num < 1 || port_num > hr_dev->caps.num_ports)
+		return NULL;
+
+	rcu_read_lock();
+
+	ndev = hr_dev->iboe.netdevs[port_num - 1];
+	if (ndev)
+		dev_hold(ndev);
+
+	rcu_read_unlock();
+	return ndev;
 }
 
 static int hns_roce_query_port(struct ib_device *ib_dev, u8 port_num,
@@ -584,6 +602,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	struct device *dev = &hr_dev->pdev->dev;
 
 	iboe = &hr_dev->iboe;
+	spin_lock_init(&iboe->lock);
 
 	ib_dev = &hr_dev->ib_dev;
 	strlcpy(ib_dev->name, "hisi_%d", IB_DEVICE_NAME_MAX);
@@ -618,6 +637,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->query_port		= hns_roce_query_port;
 	ib_dev->modify_port		= hns_roce_modify_port;
 	ib_dev->get_link_layer		= hns_roce_get_link_layer;
+	ib_dev->get_netdev		= hns_roce_get_netdev;
 	ib_dev->query_gid		= hns_roce_query_gid;
 	ib_dev->query_pkey		= hns_roce_query_pkey;
 	ib_dev->alloc_ucontext		= hns_roce_alloc_ucontext;
@@ -666,8 +686,6 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		dev_err(dev, "roce_setup_mtu_gids failed!\n");
 		goto error_failed_setup_mtu_gids;
 	}
-
-	spin_lock_init(&iboe->lock);
 
 	iboe->nb.notifier_call = hns_roce_netdev_event;
 	ret = register_netdevice_notifier(&iboe->nb);
@@ -776,6 +794,15 @@ static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 	hr_dev->reg_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(hr_dev->reg_base))
 		return PTR_ERR(hr_dev->reg_base);
+
+	/* read the node_guid of IB device from the DT or ACPI */
+	ret = device_property_read_u8_array(dev, "node-guid",
+					    (u8 *)&hr_dev->ib_dev.node_guid,
+					    GUID_LEN);
+	if (ret) {
+		dev_err(dev, "couldn't get node_guid from DT or ACPI!\n");
+		return ret;
+	}
 
 	/* get the RoCE associated ethernet ports or netdevices */
 	for (i = 0; i < HNS_ROCE_MAX_PORTS; i++) {
@@ -923,7 +950,6 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 	struct device *dev = &hr_dev->pdev->dev;
 
 	spin_lock_init(&hr_dev->sm_lock);
-	spin_lock_init(&hr_dev->cq_db_lock);
 	spin_lock_init(&hr_dev->bt_cmd_lock);
 
 	ret = hns_roce_init_uar_table(hr_dev);

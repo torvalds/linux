@@ -14,6 +14,7 @@ length of memory mapped region.
 representing a ethernet device.
 - dsaf-handle: phandle, specifies a reference to a node
 representing a dsaf device.
+- node_guid: a number that uniquely identifies a device or component
 - #address-cells: must be 2
 - #size-cells: must be 2
 Optional properties:
@@ -32,6 +33,7 @@ Example:
 			dma-coherent;
 			eth-handle = <&eth2 &eth3 &eth4 &eth5 &eth6 &eth7>;
 			dsaf-handle = <&soc0_dsa>;
+			node-guid = [00 9A CD 00 00 01 02 03];
 			#address-cells = <2>;
 			#size-cells = <2>;
 			interrupt-parent = <&mbigen_dsa>;

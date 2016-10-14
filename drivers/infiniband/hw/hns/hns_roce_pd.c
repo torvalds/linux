@@ -35,19 +35,7 @@
 
 static int hns_roce_pd_alloc(struct hns_roce_dev *hr_dev, unsigned long *pdn)
 {
-	struct device *dev = &hr_dev->pdev->dev;
-	unsigned long pd_number;
-	int ret = 0;
-
-	ret = hns_roce_bitmap_alloc(&hr_dev->pd_bitmap, &pd_number);
-	if (ret == -1) {
-		dev_err(dev, "alloc pdn from pdbitmap failed\n");
-		return -ENOMEM;
-	}
-
-	*pdn = pd_number;
-
-	return 0;
+	return hns_roce_bitmap_alloc(&hr_dev->pd_bitmap, pdn);
 }
 
 static void hns_roce_pd_free(struct hns_roce_dev *hr_dev, unsigned long pdn)
@@ -117,9 +105,15 @@ int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 	if (ret == -1)
 		return -ENOMEM;
 
-	uar->index = (uar->index - 1) % hr_dev->caps.phy_num_uars + 1;
+	if (uar->index > 0)
+		uar->index = (uar->index - 1) %
+			     (hr_dev->caps.phy_num_uars - 1) + 1;
 
 	res = platform_get_resource(hr_dev->pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&hr_dev->pdev->dev, "memory resource not found!\n");
+		return -EINVAL;
+	}
 	uar->pfn = ((res->start) >> PAGE_SHIFT) + uar->index;
 
 	return 0;
