@@ -589,7 +589,7 @@ static ssize_t debugfs_run_read(struct file *filp, char __user *ubuf,
 		return -ENOMEM;
 
 	if (mutex_is_locked(&perf->run_mutex)) {
-		out_off = snprintf(buf, 64, "running\n");
+		out_off = scnprintf(buf, 64, "running\n");
 		goto read_from_buf;
 	}
 
@@ -600,14 +600,14 @@ static ssize_t debugfs_run_read(struct file *filp, char __user *ubuf,
 			break;
 
 		if (pctx->status) {
-			out_off += snprintf(buf + out_off, 1024 - out_off,
+			out_off += scnprintf(buf + out_off, 1024 - out_off,
 					    "%d: error %d\n", i,
 					    pctx->status);
 			continue;
 		}
 
 		rate = div64_u64(pctx->copied, pctx->diff_us);
-		out_off += snprintf(buf + out_off, 1024 - out_off,
+		out_off += scnprintf(buf + out_off, 1024 - out_off,
 			"%d: copied %llu bytes in %llu usecs, %llu MBytes/s\n",
 			i, pctx->copied, pctx->diff_us, rate);
 	}
