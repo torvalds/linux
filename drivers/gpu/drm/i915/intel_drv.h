@@ -807,14 +807,14 @@ struct intel_watermark_params {
 };
 
 struct cxsr_latency {
+	bool is_desktop : 1;
+	bool is_ddr3 : 1;
 	u16 fsb_freq;
 	u16 mem_freq;
 	u16 display_sr;
 	u16 display_hpll_disable;
 	u16 cursor_sr;
 	u16 cursor_hpll_disable;
-	bool is_desktop : 1;
-	bool is_ddr3 : 1;
 };
 
 #define to_intel_atomic_state(x) container_of(x, struct intel_atomic_state, base)
