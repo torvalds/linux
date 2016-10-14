@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
 
 #include <asm/io.h>
 #include <asm/reboot.h>

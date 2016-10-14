@@ -1517,7 +1517,7 @@ static void qed_ll2_register_cb_ops(struct qed_dev *cdev,
 static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 {
 	struct qed_ll2_info ll2_info;
-	struct qed_ll2_buffer *buffer;
+	struct qed_ll2_buffer *buffer, *tmp_buffer;
 	enum qed_ll2_conn_type conn_type;
 	struct qed_ptt *p_ptt;
 	int rc, i;
@@ -1587,7 +1587,7 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 
 	/* Post all Rx buffers to FW */
 	spin_lock_bh(&cdev->ll2->lock);
-	list_for_each_entry(buffer, &cdev->ll2->list, list) {
+	list_for_each_entry_safe(buffer, tmp_buffer, &cdev->ll2->list, list) {
 		rc = qed_ll2_post_rx_buffer(QED_LEADING_HWFN(cdev),
 					    cdev->ll2->handle,
 					    buffer->phys_addr, 0, buffer, 1);

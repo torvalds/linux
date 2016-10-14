@@ -105,6 +105,8 @@ static void * __init get_memblock(unsigned long size)
 	else
 		panic("get_memblock() failed.\n");
 
+	memset(__va(phys), 0, size);
+
 	return __va(phys);
 }
 

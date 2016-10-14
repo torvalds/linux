@@ -217,6 +217,7 @@ static const struct brport_attribute *brport_attrs[] = {
 #endif
 	&brport_attr_proxyarp,
 	&brport_attr_proxyarp_wifi,
+	&brport_attr_multicast_flood,
 	NULL
 };
 

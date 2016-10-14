@@ -337,9 +337,9 @@ static void xenvif_rx_next_chunk(struct xenvif_queue *queue,
 	frag_data += pkt->frag_offset;
 	frag_len -= pkt->frag_offset;
 
-	chunk_len = min(frag_len, XEN_PAGE_SIZE - offset);
-	chunk_len = min(chunk_len,
-			XEN_PAGE_SIZE -	xen_offset_in_page(frag_data));
+	chunk_len = min_t(size_t, frag_len, XEN_PAGE_SIZE - offset);
+	chunk_len = min_t(size_t, chunk_len, XEN_PAGE_SIZE -
+					     xen_offset_in_page(frag_data));
 
 	pkt->frag_offset += chunk_len;
 
@@ -424,6 +424,8 @@ void xenvif_rx_skb(struct xenvif_queue *queue)
 	struct xenvif_pkt_state pkt;
 
 	xenvif_rx_next_skb(queue, &pkt);
+
+	queue->last_rx_time = jiffies;
 
 	do {
 		struct xen_netif_rx_request *req;

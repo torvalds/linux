@@ -534,12 +534,9 @@ void nfs_clear_pnfs_ds_commit_verifiers(struct pnfs_ds_commit_info *cinfo)
 }
 #endif
 
-
 #ifdef CONFIG_MIGRATION
 extern int nfs_migrate_page(struct address_space *,
 		struct page *, struct page *, enum migrate_mode);
-#else
-#define nfs_migrate_page NULL
 #endif
 
 static inline int
@@ -562,7 +559,6 @@ void nfs_init_cinfo_from_dreq(struct nfs_commit_info *cinfo,
 extern ssize_t nfs_dreq_bytes_left(struct nfs_direct_req *dreq);
 
 /* nfs4proc.c */
-extern void __nfs4_read_done_cb(struct nfs_pgio_header *);
 extern struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 			    const struct nfs_client_initdata *);
 extern int nfs40_walk_client_list(struct nfs_client *clp,
@@ -571,6 +567,9 @@ extern int nfs40_walk_client_list(struct nfs_client *clp,
 extern int nfs41_walk_client_list(struct nfs_client *clp,
 				struct nfs_client **result,
 				struct rpc_cred *cred);
+extern int nfs4_test_session_trunk(struct rpc_clnt *,
+				struct rpc_xprt *,
+				void *);
 
 static inline struct inode *nfs_igrab_and_active(struct inode *inode)
 {

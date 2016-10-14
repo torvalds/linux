@@ -101,7 +101,7 @@ EXPORT_SYMBOL(unregister_tcf_proto_ops);
 
 static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 			  struct nlmsghdr *n, struct tcf_proto *tp,
-			  unsigned long fh, int event);
+			  unsigned long fh, int event, bool unicast);
 
 static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
 				 struct nlmsghdr *n,
@@ -112,7 +112,7 @@ static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
 
 	for (it_chain = chain; (tp = rtnl_dereference(*it_chain)) != NULL;
 	     it_chain = &tp->next)
-		tfilter_notify(net, oskb, n, tp, 0, event);
+		tfilter_notify(net, oskb, n, tp, 0, event, false);
 }
 
 /* Select new prio value from the range, managed by kernel. */
@@ -319,7 +319,8 @@ replay:
 
 			RCU_INIT_POINTER(*back, next);
 
-			tfilter_notify(net, skb, n, tp, fh, RTM_DELTFILTER);
+			tfilter_notify(net, skb, n, tp, fh,
+				       RTM_DELTFILTER, false);
 			tcf_destroy(tp, true);
 			err = 0;
 			goto errout;
@@ -345,14 +346,14 @@ replay:
 				struct tcf_proto *next = rtnl_dereference(tp->next);
 
 				tfilter_notify(net, skb, n, tp, fh,
-					       RTM_DELTFILTER);
+					       RTM_DELTFILTER, false);
 				if (tcf_destroy(tp, false))
 					RCU_INIT_POINTER(*back, next);
 			}
 			goto errout;
 		case RTM_GETTFILTER:
 			err = tfilter_notify(net, skb, n, tp, fh,
-					     RTM_NEWTFILTER);
+					     RTM_NEWTFILTER, true);
 			goto errout;
 		default:
 			err = -EINVAL;
@@ -367,7 +368,7 @@ replay:
 			RCU_INIT_POINTER(tp->next, rtnl_dereference(*back));
 			rcu_assign_pointer(*back, tp);
 		}
-		tfilter_notify(net, skb, n, tp, fh, RTM_NEWTFILTER);
+		tfilter_notify(net, skb, n, tp, fh, RTM_NEWTFILTER, false);
 	} else {
 		if (tp_created)
 			tcf_destroy(tp, true);
@@ -419,7 +420,7 @@ nla_put_failure:
 
 static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 			  struct nlmsghdr *n, struct tcf_proto *tp,
-			  unsigned long fh, int event)
+			  unsigned long fh, int event, bool unicast)
 {
 	struct sk_buff *skb;
 	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
@@ -432,6 +433,9 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 		kfree_skb(skb);
 		return -EINVAL;
 	}
+
+	if (unicast)
+		return netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
 
 	return rtnetlink_send(skb, net, portid, RTNLGRP_TC,
 			      n->nlmsg_flags & NLM_F_ECHO);

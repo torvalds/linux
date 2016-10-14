@@ -972,7 +972,7 @@ static int rockchip_pcie_prog_ob_atu(struct rockchip_pcie *rockchip,
 		return -EINVAL;
 	if (region_no == 0) {
 		if (AXI_REGION_0_SIZE < (2ULL << num_pass_bits))
-		return -EINVAL;
+			return -EINVAL;
 	}
 	if (region_no != 0) {
 		if (AXI_REGION_SIZE < (2ULL << num_pass_bits))
@@ -1090,8 +1090,6 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 	err = rockchip_pcie_init_port(rockchip);
 	if (err)
 		goto err_vpcie;
-
-	platform_set_drvdata(pdev, rockchip);
 
 	rockchip_pcie_enable_interrupts(rockchip);
 

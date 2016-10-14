@@ -141,41 +141,35 @@ int dw_pcie_cfg_write(void __iomem *addr, int size, u32 val)
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static inline u32 dw_pcie_readl_rc(struct pcie_port *pp, u32 reg)
+u32 dw_pcie_readl_rc(struct pcie_port *pp, u32 reg)
 {
 	if (pp->ops->readl_rc)
-		return pp->ops->readl_rc(pp, pp->dbi_base + reg);
+		return pp->ops->readl_rc(pp, reg);
 
 	return readl(pp->dbi_base + reg);
 }
 
-static inline void dw_pcie_writel_rc(struct pcie_port *pp, u32 val, u32 reg)
+void dw_pcie_writel_rc(struct pcie_port *pp, u32 reg, u32 val)
 {
 	if (pp->ops->writel_rc)
-		pp->ops->writel_rc(pp, val, pp->dbi_base + reg);
+		pp->ops->writel_rc(pp, reg, val);
 	else
 		writel(val, pp->dbi_base + reg);
 }
 
-static inline u32 dw_pcie_readl_unroll(struct pcie_port *pp, u32 index, u32 reg)
+static u32 dw_pcie_readl_unroll(struct pcie_port *pp, u32 index, u32 reg)
 {
 	u32 offset = PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(index);
 
-	if (pp->ops->readl_rc)
-		return pp->ops->readl_rc(pp, pp->dbi_base + offset + reg);
-
-	return readl(pp->dbi_base + offset + reg);
+	return dw_pcie_readl_rc(pp, offset + reg);
 }
 
-static inline void dw_pcie_writel_unroll(struct pcie_port *pp, u32 index,
-					 u32 val, u32 reg)
+static void dw_pcie_writel_unroll(struct pcie_port *pp, u32 index, u32 reg,
+				  u32 val)
 {
 	u32 offset = PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(index);
 
-	if (pp->ops->writel_rc)
-		pp->ops->writel_rc(pp, val, pp->dbi_base + offset + reg);
-	else
-		writel(val, pp->dbi_base + offset + reg);
+	dw_pcie_writel_rc(pp, offset + reg, val);
 }
 
 static int dw_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
@@ -202,35 +196,35 @@ static void dw_pcie_prog_outbound_atu(struct pcie_port *pp, int index,
 	u32 retries, val;
 
 	if (pp->iatu_unroll_enabled) {
-		dw_pcie_writel_unroll(pp, index,
-			lower_32_bits(cpu_addr), PCIE_ATU_UNR_LOWER_BASE);
-		dw_pcie_writel_unroll(pp, index,
-			upper_32_bits(cpu_addr), PCIE_ATU_UNR_UPPER_BASE);
-		dw_pcie_writel_unroll(pp, index,
-			lower_32_bits(cpu_addr + size - 1), PCIE_ATU_UNR_LIMIT);
-		dw_pcie_writel_unroll(pp, index,
-			lower_32_bits(pci_addr), PCIE_ATU_UNR_LOWER_TARGET);
-		dw_pcie_writel_unroll(pp, index,
-			upper_32_bits(pci_addr), PCIE_ATU_UNR_UPPER_TARGET);
-		dw_pcie_writel_unroll(pp, index,
-			type, PCIE_ATU_UNR_REGION_CTRL1);
-		dw_pcie_writel_unroll(pp, index,
-			PCIE_ATU_ENABLE, PCIE_ATU_UNR_REGION_CTRL2);
+		dw_pcie_writel_unroll(pp, index, PCIE_ATU_UNR_LOWER_BASE,
+			lower_32_bits(cpu_addr));
+		dw_pcie_writel_unroll(pp, index, PCIE_ATU_UNR_UPPER_BASE,
+			upper_32_bits(cpu_addr));
+		dw_pcie_writel_unroll(pp, index, PCIE_ATU_UNR_LIMIT,
+			lower_32_bits(cpu_addr + size - 1));
+		dw_pcie_writel_unroll(pp, index, PCIE_ATU_UNR_LOWER_TARGET,
+			lower_32_bits(pci_addr));
+		dw_pcie_writel_unroll(pp, index, PCIE_ATU_UNR_UPPER_TARGET,
+			upper_32_bits(pci_addr));
+		dw_pcie_writel_unroll(pp, index, PCIE_ATU_UNR_REGION_CTRL1,
+			type);
+		dw_pcie_writel_unroll(pp, index, PCIE_ATU_UNR_REGION_CTRL2,
+			PCIE_ATU_ENABLE);
 	} else {
-		dw_pcie_writel_rc(pp, PCIE_ATU_REGION_OUTBOUND | index,
-						PCIE_ATU_VIEWPORT);
-		dw_pcie_writel_rc(pp, lower_32_bits(cpu_addr),
-						PCIE_ATU_LOWER_BASE);
-		dw_pcie_writel_rc(pp, upper_32_bits(cpu_addr),
-						PCIE_ATU_UPPER_BASE);
-		dw_pcie_writel_rc(pp, lower_32_bits(cpu_addr + size - 1),
-						PCIE_ATU_LIMIT);
-		dw_pcie_writel_rc(pp, lower_32_bits(pci_addr),
-						PCIE_ATU_LOWER_TARGET);
-		dw_pcie_writel_rc(pp, upper_32_bits(pci_addr),
-						PCIE_ATU_UPPER_TARGET);
-		dw_pcie_writel_rc(pp, type, PCIE_ATU_CR1);
-		dw_pcie_writel_rc(pp, PCIE_ATU_ENABLE, PCIE_ATU_CR2);
+		dw_pcie_writel_rc(pp, PCIE_ATU_VIEWPORT,
+				  PCIE_ATU_REGION_OUTBOUND | index);
+		dw_pcie_writel_rc(pp, PCIE_ATU_LOWER_BASE,
+				  lower_32_bits(cpu_addr));
+		dw_pcie_writel_rc(pp, PCIE_ATU_UPPER_BASE,
+				  upper_32_bits(cpu_addr));
+		dw_pcie_writel_rc(pp, PCIE_ATU_LIMIT,
+				  lower_32_bits(cpu_addr + size - 1));
+		dw_pcie_writel_rc(pp, PCIE_ATU_LOWER_TARGET,
+				  lower_32_bits(pci_addr));
+		dw_pcie_writel_rc(pp, PCIE_ATU_UPPER_TARGET,
+				  upper_32_bits(pci_addr));
+		dw_pcie_writel_rc(pp, PCIE_ATU_CR1, type);
+		dw_pcie_writel_rc(pp, PCIE_ATU_CR2, PCIE_ATU_ENABLE);
 	}
 
 	/*
@@ -760,8 +754,8 @@ static int dw_pcie_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 	return ret;
 }
 
-static int dw_pcie_valid_config(struct pcie_port *pp,
-				struct pci_bus *bus, int dev)
+static int dw_pcie_valid_device(struct pcie_port *pp, struct pci_bus *bus,
+				int dev)
 {
 	/* If there is no link, then there is no device */
 	if (bus->number != pp->root_bus_nr) {
@@ -781,7 +775,7 @@ static int dw_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 {
 	struct pcie_port *pp = bus->sysdata;
 
-	if (dw_pcie_valid_config(pp, bus, PCI_SLOT(devfn)) == 0) {
+	if (!dw_pcie_valid_device(pp, bus, PCI_SLOT(devfn))) {
 		*val = 0xffffffff;
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
@@ -797,7 +791,7 @@ static int dw_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 {
 	struct pcie_port *pp = bus->sysdata;
 
-	if (dw_pcie_valid_config(pp, bus, PCI_SLOT(devfn)) == 0)
+	if (!dw_pcie_valid_device(pp, bus, PCI_SLOT(devfn)))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	if (bus->number == pp->root_bus_nr)
@@ -835,7 +829,7 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 		dev_err(pp->dev, "num-lanes %u: invalid value\n", pp->lanes);
 		return;
 	}
-	dw_pcie_writel_rc(pp, val, PCIE_PORT_LINK_CONTROL);
+	dw_pcie_writel_rc(pp, PCIE_PORT_LINK_CONTROL, val);
 
 	/* set link width speed control register */
 	val = dw_pcie_readl_rc(pp, PCIE_LINK_WIDTH_SPEED_CONTROL);
@@ -854,30 +848,30 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 		val |= PORT_LOGIC_LINK_WIDTH_8_LANES;
 		break;
 	}
-	dw_pcie_writel_rc(pp, val, PCIE_LINK_WIDTH_SPEED_CONTROL);
+	dw_pcie_writel_rc(pp, PCIE_LINK_WIDTH_SPEED_CONTROL, val);
 
 	/* setup RC BARs */
-	dw_pcie_writel_rc(pp, 0x00000004, PCI_BASE_ADDRESS_0);
-	dw_pcie_writel_rc(pp, 0x00000000, PCI_BASE_ADDRESS_1);
+	dw_pcie_writel_rc(pp, PCI_BASE_ADDRESS_0, 0x00000004);
+	dw_pcie_writel_rc(pp, PCI_BASE_ADDRESS_1, 0x00000000);
 
 	/* setup interrupt pins */
 	val = dw_pcie_readl_rc(pp, PCI_INTERRUPT_LINE);
 	val &= 0xffff00ff;
 	val |= 0x00000100;
-	dw_pcie_writel_rc(pp, val, PCI_INTERRUPT_LINE);
+	dw_pcie_writel_rc(pp, PCI_INTERRUPT_LINE, val);
 
 	/* setup bus numbers */
 	val = dw_pcie_readl_rc(pp, PCI_PRIMARY_BUS);
 	val &= 0xff000000;
 	val |= 0x00010100;
-	dw_pcie_writel_rc(pp, val, PCI_PRIMARY_BUS);
+	dw_pcie_writel_rc(pp, PCI_PRIMARY_BUS, val);
 
 	/* setup command register */
 	val = dw_pcie_readl_rc(pp, PCI_COMMAND);
 	val &= 0xffff0000;
 	val |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
 		PCI_COMMAND_MASTER | PCI_COMMAND_SERR;
-	dw_pcie_writel_rc(pp, val, PCI_COMMAND);
+	dw_pcie_writel_rc(pp, PCI_COMMAND, val);
 
 	/*
 	 * If the platform provides ->rd_other_conf, it means the platform

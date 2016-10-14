@@ -845,7 +845,7 @@ static int __set_par(struct fb_info *fbi, bool lock)
 		if (fbi->var.sync & FB_SYNC_SHARP_MODE)
 			mode = IPU_PANEL_SHARP_TFT;
 
-		dev_dbg(fbi->device, "pixclock = %ul Hz\n",
+		dev_dbg(fbi->device, "pixclock = %u Hz\n",
 			(u32) (PICOS2KHZ(fbi->var.pixclock) * 1000UL));
 
 		if (sdc_init_panel(mx3fb, mode,
