@@ -212,14 +212,14 @@ inline void dump_tx_skb_data(struct sk_buff *skb)
 
 	len_org = skb->len - FM_CMD_MSG_HDR_SIZE;
 	if (len_org > 0) {
-		printk("\n   data(%d): ", cmd_hdr->dlen);
+		printk(KERN_CONT "\n   data(%d): ", cmd_hdr->dlen);
 		len = min(len_org, 14);
 		for (index = 0; index < len; index++)
-			printk("%x ",
+			printk(KERN_CONT "%x ",
 			       skb->data[FM_CMD_MSG_HDR_SIZE + index]);
-		printk("%s", (len_org > 14) ? ".." : "");
+		printk(KERN_CONT "%s", (len_org > 14) ? ".." : "");
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 
  /* To dump incoming FM Channel-8 packets */
@@ -237,14 +237,14 @@ inline void dump_rx_skb_data(struct sk_buff *skb)
 
 	len_org = skb->len - FM_EVT_MSG_HDR_SIZE;
 	if (len_org > 0) {
-		printk("\n   data(%d): ", evt_hdr->dlen);
+		printk(KERN_CONT "\n   data(%d): ", evt_hdr->dlen);
 		len = min(len_org, 14);
 		for (index = 0; index < len; index++)
-			printk("%x ",
+			printk(KERN_CONT "%x ",
 			       skb->data[FM_EVT_MSG_HDR_SIZE + index]);
-		printk("%s", (len_org > 14) ? ".." : "");
+		printk(KERN_CONT "%s", (len_org > 14) ? ".." : "");
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 #endif
 
