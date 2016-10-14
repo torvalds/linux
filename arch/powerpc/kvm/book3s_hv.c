@@ -2609,7 +2609,8 @@ static void shrink_halt_poll_ns(struct kvmppc_vcore *vc)
 		vc->halt_poll_ns /= halt_poll_ns_shrink;
 }
 
-/* Check to see if any of the runnable vcpus on the vcore have pending
+/*
+ * Check to see if any of the runnable vcpus on the vcore have pending
  * exceptions or are no longer ceded
  */
 static int kvmppc_vcore_check_block(struct kvmppc_vcore *vc)
