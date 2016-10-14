@@ -320,6 +320,7 @@ struct qede_fastpath {
 #define XMIT_L4_CSUM		BIT(0)
 #define XMIT_LSO		BIT(1)
 #define XMIT_ENC		BIT(2)
+#define XMIT_ENC_GSO_L4_CSUM	BIT(3)
 
 #define QEDE_CSUM_ERROR			BIT(0)
 #define QEDE_CSUM_UNNECESSARY		BIT(1)

@@ -400,8 +400,19 @@ static u32 qede_xmit_type(struct qede_dev *edev,
 	    (ipv6_hdr(skb)->nexthdr == NEXTHDR_IPV6))
 		*ipv6_ext = 1;
 
-	if (skb->encapsulation)
+	if (skb->encapsulation) {
 		rc |= XMIT_ENC;
+		if (skb_is_gso(skb)) {
+			unsigned short gso_type = skb_shinfo(skb)->gso_type;
+
+			if ((gso_type & SKB_GSO_UDP_TUNNEL_CSUM) ||
+			    (gso_type & SKB_GSO_GRE_CSUM))
+				rc |= XMIT_ENC_GSO_L4_CSUM;
+
+			rc |= XMIT_LSO;
+			return rc;
+		}
+	}
 
 	if (skb_is_gso(skb))
 		rc |= XMIT_LSO;
@@ -637,6 +648,12 @@ static netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 		if (unlikely(xmit_type & XMIT_ENC)) {
 			first_bd->data.bd_flags.bitfields |=
 				1 << ETH_TX_1ST_BD_FLAGS_TUNN_IP_CSUM_SHIFT;
+
+			if (xmit_type & XMIT_ENC_GSO_L4_CSUM) {
+				u8 tmp = ETH_TX_1ST_BD_FLAGS_TUNN_L4_CSUM_SHIFT;
+
+				first_bd->data.bd_flags.bitfields |= 1 << tmp;
+			}
 			hlen = qede_get_skb_hlen(skb, true);
 		} else {
 			first_bd->data.bd_flags.bitfields |=
@@ -2320,11 +2337,14 @@ static void qede_init_ndev(struct qede_dev *edev)
 
 	/* Encap features*/
 	hw_features |= NETIF_F_GSO_GRE | NETIF_F_GSO_UDP_TUNNEL |
-		       NETIF_F_TSO_ECN;
+		       NETIF_F_TSO_ECN | NETIF_F_GSO_UDP_TUNNEL_CSUM |
+		       NETIF_F_GSO_GRE_CSUM;
 	ndev->hw_enc_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 				NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO_ECN |
 				NETIF_F_TSO6 | NETIF_F_GSO_GRE |
-				NETIF_F_GSO_UDP_TUNNEL | NETIF_F_RXCSUM;
+				NETIF_F_GSO_UDP_TUNNEL | NETIF_F_RXCSUM |
+				NETIF_F_GSO_UDP_TUNNEL_CSUM |
+				NETIF_F_GSO_GRE_CSUM;
 
 	ndev->vlan_features = hw_features | NETIF_F_RXHASH | NETIF_F_RXCSUM |
 			      NETIF_F_HIGHDMA;
