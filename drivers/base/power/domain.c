@@ -1916,6 +1916,100 @@ out:
 	return ret ? -EPROBE_DEFER : 0;
 }
 EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
+
+static const struct of_device_id idle_state_match[] = {
+	{ .compatible = "arm,idle-state", },
+	{ }
+};
+
+static int genpd_parse_state(struct genpd_power_state *genpd_state,
+				    struct device_node *state_node)
+{
+	int err;
+	u32 residency;
+	u32 entry_latency, exit_latency;
+	const struct of_device_id *match_id;
+
+	match_id = of_match_node(idle_state_match, state_node);
+	if (!match_id)
+		return -EINVAL;
+
+	err = of_property_read_u32(state_node, "entry-latency-us",
+						&entry_latency);
+	if (err) {
+		pr_debug(" * %s missing entry-latency-us property\n",
+						state_node->full_name);
+		return -EINVAL;
+	}
+
+	err = of_property_read_u32(state_node, "exit-latency-us",
+						&exit_latency);
+	if (err) {
+		pr_debug(" * %s missing exit-latency-us property\n",
+						state_node->full_name);
+		return -EINVAL;
+	}
+
+	err = of_property_read_u32(state_node, "min-residency-us", &residency);
+	if (!err)
+		genpd_state->residency_ns = 1000 * residency;
+
+	genpd_state->power_on_latency_ns = 1000 * exit_latency;
+	genpd_state->power_off_latency_ns = 1000 * entry_latency;
+
+	return 0;
+}
+
+/**
+ * of_genpd_parse_idle_states: Return array of idle states for the genpd.
+ *
+ * @dn: The genpd device node
+ * @states: The pointer to which the state array will be saved.
+ * @n: The count of elements in the array returned from this function.
+ *
+ * Returns the device states parsed from the OF node. The memory for the states
+ * is allocated by this function and is the responsibility of the caller to
+ * free the memory after use.
+ */
+int of_genpd_parse_idle_states(struct device_node *dn,
+			struct genpd_power_state **states, int *n)
+{
+	struct genpd_power_state *st;
+	struct device_node *np;
+	int i = 0;
+	int err, ret;
+	int count;
+	struct of_phandle_iterator it;
+
+	count = of_count_phandle_with_args(dn, "domain-idle-states", NULL);
+	if (!count)
+		return -EINVAL;
+
+	st = kcalloc(count, sizeof(*st), GFP_KERNEL);
+	if (!st)
+		return -ENOMEM;
+
+	/* Loop over the phandles until all the requested entry is found */
+	of_for_each_phandle(&it, err, dn, "domain-idle-states", NULL, 0) {
+		np = it.node;
+		ret = genpd_parse_state(&st[i++], np);
+		if (ret) {
+			pr_err
+			("Parsing idle state node %s failed with err %d\n",
+							np->full_name, ret);
+			of_node_put(np);
+			kfree(st);
+			return ret;
+		}
+	}
+
+	*n = count;
+	*states = st;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_genpd_parse_idle_states);
+
 #endif /* CONFIG_PM_GENERIC_DOMAINS_OF */
 
 
