@@ -107,10 +107,14 @@ config QEDE
 	---help---
 	  This enables the support for ...
 
+config QED_RDMA
+	bool
+
 config INFINIBAND_QEDR
 	tristate "QLogic qede RoCE sources [debug]"
 	depends on QEDE && 64BIT
 	select QED_LL2
+	select QED_RDMA
 	default n
 	---help---
 	  This provides a temporary node that allows the compilation
