@@ -488,15 +488,16 @@ DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
  *
  * Any code that clobbers the FPU registers or updates the in-memory
  * FPU state for a task MUST let the rest of the kernel know that the
- * FPU registers are no longer valid for this task. Calling either of
- * these two invalidate functions is enough, use whichever is convenient.
+ * FPU registers are no longer valid for this task.
  *
- * Must be run with preemption disabled: this clears the fpu_fpregs_owner_ctx,
- * on this CPU.
+ * Either one of these invalidation functions is enough. Invalidate
+ * a resource you control: CPU if using the CPU for something else
+ * (with preemption disabled), FPU for the current task, or a task that
+ * is prevented from running by the current task.
  */
-static inline void __cpu_invalidate_fpregs_state(unsigned int cpu)
+static inline void __cpu_invalidate_fpregs_state(void)
 {
-	per_cpu(fpu_fpregs_owner_ctx, cpu) = NULL;
+	__this_cpu_write(fpu_fpregs_owner_ctx, NULL);
 }
 
 static inline void __fpu_invalidate_fpregs_state(struct fpu *fpu)

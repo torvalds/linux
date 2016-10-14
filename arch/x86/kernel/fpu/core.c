@@ -106,7 +106,7 @@ void __kernel_fpu_begin(void)
 		 */
 		copy_fpregs_to_fpstate(fpu);
 	} else {
-		this_cpu_write(fpu_fpregs_owner_ctx, NULL);
+		__cpu_invalidate_fpregs_state();
 	}
 }
 EXPORT_SYMBOL(__kernel_fpu_begin);
