@@ -119,9 +119,9 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 	if (!i2c_wait_done(i2c_adap))
 		goto eio;
 	if (i2c_debug) {
-		printk(" <W %02x %02x", msg->addr << 1, msg->buf[0]);
+		printk(KERN_DEBUG " <W %02x %02x", msg->addr << 1, msg->buf[0]);
 		if (!(ctrl & I2C_NOSTOP))
-			printk(" >\n");
+			printk(KERN_CONT " >\n");
 	}
 
 	for (cnt = 1; cnt < msg->len; cnt++) {
@@ -141,9 +141,9 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 		if (!i2c_wait_done(i2c_adap))
 			goto eio;
 		if (i2c_debug) {
-			dprintk(1, " %02x", msg->buf[cnt]);
+			printk(KERN_CONT " %02x", msg->buf[cnt]);
 			if (!(ctrl & I2C_NOSTOP))
-				dprintk(1, " >\n");
+				printk(KERN_CONT " >\n");
 		}
 	}
 	return msg->len;

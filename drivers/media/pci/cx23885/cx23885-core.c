@@ -407,12 +407,12 @@ static int cx23885_risc_decode(u32 risc)
 	};
 	int i;
 
-	printk("0x%08x [ %s", risc,
+	printk(KERN_DEBUG "0x%08x [ %s", risc,
 	       instr[risc >> 28] ? instr[risc >> 28] : "INVALID");
 	for (i = ARRAY_SIZE(bits) - 1; i >= 0; i--)
 		if (risc & (1 << (i + 12)))
-			printk(" %s", bits[i]);
-	printk(" count=%d ]\n", risc & 0xfff);
+			printk(KERN_CONT " %s", bits[i]);
+	printk(KERN_CONT " count=%d ]\n", risc & 0xfff);
 	return incr[risc >> 28] ? incr[risc >> 28] : 1;
 }
 
@@ -2003,7 +2003,7 @@ static int cx23885_initdev(struct pci_dev *pci_dev,
 	pci_set_master(pci_dev);
 	err = pci_set_dma_mask(pci_dev, 0xffffffff);
 	if (err) {
-		printk("%s/0: Oops: no 32bit PCI DMA ???\n", dev->name);
+		printk(KERN_ERR "%s/0: Oops: no 32bit PCI DMA ???\n", dev->name);
 		goto fail_ctrl;
 	}
 
