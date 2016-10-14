@@ -235,6 +235,66 @@ static void fjes_get_regs(struct net_device *netdev,
 	regs_buff[36] = rd32(XSCT_ICTL);
 }
 
+static int fjes_set_dump(struct net_device *netdev, struct ethtool_dump *dump)
+{
+	struct fjes_adapter *adapter = netdev_priv(netdev);
+	struct fjes_hw *hw = &adapter->hw;
+	int ret = 0;
+
+	if (dump->flag) {
+		if (hw->debug_mode)
+			return -EPERM;
+
+		hw->debug_mode = dump->flag;
+
+		/* enable debug mode */
+		mutex_lock(&hw->hw_info.lock);
+		ret = fjes_hw_start_debug(hw);
+		mutex_unlock(&hw->hw_info.lock);
+
+		if (ret)
+			hw->debug_mode = 0;
+	} else {
+		if (!hw->debug_mode)
+			return -EPERM;
+
+		/* disable debug mode */
+		mutex_lock(&hw->hw_info.lock);
+		ret = fjes_hw_stop_debug(hw);
+		mutex_unlock(&hw->hw_info.lock);
+	}
+
+	return ret;
+}
+
+static int fjes_get_dump_flag(struct net_device *netdev,
+			      struct ethtool_dump *dump)
+{
+	struct fjes_adapter *adapter = netdev_priv(netdev);
+	struct fjes_hw *hw = &adapter->hw;
+
+	dump->len = hw->hw_info.trace_size;
+	dump->version = 1;
+	dump->flag = hw->debug_mode;
+
+	return 0;
+}
+
+static int fjes_get_dump_data(struct net_device *netdev,
+			      struct ethtool_dump *dump, void *buf)
+{
+	struct fjes_adapter *adapter = netdev_priv(netdev);
+	struct fjes_hw *hw = &adapter->hw;
+	int ret = 0;
+
+	if (hw->hw_info.trace)
+		memcpy(buf, hw->hw_info.trace, hw->hw_info.trace_size);
+	else
+		ret = -EPERM;
+
+	return ret;
+}
+
 static const struct ethtool_ops fjes_ethtool_ops = {
 		.get_settings		= fjes_get_settings,
 		.get_drvinfo		= fjes_get_drvinfo,
@@ -243,6 +303,9 @@ static const struct ethtool_ops fjes_ethtool_ops = {
 		.get_sset_count   = fjes_get_sset_count,
 		.get_regs		= fjes_get_regs,
 		.get_regs_len		= fjes_get_regs_len,
+		.set_dump		= fjes_set_dump,
+		.get_dump_flag		= fjes_get_dump_flag,
+		.get_dump_data		= fjes_get_dump_data,
 };
 
 void fjes_set_ethtool_ops(struct net_device *netdev)

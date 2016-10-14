@@ -209,6 +209,75 @@ TRACE_EVENT(fjes_hw_unregister_buff_addr_err,
 	TP_printk("%s", __get_str(err))
 );
 
+TRACE_EVENT(fjes_hw_start_debug_req,
+	TP_PROTO(union fjes_device_command_req *req_buf),
+	TP_ARGS(req_buf),
+	TP_STRUCT__entry(
+		__field(int, length)
+		__field(int, mode)
+		__field(phys_addr_t, buffer)
+	),
+	TP_fast_assign(
+		__entry->length = req_buf->start_trace.length;
+		__entry->mode = req_buf->start_trace.mode;
+		__entry->buffer = req_buf->start_trace.buffer[0];
+	),
+	TP_printk("req_buf=[length=%d, mode=%d, buffer=%p]",
+		  __entry->length, __entry->mode, (void *)__entry->buffer)
+);
+
+TRACE_EVENT(fjes_hw_start_debug,
+	TP_PROTO(union fjes_device_command_res *res_buf),
+	TP_ARGS(res_buf),
+	TP_STRUCT__entry(
+		__field(int, length)
+		__field(int, code)
+	),
+	TP_fast_assign(
+		__entry->length = res_buf->start_trace.length;
+		__entry->code = res_buf->start_trace.code;
+	),
+	TP_printk("res_buf=[length=%d, code=%d]", __entry->length, __entry->code)
+);
+
+TRACE_EVENT(fjes_hw_start_debug_err,
+	TP_PROTO(char *err),
+	TP_ARGS(err),
+	TP_STRUCT__entry(
+		 __string(err, err)
+	),
+	TP_fast_assign(
+		__assign_str(err, err)
+	),
+	TP_printk("%s", __get_str(err))
+);
+
+TRACE_EVENT(fjes_hw_stop_debug,
+	TP_PROTO(union fjes_device_command_res *res_buf),
+	TP_ARGS(res_buf),
+	TP_STRUCT__entry(
+		__field(int, length)
+		__field(int, code)
+	),
+	TP_fast_assign(
+		__entry->length = res_buf->stop_trace.length;
+		__entry->code = res_buf->stop_trace.code;
+	),
+	TP_printk("res_buf=[length=%d, code=%d]", __entry->length, __entry->code)
+);
+
+TRACE_EVENT(fjes_hw_stop_debug_err,
+	TP_PROTO(char *err),
+	TP_ARGS(err),
+	TP_STRUCT__entry(
+		 __string(err, err)
+	),
+	TP_fast_assign(
+		__assign_str(err, err)
+	),
+	TP_printk("%s", __get_str(err))
+);
+
 /* tracepoints for fjes_main.c */
 
 TRACE_EVENT(fjes_txrx_stop_req_irq_pre,
