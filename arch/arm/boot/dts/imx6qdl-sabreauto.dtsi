@@ -283,7 +283,7 @@
 		VD-supply = <&reg_audio>;
 		VLS-supply = <&reg_audio>;
 		VLC-supply = <&reg_audio>;
-        };
+	};
 
 };
 
