@@ -10,9 +10,7 @@
 #include <asm/ppc-opcode.h>
 #include <asm/firmware.h>
 
-#ifndef __ASSEMBLY__
-#error __FILE__ should only be used in assembler files
-#else
+#ifdef __ASSEMBLY__
 
 #define SZL			(BITS_PER_LONG/8)
 
@@ -779,5 +777,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 	.long 0xa6037b7d; /* mtsrr1 r11				*/ \
 	.long 0x2400004c  /* rfid				*/
 #endif /* !CONFIG_PPC_BOOK3E */
+
 #endif /*  __ASSEMBLY__ */
+
 #endif /* _ASM_POWERPC_PPC_ASM_H */
