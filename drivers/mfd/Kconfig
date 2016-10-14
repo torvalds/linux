@@ -967,7 +967,7 @@ config MFD_SMSC
 
 config ABX500_CORE
 	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
-	default y if ARCH_U300 || ARCH_U8500
+	default y if ARCH_U300 || ARCH_U8500 || COMPILE_TEST
 	help
 	  Say yes here if you have the ABX500 Mixed Signal IC family
 	  chips. This core driver expose register access functions.
