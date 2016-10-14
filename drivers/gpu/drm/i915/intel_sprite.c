@@ -753,7 +753,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 			 struct intel_crtc_state *crtc_state,
 			 struct intel_plane_state *state)
 {
-	struct drm_device *dev = plane->dev;
+	struct drm_i915_private *dev_priv = to_i915(plane->dev);
 	struct drm_crtc *crtc = state->base.crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
@@ -797,7 +797,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	}
 
 	/* setup can_scale, min_scale, max_scale */
-	if (INTEL_INFO(dev)->gen >= 9) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		/* use scaler when colorkey is not required */
 		if (state->ckey.flags == I915_SET_COLORKEY_NONE) {
 			can_scale = 1;
@@ -913,7 +913,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 
 		width_bytes = ((src_x * cpp) & 63) + src_w * cpp;
 
-		if (INTEL_INFO(dev)->gen < 9 && (src_w > 2048 || src_h > 2048 ||
+		if (INTEL_GEN(dev_priv) < 9 && (src_w > 2048 || src_h > 2048 ||
 		    width_bytes > 4096 || fb->pitches[0] > 4096)) {
 			DRM_DEBUG_KMS("Source dimensions exceed hardware limits\n");
 			return -EINVAL;
@@ -932,7 +932,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	dst->y1 = crtc_y;
 	dst->y2 = crtc_y + crtc_h;
 
-	if (INTEL_GEN(dev) >= 9) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		ret = skl_check_plane_surface(state);
 		if (ret)
 			return ret;

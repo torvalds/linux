@@ -72,9 +72,9 @@ render_state_get_rodata(const struct drm_i915_gem_request *req)
 
 static int render_state_setup(struct render_state *so)
 {
-	struct drm_device *dev = so->vma->vm->dev;
+	struct drm_i915_private *dev_priv = to_i915(so->vma->vm->dev);
 	const struct intel_renderstate_rodata *rodata = so->rodata;
-	const bool has_64bit_reloc = INTEL_GEN(dev) >= 8;
+	const bool has_64bit_reloc = INTEL_GEN(dev_priv) >= 8;
 	unsigned int i = 0, reloc_index = 0;
 	struct page *page;
 	u32 *d;
@@ -115,7 +115,7 @@ static int render_state_setup(struct render_state *so)
 
 	so->aux_batch_offset = i * sizeof(u32);
 
-	if (HAS_POOLED_EU(dev)) {
+	if (HAS_POOLED_EU(dev_priv)) {
 		/*
 		 * We always program 3x6 pool config but depending upon which
 		 * subslice is disabled HW drops down to appropriate config

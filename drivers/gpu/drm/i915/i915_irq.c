@@ -2748,7 +2748,7 @@ static int ironlake_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	unsigned long irqflags;
-	uint32_t bit = INTEL_GEN(dev) >= 7 ?
+	uint32_t bit = INTEL_GEN(dev_priv) >= 7 ?
 		DE_PIPE_VBLANK_IVB(pipe) : DE_PIPE_VBLANK(pipe);
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
@@ -2798,7 +2798,7 @@ static void ironlake_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	unsigned long irqflags;
-	uint32_t bit = INTEL_GEN(dev) >= 7 ?
+	uint32_t bit = INTEL_GEN(dev_priv) >= 7 ?
 		DE_PIPE_VBLANK_IVB(pipe) : DE_PIPE_VBLANK(pipe);
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
