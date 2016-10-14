@@ -368,7 +368,10 @@ mwifiex_cmd_802_11_hs_cfg(struct mwifiex_private *priv,
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct host_cmd_ds_802_11_hs_cfg_enh *hs_cfg = &cmd->params.opt_hs_cfg;
+	u8 *tlv = (u8 *)hs_cfg + sizeof(struct host_cmd_ds_802_11_hs_cfg_enh);
+	struct mwifiex_ps_param_in_hs *psparam_tlv = NULL;
 	bool hs_activate = false;
+	u16 size;
 
 	if (!hscfg_param)
 		/* New Activate command */
@@ -385,13 +388,14 @@ mwifiex_cmd_802_11_hs_cfg(struct mwifiex_private *priv,
 		memcpy(((u8 *) hs_cfg) +
 		       sizeof(struct host_cmd_ds_802_11_hs_cfg_enh),
 		       adapter->arp_filter, adapter->arp_filter_size);
-		cmd->size = cpu_to_le16
-				(adapter->arp_filter_size +
-				 sizeof(struct host_cmd_ds_802_11_hs_cfg_enh)
-				+ S_DS_GEN);
+		size = adapter->arp_filter_size +
+			sizeof(struct host_cmd_ds_802_11_hs_cfg_enh)
+			+ S_DS_GEN;
+		tlv = (u8 *)hs_cfg
+			+ sizeof(struct host_cmd_ds_802_11_hs_cfg_enh)
+			+ adapter->arp_filter_size;
 	} else {
-		cmd->size = cpu_to_le16(S_DS_GEN + sizeof(struct
-						host_cmd_ds_802_11_hs_cfg_enh));
+		size = S_DS_GEN + sizeof(struct host_cmd_ds_802_11_hs_cfg_enh);
 	}
 	if (hs_activate) {
 		hs_cfg->action = cpu_to_le16(HS_ACTIVATE);
@@ -401,12 +405,25 @@ mwifiex_cmd_802_11_hs_cfg(struct mwifiex_private *priv,
 		hs_cfg->params.hs_config.conditions = hscfg_param->conditions;
 		hs_cfg->params.hs_config.gpio = hscfg_param->gpio;
 		hs_cfg->params.hs_config.gap = hscfg_param->gap;
+
+		size += sizeof(struct mwifiex_ps_param_in_hs);
+		psparam_tlv = (struct mwifiex_ps_param_in_hs *)tlv;
+		psparam_tlv->header.type =
+			cpu_to_le16(TLV_TYPE_PS_PARAMS_IN_HS);
+		psparam_tlv->header.len =
+			cpu_to_le16(sizeof(struct mwifiex_ps_param_in_hs)
+				- sizeof(struct mwifiex_ie_types_header));
+		psparam_tlv->hs_wake_int = cpu_to_le32(HS_DEF_WAKE_INTERVAL);
+		psparam_tlv->hs_inact_timeout =
+			cpu_to_le32(HS_DEF_INACTIVITY_TIMEOUT);
+
 		mwifiex_dbg(adapter, CMD,
 			    "cmd: HS_CFG_CMD: condition:0x%x gpio:0x%x gap:0x%x\n",
 			    hs_cfg->params.hs_config.conditions,
 			    hs_cfg->params.hs_config.gpio,
 			    hs_cfg->params.hs_config.gap);
 	}
+	cmd->size = cpu_to_le16(size);
 
 	return 0;
 }
