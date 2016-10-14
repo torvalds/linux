@@ -2257,6 +2257,18 @@ static void cz_dpm_powergate_vce(struct amdgpu_device *adev, bool gate)
 	}
 }
 
+static int cz_check_state_equal(struct amdgpu_device *adev,
+				struct amdgpu_ps *cps,
+				struct amdgpu_ps *rps,
+				bool *equal)
+{
+	if (equal == NULL)
+		return -EINVAL;
+
+	*equal = false;
+	return 0;
+}
+
 const struct amd_ip_funcs cz_dpm_ip_funcs = {
 	.name = "cz_dpm",
 	.early_init = cz_dpm_early_init,
@@ -2289,6 +2301,7 @@ static const struct amdgpu_dpm_funcs cz_dpm_funcs = {
 	.vblank_too_short = NULL,
 	.powergate_uvd = cz_dpm_powergate_uvd,
 	.powergate_vce = cz_dpm_powergate_vce,
+	.check_state_equal = cz_check_state_equal,
 };
 
 static void cz_dpm_set_funcs(struct amdgpu_device *adev)
