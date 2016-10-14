@@ -39,6 +39,7 @@
 #include "xfs_quota.h"
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"
+#include "xfs_reflink.h"
 
 
 #define XFS_WRITEIO_ALIGN(mp,off)	(((off) >> mp->m_writeio_log) \
@@ -70,7 +71,7 @@ xfs_bmbt_to_iomap(
 	iomap->bdev = xfs_find_bdev_for_inode(VFS_I(ip));
 }
 
-static xfs_extlen_t
+xfs_extlen_t
 xfs_eof_alignment(
 	struct xfs_inode	*ip,
 	xfs_extlen_t		extsize)
@@ -609,7 +610,7 @@ xfs_file_iomap_begin_delay(
 	}
 
 retry:
-	error = xfs_bmapi_reserve_delalloc(ip, offset_fsb,
+	error = xfs_bmapi_reserve_delalloc(ip, XFS_DATA_FORK, offset_fsb,
 			end_fsb - offset_fsb, &got,
 			&prev, &idx, eof);
 	switch (error) {
@@ -666,6 +667,7 @@ out_unlock:
 int
 xfs_iomap_write_allocate(
 	xfs_inode_t	*ip,
+	int		whichfork,
 	xfs_off_t	offset,
 	xfs_bmbt_irec_t *imap)
 {
@@ -678,7 +680,11 @@ xfs_iomap_write_allocate(
 	xfs_trans_t	*tp;
 	int		nimaps;
 	int		error = 0;
+	int		flags = 0;
 	int		nres;
+
+	if (whichfork == XFS_COW_FORK)
+		flags |= XFS_BMAPI_COWFORK;
 
 	/*
 	 * Make sure that the dquots are there.
@@ -773,7 +779,7 @@ xfs_iomap_write_allocate(
 			 * pointer that the caller gave to us.
 			 */
 			error = xfs_bmapi_write(tp, ip, map_start_fsb,
-						count_fsb, 0, &first_block,
+						count_fsb, flags, &first_block,
 						nres, imap, &nimaps,
 						&dfops);
 			if (error)
@@ -955,14 +961,22 @@ xfs_file_iomap_begin(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_bmbt_irec	imap;
 	xfs_fileoff_t		offset_fsb, end_fsb;
+	bool			shared, trimmed;
 	int			nimaps = 1, error = 0;
 	unsigned		lockmode;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	if ((flags & IOMAP_WRITE) &&
-	    !IS_DAX(inode) && !xfs_get_extsz_hint(ip)) {
+	if ((flags & (IOMAP_WRITE | IOMAP_ZERO)) && xfs_is_reflink_inode(ip)) {
+		error = xfs_reflink_reserve_cow_range(ip, offset, length);
+		if (error < 0)
+			return error;
+	}
+
+	if ((flags & IOMAP_WRITE) && !IS_DAX(inode) &&
+		   !xfs_get_extsz_hint(ip)) {
+		/* Reserve delalloc blocks for regular writeback. */
 		return xfs_file_iomap_begin_delay(inode, offset, length, flags,
 				iomap);
 	}
@@ -976,7 +990,14 @@ xfs_file_iomap_begin(
 	end_fsb = XFS_B_TO_FSB(mp, offset + length);
 
 	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb, &imap,
-			       &nimaps, XFS_BMAPI_ENTIRE);
+			       &nimaps, 0);
+	if (error) {
+		xfs_iunlock(ip, lockmode);
+		return error;
+	}
+
+	/* Trim the mapping to the nearest shared extent boundary. */
+	error = xfs_reflink_trim_around_shared(ip, &imap, &shared, &trimmed);
 	if (error) {
 		xfs_iunlock(ip, lockmode);
 		return error;
@@ -1015,6 +1036,8 @@ xfs_file_iomap_begin(
 	}
 
 	xfs_bmbt_to_iomap(ip, iomap, &imap);
+	if (shared)
+		iomap->flags |= IOMAP_F_SHARED;
 	return 0;
 }
 

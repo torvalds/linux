@@ -2470,6 +2470,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	nfsrootdebug	[NFS] enable nfsroot debugging messages.
 			See Documentation/filesystems/nfs/nfsroot.txt.
 
+	nfs.callback_nr_threads=
+			[NFSv4] set the total number of threads that the
+			NFS client will assign to service NFSv4 callback
+			requests.
+
 	nfs.callback_tcpport=
 			[NFS] set the TCP port on which the NFSv4 callback
 			channel should listen.
@@ -2492,6 +2497,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			number for the readdir() and stat() syscalls instead
 			of returning the full 64-bit number.
 			The default is to return 64-bit inode numbers.
+
+	nfs.max_session_cb_slots=
+			[NFSv4.1] Sets the maximum number of session
+			slots the client will assign to the callback
+			channel. This determines the maximum number of
+			callbacks the client will process in parallel for
+			a particular server.
 
 	nfs.max_session_slots=
 			[NFSv4.1] Sets the maximum number of session slots

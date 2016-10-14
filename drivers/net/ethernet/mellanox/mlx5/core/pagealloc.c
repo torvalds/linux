@@ -287,7 +287,7 @@ retry:
 
 			goto retry;
 		}
-		MLX5_SET64(manage_pages_in, in, pas[i], addr);
+		MLX5_ARRAY_SET64(manage_pages_in, in, pas, i, addr);
 	}
 
 	MLX5_SET(manage_pages_in, in, opcode, MLX5_CMD_OP_MANAGE_PAGES);
@@ -344,7 +344,7 @@ static int reclaim_pages_cmd(struct mlx5_core_dev *dev,
 		if (fwp->func_id != func_id)
 			continue;
 
-		MLX5_SET64(manage_pages_out, out, pas[i], fwp->addr);
+		MLX5_ARRAY_SET64(manage_pages_out, out, pas, i, fwp->addr);
 		i++;
 	}
 
