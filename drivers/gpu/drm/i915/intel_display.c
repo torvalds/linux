@@ -13516,8 +13516,7 @@ static void verify_wm_state(struct drm_crtc *crtc,
 		sw_ddb_entry = &sw_ddb->plane[pipe][plane];
 
 		if (!skl_ddb_entry_equal(hw_ddb_entry, sw_ddb_entry)) {
-			DRM_ERROR("mismatch in DDB state pipe %c plane %d "
-				  "(expected (%u,%u), found (%u,%u))\n",
+			DRM_ERROR("mismatch in DDB state pipe %c plane %d (expected (%u,%u), found (%u,%u))\n",
 				  pipe_name(pipe), plane + 1,
 				  sw_ddb_entry->start, sw_ddb_entry->end,
 				  hw_ddb_entry->start, hw_ddb_entry->end);
@@ -13567,8 +13566,7 @@ static void verify_wm_state(struct drm_crtc *crtc,
 		sw_ddb_entry = &sw_ddb->plane[pipe][PLANE_CURSOR];
 
 		if (!skl_ddb_entry_equal(hw_ddb_entry, sw_ddb_entry)) {
-			DRM_ERROR("mismatch in DDB state pipe %c cursor "
-				  "(expected (%u,%u), found (%u,%u))\n",
+			DRM_ERROR("mismatch in DDB state pipe %c cursor (expected (%u,%u), found (%u,%u))\n",
 				  pipe_name(pipe),
 				  sw_ddb_entry->start, sw_ddb_entry->end,
 				  hw_ddb_entry->start, hw_ddb_entry->end);
