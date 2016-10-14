@@ -46,7 +46,8 @@
 #ifdef CONFIG_ATA_NONSTANDARD
 #include <asm/libata-portmap.h>
 #else
-#include <asm-generic/libata-portmap.h>
+#define ATA_PRIMARY_IRQ(dev)	14
+#define ATA_SECONDARY_IRQ(dev)	15
 #endif
 
 /*

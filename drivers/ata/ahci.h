@@ -242,12 +242,10 @@ enum {
 	AHCI_HFLAG_NO_FBS		= (1 << 18), /* no FBS */
 
 #ifdef CONFIG_PCI_MSI
-	AHCI_HFLAG_MULTI_MSI		= (1 << 20), /* multiple PCI MSIs */
-	AHCI_HFLAG_MULTI_MSIX		= (1 << 21), /* per-port MSI-X */
+	AHCI_HFLAG_MULTI_MSI		= (1 << 20), /* per-port MSI(-X) */
 #else
 	/* compile out MSI infrastructure */
 	AHCI_HFLAG_MULTI_MSI		= 0,
-	AHCI_HFLAG_MULTI_MSIX		= 0,
 #endif
 	AHCI_HFLAG_WAKE_BEFORE_STOP	= (1 << 22), /* wake before DMA stop */
 
@@ -351,7 +349,6 @@ struct ahci_host_priv {
 	 * the PHY position in this array.
 	 */
 	struct phy		**phys;
-	struct msix_entry	*msix;		/* Optional MSI-X support */
 	unsigned		nports;		/* Number of ports */
 	void			*plat_data;	/* Other platform data */
 	unsigned int		irq;		/* interrupt line */
@@ -362,22 +359,11 @@ struct ahci_host_priv {
 	 */
 	void			(*start_engine)(struct ata_port *ap);
 	irqreturn_t 		(*irq_handler)(int irq, void *dev_instance);
-};
 
-#ifdef CONFIG_PCI_MSI
-static inline int ahci_irq_vector(struct ahci_host_priv *hpriv, int port)
-{
-	if (hpriv->flags & AHCI_HFLAG_MULTI_MSIX)
-		return hpriv->msix[port].vector;
-	else
-		return hpriv->irq + port;
-}
-#else
-static inline int ahci_irq_vector(struct ahci_host_priv *hpriv, int port)
-{
-	return hpriv->irq;
-}
-#endif
+	/* only required for per-port MSI(-X) support */
+	int			(*get_irq_vector)(struct ata_host *host,
+						  int port);
+};
 
 extern int ahci_ignore_sss;
 
