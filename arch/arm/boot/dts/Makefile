@@ -421,6 +421,7 @@ dtb-$(CONFIG_SOC_IMX6ULL) += \
 dtb-$(CONFIG_SOC_IMX6SLL) += \
 	imx6sll-lpddr3-arm2.dtb \
 	imx6sll-lpddr3-arm2-csi.dtb \
+	imx6sll-lpddr3-arm2-ecspi.dtb \
 	imx6sll-lpddr3-arm2-spdif.dtb
 dtb-$(CONFIG_SOC_IMX7D) += \
 	imx7d-12x12-lpddr3-arm2.dtb \
