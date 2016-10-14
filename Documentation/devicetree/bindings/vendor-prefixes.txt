@@ -163,6 +163,7 @@ maxim	Maxim Integrated Products
 meas	Measurement Specialties
 mediatek	MediaTek Inc.
 melexis	Melexis N.V.
+melfas	MELFAS Inc.
 merrii	Merrii Technology Co., Ltd.
 micrel	Micrel Inc.
 microchip	Microchip Technology Inc.
