@@ -666,6 +666,7 @@ static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
 	 * remote lock we're migrating it to before enabling them.
 	 */
 	if (unlikely(task_on_rq_migrating(prev))) {
+		sched_info_dequeued(rq, prev);
 		/*
 		 * We move the ownership of prev to the new cpu now. ttwu can't
 		 * activate prev to the wrong cpu since it has to grab this
@@ -1323,7 +1324,13 @@ void set_task_cpu(struct task_struct *p, unsigned int cpu)
  */
 static inline void take_task(struct rq *rq, int cpu, struct task_struct *p)
 {
-	dequeue_task(task_rq(p), p, 0);
+	struct rq *p_rq = task_rq(p);
+
+	dequeue_task(p_rq, p, DEQUEUE_SAVE);
+	if (p_rq != rq) {
+		sched_info_dequeued(p_rq, p);
+		sched_info_queued(rq, p);
+	}
 	set_task_cpu(p, cpu);
 	dec_qnr();
 }
@@ -1350,7 +1357,7 @@ static inline void return_task(struct task_struct *p, struct rq *rq,
 			p->on_rq = TASK_ON_RQ_MIGRATING;
 		else
 #endif
-			enqueue_task(rq, p, 0);
+			enqueue_task(rq, p, ENQUEUE_RESTORE);
 	}
 }
 
