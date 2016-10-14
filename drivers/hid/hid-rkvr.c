@@ -21,6 +21,8 @@
 #include <linux/hidraw.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>
+#include <linux/notifier.h>
+#include <linux/fb.h>
 #include "hid-rkvr.h"
 #include "hid-ids.h"
 
@@ -38,6 +40,10 @@ static struct class *rkvr_class;
 
 static struct hidraw *rkvr_hidraw_table[RKVR_HIDRAW_MAX_DEVICES];
 
+static struct hid_capability
+{
+	__u8 suspend_notify;
+} rkvr_hid_capability[RKVR_HIDRAW_MAX_DEVICES];
 static DEFINE_MUTEX(minors_lock);
 
 struct keymap_t {
@@ -65,6 +71,8 @@ struct keymap_t {
 	__u16 key_enter_pressed:1;
 	__u16 key_enter_released:1;
 	__u16 key_pressed:1;
+	__u16 psensor_on:1;
+	__u16 psensor_off:1;
 } __packed;
 
 union rkvr_data_t {
@@ -556,6 +564,17 @@ static int rkvr_keys_event(struct hid_device *hdev, void *data, unsigned long le
 		rkvr_send_key_event(input, KEY_ENTER, 1);
 		rkvr_send_key_event(input, KEY_ENTER, 0);
 	}
+
+	if (rkvr_data->rkvr_data.key_map.psensor_on) {
+		hid_info(hdev, "event: psensor_on\n");
+		rkvr_send_key_event(input, KEY_POWER, 1);
+		rkvr_send_key_event(input, KEY_POWER, 0);
+	} else if (rkvr_data->rkvr_data.key_map.psensor_off) {
+		hid_info(hdev, "event: psensor_off\n");
+		rkvr_send_key_event(input, KEY_POWER, 1);
+		rkvr_send_key_event(input, KEY_POWER, 0);
+	}
+
 	return 0;
 }
 
@@ -622,6 +641,26 @@ static int rkvr_send_report(struct device *dev, unsigned char *data, size_t len)
 	ret = 0;
 fail:
 	return ret;
+}
+
+static int rkvr_recv_report(struct device *dev, u8 type, u8 *data, int len)
+{
+	struct hid_device *hid = container_of(dev, struct hid_device, dev);
+	unsigned char report_number = type;
+	unsigned char report_type = HID_MISC_REPORT;
+	char buf[1 + sizeof(*data) * len];
+	int readlen = 1 + sizeof(*data) * len;
+	int ret;
+
+	ret = hid_hw_raw_request(hid, report_number, (unsigned char *)buf, readlen, report_type, HID_REQ_GET_REPORT);
+	if (ret != readlen) {
+		hid_info(hid, "rkvr_recv_report fail\n");
+		return -1;
+	}
+	memcpy(data, &buf[1], len);
+	hid_info(hid, "rkvr_recv_report %02x\n", type);
+
+	return 0;
 }
 
 /*
@@ -694,6 +733,20 @@ fail:
 	kfree(p);
 
 	return ret;
+}
+
+static int hid_get_capability(struct device *dev, struct hid_capability *caps)
+{
+	struct hid_device *hid = container_of(dev, struct hid_device, dev);
+	u8 data = 0;
+
+	caps->suspend_notify = 0;
+	if (!rkvr_recv_report(dev, RKVR_ID_CAPS, &data, 1)) {
+		hid_info(hid, "hid_get_capability %d\n", data);
+		caps->suspend_notify = data;
+		return 0;
+	}
+	return -1;
 }
 
 static void hid_report_fill_rw(unsigned char *buf, u8 reg, u8 *data, int len, int w)
@@ -954,6 +1007,9 @@ static int rkvr_connect(struct hid_device *hid)
 	dev->minor = minor;
 	dev->exist = 1;
 	hid->hidraw = dev; /*struct hidraw * **/
+
+	hid_get_capability(&hid->dev, &rkvr_hid_capability[minor]);
+
 	mutex_unlock(&minors_lock);
 out:
 	return result;
@@ -1200,6 +1256,53 @@ int rkvr_sensor_register_callback(int (*callback)(char *, size_t, void *), void 
 }
 EXPORT_SYMBOL_GPL(rkvr_sensor_register_callback);
 
+static int rkvr_fb_event_notify(struct notifier_block *self,
+					   unsigned long action, void *data)
+{
+	int i;
+	unsigned char buf[3] = {HID_REPORT_ID_RKVR, RKVR_ID_IDLE, 0};
+	struct hid_device *hid;
+	struct fb_event *event = data;
+	int blank_mode = *((int *)event->data);
+
+	if (action != FB_EARLY_EVENT_BLANK && action != FB_EVENT_BLANK)
+		return NOTIFY_OK;
+
+	mutex_lock(&minors_lock);
+	for (i = 0; i < RKVR_HIDRAW_MAX_DEVICES; i++) {
+		if (!rkvr_hidraw_table[i] || !rkvr_hidraw_table[i]->exist)
+			continue;
+		if (!rkvr_hid_capability[i].suspend_notify) {
+			continue;
+		}
+		hid = rkvr_hidraw_table[i]->hid;
+		if (action == FB_EARLY_EVENT_BLANK) {
+			switch (blank_mode) {
+			case FB_BLANK_UNBLANK:
+				break;
+			default:
+				rkvr_send_report(&hid->dev, buf, 3);
+				break;
+			}
+		} else if (action == FB_EVENT_BLANK) {
+			switch (blank_mode) {
+			case FB_BLANK_UNBLANK:
+				buf[2] = 1;
+				rkvr_send_report(&hid->dev, buf, 3);
+				break;
+			default:
+				break;
+			}
+		}
+	}
+	mutex_unlock(&minors_lock);
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rkvr_fb_notifier = {
+	.notifier_call = rkvr_fb_event_notify,
+};
+
 static int rkvr_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int retval;
@@ -1323,8 +1426,15 @@ static int __init rkvr_init(void)
 	rkvr_major = MAJOR(dev_id);
 	cdev_init(&rkvr_cdev, &rkvr_ops);
 	cdev_add(&rkvr_cdev, dev_id, RKVR_HIDRAW_MAX_DEVICES);
-	return 0;
 
+	retval = fb_register_client(&rkvr_fb_notifier);
+	if (retval) {
+		pr_warn("rkvr_init - Can't register fb notifier\n");
+		goto out_chardev;
+	}
+	return 0;
+out_chardev:
+	unregister_chrdev_region(dev_id, RKVR_HIDRAW_MAX_DEVICES);
 out_register:
 	hid_unregister_driver(&rkvr_driver);
 out_class:
@@ -1337,6 +1447,7 @@ static void __exit rkvr_exit(void)
 {
 	dev_t dev_id = MKDEV(rkvr_major, 0);
 
+	fb_unregister_client(&rkvr_fb_notifier);
 	cdev_del(&rkvr_cdev);
 
 	unregister_chrdev_region(dev_id, RKVR_HIDRAW_MAX_DEVICES);
