@@ -115,7 +115,6 @@
 
 #define ISO_PERIOD		(5 * HZ)
 
-#define SCHED_PRIO(p)		((p) + MAX_RT_PRIO)
 #define STOP_PRIO		(MAX_RT_PRIO - 1)
 
 /*
@@ -1542,23 +1541,6 @@ static inline bool needs_other_cpu(struct task_struct *p, int cpu)
 	return false;
 }
 #define cpu_online_map		(*(cpumask_t *)cpu_online_mask)
-#ifdef CONFIG_HOTPLUG_CPU
-/*
- * Check to see if there is a task that is affined only to offline CPUs but
- * still wants runtime. This happens to kernel threads during suspend/halt and
- * disabling of CPUs.
- */
-static inline bool online_cpus(struct task_struct *p)
-{
-	return (likely(cpumask_intersects(&cpu_online_map, &p->cpus_allowed)));
-}
-#else /* CONFIG_HOTPLUG_CPU */
-/* All available CPUs are always online without hotplug. */
-static inline bool online_cpus(struct task_struct *p)
-{
-	return true;
-}
-#endif
 
 static void try_preempt(struct task_struct *p, struct rq *this_rq)
 {
