@@ -1857,4 +1857,5 @@ void intel_color_load_luts(struct drm_crtc_state *crtc_state);
 
 /* intel_lspcon.c */
 bool lspcon_init(struct intel_digital_port *intel_dig_port);
+void lspcon_resume(struct intel_lspcon *lspcon);
 #endif /* __INTEL_DRV_H__ */

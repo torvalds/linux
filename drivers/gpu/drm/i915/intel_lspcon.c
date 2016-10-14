@@ -89,6 +89,14 @@ static bool lspcon_probe(struct intel_lspcon *lspcon)
 	return true;
 }
 
+void lspcon_resume(struct intel_lspcon *lspcon)
+{
+	if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON, true))
+		DRM_ERROR("LSPCON resume failed\n");
+	else
+		DRM_DEBUG_KMS("LSPCON resume success\n");
+}
+
 bool lspcon_init(struct intel_digital_port *intel_dig_port)
 {
 	struct intel_dp *dp = &intel_dig_port->dp;
