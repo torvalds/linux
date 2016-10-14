@@ -443,21 +443,6 @@ static void debiirq(unsigned long cookie)
 
 	case DATA_COMMON_INTERFACE:
 		CI_handle(av7110, (u8 *)av7110->debi_virt, av7110->debilen);
-#if 0
-	{
-		int i;
-
-		printk("av7110%d: ", av7110->num);
-		printk("%02x ", *(u8 *)av7110->debi_virt);
-		printk("%02x ", *(1+(u8 *)av7110->debi_virt));
-		for (i = 2; i < av7110->debilen; i++)
-			printk("%02x ", (*(i+(unsigned char *)av7110->debi_virt)));
-		for (i = 2; i < av7110->debilen; i++)
-			printk("%c", chtrans(*(i+(unsigned char *)av7110->debi_virt)));
-
-		printk("\n");
-	}
-#endif
 		xfer = RX_BUFF;
 		break;
 
