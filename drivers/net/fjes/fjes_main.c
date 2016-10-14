@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 
 #include "fjes.h"
+#include "fjes_trace.h"
 
 #define MAJ 1
 #define MIN 1
@@ -904,6 +905,7 @@ static void fjes_txrx_stop_req_irq(struct fjes_adapter *adapter,
 	unsigned long flags;
 
 	status = fjes_hw_get_partner_ep_status(hw, src_epid);
+	trace_fjes_txrx_stop_req_irq_pre(hw, src_epid, status);
 	switch (status) {
 	case EP_PARTNER_UNSHARE:
 	case EP_PARTNER_COMPLETE:
@@ -934,6 +936,7 @@ static void fjes_txrx_stop_req_irq(struct fjes_adapter *adapter,
 		}
 		break;
 	}
+	trace_fjes_txrx_stop_req_irq_post(hw, src_epid);
 }
 
 static void fjes_stop_req_irq(struct fjes_adapter *adapter, int src_epid)
@@ -945,6 +948,7 @@ static void fjes_stop_req_irq(struct fjes_adapter *adapter, int src_epid)
 	set_bit(src_epid, &hw->hw_info.buffer_unshare_reserve_bit);
 
 	status = fjes_hw_get_partner_ep_status(hw, src_epid);
+	trace_fjes_stop_req_irq_pre(hw, src_epid, status);
 	switch (status) {
 	case EP_PARTNER_WAITING:
 		spin_lock_irqsave(&hw->rx_status_lock, flags);
@@ -968,6 +972,7 @@ static void fjes_stop_req_irq(struct fjes_adapter *adapter, int src_epid)
 			queue_work(adapter->control_wq, &hw->epstop_task);
 		break;
 	}
+	trace_fjes_stop_req_irq_post(hw, src_epid);
 }
 
 static void fjes_update_zone_irq(struct fjes_adapter *adapter,

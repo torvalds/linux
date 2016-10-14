@@ -21,6 +21,7 @@
 
 #include "fjes_hw.h"
 #include "fjes.h"
+#include "fjes_trace.h"
 
 static void fjes_hw_update_zone_task(struct work_struct *);
 static void fjes_hw_epstop_task(struct work_struct *);
@@ -371,7 +372,7 @@ fjes_hw_issue_request_command(struct fjes_hw *hw,
 	enum fjes_dev_command_response_e ret = FJES_CMD_STATUS_UNKNOWN;
 	union REG_CR cr;
 	union REG_CS cs;
-	int timeout;
+	int timeout = FJES_COMMAND_REQ_TIMEOUT * 1000;
 
 	cr.reg = 0;
 	cr.bits.req_start = 1;
@@ -408,6 +409,8 @@ fjes_hw_issue_request_command(struct fjes_hw *hw,
 		}
 	}
 
+	trace_fjes_hw_issue_request_command(&cr, &cs, timeout, ret);
+
 	return ret;
 }
 
@@ -427,11 +430,13 @@ int fjes_hw_request_info(struct fjes_hw *hw)
 	res_buf->info.code = 0;
 
 	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_INFO);
+	trace_fjes_hw_request_info(hw, res_buf);
 
 	result = 0;
 
 	if (FJES_DEV_COMMAND_INFO_RES_LEN((*hw->hw_info.max_epid)) !=
 		res_buf->info.length) {
+		trace_fjes_hw_request_info_err("Invalid res_buf");
 		result = -ENOMSG;
 	} else if (ret == FJES_CMD_STATUS_NORMAL) {
 		switch (res_buf->info.code) {
@@ -448,6 +453,7 @@ int fjes_hw_request_info(struct fjes_hw *hw)
 			result = -EPERM;
 			break;
 		case FJES_CMD_STATUS_TIMEOUT:
+			trace_fjes_hw_request_info_err("Timeout");
 			result = -EBUSY;
 			break;
 		case FJES_CMD_STATUS_ERROR_PARAM:
@@ -512,6 +518,8 @@ int fjes_hw_register_buff_addr(struct fjes_hw *hw, int dest_epid,
 	res_buf->share_buffer.length = 0;
 	res_buf->share_buffer.code = 0;
 
+	trace_fjes_hw_register_buff_addr_req(req_buf, buf_pair);
+
 	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_SHARE_BUFFER);
 
 	timeout = FJES_COMMAND_REQ_BUFF_TIMEOUT * 1000;
@@ -532,16 +540,20 @@ int fjes_hw_register_buff_addr(struct fjes_hw *hw, int dest_epid,
 
 	result = 0;
 
+	trace_fjes_hw_register_buff_addr(res_buf, timeout);
+
 	if (res_buf->share_buffer.length !=
-			FJES_DEV_COMMAND_SHARE_BUFFER_RES_LEN)
+			FJES_DEV_COMMAND_SHARE_BUFFER_RES_LEN) {
+		trace_fjes_hw_register_buff_addr_err("Invalid res_buf");
 		result = -ENOMSG;
-	else if (ret == FJES_CMD_STATUS_NORMAL) {
+	} else if (ret == FJES_CMD_STATUS_NORMAL) {
 		switch (res_buf->share_buffer.code) {
 		case FJES_CMD_REQ_RES_CODE_NORMAL:
 			result = 0;
 			set_bit(dest_epid, &hw->hw_info.buffer_share_bit);
 			break;
 		case FJES_CMD_REQ_RES_CODE_BUSY:
+			trace_fjes_hw_register_buff_addr_err("Busy Timeout");
 			result = -EBUSY;
 			break;
 		default:
@@ -554,6 +566,7 @@ int fjes_hw_register_buff_addr(struct fjes_hw *hw, int dest_epid,
 			result = -EPERM;
 			break;
 		case FJES_CMD_STATUS_TIMEOUT:
+			trace_fjes_hw_register_buff_addr_err("Timeout");
 			result = -EBUSY;
 			break;
 		case FJES_CMD_STATUS_ERROR_PARAM:
@@ -595,6 +608,7 @@ int fjes_hw_unregister_buff_addr(struct fjes_hw *hw, int dest_epid)
 	res_buf->unshare_buffer.length = 0;
 	res_buf->unshare_buffer.code = 0;
 
+	trace_fjes_hw_unregister_buff_addr_req(req_buf);
 	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_UNSHARE_BUFFER);
 
 	timeout = FJES_COMMAND_REQ_BUFF_TIMEOUT * 1000;
@@ -616,8 +630,11 @@ int fjes_hw_unregister_buff_addr(struct fjes_hw *hw, int dest_epid)
 
 	result = 0;
 
+	trace_fjes_hw_unregister_buff_addr(res_buf, timeout);
+
 	if (res_buf->unshare_buffer.length !=
 			FJES_DEV_COMMAND_UNSHARE_BUFFER_RES_LEN) {
+		trace_fjes_hw_unregister_buff_addr_err("Invalid res_buf");
 		result = -ENOMSG;
 	} else if (ret == FJES_CMD_STATUS_NORMAL) {
 		switch (res_buf->unshare_buffer.code) {
@@ -626,6 +643,7 @@ int fjes_hw_unregister_buff_addr(struct fjes_hw *hw, int dest_epid)
 			clear_bit(dest_epid, &hw->hw_info.buffer_share_bit);
 			break;
 		case FJES_CMD_REQ_RES_CODE_BUSY:
+			trace_fjes_hw_unregister_buff_addr_err("Busy Timeout");
 			result = -EBUSY;
 			break;
 		default:
@@ -638,6 +656,7 @@ int fjes_hw_unregister_buff_addr(struct fjes_hw *hw, int dest_epid)
 			result = -EPERM;
 			break;
 		case FJES_CMD_STATUS_TIMEOUT:
+			trace_fjes_hw_unregister_buff_addr_err("Timeout");
 			result = -EBUSY;
 			break;
 		case FJES_CMD_STATUS_ERROR_PARAM:
