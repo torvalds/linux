@@ -10,9 +10,10 @@
 #ifndef _HNS_DSAF_MAC_H
 #define _HNS_DSAF_MAC_H
 
-#include <linux/phy.h>
-#include <linux/kernel.h>
 #include <linux/if_vlan.h>
+#include <linux/kernel.h>
+#include <linux/phy.h>
+#include <linux/regmap.h>
 #include "hns_dsaf_main.h"
 
 struct dsaf_device;
@@ -310,10 +311,15 @@ struct hns_mac_cb {
 	struct device *dev;
 	struct dsaf_device *dsaf_dev;
 	struct mac_priv priv;
+	struct fwnode_handle *fw_port;
 	u8 __iomem *vaddr;
-	u8 __iomem *cpld_vaddr;
 	u8 __iomem *sys_ctl_vaddr;
 	u8 __iomem *serdes_vaddr;
+	struct regmap *serdes_ctrl;
+	struct regmap *cpld_ctrl;
+	u32 cpld_ctrl_reg;
+	u32 port_rst_off;
+	u32 port_mode_off;
 	struct mac_entry_idx addr_entry_idx[DSAF_MAX_VM_NUM];
 	u8 sfp_prsnt;
 	u8 cpld_led_value;
@@ -329,10 +335,11 @@ struct hns_mac_cb {
 	u64 txpkt_for_led;
 	u64 rxpkt_for_led;
 	enum hnae_port_type mac_type;
+	enum hnae_media_type media_type;
 	phy_interface_t phy_if;
 	enum hnae_loop loop_mode;
 
-	struct device_node *phy_node;
+	struct phy_device *phy_dev;
 
 	struct mac_hw_stats hw_stats;
 };
@@ -442,8 +449,6 @@ int hns_mac_set_pauseparam(struct hns_mac_cb *mac_cb, u32 rx_en, u32 tx_en);
 int hns_mac_set_mtu(struct hns_mac_cb *mac_cb, u32 new_mtu);
 int hns_mac_get_port_info(struct hns_mac_cb *mac_cb,
 			  u8 *auto_neg, u16 *speed, u8 *duplex);
-phy_interface_t hns_mac_get_phy_if(struct hns_mac_cb *mac_cb);
-int hns_mac_config_sds_loopback(struct hns_mac_cb *mac_cb, u8 en);
 int hns_mac_config_mac_loopback(struct hns_mac_cb *mac_cb,
 				enum hnae_loop loop, int en);
 void hns_mac_update_stats(struct hns_mac_cb *mac_cb);

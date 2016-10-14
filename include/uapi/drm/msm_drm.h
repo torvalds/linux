@@ -20,6 +20,10 @@
 
 #include "drm.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /* Please note that modifications to all structs defined here are
  * subject to backwards-compatibility constraints:
  *  1) Do not use pointers, use __u64 instead for 32 bit / 64 bit
@@ -197,6 +201,27 @@ struct drm_msm_wait_fence {
 	struct drm_msm_timespec timeout;   /* in */
 };
 
+/* madvise provides a way to tell the kernel in case a buffers contents
+ * can be discarded under memory pressure, which is useful for userspace
+ * bo cache where we want to optimistically hold on to buffer allocate
+ * and potential mmap, but allow the pages to be discarded under memory
+ * pressure.
+ *
+ * Typical usage would involve madvise(DONTNEED) when buffer enters BO
+ * cache, and madvise(WILLNEED) if trying to recycle buffer from BO cache.
+ * In the WILLNEED case, 'retained' indicates to userspace whether the
+ * backing pages still exist.
+ */
+#define MSM_MADV_WILLNEED 0       /* backing pages are needed, status returned in 'retained' */
+#define MSM_MADV_DONTNEED 1       /* backing pages not needed */
+#define __MSM_MADV_PURGED 2       /* internal state */
+
+struct drm_msm_gem_madvise {
+	__u32 handle;         /* in, GEM handle */
+	__u32 madv;           /* in, MSM_MADV_x */
+	__u32 retained;       /* out, whether backing store still exists */
+};
+
 #define DRM_MSM_GET_PARAM              0x00
 /* placeholder:
 #define DRM_MSM_SET_PARAM              0x01
@@ -207,7 +232,8 @@ struct drm_msm_wait_fence {
 #define DRM_MSM_GEM_CPU_FINI           0x05
 #define DRM_MSM_GEM_SUBMIT             0x06
 #define DRM_MSM_WAIT_FENCE             0x07
-#define DRM_MSM_NUM_IOCTLS             0x08
+#define DRM_MSM_GEM_MADVISE            0x08
+#define DRM_MSM_NUM_IOCTLS             0x09
 
 #define DRM_IOCTL_MSM_GET_PARAM        DRM_IOWR(DRM_COMMAND_BASE + DRM_MSM_GET_PARAM, struct drm_msm_param)
 #define DRM_IOCTL_MSM_GEM_NEW          DRM_IOWR(DRM_COMMAND_BASE + DRM_MSM_GEM_NEW, struct drm_msm_gem_new)
@@ -216,5 +242,10 @@ struct drm_msm_wait_fence {
 #define DRM_IOCTL_MSM_GEM_CPU_FINI     DRM_IOW (DRM_COMMAND_BASE + DRM_MSM_GEM_CPU_FINI, struct drm_msm_gem_cpu_fini)
 #define DRM_IOCTL_MSM_GEM_SUBMIT       DRM_IOWR(DRM_COMMAND_BASE + DRM_MSM_GEM_SUBMIT, struct drm_msm_gem_submit)
 #define DRM_IOCTL_MSM_WAIT_FENCE       DRM_IOW (DRM_COMMAND_BASE + DRM_MSM_WAIT_FENCE, struct drm_msm_wait_fence)
+#define DRM_IOCTL_MSM_GEM_MADVISE      DRM_IOWR(DRM_COMMAND_BASE + DRM_MSM_GEM_MADVISE, struct drm_msm_gem_madvise)
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* __MSM_DRM_H__ */

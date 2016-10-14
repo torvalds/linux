@@ -44,8 +44,6 @@ static bool msr_mtrr_valid(unsigned msr)
 	case MSR_MTRRdefType:
 	case MSR_IA32_CR_PAT:
 		return true;
-	case 0x2f8:
-		return true;
 	}
 	return false;
 }
@@ -541,6 +539,7 @@ static void mtrr_lookup_var_start(struct mtrr_iter *iter)
 
 	iter->fixed = false;
 	iter->start_max = iter->start;
+	iter->range = NULL;
 	iter->range = list_prepare_entry(iter->range, &mtrr_state->head, node);
 
 	__mtrr_lookup_var_next(iter);

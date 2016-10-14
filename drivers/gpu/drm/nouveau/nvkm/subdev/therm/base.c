@@ -366,7 +366,7 @@ nvkm_therm_new_(const struct nvkm_therm_func *func, struct nvkm_device *device,
 	if (!(therm = *ptherm = kzalloc(sizeof(*therm), GFP_KERNEL)))
 		return -ENOMEM;
 
-	nvkm_subdev_ctor(&nvkm_therm, device, index, 0, &therm->subdev);
+	nvkm_subdev_ctor(&nvkm_therm, device, index, &therm->subdev);
 	therm->func = func;
 
 	nvkm_alarm_init(&therm->alarm, nvkm_therm_alarm);

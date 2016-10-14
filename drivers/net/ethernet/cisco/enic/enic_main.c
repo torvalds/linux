@@ -1566,7 +1566,7 @@ static int enic_request_intr(struct enic *enic)
 			intr = enic_msix_rq_intr(enic, i);
 			snprintf(enic->msix[intr].devname,
 				sizeof(enic->msix[intr].devname),
-				"%.11s-rx-%d", netdev->name, i);
+				"%.11s-rx-%u", netdev->name, i);
 			enic->msix[intr].isr = enic_isr_msix;
 			enic->msix[intr].devid = &enic->napi[i];
 		}
@@ -1577,7 +1577,7 @@ static int enic_request_intr(struct enic *enic)
 			intr = enic_msix_wq_intr(enic, i);
 			snprintf(enic->msix[intr].devname,
 				sizeof(enic->msix[intr].devname),
-				"%.11s-tx-%d", netdev->name, i);
+				"%.11s-tx-%u", netdev->name, i);
 			enic->msix[intr].isr = enic_isr_msix;
 			enic->msix[intr].devid = &enic->napi[wq];
 		}
@@ -2740,6 +2740,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->hw_features |= NETIF_F_RXCSUM;
 
 	netdev->features |= netdev->hw_features;
+	netdev->vlan_features |= netdev->features;
 
 #ifdef CONFIG_RFS_ACCEL
 	netdev->hw_features |= NETIF_F_NTUPLE;

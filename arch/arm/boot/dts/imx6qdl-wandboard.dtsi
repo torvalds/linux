@@ -85,7 +85,7 @@
 	codec: sgtl5000@0a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
-		clocks = <&clks 201>;
+		clocks = <&clks IMX6QDL_CLK_CKO>;
 		VDDA-supply = <&reg_2p5v>;
 		VDDIO-supply = <&reg_3p3v>;
 	};
@@ -211,6 +211,7 @@
 	phy-reset-gpios = <&gpio3 29 0>;
 	interrupts-extended = <&gpio1 6 IRQ_TYPE_LEVEL_HIGH>,
 			      <&intc 0 119 IRQ_TYPE_LEVEL_HIGH>;
+	fsl,err006687-workaround-present;
 	status = "okay";
 };
 
@@ -233,7 +234,7 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 

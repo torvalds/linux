@@ -46,8 +46,6 @@
 #include <linux/module.h>
 #include <linux/sysfs.h>
 
-#define DRV_VERSION "0.6"
-
 /* REGISTERS */
 #define PCF2123_REG_CTRL1	(0x00)	/* Control Register 1 */
 #define PCF2123_REG_CTRL2	(0x01)	/* Control Register 2 */
@@ -98,7 +96,7 @@
 #define CD_TMR_TE		BIT(3)	/* Countdown timer enable */
 
 /* PCF2123_REG_OFFSET BITS */
-#define OFFSET_SIGN_BIT		BIT(6)	/* 2's complement sign bit */
+#define OFFSET_SIGN_BIT		6	/* 2's complement sign bit */
 #define OFFSET_COARSE		BIT(7)	/* Coarse mode offset */
 #define OFFSET_STEP		(2170)	/* Offset step in parts per billion */
 
@@ -219,7 +217,7 @@ static int pcf2123_read_offset(struct device *dev, long *offset)
 	if (reg & OFFSET_COARSE)
 		reg <<= 1; /* multiply by 2 and sign extend */
 	else
-		reg |= (reg & OFFSET_SIGN_BIT) << 1; /* sign extend only */
+		reg = sign_extend32(reg, OFFSET_SIGN_BIT);
 
 	*offset = ((long)reg) * OFFSET_STEP;
 
@@ -395,7 +393,6 @@ static int pcf2123_probe(struct spi_device *spi)
 		}
 	}
 
-	dev_info(&spi->dev, "chip found, driver version " DRV_VERSION "\n");
 	dev_info(&spi->dev, "spiclk %u KHz.\n",
 			(spi->max_speed_hz + 500) / 1000);
 
@@ -474,4 +471,3 @@ module_spi_driver(pcf2123_driver);
 MODULE_AUTHOR("Chris Verges <chrisv@cyberswitching.com>");
 MODULE_DESCRIPTION("NXP PCF2123 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

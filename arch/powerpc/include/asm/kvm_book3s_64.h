@@ -181,8 +181,7 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 
 	switch (b_psize) {
 	case MMU_PAGE_4K:
-		sllp = ((mmu_psize_defs[a_psize].sllp & SLB_VSID_L) >> 6) |
-			((mmu_psize_defs[a_psize].sllp & SLB_VSID_LP) >> 4);
+		sllp = get_sllp_encoding(a_psize);
 		rb |= sllp << 5;	/*  AP field */
 		rb |= (va_low & 0x7ff) << 12;	/* remaining 11 bits of AVA */
 		break;
@@ -276,19 +275,24 @@ static inline unsigned long hpte_make_readonly(unsigned long ptel)
 	return ptel;
 }
 
-static inline int hpte_cache_flags_ok(unsigned long ptel, unsigned long io_type)
+static inline bool hpte_cache_flags_ok(unsigned long hptel, bool is_ci)
 {
-	unsigned int wimg = ptel & HPTE_R_WIMG;
+	unsigned int wimg = hptel & HPTE_R_WIMG;
 
 	/* Handle SAO */
 	if (wimg == (HPTE_R_W | HPTE_R_I | HPTE_R_M) &&
 	    cpu_has_feature(CPU_FTR_ARCH_206))
 		wimg = HPTE_R_M;
 
-	if (!io_type)
+	if (!is_ci)
 		return wimg == HPTE_R_M;
-
-	return (wimg & (HPTE_R_W | HPTE_R_I)) == io_type;
+	/*
+	 * if host is mapped cache inhibited, make sure hptel also have
+	 * cache inhibited.
+	 */
+	if (wimg & HPTE_R_W) /* FIXME!! is this ok for all guest. ? */
+		return false;
+	return !!(wimg & HPTE_R_I);
 }
 
 /*
@@ -305,9 +309,9 @@ static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing)
 		 */
 		old_pte = READ_ONCE(*ptep);
 		/*
-		 * wait until _PAGE_BUSY is clear then set it atomically
+		 * wait until H_PAGE_BUSY is clear then set it atomically
 		 */
-		if (unlikely(pte_val(old_pte) & _PAGE_BUSY)) {
+		if (unlikely(pte_val(old_pte) & H_PAGE_BUSY)) {
 			cpu_relax();
 			continue;
 		}
@@ -319,25 +323,10 @@ static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing)
 		if (writing && pte_write(old_pte))
 			new_pte = pte_mkdirty(new_pte);
 
-		if (pte_val(old_pte) == __cmpxchg_u64((unsigned long *)ptep,
-						      pte_val(old_pte),
-						      pte_val(new_pte))) {
+		if (pte_xchg(ptep, old_pte, new_pte))
 			break;
-		}
 	}
 	return new_pte;
-}
-
-
-/* Return HPTE cache control bits corresponding to Linux pte bits */
-static inline unsigned long hpte_cache_bits(unsigned long pte_val)
-{
-#if _PAGE_NO_CACHE == HPTE_R_I && _PAGE_WRITETHRU == HPTE_R_W
-	return pte_val & (HPTE_R_W | HPTE_R_I);
-#else
-	return ((pte_val & _PAGE_NO_CACHE) ? HPTE_R_I : 0) +
-		((pte_val & _PAGE_WRITETHRU) ? HPTE_R_W : 0);
-#endif
 }
 
 static inline bool hpte_read_permission(unsigned long pp, unsigned long key)

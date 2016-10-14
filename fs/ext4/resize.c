@@ -41,7 +41,7 @@ int ext4_resize_begin(struct super_block *sb)
 	 */
 	if (EXT4_SB(sb)->s_mount_state & EXT4_ERROR_FS) {
 		ext4_warning(sb, "There are errors in the filesystem, "
-			     "so online resizing is not allowed\n");
+			     "so online resizing is not allowed");
 		return -EPERM;
 	}
 

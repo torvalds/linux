@@ -176,12 +176,7 @@ struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, unsigned flags,
 	}
 	if (is_bad_inode(inode)) {
 		iput(inode);
-		if ((flags & OCFS2_FI_FLAG_FILECHECK_CHK) ||
-		    (flags & OCFS2_FI_FLAG_FILECHECK_FIX))
-			/* Return OCFS2_FILECHECK_ERR_XXX related errno */
-			inode = ERR_PTR(rc);
-		else
-			inode = ERR_PTR(-ESTALE);
+		inode = ERR_PTR(rc);
 		goto bail;
 	}
 
@@ -262,7 +257,7 @@ static int ocfs2_init_locked_inode(struct inode *inode, void *opaque)
 	inode->i_ino = args->fi_ino;
 	OCFS2_I(inode)->ip_blkno = args->fi_blkno;
 	if (args->fi_sysfile_type != 0)
-		lockdep_set_class(&inode->i_mutex,
+		lockdep_set_class(&inode->i_rwsem,
 			&ocfs2_sysfile_lock_key[args->fi_sysfile_type]);
 	if (args->fi_sysfile_type == USER_QUOTA_SYSTEM_INODE ||
 	    args->fi_sysfile_type == GROUP_QUOTA_SYSTEM_INODE ||

@@ -9,6 +9,8 @@
 /dts-v1/;
 #include "sama5d35.dtsi"
 #include "sama5d3xmb.dtsi"
+#include "sama5d3xmb_emac.dtsi"
+#include "sama5d3xmb_gmac.dtsi"
 
 / {
 	model = "Atmel SAMA5D35-EK";

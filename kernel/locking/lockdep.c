@@ -45,6 +45,8 @@
 #include <linux/bitops.h>
 #include <linux/gfp.h>
 #include <linux/kmemcheck.h>
+#include <linux/random.h>
+#include <linux/jhash.h>
 
 #include <asm/sections.h>
 
@@ -308,10 +310,14 @@ static struct hlist_head chainhash_table[CHAINHASH_SIZE];
  * It's a 64-bit hash, because it's important for the keys to be
  * unique.
  */
-#define iterate_chain_key(key1, key2) \
-	(((key1) << MAX_LOCKDEP_KEYS_BITS) ^ \
-	((key1) >> (64-MAX_LOCKDEP_KEYS_BITS)) ^ \
-	(key2))
+static inline u64 iterate_chain_key(u64 key, u32 idx)
+{
+	u32 k0 = key, k1 = key >> 32;
+
+	__jhash_mix(idx, k0, k1); /* Macro that modifies arguments! */
+
+	return k0 | (u64)k1 << 32;
+}
 
 void lockdep_off(void)
 {
@@ -708,7 +714,7 @@ look_up_lock_class(struct lockdep_map *lock, unsigned int subclass)
  * yet. Otherwise we look it up. We cache the result in the lock object
  * itself, so actual lookup of the hash should be once per lock object.
  */
-static inline struct lock_class *
+static struct lock_class *
 register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 {
 	struct lockdep_subclass_key *key;
@@ -3585,7 +3591,35 @@ static int __lock_is_held(struct lockdep_map *lock)
 	return 0;
 }
 
-static void __lock_pin_lock(struct lockdep_map *lock)
+static struct pin_cookie __lock_pin_lock(struct lockdep_map *lock)
+{
+	struct pin_cookie cookie = NIL_COOKIE;
+	struct task_struct *curr = current;
+	int i;
+
+	if (unlikely(!debug_locks))
+		return cookie;
+
+	for (i = 0; i < curr->lockdep_depth; i++) {
+		struct held_lock *hlock = curr->held_locks + i;
+
+		if (match_held_lock(hlock, lock)) {
+			/*
+			 * Grab 16bits of randomness; this is sufficient to not
+			 * be guessable and still allows some pin nesting in
+			 * our u32 pin_count.
+			 */
+			cookie.val = 1 + (prandom_u32() >> 16);
+			hlock->pin_count += cookie.val;
+			return cookie;
+		}
+	}
+
+	WARN(1, "pinning an unheld lock\n");
+	return cookie;
+}
+
+static void __lock_repin_lock(struct lockdep_map *lock, struct pin_cookie cookie)
 {
 	struct task_struct *curr = current;
 	int i;
@@ -3597,7 +3631,7 @@ static void __lock_pin_lock(struct lockdep_map *lock)
 		struct held_lock *hlock = curr->held_locks + i;
 
 		if (match_held_lock(hlock, lock)) {
-			hlock->pin_count++;
+			hlock->pin_count += cookie.val;
 			return;
 		}
 	}
@@ -3605,7 +3639,7 @@ static void __lock_pin_lock(struct lockdep_map *lock)
 	WARN(1, "pinning an unheld lock\n");
 }
 
-static void __lock_unpin_lock(struct lockdep_map *lock)
+static void __lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie cookie)
 {
 	struct task_struct *curr = current;
 	int i;
@@ -3620,7 +3654,11 @@ static void __lock_unpin_lock(struct lockdep_map *lock)
 			if (WARN(!hlock->pin_count, "unpinning an unpinned lock\n"))
 				return;
 
-			hlock->pin_count--;
+			hlock->pin_count -= cookie.val;
+
+			if (WARN((int)hlock->pin_count < 0, "pin count corrupted\n"))
+				hlock->pin_count = 0;
+
 			return;
 		}
 	}
@@ -3751,24 +3789,27 @@ int lock_is_held(struct lockdep_map *lock)
 }
 EXPORT_SYMBOL_GPL(lock_is_held);
 
-void lock_pin_lock(struct lockdep_map *lock)
+struct pin_cookie lock_pin_lock(struct lockdep_map *lock)
 {
+	struct pin_cookie cookie = NIL_COOKIE;
 	unsigned long flags;
 
 	if (unlikely(current->lockdep_recursion))
-		return;
+		return cookie;
 
 	raw_local_irq_save(flags);
 	check_flags(flags);
 
 	current->lockdep_recursion = 1;
-	__lock_pin_lock(lock);
+	cookie = __lock_pin_lock(lock);
 	current->lockdep_recursion = 0;
 	raw_local_irq_restore(flags);
+
+	return cookie;
 }
 EXPORT_SYMBOL_GPL(lock_pin_lock);
 
-void lock_unpin_lock(struct lockdep_map *lock)
+void lock_repin_lock(struct lockdep_map *lock, struct pin_cookie cookie)
 {
 	unsigned long flags;
 
@@ -3779,7 +3820,24 @@ void lock_unpin_lock(struct lockdep_map *lock)
 	check_flags(flags);
 
 	current->lockdep_recursion = 1;
-	__lock_unpin_lock(lock);
+	__lock_repin_lock(lock, cookie);
+	current->lockdep_recursion = 0;
+	raw_local_irq_restore(flags);
+}
+EXPORT_SYMBOL_GPL(lock_repin_lock);
+
+void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie cookie)
+{
+	unsigned long flags;
+
+	if (unlikely(current->lockdep_recursion))
+		return;
+
+	raw_local_irq_save(flags);
+	check_flags(flags);
+
+	current->lockdep_recursion = 1;
+	__lock_unpin_lock(lock, cookie);
 	current->lockdep_recursion = 0;
 	raw_local_irq_restore(flags);
 }

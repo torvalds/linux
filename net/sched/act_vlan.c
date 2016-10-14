@@ -22,16 +22,17 @@
 #define VLAN_TAB_MASK     15
 
 static int vlan_net_id;
+static struct tc_action_ops act_vlan_ops;
 
 static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
 		    struct tcf_result *res)
 {
-	struct tcf_vlan *v = a->priv;
+	struct tcf_vlan *v = to_vlan(a);
 	int action;
 	int err;
 
 	spin_lock(&v->tcf_lock);
-	v->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&v->tcf_tm);
 	bstats_update(&v->tcf_bstats, skb);
 	action = v->tcf_action;
 
@@ -67,7 +68,7 @@ static const struct nla_policy vlan_policy[TCA_VLAN_MAX + 1] = {
 };
 
 static int tcf_vlan_init(struct net *net, struct nlattr *nla,
-			 struct nlattr *est, struct tc_action *a,
+			 struct nlattr *est, struct tc_action **a,
 			 int ovr, int bind)
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
@@ -77,8 +78,8 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	int action;
 	__be16 push_vid = 0;
 	__be16 push_proto = 0;
-	int ret = 0, exists = 0;
-	int err;
+	bool exists = false;
+	int ret = 0, err;
 
 	if (!nla)
 		return -EINVAL;
@@ -100,13 +101,13 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	case TCA_VLAN_ACT_PUSH:
 		if (!tb[TCA_VLAN_PUSH_VLAN_ID]) {
 			if (exists)
-				tcf_hash_release(a, bind);
+				tcf_hash_release(*a, bind);
 			return -EINVAL;
 		}
 		push_vid = nla_get_u16(tb[TCA_VLAN_PUSH_VLAN_ID]);
 		if (push_vid >= VLAN_VID_MASK) {
 			if (exists)
-				tcf_hash_release(a, bind);
+				tcf_hash_release(*a, bind);
 			return -ERANGE;
 		}
 
@@ -125,25 +126,25 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 		break;
 	default:
 		if (exists)
-			tcf_hash_release(a, bind);
+			tcf_hash_release(*a, bind);
 		return -EINVAL;
 	}
 	action = parm->v_action;
 
 	if (!exists) {
 		ret = tcf_hash_create(tn, parm->index, est, a,
-				      sizeof(*v), bind, false);
+				      &act_vlan_ops, bind, false);
 		if (ret)
 			return ret;
 
 		ret = ACT_P_CREATED;
 	} else {
-		tcf_hash_release(a, bind);
+		tcf_hash_release(*a, bind);
 		if (!ovr)
 			return -EEXIST;
 	}
 
-	v = to_vlan(a);
+	v = to_vlan(*a);
 
 	spin_lock_bh(&v->tcf_lock);
 
@@ -156,7 +157,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	spin_unlock_bh(&v->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(tn, a);
+		tcf_hash_insert(tn, *a);
 	return ret;
 }
 
@@ -164,7 +165,7 @@ static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,
 			 int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
-	struct tcf_vlan *v = a->priv;
+	struct tcf_vlan *v = to_vlan(a);
 	struct tc_vlan opt = {
 		.index    = v->tcf_index,
 		.refcnt   = v->tcf_refcnt - ref,
@@ -179,13 +180,12 @@ static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,
 
 	if (v->tcfv_action == TCA_VLAN_ACT_PUSH &&
 	    (nla_put_u16(skb, TCA_VLAN_PUSH_VLAN_ID, v->tcfv_push_vid) ||
-	     nla_put_be16(skb, TCA_VLAN_PUSH_VLAN_PROTOCOL, v->tcfv_push_proto)))
+	     nla_put_be16(skb, TCA_VLAN_PUSH_VLAN_PROTOCOL,
+			  v->tcfv_push_proto)))
 		goto nla_put_failure;
 
-	t.install = jiffies_to_clock_t(jiffies - v->tcf_tm.install);
-	t.lastuse = jiffies_to_clock_t(jiffies - v->tcf_tm.lastuse);
-	t.expires = jiffies_to_clock_t(v->tcf_tm.expires);
-	if (nla_put(skb, TCA_VLAN_TM, sizeof(t), &t))
+	tcf_tm_dump(&t, &v->tcf_tm);
+	if (nla_put_64bit(skb, TCA_VLAN_TM, sizeof(t), &t, TCA_VLAN_PAD))
 		goto nla_put_failure;
 	return skb->len;
 
@@ -196,14 +196,14 @@ nla_put_failure:
 
 static int tcf_vlan_walker(struct net *net, struct sk_buff *skb,
 			   struct netlink_callback *cb, int type,
-			   struct tc_action *a)
+			   const struct tc_action_ops *ops)
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, a);
+	return tcf_generic_walker(tn, skb, cb, type, ops);
 }
 
-static int tcf_vlan_search(struct net *net, struct tc_action *a, u32 index)
+static int tcf_vlan_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
 
@@ -219,6 +219,7 @@ static struct tc_action_ops act_vlan_ops = {
 	.init		=	tcf_vlan_init,
 	.walk		=	tcf_vlan_walker,
 	.lookup		=	tcf_vlan_search,
+	.size		=	sizeof(struct tcf_vlan),
 };
 
 static __net_init int vlan_init_net(struct net *net)

@@ -480,7 +480,7 @@ static void esd_usb2_write_bulk_callback(struct urb *urb)
 	if (urb->status)
 		netdev_info(netdev, "Tx URB aborted (%d)\n", urb->status);
 
-	netdev->trans_start = jiffies;
+	netif_trans_update(netdev);
 }
 
 static ssize_t show_firmware(struct device *d,
@@ -820,7 +820,7 @@ static netdev_tx_t esd_usb2_start_xmit(struct sk_buff *skb,
 		goto releasebuf;
 	}
 
-	netdev->trans_start = jiffies;
+	netif_trans_update(netdev);
 
 	/*
 	 * Release our reference to this URB, the USB core will eventually free

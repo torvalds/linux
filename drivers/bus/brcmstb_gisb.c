@@ -30,6 +30,10 @@
 #include <asm/signal.h>
 #endif
 
+#ifdef CONFIG_MIPS
+#include <asm/traps.h>
+#endif
+
 #define  ARB_ERR_CAP_CLEAR		(1 << 0)
 #define  ARB_ERR_CAP_STATUS_TIMEOUT	(1 << 12)
 #define  ARB_ERR_CAP_STATUS_TEA		(1 << 11)
@@ -238,6 +242,29 @@ static int brcmstb_bus_error_handler(unsigned long addr, unsigned int fsr,
 }
 #endif
 
+#ifdef CONFIG_MIPS
+static int brcmstb_bus_error_handler(struct pt_regs *regs, int is_fixup)
+{
+	int ret = 0;
+	struct brcmstb_gisb_arb_device *gdev;
+	u32 cap_status;
+
+	list_for_each_entry(gdev, &brcmstb_gisb_arb_device_list, next) {
+		cap_status = gisb_read(gdev, ARB_ERR_CAP_STATUS);
+
+		/* Invalid captured address, bail out */
+		if (!(cap_status & ARB_ERR_CAP_STATUS_VALID)) {
+			is_fixup = 1;
+			goto out;
+		}
+
+		ret |= brcmstb_gisb_arb_decode_addr(gdev, "bus error");
+	}
+out:
+	return is_fixup ? MIPS_BE_FIXUP : MIPS_BE_FATAL;
+}
+#endif
+
 static irqreturn_t brcmstb_gisb_timeout_handler(int irq, void *dev_id)
 {
 	brcmstb_gisb_arb_decode_addr(dev_id, "timeout");
@@ -354,6 +381,9 @@ static int __init brcmstb_gisb_arb_probe(struct platform_device *pdev)
 #ifdef CONFIG_ARM
 	hook_fault_code(22, brcmstb_bus_error_handler, SIGBUS, 0,
 			"imprecise external abort");
+#endif
+#ifdef CONFIG_MIPS
+	board_be_handler = brcmstb_bus_error_handler;
 #endif
 
 	dev_info(&pdev->dev, "registered mem: %p, irqs: %d, %d\n",

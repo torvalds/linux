@@ -1041,7 +1041,7 @@ static netdev_tx_t axnet_start_xmit(struct sk_buff *skb,
 	{
 		ei_local->txing = 1;
 		NS8390_trigger_send(dev, send_length, output_page);
-		dev->trans_start = jiffies;
+		netif_trans_update(dev);
 		if (output_page == ei_local->tx_start_page) 
 		{
 			ei_local->tx1 = -1;
@@ -1270,7 +1270,7 @@ static void ei_tx_intr(struct net_device *dev)
 		{
 			ei_local->txing = 1;
 			NS8390_trigger_send(dev, ei_local->tx2, ei_local->tx_start_page + 6);
-			dev->trans_start = jiffies;
+			netif_trans_update(dev);
 			ei_local->tx2 = -1,
 			ei_local->lasttx = 2;
 		}
@@ -1287,7 +1287,7 @@ static void ei_tx_intr(struct net_device *dev)
 		{
 			ei_local->txing = 1;
 			NS8390_trigger_send(dev, ei_local->tx1, ei_local->tx_start_page);
-			dev->trans_start = jiffies;
+			netif_trans_update(dev);
 			ei_local->tx1 = -1;
 			ei_local->lasttx = 1;
 		}

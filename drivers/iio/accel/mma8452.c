@@ -1,22 +1,23 @@
 /*
- * mma8452.c - Support for following Freescale 3-axis accelerometers:
+ * mma8452.c - Support for following Freescale / NXP 3-axis accelerometers:
  *
- * MMA8451Q (14 bit)
- * MMA8452Q (12 bit)
- * MMA8453Q (10 bit)
- * MMA8652FC (12 bit)
- * MMA8653FC (10 bit)
+ * device name	digital output	7-bit I2C slave address (pin selectable)
+ * ---------------------------------------------------------------------
+ * MMA8451Q	14 bit		0x1c / 0x1d
+ * MMA8452Q	12 bit		0x1c / 0x1d
+ * MMA8453Q	10 bit		0x1c / 0x1d
+ * MMA8652FC	12 bit		0x1d
+ * MMA8653FC	10 bit		0x1d
+ * FXLS8471Q	14 bit		0x1e / 0x1d / 0x1c / 0x1f
  *
- * Copyright 2015 Martin Kepplinger <martin.kepplinger@theobroma-systems.com>
+ * Copyright 2015 Martin Kepplinger <martink@posteo.de>
  * Copyright 2014 Peter Meerwald <pmeerw@pmeerw.net>
  *
  * This file is subject to the terms and conditions of version 2 of
  * the GNU General Public License.  See the file COPYING in the main
  * directory of this archive for more details.
  *
- * 7-bit I2C slave address 0x1c/0x1d (pin selectable)
- *
- * TODO: orientation events, autosleep
+ * TODO: orientation events
  */
 
 #include <linux/module.h>
@@ -31,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
+#include <linux/pm_runtime.h>
 
 #define MMA8452_STATUS				0x00
 #define  MMA8452_STATUS_DRDY			(BIT(2) | BIT(1) | BIT(0))
@@ -74,6 +76,8 @@
 #define  MMA8452_CTRL_DR_DEFAULT		0x4 /* 50 Hz sample frequency */
 #define MMA8452_CTRL_REG2			0x2b
 #define  MMA8452_CTRL_REG2_RST			BIT(6)
+#define  MMA8452_CTRL_REG2_MODS_SHIFT		3
+#define  MMA8452_CTRL_REG2_MODS_MASK		0x1b
 #define MMA8452_CTRL_REG4			0x2d
 #define MMA8452_CTRL_REG5			0x2e
 #define MMA8452_OFF_X				0x2f
@@ -91,6 +95,9 @@
 #define MMA8453_DEVICE_ID			0x3a
 #define MMA8652_DEVICE_ID			0x4a
 #define MMA8653_DEVICE_ID			0x5a
+#define FXLS8471_DEVICE_ID			0x6a
+
+#define MMA8452_AUTO_SUSPEND_DELAY_MS		2000
 
 struct mma8452_data {
 	struct i2c_client *client;
@@ -101,7 +108,7 @@ struct mma8452_data {
 };
 
 /**
- * struct mma_chip_info - chip specific data for Freescale's accelerometers
+ * struct mma_chip_info - chip specific data
  * @chip_id:			WHO_AM_I register's value
  * @channels:			struct iio_chan_spec matching the device's
  *				capabilities
@@ -172,6 +179,31 @@ static int mma8452_drdy(struct mma8452_data *data)
 	return -EIO;
 }
 
+static int mma8452_set_runtime_pm_state(struct i2c_client *client, bool on)
+{
+#ifdef CONFIG_PM
+	int ret;
+
+	if (on) {
+		ret = pm_runtime_get_sync(&client->dev);
+	} else {
+		pm_runtime_mark_last_busy(&client->dev);
+		ret = pm_runtime_put_autosuspend(&client->dev);
+	}
+
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"failed to change power state to %d\n", on);
+		if (on)
+			pm_runtime_put_noidle(&client->dev);
+
+		return ret;
+	}
+#endif
+
+	return 0;
+}
+
 static int mma8452_read(struct mma8452_data *data, __be16 buf[3])
 {
 	int ret = mma8452_drdy(data);
@@ -179,8 +211,16 @@ static int mma8452_read(struct mma8452_data *data, __be16 buf[3])
 	if (ret < 0)
 		return ret;
 
-	return i2c_smbus_read_i2c_block_data(data->client, MMA8452_OUT_X,
-					     3 * sizeof(__be16), (u8 *)buf);
+	ret = mma8452_set_runtime_pm_state(data->client, true);
+	if (ret)
+		return ret;
+
+	ret = i2c_smbus_read_i2c_block_data(data->client, MMA8452_OUT_X,
+					    3 * sizeof(__be16), (u8 *)buf);
+
+	ret = mma8452_set_runtime_pm_state(data->client, false);
+
+	return ret;
 }
 
 static ssize_t mma8452_show_int_plus_micros(char *buf, const int (*vals)[2],
@@ -219,20 +259,17 @@ static const int mma8452_samp_freq[8][2] = {
 	{6, 250000}, {1, 560000}
 };
 
-/* Datasheet table 35  (step time vs sample frequency) */
-static const int mma8452_transient_time_step_us[8] = {
-	1250,
-	2500,
-	5000,
-	10000,
-	20000,
-	20000,
-	20000,
-	20000
+/* Datasheet table: step time "Relationship with the ODR" (sample frequency) */
+static const int mma8452_transient_time_step_us[4][8] = {
+	{ 1250, 2500, 5000, 10000, 20000, 20000, 20000, 20000 },  /* normal */
+	{ 1250, 2500, 5000, 10000, 20000, 80000, 80000, 80000 },  /* l p l n */
+	{ 1250, 2500, 2500, 2500, 2500, 2500, 2500, 2500 },	  /* high res*/
+	{ 1250, 2500, 5000, 10000, 20000, 80000, 160000, 160000 } /* l p */
 };
 
-/* Datasheet table 18 (normal mode) */
-static const int mma8452_hp_filter_cutoff[8][4][2] = {
+/* Datasheet table "High-Pass Filter Cutoff Options" */
+static const int mma8452_hp_filter_cutoff[4][8][4][2] = {
+	{ /* normal */
 	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },		/* 800 Hz sample */
 	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },		/* 400 Hz sample */
 	{ {8, 0}, {4, 0}, {2, 0}, {1, 0} },		/* 200 Hz sample */
@@ -241,7 +278,60 @@ static const int mma8452_hp_filter_cutoff[8][4][2] = {
 	{ {2, 0}, {1, 0}, {0, 500000}, {0, 250000} },	/* 12.5 Hz sample */
 	{ {2, 0}, {1, 0}, {0, 500000}, {0, 250000} },	/* 6.25 Hz sample */
 	{ {2, 0}, {1, 0}, {0, 500000}, {0, 250000} }	/* 1.56 Hz sample */
+	},
+	{ /* low noise low power */
+	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },
+	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },
+	{ {8, 0}, {4, 0}, {2, 0}, {1, 0} },
+	{ {4, 0}, {2, 0}, {1, 0}, {0, 500000} },
+	{ {2, 0}, {1, 0}, {0, 500000}, {0, 250000} },
+	{ {0, 500000}, {0, 250000}, {0, 125000}, {0, 063000} },
+	{ {0, 500000}, {0, 250000}, {0, 125000}, {0, 063000} },
+	{ {0, 500000}, {0, 250000}, {0, 125000}, {0, 063000} }
+	},
+	{ /* high resolution */
+	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },
+	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },
+	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },
+	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },
+	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },
+	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },
+	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },
+	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} }
+	},
+	{ /* low power */
+	{ {16, 0}, {8, 0}, {4, 0}, {2, 0} },
+	{ {8, 0}, {4, 0}, {2, 0}, {1, 0} },
+	{ {4, 0}, {2, 0}, {1, 0}, {0, 500000} },
+	{ {2, 0}, {1, 0}, {0, 500000}, {0, 250000} },
+	{ {1, 0}, {0, 500000}, {0, 250000}, {0, 125000} },
+	{ {0, 250000}, {0, 125000}, {0, 063000}, {0, 031000} },
+	{ {0, 250000}, {0, 125000}, {0, 063000}, {0, 031000} },
+	{ {0, 250000}, {0, 125000}, {0, 063000}, {0, 031000} }
+	}
 };
+
+/* Datasheet table "MODS Oversampling modes averaging values at each ODR" */
+static const u16 mma8452_os_ratio[4][8] = {
+	/* 800 Hz, 400 Hz, ... , 1.56 Hz */
+	{ 2, 4, 4, 4, 4, 16, 32, 128 },		/* normal */
+	{ 2, 4, 4, 4, 4, 4, 8, 32 },		/* low power low noise */
+	{ 2, 4, 8, 16, 32, 128, 256, 1024 },	/* high resolution */
+	{ 2, 2, 2, 2, 2, 2, 4, 16 }		/* low power */
+};
+
+static int mma8452_get_power_mode(struct mma8452_data *data)
+{
+	int reg;
+
+	reg = i2c_smbus_read_byte_data(data->client,
+				       MMA8452_CTRL_REG2);
+	if (reg < 0)
+		return reg;
+
+	return ((reg & MMA8452_CTRL_REG2_MODS_MASK) >>
+		MMA8452_CTRL_REG2_MODS_SHIFT);
+}
 
 static ssize_t mma8452_show_samp_freq_avail(struct device *dev,
 					    struct device_attribute *attr,
@@ -268,10 +358,39 @@ static ssize_t mma8452_show_hp_cutoff_avail(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct mma8452_data *data = iio_priv(indio_dev);
-	int i = mma8452_get_odr_index(data);
+	int i, j;
 
-	return mma8452_show_int_plus_micros(buf, mma8452_hp_filter_cutoff[i],
-		ARRAY_SIZE(mma8452_hp_filter_cutoff[0]));
+	i = mma8452_get_odr_index(data);
+	j = mma8452_get_power_mode(data);
+	if (j < 0)
+		return j;
+
+	return mma8452_show_int_plus_micros(buf, mma8452_hp_filter_cutoff[j][i],
+		ARRAY_SIZE(mma8452_hp_filter_cutoff[0][0]));
+}
+
+static ssize_t mma8452_show_os_ratio_avail(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct mma8452_data *data = iio_priv(indio_dev);
+	int i = mma8452_get_odr_index(data);
+	int j;
+	u16 val = 0;
+	size_t len = 0;
+
+	for (j = 0; j < ARRAY_SIZE(mma8452_os_ratio); j++) {
+		if (val == mma8452_os_ratio[j][i])
+			continue;
+
+		val = mma8452_os_ratio[j][i];
+
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%d ", val);
+	}
+	buf[len - 1] = '\n';
+
+	return len;
 }
 
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(mma8452_show_samp_freq_avail);
@@ -279,6 +398,8 @@ static IIO_DEVICE_ATTR(in_accel_scale_available, S_IRUGO,
 		       mma8452_show_scale_avail, NULL, 0);
 static IIO_DEVICE_ATTR(in_accel_filter_high_pass_3db_frequency_available,
 		       S_IRUGO, mma8452_show_hp_cutoff_avail, NULL, 0);
+static IIO_DEVICE_ATTR(in_accel_oversampling_ratio_available, S_IRUGO,
+		       mma8452_show_os_ratio_avail, NULL, 0);
 
 static int mma8452_get_samp_freq_index(struct mma8452_data *data,
 				       int val, int val2)
@@ -297,24 +418,33 @@ static int mma8452_get_scale_index(struct mma8452_data *data, int val, int val2)
 static int mma8452_get_hp_filter_index(struct mma8452_data *data,
 				       int val, int val2)
 {
-	int i = mma8452_get_odr_index(data);
+	int i, j;
 
-	return mma8452_get_int_plus_micros_index(mma8452_hp_filter_cutoff[i],
-		ARRAY_SIZE(mma8452_hp_filter_cutoff[0]), val, val2);
+	i = mma8452_get_odr_index(data);
+	j = mma8452_get_power_mode(data);
+	if (j < 0)
+		return j;
+
+	return mma8452_get_int_plus_micros_index(mma8452_hp_filter_cutoff[j][i],
+		ARRAY_SIZE(mma8452_hp_filter_cutoff[0][0]), val, val2);
 }
 
 static int mma8452_read_hp_filter(struct mma8452_data *data, int *hz, int *uHz)
 {
-	int i, ret;
+	int j, i, ret;
 
 	ret = i2c_smbus_read_byte_data(data->client, MMA8452_HP_FILTER_CUTOFF);
 	if (ret < 0)
 		return ret;
 
 	i = mma8452_get_odr_index(data);
+	j = mma8452_get_power_mode(data);
+	if (j < 0)
+		return j;
+
 	ret &= MMA8452_HP_FILTER_CUTOFF_SEL_MASK;
-	*hz = mma8452_hp_filter_cutoff[i][ret][0];
-	*uHz = mma8452_hp_filter_cutoff[i][ret][1];
+	*hz = mma8452_hp_filter_cutoff[j][i][ret][0];
+	*uHz = mma8452_hp_filter_cutoff[j][i][ret][1];
 
 	return 0;
 }
@@ -357,7 +487,8 @@ static int mma8452_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		ret = i2c_smbus_read_byte_data(data->client,
-					      MMA8452_OFF_X + chan->scan_index);
+					       MMA8452_OFF_X +
+					       chan->scan_index);
 		if (ret < 0)
 			return ret;
 
@@ -375,6 +506,15 @@ static int mma8452_read_raw(struct iio_dev *indio_dev,
 		}
 
 		return IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		ret = mma8452_get_power_mode(data);
+		if (ret < 0)
+			return ret;
+
+		i = mma8452_get_odr_index(data);
+
+		*val = mma8452_os_ratio[ret][i];
+		return IIO_VAL_INT;
 	}
 
 	return -EINVAL;
@@ -392,24 +532,47 @@ static int mma8452_active(struct mma8452_data *data)
 					 data->ctrl_reg1);
 }
 
+/* returns >0 if active, 0 if in standby and <0 on error */
+static int mma8452_is_active(struct mma8452_data *data)
+{
+	int reg;
+
+	reg = i2c_smbus_read_byte_data(data->client, MMA8452_CTRL_REG1);
+	if (reg < 0)
+		return reg;
+
+	return reg & MMA8452_CTRL_ACTIVE;
+}
+
 static int mma8452_change_config(struct mma8452_data *data, u8 reg, u8 val)
 {
 	int ret;
+	int is_active;
 
 	mutex_lock(&data->lock);
 
-	/* config can only be changed when in standby */
-	ret = mma8452_standby(data);
-	if (ret < 0)
+	is_active = mma8452_is_active(data);
+	if (is_active < 0) {
+		ret = is_active;
 		goto fail;
+	}
+
+	/* config can only be changed when in standby */
+	if (is_active > 0) {
+		ret = mma8452_standby(data);
+		if (ret < 0)
+			goto fail;
+	}
 
 	ret = i2c_smbus_write_byte_data(data->client, reg, val);
 	if (ret < 0)
 		goto fail;
 
-	ret = mma8452_active(data);
-	if (ret < 0)
-		goto fail;
+	if (is_active > 0) {
+		ret = mma8452_active(data);
+		if (ret < 0)
+			goto fail;
+	}
 
 	ret = 0;
 fail:
@@ -418,7 +581,22 @@ fail:
 	return ret;
 }
 
-/* returns >0 if in freefall mode, 0 if not or <0 if an error occured */
+static int mma8452_set_power_mode(struct mma8452_data *data, u8 mode)
+{
+	int reg;
+
+	reg = i2c_smbus_read_byte_data(data->client,
+				       MMA8452_CTRL_REG2);
+	if (reg < 0)
+		return reg;
+
+	reg &= ~MMA8452_CTRL_REG2_MODS_MASK;
+	reg |= mode << MMA8452_CTRL_REG2_MODS_SHIFT;
+
+	return mma8452_change_config(data, MMA8452_CTRL_REG2, reg);
+}
+
+/* returns >0 if in freefall mode, 0 if not or <0 if an error occurred */
 static int mma8452_freefall_mode_enabled(struct mma8452_data *data)
 {
 	int val;
@@ -456,11 +634,7 @@ static int mma8452_set_freefall_mode(struct mma8452_data *data, bool state)
 		val |= MMA8452_FF_MT_CFG_OAE;
 	}
 
-	val = mma8452_change_config(data, chip->ev_cfg, val);
-	if (val)
-		return val;
-
-	return 0;
+	return mma8452_change_config(data, chip->ev_cfg, val);
 }
 
 static int mma8452_set_hp_filter_frequency(struct mma8452_data *data,
@@ -535,6 +709,14 @@ static int mma8452_write_raw(struct iio_dev *indio_dev,
 		return mma8452_change_config(data, MMA8452_DATA_CFG,
 					     data->data_cfg);
 
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		ret = mma8452_get_odr_index(data);
+
+		for (i = 0; i < ARRAY_SIZE(mma8452_os_ratio); i++) {
+			if (mma8452_os_ratio[i][ret] == val)
+				return mma8452_set_power_mode(data, i);
+		}
+
 	default:
 		return -EINVAL;
 	}
@@ -548,7 +730,7 @@ static int mma8452_read_thresh(struct iio_dev *indio_dev,
 			       int *val, int *val2)
 {
 	struct mma8452_data *data = iio_priv(indio_dev);
-	int ret, us;
+	int ret, us, power_mode;
 
 	switch (info) {
 	case IIO_EV_INFO_VALUE:
@@ -567,7 +749,11 @@ static int mma8452_read_thresh(struct iio_dev *indio_dev,
 		if (ret < 0)
 			return ret;
 
-		us = ret * mma8452_transient_time_step_us[
+		power_mode = mma8452_get_power_mode(data);
+		if (power_mode < 0)
+			return power_mode;
+
+		us = ret * mma8452_transient_time_step_us[power_mode][
 				mma8452_get_odr_index(data)];
 		*val = us / USEC_PER_SEC;
 		*val2 = us % USEC_PER_SEC;
@@ -615,8 +801,12 @@ static int mma8452_write_thresh(struct iio_dev *indio_dev,
 					     val);
 
 	case IIO_EV_INFO_PERIOD:
+		ret = mma8452_get_power_mode(data);
+		if (ret < 0)
+			return ret;
+
 		steps = (val * USEC_PER_SEC + val2) /
-				mma8452_transient_time_step_us[
+				mma8452_transient_time_step_us[ret][
 					mma8452_get_odr_index(data)];
 
 		if (steps < 0 || steps > 0xff)
@@ -668,7 +858,8 @@ static int mma8452_read_event_config(struct iio_dev *indio_dev,
 		if (ret < 0)
 			return ret;
 
-		return !!(ret & BIT(chan->scan_index + chip->ev_cfg_chan_shift));
+		return !!(ret & BIT(chan->scan_index +
+				    chip->ev_cfg_chan_shift));
 	default:
 		return -EINVAL;
 	}
@@ -682,7 +873,11 @@ static int mma8452_write_event_config(struct iio_dev *indio_dev,
 {
 	struct mma8452_data *data = iio_priv(indio_dev);
 	const struct mma_chip_info *chip = data->chip_info;
-	int val;
+	int val, ret;
+
+	ret = mma8452_set_runtime_pm_state(data->client, state);
+	if (ret)
+		return ret;
 
 	switch (dir) {
 	case IIO_EV_DIR_FALLING:
@@ -718,7 +913,7 @@ static int mma8452_write_event_config(struct iio_dev *indio_dev,
 static void mma8452_transient_interrupt(struct iio_dev *indio_dev)
 {
 	struct mma8452_data *data = iio_priv(indio_dev);
-	s64 ts = iio_get_time_ns();
+	s64 ts = iio_get_time_ns(indio_dev);
 	int src;
 
 	src = i2c_smbus_read_byte_data(data->client, data->chip_info->ev_src);
@@ -798,7 +993,7 @@ static irqreturn_t mma8452_trigger_handler(int irq, void *p)
 		goto done;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
-					   iio_get_time_ns());
+					   iio_get_time_ns(indio_dev));
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -911,7 +1106,8 @@ static struct attribute_group mma8452_event_attribute_group = {
 			      BIT(IIO_CHAN_INFO_CALIBBIAS), \
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ) | \
 			BIT(IIO_CHAN_INFO_SCALE) | \
-			BIT(IIO_CHAN_INFO_HIGH_PASS_FILTER_3DB_FREQUENCY), \
+			BIT(IIO_CHAN_INFO_HIGH_PASS_FILTER_3DB_FREQUENCY) | \
+			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO), \
 	.scan_index = idx, \
 	.scan_type = { \
 		.sign = 's', \
@@ -931,7 +1127,8 @@ static struct attribute_group mma8452_event_attribute_group = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
 		BIT(IIO_CHAN_INFO_CALIBBIAS), \
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ) | \
-		BIT(IIO_CHAN_INFO_SCALE), \
+		BIT(IIO_CHAN_INFO_SCALE) | \
+		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO), \
 	.scan_index = idx, \
 	.scan_type = { \
 		.sign = 's', \
@@ -990,6 +1187,7 @@ enum {
 	mma8453,
 	mma8652,
 	mma8653,
+	fxls8471,
 };
 
 static const struct mma_chip_info mma_chip_info_table[] = {
@@ -1003,7 +1201,7 @@ static const struct mma_chip_info mma_chip_info_table[] = {
 		 * bit.
 		 * The userspace interface uses m/s^2 and we declare micro units
 		 * So scale factor for 12 bit here is given by:
-		 * 	g * N * 1000000 / 2048 for N = 2, 4, 8 and g=9.80665
+		 *	g * N * 1000000 / 2048 for N = 2, 4, 8 and g=9.80665
 		 */
 		.mma_scales = { {0, 2394}, {0, 4788}, {0, 9577} },
 		.ev_cfg = MMA8452_TRANSIENT_CFG,
@@ -1081,12 +1279,29 @@ static const struct mma_chip_info mma_chip_info_table[] = {
 		.ev_ths_mask = MMA8452_FF_MT_THS_MASK,
 		.ev_count = MMA8452_FF_MT_COUNT,
 	},
+	[fxls8471] = {
+		.chip_id = FXLS8471_DEVICE_ID,
+		.channels = mma8451_channels,
+		.num_channels = ARRAY_SIZE(mma8451_channels),
+		.mma_scales = { {0, 2394}, {0, 4788}, {0, 9577} },
+		.ev_cfg = MMA8452_TRANSIENT_CFG,
+		.ev_cfg_ele = MMA8452_TRANSIENT_CFG_ELE,
+		.ev_cfg_chan_shift = 1,
+		.ev_src = MMA8452_TRANSIENT_SRC,
+		.ev_src_xe = MMA8452_TRANSIENT_SRC_XTRANSE,
+		.ev_src_ye = MMA8452_TRANSIENT_SRC_YTRANSE,
+		.ev_src_ze = MMA8452_TRANSIENT_SRC_ZTRANSE,
+		.ev_ths = MMA8452_TRANSIENT_THS,
+		.ev_ths_mask = MMA8452_TRANSIENT_THS_MASK,
+		.ev_count = MMA8452_TRANSIENT_COUNT,
+	},
 };
 
 static struct attribute *mma8452_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_in_accel_scale_available.dev_attr.attr,
 	&iio_dev_attr_in_accel_filter_high_pass_3db_frequency_available.dev_attr.attr,
+	&iio_dev_attr_in_accel_oversampling_ratio_available.dev_attr.attr,
 	NULL
 };
 
@@ -1114,7 +1329,11 @@ static int mma8452_data_rdy_trigger_set_state(struct iio_trigger *trig,
 {
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 	struct mma8452_data *data = iio_priv(indio_dev);
-	int reg;
+	int reg, ret;
+
+	ret = mma8452_set_runtime_pm_state(data->client, state);
+	if (ret)
+		return ret;
 
 	reg = i2c_smbus_read_byte_data(data->client, MMA8452_CTRL_REG4);
 	if (reg < 0)
@@ -1206,6 +1425,7 @@ static const struct of_device_id mma8452_dt_ids[] = {
 	{ .compatible = "fsl,mma8453", .data = &mma_chip_info_table[mma8453] },
 	{ .compatible = "fsl,mma8652", .data = &mma_chip_info_table[mma8652] },
 	{ .compatible = "fsl,mma8653", .data = &mma_chip_info_table[mma8653] },
+	{ .compatible = "fsl,fxls8471", .data = &mma_chip_info_table[fxls8471] },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mma8452_dt_ids);
@@ -1243,6 +1463,7 @@ static int mma8452_probe(struct i2c_client *client,
 	case MMA8453_DEVICE_ID:
 	case MMA8652_DEVICE_ID:
 	case MMA8653_DEVICE_ID:
+	case FXLS8471_DEVICE_ID:
 		if (ret == data->chip_info->chip_id)
 			break;
 	default:
@@ -1340,13 +1561,22 @@ static int mma8452_probe(struct i2c_client *client,
 			goto buffer_cleanup;
 	}
 
+	ret = pm_runtime_set_active(&client->dev);
+	if (ret < 0)
+		goto buffer_cleanup;
+
+	pm_runtime_enable(&client->dev);
+	pm_runtime_set_autosuspend_delay(&client->dev,
+					 MMA8452_AUTO_SUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(&client->dev);
+
 	ret = iio_device_register(indio_dev);
 	if (ret < 0)
 		goto buffer_cleanup;
 
 	ret = mma8452_set_freefall_mode(data, false);
-	if (ret)
-		return ret;
+	if (ret < 0)
+		goto buffer_cleanup;
 
 	return 0;
 
@@ -1364,12 +1594,56 @@ static int mma8452_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
 	iio_device_unregister(indio_dev);
+
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_put_noidle(&client->dev);
+
 	iio_triggered_buffer_cleanup(indio_dev);
 	mma8452_trigger_cleanup(indio_dev);
 	mma8452_standby(iio_priv(indio_dev));
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int mma8452_runtime_suspend(struct device *dev)
+{
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct mma8452_data *data = iio_priv(indio_dev);
+	int ret;
+
+	mutex_lock(&data->lock);
+	ret = mma8452_standby(data);
+	mutex_unlock(&data->lock);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "powering off device failed\n");
+		return -EAGAIN;
+	}
+
+	return 0;
+}
+
+static int mma8452_runtime_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct mma8452_data *data = iio_priv(indio_dev);
+	int ret, sleep_val;
+
+	ret = mma8452_active(data);
+	if (ret < 0)
+		return ret;
+
+	ret = mma8452_get_odr_index(data);
+	sleep_val = 1000 / mma8452_samp_freq[ret][0];
+	if (sleep_val < 20)
+		usleep_range(sleep_val * 1000, 20000);
+	else
+		msleep_interruptible(sleep_val);
+
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_PM_SLEEP
 static int mma8452_suspend(struct device *dev)
@@ -1383,18 +1657,21 @@ static int mma8452_resume(struct device *dev)
 	return mma8452_active(iio_priv(i2c_get_clientdata(
 		to_i2c_client(dev))));
 }
-
-static SIMPLE_DEV_PM_OPS(mma8452_pm_ops, mma8452_suspend, mma8452_resume);
-#define MMA8452_PM_OPS (&mma8452_pm_ops)
-#else
-#define MMA8452_PM_OPS NULL
 #endif
 
+static const struct dev_pm_ops mma8452_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(mma8452_suspend, mma8452_resume)
+	SET_RUNTIME_PM_OPS(mma8452_runtime_suspend,
+			   mma8452_runtime_resume, NULL)
+};
+
 static const struct i2c_device_id mma8452_id[] = {
+	{ "mma8451", mma8451 },
 	{ "mma8452", mma8452 },
 	{ "mma8453", mma8453 },
 	{ "mma8652", mma8652 },
 	{ "mma8653", mma8653 },
+	{ "fxls8471", fxls8471 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mma8452_id);
@@ -1403,7 +1680,7 @@ static struct i2c_driver mma8452_driver = {
 	.driver = {
 		.name	= "mma8452",
 		.of_match_table = of_match_ptr(mma8452_dt_ids),
-		.pm	= MMA8452_PM_OPS,
+		.pm	= &mma8452_pm_ops,
 	},
 	.probe = mma8452_probe,
 	.remove = mma8452_remove,
@@ -1412,5 +1689,5 @@ static struct i2c_driver mma8452_driver = {
 module_i2c_driver(mma8452_driver);
 
 MODULE_AUTHOR("Peter Meerwald <pmeerw@pmeerw.net>");
-MODULE_DESCRIPTION("Freescale MMA8452 accelerometer driver");
+MODULE_DESCRIPTION("Freescale / NXP MMA8452 accelerometer driver");
 MODULE_LICENSE("GPL");

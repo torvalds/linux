@@ -9,7 +9,6 @@
 #include <linux/bootmem.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mmiotrace.h>
@@ -378,7 +377,7 @@ EXPORT_SYMBOL(iounmap);
 int __init arch_ioremap_pud_supported(void)
 {
 #ifdef CONFIG_X86_64
-	return cpu_has_gbpages;
+	return boot_cpu_has(X86_FEATURE_GBPAGES);
 #else
 	return 0;
 #endif
@@ -386,7 +385,7 @@ int __init arch_ioremap_pud_supported(void)
 
 int __init arch_ioremap_pmd_supported(void)
 {
-	return cpu_has_pse;
+	return boot_cpu_has(X86_FEATURE_PSE);
 }
 
 /*

@@ -179,6 +179,17 @@
 	.get = snd_soc_get_volsw, .put = snd_soc_put_volsw, \
 	.private_value = SOC_DOUBLE_R_S_VALUE(reg_left, reg_right, xshift, \
 					    xmin, xmax, xsign_bit, xinvert) }
+#define SOC_SINGLE_S8_TLV(xname, xreg, xmin, xmax, tlv_array) \
+{	.iface  = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
+		  SNDRV_CTL_ELEM_ACCESS_READWRITE, \
+	.tlv.p  = (tlv_array), \
+	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,\
+	.put = snd_soc_put_volsw, \
+	.private_value = (unsigned long)&(struct soc_mixer_control) \
+	{.reg = xreg, .rreg = xreg,  \
+	 .min = xmin, .max = xmax, .platform_max = xmax, \
+	.sign_bit = 7,} }
 #define SOC_DOUBLE_S8_TLV(xname, xreg, xmin, xmax, tlv_array) \
 {	.iface  = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
@@ -1002,7 +1013,7 @@ struct snd_soc_dai_link {
 	 */
 	const char *platform_name;
 	struct device_node *platform_of_node;
-	int be_id;	/* optional ID for machine driver BE identification */
+	int id;	/* optional ID for machine driver link identification */
 
 	const struct snd_soc_pcm_stream *params;
 	unsigned int num_params;
@@ -1682,6 +1693,9 @@ void snd_soc_remove_dai_link(struct snd_soc_card *card,
 
 int snd_soc_register_dai(struct snd_soc_component *component,
 	struct snd_soc_dai_driver *dai_drv);
+
+struct snd_soc_dai *snd_soc_find_dai(
+	const struct snd_soc_dai_link_component *dlc);
 
 #include <sound/soc-dai.h>
 

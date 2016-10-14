@@ -10,14 +10,14 @@
 /dts-v1/;
 
 #include "bcm4708.dtsi"
-#include "bcm5301x-nand-cs0-bch8.dtsi"
+#include "bcm5301x-nand-cs0-bch1.dtsi"
 
 / {
 	compatible = "dlink,dir-885l", "brcm,bcm47094", "brcm,bcm4708";
 	model = "D-Link DIR-885L";
 
 	chosen {
-		bootargs = "console=ttyS0,115200";
+		bootargs = "console=ttyS0,115200 earlycon";
 	};
 
 	memory {
@@ -108,4 +108,12 @@
 &uart0 {
 	status = "okay";
 	clock-frequency = <125000000>;
+};
+
+&usb3 {
+	vcc-gpio = <&chipcommon 18 GPIO_ACTIVE_HIGH>;
+};
+
+&spi_nor {
+	status = "okay";
 };

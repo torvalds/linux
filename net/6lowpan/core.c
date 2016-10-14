@@ -14,6 +14,7 @@
 #include <linux/module.h>
 
 #include <net/6lowpan.h>
+#include <net/addrconf.h>
 
 #include "6lowpan_i.h"
 
@@ -27,11 +28,13 @@ int lowpan_register_netdevice(struct net_device *dev,
 	dev->mtu = IPV6_MIN_MTU;
 	dev->priv_flags |= IFF_NO_QUEUE;
 
-	lowpan_priv(dev)->lltype = lltype;
+	lowpan_dev(dev)->lltype = lltype;
 
-	spin_lock_init(&lowpan_priv(dev)->ctx.lock);
+	spin_lock_init(&lowpan_dev(dev)->ctx.lock);
 	for (i = 0; i < LOWPAN_IPHC_CTX_TABLE_SIZE; i++)
-		lowpan_priv(dev)->ctx.table[i].id = i;
+		lowpan_dev(dev)->ctx.table[i].id = i;
+
+	dev->ndisc_ops = &lowpan_ndisc_ops;
 
 	ret = register_netdevice(dev);
 	if (ret < 0)
@@ -72,20 +75,65 @@ void lowpan_unregister_netdev(struct net_device *dev)
 }
 EXPORT_SYMBOL(lowpan_unregister_netdev);
 
+int addrconf_ifid_802154_6lowpan(u8 *eui, struct net_device *dev)
+{
+	struct wpan_dev *wpan_dev = lowpan_802154_dev(dev)->wdev->ieee802154_ptr;
+
+	/* Set short_addr autoconfiguration if short_addr is present only */
+	if (!lowpan_802154_is_valid_src_short_addr(wpan_dev->short_addr))
+		return -1;
+
+	/* For either address format, all zero addresses MUST NOT be used */
+	if (wpan_dev->pan_id == cpu_to_le16(0x0000) &&
+	    wpan_dev->short_addr == cpu_to_le16(0x0000))
+		return -1;
+
+	/* Alternatively, if no PAN ID is known, 16 zero bits may be used */
+	if (wpan_dev->pan_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST))
+		memset(eui, 0, 2);
+	else
+		ieee802154_le16_to_be16(eui, &wpan_dev->pan_id);
+
+	/* The "Universal/Local" (U/L) bit shall be set to zero */
+	eui[0] &= ~2;
+	eui[2] = 0;
+	eui[3] = 0xFF;
+	eui[4] = 0xFE;
+	eui[5] = 0;
+	ieee802154_le16_to_be16(&eui[6], &wpan_dev->short_addr);
+	return 0;
+}
+
 static int lowpan_event(struct notifier_block *unused,
 			unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct inet6_dev *idev;
+	struct in6_addr addr;
 	int i;
 
 	if (dev->type != ARPHRD_6LOWPAN)
 		return NOTIFY_DONE;
 
+	idev = __in6_dev_get(dev);
+	if (!idev)
+		return NOTIFY_DONE;
+
 	switch (event) {
+	case NETDEV_UP:
+	case NETDEV_CHANGE:
+		/* (802.15.4 6LoWPAN short address slaac handling */
+		if (lowpan_is_ll(dev, LOWPAN_LLTYPE_IEEE802154) &&
+		    addrconf_ifid_802154_6lowpan(addr.s6_addr + 8, dev) == 0) {
+			__ipv6_addr_set_half(&addr.s6_addr32[0],
+					     htonl(0xFE800000), 0);
+			addrconf_add_linklocal(idev, &addr, 0);
+		}
+		break;
 	case NETDEV_DOWN:
 		for (i = 0; i < LOWPAN_IPHC_CTX_TABLE_SIZE; i++)
 			clear_bit(LOWPAN_IPHC_CTX_FLAG_ACTIVE,
-				  &lowpan_priv(dev)->ctx.table[i].flags);
+				  &lowpan_dev(dev)->ctx.table[i].flags);
 		break;
 	default:
 		return NOTIFY_DONE;
@@ -111,8 +159,6 @@ static int __init lowpan_module_init(void)
 		lowpan_debugfs_exit();
 		return ret;
 	}
-
-	request_module_nowait("ipv6");
 
 	request_module_nowait("nhc_dest");
 	request_module_nowait("nhc_fragment");

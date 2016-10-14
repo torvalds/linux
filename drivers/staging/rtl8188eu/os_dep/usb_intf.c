@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 
 #define pr_fmt(fmt) "R8188EU: " fmt
@@ -65,7 +60,7 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 	struct usb_device	*pusbd;
 
 	pdvobjpriv = kzalloc(sizeof(*pdvobjpriv), GFP_KERNEL);
-	if (pdvobjpriv == NULL)
+	if (!pdvobjpriv)
 		return NULL;
 
 	pdvobjpriv->pusbintf = usb_intf;

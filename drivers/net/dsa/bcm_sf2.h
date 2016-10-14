@@ -21,6 +21,7 @@
 #include <linux/ethtool.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/if_vlan.h>
 
 #include <net/dsa.h>
 
@@ -50,6 +51,7 @@ struct bcm_sf2_port_status {
 	struct ethtool_eee eee;
 
 	u32 vlan_ctl_mask;
+	u16 pvid;
 
 	struct net_device *bridge_dev;
 };
@@ -61,6 +63,11 @@ struct bcm_sf2_arl_entry {
 	u8 is_valid:1;
 	u8 is_age:1;
 	u8 is_static:1;
+};
+
+struct bcm_sf2_vlan {
+	u16 members;
+	u16 untag;
 };
 
 static inline void bcm_sf2_mac_from_u64(u64 src, u8 *dst)
@@ -142,6 +149,15 @@ struct bcm_sf2_priv {
 
 	/* Bitmask of ports having an integrated PHY */
 	unsigned int			int_phy_mask;
+
+	/* Master and slave MDIO bus controller */
+	unsigned int			indir_phy_mask;
+	struct device_node		*master_mii_dn;
+	struct mii_bus			*slave_mii_bus;
+	struct mii_bus			*master_mii_bus;
+
+	/* Cache of programmed VLANs */
+	struct bcm_sf2_vlan		vlans[VLAN_N_VID];
 };
 
 struct bcm_sf2_hw_stats {
@@ -189,8 +205,8 @@ static inline void name##_writeq(struct bcm_sf2_priv *priv, u64 val,	\
 static inline void intrl2_##which##_mask_clear(struct bcm_sf2_priv *priv, \
 						u32 mask)		\
 {									\
-	intrl2_##which##_writel(priv, mask, INTRL2_CPU_MASK_CLEAR);	\
 	priv->irq##which##_mask &= ~(mask);				\
+	intrl2_##which##_writel(priv, mask, INTRL2_CPU_MASK_CLEAR);	\
 }									\
 static inline void intrl2_##which##_mask_set(struct bcm_sf2_priv *priv, \
 						u32 mask)		\

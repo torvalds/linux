@@ -120,9 +120,9 @@ xt_socket_get_sock_v4(struct net *net, struct sk_buff *skb, const int doff,
 {
 	switch (protocol) {
 	case IPPROTO_TCP:
-		return __inet_lookup(net, &tcp_hashinfo, skb, doff,
-				     saddr, sport, daddr, dport,
-				     in->ifindex);
+		return inet_lookup(net, &tcp_hashinfo, skb, doff,
+				   saddr, sport, daddr, dport,
+				   in->ifindex);
 	case IPPROTO_UDP:
 		return udp4_lib_lookup(net, saddr, sport, daddr, dport,
 				       in->ifindex);

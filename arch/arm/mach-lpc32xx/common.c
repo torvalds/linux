@@ -17,13 +17,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/err.h>
-#include <linux/i2c.h>
-#include <linux/i2c-pnx.h>
-#include <linux/io.h>
 
 #include <asm/mach/map.h>
 #include <asm/system_info.h>
@@ -41,19 +34,6 @@ void lpc32xx_get_uid(u32 devid[4])
 
 	for (i = 0; i < 4; i++)
 		devid[i] = __raw_readl(LPC32XX_CLKPWR_DEVID(i << 2));
-}
-
-/*
- * Returns SYSCLK source
- * 0 = PLL397, 1 = main oscillator
- */
-int clk_is_sysclk_mainosc(void)
-{
-	if ((__raw_readl(LPC32XX_CLKPWR_SYSCLK_CTRL) &
-		LPC32XX_CLKPWR_SYSCTRL_SYSCLKMUX) == 0)
-		return 1;
-
-	return 0;
 }
 
 /*
@@ -86,81 +66,6 @@ u32 lpc32xx_return_iram_size(void)
 	return iram_size;
 }
 EXPORT_SYMBOL_GPL(lpc32xx_return_iram_size);
-
-/*
- * Computes PLL rate from PLL register and input clock
- */
-u32 clk_check_pll_setup(u32 ifreq, struct clk_pll_setup *pllsetup)
-{
-	u32 ilfreq, p, m, n, fcco, fref, cfreq;
-	int mode;
-
-	/*
-	 * PLL requirements
-	 * ifreq must be >= 1MHz and <= 20MHz
-	 * FCCO must be >= 156MHz and <= 320MHz
-	 * FREF must be >= 1MHz and <= 27MHz
-	 * Assume the passed input data is not valid
-	 */
-
-	ilfreq = ifreq;
-	m = pllsetup->pll_m;
-	n = pllsetup->pll_n;
-	p = pllsetup->pll_p;
-
-	mode = (pllsetup->cco_bypass_b15 << 2) |
-		(pllsetup->direct_output_b14 << 1) |
-	pllsetup->fdbk_div_ctrl_b13;
-
-	switch (mode) {
-	case 0x0: /* Non-integer mode */
-		cfreq = (m * ilfreq) / (2 * p * n);
-		fcco = (m * ilfreq) / n;
-		fref = ilfreq / n;
-		break;
-
-	case 0x1: /* integer mode */
-		cfreq = (m * ilfreq) / n;
-		fcco = (m * ilfreq) / (n * 2 * p);
-		fref = ilfreq / n;
-		break;
-
-	case 0x2:
-	case 0x3: /* Direct mode */
-		cfreq = (m * ilfreq) / n;
-		fcco = cfreq;
-		fref = ilfreq / n;
-		break;
-
-	case 0x4:
-	case 0x5: /* Bypass mode */
-		cfreq = ilfreq / (2 * p);
-		fcco = 156000000;
-		fref = 1000000;
-		break;
-
-	case 0x6:
-	case 0x7: /* Direct bypass mode */
-	default:
-		cfreq = ilfreq;
-		fcco = 156000000;
-		fref = 1000000;
-		break;
-	}
-
-	if (fcco < 156000000 || fcco > 320000000)
-		cfreq = 0;
-
-	if (fref < 1000000 || fref > 27000000)
-		cfreq = 0;
-
-	return (u32) cfreq;
-}
-
-u32 clk_get_pclk_div(void)
-{
-	return 1 + ((__raw_readl(LPC32XX_CLKPWR_HCLK_DIV) >> 2) & 0x1F);
-}
 
 static struct map_desc lpc32xx_io_desc[] __initdata = {
 	{

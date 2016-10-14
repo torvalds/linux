@@ -34,7 +34,7 @@
 
 #define mmACP_AZALIA_I2S_SELECT 0x51d4
 
-int amd_acp_hw_init(void *cgs_device,
+int amd_acp_hw_init(struct cgs_device *cgs_device,
 		    unsigned acp_version_major, unsigned acp_version_minor)
 {
 	unsigned int acp_mode = ACP_MODE_I2S;

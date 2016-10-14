@@ -109,51 +109,46 @@ struct chanstat {
 };
 
 struct visornic_devdata {
-	unsigned short enabled;		/* 0 disabled 1 enabled to receive */
-	unsigned short enab_dis_acked;	/* NET_RCV_ENABLE/DISABLE acked by
-					 * IOPART
-					 */
+	/* 0 disabled 1 enabled to receive */
+	unsigned short enabled;
+	/* NET_RCV_ENABLE/DISABLE acked by IOPART */
+	unsigned short enab_dis_acked;
+
 	struct visor_device *dev;
 	struct net_device *netdev;
 	struct net_device_stats net_stats;
 	atomic_t interrupt_rcvd;
 	wait_queue_head_t rsp_queue;
 	struct sk_buff **rcvbuf;
-	u64 incarnation_id;		/* lets IOPART know about re-birth */
-	unsigned short old_flags;	/* flags as they were prior to
-					 * set_multicast_list
-					 */
-	atomic_t usage;			/* count of users */
-	int num_rcv_bufs;		/* indicates how many rcv buffers
-					 * the vnic will post
-					 */
+	/* incarnation_id lets IOPART know about re-birth */
+	u64 incarnation_id;
+	/* flags as they were prior to set_multicast_list */
+	unsigned short old_flags;
+	atomic_t usage;	/* count of users */
+
+	/* number of rcv buffers the vnic will post */
+	int num_rcv_bufs;
 	int num_rcv_bufs_could_not_alloc;
 	atomic_t num_rcvbuf_in_iovm;
 	unsigned long alloc_failed_in_if_needed_cnt;
 	unsigned long alloc_failed_in_repost_rtn_cnt;
-	unsigned long max_outstanding_net_xmits; /* absolute max number of
-						  * outstanding xmits - should
-						  * never hit this
-						  */
-	unsigned long upper_threshold_net_xmits;  /* high water mark for
-						   * calling netif_stop_queue()
-						   */
-	unsigned long lower_threshold_net_xmits; /* high water mark for calling
-						  * netif_wake_queue()
-						  */
-	struct sk_buff_head xmitbufhead; /* xmitbufhead is the head of the
-					  * xmit buffer list that have been
-					  * sent to the IOPART end
-					  */
+
+	/* absolute max number of outstanding xmits - should never hit this */
+	unsigned long max_outstanding_net_xmits;
+	/* high water mark for calling netif_stop_queue() */
+	unsigned long upper_threshold_net_xmits;
+	/* high water mark for calling netif_wake_queue() */
+	unsigned long lower_threshold_net_xmits;
+	/* xmitbufhead - head of the xmit buffer list sent to the IOPART end */
+	struct sk_buff_head xmitbufhead;
+
 	visorbus_state_complete_func server_down_complete_func;
 	struct work_struct timeout_reset;
-	struct uiscmdrsp *cmdrsp_rcv;	 /* cmdrsp_rcv is used for
-					  * posting/unposting rcv buffers
-					  */
-	struct uiscmdrsp *xmit_cmdrsp;	 /* used to issue NET_XMIT - there is
-					  * never more that one xmit in
-					  * progress at a time
-					  */
+	/* cmdrsp_rcv is used for posting/unposting rcv buffers  */
+	struct uiscmdrsp *cmdrsp_rcv;
+	/* xmit_cmdrsp - issues NET_XMIT - only one active xmit at a time */
+	struct uiscmdrsp *xmit_cmdrsp;
+
 	bool server_down;		 /* IOPART is down */
 	bool server_change_state;	 /* Processing SERVER_CHANGESTATE msg */
 	bool going_away;		 /* device is being torn down */
@@ -173,18 +168,10 @@ struct visornic_devdata {
 	unsigned long n_rcv1;			/* # rcvs of 1 buffers */
 	unsigned long n_rcv2;			/* # rcvs of 2 buffers */
 	unsigned long n_rcvx;			/* # rcvs of >2 buffers */
-	unsigned long found_repost_rcvbuf_cnt;	/* # times we called
-						 *   repost_rcvbuf_cnt
-						 */
-	unsigned long repost_found_skb_cnt;	/* # times found the skb */
-	unsigned long n_repost_deficit;		/* # times we couldn't find
-						 *   all of the rcv buffers
-						 */
-	unsigned long bad_rcv_buf;		/* # times we negleted to
-						 * free the rcv skb because
-						 * we didn't know where it
-						 * came from
-						 */
+	unsigned long found_repost_rcvbuf_cnt;	/* # repost_rcvbuf_cnt */
+	unsigned long repost_found_skb_cnt;	/* # of found the skb */
+	unsigned long n_repost_deficit;		/* # of lost rcv buffers */
+	unsigned long bad_rcv_buf; /* # of unknown rcv skb  not freed */
 	unsigned long n_rcv_packets_not_accepted;/* # bogs rcv packets */
 
 	int queuefullmsg_logged;
@@ -209,18 +196,17 @@ static void poll_for_irq(unsigned long v);
  *	Return value indicates number of entries filled in frags
  *	Negative values indicate an error.
  */
-static unsigned int
+static int
 visor_copy_fragsinfo_from_skb(struct sk_buff *skb, unsigned int firstfraglen,
 			      unsigned int frags_max,
 			      struct phys_info frags[])
 {
-	unsigned int count = 0, ii, size, offset = 0, numfrags;
+	unsigned int count = 0, frag, size, offset = 0, numfrags;
 	unsigned int total_count;
 
 	numfrags = skb_shinfo(skb)->nr_frags;
 
-	/*
-	 * Compute the number of fragments this skb has, and if its more than
+	/* Compute the number of fragments this skb has, and if its more than
 	 * frag array can hold, linearize the skb
 	 */
 	total_count = numfrags + (firstfraglen / PI_PAGE_SIZE);
@@ -257,23 +243,20 @@ visor_copy_fragsinfo_from_skb(struct sk_buff *skb, unsigned int firstfraglen,
 		if ((count + numfrags) > frags_max)
 			return -EINVAL;
 
-		for (ii = 0; ii < numfrags; ii++) {
+		for (frag = 0; frag < numfrags; frag++) {
 			count = add_physinfo_entries(page_to_pfn(
-				skb_frag_page(&skb_shinfo(skb)->frags[ii])),
-					      skb_shinfo(skb)->frags[ii].
+				skb_frag_page(&skb_shinfo(skb)->frags[frag])),
+					      skb_shinfo(skb)->frags[frag].
 					      page_offset,
-					      skb_shinfo(skb)->frags[ii].
+					      skb_shinfo(skb)->frags[frag].
 					      size, count, frags_max, frags);
-			/*
-			 * add_physinfo_entries only returns
+			/* add_physinfo_entries only returns
 			 * zero if the frags array is out of room
 			 * That should never happen because we
 			 * fail above, if count+numfrags > frags_max.
-			 * Given that theres no recovery mechanism from putting
-			 * half a packet in the I/O channel, panic here as this
-			 * should never happen
 			 */
-			BUG_ON(!count);
+			if (!count)
+				return -EINVAL;
 		}
 	}
 	if (skb_shinfo(skb)->frag_list) {
@@ -299,8 +282,7 @@ static ssize_t enable_ints_write(struct file *file,
 				 const char __user *buffer,
 				 size_t count, loff_t *ppos)
 {
-	/*
-	 * Don't want to break ABI here by having a debugfs
+	/* Don't want to break ABI here by having a debugfs
 	 * file that no longer exists or is writable, so
 	 * lets just make this a vestigual function
 	 */
@@ -308,8 +290,7 @@ static ssize_t enable_ints_write(struct file *file,
 }
 
 /**
- *	visornic_serverdown_complete - IOPART went down, need to pause
- *				       device
+ *	visornic_serverdown_complete - IOPART went down, pause device
  *	@work: Work queue it was scheduled on
  *
  *	The IO partition has gone down and we need to do some cleanup
@@ -344,7 +325,7 @@ visornic_serverdown_complete(struct visornic_devdata *devdata)
 }
 
 /**
- *	visornic_serverdown - Command has notified us that IOPARt is down
+ *	visornic_serverdown - Command has notified us that IOPART is down
  *	@devdata: device that is being managed by IOPART
  *
  *	Schedule the work needed to handle the server down request. Make
@@ -356,28 +337,38 @@ visornic_serverdown(struct visornic_devdata *devdata,
 		    visorbus_state_complete_func complete_func)
 {
 	unsigned long flags;
+	int err;
 
 	spin_lock_irqsave(&devdata->priv_lock, flags);
-	if (!devdata->server_down && !devdata->server_change_state) {
-		if (devdata->going_away) {
-			spin_unlock_irqrestore(&devdata->priv_lock, flags);
-			dev_dbg(&devdata->dev->device,
-				"%s aborting because device removal pending\n",
-				__func__);
-			return -ENODEV;
-		}
-		devdata->server_change_state = true;
-		devdata->server_down_complete_func = complete_func;
-		spin_unlock_irqrestore(&devdata->priv_lock, flags);
-		visornic_serverdown_complete(devdata);
-	} else if (devdata->server_change_state) {
+	if (devdata->server_change_state) {
 		dev_dbg(&devdata->dev->device, "%s changing state\n",
 			__func__);
-		spin_unlock_irqrestore(&devdata->priv_lock, flags);
-		return -EINVAL;
+		err = -EINVAL;
+		goto err_unlock;
 	}
+	if (devdata->server_down) {
+		dev_dbg(&devdata->dev->device, "%s already down\n",
+			__func__);
+		err = -EINVAL;
+		goto err_unlock;
+	}
+	if (devdata->going_away) {
+		dev_dbg(&devdata->dev->device,
+			"%s aborting because device removal pending\n",
+			__func__);
+		err = -ENODEV;
+		goto err_unlock;
+	}
+	devdata->server_change_state = true;
+	devdata->server_down_complete_func = complete_func;
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
+
+	visornic_serverdown_complete(devdata);
 	return 0;
+
+err_unlock:
+	spin_unlock_irqrestore(&devdata->priv_lock, flags);
+	return err;
 }
 
 /**
@@ -395,20 +386,19 @@ alloc_rcv_buf(struct net_device *netdev)
 
 	/* NOTE: the first fragment in each rcv buffer is pointed to by
 	 * rcvskb->data. For now all rcv buffers will be RCVPOST_BUF_SIZE
-	 * in length, so the firstfrag is large enough to hold 1514.
+	 * in length, so the first frag is large enough to hold 1514.
 	 */
 	skb = alloc_skb(RCVPOST_BUF_SIZE, GFP_ATOMIC);
 	if (!skb)
 		return NULL;
 	skb->dev = netdev;
-	skb->len = RCVPOST_BUF_SIZE;
 	/* current value of mtu doesn't come into play here; large
 	 * packets will just end up using multiple rcv buffers all of
-	 * same size
+	 * same size.
 	 */
-	skb->data_len = 0;      /* dev_alloc_skb already zeroes it out
-				 * for clarification.
-				 */
+	skb->len = RCVPOST_BUF_SIZE;
+	/* alloc_skb already zeroes it out for clarification. */
+	skb->data_len = 0;
 	return skb;
 }
 
@@ -436,8 +426,8 @@ post_skb(struct uiscmdrsp *cmdrsp,
 		cmdrsp->net.type = NET_RCV_POST;
 		cmdrsp->cmdtype = CMD_NET_TYPE;
 		if (visorchannel_signalinsert(devdata->dev->visorchannel,
-					  IOCHAN_TO_IOPART,
-					  cmdrsp)) {
+					      IOCHAN_TO_IOPART,
+					      cmdrsp)) {
 			atomic_inc(&devdata->num_rcvbuf_in_iovm);
 			devdata->chstat.sent_post++;
 		} else {
@@ -465,8 +455,8 @@ send_enbdis(struct net_device *netdev, int state,
 	devdata->cmdrsp_rcv->net.type = NET_RCV_ENBDIS;
 	devdata->cmdrsp_rcv->cmdtype = CMD_NET_TYPE;
 	if (visorchannel_signalinsert(devdata->dev->visorchannel,
-				  IOCHAN_TO_IOPART,
-				  devdata->cmdrsp_rcv))
+				      IOCHAN_TO_IOPART,
+				      devdata->cmdrsp_rcv))
 		devdata->chstat.sent_enbdis++;
 }
 
@@ -872,8 +862,7 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	if (vnic_hit_high_watermark(devdata,
 				    devdata->max_outstanding_net_xmits)) {
-		/* too many NET_XMITs queued over to IOVM - need to wait
-		 */
+		/* extra NET_XMITs queued over to IOVM - need to wait */
 		devdata->chstat.reject_count++;
 		if (!devdata->queuefullmsg_logged &&
 		    ((devdata->chstat.reject_count & 0x3ff) == 1))
@@ -950,16 +939,12 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	devdata->net_stats.tx_bytes += skb->len;
 	devdata->chstat.sent_xmit++;
 
-	/* check to see if we have hit the high watermark for
-	 * netif_stop_queue()
-	 */
+	/* check if we have hit the high watermark for netif_stop_queue() */
 	if (vnic_hit_high_watermark(devdata,
 				    devdata->upper_threshold_net_xmits)) {
-		/* too many NET_XMITs queued over to IOVM - need to wait */
-		netif_stop_queue(netdev); /* calling stop queue - call
-					   * netif_wake_queue() after lower
-					   * threshold
-					   */
+		/* extra NET_XMITs queued over to IOVM - need to wait */
+		/* stop queue - call netif_wake_queue() after lower threshold */
+		netif_stop_queue(netdev);
 		dev_dbg(&netdev->dev,
 			"%s busy - invoking iovm flow control\n",
 			__func__);
@@ -1015,25 +1000,28 @@ visornic_set_multi(struct net_device *netdev)
 	struct uiscmdrsp *cmdrsp;
 	struct visornic_devdata *devdata = netdev_priv(netdev);
 
-	/* any filtering changes */
-	if (devdata->old_flags != netdev->flags) {
-		if ((netdev->flags & IFF_PROMISC) !=
-		    (devdata->old_flags & IFF_PROMISC)) {
-			cmdrsp = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
-			if (!cmdrsp)
-				return;
-			cmdrsp->cmdtype = CMD_NET_TYPE;
-			cmdrsp->net.type = NET_RCV_PROMISC;
-			cmdrsp->net.enbdis.context = netdev;
-			cmdrsp->net.enbdis.enable =
-				netdev->flags & IFF_PROMISC;
-			visorchannel_signalinsert(devdata->dev->visorchannel,
-						  IOCHAN_TO_IOPART,
-						  cmdrsp);
-			kfree(cmdrsp);
-		}
-		devdata->old_flags = netdev->flags;
-	}
+	if (devdata->old_flags == netdev->flags)
+		return;
+
+	if ((netdev->flags & IFF_PROMISC) ==
+	    (devdata->old_flags & IFF_PROMISC))
+		goto out_save_flags;
+
+	cmdrsp = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
+	if (!cmdrsp)
+		return;
+	cmdrsp->cmdtype = CMD_NET_TYPE;
+	cmdrsp->net.type = NET_RCV_PROMISC;
+	cmdrsp->net.enbdis.context = netdev;
+	cmdrsp->net.enbdis.enable =
+		netdev->flags & IFF_PROMISC;
+	visorchannel_signalinsert(devdata->dev->visorchannel,
+				  IOCHAN_TO_IOPART,
+				  cmdrsp);
+	kfree(cmdrsp);
+
+out_save_flags:
+	devdata->old_flags = netdev->flags;
 }
 
 /**
@@ -1149,7 +1137,7 @@ repost_return(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
  *
  *	Got a receive packet back from the IO Part, handle it and send
  *	it up the stack.
- *	Returns void
+ *	Returns 1 iff an skb was receieved, otherwise 0
  */
 static int
 visornic_rx(struct uiscmdrsp *cmdrsp)
@@ -1160,7 +1148,6 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	int cc, currsize, off;
 	struct ethhdr *eth;
 	unsigned long flags;
-	int rx_count = 0;
 
 	/* post new rcv buf to the other end using the cmdrsp we have at hand
 	 * post it without holding lock - but we'll use the signal lock to
@@ -1192,7 +1179,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 		 */
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		repost_return(cmdrsp, devdata, skb, netdev);
-		return rx_count;
+		return 0;
 	}
 
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
@@ -1211,7 +1198,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 			if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 				dev_err(&devdata->netdev->dev,
 					"repost_return failed");
-			return rx_count;
+			return 0;
 		}
 		/* length rcvd is greater than firstfrag in this skb rcv buf  */
 		skb->tail += RCVPOST_BUF_SIZE;	/* amount in skb->data */
@@ -1227,7 +1214,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 			if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 				dev_err(&devdata->netdev->dev,
 					"repost_return failed");
-			return rx_count;
+			return 0;
 		}
 		skb->tail += skb->len;
 		skb->data_len = 0;	/* nothing rcvd in frag_list */
@@ -1246,7 +1233,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	if (cmdrsp->net.rcv.rcvbuf[0] != skb) {
 		if (repost_return(cmdrsp, devdata, skb, netdev) < 0)
 			dev_err(&devdata->netdev->dev, "repost_return failed");
-		return rx_count;
+		return 0;
 	}
 
 	if (cmdrsp->net.rcv.numrcvbufs > 1) {
@@ -1312,16 +1299,13 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 						break;
 					}
 				}
+				/* accept pkt, dest matches a multicast addr */
 				if (found_mc)
-					break;	/* accept packet, dest
-						 * matches a multicast
-						 * address
-						 */
+					break;
 			}
+		/* accept packet, h_dest must match vnic  mac address */
 		} else if (skb->pkt_type == PACKET_HOST) {
-			break;	/* accept packet, h_dest must match vnic
-				 *  mac address
-				 */
+			break;
 		} else if (skb->pkt_type == PACKET_OTHERHOST) {
 			/* something is not right */
 			dev_err(&devdata->netdev->dev,
@@ -1331,10 +1315,9 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 		/* drop packet - don't forward it up to OS */
 		devdata->n_rcv_packets_not_accepted++;
 		repost_return(cmdrsp, devdata, skb, netdev);
-		return rx_count;
+		return 0;
 	} while (0);
 
-	rx_count++;
 	netif_receive_skb(skb);
 	/* netif_rx returns various values, but "in practice most drivers
 	 * ignore the return value
@@ -1347,7 +1330,7 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
 	 * new rcv buffer.
 	 */
 	repost_return(cmdrsp, devdata, skb, netdev);
-	return rx_count;
+	return 1;
 }
 
 /**
@@ -1357,13 +1340,11 @@ visornic_rx(struct uiscmdrsp *cmdrsp)
  *
  *	Setup initial values for the visornic based on channel and default
  *	values.
- *	Returns a pointer to the devdata if successful, else NULL
+ *	Returns a pointer to the devdata structure
  */
 static struct visornic_devdata *
 devdata_initialize(struct visornic_devdata *devdata, struct visor_device *dev)
 {
-	if (!devdata)
-		return NULL;
 	devdata->dev = dev;
 	devdata->incarnation_id = get_jiffies_64();
 	return devdata;
@@ -1409,14 +1390,10 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 	if (!vbuf)
 		return -ENOMEM;
 
-	/* for each vnic channel
-	 * dump out channel specific data
-	 */
+	/* for each vnic channel dump out channel specific data */
 	rcu_read_lock();
 	for_each_netdev_rcu(current->nsproxy->net_ns, dev) {
-		/*
-		 * Only consider netdevs that are visornic, and are open
-		 */
+		/* Only consider netdevs that are visornic, and are open */
 		if ((dev->netdev_ops != &visornic_dev_ops) ||
 		    (!netif_queue_stopped(dev)))
 			continue;
@@ -1643,12 +1620,12 @@ service_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
 			/* ASSERT netdev == vnicinfo->netdev; */
 			if ((netdev == devdata->netdev) &&
 			    netif_queue_stopped(netdev)) {
-				/* check to see if we have crossed
-				 * the lower watermark for
-				 * netif_wake_queue()
+				/* check if we have crossed the lower watermark
+				 * for netif_wake_queue()
 				 */
-				if (vnic_hit_low_watermark(devdata,
-					devdata->lower_threshold_net_xmits)) {
+				if (vnic_hit_low_watermark
+				    (devdata,
+				     devdata->lower_threshold_net_xmits)) {
 					/* enough NET_XMITs completed
 					 * so can restart netif queue
 					 */
@@ -1712,10 +1689,7 @@ static int visornic_poll(struct napi_struct *napi, int budget)
 	send_rcv_posts_if_needed(devdata);
 	service_resp_queue(devdata->cmdrsp, devdata, &rx_count, budget);
 
-	/*
-	 * If there aren't any more packets to receive
-	 * stop the poll
-	 */
+	/* If there aren't any more packets to receive stop the poll */
 	if (rx_count < budget)
 		napi_complete(napi);
 
@@ -1818,7 +1792,7 @@ static int visornic_probe(struct visor_device *dev)
 				  sizeof(struct sk_buff *), GFP_KERNEL);
 	if (!devdata->rcvbuf) {
 		err = -ENOMEM;
-		goto cleanup_rcvbuf;
+		goto cleanup_netdev;
 	}
 
 	/* set the net_xmit outstanding threshold */
@@ -1839,12 +1813,12 @@ static int visornic_probe(struct visor_device *dev)
 	devdata->cmdrsp_rcv = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
 	if (!devdata->cmdrsp_rcv) {
 		err = -ENOMEM;
-		goto cleanup_cmdrsp_rcv;
+		goto cleanup_rcvbuf;
 	}
 	devdata->xmit_cmdrsp = kmalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
 	if (!devdata->xmit_cmdrsp) {
 		err = -ENOMEM;
-		goto cleanup_xmit_cmdrsp;
+		goto cleanup_cmdrsp_rcv;
 	}
 	INIT_WORK(&devdata->timeout_reset, visornic_timeout_reset);
 	devdata->server_down = false;
@@ -1867,8 +1841,7 @@ static int visornic_probe(struct visor_device *dev)
 
 	setup_timer(&devdata->irq_poll_timer, poll_for_irq,
 		    (unsigned long)devdata);
-	/*
-	 * Note: This time has to start running before the while
+	/* Note: This time has to start running before the while
 	 * loop below because the napi routine is responsible for
 	 * setting enab_dis_acked
 	 */
@@ -1897,8 +1870,7 @@ static int visornic_probe(struct visor_device *dev)
 	/* Let's start our threads to get responses */
 	netif_napi_add(netdev, &devdata->napi, visornic_poll, NAPI_WEIGHT);
 
-	/*
-	 * Note: Interupts have to be enable before the while
+	/* Note: Interupts have to be enable before the while
 	 * loop below because the napi routine is responsible for
 	 * setting enab_dis_acked
 	 */
@@ -2115,8 +2087,10 @@ static int visornic_init(void)
 		goto cleanup_debugfs;
 
 	err = visorbus_register_visor_driver(&visornic_driver);
-	if (!err)
-		return 0;
+	if (err)
+		goto cleanup_debugfs;
+
+	return 0;
 
 cleanup_debugfs:
 	debugfs_remove_recursive(visornic_debugfs_dir);

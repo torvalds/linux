@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
+ * Copyright (C) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright (C) 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,8 +66,9 @@
 #define __IWL_CONFIG_H__
 
 #include <linux/types.h>
-#include <net/mac80211.h>
-
+#include <linux/netdevice.h>
+#include <linux/ieee80211.h>
+#include <linux/nl80211.h>
 
 enum iwl_device_family {
 	IWL_DEVICE_FAMILY_UNDEFINED,
@@ -131,6 +134,8 @@ enum iwl_led_mode {
 #define IWL_MAX_WD_TIMEOUT	120000
 
 #define IWL_DEFAULT_MAX_TX_POWER 22
+#define IWL_TX_CSUM_NETIF_FLAGS (NETIF_F_IPV6_CSUM | NETIF_F_IP_CSUM |\
+				 NETIF_F_TSO | NETIF_F_TSO6)
 
 /* Antenna presence definitions */
 #define	ANT_NONE	0x0
@@ -163,34 +168,35 @@ static inline u8 num_of_ant(u8 mask)
  * @scd_chain_ext_wa: should the chain extension feature in SCD be disabled.
  */
 struct iwl_base_params {
-	int eeprom_size;
-	int num_of_queues;	/* def: HW dependent */
-	/* for iwl_pcie_apm_init() */
-	u32 pll_cfg_val;
-
-	const u16 max_ll_items;
-	const bool shadow_ram_support;
-	u16 led_compensation;
 	unsigned int wd_timeout;
-	u32 max_event_log_size;
-	const bool shadow_reg_enable;
-	const bool pcie_l1_allowed;
-	const bool apmg_wake_up_wa;
-	const bool scd_chain_ext_wa;
+
+	u16 eeprom_size;
+	u16 max_event_log_size;
+
+	u8 pll_cfg:1, /* for iwl_pcie_apm_init() */
+	   shadow_ram_support:1,
+	   shadow_reg_enable:1,
+	   pcie_l1_allowed:1,
+	   apmg_wake_up_wa:1,
+	   scd_chain_ext_wa:1;
+
+	u8 num_of_queues;	/* def: HW dependent */
+
+	u8 max_ll_items;
+	u8 led_compensation;
 };
 
 /*
  * @stbc: support Tx STBC and 1*SS Rx STBC
  * @ldpc: support Tx/Rx with LDPC
  * @use_rts_for_aggregation: use rts/cts protection for HT traffic
- * @ht40_bands: bitmap of bands (using %IEEE80211_BAND_*) that support HT40
+ * @ht40_bands: bitmap of bands (using %NL80211_BAND_*) that support HT40
  */
 struct iwl_ht_params {
-	enum ieee80211_smps_mode smps_mode;
-	const bool ht_greenfield_support; /* if used set to true */
-	const bool stbc;
-	const bool ldpc;
-	bool use_rts_for_aggregation;
+	u8 ht_greenfield_support:1,
+	   stbc:1,
+	   ldpc:1,
+	   use_rts_for_aggregation:1;
 	u8 ht40_bands;
 };
 
@@ -231,10 +237,10 @@ struct iwl_tt_params {
 	u32 tx_protection_entry;
 	u32 tx_protection_exit;
 	struct iwl_tt_tx_backoff tx_backoff[TT_TX_BACKOFF_SIZE];
-	bool support_ct_kill;
-	bool support_dynamic_smps;
-	bool support_tx_protection;
-	bool support_tx_backoff;
+	u8 support_ct_kill:1,
+	   support_dynamic_smps:1,
+	   support_tx_protection:1,
+	   support_tx_backoff:1;
 };
 
 /*
@@ -255,6 +261,7 @@ struct iwl_tt_params {
 #define OTP_LOW_IMAGE_SIZE_FAMILY_7000	(16 * 512 * sizeof(u16)) /* 16 KB */
 #define OTP_LOW_IMAGE_SIZE_FAMILY_8000	(32 * 512 * sizeof(u16)) /* 32 KB */
 #define OTP_LOW_IMAGE_SIZE_FAMILY_9000	OTP_LOW_IMAGE_SIZE_FAMILY_8000
+#define OTP_LOW_IMAGE_SIZE_FAMILY_A000	OTP_LOW_IMAGE_SIZE_FAMILY_9000
 
 struct iwl_eeprom_params {
 	const u8 regulatory_bands[7];
@@ -277,8 +284,6 @@ struct iwl_pwr_tx_backoff {
  *	(.ucode) will be added to filename before loading from disk. The
  *	filename is constructed as fw_name_pre<api>.ucode.
  * @ucode_api_max: Highest version of uCode API supported by driver.
- * @ucode_api_ok: oldest version of the uCode API that is OK to load
- *	without a warning, for use in transitions
  * @ucode_api_min: Lowest version of uCode API supported by driver.
  * @max_inst_size: The maximal length of the fw inst section
  * @max_data_size: The maximal length of the fw data section
@@ -314,6 +319,8 @@ struct iwl_pwr_tx_backoff {
  * @smem_len: the length of SMEM
  * @mq_rx_supported: multi-queue rx support
  * @vht_mu_mimo_supported: VHT MU-MIMO support
+ * @rf_id: need to read rf_id to determine the firmware image
+ * @integrated: discrete or integrated
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -323,51 +330,53 @@ struct iwl_cfg {
 	/* params specific to an individual device within a device family */
 	const char *name;
 	const char *fw_name_pre;
-	const unsigned int ucode_api_max;
-	const unsigned int ucode_api_ok;
-	const unsigned int ucode_api_min;
-	const enum iwl_device_family device_family;
-	const u32 max_data_size;
-	const u32 max_inst_size;
-	u8   valid_tx_ant;
-	u8   valid_rx_ant;
-	u8   non_shared_ant;
-	bool bt_shared_single_ant;
-	u16  nvm_ver;
-	u16  nvm_calib_ver;
 	/* params not likely to change within a device family */
 	const struct iwl_base_params *base_params;
 	/* params likely to change within a device family */
 	const struct iwl_ht_params *ht_params;
 	const struct iwl_eeprom_params *eeprom_params;
-	enum iwl_led_mode led_mode;
-	const bool rx_with_siso_diversity;
-	const bool internal_wimax_coex;
-	const bool host_interrupt_operation_mode;
-	bool high_temp;
-	u8   nvm_hw_section_num;
-	bool mac_addr_from_csr;
-	bool lp_xtal_workaround;
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
-	bool no_power_up_nic_in_init;
 	const char *default_nvm_file_B_step;
 	const char *default_nvm_file_C_step;
-	netdev_features_t features;
-	unsigned int max_rx_agg_size;
-	bool disable_dummy_notification;
-	unsigned int max_tx_agg_size;
-	unsigned int max_ht_ampdu_exponent;
-	unsigned int max_vht_ampdu_exponent;
-	const u32 dccm_offset;
-	const u32 dccm_len;
-	const u32 dccm2_offset;
-	const u32 dccm2_len;
-	const u32 smem_offset;
-	const u32 smem_len;
 	const struct iwl_tt_params *thermal_params;
-	bool apmg_not_supported;
-	bool mq_rx_supported;
-	bool vht_mu_mimo_supported;
+	enum iwl_device_family device_family;
+	enum iwl_led_mode led_mode;
+	u32 max_data_size;
+	u32 max_inst_size;
+	netdev_features_t features;
+	u32 dccm_offset;
+	u32 dccm_len;
+	u32 dccm2_offset;
+	u32 dccm2_len;
+	u32 smem_offset;
+	u32 smem_len;
+	u16 nvm_ver;
+	u16 nvm_calib_ver;
+	u16 rx_with_siso_diversity:1,
+	    bt_shared_single_ant:1,
+	    internal_wimax_coex:1,
+	    host_interrupt_operation_mode:1,
+	    high_temp:1,
+	    mac_addr_from_csr:1,
+	    lp_xtal_workaround:1,
+	    no_power_up_nic_in_init:1,
+	    disable_dummy_notification:1,
+	    apmg_not_supported:1,
+	    mq_rx_supported:1,
+	    vht_mu_mimo_supported:1,
+	    rf_id:1,
+	    integrated:1,
+	    use_tfh:1;
+	u8 valid_tx_ant;
+	u8 valid_rx_ant;
+	u8 non_shared_ant;
+	u8 nvm_hw_section_num;
+	u8 max_rx_agg_size;
+	u8 max_tx_agg_size;
+	u8 max_ht_ampdu_exponent;
+	u8 max_vht_ampdu_exponent;
+	u8 ucode_api_max;
+	u8 ucode_api_min;
 };
 
 /*
@@ -438,9 +447,12 @@ extern const struct iwl_cfg iwl8260_2ac_cfg;
 extern const struct iwl_cfg iwl8265_2ac_cfg;
 extern const struct iwl_cfg iwl4165_2ac_cfg;
 extern const struct iwl_cfg iwl8260_2ac_sdio_cfg;
+extern const struct iwl_cfg iwl8265_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl4165_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl9260_2ac_cfg;
+extern const struct iwl_cfg iwl9260lc_2ac_cfg;
 extern const struct iwl_cfg iwl5165_2ac_cfg;
+extern const struct iwl_cfg iwla000_2ac_cfg;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */

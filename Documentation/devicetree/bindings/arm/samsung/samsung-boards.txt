@@ -2,6 +2,8 @@
 
 Required root node properties:
     - compatible = should be one or more of the following.
+	- "samsung,artik5"	- for Exynos3250-based Samsung ARTIK5 module.
+	- "samsung,artik5-eval" - for Exynos3250-based Samsung ARTIK5 eval board.
 	- "samsung,monk"	- for Exynos3250-based Samsung Simband board.
 	- "samsung,rinato"	- for Exynos3250-based Samsung Gear2 board.
 	- "samsung,smdkv310"	- for Exynos4210-based Samsung SMDKV310 eval board.
@@ -45,6 +47,7 @@ Required root node properties:
 	- "hardkernel,odroid-u3"  - for Exynos4412-based Hardkernel Odroid U3.
 	- "hardkernel,odroid-x"   - for Exynos4412-based Hardkernel Odroid X.
 	- "hardkernel,odroid-x2"  - for Exynos4412-based Hardkernel Odroid X2.
+	- "hardkernel,odroid-xu"  - for Exynos5410-based Hardkernel Odroid XU.
 	- "hardkernel,odroid-xu3" - for Exynos5422-based Hardkernel Odroid XU3.
 	- "hardkernel,odroid-xu3-lite" - for Exynos5422-based Hardkernel
 					 Odroid XU3 Lite board.

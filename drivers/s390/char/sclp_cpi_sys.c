@@ -93,7 +93,7 @@ static struct sclp_req *cpi_prepare_req(void)
 	/* setup SCCB for Control-Program Identification */
 	sccb->header.length = sizeof(struct cpi_sccb);
 	sccb->cpi_evbuf.header.length = sizeof(struct cpi_evbuf);
-	sccb->cpi_evbuf.header.type = 0x0b;
+	sccb->cpi_evbuf.header.type = EVTYP_CTLPROGIDENT;
 	evb = &sccb->cpi_evbuf;
 
 	/* set system type */

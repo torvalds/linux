@@ -137,10 +137,12 @@ EXPORT_SYMBOL_GPL(lockdep_ovsl_is_held);
 static struct vport *new_vport(const struct vport_parms *);
 static int queue_gso_packets(struct datapath *dp, struct sk_buff *,
 			     const struct sw_flow_key *,
-			     const struct dp_upcall_info *);
+			     const struct dp_upcall_info *,
+			     uint32_t cutlen);
 static int queue_userspace_packet(struct datapath *dp, struct sk_buff *,
 				  const struct sw_flow_key *,
-				  const struct dp_upcall_info *);
+				  const struct dp_upcall_info *,
+				  uint32_t cutlen);
 
 /* Must be called with rcu_read_lock. */
 static struct datapath *get_dp_rcu(struct net *net, int dp_ifindex)
@@ -275,7 +277,7 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 		upcall.cmd = OVS_PACKET_CMD_MISS;
 		upcall.portid = ovs_vport_find_upcall_portid(p, skb);
 		upcall.mru = OVS_CB(skb)->mru;
-		error = ovs_dp_upcall(dp, skb, key, &upcall);
+		error = ovs_dp_upcall(dp, skb, key, &upcall, 0);
 		if (unlikely(error))
 			kfree_skb(skb);
 		else
@@ -300,7 +302,8 @@ out:
 
 int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
 		  const struct sw_flow_key *key,
-		  const struct dp_upcall_info *upcall_info)
+		  const struct dp_upcall_info *upcall_info,
+		  uint32_t cutlen)
 {
 	struct dp_stats_percpu *stats;
 	int err;
@@ -311,9 +314,9 @@ int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
 	}
 
 	if (!skb_is_gso(skb))
-		err = queue_userspace_packet(dp, skb, key, upcall_info);
+		err = queue_userspace_packet(dp, skb, key, upcall_info, cutlen);
 	else
-		err = queue_gso_packets(dp, skb, key, upcall_info);
+		err = queue_gso_packets(dp, skb, key, upcall_info, cutlen);
 	if (err)
 		goto err;
 
@@ -331,7 +334,8 @@ err:
 
 static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 			     const struct sw_flow_key *key,
-			     const struct dp_upcall_info *upcall_info)
+			     const struct dp_upcall_info *upcall_info,
+				 uint32_t cutlen)
 {
 	unsigned short gso_type = skb_shinfo(skb)->gso_type;
 	struct sw_flow_key later_key;
@@ -360,7 +364,7 @@ static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 		if (gso_type & SKB_GSO_UDP && skb != segs)
 			key = &later_key;
 
-		err = queue_userspace_packet(dp, skb, key, upcall_info);
+		err = queue_userspace_packet(dp, skb, key, upcall_info, cutlen);
 		if (err)
 			break;
 
@@ -383,7 +387,8 @@ static size_t upcall_msg_size(const struct dp_upcall_info *upcall_info,
 {
 	size_t size = NLMSG_ALIGN(sizeof(struct ovs_header))
 		+ nla_total_size(hdrlen) /* OVS_PACKET_ATTR_PACKET */
-		+ nla_total_size(ovs_key_attr_size()); /* OVS_PACKET_ATTR_KEY */
+		+ nla_total_size(ovs_key_attr_size()) /* OVS_PACKET_ATTR_KEY */
+		+ nla_total_size(sizeof(unsigned int)); /* OVS_PACKET_ATTR_LEN */
 
 	/* OVS_PACKET_ATTR_USERDATA */
 	if (upcall_info->userdata)
@@ -416,7 +421,8 @@ static void pad_packet(struct datapath *dp, struct sk_buff *skb)
 
 static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 				  const struct sw_flow_key *key,
-				  const struct dp_upcall_info *upcall_info)
+				  const struct dp_upcall_info *upcall_info,
+				  uint32_t cutlen)
 {
 	struct ovs_header *upcall;
 	struct sk_buff *nskb = NULL;
@@ -461,7 +467,7 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	else
 		hlen = skb->len;
 
-	len = upcall_msg_size(upcall_info, hlen);
+	len = upcall_msg_size(upcall_info, hlen - cutlen);
 	user_skb = genlmsg_new(len, GFP_ATOMIC);
 	if (!user_skb) {
 		err = -ENOMEM;
@@ -509,15 +515,25 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 		pad_packet(dp, user_skb);
 	}
 
+	/* Add OVS_PACKET_ATTR_LEN when packet is truncated */
+	if (cutlen > 0) {
+		if (nla_put_u32(user_skb, OVS_PACKET_ATTR_LEN,
+				skb->len)) {
+			err = -ENOBUFS;
+			goto out;
+		}
+		pad_packet(dp, user_skb);
+	}
+
 	/* Only reserve room for attribute header, packet data is added
 	 * in skb_zerocopy() */
 	if (!(nla = nla_reserve(user_skb, OVS_PACKET_ATTR_PACKET, 0))) {
 		err = -ENOBUFS;
 		goto out;
 	}
-	nla->nla_len = nla_attr_size(skb->len);
+	nla->nla_len = nla_attr_size(skb->len - cutlen);
 
-	err = skb_zerocopy(user_skb, skb, skb->len, hlen);
+	err = skb_zerocopy(user_skb, skb, skb->len - cutlen, hlen);
 	if (err)
 		goto out;
 
@@ -738,9 +754,9 @@ static size_t ovs_flow_cmd_msg_size(const struct sw_flow_actions *acts,
 		len += nla_total_size(acts->orig_len);
 
 	return len
-		+ nla_total_size(sizeof(struct ovs_flow_stats)) /* OVS_FLOW_ATTR_STATS */
+		+ nla_total_size_64bit(sizeof(struct ovs_flow_stats)) /* OVS_FLOW_ATTR_STATS */
 		+ nla_total_size(1) /* OVS_FLOW_ATTR_TCP_FLAGS */
-		+ nla_total_size(8); /* OVS_FLOW_ATTR_USED */
+		+ nla_total_size_64bit(8); /* OVS_FLOW_ATTR_USED */
 }
 
 /* Called with ovs_mutex or RCU read lock. */
@@ -754,11 +770,14 @@ static int ovs_flow_cmd_fill_stats(const struct sw_flow *flow,
 	ovs_flow_stats_get(flow, &stats, &used, &tcp_flags);
 
 	if (used &&
-	    nla_put_u64(skb, OVS_FLOW_ATTR_USED, ovs_flow_used_time(used)))
+	    nla_put_u64_64bit(skb, OVS_FLOW_ATTR_USED, ovs_flow_used_time(used),
+			      OVS_FLOW_ATTR_PAD))
 		return -EMSGSIZE;
 
 	if (stats.n_packets &&
-	    nla_put(skb, OVS_FLOW_ATTR_STATS, sizeof(struct ovs_flow_stats), &stats))
+	    nla_put_64bit(skb, OVS_FLOW_ATTR_STATS,
+			  sizeof(struct ovs_flow_stats), &stats,
+			  OVS_FLOW_ATTR_PAD))
 		return -EMSGSIZE;
 
 	if ((u8)ntohs(tcp_flags) &&
@@ -1434,8 +1453,8 @@ static size_t ovs_dp_cmd_msg_size(void)
 	size_t msgsize = NLMSG_ALIGN(sizeof(struct ovs_header));
 
 	msgsize += nla_total_size(IFNAMSIZ);
-	msgsize += nla_total_size(sizeof(struct ovs_dp_stats));
-	msgsize += nla_total_size(sizeof(struct ovs_dp_megaflow_stats));
+	msgsize += nla_total_size_64bit(sizeof(struct ovs_dp_stats));
+	msgsize += nla_total_size_64bit(sizeof(struct ovs_dp_megaflow_stats));
 	msgsize += nla_total_size(sizeof(u32)); /* OVS_DP_ATTR_USER_FEATURES */
 
 	return msgsize;
@@ -1462,13 +1481,13 @@ static int ovs_dp_cmd_fill_info(struct datapath *dp, struct sk_buff *skb,
 		goto nla_put_failure;
 
 	get_dp_stats(dp, &dp_stats, &dp_megaflow_stats);
-	if (nla_put(skb, OVS_DP_ATTR_STATS, sizeof(struct ovs_dp_stats),
-			&dp_stats))
+	if (nla_put_64bit(skb, OVS_DP_ATTR_STATS, sizeof(struct ovs_dp_stats),
+			  &dp_stats, OVS_DP_ATTR_PAD))
 		goto nla_put_failure;
 
-	if (nla_put(skb, OVS_DP_ATTR_MEGAFLOW_STATS,
-			sizeof(struct ovs_dp_megaflow_stats),
-			&dp_megaflow_stats))
+	if (nla_put_64bit(skb, OVS_DP_ATTR_MEGAFLOW_STATS,
+			  sizeof(struct ovs_dp_megaflow_stats),
+			  &dp_megaflow_stats, OVS_DP_ATTR_PAD))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, OVS_DP_ATTR_USER_FEATURES, dp->user_features))
@@ -1837,8 +1856,9 @@ static int ovs_vport_cmd_fill_info(struct vport *vport, struct sk_buff *skb,
 		goto nla_put_failure;
 
 	ovs_vport_get_stats(vport, &vport_stats);
-	if (nla_put(skb, OVS_VPORT_ATTR_STATS, sizeof(struct ovs_vport_stats),
-		    &vport_stats))
+	if (nla_put_64bit(skb, OVS_VPORT_ATTR_STATS,
+			  sizeof(struct ovs_vport_stats), &vport_stats,
+			  OVS_VPORT_ATTR_PAD))
 		goto nla_put_failure;
 
 	if (ovs_vport_get_upcall_portids(vport, skb))

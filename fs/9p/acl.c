@@ -93,7 +93,7 @@ static struct posix_acl *v9fs_get_cached_acl(struct inode *inode, int type)
 	 * instantiating the inode (v9fs_inode_from_fid)
 	 */
 	acl = get_cached_acl(inode, type);
-	BUG_ON(acl == ACL_NOT_CACHED);
+	BUG_ON(is_uncached_acl(acl));
 	return acl;
 }
 
@@ -213,8 +213,8 @@ int v9fs_acl_mode(struct inode *dir, umode_t *modep,
 }
 
 static int v9fs_xattr_get_acl(const struct xattr_handler *handler,
-			      struct dentry *dentry, const char *name,
-			      void *buffer, size_t size)
+			      struct dentry *dentry, struct inode *inode,
+			      const char *name, void *buffer, size_t size)
 {
 	struct v9fs_session_info *v9ses;
 	struct posix_acl *acl;
@@ -227,7 +227,7 @@ static int v9fs_xattr_get_acl(const struct xattr_handler *handler,
 	if ((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT)
 		return v9fs_xattr_get(dentry, handler->name, buffer, size);
 
-	acl = v9fs_get_cached_acl(d_inode(dentry), handler->flags);
+	acl = v9fs_get_cached_acl(inode, handler->flags);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl == NULL)
@@ -239,13 +239,13 @@ static int v9fs_xattr_get_acl(const struct xattr_handler *handler,
 }
 
 static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
-			      struct dentry *dentry, const char *name,
-			      const void *value, size_t size, int flags)
+			      struct dentry *dentry, struct inode *inode,
+			      const char *name, const void *value,
+			      size_t size, int flags)
 {
 	int retval;
 	struct posix_acl *acl;
 	struct v9fs_session_info *v9ses;
-	struct inode *inode = d_inode(dentry);
 
 	v9ses = v9fs_dentry2v9ses(dentry);
 	/*
@@ -266,7 +266,7 @@ static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
 		if (IS_ERR(acl))
 			return PTR_ERR(acl);
 		else if (acl) {
-			retval = posix_acl_valid(acl);
+			retval = posix_acl_valid(inode->i_sb->s_user_ns, acl);
 			if (retval)
 				goto err_out;
 		}

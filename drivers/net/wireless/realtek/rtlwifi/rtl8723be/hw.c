@@ -1474,7 +1474,7 @@ static enum version_8723e _rtl8723be_read_chip_version(struct ieee80211_hw *hw)
 
 	value32 = rtl_read_dword(rtlpriv, REG_SYS_CFG1);
 	if ((value32 & (CHIP_8723B)) != CHIP_8723B)
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "unkown chip version\n");
+		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "unknown chip version\n");
 	else
 		version = (enum version_8723e)CHIP_8723B;
 
@@ -2026,9 +2026,12 @@ static void _rtl8723be_read_adapter_info(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	u16 i, usvalue;
-	u8 hwinfo[HWSET_MAX_SIZE];
-	u16 eeprom_id;
+	int params[] = {RTL8723BE_EEPROM_ID, EEPROM_VID, EEPROM_DID,
+			EEPROM_SVID, EEPROM_SMID, EEPROM_MAC_ADDR,
+			EEPROM_CHANNELPLAN, EEPROM_VERSION, EEPROM_CUSTOMER_ID,
+			COUNTRY_CODE_WORLD_WIDE_13};
+	u8 *hwinfo;
+	int i;
 	bool is_toshiba_smid1 = false;
 	bool is_toshiba_smid2 = false;
 	bool is_samsung_smid = false;
@@ -2055,52 +2058,13 @@ static void _rtl8723be_read_adapter_info(struct ieee80211_hw *hw,
 		/* needs to be added */
 		return;
 	}
-	if (rtlefuse->epromtype == EEPROM_BOOT_EFUSE) {
-		rtl_efuse_shadow_map_update(hw);
 
-		memcpy(hwinfo, &rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
-		       HWSET_MAX_SIZE);
-	} else if (rtlefuse->epromtype == EEPROM_93C46) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "RTL819X Not boot from eeprom, check it !!");
-	}
-	RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_DMESG, ("MAP\n"),
-		      hwinfo, HWSET_MAX_SIZE);
-
-	eeprom_id = *((u16 *)&hwinfo[0]);
-	if (eeprom_id != RTL8723BE_EEPROM_ID) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 "EEPROM ID(%#x) is invalid!!\n", eeprom_id);
-		rtlefuse->autoload_failflag = true;
-	} else {
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "Autoload OK\n");
-		rtlefuse->autoload_failflag = false;
-	}
-
-	if (rtlefuse->autoload_failflag)
+	hwinfo = kzalloc(HWSET_MAX_SIZE, GFP_KERNEL);
+	if (!hwinfo)
 		return;
 
-	rtlefuse->eeprom_vid = *(u16 *)&hwinfo[EEPROM_VID];
-	rtlefuse->eeprom_did = *(u16 *)&hwinfo[EEPROM_DID];
-	rtlefuse->eeprom_svid = *(u16 *)&hwinfo[EEPROM_SVID];
-	rtlefuse->eeprom_smid = *(u16 *)&hwinfo[EEPROM_SMID];
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "EEPROMId = 0x%4x\n", eeprom_id);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "EEPROM VID = 0x%4x\n", rtlefuse->eeprom_vid);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "EEPROM DID = 0x%4x\n", rtlefuse->eeprom_did);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "EEPROM SVID = 0x%4x\n", rtlefuse->eeprom_svid);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "EEPROM SMID = 0x%4x\n", rtlefuse->eeprom_smid);
-
-	for (i = 0; i < 6; i += 2) {
-		usvalue = *(u16 *)&hwinfo[EEPROM_MAC_ADDR + i];
-		*((u16 *)(&rtlefuse->dev_addr[i])) = usvalue;
-	}
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "dev_addr: %pM\n",
-		 rtlefuse->dev_addr);
+	if (rtl_get_hwinfo(hw, rtlpriv, HWSET_MAX_SIZE, hwinfo, params))
+		goto exit;
 
 	/*parse xtal*/
 	rtlefuse->crystalcap = hwinfo[EEPROM_XTAL_8723BE];
@@ -2113,14 +2077,6 @@ static void _rtl8723be_read_adapter_info(struct ieee80211_hw *hw,
 	rtl8723be_read_bt_coexist_info_from_hwpg(hw,
 						 rtlefuse->autoload_failflag,
 						 hwinfo);
-
-	rtlefuse->eeprom_channelplan = hwinfo[EEPROM_CHANNELPLAN];
-	rtlefuse->eeprom_version = *(u16 *)&hwinfo[EEPROM_VERSION];
-	rtlefuse->txpwr_fromeprom = true;
-	rtlefuse->eeprom_oemid = hwinfo[EEPROM_CUSTOMER_ID];
-
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "EEPROM Customer ID: 0x%2x\n", rtlefuse->eeprom_oemid);
 
 	/* set channel plan from efuse */
 	rtlefuse->channel_plan = rtlefuse->eeprom_channelplan;
@@ -2232,6 +2188,8 @@ static void _rtl8723be_read_adapter_info(struct ieee80211_hw *hw,
 			break;
 		}
 	}
+exit:
+	kfree(hwinfo);
 }
 
 static void _rtl8723be_hal_customized_behavior(struct ieee80211_hw *hw)
@@ -2684,6 +2642,7 @@ void rtl8723be_read_bt_coexist_info_from_hwpg(struct ieee80211_hw *hw,
 					      bool auto_load_fail, u8 *hwinfo)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_mod_params *mod_params = rtlpriv->cfg->mod_params;
 	u8 value;
 	u32 tmpu_32;
 
@@ -2702,6 +2661,10 @@ void rtl8723be_read_bt_coexist_info_from_hwpg(struct ieee80211_hw *hw,
 		rtlpriv->btcoexist.btc_info.ant_num = ANT_X2;
 	}
 
+	/* override ant_num / ant_path */
+	if (mod_params->ant_sel)
+		rtlpriv->btcoexist.btc_info.ant_num =
+			(mod_params->ant_sel == 1 ? ANT_X2 : ANT_X1);
 }
 
 void rtl8723be_bt_reg_init(struct ieee80211_hw *hw)

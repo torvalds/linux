@@ -6,7 +6,6 @@
 
 #include <asm/io.h>
 #include <asm/processor.h>
-#include <linux/mc146818rtc.h>
 
 #ifndef RTC_PORT
 #define RTC_PORT(x)	(0x70 + (x))

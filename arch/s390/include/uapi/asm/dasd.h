@@ -187,6 +187,36 @@ typedef struct format_data_t {
 #define DASD_FMT_INT_INVAL  4 /* invalidate tracks */
 #define DASD_FMT_INT_COMPAT 8 /* use OS/390 compatible disk layout */
 
+/*
+ * struct format_check_t
+ * represents all data necessary to evaluate the format of
+ * different tracks of a dasd
+ */
+typedef struct format_check_t {
+	/* Input */
+	struct format_data_t expect;
+
+	/* Output */
+	unsigned int result;		/* Error indication (DASD_FMT_ERR_*) */
+	unsigned int unit;		/* Track that is in error */
+	unsigned int rec;		/* Record that is in error */
+	unsigned int num_records;	/* Records in the track in error */
+	unsigned int blksize;		/* Blocksize of first record in error */
+	unsigned int key_length;	/* Key length of first record in error */
+} format_check_t;
+
+/* Values returned in format_check_t when a format error is detected: */
+/* Too few records were found on a single track */
+#define DASD_FMT_ERR_TOO_FEW_RECORDS	1
+/* Too many records were found on a single track */
+#define DASD_FMT_ERR_TOO_MANY_RECORDS	2
+/* Blocksize/data-length of a record was wrong */
+#define DASD_FMT_ERR_BLKSIZE		3
+/* A record ID is defined by cylinder, head, and record number (CHR). */
+/* On mismatch, this error is set */
+#define DASD_FMT_ERR_RECORD_ID		4
+/* If key-length was != 0 */
+#define DASD_FMT_ERR_KEY_LENGTH		5
 
 /* 
  * struct attrib_data_t
@@ -288,6 +318,8 @@ struct dasd_snid_ioctl_data {
 
 /* Get Sense Path Group ID (SNID) data */
 #define BIODASDSNID    _IOWR(DASD_IOCTL_LETTER, 1, struct dasd_snid_ioctl_data)
+/* Check device format according to format_check_t */
+#define BIODASDCHECKFMT _IOWR(DASD_IOCTL_LETTER, 2, format_check_t)
 
 #define BIODASDSYMMIO  _IOWR(DASD_IOCTL_LETTER, 240, dasd_symmio_parms_t)
 

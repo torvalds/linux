@@ -143,6 +143,18 @@
 		io-channels = <&twl_madc 0>, <&twl_madc 4>, <&twl_madc 12>;
 		io-channel-names = "temp", "bsi", "vbat";
 	};
+
+	pwm9: dmtimer-pwm {
+		compatible = "ti,omap-dmtimer-pwm";
+		#pwm-cells = <3>;
+		ti,timers = <&timer9>;
+		ti,clock-source = <0x00>; /* timer_sys_ck */
+	};
+
+	ir: n900-ir {
+		compatible = "nokia,n900-ir";
+		pwms = <&pwm9 0 26316 0>; /* 38000 Hz */
+	};
 };
 
 &omap3_pmx_core {
@@ -288,7 +300,7 @@
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2180, PIN_INPUT_PULLUP | MUX_MODE1)	/* ssi1_rdy_tx */
 			OMAP3_CORE1_IOPAD(0x217e, PIN_OUTPUT | MUX_MODE1)		/* ssi1_flag_tx */
-			OMAP3_CORE1_IOPAD(0x2182, PIN_INPUT | WAKEUP_EN | MUX_MODE4) /* ssi1_wake_tx (cawake) */
+			OMAP3_CORE1_IOPAD(0x2182, PIN_INPUT | MUX_MODE4)		/* ssi1_wake_tx (cawake) */
 			OMAP3_CORE1_IOPAD(0x217c, PIN_OUTPUT | MUX_MODE1)		/* ssi1_dat_tx */
 			OMAP3_CORE1_IOPAD(0x2184, PIN_INPUT | MUX_MODE1)		/* ssi1_dat_rx */
 			OMAP3_CORE1_IOPAD(0x2186, PIN_INPUT | MUX_MODE1)		/* ssi1_flag_rx */
@@ -300,7 +312,7 @@
 	modem_pins: pinmux_modem {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20dc, PIN_OUTPUT | MUX_MODE4)		/* gpio 70 => cmt_apeslpx */
-			OMAP3_CORE1_IOPAD(0x20e0, PIN_INPUT | WAKEUP_EN | MUX_MODE4) /* gpio 72 => ape_rst_rq */
+			OMAP3_CORE1_IOPAD(0x20e0, PIN_INPUT | MUX_MODE4)		/* gpio 72 => ape_rst_rq */
 			OMAP3_CORE1_IOPAD(0x20e2, PIN_OUTPUT | MUX_MODE4)		/* gpio 73 => cmt_rst_rq */
 			OMAP3_CORE1_IOPAD(0x20e4, PIN_OUTPUT | MUX_MODE4)		/* gpio 74 => cmt_en */
 			OMAP3_CORE1_IOPAD(0x20e6, PIN_OUTPUT | MUX_MODE4)		/* gpio 75 => cmt_rst */

@@ -5,6 +5,7 @@
 #include <linux/sched.h>
 #include <asm/processor.h>
 #include <asm/pgalloc.h>
+#include <asm/pgtable.h>
 
 /*
  * Flush all TLB entries on the local CPU.
@@ -44,17 +45,9 @@ void smp_ptlb_all(void);
  */
 static inline void __tlb_flush_global(void)
 {
-	register unsigned long reg2 asm("2");
-	register unsigned long reg3 asm("3");
-	register unsigned long reg4 asm("4");
-	long dummy;
+	unsigned int dummy = 0;
 
-	dummy = 0;
-	reg2 = reg3 = 0;
-	reg4 = ((unsigned long) &dummy) + 1;
-	asm volatile(
-		"	csp	%0,%2"
-		: : "d" (reg2), "d" (reg3), "d" (reg4), "m" (dummy) : "cc" );
+	csp(&dummy, 0, 0);
 }
 
 /*
@@ -64,7 +57,7 @@ static inline void __tlb_flush_global(void)
 static inline void __tlb_flush_full(struct mm_struct *mm)
 {
 	preempt_disable();
-	atomic_add(0x10000, &mm->context.attach_count);
+	atomic_inc(&mm->context.flush_count);
 	if (cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id()))) {
 		/* Local TLB flush */
 		__tlb_flush_local();
@@ -76,21 +69,19 @@ static inline void __tlb_flush_full(struct mm_struct *mm)
 			cpumask_copy(mm_cpumask(mm),
 				     &mm->context.cpu_attach_mask);
 	}
-	atomic_sub(0x10000, &mm->context.attach_count);
+	atomic_dec(&mm->context.flush_count);
 	preempt_enable();
 }
 
 /*
- * Flush TLB entries for a specific ASCE on all CPUs.
+ * Flush TLB entries for a specific ASCE on all CPUs. Should never be used
+ * when more than one asce (e.g. gmap) ran on this mm.
  */
 static inline void __tlb_flush_asce(struct mm_struct *mm, unsigned long asce)
 {
-	int active, count;
-
 	preempt_disable();
-	active = (mm == current->active_mm) ? 1 : 0;
-	count = atomic_add_return(0x10000, &mm->context.attach_count);
-	if (MACHINE_HAS_TLB_LC && (count & 0xffff) <= active &&
+	atomic_inc(&mm->context.flush_count);
+	if (MACHINE_HAS_TLB_LC &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id()))) {
 		__tlb_flush_idte_local(asce);
 	} else {
@@ -103,7 +94,7 @@ static inline void __tlb_flush_asce(struct mm_struct *mm, unsigned long asce)
 			cpumask_copy(mm_cpumask(mm),
 				     &mm->context.cpu_attach_mask);
 	}
-	atomic_sub(0x10000, &mm->context.attach_count);
+	atomic_dec(&mm->context.flush_count);
 	preempt_enable();
 }
 

@@ -1493,11 +1493,8 @@ static void process_single_down_tx_qlock(struct drm_dp_mst_topology_mgr *mgr)
 	WARN_ON(!mutex_is_locked(&mgr->qlock));
 
 	/* construct a chunk from the first msg in the tx_msg queue */
-	if (list_empty(&mgr->tx_msg_downq)) {
-		mgr->tx_down_in_progress = false;
+	if (list_empty(&mgr->tx_msg_downq))
 		return;
-	}
-	mgr->tx_down_in_progress = true;
 
 	txmsg = list_first_entry(&mgr->tx_msg_downq, struct drm_dp_sideband_msg_tx, next);
 	ret = process_single_tx_qlock(mgr, txmsg, false);
@@ -1511,10 +1508,6 @@ static void process_single_down_tx_qlock(struct drm_dp_mst_topology_mgr *mgr)
 			txmsg->dst->tx_slots[txmsg->seqno] = NULL;
 		txmsg->state = DRM_DP_SIDEBAND_TX_TIMEOUT;
 		wake_up(&mgr->tx_waitq);
-	}
-	if (list_empty(&mgr->tx_msg_downq)) {
-		mgr->tx_down_in_progress = false;
-		return;
 	}
 }
 
@@ -1538,7 +1531,7 @@ static void drm_dp_queue_down_tx(struct drm_dp_mst_topology_mgr *mgr,
 {
 	mutex_lock(&mgr->qlock);
 	list_add_tail(&txmsg->next, &mgr->tx_msg_downq);
-	if (!mgr->tx_down_in_progress)
+	if (list_is_singular(&mgr->tx_msg_downq))
 		process_single_down_tx_qlock(mgr);
 	mutex_unlock(&mgr->qlock);
 }
@@ -2372,6 +2365,7 @@ EXPORT_SYMBOL(drm_dp_mst_hpd_irq);
 
 /**
  * drm_dp_mst_detect_port() - get connection status for an MST port
+ * @connector: DRM connector for this port
  * @mgr: manager for this port
  * @port: unverified pointer to a port
  *
@@ -2756,7 +2750,7 @@ static void drm_dp_mst_dump_mstb(struct seq_file *m,
 
 	seq_printf(m, "%smst: %p, %d\n", prefix, mstb, mstb->num_ports);
 	list_for_each_entry(port, &mstb->ports, next) {
-		seq_printf(m, "%sport: %d: ddps: %d ldps: %d, sdp: %d/%d, %p, conn: %p\n", prefix, port->port_num, port->ddps, port->ldps, port->num_sdp_streams, port->num_sdp_stream_sinks, port, port->connector);
+		seq_printf(m, "%sport: %d: input: %d: pdt: %d, ddps: %d ldps: %d, sdp: %d/%d, %p, conn: %p\n", prefix, port->port_num, port->input, port->pdt, port->ddps, port->ldps, port->num_sdp_streams, port->num_sdp_stream_sinks, port, port->connector);
 		if (port->mstb)
 			drm_dp_mst_dump_mstb(m, port->mstb);
 	}
@@ -2777,6 +2771,16 @@ static bool dump_dp_payload_table(struct drm_dp_mst_topology_mgr *mgr,
 	return false;
 }
 
+static void fetch_monitor_name(struct drm_dp_mst_topology_mgr *mgr,
+			       struct drm_dp_mst_port *port, char *name,
+			       int namelen)
+{
+	struct edid *mst_edid;
+
+	mst_edid = drm_dp_mst_get_edid(port->connector, mgr, port);
+	drm_edid_get_monitor_name(mst_edid, name, namelen);
+}
+
 /**
  * drm_dp_mst_dump_topology(): dump topology to seq file.
  * @m: seq_file to dump output to
@@ -2789,6 +2793,7 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 {
 	int i;
 	struct drm_dp_mst_port *port;
+
 	mutex_lock(&mgr->lock);
 	if (mgr->mst_primary)
 		drm_dp_mst_dump_mstb(m, mgr->mst_primary);
@@ -2797,14 +2802,21 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 	mutex_unlock(&mgr->lock);
 
 	mutex_lock(&mgr->payload_lock);
-	seq_printf(m, "vcpi: %lx %lx\n", mgr->payload_mask, mgr->vcpi_mask);
+	seq_printf(m, "vcpi: %lx %lx %d\n", mgr->payload_mask, mgr->vcpi_mask,
+		mgr->max_payloads);
 
 	for (i = 0; i < mgr->max_payloads; i++) {
 		if (mgr->proposed_vcpis[i]) {
+			char name[14];
+
 			port = container_of(mgr->proposed_vcpis[i], struct drm_dp_mst_port, vcpi);
-			seq_printf(m, "vcpi %d: %d %d %d\n", i, port->port_num, port->vcpi.vcpi, port->vcpi.num_slots);
+			fetch_monitor_name(mgr, port, name, sizeof(name));
+			seq_printf(m, "vcpi %d: %d %d %d sink name: %s\n", i,
+				   port->port_num, port->vcpi.vcpi,
+				   port->vcpi.num_slots,
+				   (*name != 0) ? name :  "Unknown");
 		} else
-			seq_printf(m, "vcpi %d:unsed\n", i);
+			seq_printf(m, "vcpi %d:unused\n", i);
 	}
 	for (i = 0; i < mgr->max_payloads; i++) {
 		seq_printf(m, "payload %d: %d, %d, %d\n",
@@ -2844,8 +2856,9 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 		for (i = 0; i < 0x3; i++)
 			seq_printf(m, "%02x", buf[i]);
 		seq_printf(m, " devid: ");
-		for (i = 0x3; i < 0x8; i++)
+		for (i = 0x3; i < 0x8 && buf[i]; i++)
 			seq_printf(m, "%c", buf[i]);
+
 		seq_printf(m, " revision: hw: %x.%x sw: %x.%x", buf[0x9] >> 4, buf[0x9] & 0xf, buf[0xa], buf[0xb]);
 		seq_printf(m, "\n");
 		bret = dump_dp_payload_table(mgr, buf);
@@ -2868,7 +2881,7 @@ static void drm_dp_tx_work(struct work_struct *work)
 	struct drm_dp_mst_topology_mgr *mgr = container_of(work, struct drm_dp_mst_topology_mgr, tx_work);
 
 	mutex_lock(&mgr->qlock);
-	if (mgr->tx_down_in_progress)
+	if (!list_empty(&mgr->tx_msg_downq))
 		process_single_down_tx_qlock(mgr);
 	mutex_unlock(&mgr->qlock);
 }
@@ -2908,11 +2921,9 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
 		drm_dp_port_teardown_pdt(port, port->pdt);
 
 		if (!port->input && port->vcpi.vcpi > 0) {
-			if (mgr->mst_state) {
-				drm_dp_mst_reset_vcpi_slots(mgr, port);
-				drm_dp_update_payload_part1(mgr);
-				drm_dp_mst_put_payload_id(mgr, port->vcpi.vcpi);
-			}
+			drm_dp_mst_reset_vcpi_slots(mgr, port);
+			drm_dp_update_payload_part1(mgr);
+			drm_dp_mst_put_payload_id(mgr, port->vcpi.vcpi);
 		}
 
 		kref_put(&port->kref, drm_dp_free_mst_port);

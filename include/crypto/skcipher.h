@@ -65,86 +65,80 @@ struct crypto_skcipher {
 	struct crypto_tfm base;
 };
 
+/**
+ * struct skcipher_alg - symmetric key cipher definition
+ * @min_keysize: Minimum key size supported by the transformation. This is the
+ *		 smallest key length supported by this transformation algorithm.
+ *		 This must be set to one of the pre-defined values as this is
+ *		 not hardware specific. Possible values for this field can be
+ *		 found via git grep "_MIN_KEY_SIZE" include/crypto/
+ * @max_keysize: Maximum key size supported by the transformation. This is the
+ *		 largest key length supported by this transformation algorithm.
+ *		 This must be set to one of the pre-defined values as this is
+ *		 not hardware specific. Possible values for this field can be
+ *		 found via git grep "_MAX_KEY_SIZE" include/crypto/
+ * @setkey: Set key for the transformation. This function is used to either
+ *	    program a supplied key into the hardware or store the key in the
+ *	    transformation context for programming it later. Note that this
+ *	    function does modify the transformation context. This function can
+ *	    be called multiple times during the existence of the transformation
+ *	    object, so one must make sure the key is properly reprogrammed into
+ *	    the hardware. This function is also responsible for checking the key
+ *	    length for validity. In case a software fallback was put in place in
+ *	    the @cra_init call, this function might need to use the fallback if
+ *	    the algorithm doesn't support all of the key sizes.
+ * @encrypt: Encrypt a scatterlist of blocks. This function is used to encrypt
+ *	     the supplied scatterlist containing the blocks of data. The crypto
+ *	     API consumer is responsible for aligning the entries of the
+ *	     scatterlist properly and making sure the chunks are correctly
+ *	     sized. In case a software fallback was put in place in the
+ *	     @cra_init call, this function might need to use the fallback if
+ *	     the algorithm doesn't support all of the key sizes. In case the
+ *	     key was stored in transformation context, the key might need to be
+ *	     re-programmed into the hardware in this function. This function
+ *	     shall not modify the transformation context, as this function may
+ *	     be called in parallel with the same transformation object.
+ * @decrypt: Decrypt a single block. This is a reverse counterpart to @encrypt
+ *	     and the conditions are exactly the same.
+ * @init: Initialize the cryptographic transformation object. This function
+ *	  is used to initialize the cryptographic transformation object.
+ *	  This function is called only once at the instantiation time, right
+ *	  after the transformation context was allocated. In case the
+ *	  cryptographic hardware has some special requirements which need to
+ *	  be handled by software, this function shall check for the precise
+ *	  requirement of the transformation and put any software fallbacks
+ *	  in place.
+ * @exit: Deinitialize the cryptographic transformation object. This is a
+ *	  counterpart to @init, used to remove various changes set in
+ *	  @init.
+ * @ivsize: IV size applicable for transformation. The consumer must provide an
+ *	    IV of exactly that size to perform the encrypt or decrypt operation.
+ * @chunksize: Equal to the block size except for stream ciphers such as
+ *	       CTR where it is set to the underlying block size.
+ * @base: Definition of a generic crypto algorithm.
+ *
+ * All fields except @ivsize are mandatory and must be filled.
+ */
+struct skcipher_alg {
+	int (*setkey)(struct crypto_skcipher *tfm, const u8 *key,
+	              unsigned int keylen);
+	int (*encrypt)(struct skcipher_request *req);
+	int (*decrypt)(struct skcipher_request *req);
+	int (*init)(struct crypto_skcipher *tfm);
+	void (*exit)(struct crypto_skcipher *tfm);
+
+	unsigned int min_keysize;
+	unsigned int max_keysize;
+	unsigned int ivsize;
+	unsigned int chunksize;
+
+	struct crypto_alg base;
+};
+
 #define SKCIPHER_REQUEST_ON_STACK(name, tfm) \
 	char __##name##_desc[sizeof(struct skcipher_request) + \
 		crypto_skcipher_reqsize(tfm)] CRYPTO_MINALIGN_ATTR; \
 	struct skcipher_request *name = (void *)__##name##_desc
-
-static inline struct crypto_ablkcipher *skcipher_givcrypt_reqtfm(
-	struct skcipher_givcrypt_request *req)
-{
-	return crypto_ablkcipher_reqtfm(&req->creq);
-}
-
-static inline int crypto_skcipher_givencrypt(
-	struct skcipher_givcrypt_request *req)
-{
-	struct ablkcipher_tfm *crt =
-		crypto_ablkcipher_crt(skcipher_givcrypt_reqtfm(req));
-	return crt->givencrypt(req);
-};
-
-static inline int crypto_skcipher_givdecrypt(
-	struct skcipher_givcrypt_request *req)
-{
-	struct ablkcipher_tfm *crt =
-		crypto_ablkcipher_crt(skcipher_givcrypt_reqtfm(req));
-	return crt->givdecrypt(req);
-};
-
-static inline void skcipher_givcrypt_set_tfm(
-	struct skcipher_givcrypt_request *req, struct crypto_ablkcipher *tfm)
-{
-	req->creq.base.tfm = crypto_ablkcipher_tfm(tfm);
-}
-
-static inline struct skcipher_givcrypt_request *skcipher_givcrypt_cast(
-	struct crypto_async_request *req)
-{
-	return container_of(ablkcipher_request_cast(req),
-			    struct skcipher_givcrypt_request, creq);
-}
-
-static inline struct skcipher_givcrypt_request *skcipher_givcrypt_alloc(
-	struct crypto_ablkcipher *tfm, gfp_t gfp)
-{
-	struct skcipher_givcrypt_request *req;
-
-	req = kmalloc(sizeof(struct skcipher_givcrypt_request) +
-		      crypto_ablkcipher_reqsize(tfm), gfp);
-
-	if (likely(req))
-		skcipher_givcrypt_set_tfm(req, tfm);
-
-	return req;
-}
-
-static inline void skcipher_givcrypt_free(struct skcipher_givcrypt_request *req)
-{
-	kfree(req);
-}
-
-static inline void skcipher_givcrypt_set_callback(
-	struct skcipher_givcrypt_request *req, u32 flags,
-	crypto_completion_t compl, void *data)
-{
-	ablkcipher_request_set_callback(&req->creq, flags, compl, data);
-}
-
-static inline void skcipher_givcrypt_set_crypt(
-	struct skcipher_givcrypt_request *req,
-	struct scatterlist *src, struct scatterlist *dst,
-	unsigned int nbytes, void *iv)
-{
-	ablkcipher_request_set_crypt(&req->creq, src, dst, nbytes, iv);
-}
-
-static inline void skcipher_givcrypt_set_giv(
-	struct skcipher_givcrypt_request *req, u8 *giv, u64 seq)
-{
-	req->giv = giv;
-	req->seq = seq;
-}
 
 /**
  * DOC: Symmetric Key Cipher API
@@ -231,10 +225,41 @@ static inline int crypto_has_skcipher(const char *alg_name, u32 type,
 			      crypto_skcipher_mask(mask));
 }
 
+/**
+ * crypto_has_skcipher2() - Search for the availability of an skcipher.
+ * @alg_name: is the cra_name / name or cra_driver_name / driver name of the
+ *	      skcipher
+ * @type: specifies the type of the skcipher
+ * @mask: specifies the mask for the skcipher
+ *
+ * Return: true when the skcipher is known to the kernel crypto API; false
+ *	   otherwise
+ */
+int crypto_has_skcipher2(const char *alg_name, u32 type, u32 mask);
+
 static inline const char *crypto_skcipher_driver_name(
 	struct crypto_skcipher *tfm)
 {
 	return crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
+}
+
+static inline struct skcipher_alg *crypto_skcipher_alg(
+	struct crypto_skcipher *tfm)
+{
+	return container_of(crypto_skcipher_tfm(tfm)->__crt_alg,
+			    struct skcipher_alg, base);
+}
+
+static inline unsigned int crypto_skcipher_alg_ivsize(struct skcipher_alg *alg)
+{
+	if ((alg->base.cra_flags & CRYPTO_ALG_TYPE_MASK) ==
+	    CRYPTO_ALG_TYPE_BLKCIPHER)
+		return alg->base.cra_blkcipher.ivsize;
+
+	if (alg->base.cra_ablkcipher.encrypt)
+		return alg->base.cra_ablkcipher.ivsize;
+
+	return alg->ivsize;
 }
 
 /**
@@ -249,6 +274,36 @@ static inline const char *crypto_skcipher_driver_name(
 static inline unsigned int crypto_skcipher_ivsize(struct crypto_skcipher *tfm)
 {
 	return tfm->ivsize;
+}
+
+static inline unsigned int crypto_skcipher_alg_chunksize(
+	struct skcipher_alg *alg)
+{
+	if ((alg->base.cra_flags & CRYPTO_ALG_TYPE_MASK) ==
+	    CRYPTO_ALG_TYPE_BLKCIPHER)
+		return alg->base.cra_blocksize;
+
+	if (alg->base.cra_ablkcipher.encrypt)
+		return alg->base.cra_blocksize;
+
+	return alg->chunksize;
+}
+
+/**
+ * crypto_skcipher_chunksize() - obtain chunk size
+ * @tfm: cipher handle
+ *
+ * The block size is set to one for ciphers such as CTR.  However,
+ * you still need to provide incremental updates in multiples of
+ * the underlying block size as the IV does not have sub-block
+ * granularity.  This is known in this API as the chunk size.
+ *
+ * Return: chunk size in bytes
+ */
+static inline unsigned int crypto_skcipher_chunksize(
+	struct crypto_skcipher *tfm)
+{
+	return crypto_skcipher_alg_chunksize(crypto_skcipher_alg(tfm));
 }
 
 /**
@@ -425,8 +480,7 @@ static inline struct skcipher_request *skcipher_request_cast(
  * encrypt and decrypt API calls. During the allocation, the provided skcipher
  * handle is registered in the request data structure.
  *
- * Return: allocated request handle in case of success; IS_ERR() is true in case
- *	   of an error, PTR_ERR() returns the error code.
+ * Return: allocated request handle in case of success, or NULL if out of memory
  */
 static inline struct skcipher_request *skcipher_request_alloc(
 	struct crypto_skcipher *tfm, gfp_t gfp)

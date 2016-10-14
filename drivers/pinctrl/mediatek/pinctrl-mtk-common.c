@@ -605,7 +605,7 @@ static int mtk_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		ret = mtk_pctrl_dt_subnode_to_map(pctldev, np, map,
 				&reserved_maps, num_maps);
 		if (ret < 0) {
-			pinctrl_utils_dt_free_map(pctldev, *map, *num_maps);
+			pinctrl_utils_free_map(pctldev, *map, *num_maps);
 			of_node_put(np);
 			return ret;
 		}
@@ -644,7 +644,7 @@ static int mtk_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
 
 static const struct pinctrl_ops mtk_pctrl_ops = {
 	.dt_node_to_map		= mtk_pctrl_dt_node_to_map,
-	.dt_free_map		= pinctrl_utils_dt_free_map,
+	.dt_free_map		= pinctrl_utils_free_map,
 	.get_groups_count	= mtk_pctrl_get_groups_count,
 	.get_group_name		= mtk_pctrl_get_group_name,
 	.get_group_pins		= mtk_pctrl_get_group_pins,
@@ -1183,8 +1183,8 @@ static int mtk_eint_resume(struct device *device)
 }
 
 const struct dev_pm_ops mtk_eint_pm_ops = {
-	.suspend = mtk_eint_suspend,
-	.resume = mtk_eint_resume,
+	.suspend_noirq = mtk_eint_suspend,
+	.resume_noirq = mtk_eint_resume,
 };
 
 static void mtk_eint_ack(struct irq_data *d)
@@ -1256,9 +1256,10 @@ static void mtk_eint_irq_handler(struct irq_desc *desc)
 	const struct mtk_desc_pin *pin;
 
 	chained_irq_enter(chip, desc);
-	for (eint_num = 0; eint_num < pctl->devdata->ap_num; eint_num += 32) {
+	for (eint_num = 0;
+	     eint_num < pctl->devdata->ap_num;
+	     eint_num += 32, reg += 4) {
 		status = readl(reg);
-		reg += 4;
 		while (status) {
 			offset = __ffs(status);
 			index = eint_num + offset;
@@ -1396,17 +1397,16 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	pctl->pctl_desc.pmxops = &mtk_pmx_ops;
 	pctl->dev = &pdev->dev;
 
-	pctl->pctl_dev = pinctrl_register(&pctl->pctl_desc, &pdev->dev, pctl);
+	pctl->pctl_dev = devm_pinctrl_register(&pdev->dev, &pctl->pctl_desc,
+					       pctl);
 	if (IS_ERR(pctl->pctl_dev)) {
 		dev_err(&pdev->dev, "couldn't register pinctrl driver\n");
 		return PTR_ERR(pctl->pctl_dev);
 	}
 
 	pctl->chip = devm_kzalloc(&pdev->dev, sizeof(*pctl->chip), GFP_KERNEL);
-	if (!pctl->chip) {
-		ret = -ENOMEM;
-		goto pctrl_error;
-	}
+	if (!pctl->chip)
+		return -ENOMEM;
 
 	*pctl->chip = mtk_gpio_chip;
 	pctl->chip->ngpio = pctl->devdata->npins;
@@ -1415,10 +1415,8 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	pctl->chip->base = -1;
 
 	ret = gpiochip_add_data(pctl->chip, pctl);
-	if (ret) {
-		ret = -EINVAL;
-		goto pctrl_error;
-	}
+	if (ret)
+		return -EINVAL;
 
 	/* Register the GPIO to pin mappings. */
 	ret = gpiochip_add_pin_range(pctl->chip, dev_name(&pdev->dev),
@@ -1496,8 +1494,6 @@ int mtk_pctrl_init(struct platform_device *pdev,
 
 chip_error:
 	gpiochip_remove(pctl->chip);
-pctrl_error:
-	pinctrl_unregister(pctl->pctl_dev);
 	return ret;
 }
 

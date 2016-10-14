@@ -224,13 +224,13 @@ arch_initcall(service_level_perf_register);
 
 static int __perf_callchain_kernel(void *data, unsigned long address)
 {
-	struct perf_callchain_entry *entry = data;
+	struct perf_callchain_entry_ctx *entry = data;
 
 	perf_callchain_store(entry, address);
 	return 0;
 }
 
-void perf_callchain_kernel(struct perf_callchain_entry *entry,
+void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 			   struct pt_regs *regs)
 {
 	if (user_mode(regs))
@@ -248,33 +248,3 @@ ssize_t cpumf_events_sysfs_show(struct device *dev,
 	return sprintf(page, "event=0x%04llx,name=%s\n",
 		       pmu_attr->id, attr->attr.name);
 }
-
-/* Reserve/release functions for sharing perf hardware */
-static DEFINE_SPINLOCK(perf_hw_owner_lock);
-static void *perf_sampling_owner;
-
-int perf_reserve_sampling(void)
-{
-	int err;
-
-	err = 0;
-	spin_lock(&perf_hw_owner_lock);
-	if (perf_sampling_owner) {
-		pr_warn("The sampling facility is already reserved by %p\n",
-			perf_sampling_owner);
-		err = -EBUSY;
-	} else
-		perf_sampling_owner = __builtin_return_address(0);
-	spin_unlock(&perf_hw_owner_lock);
-	return err;
-}
-EXPORT_SYMBOL(perf_reserve_sampling);
-
-void perf_release_sampling(void)
-{
-	spin_lock(&perf_hw_owner_lock);
-	WARN_ON(!perf_sampling_owner);
-	perf_sampling_owner = NULL;
-	spin_unlock(&perf_hw_owner_lock);
-}
-EXPORT_SYMBOL(perf_release_sampling);

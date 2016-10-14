@@ -110,7 +110,7 @@
 				conf->dot11MeshHWMPconfirmationInterval;      \
 	} while (0)
 
-#define CHAN_ENTRY __field(enum ieee80211_band, band) \
+#define CHAN_ENTRY __field(enum nl80211_band, band) \
 		   __field(u16, center_freq)
 #define CHAN_ASSIGN(chan)					  \
 	do {							  \
@@ -125,7 +125,7 @@
 #define CHAN_PR_FMT "band: %d, freq: %u"
 #define CHAN_PR_ARG __entry->band, __entry->center_freq
 
-#define CHAN_DEF_ENTRY __field(enum ieee80211_band, band)		\
+#define CHAN_DEF_ENTRY __field(enum nl80211_band, band)		\
 		       __field(u32, control_freq)			\
 		       __field(u32, width)				\
 		       __field(u32, center_freq1)			\
@@ -1259,6 +1259,7 @@ TRACE_EVENT(rdev_connect,
 		__field(bool, privacy)
 		__field(u32, wpa_versions)
 		__field(u32, flags)
+		MAC_ENTRY(prev_bssid)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
@@ -1270,13 +1271,14 @@ TRACE_EVENT(rdev_connect,
 		__entry->privacy = sme->privacy;
 		__entry->wpa_versions = sme->crypto.wpa_versions;
 		__entry->flags = sme->flags;
+		MAC_ASSIGN(prev_bssid, sme->prev_bssid);
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", bssid: " MAC_PR_FMT
 		  ", ssid: %s, auth type: %d, privacy: %s, wpa versions: %u, "
-		  "flags: %u",
+		  "flags: %u, previous bssid: " MAC_PR_FMT,
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(bssid), __entry->ssid,
 		  __entry->auth_type, BOOL_TO_STR(__entry->privacy),
-		  __entry->wpa_versions, __entry->flags)
+		  __entry->wpa_versions, __entry->flags, MAC_PR_ARG(prev_bssid))
 );
 
 TRACE_EVENT(rdev_set_cqm_rssi_config,
@@ -2640,23 +2642,26 @@ TRACE_EVENT(cfg80211_tdls_oper_request,
 	);
 
 TRACE_EVENT(cfg80211_scan_done,
-	TP_PROTO(struct cfg80211_scan_request *request, bool aborted),
-	TP_ARGS(request, aborted),
+	TP_PROTO(struct cfg80211_scan_request *request,
+		 struct cfg80211_scan_info *info),
+	TP_ARGS(request, info),
 	TP_STRUCT__entry(
 		__field(u32, n_channels)
 		__dynamic_array(u8, ie, request ? request->ie_len : 0)
-		__array(u32, rates, IEEE80211_NUM_BANDS)
+		__array(u32, rates, NUM_NL80211_BANDS)
 		__field(u32, wdev_id)
 		MAC_ENTRY(wiphy_mac)
 		__field(bool, no_cck)
 		__field(bool, aborted)
+		__field(u64, scan_start_tsf)
+		MAC_ENTRY(tsf_bssid)
 	),
 	TP_fast_assign(
 		if (request) {
 			memcpy(__get_dynamic_array(ie), request->ie,
 			       request->ie_len);
 			memcpy(__entry->rates, request->rates,
-			       IEEE80211_NUM_BANDS);
+			       NUM_NL80211_BANDS);
 			__entry->wdev_id = request->wdev ?
 					request->wdev->identifier : 0;
 			if (request->wiphy)
@@ -2664,9 +2669,16 @@ TRACE_EVENT(cfg80211_scan_done,
 					   request->wiphy->perm_addr);
 			__entry->no_cck = request->no_cck;
 		}
-		__entry->aborted = aborted;
+		if (info) {
+			__entry->aborted = info->aborted;
+			__entry->scan_start_tsf = info->scan_start_tsf;
+			MAC_ASSIGN(tsf_bssid, info->tsf_bssid);
+		}
 	),
-	TP_printk("aborted: %s", BOOL_TO_STR(__entry->aborted))
+	TP_printk("aborted: %s, scan start (TSF): %llu, tsf_bssid: " MAC_PR_FMT,
+		  BOOL_TO_STR(__entry->aborted),
+		  (unsigned long long)__entry->scan_start_tsf,
+		  MAC_PR_ARG(tsf_bssid))
 );
 
 DEFINE_EVENT(wiphy_only_evt, cfg80211_sched_scan_results,
@@ -2719,6 +2731,8 @@ TRACE_EVENT(cfg80211_inform_bss_frame,
 		__dynamic_array(u8, mgmt, len)
 		__field(s32, signal)
 		__field(u64, ts_boottime)
+		__field(u64, parent_tsf)
+		MAC_ENTRY(parent_bssid)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
@@ -2728,10 +2742,15 @@ TRACE_EVENT(cfg80211_inform_bss_frame,
 			memcpy(__get_dynamic_array(mgmt), mgmt, len);
 		__entry->signal = data->signal;
 		__entry->ts_boottime = data->boottime_ns;
+		__entry->parent_tsf = data->parent_tsf;
+		MAC_ASSIGN(parent_bssid, data->parent_bssid);
 	),
-	TP_printk(WIPHY_PR_FMT ", " CHAN_PR_FMT "(scan_width: %d) signal: %d, tsb:%llu",
-		  WIPHY_PR_ARG, CHAN_PR_ARG, __entry->scan_width,
-		  __entry->signal, (unsigned long long)__entry->ts_boottime)
+	TP_printk(WIPHY_PR_FMT ", " CHAN_PR_FMT
+		  "(scan_width: %d) signal: %d, tsb:%llu, detect_tsf:%llu, tsf_bssid: "
+		  MAC_PR_FMT, WIPHY_PR_ARG, CHAN_PR_ARG, __entry->scan_width,
+		  __entry->signal, (unsigned long long)__entry->ts_boottime,
+		  (unsigned long long)__entry->parent_tsf,
+		  MAC_PR_ARG(parent_bssid))
 );
 
 DECLARE_EVENT_CLASS(cfg80211_bss_evt,
@@ -2881,25 +2900,25 @@ TRACE_EVENT(rdev_start_radar_detection,
 
 TRACE_EVENT(rdev_set_mcast_rate,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
-		 int mcast_rate[IEEE80211_NUM_BANDS]),
+		 int mcast_rate[NUM_NL80211_BANDS]),
 	TP_ARGS(wiphy, netdev, mcast_rate),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
-		__array(int, mcast_rate, IEEE80211_NUM_BANDS)
+		__array(int, mcast_rate, NUM_NL80211_BANDS)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
 		memcpy(__entry->mcast_rate, mcast_rate,
-		       sizeof(int) * IEEE80211_NUM_BANDS);
+		       sizeof(int) * NUM_NL80211_BANDS);
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", "
 		  "mcast_rates [2.4GHz=0x%x, 5.2GHz=0x%x, 60GHz=0x%x]",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG,
-		  __entry->mcast_rate[IEEE80211_BAND_2GHZ],
-		  __entry->mcast_rate[IEEE80211_BAND_5GHZ],
-		  __entry->mcast_rate[IEEE80211_BAND_60GHZ])
+		  __entry->mcast_rate[NL80211_BAND_2GHZ],
+		  __entry->mcast_rate[NL80211_BAND_5GHZ],
+		  __entry->mcast_rate[NL80211_BAND_60GHZ])
 );
 
 TRACE_EVENT(rdev_set_coalesce,

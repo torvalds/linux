@@ -33,6 +33,7 @@
 
 #define GIC_DIST_CTRL			0x000
 #define GIC_DIST_CTR			0x004
+#define GIC_DIST_IIDR			0x008
 #define GIC_DIST_IGROUP			0x080
 #define GIC_DIST_ENABLE_SET		0x100
 #define GIC_DIST_ENABLE_CLEAR		0x180
@@ -76,6 +77,7 @@
 #define GICH_LR_VIRTUALID		(0x3ff << 0)
 #define GICH_LR_PHYSID_CPUID_SHIFT	(10)
 #define GICH_LR_PHYSID_CPUID		(0x3ff << GICH_LR_PHYSID_CPUID_SHIFT)
+#define GICH_LR_PRIORITY_SHIFT		23
 #define GICH_LR_STATE			(3 << 28)
 #define GICH_LR_PENDING_BIT		(1 << 28)
 #define GICH_LR_ACTIVE_BIT		(1 << 29)
@@ -99,15 +101,26 @@
 #include <linux/irqdomain.h>
 
 struct device_node;
+struct gic_chip_data;
 
 void gic_cascade_irq(unsigned int gic_nr, unsigned int irq);
 int gic_cpu_if_down(unsigned int gic_nr);
+void gic_cpu_save(struct gic_chip_data *gic);
+void gic_cpu_restore(struct gic_chip_data *gic);
+void gic_dist_save(struct gic_chip_data *gic);
+void gic_dist_restore(struct gic_chip_data *gic);
 
 /*
  * Subdrivers that need some preparatory work can initialize their
  * chips and call this to register their GICs.
  */
 int gic_of_init(struct device_node *node, struct device_node *parent);
+
+/*
+ * Initialises and registers a non-root or child GIC chip. Memory for
+ * the gic_chip_data structure is dynamically allocated.
+ */
+int gic_of_init_child(struct device *dev, struct gic_chip_data **gic, int irq);
 
 /*
  * Legacy platforms not converted to DT yet must use this to init

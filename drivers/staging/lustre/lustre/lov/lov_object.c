@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -67,7 +63,7 @@ struct lov_layout_operations {
 	int  (*llo_print)(const struct lu_env *env, void *cookie,
 			  lu_printer_t p, const struct lu_object *o);
 	int  (*llo_page_init)(const struct lu_env *env, struct cl_object *obj,
-			      struct cl_page *page, struct page *vmpage);
+			      struct cl_page *page, pgoff_t index);
 	int  (*llo_lock_init)(const struct lu_env *env,
 			      struct cl_object *obj, struct cl_lock *lock,
 			      const struct cl_io *io);
@@ -185,12 +181,24 @@ static int lov_init_sub(const struct lu_env *env, struct lov_object *lov,
 		}
 
 		LU_OBJECT_DEBUG(mask, env, &stripe->co_lu,
-				"stripe %d is already owned.\n", idx);
-		LU_OBJECT_DEBUG(mask, env, old_obj, "owned.\n");
+				"stripe %d is already owned.", idx);
+		LU_OBJECT_DEBUG(mask, env, old_obj, "owned.");
 		LU_OBJECT_HEADER(mask, env, lov2lu(lov), "try to own.\n");
 		cl_object_put(env, stripe);
 	}
 	return result;
+}
+
+static int lov_page_slice_fixup(struct lov_object *lov,
+				struct cl_object *stripe)
+{
+	struct cl_object_header *hdr = cl_object_header(&lov->lo_cl);
+	struct cl_object *o;
+
+	cl_object_for_each(o, stripe)
+		o->co_slice_off += hdr->coh_page_bufsize;
+
+	return cl_object_header(stripe)->coh_page_bufsize;
 }
 
 static int lov_init_raid0(const struct lu_env *env,
@@ -222,6 +230,8 @@ static int lov_init_raid0(const struct lu_env *env,
 	r0->lo_sub = libcfs_kvzalloc(r0->lo_nr * sizeof(r0->lo_sub[0]),
 				     GFP_NOFS);
 	if (r0->lo_sub) {
+		int psz = 0;
+
 		result = 0;
 		subconf->coc_inode = conf->coc_inode;
 		spin_lock_init(&r0->lo_sub_lock);
@@ -254,13 +264,24 @@ static int lov_init_raid0(const struct lu_env *env,
 				if (result == -EAGAIN) { /* try again */
 					--i;
 					result = 0;
+					continue;
 				}
 			} else {
 				result = PTR_ERR(stripe);
 			}
+
+			if (result == 0) {
+				int sz = lov_page_slice_fixup(lov, stripe);
+
+				LASSERT(ergo(psz > 0, psz == sz));
+				psz = sz;
+			}
 		}
-	} else
+		if (result == 0)
+			cl_object_header(&lov->lo_cl)->coh_page_bufsize += psz;
+	} else {
 		result = -ENOMEM;
+	}
 out:
 	return result;
 }
@@ -286,8 +307,6 @@ static int lov_delete_empty(const struct lu_env *env, struct lov_object *lov,
 	LASSERT(lov->lo_type == LLT_EMPTY || lov->lo_type == LLT_RELEASED);
 
 	lov_layout_wait(env, lov);
-
-	cl_object_prune(env, &lov->lo_cl);
 	return 0;
 }
 
@@ -355,7 +374,7 @@ static int lov_delete_raid0(const struct lu_env *env, struct lov_object *lov,
 			struct lovsub_object *los = r0->lo_sub[i];
 
 			if (los) {
-				cl_locks_prune(env, &los->lso_cl, 1);
+				cl_object_prune(env, &los->lso_cl);
 				/*
 				 * If top-level object is to be evicted from
 				 * the cache, so are its sub-objects.
@@ -364,7 +383,6 @@ static int lov_delete_raid0(const struct lu_env *env, struct lov_object *lov,
 			}
 		}
 	}
-	cl_object_prune(env, &lov->lo_cl);
 	return 0;
 }
 
@@ -666,7 +684,6 @@ static int lov_layout_change(const struct lu_env *unused,
 	const struct lov_layout_operations *old_ops;
 	const struct lov_layout_operations *new_ops;
 
-	struct cl_object_header *hdr = cl_object_header(&lov->lo_cl);
 	void *cookie;
 	struct lu_env *env;
 	int refcheck;
@@ -691,13 +708,15 @@ static int lov_layout_change(const struct lu_env *unused,
 	old_ops = &lov_dispatch[lov->lo_type];
 	new_ops = &lov_dispatch[llt];
 
+	result = cl_object_prune(env, &lov->lo_cl);
+	if (result != 0)
+		goto out;
+
 	result = old_ops->llo_delete(env, lov, &lov->u);
 	if (result == 0) {
 		old_ops->llo_fini(env, lov, &lov->u);
 
 		LASSERT(atomic_read(&lov->lo_active_ios) == 0);
-		LASSERT(!hdr->coh_tree.rnode);
-		LASSERT(hdr->coh_pages == 0);
 
 		lov->lo_type = LLT_EMPTY;
 		result = new_ops->llo_init(env,
@@ -713,6 +732,7 @@ static int lov_layout_change(const struct lu_env *unused,
 		}
 	}
 
+out:
 	cl_env_put(env, &refcheck);
 	cl_env_reexit(cookie);
 	return result;
@@ -793,7 +813,8 @@ static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
 		goto out;
 	}
 
-	lov->lo_layout_invalid = lov_layout_change(env, lov, conf);
+	result = lov_layout_change(env, lov, conf);
+	lov->lo_layout_invalid = result != 0;
 
 out:
 	lov_conf_unlock(lov);
@@ -825,10 +846,10 @@ static int lov_object_print(const struct lu_env *env, void *cookie,
 }
 
 int lov_page_init(const struct lu_env *env, struct cl_object *obj,
-		  struct cl_page *page, struct page *vmpage)
+		  struct cl_page *page, pgoff_t index)
 {
-	return LOV_2DISPATCH_NOLOCK(cl2lov(obj),
-				    llo_page_init, env, obj, page, vmpage);
+	return LOV_2DISPATCH_NOLOCK(cl2lov(obj), llo_page_init, env, obj, page,
+				    index);
 }
 
 /**
@@ -911,8 +932,9 @@ struct lu_object *lov_object_alloc(const struct lu_env *env,
 		 * for object with different layouts.
 		 */
 		obj->lo_ops = &lov_lu_obj_ops;
-	} else
+	} else {
 		obj = NULL;
+	}
 	return obj;
 }
 

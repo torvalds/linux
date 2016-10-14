@@ -35,9 +35,11 @@
 static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
 {
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-	fh->pad = kzalloc(sizeof(*fh->pad) * sd->entity.num_pads, GFP_KERNEL);
-	if (fh->pad == NULL)
-		return -ENOMEM;
+	if (sd->entity.num_pads) {
+		fh->pad = v4l2_subdev_alloc_pad_config(sd);
+		if (fh->pad == NULL)
+			return -ENOMEM;
+	}
 #endif
 	return 0;
 }
@@ -45,7 +47,7 @@ static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
 static void subdev_fh_free(struct v4l2_subdev_fh *fh)
 {
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-	kfree(fh->pad);
+	v4l2_subdev_free_pad_config(fh->pad);
 	fh->pad = NULL;
 #endif
 }
@@ -508,7 +510,7 @@ int v4l2_subdev_link_validate_default(struct v4l2_subdev *sd,
 	if (source_fmt->format.width != sink_fmt->format.width
 	    || source_fmt->format.height != sink_fmt->format.height
 	    || source_fmt->format.code != sink_fmt->format.code)
-		return -EINVAL;
+		return -EPIPE;
 
 	/* The field order must match, or the sink field order must be NONE
 	 * to support interlaced hardware connected to bridges that support
@@ -516,7 +518,7 @@ int v4l2_subdev_link_validate_default(struct v4l2_subdev *sd,
 	 */
 	if (source_fmt->format.field != sink_fmt->format.field &&
 	    sink_fmt->format.field != V4L2_FIELD_NONE)
-		return -EINVAL;
+		return -EPIPE;
 
 	return 0;
 }
@@ -569,6 +571,35 @@ int v4l2_subdev_link_validate(struct media_link *link)
 		sink, link, &source_fmt, &sink_fmt);
 }
 EXPORT_SYMBOL_GPL(v4l2_subdev_link_validate);
+
+struct v4l2_subdev_pad_config *
+v4l2_subdev_alloc_pad_config(struct v4l2_subdev *sd)
+{
+	struct v4l2_subdev_pad_config *cfg;
+	int ret;
+
+	if (!sd->entity.num_pads)
+		return NULL;
+
+	cfg = kcalloc(sd->entity.num_pads, sizeof(*cfg), GFP_KERNEL);
+	if (!cfg)
+		return NULL;
+
+	ret = v4l2_subdev_call(sd, pad, init_cfg, cfg);
+	if (ret < 0 && ret != -ENOIOCTLCMD) {
+		kfree(cfg);
+		return NULL;
+	}
+
+	return cfg;
+}
+EXPORT_SYMBOL_GPL(v4l2_subdev_alloc_pad_config);
+
+void v4l2_subdev_free_pad_config(struct v4l2_subdev_pad_config *cfg)
+{
+	kfree(cfg);
+}
+EXPORT_SYMBOL_GPL(v4l2_subdev_free_pad_config);
 #endif /* CONFIG_MEDIA_CONTROLLER */
 
 void v4l2_subdev_init(struct v4l2_subdev *sd, const struct v4l2_subdev_ops *ops)
@@ -584,21 +615,12 @@ void v4l2_subdev_init(struct v4l2_subdev *sd, const struct v4l2_subdev_ops *ops)
 	sd->host_priv = NULL;
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	sd->entity.name = sd->name;
+	sd->entity.obj_type = MEDIA_ENTITY_TYPE_V4L2_SUBDEV;
 	sd->entity.function = MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN;
 #endif
 }
 EXPORT_SYMBOL(v4l2_subdev_init);
 
-/**
- * v4l2_subdev_notify_event() - Delivers event notification for subdevice
- * @sd: The subdev for which to deliver the event
- * @ev: The event to deliver
- *
- * Will deliver the specified event to all userspace event listeners which are
- * subscribed to the v42l subdev event queue as well as to the bridge driver
- * using the notify callback. The notification type for the notify callback
- * will be V4L2_DEVICE_NOTIFY_EVENT.
- */
 void v4l2_subdev_notify_event(struct v4l2_subdev *sd,
 			      const struct v4l2_event *ev)
 {

@@ -27,7 +27,7 @@
 static int wl1271_get_scan_channels(struct wl1271 *wl,
 				    struct cfg80211_scan_request *req,
 				    struct basic_scan_channel_params *channels,
-				    enum ieee80211_band band, bool passive)
+				    enum nl80211_band band, bool passive)
 {
 	struct conf_scan_settings *c = &wl->conf.scan;
 	int i, j;
@@ -92,7 +92,7 @@ static int wl1271_get_scan_channels(struct wl1271 *wl,
 #define WL1271_NOTHING_TO_SCAN 1
 
 static int wl1271_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
-			    enum ieee80211_band band,
+			    enum nl80211_band band,
 			    bool passive, u32 basic_rate)
 {
 	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
@@ -144,12 +144,12 @@ static int wl1271_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	cmd->params.tid_trigger = CONF_TX_AC_ANY_TID;
 	cmd->params.scan_tag = WL1271_SCAN_DEFAULT_TAG;
 
-	if (band == IEEE80211_BAND_2GHZ)
+	if (band == NL80211_BAND_2GHZ)
 		cmd->params.band = WL1271_SCAN_BAND_2_4_GHZ;
 	else
 		cmd->params.band = WL1271_SCAN_BAND_5_GHZ;
 
-	if (wl->scan.ssid_len && wl->scan.ssid) {
+	if (wl->scan.ssid_len) {
 		cmd->params.ssid_len = wl->scan.ssid_len;
 		memcpy(cmd->params.ssid, wl->scan.ssid, wl->scan.ssid_len);
 	}
@@ -218,7 +218,7 @@ out:
 void wl1271_scan_stm(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret = 0;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	u32 rate, mask;
 
 	switch (wl->scan.state) {
@@ -226,7 +226,7 @@ void wl1271_scan_stm(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		break;
 
 	case WL1271_SCAN_STATE_2GHZ_ACTIVE:
-		band = IEEE80211_BAND_2GHZ;
+		band = NL80211_BAND_2GHZ;
 		mask = wlvif->bitrate_masks[band];
 		if (wl->scan.req->no_cck) {
 			mask &= ~CONF_TX_CCK_RATES;
@@ -243,7 +243,7 @@ void wl1271_scan_stm(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		break;
 
 	case WL1271_SCAN_STATE_2GHZ_PASSIVE:
-		band = IEEE80211_BAND_2GHZ;
+		band = NL80211_BAND_2GHZ;
 		mask = wlvif->bitrate_masks[band];
 		if (wl->scan.req->no_cck) {
 			mask &= ~CONF_TX_CCK_RATES;
@@ -263,7 +263,7 @@ void wl1271_scan_stm(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		break;
 
 	case WL1271_SCAN_STATE_5GHZ_ACTIVE:
-		band = IEEE80211_BAND_5GHZ;
+		band = NL80211_BAND_5GHZ;
 		rate = wl1271_tx_min_rate_get(wl, wlvif->bitrate_masks[band]);
 		ret = wl1271_scan_send(wl, wlvif, band, false, rate);
 		if (ret == WL1271_NOTHING_TO_SCAN) {
@@ -274,7 +274,7 @@ void wl1271_scan_stm(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		break;
 
 	case WL1271_SCAN_STATE_5GHZ_PASSIVE:
-		band = IEEE80211_BAND_5GHZ;
+		band = NL80211_BAND_5GHZ;
 		rate = wl1271_tx_min_rate_get(wl, wlvif->bitrate_masks[band]);
 		ret = wl1271_scan_send(wl, wlvif, band, true, rate);
 		if (ret == WL1271_NOTHING_TO_SCAN) {
@@ -378,7 +378,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	wl12xx_adjust_channels(cfg, cfg_channels);
 
 	if (!force_passive && cfg->active[0]) {
-		u8 band = IEEE80211_BAND_2GHZ;
+		u8 band = NL80211_BAND_2GHZ;
 		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
 						 wlvif->role_id, band,
 						 req->ssids[0].ssid,
@@ -395,7 +395,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	}
 
 	if (!force_passive && cfg->active[1]) {
-		u8 band = IEEE80211_BAND_5GHZ;
+		u8 band = NL80211_BAND_5GHZ;
 		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
 						 wlvif->role_id, band,
 						 req->ssids[0].ssid,

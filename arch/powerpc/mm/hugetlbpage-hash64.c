@@ -47,18 +47,19 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 	do {
 		old_pte = pte_val(*ptep);
 		/* If PTE busy, retry the access */
-		if (unlikely(old_pte & _PAGE_BUSY))
+		if (unlikely(old_pte & H_PAGE_BUSY))
 			return 0;
 		/* If PTE permissions don't match, take page fault */
-		if (unlikely(access & ~old_pte))
+		if (unlikely(!check_pte_access(access, old_pte)))
 			return 1;
+
 		/* Try to lock the PTE, add ACCESSED and DIRTY if it was
 		 * a write access */
-		new_pte = old_pte | _PAGE_BUSY | _PAGE_ACCESSED;
-		if (access & _PAGE_RW)
+		new_pte = old_pte | H_PAGE_BUSY | _PAGE_ACCESSED;
+		if (access & _PAGE_WRITE)
 			new_pte |= _PAGE_DIRTY;
-	} while(old_pte != __cmpxchg_u64((unsigned long *)ptep,
-					 old_pte, new_pte));
+	} while(!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
+
 	rflags = htab_convert_pte_flags(new_pte);
 
 	sz = ((1UL) << shift);
@@ -68,28 +69,28 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		rflags = hash_page_do_lazy_icache(rflags, __pte(old_pte), trap);
 
 	/* Check if pte already has an hpte (case 2) */
-	if (unlikely(old_pte & _PAGE_HASHPTE)) {
+	if (unlikely(old_pte & H_PAGE_HASHPTE)) {
 		/* There MIGHT be an HPTE for this pte */
 		unsigned long hash, slot;
 
 		hash = hpt_hash(vpn, shift, ssize);
-		if (old_pte & _PAGE_F_SECOND)
+		if (old_pte & H_PAGE_F_SECOND)
 			hash = ~hash;
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
-		slot += (old_pte & _PAGE_F_GIX) >> _PAGE_F_GIX_SHIFT;
+		slot += (old_pte & H_PAGE_F_GIX) >> H_PAGE_F_GIX_SHIFT;
 
-		if (ppc_md.hpte_updatepp(slot, rflags, vpn, mmu_psize,
-					 mmu_psize, ssize, flags) == -1)
+		if (mmu_hash_ops.hpte_updatepp(slot, rflags, vpn, mmu_psize,
+					       mmu_psize, ssize, flags) == -1)
 			old_pte &= ~_PAGE_HPTEFLAGS;
 	}
 
-	if (likely(!(old_pte & _PAGE_HASHPTE))) {
+	if (likely(!(old_pte & H_PAGE_HASHPTE))) {
 		unsigned long hash = hpt_hash(vpn, shift, ssize);
 
 		pa = pte_pfn(__pte(old_pte)) << PAGE_SHIFT;
 
 		/* clear HPTE slot informations in new PTE */
-		new_pte = (new_pte & ~_PAGE_HPTEFLAGS) | _PAGE_HASHPTE;
+		new_pte = (new_pte & ~_PAGE_HPTEFLAGS) | H_PAGE_HASHPTE;
 
 		slot = hpte_insert_repeating(hash, vpn, pa, rflags, 0,
 					     mmu_psize, ssize);
@@ -105,14 +106,14 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 			return -1;
 		}
 
-		new_pte |= (slot << _PAGE_F_GIX_SHIFT) &
-			(_PAGE_F_SECOND | _PAGE_F_GIX);
+		new_pte |= (slot << H_PAGE_F_GIX_SHIFT) &
+			(H_PAGE_F_SECOND | H_PAGE_F_GIX);
 	}
 
 	/*
 	 * No need to use ldarx/stdcx here
 	 */
-	*ptep = __pte(new_pte & ~_PAGE_BUSY);
+	*ptep = __pte(new_pte & ~H_PAGE_BUSY);
 	return 0;
 }
 

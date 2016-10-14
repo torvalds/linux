@@ -2164,21 +2164,101 @@ static struct intel_uncore_type *knl_pci_uncores[] = {
 */
 
 static const struct pci_device_id knl_uncore_pci_ids[] = {
-	{ /* MC UClk */
+	{ /* MC0 UClk */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7841),
-		.driver_data = UNCORE_PCI_DEV_DATA(KNL_PCI_UNCORE_MC_UCLK, 0),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(10, 0, KNL_PCI_UNCORE_MC_UCLK, 0),
 	},
-	{ /* MC DClk Channel */
+	{ /* MC1 UClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7841),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(11, 0, KNL_PCI_UNCORE_MC_UCLK, 1),
+	},
+	{ /* MC0 DClk CH 0 */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7843),
-		.driver_data = UNCORE_PCI_DEV_DATA(KNL_PCI_UNCORE_MC_DCLK, 0),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(8, 2, KNL_PCI_UNCORE_MC_DCLK, 0),
 	},
-	{ /* EDC UClk */
+	{ /* MC0 DClk CH 1 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7843),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(8, 3, KNL_PCI_UNCORE_MC_DCLK, 1),
+	},
+	{ /* MC0 DClk CH 2 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7843),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(8, 4, KNL_PCI_UNCORE_MC_DCLK, 2),
+	},
+	{ /* MC1 DClk CH 0 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7843),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(9, 2, KNL_PCI_UNCORE_MC_DCLK, 3),
+	},
+	{ /* MC1 DClk CH 1 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7843),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(9, 3, KNL_PCI_UNCORE_MC_DCLK, 4),
+	},
+	{ /* MC1 DClk CH 2 */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7843),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(9, 4, KNL_PCI_UNCORE_MC_DCLK, 5),
+	},
+	{ /* EDC0 UClk */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7833),
-		.driver_data = UNCORE_PCI_DEV_DATA(KNL_PCI_UNCORE_EDC_UCLK, 0),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(15, 0, KNL_PCI_UNCORE_EDC_UCLK, 0),
 	},
-	{ /* EDC EClk */
+	{ /* EDC1 UClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7833),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(16, 0, KNL_PCI_UNCORE_EDC_UCLK, 1),
+	},
+	{ /* EDC2 UClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7833),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(17, 0, KNL_PCI_UNCORE_EDC_UCLK, 2),
+	},
+	{ /* EDC3 UClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7833),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(18, 0, KNL_PCI_UNCORE_EDC_UCLK, 3),
+	},
+	{ /* EDC4 UClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7833),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(19, 0, KNL_PCI_UNCORE_EDC_UCLK, 4),
+	},
+	{ /* EDC5 UClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7833),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(20, 0, KNL_PCI_UNCORE_EDC_UCLK, 5),
+	},
+	{ /* EDC6 UClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7833),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(21, 0, KNL_PCI_UNCORE_EDC_UCLK, 6),
+	},
+	{ /* EDC7 UClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7833),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(22, 0, KNL_PCI_UNCORE_EDC_UCLK, 7),
+	},
+	{ /* EDC0 EClk */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7835),
-		.driver_data = UNCORE_PCI_DEV_DATA(KNL_PCI_UNCORE_EDC_ECLK, 0),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(24, 2, KNL_PCI_UNCORE_EDC_ECLK, 0),
+	},
+	{ /* EDC1 EClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7835),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(25, 2, KNL_PCI_UNCORE_EDC_ECLK, 1),
+	},
+	{ /* EDC2 EClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7835),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(26, 2, KNL_PCI_UNCORE_EDC_ECLK, 2),
+	},
+	{ /* EDC3 EClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7835),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(27, 2, KNL_PCI_UNCORE_EDC_ECLK, 3),
+	},
+	{ /* EDC4 EClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7835),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(28, 2, KNL_PCI_UNCORE_EDC_ECLK, 4),
+	},
+	{ /* EDC5 EClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7835),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(29, 2, KNL_PCI_UNCORE_EDC_ECLK, 5),
+	},
+	{ /* EDC6 EClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7835),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(30, 2, KNL_PCI_UNCORE_EDC_ECLK, 6),
+	},
+	{ /* EDC7 EClk */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7835),
+		.driver_data = UNCORE_PCI_DEV_FULL_DATA(31, 2, KNL_PCI_UNCORE_EDC_ECLK, 7),
 	},
 	{ /* M2PCIe */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7817),
@@ -2546,7 +2626,7 @@ void hswep_uncore_cpu_init(void)
 
 static struct intel_uncore_type hswep_uncore_ha = {
 	.name		= "ha",
-	.num_counters   = 5,
+	.num_counters   = 4,
 	.num_boxes	= 2,
 	.perf_ctr_bits	= 48,
 	SNBEP_UNCORE_PCI_COMMON_INIT(),
@@ -2565,7 +2645,7 @@ static struct uncore_event_desc hswep_uncore_imc_events[] = {
 
 static struct intel_uncore_type hswep_uncore_imc = {
 	.name		= "imc",
-	.num_counters   = 5,
+	.num_counters   = 4,
 	.num_boxes	= 8,
 	.perf_ctr_bits	= 48,
 	.fixed_ctr_bits	= 48,
@@ -2611,7 +2691,7 @@ static struct intel_uncore_type hswep_uncore_irp = {
 
 static struct intel_uncore_type hswep_uncore_qpi = {
 	.name			= "qpi",
-	.num_counters		= 5,
+	.num_counters		= 4,
 	.num_boxes		= 3,
 	.perf_ctr_bits		= 48,
 	.perf_ctr		= SNBEP_PCI_PMON_CTR0,
@@ -2693,7 +2773,7 @@ static struct event_constraint hswep_uncore_r3qpi_constraints[] = {
 
 static struct intel_uncore_type hswep_uncore_r3qpi = {
 	.name		= "r3qpi",
-	.num_counters   = 4,
+	.num_counters   = 3,
 	.num_boxes	= 3,
 	.perf_ctr_bits	= 44,
 	.constraints	= hswep_uncore_r3qpi_constraints,
@@ -2868,27 +2948,10 @@ static struct intel_uncore_type bdx_uncore_cbox = {
 	.format_group		= &hswep_uncore_cbox_format_group,
 };
 
-static struct intel_uncore_type bdx_uncore_sbox = {
-	.name			= "sbox",
-	.num_counters		= 4,
-	.num_boxes		= 4,
-	.perf_ctr_bits		= 48,
-	.event_ctl		= HSWEP_S0_MSR_PMON_CTL0,
-	.perf_ctr		= HSWEP_S0_MSR_PMON_CTR0,
-	.event_mask		= HSWEP_S_MSR_PMON_RAW_EVENT_MASK,
-	.box_ctl		= HSWEP_S0_MSR_PMON_BOX_CTL,
-	.msr_offset		= HSWEP_SBOX_MSR_OFFSET,
-	.ops			= &hswep_uncore_sbox_msr_ops,
-	.format_group		= &hswep_uncore_sbox_format_group,
-};
-
-#define BDX_MSR_UNCORE_SBOX	3
-
 static struct intel_uncore_type *bdx_msr_uncores[] = {
 	&bdx_uncore_ubox,
 	&bdx_uncore_cbox,
 	&hswep_uncore_pcu,
-	&bdx_uncore_sbox,
 	NULL,
 };
 
@@ -2897,10 +2960,6 @@ void bdx_uncore_cpu_init(void)
 	if (bdx_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
 		bdx_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
 	uncore_msr_uncores = bdx_msr_uncores;
-
-	/* BDX-DE doesn't have SBOX */
-	if (boot_cpu_data.x86_model == 86)
-		uncore_msr_uncores[BDX_MSR_UNCORE_SBOX] = NULL;
 }
 
 static struct intel_uncore_type bdx_uncore_ha = {
@@ -2913,7 +2972,7 @@ static struct intel_uncore_type bdx_uncore_ha = {
 
 static struct intel_uncore_type bdx_uncore_imc = {
 	.name		= "imc",
-	.num_counters   = 5,
+	.num_counters   = 4,
 	.num_boxes	= 8,
 	.perf_ctr_bits	= 48,
 	.fixed_ctr_bits	= 48,

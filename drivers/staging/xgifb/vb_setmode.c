@@ -108,9 +108,9 @@ static void XGI_SetATTRegs(unsigned short ModeIdIndex,
 			if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
 				ARdata = 0;
 			} else if ((pVBInfo->VBInfo &
-				     (SetCRT2ToTV | SetCRT2ToLCD)) &&
-				    (pVBInfo->VBInfo & SetInSlaveMode)) {
-					ARdata = 0;
+				   (SetCRT2ToTV | SetCRT2ToLCD)) &&
+				   (pVBInfo->VBInfo & SetInSlaveMode)) {
+				ARdata = 0;
 			}
 		}
 
@@ -1992,7 +1992,8 @@ static void XGI_GetVBInfo(unsigned short ModeIdIndex,
 		}
 
 		/* LCD+TV can't support in slave mode
-		 * (Force LCDA+TV->LCDB) */
+		 * (Force LCDA+TV->LCDB)
+		 */
 		if ((tempbx & SetInSlaveMode) && (tempbx & XGI_SetCRT2ToLCDA)) {
 			tempbx ^= (SetCRT2ToLCD | XGI_SetCRT2ToLCDA |
 				   SetCRT2ToDualEdge);
@@ -2983,7 +2984,7 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 		if ((pVBInfo->VBInfo & SetCRT2ToHiVision) &&
 		    !(pVBInfo->VBType & VB_SIS301LV) && (resinfo == 7))
-				temp -= 2;
+			temp -= 2;
 	}
 
 	/* 0x05 Horizontal Display Start */
@@ -3450,8 +3451,9 @@ static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
 			if (!(pVBInfo->TVInfo &
 			    (TVSetYPbPr525p | TVSetYPbPr750p)))
 				tempbx >>= 1;
-		} else
+		} else {
 			tempbx >>= 1;
+		}
 	}
 
 	tempbx -= 2;
@@ -3839,9 +3841,9 @@ static void XGI_SetLCDRegs(unsigned short ModeIdIndex,
 		if (pVBInfo->VGAVDE == 525) {
 			if (pVBInfo->VBType & (VB_SIS301B | VB_SIS302B
 					| VB_SIS301LV | VB_SIS302LV
-					| VB_XGI301C)) {
+					| VB_XGI301C))
 				temp = 0xC6;
-			} else
+			else
 				temp = 0xC4;
 
 			xgifb_reg_set(pVBInfo->Part2Port, 0x2f, temp);
@@ -3851,9 +3853,9 @@ static void XGI_SetLCDRegs(unsigned short ModeIdIndex,
 		if (pVBInfo->VGAVDE == 420) {
 			if (pVBInfo->VBType & (VB_SIS301B | VB_SIS302B
 					| VB_SIS301LV | VB_SIS302LV
-					| VB_XGI301C)) {
+					| VB_XGI301C))
 				temp = 0x4F;
-			} else
+			else
 				temp = 0x4E;
 			xgifb_reg_set(pVBInfo->Part2Port, 0x2f, temp);
 		}

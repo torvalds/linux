@@ -282,9 +282,9 @@ static int nbd_send_req(struct nbd_device *nbd, struct request *req)
 
 	if (req->cmd_type == REQ_TYPE_DRV_PRIV)
 		type = NBD_CMD_DISC;
-	else if (req->cmd_flags & REQ_DISCARD)
+	else if (req_op(req) == REQ_OP_DISCARD)
 		type = NBD_CMD_TRIM;
-	else if (req->cmd_flags & REQ_FLUSH)
+	else if (req_op(req) == REQ_OP_FLUSH)
 		type = NBD_CMD_FLUSH;
 	else if (rq_data_dir(req) == WRITE)
 		type = NBD_CMD_WRITE;
@@ -451,14 +451,9 @@ static int nbd_thread_recv(struct nbd_device *nbd, struct block_device *bdev)
 
 	sk_set_memalloc(nbd->sock->sk);
 
-	nbd->task_recv = current;
-
 	ret = device_create_file(disk_to_dev(nbd->disk), &pid_attr);
 	if (ret) {
 		dev_err(disk_to_dev(nbd->disk), "device_create_file failed!\n");
-
-		nbd->task_recv = NULL;
-
 		return ret;
 	}
 
@@ -477,9 +472,6 @@ static int nbd_thread_recv(struct nbd_device *nbd, struct block_device *bdev)
 	nbd_size_clear(nbd, bdev);
 
 	device_remove_file(disk_to_dev(nbd->disk), &pid_attr);
-
-	nbd->task_recv = NULL;
-
 	return ret;
 }
 
@@ -693,9 +685,9 @@ static void nbd_parse_flags(struct nbd_device *nbd, struct block_device *bdev)
 	if (nbd->flags & NBD_FLAG_SEND_TRIM)
 		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, nbd->disk->queue);
 	if (nbd->flags & NBD_FLAG_SEND_FLUSH)
-		blk_queue_flush(nbd->disk->queue, REQ_FLUSH);
+		blk_queue_write_cache(nbd->disk->queue, true, false);
 	else
-		blk_queue_flush(nbd->disk->queue, 0);
+		blk_queue_write_cache(nbd->disk->queue, false, false);
 }
 
 static int nbd_dev_dbg_init(struct nbd_device *nbd);
@@ -788,6 +780,8 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		if (!nbd->sock)
 			return -EINVAL;
 
+		/* We have to claim the device under the lock */
+		nbd->task_recv = current;
 		mutex_unlock(&nbd->tx_lock);
 
 		nbd_parse_flags(nbd, bdev);
@@ -796,6 +790,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 				     nbd_name(nbd));
 		if (IS_ERR(thread)) {
 			mutex_lock(&nbd->tx_lock);
+			nbd->task_recv = NULL;
 			return PTR_ERR(thread);
 		}
 
@@ -805,6 +800,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 		kthread_stop(thread);
 
 		mutex_lock(&nbd->tx_lock);
+		nbd->task_recv = NULL;
 
 		sock_shutdown(nbd);
 		nbd_clear_que(nbd);
@@ -941,7 +937,7 @@ static int nbd_dev_dbg_init(struct nbd_device *nbd)
 	debugfs_create_u64("size_bytes", 0444, dir, &nbd->bytesize);
 	debugfs_create_u32("timeout", 0444, dir, &nbd->xmit_timeout);
 	debugfs_create_u32("blocksize", 0444, dir, &nbd->blksize);
-	debugfs_create_file("flags", 0444, dir, &nbd, &nbd_dbg_flags_ops);
+	debugfs_create_file("flags", 0444, dir, nbd, &nbd_dbg_flags_ops);
 
 	return 0;
 }

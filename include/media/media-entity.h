@@ -104,7 +104,7 @@ struct media_entity_graph {
 	int top;
 };
 
-/*
+/**
  * struct media_pipeline - Media pipeline related information
  *
  * @streaming_count:	Streaming start count - streaming stop count
@@ -179,6 +179,11 @@ struct media_pad {
  * @link_validate:	Return whether a link is valid from the entity point of
  *			view. The media_entity_pipeline_start() function
  *			validates all links by calling this operation. Optional.
+ *
+ * .. note::
+ *
+ *    Those these callbacks are called with struct media_device.@graph_mutex
+ *    mutex held.
  */
 struct media_entity_operations {
 	int (*link_setup)(struct media_entity *entity,
@@ -188,10 +193,38 @@ struct media_entity_operations {
 };
 
 /**
+ * enum media_entity_type - Media entity type
+ *
+ * @MEDIA_ENTITY_TYPE_BASE:
+ *	The entity isn't embedded in another subsystem structure.
+ * @MEDIA_ENTITY_TYPE_VIDEO_DEVICE:
+ *	The entity is embedded in a struct video_device instance.
+ * @MEDIA_ENTITY_TYPE_V4L2_SUBDEV:
+ *	The entity is embedded in a struct v4l2_subdev instance.
+ *
+ * Media entity objects are often not instantiated directly, but the media
+ * entity structure is inherited by (through embedding) other subsystem-specific
+ * structures. The media entity type identifies the type of the subclass
+ * structure that implements a media entity instance.
+ *
+ * This allows runtime type identification of media entities and safe casting to
+ * the correct object type. For instance, a media entity structure instance
+ * embedded in a v4l2_subdev structure instance will have the type
+ * MEDIA_ENTITY_TYPE_V4L2_SUBDEV and can safely be cast to a v4l2_subdev
+ * structure using the container_of() macro.
+ */
+enum media_entity_type {
+	MEDIA_ENTITY_TYPE_BASE,
+	MEDIA_ENTITY_TYPE_VIDEO_DEVICE,
+	MEDIA_ENTITY_TYPE_V4L2_SUBDEV,
+};
+
+/**
  * struct media_entity - A media entity graph object.
  *
  * @graph_obj:	Embedded structure containing the media object common data.
  * @name:	Entity name.
+ * @obj_type:	Type of the object that implements the media_entity.
  * @function:	Entity main function, as defined in uapi/media.h
  *		(MEDIA_ENT_F_*)
  * @flags:	Entity flags, as defined in uapi/media.h (MEDIA_ENT_FL_*)
@@ -220,6 +253,7 @@ struct media_entity_operations {
 struct media_entity {
 	struct media_gobj graph_obj;	/* must be first field in struct */
 	const char *name;
+	enum media_entity_type obj_type;
 	u32 function;
 	unsigned long flags;
 
@@ -329,56 +363,29 @@ static inline u32 media_gobj_gen_id(enum media_gobj_type type, u64 local_id)
 }
 
 /**
- * is_media_entity_v4l2_io() - identify if the entity main function
- *			       is a V4L2 I/O
- *
+ * is_media_entity_v4l2_video_device() - Check if the entity is a video_device
  * @entity:	pointer to entity
  *
- * Return: true if the entity main function is one of the V4L2 I/O types
- *	(video, VBI or SDR radio); false otherwise.
+ * Return: true if the entity is an instance of a video_device object and can
+ * safely be cast to a struct video_device using the container_of() macro, or
+ * false otherwise.
  */
-static inline bool is_media_entity_v4l2_io(struct media_entity *entity)
+static inline bool is_media_entity_v4l2_video_device(struct media_entity *entity)
 {
-	if (!entity)
-		return false;
-
-	switch (entity->function) {
-	case MEDIA_ENT_F_IO_V4L:
-	case MEDIA_ENT_F_IO_VBI:
-	case MEDIA_ENT_F_IO_SWRADIO:
-		return true;
-	default:
-		return false;
-	}
+	return entity && entity->obj_type == MEDIA_ENTITY_TYPE_VIDEO_DEVICE;
 }
 
 /**
- * is_media_entity_v4l2_subdev - return true if the entity main function is
- *				 associated with the V4L2 API subdev usage
- *
+ * is_media_entity_v4l2_subdev() - Check if the entity is a v4l2_subdev
  * @entity:	pointer to entity
  *
- * This is an ancillary function used by subdev-based V4L2 drivers.
- * It checks if the entity function is one of functions used by a V4L2 subdev,
- * e. g. camera-relatef functions, analog TV decoder, TV tuner, V4L2 DSPs.
+ * Return: true if the entity is an instance of a v4l2_subdev object and can
+ * safely be cast to a struct v4l2_subdev using the container_of() macro, or
+ * false otherwise.
  */
 static inline bool is_media_entity_v4l2_subdev(struct media_entity *entity)
 {
-	if (!entity)
-		return false;
-
-	switch (entity->function) {
-	case MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN:
-	case MEDIA_ENT_F_CAM_SENSOR:
-	case MEDIA_ENT_F_FLASH:
-	case MEDIA_ENT_F_LENS:
-	case MEDIA_ENT_F_ATV_DECODER:
-	case MEDIA_ENT_F_TUNER:
-		return true;
-
-	default:
-		return false;
-	}
+	return entity && entity->obj_type == MEDIA_ENTITY_TYPE_V4L2_SUBDEV;
 }
 
 /**
@@ -533,7 +540,7 @@ static inline bool media_entity_enum_intersects(
  * @gobj:	Pointer to the graph object
  *
  * This routine initializes the embedded struct media_gobj inside a
- * media graph object. It is called automatically if media_*_create()
+ * media graph object. It is called automatically if media_*_create\(\)
  * calls are used. However, if the object (entity, link, pad, interface)
  * is embedded on some other object, this function should be called before
  * registering the object at the media controller.
@@ -597,19 +604,20 @@ static inline void media_entity_cleanup(struct media_entity *entity) {};
  * @flags:	Link flags, as defined in include/uapi/linux/media.h.
  *
  * Valid values for flags:
- * A %MEDIA_LNK_FL_ENABLED flag indicates that the link is enabled and can be
- *	used to transfer media data. When two or more links target a sink pad,
- *	only one of them can be enabled at a time.
  *
- * A %MEDIA_LNK_FL_IMMUTABLE flag indicates that the link enabled state can't
- *	be modified at runtime. If %MEDIA_LNK_FL_IMMUTABLE is set, then
- *	%MEDIA_LNK_FL_ENABLED must also be set since an immutable link is
- *	always enabled.
+ * - A %MEDIA_LNK_FL_ENABLED flag indicates that the link is enabled and can
+ *   be used to transfer media data. When two or more links target a sink pad,
+ *   only one of them can be enabled at a time.
  *
- * NOTE:
+ * - A %MEDIA_LNK_FL_IMMUTABLE flag indicates that the link enabled state can't
+ *   be modified at runtime. If %MEDIA_LNK_FL_IMMUTABLE is set, then
+ *   %MEDIA_LNK_FL_ENABLED must also be set since an immutable link is
+ *   always enabled.
  *
- * Before calling this function, media_entity_pads_init() and
- * media_device_register_entity() should be called previously for both ends.
+ * .. note::
+ *
+ *    Before calling this function, media_entity_pads_init() and
+ *    media_device_register_entity() should be called previously for both ends.
  */
 __must_check int media_create_pad_link(struct media_entity *source,
 			u16 source_pad, struct media_entity *sink,
@@ -636,6 +644,7 @@ __must_check int media_create_pad_link(struct media_entity *source,
  *	and @sink are NULL.
  *
  * Valid values for flags:
+ *
  * A %MEDIA_LNK_FL_ENABLED flag indicates that the link is enabled and can be
  *	used to transfer media data. If multiple links are created and this
  *	flag is passed as an argument, only the first created link will have
@@ -672,8 +681,10 @@ void __media_entity_remove_links(struct media_entity *entity);
  *
  * @entity:	pointer to &media_entity
  *
- * Note: this is called automatically when an entity is unregistered via
- * media_device_register_entity().
+ * .. note::
+ *
+ *    This is called automatically when an entity is unregistered via
+ *    media_device_register_entity().
  */
 void media_entity_remove_links(struct media_entity *entity);
 
@@ -723,9 +734,11 @@ int __media_entity_setup_link(struct media_link *link, u32 flags);
  * being enabled, the link_setup operation must return -EBUSY and can't
  * implicitly disable the first enabled link.
  *
- * NOTE: the valid values of the flags for the link is the same as described
- * on media_create_pad_link(), for pad to pad links or the same as described
- * on media_create_intf_link(), for interface to entity links.
+ * .. note::
+ *
+ *    The valid values of the flags for the link is the same as described
+ *    on media_create_pad_link(), for pad to pad links or the same as described
+ *    on media_create_intf_link(), for interface to entity links.
  */
 int media_entity_setup_link(struct media_link *link, u32 flags);
 
@@ -839,7 +852,7 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
  * @entity: Starting entity
  * @pipe: Media pipeline to be assigned to all entities in the pipeline.
  *
- * Note: This is the non-locking version of media_entity_pipeline_start()
+ * ..note:: This is the non-locking version of media_entity_pipeline_start()
  */
 __must_check int __media_entity_pipeline_start(struct media_entity *entity,
 					       struct media_pipeline *pipe);
@@ -863,7 +876,7 @@ void media_entity_pipeline_stop(struct media_entity *entity);
  *
  * @entity: Starting entity
  *
- * Note: This is the non-locking version of media_entity_pipeline_stop()
+ * .. note:: This is the non-locking version of media_entity_pipeline_stop()
  */
 void __media_entity_pipeline_stop(struct media_entity *entity);
 
@@ -904,20 +917,21 @@ struct media_link *
  *
  *
  * Valid values for flags:
- * The %MEDIA_LNK_FL_ENABLED flag indicates that the interface is connected to
- *	the entity hardware. That's the default value for interfaces. An
- *	interface may be disabled if the hardware is busy due to the usage
- *	of some other interface that it is currently controlling the hardware.
- *	A typical example is an hybrid TV device that handle only one type of
- *	stream on a given time. So, when the digital TV is streaming,
- *	the V4L2 interfaces won't be enabled, as such device is not able to
- *	also stream analog TV or radio.
  *
- * Note:
+ * - The %MEDIA_LNK_FL_ENABLED flag indicates that the interface is connected to
+ *   the entity hardware. That's the default value for interfaces. An
+ *   interface may be disabled if the hardware is busy due to the usage
+ *   of some other interface that it is currently controlling the hardware.
+ *   A typical example is an hybrid TV device that handle only one type of
+ *   stream on a given time. So, when the digital TV is streaming,
+ *   the V4L2 interfaces won't be enabled, as such device is not able to
+ *   also stream analog TV or radio.
  *
- * Before calling this function, media_devnode_create() should be called for
- * the interface and media_device_register_entity() should be called for the
- * interface that will be part of the link.
+ * .. note::
+ *
+ *    Before calling this function, media_devnode_create() should be called for
+ *    the interface and media_device_register_entity() should be called for the
+ *    interface that will be part of the link.
  */
 __must_check media_create_intf_link(struct media_entity *entity,
 				    struct media_interface *intf,
@@ -927,7 +941,7 @@ __must_check media_create_intf_link(struct media_entity *entity,
  *
  * @link:	pointer to &media_link.
  *
- * Note: this is an unlocked version of media_remove_intf_link()
+ * .. note:: This is an unlocked version of media_remove_intf_link()
  */
 void __media_remove_intf_link(struct media_link *link);
 
@@ -936,7 +950,7 @@ void __media_remove_intf_link(struct media_link *link);
  *
  * @link:	pointer to &media_link.
  *
- * Note: prefer to use this one, instead of __media_remove_intf_link()
+ * .. note:: Prefer to use this one, instead of __media_remove_intf_link()
  */
 void media_remove_intf_link(struct media_link *link);
 
@@ -945,7 +959,7 @@ void media_remove_intf_link(struct media_link *link);
  *
  * @intf:	pointer to &media_interface
  *
- * Note: this is an unlocked version of media_remove_intf_links().
+ * .. note:: This is an unlocked version of media_remove_intf_links().
  */
 void __media_remove_intf_links(struct media_interface *intf);
 
@@ -954,12 +968,12 @@ void __media_remove_intf_links(struct media_interface *intf);
  *
  * @intf:	pointer to &media_interface
  *
- * Notes:
+ * .. note::
  *
- * this is called automatically when an entity is unregistered via
- * media_device_register_entity() and by media_devnode_remove().
+ *   #) This is called automatically when an entity is unregistered via
+ *      media_device_register_entity() and by media_devnode_remove().
  *
- * Prefer to use this one, instead of __media_remove_intf_links().
+ *   #) Prefer to use this one, instead of __media_remove_intf_links().
  */
 void media_remove_intf_links(struct media_interface *intf);
 

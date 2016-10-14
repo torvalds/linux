@@ -27,7 +27,6 @@
 
 #define M88DS3103_FIRMWARE "dvb-demod-m88ds3103.fw"
 #define M88RS6000_FIRMWARE "dvb-demod-m88rs6000.fw"
-#define M88DS3103_MCLK_KHZ 96000
 #define M88RS6000_CHIP_ID 0x74
 #define M88DS3103_CHIP_ID 0x70
 
@@ -42,11 +41,11 @@ struct m88ds3103_dev {
 	enum fe_status fe_status;
 	u32 dvbv3_ber; /* for old DVBv3 API read_ber */
 	bool warm; /* FW running */
-	struct i2c_adapter *i2c_adapter;
+	struct i2c_mux_core *muxc;
 	/* auto detect chip id to do different config */
 	u8 chip_id;
 	/* main mclk is calculated for M88RS6000 dynamically */
-	u32 mclk_khz;
+	s32 mclk;
 	u64 post_bit_error;
 	u64 post_bit_count;
 };

@@ -676,13 +676,13 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 					     demux, 0, MEDIA_LNK_FL_ENABLED,
 					     false);
 		if (ret)
-			return -ENOMEM;
+			return ret;
 	}
 	if (demux && ca) {
 		ret = media_create_pad_link(demux, 1, ca,
 					    0, MEDIA_LNK_FL_ENABLED);
 		if (ret)
-			return -ENOMEM;
+			return ret;
 	}
 
 	/* Create demux links for each ringbuffer/pad */

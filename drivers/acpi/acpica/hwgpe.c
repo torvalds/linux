@@ -166,7 +166,7 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u32 action)
  *
  ******************************************************************************/
 
-acpi_status acpi_hw_clear_gpe(struct acpi_gpe_event_info * gpe_event_info)
+acpi_status acpi_hw_clear_gpe(struct acpi_gpe_event_info *gpe_event_info)
 {
 	struct acpi_gpe_register_info *gpe_register_info;
 	acpi_status status;
@@ -206,7 +206,7 @@ acpi_status acpi_hw_clear_gpe(struct acpi_gpe_event_info * gpe_event_info)
  ******************************************************************************/
 
 acpi_status
-acpi_hw_get_gpe_status(struct acpi_gpe_event_info * gpe_event_info,
+acpi_hw_get_gpe_status(struct acpi_gpe_event_info *gpe_event_info,
 		       acpi_event_status *event_status)
 {
 	u32 in_byte;
@@ -391,7 +391,7 @@ acpi_hw_clear_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 acpi_status
 acpi_hw_enable_runtime_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
-				 struct acpi_gpe_block_info * gpe_block,
+				 struct acpi_gpe_block_info *gpe_block,
 				 void *context)
 {
 	u32 i;

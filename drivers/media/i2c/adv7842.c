@@ -39,6 +39,7 @@
 #include <linux/workqueue.h>
 #include <linux/v4l2-dv-timings.h>
 #include <linux/hdmi.h>
+#include <media/cec.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-ctrls.h>
@@ -79,6 +80,8 @@ MODULE_LICENSE("GPL");
 
 #define ADV7842_OP_SWAP_CB_CR				(1 << 0)
 
+#define ADV7842_MAX_ADDRS (3)
+
 /*
 **********************************************************************
 *
@@ -118,7 +121,6 @@ struct adv7842_state {
 	struct v4l2_fract aspect_ratio;
 	u32 rgb_quantization_range;
 	bool is_cea_format;
-	struct workqueue_struct *work_queues;
 	struct delayed_work delayed_work_enable_hotplug;
 	bool restart_stdi_once;
 	bool hdmi_port_a;
@@ -142,6 +144,11 @@ struct adv7842_state {
 	struct v4l2_ctrl *free_run_color_ctrl_manual;
 	struct v4l2_ctrl *free_run_color_ctrl;
 	struct v4l2_ctrl *rgb_quantization_range_ctrl;
+
+	struct cec_adapter *cec_adap;
+	u8   cec_addr[ADV7842_MAX_ADDRS];
+	u8   cec_valid_addrs;
+	bool cec_enabled_adap;
 };
 
 /* Unsupported timings. This device cannot support 720p30. */
@@ -418,9 +425,9 @@ static inline int cec_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 	return adv_smbus_write_byte_data(state->i2c_cec, reg, val);
 }
 
-static inline int cec_write_and_or(struct v4l2_subdev *sd, u8 reg, u8 mask, u8 val)
+static inline int cec_write_clr_set(struct v4l2_subdev *sd, u8 reg, u8 mask, u8 val)
 {
-	return cec_write(sd, reg, (cec_read(sd, reg) & mask) | val);
+	return cec_write(sd, reg, (cec_read(sd, reg) & ~mask) | val);
 }
 
 static inline int infoframe_read(struct v4l2_subdev *sd, u8 reg)
@@ -696,6 +703,18 @@ adv7842_get_dv_timings_cap(struct v4l2_subdev *sd)
 
 /* ----------------------------------------------------------------------- */
 
+static u16 adv7842_read_cable_det(struct v4l2_subdev *sd)
+{
+	u8 reg = io_read(sd, 0x6f);
+	u16 val = 0;
+
+	if (reg & 0x02)
+		val |= 1; /* port A */
+	if (reg & 0x01)
+		val |= 2; /* port B */
+	return val;
+}
+
 static void adv7842_delayed_work_enable_hotplug(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
@@ -756,56 +775,23 @@ static int edid_write_vga_segment(struct v4l2_subdev *sd)
 	}
 
 	/* enable hotplug after 200 ms */
-	queue_delayed_work(state->work_queues,
-			&state->delayed_work_enable_hotplug, HZ / 5);
+	schedule_delayed_work(&state->delayed_work_enable_hotplug, HZ / 5);
 
 	return 0;
-}
-
-static int edid_spa_location(const u8 *edid)
-{
-	u8 d;
-
-	/*
-	 * TODO, improve and update for other CEA extensions
-	 * currently only for 1 segment (256 bytes),
-	 * i.e. 1 extension block and CEA revision 3.
-	 */
-	if ((edid[0x7e] != 1) ||
-	    (edid[0x80] != 0x02) ||
-	    (edid[0x81] != 0x03)) {
-		return -EINVAL;
-	}
-	/*
-	 * search Vendor Specific Data Block (tag 3)
-	 */
-	d = edid[0x82] & 0x7f;
-	if (d > 4) {
-		int i = 0x84;
-		int end = 0x80 + d;
-		do {
-			u8 tag = edid[i]>>5;
-			u8 len = edid[i] & 0x1f;
-
-			if ((tag == 3) && (len >= 5))
-				return i + 4;
-			i += len + 1;
-		} while (i < end);
-	}
-	return -EINVAL;
 }
 
 static int edid_write_hdmi_segment(struct v4l2_subdev *sd, u8 port)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct adv7842_state *state = to_state(sd);
-	const u8 *val = state->hdmi_edid.edid;
-	int spa_loc = edid_spa_location(val);
+	const u8 *edid = state->hdmi_edid.edid;
+	int spa_loc;
+	u16 pa;
 	int err = 0;
 	int i;
 
-	v4l2_dbg(2, debug, sd, "%s: write EDID on port %c (spa at 0x%x)\n",
-			__func__, (port == ADV7842_EDID_PORT_A) ? 'A' : 'B', spa_loc);
+	v4l2_dbg(2, debug, sd, "%s: write EDID on port %c\n",
+			__func__, (port == ADV7842_EDID_PORT_A) ? 'A' : 'B');
 
 	/* HPA disable on port A and B */
 	io_write_and_or(sd, 0x20, 0xcf, 0x00);
@@ -816,24 +802,33 @@ static int edid_write_hdmi_segment(struct v4l2_subdev *sd, u8 port)
 	if (!state->hdmi_edid.present)
 		return 0;
 
+	pa = cec_get_edid_phys_addr(edid, 256, &spa_loc);
+	err = cec_phys_addr_validate(pa, &pa, NULL);
+	if (err)
+		return err;
+
+	/*
+	 * Return an error if no location of the source physical address
+	 * was found.
+	 */
+	if (spa_loc == 0)
+		return -EINVAL;
+
 	/* edid segment pointer '0' for HDMI ports */
 	rep_write_and_or(sd, 0x77, 0xef, 0x00);
 
 	for (i = 0; !err && i < 256; i += I2C_SMBUS_BLOCK_MAX)
 		err = adv_smbus_write_i2c_block_data(state->i2c_edid, i,
-						     I2C_SMBUS_BLOCK_MAX, val + i);
+						     I2C_SMBUS_BLOCK_MAX, edid + i);
 	if (err)
 		return err;
 
-	if (spa_loc < 0)
-		spa_loc = 0xc0; /* Default value [REF_02, p. 199] */
-
 	if (port == ADV7842_EDID_PORT_A) {
-		rep_write(sd, 0x72, val[spa_loc]);
-		rep_write(sd, 0x73, val[spa_loc + 1]);
+		rep_write(sd, 0x72, edid[spa_loc]);
+		rep_write(sd, 0x73, edid[spa_loc + 1]);
 	} else {
-		rep_write(sd, 0x74, val[spa_loc]);
-		rep_write(sd, 0x75, val[spa_loc + 1]);
+		rep_write(sd, 0x74, edid[spa_loc]);
+		rep_write(sd, 0x75, edid[spa_loc + 1]);
 	}
 	rep_write(sd, 0x76, spa_loc & 0xff);
 	rep_write_and_or(sd, 0x77, 0xbf, (spa_loc >> 2) & 0x40);
@@ -853,10 +848,10 @@ static int edid_write_hdmi_segment(struct v4l2_subdev *sd, u8 port)
 				(port == ADV7842_EDID_PORT_A) ? 'A' : 'B');
 		return -EIO;
 	}
+	cec_s_phys_addr(state->cec_adap, pa, false);
 
 	/* enable hotplug after 200 ms */
-	queue_delayed_work(state->work_queues,
-			&state->delayed_work_enable_hotplug, HZ / 5);
+	schedule_delayed_work(&state->delayed_work_enable_hotplug, HZ / 5);
 
 	return 0;
 }
@@ -983,20 +978,11 @@ static int adv7842_s_register(struct v4l2_subdev *sd,
 static int adv7842_s_detect_tx_5v_ctrl(struct v4l2_subdev *sd)
 {
 	struct adv7842_state *state = to_state(sd);
-	int prev = v4l2_ctrl_g_ctrl(state->detect_tx_5v_ctrl);
-	u8 reg_io_6f = io_read(sd, 0x6f);
-	int val = 0;
+	u16 cable_det = adv7842_read_cable_det(sd);
 
-	if (reg_io_6f & 0x02)
-		val |= 1; /* port A */
-	if (reg_io_6f & 0x01)
-		val |= 2; /* port B */
+	v4l2_dbg(1, debug, sd, "%s: 0x%x\n", __func__, cable_det);
 
-	v4l2_dbg(1, debug, sd, "%s: 0x%x -> 0x%x\n", __func__, prev, val);
-
-	if (val != prev)
-		return v4l2_ctrl_s_ctrl(state->detect_tx_5v_ctrl, val);
-	return 0;
+	return v4l2_ctrl_s_ctrl(state->detect_tx_5v_ctrl, cable_det);
 }
 
 static int find_and_set_predefined_video_timings(struct v4l2_subdev *sd,
@@ -1198,6 +1184,10 @@ static void set_rgb_quantization_range(struct v4l2_subdev *sd)
 	struct adv7842_state *state = to_state(sd);
 	bool rgb_output = io_read(sd, 0x02) & 0x02;
 	bool hdmi_signal = hdmi_read(sd, 0x05) & 0x80;
+	u8 y = HDMI_COLORSPACE_RGB;
+
+	if (hdmi_signal && (io_read(sd, 0x60) & 1))
+		y = infoframe_read(sd, 0x01) >> 5;
 
 	v4l2_dbg(2, debug, sd, "%s: RGB quantization range: %d, RGB out: %d, HDMI: %d\n",
 			__func__, state->rgb_quantization_range,
@@ -1205,6 +1195,7 @@ static void set_rgb_quantization_range(struct v4l2_subdev *sd)
 
 	adv7842_set_gain(sd, true, 0x0, 0x0, 0x0);
 	adv7842_set_offset(sd, true, 0x0, 0x0, 0x0);
+	io_write_clr_set(sd, 0x02, 0x04, rgb_output ? 0 : 4);
 
 	switch (state->rgb_quantization_range) {
 	case V4L2_DV_RGB_RANGE_AUTO:
@@ -1254,6 +1245,9 @@ static void set_rgb_quantization_range(struct v4l2_subdev *sd)
 			break;
 		}
 
+		if (y != HDMI_COLORSPACE_RGB)
+			break;
+
 		/* RGB limited range (16-235) */
 		io_write_and_or(sd, 0x02, 0x0f, 0x00);
 
@@ -1264,6 +1258,9 @@ static void set_rgb_quantization_range(struct v4l2_subdev *sd)
 			io_write_and_or(sd, 0x02, 0x0f, 0x60);
 			break;
 		}
+
+		if (y != HDMI_COLORSPACE_RGB)
+			break;
 
 		/* RGB full range (0-255) */
 		io_write_and_or(sd, 0x02, 0x0f, 0x10);
@@ -2072,6 +2069,7 @@ static void adv7842_setup_format(struct adv7842_state *state)
 	io_write_clr_set(sd, 0x04, 0xe0, adv7842_op_ch_sel(state));
 	io_write_clr_set(sd, 0x05, 0x01,
 			state->format->swap_cb_cr ? ADV7842_OP_SWAP_CB_CR : 0);
+	set_rgb_quantization_range(sd);
 }
 
 static int adv7842_get_format(struct v4l2_subdev *sd,
@@ -2170,6 +2168,207 @@ static void adv7842_irq_enable(struct v4l2_subdev *sd, bool enable)
 	}
 }
 
+#if IS_ENABLED(CONFIG_VIDEO_ADV7842_CEC)
+static void adv7842_cec_tx_raw_status(struct v4l2_subdev *sd, u8 tx_raw_status)
+{
+	struct adv7842_state *state = to_state(sd);
+
+	if ((cec_read(sd, 0x11) & 0x01) == 0) {
+		v4l2_dbg(1, debug, sd, "%s: tx raw: tx disabled\n", __func__);
+		return;
+	}
+
+	if (tx_raw_status & 0x02) {
+		v4l2_dbg(1, debug, sd, "%s: tx raw: arbitration lost\n",
+			 __func__);
+		cec_transmit_done(state->cec_adap, CEC_TX_STATUS_ARB_LOST,
+				  1, 0, 0, 0);
+		return;
+	}
+	if (tx_raw_status & 0x04) {
+		u8 status;
+		u8 nack_cnt;
+		u8 low_drive_cnt;
+
+		v4l2_dbg(1, debug, sd, "%s: tx raw: retry failed\n", __func__);
+		/*
+		 * We set this status bit since this hardware performs
+		 * retransmissions.
+		 */
+		status = CEC_TX_STATUS_MAX_RETRIES;
+		nack_cnt = cec_read(sd, 0x14) & 0xf;
+		if (nack_cnt)
+			status |= CEC_TX_STATUS_NACK;
+		low_drive_cnt = cec_read(sd, 0x14) >> 4;
+		if (low_drive_cnt)
+			status |= CEC_TX_STATUS_LOW_DRIVE;
+		cec_transmit_done(state->cec_adap, status,
+				  0, nack_cnt, low_drive_cnt, 0);
+		return;
+	}
+	if (tx_raw_status & 0x01) {
+		v4l2_dbg(1, debug, sd, "%s: tx raw: ready ok\n", __func__);
+		cec_transmit_done(state->cec_adap, CEC_TX_STATUS_OK, 0, 0, 0, 0);
+		return;
+	}
+}
+
+static void adv7842_cec_isr(struct v4l2_subdev *sd, bool *handled)
+{
+	u8 cec_irq;
+
+	/* cec controller */
+	cec_irq = io_read(sd, 0x93) & 0x0f;
+	if (!cec_irq)
+		return;
+
+	v4l2_dbg(1, debug, sd, "%s: cec: irq 0x%x\n", __func__, cec_irq);
+	adv7842_cec_tx_raw_status(sd, cec_irq);
+	if (cec_irq & 0x08) {
+		struct adv7842_state *state = to_state(sd);
+		struct cec_msg msg;
+
+		msg.len = cec_read(sd, 0x25) & 0x1f;
+		if (msg.len > 16)
+			msg.len = 16;
+
+		if (msg.len) {
+			u8 i;
+
+			for (i = 0; i < msg.len; i++)
+				msg.msg[i] = cec_read(sd, i + 0x15);
+			cec_write(sd, 0x26, 0x01); /* re-enable rx */
+			cec_received_msg(state->cec_adap, &msg);
+		}
+	}
+
+	io_write(sd, 0x94, cec_irq);
+
+	if (handled)
+		*handled = true;
+}
+
+static int adv7842_cec_adap_enable(struct cec_adapter *adap, bool enable)
+{
+	struct adv7842_state *state = adap->priv;
+	struct v4l2_subdev *sd = &state->sd;
+
+	if (!state->cec_enabled_adap && enable) {
+		cec_write_clr_set(sd, 0x2a, 0x01, 0x01); /* power up cec */
+		cec_write(sd, 0x2c, 0x01);	/* cec soft reset */
+		cec_write_clr_set(sd, 0x11, 0x01, 0); /* initially disable tx */
+		/* enabled irqs: */
+		/* tx: ready */
+		/* tx: arbitration lost */
+		/* tx: retry timeout */
+		/* rx: ready */
+		io_write_clr_set(sd, 0x96, 0x0f, 0x0f);
+		cec_write(sd, 0x26, 0x01);            /* enable rx */
+	} else if (state->cec_enabled_adap && !enable) {
+		/* disable cec interrupts */
+		io_write_clr_set(sd, 0x96, 0x0f, 0x00);
+		/* disable address mask 1-3 */
+		cec_write_clr_set(sd, 0x27, 0x70, 0x00);
+		/* power down cec section */
+		cec_write_clr_set(sd, 0x2a, 0x01, 0x00);
+		state->cec_valid_addrs = 0;
+	}
+	state->cec_enabled_adap = enable;
+	return 0;
+}
+
+static int adv7842_cec_adap_log_addr(struct cec_adapter *adap, u8 addr)
+{
+	struct adv7842_state *state = adap->priv;
+	struct v4l2_subdev *sd = &state->sd;
+	unsigned int i, free_idx = ADV7842_MAX_ADDRS;
+
+	if (!state->cec_enabled_adap)
+		return addr == CEC_LOG_ADDR_INVALID ? 0 : -EIO;
+
+	if (addr == CEC_LOG_ADDR_INVALID) {
+		cec_write_clr_set(sd, 0x27, 0x70, 0);
+		state->cec_valid_addrs = 0;
+		return 0;
+	}
+
+	for (i = 0; i < ADV7842_MAX_ADDRS; i++) {
+		bool is_valid = state->cec_valid_addrs & (1 << i);
+
+		if (free_idx == ADV7842_MAX_ADDRS && !is_valid)
+			free_idx = i;
+		if (is_valid && state->cec_addr[i] == addr)
+			return 0;
+	}
+	if (i == ADV7842_MAX_ADDRS) {
+		i = free_idx;
+		if (i == ADV7842_MAX_ADDRS)
+			return -ENXIO;
+	}
+	state->cec_addr[i] = addr;
+	state->cec_valid_addrs |= 1 << i;
+
+	switch (i) {
+	case 0:
+		/* enable address mask 0 */
+		cec_write_clr_set(sd, 0x27, 0x10, 0x10);
+		/* set address for mask 0 */
+		cec_write_clr_set(sd, 0x28, 0x0f, addr);
+		break;
+	case 1:
+		/* enable address mask 1 */
+		cec_write_clr_set(sd, 0x27, 0x20, 0x20);
+		/* set address for mask 1 */
+		cec_write_clr_set(sd, 0x28, 0xf0, addr << 4);
+		break;
+	case 2:
+		/* enable address mask 2 */
+		cec_write_clr_set(sd, 0x27, 0x40, 0x40);
+		/* set address for mask 1 */
+		cec_write_clr_set(sd, 0x29, 0x0f, addr);
+		break;
+	}
+	return 0;
+}
+
+static int adv7842_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
+				     u32 signal_free_time, struct cec_msg *msg)
+{
+	struct adv7842_state *state = adap->priv;
+	struct v4l2_subdev *sd = &state->sd;
+	u8 len = msg->len;
+	unsigned int i;
+
+	/*
+	 * The number of retries is the number of attempts - 1, but retry
+	 * at least once. It's not clear if a value of 0 is allowed, so
+	 * let's do at least one retry.
+	 */
+	cec_write_clr_set(sd, 0x12, 0x70, max(1, attempts - 1) << 4);
+
+	if (len > 16) {
+		v4l2_err(sd, "%s: len exceeded 16 (%d)\n", __func__, len);
+		return -EINVAL;
+	}
+
+	/* write data */
+	for (i = 0; i < len; i++)
+		cec_write(sd, i, msg->msg[i]);
+
+	/* set length (data + header) */
+	cec_write(sd, 0x10, len);
+	/* start transmit, enable tx */
+	cec_write(sd, 0x11, 0x01);
+	return 0;
+}
+
+static const struct cec_adap_ops adv7842_cec_adap_ops = {
+	.adap_enable = adv7842_cec_adap_enable,
+	.adap_log_addr = adv7842_cec_adap_log_addr,
+	.adap_transmit = adv7842_cec_adap_transmit,
+};
+#endif
+
 static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 {
 	struct adv7842_state *state = to_state(sd);
@@ -2240,6 +2439,11 @@ static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 		if (handled)
 			*handled = true;
 	}
+
+#if IS_ENABLED(CONFIG_VIDEO_ADV7842_CEC)
+	/* cec */
+	adv7842_cec_isr(sd, handled);
+#endif
 
 	/* tx 5v detect */
 	if (irq_status[2] & 0x3) {
@@ -2321,10 +2525,12 @@ static int adv7842_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *e)
 	case ADV7842_EDID_PORT_A:
 	case ADV7842_EDID_PORT_B:
 		memset(&state->hdmi_edid.edid, 0, 256);
-		if (e->blocks)
+		if (e->blocks) {
 			state->hdmi_edid.present |= 0x04 << e->pad;
-		else
+		} else {
 			state->hdmi_edid.present &= ~(0x04 << e->pad);
+			adv7842_s_detect_tx_5v_ctrl(sd);
+		}
 		memcpy(&state->hdmi_edid.edid, e->edid, 128 * e->blocks);
 		err = edid_write_hdmi_segment(sd, e->pad);
 		break;
@@ -2397,6 +2603,8 @@ static void adv7842_log_infoframes(struct v4l2_subdev *sd)
 		log_infoframe(sd, &cri[i]);
 }
 
+#if 0
+/* Let's keep it here for now, as it could be useful for debug */
 static const char * const prim_mode_txt[] = {
 	"SDP",
 	"Component",
@@ -2415,6 +2623,7 @@ static const char * const prim_mode_txt[] = {
 	"Reserved",
 	"Reserved",
 };
+#endif
 
 static int adv7842_sdp_log_status(struct v4l2_subdev *sd)
 {
@@ -2509,8 +2718,19 @@ static int adv7842_cp_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "HPD A %s, B %s\n",
 		  reg_io_0x21 & 0x02 ? "enabled" : "disabled",
 		  reg_io_0x21 & 0x01 ? "enabled" : "disabled");
-	v4l2_info(sd, "CEC %s\n", !!(cec_read(sd, 0x2a) & 0x01) ?
+	v4l2_info(sd, "CEC: %s\n", state->cec_enabled_adap ?
 			"enabled" : "disabled");
+	if (state->cec_enabled_adap) {
+		int i;
+
+		for (i = 0; i < ADV7842_MAX_ADDRS; i++) {
+			bool is_valid = state->cec_valid_addrs & (1 << i);
+
+			if (is_valid)
+				v4l2_info(sd, "CEC Logical Address: 0x%x\n",
+					  state->cec_addr[i]);
+		}
+	}
 
 	v4l2_info(sd, "-----Signal status-----\n");
 	if (state->hdmi_port_a) {
@@ -2569,11 +2789,11 @@ static int adv7842_cp_log_status(struct v4l2_subdev *sd)
 		  rgb_quantization_range_txt[state->rgb_quantization_range]);
 	v4l2_info(sd, "Input color space: %s\n",
 		  input_color_space_txt[reg_io_0x02 >> 4]);
-	v4l2_info(sd, "Output color space: %s %s, saturator %s\n",
+	v4l2_info(sd, "Output color space: %s %s, alt-gamma %s\n",
 		  (reg_io_0x02 & 0x02) ? "RGB" : "YCbCr",
-		  (reg_io_0x02 & 0x04) ? "(16-235)" : "(0-255)",
-		  ((reg_io_0x02 & 0x04) ^ (reg_io_0x02 & 0x01)) ?
-					"enabled" : "disabled");
+		  (((reg_io_0x02 >> 2) & 0x01) ^ (reg_io_0x02 & 0x01)) ?
+			"(16-235)" : "(0-255)",
+		  (reg_io_0x02 & 0x08) ? "enabled" : "disabled");
 	v4l2_info(sd, "Color space conversion: %s\n",
 		  csc_coeff_sel_rb[cp_read(sd, 0xf4) >> 4]);
 
@@ -2777,11 +2997,7 @@ static int adv7842_core_init(struct v4l2_subdev *sd)
 	io_write(sd, 0x15, 0x80);   /* Power up pads */
 
 	/* video format */
-	io_write(sd, 0x02,
-		 0xf0 |
-		 pdata->alt_gamma << 3 |
-		 pdata->op_656_range << 2 |
-		 pdata->alt_data_sat << 0);
+	io_write(sd, 0x02, 0xf0 | pdata->alt_gamma << 3);
 	io_write_and_or(sd, 0x05, 0xf0, pdata->blank_data << 3 |
 			pdata->insert_av_codes << 2 |
 			pdata->replicate_av_codes << 1);
@@ -3031,6 +3247,24 @@ static int adv7842_subscribe_event(struct v4l2_subdev *sd,
 	}
 }
 
+static int adv7842_registered(struct v4l2_subdev *sd)
+{
+	struct adv7842_state *state = to_state(sd);
+	int err;
+
+	err = cec_register_adapter(state->cec_adap);
+	if (err)
+		cec_delete_adapter(state->cec_adap);
+	return err;
+}
+
+static void adv7842_unregistered(struct v4l2_subdev *sd)
+{
+	struct adv7842_state *state = to_state(sd);
+
+	cec_unregister_adapter(state->cec_adap);
+}
+
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_ctrl_ops adv7842_ctrl_ops = {
@@ -3075,6 +3309,11 @@ static const struct v4l2_subdev_ops adv7842_ops = {
 	.core = &adv7842_core_ops,
 	.video = &adv7842_video_ops,
 	.pad = &adv7842_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops adv7842_int_ops = {
+	.registered = adv7842_registered,
+	.unregistered = adv7842_unregistered,
 };
 
 /* -------------------------- custom ctrls ---------------------------------- */
@@ -3241,6 +3480,7 @@ static int adv7842_probe(struct i2c_client *client,
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7842_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	sd->internal_ops = &adv7842_int_ops;
 	state->mode = pdata->mode;
 
 	state->hdmi_port_a = pdata->input == ADV7842_SELECT_HDMI_PORT_A;
@@ -3300,12 +3540,6 @@ static int adv7842_probe(struct i2c_client *client,
 		err = hdl->error;
 		goto err_hdl;
 	}
-	state->detect_tx_5v_ctrl->is_private = true;
-	state->rgb_quantization_range_ctrl->is_private = true;
-	state->analog_sampling_phase_ctrl->is_private = true;
-	state->free_run_color_ctrl_manual->is_private = true;
-	state->free_run_color_ctrl->is_private = true;
-
 	if (adv7842_s_detect_tx_5v_ctrl(sd)) {
 		err = -ENODEV;
 		goto err_hdl;
@@ -3317,13 +3551,6 @@ static int adv7842_probe(struct i2c_client *client,
 		goto err_i2c;
 	}
 
-	/* work queues */
-	state->work_queues = create_singlethread_workqueue(client->name);
-	if (!state->work_queues) {
-		v4l2_err(sd, "Could not create work queue\n");
-		err = -ENOMEM;
-		goto err_i2c;
-	}
 
 	INIT_DELAYED_WORK(&state->delayed_work_enable_hotplug,
 			adv7842_delayed_work_enable_hotplug);
@@ -3337,6 +3564,17 @@ static int adv7842_probe(struct i2c_client *client,
 	if (err)
 		goto err_entity;
 
+#if IS_ENABLED(CONFIG_VIDEO_ADV7842_CEC)
+	state->cec_adap = cec_allocate_adapter(&adv7842_cec_adap_ops,
+		state, dev_name(&client->dev),
+		CEC_CAP_TRANSMIT | CEC_CAP_LOG_ADDRS |
+		CEC_CAP_PASSTHROUGH | CEC_CAP_RC, ADV7842_MAX_ADDRS,
+		&client->dev);
+	err = PTR_ERR_OR_ZERO(state->cec_adap);
+	if (err)
+		goto err_entity;
+#endif
+
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
 		  client->addr << 1, client->adapter->name);
 	return 0;
@@ -3345,7 +3583,6 @@ err_entity:
 	media_entity_cleanup(&sd->entity);
 err_work_queues:
 	cancel_delayed_work(&state->delayed_work_enable_hotplug);
-	destroy_workqueue(state->work_queues);
 err_i2c:
 	adv7842_unregister_clients(sd);
 err_hdl:
@@ -3361,9 +3598,7 @@ static int adv7842_remove(struct i2c_client *client)
 	struct adv7842_state *state = to_state(sd);
 
 	adv7842_irq_enable(sd, false);
-
 	cancel_delayed_work(&state->delayed_work_enable_hotplug);
-	destroy_workqueue(state->work_queues);
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	adv7842_unregister_clients(sd);

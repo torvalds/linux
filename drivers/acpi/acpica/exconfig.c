@@ -118,7 +118,9 @@ acpi_ex_add_table(u32 table_index,
 	/* Execute any module-level code that was found in the table */
 
 	acpi_ex_exit_interpreter();
-	acpi_ns_exec_module_code_list();
+	if (acpi_gbl_group_module_level_code) {
+		acpi_ns_exec_module_code_list();
+	}
 	acpi_ex_enter_interpreter();
 
 	/*

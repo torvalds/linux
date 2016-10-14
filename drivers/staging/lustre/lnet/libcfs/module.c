@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -54,9 +50,6 @@
 
 # define DEBUG_SUBSYSTEM S_LNET
 
-#define LNET_MAX_IOCTL_BUF_LEN (sizeof(struct lnet_ioctl_net_config) + \
-				sizeof(struct lnet_ioctl_config_data))
-
 #include "../../include/linux/libcfs/libcfs.h"
 #include <asm/div64.h>
 
@@ -67,20 +60,6 @@
 #include "tracefile.h"
 
 static struct dentry *lnet_debugfs_root;
-
-/* called when opening /dev/device */
-static int libcfs_psdev_open(unsigned long flags, void *args)
-{
-	try_module_get(THIS_MODULE);
-	return 0;
-}
-
-/* called when closing /dev/device */
-static int libcfs_psdev_release(unsigned long flags, void *args)
-{
-	module_put(THIS_MODULE);
-	return 0;
-}
 
 static DECLARE_RWSEM(ioctl_list_sem);
 static LIST_HEAD(ioctl_list);
@@ -115,39 +94,47 @@ int libcfs_deregister_ioctl(struct libcfs_ioctl_handler *hand)
 }
 EXPORT_SYMBOL(libcfs_deregister_ioctl);
 
-static int libcfs_ioctl_handle(struct cfs_psdev_file *pfile, unsigned long cmd,
-			       void __user *arg, struct libcfs_ioctl_hdr *hdr)
+int libcfs_ioctl(unsigned long cmd, void __user *uparam)
 {
 	struct libcfs_ioctl_data *data = NULL;
-	int err = -EINVAL;
+	struct libcfs_ioctl_hdr *hdr;
+	int err;
 
-	/*
-	 * The libcfs_ioctl_data_adjust() function performs adjustment
-	 * operations on the libcfs_ioctl_data structure to make
-	 * it usable by the code.  This doesn't need to be called
-	 * for new data structures added.
-	 */
+	/* 'cmd' and permissions get checked in our arch-specific caller */
+	err = libcfs_ioctl_getdata(&hdr, uparam);
+	if (err) {
+		CDEBUG_LIMIT(D_ERROR,
+			     "libcfs ioctl: data header error %d\n", err);
+		return err;
+	}
+
 	if (hdr->ioc_version == LIBCFS_IOCTL_VERSION) {
+		/*
+		 * The libcfs_ioctl_data_adjust() function performs adjustment
+		 * operations on the libcfs_ioctl_data structure to make
+		 * it usable by the code.  This doesn't need to be called
+		 * for new data structures added.
+		 */
 		data = container_of(hdr, struct libcfs_ioctl_data, ioc_hdr);
 		err = libcfs_ioctl_data_adjust(data);
 		if (err)
-			return err;
+			goto out;
 	}
 
+	CDEBUG(D_IOCTL, "libcfs ioctl cmd %lu\n", cmd);
 	switch (cmd) {
 	case IOC_LIBCFS_CLEAR_DEBUG:
 		libcfs_debug_clear_buffer();
-		return 0;
-	/*
-	 * case IOC_LIBCFS_PANIC:
-	 * Handled in arch/cfs_module.c
-	 */
+		break;
+
 	case IOC_LIBCFS_MARK_DEBUG:
-		if (!data->ioc_inlbuf1 ||
-		    data->ioc_inlbuf1[data->ioc_inllen1 - 1] != '\0')
-			return -EINVAL;
+		if (!data || !data->ioc_inlbuf1 ||
+		    data->ioc_inlbuf1[data->ioc_inllen1 - 1] != '\0') {
+			err = -EINVAL;
+			goto out;
+		}
 		libcfs_debug_mark_buffer(data->ioc_inlbuf1);
-		return 0;
+		break;
 
 	default: {
 		struct libcfs_ioctl_handler *hand;
@@ -156,66 +143,22 @@ static int libcfs_ioctl_handle(struct cfs_psdev_file *pfile, unsigned long cmd,
 		down_read(&ioctl_list_sem);
 		list_for_each_entry(hand, &ioctl_list, item) {
 			err = hand->handle_ioctl(cmd, hdr);
-			if (err != -EINVAL) {
-				if (err == 0)
-					err = libcfs_ioctl_popdata(arg,
-							hdr, hdr->ioc_len);
-				break;
+			if (err == -EINVAL)
+				continue;
+
+			if (!err) {
+				if (copy_to_user(uparam, hdr, hdr->ioc_len))
+					err = -EFAULT;
 			}
+			break;
 		}
 		up_read(&ioctl_list_sem);
-		break;
+		break; }
 	}
-	}
-
-	return err;
-}
-
-static int libcfs_ioctl(struct cfs_psdev_file *pfile, unsigned long cmd,
-			void __user *arg)
-{
-	struct libcfs_ioctl_hdr *hdr;
-	int err = 0;
-	__u32 buf_len;
-
-	err = libcfs_ioctl_getdata_len(arg, &buf_len);
-	if (err)
-		return err;
-
-	/*
-	 * do a check here to restrict the size of the memory
-	 * to allocate to guard against DoS attacks.
-	 */
-	if (buf_len > LNET_MAX_IOCTL_BUF_LEN) {
-		CERROR("LNET: user buffer exceeds kernel buffer\n");
-		return -EINVAL;
-	}
-
-	LIBCFS_ALLOC_GFP(hdr, buf_len, GFP_KERNEL);
-	if (!hdr)
-		return -ENOMEM;
-
-	/* 'cmd' and permissions get checked in our arch-specific caller */
-	if (copy_from_user(hdr, arg, buf_len)) {
-		CERROR("LNET ioctl: data error\n");
-		err = -EFAULT;
-		goto out;
-	}
-
-	err = libcfs_ioctl_handle(pfile, cmd, arg, hdr);
-
 out:
-	LIBCFS_FREE(hdr, buf_len);
+	LIBCFS_FREE(hdr, hdr->ioc_len);
 	return err;
 }
-
-struct cfs_psdev_ops libcfs_psdev_ops = {
-	libcfs_psdev_open,
-	libcfs_psdev_release,
-	NULL,
-	NULL,
-	libcfs_ioctl
-};
 
 int lprocfs_call_handler(void *data, int write, loff_t *ppos,
 			 void __user *buffer, size_t *lenp,
@@ -476,6 +419,13 @@ static struct ctl_table lnet_table[] = {
 		.maxlen   = sizeof(int),
 		.mode     = 0644,
 		.proc_handler = &proc_dointvec
+	},
+	{
+		.procname	= "fail_err",
+		.data		= &cfs_fail_err,
+		.maxlen		= sizeof(cfs_fail_err),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
 	},
 	{
 	}

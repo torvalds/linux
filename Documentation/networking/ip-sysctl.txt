@@ -63,6 +63,16 @@ fwmark_reflect - BOOLEAN
 	fwmark of the packet they are replying to.
 	Default: 0
 
+fib_multipath_use_neigh - BOOLEAN
+	Use status of existing neighbor entry when determining nexthop for
+	multipath routes. If disabled, neighbor information is not used and
+	packets could be directed to a failed nexthop. Only valid for kernels
+	built with CONFIG_IP_ROUTE_MULTIPATH enabled.
+	Default: 0 (disabled)
+	Possible values:
+	0 - disabled
+	1 - enabled
+
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
 	this when using large numbers of interfaces and/or routes.
@@ -1026,15 +1036,17 @@ proxy_arp_pvlan - BOOLEAN
 
 shared_media - BOOLEAN
 	Send(router) or accept(host) RFC1620 shared media redirects.
-	Overrides ip_secure_redirects.
+	Overrides secure_redirects.
 	shared_media for the interface will be enabled if at least one of
 	conf/{all,interface}/shared_media is set to TRUE,
 	it will be disabled otherwise
 	default TRUE
 
 secure_redirects - BOOLEAN
-	Accept ICMP redirect messages only for gateways,
-	listed in default gateway list.
+	Accept ICMP redirect messages only to gateways listed in the
+	interface's current gateway list. Even if disabled, RFC1122 redirect
+	rules still apply.
+	Overridden by shared_media.
 	secure_redirects for the interface will be enabled if at least one of
 	conf/{all,interface}/secure_redirects is set to TRUE,
 	it will be disabled otherwise

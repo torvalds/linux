@@ -169,8 +169,12 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	}
 
 	if (ah_attr->ah_flags & IB_AH_GRH) {
-		qib_copy_sge(&qp->r_sge, &ah_attr->grh,
-			     sizeof(struct ib_grh), 1);
+		struct ib_grh grh;
+		struct ib_global_route grd = ah_attr->grh;
+
+		qib_make_grh(ibp, &grh, &grd, 0, 0);
+		qib_copy_sge(&qp->r_sge, &grh,
+			     sizeof(grh), 1);
 		wc.wc_flags |= IB_WC_GRH;
 	} else
 		qib_skip_sge(&qp->r_sge, sizeof(struct ib_grh), 1);
@@ -238,7 +242,7 @@ drop:
  *
  * Return 1 if constructed; otherwise, return 0.
  */
-int qib_make_ud_req(struct rvt_qp *qp)
+int qib_make_ud_req(struct rvt_qp *qp, unsigned long *flags)
 {
 	struct qib_qp_priv *priv = qp->priv;
 	struct qib_other_headers *ohdr;
@@ -294,7 +298,7 @@ int qib_make_ud_req(struct rvt_qp *qp)
 		this_cpu_inc(ibp->pmastats->n_unicast_xmit);
 		lid = ah_attr->dlid & ~((1 << ppd->lmc) - 1);
 		if (unlikely(lid == ppd->lid)) {
-			unsigned long flags;
+			unsigned long tflags = *flags;
 			/*
 			 * If DMAs are in progress, we can't generate
 			 * a completion for the loopback packet since
@@ -307,10 +311,10 @@ int qib_make_ud_req(struct rvt_qp *qp)
 				goto bail;
 			}
 			qp->s_cur = next_cur;
-			local_irq_save(flags);
-			spin_unlock_irqrestore(&qp->s_lock, flags);
+			spin_unlock_irqrestore(&qp->s_lock, tflags);
 			qib_ud_loopback(qp, wqe);
-			spin_lock_irqsave(&qp->s_lock, flags);
+			spin_lock_irqsave(&qp->s_lock, tflags);
+			*flags = tflags;
 			qib_send_complete(qp, wqe, IB_WC_SUCCESS);
 			goto done;
 		}

@@ -44,6 +44,7 @@
 
 /dts-v1/;
 /include/ "uniphier-ph1-ld20.dtsi"
+/include/ "uniphier-ref-daughter.dtsi"
 /include/ "uniphier-support-card.dtsi"
 
 / {

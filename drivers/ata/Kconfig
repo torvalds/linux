@@ -98,12 +98,12 @@ config SATA_AHCI_PLATFORM
 
 	  If unsure, say N.
 
-config AHCI_BRCMSTB
-	tristate "Broadcom STB AHCI SATA support"
-	depends on ARCH_BRCMSTB || BMIPS_GENERIC
+config AHCI_BRCM
+	tristate "Broadcom AHCI SATA support"
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC || ARCH_BCM_NSP
 	help
 	  This option enables support for the AHCI SATA3 controller found on
-	  STB SoC's.
+	  Broadcom SoC's.
 
 	  If unsure, say N.
 
@@ -313,13 +313,22 @@ config ATA_PIIX
 
 config SATA_DWC
 	tristate "DesignWare Cores SATA support"
-	depends on 460EX
-	select DW_DMAC
+	depends on DMADEVICES
+	select GENERIC_PHY
 	help
 	  This option enables support for the on-chip SATA controller of the
 	  AppliedMicro processor 460EX.
 
 	  If unsure, say N.
+
+config SATA_DWC_OLD_DMA
+	bool "Support old device trees"
+	depends on SATA_DWC
+	select DW_DMAC_CORE
+	default y if 460EX
+	help
+	  This option enables support for old device trees without the
+	  "dmas" property.
 
 config SATA_DWC_DEBUG
 	bool "Debugging driver version"

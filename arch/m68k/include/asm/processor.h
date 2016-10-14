@@ -110,7 +110,6 @@ struct thread_struct {
 #define setframeformat(_regs)	do { } while (0)
 #endif
 
-#ifdef CONFIG_MMU
 /*
  * Do necessary setup to start up a newly executed thread.
  */
@@ -123,26 +122,14 @@ static inline void start_thread(struct pt_regs * regs, unsigned long pc,
 	wrusp(usp);
 }
 
+#ifdef CONFIG_MMU
 extern int handle_kernel_fault(struct pt_regs *regs);
-
 #else
-
-#define start_thread(_regs, _pc, _usp)                  \
-do {                                                    \
-	(_regs)->pc = (_pc);                            \
-	setframeformat(_regs);                          \
-	if (current->mm)                                \
-		(_regs)->d5 = current->mm->start_data;  \
-	(_regs)->sr &= ~0x2000;                         \
-	wrusp(_usp);                                    \
-} while(0)
-
 static inline  int handle_kernel_fault(struct pt_regs *regs)
 {
 	/* Any fault in kernel is fatal on non-mmu */
 	return 0;
 }
-
 #endif
 
 /* Forward declaration, a strange C thing */
@@ -150,13 +137,6 @@ struct task_struct;
 
 /* Free all resources held by a thread. */
 static inline void release_thread(struct task_struct *dead_task)
-{
-}
-
-/*
- * Free current thread data structures etc..
- */
-static inline void exit_thread(void)
 {
 }
 

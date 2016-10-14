@@ -24,7 +24,8 @@
 #include <linux/spinlock.h>
 #include <linux/bootmem.h>
 #include <linux/ioport.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/mc146818rtc.h>
 #include <linux/efi.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
@@ -55,14 +56,12 @@ struct efi_scratch efi_scratch;
 static void __init early_code_mapping_set_exec(int executable)
 {
 	efi_memory_desc_t *md;
-	void *p;
 
 	if (!(__supported_pte_mask & _PAGE_NX))
 		return;
 
 	/* Make EFI service code area executable */
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-		md = p;
+	for_each_efi_memory_desc(md) {
 		if (md->type == EFI_RUNTIME_SERVICES_CODE ||
 		    md->type == EFI_BOOT_SERVICES_CODE)
 			efi_set_executable(md, executable);
@@ -141,7 +140,7 @@ int __init efi_alloc_page_tables(void)
 	if (efi_enabled(EFI_OLD_MEMMAP))
 		return 0;
 
-	gfp_mask = GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO;
+	gfp_mask = GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO;
 	efi_pgd = (pgd_t *)__get_free_page(gfp_mask);
 	if (!efi_pgd)
 		return -ENOMEM;
@@ -246,14 +245,14 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 	 * text and allocate a new stack because we can't rely on the
 	 * stack pointer being < 4GB.
 	 */
-	if (!IS_ENABLED(CONFIG_EFI_MIXED))
+	if (!IS_ENABLED(CONFIG_EFI_MIXED) || efi_is_native())
 		return 0;
 
 	/*
 	 * Map all of RAM so that we can access arguments in the 1:1
 	 * mapping when making EFI runtime calls.
 	 */
-	for_each_efi_memory_desc(&memmap, md) {
+	for_each_efi_memory_desc(md) {
 		if (md->type != EFI_CONVENTIONAL_MEMORY &&
 		    md->type != EFI_LOADER_DATA &&
 		    md->type != EFI_LOADER_CODE)
@@ -285,11 +284,6 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 	}
 
 	return 0;
-}
-
-void __init efi_cleanup_page_tables(unsigned long pa_memmap, unsigned num_pages)
-{
-	kernel_unmap_pages_in_pgd(efi_pgd, pa_memmap, num_pages);
 }
 
 static void __init __map_region(efi_memory_desc_t *md, u64 va)
@@ -398,7 +392,6 @@ void __init efi_runtime_update_mappings(void)
 	unsigned long pfn;
 	pgd_t *pgd = efi_pgd;
 	efi_memory_desc_t *md;
-	void *p;
 
 	if (efi_enabled(EFI_OLD_MEMMAP)) {
 		if (__supported_pte_mask & _PAGE_NX)
@@ -409,9 +402,8 @@ void __init efi_runtime_update_mappings(void)
 	if (!efi_enabled(EFI_NX_PE_DATA))
 		return;
 
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
+	for_each_efi_memory_desc(md) {
 		unsigned long pf = 0;
-		md = p;
 
 		if (!(md->attribute & EFI_MEMORY_RUNTIME))
 			continue;
@@ -470,22 +462,17 @@ extern efi_status_t efi64_thunk(u32, ...);
 #define efi_thunk(f, ...)						\
 ({									\
 	efi_status_t __s;						\
-	unsigned long flags;						\
-	u32 func;							\
+	unsigned long __flags;						\
+	u32 __func;							\
 									\
-	efi_sync_low_kernel_mappings();					\
-	local_irq_save(flags);						\
+	local_irq_save(__flags);					\
+	arch_efi_call_virt_setup();					\
 									\
-	efi_scratch.prev_cr3 = read_cr3();				\
-	write_cr3((unsigned long)efi_scratch.efi_pgt);			\
-	__flush_tlb_all();						\
+	__func = runtime_service32(f);					\
+	__s = efi64_thunk(__func, __VA_ARGS__);				\
 									\
-	func = runtime_service32(f);					\
-	__s = efi64_thunk(func, __VA_ARGS__);			\
-									\
-	write_cr3(efi_scratch.prev_cr3);				\
-	__flush_tlb_all();						\
-	local_irq_restore(flags);					\
+	arch_efi_call_virt_teardown();					\
+	local_irq_restore(__flags);					\
 									\
 	__s;								\
 })

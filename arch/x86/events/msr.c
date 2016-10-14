@@ -1,4 +1,5 @@
 #include <linux/perf_event.h>
+#include <asm/intel-family.h>
 
 enum perf_msr_id {
 	PERF_MSR_TSC			= 0,
@@ -6,6 +7,8 @@ enum perf_msr_id {
 	PERF_MSR_MPERF			= 2,
 	PERF_MSR_PPERF			= 3,
 	PERF_MSR_SMI			= 4,
+	PERF_MSR_PTSC			= 5,
+	PERF_MSR_IRPERF			= 6,
 
 	PERF_MSR_EVENT_MAX,
 };
@@ -15,6 +18,16 @@ static bool test_aperfmperf(int idx)
 	return boot_cpu_has(X86_FEATURE_APERFMPERF);
 }
 
+static bool test_ptsc(int idx)
+{
+	return boot_cpu_has(X86_FEATURE_PTSC);
+}
+
+static bool test_irperf(int idx)
+{
+	return boot_cpu_has(X86_FEATURE_IRPERF);
+}
+
 static bool test_intel(int idx)
 {
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL ||
@@ -22,39 +35,43 @@ static bool test_intel(int idx)
 		return false;
 
 	switch (boot_cpu_data.x86_model) {
-	case 30: /* 45nm Nehalem    */
-	case 26: /* 45nm Nehalem-EP */
-	case 46: /* 45nm Nehalem-EX */
+	case INTEL_FAM6_NEHALEM:
+	case INTEL_FAM6_NEHALEM_G:
+	case INTEL_FAM6_NEHALEM_EP:
+	case INTEL_FAM6_NEHALEM_EX:
 
-	case 37: /* 32nm Westmere    */
-	case 44: /* 32nm Westmere-EP */
-	case 47: /* 32nm Westmere-EX */
+	case INTEL_FAM6_WESTMERE:
+	case INTEL_FAM6_WESTMERE_EP:
+	case INTEL_FAM6_WESTMERE_EX:
 
-	case 42: /* 32nm SandyBridge         */
-	case 45: /* 32nm SandyBridge-E/EN/EP */
+	case INTEL_FAM6_SANDYBRIDGE:
+	case INTEL_FAM6_SANDYBRIDGE_X:
 
-	case 58: /* 22nm IvyBridge       */
-	case 62: /* 22nm IvyBridge-EP/EX */
+	case INTEL_FAM6_IVYBRIDGE:
+	case INTEL_FAM6_IVYBRIDGE_X:
 
-	case 60: /* 22nm Haswell Core */
-	case 63: /* 22nm Haswell Server */
-	case 69: /* 22nm Haswell ULT */
-	case 70: /* 22nm Haswell + GT3e (Intel Iris Pro graphics) */
+	case INTEL_FAM6_HASWELL_CORE:
+	case INTEL_FAM6_HASWELL_X:
+	case INTEL_FAM6_HASWELL_ULT:
+	case INTEL_FAM6_HASWELL_GT3E:
 
-	case 61: /* 14nm Broadwell Core-M */
-	case 86: /* 14nm Broadwell Xeon D */
-	case 71: /* 14nm Broadwell + GT3e (Intel Iris Pro graphics) */
-	case 79: /* 14nm Broadwell Server */
+	case INTEL_FAM6_BROADWELL_CORE:
+	case INTEL_FAM6_BROADWELL_XEON_D:
+	case INTEL_FAM6_BROADWELL_GT3E:
+	case INTEL_FAM6_BROADWELL_X:
 
-	case 55: /* 22nm Atom "Silvermont"                */
-	case 77: /* 22nm Atom "Silvermont Avoton/Rangely" */
-	case 76: /* 14nm Atom "Airmont"                   */
+	case INTEL_FAM6_ATOM_SILVERMONT1:
+	case INTEL_FAM6_ATOM_SILVERMONT2:
+	case INTEL_FAM6_ATOM_AIRMONT:
 		if (idx == PERF_MSR_SMI)
 			return true;
 		break;
 
-	case 78: /* 14nm Skylake Mobile */
-	case 94: /* 14nm Skylake Desktop */
+	case INTEL_FAM6_SKYLAKE_MOBILE:
+	case INTEL_FAM6_SKYLAKE_DESKTOP:
+	case INTEL_FAM6_SKYLAKE_X:
+	case INTEL_FAM6_KABYLAKE_MOBILE:
+	case INTEL_FAM6_KABYLAKE_DESKTOP:
 		if (idx == PERF_MSR_SMI || idx == PERF_MSR_PPERF)
 			return true;
 		break;
@@ -69,18 +86,22 @@ struct perf_msr {
 	bool	(*test)(int idx);
 };
 
-PMU_EVENT_ATTR_STRING(tsc,   evattr_tsc,   "event=0x00");
-PMU_EVENT_ATTR_STRING(aperf, evattr_aperf, "event=0x01");
-PMU_EVENT_ATTR_STRING(mperf, evattr_mperf, "event=0x02");
-PMU_EVENT_ATTR_STRING(pperf, evattr_pperf, "event=0x03");
-PMU_EVENT_ATTR_STRING(smi,   evattr_smi,   "event=0x04");
+PMU_EVENT_ATTR_STRING(tsc,    evattr_tsc,    "event=0x00");
+PMU_EVENT_ATTR_STRING(aperf,  evattr_aperf,  "event=0x01");
+PMU_EVENT_ATTR_STRING(mperf,  evattr_mperf,  "event=0x02");
+PMU_EVENT_ATTR_STRING(pperf,  evattr_pperf,  "event=0x03");
+PMU_EVENT_ATTR_STRING(smi,    evattr_smi,    "event=0x04");
+PMU_EVENT_ATTR_STRING(ptsc,   evattr_ptsc,   "event=0x05");
+PMU_EVENT_ATTR_STRING(irperf, evattr_irperf, "event=0x06");
 
 static struct perf_msr msr[] = {
-	[PERF_MSR_TSC]   = { 0,			&evattr_tsc,	NULL,		 },
-	[PERF_MSR_APERF] = { MSR_IA32_APERF,	&evattr_aperf,	test_aperfmperf, },
-	[PERF_MSR_MPERF] = { MSR_IA32_MPERF,	&evattr_mperf,	test_aperfmperf, },
-	[PERF_MSR_PPERF] = { MSR_PPERF,		&evattr_pperf,	test_intel,	 },
-	[PERF_MSR_SMI]   = { MSR_SMI_COUNT,	&evattr_smi,	test_intel,	 },
+	[PERF_MSR_TSC]    = { 0,		&evattr_tsc,	NULL,		 },
+	[PERF_MSR_APERF]  = { MSR_IA32_APERF,	&evattr_aperf,	test_aperfmperf, },
+	[PERF_MSR_MPERF]  = { MSR_IA32_MPERF,	&evattr_mperf,	test_aperfmperf, },
+	[PERF_MSR_PPERF]  = { MSR_PPERF,	&evattr_pperf,	test_intel,	 },
+	[PERF_MSR_SMI]    = { MSR_SMI_COUNT,	&evattr_smi,	test_intel,	 },
+	[PERF_MSR_PTSC]   = { MSR_F15H_PTSC,	&evattr_ptsc,	test_ptsc,	 },
+	[PERF_MSR_IRPERF] = { MSR_F17H_IRPERF,	&evattr_irperf,	test_irperf,	 },
 };
 
 static struct attribute *events_attrs[PERF_MSR_EVENT_MAX + 1] = {

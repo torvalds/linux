@@ -120,13 +120,15 @@
 #define INT_NFIG ntohl(0x4e464947)
 #define INT_FIG_ ntohl(0x4649475f)
 
+int insert_extra_deps;
 char *target;
 char *depfile;
 char *cmdline;
 
 static void usage(void)
 {
-	fprintf(stderr, "Usage: fixdep <depfile> <target> <cmdline>\n");
+	fprintf(stderr, "Usage: fixdep [-e] <depfile> <target> <cmdline>\n");
+	fprintf(stderr, " -e  insert extra dependencies given on stdin\n");
 	exit(1);
 }
 
@@ -136,6 +138,40 @@ static void usage(void)
 static void print_cmdline(void)
 {
 	printf("cmd_%s := %s\n\n", target, cmdline);
+}
+
+/*
+ * Print out a dependency path from a symbol name
+ */
+static void print_config(const char *m, int slen)
+{
+	int c, i;
+
+	printf("    $(wildcard include/config/");
+	for (i = 0; i < slen; i++) {
+		c = m[i];
+		if (c == '_')
+			c = '/';
+		else
+			c = tolower(c);
+		putchar(c);
+	}
+	printf(".h) \\\n");
+}
+
+static void do_extra_deps(void)
+{
+	if (insert_extra_deps) {
+		char buf[80];
+		while(fgets(buf, sizeof(buf), stdin)) {
+			int len = strlen(buf);
+			if (len < 2 || buf[len-1] != '\n') {
+				fprintf(stderr, "fixdep: bad data on stdin\n");
+				exit(1);
+			}
+			print_config(buf, len-1);
+		}
+	}
 }
 
 struct item {
@@ -197,23 +233,12 @@ static void define_config(const char *name, int len, unsigned int hash)
 static void use_config(const char *m, int slen)
 {
 	unsigned int hash = strhash(m, slen);
-	int c, i;
 
 	if (is_defined_config(m, slen, hash))
 	    return;
 
 	define_config(m, slen, hash);
-
-	printf("    $(wildcard include/config/");
-	for (i = 0; i < slen; i++) {
-		c = m[i];
-		if (c == '_')
-			c = '/';
-		else
-			c = tolower(c);
-		putchar(c);
-	}
-	printf(".h) \\\n");
+	print_config(m, slen);
 }
 
 static void parse_config_file(const char *map, size_t len)
@@ -250,7 +275,7 @@ static void parse_config_file(const char *map, size_t len)
 	}
 }
 
-/* test is s ends in sub */
+/* test if s ends in sub */
 static int strrcmp(const char *s, const char *sub)
 {
 	int slen = strlen(s);
@@ -333,6 +358,7 @@ static void parse_dep_file(void *map, size_t len)
 
 			/* Ignore certain dependencies */
 			if (strrcmp(s, "include/generated/autoconf.h") &&
+			    strrcmp(s, "include/generated/autoksyms.h") &&
 			    strrcmp(s, "arch/um/include/uml-config.h") &&
 			    strrcmp(s, "include/linux/kconfig.h") &&
 			    strrcmp(s, ".ver")) {
@@ -377,6 +403,8 @@ static void parse_dep_file(void *map, size_t len)
 		fprintf(stderr, "fixdep: parse error; no targets found\n");
 		exit(1);
 	}
+
+	do_extra_deps();
 
 	printf("\n%s: $(deps_%s)\n\n", target, target);
 	printf("$(deps_%s):\n", target);
@@ -434,7 +462,10 @@ int main(int argc, char *argv[])
 {
 	traps();
 
-	if (argc != 4)
+	if (argc == 5 && !strcmp(argv[1], "-e")) {
+		insert_extra_deps = 1;
+		argv++;
+	} else if (argc != 4)
 		usage();
 
 	depfile = argv[1];

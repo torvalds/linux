@@ -18,8 +18,26 @@
 #include "soc.h"
 
 static const struct at91_soc sama5_socs[] = {
-	AT91_SOC(SAMA5D2_CIDR_MATCH, SAMA5D27_EXID_MATCH,
+	AT91_SOC(SAMA5D2_CIDR_MATCH, SAMA5D21CU_EXID_MATCH,
+		 "sama5d21", "sama5d2"),
+	AT91_SOC(SAMA5D2_CIDR_MATCH, SAMA5D22CU_EXID_MATCH,
+		 "sama5d22", "sama5d2"),
+	AT91_SOC(SAMA5D2_CIDR_MATCH, SAMA5D23CU_EXID_MATCH,
+		 "sama5d23", "sama5d2"),
+	AT91_SOC(SAMA5D2_CIDR_MATCH, SAMA5D24CX_EXID_MATCH,
+		 "sama5d24", "sama5d2"),
+	AT91_SOC(SAMA5D2_CIDR_MATCH, SAMA5D24CU_EXID_MATCH,
+		 "sama5d24", "sama5d2"),
+	AT91_SOC(SAMA5D2_CIDR_MATCH, SAMA5D26CU_EXID_MATCH,
+		 "sama5d26", "sama5d2"),
+	AT91_SOC(SAMA5D2_CIDR_MATCH, SAMA5D27CU_EXID_MATCH,
 		 "sama5d27", "sama5d2"),
+	AT91_SOC(SAMA5D2_CIDR_MATCH, SAMA5D27CN_EXID_MATCH,
+		 "sama5d27", "sama5d2"),
+	AT91_SOC(SAMA5D2_CIDR_MATCH, SAMA5D28CU_EXID_MATCH,
+		 "sama5d28", "sama5d2"),
+	AT91_SOC(SAMA5D2_CIDR_MATCH, SAMA5D28CN_EXID_MATCH,
+		 "sama5d28", "sama5d2"),
 	AT91_SOC(SAMA5D3_CIDR_MATCH, SAMA5D31_EXID_MATCH,
 		 "sama5d31", "sama5d3"),
 	AT91_SOC(SAMA5D3_CIDR_MATCH, SAMA5D33_EXID_MATCH,
@@ -50,7 +68,7 @@ static void __init sama5_dt_device_init(void)
 	if (soc != NULL)
 		soc_dev = soc_device_to_device(soc);
 
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, soc_dev);
+	of_platform_default_populate(NULL, NULL, soc_dev);
 	sama5_pm_init();
 }
 

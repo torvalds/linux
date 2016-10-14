@@ -324,7 +324,7 @@
 	codec: sgtl5000@0a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
-		clocks = <&clks 201>;
+		clocks = <&clks IMX6QDL_CLK_CKO>;
 		VDDA-supply = <&reg_2p5v>;
 		VDDIO-supply = <&reg_3p3v>;
 	};
@@ -423,7 +423,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1_dte &pinctrl_uart1_ctrl>;
 	fsl,dte-mode;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "disabled";
 };
 
@@ -431,7 +431,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2_dte>;
 	fsl,dte-mode;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "disabled";
 };
 

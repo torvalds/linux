@@ -225,13 +225,14 @@ static void pinctrl_free_pindescs(struct pinctrl_dev *pctldev,
 }
 
 static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
-				    unsigned number, const char *name)
+				    const struct pinctrl_pin_desc *pin)
 {
 	struct pin_desc *pindesc;
 
-	pindesc = pin_desc_get(pctldev, number);
+	pindesc = pin_desc_get(pctldev, pin->number);
 	if (pindesc != NULL) {
-		dev_err(pctldev->dev, "pin %d already registered\n", number);
+		dev_err(pctldev->dev, "pin %d already registered\n",
+			pin->number);
 		return -EINVAL;
 	}
 
@@ -245,10 +246,10 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 	pindesc->pctldev = pctldev;
 
 	/* Copy basic pin info */
-	if (name) {
-		pindesc->name = name;
+	if (pin->name) {
+		pindesc->name = pin->name;
 	} else {
-		pindesc->name = kasprintf(GFP_KERNEL, "PIN%u", number);
+		pindesc->name = kasprintf(GFP_KERNEL, "PIN%u", pin->number);
 		if (pindesc->name == NULL) {
 			kfree(pindesc);
 			return -ENOMEM;
@@ -256,9 +257,11 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 		pindesc->dynamic_name = true;
 	}
 
-	radix_tree_insert(&pctldev->pin_desc_tree, number, pindesc);
+	pindesc->drv_data = pin->drv_data;
+
+	radix_tree_insert(&pctldev->pin_desc_tree, pin->number, pindesc);
 	pr_debug("registered pin %d (%s) on %s\n",
-		 number, pindesc->name, pctldev->desc->name);
+		 pin->number, pindesc->name, pctldev->desc->name);
 	return 0;
 }
 
@@ -270,8 +273,7 @@ static int pinctrl_register_pins(struct pinctrl_dev *pctldev,
 	int ret = 0;
 
 	for (i = 0; i < num_descs; i++) {
-		ret = pinctrl_register_one_pin(pctldev,
-					       pins[i].number, pins[i].name);
+		ret = pinctrl_register_one_pin(pctldev, &pins[i]);
 		if (ret)
 			return ret;
 	}
@@ -1367,8 +1369,7 @@ static int pinctrl_pins_show(struct seq_file *s, void *what)
 		if (desc == NULL)
 			continue;
 
-		seq_printf(s, "pin %d (%s) ", pin,
-			   desc->name ? desc->name : "unnamed");
+		seq_printf(s, "pin %d (%s) ", pin, desc->name);
 
 		/* Driver-specific info per pin */
 		if (ops->pin_dbg_show)
@@ -1871,6 +1872,69 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 	mutex_unlock(&pinctrldev_list_mutex);
 }
 EXPORT_SYMBOL_GPL(pinctrl_unregister);
+
+static void devm_pinctrl_dev_release(struct device *dev, void *res)
+{
+	struct pinctrl_dev *pctldev = *(struct pinctrl_dev **)res;
+
+	pinctrl_unregister(pctldev);
+}
+
+static int devm_pinctrl_dev_match(struct device *dev, void *res, void *data)
+{
+	struct pctldev **r = res;
+
+	if (WARN_ON(!r || !*r))
+		return 0;
+
+	return *r == data;
+}
+
+/**
+ * devm_pinctrl_register() - Resource managed version of pinctrl_register().
+ * @dev: parent device for this pin controller
+ * @pctldesc: descriptor for this pin controller
+ * @driver_data: private pin controller data for this pin controller
+ *
+ * Returns an error pointer if pincontrol register failed. Otherwise
+ * it returns valid pinctrl handle.
+ *
+ * The pinctrl device will be automatically released when the device is unbound.
+ */
+struct pinctrl_dev *devm_pinctrl_register(struct device *dev,
+					  struct pinctrl_desc *pctldesc,
+					  void *driver_data)
+{
+	struct pinctrl_dev **ptr, *pctldev;
+
+	ptr = devres_alloc(devm_pinctrl_dev_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	pctldev = pinctrl_register(pctldesc, dev, driver_data);
+	if (IS_ERR(pctldev)) {
+		devres_free(ptr);
+		return pctldev;
+	}
+
+	*ptr = pctldev;
+	devres_add(dev, ptr);
+
+	return pctldev;
+}
+EXPORT_SYMBOL_GPL(devm_pinctrl_register);
+
+/**
+ * devm_pinctrl_unregister() - Resource managed version of pinctrl_unregister().
+ * @dev: device for which which resource was allocated
+ * @pctldev: the pinctrl device to unregister.
+ */
+void devm_pinctrl_unregister(struct device *dev, struct pinctrl_dev *pctldev)
+{
+	WARN_ON(devres_release(dev, devm_pinctrl_dev_release,
+			       devm_pinctrl_dev_match, pctldev));
+}
+EXPORT_SYMBOL_GPL(devm_pinctrl_unregister);
 
 static int __init pinctrl_init(void)
 {

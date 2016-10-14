@@ -41,7 +41,7 @@ int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func)
 	if (!ima_appraise)
 		return 0;
 
-	return ima_match_policy(inode, func, mask, IMA_APPRAISE);
+	return ima_match_policy(inode, func, mask, IMA_APPRAISE, NULL);
 }
 
 static int ima_fix_xattr(struct dentry *dentry,
@@ -275,6 +275,11 @@ out:
 		     xattr_value->type != EVM_IMA_XATTR_DIGSIG)) {
 			if (!ima_fix_xattr(dentry, iint))
 				status = INTEGRITY_PASS;
+		} else if ((inode->i_size == 0) &&
+			   (iint->flags & IMA_NEW_FILE) &&
+			   (xattr_value &&
+			    xattr_value->type == EVM_IMA_XATTR_DIGSIG)) {
+			status = INTEGRITY_PASS;
 		}
 		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode, filename,
 				    op, cause, rc, 0);
@@ -328,7 +333,7 @@ void ima_inode_post_setattr(struct dentry *dentry)
 	if (iint) {
 		iint->flags &= ~(IMA_APPRAISE | IMA_APPRAISED |
 				 IMA_APPRAISE_SUBMASK | IMA_APPRAISED_SUBMASK |
-				 IMA_ACTION_FLAGS);
+				 IMA_ACTION_RULE_FLAGS);
 		if (must_appraise)
 			iint->flags |= IMA_APPRAISE;
 	}
@@ -365,6 +370,7 @@ static void ima_reset_appraise_flags(struct inode *inode, int digsig)
 		return;
 
 	iint->flags &= ~IMA_DONE_MASK;
+	iint->measured_pcrs = 0;
 	if (digsig)
 		iint->flags |= IMA_DIGSIG;
 	return;

@@ -75,8 +75,7 @@ void verify_cpu_asid_bits(void)
 		 */
 		pr_crit("CPU%d: smaller ASID size(%u) than boot CPU (%u)\n",
 				smp_processor_id(), asid, asid_bits);
-		update_cpu_boot_status(CPU_PANIC_KERNEL);
-		cpu_park_loop();
+		cpu_panic_kernel();
 	}
 }
 
@@ -180,7 +179,7 @@ static u64 new_context(struct mm_struct *mm, unsigned int cpu)
 						 &asid_generation);
 	flush_context(cpu);
 
-	/* We have at least 1 ASID per CPU, so this will always succeed */
+	/* We have more ASIDs than CPUs, so this will always succeed */
 	asid = find_next_zero_bit(asid_map, NUM_USER_ASIDS, 1);
 
 set_asid:
@@ -228,8 +227,11 @@ switch_mm_fastpath:
 static int asids_init(void)
 {
 	asid_bits = get_cpu_asid_bits();
-	/* If we end up with more CPUs than ASIDs, expect things to crash */
-	WARN_ON(NUM_USER_ASIDS < num_possible_cpus());
+	/*
+	 * Expect allocation after rollover to fail if we don't have at least
+	 * one more ASID than CPUs. ASID #0 is reserved for init_mm.
+	 */
+	WARN_ON(NUM_USER_ASIDS - 1 <= num_possible_cpus());
 	atomic64_set(&asid_generation, ASID_FIRST_VERSION);
 	asid_map = kzalloc(BITS_TO_LONGS(NUM_USER_ASIDS) * sizeof(*asid_map),
 			   GFP_KERNEL);

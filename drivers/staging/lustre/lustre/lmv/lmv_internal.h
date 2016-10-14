@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -41,9 +37,6 @@
 #include "../include/obd.h"
 
 #define LMV_MAX_TGT_COUNT 128
-
-#define lmv_init_lock(lmv)   mutex_lock(&lmv->init_mutex)
-#define lmv_init_unlock(lmv) mutex_unlock(&lmv->init_mutex)
 
 #define LL_IT2STR(it)					\
 	((it) ? ldlm_it2str((it)->it_op) : "0")

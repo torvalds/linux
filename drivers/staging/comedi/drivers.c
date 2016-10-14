@@ -564,7 +564,7 @@ unsigned int comedi_handle_events(struct comedi_device *dev,
 	if (events == 0)
 		return events;
 
-	if (events & COMEDI_CB_CANCEL_MASK)
+	if ((events & COMEDI_CB_CANCEL_MASK) && s->cancel)
 		s->cancel(dev, s);
 
 	comedi_event(dev, s);
@@ -575,38 +575,35 @@ EXPORT_SYMBOL_GPL(comedi_handle_events);
 
 static int insn_rw_emulate_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	struct comedi_insn new_insn;
+	struct comedi_insn _insn;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int base_chan = (chan < 32) ? 0 : chan;
+	unsigned int _data[2];
 	int ret;
-	static const unsigned channels_per_bitfield = 32;
 
-	unsigned chan = CR_CHAN(insn->chanspec);
-	const unsigned base_bitfield_channel =
-	    (chan < channels_per_bitfield) ? 0 : chan;
-	unsigned int new_data[2];
-
-	memset(new_data, 0, sizeof(new_data));
-	memset(&new_insn, 0, sizeof(new_insn));
-	new_insn.insn = INSN_BITS;
-	new_insn.chanspec = base_bitfield_channel;
-	new_insn.n = 2;
-	new_insn.subdev = insn->subdev;
+	memset(_data, 0, sizeof(_data));
+	memset(&_insn, 0, sizeof(_insn));
+	_insn.insn = INSN_BITS;
+	_insn.chanspec = base_chan;
+	_insn.n = 2;
+	_insn.subdev = insn->subdev;
 
 	if (insn->insn == INSN_WRITE) {
 		if (!(s->subdev_flags & SDF_WRITABLE))
 			return -EINVAL;
-		new_data[0] = 1 << (chan - base_bitfield_channel); /* mask */
-		new_data[1] = data[0] ? (1 << (chan - base_bitfield_channel))
-			      : 0; /* bits */
+		_data[0] = 1 << (chan - base_chan);		    /* mask */
+		_data[1] = data[0] ? (1 << (chan - base_chan)) : 0; /* bits */
 	}
 
-	ret = s->insn_bits(dev, s, &new_insn, new_data);
+	ret = s->insn_bits(dev, s, &_insn, _data);
 	if (ret < 0)
 		return ret;
 
 	if (insn->insn == INSN_READ)
-		data[0] = (new_data[1] >> (chan - base_bitfield_channel)) & 1;
+		data[0] = (_data[1] >> (chan - base_chan)) & 1;
 
 	return 1;
 }
@@ -628,6 +625,9 @@ static int __comedi_device_postconfig_async(struct comedi_device *dev,
 			 "async subdevices must have a do_cmdtest() function\n");
 		return -EINVAL;
 	}
+	if (!s->cancel)
+		dev_warn(dev->class_dev,
+			 "async subdevices should have a cancel() function\n");
 
 	async = kzalloc(sizeof(*async), GFP_KERNEL);
 	if (!async)

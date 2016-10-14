@@ -553,6 +553,8 @@ static void _hv_pcifront_read_config(struct hv_pci_dev *hpdev, int where,
 		spin_lock_irqsave(&hpdev->hbus->config_lock, flags);
 		/* Choose the function to be read. (See comment above) */
 		writel(hpdev->desc.win_slot.slot, hpdev->hbus->cfg_addr);
+		/* Make sure the function was chosen before we start reading. */
+		mb();
 		/* Read from that function's config space. */
 		switch (size) {
 		case 1:
@@ -565,6 +567,11 @@ static void _hv_pcifront_read_config(struct hv_pci_dev *hpdev, int where,
 			*val = readl(addr);
 			break;
 		}
+		/*
+		 * Make sure the write was done before we release the spinlock
+		 * allowing consecutive reads/writes.
+		 */
+		mb();
 		spin_unlock_irqrestore(&hpdev->hbus->config_lock, flags);
 	} else {
 		dev_err(&hpdev->hbus->hdev->device,
@@ -592,6 +599,8 @@ static void _hv_pcifront_write_config(struct hv_pci_dev *hpdev, int where,
 		spin_lock_irqsave(&hpdev->hbus->config_lock, flags);
 		/* Choose the function to be written. (See comment above) */
 		writel(hpdev->desc.win_slot.slot, hpdev->hbus->cfg_addr);
+		/* Make sure the function was chosen before we start writing. */
+		wmb();
 		/* Write to that function's config space. */
 		switch (size) {
 		case 1:
@@ -604,6 +613,11 @@ static void _hv_pcifront_write_config(struct hv_pci_dev *hpdev, int where,
 			writel(val, addr);
 			break;
 		}
+		/*
+		 * Make sure the write was done before we release the spinlock
+		 * allowing consecutive reads/writes.
+		 */
+		mb();
 		spin_unlock_irqrestore(&hpdev->hbus->config_lock, flags);
 	} else {
 		dev_err(&hpdev->hbus->hdev->device,
@@ -718,16 +732,18 @@ static void hv_msi_free(struct irq_domain *domain, struct msi_domain_info *info,
 
 	pdev = msi_desc_to_pci_dev(msi);
 	hbus = info->data;
-	hpdev = get_pcichild_wslot(hbus, devfn_to_wslot(pdev->devfn));
-	if (!hpdev)
+	int_desc = irq_data_get_irq_chip_data(irq_data);
+	if (!int_desc)
 		return;
 
-	int_desc = irq_data_get_irq_chip_data(irq_data);
-	if (int_desc) {
-		irq_data->chip_data = NULL;
-		hv_int_desc_free(hpdev, int_desc);
+	irq_data->chip_data = NULL;
+	hpdev = get_pcichild_wslot(hbus, devfn_to_wslot(pdev->devfn));
+	if (!hpdev) {
+		kfree(int_desc);
+		return;
 	}
 
+	hv_int_desc_free(hpdev, int_desc);
 	put_pcichild(hpdev, hv_pcidev_ref_by_slot);
 }
 
@@ -1643,14 +1659,16 @@ static void hv_pci_onchannelcallback(void *context)
 			continue;
 		}
 
+		/* Zero length indicates there are no more packets. */
+		if (ret || !bytes_recvd)
+			break;
+
 		/*
 		 * All incoming packets must be at least as large as a
 		 * response.
 		 */
-		if (bytes_recvd <= sizeof(struct pci_response)) {
-			kfree(buffer);
-			return;
-		}
+		if (bytes_recvd <= sizeof(struct pci_response))
+			continue;
 		desc = (struct vmpacket_descriptor *)buffer;
 
 		switch (desc->type) {
@@ -1665,8 +1683,7 @@ static void hv_pci_onchannelcallback(void *context)
 			comp_packet->completion_func(comp_packet->compl_ctxt,
 						     response,
 						     bytes_recvd);
-			kfree(buffer);
-			return;
+			break;
 
 		case VM_PKT_DATA_INBAND:
 
@@ -1713,8 +1730,9 @@ static void hv_pci_onchannelcallback(void *context)
 				desc->type, req_id, bytes_recvd);
 			break;
 		}
-		break;
 	}
+
+	kfree(buffer);
 }
 
 /**
@@ -1795,14 +1813,14 @@ static void hv_pci_free_bridge_windows(struct hv_pcibus_device *hbus)
 
 	if (hbus->low_mmio_space && hbus->low_mmio_res) {
 		hbus->low_mmio_res->flags |= IORESOURCE_BUSY;
-		release_mem_region(hbus->low_mmio_res->start,
-				   resource_size(hbus->low_mmio_res));
+		vmbus_free_mmio(hbus->low_mmio_res->start,
+				resource_size(hbus->low_mmio_res));
 	}
 
 	if (hbus->high_mmio_space && hbus->high_mmio_res) {
 		hbus->high_mmio_res->flags |= IORESOURCE_BUSY;
-		release_mem_region(hbus->high_mmio_res->start,
-				   resource_size(hbus->high_mmio_res));
+		vmbus_free_mmio(hbus->high_mmio_res->start,
+				resource_size(hbus->high_mmio_res));
 	}
 }
 
@@ -1880,8 +1898,8 @@ static int hv_pci_allocate_bridge_windows(struct hv_pcibus_device *hbus)
 
 release_low_mmio:
 	if (hbus->low_mmio_res) {
-		release_mem_region(hbus->low_mmio_res->start,
-				   resource_size(hbus->low_mmio_res));
+		vmbus_free_mmio(hbus->low_mmio_res->start,
+				resource_size(hbus->low_mmio_res));
 	}
 
 	return ret;
@@ -1924,7 +1942,7 @@ static int hv_allocate_config_window(struct hv_pcibus_device *hbus)
 
 static void hv_free_config_window(struct hv_pcibus_device *hbus)
 {
-	release_mem_region(hbus->mem_config->start, PCI_CONFIG_MMIO_LENGTH);
+	vmbus_free_mmio(hbus->mem_config->start, PCI_CONFIG_MMIO_LENGTH);
 }
 
 /**
@@ -2268,11 +2286,6 @@ static int hv_pci_remove(struct hv_device *hdev)
 
 	hbus = hv_get_drvdata(hdev);
 
-	ret = hv_send_resources_released(hdev);
-	if (ret)
-		dev_err(&hdev->device,
-			"Couldn't send resources released packet(s)\n");
-
 	memset(&pkt.teardown_packet, 0, sizeof(pkt.teardown_packet));
 	init_completion(&comp_pkt.host_event);
 	pkt.teardown_packet.completion_func = hv_pci_generic_compl;
@@ -2294,6 +2307,11 @@ static int hv_pci_remove(struct hv_device *hdev)
 		pci_remove_root_bus(hbus->pci_bus);
 		pci_unlock_rescan_remove();
 	}
+
+	ret = hv_send_resources_released(hdev);
+	if (ret)
+		dev_err(&hdev->device,
+			"Couldn't send resources released packet(s)\n");
 
 	vmbus_close(hdev->channel);
 

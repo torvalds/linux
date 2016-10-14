@@ -113,7 +113,7 @@
 #define E1000_RXDCTL_QUEUE_ENABLE	0x02000000 /* Enable specific Rx Que */
 
 /* Direct Cache Access (DCA) definitions */
-#define E1000_DCA_TXCTRL_TX_WB_RO_EN	(1 << 11) /* Tx Desc writeback RO bit */
+#define E1000_DCA_TXCTRL_TX_WB_RO_EN	BIT(11) /* Tx Desc writeback RO bit */
 
 #define E1000_VF_INIT_TIMEOUT	200 /* Number of retries to clear RSTI */
 

@@ -1,5 +1,3 @@
-#define PSEUDO_DMA
-
 /*
  * Trantor T128/T128F/T228 driver
  *	Note : architecturally, the T100 and T130 are different and won't 
@@ -76,7 +74,6 @@
 
 #include <scsi/scsi_host.h>
 #include "t128.h"
-#define AUTOPROBE_IRQ
 #include "NCR5380.h"
 
 static struct override {
@@ -210,7 +207,7 @@ found:
 	instance->base = base;
 	((struct NCR5380_hostdata *)instance->hostdata)->base = p;
 
-	if (NCR5380_init(instance, 0))
+	if (NCR5380_init(instance, FLAG_DMA_FIXUP | FLAG_LATE_DMA_SETUP))
 		goto out_unregister;
 
 	NCR5380_maybe_reset_bus(instance);
@@ -294,7 +291,7 @@ static int t128_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 }
 
 /*
- * Function : int NCR5380_pread (struct Scsi_Host *instance, 
+ * Function : int t128_pread (struct Scsi_Host *instance,
  *	unsigned char *dst, int len)
  *
  * Purpose : Fast 5380 pseudo-dma read function, transfers len bytes to 
@@ -306,8 +303,8 @@ static int t128_biosparam(struct scsi_device *sdev, struct block_device *bdev,
  * 	timeout.
  */
 
-static inline int
-NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, int len)
+static inline int t128_pread(struct Scsi_Host *instance,
+                             unsigned char *dst, int len)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	void __iomem *reg, *base = hostdata->base;
@@ -340,7 +337,7 @@ NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, int len)
 }
 
 /*
- * Function : int NCR5380_pwrite (struct Scsi_Host *instance, 
+ * Function : int t128_pwrite (struct Scsi_Host *instance,
  *	unsigned char *src, int len)
  *
  * Purpose : Fast 5380 pseudo-dma write function, transfers len bytes from
@@ -352,8 +349,8 @@ NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, int len)
  * 	timeout.
  */
 
-static inline int
-NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src, int len)
+static inline int t128_pwrite(struct Scsi_Host *instance,
+                              unsigned char *src, int len)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	void __iomem *reg, *base = hostdata->base;
@@ -394,8 +391,6 @@ static struct scsi_host_template driver_template = {
 	.detect			= t128_detect,
 	.release		= t128_release,
 	.proc_name		= "t128",
-	.show_info		= t128_show_info,
-	.write_info		= t128_write_info,
 	.info			= t128_info,
 	.queuecommand		= t128_queue_command,
 	.eh_abort_handler	= t128_abort,

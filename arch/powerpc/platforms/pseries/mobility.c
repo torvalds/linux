@@ -191,8 +191,8 @@ static int update_dt_node(__be32 phandle, s32 scope)
 				break;
 
 			case 0x80000000:
-				prop = of_find_property(dn, prop_name, NULL);
-				of_remove_property(dn, prop);
+				of_remove_property(dn, of_find_property(dn,
+							prop_name, NULL));
 				prop = NULL;
 				break;
 

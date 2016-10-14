@@ -71,6 +71,14 @@ struct udp_sock {
 	 */
 	int (*encap_rcv)(struct sock *sk, struct sk_buff *skb);
 	void (*encap_destroy)(struct sock *sk);
+
+	/* GRO functions for UDP socket */
+	struct sk_buff **	(*gro_receive)(struct sock *sk,
+					       struct sk_buff **head,
+					       struct sk_buff *skb);
+	int			(*gro_complete)(struct sock *sk,
+						struct sk_buff *skb,
+						int nhoff);
 };
 
 static inline struct udp_sock *udp_sk(const struct sock *sk)
@@ -98,11 +106,11 @@ static inline bool udp_get_no_check6_rx(struct sock *sk)
 	return udp_sk(sk)->no_check6_rx;
 }
 
-#define udp_portaddr_for_each_entry(__sk, node, list) \
-	hlist_nulls_for_each_entry(__sk, node, list, __sk_common.skc_portaddr_node)
+#define udp_portaddr_for_each_entry(__sk, list) \
+	hlist_for_each_entry(__sk, list, __sk_common.skc_portaddr_node)
 
-#define udp_portaddr_for_each_entry_rcu(__sk, node, list) \
-	hlist_nulls_for_each_entry_rcu(__sk, node, list, __sk_common.skc_portaddr_node)
+#define udp_portaddr_for_each_entry_rcu(__sk, list) \
+	hlist_for_each_entry_rcu(__sk, list, __sk_common.skc_portaddr_node)
 
 #define IS_UDPLITE(__sk) (udp_sk(__sk)->pcflag)
 

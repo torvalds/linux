@@ -8,6 +8,8 @@
  *      Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -118,8 +120,7 @@ processor_get_freq (
 
 	if (ret) {
 		set_cpus_allowed_ptr(current, &saved_mask);
-		printk(KERN_WARNING "get performance failed with error %d\n",
-		       ret);
+		pr_warn("get performance failed with error %d\n", ret);
 		ret = 0;
 		goto migrate_end;
 	}
@@ -177,7 +178,7 @@ processor_set_freq (
 
 	ret = processor_set_pstate(value);
 	if (ret) {
-		printk(KERN_WARNING "Transition failed with error %d\n", ret);
+		pr_warn("Transition failed with error %d\n", ret);
 		retval = -ENODEV;
 		goto migrate_end;
 	}
@@ -291,8 +292,7 @@ acpi_cpufreq_cpu_init (
 	/* notify BIOS that we exist */
 	acpi_processor_notify_smm(THIS_MODULE);
 
-	printk(KERN_INFO "acpi-cpufreq: CPU%u - ACPI performance management "
-	       "activated.\n", cpu);
+	pr_info("CPU%u - ACPI performance management activated\n", cpu);
 
 	for (i = 0; i < data->acpi_data.state_count; i++)
 		pr_debug("     %cP%d: %d MHz, %d mW, %d uS, %d uS, 0x%x 0x%x\n",

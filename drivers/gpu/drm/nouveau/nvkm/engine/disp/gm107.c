@@ -27,6 +27,7 @@
 static const struct nv50_disp_func
 gm107_disp = {
 	.intr = gf119_disp_intr,
+	.intr_error = gf119_disp_intr_error,
 	.uevent = &gf119_disp_chan_uevent,
 	.super = gf119_disp_intr_supervisor,
 	.root = &gm107_disp_root_oclass,
@@ -36,7 +37,7 @@ gm107_disp = {
 	.outp.internal.crt = nv50_dac_output_new,
 	.outp.internal.tmds = nv50_sor_output_new,
 	.outp.internal.lvds = nv50_sor_output_new,
-	.outp.internal.dp = gf119_sor_dp_new,
+	.outp.internal.dp = gm107_sor_dp_new,
 	.dac.nr = 3,
 	.dac.power = nv50_dac_power,
 	.dac.sense = nv50_dac_sense,

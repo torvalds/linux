@@ -51,7 +51,7 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	sound0: sound@0 {
+	sound0: sound0 {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "CL-SOM-AM57x-Sound-Card";
 		simple-audio-card,format = "i2s";

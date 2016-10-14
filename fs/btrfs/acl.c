@@ -55,16 +55,12 @@ struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 	}
 	if (size > 0) {
 		acl = posix_acl_from_xattr(&init_user_ns, value, size);
-	} else if (size == -ENOENT || size == -ENODATA || size == 0) {
-		/* FIXME, who returns -ENOENT?  I think nobody */
+	} else if (size == -ERANGE || size == -ENODATA || size == 0) {
 		acl = NULL;
 	} else {
 		acl = ERR_PTR(-EIO);
 	}
 	kfree(value);
-
-	if (!IS_ERR(acl))
-		set_cached_acl(inode, type, acl);
 
 	return acl;
 }

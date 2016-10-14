@@ -402,15 +402,14 @@ static int nes_set_page(struct ib_mr *ibmr, u64 addr)
 	return 0;
 }
 
-static int nes_map_mr_sg(struct ib_mr *ibmr,
-			 struct scatterlist *sg,
-			 int sg_nents)
+static int nes_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
+			 int sg_nents, unsigned int *sg_offset)
 {
 	struct nes_mr *nesmr = to_nesmr(ibmr);
 
 	nesmr->npages = 0;
 
-	return ib_sg_to_pages(ibmr, sg, sg_nents, nes_set_page);
+	return ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, nes_set_page);
 }
 
 /**
@@ -981,7 +980,7 @@ static int nes_setup_mmap_qp(struct nes_qp *nesqp, struct nes_vnic *nesvnic,
 /**
  * nes_free_qp_mem() is to free up the qp's pci_alloc_consistent() memory.
  */
-static inline void nes_free_qp_mem(struct nes_device *nesdev,
+static void nes_free_qp_mem(struct nes_device *nesdev,
 		struct nes_qp *nesqp, int virt_wqs)
 {
 	unsigned long flags;
@@ -1315,6 +1314,8 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 			nes_debug(NES_DBG_QP, "Invalid QP type: %d\n", init_attr->qp_type);
 			return ERR_PTR(-EINVAL);
 	}
+	init_completion(&nesqp->sq_drained);
+	init_completion(&nesqp->rq_drained);
 
 	nesqp->sig_all = (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR);
 	init_timer(&nesqp->terminate_timer);
@@ -2605,23 +2606,6 @@ static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
 
 
 /**
- * show_fw_ver
- */
-static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr,
-			   char *buf)
-{
-	struct nes_ib_device *nesibdev =
-			container_of(dev, struct nes_ib_device, ibdev.dev);
-	struct nes_vnic *nesvnic = nesibdev->nesvnic;
-
-	nes_debug(NES_DBG_INIT, "\n");
-	return sprintf(buf, "%u.%u\n",
-		(nesvnic->nesdev->nesadapter->firmware_version >> 16),
-		(nesvnic->nesdev->nesadapter->firmware_version & 0x000000ff));
-}
-
-
-/**
  * show_hca
  */
 static ssize_t show_hca(struct device *dev, struct device_attribute *attr,
@@ -2644,13 +2628,11 @@ static ssize_t show_board(struct device *dev, struct device_attribute *attr,
 
 
 static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
 static DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
 static DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
 
 static struct device_attribute *nes_dev_attributes[] = {
 	&dev_attr_hw_rev,
-	&dev_attr_fw_ver,
 	&dev_attr_hca_type,
 	&dev_attr_board_id
 };
@@ -3452,6 +3434,29 @@ out:
 	return err;
 }
 
+/**
+ * nes_drain_sq - drain sq
+ * @ibqp: pointer to ibqp
+ */
+static void nes_drain_sq(struct ib_qp *ibqp)
+{
+	struct nes_qp *nesqp = to_nesqp(ibqp);
+
+	if (nesqp->hwqp.sq_tail != nesqp->hwqp.sq_head)
+		wait_for_completion(&nesqp->sq_drained);
+}
+
+/**
+ * nes_drain_rq - drain rq
+ * @ibqp: pointer to ibqp
+ */
+static void nes_drain_rq(struct ib_qp *ibqp)
+{
+	struct nes_qp *nesqp = to_nesqp(ibqp);
+
+	if (nesqp->hwqp.rq_tail != nesqp->hwqp.rq_head)
+		wait_for_completion(&nesqp->rq_drained);
+}
 
 /**
  * nes_poll_cq
@@ -3582,6 +3587,13 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 				}
 			}
 
+			if (nesqp->iwarp_state > NES_CQP_QP_IWARP_STATE_RTS) {
+				if (nesqp->hwqp.sq_tail == nesqp->hwqp.sq_head)
+					complete(&nesqp->sq_drained);
+				if (nesqp->hwqp.rq_tail == nesqp->hwqp.rq_head)
+					complete(&nesqp->rq_drained);
+			}
+
 			entry->wr_id = wrid;
 			entry++;
 			cqe_count++;
@@ -3672,6 +3684,19 @@ static int nes_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
+static void get_dev_fw_str(struct ib_device *dev, char *str,
+			   size_t str_len)
+{
+	struct nes_ib_device *nesibdev =
+			container_of(dev, struct nes_ib_device, ibdev);
+	struct nes_vnic *nesvnic = nesibdev->nesvnic;
+
+	nes_debug(NES_DBG_INIT, "\n");
+	snprintf(str, str_len, "%u.%u",
+		 (nesvnic->nesdev->nesadapter->firmware_version >> 16),
+		 (nesvnic->nesdev->nesadapter->firmware_version & 0x000000ff));
+}
+
 /**
  * nes_init_ofa_device
  */
@@ -3754,6 +3779,8 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.req_notify_cq = nes_req_notify_cq;
 	nesibdev->ibdev.post_send = nes_post_send;
 	nesibdev->ibdev.post_recv = nes_post_recv;
+	nesibdev->ibdev.drain_sq = nes_drain_sq;
+	nesibdev->ibdev.drain_rq = nes_drain_rq;
 
 	nesibdev->ibdev.iwcm = kzalloc(sizeof(*nesibdev->ibdev.iwcm), GFP_KERNEL);
 	if (nesibdev->ibdev.iwcm == NULL) {
@@ -3769,6 +3796,7 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.iwcm->create_listen = nes_create_listen;
 	nesibdev->ibdev.iwcm->destroy_listen = nes_destroy_listen;
 	nesibdev->ibdev.get_port_immutable   = nes_port_immutable;
+	nesibdev->ibdev.get_dev_fw_str   = get_dev_fw_str;
 	memcpy(nesibdev->ibdev.iwcm->ifname, netdev->name,
 	       sizeof(nesibdev->ibdev.iwcm->ifname));
 

@@ -1047,7 +1047,7 @@ static int vpfe_get_ccdc_image_format(struct vpfe_device *vpfe,
 static int vpfe_config_ccdc_image_format(struct vpfe_device *vpfe)
 {
 	enum ccdc_frmfmt frm_fmt = CCDC_FRMFMT_INTERLACED;
-	int ret;
+	int ret = 0;
 
 	vpfe_dbg(2, vpfe, "vpfe_config_ccdc_image_format\n");
 
@@ -1706,7 +1706,7 @@ static int vpfe_get_app_input_index(struct vpfe_device *vpfe,
 		sdinfo = &cfg->sub_devs[i];
 		client = v4l2_get_subdevdata(sdinfo->sd);
 		if (client->addr == curr_client->addr &&
-		    client->adapter->nr == client->adapter->nr) {
+		    client->adapter->nr == curr_client->adapter->nr) {
 			if (vpfe->current_input >= 1)
 				return -1;
 			*app_input_index = j + vpfe->current_input;
@@ -1901,21 +1901,20 @@ static void vpfe_calculate_offsets(struct vpfe_device *vpfe)
  * @nbuffers: ptr to number of buffers requested by application
  * @nplanes:: contains number of distinct video planes needed to hold a frame
  * @sizes[]: contains the size (in bytes) of each plane.
- * @alloc_ctxs: ptr to allocation context
+ * @alloc_devs: ptr to allocation context
  *
  * This callback function is called when reqbuf() is called to adjust
  * the buffer count and buffer size
  */
 static int vpfe_queue_setup(struct vb2_queue *vq,
 			    unsigned int *nbuffers, unsigned int *nplanes,
-			    unsigned int sizes[], void *alloc_ctxs[])
+			    unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct vpfe_device *vpfe = vb2_get_drv_priv(vq);
 	unsigned size = vpfe->fmt.fmt.pix.sizeimage;
 
 	if (vq->num_buffers + *nbuffers < 3)
 		*nbuffers = 3 - vq->num_buffers;
-	alloc_ctxs[0] = vpfe->alloc_ctx;
 
 	if (*nplanes) {
 		if (sizes[0] < size)
@@ -2364,13 +2363,6 @@ static int vpfe_probe_complete(struct vpfe_device *vpfe)
 		goto probe_out;
 
 	/* Initialize videobuf2 queue as per the buffer type */
-	vpfe->alloc_ctx = vb2_dma_contig_init_ctx(vpfe->pdev);
-	if (IS_ERR(vpfe->alloc_ctx)) {
-		vpfe_err(vpfe, "Failed to get the context\n");
-		err = PTR_ERR(vpfe->alloc_ctx);
-		goto probe_out;
-	}
-
 	q = &vpfe->buffer_queue;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_READ;
@@ -2381,11 +2373,11 @@ static int vpfe_probe_complete(struct vpfe_device *vpfe)
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &vpfe->lock;
 	q->min_buffers_needed = 1;
+	q->dev = vpfe->pdev;
 
 	err = vb2_queue_init(q);
 	if (err) {
 		vpfe_err(vpfe, "vb2_queue_init() failed\n");
-		vb2_dma_contig_cleanup_ctx(vpfe->alloc_ctx);
 		goto probe_out;
 	}
 

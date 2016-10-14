@@ -8,7 +8,6 @@
 #include <linux/mc146818rtc.h>
 #include <linux/cache.h>
 #include <linux/cpu.h>
-#include <linux/module.h>
 
 #include <asm/smp.h>
 #include <asm/mtrr.h>
@@ -230,7 +229,7 @@ int safe_smp_processor_id(void)
 {
 	int apicid, cpuid;
 
-	if (!cpu_has_apic)
+	if (!boot_cpu_has(X86_FEATURE_APIC))
 		return 0;
 
 	apicid = hard_smp_processor_id();

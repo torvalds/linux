@@ -14,6 +14,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
 #include "exynos5250.dtsi"
+#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	model = "Insignal Arndale evaluation board based on EXYNOS5250";
@@ -124,8 +125,6 @@
 &dp {
 	status = "okay";
 	samsung,color-space = <0>;
-	samsung,dynamic-range = <0>;
-	samsung,ycbcr-coeff = <0>;
 	samsung,color-depth = <1>;
 	samsung,link-rate = <0x0a>;
 	samsung,lane-count = <4>;
@@ -133,7 +132,7 @@
 	display-timings {
 		native-mode = <&timing0>;
 
-		timing0: timing@0 {
+		timing0: timing {
 			/* 2560x1600 DP panel */
 			clock-frequency = <50000>;
 			hactive = <2560>;
@@ -515,11 +514,6 @@
 
 &i2s0 {
 	status = "okay";
-};
-
-&mfc {
-	samsung,mfc-r = <0x43000000 0x800000>;
-	samsung,mfc-l = <0x51000000 0x800000>;
 };
 
 &mmc_0 {

@@ -50,6 +50,7 @@ struct hdmi_hdcp_ctrl;
 struct hdmi {
 	struct drm_device *dev;
 	struct platform_device *pdev;
+	struct platform_device *audio_pdev;
 
 	const struct hdmi_platform_config *config;
 
@@ -210,6 +211,19 @@ static inline int msm_hdmi_pll_8996_init(struct platform_device *pdev)
 /*
  * audio:
  */
+/* Supported HDMI Audio channels and rates */
+#define	MSM_HDMI_AUDIO_CHANNEL_2	0
+#define	MSM_HDMI_AUDIO_CHANNEL_4	1
+#define	MSM_HDMI_AUDIO_CHANNEL_6	2
+#define	MSM_HDMI_AUDIO_CHANNEL_8	3
+
+#define	HDMI_SAMPLE_RATE_32KHZ		0
+#define	HDMI_SAMPLE_RATE_44_1KHZ	1
+#define	HDMI_SAMPLE_RATE_48KHZ		2
+#define	HDMI_SAMPLE_RATE_88_2KHZ	3
+#define	HDMI_SAMPLE_RATE_96KHZ		4
+#define	HDMI_SAMPLE_RATE_176_4KHZ	5
+#define	HDMI_SAMPLE_RATE_192KHZ		6
 
 int msm_hdmi_audio_update(struct hdmi *hdmi);
 int msm_hdmi_audio_info_setup(struct hdmi *hdmi, bool enabled,
@@ -243,10 +257,21 @@ struct i2c_adapter *msm_hdmi_i2c_init(struct hdmi *hdmi);
 /*
  * hdcp
  */
+#ifdef CONFIG_DRM_MSM_HDMI_HDCP
 struct hdmi_hdcp_ctrl *msm_hdmi_hdcp_init(struct hdmi *hdmi);
 void msm_hdmi_hdcp_destroy(struct hdmi *hdmi);
 void msm_hdmi_hdcp_on(struct hdmi_hdcp_ctrl *hdcp_ctrl);
 void msm_hdmi_hdcp_off(struct hdmi_hdcp_ctrl *hdcp_ctrl);
 void msm_hdmi_hdcp_irq(struct hdmi_hdcp_ctrl *hdcp_ctrl);
+#else
+static inline struct hdmi_hdcp_ctrl *msm_hdmi_hdcp_init(struct hdmi *hdmi)
+{
+	return ERR_PTR(-ENXIO);
+}
+static inline void msm_hdmi_hdcp_destroy(struct hdmi *hdmi) {}
+static inline void msm_hdmi_hdcp_on(struct hdmi_hdcp_ctrl *hdcp_ctrl) {}
+static inline void msm_hdmi_hdcp_off(struct hdmi_hdcp_ctrl *hdcp_ctrl) {}
+static inline void msm_hdmi_hdcp_irq(struct hdmi_hdcp_ctrl *hdcp_ctrl) {}
+#endif
 
 #endif /* __HDMI_CONNECTOR_H__ */

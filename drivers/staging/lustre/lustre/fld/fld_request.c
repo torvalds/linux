@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -64,9 +60,9 @@ static int fld_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
 {
 	int rc;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	rc = list_empty(&mcw->mcw_entry);
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_unlock(&cli->cl_loi_list_lock);
 	return rc;
 };
 
@@ -75,15 +71,15 @@ static void fld_enter_request(struct client_obd *cli)
 	struct mdc_cache_waiter mcw;
 	struct l_wait_info lwi = { 0 };
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	if (cli->cl_r_in_flight >= cli->cl_max_rpcs_in_flight) {
 		list_add_tail(&mcw.mcw_entry, &cli->cl_cache_waiters);
 		init_waitqueue_head(&mcw.mcw_waitq);
-		client_obd_list_unlock(&cli->cl_loi_list_lock);
+		spin_unlock(&cli->cl_loi_list_lock);
 		l_wait_event(mcw.mcw_waitq, fld_req_avail(cli, &mcw), &lwi);
 	} else {
 		cli->cl_r_in_flight++;
-		client_obd_list_unlock(&cli->cl_loi_list_lock);
+		spin_unlock(&cli->cl_loi_list_lock);
 	}
 }
 
@@ -92,10 +88,9 @@ static void fld_exit_request(struct client_obd *cli)
 	struct list_head *l, *tmp;
 	struct mdc_cache_waiter *mcw;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	cli->cl_r_in_flight--;
 	list_for_each_safe(l, tmp, &cli->cl_cache_waiters) {
-
 		if (cli->cl_r_in_flight >= cli->cl_max_rpcs_in_flight) {
 			/* No free request slots anymore */
 			break;
@@ -106,7 +101,7 @@ static void fld_exit_request(struct client_obd *cli)
 		cli->cl_r_in_flight++;
 		wake_up(&mcw->mcw_waitq);
 	}
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_unlock(&cli->cl_loi_list_lock);
 }
 
 static int fld_rrb_hash(struct lu_client_fld *fld, u64 seq)
@@ -392,55 +387,82 @@ void fld_client_fini(struct lu_client_fld *fld)
 EXPORT_SYMBOL(fld_client_fini);
 
 int fld_client_rpc(struct obd_export *exp,
-		   struct lu_seq_range *range, __u32 fld_op)
+		   struct lu_seq_range *range, __u32 fld_op,
+		   struct ptlrpc_request **reqp)
 {
-	struct ptlrpc_request *req;
+	struct ptlrpc_request *req = NULL;
 	struct lu_seq_range   *prange;
 	__u32		 *op;
-	int		    rc;
+	int		    rc = 0;
 	struct obd_import     *imp;
 
 	LASSERT(exp);
 
 	imp = class_exp2cliimp(exp);
-	req = ptlrpc_request_alloc_pack(imp, &RQF_FLD_QUERY, LUSTRE_MDS_VERSION,
-					FLD_QUERY);
-	if (!req)
-		return -ENOMEM;
+	switch (fld_op) {
+	case FLD_QUERY:
+		req = ptlrpc_request_alloc_pack(imp, &RQF_FLD_QUERY,
+						LUSTRE_MDS_VERSION, FLD_QUERY);
+		if (!req)
+			return -ENOMEM;
 
-	op = req_capsule_client_get(&req->rq_pill, &RMF_FLD_OPC);
-	*op = fld_op;
+		/*
+		 * XXX: only needed when talking to old server(< 2.6), it should
+		 * be removed when < 2.6 server is not supported
+		 */
+		op = req_capsule_client_get(&req->rq_pill, &RMF_FLD_OPC);
+		*op = FLD_LOOKUP;
+
+		if (imp->imp_connect_flags_orig & OBD_CONNECT_MDS_MDS)
+			req->rq_allow_replay = 1;
+		break;
+	case FLD_READ:
+		req = ptlrpc_request_alloc_pack(imp, &RQF_FLD_READ,
+						LUSTRE_MDS_VERSION, FLD_READ);
+		if (!req)
+			return -ENOMEM;
+
+		req_capsule_set_size(&req->rq_pill, &RMF_GENERIC_DATA,
+				     RCL_SERVER, PAGE_SIZE);
+		break;
+	default:
+		rc = -EINVAL;
+		break;
+	}
+	if (rc)
+		return rc;
 
 	prange = req_capsule_client_get(&req->rq_pill, &RMF_FLD_MDFLD);
 	*prange = *range;
-
 	ptlrpc_request_set_replen(req);
 	req->rq_request_portal = FLD_REQUEST_PORTAL;
 	req->rq_reply_portal = MDC_REPLY_PORTAL;
 	ptlrpc_at_set_req_timeout(req);
 
-	if (fld_op == FLD_LOOKUP &&
-	    imp->imp_connect_flags_orig & OBD_CONNECT_MDS_MDS)
-		req->rq_allow_replay = 1;
-
-	if (fld_op != FLD_LOOKUP)
-		mdc_get_rpc_lock(exp->exp_obd->u.cli.cl_rpc_lock, NULL);
 	fld_enter_request(&exp->exp_obd->u.cli);
 	rc = ptlrpc_queue_wait(req);
 	fld_exit_request(&exp->exp_obd->u.cli);
-	if (fld_op != FLD_LOOKUP)
-		mdc_put_rpc_lock(exp->exp_obd->u.cli.cl_rpc_lock, NULL);
 	if (rc)
 		goto out_req;
 
-	prange = req_capsule_server_get(&req->rq_pill, &RMF_FLD_MDFLD);
-	if (!prange) {
-		rc = -EFAULT;
-		goto out_req;
+	if (fld_op == FLD_QUERY) {
+		prange = req_capsule_server_get(&req->rq_pill, &RMF_FLD_MDFLD);
+		if (!prange) {
+			rc = -EFAULT;
+			goto out_req;
+		}
+		*range = *prange;
 	}
-	*range = *prange;
+
 out_req:
-	ptlrpc_req_finished(req);
+	if (rc || !reqp) {
+		ptlrpc_req_finished(req);
+		req = NULL;
+	}
+
+	if (reqp)
+		*reqp = req;
+
 	return rc;
 }
 
@@ -468,7 +490,7 @@ int fld_client_lookup(struct lu_client_fld *fld, u64 seq, u32 *mds,
 
 	res.lsr_start = seq;
 	fld_range_set_type(&res, flags);
-	rc = fld_client_rpc(target->ft_exp, &res, FLD_LOOKUP);
+	rc = fld_client_rpc(target->ft_exp, &res, FLD_QUERY, NULL);
 
 	if (rc == 0) {
 		*mds = res.lsr_index;

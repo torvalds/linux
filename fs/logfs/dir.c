@@ -95,7 +95,7 @@ static int beyond_eof(struct inode *inode, loff_t bix)
  * of each character and pick a prime nearby, preferably a bit-sparse
  * one.
  */
-static u32 hash_32(const char *s, int len, u32 seed)
+static u32 logfs_hash_32(const char *s, int len, u32 seed)
 {
 	u32 hash = seed;
 	int i;
@@ -156,10 +156,10 @@ static pgoff_t hash_index(u32 hash, int round)
 
 static struct page *logfs_get_dd_page(struct inode *dir, struct dentry *dentry)
 {
-	struct qstr *name = &dentry->d_name;
+	const struct qstr *name = &dentry->d_name;
 	struct page *page;
 	struct logfs_disk_dentry *dd;
-	u32 hash = hash_32(name->name, name->len, 0);
+	u32 hash = logfs_hash_32(name->name, name->len, 0);
 	pgoff_t index;
 	int round;
 
@@ -323,7 +323,7 @@ static int logfs_readdir(struct file *file, struct dir_context *ctx)
 	return 0;
 }
 
-static void logfs_set_name(struct logfs_disk_dentry *dd, struct qstr *name)
+static void logfs_set_name(struct logfs_disk_dentry *dd, const struct qstr *name)
 {
 	dd->namelen = cpu_to_be16(name->len);
 	memcpy(dd->name, name->name, name->len);
@@ -370,7 +370,7 @@ static int logfs_write_dir(struct inode *dir, struct dentry *dentry,
 {
 	struct page *page;
 	struct logfs_disk_dentry *dd;
-	u32 hash = hash_32(dentry->d_name.name, dentry->d_name.len, 0);
+	u32 hash = logfs_hash_32(dentry->d_name.name, dentry->d_name.len, 0);
 	pgoff_t index;
 	int round, err;
 
@@ -791,7 +791,7 @@ const struct inode_operations logfs_dir_iops = {
 const struct file_operations logfs_dir_fops = {
 	.fsync		= logfs_fsync,
 	.unlocked_ioctl	= logfs_ioctl,
-	.iterate	= logfs_readdir,
+	.iterate_shared	= logfs_readdir,
 	.read		= generic_read_dir,
-	.llseek		= default_llseek,
+	.llseek		= generic_file_llseek,
 };

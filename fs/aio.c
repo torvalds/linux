@@ -239,7 +239,12 @@ static struct dentry *aio_mount(struct file_system_type *fs_type,
 	static const struct dentry_operations ops = {
 		.d_dname	= simple_dname,
 	};
-	return mount_pseudo(fs_type, "aio:", NULL, &ops, AIO_RING_MAGIC);
+	struct dentry *root = mount_pseudo(fs_type, "aio:", NULL, &ops,
+					   AIO_RING_MAGIC);
+
+	if (!IS_ERR(root))
+		root->d_sb->s_iflags |= SB_I_NOEXEC;
+	return root;
 }
 
 /* aio_setup
@@ -496,7 +501,12 @@ static int aio_setup_ring(struct kioctx *ctx)
 	ctx->mmap_size = nr_pages * PAGE_SIZE;
 	pr_debug("attempting mmap of %lu bytes\n", ctx->mmap_size);
 
-	down_write(&mm->mmap_sem);
+	if (down_write_killable(&mm->mmap_sem)) {
+		ctx->mmap_size = 0;
+		aio_free_ring(ctx);
+		return -EINTR;
+	}
+
 	ctx->mmap_base = do_mmap_pgoff(ctx->aio_ring_file, 0, ctx->mmap_size,
 				       PROT_READ | PROT_WRITE,
 				       MAP_SHARED, 0, &unused);
@@ -1446,8 +1456,6 @@ rw_common:
 			kfree(iovec);
 			return ret;
 		}
-
-		len = ret;
 
 		if (rw == WRITE)
 			file_start_write(file);

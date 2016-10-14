@@ -95,7 +95,7 @@ acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
 
 	hid =
 	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pnp_device_id) +
-				 (acpi_size) length);
+				 (acpi_size)length);
 	if (!hid) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
@@ -173,7 +173,7 @@ acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
 
 	uid =
 	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pnp_device_id) +
-				 (acpi_size) length);
+				 (acpi_size)length);
 	if (!uid) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
@@ -309,7 +309,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 	/* Area for CID strings starts after the CID PNP_DEVICE_ID array */
 
 	next_id_string = ACPI_CAST_PTR(char, cid_list->ids) +
-	    ((acpi_size) count * sizeof(struct acpi_pnp_device_id));
+	    ((acpi_size)count * sizeof(struct acpi_pnp_device_id));
 
 	/* Copy/convert the CIDs to the return buffer */
 
@@ -413,7 +413,7 @@ acpi_ut_execute_CLS(struct acpi_namespace_node *device_node,
 
 	cls =
 	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pnp_device_id) +
-				 (acpi_size) length);
+				 (acpi_size)length);
 	if (!cls) {
 		status = AE_NO_MEMORY;
 		goto cleanup;

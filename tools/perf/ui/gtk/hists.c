@@ -379,7 +379,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 			gtk_tree_store_set(store, &iter, col_idx++, s, -1);
 		}
 
-		if (symbol_conf.use_callchain && sort__has_sym) {
+		if (symbol_conf.use_callchain && hists__has(hists, sym)) {
 			if (callchain_param.mode == CHAIN_GRAPH_REL)
 				total = symbol_conf.cumulate_callchain ?
 					h->stat_acc->period : h->stat.period;
@@ -549,7 +549,7 @@ static void perf_gtk__show_hierarchy(GtkWidget *window, struct hists *hists,
 				strcat(buf, "+");
 			first_col = false;
 
-			fmt->header(fmt, &hpp, hists_to_evsel(hists));
+			fmt->header(fmt, &hpp, hists);
 			strcat(buf, ltrim(rtrim(hpp.buf)));
 		}
 	}
@@ -627,7 +627,7 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 
 	gtk_container_add(GTK_CONTAINER(window), vbox);
 
-	evlist__for_each(evlist, pos) {
+	evlist__for_each_entry(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		const char *evname = perf_evsel__name(pos);
 		GtkWidget *scrolled_window;

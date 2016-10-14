@@ -19,6 +19,7 @@
 #ifndef __ASM_KERNEL_PGTABLE_H
 #define __ASM_KERNEL_PGTABLE_H
 
+#include <asm/sparsemem.h>
 
 /*
  * The linear mapping and the start of memory are both 2M aligned (per
@@ -86,10 +87,24 @@
  * (64k granule), or a multiple that can be mapped using contiguous bits
  * in the page tables: 32 * PMD_SIZE (16k granule)
  */
-#ifdef CONFIG_ARM64_64K_PAGES
-#define ARM64_MEMSTART_ALIGN	SZ_512M
+#if defined(CONFIG_ARM64_4K_PAGES)
+#define ARM64_MEMSTART_SHIFT		PUD_SHIFT
+#elif defined(CONFIG_ARM64_16K_PAGES)
+#define ARM64_MEMSTART_SHIFT		(PMD_SHIFT + 5)
 #else
-#define ARM64_MEMSTART_ALIGN	SZ_1G
+#define ARM64_MEMSTART_SHIFT		PMD_SHIFT
+#endif
+
+/*
+ * sparsemem vmemmap imposes an additional requirement on the alignment of
+ * memstart_addr, due to the fact that the base of the vmemmap region
+ * has a direct correspondence, and needs to appear sufficiently aligned
+ * in the virtual address space.
+ */
+#if defined(CONFIG_SPARSEMEM_VMEMMAP) && ARM64_MEMSTART_SHIFT < SECTION_SIZE_BITS
+#define ARM64_MEMSTART_ALIGN	(1UL << SECTION_SIZE_BITS)
+#else
+#define ARM64_MEMSTART_ALIGN	(1UL << ARM64_MEMSTART_SHIFT)
 #endif
 
 #endif	/* __ASM_KERNEL_PGTABLE_H */

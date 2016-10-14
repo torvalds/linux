@@ -38,10 +38,11 @@ static int regcache_hw_init(struct regmap *map)
 
 	/* calculate the size of reg_defaults */
 	for (count = 0, i = 0; i < map->num_reg_defaults_raw; i++)
-		if (!regmap_volatile(map, i * map->reg_stride))
+		if (regmap_readable(map, i * map->reg_stride) &&
+		    !regmap_volatile(map, i * map->reg_stride))
 			count++;
 
-	/* all registers are volatile, so just bypass */
+	/* all registers are unreadable or volatile, so just bypass */
 	if (!count) {
 		map->cache_bypass = true;
 		return 0;
@@ -529,7 +530,7 @@ EXPORT_SYMBOL_GPL(regcache_mark_dirty);
  * regcache_cache_bypass: Put a register map into cache bypass mode
  *
  * @map: map to configure
- * @cache_bypass: flag if changes should not be written to the hardware
+ * @cache_bypass: flag if changes should not be written to the cache
  *
  * When a register map is marked with the cache bypass option, writes
  * to the register map API will only update the hardware and not the

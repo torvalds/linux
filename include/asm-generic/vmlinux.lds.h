@@ -164,7 +164,7 @@
 
 #define ___OF_TABLE(cfg, name)	_OF_TABLE_##cfg(name)
 #define __OF_TABLE(cfg, name)	___OF_TABLE(cfg, name)
-#define OF_TABLE(cfg, name)	__OF_TABLE(config_enabled(cfg), name)
+#define OF_TABLE(cfg, name)	__OF_TABLE(IS_ENABLED(cfg), name)
 #define _OF_TABLE_0(name)
 #define _OF_TABLE_1(name)						\
 	. = ALIGN(8);							\
@@ -245,7 +245,17 @@
 
 #define INIT_TASK_DATA(align)						\
 	. = ALIGN(align);						\
-	*(.data..init_task)
+	VMLINUX_SYMBOL(__start_init_task) = .;				\
+	*(.data..init_task)						\
+	VMLINUX_SYMBOL(__end_init_task) = .;
+
+/*
+ * Allow architectures to handle ro_after_init data on their
+ * own by defining an empty RO_AFTER_INIT_DATA.
+ */
+#ifndef RO_AFTER_INIT_DATA
+#define RO_AFTER_INIT_DATA *(.data..ro_after_init)
+#endif
 
 /*
  * Read only Data
@@ -255,7 +265,7 @@
 	.rodata           : AT(ADDR(.rodata) - LOAD_OFFSET) {		\
 		VMLINUX_SYMBOL(__start_rodata) = .;			\
 		*(.rodata) *(.rodata.*)					\
-		*(.data..ro_after_init)	/* Read only after init */	\
+		RO_AFTER_INIT_DATA	/* Read only after init */	\
 		*(__vermagic)		/* Kernel version magic */	\
 		. = ALIGN(8);						\
 		VMLINUX_SYMBOL(__start___tracepoints_ptrs) = .;		\
@@ -540,15 +550,19 @@
 
 #define INIT_TEXT							\
 	*(.init.text)							\
+	*(.text.startup)						\
 	MEM_DISCARD(init.text)
 
 #define EXIT_DATA							\
 	*(.exit.data)							\
+	*(.fini_array)							\
+	*(.dtors)							\
 	MEM_DISCARD(exit.data)						\
 	MEM_DISCARD(exit.rodata)
 
 #define EXIT_TEXT							\
 	*(.exit.text)							\
+	*(.text.exit)							\
 	MEM_DISCARD(exit.text)
 
 #define EXIT_CALL							\

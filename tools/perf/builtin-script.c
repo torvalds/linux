@@ -21,7 +21,9 @@
 #include "util/cpumap.h"
 #include "util/thread_map.h"
 #include "util/stat.h"
+#include "util/thread-stack.h"
 #include <linux/bitmap.h>
+#include <linux/stringify.h>
 #include "asm/bug.h"
 #include "util/mem-events.h"
 
@@ -62,6 +64,7 @@ enum perf_output_field {
 	PERF_OUTPUT_DATA_SRC	    = 1U << 17,
 	PERF_OUTPUT_WEIGHT	    = 1U << 18,
 	PERF_OUTPUT_BPF_OUTPUT	    = 1U << 19,
+	PERF_OUTPUT_CALLINDENT	    = 1U << 20,
 };
 
 struct output_option {
@@ -88,6 +91,7 @@ struct output_option {
 	{.str = "data_src", .field = PERF_OUTPUT_DATA_SRC},
 	{.str = "weight",   .field = PERF_OUTPUT_WEIGHT},
 	{.str = "bpf-output",   .field = PERF_OUTPUT_BPF_OUTPUT},
+	{.str = "callindent", .field = PERF_OUTPUT_CALLINDENT},
 };
 
 /* default set to maintain compatibility with current format */
@@ -317,19 +321,19 @@ static void set_print_ip_opts(struct perf_event_attr *attr)
 
 	output[type].print_ip_opts = 0;
 	if (PRINT_FIELD(IP))
-		output[type].print_ip_opts |= PRINT_IP_OPT_IP;
+		output[type].print_ip_opts |= EVSEL__PRINT_IP;
 
 	if (PRINT_FIELD(SYM))
-		output[type].print_ip_opts |= PRINT_IP_OPT_SYM;
+		output[type].print_ip_opts |= EVSEL__PRINT_SYM;
 
 	if (PRINT_FIELD(DSO))
-		output[type].print_ip_opts |= PRINT_IP_OPT_DSO;
+		output[type].print_ip_opts |= EVSEL__PRINT_DSO;
 
 	if (PRINT_FIELD(SYMOFFSET))
-		output[type].print_ip_opts |= PRINT_IP_OPT_SYMOFFSET;
+		output[type].print_ip_opts |= EVSEL__PRINT_SYMOFFSET;
 
 	if (PRINT_FIELD(SRCLINE))
-		output[type].print_ip_opts |= PRINT_IP_OPT_SRCLINE;
+		output[type].print_ip_opts |= EVSEL__PRINT_SRCLINE;
 }
 
 /*
@@ -338,7 +342,7 @@ static void set_print_ip_opts(struct perf_event_attr *attr)
  */
 static int perf_session__check_output_opt(struct perf_session *session)
 {
-	int j;
+	unsigned int j;
 	struct perf_evsel *evsel;
 
 	for (j = 0; j < PERF_TYPE_MAX; ++j) {
@@ -367,14 +371,16 @@ static int perf_session__check_output_opt(struct perf_session *session)
 
 	if (!no_callchain) {
 		bool use_callchain = false;
+		bool not_pipe = false;
 
-		evlist__for_each(session->evlist, evsel) {
+		evlist__for_each_entry(session->evlist, evsel) {
+			not_pipe = true;
 			if (evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN) {
 				use_callchain = true;
 				break;
 			}
 		}
-		if (!use_callchain)
+		if (not_pipe && !use_callchain)
 			symbol_conf.use_callchain = false;
 	}
 
@@ -387,17 +393,20 @@ static int perf_session__check_output_opt(struct perf_session *session)
 		struct perf_event_attr *attr;
 
 		j = PERF_TYPE_TRACEPOINT;
-		evsel = perf_session__find_first_evtype(session, j);
-		if (evsel == NULL)
-			goto out;
 
-		attr = &evsel->attr;
+		evlist__for_each_entry(session->evlist, evsel) {
+			if (evsel->attr.type != j)
+				continue;
 
-		if (attr->sample_type & PERF_SAMPLE_CALLCHAIN) {
-			output[j].fields |= PERF_OUTPUT_IP;
-			output[j].fields |= PERF_OUTPUT_SYM;
-			output[j].fields |= PERF_OUTPUT_DSO;
-			set_print_ip_opts(attr);
+			attr = &evsel->attr;
+
+			if (attr->sample_type & PERF_SAMPLE_CALLCHAIN) {
+				output[j].fields |= PERF_OUTPUT_IP;
+				output[j].fields |= PERF_OUTPUT_SYM;
+				output[j].fields |= PERF_OUTPUT_DSO;
+				set_print_ip_opts(attr);
+				goto out;
+			}
 		}
 	}
 
@@ -558,6 +567,62 @@ static void print_sample_addr(struct perf_sample *sample,
 	}
 }
 
+static void print_sample_callindent(struct perf_sample *sample,
+				    struct perf_evsel *evsel,
+				    struct thread *thread,
+				    struct addr_location *al)
+{
+	struct perf_event_attr *attr = &evsel->attr;
+	size_t depth = thread_stack__depth(thread);
+	struct addr_location addr_al;
+	const char *name = NULL;
+	static int spacing;
+	int len = 0;
+	u64 ip = 0;
+
+	/*
+	 * The 'return' has already been popped off the stack so the depth has
+	 * to be adjusted to match the 'call'.
+	 */
+	if (thread->ts && sample->flags & PERF_IP_FLAG_RETURN)
+		depth += 1;
+
+	if (sample->flags & (PERF_IP_FLAG_CALL | PERF_IP_FLAG_TRACE_BEGIN)) {
+		if (sample_addr_correlates_sym(attr)) {
+			thread__resolve(thread, &addr_al, sample);
+			if (addr_al.sym)
+				name = addr_al.sym->name;
+			else
+				ip = sample->addr;
+		} else {
+			ip = sample->addr;
+		}
+	} else if (sample->flags & (PERF_IP_FLAG_RETURN | PERF_IP_FLAG_TRACE_END)) {
+		if (al->sym)
+			name = al->sym->name;
+		else
+			ip = sample->ip;
+	}
+
+	if (name)
+		len = printf("%*s%s", (int)depth * 4, "", name);
+	else if (ip)
+		len = printf("%*s%16" PRIx64, (int)depth * 4, "", ip);
+
+	if (len < 0)
+		return;
+
+	/*
+	 * Try to keep the output length from changing frequently so that the
+	 * output lines up more nicely.
+	 */
+	if (len > spacing || (len && len < spacing - 52))
+		spacing = round_up(len + 4, 32);
+
+	if (len < spacing)
+		printf("%*s", spacing - len, "");
+}
+
 static void print_sample_bts(struct perf_sample *sample,
 			     struct perf_evsel *evsel,
 			     struct thread *thread,
@@ -566,21 +631,29 @@ static void print_sample_bts(struct perf_sample *sample,
 	struct perf_event_attr *attr = &evsel->attr;
 	bool print_srcline_last = false;
 
+	if (PRINT_FIELD(CALLINDENT))
+		print_sample_callindent(sample, evsel, thread, al);
+
 	/* print branch_from information */
 	if (PRINT_FIELD(IP)) {
 		unsigned int print_opts = output[attr->type].print_ip_opts;
+		struct callchain_cursor *cursor = NULL;
 
-		if (symbol_conf.use_callchain && sample->callchain) {
-			printf("\n");
-		} else {
-			printf(" ");
-			if (print_opts & PRINT_IP_OPT_SRCLINE) {
+		if (symbol_conf.use_callchain && sample->callchain &&
+		    thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
+					      sample, NULL, NULL, scripting_max_stack) == 0)
+			cursor = &callchain_cursor;
+
+		if (cursor == NULL) {
+			putchar(' ');
+			if (print_opts & EVSEL__PRINT_SRCLINE) {
 				print_srcline_last = true;
-				print_opts &= ~PRINT_IP_OPT_SRCLINE;
+				print_opts &= ~EVSEL__PRINT_SRCLINE;
 			}
-		}
-		perf_evsel__print_ip(evsel, sample, al, print_opts,
-				     scripting_max_stack);
+		} else
+			putchar('\n');
+
+		sample__fprintf_sym(sample, al, 0, print_opts, cursor, stdout);
 	}
 
 	/* print branch_to information */
@@ -597,12 +670,41 @@ static void print_sample_bts(struct perf_sample *sample,
 	printf("\n");
 }
 
+static struct {
+	u32 flags;
+	const char *name;
+} sample_flags[] = {
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL, "call"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN, "return"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CONDITIONAL, "jcc"},
+	{PERF_IP_FLAG_BRANCH, "jmp"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_INTERRUPT, "int"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN | PERF_IP_FLAG_INTERRUPT, "iret"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_SYSCALLRET, "syscall"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN | PERF_IP_FLAG_SYSCALLRET, "sysret"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_ASYNC, "async"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_ASYNC |	PERF_IP_FLAG_INTERRUPT, "hw int"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TX_ABORT, "tx abrt"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TRACE_BEGIN, "tr strt"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TRACE_END, "tr end"},
+	{0, NULL}
+};
+
 static void print_sample_flags(u32 flags)
 {
 	const char *chars = PERF_IP_FLAG_CHARS;
 	const int n = strlen(PERF_IP_FLAG_CHARS);
+	bool in_tx = flags & PERF_IP_FLAG_IN_TX;
+	const char *name = NULL;
 	char str[33];
 	int i, pos = 0;
+
+	for (i = 0; sample_flags[i].name ; i++) {
+		if (sample_flags[i].flags == (flags & ~PERF_IP_FLAG_IN_TX)) {
+			name = sample_flags[i].name;
+			break;
+		}
+	}
 
 	for (i = 0; i < n; i++, flags >>= 1) {
 		if (flags & 1)
@@ -613,7 +715,11 @@ static void print_sample_flags(u32 flags)
 			str[pos++] = '?';
 	}
 	str[pos] = 0;
-	printf("  %-4s ", str);
+
+	if (name)
+		printf("  %-7s%4s ", name, in_tx ? "(x)" : "");
+	else
+		printf("  %-11s ", str);
 }
 
 struct printer_data {
@@ -711,7 +817,7 @@ static int perf_evlist__max_name_len(struct perf_evlist *evlist)
 	struct perf_evsel *evsel;
 	int max = 0;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		int len = strlen(perf_evsel__name(evsel));
 
 		max = MAX(len, max);
@@ -783,14 +889,15 @@ static void process_event(struct perf_script *script,
 		printf("%16" PRIu64, sample->weight);
 
 	if (PRINT_FIELD(IP)) {
-		if (!symbol_conf.use_callchain)
-			printf(" ");
-		else
-			printf("\n");
+		struct callchain_cursor *cursor = NULL;
 
-		perf_evsel__print_ip(evsel, sample, al,
-				     output[attr->type].print_ip_opts,
-				     scripting_max_stack);
+		if (symbol_conf.use_callchain && sample->callchain &&
+		    thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
+					      sample, NULL, NULL, scripting_max_stack) == 0)
+			cursor = &callchain_cursor;
+
+		putchar(cursor ? '\n' : ' ');
+		sample__fprintf_sym(sample, al, 0, output[attr->type].print_ip_opts, cursor, stdout);
 	}
 
 	if (PRINT_FIELD(IREGS))
@@ -935,7 +1042,7 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 	if (evsel->attr.type >= PERF_TYPE_MAX)
 		return 0;
 
-	evlist__for_each(evlist, pos) {
+	evlist__for_each_entry(evlist, pos) {
 		if (pos->attr.type == evsel->attr.type && pos != evsel)
 			return 0;
 	}
@@ -1585,8 +1692,13 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
 	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", get_argv_exec_path());
 
 	scripts_dir = opendir(scripts_path);
-	if (!scripts_dir)
-		return -1;
+	if (!scripts_dir) {
+		fprintf(stdout,
+			"open(%s) failed.\n"
+			"Check \"PERF_EXEC_PATH\" env to set scripts dir.\n",
+			scripts_path);
+		exit(-1);
+	}
 
 	for_each_lang(scripts_path, scripts_dir, lang_dirent) {
 		snprintf(lang_path, MAXPATHLEN, "%s/%s/bin", scripts_path,
@@ -1661,7 +1773,7 @@ static int check_ev_match(char *dir_name, char *scriptname,
 			snprintf(evname, len + 1, "%s", p);
 
 			match = 0;
-			evlist__for_each(session->evlist, pos) {
+			evlist__for_each_entry(session->evlist, pos) {
 				if (!strcmp(perf_evsel__name(pos), evname)) {
 					match = 1;
 					break;
@@ -1863,7 +1975,7 @@ static int process_stat_round_event(struct perf_tool *tool __maybe_unused,
 	struct stat_round_event *round = &event->stat_round;
 	struct perf_evsel *counter;
 
-	evlist__for_each(session->evlist, counter) {
+	evlist__for_each_entry(session->evlist, counter) {
 		perf_stat_process_counter(&stat_config, counter);
 		process_stat(counter, round->time);
 	}
@@ -1959,6 +2071,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			.exit		 = perf_event__process_exit,
 			.fork		 = perf_event__process_fork,
 			.attr		 = process_attr,
+			.event_update   = perf_event__process_event_update,
 			.tracing_data	 = perf_event__process_tracing_data,
 			.build_id	 = perf_event__process_build_id,
 			.id_index	 = perf_event__process_id_index,
@@ -2002,13 +2115,15 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "file", "kallsyms pathname"),
 	OPT_BOOLEAN('G', "hide-call-graph", &no_callchain,
 		    "When printing symbols do not display call chain"),
-	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
-		    "Look for files with symbols relative to this directory"),
+	OPT_CALLBACK(0, "symfs", NULL, "directory",
+		     "Look for files with symbols relative to this directory",
+		     symbol__config_symfs),
 	OPT_CALLBACK('F', "fields", NULL, "str",
 		     "comma separated output fields prepend with 'type:'. "
 		     "Valid types: hw,sw,trace,raw. "
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
-		     "addr,symoff,period,iregs,brstack,brstacksym,flags", parse_output_fields),
+		     "addr,symoff,period,iregs,brstack,brstacksym,flags,"
+		     "bpf-output,callindent", parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
@@ -2020,6 +2135,10 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "only consider symbols in these pids"),
 	OPT_STRING(0, "tid", &symbol_conf.tid_list_str, "tid[,tid...]",
 		   "only consider symbols in these tids"),
+	OPT_UINTEGER(0, "max-stack", &scripting_max_stack,
+		     "Set the maximum stack depth when parsing the callchain, "
+		     "anything beyond the specified depth will be ignored. "
+		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_BOOLEAN('I', "show-info", &show_full_info,
 		    "display extended information from perf.data file"),
 	OPT_BOOLEAN('\0', "show-kernel-path", &symbol_conf.show_kernel_path,
@@ -2242,6 +2361,9 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	script.session = session;
 	script__setup_sample_type(&script);
+
+	if (output[PERF_TYPE_HARDWARE].fields & PERF_OUTPUT_CALLINDENT)
+		itrace_synth_opts.thread_stack = true;
 
 	session->itrace_synth_opts = &itrace_synth_opts;
 

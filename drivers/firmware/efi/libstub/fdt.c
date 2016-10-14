@@ -24,7 +24,7 @@ efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 			unsigned long map_size, unsigned long desc_size,
 			u32 desc_ver)
 {
-	int node, prev, num_rsv;
+	int node, num_rsv;
 	int status;
 	u32 fdt_val32;
 	u64 fdt_val64;
@@ -52,28 +52,6 @@ efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 
 	if (status != 0)
 		goto fdt_set_fail;
-
-	/*
-	 * Delete any memory nodes present. We must delete nodes which
-	 * early_init_dt_scan_memory may try to use.
-	 */
-	prev = 0;
-	for (;;) {
-		const char *type;
-		int len;
-
-		node = fdt_next_node(fdt, prev, NULL);
-		if (node < 0)
-			break;
-
-		type = fdt_getprop(fdt, node, "device_type", &len);
-		if (type && strncmp(type, "memory", len) == 0) {
-			fdt_del_node(fdt, node);
-			continue;
-		}
-
-		prev = node;
-	}
 
 	/*
 	 * Delete all memory reserve map entries. When booting via UEFI,
@@ -174,6 +152,27 @@ fdt_set_fail:
 #define EFI_FDT_ALIGN EFI_PAGE_SIZE
 #endif
 
+struct exit_boot_struct {
+	efi_memory_desc_t *runtime_map;
+	int *runtime_entry_count;
+};
+
+static efi_status_t exit_boot_func(efi_system_table_t *sys_table_arg,
+				   struct efi_boot_memmap *map,
+				   void *priv)
+{
+	struct exit_boot_struct *p = priv;
+	/*
+	 * Update the memory map with virtual addresses. The function will also
+	 * populate @runtime_map with copies of just the EFI_MEMORY_RUNTIME
+	 * entries so that we can pass it straight to SetVirtualAddressMap()
+	 */
+	efi_get_virtmap(*map->map, *map->map_size, *map->desc_size,
+			p->runtime_map, p->runtime_entry_count);
+
+	return EFI_SUCCESS;
+}
+
 /*
  * Allocate memory for a new FDT, then add EFI, commandline, and
  * initrd related fields to the FDT.  This routine increases the
@@ -197,13 +196,22 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 					    unsigned long fdt_addr,
 					    unsigned long fdt_size)
 {
-	unsigned long map_size, desc_size;
+	unsigned long map_size, desc_size, buff_size;
 	u32 desc_ver;
 	unsigned long mmap_key;
 	efi_memory_desc_t *memory_map, *runtime_map;
 	unsigned long new_fdt_size;
 	efi_status_t status;
 	int runtime_entry_count = 0;
+	struct efi_boot_memmap map;
+	struct exit_boot_struct priv;
+
+	map.map =	&runtime_map;
+	map.map_size =	&map_size;
+	map.desc_size =	&desc_size;
+	map.desc_ver =	&desc_ver;
+	map.key_ptr =	&mmap_key;
+	map.buff_size =	&buff_size;
 
 	/*
 	 * Get a copy of the current memory map that we will use to prepare
@@ -211,8 +219,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 	 * subsequent allocations adding entries, since they could not affect
 	 * the number of EFI_MEMORY_RUNTIME regions.
 	 */
-	status = efi_get_memory_map(sys_table, &runtime_map, &map_size,
-				    &desc_size, &desc_ver, &mmap_key);
+	status = efi_get_memory_map(sys_table, &map);
 	if (status != EFI_SUCCESS) {
 		pr_efi_err(sys_table, "Unable to retrieve UEFI memory map.\n");
 		return status;
@@ -221,6 +228,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 	pr_efi(sys_table,
 	       "Exiting boot services and installing virtual address map...\n");
 
+	map.map = &memory_map;
 	/*
 	 * Estimate size of new FDT, and allocate memory for it. We
 	 * will allocate a bigger buffer if this ends up being too
@@ -240,8 +248,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 		 * we can get the memory map key  needed for
 		 * exit_boot_services().
 		 */
-		status = efi_get_memory_map(sys_table, &memory_map, &map_size,
-					    &desc_size, &desc_ver, &mmap_key);
+		status = efi_get_memory_map(sys_table, &map);
 		if (status != EFI_SUCCESS)
 			goto fail_free_new_fdt;
 
@@ -272,16 +279,11 @@ efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,
 		}
 	}
 
-	/*
-	 * Update the memory map with virtual addresses. The function will also
-	 * populate @runtime_map with copies of just the EFI_MEMORY_RUNTIME
-	 * entries so that we can pass it straight into SetVirtualAddressMap()
-	 */
-	efi_get_virtmap(memory_map, map_size, desc_size, runtime_map,
-			&runtime_entry_count);
-
-	/* Now we are ready to exit_boot_services.*/
-	status = sys_table->boottime->exit_boot_services(handle, mmap_key);
+	sys_table->boottime->free_pool(memory_map);
+	priv.runtime_map = runtime_map;
+	priv.runtime_entry_count = &runtime_entry_count;
+	status = efi_exit_boot_services(sys_table, handle, &map, &priv,
+					exit_boot_func);
 
 	if (status == EFI_SUCCESS) {
 		efi_set_virtual_address_map_t *svam;

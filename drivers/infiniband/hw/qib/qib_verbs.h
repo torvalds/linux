@@ -159,6 +159,7 @@ struct qib_other_headers {
 		} at;
 		__be32 imm_data;
 		__be32 aeth;
+		__be32 ieth;
 		struct ib_atomic_eth atomic_eth;
 	} u;
 } __packed;
@@ -430,11 +431,11 @@ void qib_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 
 void qib_send_rc_ack(struct rvt_qp *qp);
 
-int qib_make_rc_req(struct rvt_qp *qp);
+int qib_make_rc_req(struct rvt_qp *qp, unsigned long *flags);
 
-int qib_make_uc_req(struct rvt_qp *qp);
+int qib_make_uc_req(struct rvt_qp *qp, unsigned long *flags);
 
-int qib_make_ud_req(struct rvt_qp *qp);
+int qib_make_ud_req(struct rvt_qp *qp, unsigned long *flags);
 
 int qib_register_ib_device(struct qib_devdata *);
 
@@ -495,5 +496,7 @@ extern unsigned int ib_qib_max_srq_sges;
 extern unsigned int ib_qib_max_srq_wrs;
 
 extern const u32 ib_qib_rnr_table[];
+
+extern const struct rvt_operation_params qib_post_parms[];
 
 #endif                          /* QIB_VERBS_H */

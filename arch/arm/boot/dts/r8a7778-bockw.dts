@@ -32,12 +32,12 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x10000000>;
 	};
 
-	fixedregulator3v3: fixedregulator@0 {
+	fixedregulator3v3: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-3.3V";
 		regulator-min-microvolt = <3300000>;
@@ -129,54 +129,54 @@
 	pinctrl-0 = <&scif_clk_pins>;
 	pinctrl-names = "default";
 
-	scif0_pins: serial0 {
-		renesas,groups = "scif0_data_a", "scif0_ctrl";
-		renesas,function = "scif0";
+	scif0_pins: scif0 {
+		groups = "scif0_data_a", "scif0_ctrl";
+		function = "scif0";
 	};
 
 	scif_clk_pins: scif_clk {
-		renesas,groups = "scif_clk";
-		renesas,function = "scif_clk";
+		groups = "scif_clk";
+		function = "scif_clk";
 	};
 
 	mmc_pins: mmc {
-		renesas,groups = "mmc_data8", "mmc_ctrl";
-		renesas,function = "mmc";
+		groups = "mmc_data8", "mmc_ctrl";
+		function = "mmc";
 	};
 
 	sdhi0_pins: sd0 {
-		renesas,groups = "sdhi0_data4", "sdhi0_ctrl";
-		renesas,function = "sdhi0";
+		groups = "sdhi0_data4", "sdhi0_ctrl";
+		function = "sdhi0";
 	};
 	sdhi0_pup_pins: sd0_pup {
-		renesas,groups = "sdhi0_cd", "sdhi0_wp";
-		renesas,function = "sdhi0";
+		groups = "sdhi0_cd", "sdhi0_wp";
+		function = "sdhi0";
 		bias-pull-up;
 	};
 
 	hspi0_pins: hspi0 {
-		renesas,groups = "hspi0_a";
-		renesas,function = "hspi0";
+		groups = "hspi0_a";
+		function = "hspi0";
 	};
 
 	usb0_pins: usb0 {
-		renesas,groups = "usb0";
-		renesas,function = "usb0";
+		groups = "usb0";
+		function = "usb0";
 	};
 
 	usb1_pins: usb1 {
-		renesas,groups = "usb1";
-		renesas,function = "usb1";
+		groups = "usb1";
+		function = "usb1";
 	};
 
 	vin0_pins: vin0 {
-		renesas,groups = "vin0_data8", "vin0_clk";
-		renesas,function = "vin0";
+		groups = "vin0_data8", "vin0_clk";
+		function = "vin0";
 	};
 
 	vin1_pins: vin1 {
-		renesas,groups = "vin1_data8", "vin1_clk";
-		renesas,function = "vin1";
+		groups = "vin1_data8", "vin1_clk";
+		function = "vin1";
 	};
 };
 
@@ -223,6 +223,7 @@
 	pinctrl-0 = <&scif0_pins>;
 	pinctrl-names = "default";
 
+	uart-has-rtscts;
 	status = "okay";
 };
 

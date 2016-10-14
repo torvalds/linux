@@ -33,9 +33,10 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/component.h>
-#include <video/omapdss.h>
+#include <linux/of.h>
 #include <sound/omap-hdmi-audio.h>
 
+#include "omapdss.h"
 #include "hdmi4_core.h"
 #include "dss.h"
 #include "dss_features.h"
@@ -100,7 +101,6 @@ static irqreturn_t hdmi_irq_handler(int irq, void *data)
 
 static int hdmi_init_regulator(void)
 {
-	int r;
 	struct regulator *reg;
 
 	if (hdmi.vdda_reg != NULL)
@@ -112,15 +112,6 @@ static int hdmi_init_regulator(void)
 		if (PTR_ERR(reg) != -EPROBE_DEFER)
 			DSSERR("can't get VDDA regulator\n");
 		return PTR_ERR(reg);
-	}
-
-	if (regulator_can_change_voltage(reg)) {
-		r = regulator_set_voltage(reg, 1800000, 1800000);
-		if (r) {
-			devm_regulator_put(reg);
-			DSSWARN("can't set the regulator voltage\n");
-			return r;
-		}
 	}
 
 	hdmi.vdda_reg = reg;
@@ -186,7 +177,11 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	if (p->double_pixel)
 		pc *= 2;
 
-	hdmi_pll_compute(&hdmi.pll, pc, &hdmi_cinfo);
+	/* DSS_HDMI_TCLK is bitclk / 10 */
+	pc *= 10;
+
+	dss_pll_calc_b(&hdmi.pll.pll, clk_get_rate(hdmi.pll.pll.clkin),
+		pc, &hdmi_cinfo);
 
 	r = dss_pll_enable(&hdmi.pll.pll);
 	if (r) {
@@ -212,9 +207,6 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 		goto err_phy_pwr;
 
 	hdmi4_configure(&hdmi.core, &hdmi.wp, &hdmi.cfg);
-
-	/* bypass TV gamma table */
-	dispc_enable_gamma_table(0);
 
 	/* tv size */
 	dss_mgr_set_timings(channel, p);

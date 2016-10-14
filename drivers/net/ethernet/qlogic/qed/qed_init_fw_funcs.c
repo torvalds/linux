@@ -31,7 +31,6 @@ enum cminterface {
 };
 
 /* general constants */
-#define QM_PQ_ELEMENT_SIZE                      4 /* in bytes */
 #define QM_PQ_MEM_4KB(pq_size)	(pq_size ? DIV_ROUND_UP((pq_size + 1) *	\
 							QM_PQ_ELEMENT_SIZE, \
 							0x1000) : 0)
@@ -44,28 +43,28 @@ enum cminterface {
 /* other PQ constants */
 #define QM_OTHER_PQS_PER_PF                     4
 /* WFQ constants */
-#define QM_WFQ_UPPER_BOUND		6250000
+#define QM_WFQ_UPPER_BOUND		62500000
 #define QM_WFQ_VP_PQ_VOQ_SHIFT          0
 #define QM_WFQ_VP_PQ_PF_SHIFT           5
 #define QM_WFQ_INC_VAL(weight)          ((weight) * 0x9000)
-#define QM_WFQ_MAX_INC_VAL                      4375000
-#define QM_WFQ_INIT_CRD(inc_val)        (2 * (inc_val))
+#define QM_WFQ_MAX_INC_VAL                      43750000
+
 /* RL constants */
-#define QM_RL_UPPER_BOUND                       6250000
+#define QM_RL_UPPER_BOUND                       62500000
 #define QM_RL_PERIOD                            5               /* in us */
 #define QM_RL_PERIOD_CLK_25M            (25 * QM_RL_PERIOD)
+#define QM_RL_MAX_INC_VAL                       43750000
 #define QM_RL_INC_VAL(rate)		max_t(u32,	\
-					      (((rate ? rate : 1000000)	\
-						* QM_RL_PERIOD) / 8), 1)
-#define QM_RL_MAX_INC_VAL                       4375000
+					      (u32)(((rate ? rate : \
+						      1000000) *    \
+						     QM_RL_PERIOD * \
+						     101) / (8 * 100)), 1)
 /* AFullOprtnstcCrdMask constants */
 #define QM_OPPOR_LINE_VOQ_DEF           1
 #define QM_OPPOR_FW_STOP_DEF            0
 #define QM_OPPOR_PQ_EMPTY_DEF           1
-#define EAGLE_WORKAROUND_TC                     7
 /* Command Queue constants */
 #define PBF_CMDQ_PURE_LB_LINES                          150
-#define PBF_CMDQ_EAGLE_WORKAROUND_LINES         8
 #define PBF_CMDQ_LINES_RT_OFFSET(voq)           (		 \
 		PBF_REG_YCMD_QS_NUM_LINES_VOQ0_RT_OFFSET + voq * \
 		(PBF_REG_YCMD_QS_NUM_LINES_VOQ1_RT_OFFSET -	 \
@@ -80,7 +79,6 @@ enum cminterface {
 /* BTB: blocks constants (block size = 256B) */
 #define BTB_JUMBO_PKT_BLOCKS            38
 #define BTB_HEADROOM_BLOCKS                     BTB_JUMBO_PKT_BLOCKS
-#define BTB_EAGLE_WORKAROUND_BLOCKS     4
 #define BTB_PURE_LB_FACTOR                      10
 #define BTB_PURE_LB_RATIO                       7
 /* QM stop command constants */
@@ -107,9 +105,9 @@ enum cminterface {
 						 cmd ## _ ## field,	  \
 						 value)
 /* QM: VOQ macros */
-#define PHYS_VOQ(port, tc, max_phy_tcs_pr_port)	((port) *	\
-						 (max_phy_tcs_pr_port) \
-						 + (tc))
+#define PHYS_VOQ(port, tc, max_phys_tcs_per_port) ((port) *	\
+						   (max_phys_tcs_per_port) + \
+						   (tc))
 #define LB_VOQ(port)				( \
 		MAX_PHYS_VOQS + (port))
 #define VOQ(port, tc, max_phy_tcs_pr_port)	\
@@ -120,8 +118,7 @@ enum cminterface {
 		: LB_VOQ(port))
 /******************** INTERNAL IMPLEMENTATION *********************/
 /* Prepare PF RL enable/disable runtime init values */
-static void qed_enable_pf_rl(struct qed_hwfn *p_hwfn,
-			     bool pf_rl_en)
+static void qed_enable_pf_rl(struct qed_hwfn *p_hwfn, bool pf_rl_en)
 {
 	STORE_RT_REG(p_hwfn, QM_REG_RLPFENABLE_RT_OFFSET, pf_rl_en ? 1 : 0);
 	if (pf_rl_en) {
@@ -130,8 +127,7 @@ static void qed_enable_pf_rl(struct qed_hwfn *p_hwfn,
 			     (1 << MAX_NUM_VOQS) - 1);
 		/* write RL period */
 		STORE_RT_REG(p_hwfn,
-			     QM_REG_RLPFPERIOD_RT_OFFSET,
-			     QM_RL_PERIOD_CLK_25M);
+			     QM_REG_RLPFPERIOD_RT_OFFSET, QM_RL_PERIOD_CLK_25M);
 		STORE_RT_REG(p_hwfn,
 			     QM_REG_RLPFPERIODTIMER_RT_OFFSET,
 			     QM_RL_PERIOD_CLK_25M);
@@ -144,8 +140,7 @@ static void qed_enable_pf_rl(struct qed_hwfn *p_hwfn,
 }
 
 /* Prepare PF WFQ enable/disable runtime init values */
-static void qed_enable_pf_wfq(struct qed_hwfn *p_hwfn,
-			      bool pf_wfq_en)
+static void qed_enable_pf_wfq(struct qed_hwfn *p_hwfn, bool pf_wfq_en)
 {
 	STORE_RT_REG(p_hwfn, QM_REG_WFQPFENABLE_RT_OFFSET, pf_wfq_en ? 1 : 0);
 	/* set credit threshold for QM bypass flow */
@@ -156,8 +151,7 @@ static void qed_enable_pf_wfq(struct qed_hwfn *p_hwfn,
 }
 
 /* Prepare VPORT RL enable/disable runtime init values */
-static void qed_enable_vport_rl(struct qed_hwfn *p_hwfn,
-				bool vport_rl_en)
+static void qed_enable_vport_rl(struct qed_hwfn *p_hwfn, bool vport_rl_en)
 {
 	STORE_RT_REG(p_hwfn, QM_REG_RLGLBLENABLE_RT_OFFSET,
 		     vport_rl_en ? 1 : 0);
@@ -178,8 +172,7 @@ static void qed_enable_vport_rl(struct qed_hwfn *p_hwfn,
 }
 
 /* Prepare VPORT WFQ enable/disable runtime init values */
-static void qed_enable_vport_wfq(struct qed_hwfn *p_hwfn,
-				 bool vport_wfq_en)
+static void qed_enable_vport_wfq(struct qed_hwfn *p_hwfn, bool vport_wfq_en)
 {
 	STORE_RT_REG(p_hwfn, QM_REG_WFQVPENABLE_RT_OFFSET,
 		     vport_wfq_en ? 1 : 0);
@@ -194,8 +187,7 @@ static void qed_enable_vport_wfq(struct qed_hwfn *p_hwfn,
  * the specified VOQ
  */
 static void qed_cmdq_lines_voq_rt_init(struct qed_hwfn *p_hwfn,
-				       u8 voq,
-				       u16 cmdq_lines)
+				       u8 voq, u16 cmdq_lines)
 {
 	u32 qm_line_crd;
 
@@ -221,7 +213,7 @@ static void qed_cmdq_lines_rt_init(
 	u8 max_phys_tcs_per_port,
 	struct init_qm_port_params port_params[MAX_NUM_PORTS])
 {
-	u8 tc, voq, port_id;
+	u8 tc, voq, port_id, num_tcs_in_port;
 
 	/* clear PBF lines for all VOQs */
 	for (voq = 0; voq < MAX_NUM_VOQS; voq++)
@@ -229,22 +221,31 @@ static void qed_cmdq_lines_rt_init(
 	for (port_id = 0; port_id < max_ports_per_engine; port_id++) {
 		if (port_params[port_id].active) {
 			u16 phys_lines, phys_lines_per_tc;
-			u8 phys_tcs = port_params[port_id].num_active_phys_tcs;
 
-			/* find #lines to divide between the active
-			 * physical TCs.
-			 */
+			/* find #lines to divide between active phys TCs */
 			phys_lines = port_params[port_id].num_pbf_cmd_lines -
 				     PBF_CMDQ_PURE_LB_LINES;
 			/* find #lines per active physical TC */
-			phys_lines_per_tc = phys_lines / phys_tcs;
+			num_tcs_in_port = 0;
+			for (tc = 0; tc < NUM_OF_PHYS_TCS; tc++) {
+				if (((port_params[port_id].active_phys_tcs >>
+				      tc) & 0x1) == 1)
+					num_tcs_in_port++;
+			}
+
+			phys_lines_per_tc = phys_lines / num_tcs_in_port;
 			/* init registers per active TC */
-			for (tc = 0; tc < phys_tcs; tc++) {
+			for (tc = 0; tc < NUM_OF_PHYS_TCS; tc++) {
+				if (((port_params[port_id].active_phys_tcs >>
+				      tc) & 0x1) != 1)
+					continue;
+
 				voq = PHYS_VOQ(port_id, tc,
 					       max_phys_tcs_per_port);
 				qed_cmdq_lines_voq_rt_init(p_hwfn, voq,
 							   phys_lines_per_tc);
 			}
+
 			/* init registers for pure LB TC */
 			qed_cmdq_lines_voq_rt_init(p_hwfn, LB_VOQ(port_id),
 						   PBF_CMDQ_PURE_LB_LINES);
@@ -259,34 +260,42 @@ static void qed_btb_blocks_rt_init(
 	struct init_qm_port_params port_params[MAX_NUM_PORTS])
 {
 	u32 usable_blocks, pure_lb_blocks, phys_blocks;
-	u8 tc, voq, port_id;
+	u8 tc, voq, port_id, num_tcs_in_port;
 
 	for (port_id = 0; port_id < max_ports_per_engine; port_id++) {
 		u32 temp;
-		u8 phys_tcs;
 
 		if (!port_params[port_id].active)
 			continue;
-
-		phys_tcs = port_params[port_id].num_active_phys_tcs;
 
 		/* subtract headroom blocks */
 		usable_blocks = port_params[port_id].num_btb_blocks -
 				BTB_HEADROOM_BLOCKS;
 
-		/* find blocks per physical TC. use factor to avoid
-		 * floating arithmethic.
-		 */
+		/* find blocks per physical TC */
+		num_tcs_in_port = 0;
+		for (tc = 0; tc < NUM_OF_PHYS_TCS; tc++) {
+			if (((port_params[port_id].active_phys_tcs >>
+			      tc) & 0x1) == 1)
+				num_tcs_in_port++;
+		}
+
 		pure_lb_blocks = (usable_blocks * BTB_PURE_LB_FACTOR) /
-				 (phys_tcs * BTB_PURE_LB_FACTOR +
+				 (num_tcs_in_port * BTB_PURE_LB_FACTOR +
 				  BTB_PURE_LB_RATIO);
 		pure_lb_blocks = max_t(u32, BTB_JUMBO_PKT_BLOCKS,
 				       pure_lb_blocks / BTB_PURE_LB_FACTOR);
-		phys_blocks = (usable_blocks - pure_lb_blocks) / phys_tcs;
+		phys_blocks = (usable_blocks - pure_lb_blocks) /
+			      num_tcs_in_port;
 
 		/* init physical TCs */
-		for (tc = 0; tc < phys_tcs; tc++) {
-			voq = PHYS_VOQ(port_id, tc, max_phys_tcs_per_port);
+		for (tc = 0; tc < NUM_OF_PHYS_TCS; tc++) {
+			if (((port_params[port_id].active_phys_tcs >>
+			      tc) & 0x1) != 1)
+				continue;
+
+			voq = PHYS_VOQ(port_id, tc,
+				       max_phys_tcs_per_port);
 			STORE_RT_REG(p_hwfn, PBF_BTB_GUARANTEED_RT_OFFSET(voq),
 				     phys_blocks);
 		}
@@ -360,10 +369,11 @@ static void qed_tx_pq_map_rt_init(
 		memset(&tx_pq_map, 0, sizeof(tx_pq_map));
 		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_PQ_VALID, 1);
 		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_RL_VALID,
-			  is_vf_pq ? 1 : 0);
+			  p_params->pq_params[i].rl_valid ? 1 : 0);
 		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_VP_PQ_ID, first_tx_pq_id);
 		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_RL_ID,
-			  is_vf_pq ? p_params->pq_params[i].vport_id : 0);
+			  p_params->pq_params[i].rl_valid ?
+			  p_params->pq_params[i].vport_id : 0);
 		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_VOQ, voq);
 		SET_FIELD(tx_pq_map.reg, QM_RF_PQ_MAP_WRR_WEIGHT_GROUP,
 			  p_params->pq_params[i].wrr_group);
@@ -390,25 +400,11 @@ static void qed_tx_pq_map_rt_init(
 	/* store Tx PQ VF mask to size select register */
 	for (i = 0; i < num_tx_pq_vf_masks; i++) {
 		if (tx_pq_vf_mask[i]) {
-			if (is_bb_a0) {
-				u32 curr_mask = 0, addr;
+			u32 addr;
 
-				addr = QM_REG_MAXPQSIZETXSEL_0 + (i * 4);
-				if (!p_params->is_first_pf)
-					curr_mask = qed_rd(p_hwfn, p_ptt,
-							   addr);
-
-				addr = QM_REG_MAXPQSIZETXSEL_0_RT_OFFSET + i;
-
-				STORE_RT_REG(p_hwfn, addr,
-					     curr_mask | tx_pq_vf_mask[i]);
-			} else {
-				u32 addr;
-
-				addr = QM_REG_MAXPQSIZETXSEL_0_RT_OFFSET + i;
-				STORE_RT_REG(p_hwfn, addr,
-					     tx_pq_vf_mask[i]);
-			}
+			addr = QM_REG_MAXPQSIZETXSEL_0_RT_OFFSET + i;
+			STORE_RT_REG(p_hwfn, addr,
+				     tx_pq_vf_mask[i]);
 		}
 	}
 }
@@ -418,8 +414,7 @@ static void qed_other_pq_map_rt_init(struct qed_hwfn *p_hwfn,
 				     u8 port_id,
 				     u8 pf_id,
 				     u32 num_pf_cids,
-				     u32 num_tids,
-				     u32 base_mem_addr_4kb)
+				     u32 num_tids, u32 base_mem_addr_4kb)
 {
 	u16 i, pq_id;
 
@@ -465,15 +460,10 @@ static int qed_pf_wfq_rt_init(struct qed_hwfn *p_hwfn,
 				 (p_params->pf_id % MAX_NUM_PFS_BB);
 
 	inc_val = QM_WFQ_INC_VAL(p_params->pf_wfq);
-	if (inc_val > QM_WFQ_MAX_INC_VAL) {
+	if (!inc_val || inc_val > QM_WFQ_MAX_INC_VAL) {
 		DP_NOTICE(p_hwfn, "Invalid PF WFQ weight configuration");
 		return -1;
 	}
-	STORE_RT_REG(p_hwfn, QM_REG_WFQPFWEIGHT_RT_OFFSET + p_params->pf_id,
-		     inc_val);
-	STORE_RT_REG(p_hwfn,
-		     QM_REG_WFQPFUPPERBOUND_RT_OFFSET + p_params->pf_id,
-		     QM_WFQ_UPPER_BOUND | QM_WFQ_CRD_REG_SIGN_BIT);
 
 	for (i = 0; i < num_tx_pqs; i++) {
 		u8 voq = VOQ(p_params->port_id, p_params->pq_params[i].tc_id,
@@ -481,19 +471,21 @@ static int qed_pf_wfq_rt_init(struct qed_hwfn *p_hwfn,
 
 		OVERWRITE_RT_REG(p_hwfn,
 				 crd_reg_offset + voq * MAX_NUM_PFS_BB,
-				 QM_WFQ_INIT_CRD(inc_val) |
 				 QM_WFQ_CRD_REG_SIGN_BIT);
 	}
 
+	STORE_RT_REG(p_hwfn, QM_REG_WFQPFWEIGHT_RT_OFFSET + p_params->pf_id,
+		     inc_val);
+	STORE_RT_REG(p_hwfn,
+		     QM_REG_WFQPFUPPERBOUND_RT_OFFSET + p_params->pf_id,
+		     QM_WFQ_UPPER_BOUND | QM_WFQ_CRD_REG_SIGN_BIT);
 	return 0;
 }
 
 /* Prepare PF RL runtime init values for the specified PF.
  * Return -1 on error.
  */
-static int qed_pf_rl_rt_init(struct qed_hwfn *p_hwfn,
-			     u8 pf_id,
-			     u32 pf_rl)
+static int qed_pf_rl_rt_init(struct qed_hwfn *p_hwfn, u8 pf_id, u32 pf_rl)
 {
 	u32 inc_val = QM_RL_INC_VAL(pf_rl);
 
@@ -607,9 +599,7 @@ static bool qed_poll_on_qm_cmd_ready(struct qed_hwfn *p_hwfn,
 
 static bool qed_send_qm_cmd(struct qed_hwfn *p_hwfn,
 			    struct qed_ptt *p_ptt,
-			    u32 cmd_addr,
-			    u32 cmd_data_lsb,
-			    u32 cmd_data_msb)
+			    u32 cmd_addr, u32 cmd_data_lsb, u32 cmd_data_msb)
 {
 	if (!qed_poll_on_qm_cmd_ready(p_hwfn, p_ptt))
 		return false;
@@ -627,9 +617,7 @@ static bool qed_send_qm_cmd(struct qed_hwfn *p_hwfn,
 u32 qed_qm_pf_mem_size(u8 pf_id,
 		       u32 num_pf_cids,
 		       u32 num_vf_cids,
-		       u32 num_tids,
-		       u16 num_pf_pqs,
-		       u16 num_vf_pqs)
+		       u32 num_tids, u16 num_pf_pqs, u16 num_vf_pqs)
 {
 	return QM_PQ_MEM_4KB(num_pf_cids) * num_pf_pqs +
 	       QM_PQ_MEM_4KB(num_vf_cids) * num_vf_pqs +
@@ -712,10 +700,22 @@ int qed_qm_pf_rt_init(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+int qed_init_pf_wfq(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt, u8 pf_id, u16 pf_wfq)
+{
+	u32 inc_val = QM_WFQ_INC_VAL(pf_wfq);
+
+	if (!inc_val || inc_val > QM_WFQ_MAX_INC_VAL) {
+		DP_NOTICE(p_hwfn, "Invalid PF WFQ weight configuration");
+		return -1;
+	}
+
+	qed_wr(p_hwfn, p_ptt, QM_REG_WFQPFWEIGHT + pf_id * 4, inc_val);
+	return 0;
+}
+
 int qed_init_pf_rl(struct qed_hwfn *p_hwfn,
-		   struct qed_ptt *p_ptt,
-		   u8 pf_id,
-		   u32 pf_rl)
+		   struct qed_ptt *p_ptt, u8 pf_id, u32 pf_rl)
 {
 	u32 inc_val = QM_RL_INC_VAL(pf_rl);
 
@@ -732,10 +732,32 @@ int qed_init_pf_rl(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+int qed_init_vport_wfq(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt,
+		       u16 first_tx_pq_id[NUM_OF_TCS], u16 vport_wfq)
+{
+	u32 inc_val = QM_WFQ_INC_VAL(vport_wfq);
+	u8 tc;
+
+	if (!inc_val || inc_val > QM_WFQ_MAX_INC_VAL) {
+		DP_NOTICE(p_hwfn, "Invalid VPORT WFQ weight configuration");
+		return -1;
+	}
+
+	for (tc = 0; tc < NUM_OF_TCS; tc++) {
+		u16 vport_pq_id = first_tx_pq_id[tc];
+
+		if (vport_pq_id != QM_INVALID_PQ_ID)
+			qed_wr(p_hwfn, p_ptt,
+			       QM_REG_WFQVPWEIGHT + vport_pq_id * 4,
+			       inc_val);
+	}
+
+	return 0;
+}
+
 int qed_init_vport_rl(struct qed_hwfn *p_hwfn,
-		      struct qed_ptt *p_ptt,
-		      u8 vport_id,
-		      u32 vport_rl)
+		      struct qed_ptt *p_ptt, u8 vport_id, u32 vport_rl)
 {
 	u32 inc_val = QM_RL_INC_VAL(vport_rl);
 
@@ -755,9 +777,7 @@ int qed_init_vport_rl(struct qed_hwfn *p_hwfn,
 bool qed_send_qm_stop_cmd(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt,
 			  bool is_release_cmd,
-			  bool is_tx_pq,
-			  u16 start_pq,
-			  u16 num_pqs)
+			  bool is_tx_pq, u16 start_pq, u16 num_pqs)
 {
 	u32 cmd_arr[QM_CMD_STRUCT_SIZE(QM_STOP_CMD)] = { 0 };
 	u32 pq_mask = 0, last_pq = start_pq + num_pqs - 1, pq_id;
@@ -787,4 +807,127 @@ bool qed_send_qm_stop_cmd(struct qed_hwfn *p_hwfn,
 	}
 
 	return true;
+}
+
+static void
+qed_set_tunnel_type_enable_bit(unsigned long *var, int bit, bool enable)
+{
+	if (enable)
+		set_bit(bit, var);
+	else
+		clear_bit(bit, var);
+}
+
+#define PRS_ETH_TUNN_FIC_FORMAT	-188897008
+
+void qed_set_vxlan_dest_port(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt *p_ptt, u16 dest_port)
+{
+	qed_wr(p_hwfn, p_ptt, PRS_REG_VXLAN_PORT, dest_port);
+	qed_wr(p_hwfn, p_ptt, NIG_REG_VXLAN_CTRL, dest_port);
+	qed_wr(p_hwfn, p_ptt, PBF_REG_VXLAN_PORT, dest_port);
+}
+
+void qed_set_vxlan_enable(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, bool vxlan_enable)
+{
+	unsigned long reg_val = 0;
+	u8 shift;
+
+	reg_val = qed_rd(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN);
+	shift = PRS_REG_ENCAPSULATION_TYPE_EN_VXLAN_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, vxlan_enable);
+
+	qed_wr(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN, reg_val);
+
+	if (reg_val)
+		qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0,
+		       PRS_ETH_TUNN_FIC_FORMAT);
+
+	reg_val = qed_rd(p_hwfn, p_ptt, NIG_REG_ENC_TYPE_ENABLE);
+	shift = NIG_REG_ENC_TYPE_ENABLE_VXLAN_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, vxlan_enable);
+
+	qed_wr(p_hwfn, p_ptt, NIG_REG_ENC_TYPE_ENABLE, reg_val);
+
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_VXLAN_EN,
+	       vxlan_enable ? 1 : 0);
+}
+
+void qed_set_gre_enable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			bool eth_gre_enable, bool ip_gre_enable)
+{
+	unsigned long reg_val = 0;
+	u8 shift;
+
+	reg_val = qed_rd(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN);
+	shift = PRS_REG_ENCAPSULATION_TYPE_EN_ETH_OVER_GRE_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, eth_gre_enable);
+
+	shift = PRS_REG_ENCAPSULATION_TYPE_EN_IP_OVER_GRE_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, ip_gre_enable);
+	qed_wr(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN, reg_val);
+	if (reg_val)
+		qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0,
+		       PRS_ETH_TUNN_FIC_FORMAT);
+
+	reg_val = qed_rd(p_hwfn, p_ptt, NIG_REG_ENC_TYPE_ENABLE);
+	shift = NIG_REG_ENC_TYPE_ENABLE_ETH_OVER_GRE_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, eth_gre_enable);
+
+	shift = NIG_REG_ENC_TYPE_ENABLE_IP_OVER_GRE_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, ip_gre_enable);
+	qed_wr(p_hwfn, p_ptt, NIG_REG_ENC_TYPE_ENABLE, reg_val);
+
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_GRE_ETH_EN,
+	       eth_gre_enable ? 1 : 0);
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_GRE_IP_EN,
+	       ip_gre_enable ? 1 : 0);
+}
+
+void qed_set_geneve_dest_port(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt, u16 dest_port)
+{
+	qed_wr(p_hwfn, p_ptt, PRS_REG_NGE_PORT, dest_port);
+	qed_wr(p_hwfn, p_ptt, NIG_REG_NGE_PORT, dest_port);
+	qed_wr(p_hwfn, p_ptt, PBF_REG_NGE_PORT, dest_port);
+}
+
+void qed_set_geneve_enable(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt,
+			   bool eth_geneve_enable, bool ip_geneve_enable)
+{
+	unsigned long reg_val = 0;
+	u8 shift;
+
+	reg_val = qed_rd(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN);
+	shift = PRS_REG_ENCAPSULATION_TYPE_EN_ETH_OVER_GENEVE_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, eth_geneve_enable);
+
+	shift = PRS_REG_ENCAPSULATION_TYPE_EN_IP_OVER_GENEVE_ENABLE_SHIFT;
+	qed_set_tunnel_type_enable_bit(&reg_val, shift, ip_geneve_enable);
+
+	qed_wr(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN, reg_val);
+	if (reg_val)
+		qed_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0,
+		       PRS_ETH_TUNN_FIC_FORMAT);
+
+	qed_wr(p_hwfn, p_ptt, NIG_REG_NGE_ETH_ENABLE,
+	       eth_geneve_enable ? 1 : 0);
+	qed_wr(p_hwfn, p_ptt, NIG_REG_NGE_IP_ENABLE, ip_geneve_enable ? 1 : 0);
+
+	/* comp ver */
+	reg_val = (ip_geneve_enable || eth_geneve_enable) ? 1 : 0;
+	qed_wr(p_hwfn, p_ptt, NIG_REG_NGE_COMP_VER, reg_val);
+	qed_wr(p_hwfn, p_ptt, PBF_REG_NGE_COMP_VER, reg_val);
+	qed_wr(p_hwfn, p_ptt, PRS_REG_NGE_COMP_VER, reg_val);
+
+	/* EDPM with geneve tunnel not supported in BB_B0 */
+	if (QED_IS_BB_B0(p_hwfn->cdev))
+		return;
+
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_NGE_ETH_EN,
+	       eth_geneve_enable ? 1 : 0);
+	qed_wr(p_hwfn, p_ptt, DORQ_REG_L2_EDPM_TUNNEL_NGE_IP_EN,
+	       ip_geneve_enable ? 1 : 0);
 }

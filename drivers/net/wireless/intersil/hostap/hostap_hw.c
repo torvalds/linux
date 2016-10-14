@@ -1794,7 +1794,7 @@ static int prism2_transmit(struct net_device *dev, int idx)
 		netif_wake_queue(dev);
 		return -1;
 	}
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	/* Since we did not wait for command completion, the card continues
 	 * to process on the background and we will finish handling when

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -111,7 +107,7 @@ cfs_wi_sched_cansleep(struct cfs_wi_sched *sched)
  * 1. when it returns no one shall try to schedule the workitem.
  */
 void
-cfs_wi_exit(struct cfs_wi_sched *sched, cfs_workitem_t *wi)
+cfs_wi_exit(struct cfs_wi_sched *sched, struct cfs_workitem *wi)
 {
 	LASSERT(!in_interrupt()); /* because we use plain spinlock */
 	LASSERT(!sched->ws_stopping);
@@ -138,7 +134,7 @@ EXPORT_SYMBOL(cfs_wi_exit);
  * cancel schedule request of workitem \a wi
  */
 int
-cfs_wi_deschedule(struct cfs_wi_sched *sched, cfs_workitem_t *wi)
+cfs_wi_deschedule(struct cfs_wi_sched *sched, struct cfs_workitem *wi)
 {
 	int	rc;
 
@@ -179,7 +175,7 @@ EXPORT_SYMBOL(cfs_wi_deschedule);
  * be added, and even dynamic creation of serialised queues might be supported.
  */
 void
-cfs_wi_schedule(struct cfs_wi_sched *sched, cfs_workitem_t *wi)
+cfs_wi_schedule(struct cfs_wi_sched *sched, struct cfs_workitem *wi)
 {
 	LASSERT(!in_interrupt()); /* because we use plain spinlock */
 	LASSERT(!sched->ws_stopping);
@@ -229,12 +225,12 @@ static int cfs_wi_scheduler(void *arg)
 	while (!sched->ws_stopping) {
 		int	     nloops = 0;
 		int	     rc;
-		cfs_workitem_t *wi;
+		struct cfs_workitem *wi;
 
 		while (!list_empty(&sched->ws_runq) &&
 		       nloops < CFS_WI_RESCHED) {
-			wi = list_entry(sched->ws_runq.next, cfs_workitem_t,
-					wi_list);
+			wi = list_entry(sched->ws_runq.next,
+					struct cfs_workitem, wi_list);
 			LASSERT(wi->wi_scheduled && !wi->wi_running);
 
 			list_del_init(&wi->wi_list);

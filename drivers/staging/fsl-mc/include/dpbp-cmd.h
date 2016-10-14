@@ -1,4 +1,4 @@
-/* Copyright 2013-2014 Freescale Semiconductor Inc.
+/* Copyright 2013-2016 Freescale Semiconductor Inc.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are met:
@@ -34,7 +34,7 @@
 
 /* DPBP Version */
 #define DPBP_VER_MAJOR				2
-#define DPBP_VER_MINOR				1
+#define DPBP_VER_MINOR				2
 
 /* Command IDs */
 #define DPBP_CMDID_CLOSE				0x800
@@ -56,5 +56,130 @@
 #define DPBP_CMDID_GET_IRQ_MASK				0x015
 #define DPBP_CMDID_GET_IRQ_STATUS			0x016
 #define DPBP_CMDID_CLEAR_IRQ_STATUS			0x017
+
+#define DPBP_CMDID_SET_NOTIFICATIONS		0x01b0
+#define DPBP_CMDID_GET_NOTIFICATIONS		0x01b1
+
+struct dpbp_cmd_open {
+	__le32 dpbp_id;
+};
+
+#define DPBP_ENABLE			0x1
+
+struct dpbp_rsp_is_enabled {
+	u8 enabled;
+};
+
+struct dpbp_cmd_set_irq {
+	/* cmd word 0 */
+	u8 irq_index;
+	u8 pad[3];
+	__le32 irq_val;
+	/* cmd word 1 */
+	__le64 irq_addr;
+	/* cmd word 2 */
+	__le32 irq_num;
+};
+
+struct dpbp_cmd_get_irq {
+	__le32 pad;
+	u8 irq_index;
+};
+
+struct dpbp_rsp_get_irq {
+	/* response word 0 */
+	__le32 irq_val;
+	__le32 pad;
+	/* response word 1 */
+	__le64 irq_addr;
+	/* response word 2 */
+	__le32 irq_num;
+	__le32 type;
+};
+
+struct dpbp_cmd_set_irq_enable {
+	u8 enable;
+	u8 pad[3];
+	u8 irq_index;
+};
+
+struct dpbp_cmd_get_irq_enable {
+	__le32 pad;
+	u8 irq_index;
+};
+
+struct dpbp_rsp_get_irq_enable {
+	u8 enabled;
+};
+
+struct dpbp_cmd_set_irq_mask {
+	__le32 mask;
+	u8 irq_index;
+};
+
+struct dpbp_cmd_get_irq_mask {
+	__le32 pad;
+	u8 irq_index;
+};
+
+struct dpbp_rsp_get_irq_mask {
+	__le32 mask;
+};
+
+struct dpbp_cmd_get_irq_status {
+	__le32 status;
+	u8 irq_index;
+};
+
+struct dpbp_rsp_get_irq_status {
+	__le32 status;
+};
+
+struct dpbp_cmd_clear_irq_status {
+	__le32 status;
+	u8 irq_index;
+};
+
+struct dpbp_rsp_get_attributes {
+	/* response word 0 */
+	__le16 pad;
+	__le16 bpid;
+	__le32 id;
+	/* response word 1 */
+	__le16 version_major;
+	__le16 version_minor;
+};
+
+struct dpbp_cmd_set_notifications {
+	/* cmd word 0 */
+	__le32 depletion_entry;
+	__le32 depletion_exit;
+	/* cmd word 1 */
+	__le32 surplus_entry;
+	__le32 surplus_exit;
+	/* cmd word 2 */
+	__le16 options;
+	__le16 pad[3];
+	/* cmd word 3 */
+	__le64 message_ctx;
+	/* cmd word 4 */
+	__le64 message_iova;
+};
+
+struct dpbp_rsp_get_notifications {
+	/* response word 0 */
+	__le32 depletion_entry;
+	__le32 depletion_exit;
+	/* response word 1 */
+	__le32 surplus_entry;
+	__le32 surplus_exit;
+	/* response word 2 */
+	__le16 options;
+	__le16 pad[3];
+	/* response word 3 */
+	__le64 message_ctx;
+	/* response word 4 */
+	__le64 message_iova;
+};
 
 #endif /* _FSL_DPBP_CMD_H */

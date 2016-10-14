@@ -378,8 +378,7 @@ static void acpi_table_attr_init(struct acpi_table_attr *table_attr,
 	return;
 }
 
-static acpi_status
-acpi_sysfs_table_handler(u32 event, void *table, void *context)
+acpi_status acpi_sysfs_table_handler(u32 event, void *table, void *context)
 {
 	struct acpi_table_attr *table_attr;
 
@@ -452,9 +451,8 @@ static int acpi_tables_sysfs_init(void)
 
 	kobject_uevent(tables_kobj, KOBJ_ADD);
 	kobject_uevent(dynamic_tables_kobj, KOBJ_ADD);
-	status = acpi_install_table_handler(acpi_sysfs_table_handler, NULL);
 
-	return ACPI_FAILURE(status) ? -EINVAL : 0;
+	return 0;
 err_dynamic_tables:
 	kobject_put(tables_kobj);
 err:
@@ -555,23 +553,22 @@ static void acpi_global_event_handler(u32 event_type, acpi_handle device,
 static int get_status(u32 index, acpi_event_status *status,
 		      acpi_handle *handle)
 {
-	int result = 0;
+	int result;
 
 	if (index >= num_gpes + ACPI_NUM_FIXED_EVENTS)
-		goto end;
+		return -EINVAL;
 
 	if (index < num_gpes) {
 		result = acpi_get_gpe_device(index, handle);
 		if (result) {
 			ACPI_EXCEPTION((AE_INFO, AE_NOT_FOUND,
 					"Invalid GPE 0x%x", index));
-			goto end;
+			return result;
 		}
 		result = acpi_get_gpe_status(*handle, index, status);
 	} else if (index < (num_gpes + ACPI_NUM_FIXED_EVENTS))
 		result = acpi_get_event_status(index - num_gpes, status);
 
-end:
 	return result;
 }
 

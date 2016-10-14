@@ -72,7 +72,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 	 * However the second evsel also has a collapsed entry for
 	 * "bash [libc] malloc" so total 9 entries will be in the tree.
 	 */
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		struct hists *hists = evsel__hists(evsel);
 
 		for (k = 0; k < ARRAY_SIZE(fake_common_samples); k++) {
@@ -84,7 +84,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 			if (machine__resolve(machine, &al, &sample) < 0)
 				goto out;
 
-			he = __hists__add_entry(hists, &al, NULL,
+			he = hists__add_entry(hists, &al, NULL,
 						NULL, NULL, &sample, true);
 			if (he == NULL) {
 				addr_location__put(&al);
@@ -103,7 +103,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 			if (machine__resolve(machine, &al, &sample) < 0)
 				goto out;
 
-			he = __hists__add_entry(hists, &al, NULL,
+			he = hists__add_entry(hists, &al, NULL,
 						NULL, NULL, &sample, true);
 			if (he == NULL) {
 				addr_location__put(&al);
@@ -145,7 +145,7 @@ static int __validate_match(struct hists *hists)
 	/*
 	 * Only entries from fake_common_samples should have a pair.
 	 */
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;
@@ -197,7 +197,7 @@ static int __validate_link(struct hists *hists, int idx)
 	 * and some entries will have no pair.  However every entry
 	 * in other hists should have (dummy) pair.
 	 */
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;
@@ -301,7 +301,7 @@ int test__hists_link(int subtest __maybe_unused)
 	if (err < 0)
 		goto out;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		hists = evsel__hists(evsel);
 		hists__collapse_resort(hists, NULL);
 

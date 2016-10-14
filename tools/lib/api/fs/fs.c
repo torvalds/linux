@@ -283,6 +283,11 @@ int filename__read_int(const char *filename, int *value)
 	return err;
 }
 
+/*
+ * Parses @value out of @filename with strtoull.
+ * By using 0 for base, the strtoull detects the
+ * base automatically (see man strtoull).
+ */
 int filename__read_ull(const char *filename, unsigned long long *value)
 {
 	char line[64];
@@ -292,7 +297,7 @@ int filename__read_ull(const char *filename, unsigned long long *value)
 		return -1;
 
 	if (read(fd, line, sizeof(line)) > 0) {
-		*value = strtoull(line, NULL, 10);
+		*value = strtoull(line, NULL, 0);
 		if (*value != ULLONG_MAX)
 			err = 0;
 	}
@@ -349,6 +354,19 @@ int filename__read_str(const char *filename, char **buf, size_t *sizep)
 
 	close(fd);
 	return err;
+}
+
+int procfs__read_str(const char *entry, char **buf, size_t *sizep)
+{
+	char path[PATH_MAX];
+	const char *procfs = procfs__mountpoint();
+
+	if (!procfs)
+		return -1;
+
+	snprintf(path, sizeof(path), "%s/%s", procfs, entry);
+
+	return filename__read_str(path, buf, sizep);
 }
 
 int sysfs__read_ull(const char *entry, unsigned long long *value)

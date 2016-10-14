@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014-2016 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,6 +19,14 @@
 
 struct device;
 
+enum wil_platform_event {
+	WIL_PLATFORM_EVT_FW_CRASH = 0,
+	WIL_PLATFORM_EVT_PRE_RESET = 1,
+	WIL_PLATFORM_EVT_FW_RDY = 2,
+	WIL_PLATFORM_EVT_PRE_SUSPEND = 3,
+	WIL_PLATFORM_EVT_POST_SUSPEND = 4,
+};
+
 /**
  * struct wil_platform_ops - wil platform module calls from this
  * driver to platform driver
@@ -28,7 +36,7 @@ struct wil_platform_ops {
 	int (*suspend)(void *handle);
 	int (*resume)(void *handle);
 	void (*uninit)(void *handle);
-	int (*notify_crash)(void *handle);
+	int (*notify)(void *handle, enum wil_platform_event evt);
 };
 
 /**

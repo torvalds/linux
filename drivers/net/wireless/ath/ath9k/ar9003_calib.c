@@ -33,6 +33,7 @@ struct coeff {
 
 enum ar9003_cal_types {
 	IQ_MISMATCH_CAL = BIT(0),
+	TEMP_COMP_CAL = BIT(1),
 };
 
 static void ar9003_hw_setup_calibration(struct ath_hw *ah,
@@ -58,6 +59,12 @@ static void ar9003_hw_setup_calibration(struct ath_hw *ah,
 		/* Kick-off cal */
 		REG_SET_BIT(ah, AR_PHY_TIMING4, AR_PHY_TIMING4_DO_CAL);
 		break;
+	case TEMP_COMP_CAL:
+		ath_dbg(common, CALIBRATE,
+			"starting Temperature Compensation Calibration\n");
+		REG_SET_BIT(ah, AR_CH0_THERM, AR_CH0_THERM_LOCAL);
+		REG_SET_BIT(ah, AR_CH0_THERM, AR_CH0_THERM_START);
+		break;
 	default:
 		ath_err(common, "Invalid calibration type\n");
 		break;
@@ -75,50 +82,51 @@ static bool ar9003_hw_per_calibration(struct ath_hw *ah,
 				      struct ath9k_cal_list *currCal)
 {
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
-	/* Cal is assumed not done until explicitly set below */
-	bool iscaldone = false;
+	const struct ath9k_percal_data *cur_caldata = currCal->calData;
 
 	/* Calibration in progress. */
 	if (currCal->calState == CAL_RUNNING) {
 		/* Check to see if it has finished. */
-		if (!(REG_READ(ah, AR_PHY_TIMING4) & AR_PHY_TIMING4_DO_CAL)) {
+		if (REG_READ(ah, AR_PHY_TIMING4) & AR_PHY_TIMING4_DO_CAL)
+			return false;
+
+		/*
+		* Accumulate cal measures for active chains
+		*/
+		if (cur_caldata->calCollect)
+			cur_caldata->calCollect(ah);
+		ah->cal_samples++;
+
+		if (ah->cal_samples >= cur_caldata->calNumSamples) {
+			unsigned int i, numChains = 0;
+			for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+				if (rxchainmask & (1 << i))
+					numChains++;
+			}
+
 			/*
-			* Accumulate cal measures for active chains
+			* Process accumulated data
 			*/
-			currCal->calData->calCollect(ah);
-			ah->cal_samples++;
+			if (cur_caldata->calPostProc)
+				cur_caldata->calPostProc(ah, numChains);
 
-			if (ah->cal_samples >=
-			    currCal->calData->calNumSamples) {
-				unsigned int i, numChains = 0;
-				for (i = 0; i < AR9300_MAX_CHAINS; i++) {
-					if (rxchainmask & (1 << i))
-						numChains++;
-				}
-
-				/*
-				* Process accumulated data
-				*/
-				currCal->calData->calPostProc(ah, numChains);
-
-				/* Calibration has finished. */
-				caldata->CalValid |= currCal->calData->calType;
-				currCal->calState = CAL_DONE;
-				iscaldone = true;
-			} else {
+			/* Calibration has finished. */
+			caldata->CalValid |= cur_caldata->calType;
+			currCal->calState = CAL_DONE;
+			return true;
+		} else {
 			/*
 			 * Set-up collection of another sub-sample until we
 			 * get desired number
 			 */
 			ar9003_hw_setup_calibration(ah, currCal);
-			}
 		}
-	} else if (!(caldata->CalValid & currCal->calData->calType)) {
+	} else if (!(caldata->CalValid & cur_caldata->calType)) {
 		/* If current cal is marked invalid in channel, kick it off */
 		ath9k_hw_reset_calibration(ah, currCal);
 	}
 
-	return iscaldone;
+	return false;
 }
 
 static int ar9003_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
@@ -315,9 +323,16 @@ static const struct ath9k_percal_data iq_cal_single_sample = {
 	ar9003_hw_iqcalibrate
 };
 
+static const struct ath9k_percal_data temp_cal_single_sample = {
+	TEMP_COMP_CAL,
+	MIN_CAL_SAMPLES,
+	PER_MAX_LOG_COUNT,
+};
+
 static void ar9003_hw_init_cal_settings(struct ath_hw *ah)
 {
 	ah->iq_caldata.calData = &iq_cal_single_sample;
+	ah->temp_caldata.calData = &temp_cal_single_sample;
 
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		ah->enabled_cals |= TX_IQ_CAL;
@@ -325,7 +340,7 @@ static void ar9003_hw_init_cal_settings(struct ath_hw *ah)
 			ah->enabled_cals |= TX_IQ_ON_AGC_CAL;
 	}
 
-	ah->supp_cals = IQ_MISMATCH_CAL;
+	ah->supp_cals = IQ_MISMATCH_CAL | TEMP_COMP_CAL;
 }
 
 #define OFF_UPPER_LT 24
@@ -1203,12 +1218,12 @@ static void ar9003_hw_tx_iq_cal_reload(struct ath_hw *ah)
 static void ar9003_hw_manual_peak_cal(struct ath_hw *ah, u8 chain, bool is_2g)
 {
 	int offset[8] = {0}, total = 0, test;
-	int agc_out, i, peak_detect_threshold;
+	int agc_out, i, peak_detect_threshold = 0;
 
 	if (AR_SREV_9550(ah) || AR_SREV_9531(ah))
 		peak_detect_threshold = 8;
-	else
-		peak_detect_threshold = 0;
+	else if (AR_SREV_9561(ah))
+		peak_detect_threshold = 11;
 
 	/*
 	 * Turn off LNA/SW.
@@ -1249,17 +1264,14 @@ static void ar9003_hw_manual_peak_cal(struct ath_hw *ah, u8 chain, bool is_2g)
 		REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
 			      AR_PHY_65NM_RXRF_AGC_AGC2G_CALDAC_OVR, 0x0);
 
-	if (AR_SREV_9003_PCOEM(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah) ||
-	    AR_SREV_9561(ah)) {
-		if (is_2g)
-			REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
-				      AR_PHY_65NM_RXRF_AGC_AGC2G_DBDAC_OVR,
-				      peak_detect_threshold);
-		else
-			REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
-				      AR_PHY_65NM_RXRF_AGC_AGC5G_DBDAC_OVR,
-				      peak_detect_threshold);
-	}
+	if (is_2g)
+		REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
+			      AR_PHY_65NM_RXRF_AGC_AGC2G_DBDAC_OVR,
+			      peak_detect_threshold);
+	else
+		REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
+			      AR_PHY_65NM_RXRF_AGC_AGC5G_DBDAC_OVR,
+			      peak_detect_threshold);
 
 	for (i = 6; i > 0; i--) {
 		offset[i] = BIT(i - 1);
@@ -1310,9 +1322,6 @@ static void ar9003_hw_do_pcoem_manual_peak_cal(struct ath_hw *ah,
 {
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	int i;
-
-	if (!AR_SREV_9462(ah) && !AR_SREV_9565(ah) && !AR_SREV_9485(ah))
-		return;
 
 	if ((ah->caps.hw_caps & ATH9K_HW_CAP_RTT) && !run_rtt_cal)
 		return;
@@ -1378,6 +1387,29 @@ static void ar9003_hw_cl_cal_post_proc(struct ath_hw *ah, bool is_reusable)
 		}
 		set_bit(TXCLCAL_DONE, &caldata->cal_flags);
 	}
+}
+
+static void ar9003_hw_init_cal_common(struct ath_hw *ah)
+{
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
+
+	/* Initialize list pointers */
+	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;
+
+	INIT_CAL(&ah->iq_caldata);
+	INSERT_CAL(ah, &ah->iq_caldata);
+
+	INIT_CAL(&ah->temp_caldata);
+	INSERT_CAL(ah, &ah->temp_caldata);
+
+	/* Initialize current pointer to first element in list */
+	ah->cal_list_curr = ah->cal_list;
+
+	if (ah->cal_list_curr)
+		ath9k_hw_reset_calibration(ah, ah->cal_list_curr);
+
+	if (caldata)
+		caldata->CalValid = 0;
 }
 
 static bool ar9003_hw_init_cal_pcoem(struct ath_hw *ah,
@@ -1539,21 +1571,7 @@ skip_tx_iqcal:
 	/* Revert chainmask to runtime parameters */
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
 
-	/* Initialize list pointers */
-	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;
-
-	INIT_CAL(&ah->iq_caldata);
-	INSERT_CAL(ah, &ah->iq_caldata);
-	ath_dbg(common, CALIBRATE, "enabling IQ Calibration\n");
-
-	/* Initialize current pointer to first element in list */
-	ah->cal_list_curr = ah->cal_list;
-
-	if (ah->cal_list_curr)
-		ath9k_hw_reset_calibration(ah, ah->cal_list_curr);
-
-	if (caldata)
-		caldata->CalValid = 0;
+	ar9003_hw_init_cal_common(ah);
 
 	return true;
 }
@@ -1584,8 +1602,6 @@ static bool do_ar9003_agc_cal(struct ath_hw *ah)
 static bool ar9003_hw_init_cal_soc(struct ath_hw *ah,
 				   struct ath9k_channel *chan)
 {
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	bool txiqcal_done = false;
 	bool status = true;
 	bool run_agc_cal = false, sep_iq_cal = false;
@@ -1641,14 +1657,12 @@ static bool ar9003_hw_init_cal_soc(struct ath_hw *ah,
 
 skip_tx_iqcal:
 	if (run_agc_cal || !(ah->ah_flags & AH_FASTCC)) {
-		if (AR_SREV_9330_11(ah) || AR_SREV_9531(ah) || AR_SREV_9550(ah) ||
-		    AR_SREV_9561(ah)) {
-			for (i = 0; i < AR9300_MAX_CHAINS; i++) {
-				if (!(ah->rxchainmask & (1 << i)))
-					continue;
-				ar9003_hw_manual_peak_cal(ah, i,
-							  IS_CHAN_2GHZ(chan));
-			}
+		for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+			if (!(ah->rxchainmask & (1 << i)))
+				continue;
+
+			ar9003_hw_manual_peak_cal(ah, i,
+						  IS_CHAN_2GHZ(chan));
 		}
 
 		/*
@@ -1685,21 +1699,7 @@ skip_tx_iqcal:
 	/* Revert chainmask to runtime parameters */
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
 
-	/* Initialize list pointers */
-	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;
-
-	INIT_CAL(&ah->iq_caldata);
-	INSERT_CAL(ah, &ah->iq_caldata);
-	ath_dbg(common, CALIBRATE, "enabling IQ Calibration\n");
-
-	/* Initialize current pointer to first element in list */
-	ah->cal_list_curr = ah->cal_list;
-
-	if (ah->cal_list_curr)
-		ath9k_hw_reset_calibration(ah, ah->cal_list_curr);
-
-	if (caldata)
-		caldata->CalValid = 0;
+	ar9003_hw_init_cal_common(ah);
 
 	return true;
 }
@@ -1709,7 +1709,7 @@ void ar9003_hw_attach_calib_ops(struct ath_hw *ah)
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
 	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
 
-	if (AR_SREV_9485(ah) || AR_SREV_9462(ah) || AR_SREV_9565(ah))
+	if (AR_SREV_9003_PCOEM(ah))
 		priv_ops->init_cal = ar9003_hw_init_cal_pcoem;
 	else
 		priv_ops->init_cal = ar9003_hw_init_cal_soc;

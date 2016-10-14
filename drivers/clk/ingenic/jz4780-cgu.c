@@ -296,13 +296,13 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 	[JZ4780_CLK_CPU] = {
 		"cpu", CGU_CLK_DIV,
 		.parents = { JZ4780_CLK_CPUMUX, -1, -1, -1 },
-		.div = { CGU_REG_CLOCKCONTROL, 0, 4, 22, -1, -1 },
+		.div = { CGU_REG_CLOCKCONTROL, 0, 1, 4, 22, -1, -1 },
 	},
 
 	[JZ4780_CLK_L2CACHE] = {
 		"l2cache", CGU_CLK_DIV,
 		.parents = { JZ4780_CLK_CPUMUX, -1, -1, -1 },
-		.div = { CGU_REG_CLOCKCONTROL, 4, 4, -1, -1, -1 },
+		.div = { CGU_REG_CLOCKCONTROL, 4, 1, 4, -1, -1, -1 },
 	},
 
 	[JZ4780_CLK_AHB0] = {
@@ -310,7 +310,7 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 		.parents = { -1, JZ4780_CLK_SCLKA, JZ4780_CLK_MPLL,
 			     JZ4780_CLK_EPLL },
 		.mux = { CGU_REG_CLOCKCONTROL, 26, 2 },
-		.div = { CGU_REG_CLOCKCONTROL, 8, 4, 21, -1, -1 },
+		.div = { CGU_REG_CLOCKCONTROL, 8, 1, 4, 21, -1, -1 },
 	},
 
 	[JZ4780_CLK_AHB2PMUX] = {
@@ -323,20 +323,20 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 	[JZ4780_CLK_AHB2] = {
 		"ahb2", CGU_CLK_DIV,
 		.parents = { JZ4780_CLK_AHB2PMUX, -1, -1, -1 },
-		.div = { CGU_REG_CLOCKCONTROL, 12, 4, 20, -1, -1 },
+		.div = { CGU_REG_CLOCKCONTROL, 12, 1, 4, 20, -1, -1 },
 	},
 
 	[JZ4780_CLK_PCLK] = {
 		"pclk", CGU_CLK_DIV,
 		.parents = { JZ4780_CLK_AHB2PMUX, -1, -1, -1 },
-		.div = { CGU_REG_CLOCKCONTROL, 16, 4, 20, -1, -1 },
+		.div = { CGU_REG_CLOCKCONTROL, 16, 1, 4, 20, -1, -1 },
 	},
 
 	[JZ4780_CLK_DDR] = {
 		"ddr", CGU_CLK_MUX | CGU_CLK_DIV,
 		.parents = { -1, JZ4780_CLK_SCLKA, JZ4780_CLK_MPLL, -1 },
 		.mux = { CGU_REG_DDRCDR, 30, 2 },
-		.div = { CGU_REG_DDRCDR, 0, 4, 29, 28, 27 },
+		.div = { CGU_REG_DDRCDR, 0, 1, 4, 29, 28, 27 },
 	},
 
 	[JZ4780_CLK_VPU] = {
@@ -344,7 +344,7 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 		.parents = { JZ4780_CLK_SCLKA, JZ4780_CLK_MPLL,
 			     JZ4780_CLK_EPLL, -1 },
 		.mux = { CGU_REG_VPUCDR, 30, 2 },
-		.div = { CGU_REG_VPUCDR, 0, 4, 29, 28, 27 },
+		.div = { CGU_REG_VPUCDR, 0, 1, 4, 29, 28, 27 },
 		.gate = { CGU_REG_CLKGR1, 2 },
 	},
 
@@ -352,7 +352,7 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 		"i2s_pll", CGU_CLK_MUX | CGU_CLK_DIV,
 		.parents = { JZ4780_CLK_SCLKA, JZ4780_CLK_EPLL, -1, -1 },
 		.mux = { CGU_REG_I2SCDR, 30, 1 },
-		.div = { CGU_REG_I2SCDR, 0, 8, 29, 28, 27 },
+		.div = { CGU_REG_I2SCDR, 0, 1, 8, 29, 28, 27 },
 	},
 
 	[JZ4780_CLK_I2S] = {
@@ -366,7 +366,7 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 		.parents = { JZ4780_CLK_SCLKA, JZ4780_CLK_MPLL,
 			     JZ4780_CLK_VPLL, -1 },
 		.mux = { CGU_REG_LP0CDR, 30, 2 },
-		.div = { CGU_REG_LP0CDR, 0, 8, 28, 27, 26 },
+		.div = { CGU_REG_LP0CDR, 0, 1, 8, 28, 27, 26 },
 	},
 
 	[JZ4780_CLK_LCD1PIXCLK] = {
@@ -374,7 +374,7 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 		.parents = { JZ4780_CLK_SCLKA, JZ4780_CLK_MPLL,
 			     JZ4780_CLK_VPLL, -1 },
 		.mux = { CGU_REG_LP1CDR, 30, 2 },
-		.div = { CGU_REG_LP1CDR, 0, 8, 28, 27, 26 },
+		.div = { CGU_REG_LP1CDR, 0, 1, 8, 28, 27, 26 },
 	},
 
 	[JZ4780_CLK_MSCMUX] = {
@@ -386,21 +386,21 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 	[JZ4780_CLK_MSC0] = {
 		"msc0", CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { JZ4780_CLK_MSCMUX, -1, -1, -1 },
-		.div = { CGU_REG_MSC0CDR, 0, 8, 29, 28, 27 },
+		.div = { CGU_REG_MSC0CDR, 0, 2, 8, 29, 28, 27 },
 		.gate = { CGU_REG_CLKGR0, 3 },
 	},
 
 	[JZ4780_CLK_MSC1] = {
 		"msc1", CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { JZ4780_CLK_MSCMUX, -1, -1, -1 },
-		.div = { CGU_REG_MSC1CDR, 0, 8, 29, 28, 27 },
+		.div = { CGU_REG_MSC1CDR, 0, 2, 8, 29, 28, 27 },
 		.gate = { CGU_REG_CLKGR0, 11 },
 	},
 
 	[JZ4780_CLK_MSC2] = {
 		"msc2", CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { JZ4780_CLK_MSCMUX, -1, -1, -1 },
-		.div = { CGU_REG_MSC2CDR, 0, 8, 29, 28, 27 },
+		.div = { CGU_REG_MSC2CDR, 0, 2, 8, 29, 28, 27 },
 		.gate = { CGU_REG_CLKGR0, 12 },
 	},
 
@@ -409,7 +409,7 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 		.parents = { JZ4780_CLK_SCLKA, JZ4780_CLK_MPLL,
 			     JZ4780_CLK_EPLL, JZ4780_CLK_OTGPHY },
 		.mux = { CGU_REG_UHCCDR, 30, 2 },
-		.div = { CGU_REG_UHCCDR, 0, 8, 29, 28, 27 },
+		.div = { CGU_REG_UHCCDR, 0, 1, 8, 29, 28, 27 },
 		.gate = { CGU_REG_CLKGR0, 24 },
 	},
 
@@ -417,7 +417,7 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 		"ssi_pll", CGU_CLK_MUX | CGU_CLK_DIV,
 		.parents = { JZ4780_CLK_SCLKA, JZ4780_CLK_MPLL, -1, -1 },
 		.mux = { CGU_REG_SSICDR, 30, 1 },
-		.div = { CGU_REG_SSICDR, 0, 8, 29, 28, 27 },
+		.div = { CGU_REG_SSICDR, 0, 1, 8, 29, 28, 27 },
 	},
 
 	[JZ4780_CLK_SSI] = {
@@ -430,7 +430,7 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 		"cim_mclk", CGU_CLK_MUX | CGU_CLK_DIV,
 		.parents = { JZ4780_CLK_SCLKA, JZ4780_CLK_MPLL, -1, -1 },
 		.mux = { CGU_REG_CIMCDR, 31, 1 },
-		.div = { CGU_REG_CIMCDR, 0, 8, 30, 29, 28 },
+		.div = { CGU_REG_CIMCDR, 0, 1, 8, 30, 29, 28 },
 	},
 
 	[JZ4780_CLK_PCMPLL] = {
@@ -438,7 +438,7 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 		.parents = { JZ4780_CLK_SCLKA, JZ4780_CLK_MPLL,
 			     JZ4780_CLK_EPLL, JZ4780_CLK_VPLL },
 		.mux = { CGU_REG_PCMCDR, 29, 2 },
-		.div = { CGU_REG_PCMCDR, 0, 8, 28, 27, 26 },
+		.div = { CGU_REG_PCMCDR, 0, 1, 8, 28, 27, 26 },
 	},
 
 	[JZ4780_CLK_PCM] = {
@@ -453,7 +453,7 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 		.parents = { -1, JZ4780_CLK_SCLKA, JZ4780_CLK_MPLL,
 			     JZ4780_CLK_EPLL },
 		.mux = { CGU_REG_GPUCDR, 30, 2 },
-		.div = { CGU_REG_GPUCDR, 0, 4, 29, 28, 27 },
+		.div = { CGU_REG_GPUCDR, 0, 1, 4, 29, 28, 27 },
 		.gate = { CGU_REG_CLKGR1, 4 },
 	},
 
@@ -462,7 +462,7 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 		.parents = { JZ4780_CLK_SCLKA, JZ4780_CLK_MPLL,
 			     JZ4780_CLK_VPLL, -1 },
 		.mux = { CGU_REG_HDMICDR, 30, 2 },
-		.div = { CGU_REG_HDMICDR, 0, 8, 29, 28, 26 },
+		.div = { CGU_REG_HDMICDR, 0, 1, 8, 29, 28, 26 },
 		.gate = { CGU_REG_CLKGR1, 9 },
 	},
 
@@ -471,7 +471,7 @@ static const struct ingenic_cgu_clk_info jz4780_cgu_clocks[] = {
 		.parents = { -1, JZ4780_CLK_SCLKA, JZ4780_CLK_MPLL,
 			     JZ4780_CLK_EPLL },
 		.mux = { CGU_REG_BCHCDR, 30, 2 },
-		.div = { CGU_REG_BCHCDR, 0, 4, 29, 28, 27 },
+		.div = { CGU_REG_BCHCDR, 0, 1, 4, 29, 28, 27 },
 		.gate = { CGU_REG_CLKGR0, 1 },
 	},
 

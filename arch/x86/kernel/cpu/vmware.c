@@ -22,7 +22,8 @@
  */
 
 #include <linux/dmi.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <asm/div64.h>
 #include <asm/x86_init.h>
 #include <asm/hypervisor.h>
@@ -94,7 +95,7 @@ static void __init vmware_platform_setup(void)
  */
 static uint32_t __init vmware_platform(void)
 {
-	if (cpu_has_hypervisor) {
+	if (boot_cpu_has(X86_FEATURE_HYPERVISOR)) {
 		unsigned int eax;
 		unsigned int hyper_vendor_id[3];
 

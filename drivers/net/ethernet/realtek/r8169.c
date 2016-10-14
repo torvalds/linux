@@ -345,7 +345,7 @@ static const struct pci_device_id rtl8169_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, rtl8169_pci_tbl);
 
 static int rx_buf_sz = 16383;
-static int use_dac;
+static int use_dac = -1;
 static struct {
 	u32 msg_enable;
 } debug = { -1 };
@@ -1749,13 +1749,21 @@ static u32 __rtl8169_get_wol(struct rtl8169_private *tp)
 static void rtl8169_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
+	struct device *d = &tp->pci_dev->dev;
+
+	pm_runtime_get_noresume(d);
 
 	rtl_lock_work(tp);
 
 	wol->supported = WAKE_ANY;
-	wol->wolopts = __rtl8169_get_wol(tp);
+	if (pm_runtime_active(d))
+		wol->wolopts = __rtl8169_get_wol(tp);
+	else
+		wol->wolopts = tp->saved_wolopts;
 
 	rtl_unlock_work(tp);
+
+	pm_runtime_put_noidle(d);
 }
 
 static void __rtl8169_set_wol(struct rtl8169_private *tp, u32 wolopts)
@@ -1845,6 +1853,9 @@ static void __rtl8169_set_wol(struct rtl8169_private *tp, u32 wolopts)
 static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
+	struct device *d = &tp->pci_dev->dev;
+
+	pm_runtime_get_noresume(d);
 
 	rtl_lock_work(tp);
 
@@ -1852,11 +1863,16 @@ static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 		tp->features |= RTL_FEATURE_WOL;
 	else
 		tp->features &= ~RTL_FEATURE_WOL;
-	__rtl8169_set_wol(tp, wol->wolopts);
+	if (pm_runtime_active(d))
+		__rtl8169_set_wol(tp, wol->wolopts);
+	else
+		tp->saved_wolopts = wol->wolopts;
 
 	rtl_unlock_work(tp);
 
 	device_set_wakeup_enable(&tp->pci_dev->dev, wol->wolopts);
+
+	pm_runtime_put_noidle(d);
 
 	return 0;
 }
@@ -2292,11 +2308,17 @@ static void rtl8169_get_ethtool_stats(struct net_device *dev,
 				      struct ethtool_stats *stats, u64 *data)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
+	struct device *d = &tp->pci_dev->dev;
 	struct rtl8169_counters *counters = tp->counters;
 
 	ASSERT_RTNL();
 
-	rtl8169_update_counters(dev);
+	pm_runtime_get_noresume(d);
+
+	if (pm_runtime_active(d))
+		rtl8169_update_counters(dev);
+
+	pm_runtime_put_noidle(d);
 
 	data[0] = le64_to_cpu(counters->tx_packets);
 	data[1] = le64_to_cpu(counters->rx_packets);
@@ -4458,6 +4480,7 @@ static void rtl_rar_set(struct rtl8169_private *tp, u8 *addr)
 static int rtl_set_mac_address(struct net_device *dev, void *p)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
+	struct device *d = &tp->pci_dev->dev;
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
@@ -4465,7 +4488,12 @@ static int rtl_set_mac_address(struct net_device *dev, void *p)
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
-	rtl_rar_set(tp, dev->dev_addr);
+	pm_runtime_get_noresume(d);
+
+	if (pm_runtime_active(d))
+		rtl_rar_set(tp, dev->dev_addr);
+
+	pm_runtime_put_noidle(d);
 
 	return 0;
 }
@@ -7868,6 +7896,7 @@ static int rtl8169_runtime_resume(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rtl8169_private *tp = netdev_priv(dev);
+	rtl_rar_set(tp, dev->dev_addr);
 
 	if (!tp->TxDescArray)
 		return 0;
@@ -8224,20 +8253,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_mwi_2;
 	}
 
-	tp->cp_cmd = 0;
-
-	if ((sizeof(dma_addr_t) > 4) &&
-	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) && use_dac) {
-		tp->cp_cmd |= PCIDAC;
-		dev->features |= NETIF_F_HIGHDMA;
-	} else {
-		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (rc < 0) {
-			netif_err(tp, probe, dev, "DMA configuration failed\n");
-			goto err_out_free_res_3;
-		}
-	}
-
 	/* ioremap MMIO region */
 	ioaddr = ioremap(pci_resource_start(pdev, region), R8169_REGS_SIZE);
 	if (!ioaddr) {
@@ -8252,6 +8267,25 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Identify chip attached to board */
 	rtl8169_get_mac_version(tp, dev, cfg->default_ver);
+
+	tp->cp_cmd = 0;
+
+	if ((sizeof(dma_addr_t) > 4) &&
+	    (use_dac == 1 || (use_dac == -1 && pci_is_pcie(pdev) &&
+			      tp->mac_version >= RTL_GIGA_MAC_VER_18)) &&
+	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
+
+		/* CPlusCmd Dual Access Cycle is only needed for non-PCIe */
+		if (!pci_is_pcie(pdev))
+			tp->cp_cmd |= PCIDAC;
+		dev->features |= NETIF_F_HIGHDMA;
+	} else {
+		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		if (rc < 0) {
+			netif_err(tp, probe, dev, "DMA configuration failed\n");
+			goto err_out_unmap_4;
+		}
+	}
 
 	rtl_init_rxcfg(tp);
 
@@ -8412,12 +8446,12 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 					   &tp->counters_phys_addr, GFP_KERNEL);
 	if (!tp->counters) {
 		rc = -ENOMEM;
-		goto err_out_msi_4;
+		goto err_out_msi_5;
 	}
 
 	rc = register_netdev(dev);
 	if (rc < 0)
-		goto err_out_cnt_5;
+		goto err_out_cnt_6;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -8451,12 +8485,13 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 out:
 	return rc;
 
-err_out_cnt_5:
+err_out_cnt_6:
 	dma_free_coherent(&pdev->dev, sizeof(*tp->counters), tp->counters,
 			  tp->counters_phys_addr);
-err_out_msi_4:
+err_out_msi_5:
 	netif_napi_del(&tp->napi);
 	rtl_disable_msi(pdev, tp);
+err_out_unmap_4:
 	iounmap(ioaddr);
 err_out_free_res_3:
 	pci_release_regions(pdev);

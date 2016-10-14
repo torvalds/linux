@@ -65,9 +65,12 @@
 #define XG_CFG_LINK_AGGR_RESUME_0_ADDR	0x0214
 #define XG_LINK_STATUS_ADDR		0x0228
 #define XG_TSIF_MSS_REG0_ADDR		0x02a4
+#define XG_DEBUG_REG_ADDR		0x0400
 #define XG_ENET_SPARE_CFG_REG_ADDR	0x040c
 #define XG_ENET_SPARE_CFG_REG_1_ADDR	0x0410
 #define XGENET_RX_DV_GATE_REG_0_ADDR	0x0804
+#define XG_MCX_ICM_CONFIG0_REG_0_ADDR	0x00e0
+#define XG_MCX_ICM_CONFIG2_REG_0_ADDR	0x00e8
 
 extern const struct xgene_mac_ops xgene_xgmac_ops;
 extern const struct xgene_port_ops xgene_xgport_ops;

@@ -55,18 +55,21 @@ int hwbm_pool_add(struct hwbm_pool *bm_pool, unsigned int buf_num, gfp_t gfp)
 	spin_lock_irqsave(&bm_pool->lock, flags);
 	if (bm_pool->buf_num == bm_pool->size) {
 		pr_warn("pool already filled\n");
+		spin_unlock_irqrestore(&bm_pool->lock, flags);
 		return bm_pool->buf_num;
 	}
 
 	if (buf_num + bm_pool->buf_num > bm_pool->size) {
 		pr_warn("cannot allocate %d buffers for pool\n",
 			buf_num);
+		spin_unlock_irqrestore(&bm_pool->lock, flags);
 		return 0;
 	}
 
 	if ((buf_num + bm_pool->buf_num) < bm_pool->buf_num) {
 		pr_warn("Adding %d buffers to the %d current buffers will overflow\n",
 			buf_num,  bm_pool->buf_num);
+		spin_unlock_irqrestore(&bm_pool->lock, flags);
 		return 0;
 	}
 

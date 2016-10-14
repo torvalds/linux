@@ -155,7 +155,7 @@ int csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 	struct xdr_skb_reader	desc;
 
 	desc.skb = skb;
-	desc.offset = sizeof(struct udphdr);
+	desc.offset = 0;
 	desc.count = skb->len - desc.offset;
 
 	if (skb_csum_unnecessary(skb))

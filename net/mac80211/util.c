@@ -59,7 +59,7 @@ void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx)
 	}
 }
 
-int ieee80211_frame_duration(enum ieee80211_band band, size_t len,
+int ieee80211_frame_duration(enum nl80211_band band, size_t len,
 			     int rate, int erp, int short_preamble,
 			     int shift)
 {
@@ -77,7 +77,7 @@ int ieee80211_frame_duration(enum ieee80211_band band, size_t len,
 	 * is assumed to be 0 otherwise.
 	 */
 
-	if (band == IEEE80211_BAND_5GHZ || erp) {
+	if (band == NL80211_BAND_5GHZ || erp) {
 		/*
 		 * OFDM:
 		 *
@@ -129,7 +129,7 @@ int ieee80211_frame_duration(enum ieee80211_band band, size_t len,
 /* Exported duration function for driver use */
 __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif,
-					enum ieee80211_band band,
+					enum nl80211_band band,
 					size_t frame_len,
 					struct ieee80211_rate *rate)
 {
@@ -244,6 +244,9 @@ void ieee80211_propagate_queue_wake(struct ieee80211_local *local, int queue)
 	struct ieee80211_sub_if_data *sdata;
 	int n_acs = IEEE80211_NUM_ACS;
 
+	if (local->ops->wake_tx_queue)
+		return;
+
 	if (local->hw.queues < IEEE80211_NUM_ACS)
 		n_acs = 1;
 
@@ -259,11 +262,6 @@ void ieee80211_propagate_queue_wake(struct ieee80211_local *local, int queue)
 
 		for (ac = 0; ac < n_acs; ac++) {
 			int ac_queue = sdata->vif.hw_queue[ac];
-
-			if (local->ops->wake_tx_queue &&
-			    (atomic_read(&sdata->txqs_len[ac]) >
-			     local->hw.txq_ac_max_pending))
-				continue;
 
 			if (ac_queue == queue ||
 			    (sdata->vif.cab_queue == queue &&
@@ -350,6 +348,9 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 		local->q_stop_reasons[queue][reason]++;
 
 	if (__test_and_set_bit(reason, &local->queue_stop_reasons[queue]))
+		return;
+
+	if (local->ops->wake_tx_queue)
 		return;
 
 	if (local->hw.queues < IEEE80211_NUM_ACS)
@@ -1129,7 +1130,7 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 	use_11b = (chanctx_conf &&
-		   chanctx_conf->def.chan->band == IEEE80211_BAND_2GHZ) &&
+		   chanctx_conf->def.chan->band == NL80211_BAND_2GHZ) &&
 		 !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE);
 	rcu_read_unlock();
 
@@ -1301,7 +1302,7 @@ void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 					 u8 *buffer, size_t buffer_len,
 					 const u8 *ie, size_t ie_len,
-					 enum ieee80211_band band,
+					 enum nl80211_band band,
 					 u32 rate_mask,
 					 struct cfg80211_chan_def *chandef,
 					 size_t *offset)
@@ -1375,7 +1376,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 		pos += ext_rates_len;
 	}
 
-	if (chandef->chan && sband->band == IEEE80211_BAND_2GHZ) {
+	if (chandef->chan && sband->band == NL80211_BAND_2GHZ) {
 		if (end - pos < 3)
 			goto out_err;
 		*pos++ = WLAN_EID_DS_PARAMS;
@@ -1479,7 +1480,7 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 
 	memset(ie_desc, 0, sizeof(*ie_desc));
 
-	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 		if (bands_used & BIT(i)) {
 			pos += ieee80211_build_preq_ies_band(local,
 							     buffer + pos,
@@ -1522,7 +1523,7 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
 	int ies_len;
-	u32 rate_masks[IEEE80211_NUM_BANDS] = {};
+	u32 rate_masks[NUM_NL80211_BANDS] = {};
 	struct ieee80211_scan_ies dummy_ie_desc;
 
 	/*
@@ -1582,7 +1583,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata,
 
 u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 			    struct ieee802_11_elems *elems,
-			    enum ieee80211_band band, u32 *basic_rates)
+			    enum nl80211_band band, u32 *basic_rates)
 {
 	struct ieee80211_supported_band *sband;
 	size_t num_rates;
@@ -2520,7 +2521,7 @@ int ieee80211_parse_bitrates(struct cfg80211_chan_def *chandef,
 
 int ieee80211_add_srates_ie(struct ieee80211_sub_if_data *sdata,
 			    struct sk_buff *skb, bool need_basic,
-			    enum ieee80211_band band)
+			    enum nl80211_band band)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
@@ -2565,7 +2566,7 @@ int ieee80211_add_srates_ie(struct ieee80211_sub_if_data *sdata,
 
 int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 				struct sk_buff *skb, bool need_basic,
-				enum ieee80211_band band)
+				enum nl80211_band band)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
@@ -2711,7 +2712,7 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 
 		if (status->flag & RX_FLAG_MACTIME_PLCP_START) {
 			/* TODO: handle HT/VHT preambles */
-			if (status->band == IEEE80211_BAND_5GHZ) {
+			if (status->band == NL80211_BAND_5GHZ) {
 				ts += 20 << shift;
 				mpdu_offset += 2;
 			} else if (status->flag & RX_FLAG_SHORTPRE) {
@@ -2724,8 +2725,9 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 
 	rate = cfg80211_calculate_bitrate(&ri);
 	if (WARN_ONCE(!rate,
-		      "Invalid bitrate: flags=0x%x, idx=%d, vht_nss=%d\n",
-		      status->flag, status->rate_idx, status->vht_nss))
+		      "Invalid bitrate: flags=0x%llx, idx=%d, vht_nss=%d\n",
+		      (unsigned long long)status->flag, status->rate_idx,
+		      status->vht_nss))
 		return 0;
 
 	/* rewind from end of MPDU */
@@ -3387,25 +3389,6 @@ u8 *ieee80211_add_wmm_info_ie(u8 *buf, u8 qosinfo)
 	return buf;
 }
 
-void ieee80211_init_tx_queue(struct ieee80211_sub_if_data *sdata,
-			     struct sta_info *sta,
-			     struct txq_info *txqi, int tid)
-{
-	skb_queue_head_init(&txqi->queue);
-	txqi->txq.vif = &sdata->vif;
-
-	if (sta) {
-		txqi->txq.sta = &sta->sta;
-		sta->sta.txq[tid] = &txqi->txq;
-		txqi->txq.tid = tid;
-		txqi->txq.ac = ieee802_1d_to_ac[tid & 7];
-	} else {
-		sdata->vif.txq = &txqi->txq;
-		txqi->txq.tid = 0;
-		txqi->txq.ac = IEEE80211_AC_BE;
-	}
-}
-
 void ieee80211_txq_get_depth(struct ieee80211_txq *txq,
 			     unsigned long *frame_cnt,
 			     unsigned long *byte_cnt)
@@ -3413,9 +3396,9 @@ void ieee80211_txq_get_depth(struct ieee80211_txq *txq,
 	struct txq_info *txqi = to_txq_info(txq);
 
 	if (frame_cnt)
-		*frame_cnt = txqi->queue.qlen;
+		*frame_cnt = txqi->tin.backlog_packets;
 
 	if (byte_cnt)
-		*byte_cnt = txqi->byte_cnt;
+		*byte_cnt = txqi->tin.backlog_bytes;
 }
 EXPORT_SYMBOL(ieee80211_txq_get_depth);

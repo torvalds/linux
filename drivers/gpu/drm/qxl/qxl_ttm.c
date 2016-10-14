@@ -350,11 +350,19 @@ static int qxl_bo_move(struct ttm_buffer_object *bo,
 		       struct ttm_mem_reg *new_mem)
 {
 	struct ttm_mem_reg *old_mem = &bo->mem;
+	int ret;
+
+	ret = ttm_bo_wait(bo, interruptible, no_wait_gpu);
+	if (ret)
+		return ret;
+
+
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
 		qxl_move_null(bo, new_mem);
 		return 0;
 	}
-	return ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
+	return ttm_bo_move_memcpy(bo, evict, interruptible,
+				  no_wait_gpu, new_mem);
 }
 
 static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
@@ -384,6 +392,8 @@ static struct ttm_bo_driver qxl_bo_driver = {
 	.io_mem_reserve = &qxl_ttm_io_mem_reserve,
 	.io_mem_free = &qxl_ttm_io_mem_free,
 	.move_notify = &qxl_bo_move_notify,
+	.lru_tail = &ttm_bo_default_lru_tail,
+	.swap_lru_tail = &ttm_bo_default_swap_lru_tail,
 };
 
 int qxl_ttm_init(struct qxl_device *qdev)

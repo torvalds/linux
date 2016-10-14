@@ -67,7 +67,7 @@ static int spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dws->irq = pdev->irq;
 
 	/*
-	 * Specific handling for paltforms, like dma setup,
+	 * Specific handling for platforms, like dma setup,
 	 * clock rate, FIFO depth.
 	 */
 	if (desc) {

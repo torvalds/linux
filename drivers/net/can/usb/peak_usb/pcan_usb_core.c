@@ -274,7 +274,7 @@ static void peak_usb_write_bulk_callback(struct urb *urb)
 		netdev->stats.tx_bytes += context->data_len;
 
 		/* prevent tx timeout */
-		netdev->trans_start = jiffies;
+		netif_trans_update(netdev);
 		break;
 
 	default:
@@ -373,7 +373,7 @@ static netdev_tx_t peak_usb_ndo_start_xmit(struct sk_buff *skb,
 			stats->tx_dropped++;
 		}
 	} else {
-		netdev->trans_start = jiffies;
+		netif_trans_update(netdev);
 
 		/* slow down tx path */
 		if (atomic_read(&dev->active_tx_urbs) >= PCAN_USB_MAX_TX_URBS)

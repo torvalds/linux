@@ -528,6 +528,33 @@ config MMIOTRACE
 	  See Documentation/trace/mmiotrace.txt.
 	  If you are not helping to develop drivers, say N.
 
+config TRACING_MAP
+	bool
+	depends on ARCH_HAVE_NMI_SAFE_CMPXCHG
+	help
+	  tracing_map is a special-purpose lock-free map for tracing,
+	  separated out as a stand-alone facility in order to allow it
+	  to be shared between multiple tracers.  It isn't meant to be
+	  generally used outside of that context, and is normally
+	  selected by tracers that use it.
+
+config HIST_TRIGGERS
+	bool "Histogram triggers"
+	depends on ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select TRACING_MAP
+	select TRACING
+	default n
+	help
+	  Hist triggers allow one or more arbitrary trace event fields
+	  to be aggregated into hash tables and dumped to stdout by
+	  reading a debugfs/tracefs file.  They're useful for
+	  gathering quick and dirty (though precise) summaries of
+	  event activity as an initial guide for further investigation
+	  using more advanced tools.
+
+	  See Documentation/trace/events.txt.
+	  If in doubt, say N.
+
 config MMIOTRACE_TEST
 	tristate "Test module for mmiotrace"
 	depends on MMIOTRACE && m

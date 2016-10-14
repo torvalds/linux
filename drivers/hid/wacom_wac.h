@@ -177,6 +177,7 @@ struct wacom_features {
 	int y_fuzz;
 	int pressure_fuzz;
 	int distance_fuzz;
+	int tilt_fuzz;
 	unsigned quirks;
 	unsigned touch_max;
 	int oVid;

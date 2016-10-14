@@ -26,8 +26,7 @@ static void vc4_output_poll_changed(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
-	if (vc4->fbdev)
-		drm_fbdev_cma_hotplug_event(vc4->fbdev);
+	drm_fbdev_cma_hotplug_event(vc4->fbdev);
 }
 
 struct vc4_commit {
@@ -93,7 +92,7 @@ static struct vc4_commit *commit_init(struct drm_atomic_state *state)
  * vc4_atomic_commit - commit validated state object
  * @dev: DRM device
  * @state: the driver state object
- * @async: asynchronous commit
+ * @nonblock: nonblocking commit
  *
  * This function commits a with drm_atomic_helper_check() pre-validated state
  * object. This can still fail when e.g. the framebuffer reservation fails. For
@@ -104,23 +103,33 @@ static struct vc4_commit *commit_init(struct drm_atomic_state *state)
  */
 static int vc4_atomic_commit(struct drm_device *dev,
 			     struct drm_atomic_state *state,
-			     bool async)
+			     bool nonblock)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int ret;
 	int i;
 	uint64_t wait_seqno = 0;
 	struct vc4_commit *c;
+	struct drm_plane *plane;
+	struct drm_plane_state *new_state;
 
 	c = commit_init(state);
 	if (!c)
 		return -ENOMEM;
 
 	/* Make sure that any outstanding modesets have finished. */
-	ret = down_interruptible(&vc4->async_modeset);
-	if (ret) {
-		kfree(c);
-		return ret;
+	if (nonblock) {
+		ret = down_trylock(&vc4->async_modeset);
+		if (ret) {
+			kfree(c);
+			return -EBUSY;
+		}
+	} else {
+		ret = down_interruptible(&vc4->async_modeset);
+		if (ret) {
+			kfree(c);
+			return ret;
+		}
 	}
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
@@ -130,13 +139,7 @@ static int vc4_atomic_commit(struct drm_device *dev,
 		return ret;
 	}
 
-	for (i = 0; i < dev->mode_config.num_total_plane; i++) {
-		struct drm_plane *plane = state->planes[i];
-		struct drm_plane_state *new_state = state->plane_states[i];
-
-		if (!plane)
-			continue;
-
+	for_each_plane_in_state(state, plane, new_state, i) {
 		if ((plane->state->fb != new_state->fb) && new_state->fb) {
 			struct drm_gem_cma_object *cma_bo =
 				drm_fb_cma_get_gem_obj(new_state->fb, 0);
@@ -152,7 +155,7 @@ static int vc4_atomic_commit(struct drm_device *dev,
 	 * the software side now.
 	 */
 
-	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_swap_state(state, true);
 
 	/*
 	 * Everything below can be run asynchronously without the need to grab
@@ -170,7 +173,7 @@ static int vc4_atomic_commit(struct drm_device *dev,
 	 * current layout.
 	 */
 
-	if (async) {
+	if (nonblock) {
 		vc4_queue_seqno_cb(dev, &c->cb, wait_seqno,
 				   vc4_atomic_complete_commit_seqno_cb);
 	} else {
@@ -206,8 +209,6 @@ int vc4_kms_load(struct drm_device *dev)
 	dev->mode_config.funcs = &vc4_mode_funcs;
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.async_page_flip = true;
-
-	dev->vblank_disable_allowed = true;
 
 	drm_mode_config_reset(dev);
 

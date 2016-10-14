@@ -33,8 +33,8 @@ static ulong get_fdtaddr(void)
 {
 	ulong ftaddr = 0;
 
-	if ((fw_arg0 == -2) && fw_arg1 && !fw_arg2 && !fw_arg3)
-		return (ulong)fw_arg1;
+	if (fw_passed_dtb && !fw_arg2 && !fw_arg3)
+		return (ulong)fw_passed_dtb;
 
 	if (__dtb_start < __dtb_end)
 		ftaddr = (ulong)__dtb_start;
@@ -147,8 +147,7 @@ static int __init plat_of_setup(void)
 		panic("Device tree not present");
 
 	pic32_of_prepare_platform_data(pic32_auxdata_lookup);
-	if (of_platform_populate(NULL, of_default_bus_match_table,
-				 pic32_auxdata_lookup, NULL))
+	if (of_platform_default_populate(NULL, pic32_auxdata_lookup, NULL))
 		panic("Failed to populate DT");
 
 	return 0;

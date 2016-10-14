@@ -15,6 +15,7 @@
 ************************************************************************/
 
 #include <linux/string.h>
+#include <linux/bitops.h>
 #include "skein_base.h"
 #include "skein_block.h"
 
@@ -59,10 +60,10 @@
 #define ROUND256(p0, p1, p2, p3, ROT, r_num)         \
 	do {                                         \
 		X##p0 += X##p1;                      \
-		X##p1 = rotl_64(X##p1, ROT##_0);     \
+		X##p1 = rol64(X##p1, ROT##_0);       \
 		X##p1 ^= X##p0;                      \
 		X##p2 += X##p3;                      \
-		X##p3 = rotl_64(X##p3, ROT##_1);     \
+		X##p3 = rol64(X##p3, ROT##_1);       \
 		X##p3 ^= X##p2;                      \
 	} while (0)
 
@@ -120,10 +121,10 @@
 
 #if !(SKEIN_USE_ASM & 512)
 #undef  RCNT
-#define RCNT  (SKEIN_512_ROUNDS_TOTAL/8)
+#define RCNT  (SKEIN_512_ROUNDS_TOTAL / 8)
 
 #ifdef SKEIN_LOOP /* configure how much to unroll the loop */
-#define SKEIN_UNROLL_512 (((SKEIN_LOOP)/10)%10)
+#define SKEIN_UNROLL_512 (((SKEIN_LOOP) / 10) % 10)
 #else
 #define SKEIN_UNROLL_512 (0)
 #endif
@@ -136,15 +137,16 @@
 #define ROUND512(p0, p1, p2, p3, p4, p5, p6, p7, ROT, r_num)    \
 	do {                                                    \
 		X##p0 += X##p1;                                 \
-		X##p1 = rotl_64(X##p1, ROT##_0);                \
+		X##p1 = rol64(X##p1, ROT##_0);                  \
 		X##p1 ^= X##p0;                                 \
 		X##p2 += X##p3;                                 \
-		X##p3 = rotl_64(X##p3, ROT##_1);                \
+		X##p3 = rol64(X##p3, ROT##_1);                  \
 		X##p3 ^= X##p2;                                 \
 		X##p4 += X##p5;                                 \
-		X##p5 = rotl_64(X##p5, ROT##_2);                \
+		X##p5 = rol64(X##p5, ROT##_2);                  \
 		X##p5 ^= X##p4;                                 \
-		X##p6 += X##p7; X##p7 = rotl_64(X##p7, ROT##_3);\
+		X##p6 += X##p7;                                 \
+		X##p7 = rol64(X##p7, ROT##_3);			\
 		X##p7 ^= X##p6;                                 \
 	} while (0)
 
@@ -200,7 +202,7 @@
 	} while (0)
 #define R512_UNROLL_R(NN)                             \
 		((SKEIN_UNROLL_512 == 0 &&            \
-		SKEIN_512_ROUNDS_TOTAL/8 > (NN)) ||   \
+		SKEIN_512_ROUNDS_TOTAL / 8 > (NN)) || \
 		(SKEIN_UNROLL_512 > (NN)))
 
 #if  (SKEIN_UNROLL_512 > 14)
@@ -210,7 +212,7 @@
 
 #if !(SKEIN_USE_ASM & 1024)
 #undef  RCNT
-#define RCNT  (SKEIN_1024_ROUNDS_TOTAL/8)
+#define RCNT  (SKEIN_1024_ROUNDS_TOTAL / 8)
 #ifdef SKEIN_LOOP /* configure how much to unroll the loop */
 #define SKEIN_UNROLL_1024 ((SKEIN_LOOP) % 10)
 #else
@@ -226,28 +228,28 @@
 		  pF, ROT, r_num)                                             \
 	do {                                                                  \
 		X##p0 += X##p1;                                               \
-		X##p1 = rotl_64(X##p1, ROT##_0);                              \
+		X##p1 = rol64(X##p1, ROT##_0);                                \
 		X##p1 ^= X##p0;                                               \
 		X##p2 += X##p3;                                               \
-		X##p3 = rotl_64(X##p3, ROT##_1);                              \
+		X##p3 = rol64(X##p3, ROT##_1);                                \
 		X##p3 ^= X##p2;                                               \
 		X##p4 += X##p5;                                               \
-		X##p5 = rotl_64(X##p5, ROT##_2);                              \
+		X##p5 = rol64(X##p5, ROT##_2);                                \
 		X##p5 ^= X##p4;                                               \
 		X##p6 += X##p7;                                               \
-		X##p7 = rotl_64(X##p7, ROT##_3);                              \
+		X##p7 = rol64(X##p7, ROT##_3);                                \
 		X##p7 ^= X##p6;                                               \
 		X##p8 += X##p9;                                               \
-		X##p9 = rotl_64(X##p9, ROT##_4);                              \
+		X##p9 = rol64(X##p9, ROT##_4);                                \
 		X##p9 ^= X##p8;                                               \
 		X##pA += X##pB;                                               \
-		X##pB = rotl_64(X##pB, ROT##_5);                              \
+		X##pB = rol64(X##pB, ROT##_5);                                \
 		X##pB ^= X##pA;                                               \
 		X##pC += X##pD;                                               \
-		X##pD = rotl_64(X##pD, ROT##_6);                              \
+		X##pD = rol64(X##pD, ROT##_6);                                \
 		X##pD ^= X##pC;                                               \
 		X##pE += X##pF;                                               \
-		X##pF = rotl_64(X##pF, ROT##_7);                              \
+		X##pF = rol64(X##pF, ROT##_7);                                \
 		X##pF ^= X##pE;                                               \
 	} while (0)
 
@@ -311,28 +313,28 @@
 #define R1024_8_ROUNDS(R)                                                 \
 	do {                                                              \
 		R1024(00, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, \
-		      13, 14, 15, R1024_0, 8*(R) + 1);                    \
+		      13, 14, 15, R1024_0, 8 * (R) + 1);                  \
 		R1024(00, 09, 02, 13, 06, 11, 04, 15, 10, 07, 12, 03, 14, \
-		      05, 08, 01, R1024_1, 8*(R) + 2);                    \
+		      05, 08, 01, R1024_1, 8 * (R) + 2);                  \
 		R1024(00, 07, 02, 05, 04, 03, 06, 01, 12, 15, 14, 13, 08, \
-		      11, 10, 09, R1024_2, 8*(R) + 3);                    \
+		      11, 10, 09, R1024_2, 8 * (R) + 3);                  \
 		R1024(00, 15, 02, 11, 06, 13, 04, 09, 14, 01, 08, 05, 10, \
-		      03, 12, 07, R1024_3, 8*(R) + 4);                    \
-		I1024(2*(R));                                             \
+		      03, 12, 07, R1024_3, 8 * (R) + 4);                  \
+		I1024(2 * (R));                                           \
 		R1024(00, 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, \
-		      13, 14, 15, R1024_4, 8*(R) + 5);                    \
+		      13, 14, 15, R1024_4, 8 * (R) + 5);                  \
 		R1024(00, 09, 02, 13, 06, 11, 04, 15, 10, 07, 12, 03, 14, \
-		      05, 08, 01, R1024_5, 8*(R) + 6);                    \
+		      05, 08, 01, R1024_5, 8 * (R) + 6);                  \
 		R1024(00, 07, 02, 05, 04, 03, 06, 01, 12, 15, 14, 13, 08, \
-		      11, 10, 09, R1024_6, 8*(R) + 7);                    \
+		      11, 10, 09, R1024_6, 8 * (R) + 7);                  \
 		R1024(00, 15, 02, 11, 06, 13, 04, 09, 14, 01, 08, 05, 10, \
-		      03, 12, 07, R1024_7, 8*(R) + 8);                    \
-		I1024(2*(R)+1);                                           \
+		      03, 12, 07, R1024_7, 8 * (R) + 8);                  \
+		I1024(2 * (R) + 1);                                       \
 	} while (0)
 
 #define R1024_UNROLL_R(NN)                              \
 		((SKEIN_UNROLL_1024 == 0 &&             \
-		SKEIN_1024_ROUNDS_TOTAL/8 > (NN)) ||    \
+		SKEIN_1024_ROUNDS_TOTAL / 8 > (NN)) ||  \
 		(SKEIN_UNROLL_1024 > (NN)))
 
 #if  (SKEIN_UNROLL_1024 > 14)
@@ -351,10 +353,10 @@ void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blk_ptr,
 	size_t r;
 #if SKEIN_UNROLL_256
 	/* key schedule: chaining vars + tweak + "rot"*/
-	u64  kw[WCNT+4+RCNT*2];
+	u64  kw[WCNT + 4 + (RCNT * 2)];
 #else
 	/* key schedule words : chaining vars + tweak */
-	u64  kw[WCNT+4];
+	u64  kw[WCNT + 4];
 #endif
 	u64  X0, X1, X2, X3; /* local copy of context vars, for speed */
 	u64  w[WCNT]; /* local copy of input block */
@@ -460,9 +462,10 @@ void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blk_ptr,
 #if defined(SKEIN_CODE_SIZE) || defined(SKEIN_PERF)
 size_t skein_256_process_block_code_size(void)
 {
-	return ((u8 *) skein_256_process_block_code_size) -
-		((u8 *) skein_256_process_block);
+	return ((u8 *)skein_256_process_block_code_size) -
+		((u8 *)skein_256_process_block);
 }
+
 unsigned int skein_256_unroll_cnt(void)
 {
 	return SKEIN_UNROLL_256;
@@ -480,9 +483,11 @@ void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blk_ptr,
 	};
 	size_t  r;
 #if SKEIN_UNROLL_512
-	u64  kw[WCNT+4+RCNT*2]; /* key sched: chaining vars + tweak + "rot"*/
+	/* key sched: chaining vars + tweak + "rot"*/
+	u64  kw[WCNT + 4 + RCNT * 2];
 #else
-	u64  kw[WCNT+4]; /* key schedule words : chaining vars + tweak */
+	/* key schedule words : chaining vars + tweak */
+	u64  kw[WCNT + 4];
 #endif
 	u64  X0, X1, X2, X3, X4, X5, X6, X7; /* local copies, for speed */
 	u64  w[WCNT]; /* local copy of input block */
@@ -543,7 +548,6 @@ void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blk_ptr,
 		for (r = 1;
 			r < (SKEIN_UNROLL_512 ? 2 * RCNT : 2);
 			r += (SKEIN_UNROLL_512 ? 2 * SKEIN_UNROLL_512 : 1)) {
-
 			R512_8_ROUNDS(0);
 
 #if   R512_UNROLL_R(1)
@@ -609,9 +613,10 @@ void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blk_ptr,
 #if defined(SKEIN_CODE_SIZE) || defined(SKEIN_PERF)
 size_t skein_512_process_block_code_size(void)
 {
-	return ((u8 *) skein_512_process_block_code_size) -
-		((u8 *) skein_512_process_block);
+	return ((u8 *)skein_512_process_block_code_size) -
+		((u8 *)skein_512_process_block);
 }
+
 unsigned int skein_512_unroll_cnt(void)
 {
 	return SKEIN_UNROLL_512;
@@ -629,9 +634,11 @@ void skein_1024_process_block(struct skein_1024_ctx *ctx, const u8 *blk_ptr,
 	};
 	size_t  r;
 #if (SKEIN_UNROLL_1024 != 0)
-	u64  kw[WCNT+4+RCNT*2]; /* key sched: chaining vars + tweak + "rot" */
+	/* key sched: chaining vars + tweak + "rot" */
+	u64  kw[WCNT + 4 + (RCNT * 2)];
 #else
-	u64  kw[WCNT+4]; /* key schedule words : chaining vars + tweak */
+	/* key schedule words : chaining vars + tweak */
+	u64  kw[WCNT + 4];
 #endif
 
 	/* local copy of vars, for speed */
@@ -771,9 +778,10 @@ void skein_1024_process_block(struct skein_1024_ctx *ctx, const u8 *blk_ptr,
 #if defined(SKEIN_CODE_SIZE) || defined(SKEIN_PERF)
 size_t skein_1024_process_block_code_size(void)
 {
-	return ((u8 *) skein_1024_process_block_code_size) -
-		((u8 *) skein_1024_process_block);
+	return ((u8 *)skein_1024_process_block_code_size) -
+		((u8 *)skein_1024_process_block);
 }
+
 unsigned int skein_1024_unroll_cnt(void)
 {
 	return SKEIN_UNROLL_1024;

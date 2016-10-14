@@ -2,7 +2,7 @@
  * max77686.c - mfd core driver for the Maxim 77686/802
  *
  * Copyright (C) 2012 Samsung Electronics
- * Chiwoong Byun <woong.byun@smasung.com>
+ * Chiwoong Byun <woong.byun@samsung.com>
  * Jonghwa Lee <jonghwa3.lee@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -230,36 +230,22 @@ static int max77686_i2c_probe(struct i2c_client *i2c,
 		return -ENODEV;
 	}
 
-	ret = regmap_add_irq_chip(max77686->regmap, max77686->irq,
-				  IRQF_TRIGGER_FALLING | IRQF_ONESHOT |
-				  IRQF_SHARED, 0, irq_chip,
-				  &max77686->irq_data);
+	ret = devm_regmap_add_irq_chip(&i2c->dev, max77686->regmap,
+				       max77686->irq,
+				       IRQF_TRIGGER_FALLING | IRQF_ONESHOT |
+				       IRQF_SHARED, 0, irq_chip,
+				       &max77686->irq_data);
 	if (ret < 0) {
 		dev_err(&i2c->dev, "failed to add PMIC irq chip: %d\n", ret);
 		return ret;
 	}
 
-	ret = mfd_add_devices(max77686->dev, -1, cells, n_devs, NULL, 0, NULL);
+	ret = devm_mfd_add_devices(max77686->dev, -1, cells, n_devs, NULL,
+				   0, NULL);
 	if (ret < 0) {
 		dev_err(&i2c->dev, "failed to add MFD devices: %d\n", ret);
-		goto err_del_irqc;
+		return ret;
 	}
-
-	return 0;
-
-err_del_irqc:
-	regmap_del_irq_chip(max77686->irq, max77686->irq_data);
-
-	return ret;
-}
-
-static int max77686_i2c_remove(struct i2c_client *i2c)
-{
-	struct max77686_dev *max77686 = i2c_get_clientdata(i2c);
-
-	mfd_remove_devices(max77686->dev);
-
-	regmap_del_irq_chip(max77686->irq, max77686->irq_data);
 
 	return 0;
 }
@@ -317,22 +303,10 @@ static struct i2c_driver max77686_i2c_driver = {
 		   .of_match_table = of_match_ptr(max77686_pmic_dt_match),
 	},
 	.probe = max77686_i2c_probe,
-	.remove = max77686_i2c_remove,
 	.id_table = max77686_i2c_id,
 };
 
-static int __init max77686_i2c_init(void)
-{
-	return i2c_add_driver(&max77686_i2c_driver);
-}
-/* init early so consumer devices can complete system boot */
-subsys_initcall(max77686_i2c_init);
-
-static void __exit max77686_i2c_exit(void)
-{
-	i2c_del_driver(&max77686_i2c_driver);
-}
-module_exit(max77686_i2c_exit);
+module_i2c_driver(max77686_i2c_driver);
 
 MODULE_DESCRIPTION("MAXIM 77686/802 multi-function core driver");
 MODULE_AUTHOR("Chiwoong Byun <woong.byun@samsung.com>");

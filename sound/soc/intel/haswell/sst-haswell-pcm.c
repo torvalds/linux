@@ -445,7 +445,7 @@ static int create_adsp_page_table(struct snd_pcm_substream *substream,
 
 	pages = snd_sgbuf_aligned_pages(size);
 
-	dev_dbg(rtd->dev, "generating page table for %p size 0x%zu pages %d\n",
+	dev_dbg(rtd->dev, "generating page table for %p size 0x%zx pages %d\n",
 		dma_area, size, pages);
 
 	for (i = 0; i < pages; i++) {
@@ -819,7 +819,6 @@ static int hsw_pcm_open(struct snd_pcm_substream *substream)
 	mutex_lock(&pcm_data->mutex);
 	pm_runtime_get_sync(pdata->dev);
 
-	snd_soc_pcm_set_drvdata(rtd, pcm_data);
 	pcm_data->substream = substream;
 
 	snd_soc_set_runtime_hwparams(substream, &hsw_pcm_hardware);

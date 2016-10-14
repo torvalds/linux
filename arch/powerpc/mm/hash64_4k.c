@@ -34,21 +34,21 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 
 		old_pte = pte_val(pte);
 		/* If PTE busy, retry the access */
-		if (unlikely(old_pte & _PAGE_BUSY))
+		if (unlikely(old_pte & H_PAGE_BUSY))
 			return 0;
 		/* If PTE permissions don't match, take page fault */
-		if (unlikely(access & ~old_pte))
+		if (unlikely(!check_pte_access(access, old_pte)))
 			return 1;
 		/*
 		 * Try to lock the PTE, add ACCESSED and DIRTY if it was
 		 * a write access. Since this is 4K insert of 64K page size
-		 * also add _PAGE_COMBO
+		 * also add H_PAGE_COMBO
 		 */
-		new_pte = old_pte | _PAGE_BUSY | _PAGE_ACCESSED;
-		if (access & _PAGE_RW)
+		new_pte = old_pte | H_PAGE_BUSY | _PAGE_ACCESSED;
+		if (access & _PAGE_WRITE)
 			new_pte |= _PAGE_DIRTY;
-	} while (old_pte != __cmpxchg_u64((unsigned long *)ptep,
-					  old_pte, new_pte));
+	} while (!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
+
 	/*
 	 * PP bits. _PAGE_USER is already PP bit 0x2, so we only
 	 * need to add in 0x1 if it's a read-only user page
@@ -60,22 +60,22 @@ int __hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
 		rflags = hash_page_do_lazy_icache(rflags, __pte(old_pte), trap);
 
 	vpn  = hpt_vpn(ea, vsid, ssize);
-	if (unlikely(old_pte & _PAGE_HASHPTE)) {
+	if (unlikely(old_pte & H_PAGE_HASHPTE)) {
 		/*
 		 * There MIGHT be an HPTE for this pte
 		 */
 		hash = hpt_hash(vpn, shift, ssize);
-		if (old_pte & _PAGE_F_SECOND)
+		if (old_pte & H_PAGE_F_SECOND)
 			hash = ~hash;
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
-		slot += (old_pte & _PAGE_F_GIX) >> _PAGE_F_GIX_SHIFT;
+		slot += (old_pte & H_PAGE_F_GIX) >> H_PAGE_F_GIX_SHIFT;
 
-		if (ppc_md.hpte_updatepp(slot, rflags, vpn, MMU_PAGE_4K,
-					 MMU_PAGE_4K, ssize, flags) == -1)
+		if (mmu_hash_ops.hpte_updatepp(slot, rflags, vpn, MMU_PAGE_4K,
+					       MMU_PAGE_4K, ssize, flags) == -1)
 			old_pte &= ~_PAGE_HPTEFLAGS;
 	}
 
-	if (likely(!(old_pte & _PAGE_HASHPTE))) {
+	if (likely(!(old_pte & H_PAGE_HASHPTE))) {
 
 		pa = pte_pfn(__pte(old_pte)) << PAGE_SHIFT;
 		hash = hpt_hash(vpn, shift, ssize);
@@ -84,21 +84,23 @@ repeat:
 		hpte_group = ((hash & htab_hash_mask) * HPTES_PER_GROUP) & ~0x7UL;
 
 		/* Insert into the hash table, primary slot */
-		slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags, 0,
-				  MMU_PAGE_4K, MMU_PAGE_4K, ssize);
+		slot = mmu_hash_ops.hpte_insert(hpte_group, vpn, pa, rflags, 0,
+						MMU_PAGE_4K, MMU_PAGE_4K, ssize);
 		/*
 		 * Primary is full, try the secondary
 		 */
 		if (unlikely(slot == -1)) {
 			hpte_group = ((~hash & htab_hash_mask) * HPTES_PER_GROUP) & ~0x7UL;
-			slot = ppc_md.hpte_insert(hpte_group, vpn, pa,
-						  rflags, HPTE_V_SECONDARY,
-						  MMU_PAGE_4K, MMU_PAGE_4K, ssize);
+			slot = mmu_hash_ops.hpte_insert(hpte_group, vpn, pa,
+							rflags,
+							HPTE_V_SECONDARY,
+							MMU_PAGE_4K,
+							MMU_PAGE_4K, ssize);
 			if (slot == -1) {
 				if (mftb() & 0x1)
 					hpte_group = ((hash & htab_hash_mask) *
 						      HPTES_PER_GROUP) & ~0x7UL;
-				ppc_md.hpte_remove(hpte_group);
+				mmu_hash_ops.hpte_remove(hpte_group);
 				/*
 				 * FIXME!! Should be try the group from which we removed ?
 				 */
@@ -115,9 +117,10 @@ repeat:
 					   MMU_PAGE_4K, MMU_PAGE_4K, old_pte);
 			return -1;
 		}
-		new_pte = (new_pte & ~_PAGE_HPTEFLAGS) | _PAGE_HASHPTE;
-		new_pte |= (slot << _PAGE_F_GIX_SHIFT) & (_PAGE_F_SECOND | _PAGE_F_GIX);
+		new_pte = (new_pte & ~_PAGE_HPTEFLAGS) | H_PAGE_HASHPTE;
+		new_pte |= (slot << H_PAGE_F_GIX_SHIFT) &
+			(H_PAGE_F_SECOND | H_PAGE_F_GIX);
 	}
-	*ptep = __pte(new_pte & ~_PAGE_BUSY);
+	*ptep = __pte(new_pte & ~H_PAGE_BUSY);
 	return 0;
 }

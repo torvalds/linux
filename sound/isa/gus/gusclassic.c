@@ -229,15 +229,4 @@ static struct isa_driver snd_gusclassic_driver = {
 	}
 };
 
-static int __init alsa_card_gusclassic_init(void)
-{
-	return isa_register_driver(&snd_gusclassic_driver, SNDRV_CARDS);
-}
-
-static void __exit alsa_card_gusclassic_exit(void)
-{
-	isa_unregister_driver(&snd_gusclassic_driver);
-}
-
-module_init(alsa_card_gusclassic_init);
-module_exit(alsa_card_gusclassic_exit);
+module_isa_driver(snd_gusclassic_driver, SNDRV_CARDS);

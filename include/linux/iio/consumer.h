@@ -49,6 +49,33 @@ struct iio_channel *iio_channel_get(struct device *dev,
 void iio_channel_release(struct iio_channel *chan);
 
 /**
+ * devm_iio_channel_get() - Resource managed version of iio_channel_get().
+ * @dev:		Pointer to consumer device. Device name must match
+ *			the name of the device as provided in the iio_map
+ *			with which the desired provider to consumer mapping
+ *			was registered.
+ * @consumer_channel:	Unique name to identify the channel on the consumer
+ *			side. This typically describes the channels use within
+ *			the consumer. E.g. 'battery_voltage'
+ *
+ * Returns a pointer to negative errno if it is not able to get the iio channel
+ * otherwise returns valid pointer for iio channel.
+ *
+ * The allocated iio channel is automatically released when the device is
+ * unbound.
+ */
+struct iio_channel *devm_iio_channel_get(struct device *dev,
+					 const char *consumer_channel);
+/**
+ * devm_iio_channel_release() - Resource managed version of
+ *				iio_channel_release().
+ * @dev:		Pointer to consumer device for which resource
+ *			is allocared.
+ * @chan:		The channel to be released.
+ */
+void devm_iio_channel_release(struct device *dev, struct iio_channel *chan);
+
+/**
  * iio_channel_get_all() - get all channels associated with a client
  * @dev:		Pointer to consumer device.
  *
@@ -64,6 +91,32 @@ struct iio_channel *iio_channel_get_all(struct device *dev);
  * @chan:		Array of channels to be released.
  */
 void iio_channel_release_all(struct iio_channel *chan);
+
+/**
+ * devm_iio_channel_get_all() - Resource managed version of
+ *				iio_channel_get_all().
+ * @dev: Pointer to consumer device.
+ *
+ * Returns a pointer to negative errno if it is not able to get the iio channel
+ * otherwise returns an array of iio_channel structures terminated with one with
+ * null iio_dev pointer.
+ *
+ * This function is used by fairly generic consumers to get all the
+ * channels registered as having this consumer.
+ *
+ * The allocated iio channels are automatically released when the device is
+ * unbounded.
+ */
+struct iio_channel *devm_iio_channel_get_all(struct device *dev);
+
+/**
+ * devm_iio_channel_release_all() - Resource managed version of
+ *				    iio_channel_release_all().
+ * @dev:		Pointer to consumer device for which resource
+ *			is allocared.
+ * @chan:		Array channel to be released.
+ */
+void devm_iio_channel_release_all(struct device *dev, struct iio_channel *chan);
 
 struct iio_cb_buffer;
 /**

@@ -62,7 +62,7 @@
 		clock-frequency = <24576000>;
 	};
 
-	vcc_sdhi0: regulator@1 {
+	vcc_sdhi0: regulator-vcc-sdhi0 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "SDHI0 Vcc";
@@ -73,7 +73,7 @@
 		enable-active-high;
 	};
 
-	vccq_sdhi0: regulator@2 {
+	vccq_sdhi0: regulator-vccq-sdhi0 {
 		compatible = "regulator-gpio";
 
 		regulator-name = "SDHI0 VccQ";
@@ -86,7 +86,7 @@
 			  1800000 0>;
 	};
 
-	vcc_sdhi3: regulator@3 {
+	vcc_sdhi3: regulator-vcc-sdhi3 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "SDHI3 Vcc";
@@ -97,7 +97,7 @@
 		enable-active-high;
 	};
 
-	vccq_sdhi3: regulator@4 {
+	vccq_sdhi3: regulator-vccq-sdhi3 {
 		compatible = "regulator-gpio";
 
 		regulator-name = "SDHI3 VccQ";
@@ -141,62 +141,66 @@
 	clock-frequency = <16666666>;
 };
 
+&extalr_clk {
+	clock-frequency = <32768>;
+};
+
 &pfc {
 	pinctrl-0 = <&scif_clk_pins>;
 	pinctrl-names = "default";
 
 	scif1_pins: scif1 {
-		renesas,groups = "scif1_data_a", "scif1_ctrl";
-		renesas,function = "scif1";
+		groups = "scif1_data_a", "scif1_ctrl";
+		function = "scif1";
 	};
 	scif2_pins: scif2 {
-		renesas,groups = "scif2_data_a";
-		renesas,function = "scif2";
+		groups = "scif2_data_a";
+		function = "scif2";
 	};
 	scif_clk_pins: scif_clk {
-		renesas,groups = "scif_clk_a";
-		renesas,function = "scif_clk";
+		groups = "scif_clk_a";
+		function = "scif_clk";
 	};
 
 	i2c2_pins: i2c2 {
-		renesas,groups = "i2c2_a";
-		renesas,function = "i2c2";
+		groups = "i2c2_a";
+		function = "i2c2";
 	};
 
 	avb_pins: avb {
-		renesas,groups = "avb_mdc";
-		renesas,function = "avb";
+		groups = "avb_mdc";
+		function = "avb";
 	};
 
 	sdhi0_pins: sd0 {
-		renesas,groups = "sdhi0_data4", "sdhi0_ctrl";
-		renesas,function = "sdhi0";
+		groups = "sdhi0_data4", "sdhi0_ctrl";
+		function = "sdhi0";
 	};
 
 	sdhi3_pins: sd3 {
-		renesas,groups = "sdhi3_data4", "sdhi3_ctrl";
-		renesas,function = "sdhi3";
+		groups = "sdhi3_data4", "sdhi3_ctrl";
+		function = "sdhi3";
 	};
 
 	sound_pins: sound {
-		renesas,groups = "ssi01239_ctrl", "ssi0_data", "ssi1_data_a";
-		renesas,function = "ssi";
+		groups = "ssi01239_ctrl", "ssi0_data", "ssi1_data_a";
+		function = "ssi";
 	};
 
 	sound_clk_pins: sound_clk {
-		renesas,groups = "audio_clk_a_a", "audio_clk_b_a", "audio_clk_c_a",
-				 "audio_clkout_a", "audio_clkout3_a";
-		renesas,function = "audio_clk";
+		groups = "audio_clk_a_a", "audio_clk_b_a", "audio_clk_c_a",
+			 "audio_clkout_a", "audio_clkout3_a";
+		function = "audio_clk";
 	};
 
 	usb1_pins: usb1 {
-		renesas,groups = "usb1";
-		renesas,function = "usb1";
+		groups = "usb1";
+		function = "usb1";
 	};
 
 	usb2_pins: usb2 {
-		renesas,groups = "usb2";
-		renesas,function = "usb2";
+		groups = "usb2";
+		function = "usb2";
 	};
 };
 
@@ -204,6 +208,7 @@
 	pinctrl-0 = <&scif1_pins>;
 	pinctrl-names = "default";
 
+	uart-has-rtscts;
 	status = "okay";
 };
 
@@ -325,6 +330,11 @@
 	shared-pin;
 };
 
+&wdt0 {
+	timeout-sec = <60>;
+	status = "okay";
+};
+
 &audio_clk_a {
 	clock-frequency = <22579200>;
 };
@@ -386,5 +396,18 @@
 };
 
 &ohci2 {
+	status = "okay";
+};
+
+&pcie_bus_clk {
+	clock-frequency = <100000000>;
+	status = "okay";
+};
+
+&pciec0 {
+	status = "okay";
+};
+
+&pciec1 {
 	status = "okay";
 };

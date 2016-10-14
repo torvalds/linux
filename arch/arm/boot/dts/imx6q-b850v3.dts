@@ -51,25 +51,20 @@
 	chosen {
 		stdout-path = &uart3;
 	};
+};
 
-	panel-lvds0 {
-		compatible = "auo,b133htn01";
-		backlight = <&backlight_lvds>;
-		ddc-i2c-bus = <&mux2_i2c2>;
-
-		port {
-			panel_in_lvds0: endpoint {
-				remote-endpoint = <&lvds0_out>;
-			};
-		};
-	};
+&clks {
+	assigned-clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>,
+			  <&clks IMX6QDL_CLK_LDB_DI1_SEL>,
+			  <&clks IMX6QDL_CLK_IPU1_DI0_PRE_SEL>,
+			  <&clks IMX6QDL_CLK_IPU1_DI1_PRE_SEL>;
+	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL5_VIDEO_DIV>,
+				 <&clks IMX6QDL_CLK_PLL5_VIDEO_DIV>,
+				 <&clks IMX6QDL_CLK_PLL2_PFD2_396M>,
+				 <&clks IMX6QDL_CLK_PLL2_PFD2_396M>;
 };
 
 &ldb {
-	assigned-clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>,
-			  <&clks IMX6QDL_CLK_LDB_DI1_SEL>;
-	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL3_USB_OTG>,
-				 <&clks IMX6QDL_CLK_PLL3_USB_OTG>;
 	fsl,dual-channel;
 	status = "okay";
 
@@ -77,14 +72,6 @@
 		fsl,data-mapping = "spwg";
 		fsl,data-width = <24>;
 		status = "okay";
-
-		port@4 {
-			reg = <4>;
-
-			lvds0_out: endpoint {
-				remote-endpoint = <&panel_in_lvds0>;
-			};
-		};
 	};
 };
 

@@ -31,6 +31,8 @@
 #include <perl.h>
 
 #include "../../perf.h"
+#include "../callchain.h"
+#include "../machine.h"
 #include "../thread.h"
 #include "../event.h"
 #include "../trace-event.h"
@@ -248,10 +250,89 @@ static void define_event_symbols(struct event_format *event,
 		define_event_symbols(event, ev_name, args->next);
 }
 
+static SV *perl_process_callchain(struct perf_sample *sample,
+				  struct perf_evsel *evsel,
+				  struct addr_location *al)
+{
+	AV *list;
+
+	list = newAV();
+	if (!list)
+		goto exit;
+
+	if (!symbol_conf.use_callchain || !sample->callchain)
+		goto exit;
+
+	if (thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
+				      sample, NULL, NULL, scripting_max_stack) != 0) {
+		pr_err("Failed to resolve callchain. Skipping\n");
+		goto exit;
+	}
+	callchain_cursor_commit(&callchain_cursor);
+
+
+	while (1) {
+		HV *elem;
+		struct callchain_cursor_node *node;
+		node = callchain_cursor_current(&callchain_cursor);
+		if (!node)
+			break;
+
+		elem = newHV();
+		if (!elem)
+			goto exit;
+
+		if (!hv_stores(elem, "ip", newSVuv(node->ip))) {
+			hv_undef(elem);
+			goto exit;
+		}
+
+		if (node->sym) {
+			HV *sym = newHV();
+			if (!sym) {
+				hv_undef(elem);
+				goto exit;
+			}
+			if (!hv_stores(sym, "start",   newSVuv(node->sym->start)) ||
+			    !hv_stores(sym, "end",     newSVuv(node->sym->end)) ||
+			    !hv_stores(sym, "binding", newSVuv(node->sym->binding)) ||
+			    !hv_stores(sym, "name",    newSVpvn(node->sym->name,
+								node->sym->namelen)) ||
+			    !hv_stores(elem, "sym",    newRV_noinc((SV*)sym))) {
+				hv_undef(sym);
+				hv_undef(elem);
+				goto exit;
+			}
+		}
+
+		if (node->map) {
+			struct map *map = node->map;
+			const char *dsoname = "[unknown]";
+			if (map && map->dso && (map->dso->name || map->dso->long_name)) {
+				if (symbol_conf.show_kernel_path && map->dso->long_name)
+					dsoname = map->dso->long_name;
+				else if (map->dso->name)
+					dsoname = map->dso->name;
+			}
+			if (!hv_stores(elem, "dso", newSVpv(dsoname,0))) {
+				hv_undef(elem);
+				goto exit;
+			}
+		}
+
+		callchain_cursor_advance(&callchain_cursor);
+		av_push(list, newRV_noinc((SV*)elem));
+	}
+
+exit:
+	return newRV_noinc((SV*)list);
+}
+
 static void perl_process_tracepoint(struct perf_sample *sample,
 				    struct perf_evsel *evsel,
-				    struct thread *thread)
+				    struct addr_location *al)
 {
+	struct thread *thread = al->thread;
 	struct event_format *event = evsel->tp_format;
 	struct format_field *field;
 	static char handler[256];
@@ -295,6 +376,7 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 	XPUSHs(sv_2mortal(newSVuv(ns)));
 	XPUSHs(sv_2mortal(newSViv(pid)));
 	XPUSHs(sv_2mortal(newSVpv(comm, 0)));
+	XPUSHs(sv_2mortal(perl_process_callchain(sample, evsel, al)));
 
 	/* common fields other than pid can be accessed via xsub fns */
 
@@ -329,6 +411,7 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 		XPUSHs(sv_2mortal(newSVuv(nsecs)));
 		XPUSHs(sv_2mortal(newSViv(pid)));
 		XPUSHs(sv_2mortal(newSVpv(comm, 0)));
+		XPUSHs(sv_2mortal(perl_process_callchain(sample, evsel, al)));
 		call_pv("main::trace_unhandled", G_SCALAR);
 	}
 	SPAGAIN;
@@ -366,7 +449,7 @@ static void perl_process_event(union perf_event *event,
 			       struct perf_evsel *evsel,
 			       struct addr_location *al)
 {
-	perl_process_tracepoint(sample, evsel, al->thread);
+	perl_process_tracepoint(sample, evsel, al);
 	perl_process_event_generic(event, sample, evsel);
 }
 
@@ -490,7 +573,27 @@ static int perl_generate_script(struct pevent *pevent, const char *outfile)
 	fprintf(ofp, "use Perf::Trace::Util;\n\n");
 
 	fprintf(ofp, "sub trace_begin\n{\n\t# optional\n}\n\n");
-	fprintf(ofp, "sub trace_end\n{\n\t# optional\n}\n\n");
+	fprintf(ofp, "sub trace_end\n{\n\t# optional\n}\n");
+
+
+	fprintf(ofp, "\n\
+sub print_backtrace\n\
+{\n\
+	my $callchain = shift;\n\
+	for my $node (@$callchain)\n\
+	{\n\
+		if(exists $node->{sym})\n\
+		{\n\
+			printf( \"\\t[\\%%x] \\%%s\\n\", $node->{ip}, $node->{sym}{name});\n\
+		}\n\
+		else\n\
+		{\n\
+			printf( \"\\t[\\%%x]\\n\", $node{ip});\n\
+		}\n\
+	}\n\
+}\n\n\
+");
+
 
 	while ((event = trace_find_next_event(pevent, event))) {
 		fprintf(ofp, "sub %s::%s\n{\n", event->system, event->name);
@@ -502,7 +605,8 @@ static int perl_generate_script(struct pevent *pevent, const char *outfile)
 		fprintf(ofp, "$common_secs, ");
 		fprintf(ofp, "$common_nsecs,\n");
 		fprintf(ofp, "\t    $common_pid, ");
-		fprintf(ofp, "$common_comm,\n\t    ");
+		fprintf(ofp, "$common_comm, ");
+		fprintf(ofp, "$common_callchain,\n\t    ");
 
 		not_first = 0;
 		count = 0;
@@ -519,7 +623,7 @@ static int perl_generate_script(struct pevent *pevent, const char *outfile)
 
 		fprintf(ofp, "\tprint_header($event_name, $common_cpu, "
 			"$common_secs, $common_nsecs,\n\t             "
-			"$common_pid, $common_comm);\n\n");
+			"$common_pid, $common_comm, $common_callchain);\n\n");
 
 		fprintf(ofp, "\tprintf(\"");
 
@@ -581,17 +685,22 @@ static int perl_generate_script(struct pevent *pevent, const char *outfile)
 				fprintf(ofp, "$%s", f->name);
 		}
 
-		fprintf(ofp, ");\n");
+		fprintf(ofp, ");\n\n");
+
+		fprintf(ofp, "\tprint_backtrace($common_callchain);\n");
+
 		fprintf(ofp, "}\n\n");
 	}
 
 	fprintf(ofp, "sub trace_unhandled\n{\n\tmy ($event_name, $context, "
 		"$common_cpu, $common_secs, $common_nsecs,\n\t    "
-		"$common_pid, $common_comm) = @_;\n\n");
+		"$common_pid, $common_comm, $common_callchain) = @_;\n\n");
 
 	fprintf(ofp, "\tprint_header($event_name, $common_cpu, "
 		"$common_secs, $common_nsecs,\n\t             $common_pid, "
-		"$common_comm);\n}\n\n");
+		"$common_comm, $common_callchain);\n");
+	fprintf(ofp, "\tprint_backtrace($common_callchain);\n");
+	fprintf(ofp, "}\n\n");
 
 	fprintf(ofp, "sub print_header\n{\n"
 		"\tmy ($event_name, $cpu, $secs, $nsecs, $pid, $comm) = @_;\n\n"

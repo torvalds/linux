@@ -175,11 +175,6 @@ extern int padata_do_parallel(struct padata_instance *pinst,
 extern void padata_do_serial(struct padata_priv *padata);
 extern int padata_set_cpumask(struct padata_instance *pinst, int cpumask_type,
 			      cpumask_var_t cpumask);
-extern int padata_set_cpumasks(struct padata_instance *pinst,
-			       cpumask_var_t pcpumask,
-			       cpumask_var_t cbcpumask);
-extern int padata_add_cpu(struct padata_instance *pinst, int cpu, int mask);
-extern int padata_remove_cpu(struct padata_instance *pinst, int cpu, int mask);
 extern int padata_start(struct padata_instance *pinst);
 extern void padata_stop(struct padata_instance *pinst);
 extern int padata_register_cpumask_notifier(struct padata_instance *pinst,

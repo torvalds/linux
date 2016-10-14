@@ -19,12 +19,19 @@
 #include "callchain.h"
 #include "strlist.h"
 
-struct callchain_param	callchain_param = {
-	.mode	= CHAIN_GRAPH_ABS,
-	.min_percent = 0.5,
-	.order  = ORDER_CALLEE,
-	.key	= CCKEY_FUNCTION,
-	.value	= CCVAL_PERCENT,
+#define CALLCHAIN_PARAM_DEFAULT			\
+	.mode		= CHAIN_GRAPH_ABS,	\
+	.min_percent	= 0.5,			\
+	.order		= ORDER_CALLEE,		\
+	.key		= CCKEY_FUNCTION,	\
+	.value		= CCVAL_PERCENT,	\
+
+struct callchain_param callchain_param = {
+	CALLCHAIN_PARAM_DEFAULT
+};
+
+struct callchain_param callchain_param_default = {
+	CALLCHAIN_PARAM_DEFAULT
 };
 
 /*
@@ -32,6 +39,9 @@ struct callchain_param	callchain_param = {
  */
 unsigned int page_size;
 int cacheline_size;
+
+int sysctl_perf_event_max_stack = PERF_MAX_STACK_DEPTH;
+int sysctl_perf_event_max_contexts_per_stack = PERF_MAX_CONTEXTS_PER_STACK;
 
 bool test_attr__enabled;
 
@@ -94,20 +104,17 @@ int rm_rf(char *path)
 		scnprintf(namebuf, sizeof(namebuf), "%s/%s",
 			  path, d->d_name);
 
-		ret = stat(namebuf, &statbuf);
+		/* We have to check symbolic link itself */
+		ret = lstat(namebuf, &statbuf);
 		if (ret < 0) {
 			pr_debug("stat failed: %s\n", namebuf);
 			break;
 		}
 
-		if (S_ISREG(statbuf.st_mode))
-			ret = unlink(namebuf);
-		else if (S_ISDIR(statbuf.st_mode))
+		if (S_ISDIR(statbuf.st_mode))
 			ret = rm_rf(namebuf);
-		else {
-			pr_debug("unknown file: %s\n", namebuf);
-			ret = -1;
-		}
+		else
+			ret = unlink(namebuf);
 	}
 	closedir(dir);
 
@@ -115,6 +122,40 @@ int rm_rf(char *path)
 		return ret;
 
 	return rmdir(path);
+}
+
+/* A filter which removes dot files */
+bool lsdir_no_dot_filter(const char *name __maybe_unused, struct dirent *d)
+{
+	return d->d_name[0] != '.';
+}
+
+/* lsdir reads a directory and store it in strlist */
+struct strlist *lsdir(const char *name,
+		      bool (*filter)(const char *, struct dirent *))
+{
+	struct strlist *list = NULL;
+	DIR *dir;
+	struct dirent *d;
+
+	dir = opendir(name);
+	if (!dir)
+		return NULL;
+
+	list = strlist__new(NULL, NULL);
+	if (!list) {
+		errno = ENOMEM;
+		goto out;
+	}
+
+	while ((d = readdir(dir)) != NULL) {
+		if (!filter || filter(name, d))
+			strlist__add(list, d->d_name);
+	}
+
+out:
+	closedir(dir);
+	return list;
 }
 
 static int slow_copyfile(const char *from, const char *to)
@@ -471,7 +512,6 @@ int parse_callchain_record(const char *arg, struct callchain_param *param)
 				       "needed for --call-graph fp\n");
 			break;
 
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
 		/* Dwarf style */
 		} else if (!strncmp(name, "dwarf", sizeof("dwarf"))) {
 			const unsigned long default_stack_dump_size = 8192;
@@ -487,7 +527,6 @@ int parse_callchain_record(const char *arg, struct callchain_param *param)
 				ret = get_stack_size(tok, &size);
 				param->dump_size = size;
 			}
-#endif /* HAVE_DWARF_UNWIND_SUPPORT */
 		} else if (!strncmp(name, "lbr", sizeof("lbr"))) {
 			if (!strtok_r(NULL, ",", &saveptr)) {
 				param->record_mode = CALLCHAIN_LBR;
@@ -706,4 +745,20 @@ void print_binary(unsigned char *data, size_t len,
 		}
 	}
 	printer(BINARY_PRINT_DATA_END, -1, extra);
+}
+
+int is_printable_array(char *p, unsigned int len)
+{
+	unsigned int i;
+
+	if (!p || !len || p[len - 1] != 0)
+		return 0;
+
+	len--;
+
+	for (i = 0; i < len; i++) {
+		if (!isprint(p[i]) && !isspace(p[i]))
+			return 0;
+	}
+	return 1;
 }

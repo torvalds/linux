@@ -57,9 +57,10 @@ void amdgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 	ttm_bo_kunmap(&bo->dma_buf_vmap);
 }
 
-struct drm_gem_object *amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
-							struct dma_buf_attachment *attach,
-							struct sg_table *sg)
+struct drm_gem_object *
+amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
+				 struct dma_buf_attachment *attach,
+				 struct sg_table *sg)
 {
 	struct reservation_object *resv = attach->dmabuf->resv;
 	struct amdgpu_device *adev = dev->dev_private;

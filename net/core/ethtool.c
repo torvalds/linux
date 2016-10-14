@@ -79,12 +79,17 @@ static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN]
 	[NETIF_F_UFO_BIT] =              "tx-udp-fragmentation",
 	[NETIF_F_GSO_ROBUST_BIT] =       "tx-gso-robust",
 	[NETIF_F_TSO_ECN_BIT] =          "tx-tcp-ecn-segmentation",
+	[NETIF_F_TSO_MANGLEID_BIT] =	 "tx-tcp-mangleid-segmentation",
 	[NETIF_F_TSO6_BIT] =             "tx-tcp6-segmentation",
 	[NETIF_F_FSO_BIT] =              "tx-fcoe-segmentation",
 	[NETIF_F_GSO_GRE_BIT] =		 "tx-gre-segmentation",
-	[NETIF_F_GSO_IPIP_BIT] =	 "tx-ipip-segmentation",
-	[NETIF_F_GSO_SIT_BIT] =		 "tx-sit-segmentation",
+	[NETIF_F_GSO_GRE_CSUM_BIT] =	 "tx-gre-csum-segmentation",
+	[NETIF_F_GSO_IPXIP4_BIT] =	 "tx-ipxip4-segmentation",
+	[NETIF_F_GSO_IPXIP6_BIT] =	 "tx-ipxip6-segmentation",
 	[NETIF_F_GSO_UDP_TUNNEL_BIT] =	 "tx-udp_tnl-segmentation",
+	[NETIF_F_GSO_UDP_TUNNEL_CSUM_BIT] = "tx-udp_tnl-csum-segmentation",
+	[NETIF_F_GSO_PARTIAL_BIT] =	 "tx-gso-partial",
+	[NETIF_F_GSO_SCTP_BIT] =	 "tx-sctp-segmentation",
 
 	[NETIF_F_FCOE_CRC_BIT] =         "tx-checksum-fcoe-crc",
 	[NETIF_F_SCTP_CRC_BIT] =        "tx-checksum-sctp",
@@ -387,15 +392,17 @@ static int __ethtool_set_flags(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static void convert_legacy_u32_to_link_mode(unsigned long *dst, u32 legacy_u32)
+void ethtool_convert_legacy_u32_to_link_mode(unsigned long *dst,
+					     u32 legacy_u32)
 {
 	bitmap_zero(dst, __ETHTOOL_LINK_MODE_MASK_NBITS);
 	dst[0] = legacy_u32;
 }
+EXPORT_SYMBOL(ethtool_convert_legacy_u32_to_link_mode);
 
 /* return false if src had higher bits set. lower bits always updated. */
-static bool convert_link_mode_to_legacy_u32(u32 *legacy_u32,
-					    const unsigned long *src)
+bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
+					     const unsigned long *src)
 {
 	bool retval = true;
 
@@ -415,6 +422,7 @@ static bool convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 	*legacy_u32 = src[0];
 	return retval;
 }
+EXPORT_SYMBOL(ethtool_convert_link_mode_to_legacy_u32);
 
 /* return false if legacy contained non-0 deprecated fields
  * transceiver/maxtxpkt/maxrxpkt. rest of ksettings always updated
@@ -437,13 +445,13 @@ convert_legacy_settings_to_link_ksettings(
 	    legacy_settings->maxrxpkt)
 		retval = false;
 
-	convert_legacy_u32_to_link_mode(
+	ethtool_convert_legacy_u32_to_link_mode(
 		link_ksettings->link_modes.supported,
 		legacy_settings->supported);
-	convert_legacy_u32_to_link_mode(
+	ethtool_convert_legacy_u32_to_link_mode(
 		link_ksettings->link_modes.advertising,
 		legacy_settings->advertising);
-	convert_legacy_u32_to_link_mode(
+	ethtool_convert_legacy_u32_to_link_mode(
 		link_ksettings->link_modes.lp_advertising,
 		legacy_settings->lp_advertising);
 	link_ksettings->base.speed
@@ -482,13 +490,13 @@ convert_link_ksettings_to_legacy_settings(
 	 * __u32	maxrxpkt;
 	 */
 
-	retval &= convert_link_mode_to_legacy_u32(
+	retval &= ethtool_convert_link_mode_to_legacy_u32(
 		&legacy_settings->supported,
 		link_ksettings->link_modes.supported);
-	retval &= convert_link_mode_to_legacy_u32(
+	retval &= ethtool_convert_link_mode_to_legacy_u32(
 		&legacy_settings->advertising,
 		link_ksettings->link_modes.advertising);
-	retval &= convert_link_mode_to_legacy_u32(
+	retval &= ethtool_convert_link_mode_to_legacy_u32(
 		&legacy_settings->lp_advertising,
 		link_ksettings->link_modes.lp_advertising);
 	ethtool_cmd_speed_set(legacy_settings, link_ksettings->base.speed);

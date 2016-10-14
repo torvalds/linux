@@ -583,7 +583,7 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 		if (access_error(vma, req))
 			goto invalid;
 
-		ret = handle_mm_fault(svm->mm, vma, address,
+		ret = handle_mm_fault(vma, address,
 				      req->wr_req ? FAULT_FLAG_WRITE : 0);
 		if (ret & VM_FAULT_ERROR)
 			goto invalid;

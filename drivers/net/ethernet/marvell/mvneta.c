@@ -244,7 +244,7 @@
 /* Various constants */
 
 /* Coalescing */
-#define MVNETA_TXDONE_COAL_PKTS		1
+#define MVNETA_TXDONE_COAL_PKTS		0	/* interrupt per packet */
 #define MVNETA_RX_COAL_PKTS		32
 #define MVNETA_RX_COAL_USEC		100
 
@@ -3458,6 +3458,8 @@ static int mvneta_open(struct net_device *dev)
 	return 0;
 
 err_free_irq:
+	unregister_cpu_notifier(&pp->cpu_notifier);
+	on_each_cpu(mvneta_percpu_disable, pp, true);
 	free_percpu_irq(pp->dev->irq, pp->ports);
 err_cleanup_txqs:
 	mvneta_cleanup_txqs(pp);
@@ -4116,6 +4118,7 @@ static int mvneta_probe(struct platform_device *pdev)
 			pp->bm_priv = NULL;
 		}
 	}
+	of_node_put(bm_node);
 
 	err = mvneta_init(&pdev->dev, pp);
 	if (err < 0)

@@ -326,26 +326,22 @@
 				atmel,adc-res-names = "lowres", "highres";
 				status = "disabled";
 
-				trigger@0 {
-					reg = <0>;
+				trigger0 {
 					trigger-name = "external-rising";
 					trigger-value = <0x1>;
 					trigger-external;
 				};
-				trigger@1 {
-					reg = <1>;
+				trigger1 {
 					trigger-name = "external-falling";
 					trigger-value = <0x2>;
 					trigger-external;
 				};
-				trigger@2 {
-					reg = <2>;
+				trigger2 {
 					trigger-name = "external-any";
 					trigger-value = <0x3>;
 					trigger-external;
 				};
-				trigger@3 {
-					reg = <3>;
+				trigger3 {
 					trigger-name = "continuous";
 					trigger-value = <0x6>;
 				};
@@ -424,6 +420,13 @@
 				dma-names = "tx", "rx";
 				clocks = <&tdes_clk>;
 				clock-names = "tdes_clk";
+			};
+
+			trng@f8040000 {
+				compatible = "atmel,at91sam9g45-trng";
+				reg = <0xf8040000 0x100>;
+				interrupts = <45 IRQ_TYPE_LEVEL_HIGH 0>;
+				clocks = <&trng_clk>;
 			};
 
 			dma0: dma-controller@ffffe600 {
@@ -1334,13 +1337,13 @@
 			clock-names = "pclk", "hclk";
 			status = "disabled";
 
-			ep0 {
+			ep@0 {
 				reg = <0>;
 				atmel,fifo-size = <64>;
 				atmel,nb-banks = <1>;
 			};
 
-			ep1 {
+			ep@1 {
 				reg = <1>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <3>;
@@ -1348,7 +1351,7 @@
 				atmel,can-isoc;
 			};
 
-			ep2 {
+			ep@2 {
 				reg = <2>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <3>;
@@ -1356,84 +1359,84 @@
 				atmel,can-isoc;
 			};
 
-			ep3 {
+			ep@3 {
 				reg = <3>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 				atmel,can-dma;
 			};
 
-			ep4 {
+			ep@4 {
 				reg = <4>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 				atmel,can-dma;
 			};
 
-			ep5 {
+			ep@5 {
 				reg = <5>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 				atmel,can-dma;
 			};
 
-			ep6 {
+			ep@6 {
 				reg = <6>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 				atmel,can-dma;
 			};
 
-			ep7 {
+			ep@7 {
 				reg = <7>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 				atmel,can-dma;
 			};
 
-			ep8 {
+			ep@8 {
 				reg = <8>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 			};
 
-			ep9 {
+			ep@9 {
 				reg = <9>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 			};
 
-			ep10 {
+			ep@10 {
 				reg = <10>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 			};
 
-			ep11 {
+			ep@11 {
 				reg = <11>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 			};
 
-			ep12 {
+			ep@12 {
 				reg = <12>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 			};
 
-			ep13 {
+			ep@13 {
 				reg = <13>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 			};
 
-			ep14 {
+			ep@14 {
 				reg = <14>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 			};
 
-			ep15 {
+			ep@15 {
 				reg = <15>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;

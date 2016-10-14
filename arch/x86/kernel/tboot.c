@@ -74,12 +74,6 @@ void __init tboot_probe(void)
 		return;
 	}
 
-	/* only a natively booted kernel should be using TXT */
-	if (paravirt_enabled()) {
-		pr_warning("non-0 tboot_addr but pv_ops is enabled\n");
-		return;
-	}
-
 	/* Map and check for tboot UUID. */
 	set_fixmap(FIX_TBOOT_BASE, boot_params.tboot_addr);
 	tboot = (struct tboot *)fix_to_virt(FIX_TBOOT_BASE);
@@ -329,24 +323,15 @@ static int tboot_wait_for_aps(int num_aps)
 	return !(atomic_read((atomic_t *)&tboot->num_in_wfs) == num_aps);
 }
 
-static int tboot_cpu_callback(struct notifier_block *nfb, unsigned long action,
-			      void *hcpu)
+static int tboot_dying_cpu(unsigned int cpu)
 {
-	switch (action) {
-	case CPU_DYING:
-		atomic_inc(&ap_wfs_count);
-		if (num_online_cpus() == 1)
-			if (tboot_wait_for_aps(atomic_read(&ap_wfs_count)))
-				return NOTIFY_BAD;
-		break;
+	atomic_inc(&ap_wfs_count);
+	if (num_online_cpus() == 1) {
+		if (tboot_wait_for_aps(atomic_read(&ap_wfs_count)))
+			return -EBUSY;
 	}
-	return NOTIFY_OK;
+	return 0;
 }
-
-static struct notifier_block tboot_cpu_notifier =
-{
-	.notifier_call = tboot_cpu_callback,
-};
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -423,8 +408,8 @@ static __init int tboot_late_init(void)
 	tboot_create_trampoline();
 
 	atomic_set(&ap_wfs_count, 0);
-	register_hotcpu_notifier(&tboot_cpu_notifier);
-
+	cpuhp_setup_state(CPUHP_AP_X86_TBOOT_DYING, "AP_X86_TBOOT_DYING", NULL,
+			  tboot_dying_cpu);
 #ifdef CONFIG_DEBUG_FS
 	debugfs_create_file("tboot_log", S_IRUSR,
 			arch_debugfs_dir, NULL, &tboot_log_fops);

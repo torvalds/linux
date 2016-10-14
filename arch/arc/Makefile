@@ -66,8 +66,6 @@ endif
 
 endif
 
-cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -fasynchronous-unwind-tables
-
 # By default gcc 4.8 generates dwarf4 which kernel unwinder can't grok
 ifeq ($(atleast_gcc48),y)
 cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -gdwarf-2
@@ -76,9 +74,7 @@ endif
 ifndef CONFIG_CC_OPTIMIZE_FOR_SIZE
 # Generic build system uses -O2, we want -O3
 # Note: No need to add to cflags-y as that happens anyways
-#
-# Disable the false maybe-uninitialized warings gcc spits out at -O3
-ARCH_CFLAGS += -O3 $(call cc-disable-warning,maybe-uninitialized,)
+ARCH_CFLAGS += -O3
 endif
 
 # small data is default for elf32 tool-chain. If not usable, disable it
@@ -115,6 +111,11 @@ core-y		+= arch/arc/boot/dts/
 core-$(CONFIG_ARC_PLAT_SIM)	+= arch/arc/plat-sim/
 core-$(CONFIG_ARC_PLAT_TB10X)	+= arch/arc/plat-tb10x/
 core-$(CONFIG_ARC_PLAT_AXS10X)	+= arch/arc/plat-axs10x/
+core-$(CONFIG_ARC_PLAT_EZNPS)	+= arch/arc/plat-eznps/
+
+ifdef CONFIG_ARC_PLAT_EZNPS
+KBUILD_CPPFLAGS += -I$(srctree)/arch/arc/plat-eznps/include
+endif
 
 drivers-$(CONFIG_OPROFILE)	+= arch/arc/oprofile/
 
@@ -122,7 +123,7 @@ libs-y		+= arch/arc/lib/ $(LIBGCC)
 
 boot		:= arch/arc/boot
 
-#default target for make without any arguements.
+#default target for make without any arguments.
 KBUILD_IMAGE	:= bootpImage
 
 all:	$(KBUILD_IMAGE)

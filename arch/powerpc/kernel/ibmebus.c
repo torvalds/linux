@@ -65,7 +65,7 @@ static void *ibmebus_alloc_coherent(struct device *dev,
 				    size_t size,
 				    dma_addr_t *dma_handle,
 				    gfp_t flag,
-				    struct dma_attrs *attrs)
+				    unsigned long attrs)
 {
 	void *mem;
 
@@ -78,7 +78,7 @@ static void *ibmebus_alloc_coherent(struct device *dev,
 static void ibmebus_free_coherent(struct device *dev,
 				  size_t size, void *vaddr,
 				  dma_addr_t dma_handle,
-				  struct dma_attrs *attrs)
+				  unsigned long attrs)
 {
 	kfree(vaddr);
 }
@@ -88,7 +88,7 @@ static dma_addr_t ibmebus_map_page(struct device *dev,
 				   unsigned long offset,
 				   size_t size,
 				   enum dma_data_direction direction,
-				   struct dma_attrs *attrs)
+				   unsigned long attrs)
 {
 	return (dma_addr_t)(page_address(page) + offset);
 }
@@ -97,7 +97,7 @@ static void ibmebus_unmap_page(struct device *dev,
 			       dma_addr_t dma_addr,
 			       size_t size,
 			       enum dma_data_direction direction,
-			       struct dma_attrs *attrs)
+			       unsigned long attrs)
 {
 	return;
 }
@@ -105,7 +105,7 @@ static void ibmebus_unmap_page(struct device *dev,
 static int ibmebus_map_sg(struct device *dev,
 			  struct scatterlist *sgl,
 			  int nents, enum dma_data_direction direction,
-			  struct dma_attrs *attrs)
+			  unsigned long attrs)
 {
 	struct scatterlist *sg;
 	int i;
@@ -121,7 +121,7 @@ static int ibmebus_map_sg(struct device *dev,
 static void ibmebus_unmap_sg(struct device *dev,
 			     struct scatterlist *sg,
 			     int nents, enum dma_data_direction direction,
-			     struct dma_attrs *attrs)
+			     unsigned long attrs)
 {
 	return;
 }
@@ -408,7 +408,7 @@ static ssize_t modalias_show(struct device *dev,
 	return len+1;
 }
 
-struct device_attribute ibmebus_bus_device_attrs[] = {
+static struct device_attribute ibmebus_bus_device_attrs[] = {
 	__ATTR_RO(devspec),
 	__ATTR_RO(name),
 	__ATTR_RO(modalias),

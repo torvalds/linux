@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -77,7 +73,9 @@ static int ll_readlink_internal(struct inode *inode,
 	ll_finish_md_op_data(op_data);
 	if (rc) {
 		if (rc != -ENOENT)
-			CERROR("inode %lu: rc = %d\n", inode->i_ino, rc);
+			CERROR("%s: inode "DFID": rc = %d\n",
+			       ll_get_fsname(inode->i_sb, NULL, 0),
+			       PFID(ll_inode2fid(inode)), rc);
 		goto failed;
 	}
 
@@ -90,8 +88,10 @@ static int ll_readlink_internal(struct inode *inode,
 
 	LASSERT(symlen != 0);
 	if (body->eadatasize != symlen) {
-		CERROR("inode %lu: symlink length %d not expected %d\n",
-		       inode->i_ino, body->eadatasize - 1, symlen - 1);
+		CERROR("%s: inode "DFID": symlink length %d not expected %d\n",
+		       ll_get_fsname(inode->i_sb, NULL, 0),
+		       PFID(ll_inode2fid(inode)), body->eadatasize - 1,
+		       symlen - 1);
 		rc = -EPROTO;
 		goto failed;
 	}

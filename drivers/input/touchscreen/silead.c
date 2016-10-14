@@ -147,9 +147,6 @@ static void silead_ts_read_data(struct i2c_client *client)
 	}
 
 	touch_nr = buf[0];
-	if (touch_nr < 0)
-		return;
-
 	if (touch_nr > data->max_fingers) {
 		dev_warn(dev, "More touches reported then supported %d > %d\n",
 			 touch_nr, data->max_fingers);
@@ -393,9 +390,10 @@ static void silead_ts_read_props(struct i2c_client *client)
 		data->max_fingers = 5; /* Most devices handle up-to 5 fingers */
 	}
 
-	error = device_property_read_string(dev, "touchscreen-fw-name", &str);
+	error = device_property_read_string(dev, "firmware-name", &str);
 	if (!error)
-		snprintf(data->fw_name, sizeof(data->fw_name), "%s", str);
+		snprintf(data->fw_name, sizeof(data->fw_name),
+			 "silead/%s", str);
 	else
 		dev_dbg(dev, "Firmware file name read error. Using default.");
 }
@@ -413,14 +411,14 @@ static int silead_ts_set_default_fw_name(struct silead_ts_data *data,
 		if (!acpi_id)
 			return -ENODEV;
 
-		snprintf(data->fw_name, sizeof(data->fw_name), "%s.fw",
-			acpi_id->id);
+		snprintf(data->fw_name, sizeof(data->fw_name),
+			 "silead/%s.fw", acpi_id->id);
 
 		for (i = 0; i < strlen(data->fw_name); i++)
 			data->fw_name[i] = tolower(data->fw_name[i]);
 	} else {
-		snprintf(data->fw_name, sizeof(data->fw_name), "%s.fw",
-			id->name);
+		snprintf(data->fw_name, sizeof(data->fw_name),
+			 "silead/%s.fw", id->name);
 	}
 
 	return 0;
@@ -429,7 +427,8 @@ static int silead_ts_set_default_fw_name(struct silead_ts_data *data,
 static int silead_ts_set_default_fw_name(struct silead_ts_data *data,
 					 const struct i2c_device_id *id)
 {
-	snprintf(data->fw_name, sizeof(data->fw_name), "%s.fw", id->name);
+	snprintf(data->fw_name, sizeof(data->fw_name),
+		 "silead/%s.fw", id->name);
 	return 0;
 }
 #endif
@@ -467,7 +466,7 @@ static int silead_ts_probe(struct i2c_client *client,
 		return -ENODEV;
 
 	/* Power GPIO pin */
-	data->gpio_power = gpiod_get_optional(dev, "power", GPIOD_OUT_LOW);
+	data->gpio_power = devm_gpiod_get_optional(dev, "power", GPIOD_OUT_LOW);
 	if (IS_ERR(data->gpio_power)) {
 		if (PTR_ERR(data->gpio_power) != -EPROBE_DEFER)
 			dev_err(dev, "Shutdown GPIO request failed\n");

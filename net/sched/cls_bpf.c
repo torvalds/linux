@@ -96,9 +96,11 @@ static int cls_bpf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		if (at_ingress) {
 			/* It is safe to push/pull even if skb_shared() */
 			__skb_push(skb, skb->mac_len);
+			bpf_compute_data_end(skb);
 			filter_res = BPF_PROG_RUN(prog->filter, skb);
 			__skb_pull(skb, skb->mac_len);
 		} else {
+			bpf_compute_data_end(skb);
 			filter_res = BPF_PROG_RUN(prog->filter, skb);
 		}
 
@@ -270,14 +272,9 @@ static int cls_bpf_prog_from_efd(struct nlattr **tb, struct cls_bpf_prog *prog,
 
 	bpf_fd = nla_get_u32(tb[TCA_BPF_FD]);
 
-	fp = bpf_prog_get(bpf_fd);
+	fp = bpf_prog_get_type(bpf_fd, BPF_PROG_TYPE_SCHED_CLS);
 	if (IS_ERR(fp))
 		return PTR_ERR(fp);
-
-	if (fp->type != BPF_PROG_TYPE_SCHED_CLS) {
-		bpf_prog_put(fp);
-		return -EINVAL;
-	}
 
 	if (tb[TCA_BPF_NAME]) {
 		name = kmemdup(nla_data(tb[TCA_BPF_NAME]),

@@ -13,13 +13,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
- * Written by Seiji Kihara <kihara@osrg.net>, Amagai Yoshiji <amagai@osrg.net>,
- *            and Ryusuke Konishi <ryusuke@osrg.net>.
- * Revised by Ryusuke Konishi <ryusuke@osrg.net>.
+ * Written by Seiji Kihara, Amagai Yoshiji, and Ryusuke Konishi.
+ * Revised by Ryusuke Konishi.
  *
  */
 /*
@@ -106,7 +101,7 @@ int nilfs_gccache_submit_read_data(struct inode *inode, sector_t blkoff,
 	bh->b_blocknr = pbn;
 	bh->b_end_io = end_buffer_read_sync;
 	get_bh(bh);
-	submit_bh(READ, bh);
+	submit_bh(REQ_OP_READ, 0, bh);
 	if (vbn)
 		bh->b_blocknr = vbn;
  out:
@@ -143,7 +138,8 @@ int nilfs_gccache_submit_read_node(struct inode *inode, sector_t pbn,
 	int ret;
 
 	ret = nilfs_btnode_submit_block(&NILFS_I(inode)->i_btnode_cache,
-					vbn ? : pbn, pbn, READ, out_bh, &pbn);
+					vbn ? : pbn, pbn, REQ_OP_READ, 0,
+					out_bh, &pbn);
 	if (ret == -EEXIST) /* internal code (cache hit) */
 		ret = 0;
 	return ret;
@@ -152,8 +148,15 @@ int nilfs_gccache_submit_read_node(struct inode *inode, sector_t pbn,
 int nilfs_gccache_wait_and_mark_dirty(struct buffer_head *bh)
 {
 	wait_on_buffer(bh);
-	if (!buffer_uptodate(bh))
+	if (!buffer_uptodate(bh)) {
+		struct inode *inode = bh->b_page->mapping->host;
+
+		nilfs_msg(inode->i_sb, KERN_ERR,
+			  "I/O error reading %s block for GC (ino=%lu, vblocknr=%llu)",
+			  buffer_nilfs_node(bh) ? "node" : "data",
+			  inode->i_ino, (unsigned long long)bh->b_blocknr);
 		return -EIO;
+	}
 	if (buffer_dirty(bh))
 		return -EEXIST;
 

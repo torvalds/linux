@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -360,9 +356,8 @@ void ptlrpc_invalidate_import(struct obd_import *imp)
 						  "still on delayed list");
 				}
 
-				CERROR("%s: RPCs in \"%s\" phase found (%d). Network is sluggish? Waiting them to error out.\n",
+				CERROR("%s: Unregistering RPCs found (%d). Network is sluggish? Waiting them to error out.\n",
 				       cli_tgt,
-				       ptlrpc_phase2str(RQ_PHASE_UNREGISTERING),
 				       atomic_read(&imp->
 						   imp_unregistering));
 			}
@@ -698,7 +693,8 @@ int ptlrpc_connect_import(struct obd_import *imp)
 
 	lustre_msg_add_op_flags(request->rq_reqmsg, MSG_CONNECT_NEXT_VER);
 
-	request->rq_no_resend = request->rq_no_delay = 1;
+	request->rq_no_resend = 1;
+	request->rq_no_delay = 1;
 	request->rq_send_state = LUSTRE_IMP_CONNECTING;
 	/* Allow a slightly larger reply for future growth compatibility */
 	req_capsule_set_size(&request->rq_pill, &RMF_CONNECT_DATA, RCL_SERVER,
@@ -1001,6 +997,7 @@ finish:
 			return 0;
 		}
 	} else {
+		static bool warned;
 
 		spin_lock(&imp->imp_lock);
 		list_del(&imp->imp_conn_current->oic_item);
@@ -1021,7 +1018,7 @@ finish:
 			goto out;
 		}
 
-		if ((ocd->ocd_connect_flags & OBD_CONNECT_VERSION) &&
+		if (!warned && (ocd->ocd_connect_flags & OBD_CONNECT_VERSION) &&
 		    (ocd->ocd_version > LUSTRE_VERSION_CODE +
 					LUSTRE_VERSION_OFFSET_WARN ||
 		     ocd->ocd_version < LUSTRE_VERSION_CODE -
@@ -1029,10 +1026,8 @@ finish:
 			/* Sigh, some compilers do not like #ifdef in the middle
 			 * of macro arguments
 			 */
-			const char *older = "older. Consider upgrading server or downgrading client"
-				;
-			const char *newer = "newer than client version. Consider upgrading client"
-					    ;
+			const char *older = "older than client. Consider upgrading server";
+			const char *newer = "newer than client. Consider recompiling application";
 
 			LCONSOLE_WARN("Server %s version (%d.%d.%d.%d) is much %s (%s)\n",
 				      obd2cli_tgt(imp->imp_obd),
@@ -1042,6 +1037,7 @@ finish:
 				      OBD_OCD_VERSION_FIX(ocd->ocd_version),
 				      ocd->ocd_version > LUSTRE_VERSION_CODE ?
 				      newer : older, LUSTRE_VERSION_STRING);
+			warned = true;
 		}
 
 #if LUSTRE_VERSION_CODE < OBD_OCD_VERSION(3, 2, 50, 0)
@@ -1370,7 +1366,6 @@ int ptlrpc_import_recovery_state_machine(struct obd_import *imp)
 			if (rc)
 				goto out;
 		}
-
 	}
 
 	if (imp->imp_state == LUSTRE_IMP_REPLAY_WAIT) {
@@ -1453,7 +1448,6 @@ int ptlrpc_disconnect_import(struct obd_import *imp, int noclose)
 				       back_to_sleep, LWI_ON_SIGNAL_NOOP, NULL);
 		rc = l_wait_event(imp->imp_recovery_waitq,
 				  !ptlrpc_import_in_recovery(imp), &lwi);
-
 	}
 
 	spin_lock(&imp->imp_lock);

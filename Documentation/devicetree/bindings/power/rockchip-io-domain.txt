@@ -37,8 +37,10 @@ Required properties:
   - "rockchip,rk3368-pmu-io-voltage-domain" for rk3368 pmu-domains
   - "rockchip,rk3399-io-voltage-domain" for rk3399
   - "rockchip,rk3399-pmu-io-voltage-domain" for rk3399 pmu-domains
-- rockchip,grf: phandle to the syscon managing the "general register files"
 
+Deprecated properties:
+- rockchip,grf: phandle to the syscon managing the "general register files"
+    Systems should move the io-domains to a sub-node of the grf simple-mfd.
 
 You specify supplies using the standard regulator bindings by including
 a phandle the relevant regulator.  All specified supplies must be able

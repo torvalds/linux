@@ -22,11 +22,6 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	aliases {
-		serial0 = &uart0;
-		serial1 = &uart1;
-	};
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -78,10 +73,13 @@
 					     <0 87 IRQ_TYPE_LEVEL_HIGH>,
 					     <0 88 IRQ_TYPE_LEVEL_HIGH>,
 					     <0 89 IRQ_TYPE_LEVEL_HIGH>,
-					     <0 90 IRQ_TYPE_LEVEL_HIGH>;
+					     <0 90 IRQ_TYPE_LEVEL_HIGH>,
+					     <0 91 IRQ_TYPE_LEVEL_HIGH>;
 				#dma-cells = <1>;
 				#dma-channels = <8>;
 				#dma-requests = <32>;
+				clocks = <&l4_main_clk>;
+				clock-names = "apb_pclk";
 			};
 		};
 
@@ -362,6 +360,7 @@
 						compatible = "altr,socfpga-a10-gate-clk";
 						clocks = <&sdmmc_free_clk>;
 						clk-gate = <0xC8 5>;
+						clk-phase = <0 135>;
 					};
 
 					qspi_clk: qspi_clk {
@@ -568,12 +567,6 @@
 			reg = <0xffcfb100 0x80>;
 		};
 
-		sdramedac {
-			compatible = "altr,sdram-edac-a10";
-			altr,sdr-syscon = <&sdr>;
-			interrupts = <0 2 4>, <0 0 4>;
-		};
-
 		L2: l2-cache@fffff000 {
 			compatible = "arm,pl310-cache";
 			reg = <0xfffff000 0x1000>;
@@ -589,7 +582,7 @@
 			reg = <0xff808000 0x1000>;
 			interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
 			fifo-depth = <0x400>;
-			clocks = <&l4_mp_clk>, <&sdmmc_free_clk>;
+			clocks = <&l4_mp_clk>, <&sdmmc_clk>;
 			clock-names = "biu", "ciu";
 			status = "disabled";
 		};
@@ -597,6 +590,55 @@
 		ocram: sram@ffe00000 {
 			compatible = "mmio-sram";
 			reg = <0xffe00000 0x40000>;
+		};
+
+		eccmgr: eccmgr@ffd06000 {
+			compatible = "altr,socfpga-a10-ecc-manager";
+			altr,sysmgr-syscon = <&sysmgr>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			interrupts = <0 2 IRQ_TYPE_LEVEL_HIGH>,
+				     <0 0 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			ranges;
+
+			sdramedac {
+				compatible = "altr,sdram-edac-a10";
+				altr,sdr-syscon = <&sdr>;
+				interrupts = <17 IRQ_TYPE_LEVEL_HIGH>,
+					     <49 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			l2-ecc@ffd06010 {
+				compatible = "altr,socfpga-a10-l2-ecc";
+				reg = <0xffd06010 0x4>;
+				interrupts = <0 IRQ_TYPE_LEVEL_HIGH>,
+					     <32 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			ocram-ecc@ff8c3000 {
+				compatible = "altr,socfpga-a10-ocram-ecc";
+				reg = <0xff8c3000 0x400>;
+				interrupts = <1 IRQ_TYPE_LEVEL_HIGH>,
+					     <33 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			emac0-rx-ecc@ff8c0800 {
+				compatible = "altr,socfpga-eth-mac-ecc";
+				reg = <0xff8c0800 0x400>;
+				altr,ecc-parent = <&gmac0>;
+				interrupts = <4 IRQ_TYPE_LEVEL_HIGH>,
+					     <36 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			emac0-tx-ecc@ff8c0c00 {
+				compatible = "altr,socfpga-eth-mac-ecc";
+				reg = <0xff8c0c00 0x400>;
+				altr,ecc-parent = <&gmac0>;
+				interrupts = <5 IRQ_TYPE_LEVEL_HIGH>,
+					     <37 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 
 		rst: rstmgr@ffd05000 {
@@ -689,6 +731,8 @@
 			interrupts = <0 95 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&usb_clk>;
 			clock-names = "otg";
+			resets = <&rst USB0_RESET>;
+			reset-names = "dwc2";
 			phys = <&usbphy0>;
 			phy-names = "usb2-phy";
 			status = "disabled";
@@ -700,6 +744,8 @@
 			interrupts = <0 96 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&usb_clk>;
 			clock-names = "otg";
+			resets = <&rst USB1_RESET>;
+			reset-names = "dwc2";
 			phys = <&usbphy0>;
 			phy-names = "usb2-phy";
 			status = "disabled";

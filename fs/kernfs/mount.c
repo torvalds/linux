@@ -135,9 +135,8 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 		kntmp = find_next_ancestor(kn, knparent);
 		if (WARN_ON(!kntmp))
 			return ERR_PTR(-EINVAL);
-		mutex_lock(&d_inode(dentry)->i_mutex);
-		dtmp = lookup_one_len(kntmp->name, dentry, strlen(kntmp->name));
-		mutex_unlock(&d_inode(dentry)->i_mutex);
+		dtmp = lookup_one_len_unlocked(kntmp->name, dentry,
+					       strlen(kntmp->name));
 		dput(dentry);
 		if (IS_ERR(dtmp))
 			return dtmp;
@@ -153,6 +152,8 @@ static int kernfs_fill_super(struct super_block *sb, unsigned long magic)
 	struct dentry *root;
 
 	info->sb = sb;
+	/* Userspace would break if executables or devices appear on sysfs */
+	sb->s_iflags |= SB_I_NOEXEC | SB_I_NODEV;
 	sb->s_blocksize = PAGE_SIZE;
 	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_magic = magic;
@@ -242,7 +243,8 @@ struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
 	info->root = root;
 	info->ns = ns;
 
-	sb = sget(fs_type, kernfs_test_super, kernfs_set_super, flags, info);
+	sb = sget_userns(fs_type, kernfs_test_super, kernfs_set_super, flags,
+			 &init_user_ns, info);
 	if (IS_ERR(sb) || sb->s_fs_info != info)
 		kfree(info);
 	if (IS_ERR(sb))

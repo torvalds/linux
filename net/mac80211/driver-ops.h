@@ -1,3 +1,8 @@
+/*
+* Portions of this file
+* Copyright(c) 2016 Intel Deutschland GmbH
+*/
+
 #ifndef __MAC80211_DRIVER_OPS
 #define __MAC80211_DRIVER_OPS
 
@@ -27,6 +32,16 @@ static inline void drv_tx(struct ieee80211_local *local,
 			  struct sk_buff *skb)
 {
 	local->ops->tx(&local->hw, control, skb);
+}
+
+static inline void drv_sync_rx_queues(struct ieee80211_local *local,
+				      struct sta_info *sta)
+{
+	if (local->ops->sync_rx_queues) {
+		trace_drv_sync_rx_queues(local, sta->sdata, &sta->sta);
+		local->ops->sync_rx_queues(&local->hw);
+		trace_drv_return_void(local);
+	}
 }
 
 static inline void drv_get_et_strings(struct ieee80211_sub_if_data *sdata,
@@ -1079,7 +1094,7 @@ static inline u32 drv_get_expected_throughput(struct ieee80211_local *local,
 
 	trace_drv_get_expected_throughput(sta);
 	if (local->ops->get_expected_throughput)
-		ret = local->ops->get_expected_throughput(sta);
+		ret = local->ops->get_expected_throughput(&local->hw, sta);
 	trace_drv_return_u32(local, ret);
 
 	return ret;

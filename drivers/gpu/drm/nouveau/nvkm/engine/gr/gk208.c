@@ -162,9 +162,12 @@ gk208_gr_gpccs_ucode = {
 static const struct gf100_gr_func
 gk208_gr = {
 	.init = gk104_gr_init,
+	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
+	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.mmio = gk208_gr_pack_mmio,
 	.fecs.ucode = &gk208_gr_fecs_ucode,
 	.gpccs.ucode = &gk208_gr_gpccs_ucode,
+	.rops = gf100_gr_rops,
 	.ppc_nr = 1,
 	.grctx = &gk208_grctx,
 	.sclass = {

@@ -143,8 +143,7 @@ static void __init ep88xc_setup_arch(void)
 
 static int __init ep88xc_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-	return of_flat_dt_is_compatible(root, "fsl,ep88xc");
+	return of_machine_is_compatible("fsl,ep88xc");
 }
 
 static const struct of_device_id of_bus_ids[] __initconst = {

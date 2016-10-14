@@ -389,7 +389,8 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 		goto err5;
 
 	ret = samsung_asoc_dma_platform_register(&pdev->dev,
-						 ac97_pdata->dma_filter);
+						 ac97_pdata->dma_filter,
+						 NULL, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get register DMA: %d\n", ret);
 		goto err5;

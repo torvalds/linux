@@ -1547,7 +1547,7 @@ static inline int at76_guess_freq(struct at76_priv *priv)
 		channel = el[2];
 
 exit:
-	return ieee80211_channel_to_frequency(channel, IEEE80211_BAND_2GHZ);
+	return ieee80211_channel_to_frequency(channel, NL80211_BAND_2GHZ);
 }
 
 static void at76_rx_tasklet(unsigned long param)
@@ -1590,7 +1590,7 @@ static void at76_rx_tasklet(unsigned long param)
 	rx_status.signal = buf->rssi;
 	rx_status.flag |= RX_FLAG_DECRYPTED;
 	rx_status.flag |= RX_FLAG_IV_STRIPPED;
-	rx_status.band = IEEE80211_BAND_2GHZ;
+	rx_status.band = NL80211_BAND_2GHZ;
 	rx_status.freq = at76_guess_freq(priv);
 
 	at76_dbg(DBG_MAC80211, "calling ieee80211_rx_irqsafe(): %d/%d",
@@ -1922,6 +1922,9 @@ static void at76_dwork_hw_scan(struct work_struct *work)
 {
 	struct at76_priv *priv = container_of(work, struct at76_priv,
 					      dwork_hw_scan.work);
+	struct cfg80211_scan_info info = {
+		.aborted = false,
+	};
 	int ret;
 
 	if (priv->device_unplugged)
@@ -1948,7 +1951,7 @@ static void at76_dwork_hw_scan(struct work_struct *work)
 
 	mutex_unlock(&priv->mtx);
 
-	ieee80211_scan_completed(priv->hw, false);
+	ieee80211_scan_completed(priv->hw, &info);
 
 	ieee80211_wake_queues(priv->hw);
 }
@@ -2359,7 +2362,7 @@ static int at76_init_new_device(struct at76_priv *priv,
 	priv->hw->wiphy->max_scan_ssids = 1;
 	priv->hw->wiphy->max_scan_ie_len = 0;
 	priv->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
-	priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &at76_supported_band;
+	priv->hw->wiphy->bands[NL80211_BAND_2GHZ] = &at76_supported_band;
 	ieee80211_hw_set(priv->hw, RX_INCLUDES_FCS);
 	ieee80211_hw_set(priv->hw, SIGNAL_UNSPEC);
 	priv->hw->max_signal = 100;

@@ -24,7 +24,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/list.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
@@ -69,7 +69,7 @@ static DEFINE_SPINLOCK(spu_lock);
  * spu_full_list_lock and spu_full_list_mutex held, while iterating
  * through it requires either of these locks.
  *
- * In addition spu_full_list_lock protects all assignmens to
+ * In addition spu_full_list_lock protects all assignments to
  * spu->mm.
  */
 static LIST_HEAD(spu_full_list);
@@ -197,7 +197,7 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 	    (REGION_ID(ea) != USER_REGION_ID)) {
 
 		spin_unlock(&spu->register_lock);
-		ret = hash_page(ea, _PAGE_PRESENT, 0x300, dsisr);
+		ret = hash_page(ea, _PAGE_PRESENT | _PAGE_READ, 0x300, dsisr);
 		spin_lock(&spu->register_lock);
 
 		if (!ret) {
@@ -253,7 +253,7 @@ static inline int __slb_present(struct copro_slb *slbs, int nr_slbs,
  * Setup the SPU kernel SLBs, in preparation for a context save/restore. We
  * need to map both the context save area, and the save/restore code.
  *
- * Because the lscsa and code may cross segment boundaires, we check to see
+ * Because the lscsa and code may cross segment boundaries, we check to see
  * if mappings are required for the start and end of each range. We currently
  * assume that the mappings are smaller that one segment - if not, something
  * is seriously wrong.
@@ -805,7 +805,4 @@ static int __init init_spu_base(void)
  out:
 	return ret;
 }
-module_init(init_spu_base);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Arnd Bergmann <arndb@de.ibm.com>");
+device_initcall(init_spu_base);

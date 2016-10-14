@@ -135,7 +135,12 @@ struct plat_stmmacenet_data {
 	void (*bus_setup)(void __iomem *ioaddr);
 	int (*init)(struct platform_device *pdev, void *priv);
 	void (*exit)(struct platform_device *pdev, void *priv);
+	void (*suspend)(struct platform_device *pdev, void *priv);
+	void (*resume)(struct platform_device *pdev, void *priv);
 	void *bsp_priv;
 	struct stmmac_axi *axi;
+	int has_gmac4;
+	bool tso_en;
+	int mac_port_sel_speed;
 };
 #endif

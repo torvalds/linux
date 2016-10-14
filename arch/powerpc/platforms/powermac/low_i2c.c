@@ -15,7 +15,7 @@
  * This file thus provides a simple low level unified i2c interface for
  * powermac that covers the various types of i2c busses used in Apple machines.
  * For now, keywest, PMU and SMU, though we could add Cuda, or other bit
- * banging busses found on older chipstes in earlier machines if we ever need
+ * banging busses found on older chipsets in earlier machines if we ever need
  * one of them.
  *
  * The drivers in this file are synchronous/blocking. In addition, the

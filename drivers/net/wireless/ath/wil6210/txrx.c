@@ -184,6 +184,13 @@ static void wil_vring_free(struct wil6210_priv *wil, struct vring *vring,
 					&vring->va[vring->swtail].tx;
 
 			ctx = &vring->ctx[vring->swtail];
+			if (!ctx) {
+				wil_dbg_txrx(wil,
+					     "ctx(%d) was already completed\n",
+					     vring->swtail);
+				vring->swtail = wil_vring_next_tail(vring);
+				continue;
+			}
 			*d = *_d;
 			wil_txdesc_unmap(dev, d, ctx);
 			if (ctx->skb)
@@ -544,9 +551,69 @@ static int wil_rx_refill(struct wil6210_priv *wil, int count)
 			break;
 		}
 	}
+
+	/* make sure all writes to descriptors (shared memory) are done before
+	 * committing them to HW
+	 */
+	wmb();
+
 	wil_w(wil, v->hwtail, v->swtail);
 
 	return rc;
+}
+
+/**
+ * reverse_memcmp - Compare two areas of memory, in reverse order
+ * @cs: One area of memory
+ * @ct: Another area of memory
+ * @count: The size of the area.
+ *
+ * Cut'n'paste from original memcmp (see lib/string.c)
+ * with minimal modifications
+ */
+static int reverse_memcmp(const void *cs, const void *ct, size_t count)
+{
+	const unsigned char *su1, *su2;
+	int res = 0;
+
+	for (su1 = cs + count - 1, su2 = ct + count - 1; count > 0;
+	     --su1, --su2, count--) {
+		res = *su1 - *su2;
+		if (res)
+			break;
+	}
+	return res;
+}
+
+static int wil_rx_crypto_check(struct wil6210_priv *wil, struct sk_buff *skb)
+{
+	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
+	int cid = wil_rxdesc_cid(d);
+	int tid = wil_rxdesc_tid(d);
+	int key_id = wil_rxdesc_key_id(d);
+	int mc = wil_rxdesc_mcast(d);
+	struct wil_sta_info *s = &wil->sta[cid];
+	struct wil_tid_crypto_rx *c = mc ? &s->group_crypto_rx :
+				      &s->tid_crypto_rx[tid];
+	struct wil_tid_crypto_rx_single *cc = &c->key_id[key_id];
+	const u8 *pn = (u8 *)&d->mac.pn_15_0;
+
+	if (!cc->key_set) {
+		wil_err_ratelimited(wil,
+				    "Key missing. CID %d TID %d MCast %d KEY_ID %d\n",
+				    cid, tid, mc, key_id);
+		return -EINVAL;
+	}
+
+	if (reverse_memcmp(pn, cc->pn, IEEE80211_GCMP_PN_LEN) <= 0) {
+		wil_err_ratelimited(wil,
+				    "Replay attack. CID %d TID %d MCast %d KEY_ID %d PN %6phN last %6phN\n",
+				    cid, tid, mc, key_id, pn, cc->pn);
+		return -EINVAL;
+	}
+	memcpy(cc->pn, pn, IEEE80211_GCMP_PN_LEN);
+
+	return 0;
 }
 
 /*
@@ -561,6 +628,7 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 	unsigned int len = skb->len;
 	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
 	int cid = wil_rxdesc_cid(d); /* always 0..7, no need to check */
+	int security = wil_rxdesc_security(d);
 	struct ethhdr *eth = (void *)skb->data;
 	/* here looking for DA, not A1, thus Rxdesc's 'mcast' indication
 	 * is not suitable, need to look at data
@@ -585,6 +653,13 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		skb_set_hash(skb, 1, PKT_HASH_TYPE_L4);
 
 	skb_orphan(skb);
+
+	if (security && (wil_rx_crypto_check(wil, skb) != 0)) {
+		rc = GRO_DROP;
+		dev_kfree_skb(skb);
+		stats->rx_replay++;
+		goto stats;
+	}
 
 	if (wdev->iftype == NL80211_IFTYPE_AP && !wil->ap_isolate) {
 		if (mcast) {
@@ -627,6 +702,7 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		wil_dbg_txrx(wil, "Rx complete %d bytes => %s\n",
 			     len, gro_res_str[rc]);
 	}
+stats:
 	/* statistics. rc set to GRO_NORMAL for AP bridging */
 	if (unlikely(rc == GRO_DROP)) {
 		ndev->stats.rx_dropped++;
@@ -757,7 +833,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		},
 	};
 	struct {
-		struct wil6210_mbox_hdr_wmi wmi;
+		struct wmi_cmd_hdr wmi;
 		struct wmi_vring_cfg_done_event cmd;
 	} __packed reply;
 	struct vring *vring = &wil->vring_tx[id];
@@ -834,7 +910,7 @@ int wil_vring_init_bcast(struct wil6210_priv *wil, int id, int size)
 		},
 	};
 	struct {
-		struct wil6210_mbox_hdr_wmi wmi;
+		struct wmi_cmd_hdr wmi;
 		struct wmi_vring_cfg_done_event cmd;
 	} __packed reply;
 	struct vring *vring = &wil->vring_tx[id];
@@ -906,6 +982,13 @@ void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 	txdata->dot1x_open = false;
 	txdata->enabled = 0; /* no Tx can be in progress or start anew */
 	spin_unlock_bh(&txdata->lock);
+	/* napi_synchronize waits for completion of the current NAPI but will
+	 * not prevent the next NAPI run.
+	 * Add a memory barrier to guarantee that txdata->enabled is zeroed
+	 * before napi_synchronize so that the next scheduled NAPI will not
+	 * handle this vring
+	 */
+	wmb();
 	/* make sure NAPI won't touch this vring */
 	if (test_bit(wil_status_napi_en, wil->status))
 		napi_synchronize(&wil->napi_tx);
@@ -1488,6 +1571,13 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct vring *vring,
 			     vring_index, used, used + descs_used);
 	}
 
+	/* Make sure to advance the head only after descriptor update is done.
+	 * This will prevent a race condition where the completion thread
+	 * will see the DU bit set from previous run and will handle the
+	 * skb before it was completed.
+	 */
+	wmb();
+
 	/* advance swhead */
 	wil_vring_advance_head(vring, descs_used);
 	wil_dbg_txrx(wil, "TSO: Tx swhead %d -> %d\n", swhead, vring->swhead);
@@ -1504,7 +1594,7 @@ mem_error:
 	while (descs_used > 0) {
 		struct wil_ctx *ctx;
 
-		i = (swhead + descs_used) % vring->size;
+		i = (swhead + descs_used - 1) % vring->size;
 		d = (struct vring_tx_desc *)&vring->va[i].tx;
 		_desc = &vring->va[i].tx;
 		*d = *_desc;
@@ -1628,6 +1718,13 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 			     vring_index, used, used + nr_frags + 1);
 	}
 
+	/* Make sure to advance the head only after descriptor update is done.
+	 * This will prevent a race condition where the completion thread
+	 * will see the DU bit set from previous run and will handle the
+	 * skb before it was completed.
+	 */
+	wmb();
+
 	/* advance swhead */
 	wil_vring_advance_head(vring, nr_frags + 1);
 	wil_dbg_txrx(wil, "Tx[%2d] swhead %d -> %d\n", vring_index, swhead,
@@ -1696,7 +1793,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		goto drop;
 	}
 	if (unlikely(!test_bit(wil_status_fwconnected, wil->status))) {
-		wil_err_ratelimited(wil, "FW not connected\n");
+		wil_dbg_ratelimited(wil, "FW not connected, packet dropped\n");
 		goto drop;
 	}
 	if (unlikely(wil->wdev->iftype == NL80211_IFTYPE_MONITOR)) {
@@ -1851,6 +1948,12 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 				wil_consume_skb(skb, d->dma.error == 0);
 			}
 			memset(ctx, 0, sizeof(*ctx));
+			/* Make sure the ctx is zeroed before updating the tail
+			 * to prevent a case where wil_tx_vring will see
+			 * this descriptor as used and handle it before ctx zero
+			 * is completed.
+			 */
+			wmb();
 			/* There is no need to touch HW descriptor:
 			 * - ststus bit TX_DMA_STATUS_DU is set by design,
 			 *   so hardware will not try to process this desc.,

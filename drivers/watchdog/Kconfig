@@ -48,7 +48,6 @@ config WATCHDOG_NOWAYOUT
 
 config WATCHDOG_SYSFS
 	bool "Read different watchdog information through sysfs"
-	default n
 	help
 	  Say Y here if you want to enable watchdog device status read through
 	  sysfs attributes.
@@ -516,6 +515,15 @@ config MAX63XX_WATCHDOG
 	help
 	  Support for memory mapped max63{69,70,71,72,73,74} watchdog timer.
 
+config MAX77620_WATCHDOG
+	tristate "Maxim Max77620 Watchdog Timer"
+	depends on MFD_MAX77620
+	help
+	 This is the driver for the Max77620 watchdog timer.
+	 Say 'Y' here to enable the watchdog timer support for
+	 MAX77620 chips. To compile this driver as a module,
+	 choose M here: the module will be called max77620_wdt.
+
 config IMX2_WDT
 	tristate "IMX2+ Watchdog"
 	depends on ARCH_MXC || ARCH_LAYERSCAPE
@@ -609,6 +617,16 @@ config QCOM_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called qcom_wdt.
 
+config MESON_GXBB_WATCHDOG
+	tristate "Amlogic Meson GXBB SoCs watchdog support"
+	depends on ARCH_MESON
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the watchdog timer
+	  in Amlogic Meson GXBB SoCs.
+	  To compile this driver as a module, choose M here: the
+	  module will be called meson_gxbb_wdt.
+
 config MESON_WATCHDOG
 	tristate "Amlogic Meson SoCs watchdog support"
 	depends on ARCH_MESON
@@ -660,6 +678,27 @@ config ATLAS7_WATCHDOG
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called atlas7_wdt.
+
+config RENESAS_WDT
+	tristate "Renesas WDT Watchdog"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  This driver adds watchdog support for the integrated watchdogs in the
+	  Renesas R-Car and other SH-Mobile SoCs (usually named RWDT or SWDT).
+
+config ASPEED_WATCHDOG
+	tristate "Aspeed 2400 watchdog support"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the watchdog timer
+	  in Apseed BMC SoCs.
+
+	  This driver is required to reboot the SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called aspeed_wdt.
 
 # AVR32 Architecture
 
@@ -738,7 +777,7 @@ config ALIM7101_WDT
 
 config EBC_C384_WDT
 	tristate "WinSystems EBC-C384 Watchdog Timer"
-	depends on X86
+	depends on X86 && ISA_BUS_API
 	select WATCHDOG_CORE
 	help
 	  Enables watchdog timer support for the watchdog timer on the
@@ -1474,6 +1513,32 @@ config MT7621_WDT
 	depends on SOC_MT7620 || SOC_MT7621
 	help
 	  Hardware driver for the Mediatek/Ralink MT7621/8 SoC Watchdog Timer.
+
+config PIC32_WDT
+	tristate "Microchip PIC32 hardware watchdog"
+	select WATCHDOG_CORE
+	depends on MACH_PIC32
+	help
+	  Watchdog driver for the built in watchdog hardware in a PIC32.
+
+	  Configuration bits must be set appropriately for the watchdog to be
+	  controlled by this driver.
+
+	  To compile this driver as a loadable module, choose M here.
+	  The module will be called pic32-wdt.
+
+config PIC32_DMT
+	tristate "Microchip PIC32 Deadman Timer"
+	select WATCHDOG_CORE
+	depends on MACH_PIC32
+	help
+	  Watchdog driver for PIC32 instruction fetch counting timer. This specific
+	  timer is typically be used in misson critical and safety critical
+	  applications, where any single failure of the software functionality
+	  and sequencing must be detected.
+
+	  To compile this driver as a loadable module, choose M here.
+	  The module will be called pic32-dmt.
 
 # PARISC Architecture
 

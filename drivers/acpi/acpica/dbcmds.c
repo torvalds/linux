@@ -738,9 +738,9 @@ acpi_dm_test_resource_conversion(struct acpi_namespace_node *node, char *name)
 	original_aml = return_buffer.pointer;
 
 	acpi_dm_compare_aml_resources(original_aml->buffer.pointer,
-				      (acpi_rsdesc_size) original_aml->buffer.
+				      (acpi_rsdesc_size)original_aml->buffer.
 				      length, new_aml.pointer,
-				      (acpi_rsdesc_size) new_aml.length);
+				      (acpi_rsdesc_size)new_aml.length);
 
 	/* Cleanup and exit */
 

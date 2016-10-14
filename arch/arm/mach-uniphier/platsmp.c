@@ -99,22 +99,14 @@ static int __init uniphier_smp_prepare_trampoline(unsigned int max_cpus)
 	int ret;
 
 	np = of_find_compatible_node(NULL, NULL, "socionext,uniphier-smpctrl");
-	of_node_put(np);
 	ret = of_address_to_resource(np, 0, &res);
-	if (!ret) {
-		rom_rsv2_phys = res.start + UNIPHIER_SMPCTRL_ROM_RSV2;
-	} else {
-		/* try old binding too */
-		np = of_find_compatible_node(NULL, NULL,
-					     "socionext,uniphier-system-bus-controller");
-		of_node_put(np);
-		ret = of_address_to_resource(np, 1, &res);
-		if (ret) {
-			pr_err("failed to get resource of SMP control\n");
-			return ret;
-		}
-		rom_rsv2_phys = res.start + 0x1000 + UNIPHIER_SMPCTRL_ROM_RSV2;
+	of_node_put(np);
+	if (ret) {
+		pr_err("failed to get resource of SMP control\n");
+		return ret;
 	}
+
+	rom_rsv2_phys = res.start + UNIPHIER_SMPCTRL_ROM_RSV2;
 
 	ret = uniphier_smp_copy_trampoline(rom_rsv2_phys);
 	if (ret)

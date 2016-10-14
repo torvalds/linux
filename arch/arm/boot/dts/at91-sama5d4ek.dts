@@ -69,26 +69,6 @@
 
 	ahb {
 		apb {
-			lcd_bus@f0000000 {
-				status = "okay";
-
-				lcd@f0000000 {
-					status = "okay";
-				};
-
-				lcdovl1@f0000140 {
-					status = "okay";
-				};
-
-				lcdovl2@f0000240 {
-					status = "okay";
-				};
-
-				lcdheo1@f0000340 {
-					status = "okay";
-				};
-			};
-
 			adc0: adc@fc034000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <

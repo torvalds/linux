@@ -41,6 +41,8 @@
 /* Synopsys Core versions */
 #define	DWMAC_CORE_3_40	0x34
 #define	DWMAC_CORE_3_50	0x35
+#define	DWMAC_CORE_4_00	0x40
+#define STMMAC_CHAN0	0	/* Always supported and default for all chips */
 
 #define DMA_TX_SIZE 512
 #define DMA_RX_SIZE 512
@@ -167,6 +169,9 @@ struct stmmac_extra_stats {
 	unsigned long mtl_rx_fifo_ctrl_active;
 	unsigned long mac_rx_frame_ctrl_fifo;
 	unsigned long mac_gmii_rx_proto_engine;
+	/* TSO */
+	unsigned long tx_tso_frames;
+	unsigned long tx_tso_nfrags;
 };
 
 /* CSR Frequency Access Defines*/
@@ -227,6 +232,11 @@ struct stmmac_extra_stats {
 #define DMA_HW_FEAT_ACTPHYIF	0x70000000	/* Active/selected PHY iface */
 #define DEFAULT_DMA_PBL		8
 
+/* PCS status and mask defines */
+#define	PCS_ANE_IRQ		BIT(2)	/* PCS Auto-Negotiation */
+#define	PCS_LINK_IRQ		BIT(1)	/* PCS Link */
+#define	PCS_RGSMIIIS_IRQ	BIT(0)	/* RGMII or SMII Interrupt */
+
 /* Max/Min RI Watchdog Timer count value */
 #define MAX_DMA_RIWT		0xff
 #define MIN_DMA_RIWT		0x20
@@ -243,6 +253,7 @@ enum rx_frame_status {
 	csum_none = 0x2,
 	llc_snap = 0x4,
 	dma_own = 0x8,
+	rx_not_ls = 0x10,
 };
 
 /* Tx status */
@@ -266,9 +277,7 @@ enum dma_irq_status {
 #define	CORE_IRQ_RX_PATH_IN_LPI_MODE	(1 << 2)
 #define	CORE_IRQ_RX_PATH_EXIT_LPI_MODE	(1 << 3)
 
-#define	CORE_PCS_ANE_COMPLETE		(1 << 5)
-#define	CORE_PCS_LINK_STATUS		(1 << 6)
-#define	CORE_RGMII_IRQ			(1 << 7)
+#define CORE_IRQ_MTL_RX_OVERFLOW	BIT(8)
 
 /* Physical Coding Sublayer */
 struct rgmii_adv {
@@ -300,8 +309,10 @@ struct dma_features {
 	/* 802.3az - Energy-Efficient Ethernet (EEE) */
 	unsigned int eee;
 	unsigned int av;
+	unsigned int tsoen;
 	/* TX and RX csum */
 	unsigned int tx_coe;
+	unsigned int rx_coe;
 	unsigned int rx_coe_type1;
 	unsigned int rx_coe_type2;
 	unsigned int rxfifo_over_2048;
@@ -348,6 +359,10 @@ struct stmmac_desc_ops {
 	void (*prepare_tx_desc) (struct dma_desc *p, int is_fs, int len,
 				 bool csum_flag, int mode, bool tx_own,
 				 bool ls);
+	void (*prepare_tso_tx_desc)(struct dma_desc *p, int is_fs, int len1,
+				    int len2, bool tx_own, bool ls,
+				    unsigned int tcphdrlen,
+				    unsigned int tcppayloadlen);
 	/* Set/get the owner of the descriptor */
 	void (*set_tx_owner) (struct dma_desc *p);
 	int (*get_tx_owner) (struct dma_desc *p);
@@ -380,6 +395,10 @@ struct stmmac_desc_ops {
 	 u64(*get_timestamp) (void *desc, u32 ats);
 	/* get rx timestamp status */
 	int (*get_rx_timestamp_status) (void *desc, u32 ats);
+	/* Display ring */
+	void (*display_ring)(void *head, unsigned int size, bool rx);
+	/* set MSS via context descriptor */
+	void (*set_mss)(struct dma_desc *p, unsigned int mss);
 };
 
 extern const struct stmmac_desc_ops enh_desc_ops;
@@ -412,9 +431,15 @@ struct stmmac_dma_ops {
 	int (*dma_interrupt) (void __iomem *ioaddr,
 			      struct stmmac_extra_stats *x);
 	/* If supported then get the optional core features */
-	unsigned int (*get_hw_feature) (void __iomem *ioaddr);
+	void (*get_hw_feature)(void __iomem *ioaddr,
+			       struct dma_features *dma_cap);
 	/* Program the HW RX Watchdog */
 	void (*rx_watchdog) (void __iomem *ioaddr, u32 riwt);
+	void (*set_tx_ring_len)(void __iomem *ioaddr, u32 len);
+	void (*set_rx_ring_len)(void __iomem *ioaddr, u32 len);
+	void (*set_rx_tail_ptr)(void __iomem *ioaddr, u32 tail_ptr, u32 chan);
+	void (*set_tx_tail_ptr)(void __iomem *ioaddr, u32 tail_ptr, u32 chan);
+	void (*enable_tso)(void __iomem *ioaddr, bool en, u32 chan);
 };
 
 struct mac_device_info;
@@ -446,9 +471,12 @@ struct stmmac_ops {
 	void (*reset_eee_mode)(struct mac_device_info *hw);
 	void (*set_eee_timer)(struct mac_device_info *hw, int ls, int tw);
 	void (*set_eee_pls)(struct mac_device_info *hw, int link);
-	void (*ctrl_ane)(struct mac_device_info *hw, bool restart);
-	void (*get_adv)(struct mac_device_info *hw, struct rgmii_adv *adv);
 	void (*debug)(void __iomem *ioaddr, struct stmmac_extra_stats *x);
+	/* PCS calls */
+	void (*pcs_ctrl_ane)(void __iomem *ioaddr, bool ane, bool srgmi_ral,
+			     bool loopback);
+	void (*pcs_rane)(void __iomem *ioaddr, bool restart);
+	void (*pcs_get_adv_lp)(void __iomem *ioaddr, struct rgmii_adv *adv);
 };
 
 /* PTP and HW Timer helpers */
@@ -463,6 +491,7 @@ struct stmmac_hwtimestamp {
 };
 
 extern const struct stmmac_hwtimestamp stmmac_ptp;
+extern const struct stmmac_mode_ops dwmac4_ring_mode_ops;
 
 struct mac_link {
 	int port;
@@ -495,27 +524,59 @@ struct mac_device_info {
 	const struct stmmac_hwtimestamp *ptp;
 	struct mii_regs mii;	/* MII register Addresses */
 	struct mac_link link;
-	unsigned int synopsys_uid;
 	void __iomem *pcsr;     /* vpointer to device CSRs */
 	int multicast_filter_bins;
 	int unicast_filter_entries;
 	int mcast_bits_log2;
 	unsigned int rx_csum;
+	unsigned int pcs;
+	unsigned int pmt;
+	unsigned int ps;
 };
 
 struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,
-					int perfect_uc_entries);
-struct mac_device_info *dwmac100_setup(void __iomem *ioaddr);
+					int perfect_uc_entries,
+					int *synopsys_id);
+struct mac_device_info *dwmac100_setup(void __iomem *ioaddr, int *synopsys_id);
+struct mac_device_info *dwmac4_setup(void __iomem *ioaddr, int mcbins,
+				     int perfect_uc_entries, int *synopsys_id);
 
 void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
 			 unsigned int high, unsigned int low);
 void stmmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
 			 unsigned int high, unsigned int low);
-
 void stmmac_set_mac(void __iomem *ioaddr, bool enable);
 
+void stmmac_dwmac4_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
+				unsigned int high, unsigned int low);
+void stmmac_dwmac4_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
+				unsigned int high, unsigned int low);
+void stmmac_dwmac4_set_mac(void __iomem *ioaddr, bool enable);
+
 void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr);
+
 extern const struct stmmac_mode_ops ring_mode_ops;
 extern const struct stmmac_mode_ops chain_mode_ops;
+extern const struct stmmac_desc_ops dwmac4_desc_ops;
 
+/**
+ * stmmac_get_synopsys_id - return the SYINID.
+ * @priv: driver private structure
+ * Description: this simple function is to decode and return the SYINID
+ * starting from the HW core register.
+ */
+static inline u32 stmmac_get_synopsys_id(u32 hwid)
+{
+	/* Check Synopsys Id (not available on old chips) */
+	if (likely(hwid)) {
+		u32 uid = ((hwid & 0x0000ff00) >> 8);
+		u32 synid = (hwid & 0x000000ff);
+
+		pr_info("stmmac - user ID: 0x%x, Synopsys ID: 0x%x\n",
+			uid, synid);
+
+		return synid;
+	}
+	return 0;
+}
 #endif /* __COMMON_H__ */

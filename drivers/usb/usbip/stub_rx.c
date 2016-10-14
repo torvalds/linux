@@ -165,12 +165,7 @@ static int tweak_reset_device_cmd(struct urb *urb)
 
 	dev_info(&urb->dev->dev, "usb_queue_reset_device\n");
 
-	/*
-	 * With the implementation of pre_reset and post_reset the driver no
-	 * longer unbinds. This allows the use of synchronous reset.
-	 */
-
-	if (usb_lock_device_for_reset(sdev->udev, sdev->interface) < 0) {
+	if (usb_lock_device_for_reset(sdev->udev, NULL) < 0) {
 		dev_err(&urb->dev->dev, "could not obtain lock to reset device\n");
 		return 0;
 	}
@@ -321,7 +316,7 @@ static struct stub_priv *stub_priv_alloc(struct stub_device *sdev,
 
 	priv = kmem_cache_zalloc(stub_priv_cache, GFP_ATOMIC);
 	if (!priv) {
-		dev_err(&sdev->interface->dev, "alloc stub_priv\n");
+		dev_err(&sdev->udev->dev, "alloc stub_priv\n");
 		spin_unlock_irqrestore(&sdev->priv_lock, flags);
 		usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
 		return NULL;
@@ -352,7 +347,7 @@ static int get_pipe(struct stub_device *sdev, int epnum, int dir)
 	else
 		ep = udev->ep_out[epnum & 0x7f];
 	if (!ep) {
-		dev_err(&sdev->interface->dev, "no such endpoint?, %d\n",
+		dev_err(&sdev->udev->dev, "no such endpoint?, %d\n",
 			epnum);
 		BUG();
 	}
@@ -387,7 +382,7 @@ static int get_pipe(struct stub_device *sdev, int epnum, int dir)
 	}
 
 	/* NOT REACHED */
-	dev_err(&sdev->interface->dev, "get pipe, epnum %d\n", epnum);
+	dev_err(&sdev->udev->dev, "get pipe, epnum %d\n", epnum);
 	return 0;
 }
 
@@ -466,7 +461,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 		priv->urb = usb_alloc_urb(0, GFP_KERNEL);
 
 	if (!priv->urb) {
-		dev_err(&sdev->interface->dev, "malloc urb\n");
+		dev_err(&udev->dev, "malloc urb\n");
 		usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
 		return;
 	}
@@ -486,7 +481,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 	priv->urb->setup_packet = kmemdup(&pdu->u.cmd_submit.setup, 8,
 					  GFP_KERNEL);
 	if (!priv->urb->setup_packet) {
-		dev_err(&sdev->interface->dev, "allocate setup_packet\n");
+		dev_err(&udev->dev, "allocate setup_packet\n");
 		usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
 		return;
 	}
@@ -517,7 +512,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 		usbip_dbg_stub_rx("submit urb ok, seqnum %u\n",
 				  pdu->base.seqnum);
 	else {
-		dev_err(&sdev->interface->dev, "submit_urb error, %d\n", ret);
+		dev_err(&udev->dev, "submit_urb error, %d\n", ret);
 		usbip_dump_header(pdu);
 		usbip_dump_urb(priv->urb);
 

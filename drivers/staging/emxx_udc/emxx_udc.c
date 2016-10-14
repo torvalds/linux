@@ -15,7 +15,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
@@ -39,9 +39,11 @@
 
 #include "emxx_udc.h"
 
+#define	DRIVER_DESC	"EMXX UDC driver"
 #define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
 
 static const char	driver_name[] = "emxx_udc";
+static const char	driver_desc[] = DRIVER_DESC;
 
 /*===========================================================================*/
 /* Prototype */
@@ -418,9 +420,9 @@ static void _nbu2ss_ep_dma_abort(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep)
 {
 	struct fc_regs	*preg = udc->p_regs;
 
-	_nbu2ss_bitclr(&preg->EP_DCR[ep->epnum-1].EP_DCR1, DCR1_EPn_REQEN);
+	_nbu2ss_bitclr(&preg->EP_DCR[ep->epnum - 1].EP_DCR1, DCR1_EPn_REQEN);
 	mdelay(DMA_DISABLE_TIME);	/* DCR1_EPn_REQEN Clear */
-	_nbu2ss_bitclr(&preg->EP_REGS[ep->epnum-1].EP_DMA_CTRL, EPn_DMA_EN);
+	_nbu2ss_bitclr(&preg->EP_REGS[ep->epnum - 1].EP_DMA_CTRL, EPn_DMA_EN);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -909,7 +911,7 @@ static int _nbu2ss_epn_out_pio(
 		/* Copy of every four bytes */
 		for (i = 0; i < iWordLength; i++) {
 			pBuf32->dw =
-			_nbu2ss_readl(&preg->EP_REGS[ep->epnum-1].EP_READ);
+			_nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_READ);
 			pBuf32++;
 		}
 		result = iWordLength * sizeof(u32);
@@ -919,7 +921,7 @@ static int _nbu2ss_epn_out_pio(
 	if (data > 0) {
 		/*---------------------------------------------------------*/
 		/* Copy of fraction byte */
-		Temp32.dw = _nbu2ss_readl(&preg->EP_REGS[ep->epnum-1].EP_READ);
+		Temp32.dw = _nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_READ);
 		for (i = 0 ; i < data ; i++)
 			pBuf32->byte.DATA[i] = Temp32.byte.DATA[i];
 		result += data;
@@ -1128,7 +1130,7 @@ static int _nbu2ss_epn_in_pio(
 		if (iWordLength > 0) {
 			for (i = 0; i < iWordLength; i++) {
 				_nbu2ss_writel(
-					&preg->EP_REGS[ep->epnum-1].EP_WRITE
+					&preg->EP_REGS[ep->epnum - 1].EP_WRITE
 					, pBuf32->dw
 				);
 
@@ -1290,7 +1292,7 @@ static void _nbu2ss_restert_transfer(struct nbu2ss_ep *ep)
 
 	if (ep->epnum > 0) {
 		length = _nbu2ss_readl(
-			&ep->udc->p_regs->EP_REGS[ep->epnum-1].EP_LEN_DCNT);
+			&ep->udc->p_regs->EP_REGS[ep->epnum - 1].EP_LEN_DCNT);
 
 		length &= EPn_LDATA;
 		if (length < ep->ep.maxpacket)
@@ -1463,7 +1465,7 @@ static int _nbu2ss_get_ep_stall(struct nbu2ss_udc *udc, u8 ep_adrs)
 		bit_data = EP0_STL;
 
 	} else {
-		data = _nbu2ss_readl(&preg->EP_REGS[epnum-1].EP_CONTROL);
+		data = _nbu2ss_readl(&preg->EP_REGS[epnum - 1].EP_CONTROL);
 		if ((data & EPn_EN) == 0)
 			return -1;
 
@@ -1558,7 +1560,7 @@ static void _nbu2ss_epn_set_stall(
 			; limit_cnt++) {
 
 			regdata = _nbu2ss_readl(
-				&preg->EP_REGS[ep->epnum-1].EP_STATUS);
+				&preg->EP_REGS[ep->epnum - 1].EP_STATUS);
 
 			if ((regdata & EPn_IN_DATA) == 0)
 				break;
@@ -1983,7 +1985,7 @@ static inline void _nbu2ss_epn_in_int(
 		if (req->zero && ((req->req.actual % ep->ep.maxpacket) == 0)) {
 
 			status =
-			_nbu2ss_readl(&preg->EP_REGS[ep->epnum-1].EP_STATUS);
+			_nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_STATUS);
 
 			if ((status & EPn_IN_FULL) == 0) {
 				/*-----------------------------------------*/
@@ -2894,7 +2896,7 @@ static int nbu2ss_ep_fifo_status(struct usb_ep *_ep)
 		data = _nbu2ss_readl(&preg->EP0_LENGTH) & EP0_LDATA;
 
 	} else {
-		data = _nbu2ss_readl(&preg->EP_REGS[ep->epnum-1].EP_LEN_DCNT)
+		data = _nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_LEN_DCNT)
 			& EPn_LDATA;
 	}
 
@@ -3051,7 +3053,7 @@ static int nbu2ss_gad_vbus_session(struct usb_gadget *pgadget, int is_active)
 }
 
 /*-------------------------------------------------------------------------*/
-static int nbu2ss_gad_vbus_draw(struct usb_gadget *pgadget, unsigned mA)
+static int nbu2ss_gad_vbus_draw(struct usb_gadget *pgadget, unsigned int mA)
 {
 	struct nbu2ss_udc	*udc;
 	unsigned long		flags;
@@ -3101,7 +3103,7 @@ static int nbu2ss_gad_pullup(struct usb_gadget *pgadget, int is_on)
 /*-------------------------------------------------------------------------*/
 static int nbu2ss_gad_ioctl(
 	struct usb_gadget *pgadget,
-	unsigned code,
+	unsigned int code,
 	unsigned long param)
 {
 	return 0;
@@ -3296,6 +3298,28 @@ static void nbu2ss_drv_shutdown(struct platform_device *pdev)
 }
 
 /*-------------------------------------------------------------------------*/
+static int nbu2ss_drv_remove(struct platform_device *pdev)
+{
+	struct nbu2ss_udc	*udc;
+	struct nbu2ss_ep	*ep;
+	int	i;
+
+	udc = &udc_controller;
+
+	for (i = 0; i < NUM_ENDPOINTS; i++) {
+		ep = &udc->ep[i];
+		if (ep->virt_buf)
+			dma_free_coherent(NULL, PAGE_SIZE,
+				(void *)ep->virt_buf, ep->phys_buf);
+	}
+
+	/* Interrupt Handler - Release */
+	free_irq(INT_VBUS, udc);
+
+	return 0;
+}
+
+/*-------------------------------------------------------------------------*/
 static int nbu2ss_drv_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct nbu2ss_udc	*udc;
@@ -3347,12 +3371,16 @@ static int nbu2ss_drv_resume(struct platform_device *pdev)
 static struct platform_driver udc_driver = {
 	.probe		= nbu2ss_drv_probe,
 	.shutdown	= nbu2ss_drv_shutdown,
+	.remove		= nbu2ss_drv_remove,
 	.suspend	= nbu2ss_drv_suspend,
 	.resume		= nbu2ss_drv_resume,
 	.driver		= {
-		.name			= driver_name,
-		.suppress_bind_attrs	= true,
+		.name	= driver_name,
 	},
 };
 
-builtin_platform_driver(udc_driver);
+module_platform_driver(udc_driver);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Renesas Electronics Corporation");
+MODULE_LICENSE("GPL");

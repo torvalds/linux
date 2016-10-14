@@ -29,7 +29,7 @@ Optional properties:
 	ti,vref-delay-usecs		vref supply delay in usecs, 0 for
 					external vref (u16).
 	ti,vref-mv			The VREF voltage, in millivolts (u16).
-					Set to 0 to use internal refernce
+					Set to 0 to use internal references
 					(ADS7846).
 	ti,keep-vref-on			set to keep vref on for differential
 					measurements as well

@@ -446,7 +446,7 @@ static int asic3_gpio_direction(struct gpio_chip *chip,
 	unsigned long flags;
 	struct asic3 *asic;
 
-	asic = container_of(chip, struct asic3, gpio);
+	asic = gpiochip_get_data(chip);
 	gpio_base = ASIC3_GPIO_TO_BASE(offset);
 
 	if (gpio_base > ASIC3_GPIO_D_BASE) {
@@ -492,7 +492,7 @@ static int asic3_gpio_get(struct gpio_chip *chip,
 	u32 mask = ASIC3_GPIO_TO_MASK(offset);
 	struct asic3 *asic;
 
-	asic = container_of(chip, struct asic3, gpio);
+	asic = gpiochip_get_data(chip);
 	gpio_base = ASIC3_GPIO_TO_BASE(offset);
 
 	if (gpio_base > ASIC3_GPIO_D_BASE) {
@@ -513,7 +513,7 @@ static void asic3_gpio_set(struct gpio_chip *chip,
 	unsigned long flags;
 	struct asic3 *asic;
 
-	asic = container_of(chip, struct asic3, gpio);
+	asic = gpiochip_get_data(chip);
 	gpio_base = ASIC3_GPIO_TO_BASE(offset);
 
 	if (gpio_base > ASIC3_GPIO_D_BASE) {
@@ -540,7 +540,7 @@ static void asic3_gpio_set(struct gpio_chip *chip,
 
 static int asic3_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct asic3 *asic = container_of(chip, struct asic3, gpio);
+	struct asic3 *asic = gpiochip_get_data(chip);
 
 	return asic->irq_base + offset;
 }
@@ -595,7 +595,7 @@ static __init int asic3_gpio_probe(struct platform_device *pdev,
 				     alt_reg[i]);
 	}
 
-	return gpiochip_add(&asic->gpio);
+	return gpiochip_add_data(&asic->gpio, asic);
 }
 
 static int asic3_gpio_remove(struct platform_device *pdev)

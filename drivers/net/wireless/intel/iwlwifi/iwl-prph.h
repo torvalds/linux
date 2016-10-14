@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -345,6 +347,16 @@ enum secure_load_status_reg {
 #define TXF_READ_MODIFY_DATA		(0xa00448)
 #define TXF_READ_MODIFY_ADDR		(0xa0044c)
 
+/* UMAC Internal Tx Fifo */
+#define TXF_CPU2_FIFO_ITEM_CNT		(0xA00538)
+#define TXF_CPU2_WR_PTR		(0xA00514)
+#define TXF_CPU2_RD_PTR		(0xA00510)
+#define TXF_CPU2_FENCE_PTR		(0xA00518)
+#define TXF_CPU2_LOCK_FENCE		(0xA00524)
+#define TXF_CPU2_NUM			(0xA0053C)
+#define TXF_CPU2_READ_MODIFY_DATA	(0xA00548)
+#define TXF_CPU2_READ_MODIFY_ADDR	(0xA0054C)
+
 /* Radio registers access */
 #define RSP_RADIO_CMD			(0xa02804)
 #define RSP_RADIO_RDDAT			(0xa02814)
@@ -405,5 +417,6 @@ enum {
 };
 
 #define UREG_CHICK		(0xA05C00)
+#define UREG_CHICK_MSI_ENABLE	BIT(24)
 #define UREG_CHICK_MSIX_ENABLE	BIT(25)
 #endif				/* __iwl_prph_h__ */

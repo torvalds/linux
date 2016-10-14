@@ -2,6 +2,7 @@
 
 / {
 	memory {
+		device_type = "memory";
 		reg = <0 0x10000000>;
 	};
 
@@ -73,4 +74,13 @@
 
 &usb {
 	power-domains = <&power RPI_POWER_DOMAIN_USB>;
+};
+
+&v3d {
+	power-domains = <&power RPI_POWER_DOMAIN_V3D>;
+};
+
+&hdmi {
+	power-domains = <&power RPI_POWER_DOMAIN_HDMI>;
+	status = "okay";
 };

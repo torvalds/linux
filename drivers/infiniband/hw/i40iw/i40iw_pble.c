@@ -404,13 +404,14 @@ static enum i40iw_status_code add_pble_pool(struct i40iw_sc_dev *dev,
 			sd_entry->u.pd_table.pd_page_addr.pa : sd_entry->u.bp.addr.pa;
 	if (sd_entry->valid)
 		return 0;
-	if (dev->is_pf)
+	if (dev->is_pf) {
 		ret_code = i40iw_hmc_sd_one(dev, hmc_info->hmc_fn_id,
 					    sd_reg_val, idx->sd_idx,
 					    sd_entry->entry_type, true);
-	if (ret_code) {
-		i40iw_pr_err("cqp cmd failed for sd (pbles)\n");
-		goto error;
+		if (ret_code) {
+			i40iw_pr_err("cqp cmd failed for sd (pbles)\n");
+			goto error;
+		}
 	}
 
 	sd_entry->valid = true;

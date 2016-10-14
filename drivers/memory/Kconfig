@@ -25,6 +25,17 @@ config ATMEL_SDRAMC
 	  Starting with the at91sam9g45, this controller supports SDR, DDR and
 	  LP-DDR memories.
 
+config ATMEL_EBI
+	bool "Atmel EBI driver"
+	default y
+	depends on ARCH_AT91 && OF
+	select MFD_SYSCON
+	help
+	  Driver for Atmel EBI controller.
+	  Used to configure the EBI (external bus interface) when the device-
+	  tree is used. This bus supports NANDs, external ethernet controller,
+	  SRAMs, ATA devices, etc.
+
 config TI_AEMIF
 	tristate "Texas Instruments AEMIF driver"
 	depends on (ARCH_DAVINCI || ARCH_KEYSTONE) && OF
@@ -51,6 +62,7 @@ config TI_EMIF
 
 config OMAP_GPMC
 	bool
+	select GPIOLIB
 	help
 	  This driver is for the General Purpose Memory Controller (GPMC)
 	  present on Texas Instruments SoCs (e.g. OMAP2+). GPMC allows
@@ -103,7 +115,7 @@ config FSL_CORENET_CF
 
 config FSL_IFC
 	bool
-	depends on FSL_SOC
+	depends on FSL_SOC || ARCH_LAYERSCAPE
 
 config JZ4780_NEMC
 	bool "Ingenic JZ4780 SoC NEMC driver"
@@ -122,6 +134,7 @@ config MTK_SMI
 	  mainly help enable/disable iommu and control the power domain and
 	  clocks for each local arbiter.
 
+source "drivers/memory/samsung/Kconfig"
 source "drivers/memory/tegra/Kconfig"
 
 endif

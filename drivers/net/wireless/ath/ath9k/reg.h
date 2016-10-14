@@ -985,6 +985,10 @@
 #define AR_SREV_9561(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9561))
 
+#define AR_SREV_SOC(_ah) \
+	(AR_SREV_9340(_ah) || AR_SREV_9531(_ah) || AR_SREV_9550(ah) || \
+	 AR_SREV_9561(ah))
+
 /* NOTE: When adding chips newer than Peacock, add chip check here */
 #define AR_SREV_9580_10_OR_LATER(_ah) \
 	(AR_SREV_9580(_ah))
@@ -1104,13 +1108,45 @@ enum {
 
 #define AR_PCIE_PHY_REG3			 0x18c08
 
+/* Define correct GPIO numbers and MASK bits to indicate the WMAC
+ * GPIO resource.
+ * Allow SOC chips(AR9340, AR9531, AR9550, AR9561) to access all GPIOs
+ * which rely on gpiolib framework. But restrict SOC AR9330 only to
+ * access WMAC GPIO which has the same design with the old chips.
+ */
 #define AR_NUM_GPIO                              14
-#define AR928X_NUM_GPIO                          10
+#define AR9280_NUM_GPIO                          10
 #define AR9285_NUM_GPIO                          12
-#define AR9287_NUM_GPIO                          11
+#define AR9287_NUM_GPIO                          10
 #define AR9271_NUM_GPIO                          16
-#define AR9300_NUM_GPIO                          17
+#define AR9300_NUM_GPIO                          16
+#define AR9330_NUM_GPIO				 16
+#define AR9340_NUM_GPIO				 23
+#define AR9462_NUM_GPIO				 14
+#define AR9485_NUM_GPIO				 12
+#define AR9531_NUM_GPIO				 18
+#define AR9550_NUM_GPIO				 24
+#define AR9561_NUM_GPIO				 23
+#define AR9565_NUM_GPIO				 14
+#define AR9580_NUM_GPIO				 16
 #define AR7010_NUM_GPIO                          16
+
+#define AR_GPIO_MASK				 0x00003FFF
+#define AR9271_GPIO_MASK			 0x0000FFFF
+#define AR9280_GPIO_MASK			 0x000003FF
+#define AR9285_GPIO_MASK			 0x00000FFF
+#define AR9287_GPIO_MASK			 0x000003FF
+#define AR9300_GPIO_MASK			 0x0000F4FF
+#define AR9330_GPIO_MASK			 0x0000F4FF
+#define AR9340_GPIO_MASK			 0x0000000F
+#define AR9462_GPIO_MASK			 0x00003FFF
+#define AR9485_GPIO_MASK			 0x00000FFF
+#define AR9531_GPIO_MASK			 0x0000000F
+#define AR9550_GPIO_MASK			 0x0000000F
+#define AR9561_GPIO_MASK			 0x0000000F
+#define AR9565_GPIO_MASK			 0x00003FFF
+#define AR9580_GPIO_MASK			 0x0000F4FF
+#define AR7010_GPIO_MASK			 0x0000FFFF
 
 #define AR_GPIO_IN_OUT                           (AR_SREV_9340(ah) ? 0x4028 : 0x4048)
 #define AR_GPIO_IN_VAL                           0x0FFFC000
@@ -1132,8 +1168,6 @@ enum {
 
 #define AR_GPIO_OE_OUT                           (AR_SREV_9340(ah) ? 0x4030 : \
 						  (AR_SREV_9300_20_OR_LATER(ah) ? 0x4050 : 0x404c))
-#define AR_GPIO_OE_OUT_MASK			 (AR_SREV_9550_OR_LATER(ah) ? \
-						  0x0000000F : 0xFFFFFFFF)
 #define AR_GPIO_OE_OUT_DRV                       0x3
 #define AR_GPIO_OE_OUT_DRV_NO                    0x0
 #define AR_GPIO_OE_OUT_DRV_LOW                   0x1
@@ -1858,15 +1892,33 @@ enum {
 
 #define AR9300_BT_WGHT             0xcccc4444
 
-#define AR_BT_COEX_MODE2           0x817c
-#define AR_BT_BCN_MISS_THRESH      0x000000ff
-#define AR_BT_BCN_MISS_THRESH_S    0
-#define AR_BT_BCN_MISS_CNT         0x0000ff00
-#define AR_BT_BCN_MISS_CNT_S       8
-#define AR_BT_HOLD_RX_CLEAR        0x00010000
-#define AR_BT_HOLD_RX_CLEAR_S      16
-#define AR_BT_DISABLE_BT_ANT       0x00100000
-#define AR_BT_DISABLE_BT_ANT_S     20
+#define AR_BT_COEX_MODE2		0x817c
+#define AR_BT_BCN_MISS_THRESH		0x000000ff
+#define AR_BT_BCN_MISS_THRESH_S		0
+#define AR_BT_BCN_MISS_CNT		0x0000ff00
+#define AR_BT_BCN_MISS_CNT_S		8
+#define AR_BT_HOLD_RX_CLEAR		0x00010000
+#define AR_BT_HOLD_RX_CLEAR_S		16
+#define AR_BT_PROTECT_BT_AFTER_WAKEUP	0x00080000
+#define AR_BT_PROTECT_BT_AFTER_WAKEUP_S 19
+#define AR_BT_DISABLE_BT_ANT		0x00100000
+#define AR_BT_DISABLE_BT_ANT_S		20
+#define AR_BT_QUIET_2_WIRE		0x00200000
+#define AR_BT_QUIET_2_WIRE_S		21
+#define AR_BT_WL_ACTIVE_MODE		0x00c00000
+#define AR_BT_WL_ACTIVE_MODE_S		22
+#define AR_BT_WL_TXRX_SEPARATE		0x01000000
+#define AR_BT_WL_TXRX_SEPARATE_S	24
+#define AR_BT_RS_DISCARD_EXTEND		0x02000000
+#define AR_BT_RS_DISCARD_EXTEND_S	25
+#define AR_BT_TSF_BT_ACTIVE_CTRL	0x0c000000
+#define AR_BT_TSF_BT_ACTIVE_CTRL_S	26
+#define AR_BT_TSF_BT_PRIORITY_CTRL	0x30000000
+#define AR_BT_TSF_BT_PRIORITY_CTRL_S	28
+#define AR_BT_INTERRUPT_ENABLE		0x40000000
+#define AR_BT_INTERRUPT_ENABLE_S	30
+#define AR_BT_PHY_ERR_BT_COLL_ENABLE	0x80000000
+#define AR_BT_PHY_ERR_BT_COLL_ENABLE_S	31
 
 #define AR_TXSIFS              0x81d0
 #define AR_TXSIFS_TIME         0x000000FF
@@ -1874,6 +1926,16 @@ enum {
 #define AR_TXSIFS_TX_LATENCY_S 8
 #define AR_TXSIFS_ACK_SHIFT    0x00007000
 #define AR_TXSIFS_ACK_SHIFT_S  12
+
+#define AR_BT_COEX_MODE3			0x81d4
+#define AR_BT_WL_ACTIVE_TIME			0x000000ff
+#define AR_BT_WL_ACTIVE_TIME_S			0
+#define AR_BT_WL_QC_TIME			0x0000ff00
+#define AR_BT_WL_QC_TIME_S			8
+#define AR_BT_ALLOW_CONCURRENT_ACCESS		0x000f0000
+#define AR_BT_ALLOW_CONCURRENT_ACCESS_S		16
+#define AR_BT_AGC_SATURATION_CNT_ENABLE		0x00100000
+#define AR_BT_AGC_SATURATION_CNT_ENABLE_S	20
 
 #define AR_TXOP_X          0x81ec
 #define AR_TXOP_X_VAL      0x000000FF

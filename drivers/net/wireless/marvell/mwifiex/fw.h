@@ -372,6 +372,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_COALESCE_CFG                      0x010a
 #define HostCmd_CMD_MGMT_FRAME_REG                    0x010c
 #define HostCmd_CMD_REMAIN_ON_CHAN                    0x010d
+#define HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG             0x010f
 #define HostCmd_CMD_11AC_CFG			      0x0112
 #define HostCmd_CMD_HS_WAKEUP_REASON                  0x0116
 #define HostCmd_CMD_TDLS_CONFIG                       0x0100
@@ -461,6 +462,9 @@ enum P2P_MODES {
 #define HostCmd_ACT_SET_RX              0x0001
 #define HostCmd_ACT_SET_TX              0x0002
 #define HostCmd_ACT_SET_BOTH            0x0003
+#define HostCmd_ACT_GET_RX              0x0004
+#define HostCmd_ACT_GET_TX              0x0008
+#define HostCmd_ACT_GET_BOTH            0x000c
 
 #define RF_ANTENNA_AUTO                 0xFFFF
 
@@ -619,6 +623,7 @@ enum HS_WAKEUP_REASON {
 	MAGIC_PATTERN_MATCHED,
 	CONTROL_FRAME_MATCHED,
 	MANAGEMENT_FRAME_MATCHED,
+	GTK_REKEY_FAILURE,
 	RESERVED
 };
 
@@ -1956,8 +1961,8 @@ struct mwifiex_ie_types_btcoex_scan_time {
 	struct mwifiex_ie_types_header header;
 	u8 coex_scan;
 	u8 reserved;
-	u16 min_scan_time;
-	u16 max_scan_time;
+	__le16 min_scan_time;
+	__le16 max_scan_time;
 } __packed;
 
 struct mwifiex_ie_types_btcoex_aggr_win_size {
@@ -2183,6 +2188,14 @@ struct host_cmd_ds_wakeup_reason {
 	u16  wakeup_reason;
 } __packed;
 
+struct host_cmd_ds_gtk_rekey_params {
+	__le16 action;
+	u8 kck[NL80211_KCK_LEN];
+	u8 kek[NL80211_KEK_LEN];
+	__le32 replay_ctr_low;
+	__le32 replay_ctr_high;
+} __packed;
+
 struct host_cmd_ds_command {
 	__le16 command;
 	__le16 size;
@@ -2256,6 +2269,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_multi_chan_policy mc_policy;
 		struct host_cmd_ds_robust_coex coex;
 		struct host_cmd_ds_wakeup_reason hs_wakeup_reason;
+		struct host_cmd_ds_gtk_rekey_params rekey;
 	} params;
 } __packed;
 

@@ -21,6 +21,14 @@ struct qed_cxt_info {
 	enum protocol_type	type;
 };
 
+#define MAX_TID_BLOCKS                  512
+struct qed_tid_mem {
+	u32 tid_size;
+	u32 num_tids_per_block;
+	u32 waste;
+	u8 *blocks[MAX_TID_BLOCKS];	/* 4K */
+};
+
 /**
  * @brief qed_cxt_acquire - Acquire a new cid of a specific protocol type
  *
@@ -46,10 +54,27 @@ int qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
 int qed_cxt_get_cid_info(struct qed_hwfn *p_hwfn,
 			 struct qed_cxt_info *p_info);
 
+/**
+ * @brief qed_cxt_get_tid_mem_info
+ *
+ * @param p_hwfn
+ * @param p_info
+ *
+ * @return int
+ */
+int qed_cxt_get_tid_mem_info(struct qed_hwfn *p_hwfn,
+			     struct qed_tid_mem *p_info);
+
+#define QED_CXT_ISCSI_TID_SEG	PROTOCOLID_ISCSI
+#define QED_CXT_ROCE_TID_SEG	PROTOCOLID_ROCE
 enum qed_cxt_elem_type {
 	QED_ELEM_CXT,
+	QED_ELEM_SRQ,
 	QED_ELEM_TASK
 };
+
+u32 qed_cxt_get_proto_cid_count(struct qed_hwfn *p_hwfn,
+				enum protocol_type type, u32 *vf_cid);
 
 /**
  * @brief qed_cxt_set_pf_params - Set the PF params for cxt init
@@ -128,6 +153,16 @@ void qed_cxt_hw_init_pf(struct qed_hwfn *p_hwfn);
 void qed_qm_init_pf(struct qed_hwfn *p_hwfn);
 
 /**
+ * @brief Reconfigures QM pf on the fly
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @return int
+ */
+int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
  * @brief qed_cxt_release - Release a cid
  *
  * @param p_hwfn
@@ -136,4 +171,6 @@ void qed_qm_init_pf(struct qed_hwfn *p_hwfn);
 void qed_cxt_release_cid(struct qed_hwfn *p_hwfn,
 			 u32 cid);
 
+#define QED_CTX_WORKING_MEM 0
+#define QED_CTX_FL_MEM 1
 #endif

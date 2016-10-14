@@ -1,4 +1,5 @@
-/* Driver for SCM Microsystems (a.k.a. Shuttle) USB-ATAPI cable
+/*
+ * Driver for SCM Microsystems (a.k.a. Shuttle) USB-ATAPI cable
  *
  * Current development and maintenance by:
  *   (c) 2000, 2001 Robert Baruch (autophile@starband.net)
@@ -408,7 +409,8 @@ static int usbat_wait_not_busy(struct us_data *us, int minutes)
 	int result;
 	unsigned char *status = us->iobuf;
 
-	/* Synchronizing cache on a CDR could take a heck of a long time,
+	/*
+	 * Synchronizing cache on a CDR could take a heck of a long time,
 	 * but probably not more than 10 minutes or so. On the other hand,
 	 * doing a full blank on a CDRW at speed 1 will take about 75
 	 * minutes!
@@ -1570,9 +1572,10 @@ static int usbat_hp8200e_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	len = scsi_bufflen(srb);
 
-	/* Send A0 (ATA PACKET COMMAND).
-	   Note: I guess we're never going to get any of the ATA
-	   commands... just ATA Packet Commands.
+	/*
+	 * Send A0 (ATA PACKET COMMAND).
+	 * Note: I guess we're never going to get any of the ATA
+	 * commands... just ATA Packet Commands.
  	 */
 
 	registers[0] = USBAT_ATA_FEATURES;
@@ -1851,7 +1854,8 @@ static int usbat_probe(struct usb_interface *intf,
 	if (result)
 		return result;
 
-	/* The actual transport will be determined later by the
+	/*
+	 * The actual transport will be determined later by the
 	 * initialization routine; this is just a placeholder.
 	 */
 	us->transport_name = "Shuttle USBAT";

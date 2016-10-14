@@ -1,6 +1,6 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
- * Copyright (c) 2014-2015 Broadcom Corporation
+ * Copyright (c) 2014-2016 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -70,6 +70,7 @@ enum SUPPORTED_CODE {
 	CODE_KONG_PATCH,	/* 18 - KONG Patch firmware */
 	CODE_BONO_FW,		/* 19 - BONO firmware */
 	CODE_BONO_PATCH,	/* 20 - BONO Patch firmware */
+	CODE_CHIMP_PATCH,	/* 21 - ChiMP Patch firmware */
 
 	MAX_CODE_TYPE,
 };

@@ -114,16 +114,21 @@ static enum i40iw_status_code i40iw_cqp_poll_registers(
  * i40iw_sc_parse_fpm_commit_buf - parse fpm commit buffer
  * @buf: ptr to fpm commit buffer
  * @info: ptr to i40iw_hmc_obj_info struct
+ * @sd: number of SDs for HMC objects
  *
  * parses fpm commit info and copy base value
  * of hmc objects in hmc_info
  */
 static enum i40iw_status_code i40iw_sc_parse_fpm_commit_buf(
 				u64 *buf,
-				struct i40iw_hmc_obj_info *info)
+				struct i40iw_hmc_obj_info *info,
+				u32 *sd)
 {
 	u64 temp;
+	u64 size;
+	u64 base = 0;
 	u32 i, j;
+	u32 k = 0;
 	u32 low;
 
 	/* copy base values in obj_info */
@@ -131,10 +136,20 @@ static enum i40iw_status_code i40iw_sc_parse_fpm_commit_buf(
 			i <= I40IW_HMC_IW_PBLE; i++, j += 8) {
 		get_64bit_val(buf, j, &temp);
 		info[i].base = RS_64_1(temp, 32) * 512;
+		if (info[i].base > base) {
+			base = info[i].base;
+			k = i;
+		}
 		low = (u32)(temp);
 		if (low)
 			info[i].cnt = low;
 	}
+	size = info[k].cnt * info[k].size + info[k].base;
+	if (size & 0x1FFFFF)
+		*sd = (u32)((size >> 21) + 1); /* add 1 for remainder */
+	else
+		*sd = (u32)(size >> 21);
+
 	return 0;
 }
 
@@ -2909,6 +2924,65 @@ static enum i40iw_status_code i40iw_sc_mw_alloc(
 }
 
 /**
+ * i40iw_sc_mr_fast_register - Posts RDMA fast register mr WR to iwarp qp
+ * @qp: sc qp struct
+ * @info: fast mr info
+ * @post_sq: flag for cqp db to ring
+ */
+enum i40iw_status_code i40iw_sc_mr_fast_register(
+				struct i40iw_sc_qp *qp,
+				struct i40iw_fast_reg_stag_info *info,
+				bool post_sq)
+{
+	u64 temp, header;
+	u64 *wqe;
+	u32 wqe_idx;
+
+	wqe = i40iw_qp_get_next_send_wqe(&qp->qp_uk, &wqe_idx, I40IW_QP_WQE_MIN_SIZE,
+					 0, info->wr_id);
+	if (!wqe)
+		return I40IW_ERR_QP_TOOMANY_WRS_POSTED;
+
+	i40iw_debug(qp->dev, I40IW_DEBUG_MR, "%s: wr_id[%llxh] wqe_idx[%04d] location[%p]\n",
+		    __func__, info->wr_id, wqe_idx,
+		    &qp->qp_uk.sq_wrtrk_array[wqe_idx].wrid);
+	temp = (info->addr_type == I40IW_ADDR_TYPE_VA_BASED) ? (uintptr_t)info->va : info->fbo;
+	set_64bit_val(wqe, 0, temp);
+
+	temp = RS_64(info->first_pm_pbl_index >> 16, I40IWQPSQ_FIRSTPMPBLIDXHI);
+	set_64bit_val(wqe,
+		      8,
+		      LS_64(temp, I40IWQPSQ_FIRSTPMPBLIDXHI) |
+		      LS_64(info->reg_addr_pa >> I40IWQPSQ_PBLADDR_SHIFT, I40IWQPSQ_PBLADDR));
+
+	set_64bit_val(wqe,
+		      16,
+		      info->total_len |
+		      LS_64(info->first_pm_pbl_index, I40IWQPSQ_FIRSTPMPBLIDXLO));
+
+	header = LS_64(info->stag_key, I40IWQPSQ_STAGKEY) |
+		 LS_64(info->stag_idx, I40IWQPSQ_STAGINDEX) |
+		 LS_64(I40IWQP_OP_FAST_REGISTER, I40IWQPSQ_OPCODE) |
+		 LS_64(info->chunk_size, I40IWQPSQ_LPBLSIZE) |
+		 LS_64(info->page_size, I40IWQPSQ_HPAGESIZE) |
+		 LS_64(info->access_rights, I40IWQPSQ_STAGRIGHTS) |
+		 LS_64(info->addr_type, I40IWQPSQ_VABASEDTO) |
+		 LS_64(info->read_fence, I40IWQPSQ_READFENCE) |
+		 LS_64(info->local_fence, I40IWQPSQ_LOCALFENCE) |
+		 LS_64(info->signaled, I40IWQPSQ_SIGCOMPL) |
+		 LS_64(qp->qp_uk.swqe_polarity, I40IWQPSQ_VALID);
+
+	i40iw_insert_wqe_hdr(wqe, header);
+
+	i40iw_debug_buf(qp->dev, I40IW_DEBUG_WQE, "FAST_REG WQE",
+			wqe, I40IW_QP_WQE_MIN_SIZE);
+
+	if (post_sq)
+		i40iw_qp_post_wr(&qp->qp_uk);
+	return 0;
+}
+
+/**
  * i40iw_sc_send_lsmm - send last streaming mode message
  * @qp: sc qp struct
  * @lsmm_buf: buffer with lsmm message
@@ -3147,7 +3221,7 @@ enum i40iw_status_code i40iw_sc_init_iw_hmc(struct i40iw_sc_dev *dev, u8 hmc_fn_
 		i40iw_cqp_commit_fpm_values_cmd(dev, &query_fpm_mem, hmc_fn_id);
 
 		/* parse the fpm_commit_buf and fill hmc obj info */
-		i40iw_sc_parse_fpm_commit_buf((u64 *)query_fpm_mem.va, hmc_info->hmc_obj);
+		i40iw_sc_parse_fpm_commit_buf((u64 *)query_fpm_mem.va, hmc_info->hmc_obj, &hmc_info->sd_table.sd_cnt);
 		mem_size = sizeof(struct i40iw_hmc_sd_entry) *
 			   (hmc_info->sd_table.sd_cnt + hmc_info->first_sd_index);
 		ret_code = i40iw_allocate_virt_mem(dev->hw, &virt_mem, mem_size);
@@ -3221,7 +3295,9 @@ static enum i40iw_status_code i40iw_sc_configure_iw_fpm(struct i40iw_sc_dev *dev
 
 	/* parse the fpm_commit_buf and fill hmc obj info */
 	if (!ret_code)
-		ret_code = i40iw_sc_parse_fpm_commit_buf(dev->fpm_commit_buf, hmc_info->hmc_obj);
+		ret_code = i40iw_sc_parse_fpm_commit_buf(dev->fpm_commit_buf,
+							 hmc_info->hmc_obj,
+							 &hmc_info->sd_table.sd_cnt);
 
 	i40iw_debug_buf(dev, I40IW_DEBUG_HMC, "COMMIT FPM BUFFER",
 			commit_fpm_mem.va, I40IW_COMMIT_FPM_BUF_SIZE);
@@ -3469,6 +3545,40 @@ static bool i40iw_ring_full(struct i40iw_sc_cqp *cqp)
 }
 
 /**
+ * i40iw_est_sd - returns approximate number of SDs for HMC
+ * @dev: sc device struct
+ * @hmc_info: hmc structure, size and count for HMC objects
+ */
+static u64 i40iw_est_sd(struct i40iw_sc_dev *dev, struct i40iw_hmc_info *hmc_info)
+{
+	int i;
+	u64 size = 0;
+	u64 sd;
+
+	for (i = I40IW_HMC_IW_QP; i < I40IW_HMC_IW_PBLE; i++)
+		size += hmc_info->hmc_obj[i].cnt * hmc_info->hmc_obj[i].size;
+
+	if (dev->is_pf)
+		size += hmc_info->hmc_obj[I40IW_HMC_IW_PBLE].cnt * hmc_info->hmc_obj[I40IW_HMC_IW_PBLE].size;
+
+	if (size & 0x1FFFFF)
+		sd = (size >> 21) + 1; /* add 1 for remainder */
+	else
+		sd = size >> 21;
+
+	if (!dev->is_pf) {
+		/* 2MB alignment for VF PBLE HMC */
+		size = hmc_info->hmc_obj[I40IW_HMC_IW_PBLE].cnt * hmc_info->hmc_obj[I40IW_HMC_IW_PBLE].size;
+		if (size & 0x1FFFFF)
+			sd += (size >> 21) + 1; /* add 1 for remainder */
+		else
+			sd += size >> 21;
+	}
+
+	return sd;
+}
+
+/**
  * i40iw_config_fpm_values - configure HMC objects
  * @dev: sc device struct
  * @qp_count: desired qp count
@@ -3479,7 +3589,7 @@ enum i40iw_status_code i40iw_config_fpm_values(struct i40iw_sc_dev *dev, u32 qp_
 	u32 i, mem_size;
 	u32 qpwantedoriginal, qpwanted, mrwanted, pblewanted;
 	u32 powerof2;
-	u64 sd_needed, bytes_needed;
+	u64 sd_needed;
 	u32 loop_count = 0;
 
 	struct i40iw_hmc_info *hmc_info;
@@ -3497,23 +3607,15 @@ enum i40iw_status_code i40iw_config_fpm_values(struct i40iw_sc_dev *dev, u32 qp_
 		return ret_code;
 	}
 
-	bytes_needed = 0;
-	for (i = I40IW_HMC_IW_QP; i < I40IW_HMC_IW_MAX; i++) {
+	for (i = I40IW_HMC_IW_QP; i < I40IW_HMC_IW_MAX; i++)
 		hmc_info->hmc_obj[i].cnt = hmc_info->hmc_obj[i].max_cnt;
-		bytes_needed +=
-		    (hmc_info->hmc_obj[i].max_cnt) * (hmc_info->hmc_obj[i].size);
-		i40iw_debug(dev, I40IW_DEBUG_HMC,
-			    "%s i[%04d] max_cnt[0x%04X] size[0x%04llx]\n",
-			    __func__, i, hmc_info->hmc_obj[i].max_cnt,
-			    hmc_info->hmc_obj[i].size);
-	}
-	sd_needed = (bytes_needed / I40IW_HMC_DIRECT_BP_SIZE) + 1; /* round up */
+	sd_needed = i40iw_est_sd(dev, hmc_info);
 	i40iw_debug(dev, I40IW_DEBUG_HMC,
 		    "%s: FW initial max sd_count[%08lld] first_sd_index[%04d]\n",
 		    __func__, sd_needed, hmc_info->first_sd_index);
 	i40iw_debug(dev, I40IW_DEBUG_HMC,
-		    "%s: bytes_needed=0x%llx sd count %d where max sd is %d\n",
-		    __func__, bytes_needed, hmc_info->sd_table.sd_cnt,
+		    "%s: sd count %d where max sd is %d\n",
+		    __func__, hmc_info->sd_table.sd_cnt,
 		    hmc_fpm_misc->max_sds);
 
 	qpwanted = min(qp_count, hmc_info->hmc_obj[I40IW_HMC_IW_QP].max_cnt);
@@ -3555,11 +3657,7 @@ enum i40iw_status_code i40iw_config_fpm_values(struct i40iw_sc_dev *dev, u32 qp_
 		hmc_info->hmc_obj[I40IW_HMC_IW_PBLE].cnt = pblewanted;
 
 		/* How much memory is needed for all the objects. */
-		bytes_needed = 0;
-		for (i = I40IW_HMC_IW_QP; i < I40IW_HMC_IW_MAX; i++)
-			bytes_needed +=
-			    (hmc_info->hmc_obj[i].cnt) * (hmc_info->hmc_obj[i].size);
-		sd_needed = (bytes_needed / I40IW_HMC_DIRECT_BP_SIZE) + 1;
+		sd_needed = i40iw_est_sd(dev, hmc_info);
 		if ((loop_count > 1000) ||
 		    ((!(loop_count % 10)) &&
 		    (qpwanted > qpwantedoriginal * 2 / 3))) {
@@ -3580,15 +3678,7 @@ enum i40iw_status_code i40iw_config_fpm_values(struct i40iw_sc_dev *dev, u32 qp_
 			pblewanted -= FPM_MULTIPLIER * 1000;
 	} while (sd_needed > hmc_fpm_misc->max_sds && loop_count < 2000);
 
-	bytes_needed = 0;
-	for (i = I40IW_HMC_IW_QP; i < I40IW_HMC_IW_MAX; i++) {
-		bytes_needed += (hmc_info->hmc_obj[i].cnt) * (hmc_info->hmc_obj[i].size);
-		i40iw_debug(dev, I40IW_DEBUG_HMC,
-			    "%s i[%04d] cnt[0x%04x] size[0x%04llx]\n",
-			    __func__, i, hmc_info->hmc_obj[i].cnt,
-			    hmc_info->hmc_obj[i].size);
-	}
-	sd_needed = (bytes_needed / I40IW_HMC_DIRECT_BP_SIZE) + 1;    /* round up not truncate. */
+	sd_needed = i40iw_est_sd(dev, hmc_info);
 
 	i40iw_debug(dev, I40IW_DEBUG_HMC,
 		    "loop_cnt=%d, sd_needed=%lld, qpcnt = %d, cqcnt=%d, mrcnt=%d, pblecnt=%d\n",
@@ -3605,8 +3695,6 @@ enum i40iw_status_code i40iw_config_fpm_values(struct i40iw_sc_dev *dev, u32 qp_
 			    i40iw_rd32(dev->hw, dev->is_pf ? I40E_PFPE_CQPERRCODES : I40E_VFPE_CQPERRCODES1));
 		return ret_code;
 	}
-
-	hmc_info->sd_table.sd_cnt = (u32)sd_needed;
 
 	mem_size = sizeof(struct i40iw_hmc_sd_entry) *
 		   (hmc_info->sd_table.sd_cnt + hmc_info->first_sd_index + 1);
@@ -3911,11 +3999,11 @@ enum i40iw_status_code i40iw_process_bh(struct i40iw_sc_dev *dev)
  */
 static u32 i40iw_iwarp_opcode(struct i40iw_aeqe_info *info, u8 *pkt)
 {
-	u16 *mpa;
+	__be16 *mpa;
 	u32 opcode = 0xffffffff;
 
 	if (info->q2_data_written) {
-		mpa = (u16 *)pkt;
+		mpa = (__be16 *)pkt;
 		opcode = ntohs(mpa[1]) & 0xf;
 	}
 	return opcode;
@@ -3977,7 +4065,7 @@ static int i40iw_bld_terminate_hdr(struct i40iw_sc_qp *qp,
 	if (info->q2_data_written) {
 		/* Use data from offending packet to fill in ddp & rdma hdrs */
 		pkt = i40iw_locate_mpa(pkt);
-		ddp_seg_len = ntohs(*(u16 *)pkt);
+		ddp_seg_len = ntohs(*(__be16 *)pkt);
 		if (ddp_seg_len) {
 			copy_len = 2;
 			termhdr->hdrct = DDP_LEN_FLAG;
@@ -4188,13 +4276,13 @@ void i40iw_terminate_connection(struct i40iw_sc_qp *qp, struct i40iw_aeqe_info *
 void i40iw_terminate_received(struct i40iw_sc_qp *qp, struct i40iw_aeqe_info *info)
 {
 	u8 *pkt = qp->q2_buf + Q2_BAD_FRAME_OFFSET;
-	u32 *mpa;
+	__be32 *mpa;
 	u8 ddp_ctl;
 	u8 rdma_ctl;
 	u16 aeq_id = 0;
 	struct i40iw_terminate_hdr *termhdr;
 
-	mpa = (u32 *)i40iw_locate_mpa(pkt);
+	mpa = (__be32 *)i40iw_locate_mpa(pkt);
 	if (info->q2_data_written) {
 		/* did not validate the frame - do it now */
 		ddp_ctl = (ntohl(mpa[0]) >> 8) & 0xff;
@@ -4559,17 +4647,18 @@ static struct i40iw_pd_ops iw_pd_ops = {
 };
 
 static struct i40iw_priv_qp_ops iw_priv_qp_ops = {
-	i40iw_sc_qp_init,
-	i40iw_sc_qp_create,
-	i40iw_sc_qp_modify,
-	i40iw_sc_qp_destroy,
-	i40iw_sc_qp_flush_wqes,
-	i40iw_sc_qp_upload_context,
-	i40iw_sc_qp_setctx,
-	i40iw_sc_send_lsmm,
-	i40iw_sc_send_lsmm_nostag,
-	i40iw_sc_send_rtt,
-	i40iw_sc_post_wqe0,
+	.qp_init = i40iw_sc_qp_init,
+	.qp_create = i40iw_sc_qp_create,
+	.qp_modify = i40iw_sc_qp_modify,
+	.qp_destroy = i40iw_sc_qp_destroy,
+	.qp_flush_wqes = i40iw_sc_qp_flush_wqes,
+	.qp_upload_context = i40iw_sc_qp_upload_context,
+	.qp_setctx = i40iw_sc_qp_setctx,
+	.qp_send_lsmm = i40iw_sc_send_lsmm,
+	.qp_send_lsmm_nostag = i40iw_sc_send_lsmm_nostag,
+	.qp_send_rtt = i40iw_sc_send_rtt,
+	.qp_post_wqe0 = i40iw_sc_post_wqe0,
+	.iw_mr_fast_register = i40iw_sc_mr_fast_register
 };
 
 static struct i40iw_priv_cq_ops iw_priv_cq_ops = {

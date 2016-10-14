@@ -30,7 +30,6 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
-#include "exynos_drm_fbdev.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_iommu.h"
@@ -68,10 +67,15 @@
 /* color key value register for hardware window 1 ~ 4. */
 #define WKEYCON1_BASE(x)		((WKEYCON1 + 0x140) + ((x - 1) * 8))
 
-/* I80 / RGB trigger control register */
+/* I80 trigger control register */
 #define TRIGCON				0x1A4
-#define TRGMODE_I80_RGB_ENABLE_I80	(1 << 0)
-#define SWTRGCMD_I80_RGB_ENABLE		(1 << 1)
+#define TRGMODE_ENABLE			(1 << 0)
+#define SWTRGCMD_ENABLE			(1 << 1)
+/* Exynos3250, 3472, 4415, 5260 5410, 5420 and 5422 only supported. */
+#define HWTRGEN_ENABLE			(1 << 3)
+#define HWTRGMASK_ENABLE		(1 << 4)
+/* Exynos3250, 3472, 4415, 5260, 5420 and 5422 only supported. */
+#define HWTRIGEN_PER_ENABLE		(1 << 31)
 
 /* display mode change control register except exynos4 */
 #define VIDOUT_CON			0x000
@@ -89,12 +93,16 @@
 /* FIMD has totally five hardware windows. */
 #define WINDOWS_NR	5
 
+/* HW trigger flag on i80 panel. */
+#define I80_HW_TRG     (1 << 1)
+
 struct fimd_driver_data {
 	unsigned int timing_base;
 	unsigned int lcdblk_offset;
 	unsigned int lcdblk_vt_shift;
 	unsigned int lcdblk_bypass_shift;
 	unsigned int lcdblk_mic_bypass_shift;
+	unsigned int trg_type;
 
 	unsigned int has_shadowcon:1;
 	unsigned int has_clksel:1;
@@ -102,6 +110,9 @@ struct fimd_driver_data {
 	unsigned int has_vidoutcon:1;
 	unsigned int has_vtsel:1;
 	unsigned int has_mic_bypass:1;
+	unsigned int has_dp_clk:1;
+	unsigned int has_hw_trigger:1;
+	unsigned int has_trigger_per_te:1;
 };
 
 static struct fimd_driver_data s3c64xx_fimd_driver_data = {
@@ -114,8 +125,10 @@ static struct fimd_driver_data exynos3_fimd_driver_data = {
 	.timing_base = 0x20000,
 	.lcdblk_offset = 0x210,
 	.lcdblk_bypass_shift = 1,
+	.trg_type = I80_HW_TRG,
 	.has_shadowcon = 1,
 	.has_vidoutcon = 1,
+	.has_trigger_per_te = 1,
 };
 
 static struct fimd_driver_data exynos4_fimd_driver_data = {
@@ -132,9 +145,11 @@ static struct fimd_driver_data exynos4415_fimd_driver_data = {
 	.lcdblk_offset = 0x210,
 	.lcdblk_vt_shift = 10,
 	.lcdblk_bypass_shift = 1,
+	.trg_type = I80_HW_TRG,
 	.has_shadowcon = 1,
 	.has_vidoutcon = 1,
 	.has_vtsel = 1,
+	.has_trigger_per_te = 1,
 };
 
 static struct fimd_driver_data exynos5_fimd_driver_data = {
@@ -145,6 +160,7 @@ static struct fimd_driver_data exynos5_fimd_driver_data = {
 	.has_shadowcon = 1,
 	.has_vidoutcon = 1,
 	.has_vtsel = 1,
+	.has_dp_clk = 1,
 };
 
 static struct fimd_driver_data exynos5420_fimd_driver_data = {
@@ -157,6 +173,7 @@ static struct fimd_driver_data exynos5420_fimd_driver_data = {
 	.has_vidoutcon = 1,
 	.has_vtsel = 1,
 	.has_mic_bypass = 1,
+	.has_dp_clk = 1,
 };
 
 struct fimd_context {
@@ -182,8 +199,9 @@ struct fimd_context {
 	atomic_t			win_updated;
 	atomic_t			triggering;
 
-	struct fimd_driver_data *driver_data;
+	const struct fimd_driver_data *driver_data;
 	struct drm_encoder *encoder;
+	struct exynos_drm_clk		dp_clk;
 };
 
 static const struct of_device_id fimd_driver_dt_match[] = {
@@ -218,15 +236,6 @@ static const uint32_t fimd_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
 };
-
-static inline struct fimd_driver_data *drm_fimd_get_driver_data(
-	struct platform_device *pdev)
-{
-	const struct of_device_id *of_id =
-			of_match_device(fimd_driver_dt_match, &pdev->dev);
-
-	return (struct fimd_driver_data *)of_id->data;
-}
 
 static int fimd_enable_vblank(struct exynos_drm_crtc *crtc)
 {
@@ -383,8 +392,15 @@ static void fimd_clear_channels(struct exynos_drm_crtc *crtc)
 static u32 fimd_calc_clkdiv(struct fimd_context *ctx,
 		const struct drm_display_mode *mode)
 {
-	unsigned long ideal_clk = mode->htotal * mode->vtotal * mode->vrefresh;
+	unsigned long ideal_clk;
 	u32 clkdiv;
+
+	if (mode->clock == 0) {
+		DRM_ERROR("Mode has zero clock value.\n");
+		return 0xff;
+	}
+
+	ideal_clk = mode->clock * 1000;
 
 	if (ctx->i80_if) {
 		/*
@@ -400,11 +416,31 @@ static u32 fimd_calc_clkdiv(struct fimd_context *ctx,
 	return (clkdiv < 0x100) ? clkdiv : 0xff;
 }
 
+static void fimd_setup_trigger(struct fimd_context *ctx)
+{
+	void __iomem *timing_base = ctx->regs + ctx->driver_data->timing_base;
+	u32 trg_type = ctx->driver_data->trg_type;
+	u32 val = readl(timing_base + TRIGCON);
+
+	val &= ~(TRGMODE_ENABLE);
+
+	if (trg_type == I80_HW_TRG) {
+		if (ctx->driver_data->has_hw_trigger)
+			val |= HWTRGEN_ENABLE | HWTRGMASK_ENABLE;
+		if (ctx->driver_data->has_trigger_per_te)
+			val |= HWTRIGEN_PER_ENABLE;
+	} else {
+		val |= TRGMODE_ENABLE;
+	}
+
+	writel(val, timing_base + TRIGCON);
+}
+
 static void fimd_commit(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	struct drm_display_mode *mode = &crtc->base.state->adjusted_mode;
-	struct fimd_driver_data *driver_data = ctx->driver_data;
+	const struct fimd_driver_data *driver_data = ctx->driver_data;
 	void *timing_base = ctx->regs + driver_data->timing_base;
 	u32 val, clkdiv;
 
@@ -494,6 +530,8 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 	       VIDTCON2_LINEVAL_E(mode->vdisplay - 1) |
 	       VIDTCON2_HOZVAL_E(mode->hdisplay - 1);
 	writel(val, ctx->regs + driver_data->timing_base + VIDTCON2);
+
+	fimd_setup_trigger(ctx);
 
 	/*
 	 * fields of register with prefix '_F' would be updated
@@ -827,7 +865,7 @@ static void fimd_disable(struct exynos_drm_crtc *crtc)
 static void fimd_trigger(struct device *dev)
 {
 	struct fimd_context *ctx = dev_get_drvdata(dev);
-	struct fimd_driver_data *driver_data = ctx->driver_data;
+	const struct fimd_driver_data *driver_data = ctx->driver_data;
 	void *timing_base = ctx->regs + driver_data->timing_base;
 	u32 reg;
 
@@ -842,7 +880,7 @@ static void fimd_trigger(struct device *dev)
 	atomic_set(&ctx->triggering, 1);
 
 	reg = readl(timing_base + TRIGCON);
-	reg |= (TRGMODE_I80_RGB_ENABLE_I80 | SWTRGCMD_I80_RGB_ENABLE);
+	reg |= (TRGMODE_ENABLE | SWTRGCMD_ENABLE);
 	writel(reg, timing_base + TRIGCON);
 
 	/*
@@ -856,10 +894,14 @@ static void fimd_trigger(struct device *dev)
 static void fimd_te_handler(struct exynos_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
+	u32 trg_type = ctx->driver_data->trg_type;
 
 	/* Checks the crtc is detached already from encoder */
 	if (ctx->pipe < 0 || !ctx->drm_dev)
 		return;
+
+	if (trg_type == I80_HW_TRG)
+		goto out;
 
 	/*
 	 * If there is a page flip request, triggers and handles the page flip
@@ -868,6 +910,7 @@ static void fimd_te_handler(struct exynos_drm_crtc *crtc)
 	if (atomic_add_unless(&ctx->win_updated, -1, 0))
 		fimd_trigger(ctx->dev);
 
+out:
 	/* Wakes up vsync event queue */
 	if (atomic_read(&ctx->wait_vsync_event)) {
 		atomic_set(&ctx->wait_vsync_event, 0);
@@ -878,21 +921,11 @@ static void fimd_te_handler(struct exynos_drm_crtc *crtc)
 		drm_crtc_handle_vblank(&ctx->crtc->base);
 }
 
-static void fimd_dp_clock_enable(struct exynos_drm_crtc *crtc, bool enable)
+static void fimd_dp_clock_enable(struct exynos_drm_clk *clk, bool enable)
 {
-	struct fimd_context *ctx = crtc->ctx;
-	u32 val;
-
-	/*
-	 * Only Exynos 5250, 5260, 5410 and 542x requires enabling DP/MIE
-	 * clock. On these SoCs the bootloader may enable it but any
-	 * power domain off/on will reset it to disable state.
-	 */
-	if (ctx->driver_data != &exynos5_fimd_driver_data &&
-	    ctx->driver_data != &exynos5420_fimd_driver_data)
-		return;
-
-	val = enable ? DP_MIE_CLK_DP_ENABLE : DP_MIE_CLK_DISABLE;
+	struct fimd_context *ctx = container_of(clk, struct fimd_context,
+						dp_clk);
+	u32 val = enable ? DP_MIE_CLK_DP_ENABLE : DP_MIE_CLK_DISABLE;
 	writel(val, ctx->regs + DP_MIE_CLKCON);
 }
 
@@ -902,13 +935,11 @@ static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 	.commit = fimd_commit,
 	.enable_vblank = fimd_enable_vblank,
 	.disable_vblank = fimd_disable_vblank,
-	.wait_for_vblank = fimd_wait_for_vblank,
 	.atomic_begin = fimd_atomic_begin,
 	.update_plane = fimd_update_plane,
 	.disable_plane = fimd_disable_plane,
 	.atomic_flush = fimd_atomic_flush,
 	.te_handler = fimd_te_handler,
-	.clock_enable = fimd_dp_clock_enable,
 };
 
 static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
@@ -987,6 +1018,11 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(ctx->crtc))
 		return PTR_ERR(ctx->crtc);
 
+	if (ctx->driver_data->has_dp_clk) {
+		ctx->dp_clk.enable = fimd_dp_clock_enable;
+		ctx->crtc->pipe_clk = &ctx->dp_clk;
+	}
+
 	if (ctx->encoder)
 		exynos_dpi_bind(drm_dev, ctx->encoder);
 
@@ -1035,7 +1071,7 @@ static int fimd_probe(struct platform_device *pdev)
 
 	ctx->dev = dev;
 	ctx->suspended = true;
-	ctx->driver_data = drm_fimd_get_driver_data(pdev);
+	ctx->driver_data = of_device_get_match_data(dev);
 
 	if (of_property_read_bool(dev->of_node, "samsung,invert-vden"))
 		ctx->vidcon1 |= VIDCON1_INV_VDEN;

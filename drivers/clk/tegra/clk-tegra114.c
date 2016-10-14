@@ -113,32 +113,6 @@
 
 #define CCLKG_BURST_POLICY 0x368
 
-#define UTMIP_PLL_CFG2 0x488
-#define UTMIP_PLL_CFG2_STABLE_COUNT(x) (((x) & 0xffff) << 6)
-#define UTMIP_PLL_CFG2_ACTIVE_DLY_COUNT(x) (((x) & 0x3f) << 18)
-#define UTMIP_PLL_CFG2_FORCE_PD_SAMP_A_POWERDOWN BIT(0)
-#define UTMIP_PLL_CFG2_FORCE_PD_SAMP_B_POWERDOWN BIT(2)
-#define UTMIP_PLL_CFG2_FORCE_PD_SAMP_C_POWERDOWN BIT(4)
-
-#define UTMIP_PLL_CFG1 0x484
-#define UTMIP_PLL_CFG1_ENABLE_DLY_COUNT(x) (((x) & 0x1f) << 6)
-#define UTMIP_PLL_CFG1_XTAL_FREQ_COUNT(x) (((x) & 0xfff) << 0)
-#define UTMIP_PLL_CFG1_FORCE_PLLU_POWERUP BIT(17)
-#define UTMIP_PLL_CFG1_FORCE_PLLU_POWERDOWN BIT(16)
-#define UTMIP_PLL_CFG1_FORCE_PLL_ENABLE_POWERUP BIT(15)
-#define UTMIP_PLL_CFG1_FORCE_PLL_ENABLE_POWERDOWN BIT(14)
-#define UTMIP_PLL_CFG1_FORCE_PLL_ACTIVE_POWERDOWN BIT(12)
-
-#define UTMIPLL_HW_PWRDN_CFG0			0x52c
-#define UTMIPLL_HW_PWRDN_CFG0_SEQ_START_STATE	BIT(25)
-#define UTMIPLL_HW_PWRDN_CFG0_SEQ_ENABLE	BIT(24)
-#define UTMIPLL_HW_PWRDN_CFG0_USE_LOCKDET	BIT(6)
-#define UTMIPLL_HW_PWRDN_CFG0_SEQ_RESET_INPUT_VALUE	BIT(5)
-#define UTMIPLL_HW_PWRDN_CFG0_SEQ_IN_SWCTL	BIT(4)
-#define UTMIPLL_HW_PWRDN_CFG0_CLK_ENABLE_SWCTL	BIT(2)
-#define UTMIPLL_HW_PWRDN_CFG0_IDDQ_OVERRIDE	BIT(1)
-#define UTMIPLL_HW_PWRDN_CFG0_IDDQ_SWCTL	BIT(0)
-
 #define CLK_SOURCE_CSITE 0x1d4
 #define CLK_SOURCE_EMC 0x19c
 
@@ -454,7 +428,7 @@ static struct tegra_clk_pll_params pll_d_params = {
 	.div_nmp = &pllp_nmp,
 	.freq_table = pll_d_freq_table,
 	.flags = TEGRA_PLL_HAS_CPCON | TEGRA_PLL_SET_LFCON |
-		 TEGRA_PLL_USE_LOCK | TEGRA_PLL_HAS_LOCK_ENABLE,
+		 TEGRA_PLL_HAS_LOCK_ENABLE,
 };
 
 static struct tegra_clk_pll_params pll_d2_params = {
@@ -472,7 +446,7 @@ static struct tegra_clk_pll_params pll_d2_params = {
 	.div_nmp = &pllp_nmp,
 	.freq_table = pll_d_freq_table,
 	.flags = TEGRA_PLL_HAS_CPCON | TEGRA_PLL_SET_LFCON |
-		 TEGRA_PLL_USE_LOCK | TEGRA_PLL_HAS_LOCK_ENABLE,
+		 TEGRA_PLL_HAS_LOCK_ENABLE,
 };
 
 static const struct pdiv_map pllu_p[] = {
@@ -649,43 +623,6 @@ static unsigned long tegra114_input_freq[] = {
 
 #define MASK(x) (BIT(x) - 1)
 
-struct utmi_clk_param {
-	/* Oscillator Frequency in KHz */
-	u32 osc_frequency;
-	/* UTMIP PLL Enable Delay Count  */
-	u8 enable_delay_count;
-	/* UTMIP PLL Stable count */
-	u8 stable_count;
-	/*  UTMIP PLL Active delay count */
-	u8 active_delay_count;
-	/* UTMIP PLL Xtal frequency count */
-	u8 xtal_freq_count;
-};
-
-static const struct utmi_clk_param utmi_parameters[] = {
-	{
-		.osc_frequency = 13000000, .enable_delay_count = 0x02,
-		.stable_count = 0x33, .active_delay_count = 0x05,
-		.xtal_freq_count = 0x7f
-	}, {
-		.osc_frequency = 19200000, .enable_delay_count = 0x03,
-		.stable_count = 0x4b, .active_delay_count = 0x06,
-		.xtal_freq_count = 0xbb
-	}, {
-		.osc_frequency = 12000000, .enable_delay_count = 0x02,
-		.stable_count = 0x2f, .active_delay_count = 0x04,
-		.xtal_freq_count = 0x76
-	}, {
-		.osc_frequency = 26000000, .enable_delay_count = 0x04,
-		.stable_count = 0x66, .active_delay_count = 0x09,
-		.xtal_freq_count = 0xfe
-	}, {
-		.osc_frequency = 16800000, .enable_delay_count = 0x03,
-		.stable_count = 0x41, .active_delay_count = 0x0a,
-		.xtal_freq_count = 0xa4
-	},
-};
-
 /* peripheral mux definitions */
 
 static const char *mux_plld_out0_plld2_out0[] = {
@@ -743,7 +680,6 @@ static struct tegra_clk tegra114_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_csi] = { .dt_id = TEGRA114_CLK_CSI, .present = true },
 	[tegra_clk_i2c2] = { .dt_id = TEGRA114_CLK_I2C2, .present = true },
 	[tegra_clk_uartc] = { .dt_id = TEGRA114_CLK_UARTC, .present = true },
-	[tegra_clk_mipi_cal] = { .dt_id = TEGRA114_CLK_MIPI_CAL, .present = true },
 	[tegra_clk_emc] = { .dt_id = TEGRA114_CLK_EMC, .present = true },
 	[tegra_clk_usb2] = { .dt_id = TEGRA114_CLK_USB2, .present = true },
 	[tegra_clk_usb3] = { .dt_id = TEGRA114_CLK_USB3, .present = true },
@@ -987,92 +923,9 @@ static void __init tegra114_fixed_clk_init(void __iomem *clk_base)
 
 }
 
-static __init void tegra114_utmi_param_configure(void __iomem *clk_base)
-{
-	unsigned int i;
-	u32 reg;
-
-	for (i = 0; i < ARRAY_SIZE(utmi_parameters); i++) {
-		if (osc_freq == utmi_parameters[i].osc_frequency)
-			break;
-	}
-
-	if (i >= ARRAY_SIZE(utmi_parameters)) {
-		pr_err("%s: Unexpected oscillator freq %lu\n", __func__,
-		       osc_freq);
-		return;
-	}
-
-	reg = readl_relaxed(clk_base + UTMIP_PLL_CFG2);
-
-	/* Program UTMIP PLL stable and active counts */
-	/* [FIXME] arclk_rst.h says WRONG! This should be 1ms -> 0x50 Check! */
-	reg &= ~UTMIP_PLL_CFG2_STABLE_COUNT(~0);
-	reg |= UTMIP_PLL_CFG2_STABLE_COUNT(utmi_parameters[i].stable_count);
-
-	reg &= ~UTMIP_PLL_CFG2_ACTIVE_DLY_COUNT(~0);
-
-	reg |= UTMIP_PLL_CFG2_ACTIVE_DLY_COUNT(utmi_parameters[i].
-					    active_delay_count);
-
-	/* Remove power downs from UTMIP PLL control bits */
-	reg &= ~UTMIP_PLL_CFG2_FORCE_PD_SAMP_A_POWERDOWN;
-	reg &= ~UTMIP_PLL_CFG2_FORCE_PD_SAMP_B_POWERDOWN;
-	reg &= ~UTMIP_PLL_CFG2_FORCE_PD_SAMP_C_POWERDOWN;
-
-	writel_relaxed(reg, clk_base + UTMIP_PLL_CFG2);
-
-	/* Program UTMIP PLL delay and oscillator frequency counts */
-	reg = readl_relaxed(clk_base + UTMIP_PLL_CFG1);
-	reg &= ~UTMIP_PLL_CFG1_ENABLE_DLY_COUNT(~0);
-
-	reg |= UTMIP_PLL_CFG1_ENABLE_DLY_COUNT(utmi_parameters[i].
-					    enable_delay_count);
-
-	reg &= ~UTMIP_PLL_CFG1_XTAL_FREQ_COUNT(~0);
-	reg |= UTMIP_PLL_CFG1_XTAL_FREQ_COUNT(utmi_parameters[i].
-					   xtal_freq_count);
-
-	/* Remove power downs from UTMIP PLL control bits */
-	reg &= ~UTMIP_PLL_CFG1_FORCE_PLL_ENABLE_POWERDOWN;
-	reg &= ~UTMIP_PLL_CFG1_FORCE_PLL_ACTIVE_POWERDOWN;
-	reg &= ~UTMIP_PLL_CFG1_FORCE_PLLU_POWERUP;
-	reg &= ~UTMIP_PLL_CFG1_FORCE_PLLU_POWERDOWN;
-	writel_relaxed(reg, clk_base + UTMIP_PLL_CFG1);
-
-	/* Setup HW control of UTMIPLL */
-	reg = readl_relaxed(clk_base + UTMIPLL_HW_PWRDN_CFG0);
-	reg |= UTMIPLL_HW_PWRDN_CFG0_USE_LOCKDET;
-	reg &= ~UTMIPLL_HW_PWRDN_CFG0_CLK_ENABLE_SWCTL;
-	reg |= UTMIPLL_HW_PWRDN_CFG0_SEQ_START_STATE;
-	writel_relaxed(reg, clk_base + UTMIPLL_HW_PWRDN_CFG0);
-
-	reg = readl_relaxed(clk_base + UTMIP_PLL_CFG1);
-	reg &= ~UTMIP_PLL_CFG1_FORCE_PLL_ENABLE_POWERUP;
-	reg &= ~UTMIP_PLL_CFG1_FORCE_PLL_ENABLE_POWERDOWN;
-	writel_relaxed(reg, clk_base + UTMIP_PLL_CFG1);
-
-	udelay(1);
-
-	/* Setup SW override of UTMIPLL assuming USB2.0
-	   ports are assigned to USB2 */
-	reg = readl_relaxed(clk_base + UTMIPLL_HW_PWRDN_CFG0);
-	reg |= UTMIPLL_HW_PWRDN_CFG0_IDDQ_SWCTL;
-	reg &= ~UTMIPLL_HW_PWRDN_CFG0_IDDQ_OVERRIDE;
-	writel_relaxed(reg, clk_base + UTMIPLL_HW_PWRDN_CFG0);
-
-	udelay(1);
-
-	/* Enable HW control UTMIPLL */
-	reg = readl_relaxed(clk_base + UTMIPLL_HW_PWRDN_CFG0);
-	reg |= UTMIPLL_HW_PWRDN_CFG0_SEQ_ENABLE;
-	writel_relaxed(reg, clk_base + UTMIPLL_HW_PWRDN_CFG0);
-}
-
 static void __init tegra114_pll_init(void __iomem *clk_base,
 				     void __iomem *pmc)
 {
-	u32 val;
 	struct clk *clk;
 
 	/* PLLC */
@@ -1119,15 +972,9 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 					CLK_SET_RATE_PARENT, 1, 1);
 
 	/* PLLU */
-	val = readl(clk_base + pll_u_params.base_reg);
-	val &= ~BIT(24); /* disable PLLU_OVERRIDE */
-	writel(val, clk_base + pll_u_params.base_reg);
-
-	clk = tegra_clk_register_pll("pll_u", "pll_ref", clk_base, pmc, 0,
-			    &pll_u_params, &pll_u_lock);
+	clk = tegra_clk_register_pllu_tegra114("pll_u", "pll_ref", clk_base, 0,
+					       &pll_u_params, &pll_u_lock);
 	clks[TEGRA114_CLK_PLL_U] = clk;
-
-	tegra114_utmi_param_configure(clk_base);
 
 	/* PLLU_480M */
 	clk = clk_register_gate(NULL, "pll_u_480M", "pll_u",
@@ -1236,6 +1083,11 @@ static __init void tegra114_periph_clk_init(void __iomem *clk_base,
 	clk = tegra_clk_register_mc("mc", "emc_mux", clk_base + CLK_SOURCE_EMC,
 				    &emc_lock);
 	clks[TEGRA114_CLK_MC] = clk;
+
+	clk = tegra_clk_register_periph_gate("mipi-cal", "clk_m", 0, clk_base,
+					     CLK_SET_RATE_PARENT, 56,
+					     periph_clk_enb_refcnt);
+	clks[TEGRA114_CLK_MIPI_CAL] = clk;
 
 	for (i = 0; i < ARRAY_SIZE(tegra_periph_clk_list); i++) {
 		data = &tegra_periph_clk_list[i];

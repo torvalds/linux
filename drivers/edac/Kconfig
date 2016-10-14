@@ -251,6 +251,14 @@ config EDAC_SBRIDGE
 	  Support for error detection and correction the Intel
 	  Sandy Bridge, Ivy Bridge and Haswell Integrated Memory Controllers.
 
+config EDAC_SKX
+	tristate "Intel Skylake server Integrated MC"
+	depends on EDAC_MM_EDAC && PCI && X86_64 && X86_MCE_INTEL
+	depends on PCI_MMCONFIG
+	help
+	  Support for error detection and correction the Intel
+	  Skylake server Integrated Memory Controllers.
+
 config EDAC_MPC85XX
 	tristate "Freescale MPC83xx / MPC85xx"
 	depends on EDAC_MM_EDAC && FSL_SOC
@@ -378,12 +386,11 @@ config EDAC_ALTERA
 
 config EDAC_ALTERA_L2C
 	bool "Altera L2 Cache ECC"
-	depends on EDAC_ALTERA=y
-	select CACHE_L2X0
+	depends on EDAC_ALTERA=y && CACHE_L2X0
 	help
 	  Support for error detection and correction on the
 	  Altera L2 cache Memory for Altera SoCs. This option
-	  requires L2 cache so it will force that selection.
+	  requires L2 cache.
 
 config EDAC_ALTERA_OCRAM
 	bool "Altera On-Chip RAM ECC"
@@ -391,6 +398,13 @@ config EDAC_ALTERA_OCRAM
 	help
 	  Support for error detection and correction on the
 	  Altera On-Chip RAM Memory for Altera SoCs.
+
+config EDAC_ALTERA_ETHERNET
+	bool "Altera Ethernet FIFO ECC"
+	depends on EDAC_ALTERA=y
+	help
+	  Support for error detection and correction on the
+	  Altera Ethernet FIFO Memory for Altera SoCs.
 
 config EDAC_SYNOPSYS
 	tristate "Synopsys DDR Memory Controller"

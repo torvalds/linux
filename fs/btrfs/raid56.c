@@ -576,7 +576,7 @@ static int rbio_can_merge(struct btrfs_raid_bio *last,
 	 * we can't merge with cached rbios, since the
 	 * idea is that when we merge the destination
 	 * rbio is going to run our IO for us.  We can
-	 * steal from cached rbio's though, other functions
+	 * steal from cached rbios though, other functions
 	 * handle that.
 	 */
 	if (test_bit(RBIO_CACHE_BIT, &last->flags) ||
@@ -1320,7 +1320,9 @@ write_data:
 
 		bio->bi_private = rbio;
 		bio->bi_end_io = raid_write_end_io;
-		submit_bio(WRITE, bio);
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+
+		submit_bio(bio);
 	}
 	return;
 
@@ -1573,11 +1575,12 @@ static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
 
 		bio->bi_private = rbio;
 		bio->bi_end_io = raid_rmw_end_io;
+		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 
 		btrfs_bio_wq_end_io(rbio->fs_info, bio,
 				    BTRFS_WQ_ENDIO_RAID56);
 
-		submit_bio(READ, bio);
+		submit_bio(bio);
 	}
 	/* the actual write will happen once the reads are done */
 	return 0;
@@ -2097,11 +2100,12 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 
 		bio->bi_private = rbio;
 		bio->bi_end_io = raid_recover_end_io;
+		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 
 		btrfs_bio_wq_end_io(rbio->fs_info, bio,
 				    BTRFS_WQ_ENDIO_RAID56);
 
-		submit_bio(READ, bio);
+		submit_bio(bio);
 	}
 out:
 	return 0;
@@ -2368,7 +2372,7 @@ static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 			run_xor(pointers + 1, nr_data - 1, PAGE_SIZE);
 		}
 
-		/* Check scrubbing pairty and repair it */
+		/* Check scrubbing parity and repair it */
 		p = rbio_stripe_page(rbio, rbio->scrubp, pagenr);
 		parity = kmap(p);
 		if (memcmp(parity, pointers[rbio->scrubp], PAGE_SIZE))
@@ -2433,7 +2437,9 @@ submit_write:
 
 		bio->bi_private = rbio;
 		bio->bi_end_io = raid_write_end_io;
-		submit_bio(WRITE, bio);
+		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+
+		submit_bio(bio);
 	}
 	return;
 
@@ -2493,7 +2499,7 @@ static void validate_rbio_for_parity_scrub(struct btrfs_raid_bio *rbio)
 		/*
 		 * Here means we got one corrupted data stripe and one
 		 * corrupted parity on RAID6, if the corrupted parity
-		 * is scrubbing parity, luckly, use the other one to repair
+		 * is scrubbing parity, luckily, use the other one to repair
 		 * the data, or we can not repair the data stripe.
 		 */
 		if (failp != rbio->scrubp)
@@ -2610,11 +2616,12 @@ static void raid56_parity_scrub_stripe(struct btrfs_raid_bio *rbio)
 
 		bio->bi_private = rbio;
 		bio->bi_end_io = raid56_parity_scrub_end_io;
+		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 
 		btrfs_bio_wq_end_io(rbio->fs_info, bio,
 				    BTRFS_WQ_ENDIO_RAID56);
 
-		submit_bio(READ, bio);
+		submit_bio(bio);
 	}
 	/* the actual write will happen once the reads are done */
 	return;

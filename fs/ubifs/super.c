@@ -520,19 +520,19 @@ static int init_constants_early(struct ubifs_info *c)
 	c->max_write_shift = fls(c->max_write_size) - 1;
 
 	if (c->leb_size < UBIFS_MIN_LEB_SZ) {
-		ubifs_err(c, "too small LEBs (%d bytes), min. is %d bytes",
-			  c->leb_size, UBIFS_MIN_LEB_SZ);
+		ubifs_errc(c, "too small LEBs (%d bytes), min. is %d bytes",
+			   c->leb_size, UBIFS_MIN_LEB_SZ);
 		return -EINVAL;
 	}
 
 	if (c->leb_cnt < UBIFS_MIN_LEB_CNT) {
-		ubifs_err(c, "too few LEBs (%d), min. is %d",
-			  c->leb_cnt, UBIFS_MIN_LEB_CNT);
+		ubifs_errc(c, "too few LEBs (%d), min. is %d",
+			   c->leb_cnt, UBIFS_MIN_LEB_CNT);
 		return -EINVAL;
 	}
 
 	if (!is_power_of_2(c->min_io_size)) {
-		ubifs_err(c, "bad min. I/O size %d", c->min_io_size);
+		ubifs_errc(c, "bad min. I/O size %d", c->min_io_size);
 		return -EINVAL;
 	}
 
@@ -543,8 +543,8 @@ static int init_constants_early(struct ubifs_info *c)
 	if (c->max_write_size < c->min_io_size ||
 	    c->max_write_size % c->min_io_size ||
 	    !is_power_of_2(c->max_write_size)) {
-		ubifs_err(c, "bad write buffer size %d for %d min. I/O unit",
-			  c->max_write_size, c->min_io_size);
+		ubifs_errc(c, "bad write buffer size %d for %d min. I/O unit",
+			   c->max_write_size, c->min_io_size);
 		return -EINVAL;
 	}
 
@@ -2040,6 +2040,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	if (c->max_inode_sz > MAX_LFS_FILESIZE)
 		sb->s_maxbytes = c->max_inode_sz = MAX_LFS_FILESIZE;
 	sb->s_op = &ubifs_super_operations;
+	sb->s_xattr = ubifs_xattr_handlers;
 
 	mutex_lock(&c->umount_mutex);
 	err = mount_ubifs(c);
@@ -2107,8 +2108,9 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 	 */
 	ubi = open_ubi(name, UBI_READONLY);
 	if (IS_ERR(ubi)) {
-		pr_err("UBIFS error (pid: %d): cannot open \"%s\", error %d",
-		       current->pid, name, (int)PTR_ERR(ubi));
+		if (!(flags & MS_SILENT))
+			pr_err("UBIFS error (pid: %d): cannot open \"%s\", error %d",
+			       current->pid, name, (int)PTR_ERR(ubi));
 		return ERR_CAST(ubi);
 	}
 

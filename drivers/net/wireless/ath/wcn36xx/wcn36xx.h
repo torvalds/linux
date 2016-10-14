@@ -125,10 +125,10 @@ struct wcn36xx_platform_ctrl_ops {
  */
 struct wcn36xx_vif {
 	struct list_head list;
-	struct wcn36xx_sta *sta;
 	u8 dtim_period;
 	enum ani_ed_type encrypt_type;
 	bool is_joining;
+	bool sta_assoc;
 	struct wcn36xx_hal_mac_ssid ssid;
 
 	/* Power management */
@@ -193,7 +193,7 @@ struct wcn36xx {
 	u8			fw_minor;
 	u8			fw_major;
 	u32			fw_feat_caps[WCN36XX_HAL_CAPS_SIZE];
-	u32			chip_version;
+	bool			is_pronto;
 
 	/* extra byte for the NULL termination */
 	u8			crm_version[WCN36XX_HAL_VERSION_LENGTH + 1];
@@ -202,7 +202,8 @@ struct wcn36xx {
 	/* IRQs */
 	int			tx_irq;
 	int			rx_irq;
-	void __iomem		*mmio;
+	void __iomem		*ccu_base;
+	void __iomem		*dxe_base;
 
 	struct wcn36xx_platform_ctrl_ops *ctrl_ops;
 	/*
@@ -215,7 +216,7 @@ struct wcn36xx {
 	struct completion	hal_rsp_compl;
 	struct workqueue_struct	*hal_ind_wq;
 	struct work_struct	hal_ind_work;
-	struct mutex		hal_ind_mutex;
+	spinlock_t		hal_ind_lock;
 	struct list_head	hal_ind_queue;
 
 	/* DXE channels */
@@ -241,9 +242,6 @@ struct wcn36xx {
 
 };
 
-#define WCN36XX_CHIP_3660	0
-#define WCN36XX_CHIP_3680	1
-
 static inline bool wcn36xx_is_fw_version(struct wcn36xx *wcn,
 					 u8 major,
 					 u8 minor,
@@ -261,6 +259,24 @@ static inline
 struct ieee80211_sta *wcn36xx_priv_to_sta(struct wcn36xx_sta *sta_priv)
 {
 	return container_of((void *)sta_priv, struct ieee80211_sta, drv_priv);
+}
+
+static inline
+struct wcn36xx_vif *wcn36xx_vif_to_priv(struct ieee80211_vif *vif)
+{
+	return (struct wcn36xx_vif *) vif->drv_priv;
+}
+
+static inline
+struct ieee80211_vif *wcn36xx_priv_to_vif(struct wcn36xx_vif *vif_priv)
+{
+	return container_of((void *) vif_priv, struct ieee80211_vif, drv_priv);
+}
+
+static inline
+struct wcn36xx_sta *wcn36xx_sta_to_priv(struct ieee80211_sta *sta)
+{
+	return (struct wcn36xx_sta *)sta->drv_priv;
 }
 
 #endif	/* _WCN36XX_H_ */

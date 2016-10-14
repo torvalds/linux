@@ -57,6 +57,7 @@ static int __net_init tipc_init_net(struct net *net)
 
 	tn->net_id = 4711;
 	tn->own_addr = 0;
+	tn->mon_threshold = TIPC_DEF_MON_THRESHOLD;
 	get_random_bytes(&tn->random, sizeof(int));
 	INIT_LIST_HEAD(&tn->node_list);
 	spin_lock_init(&tn->node_list_lock);
@@ -112,11 +113,9 @@ static int __init tipc_init(void)
 
 	pr_info("Activated (version " TIPC_MOD_VER ")\n");
 
-	sysctl_tipc_rmem[0] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
-			      TIPC_LOW_IMPORTANCE;
-	sysctl_tipc_rmem[1] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
-			      TIPC_CRITICAL_IMPORTANCE;
-	sysctl_tipc_rmem[2] = TIPC_CONN_OVERLOAD_LIMIT;
+	sysctl_tipc_rmem[0] = RCVBUF_MIN;
+	sysctl_tipc_rmem[1] = RCVBUF_DEF;
+	sysctl_tipc_rmem[2] = RCVBUF_MAX;
 
 	err = tipc_netlink_start();
 	if (err)

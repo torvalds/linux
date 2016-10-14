@@ -13,8 +13,8 @@
 #include <linux/compat.h>
 #include <linux/mount.h>
 #include <linux/file.h>
-#include <linux/random.h>
 #include <linux/quotaops.h>
+#include <linux/uuid.h>
 #include <asm/uaccess.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
@@ -308,6 +308,7 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 	kprojid_t kprojid;
 	struct ext4_iloc iloc;
 	struct ext4_inode *raw_inode;
+	struct dquot *transfer_to[MAXQUOTAS] = { };
 
 	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb,
 			EXT4_FEATURE_RO_COMPAT_PROJECT)) {
@@ -361,17 +362,14 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 	if (err)
 		goto out_stop;
 
-	if (sb_has_quota_limits_enabled(sb, PRJQUOTA)) {
-		struct dquot *transfer_to[MAXQUOTAS] = { };
-
-		transfer_to[PRJQUOTA] = dqget(sb, make_kqid_projid(kprojid));
-		if (transfer_to[PRJQUOTA]) {
-			err = __dquot_transfer(inode, transfer_to);
-			dqput(transfer_to[PRJQUOTA]);
-			if (err)
-				goto out_dirty;
-		}
+	transfer_to[PRJQUOTA] = dqget(sb, make_kqid_projid(kprojid));
+	if (!IS_ERR(transfer_to[PRJQUOTA])) {
+		err = __dquot_transfer(inode, transfer_to);
+		dqput(transfer_to[PRJQUOTA]);
+		if (err)
+			goto out_dirty;
 	}
+
 	EXT4_I(inode)->i_projid = kprojid;
 	inode->i_ctime = ext4_current_time(inode);
 out_dirty:
@@ -772,19 +770,13 @@ resizefs_out:
 		return ext4_ext_precache(inode);
 	case EXT4_IOC_SET_ENCRYPTION_POLICY: {
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-		struct ext4_encryption_policy policy;
-		int err = 0;
+		struct fscrypt_policy policy;
 
 		if (copy_from_user(&policy,
-				   (struct ext4_encryption_policy __user *)arg,
-				   sizeof(policy))) {
-			err = -EFAULT;
-			goto encryption_policy_out;
-		}
-
-		err = ext4_process_policy(&policy, inode);
-encryption_policy_out:
-		return err;
+				   (struct fscrypt_policy __user *)arg,
+				   sizeof(policy)))
+			return -EFAULT;
+		return fscrypt_process_policy(filp, &policy);
 #else
 		return -EOPNOTSUPP;
 #endif
@@ -827,12 +819,12 @@ encryption_policy_out:
 	}
 	case EXT4_IOC_GET_ENCRYPTION_POLICY: {
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-		struct ext4_encryption_policy policy;
+		struct fscrypt_policy policy;
 		int err = 0;
 
 		if (!ext4_encrypted_inode(inode))
 			return -ENOENT;
-		err = ext4_get_policy(inode, &policy);
+		err = fscrypt_get_policy(inode, &policy);
 		if (err)
 			return err;
 		if (copy_to_user((void __user *)arg, &policy, sizeof(policy)))

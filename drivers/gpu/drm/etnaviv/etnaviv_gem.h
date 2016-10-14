@@ -79,6 +79,7 @@ struct etnaviv_gem_ops {
 	int (*get_pages)(struct etnaviv_gem_object *);
 	void (*release)(struct etnaviv_gem_object *);
 	void *(*vmap)(struct etnaviv_gem_object *);
+	int (*mmap)(struct etnaviv_gem_object *, struct vm_area_struct *);
 };
 
 static inline bool is_active(struct etnaviv_gem_object *etnaviv_obj)

@@ -58,8 +58,8 @@
 	soc {
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
 			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000
-			  MBUS_ID(0x09, 0x09) 0 0xf1100000 0x10000
-			  MBUS_ID(0x09, 0x05) 0 0xf1110000 0x10000>;
+			  MBUS_ID(0x09, 0x19) 0 0xf1100000 0x10000
+			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000>;
 
 		internal-regs {
 
@@ -245,7 +245,7 @@
 		button@2 {
 			label = "Factory Reset Button";
 			linux,code = <KEY_RESTART>;
-			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 29 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -260,7 +260,7 @@
 		};
 
 		sata {
-			gpios = <&gpio1 22 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio1 22 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
 	};
@@ -313,7 +313,7 @@
 
 &pinctrl {
 	keys_pin: keys-pin {
-		marvell,pins = "mpp24", "mpp47";
+		marvell,pins = "mpp24", "mpp29";
 		marvell,function = "gpio";
 	};
 

@@ -4,10 +4,12 @@
 #include <linux/spinlock.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/llist.h>
 #include <asm/page.h>		/* pgprot_t */
 #include <linux/rbtree.h>
 
 struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
+struct notifier_block;		/* in notifier.h */
 
 /* bits in flags of vmalloc's vm_struct below */
 #define VM_IOREMAP		0x00000001	/* ioremap() and friends */
@@ -44,7 +46,7 @@ struct vmap_area {
 	unsigned long flags;
 	struct rb_node rb_node;         /* address sorted rbtree */
 	struct list_head list;          /* address sorted list */
-	struct list_head purge_list;    /* "lazy purge" list */
+	struct llist_node purge_list;    /* "lazy purge" list */
 	struct vm_struct *vm;
 	struct rcu_head rcu_head;
 };
@@ -186,5 +188,8 @@ pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
 #else
 #define VMALLOC_TOTAL 0UL
 #endif
+
+int register_vmap_purge_notifier(struct notifier_block *nb);
+int unregister_vmap_purge_notifier(struct notifier_block *nb);
 
 #endif /* _LINUX_VMALLOC_H */

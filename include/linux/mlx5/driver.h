@@ -41,9 +41,16 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/radix-tree.h>
+#include <linux/workqueue.h>
+#include <linux/interrupt.h>
 
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/doorbell.h>
+#include <linux/mlx5/srq.h>
+
+enum {
+	MLX5_RQ_BITMASK_VSD = 1 << 1,
+};
 
 enum {
 	MLX5_BOARD_ID_LEN = 64,
@@ -112,9 +119,12 @@ enum {
 	MLX5_REG_PMPE		 = 0x5010,
 	MLX5_REG_PELC		 = 0x500e,
 	MLX5_REG_PVLC		 = 0x500f,
-	MLX5_REG_PMLP		 = 0, /* TBD */
+	MLX5_REG_PCMR		 = 0x5041,
+	MLX5_REG_PMLP		 = 0x5002,
 	MLX5_REG_NODE_DESC	 = 0x6001,
 	MLX5_REG_HOST_ENDIANNESS = 0x7004,
+	MLX5_REG_MCIA		 = 0x9014,
+	MLX5_REG_MLCR		 = 0x902b,
 };
 
 enum {
@@ -304,6 +314,14 @@ struct mlx5_buf {
 	u8			page_shift;
 };
 
+struct mlx5_eq_tasklet {
+	struct list_head list;
+	struct list_head process_list;
+	struct tasklet_struct task;
+	/* lock on completion tasklet list */
+	spinlock_t lock;
+};
+
 struct mlx5_eq {
 	struct mlx5_core_dev   *dev;
 	__be32 __iomem	       *doorbell;
@@ -317,6 +335,7 @@ struct mlx5_eq {
 	struct list_head	list;
 	int			index;
 	struct mlx5_rsc_debug	*dbg;
+	struct mlx5_eq_tasklet	tasklet_ctx;
 };
 
 struct mlx5_core_psv {
@@ -450,7 +469,33 @@ struct mlx5_irq_info {
 	char name[MLX5_MAX_IRQ_NAME];
 };
 
+struct mlx5_fc_stats {
+	struct rb_root counters;
+	struct list_head addlist;
+	/* protect addlist add/splice operations */
+	spinlock_t addlist_lock;
+
+	struct workqueue_struct *wq;
+	struct delayed_work work;
+	unsigned long next_query;
+};
+
 struct mlx5_eswitch;
+
+struct mlx5_rl_entry {
+	u32                     rate;
+	u16                     index;
+	u16                     refcount;
+};
+
+struct mlx5_rl_table {
+	/* protect rate limit table */
+	struct mutex            rl_lock;
+	u16                     max_size;
+	u32                     max_rate;
+	u32                     min_rate;
+	struct mlx5_rl_entry   *rl_entry;
+};
 
 struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
@@ -506,11 +551,12 @@ struct mlx5_priv {
 	struct list_head        ctx_list;
 	spinlock_t              ctx_lock;
 
+	struct mlx5_flow_steering *steering;
 	struct mlx5_eswitch     *eswitch;
 	struct mlx5_core_sriov	sriov;
 	unsigned long		pci_dev_data;
-	struct mlx5_flow_root_namespace *root_ns;
-	struct mlx5_flow_root_namespace *fdb_root_ns;
+	struct mlx5_fc_stats		fc_stats;
+	struct mlx5_rl_table            rl_table;
 };
 
 enum mlx5_device_state {
@@ -527,6 +573,18 @@ enum mlx5_interface_state {
 enum mlx5_pci_status {
 	MLX5_PCI_STATUS_DISABLED,
 	MLX5_PCI_STATUS_ENABLED,
+};
+
+struct mlx5_td {
+	struct list_head tirs_list;
+	u32              tdn;
+};
+
+struct mlx5e_resources {
+	struct mlx5_uar            cq_uar;
+	u32                        pdn;
+	struct mlx5_td             td;
+	struct mlx5_core_mkey      mkey;
 };
 
 struct mlx5_core_dev {
@@ -553,6 +611,10 @@ struct mlx5_core_dev {
 	struct mlx5_profile	*profile;
 	atomic_t		num_qps;
 	u32			issi;
+	struct mlx5e_resources  mlx5e_res;
+#ifdef CONFIG_RFS_ACCEL
+	struct cpu_rmap         *rmap;
+#endif
 };
 
 struct mlx5_db {
@@ -593,6 +655,7 @@ struct mlx5_cmd_work_ent {
 	void		       *uout;
 	int			uout_size;
 	mlx5_cmd_cbk_t		callback;
+	struct delayed_work	cb_timeout_work;
 	void		       *context;
 	int			idx;
 	struct completion	done;
@@ -736,11 +799,10 @@ struct mlx5_cmd_mailbox *mlx5_alloc_cmd_mailbox_chain(struct mlx5_core_dev *dev,
 void mlx5_free_cmd_mailbox_chain(struct mlx5_core_dev *dev,
 				 struct mlx5_cmd_mailbox *head);
 int mlx5_core_create_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
-			 struct mlx5_create_srq_mbox_in *in, int inlen,
-			 int is_xrc);
+			 struct mlx5_srq_attr *in);
 int mlx5_core_destroy_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq);
 int mlx5_core_query_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
-			struct mlx5_query_srq_mbox_out *out);
+			struct mlx5_srq_attr *out);
 int mlx5_core_arm_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 		      u16 lwm, int is_srq);
 void mlx5_init_mkey_table(struct mlx5_core_dev *dev);
@@ -825,6 +887,12 @@ int mlx5_query_odp_caps(struct mlx5_core_dev *dev,
 int mlx5_core_query_ib_ppcnt(struct mlx5_core_dev *dev,
 			     u8 port_num, void *out, size_t sz);
 
+int mlx5_init_rl_table(struct mlx5_core_dev *dev);
+void mlx5_cleanup_rl_table(struct mlx5_core_dev *dev);
+int mlx5_rl_add_rate(struct mlx5_core_dev *dev, u32 rate, u16 *index);
+void mlx5_rl_remove_rate(struct mlx5_core_dev *dev, u32 rate);
+bool mlx5_rl_is_in_range(struct mlx5_core_dev *dev, u32 rate);
+
 static inline int fw_initializing(struct mlx5_core_dev *dev)
 {
 	return ioread32be(&dev->iseg->initializing) >> 31;
@@ -900,6 +968,11 @@ static inline int mlx5_get_gid_table_len(u16 param)
 	}
 
 	return 8 * (1 << param);
+}
+
+static inline bool mlx5_rl_is_supported(struct mlx5_core_dev *dev)
+{
+	return !!(dev->priv.rl_table.max_size);
 }
 
 enum {

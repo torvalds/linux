@@ -13,7 +13,7 @@ int __init extent_map_init(void)
 {
 	extent_map_cache = kmem_cache_create("btrfs_extent_map",
 			sizeof(struct extent_map), 0,
-			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
+			SLAB_MEM_SPREAD, NULL);
 	if (!extent_map_cache)
 		return -ENOMEM;
 	return 0;
@@ -62,7 +62,7 @@ struct extent_map *alloc_extent_map(void)
 
 /**
  * free_extent_map - drop reference count of an extent_map
- * @em:		extent map being releasead
+ * @em:		extent map being released
  *
  * Drops the reference out on @em by one and free the structure
  * if the reference count hits zero.

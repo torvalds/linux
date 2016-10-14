@@ -367,7 +367,7 @@ static void arp_failure_discard(struct t3cdev *dev, struct sk_buff *skb)
  */
 static void act_open_req_arp_failure(struct t3cdev *dev, struct sk_buff *skb)
 {
-	printk(KERN_ERR MOD "ARP failure duing connect\n");
+	printk(KERN_ERR MOD "ARP failure during connect\n");
 	kfree_skb(skb);
 }
 
@@ -1396,10 +1396,10 @@ static int pass_accept_req(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	state_set(&child_ep->com, CONNECTING);
 	child_ep->com.tdev = tdev;
 	child_ep->com.cm_id = NULL;
-	child_ep->com.local_addr.sin_family = PF_INET;
+	child_ep->com.local_addr.sin_family = AF_INET;
 	child_ep->com.local_addr.sin_port = req->local_port;
 	child_ep->com.local_addr.sin_addr.s_addr = req->local_ip;
-	child_ep->com.remote_addr.sin_family = PF_INET;
+	child_ep->com.remote_addr.sin_family = AF_INET;
 	child_ep->com.remote_addr.sin_port = req->peer_port;
 	child_ep->com.remote_addr.sin_addr.s_addr = req->peer_ip;
 	get_ep(&parent_ep->com);

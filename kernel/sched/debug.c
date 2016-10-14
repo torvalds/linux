@@ -427,19 +427,12 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 		SPLIT_NS(p->se.vruntime),
 		(long long)(p->nvcsw + p->nivcsw),
 		p->prio);
-#ifdef CONFIG_SCHEDSTATS
-	if (schedstat_enabled()) {
-		SEQ_printf(m, "%9Ld.%06ld %9Ld.%06ld %9Ld.%06ld",
-			SPLIT_NS(p->se.statistics.wait_sum),
-			SPLIT_NS(p->se.sum_exec_runtime),
-			SPLIT_NS(p->se.statistics.sum_sleep_runtime));
-	}
-#else
+
 	SEQ_printf(m, "%9Ld.%06ld %9Ld.%06ld %9Ld.%06ld",
-		0LL, 0L,
+		SPLIT_NS(schedstat_val(p, se.statistics.wait_sum)),
 		SPLIT_NS(p->se.sum_exec_runtime),
-		0LL, 0L);
-#endif
+		SPLIT_NS(schedstat_val(p, se.statistics.sum_sleep_runtime)));
+
 #ifdef CONFIG_NUMA_BALANCING
 	SEQ_printf(m, " %d %d", task_node(p), task_numa_group_id(p));
 #endif
@@ -626,14 +619,15 @@ do {									\
 #undef P
 #undef PN
 
-#ifdef CONFIG_SCHEDSTATS
-#define P(n) SEQ_printf(m, "  .%-30s: %d\n", #n, rq->n);
-#define P64(n) SEQ_printf(m, "  .%-30s: %Ld\n", #n, rq->n);
-
 #ifdef CONFIG_SMP
+#define P64(n) SEQ_printf(m, "  .%-30s: %Ld\n", #n, rq->n);
 	P64(avg_idle);
 	P64(max_idle_balance_cost);
+#undef P64
 #endif
+
+#ifdef CONFIG_SCHEDSTATS
+#define P(n) SEQ_printf(m, "  .%-30s: %d\n", #n, rq->n);
 
 	if (schedstat_enabled()) {
 		P(yld_count);
@@ -644,7 +638,6 @@ do {									\
 	}
 
 #undef P
-#undef P64
 #endif
 	spin_lock_irqsave(&sched_debug_lock, flags);
 	print_cfs_stats(m, cpu);
@@ -886,9 +879,9 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 
 	nr_switches = p->nvcsw + p->nivcsw;
 
-#ifdef CONFIG_SCHEDSTATS
 	P(se.nr_migrations);
 
+#ifdef CONFIG_SCHEDSTATS
 	if (schedstat_enabled()) {
 		u64 avg_atom, avg_per_cpu;
 

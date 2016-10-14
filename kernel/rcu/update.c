@@ -67,7 +67,7 @@ static int rcu_normal_after_boot;
 module_param(rcu_normal_after_boot, int, 0);
 #endif /* #ifndef CONFIG_TINY_RCU */
 
-#if defined(CONFIG_DEBUG_LOCK_ALLOC) && defined(CONFIG_PREEMPT_COUNT)
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
 /**
  * rcu_read_lock_sched_held() - might we be in RCU-sched read-side critical section?
  *
@@ -111,7 +111,7 @@ int rcu_read_lock_sched_held(void)
 		return 0;
 	if (debug_locks)
 		lockdep_opinion = lock_is_held(&rcu_sched_lock_map);
-	return lockdep_opinion || preempt_count() != 0 || irqs_disabled();
+	return lockdep_opinion || !preemptible();
 }
 EXPORT_SYMBOL(rcu_read_lock_sched_held);
 #endif
@@ -380,29 +380,9 @@ void destroy_rcu_head(struct rcu_head *head)
 	debug_object_free(head, &rcuhead_debug_descr);
 }
 
-/*
- * fixup_activate is called when:
- * - an active object is activated
- * - an unknown object is activated (might be a statically initialized object)
- * Activation is performed internally by call_rcu().
- */
-static int rcuhead_fixup_activate(void *addr, enum debug_obj_state state)
+static bool rcuhead_is_static_object(void *addr)
 {
-	struct rcu_head *head = addr;
-
-	switch (state) {
-
-	case ODEBUG_STATE_NOTAVAILABLE:
-		/*
-		 * This is not really a fixup. We just make sure that it is
-		 * tracked in the object tracker.
-		 */
-		debug_object_init(head, &rcuhead_debug_descr);
-		debug_object_activate(head, &rcuhead_debug_descr);
-		return 0;
-	default:
-		return 1;
-	}
+	return true;
 }
 
 /**
@@ -440,7 +420,7 @@ EXPORT_SYMBOL_GPL(destroy_rcu_head_on_stack);
 
 struct debug_obj_descr rcuhead_debug_descr = {
 	.name = "rcu_head",
-	.fixup_activate = rcuhead_fixup_activate,
+	.is_static_object = rcuhead_is_static_object,
 };
 EXPORT_SYMBOL_GPL(rcuhead_debug_descr);
 #endif /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
@@ -548,6 +528,7 @@ static int rcu_task_stall_timeout __read_mostly = HZ * 60 * 10;
 module_param(rcu_task_stall_timeout, int, 0644);
 
 static void rcu_spawn_tasks_kthread(void);
+static struct task_struct *rcu_tasks_kthread_ptr;
 
 /*
  * Post an RCU-tasks callback.  First call must be from process context
@@ -557,6 +538,7 @@ void call_rcu_tasks(struct rcu_head *rhp, rcu_callback_t func)
 {
 	unsigned long flags;
 	bool needwake;
+	bool havetask = READ_ONCE(rcu_tasks_kthread_ptr);
 
 	rhp->next = NULL;
 	rhp->func = func;
@@ -565,7 +547,9 @@ void call_rcu_tasks(struct rcu_head *rhp, rcu_callback_t func)
 	*rcu_tasks_cbs_tail = rhp;
 	rcu_tasks_cbs_tail = &rhp->next;
 	raw_spin_unlock_irqrestore(&rcu_tasks_cbs_lock, flags);
-	if (needwake) {
+	/* We can't create the thread unless interrupts are enabled. */
+	if ((needwake && havetask) ||
+	    (!havetask && !irqs_disabled_flags(flags))) {
 		rcu_spawn_tasks_kthread();
 		wake_up(&rcu_tasks_cbs_wq);
 	}
@@ -810,7 +794,6 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 static void rcu_spawn_tasks_kthread(void)
 {
 	static DEFINE_MUTEX(rcu_tasks_kthread_mutex);
-	static struct task_struct *rcu_tasks_kthread_ptr;
 	struct task_struct *t;
 
 	if (READ_ONCE(rcu_tasks_kthread_ptr)) {

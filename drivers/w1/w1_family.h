@@ -88,4 +88,16 @@ struct w1_family * w1_family_registered(u8);
 void w1_unregister_family(struct w1_family *);
 int w1_register_family(struct w1_family *);
 
+/**
+ * module_w1_driver() - Helper macro for registering a 1-Wire families
+ * @__w1_family: w1_family struct
+ *
+ * Helper macro for 1-Wire families which do not do anything special in module
+ * init/exit. This eliminates a lot of boilerplate. Each module may only
+ * use this macro once, and calling it replaces module_init() and module_exit()
+ */
+#define module_w1_family(__w1_family) \
+	module_driver(__w1_family, w1_register_family, \
+			w1_unregister_family)
+
 #endif /* __W1_FAMILY_H */

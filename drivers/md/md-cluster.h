@@ -23,6 +23,7 @@ struct md_cluster_operations {
 	void (*add_new_disk_cancel)(struct mddev *mddev);
 	int (*new_disk_ack)(struct mddev *mddev, bool ack);
 	int (*remove_disk)(struct mddev *mddev, struct md_rdev *rdev);
+	void (*load_bitmaps)(struct mddev *mddev, int total_slots);
 	int (*gather_bitmaps)(struct md_rdev *rdev);
 	int (*lock_all_bitmaps)(struct mddev *mddev);
 	void (*unlock_all_bitmaps)(struct mddev *mddev);

@@ -17,6 +17,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/seq_file.h>
+
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 
@@ -113,24 +115,16 @@ static void omap_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	for (i = 0; i < n; i++) {
 		struct plane *plane = &omap_fb->planes[i];
-		if (plane->bo)
-			drm_gem_object_unreference_unlocked(plane->bo);
+
+		drm_gem_object_unreference_unlocked(plane->bo);
 	}
 
 	kfree(omap_fb);
 }
 
-static int omap_framebuffer_dirty(struct drm_framebuffer *fb,
-		struct drm_file *file_priv, unsigned flags, unsigned color,
-		struct drm_clip_rect *clips, unsigned num_clips)
-{
-	return 0;
-}
-
 static const struct drm_framebuffer_funcs omap_framebuffer_funcs = {
 	.create_handle = omap_framebuffer_create_handle,
 	.destroy = omap_framebuffer_destroy,
-	.dirty = omap_framebuffer_dirty,
 };
 
 static uint32_t get_linear_addr(struct plane *plane,
@@ -318,14 +312,6 @@ void omap_framebuffer_unpin(struct drm_framebuffer *fb)
 	mutex_unlock(&omap_fb->lock);
 }
 
-struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb, int p)
-{
-	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
-	if (p >= drm_format_num_planes(fb->pixel_format))
-		return NULL;
-	return omap_fb->planes[p].bo;
-}
-
 /* iterate thru all the connectors, returning ones that are attached
  * to the same fb..
  */
@@ -378,7 +364,7 @@ struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 	int ret;
 
-	ret = objects_lookup(dev, file, mode_cmd->pixel_format,
+	ret = objects_lookup(file, mode_cmd->pixel_format,
 			bos, mode_cmd->handles);
 	if (ret)
 		return ERR_PTR(ret);

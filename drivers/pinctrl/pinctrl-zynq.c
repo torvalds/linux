@@ -20,7 +20,7 @@
  */
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -862,7 +862,7 @@ static const struct pinctrl_ops zynq_pctrl_ops = {
 	.get_group_name = zynq_pctrl_get_group_name,
 	.get_group_pins = zynq_pctrl_get_group_pins,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 /* pinmux */
@@ -1195,7 +1195,7 @@ static int zynq_pinctrl_probe(struct platform_device *pdev)
 	pctrl->funcs = zynq_pmux_functions;
 	pctrl->nfuncs = ARRAY_SIZE(zynq_pmux_functions);
 
-	pctrl->pctrl = pinctrl_register(&zynq_desc, &pdev->dev, pctrl);
+	pctrl->pctrl = devm_pinctrl_register(&pdev->dev, &zynq_desc, pctrl);
 	if (IS_ERR(pctrl->pctrl))
 		return PTR_ERR(pctrl->pctrl);
 
@@ -1206,20 +1206,10 @@ static int zynq_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int zynq_pinctrl_remove(struct platform_device *pdev)
-{
-	struct zynq_pinctrl *pctrl = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(pctrl->pctrl);
-
-	return 0;
-}
-
 static const struct of_device_id zynq_pinctrl_of_match[] = {
 	{ .compatible = "xlnx,pinctrl-zynq" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, zynq_pinctrl_of_match);
 
 static struct platform_driver zynq_pinctrl_driver = {
 	.driver = {
@@ -1227,7 +1217,6 @@ static struct platform_driver zynq_pinctrl_driver = {
 		.of_match_table = zynq_pinctrl_of_match,
 	},
 	.probe = zynq_pinctrl_probe,
-	.remove = zynq_pinctrl_remove,
 };
 
 static int __init zynq_pinctrl_init(void)
@@ -1235,13 +1224,3 @@ static int __init zynq_pinctrl_init(void)
 	return platform_driver_register(&zynq_pinctrl_driver);
 }
 arch_initcall(zynq_pinctrl_init);
-
-static void __exit zynq_pinctrl_exit(void)
-{
-	platform_driver_unregister(&zynq_pinctrl_driver);
-}
-module_exit(zynq_pinctrl_exit);
-
-MODULE_AUTHOR("Sören Brinkmann <soren.brinkmann@xilinx.com>");
-MODULE_DESCRIPTION("Xilinx Zynq pinctrl driver");
-MODULE_LICENSE("GPL");

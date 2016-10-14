@@ -60,6 +60,7 @@ static i40e_status i40e_set_mac_type(struct i40e_hw *hw)
 		case I40E_DEV_ID_SFP_X722:
 		case I40E_DEV_ID_1G_BASE_T_X722:
 		case I40E_DEV_ID_10G_BASE_T_X722:
+		case I40E_DEV_ID_SFP_I_X722:
 			hw->mac.type = I40E_MAC_X722;
 			break;
 		default:
@@ -295,12 +296,14 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 		   void *buffer, u16 buf_len)
 {
 	struct i40e_aq_desc *aq_desc = (struct i40e_aq_desc *)desc;
-	u16 len = le16_to_cpu(aq_desc->datalen);
+	u16 len;
 	u8 *buf = (u8 *)buffer;
 	u16 i = 0;
 
 	if ((!(mask & hw->debug_mask)) || (desc == NULL))
 		return;
+
+	len = le16_to_cpu(aq_desc->datalen);
 
 	i40e_debug(hw, mask,
 		   "AQ CMD: opcode 0x%04X, flags 0x%04X, datalen 0x%04X, retval 0x%04X\n",
@@ -694,7 +697,7 @@ struct i40e_rx_ptype_decoded i40e_ptype_lookup[] = {
 	/* Non Tunneled IPv6 */
 	I40E_PTT(88, IP, IPV6, FRG, NONE, NONE, NOF, NONE, PAY3),
 	I40E_PTT(89, IP, IPV6, NOF, NONE, NONE, NOF, NONE, PAY3),
-	I40E_PTT(90, IP, IPV6, NOF, NONE, NONE, NOF, UDP,  PAY3),
+	I40E_PTT(90, IP, IPV6, NOF, NONE, NONE, NOF, UDP,  PAY4),
 	I40E_PTT_UNUSED_ENTRY(91),
 	I40E_PTT(92, IP, IPV6, NOF, NONE, NONE, NOF, TCP,  PAY4),
 	I40E_PTT(93, IP, IPV6, NOF, NONE, NONE, NOF, SCTP, PAY4),
@@ -1901,13 +1904,13 @@ i40e_status i40e_aq_set_phy_int_mask(struct i40e_hw *hw,
  *
  * Reset the external PHY.
  **/
-enum i40e_status_code i40e_aq_set_phy_debug(struct i40e_hw *hw, u8 cmd_flags,
-					struct i40e_asq_cmd_details *cmd_details)
+i40e_status i40e_aq_set_phy_debug(struct i40e_hw *hw, u8 cmd_flags,
+				  struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
 	struct i40e_aqc_set_phy_debug *cmd =
 		(struct i40e_aqc_set_phy_debug *)&desc.params.raw;
-	enum i40e_status_code status;
+	i40e_status status;
 
 	i40e_fill_default_direct_cmd_desc(&desc,
 					  i40e_aqc_opc_set_phy_debug);
@@ -1965,15 +1968,73 @@ aq_add_vsi_exit:
 }
 
 /**
+ * i40e_aq_set_default_vsi
+ * @hw: pointer to the hw struct
+ * @seid: vsi number
+ * @cmd_details: pointer to command details structure or NULL
+ **/
+i40e_status i40e_aq_set_default_vsi(struct i40e_hw *hw,
+				    u16 seid,
+				    struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_set_vsi_promiscuous_modes *cmd =
+		(struct i40e_aqc_set_vsi_promiscuous_modes *)
+		&desc.params.raw;
+	i40e_status status;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_set_vsi_promiscuous_modes);
+
+	cmd->promiscuous_flags = cpu_to_le16(I40E_AQC_SET_VSI_DEFAULT);
+	cmd->valid_flags = cpu_to_le16(I40E_AQC_SET_VSI_DEFAULT);
+	cmd->seid = cpu_to_le16(seid);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
+ * i40e_aq_clear_default_vsi
+ * @hw: pointer to the hw struct
+ * @seid: vsi number
+ * @cmd_details: pointer to command details structure or NULL
+ **/
+i40e_status i40e_aq_clear_default_vsi(struct i40e_hw *hw,
+				      u16 seid,
+				      struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_set_vsi_promiscuous_modes *cmd =
+		(struct i40e_aqc_set_vsi_promiscuous_modes *)
+		&desc.params.raw;
+	i40e_status status;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_set_vsi_promiscuous_modes);
+
+	cmd->promiscuous_flags = cpu_to_le16(0);
+	cmd->valid_flags = cpu_to_le16(I40E_AQC_SET_VSI_DEFAULT);
+	cmd->seid = cpu_to_le16(seid);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
  * i40e_aq_set_vsi_unicast_promiscuous
  * @hw: pointer to the hw struct
  * @seid: vsi number
  * @set: set unicast promiscuous enable/disable
  * @cmd_details: pointer to command details structure or NULL
+ * @rx_only_promisc: flag to decide if egress traffic gets mirrored in promisc
  **/
 i40e_status i40e_aq_set_vsi_unicast_promiscuous(struct i40e_hw *hw,
 				u16 seid, bool set,
-				struct i40e_asq_cmd_details *cmd_details)
+				struct i40e_asq_cmd_details *cmd_details,
+				bool rx_only_promisc)
 {
 	struct i40e_aq_desc desc;
 	struct i40e_aqc_set_vsi_promiscuous_modes *cmd =
@@ -1986,8 +2047,9 @@ i40e_status i40e_aq_set_vsi_unicast_promiscuous(struct i40e_hw *hw,
 
 	if (set) {
 		flags |= I40E_AQC_SET_VSI_PROMISC_UNICAST;
-		if (((hw->aq.api_maj_ver == 1) && (hw->aq.api_min_ver >= 5)) ||
-		    (hw->aq.api_maj_ver > 1))
+		if (rx_only_promisc &&
+		    (((hw->aq.api_maj_ver == 1) && (hw->aq.api_min_ver >= 5)) ||
+		     (hw->aq.api_maj_ver > 1)))
 			flags |= I40E_AQC_SET_VSI_PROMISC_TX;
 	}
 
@@ -2031,6 +2093,76 @@ i40e_status i40e_aq_set_vsi_multicast_promiscuous(struct i40e_hw *hw,
 	cmd->valid_flags = cpu_to_le16(I40E_AQC_SET_VSI_PROMISC_MULTICAST);
 
 	cmd->seid = cpu_to_le16(seid);
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
+ * i40e_aq_set_vsi_mc_promisc_on_vlan
+ * @hw: pointer to the hw struct
+ * @seid: vsi number
+ * @enable: set MAC L2 layer unicast promiscuous enable/disable for a given VLAN
+ * @vid: The VLAN tag filter - capture any multicast packet with this VLAN tag
+ * @cmd_details: pointer to command details structure or NULL
+ **/
+enum i40e_status_code i40e_aq_set_vsi_mc_promisc_on_vlan(struct i40e_hw *hw,
+							 u16 seid, bool enable,
+							 u16 vid,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_set_vsi_promiscuous_modes *cmd =
+		(struct i40e_aqc_set_vsi_promiscuous_modes *)&desc.params.raw;
+	enum i40e_status_code status;
+	u16 flags = 0;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_set_vsi_promiscuous_modes);
+
+	if (enable)
+		flags |= I40E_AQC_SET_VSI_PROMISC_MULTICAST;
+
+	cmd->promiscuous_flags = cpu_to_le16(flags);
+	cmd->valid_flags = cpu_to_le16(I40E_AQC_SET_VSI_PROMISC_MULTICAST);
+	cmd->seid = cpu_to_le16(seid);
+	cmd->vlan_tag = cpu_to_le16(vid | I40E_AQC_SET_VSI_VLAN_VALID);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
+ * i40e_aq_set_vsi_uc_promisc_on_vlan
+ * @hw: pointer to the hw struct
+ * @seid: vsi number
+ * @enable: set MAC L2 layer unicast promiscuous enable/disable for a given VLAN
+ * @vid: The VLAN tag filter - capture any unicast packet with this VLAN tag
+ * @cmd_details: pointer to command details structure or NULL
+ **/
+enum i40e_status_code i40e_aq_set_vsi_uc_promisc_on_vlan(struct i40e_hw *hw,
+							 u16 seid, bool enable,
+							 u16 vid,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_set_vsi_promiscuous_modes *cmd =
+		(struct i40e_aqc_set_vsi_promiscuous_modes *)&desc.params.raw;
+	enum i40e_status_code status;
+	u16 flags = 0;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_set_vsi_promiscuous_modes);
+
+	if (enable)
+		flags |= I40E_AQC_SET_VSI_PROMISC_UNICAST;
+
+	cmd->promiscuous_flags = cpu_to_le16(flags);
+	cmd->valid_flags = cpu_to_le16(I40E_AQC_SET_VSI_PROMISC_UNICAST);
+	cmd->seid = cpu_to_le16(seid);
+	cmd->vlan_tag = cpu_to_le16(vid | I40E_AQC_SET_VSI_VLAN_VALID);
+
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
 	return status;
@@ -2157,6 +2289,9 @@ i40e_status i40e_aq_update_vsi_params(struct i40e_hw *hw,
 	struct i40e_aq_desc desc;
 	struct i40e_aqc_add_get_update_vsi *cmd =
 		(struct i40e_aqc_add_get_update_vsi *)&desc.params.raw;
+	struct i40e_aqc_add_get_update_vsi_completion *resp =
+		(struct i40e_aqc_add_get_update_vsi_completion *)
+		&desc.params.raw;
 	i40e_status status;
 
 	i40e_fill_default_direct_cmd_desc(&desc,
@@ -2167,6 +2302,9 @@ i40e_status i40e_aq_update_vsi_params(struct i40e_hw *hw,
 
 	status = i40e_asq_send_command(hw, &desc, &vsi_ctx->info,
 				    sizeof(vsi_ctx->info), cmd_details);
+
+	vsi_ctx->vsis_allocated = le16_to_cpu(resp->vsi_used);
+	vsi_ctx->vsis_unallocated = le16_to_cpu(resp->vsi_free);
 
 	return status;
 }
@@ -2200,6 +2338,35 @@ i40e_status i40e_aq_get_switch_config(struct i40e_hw *hw,
 
 	status = i40e_asq_send_command(hw, &desc, buf, buf_size, cmd_details);
 	*start_seid = le16_to_cpu(scfg->seid);
+
+	return status;
+}
+
+/**
+ * i40e_aq_set_switch_config
+ * @hw: pointer to the hardware structure
+ * @flags: bit flag values to set
+ * @valid_flags: which bit flags to set
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Set switch configuration bits
+ **/
+enum i40e_status_code i40e_aq_set_switch_config(struct i40e_hw *hw,
+						u16 flags,
+						u16 valid_flags,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_set_switch_config *scfg =
+		(struct i40e_aqc_set_switch_config *)&desc.params.raw;
+	enum i40e_status_code status;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_set_switch_config);
+	scfg->flags = cpu_to_le16(flags);
+	scfg->valid_flags = cpu_to_le16(valid_flags);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
 	return status;
 }
@@ -2660,10 +2827,7 @@ i40e_status i40e_aq_delete_mirrorrule(struct i40e_hw *hw, u16 sw_seid,
 			u16 *rules_used, u16 *rules_free)
 {
 	/* Rule ID has to be valid except rule_type: INGRESS VLAN mirroring */
-	if (rule_type != I40E_AQC_MIRROR_RULE_TYPE_VLAN) {
-		if (!rule_id)
-			return I40E_ERR_PARAM;
-	} else {
+	if (rule_type == I40E_AQC_MIRROR_RULE_TYPE_VLAN) {
 		/* count and mr_list shall be valid for rule_type INGRESS VLAN
 		 * mirroring. For other rule_type, count and rule_type should
 		 * not matter.
@@ -2773,36 +2937,6 @@ i40e_status i40e_aq_debug_write_register(struct i40e_hw *hw,
 	cmd->address = cpu_to_le32(reg_addr);
 	cmd->value_high = cpu_to_le32((u32)(reg_val >> 32));
 	cmd->value_low = cpu_to_le32((u32)(reg_val & 0xFFFFFFFF));
-
-	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
-
-	return status;
-}
-
-/**
- * i40e_aq_set_hmc_resource_profile
- * @hw: pointer to the hw struct
- * @profile: type of profile the HMC is to be set as
- * @pe_vf_enabled_count: the number of PE enabled VFs the system has
- * @cmd_details: pointer to command details structure or NULL
- *
- * set the HMC profile of the device.
- **/
-i40e_status i40e_aq_set_hmc_resource_profile(struct i40e_hw *hw,
-				enum i40e_aq_hmc_profile profile,
-				u8 pe_vf_enabled_count,
-				struct i40e_asq_cmd_details *cmd_details)
-{
-	struct i40e_aq_desc desc;
-	struct i40e_aq_get_set_hmc_resource_profile *cmd =
-		(struct i40e_aq_get_set_hmc_resource_profile *)&desc.params.raw;
-	i40e_status status;
-
-	i40e_fill_default_direct_cmd_desc(&desc,
-					i40e_aqc_opc_set_hmc_resource_profile);
-
-	cmd->pm_profile = (u8)profile;
-	cmd->pe_vf_enabled = pe_vf_enabled_count;
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
@@ -3073,6 +3207,9 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 			break;
 		case I40E_AQ_CAP_ID_MSIX:
 			p->num_msix_vectors = number;
+			i40e_debug(hw, I40E_DEBUG_INIT,
+				   "HW Capability: MSIX vector count = %d\n",
+				   p->num_msix_vectors);
 			break;
 		case I40E_AQ_CAP_ID_VF_MSIX:
 			p->num_msix_vectors_vf = number;
@@ -3127,6 +3264,12 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 		case I40E_AQ_CAP_ID_WSR_PROT:
 			p->wr_csr_prot = (u64)number;
 			p->wr_csr_prot |= (u64)logical_id << 32;
+			break;
+		case I40E_AQ_CAP_ID_NVM_MGMT:
+			if (number & I40E_NVM_MGMT_SEC_REV_DISABLED)
+				p->sec_rev_disabled = true;
+			if (number & I40E_NVM_MGMT_UPDATE_DISABLED)
+				p->update_disabled = true;
 			break;
 		default:
 			break;

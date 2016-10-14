@@ -236,6 +236,8 @@ void __init setup_per_cpu_areas(void)
 			early_per_cpu_map(x86_cpu_to_apicid, cpu);
 		per_cpu(x86_bios_cpu_apicid, cpu) =
 			early_per_cpu_map(x86_bios_cpu_apicid, cpu);
+		per_cpu(x86_cpu_to_acpiid, cpu) =
+			early_per_cpu_map(x86_cpu_to_acpiid, cpu);
 #endif
 #ifdef CONFIG_X86_32
 		per_cpu(x86_cpu_to_logical_apicid, cpu) =
@@ -271,6 +273,7 @@ void __init setup_per_cpu_areas(void)
 #ifdef CONFIG_X86_LOCAL_APIC
 	early_per_cpu_ptr(x86_cpu_to_apicid) = NULL;
 	early_per_cpu_ptr(x86_bios_cpu_apicid) = NULL;
+	early_per_cpu_ptr(x86_cpu_to_acpiid) = NULL;
 #endif
 #ifdef CONFIG_X86_32
 	early_per_cpu_ptr(x86_cpu_to_logical_apicid) = NULL;

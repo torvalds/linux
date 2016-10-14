@@ -15,6 +15,10 @@
 		serial2 = &uartd;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	host1x@50000000 {
 		dc@54200000 {
 			rgb {
@@ -127,7 +131,7 @@
 	clocks {
 		clk16m: clk@1 {
 			compatible = "fixed-clock";
-			reg=<1>;
+			reg = <1>;
 			#clock-cells = <0>;
 			clock-frequency = <16000000>;
 			clock-output-names = "clk16m";
@@ -142,7 +146,7 @@
 			gpios = <&gpio TEGRA_GPIO(V, 1) GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_WAKEUP>;
 			debounce-interval = <10>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 

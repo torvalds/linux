@@ -1188,7 +1188,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Discard the packet if the length is greater than mtu */
 	max_pkt_len = ETH_HLEN + dev->mtu;
-	if (skb_vlan_tag_present(skb))
+	if (skb_vlan_tagged(skb))
 		max_pkt_len += VLAN_HLEN;
 	if (!skb_shinfo(skb)->gso_size && (unlikely(skb->len > max_pkt_len)))
 		goto out_free;
@@ -1448,7 +1448,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * the new TX descriptors and return success.
 	 */
 	txq_advance(&txq->q, ndesc);
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	ring_tx_db(adapter, &txq->q, ndesc);
 	return NETDEV_TX_OK;
 

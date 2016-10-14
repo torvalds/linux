@@ -679,8 +679,6 @@ int au0828_v4l2_device_register(struct usb_interface *interface,
 	if (retval) {
 		pr_err("%s() v4l2_device_register failed\n",
 		       __func__);
-		mutex_unlock(&dev->lock);
-		kfree(dev);
 		return retval;
 	}
 
@@ -691,8 +689,6 @@ int au0828_v4l2_device_register(struct usb_interface *interface,
 	if (retval) {
 		pr_err("%s() v4l2_ctrl_handler_init failed\n",
 		       __func__);
-		mutex_unlock(&dev->lock);
-		kfree(dev);
 		return retval;
 	}
 	dev->v4l2_dev.ctrl_handler = &dev->v4l2_ctrl_hdl;
@@ -702,7 +698,7 @@ int au0828_v4l2_device_register(struct usb_interface *interface,
 
 static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *nbuffers, unsigned int *nplanes,
-		       unsigned int sizes[], void *alloc_ctxs[])
+		       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct au0828_dev *dev = vb2_get_drv_priv(vq);
 	unsigned long size = dev->height * dev->bytesperline;

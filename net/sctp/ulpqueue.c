@@ -141,7 +141,8 @@ int sctp_clear_pd(struct sock *sk, struct sctp_association *asoc)
 		 */
 		if (!skb_queue_empty(&sp->pd_lobby)) {
 			struct list_head *list;
-			sctp_skb_list_tail(&sp->pd_lobby, &sk->sk_receive_queue);
+			skb_queue_splice_tail_init(&sp->pd_lobby,
+						   &sk->sk_receive_queue);
 			list = (struct list_head *)&sctp_sk(sk)->pd_lobby;
 			INIT_LIST_HEAD(list);
 			return 1;
@@ -193,6 +194,7 @@ static int sctp_ulpq_clear_pd(struct sctp_ulpq *ulpq)
 int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 {
 	struct sock *sk = ulpq->asoc->base.sk;
+	struct sctp_sock *sp = sctp_sk(sk);
 	struct sk_buff_head *queue, *skb_list;
 	struct sk_buff *skb = sctp_event2skb(event);
 	int clear_pd = 0;
@@ -202,7 +204,9 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 	/* If the socket is just going to throw this away, do not
 	 * even try to deliver it.
 	 */
-	if (sock_flag(sk, SOCK_DEAD) || (sk->sk_shutdown & RCV_SHUTDOWN))
+	if (sk->sk_shutdown & RCV_SHUTDOWN &&
+	    (sk->sk_shutdown & SEND_SHUTDOWN ||
+	     !sctp_ulpevent_is_notification(event)))
 		goto out_free;
 
 	if (!sctp_ulpevent_is_notification(event)) {
@@ -210,7 +214,7 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 		sk_incoming_cpu_update(sk);
 	}
 	/* Check if the user wishes to receive this event.  */
-	if (!sctp_ulpevent_is_enabled(event, &sctp_sk(sk)->subscribe))
+	if (!sctp_ulpevent_is_enabled(event, &sp->subscribe))
 		goto out_free;
 
 	/* If we are in partial delivery mode, post to the lobby until
@@ -218,7 +222,7 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 	 * the association the cause of the partial delivery.
 	 */
 
-	if (atomic_read(&sctp_sk(sk)->pd_mode) == 0) {
+	if (atomic_read(&sp->pd_mode) == 0) {
 		queue = &sk->sk_receive_queue;
 	} else {
 		if (ulpq->pd_mode) {
@@ -230,7 +234,7 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 			if ((event->msg_flags & MSG_NOTIFICATION) ||
 			    (SCTP_DATA_NOT_FRAG ==
 				    (event->msg_flags & SCTP_DATA_FRAG_MASK)))
-				queue = &sctp_sk(sk)->pd_lobby;
+				queue = &sp->pd_lobby;
 			else {
 				clear_pd = event->msg_flags & MSG_EOR;
 				queue = &sk->sk_receive_queue;
@@ -241,10 +245,10 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 			 * can queue this to the receive queue instead
 			 * of the lobby.
 			 */
-			if (sctp_sk(sk)->frag_interleave)
+			if (sp->frag_interleave)
 				queue = &sk->sk_receive_queue;
 			else
-				queue = &sctp_sk(sk)->pd_lobby;
+				queue = &sp->pd_lobby;
 		}
 	}
 
@@ -252,7 +256,7 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 	 * collected on a list.
 	 */
 	if (skb_list)
-		sctp_skb_list_tail(skb_list, queue);
+		skb_queue_splice_tail_init(skb_list, queue);
 	else
 		__skb_queue_tail(queue, skb);
 
@@ -263,8 +267,10 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 	if (clear_pd)
 		sctp_ulpq_clear_pd(ulpq);
 
-	if (queue == &sk->sk_receive_queue)
+	if (queue == &sk->sk_receive_queue && !sp->data_ready_signalled) {
+		sp->data_ready_signalled = 1;
 		sk->sk_data_ready(sk);
+	}
 	return 1;
 
 out_free:
@@ -1125,11 +1131,13 @@ void sctp_ulpq_abort_pd(struct sctp_ulpq *ulpq, gfp_t gfp)
 {
 	struct sctp_ulpevent *ev = NULL;
 	struct sock *sk;
+	struct sctp_sock *sp;
 
 	if (!ulpq->pd_mode)
 		return;
 
 	sk = ulpq->asoc->base.sk;
+	sp = sctp_sk(sk);
 	if (sctp_ulpevent_type_enabled(SCTP_PARTIAL_DELIVERY_EVENT,
 				       &sctp_sk(sk)->subscribe))
 		ev = sctp_ulpevent_make_pdapi(ulpq->asoc,
@@ -1139,6 +1147,8 @@ void sctp_ulpq_abort_pd(struct sctp_ulpq *ulpq, gfp_t gfp)
 		__skb_queue_tail(&sk->sk_receive_queue, sctp_event2skb(ev));
 
 	/* If there is data waiting, send it up the socket now. */
-	if (sctp_ulpq_clear_pd(ulpq) || ev)
+	if ((sctp_ulpq_clear_pd(ulpq) || ev) && !sp->data_ready_signalled) {
+		sp->data_ready_signalled = 1;
 		sk->sk_data_ready(sk);
+	}
 }

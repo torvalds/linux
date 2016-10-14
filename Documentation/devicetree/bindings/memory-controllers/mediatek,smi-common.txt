@@ -2,16 +2,31 @@ SMI (Smart Multimedia Interface) Common
 
 The hardware block diagram please check bindings/iommu/mediatek,iommu.txt
 
+Mediatek SMI have two generations of HW architecture, mt8173 uses the second
+generation of SMI HW while mt2701 uses the first generation HW of SMI.
+
+There's slight differences between the two SMI, for generation 2, the
+register which control the iommu port is at each larb's register base. But
+for generation 1, the register is at smi ao base(smi always on register
+base). Besides that, the smi async clock should be prepared and enabled for
+SMI generation 1 to transform the smi clock into emi clock domain, but that is
+not needed for SMI generation 2.
+
 Required properties:
-- compatible : must be "mediatek,mt8173-smi-common"
+- compatible : must be one of :
+	"mediatek,mt2701-smi-common"
+	"mediatek,mt8173-smi-common"
 - reg : the register and size of the SMI block.
 - power-domains : a phandle to the power domain of this local arbiter.
 - clocks : Must contain an entry for each entry in clock-names.
-- clock-names : must contain 2 entries, as follows:
+- clock-names : must contain 3 entries for generation 1 smi HW and 2 entries
+  for generation 2 smi HW as follows:
   - "apb" : Advanced Peripheral Bus clock, It's the clock for setting
 	    the register.
   - "smi" : It's the clock for transfer data and command.
-  They may be the same if both source clocks are the same.
+	    They may be the same if both source clocks are the same.
+  - "async" : asynchronous clock, it help transform the smi clock into the emi
+	      clock domain, this clock is only needed by generation 1 smi HW.
 
 Example:
 	smi_common: smi@14022000 {

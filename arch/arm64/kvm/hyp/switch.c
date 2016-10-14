@@ -198,7 +198,7 @@ static bool __hyp_text __translate_far_to_hpfar(u64 far, u64 *hpfar)
 static bool __hyp_text __populate_fault_info(struct kvm_vcpu *vcpu)
 {
 	u64 esr = read_sysreg_el2(esr);
-	u8 ec = esr >> ESR_ELx_EC_SHIFT;
+	u8 ec = ESR_ELx_EC(esr);
 	u64 hpfar, far;
 
 	vcpu->arch.fault.esr_el2 = esr;
@@ -256,7 +256,7 @@ static int __hyp_text __guest_run(struct kvm_vcpu *vcpu)
 
 	/*
 	 * We must restore the 32-bit state before the sysregs, thanks
-	 * to Cortex-A57 erratum #852523.
+	 * to erratum #852523 (Cortex-A57) or #853709 (Cortex-A72).
 	 */
 	__sysreg32_restore_state(vcpu);
 	__sysreg_restore_guest_state(guest_ctxt);
@@ -299,9 +299,16 @@ static const char __hyp_panic_string[] = "HYP panic:\nPS:%08llx PC:%016llx ESR:%
 
 static void __hyp_text __hyp_call_panic_nvhe(u64 spsr, u64 elr, u64 par)
 {
-	unsigned long str_va = (unsigned long)__hyp_panic_string;
+	unsigned long str_va;
 
-	__hyp_do_panic(hyp_kern_va(str_va),
+	/*
+	 * Force the panic string to be loaded from the literal pool,
+	 * making sure it is a kernel address and not a PC-relative
+	 * reference.
+	 */
+	asm volatile("ldr %0, =__hyp_panic_string" : "=r" (str_va));
+
+	__hyp_do_panic(str_va,
 		       spsr,  elr,
 		       read_sysreg(esr_el2),   read_sysreg_el2(far),
 		       read_sysreg(hpfar_el2), par,

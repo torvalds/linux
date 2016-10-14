@@ -238,6 +238,23 @@ dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 	return rc;
 }
 
+static int dasd_check_format(struct dasd_block *block,
+			     struct format_check_t *cdata)
+{
+	struct dasd_device *base;
+	int rc;
+
+	base = block->base;
+	if (!base->discipline->check_device_format)
+		return -ENOTTY;
+
+	rc = base->discipline->check_device_format(base, cdata, 1);
+	if (rc == -EAGAIN)
+		rc = base->discipline->check_device_format(base, cdata, 0);
+
+	return rc;
+}
+
 /*
  * Format device.
  */
@@ -272,6 +289,47 @@ dasd_ioctl_format(struct block_device *bdev, void __user *argp)
 	}
 	rc = dasd_format(base->block, &fdata);
 	dasd_put_device(base);
+
+	return rc;
+}
+
+/*
+ * Check device format
+ */
+static int dasd_ioctl_check_format(struct block_device *bdev, void __user *argp)
+{
+	struct format_check_t cdata;
+	struct dasd_device *base;
+	int rc = 0;
+
+	if (!argp)
+		return -EINVAL;
+
+	base = dasd_device_from_gendisk(bdev->bd_disk);
+	if (!base)
+		return -ENODEV;
+	if (bdev != bdev->bd_contains) {
+		pr_warn("%s: The specified DASD is a partition and cannot be checked\n",
+			dev_name(&base->cdev->dev));
+		rc = -EINVAL;
+		goto out_err;
+	}
+
+	if (copy_from_user(&cdata, argp, sizeof(cdata))) {
+		rc = -EFAULT;
+		goto out_err;
+	}
+
+	rc = dasd_check_format(base->block, &cdata);
+	if (rc)
+		goto out_err;
+
+	if (copy_to_user(argp, &cdata, sizeof(cdata)))
+		rc = -EFAULT;
+
+out_err:
+	dasd_put_device(base);
+
 	return rc;
 }
 
@@ -518,6 +576,9 @@ int dasd_ioctl(struct block_device *bdev, fmode_t mode,
 		break;
 	case BIODASDFMT:
 		rc = dasd_ioctl_format(bdev, argp);
+		break;
+	case BIODASDCHECKFMT:
+		rc = dasd_ioctl_check_format(bdev, argp);
 		break;
 	case BIODASDINFO:
 		rc = dasd_ioctl_information(block, cmd, argp);

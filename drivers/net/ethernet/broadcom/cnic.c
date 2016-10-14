@@ -5350,7 +5350,10 @@ static int cnic_start_hw(struct cnic_dev *dev)
 	return 0;
 
 err1:
-	cp->free_resc(dev);
+	if (ethdev->drv_state & CNIC_DRV_STATE_HANDLES_IRQ)
+		cp->stop_hw(dev);
+	else
+		cp->free_resc(dev);
 	pci_dev_put(dev->pcidev);
 	return err;
 }

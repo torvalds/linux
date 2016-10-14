@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -143,9 +139,7 @@ static void *lov_key_init(const struct lu_context *ctx,
 	struct lov_thread_info *info;
 
 	info = kmem_cache_zalloc(lov_thread_kmem, GFP_NOFS);
-	if (info)
-		INIT_LIST_HEAD(&info->lti_closure.clc_list);
-	else
+	if (!info)
 		info = ERR_PTR(-ENOMEM);
 	return info;
 }
@@ -155,7 +149,6 @@ static void lov_key_fini(const struct lu_context *ctx,
 {
 	struct lov_thread_info *info = data;
 
-	LINVRNT(list_empty(&info->lti_closure.clc_list));
 	kmem_cache_free(lov_thread_kmem, info);
 }
 
@@ -265,8 +258,9 @@ static int lov_req_init(const struct lu_env *env, struct cl_device *dev,
 	if (lr) {
 		cl_req_slice_add(req, &lr->lr_cl, dev, &lov_req_ops);
 		result = 0;
-	} else
+	} else {
 		result = -ENOMEM;
+	}
 	return result;
 }
 
@@ -335,14 +329,15 @@ static struct lov_device_emerg **lov_emerg_alloc(int nr)
 			cl_page_list_init(&em->emrg_page_list);
 			em->emrg_env = cl_env_alloc(&em->emrg_refcheck,
 						    LCT_REMEMBER | LCT_NOREF);
-			if (!IS_ERR(em->emrg_env))
+			if (!IS_ERR(em->emrg_env)) {
 				em->emrg_env->le_ctx.lc_cookie = 0x2;
-			else {
+			} else {
 				result = PTR_ERR(em->emrg_env);
 				em->emrg_env = NULL;
 			}
-		} else
+		} else {
 			result = -ENOMEM;
+		}
 	}
 	if (result != 0) {
 		lov_emerg_free(emerg, nr);

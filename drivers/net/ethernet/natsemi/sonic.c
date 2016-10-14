@@ -174,7 +174,7 @@ static void sonic_tx_timeout(struct net_device *dev)
 	/* Try to restart the adaptor. */
 	sonic_init(dev);
 	lp->stats.tx_errors++;
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 

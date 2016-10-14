@@ -137,6 +137,14 @@
 				status = "disabled";
 			};
 
+			kpp: kpp@43fa8000 {
+				compatible = "fsl,imx35-kpp", "fsl,imx21-kpp";
+				reg = <0x43fa8000 0x4000>;
+				interrupts = <24>;
+				clocks = <&clks 56>;
+				status = "disabled";
+			};
+
 			iomuxc: iomuxc@43fac000 {
 				compatible = "fsl,imx35-iomuxc";
 				reg = <0x43fac000 0x4000>;

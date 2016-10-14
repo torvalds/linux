@@ -56,7 +56,7 @@ static int add_hist_entries(struct perf_evlist *evlist,
 	 * (perf [perf] main) will be collapsed to an existing entry
 	 * so total 9 entries will be in the tree.
 	 */
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		for (i = 0; i < ARRAY_SIZE(fake_samples); i++) {
 			struct hist_entry_iter iter = {
 				.evsel = evsel,
@@ -81,7 +81,7 @@ static int add_hist_entries(struct perf_evlist *evlist,
 
 			al.socket = fake_samples[i].socket;
 			if (hist_entry_iter__add(&iter, &al,
-						 PERF_MAX_STACK_DEPTH, NULL) < 0) {
+						 sysctl_perf_event_max_stack, NULL) < 0) {
 				addr_location__put(&al);
 				goto out;
 			}
@@ -136,7 +136,7 @@ int test__hists_filter(int subtest __maybe_unused)
 	if (err < 0)
 		goto out;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		struct hists *hists = evsel__hists(evsel);
 
 		hists__collapse_resort(hists, NULL);

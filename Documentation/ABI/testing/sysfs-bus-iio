@@ -32,6 +32,13 @@ Description:
 		Description of the physical chip / device for device X.
 		Typically a part number.
 
+What:		/sys/bus/iio/devices/iio:deviceX/timestamp_clock
+KernelVersion:	4.5
+Contact:	linux-iio@vger.kernel.org
+Description:
+		String identifying current posix clock used to timestamp
+		buffered samples and events for device X.
+
 What:		/sys/bus/iio/devices/iio:deviceX/sampling_frequency
 What:		/sys/bus/iio/devices/iio:deviceX/buffer/sampling_frequency
 What:		/sys/bus/iio/devices/triggerX/sampling_frequency
@@ -1233,7 +1240,7 @@ KernelVersion:	3.4
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Proximity measurement indicating that some
-		object is near the sensor, usually be observing
+		object is near the sensor, usually by observing
 		reflectivity of infrared or ultrasound emitted.
 		Often these sensors are unit less and as such conversion
 		to SI units is not possible. Higher proximity measurements
@@ -1255,12 +1262,23 @@ Description:
 What:		/sys/.../iio:deviceX/in_intensityY_raw
 What:		/sys/.../iio:deviceX/in_intensityY_ir_raw
 What:		/sys/.../iio:deviceX/in_intensityY_both_raw
+What:		/sys/.../iio:deviceX/in_intensityY_uv_raw
 KernelVersion:	3.4
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Unit-less light intensity. Modifiers both and ir indicate
 		that measurements contains visible and infrared light
-		components or just infrared light, respectively.
+		components or just infrared light, respectively. Modifier uv indicates
+		that measurements contain ultraviolet light components.
+
+What:		/sys/.../iio:deviceX/in_uvindex_input
+KernelVersion:	4.6
+Contact:	linux-iio@vger.kernel.org
+Description:
+		UV light intensity index measuring the human skin's response to
+		different wavelength of sunlight weighted according to the
+		standardised CIE Erythemal Action Spectrum. UV index values range
+		from 0 (low) to >=11 (extreme).
 
 What:		/sys/.../iio:deviceX/in_intensity_red_integration_time
 What:		/sys/.../iio:deviceX/in_intensity_green_integration_time
@@ -1501,3 +1519,63 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Raw (unscaled no offset etc.) pH reading of a substance as a negative
 		base-10 logarithm of hydrodium ions in a litre of water.
+
+What:           /sys/bus/iio/devices/iio:deviceX/mount_matrix
+What:           /sys/bus/iio/devices/iio:deviceX/in_mount_matrix
+What:           /sys/bus/iio/devices/iio:deviceX/out_mount_matrix
+What:           /sys/bus/iio/devices/iio:deviceX/in_anglvel_mount_matrix
+What:           /sys/bus/iio/devices/iio:deviceX/in_accel_mount_matrix
+KernelVersion:  4.6
+Contact:        linux-iio@vger.kernel.org
+Description:
+		Mounting matrix for IIO sensors. This is a rotation matrix which
+		informs userspace about sensor chip's placement relative to the
+		main hardware it is mounted on.
+		Main hardware placement is defined according to the local
+		reference frame related to the physical quantity the sensor
+		measures.
+		Given that the rotation matrix is defined in a board specific
+		way (platform data and / or device-tree), the main hardware
+		reference frame definition is left to the implementor's choice
+		(see below for a magnetometer example).
+		Applications should apply this rotation matrix to samples so
+		that when main hardware reference frame is aligned onto local
+		reference frame, then sensor chip reference frame is also
+		perfectly aligned with it.
+		Matrix is a 3x3 unitary matrix and typically looks like
+		[0, 1, 0; 1, 0, 0; 0, 0, -1]. Identity matrix
+		[1, 0, 0; 0, 1, 0; 0, 0, 1] means sensor chip and main hardware
+		are perfectly aligned with each other.
+
+		For example, a mounting matrix for a magnetometer sensor informs
+		userspace about sensor chip's ORIENTATION relative to the main
+		hardware.
+		More specifically, main hardware orientation is defined with
+		respect to the LOCAL EARTH GEOMAGNETIC REFERENCE FRAME where :
+		* Y is in the ground plane and positive towards magnetic North ;
+		* X is in the ground plane, perpendicular to the North axis and
+		  positive towards the East ;
+		* Z is perpendicular to the ground plane and positive upwards.
+
+		An implementor might consider that for a hand-held device, a
+		'natural' orientation would be 'front facing camera at the top'.
+		The main hardware reference frame could then be described as :
+		* Y is in the plane of the screen and is positive towards the
+		  top of the screen ;
+		* X is in the plane of the screen, perpendicular to Y axis, and
+		  positive towards the right hand side of the screen ;
+		* Z is perpendicular to the screen plane and positive out of the
+		  screen.
+		Another example for a quadrotor UAV might be :
+		* Y is in the plane of the propellers and positive towards the
+		  front-view camera;
+		* X is in the plane of the propellers, perpendicular to Y axis,
+		  and positive towards the starboard side of the UAV ;
+		* Z is perpendicular to propellers plane and positive upwards.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_electricalconductivity_raw
+KernelVersion:	4.8
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled no offset etc.) electric conductivity reading that
+		can be processed to siemens per meter.

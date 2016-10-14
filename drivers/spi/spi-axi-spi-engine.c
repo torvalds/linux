@@ -525,7 +525,6 @@ static int spi_engine_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_ref_clk_disable;
 
-	master->dev.parent = &pdev->dev;
 	master->dev.of_node = pdev->dev.of_node;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_3WIRE;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);

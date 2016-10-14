@@ -169,13 +169,29 @@ struct rpmsg_driver {
 
 int register_rpmsg_device(struct rpmsg_channel *dev);
 void unregister_rpmsg_device(struct rpmsg_channel *dev);
-int register_rpmsg_driver(struct rpmsg_driver *drv);
+int __register_rpmsg_driver(struct rpmsg_driver *drv, struct module *owner);
 void unregister_rpmsg_driver(struct rpmsg_driver *drv);
 void rpmsg_destroy_ept(struct rpmsg_endpoint *);
 struct rpmsg_endpoint *rpmsg_create_ept(struct rpmsg_channel *,
 				rpmsg_rx_cb_t cb, void *priv, u32 addr);
 int
 rpmsg_send_offchannel_raw(struct rpmsg_channel *, u32, u32, void *, int, bool);
+
+/* use a macro to avoid include chaining to get THIS_MODULE */
+#define register_rpmsg_driver(drv) \
+	__register_rpmsg_driver(drv, THIS_MODULE)
+
+/**
+ * module_rpmsg_driver() - Helper macro for registering an rpmsg driver
+ * @__rpmsg_driver: rpmsg_driver struct
+ *
+ * Helper macro for rpmsg drivers which do not do anything special in module
+ * init/exit. This eliminates a lot of boilerplate.  Each module may only
+ * use this macro once, and calling it replaces module_init() and module_exit()
+ */
+#define module_rpmsg_driver(__rpmsg_driver) \
+	module_driver(__rpmsg_driver, register_rpmsg_driver, \
+			unregister_rpmsg_driver)
 
 /**
  * rpmsg_send() - send a message across to the remote processor

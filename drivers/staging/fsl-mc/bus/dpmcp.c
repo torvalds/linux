@@ -1,4 +1,4 @@
-/* Copyright 2013-2015 Freescale Semiconductor Inc.
+/* Copyright 2013-2016 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -57,12 +57,14 @@ int dpmcp_open(struct fsl_mc_io *mc_io,
 	       u16 *token)
 {
 	struct mc_command cmd = { 0 };
+	struct dpmcp_cmd_open *cmd_params;
 	int err;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_OPEN,
 					  cmd_flags, 0);
-	cmd.params[0] |= mc_enc(0, 32, dpmcp_id);
+	cmd_params = (struct dpmcp_cmd_open *)cmd.params;
+	cmd_params->dpmcp_id = cpu_to_le32(dpmcp_id);
 
 	/* send command to mc*/
 	err = mc_send_command(mc_io, &cmd);
@@ -70,7 +72,7 @@ int dpmcp_open(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	*token = MC_CMD_HDR_READ_TOKEN(cmd.header);
+	*token = mc_cmd_hdr_read_token(&cmd);
 
 	return err;
 }
@@ -127,12 +129,15 @@ int dpmcp_create(struct fsl_mc_io *mc_io,
 		 u16 *token)
 {
 	struct mc_command cmd = { 0 };
+	struct dpmcp_cmd_create *cmd_params;
+
 	int err;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_CREATE,
 					  cmd_flags, 0);
-	cmd.params[0] |= mc_enc(0, 32, cfg->portal_id);
+	cmd_params = (struct dpmcp_cmd_create *)cmd.params;
+	cmd_params->portal_id = cpu_to_le32(cfg->portal_id);
 
 	/* send command to mc*/
 	err = mc_send_command(mc_io, &cmd);
@@ -140,7 +145,7 @@ int dpmcp_create(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	*token = MC_CMD_HDR_READ_TOKEN(cmd.header);
+	*token = mc_cmd_hdr_read_token(&cmd);
 
 	return 0;
 }
@@ -206,14 +211,16 @@ int dpmcp_set_irq(struct fsl_mc_io *mc_io,
 		  struct dpmcp_irq_cfg	*irq_cfg)
 {
 	struct mc_command cmd = { 0 };
+	struct dpmcp_cmd_set_irq *cmd_params;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_SET_IRQ,
 					  cmd_flags, token);
-	cmd.params[0] |= mc_enc(0, 8, irq_index);
-	cmd.params[0] |= mc_enc(32, 32, irq_cfg->val);
-	cmd.params[1] |= mc_enc(0, 64, irq_cfg->paddr);
-	cmd.params[2] |= mc_enc(0, 32, irq_cfg->user_irq_id);
+	cmd_params = (struct dpmcp_cmd_set_irq *)cmd.params;
+	cmd_params->irq_index = irq_index;
+	cmd_params->irq_val = cpu_to_le32(irq_cfg->val);
+	cmd_params->irq_addr = cpu_to_le64(irq_cfg->paddr);
+	cmd_params->irq_num = cpu_to_le32(irq_cfg->irq_num);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -239,12 +246,15 @@ int dpmcp_get_irq(struct fsl_mc_io *mc_io,
 		  struct dpmcp_irq_cfg	*irq_cfg)
 {
 	struct mc_command cmd = { 0 };
+	struct dpmcp_cmd_get_irq *cmd_params;
+	struct dpmcp_rsp_get_irq *rsp_params;
 	int err;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_GET_IRQ,
 					  cmd_flags, token);
-	cmd.params[0] |= mc_enc(32, 8, irq_index);
+	cmd_params = (struct dpmcp_cmd_get_irq *)cmd.params;
+	cmd_params->irq_index = irq_index;
 
 	/* send command to mc*/
 	err = mc_send_command(mc_io, &cmd);
@@ -252,10 +262,11 @@ int dpmcp_get_irq(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	irq_cfg->val = (u32)mc_dec(cmd.params[0], 0, 32);
-	irq_cfg->paddr = (u64)mc_dec(cmd.params[1], 0, 64);
-	irq_cfg->user_irq_id = (int)mc_dec(cmd.params[2], 0, 32);
-	*type = (int)mc_dec(cmd.params[2], 32, 32);
+	rsp_params = (struct dpmcp_rsp_get_irq *)cmd.params;
+	irq_cfg->val = le32_to_cpu(rsp_params->irq_val);
+	irq_cfg->paddr = le64_to_cpu(rsp_params->irq_paddr);
+	irq_cfg->irq_num = le32_to_cpu(rsp_params->irq_num);
+	*type = le32_to_cpu(rsp_params->type);
 	return 0;
 }
 
@@ -281,12 +292,14 @@ int dpmcp_set_irq_enable(struct fsl_mc_io *mc_io,
 			 u8 en)
 {
 	struct mc_command cmd = { 0 };
+	struct dpmcp_cmd_set_irq_enable *cmd_params;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_SET_IRQ_ENABLE,
 					  cmd_flags, token);
-	cmd.params[0] |= mc_enc(0, 8, en);
-	cmd.params[0] |= mc_enc(32, 8, irq_index);
+	cmd_params = (struct dpmcp_cmd_set_irq_enable *)cmd.params;
+	cmd_params->enable = en & DPMCP_ENABLE;
+	cmd_params->irq_index = irq_index;
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -309,12 +322,15 @@ int dpmcp_get_irq_enable(struct fsl_mc_io *mc_io,
 			 u8 *en)
 {
 	struct mc_command cmd = { 0 };
+	struct dpmcp_cmd_get_irq_enable *cmd_params;
+	struct dpmcp_rsp_get_irq_enable *rsp_params;
 	int err;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_GET_IRQ_ENABLE,
 					  cmd_flags, token);
-	cmd.params[0] |= mc_enc(32, 8, irq_index);
+	cmd_params = (struct dpmcp_cmd_get_irq_enable *)cmd.params;
+	cmd_params->irq_index = irq_index;
 
 	/* send command to mc*/
 	err = mc_send_command(mc_io, &cmd);
@@ -322,7 +338,8 @@ int dpmcp_get_irq_enable(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	*en = (u8)mc_dec(cmd.params[0], 0, 8);
+	rsp_params = (struct dpmcp_rsp_get_irq_enable *)cmd.params;
+	*en = rsp_params->enabled & DPMCP_ENABLE;
 	return 0;
 }
 
@@ -349,12 +366,15 @@ int dpmcp_set_irq_mask(struct fsl_mc_io *mc_io,
 		       u32 mask)
 {
 	struct mc_command cmd = { 0 };
+	struct dpmcp_cmd_set_irq_mask *cmd_params;
+
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_SET_IRQ_MASK,
 					  cmd_flags, token);
-	cmd.params[0] |= mc_enc(0, 32, mask);
-	cmd.params[0] |= mc_enc(32, 8, irq_index);
+	cmd_params = (struct dpmcp_cmd_set_irq_mask *)cmd.params;
+	cmd_params->mask = cpu_to_le32(mask);
+	cmd_params->irq_index = irq_index;
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -380,12 +400,16 @@ int dpmcp_get_irq_mask(struct fsl_mc_io *mc_io,
 		       u32 *mask)
 {
 	struct mc_command cmd = { 0 };
+	struct dpmcp_cmd_get_irq_mask *cmd_params;
+	struct dpmcp_rsp_get_irq_mask *rsp_params;
+
 	int err;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_GET_IRQ_MASK,
 					  cmd_flags, token);
-	cmd.params[0] |= mc_enc(32, 8, irq_index);
+	cmd_params = (struct dpmcp_cmd_get_irq_mask *)cmd.params;
+	cmd_params->irq_index = irq_index;
 
 	/* send command to mc*/
 	err = mc_send_command(mc_io, &cmd);
@@ -393,7 +417,9 @@ int dpmcp_get_irq_mask(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	*mask = (u32)mc_dec(cmd.params[0], 0, 32);
+	rsp_params = (struct dpmcp_rsp_get_irq_mask *)cmd.params;
+	*mask = le32_to_cpu(rsp_params->mask);
+
 	return 0;
 }
 
@@ -417,12 +443,16 @@ int dpmcp_get_irq_status(struct fsl_mc_io *mc_io,
 			 u32 *status)
 {
 	struct mc_command cmd = { 0 };
+	struct dpmcp_cmd_get_irq_status *cmd_params;
+	struct dpmcp_rsp_get_irq_status *rsp_params;
 	int err;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_GET_IRQ_STATUS,
 					  cmd_flags, token);
-	cmd.params[0] |= mc_enc(32, 8, irq_index);
+	cmd_params = (struct dpmcp_cmd_get_irq_status *)cmd.params;
+	cmd_params->status = cpu_to_le32(*status);
+	cmd_params->irq_index = irq_index;
 
 	/* send command to mc*/
 	err = mc_send_command(mc_io, &cmd);
@@ -430,39 +460,10 @@ int dpmcp_get_irq_status(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	*status = (u32)mc_dec(cmd.params[0], 0, 32);
+	rsp_params = (struct dpmcp_rsp_get_irq_status *)cmd.params;
+	*status = le32_to_cpu(rsp_params->status);
+
 	return 0;
-}
-
-/**
- * dpmcp_clear_irq_status() - Clear a pending interrupt's status
- *
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPMCP object
- * @irq_index:	The interrupt index to configure
- * @status:	Bits to clear (W1C) - one bit per cause:
- *					0 = don't change
- *					1 = clear status bit
- *
- * Return:	'0' on Success; Error code otherwise.
- */
-int dpmcp_clear_irq_status(struct fsl_mc_io *mc_io,
-			   u32 cmd_flags,
-			   u16 token,
-			   u8 irq_index,
-			   u32 status)
-{
-	struct mc_command cmd = { 0 };
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_CLEAR_IRQ_STATUS,
-					  cmd_flags, token);
-	cmd.params[0] |= mc_enc(0, 32, status);
-	cmd.params[0] |= mc_enc(32, 8, irq_index);
-
-	/* send command to mc*/
-	return mc_send_command(mc_io, &cmd);
 }
 
 /**
@@ -481,6 +482,7 @@ int dpmcp_get_attributes(struct fsl_mc_io *mc_io,
 			 struct dpmcp_attr *attr)
 {
 	struct mc_command cmd = { 0 };
+	struct dpmcp_rsp_get_attributes *rsp_params;
 	int err;
 
 	/* prepare command */
@@ -493,8 +495,10 @@ int dpmcp_get_attributes(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	attr->id = (int)mc_dec(cmd.params[0], 32, 32);
-	attr->version.major = (u16)mc_dec(cmd.params[1], 0, 16);
-	attr->version.minor = (u16)mc_dec(cmd.params[1], 16, 16);
+	rsp_params = (struct dpmcp_rsp_get_attributes *)cmd.params;
+	attr->id = le32_to_cpu(rsp_params->id);
+	attr->version.major = le16_to_cpu(rsp_params->version_major);
+	attr->version.minor = le16_to_cpu(rsp_params->version_minor);
+
 	return 0;
 }

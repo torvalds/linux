@@ -12,6 +12,7 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/module.h>
 #include <linux/asn1_decoder.h>
 #include <linux/asn1_ber_bytecode.h>
 
@@ -506,3 +507,5 @@ error:
 	return -EBADMSG;
 }
 EXPORT_SYMBOL_GPL(asn1_ber_decoder);
+
+MODULE_LICENSE("GPL");

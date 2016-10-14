@@ -27,6 +27,7 @@ struct dw_dma;
  * @regs:		memory mapped I/O space
  * @clk:		hclk clock
  * @dw:			struct dw_dma that is filed by dw_dma_probe()
+ * @pdata:		pointer to platform data
  */
 struct dw_dma_chip {
 	struct device	*dev;
@@ -34,10 +35,12 @@ struct dw_dma_chip {
 	void __iomem	*regs;
 	struct clk	*clk;
 	struct dw_dma	*dw;
+
+	const struct dw_dma_platform_data	*pdata;
 };
 
 /* Export to the platform drivers */
-int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata);
+int dw_dma_probe(struct dw_dma_chip *chip);
 int dw_dma_remove(struct dw_dma_chip *chip);
 
 /* DMA API extensions */

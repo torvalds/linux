@@ -73,8 +73,8 @@
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
 #define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
-#define MPT3SAS_DRIVER_VERSION		"12.100.00.00"
-#define MPT3SAS_MAJOR_VERSION		12
+#define MPT3SAS_DRIVER_VERSION		"13.100.00.00"
+#define MPT3SAS_MAJOR_VERSION		13
 #define MPT3SAS_MINOR_VERSION		100
 #define MPT3SAS_BUILD_VERSION		0
 #define MPT3SAS_RELEASE_VERSION	00
@@ -90,7 +90,7 @@
 /*
  * Set MPT3SAS_SG_DEPTH value based on user input.
  */
-#define MPT_MAX_PHYS_SEGMENTS	SCSI_MAX_SG_SEGMENTS
+#define MPT_MAX_PHYS_SEGMENTS	SG_CHUNK_SIZE
 #define MPT_MIN_PHYS_SEGMENTS	16
 
 #ifdef CONFIG_SCSI_MPT3SAS_MAX_SGE
@@ -111,6 +111,8 @@
 #define MPT3SAS_SATA_QUEUE_DEPTH	32
 #define MPT3SAS_SAS_QUEUE_DEPTH		254
 #define MPT3SAS_RAID_QUEUE_DEPTH	128
+
+#define MPT3SAS_RAID_MAX_SECTORS	8192
 
 #define MPT_NAME_LENGTH			32	/* generic length of strings */
 #define MPT_STRING_LENGTH		64
@@ -1234,7 +1236,8 @@ void *mpt3sas_base_get_msg_frame(struct MPT3SAS_ADAPTER *ioc, u16 smid);
 void *mpt3sas_base_get_sense_buffer(struct MPT3SAS_ADAPTER *ioc, u16 smid);
 __le32 mpt3sas_base_get_sense_buffer_dma(struct MPT3SAS_ADAPTER *ioc,
 	u16 smid);
-void mpt3sas_base_flush_reply_queues(struct MPT3SAS_ADAPTER *ioc);
+
+void mpt3sas_base_sync_reply_irqs(struct MPT3SAS_ADAPTER *ioc);
 
 /* hi-priority queue */
 u16 mpt3sas_base_get_smid_hpr(struct MPT3SAS_ADAPTER *ioc, u8 cb_idx);

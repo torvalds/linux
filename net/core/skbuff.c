@@ -49,6 +49,7 @@
 #include <linux/slab.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
+#include <linux/sctp.h>
 #include <linux/netdevice.h>
 #ifdef CONFIG_NET_CLS_ACT
 #include <net/pkt_sched.h>
@@ -3016,24 +3017,6 @@ int skb_append_pagefrags(struct sk_buff *skb, struct page *page,
 EXPORT_SYMBOL_GPL(skb_append_pagefrags);
 
 /**
- *	skb_push_rcsum - push skb and update receive checksum
- *	@skb: buffer to update
- *	@len: length of data pulled
- *
- *	This function performs an skb_push on the packet and updates
- *	the CHECKSUM_COMPLETE checksum.  It should be used on
- *	receive path processing instead of skb_push unless you know
- *	that the checksum difference is zero (e.g., a valid IP header)
- *	or you are setting ip_summed to CHECKSUM_NONE.
- */
-static unsigned char *skb_push_rcsum(struct sk_buff *skb, unsigned len)
-{
-	skb_push(skb, len);
-	skb_postpush_rcsum(skb, skb->data, len);
-	return skb->data;
-}
-
-/**
  *	skb_pull_rcsum - pull skb and update receive checksum
  *	@skb: buffer to update
  *	@len: length of data pulled
@@ -3076,11 +3059,11 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 	struct sk_buff *frag_skb = head_skb;
 	unsigned int offset = doffset;
 	unsigned int tnl_hlen = skb_tnl_header_len(head_skb);
+	unsigned int partial_segs = 0;
 	unsigned int headroom;
-	unsigned int len;
+	unsigned int len = head_skb->len;
 	__be16 proto;
-	bool csum;
-	int sg = !!(features & NETIF_F_SG);
+	bool csum, sg;
 	int nfrags = skb_shinfo(head_skb)->nr_frags;
 	int err = -ENOMEM;
 	int i = 0;
@@ -3092,7 +3075,20 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 	if (unlikely(!proto))
 		return ERR_PTR(-EINVAL);
 
+	sg = !!(features & NETIF_F_SG);
 	csum = !!can_checksum_protocol(features, proto);
+
+	/* GSO partial only requires that we trim off any excess that
+	 * doesn't fit into an MSS sized block, so take care of that
+	 * now.
+	 */
+	if (sg && csum && (features & NETIF_F_GSO_PARTIAL)) {
+		partial_segs = len / mss;
+		if (partial_segs > 1)
+			mss *= partial_segs;
+		else
+			partial_segs = 0;
+	}
 
 	headroom = skb_headroom(head_skb);
 	pos = skb_headlen(head_skb);
@@ -3103,9 +3099,13 @@ struct sk_buff *skb_segment(struct sk_buff *head_skb,
 		int hsize;
 		int size;
 
-		len = head_skb->len - offset;
-		if (len > mss)
-			len = mss;
+		if (unlikely(mss == GSO_BY_FRAGS)) {
+			len = list_skb->len;
+		} else {
+			len = head_skb->len - offset;
+			if (len > mss)
+				len = mss;
+		}
 
 		hsize = skb_headlen(head_skb) - offset;
 		if (hsize < 0)
@@ -3281,6 +3281,23 @@ perform_csum_check:
 	 */
 	segs->prev = tail;
 
+	/* Update GSO info on first skb in partial sequence. */
+	if (partial_segs) {
+		int type = skb_shinfo(head_skb)->gso_type;
+
+		/* Update type to add partial and then remove dodgy if set */
+		type |= SKB_GSO_PARTIAL;
+		type &= ~SKB_GSO_DODGY;
+
+		/* Update GSO info and prepare to start updating headers on
+		 * our way back down the stack of protocols.
+		 */
+		skb_shinfo(segs)->gso_size = skb_shinfo(head_skb)->gso_size;
+		skb_shinfo(segs)->gso_segs = partial_segs;
+		skb_shinfo(segs)->gso_type = type;
+		SKB_GSO_CB(segs)->data_offset = skb_headroom(segs) + doffset;
+	}
+
 	/* Following permits correct backpressure, for protocols
 	 * using skb_set_owner_w().
 	 * Idea is to tranfert ownership from head_skb to last segment.
@@ -3408,6 +3425,7 @@ done:
 	NAPI_GRO_CB(skb)->same_flow = 1;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(skb_gro_receive);
 
 void __init skb_init(void)
 {
@@ -4348,6 +4366,8 @@ unsigned int skb_gso_transport_seglen(const struct sk_buff *skb)
 			thlen += inner_tcp_hdrlen(skb);
 	} else if (likely(shinfo->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))) {
 		thlen = tcp_hdrlen(skb);
+	} else if (unlikely(shinfo->gso_type & SKB_GSO_SCTP)) {
+		thlen = sizeof(struct sctphdr);
 	}
 	/* UFO sets gso_size to the size of the fragmentation
 	 * payload, i.e. the size of the L4 (UDP) header is already
@@ -4356,6 +4376,38 @@ unsigned int skb_gso_transport_seglen(const struct sk_buff *skb)
 	return thlen + shinfo->gso_size;
 }
 EXPORT_SYMBOL_GPL(skb_gso_transport_seglen);
+
+/**
+ * skb_gso_validate_mtu - Return in case such skb fits a given MTU
+ *
+ * @skb: GSO skb
+ * @mtu: MTU to validate against
+ *
+ * skb_gso_validate_mtu validates if a given skb will fit a wanted MTU
+ * once split.
+ */
+bool skb_gso_validate_mtu(const struct sk_buff *skb, unsigned int mtu)
+{
+	const struct skb_shared_info *shinfo = skb_shinfo(skb);
+	const struct sk_buff *iter;
+	unsigned int hlen;
+
+	hlen = skb_gso_network_seglen(skb);
+
+	if (shinfo->gso_size != GSO_BY_FRAGS)
+		return hlen <= mtu;
+
+	/* Undo this so we can re-use header sizes */
+	hlen -= GSO_BY_FRAGS;
+
+	skb_walk_frags(skb, iter) {
+		if (hlen + skb_headlen(iter) > mtu)
+			return false;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(skb_gso_validate_mtu);
 
 static struct sk_buff *skb_reorder_vlan_header(struct sk_buff *skb)
 {
@@ -4595,3 +4647,239 @@ failure:
 	return NULL;
 }
 EXPORT_SYMBOL(alloc_skb_with_frags);
+
+/* carve out the first off bytes from skb when off < headlen */
+static int pskb_carve_inside_header(struct sk_buff *skb, const u32 off,
+				    const int headlen, gfp_t gfp_mask)
+{
+	int i;
+	int size = skb_end_offset(skb);
+	int new_hlen = headlen - off;
+	u8 *data;
+
+	size = SKB_DATA_ALIGN(size);
+
+	if (skb_pfmemalloc(skb))
+		gfp_mask |= __GFP_MEMALLOC;
+	data = kmalloc_reserve(size +
+			       SKB_DATA_ALIGN(sizeof(struct skb_shared_info)),
+			       gfp_mask, NUMA_NO_NODE, NULL);
+	if (!data)
+		return -ENOMEM;
+
+	size = SKB_WITH_OVERHEAD(ksize(data));
+
+	/* Copy real data, and all frags */
+	skb_copy_from_linear_data_offset(skb, off, data, new_hlen);
+	skb->len -= off;
+
+	memcpy((struct skb_shared_info *)(data + size),
+	       skb_shinfo(skb),
+	       offsetof(struct skb_shared_info,
+			frags[skb_shinfo(skb)->nr_frags]));
+	if (skb_cloned(skb)) {
+		/* drop the old head gracefully */
+		if (skb_orphan_frags(skb, gfp_mask)) {
+			kfree(data);
+			return -ENOMEM;
+		}
+		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
+			skb_frag_ref(skb, i);
+		if (skb_has_frag_list(skb))
+			skb_clone_fraglist(skb);
+		skb_release_data(skb);
+	} else {
+		/* we can reuse existing recount- all we did was
+		 * relocate values
+		 */
+		skb_free_head(skb);
+	}
+
+	skb->head = data;
+	skb->data = data;
+	skb->head_frag = 0;
+#ifdef NET_SKBUFF_DATA_USES_OFFSET
+	skb->end = size;
+#else
+	skb->end = skb->head + size;
+#endif
+	skb_set_tail_pointer(skb, skb_headlen(skb));
+	skb_headers_offset_update(skb, 0);
+	skb->cloned = 0;
+	skb->hdr_len = 0;
+	skb->nohdr = 0;
+	atomic_set(&skb_shinfo(skb)->dataref, 1);
+
+	return 0;
+}
+
+static int pskb_carve(struct sk_buff *skb, const u32 off, gfp_t gfp);
+
+/* carve out the first eat bytes from skb's frag_list. May recurse into
+ * pskb_carve()
+ */
+static int pskb_carve_frag_list(struct sk_buff *skb,
+				struct skb_shared_info *shinfo, int eat,
+				gfp_t gfp_mask)
+{
+	struct sk_buff *list = shinfo->frag_list;
+	struct sk_buff *clone = NULL;
+	struct sk_buff *insp = NULL;
+
+	do {
+		if (!list) {
+			pr_err("Not enough bytes to eat. Want %d\n", eat);
+			return -EFAULT;
+		}
+		if (list->len <= eat) {
+			/* Eaten as whole. */
+			eat -= list->len;
+			list = list->next;
+			insp = list;
+		} else {
+			/* Eaten partially. */
+			if (skb_shared(list)) {
+				clone = skb_clone(list, gfp_mask);
+				if (!clone)
+					return -ENOMEM;
+				insp = list->next;
+				list = clone;
+			} else {
+				/* This may be pulled without problems. */
+				insp = list;
+			}
+			if (pskb_carve(list, eat, gfp_mask) < 0) {
+				kfree_skb(clone);
+				return -ENOMEM;
+			}
+			break;
+		}
+	} while (eat);
+
+	/* Free pulled out fragments. */
+	while ((list = shinfo->frag_list) != insp) {
+		shinfo->frag_list = list->next;
+		kfree_skb(list);
+	}
+	/* And insert new clone at head. */
+	if (clone) {
+		clone->next = list;
+		shinfo->frag_list = clone;
+	}
+	return 0;
+}
+
+/* carve off first len bytes from skb. Split line (off) is in the
+ * non-linear part of skb
+ */
+static int pskb_carve_inside_nonlinear(struct sk_buff *skb, const u32 off,
+				       int pos, gfp_t gfp_mask)
+{
+	int i, k = 0;
+	int size = skb_end_offset(skb);
+	u8 *data;
+	const int nfrags = skb_shinfo(skb)->nr_frags;
+	struct skb_shared_info *shinfo;
+
+	size = SKB_DATA_ALIGN(size);
+
+	if (skb_pfmemalloc(skb))
+		gfp_mask |= __GFP_MEMALLOC;
+	data = kmalloc_reserve(size +
+			       SKB_DATA_ALIGN(sizeof(struct skb_shared_info)),
+			       gfp_mask, NUMA_NO_NODE, NULL);
+	if (!data)
+		return -ENOMEM;
+
+	size = SKB_WITH_OVERHEAD(ksize(data));
+
+	memcpy((struct skb_shared_info *)(data + size),
+	       skb_shinfo(skb), offsetof(struct skb_shared_info,
+					 frags[skb_shinfo(skb)->nr_frags]));
+	if (skb_orphan_frags(skb, gfp_mask)) {
+		kfree(data);
+		return -ENOMEM;
+	}
+	shinfo = (struct skb_shared_info *)(data + size);
+	for (i = 0; i < nfrags; i++) {
+		int fsize = skb_frag_size(&skb_shinfo(skb)->frags[i]);
+
+		if (pos + fsize > off) {
+			shinfo->frags[k] = skb_shinfo(skb)->frags[i];
+
+			if (pos < off) {
+				/* Split frag.
+				 * We have two variants in this case:
+				 * 1. Move all the frag to the second
+				 *    part, if it is possible. F.e.
+				 *    this approach is mandatory for TUX,
+				 *    where splitting is expensive.
+				 * 2. Split is accurately. We make this.
+				 */
+				shinfo->frags[0].page_offset += off - pos;
+				skb_frag_size_sub(&shinfo->frags[0], off - pos);
+			}
+			skb_frag_ref(skb, i);
+			k++;
+		}
+		pos += fsize;
+	}
+	shinfo->nr_frags = k;
+	if (skb_has_frag_list(skb))
+		skb_clone_fraglist(skb);
+
+	if (k == 0) {
+		/* split line is in frag list */
+		pskb_carve_frag_list(skb, shinfo, off - pos, gfp_mask);
+	}
+	skb_release_data(skb);
+
+	skb->head = data;
+	skb->head_frag = 0;
+	skb->data = data;
+#ifdef NET_SKBUFF_DATA_USES_OFFSET
+	skb->end = size;
+#else
+	skb->end = skb->head + size;
+#endif
+	skb_reset_tail_pointer(skb);
+	skb_headers_offset_update(skb, 0);
+	skb->cloned   = 0;
+	skb->hdr_len  = 0;
+	skb->nohdr    = 0;
+	skb->len -= off;
+	skb->data_len = skb->len;
+	atomic_set(&skb_shinfo(skb)->dataref, 1);
+	return 0;
+}
+
+/* remove len bytes from the beginning of the skb */
+static int pskb_carve(struct sk_buff *skb, const u32 len, gfp_t gfp)
+{
+	int headlen = skb_headlen(skb);
+
+	if (len < headlen)
+		return pskb_carve_inside_header(skb, len, headlen, gfp);
+	else
+		return pskb_carve_inside_nonlinear(skb, len, headlen, gfp);
+}
+
+/* Extract to_copy bytes starting at off from skb, and return this in
+ * a new skb
+ */
+struct sk_buff *pskb_extract(struct sk_buff *skb, int off,
+			     int to_copy, gfp_t gfp)
+{
+	struct sk_buff  *clone = skb_clone(skb, gfp);
+
+	if (!clone)
+		return NULL;
+
+	if (pskb_carve(clone, off, gfp) < 0 ||
+	    pskb_trim(clone, to_copy)) {
+		kfree_skb(clone);
+		return NULL;
+	}
+	return clone;
+}
+EXPORT_SYMBOL(pskb_extract);

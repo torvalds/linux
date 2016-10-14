@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -51,7 +47,6 @@
 #include "../include/obd.h"
 /* osc_build_res_name() */
 #include "../include/cl_object.h"
-#include "../include/lclient.h"
 #include "osc_internal.h"
 
 /** \defgroup osc osc
@@ -67,7 +62,10 @@ struct osc_io {
 	/** super class */
 	struct cl_io_slice oi_cl;
 	/** true if this io is lockless. */
-	int		oi_lockless;
+	unsigned int		oi_lockless;
+	/** how many LRU pages are reserved for this IO */
+	int oi_lru_reserved;
+
 	/** active extents, we know how many bytes is going to be written,
 	 * so having an active extent will prevent it from being fragmented
 	 */
@@ -77,6 +75,8 @@ struct osc_io {
 	 */
 	struct osc_extent *oi_trunc;
 
+	/** write osc_lock for this IO, used by osc_extent_find(). */
+	struct osc_lock   *oi_write_osclock;
 	struct obd_info    oi_info;
 	struct obdo	oi_oa;
 	struct osc_async_cbargs {
@@ -100,7 +100,7 @@ struct osc_session {
 	struct osc_io       os_io;
 };
 
-#define OTI_PVEC_SIZE 64
+#define OTI_PVEC_SIZE 256
 struct osc_thread_info {
 	struct ldlm_res_id      oti_resname;
 	ldlm_policy_data_t      oti_policy;
@@ -109,7 +109,13 @@ struct osc_thread_info {
 	struct lustre_handle    oti_handle;
 	struct cl_page_list     oti_plist;
 	struct cl_io		oti_io;
-	struct cl_page	       *oti_pvec[OTI_PVEC_SIZE];
+	void			*oti_pvec[OTI_PVEC_SIZE];
+	/**
+	 * Fields used by cl_lock_discard_pages().
+	 */
+	pgoff_t			oti_next_index;
+	pgoff_t			oti_fn_index; /* first non-overlapped index */
+	struct cl_sync_io	oti_anchor;
 };
 
 struct osc_object {
@@ -125,7 +131,7 @@ struct osc_object {
 	 */
 	struct list_head	 oo_inflight[CRT_NR];
 	/**
-	 * Lock, protecting ccc_object::cob_inflight, because a seat-belt is
+	 * Lock, protecting osc_page::ops_inflight, because a seat-belt is
 	 * locked during take-off and landing.
 	 */
 	spinlock_t	   oo_seatbelt;
@@ -159,6 +165,17 @@ struct osc_object {
 	 * oo_{read|write}_pages soon.
 	 */
 	spinlock_t	    oo_lock;
+
+	/**
+	 * Radix tree for caching pages
+	 */
+	struct radix_tree_root	oo_tree;
+	spinlock_t		oo_tree_lock;
+	unsigned long		oo_npages;
+
+	/* Protect osc_lock this osc_object has */
+	spinlock_t		oo_ol_spin;
+	struct list_head	oo_ol_list;
 };
 
 static inline void osc_object_lock(struct osc_object *obj)
@@ -198,8 +215,6 @@ enum osc_lock_state {
 	OLS_ENQUEUED,
 	OLS_UPCALL_RECEIVED,
 	OLS_GRANTED,
-	OLS_RELEASED,
-	OLS_BLOCKED,
 	OLS_CANCELLED
 };
 
@@ -208,10 +223,8 @@ enum osc_lock_state {
  *
  * Interaction with DLM.
  *
- * CLIO enqueues all DLM locks through ptlrpcd (that is, in "async" mode).
- *
  * Once receive upcall is invoked, osc_lock remembers a handle of DLM lock in
- * osc_lock::ols_handle and a pointer to that lock in osc_lock::ols_lock.
+ * osc_lock::ols_handle and a pointer to that lock in osc_lock::ols_dlmlock.
  *
  * This pointer is protected through a reference, acquired by
  * osc_lock_upcall0(). Also, an additional reference is acquired by
@@ -249,26 +262,27 @@ enum osc_lock_state {
  */
 struct osc_lock {
 	struct cl_lock_slice     ols_cl;
+	/** Internal lock to protect states, etc. */
+	spinlock_t		ols_lock;
+	/** Owner sleeps on this channel for state change */
+	struct cl_sync_io	*ols_owner;
+	/** waiting list for this lock to be cancelled */
+	struct list_head	ols_waiting_list;
+	/** wait entry of ols_waiting_list */
+	struct list_head	ols_wait_entry;
+	/** list entry for osc_object::oo_ol_list */
+	struct list_head	ols_nextlock_oscobj;
+
 	/** underlying DLM lock */
-	struct ldlm_lock	*ols_lock;
-	/** lock value block */
-	struct ost_lvb	   ols_lvb;
+	struct ldlm_lock	*ols_dlmlock;
 	/** DLM flags with which osc_lock::ols_lock was enqueued */
 	__u64		    ols_flags;
 	/** osc_lock::ols_lock handle */
 	struct lustre_handle     ols_handle;
 	struct ldlm_enqueue_info ols_einfo;
 	enum osc_lock_state      ols_state;
-
-	/**
-	 * How many pages are using this lock for io, currently only used by
-	 * read-ahead. If non-zero, the underlying dlm lock won't be cancelled
-	 * during recovery to avoid deadlock. see bz16774.
-	 *
-	 * \see osc_page::ops_lock
-	 * \see osc_page_addref_lock(), osc_page_putref_lock()
-	 */
-	atomic_t	     ols_pageref;
+	/** lock value block */
+	struct ost_lvb		ols_lvb;
 
 	/**
 	 * true, if ldlm_lock_addref() was called against
@@ -299,16 +313,6 @@ struct osc_lock {
 	 */
 				 ols_locklessable:1,
 	/**
-	 * set by osc_lock_use() to wait until blocking AST enters into
-	 * osc_ldlm_blocking_ast0(), so that cl_lock mutex can be used for
-	 * further synchronization.
-	 */
-				 ols_ast_wait:1,
-	/**
-	 * If the data of this lock has been flushed to server side.
-	 */
-				 ols_flush:1,
-	/**
 	 * if set, the osc_lock is a glimpse lock. For glimpse locks, we treat
 	 * the EVAVAIL error as tolerable, this will make upper logic happy
 	 * to wait all glimpse locks to each OSTs to be completed.
@@ -321,15 +325,6 @@ struct osc_lock {
 	 * For async glimpse lock.
 	 */
 				 ols_agl:1;
-	/**
-	 * IO that owns this lock. This field is used for a dead-lock
-	 * avoidance by osc_lock_enqueue_wait().
-	 *
-	 * XXX: unfortunately, the owner of a osc_lock is not unique,
-	 * the lock may have multiple users, if the lock is granted and
-	 * then matched.
-	 */
-	struct osc_io	   *ols_owner;
 };
 
 /**
@@ -357,11 +352,6 @@ struct osc_page {
 	 */
 	unsigned	      ops_transfer_pinned:1,
 	/**
-	 * True for a `temporary page' created by read-ahead code, probably
-	 * outside of any DLM lock.
-	 */
-			      ops_temp:1,
-	/**
 	 * in LRU?
 	 */
 			      ops_in_lru:1,
@@ -369,18 +359,15 @@ struct osc_page {
 	 * Set if the page must be transferred with OBD_BRW_SRVLOCK.
 	 */
 			      ops_srvlock:1;
-	union {
-		/**
-		 * lru page list. ops_inflight and ops_lru are exclusive so
-		 * that they can share the same data.
-		 */
-		struct list_head	      ops_lru;
-		/**
-		 * Linkage into a per-osc_object list of pages in flight. For
-		 * debugging.
-		 */
-		struct list_head	    ops_inflight;
-	};
+	/**
+	 * lru page list. See osc_lru_{del|use}() in osc_page.c for usage.
+	 */
+	struct list_head	      ops_lru;
+	/**
+	 * Linkage into a per-osc_object list of pages in flight. For
+	 * debugging.
+	 */
+	struct list_head	    ops_inflight;
 	/**
 	 * Thread that submitted this page for transfer. For debugging.
 	 */
@@ -389,16 +376,6 @@ struct osc_page {
 	 * Submit time - the time when the page is starting RPC. For debugging.
 	 */
 	unsigned long	    ops_submit_time;
-
-	/**
-	 * A lock of which we hold a reference covers this page. Only used by
-	 * read-ahead: for a readahead page, we hold it's covering lock to
-	 * prevent it from being canceled during recovery.
-	 *
-	 * \see osc_lock::ols_pageref
-	 * \see osc_page_addref_lock(), osc_page_putref_lock().
-	 */
-	struct cl_lock       *ops_lock;
 };
 
 extern struct kmem_cache *osc_lock_kmem;
@@ -417,21 +394,22 @@ extern struct lu_context_key osc_session_key;
 int osc_lock_init(const struct lu_env *env,
 		  struct cl_object *obj, struct cl_lock *lock,
 		  const struct cl_io *io);
-int osc_io_init  (const struct lu_env *env,
-		  struct cl_object *obj, struct cl_io *io);
-int osc_req_init (const struct lu_env *env, struct cl_device *dev,
-		  struct cl_req *req);
+int osc_io_init(const struct lu_env *env,
+		struct cl_object *obj, struct cl_io *io);
+int osc_req_init(const struct lu_env *env, struct cl_device *dev,
+		 struct cl_req *req);
 struct lu_object *osc_object_alloc(const struct lu_env *env,
 				   const struct lu_object_header *hdr,
 				   struct lu_device *dev);
 int osc_page_init(const struct lu_env *env, struct cl_object *obj,
-		  struct cl_page *page, struct page *vmpage);
+		  struct cl_page *page, pgoff_t ind);
 
-void osc_index2policy  (ldlm_policy_data_t *policy, const struct cl_object *obj,
-			pgoff_t start, pgoff_t end);
-int  osc_lvb_print     (const struct lu_env *env, void *cookie,
-			lu_printer_t p, const struct ost_lvb *lvb);
+void osc_index2policy(ldlm_policy_data_t *policy, const struct cl_object *obj,
+		      pgoff_t start, pgoff_t end);
+int osc_lvb_print(const struct lu_env *env, void *cookie,
+		  lu_printer_t p, const struct ost_lvb *lvb);
 
+void osc_lru_add_batch(struct client_obd *cli, struct list_head *list);
 void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 		     enum cl_req_type crt, int brw_flags);
 int osc_cancel_async_page(const struct lu_env *env, struct osc_page *ops);
@@ -441,6 +419,8 @@ int osc_prep_async_page(struct osc_object *osc, struct osc_page *ops,
 			struct page *page, loff_t offset);
 int osc_queue_async_io(const struct lu_env *env, struct cl_io *io,
 		       struct osc_page *ops);
+int osc_page_cache_add(const struct lu_env *env,
+		       const struct cl_page_slice *slice, struct cl_io *io);
 int osc_teardown_async_page(const struct lu_env *env, struct osc_object *obj,
 			    struct osc_page *ops);
 int osc_flush_async_page(const struct lu_env *env, struct cl_io *io,
@@ -457,12 +437,13 @@ int osc_cache_wait_range(const struct lu_env *env, struct osc_object *obj,
 			 pgoff_t start, pgoff_t end);
 void osc_io_unplug(const struct lu_env *env, struct client_obd *cli,
 		   struct osc_object *osc);
+int lru_queue_work(const struct lu_env *env, void *data);
 
-void osc_object_set_contended  (struct osc_object *obj);
+void osc_object_set_contended(struct osc_object *obj);
 void osc_object_clear_contended(struct osc_object *obj);
-int  osc_object_is_contended   (struct osc_object *obj);
+int  osc_object_is_contended(struct osc_object *obj);
 
-int  osc_lock_is_lockless      (const struct osc_lock *olck);
+int  osc_lock_is_lockless(const struct osc_lock *olck);
 
 /*****************************************************************************
  *
@@ -558,6 +539,11 @@ static inline struct osc_page *oap2osc(struct osc_async_page *oap)
 	return container_of0(oap, struct osc_page, ops_oap);
 }
 
+static inline pgoff_t osc_index(struct osc_page *opg)
+{
+	return opg->ops_cl.cpl_index;
+}
+
 static inline struct cl_page *oap2cl_page(struct osc_async_page *oap)
 {
 	return oap2osc(oap)->ops_cl.cpl_page;
@@ -608,7 +594,7 @@ enum osc_extent_state {
  *
  * LOCKING ORDER
  * =============
- * page lock -> client_obd_list_lock -> object lock(osc_object::oo_lock)
+ * page lock -> cl_loi_list_lock -> object lock(osc_object::oo_lock)
  */
 struct osc_extent {
 	/** red-black tree node */
@@ -627,6 +613,8 @@ struct osc_extent {
 	unsigned int       oe_intree:1,
 	/** 0 is write, 1 is read */
 			   oe_rw:1,
+	/** sync extent, queued by osc_queue_sync_pages() */
+				oe_sync:1,
 			   oe_srvlock:1,
 			   oe_memalloc:1,
 	/** an ACTIVE extent is going to be truncated, so when this extent
@@ -675,7 +663,7 @@ struct osc_extent {
 	 */
 	wait_queue_head_t	oe_waitq;
 	/** lock covering this extent */
-	struct cl_lock    *oe_osclock;
+	struct ldlm_lock	*oe_dlmlock;
 	/** terminator of this extent. Must be true if this extent is in IO. */
 	struct task_struct	*oe_owner;
 	/** return value of writeback. If somebody is waiting for this extent,
@@ -690,6 +678,14 @@ int osc_extent_finish(const struct lu_env *env, struct osc_extent *ext,
 		      int sent, int rc);
 void osc_extent_release(const struct lu_env *env, struct osc_extent *ext);
 
+int osc_lock_discard_pages(const struct lu_env *env, struct osc_object *osc,
+			   pgoff_t start, pgoff_t end, enum cl_lock_mode mode);
+
+typedef int (*osc_page_gang_cbt)(const struct lu_env *, struct cl_io *,
+				 struct osc_page *, void *);
+int osc_page_gang_lookup(const struct lu_env *env, struct cl_io *io,
+			 struct osc_object *osc, pgoff_t start, pgoff_t end,
+			 osc_page_gang_cbt cb, void *cbdata);
 /** @} osc */
 
 #endif /* OSC_CL_INTERNAL_H */

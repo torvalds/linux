@@ -95,6 +95,7 @@ enum i40iw_status_code {
 	I40IW_ERR_INVALID_MAC_ADDR = -65,
 	I40IW_ERR_BAD_STAG      = -66,
 	I40IW_ERR_CQ_COMPL_ERROR = -67,
+	I40IW_ERR_QUEUE_DESTROYED = -68
 
 };
 #endif

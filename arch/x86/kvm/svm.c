@@ -14,6 +14,9 @@
  * the COPYING file in the top-level directory.
  *
  */
+
+#define pr_fmt(fmt) "SVM: " fmt
+
 #include <linux/kvm_host.h>
 
 #include "irq.h"
@@ -32,6 +35,7 @@
 #include <linux/trace_events.h>
 #include <linux/slab.h>
 
+#include <asm/apic.h>
 #include <asm/perf_event.h>
 #include <asm/tlbflush.h>
 #include <asm/desc.h>
@@ -68,6 +72,8 @@ MODULE_DEVICE_TABLE(x86cpu, svm_cpu_id);
 #define SVM_FEATURE_DECODE_ASSIST  (1 <<  7)
 #define SVM_FEATURE_PAUSE_FILTER   (1 << 10)
 
+#define SVM_AVIC_DOORBELL	0xc001011b
+
 #define NESTED_EXIT_HOST	0	/* Exit handled on host level */
 #define NESTED_EXIT_DONE	1	/* Exit caused nested vmexit  */
 #define NESTED_EXIT_CONTINUE	2	/* Further checks needed      */
@@ -77,6 +83,18 @@ MODULE_DEVICE_TABLE(x86cpu, svm_cpu_id);
 #define TSC_RATIO_RSVD          0xffffff0000000000ULL
 #define TSC_RATIO_MIN		0x0000000000000001ULL
 #define TSC_RATIO_MAX		0x000000ffffffffffULL
+
+#define AVIC_HPA_MASK	~((0xFFFULL << 52) | 0xFFF)
+
+/*
+ * 0xff is broadcast, so the max index allowed for physical APIC ID
+ * table is 0xfe.  APIC IDs above 0xff are reserved.
+ */
+#define AVIC_MAX_PHYSICAL_ID_COUNT	255
+
+#define AVIC_UNACCEL_ACCESS_WRITE_MASK		1
+#define AVIC_UNACCEL_ACCESS_OFFSET_MASK		0xFF0
+#define AVIC_UNACCEL_ACCESS_VECTOR_MASK		0xFFFFFFFF
 
 static bool erratum_383_found __read_mostly;
 
@@ -162,7 +180,20 @@ struct vcpu_svm {
 
 	/* cached guest cpuid flags for faster access */
 	bool nrips_enabled	: 1;
+
+	u32 ldr_reg;
+	struct page *avic_backing_page;
+	u64 *avic_physical_id_cache;
+	bool avic_is_running;
 };
+
+#define AVIC_LOGICAL_ID_ENTRY_GUEST_PHYSICAL_ID_MASK	(0xFF)
+#define AVIC_LOGICAL_ID_ENTRY_VALID_MASK		(1 << 31)
+
+#define AVIC_PHYSICAL_ID_ENTRY_HOST_PHYSICAL_ID_MASK	(0xFFULL)
+#define AVIC_PHYSICAL_ID_ENTRY_BACKING_PAGE_MASK	(0xFFFFFFFFFFULL << 12)
+#define AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK		(1ULL << 62)
+#define AVIC_PHYSICAL_ID_ENTRY_VALID_MASK		(1ULL << 63)
 
 static DEFINE_PER_CPU(u64, current_tsc_ratio);
 #define TSC_RATIO_DEFAULT	0x0100000000ULL
@@ -205,6 +236,12 @@ module_param(npt, int, S_IRUGO);
 static int nested = true;
 module_param(nested, int, S_IRUGO);
 
+/* enable / disable AVIC */
+static int avic;
+#ifdef CONFIG_X86_LOCAL_APIC
+module_param(avic, int, S_IRUGO);
+#endif
+
 static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 static void svm_flush_tlb(struct kvm_vcpu *vcpu);
 static void svm_complete_interrupts(struct vcpu_svm *svm);
@@ -228,11 +265,17 @@ enum {
 	VMCB_SEG,        /* CS, DS, SS, ES, CPL */
 	VMCB_CR2,        /* CR2 only */
 	VMCB_LBR,        /* DBGCTL, BR_FROM, BR_TO, LAST_EX_FROM, LAST_EX_TO */
+	VMCB_AVIC,       /* AVIC APIC_BAR, AVIC APIC_BACKING_PAGE,
+			  * AVIC PHYSICAL_TABLE pointer,
+			  * AVIC LOGICAL_TABLE pointer
+			  */
 	VMCB_DIRTY_MAX,
 };
 
 /* TPR and CR2 are always written before VMRUN */
 #define VMCB_ALWAYS_DIRTY_MASK	((1U << VMCB_INTR) | (1U << VMCB_CR2))
+
+#define VMCB_AVIC_APIC_BAR_MASK		0xFFFFFFFFFF000ULL
 
 static inline void mark_all_dirty(struct vmcb *vmcb)
 {
@@ -253,6 +296,23 @@ static inline void mark_dirty(struct vmcb *vmcb, int bit)
 static inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 {
 	return container_of(vcpu, struct vcpu_svm, vcpu);
+}
+
+static inline void avic_update_vapic_bar(struct vcpu_svm *svm, u64 data)
+{
+	svm->vmcb->control.avic_vapic_bar = data & VMCB_AVIC_APIC_BAR_MASK;
+	mark_dirty(svm->vmcb, VMCB_AVIC);
+}
+
+static inline bool avic_vcpu_is_running(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	u64 *entry = svm->avic_physical_id_cache;
+
+	if (!entry)
+		return false;
+
+	return (READ_ONCE(*entry) & AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK);
 }
 
 static void recalc_intercepts(struct vcpu_svm *svm)
@@ -923,6 +983,15 @@ static __init int svm_hardware_setup(void)
 	} else
 		kvm_disable_tdp();
 
+	if (avic) {
+		if (!npt_enabled ||
+		    !boot_cpu_has(X86_FEATURE_AVIC) ||
+		    !IS_ENABLED(CONFIG_X86_LOCAL_APIC))
+			avic = false;
+		else
+			pr_info("AVIC enabled\n");
+	}
+
 	return 0;
 
 err:
@@ -1000,6 +1069,22 @@ static void svm_adjust_tsc_offset_guest(struct kvm_vcpu *vcpu, s64 adjustment)
 	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 }
 
+static void avic_init_vmcb(struct vcpu_svm *svm)
+{
+	struct vmcb *vmcb = svm->vmcb;
+	struct kvm_arch *vm_data = &svm->vcpu.kvm->arch;
+	phys_addr_t bpa = page_to_phys(svm->avic_backing_page);
+	phys_addr_t lpa = page_to_phys(vm_data->avic_logical_id_table_page);
+	phys_addr_t ppa = page_to_phys(vm_data->avic_physical_id_table_page);
+
+	vmcb->control.avic_backing_page = bpa & AVIC_HPA_MASK;
+	vmcb->control.avic_logical_id = lpa & AVIC_HPA_MASK;
+	vmcb->control.avic_physical_id = ppa & AVIC_HPA_MASK;
+	vmcb->control.avic_physical_id |= AVIC_MAX_PHYSICAL_ID_COUNT;
+	vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
+	svm->vcpu.arch.apicv_active = true;
+}
+
 static void init_vmcb(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *control = &svm->vmcb->control;
@@ -1014,7 +1099,8 @@ static void init_vmcb(struct vcpu_svm *svm)
 	set_cr_intercept(svm, INTERCEPT_CR0_WRITE);
 	set_cr_intercept(svm, INTERCEPT_CR3_WRITE);
 	set_cr_intercept(svm, INTERCEPT_CR4_WRITE);
-	set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
+	if (!kvm_vcpu_apicv_active(&svm->vcpu))
+		set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
 
 	set_dr_intercepts(svm);
 
@@ -1110,9 +1196,197 @@ static void init_vmcb(struct vcpu_svm *svm)
 		set_intercept(svm, INTERCEPT_PAUSE);
 	}
 
+	if (avic)
+		avic_init_vmcb(svm);
+
 	mark_all_dirty(svm->vmcb);
 
 	enable_gif(svm);
+
+}
+
+static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu, int index)
+{
+	u64 *avic_physical_id_table;
+	struct kvm_arch *vm_data = &vcpu->kvm->arch;
+
+	if (index >= AVIC_MAX_PHYSICAL_ID_COUNT)
+		return NULL;
+
+	avic_physical_id_table = page_address(vm_data->avic_physical_id_table_page);
+
+	return &avic_physical_id_table[index];
+}
+
+/**
+ * Note:
+ * AVIC hardware walks the nested page table to check permissions,
+ * but does not use the SPA address specified in the leaf page
+ * table entry since it uses  address in the AVIC_BACKING_PAGE pointer
+ * field of the VMCB. Therefore, we set up the
+ * APIC_ACCESS_PAGE_PRIVATE_MEMSLOT (4KB) here.
+ */
+static int avic_init_access_page(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+	int ret;
+
+	if (kvm->arch.apic_access_page_done)
+		return 0;
+
+	ret = x86_set_memory_region(kvm,
+				    APIC_ACCESS_PAGE_PRIVATE_MEMSLOT,
+				    APIC_DEFAULT_PHYS_BASE,
+				    PAGE_SIZE);
+	if (ret)
+		return ret;
+
+	kvm->arch.apic_access_page_done = true;
+	return 0;
+}
+
+static int avic_init_backing_page(struct kvm_vcpu *vcpu)
+{
+	int ret;
+	u64 *entry, new_entry;
+	int id = vcpu->vcpu_id;
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	ret = avic_init_access_page(vcpu);
+	if (ret)
+		return ret;
+
+	if (id >= AVIC_MAX_PHYSICAL_ID_COUNT)
+		return -EINVAL;
+
+	if (!svm->vcpu.arch.apic->regs)
+		return -EINVAL;
+
+	svm->avic_backing_page = virt_to_page(svm->vcpu.arch.apic->regs);
+
+	/* Setting AVIC backing page address in the phy APIC ID table */
+	entry = avic_get_physical_id_entry(vcpu, id);
+	if (!entry)
+		return -EINVAL;
+
+	new_entry = READ_ONCE(*entry);
+	new_entry = (page_to_phys(svm->avic_backing_page) &
+		     AVIC_PHYSICAL_ID_ENTRY_BACKING_PAGE_MASK) |
+		     AVIC_PHYSICAL_ID_ENTRY_VALID_MASK;
+	WRITE_ONCE(*entry, new_entry);
+
+	svm->avic_physical_id_cache = entry;
+
+	return 0;
+}
+
+static void avic_vm_destroy(struct kvm *kvm)
+{
+	struct kvm_arch *vm_data = &kvm->arch;
+
+	if (vm_data->avic_logical_id_table_page)
+		__free_page(vm_data->avic_logical_id_table_page);
+	if (vm_data->avic_physical_id_table_page)
+		__free_page(vm_data->avic_physical_id_table_page);
+}
+
+static int avic_vm_init(struct kvm *kvm)
+{
+	int err = -ENOMEM;
+	struct kvm_arch *vm_data = &kvm->arch;
+	struct page *p_page;
+	struct page *l_page;
+
+	if (!avic)
+		return 0;
+
+	/* Allocating physical APIC ID table (4KB) */
+	p_page = alloc_page(GFP_KERNEL);
+	if (!p_page)
+		goto free_avic;
+
+	vm_data->avic_physical_id_table_page = p_page;
+	clear_page(page_address(p_page));
+
+	/* Allocating logical APIC ID table (4KB) */
+	l_page = alloc_page(GFP_KERNEL);
+	if (!l_page)
+		goto free_avic;
+
+	vm_data->avic_logical_id_table_page = l_page;
+	clear_page(page_address(l_page));
+
+	return 0;
+
+free_avic:
+	avic_vm_destroy(kvm);
+	return err;
+}
+
+/**
+ * This function is called during VCPU halt/unhalt.
+ */
+static void avic_set_running(struct kvm_vcpu *vcpu, bool is_run)
+{
+	u64 entry;
+	int h_physical_id = kvm_cpu_get_apicid(vcpu->cpu);
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (!kvm_vcpu_apicv_active(vcpu))
+		return;
+
+	svm->avic_is_running = is_run;
+
+	/* ID = 0xff (broadcast), ID > 0xff (reserved) */
+	if (WARN_ON(h_physical_id >= AVIC_MAX_PHYSICAL_ID_COUNT))
+		return;
+
+	entry = READ_ONCE(*(svm->avic_physical_id_cache));
+	WARN_ON(is_run == !!(entry & AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK));
+
+	entry &= ~AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK;
+	if (is_run)
+		entry |= AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK;
+	WRITE_ONCE(*(svm->avic_physical_id_cache), entry);
+}
+
+static void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
+{
+	u64 entry;
+	/* ID = 0xff (broadcast), ID > 0xff (reserved) */
+	int h_physical_id = kvm_cpu_get_apicid(cpu);
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (!kvm_vcpu_apicv_active(vcpu))
+		return;
+
+	if (WARN_ON(h_physical_id >= AVIC_MAX_PHYSICAL_ID_COUNT))
+		return;
+
+	entry = READ_ONCE(*(svm->avic_physical_id_cache));
+	WARN_ON(entry & AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK);
+
+	entry &= ~AVIC_PHYSICAL_ID_ENTRY_HOST_PHYSICAL_ID_MASK;
+	entry |= (h_physical_id & AVIC_PHYSICAL_ID_ENTRY_HOST_PHYSICAL_ID_MASK);
+
+	entry &= ~AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK;
+	if (svm->avic_is_running)
+		entry |= AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK;
+
+	WRITE_ONCE(*(svm->avic_physical_id_cache), entry);
+}
+
+static void avic_vcpu_put(struct kvm_vcpu *vcpu)
+{
+	u64 entry;
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (!kvm_vcpu_apicv_active(vcpu))
+		return;
+
+	entry = READ_ONCE(*(svm->avic_physical_id_cache));
+	entry &= ~AVIC_PHYSICAL_ID_ENTRY_IS_RUNNING_MASK;
+	WRITE_ONCE(*(svm->avic_physical_id_cache), entry);
 }
 
 static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
@@ -1131,6 +1405,9 @@ static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 
 	kvm_cpuid(vcpu, &eax, &dummy, &dummy, &dummy);
 	kvm_register_write(vcpu, VCPU_REGS_RDX, eax);
+
+	if (kvm_vcpu_apicv_active(vcpu) && !init_event)
+		avic_update_vapic_bar(svm, APIC_DEFAULT_PHYS_BASE);
 }
 
 static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
@@ -1169,6 +1446,17 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	if (!hsave_page)
 		goto free_page3;
 
+	if (avic) {
+		err = avic_init_backing_page(&svm->vcpu);
+		if (err)
+			goto free_page4;
+	}
+
+	/* We initialize this flag to true to make sure that the is_running
+	 * bit would be set the first time the vcpu is loaded.
+	 */
+	svm->avic_is_running = true;
+
 	svm->nested.hsave = page_address(hsave_page);
 
 	svm->msrpm = page_address(msrpm_pages);
@@ -1187,6 +1475,8 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 
 	return &svm->vcpu;
 
+free_page4:
+	__free_page(hsave_page);
 free_page3:
 	__free_pages(nested_msrpm_pages, MSRPM_ALLOC_ORDER);
 free_page2:
@@ -1243,6 +1533,8 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	/* This assumes that the kernel never uses MSR_TSC_AUX */
 	if (static_cpu_has(X86_FEATURE_RDTSCP))
 		wrmsrl(MSR_TSC_AUX, svm->tsc_aux);
+
+	avic_vcpu_load(vcpu, cpu);
 }
 
 static void svm_vcpu_put(struct kvm_vcpu *vcpu)
@@ -1250,11 +1542,13 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	int i;
 
+	avic_vcpu_put(vcpu);
+
 	++vcpu->stat.host_state_reload;
 	kvm_load_ldt(svm->host.ldt);
 #ifdef CONFIG_X86_64
 	loadsegment(fs, svm->host.fs);
-	wrmsrl(MSR_KERNEL_GS_BASE, current->thread.gs);
+	wrmsrl(MSR_KERNEL_GS_BASE, current->thread.gsbase);
 	load_gs_index(svm->host.gs);
 #else
 #ifdef CONFIG_X86_32_LAZY_GS
@@ -1265,6 +1559,16 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 		wrmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 }
 
+static void svm_vcpu_blocking(struct kvm_vcpu *vcpu)
+{
+	avic_set_running(vcpu, false);
+}
+
+static void svm_vcpu_unblocking(struct kvm_vcpu *vcpu)
+{
+	avic_set_running(vcpu, true);
+}
+
 static unsigned long svm_get_rflags(struct kvm_vcpu *vcpu)
 {
 	return to_svm(vcpu)->vmcb->save.rflags;
@@ -1273,7 +1577,7 @@ static unsigned long svm_get_rflags(struct kvm_vcpu *vcpu)
 static void svm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
        /*
-        * Any change of EFLAGS.VM is accompained by a reload of SS
+        * Any change of EFLAGS.VM is accompanied by a reload of SS
         * (caused by either a task switch or an inter-privilege IRET),
         * so we do not need to update the CPL here.
         */
@@ -2673,10 +2977,11 @@ static int clgi_interception(struct vcpu_svm *svm)
 	disable_gif(svm);
 
 	/* After a CLGI no interrupts should come */
-	svm_clear_vintr(svm);
-	svm->vmcb->control.int_ctl &= ~V_IRQ_MASK;
-
-	mark_dirty(svm->vmcb, VMCB_INTR);
+	if (!kvm_vcpu_apicv_active(&svm->vcpu)) {
+		svm_clear_vintr(svm);
+		svm->vmcb->control.int_ctl &= ~V_IRQ_MASK;
+		mark_dirty(svm->vmcb, VMCB_INTR);
+	}
 
 	return 1;
 }
@@ -3212,6 +3517,10 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	case MSR_VM_IGNNE:
 		vcpu_unimpl(vcpu, "unimplemented wrmsr: 0x%x data 0x%llx\n", ecx, data);
 		break;
+	case MSR_IA32_APICBASE:
+		if (kvm_vcpu_apicv_active(vcpu))
+			avic_update_vapic_bar(to_svm(vcpu), data);
+		/* Follow through */
 	default:
 		return kvm_set_msr_common(vcpu, msr);
 	}
@@ -3281,6 +3590,278 @@ static int mwait_interception(struct vcpu_svm *svm)
 	return nop_interception(svm);
 }
 
+enum avic_ipi_failure_cause {
+	AVIC_IPI_FAILURE_INVALID_INT_TYPE,
+	AVIC_IPI_FAILURE_TARGET_NOT_RUNNING,
+	AVIC_IPI_FAILURE_INVALID_TARGET,
+	AVIC_IPI_FAILURE_INVALID_BACKING_PAGE,
+};
+
+static int avic_incomplete_ipi_interception(struct vcpu_svm *svm)
+{
+	u32 icrh = svm->vmcb->control.exit_info_1 >> 32;
+	u32 icrl = svm->vmcb->control.exit_info_1;
+	u32 id = svm->vmcb->control.exit_info_2 >> 32;
+	u32 index = svm->vmcb->control.exit_info_2 & 0xFF;
+	struct kvm_lapic *apic = svm->vcpu.arch.apic;
+
+	trace_kvm_avic_incomplete_ipi(svm->vcpu.vcpu_id, icrh, icrl, id, index);
+
+	switch (id) {
+	case AVIC_IPI_FAILURE_INVALID_INT_TYPE:
+		/*
+		 * AVIC hardware handles the generation of
+		 * IPIs when the specified Message Type is Fixed
+		 * (also known as fixed delivery mode) and
+		 * the Trigger Mode is edge-triggered. The hardware
+		 * also supports self and broadcast delivery modes
+		 * specified via the Destination Shorthand(DSH)
+		 * field of the ICRL. Logical and physical APIC ID
+		 * formats are supported. All other IPI types cause
+		 * a #VMEXIT, which needs to emulated.
+		 */
+		kvm_lapic_reg_write(apic, APIC_ICR2, icrh);
+		kvm_lapic_reg_write(apic, APIC_ICR, icrl);
+		break;
+	case AVIC_IPI_FAILURE_TARGET_NOT_RUNNING: {
+		int i;
+		struct kvm_vcpu *vcpu;
+		struct kvm *kvm = svm->vcpu.kvm;
+		struct kvm_lapic *apic = svm->vcpu.arch.apic;
+
+		/*
+		 * At this point, we expect that the AVIC HW has already
+		 * set the appropriate IRR bits on the valid target
+		 * vcpus. So, we just need to kick the appropriate vcpu.
+		 */
+		kvm_for_each_vcpu(i, vcpu, kvm) {
+			bool m = kvm_apic_match_dest(vcpu, apic,
+						     icrl & KVM_APIC_SHORT_MASK,
+						     GET_APIC_DEST_FIELD(icrh),
+						     icrl & KVM_APIC_DEST_MASK);
+
+			if (m && !avic_vcpu_is_running(vcpu))
+				kvm_vcpu_wake_up(vcpu);
+		}
+		break;
+	}
+	case AVIC_IPI_FAILURE_INVALID_TARGET:
+		break;
+	case AVIC_IPI_FAILURE_INVALID_BACKING_PAGE:
+		WARN_ONCE(1, "Invalid backing page\n");
+		break;
+	default:
+		pr_err("Unknown IPI interception\n");
+	}
+
+	return 1;
+}
+
+static u32 *avic_get_logical_id_entry(struct kvm_vcpu *vcpu, u32 ldr, bool flat)
+{
+	struct kvm_arch *vm_data = &vcpu->kvm->arch;
+	int index;
+	u32 *logical_apic_id_table;
+	int dlid = GET_APIC_LOGICAL_ID(ldr);
+
+	if (!dlid)
+		return NULL;
+
+	if (flat) { /* flat */
+		index = ffs(dlid) - 1;
+		if (index > 7)
+			return NULL;
+	} else { /* cluster */
+		int cluster = (dlid & 0xf0) >> 4;
+		int apic = ffs(dlid & 0x0f) - 1;
+
+		if ((apic < 0) || (apic > 7) ||
+		    (cluster >= 0xf))
+			return NULL;
+		index = (cluster << 2) + apic;
+	}
+
+	logical_apic_id_table = (u32 *) page_address(vm_data->avic_logical_id_table_page);
+
+	return &logical_apic_id_table[index];
+}
+
+static int avic_ldr_write(struct kvm_vcpu *vcpu, u8 g_physical_id, u32 ldr,
+			  bool valid)
+{
+	bool flat;
+	u32 *entry, new_entry;
+
+	flat = kvm_lapic_get_reg(vcpu->arch.apic, APIC_DFR) == APIC_DFR_FLAT;
+	entry = avic_get_logical_id_entry(vcpu, ldr, flat);
+	if (!entry)
+		return -EINVAL;
+
+	new_entry = READ_ONCE(*entry);
+	new_entry &= ~AVIC_LOGICAL_ID_ENTRY_GUEST_PHYSICAL_ID_MASK;
+	new_entry |= (g_physical_id & AVIC_LOGICAL_ID_ENTRY_GUEST_PHYSICAL_ID_MASK);
+	if (valid)
+		new_entry |= AVIC_LOGICAL_ID_ENTRY_VALID_MASK;
+	else
+		new_entry &= ~AVIC_LOGICAL_ID_ENTRY_VALID_MASK;
+	WRITE_ONCE(*entry, new_entry);
+
+	return 0;
+}
+
+static int avic_handle_ldr_update(struct kvm_vcpu *vcpu)
+{
+	int ret;
+	struct vcpu_svm *svm = to_svm(vcpu);
+	u32 ldr = kvm_lapic_get_reg(vcpu->arch.apic, APIC_LDR);
+
+	if (!ldr)
+		return 1;
+
+	ret = avic_ldr_write(vcpu, vcpu->vcpu_id, ldr, true);
+	if (ret && svm->ldr_reg) {
+		avic_ldr_write(vcpu, 0, svm->ldr_reg, false);
+		svm->ldr_reg = 0;
+	} else {
+		svm->ldr_reg = ldr;
+	}
+	return ret;
+}
+
+static int avic_handle_apic_id_update(struct kvm_vcpu *vcpu)
+{
+	u64 *old, *new;
+	struct vcpu_svm *svm = to_svm(vcpu);
+	u32 apic_id_reg = kvm_lapic_get_reg(vcpu->arch.apic, APIC_ID);
+	u32 id = (apic_id_reg >> 24) & 0xff;
+
+	if (vcpu->vcpu_id == id)
+		return 0;
+
+	old = avic_get_physical_id_entry(vcpu, vcpu->vcpu_id);
+	new = avic_get_physical_id_entry(vcpu, id);
+	if (!new || !old)
+		return 1;
+
+	/* We need to move physical_id_entry to new offset */
+	*new = *old;
+	*old = 0ULL;
+	to_svm(vcpu)->avic_physical_id_cache = new;
+
+	/*
+	 * Also update the guest physical APIC ID in the logical
+	 * APIC ID table entry if already setup the LDR.
+	 */
+	if (svm->ldr_reg)
+		avic_handle_ldr_update(vcpu);
+
+	return 0;
+}
+
+static int avic_handle_dfr_update(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	struct kvm_arch *vm_data = &vcpu->kvm->arch;
+	u32 dfr = kvm_lapic_get_reg(vcpu->arch.apic, APIC_DFR);
+	u32 mod = (dfr >> 28) & 0xf;
+
+	/*
+	 * We assume that all local APICs are using the same type.
+	 * If this changes, we need to flush the AVIC logical
+	 * APID id table.
+	 */
+	if (vm_data->ldr_mode == mod)
+		return 0;
+
+	clear_page(page_address(vm_data->avic_logical_id_table_page));
+	vm_data->ldr_mode = mod;
+
+	if (svm->ldr_reg)
+		avic_handle_ldr_update(vcpu);
+	return 0;
+}
+
+static int avic_unaccel_trap_write(struct vcpu_svm *svm)
+{
+	struct kvm_lapic *apic = svm->vcpu.arch.apic;
+	u32 offset = svm->vmcb->control.exit_info_1 &
+				AVIC_UNACCEL_ACCESS_OFFSET_MASK;
+
+	switch (offset) {
+	case APIC_ID:
+		if (avic_handle_apic_id_update(&svm->vcpu))
+			return 0;
+		break;
+	case APIC_LDR:
+		if (avic_handle_ldr_update(&svm->vcpu))
+			return 0;
+		break;
+	case APIC_DFR:
+		avic_handle_dfr_update(&svm->vcpu);
+		break;
+	default:
+		break;
+	}
+
+	kvm_lapic_reg_write(apic, offset, kvm_lapic_get_reg(apic, offset));
+
+	return 1;
+}
+
+static bool is_avic_unaccelerated_access_trap(u32 offset)
+{
+	bool ret = false;
+
+	switch (offset) {
+	case APIC_ID:
+	case APIC_EOI:
+	case APIC_RRR:
+	case APIC_LDR:
+	case APIC_DFR:
+	case APIC_SPIV:
+	case APIC_ESR:
+	case APIC_ICR:
+	case APIC_LVTT:
+	case APIC_LVTTHMR:
+	case APIC_LVTPC:
+	case APIC_LVT0:
+	case APIC_LVT1:
+	case APIC_LVTERR:
+	case APIC_TMICT:
+	case APIC_TDCR:
+		ret = true;
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
+static int avic_unaccelerated_access_interception(struct vcpu_svm *svm)
+{
+	int ret = 0;
+	u32 offset = svm->vmcb->control.exit_info_1 &
+		     AVIC_UNACCEL_ACCESS_OFFSET_MASK;
+	u32 vector = svm->vmcb->control.exit_info_2 &
+		     AVIC_UNACCEL_ACCESS_VECTOR_MASK;
+	bool write = (svm->vmcb->control.exit_info_1 >> 32) &
+		     AVIC_UNACCEL_ACCESS_WRITE_MASK;
+	bool trap = is_avic_unaccelerated_access_trap(offset);
+
+	trace_kvm_avic_unaccelerated_access(svm->vcpu.vcpu_id, offset,
+					    trap, write, vector);
+	if (trap) {
+		/* Handling Trap */
+		WARN_ONCE(!write, "svm: Handling trap read.\n");
+		ret = avic_unaccel_trap_write(svm);
+	} else {
+		/* Handling Fault */
+		ret = (emulate_instruction(&svm->vcpu, 0) == EMULATE_DONE);
+	}
+
+	return ret;
+}
+
 static int (*const svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_READ_CR0]			= cr_interception,
 	[SVM_EXIT_READ_CR3]			= cr_interception,
@@ -3344,6 +3925,8 @@ static int (*const svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_XSETBV]			= xsetbv_interception,
 	[SVM_EXIT_NPF]				= pf_interception,
 	[SVM_EXIT_RSM]                          = emulate_on_interception,
+	[SVM_EXIT_AVIC_INCOMPLETE_IPI]		= avic_incomplete_ipi_interception,
+	[SVM_EXIT_AVIC_UNACCELERATED_ACCESS]	= avic_unaccelerated_access_interception,
 };
 
 static void dump_vmcb(struct kvm_vcpu *vcpu)
@@ -3375,10 +3958,14 @@ static void dump_vmcb(struct kvm_vcpu *vcpu)
 	pr_err("%-20s%08x\n", "exit_int_info_err:", control->exit_int_info_err);
 	pr_err("%-20s%lld\n", "nested_ctl:", control->nested_ctl);
 	pr_err("%-20s%016llx\n", "nested_cr3:", control->nested_cr3);
+	pr_err("%-20s%016llx\n", "avic_vapic_bar:", control->avic_vapic_bar);
 	pr_err("%-20s%08x\n", "event_inj:", control->event_inj);
 	pr_err("%-20s%08x\n", "event_inj_err:", control->event_inj_err);
 	pr_err("%-20s%lld\n", "lbr_ctl:", control->lbr_ctl);
 	pr_err("%-20s%016llx\n", "next_rip:", control->next_rip);
+	pr_err("%-20s%016llx\n", "avic_backing_page:", control->avic_backing_page);
+	pr_err("%-20s%016llx\n", "avic_logical_id:", control->avic_logical_id);
+	pr_err("%-20s%016llx\n", "avic_physical_id:", control->avic_physical_id);
 	pr_err("VMCB State Save Area:\n");
 	pr_err("%-5s s: %04x a: %04x l: %08x b: %016llx\n",
 	       "es:",
@@ -3562,6 +4149,7 @@ static inline void svm_inject_irq(struct vcpu_svm *svm, int irq)
 {
 	struct vmcb_control_area *control;
 
+	/* The following fields are ignored when AVIC is enabled */
 	control = &svm->vmcb->control;
 	control->int_vector = irq;
 	control->int_ctl &= ~V_INTR_PRIO_MASK;
@@ -3583,11 +4171,17 @@ static void svm_set_irq(struct kvm_vcpu *vcpu)
 		SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_INTR;
 }
 
+static inline bool svm_nested_virtualize_tpr(struct kvm_vcpu *vcpu)
+{
+	return is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK);
+}
+
 static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK))
+	if (svm_nested_virtualize_tpr(vcpu) ||
+	    kvm_vcpu_apicv_active(vcpu))
 		return;
 
 	clr_cr_intercept(svm, INTERCEPT_CR8_WRITE);
@@ -3606,11 +4200,28 @@ static void svm_set_virtual_x2apic_mode(struct kvm_vcpu *vcpu, bool set)
 
 static bool svm_get_enable_apicv(void)
 {
-	return false;
+	return avic;
 }
 
+static void svm_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr)
+{
+}
+
+static void svm_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr)
+{
+}
+
+/* Note: Currently only used by Hyper-V. */
 static void svm_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
+	struct vmcb *vmcb = svm->vmcb;
+
+	if (!avic)
+		return;
+
+	vmcb->control.int_ctl &= ~AVIC_ENABLE_MASK;
+	mark_dirty(vmcb, VMCB_INTR);
 }
 
 static void svm_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
@@ -3621,6 +4232,18 @@ static void svm_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
 static void svm_sync_pir_to_irr(struct kvm_vcpu *vcpu)
 {
 	return;
+}
+
+static void svm_deliver_avic_intr(struct kvm_vcpu *vcpu, int vec)
+{
+	kvm_lapic_set_irr(vec, vcpu->arch.apic);
+	smp_mb__after_atomic();
+
+	if (avic_vcpu_is_running(vcpu))
+		wrmsrl(SVM_AVIC_DOORBELL,
+		       kvm_cpu_get_apicid(vcpu->cpu));
+	else
+		kvm_vcpu_wake_up(vcpu);
 }
 
 static int svm_nmi_allowed(struct kvm_vcpu *vcpu)
@@ -3677,6 +4300,9 @@ static void enable_irq_window(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
+	if (kvm_vcpu_apicv_active(vcpu))
+		return;
+
 	/*
 	 * In case GIF=0 we can't rely on the CPU to tell us when GIF becomes
 	 * 1, because that's a separate STGI/VMRUN intercept.  The next time we
@@ -3728,7 +4354,7 @@ static inline void sync_cr8_to_lapic(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK))
+	if (svm_nested_virtualize_tpr(vcpu))
 		return;
 
 	if (!is_cr_intercept(svm, INTERCEPT_CR8_WRITE)) {
@@ -3742,7 +4368,8 @@ static inline void sync_lapic_to_cr8(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u64 cr8;
 
-	if (is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK))
+	if (svm_nested_virtualize_tpr(vcpu) ||
+	    kvm_vcpu_apicv_active(vcpu))
 		return;
 
 	cr8 = kvm_get_cr8(vcpu);
@@ -4045,14 +4672,26 @@ static u64 svm_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 static void svm_cpuid_update(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+	struct kvm_cpuid_entry2 *entry;
 
 	/* Update nrips enabled cache */
 	svm->nrips_enabled = !!guest_cpuid_has_nrips(&svm->vcpu);
+
+	if (!kvm_vcpu_apicv_active(vcpu))
+		return;
+
+	entry = kvm_find_cpuid_entry(vcpu, 1, 0);
+	if (entry)
+		entry->ecx &= ~bit(X86_FEATURE_X2APIC);
 }
 
 static void svm_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
 {
 	switch (func) {
+	case 0x1:
+		if (avic)
+			entry->ecx &= ~bit(X86_FEATURE_X2APIC);
+		break;
 	case 0x80000001:
 		if (nested)
 			entry->ecx |= (1 << 2); /* Set SVM bit */
@@ -4301,10 +4940,25 @@ out:
 static void svm_handle_external_intr(struct kvm_vcpu *vcpu)
 {
 	local_irq_enable();
+	/*
+	 * We must have an instruction with interrupts enabled, so
+	 * the timer interrupt isn't delayed by the interrupt shadow.
+	 */
+	asm("nop");
+	local_irq_disable();
 }
 
 static void svm_sched_in(struct kvm_vcpu *vcpu, int cpu)
 {
+}
+
+static inline void avic_post_state_restore(struct kvm_vcpu *vcpu)
+{
+	if (avic_handle_apic_id_update(vcpu) != 0)
+		return;
+	if (avic_handle_dfr_update(vcpu) != 0)
+		return;
+	avic_handle_ldr_update(vcpu);
 }
 
 static struct kvm_x86_ops svm_x86_ops = {
@@ -4322,9 +4976,14 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.vcpu_free = svm_free_vcpu,
 	.vcpu_reset = svm_vcpu_reset,
 
+	.vm_init = avic_vm_init,
+	.vm_destroy = avic_vm_destroy,
+
 	.prepare_guest_switch = svm_prepare_guest_switch,
 	.vcpu_load = svm_vcpu_load,
 	.vcpu_put = svm_vcpu_put,
+	.vcpu_blocking = svm_vcpu_blocking,
+	.vcpu_unblocking = svm_vcpu_unblocking,
 
 	.update_bp_intercept = update_bp_intercept,
 	.get_msr = svm_get_msr,
@@ -4382,6 +5041,9 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.refresh_apicv_exec_ctrl = svm_refresh_apicv_exec_ctrl,
 	.load_eoi_exitmap = svm_load_eoi_exitmap,
 	.sync_pir_to_irr = svm_sync_pir_to_irr,
+	.hwapic_irr_update = svm_hwapic_irr_update,
+	.hwapic_isr_update = svm_hwapic_isr_update,
+	.apicv_post_state_restore = avic_post_state_restore,
 
 	.set_tss_addr = svm_set_tss_addr,
 	.get_tdp_level = get_npt_level,
@@ -4415,6 +5077,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.sched_in = svm_sched_in,
 
 	.pmu_ops = &amd_pmu_ops,
+	.deliver_posted_interrupt = svm_deliver_avic_intr,
 };
 
 static int __init svm_init(void)

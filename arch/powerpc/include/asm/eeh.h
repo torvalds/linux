@@ -57,7 +57,7 @@ struct pci_dn;
 /*
  * The struct is used to trace PE related EEH functionality.
  * In theory, there will have one instance of the struct to
- * be created against particular PE. In nature, PEs corelate
+ * be created against particular PE. In nature, PEs correlate
  * to each other. the struct has to reflect that hierarchy in
  * order to easily pick up those affected PEs when one particular
  * PE has EEH errors.
@@ -274,7 +274,7 @@ void eeh_pe_restore_bars(struct eeh_pe *pe);
 const char *eeh_pe_loc_get(struct eeh_pe *pe);
 struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe);
 
-void *eeh_dev_init(struct pci_dn *pdn, void *data);
+struct eeh_dev *eeh_dev_init(struct pci_dn *pdn);
 void eeh_dev_phb_init_dynamic(struct pci_controller *phb);
 int eeh_init(void);
 int __init eeh_ops_register(struct eeh_ops *ops);

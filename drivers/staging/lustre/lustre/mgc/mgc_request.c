@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -500,10 +496,16 @@ static void do_requeue(struct config_llog_data *cld)
 	 * export which is being disconnected. Take the client
 	 * semaphore to make the check non-racy.
 	 */
-	down_read(&cld->cld_mgcexp->exp_obd->u.cli.cl_sem);
+	down_read_nested(&cld->cld_mgcexp->exp_obd->u.cli.cl_sem,
+			 OBD_CLI_SEM_MGC);
+
 	if (cld->cld_mgcexp->exp_obd->u.cli.cl_conn_count != 0) {
+		int rc;
+
 		CDEBUG(D_MGC, "updating log %s\n", cld->cld_logname);
-		mgc_process_log(cld->cld_mgcexp->exp_obd, cld);
+		rc = mgc_process_log(cld->cld_mgcexp->exp_obd, cld);
+		if (rc && rc != -ENOENT)
+			CERROR("failed processing log: %d\n", rc);
 	} else {
 		CDEBUG(D_MGC, "disconnecting, won't update log %s\n",
 		       cld->cld_logname);
@@ -734,7 +736,9 @@ static int mgc_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	struct task_struct *task;
 	int rc;
 
-	ptlrpcd_addref();
+	rc = ptlrpcd_addref();
+	if (rc < 0)
+		goto err_noref;
 
 	rc = client_obd_setup(obd, lcfg);
 	if (rc)
@@ -773,6 +777,7 @@ err_cleanup:
 	client_obd_cleanup(obd);
 err_decref:
 	ptlrpcd_decref();
+err_noref:
 	return rc;
 }
 
@@ -1027,7 +1032,7 @@ static int mgc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 		rc = sptlrpc_parse_flavor(val, &flvr);
 		if (rc) {
 			CERROR("invalid sptlrpc flavor %s to MGS\n",
-			       (char *) val);
+			       (char *)val);
 			return rc;
 		}
 
@@ -1043,7 +1048,7 @@ static int mgc_set_info_async(const struct lu_env *env, struct obd_export *exp,
 			sptlrpc_flavor2name(&cli->cl_flvr_mgc,
 					    str, sizeof(str));
 			LCONSOLE_ERROR("asking sptlrpc flavor %s to MGS but currently %s is in use\n",
-				       (char *) val, str);
+				       (char *)val, str);
 			rc = -EPERM;
 		}
 		return rc;
@@ -1720,7 +1725,6 @@ static int mgc_process_config(struct obd_device *obd, u32 len, void *buf)
 		CERROR("Unknown command: %d\n", lcfg->lcfg_command);
 		rc = -EINVAL;
 		goto out;
-
 	}
 	}
 out:

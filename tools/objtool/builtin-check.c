@@ -26,6 +26,7 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 #include <subcmd/parse-options.h>
 
 #include "builtin.h"
@@ -106,6 +107,12 @@ static struct instruction *next_insn_same_sec(struct objtool_file *file,
 		insn->offset < func->offset + func->len;		\
 	     insn = list_next_entry(insn, list))
 
+#define func_for_each_insn_continue_reverse(file, func, insn)		\
+	for (insn = list_prev_entry(insn, list);			\
+	     &insn->list != &file->insn_list &&				\
+		insn->sec == func->sec && insn->offset >= func->offset;	\
+	     insn = list_prev_entry(insn, list))
+
 #define sec_for_each_insn_from(file, insn)				\
 	for (; insn; insn = next_insn_same_sec(file, insn))
 
@@ -122,10 +129,14 @@ static bool ignore_func(struct objtool_file *file, struct symbol *func)
 
 	/* check for STACK_FRAME_NON_STANDARD */
 	if (file->whitelist && file->whitelist->rela)
-		list_for_each_entry(rela, &file->whitelist->rela->rela_list, list)
-			if (rela->sym->sec == func->sec &&
+		list_for_each_entry(rela, &file->whitelist->rela->rela_list, list) {
+			if (rela->sym->type == STT_SECTION &&
+			    rela->sym->sec == func->sec &&
 			    rela->addend == func->offset)
 				return true;
+			if (rela->sym->type == STT_FUNC && rela->sym == func)
+				return true;
+		}
 
 	/* check if it has a context switching instruction */
 	func_for_each_insn(file, func, insn)
@@ -659,65 +670,95 @@ static int add_switch_table(struct objtool_file *file, struct symbol *func,
 	return 0;
 }
 
+/*
+ * find_switch_table() - Given a dynamic jump, find the switch jump table in
+ * .rodata associated with it.
+ *
+ * There are 3 basic patterns:
+ *
+ * 1. jmpq *[rodata addr](,%reg,8)
+ *
+ *    This is the most common case by far.  It jumps to an address in a simple
+ *    jump table which is stored in .rodata.
+ *
+ * 2. jmpq *[rodata addr](%rip)
+ *
+ *    This is caused by a rare GCC quirk, currently only seen in three driver
+ *    functions in the kernel, only with certain obscure non-distro configs.
+ *
+ *    As part of an optimization, GCC makes a copy of an existing switch jump
+ *    table, modifies it, and then hard-codes the jump (albeit with an indirect
+ *    jump) to use a single entry in the table.  The rest of the jump table and
+ *    some of its jump targets remain as dead code.
+ *
+ *    In such a case we can just crudely ignore all unreachable instruction
+ *    warnings for the entire object file.  Ideally we would just ignore them
+ *    for the function, but that would require redesigning the code quite a
+ *    bit.  And honestly that's just not worth doing: unreachable instruction
+ *    warnings are of questionable value anyway, and this is such a rare issue.
+ *
+ * 3. mov [rodata addr],%reg1
+ *    ... some instructions ...
+ *    jmpq *(%reg1,%reg2,8)
+ *
+ *    This is a fairly uncommon pattern which is new for GCC 6.  As of this
+ *    writing, there are 11 occurrences of it in the allmodconfig kernel.
+ *
+ *    TODO: Once we have DWARF CFI and smarter instruction decoding logic,
+ *    ensure the same register is used in the mov and jump instructions.
+ */
+static struct rela *find_switch_table(struct objtool_file *file,
+				      struct symbol *func,
+				      struct instruction *insn)
+{
+	struct rela *text_rela, *rodata_rela;
+
+	text_rela = find_rela_by_dest_range(insn->sec, insn->offset, insn->len);
+	if (text_rela && text_rela->sym == file->rodata->sym) {
+		/* case 1 */
+		rodata_rela = find_rela_by_dest(file->rodata,
+						text_rela->addend);
+		if (rodata_rela)
+			return rodata_rela;
+
+		/* case 2 */
+		rodata_rela = find_rela_by_dest(file->rodata,
+						text_rela->addend + 4);
+		if (!rodata_rela)
+			return NULL;
+		file->ignore_unreachables = true;
+		return rodata_rela;
+	}
+
+	/* case 3 */
+	func_for_each_insn_continue_reverse(file, func, insn) {
+		if (insn->type == INSN_JUMP_UNCONDITIONAL ||
+		    insn->type == INSN_JUMP_DYNAMIC)
+			break;
+
+		text_rela = find_rela_by_dest_range(insn->sec, insn->offset,
+						    insn->len);
+		if (text_rela && text_rela->sym == file->rodata->sym)
+			return find_rela_by_dest(file->rodata,
+						 text_rela->addend);
+	}
+
+	return NULL;
+}
+
 static int add_func_switch_tables(struct objtool_file *file,
 				  struct symbol *func)
 {
-	struct instruction *insn, *prev_jump;
-	struct rela *text_rela, *rodata_rela, *prev_rela;
+	struct instruction *insn, *prev_jump = NULL;
+	struct rela *rela, *prev_rela = NULL;
 	int ret;
-
-	prev_jump = NULL;
 
 	func_for_each_insn(file, func, insn) {
 		if (insn->type != INSN_JUMP_DYNAMIC)
 			continue;
 
-		text_rela = find_rela_by_dest_range(insn->sec, insn->offset,
-						    insn->len);
-		if (!text_rela || text_rela->sym != file->rodata->sym)
-			continue;
-
-		/* common case: jmpq *[addr](,%rax,8) */
-		rodata_rela = find_rela_by_dest(file->rodata,
-						text_rela->addend);
-
-		/*
-		 * rare case:   jmpq *[addr](%rip)
-		 *
-		 * This check is for a rare gcc quirk, currently only seen in
-		 * three driver functions in the kernel, only with certain
-		 * obscure non-distro configs.
-		 *
-		 * As part of an optimization, gcc makes a copy of an existing
-		 * switch jump table, modifies it, and then hard-codes the jump
-		 * (albeit with an indirect jump) to use a single entry in the
-		 * table.  The rest of the jump table and some of its jump
-		 * targets remain as dead code.
-		 *
-		 * In such a case we can just crudely ignore all unreachable
-		 * instruction warnings for the entire object file.  Ideally we
-		 * would just ignore them for the function, but that would
-		 * require redesigning the code quite a bit.  And honestly
-		 * that's just not worth doing: unreachable instruction
-		 * warnings are of questionable value anyway, and this is such
-		 * a rare issue.
-		 *
-		 * kbuild reports:
-		 * - https://lkml.kernel.org/r/201603231906.LWcVUpxm%25fengguang.wu@intel.com
-		 * - https://lkml.kernel.org/r/201603271114.K9i45biy%25fengguang.wu@intel.com
-		 * - https://lkml.kernel.org/r/201603291058.zuJ6ben1%25fengguang.wu@intel.com
-		 *
-		 * gcc bug:
-		 * - https://gcc.gnu.org/bugzilla/show_bug.cgi?id=70604
-		 */
-		if (!rodata_rela) {
-			rodata_rela = find_rela_by_dest(file->rodata,
-							text_rela->addend + 4);
-			if (rodata_rela)
-				file->ignore_unreachables = true;
-		}
-
-		if (!rodata_rela)
+		rela = find_switch_table(file, func, insn);
+		if (!rela)
 			continue;
 
 		/*
@@ -727,13 +768,13 @@ static int add_func_switch_tables(struct objtool_file *file,
 		 */
 		if (prev_jump) {
 			ret = add_switch_table(file, func, prev_jump, prev_rela,
-					       rodata_rela);
+					       rela);
 			if (ret)
 				return ret;
 		}
 
 		prev_jump = insn;
-		prev_rela = rodata_rela;
+		prev_rela = rela;
 	}
 
 	if (prev_jump) {

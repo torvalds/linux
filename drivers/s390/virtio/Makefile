@@ -6,4 +6,8 @@
 # it under the terms of the GNU General Public License (version 2 only)
 # as published by the Free Software Foundation.
 
-obj-$(CONFIG_S390_GUEST) += kvm_virtio.o virtio_ccw.o
+s390-virtio-objs := virtio_ccw.o
+ifdef CONFIG_S390_GUEST_OLD_TRANSPORT
+s390-virtio-objs += kvm_virtio.o
+endif
+obj-$(CONFIG_S390_GUEST) += $(s390-virtio-objs)

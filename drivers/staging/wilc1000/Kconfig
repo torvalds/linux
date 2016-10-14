@@ -1,6 +1,5 @@
 config WILC1000
 	tristate
-	select WIRELESS_EXT
 	---help---
 	  This module only support IEEE 802.11n WiFi.
 

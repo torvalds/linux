@@ -359,30 +359,28 @@ static bool rtl_pci_check_buddy_priv(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	bool find_buddy_priv = false;
-	struct rtl_priv *tpriv = NULL;
+	struct rtl_priv *tpriv;
 	struct rtl_pci_priv *tpcipriv = NULL;
 
 	if (!list_empty(&rtlpriv->glb_var->glb_priv_list)) {
 		list_for_each_entry(tpriv, &rtlpriv->glb_var->glb_priv_list,
 				    list) {
-			if (tpriv) {
-				tpcipriv = (struct rtl_pci_priv *)tpriv->priv;
-				RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-					 "pcipriv->ndis_adapter.funcnumber %x\n",
-					pcipriv->ndis_adapter.funcnumber);
-				RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-					 "tpcipriv->ndis_adapter.funcnumber %x\n",
-					tpcipriv->ndis_adapter.funcnumber);
+			tpcipriv = (struct rtl_pci_priv *)tpriv->priv;
+			RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
+				 "pcipriv->ndis_adapter.funcnumber %x\n",
+				pcipriv->ndis_adapter.funcnumber);
+			RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
+				 "tpcipriv->ndis_adapter.funcnumber %x\n",
+				tpcipriv->ndis_adapter.funcnumber);
 
-				if ((pcipriv->ndis_adapter.busnumber ==
-				     tpcipriv->ndis_adapter.busnumber) &&
-				    (pcipriv->ndis_adapter.devnumber ==
-				    tpcipriv->ndis_adapter.devnumber) &&
-				    (pcipriv->ndis_adapter.funcnumber !=
-				    tpcipriv->ndis_adapter.funcnumber)) {
-					find_buddy_priv = true;
-					break;
-				}
+			if ((pcipriv->ndis_adapter.busnumber ==
+			     tpcipriv->ndis_adapter.busnumber) &&
+			    (pcipriv->ndis_adapter.devnumber ==
+			    tpcipriv->ndis_adapter.devnumber) &&
+			    (pcipriv->ndis_adapter.funcnumber !=
+			    tpcipriv->ndis_adapter.funcnumber)) {
+				find_buddy_priv = true;
+				break;
 			}
 		}
 	}
@@ -1213,7 +1211,8 @@ static void _rtl_pci_init_struct(struct ieee80211_hw *hw,
 	/*Tx/Rx related var */
 	_rtl_pci_init_trx_var(hw);
 
-	/*IBSS*/ mac->beacon_interval = 100;
+	/*IBSS*/
+	mac->beacon_interval = 100;
 
 	/*AMPDU*/
 	mac->min_space_cfg = 0;
@@ -1573,7 +1572,7 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw)
 							 true,
 							 HW_DESC_TXBUFF_ADDR),
 						 skb->len, PCI_DMA_TODEVICE);
-				kfree_skb(skb);
+				dev_kfree_skb_irq(skb);
 				ring->idx = (ring->idx + 1) % ring->entries;
 			}
 			ring->idx = 0;
@@ -2457,7 +2456,7 @@ int rtl_pci_resume(struct device *dev)
 EXPORT_SYMBOL(rtl_pci_resume);
 #endif /* CONFIG_PM_SLEEP */
 
-struct rtl_intf_ops rtl_pci_ops = {
+const struct rtl_intf_ops rtl_pci_ops = {
 	.read_efuse_byte = read_efuse_byte,
 	.adapter_start = rtl_pci_start,
 	.adapter_stop = rtl_pci_stop,

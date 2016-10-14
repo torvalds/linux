@@ -125,6 +125,7 @@ static void ima_check_last_writer(struct integrity_iint_cache *iint,
 		if ((iint->version != inode->i_version) ||
 		    (iint->flags & IMA_NEW_FILE)) {
 			iint->flags &= ~(IMA_DONE_MASK | IMA_NEW_FILE);
+			iint->measured_pcrs = 0;
 			if (iint->flags & IMA_APPRAISE)
 				ima_update_xattr(iint, file);
 		}
@@ -162,6 +163,7 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 	char *pathbuf = NULL;
 	const char *pathname = NULL;
 	int rc = -ENOMEM, action, must_appraise;
+	int pcr = CONFIG_IMA_MEASURE_PCR_IDX;
 	struct evm_ima_xattr_data *xattr_value = NULL;
 	int xattr_len = 0;
 	bool violation_check;
@@ -174,7 +176,7 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 	 * bitmask based on the appraise/audit/measurement policy.
 	 * Included is the appraise submask.
 	 */
-	action = ima_get_action(inode, mask, func);
+	action = ima_get_action(inode, mask, func, &pcr);
 	violation_check = ((func == FILE_CHECK || func == MMAP_CHECK) &&
 			   (ima_policy_flag & IMA_MEASURE));
 	if (!action && !violation_check)
@@ -209,7 +211,11 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 	 */
 	iint->flags |= action;
 	action &= IMA_DO_MASK;
-	action &= ~((iint->flags & IMA_DONE_MASK) >> 1);
+	action &= ~((iint->flags & (IMA_DONE_MASK ^ IMA_MEASURED)) >> 1);
+
+	/* If target pcr is already measured, unset IMA_MEASURE action */
+	if ((action & IMA_MEASURE) && (iint->measured_pcrs & (0x1 << pcr)))
+		action ^= IMA_MEASURE;
 
 	/* Nothing to do, just return existing appraised status */
 	if (!action) {
@@ -238,7 +244,7 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 
 	if (action & IMA_MEASURE)
 		ima_store_measurement(iint, file, pathname,
-				      xattr_value, xattr_len);
+				      xattr_value, xattr_len, pcr);
 	if (action & IMA_APPRAISE_SUBMASK)
 		rc = ima_appraise_measurement(func, iint, file, pathname,
 					      xattr_value, xattr_len, opened);
@@ -246,7 +252,8 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 		ima_audit_measurement(iint, pathname);
 
 out_digsig:
-	if ((mask & MAY_WRITE) && (iint->flags & IMA_DIGSIG))
+	if ((mask & MAY_WRITE) && (iint->flags & IMA_DIGSIG) &&
+	     !(iint->flags & IMA_NEW_FILE))
 		rc = -EACCES;
 	kfree(xattr_value);
 out_free:
@@ -314,6 +321,28 @@ int ima_file_check(struct file *file, int mask, int opened)
 				   FILE_CHECK, opened);
 }
 EXPORT_SYMBOL_GPL(ima_file_check);
+
+/**
+ * ima_post_path_mknod - mark as a new inode
+ * @dentry: newly created dentry
+ *
+ * Mark files created via the mknodat syscall as new, so that the
+ * file data can be written later.
+ */
+void ima_post_path_mknod(struct dentry *dentry)
+{
+	struct integrity_iint_cache *iint;
+	struct inode *inode = dentry->d_inode;
+	int must_appraise;
+
+	must_appraise = ima_must_appraise(inode, MAY_ACCESS, FILE_CHECK);
+	if (!must_appraise)
+		return;
+
+	iint = integrity_inode_get(inode);
+	if (iint)
+		iint->flags |= IMA_NEW_FILE;
+}
 
 /**
  * ima_read_file - pre-measure/appraise hook decision based on policy

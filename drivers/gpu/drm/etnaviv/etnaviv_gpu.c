@@ -487,6 +487,47 @@ static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 	return 0;
 }
 
+static void etnaviv_gpu_enable_mlcg(struct etnaviv_gpu *gpu)
+{
+	u32 pmc, ppc;
+
+	/* enable clock gating */
+	ppc = gpu_read(gpu, VIVS_PM_POWER_CONTROLS);
+	ppc |= VIVS_PM_POWER_CONTROLS_ENABLE_MODULE_CLOCK_GATING;
+
+	/* Disable stall module clock gating for 4.3.0.1 and 4.3.0.2 revs */
+	if (gpu->identity.revision == 0x4301 ||
+	    gpu->identity.revision == 0x4302)
+		ppc |= VIVS_PM_POWER_CONTROLS_DISABLE_STALL_MODULE_CLOCK_GATING;
+
+	gpu_write(gpu, VIVS_PM_POWER_CONTROLS, ppc);
+
+	pmc = gpu_read(gpu, VIVS_PM_MODULE_CONTROLS);
+
+	/* Disable PA clock gating for GC400+ except for GC420 */
+	if (gpu->identity.model >= chipModel_GC400 &&
+	    gpu->identity.model != chipModel_GC420)
+		pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_PA;
+
+	/*
+	 * Disable PE clock gating on revs < 5.0.0.0 when HZ is
+	 * present without a bug fix.
+	 */
+	if (gpu->identity.revision < 0x5000 &&
+	    gpu->identity.minor_features0 & chipMinorFeatures0_HZ &&
+	    !(gpu->identity.minor_features1 &
+	      chipMinorFeatures1_DISABLE_PE_GATING))
+		pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_PE;
+
+	if (gpu->identity.revision < 0x5422)
+		pmc |= BIT(15); /* Unknown bit */
+
+	pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_RA_HZ;
+	pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_RA_EZ;
+
+	gpu_write(gpu, VIVS_PM_MODULE_CONTROLS, pmc);
+}
+
 static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 {
 	u16 prefetch;
@@ -505,6 +546,9 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 
 		gpu_write(gpu, VIVS_MC_DEBUG_MEMORY, mc_memory_debug);
 	}
+
+	/* enable module-level clock gating */
+	etnaviv_gpu_enable_mlcg(gpu);
 
 	/*
 	 * Update GPU AXI cache atttribute to "cacheable, no allocate".
@@ -553,8 +597,10 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	bool mmuv2;
 
 	ret = pm_runtime_get_sync(gpu->dev);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(gpu->dev, "Failed to enable GPU power domain\n");
 		return ret;
+	}
 
 	etnaviv_hw_identify(gpu);
 
@@ -591,8 +637,10 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	}
 
 	ret = etnaviv_hw_reset(gpu);
-	if (ret)
+	if (ret) {
+		dev_err(gpu->dev, "GPU reset failed\n");
 		goto fail;
+	}
 
 	/* Setup IOMMU.. eventually we will (I think) do this once per context
 	 * and have separate page tables per context.  For now, to keep things
@@ -610,12 +658,14 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	}
 
 	if (!iommu) {
+		dev_err(gpu->dev, "Failed to allocate GPU IOMMU domain\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
 
 	gpu->mmu = etnaviv_iommu_new(gpu, iommu, version);
 	if (!gpu->mmu) {
+		dev_err(gpu->dev, "Failed to instantiate GPU IOMMU\n");
 		iommu_domain_free(iommu);
 		ret = -ENOMEM;
 		goto fail;
@@ -796,9 +846,9 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 	    debug.state[0] == debug.state[1]) {
 		seq_puts(m, "seems to be stuck\n");
 	} else if (debug.address[0] == debug.address[1]) {
-		seq_puts(m, "adress is constant\n");
+		seq_puts(m, "address is constant\n");
 	} else {
-		seq_puts(m, "is runing\n");
+		seq_puts(m, "is running\n");
 	}
 
 	seq_printf(m, "\t address 0: 0x%08x\n", debug.address[0]);
@@ -1283,8 +1333,6 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&gpu->lock);
-
 	/*
 	 * TODO
 	 *
@@ -1298,15 +1346,17 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	if (unlikely(event == ~0U)) {
 		DRM_ERROR("no free event\n");
 		ret = -EBUSY;
-		goto out_unlock;
+		goto out_pm_put;
 	}
 
 	fence = etnaviv_gpu_fence_alloc(gpu);
 	if (!fence) {
 		event_free(gpu, event);
 		ret = -ENOMEM;
-		goto out_unlock;
+		goto out_pm_put;
 	}
+
+	mutex_lock(&gpu->lock);
 
 	gpu->event[event].fence = fence;
 	submit->fence = fence->seqno;
@@ -1345,9 +1395,9 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 	hangcheck_timer_reset(gpu);
 	ret = 0;
 
-out_unlock:
 	mutex_unlock(&gpu->lock);
 
+out_pm_put:
 	etnaviv_gpu_pm_put(gpu);
 
 	return ret;
@@ -1528,8 +1578,8 @@ static int etnaviv_gpu_bind(struct device *dev, struct device *master,
 	INIT_WORK(&gpu->recover_work, recover_worker);
 	init_waitqueue_head(&gpu->fence_event);
 
-	setup_timer(&gpu->hangcheck_timer, hangcheck_handler,
-			(unsigned long)gpu);
+	setup_deferrable_timer(&gpu->hangcheck_timer, hangcheck_handler,
+			       (unsigned long)gpu);
 
 	priv->gpu[priv->num_gpus++] = gpu;
 

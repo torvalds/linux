@@ -71,7 +71,7 @@ int test__perf_time_to_tsc(int subtest __maybe_unused)
 
 	CHECK__(parse_events(evlist, "cycles:u", NULL));
 
-	perf_evlist__config(evlist, &opts);
+	perf_evlist__config(evlist, &opts, NULL);
 
 	evsel = perf_evlist__first(evlist);
 
@@ -154,10 +154,6 @@ next_event:
 	err = 0;
 
 out_err:
-	if (evlist) {
-		perf_evlist__disable(evlist);
-		perf_evlist__delete(evlist);
-	}
-
+	perf_evlist__delete(evlist);
 	return err;
 }

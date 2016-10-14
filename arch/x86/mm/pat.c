@@ -11,7 +11,6 @@
 #include <linux/bootmem.h>
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/pfn_t.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
@@ -40,11 +39,22 @@
 static bool boot_cpu_done;
 
 static int __read_mostly __pat_enabled = IS_ENABLED(CONFIG_X86_PAT);
+static void init_cache_modes(void);
 
-static inline void pat_disable(const char *reason)
+void pat_disable(const char *reason)
 {
+	if (!__pat_enabled)
+		return;
+
+	if (boot_cpu_done) {
+		WARN_ONCE(1, "x86/PAT: PAT cannot be disabled after initialization\n");
+		return;
+	}
+
 	__pat_enabled = 0;
 	pr_info("x86/PAT: %s\n", reason);
+
+	init_cache_modes();
 }
 
 static int __init nopat(char *str)
@@ -181,7 +191,7 @@ static enum page_cache_mode pat_get_cache_mode(unsigned pat_val, char *msg)
  * configuration.
  * Using lower indices is preferred, so we start with highest index.
  */
-void pat_init_cache_modes(u64 pat)
+static void __init_cache_modes(u64 pat)
 {
 	enum page_cache_mode cache;
 	char pat_msg[33];
@@ -202,13 +212,10 @@ static void pat_bsp_init(u64 pat)
 {
 	u64 tmp_pat;
 
-	if (!cpu_has_pat) {
+	if (!boot_cpu_has(X86_FEATURE_PAT)) {
 		pat_disable("PAT not supported by CPU.");
 		return;
 	}
-
-	if (!pat_enabled())
-		goto done;
 
 	rdmsrl(MSR_IA32_CR_PAT, tmp_pat);
 	if (!tmp_pat) {
@@ -218,16 +225,12 @@ static void pat_bsp_init(u64 pat)
 
 	wrmsrl(MSR_IA32_CR_PAT, pat);
 
-done:
-	pat_init_cache_modes(pat);
+	__init_cache_modes(pat);
 }
 
 static void pat_ap_init(u64 pat)
 {
-	if (!pat_enabled())
-		return;
-
-	if (!cpu_has_pat) {
+	if (!boot_cpu_has(X86_FEATURE_PAT)) {
 		/*
 		 * If this happens we are on a secondary CPU, but switched to
 		 * PAT on the boot CPU. We have no way to undo PAT.
@@ -238,18 +241,32 @@ static void pat_ap_init(u64 pat)
 	wrmsrl(MSR_IA32_CR_PAT, pat);
 }
 
-void pat_init(void)
+static void init_cache_modes(void)
 {
-	u64 pat;
-	struct cpuinfo_x86 *c = &boot_cpu_data;
+	u64 pat = 0;
+	static int init_cm_done;
 
-	if (!pat_enabled()) {
+	if (init_cm_done)
+		return;
+
+	if (boot_cpu_has(X86_FEATURE_PAT)) {
+		/*
+		 * CPU supports PAT. Set PAT table to be consistent with
+		 * PAT MSR. This case supports "nopat" boot option, and
+		 * virtual machine environments which support PAT without
+		 * MTRRs. In specific, Xen has unique setup to PAT MSR.
+		 *
+		 * If PAT MSR returns 0, it is considered invalid and emulates
+		 * as No PAT.
+		 */
+		rdmsrl(MSR_IA32_CR_PAT, pat);
+	}
+
+	if (!pat) {
 		/*
 		 * No PAT. Emulate the PAT table that corresponds to the two
-		 * cache bits, PWT (Write Through) and PCD (Cache Disable). This
-		 * setup is the same as the BIOS default setup when the system
-		 * has PAT but the "nopat" boot option has been specified. This
-		 * emulated PAT table is used when MSR_IA32_CR_PAT returns 0.
+		 * cache bits, PWT (Write Through) and PCD (Cache Disable).
+		 * This setup is also the same as the BIOS default setup.
 		 *
 		 * PTE encoding:
 		 *
@@ -266,10 +283,36 @@ void pat_init(void)
 		 */
 		pat = PAT(0, WB) | PAT(1, WT) | PAT(2, UC_MINUS) | PAT(3, UC) |
 		      PAT(4, WB) | PAT(5, WT) | PAT(6, UC_MINUS) | PAT(7, UC);
+	}
 
-	} else if ((c->x86_vendor == X86_VENDOR_INTEL) &&
-		   (((c->x86 == 0x6) && (c->x86_model <= 0xd)) ||
-		    ((c->x86 == 0xf) && (c->x86_model <= 0x6)))) {
+	__init_cache_modes(pat);
+
+	init_cm_done = 1;
+}
+
+/**
+ * pat_init - Initialize PAT MSR and PAT table
+ *
+ * This function initializes PAT MSR and PAT table with an OS-defined value
+ * to enable additional cache attributes, WC and WT.
+ *
+ * This function must be called on all CPUs using the specific sequence of
+ * operations defined in Intel SDM. mtrr_rendezvous_handler() provides this
+ * procedure for PAT.
+ */
+void pat_init(void)
+{
+	u64 pat;
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+
+	if (!pat_enabled()) {
+		init_cache_modes();
+		return;
+	}
+
+	if ((c->x86_vendor == X86_VENDOR_INTEL) &&
+	    (((c->x86 == 0x6) && (c->x86_model <= 0xd)) ||
+	     ((c->x86 == 0xf) && (c->x86_model <= 0x6)))) {
 		/*
 		 * PAT support with the lower four entries. Intel Pentium 2,
 		 * 3, M, and 4 are affected by PAT errata, which makes the
@@ -711,11 +754,8 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 		return 1;
 
 	while (cursor < to) {
-		if (!devmem_is_allowed(pfn)) {
-			pr_info("x86/PAT: Program %s tried to access /dev/mem between [mem %#010Lx-%#010Lx], PAT prevents it\n",
-				current->comm, from, to - 1);
+		if (!devmem_is_allowed(pfn))
 			return 0;
-		}
 		cursor += PAGE_SIZE;
 		pfn++;
 	}
@@ -733,25 +773,6 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 
 	if (file->f_flags & O_DSYNC)
 		pcm = _PAGE_CACHE_MODE_UC_MINUS;
-
-#ifdef CONFIG_X86_32
-	/*
-	 * On the PPro and successors, the MTRRs are used to set
-	 * memory types for physical addresses outside main memory,
-	 * so blindly setting UC or PWT on those pages is wrong.
-	 * For Pentiums and earlier, the surround logic should disable
-	 * caching for the high addresses through the KEN pin, but
-	 * we maintain the tradition of paranoia in this code.
-	 */
-	if (!pat_enabled() &&
-	    !(boot_cpu_has(X86_FEATURE_MTRR) ||
-	      boot_cpu_has(X86_FEATURE_K6_MTRR) ||
-	      boot_cpu_has(X86_FEATURE_CYRIX_ARR) ||
-	      boot_cpu_has(X86_FEATURE_CENTAUR_MCR)) &&
-	    (pfn << PAGE_SHIFT) >= __pa(high_memory)) {
-		pcm = _PAGE_CACHE_MODE_UC;
-	}
-#endif
 
 	*vma_prot = __pgprot((pgprot_val(*vma_prot) & ~_PAGE_CACHE_MASK) |
 			     cachemode2protval(pcm));
@@ -906,9 +927,10 @@ int track_pfn_copy(struct vm_area_struct *vma)
 }
 
 /*
- * prot is passed in as a parameter for the new mapping. If the vma has a
- * linear pfn mapping for the entire range reserve the entire vma range with
- * single reserve_pfn_range call.
+ * prot is passed in as a parameter for the new mapping. If the vma has
+ * a linear pfn mapping for the entire range, or no vma is provided,
+ * reserve the entire pfn + size range with single reserve_pfn_range
+ * call.
  */
 int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
 		    unsigned long pfn, unsigned long addr, unsigned long size)
@@ -917,11 +939,12 @@ int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
 	enum page_cache_mode pcm;
 
 	/* reserve the whole chunk starting from paddr */
-	if (addr == vma->vm_start && size == (vma->vm_end - vma->vm_start)) {
+	if (!vma || (addr == vma->vm_start
+				&& size == (vma->vm_end - vma->vm_start))) {
 		int ret;
 
 		ret = reserve_pfn_range(paddr, size, prot, 0);
-		if (!ret)
+		if (ret == 0 && vma)
 			vma->vm_flags |= VM_PAT;
 		return ret;
 	}
@@ -976,7 +999,7 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
 	resource_size_t paddr;
 	unsigned long prot;
 
-	if (!(vma->vm_flags & VM_PAT))
+	if (vma && !(vma->vm_flags & VM_PAT))
 		return;
 
 	/* free the chunk starting from pfn or the whole chunk */
@@ -990,7 +1013,8 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
 		size = vma->vm_end - vma->vm_start;
 	}
 	free_pfn_range(paddr, size);
-	vma->vm_flags &= ~VM_PAT;
+	if (vma)
+		vma->vm_flags &= ~VM_PAT;
 }
 
 /*

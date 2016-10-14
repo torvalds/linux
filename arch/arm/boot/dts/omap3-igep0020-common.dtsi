@@ -60,7 +60,7 @@
 		vcc-supply = <&hsusb1_power>;
 	};
 
-	tfp410: encoder@0 {
+	tfp410: encoder {
 		compatible = "ti,tfp410";
 		powerdown-gpios = <&gpio6 10 GPIO_ACTIVE_LOW>; /* gpio_170 */
 
@@ -71,7 +71,7 @@
 			port@0 {
 				reg = <0>;
 
-				tfp410_in: endpoint@0 {
+				tfp410_in: endpoint {
 					remote-endpoint = <&dpi_out>;
 				};
 			};
@@ -79,14 +79,14 @@
 			port@1 {
 				reg = <1>;
 
-				tfp410_out: endpoint@0 {
+				tfp410_out: endpoint {
 					remote-endpoint = <&dvi_connector_in>;
 				};
 			};
 		};
 	};
 
-	dvi0: connector@0 {
+	dvi0: connector {
 		compatible = "dvi-connector";
 		label = "dvi";
 
@@ -194,6 +194,12 @@
 			OMAP3630_CORE2_IOPAD(0x25f8, PIN_OUTPUT | MUX_MODE4) /* etk_d14.gpio_28 */
 		>;
 	};
+
+	mmc1_wp_pins: pinmux_mmc1_cd_pins {
+		pinctrl-single,pins = <
+			OMAP3630_CORE2_IOPAD(0x25fa, PIN_INPUT | MUX_MODE4)   /* etk_d15.gpio_29 */
+		>;
+	};
 };
 
 &i2c3 {
@@ -249,4 +255,9 @@
 			data-lines = <24>;
 		};
 	};
+};
+
+&mmc1 {
+	pinctrl-0 = <&mmc1_pins &mmc1_wp_pins>;
+	wp-gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;	/* gpio_29 */
 };

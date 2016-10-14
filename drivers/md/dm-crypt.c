@@ -181,7 +181,7 @@ struct crypt_config {
 	u8 key[0];
 };
 
-#define MIN_IOS        16
+#define MIN_IOS        64
 
 static void clone_init(struct dm_crypt_io *, struct bio *);
 static void kcryptd_queue_crypt(struct dm_crypt_io *io);
@@ -683,7 +683,7 @@ static int crypt_iv_tcw_whitening(struct crypt_config *cc,
 				  u8 *data)
 {
 	struct iv_tcw_private *tcw = &cc->iv_gen_private.tcw;
-	u64 sector = cpu_to_le64((u64)dmreq->iv_sector);
+	__le64 sector = cpu_to_le64(dmreq->iv_sector);
 	u8 buf[TCW_WHITENING_SIZE];
 	SHASH_DESC_ON_STACK(desc, tcw->crc32_tfm);
 	int i, r;
@@ -722,7 +722,7 @@ static int crypt_iv_tcw_gen(struct crypt_config *cc, u8 *iv,
 			    struct dm_crypt_request *dmreq)
 {
 	struct iv_tcw_private *tcw = &cc->iv_gen_private.tcw;
-	u64 sector = cpu_to_le64((u64)dmreq->iv_sector);
+	__le64 sector = cpu_to_le64(dmreq->iv_sector);
 	u8 *src;
 	int r = 0;
 
@@ -1136,7 +1136,7 @@ static void clone_init(struct dm_crypt_io *io, struct bio *clone)
 	clone->bi_private = io;
 	clone->bi_end_io  = crypt_endio;
 	clone->bi_bdev    = cc->dev->bdev;
-	clone->bi_rw      = io->base_bio->bi_rw;
+	bio_set_op_attrs(clone, bio_op(io->base_bio), io->base_bio->bi_opf);
 }
 
 static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
@@ -1453,7 +1453,7 @@ static int crypt_alloc_tfms(struct crypt_config *cc, char *ciphermode)
 	unsigned i;
 	int err;
 
-	cc->tfms = kmalloc(cc->tfms_count * sizeof(struct crypto_skcipher *),
+	cc->tfms = kzalloc(cc->tfms_count * sizeof(struct crypto_skcipher *),
 			   GFP_KERNEL);
 	if (!cc->tfms)
 		return -ENOMEM;
@@ -1911,17 +1911,25 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 	struct crypt_config *cc = ti->private;
 
 	/*
-	 * If bio is REQ_FLUSH or REQ_DISCARD, just bypass crypt queues.
-	 * - for REQ_FLUSH device-mapper core ensures that no IO is in-flight
-	 * - for REQ_DISCARD caller must use flush if IO ordering matters
+	 * If bio is REQ_PREFLUSH or REQ_OP_DISCARD, just bypass crypt queues.
+	 * - for REQ_PREFLUSH device-mapper core ensures that no IO is in-flight
+	 * - for REQ_OP_DISCARD caller must use flush if IO ordering matters
 	 */
-	if (unlikely(bio->bi_rw & (REQ_FLUSH | REQ_DISCARD))) {
+	if (unlikely(bio->bi_opf & REQ_PREFLUSH ||
+	    bio_op(bio) == REQ_OP_DISCARD)) {
 		bio->bi_bdev = cc->dev->bdev;
 		if (bio_sectors(bio))
 			bio->bi_iter.bi_sector = cc->start +
 				dm_target_offset(ti, bio->bi_iter.bi_sector);
 		return DM_MAPIO_REMAPPED;
 	}
+
+	/*
+	 * Check if bio is too large, split as needed.
+	 */
+	if (unlikely(bio->bi_iter.bi_size > (BIO_MAX_PAGES << PAGE_SHIFT)) &&
+	    bio_data_dir(bio) == WRITE)
+		dm_accept_partial_bio(bio, ((BIO_MAX_PAGES << PAGE_SHIFT) >> SECTOR_SHIFT));
 
 	io = dm_per_bio_data(bio, cc->per_bio_data_size);
 	crypt_io_init(io, cc, bio, dm_target_offset(ti, bio->bi_iter.bi_sector));

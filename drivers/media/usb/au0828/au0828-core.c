@@ -131,22 +131,36 @@ static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 	return status;
 }
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+static void au0828_media_graph_notify(struct media_entity *new,
+				      void *notify_data);
+#endif
+
 static void au0828_unregister_media_device(struct au0828_dev *dev)
 {
-
 #ifdef CONFIG_MEDIA_CONTROLLER
-	if (dev->media_dev &&
-		media_devnode_is_registered(&dev->media_dev->devnode)) {
-		/* clear enable_source, disable_source */
-		dev->media_dev->source_priv = NULL;
-		dev->media_dev->enable_source = NULL;
-		dev->media_dev->disable_source = NULL;
+	struct media_device *mdev = dev->media_dev;
+	struct media_entity_notify *notify, *nextp;
 
-		media_device_unregister(dev->media_dev);
-		media_device_cleanup(dev->media_dev);
-		kfree(dev->media_dev);
-		dev->media_dev = NULL;
+	if (!mdev || !media_devnode_is_registered(mdev->devnode))
+		return;
+
+	/* Remove au0828 entity_notify callbacks */
+	list_for_each_entry_safe(notify, nextp, &mdev->entity_notify, list) {
+		if (notify->notify != au0828_media_graph_notify)
+			continue;
+		media_device_unregister_entity_notify(mdev, notify);
 	}
+
+	/* clear enable_source, disable_source */
+	dev->media_dev->source_priv = NULL;
+	dev->media_dev->enable_source = NULL;
+	dev->media_dev->disable_source = NULL;
+
+	media_device_unregister(dev->media_dev);
+	media_device_cleanup(dev->media_dev);
+	kfree(dev->media_dev);
+	dev->media_dev = NULL;
 #endif
 }
 
@@ -468,7 +482,7 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 	if (!dev->media_dev)
 		return 0;
 
-	if (!media_devnode_is_registered(&dev->media_dev->devnode)) {
+	if (!media_devnode_is_registered(dev->media_dev->devnode)) {
 
 		/* register media device */
 		ret = media_device_register(dev->media_dev);

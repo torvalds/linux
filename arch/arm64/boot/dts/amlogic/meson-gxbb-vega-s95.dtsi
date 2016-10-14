@@ -45,6 +45,10 @@
 / {
 	compatible = "tronsmart,vega-s95", "amlogic,meson-gxbb";
 
+	aliases {
+		serial0 = &uart_AO;
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
@@ -52,4 +56,7 @@
 
 &uart_AO {
 	status = "okay";
+	pinctrl-0 = <&uart_ao_a_pins>;
+	pinctrl-names = "default";
+
 };

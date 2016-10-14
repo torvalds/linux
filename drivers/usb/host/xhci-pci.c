@@ -37,6 +37,7 @@
 /* Device for a quirk */
 #define PCI_VENDOR_ID_FRESCO_LOGIC	0x1b73
 #define PCI_DEVICE_ID_FRESCO_LOGIC_PDK	0x1000
+#define PCI_DEVICE_ID_FRESCO_LOGIC_FL1009	0x1009
 #define PCI_DEVICE_ID_FRESCO_LOGIC_FL1400	0x1400
 
 #define PCI_VENDOR_ID_ETRON		0x1b6f
@@ -113,6 +114,10 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 				pdev->revision);
 		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
 	}
+
+	if (pdev->vendor == PCI_VENDOR_ID_FRESCO_LOGIC &&
+			pdev->device == PCI_DEVICE_ID_FRESCO_LOGIC_FL1009)
+		xhci->quirks |= XHCI_BROKEN_STREAMS;
 
 	if (pdev->vendor == PCI_VENDOR_ID_NEC)
 		xhci->quirks |= XHCI_NEC_HOST;
@@ -309,11 +314,12 @@ static void xhci_pci_remove(struct pci_dev *dev)
 		usb_remove_hcd(xhci->shared_hcd);
 		usb_put_hcd(xhci->shared_hcd);
 	}
-	usb_hcd_pci_remove(dev);
 
 	/* Workaround for spurious wakeups at shutdown with HSW */
 	if (xhci->quirks & XHCI_SPURIOUS_WAKEUP)
 		pci_set_power_state(dev, PCI_D3hot);
+
+	usb_hcd_pci_remove(dev);
 }
 
 #ifdef CONFIG_PM
@@ -382,7 +388,7 @@ static int xhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 	 * need to have the registers polled during D3, so avoid D3cold.
 	 */
 	if (xhci->quirks & XHCI_COMP_MODE_QUIRK)
-		pdev->no_d3cold = true;
+		pci_d3cold_disable(pdev);
 
 	if (xhci->quirks & XHCI_PME_STUCK_QUIRK)
 		xhci_pme_quirk(hcd);

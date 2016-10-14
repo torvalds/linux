@@ -67,6 +67,8 @@ struct snd_compr_file {
 	struct snd_compr_stream stream;
 };
 
+static void error_delayed_work(struct work_struct *work);
+
 /*
  * a note on stream states used:
  * we use following states in the compressed core
@@ -123,6 +125,9 @@ static int snd_compr_open(struct inode *inode, struct file *f)
 		snd_card_unref(compr->card);
 		return -ENOMEM;
 	}
+
+	INIT_DELAYED_WORK(&data->stream.error_work, error_delayed_work);
+
 	data->stream.ops = compr->ops;
 	data->stream.direction = dirn;
 	data->stream.private_data = compr->private_data;
@@ -152,6 +157,8 @@ static int snd_compr_free(struct inode *inode, struct file *f)
 {
 	struct snd_compr_file *data = f->private_data;
 	struct snd_compr_runtime *runtime = data->stream.runtime;
+
+	cancel_delayed_work_sync(&data->stream.error_work);
 
 	switch (runtime->state) {
 	case SNDRV_PCM_STATE_RUNNING:
@@ -237,6 +244,15 @@ snd_compr_ioctl_avail(struct snd_compr_stream *stream, unsigned long arg)
 	avail = snd_compr_calc_avail(stream, &ioctl_avail);
 	ioctl_avail.avail = avail;
 
+	switch (stream->runtime->state) {
+	case SNDRV_PCM_STATE_OPEN:
+		return -EBADFD;
+	case SNDRV_PCM_STATE_XRUN:
+		return -EPIPE;
+	default:
+		break;
+	}
+
 	if (copy_to_user((__u64 __user *)arg,
 				&ioctl_avail, sizeof(ioctl_avail)))
 		return -EFAULT;
@@ -288,9 +304,12 @@ static ssize_t snd_compr_write(struct file *f, const char __user *buf,
 	stream = &data->stream;
 	mutex_lock(&stream->device->lock);
 	/* write is allowed when stream is running or has been steup */
-	if (stream->runtime->state != SNDRV_PCM_STATE_SETUP &&
-	    stream->runtime->state != SNDRV_PCM_STATE_PREPARED &&
-			stream->runtime->state != SNDRV_PCM_STATE_RUNNING) {
+	switch (stream->runtime->state) {
+	case SNDRV_PCM_STATE_SETUP:
+	case SNDRV_PCM_STATE_PREPARED:
+	case SNDRV_PCM_STATE_RUNNING:
+		break;
+	default:
 		mutex_unlock(&stream->device->lock);
 		return -EBADFD;
 	}
@@ -343,10 +362,12 @@ static ssize_t snd_compr_read(struct file *f, char __user *buf,
 	switch (stream->runtime->state) {
 	case SNDRV_PCM_STATE_OPEN:
 	case SNDRV_PCM_STATE_PREPARED:
-	case SNDRV_PCM_STATE_XRUN:
 	case SNDRV_PCM_STATE_SUSPENDED:
 	case SNDRV_PCM_STATE_DISCONNECTED:
 		retval = -EBADFD;
+		goto out;
+	case SNDRV_PCM_STATE_XRUN:
+		retval = -EPIPE;
 		goto out;
 	}
 
@@ -391,16 +412,21 @@ static unsigned int snd_compr_poll(struct file *f, poll_table *wait)
 	int retval = 0;
 
 	if (snd_BUG_ON(!data))
-		return -EFAULT;
+		return POLLERR;
+
 	stream = &data->stream;
-	if (snd_BUG_ON(!stream))
-		return -EFAULT;
 
 	mutex_lock(&stream->device->lock);
-	if (stream->runtime->state == SNDRV_PCM_STATE_OPEN) {
-		retval = -EBADFD;
+
+	switch (stream->runtime->state) {
+	case SNDRV_PCM_STATE_OPEN:
+	case SNDRV_PCM_STATE_XRUN:
+		retval = snd_compr_get_poll(stream) | POLLERR;
 		goto out;
+	default:
+		break;
 	}
+
 	poll_wait(f, &stream->runtime->sleep, wait);
 
 	avail = snd_compr_get_avail(stream);
@@ -421,10 +447,7 @@ static unsigned int snd_compr_poll(struct file *f, poll_table *wait)
 			retval = snd_compr_get_poll(stream);
 		break;
 	default:
-		if (stream->direction == SND_COMPRESS_PLAYBACK)
-			retval = POLLOUT | POLLWRNORM | POLLERR;
-		else
-			retval = POLLIN | POLLRDNORM | POLLERR;
+		retval = snd_compr_get_poll(stream) | POLLERR;
 		break;
 	}
 out:
@@ -698,6 +721,45 @@ static int snd_compr_stop(struct snd_compr_stream *stream)
 	return retval;
 }
 
+static void error_delayed_work(struct work_struct *work)
+{
+	struct snd_compr_stream *stream;
+
+	stream = container_of(work, struct snd_compr_stream, error_work.work);
+
+	mutex_lock(&stream->device->lock);
+
+	stream->ops->trigger(stream, SNDRV_PCM_TRIGGER_STOP);
+	wake_up(&stream->runtime->sleep);
+
+	mutex_unlock(&stream->device->lock);
+}
+
+/*
+ * snd_compr_stop_error: Report a fatal error on a stream
+ * @stream: pointer to stream
+ * @state: state to transition the stream to
+ *
+ * Stop the stream and set its state.
+ *
+ * Should be called with compressed device lock held.
+ */
+int snd_compr_stop_error(struct snd_compr_stream *stream,
+			 snd_pcm_state_t state)
+{
+	if (stream->runtime->state == state)
+		return 0;
+
+	stream->runtime->state = state;
+
+	pr_debug("Changing state to: %d\n", state);
+
+	queue_delayed_work(system_power_efficient_wq, &stream->error_work, 0);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_compr_stop_error);
+
 static int snd_compress_wait_for_drain(struct snd_compr_stream *stream)
 {
 	int ret;
@@ -802,9 +864,9 @@ static long snd_compr_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 
 	if (snd_BUG_ON(!data))
 		return -EFAULT;
+
 	stream = &data->stream;
-	if (snd_BUG_ON(!stream))
-		return -EFAULT;
+
 	mutex_lock(&stream->device->lock);
 	switch (_IOC_NR(cmd)) {
 	case _IOC_NR(SNDRV_COMPRESS_IOCTL_VERSION):

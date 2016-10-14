@@ -93,7 +93,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	 */
 	node = *object_ptr;
 	source_desc = acpi_ns_get_attached_object(node);
-	entry_type = acpi_ns_get_type((acpi_handle) node);
+	entry_type = acpi_ns_get_type((acpi_handle)node);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Entry=%p SourceDesc=%p [%s]\n",
 			  node, source_desc,
@@ -106,7 +106,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 		node = ACPI_CAST_PTR(struct acpi_namespace_node, node->object);
 		source_desc = acpi_ns_get_attached_object(node);
-		entry_type = acpi_ns_get_type((acpi_handle) node);
+		entry_type = acpi_ns_get_type((acpi_handle)node);
 		*object_ptr = node;
 	}
 

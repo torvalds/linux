@@ -76,7 +76,6 @@
 
 #include <linux/types.h>
 #include <linux/compiler.h>
-#include <linux/bug.h>
 
 extern bool static_key_initialized;
 
@@ -115,13 +114,6 @@ enum jump_label_type {
 
 struct module;
 
-#include <linux/atomic.h>
-
-static inline int static_key_count(struct static_key *key)
-{
-	return atomic_read(&key->enabled);
-}
-
 #ifdef HAVE_JUMP_LABEL
 
 #define JUMP_TYPE_FALSE	0UL
@@ -152,15 +144,33 @@ extern int jump_label_text_reserved(void *start, void *end);
 extern void static_key_slow_inc(struct static_key *key);
 extern void static_key_slow_dec(struct static_key *key);
 extern void jump_label_apply_nops(struct module *mod);
+extern int static_key_count(struct static_key *key);
+extern void static_key_enable(struct static_key *key);
+extern void static_key_disable(struct static_key *key);
 
+/*
+ * We should be using ATOMIC_INIT() for initializing .enabled, but
+ * the inclusion of atomic.h is problematic for inclusion of jump_label.h
+ * in 'low-level' headers. Thus, we are initializing .enabled with a
+ * raw value, but have added a BUILD_BUG_ON() to catch any issues in
+ * jump_label_init() see: kernel/jump_label.c.
+ */
 #define STATIC_KEY_INIT_TRUE					\
-	{ .enabled = ATOMIC_INIT(1),				\
+	{ .enabled = { 1 },					\
 	  .entries = (void *)JUMP_TYPE_TRUE }
 #define STATIC_KEY_INIT_FALSE					\
-	{ .enabled = ATOMIC_INIT(0),				\
+	{ .enabled = { 0 },					\
 	  .entries = (void *)JUMP_TYPE_FALSE }
 
 #else  /* !HAVE_JUMP_LABEL */
+
+#include <linux/atomic.h>
+#include <linux/bug.h>
+
+static inline int static_key_count(struct static_key *key)
+{
+	return atomic_read(&key->enabled);
+}
 
 static __always_inline void jump_label_init(void)
 {
@@ -206,14 +216,6 @@ static inline int jump_label_apply_nops(struct module *mod)
 	return 0;
 }
 
-#define STATIC_KEY_INIT_TRUE	{ .enabled = ATOMIC_INIT(1) }
-#define STATIC_KEY_INIT_FALSE	{ .enabled = ATOMIC_INIT(0) }
-
-#endif	/* HAVE_JUMP_LABEL */
-
-#define STATIC_KEY_INIT STATIC_KEY_INIT_FALSE
-#define jump_label_enabled static_key_enabled
-
 static inline void static_key_enable(struct static_key *key)
 {
 	int count = static_key_count(key);
@@ -233,6 +235,14 @@ static inline void static_key_disable(struct static_key *key)
 	if (count)
 		static_key_slow_dec(key);
 }
+
+#define STATIC_KEY_INIT_TRUE	{ .enabled = ATOMIC_INIT(1) }
+#define STATIC_KEY_INIT_FALSE	{ .enabled = ATOMIC_INIT(0) }
+
+#endif	/* HAVE_JUMP_LABEL */
+
+#define STATIC_KEY_INIT STATIC_KEY_INIT_FALSE
+#define jump_label_enabled static_key_enabled
 
 /* -------------------------------------------------------------------------- */
 

@@ -8,7 +8,6 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/hashtable.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_irq.h>
@@ -772,7 +771,7 @@ static void __init of_unittest_platform_populate(void)
 	};
 
 	np = of_find_node_by_path("/testcase-data");
-	of_platform_populate(np, of_default_bus_match_table, NULL, NULL);
+	of_platform_default_populate(np, NULL, NULL);
 
 	/* Test that a missing irq domain returns -EPROBE_DEFER */
 	np = of_find_node_by_path("/testcase-data/testcase-device1");
@@ -921,7 +920,7 @@ static int __init unittest_data_add(void)
 			"not running tests\n", __func__);
 		return -ENOMEM;
 	}
-	of_fdt_unflatten_tree(unittest_data, &unittest_data_node);
+	of_fdt_unflatten_tree(unittest_data, NULL, &unittest_data_node);
 	if (!unittest_data_node) {
 		pr_warn("%s: No tree to attach; not running tests\n", __func__);
 		return -ENODATA;
@@ -1692,13 +1691,7 @@ static struct i2c_driver unittest_i2c_dev_driver = {
 
 #if IS_BUILTIN(CONFIG_I2C_MUX)
 
-struct unittest_i2c_mux_data {
-	int nchans;
-	struct i2c_adapter *adap[];
-};
-
-static int unittest_i2c_mux_select_chan(struct i2c_adapter *adap,
-			       void *client, u32 chan)
+static int unittest_i2c_mux_select_chan(struct i2c_mux_core *muxc, u32 chan)
 {
 	return 0;
 }
@@ -1706,11 +1699,11 @@ static int unittest_i2c_mux_select_chan(struct i2c_adapter *adap,
 static int unittest_i2c_mux_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
-	int ret, i, nchans, size;
+	int ret, i, nchans;
 	struct device *dev = &client->dev;
 	struct i2c_adapter *adap = to_i2c_adapter(dev->parent);
 	struct device_node *np = client->dev.of_node, *child;
-	struct unittest_i2c_mux_data *stm;
+	struct i2c_mux_core *muxc;
 	u32 reg, max_reg;
 
 	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
@@ -1734,25 +1727,20 @@ static int unittest_i2c_mux_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	size = offsetof(struct unittest_i2c_mux_data, adap[nchans]);
-	stm = devm_kzalloc(dev, size, GFP_KERNEL);
-	if (!stm) {
-		dev_err(dev, "Out of memory\n");
+	muxc = i2c_mux_alloc(adap, dev, nchans, 0, 0,
+			     unittest_i2c_mux_select_chan, NULL);
+	if (!muxc)
 		return -ENOMEM;
-	}
-	stm->nchans = nchans;
 	for (i = 0; i < nchans; i++) {
-		stm->adap[i] = i2c_add_mux_adapter(adap, dev, client,
-				0, i, 0, unittest_i2c_mux_select_chan, NULL);
-		if (!stm->adap[i]) {
+		ret = i2c_mux_add_adapter(muxc, 0, i, 0);
+		if (ret) {
 			dev_err(dev, "Failed to register mux #%d\n", i);
-			for (i--; i >= 0; i--)
-				i2c_del_mux_adapter(stm->adap[i]);
+			i2c_mux_del_adapters(muxc);
 			return -ENODEV;
 		}
 	}
 
-	i2c_set_clientdata(client, stm);
+	i2c_set_clientdata(client, muxc);
 
 	return 0;
 };
@@ -1761,12 +1749,10 @@ static int unittest_i2c_mux_remove(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *np = client->dev.of_node;
-	struct unittest_i2c_mux_data *stm = i2c_get_clientdata(client);
-	int i;
+	struct i2c_mux_core *muxc = i2c_get_clientdata(client);
 
 	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
-	for (i = stm->nchans - 1; i >= 0; i--)
-		i2c_del_mux_adapter(stm->adap[i]);
+	i2c_mux_del_adapters(muxc);
 	return 0;
 }
 
@@ -1885,8 +1871,7 @@ static void __init of_unittest_overlay(void)
 		goto out;
 	}
 
-	ret = of_platform_populate(bus_np, of_default_bus_match_table,
-			NULL, NULL);
+	ret = of_platform_default_populate(bus_np, NULL, NULL);
 	if (ret != 0) {
 		unittest(0, "could not populate bus @ \"%s\"\n", bus_path);
 		goto out;

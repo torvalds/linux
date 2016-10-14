@@ -16,9 +16,36 @@
 
 #include <linux/bug.h>
 #include <linux/efi.h>
+#include <linux/irqflags.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/stringify.h>
 #include <asm/efi.h>
+
+/*
+ * Wrap around the new efi_call_virt_generic() macros so that the
+ * code doesn't get too cluttered:
+ */
+#define efi_call_virt(f, args...)   \
+	efi_call_virt_pointer(efi.systab->runtime, f, args)
+#define __efi_call_virt(f, args...) \
+	__efi_call_virt_pointer(efi.systab->runtime, f, args)
+
+void efi_call_virt_check_flags(unsigned long flags, const char *call)
+{
+	unsigned long cur_flags, mismatch;
+
+	local_save_flags(cur_flags);
+
+	mismatch = flags ^ cur_flags;
+	if (!WARN_ON_ONCE(mismatch & ARCH_EFI_IRQ_FLAGS_MASK))
+		return;
+
+	add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_NOW_UNRELIABLE);
+	pr_err_ratelimited(FW_BUG "IRQ flags corrupted (0x%08lx=>0x%08lx) by EFI %s\n",
+			   flags, cur_flags, call);
+	local_irq_restore(flags);
+}
 
 /*
  * According to section 7.1 of the UEFI spec, Runtime Services are not fully

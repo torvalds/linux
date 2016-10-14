@@ -16,6 +16,7 @@ help:
 	@echo '  gpio                   - GPIO tools'
 	@echo '  hv                     - tools used when in Hyper-V clients'
 	@echo '  iio                    - IIO tools'
+	@echo '  kvm_stat               - top-like utility for displaying kvm statistics'
 	@echo '  lguest                 - a minimal 32-bit x86 hypervisor'
 	@echo '  net                    - misc networking tools'
 	@echo '  perf                   - Linux performance measurement and analysis tool'
@@ -84,7 +85,7 @@ tmon: FORCE
 freefall: FORCE
 	$(call descend,laptop/$@)
 
-all: acpi cgroup cpupower hv firewire lguest \
+all: acpi cgroup cpupower gpio hv firewire lguest \
 		perf selftests turbostat usb \
 		virtio vm net x86_energy_perf_policy \
 		tmon freefall objtool
@@ -95,7 +96,7 @@ acpi_install:
 cpupower_install:
 	$(call descend,power/$(@:_install=),install)
 
-cgroup_install firewire_install hv_install lguest_install perf_install usb_install virtio_install vm_install net_install objtool_install:
+cgroup_install firewire_install gpio_install hv_install lguest_install perf_install usb_install virtio_install vm_install net_install objtool_install:
 	$(call descend,$(@:_install=),install)
 
 selftests_install:
@@ -110,10 +111,14 @@ tmon_install:
 freefall_install:
 	$(call descend,laptop/$(@:_install=),install)
 
-install: acpi_install cgroup_install cpupower_install hv_install firewire_install lguest_install \
+kvm_stat_install:
+	$(call descend,kvm/$(@:_install=),install)
+
+install: acpi_install cgroup_install cpupower_install gpio_install \
+		hv_install firewire_install lguest_install \
 		perf_install selftests_install turbostat_install usb_install \
 		virtio_install vm_install net_install x86_energy_perf_policy_install \
-		tmon_install freefall_install objtool_install
+		tmon_install freefall_install objtool_install kvm_stat_install
 
 acpi_clean:
 	$(call descend,power/acpi,clean)
@@ -137,7 +142,8 @@ libsubcmd_clean:
 	$(call descend,lib/subcmd,clean)
 
 perf_clean:
-	$(call descend,$(@:_clean=),clean)
+	$(Q)mkdir -p $(PERF_O) .
+	$(Q)$(MAKE) --no-print-directory -C perf O=$(PERF_O) subdir= clean
 
 selftests_clean:
 	$(call descend,testing/$(@:_clean=),clean)

@@ -49,10 +49,10 @@ config COMMON_CLK_MAX77802
 	  This driver supports Maxim 77802 crystal oscillator clock.
 
 config COMMON_CLK_RK808
-	tristate "Clock driver for RK808"
+	tristate "Clock driver for RK808/RK818"
 	depends on MFD_RK808
 	---help---
-	  This driver supports RK808 crystal oscillator clock. These
+	  This driver supports RK808 and RK818 crystal oscillator clock. These
 	  multi-function devices have two fixed-rate oscillators,
 	  clocked at 32KHz each. Clkout1 is always on, Clkout2 can off
 	  by control register.
@@ -175,6 +175,7 @@ config COMMON_CLK_KEYSTONE
 config COMMON_CLK_NXP
 	def_bool COMMON_CLK && (ARCH_LPC18XX || ARCH_LPC32XX)
 	select REGMAP_MMIO if ARCH_LPC32XX
+	select MFD_SYSCON if ARCH_LPC18XX
 	---help---
 	  Support for clock providers on NXP platforms.
 
@@ -197,11 +198,24 @@ config COMMON_CLK_PXA
 	---help---
 	  Support for the Marvell PXA SoC.
 
+config COMMON_CLK_PIC32
+	def_bool COMMON_CLK && MACH_PIC32
+
+config COMMON_CLK_OXNAS
+	bool "Clock driver for the OXNAS SoC Family"
+	depends on ARCH_OXNAS || COMPILE_TEST
+	select MFD_SYSCON
+	---help---
+	  Support for the OXNAS SoC Family clocks.
+
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
+source "drivers/clk/meson/Kconfig"
 source "drivers/clk/mvebu/Kconfig"
 source "drivers/clk/qcom/Kconfig"
+source "drivers/clk/renesas/Kconfig"
 source "drivers/clk/samsung/Kconfig"
+source "drivers/clk/sunxi-ng/Kconfig"
 source "drivers/clk/tegra/Kconfig"
 source "drivers/clk/ti/Kconfig"
 

@@ -288,11 +288,15 @@ return_from_SYSCALL_64:
 	jne	opportunistic_sysret_failed
 
 	/*
-	 * SYSRET can't restore RF.  SYSRET can restore TF, but unlike IRET,
-	 * restoring TF results in a trap from userspace immediately after
-	 * SYSRET.  This would cause an infinite loop whenever #DB happens
-	 * with register state that satisfies the opportunistic SYSRET
-	 * conditions.  For example, single-stepping this user code:
+	 * SYSCALL clears RF when it saves RFLAGS in R11 and SYSRET cannot
+	 * restore RF properly. If the slowpath sets it for whatever reason, we
+	 * need to restore it correctly.
+	 *
+	 * SYSRET can restore TF, but unlike IRET, restoring TF results in a
+	 * trap from userspace immediately after SYSRET.  This would cause an
+	 * infinite loop whenever #DB happens with register state that satisfies
+	 * the opportunistic SYSRET conditions.  For example, single-stepping
+	 * this user code:
 	 *
 	 *           movq	$stuck_here, %rcx
 	 *           pushfq
@@ -371,9 +375,6 @@ END(ptregs_\func)
  */
 ENTRY(ret_from_fork)
 	LOCK ; btr $TIF_FORK, TI_flags(%r8)
-
-	pushq	$0x0002
-	popfq					/* reset kernel eflags */
 
 	call	schedule_tail			/* rdi: 'prev' task parameter */
 
@@ -604,9 +605,20 @@ apicinterrupt3 \num trace(\sym) smp_trace(\sym)
 .endm
 #endif
 
+/* Make sure APIC interrupt handlers end up in the irqentry section: */
+#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
+# define PUSH_SECTION_IRQENTRY	.pushsection .irqentry.text, "ax"
+# define POP_SECTION_IRQENTRY	.popsection
+#else
+# define PUSH_SECTION_IRQENTRY
+# define POP_SECTION_IRQENTRY
+#endif
+
 .macro apicinterrupt num sym do_sym
+PUSH_SECTION_IRQENTRY
 apicinterrupt3 \num \sym \do_sym
 trace_apicinterrupt \num \sym
+POP_SECTION_IRQENTRY
 .endm
 
 #ifdef CONFIG_SMP
@@ -781,19 +793,25 @@ ENTRY(native_load_gs_index)
 	pushfq
 	DISABLE_INTERRUPTS(CLBR_ANY & ~CLBR_RDI)
 	SWAPGS
-gs_change:
+.Lgs_change:
 	movl	%edi, %gs
-2:	mfence					/* workaround */
+2:	ALTERNATIVE "", "mfence", X86_BUG_SWAPGS_FENCE
 	SWAPGS
 	popfq
 	ret
 END(native_load_gs_index)
 
-	_ASM_EXTABLE(gs_change, bad_gs)
+	_ASM_EXTABLE(.Lgs_change, bad_gs)
 	.section .fixup, "ax"
 	/* running with kernelgs */
 bad_gs:
 	SWAPGS					/* switch back to user gs */
+.macro ZAP_GS
+	/* This can't be a string because the preprocessor needs to see it. */
+	movl $__USER_DS, %eax
+	movl %eax, %gs
+.endm
+	ALTERNATIVE "", "ZAP_GS", X86_BUG_NULL_SEG
 	xorl	%eax, %eax
 	movl	%eax, %gs
 	jmp	2b
@@ -984,7 +1002,6 @@ ENTRY(error_entry)
 	testb	$3, CS+8(%rsp)
 	jz	.Lerror_kernelspace
 
-.Lerror_entry_from_usermode_swapgs:
 	/*
 	 * We entered from user mode or we're pretending to have entered
 	 * from user mode due to an IRET fault.
@@ -1019,15 +1036,16 @@ ENTRY(error_entry)
 	movl	%ecx, %eax			/* zero extend */
 	cmpq	%rax, RIP+8(%rsp)
 	je	.Lbstep_iret
-	cmpq	$gs_change, RIP+8(%rsp)
+	cmpq	$.Lgs_change, RIP+8(%rsp)
 	jne	.Lerror_entry_done
 
 	/*
-	 * hack: gs_change can fail with user gsbase.  If this happens, fix up
+	 * hack: .Lgs_change can fail with user gsbase.  If this happens, fix up
 	 * gsbase and proceed.  We'll fix up the exception and land in
-	 * gs_change's error handler with kernel gsbase.
+	 * .Lgs_change's error handler with kernel gsbase.
 	 */
-	jmp	.Lerror_entry_from_usermode_swapgs
+	SWAPGS
+	jmp .Lerror_entry_done
 
 .Lbstep_iret:
 	/* Fix truncated RIP */
@@ -1420,3 +1438,14 @@ ENTRY(ignore_sysret)
 	mov	$-ENOSYS, %eax
 	sysret
 END(ignore_sysret)
+
+ENTRY(rewind_stack_do_exit)
+	/* Prevent any naive code from trying to unwind to our caller. */
+	xorl	%ebp, %ebp
+
+	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rax
+	leaq	-TOP_OF_KERNEL_STACK_PADDING-PTREGS_SIZE(%rax), %rsp
+
+	call	do_exit
+1:	jmp 1b
+END(rewind_stack_do_exit)

@@ -37,6 +37,7 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
+#include <linux/delay.h>
 #include <linux/completion.h>
 #include <linux/mm.h>
 #include <scsi/scsi_host.h>
@@ -46,6 +47,20 @@
 struct aac_common aac_config = {
 	.irq_mod = 1
 };
+
+static inline int aac_is_msix_mode(struct aac_dev *dev)
+{
+	u32 status;
+
+	status = src_readl(dev, MUnit.OMR);
+	return (status & AAC_INT_MODE_MSIX);
+}
+
+static inline void aac_change_to_intx(struct aac_dev *dev)
+{
+	aac_src_access_devreg(dev, AAC_DISABLE_MSIX);
+	aac_src_access_devreg(dev, AAC_ENABLE_INTX);
+}
 
 static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long commsize, unsigned long commalign)
 {
@@ -91,7 +106,7 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	init->InitStructRevision = cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION);
 	if (dev->max_fib_size != sizeof(struct hw_fib))
 		init->InitStructRevision = cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_4);
-	init->Sa_MSIXVectors = cpu_to_le32(Sa_MINIPORT_REVISION);
+	init->Sa_MSIXVectors = cpu_to_le32(SA_INIT_NUM_MSIXVECTORS);
 	init->fsrev = cpu_to_le32(dev->fsrev);
 
 	/*
@@ -378,21 +393,8 @@ void aac_define_int_mode(struct aac_dev *dev)
 			msi_count = i;
 		} else {
 			dev->msi_enabled = 0;
-			printk(KERN_ERR "%s%d: MSIX not supported!! Will try MSI 0x%x.\n",
-					dev->name, dev->id, i);
-		}
-	}
-
-	if (!dev->msi_enabled) {
-		msi_count = 1;
-		i = pci_enable_msi(dev->pdev);
-
-		if (!i) {
-			dev->msi_enabled = 1;
-			dev->msi = 1;
-		} else {
-			printk(KERN_ERR "%s%d: MSI not supported!! Will try INTx 0x%x.\n",
-					dev->name, dev->id, i);
+			dev_err(&dev->pdev->dev,
+			"MSIX not supported!! Will try INTX 0x%x.\n", i);
 		}
 	}
 
@@ -426,6 +428,15 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 			/ sizeof(struct sgentry);
 	dev->comm_interface = AAC_COMM_PRODUCER;
 	dev->raw_io_interface = dev->raw_io_64 = 0;
+
+
+	/*
+	 * Enable INTX mode, if not done already Enabled
+	 */
+	if (aac_is_msix_mode(dev)) {
+		aac_change_to_intx(dev);
+		dev_info(&dev->pdev->dev, "Changed firmware to INTX mode");
+	}
 
 	if ((!aac_adapter_sync_cmd(dev, GET_ADAPTER_PROPERTIES,
 		0, 0, 0, 0, 0, 0,

@@ -68,12 +68,15 @@ pte_t *kmap_pte;
 EXPORT_SYMBOL(kmap_pte);
 pgprot_t kmap_prot;
 EXPORT_SYMBOL(kmap_prot);
+#define TOP_ZONE ZONE_HIGHMEM
 
 static inline pte_t *virt_to_kpte(unsigned long vaddr)
 {
 	return pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k(vaddr),
 			vaddr), vaddr), vaddr);
 }
+#else
+#define TOP_ZONE ZONE_NORMAL
 #endif
 
 int page_is_ram(unsigned long pfn)
@@ -112,6 +115,16 @@ int memory_add_physaddr_to_nid(u64 start)
 	return hot_add_scn_to_nid(start);
 }
 #endif
+
+int __weak create_section_mapping(unsigned long start, unsigned long end)
+{
+	return -ENODEV;
+}
+
+int __weak remove_section_mapping(unsigned long start, unsigned long end)
+{
+	return -ENODEV;
+}
 
 int arch_add_memory(int nid, u64 start, u64 size, bool for_device)
 {
@@ -236,8 +249,14 @@ static int __init mark_nonram_nosave(void)
 
 static bool zone_limits_final;
 
+/*
+ * The memory zones past TOP_ZONE are managed by generic mm code.
+ * These should be set to zero since that's what every other
+ * architecture does.
+ */
 static unsigned long max_zone_pfns[MAX_NR_ZONES] = {
-	[0 ... MAX_NR_ZONES - 1] = ~0UL
+	[0            ... TOP_ZONE        ] = ~0UL,
+	[TOP_ZONE + 1 ... MAX_NR_ZONES - 1] = 0
 };
 
 /*
@@ -267,14 +286,9 @@ void __init limit_zone_pfn(enum zone_type zone, unsigned long pfn_limit)
  */
 int dma_pfn_limit_to_zone(u64 pfn_limit)
 {
-	enum zone_type top_zone = ZONE_NORMAL;
 	int i;
 
-#ifdef CONFIG_HIGHMEM
-	top_zone = ZONE_HIGHMEM;
-#endif
-
-	for (i = top_zone; i >= 0; i--) {
+	for (i = TOP_ZONE; i >= 0; i--) {
 		if (max_zone_pfns[i] <= pfn_limit)
 			return i;
 	}
@@ -289,7 +303,6 @@ void __init paging_init(void)
 {
 	unsigned long long total_ram = memblock_phys_mem_size();
 	phys_addr_t top_of_ram = memblock_end_of_DRAM();
-	enum zone_type top_zone;
 
 #ifdef CONFIG_PPC32
 	unsigned long v = __fix_to_virt(__end_of_fixed_addresses - 1);
@@ -313,13 +326,9 @@ void __init paging_init(void)
 	       (long int)((top_of_ram - total_ram) >> 20));
 
 #ifdef CONFIG_HIGHMEM
-	top_zone = ZONE_HIGHMEM;
 	limit_zone_pfn(ZONE_NORMAL, lowmem_end_addr >> PAGE_SHIFT);
-#else
-	top_zone = ZONE_NORMAL;
 #endif
-
-	limit_zone_pfn(top_zone, top_of_ram >> PAGE_SHIFT);
+	limit_zone_pfn(TOP_ZONE, top_of_ram >> PAGE_SHIFT);
 	zone_limits_final = true;
 	free_area_init_nodes(max_zone_pfns);
 
@@ -498,7 +507,10 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	 * We don't need to worry about _PAGE_PRESENT here because we are
 	 * called with either mm->page_table_lock held or ptl lock held
 	 */
-	unsigned long access = 0, trap;
+	unsigned long access, trap;
+
+	if (radix_enabled())
+		return;
 
 	/* We only want HPTEs for linux PTEs that have _PAGE_ACCESSED set */
 	if (!pte_young(*ptep) || address >= TASK_SIZE)
@@ -511,13 +523,19 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	 *
 	 * We also avoid filling the hash if not coming from a fault
 	 */
-	if (current->thread.regs == NULL)
+
+	trap = current->thread.regs ? TRAP(current->thread.regs) : 0UL;
+	switch (trap) {
+	case 0x300:
+		access = 0UL;
+		break;
+	case 0x400:
+		access = _PAGE_EXEC;
+		break;
+	default:
 		return;
-	trap = TRAP(current->thread.regs);
-	if (trap == 0x400)
-		access |= _PAGE_EXEC;
-	else if (trap != 0x300)
-		return;
+	}
+
 	hash_preload(vma->vm_mm, address, access, trap);
 #endif /* CONFIG_PPC_STD_MMU */
 #if (defined(CONFIG_PPC_BOOK3E_64) || defined(CONFIG_PPC_FSL_BOOK3E)) \

@@ -1,5 +1,7 @@
 #include <linux/module.h>
 #include <asm/uaccess.h>
+#include <asm/traps.h>
+#include <asm/kdebug.h>
 
 typedef bool (*ex_handler_t)(const struct exception_table_entry *,
 			    struct pt_regs *, int);
@@ -36,11 +38,50 @@ bool ex_handler_ext(const struct exception_table_entry *fixup,
 		   struct pt_regs *regs, int trapnr)
 {
 	/* Special hack for uaccess_err */
-	current_thread_info()->uaccess_err = 1;
+	current->thread.uaccess_err = 1;
 	regs->ip = ex_fixup_addr(fixup);
 	return true;
 }
 EXPORT_SYMBOL(ex_handler_ext);
+
+bool ex_handler_rdmsr_unsafe(const struct exception_table_entry *fixup,
+			     struct pt_regs *regs, int trapnr)
+{
+	if (pr_warn_once("unchecked MSR access error: RDMSR from 0x%x at rIP: 0x%lx (%pF)\n",
+			 (unsigned int)regs->cx, regs->ip, (void *)regs->ip))
+		show_stack_regs(regs);
+
+	/* Pretend that the read succeeded and returned 0. */
+	regs->ip = ex_fixup_addr(fixup);
+	regs->ax = 0;
+	regs->dx = 0;
+	return true;
+}
+EXPORT_SYMBOL(ex_handler_rdmsr_unsafe);
+
+bool ex_handler_wrmsr_unsafe(const struct exception_table_entry *fixup,
+			     struct pt_regs *regs, int trapnr)
+{
+	if (pr_warn_once("unchecked MSR access error: WRMSR to 0x%x (tried to write 0x%08x%08x) at rIP: 0x%lx (%pF)\n",
+			 (unsigned int)regs->cx, (unsigned int)regs->dx,
+			 (unsigned int)regs->ax,  regs->ip, (void *)regs->ip))
+		show_stack_regs(regs);
+
+	/* Pretend that the write succeeded. */
+	regs->ip = ex_fixup_addr(fixup);
+	return true;
+}
+EXPORT_SYMBOL(ex_handler_wrmsr_unsafe);
+
+bool ex_handler_clear_fs(const struct exception_table_entry *fixup,
+			 struct pt_regs *regs, int trapnr)
+{
+	if (static_cpu_has(X86_BUG_NULL_SEG))
+		asm volatile ("mov %0, %%fs" : : "rm" (__USER_DS));
+	asm volatile ("mov %0, %%fs" : : "rm" (0));
+	return ex_handler_default(fixup, regs, trapnr);
+}
+EXPORT_SYMBOL(ex_handler_clear_fs);
 
 bool ex_has_fault_handler(unsigned long ip)
 {
@@ -82,24 +123,46 @@ int fixup_exception(struct pt_regs *regs, int trapnr)
 	return handler(e, regs, trapnr);
 }
 
+extern unsigned int early_recursion_flag;
+
 /* Restricted version used during very early boot */
-int __init early_fixup_exception(unsigned long *ip)
+void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 {
-	const struct exception_table_entry *e;
-	unsigned long new_ip;
-	ex_handler_t handler;
+	/* Ignore early NMIs. */
+	if (trapnr == X86_TRAP_NMI)
+		return;
 
-	e = search_exception_tables(*ip);
-	if (!e)
-		return 0;
+	if (early_recursion_flag > 2)
+		goto halt_loop;
 
-	new_ip  = ex_fixup_addr(e);
-	handler = ex_fixup_handler(e);
+	if (regs->cs != __KERNEL_CS)
+		goto fail;
 
-	/* special handling not supported during early boot */
-	if (handler != ex_handler_default)
-		return 0;
+	/*
+	 * The full exception fixup machinery is available as soon as
+	 * the early IDT is loaded.  This means that it is the
+	 * responsibility of extable users to either function correctly
+	 * when handlers are invoked early or to simply avoid causing
+	 * exceptions before they're ready to handle them.
+	 *
+	 * This is better than filtering which handlers can be used,
+	 * because refusing to call a handler here is guaranteed to
+	 * result in a hard-to-debug panic.
+	 *
+	 * Keep in mind that not all vectors actually get here.  Early
+	 * fage faults, for example, are special.
+	 */
+	if (fixup_exception(regs, trapnr))
+		return;
 
-	*ip = new_ip;
-	return 1;
+fail:
+	early_printk("PANIC: early exception 0x%02x IP %lx:%lx error %lx cr2 0x%lx\n",
+		     (unsigned)trapnr, (unsigned long)regs->cs, regs->ip,
+		     regs->orig_ax, read_cr2());
+
+	show_regs(regs);
+
+halt_loop:
+	while (true)
+		halt();
 }

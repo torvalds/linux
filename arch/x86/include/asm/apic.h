@@ -135,6 +135,7 @@ extern void init_apic_mappings(void);
 void register_lapic_address(unsigned long address);
 extern void setup_boot_APIC_clock(void);
 extern void setup_secondary_APIC_clock(void);
+extern void lapic_update_tsc_freq(void);
 extern int APIC_init_uniprocessor(void);
 
 #ifdef CONFIG_X86_64
@@ -170,6 +171,7 @@ static inline void init_apic_mappings(void) { }
 static inline void disable_local_APIC(void) { }
 # define setup_boot_APIC_clock x86_init_noop
 # define setup_secondary_APIC_clock x86_init_noop
+static inline void lapic_update_tsc_freq(void) { }
 #endif /* !CONFIG_X86_LOCAL_APIC */
 
 #ifdef CONFIG_X86_X2APIC
@@ -239,10 +241,10 @@ extern void __init check_x2apic(void);
 extern void x2apic_setup(void);
 static inline int x2apic_enabled(void)
 {
-	return cpu_has_x2apic && apic_is_x2apic_enabled();
+	return boot_cpu_has(X86_FEATURE_X2APIC) && apic_is_x2apic_enabled();
 }
 
-#define x2apic_supported()	(cpu_has_x2apic)
+#define x2apic_supported()	(boot_cpu_has(X86_FEATURE_X2APIC))
 #else /* !CONFIG_X86_X2APIC */
 static inline void check_x2apic(void) { }
 static inline void x2apic_setup(void) { }
@@ -300,7 +302,6 @@ struct apic {
 
 	unsigned int (*get_apic_id)(unsigned long x);
 	unsigned long (*set_apic_id)(unsigned int id);
-	unsigned long apic_id_mask;
 
 	int (*cpu_mask_to_apicid_and)(const struct cpumask *cpumask,
 				      const struct cpumask *andmask,

@@ -85,7 +85,7 @@ static s32 ixgbevf_poll_for_ack(struct ixgbe_hw *hw)
 static s32 ixgbevf_read_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
-	s32 ret_val = -IXGBE_ERR_MBX;
+	s32 ret_val = IXGBE_ERR_MBX;
 
 	if (!mbx->ops.read)
 		goto out;
@@ -111,7 +111,7 @@ out:
 static s32 ixgbevf_write_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
-	s32 ret_val = -IXGBE_ERR_MBX;
+	s32 ret_val = IXGBE_ERR_MBX;
 
 	/* exit if either we can't write or there isn't a defined timeout */
 	if (!mbx->ops.write || !mbx->timeout)
@@ -346,3 +346,14 @@ const struct ixgbe_mbx_operations ixgbevf_mbx_ops = {
 	.check_for_rst	= ixgbevf_check_for_rst_vf,
 };
 
+/* Mailbox operations when running on Hyper-V.
+ * On Hyper-V, PF/VF communication is not through the
+ * hardware mailbox; this communication is through
+ * a software mediated path.
+ * Most mail box operations are noop while running on
+ * Hyper-V.
+ */
+const struct ixgbe_mbx_operations ixgbevf_hv_mbx_ops = {
+	.init_params	= ixgbevf_init_mbx_params_vf,
+	.check_for_rst	= ixgbevf_check_for_rst_vf,
+};

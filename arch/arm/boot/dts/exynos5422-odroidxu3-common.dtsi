@@ -1,9 +1,11 @@
 /*
  * Hardkernel Odroid XU3 board device tree source
  *
- * Copyright (c) 2014 Collabora Ltd.
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
+ * Copyright (c) 2014 Collabora Ltd.
+ * Copyright (c) 2015 Lukasz Majewski <l.majewski@samsung.com>
+ *                    Anand Moon <linux.amoon@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,7 +18,7 @@
 #include <dt-bindings/sound/samsung-i2s.h>
 #include "exynos5800.dtsi"
 #include "exynos5422-cpus.dtsi"
-#include "exynos5422-cpu-thermal.dtsi"
+#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	memory {
@@ -54,6 +56,177 @@
 		#cooling-cells = <2>;
 		cooling-levels = <0 130 170 230>;
 	};
+
+	thermal-zones {
+		cpu0_thermal: cpu0-thermal {
+			thermal-sensors = <&tmu_cpu0 0>;
+			polling-delay-passive = <250>;
+			polling-delay = <0>;
+			trips {
+				cpu_alert0: cpu-alert-0 {
+					temperature = <50000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				cpu_alert1: cpu-alert-1 {
+					temperature = <60000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				cpu_alert2: cpu-alert-2 {
+					temperature = <70000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				cpu_crit0: cpu-crit-0 {
+					temperature = <120000>; /* millicelsius */
+					hysteresis = <0>; /* millicelsius */
+					type = "critical";
+				};
+				/*
+				 * Exynos542x supports only 4 trip-points
+				 * so for these polling mode is required.
+				 * Start polling at temperature level of last
+				 * interrupt-driven trip: cpu_alert2
+				 */
+				cpu_alert3: cpu-alert-3 {
+					temperature = <70000>; /* millicelsius */
+					hysteresis = <10000>; /* millicelsius */
+					type = "passive";
+				};
+				cpu_alert4: cpu-alert-4 {
+					temperature = <85000>; /* millicelsius */
+					hysteresis = <10000>; /* millicelsius */
+					type = "passive";
+				};
+
+			};
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert0>;
+					cooling-device = <&fan0 0 1>;
+				};
+				map1 {
+					trip = <&cpu_alert1>;
+					cooling-device = <&fan0 1 2>;
+				};
+				map2 {
+					trip = <&cpu_alert2>;
+					cooling-device = <&fan0 2 3>;
+				};
+				/*
+				 * When reaching cpu_alert3, reduce CPU
+				 * by 2 steps. On Exynos5422/5800 that would
+				 * be: 1600 MHz and 1100 MHz.
+				 */
+				map3 {
+					trip = <&cpu_alert3>;
+					cooling-device = <&cpu0 0 2>;
+				};
+				map4 {
+					trip = <&cpu_alert3>;
+					cooling-device = <&cpu4 0 2>;
+				};
+
+				/*
+				 * When reaching cpu_alert4, reduce CPU
+				 * further, down to 600 MHz (11 steps for big,
+				 * 7 steps for LITTLE).
+				 */
+				map5 {
+					trip = <&cpu_alert4>;
+					cooling-device = <&cpu0 3 7>;
+				};
+				map6 {
+					trip = <&cpu_alert4>;
+					cooling-device = <&cpu4 3 11>;
+				};
+			};
+		};
+	};
+};
+
+&bus_wcore {
+	devfreq-events = <&nocp_mem0_0>, <&nocp_mem0_1>,
+			<&nocp_mem1_0>, <&nocp_mem1_1>;
+	vdd-supply = <&buck3_reg>;
+	exynos,saturation-ratio = <100>;
+	status = "okay";
+};
+
+&bus_noc {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_fsys_apb {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_fsys {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_fsys2 {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_mfc {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_gen {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_peri {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_g2d {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_g2d_acp {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_jpeg {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_jpeg_apb {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_disp1_fimd {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_disp1 {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_gscl_scaler {
+	devfreq = <&bus_wcore>;
+	status = "okay";
+};
+
+&bus_mscl {
+	devfreq = <&bus_wcore>;
+	status = "okay";
 };
 
 &clock_audss {
@@ -92,13 +265,6 @@
 	s2mps11_pmic@66 {
 		compatible = "samsung,s2mps11-pmic";
 		reg = <0x66>;
-		s2mps11,buck2-ramp-delay = <12>;
-		s2mps11,buck34-ramp-delay = <12>;
-		s2mps11,buck16-ramp-delay = <12>;
-		s2mps11,buck6-ramp-enable = <1>;
-		s2mps11,buck2-ramp-enable = <1>;
-		s2mps11,buck3-ramp-enable = <1>;
-		s2mps11,buck4-ramp-enable = <1>;
 		samsung,s2mps11-acokb-ground;
 
 		interrupt-parent = <&gpx0>;
@@ -121,10 +287,9 @@
 			};
 
 			ldo3_reg: LDO3 {
-				regulator-name = "vdd_ldo3";
+				regulator-name = "vddq_mmc0";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				regulator-always-on;
 			};
 
 			ldo5_reg: LDO5 {
@@ -184,10 +349,9 @@
 			};
 
 			ldo13_reg: LDO13 {
-				regulator-name = "vdd_ldo13";
+				regulator-name = "vddq_mmc2";
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
-				regulator-always-on;
 			};
 
 			ldo15_reg: LDO15 {
@@ -211,11 +375,16 @@
 				regulator-always-on;
 			};
 
+			ldo18_reg: LDO18 {
+				regulator-name = "vdd_emmc_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
 			ldo19_reg: LDO19 {
 				regulator-name = "vdd_sd";
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
-				regulator-always-on;
 			};
 
 			ldo24_reg: LDO24 {
@@ -326,11 +495,6 @@
 	};
 };
 
-&mfc {
-	samsung,mfc-r = <0x43000000 0x800000>;
-	samsung,mfc-l = <0x51000000 0x800000>;
-};
-
 &mmc_0 {
 	status = "okay";
 	mmc-pwrseq = <&emmc_pwrseq>;
@@ -347,6 +511,8 @@
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
+	vmmc-supply = <&ldo18_reg>;
+	vqmmc-supply = <&ldo3_reg>;
 };
 
 &mmc_2 {
@@ -359,6 +525,24 @@
 	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus1 &sd2_bus4>;
 	bus-width = <4>;
 	cap-sd-highspeed;
+	vmmc-supply = <&ldo19_reg>;
+	vqmmc-supply = <&ldo13_reg>;
+};
+
+&nocp_mem0_0 {
+	status = "okay";
+};
+
+&nocp_mem0_1 {
+	status = "okay";
+};
+
+&nocp_mem1_0 {
+	status = "okay";
+};
+
+&nocp_mem1_1 {
+	status = "okay";
 };
 
 &pinctrl_0 {
@@ -388,27 +572,22 @@
 
 &tmu_cpu0 {
 	vtmu-supply = <&ldo7_reg>;
-	status = "okay";
 };
 
 &tmu_cpu1 {
 	vtmu-supply = <&ldo7_reg>;
-	status = "okay";
 };
 
 &tmu_cpu2 {
 	vtmu-supply = <&ldo7_reg>;
-	status = "okay";
 };
 
 &tmu_cpu3 {
 	vtmu-supply = <&ldo7_reg>;
-	status = "okay";
 };
 
 &tmu_gpu {
 	vtmu-supply = <&ldo7_reg>;
-	status = "okay";
 };
 
 &rtc {

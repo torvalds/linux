@@ -113,7 +113,7 @@ static int udf_readdir(struct file *file, struct dir_context *ctx)
 					brelse(tmp);
 			}
 			if (num) {
-				ll_rw_block(READA, num, bha);
+				ll_rw_block(REQ_OP_READ, REQ_RAHEAD, num, bha);
 				for (i = 0; i < num; i++)
 					brelse(bha[i]);
 			}
@@ -202,7 +202,7 @@ out:
 const struct file_operations udf_dir_operations = {
 	.llseek			= generic_file_llseek,
 	.read			= generic_read_dir,
-	.iterate		= udf_readdir,
+	.iterate_shared		= udf_readdir,
 	.unlocked_ioctl		= udf_ioctl,
 	.fsync			= generic_file_fsync,
 };

@@ -20,6 +20,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -34,8 +36,6 @@
 #include <asm/cpu_device_id.h>
 
 #include "speedstep-lib.h"
-
-#define PFX	"p4-clockmod: "
 
 /*
  * Duty Cycle (3bits), note DC_DISABLE is not specified in
@@ -124,11 +124,7 @@ static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 {
 	if (c->x86 == 0x06) {
 		if (cpu_has(c, X86_FEATURE_EST))
-			printk_once(KERN_WARNING PFX "Warning: EST-capable "
-			       "CPU detected. The acpi-cpufreq module offers "
-			       "voltage scaling in addition to frequency "
-			       "scaling. You should use that instead of "
-			       "p4-clockmod, if possible.\n");
+			pr_warn_once("Warning: EST-capable CPU detected. The acpi-cpufreq module offers voltage scaling in addition to frequency scaling. You should use that instead of p4-clockmod, if possible.\n");
 		switch (c->x86_model) {
 		case 0x0E: /* Core */
 		case 0x0F: /* Core Duo */
@@ -152,11 +148,7 @@ static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 	p4clockmod_driver.flags |= CPUFREQ_CONST_LOOPS;
 
 	if (speedstep_detect_processor() == SPEEDSTEP_CPU_P4M) {
-		printk(KERN_WARNING PFX "Warning: Pentium 4-M detected. "
-		       "The speedstep-ich or acpi cpufreq modules offer "
-		       "voltage scaling in addition of frequency scaling. "
-		       "You should use either one instead of p4-clockmod, "
-		       "if possible.\n");
+		pr_warn("Warning: Pentium 4-M detected. The speedstep-ich or acpi cpufreq modules offer voltage scaling in addition of frequency scaling. You should use either one instead of p4-clockmod, if possible.\n");
 		return speedstep_get_frequency(SPEEDSTEP_CPU_P4M);
 	}
 
@@ -265,8 +257,7 @@ static int __init cpufreq_p4_init(void)
 
 	ret = cpufreq_register_driver(&p4clockmod_driver);
 	if (!ret)
-		printk(KERN_INFO PFX "P4/Xeon(TM) CPU On-Demand Clock "
-				"Modulation available\n");
+		pr_info("P4/Xeon(TM) CPU On-Demand Clock Modulation available\n");
 
 	return ret;
 }

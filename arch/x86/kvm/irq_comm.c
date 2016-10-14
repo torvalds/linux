@@ -110,13 +110,17 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 	return r;
 }
 
-void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
+void kvm_set_msi_irq(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e,
 		     struct kvm_lapic_irq *irq)
 {
-	trace_kvm_msi_set_irq(e->msi.address_lo, e->msi.data);
+	trace_kvm_msi_set_irq(e->msi.address_lo | (kvm->arch.x2apic_format ?
+	                                     (u64)e->msi.address_hi << 32 : 0),
+	                      e->msi.data);
 
 	irq->dest_id = (e->msi.address_lo &
 			MSI_ADDR_DEST_ID_MASK) >> MSI_ADDR_DEST_ID_SHIFT;
+	if (kvm->arch.x2apic_format)
+		irq->dest_id |= MSI_ADDR_EXT_DEST_ID(e->msi.address_hi);
 	irq->vector = (e->msi.data &
 			MSI_DATA_VECTOR_MASK) >> MSI_DATA_VECTOR_SHIFT;
 	irq->dest_mode = (1 << MSI_ADDR_DEST_MODE_SHIFT) & e->msi.address_lo;
@@ -129,15 +133,24 @@ void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
 }
 EXPORT_SYMBOL_GPL(kvm_set_msi_irq);
 
+static inline bool kvm_msi_route_invalid(struct kvm *kvm,
+		struct kvm_kernel_irq_routing_entry *e)
+{
+	return kvm->arch.x2apic_format && (e->msi.address_hi & 0xff);
+}
+
 int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 		struct kvm *kvm, int irq_source_id, int level, bool line_status)
 {
 	struct kvm_lapic_irq irq;
 
+	if (kvm_msi_route_invalid(kvm, e))
+		return -EINVAL;
+
 	if (!level)
 		return -1;
 
-	kvm_set_msi_irq(e, &irq);
+	kvm_set_msi_irq(kvm, e, &irq);
 
 	return kvm_irq_delivery_to_apic(kvm, NULL, &irq, NULL);
 }
@@ -153,7 +166,10 @@ int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *e,
 	if (unlikely(e->type != KVM_IRQ_ROUTING_MSI))
 		return -EWOULDBLOCK;
 
-	kvm_set_msi_irq(e, &irq);
+	if (kvm_msi_route_invalid(kvm, e))
+		return -EINVAL;
+
+	kvm_set_msi_irq(kvm, e, &irq);
 
 	if (kvm_irq_delivery_to_apic_fast(kvm, NULL, &irq, &r, NULL))
 		return r;
@@ -248,7 +264,8 @@ static int kvm_hv_set_sint(struct kvm_kernel_irq_routing_entry *e,
 	return kvm_hv_synic_set_irq(kvm, e->hv_sint.vcpu, e->hv_sint.sint);
 }
 
-int kvm_set_routing_entry(struct kvm_kernel_irq_routing_entry *e,
+int kvm_set_routing_entry(struct kvm *kvm,
+			  struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue)
 {
 	int r = -EINVAL;
@@ -285,6 +302,9 @@ int kvm_set_routing_entry(struct kvm_kernel_irq_routing_entry *e,
 		e->msi.address_lo = ue->u.msi.address_lo;
 		e->msi.address_hi = ue->u.msi.address_hi;
 		e->msi.data = ue->u.msi.data;
+
+		if (kvm_msi_route_invalid(kvm, e))
+			goto out;
 		break;
 	case KVM_IRQ_ROUTING_HV_SINT:
 		e->set = kvm_hv_set_sint;
@@ -382,30 +402,22 @@ void kvm_scan_ioapic_routes(struct kvm_vcpu *vcpu,
 	u32 i, nr_ioapic_pins;
 	int idx;
 
-	/* kvm->irq_routing must be read after clearing
-	 * KVM_SCAN_IOAPIC. */
-	smp_mb();
 	idx = srcu_read_lock(&kvm->irq_srcu);
 	table = srcu_dereference(kvm->irq_routing, &kvm->irq_srcu);
 	nr_ioapic_pins = min_t(u32, table->nr_rt_entries,
 			       kvm->arch.nr_reserved_ioapic_pins);
 	for (i = 0; i < nr_ioapic_pins; ++i) {
 		hlist_for_each_entry(entry, &table->map[i], link) {
-			u32 dest_id, dest_mode;
-			bool level;
+			struct kvm_lapic_irq irq;
 
 			if (entry->type != KVM_IRQ_ROUTING_MSI)
 				continue;
-			dest_id = (entry->msi.address_lo >> 12) & 0xff;
-			dest_mode = (entry->msi.address_lo >> 2) & 0x1;
-			level = entry->msi.data & MSI_DATA_TRIGGER_LEVEL;
-			if (level && kvm_apic_match_dest(vcpu, NULL, 0,
-						dest_id, dest_mode)) {
-				u32 vector = entry->msi.data & 0xff;
 
-				__set_bit(vector,
-					  ioapic_handled_vectors);
-			}
+			kvm_set_msi_irq(vcpu->kvm, entry, &irq);
+
+			if (irq.level && kvm_apic_match_dest(vcpu, NULL, 0,
+						irq.dest_id, irq.dest_mode))
+				__set_bit(irq.vector, ioapic_handled_vectors);
 		}
 	}
 	srcu_read_unlock(&kvm->irq_srcu, idx);

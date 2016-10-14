@@ -158,7 +158,7 @@ enum rndis_device_state {
 };
 
 struct rndis_device {
-	struct netvsc_device *net_dev;
+	struct net_device *ndev;
 
 	enum rndis_device_state state;
 	bool link_state;
@@ -173,6 +173,7 @@ struct rndis_device {
 
 /* Interface */
 struct rndis_message;
+struct netvsc_device;
 int netvsc_device_add(struct hv_device *device, void *additional_info);
 int netvsc_device_remove(struct hv_device *device);
 int netvsc_send(struct hv_device *device,
@@ -189,8 +190,8 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 			struct vmbus_channel *channel,
 			u16 vlan_tci);
 void netvsc_channel_cb(void *context);
-int rndis_filter_open(struct hv_device *dev);
-int rndis_filter_close(struct hv_device *dev);
+int rndis_filter_open(struct netvsc_device *nvdev);
+int rndis_filter_close(struct netvsc_device *nvdev);
 int rndis_filter_device_add(struct hv_device *dev,
 			void *additional_info);
 void rndis_filter_device_remove(struct hv_device *dev);
@@ -200,7 +201,9 @@ int rndis_filter_receive(struct hv_device *dev,
 			struct vmbus_channel *channel);
 
 int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter);
-int rndis_filter_set_device_mac(struct hv_device *hdev, char *mac);
+int rndis_filter_set_device_mac(struct net_device *ndev, char *mac);
+
+void netvsc_switch_datapath(struct net_device *nv_dev, bool vf);
 
 #define NVSP_INVALID_PROTOCOL_VERSION	((u32)0xFFFFFFFF)
 
@@ -645,6 +648,8 @@ struct netvsc_reconfig {
 struct net_device_context {
 	/* point back to our device context */
 	struct hv_device *device_ctx;
+	/* netvsc_device */
+	struct netvsc_device *nvdev;
 	/* reconfigure work */
 	struct delayed_work dwork;
 	/* last reconfig time */
@@ -663,17 +668,26 @@ struct net_device_context {
 	/* Ethtool settings */
 	u8 duplex;
 	u32 speed;
+
+	/* the device is going away */
+	bool start_remove;
+
+	/* State to manage the associated VF interface. */
+	struct net_device *vf_netdev;
+	bool vf_inject;
+	atomic_t vf_use_cnt;
+	/* 1: allocated, serial number is valid. 0: not allocated */
+	u32 vf_alloc;
+	/* Serial number of the VF to team with */
+	u32 vf_serial;
 };
 
 /* Per netvsc device */
 struct netvsc_device {
-	struct hv_device *dev;
-
 	u32 nvsp_version;
 
 	atomic_t num_outstanding_sends;
 	wait_queue_head_t wait_drain;
-	bool start_remove;
 	bool destroy;
 
 	/* Receive buffer allocated by us but manages by NetVSP */
@@ -699,8 +713,6 @@ struct netvsc_device {
 	struct nvsp_message revoke_packet;
 	/* unsigned char HwMacAddr[HW_MACADDR_LEN]; */
 
-	struct net_device *ndev;
-
 	struct vmbus_channel *chn_table[VRSS_CHANNEL_MAX];
 	u32 send_table[VRSS_SEND_TAB_SIZE];
 	u32 max_chn;
@@ -723,14 +735,20 @@ struct netvsc_device {
 	u32 max_pkt; /* max number of pkt in one send, e.g. 8 */
 	u32 pkt_align; /* alignment bytes, e.g. 8 */
 
-	/* The net device context */
-	struct net_device_context *nd_ctx;
-
-	/* 1: allocated, serial number is valid. 0: not allocated */
-	u32 vf_alloc;
-	/* Serial number of the VF to team with */
-	u32 vf_serial;
+	atomic_t open_cnt;
 };
+
+static inline struct netvsc_device *
+net_device_to_netvsc_device(struct net_device *ndev)
+{
+	return ((struct net_device_context *)netdev_priv(ndev))->nvdev;
+}
+
+static inline struct netvsc_device *
+hv_device_to_netvsc_device(struct hv_device *device)
+{
+	return net_device_to_netvsc_device(hv_get_drvdata(device));
+}
 
 /* NdisInitialize message */
 struct rndis_initialize_request {

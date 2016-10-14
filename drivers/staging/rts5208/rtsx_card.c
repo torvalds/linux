@@ -628,11 +628,6 @@ void rtsx_init_cards(struct rtsx_chip *chip)
 	}
 }
 
-static inline u8 double_depth(u8 depth)
-{
-	return (depth > 1) ? (depth - 1) : depth;
-}
-
 int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 {
 	int retval;
@@ -1179,22 +1174,6 @@ int check_card_ready(struct rtsx_chip *chip, unsigned int lun)
 int check_card_wp(struct rtsx_chip *chip, unsigned int lun)
 {
 	if (chip->card_wp & chip->lun2card[lun])
-		return 1;
-
-	return 0;
-}
-
-int check_card_fail(struct rtsx_chip *chip, unsigned int lun)
-{
-	if (chip->card_fail & chip->lun2card[lun])
-		return 1;
-
-	return 0;
-}
-
-int check_card_ejected(struct rtsx_chip *chip, unsigned int lun)
-{
-	if (chip->card_ejected & chip->lun2card[lun])
 		return 1;
 
 	return 0;

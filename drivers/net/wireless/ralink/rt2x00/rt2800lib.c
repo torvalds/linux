@@ -777,7 +777,7 @@ static int rt2800_agc_to_rssi(struct rt2x00_dev *rt2x00dev, u32 rxwi_w2)
 	u8 offset1;
 	u8 offset2;
 
-	if (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ) {
+	if (rt2x00dev->curr_band == NL80211_BAND_2GHZ) {
 		rt2800_eeprom_read(rt2x00dev, EEPROM_RSSI_BG, &eeprom);
 		offset0 = rt2x00_get_field16(eeprom, EEPROM_RSSI_BG_OFFSET0);
 		offset1 = rt2x00_get_field16(eeprom, EEPROM_RSSI_BG_OFFSET1);
@@ -1174,7 +1174,7 @@ static void rt2800_brightness_set(struct led_classdev *led_cdev,
 	    container_of(led_cdev, struct rt2x00_led, led_dev);
 	unsigned int enabled = brightness != LED_OFF;
 	unsigned int bg_mode =
-	    (enabled && led->rt2x00dev->curr_band == IEEE80211_BAND_2GHZ);
+	    (enabled && led->rt2x00dev->curr_band == NL80211_BAND_2GHZ);
 	unsigned int polarity =
 		rt2x00_get_field16(led->rt2x00dev->led_mcu_reg,
 				   EEPROM_FREQ_LED_POLARITY);
@@ -1741,7 +1741,7 @@ static void rt2800_config_3572bt_ant(struct rt2x00_dev *rt2x00dev)
 	u8 led_ctrl, led_g_mode, led_r_mode;
 
 	rt2800_register_read(rt2x00dev, GPIO_SWITCH, &reg);
-	if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ) {
+	if (rt2x00dev->curr_band == NL80211_BAND_5GHZ) {
 		rt2x00_set_field32(&reg, GPIO_SWITCH_0, 1);
 		rt2x00_set_field32(&reg, GPIO_SWITCH_1, 1);
 	} else {
@@ -1844,7 +1844,7 @@ void rt2800_config_ant(struct rt2x00_dev *rt2x00dev, struct antenna_setup *ant)
 		    rt2x00_has_cap_bt_coexist(rt2x00dev)) {
 			rt2x00_set_field8(&r3, BBP3_RX_ADC, 1);
 			rt2x00_set_field8(&r3, BBP3_RX_ANTENNA,
-				rt2x00dev->curr_band == IEEE80211_BAND_5GHZ);
+				rt2x00dev->curr_band == NL80211_BAND_5GHZ);
 			rt2800_set_ant_diversity(rt2x00dev, ANTENNA_B);
 		} else {
 			rt2x00_set_field8(&r3, BBP3_RX_ANTENNA, 1);
@@ -3451,7 +3451,7 @@ static int rt2800_get_gain_calibration_delta(struct rt2x00_dev *rt2x00dev)
 	 * Matching Delta value   -4   -3   -2   -1    0   +1   +2   +3   +4
 	 * Example TSSI bounds  0xF0 0xD0 0xB5 0xA0 0x88 0x45 0x25 0x15 0x00
 	 */
-	if (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ) {
+	if (rt2x00dev->curr_band == NL80211_BAND_2GHZ) {
 		rt2800_eeprom_read(rt2x00dev, EEPROM_TSSI_BOUND_BG1, &eeprom);
 		tssi_bounds[0] = rt2x00_get_field16(eeprom,
 					EEPROM_TSSI_BOUND_BG1_MINUS4);
@@ -3546,7 +3546,7 @@ static int rt2800_get_gain_calibration_delta(struct rt2x00_dev *rt2x00dev)
 }
 
 static int rt2800_get_txpower_bw_comp(struct rt2x00_dev *rt2x00dev,
-				      enum ieee80211_band band)
+				      enum nl80211_band band)
 {
 	u16 eeprom;
 	u8 comp_en;
@@ -3562,7 +3562,7 @@ static int rt2800_get_txpower_bw_comp(struct rt2x00_dev *rt2x00dev,
 	    !test_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags))
 		return 0;
 
-	if (band == IEEE80211_BAND_2GHZ) {
+	if (band == NL80211_BAND_2GHZ) {
 		comp_en = rt2x00_get_field16(eeprom,
 				 EEPROM_TXPOWER_DELTA_ENABLE_2G);
 		if (comp_en) {
@@ -3611,7 +3611,7 @@ static int rt2800_get_txpower_reg_delta(struct rt2x00_dev *rt2x00dev,
 }
 
 static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
-				   enum ieee80211_band band, int power_level,
+				   enum nl80211_band band, int power_level,
 				   u8 txpower, int delta)
 {
 	u16 eeprom;
@@ -3639,7 +3639,7 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 		rt2800_eeprom_read(rt2x00dev, EEPROM_EIRP_MAX_TX_POWER,
 				   &eeprom);
 
-		if (band == IEEE80211_BAND_2GHZ)
+		if (band == NL80211_BAND_2GHZ)
 			eirp_txpower_criterion = rt2x00_get_field16(eeprom,
 						 EEPROM_EIRP_MAX_TX_POWER_2GHZ);
 		else
@@ -3686,7 +3686,7 @@ static void rt2800_config_txpower_rt3593(struct rt2x00_dev *rt2x00dev,
 	u16 eeprom;
 	u32 regs[TX_PWR_CFG_IDX_COUNT];
 	unsigned int offset;
-	enum ieee80211_band band = chan->band;
+	enum nl80211_band band = chan->band;
 	int delta;
 	int i;
 
@@ -3697,7 +3697,7 @@ static void rt2800_config_txpower_rt3593(struct rt2x00_dev *rt2x00dev,
 	/* calculate temperature compensation delta */
 	delta = rt2800_get_gain_calibration_delta(rt2x00dev);
 
-	if (band == IEEE80211_BAND_5GHZ)
+	if (band == NL80211_BAND_5GHZ)
 		offset = 16;
 	else
 		offset = 0;
@@ -4055,7 +4055,7 @@ static void rt2800_config_txpower_rt3593(struct rt2x00_dev *rt2x00dev,
 	for (i = 0; i < TX_PWR_CFG_IDX_COUNT; i++)
 		rt2x00_dbg(rt2x00dev,
 			   "band:%cGHz, BW:%c0MHz, TX_PWR_CFG_%d%s = %08lx\n",
-			   (band == IEEE80211_BAND_5GHZ) ? '5' : '2',
+			   (band == NL80211_BAND_5GHZ) ? '5' : '2',
 			   (test_bit(CONFIG_CHANNEL_HT40, &rt2x00dev->flags)) ?
 								'4' : '2',
 			   (i > TX_PWR_CFG_9_IDX) ?
@@ -4081,7 +4081,7 @@ static void rt2800_config_txpower_rt28xx(struct rt2x00_dev *rt2x00dev,
 	u16 eeprom;
 	u32 reg, offset;
 	int i, is_rate_b, delta, power_ctrl;
-	enum ieee80211_band band = chan->band;
+	enum nl80211_band band = chan->band;
 
 	/*
 	 * Calculate HT40 compensation. For 40MHz we need to add or subtract
@@ -4436,7 +4436,7 @@ static u8 rt2800_get_default_vgc(struct rt2x00_dev *rt2x00dev)
 {
 	u8 vgc;
 
-	if (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ) {
+	if (rt2x00dev->curr_band == NL80211_BAND_2GHZ) {
 		if (rt2x00_rt(rt2x00dev, RT3070) ||
 		    rt2x00_rt(rt2x00dev, RT3071) ||
 		    rt2x00_rt(rt2x00dev, RT3090) ||
@@ -4511,7 +4511,7 @@ void rt2800_link_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual,
 	case RT3572:
 	case RT3593:
 		if (qual->rssi > -65) {
-			if (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ)
+			if (rt2x00dev->curr_band == NL80211_BAND_2GHZ)
 				vgc += 0x20;
 			else
 				vgc += 0x10;
@@ -7491,6 +7491,10 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 */
 	if (!rt2x00_is_usb(rt2x00dev))
 		ieee80211_hw_set(rt2x00dev->hw, HOST_BROADCAST_PS_BUFFERING);
+
+	/* Set MFP if HW crypto is disabled. */
+	if (rt2800_hwcrypt_disabled(rt2x00dev))
+		ieee80211_hw_set(rt2x00dev->hw, MFP_CAPABLE);
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,

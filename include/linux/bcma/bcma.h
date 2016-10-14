@@ -4,6 +4,7 @@
 #include <linux/pci.h>
 #include <linux/mod_devicetable.h>
 
+#include <linux/bcma/bcma_driver_arm_c9.h>
 #include <linux/bcma/bcma_driver_chipcommon.h>
 #include <linux/bcma/bcma_driver_pci.h>
 #include <linux/bcma/bcma_driver_pcie2.h>
@@ -158,6 +159,7 @@ struct bcma_host_ops {
 #define BCMA_CORE_DEFAULT		0xFFF
 
 #define BCMA_MAX_NR_CORES		16
+#define BCMA_CORE_SIZE			0x1000
 
 /* Chip IDs of PCIe devices */
 #define BCMA_CHIP_ID_BCM4313	0x4313

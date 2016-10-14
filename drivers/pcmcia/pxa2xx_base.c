@@ -214,9 +214,8 @@ pxa2xx_pcmcia_frequency_change(struct soc_pcmcia_socket *skt,
 }
 #endif
 
-void pxa2xx_configure_sockets(struct device *dev)
+void pxa2xx_configure_sockets(struct device *dev, struct pcmcia_low_level *ops)
 {
-	struct pcmcia_low_level *ops = dev->platform_data;
 	/*
 	 * We have at least one socket, so set MECR:CIT
 	 * (Card Is There)
@@ -322,7 +321,7 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 			goto err1;
 	}
 
-	pxa2xx_configure_sockets(&dev->dev);
+	pxa2xx_configure_sockets(&dev->dev, ops);
 	dev_set_drvdata(&dev->dev, sinfo);
 
 	return 0;
@@ -348,7 +347,9 @@ static int pxa2xx_drv_pcmcia_remove(struct platform_device *dev)
 
 static int pxa2xx_drv_pcmcia_resume(struct device *dev)
 {
-	pxa2xx_configure_sockets(dev);
+	struct pcmcia_low_level *ops = (struct pcmcia_low_level *)dev->platform_data;
+
+	pxa2xx_configure_sockets(dev, ops);
 	return 0;
 }
 

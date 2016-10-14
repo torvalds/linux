@@ -100,7 +100,7 @@ static struct notifier_block i40iw_net_notifier = {
 	.notifier_call = i40iw_net_event
 };
 
-static int i40iw_notifiers_registered;
+static atomic_t i40iw_notifiers_registered;
 
 /**
  * i40iw_find_i40e_handler - find a handler given a client info
@@ -270,7 +270,6 @@ static void i40iw_disable_irq(struct i40iw_sc_dev *dev,
 		i40iw_wr32(dev->hw, I40E_PFINT_DYN_CTLN(msix_vec->idx - 1), 0);
 	else
 		i40iw_wr32(dev->hw, I40E_VFINT_DYN_CTLN1(msix_vec->idx - 1), 0);
-	synchronize_irq(msix_vec->irq);
 	free_irq(msix_vec->irq, dev_id);
 }
 
@@ -601,8 +600,7 @@ static enum i40iw_status_code i40iw_create_cqp(struct i40iw_device *iwdev)
 	cqp_init_info.scratch_array = cqp->scratch_array;
 	status = dev->cqp_ops->cqp_init(dev->cqp, &cqp_init_info);
 	if (status) {
-		i40iw_pr_err("cqp init status %d maj_err %d min_err %d\n",
-			     status, maj_err, min_err);
+		i40iw_pr_err("cqp init status %d\n", status);
 		goto exit;
 	}
 	status = dev->cqp_ops->cqp_create(dev->cqp, true, &maj_err, &min_err);
@@ -1147,10 +1145,7 @@ static enum i40iw_status_code i40iw_alloc_set_mac_ipaddr(struct i40iw_device *iw
 	if (!status) {
 		status = i40iw_add_mac_ipaddr_entry(iwdev, macaddr,
 						    (u8)iwdev->mac_ip_table_idx);
-		if (!status)
-			status = i40iw_add_mac_ipaddr_entry(iwdev, macaddr,
-							    (u8)iwdev->mac_ip_table_idx);
-		else
+		if (status)
 			i40iw_del_macip_entry(iwdev, (u8)iwdev->mac_ip_table_idx);
 	}
 	return status;
@@ -1165,7 +1160,7 @@ static void i40iw_add_ipv6_addr(struct i40iw_device *iwdev)
 	struct net_device *ip_dev;
 	struct inet6_dev *idev;
 	struct inet6_ifaddr *ifp;
-	__be32 local_ipaddr6[4];
+	u32 local_ipaddr6[4];
 
 	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, ip_dev) {
@@ -1347,12 +1342,11 @@ exit:
  */
 static void i40iw_register_notifiers(void)
 {
-	if (!i40iw_notifiers_registered) {
+	if (atomic_inc_return(&i40iw_notifiers_registered) == 1) {
 		register_inetaddr_notifier(&i40iw_inetaddr_notifier);
 		register_inet6addr_notifier(&i40iw_inetaddr6_notifier);
 		register_netevent_notifier(&i40iw_net_notifier);
 	}
-	i40iw_notifiers_registered++;
 }
 
 /**
@@ -1434,8 +1428,7 @@ static void i40iw_deinit_device(struct i40iw_device *iwdev, bool reset, bool del
 			i40iw_del_macip_entry(iwdev, (u8)iwdev->mac_ip_table_idx);
 		/* fallthrough */
 	case INET_NOTIFIER:
-		if (i40iw_notifiers_registered > 0) {
-			i40iw_notifiers_registered--;
+		if (!atomic_dec_return(&i40iw_notifiers_registered)) {
 			unregister_netevent_notifier(&i40iw_net_notifier);
 			unregister_inetaddr_notifier(&i40iw_inetaddr_notifier);
 			unregister_inet6addr_notifier(&i40iw_inetaddr6_notifier);
@@ -1512,6 +1505,7 @@ static enum i40iw_status_code i40iw_setup_init_state(struct i40iw_handler *hdl,
 	    I40IW_HMC_PROFILE_DEFAULT;
 	iwdev->max_rdma_vfs =
 		(iwdev->resource_profile != I40IW_HMC_PROFILE_DEFAULT) ?  max_rdma_vfs : 0;
+	iwdev->max_enabled_vfs = iwdev->max_rdma_vfs;
 	iwdev->netdev = ldev->netdev;
 	hdl->client = client;
 	iwdev->mss = (!ldev->params.mtu) ? I40IW_DEFAULT_MSS : ldev->params.mtu - I40IW_MTU_TO_MSS;
@@ -1531,7 +1525,10 @@ static enum i40iw_status_code i40iw_setup_init_state(struct i40iw_handler *hdl,
 		goto exit;
 	iwdev->obj_next = iwdev->obj_mem;
 	iwdev->push_mode = push_mode;
+
 	init_waitqueue_head(&iwdev->vchnl_waitq);
+	init_waitqueue_head(&dev->vf_reqs);
+
 	status = i40iw_initialize_dev(iwdev, ldev);
 exit:
 	if (status) {
@@ -1558,6 +1555,10 @@ static int i40iw_open(struct i40e_info *ldev, struct i40e_client *client)
 	struct i40iw_sc_dev *dev;
 	enum i40iw_status_code status;
 	struct i40iw_handler *hdl;
+
+	hdl = i40iw_find_netdev(ldev->netdev);
+	if (hdl)
+		return 0;
 
 	hdl = kzalloc(sizeof(*hdl), GFP_KERNEL);
 	if (!hdl)
@@ -1710,7 +1711,6 @@ static void i40iw_vf_reset(struct i40e_info *ldev, struct i40e_client *client, u
 	for (i = 0; i < I40IW_MAX_PE_ENABLED_VF_COUNT; i++) {
 		if (!dev->vf_dev[i] || (dev->vf_dev[i]->vf_id != vf_id))
 			continue;
-
 		/* free all resources allocated on behalf of vf */
 		tmp_vfdev = dev->vf_dev[i];
 		spin_lock_irqsave(&dev->dev_pestat.stats_lock, flags);
@@ -1819,8 +1819,6 @@ static int i40iw_virtchnl_receive(struct i40e_info *ldev,
 	dev = &hdl->device.sc_dev;
 	iwdev = dev->back_dev;
 
-	i40iw_debug(dev, I40IW_DEBUG_VIRT, "msg %p, message length %u\n", msg, len);
-
 	if (dev->vchnl_if.vchnl_recv) {
 		ret_code = dev->vchnl_if.vchnl_recv(dev, vf_id, msg, len);
 		if (!dev->is_pf) {
@@ -1829,6 +1827,39 @@ static int i40iw_virtchnl_receive(struct i40e_info *ldev,
 		}
 	}
 	return ret_code;
+}
+
+/**
+ * i40iw_vf_clear_to_send - wait to send virtual channel message
+ * @dev: iwarp device *
+ * Wait for until virtual channel is clear
+ * before sending the next message
+ *
+ * Returns false if error
+ * Returns true if clear to send
+ */
+bool i40iw_vf_clear_to_send(struct i40iw_sc_dev *dev)
+{
+	struct i40iw_device *iwdev;
+	wait_queue_t wait;
+
+	iwdev = dev->back_dev;
+
+	if (!wq_has_sleeper(&dev->vf_reqs) &&
+	    (atomic_read(&iwdev->vchnl_msgs) == 0))
+		return true; /* virtual channel is clear */
+
+	init_wait(&wait);
+	add_wait_queue_exclusive(&dev->vf_reqs, &wait);
+
+	if (!wait_event_timeout(dev->vf_reqs,
+				(atomic_read(&iwdev->vchnl_msgs) == 0),
+				I40IW_VCHNL_EVENT_TIMEOUT))
+		dev->vchnl_up = false;
+
+	remove_wait_queue(&dev->vf_reqs, &wait);
+
+	return dev->vchnl_up;
 }
 
 /**
@@ -1848,22 +1879,20 @@ static enum i40iw_status_code i40iw_virtchnl_send(struct i40iw_sc_dev *dev,
 {
 	struct i40iw_device *iwdev;
 	struct i40e_info *ldev;
-	enum i40iw_status_code ret_code = I40IW_ERR_BAD_PTR;
 
 	if (!dev || !dev->back_dev)
-		return ret_code;
+		return I40IW_ERR_BAD_PTR;
 
 	iwdev = dev->back_dev;
 	ldev = iwdev->ldev;
 
 	if (ldev && ldev->ops && ldev->ops->virtchnl_send)
-		ret_code = ldev->ops->virtchnl_send(ldev, &i40iw_client, vf_id, msg, len);
-
-	return ret_code;
+		return ldev->ops->virtchnl_send(ldev, &i40iw_client, vf_id, msg, len);
+	return I40IW_ERR_BAD_PTR;
 }
 
 /* client interface functions */
-static struct i40e_client_ops i40e_ops = {
+static const struct i40e_client_ops i40e_ops = {
 	.open = i40iw_open,
 	.close = i40iw_close,
 	.l2_param_change = i40iw_l2param_change,

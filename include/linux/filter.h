@@ -13,6 +13,8 @@
 #include <linux/printk.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
+#include <linux/capability.h>
+
 #include <net/sch_generic.h>
 
 #include <asm/cacheflush.h>
@@ -41,6 +43,15 @@ struct bpf_prog_aux;
 #define BPF_REG_A	BPF_REG_0
 #define BPF_REG_X	BPF_REG_7
 #define BPF_REG_TMP	BPF_REG_8
+
+/* Kernel hidden auxiliary/helper register for hardening step.
+ * Only used by eBPF JITs. It's nothing more than a temporary
+ * register that JITs use internally, only that here it's part
+ * of eBPF instructions that have been rewritten for blinding
+ * constants. See JIT pre-step in bpf_jit_blind_constants().
+ */
+#define BPF_REG_AX		MAX_BPF_REG
+#define MAX_BPF_JIT_REG		(MAX_BPF_REG + 1)
 
 /* BPF program can access up to 512 bytes of stack space. */
 #define MAX_BPF_STACK	512
@@ -352,6 +363,27 @@ struct sk_filter {
 
 #define BPF_SKB_CB_LEN QDISC_CB_PRIV_LEN
 
+struct bpf_skb_data_end {
+	struct qdisc_skb_cb qdisc_cb;
+	void *data_end;
+};
+
+struct xdp_buff {
+	void *data;
+	void *data_end;
+};
+
+/* compute the linear packet data range [data, data_end) which
+ * will be accessed by cls_bpf and act_bpf programs
+ */
+static inline void bpf_compute_data_end(struct sk_buff *skb)
+{
+	struct bpf_skb_data_end *cb = (struct bpf_skb_data_end *)skb->cb;
+
+	BUILD_BUG_ON(sizeof(*cb) > FIELD_SIZEOF(struct sk_buff, cb));
+	cb->data_end = skb->data + skb_headlen(skb);
+}
+
 static inline u8 *bpf_skb_cb(struct sk_buff *skb)
 {
 	/* eBPF programs may read/write skb->cb[] area to transfer meta
@@ -402,6 +434,18 @@ static inline u32 bpf_prog_run_clear_cb(const struct bpf_prog *prog,
 	return BPF_PROG_RUN(prog, skb);
 }
 
+static inline u32 bpf_prog_run_xdp(const struct bpf_prog *prog,
+				   struct xdp_buff *xdp)
+{
+	u32 ret;
+
+	rcu_read_lock();
+	ret = BPF_PROG_RUN(prog, (void *)xdp);
+	rcu_read_unlock();
+
+	return ret;
+}
+
 static inline unsigned int bpf_prog_size(unsigned int proglen)
 {
 	return max(sizeof(struct bpf_prog),
@@ -440,9 +484,13 @@ static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
 }
 #endif /* CONFIG_DEBUG_SET_MODULE_RONX */
 
-int sk_filter(struct sock *sk, struct sk_buff *skb);
+int sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb, unsigned int cap);
+static inline int sk_filter(struct sock *sk, struct sk_buff *skb)
+{
+	return sk_filter_trim_cap(sk, skb, 1);
+}
 
-int bpf_prog_select_runtime(struct bpf_prog *fp);
+struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err);
 void bpf_prog_free(struct bpf_prog *fp);
 
 struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags);
@@ -465,14 +513,10 @@ int bpf_prog_create_from_user(struct bpf_prog **pfp, struct sock_fprog *fprog,
 void bpf_prog_destroy(struct bpf_prog *fp);
 
 int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
-int __sk_attach_filter(struct sock_fprog *fprog, struct sock *sk,
-		       bool locked);
 int sk_attach_bpf(u32 ufd, struct sock *sk);
 int sk_reuseport_attach_filter(struct sock_fprog *fprog, struct sock *sk);
 int sk_reuseport_attach_bpf(u32 ufd, struct sock *sk);
 int sk_detach_filter(struct sock *sk);
-int __sk_detach_filter(struct sock *sk, bool locked);
-
 int sk_get_filter(struct sock *sk, struct sock_filter __user *filter,
 		  unsigned int len);
 
@@ -480,10 +524,18 @@ bool sk_filter_charge(struct sock *sk, struct sk_filter *fp);
 void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp);
 
 u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
-void bpf_int_jit_compile(struct bpf_prog *fp);
+
+struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog);
 bool bpf_helper_changes_skb_data(void *func);
 
+struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
+				       const struct bpf_insn *patch, u32 len);
+void bpf_warn_invalid_xdp_action(u32 act);
+
 #ifdef CONFIG_BPF_JIT
+extern int bpf_jit_enable;
+extern int bpf_jit_harden;
+
 typedef void (*bpf_jit_fill_hole_t)(void *area, unsigned int size);
 
 struct bpf_binary_header *
@@ -495,6 +547,9 @@ void bpf_jit_binary_free(struct bpf_binary_header *hdr);
 void bpf_jit_compile(struct bpf_prog *fp);
 void bpf_jit_free(struct bpf_prog *fp);
 
+struct bpf_prog *bpf_jit_blind_constants(struct bpf_prog *fp);
+void bpf_jit_prog_release_other(struct bpf_prog *fp, struct bpf_prog *fp_other);
+
 static inline void bpf_jit_dump(unsigned int flen, unsigned int proglen,
 				u32 pass, void *image)
 {
@@ -504,6 +559,33 @@ static inline void bpf_jit_dump(unsigned int flen, unsigned int proglen,
 	if (image)
 		print_hex_dump(KERN_ERR, "JIT code: ", DUMP_PREFIX_OFFSET,
 			       16, 1, image, proglen, false);
+}
+
+static inline bool bpf_jit_is_ebpf(void)
+{
+# ifdef CONFIG_HAVE_EBPF_JIT
+	return true;
+# else
+	return false;
+# endif
+}
+
+static inline bool bpf_jit_blinding_enabled(void)
+{
+	/* These are the prerequisites, should someone ever have the
+	 * idea to call blinding outside of them, we make sure to
+	 * bail out.
+	 */
+	if (!bpf_jit_is_ebpf())
+		return false;
+	if (!bpf_jit_enable)
+		return false;
+	if (!bpf_jit_harden)
+		return false;
+	if (bpf_jit_harden == 1 && capable(CAP_SYS_ADMIN))
+		return false;
+
+	return true;
 }
 #else
 static inline void bpf_jit_compile(struct bpf_prog *fp)

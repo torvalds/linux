@@ -207,7 +207,7 @@ struct mxr_layer *mxr_vp_layer_create(struct mxr_device *mdev, int idx)
 {
 	struct mxr_layer *layer;
 	int ret;
-	struct mxr_layer_ops ops = {
+	const struct mxr_layer_ops ops = {
 		.release = mxr_vp_layer_release,
 		.buffer_set = mxr_vp_buffer_set,
 		.stream_set = mxr_vp_stream_set,

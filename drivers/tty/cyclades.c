@@ -93,8 +93,6 @@ static void cy_send_xchar(struct tty_struct *tty, char ch);
 #define	SERIAL_XMIT_SIZE	(min(PAGE_SIZE, 4096))
 #endif
 
-#define STD_COM_FLAGS (0)
-
 /* firmware stuff */
 #define ZL_MAX_BLOCKS	16
 #define DRIVER_VERSION	0x02010203
@@ -714,7 +712,7 @@ static void cyy_chip_modem(struct cyclades_card *cinfo, int chip,
 		wake_up_interruptible(&info->port.delta_msr_wait);
 	}
 
-	if ((mdm_change & CyDCD) && (info->port.flags & ASYNC_CHECK_CD)) {
+	if ((mdm_change & CyDCD) && tty_port_check_carrier(&info->port)) {
 		if (mdm_status & CyDCD)
 			wake_up_interruptible(&info->port.open_wait);
 		else
@@ -1119,7 +1117,7 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 		case C_CM_MDCD:
 			info->icount.dcd++;
 			delta_count++;
-			if (info->port.flags & ASYNC_CHECK_CD) {
+			if (tty_port_check_carrier(&info->port)) {
 				u32 dcd = fw_ver > 241 ? param :
 					readl(&info->u.cyz.ch_ctrl->rs_status);
 				if (dcd & C_RS_DCD)
@@ -1279,7 +1277,7 @@ static int cy_startup(struct cyclades_port *info, struct tty_struct *tty)
 
 	spin_lock_irqsave(&card->card_lock, flags);
 
-	if (info->port.flags & ASYNC_INITIALIZED)
+	if (tty_port_initialized(&info->port))
 		goto errout;
 
 	if (!info->type) {
@@ -1364,7 +1362,7 @@ static int cy_startup(struct cyclades_port *info, struct tty_struct *tty)
 		/* enable send, recv, modem !!! */
 	}
 
-	info->port.flags |= ASYNC_INITIALIZED;
+	tty_port_set_initialized(&info->port, 1);
 
 	clear_bit(TTY_IO_ERROR, &tty->flags);
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
@@ -1424,7 +1422,7 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 	struct cyclades_card *card;
 	unsigned long flags;
 
-	if (!(info->port.flags & ASYNC_INITIALIZED))
+	if (!tty_port_initialized(&info->port))
 		return;
 
 	card = info->card;
@@ -1448,7 +1446,7 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 		   some later date (after testing)!!! */
 
 		set_bit(TTY_IO_ERROR, &tty->flags);
-		info->port.flags &= ~ASYNC_INITIALIZED;
+		tty_port_set_initialized(&info->port, 0);
 		spin_unlock_irqrestore(&card->card_lock, flags);
 	} else {
 #ifdef CY_DEBUG_OPEN
@@ -1473,7 +1471,7 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 			tty_port_lower_dtr_rts(&info->port);
 
 		set_bit(TTY_IO_ERROR, &tty->flags);
-		info->port.flags &= ~ASYNC_INITIALIZED;
+		tty_port_set_initialized(&info->port, 0);
 
 		spin_unlock_irqrestore(&card->card_lock, flags);
 	}
@@ -1711,7 +1709,7 @@ static void cy_do_close(struct tty_port *port)
 		/* Stop accepting input */
 		cyy_writeb(info, CyCAR, channel & 0x03);
 		cyy_writeb(info, CySRER, cyy_readb(info, CySRER) & ~CyRxData);
-		if (info->port.flags & ASYNC_INITIALIZED) {
+		if (tty_port_initialized(&info->port)) {
 			/* Waiting for on-board buffers to be empty before
 			   closing the port */
 			spin_unlock_irqrestore(&card->card_lock, flags);
@@ -2083,17 +2081,12 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 			info->cor1 |= CyPARITY_NONE;
 
 		/* CTS flow control flag */
-		if (cflag & CRTSCTS) {
-			info->port.flags |= ASYNC_CTS_FLOW;
+		tty_port_set_cts_flow(&info->port, cflag & CRTSCTS);
+		if (cflag & CRTSCTS)
 			info->cor2 |= CyCtsAE;
-		} else {
-			info->port.flags &= ~ASYNC_CTS_FLOW;
-			info->cor2 &= ~CyCtsAE;
-		}
-		if (cflag & CLOCAL)
-			info->port.flags &= ~ASYNC_CHECK_CD;
 		else
-			info->port.flags |= ASYNC_CHECK_CD;
+			info->cor2 &= ~CyCtsAE;
+		tty_port_set_check_carrier(&info->port, ~cflag & CLOCAL);
 
 	 /***********************************************
 	    The hardware option, CyRtsAO, presents RTS when
@@ -2234,7 +2227,7 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 		}
 		/* As the HW flow control is done in firmware, the driver
 		   doesn't need to care about it */
-		info->port.flags &= ~ASYNC_CTS_FLOW;
+		tty_port_set_cts_flow(&info->port, 0);
 
 		/* XON/XOFF/XANY flow control flags */
 		sw_flow = 0;
@@ -2252,10 +2245,7 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 		}
 
 		/* CD sensitivity */
-		if (cflag & CLOCAL)
-			info->port.flags &= ~ASYNC_CHECK_CD;
-		else
-			info->port.flags |= ASYNC_CHECK_CD;
+		tty_port_set_check_carrier(&info->port, ~cflag & CLOCAL);
 
 		if (baud == 0) {	/* baud rate is zero, turn off line */
 			cy_writel(&ch_ctrl->rs_control,
@@ -2296,7 +2286,6 @@ static int cy_get_serial_info(struct cyclades_port *info,
 		.closing_wait = info->port.closing_wait,
 		.baud_base = info->baud,
 		.custom_divisor = info->custom_divisor,
-		.hub6 = 0,		/*!!! */
 	};
 	return copy_to_user(retinfo, &tmp, sizeof(*retinfo)) ? -EFAULT : 0;
 }
@@ -2342,7 +2331,7 @@ cy_set_serial_info(struct cyclades_port *info, struct tty_struct *tty,
 	info->port.closing_wait = new_serial.closing_wait * HZ / 100;
 
 check_and_exit:
-	if (info->port.flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(&info->port)) {
 		cy_set_line_char(info, tty);
 		ret = 0;
 	} else {
@@ -3092,7 +3081,6 @@ static int cy_init_card(struct cyclades_card *cinfo)
 
 		info->port.closing_wait = CLOSING_WAIT_DELAY;
 		info->port.close_delay = 5 * HZ / 10;
-		info->port.flags = STD_COM_FLAGS;
 		init_completion(&info->shutdown_wait);
 
 		if (cy_is_Z(cinfo)) {

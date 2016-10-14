@@ -103,6 +103,7 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 			   const struct nlattr * const tb[])
 {
 	struct nft_dynset *priv = nft_expr_priv(expr);
+	u8 genmask = nft_genmask_next(ctx->net);
 	struct nft_set *set;
 	u64 timeout;
 	int err;
@@ -112,11 +113,13 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 	    tb[NFTA_DYNSET_SREG_KEY] == NULL)
 		return -EINVAL;
 
-	set = nf_tables_set_lookup(ctx->table, tb[NFTA_DYNSET_SET_NAME]);
+	set = nf_tables_set_lookup(ctx->table, tb[NFTA_DYNSET_SET_NAME],
+				   genmask);
 	if (IS_ERR(set)) {
 		if (tb[NFTA_DYNSET_SET_ID])
 			set = nf_tables_set_lookup_byid(ctx->net,
-							tb[NFTA_DYNSET_SET_ID]);
+							tb[NFTA_DYNSET_SET_ID],
+							genmask);
 		if (IS_ERR(set))
 			return PTR_ERR(set);
 	}
@@ -227,7 +230,8 @@ static int nft_dynset_dump(struct sk_buff *skb, const struct nft_expr *expr)
 		goto nla_put_failure;
 	if (nla_put_string(skb, NFTA_DYNSET_SET_NAME, priv->set->name))
 		goto nla_put_failure;
-	if (nla_put_be64(skb, NFTA_DYNSET_TIMEOUT, cpu_to_be64(priv->timeout)))
+	if (nla_put_be64(skb, NFTA_DYNSET_TIMEOUT, cpu_to_be64(priv->timeout),
+			 NFTA_DYNSET_PAD))
 		goto nla_put_failure;
 	if (priv->expr && nft_expr_dump(skb, NFTA_DYNSET_EXPR, priv->expr))
 		goto nla_put_failure;

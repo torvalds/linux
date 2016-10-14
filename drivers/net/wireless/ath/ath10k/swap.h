@@ -39,12 +39,6 @@ union ath10k_swap_code_seg_item {
 	struct ath10k_swap_code_seg_tail tail;
 } __packed;
 
-enum ath10k_swap_code_seg_bin_type {
-	 ATH10K_SWAP_CODE_SEG_BIN_TYPE_OTP,
-	 ATH10K_SWAP_CODE_SEG_BIN_TYPE_FW,
-	 ATH10K_SWAP_CODE_SEG_BIN_TYPE_UTF,
-};
-
 struct ath10k_swap_code_seg_hw_info {
 	/* Swap binary image size */
 	__le32 swap_size;
@@ -64,8 +58,7 @@ struct ath10k_swap_code_seg_info {
 	dma_addr_t paddr[ATH10K_SWAP_CODE_SEG_NUM_SUPPORTED];
 };
 
-int ath10k_swap_code_seg_configure(struct ath10k *ar,
-				   enum ath10k_swap_code_seg_bin_type type);
+int ath10k_swap_code_seg_configure(struct ath10k *ar);
 void ath10k_swap_code_seg_release(struct ath10k *ar);
 int ath10k_swap_code_seg_init(struct ath10k *ar);
 

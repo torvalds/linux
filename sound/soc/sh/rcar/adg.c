@@ -33,10 +33,14 @@ struct rsnd_adg {
 	struct clk *clkout[CLKOUTMAX];
 	struct clk_onecell_data onecell;
 	struct rsnd_mod mod;
+	u32 flags;
 
 	int rbga_rate_for_441khz; /* RBGA */
 	int rbgb_rate_for_48khz;  /* RBGB */
 };
+
+#define LRCLK_ASYNC	(1 << 0)
+#define adg_mode_flags(adg)	(adg->flags)
 
 #define for_each_rsnd_clk(pos, adg, i)		\
 	for (i = 0;				\
@@ -355,6 +359,16 @@ found_clock:
 
 	rsnd_adg_set_ssi_clk(ssi_mod, data);
 
+	if (!(adg_mode_flags(adg) & LRCLK_ASYNC)) {
+		struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
+		u32 ckr = 0;
+
+		if (0 == (rate % 8000))
+			ckr = 0x80000000;
+
+		rsnd_mod_bset(adg_mod, SSICKR, 0x80000000, ckr);
+	}
+
 	dev_dbg(dev, "ADG: %s[%d] selects 0x%x for %d\n",
 		rsnd_mod_name(ssi_mod), rsnd_mod_id(ssi_mod),
 		data, rate);
@@ -492,9 +506,7 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 	 */
 	if (!count) {
 		clk = clk_register_fixed_rate(dev, clkout_name[CLKOUT],
-					      parent_clk_name,
-					      (parent_clk_name) ?
-					      0 : CLK_IS_ROOT, req_rate);
+					      parent_clk_name, 0, req_rate);
 		if (!IS_ERR(clk)) {
 			adg->clkout[CLKOUT] = clk;
 			of_clk_add_provider(np, of_clk_src_simple_get, clk);
@@ -506,9 +518,7 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 	else {
 		for (i = 0; i < CLKOUTMAX; i++) {
 			clk = clk_register_fixed_rate(dev, clkout_name[i],
-						      parent_clk_name,
-						      (parent_clk_name) ?
-						      0 : CLK_IS_ROOT,
+						      parent_clk_name, 0,
 						      req_rate);
 			if (!IS_ERR(clk)) {
 				adg->onecell.clks	= adg->clkout;
@@ -522,7 +532,7 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 		}
 	}
 
-	rsnd_mod_bset(adg_mod, SSICKR, 0x00FF0000, ckr);
+	rsnd_mod_bset(adg_mod, SSICKR, 0x80FF0000, ckr);
 	rsnd_mod_write(adg_mod, BRRA,  rbga);
 	rsnd_mod_write(adg_mod, BRRB,  rbgb);
 
@@ -536,6 +546,7 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 {
 	struct rsnd_adg *adg;
 	struct device *dev = rsnd_priv_to_dev(priv);
+	struct device_node *np = dev->of_node;
 
 	adg = devm_kzalloc(dev, sizeof(*adg), GFP_KERNEL);
 	if (!adg) {
@@ -548,6 +559,9 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 
 	rsnd_adg_get_clkin(priv, adg);
 	rsnd_adg_get_clkout(priv, adg);
+
+	if (of_get_property(np, "clkout-lr-asynchronous", NULL))
+		adg->flags = LRCLK_ASYNC;
 
 	priv->adg = adg;
 

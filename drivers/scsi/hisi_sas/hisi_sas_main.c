@@ -227,7 +227,11 @@ static int hisi_sas_task_prep(struct sas_task *task, struct hisi_hba *hisi_hba,
 	} else
 		n_elem = task->num_scatter;
 
-	rc = hisi_sas_slot_index_alloc(hisi_hba, &slot_idx);
+	if (hisi_hba->hw->slot_index_alloc)
+		rc = hisi_hba->hw->slot_index_alloc(hisi_hba, &slot_idx,
+						    device);
+	else
+		rc = hisi_sas_slot_index_alloc(hisi_hba, &slot_idx);
 	if (rc)
 		goto err_out;
 	rc = hisi_hba->hw->get_free_slot(hisi_hba, &dlvry_queue,
@@ -417,7 +421,10 @@ static int hisi_sas_dev_found(struct domain_device *device)
 	struct hisi_sas_device *sas_dev;
 	struct device *dev = &hisi_hba->pdev->dev;
 
-	sas_dev = hisi_sas_alloc_dev(device);
+	if (hisi_hba->hw->alloc_dev)
+		sas_dev = hisi_hba->hw->alloc_dev(device);
+	else
+		sas_dev = hisi_sas_alloc_dev(device);
 	if (!sas_dev) {
 		dev_err(dev, "fail alloc dev: max support %d devices\n",
 			HISI_SAS_MAX_DEVICES);

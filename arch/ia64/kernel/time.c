@@ -355,7 +355,7 @@ static struct irqaction timer_irqaction = {
 	.name =		"timer"
 };
 
-void read_persistent_clock(struct timespec *ts)
+void read_persistent_clock64(struct timespec64 *ts)
 {
 	efi_gettimeofday(ts);
 }

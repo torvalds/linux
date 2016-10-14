@@ -180,7 +180,7 @@ __exception_irq_entry bcm2836_arm_irqchip_handle_irq(struct pt_regs *regs)
 	} else if (stat) {
 		u32 hwirq = ffs(stat) - 1;
 
-		handle_IRQ(irq_linear_revmap(intc.domain, hwirq), regs);
+		handle_domain_irq(intc.domain, hwirq, regs);
 	}
 }
 
@@ -195,36 +195,30 @@ static void bcm2836_arm_irqchip_send_ipi(const struct cpumask *mask,
 	 * Ensure that stores to normal memory are visible to the
 	 * other CPUs before issuing the IPI.
 	 */
-	dsb();
+	smp_wmb();
 
 	for_each_cpu(cpu, mask)	{
 		writel(1 << ipi, mailbox0_base + 16 * cpu);
 	}
 }
 
-/* Unmasks the IPI on the CPU when it's online. */
-static int bcm2836_arm_irqchip_cpu_notify(struct notifier_block *nfb,
-					  unsigned long action, void *hcpu)
+static int bcm2836_cpu_starting(unsigned int cpu)
 {
-	unsigned int cpu = (unsigned long)hcpu;
-	unsigned int int_reg = LOCAL_MAILBOX_INT_CONTROL0;
-	unsigned int mailbox = 0;
-
-	if (action == CPU_STARTING || action == CPU_STARTING_FROZEN)
-		bcm2836_arm_irqchip_unmask_per_cpu_irq(int_reg, mailbox, cpu);
-	else if (action == CPU_DYING)
-		bcm2836_arm_irqchip_mask_per_cpu_irq(int_reg, mailbox, cpu);
-
-	return NOTIFY_OK;
+	bcm2836_arm_irqchip_unmask_per_cpu_irq(LOCAL_MAILBOX_INT_CONTROL0, 0,
+					       cpu);
+	return 0;
 }
 
-static struct notifier_block bcm2836_arm_irqchip_cpu_notifier = {
-	.notifier_call = bcm2836_arm_irqchip_cpu_notify,
-	.priority = 100,
-};
+static int bcm2836_cpu_dying(unsigned int cpu)
+{
+	bcm2836_arm_irqchip_mask_per_cpu_irq(LOCAL_MAILBOX_INT_CONTROL0, 0,
+					     cpu);
+	return 0;
+}
 
-int __init bcm2836_smp_boot_secondary(unsigned int cpu,
-				      struct task_struct *idle)
+#ifdef CONFIG_ARM
+static int __init bcm2836_smp_boot_secondary(unsigned int cpu,
+					     struct task_struct *idle)
 {
 	unsigned long secondary_startup_phys =
 		(unsigned long)virt_to_phys((void *)secondary_startup);
@@ -238,7 +232,7 @@ int __init bcm2836_smp_boot_secondary(unsigned int cpu,
 static const struct smp_operations bcm2836_smp_ops __initconst = {
 	.smp_boot_secondary	= bcm2836_smp_boot_secondary,
 };
-
+#endif
 #endif
 
 static const struct irq_domain_ops bcm2836_arm_irqchip_intc_ops = {
@@ -250,13 +244,15 @@ bcm2836_arm_irqchip_smp_init(void)
 {
 #ifdef CONFIG_SMP
 	/* Unmask IPIs to the boot CPU. */
-	bcm2836_arm_irqchip_cpu_notify(&bcm2836_arm_irqchip_cpu_notifier,
-				       CPU_STARTING,
-				       (void *)smp_processor_id());
-	register_cpu_notifier(&bcm2836_arm_irqchip_cpu_notifier);
+	cpuhp_setup_state(CPUHP_AP_IRQ_BCM2836_STARTING,
+			  "AP_IRQ_BCM2836_STARTING", bcm2836_cpu_starting,
+			  bcm2836_cpu_dying);
 
 	set_smp_cross_call(bcm2836_arm_irqchip_send_ipi);
+
+#ifdef CONFIG_ARM
 	smp_set_ops(&bcm2836_smp_ops);
+#endif
 #endif
 }
 

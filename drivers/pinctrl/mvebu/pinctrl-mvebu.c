@@ -711,7 +711,7 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	pctl->pctldev = pinctrl_register(&pctl->desc, &pdev->dev, pctl);
+	pctl->pctldev = devm_pinctrl_register(&pdev->dev, &pctl->desc, pctl);
 	if (IS_ERR(pctl->pctldev)) {
 		dev_err(&pdev->dev, "unable to register pinctrl driver\n");
 		return PTR_ERR(pctl->pctldev);
@@ -723,12 +723,5 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 	for (n = 0; n < soc->ngpioranges; n++)
 		pinctrl_add_gpio_range(pctl->pctldev, &soc->gpioranges[n]);
 
-	return 0;
-}
-
-int mvebu_pinctrl_remove(struct platform_device *pdev)
-{
-	struct mvebu_pinctrl *pctl = platform_get_drvdata(pdev);
-	pinctrl_unregister(pctl->pctldev);
 	return 0;
 }

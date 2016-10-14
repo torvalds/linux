@@ -42,6 +42,7 @@ struct kmem_cache {
 #include <linux/kmemcheck.h>
 #include <linux/kasan.h>
 #include <linux/kmemleak.h>
+#include <linux/random.h>
 
 /*
  * State of the slab allocator.
@@ -253,8 +254,7 @@ static __always_inline int memcg_charge_slab(struct page *page,
 	if (is_root_cache(s))
 		return 0;
 
-	ret = __memcg_kmem_charge_memcg(page, gfp, order,
-					s->memcg_params.memcg);
+	ret = memcg_kmem_charge_memcg(page, gfp, order, s->memcg_params.memcg);
 	if (ret)
 		return ret;
 
@@ -268,6 +268,9 @@ static __always_inline int memcg_charge_slab(struct page *page,
 static __always_inline void memcg_uncharge_slab(struct page *page, int order,
 						struct kmem_cache *s)
 {
+	if (!memcg_kmem_enabled())
+		return;
+
 	memcg_kmem_update_page_stat(page,
 			(s->flags & SLAB_RECLAIM_ACCOUNT) ?
 			MEMCG_SLAB_RECLAIMABLE : MEMCG_SLAB_UNRECLAIMABLE,
@@ -366,6 +369,8 @@ static inline size_t slab_ksize(const struct kmem_cache *s)
 	if (s->flags & (SLAB_RED_ZONE | SLAB_POISON))
 		return s->object_size;
 # endif
+	if (s->flags & SLAB_KASAN)
+		return s->object_size;
 	/*
 	 * If we have the need to store the freelist pointer
 	 * back there or track user information then we can
@@ -390,7 +395,11 @@ static inline struct kmem_cache *slab_pre_alloc_hook(struct kmem_cache *s,
 	if (should_failslab(s, flags))
 		return NULL;
 
-	return memcg_kmem_get_cache(s, flags);
+	if (memcg_kmem_enabled() &&
+	    ((flags & __GFP_ACCOUNT) || (s->flags & SLAB_ACCOUNT)))
+		return memcg_kmem_get_cache(s);
+
+	return s;
 }
 
 static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
@@ -407,7 +416,9 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
 					 s->flags, flags);
 		kasan_slab_alloc(s, object, flags);
 	}
-	memcg_kmem_put_cache(s);
+
+	if (memcg_kmem_enabled())
+		memcg_kmem_put_cache(s);
 }
 
 #ifndef CONFIG_SLOB
@@ -461,5 +472,20 @@ void *slab_start(struct seq_file *m, loff_t *pos);
 void *slab_next(struct seq_file *m, void *p, loff_t *pos);
 void slab_stop(struct seq_file *m, void *p);
 int memcg_slab_show(struct seq_file *m, void *p);
+
+void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
+
+#ifdef CONFIG_SLAB_FREELIST_RANDOM
+int cache_random_seq_create(struct kmem_cache *cachep, unsigned int count,
+			gfp_t gfp);
+void cache_random_seq_destroy(struct kmem_cache *cachep);
+#else
+static inline int cache_random_seq_create(struct kmem_cache *cachep,
+					unsigned int count, gfp_t gfp)
+{
+	return 0;
+}
+static inline void cache_random_seq_destroy(struct kmem_cache *cachep) { }
+#endif /* CONFIG_SLAB_FREELIST_RANDOM */
 
 #endif /* MM_SLAB_H */

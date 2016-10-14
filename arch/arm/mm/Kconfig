@@ -421,18 +421,21 @@ config CPU_32v3
 	select CPU_USE_DOMAINS if MMU
 	select NEED_KUSER_HELPERS
 	select TLS_REG_EMUL if SMP || !MMU
+	select CPU_NO_EFFICIENT_FFS
 
 config CPU_32v4
 	bool
 	select CPU_USE_DOMAINS if MMU
 	select NEED_KUSER_HELPERS
 	select TLS_REG_EMUL if SMP || !MMU
+	select CPU_NO_EFFICIENT_FFS
 
 config CPU_32v4T
 	bool
 	select CPU_USE_DOMAINS if MMU
 	select NEED_KUSER_HELPERS
 	select TLS_REG_EMUL if SMP || !MMU
+	select CPU_NO_EFFICIENT_FFS
 
 config CPU_32v5
 	bool
@@ -1021,12 +1024,6 @@ config ARM_DMA_MEM_BUFFERABLE
 	  behaviour.  Therefore, we offer this as an option.
 
 	  You are recommended say 'Y' here and debug any affected drivers.
-
-config ARCH_HAS_BARRIERS
-	bool
-	help
-	  This option allows the use of custom mandatory barriers
-	  included via the mach/barriers.h file.
 
 config ARM_HEAVY_MB
 	bool

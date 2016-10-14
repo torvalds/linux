@@ -723,7 +723,7 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return -EIO;
 	}
 
-	ret = iwl_mvm_sta_send_to_fw(mvm, ap_sta, false);
+	ret = iwl_mvm_sta_send_to_fw(mvm, ap_sta, false, 0);
 	if (ret)
 		return ret;
 	rcu_assign_pointer(mvm->fw_id_to_mac_id[mvmvif->ap_sta_id], ap_sta);
@@ -1804,7 +1804,6 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	struct iwl_wowlan_status *fw_status;
 	int i;
 	bool keep;
-	struct ieee80211_sta *ap_sta;
 	struct iwl_mvm_sta *mvm_ap_sta;
 
 	fw_status = iwl_mvm_get_wakeup_status(mvm, vif);
@@ -1823,13 +1822,10 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	status.wake_packet = fw_status->wake_packet;
 
 	/* still at hard-coded place 0 for D3 image */
-	ap_sta = rcu_dereference_protected(
-			mvm->fw_id_to_mac_id[0],
-			lockdep_is_held(&mvm->mutex));
-	if (IS_ERR_OR_NULL(ap_sta))
+	mvm_ap_sta = iwl_mvm_sta_from_staid_protected(mvm, 0);
+	if (!mvm_ap_sta)
 		goto out_free;
 
-	mvm_ap_sta = iwl_mvm_sta_from_mac80211(ap_sta);
 	for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
 		u16 seq = status.qos_seq_ctr[i];
 		/* firmware stores last-used value, we store next value */

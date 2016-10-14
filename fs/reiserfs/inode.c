@@ -2668,7 +2668,7 @@ static int reiserfs_write_full_page(struct page *page,
 	do {
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
-			submit_bh(WRITE, bh);
+			submit_bh(REQ_OP_WRITE, 0, bh);
 			nr++;
 		}
 		put_bh(bh);
@@ -2728,7 +2728,7 @@ fail:
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
 			clear_buffer_dirty(bh);
-			submit_bh(WRITE, bh);
+			submit_bh(REQ_OP_WRITE, 0, bh);
 			nr++;
 		}
 		put_bh(bh);
@@ -3279,15 +3279,14 @@ static int reiserfs_releasepage(struct page *page, gfp_t unused_gfp_flags)
  * We thank Mingming Cao for helping us understand in great detail what
  * to do in this section of the code.
  */
-static ssize_t reiserfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-				  loff_t offset)
+static ssize_t reiserfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
-	ret = blockdev_direct_IO(iocb, inode, iter, offset,
+	ret = blockdev_direct_IO(iocb, inode, iter,
 				 reiserfs_get_blocks_direct_io);
 
 	/*
@@ -3296,7 +3295,7 @@ static ssize_t reiserfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	 */
 	if (unlikely(iov_iter_rw(iter) == WRITE && ret < 0)) {
 		loff_t isize = i_size_read(inode);
-		loff_t end = offset + count;
+		loff_t end = iocb->ki_pos + count;
 
 		if ((end > isize) && inode_newsize_ok(inode, isize) == 0) {
 			truncate_setsize(inode, isize);

@@ -72,7 +72,7 @@ drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 {
 
 #if defined(CONFIG_X86)
-	if (cpu_has_clflush) {
+	if (static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		drm_cache_flush_clflush(pages, num_pages);
 		return;
 	}
@@ -105,7 +105,7 @@ void
 drm_clflush_sg(struct sg_table *st)
 {
 #if defined(CONFIG_X86)
-	if (cpu_has_clflush) {
+	if (static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		struct sg_page_iter sg_iter;
 
 		mb();
@@ -129,13 +129,14 @@ void
 drm_clflush_virt_range(void *addr, unsigned long length)
 {
 #if defined(CONFIG_X86)
-	if (cpu_has_clflush) {
+	if (static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		const int size = boot_cpu_data.x86_clflush_size;
 		void *end = addr + length;
 		addr = (void *)(((unsigned long)addr) & -size);
 		mb();
 		for (; addr < end; addr += size)
 			clflushopt(addr);
+		clflushopt(end - 1); /* force serialisation */
 		mb();
 		return;
 	}

@@ -73,6 +73,16 @@ config BH1750
 	 To compile this driver as a module, choose M here: the module will
 	 be called bh1750.
 
+config BH1780
+	tristate "ROHM BH1780 ambient light sensor"
+	depends on I2C
+	help
+	 Say Y here to build support for the ROHM BH1780GLI ambient
+	 light sensor.
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called bh1780.
+
 config CM32181
 	depends on I2C
 	tristate "CM32181 driver"
@@ -223,6 +233,19 @@ config LTR501
 	 This driver can also be built as a module.  If so, the module
          will be called ltr501.
 
+config MAX44000
+	tristate "MAX44000 Ambient and Infrared Proximity Sensor"
+	depends on I2C
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	 Say Y here if you want to build support for Maxim Integrated's
+	 MAX44000 ambient and infrared proximity sensor device.
+
+	 To compile this driver as a module, choose M here:
+	 the module will be called max44000.
+
 config OPT3001
 	tristate "Texas Instruments OPT3001 Light Sensor"
 	depends on I2C
@@ -319,5 +342,15 @@ config VCNL4000
 
 	 To compile this driver as a module, choose M here: the
 	 module will be called vcnl4000.
+
+config VEML6070
+	tristate "VEML6070 UV A light sensor"
+	depends on I2C
+	help
+	 Say Y here if you want to build a driver for the Vishay VEML6070 UV A
+	 light sensor.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called veml6070.
 
 endmenu

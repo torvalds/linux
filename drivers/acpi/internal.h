@@ -20,7 +20,8 @@
 
 #define PREFIX "ACPI: "
 
-void acpi_initrd_initialize_tables(void);
+int early_acpi_osi_init(void);
+int acpi_osi_init(void);
 acpi_status acpi_os_initialize1(void);
 void init_acpi_device_notify(void);
 int acpi_scan_init(void);
@@ -85,6 +86,9 @@ acpi_status acpi_hotplug_schedule(struct acpi_device *adev, u32 src);
 bool acpi_queue_hotplug_work(struct work_struct *work);
 void acpi_device_hotplug(struct acpi_device *adev, u32 src);
 bool acpi_scan_is_offline(struct acpi_device *adev, bool uevent);
+
+acpi_status acpi_sysfs_table_handler(u32 event, void *table, void *context);
+void acpi_scan_table_handler(u32 event, void *table, void *context);
 
 /* --------------------------------------------------------------------------
                      Device Node Initialization / Removal
@@ -180,7 +184,7 @@ typedef int (*acpi_ec_query_func) (void *data);
 
 int acpi_ec_init(void);
 int acpi_ec_ecdt_probe(void);
-int acpi_boot_ec_enable(void);
+int acpi_ec_dsdt_probe(void);
 void acpi_ec_block_transactions(void);
 void acpi_ec_unblock_transactions(void);
 void acpi_ec_unblock_transactions_early(void);

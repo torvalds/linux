@@ -68,8 +68,6 @@ struct rxrpc_wire_header {
 
 } __packed;
 
-extern const char *rxrpc_pkts[];
-
 #define RXRPC_SUPPORTED_PACKET_TYPES (			\
 		(1 << RXRPC_PACKET_TYPE_DATA) |		\
 		(1 << RXRPC_PACKET_TYPE_ACK) |		\

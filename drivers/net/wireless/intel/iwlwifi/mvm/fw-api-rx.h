@@ -268,12 +268,25 @@ enum iwl_rx_mpdu_amsdu_info {
 	IWL_RX_MPDU_AMSDU_LAST_SUBFRAME		= 0x80,
 };
 
+enum iwl_rx_l3_proto_values {
+	IWL_RX_L3_TYPE_NONE,
+	IWL_RX_L3_TYPE_IPV4,
+	IWL_RX_L3_TYPE_IPV4_FRAG,
+	IWL_RX_L3_TYPE_IPV6_FRAG,
+	IWL_RX_L3_TYPE_IPV6,
+	IWL_RX_L3_TYPE_IPV6_IN_IPV4,
+	IWL_RX_L3_TYPE_ARP,
+	IWL_RX_L3_TYPE_EAPOL,
+};
+
+#define IWL_RX_L3_PROTO_POS 4
+
 enum iwl_rx_l3l4_flags {
 	IWL_RX_L3L4_IP_HDR_CSUM_OK		= BIT(0),
 	IWL_RX_L3L4_TCP_UDP_CSUM_OK		= BIT(1),
 	IWL_RX_L3L4_TCP_FIN_SYN_RST_PSH		= BIT(2),
 	IWL_RX_L3L4_TCP_ACK			= BIT(3),
-	IWL_RX_L3L4_L3_PROTO_MASK		= 0xf << 4,
+	IWL_RX_L3L4_L3_PROTO_MASK		= 0xf << IWL_RX_L3_PROTO_POS,
 	IWL_RX_L3L4_L4_PROTO_MASK		= 0xf << 8,
 	IWL_RX_L3L4_RSS_HASH_MASK		= 0xf << 12,
 };
@@ -283,7 +296,7 @@ enum iwl_rx_mpdu_status {
 	IWL_RX_MPDU_STATUS_OVERRUN_OK		= BIT(1),
 	IWL_RX_MPDU_STATUS_SRC_STA_FOUND	= BIT(2),
 	IWL_RX_MPDU_STATUS_KEY_VALID		= BIT(3),
-	IWL_RX_MPDU_STATUS_KEY_ERROR		= BIT(4),
+	IWL_RX_MPDU_STATUS_KEY_PARAM_OK		= BIT(4),
 	IWL_RX_MPDU_STATUS_ICV_OK		= BIT(5),
 	IWL_RX_MPDU_STATUS_MIC_OK		= BIT(6),
 	IWL_RX_MPDU_RES_STATUS_TTAK_OK		= BIT(7),
@@ -298,7 +311,7 @@ enum iwl_rx_mpdu_status {
 	IWL_RX_MPDU_STATUS_WEP_MATCH		= BIT(12),
 	IWL_RX_MPDU_STATUS_EXT_IV_MATCH		= BIT(13),
 	IWL_RX_MPDU_STATUS_KEY_ID_MATCH		= BIT(14),
-	IWL_RX_MPDU_STATUS_KEY_COLOR		= BIT(15),
+	IWL_RX_MPDU_STATUS_ROBUST_MNG_FRAME	= BIT(15),
 };
 
 enum iwl_rx_mpdu_hash_filter {
@@ -323,6 +336,18 @@ enum iwl_rx_mpdu_reorder_data {
 	IWL_RX_MPDU_REORDER_BA_OLD_SN		= 0x80000000,
 };
 
+enum iwl_rx_mpdu_phy_info {
+	IWL_RX_MPDU_PHY_AMPDU		= BIT(5),
+	IWL_RX_MPDU_PHY_AMPDU_TOGGLE	= BIT(6),
+	IWL_RX_MPDU_PHY_SHORT_PREAMBLE	= BIT(7),
+	IWL_RX_MPDU_PHY_TSF_OVERLOAD	= BIT(8),
+};
+
+enum iwl_rx_mpdu_mac_info {
+	IWL_RX_MPDU_PHY_MAC_INDEX_MASK		= 0x0f,
+	IWL_RX_MPDU_PHY_PHY_INDEX_MASK		= 0xf0,
+};
+
 struct iwl_rx_mpdu_desc {
 	/* DW2 */
 	__le16 mpdu_len;
@@ -330,9 +355,9 @@ struct iwl_rx_mpdu_desc {
 	u8 mac_flags2;
 	/* DW3 */
 	u8 amsdu_info;
-	__le16 reserved_for_software;
+	__le16 phy_info;
 	u8 mac_phy_idx;
-	/* DW4 */
+	/* DW4 - carries csum data only when rpa_en == 1 */
 	__le16 raw_csum; /* alledgedly unreliable */
 	__le16 l3l4_flags;
 	/* DW5 */
@@ -341,17 +366,17 @@ struct iwl_rx_mpdu_desc {
 	u8 sta_id_flags;
 	/* DW6 */
 	__le32 reorder_data;
-	/* DW7 */
+	/* DW7 - carries rss_hash only when rpa_en == 1 */
 	__le32 rss_hash;
-	/* DW8 */
+	/* DW8 - carries filter_match only when rpa_en == 1 */
 	__le32 filter_match;
 	/* DW9 */
 	__le32 rate_n_flags;
 	/* DW10 */
-	u8 energy_a, energy_b, channel, reserved;
+	u8 energy_a, energy_b, channel, mac_context;
 	/* DW11 */
 	__le32 gp2_on_air_rise;
-	/* DW12 & DW13 */
+	/* DW12 & DW13 - carries TSF only TSF_OVERLOAD bit == 0 */
 	__le64 tsf_on_air_rise;
 } __packed;
 
@@ -422,23 +447,30 @@ struct iwl_rxq_sync_notification {
 } __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
 
 /**
-* Internal message identifier
-*
-* @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
-*/
+ * Internal message identifier
+ *
+ * @IWL_MVM_RXQ_EMPTY: empty sync notification
+ * @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
+ */
 enum iwl_mvm_rxq_notif_type {
+	IWL_MVM_RXQ_EMPTY,
 	IWL_MVM_RXQ_NOTIF_DEL_BA,
 };
 
 /**
-* struct iwl_mvm_internal_rxq_notif - Internal representation of the data sent
-* in &iwl_rxq_sync_cmd. Should be DWORD aligned.
-*
-* @type: value from &iwl_mvm_rxq_notif_type
-* @data: payload
-*/
+ * struct iwl_mvm_internal_rxq_notif - Internal representation of the data sent
+ * in &iwl_rxq_sync_cmd. Should be DWORD aligned.
+ * FW is agnostic to the payload, so there are no endianity requirements.
+ *
+ * @type: value from &iwl_mvm_rxq_notif_type
+ * @sync: ctrl path is waiting for all notifications to be received
+ * @cookie: internal cookie to identify old notifications
+ * @data: payload
+ */
 struct iwl_mvm_internal_rxq_notif {
-	u32 type;
+	u16 type;
+	u16 sync;
+	u32 cookie;
 	u8 data[];
 } __packed;
 

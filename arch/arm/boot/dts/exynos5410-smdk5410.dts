@@ -97,19 +97,19 @@
 		smsc,irq-push-pull;
 		smsc,force-internal-phy;
 
-		samsung,srom-page-mode = <1>;
+		samsung,srom-page-mode;
 		samsung,srom-timing = <9 12 1 9 1 1>;
 	};
 };
 
-&uart0 {
+&serial_0 {
 	status = "okay";
 };
 
-&uart1 {
+&serial_1 {
 	status = "okay";
 };
 
-&uart2 {
+&serial_2 {
 	status = "okay";
 };

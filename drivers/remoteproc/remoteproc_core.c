@@ -57,6 +57,8 @@ static DEFINE_IDA(rproc_dev_index);
 
 static const char * const rproc_crash_names[] = {
 	[RPROC_MMUFAULT]	= "mmufault",
+	[RPROC_WATCHDOG]	= "watchdog",
+	[RPROC_FATAL_ERROR]	= "fatal error",
 };
 
 /* translate rproc_crash_type to string */
@@ -856,12 +858,8 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	 * copy this information to device memory.
 	 */
 	loaded_table = rproc_find_loaded_rsc_table(rproc, fw);
-	if (!loaded_table) {
-		ret = -EINVAL;
-		goto clean_up;
-	}
-
-	memcpy(loaded_table, rproc->cached_table, tablesz);
+	if (loaded_table)
+		memcpy(loaded_table, rproc->cached_table, tablesz);
 
 	/* power up the remote processor */
 	ret = rproc->ops->start(rproc);
@@ -1030,8 +1028,9 @@ static void rproc_crash_handler_work(struct work_struct *work)
 }
 
 /**
- * rproc_boot() - boot a remote processor
+ * __rproc_boot() - boot a remote processor
  * @rproc: handle of a remote processor
+ * @wait: wait for rproc registration completion
  *
  * Boot a remote processor (i.e. load its firmware, power it on, ...).
  *
@@ -1040,7 +1039,7 @@ static void rproc_crash_handler_work(struct work_struct *work)
  *
  * Returns 0 on success, and an appropriate error value otherwise.
  */
-int rproc_boot(struct rproc *rproc)
+static int __rproc_boot(struct rproc *rproc, bool wait)
 {
 	const struct firmware *firmware_p;
 	struct device *dev;
@@ -1088,6 +1087,10 @@ int rproc_boot(struct rproc *rproc)
 		goto downref_rproc;
 	}
 
+	/* if rproc virtio is not yet configured, wait */
+	if (wait)
+		wait_for_completion(&rproc->firmware_loading_complete);
+
 	ret = rproc_fw_boot(rproc, firmware_p);
 
 	release_firmware(firmware_p);
@@ -1101,7 +1104,27 @@ unlock_mutex:
 	mutex_unlock(&rproc->lock);
 	return ret;
 }
+
+/**
+ * rproc_boot() - boot a remote processor
+ * @rproc: handle of a remote processor
+ */
+int rproc_boot(struct rproc *rproc)
+{
+	return __rproc_boot(rproc, true);
+}
 EXPORT_SYMBOL(rproc_boot);
+
+/**
+ * rproc_boot_nowait() - boot a remote processor
+ * @rproc: handle of a remote processor
+ *
+ * Same as rproc_boot() but don't wait for rproc registration completion
+ */
+int rproc_boot_nowait(struct rproc *rproc)
+{
+	return __rproc_boot(rproc, false);
+}
 
 /**
  * rproc_shutdown() - power off the remote processor
@@ -1241,11 +1264,6 @@ int rproc_add(struct rproc *rproc)
 	if (ret < 0)
 		return ret;
 
-	/* expose to rproc_get_by_phandle users */
-	mutex_lock(&rproc_list_mutex);
-	list_add(&rproc->node, &rproc_list);
-	mutex_unlock(&rproc_list_mutex);
-
 	dev_info(dev, "%s is available\n", rproc->name);
 
 	dev_info(dev, "Note: remoteproc is still under development and considered experimental.\n");
@@ -1253,8 +1271,16 @@ int rproc_add(struct rproc *rproc)
 
 	/* create debugfs entries */
 	rproc_create_debug_dir(rproc);
+	ret = rproc_add_virtio_devices(rproc);
+	if (ret < 0)
+		return ret;
 
-	return rproc_add_virtio_devices(rproc);
+	/* expose to rproc_get_by_phandle users */
+	mutex_lock(&rproc_list_mutex);
+	list_add(&rproc->node, &rproc_list);
+	mutex_unlock(&rproc_list_mutex);
+
+	return 0;
 }
 EXPORT_SYMBOL(rproc_add);
 

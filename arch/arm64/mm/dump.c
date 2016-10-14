@@ -23,46 +23,31 @@
 #include <linux/seq_file.h>
 
 #include <asm/fixmap.h>
+#include <asm/kasan.h>
 #include <asm/memory.h>
 #include <asm/pgtable.h>
 #include <asm/pgtable-hwdef.h>
+#include <asm/ptdump.h>
 
-struct addr_marker {
-	unsigned long start_address;
-	const char *name;
-};
-
-enum address_markers_idx {
-	MODULES_START_NR = 0,
-	MODULES_END_NR,
-	VMALLOC_START_NR,
-	VMALLOC_END_NR,
-#ifdef CONFIG_SPARSEMEM_VMEMMAP
-	VMEMMAP_START_NR,
-	VMEMMAP_END_NR,
+static const struct addr_marker address_markers[] = {
+#ifdef CONFIG_KASAN
+	{ KASAN_SHADOW_START,		"Kasan shadow start" },
+	{ KASAN_SHADOW_END,		"Kasan shadow end" },
 #endif
-	FIXADDR_START_NR,
-	FIXADDR_END_NR,
-	PCI_START_NR,
-	PCI_END_NR,
-	KERNEL_SPACE_NR,
-};
-
-static struct addr_marker address_markers[] = {
-	{ MODULES_VADDR,	"Modules start" },
-	{ MODULES_END,		"Modules end" },
-	{ VMALLOC_START,	"vmalloc() Area" },
-	{ VMALLOC_END,		"vmalloc() End" },
+	{ MODULES_VADDR,		"Modules start" },
+	{ MODULES_END,			"Modules end" },
+	{ VMALLOC_START,		"vmalloc() Area" },
+	{ VMALLOC_END,			"vmalloc() End" },
+	{ FIXADDR_START,		"Fixmap start" },
+	{ FIXADDR_TOP,			"Fixmap end" },
+	{ PCI_IO_START,			"PCI I/O start" },
+	{ PCI_IO_END,			"PCI I/O end" },
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-	{ 0,			"vmemmap start" },
-	{ 0,			"vmemmap end" },
+	{ VMEMMAP_START,		"vmemmap start" },
+	{ VMEMMAP_START + VMEMMAP_SIZE,	"vmemmap end" },
 #endif
-	{ FIXADDR_START,	"Fixmap start" },
-	{ FIXADDR_TOP,		"Fixmap end" },
-	{ PCI_IO_START,		"PCI I/O start" },
-	{ PCI_IO_END,		"PCI I/O end" },
-	{ PAGE_OFFSET,		"Linear Mapping" },
-	{ -1,			NULL },
+	{ PAGE_OFFSET,			"Linear Mapping" },
+	{ -1,				NULL },
 };
 
 /*
@@ -161,6 +146,7 @@ static const struct prot_bits pte_bits[] = {
 
 struct pg_level {
 	const struct prot_bits *bits;
+	const char *name;
 	size_t num;
 	u64 mask;
 };
@@ -168,15 +154,19 @@ struct pg_level {
 static struct pg_level pg_level[] = {
 	{
 	}, { /* pgd */
+		.name	= "PGD",
 		.bits	= pte_bits,
 		.num	= ARRAY_SIZE(pte_bits),
 	}, { /* pud */
+		.name	= (CONFIG_PGTABLE_LEVELS > 3) ? "PUD" : "PGD",
 		.bits	= pte_bits,
 		.num	= ARRAY_SIZE(pte_bits),
 	}, { /* pmd */
+		.name	= (CONFIG_PGTABLE_LEVELS > 2) ? "PMD" : "PGD",
 		.bits	= pte_bits,
 		.num	= ARRAY_SIZE(pte_bits),
 	}, { /* pte */
+		.name	= "PTE",
 		.bits	= pte_bits,
 		.num	= ARRAY_SIZE(pte_bits),
 	},
@@ -225,7 +215,8 @@ static void note_page(struct pg_state *st, unsigned long addr, unsigned level,
 				delta >>= 10;
 				unit++;
 			}
-			seq_printf(st->seq, "%9lu%c", delta, *unit);
+			seq_printf(st->seq, "%9lu%c %s", delta, *unit,
+				   pg_level[st->level].name);
 			if (pg_level[st->level].bits)
 				dump_prot(st, pg_level[st->level].bits,
 					  pg_level[st->level].num);
@@ -251,7 +242,7 @@ static void note_page(struct pg_state *st, unsigned long addr, unsigned level,
 
 static void walk_pte(struct pg_state *st, pmd_t *pmd, unsigned long start)
 {
-	pte_t *pte = pte_offset_kernel(pmd, 0);
+	pte_t *pte = pte_offset_kernel(pmd, 0UL);
 	unsigned long addr;
 	unsigned i;
 
@@ -263,7 +254,7 @@ static void walk_pte(struct pg_state *st, pmd_t *pmd, unsigned long start)
 
 static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 {
-	pmd_t *pmd = pmd_offset(pud, 0);
+	pmd_t *pmd = pmd_offset(pud, 0UL);
 	unsigned long addr;
 	unsigned i;
 
@@ -280,7 +271,7 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 
 static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
 {
-	pud_t *pud = pud_offset(pgd, 0);
+	pud_t *pud = pud_offset(pgd, 0UL);
 	unsigned long addr;
 	unsigned i;
 
@@ -295,7 +286,8 @@ static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
 	}
 }
 
-static void walk_pgd(struct pg_state *st, struct mm_struct *mm, unsigned long start)
+static void walk_pgd(struct pg_state *st, struct mm_struct *mm,
+		     unsigned long start)
 {
 	pgd_t *pgd = pgd_offset(mm, 0UL);
 	unsigned i;
@@ -314,12 +306,13 @@ static void walk_pgd(struct pg_state *st, struct mm_struct *mm, unsigned long st
 
 static int ptdump_show(struct seq_file *m, void *v)
 {
+	struct ptdump_info *info = m->private;
 	struct pg_state st = {
 		.seq = m,
-		.marker = address_markers,
+		.marker = info->markers,
 	};
 
-	walk_pgd(&st, &init_mm, VA_START);
+	walk_pgd(&st, info->mm, info->base_addr);
 
 	note_page(&st, 0, 0, 0);
 	return 0;
@@ -327,7 +320,7 @@ static int ptdump_show(struct seq_file *m, void *v)
 
 static int ptdump_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, ptdump_show, NULL);
+	return single_open(file, ptdump_show, inode->i_private);
 }
 
 static const struct file_operations ptdump_fops = {
@@ -337,7 +330,7 @@ static const struct file_operations ptdump_fops = {
 	.release	= single_release,
 };
 
-static int ptdump_init(void)
+int ptdump_register(struct ptdump_info *info, const char *name)
 {
 	struct dentry *pe;
 	unsigned i, j;
@@ -347,15 +340,18 @@ static int ptdump_init(void)
 			for (j = 0; j < pg_level[i].num; j++)
 				pg_level[i].mask |= pg_level[i].bits[j].mask;
 
-#ifdef CONFIG_SPARSEMEM_VMEMMAP
-	address_markers[VMEMMAP_START_NR].start_address =
-				(unsigned long)virt_to_page(PAGE_OFFSET);
-	address_markers[VMEMMAP_END_NR].start_address =
-				(unsigned long)virt_to_page(high_memory);
-#endif
-
-	pe = debugfs_create_file("kernel_page_tables", 0400, NULL, NULL,
-				 &ptdump_fops);
+	pe = debugfs_create_file(name, 0400, NULL, info, &ptdump_fops);
 	return pe ? 0 : -ENOMEM;
+}
+
+static struct ptdump_info kernel_ptdump_info = {
+	.mm		= &init_mm,
+	.markers	= address_markers,
+	.base_addr	= VA_START,
+};
+
+static int ptdump_init(void)
+{
+	return ptdump_register(&kernel_ptdump_info, "kernel_page_tables");
 }
 device_initcall(ptdump_init);

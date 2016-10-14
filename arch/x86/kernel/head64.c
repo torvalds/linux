@@ -182,7 +182,7 @@ void __init x86_64_start_reservations(char *real_mode_data)
 	if (!boot_params.hdr.version)
 		copy_bootdata(__va(real_mode_data));
 
-	reserve_ebda_region();
+	x86_early_init_platform_quirks();
 
 	switch (boot_params.hdr.hardware_subarch) {
 	case X86_SUBARCH_INTEL_MID:

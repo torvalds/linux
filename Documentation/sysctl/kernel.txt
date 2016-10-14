@@ -58,8 +58,11 @@ show up in /proc/sys/kernel:
 - panic_on_stackoverflow
 - panic_on_unrecovered_nmi
 - panic_on_warn
+- panic_on_rcu_stall
 - perf_cpu_time_max_percent
 - perf_event_paranoid
+- perf_event_max_stack
+- perf_event_max_contexts_per_stack
 - pid_max
 - powersave-nap               [ PPC only ]
 - printk
@@ -616,6 +619,17 @@ a kernel rebuild when attempting to kdump at the location of a WARN().
 
 ==============================================================
 
+panic_on_rcu_stall:
+
+When set to 1, calls panic() after RCU stall detection messages. This
+is useful to define the root cause of RCU stalls using a vmcore.
+
+0: do not panic() when RCU stall takes place, default behavior.
+
+1: panic() after printing RCU stall messages.
+
+==============================================================
+
 perf_cpu_time_max_percent:
 
 Hints to the kernel how much CPU time it should be allowed to
@@ -651,6 +665,32 @@ users (without CAP_SYS_ADMIN).  The default value is 2.
 >=0: Disallow raw tracepoint access by users without CAP_IOC_LOCK
 >=1: Disallow CPU event access by users without CAP_SYS_ADMIN
 >=2: Disallow kernel profiling by users without CAP_SYS_ADMIN
+
+==============================================================
+
+perf_event_max_stack:
+
+Controls maximum number of stack frames to copy for (attr.sample_type &
+PERF_SAMPLE_CALLCHAIN) configured events, for instance, when using
+'perf record -g' or 'perf trace --call-graph fp'.
+
+This can only be done when no events are in use that have callchains
+enabled, otherwise writing to this file will return -EBUSY.
+
+The default value is 127.
+
+==============================================================
+
+perf_event_max_contexts_per_stack:
+
+Controls maximum number of stack frame context entries for
+(attr.sample_type & PERF_SAMPLE_CALLCHAIN) configured events, for
+instance, when using 'perf record -g' or 'perf trace --call-graph fp'.
+
+This can only be done when no events are in use that have callchains
+enabled, otherwise writing to this file will return -EBUSY.
+
+The default value is 8.
 
 ==============================================================
 
@@ -721,6 +761,20 @@ While long term we enforce one message per printk_ratelimit
 seconds, we do allow a burst of messages to pass through.
 printk_ratelimit_burst specifies the number of messages we can
 send before ratelimiting kicks in.
+
+==============================================================
+
+printk_devkmsg:
+
+Control the logging to /dev/kmsg from userspace:
+
+ratelimit: default, ratelimited
+on: unlimited logging to /dev/kmsg from userspace
+off: logging to /dev/kmsg disabled
+
+The kernel command line parameter printk.devkmsg= overrides this and is
+a one-time setting until next reboot: once set, it cannot be changed by
+this sysctl interface anymore.
 
 ==============================================================
 

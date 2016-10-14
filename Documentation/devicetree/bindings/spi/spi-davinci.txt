@@ -21,7 +21,7 @@ Required properties:
 	IP to the interrupt controller within the SoC. Possible values
 	are 0 and 1. Manual says one of the two possible interrupt
 	lines can be tied to the interrupt controller. Set this
-	based on a specifc SoC configuration.
+	based on a specific SoC configuration.
 - interrupts: interrupt number mapped to CPU.
 - clocks: spi clk phandle
 

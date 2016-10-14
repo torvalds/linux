@@ -2286,7 +2286,7 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 			goto request_reset;
 		}
 	}
-	adapter->netdev->trans_start = jiffies;
+	netif_trans_update(adapter->netdev);
 	rtnl_unlock();
 	return;
 

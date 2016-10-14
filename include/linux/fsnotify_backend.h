@@ -148,6 +148,7 @@ struct fsnotify_group {
 	#define FS_PRIO_1	1 /* fanotify content based access control */
 	#define FS_PRIO_2	2 /* fanotify pre-content access */
 	unsigned int priority;
+	bool shutdown;		/* group is being shut down, don't queue more events */
 
 	/* stores all fastpath marks assoc with this group so they can be cleaned on unregister */
 	struct mutex mark_mutex;	/* protect marks_list */
@@ -179,7 +180,6 @@ struct fsnotify_group {
 			spinlock_t access_lock;
 			struct list_head access_list;
 			wait_queue_head_t access_waitq;
-			atomic_t bypass_perm;
 #endif /* CONFIG_FANOTIFY_ACCESS_PERMISSIONS */
 			int f_flags;
 			unsigned int max_marks;
@@ -267,10 +267,8 @@ static inline int fsnotify_inode_watches_children(struct inode *inode)
  * Update the dentry with a flag indicating the interest of its parent to receive
  * filesystem events when those events happens to this dentry->d_inode.
  */
-static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
+static inline void fsnotify_update_flags(struct dentry *dentry)
 {
-	struct dentry *parent;
-
 	assert_spin_locked(&dentry->d_lock);
 
 	/*
@@ -280,19 +278,10 @@ static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
 	 * find our entry, so it will spin until we complete here, and update
 	 * us with the new state.
 	 */
-	parent = dentry->d_parent;
-	if (parent->d_inode && fsnotify_inode_watches_children(parent->d_inode))
+	if (fsnotify_inode_watches_children(dentry->d_parent->d_inode))
 		dentry->d_flags |= DCACHE_FSNOTIFY_PARENT_WATCHED;
 	else
 		dentry->d_flags &= ~DCACHE_FSNOTIFY_PARENT_WATCHED;
-}
-
-/*
- * fsnotify_d_instantiate - instantiate a dentry for inode
- */
-static inline void __fsnotify_d_instantiate(struct dentry *dentry)
-{
-	__fsnotify_update_dcache_flags(dentry);
 }
 
 /* called from fsnotify listeners, such as fanotify or dnotify */
@@ -303,6 +292,8 @@ extern struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *op
 extern void fsnotify_get_group(struct fsnotify_group *group);
 /* drop reference on a group from fsnotify_alloc_group */
 extern void fsnotify_put_group(struct fsnotify_group *group);
+/* group destruction begins, stop queuing new events */
+extern void fsnotify_group_stop_queueing(struct fsnotify_group *group);
 /* destroy group */
 extern void fsnotify_destroy_group(struct fsnotify_group *group);
 /* fasync handler function */
@@ -315,8 +306,6 @@ extern int fsnotify_add_event(struct fsnotify_group *group,
 			      struct fsnotify_event *event,
 			      int (*merge)(struct list_head *,
 					   struct fsnotify_event *));
-/* Remove passed event from groups notification queue */
-extern void fsnotify_remove_event(struct fsnotify_group *group, struct fsnotify_event *event);
 /* true if the group notification queue is empty */
 extern bool fsnotify_notify_queue_is_empty(struct fsnotify_group *group);
 /* return, but do not dequeue the first event on the notification queue */
@@ -359,8 +348,6 @@ extern void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group)
 extern void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group);
 /* run all the marks in a group, and clear all of the marks where mark->flags & flags is true*/
 extern void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group, unsigned int flags);
-/* run all the marks in a group, and flag them to be freed */
-extern void fsnotify_clear_marks_by_group(struct fsnotify_group *group);
 extern void fsnotify_get_mark(struct fsnotify_mark *mark);
 extern void fsnotify_put_mark(struct fsnotify_mark *mark);
 extern void fsnotify_unmount_inodes(struct super_block *sb);
@@ -388,10 +375,7 @@ static inline void __fsnotify_inode_delete(struct inode *inode)
 static inline void __fsnotify_vfsmount_delete(struct vfsmount *mnt)
 {}
 
-static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
-{}
-
-static inline void __fsnotify_d_instantiate(struct dentry *dentry)
+static inline void fsnotify_update_flags(struct dentry *dentry)
 {}
 
 static inline u32 fsnotify_get_cookie(void)

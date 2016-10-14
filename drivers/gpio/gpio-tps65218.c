@@ -101,16 +101,6 @@ static int tps65218_gpio_request(struct gpio_chip *gc, unsigned offset)
 
 		break;
 	case 1:
-		/* GP02 is push-pull by default, can be set as open drain. */
-		if (gpiochip_line_is_open_drain(gc, offset)) {
-			ret = tps65218_clear_bits(tps65218,
-						  TPS65218_REG_CONFIG1,
-						  TPS65218_CONFIG1_GPO2_BUF,
-						  TPS65218_PROTECT_L1);
-			if (ret)
-				return ret;
-		}
-
 		/* Setup GPO2 */
 		ret = tps65218_clear_bits(tps65218, TPS65218_REG_CONFIG1,
 					  TPS65218_CONFIG1_IO1_SEL,
@@ -148,6 +138,40 @@ static int tps65218_gpio_request(struct gpio_chip *gc, unsigned offset)
 	return 0;
 }
 
+static int tps65218_gpio_set_single_ended(struct gpio_chip *gc,
+					  unsigned offset,
+					  enum single_ended_mode mode)
+{
+	struct tps65218_gpio *tps65218_gpio = gpiochip_get_data(gc);
+	struct tps65218 *tps65218 = tps65218_gpio->tps65218;
+
+	switch (offset) {
+	case 0:
+	case 2:
+		/* GPO1 is hardwired to be open drain */
+		if (mode == LINE_MODE_OPEN_DRAIN)
+			return 0;
+		return -ENOTSUPP;
+	case 1:
+		/* GPO2 is push-pull by default, can be set as open drain. */
+		if (mode == LINE_MODE_OPEN_DRAIN)
+			return tps65218_clear_bits(tps65218,
+						   TPS65218_REG_CONFIG1,
+						   TPS65218_CONFIG1_GPO2_BUF,
+						   TPS65218_PROTECT_L1);
+		if (mode == LINE_MODE_PUSH_PULL)
+			return tps65218_set_bits(tps65218,
+						 TPS65218_REG_CONFIG1,
+						 TPS65218_CONFIG1_GPO2_BUF,
+						 TPS65218_CONFIG1_GPO2_BUF,
+						 TPS65218_PROTECT_L1);
+		return -ENOTSUPP;
+	default:
+		break;
+	}
+	return -ENOTSUPP;
+}
+
 static struct gpio_chip template_chip = {
 	.label			= "gpio-tps65218",
 	.owner			= THIS_MODULE,
@@ -156,6 +180,7 @@ static struct gpio_chip template_chip = {
 	.direction_input	= tps65218_gpio_input,
 	.get			= tps65218_gpio_get,
 	.set			= tps65218_gpio_set,
+	.set_single_ended	= tps65218_gpio_set_single_ended,
 	.can_sleep		= true,
 	.ngpio			= 3,
 	.base			= -1,
@@ -205,6 +230,12 @@ static const struct of_device_id tps65218_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tps65218_dt_match);
 
+static const struct platform_device_id tps65218_gpio_id_table[] = {
+	{ "tps65218-gpio", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(platform, tps65218_gpio_id_table);
+
 static struct platform_driver tps65218_gpio_driver = {
 	.driver = {
 		.name = "tps65218-gpio",
@@ -212,6 +243,7 @@ static struct platform_driver tps65218_gpio_driver = {
 	},
 	.probe = tps65218_gpio_probe,
 	.remove = tps65218_gpio_remove,
+	.id_table = tps65218_gpio_id_table,
 };
 
 module_platform_driver(tps65218_gpio_driver);

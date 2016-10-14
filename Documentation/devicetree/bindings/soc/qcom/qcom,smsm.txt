@@ -51,7 +51,7 @@ important.
 	Definition: specifies the offset, in words, of the first bit for this
 		    entry
 
-- #qcom,state-cells:
+- #qcom,smem-state-cells:
 	Usage: required for local entry
 	Value type: <u32>
 	Definition: must be 1 - denotes bit number
@@ -91,7 +91,7 @@ smsm {
 	apps_smsm: apps@0 {
 		reg = <0>;
 
-		#qcom,state-cells = <1>;
+		#qcom,smem-state-cells = <1>;
 	};
 
 	wcnss_smsm: wcnss@7 {

@@ -177,6 +177,7 @@ void vme_bus_error_handler(struct vme_bridge *bridge,
 			   unsigned long long address, int am);
 void vme_irq_handler(struct vme_bridge *, int, int);
 
+struct vme_bridge *vme_init_bridge(struct vme_bridge *);
 int vme_register_bridge(struct vme_bridge *);
 void vme_unregister_bridge(struct vme_bridge *);
 struct vme_error_handler *vme_register_error_handler(

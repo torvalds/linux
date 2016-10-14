@@ -83,19 +83,6 @@
 		reset-gpios = <&gpio2 9 GPIO_ACTIVE_HIGH>;
 	};
 
-	io_domains: io-domains {
-		compatible = "rockchip,rk3288-io-voltage-domain";
-		rockchip,grf = <&grf>;
-
-		bb-supply = <&vcc33_io>;
-		dvp-supply = <&vcc_18>;
-		flash0-supply = <&vcc18_flashio>;
-		gpio1830-supply = <&vcc33_io>;
-		gpio30-supply = <&vcc33_io>;
-		lcdc-supply = <&vcc33_lcd>;
-		wifi-supply = <&vcc18_wl>;
-	};
-
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&rk808 RK808_CLKOUT1>;
@@ -141,12 +128,27 @@
 
 &cpu0 {
 	cpu0-supply = <&vdd_cpu>;
+	operating-points = <
+		/* KHz    uV */
+		1800000 1400000
+		1704000 1350000
+		1608000 1300000
+		1512000 1250000
+		1416000 1200000
+		1200000 1100000
+		1008000 1050000
+		 816000 1000000
+		 696000  950000
+		 600000  900000
+		 408000  900000
+		 216000  900000
+		 126000  900000
+	>;
 };
 
 &emmc {
 	status = "okay";
 
-	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	rockchip,default-sample-phase = <158>;
@@ -340,6 +342,18 @@
 	i2c-scl-rising-time-ns = <1000>;
 };
 
+&io_domains {
+	status = "okay";
+
+	bb-supply = <&vcc33_io>;
+	dvp-supply = <&vcc_18>;
+	flash0-supply = <&vcc18_flashio>;
+	gpio1830-supply = <&vcc33_io>;
+	gpio30-supply = <&vcc33_io>;
+	lcdc-supply = <&vcc33_lcd>;
+	wifi-supply = <&vcc18_wl>;
+};
+
 &pwm1 {
 	status = "okay";
 };
@@ -347,7 +361,6 @@
 &sdio0 {
 	status = "okay";
 
-	broken-cd;
 	bus-width = <4>;
 	cap-sd-highspeed;
 	cap-sdio-irq;
@@ -369,6 +382,12 @@
 	status = "okay";
 
 	rx-sample-delay-ns = <12>;
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <50000000>;
+		reg = <0>;
+	};
 };
 
 &tsadc {

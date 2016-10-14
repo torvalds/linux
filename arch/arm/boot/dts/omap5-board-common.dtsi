@@ -14,6 +14,29 @@
 		display0 = &hdmi0;
 	};
 
+	vmain: fixedregulator-vmain {
+		compatible = "regulator-fixed";
+		regulator-name = "vmain";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	vsys_cobra: fixedregulator-vsys_cobra {
+		compatible = "regulator-fixed";
+		regulator-name = "vsys_cobra";
+		vin-supply = <&vmain>;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	vdds_1v8_main: fixedregulator-vdds_1v8_main {
+		compatible = "regulator-fixed";
+		regulator-name = "vdds_1v8_main";
+		vin-supply = <&smps7_reg>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
 	vmmcsd_fixed: fixedregulator-mmcsd {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmcsd_fixed";
@@ -64,7 +87,7 @@
 		};
 	};
 
-	tpd12s015: encoder@0 {
+	tpd12s015: encoder {
 		compatible = "ti,tpd12s015";
 
 		pinctrl-names = "default";
@@ -79,7 +102,7 @@
 			port@0 {
 				reg = <0>;
 
-				tpd12s015_in: endpoint@0 {
+				tpd12s015_in: endpoint {
 					remote-endpoint = <&hdmi_out>;
 				};
 			};
@@ -87,14 +110,14 @@
 			port@1 {
 				reg = <1>;
 
-				tpd12s015_out: endpoint@0 {
+				tpd12s015_out: endpoint {
 					remote-endpoint = <&hdmi_connector_in>;
 				};
 			};
 		};
 	};
 
-	hdmi0: connector@0 {
+	hdmi0: connector {
 		compatible = "hdmi-connector";
 		label = "hdmi";
 
@@ -309,7 +332,7 @@
 
 	wlcore_irq_pin: pinmux_wlcore_irq_pin {
 		pinctrl-single,pins = <
-			OMAP5_IOPAD(0x40, WAKEUP_EN | PIN_INPUT_PULLUP | MUX_MODE6)	/* llia_wakereqin.gpio1_wk14 */
+			OMAP5_IOPAD(0x40, PIN_INPUT_PULLUP | MUX_MODE6)	/* llia_wakereqin.gpio1_wk14 */
 		>;
 	};
 };
@@ -391,13 +414,43 @@
 			ti,backup-battery-charge-high-current;
 		};
 
+		gpadc {
+			compatible = "ti,palmas-gpadc";
+			interrupts = <18 0
+				      16 0
+				      17 0>;
+			#io-channel-cells = <1>;
+			ti,channel0-current-microamp = <5>;
+			ti,channel3-current-microamp = <10>;
+		};
+
 		palmas_pmic {
 			compatible = "ti,palmas-pmic";
 			interrupt-parent = <&palmas>;
 			interrupts = <14 IRQ_TYPE_NONE>;
-			interrupt-name = "short-irq";
+			interrupt-names = "short-irq";
 
 			ti,ldo6-vibrator;
+
+			smps123-in-supply = <&vsys_cobra>;
+			smps45-in-supply = <&vsys_cobra>;
+			smps6-in-supply = <&vsys_cobra>;
+			smps7-in-supply = <&vsys_cobra>;
+			smps8-in-supply = <&vsys_cobra>;
+			smps9-in-supply = <&vsys_cobra>;
+			smps10_out2-in-supply = <&vsys_cobra>;
+			smps10_out1-in-supply = <&vsys_cobra>;
+			ldo1-in-supply = <&vsys_cobra>;
+			ldo2-in-supply = <&vsys_cobra>;
+			ldo3-in-supply = <&vdds_1v8_main>;
+			ldo4-in-supply = <&vdds_1v8_main>;
+			ldo5-in-supply = <&vsys_cobra>;
+			ldo6-in-supply = <&vdds_1v8_main>;
+			ldo7-in-supply = <&vsys_cobra>;
+			ldo8-in-supply = <&vsys_cobra>;
+			ldo9-in-supply = <&vmmcsd_fixed>;
+			ldoln-in-supply = <&vsys_cobra>;
+			ldousb-in-supply = <&vsys_cobra>;
 
 			regulators {
 				smps123_reg: smps123 {
@@ -584,13 +637,15 @@
 
 	twl6040: twl@4b {
 		compatible = "ti,twl6040";
+		#clock-cells = <0>;
 		reg = <0x4b>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&twl6040_pins>;
 
 		interrupts = <GIC_SPI 119 IRQ_TYPE_NONE>; /* IRQ_SYS_2N cascaded to gic */
-		ti,audpwron-gpio = <&gpio5 13 GPIO_ACTIVE_HIGH>;  /* gpio line 141 */
+
+		/* audpwron gpio defined in the board specific dts */
 
 		vio-supply = <&smps7_reg>;
 		v2v1-supply = <&smps9_reg>;
@@ -604,6 +659,10 @@
 &mcpdm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcpdm_pins>;
+
+	clocks = <&twl6040>;
+	clock-names = "pdmclk";
+
 	status = "okay";
 };
 

@@ -43,8 +43,6 @@ struct pci_controller {
 	   and XFree86. Eventually will be removed. */
 	unsigned int need_domain_info;
 
-	int iommu;
-
 	/* Optional access methods for reading/writing the bus number
 	   of the PCI controller */
 	int (*get_busno)(void);
@@ -82,16 +80,6 @@ extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 
 #define HAVE_ARCH_PCI_RESOURCE_TO_USER
 
-static inline void pci_resource_to_user(const struct pci_dev *dev, int bar,
-		const struct resource *rsrc, resource_size_t *start,
-		resource_size_t *end)
-{
-	phys_addr_t size = resource_size(rsrc);
-
-	*start = fixup_bigphys_addr(rsrc->start, size);
-	*end = rsrc->start + size;
-}
-
 /*
  * Dynamic DMA mapping stuff.
  * MIPS has everything mapped statically.
@@ -106,11 +94,11 @@ static inline void pci_resource_to_user(const struct pci_dev *dev, int bar,
 struct pci_dev;
 
 /*
- * The PCI address space does equal the physical memory address space.	The
- * networking and block device layers use this boolean for bounce buffer
- * decisions.  This is set if any hose does not have an IOMMU.
+ * The PCI address space does equal the physical memory address space.
+ * The networking and block device layers use this boolean for bounce
+ * buffer decisions.
  */
-extern unsigned int PCI_DMA_BUS_IS_PHYS;
+#define PCI_DMA_BUS_IS_PHYS     (1)
 
 #ifdef CONFIG_PCI_DOMAINS
 #define pci_domain_nr(bus) ((struct pci_controller *)(bus)->sysdata)->index

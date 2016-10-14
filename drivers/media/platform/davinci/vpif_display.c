@@ -102,14 +102,14 @@ static int vpif_buffer_prepare(struct vb2_buffer *vb)
  * @nbuffers: ptr to number of buffers requested by application
  * @nplanes:: contains number of distinct video planes needed to hold a frame
  * @sizes[]: contains the size (in bytes) of each plane.
- * @alloc_ctxs: ptr to allocation context
+ * @alloc_devs: ptr to allocation context
  *
  * This callback function is called when reqbuf() is called to adjust
  * the buffer count and buffer size
  */
 static int vpif_buffer_queue_setup(struct vb2_queue *vq,
 				unsigned int *nbuffers, unsigned int *nplanes,
-				unsigned int sizes[], void *alloc_ctxs[])
+				unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct channel_obj *ch = vb2_get_drv_priv(vq);
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
@@ -126,7 +126,6 @@ static int vpif_buffer_queue_setup(struct vb2_queue *vq,
 
 	*nplanes = 1;
 	sizes[0] = size;
-	alloc_ctxs[0] = common->alloc_ctx;
 
 	/* Calculate the offset for Y and C data  in the buffer */
 	vpif_calculate_offsets(ch);
@@ -1191,16 +1190,10 @@ static int vpif_probe_complete(void)
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 1;
 		q->lock = &common->lock;
+		q->dev = vpif_dev;
 		err = vb2_queue_init(q);
 		if (err) {
 			vpif_err("vpif_display: vb2_queue_init() failed\n");
-			goto probe_out;
-		}
-
-		common->alloc_ctx = vb2_dma_contig_init_ctx(vpif_dev);
-		if (IS_ERR(common->alloc_ctx)) {
-			vpif_err("Failed to get the context\n");
-			err = PTR_ERR(common->alloc_ctx);
 			goto probe_out;
 		}
 
@@ -1233,7 +1226,6 @@ probe_out:
 	for (k = 0; k < j; k++) {
 		ch = vpif_obj.dev[k];
 		common = &ch->common[k];
-		vb2_dma_contig_cleanup_ctx(common->alloc_ctx);
 		video_unregister_device(&ch->video_dev);
 	}
 	return err;
@@ -1355,7 +1347,6 @@ static int vpif_remove(struct platform_device *device)
 		/* Get the pointer to the channel object */
 		ch = vpif_obj.dev[i];
 		common = &ch->common[VPIF_VIDEO_INDEX];
-		vb2_dma_contig_cleanup_ctx(common->alloc_ctx);
 		/* Unregister video device */
 		video_unregister_device(&ch->video_dev);
 		kfree(vpif_obj.dev[i]);

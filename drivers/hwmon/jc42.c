@@ -31,6 +31,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = {
@@ -104,6 +105,9 @@ static const unsigned short normal_i2c[] = {
 #define MCP9804_DEVID		0x0200
 #define MCP9804_DEVID_MASK	0xfffc
 
+#define MCP9808_DEVID		0x0400
+#define MCP9808_DEVID_MASK	0xfffc
+
 #define MCP98242_DEVID		0x2000
 #define MCP98242_DEVID_MASK	0xfffc
 
@@ -160,6 +164,7 @@ static struct jc42_chips jc42_chips[] = {
 	{ IDT_MANID, TS3001_DEVID, TS3001_DEVID_MASK },
 	{ MAX_MANID, MAX6604_DEVID, MAX6604_DEVID_MASK },
 	{ MCP_MANID, MCP9804_DEVID, MCP9804_DEVID_MASK },
+	{ MCP_MANID, MCP9808_DEVID, MCP9808_DEVID_MASK },
 	{ MCP_MANID, MCP98242_DEVID, MCP98242_DEVID_MASK },
 	{ MCP_MANID, MCP98243_DEVID, MCP98243_DEVID_MASK },
 	{ MCP_MANID, MCP98244_DEVID, MCP98244_DEVID_MASK },
@@ -537,11 +542,20 @@ static const struct i2c_device_id jc42_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, jc42_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id jc42_of_ids[] = {
+	{ .compatible = "jedec,jc-42.4-temp", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, jc42_of_ids);
+#endif
+
 static struct i2c_driver jc42_driver = {
-	.class		= I2C_CLASS_SPD,
+	.class		= I2C_CLASS_SPD | I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "jc42",
 		.pm = JC42_DEV_PM_OPS,
+		.of_match_table = of_match_ptr(jc42_of_ids),
 	},
 	.probe		= jc42_probe,
 	.remove		= jc42_remove,

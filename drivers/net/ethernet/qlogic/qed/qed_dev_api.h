@@ -62,6 +62,7 @@ void qed_resc_setup(struct qed_dev *cdev);
  * @brief qed_hw_init -
  *
  * @param cdev
+ * @param p_tunn
  * @param b_hw_start
  * @param int_mode - interrupt mode [msix, inta, etc.] to use.
  * @param allow_npar_tx_switch - npar tx switching to be used
@@ -72,6 +73,7 @@ void qed_resc_setup(struct qed_dev *cdev);
  * @return int
  */
 int qed_hw_init(struct qed_dev *cdev,
+		struct qed_tunn_start_params *p_tunn,
 		bool b_hw_start,
 		enum qed_int_mode int_mode,
 		bool allow_npar_tx_switch,
@@ -180,11 +182,15 @@ enum qed_dmae_address_type_t {
  * used mostly to write a zeroed buffer to destination address
  * using DMA
  */
-#define QED_DMAE_FLAG_RW_REPL_SRC       0x00000001
-#define QED_DMAE_FLAG_COMPLETION_DST    0x00000008
+#define QED_DMAE_FLAG_RW_REPL_SRC	0x00000001
+#define QED_DMAE_FLAG_VF_SRC		0x00000002
+#define QED_DMAE_FLAG_VF_DST		0x00000004
+#define QED_DMAE_FLAG_COMPLETION_DST	0x00000008
 
 struct qed_dmae_params {
-	u32	flags; /* consists of QED_DMAE_FLAG_* values */
+	u32 flags; /* consists of QED_DMAE_FLAG_* values */
+	u8 src_vfid;
+	u8 dst_vfid;
 };
 
 /**
@@ -206,6 +212,37 @@ qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 		  u32 size_in_dwords,
 		  u32 flags);
 
+ /**
+ * @brief qed_dmae_grc2host - Read data from dmae data offset
+ * to source address using the given ptt
+ *
+ * @param p_ptt
+ * @param grc_addr (dmae_data_offset)
+ * @param dest_addr
+ * @param size_in_dwords
+ * @param flags - one of the flags defined above
+ */
+int qed_dmae_grc2host(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+		      u32 grc_addr, dma_addr_t dest_addr, u32 size_in_dwords,
+		      u32 flags);
+
+/**
+ * @brief qed_dmae_host2host - copy data from to source address
+ * to a destination adress (for SRIOV) using the given ptt
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param source_addr
+ * @param dest_addr
+ * @param size_in_dwords
+ * @param params
+ */
+int qed_dmae_host2host(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt,
+		       dma_addr_t source_addr,
+		       dma_addr_t dest_addr,
+		       u32 size_in_dwords, struct qed_dmae_params *p_params);
+
 /**
  * @brief qed_chain_alloc - Allocate and initialize a chain
  *
@@ -222,9 +259,8 @@ int
 qed_chain_alloc(struct qed_dev *cdev,
 		enum qed_chain_use_mode intended_use,
 		enum qed_chain_mode mode,
-		u16 num_elems,
-		size_t elem_size,
-		struct qed_chain *p_chain);
+		enum qed_chain_cnt_type cnt_type,
+		u32 num_elems, size_t elem_size, struct qed_chain *p_chain);
 
 /**
  * @brief qed_chain_free - Free chain DMA memory
@@ -232,8 +268,7 @@ qed_chain_alloc(struct qed_dev *cdev,
  * @param p_hwfn
  * @param p_chain
  */
-void qed_chain_free(struct qed_dev *cdev,
-		    struct qed_chain *p_chain);
+void qed_chain_free(struct qed_dev *cdev, struct qed_chain *p_chain);
 
 /**
  * @@brief qed_fw_l2_queue - Get absolute L2 queue ID
@@ -280,11 +315,44 @@ int qed_fw_rss_eng(struct qed_hwfn *p_hwfn,
  * @param p_hwfn
  * @param p_ptt
  * @param id - For PF, engine-relative. For VF, PF-relative.
+ * @param is_vf - true iff cleanup is made for a VF.
  *
  * @return int
  */
 int qed_final_cleanup(struct qed_hwfn *p_hwfn,
-		      struct qed_ptt *p_ptt,
-		      u16 id);
+		      struct qed_ptt *p_ptt, u16 id, bool is_vf);
 
+/**
+ * @brief qed_set_rxq_coalesce - Configure coalesce parameters for an Rx queue
+ * The fact that we can configure coalescing to up to 511, but on varying
+ * accuracy [the bigger the value the less accurate] up to a mistake of 3usec
+ * for the highest values.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param coalesce - Coalesce value in micro seconds.
+ * @param qid - Queue index.
+ * @param qid - SB Id
+ *
+ * @return int
+ */
+int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			 u16 coalesce, u8 qid, u16 sb_id);
+
+/**
+ * @brief qed_set_txq_coalesce - Configure coalesce parameters for a Tx queue
+ * While the API allows setting coalescing per-qid, all tx queues sharing a
+ * SB should be in same range [i.e., either 0-0x7f, 0x80-0xff or 0x100-0x1ff]
+ * otherwise configuration would break.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param coalesce - Coalesce value in micro seconds.
+ * @param qid - Queue index.
+ * @param qid - SB Id
+ *
+ * @return int
+ */
+int qed_set_txq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			 u16 coalesce, u8 qid, u16 sb_id);
 #endif

@@ -215,7 +215,7 @@ static int tegra_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		ret = tegra_pinctrl_dt_subnode_to_map(pctldev, np, map,
 						      &reserved_maps, num_maps);
 		if (ret < 0) {
-			pinctrl_utils_dt_free_map(pctldev, *map,
+			pinctrl_utils_free_map(pctldev, *map,
 				*num_maps);
 			of_node_put(np);
 			return ret;
@@ -233,7 +233,7 @@ static const struct pinctrl_ops tegra_pinctrl_ops = {
 	.pin_dbg_show = tegra_pinctrl_pin_dbg_show,
 #endif
 	.dt_node_to_map = tegra_pinctrl_dt_node_to_map,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int tegra_pinctrl_get_funcs_count(struct pinctrl_dev *pctldev)
@@ -417,7 +417,7 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 		return -ENOTSUPP;
 	}
 
-	if (*reg < 0 || *bit > 31) {
+	if (*reg < 0 || *bit < 0)  {
 		if (report_err) {
 			const char *prop = "unknown";
 			int i;
@@ -625,6 +625,22 @@ static struct pinctrl_desc tegra_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
+static void tegra_pinctrl_clear_parked_bits(struct tegra_pmx *pmx)
+{
+	int i = 0;
+	const struct tegra_pingroup *g;
+	u32 val;
+
+	for (i = 0; i < pmx->soc->ngroups; ++i) {
+		g = &pmx->soc->groups[i];
+		if (g->parked_bit >= 0) {
+			val = pmx_readl(pmx, g->mux_bank, g->mux_reg);
+			val &= ~(1 << g->parked_bit);
+			pmx_writel(pmx, val, g->mux_bank, g->mux_reg);
+		}
+	}
+}
+
 static bool gpio_node_has_range(void)
 {
 	struct device_node *np;
@@ -719,11 +735,13 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 			return PTR_ERR(pmx->regs[i]);
 	}
 
-	pmx->pctl = pinctrl_register(&tegra_pinctrl_desc, &pdev->dev, pmx);
+	pmx->pctl = devm_pinctrl_register(&pdev->dev, &tegra_pinctrl_desc, pmx);
 	if (IS_ERR(pmx->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
 		return PTR_ERR(pmx->pctl);
 	}
+
+	tegra_pinctrl_clear_parked_bits(pmx);
 
 	if (!gpio_node_has_range())
 		pinctrl_add_gpio_range(pmx->pctl, &tegra_pinctrl_gpio_range);
@@ -735,13 +753,3 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tegra_pinctrl_probe);
-
-int tegra_pinctrl_remove(struct platform_device *pdev)
-{
-	struct tegra_pmx *pmx = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(pmx->pctl);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(tegra_pinctrl_remove);

@@ -474,16 +474,9 @@ static int s3c_camif_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_pm;
 
-	/* Initialize contiguous memory allocator */
-	camif->alloc_ctx = vb2_dma_contig_init_ctx(dev);
-	if (IS_ERR(camif->alloc_ctx)) {
-		ret = PTR_ERR(camif->alloc_ctx);
-		goto err_alloc;
-	}
-
 	ret = camif_media_dev_init(camif);
 	if (ret < 0)
-		goto err_mdev;
+		goto err_alloc;
 
 	ret = camif_register_sensor(camif);
 	if (ret < 0)
@@ -517,8 +510,6 @@ err_sens:
 	media_device_unregister(&camif->media_dev);
 	media_device_cleanup(&camif->media_dev);
 	camif_unregister_media_entities(camif);
-err_mdev:
-	vb2_dma_contig_cleanup_ctx(camif->alloc_ctx);
 err_alloc:
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);

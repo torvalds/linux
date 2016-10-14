@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -55,6 +51,7 @@
 #include "../include/lustre_disk.h"
 #include "../include/lustre_fid.h"
 #include "../include/lu_object.h"
+#include "../include/cl_object.h"
 #include "../include/lu_ref.h"
 #include <linux/list.h>
 
@@ -103,7 +100,6 @@ void lu_object_put(const struct lu_env *env, struct lu_object *o)
 
 	if (!cfs_hash_bd_dec_and_lock(site->ls_obj_hash, &bd, &top->loh_ref)) {
 		if (lu_object_is_dying(top)) {
-
 			/*
 			 * somebody may be waiting for this, currently only
 			 * used for cl_object, see cl_object_put_last().
@@ -357,7 +353,6 @@ int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr)
 
 			if (count > 0 && --count == 0)
 				break;
-
 		}
 		cfs_hash_bd_unlock(s->ls_obj_hash, &bd, 1);
 		cond_resched();
@@ -715,8 +710,9 @@ struct lu_object *lu_object_find_slice(const struct lu_env *env,
 		obj = lu_object_locate(top->lo_header, dev->ld_type);
 		if (!obj)
 			lu_object_put(env, top);
-	} else
+	} else {
 		obj = top;
+	}
 	return obj;
 }
 EXPORT_SYMBOL(lu_object_find_slice);
@@ -935,7 +931,7 @@ static void lu_dev_add_linkage(struct lu_site *s, struct lu_device *d)
  * Initialize site \a s, with \a d as the top level device.
  */
 #define LU_SITE_BITS_MIN    12
-#define LU_SITE_BITS_MAX    24
+#define LU_SITE_BITS_MAX    19
 /**
  * total 256 buckets, we don't want too many buckets because:
  * - consume too much memory
@@ -1468,6 +1464,7 @@ void lu_context_key_quiesce(struct lu_context_key *key)
 		/*
 		 * XXX layering violation.
 		 */
+		cl_env_cache_purge(~0);
 		key->lct_tags |= LCT_QUIESCENT;
 		/*
 		 * XXX memory barrier has to go here.

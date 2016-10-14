@@ -1752,7 +1752,7 @@ static irqreturn_t adt7316_event_handler(int irq, void *private)
 		if ((chip->id & ID_FAMILY_MASK) != ID_ADT75XX)
 			stat1 &= 0x1F;
 
-		time = iio_get_time_ns();
+		time = iio_get_time_ns(indio_dev);
 		if (stat1 & BIT(0))
 			iio_push_event(indio_dev,
 				       IIO_UNMOD_EVENT_CODE(IIO_TEMP, 0,
@@ -1804,7 +1804,7 @@ static irqreturn_t adt7316_event_handler(int irq, void *private)
 							    0,
 							    IIO_EV_TYPE_THRESH,
 							    IIO_EV_DIR_RISING),
-				       iio_get_time_ns());
+				       iio_get_time_ns(indio_dev));
 	}
 
 	return IRQ_HANDLED;

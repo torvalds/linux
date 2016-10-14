@@ -81,8 +81,8 @@
 #define I2S_CKR_TRCM_SHIFT	28
 #define I2S_CKR_TRCM(x)	(x << I2S_CKR_TRCM_SHIFT)
 #define I2S_CKR_TRCM_TXRX	(0 << I2S_CKR_TRCM_SHIFT)
-#define I2S_CKR_TRCM_TXSHARE	(1 << I2S_CKR_TRCM_SHIFT)
-#define I2S_CKR_TRCM_RXSHARE	(2 << I2S_CKR_TRCM_SHIFT)
+#define I2S_CKR_TRCM_TXONLY	(1 << I2S_CKR_TRCM_SHIFT)
+#define I2S_CKR_TRCM_RXONLY	(2 << I2S_CKR_TRCM_SHIFT)
 #define I2S_CKR_TRCM_MASK	(3 << I2S_CKR_TRCM_SHIFT)
 #define I2S_CKR_MSS_SHIFT	27
 #define I2S_CKR_MSS_MASTER	(0 << I2S_CKR_MSS_SHIFT)
@@ -235,5 +235,12 @@ enum {
 #define I2S_CLR		(0x0020)
 #define I2S_TXDR	(0x0024)
 #define I2S_RXDR	(0x0028)
+
+/* io direction cfg register */
+#define I2S_IO_DIRECTION_MASK	(7)
+#define I2S_IO_8CH_OUT_2CH_IN	(0)
+#define I2S_IO_6CH_OUT_4CH_IN	(4)
+#define I2S_IO_4CH_OUT_6CH_IN	(6)
+#define I2S_IO_2CH_OUT_8CH_IN	(7)
 
 #endif /* _ROCKCHIP_IIS_H */

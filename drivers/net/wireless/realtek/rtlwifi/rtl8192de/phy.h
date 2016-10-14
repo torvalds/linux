@@ -160,7 +160,7 @@ void rtl92d_phy_config_maccoexist_rfpage(struct ieee80211_hw *hw);
 bool rtl92d_phy_check_poweroff(struct ieee80211_hw *hw);
 void rtl92d_phy_lc_calibrate(struct ieee80211_hw *hw);
 void rtl92d_update_bbrf_configuration(struct ieee80211_hw *hw);
-void rtl92d_phy_ap_calibrate(struct ieee80211_hw *hw, char delta);
+void rtl92d_phy_ap_calibrate(struct ieee80211_hw *hw, s8 delta);
 void rtl92d_phy_iq_calibrate(struct ieee80211_hw *hw);
 void rtl92d_phy_reset_iqk_result(struct ieee80211_hw *hw);
 void rtl92d_release_cckandrw_pagea_ctl(struct ieee80211_hw *hw,

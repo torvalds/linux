@@ -61,9 +61,9 @@
 
 static const int mcp3422_scales[4][4] = {
 	{ 1000000, 500000, 250000, 125000 },
-	{ 250000 , 125000, 62500 , 31250  },
-	{ 62500  , 31250 , 15625 , 7812   },
-	{ 15625  , 7812  , 3906  , 1953   } };
+	{ 250000,  125000, 62500,  31250  },
+	{ 62500,   31250,  15625,  7812   },
+	{ 15625,   7812,   3906,   1953   } };
 
 /* Constant msleep times for data acquisitions */
 static const int mcp3422_read_times[4] = {
@@ -352,6 +352,7 @@ static int mcp3422_probe(struct i2c_client *client,
 	mutex_init(&adc->lock);
 
 	indio_dev->dev.parent = &client->dev;
+	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->name = dev_name(&client->dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &mcp3422_info;

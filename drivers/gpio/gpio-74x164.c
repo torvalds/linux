@@ -35,13 +35,8 @@ struct gen_74x164_chip {
 
 static int __gen_74x164_write_config(struct gen_74x164_chip *chip)
 {
-	struct spi_transfer xfer = {
-		.tx_buf = chip->buffer,
-		.len = chip->registers,
-	};
-
-	return spi_sync_transfer(to_spi_device(chip->gpio_chip.parent),
-				 &xfer, 1);
+	return spi_write(to_spi_device(chip->gpio_chip.parent), chip->buffer,
+			 chip->registers);
 }
 
 static int gen_74x164_get_value(struct gpio_chip *gc, unsigned offset)
@@ -71,6 +66,29 @@ static void gen_74x164_set_value(struct gpio_chip *gc,
 	else
 		chip->buffer[bank] &= ~(1 << pin);
 
+	__gen_74x164_write_config(chip);
+	mutex_unlock(&chip->lock);
+}
+
+static void gen_74x164_set_multiple(struct gpio_chip *gc, unsigned long *mask,
+				    unsigned long *bits)
+{
+	struct gen_74x164_chip *chip = gpiochip_get_data(gc);
+	unsigned int i, idx, shift;
+	u8 bank, bankmask;
+
+	mutex_lock(&chip->lock);
+	for (i = 0, bank = chip->registers - 1; i < chip->registers;
+	     i++, bank--) {
+		idx = i / sizeof(*mask);
+		shift = i % sizeof(*mask) * BITS_PER_BYTE;
+		bankmask = mask[idx] >> shift;
+		if (!bankmask)
+			continue;
+
+		chip->buffer[bank] &= ~bankmask;
+		chip->buffer[bank] |= bankmask & (bits[idx] >> shift);
+	}
 	__gen_74x164_write_config(chip);
 	mutex_unlock(&chip->lock);
 }
@@ -114,6 +132,7 @@ static int gen_74x164_probe(struct spi_device *spi)
 	chip->gpio_chip.direction_output = gen_74x164_direction_output;
 	chip->gpio_chip.get = gen_74x164_get_value;
 	chip->gpio_chip.set = gen_74x164_set_value;
+	chip->gpio_chip.set_multiple = gen_74x164_set_multiple;
 	chip->gpio_chip.base = -1;
 
 	chip->registers = nregs;
@@ -153,6 +172,7 @@ static int gen_74x164_remove(struct spi_device *spi)
 
 static const struct of_device_id gen_74x164_dt_ids[] = {
 	{ .compatible = "fairchild,74hc595" },
+	{ .compatible = "nxp,74lvc594" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, gen_74x164_dt_ids);

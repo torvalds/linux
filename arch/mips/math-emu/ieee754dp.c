@@ -54,10 +54,13 @@ union ieee754dp __cold ieee754dp_nanxcpt(union ieee754dp r)
 	assert(ieee754dp_issnan(r));
 
 	ieee754_setcx(IEEE754_INVALID_OPERATION);
-	if (ieee754_csr.nan2008)
+	if (ieee754_csr.nan2008) {
 		DPMANT(r) |= DP_MBIT(DP_FBITS - 1);
-	else
-		r = ieee754dp_indef();
+	} else {
+		DPMANT(r) &= ~DP_MBIT(DP_FBITS - 1);
+		if (!ieee754dp_isnan(r))
+			DPMANT(r) |= DP_MBIT(DP_FBITS - 2);
+	}
 
 	return r;
 }

@@ -38,7 +38,7 @@ const u8 ALLFFMAC[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 #define BRCMF_DEFAULT_SCAN_CHANNEL_TIME	40
 #define BRCMF_DEFAULT_SCAN_UNASSOC_TIME	40
 
-/* boost value for RSSI_DELTA in preferred join selection */
+/* default boost value for RSSI_DELTA in preferred join selection */
 #define BRCMF_JOIN_PREF_RSSI_BOOST	8
 
 #define BRCMF_DEFAULT_TXGLOM_SIZE	32  /* max tx frames in glom chain */
@@ -83,11 +83,31 @@ MODULE_PARM_DESC(ignore_probe_fail, "always succeed probe for debugging");
 static struct brcmfmac_platform_data *brcmfmac_pdata;
 struct brcmf_mp_global_t brcmf_mp_global;
 
+void brcmf_c_set_joinpref_default(struct brcmf_if *ifp)
+{
+	struct brcmf_join_pref_params join_pref_params[2];
+	int err;
+
+	/* Setup join_pref to select target by RSSI (boost on 5GHz) */
+	join_pref_params[0].type = BRCMF_JOIN_PREF_RSSI_DELTA;
+	join_pref_params[0].len = 2;
+	join_pref_params[0].rssi_gain = BRCMF_JOIN_PREF_RSSI_BOOST;
+	join_pref_params[0].band = WLC_BAND_5G;
+
+	join_pref_params[1].type = BRCMF_JOIN_PREF_RSSI;
+	join_pref_params[1].len = 2;
+	join_pref_params[1].rssi_gain = 0;
+	join_pref_params[1].band = 0;
+	err = brcmf_fil_iovar_data_set(ifp, "join_pref", join_pref_params,
+				       sizeof(join_pref_params));
+	if (err)
+		brcmf_err("Set join_pref error (%d)\n", err);
+}
+
 int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 {
 	s8 eventmask[BRCMF_EVENTING_MASK_LEN];
 	u8 buf[BRCMF_DCMD_SMLEN];
-	struct brcmf_join_pref_params join_pref_params[2];
 	struct brcmf_rev_info_le revinfo;
 	struct brcmf_rev_info *ri;
 	char *ptr;
@@ -154,19 +174,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 		goto done;
 	}
 
-	/* Setup join_pref to select target by RSSI(with boost on 5GHz) */
-	join_pref_params[0].type = BRCMF_JOIN_PREF_RSSI_DELTA;
-	join_pref_params[0].len = 2;
-	join_pref_params[0].rssi_gain = BRCMF_JOIN_PREF_RSSI_BOOST;
-	join_pref_params[0].band = WLC_BAND_5G;
-	join_pref_params[1].type = BRCMF_JOIN_PREF_RSSI;
-	join_pref_params[1].len = 2;
-	join_pref_params[1].rssi_gain = 0;
-	join_pref_params[1].band = 0;
-	err = brcmf_fil_iovar_data_set(ifp, "join_pref", join_pref_params,
-				       sizeof(join_pref_params));
-	if (err)
-		brcmf_err("Set join_pref error (%d)\n", err);
+	brcmf_c_set_joinpref_default(ifp);
 
 	/* Setup event_msgs, enable E_IF */
 	err = brcmf_fil_iovar_data_get(ifp, "event_msgs", eventmask,

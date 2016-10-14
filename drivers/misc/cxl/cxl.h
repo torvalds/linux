@@ -24,6 +24,7 @@
 #include <asm/reg.h>
 #include <misc/cxl-base.h>
 
+#include <misc/cxl.h>
 #include <uapi/misc/cxl.h>
 
 extern uint cxl_verbose;
@@ -34,7 +35,7 @@ extern uint cxl_verbose;
  * Bump version each time a user API change is made, whether it is
  * backwards compatible ot not.
  */
-#define CXL_API_VERSION 2
+#define CXL_API_VERSION 3
 #define CXL_API_VERSION_COMPATIBLE 1
 
 /*
@@ -81,6 +82,7 @@ static const cxl_p1_reg_t CXL_PSL_TLBIA   = {0x00A8};
 static const cxl_p1_reg_t CXL_PSL_AFUSEL  = {0x00B0};
 
 /* 0x00C0:7EFF Implementation dependent area */
+/* PSL registers */
 static const cxl_p1_reg_t CXL_PSL_FIR1      = {0x0100};
 static const cxl_p1_reg_t CXL_PSL_FIR2      = {0x0108};
 static const cxl_p1_reg_t CXL_PSL_Timebase  = {0x0110};
@@ -91,6 +93,11 @@ static const cxl_p1_reg_t CXL_PSL_FIR_CNTL  = {0x0148};
 static const cxl_p1_reg_t CXL_PSL_DSNDCTL   = {0x0150};
 static const cxl_p1_reg_t CXL_PSL_SNWRALLOC = {0x0158};
 static const cxl_p1_reg_t CXL_PSL_TRACE     = {0x0170};
+/* XSL registers (Mellanox CX4) */
+static const cxl_p1_reg_t CXL_XSL_Timebase  = {0x0100};
+static const cxl_p1_reg_t CXL_XSL_TB_CTLSTAT = {0x0108};
+static const cxl_p1_reg_t CXL_XSL_FEC       = {0x0158};
+static const cxl_p1_reg_t CXL_XSL_DSNCTL    = {0x0168};
 /* 0x7F00:7FFF Reserved PCIe MSI-X Pending Bit Array area */
 /* 0x8000:FFFF Reserved PCIe MSI-X Table Area */
 
@@ -178,18 +185,21 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PSL_SR_An_MP  (1ull << (63-62)) /* Master Process */
 #define CXL_PSL_SR_An_LE  (1ull << (63-63)) /* Little Endian */
 
-/****** CXL_PSL_LLCMD_An ****************************************************/
-#define CXL_LLCMD_TERMINATE   0x0001000000000000ULL
-#define CXL_LLCMD_REMOVE      0x0002000000000000ULL
-#define CXL_LLCMD_SUSPEND     0x0003000000000000ULL
-#define CXL_LLCMD_RESUME      0x0004000000000000ULL
-#define CXL_LLCMD_ADD         0x0005000000000000ULL
-#define CXL_LLCMD_UPDATE      0x0006000000000000ULL
-#define CXL_LLCMD_HANDLE_MASK 0x000000000000ffffULL
-
 /****** CXL_PSL_ID_An ****************************************************/
 #define CXL_PSL_ID_An_F	(1ull << (63-31))
 #define CXL_PSL_ID_An_L	(1ull << (63-30))
+
+/****** CXL_PSL_SERR_An ****************************************************/
+#define CXL_PSL_SERR_An_afuto	(1ull << (63-0))
+#define CXL_PSL_SERR_An_afudis	(1ull << (63-1))
+#define CXL_PSL_SERR_An_afuov	(1ull << (63-2))
+#define CXL_PSL_SERR_An_badsrc	(1ull << (63-3))
+#define CXL_PSL_SERR_An_badctx	(1ull << (63-4))
+#define CXL_PSL_SERR_An_llcmdis	(1ull << (63-5))
+#define CXL_PSL_SERR_An_llcmdto	(1ull << (63-6))
+#define CXL_PSL_SERR_An_afupar	(1ull << (63-7))
+#define CXL_PSL_SERR_An_afudup	(1ull << (63-8))
+#define CXL_PSL_SERR_An_AE	(1ull << (63-30))
 
 /****** CXL_PSL_SCNTL_An ****************************************************/
 #define CXL_PSL_SCNTL_An_CR          (0x1ull << (63-15))
@@ -376,11 +386,13 @@ struct cxl_afu_native {
 };
 
 struct cxl_afu_guest {
+	struct cxl_afu *parent;
 	u64 handle;
 	phys_addr_t p2n_phys;
 	u64 p2n_size;
 	int max_ints;
-	struct mutex recovery_lock;
+	bool handle_err;
+	struct delayed_work work_err;
 	int previous_state;
 };
 
@@ -428,18 +440,6 @@ struct cxl_afu {
 	bool enabled;
 };
 
-/* AFU refcount management */
-static inline struct cxl_afu *cxl_afu_get(struct cxl_afu *afu)
-{
-
-	return (get_device(&afu->dev) == NULL) ? NULL : afu;
-}
-
-static inline void  cxl_afu_put(struct cxl_afu *afu)
-{
-	put_device(&afu->dev);
-}
-
 
 struct cxl_irq_name {
 	struct list_head list;
@@ -484,6 +484,9 @@ struct cxl_context {
 	/* Only used in PR mode */
 	u64 process_token;
 
+	/* driver private data */
+	void *priv;
+
 	unsigned long *irq_bitmap; /* Accessed from IRQ context */
 	struct cxl_irq_ranges irqs;
 	struct list_head irq_names;
@@ -524,11 +527,40 @@ struct cxl_context {
 	bool pe_inserted;
 	bool master;
 	bool kernel;
+	bool real_mode;
 	bool pending_irq;
 	bool pending_fault;
 	bool pending_afu_err;
 
+	/* Used by AFU drivers for driver specific event delivery */
+	struct cxl_afu_driver_ops *afu_driver_ops;
+	atomic_t afu_driver_events;
+
 	struct rcu_head rcu;
+
+	/*
+	 * Only used when more interrupts are allocated via
+	 * pci_enable_msix_range than are supported in the default context, to
+	 * use additional contexts to overcome the limitation. i.e. Mellanox
+	 * CX4 only:
+	 */
+	struct list_head extra_irq_contexts;
+};
+
+struct cxl_service_layer_ops {
+	int (*adapter_regs_init)(struct cxl *adapter, struct pci_dev *dev);
+	int (*afu_regs_init)(struct cxl_afu *afu);
+	int (*register_serr_irq)(struct cxl_afu *afu);
+	void (*release_serr_irq)(struct cxl_afu *afu);
+	void (*debugfs_add_adapter_sl_regs)(struct cxl *adapter, struct dentry *dir);
+	void (*debugfs_add_afu_sl_regs)(struct cxl_afu *afu, struct dentry *dir);
+	void (*psl_irq_dump_registers)(struct cxl_context *ctx);
+	void (*err_irq_dump_registers)(struct cxl *adapter);
+	void (*debugfs_stop_trace)(struct cxl *adapter);
+	void (*write_timebase_ctrl)(struct cxl *adapter);
+	u64 (*timebase_read)(struct cxl *adapter);
+	int capi_mode;
+	bool needs_reset_before_disable;
 };
 
 struct cxl_native {
@@ -539,6 +571,7 @@ struct cxl_native {
 	irq_hw_number_t err_hwirq;
 	unsigned int err_virq;
 	u64 ps_off;
+	const struct cxl_service_layer_ops *sl_ops;
 };
 
 struct cxl_guest {
@@ -569,6 +602,7 @@ struct cxl {
 	struct bin_attribute cxl_attr;
 	int adapter_num;
 	int user_irqs;
+	int min_pe;
 	u64 ps_size;
 	u16 psl_rev;
 	u16 base_image;
@@ -580,6 +614,7 @@ struct cxl {
 	bool perst_loads_image;
 	bool perst_select_user;
 	bool perst_same_image;
+	bool psl_timebase_synced;
 };
 
 int cxl_pci_alloc_one_irq(struct cxl *adapter);
@@ -693,9 +728,21 @@ static inline u64 cxl_p2n_read(struct cxl_afu *afu, cxl_p2n_reg_t reg)
 ssize_t cxl_pci_afu_read_err_buffer(struct cxl_afu *afu, char *buf,
 				loff_t off, size_t count);
 
+/* Internal functions wrapped in cxl_base to allow PHB to call them */
+bool _cxl_pci_associate_default_context(struct pci_dev *dev, struct cxl_afu *afu);
+void _cxl_pci_disable_device(struct pci_dev *dev);
+int _cxl_next_msi_hwirq(struct pci_dev *pdev, struct cxl_context **ctx, int *afu_irq);
+int _cxl_cx4_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type);
+void _cxl_cx4_teardown_msi_irqs(struct pci_dev *pdev);
 
 struct cxl_calls {
 	void (*cxl_slbia)(struct mm_struct *mm);
+	bool (*cxl_pci_associate_default_context)(struct pci_dev *dev, struct cxl_afu *afu);
+	void (*cxl_pci_disable_device)(struct pci_dev *dev);
+	int (*cxl_next_msi_hwirq)(struct pci_dev *pdev, struct cxl_context **ctx, int *afu_irq);
+	int (*cxl_cx4_setup_msi_irqs)(struct pci_dev *pdev, int nvec, int type);
+	void (*cxl_cx4_teardown_msi_irqs)(struct pci_dev *pdev);
+
 	struct module *owner;
 };
 int register_cxl_calls(struct cxl_calls *calls);
@@ -810,6 +857,11 @@ int cxl_tlb_slb_invalidate(struct cxl *adapter);
 int cxl_afu_disable(struct cxl_afu *afu);
 int cxl_psl_purge(struct cxl_afu *afu);
 
+void cxl_debugfs_add_adapter_psl_regs(struct cxl *adapter, struct dentry *dir);
+void cxl_debugfs_add_adapter_xsl_regs(struct cxl *adapter, struct dentry *dir);
+void cxl_debugfs_add_afu_psl_regs(struct cxl_afu *afu, struct dentry *dir);
+void cxl_native_psl_irq_dump_regs(struct cxl_context *ctx);
+void cxl_native_err_irq_dump_regs(struct cxl *adapter);
 void cxl_stop_trace(struct cxl *cxl);
 int cxl_pci_vphb_add(struct cxl_afu *afu);
 void cxl_pci_vphb_remove(struct cxl_afu *afu);
@@ -860,6 +912,7 @@ struct cxl_backend_ops {
 	int (*attach_process)(struct cxl_context *ctx, bool kernel,
 			u64 wed, u64 amr);
 	int (*detach_process)(struct cxl_context *ctx);
+	void (*update_ivtes)(struct cxl_context *ctx);
 	bool (*support_attributes)(const char *attr_name, enum cxl_attrs type);
 	bool (*link_ok)(struct cxl *cxl, struct cxl_afu *afu);
 	void (*release_afu)(struct device *dev);
@@ -884,4 +937,7 @@ extern const struct cxl_backend_ops *cxl_ops;
 
 /* check if the given pci_dev is on the the cxl vphb bus */
 bool cxl_pci_is_vphb_device(struct pci_dev *dev);
+
+/* decode AFU error bits in the PSL register PSL_SERR_An */
+void cxl_afu_decode_psl_serr(struct cxl_afu *afu, u64 serr);
 #endif

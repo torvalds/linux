@@ -65,7 +65,7 @@ int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
 	return ret;
 }
 
-long vfs_truncate(struct path *path, loff_t length)
+long vfs_truncate(const struct path *path, loff_t length)
 {
 	struct inode *inode;
 	long error;
@@ -499,7 +499,7 @@ out:
 	return error;
 }
 
-static int chmod_common(struct path *path, umode_t mode)
+static int chmod_common(const struct path *path, umode_t mode)
 {
 	struct inode *inode = path->dentry->d_inode;
 	struct inode *delegated_inode = NULL;
@@ -564,7 +564,7 @@ SYSCALL_DEFINE2(chmod, const char __user *, filename, umode_t, mode)
 	return sys_fchmodat(AT_FDCWD, filename, mode);
 }
 
-static int chown_common(struct path *path, uid_t user, gid_t group)
+static int chown_common(const struct path *path, uid_t user, gid_t group)
 {
 	struct inode *inode = path->dentry->d_inode;
 	struct inode *delegated_inode = NULL;
@@ -713,7 +713,7 @@ static int do_dentry_open(struct file *f,
 	}
 
 	/* POSIX.1-2008/SUSv4 Section XSI 2.9.7 */
-	if (S_ISREG(inode->i_mode))
+	if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode))
 		f->f_mode |= FMODE_ATOMIC_POS;
 
 	f->f_op = fops_get(inode->i_fop);
@@ -840,13 +840,13 @@ EXPORT_SYMBOL(file_path);
 int vfs_open(const struct path *path, struct file *file,
 	     const struct cred *cred)
 {
-	struct inode *inode = vfs_select_inode(path->dentry, file->f_flags);
+	struct dentry *dentry = d_real(path->dentry, NULL, file->f_flags);
 
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
 
 	file->f_path = *path;
-	return do_dentry_open(file, inode, NULL, cred);
+	return do_dentry_open(file, d_backing_inode(dentry), NULL, cred);
 }
 
 struct file *dentry_open(const struct path *path, int flags,
@@ -997,6 +997,26 @@ struct file *file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 	return do_file_open_root(dentry, mnt, filename, &op);
 }
 EXPORT_SYMBOL(file_open_root);
+
+struct file *filp_clone_open(struct file *oldfile)
+{
+	struct file *file;
+	int retval;
+
+	file = get_empty_filp();
+	if (IS_ERR(file))
+		return file;
+
+	file->f_flags = oldfile->f_flags;
+	retval = vfs_open(&oldfile->f_path, file, oldfile->f_cred);
+	if (retval) {
+		put_filp(file);
+		return ERR_PTR(retval);
+	}
+
+	return file;
+}
+EXPORT_SYMBOL(filp_clone_open);
 
 long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 {

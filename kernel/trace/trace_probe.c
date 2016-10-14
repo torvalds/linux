@@ -218,6 +218,28 @@ free_bitfield_fetch_param(struct bitfield_fetch_param *data)
 	kfree(data);
 }
 
+void FETCH_FUNC_NAME(comm, string)(struct pt_regs *regs,
+					  void *data, void *dest)
+{
+	int maxlen = get_rloc_len(*(u32 *)dest);
+	u8 *dst = get_rloc_data(dest);
+	long ret;
+
+	if (!maxlen)
+		return;
+
+	ret = strlcpy(dst, current->comm, maxlen);
+	*(u32 *)dest = make_data_rloc(ret, get_rloc_offs(*(u32 *)dest));
+}
+NOKPROBE_SYMBOL(FETCH_FUNC_NAME(comm, string));
+
+void FETCH_FUNC_NAME(comm, string_size)(struct pt_regs *regs,
+					       void *data, void *dest)
+{
+	*(u32 *)dest = strlen(current->comm) + 1;
+}
+NOKPROBE_SYMBOL(FETCH_FUNC_NAME(comm, string_size));
+
 static const struct fetch_type *find_fetch_type(const char *type,
 						const struct fetch_type *ftbl)
 {
@@ -348,6 +370,11 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
 			}
 		} else
 			ret = -EINVAL;
+	} else if (strcmp(arg, "comm") == 0) {
+		if (strcmp(t->name, "string") != 0 &&
+		    strcmp(t->name, "string_size") != 0)
+			return -EINVAL;
+		f->fn = t->fetch[FETCH_MTD_comm];
 	} else
 		ret = -EINVAL;
 
@@ -522,6 +549,12 @@ int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
 		arg[t - parg->comm] = '\0';
 		t++;
 	}
+	/*
+	 * The default type of $comm should be "string", and it can't be
+	 * dereferenced.
+	 */
+	if (!t && strcmp(arg, "$comm") == 0)
+		t = "string";
 	parg->type = find_fetch_type(t, ftbl);
 	if (!parg->type) {
 		pr_info("Unsupported type: %s\n", t);

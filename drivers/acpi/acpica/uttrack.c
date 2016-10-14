@@ -90,7 +90,7 @@ acpi_ut_remove_allocation(struct acpi_debug_mem_block *address,
  ******************************************************************************/
 
 acpi_status
-acpi_ut_create_list(char *list_name,
+acpi_ut_create_list(const char *list_name,
 		    u16 object_size, struct acpi_memory_list **return_cache)
 {
 	struct acpi_memory_list *cache;

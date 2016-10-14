@@ -80,7 +80,6 @@ struct hns_ppe_cb {
 	struct hns_ppe_hw_stats hw_stats;
 
 	u8 index;	/* index in a ppe common device */
-	u8 port;			 /* port id in dsaf  */
 	void __iomem *io_base;
 	int virq;
 	u32 rss_indir_table[HNS_PPEV2_RSS_IND_TBL_SIZE]; /*shadow indir tab */

@@ -1,10 +1,10 @@
 menuconfig ARCH_MXC
 	bool "Freescale i.MX family"
 	depends on ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7 || ARM_SINGLE_ARMV7M
-	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select CLKSRC_IMX_GPT
 	select GENERIC_IRQ_CHIP
+	select GPIOLIB
 	select PINCTRL
 	select PM_OPP if PM
 	select SOC_BUS
@@ -43,9 +43,6 @@ config MXC_USE_EPIT
 	  don't have a reason to do so as the EPIT has the same features and
 	  uses the same clocks as the GPT. Anyway, on some systems the GPT
 	  may be in use for other purposes.
-
-config ARCH_HAS_RNGA
-	bool
 
 config HAVE_IMX_ANATOP
 	bool
@@ -90,7 +87,6 @@ config SOC_IMX27
 config SOC_IMX31
 	bool
 	select CPU_V6
-	select IMX_HAVE_PLATFORM_MXC_RNGA
 	select MXC_AVIC
 	select SMP_ON_UP if SMP
 
@@ -526,7 +522,7 @@ config SOC_IMX6Q
 	bool "i.MX6 Quad/DualLite support"
 	select ARM_ERRATA_764369 if SMP
 	select HAVE_ARM_SCU if SMP
-	select HAVE_ARM_TWD if SMP
+	select HAVE_ARM_TWD
 	select PCI_DOMAINS if PCI
 	select PINCTRL_IMX6Q
 	select SOC_IMX6

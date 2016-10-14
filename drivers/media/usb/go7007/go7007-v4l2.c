@@ -370,7 +370,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
 static int go7007_queue_setup(struct vb2_queue *q,
 		unsigned int *num_buffers, unsigned int *num_planes,
-		unsigned int sizes[], void *alloc_ctxs[])
+		unsigned int sizes[], struct device *alloc_devs[])
 {
 	sizes[0] = GO7007_BUF_SIZE;
 	*num_planes = 1;
@@ -1125,7 +1125,7 @@ int go7007_v4l2_init(struct go7007 *go)
 	vdev->queue = &go->vidq;
 	video_set_drvdata(vdev, go);
 	vdev->v4l2_dev = &go->v4l2_dev;
-	if (!v4l2_device_has_op(&go->v4l2_dev, video, querystd))
+	if (!v4l2_device_has_op(&go->v4l2_dev, 0, video, querystd))
 		v4l2_disable_ioctl(vdev, VIDIOC_QUERYSTD);
 	if (!(go->board_info->flags & GO7007_BOARD_HAS_TUNER)) {
 		v4l2_disable_ioctl(vdev, VIDIOC_S_FREQUENCY);

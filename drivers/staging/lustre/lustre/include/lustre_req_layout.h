@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -137,6 +133,7 @@ extern struct req_format RQF_MGS_CONFIG_READ;
 /* fid/fld req_format */
 extern struct req_format RQF_SEQ_QUERY;
 extern struct req_format RQF_FLD_QUERY;
+extern struct req_format RQF_FLD_READ;
 /* MDS req_format */
 extern struct req_format RQF_MDS_CONNECT;
 extern struct req_format RQF_MDS_DISCONNECT;
@@ -163,7 +160,7 @@ extern struct req_format RQF_MDS_IS_SUBDIR;
 extern struct req_format RQF_MDS_DONE_WRITING;
 extern struct req_format RQF_MDS_REINT;
 extern struct req_format RQF_MDS_REINT_CREATE;
-extern struct req_format RQF_MDS_REINT_CREATE_RMT_ACL;
+extern struct req_format RQF_MDS_REINT_CREATE_ACL;
 extern struct req_format RQF_MDS_REINT_CREATE_SLAVE;
 extern struct req_format RQF_MDS_REINT_CREATE_SYM;
 extern struct req_format RQF_MDS_REINT_OPEN;
@@ -199,7 +196,7 @@ extern struct req_format RQF_OST_BRW_READ;
 extern struct req_format RQF_OST_BRW_WRITE;
 extern struct req_format RQF_OST_STATFS;
 extern struct req_format RQF_OST_SET_GRANT_INFO;
-extern struct req_format RQF_OST_GET_INFO_GENERIC;
+extern struct req_format RQF_OST_GET_INFO;
 extern struct req_format RQF_OST_GET_INFO_LAST_ID;
 extern struct req_format RQF_OST_GET_INFO_LAST_FID;
 extern struct req_format RQF_OST_SET_INFO_LAST_FID;

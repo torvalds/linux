@@ -10,6 +10,9 @@ config DCACHE_WORD_ACCESS
 
 if BLOCK
 
+config FS_IOMAP
+	bool
+
 source "fs/ext2/Kconfig"
 source "fs/ext4/Kconfig"
 source "fs/jbd2/Kconfig"
@@ -52,6 +55,7 @@ config FS_DAX_PMD
 	depends on FS_DAX
 	depends on ZONE_DEVICE
 	depends on TRANSPARENT_HUGEPAGE
+	depends on BROKEN
 
 endif # BLOCK
 
@@ -65,6 +69,12 @@ config FS_POSIX_ACL
 
 config EXPORTFS
 	tristate
+
+config EXPORTFS_BLOCK_OPS
+	bool "Enable filesystem export operations for block IO"
+	help
+	  This option enables the export operations for a filesystem to support
+	  external block IO.
 
 config FILE_LOCKING
 	bool "Enable POSIX file locking API" if EXPERT

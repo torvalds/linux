@@ -178,6 +178,9 @@ static int afu_read_error_state(struct cxl_afu *afu, int *state_out)
 	u64 state;
 	int rc = 0;
 
+	if (!afu)
+		return -EIO;
+
 	rc = cxl_h_read_error_state(afu->guest->handle, &state);
 	if (!rc) {
 		WARN_ON(state != H_STATE_NORMAL &&
@@ -193,15 +196,18 @@ static irqreturn_t guest_slice_irq_err(int irq, void *data)
 {
 	struct cxl_afu *afu = data;
 	int rc;
-	u64 serr;
+	u64 serr, afu_error, dsisr;
 
-	WARN(irq, "CXL SLICE ERROR interrupt %i\n", irq);
 	rc = cxl_h_get_fn_error_interrupt(afu->guest->handle, &serr);
 	if (rc) {
 		dev_crit(&afu->dev, "Couldn't read PSL_SERR_An: %d\n", rc);
 		return IRQ_HANDLED;
 	}
-	dev_crit(&afu->dev, "PSL_SERR_An: 0x%.16llx\n", serr);
+	afu_error = cxl_p2n_read(afu, CXL_AFU_ERR_An);
+	dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
+	cxl_afu_decode_psl_serr(afu, serr);
+	dev_crit(&afu->dev, "AFU_ERR_An: 0x%.16llx\n", afu_error);
+	dev_crit(&afu->dev, "PSL_DSISR_An: 0x%.16llx\n", dsisr);
 
 	rc = cxl_h_ack_fn_error_interrupt(afu->guest->handle, serr);
 	if (rc)
@@ -552,6 +558,17 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 
 	elem->common.sstp0  = cpu_to_be64(ctx->sstp0);
 	elem->common.sstp1  = cpu_to_be64(ctx->sstp1);
+
+	/*
+	 * Ensure we have at least one interrupt allocated to take faults for
+	 * kernel contexts that may not have allocated any AFU IRQs at all:
+	 */
+	if (ctx->irqs.range[0] == 0) {
+		rc = afu_register_irqs(ctx, 0);
+		if (rc)
+			goto out_free;
+	}
+
 	for (r = 0; r < CXL_IRQ_RANGES; r++) {
 		for (i = 0; i < ctx->irqs.range[r]; i++) {
 			if (r == 0 && i == 0) {
@@ -597,6 +614,7 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 		enable_afu_irqs(ctx);
 	}
 
+out_free:
 	free_page((u64)elem);
 	return rc;
 }
@@ -604,6 +622,9 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 static int guest_attach_process(struct cxl_context *ctx, bool kernel, u64 wed, u64 amr)
 {
 	pr_devel("in %s\n", __func__);
+
+	if (ctx->real_mode)
+		return -EPERM;
 
 	ctx->kernel = kernel;
 	if (ctx->afu->current_mode == CXL_MODE_DIRECTED)
@@ -818,7 +839,6 @@ static int afu_update_state(struct cxl_afu *afu)
 	switch (cur_state) {
 	case H_STATE_NORMAL:
 		afu->guest->previous_state = cur_state;
-		rc = 1;
 		break;
 
 	case H_STATE_DISABLE:
@@ -834,7 +854,6 @@ static int afu_update_state(struct cxl_afu *afu)
 			pci_error_handlers(afu, CXL_SLOT_RESET_EVENT,
 					pci_channel_io_normal);
 			pci_error_handlers(afu, CXL_RESUME_EVENT, 0);
-			rc = 1;
 		}
 		afu->guest->previous_state = 0;
 		break;
@@ -859,39 +878,30 @@ static int afu_update_state(struct cxl_afu *afu)
 	return rc;
 }
 
-static int afu_do_recovery(struct cxl_afu *afu)
+static void afu_handle_errstate(struct work_struct *work)
 {
-	int rc;
+	struct cxl_afu_guest *afu_guest =
+		container_of(to_delayed_work(work), struct cxl_afu_guest, work_err);
 
-	/* many threads can arrive here, in case of detach_all for example.
-	 * Only one needs to drive the recovery
-	 */
-	if (mutex_trylock(&afu->guest->recovery_lock)) {
-		rc = afu_update_state(afu);
-		mutex_unlock(&afu->guest->recovery_lock);
-		return rc;
-	}
-	return 0;
+	if (!afu_update_state(afu_guest->parent) &&
+	    afu_guest->previous_state == H_STATE_PERM_UNAVAILABLE)
+		return;
+
+	if (afu_guest->handle_err == true)
+		schedule_delayed_work(&afu_guest->work_err,
+				      msecs_to_jiffies(3000));
 }
 
 static bool guest_link_ok(struct cxl *cxl, struct cxl_afu *afu)
 {
 	int state;
 
-	if (afu) {
-		if (afu_read_error_state(afu, &state) ||
-			state != H_STATE_NORMAL) {
-			if (afu_do_recovery(afu) > 0) {
-				/* check again in case we've just fixed it */
-				if (!afu_read_error_state(afu, &state) &&
-					state == H_STATE_NORMAL)
-					return true;
-			}
-			return false;
-		}
+	if (afu && (!afu_read_error_state(afu, &state))) {
+		if (state == H_STATE_NORMAL)
+			return true;
 	}
 
-	return true;
+	return false;
 }
 
 static int afu_properties_look_ok(struct cxl_afu *afu)
@@ -928,8 +938,6 @@ int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_node *afu_n
 		kfree(afu);
 		return -ENOMEM;
 	}
-
-	mutex_init(&afu->guest->recovery_lock);
 
 	if ((rc = dev_set_name(&afu->dev, "afu%i.%i",
 					  adapter->adapter_num,
@@ -986,6 +994,15 @@ int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_node *afu_n
 
 	afu->enabled = true;
 
+	/*
+	 * wake up the cpu periodically to check the state
+	 * of the AFU using "afu" stored in the guest structure.
+	 */
+	afu->guest->parent = afu;
+	afu->guest->handle_err = true;
+	INIT_DELAYED_WORK(&afu->guest->work_err, afu_handle_errstate);
+	schedule_delayed_work(&afu->guest->work_err, msecs_to_jiffies(1000));
+
 	if ((rc = cxl_pci_vphb_add(afu)))
 		dev_info(&afu->dev, "Can't register vPHB\n");
 
@@ -1014,6 +1031,10 @@ void cxl_guest_remove_afu(struct cxl_afu *afu)
 	if (!afu)
 		return;
 
+	/* flush and stop pending job */
+	afu->guest->handle_err = false;
+	flush_delayed_work(&afu->guest->work_err);
+
 	cxl_pci_vphb_remove(afu);
 	cxl_sysfs_afu_remove(afu);
 
@@ -1034,16 +1055,18 @@ static void free_adapter(struct cxl *adapter)
 	struct irq_avail *cur;
 	int i;
 
-	if (adapter->guest->irq_avail) {
-		for (i = 0; i < adapter->guest->irq_nranges; i++) {
-			cur = &adapter->guest->irq_avail[i];
-			kfree(cur->bitmap);
+	if (adapter->guest) {
+		if (adapter->guest->irq_avail) {
+			for (i = 0; i < adapter->guest->irq_nranges; i++) {
+				cur = &adapter->guest->irq_avail[i];
+				kfree(cur->bitmap);
+			}
+			kfree(adapter->guest->irq_avail);
 		}
-		kfree(adapter->guest->irq_avail);
+		kfree(adapter->guest->status);
+		kfree(adapter->guest);
 	}
-	kfree(adapter->guest->status);
 	cxl_remove_adapter_nr(adapter);
-	kfree(adapter->guest);
 	kfree(adapter);
 }
 
@@ -1100,6 +1123,12 @@ struct cxl *cxl_guest_init_adapter(struct device_node *np, struct platform_devic
 	adapter->dev.parent = &pdev->dev;
 	adapter->dev.release = release_adapter;
 	dev_set_drvdata(&pdev->dev, adapter);
+
+	/*
+	 * Hypervisor controls PSL timebase initialization (p1 register).
+	 * On FW840, PSL is initialized.
+	 */
+	adapter->psl_timebase_synced = true;
 
 	if ((rc = cxl_of_read_adapter_handle(adapter, np)))
 		goto err1;
@@ -1158,6 +1187,7 @@ const struct cxl_backend_ops cxl_guest_ops = {
 	.ack_irq = guest_ack_irq,
 	.attach_process = guest_attach_process,
 	.detach_process = guest_detach_process,
+	.update_ivtes = NULL,
 	.support_attributes = guest_support_attributes,
 	.link_ok = guest_link_ok,
 	.release_afu = guest_release_afu,

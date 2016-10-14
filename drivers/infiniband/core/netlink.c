@@ -151,12 +151,11 @@ static int ibnl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct ibnl_client *client;
 	int type = nlh->nlmsg_type;
 	int index = RDMA_NL_GET_CLIENT(type);
-	int op = RDMA_NL_GET_OP(type);
+	unsigned int op = RDMA_NL_GET_OP(type);
 
 	list_for_each_entry(client, &client_list, list) {
 		if (client->index == index) {
-			if (op < 0 || op >= client->nops ||
-			    !client->cb_table[op].dump)
+			if (op >= client->nops || !client->cb_table[op].dump)
 				return -EINVAL;
 
 			/*
@@ -230,7 +229,10 @@ static void ibnl_rcv(struct sk_buff *skb)
 int ibnl_unicast(struct sk_buff *skb, struct nlmsghdr *nlh,
 			__u32 pid)
 {
-	return nlmsg_unicast(nls, skb, pid);
+	int err;
+
+	err = netlink_unicast(nls, skb, pid, 0);
+	return (err < 0) ? err : 0;
 }
 EXPORT_SYMBOL(ibnl_unicast);
 
@@ -253,6 +255,7 @@ int __init ibnl_init(void)
 		return -ENOMEM;
 	}
 
+	nls->sk_sndtimeo = 10 * HZ;
 	return 0;
 }
 

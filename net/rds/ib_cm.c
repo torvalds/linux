@@ -36,6 +36,7 @@
 #include <linux/vmalloc.h>
 #include <linux/ratelimit.h>
 
+#include "rds_single_path.h"
 #include "rds.h"
 #include "ib.h"
 
@@ -111,7 +112,7 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 		}
 	}
 
-	if (conn->c_version < RDS_PROTOCOL(3,1)) {
+	if (conn->c_version < RDS_PROTOCOL(3, 1)) {
 		printk(KERN_NOTICE "RDS/IB: Connection to %pI4 version %u.%u failed,"
 		       " no longer supported\n",
 		       &conn->c_faddr,
@@ -273,7 +274,7 @@ static void rds_ib_tasklet_fn_send(unsigned long data)
 	if (rds_conn_up(conn) &&
 	    (!test_bit(RDS_LL_SEND_FULL, &conn->c_flags) ||
 	    test_bit(0, &conn->c_map_queued)))
-		rds_send_xmit(ic->conn);
+		rds_send_xmit(&ic->conn->c_path[0]);
 }
 
 static void poll_rcq(struct rds_ib_connection *ic, struct ib_cq *cq,
@@ -684,8 +685,9 @@ out:
 	return ret;
 }
 
-int rds_ib_conn_connect(struct rds_connection *conn)
+int rds_ib_conn_path_connect(struct rds_conn_path *cp)
 {
+	struct rds_connection *conn = cp->cp_conn;
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	struct sockaddr_in src, dest;
 	int ret;
@@ -730,8 +732,9 @@ out:
  * so that it can be called at any point during startup.  In fact it
  * can be called multiple times for a given connection.
  */
-void rds_ib_conn_shutdown(struct rds_connection *conn)
+void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 {
+	struct rds_connection *conn = cp->cp_conn;
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	int err = 0;
 

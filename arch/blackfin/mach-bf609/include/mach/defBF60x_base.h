@@ -2689,7 +2689,7 @@
 #define L2CTL0_STAT                 0xFFCA3010         /* L2CTL0 L2 Status Register */
 #define L2CTL0_RPCR                 0xFFCA3014         /* L2CTL0 L2 Read Priority Count Register */
 #define L2CTL0_WPCR                 0xFFCA3018         /* L2CTL0 L2 Write Priority Count Register */
-#define L2CTL0_RFA                  0xFFCA3024         /* L2CTL0 L2 Refresh Address Regsiter */
+#define L2CTL0_RFA                  0xFFCA3024         /* L2CTL0 L2 Refresh Address Register */
 #define L2CTL0_ERRADDR0             0xFFCA3040         /* L2CTL0 L2 Bank 0 ECC Error Address Register */
 #define L2CTL0_ERRADDR1             0xFFCA3044         /* L2CTL0 L2 Bank 1 ECC Error Address Register */
 #define L2CTL0_ERRADDR2             0xFFCA3048         /* L2CTL0 L2 Bank 2 ECC Error Address Register */

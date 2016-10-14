@@ -23,7 +23,6 @@
 #include <linux/kfifo.h>
 #include <linux/spinlock.h>
 #include <linux/iio/iio.h>
-#include <linux/i2c-mux.h>
 #include <linux/acpi.h>
 #include "inv_mpu_iio.h"
 
@@ -88,17 +87,36 @@ static const struct inv_mpu6050_chip_config chip_config_6050 = {
 	.accl_fs = INV_MPU6050_FS_02G,
 };
 
+/* Indexed by enum inv_devices */
 static const struct inv_mpu6050_hw hw_info[] = {
 	{
-		.num_reg = 117,
+		.whoami = INV_MPU6050_WHOAMI_VALUE,
+		.name = "MPU6050",
+		.reg = &reg_set_6050,
+		.config = &chip_config_6050,
+	},
+	{
+		.whoami = INV_MPU6500_WHOAMI_VALUE,
 		.name = "MPU6500",
 		.reg = &reg_set_6500,
 		.config = &chip_config_6050,
 	},
 	{
-		.num_reg = 117,
-		.name = "MPU6050",
+		.whoami = INV_MPU6000_WHOAMI_VALUE,
+		.name = "MPU6000",
 		.reg = &reg_set_6050,
+		.config = &chip_config_6050,
+	},
+	{
+		.whoami = INV_MPU9150_WHOAMI_VALUE,
+		.name = "MPU9150",
+		.reg = &reg_set_6050,
+		.config = &chip_config_6050,
+	},
+	{
+		.whoami = INV_ICM20608_WHOAMI_VALUE,
+		.name = "ICM20608",
+		.reg = &reg_set_6500,
 		.config = &chip_config_6050,
 	},
 };
@@ -600,6 +618,10 @@ inv_fifo_rate_show(struct device *dev, struct device_attribute *attr,
 /**
  * inv_attr_show() - calling this function will show current
  *                    parameters.
+ *
+ * Deprecated in favor of IIO mounting matrix API.
+ *
+ * See inv_get_mount_matrix()
  */
 static ssize_t inv_attr_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -644,6 +666,18 @@ static int inv_mpu6050_validate_trigger(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static const struct iio_mount_matrix *
+inv_get_mount_matrix(const struct iio_dev *indio_dev,
+		     const struct iio_chan_spec *chan)
+{
+	return &((struct inv_mpu6050_state *)iio_priv(indio_dev))->orientation;
+}
+
+static const struct iio_chan_spec_ext_info inv_ext_info[] = {
+	IIO_MOUNT_MATRIX(IIO_SHARED_BY_TYPE, inv_get_mount_matrix),
+	{ },
+};
+
 #define INV_MPU6050_CHAN(_type, _channel2, _index)                    \
 	{                                                             \
 		.type = _type,                                        \
@@ -660,6 +694,7 @@ static int inv_mpu6050_validate_trigger(struct iio_dev *indio_dev,
 				.shift = 0,                           \
 				.endianness = IIO_BE,                 \
 			     },                                       \
+		.ext_info = inv_ext_info,                             \
 	}
 
 static const struct iio_chan_spec inv_mpu_channels[] = {
@@ -692,14 +727,16 @@ static IIO_CONST_ATTR(in_accel_scale_available,
 					  "0.000598 0.001196 0.002392 0.004785");
 static IIO_DEV_ATTR_SAMP_FREQ(S_IRUGO | S_IWUSR, inv_fifo_rate_show,
 	inv_mpu6050_fifo_rate_store);
+
+/* Deprecated: kept for userspace backward compatibility. */
 static IIO_DEVICE_ATTR(in_gyro_matrix, S_IRUGO, inv_attr_show, NULL,
 	ATTR_GYRO_MATRIX);
 static IIO_DEVICE_ATTR(in_accel_matrix, S_IRUGO, inv_attr_show, NULL,
 	ATTR_ACCL_MATRIX);
 
 static struct attribute *inv_attributes[] = {
-	&iio_dev_attr_in_gyro_matrix.dev_attr.attr,
-	&iio_dev_attr_in_accel_matrix.dev_attr.attr,
+	&iio_dev_attr_in_gyro_matrix.dev_attr.attr,  /* deprecated */
+	&iio_dev_attr_in_accel_matrix.dev_attr.attr, /* deprecated */
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_const_attr_in_accel_scale_available.dev_attr.attr,
@@ -726,6 +763,7 @@ static const struct iio_info mpu_info = {
 static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 {
 	int result;
+	unsigned int regval;
 
 	st->hw  = &hw_info[st->chip_type];
 	st->reg = hw_info[st->chip_type].reg;
@@ -736,6 +774,17 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	if (result)
 		return result;
 	msleep(INV_MPU6050_POWER_UP_TIME);
+
+	/* check chip self-identification */
+	result = regmap_read(st->map, INV_MPU6050_REG_WHOAMI, &regval);
+	if (result)
+		return result;
+	if (regval != st->hw->whoami) {
+		dev_warn(regmap_get_device(st->map),
+				"whoami mismatch got %#02x expected %#02hhx for %s\n",
+				regval, st->hw->whoami, st->hw->name);
+	}
+
 	/*
 	 * toggle power state. After reset, the sleep bit could be on
 	 * or off depending on the OTP settings. Toggling power would
@@ -774,14 +823,31 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	if (!indio_dev)
 		return -ENOMEM;
 
+	BUILD_BUG_ON(ARRAY_SIZE(hw_info) != INV_NUM_PARTS);
+	if (chip_type < 0 || chip_type >= INV_NUM_PARTS) {
+		dev_err(dev, "Bad invensense chip_type=%d name=%s\n",
+				chip_type, name);
+		return -ENODEV;
+	}
 	st = iio_priv(indio_dev);
 	st->chip_type = chip_type;
 	st->powerup_count = 0;
 	st->irq = irq;
 	st->map = regmap;
+
 	pdata = dev_get_platdata(dev);
-	if (pdata)
+	if (!pdata) {
+		result = of_iio_read_mount_matrix(dev, "mount-matrix",
+						  &st->orientation);
+		if (result) {
+			dev_err(dev, "Failed to retrieve mounting matrix %d\n",
+				result);
+			return result;
+		}
+	} else {
 		st->plat_data = *pdata;
+	}
+
 	/* power is turned on inside check chip type*/
 	result = inv_check_and_setup_chip(st);
 	if (result)

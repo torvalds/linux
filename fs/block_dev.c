@@ -29,6 +29,7 @@
 #include <linux/log2.h>
 #include <linux/cleancache.h>
 #include <linux/dax.h>
+#include <linux/badblocks.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
@@ -49,6 +50,18 @@ struct block_device *I_BDEV(struct inode *inode)
 	return &BDEV_I(inode)->bdev;
 }
 EXPORT_SYMBOL(I_BDEV);
+
+void __vfs_msg(struct super_block *sb, const char *prefix, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	printk_ratelimited("%sVFS (%s): %pV\n", prefix, sb->s_id, &vaf);
+	va_end(args);
+}
 
 static void bdev_write_inode(struct block_device *bdev)
 {
@@ -162,15 +175,15 @@ static struct inode *bdev_file_inode(struct file *file)
 }
 
 static ssize_t
-blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
+blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = bdev_file_inode(file);
 
 	if (IS_DAX(inode))
-		return dax_do_io(iocb, inode, iter, offset, blkdev_get_block,
+		return dax_do_io(iocb, inode, iter, blkdev_get_block,
 				NULL, DIO_SKIP_DIO_COUNT);
-	return __blockdev_direct_IO(iocb, inode, I_BDEV(inode), iter, offset,
+	return __blockdev_direct_IO(iocb, inode, I_BDEV(inode), iter,
 				    blkdev_get_block, NULL, NULL,
 				    DIO_SKIP_DIO_COUNT);
 }
@@ -236,7 +249,8 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 		 * thaw_bdev drops it.
 		 */
 		sb = get_super(bdev);
-		drop_super(sb);
+		if (sb)
+			drop_super(sb);
 		mutex_unlock(&bdev->bd_fsfreeze_mutex);
 		return sb;
 	}
@@ -403,7 +417,7 @@ int bdev_read_page(struct block_device *bdev, sector_t sector,
 	result = blk_queue_enter(bdev->bd_queue, false);
 	if (result)
 		return result;
-	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page, READ);
+	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page, false);
 	blk_queue_exit(bdev->bd_queue);
 	return result;
 }
@@ -432,7 +446,6 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
 			struct page *page, struct writeback_control *wbc)
 {
 	int result;
-	int rw = (wbc->sync_mode == WB_SYNC_ALL) ? WRITE_SYNC : WRITE;
 	const struct block_device_operations *ops = bdev->bd_disk->fops;
 
 	if (!ops->rw_page || bdev_get_integrity(bdev))
@@ -442,7 +455,7 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
 		return result;
 
 	set_page_writeback(page);
-	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page, rw);
+	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page, true);
 	if (result)
 		end_page_writeback(page);
 	else
@@ -480,7 +493,7 @@ long bdev_direct_access(struct block_device *bdev, struct blk_dax_ctl *dax)
 
 	if (size < 0)
 		return size;
-	if (!ops->direct_access)
+	if (!blk_queue_dax(bdev_get_queue(bdev)) || !ops->direct_access)
 		return -EOPNOTSUPP;
 	if ((sector + DIV_ROUND_UP(size, 512)) >
 					part_nr_sects_read(bdev->bd_part))
@@ -488,7 +501,7 @@ long bdev_direct_access(struct block_device *bdev, struct blk_dax_ctl *dax)
 	sector += get_start_sect(bdev);
 	if (sector % (PAGE_SIZE / 512))
 		return -EINVAL;
-	avail = ops->direct_access(bdev, sector, &dax->addr, &dax->pfn);
+	avail = ops->direct_access(bdev, sector, &dax->addr, &dax->pfn, size);
 	if (!avail)
 		return -ERANGE;
 	if (avail > 0 && avail & ~PAGE_MASK)
@@ -496,6 +509,75 @@ long bdev_direct_access(struct block_device *bdev, struct blk_dax_ctl *dax)
 	return min(avail, size);
 }
 EXPORT_SYMBOL_GPL(bdev_direct_access);
+
+/**
+ * bdev_dax_supported() - Check if the device supports dax for filesystem
+ * @sb: The superblock of the device
+ * @blocksize: The block size of the device
+ *
+ * This is a library function for filesystems to check if the block device
+ * can be mounted with dax option.
+ *
+ * Return: negative errno if unsupported, 0 if supported.
+ */
+int bdev_dax_supported(struct super_block *sb, int blocksize)
+{
+	struct blk_dax_ctl dax = {
+		.sector = 0,
+		.size = PAGE_SIZE,
+	};
+	int err;
+
+	if (blocksize != PAGE_SIZE) {
+		vfs_msg(sb, KERN_ERR, "error: unsupported blocksize for dax");
+		return -EINVAL;
+	}
+
+	err = bdev_direct_access(sb->s_bdev, &dax);
+	if (err < 0) {
+		switch (err) {
+		case -EOPNOTSUPP:
+			vfs_msg(sb, KERN_ERR,
+				"error: device does not support dax");
+			break;
+		case -EINVAL:
+			vfs_msg(sb, KERN_ERR,
+				"error: unaligned partition for dax");
+			break;
+		default:
+			vfs_msg(sb, KERN_ERR,
+				"error: dax access failed (%d)", err);
+		}
+		return err;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(bdev_dax_supported);
+
+/**
+ * bdev_dax_capable() - Return if the raw device is capable for dax
+ * @bdev: The device for raw block device access
+ */
+bool bdev_dax_capable(struct block_device *bdev)
+{
+	struct blk_dax_ctl dax = {
+		.size = PAGE_SIZE,
+	};
+
+	if (!IS_ENABLED(CONFIG_FS_DAX))
+		return false;
+
+	dax.sector = 0;
+	if (bdev_direct_access(bdev, &dax) < 0)
+		return false;
+
+	dax.sector = bdev->bd_part->nr_sects - (PAGE_SIZE / 512);
+	if (bdev_direct_access(bdev, &dax) < 0)
+		return false;
+
+	return true;
+}
 
 /*
  * pseudo-fs
@@ -532,7 +614,6 @@ static void init_once(void *foo)
 
 	memset(bdev, 0, sizeof(*bdev));
 	mutex_init(&bdev->bd_mutex);
-	INIT_LIST_HEAD(&bdev->bd_inodes);
 	INIT_LIST_HEAD(&bdev->bd_list);
 #ifdef CONFIG_SYSFS
 	INIT_LIST_HEAD(&bdev->bd_holder_disks);
@@ -542,24 +623,13 @@ static void init_once(void *foo)
 	mutex_init(&bdev->bd_fsfreeze_mutex);
 }
 
-static inline void __bd_forget(struct inode *inode)
-{
-	list_del_init(&inode->i_devices);
-	inode->i_bdev = NULL;
-	inode->i_mapping = &inode->i_data;
-}
-
 static void bdev_evict_inode(struct inode *inode)
 {
 	struct block_device *bdev = &BDEV_I(inode)->bdev;
-	struct list_head *p;
 	truncate_inode_pages_final(&inode->i_data);
 	invalidate_inode_buffers(inode); /* is it needed here? */
 	clear_inode(inode);
 	spin_lock(&bdev_lock);
-	while ( (p = bdev->bd_inodes.next) != &bdev->bd_inodes ) {
-		__bd_forget(list_entry(p, struct inode, i_devices));
-	}
 	list_del_init(&bdev->bd_list);
 	spin_unlock(&bdev_lock);
 }
@@ -577,7 +647,7 @@ static struct dentry *bd_mount(struct file_system_type *fs_type,
 {
 	struct dentry *dent;
 	dent = mount_pseudo(fs_type, "bdev:", &bdev_sops, NULL, BDEVFS_MAGIC);
-	if (dent)
+	if (!IS_ERR(dent))
 		dent->d_sb->s_iflags |= SB_I_CGROUPWB;
 	return dent;
 }
@@ -723,7 +793,6 @@ static struct block_device *bd_acquire(struct inode *inode)
 			bdgrab(bdev);
 			inode->i_bdev = bdev;
 			inode->i_mapping = bdev->bd_inode->i_mapping;
-			list_add(&inode->i_devices, &bdev->bd_inodes);
 		}
 		spin_unlock(&bdev_lock);
 	}
@@ -739,7 +808,8 @@ void bd_forget(struct inode *inode)
 	spin_lock(&bdev_lock);
 	if (!sb_is_blkdev_sb(inode->i_sb))
 		bdev = inode->i_bdev;
-	__bd_forget(inode);
+	inode->i_bdev = NULL;
+	inode->i_mapping = &inode->i_data;
 	spin_unlock(&bdev_lock);
 
 	if (bdev)
@@ -1205,10 +1275,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 		bdev->bd_disk = disk;
 		bdev->bd_queue = disk->queue;
 		bdev->bd_contains = bdev;
-		if (IS_ENABLED(CONFIG_BLK_DEV_DAX) && disk->fops->direct_access)
-			bdev->bd_inode->i_flags = S_DAX;
-		else
-			bdev->bd_inode->i_flags = 0;
+		bdev->bd_inode->i_flags = 0;
 
 		if (!partno) {
 			ret = -ENXIO;
@@ -1238,7 +1305,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 
 			if (!ret) {
 				bd_set_size(bdev,(loff_t)get_capacity(disk)<<9);
-				if (!blkdev_dax_capable(bdev))
+				if (!bdev_dax_capable(bdev))
 					bdev->bd_inode->i_flags &= ~S_DAX;
 			}
 
@@ -1275,7 +1342,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 				goto out_clear;
 			}
 			bd_set_size(bdev, (loff_t)bdev->bd_part->nr_sects << 9);
-			if (!blkdev_dax_capable(bdev))
+			if (!bdev_dax_capable(bdev))
 				bdev->bd_inode->i_flags &= ~S_DAX;
 		}
 	} else {
@@ -1660,12 +1727,8 @@ ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	blk_start_plug(&plug);
 	ret = __generic_file_write_iter(iocb, from);
-	if (ret > 0) {
-		ssize_t err;
-		err = generic_write_sync(file, iocb->ki_pos - ret, ret);
-		if (err < 0)
-			ret = err;
-	}
+	if (ret > 0)
+		ret = generic_write_sync(iocb, ret);
 	blk_finish_plug(&plug);
 	return ret;
 }
@@ -1724,79 +1787,13 @@ static const struct address_space_operations def_blk_aops = {
 	.is_dirty_writeback = buffer_check_dirty_writeback,
 };
 
-#ifdef CONFIG_FS_DAX
-/*
- * In the raw block case we do not need to contend with truncation nor
- * unwritten file extents.  Without those concerns there is no need for
- * additional locking beyond the mmap_sem context that these routines
- * are already executing under.
- *
- * Note, there is no protection if the block device is dynamically
- * resized (partition grow/shrink) during a fault. A stable block device
- * size is already not enforced in the blkdev_direct_IO path.
- *
- * For DAX, it is the responsibility of the block device driver to
- * ensure the whole-disk device size is stable while requests are in
- * flight.
- *
- * Finally, unlike the filemap_page_mkwrite() case there is no
- * filesystem superblock to sync against freezing.  We still include a
- * pfn_mkwrite callback for dax drivers to receive write fault
- * notifications.
- */
-static int blkdev_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
-{
-	return __dax_fault(vma, vmf, blkdev_get_block, NULL);
-}
-
-static int blkdev_dax_pfn_mkwrite(struct vm_area_struct *vma,
-		struct vm_fault *vmf)
-{
-	return dax_pfn_mkwrite(vma, vmf);
-}
-
-static int blkdev_dax_pmd_fault(struct vm_area_struct *vma, unsigned long addr,
-		pmd_t *pmd, unsigned int flags)
-{
-	return __dax_pmd_fault(vma, addr, pmd, flags, blkdev_get_block, NULL);
-}
-
-static const struct vm_operations_struct blkdev_dax_vm_ops = {
-	.fault		= blkdev_dax_fault,
-	.pmd_fault	= blkdev_dax_pmd_fault,
-	.pfn_mkwrite	= blkdev_dax_pfn_mkwrite,
-};
-
-static const struct vm_operations_struct blkdev_default_vm_ops = {
-	.fault		= filemap_fault,
-	.map_pages	= filemap_map_pages,
-};
-
-static int blkdev_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	struct inode *bd_inode = bdev_file_inode(file);
-
-	file_accessed(file);
-	if (IS_DAX(bd_inode)) {
-		vma->vm_ops = &blkdev_dax_vm_ops;
-		vma->vm_flags |= VM_MIXEDMAP | VM_HUGEPAGE;
-	} else {
-		vma->vm_ops = &blkdev_default_vm_ops;
-	}
-
-	return 0;
-}
-#else
-#define blkdev_mmap generic_file_mmap
-#endif
-
 const struct file_operations def_blk_fops = {
 	.open		= blkdev_open,
 	.release	= blkdev_close,
 	.llseek		= block_llseek,
 	.read_iter	= blkdev_read_iter,
 	.write_iter	= blkdev_write_iter,
-	.mmap		= blkdev_mmap,
+	.mmap		= generic_file_mmap,
 	.fsync		= blkdev_fsync,
 	.unlocked_ioctl	= block_ioctl,
 #ifdef CONFIG_COMPAT
@@ -1845,7 +1842,7 @@ struct block_device *lookup_bdev(const char *pathname)
 	if (!S_ISBLK(inode->i_mode))
 		goto fail;
 	error = -EACCES;
-	if (path.mnt->mnt_flags & MNT_NODEV)
+	if (!may_open_dev(&path))
 		goto fail;
 	error = -ENOMEM;
 	bdev = bd_acquire(inode);

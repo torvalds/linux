@@ -1048,7 +1048,7 @@ rdev_start_radar_detection(struct cfg80211_registered_device *rdev,
 static inline int
 rdev_set_mcast_rate(struct cfg80211_registered_device *rdev,
 		    struct net_device *dev,
-		    int mcast_rate[IEEE80211_NUM_BANDS])
+		    int mcast_rate[NUM_NL80211_BANDS])
 {
 	int ret = -ENOTSUPP;
 

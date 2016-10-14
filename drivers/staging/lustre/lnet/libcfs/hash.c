@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -942,10 +938,10 @@ cfs_hash_buckets_realloc(struct cfs_hash *hs, struct cfs_hash_bucket **old_bkts,
  * @flags    - CFS_HASH_REHASH enable synamic hash resizing
  *	     - CFS_HASH_SORT enable chained hash sort
  */
-static int cfs_hash_rehash_worker(cfs_workitem_t *wi);
+static int cfs_hash_rehash_worker(struct cfs_workitem *wi);
 
 #if CFS_HASH_DEBUG_LEVEL >= CFS_HASH_DEBUG_1
-static int cfs_hash_dep_print(cfs_workitem_t *wi)
+static int cfs_hash_dep_print(struct cfs_workitem *wi)
 {
 	struct cfs_hash *hs = container_of(wi, struct cfs_hash, hs_dep_wi);
 	int dep;
@@ -1847,7 +1843,7 @@ cfs_hash_rehash_bd(struct cfs_hash *hs, struct cfs_hash_bd *old)
 }
 
 static int
-cfs_hash_rehash_worker(cfs_workitem_t *wi)
+cfs_hash_rehash_worker(struct cfs_workitem *wi)
 {
 	struct cfs_hash *hs = container_of(wi, struct cfs_hash, hs_rehash_wi);
 	struct cfs_hash_bucket **bkts;

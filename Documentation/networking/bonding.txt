@@ -1880,8 +1880,8 @@ or more peers on the local network.
 
 	The ARP monitor relies on the device driver itself to verify
 that traffic is flowing.  In particular, the driver must keep up to
-date the last receive time, dev->last_rx, and transmit start time,
-dev->trans_start.  If these are not updated by the driver, then the
+date the last receive time, dev->last_rx.  Drivers that use NETIF_F_LLTX
+flag must also update netdev_queue->trans_start.  If they do not, then the
 ARP monitor will immediately fail any slaves using that driver, and
 those slaves will stay down.  If networking monitoring (tcpdump, etc)
 shows the ARP requests and replies on the network, then it may be that

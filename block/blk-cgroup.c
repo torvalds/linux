@@ -905,7 +905,7 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 	return 0;
 }
 
-struct cftype blkcg_files[] = {
+static struct cftype blkcg_files[] = {
 	{
 		.name = "stat",
 		.flags = CFTYPE_NOT_ON_ROOT,
@@ -914,7 +914,7 @@ struct cftype blkcg_files[] = {
 	{ }	/* terminate */
 };
 
-struct cftype blkcg_legacy_files[] = {
+static struct cftype blkcg_legacy_files[] = {
 	{
 		.name = "reset_stats",
 		.write_u64 = blkcg_reset_stats,

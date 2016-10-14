@@ -3,6 +3,7 @@
  *
  * Copyright 2008 Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright 2016	Intel Deutschland GmbH
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -194,7 +195,7 @@ void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev,
 	if (wdev->netdev)
 		cfg80211_sme_scan_done(wdev->netdev);
 
-	if (!request->aborted &&
+	if (!request->info.aborted &&
 	    request->flags & NL80211_SCAN_FLAG_FLUSH) {
 		/* flush entries from previous scans */
 		spin_lock_bh(&rdev->bss_lock);
@@ -202,10 +203,10 @@ void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev,
 		spin_unlock_bh(&rdev->bss_lock);
 	}
 
-	msg = nl80211_build_scan_msg(rdev, wdev, request->aborted);
+	msg = nl80211_build_scan_msg(rdev, wdev, request->info.aborted);
 
 #ifdef CONFIG_CFG80211_WEXT
-	if (wdev->netdev && !request->aborted) {
+	if (wdev->netdev && !request->info.aborted) {
 		memset(&wrqu, 0, sizeof(wrqu));
 
 		wireless_send_event(wdev->netdev, SIOCGIWSCAN, &wrqu, NULL);
@@ -236,12 +237,13 @@ void __cfg80211_scan_done(struct work_struct *wk)
 	rtnl_unlock();
 }
 
-void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
+void cfg80211_scan_done(struct cfg80211_scan_request *request,
+			struct cfg80211_scan_info *info)
 {
-	trace_cfg80211_scan_done(request, aborted);
+	trace_cfg80211_scan_done(request, info);
 	WARN_ON(request != wiphy_to_rdev(request->wiphy)->scan_req);
 
-	request->aborted = aborted;
+	request->info = *info;
 	request->notified = true;
 	queue_work(cfg80211_wq, &wiphy_to_rdev(request->wiphy)->scan_done_wk);
 }
@@ -364,12 +366,15 @@ const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len)
 }
 EXPORT_SYMBOL(cfg80211_find_ie);
 
-const u8 *cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
+const u8 *cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
 				  const u8 *ies, int len)
 {
 	struct ieee80211_vendor_ie *ie;
 	const u8 *pos = ies, *end = ies + len;
 	int ie_oui;
+
+	if (WARN_ON(oui_type > 0xff))
+		return NULL;
 
 	while (pos < end) {
 		pos = cfg80211_find_ie(WLAN_EID_VENDOR_SPECIFIC, pos,
@@ -386,7 +391,8 @@ const u8 *cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
 			goto cont;
 
 		ie_oui = ie->oui[0] << 16 | ie->oui[1] << 8 | ie->oui[2];
-		if (ie_oui == oui && ie->oui_type == oui_type)
+		if (ie_oui == oui &&
+		    (oui_type < 0 || ie->oui_type == oui_type))
 			return pos;
 cont:
 		pos += 2 + ie->len;
@@ -531,7 +537,7 @@ static int cmp_bss(struct cfg80211_bss *a,
 }
 
 static bool cfg80211_bss_type_match(u16 capability,
-				    enum ieee80211_band band,
+				    enum nl80211_band band,
 				    enum ieee80211_bss_type bss_type)
 {
 	bool ret = true;
@@ -540,7 +546,7 @@ static bool cfg80211_bss_type_match(u16 capability,
 	if (bss_type == IEEE80211_BSS_TYPE_ANY)
 		return ret;
 
-	if (band == IEEE80211_BAND_60GHZ) {
+	if (band == NL80211_BAND_60GHZ) {
 		mask = WLAN_CAPABILITY_DMG_TYPE_MASK;
 		switch (bss_type) {
 		case IEEE80211_BSS_TYPE_ESS:
@@ -839,6 +845,8 @@ cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 		found->pub.capability = tmp->pub.capability;
 		found->ts = tmp->ts;
 		found->ts_boottime = tmp->ts_boottime;
+		found->parent_tsf = tmp->parent_tsf;
+		ether_addr_copy(found->parent_bssid, tmp->parent_bssid);
 	} else {
 		struct cfg80211_internal_bss *new;
 		struct cfg80211_internal_bss *hidden;
@@ -1006,7 +1014,7 @@ cfg80211_inform_bss_data(struct wiphy *wiphy,
 	if (!res)
 		return NULL;
 
-	if (channel->band == IEEE80211_BAND_60GHZ) {
+	if (channel->band == NL80211_BAND_60GHZ) {
 		bss_type = res->pub.capability & WLAN_CAPABILITY_DMG_TYPE_MASK;
 		if (bss_type == WLAN_CAPABILITY_DMG_TYPE_AP ||
 		    bss_type == WLAN_CAPABILITY_DMG_TYPE_PBSS)
@@ -1082,6 +1090,8 @@ cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
 	tmp.pub.beacon_interval = le16_to_cpu(mgmt->u.probe_resp.beacon_int);
 	tmp.pub.capability = le16_to_cpu(mgmt->u.probe_resp.capab_info);
 	tmp.ts_boottime = data->boottime_ns;
+	tmp.parent_tsf = data->parent_tsf;
+	ether_addr_copy(tmp.parent_bssid, data->parent_bssid);
 
 	signal_valid = abs(data->chan->center_freq - channel->center_freq) <=
 		wiphy->max_adj_channel_rssi_comp;
@@ -1089,7 +1099,7 @@ cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
 	if (!res)
 		return NULL;
 
-	if (channel->band == IEEE80211_BAND_60GHZ) {
+	if (channel->band == NL80211_BAND_60GHZ) {
 		bss_type = res->pub.capability & WLAN_CAPABILITY_DMG_TYPE_MASK;
 		if (bss_type == WLAN_CAPABILITY_DMG_TYPE_AP ||
 		    bss_type == WLAN_CAPABILITY_DMG_TYPE_PBSS)
@@ -1185,7 +1195,7 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	struct iw_scan_req *wreq = NULL;
 	struct cfg80211_scan_request *creq = NULL;
 	int i, err, n_channels = 0;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 
 	if (!netif_running(dev))
 		return -ENETDOWN;
@@ -1229,7 +1239,7 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 
 	/* translate "Scan on frequencies" request */
 	i = 0;
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		int j;
 
 		if (!wiphy->bands[band])
@@ -1289,9 +1299,11 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 			creq->n_ssids = 0;
 	}
 
-	for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+	for (i = 0; i < NUM_NL80211_BANDS; i++)
 		if (wiphy->bands[i])
 			creq->rates[i] = (1 << wiphy->bands[i]->n_bitrates) - 1;
+
+	eth_broadcast_addr(creq->bssid);
 
 	rdev->scan_req = creq;
 	err = rdev_scan(rdev, creq);

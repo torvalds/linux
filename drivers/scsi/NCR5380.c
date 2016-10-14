@@ -29,29 +29,9 @@
  * Ronald van Cuijlenborg, Alan Cox and others.
  */
 
-/*
- * Further development / testing that should be done :
- * 1.  Cleanup the NCR5380_transfer_dma function and DMA operation complete
- * code so that everything does the same thing that's done at the
- * end of a pseudo-DMA read operation.
- *
- * 2.  Fix REAL_DMA (interrupt driven, polled works fine) -
- * basically, transfer size needs to be reduced by one
- * and the last byte read as is done with PSEUDO_DMA.
- *
- * 4.  Test SCSI-II tagged queueing (I have no devices which support
- * tagged queueing)
- */
+/* Ported to Atari by Roman Hodek and others. */
 
-#ifndef notyet
-#undef REAL_DMA
-#endif
-
-#ifdef BOARD_REQUIRES_NO_DELAY
-#define io_recovery_delay(x)
-#else
-#define io_recovery_delay(x)	udelay(x)
-#endif
+/* Adapted for the Sun 3 by Sam Creasey. */
 
 /*
  * Design
@@ -126,16 +106,9 @@
  * DIFFERENTIAL - if defined, NCR53c81 chips will use external differential
  * transceivers.
  *
- * DONT_USE_INTR - if defined, never use interrupts, even if we probe or
- * override-configure an IRQ.
- *
  * PSEUDO_DMA - if defined, PSEUDO DMA is used during the data transfer phases.
  *
  * REAL_DMA - if defined, REAL DMA is used during the data transfer phases.
- *
- * REAL_DMA_POLL - if defined, REAL DMA is used but the driver doesn't
- * rely on phase mismatch and EOP interrupts to determine end
- * of phase.
  *
  * These macros MUST be defined :
  *
@@ -147,28 +120,28 @@
  * specific implementation of the NCR5380
  *
  * Either real DMA *or* pseudo DMA may be implemented
- * REAL functions :
- * NCR5380_REAL_DMA should be defined if real DMA is to be used.
- * Note that the DMA setup functions should return the number of bytes
- * that they were able to program the controller for.
- *
- * Also note that generic i386/PC versions of these macros are
- * available as NCR5380_i386_dma_write_setup,
- * NCR5380_i386_dma_read_setup, and NCR5380_i386_dma_residual.
  *
  * NCR5380_dma_write_setup(instance, src, count) - initialize
  * NCR5380_dma_read_setup(instance, dst, count) - initialize
  * NCR5380_dma_residual(instance); - residual count
- *
- * PSEUDO functions :
- * NCR5380_pwrite(instance, src, count)
- * NCR5380_pread(instance, dst, count);
  *
  * The generic driver is initialized by calling NCR5380_init(instance),
  * after setting the appropriate host specific fields and ID.  If the
  * driver wishes to autoprobe for an IRQ line, the NCR5380_probe_irq(instance,
  * possible) function may be used.
  */
+
+#ifndef NCR5380_io_delay
+#define NCR5380_io_delay(x)
+#endif
+
+#ifndef NCR5380_acquire_dma_irq
+#define NCR5380_acquire_dma_irq(x)	(1)
+#endif
+
+#ifndef NCR5380_release_dma_irq
+#define NCR5380_release_dma_irq(x)
+#endif
 
 static int do_abort(struct Scsi_Host *);
 static void do_reset(struct Scsi_Host *);
@@ -280,12 +253,20 @@ static struct {
 	{0, NULL}
 },
 basrs[] = {
+	{BASR_END_DMA_TRANSFER, "END OF DMA"},
+	{BASR_DRQ, "DRQ"},
+	{BASR_PARITY_ERROR, "PARITY ERROR"},
+	{BASR_IRQ, "IRQ"},
+	{BASR_PHASE_MATCH, "PHASE MATCH"},
+	{BASR_BUSY_ERROR, "BUSY ERROR"},
 	{BASR_ATN, "ATN"},
 	{BASR_ACK, "ACK"},
 	{0, NULL}
 },
 icrs[] = {
 	{ICR_ASSERT_RST, "ASSERT RST"},
+	{ICR_ARBITRATION_PROGRESS, "ARB. IN PROGRESS"},
+	{ICR_ARBITRATION_LOST, "LOST ARB."},
 	{ICR_ASSERT_ACK, "ASSERT ACK"},
 	{ICR_ASSERT_BSY, "ASSERT BSY"},
 	{ICR_ASSERT_SEL, "ASSERT SEL"},
@@ -294,14 +275,14 @@ icrs[] = {
 	{0, NULL}
 },
 mrs[] = {
-	{MR_BLOCK_DMA_MODE, "MODE BLOCK DMA"},
-	{MR_TARGET, "MODE TARGET"},
-	{MR_ENABLE_PAR_CHECK, "MODE PARITY CHECK"},
-	{MR_ENABLE_PAR_INTR, "MODE PARITY INTR"},
-	{MR_ENABLE_EOP_INTR, "MODE EOP INTR"},
-	{MR_MONITOR_BSY, "MODE MONITOR BSY"},
-	{MR_DMA_MODE, "MODE DMA"},
-	{MR_ARBITRATE, "MODE ARBITRATION"},
+	{MR_BLOCK_DMA_MODE, "BLOCK DMA MODE"},
+	{MR_TARGET, "TARGET"},
+	{MR_ENABLE_PAR_CHECK, "PARITY CHECK"},
+	{MR_ENABLE_PAR_INTR, "PARITY INTR"},
+	{MR_ENABLE_EOP_INTR, "EOP INTR"},
+	{MR_MONITOR_BSY, "MONITOR BSY"},
+	{MR_DMA_MODE, "DMA MODE"},
+	{MR_ARBITRATE, "ARBITRATE"},
 	{0, NULL}
 };
 
@@ -322,23 +303,23 @@ static void NCR5380_print(struct Scsi_Host *instance)
 	icr = NCR5380_read(INITIATOR_COMMAND_REG);
 	basr = NCR5380_read(BUS_AND_STATUS_REG);
 
-	printk("STATUS_REG: %02x ", status);
+	printk(KERN_DEBUG "SR =   0x%02x : ", status);
 	for (i = 0; signals[i].mask; ++i)
 		if (status & signals[i].mask)
-			printk(",%s", signals[i].name);
-	printk("\nBASR: %02x ", basr);
+			printk(KERN_CONT "%s, ", signals[i].name);
+	printk(KERN_CONT "\nBASR = 0x%02x : ", basr);
 	for (i = 0; basrs[i].mask; ++i)
 		if (basr & basrs[i].mask)
-			printk(",%s", basrs[i].name);
-	printk("\nICR: %02x ", icr);
+			printk(KERN_CONT "%s, ", basrs[i].name);
+	printk(KERN_CONT "\nICR =  0x%02x : ", icr);
 	for (i = 0; icrs[i].mask; ++i)
 		if (icr & icrs[i].mask)
-			printk(",%s", icrs[i].name);
-	printk("\nMODE: %02x ", mr);
+			printk(KERN_CONT "%s, ", icrs[i].name);
+	printk(KERN_CONT "\nMR =   0x%02x : ", mr);
 	for (i = 0; mrs[i].mask; ++i)
 		if (mr & mrs[i].mask)
-			printk(",%s", mrs[i].name);
-	printk("\n");
+			printk(KERN_CONT "%s, ", mrs[i].name);
+	printk(KERN_CONT "\n");
 }
 
 static struct {
@@ -477,51 +458,17 @@ static void prepare_info(struct Scsi_Host *instance)
 	         instance->base, instance->irq,
 	         instance->can_queue, instance->cmd_per_lun,
 	         instance->sg_tablesize, instance->this_id,
-	         hostdata->flags & FLAG_NO_DMA_FIXUP  ? "NO_DMA_FIXUP "  : "",
+	         hostdata->flags & FLAG_DMA_FIXUP     ? "DMA_FIXUP "     : "",
 	         hostdata->flags & FLAG_NO_PSEUDO_DMA ? "NO_PSEUDO_DMA " : "",
 	         hostdata->flags & FLAG_TOSHIBA_DELAY ? "TOSHIBA_DELAY "  : "",
-#ifdef AUTOPROBE_IRQ
-	         "AUTOPROBE_IRQ "
-#endif
 #ifdef DIFFERENTIAL
 	         "DIFFERENTIAL "
-#endif
-#ifdef REAL_DMA
-	         "REAL_DMA "
-#endif
-#ifdef REAL_DMA_POLL
-	         "REAL_DMA_POLL "
 #endif
 #ifdef PARITY
 	         "PARITY "
 #endif
-#ifdef PSEUDO_DMA
-	         "PSEUDO_DMA "
-#endif
 	         "");
 }
-
-#ifdef PSEUDO_DMA
-static int __maybe_unused NCR5380_write_info(struct Scsi_Host *instance,
-	char *buffer, int length)
-{
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-
-	hostdata->spin_max_r = 0;
-	hostdata->spin_max_w = 0;
-	return 0;
-}
-
-static int __maybe_unused NCR5380_show_info(struct seq_file *m,
-                                            struct Scsi_Host *instance)
-{
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-
-	seq_printf(m, "Highwater I/O busy spin counts: write %d, read %d\n",
-	        hostdata->spin_max_w, hostdata->spin_max_r);
-	return 0;
-}
-#endif
 
 /**
  * NCR5380_init - initialise an NCR5380
@@ -543,6 +490,8 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 	int i;
 	unsigned long deadline;
 
+	instance->max_lun = 7;
+
 	hostdata->host = instance;
 	hostdata->id_mask = 1 << instance->this_id;
 	hostdata->id_higher_mask = 0;
@@ -551,9 +500,8 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 			hostdata->id_higher_mask |= i;
 	for (i = 0; i < 8; ++i)
 		hostdata->busy[i] = 0;
-#ifdef REAL_DMA
-	hostdata->dmalen = 0;
-#endif
+	hostdata->dma_len = 0;
+
 	spin_lock_init(&hostdata->lock);
 	hostdata->connected = NULL;
 	hostdata->sensing = NULL;
@@ -719,6 +667,9 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 
 	cmd->result = 0;
 
+	if (!NCR5380_acquire_dma_irq(instance))
+		return SCSI_MLQUEUE_HOST_BUSY;
+
 	spin_lock_irqsave(&hostdata->lock, flags);
 
 	/*
@@ -741,6 +692,19 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
 	/* Kick off command processing */
 	queue_work(hostdata->work_q, &hostdata->main_task);
 	return 0;
+}
+
+static inline void maybe_release_dma_irq(struct Scsi_Host *instance)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+	/* Caller does the locking needed to set & test these data atomically */
+	if (list_empty(&hostdata->disconnected) &&
+	    list_empty(&hostdata->unissued) &&
+	    list_empty(&hostdata->autosense) &&
+	    !hostdata->connected &&
+	    !hostdata->selecting)
+		NCR5380_release_dma_irq(instance);
 }
 
 /**
@@ -844,17 +808,14 @@ static void NCR5380_main(struct work_struct *work)
 
 			if (!NCR5380_select(instance, cmd)) {
 				dsprintk(NDEBUG_MAIN, instance, "main: select complete\n");
+				maybe_release_dma_irq(instance);
 			} else {
 				dsprintk(NDEBUG_MAIN | NDEBUG_QUEUES, instance,
 				         "main: select failed, returning %p to queue\n", cmd);
 				requeue_cmd(instance, cmd);
 			}
 		}
-		if (hostdata->connected
-#ifdef REAL_DMA
-		    && !hostdata->dmalen
-#endif
-		    ) {
+		if (hostdata->connected && !hostdata->dma_len) {
 			dsprintk(NDEBUG_MAIN, instance, "main: performing information transfer\n");
 			NCR5380_information_transfer(instance);
 			done = 0;
@@ -865,7 +826,88 @@ static void NCR5380_main(struct work_struct *work)
 	} while (!done);
 }
 
-#ifndef DONT_USE_INTR
+/*
+ * NCR5380_dma_complete - finish DMA transfer
+ * @instance: the scsi host instance
+ *
+ * Called by the interrupt handler when DMA finishes or a phase
+ * mismatch occurs (which would end the DMA transfer).
+ */
+
+static void NCR5380_dma_complete(struct Scsi_Host *instance)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	int transferred;
+	unsigned char **data;
+	int *count;
+	int saved_data = 0, overrun = 0;
+	unsigned char p;
+
+	if (hostdata->read_overruns) {
+		p = hostdata->connected->SCp.phase;
+		if (p & SR_IO) {
+			udelay(10);
+			if ((NCR5380_read(BUS_AND_STATUS_REG) &
+			     (BASR_PHASE_MATCH | BASR_ACK)) ==
+			    (BASR_PHASE_MATCH | BASR_ACK)) {
+				saved_data = NCR5380_read(INPUT_DATA_REG);
+				overrun = 1;
+				dsprintk(NDEBUG_DMA, instance, "read overrun handled\n");
+			}
+		}
+	}
+
+#ifdef CONFIG_SUN3
+	if ((sun3scsi_dma_finish(rq_data_dir(hostdata->connected->request)))) {
+		pr_err("scsi%d: overrun in UDC counter -- not prepared to deal with this!\n",
+		       instance->host_no);
+		BUG();
+	}
+
+	if ((NCR5380_read(BUS_AND_STATUS_REG) & (BASR_PHASE_MATCH | BASR_ACK)) ==
+	    (BASR_PHASE_MATCH | BASR_ACK)) {
+		pr_err("scsi%d: BASR %02x\n", instance->host_no,
+		       NCR5380_read(BUS_AND_STATUS_REG));
+		pr_err("scsi%d: bus stuck in data phase -- probably a single byte overrun!\n",
+		       instance->host_no);
+		BUG();
+	}
+#endif
+
+	NCR5380_write(MODE_REG, MR_BASE);
+	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
+
+	transferred = hostdata->dma_len - NCR5380_dma_residual(instance);
+	hostdata->dma_len = 0;
+
+	data = (unsigned char **)&hostdata->connected->SCp.ptr;
+	count = &hostdata->connected->SCp.this_residual;
+	*data += transferred;
+	*count -= transferred;
+
+	if (hostdata->read_overruns) {
+		int cnt, toPIO;
+
+		if ((NCR5380_read(STATUS_REG) & PHASE_MASK) == p && (p & SR_IO)) {
+			cnt = toPIO = hostdata->read_overruns;
+			if (overrun) {
+				dsprintk(NDEBUG_DMA, instance,
+				         "Got an input overrun, using saved byte\n");
+				*(*data)++ = saved_data;
+				(*count)--;
+				cnt--;
+				toPIO--;
+			}
+			if (toPIO > 0) {
+				dsprintk(NDEBUG_DMA, instance,
+				         "Doing %d byte PIO to 0x%p\n", cnt, *data);
+				NCR5380_transfer_pio(instance, &p, &cnt, data);
+				*count -= toPIO - cnt;
+			}
+		}
+	}
+}
 
 /**
  * NCR5380_intr - generic NCR5380 irq handler
@@ -901,7 +943,7 @@ static void NCR5380_main(struct work_struct *work)
  * the Busy Monitor interrupt is enabled together with DMA Mode.
  */
 
-static irqreturn_t NCR5380_intr(int irq, void *dev_id)
+static irqreturn_t __maybe_unused NCR5380_intr(int irq, void *dev_id)
 {
 	struct Scsi_Host *instance = dev_id;
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
@@ -919,7 +961,6 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
 		dsprintk(NDEBUG_INTR, instance, "IRQ %d, BASR 0x%02x, SR 0x%02x, MR 0x%02x\n",
 		         irq, basr, sr, mr);
 
-#if defined(REAL_DMA)
 		if ((mr & MR_DMA_MODE) || (mr & MR_MONITOR_BSY)) {
 			/* Probably End of DMA, Phase Mismatch or Loss of BSY.
 			 * We ack IRQ after clearing Mode Register. Workarounds
@@ -928,26 +969,14 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
 
 			dsprintk(NDEBUG_INTR, instance, "interrupt in DMA mode\n");
 
-			int transferred;
-
-			if (!hostdata->connected)
-				panic("scsi%d : DMA interrupt with no connected cmd\n",
-				      instance->hostno);
-
-			transferred = hostdata->dmalen - NCR5380_dma_residual(instance);
-			hostdata->connected->SCp.this_residual -= transferred;
-			hostdata->connected->SCp.ptr += transferred;
-			hostdata->dmalen = 0;
-
-			/* FIXME: we need to poll briefly then defer a workqueue task ! */
-			NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG, BASR_ACK, 0, 2 * HZ);
-
-			NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-			NCR5380_write(MODE_REG, MR_BASE);
-			NCR5380_read(RESET_PARITY_INTERRUPT_REG);
-		} else
-#endif /* REAL_DMA */
-		if ((NCR5380_read(CURRENT_SCSI_DATA_REG) & hostdata->id_mask) &&
+			if (hostdata->connected) {
+				NCR5380_dma_complete(instance);
+				queue_work(hostdata->work_q, &hostdata->main_task);
+			} else {
+				NCR5380_write(MODE_REG, MR_BASE);
+				NCR5380_read(RESET_PARITY_INTERRUPT_REG);
+			}
+		} else if ((NCR5380_read(CURRENT_SCSI_DATA_REG) & hostdata->id_mask) &&
 		    (sr & (SR_SEL | SR_IO | SR_BSY | SR_RST)) == (SR_SEL | SR_IO)) {
 			/* Probably reselected */
 			NCR5380_write(SELECT_ENABLE_REG, 0);
@@ -966,18 +995,22 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
 			NCR5380_read(RESET_PARITY_INTERRUPT_REG);
 
 			dsprintk(NDEBUG_INTR, instance, "unknown interrupt\n");
+#ifdef SUN3_SCSI_VME
+			dregs->csr |= CSR_DMA_ENABLE;
+#endif
 		}
 		handled = 1;
 	} else {
 		shost_printk(KERN_NOTICE, instance, "interrupt without IRQ bit\n");
+#ifdef SUN3_SCSI_VME
+		dregs->csr |= CSR_DMA_ENABLE;
+#endif
 	}
 
 	spin_unlock_irqrestore(&hostdata->lock, flags);
 
 	return IRQ_RETVAL(handled);
 }
-
-#endif
 
 /*
  * Function : int NCR5380_select(struct Scsi_Host *instance,
@@ -1217,14 +1250,6 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 	 * was true but before BSY was false during selection, the information
 	 * transfer phase should be a MESSAGE OUT phase so that we can send the
 	 * IDENTIFY message.
-	 *
-	 * If SCSI-II tagged queuing is enabled, we also send a SIMPLE_QUEUE_TAG
-	 * message (2 bytes) with a tag ID that we increment with every command
-	 * until it wraps back to 0.
-	 *
-	 * XXX - it turns out that there are some broken SCSI-II devices,
-	 * which claim to support tagged queuing but fail when more than
-	 * some number of commands are issued at once.
 	 */
 
 	/* Wait for start of REQ/ACK handshake */
@@ -1247,9 +1272,6 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 	tmp[0] = IDENTIFY(((instance->irq == NO_IRQ) ? 0 : 1), cmd->device->lun);
 
 	len = 1;
-	cmd->tag = 0;
-
-	/* Send message(s) */
 	data = tmp;
 	phase = PHASE_MSGOUT;
 	NCR5380_transfer_pio(instance, &phase, &len, &data);
@@ -1258,6 +1280,10 @@ static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *instance,
 
 	hostdata->connected = cmd;
 	hostdata->busy[cmd->device->id] |= 1 << cmd->device->lun;
+
+#ifdef SUN3_SCSI_VME
+	dregs->csr |= CSR_INTR;
+#endif
 
 	initialize_SCp(cmd);
 
@@ -1495,7 +1521,6 @@ timeout:
 	return -1;
 }
 
-#if defined(REAL_DMA) || defined(PSEUDO_DMA) || defined (REAL_DMA_POLL)
 /*
  * Function : int NCR5380_transfer_dma (struct Scsi_Host *instance,
  * unsigned char *phase, int *count, unsigned char **data)
@@ -1520,53 +1545,47 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 				unsigned char **data)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-	register int c = *count;
-	register unsigned char p = *phase;
-	register unsigned char *d = *data;
+	int c = *count;
+	unsigned char p = *phase;
+	unsigned char *d = *data;
 	unsigned char tmp;
-	int foo;
-#if defined(REAL_DMA_POLL)
-	int cnt, toPIO;
-	unsigned char saved_data = 0, overrun = 0, residue;
-#endif
+	int result = 0;
 
 	if ((tmp = (NCR5380_read(STATUS_REG) & PHASE_MASK)) != p) {
 		*phase = tmp;
 		return -1;
 	}
-#if defined(REAL_DMA) || defined(REAL_DMA_POLL)
+
+	hostdata->connected->SCp.phase = p;
+
 	if (p & SR_IO) {
-		if (!(hostdata->flags & FLAG_NO_DMA_FIXUPS))
-			c -= 2;
+		if (hostdata->read_overruns)
+			c -= hostdata->read_overruns;
+		else if (hostdata->flags & FLAG_DMA_FIXUP)
+			--c;
 	}
-	hostdata->dma_len = (p & SR_IO) ? NCR5380_dma_read_setup(instance, d, c) : NCR5380_dma_write_setup(instance, d, c);
 
 	dsprintk(NDEBUG_DMA, instance, "initializing DMA %s: length %d, address %p\n",
-	         (p & SR_IO) ? "receive" : "send", c, *data);
+	         (p & SR_IO) ? "receive" : "send", c, d);
+
+#ifdef CONFIG_SUN3
+	/* send start chain */
+	sun3scsi_dma_start(c, *data);
 #endif
 
 	NCR5380_write(TARGET_COMMAND_REG, PHASE_SR_TO_TCR(p));
-
-#ifdef REAL_DMA
 	NCR5380_write(MODE_REG, MR_BASE | MR_DMA_MODE | MR_MONITOR_BSY |
 	                        MR_ENABLE_EOP_INTR);
-#elif defined(REAL_DMA_POLL)
-	NCR5380_write(MODE_REG, MR_BASE | MR_DMA_MODE | MR_MONITOR_BSY);
-#else
-	/*
-	 * Note : on my sample board, watch-dog timeouts occurred when interrupts
-	 * were not disabled for the duration of a single DMA transfer, from
-	 * before the setting of DMA mode to after transfer of the last byte.
-	 */
 
-	if (hostdata->flags & FLAG_NO_DMA_FIXUP)
-		NCR5380_write(MODE_REG, MR_BASE | MR_DMA_MODE | MR_MONITOR_BSY |
-		                        MR_ENABLE_EOP_INTR);
-	else
-		NCR5380_write(MODE_REG, MR_BASE | MR_DMA_MODE | MR_MONITOR_BSY);
-#endif				/* def REAL_DMA */
-
-	dprintk(NDEBUG_DMA, "scsi%d : mode reg = 0x%X\n", instance->host_no, NCR5380_read(MODE_REG));
+	if (!(hostdata->flags & FLAG_LATE_DMA_SETUP)) {
+		/* On the Medusa, it is a must to initialize the DMA before
+		 * starting the NCR. This is also the cleaner way for the TT.
+		 */
+		if (p & SR_IO)
+			result = NCR5380_dma_recv_setup(instance, d, c);
+		else
+			result = NCR5380_dma_send_setup(instance, d, c);
+	}
 
 	/*
 	 * On the PAS16 at least I/O recovery delays are not needed here.
@@ -1574,24 +1593,49 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 	 */
 
 	if (p & SR_IO) {
-		io_recovery_delay(1);
+		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+		NCR5380_io_delay(1);
 		NCR5380_write(START_DMA_INITIATOR_RECEIVE_REG, 0);
 	} else {
-		io_recovery_delay(1);
+		NCR5380_io_delay(1);
 		NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_DATA);
-		io_recovery_delay(1);
+		NCR5380_io_delay(1);
 		NCR5380_write(START_DMA_SEND_REG, 0);
-		io_recovery_delay(1);
+		NCR5380_io_delay(1);
 	}
 
-#if defined(REAL_DMA_POLL)
-	do {
-		tmp = NCR5380_read(BUS_AND_STATUS_REG);
-	} while ((tmp & BASR_PHASE_MATCH) && !(tmp & (BASR_BUSY_ERROR | BASR_END_DMA_TRANSFER)));
+#ifdef CONFIG_SUN3
+#ifdef SUN3_SCSI_VME
+	dregs->csr |= CSR_DMA_ENABLE;
+#endif
+	sun3_dma_active = 1;
+#endif
+
+	if (hostdata->flags & FLAG_LATE_DMA_SETUP) {
+		/* On the Falcon, the DMA setup must be done after the last
+		 * NCR access, else the DMA setup gets trashed!
+		 */
+		if (p & SR_IO)
+			result = NCR5380_dma_recv_setup(instance, d, c);
+		else
+			result = NCR5380_dma_send_setup(instance, d, c);
+	}
+
+	/* On failure, NCR5380_dma_xxxx_setup() returns a negative int. */
+	if (result < 0)
+		return result;
+
+	/* For real DMA, result is the byte count. DMA interrupt is expected. */
+	if (result > 0) {
+		hostdata->dma_len = result;
+		return 0;
+	}
+
+	/* The result is zero iff pseudo DMA send/receive was completed. */
+	hostdata->dma_len = c;
 
 /*
- * At this point, either we've completed DMA, or we have a phase mismatch,
- * or we've unexpectedly lost BUSY (which is a real error).
+ * A note regarding the DMA errata workarounds for early NMOS silicon.
  *
  * For DMA sends, we want to wait until the last byte has been
  * transferred out over the bus before we turn off DMA mode.  Alas, there
@@ -1618,79 +1662,16 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
  * properly, or the target switches to MESSAGE IN phase to signal a
  * disconnection (either operation bringing the DMA to a clean halt).
  * However, in order to handle scatter-receive, we must work around the
- * problem.  The chosen fix is to DMA N-2 bytes, then check for the
+ * problem.  The chosen fix is to DMA fewer bytes, then check for the
  * condition before taking the NCR5380 out of DMA mode.  One or two extra
  * bytes are transferred via PIO as necessary to fill out the original
  * request.
  */
 
-	if (p & SR_IO) {
-		if (!(hostdata->flags & FLAG_NO_DMA_FIXUPS)) {
-			udelay(10);
-			if ((NCR5380_read(BUS_AND_STATUS_REG) & (BASR_PHASE_MATCH | BASR_ACK)) ==
-			    (BASR_PHASE_MATCH | BASR_ACK)) {
-				saved_data = NCR5380_read(INPUT_DATA_REGISTER);
-				overrun = 1;
-			}
-		}
-	} else {
-		int limit = 100;
-		while (((tmp = NCR5380_read(BUS_AND_STATUS_REG)) & BASR_ACK) || (NCR5380_read(STATUS_REG) & SR_REQ)) {
-			if (!(tmp & BASR_PHASE_MATCH))
-				break;
-			if (--limit < 0)
-				break;
-		}
-	}
-
-	dsprintk(NDEBUG_DMA, "polled DMA transfer complete, basr 0x%02x, sr 0x%02x\n",
-	         tmp, NCR5380_read(STATUS_REG));
-
-	NCR5380_write(MODE_REG, MR_BASE);
-	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-
-	residue = NCR5380_dma_residual(instance);
-	c -= residue;
-	*count -= c;
-	*data += c;
-	*phase = NCR5380_read(STATUS_REG) & PHASE_MASK;
-
-	if (!(hostdata->flags & FLAG_NO_DMA_FIXUPS) &&
-	    *phase == p && (p & SR_IO) && residue == 0) {
-		if (overrun) {
-			dprintk(NDEBUG_DMA, "Got an input overrun, using saved byte\n");
-			**data = saved_data;
-			*data += 1;
-			*count -= 1;
-			cnt = toPIO = 1;
-		} else {
-			printk("No overrun??\n");
-			cnt = toPIO = 2;
-		}
-		dprintk(NDEBUG_DMA, "Doing %d-byte PIO to 0x%X\n", cnt, *data);
-		NCR5380_transfer_pio(instance, phase, &cnt, data);
-		*count -= toPIO - cnt;
-	}
-
-	dprintk(NDEBUG_DMA, "Return with data ptr = 0x%X, count %d, last 0x%X, next 0x%X\n", *data, *count, *(*data + *count - 1), *(*data + *count));
-	return 0;
-
-#elif defined(REAL_DMA)
-	return 0;
-#else				/* defined(REAL_DMA_POLL) */
-	if (p & SR_IO) {
-		foo = NCR5380_pread(instance, d,
-			hostdata->flags & FLAG_NO_DMA_FIXUP ? c : c - 1);
-		if (!foo && !(hostdata->flags & FLAG_NO_DMA_FIXUP)) {
+	if (hostdata->flags & FLAG_DMA_FIXUP) {
+		if (p & SR_IO) {
 			/*
-			 * We can't disable DMA mode after successfully transferring
-			 * what we plan to be the last byte, since that would open up
-			 * a race condition where if the target asserted REQ before
-			 * we got the DMA mode reset, the NCR5380 would have latched
-			 * an additional byte into the INPUT DATA register and we'd
-			 * have dropped it.
-			 *
-			 * The workaround was to transfer one fewer bytes than we
+			 * The workaround was to transfer fewer bytes than we
 			 * intended to with the pseudo-DMA read function, wait for
 			 * the chip to latch the last byte, read it, and then disable
 			 * pseudo-DMA mode.
@@ -1706,19 +1687,16 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 
 			if (NCR5380_poll_politely(instance, BUS_AND_STATUS_REG,
 			                          BASR_DRQ, BASR_DRQ, HZ) < 0) {
-				foo = -1;
+				result = -1;
 				shost_printk(KERN_ERR, instance, "PDMA read: DRQ timeout\n");
 			}
 			if (NCR5380_poll_politely(instance, STATUS_REG,
 			                          SR_REQ, 0, HZ) < 0) {
-				foo = -1;
+				result = -1;
 				shost_printk(KERN_ERR, instance, "PDMA read: !REQ timeout\n");
 			}
-			d[c - 1] = NCR5380_read(INPUT_DATA_REG);
-		}
-	} else {
-		foo = NCR5380_pwrite(instance, d, c);
-		if (!foo && !(hostdata->flags & FLAG_NO_DMA_FIXUP)) {
+			d[*count - 1] = NCR5380_read(INPUT_DATA_REG);
+		} else {
 			/*
 			 * Wait for the last byte to be sent.  If REQ is being asserted for
 			 * the byte we're interested, we'll ACK it and it will go false.
@@ -1726,21 +1704,15 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 			if (NCR5380_poll_politely2(instance,
 			     BUS_AND_STATUS_REG, BASR_DRQ, BASR_DRQ,
 			     BUS_AND_STATUS_REG, BASR_PHASE_MATCH, 0, HZ) < 0) {
-				foo = -1;
+				result = -1;
 				shost_printk(KERN_ERR, instance, "PDMA write: DRQ and phase timeout\n");
 			}
 		}
 	}
-	NCR5380_write(MODE_REG, MR_BASE);
-	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
-	*data = d + c;
-	*count = 0;
-	*phase = NCR5380_read(STATUS_REG) & PHASE_MASK;
-	return foo;
-#endif				/* def REAL_DMA */
+
+	NCR5380_dma_complete(instance);
+	return result;
 }
-#endif				/* defined(REAL_DMA) | defined(PSEUDO_DMA) */
 
 /*
  * Function : NCR5380_information_transfer (struct Scsi_Host *instance)
@@ -1770,6 +1742,10 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 	unsigned char phase, tmp, extended_msg[10], old_phase = 0xff;
 	struct scsi_cmnd *cmd;
 
+#ifdef SUN3_SCSI_VME
+	dregs->csr |= CSR_INTR;
+#endif
+
 	while ((cmd = hostdata->connected)) {
 		struct NCR5380_cmd *ncmd = scsi_cmd_priv(cmd);
 
@@ -1781,6 +1757,31 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				old_phase = phase;
 				NCR5380_dprint_phase(NDEBUG_INFORMATION, instance);
 			}
+#ifdef CONFIG_SUN3
+			if (phase == PHASE_CMDOUT) {
+				void *d;
+				unsigned long count;
+
+				if (!cmd->SCp.this_residual && cmd->SCp.buffers_residual) {
+					count = cmd->SCp.buffer->length;
+					d = sg_virt(cmd->SCp.buffer);
+				} else {
+					count = cmd->SCp.this_residual;
+					d = cmd->SCp.ptr;
+				}
+
+				if (sun3_dma_setup_done != cmd &&
+				    sun3scsi_dma_xfer_len(count, cmd) > 0) {
+					sun3scsi_dma_setup(instance, d, count,
+					                   rq_data_dir(cmd->request));
+					sun3_dma_setup_done = cmd;
+				}
+#ifdef SUN3_SCSI_VME
+				dregs->csr |= CSR_INTR;
+#endif
+			}
+#endif /* CONFIG_SUN3 */
+
 			if (sink && (phase != PHASE_MSGOUT)) {
 				NCR5380_write(TARGET_COMMAND_REG, PHASE_SR_TO_TCR(tmp));
 
@@ -1831,13 +1832,11 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				 * in an unconditional loop.
 				 */
 
-#if defined(PSEUDO_DMA) || defined(REAL_DMA_POLL)
 				transfersize = 0;
-				if (!cmd->device->borken &&
-				    !(hostdata->flags & FLAG_NO_PSEUDO_DMA))
+				if (!cmd->device->borken)
 					transfersize = NCR5380_dma_xfer_len(instance, cmd, phase);
 
-				if (transfersize) {
+				if (transfersize > 0) {
 					len = transfersize;
 					if (NCR5380_transfer_dma(instance, &phase,
 					    &len, (unsigned char **)&cmd->SCp.ptr)) {
@@ -1853,11 +1852,8 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						do_abort(instance);
 						cmd->result = DID_ERROR << 16;
 						/* XXX - need to source or sink data here, as appropriate */
-					} else
-						cmd->SCp.this_residual -= transfersize - len;
-				} else
-#endif				/* defined(PSEUDO_DMA) || defined(REAL_DMA_POLL) */
-				{
+					}
+				} else {
 					/* Break up transfer into 3 ms chunks,
 					 * presuming 6 accesses per handshake.
 					 */
@@ -1868,6 +1864,10 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					                     (unsigned char **)&cmd->SCp.ptr);
 					cmd->SCp.this_residual -= transfersize - len;
 				}
+#ifdef CONFIG_SUN3
+				if (sun3_dma_setup_done == cmd)
+					sun3_dma_setup_done = NULL;
+#endif
 				return;
 			case PHASE_MSGIN:
 				len = 1;
@@ -1912,6 +1912,8 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 
 					/* Enable reselect interrupts */
 					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
+
+					maybe_release_dma_irq(instance);
 					return;
 				case MESSAGE_REJECT:
 					/* Accept message by clearing ACK */
@@ -1944,6 +1946,9 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 
 					/* Enable reselect interrupts */
 					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
+#ifdef SUN3_SCSI_VME
+					dregs->csr |= CSR_DMA_ENABLE;
+#endif
 					return;
 					/*
 					 * The SCSI data pointer is *IMPLICITLY* saved on a disconnect
@@ -2047,6 +2052,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					hostdata->connected = NULL;
 					cmd->result = DID_ERROR << 16;
 					complete_cmd(instance, cmd);
+					maybe_release_dma_irq(instance);
 					NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
 					return;
 				}
@@ -2094,10 +2100,8 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	unsigned char target_mask;
-	unsigned char lun, phase;
-	int len;
+	unsigned char lun;
 	unsigned char msg[3];
-	unsigned char *data;
 	struct NCR5380_cmd *ncmd;
 	struct scsi_cmnd *tmp;
 
@@ -2139,15 +2143,26 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 		return;
 	}
 
-	len = 1;
-	data = msg;
-	phase = PHASE_MSGIN;
-	NCR5380_transfer_pio(instance, &phase, &len, &data);
+#ifdef CONFIG_SUN3
+	/* acknowledge toggle to MSGIN */
+	NCR5380_write(TARGET_COMMAND_REG, PHASE_SR_TO_TCR(PHASE_MSGIN));
 
-	if (len) {
-		do_abort(instance);
-		return;
+	/* peek at the byte without really hitting the bus */
+	msg[0] = NCR5380_read(CURRENT_SCSI_DATA_REG);
+#else
+	{
+		int len = 1;
+		unsigned char *data = msg;
+		unsigned char phase = PHASE_MSGIN;
+
+		NCR5380_transfer_pio(instance, &phase, &len, &data);
+
+		if (len) {
+			do_abort(instance);
+			return;
+		}
 	}
+#endif /* CONFIG_SUN3 */
 
 	if (!(msg[0] & 0x80)) {
 		shost_printk(KERN_ERR, instance, "expecting IDENTIFY message, got ");
@@ -2195,59 +2210,37 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 		return;
 	}
 
+#ifdef CONFIG_SUN3
+	{
+		void *d;
+		unsigned long count;
+
+		if (!tmp->SCp.this_residual && tmp->SCp.buffers_residual) {
+			count = tmp->SCp.buffer->length;
+			d = sg_virt(tmp->SCp.buffer);
+		} else {
+			count = tmp->SCp.this_residual;
+			d = tmp->SCp.ptr;
+		}
+
+		if (sun3_dma_setup_done != tmp &&
+		    sun3scsi_dma_xfer_len(count, tmp) > 0) {
+			sun3scsi_dma_setup(instance, d, count,
+			                   rq_data_dir(tmp->request));
+			sun3_dma_setup_done = tmp;
+		}
+	}
+
+	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE | ICR_ASSERT_ACK);
+#endif /* CONFIG_SUN3 */
+
 	/* Accept message by clearing ACK */
 	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
 
 	hostdata->connected = tmp;
-	dsprintk(NDEBUG_RESELECTION, instance, "nexus established, target %d, lun %llu, tag %d\n",
-	         scmd_id(tmp), tmp->device->lun, tmp->tag);
+	dsprintk(NDEBUG_RESELECTION, instance, "nexus established, target %d, lun %llu\n",
+	         scmd_id(tmp), tmp->device->lun);
 }
-
-/*
- * Function : void NCR5380_dma_complete (struct Scsi_Host *instance)
- *
- * Purpose : called by interrupt handler when DMA finishes or a phase
- * mismatch occurs (which would finish the DMA transfer).
- *
- * Inputs : instance - this instance of the NCR5380.
- *
- * Returns : pointer to the scsi_cmnd structure for which the I_T_L
- * nexus has been reestablished, on failure NULL is returned.
- */
-
-#ifdef REAL_DMA
-static void NCR5380_dma_complete(NCR5380_instance * instance) {
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-	int transferred;
-
-	/*
-	 * XXX this might not be right.
-	 *
-	 * Wait for final byte to transfer, ie wait for ACK to go false.
-	 *
-	 * We should use the Last Byte Sent bit, unfortunately this is
-	 * not available on the 5380/5381 (only the various CMOS chips)
-	 *
-	 * FIXME: timeout, and need to handle long timeout/irq case
-	 */
-
-	NCR5380_poll_politely(instance, BUS_AND_STATUS_REG, BASR_ACK, 0, 5*HZ);
-
-	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
-
-	/*
-	 * The only places we should see a phase mismatch and have to send
-	 * data from the same set of pointers will be the data transfer
-	 * phases.  So, residual, requested length are only important here.
-	 */
-
-	if (!(hostdata->connected->SCp.phase & SR_CD)) {
-		transferred = instance->dmalen - NCR5380_dma_residual();
-		hostdata->connected->SCp.this_residual -= transferred;
-		hostdata->connected->SCp.ptr += transferred;
-	}
-}
-#endif				/* def REAL_DMA */
 
 /**
  * list_find_cmd - test for presence of a command in a linked list
@@ -2360,9 +2353,7 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 	if (hostdata->connected == cmd) {
 		dsprintk(NDEBUG_ABORT, instance, "abort: cmd %p is connected\n", cmd);
 		hostdata->connected = NULL;
-#ifdef REAL_DMA
 		hostdata->dma_len = 0;
-#endif
 		if (do_abort(instance)) {
 			set_host_byte(cmd, DID_ERROR);
 			complete_cmd(instance, cmd);
@@ -2388,6 +2379,7 @@ out:
 		dsprintk(NDEBUG_ABORT, instance, "abort: successfully aborted %p\n", cmd);
 
 	queue_work(hostdata->work_q, &hostdata->main_task);
+	maybe_release_dma_irq(instance);
 	spin_unlock_irqrestore(&hostdata->lock, flags);
 
 	return result;
@@ -2445,7 +2437,7 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 		struct scsi_cmnd *cmd = NCR5380_to_scmd(ncmd);
 
 		set_host_byte(cmd, DID_RESET);
-		cmd->scsi_done(cmd);
+		complete_cmd(instance, cmd);
 	}
 	INIT_LIST_HEAD(&hostdata->disconnected);
 
@@ -2465,11 +2457,10 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 
 	for (i = 0; i < 8; ++i)
 		hostdata->busy[i] = 0;
-#ifdef REAL_DMA
 	hostdata->dma_len = 0;
-#endif
 
 	queue_work(hostdata->work_q, &hostdata->main_task);
+	maybe_release_dma_irq(instance);
 	spin_unlock_irqrestore(&hostdata->lock, flags);
 
 	return SUCCESS;

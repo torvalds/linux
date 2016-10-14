@@ -25,7 +25,7 @@
 #include <linux/hardirq.h>
 #include <linux/linkage.h>
 #include <linux/uaccess.h>
-#include <linux/kprobes.h>
+#include <linux/vmalloc.h>
 #include <linux/ftrace.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
@@ -253,6 +253,9 @@ unsigned long long ns2usecs(cycle_t nsec)
 #define TOP_LEVEL_TRACE_FLAGS (TRACE_ITER_PRINTK |			\
 	       TRACE_ITER_PRINTK_MSGONLY | TRACE_ITER_RECORD_CMD)
 
+/* trace_flags that are default zero for instances */
+#define ZEROED_TRACE_FLAGS \
+	TRACE_ITER_EVENT_FORK
 
 /*
  * The global_trace is the descriptor that holds the tracing
@@ -303,33 +306,270 @@ void trace_array_put(struct trace_array *this_tr)
 	mutex_unlock(&trace_types_lock);
 }
 
-int filter_check_discard(struct trace_event_file *file, void *rec,
-			 struct ring_buffer *buffer,
-			 struct ring_buffer_event *event)
-{
-	if (unlikely(file->flags & EVENT_FILE_FL_FILTERED) &&
-	    !filter_match_preds(file->filter, rec)) {
-		ring_buffer_discard_commit(buffer, event);
-		return 1;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(filter_check_discard);
-
 int call_filter_check_discard(struct trace_event_call *call, void *rec,
 			      struct ring_buffer *buffer,
 			      struct ring_buffer_event *event)
 {
 	if (unlikely(call->flags & TRACE_EVENT_FL_FILTERED) &&
 	    !filter_match_preds(call->filter, rec)) {
-		ring_buffer_discard_commit(buffer, event);
+		__trace_event_discard_commit(buffer, event);
 		return 1;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(call_filter_check_discard);
+
+void trace_free_pid_list(struct trace_pid_list *pid_list)
+{
+	vfree(pid_list->pids);
+	kfree(pid_list);
+}
+
+/**
+ * trace_find_filtered_pid - check if a pid exists in a filtered_pid list
+ * @filtered_pids: The list of pids to check
+ * @search_pid: The PID to find in @filtered_pids
+ *
+ * Returns true if @search_pid is fonud in @filtered_pids, and false otherwis.
+ */
+bool
+trace_find_filtered_pid(struct trace_pid_list *filtered_pids, pid_t search_pid)
+{
+	/*
+	 * If pid_max changed after filtered_pids was created, we
+	 * by default ignore all pids greater than the previous pid_max.
+	 */
+	if (search_pid >= filtered_pids->pid_max)
+		return false;
+
+	return test_bit(search_pid, filtered_pids->pids);
+}
+
+/**
+ * trace_ignore_this_task - should a task be ignored for tracing
+ * @filtered_pids: The list of pids to check
+ * @task: The task that should be ignored if not filtered
+ *
+ * Checks if @task should be traced or not from @filtered_pids.
+ * Returns true if @task should *NOT* be traced.
+ * Returns false if @task should be traced.
+ */
+bool
+trace_ignore_this_task(struct trace_pid_list *filtered_pids, struct task_struct *task)
+{
+	/*
+	 * Return false, because if filtered_pids does not exist,
+	 * all pids are good to trace.
+	 */
+	if (!filtered_pids)
+		return false;
+
+	return !trace_find_filtered_pid(filtered_pids, task->pid);
+}
+
+/**
+ * trace_pid_filter_add_remove - Add or remove a task from a pid_list
+ * @pid_list: The list to modify
+ * @self: The current task for fork or NULL for exit
+ * @task: The task to add or remove
+ *
+ * If adding a task, if @self is defined, the task is only added if @self
+ * is also included in @pid_list. This happens on fork and tasks should
+ * only be added when the parent is listed. If @self is NULL, then the
+ * @task pid will be removed from the list, which would happen on exit
+ * of a task.
+ */
+void trace_filter_add_remove_task(struct trace_pid_list *pid_list,
+				  struct task_struct *self,
+				  struct task_struct *task)
+{
+	if (!pid_list)
+		return;
+
+	/* For forks, we only add if the forking task is listed */
+	if (self) {
+		if (!trace_find_filtered_pid(pid_list, self->pid))
+			return;
+	}
+
+	/* Sorry, but we don't support pid_max changing after setting */
+	if (task->pid >= pid_list->pid_max)
+		return;
+
+	/* "self" is set for forks, and NULL for exits */
+	if (self)
+		set_bit(task->pid, pid_list->pids);
+	else
+		clear_bit(task->pid, pid_list->pids);
+}
+
+/**
+ * trace_pid_next - Used for seq_file to get to the next pid of a pid_list
+ * @pid_list: The pid list to show
+ * @v: The last pid that was shown (+1 the actual pid to let zero be displayed)
+ * @pos: The position of the file
+ *
+ * This is used by the seq_file "next" operation to iterate the pids
+ * listed in a trace_pid_list structure.
+ *
+ * Returns the pid+1 as we want to display pid of zero, but NULL would
+ * stop the iteration.
+ */
+void *trace_pid_next(struct trace_pid_list *pid_list, void *v, loff_t *pos)
+{
+	unsigned long pid = (unsigned long)v;
+
+	(*pos)++;
+
+	/* pid already is +1 of the actual prevous bit */
+	pid = find_next_bit(pid_list->pids, pid_list->pid_max, pid);
+
+	/* Return pid + 1 to allow zero to be represented */
+	if (pid < pid_list->pid_max)
+		return (void *)(pid + 1);
+
+	return NULL;
+}
+
+/**
+ * trace_pid_start - Used for seq_file to start reading pid lists
+ * @pid_list: The pid list to show
+ * @pos: The position of the file
+ *
+ * This is used by seq_file "start" operation to start the iteration
+ * of listing pids.
+ *
+ * Returns the pid+1 as we want to display pid of zero, but NULL would
+ * stop the iteration.
+ */
+void *trace_pid_start(struct trace_pid_list *pid_list, loff_t *pos)
+{
+	unsigned long pid;
+	loff_t l = 0;
+
+	pid = find_first_bit(pid_list->pids, pid_list->pid_max);
+	if (pid >= pid_list->pid_max)
+		return NULL;
+
+	/* Return pid + 1 so that zero can be the exit value */
+	for (pid++; pid && l < *pos;
+	     pid = (unsigned long)trace_pid_next(pid_list, (void *)pid, &l))
+		;
+	return (void *)pid;
+}
+
+/**
+ * trace_pid_show - show the current pid in seq_file processing
+ * @m: The seq_file structure to write into
+ * @v: A void pointer of the pid (+1) value to display
+ *
+ * Can be directly used by seq_file operations to display the current
+ * pid value.
+ */
+int trace_pid_show(struct seq_file *m, void *v)
+{
+	unsigned long pid = (unsigned long)v - 1;
+
+	seq_printf(m, "%lu\n", pid);
+	return 0;
+}
+
+/* 128 should be much more than enough */
+#define PID_BUF_SIZE		127
+
+int trace_pid_write(struct trace_pid_list *filtered_pids,
+		    struct trace_pid_list **new_pid_list,
+		    const char __user *ubuf, size_t cnt)
+{
+	struct trace_pid_list *pid_list;
+	struct trace_parser parser;
+	unsigned long val;
+	int nr_pids = 0;
+	ssize_t read = 0;
+	ssize_t ret = 0;
+	loff_t pos;
+	pid_t pid;
+
+	if (trace_parser_get_init(&parser, PID_BUF_SIZE + 1))
+		return -ENOMEM;
+
+	/*
+	 * Always recreate a new array. The write is an all or nothing
+	 * operation. Always create a new array when adding new pids by
+	 * the user. If the operation fails, then the current list is
+	 * not modified.
+	 */
+	pid_list = kmalloc(sizeof(*pid_list), GFP_KERNEL);
+	if (!pid_list)
+		return -ENOMEM;
+
+	pid_list->pid_max = READ_ONCE(pid_max);
+
+	/* Only truncating will shrink pid_max */
+	if (filtered_pids && filtered_pids->pid_max > pid_list->pid_max)
+		pid_list->pid_max = filtered_pids->pid_max;
+
+	pid_list->pids = vzalloc((pid_list->pid_max + 7) >> 3);
+	if (!pid_list->pids) {
+		kfree(pid_list);
+		return -ENOMEM;
+	}
+
+	if (filtered_pids) {
+		/* copy the current bits to the new max */
+		for_each_set_bit(pid, filtered_pids->pids,
+				 filtered_pids->pid_max) {
+			set_bit(pid, pid_list->pids);
+			nr_pids++;
+		}
+	}
+
+	while (cnt > 0) {
+
+		pos = 0;
+
+		ret = trace_get_user(&parser, ubuf, cnt, &pos);
+		if (ret < 0 || !trace_parser_loaded(&parser))
+			break;
+
+		read += ret;
+		ubuf += ret;
+		cnt -= ret;
+
+		parser.buffer[parser.idx] = 0;
+
+		ret = -EINVAL;
+		if (kstrtoul(parser.buffer, 0, &val))
+			break;
+		if (val >= pid_list->pid_max)
+			break;
+
+		pid = (pid_t)val;
+
+		set_bit(pid, pid_list->pids);
+		nr_pids++;
+
+		trace_parser_clear(&parser);
+		ret = 0;
+	}
+	trace_parser_put(&parser);
+
+	if (ret < 0) {
+		trace_free_pid_list(pid_list);
+		return ret;
+	}
+
+	if (!nr_pids) {
+		/* Cleared the list of pids */
+		trace_free_pid_list(pid_list);
+		read = ret;
+		pid_list = NULL;
+	}
+
+	*new_pid_list = pid_list;
+
+	return read;
+}
 
 static cycle_t buffer_ftrace_now(struct trace_buffer *buf, int cpu)
 {
@@ -1672,6 +1912,16 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 }
 EXPORT_SYMBOL_GPL(tracing_generic_entry_update);
 
+static __always_inline void
+trace_event_setup(struct ring_buffer_event *event,
+		  int type, unsigned long flags, int pc)
+{
+	struct trace_entry *ent = ring_buffer_event_data(event);
+
+	tracing_generic_entry_update(ent, flags, pc);
+	ent->type = type;
+}
+
 struct ring_buffer_event *
 trace_buffer_lock_reserve(struct ring_buffer *buffer,
 			  int type,
@@ -1681,34 +1931,137 @@ trace_buffer_lock_reserve(struct ring_buffer *buffer,
 	struct ring_buffer_event *event;
 
 	event = ring_buffer_lock_reserve(buffer, len);
-	if (event != NULL) {
-		struct trace_entry *ent = ring_buffer_event_data(event);
-
-		tracing_generic_entry_update(ent, flags, pc);
-		ent->type = type;
-	}
+	if (event != NULL)
+		trace_event_setup(event, type, flags, pc);
 
 	return event;
+}
+
+DEFINE_PER_CPU(struct ring_buffer_event *, trace_buffered_event);
+DEFINE_PER_CPU(int, trace_buffered_event_cnt);
+static int trace_buffered_event_ref;
+
+/**
+ * trace_buffered_event_enable - enable buffering events
+ *
+ * When events are being filtered, it is quicker to use a temporary
+ * buffer to write the event data into if there's a likely chance
+ * that it will not be committed. The discard of the ring buffer
+ * is not as fast as committing, and is much slower than copying
+ * a commit.
+ *
+ * When an event is to be filtered, allocate per cpu buffers to
+ * write the event data into, and if the event is filtered and discarded
+ * it is simply dropped, otherwise, the entire data is to be committed
+ * in one shot.
+ */
+void trace_buffered_event_enable(void)
+{
+	struct ring_buffer_event *event;
+	struct page *page;
+	int cpu;
+
+	WARN_ON_ONCE(!mutex_is_locked(&event_mutex));
+
+	if (trace_buffered_event_ref++)
+		return;
+
+	for_each_tracing_cpu(cpu) {
+		page = alloc_pages_node(cpu_to_node(cpu),
+					GFP_KERNEL | __GFP_NORETRY, 0);
+		if (!page)
+			goto failed;
+
+		event = page_address(page);
+		memset(event, 0, sizeof(*event));
+
+		per_cpu(trace_buffered_event, cpu) = event;
+
+		preempt_disable();
+		if (cpu == smp_processor_id() &&
+		    this_cpu_read(trace_buffered_event) !=
+		    per_cpu(trace_buffered_event, cpu))
+			WARN_ON_ONCE(1);
+		preempt_enable();
+	}
+
+	return;
+ failed:
+	trace_buffered_event_disable();
+}
+
+static void enable_trace_buffered_event(void *data)
+{
+	/* Probably not needed, but do it anyway */
+	smp_rmb();
+	this_cpu_dec(trace_buffered_event_cnt);
+}
+
+static void disable_trace_buffered_event(void *data)
+{
+	this_cpu_inc(trace_buffered_event_cnt);
+}
+
+/**
+ * trace_buffered_event_disable - disable buffering events
+ *
+ * When a filter is removed, it is faster to not use the buffered
+ * events, and to commit directly into the ring buffer. Free up
+ * the temp buffers when there are no more users. This requires
+ * special synchronization with current events.
+ */
+void trace_buffered_event_disable(void)
+{
+	int cpu;
+
+	WARN_ON_ONCE(!mutex_is_locked(&event_mutex));
+
+	if (WARN_ON_ONCE(!trace_buffered_event_ref))
+		return;
+
+	if (--trace_buffered_event_ref)
+		return;
+
+	preempt_disable();
+	/* For each CPU, set the buffer as used. */
+	smp_call_function_many(tracing_buffer_mask,
+			       disable_trace_buffered_event, NULL, 1);
+	preempt_enable();
+
+	/* Wait for all current users to finish */
+	synchronize_sched();
+
+	for_each_tracing_cpu(cpu) {
+		free_page((unsigned long)per_cpu(trace_buffered_event, cpu));
+		per_cpu(trace_buffered_event, cpu) = NULL;
+	}
+	/*
+	 * Make sure trace_buffered_event is NULL before clearing
+	 * trace_buffered_event_cnt.
+	 */
+	smp_wmb();
+
+	preempt_disable();
+	/* Do the work on each cpu */
+	smp_call_function_many(tracing_buffer_mask,
+			       enable_trace_buffered_event, NULL, 1);
+	preempt_enable();
 }
 
 void
 __buffer_unlock_commit(struct ring_buffer *buffer, struct ring_buffer_event *event)
 {
 	__this_cpu_write(trace_cmdline_save, true);
-	ring_buffer_unlock_commit(buffer, event);
-}
 
-void trace_buffer_unlock_commit(struct trace_array *tr,
-				struct ring_buffer *buffer,
-				struct ring_buffer_event *event,
-				unsigned long flags, int pc)
-{
-	__buffer_unlock_commit(buffer, event);
-
-	ftrace_trace_stack(tr, buffer, flags, 6, pc, NULL);
-	ftrace_trace_userstack(buffer, flags, pc);
+	/* If this is the temp buffer, we need to commit fully */
+	if (this_cpu_read(trace_buffered_event) == event) {
+		/* Length is in event->array[0] */
+		ring_buffer_write(buffer, event->array[0], &event->array[1]);
+		/* Release the temp buffer */
+		this_cpu_dec(trace_buffered_event_cnt);
+	} else
+		ring_buffer_unlock_commit(buffer, event);
 }
-EXPORT_SYMBOL_GPL(trace_buffer_unlock_commit);
 
 static struct ring_buffer *temp_buffer;
 
@@ -1719,8 +2072,23 @@ trace_event_buffer_lock_reserve(struct ring_buffer **current_rb,
 			  unsigned long flags, int pc)
 {
 	struct ring_buffer_event *entry;
+	int val;
 
 	*current_rb = trace_file->tr->trace_buffer.buffer;
+
+	if ((trace_file->flags &
+	     (EVENT_FILE_FL_SOFT_DISABLED | EVENT_FILE_FL_FILTERED)) &&
+	    (entry = this_cpu_read(trace_buffered_event))) {
+		/* Try to use the per cpu buffer first */
+		val = this_cpu_inc_return(trace_buffered_event_cnt);
+		if (val == 1) {
+			trace_event_setup(entry, type, flags, pc);
+			entry->array[0] = len;
+			return entry;
+		}
+		this_cpu_dec(trace_buffered_event_cnt);
+	}
+
 	entry = trace_buffer_lock_reserve(*current_rb,
 					 type, len, flags, pc);
 	/*
@@ -1738,17 +2106,6 @@ trace_event_buffer_lock_reserve(struct ring_buffer **current_rb,
 }
 EXPORT_SYMBOL_GPL(trace_event_buffer_lock_reserve);
 
-struct ring_buffer_event *
-trace_current_buffer_lock_reserve(struct ring_buffer **current_rb,
-				  int type, unsigned long len,
-				  unsigned long flags, int pc)
-{
-	*current_rb = global_trace.trace_buffer.buffer;
-	return trace_buffer_lock_reserve(*current_rb,
-					 type, len, flags, pc);
-}
-EXPORT_SYMBOL_GPL(trace_current_buffer_lock_reserve);
-
 void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 				     struct ring_buffer *buffer,
 				     struct ring_buffer_event *event,
@@ -1757,17 +2114,19 @@ void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 {
 	__buffer_unlock_commit(buffer, event);
 
-	ftrace_trace_stack(tr, buffer, flags, 0, pc, regs);
+	/*
+	 * If regs is not set, then skip the following callers:
+	 *   trace_buffer_unlock_commit_regs
+	 *   event_trigger_unlock_commit
+	 *   trace_event_buffer_commit
+	 *   trace_event_raw_event_sched_switch
+	 * Note, we can still get here via blktrace, wakeup tracer
+	 * and mmiotrace, but that's ok if they lose a function or
+	 * two. They are that meaningful.
+	 */
+	ftrace_trace_stack(tr, buffer, flags, regs ? 0 : 4, pc, regs);
 	ftrace_trace_userstack(buffer, flags, pc);
 }
-EXPORT_SYMBOL_GPL(trace_buffer_unlock_commit_regs);
-
-void trace_current_buffer_discard_commit(struct ring_buffer *buffer,
-					 struct ring_buffer_event *event)
-{
-	ring_buffer_discard_commit(buffer, event);
-}
-EXPORT_SYMBOL_GPL(trace_current_buffer_discard_commit);
 
 void
 trace_function(struct trace_array *tr,
@@ -1814,6 +2173,13 @@ static void __ftrace_trace_stack(struct ring_buffer *buffer,
 
 	trace.nr_entries	= 0;
 	trace.skip		= skip;
+
+	/*
+	 * Add two, for this function and the call to save_stack_trace()
+	 * If regs is set, then these functions will not be in the way.
+	 */
+	if (!regs)
+		trace.skip += 2;
 
 	/*
 	 * Since events can happen in NMIs there's no safe way to
@@ -1986,83 +2352,41 @@ static void __trace_userstack(struct trace_array *tr, unsigned long flags)
 
 /* created for use with alloc_percpu */
 struct trace_buffer_struct {
-	char buffer[TRACE_BUF_SIZE];
+	int nesting;
+	char buffer[4][TRACE_BUF_SIZE];
 };
 
 static struct trace_buffer_struct *trace_percpu_buffer;
-static struct trace_buffer_struct *trace_percpu_sirq_buffer;
-static struct trace_buffer_struct *trace_percpu_irq_buffer;
-static struct trace_buffer_struct *trace_percpu_nmi_buffer;
 
 /*
- * The buffer used is dependent on the context. There is a per cpu
- * buffer for normal context, softirq contex, hard irq context and
- * for NMI context. Thise allows for lockless recording.
- *
- * Note, if the buffers failed to be allocated, then this returns NULL
+ * Thise allows for lockless recording.  If we're nested too deeply, then
+ * this returns NULL.
  */
 static char *get_trace_buf(void)
 {
-	struct trace_buffer_struct *percpu_buffer;
+	struct trace_buffer_struct *buffer = this_cpu_ptr(trace_percpu_buffer);
 
-	/*
-	 * If we have allocated per cpu buffers, then we do not
-	 * need to do any locking.
-	 */
-	if (in_nmi())
-		percpu_buffer = trace_percpu_nmi_buffer;
-	else if (in_irq())
-		percpu_buffer = trace_percpu_irq_buffer;
-	else if (in_softirq())
-		percpu_buffer = trace_percpu_sirq_buffer;
-	else
-		percpu_buffer = trace_percpu_buffer;
-
-	if (!percpu_buffer)
+	if (!buffer || buffer->nesting >= 4)
 		return NULL;
 
-	return this_cpu_ptr(&percpu_buffer->buffer[0]);
+	return &buffer->buffer[buffer->nesting++][0];
+}
+
+static void put_trace_buf(void)
+{
+	this_cpu_dec(trace_percpu_buffer->nesting);
 }
 
 static int alloc_percpu_trace_buffer(void)
 {
 	struct trace_buffer_struct *buffers;
-	struct trace_buffer_struct *sirq_buffers;
-	struct trace_buffer_struct *irq_buffers;
-	struct trace_buffer_struct *nmi_buffers;
 
 	buffers = alloc_percpu(struct trace_buffer_struct);
-	if (!buffers)
-		goto err_warn;
-
-	sirq_buffers = alloc_percpu(struct trace_buffer_struct);
-	if (!sirq_buffers)
-		goto err_sirq;
-
-	irq_buffers = alloc_percpu(struct trace_buffer_struct);
-	if (!irq_buffers)
-		goto err_irq;
-
-	nmi_buffers = alloc_percpu(struct trace_buffer_struct);
-	if (!nmi_buffers)
-		goto err_nmi;
+	if (WARN(!buffers, "Could not allocate percpu trace_printk buffer"))
+		return -ENOMEM;
 
 	trace_percpu_buffer = buffers;
-	trace_percpu_sirq_buffer = sirq_buffers;
-	trace_percpu_irq_buffer = irq_buffers;
-	trace_percpu_nmi_buffer = nmi_buffers;
-
 	return 0;
-
- err_nmi:
-	free_percpu(irq_buffers);
- err_irq:
-	free_percpu(sirq_buffers);
- err_sirq:
-	free_percpu(buffers);
- err_warn:
-	WARN(1, "Could not allocate percpu trace_printk buffer");
-	return -ENOMEM;
 }
 
 static int buffers_allocated;
@@ -2153,7 +2477,7 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	tbuffer = get_trace_buf();
 	if (!tbuffer) {
 		len = 0;
-		goto out;
+		goto out_nobuffer;
 	}
 
 	len = vbin_printf((u32 *)tbuffer, TRACE_BUF_SIZE/sizeof(int), fmt, args);
@@ -2179,6 +2503,9 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	}
 
 out:
+	put_trace_buf();
+
+out_nobuffer:
 	preempt_enable_notrace();
 	unpause_graph_tracing();
 
@@ -2210,7 +2537,7 @@ __trace_array_vprintk(struct ring_buffer *buffer,
 	tbuffer = get_trace_buf();
 	if (!tbuffer) {
 		len = 0;
-		goto out;
+		goto out_nobuffer;
 	}
 
 	len = vscnprintf(tbuffer, TRACE_BUF_SIZE, fmt, args);
@@ -2229,7 +2556,11 @@ __trace_array_vprintk(struct ring_buffer *buffer,
 		__buffer_unlock_commit(buffer, event);
 		ftrace_trace_stack(&global_trace, buffer, flags, 6, pc, NULL);
 	}
- out:
+
+out:
+	put_trace_buf();
+
+out_nobuffer:
 	preempt_enable_notrace();
 	unpause_graph_tracing();
 
@@ -3571,6 +3902,9 @@ int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
 	if (mask == TRACE_ITER_RECORD_CMD)
 		trace_event_enable_cmd_record(enabled);
 
+	if (mask == TRACE_ITER_EVENT_FORK)
+		trace_event_follow_fork(tr, enabled);
+
 	if (mask == TRACE_ITER_OVERWRITE) {
 		ring_buffer_change_overwrite(tr->trace_buffer.buffer, enabled);
 #ifdef CONFIG_TRACER_MAX_TRACE
@@ -3658,7 +3992,7 @@ tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 	if (cnt >= sizeof(buf))
 		return -EINVAL;
 
-	if (copy_from_user(&buf, ubuf, cnt))
+	if (copy_from_user(buf, ubuf, cnt))
 		return -EFAULT;
 
 	buf[cnt] = 0;
@@ -3804,11 +4138,18 @@ static const char readme_msg[] =
 	"\t   trigger: traceon, traceoff\n"
 	"\t            enable_event:<system>:<event>\n"
 	"\t            disable_event:<system>:<event>\n"
+#ifdef CONFIG_HIST_TRIGGERS
+	"\t            enable_hist:<system>:<event>\n"
+	"\t            disable_hist:<system>:<event>\n"
+#endif
 #ifdef CONFIG_STACKTRACE
 	"\t\t    stacktrace\n"
 #endif
 #ifdef CONFIG_TRACER_SNAPSHOT
 	"\t\t    snapshot\n"
+#endif
+#ifdef CONFIG_HIST_TRIGGERS
+	"\t\t    hist (see below)\n"
 #endif
 	"\t   example: echo traceoff > events/block/block_unplug/trigger\n"
 	"\t            echo traceoff:3 > events/block/block_unplug/trigger\n"
@@ -3825,6 +4166,56 @@ static const char readme_msg[] =
 	"\t   To remove a trigger with a count:\n"
 	"\t     echo '!<trigger>:0 > <system>/<event>/trigger\n"
 	"\t   Filters can be ignored when removing a trigger.\n"
+#ifdef CONFIG_HIST_TRIGGERS
+	"      hist trigger\t- If set, event hits are aggregated into a hash table\n"
+	"\t    Format: hist:keys=<field1[,field2,...]>\n"
+	"\t            [:values=<field1[,field2,...]>]\n"
+	"\t            [:sort=<field1[,field2,...]>]\n"
+	"\t            [:size=#entries]\n"
+	"\t            [:pause][:continue][:clear]\n"
+	"\t            [:name=histname1]\n"
+	"\t            [if <filter>]\n\n"
+	"\t    When a matching event is hit, an entry is added to a hash\n"
+	"\t    table using the key(s) and value(s) named, and the value of a\n"
+	"\t    sum called 'hitcount' is incremented.  Keys and values\n"
+	"\t    correspond to fields in the event's format description.  Keys\n"
+	"\t    can be any field, or the special string 'stacktrace'.\n"
+	"\t    Compound keys consisting of up to two fields can be specified\n"
+	"\t    by the 'keys' keyword.  Values must correspond to numeric\n"
+	"\t    fields.  Sort keys consisting of up to two fields can be\n"
+	"\t    specified using the 'sort' keyword.  The sort direction can\n"
+	"\t    be modified by appending '.descending' or '.ascending' to a\n"
+	"\t    sort field.  The 'size' parameter can be used to specify more\n"
+	"\t    or fewer than the default 2048 entries for the hashtable size.\n"
+	"\t    If a hist trigger is given a name using the 'name' parameter,\n"
+	"\t    its histogram data will be shared with other triggers of the\n"
+	"\t    same name, and trigger hits will update this common data.\n\n"
+	"\t    Reading the 'hist' file for the event will dump the hash\n"
+	"\t    table in its entirety to stdout.  If there are multiple hist\n"
+	"\t    triggers attached to an event, there will be a table for each\n"
+	"\t    trigger in the output.  The table displayed for a named\n"
+	"\t    trigger will be the same as any other instance having the\n"
+	"\t    same name.  The default format used to display a given field\n"
+	"\t    can be modified by appending any of the following modifiers\n"
+	"\t    to the field name, as applicable:\n\n"
+	"\t            .hex        display a number as a hex value\n"
+	"\t            .sym        display an address as a symbol\n"
+	"\t            .sym-offset display an address as a symbol and offset\n"
+	"\t            .execname   display a common_pid as a program name\n"
+	"\t            .syscall    display a syscall id as a syscall name\n\n"
+	"\t            .log2       display log2 value rather than raw number\n\n"
+	"\t    The 'pause' parameter can be used to pause an existing hist\n"
+	"\t    trigger or to start a hist trigger but not log any events\n"
+	"\t    until told to do so.  'continue' can be used to start or\n"
+	"\t    restart a paused hist trigger.\n\n"
+	"\t    The 'clear' parameter will clear the contents of a running\n"
+	"\t    hist trigger and leave its current paused/active state\n"
+	"\t    unchanged.\n\n"
+	"\t    The enable_hist and disable_hist triggers can be used to\n"
+	"\t    have one event conditionally start and stop another event's\n"
+	"\t    already-attached hist trigger.  The syntax is analagous to\n"
+	"\t    the enable_event and disable_event triggers.\n"
+#endif
 ;
 
 static ssize_t
@@ -4474,7 +4865,7 @@ tracing_set_trace_write(struct file *filp, const char __user *ubuf,
 	if (cnt > MAX_TRACER_SIZE)
 		cnt = MAX_TRACER_SIZE;
 
-	if (copy_from_user(&buf, ubuf, cnt))
+	if (copy_from_user(buf, ubuf, cnt))
 		return -EFAULT;
 
 	buf[cnt] = 0;
@@ -4733,19 +5124,20 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	struct trace_iterator *iter = filp->private_data;
 	ssize_t sret;
 
-	/* return any leftover data */
-	sret = trace_seq_to_user(&iter->seq, ubuf, cnt);
-	if (sret != -EBUSY)
-		return sret;
-
-	trace_seq_init(&iter->seq);
-
 	/*
 	 * Avoid more than one consumer on a single file descriptor
 	 * This is just a matter of traces coherency, the ring buffer itself
 	 * is protected.
 	 */
 	mutex_lock(&iter->mutex);
+
+	/* return any leftover data */
+	sret = trace_seq_to_user(&iter->seq, ubuf, cnt);
+	if (sret != -EBUSY)
+		goto out;
+
+	trace_seq_init(&iter->seq);
+
 	if (iter->trace->read) {
 		sret = iter->trace->read(iter, filp, ubuf, cnt, ppos);
 		if (sret)
@@ -5264,7 +5656,7 @@ static ssize_t tracing_clock_write(struct file *filp, const char __user *ubuf,
 	if (cnt >= sizeof(buf))
 		return -EINVAL;
 
-	if (copy_from_user(&buf, ubuf, cnt))
+	if (copy_from_user(buf, ubuf, cnt))
 		return -EFAULT;
 
 	buf[cnt] = 0;
@@ -5772,9 +6164,6 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		return -EBUSY;
 #endif
 
-	if (splice_grow_spd(pipe, &spd))
-		return -ENOMEM;
-
 	if (*ppos & (PAGE_SIZE - 1))
 		return -EINVAL;
 
@@ -5783,6 +6172,9 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 			return -EINVAL;
 		len &= PAGE_MASK;
 	}
+
+	if (splice_grow_spd(pipe, &spd))
+		return -ENOMEM;
 
  again:
 	trace_access_lock(iter->cpu_file);
@@ -5841,19 +6233,21 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 	/* did we read anything? */
 	if (!spd.nr_pages) {
 		if (ret)
-			return ret;
+			goto out;
 
+		ret = -EAGAIN;
 		if ((file->f_flags & O_NONBLOCK) || (flags & SPLICE_F_NONBLOCK))
-			return -EAGAIN;
+			goto out;
 
 		ret = wait_on_pipe(iter, true);
 		if (ret)
-			return ret;
+			goto out;
 
 		goto again;
 	}
 
 	ret = splice_to_pipe(pipe, &spd);
+out:
 	splice_shrink_spd(&spd);
 
 	return ret;
@@ -6650,7 +7044,7 @@ static int instance_mkdir(const char *name)
 	if (!alloc_cpumask_var(&tr->tracing_cpumask, GFP_KERNEL))
 		goto out_free_tr;
 
-	tr->trace_flags = global_trace.trace_flags;
+	tr->trace_flags = global_trace.trace_flags & ~ZEROED_TRACE_FLAGS;
 
 	cpumask_copy(tr->tracing_cpumask, cpu_all_mask);
 
@@ -6723,6 +7117,12 @@ static int instance_rmdir(const char *name)
 		goto out_unlock;
 
 	list_del(&tr->list);
+
+	/* Disable all the flags that were enabled coming in */
+	for (i = 0; i < TRACE_FLAGS_MAX_SIZE; i++) {
+		if ((1 << i) & ZEROED_TRACE_FLAGS)
+			set_tracer_flag(tr, 1 << i, 0);
+	}
 
 	tracing_set_nop(tr);
 	event_trace_del_tracer(tr);
@@ -6814,6 +7214,7 @@ init_tracer_tracefs(struct trace_array *tr, struct dentry *d_tracer)
 	for_each_tracing_cpu(cpu)
 		tracing_init_tracefs_percpu(tr, cpu);
 
+	ftrace_init_tracefs(tr, d_tracer);
 }
 
 static struct vfsmount *trace_automount(void *ingore)
@@ -6967,6 +7368,7 @@ static __init int tracer_init_tracefs(void)
 		return 0;
 
 	init_tracer_tracefs(&global_trace, d_tracer);
+	ftrace_init_tracefs_toplevel(&global_trace, d_tracer);
 
 	trace_create_file("tracing_thresh", 0644, d_tracer,
 			&global_trace, &tracing_thresh_fops);

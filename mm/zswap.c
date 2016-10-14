@@ -117,7 +117,7 @@ struct zswap_pool {
 	struct crypto_comp * __percpu *tfm;
 	struct kref kref;
 	struct list_head list;
-	struct rcu_head rcu_head;
+	struct work_struct work;
 	struct notifier_block notifier;
 	char tfm_name[CRYPTO_MAX_ALG_NAME];
 };
@@ -658,9 +658,11 @@ static int __must_check zswap_pool_get(struct zswap_pool *pool)
 	return kref_get_unless_zero(&pool->kref);
 }
 
-static void __zswap_pool_release(struct rcu_head *head)
+static void __zswap_pool_release(struct work_struct *work)
 {
-	struct zswap_pool *pool = container_of(head, typeof(*pool), rcu_head);
+	struct zswap_pool *pool = container_of(work, typeof(*pool), work);
+
+	synchronize_rcu();
 
 	/* nobody should have been able to get a kref... */
 	WARN_ON(kref_get_unless_zero(&pool->kref));
@@ -680,7 +682,9 @@ static void __zswap_pool_empty(struct kref *kref)
 	WARN_ON(pool == zswap_pool_current());
 
 	list_del_rcu(&pool->list);
-	call_rcu(&pool->rcu_head, __zswap_pool_release);
+
+	INIT_WORK(&pool->work, __zswap_pool_release);
+	schedule_work(&pool->work);
 
 	spin_unlock(&zswap_pools_lock);
 }

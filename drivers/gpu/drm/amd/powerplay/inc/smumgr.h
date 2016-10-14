@@ -131,6 +131,12 @@ extern int smu_free_memory(void *device, void *handle);
 	smum_wait_on_indirect_register(smumgr,				\
 				mm##port##_INDEX, index, value, mask)
 
+#define SMUM_WAIT_INDIRECT_REGISTER(smumgr, port, reg, value, mask)    \
+	    SMUM_WAIT_INDIRECT_REGISTER_GIVEN_INDEX(smumgr, port, ix##reg, value, mask)
+
+#define SMUM_WAIT_INDIRECT_FIELD(smumgr, port, reg, field, fieldval)                          \
+	    SMUM_WAIT_INDIRECT_REGISTER(smumgr, port, reg, (fieldval) << SMUM_FIELD_SHIFT(reg, field), \
+			            SMUM_FIELD_MASK(reg, field) )
 
 #define SMUM_WAIT_REGISTER_UNEQUAL_GIVEN_INDEX(smumgr,         \
 							index, value, mask) \
@@ -157,6 +163,10 @@ extern int smu_free_memory(void *device, void *handle);
 		(((value) & ~SMUM_FIELD_MASK(reg, field)) |                    \
 		(SMUM_FIELD_MASK(reg, field) & ((field_val) <<                 \
 			SMUM_FIELD_SHIFT(reg, field))))
+
+#define SMUM_READ_INDIRECT_FIELD(device, port, reg, field) \
+	    SMUM_GET_FIELD(cgs_read_ind_register(device, port, ix##reg), \
+			   reg, field)
 
 #define SMUM_WAIT_VFPF_INDIRECT_REGISTER_GIVEN_INDEX(smumgr,		\
 				port, index, value, mask)		\
@@ -191,6 +201,13 @@ extern int smu_free_memory(void *device, void *handle);
 			SMUM_SET_FIELD(cgs_read_ind_register(device, port, ix##reg), \
 			reg, field, fieldval))
 
+
+#define SMUM_WRITE_INDIRECT_FIELD(device, port, reg, field, fieldval)    		\
+		cgs_write_ind_register(device, port, ix##reg, 				\
+			SMUM_SET_FIELD(cgs_read_ind_register(device, port, ix##reg), 	\
+				       reg, field, fieldval))
+
+
 #define SMUM_WAIT_VFPF_INDIRECT_FIELD(smumgr, port, reg, field, fieldval) \
 	SMUM_WAIT_VFPF_INDIRECT_REGISTER(smumgr, port, reg,		\
 		(fieldval) << SMUM_FIELD_SHIFT(reg, field),		\
@@ -200,4 +217,16 @@ extern int smu_free_memory(void *device, void *handle);
 	SMUM_WAIT_VFPF_INDIRECT_REGISTER_UNEQUAL(smumgr, port, reg,	\
 		(fieldval) << SMUM_FIELD_SHIFT(reg, field),		\
 		SMUM_FIELD_MASK(reg, field))
+
+#define SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(smumgr, port, index, value, mask)    \
+	smum_wait_for_indirect_register_unequal(smumgr,			\
+		mm##port##_INDEX, index, value, mask)
+
+#define SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL(smumgr, port, reg, value, mask)    \
+	    SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL_GIVEN_INDEX(smumgr, port, ix##reg, value, mask)
+
+#define SMUM_WAIT_INDIRECT_FIELD_UNEQUAL(smumgr, port, reg, field, fieldval)                          \
+	    SMUM_WAIT_INDIRECT_REGISTER_UNEQUAL(smumgr, port, reg, (fieldval) << SMUM_FIELD_SHIFT(reg, field), \
+			            SMUM_FIELD_MASK(reg, field) )
+
 #endif

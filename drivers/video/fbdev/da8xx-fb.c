@@ -713,7 +713,7 @@ static int da8xx_fb_config_clk_divider(struct da8xx_fb_par *par,
 
 	if (par->lcdc_clk_rate != lcdc_clk_rate) {
 		ret = clk_set_rate(par->lcdc_clk, lcdc_clk_rate);
-		if (IS_ERR_VALUE(ret)) {
+		if (ret) {
 			dev_err(par->dev,
 				"unable to set clock rate at %u\n",
 				lcdc_clk_rate);
@@ -784,7 +784,7 @@ static int lcd_init(struct da8xx_fb_par *par, const struct lcd_ctrl_config *cfg,
 	int ret = 0;
 
 	ret = da8xx_fb_calc_config_clk_divider(par, panel);
-	if (IS_ERR_VALUE(ret)) {
+	if (ret) {
 		dev_err(par->dev, "unable to configure clock\n");
 		return ret;
 	}

@@ -52,7 +52,7 @@ enum threefish_size {
  */
 struct threefish_key {
 	u64 state_size;
-	u64 key[SKEIN_MAX_STATE_WORDS+1];   /* max number of key words*/
+	u64 key[SKEIN_MAX_STATE_WORDS + 1];   /* max number of key words*/
 	u64 tweak[3];
 };
 

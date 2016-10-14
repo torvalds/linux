@@ -104,7 +104,7 @@ static int do_readahead(journal_t *journal, unsigned int start)
 		if (!buffer_uptodate(bh) && !buffer_locked(bh)) {
 			bufs[nbufs++] = bh;
 			if (nbufs == MAXBUF) {
-				ll_rw_block(READ, nbufs, bufs);
+				ll_rw_block(REQ_OP_READ, 0, nbufs, bufs);
 				journal_brelse_array(bufs, nbufs);
 				nbufs = 0;
 			}
@@ -113,7 +113,7 @@ static int do_readahead(journal_t *journal, unsigned int start)
 	}
 
 	if (nbufs)
-		ll_rw_block(READ, nbufs, bufs);
+		ll_rw_block(REQ_OP_READ, 0, nbufs, bufs);
 	err = 0;
 
 failed:
@@ -303,7 +303,7 @@ int jbd2_journal_recover(journal_t *journal)
  * Locate any valid recovery information from the journal and set up the
  * journal structures in memory to ignore it (presumably because the
  * caller has evidence that it is out of date).
- * This function does'nt appear to be exorted..
+ * This function doesn't appear to be exported..
  *
  * We perform one pass over the journal to allow us to tell the user how
  * much recovery information is being erased, and to let us initialise

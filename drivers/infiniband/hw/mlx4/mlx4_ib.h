@@ -139,7 +139,7 @@ struct mlx4_ib_mr {
 	u32			max_pages;
 	struct mlx4_mr		mmr;
 	struct ib_umem	       *umem;
-	void			*pages_alloc;
+	size_t			page_map_size;
 };
 
 struct mlx4_ib_mw {
@@ -448,7 +448,7 @@ struct mlx4_ib_demux_ctx {
 	struct workqueue_struct *wq;
 	struct workqueue_struct *ud_wq;
 	spinlock_t ud_lock;
-	__be64 subnet_prefix;
+	atomic64_t subnet_prefix;
 	__be64 guid_cache[128];
 	struct mlx4_ib_dev *dev;
 	/* the following lock protects both mcg_table and mcg_mgid0_list */
@@ -549,6 +549,14 @@ struct mlx4_ib_counters {
 	u32			default_counter;
 };
 
+#define MLX4_DIAG_COUNTERS_TYPES 2
+
+struct mlx4_ib_diag_counters {
+	const char **name;
+	u32 *offset;
+	u32 num_counters;
+};
+
 struct mlx4_ib_dev {
 	struct ib_device	ib_dev;
 	struct mlx4_dev	       *dev;
@@ -585,6 +593,7 @@ struct mlx4_ib_dev {
 	/* protect resources needed as part of reset flow */
 	spinlock_t		reset_flow_resource_lock;
 	struct list_head		qp_list;
+	struct mlx4_ib_diag_counters diag_counters[MLX4_DIAG_COUNTERS_TYPES];
 };
 
 struct ib_event_work {
@@ -717,9 +726,8 @@ int mlx4_ib_dealloc_mw(struct ib_mw *mw);
 struct ib_mr *mlx4_ib_alloc_mr(struct ib_pd *pd,
 			       enum ib_mr_type mr_type,
 			       u32 max_num_sg);
-int mlx4_ib_map_mr_sg(struct ib_mr *ibmr,
-		      struct scatterlist *sg,
-		      int sg_nents);
+int mlx4_ib_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
+		      unsigned int *sg_offset);
 int mlx4_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata);
 struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,

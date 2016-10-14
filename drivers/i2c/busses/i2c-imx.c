@@ -525,7 +525,7 @@ static int i2c_imx_start(struct imx_i2c_struct *i2c_imx)
 	imx_i2c_write_reg(i2c_imx->hwdata->i2cr_ien_opcode, i2c_imx, IMX_I2C_I2CR);
 
 	/* Wait controller to be stable */
-	udelay(50);
+	usleep_range(50, 150);
 
 	/* Start I2C transaction */
 	temp = imx_i2c_read_reg(i2c_imx, IMX_I2C_I2CR);

@@ -58,21 +58,10 @@ static struct header_ops lowpan_header_ops = {
 	.create	= lowpan_header_create,
 };
 
-static struct lock_class_key lowpan_tx_busylock;
-static struct lock_class_key lowpan_netdev_xmit_lock_key;
-
-static void lowpan_set_lockdep_class_one(struct net_device *ldev,
-					 struct netdev_queue *txq,
-					 void *_unused)
-{
-	lockdep_set_class(&txq->_xmit_lock,
-			  &lowpan_netdev_xmit_lock_key);
-}
-
 static int lowpan_dev_init(struct net_device *ldev)
 {
-	netdev_for_each_tx_queue(ldev, lowpan_set_lockdep_class_one, NULL);
-	ldev->qdisc_tx_busylock = &lowpan_tx_busylock;
+	netdev_lockdep_set_classes(ldev);
+
 	return 0;
 }
 
@@ -92,11 +81,21 @@ static int lowpan_stop(struct net_device *dev)
 	return 0;
 }
 
+static int lowpan_neigh_construct(struct net_device *dev, struct neighbour *n)
+{
+	struct lowpan_802154_neigh *neigh = lowpan_802154_neigh(neighbour_priv(n));
+
+	/* default no short_addr is available for a neighbour */
+	neigh->short_addr = cpu_to_le16(IEEE802154_ADDR_SHORT_UNSPEC);
+	return 0;
+}
+
 static const struct net_device_ops lowpan_netdev_ops = {
 	.ndo_init		= lowpan_dev_init,
 	.ndo_start_xmit		= lowpan_xmit,
 	.ndo_open		= lowpan_open,
 	.ndo_stop		= lowpan_stop,
+	.ndo_neigh_construct    = lowpan_neigh_construct,
 };
 
 static void lowpan_setup(struct net_device *ldev)
@@ -131,8 +130,7 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 
 	pr_debug("adding new link\n");
 
-	if (!tb[IFLA_LINK] ||
-	    !net_eq(dev_net(ldev), &init_net))
+	if (!tb[IFLA_LINK])
 		return -EINVAL;
 	/* find and hold wpan device */
 	wdev = dev_get_by_index(dev_net(ldev), nla_get_u32(tb[IFLA_LINK]));
@@ -148,7 +146,7 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 		return -EBUSY;
 	}
 
-	lowpan_dev_info(ldev)->wdev = wdev;
+	lowpan_802154_dev(ldev)->wdev = wdev;
 	/* Set the lowpan hardware address to the wpan hardware address. */
 	memcpy(ldev->dev_addr, wdev->dev_addr, IEEE802154_ADDR_LEN);
 	/* We need headroom for possible wpan_dev_hard_header call and tailroom
@@ -160,6 +158,8 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 	ldev->needed_headroom = LOWPAN_IPHC_MAX_HEADER_LEN +
 				wdev->needed_headroom;
 	ldev->needed_tailroom = wdev->needed_tailroom;
+
+	ldev->neigh_priv_len = sizeof(struct lowpan_802154_neigh);
 
 	ret = lowpan_register_netdevice(ldev, LOWPAN_LLTYPE_IEEE802154);
 	if (ret < 0) {
@@ -173,7 +173,7 @@ static int lowpan_newlink(struct net *src_net, struct net_device *ldev,
 
 static void lowpan_dellink(struct net_device *ldev, struct list_head *head)
 {
-	struct net_device *wdev = lowpan_dev_info(ldev)->wdev;
+	struct net_device *wdev = lowpan_802154_dev(ldev)->wdev;
 
 	ASSERT_RTNL();
 
@@ -184,7 +184,7 @@ static void lowpan_dellink(struct net_device *ldev, struct list_head *head)
 
 static struct rtnl_link_ops lowpan_link_ops __read_mostly = {
 	.kind		= "lowpan",
-	.priv_size	= LOWPAN_PRIV_SIZE(sizeof(struct lowpan_dev_info)),
+	.priv_size	= LOWPAN_PRIV_SIZE(sizeof(struct lowpan_802154_dev)),
 	.setup		= lowpan_setup,
 	.newlink	= lowpan_newlink,
 	.dellink	= lowpan_dellink,

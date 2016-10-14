@@ -23,6 +23,7 @@
 #include "qed_hsi.h"
 #include "qed_hw.h"
 #include "qed_reg_addr.h"
+#include "qed_sriov.h"
 
 #define QED_BAR_ACQUIRE_TIMEOUT 1000
 
@@ -236,8 +237,12 @@ static void qed_memcpy_hw(struct qed_hwfn *p_hwfn,
 		quota = min_t(size_t, n - done,
 			      PXP_EXTERNAL_BAR_PF_WINDOW_SINGLE_SIZE);
 
-		qed_ptt_set_win(p_hwfn, p_ptt, hw_addr + done);
-		hw_offset = qed_ptt_get_bar_addr(p_ptt);
+		if (IS_PF(p_hwfn->cdev)) {
+			qed_ptt_set_win(p_hwfn, p_ptt, hw_addr + done);
+			hw_offset = qed_ptt_get_bar_addr(p_ptt);
+		} else {
+			hw_offset = hw_addr + done;
+		}
 
 		dw_count = quota / 4;
 		host_addr = (u32 *)((u8 *)addr + done);
@@ -338,14 +343,25 @@ void qed_port_unpretend(struct qed_hwfn *p_hwfn,
 	       *(u32 *)&p_ptt->pxp.pretend);
 }
 
+u32 qed_vfid_to_concrete(struct qed_hwfn *p_hwfn, u8 vfid)
+{
+	u32 concrete_fid = 0;
+
+	SET_FIELD(concrete_fid, PXP_CONCRETE_FID_PFID, p_hwfn->rel_pf_id);
+	SET_FIELD(concrete_fid, PXP_CONCRETE_FID_VFID, vfid);
+	SET_FIELD(concrete_fid, PXP_CONCRETE_FID_VFVALID, 1);
+
+	return concrete_fid;
+}
+
 /* DMAE */
 static void qed_dmae_opcode(struct qed_hwfn *p_hwfn,
 			    const u8 is_src_type_grc,
 			    const u8 is_dst_type_grc,
 			    struct qed_dmae_params *p_params)
 {
+	u16 opcode_b = 0;
 	u32 opcode = 0;
-	u16 opcodeB = 0;
 
 	/* Whether the source is the PCIe or the GRC.
 	 * 0- The source is the PCIe
@@ -387,14 +403,24 @@ static void qed_dmae_opcode(struct qed_hwfn *p_hwfn,
 	opcode |= (DMAE_CMD_DST_ADDR_RESET_MASK <<
 		   DMAE_CMD_DST_ADDR_RESET_SHIFT);
 
-	opcodeB |= (DMAE_CMD_SRC_VF_ID_MASK <<
-		    DMAE_CMD_SRC_VF_ID_SHIFT);
+	/* SRC/DST VFID: all 1's - pf, otherwise VF id */
+	if (p_params->flags & QED_DMAE_FLAG_VF_SRC) {
+		opcode |= 1 << DMAE_CMD_SRC_VF_ID_VALID_SHIFT;
+		opcode_b |= p_params->src_vfid << DMAE_CMD_SRC_VF_ID_SHIFT;
+	} else {
+		opcode_b |= DMAE_CMD_SRC_VF_ID_MASK <<
+			    DMAE_CMD_SRC_VF_ID_SHIFT;
+	}
 
-	opcodeB |= (DMAE_CMD_DST_VF_ID_MASK <<
-		    DMAE_CMD_DST_VF_ID_SHIFT);
+	if (p_params->flags & QED_DMAE_FLAG_VF_DST) {
+		opcode |= 1 << DMAE_CMD_DST_VF_ID_VALID_SHIFT;
+		opcode_b |= p_params->dst_vfid << DMAE_CMD_DST_VF_ID_SHIFT;
+	} else {
+		opcode_b |= DMAE_CMD_DST_VF_ID_MASK << DMAE_CMD_DST_VF_ID_SHIFT;
+	}
 
 	p_hwfn->dmae_info.p_dmae_cmd->opcode = cpu_to_le32(opcode);
-	p_hwfn->dmae_info.p_dmae_cmd->opcode_b = cpu_to_le16(opcodeB);
+	p_hwfn->dmae_info.p_dmae_cmd->opcode_b = cpu_to_le16(opcode_b);
 }
 
 u32 qed_dmae_idx_to_go_cmd(u8 idx)
@@ -420,7 +446,7 @@ qed_dmae_post_command(struct qed_hwfn *p_hwfn,
 			   idx_cmd,
 			   le32_to_cpu(command->opcode),
 			   le16_to_cpu(command->opcode_b),
-			   le16_to_cpu(command->length),
+			   le16_to_cpu(command->length_dw),
 			   le32_to_cpu(command->src_addr_hi),
 			   le32_to_cpu(command->src_addr_lo),
 			   le32_to_cpu(command->dst_addr_hi),
@@ -435,7 +461,7 @@ qed_dmae_post_command(struct qed_hwfn *p_hwfn,
 		   idx_cmd,
 		   le32_to_cpu(command->opcode),
 		   le16_to_cpu(command->opcode_b),
-		   le16_to_cpu(command->length),
+		   le16_to_cpu(command->length_dw),
 		   le32_to_cpu(command->src_addr_hi),
 		   le32_to_cpu(command->src_addr_lo),
 		   le32_to_cpu(command->dst_addr_hi),
@@ -619,7 +645,7 @@ static int qed_dmae_execute_sub_operation(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 	}
 
-	cmd->length = cpu_to_le16((u16)length);
+	cmd->length_dw = cpu_to_le16((u16)length);
 
 	qed_dmae_post_command(p_hwfn, p_ptt);
 
@@ -742,17 +768,62 @@ int qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+int
+qed_dmae_grc2host(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, u32 grc_addr,
+		  dma_addr_t dest_addr, u32 size_in_dwords, u32 flags)
+{
+	u32 grc_addr_in_dw = grc_addr / sizeof(u32);
+	struct qed_dmae_params params;
+	int rc;
+
+	memset(&params, 0, sizeof(struct qed_dmae_params));
+	params.flags = flags;
+
+	mutex_lock(&p_hwfn->dmae_info.mutex);
+
+	rc = qed_dmae_execute_command(p_hwfn, p_ptt, grc_addr_in_dw,
+				      dest_addr, QED_DMAE_ADDRESS_GRC,
+				      QED_DMAE_ADDRESS_HOST_VIRT,
+				      size_in_dwords, &params);
+
+	mutex_unlock(&p_hwfn->dmae_info.mutex);
+
+	return rc;
+}
+
+int
+qed_dmae_host2host(struct qed_hwfn *p_hwfn,
+		   struct qed_ptt *p_ptt,
+		   dma_addr_t source_addr,
+		   dma_addr_t dest_addr,
+		   u32 size_in_dwords, struct qed_dmae_params *p_params)
+{
+	int rc;
+
+	mutex_lock(&(p_hwfn->dmae_info.mutex));
+
+	rc = qed_dmae_execute_command(p_hwfn, p_ptt, source_addr,
+				      dest_addr,
+				      QED_DMAE_ADDRESS_HOST_PHYS,
+				      QED_DMAE_ADDRESS_HOST_PHYS,
+				      size_in_dwords, p_params);
+
+	mutex_unlock(&(p_hwfn->dmae_info.mutex));
+
+	return rc;
+}
+
 u16 qed_get_qm_pq(struct qed_hwfn *p_hwfn,
-		  enum protocol_type proto,
-		  union qed_qm_pq_params *p_params)
+		  enum protocol_type proto, union qed_qm_pq_params *p_params)
 {
 	u16 pq_id = 0;
 
-	if ((proto == PROTOCOLID_CORE || proto == PROTOCOLID_ETH) &&
-	    !p_params) {
+	if ((proto == PROTOCOLID_CORE ||
+	     proto == PROTOCOLID_ETH ||
+	     proto == PROTOCOLID_ISCSI ||
+	     proto == PROTOCOLID_ROCE) && !p_params) {
 		DP_NOTICE(p_hwfn,
-			  "Protocol %d received NULL PQ params\n",
-			  proto);
+			  "Protocol %d received NULL PQ params\n", proto);
 		return 0;
 	}
 
@@ -760,11 +831,28 @@ u16 qed_get_qm_pq(struct qed_hwfn *p_hwfn,
 	case PROTOCOLID_CORE:
 		if (p_params->core.tc == LB_TC)
 			pq_id = p_hwfn->qm_info.pure_lb_pq;
+		else if (p_params->core.tc == OOO_LB_TC)
+			pq_id = p_hwfn->qm_info.ooo_pq;
 		else
 			pq_id = p_hwfn->qm_info.offload_pq;
 		break;
 	case PROTOCOLID_ETH:
 		pq_id = p_params->eth.tc;
+		if (p_params->eth.is_vf)
+			pq_id += p_hwfn->qm_info.vf_queues_offset +
+				 p_params->eth.vf_id;
+		break;
+	case PROTOCOLID_ISCSI:
+		if (p_params->iscsi.q_idx == 1)
+			pq_id = p_hwfn->qm_info.pure_ack_pq;
+		break;
+	case PROTOCOLID_ROCE:
+		if (p_params->roce.dcqcn)
+			pq_id = p_params->roce.qpid;
+		else
+			pq_id = p_hwfn->qm_info.offload_pq;
+		if (pq_id > p_hwfn->qm_info.num_pf_rls)
+			pq_id = p_hwfn->qm_info.offload_pq;
 		break;
 	default:
 		pq_id = 0;

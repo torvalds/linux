@@ -80,7 +80,8 @@ static struct musb *sunxi_musb;
 
 struct sunxi_glue {
 	struct device		*dev;
-	struct platform_device	*musb;
+	struct musb		*musb;
+	struct platform_device	*musb_pdev;
 	struct clk		*clk;
 	struct reset_control	*rst;
 	struct phy		*phy;
@@ -102,7 +103,7 @@ static void sunxi_musb_work(struct work_struct *work)
 		return;
 
 	if (test_and_clear_bit(SUNXI_MUSB_FL_HOSTMODE_PEND, &glue->flags)) {
-		struct musb *musb = platform_get_drvdata(glue->musb);
+		struct musb *musb = glue->musb;
 		unsigned long flags;
 		u8 devctl;
 
@@ -112,7 +113,7 @@ static void sunxi_musb_work(struct work_struct *work)
 		if (test_bit(SUNXI_MUSB_FL_HOSTMODE, &glue->flags)) {
 			set_bit(SUNXI_MUSB_FL_VBUS_ON, &glue->flags);
 			musb->xceiv->otg->default_a = 1;
-			musb->xceiv->otg->state = OTG_STATE_A_IDLE;
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			MUSB_HST_MODE(musb);
 			devctl |= MUSB_DEVCTL_SESSION;
 		} else {
@@ -145,10 +146,12 @@ static void sunxi_musb_set_vbus(struct musb *musb, int is_on)
 {
 	struct sunxi_glue *glue = dev_get_drvdata(musb->controller->parent);
 
-	if (is_on)
+	if (is_on) {
 		set_bit(SUNXI_MUSB_FL_VBUS_ON, &glue->flags);
-	else
+		musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
+	} else {
 		clear_bit(SUNXI_MUSB_FL_VBUS_ON, &glue->flags);
+	}
 
 	schedule_work(&glue->work);
 }
@@ -253,25 +256,14 @@ static int sunxi_musb_init(struct musb *musb)
 	writeb(SUNXI_MUSB_VEND0_PIO_MODE, musb->mregs + SUNXI_MUSB_VEND0);
 
 	/* Register notifier before calling phy_init() */
-	if (musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE) {
-		ret = extcon_register_notifier(glue->extcon, EXTCON_USB_HOST,
-					       &glue->host_nb);
-		if (ret)
-			goto error_reset_assert;
-	}
+	ret = extcon_register_notifier(glue->extcon, EXTCON_USB_HOST,
+				       &glue->host_nb);
+	if (ret)
+		goto error_reset_assert;
 
 	ret = phy_init(glue->phy);
 	if (ret)
 		goto error_unregister_notifier;
-
-	if (musb->port_mode == MUSB_PORT_MODE_HOST) {
-		ret = phy_power_on(glue->phy);
-		if (ret)
-			goto error_phy_exit;
-		set_bit(SUNXI_MUSB_FL_PHY_ON, &glue->flags);
-		/* Stop musb work from turning vbus off again */
-		set_bit(SUNXI_MUSB_FL_VBUS_ON, &glue->flags);
-	}
 
 	musb->isr = sunxi_musb_interrupt;
 
@@ -280,12 +272,9 @@ static int sunxi_musb_init(struct musb *musb)
 
 	return 0;
 
-error_phy_exit:
-	phy_exit(glue->phy);
 error_unregister_notifier:
-	if (musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
-		extcon_unregister_notifier(glue->extcon, EXTCON_USB_HOST,
-					   &glue->host_nb);
+	extcon_unregister_notifier(glue->extcon, EXTCON_USB_HOST,
+				   &glue->host_nb);
 error_reset_assert:
 	if (test_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags))
 		reset_control_assert(glue->rst);
@@ -309,9 +298,8 @@ static int sunxi_musb_exit(struct musb *musb)
 
 	phy_exit(glue->phy);
 
-	if (musb->port_mode == MUSB_PORT_MODE_DUAL_ROLE)
-		extcon_unregister_notifier(glue->extcon, EXTCON_USB_HOST,
-					   &glue->host_nb);
+	extcon_unregister_notifier(glue->extcon, EXTCON_USB_HOST,
+				   &glue->host_nb);
 
 	if (test_bit(SUNXI_MUSB_FL_HAS_RESET, &glue->flags))
 		reset_control_assert(glue->rst);
@@ -327,6 +315,8 @@ static void sunxi_musb_enable(struct musb *musb)
 {
 	struct sunxi_glue *glue = dev_get_drvdata(musb->controller->parent);
 
+	glue->musb = musb;
+
 	/* musb_core does not call us in a balanced manner */
 	if (test_and_set_bit(SUNXI_MUSB_FL_ENABLED, &glue->flags))
 		return;
@@ -341,13 +331,13 @@ static void sunxi_musb_disable(struct musb *musb)
 	clear_bit(SUNXI_MUSB_FL_ENABLED, &glue->flags);
 }
 
-struct dma_controller *sunxi_musb_dma_controller_create(struct musb *musb,
-						    void __iomem *base)
+static struct dma_controller *
+sunxi_musb_dma_controller_create(struct musb *musb, void __iomem *base)
 {
 	return NULL;
 }
 
-void sunxi_musb_dma_controller_destroy(struct dma_controller *c)
+static void sunxi_musb_dma_controller_destroy(struct dma_controller *c)
 {
 }
 
@@ -624,10 +614,6 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
-	if (!glue)
-		return -ENOMEM;
-
 	memset(&pdata, 0, sizeof(pdata));
 	switch (usb_get_dr_mode(&pdev->dev)) {
 #if defined CONFIG_USB_MUSB_DUAL_ROLE || defined CONFIG_USB_MUSB_HOST
@@ -635,15 +621,13 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 		pdata.mode = MUSB_PORT_MODE_HOST;
 		break;
 #endif
+#if defined CONFIG_USB_MUSB_DUAL_ROLE || defined CONFIG_USB_MUSB_GADGET
+	case USB_DR_MODE_PERIPHERAL:
+		pdata.mode = MUSB_PORT_MODE_GADGET;
+		break;
+#endif
 #ifdef CONFIG_USB_MUSB_DUAL_ROLE
 	case USB_DR_MODE_OTG:
-		glue->extcon = extcon_get_edev_by_phandle(&pdev->dev, 0);
-		if (IS_ERR(glue->extcon)) {
-			if (PTR_ERR(glue->extcon) == -EPROBE_DEFER)
-				return -EPROBE_DEFER;
-			dev_err(&pdev->dev, "Invalid or missing extcon\n");
-			return PTR_ERR(glue->extcon);
-		}
 		pdata.mode = MUSB_PORT_MODE_DUAL_ROLE;
 		break;
 #endif
@@ -653,6 +637,10 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 	}
 	pdata.platform_ops	= &sunxi_musb_ops;
 	pdata.config		= &sunxi_musb_hdrc_config;
+
+	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
+	if (!glue)
+		return -ENOMEM;
 
 	glue->dev = &pdev->dev;
 	INIT_WORK(&glue->work, sunxi_musb_work);
@@ -685,6 +673,14 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 				PTR_ERR(glue->rst));
 			return PTR_ERR(glue->rst);
 		}
+	}
+
+	glue->extcon = extcon_get_edev_by_phandle(&pdev->dev, 0);
+	if (IS_ERR(glue->extcon)) {
+		if (PTR_ERR(glue->extcon) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		dev_err(&pdev->dev, "Invalid or missing extcon\n");
+		return PTR_ERR(glue->extcon);
 	}
 
 	glue->phy = devm_phy_get(&pdev->dev, "usb");
@@ -721,9 +717,9 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 	pinfo.data	= &pdata;
 	pinfo.size_data = sizeof(pdata);
 
-	glue->musb = platform_device_register_full(&pinfo);
-	if (IS_ERR(glue->musb)) {
-		ret = PTR_ERR(glue->musb);
+	glue->musb_pdev = platform_device_register_full(&pinfo);
+	if (IS_ERR(glue->musb_pdev)) {
+		ret = PTR_ERR(glue->musb_pdev);
 		dev_err(&pdev->dev, "Error registering musb dev: %d\n", ret);
 		goto err_unregister_usb_phy;
 	}
@@ -740,7 +736,7 @@ static int sunxi_musb_remove(struct platform_device *pdev)
 	struct sunxi_glue *glue = platform_get_drvdata(pdev);
 	struct platform_device *usb_phy = glue->usb_phy;
 
-	platform_device_unregister(glue->musb); /* Frees glue ! */
+	platform_device_unregister(glue->musb_pdev);
 	usb_phy_generic_unregister(usb_phy);
 
 	return 0;

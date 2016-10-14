@@ -54,16 +54,21 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 	const void *start = *p;
 	int i, j, n;
 	int err = -EINVAL;
-	u16 version;
+	u8 mdsmap_v, mdsmap_cv;
 
 	m = kzalloc(sizeof(*m), GFP_NOFS);
 	if (m == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	ceph_decode_16_safe(p, end, version, bad);
-	if (version > 3) {
-		pr_warn("got mdsmap version %d > 3, failing", version);
-		goto bad;
+	ceph_decode_need(p, end, 1 + 1, bad);
+	mdsmap_v = ceph_decode_8(p);
+	mdsmap_cv = ceph_decode_8(p);
+	if (mdsmap_v >= 4) {
+	       u32 mdsmap_len;
+	       ceph_decode_32_safe(p, end, mdsmap_len, bad);
+	       if (end < *p + mdsmap_len)
+		       goto bad;
+	       end = *p + mdsmap_len;
 	}
 
 	ceph_decode_need(p, end, 8*sizeof(u32) + sizeof(u64), bad);
@@ -87,16 +92,29 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		u32 namelen;
 		s32 mds, inc, state;
 		u64 state_seq;
-		u8 infoversion;
+		u8 info_v;
+		void *info_end = NULL;
 		struct ceph_entity_addr addr;
 		u32 num_export_targets;
 		void *pexport_targets = NULL;
 		struct ceph_timespec laggy_since;
 		struct ceph_mds_info *info;
 
-		ceph_decode_need(p, end, sizeof(u64)*2 + 1 + sizeof(u32), bad);
+		ceph_decode_need(p, end, sizeof(u64) + 1, bad);
 		global_id = ceph_decode_64(p);
-		infoversion = ceph_decode_8(p);
+		info_v= ceph_decode_8(p);
+		if (info_v >= 4) {
+			u32 info_len;
+			u8 info_cv;
+			ceph_decode_need(p, end, 1 + sizeof(u32), bad);
+			info_cv = ceph_decode_8(p);
+			info_len = ceph_decode_32(p);
+			info_end = *p + info_len;
+			if (info_end > end)
+				goto bad;
+		}
+
+		ceph_decode_need(p, end, sizeof(u64) + sizeof(u32), bad);
 		*p += sizeof(u64);
 		namelen = ceph_decode_32(p);  /* skip mds name */
 		*p += namelen;
@@ -115,12 +133,18 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		*p += sizeof(u32);
 		ceph_decode_32_safe(p, end, namelen, bad);
 		*p += namelen;
-		if (infoversion >= 2) {
+		if (info_v >= 2) {
 			ceph_decode_32_safe(p, end, num_export_targets, bad);
 			pexport_targets = *p;
 			*p += num_export_targets * sizeof(u32);
 		} else {
 			num_export_targets = 0;
+		}
+
+		if (info_end && *p != info_end) {
+			if (*p > info_end)
+				goto bad;
+			*p = info_end;
 		}
 
 		dout("mdsmap_decode %d/%d %lld mds%d.%d %s %s\n",
@@ -163,6 +187,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 	m->m_cas_pg_pool = ceph_decode_64(p);
 
 	/* ok, we don't care about the rest. */
+	*p = end;
 	dout("mdsmap_decode success epoch %u\n", m->m_epoch);
 	return m;
 

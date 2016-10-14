@@ -176,7 +176,7 @@ static inline void elf_common_init(struct thread_struct *t,
 	regs->si = regs->di = regs->bp = 0;
 	regs->r8 = regs->r9 = regs->r10 = regs->r11 = 0;
 	regs->r12 = regs->r13 = regs->r14 = regs->r15 = 0;
-	t->fs = t->gs = 0;
+	t->fsbase = t->gsbase = 0;
 	t->fsindex = t->gsindex = 0;
 	t->ds = t->es = ds;
 }
@@ -226,8 +226,8 @@ do {								\
 	(pr_reg)[18] = (regs)->flags;				\
 	(pr_reg)[19] = (regs)->sp;				\
 	(pr_reg)[20] = (regs)->ss;				\
-	(pr_reg)[21] = current->thread.fs;			\
-	(pr_reg)[22] = current->thread.gs;			\
+	(pr_reg)[21] = current->thread.fsbase;			\
+	(pr_reg)[22] = current->thread.gsbase;			\
 	asm("movl %%ds,%0" : "=r" (v)); (pr_reg)[23] = v;	\
 	asm("movl %%es,%0" : "=r" (v)); (pr_reg)[24] = v;	\
 	asm("movl %%fs,%0" : "=r" (v)); (pr_reg)[25] = v;	\
@@ -344,8 +344,8 @@ extern int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
  */
 static inline int mmap_is_ia32(void)
 {
-	return config_enabled(CONFIG_X86_32) ||
-	       (config_enabled(CONFIG_COMPAT) &&
+	return IS_ENABLED(CONFIG_X86_32) ||
+	       (IS_ENABLED(CONFIG_COMPAT) &&
 		test_thread_flag(TIF_ADDR32));
 }
 

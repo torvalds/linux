@@ -36,6 +36,9 @@
 #include <linux/mmc/sd.h>
 #include <linux/mmc/slot-gpio.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/mmc.h>
+
 #include "core.h"
 #include "bus.h"
 #include "host.h"
@@ -140,6 +143,8 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 			cmd->retries = 0;
 	}
 
+	trace_mmc_request_done(host, mrq);
+
 	if (err && cmd->retries && !mmc_card_removed(host->card)) {
 		/*
 		 * Request starter must handle retries - see
@@ -214,6 +219,8 @@ static void __mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 			return;
 		}
 	}
+
+	trace_mmc_request_start(host, mrq);
 
 	host->ops->request(host, mrq);
 }
@@ -868,11 +875,11 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 	/*
 	 * Some cards require longer data read timeout than indicated in CSD.
 	 * Address this by setting the read timeout to a "reasonably high"
-	 * value. For the cards tested, 300ms has proven enough. If necessary,
+	 * value. For the cards tested, 600ms has proven enough. If necessary,
 	 * this value can be increased if other problematic cards require this.
 	 */
 	if (mmc_card_long_read_time(card) && data->flags & MMC_DATA_READ) {
-		data->timeout_ns = 300000000;
+		data->timeout_ns = 600000000;
 		data->timeout_clks = 0;
 	}
 
@@ -1120,6 +1127,15 @@ void mmc_set_initial_state(struct mmc_host *host)
 	host->ios.bus_width = MMC_BUS_WIDTH_1;
 	host->ios.timing = MMC_TIMING_LEGACY;
 	host->ios.drv_type = 0;
+	host->ios.enhanced_strobe = false;
+
+	/*
+	 * Make sure we are in non-enhanced strobe mode before we
+	 * actually enable it in ext_csd.
+	 */
+	if ((host->caps2 & MMC_CAP2_HS400_ES) &&
+	     host->ops->hs400_enhanced_strobe)
+		host->ops->hs400_enhanced_strobe(host, &host->ios);
 
 	mmc_set_ios(host);
 }
@@ -1918,17 +1934,15 @@ void mmc_init_erase(struct mmc_card *card)
 	 * to that size and alignment.
 	 *
 	 * For SD cards that define Allocation Unit size, limit erases to one
-	 * Allocation Unit at a time.  For MMC cards that define High Capacity
-	 * Erase Size, whether it is switched on or not, limit to that size.
-	 * Otherwise just have a stab at a good value.  For modern cards it
-	 * will end up being 4MiB.  Note that if the value is too small, it
-	 * can end up taking longer to erase.
+	 * Allocation Unit at a time.
+	 * For MMC, have a stab at ai good value and for modern cards it will
+	 * end up being 4MiB. Note that if the value is too small, it can end
+	 * up taking longer to erase. Also note, erase_size is already set to
+	 * High Capacity Erase Size if available when this function is called.
 	 */
 	if (mmc_card_sd(card) && card->ssr.au) {
 		card->pref_erase = card->ssr.au;
 		card->erase_shift = ffs(card->ssr.au) - 1;
-	} else if (card->ext_csd.hc_erase_size) {
-		card->pref_erase = card->ext_csd.hc_erase_size;
 	} else if (card->erase_size) {
 		sz = (card->csd.capacity << (card->csd.read_blkbits - 9)) >> 11;
 		if (sz < 128)
@@ -2053,7 +2067,8 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 			unsigned int to, unsigned int arg)
 {
 	struct mmc_command cmd = {0};
-	unsigned int qty = 0;
+	unsigned int qty = 0, busy_timeout = 0;
+	bool use_r1b_resp = false;
 	unsigned long timeout;
 	int err;
 
@@ -2121,8 +2136,22 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 	memset(&cmd, 0, sizeof(struct mmc_command));
 	cmd.opcode = MMC_ERASE;
 	cmd.arg = arg;
-	cmd.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
-	cmd.busy_timeout = mmc_erase_timeout(card, arg, qty);
+	busy_timeout = mmc_erase_timeout(card, arg, qty);
+	/*
+	 * If the host controller supports busy signalling and the timeout for
+	 * the erase operation does not exceed the max_busy_timeout, we should
+	 * use R1B response. Or we need to prevent the host from doing hw busy
+	 * detection, which is done by converting to a R1 response instead.
+	 */
+	if (card->host->max_busy_timeout &&
+	    busy_timeout > card->host->max_busy_timeout) {
+		cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
+	} else {
+		cmd.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
+		cmd.busy_timeout = busy_timeout;
+		use_r1b_resp = true;
+	}
+
 	err = mmc_wait_for_cmd(card->host, &cmd, 0);
 	if (err) {
 		pr_err("mmc_erase: erase error %d, status %#x\n",
@@ -2134,7 +2163,14 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 	if (mmc_host_is_spi(card->host))
 		goto out;
 
-	timeout = jiffies + msecs_to_jiffies(MMC_CORE_TIMEOUT_MS);
+	/*
+	 * In case of when R1B + MMC_CAP_WAIT_WHILE_BUSY is used, the polling
+	 * shall be avoided.
+	 */
+	if ((card->host->caps & MMC_CAP_WAIT_WHILE_BUSY) && use_r1b_resp)
+		goto out;
+
+	timeout = jiffies + msecs_to_jiffies(busy_timeout);
 	do {
 		memset(&cmd, 0, sizeof(struct mmc_command));
 		cmd.opcode = MMC_SEND_STATUS;
@@ -2314,23 +2350,41 @@ static unsigned int mmc_do_calc_max_discard(struct mmc_card *card,
 					    unsigned int arg)
 {
 	struct mmc_host *host = card->host;
-	unsigned int max_discard, x, y, qty = 0, max_qty, timeout;
+	unsigned int max_discard, x, y, qty = 0, max_qty, min_qty, timeout;
 	unsigned int last_timeout = 0;
 
-	if (card->erase_shift)
+	if (card->erase_shift) {
 		max_qty = UINT_MAX >> card->erase_shift;
-	else if (mmc_card_sd(card))
+		min_qty = card->pref_erase >> card->erase_shift;
+	} else if (mmc_card_sd(card)) {
 		max_qty = UINT_MAX;
-	else
+		min_qty = card->pref_erase;
+	} else {
 		max_qty = UINT_MAX / card->erase_size;
+		min_qty = card->pref_erase / card->erase_size;
+	}
 
-	/* Find the largest qty with an OK timeout */
+	/*
+	 * We should not only use 'host->max_busy_timeout' as the limitation
+	 * when deciding the max discard sectors. We should set a balance value
+	 * to improve the erase speed, and it can not get too long timeout at
+	 * the same time.
+	 *
+	 * Here we set 'card->pref_erase' as the minimal discard sectors no
+	 * matter what size of 'host->max_busy_timeout', but if the
+	 * 'host->max_busy_timeout' is large enough for more discard sectors,
+	 * then we can continue to increase the max discard sectors until we
+	 * get a balance value.
+	 */
 	do {
 		y = 0;
 		for (x = 1; x && x <= max_qty && max_qty - x >= qty; x <<= 1) {
 			timeout = mmc_erase_timeout(card, arg, qty + x);
-			if (timeout > host->max_busy_timeout)
+
+			if (qty + x > min_qty &&
+			    timeout > host->max_busy_timeout)
 				break;
+
 			if (timeout < last_timeout)
 				break;
 			last_timeout = timeout;
@@ -2449,8 +2503,9 @@ int mmc_hw_reset(struct mmc_host *host)
 	ret = host->bus_ops->reset(host);
 	mmc_bus_put(host);
 
-	if (ret != -EOPNOTSUPP)
-		pr_warn("%s: tried to reset card\n", mmc_hostname(host));
+	if (ret)
+		pr_warn("%s: tried to reset card, got error %d\n",
+			mmc_hostname(host), ret);
 
 	return ret;
 }
@@ -2483,17 +2538,21 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 
 	mmc_go_idle(host);
 
-	mmc_send_if_cond(host, host->ocr_avail);
+	if (!(host->caps2 & MMC_CAP2_NO_SD))
+		mmc_send_if_cond(host, host->ocr_avail);
 
 	/* Order's important: probe SDIO, then SD, then MMC */
 	if (!(host->caps2 & MMC_CAP2_NO_SDIO))
 		if (!mmc_attach_sdio(host))
 			return 0;
 
-	if (!mmc_attach_sd(host))
-		return 0;
-	if (!mmc_attach_mmc(host))
-		return 0;
+	if (!(host->caps2 & MMC_CAP2_NO_SD))
+		if (!mmc_attach_sd(host))
+			return 0;
+
+	if (!(host->caps2 & MMC_CAP2_NO_MMC))
+		if (!mmc_attach_mmc(host))
+			return 0;
 
 	mmc_power_off(host);
 	return -EIO;

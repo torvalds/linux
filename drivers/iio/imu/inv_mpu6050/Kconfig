@@ -13,10 +13,8 @@ config INV_MPU6050_I2C
 	select INV_MPU6050_IIO
 	select REGMAP_I2C
 	help
-	  This driver supports the Invensense MPU6050 devices.
-	  This driver can also support MPU6500 in MPU6050 compatibility mode
-	  and also in MPU6500 mode with some limitations.
-	  It is a gyroscope/accelerometer combo device.
+	  This driver supports the Invensense MPU6050/6500/9150 and ICM20608
+	  motion tracking devices over I2C.
 	  This driver can be built as a module. The module will be called
 	  inv-mpu6050-i2c.
 
@@ -26,7 +24,7 @@ config INV_MPU6050_SPI
 	select INV_MPU6050_IIO
 	select REGMAP_SPI
 	help
-	  This driver supports the Invensense MPU6050 devices.
-	  It is a gyroscope/accelerometer combo device.
+	  This driver supports the Invensense MPU6050/6500/9150 and ICM20608
+	  motion tracking devices over SPI.
 	  This driver can be built as a module. The module will be called
 	  inv-mpu6050-spi.

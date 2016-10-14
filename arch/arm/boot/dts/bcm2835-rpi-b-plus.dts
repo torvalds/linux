@@ -1,6 +1,7 @@
 /dts-v1/;
 #include "bcm2835.dtsi"
 #include "bcm2835-rpi.dtsi"
+#include "bcm283x-rpi-smsc9514.dtsi"
 
 / {
 	compatible = "raspberrypi,model-b-plus", "brcm,bcm2835";
@@ -28,4 +29,8 @@
 		brcm,pins = <18 19 20 21>;
 		brcm,function = <BCM2835_FSEL_ALT0>;
 	};
+};
+
+&hdmi {
+	hpd-gpios = <&gpio 46 GPIO_ACTIVE_LOW>;
 };

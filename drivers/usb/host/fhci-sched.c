@@ -288,7 +288,7 @@ static int scan_ed_list(struct fhci_usb *usb,
 	list_for_each_entry(ed, list, node) {
 		td = ed->td_head;
 
-		if (!td || (td && td->status == USB_TD_INPROGRESS))
+		if (!td || td->status == USB_TD_INPROGRESS)
 			continue;
 
 		if (ed->state != FHCI_ED_OPER) {

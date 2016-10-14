@@ -39,7 +39,7 @@ const struct file_operations autofs4_root_operations = {
 	.open		= dcache_dir_open,
 	.release	= dcache_dir_close,
 	.read		= generic_read_dir,
-	.iterate	= dcache_readdir,
+	.iterate_shared	= dcache_readdir,
 	.llseek		= dcache_dir_lseek,
 	.unlocked_ioctl	= autofs4_root_ioctl,
 #ifdef CONFIG_COMPAT
@@ -51,7 +51,7 @@ const struct file_operations autofs4_dir_operations = {
 	.open		= autofs4_dir_open,
 	.release	= dcache_dir_close,
 	.read		= generic_read_dir,
-	.iterate	= dcache_readdir,
+	.iterate_shared	= dcache_readdir,
 	.llseek		= dcache_dir_lseek,
 };
 
@@ -159,7 +159,7 @@ static struct dentry *autofs4_lookup_active(struct dentry *dentry)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct dentry *parent = dentry->d_parent;
-	struct qstr *name = &dentry->d_name;
+	const struct qstr *name = &dentry->d_name;
 	unsigned int len = name->len;
 	unsigned int hash = name->hash;
 	const unsigned char *str = name->name;
@@ -172,7 +172,7 @@ static struct dentry *autofs4_lookup_active(struct dentry *dentry)
 	list_for_each(p, head) {
 		struct autofs_info *ino;
 		struct dentry *active;
-		struct qstr *qstr;
+		const struct qstr *qstr;
 
 		ino = list_entry(p, struct autofs_info, active);
 		active = ino->dentry;
@@ -214,7 +214,7 @@ static struct dentry *autofs4_lookup_expiring(struct dentry *dentry,
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct dentry *parent = dentry->d_parent;
-	struct qstr *name = &dentry->d_name;
+	const struct qstr *name = &dentry->d_name;
 	unsigned int len = name->len;
 	unsigned int hash = name->hash;
 	const unsigned char *str = name->name;
@@ -227,7 +227,7 @@ static struct dentry *autofs4_lookup_expiring(struct dentry *dentry,
 	list_for_each(p, head) {
 		struct autofs_info *ino;
 		struct dentry *expiring;
-		struct qstr *qstr;
+		const struct qstr *qstr;
 
 		if (rcu_walk) {
 			spin_unlock(&sbi->lookup_lock);
@@ -458,7 +458,7 @@ static int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
 		 */
 		struct inode *inode;
 
-		if (ino->flags & (AUTOFS_INF_EXPIRING | AUTOFS_INF_NO_RCU))
+		if (ino->flags & AUTOFS_INF_WANT_EXPIRE)
 			return 0;
 		if (d_mountpoint(dentry))
 			return 0;

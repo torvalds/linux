@@ -11,8 +11,10 @@
  */
 
 #include <linux/module.h>
+#include <linux/mfd/syscon.h>
 #include <linux/delay.h>
 #include <linux/of_gpio.h>
+#include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -22,6 +24,11 @@
 #include "rockchip_i2s.h"
 
 #define DRV_NAME "rockchip-i2s"
+
+struct rk_i2s_pins {
+	u32 reg_offset;
+	u32 shift;
+};
 
 struct rk_i2s_dev {
 	struct device *dev;
@@ -33,8 +40,17 @@ struct rk_i2s_dev {
 	struct snd_dmaengine_dai_dma_data playback_dma_data;
 
 	struct regmap *regmap;
+	struct regmap *grf;
 
+/*
+ * Used to indicate the tx/rx status.
+ * I2S controller hopes to start the tx and rx together,
+ * also to stop them when they are both try to stop.
+*/
+	bool tx_start;
+	bool rx_start;
 	bool is_master_mode;
+	const struct rk_i2s_pins *pins;
 };
 
 static int i2s_runtime_suspend(struct device *dev)
@@ -75,29 +91,37 @@ static void rockchip_snd_txctrl(struct rk_i2s_dev *i2s, int on)
 				   I2S_DMACR_TDE_ENABLE, I2S_DMACR_TDE_ENABLE);
 
 		regmap_update_bits(i2s->regmap, I2S_XFER,
-				   I2S_XFER_TXS_START,
-				   I2S_XFER_TXS_START);
+				   I2S_XFER_TXS_START | I2S_XFER_RXS_START,
+				   I2S_XFER_TXS_START | I2S_XFER_RXS_START);
+
+		i2s->tx_start = true;
 	} else {
+		i2s->tx_start = false;
+
 		regmap_update_bits(i2s->regmap, I2S_DMACR,
 				   I2S_DMACR_TDE_ENABLE, I2S_DMACR_TDE_DISABLE);
 
-		regmap_update_bits(i2s->regmap, I2S_XFER,
-				   I2S_XFER_TXS_START,
-				   I2S_XFER_TXS_STOP);
+		if (!i2s->rx_start) {
+			regmap_update_bits(i2s->regmap, I2S_XFER,
+					   I2S_XFER_TXS_START |
+					   I2S_XFER_RXS_START,
+					   I2S_XFER_TXS_STOP |
+					   I2S_XFER_RXS_STOP);
 
-		regmap_update_bits(i2s->regmap, I2S_CLR,
-				   I2S_CLR_TXC,
-				   I2S_CLR_TXC);
+			regmap_update_bits(i2s->regmap, I2S_CLR,
+					   I2S_CLR_TXC | I2S_CLR_RXC,
+					   I2S_CLR_TXC | I2S_CLR_RXC);
 
-		regmap_read(i2s->regmap, I2S_CLR, &val);
-
-		/* Should wait for clear operation to finish */
-		while (val & I2S_CLR_TXC) {
 			regmap_read(i2s->regmap, I2S_CLR, &val);
-			retry--;
-			if (!retry) {
-				dev_warn(i2s->dev, "fail to clear\n");
-				break;
+
+			/* Should wait for clear operation to finish */
+			while (val) {
+				regmap_read(i2s->regmap, I2S_CLR, &val);
+				retry--;
+				if (!retry) {
+					dev_warn(i2s->dev, "fail to clear\n");
+					break;
+				}
 			}
 		}
 	}
@@ -113,29 +137,37 @@ static void rockchip_snd_rxctrl(struct rk_i2s_dev *i2s, int on)
 				   I2S_DMACR_RDE_ENABLE, I2S_DMACR_RDE_ENABLE);
 
 		regmap_update_bits(i2s->regmap, I2S_XFER,
-				   I2S_XFER_RXS_START,
-				   I2S_XFER_RXS_START);
+				   I2S_XFER_TXS_START | I2S_XFER_RXS_START,
+				   I2S_XFER_TXS_START | I2S_XFER_RXS_START);
+
+		i2s->rx_start = true;
 	} else {
+		i2s->rx_start = false;
+
 		regmap_update_bits(i2s->regmap, I2S_DMACR,
 				   I2S_DMACR_RDE_ENABLE, I2S_DMACR_RDE_DISABLE);
 
-		regmap_update_bits(i2s->regmap, I2S_XFER,
-				   I2S_XFER_RXS_START,
-				   I2S_XFER_RXS_STOP);
+		if (!i2s->tx_start) {
+			regmap_update_bits(i2s->regmap, I2S_XFER,
+					   I2S_XFER_TXS_START |
+					   I2S_XFER_RXS_START,
+					   I2S_XFER_TXS_STOP |
+					   I2S_XFER_RXS_STOP);
 
-		regmap_update_bits(i2s->regmap, I2S_CLR,
-				   I2S_CLR_RXC,
-				   I2S_CLR_RXC);
+			regmap_update_bits(i2s->regmap, I2S_CLR,
+					   I2S_CLR_TXC | I2S_CLR_RXC,
+					   I2S_CLR_TXC | I2S_CLR_RXC);
 
-		regmap_read(i2s->regmap, I2S_CLR, &val);
-
-		/* Should wait for clear operation to finish */
-		while (val & I2S_CLR_RXC) {
 			regmap_read(i2s->regmap, I2S_CLR, &val);
-			retry--;
-			if (!retry) {
-				dev_warn(i2s->dev, "fail to clear\n");
-				break;
+
+			/* Should wait for clear operation to finish */
+			while (val) {
+				regmap_read(i2s->regmap, I2S_CLR, &val);
+				retry--;
+				if (!retry) {
+					dev_warn(i2s->dev, "fail to clear\n");
+					break;
+				}
 			}
 		}
 	}
@@ -277,14 +309,38 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 				   I2S_TXCR_VDW_MASK | I2S_TXCR_CSR_MASK,
 				   val);
 
+	if (!IS_ERR(i2s->grf) && i2s->pins) {
+		regmap_read(i2s->regmap, I2S_TXCR, &val);
+		val &= I2S_TXCR_CSR_MASK;
+
+		switch (val) {
+		case I2S_CHN_4:
+			val = I2S_IO_4CH_OUT_6CH_IN;
+			break;
+		case I2S_CHN_6:
+			val = I2S_IO_6CH_OUT_4CH_IN;
+			break;
+		case I2S_CHN_8:
+			val = I2S_IO_8CH_OUT_2CH_IN;
+			break;
+		default:
+			val = I2S_IO_2CH_OUT_8CH_IN;
+			break;
+		}
+
+		val <<= i2s->pins->shift;
+		val |= (I2S_IO_DIRECTION_MASK << i2s->pins->shift) << 16;
+		regmap_write(i2s->grf, i2s->pins->reg_offset, val);
+	}
+
 	regmap_update_bits(i2s->regmap, I2S_DMACR, I2S_DMACR_TDL_MASK,
 			   I2S_DMACR_TDL(16));
 	regmap_update_bits(i2s->regmap, I2S_DMACR, I2S_DMACR_RDL_MASK,
 			   I2S_DMACR_RDL(16));
 
 	val = I2S_CKR_TRCM_TXRX;
-	if (dai->driver->symmetric_rates || rtd->dai_link->symmetric_rates)
-		val = I2S_CKR_TRCM_TXSHARE;
+	if (dai->driver->symmetric_rates && rtd->dai_link->symmetric_rates)
+		val = I2S_CKR_TRCM_TXONLY;
 
 	regmap_update_bits(i2s->regmap, I2S_CKR,
 			   I2S_CKR_TRCM_MASK,
@@ -462,9 +518,23 @@ static const struct regmap_config rockchip_i2s_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
+static const struct rk_i2s_pins rk3399_i2s_pins = {
+	.reg_offset = 0xe220,
+	.shift = 11,
+};
+
+static const struct of_device_id rockchip_i2s_match[] = {
+	{ .compatible = "rockchip,rk3066-i2s", },
+	{ .compatible = "rockchip,rk3188-i2s", },
+	{ .compatible = "rockchip,rk3288-i2s", },
+	{ .compatible = "rockchip,rk3399-i2s", .data = &rk3399_i2s_pins },
+	{},
+};
+
 static int rockchip_i2s_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
+	const struct of_device_id *of_id;
 	struct rk_i2s_dev *i2s;
 	struct snd_soc_dai_driver *soc_dai;
 	struct resource *res;
@@ -476,6 +546,17 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 	if (!i2s) {
 		dev_err(&pdev->dev, "Can't allocate rk_i2s_dev\n");
 		return -ENOMEM;
+	}
+
+	i2s->dev = &pdev->dev;
+
+	i2s->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
+	if (!IS_ERR(i2s->grf)) {
+		of_id = of_match_device(rockchip_i2s_match, &pdev->dev);
+		if (!of_id || !of_id->data)
+			return -EINVAL;
+
+		i2s->pins = of_id->data;
 	}
 
 	/* try to prepare related clocks */
@@ -517,7 +598,6 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 	i2s->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	i2s->capture_dma_data.maxburst = 4;
 
-	i2s->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, i2s);
 
 	pm_runtime_enable(&pdev->dev);
@@ -582,14 +662,6 @@ static int rockchip_i2s_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id rockchip_i2s_match[] = {
-	{ .compatible = "rockchip,rk3066-i2s", },
-	{ .compatible = "rockchip,rk3188-i2s", },
-	{ .compatible = "rockchip,rk3288-i2s", },
-	{ .compatible = "rockchip,rk3399-i2s", },
-	{},
-};
 
 static const struct dev_pm_ops rockchip_i2s_pm_ops = {
 	SET_RUNTIME_PM_OPS(i2s_runtime_suspend, i2s_runtime_resume,

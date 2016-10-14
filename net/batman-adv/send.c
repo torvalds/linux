@@ -20,12 +20,14 @@
 
 #include <linux/atomic.h>
 #include <linux/byteorder/generic.h>
+#include <linux/errno.h>
 #include <linux/etherdevice.h>
 #include <linux/fs.h>
-#include <linux/if_ether.h>
 #include <linux/if.h>
+#include <linux/if_ether.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/printk.h>
@@ -41,6 +43,7 @@
 #include "fragmentation.h"
 #include "gateway_client.h"
 #include "hard-interface.h"
+#include "log.h"
 #include "network-coding.h"
 #include "originator.h"
 #include "routing.h"
@@ -70,6 +73,7 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 {
 	struct batadv_priv *bat_priv;
 	struct ethhdr *ethhdr;
+	int ret;
 
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
@@ -107,8 +111,15 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 	/* dev_queue_xmit() returns a negative result on error.	 However on
 	 * congestion and traffic shaping, it drops and returns NET_XMIT_DROP
 	 * (which is > 0). This will not be treated as an error.
+	 *
+	 * a negative value cannot be returned because it could be interepreted
+	 * as not consumed skb by callers of batadv_send_skb_to_orig.
 	 */
-	return dev_queue_xmit(skb);
+	ret = dev_queue_xmit(skb);
+	if (ret < 0)
+		ret = NET_XMIT_DROP;
+
+	return ret;
 send_skb_err:
 	kfree_skb(skb);
 	return NET_XMIT_DROP;
@@ -154,8 +165,11 @@ int batadv_send_unicast_skb(struct sk_buff *skb,
  * host, NULL can be passed as recv_if and no interface alternating is
  * attempted.
  *
- * Return: NET_XMIT_SUCCESS on success, NET_XMIT_DROP on failure, or
- * NET_XMIT_POLICED if the skb is buffered for later transmit.
+ * Return: -1 on failure (and the skb is not consumed), -EINPROGRESS if the
+ * skb is buffered for later transmit or the NET_XMIT status returned by the
+ * lower routine if the packet has been passed down.
+ *
+ * If the returning value is not -1 the skb has been consumed.
  */
 int batadv_send_skb_to_orig(struct sk_buff *skb,
 			    struct batadv_orig_node *orig_node,
@@ -163,7 +177,7 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 {
 	struct batadv_priv *bat_priv = orig_node->bat_priv;
 	struct batadv_neigh_node *neigh_node;
-	int ret = NET_XMIT_DROP;
+	int ret = -1;
 
 	/* batadv_find_router() increases neigh_nodes refcount if found. */
 	neigh_node = batadv_find_router(bat_priv, orig_node, recv_if);
@@ -176,8 +190,7 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 	if (atomic_read(&bat_priv->fragmentation) &&
 	    skb->len > neigh_node->if_incoming->net_dev->mtu) {
 		/* Fragment and send packet. */
-		if (batadv_frag_send_packet(skb, orig_node, neigh_node))
-			ret = NET_XMIT_SUCCESS;
+		ret = batadv_frag_send_packet(skb, orig_node, neigh_node);
 
 		goto out;
 	}
@@ -186,12 +199,10 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 	 * (i.e. being forwarded). If the packet originates from this node or if
 	 * network coding fails, then send the packet as usual.
 	 */
-	if (recv_if && batadv_nc_skb_forward(skb, neigh_node)) {
-		ret = NET_XMIT_POLICED;
-	} else {
-		batadv_send_unicast_skb(skb, neigh_node);
-		ret = NET_XMIT_SUCCESS;
-	}
+	if (recv_if && batadv_nc_skb_forward(skb, neigh_node))
+		ret = -EINPROGRESS;
+	else
+		ret = batadv_send_unicast_skb(skb, neigh_node);
 
 out:
 	if (neigh_node)
@@ -317,7 +328,7 @@ int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 {
 	struct batadv_unicast_packet *unicast_packet;
 	struct ethhdr *ethhdr;
-	int ret = NET_XMIT_DROP;
+	int res, ret = NET_XMIT_DROP;
 
 	if (!orig_node)
 		goto out;
@@ -354,7 +365,8 @@ int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 	if (batadv_tt_global_client_is_roaming(bat_priv, ethhdr->h_dest, vid))
 		unicast_packet->ttvn = unicast_packet->ttvn - 1;
 
-	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)
+	res = batadv_send_skb_to_orig(skb, orig_node, NULL);
+	if (res != -1)
 		ret = NET_XMIT_SUCCESS;
 
 out:
@@ -423,31 +435,11 @@ int batadv_send_skb_via_gw(struct batadv_priv *bat_priv, struct sk_buff *skb,
 	struct batadv_orig_node *orig_node;
 
 	orig_node = batadv_gw_get_selected_orig(bat_priv);
-	return batadv_send_skb_unicast(bat_priv, skb, BATADV_UNICAST, 0,
-				       orig_node, vid);
+	return batadv_send_skb_unicast(bat_priv, skb, BATADV_UNICAST_4ADDR,
+				       BATADV_P_DATA, orig_node, vid);
 }
 
-void batadv_schedule_bat_ogm(struct batadv_hard_iface *hard_iface)
-{
-	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
-
-	if ((hard_iface->if_status == BATADV_IF_NOT_IN_USE) ||
-	    (hard_iface->if_status == BATADV_IF_TO_BE_REMOVED))
-		return;
-
-	/* the interface gets activated here to avoid race conditions between
-	 * the moment of activating the interface in
-	 * hardif_activate_interface() where the originator mac is set and
-	 * outdated packets (especially uninitialized mac addresses) in the
-	 * packet queue
-	 */
-	if (hard_iface->if_status == BATADV_IF_TO_BE_ACTIVATED)
-		hard_iface->if_status = BATADV_IF_ACTIVE;
-
-	bat_priv->bat_algo_ops->bat_ogm_schedule(hard_iface);
-}
-
-static void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet)
+void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet)
 {
 	kfree_skb(forw_packet->skb);
 	if (forw_packet->if_incoming)
@@ -552,7 +544,7 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 	struct net_device *soft_iface;
 	struct batadv_priv *bat_priv;
 
-	delayed_work = container_of(work, struct delayed_work, work);
+	delayed_work = to_delayed_work(work);
 	forw_packet = container_of(delayed_work, struct batadv_forw_packet,
 				   delayed_work);
 	soft_iface = forw_packet->if_incoming->soft_iface;
@@ -577,10 +569,15 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 		if (forw_packet->num_packets >= hard_iface->num_bcasts)
 			continue;
 
+		if (!kref_get_unless_zero(&hard_iface->refcount))
+			continue;
+
 		/* send a copy of the saved skb */
 		skb1 = skb_clone(forw_packet->skb, GFP_ATOMIC);
 		if (skb1)
 			batadv_send_broadcast_skb(skb1, hard_iface);
+
+		batadv_hardif_put(hard_iface);
 	}
 	rcu_read_unlock();
 
@@ -596,45 +593,6 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 out:
 	batadv_forw_packet_free(forw_packet);
 	atomic_inc(&bat_priv->bcast_queue_left);
-}
-
-void batadv_send_outstanding_bat_ogm_packet(struct work_struct *work)
-{
-	struct delayed_work *delayed_work;
-	struct batadv_forw_packet *forw_packet;
-	struct batadv_priv *bat_priv;
-
-	delayed_work = container_of(work, struct delayed_work, work);
-	forw_packet = container_of(delayed_work, struct batadv_forw_packet,
-				   delayed_work);
-	bat_priv = netdev_priv(forw_packet->if_incoming->soft_iface);
-	spin_lock_bh(&bat_priv->forw_bat_list_lock);
-	hlist_del(&forw_packet->list);
-	spin_unlock_bh(&bat_priv->forw_bat_list_lock);
-
-	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING)
-		goto out;
-
-	bat_priv->bat_algo_ops->bat_ogm_emit(forw_packet);
-
-	/* we have to have at least one packet in the queue to determine the
-	 * queues wake up time unless we are shutting down.
-	 *
-	 * only re-schedule if this is the "original" copy, e.g. the OGM of the
-	 * primary interface should only be rescheduled once per period, but
-	 * this function will be called for the forw_packet instances of the
-	 * other secondary interfaces as well.
-	 */
-	if (forw_packet->own &&
-	    forw_packet->if_incoming == forw_packet->if_outgoing)
-		batadv_schedule_bat_ogm(forw_packet->if_incoming);
-
-out:
-	/* don't count own packet */
-	if (!forw_packet->own)
-		atomic_inc(&bat_priv->batman_queue_left);
-
-	batadv_forw_packet_free(forw_packet);
 }
 
 void

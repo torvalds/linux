@@ -24,6 +24,46 @@
  * generic PCI API. This API is agnostic to the actual AFU.
  */
 
+#define CXL_SLOT_FLAG_DMA 0x1
+
+/*
+ * Checks if the given card is in a cxl capable slot. Pass CXL_SLOT_FLAG_DMA if
+ * the card requires CAPP DMA mode to also check if the system supports it.
+ * This is intended to be used by bi-modal devices to determine if they can use
+ * cxl mode or if they should continue running in PCI mode.
+ *
+ * Note that this only checks if the slot is cxl capable - it does not
+ * currently check if the CAPP is currently available for chips where it can be
+ * assigned to different PHBs on a first come first serve basis (i.e. P8)
+ */
+bool cxl_slot_is_supported(struct pci_dev *dev, int flags);
+
+
+#define CXL_BIMODE_CXL 1
+#define CXL_BIMODE_PCI 2
+
+/*
+ * Check the mode that the given bi-modal CXL adapter is currently in and
+ * change it if necessary. This does not apply to AFU drivers.
+ *
+ * If the mode matches the requested mode this function will return 0 - if the
+ * driver was expecting the generic CXL driver to have bound to the adapter and
+ * it gets this return value it should fail the probe function to give the CXL
+ * driver a chance to probe it.
+ *
+ * If the mode does not match it will start a background task to unplug the
+ * device from Linux and switch its mode, and will return -EBUSY. At this
+ * point the calling driver should make sure it has released the device and
+ * fail its probe function.
+ *
+ * The offset of the CXL VSEC can be provided to this function. If 0 is passed,
+ * this function will search for a CXL VSEC with ID 0x1280 and return -ENODEV
+ * if it is not found.
+ */
+#ifdef CONFIG_CXL_BIMODAL
+int cxl_check_and_switch_mode(struct pci_dev *dev, int mode, int vsec);
+#endif
+
 /* Get the AFU associated with a pci_dev */
 struct cxl_afu *cxl_pci_to_afu(struct pci_dev *dev);
 
@@ -86,6 +126,13 @@ struct cxl_context *cxl_dev_context_init(struct pci_dev *dev);
 int cxl_release_context(struct cxl_context *ctx);
 
 /*
+ * Set and get private data associated with a context. Allows drivers to have a
+ * back pointer to some useful structure.
+ */
+int cxl_set_priv(struct cxl_context *ctx, void *priv);
+void *cxl_get_priv(struct cxl_context *ctx);
+
+/*
  * Allocate AFU interrupts for this context. num=0 will allocate the default
  * for this AFU as given in the AFU descriptor. This number doesn't include the
  * interrupt 0 (CAIA defines AFU IRQ 0 for page faults). Each interrupt to be
@@ -127,6 +174,14 @@ int cxl_afu_reset(struct cxl_context *ctx);
 void cxl_set_master(struct cxl_context *ctx);
 
 /*
+ * Sets the context to use real mode memory accesses to operate with
+ * translation disabled. Note that this only makes sense for kernel contexts
+ * under bare metal, and will not work with virtualisation. May only be
+ * performed on stopped contexts.
+ */
+int cxl_set_translation_mode(struct cxl_context *ctx, bool real_mode);
+
+/*
  * Map and unmap the AFU Problem Space area. The amount and location mapped
  * depends on if this context is a master or slave.
  */
@@ -136,6 +191,25 @@ void cxl_psa_unmap(void __iomem *addr);
 /*  Get the process element for this context */
 int cxl_process_element(struct cxl_context *ctx);
 
+/*
+ * Limit the number of interrupts that a single context can allocate via
+ * cxl_start_work. If using the api with a real phb, this may be used to
+ * request that additional default contexts be created when allocating
+ * interrupts via pci_enable_msix_range. These will be set to the same running
+ * state as the default context, and if that is running it will reuse the
+ * parameters previously passed to cxl_start_context for the default context.
+ */
+int cxl_set_max_irqs_per_process(struct pci_dev *dev, int irqs);
+int cxl_get_max_irqs_per_process(struct pci_dev *dev);
+
+/*
+ * Use to simultaneously iterate over hardware interrupt numbers, contexts and
+ * afu interrupt numbers allocated for the device via pci_enable_msix_range and
+ * is a useful convenience function when working with hardware that has
+ * limitations on the number of interrupts per process. *ctx and *afu_irq
+ * should be NULL and 0 to start the iteration.
+ */
+int cxl_next_msi_hwirq(struct pci_dev *pdev, struct cxl_context **ctx, int *afu_irq);
 
 /*
  * These calls allow drivers to create their own file descriptors and make them
@@ -211,5 +285,53 @@ void cxl_perst_reloads_same_image(struct cxl_afu *afu,
  * Read the VPD for the card where the AFU resides
  */
 ssize_t cxl_read_adapter_vpd(struct pci_dev *dev, void *buf, size_t count);
+
+/*
+ * AFU driver ops allow an AFU driver to create their own events to pass to
+ * userspace through the file descriptor as a simpler alternative to overriding
+ * the read() and poll() calls that works with the generic cxl events. These
+ * events are given priority over the generic cxl events, so they will be
+ * delivered first if multiple types of events are pending.
+ *
+ * The AFU driver must call cxl_context_events_pending() to notify the cxl
+ * driver that new events are ready to be delivered for a specific context.
+ * cxl_context_events_pending() will adjust the current count of AFU driver
+ * events for this context, and wake up anyone waiting on the context wait
+ * queue.
+ *
+ * The cxl driver will then call fetch_event() to get a structure defining
+ * the size and address of the driver specific event data. The cxl driver
+ * will build a cxl header with type and process_element fields filled in,
+ * and header.size set to sizeof(struct cxl_event_header) + data_size.
+ * The total size of the event is limited to CXL_READ_MIN_SIZE (4K).
+ *
+ * fetch_event() is called with a spin lock held, so it must not sleep.
+ *
+ * The cxl driver will then deliver the event to userspace, and finally
+ * call event_delivered() to return the status of the operation, identified
+ * by cxl context and AFU driver event data pointers.
+ *   0        Success
+ *   -EFAULT  copy_to_user() has failed
+ *   -EINVAL  Event data pointer is NULL, or event size is greater than
+ *            CXL_READ_MIN_SIZE.
+ */
+struct cxl_afu_driver_ops {
+	struct cxl_event_afu_driver_reserved *(*fetch_event) (
+						struct cxl_context *ctx);
+	void (*event_delivered) (struct cxl_context *ctx,
+				 struct cxl_event_afu_driver_reserved *event,
+				 int rc);
+};
+
+/*
+ * Associate the above driver ops with a specific context.
+ * Reset the current count of AFU driver events.
+ */
+void cxl_set_driver_ops(struct cxl_context *ctx,
+			struct cxl_afu_driver_ops *ops);
+
+/* Notify cxl driver that new events are ready to be delivered for context */
+void cxl_context_events_pending(struct cxl_context *ctx,
+				unsigned int new_events);
 
 #endif /* _MISC_CXL_H */

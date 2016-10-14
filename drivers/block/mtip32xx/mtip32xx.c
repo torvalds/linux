@@ -3000,14 +3000,14 @@ restart_eh:
 					"Completion workers still active!");
 
 			spin_lock(dd->queue->queue_lock);
-			blk_mq_all_tag_busy_iter(*dd->tags.tags,
+			blk_mq_tagset_busy_iter(&dd->tags,
 							mtip_queue_cmd, dd);
 			spin_unlock(dd->queue->queue_lock);
 
 			set_bit(MTIP_PF_ISSUE_CMDS_BIT, &dd->port->flags);
 
 			if (mtip_device_reset(dd))
-				blk_mq_all_tag_busy_iter(*dd->tags.tags,
+				blk_mq_tagset_busy_iter(&dd->tags,
 							mtip_abort_cmd, dd);
 
 			clear_bit(MTIP_PF_TO_ACTIVE_BIT, &dd->port->flags);
@@ -3765,7 +3765,7 @@ static int mtip_submit_request(struct blk_mq_hw_ctx *hctx, struct request *rq)
 			return -ENODATA;
 	}
 
-	if (rq->cmd_flags & REQ_DISCARD) {
+	if (req_op(rq) == REQ_OP_DISCARD) {
 		int err;
 
 		err = mtip_send_trim(dd, blk_rq_pos(rq), blk_rq_sectors(rq));
@@ -3956,7 +3956,6 @@ static int mtip_block_initialize(struct driver_data *dd)
 	if (rv)
 		goto disk_index_error;
 
-	dd->disk->driverfs_dev	= &dd->pdev->dev;
 	dd->disk->major		= dd->major;
 	dd->disk->first_minor	= index * MTIP_MAX_MINORS;
 	dd->disk->minors 	= MTIP_MAX_MINORS;
@@ -4008,7 +4007,7 @@ skip_create_disk:
 
 	/*
 	 * if rebuild pending, start the service thread, and delay the block
-	 * queue creation and add_disk()
+	 * queue creation and device_add_disk()
 	 */
 	if (wait_for_rebuild == MTIP_FTL_REBUILD_MAGIC)
 		goto start_service_thread;
@@ -4022,12 +4021,6 @@ skip_create_disk:
 	blk_queue_max_segment_size(dd->queue, 0x400000);
 	blk_queue_io_min(dd->queue, 4096);
 	blk_queue_bounce_limit(dd->queue, dd->pdev->dma_mask);
-
-	/*
-	 * write back cache is not supported in the device. FUA depends on
-	 * write back cache support, hence setting flush support to zero.
-	 */
-	blk_queue_flush(dd->queue, 0);
 
 	/* Signal trim support */
 	if (dd->trim_supp == true) {
@@ -4048,7 +4041,7 @@ skip_create_disk:
 	set_capacity(dd->disk, capacity);
 
 	/* Enable the block device and add it to /dev */
-	add_disk(dd->disk);
+	device_add_disk(&dd->pdev->dev, dd->disk);
 
 	dd->bdev = bdget_disk(dd->disk, 0);
 	/*
@@ -4174,7 +4167,7 @@ static int mtip_block_remove(struct driver_data *dd)
 
 	blk_mq_freeze_queue_start(dd->queue);
 	blk_mq_stop_hw_queues(dd->queue);
-	blk_mq_all_tag_busy_iter(dd->tags.tags[0], mtip_no_dev_cleanup, dd);
+	blk_mq_tagset_busy_iter(&dd->tags, mtip_no_dev_cleanup, dd);
 
 	/*
 	 * Delete our gendisk structure. This also removes the device

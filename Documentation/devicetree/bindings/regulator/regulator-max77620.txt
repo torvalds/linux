@@ -94,6 +94,28 @@ Following are additional properties:
 					This is applicable if suspend state
 					FPS source is selected as FPS0, FPS1 or
 					FPS2.
+- maxim,ramp-rate-setting:		integer, ramp rate(uV/us) setting to be
+					configured to the device.
+					The platform may have different ramp
+					rate than advertised ramp rate if it has
+					design variation from Maxim's
+					recommended. On this case, platform
+					specific ramp rate is used for ramp time
+					calculation and this property is used
+					for device register configurations.
+					The measured ramp rate of platform is
+					provided by the regulator-ramp-delay
+					as described in <devicetree/bindings/
+					regulator/regulator.txt>.
+					Maxim Max77620 supports following ramp
+					delay:
+					  SD: 13.75mV/us, 27.5mV/us, 55mV/us
+					  LDOs: 5mV/us, 100mV/us
+
+Note: If the measured ramp delay is same as advertised ramp delay then it is not
+required to provide the ramp delay with property "maxim,ramp-rate-setting". The
+ramp rate can be provided by the regulator-ramp-delay which will be used for
+ramp time calculation for voltage change as well as for device configuration.
 
 Example:
 --------

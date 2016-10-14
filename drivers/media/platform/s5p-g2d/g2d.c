@@ -103,7 +103,7 @@ static struct g2d_frame *get_frame(struct g2d_ctx *ctx,
 
 static int g2d_queue_setup(struct vb2_queue *vq,
 			   unsigned int *nbuffers, unsigned int *nplanes,
-			   unsigned int sizes[], void *alloc_ctxs[])
+			   unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct g2d_ctx *ctx = vb2_get_drv_priv(vq);
 	struct g2d_frame *f = get_frame(ctx, vq->type);
@@ -113,7 +113,6 @@ static int g2d_queue_setup(struct vb2_queue *vq,
 
 	sizes[0] = f->size;
 	*nplanes = 1;
-	alloc_ctxs[0] = ctx->dev->alloc_ctx;
 
 	if (*nbuffers == 0)
 		*nbuffers = 1;
@@ -159,6 +158,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->lock = &ctx->dev->mutex;
+	src_vq->dev = ctx->dev->v4l2_dev.dev;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -172,6 +172,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->lock = &ctx->dev->mutex;
+	dst_vq->dev = ctx->dev->v4l2_dev.dev;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -681,15 +682,11 @@ static int g2d_probe(struct platform_device *pdev)
 		goto put_clk_gate;
 	}
 
-	dev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
-	if (IS_ERR(dev->alloc_ctx)) {
-		ret = PTR_ERR(dev->alloc_ctx);
-		goto unprep_clk_gate;
-	}
+	vb2_dma_contig_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
-		goto alloc_ctx_cleanup;
+		goto unprep_clk_gate;
 	vfd = video_device_alloc();
 	if (!vfd) {
 		v4l2_err(&dev->v4l2_dev, "Failed to allocate video device\n");
@@ -719,16 +716,12 @@ static int g2d_probe(struct platform_device *pdev)
 
 	def_frame.stride = (def_frame.width * def_frame.fmt->depth) >> 3;
 
-	if (!pdev->dev.of_node) {
-		dev->variant = g2d_get_drv_data(pdev);
-	} else {
-		of_id = of_match_node(exynos_g2d_match, pdev->dev.of_node);
-		if (!of_id) {
-			ret = -ENODEV;
-			goto unreg_video_dev;
-		}
-		dev->variant = (struct g2d_variant *)of_id->data;
+	of_id = of_match_node(exynos_g2d_match, pdev->dev.of_node);
+	if (!of_id) {
+		ret = -ENODEV;
+		goto unreg_video_dev;
 	}
+	dev->variant = (struct g2d_variant *)of_id->data;
 
 	return 0;
 
@@ -738,8 +731,6 @@ rel_vdev:
 	video_device_release(vfd);
 unreg_v4l2_dev:
 	v4l2_device_unregister(&dev->v4l2_dev);
-alloc_ctx_cleanup:
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
 unprep_clk_gate:
 	clk_unprepare(dev->gate);
 put_clk_gate:
@@ -760,7 +751,7 @@ static int g2d_remove(struct platform_device *pdev)
 	v4l2_m2m_release(dev->m2m_dev);
 	video_unregister_device(dev->vfd);
 	v4l2_device_unregister(&dev->v4l2_dev);
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
+	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
 	clk_unprepare(dev->gate);
 	clk_put(dev->gate);
 	clk_unprepare(dev->clk);
@@ -788,22 +779,9 @@ static const struct of_device_id exynos_g2d_match[] = {
 };
 MODULE_DEVICE_TABLE(of, exynos_g2d_match);
 
-static const struct platform_device_id g2d_driver_ids[] = {
-	{
-		.name = "s5p-g2d",
-		.driver_data = (unsigned long)&g2d_drvdata_v3x,
-	}, {
-		.name = "s5p-g2d-v4x",
-		.driver_data = (unsigned long)&g2d_drvdata_v4x,
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(platform, g2d_driver_ids);
-
 static struct platform_driver g2d_pdrv = {
 	.probe		= g2d_probe,
 	.remove		= g2d_remove,
-	.id_table	= g2d_driver_ids,
 	.driver		= {
 		.name = G2D_NAME,
 		.of_match_table = exynos_g2d_match,

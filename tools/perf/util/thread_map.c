@@ -202,7 +202,7 @@ static struct thread_map *thread_map__new_by_pid_str(const char *pid_str)
 	if (!slist)
 		return NULL;
 
-	strlist__for_each(pos, slist) {
+	strlist__for_each_entry(pos, slist) {
 		pid = strtol(pos->s, &end_ptr, 10);
 
 		if (pid == INT_MIN || pid == INT_MAX ||
@@ -260,7 +260,7 @@ struct thread_map *thread_map__new_dummy(void)
 	return threads;
 }
 
-static struct thread_map *thread_map__new_by_tid_str(const char *tid_str)
+struct thread_map *thread_map__new_by_tid_str(const char *tid_str)
 {
 	struct thread_map *threads = NULL, *nt;
 	int ntasks = 0;
@@ -278,7 +278,7 @@ static struct thread_map *thread_map__new_by_tid_str(const char *tid_str)
 	if (!slist)
 		return NULL;
 
-	strlist__for_each(pos, slist) {
+	strlist__for_each_entry(pos, slist) {
 		tid = strtol(pos->s, &end_ptr, 10);
 
 		if (tid == INT_MIN || tid == INT_MAX ||
@@ -435,4 +435,16 @@ struct thread_map *thread_map__new_event(struct thread_map_event *event)
 		thread_map__copy_event(threads, event);
 
 	return threads;
+}
+
+bool thread_map__has(struct thread_map *threads, pid_t pid)
+{
+	int i;
+
+	for (i = 0; i < threads->nr; ++i) {
+		if (threads->map[i].pid == pid)
+			return true;
+	}
+
+	return false;
 }

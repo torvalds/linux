@@ -215,9 +215,40 @@ static void dwmac1000_dump_dma_regs(void __iomem *ioaddr)
 	}
 }
 
-static unsigned int dwmac1000_get_hw_feature(void __iomem *ioaddr)
+static void dwmac1000_get_hw_feature(void __iomem *ioaddr,
+				     struct dma_features *dma_cap)
 {
-	return readl(ioaddr + DMA_HW_FEATURE);
+	u32 hw_cap = readl(ioaddr + DMA_HW_FEATURE);
+
+	dma_cap->mbps_10_100 = (hw_cap & DMA_HW_FEAT_MIISEL);
+	dma_cap->mbps_1000 = (hw_cap & DMA_HW_FEAT_GMIISEL) >> 1;
+	dma_cap->half_duplex = (hw_cap & DMA_HW_FEAT_HDSEL) >> 2;
+	dma_cap->hash_filter = (hw_cap & DMA_HW_FEAT_HASHSEL) >> 4;
+	dma_cap->multi_addr = (hw_cap & DMA_HW_FEAT_ADDMAC) >> 5;
+	dma_cap->pcs = (hw_cap & DMA_HW_FEAT_PCSSEL) >> 6;
+	dma_cap->sma_mdio = (hw_cap & DMA_HW_FEAT_SMASEL) >> 8;
+	dma_cap->pmt_remote_wake_up = (hw_cap & DMA_HW_FEAT_RWKSEL) >> 9;
+	dma_cap->pmt_magic_frame = (hw_cap & DMA_HW_FEAT_MGKSEL) >> 10;
+	/* MMC */
+	dma_cap->rmon = (hw_cap & DMA_HW_FEAT_MMCSEL) >> 11;
+	/* IEEE 1588-2002 */
+	dma_cap->time_stamp =
+	    (hw_cap & DMA_HW_FEAT_TSVER1SEL) >> 12;
+	/* IEEE 1588-2008 */
+	dma_cap->atime_stamp = (hw_cap & DMA_HW_FEAT_TSVER2SEL) >> 13;
+	/* 802.3az - Energy-Efficient Ethernet (EEE) */
+	dma_cap->eee = (hw_cap & DMA_HW_FEAT_EEESEL) >> 14;
+	dma_cap->av = (hw_cap & DMA_HW_FEAT_AVSEL) >> 15;
+	/* TX and RX csum */
+	dma_cap->tx_coe = (hw_cap & DMA_HW_FEAT_TXCOESEL) >> 16;
+	dma_cap->rx_coe_type1 = (hw_cap & DMA_HW_FEAT_RXTYP1COE) >> 17;
+	dma_cap->rx_coe_type2 = (hw_cap & DMA_HW_FEAT_RXTYP2COE) >> 18;
+	dma_cap->rxfifo_over_2048 = (hw_cap & DMA_HW_FEAT_RXFIFOSIZE) >> 19;
+	/* TX and RX number of channels */
+	dma_cap->number_rx_channel = (hw_cap & DMA_HW_FEAT_RXCHCNT) >> 20;
+	dma_cap->number_tx_channel = (hw_cap & DMA_HW_FEAT_TXCHCNT) >> 22;
+	/* Alternate (enhanced) DESC mode */
+	dma_cap->enh_desc = (hw_cap & DMA_HW_FEAT_ENHDESSEL) >> 24;
 }
 
 static void dwmac1000_rx_watchdog(void __iomem *ioaddr, u32 riwt)

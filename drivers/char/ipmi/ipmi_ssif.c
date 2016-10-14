@@ -568,11 +568,15 @@ static void retry_timeout(unsigned long data)
 }
 
 
-static void ssif_alert(struct i2c_client *client, unsigned int data)
+static void ssif_alert(struct i2c_client *client, enum i2c_alert_protocol type,
+		       unsigned int data)
 {
 	struct ssif_info *ssif_info = i2c_get_clientdata(client);
 	unsigned long oflags, *flags;
 	bool do_get = false;
+
+	if (type != I2C_PROTOCOL_SMBUS_ALERT)
+		return;
 
 	ssif_inc_stat(ssif_info, alerts);
 
@@ -1870,7 +1874,7 @@ static int try_init_spmi(struct SPMITable *spmi)
 		return -EIO;
 	}
 
-	myaddr = spmi->addr.address >> 1;
+	myaddr = spmi->addr.address & 0x7f;
 
 	return new_ssif_client(myaddr, NULL, 0, 0, SI_SPMI);
 }

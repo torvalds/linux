@@ -52,3 +52,37 @@
 &peri_gpio0 {
 	status = "ok";
 };
+
+&lbc {
+	status = "ok";
+	#address-cells = <2>;
+	#size-cells = <1>;
+	ranges = <0 0 0x0 0x90000000 0x08000000>,
+		 <1 0 0x0 0x98000000 0x08000000>;
+
+	nor-flash@0,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "numonyx,js28f00a", "cfi-flash";
+		reg = <0 0x0 0x08000000>;
+		bank-width = <2>;
+		/* The three parts may not used */
+		partition@0 {
+			label = "BIOS";
+			reg = <0x0 0x300000>;
+		};
+		partition@300000 {
+			label = "Linux";
+			reg = <0x300000 0xa00000>;
+		};
+		partition@1000000 {
+			label = "Rootfs";
+			reg = <0x01000000 0x02000000>;
+		};
+	};
+
+	cpld@1,0 {
+		compatible = "hisilicon,hip05-cpld";
+		reg = <1 0x0 0x100>;
+	};
+};

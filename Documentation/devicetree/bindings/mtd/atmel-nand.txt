@@ -39,7 +39,7 @@ Optional properties:
 
 Nand Flash Controller(NFC) is an optional sub-node
 Required properties:
-- compatible : "atmel,sama5d3-nfc" or "atmel,sama5d4-nfc".
+- compatible : "atmel,sama5d3-nfc".
 - reg : should specify the address and size used for NFC command registers,
         NFC registers and NFC SRAM. NFC SRAM address and size can be absent
         if don't want to use it.

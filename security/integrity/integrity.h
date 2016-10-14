@@ -28,6 +28,7 @@
 
 /* iint cache flags */
 #define IMA_ACTION_FLAGS	0xff000000
+#define IMA_ACTION_RULE_FLAGS	0x06000000
 #define IMA_DIGSIG		0x01000000
 #define IMA_DIGSIG_REQUIRED	0x02000000
 #define IMA_PERMIT_DIRECTIO	0x04000000
@@ -102,6 +103,7 @@ struct integrity_iint_cache {
 	struct inode *inode;	/* back pointer to inode in question */
 	u64 version;		/* track inode changes */
 	unsigned long flags;
+	unsigned long measured_pcrs;
 	enum integrity_status ima_file_status:4;
 	enum integrity_status ima_mmap_status:4;
 	enum integrity_status ima_bprm_status:4;

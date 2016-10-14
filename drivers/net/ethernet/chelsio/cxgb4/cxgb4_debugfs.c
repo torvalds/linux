@@ -1152,6 +1152,104 @@ static const struct file_operations devlog_fops = {
 	.release = seq_release_private
 };
 
+/* Show Firmware Mailbox Command/Reply Log
+ *
+ * Note that we don't do any locking when dumping the Firmware Mailbox Log so
+ * it's possible that we can catch things during a log update and therefore
+ * see partially corrupted log entries.  But it's probably Good Enough(tm).
+ * If we ever decide that we want to make sure that we're dumping a coherent
+ * log, we'd need to perform locking in the mailbox logging and in
+ * mboxlog_open() where we'd need to grab the entire mailbox log in one go
+ * like we do for the Firmware Device Log.
+ */
+static int mboxlog_show(struct seq_file *seq, void *v)
+{
+	struct adapter *adapter = seq->private;
+	struct mbox_cmd_log *log = adapter->mbox_log;
+	struct mbox_cmd *entry;
+	int entry_idx, i;
+
+	if (v == SEQ_START_TOKEN) {
+		seq_printf(seq,
+			   "%10s  %15s  %5s  %5s  %s\n",
+			   "Seq#", "Tstamp", "Atime", "Etime",
+			   "Command/Reply");
+		return 0;
+	}
+
+	entry_idx = log->cursor + ((uintptr_t)v - 2);
+	if (entry_idx >= log->size)
+		entry_idx -= log->size;
+	entry = mbox_cmd_log_entry(log, entry_idx);
+
+	/* skip over unused entries */
+	if (entry->timestamp == 0)
+		return 0;
+
+	seq_printf(seq, "%10u  %15llu  %5d  %5d",
+		   entry->seqno, entry->timestamp,
+		   entry->access, entry->execute);
+	for (i = 0; i < MBOX_LEN / 8; i++) {
+		u64 flit = entry->cmd[i];
+		u32 hi = (u32)(flit >> 32);
+		u32 lo = (u32)flit;
+
+		seq_printf(seq, "  %08x %08x", hi, lo);
+	}
+	seq_puts(seq, "\n");
+	return 0;
+}
+
+static inline void *mboxlog_get_idx(struct seq_file *seq, loff_t pos)
+{
+	struct adapter *adapter = seq->private;
+	struct mbox_cmd_log *log = adapter->mbox_log;
+
+	return ((pos <= log->size) ? (void *)(uintptr_t)(pos + 1) : NULL);
+}
+
+static void *mboxlog_start(struct seq_file *seq, loff_t *pos)
+{
+	return *pos ? mboxlog_get_idx(seq, *pos) : SEQ_START_TOKEN;
+}
+
+static void *mboxlog_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	++*pos;
+	return mboxlog_get_idx(seq, *pos);
+}
+
+static void mboxlog_stop(struct seq_file *seq, void *v)
+{
+}
+
+static const struct seq_operations mboxlog_seq_ops = {
+	.start = mboxlog_start,
+	.next  = mboxlog_next,
+	.stop  = mboxlog_stop,
+	.show  = mboxlog_show
+};
+
+static int mboxlog_open(struct inode *inode, struct file *file)
+{
+	int res = seq_open(file, &mboxlog_seq_ops);
+
+	if (!res) {
+		struct seq_file *seq = file->private_data;
+
+		seq->private = inode->i_private;
+	}
+	return res;
+}
+
+static const struct file_operations mboxlog_fops = {
+	.owner   = THIS_MODULE,
+	.open    = mboxlog_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release,
+};
+
 static int mbox_show(struct seq_file *seq, void *v)
 {
 	static const char * const owner[] = { "none", "FW", "driver",
@@ -1572,6 +1670,7 @@ static const struct file_operations flash_debugfs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = mem_open,
 	.read    = flash_read,
+	.llseek  = default_llseek,
 };
 
 static inline void tcamxy2valmask(u64 x, u64 y, u8 *addr, u64 *mask)
@@ -3128,6 +3227,7 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "cim_qcfg", &cim_qcfg_fops, S_IRUSR, 0 },
 		{ "clk", &clk_debugfs_fops, S_IRUSR, 0 },
 		{ "devlog", &devlog_fops, S_IRUSR, 0 },
+		{ "mboxlog", &mboxlog_fops, S_IRUSR, 0 },
 		{ "mbox0", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 0 },
 		{ "mbox1", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 1 },
 		{ "mbox2", &mbox_debugfs_fops, S_IRUSR | S_IWUSR, 2 },

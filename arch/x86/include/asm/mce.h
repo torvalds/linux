@@ -104,13 +104,23 @@
 #define MCE_LOG_SIGNATURE	"MACHINECHECK"
 
 /* AMD Scalable MCA */
+#define MSR_AMD64_SMCA_MC0_CTL		0xc0002000
+#define MSR_AMD64_SMCA_MC0_STATUS	0xc0002001
+#define MSR_AMD64_SMCA_MC0_ADDR		0xc0002002
 #define MSR_AMD64_SMCA_MC0_MISC0	0xc0002003
 #define MSR_AMD64_SMCA_MC0_CONFIG	0xc0002004
 #define MSR_AMD64_SMCA_MC0_IPID		0xc0002005
+#define MSR_AMD64_SMCA_MC0_DESTAT	0xc0002008
+#define MSR_AMD64_SMCA_MC0_DEADDR	0xc0002009
 #define MSR_AMD64_SMCA_MC0_MISC1	0xc000200a
+#define MSR_AMD64_SMCA_MCx_CTL(x)	(MSR_AMD64_SMCA_MC0_CTL + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_STATUS(x)	(MSR_AMD64_SMCA_MC0_STATUS + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_ADDR(x)	(MSR_AMD64_SMCA_MC0_ADDR + 0x10*(x))
 #define MSR_AMD64_SMCA_MCx_MISC(x)	(MSR_AMD64_SMCA_MC0_MISC0 + 0x10*(x))
 #define MSR_AMD64_SMCA_MCx_CONFIG(x)	(MSR_AMD64_SMCA_MC0_CONFIG + 0x10*(x))
 #define MSR_AMD64_SMCA_MCx_IPID(x)	(MSR_AMD64_SMCA_MC0_IPID + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_DESTAT(x)	(MSR_AMD64_SMCA_MC0_DESTAT + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_DEADDR(x)	(MSR_AMD64_SMCA_MC0_DEADDR + 0x10*(x))
 #define MSR_AMD64_SMCA_MCx_MISCy(x, y)	((MSR_AMD64_SMCA_MC0_MISC1 + y) + (0x10*(x)))
 
 /*
@@ -168,9 +178,18 @@ struct mce_vendor_flags {
 
 	      __reserved_0	: 61;
 };
+
+struct mca_msr_regs {
+	u32 (*ctl)	(int bank);
+	u32 (*status)	(int bank);
+	u32 (*addr)	(int bank);
+	u32 (*misc)	(int bank);
+};
+
 extern struct mce_vendor_flags mce_flags;
 
 extern struct mca_config mca_cfg;
+extern struct mca_msr_regs msr_ops;
 extern void mce_register_decode_chain(struct notifier_block *nb);
 extern void mce_unregister_decode_chain(struct notifier_block *nb);
 

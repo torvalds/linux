@@ -20,6 +20,12 @@
 #define IGU_PF_CONF_ATTN_BIT_EN   (0x1 << 3)    /* attention enable       */
 #define IGU_PF_CONF_SINGLE_ISR_EN (0x1 << 4)    /* single ISR mode enable */
 #define IGU_PF_CONF_SIMD_MODE     (0x1 << 5)    /* simd all ones mode     */
+/* Fields of IGU VF CONFIGRATION REGISTER */
+#define IGU_VF_CONF_FUNC_EN        (0x1 << 0)	/* function enable        */
+#define IGU_VF_CONF_MSI_MSIX_EN    (0x1 << 1)	/* MSI/MSIX enable        */
+#define IGU_VF_CONF_SINGLE_ISR_EN  (0x1 << 4)	/* single ISR mode enable */
+#define IGU_VF_CONF_PARENT_MASK    (0xF)	/* Parent PF              */
+#define IGU_VF_CONF_PARENT_SHIFT   5		/* Parent PF              */
 
 /* Igu control commands
  */
@@ -292,26 +298,8 @@ u16 qed_int_get_sp_sb_id(struct qed_hwfn *p_hwfn);
  * @param p_hwfn
  * @param p_ptt
  * @param sb_id		- igu status block id
- * @param cleanup_set	- set(1) / clear(0)
- * @param opaque_fid    - the function for which to perform
- *			cleanup, for example a PF on behalf of
- *			its VFs.
- */
-void qed_int_igu_cleanup_sb(struct qed_hwfn *p_hwfn,
-			    struct qed_ptt *p_ptt,
-			    u32 sb_id,
-			    bool cleanup_set,
-			    u16 opaque_fid);
-
-/**
- * @brief Status block cleanup. Should be called for each status
- *        block that will be used -> both PF / VF
- *
- * @param p_hwfn
- * @param p_ptt
- * @param sb_id		- igu status block id
  * @param opaque	- opaque fid of the sb owner.
- * @param cleanup_set	- set(1) / clear(0)
+ * @param b_set		- set(1) / clear(0)
  */
 void qed_int_igu_init_pure_rt_single(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt,
@@ -365,6 +353,16 @@ void qed_int_setup(struct qed_hwfn *p_hwfn,
 		   struct qed_ptt *p_ptt);
 
 /**
+ * @brief - Returns an Rx queue index appropriate for usage with given SB.
+ *
+ * @param p_hwfn
+ * @param sb_id - absolute index of SB
+ *
+ * @return index of Rx queue
+ */
+u16 qed_int_queue_id_from_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id);
+
+/**
  * @brief - Enable Interrupt & Attention for hw function
  *
  * @param p_hwfn
@@ -390,6 +388,9 @@ void qed_init_cau_sb_entry(struct qed_hwfn *p_hwfn,
 			   u8 pf_id,
 			   u16 vf_number,
 			   u8 vf_valid);
+
+int qed_int_set_timer_res(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			  u8 timer_res, u16 sb_id, bool tx);
 
 #define QED_MAPPING_MEMORY_SIZE(dev)	(NUM_OF_SBS(dev))
 

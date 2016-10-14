@@ -872,13 +872,21 @@ int ehci_hub_control(
 ) {
 	struct ehci_hcd	*ehci = hcd_to_ehci (hcd);
 	int		ports = HCS_N_PORTS (ehci->hcs_params);
-	u32 __iomem	*status_reg = &ehci->regs->port_status[
-				(wIndex & 0xff) - 1];
-	u32 __iomem	*hostpc_reg = &ehci->regs->hostpc[(wIndex & 0xff) - 1];
+	u32 __iomem	*status_reg, *hostpc_reg;
 	u32		temp, temp1, status;
 	unsigned long	flags;
 	int		retval = 0;
 	unsigned	selector;
+
+	/*
+	 * Avoid underflow while calculating (wIndex & 0xff) - 1.
+	 * The compiler might deduce that wIndex can never be 0 and then
+	 * optimize away the tests for !wIndex below.
+	 */
+	temp = wIndex & 0xff;
+	temp -= (temp > 0);
+	status_reg = &ehci->regs->port_status[temp];
+	hostpc_reg = &ehci->regs->hostpc[temp];
 
 	/*
 	 * FIXME:  support SetPortFeatures USB_PORT_FEAT_INDICATOR.

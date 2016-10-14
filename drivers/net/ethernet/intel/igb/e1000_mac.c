@@ -212,7 +212,7 @@ s32 igb_vfta_set(struct e1000_hw *hw, u32 vlan, u32 vind,
 	 *    bits[4-0]:  which bit in the register
 	 */
 	regidx = vlan / 32;
-	vfta_delta = 1 << (vlan % 32);
+	vfta_delta = BIT(vlan % 32);
 	vfta = adapter->shadow_vfta[regidx];
 
 	/* vfta_delta represents the difference between the current value
@@ -243,12 +243,12 @@ s32 igb_vfta_set(struct e1000_hw *hw, u32 vlan, u32 vind,
 	bits = rd32(E1000_VLVF(vlvf_index));
 
 	/* set the pool bit */
-	bits |= 1 << (E1000_VLVF_POOLSEL_SHIFT + vind);
+	bits |= BIT(E1000_VLVF_POOLSEL_SHIFT + vind);
 	if (vlan_on)
 		goto vlvf_update;
 
 	/* clear the pool bit */
-	bits ^= 1 << (E1000_VLVF_POOLSEL_SHIFT + vind);
+	bits ^= BIT(E1000_VLVF_POOLSEL_SHIFT + vind);
 
 	if (!(bits & E1000_VLVF_POOLSEL_MASK)) {
 		/* Clear VFTA first, then disable VLVF.  Otherwise
@@ -427,7 +427,7 @@ void igb_mta_set(struct e1000_hw *hw, u32 hash_value)
 
 	mta = array_rd32(E1000_MTA, hash_reg);
 
-	mta |= (1 << hash_bit);
+	mta |= BIT(hash_bit);
 
 	array_wr32(E1000_MTA, hash_reg, mta);
 	wrfl();
@@ -527,7 +527,7 @@ void igb_update_mc_addr_list(struct e1000_hw *hw,
 		hash_reg = (hash_value >> 5) & (hw->mac.mta_reg_count - 1);
 		hash_bit = hash_value & 0x1F;
 
-		hw->mac.mta_shadow[hash_reg] |= (1 << hash_bit);
+		hw->mac.mta_shadow[hash_reg] |= BIT(hash_bit);
 		mc_addr_list += (ETH_ALEN);
 	}
 

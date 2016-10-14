@@ -440,7 +440,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 
 				gpe_event_info =
 				    &gpe_block->
-				    event_info[((acpi_size) i *
+				    event_info[((acpi_size)i *
 						ACPI_GPE_REGISTER_WIDTH) + j];
 				gpe_number =
 				    j + gpe_register_info->base_gpe_number;
@@ -652,7 +652,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_enable_gpe(void *context)
  *
  ******************************************************************************/
 
-acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info * gpe_event_info)
+acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info *gpe_event_info)
 {
 	acpi_status status;
 

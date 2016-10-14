@@ -229,7 +229,6 @@ static int ll_xattr_cache_valid(struct ll_inode_info *lli)
  */
 static int ll_xattr_cache_destroy_locked(struct ll_inode_info *lli)
 {
-
 	if (!ll_xattr_cache_valid(lli))
 		return 0;
 
@@ -289,8 +288,8 @@ static int ll_xattr_find_get_lock(struct inode *inode,
 				       LCK_PR);
 		if (mode != 0) {
 			/* fake oit in mdc_revalidate_lock() manner */
-			oit->d.lustre.it_lock_handle = lockh.cookie;
-			oit->d.lustre.it_lock_mode = mode;
+			oit->it_lock_handle = lockh.cookie;
+			oit->it_lock_mode = mode;
 			goto out;
 		}
 	}
@@ -316,7 +315,7 @@ static int ll_xattr_find_get_lock(struct inode *inode,
 		return rc;
 	}
 
-	*req = (struct ptlrpc_request *)oit->d.lustre.it_data;
+	*req = oit->it_request;
 out:
 	down_write(&lli->lli_xattrs_list_rwsem);
 	mutex_unlock(&lli->lli_xattrs_enq_lock);
@@ -363,10 +362,10 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 		goto out_maybe_drop;
 	}
 
-	if (oit->d.lustre.it_status < 0) {
+	if (oit->it_status < 0) {
 		CDEBUG(D_CACHE, "getxattr intent returned %d for fid "DFID"\n",
-		       oit->d.lustre.it_status, PFID(ll_inode2fid(inode)));
-		rc = oit->d.lustre.it_status;
+		       oit->it_status, PFID(ll_inode2fid(inode)));
+		rc = oit->it_status;
 		/* xattr data is so large that we don't want to cache it */
 		if (rc == -ERANGE)
 			rc = -EAGAIN;
@@ -449,8 +448,8 @@ out_destroy:
 	up_write(&lli->lli_xattrs_list_rwsem);
 
 	ldlm_lock_decref_and_cancel((struct lustre_handle *)
-					&oit->d.lustre.it_lock_handle,
-					oit->d.lustre.it_lock_mode);
+					&oit->it_lock_handle,
+					oit->it_lock_mode);
 
 	goto out_no_unlock;
 }

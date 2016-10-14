@@ -594,7 +594,8 @@ static irqreturn_t vf610_adc_isr(int irq, void *dev_id)
 		if (iio_buffer_enabled(indio_dev)) {
 			info->buffer[0] = info->value;
 			iio_push_to_buffers_with_timestamp(indio_dev,
-					info->buffer, iio_get_time_ns());
+					info->buffer,
+					iio_get_time_ns(indio_dev));
 			iio_trigger_notify_done(indio_dev->trig);
 		} else
 			complete(&info->completion);
@@ -714,19 +715,19 @@ static int vf610_write_raw(struct iio_dev *indio_dev,
 	int i;
 
 	switch (mask) {
-		case IIO_CHAN_INFO_SAMP_FREQ:
-			for (i = 0;
-				i < ARRAY_SIZE(info->sample_freq_avail);
-				i++)
-				if (val == info->sample_freq_avail[i]) {
-					info->adc_feature.sample_rate = i;
-					vf610_adc_sample_set(info);
-					return 0;
-				}
-			break;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		for (i = 0;
+			i < ARRAY_SIZE(info->sample_freq_avail);
+			i++)
+			if (val == info->sample_freq_avail[i]) {
+				info->adc_feature.sample_rate = i;
+				vf610_adc_sample_set(info);
+				return 0;
+			}
+		break;
 
-		default:
-			break;
+	default:
+		break;
 	}
 
 	return -EINVAL;

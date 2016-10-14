@@ -115,6 +115,7 @@ int amdgpu_sa_bo_manager_start(struct amdgpu_device *adev,
 		return r;
 	}
 	r = amdgpu_bo_kmap(sa_manager->bo, &sa_manager->cpu_ptr);
+	memset(sa_manager->cpu_ptr, 0, sa_manager->size);
 	amdgpu_bo_unreserve(sa_manager->bo);
 	return r;
 }
@@ -427,7 +428,7 @@ void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 			   soffset, eoffset, eoffset - soffset);
 
 		if (i->fence)
-			seq_printf(m, " protected by 0x%08x on context %d",
+			seq_printf(m, " protected by 0x%08x on context %llu",
 				   i->fence->seqno, i->fence->context);
 
 		seq_printf(m, "\n");

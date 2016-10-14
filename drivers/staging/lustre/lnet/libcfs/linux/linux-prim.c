@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -45,30 +41,6 @@
 #if defined(CONFIG_KGDB)
 #include <linux/kgdb.h>
 #endif
-
-/**
- * wait_queue_t of Linux (version < 2.6.34) is a FIFO list for exclusively
- * waiting threads, which is not always desirable because all threads will
- * be waken up again and again, even user only needs a few of them to be
- * active most time. This is not good for performance because cache can
- * be polluted by different threads.
- *
- * LIFO list can resolve this problem because we always wakeup the most
- * recent active thread by default.
- *
- * NB: please don't call non-exclusive & exclusive wait on the same
- * waitq if add_wait_queue_exclusive_head is used.
- */
-void
-add_wait_queue_exclusive_head(wait_queue_head_t *waitq, wait_queue_t *link)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&waitq->lock, flags);
-	__add_wait_queue_exclusive(waitq, link);
-	spin_unlock_irqrestore(&waitq->lock, flags);
-}
-EXPORT_SYMBOL(add_wait_queue_exclusive_head);
 
 sigset_t
 cfs_block_allsigs(void)
@@ -127,13 +99,6 @@ cfs_restore_sigs(sigset_t old)
 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 }
 EXPORT_SYMBOL(cfs_restore_sigs);
-
-int
-cfs_signal_pending(void)
-{
-	return signal_pending(current);
-}
-EXPORT_SYMBOL(cfs_signal_pending);
 
 void
 cfs_clear_sigpending(void)

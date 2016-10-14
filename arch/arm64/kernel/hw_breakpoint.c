@@ -24,6 +24,7 @@
 #include <linux/cpu_pm.h>
 #include <linux/errno.h>
 #include <linux/hw_breakpoint.h>
+#include <linux/kprobes.h>
 #include <linux/perf_event.h>
 #include <linux/ptrace.h>
 #include <linux/smp.h>
@@ -127,6 +128,7 @@ static u64 read_wb_reg(int reg, int n)
 
 	return val;
 }
+NOKPROBE_SYMBOL(read_wb_reg);
 
 static void write_wb_reg(int reg, int n, u64 val)
 {
@@ -140,6 +142,7 @@ static void write_wb_reg(int reg, int n, u64 val)
 	}
 	isb();
 }
+NOKPROBE_SYMBOL(write_wb_reg);
 
 /*
  * Convert a breakpoint privilege level to the corresponding exception
@@ -157,6 +160,7 @@ static enum dbg_active_el debug_exception_level(int privilege)
 		return -EINVAL;
 	}
 }
+NOKPROBE_SYMBOL(debug_exception_level);
 
 enum hw_breakpoint_ops {
 	HW_BREAKPOINT_INSTALL,
@@ -575,6 +579,7 @@ static void toggle_bp_registers(int reg, enum dbg_active_el el, int enable)
 		write_wb_reg(reg, i, ctrl);
 	}
 }
+NOKPROBE_SYMBOL(toggle_bp_registers);
 
 /*
  * Debug exception handlers.
@@ -616,7 +621,7 @@ static int breakpoint_handler(unsigned long unused, unsigned int esr,
 		perf_bp_event(bp, regs);
 
 		/* Do we need to handle the stepping? */
-		if (!bp->overflow_handler)
+		if (is_default_overflow_handler(bp))
 			step = 1;
 unlock:
 		rcu_read_unlock();
@@ -654,6 +659,7 @@ unlock:
 
 	return 0;
 }
+NOKPROBE_SYMBOL(breakpoint_handler);
 
 static int watchpoint_handler(unsigned long addr, unsigned int esr,
 			      struct pt_regs *regs)
@@ -712,7 +718,7 @@ static int watchpoint_handler(unsigned long addr, unsigned int esr,
 		perf_bp_event(wp, regs);
 
 		/* Do we need to handle the stepping? */
-		if (!wp->overflow_handler)
+		if (is_default_overflow_handler(wp))
 			step = 1;
 
 unlock:
@@ -756,6 +762,7 @@ unlock:
 
 	return 0;
 }
+NOKPROBE_SYMBOL(watchpoint_handler);
 
 /*
  * Handle single-step exception.
@@ -813,6 +820,7 @@ int reinstall_suspended_bps(struct pt_regs *regs)
 
 	return !handled_exception;
 }
+NOKPROBE_SYMBOL(reinstall_suspended_bps);
 
 /*
  * Context-switcher for restoring suspended breakpoints.
@@ -886,9 +894,11 @@ static int hw_breakpoint_reset_notify(struct notifier_block *self,
 						unsigned long action,
 						void *hcpu)
 {
-	int cpu = (long)hcpu;
-	if ((action & ~CPU_TASKS_FROZEN) == CPU_ONLINE)
-		smp_call_function_single(cpu, hw_breakpoint_reset, NULL, 1);
+	if ((action & ~CPU_TASKS_FROZEN) == CPU_ONLINE) {
+		local_irq_disable();
+		hw_breakpoint_reset(NULL);
+		local_irq_enable();
+	}
 	return NOTIFY_OK;
 }
 

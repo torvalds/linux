@@ -321,6 +321,15 @@ config REGULATOR_LP872X
 	help
 	  This driver supports LP8720/LP8725 PMIC
 
+config REGULATOR_LP873X
+	tristate "TI LP873X Power regulators"
+	depends on MFD_LP873X && OF
+	help
+	  This driver supports LP873X voltage regulator chips. LP873X
+	  provides two step-down converters and two general-purpose LDO
+	  voltage regulators. It supports software based voltage control
+	  for different voltage domains
+
 config REGULATOR_LP8755
 	tristate "TI LP8755 High Performance PMU driver"
 	depends on I2C
@@ -409,6 +418,7 @@ config REGULATOR_MAX8952
 config REGULATOR_MAX8973
 	tristate "Maxim MAX8973 voltage regulator "
 	depends on I2C
+	depends on THERMAL && THERMAL_OF
 	select REGMAP_I2C
 	help
 	  The MAXIM MAX8973 high-efficiency. three phase, DC-DC step-down
@@ -488,6 +498,15 @@ config REGULATOR_MT6311
 	  This driver supports the control of different power rails of device
 	  through regulator interface.
 
+config REGULATOR_MT6323
+	tristate "MediaTek MT6323 PMIC"
+	depends on MFD_MT6397
+	help
+	  Say y here to select this option to enable the power regulator of
+	  MediaTek MT6323 PMIC.
+	  This driver supports the control of different power rails of device
+	  through regulator interface.
+
 config REGULATOR_MT6397
 	tristate "MediaTek MT6397 PMIC"
 	depends on MFD_MT6397
@@ -533,12 +552,12 @@ config REGULATOR_PCF50633
 	 on PCF50633
 
 config REGULATOR_PFUZE100
-	tristate "Freescale PFUZE100/PFUZE200 regulator driver"
+	tristate "Freescale PFUZE100/200/3000 regulator driver"
 	depends on I2C
 	select REGMAP_I2C
 	help
 	  Say y here to support the regulators found on the Freescale
-	  PFUZE100/PFUZE200 PMIC.
+	  PFUZE100/200/3000 PMIC.
 
 config REGULATOR_PV88060
 	tristate "Powerventure Semiconductor PV88060 regulator"
@@ -547,6 +566,13 @@ config REGULATOR_PV88060
 	help
 	  Say y here to support the voltage regulators and convertors
 	  PV88060
+
+config REGULATOR_PV88080
+	tristate "Powerventure Semiconductor PV88080 regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support the buck convertors on PV88080
 
 config REGULATOR_PV88090
 	tristate "Powerventure Semiconductor PV88090 regulator"
@@ -619,10 +645,11 @@ config REGULATOR_RK808
 	  outputs which can be controlled by i2c communication.
 
 config REGULATOR_RN5T618
-	tristate "Ricoh RN5T618 voltage regulators"
+	tristate "Ricoh RN5T567/618 voltage regulators"
 	depends on MFD_RN5T618
 	help
-	  Say y here to support the regulators found on Ricoh RN5T618 PMIC.
+	  Say y here to support the regulators found on Ricoh RN5T567 or
+	  RN5T618 PMIC.
 
 config REGULATOR_RT5033
 	tristate "Richtek RT5033 Regulators"

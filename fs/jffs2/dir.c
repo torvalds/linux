@@ -40,7 +40,7 @@ static int jffs2_rename (struct inode *, struct dentry *,
 const struct file_operations jffs2_dir_operations =
 {
 	.read =		generic_read_dir,
-	.iterate =	jffs2_readdir,
+	.iterate_shared=jffs2_readdir,
 	.unlocked_ioctl=jffs2_ioctl,
 	.fsync =	jffs2_fsync,
 	.llseek =	generic_file_llseek,
@@ -81,6 +81,7 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 	struct jffs2_full_dirent *fd = NULL, *fd_list;
 	uint32_t ino = 0;
 	struct inode *inode = NULL;
+	unsigned int nhash;
 
 	jffs2_dbg(1, "jffs2_lookup()\n");
 
@@ -89,11 +90,14 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 
 	dir_f = JFFS2_INODE_INFO(dir_i);
 
+	/* The 'nhash' on the fd_list is not the same as the dentry hash */
+	nhash = full_name_hash(NULL, target->d_name.name, target->d_name.len);
+
 	mutex_lock(&dir_f->sem);
 
 	/* NB: The 2.2 backport will need to explicitly check for '.' and '..' here */
-	for (fd_list = dir_f->dents; fd_list && fd_list->nhash <= target->d_name.hash; fd_list = fd_list->next) {
-		if (fd_list->nhash == target->d_name.hash &&
+	for (fd_list = dir_f->dents; fd_list && fd_list->nhash <= nhash; fd_list = fd_list->next) {
+		if (fd_list->nhash == nhash &&
 		    (!fd || fd_list->version > fd->version) &&
 		    strlen(fd_list->name) == target->d_name.len &&
 		    !strncmp(fd_list->name, target->d_name.name, target->d_name.len)) {
@@ -241,7 +245,7 @@ static int jffs2_unlink(struct inode *dir_i, struct dentry *dentry)
 
 static int jffs2_link (struct dentry *old_dentry, struct inode *dir_i, struct dentry *dentry)
 {
-	struct jffs2_sb_info *c = JFFS2_SB_INFO(d_inode(old_dentry)->i_sb);
+	struct jffs2_sb_info *c = JFFS2_SB_INFO(old_dentry->d_sb);
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(d_inode(old_dentry));
 	struct jffs2_inode_info *dir_f = JFFS2_INODE_INFO(dir_i);
 	int ret;

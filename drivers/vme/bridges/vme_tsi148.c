@@ -314,10 +314,6 @@ static int tsi148_irq_init(struct vme_bridge *tsi148_bridge)
 
 	bridge = tsi148_bridge->driver_priv;
 
-	INIT_LIST_HEAD(&tsi148_bridge->vme_error_handlers);
-
-	mutex_init(&tsi148_bridge->irq_mtx);
-
 	result = request_irq(pdev->irq,
 			     tsi148_irqhandler,
 			     IRQF_SHARED,
@@ -2301,6 +2297,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		retval = -ENOMEM;
 		goto err_struct;
 	}
+	vme_init_bridge(tsi148_bridge);
 
 	tsi148_device = kzalloc(sizeof(struct tsi148_driver), GFP_KERNEL);
 	if (tsi148_device == NULL) {
@@ -2387,7 +2384,6 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Add master windows to list */
-	INIT_LIST_HEAD(&tsi148_bridge->master_resources);
 	for (i = 0; i < master_num; i++) {
 		master_image = kmalloc(sizeof(struct vme_master_resource),
 			GFP_KERNEL);
@@ -2417,7 +2413,6 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Add slave windows to list */
-	INIT_LIST_HEAD(&tsi148_bridge->slave_resources);
 	for (i = 0; i < TSI148_MAX_SLAVE; i++) {
 		slave_image = kmalloc(sizeof(struct vme_slave_resource),
 			GFP_KERNEL);
@@ -2442,7 +2437,6 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Add dma engines to list */
-	INIT_LIST_HEAD(&tsi148_bridge->dma_resources);
 	for (i = 0; i < TSI148_MAX_DMA; i++) {
 		dma_ctrlr = kmalloc(sizeof(struct vme_dma_resource),
 			GFP_KERNEL);
@@ -2467,7 +2461,6 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Add location monitor to list */
-	INIT_LIST_HEAD(&tsi148_bridge->lm_resources);
 	lm = kmalloc(sizeof(struct vme_lm_resource), GFP_KERNEL);
 	if (lm == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate memory for "

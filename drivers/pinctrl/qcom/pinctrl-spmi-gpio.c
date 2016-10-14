@@ -212,7 +212,7 @@ static const struct pinctrl_ops pmic_gpio_pinctrl_ops = {
 	.get_group_name		= pmic_gpio_get_group_name,
 	.get_group_pins		= pmic_gpio_get_group_pins,
 	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
-	.dt_free_map		= pinctrl_utils_dt_free_map,
+	.dt_free_map		= pinctrl_utils_free_map,
 };
 
 static int pmic_gpio_get_functions_count(struct pinctrl_dev *pctldev)
@@ -764,14 +764,14 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 	state->chip.of_gpio_n_cells = 2;
 	state->chip.can_sleep = false;
 
-	state->ctrl = pinctrl_register(pctrldesc, dev, state);
+	state->ctrl = devm_pinctrl_register(dev, pctrldesc, state);
 	if (IS_ERR(state->ctrl))
 		return PTR_ERR(state->ctrl);
 
 	ret = gpiochip_add_data(&state->chip, state);
 	if (ret) {
 		dev_err(state->dev, "can't add gpio chip\n");
-		goto err_chip;
+		return ret;
 	}
 
 	ret = gpiochip_add_pin_range(&state->chip, dev_name(dev), 0, 0, npins);
@@ -784,8 +784,6 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 
 err_range:
 	gpiochip_remove(&state->chip);
-err_chip:
-	pinctrl_unregister(state->ctrl);
 	return ret;
 }
 
@@ -794,7 +792,6 @@ static int pmic_gpio_remove(struct platform_device *pdev)
 	struct pmic_gpio_state *state = platform_get_drvdata(pdev);
 
 	gpiochip_remove(&state->chip);
-	pinctrl_unregister(state->ctrl);
 	return 0;
 }
 

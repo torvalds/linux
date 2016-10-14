@@ -69,6 +69,7 @@ struct watchdog_core_data {
 	unsigned long status;		/* Internal status bits */
 #define _WDOG_DEV_OPEN		0	/* Opened ? */
 #define _WDOG_ALLOW_RELEASE	1	/* Did we receive the magic char ? */
+#define _WDOG_KEEPALIVE		2	/* Did we receive a keepalive ? */
 };
 
 /* the dev_t structure to store the dynamically allocated watchdog devices */
@@ -92,9 +93,13 @@ static inline bool watchdog_need_worker(struct watchdog_device *wdd)
 	 *   thus is aware that the framework supports generating heartbeat
 	 *   requests.
 	 * - Userspace requests a longer timeout than the hardware can handle.
+	 *
+	 * Alternatively, if userspace has not opened the watchdog
+	 * device, we take care of feeding the watchdog if it is
+	 * running.
 	 */
-	return hm && ((watchdog_active(wdd) && t > hm) ||
-		      (t && !watchdog_active(wdd) && watchdog_hw_running(wdd)));
+	return (hm && watchdog_active(wdd) && t > hm) ||
+		(t && !watchdog_active(wdd) && watchdog_hw_running(wdd));
 }
 
 static long watchdog_next_keepalive(struct watchdog_device *wdd)
@@ -107,7 +112,7 @@ static long watchdog_next_keepalive(struct watchdog_device *wdd)
 	unsigned int hw_heartbeat_ms;
 
 	virt_timeout = wd_data->last_keepalive + msecs_to_jiffies(timeout_ms);
-	hw_heartbeat_ms = min(timeout_ms, wdd->max_hw_heartbeat_ms);
+	hw_heartbeat_ms = min_not_zero(timeout_ms, wdd->max_hw_heartbeat_ms);
 	keepalive_interval = msecs_to_jiffies(hw_heartbeat_ms / 2);
 
 	if (!watchdog_active(wdd))
@@ -180,6 +185,8 @@ static int watchdog_ping(struct watchdog_device *wdd)
 	if (!watchdog_active(wdd) && !watchdog_hw_running(wdd))
 		return 0;
 
+	set_bit(_WDOG_KEEPALIVE, &wd_data->status);
+
 	wd_data->last_keepalive = jiffies;
 	return __watchdog_ping(wdd);
 }
@@ -218,6 +225,8 @@ static int watchdog_start(struct watchdog_device *wdd)
 
 	if (watchdog_active(wdd))
 		return 0;
+
+	set_bit(_WDOG_KEEPALIVE, &wd_data->status);
 
 	started_at = jiffies;
 	if (watchdog_hw_running(wdd) && wdd->ops->ping)
@@ -258,10 +267,12 @@ static int watchdog_stop(struct watchdog_device *wdd)
 		return -EBUSY;
 	}
 
-	if (wdd->ops->stop)
+	if (wdd->ops->stop) {
+		clear_bit(WDOG_HW_RUNNING, &wdd->status);
 		err = wdd->ops->stop(wdd);
-	else
+	} else {
 		set_bit(WDOG_HW_RUNNING, &wdd->status);
+	}
 
 	if (err == 0) {
 		clear_bit(WDOG_ACTIVE, &wdd->status);
@@ -282,10 +293,27 @@ static int watchdog_stop(struct watchdog_device *wdd)
 
 static unsigned int watchdog_get_status(struct watchdog_device *wdd)
 {
-	if (!wdd->ops->status)
-		return 0;
+	struct watchdog_core_data *wd_data = wdd->wd_data;
+	unsigned int status;
 
-	return wdd->ops->status(wdd);
+	if (wdd->ops->status)
+		status = wdd->ops->status(wdd);
+	else
+		status = wdd->bootstatus & (WDIOF_CARDRESET |
+					    WDIOF_OVERHEAT |
+					    WDIOF_FANFAULT |
+					    WDIOF_EXTERN1 |
+					    WDIOF_EXTERN2 |
+					    WDIOF_POWERUNDER |
+					    WDIOF_POWEROVER);
+
+	if (test_bit(_WDOG_ALLOW_RELEASE, &wd_data->status))
+		status |= WDIOF_MAGICCLOSE;
+
+	if (test_and_clear_bit(_WDOG_KEEPALIVE, &wd_data->status))
+		status |= WDIOF_KEEPALIVEPING;
+
+	return status;
 }
 
 /*
@@ -361,7 +389,7 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 	status = watchdog_get_status(wdd);
 	mutex_unlock(&wd_data->lock);
 
-	return sprintf(buf, "%u\n", status);
+	return sprintf(buf, "0x%x\n", status);
 }
 static DEVICE_ATTR_RO(status);
 
@@ -429,9 +457,7 @@ static umode_t wdt_is_visible(struct kobject *kobj, struct attribute *attr,
 	struct watchdog_device *wdd = dev_get_drvdata(dev);
 	umode_t mode = attr->mode;
 
-	if (attr == &dev_attr_status.attr && !wdd->ops->status)
-		mode = 0;
-	else if (attr == &dev_attr_timeleft.attr && !wdd->ops->get_timeleft)
+	if (attr == &dev_attr_timeleft.attr && !wdd->ops->get_timeleft)
 		mode = 0;
 
 	return mode;
@@ -736,7 +762,6 @@ static int watchdog_release(struct inode *inode, struct file *file)
 		watchdog_ping(wdd);
 	}
 
-	cancel_delayed_work_sync(&wd_data->work);
 	watchdog_update_worker(wdd);
 
 	/* make sure that /dev/watchdog can be re-opened */
@@ -949,17 +974,22 @@ int __init watchdog_dev_init(void)
 	err = class_register(&watchdog_class);
 	if (err < 0) {
 		pr_err("couldn't register class\n");
-		return err;
+		goto err_register;
 	}
 
 	err = alloc_chrdev_region(&watchdog_devt, 0, MAX_DOGS, "watchdog");
 	if (err < 0) {
 		pr_err("watchdog: unable to allocate char dev region\n");
-		class_unregister(&watchdog_class);
-		return err;
+		goto err_alloc;
 	}
 
 	return 0;
+
+err_alloc:
+	class_unregister(&watchdog_class);
+err_register:
+	destroy_workqueue(watchdog_wq);
+	return err;
 }
 
 /*

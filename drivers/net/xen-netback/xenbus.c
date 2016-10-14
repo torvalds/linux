@@ -38,7 +38,8 @@ struct backend_info {
 	const char *hotplug_script;
 };
 
-static int connect_rings(struct backend_info *be, struct xenvif_queue *queue);
+static int connect_data_rings(struct backend_info *be,
+			      struct xenvif_queue *queue);
 static void connect(struct backend_info *be);
 static int read_xenbus_vif_flags(struct backend_info *be);
 static int backend_create_xenvif(struct backend_info *be);
@@ -270,6 +271,11 @@ static int netback_probe(struct xenbus_device *dev,
 	be->dev = dev;
 	dev_set_drvdata(&dev->dev, be);
 
+	be->state = XenbusStateInitialising;
+	err = xenbus_switch_state(dev, XenbusStateInitialising);
+	if (err)
+		goto fail;
+
 	sg = 1;
 
 	do {
@@ -367,6 +373,12 @@ static int netback_probe(struct xenbus_device *dev,
 	if (err)
 		pr_debug("Error writing multi-queue-max-queues\n");
 
+	err = xenbus_printf(XBT_NIL, dev->nodename,
+			    "feature-ctrl-ring",
+			    "%u", true);
+	if (err)
+		pr_debug("Error writing feature-ctrl-ring\n");
+
 	script = xenbus_read(XBT_NIL, dev->nodename, "script", NULL);
 	if (IS_ERR(script)) {
 		err = PTR_ERR(script);
@@ -376,11 +388,6 @@ static int netback_probe(struct xenbus_device *dev,
 
 	be->hotplug_script = script;
 
-	err = xenbus_switch_state(dev, XenbusStateInitWait);
-	if (err)
-		goto fail;
-
-	be->state = XenbusStateInitWait;
 
 	/* This kicks hotplug scripts, so do it immediately. */
 	err = backend_create_xenvif(be);
@@ -457,7 +464,8 @@ static void backend_disconnect(struct backend_info *be)
 #ifdef CONFIG_DEBUG_FS
 		xenvif_debugfs_delif(be->vif);
 #endif /* CONFIG_DEBUG_FS */
-		xenvif_disconnect(be->vif);
+		xenvif_disconnect_data(be->vif);
+		xenvif_disconnect_ctrl(be->vif);
 	}
 }
 
@@ -484,20 +492,20 @@ static inline void backend_switch_state(struct backend_info *be,
 
 /* Handle backend state transitions:
  *
- * The backend state starts in InitWait and the following transitions are
+ * The backend state starts in Initialising and the following transitions are
  * allowed.
  *
- * InitWait -> Connected
+ * Initialising -> InitWait -> Connected
+ *          \
+ *           \        ^    \         |
+ *            \       |     \        |
+ *             \      |      \       |
+ *              \     |       \      |
+ *               \    |        \     |
+ *                \   |         \    |
+ *                 V  |          V   V
  *
- *    ^    \         |
- *    |     \        |
- *    |      \       |
- *    |       \      |
- *    |        \     |
- *    |         \    |
- *    |          V   V
- *
- *  Closed  <-> Closing
+ *                  Closed  <-> Closing
  *
  * The state argument specifies the eventual state of the backend and the
  * function transitions to that state via the shortest path.
@@ -507,6 +515,20 @@ static void set_backend_state(struct backend_info *be,
 {
 	while (be->state != state) {
 		switch (be->state) {
+		case XenbusStateInitialising:
+			switch (state) {
+			case XenbusStateInitWait:
+			case XenbusStateConnected:
+			case XenbusStateClosing:
+				backend_switch_state(be, XenbusStateInitWait);
+				break;
+			case XenbusStateClosed:
+				backend_switch_state(be, XenbusStateClosed);
+				break;
+			default:
+				BUG();
+			}
+			break;
 		case XenbusStateClosed:
 			switch (state) {
 			case XenbusStateInitWait:
@@ -825,6 +847,48 @@ static void hotplug_status_changed(struct xenbus_watch *watch,
 	kfree(str);
 }
 
+static int connect_ctrl_ring(struct backend_info *be)
+{
+	struct xenbus_device *dev = be->dev;
+	struct xenvif *vif = be->vif;
+	unsigned int val;
+	grant_ref_t ring_ref;
+	unsigned int evtchn;
+	int err;
+
+	err = xenbus_gather(XBT_NIL, dev->otherend,
+			    "ctrl-ring-ref", "%u", &val, NULL);
+	if (err)
+		goto done; /* The frontend does not have a control ring */
+
+	ring_ref = val;
+
+	err = xenbus_gather(XBT_NIL, dev->otherend,
+			    "event-channel-ctrl", "%u", &val, NULL);
+	if (err) {
+		xenbus_dev_fatal(dev, err,
+				 "reading %s/event-channel-ctrl",
+				 dev->otherend);
+		goto fail;
+	}
+
+	evtchn = val;
+
+	err = xenvif_connect_ctrl(vif, ring_ref, evtchn);
+	if (err) {
+		xenbus_dev_fatal(dev, err,
+				 "mapping shared-frame %u port %u",
+				 ring_ref, evtchn);
+		goto fail;
+	}
+
+done:
+	return 0;
+
+fail:
+	return err;
+}
+
 static void connect(struct backend_info *be)
 {
 	int err;
@@ -861,6 +925,12 @@ static void connect(struct backend_info *be)
 	xen_register_watchers(dev, be->vif);
 	read_xenbus_vif_flags(be);
 
+	err = connect_ctrl_ring(be);
+	if (err) {
+		xenbus_dev_fatal(dev, err, "connecting control ring");
+		return;
+	}
+
 	/* Use the number of queues requested by the frontend */
 	be->vif->queues = vzalloc(requested_num_queues *
 				  sizeof(struct xenvif_queue));
@@ -896,11 +966,12 @@ static void connect(struct backend_info *be)
 		queue->remaining_credit = credit_bytes;
 		queue->credit_usec = credit_usec;
 
-		err = connect_rings(be, queue);
+		err = connect_data_rings(be, queue);
 		if (err) {
-			/* connect_rings() cleans up after itself on failure,
-			 * but we need to clean up after xenvif_init_queue() here,
-			 * and also clean up any previously initialised queues.
+			/* connect_data_rings() cleans up after itself on
+			 * failure, but we need to clean up after
+			 * xenvif_init_queue() here, and also clean up any
+			 * previously initialised queues.
 			 */
 			xenvif_deinit_queue(queue);
 			be->vif->num_queues = queue_index;
@@ -935,15 +1006,17 @@ static void connect(struct backend_info *be)
 
 err:
 	if (be->vif->num_queues > 0)
-		xenvif_disconnect(be->vif); /* Clean up existing queues */
+		xenvif_disconnect_data(be->vif); /* Clean up existing queues */
 	vfree(be->vif->queues);
 	be->vif->queues = NULL;
 	be->vif->num_queues = 0;
+	xenvif_disconnect_ctrl(be->vif);
 	return;
 }
 
 
-static int connect_rings(struct backend_info *be, struct xenvif_queue *queue)
+static int connect_data_rings(struct backend_info *be,
+			      struct xenvif_queue *queue)
 {
 	struct xenbus_device *dev = be->dev;
 	unsigned int num_queues = queue->vif->num_queues;
@@ -1007,8 +1080,8 @@ static int connect_rings(struct backend_info *be, struct xenvif_queue *queue)
 	}
 
 	/* Map the shared frame, irq etc. */
-	err = xenvif_connect(queue, tx_ring_ref, rx_ring_ref,
-			     tx_evtchn, rx_evtchn);
+	err = xenvif_connect_data(queue, tx_ring_ref, rx_ring_ref,
+				  tx_evtchn, rx_evtchn);
 	if (err) {
 		xenbus_dev_fatal(dev, err,
 				 "mapping shared-frames %lu/%lu port tx %u rx %u",

@@ -417,7 +417,7 @@ int test__switch_tracking(int subtest __maybe_unused)
 	perf_evsel__set_sample_bit(tracking_evsel, TIME);
 
 	/* Config events */
-	perf_evlist__config(evlist, &opts);
+	perf_evlist__config(evlist, &opts, NULL);
 
 	/* Check moved event is still at the front */
 	if (cycles_evsel != perf_evlist__first(evlist)) {
@@ -432,7 +432,7 @@ int test__switch_tracking(int subtest __maybe_unused)
 	}
 
 	/* Check non-tracking events are not tracking */
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel != tracking_evsel) {
 			if (evsel->attr.mmap || evsel->attr.comm) {
 				pr_debug("Non-tracking event is tracking\n");

@@ -135,7 +135,8 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		.cap = {
 			.max_send_wr  = ipoib_sendq_size,
 			.max_recv_wr  = ipoib_recvq_size,
-			.max_send_sge = 1,
+			.max_send_sge = min_t(u32, priv->ca->attrs.max_sge,
+					      MAX_SKB_FRAGS + 1),
 			.max_recv_sge = IPOIB_UD_RX_SG
 		},
 		.sq_sig_type = IB_SIGNAL_ALL_WR,
@@ -205,10 +206,6 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	if (priv->hca_caps & IB_DEVICE_MANAGED_FLOW_STEERING)
 		init_attr.create_flags |= IB_QP_CREATE_NETIF_QP;
 
-	if (dev->features & NETIF_F_SG)
-		init_attr.cap.max_send_sge =
-			min_t(u32, priv->ca->attrs.max_sge, MAX_SKB_FRAGS + 1);
-
 	priv->qp = ib_create_qp(priv->pd, &init_attr);
 	if (IS_ERR(priv->qp)) {
 		printk(KERN_WARNING "%s: failed to create QP\n", ca->name);
@@ -233,6 +230,9 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 
 	priv->rx_wr.next = NULL;
 	priv->rx_wr.sg_list = priv->rx_sge;
+
+	if (init_attr.cap.max_send_sge > 1)
+		dev->features |= NETIF_F_SG;
 
 	priv->max_send_sge = init_attr.cap.max_send_sge;
 
@@ -307,5 +307,8 @@ void ipoib_event(struct ib_event_handler *handler,
 		queue_work(ipoib_workqueue, &priv->flush_normal);
 	} else if (record->event == IB_EVENT_PKEY_CHANGE) {
 		queue_work(ipoib_workqueue, &priv->flush_heavy);
+	} else if (record->event == IB_EVENT_GID_CHANGE &&
+		   !test_bit(IPOIB_FLAG_DEV_ADDR_SET, &priv->flags)) {
+		queue_work(ipoib_workqueue, &priv->flush_light);
 	}
 }

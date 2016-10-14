@@ -1610,7 +1610,6 @@ static inline int bdx_tx_space(struct bdx_priv *priv)
  * o NETDEV_TX_BUSY Cannot transmit packet, try later
  *   Usually a bug, means queue start/stop flow control is broken in
  *   the driver. Note: the driver must NOT put the skb in its DMA ring.
- * o NETDEV_TX_LOCKED Locking failed, please retry quickly.
  */
 static netdev_tx_t bdx_tx_transmit(struct sk_buff *skb,
 				   struct net_device *ndev)
@@ -1630,12 +1629,7 @@ static netdev_tx_t bdx_tx_transmit(struct sk_buff *skb,
 
 	ENTER;
 	local_irq_save(flags);
-	if (!spin_trylock(&priv->tx_lock)) {
-		local_irq_restore(flags);
-		DBG("%s[%s]: TX locked, returning NETDEV_TX_LOCKED\n",
-		    BDX_DRV_NAME, ndev->name);
-		return NETDEV_TX_LOCKED;
-	}
+	spin_lock(&priv->tx_lock);
 
 	/* build tx descriptor */
 	BDX_ASSERT(f->m.wptr >= f->m.memsz);	/* started with valid wptr */
@@ -1707,7 +1701,7 @@ static netdev_tx_t bdx_tx_transmit(struct sk_buff *skb,
 
 #endif
 #ifdef BDX_LLTX
-	ndev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
+	netif_trans_update(ndev); /* NETIF_F_LLTX driver :( */
 #endif
 	ndev->stats.tx_packets++;
 	ndev->stats.tx_bytes += skb->len;
@@ -1993,7 +1987,7 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if ((readl(nic->regs + FPGA_VER) & 0xFFF) >= 378) {
 		err = pci_enable_msi(pdev);
 		if (err)
-			pr_err("Can't eneble msi. error is %d\n", err);
+			pr_err("Can't enable msi. error is %d\n", err);
 		else
 			nic->irq_type = IRQ_MSI;
 	} else

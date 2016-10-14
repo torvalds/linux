@@ -1233,8 +1233,6 @@ static void write_bar_via_cfg(u32 cfg_offset, u32 off, u32 val)
 static void probe_pci_console(void)
 {
 	u8 cap, common_cap = 0, device_cap = 0;
-	/* Offset within BAR0 */
-	u32 device_offset;
 	u32 device_len;
 
 	/* Avoid recursive printk into here. */
@@ -1258,24 +1256,16 @@ static void probe_pci_console(void)
 		u8 vndr = read_pci_config_byte(0, 1, 0, cap);
 		if (vndr == PCI_CAP_ID_VNDR) {
 			u8 type, bar;
-			u32 offset, length;
 
 			type = read_pci_config_byte(0, 1, 0,
 			    cap + offsetof(struct virtio_pci_cap, cfg_type));
 			bar = read_pci_config_byte(0, 1, 0,
 			    cap + offsetof(struct virtio_pci_cap, bar));
-			offset = read_pci_config(0, 1, 0,
-			    cap + offsetof(struct virtio_pci_cap, offset));
-			length = read_pci_config(0, 1, 0,
-			    cap + offsetof(struct virtio_pci_cap, length));
 
 			switch (type) {
 			case VIRTIO_PCI_CAP_DEVICE_CFG:
-				if (bar == 0) {
+				if (bar == 0)
 					device_cap = cap;
-					device_offset = offset;
-					device_len = length;
-				}
 				break;
 			case VIRTIO_PCI_CAP_PCI_CFG:
 				console_access_cap = cap;
@@ -1297,13 +1287,16 @@ static void probe_pci_console(void)
 	 * emerg_wr.  If it doesn't support VIRTIO_CONSOLE_F_EMERG_WRITE
 	 * it should ignore the access.
 	 */
+	device_len = read_pci_config(0, 1, 0,
+			device_cap + offsetof(struct virtio_pci_cap, length));
 	if (device_len < (offsetof(struct virtio_console_config, emerg_wr)
 			  + sizeof(u32))) {
 		printk(KERN_ERR "lguest: console missing emerg_wr field\n");
 		return;
 	}
 
-	console_cfg_offset = device_offset;
+	console_cfg_offset = read_pci_config(0, 1, 0,
+			device_cap + offsetof(struct virtio_pci_cap, offset));
 	printk(KERN_INFO "lguest: Console via virtio-pci emerg_wr\n");
 }
 
@@ -1408,13 +1401,10 @@ __init void lguest_init(void)
 {
 	/* We're under lguest. */
 	pv_info.name = "lguest";
-	/* Paravirt is enabled. */
-	pv_info.paravirt_enabled = 1;
 	/* We're running at privilege level 1, not 0 as normal. */
 	pv_info.kernel_rpl = 1;
 	/* Everyone except Xen runs with this set. */
 	pv_info.shared_kernel_pmd = 1;
-	pv_info.features = 0;
 
 	/*
 	 * We set up all the lguest overrides for sensitive operations.  These

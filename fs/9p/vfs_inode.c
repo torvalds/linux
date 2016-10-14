@@ -595,7 +595,7 @@ static int v9fs_remove(struct inode *dir, struct dentry *dentry, int flags)
 
 	v9ses = v9fs_inode2v9ses(dir);
 	inode = d_inode(dentry);
-	dfid = v9fs_fid_lookup(dentry->d_parent);
+	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid)) {
 		retval = PTR_ERR(dfid);
 		p9_debug(P9_DEBUG_VFS, "fid lookup failed %d\n", retval);
@@ -653,7 +653,7 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 	ofid = NULL;
 	fid = NULL;
 	name = (char *) dentry->d_name.name;
-	dfid = v9fs_fid_lookup(dentry->d_parent);
+	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
 		p9_debug(P9_DEBUG_VFS, "fid lookup failed %d\n", err);
@@ -661,7 +661,7 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 	}
 
 	/* clone a fid to use for creation */
-	ofid = p9_client_walk(dfid, 0, NULL, 1);
+	ofid = clone_fid(dfid);
 	if (IS_ERR(ofid)) {
 		err = PTR_ERR(ofid);
 		p9_debug(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
@@ -798,7 +798,7 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	v9ses = v9fs_inode2v9ses(dir);
 	/* We can walk d_parent because we hold the dir->i_mutex */
-	dfid = v9fs_fid_lookup(dentry->d_parent);
+	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid))
 		return ERR_CAST(dfid);
 
@@ -853,7 +853,7 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	struct p9_fid *fid, *inode_fid;
 	struct dentry *res = NULL;
 
-	if (d_unhashed(dentry)) {
+	if (d_in_lookup(dentry)) {
 		res = v9fs_vfs_lookup(dir, dentry, 0);
 		if (IS_ERR(res))
 			return PTR_ERR(res);
@@ -975,13 +975,13 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (IS_ERR(oldfid))
 		return PTR_ERR(oldfid);
 
-	olddirfid = v9fs_fid_clone(old_dentry->d_parent);
+	olddirfid = clone_fid(v9fs_parent_fid(old_dentry));
 	if (IS_ERR(olddirfid)) {
 		retval = PTR_ERR(olddirfid);
 		goto done;
 	}
 
-	newdirfid = v9fs_fid_clone(new_dentry->d_parent);
+	newdirfid = clone_fid(v9fs_parent_fid(new_dentry));
 	if (IS_ERR(newdirfid)) {
 		retval = PTR_ERR(newdirfid);
 		goto clunk_olddir;
@@ -1071,7 +1071,7 @@ v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	if (IS_ERR(st))
 		return PTR_ERR(st);
 
-	v9fs_stat2inode(st, d_inode(dentry), d_inode(dentry)->i_sb);
+	v9fs_stat2inode(st, d_inode(dentry), dentry->d_sb);
 	generic_fillattr(d_inode(dentry), stat);
 
 	p9stat_free(st);

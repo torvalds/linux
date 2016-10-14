@@ -62,6 +62,7 @@ enum {
 
 struct stmpe_variant_info;
 struct stmpe_client_info;
+struct stmpe_platform_data;
 
 /**
  * struct stmpe - STMPE MFD structure
@@ -116,26 +117,5 @@ extern int stmpe_enable(struct stmpe *stmpe, unsigned int blocks);
 extern int stmpe_disable(struct stmpe *stmpe, unsigned int blocks);
 
 #define STMPE_GPIO_NOREQ_811_TOUCH	(0xf0)
-
-/**
- * struct stmpe_platform_data - STMPE platform data
- * @id: device id to distinguish between multiple STMPEs on the same board
- * @blocks: bitmask of blocks to enable (use STMPE_BLOCK_*)
- * @irq_trigger: IRQ trigger to use for the interrupt to the host
- * @autosleep: bool to enable/disable stmpe autosleep
- * @autosleep_timeout: inactivity timeout in milliseconds for autosleep
- * @irq_over_gpio: true if gpio is used to get irq
- * @irq_gpio: gpio number over which irq will be requested (significant only if
- *	      irq_over_gpio is true)
- */
-struct stmpe_platform_data {
-	int id;
-	unsigned int blocks;
-	unsigned int irq_trigger;
-	bool autosleep;
-	bool irq_over_gpio;
-	int irq_gpio;
-	int autosleep_timeout;
-};
 
 #endif

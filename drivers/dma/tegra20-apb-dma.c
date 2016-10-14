@@ -54,6 +54,7 @@
 #define TEGRA_APBDMA_CSR_ONCE			BIT(27)
 #define TEGRA_APBDMA_CSR_FLOW			BIT(21)
 #define TEGRA_APBDMA_CSR_REQ_SEL_SHIFT		16
+#define TEGRA_APBDMA_CSR_REQ_SEL_MASK		0x1F
 #define TEGRA_APBDMA_CSR_WCOUNT_MASK		0xFFFC
 
 /* STATUS register */
@@ -113,6 +114,8 @@
 
 /* Channel base address offset from APBDMA base address */
 #define TEGRA_APBDMA_CHANNEL_BASE_ADD_OFFSET	0x1000
+
+#define TEGRA_APBDMA_SLAVE_ID_INVALID	(TEGRA_APBDMA_CSR_REQ_SEL_MASK + 1)
 
 struct tegra_dma;
 
@@ -297,10 +300,8 @@ static struct tegra_dma_desc *tegra_dma_desc_get(
 
 	/* Allocate DMA desc */
 	dma_desc = kzalloc(sizeof(*dma_desc), GFP_NOWAIT);
-	if (!dma_desc) {
-		dev_err(tdc2dev(tdc), "dma_desc alloc failed\n");
+	if (!dma_desc)
 		return NULL;
-	}
 
 	dma_async_tx_descriptor_init(&dma_desc->txd, &tdc->dma_chan);
 	dma_desc->txd.tx_submit = tegra_dma_tx_submit;
@@ -337,8 +338,7 @@ static struct tegra_dma_sg_req *tegra_dma_sg_req_get(
 	spin_unlock_irqrestore(&tdc->lock, flags);
 
 	sg_req = kzalloc(sizeof(struct tegra_dma_sg_req), GFP_NOWAIT);
-	if (!sg_req)
-		dev_err(tdc2dev(tdc), "sg_req alloc failed\n");
+
 	return sg_req;
 }
 
@@ -353,8 +353,11 @@ static int tegra_dma_slave_config(struct dma_chan *dc,
 	}
 
 	memcpy(&tdc->dma_sconfig, sconfig, sizeof(*sconfig));
-	if (!tdc->slave_id)
+	if (tdc->slave_id == TEGRA_APBDMA_SLAVE_ID_INVALID) {
+		if (sconfig->slave_id > TEGRA_APBDMA_CSR_REQ_SEL_MASK)
+			return -EINVAL;
 		tdc->slave_id = sconfig->slave_id;
+	}
 	tdc->config_init = true;
 	return 0;
 }
@@ -478,7 +481,7 @@ static void tegra_dma_configure_for_next(struct tegra_dma_channel *tdc,
 	 * load new configuration.
 	 */
 	tegra_dma_pause(tdc, false);
-	status  = tdc_read(tdc, TEGRA_APBDMA_CHAN_STATUS);
+	status = tdc_read(tdc, TEGRA_APBDMA_CHAN_STATUS);
 
 	/*
 	 * If interrupt is pending then do nothing as the ISR will handle
@@ -816,13 +819,8 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 	/* Check on wait_ack desc status */
 	list_for_each_entry(dma_desc, &tdc->free_dma_desc, node) {
 		if (dma_desc->txd.cookie == cookie) {
-			residual =  dma_desc->bytes_requested -
-					(dma_desc->bytes_transferred %
-						dma_desc->bytes_requested);
-			dma_set_residue(txstate, residual);
 			ret = dma_desc->dma_status;
-			spin_unlock_irqrestore(&tdc->lock, flags);
-			return ret;
+			goto found;
 		}
 	}
 
@@ -830,17 +828,22 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 	list_for_each_entry(sg_req, &tdc->pending_sg_req, node) {
 		dma_desc = sg_req->dma_desc;
 		if (dma_desc->txd.cookie == cookie) {
-			residual =  dma_desc->bytes_requested -
-					(dma_desc->bytes_transferred %
-						dma_desc->bytes_requested);
-			dma_set_residue(txstate, residual);
 			ret = dma_desc->dma_status;
-			spin_unlock_irqrestore(&tdc->lock, flags);
-			return ret;
+			goto found;
 		}
 	}
 
-	dev_dbg(tdc2dev(tdc), "cookie %d does not found\n", cookie);
+	dev_dbg(tdc2dev(tdc), "cookie %d not found\n", cookie);
+	dma_desc = NULL;
+
+found:
+	if (dma_desc && txstate) {
+		residual = dma_desc->bytes_requested -
+			   (dma_desc->bytes_transferred %
+			    dma_desc->bytes_requested);
+		dma_set_residue(txstate, residual);
+	}
+
 	spin_unlock_irqrestore(&tdc->lock, flags);
 	return ret;
 }
@@ -899,7 +902,6 @@ static int get_transfer_param(struct tegra_dma_channel *tdc,
 	unsigned long *apb_seq,	unsigned long *csr, unsigned int *burst_size,
 	enum dma_slave_buswidth *slave_bw)
 {
-
 	switch (direction) {
 	case DMA_MEM_TO_DEV:
 		*apb_addr = tdc->dma_sconfig.dst_addr;
@@ -942,8 +944,8 @@ static struct dma_async_tx_descriptor *tegra_dma_prep_slave_sg(
 {
 	struct tegra_dma_channel *tdc = to_tegra_dma_chan(dc);
 	struct tegra_dma_desc *dma_desc;
-	unsigned int	    i;
-	struct scatterlist      *sg;
+	unsigned int i;
+	struct scatterlist *sg;
 	unsigned long csr, ahb_seq, apb_ptr, apb_seq;
 	struct list_head req_list;
 	struct tegra_dma_sg_req  *sg_req = NULL;
@@ -1056,7 +1058,7 @@ static struct dma_async_tx_descriptor *tegra_dma_prep_dma_cyclic(
 {
 	struct tegra_dma_channel *tdc = to_tegra_dma_chan(dc);
 	struct tegra_dma_desc *dma_desc = NULL;
-	struct tegra_dma_sg_req  *sg_req = NULL;
+	struct tegra_dma_sg_req *sg_req = NULL;
 	unsigned long csr, ahb_seq, apb_ptr, apb_seq;
 	int len;
 	size_t remain_len;
@@ -1198,7 +1200,6 @@ static void tegra_dma_free_chan_resources(struct dma_chan *dc)
 {
 	struct tegra_dma_channel *tdc = to_tegra_dma_chan(dc);
 	struct tegra_dma *tdma = tdc->tdma;
-
 	struct tegra_dma_desc *dma_desc;
 	struct tegra_dma_sg_req *sg_req;
 	struct list_head dma_desc_list;
@@ -1236,7 +1237,7 @@ static void tegra_dma_free_chan_resources(struct dma_chan *dc)
 	}
 	pm_runtime_put(tdma->dev);
 
-	tdc->slave_id = 0;
+	tdc->slave_id = TEGRA_APBDMA_SLAVE_ID_INVALID;
 }
 
 static struct dma_chan *tegra_dma_of_xlate(struct of_phandle_args *dma_spec,
@@ -1245,6 +1246,11 @@ static struct dma_chan *tegra_dma_of_xlate(struct of_phandle_args *dma_spec,
 	struct tegra_dma *tdma = ofdma->of_dma_data;
 	struct dma_chan *chan;
 	struct tegra_dma_channel *tdc;
+
+	if (dma_spec->args[0] > TEGRA_APBDMA_CSR_REQ_SEL_MASK) {
+		dev_err(tdma->dev, "Invalid slave id: %d\n", dma_spec->args[0]);
+		return NULL;
+	}
 
 	chan = dma_get_any_slave_channel(&tdma->dma_dev);
 	if (!chan)
@@ -1294,7 +1300,7 @@ static const struct tegra_dma_chip_data tegra148_dma_chip_data = {
 
 static int tegra_dma_probe(struct platform_device *pdev)
 {
-	struct resource	*res;
+	struct resource *res;
 	struct tegra_dma *tdma;
 	int ret;
 	int i;
@@ -1308,10 +1314,8 @@ static int tegra_dma_probe(struct platform_device *pdev)
 
 	tdma = devm_kzalloc(&pdev->dev, sizeof(*tdma) + cdata->nr_channels *
 			sizeof(struct tegra_dma_channel), GFP_KERNEL);
-	if (!tdma) {
-		dev_err(&pdev->dev, "Error: memory allocation failed\n");
+	if (!tdma)
 		return -ENOMEM;
-	}
 
 	tdma->dev = &pdev->dev;
 	tdma->chip_data = cdata;
@@ -1389,6 +1393,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 				&tdma->dma_dev.channels);
 		tdc->tdma = tdma;
 		tdc->id = i;
+		tdc->slave_id = TEGRA_APBDMA_SLAVE_ID_INVALID;
 
 		tasklet_init(&tdc->tasklet, tegra_dma_tasklet,
 				(unsigned long)tdc);

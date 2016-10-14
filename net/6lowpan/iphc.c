@@ -53,9 +53,6 @@
 #include <net/6lowpan.h>
 #include <net/ipv6.h>
 
-/* special link-layer handling */
-#include <net/mac802154.h>
-
 #include "6lowpan_i.h"
 #include "nhc.h"
 
@@ -148,35 +145,25 @@
 	 (((a)->s6_addr16[6]) == 0) &&		\
 	 (((a)->s6_addr[14]) == 0))
 
+#define lowpan_is_linklocal_zero_padded(a)	\
+	(!(hdr->saddr.s6_addr[1] & 0x3f) &&	\
+	 !hdr->saddr.s6_addr16[1] &&		\
+	 !hdr->saddr.s6_addr32[1])
+
 #define LOWPAN_IPHC_CID_DCI(cid)	(cid & 0x0f)
 #define LOWPAN_IPHC_CID_SCI(cid)	((cid & 0xf0) >> 4)
 
-static inline void iphc_uncompress_eui64_lladdr(struct in6_addr *ipaddr,
-						const void *lladdr)
-{
-	/* fe:80::XXXX:XXXX:XXXX:XXXX
-	 *        \_________________/
-	 *              hwaddr
-	 */
-	ipaddr->s6_addr[0] = 0xFE;
-	ipaddr->s6_addr[1] = 0x80;
-	memcpy(&ipaddr->s6_addr[8], lladdr, EUI64_ADDR_LEN);
-	/* second bit-flip (Universe/Local)
-	 * is done according RFC2464
-	 */
-	ipaddr->s6_addr[8] ^= 0x02;
-}
-
-static inline void iphc_uncompress_802154_lladdr(struct in6_addr *ipaddr,
-						 const void *lladdr)
+static inline void
+lowpan_iphc_uncompress_802154_lladdr(struct in6_addr *ipaddr,
+				     const void *lladdr)
 {
 	const struct ieee802154_addr *addr = lladdr;
-	u8 eui64[EUI64_ADDR_LEN] = { };
+	u8 eui64[EUI64_ADDR_LEN];
 
 	switch (addr->mode) {
 	case IEEE802154_ADDR_LONG:
 		ieee802154_le64_to_be64(eui64, &addr->extended_addr);
-		iphc_uncompress_eui64_lladdr(ipaddr, eui64);
+		lowpan_iphc_uncompress_eui64_lladdr(ipaddr, eui64);
 		break;
 	case IEEE802154_ADDR_SHORT:
 		/* fe:80::ff:fe00:XXXX
@@ -202,7 +189,7 @@ static inline void iphc_uncompress_802154_lladdr(struct in6_addr *ipaddr,
 static struct lowpan_iphc_ctx *
 lowpan_iphc_ctx_get_by_id(const struct net_device *dev, u8 id)
 {
-	struct lowpan_iphc_ctx *ret = &lowpan_priv(dev)->ctx.table[id];
+	struct lowpan_iphc_ctx *ret = &lowpan_dev(dev)->ctx.table[id];
 
 	if (!lowpan_iphc_ctx_is_active(ret))
 		return NULL;
@@ -214,7 +201,7 @@ static struct lowpan_iphc_ctx *
 lowpan_iphc_ctx_get_by_addr(const struct net_device *dev,
 			    const struct in6_addr *addr)
 {
-	struct lowpan_iphc_ctx *table = lowpan_priv(dev)->ctx.table;
+	struct lowpan_iphc_ctx *table = lowpan_dev(dev)->ctx.table;
 	struct lowpan_iphc_ctx *ret = NULL;
 	struct in6_addr addr_pfx;
 	u8 addr_plen;
@@ -258,7 +245,7 @@ static struct lowpan_iphc_ctx *
 lowpan_iphc_ctx_get_by_mcast_addr(const struct net_device *dev,
 				  const struct in6_addr *addr)
 {
-	struct lowpan_iphc_ctx *table = lowpan_priv(dev)->ctx.table;
+	struct lowpan_iphc_ctx *table = lowpan_dev(dev)->ctx.table;
 	struct lowpan_iphc_ctx *ret = NULL;
 	struct in6_addr addr_mcast, network_pfx = {};
 	int i;
@@ -296,9 +283,10 @@ lowpan_iphc_ctx_get_by_mcast_addr(const struct net_device *dev,
  *
  * address_mode is the masked value for sam or dam value
  */
-static int uncompress_addr(struct sk_buff *skb, const struct net_device *dev,
-			   struct in6_addr *ipaddr, u8 address_mode,
-			   const void *lladdr)
+static int lowpan_iphc_uncompress_addr(struct sk_buff *skb,
+				       const struct net_device *dev,
+				       struct in6_addr *ipaddr,
+				       u8 address_mode, const void *lladdr)
 {
 	bool fail;
 
@@ -327,12 +315,12 @@ static int uncompress_addr(struct sk_buff *skb, const struct net_device *dev,
 	case LOWPAN_IPHC_SAM_11:
 	case LOWPAN_IPHC_DAM_11:
 		fail = false;
-		switch (lowpan_priv(dev)->lltype) {
+		switch (lowpan_dev(dev)->lltype) {
 		case LOWPAN_LLTYPE_IEEE802154:
-			iphc_uncompress_802154_lladdr(ipaddr, lladdr);
+			lowpan_iphc_uncompress_802154_lladdr(ipaddr, lladdr);
 			break;
 		default:
-			iphc_uncompress_eui64_lladdr(ipaddr, lladdr);
+			lowpan_iphc_uncompress_eui64_lladdr(ipaddr, lladdr);
 			break;
 		}
 		break;
@@ -355,11 +343,11 @@ static int uncompress_addr(struct sk_buff *skb, const struct net_device *dev,
 /* Uncompress address function for source context
  * based address(non-multicast).
  */
-static int uncompress_ctx_addr(struct sk_buff *skb,
-			       const struct net_device *dev,
-			       const struct lowpan_iphc_ctx *ctx,
-			       struct in6_addr *ipaddr, u8 address_mode,
-			       const void *lladdr)
+static int lowpan_iphc_uncompress_ctx_addr(struct sk_buff *skb,
+					   const struct net_device *dev,
+					   const struct lowpan_iphc_ctx *ctx,
+					   struct in6_addr *ipaddr,
+					   u8 address_mode, const void *lladdr)
 {
 	bool fail;
 
@@ -388,12 +376,12 @@ static int uncompress_ctx_addr(struct sk_buff *skb,
 	case LOWPAN_IPHC_SAM_11:
 	case LOWPAN_IPHC_DAM_11:
 		fail = false;
-		switch (lowpan_priv(dev)->lltype) {
+		switch (lowpan_dev(dev)->lltype) {
 		case LOWPAN_LLTYPE_IEEE802154:
-			iphc_uncompress_802154_lladdr(ipaddr, lladdr);
+			lowpan_iphc_uncompress_802154_lladdr(ipaddr, lladdr);
 			break;
 		default:
-			iphc_uncompress_eui64_lladdr(ipaddr, lladdr);
+			lowpan_iphc_uncompress_eui64_lladdr(ipaddr, lladdr);
 			break;
 		}
 		ipv6_addr_prefix_copy(ipaddr, &ctx->pfx, ctx->plen);
@@ -652,22 +640,24 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 	}
 
 	if (iphc1 & LOWPAN_IPHC_SAC) {
-		spin_lock_bh(&lowpan_priv(dev)->ctx.lock);
+		spin_lock_bh(&lowpan_dev(dev)->ctx.lock);
 		ci = lowpan_iphc_ctx_get_by_id(dev, LOWPAN_IPHC_CID_SCI(cid));
 		if (!ci) {
-			spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+			spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 			return -EINVAL;
 		}
 
 		pr_debug("SAC bit is set. Handle context based source address.\n");
-		err = uncompress_ctx_addr(skb, dev, ci, &hdr.saddr,
-					  iphc1 & LOWPAN_IPHC_SAM_MASK, saddr);
-		spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+		err = lowpan_iphc_uncompress_ctx_addr(skb, dev, ci, &hdr.saddr,
+						      iphc1 & LOWPAN_IPHC_SAM_MASK,
+						      saddr);
+		spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 	} else {
 		/* Source address uncompression */
 		pr_debug("source address stateless compression\n");
-		err = uncompress_addr(skb, dev, &hdr.saddr,
-				      iphc1 & LOWPAN_IPHC_SAM_MASK, saddr);
+		err = lowpan_iphc_uncompress_addr(skb, dev, &hdr.saddr,
+						  iphc1 & LOWPAN_IPHC_SAM_MASK,
+						  saddr);
 	}
 
 	/* Check on error of previous branch */
@@ -676,10 +666,10 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 
 	switch (iphc1 & (LOWPAN_IPHC_M | LOWPAN_IPHC_DAC)) {
 	case LOWPAN_IPHC_M | LOWPAN_IPHC_DAC:
-		spin_lock_bh(&lowpan_priv(dev)->ctx.lock);
+		spin_lock_bh(&lowpan_dev(dev)->ctx.lock);
 		ci = lowpan_iphc_ctx_get_by_id(dev, LOWPAN_IPHC_CID_DCI(cid));
 		if (!ci) {
-			spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+			spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 			return -EINVAL;
 		}
 
@@ -688,7 +678,7 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 		err = lowpan_uncompress_multicast_ctx_daddr(skb, ci,
 							    &hdr.daddr,
 							    iphc1 & LOWPAN_IPHC_DAM_MASK);
-		spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+		spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 		break;
 	case LOWPAN_IPHC_M:
 		/* multicast */
@@ -696,22 +686,24 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 							iphc1 & LOWPAN_IPHC_DAM_MASK);
 		break;
 	case LOWPAN_IPHC_DAC:
-		spin_lock_bh(&lowpan_priv(dev)->ctx.lock);
+		spin_lock_bh(&lowpan_dev(dev)->ctx.lock);
 		ci = lowpan_iphc_ctx_get_by_id(dev, LOWPAN_IPHC_CID_DCI(cid));
 		if (!ci) {
-			spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+			spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 			return -EINVAL;
 		}
 
 		/* Destination address context based uncompression */
 		pr_debug("DAC bit is set. Handle context based destination address.\n");
-		err = uncompress_ctx_addr(skb, dev, ci, &hdr.daddr,
-					  iphc1 & LOWPAN_IPHC_DAM_MASK, daddr);
-		spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+		err = lowpan_iphc_uncompress_ctx_addr(skb, dev, ci, &hdr.daddr,
+						      iphc1 & LOWPAN_IPHC_DAM_MASK,
+						      daddr);
+		spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 		break;
 	default:
-		err = uncompress_addr(skb, dev, &hdr.daddr,
-				      iphc1 & LOWPAN_IPHC_DAM_MASK, daddr);
+		err = lowpan_iphc_uncompress_addr(skb, dev, &hdr.daddr,
+						  iphc1 & LOWPAN_IPHC_DAM_MASK,
+						  daddr);
 		pr_debug("dest: stateless compression mode %d dest %pI6c\n",
 			 iphc1 & LOWPAN_IPHC_DAM_MASK, &hdr.daddr);
 		break;
@@ -731,7 +723,7 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 			return err;
 	}
 
-	switch (lowpan_priv(dev)->lltype) {
+	switch (lowpan_dev(dev)->lltype) {
 	case LOWPAN_LLTYPE_IEEE802154:
 		if (lowpan_802154_cb(skb)->d_size)
 			hdr.payload_len = htons(lowpan_802154_cb(skb)->d_size -
@@ -769,22 +761,75 @@ static const u8 lowpan_iphc_dam_to_sam_value[] = {
 	[LOWPAN_IPHC_DAM_11] = LOWPAN_IPHC_SAM_11,
 };
 
-static u8 lowpan_compress_ctx_addr(u8 **hc_ptr, const struct in6_addr *ipaddr,
+static inline bool
+lowpan_iphc_compress_ctx_802154_lladdr(const struct in6_addr *ipaddr,
+				       const struct lowpan_iphc_ctx *ctx,
+				       const void *lladdr)
+{
+	const struct ieee802154_addr *addr = lladdr;
+	unsigned char extended_addr[EUI64_ADDR_LEN];
+	bool lladdr_compress = false;
+	struct in6_addr tmp = {};
+
+	switch (addr->mode) {
+	case IEEE802154_ADDR_LONG:
+		ieee802154_le64_to_be64(&extended_addr, &addr->extended_addr);
+		/* check for SAM/DAM = 11 */
+		memcpy(&tmp.s6_addr[8], &extended_addr, EUI64_ADDR_LEN);
+		/* second bit-flip (Universe/Local) is done according RFC2464 */
+		tmp.s6_addr[8] ^= 0x02;
+		/* context information are always used */
+		ipv6_addr_prefix_copy(&tmp, &ctx->pfx, ctx->plen);
+		if (ipv6_addr_equal(&tmp, ipaddr))
+			lladdr_compress = true;
+		break;
+	case IEEE802154_ADDR_SHORT:
+		tmp.s6_addr[11] = 0xFF;
+		tmp.s6_addr[12] = 0xFE;
+		ieee802154_le16_to_be16(&tmp.s6_addr16[7],
+					&addr->short_addr);
+		/* context information are always used */
+		ipv6_addr_prefix_copy(&tmp, &ctx->pfx, ctx->plen);
+		if (ipv6_addr_equal(&tmp, ipaddr))
+			lladdr_compress = true;
+		break;
+	default:
+		/* should never handled and filtered by 802154 6lowpan */
+		WARN_ON_ONCE(1);
+		break;
+	}
+
+	return lladdr_compress;
+}
+
+static u8 lowpan_compress_ctx_addr(u8 **hc_ptr, const struct net_device *dev,
+				   const struct in6_addr *ipaddr,
 				   const struct lowpan_iphc_ctx *ctx,
 				   const unsigned char *lladdr, bool sam)
 {
 	struct in6_addr tmp = {};
 	u8 dam;
 
-	/* check for SAM/DAM = 11 */
-	memcpy(&tmp.s6_addr[8], lladdr, 8);
-	/* second bit-flip (Universe/Local) is done according RFC2464 */
-	tmp.s6_addr[8] ^= 0x02;
-	/* context information are always used */
-	ipv6_addr_prefix_copy(&tmp, &ctx->pfx, ctx->plen);
-	if (ipv6_addr_equal(&tmp, ipaddr)) {
-		dam = LOWPAN_IPHC_DAM_11;
-		goto out;
+	switch (lowpan_dev(dev)->lltype) {
+	case LOWPAN_LLTYPE_IEEE802154:
+		if (lowpan_iphc_compress_ctx_802154_lladdr(ipaddr, ctx,
+							   lladdr)) {
+			dam = LOWPAN_IPHC_DAM_11;
+			goto out;
+		}
+		break;
+	default:
+		/* check for SAM/DAM = 11 */
+		memcpy(&tmp.s6_addr[8], lladdr, EUI64_ADDR_LEN);
+		/* second bit-flip (Universe/Local) is done according RFC2464 */
+		tmp.s6_addr[8] ^= 0x02;
+		/* context information are always used */
+		ipv6_addr_prefix_copy(&tmp, &ctx->pfx, ctx->plen);
+		if (ipv6_addr_equal(&tmp, ipaddr)) {
+			dam = LOWPAN_IPHC_DAM_11;
+			goto out;
+		}
+		break;
 	}
 
 	memset(&tmp, 0, sizeof(tmp));
@@ -821,27 +866,84 @@ out:
 		return dam;
 }
 
-static u8 lowpan_compress_addr_64(u8 **hc_ptr, const struct in6_addr *ipaddr,
+static inline bool
+lowpan_iphc_compress_802154_lladdr(const struct in6_addr *ipaddr,
+				   const void *lladdr)
+{
+	const struct ieee802154_addr *addr = lladdr;
+	unsigned char extended_addr[EUI64_ADDR_LEN];
+	bool lladdr_compress = false;
+	struct in6_addr tmp = {};
+
+	switch (addr->mode) {
+	case IEEE802154_ADDR_LONG:
+		ieee802154_le64_to_be64(&extended_addr, &addr->extended_addr);
+		if (is_addr_mac_addr_based(ipaddr, extended_addr))
+			lladdr_compress = true;
+		break;
+	case IEEE802154_ADDR_SHORT:
+		/* fe:80::ff:fe00:XXXX
+		 *                \__/
+		 *             short_addr
+		 *
+		 * Universe/Local bit is zero.
+		 */
+		tmp.s6_addr[0] = 0xFE;
+		tmp.s6_addr[1] = 0x80;
+		tmp.s6_addr[11] = 0xFF;
+		tmp.s6_addr[12] = 0xFE;
+		ieee802154_le16_to_be16(&tmp.s6_addr16[7],
+					&addr->short_addr);
+		if (ipv6_addr_equal(&tmp, ipaddr))
+			lladdr_compress = true;
+		break;
+	default:
+		/* should never handled and filtered by 802154 6lowpan */
+		WARN_ON_ONCE(1);
+		break;
+	}
+
+	return lladdr_compress;
+}
+
+static u8 lowpan_compress_addr_64(u8 **hc_ptr, const struct net_device *dev,
+				  const struct in6_addr *ipaddr,
 				  const unsigned char *lladdr, bool sam)
 {
-	u8 dam = LOWPAN_IPHC_DAM_00;
+	u8 dam = LOWPAN_IPHC_DAM_01;
 
-	if (is_addr_mac_addr_based(ipaddr, lladdr)) {
-		dam = LOWPAN_IPHC_DAM_11; /* 0-bits */
-		pr_debug("address compression 0 bits\n");
-	} else if (lowpan_is_iid_16_bit_compressable(ipaddr)) {
+	switch (lowpan_dev(dev)->lltype) {
+	case LOWPAN_LLTYPE_IEEE802154:
+		if (lowpan_iphc_compress_802154_lladdr(ipaddr, lladdr)) {
+			dam = LOWPAN_IPHC_DAM_11; /* 0-bits */
+			pr_debug("address compression 0 bits\n");
+			goto out;
+		}
+		break;
+	default:
+		if (is_addr_mac_addr_based(ipaddr, lladdr)) {
+			dam = LOWPAN_IPHC_DAM_11; /* 0-bits */
+			pr_debug("address compression 0 bits\n");
+			goto out;
+		}
+		break;
+	}
+
+	if (lowpan_is_iid_16_bit_compressable(ipaddr)) {
 		/* compress IID to 16 bits xxxx::XXXX */
 		lowpan_push_hc_data(hc_ptr, &ipaddr->s6_addr16[7], 2);
 		dam = LOWPAN_IPHC_DAM_10; /* 16-bits */
 		raw_dump_inline(NULL, "Compressed ipv6 addr is (16 bits)",
 				*hc_ptr - 2, 2);
-	} else {
-		/* do not compress IID => xxxx::IID */
-		lowpan_push_hc_data(hc_ptr, &ipaddr->s6_addr16[4], 8);
-		dam = LOWPAN_IPHC_DAM_01; /* 64-bits */
-		raw_dump_inline(NULL, "Compressed ipv6 addr is (64 bits)",
-				*hc_ptr - 8, 8);
+		goto out;
 	}
+
+	/* do not compress IID => xxxx::IID */
+	lowpan_push_hc_data(hc_ptr, &ipaddr->s6_addr16[4], 8);
+	raw_dump_inline(NULL, "Compressed ipv6 addr is (64 bits)",
+			*hc_ptr - 8, 8);
+
+out:
 
 	if (sam)
 		return lowpan_iphc_dam_to_sam_value[dam];
@@ -1021,14 +1123,11 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 	iphc0 = LOWPAN_DISPATCH_IPHC;
 	iphc1 = 0;
 
-	raw_dump_inline(__func__, "saddr", saddr, EUI64_ADDR_LEN);
-	raw_dump_inline(__func__, "daddr", daddr, EUI64_ADDR_LEN);
-
 	raw_dump_table(__func__, "sending raw skb network uncompressed packet",
 		       skb->data, skb->len);
 
 	ipv6_daddr_type = ipv6_addr_type(&hdr->daddr);
-	spin_lock_bh(&lowpan_priv(dev)->ctx.lock);
+	spin_lock_bh(&lowpan_dev(dev)->ctx.lock);
 	if (ipv6_daddr_type & IPV6_ADDR_MULTICAST)
 		dci = lowpan_iphc_ctx_get_by_mcast_addr(dev, &hdr->daddr);
 	else
@@ -1037,15 +1136,15 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 		memcpy(&dci_entry, dci, sizeof(*dci));
 		cid |= dci->id;
 	}
-	spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+	spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 
-	spin_lock_bh(&lowpan_priv(dev)->ctx.lock);
+	spin_lock_bh(&lowpan_dev(dev)->ctx.lock);
 	sci = lowpan_iphc_ctx_get_by_addr(dev, &hdr->saddr);
 	if (sci) {
 		memcpy(&sci_entry, sci, sizeof(*sci));
 		cid |= (sci->id << 4);
 	}
-	spin_unlock_bh(&lowpan_priv(dev)->ctx.lock);
+	spin_unlock_bh(&lowpan_dev(dev)->ctx.lock);
 
 	/* if cid is zero it will be compressed */
 	if (cid) {
@@ -1096,13 +1195,15 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 		iphc1 |= LOWPAN_IPHC_SAC;
 	} else {
 		if (sci) {
-			iphc1 |= lowpan_compress_ctx_addr(&hc_ptr, &hdr->saddr,
+			iphc1 |= lowpan_compress_ctx_addr(&hc_ptr, dev,
+							  &hdr->saddr,
 							  &sci_entry, saddr,
 							  true);
 			iphc1 |= LOWPAN_IPHC_SAC;
 		} else {
-			if (ipv6_saddr_type & IPV6_ADDR_LINKLOCAL) {
-				iphc1 |= lowpan_compress_addr_64(&hc_ptr,
+			if (ipv6_saddr_type & IPV6_ADDR_LINKLOCAL &&
+			    lowpan_is_linklocal_zero_padded(hdr->saddr)) {
+				iphc1 |= lowpan_compress_addr_64(&hc_ptr, dev,
 								 &hdr->saddr,
 								 saddr, true);
 				pr_debug("source address unicast link-local %pI6c iphc1 0x%02x\n",
@@ -1130,13 +1231,15 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 		}
 	} else {
 		if (dci) {
-			iphc1 |= lowpan_compress_ctx_addr(&hc_ptr, &hdr->daddr,
+			iphc1 |= lowpan_compress_ctx_addr(&hc_ptr, dev,
+							  &hdr->daddr,
 							  &dci_entry, daddr,
 							  false);
 			iphc1 |= LOWPAN_IPHC_DAC;
 		} else {
-			if (ipv6_daddr_type & IPV6_ADDR_LINKLOCAL) {
-				iphc1 |= lowpan_compress_addr_64(&hc_ptr,
+			if (ipv6_daddr_type & IPV6_ADDR_LINKLOCAL &&
+			    lowpan_is_linklocal_zero_padded(hdr->daddr)) {
+				iphc1 |= lowpan_compress_addr_64(&hc_ptr, dev,
 								 &hdr->daddr,
 								 daddr, false);
 				pr_debug("dest address unicast link-local %pI6c iphc1 0x%02x\n",

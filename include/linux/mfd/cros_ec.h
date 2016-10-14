@@ -50,9 +50,11 @@ enum {
 					EC_MSG_TX_TRAILER_BYTES,
 	EC_MSG_RX_PROTO_BYTES	= 3,
 
-	/* Max length of messages */
-	EC_MSG_BYTES		= EC_PROTO2_MAX_PARAM_SIZE +
+	/* Max length of messages for proto 2*/
+	EC_PROTO2_MSG_BYTES		= EC_PROTO2_MAX_PARAM_SIZE +
 					EC_MSG_TX_PROTO_BYTES,
+
+	EC_MAX_MSG_BYTES		= 64 * 1024,
 };
 
 /*
@@ -222,6 +224,21 @@ int cros_ec_check_result(struct cros_ec_device *ec_dev,
  */
 int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
 		     struct cros_ec_command *msg);
+
+/**
+ * cros_ec_cmd_xfer_status - Send a command to the ChromeOS EC
+ *
+ * This function is identical to cros_ec_cmd_xfer, except it returns success
+ * status only if both the command was transmitted successfully and the EC
+ * replied with success status. It's not necessary to check msg->result when
+ * using this function.
+ *
+ * @ec_dev: EC device
+ * @msg: Message to write
+ * @return: Num. of bytes transferred on success, <0 on failure
+ */
+int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
+			    struct cros_ec_command *msg);
 
 /**
  * cros_ec_remove - Remove a ChromeOS EC

@@ -38,6 +38,7 @@
 #include <linux/random.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/uaccess.h>
+#include <linux/elf-randomize.h>
 
 #include <asm/pgtable.h>
 #include <asm/io.h>
@@ -55,6 +56,10 @@
 #include <asm/firmware.h>
 #endif
 #include <asm/code-patching.h>
+#include <asm/exec.h>
+#include <asm/livepatch.h>
+#include <asm/cpu_has_feature.h>
+
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 
@@ -135,12 +140,16 @@ EXPORT_SYMBOL(__msr_check_and_clear);
 #ifdef CONFIG_PPC_FPU
 void __giveup_fpu(struct task_struct *tsk)
 {
+	unsigned long msr;
+
 	save_fpu(tsk);
-	tsk->thread.regs->msr &= ~MSR_FP;
+	msr = tsk->thread.regs->msr;
+	msr &= ~MSR_FP;
 #ifdef CONFIG_VSX
 	if (cpu_has_feature(CPU_FTR_VSX))
-		tsk->thread.regs->msr &= ~MSR_VSX;
+		msr &= ~MSR_VSX;
 #endif
+	tsk->thread.regs->msr = msr;
 }
 
 void giveup_fpu(struct task_struct *tsk)
@@ -215,12 +224,16 @@ static int restore_fp(struct task_struct *tsk) { return 0; }
 
 static void __giveup_altivec(struct task_struct *tsk)
 {
+	unsigned long msr;
+
 	save_altivec(tsk);
-	tsk->thread.regs->msr &= ~MSR_VEC;
+	msr = tsk->thread.regs->msr;
+	msr &= ~MSR_VEC;
 #ifdef CONFIG_VSX
 	if (cpu_has_feature(CPU_FTR_VSX))
-		tsk->thread.regs->msr &= ~MSR_VSX;
+		msr &= ~MSR_VSX;
 #endif
+	tsk->thread.regs->msr = msr;
 }
 
 void giveup_altivec(struct task_struct *tsk)
@@ -790,7 +803,7 @@ static void tm_reclaim_thread(struct thread_struct *thr,
 	 * this state.
 	 * We do this using the current MSR, rather tracking it in
 	 * some specific thread_struct bit, as it has the additional
-	 * benifit of checking for a potential TM bad thing exception.
+	 * benefit of checking for a potential TM bad thing exception.
 	 */
 	if (!MSR_TM_SUSPENDED(mfmsr()))
 		return;
@@ -1005,6 +1018,14 @@ static inline void save_sprs(struct thread_struct *t)
 		 */
 		t->tar = mfspr(SPRN_TAR);
 	}
+
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		/* Conditionally save Load Monitor registers, if enabled */
+		if (t->fscr & FSCR_LM) {
+			t->lmrr = mfspr(SPRN_LMRR);
+			t->lmser = mfspr(SPRN_LMSER);
+		}
+	}
 #endif
 }
 
@@ -1019,18 +1040,11 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (cpu_has_feature(CPU_FTR_DSCR)) {
 		u64 dscr = get_paca()->dscr_default;
-		u64 fscr = old_thread->fscr & ~FSCR_DSCR;
-
-		if (new_thread->dscr_inherit) {
+		if (new_thread->dscr_inherit)
 			dscr = new_thread->dscr;
-			fscr |= FSCR_DSCR;
-		}
 
 		if (old_thread->dscr != dscr)
 			mtspr(SPRN_DSCR, dscr);
-
-		if (old_thread->fscr != fscr)
-			mtspr(SPRN_FSCR, fscr);
 	}
 
 	if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
@@ -1041,8 +1055,21 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 		if (old_thread->ebbrr != new_thread->ebbrr)
 			mtspr(SPRN_EBBRR, new_thread->ebbrr);
 
+		if (old_thread->fscr != new_thread->fscr)
+			mtspr(SPRN_FSCR, new_thread->fscr);
+
 		if (old_thread->tar != new_thread->tar)
 			mtspr(SPRN_TAR, new_thread->tar);
+	}
+
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		/* Conditionally restore Load Monitor registers, if enabled */
+		if (new_thread->fscr & FSCR_LM) {
+			if (old_thread->lmrr != new_thread->lmrr)
+				mtspr(SPRN_LMRR, new_thread->lmrr);
+			if (old_thread->lmser != new_thread->lmser)
+				mtspr(SPRN_LMSER, new_thread->lmser);
+		}
 	}
 #endif
 }
@@ -1075,7 +1102,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	}
 #endif /* CONFIG_PPC64 */
 
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_STD_MMU_64
 	batch = this_cpu_ptr(&ppc64_tlb_batch);
 	if (batch->active) {
 		current_thread_info()->local_flags |= _TLF_LAZY_MMU;
@@ -1083,7 +1110,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 			__flush_tlb_pending(batch);
 		batch->active = 0;
 	}
-#endif /* CONFIG_PPC_BOOK3S_64 */
+#endif /* CONFIG_PPC_STD_MMU_64 */
 
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	switch_booke_debug_regs(&new->thread.debug);
@@ -1129,7 +1156,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	last = _switch(old_thread, new_thread);
 
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_PPC_STD_MMU_64
 	if (current_thread_info()->local_flags & _TLF_LAZY_MMU) {
 		current_thread_info()->local_flags &= ~_TLF_LAZY_MMU;
 		batch = this_cpu_ptr(&ppc64_tlb_batch);
@@ -1138,8 +1165,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	if (current_thread_info()->task->thread.regs)
 		restore_math(current_thread_info()->task->thread.regs);
-
-#endif /* CONFIG_PPC_BOOK3S_64 */
+#endif /* CONFIG_PPC_STD_MMU_64 */
 
 	return last;
 }
@@ -1326,10 +1352,6 @@ void show_regs(struct pt_regs * regs)
 		show_instructions(regs);
 }
 
-void exit_thread(void)
-{
-}
-
 void flush_thread(void)
 {
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
@@ -1374,6 +1396,9 @@ static void setup_ksp_vsid(struct task_struct *p, unsigned long sp)
 	unsigned long sp_vsid;
 	unsigned long llp = mmu_psize_defs[mmu_linear_psize].sllp;
 
+	if (radix_enabled())
+		return;
+
 	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
 		sp_vsid = get_kernel_vsid(sp, MMU_SEGSIZE_1T)
 			<< SLB_VSID_SHIFT_1T;
@@ -1400,13 +1425,15 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	extern void ret_from_kernel_thread(void);
 	void (*f)(void);
 	unsigned long sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
+	struct thread_info *ti = task_thread_info(p);
+
+	klp_init_thread_info(ti);
 
 	/* Copy registers */
 	sp -= sizeof(struct pt_regs);
 	childregs = (struct pt_regs *) sp;
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		/* kernel thread */
-		struct thread_info *ti = (void *)task_stack_page(p);
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->gpr[1] = sp + sizeof(struct pt_regs);
 		/* function */
@@ -1500,6 +1527,16 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 		struct pt_regs *regs = task_stack_page(current) + THREAD_SIZE;
 		current->thread.regs = regs - 1;
 	}
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	/*
+	 * Clear any transactional state, we're exec()ing. The cause is
+	 * not important as there will never be a recheckpoint so it's not
+	 * user visible.
+	 */
+	if (MSR_TM_SUSPENDED(mfmsr()))
+		tm_reclaim_current(0);
+#endif
 
 	memset(regs->gpr, 0, sizeof(regs->gpr));
 	regs->ctr = 0;
@@ -1920,7 +1957,8 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 	 * the heap, we can put it above 1TB so it is backed by a 1TB
 	 * segment. Otherwise the heap will be in the bottom 1TB
 	 * which always uses 256MB segments and this may result in a
-	 * performance penalty.
+	 * performance penalty. We don't need to worry about radix. For
+	 * radix, mmu_highuser_ssize remains unchanged from 256MB.
 	 */
 	if (!is_32bit_task() && (mmu_highuser_ssize == MMU_SEGSIZE_1T))
 		base = max_t(unsigned long, mm->brk, 1UL << SID_SHIFT_1T);

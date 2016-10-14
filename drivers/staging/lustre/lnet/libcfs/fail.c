@@ -16,10 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see http://www.gnu.org/licenses
  *
- * Please contact Oracle Corporation, Inc., 500 Oracle Parkway, Redwood Shores,
- * CA 94065 USA or visit www.oracle.com if you need additional information or
- * have any questions.
- *
  * GPL HEADER END
  */
 /*
@@ -40,6 +36,9 @@ EXPORT_SYMBOL(cfs_fail_loc);
 
 unsigned int cfs_fail_val;
 EXPORT_SYMBOL(cfs_fail_val);
+
+int cfs_fail_err;
+EXPORT_SYMBOL(cfs_fail_err);
 
 DECLARE_WAIT_QUEUE_HEAD(cfs_race_waitq);
 EXPORT_SYMBOL(cfs_race_waitq);

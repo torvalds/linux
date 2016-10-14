@@ -93,7 +93,6 @@ static int readlength_bitstream(char *bitdata, int *lendata, int *offset)
 	return 0;
 }
 
-
 /*
  * read first 13 bytes to check bitstream magic number
  */
@@ -201,7 +200,7 @@ static int gs_download_image(struct fpgaimage *fimage, enum wbus bus_bytes)
 #endif /* DEBUG_FPGA */
 	if (!xl_supported_prog_bus_width(bus_bytes)) {
 		pr_err("unsupported program bus width %d\n",
-				bus_bytes);
+		       bus_bytes);
 		return -1;
 	}
 
@@ -222,7 +221,7 @@ static int gs_download_image(struct fpgaimage *fimage, enum wbus bus_bytes)
 	pr_info("device init done\n");
 
 	for (i = 0; i < size; i += bus_bytes)
-		xl_shift_bytes_out(bus_bytes, bitdata+i);
+		xl_shift_bytes_out(bus_bytes, bitdata + i);
 
 	pr_info("program done\n");
 
@@ -277,7 +276,7 @@ static int gs_set_download_method(struct fpgaimage *fimage)
 static int init_driver(void)
 {
 	firmware_pdev = platform_device_register_simple("fpgaboot", -1,
-							 NULL, 0);
+							NULL, 0);
 	return PTR_ERR_OR_ZERO(firmware_pdev);
 }
 
@@ -331,7 +330,6 @@ err_out1:
 	kfree(fimage);
 
 	return -1;
-
 }
 
 static int __init gs_fpgaboot_init(void)

@@ -39,6 +39,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_modeset_lock.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_auth.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -168,6 +169,7 @@ static struct drm_conn_prop_enum_list drm_connector_enum_list[] = {
 	{ DRM_MODE_CONNECTOR_eDP, "eDP" },
 	{ DRM_MODE_CONNECTOR_VIRTUAL, "Virtual" },
 	{ DRM_MODE_CONNECTOR_DSI, "DSI" },
+	{ DRM_MODE_CONNECTOR_DPI, "DPI" },
 };
 
 static const struct drm_prop_enum_list drm_encoder_enum_list[] = {
@@ -179,6 +181,7 @@ static const struct drm_prop_enum_list drm_encoder_enum_list[] = {
 	{ DRM_MODE_ENCODER_VIRTUAL, "Virtual" },
 	{ DRM_MODE_ENCODER_DSI, "DSI" },
 	{ DRM_MODE_ENCODER_DPMST, "DP MST" },
+	{ DRM_MODE_ENCODER_DPI, "DPI" },
 };
 
 static const struct drm_prop_enum_list drm_subpixel_enum_list[] = {
@@ -237,37 +240,6 @@ const char *drm_get_subpixel_order_name(enum subpixel_order order)
 }
 EXPORT_SYMBOL(drm_get_subpixel_order_name);
 
-static char printable_char(int c)
-{
-	return isascii(c) && isprint(c) ? c : '?';
-}
-
-/**
- * drm_get_format_name - return a string for drm fourcc format
- * @format: format to compute name of
- *
- * Note that the buffer used by this function is globally shared and owned by
- * the function itself.
- *
- * FIXME: This isn't really multithreading safe.
- */
-const char *drm_get_format_name(uint32_t format)
-{
-	static char buf[32];
-
-	snprintf(buf, sizeof(buf),
-		 "%c%c%c%c %s-endian (0x%08x)",
-		 printable_char(format & 0xff),
-		 printable_char((format >> 8) & 0xff),
-		 printable_char((format >> 16) & 0xff),
-		 printable_char((format >> 24) & 0x7f),
-		 format & DRM_FORMAT_BIG_ENDIAN ? "big" : "little",
-		 format);
-
-	return buf;
-}
-EXPORT_SYMBOL(drm_get_format_name);
-
 /*
  * Internal function to assign a slot in the object idr and optionally
  * register the object into the idr.
@@ -275,7 +247,8 @@ EXPORT_SYMBOL(drm_get_format_name);
 static int drm_mode_object_get_reg(struct drm_device *dev,
 				   struct drm_mode_object *obj,
 				   uint32_t obj_type,
-				   bool register_obj)
+				   bool register_obj,
+				   void (*obj_free_cb)(struct kref *kref))
 {
 	int ret;
 
@@ -288,6 +261,10 @@ static int drm_mode_object_get_reg(struct drm_device *dev,
 		 */
 		obj->id = ret;
 		obj->type = obj_type;
+		if (obj_free_cb) {
+			obj->free_cb = obj_free_cb;
+			kref_init(&obj->refcount);
+		}
 	}
 	mutex_unlock(&dev->mode_config.idr_mutex);
 
@@ -311,7 +288,7 @@ static int drm_mode_object_get_reg(struct drm_device *dev,
 int drm_mode_object_get(struct drm_device *dev,
 			struct drm_mode_object *obj, uint32_t obj_type)
 {
-	return drm_mode_object_get_reg(dev, obj, obj_type, true);
+	return drm_mode_object_get_reg(dev, obj, obj_type, true, NULL);
 }
 
 static void drm_mode_object_register(struct drm_device *dev,
@@ -323,19 +300,24 @@ static void drm_mode_object_register(struct drm_device *dev,
 }
 
 /**
- * drm_mode_object_put - free a modeset identifer
+ * drm_mode_object_unregister - free a modeset identifer
  * @dev: DRM device
  * @object: object to free
  *
- * Free @id from @dev's unique identifier pool. Note that despite the _get
- * postfix modeset identifiers are _not_ reference counted. Hence don't use this
+ * Free @id from @dev's unique identifier pool.
+ * This function can be called multiple times, and guards against
+ * multiple removals.
+ * These modeset identifiers are _not_ reference counted. Hence don't use this
  * for reference counted modeset objects like framebuffers.
  */
-void drm_mode_object_put(struct drm_device *dev,
+void drm_mode_object_unregister(struct drm_device *dev,
 			 struct drm_mode_object *object)
 {
 	mutex_lock(&dev->mode_config.idr_mutex);
-	idr_remove(&dev->mode_config.crtc_idr, object->id);
+	if (object->id) {
+		idr_remove(&dev->mode_config.crtc_idr, object->id);
+		object->id = 0;
+	}
 	mutex_unlock(&dev->mode_config.idr_mutex);
 }
 
@@ -350,11 +332,11 @@ static struct drm_mode_object *_object_find(struct drm_device *dev,
 		obj = NULL;
 	if (obj && obj->id != id)
 		obj = NULL;
-	/* don't leak out unref'd fb's */
-	if (obj &&
-	    (obj->type == DRM_MODE_OBJECT_FB ||
-	     obj->type == DRM_MODE_OBJECT_BLOB))
-		obj = NULL;
+
+	if (obj && obj->free_cb) {
+		if (!kref_get_unless_zero(&obj->refcount))
+			obj = NULL;
+	}
 	mutex_unlock(&dev->mode_config.idr_mutex);
 
 	return obj;
@@ -366,23 +348,113 @@ static struct drm_mode_object *_object_find(struct drm_device *dev,
  * @id: id of the mode object
  * @type: type of the mode object
  *
- * Note that framebuffers cannot be looked up with this functions - since those
- * are reference counted, they need special treatment.  Even with
- * DRM_MODE_OBJECT_ANY (although that will simply return NULL
- * rather than WARN_ON()).
+ * This function is used to look up a modeset object. It will acquire a
+ * reference for reference counted objects. This reference must be dropped again
+ * by callind drm_mode_object_unreference().
  */
 struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 		uint32_t id, uint32_t type)
 {
 	struct drm_mode_object *obj = NULL;
 
-	/* Framebuffers are reference counted and need their own lookup
-	 * function.*/
-	WARN_ON(type == DRM_MODE_OBJECT_FB || type == DRM_MODE_OBJECT_BLOB);
 	obj = _object_find(dev, id, type);
 	return obj;
 }
 EXPORT_SYMBOL(drm_mode_object_find);
+
+/**
+ * drm_mode_object_unreference - decr the object refcnt
+ * @obj: mode_object
+ *
+ * This functions decrements the object's refcount if it is a refcounted modeset
+ * object. It is a no-op on any other object. This is used to drop references
+ * acquired with drm_mode_object_reference().
+ */
+void drm_mode_object_unreference(struct drm_mode_object *obj)
+{
+	if (obj->free_cb) {
+		DRM_DEBUG("OBJ ID: %d (%d)\n", obj->id, atomic_read(&obj->refcount.refcount));
+		kref_put(&obj->refcount, obj->free_cb);
+	}
+}
+EXPORT_SYMBOL(drm_mode_object_unreference);
+
+/**
+ * drm_mode_object_reference - incr the object refcnt
+ * @obj: mode_object
+ *
+ * This functions increments the object's refcount if it is a refcounted modeset
+ * object. It is a no-op on any other object. References should be dropped again
+ * by calling drm_mode_object_unreference().
+ */
+void drm_mode_object_reference(struct drm_mode_object *obj)
+{
+	if (obj->free_cb) {
+		DRM_DEBUG("OBJ ID: %d (%d)\n", obj->id, atomic_read(&obj->refcount.refcount));
+		kref_get(&obj->refcount);
+	}
+}
+EXPORT_SYMBOL(drm_mode_object_reference);
+
+/**
+ * drm_crtc_force_disable - Forcibly turn off a CRTC
+ * @crtc: CRTC to turn off
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_crtc_force_disable(struct drm_crtc *crtc)
+{
+	struct drm_mode_set set = {
+		.crtc = crtc,
+	};
+
+	return drm_mode_set_config_internal(&set);
+}
+EXPORT_SYMBOL(drm_crtc_force_disable);
+
+/**
+ * drm_crtc_force_disable_all - Forcibly turn off all enabled CRTCs
+ * @dev: DRM device whose CRTCs to turn off
+ *
+ * Drivers may want to call this on unload to ensure that all displays are
+ * unlit and the GPU is in a consistent, low power state. Takes modeset locks.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_crtc_force_disable_all(struct drm_device *dev)
+{
+	struct drm_crtc *crtc;
+	int ret = 0;
+
+	drm_modeset_lock_all(dev);
+	drm_for_each_crtc(crtc, dev)
+		if (crtc->enabled) {
+			ret = drm_crtc_force_disable(crtc);
+			if (ret)
+				goto out;
+		}
+out:
+	drm_modeset_unlock_all(dev);
+	return ret;
+}
+EXPORT_SYMBOL(drm_crtc_force_disable_all);
+
+static void drm_framebuffer_free(struct kref *kref)
+{
+	struct drm_framebuffer *fb =
+			container_of(kref, struct drm_framebuffer, base.refcount);
+	struct drm_device *dev = fb->dev;
+
+	/*
+	 * The lookup idr holds a weak reference, which has not necessarily been
+	 * removed at this point. Check for that.
+	 */
+	drm_mode_object_unregister(dev, &fb->base);
+
+	fb->funcs->destroy(fb);
+}
 
 /**
  * drm_framebuffer_init - initialize a framebuffer
@@ -407,70 +479,25 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 {
 	int ret;
 
-	mutex_lock(&dev->mode_config.fb_lock);
-	kref_init(&fb->refcount);
 	INIT_LIST_HEAD(&fb->filp_head);
 	fb->dev = dev;
 	fb->funcs = funcs;
 
-	ret = drm_mode_object_get(dev, &fb->base, DRM_MODE_OBJECT_FB);
+	ret = drm_mode_object_get_reg(dev, &fb->base, DRM_MODE_OBJECT_FB,
+				      false, drm_framebuffer_free);
 	if (ret)
 		goto out;
 
+	mutex_lock(&dev->mode_config.fb_lock);
 	dev->mode_config.num_fb++;
 	list_add(&fb->head, &dev->mode_config.fb_list);
-out:
 	mutex_unlock(&dev->mode_config.fb_lock);
 
+	drm_mode_object_register(dev, &fb->base);
+out:
 	return ret;
 }
 EXPORT_SYMBOL(drm_framebuffer_init);
-
-/* dev->mode_config.fb_lock must be held! */
-static void __drm_framebuffer_unregister(struct drm_device *dev,
-					 struct drm_framebuffer *fb)
-{
-	drm_mode_object_put(dev, &fb->base);
-
-	fb->base.id = 0;
-}
-
-static void drm_framebuffer_free(struct kref *kref)
-{
-	struct drm_framebuffer *fb =
-			container_of(kref, struct drm_framebuffer, refcount);
-	struct drm_device *dev = fb->dev;
-
-	/*
-	 * The lookup idr holds a weak reference, which has not necessarily been
-	 * removed at this point. Check for that.
-	 */
-	mutex_lock(&dev->mode_config.fb_lock);
-	if (fb->base.id) {
-		/* Mark fb as reaped and drop idr ref. */
-		__drm_framebuffer_unregister(dev, fb);
-	}
-	mutex_unlock(&dev->mode_config.fb_lock);
-
-	fb->funcs->destroy(fb);
-}
-
-static struct drm_framebuffer *__drm_framebuffer_lookup(struct drm_device *dev,
-							uint32_t id)
-{
-	struct drm_mode_object *obj = NULL;
-	struct drm_framebuffer *fb;
-
-	mutex_lock(&dev->mode_config.idr_mutex);
-	obj = idr_find(&dev->mode_config.crtc_idr, id);
-	if (!obj || (obj->type != DRM_MODE_OBJECT_FB) || (obj->id != id))
-		fb = NULL;
-	else
-		fb = obj_to_fb(obj);
-	mutex_unlock(&dev->mode_config.idr_mutex);
-
-	return fb;
-}
 
 /**
  * drm_framebuffer_lookup - look up a drm framebuffer and grab a reference
@@ -484,45 +511,15 @@ static struct drm_framebuffer *__drm_framebuffer_lookup(struct drm_device *dev,
 struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
 					       uint32_t id)
 {
-	struct drm_framebuffer *fb;
+	struct drm_mode_object *obj;
+	struct drm_framebuffer *fb = NULL;
 
-	mutex_lock(&dev->mode_config.fb_lock);
-	fb = __drm_framebuffer_lookup(dev, id);
-	if (fb) {
-		if (!kref_get_unless_zero(&fb->refcount))
-			fb = NULL;
-	}
-	mutex_unlock(&dev->mode_config.fb_lock);
-
+	obj = _object_find(dev, id, DRM_MODE_OBJECT_FB);
+	if (obj)
+		fb = obj_to_fb(obj);
 	return fb;
 }
 EXPORT_SYMBOL(drm_framebuffer_lookup);
-
-/**
- * drm_framebuffer_unreference - unref a framebuffer
- * @fb: framebuffer to unref
- *
- * This functions decrements the fb's refcount and frees it if it drops to zero.
- */
-void drm_framebuffer_unreference(struct drm_framebuffer *fb)
-{
-	DRM_DEBUG("%p: FB ID: %d (%d)\n", fb, fb->base.id, atomic_read(&fb->refcount.refcount));
-	kref_put(&fb->refcount, drm_framebuffer_free);
-}
-EXPORT_SYMBOL(drm_framebuffer_unreference);
-
-/**
- * drm_framebuffer_reference - incr the fb refcnt
- * @fb: framebuffer
- *
- * This functions increments the fb's refcount.
- */
-void drm_framebuffer_reference(struct drm_framebuffer *fb)
-{
-	DRM_DEBUG("%p: FB ID: %d (%d)\n", fb, fb->base.id, atomic_read(&fb->refcount.refcount));
-	kref_get(&fb->refcount);
-}
-EXPORT_SYMBOL(drm_framebuffer_reference);
 
 /**
  * drm_framebuffer_unregister_private - unregister a private fb from the lookup idr
@@ -542,10 +539,8 @@ void drm_framebuffer_unregister_private(struct drm_framebuffer *fb)
 
 	dev = fb->dev;
 
-	mutex_lock(&dev->mode_config.fb_lock);
 	/* Mark fb as reaped and drop idr ref. */
-	__drm_framebuffer_unregister(dev, fb);
-	mutex_unlock(&dev->mode_config.fb_lock);
+	drm_mode_object_unregister(dev, &fb->base);
 }
 EXPORT_SYMBOL(drm_framebuffer_unregister_private);
 
@@ -555,7 +550,7 @@ EXPORT_SYMBOL(drm_framebuffer_unregister_private);
  *
  * Cleanup framebuffer. This function is intended to be used from the drivers
  * ->destroy callback. It can also be used to clean up driver private
- *  framebuffers embedded into a larger structure.
+ * framebuffers embedded into a larger structure.
  *
  * Note that this function does not remove the fb from active usuage - if it is
  * still used anywhere, hilarity can ensue since userspace could call getfb on
@@ -594,8 +589,6 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	struct drm_device *dev;
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
-	struct drm_mode_set set;
-	int ret;
 
 	if (!fb)
 		return;
@@ -619,17 +612,13 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	 * in-use fb with fb-id == 0. Userspace is allowed to shoot its own foot
 	 * in this manner.
 	 */
-	if (atomic_read(&fb->refcount.refcount) > 1) {
+	if (drm_framebuffer_read_refcount(fb) > 1) {
 		drm_modeset_lock_all(dev);
 		/* remove from any CRTC */
 		drm_for_each_crtc(crtc, dev) {
 			if (crtc->primary->fb == fb) {
 				/* should turn off the crtc */
-				memset(&set, 0, sizeof(struct drm_mode_set));
-				set.crtc = crtc;
-				set.fb = NULL;
-				ret = drm_mode_set_config_internal(&set);
-				if (ret)
+				if (drm_crtc_force_disable(crtc))
 					DRM_ERROR("failed to reset crtc %p when fb was deleted\n", crtc);
 			}
 		}
@@ -657,6 +646,31 @@ static unsigned int drm_num_crtcs(struct drm_device *dev)
 	}
 
 	return num;
+}
+
+static int drm_crtc_register_all(struct drm_device *dev)
+{
+	struct drm_crtc *crtc;
+	int ret = 0;
+
+	drm_for_each_crtc(crtc, dev) {
+		if (crtc->funcs->late_register)
+			ret = crtc->funcs->late_register(crtc);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void drm_crtc_unregister_all(struct drm_device *dev)
+{
+	struct drm_crtc *crtc;
+
+	drm_for_each_crtc(crtc, dev) {
+		if (crtc->funcs->early_unregister)
+			crtc->funcs->early_unregister(crtc);
+	}
 }
 
 /**
@@ -689,6 +703,9 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 	crtc->dev = dev;
 	crtc->funcs = funcs;
 
+	INIT_LIST_HEAD(&crtc->commit_list);
+	spin_lock_init(&crtc->commit_lock);
+
 	drm_modeset_lock_init(&crtc->mutex);
 	ret = drm_mode_object_get(dev, &crtc->base, DRM_MODE_OBJECT_CRTC);
 	if (ret)
@@ -705,14 +722,14 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 				       drm_num_crtcs(dev));
 	}
 	if (!crtc->name) {
-		drm_mode_object_put(dev, &crtc->base);
+		drm_mode_object_unregister(dev, &crtc->base);
 		return -ENOMEM;
 	}
 
 	crtc->base.properties = &crtc->properties;
 
 	list_add_tail(&crtc->head, &config->crtc_list);
-	config->num_crtc++;
+	crtc->index = config->num_crtc++;
 
 	crtc->primary = primary;
 	crtc->cursor = cursor;
@@ -742,12 +759,17 @@ void drm_crtc_cleanup(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 
+	/* Note that the crtc_list is considered to be static; should we
+	 * remove the drm_crtc at runtime we would have to decrement all
+	 * the indices on the drm_crtc after us in the crtc_list.
+	 */
+
 	kfree(crtc->gamma_store);
 	crtc->gamma_store = NULL;
 
 	drm_modeset_lock_fini(&crtc->mutex);
 
-	drm_mode_object_put(dev, &crtc->base);
+	drm_mode_object_unregister(dev, &crtc->base);
 	list_del(&crtc->head);
 	dev->mode_config.num_crtc--;
 
@@ -760,29 +782,6 @@ void drm_crtc_cleanup(struct drm_crtc *crtc)
 	memset(crtc, 0, sizeof(*crtc));
 }
 EXPORT_SYMBOL(drm_crtc_cleanup);
-
-/**
- * drm_crtc_index - find the index of a registered CRTC
- * @crtc: CRTC to find index for
- *
- * Given a registered CRTC, return the index of that CRTC within a DRM
- * device's list of CRTCs.
- */
-unsigned int drm_crtc_index(struct drm_crtc *crtc)
-{
-	unsigned int index = 0;
-	struct drm_crtc *tmp;
-
-	drm_for_each_crtc(tmp, crtc->dev) {
-		if (tmp == crtc)
-			return index;
-
-		index++;
-	}
-
-	BUG();
-}
-EXPORT_SYMBOL(drm_crtc_index);
 
 /*
  * drm_mode_remove - remove and free a mode
@@ -884,6 +883,16 @@ static void drm_connector_get_cmdline_mode(struct drm_connector *connector)
 		      mode->interlace ?  " interlaced" : "");
 }
 
+static void drm_connector_free(struct kref *kref)
+{
+	struct drm_connector *connector =
+		container_of(kref, struct drm_connector, base.refcount);
+	struct drm_device *dev = connector->dev;
+
+	drm_mode_object_unregister(dev, &connector->base);
+	connector->funcs->destroy(connector);
+}
+
 /**
  * drm_connector_init - Init a preallocated connector
  * @dev: DRM device
@@ -909,7 +918,9 @@ int drm_connector_init(struct drm_device *dev,
 
 	drm_modeset_lock_all(dev);
 
-	ret = drm_mode_object_get_reg(dev, &connector->base, DRM_MODE_OBJECT_CONNECTOR, false);
+	ret = drm_mode_object_get_reg(dev, &connector->base,
+				      DRM_MODE_OBJECT_CONNECTOR,
+				      false, drm_connector_free);
 	if (ret)
 		goto out_unlock;
 
@@ -917,11 +928,11 @@ int drm_connector_init(struct drm_device *dev,
 	connector->dev = dev;
 	connector->funcs = funcs;
 
-	connector->connector_id = ida_simple_get(&config->connector_ida, 0, 0, GFP_KERNEL);
-	if (connector->connector_id < 0) {
-		ret = connector->connector_id;
+	ret = ida_simple_get(&config->connector_ida, 0, 0, GFP_KERNEL);
+	if (ret < 0)
 		goto out_put;
-	}
+	connector->index = ret;
+	ret = 0;
 
 	connector->connector_type = connector_type;
 	connector->connector_type_id =
@@ -969,10 +980,10 @@ out_put_type_id:
 		ida_remove(connector_ida, connector->connector_type_id);
 out_put_id:
 	if (ret)
-		ida_remove(&config->connector_ida, connector->connector_id);
+		ida_remove(&config->connector_ida, connector->index);
 out_put:
 	if (ret)
-		drm_mode_object_put(dev, &connector->base);
+		drm_mode_object_unregister(dev, &connector->base);
 
 out_unlock:
 	drm_modeset_unlock_all(dev);
@@ -992,6 +1003,12 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode, *t;
 
+	/* The connector should have been removed from userspace long before
+	 * it is finally destroyed.
+	 */
+	if (WARN_ON(connector->registered))
+		drm_connector_unregister(connector);
+
 	if (connector->tile_group) {
 		drm_mode_put_tile_group(dev, connector->tile_group);
 		connector->tile_group = NULL;
@@ -1007,10 +1024,10 @@ void drm_connector_cleanup(struct drm_connector *connector)
 		   connector->connector_type_id);
 
 	ida_remove(&dev->mode_config.connector_ida,
-		   connector->connector_id);
+		   connector->index);
 
 	kfree(connector->display_info.bus_formats);
-	drm_mode_object_put(dev, &connector->base);
+	drm_mode_object_unregister(dev, &connector->base);
 	kfree(connector->name);
 	connector->name = NULL;
 	list_del(&connector->head);
@@ -1038,7 +1055,8 @@ int drm_connector_register(struct drm_connector *connector)
 {
 	int ret;
 
-	drm_mode_object_register(connector->dev, &connector->base);
+	if (connector->registered)
+		return 0;
 
 	ret = drm_sysfs_connector_add(connector);
 	if (ret)
@@ -1046,11 +1064,25 @@ int drm_connector_register(struct drm_connector *connector)
 
 	ret = drm_debugfs_connector_add(connector);
 	if (ret) {
-		drm_sysfs_connector_remove(connector);
-		return ret;
+		goto err_sysfs;
 	}
 
+	if (connector->funcs->late_register) {
+		ret = connector->funcs->late_register(connector);
+		if (ret)
+			goto err_debugfs;
+	}
+
+	drm_mode_object_register(connector->dev, &connector->base);
+
+	connector->registered = true;
 	return 0;
+
+err_debugfs:
+	drm_debugfs_connector_remove(connector);
+err_sysfs:
+	drm_sysfs_connector_remove(connector);
+	return ret;
 }
 EXPORT_SYMBOL(drm_connector_register);
 
@@ -1062,30 +1094,73 @@ EXPORT_SYMBOL(drm_connector_register);
  */
 void drm_connector_unregister(struct drm_connector *connector)
 {
+	if (!connector->registered)
+		return;
+
+	if (connector->funcs->early_unregister)
+		connector->funcs->early_unregister(connector);
+
 	drm_sysfs_connector_remove(connector);
 	drm_debugfs_connector_remove(connector);
+
+	connector->registered = false;
 }
 EXPORT_SYMBOL(drm_connector_unregister);
 
-
-/**
- * drm_connector_unplug_all - unregister connector userspace interfaces
- * @dev: drm device
- *
- * This function unregisters all connector userspace interfaces in sysfs. Should
- * be call when the device is disconnected, e.g. from an usb driver's
- * ->disconnect callback.
- */
-void drm_connector_unplug_all(struct drm_device *dev)
+static void drm_connector_unregister_all(struct drm_device *dev)
 {
 	struct drm_connector *connector;
 
 	/* FIXME: taking the mode config mutex ends up in a clash with sysfs */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
 		drm_connector_unregister(connector);
-
 }
-EXPORT_SYMBOL(drm_connector_unplug_all);
+
+static int drm_connector_register_all(struct drm_device *dev)
+{
+	struct drm_connector *connector;
+	int ret;
+
+	/* FIXME: taking the mode config mutex ends up in a clash with
+	 * fbcon/backlight registration */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		ret = drm_connector_register(connector);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	mutex_unlock(&dev->mode_config.mutex);
+	drm_connector_unregister_all(dev);
+	return ret;
+}
+
+static int drm_encoder_register_all(struct drm_device *dev)
+{
+	struct drm_encoder *encoder;
+	int ret = 0;
+
+	drm_for_each_encoder(encoder, dev) {
+		if (encoder->funcs->late_register)
+			ret = encoder->funcs->late_register(encoder);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void drm_encoder_unregister_all(struct drm_device *dev)
+{
+	struct drm_encoder *encoder;
+
+	drm_for_each_encoder(encoder, dev) {
+		if (encoder->funcs->early_unregister)
+			encoder->funcs->early_unregister(encoder);
+	}
+}
 
 /**
  * drm_encoder_init - Init a preallocated encoder
@@ -1134,11 +1209,11 @@ int drm_encoder_init(struct drm_device *dev,
 	}
 
 	list_add_tail(&encoder->head, &dev->mode_config.encoder_list);
-	dev->mode_config.num_encoder++;
+	encoder->index = dev->mode_config.num_encoder++;
 
 out_put:
 	if (ret)
-		drm_mode_object_put(dev, &encoder->base);
+		drm_mode_object_unregister(dev, &encoder->base);
 
 out_unlock:
 	drm_modeset_unlock_all(dev);
@@ -1146,29 +1221,6 @@ out_unlock:
 	return ret;
 }
 EXPORT_SYMBOL(drm_encoder_init);
-
-/**
- * drm_encoder_index - find the index of a registered encoder
- * @encoder: encoder to find index for
- *
- * Given a registered encoder, return the index of that encoder within a DRM
- * device's list of encoders.
- */
-unsigned int drm_encoder_index(struct drm_encoder *encoder)
-{
-	unsigned int index = 0;
-	struct drm_encoder *tmp;
-
-	drm_for_each_encoder(tmp, encoder->dev) {
-		if (tmp == encoder)
-			return index;
-
-		index++;
-	}
-
-	BUG();
-}
-EXPORT_SYMBOL(drm_encoder_index);
 
 /**
  * drm_encoder_cleanup - cleans up an initialised encoder
@@ -1180,8 +1232,13 @@ void drm_encoder_cleanup(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 
+	/* Note that the encoder_list is considered to be static; should we
+	 * remove the drm_encoder at runtime we would have to decrement all
+	 * the indices on the drm_encoder after us in the encoder_list.
+	 */
+
 	drm_modeset_lock_all(dev);
-	drm_mode_object_put(dev, &encoder->base);
+	drm_mode_object_unregister(dev, &encoder->base);
 	kfree(encoder->name);
 	list_del(&encoder->head);
 	dev->mode_config.num_encoder--;
@@ -1242,7 +1299,7 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 					    GFP_KERNEL);
 	if (!plane->format_types) {
 		DRM_DEBUG_KMS("out of memory when allocating plane\n");
-		drm_mode_object_put(dev, &plane->base);
+		drm_mode_object_unregister(dev, &plane->base);
 		return -ENOMEM;
 	}
 
@@ -1258,7 +1315,7 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	}
 	if (!plane->name) {
 		kfree(plane->format_types);
-		drm_mode_object_put(dev, &plane->base);
+		drm_mode_object_unregister(dev, &plane->base);
 		return -ENOMEM;
 	}
 
@@ -1268,7 +1325,7 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	plane->type = type;
 
 	list_add_tail(&plane->head, &config->plane_list);
-	config->num_total_plane++;
+	plane->index = config->num_total_plane++;
 	if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 		config->num_overlay_plane++;
 
@@ -1292,6 +1349,31 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	return 0;
 }
 EXPORT_SYMBOL(drm_universal_plane_init);
+
+static int drm_plane_register_all(struct drm_device *dev)
+{
+	struct drm_plane *plane;
+	int ret = 0;
+
+	drm_for_each_plane(plane, dev) {
+		if (plane->funcs->late_register)
+			ret = plane->funcs->late_register(plane);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void drm_plane_unregister_all(struct drm_device *dev)
+{
+	struct drm_plane *plane;
+
+	drm_for_each_plane(plane, dev) {
+		if (plane->funcs->early_unregister)
+			plane->funcs->early_unregister(plane);
+	}
+}
 
 /**
  * drm_plane_init - Initialize a legacy plane
@@ -1338,9 +1420,14 @@ void drm_plane_cleanup(struct drm_plane *plane)
 
 	drm_modeset_lock_all(dev);
 	kfree(plane->format_types);
-	drm_mode_object_put(dev, &plane->base);
+	drm_mode_object_unregister(dev, &plane->base);
 
 	BUG_ON(list_empty(&plane->head));
+
+	/* Note that the plane_list is considered to be static; should we
+	 * remove the drm_plane at runtime we would have to decrement all
+	 * the indices on the drm_plane after us in the plane_list.
+	 */
 
 	list_del(&plane->head);
 	dev->mode_config.num_total_plane--;
@@ -1359,29 +1446,6 @@ void drm_plane_cleanup(struct drm_plane *plane)
 EXPORT_SYMBOL(drm_plane_cleanup);
 
 /**
- * drm_plane_index - find the index of a registered plane
- * @plane: plane to find index for
- *
- * Given a registered plane, return the index of that CRTC within a DRM
- * device's list of planes.
- */
-unsigned int drm_plane_index(struct drm_plane *plane)
-{
-	unsigned int index = 0;
-	struct drm_plane *tmp;
-
-	drm_for_each_plane(tmp, plane->dev) {
-		if (tmp == plane)
-			return index;
-
-		index++;
-	}
-
-	BUG();
-}
-EXPORT_SYMBOL(drm_plane_index);
-
-/**
  * drm_plane_from_index - find the registered plane at an index
  * @dev: DRM device
  * @idx: index of registered plane to find for
@@ -1393,13 +1457,11 @@ struct drm_plane *
 drm_plane_from_index(struct drm_device *dev, int idx)
 {
 	struct drm_plane *plane;
-	unsigned int i = 0;
 
-	drm_for_each_plane(plane, dev) {
-		if (i == idx)
+	drm_for_each_plane(plane, dev)
+		if (idx == plane->index)
 			return plane;
-		i++;
-	}
+
 	return NULL;
 }
 EXPORT_SYMBOL(drm_plane_from_index);
@@ -1434,6 +1496,46 @@ void drm_plane_force_disable(struct drm_plane *plane)
 	plane->crtc = NULL;
 }
 EXPORT_SYMBOL(drm_plane_force_disable);
+
+int drm_modeset_register_all(struct drm_device *dev)
+{
+	int ret;
+
+	ret = drm_plane_register_all(dev);
+	if (ret)
+		goto err_plane;
+
+	ret = drm_crtc_register_all(dev);
+	if  (ret)
+		goto err_crtc;
+
+	ret = drm_encoder_register_all(dev);
+	if (ret)
+		goto err_encoder;
+
+	ret = drm_connector_register_all(dev);
+	if (ret)
+		goto err_connector;
+
+	return 0;
+
+err_connector:
+	drm_encoder_unregister_all(dev);
+err_encoder:
+	drm_crtc_unregister_all(dev);
+err_crtc:
+	drm_plane_unregister_all(dev);
+err_plane:
+	return ret;
+}
+
+void drm_modeset_unregister_all(struct drm_device *dev)
+{
+	drm_connector_unregister_all(dev);
+	drm_encoder_unregister_all(dev);
+	drm_crtc_unregister_all(dev);
+	drm_plane_unregister_all(dev);
+}
 
 static int drm_mode_create_standard_properties(struct drm_device *dev)
 {
@@ -1918,8 +2020,6 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 		copied = 0;
 		crtc_id = (uint32_t __user *)(unsigned long)card_res->crtc_id_ptr;
 		drm_for_each_crtc(crtc, dev) {
-			DRM_DEBUG_KMS("[CRTC:%d:%s]\n",
-				      crtc->base.id, crtc->name);
 			if (put_user(crtc->base.id, crtc_id + copied)) {
 				ret = -EFAULT;
 				goto out;
@@ -1934,8 +2034,6 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 		copied = 0;
 		encoder_id = (uint32_t __user *)(unsigned long)card_res->encoder_id_ptr;
 		drm_for_each_encoder(encoder, dev) {
-			DRM_DEBUG_KMS("[ENCODER:%d:%s]\n", encoder->base.id,
-					encoder->name);
 			if (put_user(encoder->base.id, encoder_id +
 				     copied)) {
 				ret = -EFAULT;
@@ -1951,9 +2049,6 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 		copied = 0;
 		connector_id = (uint32_t __user *)(unsigned long)card_res->connector_id_ptr;
 		drm_for_each_connector(connector, dev) {
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-				connector->base.id,
-				connector->name);
 			if (put_user(connector->base.id,
 				     connector_id + copied)) {
 				ret = -EFAULT;
@@ -1963,9 +2058,6 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 		}
 	}
 	card_res->count_connectors = connector_count;
-
-	DRM_DEBUG_KMS("CRTC[%d] CONNECTORS[%d] ENCODERS[%d]\n", card_res->count_crtcs,
-		  card_res->count_connectors, card_res->count_encoders);
 
 out:
 	mutex_unlock(&dev->mode_config.mutex);
@@ -2125,11 +2217,9 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	memset(&u_mode, 0, sizeof(struct drm_mode_modeinfo));
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:?]\n", out_resp->connector_id);
-
 	mutex_lock(&dev->mode_config.mutex);
 
-	connector = drm_connector_find(dev, out_resp->connector_id);
+	connector = drm_connector_lookup(dev, out_resp->connector_id);
 	if (!connector) {
 		ret = -ENOENT;
 		goto out_unlock;
@@ -2213,6 +2303,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 out:
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 
+	drm_connector_unreference(connector);
 out_unlock:
 	mutex_unlock(&dev->mode_config.mutex);
 
@@ -2800,8 +2891,6 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			goto out;
 		}
 
-		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
-
 		/*
 		 * Check whether the primary plane supports the fb pixel format.
 		 * Drivers not implementing the universal planes API use a
@@ -2857,13 +2946,14 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		}
 
 		for (i = 0; i < crtc_req->count_connectors; i++) {
+			connector_set[i] = NULL;
 			set_connectors_ptr = (uint32_t __user *)(unsigned long)crtc_req->set_connectors_ptr;
 			if (get_user(out_id, &set_connectors_ptr[i])) {
 				ret = -EFAULT;
 				goto out;
 			}
 
-			connector = drm_connector_find(dev, out_id);
+			connector = drm_connector_lookup(dev, out_id);
 			if (!connector) {
 				DRM_DEBUG_KMS("Connector id %d unknown\n",
 						out_id);
@@ -2891,6 +2981,12 @@ out:
 	if (fb)
 		drm_framebuffer_unreference(fb);
 
+	if (connector_set) {
+		for (i = 0; i < crtc_req->count_connectors; i++) {
+			if (connector_set[i])
+				drm_connector_unreference(connector_set[i]);
+		}
+	}
 	kfree(connector_set);
 	drm_mode_destroy(dev, mode);
 	drm_modeset_unlock_all(dev);
@@ -2949,6 +3045,8 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 				DRM_DEBUG_KMS("failed to wrap cursor buffer in drm framebuffer\n");
 				return PTR_ERR(fb);
 			}
+			fb->hot_x = req->hot_x;
+			fb->hot_y = req->hot_y;
 		} else {
 			fb = NULL;
 		}
@@ -3423,15 +3521,33 @@ int drm_mode_addfb2(struct drm_device *dev,
 	if (IS_ERR(fb))
 		return PTR_ERR(fb);
 
-	/* Transfer ownership to the filp for reaping on close */
-
 	DRM_DEBUG_KMS("[FB:%d]\n", fb->base.id);
-	mutex_lock(&file_priv->fbs_lock);
 	r->fb_id = fb->base.id;
+
+	/* Transfer ownership to the filp for reaping on close */
+	mutex_lock(&file_priv->fbs_lock);
 	list_add(&fb->filp_head, &file_priv->fbs);
 	mutex_unlock(&file_priv->fbs_lock);
 
 	return 0;
+}
+
+struct drm_mode_rmfb_work {
+	struct work_struct work;
+	struct list_head fbs;
+};
+
+static void drm_mode_rmfb_work_fn(struct work_struct *w)
+{
+	struct drm_mode_rmfb_work *arg = container_of(w, typeof(*arg), work);
+
+	while (!list_empty(&arg->fbs)) {
+		struct drm_framebuffer *fb =
+			list_first_entry(&arg->fbs, typeof(*fb), filp_head);
+
+		list_del_init(&fb->filp_head);
+		drm_framebuffer_remove(fb);
+	}
 }
 
 /**
@@ -3458,30 +3574,49 @@ int drm_mode_rmfb(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	mutex_lock(&file_priv->fbs_lock);
-	mutex_lock(&dev->mode_config.fb_lock);
-	fb = __drm_framebuffer_lookup(dev, *id);
+	fb = drm_framebuffer_lookup(dev, *id);
 	if (!fb)
-		goto fail_lookup;
+		return -ENOENT;
 
+	mutex_lock(&file_priv->fbs_lock);
 	list_for_each_entry(fbl, &file_priv->fbs, filp_head)
 		if (fb == fbl)
 			found = 1;
-	if (!found)
-		goto fail_lookup;
+	if (!found) {
+		mutex_unlock(&file_priv->fbs_lock);
+		goto fail_unref;
+	}
 
 	list_del_init(&fb->filp_head);
-	mutex_unlock(&dev->mode_config.fb_lock);
 	mutex_unlock(&file_priv->fbs_lock);
 
+	/* drop the reference we picked up in framebuffer lookup */
 	drm_framebuffer_unreference(fb);
+
+	/*
+	 * we now own the reference that was stored in the fbs list
+	 *
+	 * drm_framebuffer_remove may fail with -EINTR on pending signals,
+	 * so run this in a separate stack as there's no way to correctly
+	 * handle this after the fb is already removed from the lookup table.
+	 */
+	if (drm_framebuffer_read_refcount(fb) > 1) {
+		struct drm_mode_rmfb_work arg;
+
+		INIT_WORK_ONSTACK(&arg.work, drm_mode_rmfb_work_fn);
+		INIT_LIST_HEAD(&arg.fbs);
+		list_add_tail(&fb->filp_head, &arg.fbs);
+
+		schedule_work(&arg.work);
+		flush_work(&arg.work);
+		destroy_work_on_stack(&arg.work);
+	} else
+		drm_framebuffer_unreference(fb);
 
 	return 0;
 
-fail_lookup:
-	mutex_unlock(&dev->mode_config.fb_lock);
-	mutex_unlock(&file_priv->fbs_lock);
-
+fail_unref:
+	drm_framebuffer_unreference(fb);
 	return -ENOENT;
 }
 
@@ -3518,7 +3653,7 @@ int drm_mode_getfb(struct drm_device *dev,
 	r->bpp = fb->bits_per_pixel;
 	r->pitch = fb->pitches[0];
 	if (fb->funcs->create_handle) {
-		if (file_priv->is_master || capable(CAP_SYS_ADMIN) ||
+		if (drm_is_current_master(file_priv) || capable(CAP_SYS_ADMIN) ||
 		    drm_is_control_client(file_priv)) {
 			ret = fb->funcs->create_handle(fb, file_priv,
 						       &r->handle);
@@ -3627,7 +3762,6 @@ out_err1:
 	return ret;
 }
 
-
 /**
  * drm_fb_release - remove and free the FBs on this file
  * @priv: drm file for the ioctl
@@ -3642,6 +3776,9 @@ out_err1:
 void drm_fb_release(struct drm_file *priv)
 {
 	struct drm_framebuffer *fb, *tfb;
+	struct drm_mode_rmfb_work arg;
+
+	INIT_LIST_HEAD(&arg.fbs);
 
 	/*
 	 * When the file gets released that means no one else can access the fb
@@ -3654,11 +3791,30 @@ void drm_fb_release(struct drm_file *priv)
 	 * at it any more.
 	 */
 	list_for_each_entry_safe(fb, tfb, &priv->fbs, filp_head) {
-		list_del_init(&fb->filp_head);
+		if (drm_framebuffer_read_refcount(fb) > 1) {
+			list_move_tail(&fb->filp_head, &arg.fbs);
+		} else {
+			list_del_init(&fb->filp_head);
 
-		/* This drops the fpriv->fbs reference. */
-		drm_framebuffer_unreference(fb);
+			/* This drops the fpriv->fbs reference. */
+			drm_framebuffer_unreference(fb);
+		}
 	}
+
+	if (!list_empty(&arg.fbs)) {
+		INIT_WORK_ONSTACK(&arg.work, drm_mode_rmfb_work_fn);
+
+		schedule_work(&arg.work);
+		flush_work(&arg.work);
+		destroy_work_on_stack(&arg.work);
+	}
+}
+
+static bool drm_property_type_valid(struct drm_property *property)
+{
+	if (property->flags & DRM_MODE_PROP_EXTENDED_TYPE)
+		return !(property->flags & DRM_MODE_PROP_LEGACY_TYPE);
+	return !!(property->flags & DRM_MODE_PROP_LEGACY_TYPE);
 }
 
 /**
@@ -4029,7 +4185,7 @@ void drm_property_destroy(struct drm_device *dev, struct drm_property *property)
 
 	if (property->num_values)
 		kfree(property->values);
-	drm_mode_object_put(dev, &property->base);
+	drm_mode_object_unregister(dev, &property->base);
 	list_del(&property->head);
 	kfree(property);
 }
@@ -4234,6 +4390,20 @@ done:
 	return ret;
 }
 
+static void drm_property_free_blob(struct kref *kref)
+{
+	struct drm_property_blob *blob =
+		container_of(kref, struct drm_property_blob, base.refcount);
+
+	mutex_lock(&blob->dev->mode_config.blob_lock);
+	list_del(&blob->head_global);
+	mutex_unlock(&blob->dev->mode_config.blob_lock);
+
+	drm_mode_object_unregister(blob->dev, &blob->base);
+
+	kfree(blob);
+}
+
 /**
  * drm_property_create_blob - Create new blob property
  *
@@ -4271,46 +4441,21 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	if (data)
 		memcpy(blob->data, data, length);
 
-	mutex_lock(&dev->mode_config.blob_lock);
-
-	ret = drm_mode_object_get(dev, &blob->base, DRM_MODE_OBJECT_BLOB);
+	ret = drm_mode_object_get_reg(dev, &blob->base, DRM_MODE_OBJECT_BLOB,
+				      true, drm_property_free_blob);
 	if (ret) {
 		kfree(blob);
-		mutex_unlock(&dev->mode_config.blob_lock);
 		return ERR_PTR(-EINVAL);
 	}
 
-	kref_init(&blob->refcount);
-
+	mutex_lock(&dev->mode_config.blob_lock);
 	list_add_tail(&blob->head_global,
 	              &dev->mode_config.property_blob_list);
-
 	mutex_unlock(&dev->mode_config.blob_lock);
 
 	return blob;
 }
 EXPORT_SYMBOL(drm_property_create_blob);
-
-/**
- * drm_property_free_blob - Blob property destructor
- *
- * Internal free function for blob properties; must not be used directly.
- *
- * @kref: Reference
- */
-static void drm_property_free_blob(struct kref *kref)
-{
-	struct drm_property_blob *blob =
-		container_of(kref, struct drm_property_blob, refcount);
-
-	WARN_ON(!mutex_is_locked(&blob->dev->mode_config.blob_lock));
-
-	list_del(&blob->head_global);
-	list_del(&blob->head_file);
-	drm_mode_object_put(blob->dev, &blob->base);
-
-	kfree(blob);
-}
 
 /**
  * drm_property_unreference_blob - Unreference a blob property
@@ -4321,40 +4466,12 @@ static void drm_property_free_blob(struct kref *kref)
  */
 void drm_property_unreference_blob(struct drm_property_blob *blob)
 {
-	struct drm_device *dev;
-
 	if (!blob)
 		return;
 
-	dev = blob->dev;
-
-	DRM_DEBUG("%p: blob ID: %d (%d)\n", blob, blob->base.id, atomic_read(&blob->refcount.refcount));
-
-	if (kref_put_mutex(&blob->refcount, drm_property_free_blob,
-			   &dev->mode_config.blob_lock))
-		mutex_unlock(&dev->mode_config.blob_lock);
-	else
-		might_lock(&dev->mode_config.blob_lock);
+	drm_mode_object_unreference(&blob->base);
 }
 EXPORT_SYMBOL(drm_property_unreference_blob);
-
-/**
- * drm_property_unreference_blob_locked - Unreference a blob property with blob_lock held
- *
- * Drop a reference on a blob property. May free the object. This must be
- * called with blob_lock held.
- *
- * @blob: Pointer to blob property
- */
-static void drm_property_unreference_blob_locked(struct drm_property_blob *blob)
-{
-	if (!blob)
-		return;
-
-	DRM_DEBUG("%p: blob ID: %d (%d)\n", blob, blob->base.id, atomic_read(&blob->refcount.refcount));
-
-	kref_put(&blob->refcount, drm_property_free_blob);
-}
 
 /**
  * drm_property_destroy_user_blobs - destroy all blobs created by this client
@@ -4366,14 +4483,14 @@ void drm_property_destroy_user_blobs(struct drm_device *dev,
 {
 	struct drm_property_blob *blob, *bt;
 
-	mutex_lock(&dev->mode_config.blob_lock);
-
+	/*
+	 * When the file gets released that means no one else can access the
+	 * blob list any more, so no need to grab dev->blob_lock.
+	 */
 	list_for_each_entry_safe(blob, bt, &file_priv->blobs, head_file) {
 		list_del_init(&blob->head_file);
-		drm_property_unreference_blob_locked(blob);
+		drm_property_unreference_blob(blob);
 	}
-
-	mutex_unlock(&dev->mode_config.blob_lock);
 }
 
 /**
@@ -4385,34 +4502,10 @@ void drm_property_destroy_user_blobs(struct drm_device *dev,
  */
 struct drm_property_blob *drm_property_reference_blob(struct drm_property_blob *blob)
 {
-	DRM_DEBUG("%p: blob ID: %d (%d)\n", blob, blob->base.id, atomic_read(&blob->refcount.refcount));
-	kref_get(&blob->refcount);
+	drm_mode_object_reference(&blob->base);
 	return blob;
 }
 EXPORT_SYMBOL(drm_property_reference_blob);
-
-/*
- * Like drm_property_lookup_blob, but does not return an additional reference.
- * Must be called with blob_lock held.
- */
-static struct drm_property_blob *__drm_property_lookup_blob(struct drm_device *dev,
-							    uint32_t id)
-{
-	struct drm_mode_object *obj = NULL;
-	struct drm_property_blob *blob;
-
-	WARN_ON(!mutex_is_locked(&dev->mode_config.blob_lock));
-
-	mutex_lock(&dev->mode_config.idr_mutex);
-	obj = idr_find(&dev->mode_config.crtc_idr, id);
-	if (!obj || (obj->type != DRM_MODE_OBJECT_BLOB) || (obj->id != id))
-		blob = NULL;
-	else
-		blob = obj_to_blob(obj);
-	mutex_unlock(&dev->mode_config.idr_mutex);
-
-	return blob;
-}
 
 /**
  * drm_property_lookup_blob - look up a blob property and take a reference
@@ -4426,16 +4519,12 @@ static struct drm_property_blob *__drm_property_lookup_blob(struct drm_device *d
 struct drm_property_blob *drm_property_lookup_blob(struct drm_device *dev,
 					           uint32_t id)
 {
-	struct drm_property_blob *blob;
+	struct drm_mode_object *obj;
+	struct drm_property_blob *blob = NULL;
 
-	mutex_lock(&dev->mode_config.blob_lock);
-	blob = __drm_property_lookup_blob(dev, id);
-	if (blob) {
-		if (!kref_get_unless_zero(&blob->refcount))
-			blob = NULL;
-	}
-	mutex_unlock(&dev->mode_config.blob_lock);
-
+	obj = _object_find(dev, id, DRM_MODE_OBJECT_BLOB);
+	if (obj)
+		blob = obj_to_blob(obj);
 	return blob;
 }
 EXPORT_SYMBOL(drm_property_lookup_blob);
@@ -4540,26 +4629,21 @@ int drm_mode_getblob_ioctl(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
-	mutex_lock(&dev->mode_config.blob_lock);
-	blob = __drm_property_lookup_blob(dev, out_resp->blob_id);
-	if (!blob) {
-		ret = -ENOENT;
-		goto done;
-	}
+	blob = drm_property_lookup_blob(dev, out_resp->blob_id);
+	if (!blob)
+		return -ENOENT;
 
 	if (out_resp->length == blob->length) {
 		blob_ptr = (void __user *)(unsigned long)out_resp->data;
 		if (copy_to_user(blob_ptr, blob->data, blob->length)) {
 			ret = -EFAULT;
-			goto done;
+			goto unref;
 		}
 	}
 	out_resp->length = blob->length;
+unref:
+	drm_property_unreference_blob(blob);
 
-done:
-	mutex_unlock(&dev->mode_config.blob_lock);
-	drm_modeset_unlock_all(dev);
 	return ret;
 }
 
@@ -4638,13 +4722,11 @@ int drm_mode_destroyblob_ioctl(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	mutex_lock(&dev->mode_config.blob_lock);
-	blob = __drm_property_lookup_blob(dev, out_resp->blob_id);
-	if (!blob) {
-		ret = -ENOENT;
-		goto err;
-	}
+	blob = drm_property_lookup_blob(dev, out_resp->blob_id);
+	if (!blob)
+		return -ENOENT;
 
+	mutex_lock(&dev->mode_config.blob_lock);
 	/* Ensure the property was actually created by this user. */
 	list_for_each_entry(bt, &file_priv->blobs, head_file) {
 		if (bt == blob) {
@@ -4661,13 +4743,18 @@ int drm_mode_destroyblob_ioctl(struct drm_device *dev,
 	/* We must drop head_file here, because we may not be the last
 	 * reference on the blob. */
 	list_del_init(&blob->head_file);
-	drm_property_unreference_blob_locked(blob);
 	mutex_unlock(&dev->mode_config.blob_lock);
+
+	/* One reference from lookup, and one from the filp. */
+	drm_property_unreference_blob(blob);
+	drm_property_unreference_blob(blob);
 
 	return 0;
 
 err:
 	mutex_unlock(&dev->mode_config.blob_lock);
+	drm_property_unreference_blob(blob);
+
 	return ret;
 }
 
@@ -4831,19 +4918,8 @@ bool drm_property_change_valid_get(struct drm_property *property,
 		if (value == 0)
 			return true;
 
-		/* handle refcnt'd objects specially: */
-		if (property->values[0] == DRM_MODE_OBJECT_FB) {
-			struct drm_framebuffer *fb;
-			fb = drm_framebuffer_lookup(property->dev, value);
-			if (fb) {
-				*ref = &fb->base;
-				return true;
-			} else {
-				return false;
-			}
-		} else {
-			return _object_find(property->dev, value, property->values[0]) != NULL;
-		}
+		*ref = _object_find(property->dev, value, property->values[0]);
+		return *ref != NULL;
 	}
 
 	for (i = 0; i < property->num_values; i++)
@@ -4859,8 +4935,7 @@ void drm_property_change_valid_put(struct drm_property *property,
 		return;
 
 	if (drm_property_type_is(property, DRM_MODE_PROP_OBJECT)) {
-		if (property->values[0] == DRM_MODE_OBJECT_FB)
-			drm_framebuffer_unreference(obj_to_fb(ref));
+		drm_mode_object_unreference(ref);
 	} else if (drm_property_type_is(property, DRM_MODE_PROP_BLOB))
 		drm_property_unreference_blob(obj_to_blob(ref));
 }
@@ -4991,7 +5066,7 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 	}
 	if (!obj->properties) {
 		ret = -EINVAL;
-		goto out;
+		goto out_unref;
 	}
 
 	ret = get_properties(obj, file_priv->atomic,
@@ -4999,6 +5074,8 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 			(uint64_t __user *)(unsigned long)(arg->prop_values_ptr),
 			&arg->count_props);
 
+out_unref:
+	drm_mode_object_unreference(obj);
 out:
 	drm_modeset_unlock_all(dev);
 	return ret;
@@ -5041,25 +5118,25 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 	if (!arg_obj->properties)
-		goto out;
+		goto out_unref;
 
 	for (i = 0; i < arg_obj->properties->count; i++)
 		if (arg_obj->properties->properties[i]->base.id == arg->prop_id)
 			break;
 
 	if (i == arg_obj->properties->count)
-		goto out;
+		goto out_unref;
 
 	prop_obj = drm_mode_object_find(dev, arg->prop_id,
 					DRM_MODE_OBJECT_PROPERTY);
 	if (!prop_obj) {
 		ret = -ENOENT;
-		goto out;
+		goto out_unref;
 	}
 	property = obj_to_property(prop_obj);
 
 	if (!drm_property_change_valid_get(property, arg->value, &ref))
-		goto out;
+		goto out_unref;
 
 	switch (arg_obj->type) {
 	case DRM_MODE_OBJECT_CONNECTOR:
@@ -5077,6 +5154,8 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 
 	drm_property_change_valid_put(property, ref);
 
+out_unref:
+	drm_mode_object_unreference(arg_obj);
 out:
 	drm_modeset_unlock_all(dev);
 	return ret;
@@ -5138,6 +5217,9 @@ EXPORT_SYMBOL(drm_mode_connector_attach_encoder);
 int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 				 int gamma_size)
 {
+	uint16_t *r_base, *g_base, *b_base;
+	int i;
+
 	crtc->gamma_size = gamma_size;
 
 	crtc->gamma_store = kcalloc(gamma_size, sizeof(uint16_t) * 3,
@@ -5146,6 +5228,16 @@ int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 		crtc->gamma_size = 0;
 		return -ENOMEM;
 	}
+
+	r_base = crtc->gamma_store;
+	g_base = r_base + gamma_size;
+	b_base = g_base + gamma_size;
+	for (i = 0; i < gamma_size; i++) {
+		r_base[i] = i << 8;
+		g_base[i] = i << 8;
+		b_base[i] = i << 8;
+	}
+
 
 	return 0;
 }
@@ -5214,7 +5306,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 		goto out;
 	}
 
-	crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, 0, crtc->gamma_size);
+	ret = crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, crtc->gamma_size);
 
 out:
 	drm_modeset_unlock_all(dev);
@@ -5311,6 +5403,9 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	struct drm_framebuffer *fb = NULL;
 	struct drm_pending_vblank_event *e = NULL;
 	int ret = -EINVAL;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
 
 	if (page_flip->flags & ~DRM_MODE_PAGE_FLIP_FLAGS ||
 	    page_flip->reserved != 0)
@@ -5544,264 +5639,6 @@ int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 }
 
 /**
- * drm_fb_get_bpp_depth - get the bpp/depth values for format
- * @format: pixel format (DRM_FORMAT_*)
- * @depth: storage for the depth value
- * @bpp: storage for the bpp value
- *
- * This only supports RGB formats here for compat with code that doesn't use
- * pixel formats directly yet.
- */
-void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
-			  int *bpp)
-{
-	switch (format) {
-	case DRM_FORMAT_C8:
-	case DRM_FORMAT_RGB332:
-	case DRM_FORMAT_BGR233:
-		*depth = 8;
-		*bpp = 8;
-		break;
-	case DRM_FORMAT_XRGB1555:
-	case DRM_FORMAT_XBGR1555:
-	case DRM_FORMAT_RGBX5551:
-	case DRM_FORMAT_BGRX5551:
-	case DRM_FORMAT_ARGB1555:
-	case DRM_FORMAT_ABGR1555:
-	case DRM_FORMAT_RGBA5551:
-	case DRM_FORMAT_BGRA5551:
-		*depth = 15;
-		*bpp = 16;
-		break;
-	case DRM_FORMAT_RGB565:
-	case DRM_FORMAT_BGR565:
-		*depth = 16;
-		*bpp = 16;
-		break;
-	case DRM_FORMAT_RGB888:
-	case DRM_FORMAT_BGR888:
-		*depth = 24;
-		*bpp = 24;
-		break;
-	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_XBGR8888:
-	case DRM_FORMAT_RGBX8888:
-	case DRM_FORMAT_BGRX8888:
-		*depth = 24;
-		*bpp = 32;
-		break;
-	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_XBGR2101010:
-	case DRM_FORMAT_RGBX1010102:
-	case DRM_FORMAT_BGRX1010102:
-	case DRM_FORMAT_ARGB2101010:
-	case DRM_FORMAT_ABGR2101010:
-	case DRM_FORMAT_RGBA1010102:
-	case DRM_FORMAT_BGRA1010102:
-		*depth = 30;
-		*bpp = 32;
-		break;
-	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_ABGR8888:
-	case DRM_FORMAT_RGBA8888:
-	case DRM_FORMAT_BGRA8888:
-		*depth = 32;
-		*bpp = 32;
-		break;
-	default:
-		DRM_DEBUG_KMS("unsupported pixel format %s\n",
-			      drm_get_format_name(format));
-		*depth = 0;
-		*bpp = 0;
-		break;
-	}
-}
-EXPORT_SYMBOL(drm_fb_get_bpp_depth);
-
-/**
- * drm_format_num_planes - get the number of planes for format
- * @format: pixel format (DRM_FORMAT_*)
- *
- * Returns:
- * The number of planes used by the specified pixel format.
- */
-int drm_format_num_planes(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_YUV410:
-	case DRM_FORMAT_YVU410:
-	case DRM_FORMAT_YUV411:
-	case DRM_FORMAT_YVU411:
-	case DRM_FORMAT_YUV420:
-	case DRM_FORMAT_YVU420:
-	case DRM_FORMAT_YUV422:
-	case DRM_FORMAT_YVU422:
-	case DRM_FORMAT_YUV444:
-	case DRM_FORMAT_YVU444:
-		return 3;
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV21:
-	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV61:
-	case DRM_FORMAT_NV24:
-	case DRM_FORMAT_NV42:
-		return 2;
-	default:
-		return 1;
-	}
-}
-EXPORT_SYMBOL(drm_format_num_planes);
-
-/**
- * drm_format_plane_cpp - determine the bytes per pixel value
- * @format: pixel format (DRM_FORMAT_*)
- * @plane: plane index
- *
- * Returns:
- * The bytes per pixel value for the specified plane.
- */
-int drm_format_plane_cpp(uint32_t format, int plane)
-{
-	unsigned int depth;
-	int bpp;
-
-	if (plane >= drm_format_num_planes(format))
-		return 0;
-
-	switch (format) {
-	case DRM_FORMAT_YUYV:
-	case DRM_FORMAT_YVYU:
-	case DRM_FORMAT_UYVY:
-	case DRM_FORMAT_VYUY:
-		return 2;
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV21:
-	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV61:
-	case DRM_FORMAT_NV24:
-	case DRM_FORMAT_NV42:
-		return plane ? 2 : 1;
-	case DRM_FORMAT_YUV410:
-	case DRM_FORMAT_YVU410:
-	case DRM_FORMAT_YUV411:
-	case DRM_FORMAT_YVU411:
-	case DRM_FORMAT_YUV420:
-	case DRM_FORMAT_YVU420:
-	case DRM_FORMAT_YUV422:
-	case DRM_FORMAT_YVU422:
-	case DRM_FORMAT_YUV444:
-	case DRM_FORMAT_YVU444:
-		return 1;
-	default:
-		drm_fb_get_bpp_depth(format, &depth, &bpp);
-		return bpp >> 3;
-	}
-}
-EXPORT_SYMBOL(drm_format_plane_cpp);
-
-/**
- * drm_format_horz_chroma_subsampling - get the horizontal chroma subsampling factor
- * @format: pixel format (DRM_FORMAT_*)
- *
- * Returns:
- * The horizontal chroma subsampling factor for the
- * specified pixel format.
- */
-int drm_format_horz_chroma_subsampling(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_YUV411:
-	case DRM_FORMAT_YVU411:
-	case DRM_FORMAT_YUV410:
-	case DRM_FORMAT_YVU410:
-		return 4;
-	case DRM_FORMAT_YUYV:
-	case DRM_FORMAT_YVYU:
-	case DRM_FORMAT_UYVY:
-	case DRM_FORMAT_VYUY:
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV21:
-	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV61:
-	case DRM_FORMAT_YUV422:
-	case DRM_FORMAT_YVU422:
-	case DRM_FORMAT_YUV420:
-	case DRM_FORMAT_YVU420:
-		return 2;
-	default:
-		return 1;
-	}
-}
-EXPORT_SYMBOL(drm_format_horz_chroma_subsampling);
-
-/**
- * drm_format_vert_chroma_subsampling - get the vertical chroma subsampling factor
- * @format: pixel format (DRM_FORMAT_*)
- *
- * Returns:
- * The vertical chroma subsampling factor for the
- * specified pixel format.
- */
-int drm_format_vert_chroma_subsampling(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_YUV410:
-	case DRM_FORMAT_YVU410:
-		return 4;
-	case DRM_FORMAT_YUV420:
-	case DRM_FORMAT_YVU420:
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV21:
-		return 2;
-	default:
-		return 1;
-	}
-}
-EXPORT_SYMBOL(drm_format_vert_chroma_subsampling);
-
-/**
- * drm_format_plane_width - width of the plane given the first plane
- * @width: width of the first plane
- * @format: pixel format
- * @plane: plane index
- *
- * Returns:
- * The width of @plane, given that the width of the first plane is @width.
- */
-int drm_format_plane_width(int width, uint32_t format, int plane)
-{
-	if (plane >= drm_format_num_planes(format))
-		return 0;
-
-	if (plane == 0)
-		return width;
-
-	return width / drm_format_horz_chroma_subsampling(format);
-}
-EXPORT_SYMBOL(drm_format_plane_width);
-
-/**
- * drm_format_plane_height - height of the plane given the first plane
- * @height: height of the first plane
- * @format: pixel format
- * @plane: plane index
- *
- * Returns:
- * The height of @plane, given that the height of the first plane is @height.
- */
-int drm_format_plane_height(int height, uint32_t format, int plane)
-{
-	if (plane >= drm_format_num_planes(format))
-		return 0;
-
-	if (plane == 0)
-		return height;
-
-	return height / drm_format_vert_chroma_subsampling(format);
-}
-EXPORT_SYMBOL(drm_format_plane_height);
-
-/**
  * drm_rotation_simplify() - Try to simplify the rotation
  * @rotation: Rotation to be simplified
  * @supported_rotations: Supported rotations
@@ -5914,6 +5751,15 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 		drm_property_destroy(dev, property);
 	}
 
+	list_for_each_entry_safe(plane, plt, &dev->mode_config.plane_list,
+				 head) {
+		plane->funcs->destroy(plane);
+	}
+
+	list_for_each_entry_safe(crtc, ct, &dev->mode_config.crtc_list, head) {
+		crtc->funcs->destroy(crtc);
+	}
+
 	list_for_each_entry_safe(blob, bt, &dev->mode_config.property_blob_list,
 				 head_global) {
 		drm_property_unreference_blob(blob);
@@ -5929,16 +5775,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	 */
 	WARN_ON(!list_empty(&dev->mode_config.fb_list));
 	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
-		drm_framebuffer_free(&fb->refcount);
-	}
-
-	list_for_each_entry_safe(plane, plt, &dev->mode_config.plane_list,
-				 head) {
-		plane->funcs->destroy(plane);
-	}
-
-	list_for_each_entry_safe(crtc, ct, &dev->mode_config.crtc_list, head) {
-		crtc->funcs->destroy(crtc);
+		drm_framebuffer_free(&fb->base.refcount);
 	}
 
 	ida_destroy(&dev->mode_config.connector_ida);
@@ -6064,3 +5901,48 @@ struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 	return tg;
 }
 EXPORT_SYMBOL(drm_mode_create_tile_group);
+
+/**
+ * drm_crtc_enable_color_mgmt - enable color management properties
+ * @crtc: DRM CRTC
+ * @degamma_lut_size: the size of the degamma lut (before CSC)
+ * @has_ctm: whether to attach ctm_property for CSC matrix
+ * @gamma_lut_size: the size of the gamma lut (after CSC)
+ *
+ * This function lets the driver enable the color correction
+ * properties on a CRTC. This includes 3 degamma, csc and gamma
+ * properties that userspace can set and 2 size properties to inform
+ * the userspace of the lut sizes. Each of the properties are
+ * optional. The gamma and degamma properties are only attached if
+ * their size is not 0 and ctm_property is only attached if has_ctm is
+ * true.
+ */
+void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
+				uint degamma_lut_size,
+				bool has_ctm,
+				uint gamma_lut_size)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	if (degamma_lut_size) {
+		drm_object_attach_property(&crtc->base,
+					   config->degamma_lut_property, 0);
+		drm_object_attach_property(&crtc->base,
+					   config->degamma_lut_size_property,
+					   degamma_lut_size);
+	}
+
+	if (has_ctm)
+		drm_object_attach_property(&crtc->base,
+					   config->ctm_property, 0);
+
+	if (gamma_lut_size) {
+		drm_object_attach_property(&crtc->base,
+					   config->gamma_lut_property, 0);
+		drm_object_attach_property(&crtc->base,
+					   config->gamma_lut_size_property,
+					   gamma_lut_size);
+	}
+}
+EXPORT_SYMBOL(drm_crtc_enable_color_mgmt);

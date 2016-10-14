@@ -136,10 +136,10 @@ struct orangefs_kernel_op_s *op_alloc(__s32 type)
 			     llu(new_op->tag),
 			     get_opname_string(new_op));
 
-		new_op->upcall.uid = from_kuid(current_user_ns(),
+		new_op->upcall.uid = from_kuid(&init_user_ns,
 					       current_fsuid());
 
-		new_op->upcall.gid = from_kgid(current_user_ns(),
+		new_op->upcall.gid = from_kgid(&init_user_ns,
 					       current_fsgid());
 	} else {
 		gossip_err("op_alloc: kmem_cache_zalloc failed!\n");

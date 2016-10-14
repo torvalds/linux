@@ -148,7 +148,7 @@ int cps_pm_enter_state(enum cps_pm_state state)
 	}
 
 	/* Setup the VPE to run mips_cps_pm_restore when started again */
-	if (config_enabled(CONFIG_CPU_PM) && state == CPS_PM_POWER_GATED) {
+	if (IS_ENABLED(CONFIG_CPU_PM) && state == CPS_PM_POWER_GATED) {
 		/* Power gating relies upon CPS SMP */
 		if (!mips_cps_smp_in_use())
 			return -EINVAL;
@@ -224,11 +224,18 @@ static void __init cps_gen_cache_routine(u32 **pp, struct uasm_label **pl,
 	uasm_build_label(pl, *pp, lbl);
 
 	/* Generate the cache ops */
-	for (i = 0; i < unroll_lines; i++)
-		uasm_i_cache(pp, op, i * cache->linesz, t0);
+	for (i = 0; i < unroll_lines; i++) {
+		if (cpu_has_mips_r6) {
+			uasm_i_cache(pp, op, 0, t0);
+			uasm_i_addiu(pp, t0, t0, cache->linesz);
+		} else {
+			uasm_i_cache(pp, op, i * cache->linesz, t0);
+		}
+	}
 
-	/* Update the base address */
-	uasm_i_addiu(pp, t0, t0, unroll_lines * cache->linesz);
+	if (!cpu_has_mips_r6)
+		/* Update the base address */
+		uasm_i_addiu(pp, t0, t0, unroll_lines * cache->linesz);
 
 	/* Loop if we haven't reached the end address yet */
 	uasm_il_bne(pp, pr, t0, t1, lbl);
@@ -380,7 +387,7 @@ static void * __init cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
 
-	if (config_enabled(CONFIG_CPU_PM) && state == CPS_PM_POWER_GATED) {
+	if (IS_ENABLED(CONFIG_CPU_PM) && state == CPS_PM_POWER_GATED) {
 		/* Power gating relies upon CPS SMP */
 		if (!mips_cps_smp_in_use())
 			goto out_err;

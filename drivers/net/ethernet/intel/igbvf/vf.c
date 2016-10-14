@@ -266,7 +266,7 @@ static s32 e1000_set_vfta_vf(struct e1000_hw *hw, u16 vid, bool set)
 	msgbuf[1] = vid;
 	/* Setting the 8 bit field MSG INFO to true indicates "add" */
 	if (set)
-		msgbuf[0] |= 1 << E1000_VT_MSGINFO_SHIFT;
+		msgbuf[0] |= BIT(E1000_VT_MSGINFO_SHIFT);
 
 	mbx->ops.write_posted(hw, msgbuf, 2);
 

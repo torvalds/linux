@@ -829,8 +829,7 @@ static void mspro_block_start(struct memstick_dev *card)
 
 static int mspro_block_prepare_req(struct request_queue *q, struct request *req)
 {
-	if (req->cmd_type != REQ_TYPE_FS &&
-	    req->cmd_type != REQ_TYPE_BLOCK_PC) {
+	if (req->cmd_type != REQ_TYPE_FS) {
 		blk_dump_rq_flags(req, "MSPro unsupported request");
 		return BLKPREP_KILL;
 	}
@@ -1033,12 +1032,11 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 	}
 	msb->attr_group.name = "media_attributes";
 
-	buffer = kmalloc(attr_len, GFP_KERNEL);
+	buffer = kmemdup(attr, attr_len, GFP_KERNEL);
 	if (!buffer) {
 		rc = -ENOMEM;
 		goto out_free_attr;
 	}
-	memcpy(buffer, (char *)attr, attr_len);
 
 	for (cnt = 0; cnt < attr_count; ++cnt) {
 		s_attr = kzalloc(sizeof(struct mspro_sys_attr), GFP_KERNEL);
@@ -1244,7 +1242,6 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 	msb->usage_count = 1;
 	msb->disk->private_data = msb;
 	msb->disk->queue = msb->queue;
-	msb->disk->driverfs_dev = &card->dev;
 
 	sprintf(msb->disk->disk_name, "mspblk%d", disk_id);
 
@@ -1256,7 +1253,7 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 	set_capacity(msb->disk, capacity);
 	dev_dbg(&card->dev, "capacity set %ld\n", capacity);
 
-	add_disk(msb->disk);
+	device_add_disk(&card->dev, msb->disk);
 	msb->active = 1;
 	return 0;
 

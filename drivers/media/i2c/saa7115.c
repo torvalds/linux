@@ -1585,13 +1585,6 @@ static const struct v4l2_ctrl_ops saa711x_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops saa711x_core_ops = {
 	.log_status = saa711x_log_status,
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
 	.reset = saa711x_reset,
 	.s_gpio = saa711x_s_gpio,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -1796,6 +1789,21 @@ static int saa711x_detect_chip(struct i2c_client *client,
 			name, 16, chip_ver, client->addr << 1);
 
 		return GM7113C;
+	}
+
+	/* Check if it is a CJC7113 */
+	if (!memcmp(name, "1111111111111111", CHIP_VER_SIZE)) {
+		strlcpy(name, "cjc7113", CHIP_VER_SIZE);
+
+		if (!autodetect && strcmp(name, id->name))
+			return -EINVAL;
+
+		v4l_dbg(1, debug, client,
+			"It seems to be a %s chip (%*ph) @ 0x%x.\n",
+			name, 16, chip_ver, client->addr << 1);
+
+		/* CJC7113 seems to be SAA7113-compatible */
+		return SAA7113;
 	}
 
 	/* Chip was not discovered. Return its ID and don't bind */

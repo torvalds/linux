@@ -60,6 +60,7 @@ int __init security_init(void)
 	 */
 	capability_add_hooks();
 	yama_add_hooks();
+	loadpin_add_hooks();
 
 	/*
 	 * Load all the remaining security modules.
@@ -208,7 +209,7 @@ int security_syslog(int type)
 	return call_int_hook(syslog, 0, type);
 }
 
-int security_settime(const struct timespec *ts, const struct timezone *tz)
+int security_settime64(const struct timespec64 *ts, const struct timezone *tz)
 {
 	return call_int_hook(settime, 0, ts, tz);
 }
@@ -302,7 +303,7 @@ int security_sb_statfs(struct dentry *dentry)
 	return call_int_hook(sb_statfs, 0, dentry);
 }
 
-int security_sb_mount(const char *dev_name, struct path *path,
+int security_sb_mount(const char *dev_name, const struct path *path,
                        const char *type, unsigned long flags, void *data)
 {
 	return call_int_hook(sb_mount, 0, dev_name, path, type, flags, data);
@@ -313,7 +314,7 @@ int security_sb_umount(struct vfsmount *mnt, int flags)
 	return call_int_hook(sb_umount, 0, mnt, flags);
 }
 
-int security_sb_pivotroot(struct path *old_path, struct path *new_path)
+int security_sb_pivotroot(const struct path *old_path, const struct path *new_path)
 {
 	return call_int_hook(sb_pivotroot, 0, old_path, new_path);
 }
@@ -355,7 +356,7 @@ void security_inode_free(struct inode *inode)
 }
 
 int security_dentry_init_security(struct dentry *dentry, int mode,
-					struct qstr *name, void **ctx,
+					const struct qstr *name, void **ctx,
 					u32 *ctxlen)
 {
 	return call_int_hook(dentry_init_security, -EOPNOTSUPP, dentry, mode,
@@ -410,7 +411,7 @@ int security_old_inode_init_security(struct inode *inode, struct inode *dir,
 EXPORT_SYMBOL(security_old_inode_init_security);
 
 #ifdef CONFIG_SECURITY_PATH
-int security_path_mknod(struct path *dir, struct dentry *dentry, umode_t mode,
+int security_path_mknod(const struct path *dir, struct dentry *dentry, umode_t mode,
 			unsigned int dev)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
@@ -419,7 +420,7 @@ int security_path_mknod(struct path *dir, struct dentry *dentry, umode_t mode,
 }
 EXPORT_SYMBOL(security_path_mknod);
 
-int security_path_mkdir(struct path *dir, struct dentry *dentry, umode_t mode)
+int security_path_mkdir(const struct path *dir, struct dentry *dentry, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
 		return 0;
@@ -427,14 +428,14 @@ int security_path_mkdir(struct path *dir, struct dentry *dentry, umode_t mode)
 }
 EXPORT_SYMBOL(security_path_mkdir);
 
-int security_path_rmdir(struct path *dir, struct dentry *dentry)
+int security_path_rmdir(const struct path *dir, struct dentry *dentry)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
 		return 0;
 	return call_int_hook(path_rmdir, 0, dir, dentry);
 }
 
-int security_path_unlink(struct path *dir, struct dentry *dentry)
+int security_path_unlink(const struct path *dir, struct dentry *dentry)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
 		return 0;
@@ -442,7 +443,7 @@ int security_path_unlink(struct path *dir, struct dentry *dentry)
 }
 EXPORT_SYMBOL(security_path_unlink);
 
-int security_path_symlink(struct path *dir, struct dentry *dentry,
+int security_path_symlink(const struct path *dir, struct dentry *dentry,
 			  const char *old_name)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
@@ -450,7 +451,7 @@ int security_path_symlink(struct path *dir, struct dentry *dentry,
 	return call_int_hook(path_symlink, 0, dir, dentry, old_name);
 }
 
-int security_path_link(struct dentry *old_dentry, struct path *new_dir,
+int security_path_link(struct dentry *old_dentry, const struct path *new_dir,
 		       struct dentry *new_dentry)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry))))
@@ -458,8 +459,8 @@ int security_path_link(struct dentry *old_dentry, struct path *new_dir,
 	return call_int_hook(path_link, 0, old_dentry, new_dir, new_dentry);
 }
 
-int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
-			 struct path *new_dir, struct dentry *new_dentry,
+int security_path_rename(const struct path *old_dir, struct dentry *old_dentry,
+			 const struct path *new_dir, struct dentry *new_dentry,
 			 unsigned int flags)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry)) ||
@@ -478,28 +479,28 @@ int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
 }
 EXPORT_SYMBOL(security_path_rename);
 
-int security_path_truncate(struct path *path)
+int security_path_truncate(const struct path *path)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
 		return 0;
 	return call_int_hook(path_truncate, 0, path);
 }
 
-int security_path_chmod(struct path *path, umode_t mode)
+int security_path_chmod(const struct path *path, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
 		return 0;
 	return call_int_hook(path_chmod, 0, path, mode);
 }
 
-int security_path_chown(struct path *path, kuid_t uid, kgid_t gid)
+int security_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 {
 	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
 		return 0;
 	return call_int_hook(path_chown, 0, path, uid, gid);
 }
 
-int security_path_chroot(struct path *path)
+int security_path_chroot(const struct path *path)
 {
 	return call_int_hook(path_chroot, 0, path);
 }
@@ -699,18 +700,39 @@ int security_inode_killpriv(struct dentry *dentry)
 
 int security_inode_getsecurity(struct inode *inode, const char *name, void **buffer, bool alloc)
 {
+	struct security_hook_list *hp;
+	int rc;
+
 	if (unlikely(IS_PRIVATE(inode)))
 		return -EOPNOTSUPP;
-	return call_int_hook(inode_getsecurity, -EOPNOTSUPP, inode, name,
-				buffer, alloc);
+	/*
+	 * Only one module will provide an attribute with a given name.
+	 */
+	list_for_each_entry(hp, &security_hook_heads.inode_getsecurity, list) {
+		rc = hp->hook.inode_getsecurity(inode, name, buffer, alloc);
+		if (rc != -EOPNOTSUPP)
+			return rc;
+	}
+	return -EOPNOTSUPP;
 }
 
 int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags)
 {
+	struct security_hook_list *hp;
+	int rc;
+
 	if (unlikely(IS_PRIVATE(inode)))
 		return -EOPNOTSUPP;
-	return call_int_hook(inode_setsecurity, -EOPNOTSUPP, inode, name,
-				value, size, flags);
+	/*
+	 * Only one module will provide an attribute with a given name.
+	 */
+	list_for_each_entry(hp, &security_hook_heads.inode_setsecurity, list) {
+		rc = hp->hook.inode_setsecurity(inode, name, value, size,
+								flags);
+		if (rc != -EOPNOTSUPP)
+			return rc;
+	}
+	return -EOPNOTSUPP;
 }
 
 int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size)
@@ -1848,7 +1870,6 @@ struct security_hook_heads security_hook_heads = {
 	.tun_dev_attach =
 		LIST_HEAD_INIT(security_hook_heads.tun_dev_attach),
 	.tun_dev_open =	LIST_HEAD_INIT(security_hook_heads.tun_dev_open),
-	.skb_owned_by =	LIST_HEAD_INIT(security_hook_heads.skb_owned_by),
 #endif	/* CONFIG_SECURITY_NETWORK */
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	.xfrm_policy_alloc_security =

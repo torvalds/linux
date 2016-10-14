@@ -1025,7 +1025,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		if (!access_ok(VERIFY_READ, addr, 2))
 			goto sigbus;
 
-		if (config_enabled(CONFIG_EVA)) {
+		if (IS_ENABLED(CONFIG_EVA)) {
 			if (segment_eq(get_fs(), get_ds()))
 				LoadHW(addr, value, res);
 			else
@@ -1044,7 +1044,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		if (!access_ok(VERIFY_READ, addr, 4))
 			goto sigbus;
 
-		if (config_enabled(CONFIG_EVA)) {
+		if (IS_ENABLED(CONFIG_EVA)) {
 			if (segment_eq(get_fs(), get_ds()))
 				LoadW(addr, value, res);
 			else
@@ -1063,7 +1063,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		if (!access_ok(VERIFY_READ, addr, 2))
 			goto sigbus;
 
-		if (config_enabled(CONFIG_EVA)) {
+		if (IS_ENABLED(CONFIG_EVA)) {
 			if (segment_eq(get_fs(), get_ds()))
 				LoadHWU(addr, value, res);
 			else
@@ -1131,7 +1131,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		compute_return_epc(regs);
 		value = regs->regs[insn.i_format.rt];
 
-		if (config_enabled(CONFIG_EVA)) {
+		if (IS_ENABLED(CONFIG_EVA)) {
 			if (segment_eq(get_fs(), get_ds()))
 				StoreHW(addr, value, res);
 			else
@@ -1151,7 +1151,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		compute_return_epc(regs);
 		value = regs->regs[insn.i_format.rt];
 
-		if (config_enabled(CONFIG_EVA)) {
+		if (IS_ENABLED(CONFIG_EVA)) {
 			if (segment_eq(get_fs(), get_ds()))
 				StoreW(addr, value, res);
 			else
@@ -1191,6 +1191,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 	case ldc1_op:
 	case swc1_op:
 	case sdc1_op:
+	case cop1x_op:
 		die_if_kernel("Unaligned FP access in kernel code", regs);
 		BUG_ON(!used_math());
 

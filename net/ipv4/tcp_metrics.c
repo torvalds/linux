@@ -800,7 +800,8 @@ static int tcp_metrics_fill_info(struct sk_buff *msg,
 	}
 
 	if (nla_put_msecs(msg, TCP_METRICS_ATTR_AGE,
-			  jiffies - tm->tcpm_stamp) < 0)
+			  jiffies - tm->tcpm_stamp,
+			  TCP_METRICS_ATTR_PAD) < 0)
 		goto nla_put_failure;
 	if (tm->tcpm_ts_stamp) {
 		if (nla_put_s32(msg, TCP_METRICS_ATTR_TW_TS_STAMP,
@@ -864,7 +865,8 @@ static int tcp_metrics_fill_info(struct sk_buff *msg,
 		    (nla_put_u16(msg, TCP_METRICS_ATTR_FOPEN_SYN_DROPS,
 				tfom->syn_loss) < 0 ||
 		     nla_put_msecs(msg, TCP_METRICS_ATTR_FOPEN_SYN_DROP_TS,
-				jiffies - tfom->last_syn_loss) < 0))
+				jiffies - tfom->last_syn_loss,
+				TCP_METRICS_ATTR_PAD) < 0))
 			goto nla_put_failure;
 		if (tfom->cookie.len > 0 &&
 		    nla_put(msg, TCP_METRICS_ATTR_FOPEN_COOKIE,

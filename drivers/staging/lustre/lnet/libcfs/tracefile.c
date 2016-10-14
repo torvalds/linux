@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -707,9 +703,8 @@ int cfs_tracefile_dump_all_pages(char *filename)
 	struct cfs_trace_page	*tage;
 	struct cfs_trace_page	*tmp;
 	char			*buf;
+	mm_segment_t __oldfs;
 	int rc;
-
-	DECL_MMSPACE;
 
 	cfs_tracefile_write_lock();
 
@@ -729,11 +724,12 @@ int cfs_tracefile_dump_all_pages(char *filename)
 		rc = 0;
 		goto close;
 	}
+	__oldfs = get_fs();
+	set_fs(get_ds());
 
 	/* ok, for now, just write the pages.  in the future we'll be building
 	 * iobufs with the pages and calling generic_direct_IO
 	 */
-	MMSPACE_OPEN;
 	list_for_each_entry_safe(tage, tmp, &pc.pc_pages, linkage) {
 		__LASSERT_TAGE_INVARIANT(tage);
 
@@ -752,7 +748,7 @@ int cfs_tracefile_dump_all_pages(char *filename)
 		list_del(&tage->linkage);
 		cfs_tage_free(tage);
 	}
-	MMSPACE_CLOSE;
+	set_fs(__oldfs);
 	rc = vfs_fsync(filp, 1);
 	if (rc)
 		pr_err("sync returns %d\n", rc);
@@ -986,12 +982,11 @@ static int tracefiled(void *arg)
 	struct tracefiled_ctl *tctl = arg;
 	struct cfs_trace_page *tage;
 	struct cfs_trace_page *tmp;
+	mm_segment_t __oldfs;
 	struct file *filp;
 	char *buf;
 	int last_loop = 0;
 	int rc;
-
-	DECL_MMSPACE;
 
 	/* we're started late enough that we pick up init's fs context */
 	/* this is so broken in uml?  what on earth is going on? */
@@ -1025,8 +1020,8 @@ static int tracefiled(void *arg)
 			__LASSERT(list_empty(&pc.pc_pages));
 			goto end_loop;
 		}
-
-		MMSPACE_OPEN;
+		__oldfs = get_fs();
+		set_fs(get_ds());
 
 		list_for_each_entry_safe(tage, tmp, &pc.pc_pages, linkage) {
 			static loff_t f_pos;
@@ -1051,7 +1046,7 @@ static int tracefiled(void *arg)
 				break;
 			}
 		}
-		MMSPACE_CLOSE;
+		set_fs(__oldfs);
 
 		filp_close(filp, NULL);
 		put_pages_on_daemon_list(&pc);

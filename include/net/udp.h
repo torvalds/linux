@@ -59,7 +59,7 @@ struct udp_skb_cb {
  *	@lock:	spinlock protecting changes to head/count
  */
 struct udp_hslot {
-	struct hlist_nulls_head	head;
+	struct hlist_head	head;
 	int			count;
 	spinlock_t		lock;
 } __attribute__((aligned(2 * sizeof(long))));
@@ -158,9 +158,21 @@ static inline __sum16 udp_v4_check(int len, __be32 saddr,
 void udp_set_csum(bool nocheck, struct sk_buff *skb,
 		  __be32 saddr, __be32 daddr, int len);
 
+static inline void udp_csum_pull_header(struct sk_buff *skb)
+{
+	if (!skb->csum_valid && skb->ip_summed == CHECKSUM_NONE)
+		skb->csum = csum_partial(skb->data, sizeof(struct udphdr),
+					 skb->csum);
+	skb_pull_rcsum(skb, sizeof(struct udphdr));
+	UDP_SKB_CB(skb)->cscov -= sizeof(struct udphdr);
+}
+
+typedef struct sock *(*udp_lookup_t)(struct sk_buff *skb, __be16 sport,
+				     __be16 dport);
+
 struct sk_buff **udp_gro_receive(struct sk_buff **head, struct sk_buff *skb,
-				 struct udphdr *uh);
-int udp_gro_complete(struct sk_buff *skb, int nhoff);
+				 struct udphdr *uh, udp_lookup_t lookup);
+int udp_gro_complete(struct sk_buff *skb, int nhoff, udp_lookup_t lookup);
 
 static inline struct udphdr *udp_gro_udphdr(struct sk_buff *skb)
 {
@@ -260,6 +272,8 @@ struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
 struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
 			       __be32 daddr, __be16 dport, int dif,
 			       struct udp_table *tbl, struct sk_buff *skb);
+struct sock *udp4_lib_lookup_skb(struct sk_buff *skb,
+				 __be16 sport, __be16 dport);
 struct sock *udp6_lib_lookup(struct net *net,
 			     const struct in6_addr *saddr, __be16 sport,
 			     const struct in6_addr *daddr, __be16 dport,
@@ -269,36 +283,38 @@ struct sock *__udp6_lib_lookup(struct net *net,
 			       const struct in6_addr *daddr, __be16 dport,
 			       int dif, struct udp_table *tbl,
 			       struct sk_buff *skb);
+struct sock *udp6_lib_lookup_skb(struct sk_buff *skb,
+				 __be16 sport, __be16 dport);
 
 /*
  * 	SNMP statistics for UDP and UDP-Lite
  */
-#define UDP_INC_STATS_USER(net, field, is_udplite)	      do { \
-	if (is_udplite) SNMP_INC_STATS_USER((net)->mib.udplite_statistics, field);       \
-	else		SNMP_INC_STATS_USER((net)->mib.udp_statistics, field);  }  while(0)
-#define UDP_INC_STATS_BH(net, field, is_udplite) 	      do { \
-	if (is_udplite) SNMP_INC_STATS_BH((net)->mib.udplite_statistics, field);         \
-	else		SNMP_INC_STATS_BH((net)->mib.udp_statistics, field);    }  while(0)
+#define UDP_INC_STATS(net, field, is_udplite)		      do { \
+	if (is_udplite) SNMP_INC_STATS((net)->mib.udplite_statistics, field);       \
+	else		SNMP_INC_STATS((net)->mib.udp_statistics, field);  }  while(0)
+#define __UDP_INC_STATS(net, field, is_udplite) 	      do { \
+	if (is_udplite) __SNMP_INC_STATS((net)->mib.udplite_statistics, field);         \
+	else		__SNMP_INC_STATS((net)->mib.udp_statistics, field);    }  while(0)
 
-#define UDP6_INC_STATS_BH(net, field, is_udplite) 	    do { \
-	if (is_udplite) SNMP_INC_STATS_BH((net)->mib.udplite_stats_in6, field);\
-	else		SNMP_INC_STATS_BH((net)->mib.udp_stats_in6, field);  \
+#define __UDP6_INC_STATS(net, field, is_udplite)	    do { \
+	if (is_udplite) __SNMP_INC_STATS((net)->mib.udplite_stats_in6, field);\
+	else		__SNMP_INC_STATS((net)->mib.udp_stats_in6, field);  \
 } while(0)
-#define UDP6_INC_STATS_USER(net, field, __lite)		    do { \
-	if (__lite) SNMP_INC_STATS_USER((net)->mib.udplite_stats_in6, field);  \
-	else	    SNMP_INC_STATS_USER((net)->mib.udp_stats_in6, field);      \
+#define UDP6_INC_STATS(net, field, __lite)		    do { \
+	if (__lite) SNMP_INC_STATS((net)->mib.udplite_stats_in6, field);  \
+	else	    SNMP_INC_STATS((net)->mib.udp_stats_in6, field);      \
 } while(0)
 
 #if IS_ENABLED(CONFIG_IPV6)
-#define UDPX_INC_STATS_BH(sk, field)					\
+#define __UDPX_INC_STATS(sk, field)					\
 do {									\
 	if ((sk)->sk_family == AF_INET)					\
-		UDP_INC_STATS_BH(sock_net(sk), field, 0);		\
+		__UDP_INC_STATS(sock_net(sk), field, 0);		\
 	else								\
-		UDP6_INC_STATS_BH(sock_net(sk), field, 0);		\
+		__UDP6_INC_STATS(sock_net(sk), field, 0);		\
 } while (0)
 #else
-#define UDPX_INC_STATS_BH(sk, field) UDP_INC_STATS_BH(sock_net(sk), field, 0)
+#define __UDPX_INC_STATS(sk, field) __UDP_INC_STATS(sock_net(sk), field, 0)
 #endif
 
 /* /proc */

@@ -13,7 +13,7 @@
  */
 
 #include <linux/kvm_host.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <asm/fpu/internal.h> /* For use_eager_fpu.  Ugh! */
@@ -75,7 +75,7 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 		return 0;
 
 	/* Update OSXSAVE bit */
-	if (cpu_has_xsave && best->function == 0x1) {
+	if (boot_cpu_has(X86_FEATURE_XSAVE) && best->function == 0x1) {
 		best->ecx &= ~F(OSXSAVE);
 		if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE))
 			best->ecx |= F(OSXSAVE);
@@ -181,19 +181,22 @@ int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 			     struct kvm_cpuid_entry __user *entries)
 {
 	int r, i;
-	struct kvm_cpuid_entry *cpuid_entries;
+	struct kvm_cpuid_entry *cpuid_entries = NULL;
 
 	r = -E2BIG;
 	if (cpuid->nent > KVM_MAX_CPUID_ENTRIES)
 		goto out;
 	r = -ENOMEM;
-	cpuid_entries = vmalloc(sizeof(struct kvm_cpuid_entry) * cpuid->nent);
-	if (!cpuid_entries)
-		goto out;
-	r = -EFAULT;
-	if (copy_from_user(cpuid_entries, entries,
-			   cpuid->nent * sizeof(struct kvm_cpuid_entry)))
-		goto out_free;
+	if (cpuid->nent) {
+		cpuid_entries = vmalloc(sizeof(struct kvm_cpuid_entry) *
+					cpuid->nent);
+		if (!cpuid_entries)
+			goto out;
+		r = -EFAULT;
+		if (copy_from_user(cpuid_entries, entries,
+				   cpuid->nent * sizeof(struct kvm_cpuid_entry)))
+			goto out;
+	}
 	for (i = 0; i < cpuid->nent; i++) {
 		vcpu->arch.cpuid_entries[i].function = cpuid_entries[i].function;
 		vcpu->arch.cpuid_entries[i].eax = cpuid_entries[i].eax;
@@ -212,9 +215,8 @@ int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 	kvm_x86_ops->cpuid_update(vcpu);
 	r = kvm_update_cpuid(vcpu);
 
-out_free:
-	vfree(cpuid_entries);
 out:
+	vfree(cpuid_entries);
 	return r;
 }
 
@@ -364,7 +366,7 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		F(FSGSBASE) | F(BMI1) | F(HLE) | F(AVX2) | F(SMEP) |
 		F(BMI2) | F(ERMS) | f_invpcid | F(RTM) | f_mpx | F(RDSEED) |
 		F(ADX) | F(SMAP) | F(AVX512F) | F(AVX512PF) | F(AVX512ER) |
-		F(AVX512CD) | F(CLFLUSHOPT) | F(CLWB) | F(PCOMMIT);
+		F(AVX512CD) | F(CLFLUSHOPT) | F(CLWB);
 
 	/* cpuid 0xD.1.eax */
 	const u32 kvm_cpuid_D_1_eax_x86_features =

@@ -161,6 +161,9 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(mtl_rx_fifo_ctrl_active),
 	STMMAC_STAT(mac_rx_frame_ctrl_fifo),
 	STMMAC_STAT(mac_gmii_rx_proto_engine),
+	/* TSO */
+	STMMAC_STAT(tx_tso_frames),
+	STMMAC_STAT(tx_tso_nfrags),
 };
 #define STMMAC_STATS_LEN ARRAY_SIZE(stmmac_gstrings_stats)
 
@@ -273,7 +276,8 @@ static int stmmac_ethtool_getsettings(struct net_device *dev,
 	struct phy_device *phy = priv->phydev;
 	int rc;
 
-	if ((priv->pcs & STMMAC_PCS_RGMII) || (priv->pcs & STMMAC_PCS_SGMII)) {
+	if (priv->hw->pcs & STMMAC_PCS_RGMII ||
+	    priv->hw->pcs & STMMAC_PCS_SGMII) {
 		struct rgmii_adv adv;
 
 		if (!priv->xstats.pcs_link) {
@@ -286,10 +290,10 @@ static int stmmac_ethtool_getsettings(struct net_device *dev,
 		ethtool_cmd_speed_set(cmd, priv->xstats.pcs_speed);
 
 		/* Get and convert ADV/LP_ADV from the HW AN registers */
-		if (!priv->hw->mac->get_adv)
+		if (!priv->hw->mac->pcs_get_adv_lp)
 			return -EOPNOTSUPP;	/* should never happen indeed */
 
-		priv->hw->mac->get_adv(priv->hw, &adv);
+		priv->hw->mac->pcs_get_adv_lp(priv->ioaddr, &adv);
 
 		/* Encoding of PSE bits is defined in 802.3z, 37.2.1.4 */
 
@@ -358,7 +362,8 @@ static int stmmac_ethtool_setsettings(struct net_device *dev,
 	struct phy_device *phy = priv->phydev;
 	int rc;
 
-	if ((priv->pcs & STMMAC_PCS_RGMII) || (priv->pcs & STMMAC_PCS_SGMII)) {
+	if (priv->hw->pcs & STMMAC_PCS_RGMII ||
+	    priv->hw->pcs & STMMAC_PCS_SGMII) {
 		u32 mask = ADVERTISED_Autoneg | ADVERTISED_Pause;
 
 		/* Only support ANE */
@@ -373,8 +378,11 @@ static int stmmac_ethtool_setsettings(struct net_device *dev,
 			ADVERTISED_10baseT_Full);
 
 		spin_lock(&priv->lock);
-		if (priv->hw->mac->ctrl_ane)
-			priv->hw->mac->ctrl_ane(priv->hw, 1);
+
+		if (priv->hw->mac->pcs_ctrl_ane)
+			priv->hw->mac->pcs_ctrl_ane(priv->ioaddr, 1,
+						    priv->hw->ps, 0);
+
 		spin_unlock(&priv->lock);
 
 		return 0;
@@ -449,11 +457,22 @@ stmmac_get_pauseparam(struct net_device *netdev,
 {
 	struct stmmac_priv *priv = netdev_priv(netdev);
 
-	if (priv->pcs)	/* FIXME */
-		return;
-
 	pause->rx_pause = 0;
 	pause->tx_pause = 0;
+
+	if (priv->hw->pcs && priv->hw->mac->pcs_get_adv_lp) {
+		struct rgmii_adv adv_lp;
+
+		pause->autoneg = 1;
+		priv->hw->mac->pcs_get_adv_lp(priv->ioaddr, &adv_lp);
+		if (!adv_lp.pause)
+			return;
+	} else {
+		if (!(priv->phydev->supported & SUPPORTED_Pause) ||
+		    !(priv->phydev->supported & SUPPORTED_Asym_Pause))
+			return;
+	}
+
 	pause->autoneg = priv->phydev->autoneg;
 
 	if (priv->flow_ctrl & FLOW_RX)
@@ -470,10 +489,19 @@ stmmac_set_pauseparam(struct net_device *netdev,
 	struct stmmac_priv *priv = netdev_priv(netdev);
 	struct phy_device *phy = priv->phydev;
 	int new_pause = FLOW_OFF;
-	int ret = 0;
 
-	if (priv->pcs)	/* FIXME */
-		return -EOPNOTSUPP;
+	if (priv->hw->pcs && priv->hw->mac->pcs_get_adv_lp) {
+		struct rgmii_adv adv_lp;
+
+		pause->autoneg = 1;
+		priv->hw->mac->pcs_get_adv_lp(priv->ioaddr, &adv_lp);
+		if (!adv_lp.pause)
+			return -EOPNOTSUPP;
+	} else {
+		if (!(phy->supported & SUPPORTED_Pause) ||
+		    !(phy->supported & SUPPORTED_Asym_Pause))
+			return -EOPNOTSUPP;
+	}
 
 	if (pause->rx_pause)
 		new_pause |= FLOW_RX;
@@ -485,11 +513,12 @@ stmmac_set_pauseparam(struct net_device *netdev,
 
 	if (phy->autoneg) {
 		if (netif_running(netdev))
-			ret = phy_start_aneg(phy);
-	} else
-		priv->hw->mac->flow_ctrl(priv->hw, phy->duplex,
-					 priv->flow_ctrl, priv->pause);
-	return ret;
+			return phy_start_aneg(phy);
+	}
+
+	priv->hw->mac->flow_ctrl(priv->hw, phy->duplex, priv->flow_ctrl,
+				 priv->pause);
+	return 0;
 }
 
 static void stmmac_get_ethtool_stats(struct net_device *dev,
@@ -499,14 +528,14 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 	int i, j = 0;
 
 	/* Update the DMA HW counters for dwmac10/100 */
-	if (!priv->plat->has_gmac)
+	if (priv->hw->dma->dma_diagnostic_fr)
 		priv->hw->dma->dma_diagnostic_fr(&dev->stats,
 						 (void *) &priv->xstats,
 						 priv->ioaddr);
 	else {
 		/* If supported, for new GMAC chips expose the MMC counters */
 		if (priv->dma_cap.rmon) {
-			dwmac_mmc_read(priv->ioaddr, &priv->mmc);
+			dwmac_mmc_read(priv->mmcaddr, &priv->mmc);
 
 			for (i = 0; i < STMMAC_MMC_STATS_LEN; i++) {
 				char *p;

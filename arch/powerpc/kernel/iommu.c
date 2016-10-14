@@ -307,7 +307,7 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 			      void *page, unsigned int npages,
 			      enum dma_data_direction direction,
 			      unsigned long mask, unsigned int align_order,
-			      struct dma_attrs *attrs)
+			      unsigned long attrs)
 {
 	unsigned long entry;
 	dma_addr_t ret = DMA_ERROR_CODE;
@@ -431,7 +431,7 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 		     struct scatterlist *sglist, int nelems,
 		     unsigned long mask, enum dma_data_direction direction,
-		     struct dma_attrs *attrs)
+		     unsigned long attrs)
 {
 	dma_addr_t dma_next = 0, dma_addr;
 	struct scatterlist *s, *outs, *segstart;
@@ -574,7 +574,7 @@ int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 
 void ppc_iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 			int nelems, enum dma_data_direction direction,
-			struct dma_attrs *attrs)
+			unsigned long attrs)
 {
 	struct scatterlist *sg;
 
@@ -753,7 +753,7 @@ void iommu_free_table(struct iommu_table *tbl, const char *node_name)
 dma_addr_t iommu_map_page(struct device *dev, struct iommu_table *tbl,
 			  struct page *page, unsigned long offset, size_t size,
 			  unsigned long mask, enum dma_data_direction direction,
-			  struct dma_attrs *attrs)
+			  unsigned long attrs)
 {
 	dma_addr_t dma_handle = DMA_ERROR_CODE;
 	void *vaddr;
@@ -790,7 +790,7 @@ dma_addr_t iommu_map_page(struct device *dev, struct iommu_table *tbl,
 
 void iommu_unmap_page(struct iommu_table *tbl, dma_addr_t dma_handle,
 		      size_t size, enum dma_data_direction direction,
-		      struct dma_attrs *attrs)
+		      unsigned long attrs)
 {
 	unsigned int npages;
 
@@ -845,7 +845,7 @@ void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 	nio_pages = size >> tbl->it_page_shift;
 	io_order = get_iommu_order(size, tbl);
 	mapping = iommu_alloc(dev, tbl, ret, nio_pages, DMA_BIDIRECTIONAL,
-			      mask >> tbl->it_page_shift, io_order, NULL);
+			      mask >> tbl->it_page_shift, io_order, 0);
 	if (mapping == DMA_ERROR_CODE) {
 		free_pages((unsigned long)ret, order);
 		return NULL;

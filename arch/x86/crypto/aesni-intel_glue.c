@@ -59,17 +59,6 @@ struct aesni_rfc4106_gcm_ctx {
 	u8 nonce[4];
 };
 
-struct aesni_gcm_set_hash_subkey_result {
-	int err;
-	struct completion completion;
-};
-
-struct aesni_hash_subkey_req_data {
-	u8 iv[16];
-	struct aesni_gcm_set_hash_subkey_result result;
-	struct scatterlist sg;
-};
-
 struct aesni_lrw_ctx {
 	struct lrw_table_ctx lrw_table;
 	u8 raw_aes_ctx[sizeof(struct crypto_aes_ctx) + AESNI_ALIGN - 1];
@@ -809,71 +798,28 @@ static void rfc4106_exit(struct crypto_aead *aead)
 	cryptd_free_aead(*ctx);
 }
 
-static void
-rfc4106_set_hash_subkey_done(struct crypto_async_request *req, int err)
-{
-	struct aesni_gcm_set_hash_subkey_result *result = req->data;
-
-	if (err == -EINPROGRESS)
-		return;
-	result->err = err;
-	complete(&result->completion);
-}
-
 static int
 rfc4106_set_hash_subkey(u8 *hash_subkey, const u8 *key, unsigned int key_len)
 {
-	struct crypto_ablkcipher *ctr_tfm;
-	struct ablkcipher_request *req;
-	int ret = -EINVAL;
-	struct aesni_hash_subkey_req_data *req_data;
+	struct crypto_cipher *tfm;
+	int ret;
 
-	ctr_tfm = crypto_alloc_ablkcipher("ctr(aes)", 0, 0);
-	if (IS_ERR(ctr_tfm))
-		return PTR_ERR(ctr_tfm);
+	tfm = crypto_alloc_cipher("aes", 0, 0);
+	if (IS_ERR(tfm))
+		return PTR_ERR(tfm);
 
-	ret = crypto_ablkcipher_setkey(ctr_tfm, key, key_len);
+	ret = crypto_cipher_setkey(tfm, key, key_len);
 	if (ret)
-		goto out_free_ablkcipher;
-
-	ret = -ENOMEM;
-	req = ablkcipher_request_alloc(ctr_tfm, GFP_KERNEL);
-	if (!req)
-		goto out_free_ablkcipher;
-
-	req_data = kmalloc(sizeof(*req_data), GFP_KERNEL);
-	if (!req_data)
-		goto out_free_request;
-
-	memset(req_data->iv, 0, sizeof(req_data->iv));
+		goto out_free_cipher;
 
 	/* Clear the data in the hash sub key container to zero.*/
 	/* We want to cipher all zeros to create the hash sub key. */
 	memset(hash_subkey, 0, RFC4106_HASH_SUBKEY_SIZE);
 
-	init_completion(&req_data->result.completion);
-	sg_init_one(&req_data->sg, hash_subkey, RFC4106_HASH_SUBKEY_SIZE);
-	ablkcipher_request_set_tfm(req, ctr_tfm);
-	ablkcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP |
-					CRYPTO_TFM_REQ_MAY_BACKLOG,
-					rfc4106_set_hash_subkey_done,
-					&req_data->result);
+	crypto_cipher_encrypt_one(tfm, hash_subkey, hash_subkey);
 
-	ablkcipher_request_set_crypt(req, &req_data->sg,
-		&req_data->sg, RFC4106_HASH_SUBKEY_SIZE, req_data->iv);
-
-	ret = crypto_ablkcipher_encrypt(req);
-	if (ret == -EINPROGRESS || ret == -EBUSY) {
-		ret = wait_for_completion_interruptible
-			(&req_data->result.completion);
-		if (!ret)
-			ret = req_data->result.err;
-	}
-	kfree(req_data);
-out_free_request:
-	ablkcipher_request_free(req);
-out_free_ablkcipher:
-	crypto_free_ablkcipher(ctr_tfm);
+out_free_cipher:
+	crypto_free_cipher(tfm);
 	return ret;
 }
 
@@ -1098,9 +1044,12 @@ static int rfc4106_encrypt(struct aead_request *req)
 	struct cryptd_aead **ctx = crypto_aead_ctx(tfm);
 	struct cryptd_aead *cryptd_tfm = *ctx;
 
-	aead_request_set_tfm(req, irq_fpu_usable() ?
-				  cryptd_aead_child(cryptd_tfm) :
-				  &cryptd_tfm->base);
+	tfm = &cryptd_tfm->base;
+	if (irq_fpu_usable() && (!in_atomic() ||
+				 !cryptd_aead_queued(cryptd_tfm)))
+		tfm = cryptd_aead_child(cryptd_tfm);
+
+	aead_request_set_tfm(req, tfm);
 
 	return crypto_aead_encrypt(req);
 }
@@ -1111,9 +1060,12 @@ static int rfc4106_decrypt(struct aead_request *req)
 	struct cryptd_aead **ctx = crypto_aead_ctx(tfm);
 	struct cryptd_aead *cryptd_tfm = *ctx;
 
-	aead_request_set_tfm(req, irq_fpu_usable() ?
-				  cryptd_aead_child(cryptd_tfm) :
-				  &cryptd_tfm->base);
+	tfm = &cryptd_tfm->base;
+	if (irq_fpu_usable() && (!in_atomic() ||
+				 !cryptd_aead_queued(cryptd_tfm)))
+		tfm = cryptd_aead_child(cryptd_tfm);
+
+	aead_request_set_tfm(req, tfm);
 
 	return crypto_aead_decrypt(req);
 }
@@ -1477,7 +1429,7 @@ static int __init aesni_init(void)
 	}
 	aesni_ctr_enc_tfm = aesni_ctr_enc;
 #ifdef CONFIG_AS_AVX
-	if (cpu_has_avx) {
+	if (boot_cpu_has(X86_FEATURE_AVX)) {
 		/* optimize performance of ctr mode encryption transform */
 		aesni_ctr_enc_tfm = aesni_ctr_enc_avx_tfm;
 		pr_info("AES CTR mode by8 optimization enabled\n");

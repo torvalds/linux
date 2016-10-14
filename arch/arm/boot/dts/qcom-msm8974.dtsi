@@ -1,6 +1,6 @@
 /dts-v1/;
 
-#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-msm8974.h>
 #include "skeleton.dtsi"
 
@@ -49,8 +49,13 @@
 			no-map;
 		};
 
-		efs@0fd600000 {
-			reg = <0x0fd60000 0x1a0000>;
+		rfsa@0fd60000 {
+			reg = <0x0fd60000 0x20000>;
+			no-map;
+		};
+
+		rmtfs@0fd80000 {
+			reg = <0x0fd80000 0x180000>;
 			no-map;
 		};
 
@@ -163,6 +168,31 @@
 		hwlocks = <&tcsr_mutex 3>;
 	};
 
+	smp2p-modem {
+		compatible = "qcom,smp2p";
+		qcom,smem = <435>, <428>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <0 27 IRQ_TYPE_EDGE_RISING>;
+
+		qcom,ipc = <&apcs 8 14>;
+
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <1>;
+
+		modem_smp2p_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+			#qcom,smem-state-cells = <1>;
+		};
+
+		modem_smp2p_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
 	smp2p-wcnss {
 		compatible = "qcom,smp2p";
 		qcom,smem = <451>, <431>;
@@ -178,7 +208,7 @@
 		wcnss_smp2p_out: master-kernel {
 			qcom,entry-name = "master-kernel";
 
-			#qcom,state-cells = <1>;
+			#qcom,smem-state-cells = <1>;
 		};
 
 		wcnss_smp2p_in: slave-kernel {
@@ -202,7 +232,7 @@
 		apps_smsm: apps@0 {
 			reg = <0>;
 
-			#qcom,state-cells = <1>;
+			#qcom,smem-state-cells = <1>;
 		};
 
 		modem_smsm: modem@1 {
@@ -227,6 +257,14 @@
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
+		};
+	};
+
+	firmware {
+		scm {
+			compatible = "qcom,scm";
+			clocks = <&gcc GCC_CE1_CLK>, <&gcc GCC_CE1_AXI_CLK>, <&gcc GCC_CE1_AHB_CLK>;
+			clock-names = "core", "bus", "iface";
 		};
 	};
 
@@ -440,6 +478,17 @@
 			interrupts = <0 208 0>;
 		};
 
+		i2c@f9924000 {
+			status = "disabled";
+			compatible = "qcom,i2c-qup-v2.1.1";
+			reg = <0xf9924000 0x1000>;
+			interrupts = <0 96 IRQ_TYPE_NONE>;
+			clocks = <&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 		blsp_i2c8: i2c@f9964000 {
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
@@ -460,6 +509,8 @@
 			clock-names = "core", "iface";
 			#address-cells = <1>;
 			#size-cells = <0>;
+			dmas = <&blsp2_dma 20>, <&blsp2_dma 21>;
+			dma-names = "tx", "rx";
 		};
 
 		spmi_bus: spmi@fc4cf000 {
@@ -477,10 +528,27 @@
 			interrupt-controller;
 			#interrupt-cells = <4>;
 		};
+
+		blsp2_dma: dma-controller@f9944000 {
+			compatible = "qcom,bam-v1.4.0";
+			reg = <0xf9944000 0x19000>;
+			interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP2_AHB_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+		};
 	};
 
 	smd {
 		compatible = "qcom,smd";
+
+		modem {
+			interrupts = <0 25 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,ipc = <&apcs 8 12>;
+			qcom,smd-edge = <0>;
+		};
 
 		rpm {
 			interrupts = <0 168 1>;

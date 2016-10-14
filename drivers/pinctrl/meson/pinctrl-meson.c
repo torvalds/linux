@@ -171,7 +171,7 @@ static const struct pinctrl_ops meson_pctrl_ops = {
 	.get_group_name		= meson_get_group_name,
 	.get_group_pins		= meson_get_group_pins,
 	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
-	.dt_free_map		= pinctrl_utils_dt_free_map,
+	.dt_free_map		= pinctrl_utils_free_map,
 	.pin_dbg_show		= meson_pin_dbg_show,
 };
 
@@ -549,6 +549,14 @@ static const struct of_device_id meson_pinctrl_dt_match[] = {
 		.compatible = "amlogic,meson8b-aobus-pinctrl",
 		.data = &meson8b_aobus_pinctrl_data,
 	},
+	{
+		.compatible = "amlogic,meson-gxbb-periphs-pinctrl",
+		.data = &meson_gxbb_periphs_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson-gxbb-aobus-pinctrl",
+		.data = &meson_gxbb_aobus_pinctrl_data,
+	},
 	{ },
 };
 
@@ -713,19 +721,13 @@ static int meson_pinctrl_probe(struct platform_device *pdev)
 	pc->desc.pins		= pc->data->pins;
 	pc->desc.npins		= pc->data->num_pins;
 
-	pc->pcdev = pinctrl_register(&pc->desc, pc->dev, pc);
+	pc->pcdev = devm_pinctrl_register(pc->dev, &pc->desc, pc);
 	if (IS_ERR(pc->pcdev)) {
 		dev_err(pc->dev, "can't register pinctrl device");
 		return PTR_ERR(pc->pcdev);
 	}
 
-	ret = meson_gpiolib_register(pc);
-	if (ret) {
-		pinctrl_unregister(pc->pcdev);
-		return ret;
-	}
-
-	return 0;
+	return meson_gpiolib_register(pc);
 }
 
 static struct platform_driver meson_pinctrl_driver = {

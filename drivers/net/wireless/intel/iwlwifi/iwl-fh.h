@@ -77,6 +77,7 @@
  */
 #define FH_MEM_LOWER_BOUND                   (0x1000)
 #define FH_MEM_UPPER_BOUND                   (0x2000)
+#define TFH_MEM_LOWER_BOUND                  (0xA06000)
 
 /**
  * Keep-Warm (KW) buffer base address.
@@ -118,10 +119,17 @@
 #define FH_MEM_CBBC_16_19_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xC00)
 #define FH_MEM_CBBC_20_31_LOWER_BOUND		(FH_MEM_LOWER_BOUND + 0xB20)
 #define FH_MEM_CBBC_20_31_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xB80)
+/* a000 TFD table address, 64 bit */
+#define TFH_TFDQ_CBB_TABLE			(TFH_MEM_LOWER_BOUND + 0x1C00)
 
 /* Find TFD CB base pointer for given queue */
-static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
+static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
+					     unsigned int chnl)
 {
+	if (trans->cfg->use_tfh) {
+		WARN_ON_ONCE(chnl >= 64);
+		return TFH_TFDQ_CBB_TABLE + 8 * chnl;
+	}
 	if (chnl < 16)
 		return FH_MEM_CBBC_0_15_LOWER_BOUND + 4 * chnl;
 	if (chnl < 20)
@@ -130,6 +138,65 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
 	return FH_MEM_CBBC_20_31_LOWER_BOUND + 4 * (chnl - 20);
 }
 
+/* a000 configuration registers */
+
+/*
+ * TFH Configuration register.
+ *
+ * BIT fields:
+ *
+ * Bits 3:0:
+ * Define the maximum number of pending read requests.
+ * Maximum configration value allowed is 0xC
+ * Bits 9:8:
+ * Define the maximum transfer size. (64 / 128 / 256)
+ * Bit 10:
+ * When bit is set and transfer size is set to 128B, the TFH will enable
+ * reading chunks of more than 64B only if the read address is aligned to 128B.
+ * In case of DRAM read address which is not aligned to 128B, the TFH will
+ * enable transfer size which doesn't cross 64B DRAM address boundary.
+*/
+#define TFH_TRANSFER_MODE		(TFH_MEM_LOWER_BOUND + 0x1F40)
+#define TFH_TRANSFER_MAX_PENDING_REQ	0xc
+#define TFH_CHUNK_SIZE_128			BIT(8)
+#define TFH_CHUNK_SPLIT_MODE		BIT(10)
+/*
+ * Defines the offset address in dwords referring from the beginning of the
+ * Tx CMD which will be updated in DRAM.
+ * Note that the TFH offset address for Tx CMD update is always referring to
+ * the start of the TFD first TB.
+ * In case of a DRAM Tx CMD update the TFH will update PN and Key ID
+ */
+#define TFH_TXCMD_UPDATE_CFG		(TFH_MEM_LOWER_BOUND + 0x1F48)
+/*
+ * Controls TX DMA operation
+ *
+ * BIT fields:
+ *
+ * Bits 31:30: Enable the SRAM DMA channel.
+ * Turning on bit 31 will kick the SRAM2DRAM DMA.
+ * Note that the sram2dram may be enabled only after configuring the DRAM and
+ * SRAM addresses registers and the byte count register.
+ * Bits 25:24: Defines the interrupt target upon dram2sram transfer done. When
+ * set to 1 - interrupt is sent to the driver
+ * Bit 0: Indicates the snoop configuration
+*/
+#define TFH_SRV_DMA_CHNL0_CTRL	(TFH_MEM_LOWER_BOUND + 0x1F60)
+#define TFH_SRV_DMA_SNOOP	BIT(0)
+#define TFH_SRV_DMA_TO_DRIVER	BIT(24)
+#define TFH_SRV_DMA_START	BIT(31)
+
+/* Defines the DMA SRAM write start address to transfer a data block */
+#define TFH_SRV_DMA_CHNL0_SRAM_ADDR	(TFH_MEM_LOWER_BOUND + 0x1F64)
+
+/* Defines the 64bits DRAM start address to read the DMA data block from */
+#define TFH_SRV_DMA_CHNL0_DRAM_ADDR	(TFH_MEM_LOWER_BOUND + 0x1F68)
+
+/*
+ * Defines the number of bytes to transfer from DRAM to SRAM.
+ * Note that this register may be configured with non-dword aligned size.
+ */
+#define TFH_SRV_DMA_CHNL0_BC	(TFH_MEM_LOWER_BOUND + 0x1F70)
 
 /**
  * Rx SRAM Control and Status Registers (RSCSR)
@@ -321,6 +388,9 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
 /* Write index table */
 #define RFH_Q0_FRBDCB_WIDX 0xA08080
 #define RFH_Q_FRBDCB_WIDX(q) (RFH_Q0_FRBDCB_WIDX + (q) * 4)
+/* Write index table - shadow registers */
+#define RFH_Q0_FRBDCB_WIDX_TRG 0x1C80
+#define RFH_Q_FRBDCB_WIDX_TRG(q) (RFH_Q0_FRBDCB_WIDX_TRG + (q) * 4)
 /* Read index table */
 #define RFH_Q0_FRBDCB_RIDX 0xA080C0
 #define RFH_Q_FRBDCB_RIDX(q) (RFH_Q0_FRBDCB_RIDX + (q) * 4)
@@ -340,6 +410,32 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
 #define RFH_Q_ORB_WPTR_LSB(q) (RFH_Q0_ORB_WPTR_LSB + (q) * 8)
 #define RFH_RBDBUF_RBD0_LSB 0xA08300
 #define RFH_RBDBUF_RBD_LSB(q) (RFH_RBDBUF_RBD0_LSB + (q) * 8)
+
+/**
+ * RFH Status Register
+ *
+ * Bit fields:
+ *
+ * Bit 29: RBD_FETCH_IDLE
+ * This status flag is set by the RFH when there is no active RBD fetch from
+ * DRAM.
+ * Once the RFH RBD controller starts fetching (or when there is a pending
+ * RBD read response from DRAM), this flag is immediately turned off.
+ *
+ * Bit 30: SRAM_DMA_IDLE
+ * This status flag is set by the RFH when there is no active transaction from
+ * SRAM to DRAM.
+ * Once the SRAM to DRAM DMA is active, this flag is immediately turned off.
+ *
+ * Bit 31: RXF_DMA_IDLE
+ * This status flag is set by the RFH when there is no active transaction from
+ * RXF to DRAM.
+ * Once the RXF-to-DRAM DMA is active, this flag is immediately turned off.
+ */
+#define RFH_GEN_STATUS 0xA09808
+#define RBD_FETCH_IDLE	BIT(29)
+#define SRAM_DMA_IDLE	BIT(30)
+#define RXF_DMA_IDLE	BIT(31)
 
 /* DMA configuration */
 #define RFH_RXF_DMA_CFG 0xA09820
@@ -381,7 +477,9 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
 #define RFH_GEN_CFG	0xA09800
 #define RFH_GEN_CFG_SERVICE_DMA_SNOOP	BIT(0)
 #define RFH_GEN_CFG_RFH_DMA_SNOOP	BIT(1)
-#define RFH_GEN_CFG_RB_CHUNK_SIZE	BIT(4) /* 0 - 64B, 1- 128B */
+#define RFH_GEN_CFG_RB_CHUNK_SIZE_POS	4
+#define RFH_GEN_CFG_RB_CHUNK_SIZE_128	1
+#define RFH_GEN_CFG_RB_CHUNK_SIZE_64	0
 #define RFH_GEN_CFG_DEFAULT_RXQ_NUM_MASK 0xF00
 #define RFH_GEN_CFG_DEFAULT_RXQ_NUM_POS 8
 

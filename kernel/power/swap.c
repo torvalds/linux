@@ -37,6 +37,14 @@
 #define HIBERNATE_SIG	"S1SUSPEND"
 
 /*
+ * When reading an {un,}compressed image, we may restore pages in place,
+ * in which case some architectures need these pages cleaning before they
+ * can be executed. We don't know which pages these may be, so clean the lot.
+ */
+static bool clean_pages_on_read;
+static bool clean_pages_on_decompress;
+
+/*
  *	The swap map is a data structure used for keeping track of each page
  *	written to a swap partition.  It consists of many swap_map_page
  *	structures that contain each an array of MAP_PAGE_ENTRIES swap entries.
@@ -241,6 +249,9 @@ static void hib_end_io(struct bio *bio)
 
 	if (bio_data_dir(bio) == WRITE)
 		put_page(page);
+	else if (clean_pages_on_read)
+		flush_icache_range((unsigned long)page_address(page),
+				   (unsigned long)page_address(page) + PAGE_SIZE);
 
 	if (bio->bi_error && !hb->error)
 		hb->error = bio->bi_error;
@@ -250,7 +261,7 @@ static void hib_end_io(struct bio *bio)
 	bio_put(bio);
 }
 
-static int hib_submit_io(int rw, pgoff_t page_off, void *addr,
+static int hib_submit_io(int op, int op_flags, pgoff_t page_off, void *addr,
 		struct hib_bio_batch *hb)
 {
 	struct page *page = virt_to_page(addr);
@@ -260,6 +271,7 @@ static int hib_submit_io(int rw, pgoff_t page_off, void *addr,
 	bio = bio_alloc(__GFP_RECLAIM | __GFP_HIGH, 1);
 	bio->bi_iter.bi_sector = page_off * (PAGE_SIZE >> 9);
 	bio->bi_bdev = hib_resume_bdev;
+	bio_set_op_attrs(bio, op, op_flags);
 
 	if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE) {
 		printk(KERN_ERR "PM: Adding page to bio failed at %llu\n",
@@ -272,9 +284,9 @@ static int hib_submit_io(int rw, pgoff_t page_off, void *addr,
 		bio->bi_end_io = hib_end_io;
 		bio->bi_private = hb;
 		atomic_inc(&hb->count);
-		submit_bio(rw, bio);
+		submit_bio(bio);
 	} else {
-		error = submit_bio_wait(rw, bio);
+		error = submit_bio_wait(bio);
 		bio_put(bio);
 	}
 
@@ -295,7 +307,8 @@ static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
 {
 	int error;
 
-	hib_submit_io(READ_SYNC, swsusp_resume_block, swsusp_header, NULL);
+	hib_submit_io(REQ_OP_READ, READ_SYNC, swsusp_resume_block,
+		      swsusp_header, NULL);
 	if (!memcmp("SWAP-SPACE",swsusp_header->sig, 10) ||
 	    !memcmp("SWAPSPACE2",swsusp_header->sig, 10)) {
 		memcpy(swsusp_header->orig_sig,swsusp_header->sig, 10);
@@ -304,8 +317,8 @@ static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
 		swsusp_header->flags = flags;
 		if (flags & SF_CRC32_MODE)
 			swsusp_header->crc32 = handle->crc32;
-		error = hib_submit_io(WRITE_SYNC, swsusp_resume_block,
-					swsusp_header, NULL);
+		error = hib_submit_io(REQ_OP_WRITE, WRITE_SYNC,
+				      swsusp_resume_block, swsusp_header, NULL);
 	} else {
 		printk(KERN_ERR "PM: Swap header not found!\n");
 		error = -ENODEV;
@@ -337,6 +350,12 @@ static int swsusp_swap_check(void)
 	if (res < 0)
 		blkdev_put(hib_resume_bdev, FMODE_WRITE);
 
+	/*
+	 * Update the resume device to the one actually used,
+	 * so the test_resume mode can use it in case it is
+	 * invoked from hibernate() to test the snapshot.
+	 */
+	swsusp_resume_device = hib_resume_bdev->bd_dev;
 	return res;
 }
 
@@ -378,7 +397,7 @@ static int write_page(void *buf, sector_t offset, struct hib_bio_batch *hb)
 	} else {
 		src = buf;
 	}
-	return hib_submit_io(WRITE_SYNC, offset, src, hb);
+	return hib_submit_io(REQ_OP_WRITE, WRITE_SYNC, offset, src, hb);
 }
 
 static void release_swap_writer(struct swap_map_handle *handle)
@@ -981,7 +1000,8 @@ static int get_swap_reader(struct swap_map_handle *handle,
 			return -ENOMEM;
 		}
 
-		error = hib_submit_io(READ_SYNC, offset, tmp->map, NULL);
+		error = hib_submit_io(REQ_OP_READ, READ_SYNC, offset,
+				      tmp->map, NULL);
 		if (error) {
 			release_swap_reader(handle);
 			return error;
@@ -1005,7 +1025,7 @@ static int swap_read_page(struct swap_map_handle *handle, void *buf,
 	offset = handle->cur->entries[handle->k];
 	if (!offset)
 		return -EFAULT;
-	error = hib_submit_io(READ_SYNC, offset, buf, hb);
+	error = hib_submit_io(REQ_OP_READ, READ_SYNC, offset, buf, hb);
 	if (error)
 		return error;
 	if (++handle->k >= MAP_PAGE_ENTRIES) {
@@ -1049,6 +1069,7 @@ static int load_image(struct swap_map_handle *handle,
 
 	hib_init_batch(&hb);
 
+	clean_pages_on_read = true;
 	printk(KERN_INFO "PM: Loading image data pages (%u pages)...\n",
 		nr_to_read);
 	m = nr_to_read / 10;
@@ -1124,6 +1145,10 @@ static int lzo_decompress_threadfn(void *data)
 		d->unc_len = LZO_UNC_SIZE;
 		d->ret = lzo1x_decompress_safe(d->cmp + LZO_HEADER, d->cmp_len,
 		                               d->unc, &d->unc_len);
+		if (clean_pages_on_decompress)
+			flush_icache_range((unsigned long)d->unc,
+					   (unsigned long)d->unc + d->unc_len);
+
 		atomic_set(&d->stop, 1);
 		wake_up(&d->done);
 	}
@@ -1188,6 +1213,8 @@ static int load_image_lzo(struct swap_map_handle *handle,
 		goto out_clean;
 	}
 	memset(crc, 0, offsetof(struct crc_data, go));
+
+	clean_pages_on_decompress = true;
 
 	/*
 	 * Start the decompression threads.
@@ -1507,7 +1534,8 @@ int swsusp_check(void)
 	if (!IS_ERR(hib_resume_bdev)) {
 		set_blocksize(hib_resume_bdev, PAGE_SIZE);
 		clear_page(swsusp_header);
-		error = hib_submit_io(READ_SYNC, swsusp_resume_block,
+		error = hib_submit_io(REQ_OP_READ, READ_SYNC,
+					swsusp_resume_block,
 					swsusp_header, NULL);
 		if (error)
 			goto put;
@@ -1515,7 +1543,8 @@ int swsusp_check(void)
 		if (!memcmp(HIBERNATE_SIG, swsusp_header->sig, 10)) {
 			memcpy(swsusp_header->sig, swsusp_header->orig_sig, 10);
 			/* Reset swap signature now */
-			error = hib_submit_io(WRITE_SYNC, swsusp_resume_block,
+			error = hib_submit_io(REQ_OP_WRITE, WRITE_SYNC,
+						swsusp_resume_block,
 						swsusp_header, NULL);
 		} else {
 			error = -EINVAL;
@@ -1559,10 +1588,12 @@ int swsusp_unmark(void)
 {
 	int error;
 
-	hib_submit_io(READ_SYNC, swsusp_resume_block, swsusp_header, NULL);
+	hib_submit_io(REQ_OP_READ, READ_SYNC, swsusp_resume_block,
+		      swsusp_header, NULL);
 	if (!memcmp(HIBERNATE_SIG,swsusp_header->sig, 10)) {
 		memcpy(swsusp_header->sig,swsusp_header->orig_sig, 10);
-		error = hib_submit_io(WRITE_SYNC, swsusp_resume_block,
+		error = hib_submit_io(REQ_OP_WRITE, WRITE_SYNC,
+					swsusp_resume_block,
 					swsusp_header, NULL);
 	} else {
 		printk(KERN_ERR "PM: Cannot find swsusp signature!\n");

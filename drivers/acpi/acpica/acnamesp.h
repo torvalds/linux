@@ -206,9 +206,10 @@ void acpi_ns_dump_tables(acpi_handle search_base, u32 max_depth);
 void acpi_ns_dump_entry(acpi_handle handle, u32 debug_level);
 
 void
-acpi_ns_dump_pathname(acpi_handle handle, char *msg, u32 level, u32 component);
+acpi_ns_dump_pathname(acpi_handle handle,
+		      const char *msg, u32 level, u32 component);
 
-void acpi_ns_print_pathname(u32 num_segments, char *pathname);
+void acpi_ns_print_pathname(u32 num_segments, const char *pathname);
 
 acpi_status
 acpi_ns_dump_one_object(acpi_handle obj_handle,

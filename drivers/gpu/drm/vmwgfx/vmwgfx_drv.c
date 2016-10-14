@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2016 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -43,6 +43,12 @@
 
 #define VMW_MIN_INITIAL_WIDTH 800
 #define VMW_MIN_INITIAL_HEIGHT 600
+
+#ifndef VMWGFX_GIT_VERSION
+#define VMWGFX_GIT_VERSION "Unknown"
+#endif
+
+#define VMWGFX_REPO "In Tree"
 
 
 /**
@@ -227,6 +233,7 @@ static int vmw_force_iommu;
 static int vmw_restrict_iommu;
 static int vmw_force_coherent;
 static int vmw_restrict_dma_mask;
+static int vmw_assume_16bpp;
 
 static int vmw_probe(struct pci_dev *, const struct pci_device_id *);
 static void vmw_master_init(struct vmw_master *);
@@ -243,6 +250,8 @@ MODULE_PARM_DESC(force_coherent, "Force coherent TTM pages");
 module_param_named(force_coherent, vmw_force_coherent, int, 0600);
 MODULE_PARM_DESC(restrict_dma_mask, "Restrict DMA mask to 44 bits with IOMMU");
 module_param_named(restrict_dma_mask, vmw_restrict_dma_mask, int, 0600);
+MODULE_PARM_DESC(assume_16bpp, "Assume 16-bpp when filtering modes");
+module_param_named(assume_16bpp, vmw_assume_16bpp, int, 0600);
 
 
 static void vmw_print_capabilities(uint32_t capabilities)
@@ -326,7 +335,7 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = ttm_bo_reserve(&vbo->base, false, true, false, NULL);
+	ret = ttm_bo_reserve(&vbo->base, false, true, NULL);
 	BUG_ON(ret != 0);
 	vmw_bo_pin_reserved(vbo, true);
 
@@ -613,6 +622,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	uint32_t svga_id;
 	enum vmw_res_type i;
 	bool refuse_dma = false;
+	char host_log[100] = {0};
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (unlikely(dev_priv == NULL)) {
@@ -628,6 +638,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	mutex_init(&dev_priv->cmdbuf_mutex);
 	mutex_init(&dev_priv->release_mutex);
 	mutex_init(&dev_priv->binding_mutex);
+	mutex_init(&dev_priv->global_kms_state_mutex);
 	rwlock_init(&dev_priv->resource_lock);
 	ttm_lock_init(&dev_priv->reservation_sem);
 	spin_lock_init(&dev_priv->hw_lock);
@@ -651,6 +662,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->io_start = pci_resource_start(dev->pdev, 0);
 	dev_priv->vram_start = pci_resource_start(dev->pdev, 1);
 	dev_priv->mmio_start = pci_resource_start(dev->pdev, 2);
+
+	dev_priv->assume_16bpp = !!vmw_assume_16bpp;
 
 	dev_priv->enable_fb = enable_fbdev;
 
@@ -697,6 +710,13 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		uint64_t mem_size =
 			vmw_read(dev_priv,
 				 SVGA_REG_SUGGESTED_GBOBJECT_MEM_SIZE_KB);
+
+		/*
+		 * Workaround for low memory 2D VMs to compensate for the
+		 * allocation taken by fbdev
+		 */
+		if (!(dev_priv->capabilities & SVGA_CAP_3D))
+			mem_size *= 2;
 
 		dev_priv->max_mob_pages = mem_size * 1024 / PAGE_SIZE;
 		dev_priv->prim_bb_mem =
@@ -873,6 +893,16 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	DRM_INFO("DX: %s\n", dev_priv->has_dx ? "yes." : "no.");
 
+	snprintf(host_log, sizeof(host_log), "vmwgfx: %s-%s",
+		VMWGFX_REPO, VMWGFX_GIT_VERSION);
+	vmw_host_log(host_log);
+
+	memset(host_log, 0, sizeof(host_log));
+	snprintf(host_log, sizeof(host_log), "vmwgfx: Module Version: %d.%d.%d",
+		VMWGFX_DRIVER_MAJOR, VMWGFX_DRIVER_MINOR,
+		VMWGFX_DRIVER_PATCHLEVEL);
+	vmw_host_log(host_log);
+
 	if (dev_priv->enable_fb) {
 		vmw_fifo_resource_inc(dev_priv);
 		vmw_svga_enable(dev_priv);
@@ -1023,15 +1053,14 @@ static struct vmw_master *vmw_master_check(struct drm_device *dev,
 	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
 	struct vmw_master *vmaster;
 
-	if (file_priv->minor->type != DRM_MINOR_LEGACY ||
-	    !(flags & DRM_AUTH))
+	if (!drm_is_primary_client(file_priv) || !(flags & DRM_AUTH))
 		return NULL;
 
 	ret = mutex_lock_interruptible(&dev->master_mutex);
 	if (unlikely(ret != 0))
 		return ERR_PTR(-ERESTARTSYS);
 
-	if (file_priv->is_master) {
+	if (drm_is_current_master(file_priv)) {
 		mutex_unlock(&dev->master_mutex);
 		return NULL;
 	}
@@ -1210,8 +1239,7 @@ static int vmw_master_set(struct drm_device *dev,
 }
 
 static void vmw_master_drop(struct drm_device *dev,
-			    struct drm_file *file_priv,
-			    bool from_release)
+			    struct drm_file *file_priv)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
@@ -1530,10 +1558,8 @@ static int __init vmwgfx_init(void)
 {
 	int ret;
 
-#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force())
 		return -EINVAL;
-#endif
 
 	ret = drm_pci_init(&driver, &vmw_pci_driver);
 	if (ret)

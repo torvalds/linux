@@ -1,57 +1,50 @@
 /*
-    comedi/drivers/ni_labpc_cs.c
-    Driver for National Instruments daqcard-1200 boards
-    Copyright (C) 2001, 2002, 2003 Frank Mori Hess <fmhess@users.sourceforge.net>
-
-    PCMCIA crap is adapted from dummy_cs.c 1.31 2001/08/24 12:13:13
-    from the pcmcia package.
-    The initial developer of the pcmcia dummy_cs.c code is David A. Hinds
-    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
-    are Copyright (C) 1999 David A. Hinds.
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
-/*
-Driver: ni_labpc_cs
-Description: National Instruments Lab-PC (& compatibles)
-Author: Frank Mori Hess <fmhess@users.sourceforge.net>
-Devices: [National Instruments] DAQCard-1200 (daqcard-1200)
-Status: works
-
-Thanks go to Fredrik Lingvall for much testing and perseverance in
-helping to debug daqcard-1200 support.
-
-The 1200 series boards have onboard calibration dacs for correcting
-analog input/output offsets and gains.  The proper settings for these
-caldacs are stored on the board's eeprom.  To read the caldac values
-from the eeprom and store them into a file that can be then be used by
-comedilib, use the comedi_calibrate program.
-
-Configuration options:
-  none
-
-The daqcard-1200 has quirky chanlist requirements
-when scanning multiple channels.  Multiple channel scan
-sequence must start at highest channel, then decrement down to
-channel 0.  Chanlists consisting of all one channel
-are also legal, and allow you to pace conversions in bursts.
-
-*/
+ * Driver for National Instruments daqcard-1200 boards
+ * Copyright (C) 2001, 2002, 2003 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * PCMCIA crap is adapted from dummy_cs.c 1.31 2001/08/24 12:13:13
+ * from the pcmcia package.
+ * The initial developer of the pcmcia dummy_cs.c code is David A. Hinds
+ * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
+ * are Copyright (C) 1999 David A. Hinds.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * General Public License for more details.
+ */
 
 /*
-
-NI manuals:
-340988a (daqcard-1200)
-
-*/
+ * Driver: ni_labpc_cs
+ * Description: National Instruments Lab-PC (& compatibles)
+ * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Devices: [National Instruments] DAQCard-1200 (daqcard-1200)
+ * Status: works
+ *
+ * Thanks go to Fredrik Lingvall for much testing and perseverance in
+ * helping to debug daqcard-1200 support.
+ *
+ * The 1200 series boards have onboard calibration dacs for correcting
+ * analog input/output offsets and gains. The proper settings for these
+ * caldacs are stored on the board's eeprom. To read the caldac values
+ * from the eeprom and store them into a file that can be then be used by
+ * comedilib, use the comedi_calibrate program.
+ *
+ * Configuration options: none
+ *
+ * The daqcard-1200 has quirky chanlist requirements when scanning multiple
+ * channels. Multiple channel scan sequence must start at highest channel,
+ * then decrement down to channel 0.  Chanlists consisting of all one channel
+ * are also legal, and allow you to pace conversions in bursts.
+ *
+ * NI manuals:
+ *   340988a (daqcard-1200)
+ */
 
 #include <linux/module.h>
 

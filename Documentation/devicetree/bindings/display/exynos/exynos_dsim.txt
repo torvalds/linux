@@ -41,7 +41,7 @@ Video interfaces:
   endpoint node connected from mic node (reg = 0):
     - remote-endpoint: specifies the endpoint in mic node. This node is required
 		       for Exynos5433 mipi dsi. So mic can access to panel node
-		       thoughout this dsi node.
+		       throughout this dsi node.
   endpoint node connected to panel node (reg = 1):
     - remote-endpoint: specifies the endpoint in panel node. This node is
 		       required in all kinds of exynos mipi dsi to represent

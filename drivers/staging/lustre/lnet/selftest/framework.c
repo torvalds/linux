@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -109,19 +105,19 @@ static struct smoketest_framework {
 	struct list_head  fw_tests;	      /* registered test cases */
 	atomic_t	  fw_nzombies;	      /* # zombie sessions */
 	spinlock_t	  fw_lock;	      /* serialise */
-	sfw_session_t	  *fw_session;	      /* _the_ session */
+	struct sfw_session	  *fw_session;	      /* _the_ session */
 	int		  fw_shuttingdown;    /* shutdown in progress */
 	struct srpc_server_rpc *fw_active_srpc;/* running RPC */
 } sfw_data;
 
 /* forward ref's */
-int sfw_stop_batch(sfw_batch_t *tsb, int force);
-void sfw_destroy_session(sfw_session_t *sn);
+int sfw_stop_batch(struct sfw_batch *tsb, int force);
+void sfw_destroy_session(struct sfw_session *sn);
 
-static inline sfw_test_case_t *
+static inline struct sfw_test_case *
 sfw_find_test_case(int id)
 {
-	sfw_test_case_t *tsc;
+	struct sfw_test_case *tsc;
 
 	LASSERT(id <= SRPC_SERVICE_MAX_ID);
 	LASSERT(id > SRPC_FRAMEWORK_SERVICE_MAX_ID);
@@ -135,9 +131,9 @@ sfw_find_test_case(int id)
 }
 
 static int
-sfw_register_test(srpc_service_t *service, sfw_test_client_ops_t *cliops)
+sfw_register_test(struct srpc_service *service, struct sfw_test_client_ops *cliops)
 {
-	sfw_test_case_t *tsc;
+	struct sfw_test_case *tsc;
 
 	if (sfw_find_test_case(service->sv_id)) {
 		CERROR("Failed to register test %s (%d)\n",
@@ -145,7 +141,7 @@ sfw_register_test(srpc_service_t *service, sfw_test_client_ops_t *cliops)
 		return -EEXIST;
 	}
 
-	LIBCFS_ALLOC(tsc, sizeof(sfw_test_case_t));
+	LIBCFS_ALLOC(tsc, sizeof(struct sfw_test_case));
 	if (!tsc)
 		return -ENOMEM;
 
@@ -159,7 +155,7 @@ sfw_register_test(srpc_service_t *service, sfw_test_client_ops_t *cliops)
 static void
 sfw_add_session_timer(void)
 {
-	sfw_session_t *sn = sfw_data.fw_session;
+	struct sfw_session *sn = sfw_data.fw_session;
 	struct stt_timer *timer = &sn->sn_timer;
 
 	LASSERT(!sfw_data.fw_shuttingdown);
@@ -177,7 +173,7 @@ sfw_add_session_timer(void)
 static int
 sfw_del_session_timer(void)
 {
-	sfw_session_t *sn = sfw_data.fw_session;
+	struct sfw_session *sn = sfw_data.fw_session;
 
 	if (!sn || !sn->sn_timer_active)
 		return 0;
@@ -196,10 +192,10 @@ static void
 sfw_deactivate_session(void)
 __must_hold(&sfw_data.fw_lock)
 {
-	sfw_session_t *sn = sfw_data.fw_session;
+	struct sfw_session *sn = sfw_data.fw_session;
 	int nactive = 0;
-	sfw_batch_t *tsb;
-	sfw_test_case_t *tsc;
+	struct sfw_batch *tsb;
+	struct sfw_test_case *tsc;
 
 	if (!sn)
 		return;
@@ -226,7 +222,7 @@ __must_hold(&sfw_data.fw_lock)
 	}
 
 	if (nactive)
-		return;   /* wait for active batches to stop */
+		return;	/* wait for active batches to stop */
 
 	list_del_init(&sn->sn_list);
 	spin_unlock(&sfw_data.fw_lock);
@@ -239,7 +235,7 @@ __must_hold(&sfw_data.fw_lock)
 static void
 sfw_session_expired(void *data)
 {
-	sfw_session_t *sn = data;
+	struct sfw_session *sn = data;
 
 	spin_lock(&sfw_data.fw_lock);
 
@@ -257,12 +253,12 @@ sfw_session_expired(void *data)
 }
 
 static inline void
-sfw_init_session(sfw_session_t *sn, lst_sid_t sid,
+sfw_init_session(struct sfw_session *sn, lst_sid_t sid,
 		 unsigned features, const char *name)
 {
 	struct stt_timer *timer = &sn->sn_timer;
 
-	memset(sn, 0, sizeof(sfw_session_t));
+	memset(sn, 0, sizeof(struct sfw_session));
 	INIT_LIST_HEAD(&sn->sn_list);
 	INIT_LIST_HEAD(&sn->sn_batches);
 	atomic_set(&sn->sn_refcount, 1);	/* +1 for caller */
@@ -298,7 +294,7 @@ sfw_server_rpc_done(struct srpc_server_rpc *rpc)
 }
 
 static void
-sfw_client_rpc_fini(srpc_client_rpc_t *rpc)
+sfw_client_rpc_fini(struct srpc_client_rpc *rpc)
 {
 	LASSERT(!rpc->crpc_bulk.bk_niov);
 	LASSERT(list_empty(&rpc->crpc_list));
@@ -318,11 +314,11 @@ sfw_client_rpc_fini(srpc_client_rpc_t *rpc)
 	spin_unlock(&sfw_data.fw_lock);
 }
 
-static sfw_batch_t *
+static struct sfw_batch *
 sfw_find_batch(lst_bid_t bid)
 {
-	sfw_session_t *sn = sfw_data.fw_session;
-	sfw_batch_t *bat;
+	struct sfw_session *sn = sfw_data.fw_session;
+	struct sfw_batch *bat;
 
 	LASSERT(sn);
 
@@ -334,11 +330,11 @@ sfw_find_batch(lst_bid_t bid)
 	return NULL;
 }
 
-static sfw_batch_t *
+static struct sfw_batch *
 sfw_bid2batch(lst_bid_t bid)
 {
-	sfw_session_t *sn = sfw_data.fw_session;
-	sfw_batch_t *bat;
+	struct sfw_session *sn = sfw_data.fw_session;
+	struct sfw_batch *bat;
 
 	LASSERT(sn);
 
@@ -346,7 +342,7 @@ sfw_bid2batch(lst_bid_t bid)
 	if (bat)
 		return bat;
 
-	LIBCFS_ALLOC(bat, sizeof(sfw_batch_t));
+	LIBCFS_ALLOC(bat, sizeof(struct sfw_batch));
 	if (!bat)
 		return NULL;
 
@@ -361,11 +357,11 @@ sfw_bid2batch(lst_bid_t bid)
 }
 
 static int
-sfw_get_stats(srpc_stat_reqst_t *request, srpc_stat_reply_t *reply)
+sfw_get_stats(struct srpc_stat_reqst *request, struct srpc_stat_reply *reply)
 {
-	sfw_session_t *sn = sfw_data.fw_session;
+	struct sfw_session *sn = sfw_data.fw_session;
 	sfw_counters_t *cnt = &reply->str_fw;
-	sfw_batch_t *bat;
+	struct sfw_batch *bat;
 
 	reply->str_sid = !sn ? LST_INVALID_SID : sn->sn_id;
 
@@ -402,10 +398,10 @@ sfw_get_stats(srpc_stat_reqst_t *request, srpc_stat_reply_t *reply)
 }
 
 int
-sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply)
+sfw_make_session(struct srpc_mksn_reqst *request, struct srpc_mksn_reply *reply)
 {
-	sfw_session_t *sn = sfw_data.fw_session;
-	srpc_msg_t *msg = container_of(request, srpc_msg_t,
+	struct sfw_session *sn = sfw_data.fw_session;
+	struct srpc_msg *msg = container_of(request, struct srpc_msg,
 				       msg_body.mksn_reqst);
 	int cplen = 0;
 
@@ -438,7 +434,7 @@ sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply)
 	/*
 	 * reject the request if it requires unknown features
 	 * NB: old version will always accept all features because it's not
-	 * aware of srpc_msg_t::msg_ses_feats, it's a defect but it's also
+	 * aware of srpc_msg::msg_ses_feats, it's a defect but it's also
 	 * harmless because it will return zero feature to console, and it's
 	 * console's responsibility to make sure all nodes in a session have
 	 * same feature mask.
@@ -449,7 +445,7 @@ sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply)
 	}
 
 	/* brand new or create by force */
-	LIBCFS_ALLOC(sn, sizeof(sfw_session_t));
+	LIBCFS_ALLOC(sn, sizeof(struct sfw_session));
 	if (!sn) {
 		CERROR("dropping RPC mksn under memory pressure\n");
 		return -ENOMEM;
@@ -473,9 +469,9 @@ sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply)
 }
 
 static int
-sfw_remove_session(srpc_rmsn_reqst_t *request, srpc_rmsn_reply_t *reply)
+sfw_remove_session(struct srpc_rmsn_reqst *request, struct srpc_rmsn_reply *reply)
 {
-	sfw_session_t *sn = sfw_data.fw_session;
+	struct sfw_session *sn = sfw_data.fw_session;
 
 	reply->rmsn_sid = !sn ? LST_INVALID_SID : sn->sn_id;
 
@@ -505,9 +501,9 @@ sfw_remove_session(srpc_rmsn_reqst_t *request, srpc_rmsn_reply_t *reply)
 }
 
 static int
-sfw_debug_session(srpc_debug_reqst_t *request, srpc_debug_reply_t *reply)
+sfw_debug_session(struct srpc_debug_reqst *request, struct srpc_debug_reply *reply)
 {
-	sfw_session_t *sn = sfw_data.fw_session;
+	struct sfw_session *sn = sfw_data.fw_session;
 
 	if (!sn) {
 		reply->dbg_status = ESRCH;
@@ -526,10 +522,10 @@ sfw_debug_session(srpc_debug_reqst_t *request, srpc_debug_reply_t *reply)
 }
 
 static void
-sfw_test_rpc_fini(srpc_client_rpc_t *rpc)
+sfw_test_rpc_fini(struct srpc_client_rpc *rpc)
 {
-	sfw_test_unit_t *tsu = rpc->crpc_priv;
-	sfw_test_instance_t *tsi = tsu->tsu_instance;
+	struct sfw_test_unit *tsu = rpc->crpc_priv;
+	struct sfw_test_instance *tsi = tsu->tsu_instance;
 
 	/* Called with hold of tsi->tsi_lock */
 	LASSERT(list_empty(&rpc->crpc_list));
@@ -537,7 +533,7 @@ sfw_test_rpc_fini(srpc_client_rpc_t *rpc)
 }
 
 static inline int
-sfw_test_buffers(sfw_test_instance_t *tsi)
+sfw_test_buffers(struct sfw_test_instance *tsi)
 {
 	struct sfw_test_case *tsc;
 	struct srpc_service *svc;
@@ -614,10 +610,10 @@ sfw_unload_test(struct sfw_test_instance *tsi)
 }
 
 static void
-sfw_destroy_test_instance(sfw_test_instance_t *tsi)
+sfw_destroy_test_instance(struct sfw_test_instance *tsi)
 {
-	srpc_client_rpc_t *rpc;
-	sfw_test_unit_t *tsu;
+	struct srpc_client_rpc *rpc;
+	struct sfw_test_unit *tsu;
 
 	if (!tsi->tsi_is_client)
 		goto clean;
@@ -630,14 +626,14 @@ sfw_destroy_test_instance(sfw_test_instance_t *tsi)
 
 	while (!list_empty(&tsi->tsi_units)) {
 		tsu = list_entry(tsi->tsi_units.next,
-				 sfw_test_unit_t, tsu_list);
+				 struct sfw_test_unit, tsu_list);
 		list_del(&tsu->tsu_list);
 		LIBCFS_FREE(tsu, sizeof(*tsu));
 	}
 
 	while (!list_empty(&tsi->tsi_free_rpcs)) {
 		rpc = list_entry(tsi->tsi_free_rpcs.next,
-				 srpc_client_rpc_t, crpc_list);
+				 struct srpc_client_rpc, crpc_list);
 		list_del(&rpc->crpc_list);
 		LIBCFS_FREE(rpc, srpc_client_rpc_size(rpc));
 	}
@@ -648,34 +644,34 @@ clean:
 }
 
 static void
-sfw_destroy_batch(sfw_batch_t *tsb)
+sfw_destroy_batch(struct sfw_batch *tsb)
 {
-	sfw_test_instance_t *tsi;
+	struct sfw_test_instance *tsi;
 
 	LASSERT(!sfw_batch_active(tsb));
 	LASSERT(list_empty(&tsb->bat_list));
 
 	while (!list_empty(&tsb->bat_tests)) {
 		tsi = list_entry(tsb->bat_tests.next,
-				 sfw_test_instance_t, tsi_list);
+				 struct sfw_test_instance, tsi_list);
 		list_del_init(&tsi->tsi_list);
 		sfw_destroy_test_instance(tsi);
 	}
 
-	LIBCFS_FREE(tsb, sizeof(sfw_batch_t));
+	LIBCFS_FREE(tsb, sizeof(struct sfw_batch));
 }
 
 void
-sfw_destroy_session(sfw_session_t *sn)
+sfw_destroy_session(struct sfw_session *sn)
 {
-	sfw_batch_t *batch;
+	struct sfw_batch *batch;
 
 	LASSERT(list_empty(&sn->sn_list));
 	LASSERT(sn != sfw_data.fw_session);
 
 	while (!list_empty(&sn->sn_batches)) {
 		batch = list_entry(sn->sn_batches.next,
-				   sfw_batch_t, bat_list);
+				   struct sfw_batch, bat_list);
 		list_del_init(&batch->bat_list);
 		sfw_destroy_batch(batch);
 	}
@@ -685,28 +681,28 @@ sfw_destroy_session(sfw_session_t *sn)
 }
 
 static void
-sfw_unpack_addtest_req(srpc_msg_t *msg)
+sfw_unpack_addtest_req(struct srpc_msg *msg)
 {
-	srpc_test_reqst_t *req = &msg->msg_body.tes_reqst;
+	struct srpc_test_reqst *req = &msg->msg_body.tes_reqst;
 
 	LASSERT(msg->msg_type == SRPC_MSG_TEST_REQST);
 	LASSERT(req->tsr_is_client);
 
 	if (msg->msg_magic == SRPC_MSG_MAGIC)
-		return; /* no flipping needed */
+		return;	/* no flipping needed */
 
 	LASSERT(msg->msg_magic == __swab32(SRPC_MSG_MAGIC));
 
 	if (req->tsr_service == SRPC_SERVICE_BRW) {
 		if (!(msg->msg_ses_feats & LST_FEAT_BULK_LEN)) {
-			test_bulk_req_t *bulk = &req->tsr_u.bulk_v0;
+			struct test_bulk_req *bulk = &req->tsr_u.bulk_v0;
 
 			__swab32s(&bulk->blk_opc);
 			__swab32s(&bulk->blk_npg);
 			__swab32s(&bulk->blk_flags);
 
 		} else {
-			test_bulk_req_v1_t *bulk = &req->tsr_u.bulk_v1;
+			struct test_bulk_req_v1 *bulk = &req->tsr_u.bulk_v1;
 
 			__swab16s(&bulk->blk_opc);
 			__swab16s(&bulk->blk_flags);
@@ -718,7 +714,7 @@ sfw_unpack_addtest_req(srpc_msg_t *msg)
 	}
 
 	if (req->tsr_service == SRPC_SERVICE_PING) {
-		test_ping_req_t *ping = &req->tsr_u.ping;
+		struct test_ping_req *ping = &req->tsr_u.ping;
 
 		__swab32s(&ping->png_size);
 		__swab32s(&ping->png_flags);
@@ -729,14 +725,14 @@ sfw_unpack_addtest_req(srpc_msg_t *msg)
 }
 
 static int
-sfw_add_test_instance(sfw_batch_t *tsb, struct srpc_server_rpc *rpc)
+sfw_add_test_instance(struct sfw_batch *tsb, struct srpc_server_rpc *rpc)
 {
-	srpc_msg_t *msg = &rpc->srpc_reqstbuf->buf_msg;
-	srpc_test_reqst_t *req = &msg->msg_body.tes_reqst;
-	srpc_bulk_t *bk = rpc->srpc_bulk;
+	struct srpc_msg *msg = &rpc->srpc_reqstbuf->buf_msg;
+	struct srpc_test_reqst *req = &msg->msg_body.tes_reqst;
+	struct srpc_bulk *bk = rpc->srpc_bulk;
 	int ndest = req->tsr_ndest;
-	sfw_test_unit_t *tsu;
-	sfw_test_instance_t *tsi;
+	struct sfw_test_unit *tsu;
+	struct sfw_test_instance *tsi;
 	int i;
 	int rc;
 
@@ -789,13 +785,13 @@ sfw_add_test_instance(sfw_batch_t *tsb, struct srpc_server_rpc *rpc)
 		int j;
 
 		dests = page_address(bk->bk_iovs[i / SFW_ID_PER_PAGE].kiov_page);
-		LASSERT(dests);  /* my pages are within KVM always */
+		LASSERT(dests);		/* my pages are within KVM always */
 		id = dests[i % SFW_ID_PER_PAGE];
 		if (msg->msg_magic != SRPC_MSG_MAGIC)
 			sfw_unpack_id(id);
 
 		for (j = 0; j < tsi->tsi_concur; j++) {
-			LIBCFS_ALLOC(tsu, sizeof(sfw_test_unit_t));
+			LIBCFS_ALLOC(tsu, sizeof(struct sfw_test_unit));
 			if (!tsu) {
 				rc = -ENOMEM;
 				CERROR("Can't allocate tsu for %d\n",
@@ -824,11 +820,11 @@ error:
 }
 
 static void
-sfw_test_unit_done(sfw_test_unit_t *tsu)
+sfw_test_unit_done(struct sfw_test_unit *tsu)
 {
-	sfw_test_instance_t *tsi = tsu->tsu_instance;
-	sfw_batch_t *tsb = tsi->tsi_batch;
-	sfw_session_t *sn = tsb->bat_session;
+	struct sfw_test_instance *tsi = tsu->tsu_instance;
+	struct sfw_batch *tsb = tsi->tsi_batch;
+	struct sfw_session *sn = tsb->bat_session;
 
 	LASSERT(sfw_test_active(tsi));
 
@@ -844,8 +840,8 @@ sfw_test_unit_done(sfw_test_unit_t *tsu)
 
 	spin_lock(&sfw_data.fw_lock);
 
-	if (!atomic_dec_and_test(&tsb->bat_nactive) ||/* tsb still active */
-	    sn == sfw_data.fw_session) {		  /* sn also active */
+	if (!atomic_dec_and_test(&tsb->bat_nactive) ||	/* tsb still active */
+	    sn == sfw_data.fw_session) {		/* sn also active */
 		spin_unlock(&sfw_data.fw_lock);
 		return;
 	}
@@ -866,10 +862,10 @@ sfw_test_unit_done(sfw_test_unit_t *tsu)
 }
 
 static void
-sfw_test_rpc_done(srpc_client_rpc_t *rpc)
+sfw_test_rpc_done(struct srpc_client_rpc *rpc)
 {
-	sfw_test_unit_t *tsu = rpc->crpc_priv;
-	sfw_test_instance_t *tsi = tsu->tsu_instance;
+	struct sfw_test_unit *tsu = rpc->crpc_priv;
+	struct sfw_test_instance *tsi = tsu->tsu_instance;
 	int done = 0;
 
 	tsi->tsi_ops->tso_done_rpc(tsu, rpc);
@@ -900,19 +896,19 @@ sfw_test_rpc_done(srpc_client_rpc_t *rpc)
 }
 
 int
-sfw_create_test_rpc(sfw_test_unit_t *tsu, lnet_process_id_t peer,
+sfw_create_test_rpc(struct sfw_test_unit *tsu, lnet_process_id_t peer,
 		    unsigned features, int nblk, int blklen,
-		    srpc_client_rpc_t **rpcpp)
+		    struct srpc_client_rpc **rpcpp)
 {
-	srpc_client_rpc_t *rpc = NULL;
-	sfw_test_instance_t *tsi = tsu->tsu_instance;
+	struct srpc_client_rpc *rpc = NULL;
+	struct sfw_test_instance *tsi = tsu->tsu_instance;
 
 	spin_lock(&tsi->tsi_lock);
 
 	LASSERT(sfw_test_active(tsi));
 		/* pick request from buffer */
 	rpc = list_first_entry_or_null(&tsi->tsi_free_rpcs,
-				       srpc_client_rpc_t, crpc_list);
+				       struct srpc_client_rpc, crpc_list);
 	if (rpc) {
 		LASSERT(nblk == rpc->crpc_bulk.bk_niov);
 		list_del_init(&rpc->crpc_list);
@@ -942,11 +938,11 @@ sfw_create_test_rpc(sfw_test_unit_t *tsu, lnet_process_id_t peer,
 }
 
 static int
-sfw_run_test(swi_workitem_t *wi)
+sfw_run_test(struct swi_workitem *wi)
 {
-	sfw_test_unit_t *tsu = wi->swi_workitem.wi_data;
-	sfw_test_instance_t *tsi = tsu->tsu_instance;
-	srpc_client_rpc_t *rpc = NULL;
+	struct sfw_test_unit *tsu = wi->swi_workitem.wi_data;
+	struct sfw_test_instance *tsi = tsu->tsu_instance;
+	struct srpc_client_rpc *rpc = NULL;
 
 	LASSERT(wi == &tsu->tsu_worker);
 
@@ -991,11 +987,11 @@ test_done:
 }
 
 static int
-sfw_run_batch(sfw_batch_t *tsb)
+sfw_run_batch(struct sfw_batch *tsb)
 {
-	swi_workitem_t *wi;
-	sfw_test_unit_t *tsu;
-	sfw_test_instance_t *tsi;
+	struct swi_workitem *wi;
+	struct sfw_test_unit *tsu;
+	struct sfw_test_instance *tsi;
 
 	if (sfw_batch_active(tsb)) {
 		CDEBUG(D_NET, "Batch already active: %llu (%d)\n",
@@ -1026,10 +1022,10 @@ sfw_run_batch(sfw_batch_t *tsb)
 }
 
 int
-sfw_stop_batch(sfw_batch_t *tsb, int force)
+sfw_stop_batch(struct sfw_batch *tsb, int force)
 {
-	sfw_test_instance_t *tsi;
-	srpc_client_rpc_t *rpc;
+	struct sfw_test_instance *tsi;
+	struct srpc_client_rpc *rpc;
 
 	if (!sfw_batch_active(tsb)) {
 		CDEBUG(D_NET, "Batch %llu inactive\n", tsb->bat_id.bat_id);
@@ -1068,9 +1064,9 @@ sfw_stop_batch(sfw_batch_t *tsb, int force)
 }
 
 static int
-sfw_query_batch(sfw_batch_t *tsb, int testidx, srpc_batch_reply_t *reply)
+sfw_query_batch(struct sfw_batch *tsb, int testidx, struct srpc_batch_reply *reply)
 {
-	sfw_test_instance_t *tsi;
+	struct sfw_test_instance *tsi;
 
 	if (testidx < 0)
 		return -EINVAL;
@@ -1115,11 +1111,11 @@ sfw_alloc_pages(struct srpc_server_rpc *rpc, int cpt, int npages, int len,
 static int
 sfw_add_test(struct srpc_server_rpc *rpc)
 {
-	sfw_session_t *sn = sfw_data.fw_session;
-	srpc_test_reply_t *reply = &rpc->srpc_replymsg.msg_body.tes_reply;
-	srpc_test_reqst_t *request;
+	struct sfw_session *sn = sfw_data.fw_session;
+	struct srpc_test_reply *reply = &rpc->srpc_replymsg.msg_body.tes_reply;
+	struct srpc_test_reqst *request;
 	int rc;
-	sfw_batch_t *bat;
+	struct sfw_batch *bat;
 
 	request = &rpc->srpc_reqstbuf->buf_msg.msg_body.tes_reqst;
 	reply->tsr_sid = !sn ? LST_INVALID_SID : sn->sn_id;
@@ -1183,11 +1179,11 @@ sfw_add_test(struct srpc_server_rpc *rpc)
 }
 
 static int
-sfw_control_batch(srpc_batch_reqst_t *request, srpc_batch_reply_t *reply)
+sfw_control_batch(struct srpc_batch_reqst *request, struct srpc_batch_reply *reply)
 {
-	sfw_session_t *sn = sfw_data.fw_session;
+	struct sfw_session *sn = sfw_data.fw_session;
 	int rc = 0;
-	sfw_batch_t *bat;
+	struct sfw_batch *bat;
 
 	reply->bar_sid = !sn ? LST_INVALID_SID : sn->sn_id;
 
@@ -1227,8 +1223,8 @@ static int
 sfw_handle_server_rpc(struct srpc_server_rpc *rpc)
 {
 	struct srpc_service *sv = rpc->srpc_scd->scd_svc;
-	srpc_msg_t *reply = &rpc->srpc_replymsg;
-	srpc_msg_t *request = &rpc->srpc_reqstbuf->buf_msg;
+	struct srpc_msg *reply = &rpc->srpc_replymsg;
+	struct srpc_msg *request = &rpc->srpc_reqstbuf->buf_msg;
 	unsigned features = LST_FEATS_MASK;
 	int rc = 0;
 
@@ -1244,7 +1240,7 @@ sfw_handle_server_rpc(struct srpc_server_rpc *rpc)
 
 	/* Remove timer to avoid racing with it or expiring active session */
 	if (sfw_del_session_timer()) {
-		CERROR("Dropping RPC (%s) from %s: racing with expiry timer.",
+		CERROR("dropping RPC %s from %s: racing with expiry timer\n",
 		       sv->sv_name, libcfs_id2str(rpc->srpc_peer));
 		spin_unlock(&sfw_data.fw_lock);
 		return -EAGAIN;
@@ -1261,7 +1257,7 @@ sfw_handle_server_rpc(struct srpc_server_rpc *rpc)
 
 	if (sv->sv_id != SRPC_SERVICE_MAKE_SESSION &&
 	    sv->sv_id != SRPC_SERVICE_DEBUG) {
-		sfw_session_t *sn = sfw_data.fw_session;
+		struct sfw_session *sn = sfw_data.fw_session;
 
 		if (sn &&
 		    sn->sn_features != request->msg_ses_feats) {
@@ -1273,7 +1269,7 @@ sfw_handle_server_rpc(struct srpc_server_rpc *rpc)
 		}
 
 	} else if (request->msg_ses_feats & ~LST_FEATS_MASK) {
-		/**
+		/*
 		 * NB: at this point, old version will ignore features and
 		 * create new session anyway, so console should be able
 		 * to handle this
@@ -1377,12 +1373,12 @@ sfw_bulk_ready(struct srpc_server_rpc *rpc, int status)
 	return rc;
 }
 
-srpc_client_rpc_t *
+struct srpc_client_rpc *
 sfw_create_rpc(lnet_process_id_t peer, int service,
 	       unsigned features, int nbulkiov, int bulklen,
-	       void (*done)(srpc_client_rpc_t *), void *priv)
+	       void (*done)(struct srpc_client_rpc *), void *priv)
 {
-	srpc_client_rpc_t *rpc = NULL;
+	struct srpc_client_rpc *rpc = NULL;
 
 	spin_lock(&sfw_data.fw_lock);
 
@@ -1391,7 +1387,7 @@ sfw_create_rpc(lnet_process_id_t peer, int service,
 
 	if (!nbulkiov && !list_empty(&sfw_data.fw_zombie_rpcs)) {
 		rpc = list_entry(sfw_data.fw_zombie_rpcs.next,
-				 srpc_client_rpc_t, crpc_list);
+				 struct srpc_client_rpc, crpc_list);
 		list_del(&rpc->crpc_list);
 
 		srpc_init_client_rpc(rpc, peer, service, 0, 0,
@@ -1415,7 +1411,7 @@ sfw_create_rpc(lnet_process_id_t peer, int service,
 }
 
 void
-sfw_unpack_message(srpc_msg_t *msg)
+sfw_unpack_message(struct srpc_msg *msg)
 {
 	if (msg->msg_magic == SRPC_MSG_MAGIC)
 		return; /* no flipping needed */
@@ -1424,7 +1420,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 	LASSERT(msg->msg_magic == __swab32(SRPC_MSG_MAGIC));
 
 	if (msg->msg_type == SRPC_MSG_STAT_REQST) {
-		srpc_stat_reqst_t *req = &msg->msg_body.stat_reqst;
+		struct srpc_stat_reqst *req = &msg->msg_body.stat_reqst;
 
 		__swab32s(&req->str_type);
 		__swab64s(&req->str_rpyid);
@@ -1433,7 +1429,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_STAT_REPLY) {
-		srpc_stat_reply_t *rep = &msg->msg_body.stat_reply;
+		struct srpc_stat_reply *rep = &msg->msg_body.stat_reply;
 
 		__swab32s(&rep->str_status);
 		sfw_unpack_sid(rep->str_sid);
@@ -1444,7 +1440,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_MKSN_REQST) {
-		srpc_mksn_reqst_t *req = &msg->msg_body.mksn_reqst;
+		struct srpc_mksn_reqst *req = &msg->msg_body.mksn_reqst;
 
 		__swab64s(&req->mksn_rpyid);
 		__swab32s(&req->mksn_force);
@@ -1453,7 +1449,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_MKSN_REPLY) {
-		srpc_mksn_reply_t *rep = &msg->msg_body.mksn_reply;
+		struct srpc_mksn_reply *rep = &msg->msg_body.mksn_reply;
 
 		__swab32s(&rep->mksn_status);
 		__swab32s(&rep->mksn_timeout);
@@ -1462,7 +1458,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_RMSN_REQST) {
-		srpc_rmsn_reqst_t *req = &msg->msg_body.rmsn_reqst;
+		struct srpc_rmsn_reqst *req = &msg->msg_body.rmsn_reqst;
 
 		__swab64s(&req->rmsn_rpyid);
 		sfw_unpack_sid(req->rmsn_sid);
@@ -1470,7 +1466,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_RMSN_REPLY) {
-		srpc_rmsn_reply_t *rep = &msg->msg_body.rmsn_reply;
+		struct srpc_rmsn_reply *rep = &msg->msg_body.rmsn_reply;
 
 		__swab32s(&rep->rmsn_status);
 		sfw_unpack_sid(rep->rmsn_sid);
@@ -1478,7 +1474,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_DEBUG_REQST) {
-		srpc_debug_reqst_t *req = &msg->msg_body.dbg_reqst;
+		struct srpc_debug_reqst *req = &msg->msg_body.dbg_reqst;
 
 		__swab64s(&req->dbg_rpyid);
 		__swab32s(&req->dbg_flags);
@@ -1487,7 +1483,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_DEBUG_REPLY) {
-		srpc_debug_reply_t *rep = &msg->msg_body.dbg_reply;
+		struct srpc_debug_reply *rep = &msg->msg_body.dbg_reply;
 
 		__swab32s(&rep->dbg_nbatch);
 		__swab32s(&rep->dbg_timeout);
@@ -1496,7 +1492,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_BATCH_REQST) {
-		srpc_batch_reqst_t *req = &msg->msg_body.bat_reqst;
+		struct srpc_batch_reqst *req = &msg->msg_body.bat_reqst;
 
 		__swab32s(&req->bar_opc);
 		__swab64s(&req->bar_rpyid);
@@ -1508,7 +1504,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_BATCH_REPLY) {
-		srpc_batch_reply_t *rep = &msg->msg_body.bat_reply;
+		struct srpc_batch_reply *rep = &msg->msg_body.bat_reply;
 
 		__swab32s(&rep->bar_status);
 		sfw_unpack_sid(rep->bar_sid);
@@ -1516,7 +1512,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_TEST_REQST) {
-		srpc_test_reqst_t *req = &msg->msg_body.tes_reqst;
+		struct srpc_test_reqst *req = &msg->msg_body.tes_reqst;
 
 		__swab64s(&req->tsr_rpyid);
 		__swab64s(&req->tsr_bulkid);
@@ -1530,7 +1526,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_TEST_REPLY) {
-		srpc_test_reply_t *rep = &msg->msg_body.tes_reply;
+		struct srpc_test_reply *rep = &msg->msg_body.tes_reply;
 
 		__swab32s(&rep->tsr_status);
 		sfw_unpack_sid(rep->tsr_sid);
@@ -1538,7 +1534,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_JOIN_REQST) {
-		srpc_join_reqst_t *req = &msg->msg_body.join_reqst;
+		struct srpc_join_reqst *req = &msg->msg_body.join_reqst;
 
 		__swab64s(&req->join_rpyid);
 		sfw_unpack_sid(req->join_sid);
@@ -1546,7 +1542,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 	}
 
 	if (msg->msg_type == SRPC_MSG_JOIN_REPLY) {
-		srpc_join_reply_t *rep = &msg->msg_body.join_reply;
+		struct srpc_join_reply *rep = &msg->msg_body.join_reply;
 
 		__swab32s(&rep->join_status);
 		__swab32s(&rep->join_timeout);
@@ -1558,7 +1554,7 @@ sfw_unpack_message(srpc_msg_t *msg)
 }
 
 void
-sfw_abort_rpc(srpc_client_rpc_t *rpc)
+sfw_abort_rpc(struct srpc_client_rpc *rpc)
 {
 	LASSERT(atomic_read(&rpc->crpc_refcount) > 0);
 	LASSERT(rpc->crpc_service <= SRPC_FRAMEWORK_SERVICE_MAX_ID);
@@ -1569,7 +1565,7 @@ sfw_abort_rpc(srpc_client_rpc_t *rpc)
 }
 
 void
-sfw_post_rpc(srpc_client_rpc_t *rpc)
+sfw_post_rpc(struct srpc_client_rpc *rpc)
 {
 	spin_lock(&rpc->crpc_lock);
 
@@ -1584,7 +1580,7 @@ sfw_post_rpc(srpc_client_rpc_t *rpc)
 	spin_unlock(&rpc->crpc_lock);
 }
 
-static srpc_service_t sfw_services[] = {
+static struct srpc_service sfw_services[] = {
 	{
 		/* sv_id */    SRPC_SERVICE_DEBUG,
 		/* sv_name */  "debug",
@@ -1628,8 +1624,8 @@ sfw_startup(void)
 	int i;
 	int rc;
 	int error;
-	srpc_service_t *sv;
-	sfw_test_case_t *tsc;
+	struct srpc_service *sv;
+	struct sfw_test_case *tsc;
 
 	if (session_timeout < 0) {
 		CERROR("Session timeout must be non-negative: %d\n",
@@ -1721,8 +1717,8 @@ sfw_startup(void)
 void
 sfw_shutdown(void)
 {
-	srpc_service_t *sv;
-	sfw_test_case_t	*tsc;
+	struct srpc_service *sv;
+	struct sfw_test_case	*tsc;
 	int i;
 
 	spin_lock(&sfw_data.fw_lock);
@@ -1759,10 +1755,10 @@ sfw_shutdown(void)
 	}
 
 	while (!list_empty(&sfw_data.fw_zombie_rpcs)) {
-		srpc_client_rpc_t *rpc;
+		struct srpc_client_rpc *rpc;
 
 		rpc = list_entry(sfw_data.fw_zombie_rpcs.next,
-				 srpc_client_rpc_t, crpc_list);
+				 struct srpc_client_rpc, crpc_list);
 		list_del(&rpc->crpc_list);
 
 		LIBCFS_FREE(rpc, srpc_client_rpc_size(rpc));
@@ -1778,7 +1774,7 @@ sfw_shutdown(void)
 
 	while (!list_empty(&sfw_data.fw_tests)) {
 		tsc = list_entry(sfw_data.fw_tests.next,
-				 sfw_test_case_t, tsc_list);
+				 struct sfw_test_case, tsc_list);
 
 		srpc_wait_service_shutdown(tsc->tsc_srv_service);
 

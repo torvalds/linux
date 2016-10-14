@@ -249,13 +249,7 @@ int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 			return -EBUSY;
 		}
 
-		if (adf_dev_stop(accel_dev)) {
-			dev_err(&GET_DEV(accel_dev),
-				"Failed to stop qat_dev%d\n",
-				accel_dev->accel_id);
-			return -EFAULT;
-		}
-
+		adf_dev_stop(accel_dev);
 		adf_dev_shutdown(accel_dev);
 	}
 
@@ -298,7 +292,7 @@ EXPORT_SYMBOL_GPL(adf_sriov_configure);
 int __init adf_init_pf_wq(void)
 {
 	/* Workqueue for PF2VF responses */
-	pf2vf_resp_wq = create_workqueue("qat_pf2vf_resp_wq");
+	pf2vf_resp_wq = alloc_workqueue("qat_pf2vf_resp_wq", WQ_MEM_RECLAIM, 0);
 
 	return !pf2vf_resp_wq ? -ENOMEM : 0;
 }

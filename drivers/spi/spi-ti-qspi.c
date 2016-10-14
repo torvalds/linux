@@ -141,7 +141,7 @@ static int ti_qspi_setup(struct spi_device *spi)
 	u32 clk_ctrl_reg, clk_rate, clk_mask;
 
 	if (spi->master->busy) {
-		dev_dbg(qspi->dev, "master busy doing other trasnfers\n");
+		dev_dbg(qspi->dev, "master busy doing other transfers\n");
 		return -EBUSY;
 	}
 
@@ -646,6 +646,13 @@ free_master:
 
 static int ti_qspi_remove(struct platform_device *pdev)
 {
+	struct ti_qspi *qspi = platform_get_drvdata(pdev);
+	int rc;
+
+	rc = spi_master_suspend(qspi->master);
+	if (rc)
+		return rc;
+
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 

@@ -1831,7 +1831,7 @@ format_mca_init_stack(void *mca_data, unsigned long offset,
 }
 
 /* Caller prevents this from being called after init */
-static void * __init_refok mca_bootmem(void)
+static void * __ref mca_bootmem(void)
 {
 	return __alloc_bootmem(sizeof(struct ia64_mca_cpu),
 	                    KERNEL_STACK_SIZE, 0);
@@ -1904,13 +1904,10 @@ static int mca_cpu_callback(struct notifier_block *nfb,
 				      unsigned long action,
 				      void *hcpu)
 {
-	int hotcpu = (unsigned long) hcpu;
-
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
-		smp_call_function_single(hotcpu, ia64_mca_cmc_vector_adjust,
-					 NULL, 0);
+		ia64_mca_cmc_vector_adjust(NULL);
 		break;
 	}
 	return NOTIFY_OK;

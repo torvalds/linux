@@ -442,6 +442,10 @@ struct bufdesc_ex {
 #define FEC_QUIRK_SINGLE_MDIO		(1 << 11)
 /* Controller supports RACC register */
 #define FEC_QUIRK_HAS_RACC		(1 << 12)
+/* Controller supports interrupt coalesc */
+#define FEC_QUIRK_HAS_COALESCE		(1 << 13)
+/* Interrupt doesn't wake CPU from deep idle */
+#define FEC_QUIRK_ERR006687		(1 << 14)
 
 struct bufdesc_prop {
 	int qid;
@@ -517,7 +521,6 @@ struct fec_enet_private {
 
 	/* Phylib and MDIO interface */
 	struct	mii_bus *mii_bus;
-	struct	phy_device *phy_dev;
 	int	mii_timeout;
 	uint	phy_speed;
 	phy_interface_t	phy_interface;

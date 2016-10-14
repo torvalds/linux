@@ -139,7 +139,7 @@ int __init btrfs_prelim_ref_init(void)
 	btrfs_prelim_ref_cache = kmem_cache_create("btrfs_prelim_ref",
 					sizeof(struct __prelim_ref),
 					0,
-					SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+					SLAB_MEM_SPREAD,
 					NULL);
 	if (!btrfs_prelim_ref_cache)
 		return -ENOMEM;
@@ -361,7 +361,7 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
-	if (btrfs_test_is_dummy_root(root)) {
+	if (btrfs_is_testing(fs_info)) {
 		srcu_read_unlock(&fs_info->subvol_srcu, index);
 		ret = -ENOENT;
 		goto out;
@@ -589,6 +589,7 @@ static void __merge_refs(struct list_head *head, int mode)
 
 			list_del(&ref2->list);
 			kmem_cache_free(btrfs_prelim_ref_cache, ref2);
+			cond_resched();
 		}
 
 	}
@@ -1939,7 +1940,7 @@ static int inode_to_path(u64 inum, u32 name_len, unsigned long name_off,
  * from ipath->fspath->val[i].
  * when it returns, there are ipath->fspath->elem_cnt number of paths available
  * in ipath->fspath->val[]. when the allocated space wasn't sufficient, the
- * number of missed paths in recored in ipath->fspath->elem_missed, otherwise,
+ * number of missed paths is recorded in ipath->fspath->elem_missed, otherwise,
  * it's zero. ipath->fspath->bytes_missing holds the number of bytes that would
  * have been needed to return all paths.
  */
@@ -1991,7 +1992,7 @@ struct inode_fs_paths *init_ipath(s32 total_bytes, struct btrfs_root *fs_root,
 
 	ifp = kmalloc(sizeof(*ifp), GFP_NOFS);
 	if (!ifp) {
-		kfree(fspath);
+		vfree(fspath);
 		return ERR_PTR(-ENOMEM);
 	}
 

@@ -2,18 +2,21 @@
  * Copyright (C) 2015 Davidlohr Bueso.
  */
 
-#include "../perf.h"
-#include "../util/util.h"
+/* For the CLR_() macros */
+#include <pthread.h>
+
+#include <signal.h>
 #include "../util/stat.h"
 #include <subcmd/parse-options.h>
-#include "../util/header.h"
+#include <linux/compiler.h>
+#include <linux/kernel.h>
+#include <errno.h>
 #include "bench.h"
 #include "futex.h"
 
 #include <err.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include <pthread.h>
 
 struct worker {
 	int tid;
@@ -83,7 +86,7 @@ static void *workerfn(void *arg)
 	do {
 		int ret;
 	again:
-		ret = futex_lock_pi(w->futex, NULL, 0, futex_flag);
+		ret = futex_lock_pi(w->futex, NULL, futex_flag);
 
 		if (ret) { /* handle lock acquisition */
 			if (!silent)

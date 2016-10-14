@@ -64,29 +64,31 @@ config DEVFREQ_GOV_USERSPACE
 	  Otherwise, the governor does not change the frequency
 	  given at the initialization.
 
+config DEVFREQ_GOV_PASSIVE
+	tristate "Passive"
+	help
+	  Sets the frequency based on the frequency of its parent devfreq
+	  device. This governor does not change the frequency by itself
+	  through sysfs entries. The passive governor recommends that
+	  devfreq device uses the OPP table to get the frequency/voltage.
+
 comment "DEVFREQ Drivers"
 
-config ARM_EXYNOS4_BUS_DEVFREQ
-	bool "ARM Exynos4210/4212/4412 Memory Bus DEVFREQ Driver"
-	depends on (CPU_EXYNOS4210 || SOC_EXYNOS4212 || SOC_EXYNOS4412) && !ARCH_MULTIPLATFORM
+config ARM_EXYNOS_BUS_DEVFREQ
+	tristate "ARM EXYNOS Generic Memory Bus DEVFREQ Driver"
+	depends on ARCH_EXYNOS
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
+	select DEVFREQ_GOV_PASSIVE
+	select DEVFREQ_EVENT_EXYNOS_PPMU
+	select PM_DEVFREQ_EVENT
 	select PM_OPP
 	help
-	  This adds the DEVFREQ driver for Exynos4210 memory bus (vdd_int)
-	  and Exynos4212/4412 memory interface and bus (vdd_mif + vdd_int).
-	  It reads PPMU counters of memory controllers and adjusts
-	  the operating frequencies and voltages with OPP support.
+	  This adds the common DEVFREQ driver for Exynos Memory bus. Exynos
+	  Memory bus has one more group of memory bus (e.g, MIF and INT block).
+	  Each memory bus group could contain many memoby bus block. It reads
+	  PPMU counters of memory controllers by using DEVFREQ-event device
+	  and adjusts the operating frequencies and voltages with OPP support.
 	  This does not yet operate with optimal voltages.
-
-config ARM_EXYNOS5_BUS_DEVFREQ
-	tristate "ARM Exynos5250 Bus DEVFREQ Driver"
-	depends on SOC_EXYNOS5250
-	select DEVFREQ_GOV_SIMPLE_ONDEMAND
-	select PM_OPP
-	help
-	  This adds the DEVFREQ driver for Exynos5250 bus interface (vdd_int).
-	  It reads PPMU counters of memory controllers and adjusts the
-	  operating frequencies and voltages with OPP support.
 
 config ARM_TEGRA_DEVFREQ
        tristate "Tegra DEVFREQ Driver"

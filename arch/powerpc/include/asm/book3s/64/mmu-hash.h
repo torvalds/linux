@@ -1,5 +1,5 @@
-#ifndef _ASM_POWERPC_MMU_HASH64_H_
-#define _ASM_POWERPC_MMU_HASH64_H_
+#ifndef _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_
+#define _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_
 /*
  * PowerPC64 memory management structures
  *
@@ -24,6 +24,7 @@
 #include <asm/book3s/64/pgtable.h>
 #include <asm/bug.h>
 #include <asm/processor.h>
+#include <asm/cpu_has_feature.h>
 
 /*
  * SLB
@@ -78,12 +79,17 @@
 #define HPTE_V_SECONDARY	ASM_CONST(0x0000000000000002)
 #define HPTE_V_VALID		ASM_CONST(0x0000000000000001)
 
+/*
+ * ISA 3.0 have a different HPTE format.
+ */
+#define HPTE_R_3_0_SSIZE_SHIFT	58
 #define HPTE_R_PP0		ASM_CONST(0x8000000000000000)
 #define HPTE_R_TS		ASM_CONST(0x4000000000000000)
 #define HPTE_R_KEY_HI		ASM_CONST(0x3000000000000000)
 #define HPTE_R_RPN_SHIFT	12
 #define HPTE_R_RPN		ASM_CONST(0x0ffffffffffff000)
 #define HPTE_R_PP		ASM_CONST(0x0000000000000003)
+#define HPTE_R_PPP		ASM_CONST(0x8000000000000003)
 #define HPTE_R_N		ASM_CONST(0x0000000000000004)
 #define HPTE_R_G		ASM_CONST(0x0000000000000008)
 #define HPTE_R_M		ASM_CONST(0x0000000000000010)
@@ -115,8 +121,48 @@
 #define POWER7_TLB_SETS		128	/* # sets in POWER7 TLB */
 #define POWER8_TLB_SETS		512	/* # sets in POWER8 TLB */
 #define POWER9_TLB_SETS_HASH	256	/* # sets in POWER9 TLB Hash mode */
+#define POWER9_TLB_SETS_RADIX	128	/* # sets in POWER9 TLB Radix mode */
 
 #ifndef __ASSEMBLY__
+
+struct mmu_hash_ops {
+	void            (*hpte_invalidate)(unsigned long slot,
+					   unsigned long vpn,
+					   int bpsize, int apsize,
+					   int ssize, int local);
+	long		(*hpte_updatepp)(unsigned long slot,
+					 unsigned long newpp,
+					 unsigned long vpn,
+					 int bpsize, int apsize,
+					 int ssize, unsigned long flags);
+	void            (*hpte_updateboltedpp)(unsigned long newpp,
+					       unsigned long ea,
+					       int psize, int ssize);
+	long		(*hpte_insert)(unsigned long hpte_group,
+				       unsigned long vpn,
+				       unsigned long prpn,
+				       unsigned long rflags,
+				       unsigned long vflags,
+				       int psize, int apsize,
+				       int ssize);
+	long		(*hpte_remove)(unsigned long hpte_group);
+	int             (*hpte_removebolted)(unsigned long ea,
+					     int psize, int ssize);
+	void		(*flush_hash_range)(unsigned long number, int local);
+	void		(*hugepage_invalidate)(unsigned long vsid,
+					       unsigned long addr,
+					       unsigned char *hpte_slot_array,
+					       int psize, int ssize, int local);
+	/*
+	 * Special for kexec.
+	 * To be called in real mode with interrupts disabled. No locks are
+	 * taken as such, concurrent access on pre POWER5 hardware could result
+	 * in a deadlock.
+	 * The linear mapping is destroyed as well.
+	 */
+	void		(*hpte_clear_all)(void);
+};
+extern struct mmu_hash_ops mmu_hash_ops;
 
 struct hash_pte {
 	__be64 v;
@@ -127,24 +173,6 @@ extern struct hash_pte *htab_address;
 extern unsigned long htab_size_bytes;
 extern unsigned long htab_hash_mask;
 
-/*
- * Page size definition
- *
- *    shift : is the "PAGE_SHIFT" value for that page size
- *    sllp  : is a bit mask with the value of SLB L || LP to be or'ed
- *            directly to a slbmte "vsid" value
- *    penc  : is the HPTE encoding mask for the "LP" field:
- *
- */
-struct mmu_psize_def
-{
-	unsigned int	shift;	/* number of bits */
-	int		penc[MMU_PAGE_COUNT];	/* HPTE encoding */
-	unsigned int	tlbiel;	/* tlbiel supported for that page size */
-	unsigned long	avpnm;	/* bits to mask out in AVPN in the HPTE */
-	unsigned long	sllp;	/* SLB L||LP (exact mask to use in slbmte) */
-};
-extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 
 static inline int shift_to_mmu_psize(unsigned int shift)
 {
@@ -161,6 +189,15 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
 	if (mmu_psize_defs[mmu_psize].shift)
 		return mmu_psize_defs[mmu_psize].shift;
 	BUG();
+}
+
+static inline unsigned long get_sllp_encoding(int psize)
+{
+	unsigned long sllp;
+
+	sllp = ((mmu_psize_defs[psize].sllp & SLB_VSID_L) >> 6) |
+		((mmu_psize_defs[psize].sllp & SLB_VSID_LP) >> 4);
+	return sllp;
 }
 
 #endif /* __ASSEMBLY__ */
@@ -210,11 +247,6 @@ static inline int segment_shift(int ssize)
 /*
  * The current system page and segment sizes
  */
-extern int mmu_linear_psize;
-extern int mmu_virtual_psize;
-extern int mmu_vmalloc_psize;
-extern int mmu_vmemmap_psize;
-extern int mmu_io_psize;
 extern int mmu_kernel_ssize;
 extern int mmu_highuser_ssize;
 extern u16 mmu_slb_size;
@@ -247,7 +279,8 @@ static inline unsigned long hpte_encode_avpn(unsigned long vpn, int psize,
 	 */
 	v = (vpn >> (23 - VPN_SHIFT)) & ~(mmu_psize_defs[psize].avpnm);
 	v <<= HPTE_V_AVPN_SHIFT;
-	v |= ((unsigned long) ssize) << HPTE_V_SSIZE_SHIFT;
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		v |= ((unsigned long) ssize) << HPTE_V_SSIZE_SHIFT;
 	return v;
 }
 
@@ -271,8 +304,12 @@ static inline unsigned long hpte_encode_v(unsigned long vpn, int base_psize,
  * aligned for the requested page size
  */
 static inline unsigned long hpte_encode_r(unsigned long pa, int base_psize,
-					  int actual_psize)
+					  int actual_psize, int ssize)
 {
+
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		pa |= ((unsigned long) ssize) << HPTE_R_3_0_SSIZE_SHIFT;
+
 	/* A 4K page needs no special encoding */
 	if (actual_psize == MMU_PAGE_4K)
 		return pa & HPTE_R_RPN;
@@ -364,10 +401,13 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 extern void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages);
 extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
 
+#ifdef CONFIG_PPC_PSERIES
+void hpte_init_pseries(void);
+#else
+static inline void hpte_init_pseries(void) { }
+#endif
+
 extern void hpte_init_native(void);
-extern void hpte_init_lpar(void);
-extern void hpte_init_beat(void);
-extern void hpte_init_beat_v3(void);
 
 extern void slb_initialize(void);
 extern void slb_flush_and_rebolt(void);
@@ -447,7 +487,7 @@ extern void slb_set_size(u16 size);
  * function.  Used in slb_allocate() and do_stab_bolted.  The function
  * computed is: (protovsid*VSID_MULTIPLIER) % VSID_MODULUS
  *
- *	rt = register continaing the proto-VSID and into which the
+ *	rt = register containing the proto-VSID and into which the
  *		VSID will be stored
  *	rx = scratch register (clobbered)
  *
@@ -476,7 +516,7 @@ extern void slb_set_size(u16 size);
 	add	rt,rt,rx
 
 /* 4 bits per slice and we have one slice per 1TB */
-#define SLICE_ARRAY_SIZE  (PGTABLE_RANGE >> 41)
+#define SLICE_ARRAY_SIZE  (H_PGTABLE_RANGE >> 41)
 
 #ifndef __ASSEMBLY__
 
@@ -511,38 +551,6 @@ extern void subpage_prot_init_new_context(struct mm_struct *mm);
 static inline void subpage_prot_free(struct mm_struct *mm) {}
 static inline void subpage_prot_init_new_context(struct mm_struct *mm) { }
 #endif /* CONFIG_PPC_SUBPAGE_PROT */
-
-typedef unsigned long mm_context_id_t;
-struct spinlock;
-
-typedef struct {
-	mm_context_id_t id;
-	u16 user_psize;		/* page size index */
-
-#ifdef CONFIG_PPC_MM_SLICES
-	u64 low_slices_psize;	/* SLB page size encodings */
-	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
-#else
-	u16 sllp;		/* SLB page size encoding */
-#endif
-	unsigned long vdso_base;
-#ifdef CONFIG_PPC_SUBPAGE_PROT
-	struct subpage_prot_table spt;
-#endif /* CONFIG_PPC_SUBPAGE_PROT */
-#ifdef CONFIG_PPC_ICSWX
-	struct spinlock *cop_lockp; /* guard acop and cop_pid */
-	unsigned long acop;	/* mask of enabled coprocessor types */
-	unsigned int cop_pid;	/* pid value used with coprocessors */
-#endif /* CONFIG_PPC_ICSWX */
-#ifdef CONFIG_PPC_64K_PAGES
-	/* for 4K PTE fragment support */
-	void *pte_frag;
-#endif
-#ifdef CONFIG_SPAPR_TCE_IOMMU
-	struct list_head iommu_group_mem_list;
-#endif
-} mm_context_t;
-
 
 #if 0
 /*
@@ -579,7 +587,7 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 	/*
 	 * Bad address. We return VSID 0 for that
 	 */
-	if ((ea & ~REGION_MASK) >= PGTABLE_RANGE)
+	if ((ea & ~REGION_MASK) >= H_PGTABLE_RANGE)
 		return 0;
 
 	if (ssize == MMU_SEGSIZE_256M)
@@ -613,4 +621,4 @@ unsigned htab_shift_for_mem_size(unsigned long mem_size);
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* _ASM_POWERPC_MMU_HASH64_H_ */
+#endif /* _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_ */

@@ -145,19 +145,32 @@ static __be32 *decode_reply_array(__be32 *va, __be32 *vaend)
 	return (__be32 *)&ary->wc_array[nchunks];
 }
 
-int svc_rdma_xdr_decode_req(struct rpcrdma_msg *rmsgp, struct svc_rqst *rqstp)
+/**
+ * svc_rdma_xdr_decode_req - Parse incoming RPC-over-RDMA header
+ * @rq_arg: Receive buffer
+ *
+ * On entry, xdr->head[0].iov_base points to first byte in the
+ * RPC-over-RDMA header.
+ *
+ * On successful exit, head[0] points to first byte past the
+ * RPC-over-RDMA header. For RDMA_MSG, this is the RPC message.
+ * The length of the RPC-over-RDMA header is returned.
+ */
+int svc_rdma_xdr_decode_req(struct xdr_buf *rq_arg)
 {
+	struct rpcrdma_msg *rmsgp;
 	__be32 *va, *vaend;
 	unsigned int len;
 	u32 hdr_len;
 
 	/* Verify that there's enough bytes for header + something */
-	if (rqstp->rq_arg.len <= RPCRDMA_HDRLEN_ERR) {
+	if (rq_arg->len <= RPCRDMA_HDRLEN_ERR) {
 		dprintk("svcrdma: header too short = %d\n",
-			rqstp->rq_arg.len);
+			rq_arg->len);
 		return -EINVAL;
 	}
 
+	rmsgp = (struct rpcrdma_msg *)rq_arg->head[0].iov_base;
 	if (rmsgp->rm_vers != rpcrdma_version) {
 		dprintk("%s: bad version %u\n", __func__,
 			be32_to_cpu(rmsgp->rm_vers));
@@ -189,10 +202,10 @@ int svc_rdma_xdr_decode_req(struct rpcrdma_msg *rmsgp, struct svc_rqst *rqstp)
 			be32_to_cpu(rmsgp->rm_body.rm_padded.rm_thresh);
 
 		va = &rmsgp->rm_body.rm_padded.rm_pempty[4];
-		rqstp->rq_arg.head[0].iov_base = va;
+		rq_arg->head[0].iov_base = va;
 		len = (u32)((unsigned long)va - (unsigned long)rmsgp);
-		rqstp->rq_arg.head[0].iov_len -= len;
-		if (len > rqstp->rq_arg.len)
+		rq_arg->head[0].iov_len -= len;
+		if (len > rq_arg->len)
 			return -EINVAL;
 		return len;
 	default:
@@ -205,7 +218,7 @@ int svc_rdma_xdr_decode_req(struct rpcrdma_msg *rmsgp, struct svc_rqst *rqstp)
 	 * chunk list and a reply chunk list.
 	 */
 	va = &rmsgp->rm_body.rm_chunks[0];
-	vaend = (__be32 *)((unsigned long)rmsgp + rqstp->rq_arg.len);
+	vaend = (__be32 *)((unsigned long)rmsgp + rq_arg->len);
 	va = decode_read_list(va, vaend);
 	if (!va) {
 		dprintk("svcrdma: failed to decode read list\n");
@@ -222,10 +235,9 @@ int svc_rdma_xdr_decode_req(struct rpcrdma_msg *rmsgp, struct svc_rqst *rqstp)
 		return -EINVAL;
 	}
 
-	rqstp->rq_arg.head[0].iov_base = va;
+	rq_arg->head[0].iov_base = va;
 	hdr_len = (unsigned long)va - (unsigned long)rmsgp;
-	rqstp->rq_arg.head[0].iov_len -= hdr_len;
-
+	rq_arg->head[0].iov_len -= hdr_len;
 	return hdr_len;
 }
 

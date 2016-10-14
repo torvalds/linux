@@ -19,6 +19,7 @@
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/of_mdio.h>
+#include <linux/of_net.h>
 #include <linux/module.h>
 
 MODULE_AUTHOR("Grant Likely <grant.likely@secretlab.ca>");
@@ -41,8 +42,8 @@ static int of_get_phy_id(struct device_node *device, u32 *phy_id)
 	return -EINVAL;
 }
 
-static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *child,
-				   u32 addr)
+static void of_mdiobus_register_phy(struct mii_bus *mdio,
+				    struct device_node *child, u32 addr)
 {
 	struct phy_device *phy;
 	bool is_c45;
@@ -56,8 +57,8 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 		phy = phy_device_create(mdio, addr, phy_id, 0, NULL);
 	else
 		phy = get_phy_device(mdio, addr, is_c45);
-	if (IS_ERR_OR_NULL(phy))
-		return 1;
+	if (IS_ERR(phy))
+		return;
 
 	rc = irq_of_parse_and_map(child, 0);
 	if (rc > 0) {
@@ -81,25 +82,22 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio, struct device_node *chi
 	if (rc) {
 		phy_device_free(phy);
 		of_node_put(child);
-		return 1;
+		return;
 	}
 
 	dev_dbg(&mdio->dev, "registered phy %s at address %i\n",
 		child->name, addr);
-
-	return 0;
 }
 
-static int of_mdiobus_register_device(struct mii_bus *mdio,
-				      struct device_node *child,
-				      u32 addr)
+static void of_mdiobus_register_device(struct mii_bus *mdio,
+				       struct device_node *child, u32 addr)
 {
 	struct mdio_device *mdiodev;
 	int rc;
 
 	mdiodev = mdio_device_create(mdio, addr);
 	if (IS_ERR(mdiodev))
-		return 1;
+		return;
 
 	/* Associate the OF node with the device structure so it
 	 * can be looked up later.
@@ -112,13 +110,11 @@ static int of_mdiobus_register_device(struct mii_bus *mdio,
 	if (rc) {
 		mdio_device_free(mdiodev);
 		of_node_put(child);
-		return 1;
+		return;
 	}
 
 	dev_dbg(&mdio->dev, "registered mdio device %s at address %i\n",
 		child->name, addr);
-
-	return 0;
 }
 
 int of_mdio_parse_addr(struct device *dev, const struct device_node *np)
@@ -213,6 +209,10 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	struct device_node *child;
 	bool scanphys = false;
 	int addr, rc;
+
+	/* Do not continue if the node is disabled */
+	if (!of_device_is_available(np))
+		return -ENODEV;
 
 	/* Mask out all PHYs from auto probing.  Instead the PHYs listed in
 	 * the device tree are populated after the bus has been registered */
@@ -333,6 +333,41 @@ struct phy_device *of_phy_connect(struct net_device *dev,
 EXPORT_SYMBOL(of_phy_connect);
 
 /**
+ * of_phy_get_and_connect
+ * - Get phy node and connect to the phy described in the device tree
+ * @dev: pointer to net_device claiming the phy
+ * @np: Pointer to device tree node for the net_device claiming the phy
+ * @hndlr: Link state callback for the network device
+ *
+ * If successful, returns a pointer to the phy_device with the embedded
+ * struct device refcount incremented by one, or NULL on failure. The
+ * refcount must be dropped by calling phy_disconnect() or phy_detach().
+ */
+struct phy_device *of_phy_get_and_connect(struct net_device *dev,
+					  struct device_node *np,
+					  void (*hndlr)(struct net_device *))
+{
+	phy_interface_t iface;
+	struct device_node *phy_np;
+	struct phy_device *phy;
+
+	iface = of_get_phy_mode(np);
+	if (iface < 0)
+		return NULL;
+
+	phy_np = of_parse_phandle(np, "phy-handle", 0);
+	if (!phy_np)
+		return NULL;
+
+	phy = of_phy_connect(dev, phy_np, hndlr, 0, iface);
+
+	of_node_put(phy_np);
+
+	return phy;
+}
+EXPORT_SYMBOL(of_phy_get_and_connect);
+
+/**
  * of_phy_attach - Attach to a PHY without starting the state machine
  * @dev: pointer to net_device claiming the phy
  * @phy_np: Node pointer for the PHY
@@ -362,7 +397,6 @@ struct phy_device *of_phy_attach(struct net_device *dev,
 }
 EXPORT_SYMBOL(of_phy_attach);
 
-#if defined(CONFIG_FIXED_PHY)
 /*
  * of_phy_is_fixed_link() and of_phy_register_fixed_link() must
  * support two DT bindings:
@@ -452,4 +486,3 @@ int of_phy_register_fixed_link(struct device_node *np)
 	return -ENODEV;
 }
 EXPORT_SYMBOL(of_phy_register_fixed_link);
-#endif

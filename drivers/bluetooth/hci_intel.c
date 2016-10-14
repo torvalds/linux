@@ -537,9 +537,7 @@ static int intel_setup(struct hci_uart *hu)
 {
 	static const u8 reset_param[] = { 0x00, 0x01, 0x00, 0x01,
 					  0x00, 0x08, 0x04, 0x00 };
-	static const u8 lpm_param[] = { 0x03, 0x07, 0x01, 0x0b };
 	struct intel_data *intel = hu->priv;
-	struct intel_device *idev = NULL;
 	struct hci_dev *hdev = hu->hdev;
 	struct sk_buff *skb;
 	struct intel_version ver;
@@ -884,35 +882,23 @@ done:
 
 	bt_dev_info(hdev, "Device booted in %llu usecs", duration);
 
-	/* Enable LPM if matching pdev with wakeup enabled */
+	/* Enable LPM if matching pdev with wakeup enabled, set TX active
+	 * until further LPM TX notification.
+	 */
 	mutex_lock(&intel_device_list_lock);
 	list_for_each(p, &intel_device_list) {
 		struct intel_device *dev = list_entry(p, struct intel_device,
 						      list);
 		if (hu->tty->dev->parent == dev->pdev->dev.parent) {
-			if (device_may_wakeup(&dev->pdev->dev))
-				idev = dev;
+			if (device_may_wakeup(&dev->pdev->dev)) {
+				set_bit(STATE_LPM_ENABLED, &intel->flags);
+				set_bit(STATE_TX_ACTIVE, &intel->flags);
+			}
 			break;
 		}
 	}
 	mutex_unlock(&intel_device_list_lock);
 
-	if (!idev)
-		goto no_lpm;
-
-	bt_dev_info(hdev, "Enabling LPM");
-
-	skb = __hci_cmd_sync(hdev, 0xfc8b, sizeof(lpm_param), lpm_param,
-			     HCI_CMD_TIMEOUT);
-	if (IS_ERR(skb)) {
-		bt_dev_err(hdev, "Failed to enable LPM");
-		goto no_lpm;
-	}
-	kfree_skb(skb);
-
-	set_bit(STATE_LPM_ENABLED, &intel->flags);
-
-no_lpm:
 	/* Ignore errors, device can work without DDC parameters */
 	btintel_load_ddc_config(hdev, fwname);
 
@@ -1210,8 +1196,7 @@ static int intel_probe(struct platform_device *pdev)
 
 	idev->pdev = pdev;
 
-	idev->reset = devm_gpiod_get_optional(&pdev->dev, "reset",
-					      GPIOD_OUT_LOW);
+	idev->reset = devm_gpiod_get(&pdev->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(idev->reset)) {
 		dev_err(&pdev->dev, "Unable to retrieve gpio\n");
 		return PTR_ERR(idev->reset);
@@ -1223,8 +1208,7 @@ static int intel_probe(struct platform_device *pdev)
 
 		dev_err(&pdev->dev, "No IRQ, falling back to gpio-irq\n");
 
-		host_wake = devm_gpiod_get_optional(&pdev->dev, "host-wake",
-						    GPIOD_IN);
+		host_wake = devm_gpiod_get(&pdev->dev, "host-wake", GPIOD_IN);
 		if (IS_ERR(host_wake)) {
 			dev_err(&pdev->dev, "Unable to retrieve IRQ\n");
 			goto no_irq;

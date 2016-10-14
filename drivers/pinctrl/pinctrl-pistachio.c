@@ -809,17 +809,17 @@ static const struct pistachio_pin_group pistachio_groups[] = {
 			   PADS_FUNCTION_SELECT2, 12, 0x3),
 	MFIO_MUX_PIN_GROUP(83, MIPS_PLL_LOCK, MIPS_TRACE_DATA, USB_DEBUG,
 			   PADS_FUNCTION_SELECT2, 14, 0x3),
-	MFIO_MUX_PIN_GROUP(84, SYS_PLL_LOCK, MIPS_TRACE_DATA, USB_DEBUG,
+	MFIO_MUX_PIN_GROUP(84, AUDIO_PLL_LOCK, MIPS_TRACE_DATA, USB_DEBUG,
 			   PADS_FUNCTION_SELECT2, 16, 0x3),
-	MFIO_MUX_PIN_GROUP(85, WIFI_PLL_LOCK, MIPS_TRACE_DATA, SDHOST_DEBUG,
+	MFIO_MUX_PIN_GROUP(85, RPU_V_PLL_LOCK, MIPS_TRACE_DATA, SDHOST_DEBUG,
 			   PADS_FUNCTION_SELECT2, 18, 0x3),
-	MFIO_MUX_PIN_GROUP(86, BT_PLL_LOCK, MIPS_TRACE_DATA, SDHOST_DEBUG,
+	MFIO_MUX_PIN_GROUP(86, RPU_L_PLL_LOCK, MIPS_TRACE_DATA, SDHOST_DEBUG,
 			   PADS_FUNCTION_SELECT2, 20, 0x3),
-	MFIO_MUX_PIN_GROUP(87, RPU_V_PLL_LOCK, DREQ2, SOCIF_DEBUG,
+	MFIO_MUX_PIN_GROUP(87, SYS_PLL_LOCK, DREQ2, SOCIF_DEBUG,
 			   PADS_FUNCTION_SELECT2, 22, 0x3),
-	MFIO_MUX_PIN_GROUP(88, RPU_L_PLL_LOCK, DREQ3, SOCIF_DEBUG,
+	MFIO_MUX_PIN_GROUP(88, WIFI_PLL_LOCK, DREQ3, SOCIF_DEBUG,
 			   PADS_FUNCTION_SELECT2, 24, 0x3),
-	MFIO_MUX_PIN_GROUP(89, AUDIO_PLL_LOCK, DREQ4, DREQ5,
+	MFIO_MUX_PIN_GROUP(89, BT_PLL_LOCK, DREQ4, DREQ5,
 			   PADS_FUNCTION_SELECT2, 26, 0x3),
 	PIN_GROUP(TCK, "tck"),
 	PIN_GROUP(TRSTN, "trstn"),
@@ -913,7 +913,7 @@ static const struct pinctrl_ops pistachio_pinctrl_ops = {
 	.get_group_name = pistachio_pinctrl_get_group_name,
 	.get_group_pins = pistachio_pinctrl_get_group_pins,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int pistachio_pinmux_get_functions_count(struct pinctrl_dev *pctldev)
@@ -1432,7 +1432,6 @@ static int pistachio_pinctrl_probe(struct platform_device *pdev)
 {
 	struct pistachio_pinctrl *pctl;
 	struct resource *res;
-	int ret;
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
@@ -1457,20 +1456,14 @@ static int pistachio_pinctrl_probe(struct platform_device *pdev)
 	pistachio_pinctrl_desc.pins = pctl->pins;
 	pistachio_pinctrl_desc.npins = pctl->npins;
 
-	pctl->pctldev = pinctrl_register(&pistachio_pinctrl_desc, &pdev->dev,
-					 pctl);
+	pctl->pctldev = devm_pinctrl_register(&pdev->dev, &pistachio_pinctrl_desc,
+					      pctl);
 	if (IS_ERR(pctl->pctldev)) {
 		dev_err(&pdev->dev, "Failed to register pinctrl device\n");
 		return PTR_ERR(pctl->pctldev);
 	}
 
-	ret = pistachio_gpio_register(pctl);
-	if (ret < 0) {
-		pinctrl_unregister(pctl->pctldev);
-		return ret;
-	}
-
-	return 0;
+	return pistachio_gpio_register(pctl);
 }
 
 static struct platform_driver pistachio_pinctrl_driver = {

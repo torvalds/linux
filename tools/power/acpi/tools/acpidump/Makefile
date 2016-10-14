@@ -31,6 +31,7 @@ TOOL_OBJS = \
 	osunixxf.o\
 	tbprint.o\
 	tbxfroot.o\
+	utascii.o\
 	utbuffer.o\
 	utdebug.o\
 	utexcep.o\

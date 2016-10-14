@@ -40,6 +40,8 @@ FEATURE_TESTS_BASIC :=			\
 	libbfd				\
 	libelf				\
 	libelf-getphdrnum		\
+	libelf-gelf_getnote		\
+	libelf-getshdrstrndx		\
 	libelf-mmap			\
 	libnuma				\
 	numa_num_possible_cpus		\
@@ -49,6 +51,10 @@ FEATURE_TESTS_BASIC :=			\
 	libslang			\
 	libcrypto			\
 	libunwind			\
+	libunwind-x86			\
+	libunwind-x86_64		\
+	libunwind-arm			\
+	libunwind-aarch64		\
 	pthread-attr-setaffinity-np	\
 	stackprotector-all		\
 	timerfd				\
@@ -56,7 +62,8 @@ FEATURE_TESTS_BASIC :=			\
 	zlib				\
 	lzma				\
 	get_cpuid			\
-	bpf
+	bpf				\
+	sdt
 
 # FEATURE_TESTS_BASIC + FEATURE_TESTS_EXTRA is the complete list
 # of all feature tests
@@ -69,7 +76,9 @@ FEATURE_TESTS_EXTRA :=			\
 	libbabeltrace			\
 	liberty				\
 	liberty-z			\
-	libunwind-debug-frame
+	libunwind-debug-frame		\
+	libunwind-debug-frame-arm	\
+	libunwind-debug-frame-aarch64
 
 FEATURE_TESTS ?= $(FEATURE_TESTS_BASIC)
 

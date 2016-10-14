@@ -125,19 +125,13 @@ raw3270_request_final(struct raw3270_request *rq)
 
 void raw3270_buffer_address(struct raw3270 *, char *, unsigned short);
 
-/* Return value of *intv (see raw3270_fn below) can be one of the following: */
-#define RAW3270_IO_DONE		0	/* request finished */
-#define RAW3270_IO_BUSY		1	/* request still active */
-#define RAW3270_IO_RETRY	2	/* retry current request */
-#define RAW3270_IO_STOP		3	/* kill current request */
-
 /*
  * Functions of a 3270 view.
  */
 struct raw3270_fn {
 	int  (*activate)(struct raw3270_view *);
 	void (*deactivate)(struct raw3270_view *);
-	int  (*intv)(struct raw3270_view *,
+	void (*intv)(struct raw3270_view *,
 		     struct raw3270_request *, struct irb *);
 	void (*release)(struct raw3270_view *);
 	void (*free)(struct raw3270_view *);

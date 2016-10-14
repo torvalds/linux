@@ -844,7 +844,7 @@ static int st_pctl_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static const inline struct st_pctl_group *st_pctl_find_group_by_name(
+static inline const struct st_pctl_group *st_pctl_find_group_by_name(
 	const struct st_pinctrl *info, const char *name)
 {
 	int i;
@@ -1724,7 +1724,7 @@ static int st_pctl_probe(struct platform_device *pdev)
 	pctl_desc->confops	= &st_confops;
 	pctl_desc->name		= dev_name(&pdev->dev);
 
-	info->pctl = pinctrl_register(pctl_desc, &pdev->dev, info);
+	info->pctl = devm_pinctrl_register(&pdev->dev, pctl_desc, info);
 	if (IS_ERR(info->pctl)) {
 		dev_err(&pdev->dev, "Failed pinctrl registration\n");
 		return PTR_ERR(info->pctl);

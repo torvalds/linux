@@ -138,12 +138,13 @@ static bool omap_atomic_is_pending(struct omap_drm_private *priv,
 }
 
 static int omap_atomic_commit(struct drm_device *dev,
-			      struct drm_atomic_state *state, bool async)
+			      struct drm_atomic_state *state, bool nonblock)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_atomic_state_commit *commit;
-	unsigned int i;
-	int ret;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	int i, ret;
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
 	if (ret)
@@ -163,10 +164,8 @@ static int omap_atomic_commit(struct drm_device *dev,
 	/* Wait until all affected CRTCs have completed previous commits and
 	 * mark them as pending.
 	 */
-	for (i = 0; i < dev->mode_config.num_crtc; ++i) {
-		if (state->crtcs[i])
-			commit->crtcs |= 1 << drm_crtc_index(state->crtcs[i]);
-	}
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
+		commit->crtcs |= drm_crtc_mask(crtc);
 
 	wait_event(priv->commit.wait, !omap_atomic_is_pending(priv, commit));
 
@@ -175,9 +174,9 @@ static int omap_atomic_commit(struct drm_device *dev,
 	spin_unlock(&priv->commit.lock);
 
 	/* Swap the state, this is the point of no return. */
-	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_swap_state(state, true);
 
-	if (async)
+	if (nonblock)
 		schedule_work(&commit->work);
 	else
 		omap_atomic_complete(commit);
@@ -203,6 +202,8 @@ static int get_connector_type(struct omap_dss_device *dssdev)
 		return DRM_MODE_CONNECTOR_HDMIA;
 	case OMAP_DISPLAY_TYPE_DVI:
 		return DRM_MODE_CONNECTOR_DVID;
+	case OMAP_DISPLAY_TYPE_DSI:
+		return DRM_MODE_CONNECTOR_DSI;
 	default:
 		return DRM_MODE_CONNECTOR_Unknown;
 	}
@@ -561,7 +562,7 @@ static int ioctl_gem_cpu_prep(struct drm_device *dev, void *data,
 
 	VERB("%p:%p: handle=%d, op=%x", dev, file_priv, args->handle, args->op);
 
-	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!obj)
 		return -ENOENT;
 
@@ -584,7 +585,7 @@ static int ioctl_gem_cpu_fini(struct drm_device *dev, void *data,
 
 	VERB("%p:%p: handle=%d", dev, file_priv, args->handle);
 
-	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!obj)
 		return -ENOENT;
 
@@ -608,7 +609,7 @@ static int ioctl_gem_info(struct drm_device *dev, void *data,
 
 	VERB("%p:%p: handle=%d", dev, file_priv, args->handle);
 
-	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!obj)
 		return -ENOENT;
 
@@ -800,7 +801,6 @@ static struct drm_driver omap_drm_driver = {
 	.unload = dev_unload,
 	.open = dev_open,
 	.lastclose = dev_lastclose,
-	.set_busid = drm_platform_set_busid,
 	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = omap_irq_enable_vblank,
 	.disable_vblank = omap_irq_disable_vblank,

@@ -2,12 +2,9 @@ config DRM_ROCKCHIP
 	tristate "DRM Support for Rockchip"
 	depends on DRM && ROCKCHIP_IOMMU
 	depends on RESET_CONTROLLER
+	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_HELPER
-	select DRM_KMS_FB_HELPER
 	select DRM_PANEL
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
 	select VIDEOMODE_HELPERS
 	help
 	  Choose this option if you have a Rockchip soc chipset.
@@ -15,6 +12,15 @@ config DRM_ROCKCHIP
 	  management to userspace. This driver does not provide
 	  2D or 3D acceleration; acceleration is performed by other
 	  IP found on the SoC.
+
+config ROCKCHIP_ANALOGIX_DP
+	tristate "Rockchip specific extensions for Analogix DP driver"
+	depends on DRM_ROCKCHIP
+	select DRM_ANALOGIX_DP
+	help
+	  This selects support for Rockchip SoC specific extensions
+	  for the Analogix Core DP driver. If you want to enable DP
+	  on RK3288 based SoC, you should selet this option.
 
 config ROCKCHIP_DW_HDMI
         tristate "Rockchip specific extensions for Synopsys DW HDMI"

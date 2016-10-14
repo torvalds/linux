@@ -2417,7 +2417,7 @@ static void bnx2i_process_conn_destroy_cmpl(struct bnx2i_hba *hba,
 	ep = bnx2i_find_ep_in_destroy_list(hba, conn_destroy->iscsi_conn_id);
 	if (!ep) {
 		printk(KERN_ALERT "bnx2i_conn_destroy_cmpl: no pending "
-				  "offload request, unexpected complection\n");
+				  "offload request, unexpected completion\n");
 		return;
 	}
 

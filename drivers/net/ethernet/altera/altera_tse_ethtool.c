@@ -233,40 +233,18 @@ static void tse_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 		buf[i] = csrrd32(priv->mac_dev, i * 4);
 }
 
-static int tse_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct altera_tse_private *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
-
-	if (phydev == NULL)
-		return -ENODEV;
-
-	return phy_ethtool_gset(phydev, cmd);
-}
-
-static int tse_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct altera_tse_private *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
-
-	if (phydev == NULL)
-		return -ENODEV;
-
-	return phy_ethtool_sset(phydev, cmd);
-}
-
 static const struct ethtool_ops tse_ethtool_ops = {
 	.get_drvinfo = tse_get_drvinfo,
 	.get_regs_len = tse_reglen,
 	.get_regs = tse_get_regs,
 	.get_link = ethtool_op_get_link,
-	.get_settings = tse_get_settings,
-	.set_settings = tse_set_settings,
 	.get_strings = tse_gstrings,
 	.get_sset_count = tse_sset_count,
 	.get_ethtool_stats = tse_fill_stats,
 	.get_msglevel = tse_get_msglevel,
 	.set_msglevel = tse_set_msglevel,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
 void altera_tse_set_ethtool_ops(struct net_device *netdev)

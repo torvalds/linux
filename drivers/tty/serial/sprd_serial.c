@@ -654,7 +654,7 @@ static int sprd_probe_dt_alias(int index, struct device *dev)
 		return ret;
 
 	ret = of_alias_get_id(np, "serial");
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		ret = index;
 	else if (ret >= ARRAY_SIZE(sprd_port) || sprd_port[ret] != NULL) {
 		dev_warn(dev, "requested serial port %d not available.\n", ret);

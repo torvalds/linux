@@ -624,19 +624,21 @@ static void ast_crtc_reset(struct drm_crtc *crtc)
 
 }
 
-static void ast_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				 u16 *blue, uint32_t start, uint32_t size)
+static int ast_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
+			      u16 *blue, uint32_t size)
 {
 	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
-	int end = (start + size > 256) ? 256 : start + size, i;
+	int i;
 
 	/* userspace palettes are always correct as is */
-	for (i = start; i < end; i++) {
+	for (i = 0; i < size; i++) {
 		ast_crtc->lut_r[i] = red[i] >> 8;
 		ast_crtc->lut_g[i] = green[i] >> 8;
 		ast_crtc->lut_b[i] = blue[i] >> 8;
 	}
 	ast_crtc_load_lut(crtc);
+
+	return 0;
 }
 
 
@@ -1141,7 +1143,7 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 	if (width > AST_MAX_HWC_WIDTH || height > AST_MAX_HWC_HEIGHT)
 		return -EINVAL;
 
-	obj = drm_gem_object_lookup(crtc->dev, file_priv, handle);
+	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj) {
 		DRM_ERROR("Cannot find cursor object %x for crtc\n", handle);
 		return -ENOENT;

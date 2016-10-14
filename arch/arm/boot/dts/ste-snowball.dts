@@ -50,35 +50,35 @@
 			wakeup-source;
 			linux,code = <2>;
 			label = "userpb";
-			gpios = <&gpio1 0 0x4>;
+			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
 		};
 		button@2 {
 			debounce_interval = <50>;
 			wakeup-source;
 			linux,code = <3>;
 			label = "extkb1";
-			gpios = <&gpio4 23 0x4>;
+			gpios = <&gpio4 23 GPIO_ACTIVE_HIGH>;
 		};
 		button@3 {
 			debounce_interval = <50>;
 			wakeup-source;
 			linux,code = <4>;
 			label = "extkb2";
-			gpios = <&gpio4 24 0x4>;
+			gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>;
 		};
 		button@4 {
 			debounce_interval = <50>;
 			wakeup-source;
 			linux,code = <5>;
 			label = "extkb3";
-			gpios = <&gpio5 1 0x4>;
+			gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
 		};
 		button@5 {
 			debounce_interval = <50>;
 			wakeup-source;
 			linux,code = <6>;
 			label = "extkb4";
-			gpios = <&gpio5 2 0x4>;
+			gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -88,13 +88,77 @@
 		pinctrl-0 = <&gpioled_snowball_mode>;
 		used-led {
 			label = "user_led";
-			gpios = <&gpio4 14 0x4>;
+			gpios = <&gpio4 14 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
 		};
 	};
 
 	soc {
+		/* Name the GPIO muxed rails on the Snowball board */
+		gpio@8012e000 {
+			/* GPIOs 0 - 31 */
+			gpio-line-names = "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "",
+				     "AP_GPIO31";
+		};
+
+		gpio@8012e080 {
+			/* GPIOs 32 - 63 */
+			gpio-line-names = "USR PB", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "";
+		};
+
+		gpio@8000e000 {
+			/* GPIOs 64 - 95 */
+			gpio-line-names = "", "", "", "", "AP_GPIO68", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "";
+		};
+
+		gpio@8000e100 {
+			/* GPIOs 128 - 159 */
+			gpio-line-names = "", "", "", "", "", "", "", "",
+				     "", "", "", "", "IRQ_LAN", "RSTn_LAN",
+				     "USR_LED", "", "", "", "", "", "",
+				     "", "", "AP_GPIO151", "AP_GPIO152",
+				     "", "", "", "", "", "", "";
+		};
+
+		gpio@8000e180 {
+			/* GPIOs 160 - 191 */
+			gpio-line-names = "", "AP_GPIO161", "AP_GPIO162",
+				     "ACCELEROMETER_INT1_RDY",
+				     "ACCELEROMETER_INT2", "MAG_DRDY",
+				     "GYRO_DRDY", "RSTn_MLC", "RSTn_SLC",
+				     "GYRO_INT", "UART_WAKE", "GBF_RESET",
+				     "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "";
+		};
+
+		gpio@8011e000 {
+			/* GPIOs 192 - 223 */
+			gpio-line-names = "HDTV_INTn", "", "", "", "HDTV_RST",
+				     "", "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "", "",
+				     "WLAN_RESETN", "WLAN_IRQ", "MMC_EN",
+				     "MMC_CD", "", "", "", "", "";
+		};
+
+		gpio@8011e080 {
+			/* GPIOs 224 - 255 */
+			gpio-line-names = "", "", "", "", "SD_SEL", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "";
+		};
+
 		usb_per5@a03e0000 {
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&musb_default_mode>;
@@ -155,8 +219,8 @@
 		vmmci: regulator-gpio {
 			compatible = "regulator-gpio";
 
-			gpios = <&gpio7 4 0x4>;
-			enable-gpio = <&gpio6 25 0x4>;
+			gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
+			enable-gpio = <&gpio6 25 GPIO_ACTIVE_HIGH>;
 
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <2900000>;
@@ -182,8 +246,7 @@
 			pinctrl-0 = <&sdi0_default_mode>;
 			pinctrl-1 = <&sdi0_sleep_mode>;
 
-			cd-gpios  = <&gpio6 26 0x4>; // 218
-			cd-inverted;
+			cd-gpios  = <&gpio6 26 GPIO_ACTIVE_LOW>; // 218
 
 			status = "okay";
 		};
@@ -353,7 +416,25 @@
 
 			ab8500 {
 				ab8500-gpio {
-					compatible = "stericsson,ab8500-gpio";
+					/*
+					 * AB8500 GPIOs are numbered starting from 1, so the first
+					 * index 0 is what in the datasheet is called "GPIO1", and
+					 * the second is "GPIO2" and so forth. Confusingly, the
+					 * Snowball schematic then names the "GPIO2" line "PM_GPIO1".
+					 * while later naming "GPIO4" as "PM_GPIO4".
+					 */
+					gpio-line-names = "", /* AB8500 GPIO1 */
+						     "PM_GPIO1", /* AB8500 GPIO2 */
+						     "WLAN_CLK_REQ", /* AB8500 GPIO3 */
+						     "PM_GPIO4", /* AB8500 GPIO4 */
+						     "", "", "", "", "", "", "", "", "", "", "",
+						     "EN_3V6", /* AB8500 GPIO16 */
+						     "", "", "", "" ,"", "", "", "", "",
+						     "EN_3V3", /* AB8500 GPIO26 */
+						     "", "", "", "", "", "", "", "", "", "", "", "", "",
+						     "PM_GPIO40", /* AB8500 GPIO40 */
+						     "PM_GPIO41", /* AB8500 GPIO41 */
+						     "PM_GPIO42"; /* AB8500 GPIO42 */
 				};
 
 				ext_regulators: ab8500-ext-regulators {

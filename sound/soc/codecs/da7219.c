@@ -11,9 +11,11 @@
  * option) any later version.
  */
 
+#include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/i2c.h>
 #include <linux/of_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/pm.h>
@@ -1025,7 +1027,7 @@ static int da7219_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	if ((da7219->clk_src == clk_id) && (da7219->mclk_rate == freq))
 		return 0;
 
-	if (((freq < 2000000) && (freq != 32768)) || (freq > 54000000)) {
+	if ((freq < 2000000) || (freq > 54000000)) {
 		dev_err(codec_dai->dev, "Unsupported MCLK value %d\n",
 			freq);
 		return -EINVAL;
@@ -1079,21 +1081,21 @@ static int da7219_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 		dev_err(codec->dev, "PLL input clock %d below valid range\n",
 			da7219->mclk_rate);
 		return -EINVAL;
-	} else if (da7219->mclk_rate <= 5000000) {
-		indiv_bits = DA7219_PLL_INDIV_2_5_MHZ;
-		indiv = DA7219_PLL_INDIV_2_5_MHZ_VAL;
-	} else if (da7219->mclk_rate <= 10000000) {
-		indiv_bits = DA7219_PLL_INDIV_5_10_MHZ;
-		indiv = DA7219_PLL_INDIV_5_10_MHZ_VAL;
-	} else if (da7219->mclk_rate <= 20000000) {
-		indiv_bits = DA7219_PLL_INDIV_10_20_MHZ;
-		indiv = DA7219_PLL_INDIV_10_20_MHZ_VAL;
-	} else if (da7219->mclk_rate <= 40000000) {
-		indiv_bits = DA7219_PLL_INDIV_20_40_MHZ;
-		indiv = DA7219_PLL_INDIV_20_40_MHZ_VAL;
+	} else if (da7219->mclk_rate <= 4500000) {
+		indiv_bits = DA7219_PLL_INDIV_2_TO_4_5_MHZ;
+		indiv = DA7219_PLL_INDIV_2_TO_4_5_MHZ_VAL;
+	} else if (da7219->mclk_rate <= 9000000) {
+		indiv_bits = DA7219_PLL_INDIV_4_5_TO_9_MHZ;
+		indiv = DA7219_PLL_INDIV_4_5_TO_9_MHZ_VAL;
+	} else if (da7219->mclk_rate <= 18000000) {
+		indiv_bits = DA7219_PLL_INDIV_9_TO_18_MHZ;
+		indiv = DA7219_PLL_INDIV_9_TO_18_MHZ_VAL;
+	} else if (da7219->mclk_rate <= 36000000) {
+		indiv_bits = DA7219_PLL_INDIV_18_TO_36_MHZ;
+		indiv = DA7219_PLL_INDIV_18_TO_36_MHZ_VAL;
 	} else if (da7219->mclk_rate <= 54000000) {
-		indiv_bits = DA7219_PLL_INDIV_40_54_MHZ;
-		indiv = DA7219_PLL_INDIV_40_54_MHZ_VAL;
+		indiv_bits = DA7219_PLL_INDIV_36_TO_54_MHZ;
+		indiv = DA7219_PLL_INDIV_36_TO_54_MHZ_VAL;
 	} else {
 		dev_err(codec->dev, "PLL input clock %d above valid range\n",
 			da7219->mclk_rate);
@@ -1417,7 +1419,7 @@ static struct snd_soc_dai_driver da7219_dai = {
 
 
 /*
- * DT
+ * DT/ACPI
  */
 
 static const struct of_device_id da7219_of_match[] = {
@@ -1426,8 +1428,14 @@ static const struct of_device_id da7219_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, da7219_of_match);
 
+static const struct acpi_device_id da7219_acpi_match[] = {
+	{ .id = "DLGS7219", },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, da7219_acpi_match);
+
 static enum da7219_micbias_voltage
-	da7219_of_micbias_lvl(struct snd_soc_codec *codec, u32 val)
+	da7219_fw_micbias_lvl(struct device *dev, u32 val)
 {
 	switch (val) {
 	case 1600:
@@ -1443,13 +1451,13 @@ static enum da7219_micbias_voltage
 	case 2600:
 		return DA7219_MICBIAS_2_6V;
 	default:
-		dev_warn(codec->dev, "Invalid micbias level");
+		dev_warn(dev, "Invalid micbias level");
 		return DA7219_MICBIAS_2_2V;
 	}
 }
 
 static enum da7219_mic_amp_in_sel
-	da7219_of_mic_amp_in_sel(struct snd_soc_codec *codec, const char *str)
+	da7219_fw_mic_amp_in_sel(struct device *dev, const char *str)
 {
 	if (!strcmp(str, "diff")) {
 		return DA7219_MIC_AMP_IN_SEL_DIFF;
@@ -1458,29 +1466,29 @@ static enum da7219_mic_amp_in_sel
 	} else if (!strcmp(str, "se_n")) {
 		return DA7219_MIC_AMP_IN_SEL_SE_N;
 	} else {
-		dev_warn(codec->dev, "Invalid mic input type selection");
+		dev_warn(dev, "Invalid mic input type selection");
 		return DA7219_MIC_AMP_IN_SEL_DIFF;
 	}
 }
 
-static struct da7219_pdata *da7219_of_to_pdata(struct snd_soc_codec *codec)
+static struct da7219_pdata *da7219_fw_to_pdata(struct snd_soc_codec *codec)
 {
-	struct device_node *np = codec->dev->of_node;
+	struct device *dev = codec->dev;
 	struct da7219_pdata *pdata;
 	const char *of_str;
 	u32 of_val32;
 
-	pdata = devm_kzalloc(codec->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
 
-	if (of_property_read_u32(np, "dlg,micbias-lvl", &of_val32) >= 0)
-		pdata->micbias_lvl = da7219_of_micbias_lvl(codec, of_val32);
+	if (device_property_read_u32(dev, "dlg,micbias-lvl", &of_val32) >= 0)
+		pdata->micbias_lvl = da7219_fw_micbias_lvl(dev, of_val32);
 	else
 		pdata->micbias_lvl = DA7219_MICBIAS_2_2V;
 
-	if (!of_property_read_string(np, "dlg,mic-amp-in-sel", &of_str))
-		pdata->mic_amp_in_sel = da7219_of_mic_amp_in_sel(codec, of_str);
+	if (!device_property_read_string(dev, "dlg,mic-amp-in-sel", &of_str))
+		pdata->mic_amp_in_sel = da7219_fw_mic_amp_in_sel(dev, of_str);
 	else
 		pdata->mic_amp_in_sel = DA7219_MIC_AMP_IN_SEL_DIFF;
 
@@ -1655,11 +1663,10 @@ static int da7219_probe(struct snd_soc_codec *codec)
 		break;
 	}
 
-	/* Handle DT/Platform data */
-	if (codec->dev->of_node)
-		da7219->pdata = da7219_of_to_pdata(codec);
-	else
-		da7219->pdata = dev_get_platdata(codec->dev);
+	/* Handle DT/ACPI/Platform data */
+	da7219->pdata = dev_get_platdata(codec->dev);
+	if (!da7219->pdata)
+		da7219->pdata = da7219_fw_to_pdata(codec);
 
 	da7219_handle_pdata(codec);
 
@@ -1955,6 +1962,7 @@ static struct i2c_driver da7219_i2c_driver = {
 	.driver = {
 		.name = "da7219",
 		.of_match_table = of_match_ptr(da7219_of_match),
+		.acpi_match_table = ACPI_PTR(da7219_acpi_match),
 	},
 	.probe		= da7219_i2c_probe,
 	.remove		= da7219_i2c_remove,

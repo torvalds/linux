@@ -18,7 +18,6 @@
 
 #include <media/videobuf2-v4l2.h>
 
-#include "vsp1_pipe.h"
 #include "vsp1_rwpf.h"
 
 struct vsp1_vb2_buffer {
@@ -44,14 +43,11 @@ struct vsp1_video {
 
 	struct mutex lock;
 
-	struct vsp1_pipeline pipe;
 	unsigned int pipe_index;
 
 	struct vb2_queue queue;
-	void *alloc_ctx;
 	spinlock_t irqlock;
 	struct list_head irqqueue;
-	unsigned int sequence;
 };
 
 static inline struct vsp1_video *to_vsp1_video(struct video_device *vdev)

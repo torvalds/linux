@@ -2,7 +2,7 @@
  *  Ralink MT7620A SoC PCI support
  *
  *  Copyright (C) 2007-2013 Bruce Chang (Mediatek)
- *  Copyright (C) 2013-2016 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2013-2016 John Crispin <john@phrozen.org>
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License version 2 as published

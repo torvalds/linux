@@ -271,14 +271,12 @@ struct rpc_xprt *xprt_iter_next_entry_multiple(struct rpc_xprt_iter *xpi,
 		xprt_switch_find_xprt_t find_next)
 {
 	struct rpc_xprt_switch *xps = rcu_dereference(xpi->xpi_xpswitch);
-	struct list_head *head;
 
 	if (xps == NULL)
 		return NULL;
-	head = &xps->xps_xprt_list;
-	if (xps->xps_nxprts < 2)
-		return xprt_switch_find_first_entry(head);
-	return xprt_switch_set_next_cursor(head, &xpi->xpi_cursor, find_next);
+	return xprt_switch_set_next_cursor(&xps->xps_xprt_list,
+			&xpi->xpi_cursor,
+			find_next);
 }
 
 static

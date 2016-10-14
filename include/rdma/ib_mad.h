@@ -239,12 +239,15 @@ struct ib_vendor_mad {
 
 #define IB_MGMT_CLASSPORTINFO_ATTR_ID	cpu_to_be16(0x0001)
 
+#define IB_CLASS_PORT_INFO_RESP_TIME_MASK	0x1F
+#define IB_CLASS_PORT_INFO_RESP_TIME_FIELD_SIZE 5
+
 struct ib_class_port_info {
 	u8			base_version;
 	u8			class_version;
 	__be16			capability_mask;
-	u8			reserved[3];
-	u8			resp_time_value;
+	  /* 27 bits for cap_mask2, 5 bits for resp_time */
+	__be32			cap_mask2_resp_time;
 	u8			redirect_gid[16];
 	__be32			redirect_tcslfl;
 	__be16			redirect_lid;
@@ -258,6 +261,59 @@ struct ib_class_port_info {
 	__be32			trap_hlqp;
 	__be32			trap_qkey;
 };
+
+/**
+ * ib_get_cpi_resp_time - Returns the resp_time value from
+ * cap_mask2_resp_time in ib_class_port_info.
+ * @cpi: A struct ib_class_port_info mad.
+ */
+static inline u8 ib_get_cpi_resp_time(struct ib_class_port_info *cpi)
+{
+	return (u8)(be32_to_cpu(cpi->cap_mask2_resp_time) &
+		    IB_CLASS_PORT_INFO_RESP_TIME_MASK);
+}
+
+/**
+ * ib_set_cpi_resptime - Sets the response time in an
+ * ib_class_port_info mad.
+ * @cpi: A struct ib_class_port_info.
+ * @rtime: The response time to set.
+ */
+static inline void ib_set_cpi_resp_time(struct ib_class_port_info *cpi,
+					u8 rtime)
+{
+	cpi->cap_mask2_resp_time =
+		(cpi->cap_mask2_resp_time &
+		 cpu_to_be32(~IB_CLASS_PORT_INFO_RESP_TIME_MASK)) |
+		cpu_to_be32(rtime & IB_CLASS_PORT_INFO_RESP_TIME_MASK);
+}
+
+/**
+ * ib_get_cpi_capmask2 - Returns the capmask2 value from
+ * cap_mask2_resp_time in ib_class_port_info.
+ * @cpi: A struct ib_class_port_info mad.
+ */
+static inline u32 ib_get_cpi_capmask2(struct ib_class_port_info *cpi)
+{
+	return (be32_to_cpu(cpi->cap_mask2_resp_time) >>
+		IB_CLASS_PORT_INFO_RESP_TIME_FIELD_SIZE);
+}
+
+/**
+ * ib_set_cpi_capmask2 - Sets the capmask2 in an
+ * ib_class_port_info mad.
+ * @cpi: A struct ib_class_port_info.
+ * @capmask2: The capmask2 to set.
+ */
+static inline void ib_set_cpi_capmask2(struct ib_class_port_info *cpi,
+				       u32 capmask2)
+{
+	cpi->cap_mask2_resp_time =
+		(cpi->cap_mask2_resp_time &
+		 cpu_to_be32(IB_CLASS_PORT_INFO_RESP_TIME_MASK)) |
+		cpu_to_be32(capmask2 <<
+			    IB_CLASS_PORT_INFO_RESP_TIME_FIELD_SIZE);
+}
 
 struct ib_mad_notice_attr {
 	u8 generic_type;

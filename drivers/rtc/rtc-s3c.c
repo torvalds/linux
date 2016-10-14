@@ -149,12 +149,14 @@ static int s3c_rtc_setfreq(struct s3c_rtc *info, int freq)
 	if (!is_power_of_2(freq))
 		return -EINVAL;
 
+	s3c_rtc_enable_clk(info);
 	spin_lock_irq(&info->pie_lock);
 
 	if (info->data->set_freq)
 		info->data->set_freq(info, freq);
 
 	spin_unlock_irq(&info->pie_lock);
+	s3c_rtc_disable_clk(info);
 
 	return 0;
 }
@@ -264,35 +266,23 @@ static int s3c_rtc_getalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	/* decode the alarm enable field */
 	if (alm_en & S3C2410_RTCALM_SECEN)
 		alm_tm->tm_sec = bcd2bin(alm_tm->tm_sec);
-	else
-		alm_tm->tm_sec = -1;
 
 	if (alm_en & S3C2410_RTCALM_MINEN)
 		alm_tm->tm_min = bcd2bin(alm_tm->tm_min);
-	else
-		alm_tm->tm_min = -1;
 
 	if (alm_en & S3C2410_RTCALM_HOUREN)
 		alm_tm->tm_hour = bcd2bin(alm_tm->tm_hour);
-	else
-		alm_tm->tm_hour = -1;
 
 	if (alm_en & S3C2410_RTCALM_DAYEN)
 		alm_tm->tm_mday = bcd2bin(alm_tm->tm_mday);
-	else
-		alm_tm->tm_mday = -1;
 
 	if (alm_en & S3C2410_RTCALM_MONEN) {
 		alm_tm->tm_mon = bcd2bin(alm_tm->tm_mon);
 		alm_tm->tm_mon -= 1;
-	} else {
-		alm_tm->tm_mon = -1;
 	}
 
 	if (alm_en & S3C2410_RTCALM_YEAREN)
 		alm_tm->tm_year = bcd2bin(alm_tm->tm_year);
-	else
-		alm_tm->tm_year = -1;
 
 	return 0;
 }
@@ -576,8 +566,6 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 		info->data->select_tick_clk(info);
 
 	s3c_rtc_setfreq(info, 1);
-
-	s3c_rtc_disable_clk(info);
 
 	return 0;
 

@@ -431,7 +431,7 @@ CONTENTS
 
  -deadline tasks cannot have an affinity mask smaller that the entire
  root_domain they are created on. However, affinities can be specified
- through the cpuset facility (Documentation/cgroups/cpusets.txt).
+ through the cpuset facility (Documentation/cgroup-v1/cpusets.txt).
 
 5.1 SCHED_DEADLINE and cpusets HOWTO
 ------------------------------------

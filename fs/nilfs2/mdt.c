@@ -13,11 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
- * Written by Ryusuke Konishi <ryusuke@osrg.net>
+ * Written by Ryusuke Konishi.
  */
 
 #include <linux/buffer_head.h>
@@ -32,6 +28,7 @@
 #include "segment.h"
 #include "page.h"
 #include "mdt.h"
+#include "alloc.h"		/* nilfs_palloc_destroy_cache() */
 
 #include <trace/events/nilfs2.h>
 
@@ -124,7 +121,7 @@ static int nilfs_mdt_create_block(struct inode *inode, unsigned long block,
 
 static int
 nilfs_mdt_submit_block(struct inode *inode, unsigned long blkoff,
-		       int mode, struct buffer_head **out_bh)
+		       int mode, int mode_flags, struct buffer_head **out_bh)
 {
 	struct buffer_head *bh;
 	__u64 blknum = 0;
@@ -138,7 +135,7 @@ nilfs_mdt_submit_block(struct inode *inode, unsigned long blkoff,
 	if (buffer_uptodate(bh))
 		goto out;
 
-	if (mode == READA) {
+	if (mode_flags & REQ_RAHEAD) {
 		if (!trylock_buffer(bh)) {
 			ret = -EBUSY;
 			goto failed_bh;
@@ -160,7 +157,7 @@ nilfs_mdt_submit_block(struct inode *inode, unsigned long blkoff,
 
 	bh->b_end_io = end_buffer_read_sync;
 	get_bh(bh);
-	submit_bh(mode, bh);
+	submit_bh(mode, mode_flags, bh);
 	ret = 0;
 
 	trace_nilfs2_mdt_submit_block(inode, inode->i_ino, blkoff, mode);
@@ -184,7 +181,7 @@ static int nilfs_mdt_read_block(struct inode *inode, unsigned long block,
 	int i, nr_ra_blocks = NILFS_MDT_MAX_RA_BLOCKS;
 	int err;
 
-	err = nilfs_mdt_submit_block(inode, block, READ, &first_bh);
+	err = nilfs_mdt_submit_block(inode, block, REQ_OP_READ, 0, &first_bh);
 	if (err == -EEXIST) /* internal code */
 		goto out;
 
@@ -194,7 +191,8 @@ static int nilfs_mdt_read_block(struct inode *inode, unsigned long block,
 	if (readahead) {
 		blkoff = block + 1;
 		for (i = 0; i < nr_ra_blocks; i++, blkoff++) {
-			err = nilfs_mdt_submit_block(inode, blkoff, READA, &bh);
+			err = nilfs_mdt_submit_block(inode, blkoff, REQ_OP_READ,
+						     REQ_RAHEAD, &bh);
 			if (likely(!err || err == -EEXIST))
 				brelse(bh);
 			else if (err != -EBUSY)
@@ -209,8 +207,12 @@ static int nilfs_mdt_read_block(struct inode *inode, unsigned long block,
 
  out_no_wait:
 	err = -EIO;
-	if (!buffer_uptodate(first_bh))
+	if (!buffer_uptodate(first_bh)) {
+		nilfs_msg(inode->i_sb, KERN_ERR,
+			  "I/O error reading meta-data file (ino=%lu, block-offset=%lu)",
+			  inode->i_ino, block);
 		goto failed_bh;
+	}
  out:
 	*out_bh = first_bh;
 	return 0;
@@ -393,34 +395,6 @@ int nilfs_mdt_forget_block(struct inode *inode, unsigned long block)
 	return ret;
 }
 
-/**
- * nilfs_mdt_mark_block_dirty - mark a block on the meta data file dirty.
- * @inode: inode of the meta data file
- * @block: block offset
- *
- * Return Value: On success, it returns 0. On error, the following negative
- * error code is returned.
- *
- * %-ENOMEM - Insufficient memory available.
- *
- * %-EIO - I/O error
- *
- * %-ENOENT - the specified block does not exist (hole block)
- */
-int nilfs_mdt_mark_block_dirty(struct inode *inode, unsigned long block)
-{
-	struct buffer_head *bh;
-	int err;
-
-	err = nilfs_mdt_read_block(inode, block, 0, &bh);
-	if (unlikely(err))
-		return err;
-	mark_buffer_dirty(bh);
-	nilfs_mdt_mark_dirty(inode);
-	brelse(bh);
-	return 0;
-}
-
 int nilfs_mdt_fetch_dirty(struct inode *inode)
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
@@ -497,8 +471,32 @@ int nilfs_mdt_init(struct inode *inode, gfp_t gfp_mask, size_t objsz)
 	return 0;
 }
 
-void nilfs_mdt_set_entry_size(struct inode *inode, unsigned entry_size,
-			      unsigned header_size)
+/**
+ * nilfs_mdt_clear - do cleanup for the metadata file
+ * @inode: inode of the metadata file
+ */
+void nilfs_mdt_clear(struct inode *inode)
+{
+	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
+
+	if (mdi->mi_palloc_cache)
+		nilfs_palloc_destroy_cache(inode);
+}
+
+/**
+ * nilfs_mdt_destroy - release resources used by the metadata file
+ * @inode: inode of the metadata file
+ */
+void nilfs_mdt_destroy(struct inode *inode)
+{
+	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
+
+	kfree(mdi->mi_bgl); /* kfree(NULL) is safe */
+	kfree(mdi);
+}
+
+void nilfs_mdt_set_entry_size(struct inode *inode, unsigned int entry_size,
+			      unsigned int header_size)
 {
 	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
 

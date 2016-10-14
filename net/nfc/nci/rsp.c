@@ -226,7 +226,7 @@ static void nci_core_conn_create_rsp_packet(struct nci_dev *ndev,
 					    struct sk_buff *skb)
 {
 	__u8 status = skb->data[0];
-	struct nci_conn_info *conn_info;
+	struct nci_conn_info *conn_info = NULL;
 	struct nci_core_conn_create_rsp *rsp;
 
 	pr_debug("status 0x%x\n", status);
@@ -241,7 +241,17 @@ static void nci_core_conn_create_rsp_packet(struct nci_dev *ndev,
 			goto exit;
 		}
 
-		conn_info->id = ndev->cur_id;
+		conn_info->dest_params = devm_kzalloc(&ndev->nfc_dev->dev,
+						sizeof(struct dest_spec_params),
+						GFP_KERNEL);
+		if (!conn_info->dest_params) {
+			status = NCI_STATUS_REJECTED;
+			goto free_conn_info;
+		}
+
+		conn_info->dest_type = ndev->cur_dest_type;
+		conn_info->dest_params->id = ndev->cur_params.id;
+		conn_info->dest_params->protocol = ndev->cur_params.protocol;
 		conn_info->conn_id = rsp->conn_id;
 
 		/* Note: data_exchange_cb and data_exchange_cb_context need to
@@ -251,7 +261,7 @@ static void nci_core_conn_create_rsp_packet(struct nci_dev *ndev,
 		INIT_LIST_HEAD(&conn_info->list);
 		list_add(&conn_info->list, &ndev->conn_info_list);
 
-		if (ndev->cur_id == ndev->hci_dev->nfcee_id)
+		if (ndev->cur_params.id == ndev->hci_dev->nfcee_id)
 			ndev->hci_dev->conn_info = conn_info;
 
 		conn_info->conn_id = rsp->conn_id;
@@ -259,7 +269,11 @@ static void nci_core_conn_create_rsp_packet(struct nci_dev *ndev,
 		atomic_set(&conn_info->credits_cnt, rsp->credits_cnt);
 	}
 
+free_conn_info:
+	if (status == NCI_STATUS_REJECTED)
+		devm_kfree(&ndev->nfc_dev->dev, conn_info);
 exit:
+
 	nci_req_complete(ndev, status);
 }
 
@@ -271,7 +285,8 @@ static void nci_core_conn_close_rsp_packet(struct nci_dev *ndev,
 
 	pr_debug("status 0x%x\n", status);
 	if (status == NCI_STATUS_OK) {
-		conn_info = nci_get_conn_info_by_conn_id(ndev, ndev->cur_id);
+		conn_info = nci_get_conn_info_by_conn_id(ndev,
+							 ndev->cur_conn_id);
 		if (conn_info) {
 			list_del(&conn_info->list);
 			devm_kfree(&ndev->nfc_dev->dev, conn_info);

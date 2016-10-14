@@ -500,9 +500,6 @@ static void inno_hdmi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct inno_hdmi *hdmi = to_inno_hdmi(encoder);
 
-	rockchip_drm_crtc_mode_config(encoder->crtc, DRM_MODE_CONNECTOR_HDMIA,
-				      ROCKCHIP_OUT_MODE_P888);
-
 	inno_hdmi_set_pwr_mode(hdmi, NORMAL);
 }
 
@@ -520,11 +517,25 @@ static bool inno_hdmi_encoder_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
+static int
+inno_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
+			       struct drm_crtc_state *crtc_state,
+			       struct drm_connector_state *conn_state)
+{
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+
+	s->output_mode = ROCKCHIP_OUT_MODE_P888;
+	s->output_type = DRM_MODE_CONNECTOR_HDMIA;
+
+	return 0;
+}
+
 static struct drm_encoder_helper_funcs inno_hdmi_encoder_helper_funcs = {
 	.enable     = inno_hdmi_encoder_enable,
 	.disable    = inno_hdmi_encoder_disable,
 	.mode_fixup = inno_hdmi_encoder_mode_fixup,
 	.mode_set   = inno_hdmi_encoder_mode_set,
+	.atomic_check = inno_hdmi_encoder_atomic_check,
 };
 
 static struct drm_encoder_funcs inno_hdmi_encoder_funcs = {
@@ -568,14 +579,6 @@ inno_hdmi_connector_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static struct drm_encoder *
-inno_hdmi_connector_best_encoder(struct drm_connector *connector)
-{
-	struct inno_hdmi *hdmi = to_inno_hdmi(connector);
-
-	return &hdmi->encoder;
-}
-
 static int
 inno_hdmi_probe_single_connector_modes(struct drm_connector *connector,
 				       uint32_t maxX, uint32_t maxY)
@@ -602,7 +605,6 @@ static struct drm_connector_funcs inno_hdmi_connector_funcs = {
 static struct drm_connector_helper_funcs inno_hdmi_connector_helper_funcs = {
 	.get_modes = inno_hdmi_connector_get_modes,
 	.mode_valid = inno_hdmi_connector_mode_valid,
-	.best_encoder = inno_hdmi_connector_best_encoder,
 };
 
 static int inno_hdmi_register(struct drm_device *drm, struct inno_hdmi *hdmi)
@@ -855,8 +857,9 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 
 	hdmi->ddc = inno_hdmi_i2c_adapter(hdmi);
 	if (IS_ERR(hdmi->ddc)) {
+		ret = PTR_ERR(hdmi->ddc);
 		hdmi->ddc = NULL;
-		return PTR_ERR(hdmi->ddc);
+		return ret;
 	}
 
 	/*

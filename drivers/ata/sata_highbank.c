@@ -197,7 +197,7 @@ static void highbank_set_em_messages(struct device *dev,
 
 	for (i = 0; i < SGPIO_PINS; i++) {
 		err = of_get_named_gpio(np, "calxeda,sgpio-gpio", i);
-		if (IS_ERR_VALUE(err))
+		if (err < 0)
 			return;
 
 		pdata->sgpio_gpio[i] = err;

@@ -2,6 +2,7 @@
  * Copyright (c) 2014-2016 Christoph Hellwig.
  */
 #include <linux/exportfs.h>
+#include <linux/iomap.h>
 #include <linux/genhd.h>
 #include <linux/slab.h>
 #include <linux/pr.h>
@@ -162,6 +163,7 @@ nfsd4_block_get_device_info_simple(struct super_block *sb,
 
 static __be32
 nfsd4_block_proc_getdeviceinfo(struct super_block *sb,
+		struct svc_rqst *rqstp,
 		struct nfs4_client *clp,
 		struct nfsd4_getdeviceinfo *gdp)
 {
@@ -290,7 +292,7 @@ out_free_buf:
 	return error;
 }
 
-#define NFSD_MDS_PR_KEY		0x0100000000000000
+#define NFSD_MDS_PR_KEY		0x0100000000000000ULL
 
 /*
  * We use the client ID as a unique key for the reservations.
@@ -354,6 +356,7 @@ nfsd4_block_get_device_info_scsi(struct super_block *sb,
 
 static __be32
 nfsd4_scsi_proc_getdeviceinfo(struct super_block *sb,
+		struct svc_rqst *rqstp,
 		struct nfs4_client *clp,
 		struct nfsd4_getdeviceinfo *gdp)
 {

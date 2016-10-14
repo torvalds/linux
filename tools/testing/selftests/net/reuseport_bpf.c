@@ -111,9 +111,9 @@ static void attach_ebpf(int fd, uint16_t mod)
 	memset(&attr, 0, sizeof(attr));
 	attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
 	attr.insn_cnt = ARRAY_SIZE(prog);
-	attr.insns = (uint64_t)prog;
-	attr.license = (uint64_t)bpf_license;
-	attr.log_buf = (uint64_t)bpf_log_buf;
+	attr.insns = (unsigned long) &prog;
+	attr.license = (unsigned long) &bpf_license;
+	attr.log_buf = (unsigned long) &bpf_log_buf;
 	attr.log_size = sizeof(bpf_log_buf);
 	attr.log_level = 1;
 	attr.kern_version = 0;
@@ -351,8 +351,8 @@ static void test_filter_no_reuseport(const struct test_params p)
 	memset(&eprog, 0, sizeof(eprog));
 	eprog.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
 	eprog.insn_cnt = ARRAY_SIZE(ecode);
-	eprog.insns = (uint64_t)ecode;
-	eprog.license = (uint64_t)bpf_license;
+	eprog.insns = (unsigned long) &ecode;
+	eprog.license = (unsigned long) &bpf_license;
 	eprog.kern_version = 0;
 
 	memset(&cprog, 0, sizeof(cprog));

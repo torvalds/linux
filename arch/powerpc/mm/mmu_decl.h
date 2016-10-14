@@ -108,11 +108,6 @@ extern unsigned long Hash_size, Hash_mask;
 
 #endif /* CONFIG_PPC32 */
 
-#ifdef CONFIG_PPC64
-extern int map_kernel_page(unsigned long ea, unsigned long pa,
-			   unsigned long flags);
-#endif /* CONFIG_PPC64 */
-
 extern unsigned long ioremap_bot;
 extern unsigned long __max_low_memory;
 extern phys_addr_t __initial_memory_limit_addr;
@@ -159,9 +154,10 @@ struct tlbcam {
 };
 #endif
 
-#if defined(CONFIG_6xx) || defined(CONFIG_FSL_BOOKE)
+#if defined(CONFIG_6xx) || defined(CONFIG_FSL_BOOKE) || defined(CONFIG_PPC_8xx)
 /* 6xx have BATS */
 /* FSL_BOOKE have TLBCAM */
+/* 8xx have LTLB */
 phys_addr_t v_block_mapped(unsigned long va);
 unsigned long p_block_mapped(phys_addr_t pa);
 #else

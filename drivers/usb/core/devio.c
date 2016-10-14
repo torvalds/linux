@@ -216,7 +216,7 @@ static void usbdev_vm_close(struct vm_area_struct *vma)
 	dec_usb_memory_use_count(usbm, &usbm->vma_use_count);
 }
 
-struct vm_operations_struct usbdev_vm_ops = {
+static struct vm_operations_struct usbdev_vm_ops = {
 	.open = usbdev_vm_open,
 	.close = usbdev_vm_close
 };
@@ -241,7 +241,8 @@ static int usbdev_mmap(struct file *file, struct vm_area_struct *vma)
 		goto error_decrease_mem;
 	}
 
-	mem = usb_alloc_coherent(ps->dev, size, GFP_USER, &dma_handle);
+	mem = usb_alloc_coherent(ps->dev, size, GFP_USER | __GFP_NOWARN,
+			&dma_handle);
 	if (!mem) {
 		ret = -ENOMEM;
 		goto error_free_usbm;
@@ -1316,10 +1317,11 @@ static int proc_getdriver(struct usb_dev_state *ps, void __user *arg)
 
 static int proc_connectinfo(struct usb_dev_state *ps, void __user *arg)
 {
-	struct usbdevfs_connectinfo ci = {
-		.devnum = ps->dev->devnum,
-		.slow = ps->dev->speed == USB_SPEED_LOW
-	};
+	struct usbdevfs_connectinfo ci;
+
+	memset(&ci, 0, sizeof(ci));
+	ci.devnum = ps->dev->devnum;
+	ci.slow = ps->dev->speed == USB_SPEED_LOW;
 
 	if (copy_to_user(arg, &ci, sizeof(ci)))
 		return -EFAULT;
@@ -1707,11 +1709,17 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 	as->urb->start_frame = uurb->start_frame;
 	as->urb->number_of_packets = number_of_packets;
 	as->urb->stream_id = stream_id;
-	if (uurb->type == USBDEVFS_URB_TYPE_ISO ||
-			ps->dev->speed == USB_SPEED_HIGH)
-		as->urb->interval = 1 << min(15, ep->desc.bInterval - 1);
-	else
-		as->urb->interval = ep->desc.bInterval;
+
+	if (ep->desc.bInterval) {
+		if (uurb->type == USBDEVFS_URB_TYPE_ISO ||
+				ps->dev->speed == USB_SPEED_HIGH ||
+				ps->dev->speed >= USB_SPEED_SUPER)
+			as->urb->interval = 1 <<
+					min(15, ep->desc.bInterval - 1);
+		else
+			as->urb->interval = ep->desc.bInterval;
+	}
+
 	as->urb->context = as;
 	as->urb->complete = async_completed;
 	for (totlen = u = 0; u < number_of_packets; u++) {
@@ -2581,7 +2589,9 @@ static unsigned int usbdev_poll(struct file *file,
 	if (file->f_mode & FMODE_WRITE && !list_empty(&ps->async_completed))
 		mask |= POLLOUT | POLLWRNORM;
 	if (!connected(ps))
-		mask |= POLLERR | POLLHUP;
+		mask |= POLLHUP;
+	if (list_empty(&ps->list))
+		mask |= POLLERR;
 	return mask;
 }
 

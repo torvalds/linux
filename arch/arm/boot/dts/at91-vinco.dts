@@ -118,7 +118,7 @@
 
 				ethernet-phy@1 {
 					reg = <0x1>;
-					reset-gpios = <&pioE 8 GPIO_ACTIVE_HIGH>;
+					reset-gpios = <&pioE 8 GPIO_ACTIVE_LOW>;
 					interrupt-parent = <&pioB>;
 					interrupts = <15 IRQ_TYPE_EDGE_FALLING>;
 				};
@@ -162,7 +162,7 @@
 					reg = <0x1>;
 					interrupt-parent = <&pioB>;
 					interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
-					reset-gpios = <&pioE 6 GPIO_ACTIVE_HIGH>;
+					reset-gpios = <&pioE 6 GPIO_ACTIVE_LOW>;
 				};
 			};
 
@@ -245,7 +245,7 @@
 
 	};
 
-	vcc_3v3_reg: fixedregulator@0 {
+	vcc_3v3_reg: fixedregulator_3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC 3V3";
 		regulator-min-microvolt = <3300000>;

@@ -51,6 +51,10 @@ void *module_alloc(unsigned long size)
 
 void module_arch_freeing_init(struct module *mod)
 {
+	if (is_livepatch_module(mod) &&
+	    mod->state == MODULE_STATE_LIVE)
+		return;
+
 	vfree(mod->arch.syminfo);
 	mod->arch.syminfo = NULL;
 }
@@ -425,7 +429,5 @@ int module_finalize(const Elf_Ehdr *hdr,
 		    struct module *me)
 {
 	jump_label_apply_nops(me);
-	vfree(me->arch.syminfo);
-	me->arch.syminfo = NULL;
 	return 0;
 }

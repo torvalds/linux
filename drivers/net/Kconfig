@@ -192,6 +192,23 @@ config GENEVE
 	  To compile this driver as a module, choose M here: the module
 	  will be called geneve.
 
+config GTP
+	tristate "GPRS Tunneling Protocol datapath (GTP-U)"
+	depends on INET && NET_UDP_TUNNEL
+	select NET_IP_TUNNEL
+	---help---
+	  This allows one to create gtp virtual interfaces that provide
+	  the GPRS Tunneling Protocol datapath (GTP-U). This tunneling protocol
+	  is used to prevent subscribers from accessing mobile carrier core
+	  network infrastructure. This driver requires a userspace software that
+	  implements the signaling protocol (GTP-C) to update its PDP context
+	  base, such as OpenGGSN <http://git.osmocom.org/openggsn/). This
+	  tunneling protocol is implemented according to the GSM TS 09.60 and
+	  3GPP TS 29.060 standards.
+
+	  To compile this drivers as a module, choose M here: the module
+	  wil be called gtp.
+
 config MACSEC
 	tristate "IEEE 802.1AE MAC-level encryption (MACsec)"
 	select CRYPTO

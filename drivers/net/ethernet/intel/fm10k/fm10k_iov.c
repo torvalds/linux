@@ -1,5 +1,5 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+/* Intel(R) Ethernet Switch Host Interface Driver
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -50,7 +50,7 @@ s32 fm10k_iov_event(struct fm10k_intfc *interface)
 	s64 vflre;
 	int i;
 
-	/* if there is no iov_data then there is no mailboxes to process */
+	/* if there is no iov_data then there is no mailbox to process */
 	if (!ACCESS_ONCE(interface->iov_data))
 		return 0;
 
@@ -98,7 +98,7 @@ s32 fm10k_iov_mbx(struct fm10k_intfc *interface)
 	struct fm10k_iov_data *iov_data;
 	int i;
 
-	/* if there is no iov_data then there is no mailboxes to process */
+	/* if there is no iov_data then there is no mailbox to process */
 	if (!ACCESS_ONCE(interface->iov_data))
 		return 0;
 

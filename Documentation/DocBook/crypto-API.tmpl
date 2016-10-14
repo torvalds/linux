@@ -440,8 +440,8 @@
      The type flag specifies the type of the cipher algorithm.
      The caller usually provides a 0 when the caller wants the
      default handling. Otherwise, the caller may provide the
-     following selections which match the the aforementioned
-     cipher types:
+     following selections which match the aforementioned cipher
+     types:
     </para>
 
     <itemizedlist>
@@ -1936,9 +1936,9 @@ static int test_skcipher(void)
 	}
 
 	req = skcipher_request_alloc(skcipher, GFP_KERNEL);
-	if (IS_ERR(req)) {
-		pr_info("could not allocate request queue\n");
-		ret = PTR_ERR(req);
+	if (!req) {
+		pr_info("could not allocate skcipher request\n");
+		ret = -ENOMEM;
 		goto out;
 	}
 

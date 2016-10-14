@@ -5,6 +5,7 @@
  *          for STMicroelectronics.
  * License terms:  GNU General Public License (GPL), version 2
  */
+#include <linux/seq_file.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -207,14 +208,8 @@ static int gdp_dbg_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct sti_gdp *gdp = (struct sti_gdp *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
 	struct drm_plane *drm_plane = &gdp->plane.drm_plane;
 	struct drm_crtc *crtc = drm_plane->crtc;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(s, "%s: (vaddr = 0x%p)",
 		   sti_plane_to_str(&gdp->plane), gdp->regs);
@@ -247,7 +242,6 @@ static int gdp_dbg_show(struct seq_file *s, void *data)
 		seq_printf(s, "  Connected to DRM CRTC #%d (%s)\n",
 			   crtc->base.id, sti_mixer_to_str(to_sti_mixer(crtc)));
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -278,13 +272,7 @@ static int gdp_node_dbg_show(struct seq_file *s, void *arg)
 {
 	struct drm_info_node *node = s->private;
 	struct sti_gdp *gdp = (struct sti_gdp *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
 	unsigned int b;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	for (b = 0; b < GDP_NODE_NB_BANK; b++) {
 		seq_printf(s, "\n%s[%d].top", sti_plane_to_str(&gdp->plane), b);
@@ -293,7 +281,6 @@ static int gdp_node_dbg_show(struct seq_file *s, void *arg)
 		gdp_node_dump_node(s, gdp->node_list[b].btm_field);
 	}
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -879,6 +866,33 @@ static const struct drm_plane_helper_funcs sti_gdp_helpers_funcs = {
 	.atomic_disable = sti_gdp_atomic_disable,
 };
 
+static void sti_gdp_destroy(struct drm_plane *drm_plane)
+{
+	DRM_DEBUG_DRIVER("\n");
+
+	drm_plane_helper_disable(drm_plane);
+	drm_plane_cleanup(drm_plane);
+}
+
+static int sti_gdp_late_register(struct drm_plane *drm_plane)
+{
+	struct sti_plane *plane = to_sti_plane(drm_plane);
+	struct sti_gdp *gdp = to_sti_gdp(plane);
+
+	return gdp_debugfs_init(gdp, drm_plane->dev->primary);
+}
+
+struct drm_plane_funcs sti_gdp_plane_helpers_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = sti_gdp_destroy,
+	.set_property = drm_atomic_helper_plane_set_property,
+	.reset = sti_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+	.late_register = sti_gdp_late_register,
+};
+
 struct drm_plane *sti_gdp_create(struct drm_device *drm_dev,
 				 struct device *dev, int desc,
 				 void __iomem *baseaddr,
@@ -905,7 +919,7 @@ struct drm_plane *sti_gdp_create(struct drm_device *drm_dev,
 
 	res = drm_universal_plane_init(drm_dev, &gdp->plane.drm_plane,
 				       possible_crtcs,
-				       &sti_plane_helpers_funcs,
+				       &sti_gdp_plane_helpers_funcs,
 				       gdp_supported_formats,
 				       ARRAY_SIZE(gdp_supported_formats),
 				       type, NULL);
@@ -917,9 +931,6 @@ struct drm_plane *sti_gdp_create(struct drm_device *drm_dev,
 	drm_plane_helper_add(&gdp->plane.drm_plane, &sti_gdp_helpers_funcs);
 
 	sti_plane_init_property(&gdp->plane, type);
-
-	if (gdp_debugfs_init(gdp, drm_dev->primary))
-		DRM_ERROR("GDP debugfs setup failed\n");
 
 	return &gdp->plane.drm_plane;
 

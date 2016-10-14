@@ -91,10 +91,10 @@ s32  igb_check_polarity_m88(struct e1000_hw *hw);
 
 #define I82580_ADDR_REG                   16
 #define I82580_CFG_REG                    22
-#define I82580_CFG_ASSERT_CRS_ON_TX       (1 << 15)
-#define I82580_CFG_ENABLE_DOWNSHIFT       (3 << 10) /* auto downshift 100/10 */
+#define I82580_CFG_ASSERT_CRS_ON_TX       BIT(15)
+#define I82580_CFG_ENABLE_DOWNSHIFT       (3u << 10) /* auto downshift 100/10 */
 #define I82580_CTRL_REG                   23
-#define I82580_CTRL_DOWNSHIFT_MASK        (7 << 10)
+#define I82580_CTRL_DOWNSHIFT_MASK        (7u << 10)
 
 /* 82580 specific PHY registers */
 #define I82580_PHY_CTRL_2            18

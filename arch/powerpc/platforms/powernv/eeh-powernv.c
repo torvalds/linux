@@ -36,6 +36,7 @@
 #include <asm/msi_bitmap.h>
 #include <asm/opal.h>
 #include <asm/ppc-pci.h>
+#include <asm/pnv-pci.h>
 
 #include "powernv.h"
 #include "pci.h"
@@ -75,7 +76,7 @@ static int pnv_eeh_init(void)
 		 * and P7IOC separately. So we should regard
 		 * PE#0 as valid for PHB3 and P7IOC.
 		 */
-		if (phb->ioda.reserved_pe != 0)
+		if (phb->ioda.reserved_pe_idx != 0)
 			eeh_add_flag(EEH_VALID_PE_ZERO);
 
 		break;
@@ -717,12 +718,12 @@ static int pnv_eeh_get_state(struct eeh_pe *pe, int *delay)
 	return ret;
 }
 
-static s64 pnv_eeh_phb_poll(struct pnv_phb *phb)
+static s64 pnv_eeh_poll(unsigned long id)
 {
 	s64 rc = OPAL_HARDWARE;
 
 	while (1) {
-		rc = opal_pci_poll(phb->opal_id);
+		rc = opal_pci_poll(id);
 		if (rc <= 0)
 			break;
 
@@ -762,7 +763,7 @@ int pnv_eeh_phb_reset(struct pci_controller *hose, int option)
 	 * reset followed by hot reset on root bus. So we also
 	 * need the PCI bus settlement delay.
 	 */
-	rc = pnv_eeh_phb_poll(phb);
+	rc = pnv_eeh_poll(phb->opal_id);
 	if (option == EEH_RESET_DEACTIVATE) {
 		if (system_state < SYSTEM_RUNNING)
 			udelay(1000 * EEH_PE_RST_SETTLE_TIME);
@@ -805,7 +806,7 @@ static int pnv_eeh_root_reset(struct pci_controller *hose, int option)
 		goto out;
 
 	/* Poll state of the PHB until the request is done */
-	rc = pnv_eeh_phb_poll(phb);
+	rc = pnv_eeh_poll(phb->opal_id);
 	if (option == EEH_RESET_DEACTIVATE)
 		msleep(EEH_PE_RST_SETTLE_TIME);
 out:
@@ -815,7 +816,7 @@ out:
 	return 0;
 }
 
-static int pnv_eeh_bridge_reset(struct pci_dev *dev, int option)
+static int __pnv_eeh_bridge_reset(struct pci_dev *dev, int option)
 {
 	struct pci_dn *pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
@@ -864,6 +865,44 @@ static int pnv_eeh_bridge_reset(struct pci_dev *dev, int option)
 	}
 
 	return 0;
+}
+
+static int pnv_eeh_bridge_reset(struct pci_dev *pdev, int option)
+{
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	struct pnv_phb *phb = hose->private_data;
+	struct device_node *dn = pci_device_to_OF_node(pdev);
+	uint64_t id = PCI_SLOT_ID(phb->opal_id,
+				  (pdev->bus->number << 8) | pdev->devfn);
+	uint8_t scope;
+	int64_t rc;
+
+	/* Hot reset to the bus if firmware cannot handle */
+	if (!dn || !of_get_property(dn, "ibm,reset-by-firmware", NULL))
+		return __pnv_eeh_bridge_reset(pdev, option);
+
+	switch (option) {
+	case EEH_RESET_FUNDAMENTAL:
+		scope = OPAL_RESET_PCI_FUNDAMENTAL;
+		break;
+	case EEH_RESET_HOT:
+		scope = OPAL_RESET_PCI_HOT;
+		break;
+	case EEH_RESET_DEACTIVATE:
+		return 0;
+	default:
+		dev_dbg(&pdev->dev, "%s: Unsupported reset %d\n",
+			__func__, option);
+		return -EINVAL;
+	}
+
+	rc = opal_pci_reset(id, scope, OPAL_ASSERT_RESET);
+	if (rc <= OPAL_SUCCESS)
+		goto out;
+
+	rc = pnv_eeh_poll(id);
+out:
+	return (rc == OPAL_SUCCESS) ? 0 : -EIO;
 }
 
 void pnv_pci_reset_secondary_bus(struct pci_dev *dev)
@@ -1009,8 +1048,9 @@ static int pnv_eeh_reset_vf_pe(struct eeh_pe *pe, int option)
 static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 {
 	struct pci_controller *hose = pe->phb;
+	struct pnv_phb *phb;
 	struct pci_bus *bus;
-	int ret;
+	int64_t rc;
 
 	/*
 	 * For PHB reset, we always have complete reset. For those PEs whose
@@ -1026,45 +1066,39 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 	 * reset. The side effect is that EEH core has to clear the frozen
 	 * state explicitly after BAR restore.
 	 */
-	if (pe->type & EEH_PE_PHB) {
-		ret = pnv_eeh_phb_reset(hose, option);
-	} else {
-		struct pnv_phb *phb;
-		s64 rc;
+	if (pe->type & EEH_PE_PHB)
+		return pnv_eeh_phb_reset(hose, option);
 
-		/*
-		 * The frozen PE might be caused by PAPR error injection
-		 * registers, which are expected to be cleared after hitting
-		 * frozen PE as stated in the hardware spec. Unfortunately,
-		 * that's not true on P7IOC. So we have to clear it manually
-		 * to avoid recursive EEH errors during recovery.
-		 */
-		phb = hose->private_data;
-		if (phb->model == PNV_PHB_MODEL_P7IOC &&
-		    (option == EEH_RESET_HOT ||
-		    option == EEH_RESET_FUNDAMENTAL)) {
-			rc = opal_pci_reset(phb->opal_id,
-					    OPAL_RESET_PHB_ERROR,
-					    OPAL_ASSERT_RESET);
-			if (rc != OPAL_SUCCESS) {
-				pr_warn("%s: Failure %lld clearing "
-					"error injection registers\n",
-					__func__, rc);
-				return -EIO;
-			}
+	/*
+	 * The frozen PE might be caused by PAPR error injection
+	 * registers, which are expected to be cleared after hitting
+	 * frozen PE as stated in the hardware spec. Unfortunately,
+	 * that's not true on P7IOC. So we have to clear it manually
+	 * to avoid recursive EEH errors during recovery.
+	 */
+	phb = hose->private_data;
+	if (phb->model == PNV_PHB_MODEL_P7IOC &&
+	    (option == EEH_RESET_HOT ||
+	     option == EEH_RESET_FUNDAMENTAL)) {
+		rc = opal_pci_reset(phb->opal_id,
+				    OPAL_RESET_PHB_ERROR,
+				    OPAL_ASSERT_RESET);
+		if (rc != OPAL_SUCCESS) {
+			pr_warn("%s: Failure %lld clearing error injection registers\n",
+				__func__, rc);
+			return -EIO;
 		}
-
-		bus = eeh_pe_bus_get(pe);
-		if (pe->type & EEH_PE_VF)
-			ret = pnv_eeh_reset_vf_pe(pe, option);
-		else if (pci_is_root_bus(bus) ||
-			pci_is_root_bus(bus->parent))
-			ret = pnv_eeh_root_reset(hose, option);
-		else
-			ret = pnv_eeh_bridge_reset(bus->self, option);
 	}
 
-	return ret;
+	bus = eeh_pe_bus_get(pe);
+	if (pe->type & EEH_PE_VF)
+		return pnv_eeh_reset_vf_pe(pe, option);
+
+	if (pci_is_root_bus(bus) ||
+	    pci_is_root_bus(bus->parent))
+		return pnv_eeh_root_reset(hose, option);
+
+	return pnv_eeh_bridge_reset(bus->self, option);
 }
 
 /**

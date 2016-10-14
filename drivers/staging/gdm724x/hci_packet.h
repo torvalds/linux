@@ -58,7 +58,7 @@ struct sdu_header {
 struct sdu {
 	u16 cmd_evt;
 	u16 len;
-	u32 dftEpsId;
+	u32 dft_eps_ID;
 	u32 bearer_ID;
 	u32 nic_type;
 	u8 data[0];

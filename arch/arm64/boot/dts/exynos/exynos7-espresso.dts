@@ -12,6 +12,7 @@
 /dts-v1/;
 #include "exynos7.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/clock/samsung,s2mps11.h>
 
 / {
 	model = "Samsung Exynos7 Espresso board based on EXYNOS7";
@@ -43,6 +44,8 @@
 
 &rtc {
 	status = "okay";
+	clocks = <&clock_ccore PCLK_RTC>, <&s2mps15_osc S2MPS11_CLK_AP>;
+	clock-names = "rtc", "rtc_src";
 };
 
 &watchdog {
@@ -249,7 +252,7 @@
 
 			buck2_reg: BUCK2 {
 				regulator-name = "vdd_atlas";
-				regulator-min-microvolt = <1200000>;
+				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
 				regulator-boot-on;

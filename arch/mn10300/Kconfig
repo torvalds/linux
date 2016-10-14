@@ -1,5 +1,6 @@
 config MN10300
 	def_bool y
+	select HAVE_EXIT_THREAD
 	select HAVE_OPROFILE
 	select HAVE_UID16
 	select GENERIC_IRQ_SHOW
@@ -235,7 +236,9 @@ source "kernel/Kconfig.hz"
 config MN10300_RTC
 	bool "Using MN10300 RTC"
 	depends on MN10300_PROC_MN103E010 || MN10300_PROC_MN2WS0050
-	select GENERIC_CMOS_UPDATE
+	select RTC_CLASS
+	select RTC_DRV_CMOS
+	select RTC_SYSTOHC
 	default n
 	help
 	  This option enables support for the RTC, thus enabling time to be

@@ -16,6 +16,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/clock/samsung,s2mps11.h>
+#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	model = "Insignal Arndale Octa evaluation board based on EXYNOS5420";
@@ -75,13 +76,6 @@
 	s2mps11_pmic@66 {
 		compatible = "samsung,s2mps11-pmic";
 		reg = <0x66>;
-		s2mps11,buck2-ramp-delay = <12>;
-		s2mps11,buck34-ramp-delay = <12>;
-		s2mps11,buck16-ramp-delay = <12>;
-		s2mps11,buck6-ramp-enable = <1>;
-		s2mps11,buck2-ramp-enable = <1>;
-		s2mps11,buck3-ramp-enable = <1>;
-		s2mps11,buck4-ramp-enable = <1>;
 
 		interrupt-parent = <&gpx3>;
 		interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
@@ -351,11 +345,6 @@
 			};
 		};
 	};
-};
-
-&mfc {
-	samsung,mfc-r = <0x43000000 0x800000>;
-	samsung,mfc-l = <0x51000000 0x800000>;
 };
 
 &mmc_0 {

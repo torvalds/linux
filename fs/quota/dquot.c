@@ -841,6 +841,9 @@ struct dquot *dqget(struct super_block *sb, struct kqid qid)
 	unsigned int hashent = hashfn(sb, qid);
 	struct dquot *dquot, *empty = NULL;
 
+	if (!qid_has_mapping(sb->s_user_ns, qid))
+		return ERR_PTR(-EINVAL);
+
         if (!sb_has_quota_active(sb, qid.type))
 		return ERR_PTR(-ESRCH);
 we_slept:
@@ -1133,7 +1136,7 @@ static void dquot_decr_inodes(struct dquot *dquot, qsize_t number)
 	else
 		dquot->dq_dqb.dqb_curinodes = 0;
 	if (dquot->dq_dqb.dqb_curinodes <= dquot->dq_dqb.dqb_isoftlimit)
-		dquot->dq_dqb.dqb_itime = (time_t) 0;
+		dquot->dq_dqb.dqb_itime = (time64_t) 0;
 	clear_bit(DQ_INODES_B, &dquot->dq_flags);
 }
 
@@ -1145,7 +1148,7 @@ static void dquot_decr_space(struct dquot *dquot, qsize_t number)
 	else
 		dquot->dq_dqb.dqb_curspace = 0;
 	if (dquot->dq_dqb.dqb_curspace <= dquot->dq_dqb.dqb_bsoftlimit)
-		dquot->dq_dqb.dqb_btime = (time_t) 0;
+		dquot->dq_dqb.dqb_btime = (time64_t) 0;
 	clear_bit(DQ_BLKS_B, &dquot->dq_flags);
 }
 
@@ -1292,7 +1295,7 @@ static int check_idq(struct dquot *dquot, qsize_t inodes,
 	if (dquot->dq_dqb.dqb_isoftlimit &&
 	    newinodes > dquot->dq_dqb.dqb_isoftlimit &&
 	    dquot->dq_dqb.dqb_itime &&
-	    get_seconds() >= dquot->dq_dqb.dqb_itime &&
+	    ktime_get_real_seconds() >= dquot->dq_dqb.dqb_itime &&
             !ignore_hardlimit(dquot)) {
 		prepare_warning(warn, dquot, QUOTA_NL_ISOFTLONGWARN);
 		return -EDQUOT;
@@ -1302,7 +1305,7 @@ static int check_idq(struct dquot *dquot, qsize_t inodes,
 	    newinodes > dquot->dq_dqb.dqb_isoftlimit &&
 	    dquot->dq_dqb.dqb_itime == 0) {
 		prepare_warning(warn, dquot, QUOTA_NL_ISOFTWARN);
-		dquot->dq_dqb.dqb_itime = get_seconds() +
+		dquot->dq_dqb.dqb_itime = ktime_get_real_seconds() +
 		    sb_dqopt(dquot->dq_sb)->info[dquot->dq_id.type].dqi_igrace;
 	}
 
@@ -1334,7 +1337,7 @@ static int check_bdq(struct dquot *dquot, qsize_t space, int prealloc,
 	if (dquot->dq_dqb.dqb_bsoftlimit &&
 	    tspace > dquot->dq_dqb.dqb_bsoftlimit &&
 	    dquot->dq_dqb.dqb_btime &&
-	    get_seconds() >= dquot->dq_dqb.dqb_btime &&
+	    ktime_get_real_seconds() >= dquot->dq_dqb.dqb_btime &&
             !ignore_hardlimit(dquot)) {
 		if (!prealloc)
 			prepare_warning(warn, dquot, QUOTA_NL_BSOFTLONGWARN);
@@ -1346,7 +1349,7 @@ static int check_bdq(struct dquot *dquot, qsize_t space, int prealloc,
 	    dquot->dq_dqb.dqb_btime == 0) {
 		if (!prealloc) {
 			prepare_warning(warn, dquot, QUOTA_NL_BSOFTWARN);
-			dquot->dq_dqb.dqb_btime = get_seconds() +
+			dquot->dq_dqb.dqb_btime = ktime_get_real_seconds() +
 			    sb_dqopt(sb)->info[dquot->dq_id.type].dqi_bgrace;
 		}
 		else
@@ -2268,6 +2271,11 @@ static int vfs_load_quota_inode(struct inode *inode, int type, int format_id,
 		error = -EINVAL;
 		goto out_fmt;
 	}
+	/* Filesystems outside of init_user_ns not yet supported */
+	if (sb->s_user_ns != &init_user_ns) {
+		error = -EINVAL;
+		goto out_fmt;
+	}
 	/* Usage always has to be set... */
 	if (!(flags & DQUOT_USAGE_ENABLED)) {
 		error = -EINVAL;
@@ -2695,7 +2703,7 @@ static int do_set_dqblk(struct dquot *dquot, struct qc_dqblk *di)
 			clear_bit(DQ_BLKS_B, &dquot->dq_flags);
 		} else if (!(di->d_fieldmask & QC_SPC_TIMER))
 			/* Set grace only if user hasn't provided his own... */
-			dm->dqb_btime = get_seconds() + dqi->dqi_bgrace;
+			dm->dqb_btime = ktime_get_real_seconds() + dqi->dqi_bgrace;
 	}
 	if (check_ilim) {
 		if (!dm->dqb_isoftlimit ||
@@ -2704,7 +2712,7 @@ static int do_set_dqblk(struct dquot *dquot, struct qc_dqblk *di)
 			clear_bit(DQ_INODES_B, &dquot->dq_flags);
 		} else if (!(di->d_fieldmask & QC_INO_TIMER))
 			/* Set grace only if user hasn't provided his own... */
-			dm->dqb_itime = get_seconds() + dqi->dqi_igrace;
+			dm->dqb_itime = ktime_get_real_seconds() + dqi->dqi_igrace;
 	}
 	if (dm->dqb_bhardlimit || dm->dqb_bsoftlimit || dm->dqb_ihardlimit ||
 	    dm->dqb_isoftlimit)

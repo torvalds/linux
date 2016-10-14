@@ -19,32 +19,39 @@
 
 /* 1 band FIFO pseudo-"scheduler" */
 
-static int bfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+static int bfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+			 struct sk_buff **to_free)
 {
 	if (likely(sch->qstats.backlog + qdisc_pkt_len(skb) <= sch->limit))
 		return qdisc_enqueue_tail(skb, sch);
 
-	return qdisc_reshape_fail(skb, sch);
+	return qdisc_drop(skb, sch, to_free);
 }
 
-static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+			 struct sk_buff **to_free)
 {
 	if (likely(skb_queue_len(&sch->q) < sch->limit))
 		return qdisc_enqueue_tail(skb, sch);
 
-	return qdisc_reshape_fail(skb, sch);
+	return qdisc_drop(skb, sch, to_free);
 }
 
-static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+			      struct sk_buff **to_free)
 {
+	unsigned int prev_backlog;
+
 	if (likely(skb_queue_len(&sch->q) < sch->limit))
 		return qdisc_enqueue_tail(skb, sch);
 
+	prev_backlog = sch->qstats.backlog;
 	/* queue full, remove one skb to fulfill the limit */
-	__qdisc_queue_drop_head(sch, &sch->q);
+	__qdisc_queue_drop_head(sch, &sch->q, to_free);
 	qdisc_qstats_drop(sch);
 	qdisc_enqueue_tail(skb, sch);
 
+	qdisc_tree_reduce_backlog(sch, 0, prev_backlog - sch->qstats.backlog);
 	return NET_XMIT_CN;
 }
 
@@ -99,7 +106,6 @@ struct Qdisc_ops pfifo_qdisc_ops __read_mostly = {
 	.enqueue	=	pfifo_enqueue,
 	.dequeue	=	qdisc_dequeue_head,
 	.peek		=	qdisc_peek_head,
-	.drop		=	qdisc_queue_drop,
 	.init		=	fifo_init,
 	.reset		=	qdisc_reset_queue,
 	.change		=	fifo_init,
@@ -114,7 +120,6 @@ struct Qdisc_ops bfifo_qdisc_ops __read_mostly = {
 	.enqueue	=	bfifo_enqueue,
 	.dequeue	=	qdisc_dequeue_head,
 	.peek		=	qdisc_peek_head,
-	.drop		=	qdisc_queue_drop,
 	.init		=	fifo_init,
 	.reset		=	qdisc_reset_queue,
 	.change		=	fifo_init,
@@ -129,7 +134,6 @@ struct Qdisc_ops pfifo_head_drop_qdisc_ops __read_mostly = {
 	.enqueue	=	pfifo_tail_enqueue,
 	.dequeue	=	qdisc_dequeue_head,
 	.peek		=	qdisc_peek_head,
-	.drop		=	qdisc_queue_drop_head,
 	.init		=	fifo_init,
 	.reset		=	qdisc_reset_queue,
 	.change		=	fifo_init,

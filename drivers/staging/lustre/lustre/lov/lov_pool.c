@@ -14,12 +14,8 @@
  * in the LICENSE file that accompanied this code).
  *
  * You should have received a copy of the GNU General Public License
- * version 2 along with this program; If not, see [sun.com URL with a
- * copy of GPLv2].
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * version 2 along with this program; If not, see
+ * http://http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -65,7 +61,6 @@ void lov_pool_putref(struct pool_desc *pool)
 		LASSERT(hlist_unhashed(&pool->pool_hash));
 		LASSERT(list_empty(&pool->pool_list));
 		LASSERT(!pool->pool_debugfs_entry);
-		lov_ost_pool_free(&(pool->pool_rr.lqr_pool));
 		lov_ost_pool_free(&(pool->pool_obds));
 		kfree(pool);
 	}
@@ -424,11 +419,6 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 	if (rc)
 		goto out_err;
 
-	memset(&(new_pool->pool_rr), 0, sizeof(struct lov_qos_rr));
-	rc = lov_ost_pool_init(&new_pool->pool_rr.lqr_pool, 0);
-	if (rc)
-		goto out_free_pool_obds;
-
 	INIT_HLIST_NODE(&new_pool->pool_hash);
 
 	/* get ref for debugfs file */
@@ -469,13 +459,10 @@ out_err:
 	list_del_init(&new_pool->pool_list);
 	lov->lov_pool_count--;
 	spin_unlock(&obd->obd_dev_lock);
-
 	ldebugfs_remove(&new_pool->pool_debugfs_entry);
-
-	lov_ost_pool_free(&new_pool->pool_rr.lqr_pool);
-out_free_pool_obds:
 	lov_ost_pool_free(&new_pool->pool_obds);
 	kfree(new_pool);
+
 	return rc;
 }
 
@@ -543,8 +530,6 @@ int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname)
 	if (rc)
 		goto out;
 
-	pool->pool_rr.lqr_dirty = 1;
-
 	CDEBUG(D_CONFIG, "Added %s to "LOV_POOLNAMEF" as member %d\n",
 	       ostname, poolname,  pool_tgt_count(pool));
 
@@ -589,8 +574,6 @@ int lov_pool_remove(struct obd_device *obd, char *poolname, char *ostname)
 
 	lov_ost_pool_remove(&pool->pool_obds, lov_idx);
 
-	pool->pool_rr.lqr_dirty = 1;
-
 	CDEBUG(D_CONFIG, "%s removed from "LOV_POOLNAMEF"\n", ostname,
 	       poolname);
 
@@ -598,51 +581,4 @@ out:
 	obd_putref(obd);
 	lov_pool_putref(pool);
 	return rc;
-}
-
-int lov_check_index_in_pool(__u32 idx, struct pool_desc *pool)
-{
-	int i, rc;
-
-	/* caller may no have a ref on pool if it got the pool
-	 * without calling lov_find_pool() (e.g. go through the lov pool
-	 * list)
-	 */
-	lov_pool_getref(pool);
-
-	down_read(&pool_tgt_rw_sem(pool));
-
-	for (i = 0; i < pool_tgt_count(pool); i++) {
-		if (pool_tgt_array(pool)[i] == idx) {
-			rc = 0;
-			goto out;
-		}
-	}
-	rc = -ENOENT;
-out:
-	up_read(&pool_tgt_rw_sem(pool));
-
-	lov_pool_putref(pool);
-	return rc;
-}
-
-struct pool_desc *lov_find_pool(struct lov_obd *lov, char *poolname)
-{
-	struct pool_desc *pool;
-
-	pool = NULL;
-	if (poolname[0] != '\0') {
-		pool = cfs_hash_lookup(lov->lov_pools_hash_body, poolname);
-		if (!pool)
-			CWARN("Request for an unknown pool ("LOV_POOLNAMEF")\n",
-			      poolname);
-		if (pool && (pool_tgt_count(pool) == 0)) {
-			CWARN("Request for an empty pool ("LOV_POOLNAMEF")\n",
-			      poolname);
-			/* pool is ignored, so we remove ref on it */
-			lov_pool_putref(pool);
-			pool = NULL;
-		}
-	}
-	return pool;
 }

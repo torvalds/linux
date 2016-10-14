@@ -137,8 +137,8 @@ static const u8 wl18xx_rate_to_idx_5ghz[] = {
 };
 
 static const u8 *wl18xx_band_rate_to_idx[] = {
-	[IEEE80211_BAND_2GHZ] = wl18xx_rate_to_idx_2ghz,
-	[IEEE80211_BAND_5GHZ] = wl18xx_rate_to_idx_5ghz
+	[NL80211_BAND_2GHZ] = wl18xx_rate_to_idx_2ghz,
+	[NL80211_BAND_5GHZ] = wl18xx_rate_to_idx_5ghz
 };
 
 enum wl18xx_hw_rates {
@@ -1214,6 +1214,10 @@ static void wl18xx_convert_fw_status(struct wl1271 *wl, void *raw_fw_status,
 			int_fw_status->counters.tx_voice_released_blks;
 	fw_status->counters.tx_last_rate =
 			int_fw_status->counters.tx_last_rate;
+	fw_status->counters.tx_last_rate_mbps =
+			int_fw_status->counters.tx_last_rate_mbps;
+	fw_status->counters.hlid =
+			int_fw_status->counters.hlid;
 
 	fw_status->log_start_addr = le32_to_cpu(int_fw_status->log_start_addr);
 
@@ -1302,12 +1306,12 @@ static u32 wl18xx_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
 		wl1271_debug(DEBUG_ACX, "using wide channel rate mask");
 
 		/* sanity check - we don't support this */
-		if (WARN_ON(wlvif->band != IEEE80211_BAND_5GHZ))
+		if (WARN_ON(wlvif->band != NL80211_BAND_5GHZ))
 			return 0;
 
 		return CONF_TX_RATE_USE_WIDE_CHAN;
 	} else if (wl18xx_is_mimo_supported(wl) &&
-		   wlvif->band == IEEE80211_BAND_2GHZ) {
+		   wlvif->band == NL80211_BAND_2GHZ) {
 		wl1271_debug(DEBUG_ACX, "using MIMO rate mask");
 		/*
 		 * we don't care about HT channel here - if a peer doesn't
@@ -1821,9 +1825,12 @@ static const struct ieee80211_iface_limit wl18xx_iface_limits[] = {
 	},
 	{
 		.max = 1,
-		.types = BIT(NL80211_IFTYPE_AP) |
-			 BIT(NL80211_IFTYPE_P2P_GO) |
-			 BIT(NL80211_IFTYPE_P2P_CLIENT),
+		.types =   BIT(NL80211_IFTYPE_AP)
+			 | BIT(NL80211_IFTYPE_P2P_GO)
+			 | BIT(NL80211_IFTYPE_P2P_CLIENT)
+#ifdef CONFIG_MAC80211_MESH
+			 | BIT(NL80211_IFTYPE_MESH_POINT)
+#endif
 	},
 	{
 		.max = 1,
@@ -1836,6 +1843,12 @@ static const struct ieee80211_iface_limit wl18xx_iface_ap_limits[] = {
 		.max = 2,
 		.types = BIT(NL80211_IFTYPE_AP),
 	},
+#ifdef CONFIG_MAC80211_MESH
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_MESH_POINT),
+	},
+#endif
 	{
 		.max = 1,
 		.types = BIT(NL80211_IFTYPE_P2P_DEVICE),
@@ -1996,24 +2009,24 @@ static int wl18xx_setup(struct wl1271 *wl)
 		 * siso40.
 		 */
 		if (wl18xx_is_mimo_supported(wl))
-			wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+			wlcore_set_ht_cap(wl, NL80211_BAND_2GHZ,
 					  &wl18xx_mimo_ht_cap_2ghz);
 		else
-			wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+			wlcore_set_ht_cap(wl, NL80211_BAND_2GHZ,
 					  &wl18xx_siso40_ht_cap_2ghz);
 
 		/* 5Ghz is always wide */
-		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
+		wlcore_set_ht_cap(wl, NL80211_BAND_5GHZ,
 				  &wl18xx_siso40_ht_cap_5ghz);
 	} else if (priv->conf.ht.mode == HT_MODE_WIDE) {
-		wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+		wlcore_set_ht_cap(wl, NL80211_BAND_2GHZ,
 				  &wl18xx_siso40_ht_cap_2ghz);
-		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
+		wlcore_set_ht_cap(wl, NL80211_BAND_5GHZ,
 				  &wl18xx_siso40_ht_cap_5ghz);
 	} else if (priv->conf.ht.mode == HT_MODE_SISO20) {
-		wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
+		wlcore_set_ht_cap(wl, NL80211_BAND_2GHZ,
 				  &wl18xx_siso20_ht_cap);
-		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
+		wlcore_set_ht_cap(wl, NL80211_BAND_5GHZ,
 				  &wl18xx_siso20_ht_cap);
 	}
 

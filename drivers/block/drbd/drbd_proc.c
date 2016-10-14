@@ -25,7 +25,7 @@
 
 #include <linux/module.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/proc_fs.h>
@@ -122,18 +122,18 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 
 	x = res/50;
 	y = 20-x;
-	seq_printf(seq, "\t[");
+	seq_puts(seq, "\t[");
 	for (i = 1; i < x; i++)
-		seq_printf(seq, "=");
-	seq_printf(seq, ">");
+		seq_putc(seq, '=');
+	seq_putc(seq, '>');
 	for (i = 0; i < y; i++)
 		seq_printf(seq, ".");
-	seq_printf(seq, "] ");
+	seq_puts(seq, "] ");
 
 	if (state.conn == C_VERIFY_S || state.conn == C_VERIFY_T)
-		seq_printf(seq, "verified:");
+		seq_puts(seq, "verified:");
 	else
-		seq_printf(seq, "sync'ed:");
+		seq_puts(seq, "sync'ed:");
 	seq_printf(seq, "%3u.%u%% ", res / 10, res % 10);
 
 	/* if more than a few GB, display in MB */
@@ -146,7 +146,7 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 			    (unsigned long) Bit2KB(rs_left),
 			    (unsigned long) Bit2KB(rs_total));
 
-	seq_printf(seq, "\n\t");
+	seq_puts(seq, "\n\t");
 
 	/* see drivers/md/md.c
 	 * We do not want to overflow, so the order of operands and
@@ -175,9 +175,9 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 		rt / 3600, (rt % 3600) / 60, rt % 60);
 
 	dbdt = Bit2KB(db/dt);
-	seq_printf(seq, " speed: ");
+	seq_puts(seq, " speed: ");
 	seq_printf_with_thousands_grouping(seq, dbdt);
-	seq_printf(seq, " (");
+	seq_puts(seq, " (");
 	/* ------------------------- ~3s average ------------------------ */
 	if (proc_details >= 1) {
 		/* this is what drbd_rs_should_slow_down() uses */
@@ -188,7 +188,7 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 		db = device->rs_mark_left[i] - rs_left;
 		dbdt = Bit2KB(db/dt);
 		seq_printf_with_thousands_grouping(seq, dbdt);
-		seq_printf(seq, " -- ");
+		seq_puts(seq, " -- ");
 	}
 
 	/* --------------------- long term average ---------------------- */
@@ -200,11 +200,11 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 	db = rs_total - rs_left;
 	dbdt = Bit2KB(db/dt);
 	seq_printf_with_thousands_grouping(seq, dbdt);
-	seq_printf(seq, ")");
+	seq_putc(seq, ')');
 
 	if (state.conn == C_SYNC_TARGET ||
 	    state.conn == C_VERIFY_S) {
-		seq_printf(seq, " want: ");
+		seq_puts(seq, " want: ");
 		seq_printf_with_thousands_grouping(seq, device->c_sync_rate);
 	}
 	seq_printf(seq, " K/sec%s\n", stalled ? " (stalled)" : "");
@@ -231,7 +231,7 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 			(unsigned long long)bm_bits * BM_SECT_PER_BIT);
 		if (stop_sector != 0 && stop_sector != ULLONG_MAX)
 			seq_printf(seq, " stop sector: %llu", stop_sector);
-		seq_printf(seq, "\n");
+		seq_putc(seq, '\n');
 	}
 }
 
@@ -276,7 +276,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 	rcu_read_lock();
 	idr_for_each_entry(&drbd_devices, device, i) {
 		if (prev_i != i - 1)
-			seq_printf(seq, "\n");
+			seq_putc(seq, '\n');
 		prev_i = i;
 
 		state = device->state;

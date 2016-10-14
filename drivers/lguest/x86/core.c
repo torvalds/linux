@@ -603,7 +603,7 @@ void __init lguest_arch_host_init(void)
 	 * doing this.
 	 */
 	get_online_cpus();
-	if (cpu_has_pge) { /* We have a broader idea of "global". */
+	if (boot_cpu_has(X86_FEATURE_PGE)) { /* We have a broader idea of "global". */
 		/* Remember that this was originally set (for cleanup). */
 		cpu_had_pge = 1;
 		/*

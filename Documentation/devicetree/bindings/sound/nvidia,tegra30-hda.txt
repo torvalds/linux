@@ -15,7 +15,7 @@ Required properties:
 
 Example:
 
-hda@0,70030000 {
+hda@70030000 {
 	compatible = "nvidia,tegra124-hda", "nvidia,tegra30-hda";
 	reg = <0x0 0x70030000 0x0 0x10000>;
 	interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;

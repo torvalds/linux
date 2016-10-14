@@ -26,7 +26,7 @@
  * Nests outside led_cdev->trigger_lock
  */
 static DECLARE_RWSEM(triggers_list_lock);
-static LIST_HEAD(trigger_list);
+LIST_HEAD(trigger_list);
 
  /* Used by LED Class */
 
@@ -60,6 +60,8 @@ ssize_t led_trigger_store(struct device *dev, struct device_attribute *attr,
 			goto unlock;
 		}
 	}
+	/* we come here only if buf matches no trigger */
+	ret = -EINVAL;
 	up_read(&triggers_list_lock);
 
 unlock:

@@ -29,7 +29,7 @@
 #include "inode-map.h"
 #include "volumes.h"
 
-#define BITS_PER_BITMAP		(PAGE_SIZE * 8)
+#define BITS_PER_BITMAP		(PAGE_SIZE * 8UL)
 #define MAX_CACHE_BYTES_PER_GIG	SZ_32K
 
 struct btrfs_trim_range {
@@ -280,7 +280,7 @@ fail:
 	if (locked)
 		mutex_unlock(&trans->transaction->cache_write_mutex);
 	if (ret)
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 
 	return ret;
 }
@@ -1415,11 +1415,11 @@ static inline u64 offset_to_bitmap(struct btrfs_free_space_ctl *ctl,
 				   u64 offset)
 {
 	u64 bitmap_start;
-	u32 bytes_per_bitmap;
+	u64 bytes_per_bitmap;
 
 	bytes_per_bitmap = BITS_PER_BITMAP * ctl->unit;
 	bitmap_start = offset - ctl->start;
-	bitmap_start = div_u64(bitmap_start, bytes_per_bitmap);
+	bitmap_start = div64_u64(bitmap_start, bytes_per_bitmap);
 	bitmap_start *= bytes_per_bitmap;
 	bitmap_start += ctl->start;
 
@@ -1638,10 +1638,10 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 	u64 bitmap_bytes;
 	u64 extent_bytes;
 	u64 size = block_group->key.offset;
-	u32 bytes_per_bg = BITS_PER_BITMAP * ctl->unit;
-	u32 max_bitmaps = div_u64(size + bytes_per_bg - 1, bytes_per_bg);
+	u64 bytes_per_bg = BITS_PER_BITMAP * ctl->unit;
+	u64 max_bitmaps = div64_u64(size + bytes_per_bg - 1, bytes_per_bg);
 
-	max_bitmaps = max_t(u32, max_bitmaps, 1);
+	max_bitmaps = max_t(u64, max_bitmaps, 1);
 
 	ASSERT(ctl->total_bitmaps <= max_bitmaps);
 
@@ -1660,7 +1660,7 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 	 * sure we don't go over our overall goal of MAX_CACHE_BYTES_PER_GIG as
 	 * we add more bitmaps.
 	 */
-	bitmap_bytes = (ctl->total_bitmaps + 1) * PAGE_SIZE;
+	bitmap_bytes = (ctl->total_bitmaps + 1) * ctl->unit;
 
 	if (bitmap_bytes >= max_bytes) {
 		ctl->extents_thresh = 0;
@@ -1983,7 +1983,7 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 		/*
 		 * If this block group has some small extents we don't want to
 		 * use up all of our free slots in the cache with them, we want
-		 * to reserve them to larger extents, however if we have plent
+		 * to reserve them to larger extents, however if we have plenty
 		 * of cache left then go ahead an dadd them, no sense in adding
 		 * the overhead of a bitmap if we don't have to.
 		 */
@@ -3026,7 +3026,7 @@ int btrfs_find_space_cluster(struct btrfs_root *root,
 	 * For metadata, allow allocates with smaller extents.  For
 	 * data, keep it dense.
 	 */
-	if (btrfs_test_opt(root, SSD_SPREAD)) {
+	if (btrfs_test_opt(root->fs_info, SSD_SPREAD)) {
 		cont1_bytes = min_bytes = bytes + empty_size;
 	} else if (block_group->flags & BTRFS_BLOCK_GROUP_METADATA) {
 		cont1_bytes = bytes;
@@ -3470,7 +3470,7 @@ int load_free_ino_cache(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 	int ret = 0;
 	u64 root_gen = btrfs_root_generation(&root->root_item);
 
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return 0;
 
 	/*
@@ -3514,7 +3514,7 @@ int btrfs_write_out_ino_cache(struct btrfs_root *root,
 	struct btrfs_io_ctl io_ctl;
 	bool release_metadata = true;
 
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return 0;
 
 	memset(&io_ctl, 0, sizeof(io_ctl));
@@ -3662,7 +3662,7 @@ have_info:
 			if (tmp->offset + tmp->bytes < offset)
 				break;
 			if (offset + bytes < tmp->offset) {
-				n = rb_prev(&info->offset_index);
+				n = rb_prev(&tmp->offset_index);
 				continue;
 			}
 			info = tmp;
@@ -3676,7 +3676,7 @@ have_info:
 			if (offset + bytes < tmp->offset)
 				break;
 			if (tmp->offset + tmp->bytes < offset) {
-				n = rb_next(&info->offset_index);
+				n = rb_next(&tmp->offset_index);
 				continue;
 			}
 			info = tmp;

@@ -39,41 +39,55 @@ use strict;
 # 25/07/2012 - Added support for HTML5
 # -- Dan Luedtke <mail@danrl.de>
 
-#
-# This will read a 'c' file and scan for embedded comments in the
-# style of gnome comments (+minor extensions - see below).
-#
+sub usage {
+    my $message = <<"EOF";
+Usage: $0 [OPTION ...] FILE ...
 
-# Note: This only supports 'c'.
+Read C language source or header FILEs, extract embedded documentation comments,
+and print formatted documentation to standard output.
 
-# usage:
-# kernel-doc [ -docbook | -html | -html5 | -text | -man | -list ]
-#            [ -no-doc-sections ]
-#            [ -function funcname [ -function funcname ...] ]
-#            c file(s)s > outputfile
-# or
-#            [ -nofunction funcname [ -function funcname ...] ]
-#            c file(s)s > outputfile
-#
-#  Set output format using one of -docbook -html -html5 -text or -man.
-#  Default is man.
-#  The -list format is for internal use by docproc.
-#
-#  -no-doc-sections
-#	Do not output DOC: sections
-#
-#  -function funcname
-#	If set, then only generate documentation for the given function(s) or
-#	DOC: section titles.  All other functions and DOC: sections are ignored.
-#
-#  -nofunction funcname
-#	If set, then only generate documentation for the other function(s)/DOC:
-#	sections. Cannot be used together with -function (yes, that's a bug --
-#	perl hackers can fix it 8))
-#
-#  c files - list of 'c' files to process
-#
-#  All output goes to stdout, with errors to stderr.
+The documentation comments are identified by "/**" opening comment mark. See
+Documentation/kernel-doc-nano-HOWTO.txt for the documentation comment syntax.
+
+Output format selection (mutually exclusive):
+  -docbook		Output DocBook format.
+  -html			Output HTML format.
+  -html5		Output HTML5 format.
+  -list			Output symbol list format. This is for use by docproc.
+  -man			Output troff manual page format. This is the default.
+  -rst			Output reStructuredText format.
+  -text			Output plain text format.
+
+Output selection (mutually exclusive):
+  -export		Only output documentation for symbols that have been
+			exported using EXPORT_SYMBOL() or EXPORT_SYMBOL_GPL()
+                        in any input FILE or -export-file FILE.
+  -internal		Only output documentation for symbols that have NOT been
+			exported using EXPORT_SYMBOL() or EXPORT_SYMBOL_GPL()
+                        in any input FILE or -export-file FILE.
+  -function NAME	Only output documentation for the given function(s)
+			or DOC: section title(s). All other functions and DOC:
+			sections are ignored. May be specified multiple times.
+  -nofunction NAME	Do NOT output documentation for the given function(s);
+			only output documentation for the other functions and
+			DOC: sections. May be specified multiple times.
+
+Output selection modifiers:
+  -no-doc-sections	Do not output DOC: sections.
+  -enable-lineno        Enable output of #define LINENO lines. Only works with
+                        reStructuredText format.
+  -export-file FILE     Specify an additional FILE in which to look for
+                        EXPORT_SYMBOL() and EXPORT_SYMBOL_GPL(). To be used with
+                        -export or -internal. May be specified multiple times.
+
+Other parameters:
+  -v			Verbose output, more warnings and other information.
+  -h			Print this help.
+
+EOF
+    print $message;
+    exit 1;
+}
 
 #
 # format of comments.
@@ -201,6 +215,12 @@ my $type_param = '\@(\w+)';
 my $type_struct = '\&((struct\s*)*[_\w]+)';
 my $type_struct_xml = '\\&amp;((struct\s*)*[_\w]+)';
 my $type_env = '(\$\w+)';
+my $type_enum_full = '\&(enum)\s*([_\w]+)';
+my $type_struct_full = '\&(struct)\s*([_\w]+)';
+my $type_typedef_full = '\&(typedef)\s*([_\w]+)';
+my $type_union_full = '\&(union)\s*([_\w]+)';
+my $type_member = '\&([_\w]+)((\.|->)[_\w]+)';
+my $type_member_func = $type_member . '\(\)';
 
 # Output conversion substitutions.
 #  One for each output format
@@ -266,6 +286,23 @@ my @highlights_text = (
 		      );
 my $blankline_text = "";
 
+# rst-mode
+my @highlights_rst = (
+                       [$type_constant, "``\$1``"],
+                       # Note: need to escape () to avoid func matching later
+                       [$type_member_func, "\\:c\\:type\\:`\$1\$2\\\\(\\\\) <\$1>`"],
+                       [$type_member, "\\:c\\:type\\:`\$1\$2 <\$1>`"],
+                       [$type_func, "\\:c\\:func\\:`\$1()`"],
+                       [$type_struct_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
+                       [$type_enum_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
+                       [$type_typedef_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
+                       [$type_union_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
+                       # in rst this can refer to any type
+                       [$type_struct, "\\:c\\:type\\:`\$1`"],
+                       [$type_param, "**\$1**"]
+		      );
+my $blankline_rst = "\n";
+
 # list mode
 my @highlights_list = (
                        [$type_constant, "\$1"],
@@ -287,11 +324,22 @@ my $verbose = 0;
 my $output_mode = "man";
 my $output_preformatted = 0;
 my $no_doc_sections = 0;
+my $enable_lineno = 0;
 my @highlights = @highlights_man;
 my $blankline = $blankline_man;
 my $modulename = "Kernel API";
-my $function_only = 0;
+
+use constant {
+    OUTPUT_ALL          => 0, # output all symbols and doc sections
+    OUTPUT_INCLUDE      => 1, # output only specified symbols
+    OUTPUT_EXCLUDE      => 2, # output everything except specified symbols
+    OUTPUT_EXPORTED     => 3, # output exported symbols
+    OUTPUT_INTERNAL     => 4, # output non-exported symbols
+};
+my $output_selection = OUTPUT_ALL;
 my $show_not_found = 0;
+
+my @export_file_list;
 
 my @build_time;
 if (defined($ENV{'KBUILD_BUILD_TIMESTAMP'}) &&
@@ -311,6 +359,7 @@ my $man_date = ('January', 'February', 'March', 'April', 'May', 'June',
 # CAVEAT EMPTOR!  Some of the others I localised may not want to be, which
 # could cause "use of undefined value" or other bugs.
 my ($function, %function_table, %parametertypes, $declaration_purpose);
+my $declaration_start_line;
 my ($type, $declaration_name, $return_type);
 my ($newsection, $newcontents, $prototype, $brcount, %source_map);
 
@@ -328,52 +377,62 @@ my $section_counter = 0;
 
 my $lineprefix="";
 
-# states
-# 0 - normal code
-# 1 - looking for function name
-# 2 - scanning field start.
-# 3 - scanning prototype.
-# 4 - documentation block
-# 5 - gathering documentation outside main block
+# Parser states
+use constant {
+    STATE_NORMAL        => 0, # normal code
+    STATE_NAME          => 1, # looking for function name
+    STATE_FIELD         => 2, # scanning field start
+    STATE_PROTO         => 3, # scanning prototype
+    STATE_DOCBLOCK      => 4, # documentation block
+    STATE_INLINE        => 5, # gathering documentation outside main block
+};
 my $state;
 my $in_doc_sect;
 
-# Split Doc State
-# 0 - Invalid (Before start or after finish)
-# 1 - Is started (the /** was found inside a struct)
-# 2 - The @parameter header was found, start accepting multi paragraph text.
-# 3 - Finished (the */ was found)
-# 4 - Error - Comment without header was found. Spit a warning as it's not
-#     proper kernel-doc and ignore the rest.
-my $split_doc_state;
+# Inline documentation state
+use constant {
+    STATE_INLINE_NA     => 0, # not applicable ($state != STATE_INLINE)
+    STATE_INLINE_NAME   => 1, # looking for member name (@foo:)
+    STATE_INLINE_TEXT   => 2, # looking for member documentation
+    STATE_INLINE_END    => 3, # done
+    STATE_INLINE_ERROR  => 4, # error - Comment without header was found.
+                              # Spit a warning as it's not
+                              # proper kernel-doc and ignore the rest.
+};
+my $inline_doc_state;
 
 #declaration types: can be
 # 'function', 'struct', 'union', 'enum', 'typedef'
 my $decl_type;
-
-my $doc_special = "\@\%\$\&";
 
 my $doc_start = '^/\*\*\s*$'; # Allow whitespace at end of comment start.
 my $doc_end = '\*/';
 my $doc_com = '\s*\*\s*';
 my $doc_com_body = '\s*\* ?';
 my $doc_decl = $doc_com . '(\w+)';
-my $doc_sect = $doc_com . '([' . $doc_special . ']?[\w\s]+):(.*)';
+# @params and a strictly limited set of supported section names
+my $doc_sect = $doc_com . 
+    '\s*(\@\w+|description|context|returns?|notes?|examples?)\s*:(.*)';
 my $doc_content = $doc_com_body . '(.*)';
 my $doc_block = $doc_com . 'DOC:\s*(.*)?';
-my $doc_split_start = '^\s*/\*\*\s*$';
-my $doc_split_sect = '\s*\*\s*(@[\w\s]+):(.*)';
-my $doc_split_end = '^\s*\*/\s*$';
+my $doc_inline_start = '^\s*/\*\*\s*$';
+my $doc_inline_sect = '\s*\*\s*(@[\w\s]+):(.*)';
+my $doc_inline_end = '^\s*\*/\s*$';
+my $export_symbol = '^\s*EXPORT_SYMBOL(_GPL)?\s*\(\s*(\w+)\s*\)\s*;';
 
-my %constants;
 my %parameterdescs;
+my %parameterdesc_start_lines;
 my @parameterlist;
 my %sections;
 my @sectionlist;
+my %section_start_lines;
 my $sectcheck;
 my $struct_actual;
 
 my $contents = "";
+my $new_start_line = 0;
+
+# the canonical section names. see also $doc_sect above.
 my $section_default = "Description";	# default section
 my $section_intro = "Introduction";
 my $section = $section_default;
@@ -402,6 +461,10 @@ while ($ARGV[0] =~ m/^-(.*)/) {
 	$output_mode = "text";
 	@highlights = @highlights_text;
 	$blankline = $blankline_text;
+    } elsif ($cmd eq "-rst") {
+	$output_mode = "rst";
+	@highlights = @highlights_rst;
+	$blankline = $blankline_rst;
     } elsif ($cmd eq "-docbook") {
 	$output_mode = "xml";
 	@highlights = @highlights_xml;
@@ -417,36 +480,36 @@ while ($ARGV[0] =~ m/^-(.*)/) {
     } elsif ($cmd eq "-module") { # not needed for XML, inherits from calling document
 	$modulename = shift @ARGV;
     } elsif ($cmd eq "-function") { # to only output specific functions
-	$function_only = 1;
+	$output_selection = OUTPUT_INCLUDE;
 	$function = shift @ARGV;
 	$function_table{$function} = 1;
-    } elsif ($cmd eq "-nofunction") { # to only output specific functions
-	$function_only = 2;
+    } elsif ($cmd eq "-nofunction") { # output all except specific functions
+	$output_selection = OUTPUT_EXCLUDE;
 	$function = shift @ARGV;
 	$function_table{$function} = 1;
+    } elsif ($cmd eq "-export") { # only exported symbols
+	$output_selection = OUTPUT_EXPORTED;
+	%function_table = ();
+    } elsif ($cmd eq "-internal") { # only non-exported symbols
+	$output_selection = OUTPUT_INTERNAL;
+	%function_table = ();
+    } elsif ($cmd eq "-export-file") {
+	my $file = shift @ARGV;
+	push(@export_file_list, $file);
     } elsif ($cmd eq "-v") {
 	$verbose = 1;
     } elsif (($cmd eq "-h") || ($cmd eq "--help")) {
 	usage();
     } elsif ($cmd eq '-no-doc-sections') {
 	    $no_doc_sections = 1;
+    } elsif ($cmd eq '-enable-lineno') {
+	    $enable_lineno = 1;
     } elsif ($cmd eq '-show-not-found') {
 	$show_not_found = 1;
     }
 }
 
 # continue execution near EOF;
-
-sub usage {
-    print "Usage: $0 [ -docbook | -html | -html5 | -text | -man | -list ]\n";
-    print "         [ -no-doc-sections ]\n";
-    print "         [ -function funcname [ -function funcname ...] ]\n";
-    print "         [ -nofunction funcname [ -nofunction funcname ...] ]\n";
-    print "         [ -v ]\n";
-    print "         c source file(s) > outputfile\n";
-    print "         -v : verbose output, more warnings & other info listed\n";
-    exit 1;
-}
 
 # get kernel version from env
 sub get_kernel_version() {
@@ -458,6 +521,13 @@ sub get_kernel_version() {
     return $version;
 }
 
+#
+sub print_lineno {
+    my $lineno = shift;
+    if ($enable_lineno && defined($lineno)) {
+        print "#define LINENO " . $lineno . "\n";
+    }
+}
 ##
 # dumps section contents to arrays/hashes intended for that purpose.
 #
@@ -466,28 +536,32 @@ sub dump_section {
     my $name = shift;
     my $contents = join "\n", @_;
 
-    if ($name =~ m/$type_constant/) {
-	$name = $1;
-#	print STDERR "constant section '$1' = '$contents'\n";
-	$constants{$name} = $contents;
-    } elsif ($name =~ m/$type_param/) {
-#	print STDERR "parameter def '$1' = '$contents'\n";
+    if ($name =~ m/$type_param/) {
 	$name = $1;
 	$parameterdescs{$name} = $contents;
 	$sectcheck = $sectcheck . $name . " ";
+        $parameterdesc_start_lines{$name} = $new_start_line;
+        $new_start_line = 0;
     } elsif ($name eq "@\.\.\.") {
-#	print STDERR "parameter def '...' = '$contents'\n";
 	$name = "...";
 	$parameterdescs{$name} = $contents;
 	$sectcheck = $sectcheck . $name . " ";
+        $parameterdesc_start_lines{$name} = $new_start_line;
+        $new_start_line = 0;
     } else {
-#	print STDERR "other section '$name' = '$contents'\n";
 	if (defined($sections{$name}) && ($sections{$name} ne "")) {
-		print STDERR "${file}:$.: error: duplicate section name '$name'\n";
-		++$errors;
+	    # Only warn on user specified duplicate section names.
+	    if ($name ne $section_default) {
+		print STDERR "${file}:$.: warning: duplicate section name '$name'\n";
+		++$warnings;
+	    }
+	    $sections{$name} .= $contents;
+	} else {
+	    $sections{$name} = $contents;
+	    push @sectionlist, $name;
+            $section_start_lines{$name} = $new_start_line;
+            $new_start_line = 0;
 	}
-	$sections{$name} = $contents;
-	push @sectionlist, $name;
     }
 }
 
@@ -503,15 +577,17 @@ sub dump_doc_section {
         return;
     }
 
-    if (($function_only == 0) ||
-	( $function_only == 1 && defined($function_table{$name})) ||
-	( $function_only == 2 && !defined($function_table{$name})))
+    if (($output_selection == OUTPUT_ALL) ||
+	($output_selection == OUTPUT_INCLUDE &&
+	 defined($function_table{$name})) ||
+	($output_selection == OUTPUT_EXCLUDE &&
+	 !defined($function_table{$name})))
     {
 	dump_section($file, $name, $contents);
 	output_blockhead({'sectionlist' => \@sectionlist,
 			  'sections' => \%sections,
 			  'module' => $modulename,
-			  'content-only' => ($function_only != 0), });
+			  'content-only' => ($output_selection != OUTPUT_ALL), });
     }
 }
 
@@ -1713,6 +1789,231 @@ sub output_blockhead_text(%) {
     }
 }
 
+##
+# output in restructured text
+#
+
+#
+# This could use some work; it's used to output the DOC: sections, and
+# starts by putting out the name of the doc section itself, but that tends
+# to duplicate a header already in the template file.
+#
+sub output_blockhead_rst(%) {
+    my %args = %{$_[0]};
+    my ($parameter, $section);
+
+    foreach $section (@{$args{'sectionlist'}}) {
+	if ($output_selection != OUTPUT_INCLUDE) {
+	    print "**$section**\n\n";
+	}
+        print_lineno($section_start_lines{$section});
+	output_highlight_rst($args{'sections'}{$section});
+	print "\n";
+    }
+}
+
+sub output_highlight_rst {
+    my $contents = join "\n",@_;
+    my $line;
+
+    # undo the evil effects of xml_escape() earlier
+    $contents = xml_unescape($contents);
+
+    eval $dohighlight;
+    die $@ if $@;
+
+    foreach $line (split "\n", $contents) {
+	print $lineprefix . $line . "\n";
+    }
+}
+
+sub output_function_rst(%) {
+    my %args = %{$_[0]};
+    my ($parameter, $section);
+    my $oldprefix = $lineprefix;
+    my $start;
+
+    print ".. c:function:: ";
+    if ($args{'functiontype'} ne "") {
+	$start = $args{'functiontype'} . " " . $args{'function'} . " (";
+    } else {
+	$start = $args{'function'} . " (";
+    }
+    print $start;
+
+    my $count = 0;
+    foreach my $parameter (@{$args{'parameterlist'}}) {
+	if ($count ne 0) {
+	    print ", ";
+	}
+	$count++;
+	$type = $args{'parametertypes'}{$parameter};
+
+	# RST doesn't like address_space tags at function prototypes
+	$type =~ s/__(user|kernel|iomem|percpu|pmem|rcu)\s*//;
+
+	if ($type =~ m/([^\(]*\(\*)\s*\)\s*\(([^\)]*)\)/) {
+	    # pointer-to-function
+	    print $1 . $parameter . ") (" . $2;
+	} else {
+	    print $type . " " . $parameter;
+	}
+    }
+    print ")\n\n";
+    print_lineno($declaration_start_line);
+    $lineprefix = "   ";
+    output_highlight_rst($args{'purpose'});
+    print "\n";
+
+    print "**Parameters**\n\n";
+    $lineprefix = "  ";
+    foreach $parameter (@{$args{'parameterlist'}}) {
+	my $parameter_name = $parameter;
+	#$parameter_name =~ s/\[.*//;
+	$type = $args{'parametertypes'}{$parameter};
+
+	if ($type ne "") {
+	    print "``$type $parameter``\n";
+	} else {
+	    print "``$parameter``\n";
+	}
+
+        print_lineno($parameterdesc_start_lines{$parameter_name});
+
+	if (defined($args{'parameterdescs'}{$parameter_name}) &&
+	    $args{'parameterdescs'}{$parameter_name} ne $undescribed) {
+	    output_highlight_rst($args{'parameterdescs'}{$parameter_name});
+	} else {
+	    print "  *undescribed*\n";
+	}
+	print "\n";
+    }
+
+    $lineprefix = $oldprefix;
+    output_section_rst(@_);
+}
+
+sub output_section_rst(%) {
+    my %args = %{$_[0]};
+    my $section;
+    my $oldprefix = $lineprefix;
+    $lineprefix = "";
+
+    foreach $section (@{$args{'sectionlist'}}) {
+	print "**$section**\n\n";
+        print_lineno($section_start_lines{$section});
+	output_highlight_rst($args{'sections'}{$section});
+	print "\n";
+    }
+    print "\n";
+    $lineprefix = $oldprefix;
+}
+
+sub output_enum_rst(%) {
+    my %args = %{$_[0]};
+    my ($parameter);
+    my $oldprefix = $lineprefix;
+    my $count;
+    my $name = "enum " . $args{'enum'};
+
+    print "\n\n.. c:type:: " . $name . "\n\n";
+    print_lineno($declaration_start_line);
+    $lineprefix = "   ";
+    output_highlight_rst($args{'purpose'});
+    print "\n";
+
+    print "**Constants**\n\n";
+    $lineprefix = "  ";
+    foreach $parameter (@{$args{'parameterlist'}}) {
+	print "``$parameter``\n";
+	if ($args{'parameterdescs'}{$parameter} ne $undescribed) {
+	    output_highlight_rst($args{'parameterdescs'}{$parameter});
+	} else {
+	    print "  *undescribed*\n";
+	}
+	print "\n";
+    }
+
+    $lineprefix = $oldprefix;
+    output_section_rst(@_);
+}
+
+sub output_typedef_rst(%) {
+    my %args = %{$_[0]};
+    my ($parameter);
+    my $oldprefix = $lineprefix;
+    my $name = "typedef " . $args{'typedef'};
+
+    print "\n\n.. c:type:: " . $name . "\n\n";
+    print_lineno($declaration_start_line);
+    $lineprefix = "   ";
+    output_highlight_rst($args{'purpose'});
+    print "\n";
+
+    $lineprefix = $oldprefix;
+    output_section_rst(@_);
+}
+
+sub output_struct_rst(%) {
+    my %args = %{$_[0]};
+    my ($parameter);
+    my $oldprefix = $lineprefix;
+    my $name = $args{'type'} . " " . $args{'struct'};
+
+    print "\n\n.. c:type:: " . $name . "\n\n";
+    print_lineno($declaration_start_line);
+    $lineprefix = "   ";
+    output_highlight_rst($args{'purpose'});
+    print "\n";
+
+    print "**Definition**\n\n";
+    print "::\n\n";
+    print "  " . $args{'type'} . " " . $args{'struct'} . " {\n";
+    foreach $parameter (@{$args{'parameterlist'}}) {
+	if ($parameter =~ /^#/) {
+	    print "  " . "$parameter\n";
+	    next;
+	}
+
+	my $parameter_name = $parameter;
+	$parameter_name =~ s/\[.*//;
+
+	($args{'parameterdescs'}{$parameter_name} ne $undescribed) || next;
+	$type = $args{'parametertypes'}{$parameter};
+	if ($type =~ m/([^\(]*\(\*)\s*\)\s*\(([^\)]*)\)/) {
+	    # pointer-to-function
+	    print "    $1 $parameter) ($2);\n";
+	} elsif ($type =~ m/^(.*?)\s*(:.*)/) {
+	    # bitfield
+	    print "    $1 $parameter$2;\n";
+	} else {
+	    print "    " . $type . " " . $parameter . ";\n";
+	}
+    }
+    print "  };\n\n";
+
+    print "**Members**\n\n";
+    $lineprefix = "  ";
+    foreach $parameter (@{$args{'parameterlist'}}) {
+	($parameter =~ /^#/) && next;
+
+	my $parameter_name = $parameter;
+	$parameter_name =~ s/\[.*//;
+
+	($args{'parameterdescs'}{$parameter_name} ne $undescribed) || next;
+	$type = $args{'parametertypes'}{$parameter};
+        print_lineno($parameterdesc_start_lines{$parameter_name});
+	print "``$type $parameter``\n";
+	output_highlight_rst($args{'parameterdescs'}{$parameter_name});
+	print "\n";
+    }
+    print "\n";
+
+    $lineprefix = $oldprefix;
+    output_section_rst(@_);
+}
+
+
 ## list mode output functions
 
 sub output_function_list(%) {
@@ -1758,9 +2059,13 @@ sub output_declaration {
     my $name = shift;
     my $functype = shift;
     my $func = "output_${functype}_$output_mode";
-    if (($function_only==0) ||
-	( $function_only == 1 && defined($function_table{$name})) ||
-	( $function_only == 2 && !($functype eq "function" && defined($function_table{$name}))))
+    if (($output_selection == OUTPUT_ALL) ||
+	(($output_selection == OUTPUT_INCLUDE ||
+	  $output_selection == OUTPUT_EXPORTED) &&
+	 defined($function_table{$name})) ||
+	(($output_selection == OUTPUT_EXCLUDE ||
+	  $output_selection == OUTPUT_INTERNAL) &&
+	 !($functype eq "function" && defined($function_table{$name}))))
     {
 	&$func(@_);
 	$section_counter++;
@@ -2260,7 +2565,6 @@ sub dump_function($$) {
 
 sub reset_state {
     $function = "";
-    %constants = ();
     %parameterdescs = ();
     %parametertypes = ();
     @parameterlist = ();
@@ -2270,8 +2574,8 @@ sub reset_state {
     $struct_actual = "";
     $prototype = "";
 
-    $state = 0;
-    $split_doc_state = 0;
+    $state = STATE_NORMAL;
+    $inline_doc_state = STATE_INLINE_NA;
 }
 
 sub tracepoint_munge($) {
@@ -2334,7 +2638,7 @@ sub syscall_munge() {
 	}
 }
 
-sub process_state3_function($$) {
+sub process_proto_function($$) {
     my $x = shift;
     my $file = shift;
 
@@ -2364,7 +2668,7 @@ sub process_state3_function($$) {
     }
 }
 
-sub process_state3_type($$) {
+sub process_proto_type($$) {
     my $x = shift;
     my $file = shift;
 
@@ -2414,6 +2718,18 @@ sub xml_escape($) {
 	return $text;
 }
 
+# xml_unescape: reverse the effects of xml_escape
+sub xml_unescape($) {
+	my $text = shift;
+	if (($output_mode eq "text") || ($output_mode eq "man")) {
+		return $text;
+	}
+	$text =~ s/\\\\\\amp;/\&/g;
+	$text =~ s/\\\\\\lt;/</g;
+	$text =~ s/\\\\\\gt;/>/g;
+	return $text;
+}
+
 # convert local escape strings to html
 # local escape strings look like:  '\\\\menmonic:' (that's 4 backslashes)
 sub local_unescape($) {
@@ -2426,6 +2742,42 @@ sub local_unescape($) {
 	return $text;
 }
 
+sub map_filename($) {
+    my $file;
+    my ($orig_file) = @_;
+
+    if (defined($ENV{'SRCTREE'})) {
+	$file = "$ENV{'SRCTREE'}" . "/" . $orig_file;
+    } else {
+	$file = $orig_file;
+    }
+
+    if (defined($source_map{$file})) {
+	$file = $source_map{$file};
+    }
+
+    return $file;
+}
+
+sub process_export_file($) {
+    my ($orig_file) = @_;
+    my $file = map_filename($orig_file);
+
+    if (!open(IN,"<$file")) {
+	print STDERR "Error: Cannot open file $file\n";
+	++$errors;
+	return;
+    }
+
+    while (<IN>) {
+	if (/$export_symbol/) {
+	    $function_table{$2} = 1;
+	}
+    }
+
+    close(IN);
+}
+
 sub process_file($) {
     my $file;
     my $identifier;
@@ -2434,16 +2786,9 @@ sub process_file($) {
     my $in_purpose = 0;
     my $initial_section_counter = $section_counter;
     my ($orig_file) = @_;
+    my $leading_space;
 
-    if (defined($ENV{'SRCTREE'})) {
-	$file = "$ENV{'SRCTREE'}" . "/" . $orig_file;
-    }
-    else {
-	$file = $orig_file;
-    }
-    if (defined($source_map{$file})) {
-	$file = $source_map{$file};
-    }
+    $file = map_filename($orig_file);
 
     if (!open(IN,"<$file")) {
 	print STDERR "Error: Cannot open file $file\n";
@@ -2458,15 +2803,18 @@ sub process_file($) {
 	while (s/\\\s*$//) {
 	    $_ .= <IN>;
 	}
-	if ($state == 0) {
+	if ($state == STATE_NORMAL) {
 	    if (/$doc_start/o) {
-		$state = 1;		# next line is always the function name
+		$state = STATE_NAME;	# next line is always the function name
 		$in_doc_sect = 0;
+		$declaration_start_line = $. + 1;
 	    }
-	} elsif ($state == 1) {	# this line is the function name (always)
+	} elsif ($state == STATE_NAME) {# this line is the function name (always)
 	    if (/$doc_block/o) {
-		$state = 4;
+		$state = STATE_DOCBLOCK;
 		$contents = "";
+                $new_start_line = $. + 1;
+
 		if ( $1 eq "" ) {
 			$section = $section_intro;
 		} else {
@@ -2479,7 +2827,12 @@ sub process_file($) {
 		    $identifier = $1;
 		}
 
-		$state = 2;
+		$state = STATE_FIELD;
+		# if there's no @param blocks need to set up default section
+		# here
+		$contents = "";
+		$section = $section_default;
+		$new_start_line = $. + 1;
 		if (/-(.*)/) {
 		    # strip leading/trailing/multiple spaces
 		    $descr= $1;
@@ -2517,12 +2870,24 @@ sub process_file($) {
 		print STDERR "${file}:$.: warning: Cannot understand $_ on line $.",
 		" - I thought it was a doc line\n";
 		++$warnings;
-		$state = 0;
+		$state = STATE_NORMAL;
 	    }
-	} elsif ($state == 2) {	# look for head: lines, and include content
-	    if (/$doc_sect/o) {
+	} elsif ($state == STATE_FIELD) {	# look for head: lines, and include content
+	    if (/$doc_sect/i) { # case insensitive for supported section names
 		$newsection = $1;
 		$newcontents = $2;
+
+		# map the supported section names to the canonical names
+		if ($newsection =~ m/^description$/i) {
+		    $newsection = $section_default;
+		} elsif ($newsection =~ m/^context$/i) {
+		    $newsection = $section_context;
+		} elsif ($newsection =~ m/^returns?$/i) {
+		    $newsection = $section_return;
+		} elsif ($newsection =~ m/^\@return$/) {
+		    # special: @return is a section, not a param description
+		    $newsection = $section_return;
+		}
 
 		if (($contents ne "") && ($contents ne "\n")) {
 		    if (!$in_doc_sect && $verbose) {
@@ -2536,14 +2901,16 @@ sub process_file($) {
 		$in_doc_sect = 1;
 		$in_purpose = 0;
 		$contents = $newcontents;
+                $new_start_line = $.;
+		while ((substr($contents, 0, 1) eq " ") ||
+		       substr($contents, 0, 1) eq "\t") {
+		    $contents = substr($contents, 1);
+		}
 		if ($contents ne "") {
-		    while ((substr($contents, 0, 1) eq " ") ||
-			substr($contents, 0, 1) eq "\t") {
-			    $contents = substr($contents, 1);
-		    }
 		    $contents .= "\n";
 		}
 		$section = $newsection;
+		$leading_space = undef;
 	    } elsif (/$doc_end/) {
 		if (($contents ne "") && ($contents ne "\n")) {
 		    dump_section($file, $section, xml_escape($contents));
@@ -2557,7 +2924,7 @@ sub process_file($) {
 		}
 
 		$prototype = "";
-		$state = 3;
+		$state = STATE_PROTO;
 		$brcount = 0;
 #		print STDERR "end of doc comment, looking for prototype\n";
 	    } elsif (/$doc_content/) {
@@ -2568,6 +2935,7 @@ sub process_file($) {
 			dump_section($file, $section, xml_escape($contents));
 			$section = $section_default;
 			$contents = "";
+                        $new_start_line = $.;
 		    } else {
 			$contents .= "\n";
 		    }
@@ -2578,87 +2946,86 @@ sub process_file($) {
 		    $declaration_purpose .= " " . xml_escape($1);
 		    $declaration_purpose =~ s/\s+/ /g;
 		} else {
-		    $contents .= $1 . "\n";
+		    my $cont = $1;
+		    if ($section =~ m/^@/ || $section eq $section_context) {
+			if (!defined $leading_space) {
+			    if ($cont =~ m/^(\s+)/) {
+				$leading_space = $1;
+			    } else {
+				$leading_space = "";
+			    }
+			}
+
+			$cont =~ s/^$leading_space//;
+		    }
+		    $contents .= $cont . "\n";
 		}
 	    } else {
 		# i dont know - bad line?  ignore.
 		print STDERR "${file}:$.: warning: bad line: $_";
 		++$warnings;
 	    }
-	} elsif ($state == 5) { # scanning for split parameters
+	} elsif ($state == STATE_INLINE) { # scanning for inline parameters
 	    # First line (state 1) needs to be a @parameter
-	    if ($split_doc_state == 1 && /$doc_split_sect/o) {
+	    if ($inline_doc_state == STATE_INLINE_NAME && /$doc_inline_sect/o) {
 		$section = $1;
 		$contents = $2;
+                $new_start_line = $.;
 		if ($contents ne "") {
 		    while ((substr($contents, 0, 1) eq " ") ||
 		           substr($contents, 0, 1) eq "\t") {
 			$contents = substr($contents, 1);
 		    }
-		$contents .= "\n";
+		    $contents .= "\n";
 		}
-		$split_doc_state = 2;
+		$inline_doc_state = STATE_INLINE_TEXT;
 	    # Documentation block end */
-	    } elsif (/$doc_split_end/) {
+	    } elsif (/$doc_inline_end/) {
 		if (($contents ne "") && ($contents ne "\n")) {
 		    dump_section($file, $section, xml_escape($contents));
 		    $section = $section_default;
 		    $contents = "";
 		}
-		$state = 3;
-		$split_doc_state = 0;
+		$state = STATE_PROTO;
+		$inline_doc_state = STATE_INLINE_NA;
 	    # Regular text
 	    } elsif (/$doc_content/) {
-		if ($split_doc_state == 2) {
+		if ($inline_doc_state == STATE_INLINE_TEXT) {
 		    $contents .= $1 . "\n";
-		} elsif ($split_doc_state == 1) {
-		    $split_doc_state = 4;
-		    print STDERR "Warning(${file}:$.): ";
+		    # nuke leading blank lines
+		    if ($contents =~ /^\s*$/) {
+			$contents = "";
+		    }
+		} elsif ($inline_doc_state == STATE_INLINE_NAME) {
+		    $inline_doc_state = STATE_INLINE_ERROR;
+		    print STDERR "${file}:$.: warning: ";
 		    print STDERR "Incorrect use of kernel-doc format: $_";
 		    ++$warnings;
 		}
 	    }
-	} elsif ($state == 3) {	# scanning for function '{' (end of prototype)
-	    if (/$doc_split_start/) {
-		$state = 5;
-		$split_doc_state = 1;
+	} elsif ($state == STATE_PROTO) {	# scanning for function '{' (end of prototype)
+	    if (/$doc_inline_start/) {
+		$state = STATE_INLINE;
+		$inline_doc_state = STATE_INLINE_NAME;
 	    } elsif ($decl_type eq 'function') {
-		process_state3_function($_, $file);
+		process_proto_function($_, $file);
 	    } else {
-		process_state3_type($_, $file);
+		process_proto_type($_, $file);
 	    }
-	} elsif ($state == 4) {
-		# Documentation block
-		if (/$doc_block/) {
-			dump_doc_section($file, $section, xml_escape($contents));
-			$contents = "";
-			$function = "";
-			%constants = ();
-			%parameterdescs = ();
-			%parametertypes = ();
-			@parameterlist = ();
-			%sections = ();
-			@sectionlist = ();
-			$prototype = "";
-			if ( $1 eq "" ) {
-				$section = $section_intro;
-			} else {
-				$section = $1;
-			}
-		}
-		elsif (/$doc_end/)
+	} elsif ($state == STATE_DOCBLOCK) {
+		if (/$doc_end/)
 		{
 			dump_doc_section($file, $section, xml_escape($contents));
+			$section = $section_default;
 			$contents = "";
 			$function = "";
-			%constants = ();
 			%parameterdescs = ();
 			%parametertypes = ();
 			@parameterlist = ();
 			%sections = ();
 			@sectionlist = ();
 			$prototype = "";
-			$state = 0;
+			$state = STATE_NORMAL;
 		}
 		elsif (/$doc_content/)
 		{
@@ -2675,7 +3042,7 @@ sub process_file($) {
     }
     if ($initial_section_counter == $section_counter) {
 	print STDERR "${file}:1: warning: no structured comments found\n";
-	if (($function_only == 1) && ($show_not_found == 1)) {
+	if (($output_selection == OUTPUT_INCLUDE) && ($show_not_found == 1)) {
 	    print STDERR "    Was looking for '$_'.\n" for keys %function_table;
 	}
 	if ($output_mode eq "xml") {
@@ -2732,6 +3099,17 @@ if (open(SOURCE_MAP, "<.tmp_filelist.txt")) {
 		$source_map{$relname} = $absname;
 	}
 	close(SOURCE_MAP);
+}
+
+if ($output_selection == OUTPUT_EXPORTED ||
+    $output_selection == OUTPUT_INTERNAL) {
+
+    push(@export_file_list, @ARGV);
+
+    foreach (@export_file_list) {
+	chomp;
+	process_export_file($_);
+    }
 }
 
 foreach (@ARGV) {

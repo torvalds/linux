@@ -20,11 +20,26 @@
 #include "../include/mc-sys.h"
 #include "dprc-cmd.h"
 
+/*
+ * Generate a unique ID identifying the interrupt (only used within the MSI
+ * irqdomain.  Combine the icid with the interrupt index.
+ */
+static irq_hw_number_t fsl_mc_domain_calc_hwirq(struct fsl_mc_device *dev,
+						struct msi_desc *desc)
+{
+	/*
+	 * Make the base hwirq value for ICID*10000 so it is readable
+	 * as a decimal value in /proc/interrupts.
+	 */
+	return (irq_hw_number_t)(desc->fsl_mc.msi_index + (dev->icid * 10000));
+}
+
 static void fsl_mc_msi_set_desc(msi_alloc_info_t *arg,
 				struct msi_desc *desc)
 {
 	arg->desc = desc;
-	arg->hwirq = (irq_hw_number_t)desc->fsl_mc.msi_index;
+	arg->hwirq = fsl_mc_domain_calc_hwirq(to_fsl_mc_device(desc->dev),
+					      desc);
 }
 
 static void fsl_mc_msi_update_dom_ops(struct msi_domain_info *info)
@@ -37,10 +52,8 @@ static void fsl_mc_msi_update_dom_ops(struct msi_domain_info *info)
 	/*
 	 * set_desc should not be set by the caller
 	 */
-	if (WARN_ON(ops->set_desc))
-		return;
-
-	ops->set_desc = fsl_mc_msi_set_desc;
+	if (ops->set_desc == NULL)
+		ops->set_desc = fsl_mc_msi_set_desc;
 }
 
 static void __fsl_mc_msi_write_msg(struct fsl_mc_device *mc_bus_dev,
@@ -65,7 +78,7 @@ static void __fsl_mc_msi_write_msg(struct fsl_mc_device *mc_bus_dev,
 	irq_cfg.paddr = ((u64)msi_desc->msg.address_hi << 32) |
 			msi_desc->msg.address_lo;
 	irq_cfg.val = msi_desc->msg.data;
-	irq_cfg.user_irq_id = msi_desc->irq;
+	irq_cfg.irq_num = msi_desc->irq;
 
 	if (owner_mc_dev == mc_bus_dev) {
 		/*
@@ -129,10 +142,8 @@ static void fsl_mc_msi_update_chip_ops(struct msi_domain_info *info)
 	/*
 	 * irq_write_msi_msg should not be set by the caller
 	 */
-	if (WARN_ON(chip->irq_write_msi_msg))
-		return;
-
-	chip->irq_write_msi_msg = fsl_mc_msi_write_msg;
+	if (chip->irq_write_msi_msg == NULL)
+		chip->irq_write_msi_msg = fsl_mc_msi_write_msg;
 }
 
 /**

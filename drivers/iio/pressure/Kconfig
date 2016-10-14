@@ -6,15 +6,33 @@
 menu "Pressure sensors"
 
 config BMP280
-	tristate "Bosch Sensortec BMP280 pressure sensor driver"
+	tristate "Bosch Sensortec BMP180/BMP280 pressure sensor I2C driver"
+	depends on (I2C || SPI_MASTER)
+	depends on !(BMP085_I2C=y || BMP085_I2C=m)
+	depends on !(BMP085_SPI=y || BMP085_SPI=m)
+	select REGMAP
+	select BMP280_I2C if (I2C)
+	select BMP280_SPI if (SPI_MASTER)
+	help
+	  Say yes here to build support for Bosch Sensortec BMP180 and BMP280
+	  pressure and temperature sensors. Also supports the BE280 with
+	  an additional humidity sensor channel.
+
+	  To compile this driver as a module, choose M here: the core module
+	  will be called bmp280 and you will also get bmp280-i2c for I2C
+	  and/or bmp280-spi for SPI support.
+
+config BMP280_I2C
+	tristate
+	depends on BMP280
 	depends on I2C
 	select REGMAP_I2C
-	help
-	  Say yes here to build support for Bosch Sensortec BMP280
-	  pressure and temperature sensor.
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called bmp280.
+config BMP280_SPI
+	tristate
+	depends on BMP280
+	depends on SPI_MASTER
+	select REGMAP
 
 config HID_SENSOR_PRESS
 	depends on HID_SENSOR_HUB
@@ -29,6 +47,17 @@ config HID_SENSOR_PRESS
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called hid-sensor-press.
+
+config HP03
+	tristate "Hope RF HP03 temperature and pressure sensor driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for Hope RF HP03 pressure and
+	  temperature sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called hp03.
 
 config MPL115
 	tristate
@@ -118,7 +147,7 @@ config IIO_ST_PRESS
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics pressure
-	  sensors: LPS001WP, LPS25H, LPS331AP.
+	  sensors: LPS001WP, LPS25H, LPS331AP, LPS22HB.
 
 	  This driver can also be built as a module. If so, these modules
 	  will be created:
@@ -147,5 +176,15 @@ config T5403
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called t5403.
+
+config HP206C
+	tristate "HOPERF HP206C precision barometer and altimeter sensor"
+	depends on I2C
+	help
+	  Say yes here to build support for the HOPREF HP206C precision
+	  barometer and altimeter sensor.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called hp206c.
 
 endmenu

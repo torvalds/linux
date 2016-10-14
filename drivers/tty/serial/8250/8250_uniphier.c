@@ -35,7 +35,7 @@ struct uniphier8250_priv {
 	spinlock_t atomic_write_lock;
 };
 
-#if defined(CONFIG_SERIAL_8250_CONSOLE) && !defined(MODULE)
+#ifdef CONFIG_SERIAL_8250_CONSOLE
 static int __init uniphier_early_console_setup(struct earlycon_device *device,
 					       const char *options)
 {
@@ -209,7 +209,7 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "failed to get IRQ number");
+		dev_err(dev, "failed to get IRQ number\n");
 		return irq;
 	}
 

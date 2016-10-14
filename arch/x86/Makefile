@@ -126,14 +126,6 @@ else
         KBUILD_CFLAGS += $(call cc-option,-maccumulate-outgoing-args)
 endif
 
-# Make sure compiler does not have buggy stack-protector support.
-ifdef CONFIG_CC_STACKPROTECTOR
-	cc_has_sp := $(srctree)/scripts/gcc-x86_$(BITS)-has-stack-protector.sh
-        ifneq ($(shell $(CONFIG_SHELL) $(cc_has_sp) $(CC) $(KBUILD_CPPFLAGS) $(biarch)),y)
-                $(warning stack-protector enabled but compiler support broken)
-        endif
-endif
-
 ifdef CONFIG_X86_X32
 	x32_ld_ok := $(call try-run,\
 			/bin/echo -e '1: .quad 1b' | \
@@ -208,7 +200,8 @@ endif
 
 head-y := arch/x86/kernel/head_$(BITS).o
 head-y += arch/x86/kernel/head$(BITS).o
-head-y += arch/x86/kernel/head.o
+head-y += arch/x86/kernel/ebda.o
+head-y += arch/x86/kernel/platform-quirks.o
 
 libs-y  += arch/x86/lib/
 

@@ -7,6 +7,7 @@
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/lockdep.h>
+#include <linux/kasan-checks.h>
 #include <asm/alternative.h>
 #include <asm/cpufeatures.h>
 #include <asm/page.h>
@@ -53,6 +54,7 @@ int __copy_from_user_nocheck(void *dst, const void __user *src, unsigned size)
 {
 	int ret = 0;
 
+	check_object_size(dst, size, false);
 	if (!__builtin_constant_p(size))
 		return copy_user_generic(dst, (__force void *)src, size);
 	switch (size) {
@@ -109,6 +111,7 @@ static __always_inline __must_check
 int __copy_from_user(void *dst, const void __user *src, unsigned size)
 {
 	might_fault();
+	kasan_check_write(dst, size);
 	return __copy_from_user_nocheck(dst, src, size);
 }
 
@@ -117,6 +120,7 @@ int __copy_to_user_nocheck(void __user *dst, const void *src, unsigned size)
 {
 	int ret = 0;
 
+	check_object_size(src, size, true);
 	if (!__builtin_constant_p(size))
 		return copy_user_generic((__force void *)dst, src, size);
 	switch (size) {
@@ -175,6 +179,7 @@ static __always_inline __must_check
 int __copy_to_user(void __user *dst, const void *src, unsigned size)
 {
 	might_fault();
+	kasan_check_read(src, size);
 	return __copy_to_user_nocheck(dst, src, size);
 }
 
@@ -242,12 +247,14 @@ int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
 static __must_check __always_inline int
 __copy_from_user_inatomic(void *dst, const void __user *src, unsigned size)
 {
+	kasan_check_write(dst, size);
 	return __copy_from_user_nocheck(dst, src, size);
 }
 
 static __must_check __always_inline int
 __copy_to_user_inatomic(void __user *dst, const void *src, unsigned size)
 {
+	kasan_check_read(src, size);
 	return __copy_to_user_nocheck(dst, src, size);
 }
 
@@ -258,6 +265,7 @@ static inline int
 __copy_from_user_nocache(void *dst, const void __user *src, unsigned size)
 {
 	might_fault();
+	kasan_check_write(dst, size);
 	return __copy_user_nocache(dst, src, size, 1);
 }
 
@@ -265,6 +273,7 @@ static inline int
 __copy_from_user_inatomic_nocache(void *dst, const void __user *src,
 				  unsigned size)
 {
+	kasan_check_write(dst, size);
 	return __copy_user_nocache(dst, src, size, 0);
 }
 

@@ -335,7 +335,7 @@ static ssize_t w1_master_attribute_store_max_slave_count(struct device *dev,
 	int tmp;
 	struct w1_master *md = dev_to_w1_master(dev);
 
-	if (kstrtoint(buf, 0, &tmp) == -EINVAL || tmp < 1)
+	if (kstrtoint(buf, 0, &tmp) || tmp < 1)
 		return -EINVAL;
 
 	mutex_lock(&md->mutex);

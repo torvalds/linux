@@ -197,12 +197,6 @@ static int ds3232_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	alarm->time.tm_hour = bcd2bin(buf[2] & 0x7F);
 	alarm->time.tm_mday = bcd2bin(buf[3] & 0x7F);
 
-	alarm->time.tm_mon = -1;
-	alarm->time.tm_year = -1;
-	alarm->time.tm_wday = -1;
-	alarm->time.tm_yday = -1;
-	alarm->time.tm_isdst = -1;
-
 	alarm->enabled = !!(control & DS3232_REG_CR_A1IE);
 	alarm->pending = !!(stat & DS3232_REG_SR_A1F);
 
@@ -369,6 +363,11 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 	if (ret)
 		return ret;
 
+	ds3232->rtc = devm_rtc_device_register(dev, name, &ds3232_rtc_ops,
+						THIS_MODULE);
+	if (IS_ERR(ds3232->rtc))
+		return PTR_ERR(ds3232->rtc);
+
 	if (ds3232->irq > 0) {
 		ret = devm_request_threaded_irq(dev, ds3232->irq, NULL,
 						ds3232_irq,
@@ -380,10 +379,8 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 		} else
 			device_init_wakeup(dev, 1);
 	}
-	ds3232->rtc = devm_rtc_device_register(dev, name, &ds3232_rtc_ops,
-						THIS_MODULE);
 
-	return PTR_ERR_OR_ZERO(ds3232->rtc);
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

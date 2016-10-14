@@ -267,6 +267,7 @@ static struct regulator_ops s2mps11_buck_ops = {
 	.ops		= &s2mps11_ldo_ops,		\
 	.type		= REGULATOR_VOLTAGE,		\
 	.owner		= THIS_MODULE,			\
+	.ramp_delay	= RAMP_DELAY_12_MVUS,		\
 	.min_uV		= MIN_800_MV,			\
 	.uV_step	= step,				\
 	.n_voltages	= S2MPS11_LDO_N_VOLTAGES,	\
@@ -749,7 +750,7 @@ static const struct regulator_linear_range s2mps15_ldo_voltage_ranges3[] = {
 
 /* voltage range for s2mps15 LDO 7, 8, 9 and 10 */
 static const struct regulator_linear_range s2mps15_ldo_voltage_ranges4[] = {
-	REGULATOR_LINEAR_RANGE(700000, 0xc, 0x18, 25000),
+	REGULATOR_LINEAR_RANGE(700000, 0x10, 0x20, 25000),
 };
 
 /* voltage range for s2mps15 LDO 1 */
@@ -759,12 +760,12 @@ static const struct regulator_linear_range s2mps15_ldo_voltage_ranges5[] = {
 
 /* voltage range for s2mps15 BUCK 1, 2, 3, 4, 5, 6 and 7 */
 static const struct regulator_linear_range s2mps15_buck_voltage_ranges1[] = {
-	REGULATOR_LINEAR_RANGE(500000, 0x20, 0xb0, 6250),
+	REGULATOR_LINEAR_RANGE(500000, 0x20, 0xc0, 6250),
 };
 
 /* voltage range for s2mps15 BUCK 8, 9 and 10 */
 static const struct regulator_linear_range s2mps15_buck_voltage_ranges2[] = {
-	REGULATOR_LINEAR_RANGE(1000000, 0x20, 0xc0, 12500),
+	REGULATOR_LINEAR_RANGE(1000000, 0x20, 0x78, 12500),
 };
 
 static const struct regulator_desc s2mps15_regulators[] = {
@@ -1237,17 +1238,7 @@ static struct platform_driver s2mps11_pmic_driver = {
 	.id_table = s2mps11_pmic_id,
 };
 
-static int __init s2mps11_pmic_init(void)
-{
-	return platform_driver_register(&s2mps11_pmic_driver);
-}
-subsys_initcall(s2mps11_pmic_init);
-
-static void __exit s2mps11_pmic_exit(void)
-{
-	platform_driver_unregister(&s2mps11_pmic_driver);
-}
-module_exit(s2mps11_pmic_exit);
+module_platform_driver(s2mps11_pmic_driver);
 
 /* Module information */
 MODULE_AUTHOR("Sangbeom Kim <sbkim73@samsung.com>");

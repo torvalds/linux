@@ -65,7 +65,10 @@
 
 #define OPENOWNER_POOL_SIZE	8
 
-const nfs4_stateid zero_stateid;
+const nfs4_stateid zero_stateid = {
+	{ .data = { 0 } },
+	.type = NFS4_SPECIAL_STATEID_TYPE,
+};
 static DEFINE_MUTEX(nfs_clid_init_mutex);
 
 int nfs4_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
@@ -274,20 +277,17 @@ static int nfs41_setup_state_renewal(struct nfs_client *clp)
 {
 	int status;
 	struct nfs_fsinfo fsinfo;
+	unsigned long now;
 
 	if (!test_bit(NFS_CS_CHECK_LEASE_TIME, &clp->cl_res_state)) {
 		nfs4_schedule_state_renewal(clp);
 		return 0;
 	}
 
+	now = jiffies;
 	status = nfs4_proc_get_lease_time(clp, &fsinfo);
 	if (status == 0) {
-		/* Update lease time and schedule renewal */
-		spin_lock(&clp->cl_lock);
-		clp->cl_lease_time = fsinfo.lease_time * HZ;
-		clp->cl_last_renewal = jiffies;
-		spin_unlock(&clp->cl_lock);
-
+		nfs4_set_lease_period(clp, fsinfo.lease_time * HZ, now);
 		nfs4_schedule_state_renewal(clp);
 	}
 
@@ -985,15 +985,20 @@ static void nfs4_copy_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
  * Byte-range lock aware utility to initialize the stateid of read/write
  * requests.
  */
-int nfs4_select_rw_stateid(nfs4_stateid *dst, struct nfs4_state *state,
-		fmode_t fmode, const struct nfs_lockowner *lockowner)
+int nfs4_select_rw_stateid(struct nfs4_state *state,
+		fmode_t fmode, const struct nfs_lockowner *lockowner,
+		nfs4_stateid *dst, struct rpc_cred **cred)
 {
-	int ret = nfs4_copy_lock_stateid(dst, state, lockowner);
+	int ret;
+
+	if (cred != NULL)
+		*cred = NULL;
+	ret = nfs4_copy_lock_stateid(dst, state, lockowner);
 	if (ret == -EIO)
 		/* A lost lock - don't even consider delegations */
 		goto out;
 	/* returns true if delegation stateid found and copied */
-	if (nfs4_copy_delegation_stateid(dst, state->inode, fmode)) {
+	if (nfs4_copy_delegation_stateid(state->inode, fmode, dst, cred)) {
 		ret = 0;
 		goto out;
 	}
@@ -1480,9 +1485,9 @@ restart:
 					}
 					spin_unlock(&state->state_lock);
 				}
-				nfs4_put_open_state(state);
 				clear_bit(NFS_STATE_RECLAIM_NOGRACE,
 					&state->flags);
+				nfs4_put_open_state(state);
 				spin_lock(&sp->so_lock);
 				goto restart;
 			}

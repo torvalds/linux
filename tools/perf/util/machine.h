@@ -28,9 +28,11 @@ struct machine {
 	pid_t		  pid;
 	u16		  id_hdr_size;
 	bool		  comm_exec;
+	bool		  kptr_restrict_warned;
 	char		  *root_dir;
 	struct rb_root	  threads;
 	pthread_rwlock_t  threads_lock;
+	unsigned int	  nr_threads;
 	struct list_head  dead_threads;
 	struct thread	  *last_match;
 	struct vdso_info  *vdso_info;
@@ -141,7 +143,11 @@ struct branch_info *sample__resolve_bstack(struct perf_sample *sample,
 					   struct addr_location *al);
 struct mem_info *sample__resolve_mem(struct perf_sample *sample,
 				     struct addr_location *al);
+
+struct callchain_cursor;
+
 int thread__resolve_callchain(struct thread *thread,
+			      struct callchain_cursor *cursor,
 			      struct perf_evsel *evsel,
 			      struct perf_sample *sample,
 			      struct symbol **parent,
@@ -210,7 +216,10 @@ struct symbol *machine__find_kernel_function_by_name(struct machine *machine,
 
 struct map *machine__findnew_module_map(struct machine *machine, u64 start,
 					const char *filename);
+int arch__fix_module_text_start(u64 *start, const char *name);
 
+int __machine__load_kallsyms(struct machine *machine, const char *filename,
+			     enum map_type type, bool no_kcore, symbol_filter_t filter);
 int machine__load_kallsyms(struct machine *machine, const char *filename,
 			   enum map_type type, symbol_filter_t filter);
 int machine__load_vmlinux_path(struct machine *machine, enum map_type type,

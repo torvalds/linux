@@ -308,3 +308,12 @@ void ordered_events__free(struct ordered_events *oe)
 		free(event);
 	}
 }
+
+void ordered_events__reinit(struct ordered_events *oe)
+{
+	ordered_events__deliver_t old_deliver = oe->deliver;
+
+	ordered_events__free(oe);
+	memset(oe, '\0', sizeof(*oe));
+	ordered_events__init(oe, old_deliver);
+}

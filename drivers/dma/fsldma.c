@@ -462,13 +462,12 @@ static struct fsl_desc_sw *fsl_dma_alloc_descriptor(struct fsldma_chan *chan)
 	struct fsl_desc_sw *desc;
 	dma_addr_t pdesc;
 
-	desc = dma_pool_alloc(chan->desc_pool, GFP_ATOMIC, &pdesc);
+	desc = dma_pool_zalloc(chan->desc_pool, GFP_ATOMIC, &pdesc);
 	if (!desc) {
 		chan_dbg(chan, "out of memory for link descriptor\n");
 		return NULL;
 	}
 
-	memset(desc, 0, sizeof(*desc));
 	INIT_LIST_HEAD(&desc->tx_list);
 	dma_async_tx_descriptor_init(&desc->async_tx, &chan->common);
 	desc->async_tx.tx_submit = fsl_dma_tx_submit;
@@ -1235,7 +1234,6 @@ static int fsl_dma_chan_probe(struct fsldma_device *fdev,
 	/* alloc channel */
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan) {
-		dev_err(fdev->dev, "no free memory for DMA channels!\n");
 		err = -ENOMEM;
 		goto out_return;
 	}
@@ -1341,7 +1339,6 @@ static int fsldma_of_probe(struct platform_device *op)
 
 	fdev = kzalloc(sizeof(*fdev), GFP_KERNEL);
 	if (!fdev) {
-		dev_err(&op->dev, "No enough memory for 'priv'\n");
 		err = -ENOMEM;
 		goto out_return;
 	}

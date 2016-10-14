@@ -5,7 +5,6 @@
  * Author: Rabin Vincent <rabin.vincent@stericsson.com> for ST-Ericsson
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -69,6 +68,22 @@ static void stmpe_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 		stmpe_reg_write(stmpe, reg, mask);
 }
 
+static int stmpe_gpio_get_direction(struct gpio_chip *chip,
+				    unsigned offset)
+{
+	struct stmpe_gpio *stmpe_gpio = gpiochip_get_data(chip);
+	struct stmpe *stmpe = stmpe_gpio->stmpe;
+	u8 reg = stmpe->regs[STMPE_IDX_GPDR_LSB] - (offset / 8);
+	u8 mask = 1 << (offset % 8);
+	int ret;
+
+	ret = stmpe_reg_read(stmpe, reg);
+	if (ret < 0)
+		return ret;
+
+	return !(ret & mask);
+}
+
 static int stmpe_gpio_direction_output(struct gpio_chip *chip,
 					 unsigned offset, int val)
 {
@@ -107,6 +122,7 @@ static int stmpe_gpio_request(struct gpio_chip *chip, unsigned offset)
 static struct gpio_chip template_chip = {
 	.label			= "stmpe",
 	.owner			= THIS_MODULE,
+	.get_direction		= stmpe_gpio_get_direction,
 	.direction_input	= stmpe_gpio_direction_input,
 	.get			= stmpe_gpio_get,
 	.direction_output	= stmpe_gpio_direction_output,
@@ -413,23 +429,12 @@ out_free:
 	return ret;
 }
 
-static int stmpe_gpio_remove(struct platform_device *pdev)
-{
-	struct stmpe_gpio *stmpe_gpio = platform_get_drvdata(pdev);
-	struct stmpe *stmpe = stmpe_gpio->stmpe;
-
-	gpiochip_remove(&stmpe_gpio->chip);
-	stmpe_disable(stmpe, STMPE_BLOCK_GPIO);
-	kfree(stmpe_gpio);
-
-	return 0;
-}
-
 static struct platform_driver stmpe_gpio_driver = {
-	.driver.name	= "stmpe-gpio",
-	.driver.owner	= THIS_MODULE,
+	.driver = {
+		.suppress_bind_attrs	= true,
+		.name			= "stmpe-gpio",
+	},
 	.probe		= stmpe_gpio_probe,
-	.remove		= stmpe_gpio_remove,
 };
 
 static int __init stmpe_gpio_init(void)
@@ -437,13 +442,3 @@ static int __init stmpe_gpio_init(void)
 	return platform_driver_register(&stmpe_gpio_driver);
 }
 subsys_initcall(stmpe_gpio_init);
-
-static void __exit stmpe_gpio_exit(void)
-{
-	platform_driver_unregister(&stmpe_gpio_driver);
-}
-module_exit(stmpe_gpio_exit);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("STMPExxxx GPIO driver");
-MODULE_AUTHOR("Rabin Vincent <rabin.vincent@stericsson.com>");

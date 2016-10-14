@@ -71,10 +71,6 @@ void __sync_icache_dcache(pte_t pte, unsigned long addr)
 {
 	struct page *page = pte_page(pte);
 
-	/* no flushing needed for anonymous pages */
-	if (!page_mapping(page))
-		return;
-
 	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
 		sync_icache_aliases(page_address(page),
 				    PAGE_SIZE << compound_order(page));

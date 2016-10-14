@@ -29,7 +29,8 @@ int main(int argc, char *argv[])
 	} while (ch != EOF);
 
 	if (argc > 1)
-		printf("\t;\n\nconst int %s_size = %d;\n", argv[1], total);
+		printf("\t;\n\n#include <linux/types.h>\n\nconst size_t %s_size = %d;\n",
+		       argv[1], total);
 
 	return 0;
 }

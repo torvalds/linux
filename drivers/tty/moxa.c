@@ -912,7 +912,7 @@ static void moxa_board_deinit(struct moxa_board_conf *brd)
 
 	/* pci hot-un-plug support */
 	for (a = 0; a < brd->numPorts; a++)
-		if (brd->ports[a].port.flags & ASYNC_INITIALIZED)
+		if (tty_port_initialized(&brd->ports[a].port))
 			tty_port_tty_hangup(&brd->ports[a].port, false);
 
 	for (a = 0; a < MAX_PORTS_PER_BOARD; a++)
@@ -921,7 +921,7 @@ static void moxa_board_deinit(struct moxa_board_conf *brd)
 	while (1) {
 		opened = 0;
 		for (a = 0; a < brd->numPorts; a++)
-			if (brd->ports[a].port.flags & ASYNC_INITIALIZED)
+			if (tty_port_initialized(&brd->ports[a].port))
 				opened++;
 		mutex_unlock(&moxa_openlock);
 		if (!opened)
@@ -1192,13 +1192,13 @@ static int moxa_open(struct tty_struct *tty, struct file *filp)
 	tty->driver_data = ch;
 	tty_port_tty_set(&ch->port, tty);
 	mutex_lock(&ch->port.mutex);
-	if (!(ch->port.flags & ASYNC_INITIALIZED)) {
+	if (!tty_port_initialized(&ch->port)) {
 		ch->statusflags = 0;
 		moxa_set_tty_param(tty, &tty->termios);
 		MoxaPortLineCtrl(ch, 1, 1);
 		MoxaPortEnable(ch);
 		MoxaSetFifo(ch, ch->type == PORT_16550A);
-		ch->port.flags |= ASYNC_INITIALIZED;
+		tty_port_set_initialized(&ch->port, 1);
 	}
 	mutex_unlock(&ch->port.mutex);
 	mutex_unlock(&moxa_openlock);
@@ -1379,7 +1379,7 @@ static int moxa_poll_port(struct moxa_port *p, unsigned int handle,
 {
 	struct tty_struct *tty = tty_port_tty_get(&p->port);
 	void __iomem *ofsAddr;
-	unsigned int inited = p->port.flags & ASYNC_INITIALIZED;
+	unsigned int inited = tty_port_initialized(&p->port);
 	u16 intr;
 
 	if (tty) {
@@ -1394,7 +1394,7 @@ static int moxa_poll_port(struct moxa_port *p, unsigned int handle,
 			tty_wakeup(tty);
 		}
 
-		if (inited && !test_bit(TTY_THROTTLED, &tty->flags) &&
+		if (inited && !tty_throttled(tty) &&
 				MoxaPortRxQueue(p) > 0) { /* RX */
 			MoxaPortReadData(p);
 			tty_schedule_flip(&p->port);

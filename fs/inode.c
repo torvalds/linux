@@ -151,6 +151,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	inode->i_bdev = NULL;
 	inode->i_cdev = NULL;
 	inode->i_link = NULL;
+	inode->i_dir_seq = 0;
 	inode->i_rdev = 0;
 	inode->dirtied_when = 0;
 
@@ -165,8 +166,8 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	spin_lock_init(&inode->i_lock);
 	lockdep_set_class(&inode->i_lock, &sb->s_type->i_lock_key);
 
-	mutex_init(&inode->i_mutex);
-	lockdep_set_class(&inode->i_mutex, &sb->s_type->i_mutex_key);
+	init_rwsem(&inode->i_rwsem);
+	lockdep_set_class(&inode->i_rwsem, &sb->s_type->i_mutex_key);
 
 	atomic_set(&inode->i_dio_count, 0);
 
@@ -238,9 +239,9 @@ void __destroy_inode(struct inode *inode)
 	}
 
 #ifdef CONFIG_FS_POSIX_ACL
-	if (inode->i_acl && inode->i_acl != ACL_NOT_CACHED)
+	if (inode->i_acl && !is_uncached_acl(inode->i_acl))
 		posix_acl_release(inode->i_acl);
-	if (inode->i_default_acl && inode->i_default_acl != ACL_NOT_CACHED)
+	if (inode->i_default_acl && !is_uncached_acl(inode->i_default_acl))
 		posix_acl_release(inode->i_default_acl);
 #endif
 	this_cpu_dec(nr_inodes);
@@ -344,7 +345,7 @@ EXPORT_SYMBOL(inc_nlink);
 void address_space_init_once(struct address_space *mapping)
 {
 	memset(mapping, 0, sizeof(*mapping));
-	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
+	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC | __GFP_ACCOUNT);
 	spin_lock_init(&mapping->tree_lock);
 	init_rwsem(&mapping->i_mmap_rwsem);
 	INIT_LIST_HEAD(&mapping->private_list);
@@ -364,6 +365,7 @@ void inode_init_once(struct inode *inode)
 	INIT_HLIST_NODE(&inode->i_hash);
 	INIT_LIST_HEAD(&inode->i_devices);
 	INIT_LIST_HEAD(&inode->i_io_list);
+	INIT_LIST_HEAD(&inode->i_wb_list);
 	INIT_LIST_HEAD(&inode->i_lru);
 	address_space_init_once(&inode->i_data);
 	i_size_ordered_init(inode);
@@ -506,6 +508,7 @@ void clear_inode(struct inode *inode)
 	BUG_ON(!list_empty(&inode->i_data.private_list));
 	BUG_ON(!(inode->i_state & I_FREEING));
 	BUG_ON(inode->i_state & I_CLEAR);
+	BUG_ON(!list_empty(&inode->i_wb_list));
 	/* don't need i_lock here, no concurrent mods to i_state */
 	inode->i_state = I_FREEING | I_CLEAR;
 }
@@ -924,13 +927,13 @@ void lockdep_annotate_inode_mutex_key(struct inode *inode)
 		struct file_system_type *type = inode->i_sb->s_type;
 
 		/* Set new key only if filesystem hasn't already changed it */
-		if (lockdep_match_class(&inode->i_mutex, &type->i_mutex_key)) {
+		if (lockdep_match_class(&inode->i_rwsem, &type->i_mutex_key)) {
 			/*
 			 * ensure nobody is actually holding i_mutex
 			 */
-			mutex_destroy(&inode->i_mutex);
-			mutex_init(&inode->i_mutex);
-			lockdep_set_class(&inode->i_mutex,
+			// mutex_destroy(&inode->i_mutex);
+			init_rwsem(&inode->i_rwsem);
+			lockdep_set_class(&inode->i_rwsem,
 					  &type->i_mutex_dir_key);
 		}
 	}
@@ -1616,6 +1619,13 @@ bool atime_needs_update(const struct path *path, struct inode *inode)
 
 	if (inode->i_flags & S_NOATIME)
 		return false;
+
+	/* Atime updates will likely cause i_uid and i_gid to be written
+	 * back improprely if their true value is unknown to the vfs.
+	 */
+	if (HAS_UNMAPPED_ID(inode))
+		return false;
+
 	if (IS_NOATIME(inode))
 		return false;
 	if ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode))
@@ -1719,7 +1729,6 @@ int dentry_needs_remove_privs(struct dentry *dentry)
 		mask |= ATTR_KILL_PRIV;
 	return mask;
 }
-EXPORT_SYMBOL(dentry_needs_remove_privs);
 
 static int __remove_privs(struct dentry *dentry, int kill)
 {
@@ -1739,8 +1748,8 @@ static int __remove_privs(struct dentry *dentry, int kill)
  */
 int file_remove_privs(struct file *file)
 {
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = d_inode(dentry);
+	struct dentry *dentry = file_dentry(file);
+	struct inode *inode = file_inode(file);
 	int kill;
 	int error = 0;
 
@@ -1748,7 +1757,7 @@ int file_remove_privs(struct file *file)
 	if (IS_NOSEC(inode))
 		return 0;
 
-	kill = file_needs_remove_privs(file);
+	kill = dentry_needs_remove_privs(dentry);
 	if (kill < 0)
 		return kill;
 	if (kill)

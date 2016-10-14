@@ -1743,7 +1743,7 @@ static const struct pinctrl_ops pic32_pinctrl_ops = {
 	.get_group_name = pic32_pinctrl_get_group_name,
 	.get_group_pins = pic32_pinctrl_get_group_pins,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int pic32_pinmux_get_functions_count(struct pinctrl_dev *pctldev)
@@ -2194,7 +2194,8 @@ static int pic32_pinctrl_probe(struct platform_device *pdev)
 	pic32_pinctrl_desc.custom_params = pic32_mpp_bindings;
 	pic32_pinctrl_desc.num_custom_params = ARRAY_SIZE(pic32_mpp_bindings);
 
-	pctl->pctldev = pinctrl_register(&pic32_pinctrl_desc, &pdev->dev, pctl);
+	pctl->pctldev = devm_pinctrl_register(&pdev->dev, &pic32_pinctrl_desc,
+					      pctl);
 	if (IS_ERR(pctl->pctldev)) {
 		dev_err(&pdev->dev, "Failed to register pinctrl device\n");
 		return PTR_ERR(pctl->pctldev);

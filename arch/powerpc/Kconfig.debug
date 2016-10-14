@@ -19,14 +19,6 @@ config PPC_WERROR
 	depends on !PPC_DISABLE_WERROR
 	default y
 
-config STRICT_MM_TYPECHECKS
-	bool "Do extra type checking on mm types"
-	default n
-	help
-	  This option turns on extra type checking for some mm related types.
-
-	  If you don't know what this means, say N.
-
 config PRINT_STACK_DEPTH
 	int "Stack depth to print" if DEBUG_KERNEL
 	default 64
@@ -67,6 +59,25 @@ config CODE_PATCHING_SELFTEST
 	bool "Run self-tests of the code-patching code"
 	depends on DEBUG_KERNEL
 	default n
+
+config JUMP_LABEL_FEATURE_CHECKS
+	bool "Enable use of jump label for cpu/mmu_has_feature()"
+	depends on JUMP_LABEL
+	default y
+	help
+	  Selecting this options enables use of jump labels for some internal
+	  feature checks. This should generate more optimal code for those
+	  checks.
+
+config JUMP_LABEL_FEATURE_CHECK_DEBUG
+	bool "Do extra check on feature fixup calls"
+	depends on DEBUG_KERNEL && JUMP_LABEL_FEATURE_CHECKS
+	default n
+	help
+	  This tries to catch incorrect usage of cpu_has_feature() and
+	  mmu_has_feature() in the code.
+
+	  If you don't know what this means, say N.
 
 config FTR_FIXUP_SELFTEST
 	bool "Run self-tests of the feature-fixup code"
@@ -157,14 +168,14 @@ config PPC_EARLY_DEBUG_BOOTX
 
 config PPC_EARLY_DEBUG_LPAR
 	bool "LPAR HV Console"
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES && HVC_CONSOLE
 	help
 	  Select this to enable early debugging for a machine with a HVC
 	  console on vterm 0.
 
 config PPC_EARLY_DEBUG_LPAR_HVSI
 	bool "LPAR HVSI Console"
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES && HVC_CONSOLE
 	help
 	  Select this to enable early debugging for a machine with a HVSI
 	  console on a specified vterm.
@@ -220,7 +231,6 @@ config PPC_EARLY_DEBUG_40x
 config PPC_EARLY_DEBUG_CPM
 	bool "Early serial debugging for Freescale CPM-based serial ports"
 	depends on SERIAL_CPM
-	select PIN_TLB if PPC_8xx
 	help
 	  Select this to enable early debugging for Freescale chips
 	  using a CPM-based serial port.  This assumes that the bootwrapper

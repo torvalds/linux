@@ -1,2 +1,3 @@
 arch/x86/insn/inat-tables.c
 objtool
+fixdep

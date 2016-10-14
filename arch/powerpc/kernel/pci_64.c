@@ -38,7 +38,7 @@
  * ISA drivers use hard coded offsets.  If no ISA bus exists nothing
  * is mapped on the first 64K of IO space
  */
-unsigned long pci_io_base = ISA_IO_BASE;
+unsigned long pci_io_base;
 EXPORT_SYMBOL(pci_io_base);
 
 static int __init pcibios_init(void)
@@ -81,7 +81,7 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 
 	/* If this is not a PHB, we only flush the hash table over
 	 * the area mapped by this bridge. We don't play with the PTE
-	 * mappings since we might have to deal with sub-page alignemnts
+	 * mappings since we might have to deal with sub-page alignments
 	 * so flushing the hash table is the only sane way to make sure
 	 * that no hash entries are covering that removed bridge area
 	 * while still allowing other busses overlapping those pages
@@ -159,7 +159,7 @@ static int pcibios_map_phb_io_space(struct pci_controller *hose)
 
 	/* Establish the mapping */
 	if (__ioremap_at(phys_page, area->addr, size_page,
-			 _PAGE_NO_CACHE | _PAGE_GUARDED) == NULL)
+			 pgprot_val(pgprot_noncached(__pgprot(0)))) == NULL)
 		return -ENOMEM;
 
 	/* Fixup hose IO resource */

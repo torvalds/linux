@@ -46,5 +46,18 @@ static inline void __tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep,
 #endif
 }
 
+#ifdef CONFIG_SMP
+static inline int mm_is_core_local(struct mm_struct *mm)
+{
+	return cpumask_subset(mm_cpumask(mm),
+			      topology_sibling_cpumask(smp_processor_id()));
+}
+#else
+static inline int mm_is_core_local(struct mm_struct *mm)
+{
+	return 1;
+}
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* __ASM_POWERPC_TLB_H */

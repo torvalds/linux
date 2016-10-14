@@ -29,7 +29,7 @@ struct of_serial_info {
 };
 
 #ifdef CONFIG_ARCH_TEGRA
-void tegra_serial_handle_break(struct uart_port *p)
+static void tegra_serial_handle_break(struct uart_port *p)
 {
 	unsigned int status, tmout = 10000;
 

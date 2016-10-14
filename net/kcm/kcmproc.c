@@ -88,13 +88,9 @@ struct kcm_proc_mux_state {
 static int kcm_seq_open(struct inode *inode, struct file *file)
 {
 	struct kcm_seq_muxinfo *muxinfo = PDE_DATA(inode);
-	int err;
 
-	err = seq_open_net(inode, file, &muxinfo->seq_ops,
+	return seq_open_net(inode, file, &muxinfo->seq_ops,
 			   sizeof(struct kcm_proc_mux_state));
-	if (err < 0)
-		return err;
-	return err;
 }
 
 static void kcm_format_mux_header(struct seq_file *seq)
@@ -241,6 +237,7 @@ static const struct file_operations kcm_seq_fops = {
 	.open		= kcm_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
+	.release	= seq_release_net,
 };
 
 static struct kcm_seq_muxinfo kcm_seq_muxinfo = {

@@ -1042,7 +1042,7 @@ static void i596_tx_timeout (struct net_device *dev)
 		lp->last_restart = dev->stats.tx_packets;
 	}
 
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 

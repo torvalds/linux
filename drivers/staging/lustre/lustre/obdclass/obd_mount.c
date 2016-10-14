@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -102,7 +98,7 @@ int lustre_process_log(struct super_block *sb, char *logname,
 		LCONSOLE_ERROR_MSG(0x15b, "%s: The configuration from log '%s' failed from the MGS (%d).  Make sure this client and the MGS are running compatible versions of Lustre.\n",
 				   mgc->obd_name, logname, rc);
 
-	if (rc)
+	else if (rc)
 		LCONSOLE_ERROR_MSG(0x15c, "%s: The configuration from log '%s' failed (%d). This may be the result of communication errors between this node and the MGS, a bad configuration, or other errors. See the syslog for more information.\n",
 				   mgc->obd_name, logname,
 				   rc);
@@ -192,7 +188,7 @@ static int lustre_start_simple(char *obdname, char *type, char *uuid,
 	return rc;
 }
 
-DEFINE_MUTEX(mgc_start_lock);
+static DEFINE_MUTEX(mgc_start_lock);
 
 /** Set up a mgc obd to process startup logs
  *
@@ -307,7 +303,8 @@ int lustre_start_mgc(struct super_block *sb)
 	while (class_parse_nid(ptr, &nid, &ptr) == 0) {
 		rc = do_lcfg(mgcname, nid,
 			     LCFG_ADD_UUID, niduuid, NULL, NULL, NULL);
-		i++;
+		if (!rc)
+			i++;
 		/* Stop at the first failover nid */
 		if (*ptr == ':')
 			break;
@@ -345,16 +342,18 @@ int lustre_start_mgc(struct super_block *sb)
 		sprintf(niduuid, "%s_%x", mgcname, i);
 		j = 0;
 		while (class_parse_nid_quiet(ptr, &nid, &ptr) == 0) {
-			j++;
-			rc = do_lcfg(mgcname, nid,
-				     LCFG_ADD_UUID, niduuid, NULL, NULL, NULL);
+			rc = do_lcfg(mgcname, nid, LCFG_ADD_UUID, niduuid,
+				     NULL, NULL, NULL);
+			if (!rc)
+				++j;
 			if (*ptr == ':')
 				break;
 		}
 		if (j > 0) {
 			rc = do_lcfg(mgcname, 0, LCFG_ADD_CONN,
 				     niduuid, NULL, NULL, NULL);
-			i++;
+			if (!rc)
+				i++;
 		} else {
 			/* at ":/fsname" */
 			break;

@@ -943,7 +943,7 @@ static void lance_tx_timeout (struct net_device *dev)
 #endif
 	lance_restart (dev, 0x0043, 1);
 
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 

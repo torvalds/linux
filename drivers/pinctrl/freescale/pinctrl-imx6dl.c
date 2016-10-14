@@ -1,4 +1,7 @@
 /*
+ * Freescale imx6dl pinctrl driver
+ *
+ * Author: Shawn Guo <shawn.guo@linaro.org>
  * Copyright (C) 2013 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -9,7 +12,6 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -477,7 +479,6 @@ static struct platform_driver imx6dl_pinctrl_driver = {
 		.of_match_table = imx6dl_pinctrl_of_match,
 	},
 	.probe = imx6dl_pinctrl_probe,
-	.remove = imx_pinctrl_remove,
 };
 
 static int __init imx6dl_pinctrl_init(void)
@@ -485,13 +486,3 @@ static int __init imx6dl_pinctrl_init(void)
 	return platform_driver_register(&imx6dl_pinctrl_driver);
 }
 arch_initcall(imx6dl_pinctrl_init);
-
-static void __exit imx6dl_pinctrl_exit(void)
-{
-	platform_driver_unregister(&imx6dl_pinctrl_driver);
-}
-module_exit(imx6dl_pinctrl_exit);
-
-MODULE_AUTHOR("Shawn Guo <shawn.guo@linaro.org>");
-MODULE_DESCRIPTION("Freescale imx6dl pinctrl driver");
-MODULE_LICENSE("GPL v2");

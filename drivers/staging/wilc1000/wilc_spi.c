@@ -196,9 +196,6 @@ static int wilc_spi_tx(struct wilc *wilc, u8 *b, u32 len)
 		dev_err(&spi->dev,
 			"can't write data with the following length: %d\n",
 			len);
-		dev_err(&spi->dev,
-			"FAILED due to NULL buffer or ZERO length check the following length: %d\n",
-			len);
 		ret = -EINVAL;
 	}
 
@@ -1085,7 +1082,7 @@ static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
 	int ret, i;
 
 	if (nint > MAX_NUM_INT) {
-		dev_err(&spi->dev, "Too many interupts (%d)...\n", nint);
+		dev_err(&spi->dev, "Too many interrupts (%d)...\n", nint);
 		return 0;
 	}
 

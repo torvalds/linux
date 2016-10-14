@@ -174,13 +174,13 @@ struct sense_info {
  * struct fw_event_work - firmware event struct
  * @list: link list framework
  * @work: work object (ioc->fault_reset_work_q)
- * @cancel_pending_work: flag set during reset handling
  * @ioc: per adapter object
  * @device_handle: device handle
  * @VF_ID: virtual function id
  * @VP_ID: virtual port id
  * @ignore: flag meaning this event has been marked to ignore
- * @event: firmware event MPI2_EVENT_XXX defined in mpt2_ioc.h
+ * @event: firmware event MPI2_EVENT_XXX defined in mpi2_ioc.h
+ * @refcount: kref for this event
  * @event_data: reply event data payload follows
  *
  * This object stored on ioc->fw_event_list.
@@ -188,8 +188,6 @@ struct sense_info {
 struct fw_event_work {
 	struct list_head	list;
 	struct work_struct	work;
-	u8			cancel_pending_work;
-	struct delayed_work	delayed_work;
 
 	struct MPT3SAS_ADAPTER *ioc;
 	u16			device_handle;
@@ -1911,6 +1909,14 @@ scsih_slave_configure(struct scsi_device *sdev)
 			    (unsigned long long)raid_device->wwid,
 			    raid_device->num_pds, ds);
 
+		if (shost->max_sectors > MPT3SAS_RAID_MAX_SECTORS) {
+			blk_queue_max_hw_sectors(sdev->request_queue,
+						MPT3SAS_RAID_MAX_SECTORS);
+			sdev_printk(KERN_INFO, sdev,
+					"Set queue's max_sector to: %u\n",
+						MPT3SAS_RAID_MAX_SECTORS);
+		}
+
 		scsih_change_queue_depth(sdev, qdepth);
 
 		/* raid transport support */
@@ -2118,7 +2124,6 @@ _scsih_tm_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 		return 1;
 	if (ioc->tm_cmds.smid != smid)
 		return 1;
-	mpt3sas_base_flush_reply_queues(ioc);
 	ioc->tm_cmds.status |= MPT3_CMD_COMPLETE;
 	mpi_reply =  mpt3sas_base_get_reply_virt_addr(ioc, reply);
 	if (mpi_reply) {
@@ -2302,6 +2307,9 @@ mpt3sas_scsih_issue_tm(struct MPT3SAS_ADAPTER *ioc, u16 handle, uint channel,
 			goto err_out;
 		}
 	}
+
+	/* sync IRQs in case those were busy during flush. */
+	mpt3sas_base_sync_reply_irqs(ioc);
 
 	if (ioc->tm_cmds.status & MPT3_CMD_REPLY_VALID) {
 		mpt3sas_trigger_master(ioc, MASTER_TRIGGER_TASK_MANAGMENT);
@@ -2804,12 +2812,12 @@ _scsih_fw_event_cleanup_queue(struct MPT3SAS_ADAPTER *ioc)
 		/*
 		 * Wait on the fw_event to complete. If this returns 1, then
 		 * the event was never executed, and we need a put for the
-		 * reference the delayed_work had on the fw_event.
+		 * reference the work had on the fw_event.
 		 *
 		 * If it did execute, we wait for it to finish, and the put will
 		 * happen from _firmware_event_work()
 		 */
-		if (cancel_delayed_work_sync(&fw_event->delayed_work))
+		if (cancel_work_sync(&fw_event->work))
 			fw_event_work_put(fw_event);
 
 		fw_event_work_put(fw_event);
@@ -3961,7 +3969,7 @@ _scsih_setup_eedp(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 		    MPI2_SCSIIO_EEDPFLAGS_CHECK_REFTAG |
 		    MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD;
 		mpi_request->CDB.EEDP32.PrimaryReferenceTag =
-		    cpu_to_be32(scsi_get_lba(scmd));
+		    cpu_to_be32(scsi_prot_ref_tag(scmd));
 		break;
 
 	case SCSI_PROT_DIF_TYPE3:
@@ -4895,13 +4903,22 @@ _scsih_sas_host_add(struct MPT3SAS_ADAPTER *ioc)
 	u16 ioc_status;
 	u16 sz;
 	u8 device_missing_delay;
+	u8 num_phys;
 
-	mpt3sas_config_get_number_hba_phys(ioc, &ioc->sas_hba.num_phys);
-	if (!ioc->sas_hba.num_phys) {
+	mpt3sas_config_get_number_hba_phys(ioc, &num_phys);
+	if (!num_phys) {
 		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
 		return;
 	}
+	ioc->sas_hba.phy = kcalloc(num_phys,
+	    sizeof(struct _sas_phy), GFP_KERNEL);
+	if (!ioc->sas_hba.phy) {
+		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		goto out;
+	}
+	ioc->sas_hba.num_phys = num_phys;
 
 	/* sas_iounit page 0 */
 	sz = offsetof(Mpi2SasIOUnitPage0_t, PhyData) + (ioc->sas_hba.num_phys *
@@ -4961,13 +4978,6 @@ _scsih_sas_host_add(struct MPT3SAS_ADAPTER *ioc)
 		    MPI2_SASIOUNIT1_REPORT_MISSING_TIMEOUT_MASK;
 
 	ioc->sas_hba.parent_dev = &ioc->shost->shost_gendev;
-	ioc->sas_hba.phy = kcalloc(ioc->sas_hba.num_phys,
-	    sizeof(struct _sas_phy), GFP_KERNEL);
-	if (!ioc->sas_hba.phy) {
-		pr_err(MPT3SAS_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
-		goto out;
-	}
 	for (i = 0; i < ioc->sas_hba.num_phys ; i++) {
 		if ((mpt3sas_config_get_phy_pg0(ioc, &mpi_reply, &phy_pg0,
 		    i))) {
@@ -7850,6 +7860,7 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 	Mpi2EventNotificationReply_t *mpi_reply;
 	u16 event;
 	u16 sz;
+	Mpi26EventDataActiveCableExcept_t *ActiveCableEventData;
 
 	/* events turned off due to host reset or driver unloading */
 	if (ioc->remove_host || ioc->pci_error_recovery)
@@ -7961,6 +7972,19 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 		_scsih_temp_threshold_events(ioc,
 			(Mpi2EventDataTemperature_t *)
 			mpi_reply->EventData);
+		break;
+	case MPI2_EVENT_ACTIVE_CABLE_EXCEPTION:
+		ActiveCableEventData =
+		    (Mpi26EventDataActiveCableExcept_t *) mpi_reply->EventData;
+		if (ActiveCableEventData->ReasonCode ==
+				MPI26_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER) {
+			pr_info(MPT3SAS_FMT "Currently an active cable with ReceptacleID %d",
+			    ioc->name, ActiveCableEventData->ReceptacleID);
+			pr_info("cannot be powered and devices connected to this active cable");
+			pr_info("will not be seen. This active cable");
+			pr_info("requires %d mW of power",
+			    ActiveCableEventData->ActiveCablePowerRequirement);
+		}
 		break;
 
 	default: /* ignore the rest */
@@ -9011,8 +9035,11 @@ scsih_pci_mmio_enabled(struct pci_dev *pdev)
 
 	/* TODO - dump whatever for debugging purposes */
 
-	/* Request a slot reset. */
-	return PCI_ERS_RESULT_NEED_RESET;
+	/* This called only if scsih_pci_error_detected returns
+	 * PCI_ERS_RESULT_CAN_RECOVER. Read/write to the device still
+	 * works, no need to reset slot.
+	 */
+	return PCI_ERS_RESULT_RECOVERED;
 }
 
 /*

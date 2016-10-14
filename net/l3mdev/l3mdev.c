@@ -10,6 +10,7 @@
  */
 
 #include <linux/netdevice.h>
+#include <net/fib_rules.h>
 #include <net/l3mdev.h>
 
 /**
@@ -97,3 +98,127 @@ u32 l3mdev_fib_table_by_index(struct net *net, int ifindex)
 	return tb_id;
 }
 EXPORT_SYMBOL_GPL(l3mdev_fib_table_by_index);
+
+/**
+ *	l3mdev_get_rt6_dst - IPv6 route lookup based on flow. Returns
+ *			     cached route for L3 master device if relevant
+ *			     to flow
+ *	@net: network namespace for device index lookup
+ *	@fl6: IPv6 flow struct for lookup
+ */
+
+struct dst_entry *l3mdev_get_rt6_dst(struct net *net,
+				     struct flowi6 *fl6)
+{
+	struct dst_entry *dst = NULL;
+	struct net_device *dev;
+
+	if (fl6->flowi6_oif) {
+		rcu_read_lock();
+
+		dev = dev_get_by_index_rcu(net, fl6->flowi6_oif);
+		if (dev && netif_is_l3_slave(dev))
+			dev = netdev_master_upper_dev_get_rcu(dev);
+
+		if (dev && netif_is_l3_master(dev) &&
+		    dev->l3mdev_ops->l3mdev_get_rt6_dst)
+			dst = dev->l3mdev_ops->l3mdev_get_rt6_dst(dev, fl6);
+
+		rcu_read_unlock();
+	}
+
+	return dst;
+}
+EXPORT_SYMBOL_GPL(l3mdev_get_rt6_dst);
+
+/**
+ *	l3mdev_get_saddr - get source address for a flow based on an interface
+ *			   enslaved to an L3 master device
+ *	@net: network namespace for device index lookup
+ *	@ifindex: Interface index
+ *	@fl4: IPv4 flow struct
+ */
+
+int l3mdev_get_saddr(struct net *net, int ifindex, struct flowi4 *fl4)
+{
+	struct net_device *dev;
+	int rc = 0;
+
+	if (ifindex) {
+		rcu_read_lock();
+
+		dev = dev_get_by_index_rcu(net, ifindex);
+		if (dev && netif_is_l3_slave(dev))
+			dev = netdev_master_upper_dev_get_rcu(dev);
+
+		if (dev && netif_is_l3_master(dev) &&
+		    dev->l3mdev_ops->l3mdev_get_saddr)
+			rc = dev->l3mdev_ops->l3mdev_get_saddr(dev, fl4);
+
+		rcu_read_unlock();
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(l3mdev_get_saddr);
+
+int l3mdev_get_saddr6(struct net *net, const struct sock *sk,
+		      struct flowi6 *fl6)
+{
+	struct net_device *dev;
+	int rc = 0;
+
+	if (fl6->flowi6_oif) {
+		rcu_read_lock();
+
+		dev = dev_get_by_index_rcu(net, fl6->flowi6_oif);
+		if (dev && netif_is_l3_slave(dev))
+			dev = netdev_master_upper_dev_get_rcu(dev);
+
+		if (dev && netif_is_l3_master(dev) &&
+		    dev->l3mdev_ops->l3mdev_get_saddr6)
+			rc = dev->l3mdev_ops->l3mdev_get_saddr6(dev, sk, fl6);
+
+		rcu_read_unlock();
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(l3mdev_get_saddr6);
+
+/**
+ *	l3mdev_fib_rule_match - Determine if flowi references an
+ *				L3 master device
+ *	@net: network namespace for device index lookup
+ *	@fl:  flow struct
+ */
+
+int l3mdev_fib_rule_match(struct net *net, struct flowi *fl,
+			  struct fib_lookup_arg *arg)
+{
+	struct net_device *dev;
+	int rc = 0;
+
+	rcu_read_lock();
+
+	dev = dev_get_by_index_rcu(net, fl->flowi_oif);
+	if (dev && netif_is_l3_master(dev) &&
+	    dev->l3mdev_ops->l3mdev_fib_table) {
+		arg->table = dev->l3mdev_ops->l3mdev_fib_table(dev);
+		rc = 1;
+		goto out;
+	}
+
+	dev = dev_get_by_index_rcu(net, fl->flowi_iif);
+	if (dev && netif_is_l3_master(dev) &&
+	    dev->l3mdev_ops->l3mdev_fib_table) {
+		arg->table = dev->l3mdev_ops->l3mdev_fib_table(dev);
+		rc = 1;
+		goto out;
+	}
+
+out:
+	rcu_read_unlock();
+
+	return rc;
+}

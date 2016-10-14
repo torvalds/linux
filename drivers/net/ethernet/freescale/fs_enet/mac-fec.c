@@ -254,7 +254,7 @@ static void restart(struct net_device *dev)
 	int r;
 	u32 addrhi, addrlo;
 
-	struct mii_bus *mii = fep->phydev->mdio.bus;
+	struct mii_bus *mii = dev->phydev->mdio.bus;
 	struct fec_info* fec_inf = mii->priv;
 
 	r = whack_reset(fep->fec.fecp);
@@ -333,7 +333,7 @@ static void restart(struct net_device *dev)
 	/*
 	 * adjust to duplex mode
 	 */
-	if (fep->phydev->duplex) {
+	if (dev->phydev->duplex) {
 		FC(fecp, r_cntrl, FEC_RCNTRL_DRT);
 		FS(fecp, x_cntrl, FEC_TCNTRL_FDEN);	/* FD enable */
 	} else {
@@ -363,7 +363,7 @@ static void stop(struct net_device *dev)
 	const struct fs_platform_info *fpi = fep->fpi;
 	struct fec __iomem *fecp = fep->fec.fecp;
 
-	struct fec_info *feci = fep->phydev->mdio.bus->priv;
+	struct fec_info *feci = dev->phydev->mdio.bus->priv;
 
 	int i;
 

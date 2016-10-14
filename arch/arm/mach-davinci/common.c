@@ -108,12 +108,6 @@ void __init davinci_common_init(struct davinci_soc_info *soc_info)
 	if (ret < 0)
 		goto err;
 
-	if (davinci_soc_info.cpu_clks) {
-		ret = davinci_clk_init(davinci_soc_info.cpu_clks);
-
-		if (ret != 0)
-			goto err;
-	}
 
 	return;
 

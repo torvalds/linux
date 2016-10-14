@@ -184,12 +184,6 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int psbfb_ioctl(struct fb_info *info, unsigned int cmd,
-						unsigned long arg)
-{
-	return -ENOTTY;
-}
-
 static struct fb_ops psbfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = drm_fb_helper_check_var,
@@ -201,7 +195,6 @@ static struct fb_ops psbfb_ops = {
 	.fb_imageblit = drm_fb_helper_cfb_imageblit,
 	.fb_mmap = psbfb_mmap,
 	.fb_sync = psbfb_sync,
-	.fb_ioctl = psbfb_ioctl,
 };
 
 static struct fb_ops psbfb_roll_ops = {
@@ -215,7 +208,6 @@ static struct fb_ops psbfb_roll_ops = {
 	.fb_imageblit = drm_fb_helper_cfb_imageblit,
 	.fb_pan_display = psbfb_pan,
 	.fb_mmap = psbfb_mmap,
-	.fb_ioctl = psbfb_ioctl,
 };
 
 static struct fb_ops psbfb_unaccel_ops = {
@@ -228,7 +220,6 @@ static struct fb_ops psbfb_unaccel_ops = {
 	.fb_copyarea = drm_fb_helper_cfb_copyarea,
 	.fb_imageblit = drm_fb_helper_cfb_imageblit,
 	.fb_mmap = psbfb_mmap,
-	.fb_ioctl = psbfb_ioctl,
 };
 
 /**
@@ -411,7 +402,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	info = drm_fb_helper_alloc_fbi(&fbdev->psb_fb_helper);
 	if (IS_ERR(info)) {
 		ret = PTR_ERR(info);
-		goto out_err1;
+		goto err_free_range;
 	}
 	info->par = fbdev;
 
@@ -419,7 +410,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	ret = psb_framebuffer_init(dev, psbfb, &mode_cmd, backing);
 	if (ret)
-		goto out_unref;
+		goto err_release;
 
 	fb = &psbfb->base;
 	psbfb->fbdev = info;
@@ -464,14 +455,9 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 					psbfb->base.width, psbfb->base.height);
 
 	return 0;
-out_unref:
-	if (backing->stolen)
-		psb_gtt_free_range(dev, backing);
-	else
-		drm_gem_object_unreference_unlocked(&backing->gem);
-
+err_release:
 	drm_fb_helper_release_fbi(&fbdev->psb_fb_helper);
-out_err1:
+err_free_range:
 	psb_gtt_free_range(dev, backing);
 	return ret;
 }
@@ -495,7 +481,7 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 	 *	Find the GEM object and thus the gtt range object that is
 	 *	to back this space
 	 */
-	obj = drm_gem_object_lookup(dev, filp, cmd->handles[0]);
+	obj = drm_gem_object_lookup(filp, cmd->handles[0]);
 	if (obj == NULL)
 		return ERR_PTR(-ENOENT);
 

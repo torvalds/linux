@@ -11,7 +11,6 @@ Required properties:
   - "fsl,imx51-ecspi" for SPI compatible with the one integrated on i.MX51
 - reg : Offset and length of the register set for the device
 - interrupts : Should contain CSPI/eCSPI interrupt
-- fsl,spi-num-chipselects : Contains the number of the chipselect
 - cs-gpios : Specifies the gpio pins to be used for chipselects.
 - clocks : Clock specifiers for both ipg and per clocks.
 - clock-names : Clock names should include both "ipg" and "per"
@@ -21,6 +20,9 @@ See the clock consumer binding,
 		Documentation/devicetree/bindings/dma/dma.txt
 - dma-names: DMA request names should include "tx" and "rx" if present.
 
+Obsolete properties:
+- fsl,spi-num-chipselects : Contains the number of the chipselect
+
 Example:
 
 ecspi@70010000 {
@@ -29,7 +31,6 @@ ecspi@70010000 {
 	compatible = "fsl,imx51-ecspi";
 	reg = <0x70010000 0x4000>;
 	interrupts = <36>;
-	fsl,spi-num-chipselects = <2>;
 	cs-gpios = <&gpio3 24 0>, /* GPIO3_24 */
 		   <&gpio3 25 0>; /* GPIO3_25 */
 	dmas = <&sdma 3 7 1>, <&sdma 4 7 2>;

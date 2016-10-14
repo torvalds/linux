@@ -23,6 +23,7 @@
 #include <linux/debugfs.h>
 #include <linux/idr.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 #include <linux/dma-mapping.h>
 
 #include "intel_th.h"
@@ -67,13 +68,32 @@ static int intel_th_probe(struct device *dev)
 
 	hubdrv = to_intel_th_driver(hub->dev.driver);
 
+	pm_runtime_set_active(dev);
+	pm_runtime_no_callbacks(dev);
+	pm_runtime_enable(dev);
+
 	ret = thdrv->probe(to_intel_th_device(dev));
 	if (ret)
-		return ret;
+		goto out_pm;
+
+	if (thdrv->attr_group) {
+		ret = sysfs_create_group(&thdev->dev.kobj, thdrv->attr_group);
+		if (ret)
+			goto out;
+	}
 
 	if (thdev->type == INTEL_TH_OUTPUT &&
 	    !intel_th_output_assigned(thdev))
+		/* does not talk to hardware */
 		ret = hubdrv->assign(hub, thdev);
+
+out:
+	if (ret)
+		thdrv->remove(thdev);
+
+out_pm:
+	if (ret)
+		pm_runtime_disable(dev);
 
 	return ret;
 }
@@ -91,6 +111,11 @@ static int intel_th_remove(struct device *dev)
 			return err;
 	}
 
+	if (thdrv->attr_group)
+		sysfs_remove_group(&thdev->dev.kobj, thdrv->attr_group);
+
+	pm_runtime_get_sync(dev);
+
 	thdrv->remove(thdev);
 
 	if (intel_th_output_assigned(thdev)) {
@@ -98,8 +123,13 @@ static int intel_th_remove(struct device *dev)
 			to_intel_th_driver(dev->parent->driver);
 
 		if (hub->dev.driver)
+			/* does not talk to hardware */
 			hubdrv->unassign(hub, thdev);
 	}
+
+	pm_runtime_disable(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 
 	return 0;
 }
@@ -171,24 +201,44 @@ static DEVICE_ATTR_RO(port);
 
 static int intel_th_output_activate(struct intel_th_device *thdev)
 {
-	struct intel_th_driver *thdrv = to_intel_th_driver(thdev->dev.driver);
+	struct intel_th_driver *thdrv =
+		to_intel_th_driver_or_null(thdev->dev.driver);
+	int ret = 0;
+
+	if (!thdrv)
+		return -ENODEV;
+
+	if (!try_module_get(thdrv->driver.owner))
+		return -ENODEV;
+
+	pm_runtime_get_sync(&thdev->dev);
 
 	if (thdrv->activate)
-		return thdrv->activate(thdev);
+		ret = thdrv->activate(thdev);
+	else
+		intel_th_trace_enable(thdev);
 
-	intel_th_trace_enable(thdev);
+	if (ret)
+		pm_runtime_put(&thdev->dev);
 
-	return 0;
+	return ret;
 }
 
 static void intel_th_output_deactivate(struct intel_th_device *thdev)
 {
-	struct intel_th_driver *thdrv = to_intel_th_driver(thdev->dev.driver);
+	struct intel_th_driver *thdrv =
+		to_intel_th_driver_or_null(thdev->dev.driver);
+
+	if (!thdrv)
+		return;
 
 	if (thdrv->deactivate)
 		thdrv->deactivate(thdev);
 	else
 		intel_th_trace_disable(thdev);
+
+	pm_runtime_put(&thdev->dev);
+	module_put(thdrv->driver.owner);
 }
 
 static ssize_t active_show(struct device *dev, struct device_attribute *attr,
@@ -440,6 +490,38 @@ static struct intel_th_subdevice {
 	},
 };
 
+#ifdef CONFIG_MODULES
+static void __intel_th_request_hub_module(struct work_struct *work)
+{
+	struct intel_th *th = container_of(work, struct intel_th,
+					   request_module_work);
+
+	request_module("intel_th_%s", th->hub->name);
+}
+
+static int intel_th_request_hub_module(struct intel_th *th)
+{
+	INIT_WORK(&th->request_module_work, __intel_th_request_hub_module);
+	schedule_work(&th->request_module_work);
+
+	return 0;
+}
+
+static void intel_th_request_hub_module_flush(struct intel_th *th)
+{
+	flush_work(&th->request_module_work);
+}
+#else
+static inline int intel_th_request_hub_module(struct intel_th *th)
+{
+	return -EINVAL;
+}
+
+static inline void intel_th_request_hub_module_flush(struct intel_th *th)
+{
+}
+#endif /* CONFIG_MODULES */
+
 static int intel_th_populate(struct intel_th *th, struct resource *devres,
 			     unsigned int ndevres, int irq)
 {
@@ -510,7 +592,7 @@ static int intel_th_populate(struct intel_th *th, struct resource *devres,
 		/* need switch driver to be loaded to enumerate the rest */
 		if (subdev->type == INTEL_TH_SWITCH && !req) {
 			th->hub = thdev;
-			err = request_module("intel_th_%s", subdev->name);
+			err = intel_th_request_hub_module(th);
 			if (!err)
 				req++;
 		}
@@ -603,6 +685,10 @@ intel_th_alloc(struct device *dev, struct resource *devres,
 
 	dev_set_drvdata(dev, th);
 
+	pm_runtime_no_callbacks(dev);
+	pm_runtime_put(dev);
+	pm_runtime_allow(dev);
+
 	err = intel_th_populate(th, devres, ndevres, irq);
 	if (err)
 		goto err_chrdev;
@@ -610,6 +696,8 @@ intel_th_alloc(struct device *dev, struct resource *devres,
 	return th;
 
 err_chrdev:
+	pm_runtime_forbid(dev);
+
 	__unregister_chrdev(th->major, 0, TH_POSSIBLE_OUTPUTS,
 			    "intel_th/output");
 
@@ -627,11 +715,15 @@ void intel_th_free(struct intel_th *th)
 {
 	int i;
 
+	intel_th_request_hub_module_flush(th);
 	for (i = 0; i < TH_SUBDEVICE_MAX; i++)
 		if (th->thdev[i] != th->hub)
 			intel_th_device_remove(th->thdev[i]);
 
 	intel_th_device_remove(th->hub);
+
+	pm_runtime_get_sync(th->dev);
+	pm_runtime_forbid(th->dev);
 
 	__unregister_chrdev(th->major, 0, TH_POSSIBLE_OUTPUTS,
 			    "intel_th/output");
@@ -657,6 +749,7 @@ int intel_th_trace_enable(struct intel_th_device *thdev)
 	if (WARN_ON_ONCE(thdev->type != INTEL_TH_OUTPUT))
 		return -EINVAL;
 
+	pm_runtime_get_sync(&thdev->dev);
 	hubdrv->enable(hub, &thdev->output);
 
 	return 0;
@@ -677,6 +770,7 @@ int intel_th_trace_disable(struct intel_th_device *thdev)
 		return -EINVAL;
 
 	hubdrv->disable(hub, &thdev->output);
+	pm_runtime_put(&thdev->dev);
 
 	return 0;
 }

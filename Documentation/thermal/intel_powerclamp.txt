@@ -121,7 +121,7 @@ time is considered largely as a non-causal system where its behavior
 cannot be based on the past or current input. Therefore, the
 intel_powerclamp driver attempts to enforce the desired idle time
 instantly as given input (target idle ratio). After injection,
-powerclamp moniors the actual idle for a given time window and adjust
+powerclamp monitors the actual idle for a given time window and adjust
 the next injection accordingly to avoid over/under correction.
 
 When used in a causal control system, such as a temperature control,

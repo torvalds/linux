@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -36,6 +32,7 @@
  * Client IO.
  *
  *   Author: Nikita Danilov <nikita.danilov@sun.com>
+ *   Author: Jinshan Xiong <jinshan.xiong@intel.com>
  */
 
 #define DEBUG_SUBSYSTEM S_CLASS
@@ -132,6 +129,7 @@ void cl_io_fini(const struct lu_env *env, struct cl_io *io)
 	case CIT_WRITE:
 		break;
 	case CIT_FAULT:
+		break;
 	case CIT_FSYNC:
 		LASSERT(!io->ci_need_restart);
 		break;
@@ -159,7 +157,6 @@ static int cl_io_init0(const struct lu_env *env, struct cl_io *io,
 
 	io->ci_type = iot;
 	INIT_LIST_HEAD(&io->ci_lockset.cls_todo);
-	INIT_LIST_HEAD(&io->ci_lockset.cls_curr);
 	INIT_LIST_HEAD(&io->ci_lockset.cls_done);
 	INIT_LIST_HEAD(&io->ci_layers);
 
@@ -241,37 +238,7 @@ static int cl_lock_descr_sort(const struct cl_lock_descr *d0,
 			      const struct cl_lock_descr *d1)
 {
 	return lu_fid_cmp(lu_object_fid(&d0->cld_obj->co_lu),
-			  lu_object_fid(&d1->cld_obj->co_lu)) ?:
-		__diff_normalize(d0->cld_start, d1->cld_start);
-}
-
-static int cl_lock_descr_cmp(const struct cl_lock_descr *d0,
-			     const struct cl_lock_descr *d1)
-{
-	int ret;
-
-	ret = lu_fid_cmp(lu_object_fid(&d0->cld_obj->co_lu),
-			 lu_object_fid(&d1->cld_obj->co_lu));
-	if (ret)
-		return ret;
-	if (d0->cld_end < d1->cld_start)
-		return -1;
-	if (d0->cld_start > d0->cld_end)
-		return 1;
-	return 0;
-}
-
-static void cl_lock_descr_merge(struct cl_lock_descr *d0,
-				const struct cl_lock_descr *d1)
-{
-	d0->cld_start = min(d0->cld_start, d1->cld_start);
-	d0->cld_end = max(d0->cld_end, d1->cld_end);
-
-	if (d1->cld_mode == CLM_WRITE && d0->cld_mode != CLM_WRITE)
-		d0->cld_mode = CLM_WRITE;
-
-	if (d1->cld_mode == CLM_GROUP && d0->cld_mode != CLM_GROUP)
-		d0->cld_mode = CLM_GROUP;
+			  lu_object_fid(&d1->cld_obj->co_lu));
 }
 
 /*
@@ -320,33 +287,35 @@ static void cl_io_locks_sort(struct cl_io *io)
 	} while (!done);
 }
 
-/**
- * Check whether \a queue contains locks matching \a need.
- *
- * \retval +ve there is a matching lock in the \a queue
- * \retval   0 there are no matching locks in the \a queue
- */
-int cl_queue_match(const struct list_head *queue,
-		   const struct cl_lock_descr *need)
+static void cl_lock_descr_merge(struct cl_lock_descr *d0,
+				const struct cl_lock_descr *d1)
 {
-	struct cl_io_lock_link *scan;
+	d0->cld_start = min(d0->cld_start, d1->cld_start);
+	d0->cld_end = max(d0->cld_end, d1->cld_end);
 
-	list_for_each_entry(scan, queue, cill_linkage) {
-		if (cl_lock_descr_match(&scan->cill_descr, need))
-			return 1;
-	}
-	return 0;
+	if (d1->cld_mode == CLM_WRITE && d0->cld_mode != CLM_WRITE)
+		d0->cld_mode = CLM_WRITE;
+
+	if (d1->cld_mode == CLM_GROUP && d0->cld_mode != CLM_GROUP)
+		d0->cld_mode = CLM_GROUP;
 }
-EXPORT_SYMBOL(cl_queue_match);
 
-static int cl_queue_merge(const struct list_head *queue,
-			  const struct cl_lock_descr *need)
+static int cl_lockset_merge(const struct cl_lockset *set,
+			    const struct cl_lock_descr *need)
 {
 	struct cl_io_lock_link *scan;
 
-	list_for_each_entry(scan, queue, cill_linkage) {
-		if (cl_lock_descr_cmp(&scan->cill_descr, need))
+	list_for_each_entry(scan, &set->cls_todo, cill_linkage) {
+		if (!cl_object_same(scan->cill_descr.cld_obj, need->cld_obj))
 			continue;
+
+		/* Merge locks for the same object because ldlm lock server
+		 * may expand the lock extent, otherwise there is a deadlock
+		 * case if two conflicted locks are queueud for the same object
+		 * and lock server expands one lock to overlap the another.
+		 * The side effect is that it can generate a multi-stripe lock
+		 * that may cause casacading problem
+		 */
 		cl_lock_descr_merge(&scan->cill_descr, need);
 		CDEBUG(D_VFSTRACE, "lock: %d: [%lu, %lu]\n",
 		       scan->cill_descr.cld_mode, scan->cill_descr.cld_start,
@@ -356,87 +325,20 @@ static int cl_queue_merge(const struct list_head *queue,
 	return 0;
 }
 
-static int cl_lockset_match(const struct cl_lockset *set,
-			    const struct cl_lock_descr *need)
-{
-	return cl_queue_match(&set->cls_curr, need) ||
-	       cl_queue_match(&set->cls_done, need);
-}
-
-static int cl_lockset_merge(const struct cl_lockset *set,
-			    const struct cl_lock_descr *need)
-{
-	return cl_queue_merge(&set->cls_todo, need) ||
-	       cl_lockset_match(set, need);
-}
-
-static int cl_lockset_lock_one(const struct lu_env *env,
-			       struct cl_io *io, struct cl_lockset *set,
-			       struct cl_io_lock_link *link)
-{
-	struct cl_lock *lock;
-	int	     result;
-
-	lock = cl_lock_request(env, io, &link->cill_descr, "io", io);
-
-	if (!IS_ERR(lock)) {
-		link->cill_lock = lock;
-		list_move(&link->cill_linkage, &set->cls_curr);
-		if (!(link->cill_descr.cld_enq_flags & CEF_ASYNC)) {
-			result = cl_wait(env, lock);
-			if (result == 0)
-				list_move(&link->cill_linkage, &set->cls_done);
-		} else
-			result = 0;
-	} else
-		result = PTR_ERR(lock);
-	return result;
-}
-
-static void cl_lock_link_fini(const struct lu_env *env, struct cl_io *io,
-			      struct cl_io_lock_link *link)
-{
-	struct cl_lock *lock = link->cill_lock;
-
-	list_del_init(&link->cill_linkage);
-	if (lock) {
-		cl_lock_release(env, lock, "io", io);
-		link->cill_lock = NULL;
-	}
-	if (link->cill_fini)
-		link->cill_fini(env, link);
-}
-
 static int cl_lockset_lock(const struct lu_env *env, struct cl_io *io,
 			   struct cl_lockset *set)
 {
 	struct cl_io_lock_link *link;
 	struct cl_io_lock_link *temp;
-	struct cl_lock	 *lock;
 	int result;
 
 	result = 0;
 	list_for_each_entry_safe(link, temp, &set->cls_todo, cill_linkage) {
-		if (!cl_lockset_match(set, &link->cill_descr)) {
-			/* XXX some locking to guarantee that locks aren't
-			 * expanded in between.
-			 */
-			result = cl_lockset_lock_one(env, io, set, link);
-			if (result != 0)
-				break;
-		} else
-			cl_lock_link_fini(env, io, link);
-	}
-	if (result == 0) {
-		list_for_each_entry_safe(link, temp,
-					 &set->cls_curr, cill_linkage) {
-			lock = link->cill_lock;
-			result = cl_wait(env, lock);
-			if (result == 0)
-				list_move(&link->cill_linkage, &set->cls_done);
-			else
-				break;
-		}
+		result = cl_lock_request(env, io, &link->cill_lock);
+		if (result < 0)
+			break;
+
+		list_move(&link->cill_linkage, &set->cls_done);
 	}
 	return result;
 }
@@ -492,16 +394,19 @@ void cl_io_unlock(const struct lu_env *env, struct cl_io *io)
 
 	set = &io->ci_lockset;
 
-	list_for_each_entry_safe(link, temp, &set->cls_todo, cill_linkage)
-		cl_lock_link_fini(env, io, link);
-
-	list_for_each_entry_safe(link, temp, &set->cls_curr, cill_linkage)
-		cl_lock_link_fini(env, io, link);
+	list_for_each_entry_safe(link, temp, &set->cls_todo, cill_linkage) {
+		list_del_init(&link->cill_linkage);
+		if (link->cill_fini)
+			link->cill_fini(env, link);
+	}
 
 	list_for_each_entry_safe(link, temp, &set->cls_done, cill_linkage) {
-		cl_unuse(env, link->cill_lock);
-		cl_lock_link_fini(env, io, link);
+		list_del_init(&link->cill_linkage);
+		cl_lock_release(env, &link->cill_lock);
+		if (link->cill_fini)
+			link->cill_fini(env, link);
 	}
+
 	cl_io_for_each_reverse(scan, io) {
 		if (scan->cis_iop->op[io->ci_type].cio_unlock)
 			scan->cis_iop->op[io->ci_type].cio_unlock(env, scan);
@@ -595,9 +500,9 @@ int cl_io_lock_add(const struct lu_env *env, struct cl_io *io,
 {
 	int result;
 
-	if (cl_lockset_merge(&io->ci_lockset, &link->cill_descr))
+	if (cl_lockset_merge(&io->ci_lockset, &link->cill_descr)) {
 		result = 1;
-	else {
+	} else {
 		list_add(&link->cill_linkage, &io->ci_lockset.cls_todo);
 		result = 0;
 	}
@@ -627,8 +532,9 @@ int cl_io_lock_alloc_add(const struct lu_env *env, struct cl_io *io,
 		result = cl_io_lock_add(env, io, link);
 		if (result) /* lock match */
 			link->cill_fini(env, link);
-	} else
+	} else {
 		result = -ENOMEM;
+	}
 
 	return result;
 }
@@ -692,42 +598,6 @@ cl_io_slice_page(const struct cl_io_slice *ios, struct cl_page *page)
 }
 
 /**
- * True iff \a page is within \a io range.
- */
-static int cl_page_in_io(const struct cl_page *page, const struct cl_io *io)
-{
-	int     result = 1;
-	loff_t  start;
-	loff_t  end;
-	pgoff_t idx;
-
-	idx = page->cp_index;
-	switch (io->ci_type) {
-	case CIT_READ:
-	case CIT_WRITE:
-		/*
-		 * check that [start, end) and [pos, pos + count) extents
-		 * overlap.
-		 */
-		if (!cl_io_is_append(io)) {
-			const struct cl_io_rw_common *crw = &(io->u.ci_rw);
-
-			start = cl_offset(page->cp_obj, idx);
-			end   = cl_offset(page->cp_obj, idx + 1);
-			result = crw->crw_pos < end &&
-				 start < crw->crw_pos + crw->crw_count;
-		}
-		break;
-	case CIT_FAULT:
-		result = io->u.ci_fault.ft_index == idx;
-		break;
-	default:
-		LBUG();
-	}
-	return result;
-}
-
-/**
  * Called by read io, when page has to be read from the server.
  *
  * \see cl_io_operations::cio_read_page()
@@ -742,7 +612,6 @@ int cl_io_read_page(const struct lu_env *env, struct cl_io *io,
 	LINVRNT(io->ci_type == CIT_READ || io->ci_type == CIT_FAULT);
 	LINVRNT(cl_page_is_owned(page, io));
 	LINVRNT(io->ci_state == CIS_IO_GOING || io->ci_state == CIS_LOCKED);
-	LINVRNT(cl_page_in_io(page, io));
 	LINVRNT(cl_io_invariant(io));
 
 	queue = &io->ci_queue;
@@ -769,7 +638,7 @@ int cl_io_read_page(const struct lu_env *env, struct cl_io *io,
 				break;
 		}
 	}
-	if (result == 0)
+	if (result == 0 && queue->c2_qin.pl_nr > 0)
 		result = cl_io_submit_rw(env, io, CRT_READ, queue);
 	/*
 	 * Unlock unsent pages in case of error.
@@ -781,77 +650,29 @@ int cl_io_read_page(const struct lu_env *env, struct cl_io *io,
 EXPORT_SYMBOL(cl_io_read_page);
 
 /**
- * Called by write io to prepare page to receive data from user buffer.
+ * Commit a list of contiguous pages into writeback cache.
  *
- * \see cl_io_operations::cio_prepare_write()
+ * \returns 0 if all pages committed, or errcode if error occurred.
+ * \see cl_io_operations::cio_commit_async()
  */
-int cl_io_prepare_write(const struct lu_env *env, struct cl_io *io,
-			struct cl_page *page, unsigned from, unsigned to)
+int cl_io_commit_async(const struct lu_env *env, struct cl_io *io,
+		       struct cl_page_list *queue, int from, int to,
+		       cl_commit_cbt cb)
 {
 	const struct cl_io_slice *scan;
 	int result = 0;
-
-	LINVRNT(io->ci_type == CIT_WRITE);
-	LINVRNT(cl_page_is_owned(page, io));
-	LINVRNT(io->ci_state == CIS_IO_GOING || io->ci_state == CIS_LOCKED);
-	LINVRNT(cl_io_invariant(io));
-	LASSERT(cl_page_in_io(page, io));
-
-	cl_io_for_each_reverse(scan, io) {
-		if (scan->cis_iop->cio_prepare_write) {
-			const struct cl_page_slice *slice;
-
-			slice = cl_io_slice_page(scan, page);
-			result = scan->cis_iop->cio_prepare_write(env, scan,
-								  slice,
-								  from, to);
-			if (result != 0)
-				break;
-		}
-	}
-	return result;
-}
-EXPORT_SYMBOL(cl_io_prepare_write);
-
-/**
- * Called by write io after user data were copied into a page.
- *
- * \see cl_io_operations::cio_commit_write()
- */
-int cl_io_commit_write(const struct lu_env *env, struct cl_io *io,
-		       struct cl_page *page, unsigned from, unsigned to)
-{
-	const struct cl_io_slice *scan;
-	int result = 0;
-
-	LINVRNT(io->ci_type == CIT_WRITE);
-	LINVRNT(io->ci_state == CIS_IO_GOING || io->ci_state == CIS_LOCKED);
-	LINVRNT(cl_io_invariant(io));
-	/*
-	 * XXX Uh... not nice. Top level cl_io_commit_write() call (vvp->lov)
-	 * already called cl_page_cache_add(), moving page into CPS_CACHED
-	 * state. Better (and more general) way of dealing with such situation
-	 * is needed.
-	 */
-	LASSERT(cl_page_is_owned(page, io) || page->cp_parent);
-	LASSERT(cl_page_in_io(page, io));
 
 	cl_io_for_each(scan, io) {
-		if (scan->cis_iop->cio_commit_write) {
-			const struct cl_page_slice *slice;
-
-			slice = cl_io_slice_page(scan, page);
-			result = scan->cis_iop->cio_commit_write(env, scan,
-								 slice,
-								 from, to);
-			if (result != 0)
-				break;
-		}
+		if (!scan->cis_iop->cio_commit_async)
+			continue;
+		result = scan->cis_iop->cio_commit_async(env, scan, queue,
+							 from, to, cb);
+		if (result != 0)
+			break;
 	}
-	LINVRNT(result <= 0);
 	return result;
 }
-EXPORT_SYMBOL(cl_io_commit_write);
+EXPORT_SYMBOL(cl_io_commit_async);
 
 /**
  * Submits a list of pages for immediate io.
@@ -869,13 +690,10 @@ int cl_io_submit_rw(const struct lu_env *env, struct cl_io *io,
 	const struct cl_io_slice *scan;
 	int result = 0;
 
-	LINVRNT(crt < ARRAY_SIZE(scan->cis_iop->req_op));
-
 	cl_io_for_each(scan, io) {
-		if (!scan->cis_iop->req_op[crt].cio_submit)
+		if (!scan->cis_iop->cio_submit)
 			continue;
-		result = scan->cis_iop->req_op[crt].cio_submit(env, scan, crt,
-							       queue);
+		result = scan->cis_iop->cio_submit(env, scan, crt, queue);
 		if (result != 0)
 			break;
 	}
@@ -886,6 +704,9 @@ int cl_io_submit_rw(const struct lu_env *env, struct cl_io *io,
 	return result;
 }
 EXPORT_SYMBOL(cl_io_submit_rw);
+
+static void cl_page_list_assume(const struct lu_env *env,
+				struct cl_io *io, struct cl_page_list *plist);
 
 /**
  * Submit a sync_io and wait for the IO to be finished, or error happens.
@@ -904,7 +725,7 @@ int cl_io_submit_sync(const struct lu_env *env, struct cl_io *io,
 		pg->cp_sync_io = anchor;
 	}
 
-	cl_sync_io_init(anchor, queue->c2_qin.pl_nr);
+	cl_sync_io_init(anchor, queue->c2_qin.pl_nr, &cl_sync_io_end);
 	rc = cl_io_submit_rw(env, io, iot, queue);
 	if (rc == 0) {
 		/*
@@ -915,12 +736,12 @@ int cl_io_submit_sync(const struct lu_env *env, struct cl_io *io,
 		 */
 		cl_page_list_for_each(pg, &queue->c2_qin) {
 			pg->cp_sync_io = NULL;
-			cl_sync_io_note(anchor, 1);
+			cl_sync_io_note(env, anchor, 1);
 		}
 
 		/* wait for the IO to be finished. */
-		rc = cl_sync_io_wait(env, io, &queue->c2_qout,
-				     anchor, timeout);
+		rc = cl_sync_io_wait(env, anchor, timeout);
+		cl_page_list_assume(env, io, &queue->c2_qout);
 	} else {
 		LASSERT(list_empty(&queue->c2_qout.pl_pages));
 		cl_page_list_for_each(pg, &queue->c2_qin)
@@ -929,26 +750,6 @@ int cl_io_submit_sync(const struct lu_env *env, struct cl_io *io,
 	return rc;
 }
 EXPORT_SYMBOL(cl_io_submit_sync);
-
-/**
- * Cancel an IO which has been submitted by cl_io_submit_rw.
- */
-static int cl_io_cancel(const struct lu_env *env, struct cl_io *io,
-			struct cl_page_list *queue)
-{
-	struct cl_page *page;
-	int result = 0;
-
-	CERROR("Canceling ongoing page transmission\n");
-	cl_page_list_for_each(page, queue) {
-		int rc;
-
-		LINVRNT(cl_page_in_io(page, io));
-		rc = cl_page_cancel(env, page);
-		result = result ?: rc;
-	}
-	return result;
-}
 
 /**
  * Main io loop.
@@ -1072,8 +873,8 @@ EXPORT_SYMBOL(cl_page_list_add);
 /**
  * Removes a page from a page list.
  */
-static void cl_page_list_del(const struct lu_env *env,
-			     struct cl_page_list *plist, struct cl_page *page)
+void cl_page_list_del(const struct lu_env *env, struct cl_page_list *plist,
+		      struct cl_page *page)
 {
 	LASSERT(plist->pl_nr > 0);
 	LINVRNT(plist->pl_owner == current);
@@ -1086,6 +887,7 @@ static void cl_page_list_del(const struct lu_env *env,
 	lu_ref_del_at(&page->cp_reference, &page->cp_queue_ref, "queue", plist);
 	cl_page_put(env, page);
 }
+EXPORT_SYMBOL(cl_page_list_del);
 
 /**
  * Moves a page from one page list to another.
@@ -1104,6 +906,24 @@ void cl_page_list_move(struct cl_page_list *dst, struct cl_page_list *src,
 		      src, dst);
 }
 EXPORT_SYMBOL(cl_page_list_move);
+
+/**
+ * Moves a page from one page list to the head of another list.
+ */
+void cl_page_list_move_head(struct cl_page_list *dst, struct cl_page_list *src,
+			    struct cl_page *page)
+{
+	LASSERT(src->pl_nr > 0);
+	LINVRNT(dst->pl_owner == current);
+	LINVRNT(src->pl_owner == current);
+
+	list_move(&page->cp_batch, &dst->pl_pages);
+	--src->pl_nr;
+	++dst->pl_nr;
+	lu_ref_set_at(&page->cp_reference, &page->cp_queue_ref, "queue",
+		      src, dst);
+}
+EXPORT_SYMBOL(cl_page_list_move_head);
 
 /**
  * splice the cl_page_list, just as list head does
@@ -1162,8 +982,7 @@ EXPORT_SYMBOL(cl_page_list_disown);
 /**
  * Releases pages from queue.
  */
-static void cl_page_list_fini(const struct lu_env *env,
-			      struct cl_page_list *plist)
+void cl_page_list_fini(const struct lu_env *env, struct cl_page_list *plist)
 {
 	struct cl_page *page;
 	struct cl_page *temp;
@@ -1174,6 +993,7 @@ static void cl_page_list_fini(const struct lu_env *env,
 		cl_page_list_del(env, plist, page);
 	LASSERT(plist->pl_nr == 0);
 }
+EXPORT_SYMBOL(cl_page_list_fini);
 
 /**
  * Assumes all pages in a queue.
@@ -1260,7 +1080,7 @@ EXPORT_SYMBOL(cl_2queue_init_page);
 /**
  * Returns top-level io.
  *
- * \see cl_object_top(), cl_page_top().
+ * \see cl_object_top()
  */
 struct cl_io *cl_io_top(struct cl_io *io)
 {
@@ -1323,19 +1143,14 @@ static int cl_req_init(const struct lu_env *env, struct cl_req *req,
 	int result;
 
 	result = 0;
-	page = cl_page_top(page);
-	do {
-		list_for_each_entry(slice, &page->cp_layers, cpl_linkage) {
-			dev = lu2cl_dev(slice->cpl_obj->co_lu.lo_dev);
-			if (dev->cd_ops->cdo_req_init) {
-				result = dev->cd_ops->cdo_req_init(env,
-								   dev, req);
-				if (result != 0)
-					break;
-			}
+	list_for_each_entry(slice, &page->cp_layers, cpl_linkage) {
+		dev = lu2cl_dev(slice->cpl_obj->co_lu.lo_dev);
+		if (dev->cd_ops->cdo_req_init) {
+			result = dev->cd_ops->cdo_req_init(env, dev, req);
+			if (result != 0)
+				break;
 		}
-		page = page->cp_child;
-	} while (page && result == 0);
+	}
 	return result;
 }
 
@@ -1384,14 +1199,16 @@ struct cl_req *cl_req_alloc(const struct lu_env *env, struct cl_page *page,
 		if (req->crq_o) {
 			req->crq_nrobjs = nr_objects;
 			result = cl_req_init(env, req, page);
-		} else
+		} else {
 			result = -ENOMEM;
+		}
 		if (result != 0) {
 			cl_req_completion(env, req, result);
 			req = ERR_PTR(result);
 		}
-	} else
+	} else {
 		req = ERR_PTR(-ENOMEM);
+	}
 	return req;
 }
 EXPORT_SYMBOL(cl_req_alloc);
@@ -1405,8 +1222,6 @@ void cl_req_page_add(const struct lu_env *env,
 	struct cl_object  *obj;
 	struct cl_req_obj *rqo;
 	int i;
-
-	page = cl_page_top(page);
 
 	LASSERT(list_empty(&page->cp_flight));
 	LASSERT(!page->cp_req);
@@ -1437,8 +1252,6 @@ EXPORT_SYMBOL(cl_req_page_add);
 void cl_req_page_done(const struct lu_env *env, struct cl_page *page)
 {
 	struct cl_req *req = page->cp_req;
-
-	page = cl_page_top(page);
 
 	LASSERT(!list_empty(&page->cp_flight));
 	LASSERT(req->crq_nrpages > 0);
@@ -1511,25 +1324,39 @@ void cl_req_attr_set(const struct lu_env *env, struct cl_req *req,
 }
 EXPORT_SYMBOL(cl_req_attr_set);
 
+/* cl_sync_io_callback assumes the caller must call cl_sync_io_wait() to
+ * wait for the IO to finish.
+ */
+void cl_sync_io_end(const struct lu_env *env, struct cl_sync_io *anchor)
+{
+	wake_up_all(&anchor->csi_waitq);
+
+	/* it's safe to nuke or reuse anchor now */
+	atomic_set(&anchor->csi_barrier, 0);
+}
+EXPORT_SYMBOL(cl_sync_io_end);
 
 /**
- * Initialize synchronous io wait anchor, for transfer of \a nrpages pages.
+ * Initialize synchronous io wait anchor
  */
-void cl_sync_io_init(struct cl_sync_io *anchor, int nrpages)
+void cl_sync_io_init(struct cl_sync_io *anchor, int nr,
+		     void (*end)(const struct lu_env *, struct cl_sync_io *))
 {
+	memset(anchor, 0, sizeof(*anchor));
 	init_waitqueue_head(&anchor->csi_waitq);
-	atomic_set(&anchor->csi_sync_nr, nrpages);
-	atomic_set(&anchor->csi_barrier, nrpages > 0);
+	atomic_set(&anchor->csi_sync_nr, nr);
+	atomic_set(&anchor->csi_barrier, nr > 0);
 	anchor->csi_sync_rc = 0;
+	anchor->csi_end_io = end;
+	LASSERT(end);
 }
 EXPORT_SYMBOL(cl_sync_io_init);
 
 /**
- * Wait until all transfer completes. Transfer completion routine has to call
- * cl_sync_io_note() for every page.
+ * Wait until all IO completes. Transfer completion routine has to call
+ * cl_sync_io_note() for every entity.
  */
-int cl_sync_io_wait(const struct lu_env *env, struct cl_io *io,
-		    struct cl_page_list *queue, struct cl_sync_io *anchor,
+int cl_sync_io_wait(const struct lu_env *env, struct cl_sync_io *anchor,
 		    long timeout)
 {
 	struct l_wait_info lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(timeout),
@@ -1542,10 +1369,8 @@ int cl_sync_io_wait(const struct lu_env *env, struct cl_io *io,
 			  atomic_read(&anchor->csi_sync_nr) == 0,
 			  &lwi);
 	if (rc < 0) {
-		CERROR("SYNC IO failed with error: %d, try to cancel %d remaining pages\n",
+		CERROR("IO failed: %d, still wait for %d remaining entries\n",
 		       rc, atomic_read(&anchor->csi_sync_nr));
-
-		(void)cl_io_cancel(env, io, queue);
 
 		lwi = (struct l_wait_info) { 0 };
 		(void)l_wait_event(anchor->csi_waitq,
@@ -1555,14 +1380,12 @@ int cl_sync_io_wait(const struct lu_env *env, struct cl_io *io,
 		rc = anchor->csi_sync_rc;
 	}
 	LASSERT(atomic_read(&anchor->csi_sync_nr) == 0);
-	cl_page_list_assume(env, io, queue);
 
 	/* wait until cl_sync_io_note() has done wakeup */
 	while (unlikely(atomic_read(&anchor->csi_barrier) != 0)) {
 		cpu_relax();
 	}
 
-	POISON(anchor, 0x5a, sizeof(*anchor));
 	return rc;
 }
 EXPORT_SYMBOL(cl_sync_io_wait);
@@ -1570,7 +1393,8 @@ EXPORT_SYMBOL(cl_sync_io_wait);
 /**
  * Indicate that transfer of a single page completed.
  */
-void cl_sync_io_note(struct cl_sync_io *anchor, int ioret)
+void cl_sync_io_note(const struct lu_env *env, struct cl_sync_io *anchor,
+		     int ioret)
 {
 	if (anchor->csi_sync_rc == 0 && ioret < 0)
 		anchor->csi_sync_rc = ioret;
@@ -1581,9 +1405,9 @@ void cl_sync_io_note(struct cl_sync_io *anchor, int ioret)
 	 */
 	LASSERT(atomic_read(&anchor->csi_sync_nr) > 0);
 	if (atomic_dec_and_test(&anchor->csi_sync_nr)) {
-		wake_up_all(&anchor->csi_waitq);
-		/* it's safe to nuke or reuse anchor now */
-		atomic_set(&anchor->csi_barrier, 0);
+		LASSERT(anchor->csi_end_io);
+		anchor->csi_end_io(env, anchor);
+		/* Can't access anchor any more */
 	}
 }
 EXPORT_SYMBOL(cl_sync_io_note);

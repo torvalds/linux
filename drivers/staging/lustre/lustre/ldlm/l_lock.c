@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -54,7 +50,7 @@ struct ldlm_resource *lock_res_and_lock(struct ldlm_lock *lock)
 
 	lock_res(lock->l_resource);
 
-	lock->l_flags |= LDLM_FL_RES_LOCKED;
+	ldlm_set_res_locked(lock);
 	return lock->l_resource;
 }
 EXPORT_SYMBOL(lock_res_and_lock);
@@ -65,7 +61,7 @@ EXPORT_SYMBOL(lock_res_and_lock);
 void unlock_res_and_lock(struct ldlm_lock *lock)
 {
 	/* on server-side resource of lock doesn't change */
-	lock->l_flags &= ~LDLM_FL_RES_LOCKED;
+	ldlm_clear_res_locked(lock);
 
 	unlock_res(lock->l_resource);
 	spin_unlock(&lock->l_lock);

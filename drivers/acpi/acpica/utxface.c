@@ -127,7 +127,7 @@ ACPI_EXPORT_SYMBOL(acpi_subsystem_status)
  *              and the value of out_buffer is undefined.
  *
  ******************************************************************************/
-acpi_status acpi_get_system_info(struct acpi_buffer * out_buffer)
+acpi_status acpi_get_system_info(struct acpi_buffer *out_buffer)
 {
 	struct acpi_system_info *info_ptr;
 	acpi_status status;
@@ -483,7 +483,7 @@ ACPI_EXPORT_SYMBOL(acpi_check_address_range)
  ******************************************************************************/
 acpi_status
 acpi_decode_pld_buffer(u8 *in_buffer,
-		       acpi_size length, struct acpi_pld_info ** return_buffer)
+		       acpi_size length, struct acpi_pld_info **return_buffer)
 {
 	struct acpi_pld_info *pld_info;
 	u32 *buffer = ACPI_CAST_PTR(u32, in_buffer);

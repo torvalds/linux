@@ -640,7 +640,7 @@ int ocfs2_map_page_blocks(struct page *page, u64 *p_blkno,
 			   !buffer_new(bh) &&
 			   ocfs2_should_read_blk(inode, page, block_start) &&
 			   (block_start < from || block_end > to)) {
-			ll_rw_block(READ, 1, &bh);
+			ll_rw_block(REQ_OP_READ, 0, 1, &bh);
 			*wait_bh++=bh;
 		}
 
@@ -1645,43 +1645,6 @@ static int ocfs2_zero_tail(struct inode *inode, struct buffer_head *di_bh,
 	return ret;
 }
 
-/*
- * Try to flush truncate logs if we can free enough clusters from it.
- * As for return value, "< 0" means error, "0" no space and "1" means
- * we have freed enough spaces and let the caller try to allocate again.
- */
-static int ocfs2_try_to_free_truncate_log(struct ocfs2_super *osb,
-					  unsigned int needed)
-{
-	tid_t target;
-	int ret = 0;
-	unsigned int truncated_clusters;
-
-	inode_lock(osb->osb_tl_inode);
-	truncated_clusters = osb->truncated_clusters;
-	inode_unlock(osb->osb_tl_inode);
-
-	/*
-	 * Check whether we can succeed in allocating if we free
-	 * the truncate log.
-	 */
-	if (truncated_clusters < needed)
-		goto out;
-
-	ret = ocfs2_flush_truncate_log(osb);
-	if (ret) {
-		mlog_errno(ret);
-		goto out;
-	}
-
-	if (jbd2_journal_start_commit(osb->journal->j_journal, &target)) {
-		jbd2_log_wait_commit(osb->journal->j_journal, target);
-		ret = 1;
-	}
-out:
-	return ret;
-}
-
 int ocfs2_write_begin_nolock(struct address_space *mapping,
 			     loff_t pos, unsigned len, ocfs2_write_type_t type,
 			     struct page **pagep, void **fsdata,
@@ -1879,6 +1842,16 @@ out_commit:
 	ocfs2_commit_trans(osb, handle);
 
 out:
+	/*
+	 * The mmapped page won't be unlocked in ocfs2_free_write_ctxt(),
+	 * even in case of error here like ENOSPC and ENOMEM. So, we need
+	 * to unlock the target page manually to prevent deadlocks when
+	 * retrying again on ENOSPC, or when returning non-VM_FAULT_LOCKED
+	 * to VM code.
+	 */
+	if (wc->w_target_locked)
+		unlock_page(mmap_page);
+
 	ocfs2_free_write_ctxt(inode, wc);
 
 	if (data_ac) {
@@ -2311,7 +2284,7 @@ static void ocfs2_dio_end_io_write(struct inode *inode,
 	/* ocfs2_file_write_iter will get i_mutex, so we need not lock if we
 	 * are in that context. */
 	if (dwc->dw_writer_pid != task_pid_nr(current)) {
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		locked = 1;
 	}
 
@@ -2390,7 +2363,7 @@ out:
 		ocfs2_free_alloc_context(meta_ac);
 	ocfs2_run_deallocs(osb, &dealloc);
 	if (locked)
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 	ocfs2_dio_free_write_ctx(inode, dwc);
 }
 
@@ -2423,13 +2396,11 @@ static int ocfs2_dio_end_io(struct kiocb *iocb,
 	return 0;
 }
 
-static ssize_t ocfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-			       loff_t offset)
+static ssize_t ocfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file_inode(file)->i_mapping->host;
+	struct inode *inode = file->f_mapping->host;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	loff_t end = offset + iter->count;
 	get_block_t *get_block;
 
 	/*
@@ -2440,7 +2411,8 @@ static ssize_t ocfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 		return 0;
 
 	/* Fallback to buffered I/O if we do not support append dio. */
-	if (end > i_size_read(inode) && !ocfs2_supports_append_dio(osb))
+	if (iocb->ki_pos + iter->count > i_size_read(inode) &&
+	    !ocfs2_supports_append_dio(osb))
 		return 0;
 
 	if (iov_iter_rw(iter) == READ)
@@ -2449,7 +2421,7 @@ static ssize_t ocfs2_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 		get_block = ocfs2_dio_get_block;
 
 	return __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev,
-				    iter, offset, get_block,
+				    iter, get_block,
 				    ocfs2_dio_end_io, NULL, 0);
 }
 

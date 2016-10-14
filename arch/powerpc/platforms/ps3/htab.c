@@ -63,7 +63,7 @@ static long ps3_hpte_insert(unsigned long hpte_group, unsigned long vpn,
 	vflags &= ~HPTE_V_SECONDARY;
 
 	hpte_v = hpte_encode_v(vpn, psize, apsize, ssize) | vflags | HPTE_V_VALID;
-	hpte_r = hpte_encode_r(ps3_mm_phys_to_lpar(pa), psize, apsize) | rflags;
+	hpte_r = hpte_encode_r(ps3_mm_phys_to_lpar(pa), psize, apsize, ssize) | rflags;
 
 	spin_lock_irqsave(&ps3_htab_lock, flags);
 
@@ -195,12 +195,12 @@ static void ps3_hpte_clear(void)
 
 void __init ps3_hpte_init(unsigned long htab_size)
 {
-	ppc_md.hpte_invalidate = ps3_hpte_invalidate;
-	ppc_md.hpte_updatepp = ps3_hpte_updatepp;
-	ppc_md.hpte_updateboltedpp = ps3_hpte_updateboltedpp;
-	ppc_md.hpte_insert = ps3_hpte_insert;
-	ppc_md.hpte_remove = ps3_hpte_remove;
-	ppc_md.hpte_clear_all = ps3_hpte_clear;
+	mmu_hash_ops.hpte_invalidate = ps3_hpte_invalidate;
+	mmu_hash_ops.hpte_updatepp = ps3_hpte_updatepp;
+	mmu_hash_ops.hpte_updateboltedpp = ps3_hpte_updateboltedpp;
+	mmu_hash_ops.hpte_insert = ps3_hpte_insert;
+	mmu_hash_ops.hpte_remove = ps3_hpte_remove;
+	mmu_hash_ops.hpte_clear_all = ps3_hpte_clear;
 
 	ppc64_pft_size = __ilog2(htab_size);
 }

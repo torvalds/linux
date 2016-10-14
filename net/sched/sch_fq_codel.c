@@ -24,6 +24,8 @@
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/codel.h>
+#include <net/codel_impl.h>
+#include <net/codel_qdisc.h>
 
 /*	Fair Queue CoDel.
  *
@@ -57,8 +59,12 @@ struct fq_codel_sched_data {
 	u32		flows_cnt;	/* number of flows */
 	u32		perturbation;	/* hash perturbation */
 	u32		quantum;	/* psched_mtu(qdisc_dev(sch)); */
+	u32		drop_batch_size;
+	u32		memory_limit;
 	struct codel_params cparams;
 	struct codel_stats cstats;
+	u32		memory_usage;
+	u32		drop_overmemory;
 	u32		drop_overlimit;
 	u32		new_flow_count;
 
@@ -133,17 +139,22 @@ static inline void flow_queue_add(struct fq_codel_flow *flow,
 	skb->next = NULL;
 }
 
-static unsigned int fq_codel_drop(struct Qdisc *sch)
+static unsigned int fq_codel_drop(struct Qdisc *sch, unsigned int max_packets,
+				  struct sk_buff **to_free)
 {
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *skb;
 	unsigned int maxbacklog = 0, idx = 0, i, len;
 	struct fq_codel_flow *flow;
+	unsigned int threshold;
+	unsigned int mem = 0;
 
-	/* Queue is full! Find the fat flow and drop packet from it.
+	/* Queue is full! Find the fat flow and drop packet(s) from it.
 	 * This might sound expensive, but with 1024 flows, we scan
 	 * 4KB of memory, and we dont need to handle a complex tree
 	 * in fast path (packet queue/enqueue) with many cache misses.
+	 * In stress mode, we'll try to drop 64 packets from the flow,
+	 * amortizing this linear lookup to one cache line per drop.
 	 */
 	for (i = 0; i < q->flows_cnt; i++) {
 		if (q->backlogs[i] > maxbacklog) {
@@ -151,39 +162,44 @@ static unsigned int fq_codel_drop(struct Qdisc *sch)
 			idx = i;
 		}
 	}
+
+	/* Our goal is to drop half of this fat flow backlog */
+	threshold = maxbacklog >> 1;
+
 	flow = &q->flows[idx];
-	skb = dequeue_head(flow);
-	len = qdisc_pkt_len(skb);
+	len = 0;
+	i = 0;
+	do {
+		skb = dequeue_head(flow);
+		len += qdisc_pkt_len(skb);
+		mem += get_codel_cb(skb)->mem_usage;
+		__qdisc_drop(skb, to_free);
+	} while (++i < max_packets && len < threshold);
+
+	flow->dropped += i;
 	q->backlogs[idx] -= len;
-	sch->q.qlen--;
-	qdisc_qstats_drop(sch);
-	qdisc_qstats_backlog_dec(sch, skb);
-	kfree_skb(skb);
-	flow->dropped++;
+	q->memory_usage -= mem;
+	sch->qstats.drops += i;
+	sch->qstats.backlog -= len;
+	sch->q.qlen -= i;
 	return idx;
 }
 
-static unsigned int fq_codel_qdisc_drop(struct Qdisc *sch)
-{
-	unsigned int prev_backlog;
-
-	prev_backlog = sch->qstats.backlog;
-	fq_codel_drop(sch);
-	return prev_backlog - sch->qstats.backlog;
-}
-
-static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+			    struct sk_buff **to_free)
 {
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
-	unsigned int idx, prev_backlog;
+	unsigned int idx, prev_backlog, prev_qlen;
 	struct fq_codel_flow *flow;
 	int uninitialized_var(ret);
+	unsigned int pkt_len;
+	bool memory_limited;
 
 	idx = fq_codel_classify(skb, sch, &ret);
 	if (idx == 0) {
 		if (ret & __NET_XMIT_BYPASS)
 			qdisc_qstats_drop(sch);
-		kfree_skb(skb);
+		__qdisc_drop(skb, to_free);
 		return ret;
 	}
 	idx--;
@@ -200,19 +216,40 @@ static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		flow->deficit = q->quantum;
 		flow->dropped = 0;
 	}
-	if (++sch->q.qlen <= sch->limit)
+	get_codel_cb(skb)->mem_usage = skb->truesize;
+	q->memory_usage += get_codel_cb(skb)->mem_usage;
+	memory_limited = q->memory_usage > q->memory_limit;
+	if (++sch->q.qlen <= sch->limit && !memory_limited)
 		return NET_XMIT_SUCCESS;
 
 	prev_backlog = sch->qstats.backlog;
-	q->drop_overlimit++;
-	/* Return Congestion Notification only if we dropped a packet
-	 * from this flow.
-	 */
-	if (fq_codel_drop(sch) == idx)
-		return NET_XMIT_CN;
+	prev_qlen = sch->q.qlen;
 
-	/* As we dropped a packet, better let upper stack know this */
-	qdisc_tree_reduce_backlog(sch, 1, prev_backlog - sch->qstats.backlog);
+	/* save this packet length as it might be dropped by fq_codel_drop() */
+	pkt_len = qdisc_pkt_len(skb);
+	/* fq_codel_drop() is quite expensive, as it performs a linear search
+	 * in q->backlogs[] to find a fat flow.
+	 * So instead of dropping a single packet, drop half of its backlog
+	 * with a 64 packets limit to not add a too big cpu spike here.
+	 */
+	ret = fq_codel_drop(sch, q->drop_batch_size, to_free);
+
+	prev_qlen -= sch->q.qlen;
+	prev_backlog -= sch->qstats.backlog;
+	q->drop_overlimit += prev_qlen;
+	if (memory_limited)
+		q->drop_overmemory += prev_qlen;
+
+	/* As we dropped packet(s), better let upper stack know this.
+	 * If we dropped a packet for this flow, return NET_XMIT_CN,
+	 * but in this case, our parents wont increase their backlogs.
+	 */
+	if (ret == idx) {
+		qdisc_tree_reduce_backlog(sch, prev_qlen - 1,
+					  prev_backlog - pkt_len);
+		return NET_XMIT_CN;
+	}
+	qdisc_tree_reduce_backlog(sch, prev_qlen, prev_backlog);
 	return NET_XMIT_SUCCESS;
 }
 
@@ -220,8 +257,9 @@ static int fq_codel_enqueue(struct sk_buff *skb, struct Qdisc *sch)
  * to dequeue a packet from queue. Note: backlog is handled in
  * codel, we dont need to reduce it here.
  */
-static struct sk_buff *dequeue(struct codel_vars *vars, struct Qdisc *sch)
+static struct sk_buff *dequeue_func(struct codel_vars *vars, void *ctx)
 {
+	struct Qdisc *sch = ctx;
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
 	struct fq_codel_flow *flow;
 	struct sk_buff *skb = NULL;
@@ -230,9 +268,19 @@ static struct sk_buff *dequeue(struct codel_vars *vars, struct Qdisc *sch)
 	if (flow->head) {
 		skb = dequeue_head(flow);
 		q->backlogs[flow - q->flows] -= qdisc_pkt_len(skb);
+		q->memory_usage -= get_codel_cb(skb)->mem_usage;
 		sch->q.qlen--;
+		sch->qstats.backlog -= qdisc_pkt_len(skb);
 	}
 	return skb;
+}
+
+static void drop_func(struct sk_buff *skb, void *ctx)
+{
+	struct Qdisc *sch = ctx;
+
+	kfree_skb(skb);
+	qdisc_qstats_drop(sch);
 }
 
 static struct sk_buff *fq_codel_dequeue(struct Qdisc *sch)
@@ -263,8 +311,9 @@ begin:
 	prev_ecn_mark = q->cstats.ecn_mark;
 	prev_backlog = sch->qstats.backlog;
 
-	skb = codel_dequeue(sch, &q->cparams, &flow->cvars, &q->cstats,
-			    dequeue);
+	skb = codel_dequeue(sch, &sch->qstats.backlog, &q->cparams,
+			    &flow->cvars, &q->cstats, qdisc_pkt_len,
+			    codel_get_enqueue_time, drop_func, dequeue_func);
 
 	flow->dropped += q->cstats.drop_count - prev_drop_count;
 	flow->dropped += q->cstats.ecn_mark - prev_ecn_mark;
@@ -291,6 +340,12 @@ begin:
 	return skb;
 }
 
+static void fq_codel_flow_purge(struct fq_codel_flow *flow)
+{
+	rtnl_kfree_skbs(flow->head, flow->tail);
+	flow->head = NULL;
+}
+
 static void fq_codel_reset(struct Qdisc *sch)
 {
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
@@ -301,18 +356,14 @@ static void fq_codel_reset(struct Qdisc *sch)
 	for (i = 0; i < q->flows_cnt; i++) {
 		struct fq_codel_flow *flow = q->flows + i;
 
-		while (flow->head) {
-			struct sk_buff *skb = dequeue_head(flow);
-
-			qdisc_qstats_backlog_dec(sch, skb);
-			kfree_skb(skb);
-		}
-
+		fq_codel_flow_purge(flow);
 		INIT_LIST_HEAD(&flow->flowchain);
 		codel_vars_init(&flow->cvars);
 	}
 	memset(q->backlogs, 0, q->flows_cnt * sizeof(u32));
 	sch->q.qlen = 0;
+	sch->qstats.backlog = 0;
+	q->memory_usage = 0;
 }
 
 static const struct nla_policy fq_codel_policy[TCA_FQ_CODEL_MAX + 1] = {
@@ -323,6 +374,8 @@ static const struct nla_policy fq_codel_policy[TCA_FQ_CODEL_MAX + 1] = {
 	[TCA_FQ_CODEL_FLOWS]	= { .type = NLA_U32 },
 	[TCA_FQ_CODEL_QUANTUM]	= { .type = NLA_U32 },
 	[TCA_FQ_CODEL_CE_THRESHOLD] = { .type = NLA_U32 },
+	[TCA_FQ_CODEL_DROP_BATCH_SIZE] = { .type = NLA_U32 },
+	[TCA_FQ_CODEL_MEMORY_LIMIT] = { .type = NLA_U32 },
 };
 
 static int fq_codel_change(struct Qdisc *sch, struct nlattr *opt)
@@ -374,11 +427,18 @@ static int fq_codel_change(struct Qdisc *sch, struct nlattr *opt)
 	if (tb[TCA_FQ_CODEL_QUANTUM])
 		q->quantum = max(256U, nla_get_u32(tb[TCA_FQ_CODEL_QUANTUM]));
 
-	while (sch->q.qlen > sch->limit) {
+	if (tb[TCA_FQ_CODEL_DROP_BATCH_SIZE])
+		q->drop_batch_size = min(1U, nla_get_u32(tb[TCA_FQ_CODEL_DROP_BATCH_SIZE]));
+
+	if (tb[TCA_FQ_CODEL_MEMORY_LIMIT])
+		q->memory_limit = min(1U << 31, nla_get_u32(tb[TCA_FQ_CODEL_MEMORY_LIMIT]));
+
+	while (sch->q.qlen > sch->limit ||
+	       q->memory_usage > q->memory_limit) {
 		struct sk_buff *skb = fq_codel_dequeue(sch);
 
 		q->cstats.drop_len += qdisc_pkt_len(skb);
-		kfree_skb(skb);
+		rtnl_kfree_skbs(skb, skb);
 		q->cstats.drop_count++;
 	}
 	qdisc_tree_reduce_backlog(sch, q->cstats.drop_count, q->cstats.drop_len);
@@ -419,13 +479,16 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt)
 
 	sch->limit = 10*1024;
 	q->flows_cnt = 1024;
+	q->memory_limit = 32 << 20; /* 32 MBytes */
+	q->drop_batch_size = 64;
 	q->quantum = psched_mtu(qdisc_dev(sch));
 	q->perturbation = prandom_u32();
 	INIT_LIST_HEAD(&q->new_flows);
 	INIT_LIST_HEAD(&q->old_flows);
-	codel_params_init(&q->cparams, sch);
+	codel_params_init(&q->cparams);
 	codel_stats_init(&q->cstats);
 	q->cparams.ecn = true;
+	q->cparams.mtu = psched_mtu(qdisc_dev(sch));
 
 	if (opt) {
 		int err = fq_codel_change(sch, opt);
@@ -476,6 +539,10 @@ static int fq_codel_dump(struct Qdisc *sch, struct sk_buff *skb)
 			q->cparams.ecn) ||
 	    nla_put_u32(skb, TCA_FQ_CODEL_QUANTUM,
 			q->quantum) ||
+	    nla_put_u32(skb, TCA_FQ_CODEL_DROP_BATCH_SIZE,
+			q->drop_batch_size) ||
+	    nla_put_u32(skb, TCA_FQ_CODEL_MEMORY_LIMIT,
+			q->memory_limit) ||
 	    nla_put_u32(skb, TCA_FQ_CODEL_FLOWS,
 			q->flows_cnt))
 		goto nla_put_failure;
@@ -504,12 +571,16 @@ static int fq_codel_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 	st.qdisc_stats.ecn_mark = q->cstats.ecn_mark;
 	st.qdisc_stats.new_flow_count = q->new_flow_count;
 	st.qdisc_stats.ce_mark = q->cstats.ce_mark;
+	st.qdisc_stats.memory_usage  = q->memory_usage;
+	st.qdisc_stats.drop_overmemory = q->drop_overmemory;
 
+	sch_tree_lock(sch);
 	list_for_each(pos, &q->new_flows)
 		st.qdisc_stats.new_flows_len++;
 
 	list_for_each(pos, &q->old_flows)
 		st.qdisc_stats.old_flows_len++;
+	sch_tree_unlock(sch);
 
 	return gnet_stats_copy_app(d, &st, sizeof(st));
 }
@@ -563,7 +634,7 @@ static int fq_codel_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 
 	if (idx < q->flows_cnt) {
 		const struct fq_codel_flow *flow = &q->flows[idx];
-		const struct sk_buff *skb = flow->head;
+		const struct sk_buff *skb;
 
 		memset(&xstats, 0, sizeof(xstats));
 		xstats.type = TCA_FQ_CODEL_XSTATS_CLASS;
@@ -581,14 +652,19 @@ static int fq_codel_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 				codel_time_to_us(delta) :
 				-codel_time_to_us(-delta);
 		}
-		while (skb) {
-			qs.qlen++;
-			skb = skb->next;
+		if (flow->head) {
+			sch_tree_lock(sch);
+			skb = flow->head;
+			while (skb) {
+				qs.qlen++;
+				skb = skb->next;
+			}
+			sch_tree_unlock(sch);
 		}
 		qs.backlog = q->backlogs[idx];
 		qs.drops = flow->dropped;
 	}
-	if (gnet_stats_copy_queue(d, NULL, &qs, 0) < 0)
+	if (gnet_stats_copy_queue(d, NULL, &qs, qs.qlen) < 0)
 		return -1;
 	if (idx < q->flows_cnt)
 		return gnet_stats_copy_app(d, &xstats, sizeof(xstats));
@@ -636,7 +712,6 @@ static struct Qdisc_ops fq_codel_qdisc_ops __read_mostly = {
 	.enqueue	=	fq_codel_enqueue,
 	.dequeue	=	fq_codel_dequeue,
 	.peek		=	qdisc_peek_dequeued,
-	.drop		=	fq_codel_qdisc_drop,
 	.init		=	fq_codel_init,
 	.reset		=	fq_codel_reset,
 	.destroy	=	fq_codel_destroy,

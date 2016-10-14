@@ -84,11 +84,22 @@ static int si2157_init(struct dvb_frontend *fe)
 	struct si2157_cmd cmd;
 	const struct firmware *fw;
 	const char *fw_name;
-	unsigned int chip_id;
+	unsigned int uitmp, chip_id;
 
 	dev_dbg(&client->dev, "\n");
 
-	if (dev->fw_loaded)
+	/* Returned IF frequency is garbage when firmware is not running */
+	memcpy(cmd.args, "\x15\x00\x06\x07", 4);
+	cmd.wlen = 4;
+	cmd.rlen = 4;
+	ret = si2157_cmd_execute(client, &cmd);
+	if (ret)
+		goto err;
+
+	uitmp = cmd.args[2] << 0 | cmd.args[3] << 8;
+	dev_dbg(&client->dev, "if_frequency kHz=%u\n", uitmp);
+
+	if (uitmp == dev->if_frequency / 1000)
 		goto warm;
 
 	/* power up */
@@ -203,9 +214,6 @@ skip_fw_download:
 
 	dev_info(&client->dev, "firmware version: %c.%c.%d\n",
 			cmd.args[6], cmd.args[7], cmd.args[8]);
-
-	dev->fw_loaded = true;
-
 warm:
 	/* init statistics in order signal app which are supported */
 	c->strength.len = 1;
@@ -422,7 +430,6 @@ static int si2157_probe(struct i2c_client *client,
 	dev->fe = cfg->fe;
 	dev->inversion = cfg->inversion;
 	dev->if_port = cfg->if_port;
-	dev->fw_loaded = false;
 	dev->chiptype = (u8)id->driver_data;
 	dev->if_frequency = 5000000; /* default value of property 0x0706 */
 	mutex_init(&dev->i2c_mutex);
@@ -507,7 +514,8 @@ MODULE_DEVICE_TABLE(i2c, si2157_id_table);
 
 static struct i2c_driver si2157_driver = {
 	.driver = {
-		.name	= "si2157",
+		.name	             = "si2157",
+		.suppress_bind_attrs = true,
 	},
 	.probe		= si2157_probe,
 	.remove		= si2157_remove,

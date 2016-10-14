@@ -234,16 +234,6 @@ amdgpu_atombios_get_hpd_info_from_gpio(struct amdgpu_device *adev,
 	return hpd;
 }
 
-static bool amdgpu_atombios_apply_quirks(struct amdgpu_device *adev,
-					 uint32_t supported_device,
-					 int *connector_type,
-					 struct amdgpu_i2c_bus_rec *i2c_bus,
-					 uint16_t *line_mux,
-					 struct amdgpu_hpd *hpd)
-{
-	return true;
-}
-
 static const int object_connector_convert[] = {
 	DRM_MODE_CONNECTOR_Unknown,
 	DRM_MODE_CONNECTOR_DVII,
@@ -330,6 +320,19 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 			con_obj_type =
 			    (le16_to_cpu(path->usConnObjectId) &
 			     OBJECT_TYPE_MASK) >> OBJECT_TYPE_SHIFT;
+
+			/* Skip TV/CV support */
+			if ((le16_to_cpu(path->usDeviceTag) ==
+			     ATOM_DEVICE_TV1_SUPPORT) ||
+			    (le16_to_cpu(path->usDeviceTag) ==
+			     ATOM_DEVICE_CV_SUPPORT))
+				continue;
+
+			if (con_obj_id >= ARRAY_SIZE(object_connector_convert)) {
+				DRM_ERROR("invalid con_obj_id %d for device tag 0x%04x\n",
+					  con_obj_id, le16_to_cpu(path->usDeviceTag));
+				continue;
+			}
 
 			connector_type =
 				object_connector_convert[con_obj_id];
@@ -514,11 +517,6 @@ bool amdgpu_atombios_get_connector_info_from_object_table(struct amdgpu_device *
 
 			conn_id = le16_to_cpu(path->usConnObjectId);
 
-			if (!amdgpu_atombios_apply_quirks
-			    (adev, le16_to_cpu(path->usDeviceTag), &connector_type,
-			     &ddc_bus, &conn_id, &hpd))
-				continue;
-
 			amdgpu_display_add_connector(adev,
 						      conn_id,
 						      le16_to_cpu(path->usDeviceTag),
@@ -566,28 +564,19 @@ int amdgpu_atombios_get_clock_info(struct amdgpu_device *adev)
 		    le16_to_cpu(firmware_info->info.usReferenceClock);
 		ppll->reference_div = 0;
 
-		if (crev < 2)
-			ppll->pll_out_min =
-				le16_to_cpu(firmware_info->info.usMinPixelClockPLL_Output);
-		else
-			ppll->pll_out_min =
-				le32_to_cpu(firmware_info->info_12.ulMinPixelClockPLL_Output);
+		ppll->pll_out_min =
+			le32_to_cpu(firmware_info->info_12.ulMinPixelClockPLL_Output);
 		ppll->pll_out_max =
 		    le32_to_cpu(firmware_info->info.ulMaxPixelClockPLL_Output);
 
-		if (crev >= 4) {
-			ppll->lcd_pll_out_min =
-				le16_to_cpu(firmware_info->info_14.usLcdMinPixelClockPLL_Output) * 100;
-			if (ppll->lcd_pll_out_min == 0)
-				ppll->lcd_pll_out_min = ppll->pll_out_min;
-			ppll->lcd_pll_out_max =
-				le16_to_cpu(firmware_info->info_14.usLcdMaxPixelClockPLL_Output) * 100;
-			if (ppll->lcd_pll_out_max == 0)
-				ppll->lcd_pll_out_max = ppll->pll_out_max;
-		} else {
+		ppll->lcd_pll_out_min =
+			le16_to_cpu(firmware_info->info_14.usLcdMinPixelClockPLL_Output) * 100;
+		if (ppll->lcd_pll_out_min == 0)
 			ppll->lcd_pll_out_min = ppll->pll_out_min;
+		ppll->lcd_pll_out_max =
+			le16_to_cpu(firmware_info->info_14.usLcdMaxPixelClockPLL_Output) * 100;
+		if (ppll->lcd_pll_out_max == 0)
 			ppll->lcd_pll_out_max = ppll->pll_out_max;
-		}
 
 		if (ppll->pll_out_min == 0)
 			ppll->pll_out_min = 64800;
@@ -696,6 +685,36 @@ int amdgpu_atombios_get_clock_info(struct amdgpu_device *adev)
 	adev->pm.current_sclk = adev->clock.default_sclk;
 	adev->pm.current_mclk = adev->clock.default_mclk;
 
+	return ret;
+}
+
+union gfx_info {
+	ATOM_GFX_INFO_V2_1 info;
+};
+
+int amdgpu_atombios_get_gfx_info(struct amdgpu_device *adev)
+{
+	struct amdgpu_mode_info *mode_info = &adev->mode_info;
+	int index = GetIndexIntoMasterTable(DATA, GFX_Info);
+	uint8_t frev, crev;
+	uint16_t data_offset;
+	int ret = -EINVAL;
+
+	if (amdgpu_atom_parse_data_header(mode_info->atom_context, index, NULL,
+				   &frev, &crev, &data_offset)) {
+		union gfx_info *gfx_info = (union gfx_info *)
+			(mode_info->atom_context->bios + data_offset);
+
+		adev->gfx.config.max_shader_engines = gfx_info->info.max_shader_engines;
+		adev->gfx.config.max_tile_pipes = gfx_info->info.max_tile_pipes;
+		adev->gfx.config.max_cu_per_sh = gfx_info->info.max_cu_per_sh;
+		adev->gfx.config.max_sh_per_se = gfx_info->info.max_sh_per_se;
+		adev->gfx.config.max_backends_per_se = gfx_info->info.max_backends_per_se;
+		adev->gfx.config.max_texture_channel_caches =
+			gfx_info->info.max_texture_channel_caches;
+
+		ret = 0;
+	}
 	return ret;
 }
 

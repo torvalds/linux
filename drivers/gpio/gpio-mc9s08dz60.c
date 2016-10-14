@@ -15,7 +15,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
@@ -111,8 +111,6 @@ static const struct i2c_device_id mc9s08dz60_id[] = {
 	{},
 };
 
-MODULE_DEVICE_TABLE(i2c, mc9s08dz60_id);
-
 static struct i2c_driver mc9s08dz60_i2c_driver = {
 	.driver = {
 		.name = "mc9s08dz60",
@@ -120,10 +118,4 @@ static struct i2c_driver mc9s08dz60_i2c_driver = {
 	.probe = mc9s08dz60_probe,
 	.id_table = mc9s08dz60_id,
 };
-
-module_i2c_driver(mc9s08dz60_i2c_driver);
-
-MODULE_AUTHOR("Freescale Semiconductor, Inc. "
-		"Wu Guoxing <b39297@freescale.com>");
-MODULE_DESCRIPTION("mc9s08dz60 gpio function on mx35 3ds board");
-MODULE_LICENSE("GPL v2");
+builtin_i2c_driver(mc9s08dz60_i2c_driver);

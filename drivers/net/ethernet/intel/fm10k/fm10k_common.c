@@ -1,5 +1,5 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+/* Intel(R) Ethernet Switch Host Interface Driver
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -519,8 +519,12 @@ s32 fm10k_get_host_state_generic(struct fm10k_hw *hw, bool *host_ready)
 		goto out;
 
 	/* interface cannot receive traffic without logical ports */
-	if (mac->dglort_map == FM10K_DGLORTMAP_NONE)
+	if (mac->dglort_map == FM10K_DGLORTMAP_NONE) {
+		if (hw->mac.ops.request_lport_map)
+			ret_val = hw->mac.ops.request_lport_map(hw);
+
 		goto out;
+	}
 
 	/* if we passed all the tests above then the switch is ready and we no
 	 * longer need to check for link

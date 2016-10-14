@@ -91,6 +91,7 @@ config I2C_I801
 	tristate "Intel 82801 (ICH/PCH)"
 	depends on PCI
 	select CHECK_SIGNATURE if X86 && DMI
+	select I2C_SMBUS
 	help
 	  If you say yes to this option, support will be included for the Intel
 	  801 family of mainboard I2C interfaces.  Specifically, the following
@@ -397,7 +398,7 @@ config I2C_BCM_KONA
 
 config I2C_BRCMSTB
 	tristate "BRCM Settop I2C controller"
-	depends on ARCH_BRCMSTB || COMPILE_TEST
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC || COMPILE_TEST
 	default y
 	help
 	  If you say yes to this option, support will be included for the
@@ -490,7 +491,9 @@ config I2C_DESIGNWARE_PCI
 
 config I2C_DESIGNWARE_BAYTRAIL
 	bool "Intel Baytrail I2C semaphore support"
-	depends on I2C_DESIGNWARE_PLATFORM && IOSF_MBI=y && ACPI
+	depends on ACPI
+	depends on (I2C_DESIGNWARE_PLATFORM=m && IOSF_MBI) || \
+		   (I2C_DESIGNWARE_PLATFORM=y && IOSF_MBI=y)
 	help
 	  This driver enables managed host access to the PMIC I2C bus on select
 	  Intel BayTrail platforms using the X-Powers AXP288 PMIC. It allows
@@ -635,7 +638,7 @@ config I2C_LPC2K
 
 config I2C_MESON
 	tristate "Amlogic Meson I2C controller"
-	depends on ARCH_MESON
+	depends on ARCH_MESON || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for the
 	  I2C interface on the Amlogic Meson family of SoCs.
@@ -663,7 +666,7 @@ config I2C_MT65XX
 
 config I2C_MV64XXX
 	tristate "Marvell mv64xxx I2C Controller"
-	depends on MV64X60 || PLAT_ORION || ARCH_SUNXI
+	depends on MV64X60 || PLAT_ORION || ARCH_SUNXI || ARCH_MVEBU
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the Marvell 64xxx line of host bridges.
@@ -924,7 +927,7 @@ config I2C_UNIPHIER_F
 
 config I2C_VERSATILE
 	tristate "ARM Versatile/Realview I2C bus support"
-	depends on ARCH_VERSATILE || ARCH_REALVIEW || ARCH_VEXPRESS
+	depends on ARCH_VERSATILE || ARCH_REALVIEW || ARCH_VEXPRESS || COMPILE_TEST
 	select I2C_ALGOBIT
 	help
 	  Say yes if you want to support the I2C serial bus on ARMs Versatile
@@ -965,7 +968,7 @@ config I2C_XILINX
 
 config I2C_XLR
 	tristate "Netlogic XLR and Sigma Designs I2C support"
-	depends on CPU_XLR || ARCH_TANGOX
+	depends on CPU_XLR || ARCH_TANGO
 	help
 	  This driver enables support for the on-chip I2C interface of
 	  the Netlogic XLR/XLS MIPS processors and Sigma Designs SOCs.
@@ -985,6 +988,7 @@ config I2C_XLP9XX
 
 config I2C_RCAR
 	tristate "Renesas R-Car I2C Controller"
+	depends on HAS_DMA
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select I2C_SLAVE
 	help

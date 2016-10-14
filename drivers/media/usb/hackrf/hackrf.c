@@ -760,7 +760,7 @@ static void hackrf_return_all_buffers(struct vb2_queue *vq,
 
 static int hackrf_queue_setup(struct vb2_queue *vq,
 		unsigned int *nbuffers,
-		unsigned int *nplanes, unsigned int sizes[], void *alloc_ctxs[])
+		unsigned int *nplanes, unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct hackrf_dev *dev = vb2_get_drv_priv(vq);
 

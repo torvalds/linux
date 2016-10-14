@@ -292,6 +292,6 @@ struct xgene_enet_cle {
 	u32 jump_bytes;
 };
 
-extern struct xgene_cle_ops xgene_cle3in_ops;
+extern const struct xgene_cle_ops xgene_cle3in_ops;
 
 #endif /* __XGENE_ENET_CLE_H__ */

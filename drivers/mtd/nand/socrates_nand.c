@@ -180,6 +180,7 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	nand_chip->dev_ready = socrates_nand_device_ready;
 
 	nand_chip->ecc.mode = NAND_ECC_SOFT;	/* enable ECC */
+	nand_chip->ecc.algo = NAND_ECC_HAMMING;
 
 	/* TODO: I have no idea what real delay is. */
 	nand_chip->chip_delay = 20;		/* 20us command delay time */

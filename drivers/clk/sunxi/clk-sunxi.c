@@ -523,21 +523,12 @@ static const struct factors_data sun4i_pll5_data __initconst = {
 	.enable = 31,
 	.table = &sun4i_pll5_config,
 	.getter = sun4i_get_pll5_factors,
-	.name = "pll5",
-};
-
-static const struct factors_data sun4i_pll6_data __initconst = {
-	.enable = 31,
-	.table = &sun4i_pll5_config,
-	.getter = sun4i_get_pll5_factors,
-	.name = "pll6",
 };
 
 static const struct factors_data sun6i_a31_pll6_data __initconst = {
 	.enable = 31,
 	.table = &sun6i_a31_pll6_config,
 	.getter = sun6i_a31_get_pll6_factors,
-	.name = "pll6x2",
 };
 
 static const struct factors_data sun5i_a13_ahb_data __initconst = {
@@ -933,7 +924,7 @@ static const struct divs_data pll5_divs_data __initconst = {
 };
 
 static const struct divs_data pll6_divs_data __initconst = {
-	.factors = &sun4i_pll6_data,
+	.factors = &sun4i_pll5_data,
 	.ndivs = 4,
 	.div = {
 		{ .shift = 0, .table = pll6_sata_tbl, .gate = 14 }, /* M, SATA */
@@ -975,6 +966,8 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 	struct clk_gate *gate = NULL;
 	struct clk_fixed_factor *fix_factor;
 	struct clk_divider *divider;
+	struct factors_data factors = *data->factors;
+	char *derived_name = NULL;
 	void __iomem *reg;
 	int ndivs = SUNXI_DIVS_MAX_QTY, i = 0;
 	int flags, clkflags;
@@ -983,11 +976,37 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 	if (data->ndivs)
 		ndivs = data->ndivs;
 
+	/* Try to find a name for base factor clock */
+	for (i = 0; i < ndivs; i++) {
+		if (data->div[i].self) {
+			of_property_read_string_index(node, "clock-output-names",
+						      i, &factors.name);
+			break;
+		}
+	}
+	/* If we don't have a .self clk use the first output-name up to '_' */
+	if (factors.name == NULL) {
+		char *endp;
+
+		of_property_read_string_index(node, "clock-output-names",
+						      0, &clk_name);
+		endp = strchr(clk_name, '_');
+		if (endp) {
+			derived_name = kstrndup(clk_name, endp - clk_name,
+						GFP_KERNEL);
+			factors.name = derived_name;
+		} else {
+			factors.name = clk_name;
+		}
+	}
+
 	/* Set up factor clock that we will be dividing */
-	pclk = sunxi_factors_clk_setup(node, data->factors);
+	pclk = sunxi_factors_clk_setup(node, &factors);
 	if (!pclk)
 		return NULL;
+
 	parent = __clk_get_name(pclk);
+	kfree(derived_name);
 
 	reg = of_iomap(node, 0);
 	if (!reg) {
@@ -1127,3 +1146,41 @@ static void __init sun6i_pll6_clk_setup(struct device_node *node)
 }
 CLK_OF_DECLARE(sun6i_pll6, "allwinner,sun6i-a31-pll6-clk",
 	       sun6i_pll6_clk_setup);
+
+/*
+ * sun6i display
+ *
+ * rate = parent_rate / (m + 1);
+ */
+static void sun6i_display_factors(struct factors_request *req)
+{
+	u8 m;
+
+	if (req->rate > req->parent_rate)
+		req->rate = req->parent_rate;
+
+	m = DIV_ROUND_UP(req->parent_rate, req->rate);
+
+	req->rate = req->parent_rate / m;
+	req->m = m - 1;
+}
+
+static const struct clk_factors_config sun6i_display_config = {
+	.mshift = 0,
+	.mwidth = 4,
+};
+
+static const struct factors_data sun6i_display_data __initconst = {
+	.enable = 31,
+	.mux = 24,
+	.muxmask = BIT(2) | BIT(1) | BIT(0),
+	.table = &sun6i_display_config,
+	.getter = sun6i_display_factors,
+};
+
+static void __init sun6i_display_setup(struct device_node *node)
+{
+	sunxi_factors_clk_setup(node, &sun6i_display_data);
+}
+CLK_OF_DECLARE(sun6i_display, "allwinner,sun6i-a31-display-clk",
+	       sun6i_display_setup);

@@ -34,7 +34,7 @@ struct rw_semaphore {
 extern void __down_read(struct rw_semaphore *sem);
 extern int __down_read_trylock(struct rw_semaphore *sem);
 extern void __down_write(struct rw_semaphore *sem);
-extern void __down_write_nested(struct rw_semaphore *sem, int subclass);
+extern int __must_check __down_write_killable(struct rw_semaphore *sem);
 extern int __down_write_trylock(struct rw_semaphore *sem);
 extern void __up_read(struct rw_semaphore *sem);
 extern void __up_write(struct rw_semaphore *sem);

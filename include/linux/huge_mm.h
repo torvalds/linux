@@ -1,25 +1,17 @@
 #ifndef _LINUX_HUGE_MM_H
 #define _LINUX_HUGE_MM_H
 
-extern int do_huge_pmd_anonymous_page(struct mm_struct *mm,
-				      struct vm_area_struct *vma,
-				      unsigned long address, pmd_t *pmd,
-				      unsigned int flags);
+extern int do_huge_pmd_anonymous_page(struct fault_env *fe);
 extern int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 			 pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
 			 struct vm_area_struct *vma);
-extern void huge_pmd_set_accessed(struct mm_struct *mm,
-				  struct vm_area_struct *vma,
-				  unsigned long address, pmd_t *pmd,
-				  pmd_t orig_pmd, int dirty);
-extern int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
-			       unsigned long address, pmd_t *pmd,
-			       pmd_t orig_pmd);
+extern void huge_pmd_set_accessed(struct fault_env *fe, pmd_t orig_pmd);
+extern int do_huge_pmd_wp_page(struct fault_env *fe, pmd_t orig_pmd);
 extern struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
 					  unsigned long addr,
 					  pmd_t *pmd,
 					  unsigned int flags);
-extern int madvise_free_huge_pmd(struct mmu_gather *tlb,
+extern bool madvise_free_huge_pmd(struct mmu_gather *tlb,
 			struct vm_area_struct *vma,
 			pmd_t *pmd, unsigned long addr, unsigned long next);
 extern int zap_huge_pmd(struct mmu_gather *tlb,
@@ -28,9 +20,7 @@ extern int zap_huge_pmd(struct mmu_gather *tlb,
 extern int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 			unsigned long addr, unsigned long end,
 			unsigned char *vec);
-extern bool move_huge_pmd(struct vm_area_struct *vma,
-			 struct vm_area_struct *new_vma,
-			 unsigned long old_addr,
+extern bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 			 unsigned long new_addr, unsigned long old_end,
 			 pmd_t *old_pmd, pmd_t *new_pmd);
 extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
@@ -50,6 +40,18 @@ enum transparent_hugepage_flag {
 	TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG,
 #endif
 };
+
+struct kobject;
+struct kobj_attribute;
+
+extern ssize_t single_hugepage_flag_store(struct kobject *kobj,
+				 struct kobj_attribute *attr,
+				 const char *buf, size_t count,
+				 enum transparent_hugepage_flag flag);
+extern ssize_t single_hugepage_flag_show(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buf,
+				enum transparent_hugepage_flag flag);
+extern struct kobj_attribute shmem_enabled_attr;
 
 #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
 #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
@@ -96,7 +98,7 @@ static inline int split_huge_page(struct page *page)
 void deferred_split_huge_page(struct page *page);
 
 void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-		unsigned long address, bool freeze);
+		unsigned long address, bool freeze, struct page *page);
 
 #define split_huge_pmd(__vma, __pmd, __address)				\
 	do {								\
@@ -104,7 +106,7 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 		if (pmd_trans_huge(*____pmd)				\
 					|| pmd_devmap(*____pmd))	\
 			__split_huge_pmd(__vma, __pmd, __address,	\
-						false);			\
+						false, NULL);		\
 	}  while (0)
 
 
@@ -136,8 +138,7 @@ static inline int hpage_nr_pages(struct page *page)
 	return 1;
 }
 
-extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
-				unsigned long addr, pmd_t pmd, pmd_t *pmdp);
+extern int do_huge_pmd_numa_page(struct fault_env *fe, pmd_t orig_pmd);
 
 extern struct page *huge_zero_page;
 
@@ -154,6 +155,8 @@ static inline bool is_huge_zero_pmd(pmd_t pmd)
 struct page *get_huge_zero_page(void);
 void put_huge_zero_page(void);
 
+#define mk_huge_pmd(page, prot) pmd_mkhuge(mk_pmd(page, prot))
+
 #else /* CONFIG_TRANSPARENT_HUGEPAGE */
 #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
 #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
@@ -162,6 +165,8 @@ void put_huge_zero_page(void);
 #define hpage_nr_pages(x) 1
 
 #define transparent_hugepage_enabled(__vma) 0
+
+static inline void prep_transhuge_page(struct page *page) {}
 
 #define transparent_hugepage_flags 0UL
 static inline int
@@ -198,8 +203,7 @@ static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
 	return NULL;
 }
 
-static inline int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
-					unsigned long addr, pmd_t pmd, pmd_t *pmdp)
+static inline int do_huge_pmd_numa_page(struct fault_env *fe, pmd_t orig_pmd)
 {
 	return 0;
 }

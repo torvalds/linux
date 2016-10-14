@@ -35,7 +35,7 @@
 #include <asm/mmu_context.h>
 #include <asm/switch_to.h>
 #include <asm/firmware.h>
-#include <asm/hvcall.h>
+#include <asm/setup.h>
 #include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
@@ -882,6 +882,24 @@ void kvmppc_set_fscr(struct kvm_vcpu *vcpu, u64 fscr)
 }
 #endif
 
+static void kvmppc_setup_debug(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
+		u64 msr = kvmppc_get_msr(vcpu);
+
+		kvmppc_set_msr(vcpu, msr | MSR_SE);
+	}
+}
+
+static void kvmppc_clear_debug(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
+		u64 msr = kvmppc_get_msr(vcpu);
+
+		kvmppc_set_msr(vcpu, msr & ~MSR_SE);
+	}
+}
+
 int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			  unsigned int exit_nr)
 {
@@ -896,7 +914,7 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	/* We get here with MSR.EE=1 */
 
 	trace_kvm_exit(exit_nr, vcpu);
-	kvm_guest_exit();
+	guest_exit();
 
 	switch (exit_nr) {
 	case BOOK3S_INTERRUPT_INST_STORAGE:
@@ -1031,7 +1049,17 @@ int kvmppc_handle_exit_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		int emul;
 
 program_interrupt:
-		flags = vcpu->arch.shadow_srr1 & 0x1f0000ull;
+		/*
+		 * shadow_srr1 only contains valid flags if we came here via
+		 * a program exception. The other exceptions (emulation assist,
+		 * FP unavailable, etc.) do not provide flags in SRR1, so use
+		 * an illegal-instruction exception when injecting a program
+		 * interrupt into the guest.
+		 */
+		if (exit_nr == BOOK3S_INTERRUPT_PROGRAM)
+			flags = vcpu->arch.shadow_srr1 & 0x1f0000ull;
+		else
+			flags = SRR1_PROGILL;
 
 		emul = kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst);
 		if (emul != EMULATE_DONE) {
@@ -1207,9 +1235,17 @@ program_interrupt:
 		break;
 #endif
 	case BOOK3S_INTERRUPT_MACHINE_CHECK:
-	case BOOK3S_INTERRUPT_TRACE:
 		kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
 		r = RESUME_GUEST;
+		break;
+	case BOOK3S_INTERRUPT_TRACE:
+		if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
+			run->exit_reason = KVM_EXIT_DEBUG;
+			r = RESUME_HOST;
+		} else {
+			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
+			r = RESUME_GUEST;
+		}
 		break;
 	default:
 	{
@@ -1479,6 +1515,8 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
+	kvmppc_setup_debug(vcpu);
+
 	/*
 	 * Interrupts could be timers for the guest which we have to inject
 	 * again, so let's postpone them until we're in the guest and if we
@@ -1501,7 +1539,9 @@ static int kvmppc_vcpu_run_pr(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 
-	/* No need for kvm_guest_exit. It's done in handle_exit.
+	kvmppc_clear_debug(vcpu);
+
+	/* No need for guest_exit. It's done in handle_exit.
 	   We also get here with interrupts enabled. */
 
 	/* Make sure we save the guest FPU/Altivec/VSX state */
@@ -1660,7 +1700,7 @@ static int kvmppc_core_init_vm_pr(struct kvm *kvm)
 	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
 		spin_lock(&kvm_global_user_count_lock);
 		if (++kvm_global_user_count == 1)
-			pSeries_disable_reloc_on_exc();
+			pseries_disable_reloc_on_exc();
 		spin_unlock(&kvm_global_user_count_lock);
 	}
 	return 0;
@@ -1676,14 +1716,18 @@ static void kvmppc_core_destroy_vm_pr(struct kvm *kvm)
 		spin_lock(&kvm_global_user_count_lock);
 		BUG_ON(kvm_global_user_count == 0);
 		if (--kvm_global_user_count == 0)
-			pSeries_enable_reloc_on_exc();
+			pseries_enable_reloc_on_exc();
 		spin_unlock(&kvm_global_user_count_lock);
 	}
 }
 
 static int kvmppc_core_check_processor_compat_pr(void)
 {
-	/* we are always compatible */
+	/*
+	 * Disable KVM for Power9 untill the required bits merged.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		return -EIO;
 	return 0;
 }
 

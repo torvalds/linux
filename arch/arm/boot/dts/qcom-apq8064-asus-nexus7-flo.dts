@@ -29,12 +29,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		power {
-			label = "Power";
-			gpios = <&tlmm_pinmux 26 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_POWER>;
-			gpio-key,wakeup;
-		};
 		volume_up {
 			label = "Volume Up";
 			gpios = <&pm8921_gpio 4 GPIO_ACTIVE_HIGH>;
@@ -224,6 +218,12 @@
 					reg = <0x52>;
 					pagesize = <32>;
 				};
+
+				bq27541@55 {
+					compatible = "ti,bq27541";
+					reg = <0x55>;
+				};
+
 			};
 		};
 

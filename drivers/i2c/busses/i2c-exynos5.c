@@ -861,14 +861,8 @@ static int exynos5_i2c_resume_noirq(struct device *dev)
 #endif
 
 static const struct dev_pm_ops exynos5_i2c_dev_pm_ops = {
-#ifdef CONFIG_PM_SLEEP
-	.suspend_noirq = exynos5_i2c_suspend_noirq,
-	.resume_noirq = exynos5_i2c_resume_noirq,
-	.freeze_noirq = exynos5_i2c_suspend_noirq,
-	.thaw_noirq = exynos5_i2c_resume_noirq,
-	.poweroff_noirq = exynos5_i2c_suspend_noirq,
-	.restore_noirq = exynos5_i2c_resume_noirq,
-#endif
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(exynos5_i2c_suspend_noirq,
+				      exynos5_i2c_resume_noirq)
 };
 
 static struct platform_driver exynos5_i2c_driver = {

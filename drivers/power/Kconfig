@@ -309,6 +309,7 @@ config BATTERY_RX51
 config CHARGER_ISP1704
 	tristate "ISP1704 USB Charger Detection"
 	depends on USB_PHY
+	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't be 'y'
 	help
 	  Say Y to enable support for USB Charger Detection with
 	  ISP1707/ISP1704 USB transceivers.
@@ -393,6 +394,7 @@ config CHARGER_QCOM_SMBB
 	tristate "Qualcomm Switch-Mode Battery Charger and Boost"
 	depends on MFD_SPMI_PMIC || COMPILE_TEST
 	depends on OF
+	depends on EXTCON
 	help
 	  Say Y to include support for the Switch-Mode Battery Charger and
 	  Boost (SMBB) hardware found in Qualcomm PM8941 PMICs.  The charger

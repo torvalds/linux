@@ -93,6 +93,7 @@ struct tegra_function {
  * @tri_reg:		Tri-state register offset.
  * @tri_bank:		Tri-state register bank.
  * @tri_bit:		Tri-state register bit.
+ * @parked_bit:		Parked register bit. -1 if unsupported.
  * @einput_bit:		Enable-input register bit.
  * @odrain_bit:		Open-drain register bit.
  * @lock_bit:		Lock register bit.
@@ -142,6 +143,7 @@ struct tegra_pingroup {
 	s32 mux_bit:6;
 	s32 pupd_bit:6;
 	s32 tri_bit:6;
+	s32 parked_bit:6;
 	s32 einput_bit:6;
 	s32 odrain_bit:6;
 	s32 lock_bit:6;
@@ -189,6 +191,4 @@ struct tegra_pinctrl_soc_data {
 
 int tegra_pinctrl_probe(struct platform_device *pdev,
 			const struct tegra_pinctrl_soc_data *soc_data);
-int tegra_pinctrl_remove(struct platform_device *pdev);
-
 #endif

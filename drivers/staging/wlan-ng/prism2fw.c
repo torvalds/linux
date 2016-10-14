@@ -278,7 +278,8 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 	/* Build the PDA we're going to use. */
 	if (read_cardpda(&pda, wlandev)) {
 		netdev_err(wlandev->netdev, "load_cardpda failed, exiting.\n");
-		return 1;
+		result = 1;
+		goto out;
 	}
 
 	/* read the card's PRI-SUP */
@@ -315,55 +316,58 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 	if (result) {
 		netdev_err(wlandev->netdev,
 			   "Failed to read the data exiting.\n");
-		return 1;
+		goto out;
 	}
 
 	result = validate_identity();
-
 	if (result) {
 		netdev_err(wlandev->netdev, "Incompatible firmware image.\n");
-		return 1;
+		goto out;
 	}
 
 	if (startaddr == 0x00000000) {
 		netdev_err(wlandev->netdev,
 			   "Can't RAM download a Flash image!\n");
-		return 1;
+		result = 1;
+		goto out;
 	}
 
 	/* Make the image chunks */
 	result = mkimage(fchunk, &nfchunks);
 	if (result) {
 		netdev_err(wlandev->netdev, "Failed to make image chunk.\n");
-		return 1;
+		goto free_chunks;
 	}
 
 	/* Do any plugging */
 	result = plugimage(fchunk, nfchunks, s3plug, ns3plug, &pda);
 	if (result) {
 		netdev_err(wlandev->netdev, "Failed to plug data.\n");
-		return 1;
+		goto free_chunks;
 	}
 
 	/* Insert any CRCs */
-	if (crcimage(fchunk, nfchunks, s3crc, ns3crc)) {
+	result = crcimage(fchunk, nfchunks, s3crc, ns3crc);
+	if (result) {
 		netdev_err(wlandev->netdev, "Failed to insert all CRCs\n");
-		return 1;
+		goto free_chunks;
 	}
 
 	/* Write the image */
 	result = writeimage(wlandev, fchunk, nfchunks);
 	if (result) {
 		netdev_err(wlandev->netdev, "Failed to ramwrite image data.\n");
-		return 1;
+		goto free_chunks;
 	}
 
+	netdev_info(wlandev->netdev, "prism2_usb: firmware loading finished.\n");
+
+free_chunks:
 	/* clear any allocated memory */
 	free_chunks(fchunk, &nfchunks);
 	free_srecs();
 
-	netdev_info(wlandev->netdev, "prism2_usb: firmware loading finished.\n");
-
+out:
 	return result;
 }
 

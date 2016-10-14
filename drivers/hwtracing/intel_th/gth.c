@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/bitmap.h>
+#include <linux/pm_runtime.h>
 
 #include "intel_th.h"
 #include "gth.h"
@@ -190,6 +191,11 @@ static ssize_t master_attr_store(struct device *dev,
 	if (old_port >= 0) {
 		gth->master[ma->master] = -1;
 		clear_bit(ma->master, gth->output[old_port].master);
+
+		/*
+		 * if the port is active, program this setting,
+		 * implies that runtime PM is on
+		 */
 		if (gth->output[old_port].output->active)
 			gth_master_set(gth, ma->master, -1);
 	}
@@ -204,7 +210,7 @@ static ssize_t master_attr_store(struct device *dev,
 
 		set_bit(ma->master, gth->output[port].master);
 
-		/* if the port is active, program this setting */
+		/* if the port is active, program this setting, see above */
 		if (gth->output[port].output->active)
 			gth_master_set(gth, ma->master, port);
 	}
@@ -326,10 +332,14 @@ static ssize_t output_attr_show(struct device *dev,
 	struct gth_device *gth = oa->gth;
 	size_t count;
 
+	pm_runtime_get_sync(dev);
+
 	spin_lock(&gth->gth_lock);
 	count = snprintf(buf, PAGE_SIZE, "%x\n",
 			 gth_output_parm_get(gth, oa->port, oa->parm));
 	spin_unlock(&gth->gth_lock);
+
+	pm_runtime_put(dev);
 
 	return count;
 }
@@ -346,9 +356,13 @@ static ssize_t output_attr_store(struct device *dev,
 	if (kstrtouint(buf, 16, &config) < 0)
 		return -EINVAL;
 
+	pm_runtime_get_sync(dev);
+
 	spin_lock(&gth->gth_lock);
 	gth_output_parm_set(gth, oa->port, oa->parm, config);
 	spin_unlock(&gth->gth_lock);
+
+	pm_runtime_put(dev);
 
 	return count;
 }
@@ -451,7 +465,7 @@ static int intel_th_output_attributes(struct gth_device *gth)
 }
 
 /**
- * intel_th_gth_disable() - enable tracing to an output device
+ * intel_th_gth_disable() - disable tracing to an output device
  * @thdev:	GTH device
  * @output:	output device's descriptor
  *

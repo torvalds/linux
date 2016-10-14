@@ -1,5 +1,3 @@
-<!-- DO NOT HAND EDIT. -->
-<!-- Instead, edit Documentation/RCU/Design/Requirements/Requirements.htmlx and run 'sh htmlqqz.sh Documentation/RCU/Design/Requirements/Requirements' -->
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
         "http://www.w3.org/TR/html4/loose.dtd">
         <html>
@@ -65,8 +63,8 @@ All that aside, here are the categories of currently known RCU requirements:
 
 <p>
 This is followed by a <a href="#Summary">summary</a>,
-which is in turn followed by the inevitable
-<a href="#Answers to Quick Quizzes">answers to the quick quizzes</a>.
+however, the answers to each quick quiz immediately follows the quiz.
+Select the big white space with your mouse to see the answer.
 
 <h2><a name="Fundamental Requirements">Fundamental Requirements</a></h2>
 
@@ -153,13 +151,27 @@ Therefore, the outcome:
 </blockquote>
 cannot happen.
 
-<p><a name="Quick Quiz 1"><b>Quick Quiz 1</b>:</a>
-Wait a minute!
-You said that updaters can make useful forward progress concurrently
-with readers, but pre-existing readers will block
-<tt>synchronize_rcu()</tt>!!!
-Just who are you trying to fool???
-<br><a href="#qq1answer">Answer</a>
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	Wait a minute!
+	You said that updaters can make useful forward progress concurrently
+	with readers, but pre-existing readers will block
+	<tt>synchronize_rcu()</tt>!!!
+	Just who are you trying to fool???
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	First, if updaters do not wish to be blocked by readers, they can use
+	<tt>call_rcu()</tt> or <tt>kfree_rcu()</tt>, which will
+	be discussed later.
+	Second, even when using <tt>synchronize_rcu()</tt>, the other
+	update-side code does run concurrently with readers, whether
+	pre-existing or not.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
 
 <p>
 This scenario resembles one of the first uses of RCU in
@@ -210,9 +222,20 @@ to guarantee that <tt>do_something()</tt> never runs concurrently
 with <tt>recovery()</tt>, but with little or no synchronization
 overhead in <tt>do_something_dlm()</tt>.
 
-<p><a name="Quick Quiz 2"><b>Quick Quiz 2</b>:</a>
-Why is the <tt>synchronize_rcu()</tt> on line&nbsp;28 needed?
-<br><a href="#qq2answer">Answer</a>
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	Why is the <tt>synchronize_rcu()</tt> on line&nbsp;28 needed?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	Without that extra grace period, memory reordering could result in
+	<tt>do_something_dlm()</tt> executing <tt>do_something()</tt>
+	concurrently with the last bits of <tt>recovery()</tt>.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
 
 <p>
 In order to avoid fatal problems such as deadlocks,
@@ -332,12 +355,27 @@ It also prevents any number of &ldquo;interesting&rdquo; compiler
 optimizations, for example, the use of <tt>gp</tt> as a scratch
 location immediately preceding the assignment.
 
-<p><a name="Quick Quiz 3"><b>Quick Quiz 3</b>:</a>
-But <tt>rcu_assign_pointer()</tt> does nothing to prevent the
-two assignments to <tt>p-&gt;a</tt> and <tt>p-&gt;b</tt>
-from being reordered.
-Can't that also cause problems?
-<br><a href="#qq3answer">Answer</a>
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	But <tt>rcu_assign_pointer()</tt> does nothing to prevent the
+	two assignments to <tt>p-&gt;a</tt> and <tt>p-&gt;b</tt>
+	from being reordered.
+	Can't that also cause problems?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	No, it cannot.
+	The readers cannot see either of these two fields until
+	the assignment to <tt>gp</tt>, by which time both fields are
+	fully initialized.
+	So reordering the assignments
+	to <tt>p-&gt;a</tt> and <tt>p-&gt;b</tt> cannot possibly
+	cause any problems.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
 
 <p>
 It is tempting to assume that the reader need not do anything special
@@ -494,11 +532,42 @@ The <tt>rcu_access_pointer()</tt> on line&nbsp;6 is similar to
 	code protected by the corresponding update-side lock.
 </ol>
 
-<p><a name="Quick Quiz 4"><b>Quick Quiz 4</b>:</a>
-Without the <tt>rcu_dereference()</tt> or the
-<tt>rcu_access_pointer()</tt>, what destructive optimizations
-might the compiler make use of?
-<br><a href="#qq4answer">Answer</a>
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	Without the <tt>rcu_dereference()</tt> or the
+	<tt>rcu_access_pointer()</tt>, what destructive optimizations
+	might the compiler make use of?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	Let's start with what happens to <tt>do_something_gp()</tt>
+	if it fails to use <tt>rcu_dereference()</tt>.
+	It could reuse a value formerly fetched from this same pointer.
+	It could also fetch the pointer from <tt>gp</tt> in a byte-at-a-time
+	manner, resulting in <i>load tearing</i>, in turn resulting a bytewise
+	mash-up of two distince pointer values.
+	It might even use value-speculation optimizations, where it makes
+	a wrong guess, but by the time it gets around to checking the
+	value, an update has changed the pointer to match the wrong guess.
+	Too bad about any dereferences that returned pre-initialization garbage
+	in the meantime!
+	</font>
+
+	<p><font color="ffffff">
+	For <tt>remove_gp_synchronous()</tt>, as long as all modifications
+	to <tt>gp</tt> are carried out while holding <tt>gp_lock</tt>,
+	the above optimizations are harmless.
+	However,
+	with <tt>CONFIG_SPARSE_RCU_POINTER=y</tt>,
+	<tt>sparse</tt> will complain if you
+	define <tt>gp</tt> with <tt>__rcu</tt> and then
+	access it without using
+	either <tt>rcu_access_pointer()</tt> or <tt>rcu_dereference()</tt>.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
 
 <p>
 In short, RCU's publish-subscribe guarantee is provided by the combination
@@ -571,17 +640,156 @@ systems with more than one CPU:
 	<tt>synchronize_rcu()</tt> migrates in the meantime.
 </ol>
 
-<p><a name="Quick Quiz 5"><b>Quick Quiz 5</b>:</a>
-Given that multiple CPUs can start RCU read-side critical sections
-at any time without any ordering whatsoever, how can RCU possibly tell whether
-or not a given RCU read-side critical section starts before a
-given instance of <tt>synchronize_rcu()</tt>?
-<br><a href="#qq5answer">Answer</a>
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	Given that multiple CPUs can start RCU read-side critical sections
+	at any time without any ordering whatsoever, how can RCU possibly
+	tell whether or not a given RCU read-side critical section starts
+	before a given instance of <tt>synchronize_rcu()</tt>?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	If RCU cannot tell whether or not a given
+	RCU read-side critical section starts before a
+	given instance of <tt>synchronize_rcu()</tt>,
+	then it must assume that the RCU read-side critical section
+	started first.
+	In other words, a given instance of <tt>synchronize_rcu()</tt>
+	can avoid waiting on a given RCU read-side critical section only
+	if it can prove that <tt>synchronize_rcu()</tt> started first.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
 
-<p><a name="Quick Quiz 6"><b>Quick Quiz 6</b>:</a>
-The first and second guarantees require unbelievably strict ordering!
-Are all these memory barriers <i> really</i> required?
-<br><a href="#qq6answer">Answer</a>
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	The first and second guarantees require unbelievably strict ordering!
+	Are all these memory barriers <i> really</i> required?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	Yes, they really are required.
+	To see why the first guarantee is required, consider the following
+	sequence of events:
+	</font>
+
+	<ol>
+	<li>	<font color="ffffff">
+		CPU 1: <tt>rcu_read_lock()</tt>
+		</font>
+	<li>	<font color="ffffff">
+		CPU 1: <tt>q = rcu_dereference(gp);
+		/* Very likely to return p. */</tt>
+		</font>
+	<li>	<font color="ffffff">
+		CPU 0: <tt>list_del_rcu(p);</tt>
+		</font>
+	<li>	<font color="ffffff">
+		CPU 0: <tt>synchronize_rcu()</tt> starts.
+		</font>
+	<li>	<font color="ffffff">
+		CPU 1: <tt>do_something_with(q-&gt;a);
+		/* No smp_mb(), so might happen after kfree(). */</tt>
+		</font>
+	<li>	<font color="ffffff">
+		CPU 1: <tt>rcu_read_unlock()</tt>
+		</font>
+	<li>	<font color="ffffff">
+		CPU 0: <tt>synchronize_rcu()</tt> returns.
+		</font>
+	<li>	<font color="ffffff">
+		CPU 0: <tt>kfree(p);</tt>
+		</font>
+	</ol>
+
+	<p><font color="ffffff">
+	Therefore, there absolutely must be a full memory barrier between the
+	end of the RCU read-side critical section and the end of the
+	grace period.
+	</font>
+
+	<p><font color="ffffff">
+	The sequence of events demonstrating the necessity of the second rule
+	is roughly similar:
+	</font>
+
+	<ol>
+	<li>	<font color="ffffff">CPU 0: <tt>list_del_rcu(p);</tt>
+		</font>
+	<li>	<font color="ffffff">CPU 0: <tt>synchronize_rcu()</tt> starts.
+		</font>
+	<li>	<font color="ffffff">CPU 1: <tt>rcu_read_lock()</tt>
+		</font>
+	<li>	<font color="ffffff">CPU 1: <tt>q = rcu_dereference(gp);
+		/* Might return p if no memory barrier. */</tt>
+		</font>
+	<li>	<font color="ffffff">CPU 0: <tt>synchronize_rcu()</tt> returns.
+		</font>
+	<li>	<font color="ffffff">CPU 0: <tt>kfree(p);</tt>
+		</font>
+	<li>	<font color="ffffff">
+		CPU 1: <tt>do_something_with(q-&gt;a); /* Boom!!! */</tt>
+		</font>
+	<li>	<font color="ffffff">CPU 1: <tt>rcu_read_unlock()</tt>
+		</font>
+	</ol>
+
+	<p><font color="ffffff">
+	And similarly, without a memory barrier between the beginning of the
+	grace period and the beginning of the RCU read-side critical section,
+	CPU&nbsp;1 might end up accessing the freelist.
+	</font>
+
+	<p><font color="ffffff">
+	The &ldquo;as if&rdquo; rule of course applies, so that any
+	implementation that acts as if the appropriate memory barriers
+	were in place is a correct implementation.
+	That said, it is much easier to fool yourself into believing
+	that you have adhered to the as-if rule than it is to actually
+	adhere to it!
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
+
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	You claim that <tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>
+	generate absolutely no code in some kernel builds.
+	This means that the compiler might arbitrarily rearrange consecutive
+	RCU read-side critical sections.
+	Given such rearrangement, if a given RCU read-side critical section
+	is done, how can you be sure that all prior RCU read-side critical
+	sections are done?
+	Won't the compiler rearrangements make that impossible to determine?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	In cases where <tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>
+	generate absolutely no code, RCU infers quiescent states only at
+	special locations, for example, within the scheduler.
+	Because calls to <tt>schedule()</tt> had better prevent calling-code
+	accesses to shared variables from being rearranged across the call to
+	<tt>schedule()</tt>, if RCU detects the end of a given RCU read-side
+	critical section, it will necessarily detect the end of all prior
+	RCU read-side critical sections, no matter how aggressively the
+	compiler scrambles the code.
+	</font>
+
+	<p><font color="ffffff">
+	Again, this all assumes that the compiler cannot scramble code across
+	calls to the scheduler, out of interrupt handlers, into the idle loop,
+	into user-mode code, and so on.
+	But if your kernel build allows that sort of scrambling, you have broken
+	far more than just RCU!
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
 
 <p>
 Note that these memory-barrier requirements do not replace the fundamental
@@ -626,9 +834,19 @@ inconvenience can be avoided through use of the
 <tt>call_rcu()</tt> and <tt>kfree_rcu()</tt> API members
 described later in this document.
 
-<p><a name="Quick Quiz 7"><b>Quick Quiz 7</b>:</a>
-But how does the upgrade-to-write operation exclude other readers?
-<br><a href="#qq7answer">Answer</a>
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	But how does the upgrade-to-write operation exclude other readers?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	It doesn't, just like normal RCU updates, which also do not exclude
+	RCU readers.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
 
 <p>
 This guarantee allows lookup code to be shared between read-side
@@ -714,9 +932,20 @@ to do significant reordering.
 This is by design:  Any significant ordering constraints would slow down
 these fast-path APIs.
 
-<p><a name="Quick Quiz 8"><b>Quick Quiz 8</b>:</a>
-Can't the compiler also reorder this code?
-<br><a href="#qq8answer">Answer</a>
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	Can't the compiler also reorder this code?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	No, the volatile casts in <tt>READ_ONCE()</tt> and
+	<tt>WRITE_ONCE()</tt> prevent the compiler from reordering in
+	this particular case.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
 
 <h3><a name="Readers Do Not Exclude Updaters">Readers Do Not Exclude Updaters</a></h3>
 
@@ -769,10 +998,28 @@ new readers can start immediately after <tt>synchronize_rcu()</tt>
 starts, and <tt>synchronize_rcu()</tt> is under no
 obligation to wait for these new readers.
 
-<p><a name="Quick Quiz 9"><b>Quick Quiz 9</b>:</a>
-Suppose that synchronize_rcu() did wait until all readers had completed.
-Would the updater be able to rely on this?
-<br><a href="#qq9answer">Answer</a>
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	Suppose that synchronize_rcu() did wait until <i>all</i>
+	readers had completed instead of waiting only on
+	pre-existing readers.
+	For how long would the updater be able to rely on there
+	being no readers?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	For no time at all.
+	Even if <tt>synchronize_rcu()</tt> were to wait until
+	all readers had completed, a new reader might start immediately after
+	<tt>synchronize_rcu()</tt> completed.
+	Therefore, the code following
+	<tt>synchronize_rcu()</tt> can <i>never</i> rely on there being
+	no readers.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
 
 <h3><a name="Grace Periods Don't Partition Read-Side Critical Sections">
 Grace Periods Don't Partition Read-Side Critical Sections</a></h3>
@@ -969,11 +1216,24 @@ grace period.
 As a result, an RCU read-side critical section cannot partition a pair
 of RCU grace periods.
 
-<p><a name="Quick Quiz 10"><b>Quick Quiz 10</b>:</a>
-How long a sequence of grace periods, each separated by an RCU read-side
-critical section, would be required to partition the RCU read-side
-critical sections at the beginning and end of the chain?
-<br><a href="#qq10answer">Answer</a>
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	How long a sequence of grace periods, each separated by an RCU
+	read-side critical section, would be required to partition the RCU
+	read-side critical sections at the beginning and end of the chain?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	In theory, an infinite number.
+	In practice, an unknown number that is sensitive to both implementation
+	details and timing considerations.
+	Therefore, even in practice, RCU users must abide by the
+	theoretical rather than the practical answer.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
 
 <h3><a name="Disabling Preemption Does Not Block Grace Periods">
 Disabling Preemption Does Not Block Grace Periods</a></h3>
@@ -1109,12 +1369,27 @@ These classes is covered in the following sections.
 <h3><a name="Specialization">Specialization</a></h3>
 
 <p>
-RCU is and always has been intended primarily for read-mostly situations, as
-illustrated by the following figure.
-This means that RCU's read-side primitives are optimized, often at the
+RCU is and always has been intended primarily for read-mostly situations,
+which means that RCU's read-side primitives are optimized, often at the
 expense of its update-side primitives.
+Experience thus far is captured by the following list of situations:
 
-<p><img src="RCUApplicability.svg" alt="RCUApplicability.svg" width="70%"></p>
+<ol>
+<li>	Read-mostly data, where stale and inconsistent data is not
+	a problem:   RCU works great!
+<li>	Read-mostly data, where data must be consistent:
+	RCU works well.
+<li>	Read-write data, where data must be consistent:
+	RCU <i>might</i> work OK.
+	Or not.
+<li>	Write-mostly data, where data must be consistent:
+	RCU is very unlikely to be the right tool for the job,
+	with the following exceptions, where RCU can provide:
+	<ol type=a>
+	<li>	Existence guarantees for update-friendly mechanisms.
+	<li>	Wait-free read-side primitives for real-time use.
+	</ol>
+</ol>
 
 <p>
 This focus on read-mostly situations means that RCU must interoperate
@@ -1127,9 +1402,43 @@ synchronization primitives be legal within RCU read-side critical sections,
 including spinlocks, sequence locks, atomic operations, reference
 counters, and memory barriers.
 
-<p><a name="Quick Quiz 11"><b>Quick Quiz 11</b>:</a>
-What about sleeping locks?
-<br><a href="#qq11answer">Answer</a>
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	What about sleeping locks?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	These are forbidden within Linux-kernel RCU read-side critical
+	sections because it is not legal to place a quiescent state
+	(in this case, voluntary context switch) within an RCU read-side
+	critical section.
+	However, sleeping locks may be used within userspace RCU read-side
+	critical sections, and also within Linux-kernel sleepable RCU
+	<a href="#Sleepable RCU"><font color="ffffff">(SRCU)</font></a>
+	read-side critical sections.
+	In addition, the -rt patchset turns spinlocks into a
+	sleeping locks so that the corresponding critical sections
+	can be preempted, which also means that these sleeplockified
+	spinlocks (but not other sleeping locks!)  may be acquire within
+	-rt-Linux-kernel RCU read-side critical sections.
+	</font>
+
+	<p><font color="ffffff">
+	Note that it <i>is</i> legal for a normal RCU read-side
+	critical section to conditionally acquire a sleeping locks
+	(as in <tt>mutex_trylock()</tt>), but only as long as it does
+	not loop indefinitely attempting to conditionally acquire that
+	sleeping locks.
+	The key point is that things like <tt>mutex_trylock()</tt>
+	either return with the mutex held, or return an error indication if
+	the mutex was not immediately available.
+	Either way, <tt>mutex_trylock()</tt> returns immediately without
+	sleeping.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
 
 <p>
 It often comes as a surprise that many algorithms do not require a
@@ -1160,10 +1469,7 @@ some period of time, so the exact wait period is a judgment call.
 One of our pair of veternarians might wait 30 seconds before pronouncing
 the cat dead, while the other might insist on waiting a full minute.
 The two veternarians would then disagree on the state of the cat during
-the final 30 seconds of the minute following the last heartbeat, as
-fancifully illustrated below:
-
-<p><img src="2013-08-is-it-dead.png" alt="2013-08-is-it-dead.png" width="431"></p>
+the final 30 seconds of the minute following the last heartbeat.
 
 <p>
 Interestingly enough, this same situation applies to hardware.
@@ -1343,7 +1649,8 @@ situations where neither <tt>synchronize_rcu()</tt> nor
 <tt>synchronize_rcu_expedited()</tt> would be legal,
 including within preempt-disable code, <tt>local_bh_disable()</tt> code,
 interrupt-disable code, and interrupt handlers.
-However, even <tt>call_rcu()</tt> is illegal within NMI handlers.
+However, even <tt>call_rcu()</tt> is illegal within NMI handlers
+and from idle and offline CPUs.
 The callback function (<tt>remove_gp_cb()</tt> in this case) will be
 executed within softirq (software interrupt) environment within the
 Linux kernel,
@@ -1354,12 +1661,27 @@ write an RCU callback function that takes too long.
 Long-running operations should be relegated to separate threads or
 (in the Linux kernel) workqueues.
 
-<p><a name="Quick Quiz 12"><b>Quick Quiz 12</b>:</a>
-Why does line&nbsp;19 use <tt>rcu_access_pointer()</tt>?
-After all, <tt>call_rcu()</tt> on line&nbsp;25 stores into the
-structure, which would interact badly with concurrent insertions.
-Doesn't this mean that <tt>rcu_dereference()</tt> is required?
-<br><a href="#qq12answer">Answer</a>
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	Why does line&nbsp;19 use <tt>rcu_access_pointer()</tt>?
+	After all, <tt>call_rcu()</tt> on line&nbsp;25 stores into the
+	structure, which would interact badly with concurrent insertions.
+	Doesn't this mean that <tt>rcu_dereference()</tt> is required?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	Presumably the <tt>-&gt;gp_lock</tt> acquired on line&nbsp;18 excludes
+	any changes, including any insertions that <tt>rcu_dereference()</tt>
+	would protect against.
+	Therefore, any insertions will be delayed until after
+	<tt>-&gt;gp_lock</tt>
+	is released on line&nbsp;25, which in turn means that
+	<tt>rcu_access_pointer()</tt> suffices.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
 
 <p>
 However, all that <tt>remove_gp_cb()</tt> is doing is
@@ -1406,14 +1728,31 @@ This was due to the fact that RCU was not heavily used within DYNIX/ptx,
 so the very few places that needed something like
 <tt>synchronize_rcu()</tt> simply open-coded it.
 
-<p><a name="Quick Quiz 13"><b>Quick Quiz 13</b>:</a>
-Earlier it was claimed that <tt>call_rcu()</tt> and
-<tt>kfree_rcu()</tt> allowed updaters to avoid being blocked
-by readers.
-But how can that be correct, given that the invocation of the callback
-and the freeing of the memory (respectively) must still wait for
-a grace period to elapse?
-<br><a href="#qq13answer">Answer</a>
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	Earlier it was claimed that <tt>call_rcu()</tt> and
+	<tt>kfree_rcu()</tt> allowed updaters to avoid being blocked
+	by readers.
+	But how can that be correct, given that the invocation of the callback
+	and the freeing of the memory (respectively) must still wait for
+	a grace period to elapse?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	We could define things this way, but keep in mind that this sort of
+	definition would say that updates in garbage-collected languages
+	cannot complete until the next time the garbage collector runs,
+	which does not seem at all reasonable.
+	The key point is that in most cases, an updater using either
+	<tt>call_rcu()</tt> or <tt>kfree_rcu()</tt> can proceed to the
+	next update as soon as it has invoked <tt>call_rcu()</tt> or
+	<tt>kfree_rcu()</tt>, without having to wait for a subsequent
+	grace period.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
 
 <p>
 But what if the updater must wait for the completion of code to be
@@ -1838,11 +2177,26 @@ kthreads to be spawned.
 Therefore, invoking <tt>synchronize_rcu()</tt> during scheduler
 initialization can result in deadlock.
 
-<p><a name="Quick Quiz 14"><b>Quick Quiz 14</b>:</a>
-So what happens with <tt>synchronize_rcu()</tt> during
-scheduler initialization for <tt>CONFIG_PREEMPT=n</tt>
-kernels?
-<br><a href="#qq14answer">Answer</a>
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	So what happens with <tt>synchronize_rcu()</tt> during
+	scheduler initialization for <tt>CONFIG_PREEMPT=n</tt>
+	kernels?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	In <tt>CONFIG_PREEMPT=n</tt> kernel, <tt>synchronize_rcu()</tt>
+	maps directly to <tt>synchronize_sched()</tt>.
+	Therefore, <tt>synchronize_rcu()</tt> works normally throughout
+	boot in <tt>CONFIG_PREEMPT=n</tt> kernels.
+	However, your code must also work in <tt>CONFIG_PREEMPT=y</tt> kernels,
+	so it is still necessary to avoid invoking <tt>synchronize_rcu()</tt>
+	during scheduler initialization.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
 
 <p>
 I learned of these boot-time requirements as a result of a series of
@@ -2037,6 +2391,41 @@ and <tt>RCU_NONIDLE()</tt> on the other while inspecting
 idle-loop code.
 Steven Rostedt supplied <tt>_rcuidle</tt> event tracing,
 which is used quite heavily in the idle loop.
+However, there are some restrictions on the code placed within
+<tt>RCU_NONIDLE()</tt>:
+
+<ol>
+<li>	Blocking is prohibited.
+	In practice, this is not a serious restriction given that idle
+	tasks are prohibited from blocking to begin with.
+<li>	Although nesting <tt>RCU_NONIDLE()</tt> is permited, they cannot
+	nest indefinitely deeply.
+	However, given that they can be nested on the order of a million
+	deep, even on 32-bit systems, this should not be a serious
+	restriction.
+	This nesting limit would probably be reached long after the
+	compiler OOMed or the stack overflowed.
+<li>	Any code path that enters <tt>RCU_NONIDLE()</tt> must sequence
+	out of that same <tt>RCU_NONIDLE()</tt>.
+	For example, the following is grossly illegal:
+
+	<blockquote>
+	<pre>
+ 1     RCU_NONIDLE({
+ 2       do_something();
+ 3       goto bad_idea;  /* BUG!!! */
+ 4       do_something_else();});
+ 5   bad_idea:
+	</pre>
+	</blockquote>
+
+	<p>
+	It is just as illegal to transfer control into the middle of
+	<tt>RCU_NONIDLE()</tt>'s argument.
+	Yes, in theory, you could transfer in as long as you also
+	transferred out, but in practice you could also expect to get sharply
+	worded review comments.
+</ol>
 
 <p>
 It is similarly socially unacceptable to interrupt an
@@ -2171,6 +2560,14 @@ This real-time requirement motivated the grace-period kthread, which
 also simplified handling of a number of race conditions.
 
 <p>
+RCU must avoid degrading real-time response for CPU-bound threads, whether
+executing in usermode (which is one use case for
+<tt>CONFIG_NO_HZ_FULL=y</tt>) or in the kernel.
+That said, CPU-bound loops in the kernel must execute
+<tt>cond_resched_rcu_qs()</tt> at least once per few tens of milliseconds
+in order to avoid receiving an IPI from RCU.
+
+<p>
 Finally, RCU's status as a synchronization primitive means that
 any RCU failure can result in arbitrary memory corruption that can be
 extremely difficult to debug.
@@ -2223,6 +2620,8 @@ described in a separate section.
 <li>	<a href="#Sched Flavor">Sched Flavor</a>
 <li>	<a href="#Sleepable RCU">Sleepable RCU</a>
 <li>	<a href="#Tasks RCU">Tasks RCU</a>
+<li>	<a href="#Waiting for Multiple Grace Periods">
+	Waiting for Multiple Grace Periods</a>
 </ol>
 
 <h3><a name="Bottom-Half Flavor">Bottom-Half Flavor</a></h3>
@@ -2472,6 +2871,94 @@ The tasks-RCU API is quite compact, consisting only of
 <tt>synchronize_rcu_tasks()</tt>, and
 <tt>rcu_barrier_tasks()</tt>.
 
+<h3><a name="Waiting for Multiple Grace Periods">
+Waiting for Multiple Grace Periods</a></h3>
+
+<p>
+Perhaps you have an RCU protected data structure that is accessed from
+RCU read-side critical sections, from softirq handlers, and from
+hardware interrupt handlers.
+That is three flavors of RCU, the normal flavor, the bottom-half flavor,
+and the sched flavor.
+How to wait for a compound grace period?
+
+<p>
+The best approach is usually to &ldquo;just say no!&rdquo; and
+insert <tt>rcu_read_lock()</tt> and <tt>rcu_read_unlock()</tt>
+around each RCU read-side critical section, regardless of what
+environment it happens to be in.
+But suppose that some of the RCU read-side critical sections are
+on extremely hot code paths, and that use of <tt>CONFIG_PREEMPT=n</tt>
+is not a viable option, so that <tt>rcu_read_lock()</tt> and
+<tt>rcu_read_unlock()</tt> are not free.
+What then?
+
+<p>
+You <i>could</i> wait on all three grace periods in succession, as follows:
+
+<blockquote>
+<pre>
+ 1 synchronize_rcu();
+ 2 synchronize_rcu_bh();
+ 3 synchronize_sched();
+</pre>
+</blockquote>
+
+<p>
+This works, but triples the update-side latency penalty.
+In cases where this is not acceptable, <tt>synchronize_rcu_mult()</tt>
+may be used to wait on all three flavors of grace period concurrently:
+
+<blockquote>
+<pre>
+ 1 synchronize_rcu_mult(call_rcu, call_rcu_bh, call_rcu_sched);
+</pre>
+</blockquote>
+
+<p>
+But what if it is necessary to also wait on SRCU?
+This can be done as follows:
+
+<blockquote>
+<pre>
+ 1 static void call_my_srcu(struct rcu_head *head,
+ 2        void (*func)(struct rcu_head *head))
+ 3 {
+ 4   call_srcu(&amp;my_srcu, head, func);
+ 5 }
+ 6
+ 7 synchronize_rcu_mult(call_rcu, call_rcu_bh, call_rcu_sched, call_my_srcu);
+</pre>
+</blockquote>
+
+<p>
+If you needed to wait on multiple different flavors of SRCU
+(but why???), you would need to create a wrapper function resembling
+<tt>call_my_srcu()</tt> for each SRCU flavor.
+
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	But what if I need to wait for multiple RCU flavors, but I also need
+	the grace periods to be expedited?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	If you are using expedited grace periods, there should be less penalty
+	for waiting on them in succession.
+	But if that is nevertheless a problem, you can use workqueues
+	or multiple kthreads to wait on the various expedited grace
+	periods concurrently.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
+
+<p>
+Again, it is usually better to adjust the RCU read-side critical sections
+to use a single flavor of RCU, but when this is not feasible, you can use
+<tt>synchronize_rcu_mult()</tt>.
+
 <h2><a name="Possible Future Changes">Possible Future Changes</a></h2>
 
 <p>
@@ -2568,330 +3055,5 @@ The cartoon is copyright (c) 2013 by Melissa Broussard,
 and is provided
 under the terms of the Creative Commons Attribution-Share Alike 3.0
 United States license.
-
-<h3><a name="Answers to Quick Quizzes">
-Answers to Quick Quizzes</a></h3>
-
-<a name="qq1answer"></a>
-<p><b>Quick Quiz 1</b>:
-Wait a minute!
-You said that updaters can make useful forward progress concurrently
-with readers, but pre-existing readers will block
-<tt>synchronize_rcu()</tt>!!!
-Just who are you trying to fool???
-
-
-</p><p><b>Answer</b>:
-First, if updaters do not wish to be blocked by readers, they can use
-<tt>call_rcu()</tt> or <tt>kfree_rcu()</tt>, which will
-be discussed later.
-Second, even when using <tt>synchronize_rcu()</tt>, the other
-update-side code does run concurrently with readers, whether pre-existing
-or not.
-
-
-</p><p><a href="#Quick%20Quiz%201"><b>Back to Quick Quiz 1</b>.</a>
-
-<a name="qq2answer"></a>
-<p><b>Quick Quiz 2</b>:
-Why is the <tt>synchronize_rcu()</tt> on line&nbsp;28 needed?
-
-
-</p><p><b>Answer</b>:
-Without that extra grace period, memory reordering could result in
-<tt>do_something_dlm()</tt> executing <tt>do_something()</tt>
-concurrently with the last bits of <tt>recovery()</tt>.
-
-
-</p><p><a href="#Quick%20Quiz%202"><b>Back to Quick Quiz 2</b>.</a>
-
-<a name="qq3answer"></a>
-<p><b>Quick Quiz 3</b>:
-But <tt>rcu_assign_pointer()</tt> does nothing to prevent the
-two assignments to <tt>p-&gt;a</tt> and <tt>p-&gt;b</tt>
-from being reordered.
-Can't that also cause problems?
-
-
-</p><p><b>Answer</b>:
-No, it cannot.
-The readers cannot see either of these two fields until
-the assignment to <tt>gp</tt>, by which time both fields are
-fully initialized.
-So reordering the assignments
-to <tt>p-&gt;a</tt> and <tt>p-&gt;b</tt> cannot possibly
-cause any problems.
-
-
-</p><p><a href="#Quick%20Quiz%203"><b>Back to Quick Quiz 3</b>.</a>
-
-<a name="qq4answer"></a>
-<p><b>Quick Quiz 4</b>:
-Without the <tt>rcu_dereference()</tt> or the
-<tt>rcu_access_pointer()</tt>, what destructive optimizations
-might the compiler make use of?
-
-
-</p><p><b>Answer</b>:
-Let's start with what happens to <tt>do_something_gp()</tt>
-if it fails to use <tt>rcu_dereference()</tt>.
-It could reuse a value formerly fetched from this same pointer.
-It could also fetch the pointer from <tt>gp</tt> in a byte-at-a-time
-manner, resulting in <i>load tearing</i>, in turn resulting a bytewise
-mash-up of two distince pointer values.
-It might even use value-speculation optimizations, where it makes a wrong
-guess, but by the time it gets around to checking the value, an update
-has changed the pointer to match the wrong guess.
-Too bad about any dereferences that returned pre-initialization garbage
-in the meantime!
-
-<p>
-For <tt>remove_gp_synchronous()</tt>, as long as all modifications
-to <tt>gp</tt> are carried out while holding <tt>gp_lock</tt>,
-the above optimizations are harmless.
-However,
-with <tt>CONFIG_SPARSE_RCU_POINTER=y</tt>,
-<tt>sparse</tt> will complain if you
-define <tt>gp</tt> with <tt>__rcu</tt> and then
-access it without using
-either <tt>rcu_access_pointer()</tt> or <tt>rcu_dereference()</tt>.
-
-
-</p><p><a href="#Quick%20Quiz%204"><b>Back to Quick Quiz 4</b>.</a>
-
-<a name="qq5answer"></a>
-<p><b>Quick Quiz 5</b>:
-Given that multiple CPUs can start RCU read-side critical sections
-at any time without any ordering whatsoever, how can RCU possibly tell whether
-or not a given RCU read-side critical section starts before a
-given instance of <tt>synchronize_rcu()</tt>?
-
-
-</p><p><b>Answer</b>:
-If RCU cannot tell whether or not a given
-RCU read-side critical section starts before a
-given instance of <tt>synchronize_rcu()</tt>,
-then it must assume that the RCU read-side critical section
-started first.
-In other words, a given instance of <tt>synchronize_rcu()</tt>
-can avoid waiting on a given RCU read-side critical section only
-if it can prove that <tt>synchronize_rcu()</tt> started first.
-
-
-</p><p><a href="#Quick%20Quiz%205"><b>Back to Quick Quiz 5</b>.</a>
-
-<a name="qq6answer"></a>
-<p><b>Quick Quiz 6</b>:
-The first and second guarantees require unbelievably strict ordering!
-Are all these memory barriers <i> really</i> required?
-
-
-</p><p><b>Answer</b>:
-Yes, they really are required.
-To see why the first guarantee is required, consider the following
-sequence of events:
-
-<ol>
-<li>	CPU 1: <tt>rcu_read_lock()</tt>
-<li>	CPU 1: <tt>q = rcu_dereference(gp);
-	/* Very likely to return p. */</tt>
-<li>	CPU 0: <tt>list_del_rcu(p);</tt>
-<li>	CPU 0: <tt>synchronize_rcu()</tt> starts.
-<li>	CPU 1: <tt>do_something_with(q-&gt;a);
-	/* No smp_mb(), so might happen after kfree(). */</tt>
-<li>	CPU 1: <tt>rcu_read_unlock()</tt>
-<li>	CPU 0: <tt>synchronize_rcu()</tt> returns.
-<li>	CPU 0: <tt>kfree(p);</tt>
-</ol>
-
-<p>
-Therefore, there absolutely must be a full memory barrier between the
-end of the RCU read-side critical section and the end of the
-grace period.
-
-<p>
-The sequence of events demonstrating the necessity of the second rule
-is roughly similar:
-
-<ol>
-<li>	CPU 0: <tt>list_del_rcu(p);</tt>
-<li>	CPU 0: <tt>synchronize_rcu()</tt> starts.
-<li>	CPU 1: <tt>rcu_read_lock()</tt>
-<li>	CPU 1: <tt>q = rcu_dereference(gp);
-	/* Might return p if no memory barrier. */</tt>
-<li>	CPU 0: <tt>synchronize_rcu()</tt> returns.
-<li>	CPU 0: <tt>kfree(p);</tt>
-<li>	CPU 1: <tt>do_something_with(q-&gt;a); /* Boom!!! */</tt>
-<li>	CPU 1: <tt>rcu_read_unlock()</tt>
-</ol>
-
-<p>
-And similarly, without a memory barrier between the beginning of the
-grace period and the beginning of the RCU read-side critical section,
-CPU&nbsp;1 might end up accessing the freelist.
-
-<p>
-The &ldquo;as if&rdquo; rule of course applies, so that any implementation
-that acts as if the appropriate memory barriers were in place is a
-correct implementation.
-That said, it is much easier to fool yourself into believing that you have
-adhered to the as-if rule than it is to actually adhere to it!
-
-
-</p><p><a href="#Quick%20Quiz%206"><b>Back to Quick Quiz 6</b>.</a>
-
-<a name="qq7answer"></a>
-<p><b>Quick Quiz 7</b>:
-But how does the upgrade-to-write operation exclude other readers?
-
-
-</p><p><b>Answer</b>:
-It doesn't, just like normal RCU updates, which also do not exclude
-RCU readers.
-
-
-</p><p><a href="#Quick%20Quiz%207"><b>Back to Quick Quiz 7</b>.</a>
-
-<a name="qq8answer"></a>
-<p><b>Quick Quiz 8</b>:
-Can't the compiler also reorder this code?
-
-
-</p><p><b>Answer</b>:
-No, the volatile casts in <tt>READ_ONCE()</tt> and
-<tt>WRITE_ONCE()</tt> prevent the compiler from reordering in
-this particular case.
-
-
-</p><p><a href="#Quick%20Quiz%208"><b>Back to Quick Quiz 8</b>.</a>
-
-<a name="qq9answer"></a>
-<p><b>Quick Quiz 9</b>:
-Suppose that synchronize_rcu() did wait until all readers had completed.
-Would the updater be able to rely on this?
-
-
-</p><p><b>Answer</b>:
-No.
-Even if <tt>synchronize_rcu()</tt> were to wait until
-all readers had completed, a new reader might start immediately after
-<tt>synchronize_rcu()</tt> completed.
-Therefore, the code following
-<tt>synchronize_rcu()</tt> cannot rely on there being no readers
-in any case.
-
-
-</p><p><a href="#Quick%20Quiz%209"><b>Back to Quick Quiz 9</b>.</a>
-
-<a name="qq10answer"></a>
-<p><b>Quick Quiz 10</b>:
-How long a sequence of grace periods, each separated by an RCU read-side
-critical section, would be required to partition the RCU read-side
-critical sections at the beginning and end of the chain?
-
-
-</p><p><b>Answer</b>:
-In theory, an infinite number.
-In practice, an unknown number that is sensitive to both implementation
-details and timing considerations.
-Therefore, even in practice, RCU users must abide by the theoretical rather
-than the practical answer.
-
-
-</p><p><a href="#Quick%20Quiz%2010"><b>Back to Quick Quiz 10</b>.</a>
-
-<a name="qq11answer"></a>
-<p><b>Quick Quiz 11</b>:
-What about sleeping locks?
-
-
-</p><p><b>Answer</b>:
-These are forbidden within Linux-kernel RCU read-side critical sections
-because it is not legal to place a quiescent state (in this case,
-voluntary context switch) within an RCU read-side critical section.
-However, sleeping locks may be used within userspace RCU read-side critical
-sections, and also within Linux-kernel sleepable RCU
-<a href="#Sleepable RCU">(SRCU)</a>
-read-side critical sections.
-In addition, the -rt patchset turns spinlocks into a sleeping locks so
-that the corresponding critical sections can be preempted, which
-also means that these sleeplockified spinlocks (but not other sleeping locks!)
-may be acquire within -rt-Linux-kernel RCU read-side critical sections.
-
-<p>
-Note that it <i>is</i> legal for a normal RCU read-side critical section
-to conditionally acquire a sleeping locks (as in <tt>mutex_trylock()</tt>),
-but only as long as it does not loop indefinitely attempting to
-conditionally acquire that sleeping locks.
-The key point is that things like <tt>mutex_trylock()</tt>
-either return with the mutex held, or return an error indication if
-the mutex was not immediately available.
-Either way, <tt>mutex_trylock()</tt> returns immediately without sleeping.
-
-
-</p><p><a href="#Quick%20Quiz%2011"><b>Back to Quick Quiz 11</b>.</a>
-
-<a name="qq12answer"></a>
-<p><b>Quick Quiz 12</b>:
-Why does line&nbsp;19 use <tt>rcu_access_pointer()</tt>?
-After all, <tt>call_rcu()</tt> on line&nbsp;25 stores into the
-structure, which would interact badly with concurrent insertions.
-Doesn't this mean that <tt>rcu_dereference()</tt> is required?
-
-
-</p><p><b>Answer</b>:
-Presumably the <tt>-&gt;gp_lock</tt> acquired on line&nbsp;18 excludes
-any changes, including any insertions that <tt>rcu_dereference()</tt>
-would protect against.
-Therefore, any insertions will be delayed until after <tt>-&gt;gp_lock</tt>
-is released on line&nbsp;25, which in turn means that
-<tt>rcu_access_pointer()</tt> suffices.
-
-
-</p><p><a href="#Quick%20Quiz%2012"><b>Back to Quick Quiz 12</b>.</a>
-
-<a name="qq13answer"></a>
-<p><b>Quick Quiz 13</b>:
-Earlier it was claimed that <tt>call_rcu()</tt> and
-<tt>kfree_rcu()</tt> allowed updaters to avoid being blocked
-by readers.
-But how can that be correct, given that the invocation of the callback
-and the freeing of the memory (respectively) must still wait for
-a grace period to elapse?
-
-
-</p><p><b>Answer</b>:
-We could define things this way, but keep in mind that this sort of
-definition would say that updates in garbage-collected languages
-cannot complete until the next time the garbage collector runs,
-which does not seem at all reasonable.
-The key point is that in most cases, an updater using either
-<tt>call_rcu()</tt> or <tt>kfree_rcu()</tt> can proceed to the
-next update as soon as it has invoked <tt>call_rcu()</tt> or
-<tt>kfree_rcu()</tt>, without having to wait for a subsequent
-grace period.
-
-
-</p><p><a href="#Quick%20Quiz%2013"><b>Back to Quick Quiz 13</b>.</a>
-
-<a name="qq14answer"></a>
-<p><b>Quick Quiz 14</b>:
-So what happens with <tt>synchronize_rcu()</tt> during
-scheduler initialization for <tt>CONFIG_PREEMPT=n</tt>
-kernels?
-
-
-</p><p><b>Answer</b>:
-In <tt>CONFIG_PREEMPT=n</tt> kernel, <tt>synchronize_rcu()</tt>
-maps directly to <tt>synchronize_sched()</tt>.
-Therefore, <tt>synchronize_rcu()</tt> works normally throughout
-boot in <tt>CONFIG_PREEMPT=n</tt> kernels.
-However, your code must also work in <tt>CONFIG_PREEMPT=y</tt> kernels,
-so it is still necessary to avoid invoking <tt>synchronize_rcu()</tt>
-during scheduler initialization.
-
-
-</p><p><a href="#Quick%20Quiz%2014"><b>Back to Quick Quiz 14</b>.</a>
-
 
 </body></html>

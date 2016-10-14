@@ -32,6 +32,7 @@
 #include <linux/export.h>
 #include <linux/swap.h>
 #include <linux/uio.h>
+#include <linux/khugepaged.h>
 
 static struct vfsmount *shm_mnt;
 
@@ -97,15 +98,6 @@ struct shmem_falloc {
 	pgoff_t nr_unswapped;	/* how often writepage refused to swap out */
 };
 
-/* Flag allocation requirements to shmem_getpage */
-enum sgp_type {
-	SGP_READ,	/* don't exceed i_size, don't allocate page */
-	SGP_CACHE,	/* don't exceed i_size, may allocate page */
-	SGP_DIRTY,	/* like SGP_CACHE, but set new page dirty */
-	SGP_WRITE,	/* may exceed i_size, may allocate !Uptodate page */
-	SGP_FALLOC,	/* like SGP_WRITE, but make existing page Uptodate */
-};
-
 #ifdef CONFIG_TMPFS
 static unsigned long shmem_default_max_blocks(void)
 {
@@ -122,13 +114,14 @@ static bool shmem_should_replace_page(struct page *page, gfp_t gfp);
 static int shmem_replace_page(struct page **pagep, gfp_t gfp,
 				struct shmem_inode_info *info, pgoff_t index);
 static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
-	struct page **pagep, enum sgp_type sgp, gfp_t gfp, int *fault_type);
+		struct page **pagep, enum sgp_type sgp,
+		gfp_t gfp, struct mm_struct *fault_mm, int *fault_type);
 
-static inline int shmem_getpage(struct inode *inode, pgoff_t index,
-	struct page **pagep, enum sgp_type sgp, int *fault_type)
+int shmem_getpage(struct inode *inode, pgoff_t index,
+		struct page **pagep, enum sgp_type sgp)
 {
 	return shmem_getpage_gfp(inode, index, pagep, sgp,
-			mapping_gfp_mask(inode->i_mapping), fault_type);
+		mapping_gfp_mask(inode->i_mapping), NULL, NULL);
 }
 
 static inline struct shmem_sb_info *SHMEM_SB(struct super_block *sb)
@@ -169,14 +162,17 @@ static inline int shmem_reacct_size(unsigned long flags,
 
 /*
  * ... whereas tmpfs objects are accounted incrementally as
- * pages are allocated, in order to allow huge sparse files.
+ * pages are allocated, in order to allow large sparse files.
  * shmem_getpage reports shmem_acct_block failure as -ENOSPC not -ENOMEM,
  * so that a failure on a sparse tmpfs mapping will give SIGBUS not OOM.
  */
-static inline int shmem_acct_block(unsigned long flags)
+static inline int shmem_acct_block(unsigned long flags, long pages)
 {
-	return (flags & VM_NORESERVE) ?
-		security_vm_enough_memory_mm(current->mm, VM_ACCT(PAGE_SIZE)) : 0;
+	if (!(flags & VM_NORESERVE))
+		return 0;
+
+	return security_vm_enough_memory_mm(current->mm,
+			pages * VM_ACCT(PAGE_SIZE));
 }
 
 static inline void shmem_unacct_blocks(unsigned long flags, long pages)
@@ -192,6 +188,7 @@ static const struct inode_operations shmem_inode_operations;
 static const struct inode_operations shmem_dir_inode_operations;
 static const struct inode_operations shmem_special_inode_operations;
 static const struct vm_operations_struct shmem_vm_ops;
+static struct file_system_type shmem_fs_type;
 
 static LIST_HEAD(shmem_swaplist);
 static DEFINE_MUTEX(shmem_swaplist_mutex);
@@ -249,6 +246,54 @@ static void shmem_recalc_inode(struct inode *inode)
 	}
 }
 
+bool shmem_charge(struct inode *inode, long pages)
+{
+	struct shmem_inode_info *info = SHMEM_I(inode);
+	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+	unsigned long flags;
+
+	if (shmem_acct_block(info->flags, pages))
+		return false;
+	spin_lock_irqsave(&info->lock, flags);
+	info->alloced += pages;
+	inode->i_blocks += pages * BLOCKS_PER_PAGE;
+	shmem_recalc_inode(inode);
+	spin_unlock_irqrestore(&info->lock, flags);
+	inode->i_mapping->nrpages += pages;
+
+	if (!sbinfo->max_blocks)
+		return true;
+	if (percpu_counter_compare(&sbinfo->used_blocks,
+				sbinfo->max_blocks - pages) > 0) {
+		inode->i_mapping->nrpages -= pages;
+		spin_lock_irqsave(&info->lock, flags);
+		info->alloced -= pages;
+		shmem_recalc_inode(inode);
+		spin_unlock_irqrestore(&info->lock, flags);
+		shmem_unacct_blocks(info->flags, pages);
+		return false;
+	}
+	percpu_counter_add(&sbinfo->used_blocks, pages);
+	return true;
+}
+
+void shmem_uncharge(struct inode *inode, long pages)
+{
+	struct shmem_inode_info *info = SHMEM_I(inode);
+	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+	unsigned long flags;
+
+	spin_lock_irqsave(&info->lock, flags);
+	info->alloced -= pages;
+	inode->i_blocks -= pages * BLOCKS_PER_PAGE;
+	shmem_recalc_inode(inode);
+	spin_unlock_irqrestore(&info->lock, flags);
+
+	if (sbinfo->max_blocks)
+		percpu_counter_sub(&sbinfo->used_blocks, pages);
+	shmem_unacct_blocks(info->flags, pages);
+}
+
 /*
  * Replace item expected in radix tree by a new item, while holding tree lock.
  */
@@ -289,36 +334,256 @@ static bool shmem_confirm_swap(struct address_space *mapping,
 }
 
 /*
+ * Definitions for "huge tmpfs": tmpfs mounted with the huge= option
+ *
+ * SHMEM_HUGE_NEVER:
+ *	disables huge pages for the mount;
+ * SHMEM_HUGE_ALWAYS:
+ *	enables huge pages for the mount;
+ * SHMEM_HUGE_WITHIN_SIZE:
+ *	only allocate huge pages if the page will be fully within i_size,
+ *	also respect fadvise()/madvise() hints;
+ * SHMEM_HUGE_ADVISE:
+ *	only allocate huge pages if requested with fadvise()/madvise();
+ */
+
+#define SHMEM_HUGE_NEVER	0
+#define SHMEM_HUGE_ALWAYS	1
+#define SHMEM_HUGE_WITHIN_SIZE	2
+#define SHMEM_HUGE_ADVISE	3
+
+/*
+ * Special values.
+ * Only can be set via /sys/kernel/mm/transparent_hugepage/shmem_enabled:
+ *
+ * SHMEM_HUGE_DENY:
+ *	disables huge on shm_mnt and all mounts, for emergency use;
+ * SHMEM_HUGE_FORCE:
+ *	enables huge on shm_mnt and all mounts, w/o needing option, for testing;
+ *
+ */
+#define SHMEM_HUGE_DENY		(-1)
+#define SHMEM_HUGE_FORCE	(-2)
+
+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
+/* ifdef here to avoid bloating shmem.o when not necessary */
+
+int shmem_huge __read_mostly;
+
+static int shmem_parse_huge(const char *str)
+{
+	if (!strcmp(str, "never"))
+		return SHMEM_HUGE_NEVER;
+	if (!strcmp(str, "always"))
+		return SHMEM_HUGE_ALWAYS;
+	if (!strcmp(str, "within_size"))
+		return SHMEM_HUGE_WITHIN_SIZE;
+	if (!strcmp(str, "advise"))
+		return SHMEM_HUGE_ADVISE;
+	if (!strcmp(str, "deny"))
+		return SHMEM_HUGE_DENY;
+	if (!strcmp(str, "force"))
+		return SHMEM_HUGE_FORCE;
+	return -EINVAL;
+}
+
+static const char *shmem_format_huge(int huge)
+{
+	switch (huge) {
+	case SHMEM_HUGE_NEVER:
+		return "never";
+	case SHMEM_HUGE_ALWAYS:
+		return "always";
+	case SHMEM_HUGE_WITHIN_SIZE:
+		return "within_size";
+	case SHMEM_HUGE_ADVISE:
+		return "advise";
+	case SHMEM_HUGE_DENY:
+		return "deny";
+	case SHMEM_HUGE_FORCE:
+		return "force";
+	default:
+		VM_BUG_ON(1);
+		return "bad_val";
+	}
+}
+
+static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
+		struct shrink_control *sc, unsigned long nr_to_split)
+{
+	LIST_HEAD(list), *pos, *next;
+	struct inode *inode;
+	struct shmem_inode_info *info;
+	struct page *page;
+	unsigned long batch = sc ? sc->nr_to_scan : 128;
+	int removed = 0, split = 0;
+
+	if (list_empty(&sbinfo->shrinklist))
+		return SHRINK_STOP;
+
+	spin_lock(&sbinfo->shrinklist_lock);
+	list_for_each_safe(pos, next, &sbinfo->shrinklist) {
+		info = list_entry(pos, struct shmem_inode_info, shrinklist);
+
+		/* pin the inode */
+		inode = igrab(&info->vfs_inode);
+
+		/* inode is about to be evicted */
+		if (!inode) {
+			list_del_init(&info->shrinklist);
+			removed++;
+			goto next;
+		}
+
+		/* Check if there's anything to gain */
+		if (round_up(inode->i_size, PAGE_SIZE) ==
+				round_up(inode->i_size, HPAGE_PMD_SIZE)) {
+			list_del_init(&info->shrinklist);
+			removed++;
+			iput(inode);
+			goto next;
+		}
+
+		list_move(&info->shrinklist, &list);
+next:
+		if (!--batch)
+			break;
+	}
+	spin_unlock(&sbinfo->shrinklist_lock);
+
+	list_for_each_safe(pos, next, &list) {
+		int ret;
+
+		info = list_entry(pos, struct shmem_inode_info, shrinklist);
+		inode = &info->vfs_inode;
+
+		if (nr_to_split && split >= nr_to_split) {
+			iput(inode);
+			continue;
+		}
+
+		page = find_lock_page(inode->i_mapping,
+				(inode->i_size & HPAGE_PMD_MASK) >> PAGE_SHIFT);
+		if (!page)
+			goto drop;
+
+		if (!PageTransHuge(page)) {
+			unlock_page(page);
+			put_page(page);
+			goto drop;
+		}
+
+		ret = split_huge_page(page);
+		unlock_page(page);
+		put_page(page);
+
+		if (ret) {
+			/* split failed: leave it on the list */
+			iput(inode);
+			continue;
+		}
+
+		split++;
+drop:
+		list_del_init(&info->shrinklist);
+		removed++;
+		iput(inode);
+	}
+
+	spin_lock(&sbinfo->shrinklist_lock);
+	list_splice_tail(&list, &sbinfo->shrinklist);
+	sbinfo->shrinklist_len -= removed;
+	spin_unlock(&sbinfo->shrinklist_lock);
+
+	return split;
+}
+
+static long shmem_unused_huge_scan(struct super_block *sb,
+		struct shrink_control *sc)
+{
+	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
+
+	if (!READ_ONCE(sbinfo->shrinklist_len))
+		return SHRINK_STOP;
+
+	return shmem_unused_huge_shrink(sbinfo, sc, 0);
+}
+
+static long shmem_unused_huge_count(struct super_block *sb,
+		struct shrink_control *sc)
+{
+	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
+	return READ_ONCE(sbinfo->shrinklist_len);
+}
+#else /* !CONFIG_TRANSPARENT_HUGE_PAGECACHE */
+
+#define shmem_huge SHMEM_HUGE_DENY
+
+static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
+		struct shrink_control *sc, unsigned long nr_to_split)
+{
+	return 0;
+}
+#endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE */
+
+/*
  * Like add_to_page_cache_locked, but error if expected item has gone.
  */
 static int shmem_add_to_page_cache(struct page *page,
 				   struct address_space *mapping,
 				   pgoff_t index, void *expected)
 {
-	int error;
+	int error, nr = hpage_nr_pages(page);
 
+	VM_BUG_ON_PAGE(PageTail(page), page);
+	VM_BUG_ON_PAGE(index != round_down(index, nr), page);
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
 	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+	VM_BUG_ON(expected && PageTransHuge(page));
 
-	get_page(page);
+	page_ref_add(page, nr);
 	page->mapping = mapping;
 	page->index = index;
 
 	spin_lock_irq(&mapping->tree_lock);
-	if (!expected)
+	if (PageTransHuge(page)) {
+		void __rcu **results;
+		pgoff_t idx;
+		int i;
+
+		error = 0;
+		if (radix_tree_gang_lookup_slot(&mapping->page_tree,
+					&results, &idx, index, 1) &&
+				idx < index + HPAGE_PMD_NR) {
+			error = -EEXIST;
+		}
+
+		if (!error) {
+			for (i = 0; i < HPAGE_PMD_NR; i++) {
+				error = radix_tree_insert(&mapping->page_tree,
+						index + i, page + i);
+				VM_BUG_ON(error);
+			}
+			count_vm_event(THP_FILE_ALLOC);
+		}
+	} else if (!expected) {
 		error = radix_tree_insert(&mapping->page_tree, index, page);
-	else
+	} else {
 		error = shmem_radix_tree_replace(mapping, index, expected,
 								 page);
+	}
+
 	if (!error) {
-		mapping->nrpages++;
-		__inc_zone_page_state(page, NR_FILE_PAGES);
-		__inc_zone_page_state(page, NR_SHMEM);
+		mapping->nrpages += nr;
+		if (PageTransHuge(page))
+			__inc_node_page_state(page, NR_SHMEM_THPS);
+		__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, nr);
+		__mod_node_page_state(page_pgdat(page), NR_SHMEM, nr);
 		spin_unlock_irq(&mapping->tree_lock);
 	} else {
 		page->mapping = NULL;
 		spin_unlock_irq(&mapping->tree_lock);
-		put_page(page);
+		page_ref_sub(page, nr);
 	}
 	return error;
 }
@@ -331,12 +596,14 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
 	struct address_space *mapping = page->mapping;
 	int error;
 
+	VM_BUG_ON_PAGE(PageCompound(page), page);
+
 	spin_lock_irq(&mapping->tree_lock);
 	error = shmem_radix_tree_replace(mapping, page->index, page, radswap);
 	page->mapping = NULL;
 	mapping->nrpages--;
-	__dec_zone_page_state(page, NR_FILE_PAGES);
-	__dec_zone_page_state(page, NR_SHMEM);
+	__dec_node_page_state(page, NR_FILE_PAGES);
+	__dec_node_page_state(page, NR_SHMEM);
 	spin_unlock_irq(&mapping->tree_lock);
 	put_page(page);
 	BUG_ON(error);
@@ -510,10 +777,33 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 				continue;
 			}
 
+			VM_BUG_ON_PAGE(page_to_pgoff(page) != index, page);
+
 			if (!trylock_page(page))
 				continue;
+
+			if (PageTransTail(page)) {
+				/* Middle of THP: zero out the page */
+				clear_highpage(page);
+				unlock_page(page);
+				continue;
+			} else if (PageTransHuge(page)) {
+				if (index == round_down(end, HPAGE_PMD_NR)) {
+					/*
+					 * Range ends in the middle of THP:
+					 * zero out the page
+					 */
+					clear_highpage(page);
+					unlock_page(page);
+					continue;
+				}
+				index += HPAGE_PMD_NR - 1;
+				i += HPAGE_PMD_NR - 1;
+			}
+
 			if (!unfalloc || !PageUptodate(page)) {
-				if (page->mapping == mapping) {
+				VM_BUG_ON_PAGE(PageTail(page), page);
+				if (page_mapping(page) == mapping) {
 					VM_BUG_ON_PAGE(PageWriteback(page), page);
 					truncate_inode_page(mapping, page);
 				}
@@ -528,7 +818,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 
 	if (partial_start) {
 		struct page *page = NULL;
-		shmem_getpage(inode, start - 1, &page, SGP_READ, NULL);
+		shmem_getpage(inode, start - 1, &page, SGP_READ);
 		if (page) {
 			unsigned int top = PAGE_SIZE;
 			if (start > end) {
@@ -543,7 +833,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 	}
 	if (partial_end) {
 		struct page *page = NULL;
-		shmem_getpage(inode, end, &page, SGP_READ, NULL);
+		shmem_getpage(inode, end, &page, SGP_READ);
 		if (page) {
 			zero_user_segment(page, 0, partial_end);
 			set_page_dirty(page);
@@ -589,8 +879,36 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 			}
 
 			lock_page(page);
+
+			if (PageTransTail(page)) {
+				/* Middle of THP: zero out the page */
+				clear_highpage(page);
+				unlock_page(page);
+				/*
+				 * Partial thp truncate due 'start' in middle
+				 * of THP: don't need to look on these pages
+				 * again on !pvec.nr restart.
+				 */
+				if (index != round_down(end, HPAGE_PMD_NR))
+					start++;
+				continue;
+			} else if (PageTransHuge(page)) {
+				if (index == round_down(end, HPAGE_PMD_NR)) {
+					/*
+					 * Range ends in the middle of THP:
+					 * zero out the page
+					 */
+					clear_highpage(page);
+					unlock_page(page);
+					continue;
+				}
+				index += HPAGE_PMD_NR - 1;
+				i += HPAGE_PMD_NR - 1;
+			}
+
 			if (!unfalloc || !PageUptodate(page)) {
-				if (page->mapping == mapping) {
+				VM_BUG_ON_PAGE(PageTail(page), page);
+				if (page_mapping(page) == mapping) {
 					VM_BUG_ON_PAGE(PageWriteback(page), page);
 					truncate_inode_page(mapping, page);
 				} else {
@@ -607,10 +925,10 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 		index++;
 	}
 
-	spin_lock(&info->lock);
+	spin_lock_irq(&info->lock);
 	info->swapped -= nr_swaps_freed;
 	shmem_recalc_inode(inode);
-	spin_unlock(&info->lock);
+	spin_unlock_irq(&info->lock);
 }
 
 void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
@@ -627,9 +945,9 @@ static int shmem_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	struct shmem_inode_info *info = SHMEM_I(inode);
 
 	if (info->alloced - info->swapped != inode->i_mapping->nrpages) {
-		spin_lock(&info->lock);
+		spin_lock_irq(&info->lock);
 		shmem_recalc_inode(inode);
-		spin_unlock(&info->lock);
+		spin_unlock_irq(&info->lock);
 	}
 	generic_fillattr(inode, stat);
 	return 0;
@@ -639,6 +957,7 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct shmem_inode_info *info = SHMEM_I(inode);
+	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
 	int error;
 
 	error = inode_change_ok(inode, attr);
@@ -674,6 +993,20 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
 			if (oldsize > holebegin)
 				unmap_mapping_range(inode->i_mapping,
 							holebegin, 0, 1);
+
+			/*
+			 * Part of the huge page can be beyond i_size: subject
+			 * to shrink under memory pressure.
+			 */
+			if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE)) {
+				spin_lock(&sbinfo->shrinklist_lock);
+				if (list_empty(&info->shrinklist)) {
+					list_add_tail(&info->shrinklist,
+							&sbinfo->shrinklist);
+					sbinfo->shrinklist_len++;
+				}
+				spin_unlock(&sbinfo->shrinklist_lock);
+			}
 		}
 	}
 
@@ -686,11 +1019,20 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
 static void shmem_evict_inode(struct inode *inode)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
+	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
 
 	if (inode->i_mapping->a_ops == &shmem_aops) {
 		shmem_unacct_size(info->flags, inode->i_size);
 		inode->i_size = 0;
 		shmem_truncate_range(inode, 0, (loff_t)-1);
+		if (!list_empty(&info->shrinklist)) {
+			spin_lock(&sbinfo->shrinklist_lock);
+			if (!list_empty(&info->shrinklist)) {
+				list_del_init(&info->shrinklist);
+				sbinfo->shrinklist_len--;
+			}
+			spin_unlock(&sbinfo->shrinklist_lock);
+		}
 		if (!list_empty(&info->swaplist)) {
 			mutex_lock(&shmem_swaplist_mutex);
 			list_del_init(&info->swaplist);
@@ -773,9 +1115,9 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
 		delete_from_swap_cache(*pagep);
 		set_page_dirty(*pagep);
 		if (!error) {
-			spin_lock(&info->lock);
+			spin_lock_irq(&info->lock);
 			info->swapped--;
-			spin_unlock(&info->lock);
+			spin_unlock_irq(&info->lock);
 			swap_free(swap);
 		}
 	}
@@ -848,6 +1190,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	swp_entry_t swap;
 	pgoff_t index;
 
+	VM_BUG_ON_PAGE(PageCompound(page), page);
 	BUG_ON(!PageLocked(page));
 	mapping = page->mapping;
 	index = page->index;
@@ -922,10 +1265,10 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 		list_add_tail(&info->swaplist, &shmem_swaplist);
 
 	if (add_to_swap_cache(page, swap, GFP_ATOMIC) == 0) {
-		spin_lock(&info->lock);
+		spin_lock_irq(&info->lock);
 		shmem_recalc_inode(inode);
 		info->swapped++;
-		spin_unlock(&info->lock);
+		spin_unlock_irq(&info->lock);
 
 		swap_shmem_alloc(swap);
 		shmem_delete_from_page_cache(page, swp_to_radix_entry(swap));
@@ -947,8 +1290,7 @@ redirty:
 	return 0;
 }
 
-#ifdef CONFIG_NUMA
-#ifdef CONFIG_TMPFS
+#if defined(CONFIG_NUMA) && defined(CONFIG_TMPFS)
 static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
 {
 	char buffer[64];
@@ -972,7 +1314,35 @@ static struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
 	}
 	return mpol;
 }
-#endif /* CONFIG_TMPFS */
+#else /* !CONFIG_NUMA || !CONFIG_TMPFS */
+static inline void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
+{
+}
+static inline struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
+{
+	return NULL;
+}
+#endif /* CONFIG_NUMA && CONFIG_TMPFS */
+#ifndef CONFIG_NUMA
+#define vm_policy vm_private_data
+#endif
+
+static void shmem_pseudo_vma_init(struct vm_area_struct *vma,
+		struct shmem_inode_info *info, pgoff_t index)
+{
+	/* Create a pseudo vma that just contains the policy */
+	vma->vm_start = 0;
+	/* Bias interleave by inode number to distribute better across nodes */
+	vma->vm_pgoff = index + info->vfs_inode.i_ino;
+	vma->vm_ops = NULL;
+	vma->vm_policy = mpol_shared_policy_lookup(&info->policy, index);
+}
+
+static void shmem_pseudo_vma_destroy(struct vm_area_struct *vma)
+{
+	/* Drop reference taken by mpol_shared_policy_lookup() */
+	mpol_cond_put(vma->vm_policy);
+}
 
 static struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
 			struct shmem_inode_info *info, pgoff_t index)
@@ -980,18 +1350,41 @@ static struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
 	struct vm_area_struct pvma;
 	struct page *page;
 
-	/* Create a pseudo vma that just contains the policy */
-	pvma.vm_start = 0;
-	/* Bias interleave by inode number to distribute better across nodes */
-	pvma.vm_pgoff = index + info->vfs_inode.i_ino;
-	pvma.vm_ops = NULL;
-	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, index);
-
+	shmem_pseudo_vma_init(&pvma, info, index);
 	page = swapin_readahead(swap, gfp, &pvma, 0);
+	shmem_pseudo_vma_destroy(&pvma);
 
-	/* Drop reference taken by mpol_shared_policy_lookup() */
-	mpol_cond_put(pvma.vm_policy);
+	return page;
+}
 
+static struct page *shmem_alloc_hugepage(gfp_t gfp,
+		struct shmem_inode_info *info, pgoff_t index)
+{
+	struct vm_area_struct pvma;
+	struct inode *inode = &info->vfs_inode;
+	struct address_space *mapping = inode->i_mapping;
+	pgoff_t idx, hindex;
+	void __rcu **results;
+	struct page *page;
+
+	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
+		return NULL;
+
+	hindex = round_down(index, HPAGE_PMD_NR);
+	rcu_read_lock();
+	if (radix_tree_gang_lookup_slot(&mapping->page_tree, &results, &idx,
+				hindex, 1) && idx < hindex + HPAGE_PMD_NR) {
+		rcu_read_unlock();
+		return NULL;
+	}
+	rcu_read_unlock();
+
+	shmem_pseudo_vma_init(&pvma, info, hindex);
+	page = alloc_pages_vma(gfp | __GFP_COMP | __GFP_NORETRY | __GFP_NOWARN,
+			HPAGE_PMD_ORDER, &pvma, 0, numa_node_id(), true);
+	shmem_pseudo_vma_destroy(&pvma);
+	if (page)
+		prep_transhuge_page(page);
 	return page;
 }
 
@@ -1001,46 +1394,52 @@ static struct page *shmem_alloc_page(gfp_t gfp,
 	struct vm_area_struct pvma;
 	struct page *page;
 
-	/* Create a pseudo vma that just contains the policy */
-	pvma.vm_start = 0;
-	/* Bias interleave by inode number to distribute better across nodes */
-	pvma.vm_pgoff = index + info->vfs_inode.i_ino;
-	pvma.vm_ops = NULL;
-	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, index);
-
+	shmem_pseudo_vma_init(&pvma, info, index);
 	page = alloc_page_vma(gfp, &pvma, 0);
-
-	/* Drop reference taken by mpol_shared_policy_lookup() */
-	mpol_cond_put(pvma.vm_policy);
+	shmem_pseudo_vma_destroy(&pvma);
 
 	return page;
 }
-#else /* !CONFIG_NUMA */
-#ifdef CONFIG_TMPFS
-static inline void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
-{
-}
-#endif /* CONFIG_TMPFS */
 
-static inline struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
-			struct shmem_inode_info *info, pgoff_t index)
+static struct page *shmem_alloc_and_acct_page(gfp_t gfp,
+		struct shmem_inode_info *info, struct shmem_sb_info *sbinfo,
+		pgoff_t index, bool huge)
 {
-	return swapin_readahead(swap, gfp, NULL, 0);
-}
+	struct page *page;
+	int nr;
+	int err = -ENOSPC;
 
-static inline struct page *shmem_alloc_page(gfp_t gfp,
-			struct shmem_inode_info *info, pgoff_t index)
-{
-	return alloc_page(gfp);
-}
-#endif /* CONFIG_NUMA */
+	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
+		huge = false;
+	nr = huge ? HPAGE_PMD_NR : 1;
 
-#if !defined(CONFIG_NUMA) || !defined(CONFIG_TMPFS)
-static inline struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
-{
-	return NULL;
+	if (shmem_acct_block(info->flags, nr))
+		goto failed;
+	if (sbinfo->max_blocks) {
+		if (percpu_counter_compare(&sbinfo->used_blocks,
+					sbinfo->max_blocks - nr) > 0)
+			goto unacct;
+		percpu_counter_add(&sbinfo->used_blocks, nr);
+	}
+
+	if (huge)
+		page = shmem_alloc_hugepage(gfp, info, index);
+	else
+		page = shmem_alloc_page(gfp, info, index);
+	if (page) {
+		__SetPageLocked(page);
+		__SetPageSwapBacked(page);
+		return page;
+	}
+
+	err = -ENOMEM;
+	if (sbinfo->max_blocks)
+		percpu_counter_add(&sbinfo->used_blocks, -nr);
+unacct:
+	shmem_unacct_blocks(info->flags, nr);
+failed:
+	return ERR_PTR(err);
 }
-#endif
 
 /*
  * When a page is moved from swapcache to shmem filecache (either by the
@@ -1084,9 +1483,7 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
 	copy_highpage(newpage, oldpage);
 	flush_dcache_page(newpage);
 
-	__SetPageLocked(newpage);
 	SetPageUptodate(newpage);
-	SetPageSwapBacked(newpage);
 	set_page_private(newpage, swap_index);
 	SetPageSwapCache(newpage);
 
@@ -1098,8 +1495,8 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
 	error = shmem_radix_tree_replace(swap_mapping, swap_index, oldpage,
 								   newpage);
 	if (!error) {
-		__inc_zone_page_state(newpage, NR_FILE_PAGES);
-		__dec_zone_page_state(oldpage, NR_FILE_PAGES);
+		__inc_node_page_state(newpage, NR_FILE_PAGES);
+		__dec_node_page_state(oldpage, NR_FILE_PAGES);
 	}
 	spin_unlock_irq(&swap_mapping->tree_lock);
 
@@ -1130,23 +1527,32 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
  *
  * If we allocate a new one we do not mark it dirty. That's up to the
  * vm. If we swap it in we mark it dirty since we also free the swap
- * entry since a page cannot live in both the swap and page cache
+ * entry since a page cannot live in both the swap and page cache.
+ *
+ * fault_mm and fault_type are only supplied by shmem_fault:
+ * otherwise they are NULL.
  */
 static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
-	struct page **pagep, enum sgp_type sgp, gfp_t gfp, int *fault_type)
+	struct page **pagep, enum sgp_type sgp, gfp_t gfp,
+	struct mm_struct *fault_mm, int *fault_type)
 {
 	struct address_space *mapping = inode->i_mapping;
 	struct shmem_inode_info *info;
 	struct shmem_sb_info *sbinfo;
+	struct mm_struct *charge_mm;
 	struct mem_cgroup *memcg;
 	struct page *page;
 	swp_entry_t swap;
+	enum sgp_type sgp_huge = sgp;
+	pgoff_t hindex = index;
 	int error;
 	int once = 0;
 	int alloced = 0;
 
 	if (index > (MAX_LFS_FILESIZE >> PAGE_SHIFT))
 		return -EFBIG;
+	if (sgp == SGP_NOHUGE || sgp == SGP_HUGE)
+		sgp = SGP_CACHE;
 repeat:
 	swap.val = 0;
 	page = find_lock_entry(mapping, index);
@@ -1155,7 +1561,7 @@ repeat:
 		page = NULL;
 	}
 
-	if (sgp != SGP_WRITE && sgp != SGP_FALLOC &&
+	if (sgp <= SGP_CACHE &&
 	    ((loff_t)index << PAGE_SHIFT) >= i_size_read(inode)) {
 		error = -EINVAL;
 		goto unlock;
@@ -1183,14 +1589,19 @@ repeat:
 	 */
 	info = SHMEM_I(inode);
 	sbinfo = SHMEM_SB(inode->i_sb);
+	charge_mm = fault_mm ? : current->mm;
 
 	if (swap.val) {
 		/* Look it up and read it in.. */
 		page = lookup_swap_cache(swap);
 		if (!page) {
-			/* here we actually do the io */
-			if (fault_type)
+			/* Or update major stats only when swapin succeeds?? */
+			if (fault_type) {
 				*fault_type |= VM_FAULT_MAJOR;
+				count_vm_event(PGMAJFAULT);
+				mem_cgroup_count_vm_event(fault_mm, PGMAJFAULT);
+			}
+			/* Here we actually start the io */
 			page = shmem_swapin(swap, gfp, info, index);
 			if (!page) {
 				error = -ENOMEM;
@@ -1217,7 +1628,7 @@ repeat:
 				goto failed;
 		}
 
-		error = mem_cgroup_try_charge(page, current->mm, gfp, &memcg,
+		error = mem_cgroup_try_charge(page, charge_mm, gfp, &memcg,
 				false);
 		if (!error) {
 			error = shmem_add_to_page_cache(page, mapping, index,
@@ -1244,10 +1655,10 @@ repeat:
 
 		mem_cgroup_commit_charge(page, memcg, true, false);
 
-		spin_lock(&info->lock);
+		spin_lock_irq(&info->lock);
 		info->swapped--;
 		shmem_recalc_inode(inode);
-		spin_unlock(&info->lock);
+		spin_unlock_irq(&info->lock);
 
 		if (sgp == SGP_WRITE)
 			mark_page_accessed(page);
@@ -1257,53 +1668,110 @@ repeat:
 		swap_free(swap);
 
 	} else {
-		if (shmem_acct_block(info->flags)) {
-			error = -ENOSPC;
+		/* shmem_symlink() */
+		if (mapping->a_ops != &shmem_aops)
+			goto alloc_nohuge;
+		if (shmem_huge == SHMEM_HUGE_DENY || sgp_huge == SGP_NOHUGE)
+			goto alloc_nohuge;
+		if (shmem_huge == SHMEM_HUGE_FORCE)
+			goto alloc_huge;
+		switch (sbinfo->huge) {
+			loff_t i_size;
+			pgoff_t off;
+		case SHMEM_HUGE_NEVER:
+			goto alloc_nohuge;
+		case SHMEM_HUGE_WITHIN_SIZE:
+			off = round_up(index, HPAGE_PMD_NR);
+			i_size = round_up(i_size_read(inode), PAGE_SIZE);
+			if (i_size >= HPAGE_PMD_SIZE &&
+					i_size >> PAGE_SHIFT >= off)
+				goto alloc_huge;
+			/* fallthrough */
+		case SHMEM_HUGE_ADVISE:
+			if (sgp_huge == SGP_HUGE)
+				goto alloc_huge;
+			/* TODO: implement fadvise() hints */
+			goto alloc_nohuge;
+		}
+
+alloc_huge:
+		page = shmem_alloc_and_acct_page(gfp, info, sbinfo,
+				index, true);
+		if (IS_ERR(page)) {
+alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, info, sbinfo,
+					index, false);
+		}
+		if (IS_ERR(page)) {
+			int retry = 5;
+			error = PTR_ERR(page);
+			page = NULL;
+			if (error != -ENOSPC)
+				goto failed;
+			/*
+			 * Try to reclaim some spece by splitting a huge page
+			 * beyond i_size on the filesystem.
+			 */
+			while (retry--) {
+				int ret;
+				ret = shmem_unused_huge_shrink(sbinfo, NULL, 1);
+				if (ret == SHRINK_STOP)
+					break;
+				if (ret)
+					goto alloc_nohuge;
+			}
 			goto failed;
 		}
-		if (sbinfo->max_blocks) {
-			if (percpu_counter_compare(&sbinfo->used_blocks,
-						sbinfo->max_blocks) >= 0) {
-				error = -ENOSPC;
-				goto unacct;
-			}
-			percpu_counter_inc(&sbinfo->used_blocks);
-		}
 
-		page = shmem_alloc_page(gfp, info, index);
-		if (!page) {
-			error = -ENOMEM;
-			goto decused;
-		}
+		if (PageTransHuge(page))
+			hindex = round_down(index, HPAGE_PMD_NR);
+		else
+			hindex = index;
 
-		__SetPageSwapBacked(page);
-		__SetPageLocked(page);
 		if (sgp == SGP_WRITE)
 			__SetPageReferenced(page);
 
-		error = mem_cgroup_try_charge(page, current->mm, gfp, &memcg,
-				false);
+		error = mem_cgroup_try_charge(page, charge_mm, gfp, &memcg,
+				PageTransHuge(page));
 		if (error)
-			goto decused;
-		error = radix_tree_maybe_preload(gfp & GFP_RECLAIM_MASK);
+			goto unacct;
+		error = radix_tree_maybe_preload_order(gfp & GFP_RECLAIM_MASK,
+				compound_order(page));
 		if (!error) {
-			error = shmem_add_to_page_cache(page, mapping, index,
+			error = shmem_add_to_page_cache(page, mapping, hindex,
 							NULL);
 			radix_tree_preload_end();
 		}
 		if (error) {
-			mem_cgroup_cancel_charge(page, memcg, false);
-			goto decused;
+			mem_cgroup_cancel_charge(page, memcg,
+					PageTransHuge(page));
+			goto unacct;
 		}
-		mem_cgroup_commit_charge(page, memcg, false, false);
+		mem_cgroup_commit_charge(page, memcg, false,
+				PageTransHuge(page));
 		lru_cache_add_anon(page);
 
-		spin_lock(&info->lock);
-		info->alloced++;
-		inode->i_blocks += BLOCKS_PER_PAGE;
+		spin_lock_irq(&info->lock);
+		info->alloced += 1 << compound_order(page);
+		inode->i_blocks += BLOCKS_PER_PAGE << compound_order(page);
 		shmem_recalc_inode(inode);
-		spin_unlock(&info->lock);
+		spin_unlock_irq(&info->lock);
 		alloced = true;
+
+		if (PageTransHuge(page) &&
+				DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE) <
+				hindex + HPAGE_PMD_NR - 1) {
+			/*
+			 * Part of the huge page is beyond i_size: subject
+			 * to shrink under memory pressure.
+			 */
+			spin_lock(&sbinfo->shrinklist_lock);
+			if (list_empty(&info->shrinklist)) {
+				list_add_tail(&info->shrinklist,
+						&sbinfo->shrinklist);
+				sbinfo->shrinklist_len++;
+			}
+			spin_unlock(&sbinfo->shrinklist_lock);
+		}
 
 		/*
 		 * Let SGP_FALLOC use the SGP_WRITE optimization on a new page.
@@ -1316,39 +1784,48 @@ clear:
 		 * but SGP_FALLOC on a page fallocated earlier must initialize
 		 * it now, lest undo on failure cancel our earlier guarantee.
 		 */
-		if (sgp != SGP_WRITE) {
-			clear_highpage(page);
-			flush_dcache_page(page);
-			SetPageUptodate(page);
+		if (sgp != SGP_WRITE && !PageUptodate(page)) {
+			struct page *head = compound_head(page);
+			int i;
+
+			for (i = 0; i < (1 << compound_order(head)); i++) {
+				clear_highpage(head + i);
+				flush_dcache_page(head + i);
+			}
+			SetPageUptodate(head);
 		}
-		if (sgp == SGP_DIRTY)
-			set_page_dirty(page);
 	}
 
 	/* Perhaps the file has been truncated since we checked */
-	if (sgp != SGP_WRITE && sgp != SGP_FALLOC &&
+	if (sgp <= SGP_CACHE &&
 	    ((loff_t)index << PAGE_SHIFT) >= i_size_read(inode)) {
 		if (alloced) {
 			ClearPageDirty(page);
 			delete_from_page_cache(page);
-			spin_lock(&info->lock);
+			spin_lock_irq(&info->lock);
 			shmem_recalc_inode(inode);
-			spin_unlock(&info->lock);
+			spin_unlock_irq(&info->lock);
 		}
 		error = -EINVAL;
 		goto unlock;
 	}
-	*pagep = page;
+	*pagep = page + index - hindex;
 	return 0;
 
 	/*
 	 * Error recovery.
 	 */
-decused:
-	if (sbinfo->max_blocks)
-		percpu_counter_add(&sbinfo->used_blocks, -1);
 unacct:
-	shmem_unacct_blocks(info->flags, 1);
+	if (sbinfo->max_blocks)
+		percpu_counter_sub(&sbinfo->used_blocks,
+				1 << compound_order(page));
+	shmem_unacct_blocks(info->flags, 1 << compound_order(page));
+
+	if (PageTransHuge(page)) {
+		unlock_page(page);
+		put_page(page);
+		goto alloc_nohuge;
+	}
 failed:
 	if (swap.val && !shmem_confirm_swap(mapping, index, swap))
 		error = -EEXIST;
@@ -1359,9 +1836,9 @@ unlock:
 	}
 	if (error == -ENOSPC && !once++) {
 		info = SHMEM_I(inode);
-		spin_lock(&info->lock);
+		spin_lock_irq(&info->lock);
 		shmem_recalc_inode(inode);
-		spin_unlock(&info->lock);
+		spin_unlock_irq(&info->lock);
 		goto repeat;
 	}
 	if (error == -EEXIST)	/* from above or from radix_tree_insert */
@@ -1372,6 +1849,8 @@ unlock:
 static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct inode *inode = file_inode(vma->vm_file);
+	gfp_t gfp = mapping_gfp_mask(inode->i_mapping);
+	enum sgp_type sgp;
 	int error;
 	int ret = VM_FAULT_LOCKED;
 
@@ -1433,15 +1912,105 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		spin_unlock(&inode->i_lock);
 	}
 
-	error = shmem_getpage(inode, vmf->pgoff, &vmf->page, SGP_CACHE, &ret);
+	sgp = SGP_CACHE;
+	if (vma->vm_flags & VM_HUGEPAGE)
+		sgp = SGP_HUGE;
+	else if (vma->vm_flags & VM_NOHUGEPAGE)
+		sgp = SGP_NOHUGE;
+
+	error = shmem_getpage_gfp(inode, vmf->pgoff, &vmf->page, sgp,
+				  gfp, vma->vm_mm, &ret);
 	if (error)
 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
-
-	if (ret & VM_FAULT_MAJOR) {
-		count_vm_event(PGMAJFAULT);
-		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
-	}
 	return ret;
+}
+
+unsigned long shmem_get_unmapped_area(struct file *file,
+				      unsigned long uaddr, unsigned long len,
+				      unsigned long pgoff, unsigned long flags)
+{
+	unsigned long (*get_area)(struct file *,
+		unsigned long, unsigned long, unsigned long, unsigned long);
+	unsigned long addr;
+	unsigned long offset;
+	unsigned long inflated_len;
+	unsigned long inflated_addr;
+	unsigned long inflated_offset;
+
+	if (len > TASK_SIZE)
+		return -ENOMEM;
+
+	get_area = current->mm->get_unmapped_area;
+	addr = get_area(file, uaddr, len, pgoff, flags);
+
+	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
+		return addr;
+	if (IS_ERR_VALUE(addr))
+		return addr;
+	if (addr & ~PAGE_MASK)
+		return addr;
+	if (addr > TASK_SIZE - len)
+		return addr;
+
+	if (shmem_huge == SHMEM_HUGE_DENY)
+		return addr;
+	if (len < HPAGE_PMD_SIZE)
+		return addr;
+	if (flags & MAP_FIXED)
+		return addr;
+	/*
+	 * Our priority is to support MAP_SHARED mapped hugely;
+	 * and support MAP_PRIVATE mapped hugely too, until it is COWed.
+	 * But if caller specified an address hint, respect that as before.
+	 */
+	if (uaddr)
+		return addr;
+
+	if (shmem_huge != SHMEM_HUGE_FORCE) {
+		struct super_block *sb;
+
+		if (file) {
+			VM_BUG_ON(file->f_op != &shmem_file_operations);
+			sb = file_inode(file)->i_sb;
+		} else {
+			/*
+			 * Called directly from mm/mmap.c, or drivers/char/mem.c
+			 * for "/dev/zero", to create a shared anonymous object.
+			 */
+			if (IS_ERR(shm_mnt))
+				return addr;
+			sb = shm_mnt->mnt_sb;
+		}
+		if (SHMEM_SB(sb)->huge == SHMEM_HUGE_NEVER)
+			return addr;
+	}
+
+	offset = (pgoff << PAGE_SHIFT) & (HPAGE_PMD_SIZE-1);
+	if (offset && offset + len < 2 * HPAGE_PMD_SIZE)
+		return addr;
+	if ((addr & (HPAGE_PMD_SIZE-1)) == offset)
+		return addr;
+
+	inflated_len = len + HPAGE_PMD_SIZE - PAGE_SIZE;
+	if (inflated_len > TASK_SIZE)
+		return addr;
+	if (inflated_len < len)
+		return addr;
+
+	inflated_addr = get_area(NULL, 0, inflated_len, 0, flags);
+	if (IS_ERR_VALUE(inflated_addr))
+		return addr;
+	if (inflated_addr & ~PAGE_MASK)
+		return addr;
+
+	inflated_offset = inflated_addr & (HPAGE_PMD_SIZE-1);
+	inflated_addr += offset - inflated_offset;
+	if (inflated_offset > offset)
+		inflated_addr += HPAGE_PMD_SIZE;
+
+	if (inflated_addr > TASK_SIZE - len)
+		return addr;
+	return inflated_addr;
 }
 
 #ifdef CONFIG_NUMA
@@ -1468,7 +2037,7 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	int retval = -ENOMEM;
 
-	spin_lock(&info->lock);
+	spin_lock_irq(&info->lock);
 	if (lock && !(info->flags & VM_LOCKED)) {
 		if (!user_shm_lock(inode->i_size, user))
 			goto out_nomem;
@@ -1483,7 +2052,7 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
 	retval = 0;
 
 out_nomem:
-	spin_unlock(&info->lock);
+	spin_unlock_irq(&info->lock);
 	return retval;
 }
 
@@ -1491,6 +2060,11 @@ static int shmem_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	file_accessed(file);
 	vma->vm_ops = &shmem_vm_ops;
+	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE) &&
+			((vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK) <
+			(vma->vm_end & HPAGE_PMD_MASK)) {
+		khugepaged_enter(vma, vma->vm_flags);
+	}
 	return 0;
 }
 
@@ -1516,6 +2090,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 		spin_lock_init(&info->lock);
 		info->seals = F_SEAL_SEAL;
 		info->flags = flags & VM_NORESERVE;
+		INIT_LIST_HEAD(&info->shrinklist);
 		INIT_LIST_HEAD(&info->swaplist);
 		simple_xattrs_init(&info->xattrs);
 		cache_no_acl(inode);
@@ -1587,7 +2162,7 @@ shmem_write_begin(struct file *file, struct address_space *mapping,
 			return -EPERM;
 	}
 
-	return shmem_getpage(inode, index, pagep, SGP_WRITE, NULL);
+	return shmem_getpage(inode, index, pagep, SGP_WRITE);
 }
 
 static int
@@ -1601,12 +2176,23 @@ shmem_write_end(struct file *file, struct address_space *mapping,
 		i_size_write(inode, pos + copied);
 
 	if (!PageUptodate(page)) {
+		struct page *head = compound_head(page);
+		if (PageTransCompound(page)) {
+			int i;
+
+			for (i = 0; i < HPAGE_PMD_NR; i++) {
+				if (head + i == page)
+					continue;
+				clear_highpage(head + i);
+				flush_dcache_page(head + i);
+			}
+		}
 		if (copied < PAGE_SIZE) {
 			unsigned from = pos & (PAGE_SIZE - 1);
 			zero_user_segments(page, 0, from,
 					from + copied, PAGE_SIZE);
 		}
-		SetPageUptodate(page);
+		SetPageUptodate(head);
 	}
 	set_page_dirty(page);
 	unlock_page(page);
@@ -1633,7 +2219,7 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	 * and even mark them dirty, so it cannot exceed the max_blocks limit.
 	 */
 	if (!iter_is_iovec(to))
-		sgp = SGP_DIRTY;
+		sgp = SGP_CACHE;
 
 	index = *ppos >> PAGE_SHIFT;
 	offset = *ppos & ~PAGE_MASK;
@@ -1653,14 +2239,17 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 				break;
 		}
 
-		error = shmem_getpage(inode, index, &page, sgp, NULL);
+		error = shmem_getpage(inode, index, &page, sgp);
 		if (error) {
 			if (error == -EINVAL)
 				error = 0;
 			break;
 		}
-		if (page)
+		if (page) {
+			if (sgp == SGP_CACHE)
+				set_page_dirty(page);
 			unlock_page(page);
+		}
 
 		/*
 		 * We must evaluate after, since reads (unlike writes)
@@ -1766,7 +2355,7 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
 	error = 0;
 
 	while (spd.nr_pages < nr_pages) {
-		error = shmem_getpage(inode, index, &page, SGP_CACHE, NULL);
+		error = shmem_getpage(inode, index, &page, SGP_CACHE);
 		if (error)
 			break;
 		unlock_page(page);
@@ -1788,8 +2377,7 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
 		page = spd.pages[page_nr];
 
 		if (!PageUptodate(page) || page->mapping != mapping) {
-			error = shmem_getpage(inode, index, &page,
-							SGP_CACHE, NULL);
+			error = shmem_getpage(inode, index, &page, SGP_CACHE);
 			if (error)
 				break;
 			unlock_page(page);
@@ -2232,13 +2820,14 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
 		else if (shmem_falloc.nr_unswapped > shmem_falloc.nr_falloced)
 			error = -ENOMEM;
 		else
-			error = shmem_getpage(inode, index, &page, SGP_FALLOC,
-									NULL);
+			error = shmem_getpage(inode, index, &page, SGP_FALLOC);
 		if (error) {
 			/* Remove the !PageUptodate pages we added */
-			shmem_undo_range(inode,
-				(loff_t)start << PAGE_SHIFT,
-				(loff_t)index << PAGE_SHIFT, true);
+			if (index > start) {
+				shmem_undo_range(inode,
+				    (loff_t)start << PAGE_SHIFT,
+				    ((loff_t)index << PAGE_SHIFT) - 1, true);
+			}
 			goto undone;
 		}
 
@@ -2551,7 +3140,7 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 		inode->i_op = &shmem_short_symlink_operations;
 	} else {
 		inode_nohighmem(inode);
-		error = shmem_getpage(inode, 0, &page, SGP_WRITE, NULL);
+		error = shmem_getpage(inode, 0, &page, SGP_WRITE);
 		if (error) {
 			iput(inode);
 			return error;
@@ -2592,7 +3181,7 @@ static const char *shmem_get_link(struct dentry *dentry,
 			return ERR_PTR(-ECHILD);
 		}
 	} else {
-		error = shmem_getpage(inode, 0, &page, SGP_READ, NULL);
+		error = shmem_getpage(inode, 0, &page, SGP_READ);
 		if (error)
 			return ERR_PTR(error);
 		unlock_page(page);
@@ -2646,20 +3235,21 @@ static int shmem_initxattrs(struct inode *inode,
 }
 
 static int shmem_xattr_handler_get(const struct xattr_handler *handler,
-				   struct dentry *dentry, const char *name,
-				   void *buffer, size_t size)
+				   struct dentry *unused, struct inode *inode,
+				   const char *name, void *buffer, size_t size)
 {
-	struct shmem_inode_info *info = SHMEM_I(d_inode(dentry));
+	struct shmem_inode_info *info = SHMEM_I(inode);
 
 	name = xattr_full_name(handler, name);
 	return simple_xattr_get(&info->xattrs, name, buffer, size);
 }
 
 static int shmem_xattr_handler_set(const struct xattr_handler *handler,
-				   struct dentry *dentry, const char *name,
-				   const void *value, size_t size, int flags)
+				   struct dentry *unused, struct inode *inode,
+				   const char *name, const void *value,
+				   size_t size, int flags)
 {
-	struct shmem_inode_info *info = SHMEM_I(d_inode(dentry));
+	struct shmem_inode_info *info = SHMEM_I(inode);
 
 	name = xattr_full_name(handler, name);
 	return simple_xattr_set(&info->xattrs, name, value, size, flags);
@@ -2868,11 +3458,24 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
 			sbinfo->gid = make_kgid(current_user_ns(), gid);
 			if (!gid_valid(sbinfo->gid))
 				goto bad_val;
+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
+		} else if (!strcmp(this_char, "huge")) {
+			int huge;
+			huge = shmem_parse_huge(value);
+			if (huge < 0)
+				goto bad_val;
+			if (!has_transparent_hugepage() &&
+					huge != SHMEM_HUGE_NEVER)
+				goto bad_val;
+			sbinfo->huge = huge;
+#endif
+#ifdef CONFIG_NUMA
 		} else if (!strcmp(this_char,"mpol")) {
 			mpol_put(mpol);
 			mpol = NULL;
 			if (mpol_parse_str(value, &mpol))
 				goto bad_val;
+#endif
 		} else {
 			pr_err("tmpfs: Bad mount option %s\n", this_char);
 			goto error;
@@ -2918,6 +3521,7 @@ static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
 		goto out;
 
 	error = 0;
+	sbinfo->huge = config.huge;
 	sbinfo->max_blocks  = config.max_blocks;
 	sbinfo->max_inodes  = config.max_inodes;
 	sbinfo->free_inodes = config.max_inodes - inodes;
@@ -2951,6 +3555,11 @@ static int shmem_show_options(struct seq_file *seq, struct dentry *root)
 	if (!gid_eq(sbinfo->gid, GLOBAL_ROOT_GID))
 		seq_printf(seq, ",gid=%u",
 				from_kgid_munged(&init_user_ns, sbinfo->gid));
+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
+	/* Rightly or wrongly, show huge mount option unmasked by shmem_huge */
+	if (sbinfo->huge)
+		seq_printf(seq, ",huge=%s", shmem_format_huge(sbinfo->huge));
+#endif
 	shmem_show_mpol(seq, sbinfo->mpol);
 	return 0;
 }
@@ -3080,6 +3689,8 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
 	if (percpu_counter_init(&sbinfo->used_blocks, 0, GFP_KERNEL))
 		goto failed;
 	sbinfo->free_inodes = sbinfo->max_inodes;
+	spin_lock_init(&sbinfo->shrinklist_lock);
+	INIT_LIST_HEAD(&sbinfo->shrinklist);
 
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_blocksize = PAGE_SIZE;
@@ -3123,7 +3734,8 @@ static struct inode *shmem_alloc_inode(struct super_block *sb)
 static void shmem_destroy_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	kfree(inode->i_link);
+	if (S_ISLNK(inode->i_mode))
+		kfree(inode->i_link);
 	kmem_cache_free(shmem_inode_cachep, SHMEM_I(inode));
 }
 
@@ -3168,6 +3780,7 @@ static const struct address_space_operations shmem_aops = {
 
 static const struct file_operations shmem_file_operations = {
 	.mmap		= shmem_mmap,
+	.get_unmapped_area = shmem_get_unmapped_area,
 #ifdef CONFIG_TMPFS
 	.llseek		= shmem_file_llseek,
 	.read_iter	= shmem_file_read_iter,
@@ -3240,6 +3853,10 @@ static const struct super_operations shmem_ops = {
 	.evict_inode	= shmem_evict_inode,
 	.drop_inode	= generic_delete_inode,
 	.put_super	= shmem_put_super,
+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
+	.nr_cached_objects	= shmem_unused_huge_count,
+	.free_cached_objects	= shmem_unused_huge_scan,
+#endif
 };
 
 static const struct vm_operations_struct shmem_vm_ops = {
@@ -3289,6 +3906,13 @@ int __init shmem_init(void)
 		pr_err("Could not kern_mount tmpfs\n");
 		goto out1;
 	}
+
+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
+	if (has_transparent_hugepage() && shmem_huge < SHMEM_HUGE_DENY)
+		SHMEM_SB(shm_mnt->mnt_sb)->huge = shmem_huge;
+	else
+		shmem_huge = 0; /* just in case it was patched */
+#endif
 	return 0;
 
 out1:
@@ -3299,6 +3923,93 @@ out3:
 	shm_mnt = ERR_PTR(error);
 	return error;
 }
+
+#if defined(CONFIG_TRANSPARENT_HUGE_PAGECACHE) && defined(CONFIG_SYSFS)
+static ssize_t shmem_enabled_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	int values[] = {
+		SHMEM_HUGE_ALWAYS,
+		SHMEM_HUGE_WITHIN_SIZE,
+		SHMEM_HUGE_ADVISE,
+		SHMEM_HUGE_NEVER,
+		SHMEM_HUGE_DENY,
+		SHMEM_HUGE_FORCE,
+	};
+	int i, count;
+
+	for (i = 0, count = 0; i < ARRAY_SIZE(values); i++) {
+		const char *fmt = shmem_huge == values[i] ? "[%s] " : "%s ";
+
+		count += sprintf(buf + count, fmt,
+				shmem_format_huge(values[i]));
+	}
+	buf[count - 1] = '\n';
+	return count;
+}
+
+static ssize_t shmem_enabled_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	char tmp[16];
+	int huge;
+
+	if (count + 1 > sizeof(tmp))
+		return -EINVAL;
+	memcpy(tmp, buf, count);
+	tmp[count] = '\0';
+	if (count && tmp[count - 1] == '\n')
+		tmp[count - 1] = '\0';
+
+	huge = shmem_parse_huge(tmp);
+	if (huge == -EINVAL)
+		return -EINVAL;
+	if (!has_transparent_hugepage() &&
+			huge != SHMEM_HUGE_NEVER && huge != SHMEM_HUGE_DENY)
+		return -EINVAL;
+
+	shmem_huge = huge;
+	if (shmem_huge < SHMEM_HUGE_DENY)
+		SHMEM_SB(shm_mnt->mnt_sb)->huge = shmem_huge;
+	return count;
+}
+
+struct kobj_attribute shmem_enabled_attr =
+	__ATTR(shmem_enabled, 0644, shmem_enabled_show, shmem_enabled_store);
+#endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE && CONFIG_SYSFS */
+
+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
+bool shmem_huge_enabled(struct vm_area_struct *vma)
+{
+	struct inode *inode = file_inode(vma->vm_file);
+	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+	loff_t i_size;
+	pgoff_t off;
+
+	if (shmem_huge == SHMEM_HUGE_FORCE)
+		return true;
+	if (shmem_huge == SHMEM_HUGE_DENY)
+		return false;
+	switch (sbinfo->huge) {
+		case SHMEM_HUGE_NEVER:
+			return false;
+		case SHMEM_HUGE_ALWAYS:
+			return true;
+		case SHMEM_HUGE_WITHIN_SIZE:
+			off = round_up(vma->vm_pgoff, HPAGE_PMD_NR);
+			i_size = round_up(i_size_read(inode), PAGE_SIZE);
+			if (i_size >= HPAGE_PMD_SIZE &&
+					i_size >> PAGE_SHIFT >= off)
+				return true;
+		case SHMEM_HUGE_ADVISE:
+			/* TODO: implement fadvise() hints */
+			return (vma->vm_flags & VM_HUGEPAGE);
+		default:
+			VM_BUG_ON(1);
+			return false;
+	}
+}
+#endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE */
 
 #else /* !CONFIG_SHMEM */
 
@@ -3341,6 +4052,15 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
 void shmem_unlock_mapping(struct address_space *mapping)
 {
 }
+
+#ifdef CONFIG_MMU
+unsigned long shmem_get_unmapped_area(struct file *file,
+				      unsigned long addr, unsigned long len,
+				      unsigned long pgoff, unsigned long flags)
+{
+	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
+}
+#endif
 
 void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
 {
@@ -3468,6 +4188,13 @@ int shmem_zero_setup(struct vm_area_struct *vma)
 		fput(vma->vm_file);
 	vma->vm_file = file;
 	vma->vm_ops = &shmem_vm_ops;
+
+	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE) &&
+			((vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK) <
+			(vma->vm_end & HPAGE_PMD_MASK)) {
+		khugepaged_enter(vma, vma->vm_flags);
+	}
+
 	return 0;
 }
 
@@ -3495,7 +4222,8 @@ struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
 	int error;
 
 	BUG_ON(mapping->a_ops != &shmem_aops);
-	error = shmem_getpage_gfp(inode, index, &page, SGP_CACHE, gfp, NULL);
+	error = shmem_getpage_gfp(inode, index, &page, SGP_CACHE,
+				  gfp, NULL, NULL);
 	if (error)
 		page = ERR_PTR(error);
 	else

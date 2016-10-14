@@ -434,7 +434,6 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	struct platform_device *pdev = to_platform_device(pp->dev);
 	struct pci_bus *bus, *child;
 	struct resource *cfg_res;
-	u32 val;
 	int i, ret;
 	LIST_HEAD(res);
 	struct resource_entry *win;
@@ -453,6 +452,10 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	if (ret)
 		return ret;
 
+	ret = devm_request_pci_bus_resources(&pdev->dev, &res);
+	if (ret)
+		goto error;
+
 	/* Get the I/O and memory ranges from DT */
 	resource_list_for_each_entry(win, &res) {
 		switch (resource_type(win->res)) {
@@ -462,11 +465,9 @@ int dw_pcie_host_init(struct pcie_port *pp)
 			pp->io_size = resource_size(pp->io);
 			pp->io_bus_addr = pp->io->start - win->offset;
 			ret = pci_remap_iospace(pp->io, pp->io_base);
-			if (ret) {
+			if (ret)
 				dev_warn(pp->dev, "error %d: failed to map resource %pR\n",
 					 ret, pp->io);
-				continue;
-			}
 			break;
 		case IORESOURCE_MEM:
 			pp->mem = win->res;
@@ -484,8 +485,6 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		case IORESOURCE_BUS:
 			pp->busn = win->res;
 			break;
-		default:
-			continue;
 		}
 	}
 
@@ -494,7 +493,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 					resource_size(pp->cfg));
 		if (!pp->dbi_base) {
 			dev_err(pp->dev, "error with ioremap\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto error;
 		}
 	}
 
@@ -505,7 +505,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 						pp->cfg0_size);
 		if (!pp->va_cfg0_base) {
 			dev_err(pp->dev, "error with ioremap in function\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto error;
 		}
 	}
 
@@ -514,7 +515,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 						pp->cfg1_size);
 		if (!pp->va_cfg1_base) {
 			dev_err(pp->dev, "error with ioremap\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto error;
 		}
 	}
 
@@ -529,7 +531,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 						&dw_pcie_msi_chip);
 			if (!pp->irq_domain) {
 				dev_err(pp->dev, "irq domain init failed\n");
-				return -ENXIO;
+				ret = -ENXIO;
+				goto error;
 			}
 
 			for (i = 0; i < MAX_MSI_IRQS; i++)
@@ -537,31 +540,12 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		} else {
 			ret = pp->ops->msi_host_init(pp, &dw_pcie_msi_chip);
 			if (ret < 0)
-				return ret;
+				goto error;
 		}
 	}
 
 	if (pp->ops->host_init)
 		pp->ops->host_init(pp);
-
-	/*
-	 * If the platform provides ->rd_other_conf, it means the platform
-	 * uses its own address translation component rather than ATU, so
-	 * we should not program the ATU here.
-	 */
-	if (!pp->ops->rd_other_conf)
-		dw_pcie_prog_outbound_atu(pp, PCIE_ATU_REGION_INDEX1,
-					  PCIE_ATU_TYPE_MEM, pp->mem_base,
-					  pp->mem_bus_addr, pp->mem_size);
-
-	dw_pcie_wr_own_conf(pp, PCI_BASE_ADDRESS_0, 4, 0);
-
-	/* program correct class for RC */
-	dw_pcie_wr_own_conf(pp, PCI_CLASS_DEVICE, 2, PCI_CLASS_BRIDGE_PCI);
-
-	dw_pcie_rd_own_conf(pp, PCIE_LINK_WIDTH_SPEED_CONTROL, 4, &val);
-	val |= PORT_LOGIC_SPEED_CHANGE;
-	dw_pcie_wr_own_conf(pp, PCIE_LINK_WIDTH_SPEED_CONTROL, 4, val);
 
 	pp->root_bus_nr = pp->busn->start;
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
@@ -572,8 +556,10 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	} else
 		bus = pci_scan_root_bus(pp->dev, pp->root_bus_nr, &dw_pcie_ops,
 					pp, &res);
-	if (!bus)
-		return -ENOMEM;
+	if (!bus) {
+		ret = -ENOMEM;
+		goto error;
+	}
 
 	if (pp->ops->scan_bus)
 		pp->ops->scan_bus(pp);
@@ -591,6 +577,10 @@ int dw_pcie_host_init(struct pcie_port *pp)
 
 	pci_bus_add_devices(bus);
 	return 0;
+
+error:
+	pci_free_resource_list(&res);
+	return ret;
 }
 
 static int dw_pcie_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus,
@@ -728,8 +718,6 @@ static struct pci_ops dw_pcie_ops = {
 void dw_pcie_setup_rc(struct pcie_port *pp)
 {
 	u32 val;
-	u32 membase;
-	u32 memlimit;
 
 	/* set the number of lanes */
 	dw_pcie_readl_rc(pp, PCIE_PORT_LINK_CONTROL, &val);
@@ -788,18 +776,31 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 	val |= 0x00010100;
 	dw_pcie_writel_rc(pp, val, PCI_PRIMARY_BUS);
 
-	/* setup memory base, memory limit */
-	membase = ((u32)pp->mem_base & 0xfff00000) >> 16;
-	memlimit = (pp->mem_size + (u32)pp->mem_base) & 0xfff00000;
-	val = memlimit | membase;
-	dw_pcie_writel_rc(pp, val, PCI_MEMORY_BASE);
-
 	/* setup command register */
 	dw_pcie_readl_rc(pp, PCI_COMMAND, &val);
 	val &= 0xffff0000;
 	val |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
 		PCI_COMMAND_MASTER | PCI_COMMAND_SERR;
 	dw_pcie_writel_rc(pp, val, PCI_COMMAND);
+
+	/*
+	 * If the platform provides ->rd_other_conf, it means the platform
+	 * uses its own address translation component rather than ATU, so
+	 * we should not program the ATU here.
+	 */
+	if (!pp->ops->rd_other_conf)
+		dw_pcie_prog_outbound_atu(pp, PCIE_ATU_REGION_INDEX1,
+					  PCIE_ATU_TYPE_MEM, pp->mem_base,
+					  pp->mem_bus_addr, pp->mem_size);
+
+	dw_pcie_wr_own_conf(pp, PCI_BASE_ADDRESS_0, 4, 0);
+
+	/* program correct class for RC */
+	dw_pcie_wr_own_conf(pp, PCI_CLASS_DEVICE, 2, PCI_CLASS_BRIDGE_PCI);
+
+	dw_pcie_rd_own_conf(pp, PCIE_LINK_WIDTH_SPEED_CONTROL, 4, &val);
+	val |= PORT_LOGIC_SPEED_CHANGE;
+	dw_pcie_wr_own_conf(pp, PCIE_LINK_WIDTH_SPEED_CONTROL, 4, val);
 }
 
 MODULE_AUTHOR("Jingoo Han <jg1.han@samsung.com>");

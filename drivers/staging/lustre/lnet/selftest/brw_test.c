@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -49,10 +45,10 @@ module_param(brw_inject_errors, int, 0644);
 MODULE_PARM_DESC(brw_inject_errors, "# data errors to inject randomly, zero by default");
 
 static void
-brw_client_fini(sfw_test_instance_t *tsi)
+brw_client_fini(struct sfw_test_instance *tsi)
 {
-	srpc_bulk_t *bulk;
-	sfw_test_unit_t	*tsu;
+	struct srpc_bulk *bulk;
+	struct sfw_test_unit	*tsu;
 
 	LASSERT(tsi->tsi_is_client);
 
@@ -67,21 +63,21 @@ brw_client_fini(sfw_test_instance_t *tsi)
 }
 
 static int
-brw_client_init(sfw_test_instance_t *tsi)
+brw_client_init(struct sfw_test_instance *tsi)
 {
-	sfw_session_t *sn = tsi->tsi_batch->bat_session;
+	struct sfw_session *sn = tsi->tsi_batch->bat_session;
 	int flags;
 	int npg;
 	int len;
 	int opc;
-	srpc_bulk_t *bulk;
-	sfw_test_unit_t *tsu;
+	struct srpc_bulk *bulk;
+	struct sfw_test_unit *tsu;
 
 	LASSERT(sn);
 	LASSERT(tsi->tsi_is_client);
 
 	if (!(sn->sn_features & LST_FEAT_BULK_LEN)) {
-		test_bulk_req_t *breq = &tsi->tsi_u.bulk_v0;
+		struct test_bulk_req *breq = &tsi->tsi_u.bulk_v0;
 
 		opc = breq->blk_opc;
 		flags = breq->blk_flags;
@@ -91,9 +87,8 @@ brw_client_init(sfw_test_instance_t *tsi)
 		 * but we have to keep it for compatibility
 		 */
 		len = npg * PAGE_SIZE;
-
 	} else {
-		test_bulk_req_v1_t *breq = &tsi->tsi_u.bulk_v1;
+		struct test_bulk_req_v1 *breq = &tsi->tsi_u.bulk_v1;
 
 		/*
 		 * I should never get this step if it's unknown feature
@@ -225,7 +220,7 @@ bad_data:
 }
 
 static void
-brw_fill_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
+brw_fill_bulk(struct srpc_bulk *bk, int pattern, __u64 magic)
 {
 	int i;
 	struct page *pg;
@@ -237,7 +232,7 @@ brw_fill_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
 }
 
 static int
-brw_check_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
+brw_check_bulk(struct srpc_bulk *bk, int pattern, __u64 magic)
 {
 	int i;
 	struct page *pg;
@@ -255,14 +250,14 @@ brw_check_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
 }
 
 static int
-brw_client_prep_rpc(sfw_test_unit_t *tsu,
-		    lnet_process_id_t dest, srpc_client_rpc_t **rpcpp)
+brw_client_prep_rpc(struct sfw_test_unit *tsu,
+		    lnet_process_id_t dest, struct srpc_client_rpc **rpcpp)
 {
-	srpc_bulk_t *bulk = tsu->tsu_private;
-	sfw_test_instance_t *tsi = tsu->tsu_instance;
-	sfw_session_t *sn = tsi->tsi_batch->bat_session;
-	srpc_client_rpc_t *rpc;
-	srpc_brw_reqst_t *req;
+	struct srpc_bulk *bulk = tsu->tsu_private;
+	struct sfw_test_instance *tsi = tsu->tsu_instance;
+	struct sfw_session *sn = tsi->tsi_batch->bat_session;
+	struct srpc_client_rpc *rpc;
+	struct srpc_brw_reqst *req;
 	int flags;
 	int npg;
 	int len;
@@ -273,15 +268,14 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 	LASSERT(bulk);
 
 	if (!(sn->sn_features & LST_FEAT_BULK_LEN)) {
-		test_bulk_req_t *breq = &tsi->tsi_u.bulk_v0;
+		struct test_bulk_req *breq = &tsi->tsi_u.bulk_v0;
 
 		opc = breq->blk_opc;
 		flags = breq->blk_flags;
 		npg = breq->blk_npg;
 		len = npg * PAGE_SIZE;
-
 	} else {
-		test_bulk_req_v1_t *breq = &tsi->tsi_u.bulk_v1;
+		struct test_bulk_req_v1 *breq = &tsi->tsi_u.bulk_v1;
 
 		/*
 		 * I should never get this step if it's unknown feature
@@ -299,7 +293,7 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 	if (rc)
 		return rc;
 
-	memcpy(&rpc->crpc_bulk, bulk, offsetof(srpc_bulk_t, bk_iovs[npg]));
+	memcpy(&rpc->crpc_bulk, bulk, offsetof(struct srpc_bulk, bk_iovs[npg]));
 	if (opc == LST_BRW_WRITE)
 		brw_fill_bulk(&rpc->crpc_bulk, flags, BRW_MAGIC);
 	else
@@ -315,21 +309,21 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 }
 
 static void
-brw_client_done_rpc(sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
+brw_client_done_rpc(struct sfw_test_unit *tsu, struct srpc_client_rpc *rpc)
 {
 	__u64 magic = BRW_MAGIC;
-	sfw_test_instance_t *tsi = tsu->tsu_instance;
-	sfw_session_t *sn = tsi->tsi_batch->bat_session;
-	srpc_msg_t *msg = &rpc->crpc_replymsg;
-	srpc_brw_reply_t *reply = &msg->msg_body.brw_reply;
-	srpc_brw_reqst_t *reqst = &rpc->crpc_reqstmsg.msg_body.brw_reqst;
+	struct sfw_test_instance *tsi = tsu->tsu_instance;
+	struct sfw_session *sn = tsi->tsi_batch->bat_session;
+	struct srpc_msg *msg = &rpc->crpc_replymsg;
+	struct srpc_brw_reply *reply = &msg->msg_body.brw_reply;
+	struct srpc_brw_reqst *reqst = &rpc->crpc_reqstmsg.msg_body.brw_reqst;
 
 	LASSERT(sn);
 
 	if (rpc->crpc_status) {
 		CERROR("BRW RPC to %s failed with %d\n",
 		       libcfs_id2str(rpc->crpc_dest), rpc->crpc_status);
-		if (!tsi->tsi_stopping) /* rpc could have been aborted */
+		if (!tsi->tsi_stopping)	/* rpc could have been aborted */
 			atomic_inc(&sn->sn_brw_errors);
 		return;
 	}
@@ -363,7 +357,7 @@ brw_client_done_rpc(sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
 static void
 brw_server_rpc_done(struct srpc_server_rpc *rpc)
 {
-	srpc_bulk_t *blk = rpc->srpc_bulk;
+	struct srpc_bulk *blk = rpc->srpc_bulk;
 
 	if (!blk)
 		return;
@@ -384,9 +378,9 @@ static int
 brw_bulk_ready(struct srpc_server_rpc *rpc, int status)
 {
 	__u64 magic = BRW_MAGIC;
-	srpc_brw_reply_t *reply = &rpc->srpc_replymsg.msg_body.brw_reply;
-	srpc_brw_reqst_t *reqst;
-	srpc_msg_t *reqstmsg;
+	struct srpc_brw_reply *reply = &rpc->srpc_replymsg.msg_body.brw_reply;
+	struct srpc_brw_reqst *reqst;
+	struct srpc_msg *reqstmsg;
 
 	LASSERT(rpc->srpc_bulk);
 	LASSERT(rpc->srpc_reqstbuf);
@@ -420,10 +414,10 @@ static int
 brw_server_handle(struct srpc_server_rpc *rpc)
 {
 	struct srpc_service *sv = rpc->srpc_scd->scd_svc;
-	srpc_msg_t *replymsg = &rpc->srpc_replymsg;
-	srpc_msg_t *reqstmsg = &rpc->srpc_reqstbuf->buf_msg;
-	srpc_brw_reply_t *reply = &replymsg->msg_body.brw_reply;
-	srpc_brw_reqst_t *reqst = &reqstmsg->msg_body.brw_reqst;
+	struct srpc_msg *replymsg = &rpc->srpc_replymsg;
+	struct srpc_msg *reqstmsg = &rpc->srpc_reqstbuf->buf_msg;
+	struct srpc_brw_reply *reply = &replymsg->msg_body.brw_reply;
+	struct srpc_brw_reqst *reqst = &reqstmsg->msg_body.brw_reqst;
 	int npg;
 	int rc;
 
@@ -459,7 +453,7 @@ brw_server_handle(struct srpc_server_rpc *rpc)
 
 	if (!(reqstmsg->msg_ses_feats & LST_FEAT_BULK_LEN)) {
 		/* compat with old version */
-		if (reqst->brw_len & ~CFS_PAGE_MASK) {
+		if (reqst->brw_len & ~PAGE_MASK) {
 			reply->brw_status = EINVAL;
 			return 0;
 		}
@@ -490,7 +484,8 @@ brw_server_handle(struct srpc_server_rpc *rpc)
 	return 0;
 }
 
-sfw_test_client_ops_t brw_test_client;
+struct sfw_test_client_ops brw_test_client;
+
 void brw_init_test_client(void)
 {
 	brw_test_client.tso_init = brw_client_init;
@@ -499,7 +494,8 @@ void brw_init_test_client(void)
 	brw_test_client.tso_done_rpc = brw_client_done_rpc;
 };
 
-srpc_service_t brw_test_service;
+struct srpc_service brw_test_service;
+
 void brw_init_test_service(void)
 {
 	brw_test_service.sv_id = SRPC_SERVICE_BRW;

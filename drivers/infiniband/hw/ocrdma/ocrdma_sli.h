@@ -554,9 +554,9 @@ enum {
 	OCRDMA_MBX_QUERY_CFG_L3_TYPE_MASK		= 0x18,
 	OCRDMA_MBX_QUERY_CFG_MAX_SEND_SGE_SHIFT		= 0,
 	OCRDMA_MBX_QUERY_CFG_MAX_SEND_SGE_MASK		= 0xFFFF,
-	OCRDMA_MBX_QUERY_CFG_MAX_WRITE_SGE_SHIFT	= 16,
-	OCRDMA_MBX_QUERY_CFG_MAX_WRITE_SGE_MASK		= 0xFFFF <<
-				OCRDMA_MBX_QUERY_CFG_MAX_WRITE_SGE_SHIFT,
+	OCRDMA_MBX_QUERY_CFG_MAX_RECV_SGE_SHIFT	= 16,
+	OCRDMA_MBX_QUERY_CFG_MAX_RECV_SGE_MASK		= 0xFFFF <<
+				OCRDMA_MBX_QUERY_CFG_MAX_RECV_SGE_SHIFT,
 
 	OCRDMA_MBX_QUERY_CFG_MAX_ORD_PER_QP_SHIFT	= 0,
 	OCRDMA_MBX_QUERY_CFG_MAX_ORD_PER_QP_MASK	= 0xFFFF,
@@ -612,6 +612,8 @@ enum {
 	OCRDMA_MBX_QUERY_CFG_MAX_SRQ_SGE_OFFSET		= 0,
 	OCRDMA_MBX_QUERY_CFG_MAX_SRQ_SGE_MASK		= 0xFFFF <<
 				OCRDMA_MBX_QUERY_CFG_MAX_SRQ_SGE_OFFSET,
+	OCRDMA_MBX_QUERY_CFG_MAX_RD_SGE_SHIFT		= 0,
+	OCRDMA_MBX_QUERY_CFG_MAX_RD_SGE_MASK		= 0xFFFF,
 };
 
 struct ocrdma_mbx_query_config {
@@ -619,7 +621,7 @@ struct ocrdma_mbx_query_config {
 	struct ocrdma_mbx_rsp rsp;
 	u32 qp_srq_cq_ird_ord;
 	u32 max_pd_ca_ack_delay;
-	u32 max_write_send_sge;
+	u32 max_recv_send_sge;
 	u32 max_ird_ord_per_qp;
 	u32 max_shared_ird_ord;
 	u32 max_mr;
@@ -639,6 +641,8 @@ struct ocrdma_mbx_query_config {
 	u32 max_wqes_rqes_per_q;
 	u32 max_cq_cqes_per_cq;
 	u32 max_srq_rqe_sge;
+	u32 max_wr_rd_sge;
+	u32 ird_pgsz_num_pages;
 };
 
 struct ocrdma_fw_ver_rsp {

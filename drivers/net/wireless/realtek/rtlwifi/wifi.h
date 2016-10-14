@@ -1089,7 +1089,7 @@ struct dynamic_primary_cca {
 };
 
 struct rtl_regulatory {
-	char alpha2[2];
+	s8 alpha2[2];
 	u16 country_code;
 	u16 max_power_level;
 	u32 tp_scale;
@@ -1256,16 +1256,16 @@ struct rtl_phy {
 	u8 cur_bw20_txpwridx;
 	u8 cur_bw40_txpwridx;
 
-	char txpwr_limit_2_4g[MAX_REGULATION_NUM]
-			     [MAX_2_4G_BANDWITH_NUM]
-			     [MAX_RATE_SECTION_NUM]
-			     [CHANNEL_MAX_NUMBER_2G]
-			     [MAX_RF_PATH_NUM];
-	char txpwr_limit_5g[MAX_REGULATION_NUM]
-			   [MAX_5G_BANDWITH_NUM]
+	s8 txpwr_limit_2_4g[MAX_REGULATION_NUM]
+			   [MAX_2_4G_BANDWITH_NUM]
 			   [MAX_RATE_SECTION_NUM]
-			   [CHANNEL_MAX_NUMBER_5G]
+			   [CHANNEL_MAX_NUMBER_2G]
 			   [MAX_RF_PATH_NUM];
+	s8 txpwr_limit_5g[MAX_REGULATION_NUM]
+			 [MAX_5G_BANDWITH_NUM]
+			 [MAX_RATE_SECTION_NUM]
+			 [CHANNEL_MAX_NUMBER_5G]
+			 [MAX_RF_PATH_NUM];
 
 	u32 rfreg_chnlval[2];
 	bool apk_done;
@@ -1359,7 +1359,7 @@ struct rtl_mac {
 	u32 tx_ss_num;
 	u32 rx_ss_num;
 
-	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
+	struct ieee80211_supported_band bands[NUM_NL80211_BANDS];
 	struct ieee80211_hw *hw;
 	struct ieee80211_vif *vif;
 	enum nl80211_iftype opmode;
@@ -1639,7 +1639,7 @@ struct fast_ant_training {
 };
 
 struct dm_phy_dbg_info {
-	char rx_snrdb[4];
+	s8 rx_snrdb[4];
 	u64 num_qry_phy_status;
 	u64 num_qry_phy_status_cck;
 	u64 num_qry_phy_status_ofdm;
@@ -1688,16 +1688,16 @@ struct rtl_dm {
 	u8 txpower_track_control;
 	bool interrupt_migration;
 	bool disable_tx_int;
-	char ofdm_index[MAX_RF_PATH];
+	s8 ofdm_index[MAX_RF_PATH];
 	u8 default_ofdm_index;
 	u8 default_cck_index;
-	char cck_index;
-	char delta_power_index[MAX_RF_PATH];
-	char delta_power_index_last[MAX_RF_PATH];
-	char power_index_offset[MAX_RF_PATH];
-	char absolute_ofdm_swing_idx[MAX_RF_PATH];
-	char remnant_ofdm_swing_idx[MAX_RF_PATH];
-	char remnant_cck_idx;
+	s8 cck_index;
+	s8 delta_power_index[MAX_RF_PATH];
+	s8 delta_power_index_last[MAX_RF_PATH];
+	s8 power_index_offset[MAX_RF_PATH];
+	s8 absolute_ofdm_swing_idx[MAX_RF_PATH];
+	s8 remnant_ofdm_swing_idx[MAX_RF_PATH];
+	s8 remnant_cck_idx;
 	bool modify_txagc_flag_path_a;
 	bool modify_txagc_flag_path_b;
 
@@ -1726,8 +1726,8 @@ struct rtl_dm {
 	u8	swing_idx_cck_base;
 	bool	swing_flag_cck;
 
-	char	swing_diff_2g;
-	char	swing_diff_5g;
+	s8	swing_diff_2g;
+	s8	swing_diff_5g;
 
 	u8 delta_swing_table_idx_24gccka_p[DEL_SW_IDX_SZ];
 	u8 delta_swing_table_idx_24gccka_n[DEL_SW_IDX_SZ];
@@ -1838,17 +1838,17 @@ struct rtl_efuse {
 	 *
 	 * Sizes of these arrays are decided by the larger ones.
 	 */
-	char txpwr_cckdiff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
-	char txpwr_ht20diff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
-	char txpwr_ht40diff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
-	char txpwr_legacyhtdiff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
+	s8 txpwr_cckdiff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
+	s8 txpwr_ht20diff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
+	s8 txpwr_ht40diff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
+	s8 txpwr_legacyhtdiff[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
 
 	u8 txpwr_5g_bw40base[MAX_RF_PATH][CHANNEL_MAX_NUMBER];
 	u8 txpwr_5g_bw80base[MAX_RF_PATH][CHANNEL_MAX_NUMBER_5G_80M];
-	char txpwr_5g_ofdmdiff[MAX_RF_PATH][MAX_TX_COUNT];
-	char txpwr_5g_bw20diff[MAX_RF_PATH][MAX_TX_COUNT];
-	char txpwr_5g_bw40diff[MAX_RF_PATH][MAX_TX_COUNT];
-	char txpwr_5g_bw80diff[MAX_RF_PATH][MAX_TX_COUNT];
+	s8 txpwr_5g_ofdmdiff[MAX_RF_PATH][MAX_TX_COUNT];
+	s8 txpwr_5g_bw20diff[MAX_RF_PATH][MAX_TX_COUNT];
+	s8 txpwr_5g_bw40diff[MAX_RF_PATH][MAX_TX_COUNT];
+	s8 txpwr_5g_bw80diff[MAX_RF_PATH][MAX_TX_COUNT];
 
 	u8 txpwr_safetyflag;			/* Band edge enable flag */
 	u16 eeprom_txpowerdiff;
@@ -2006,7 +2006,7 @@ struct rtl_stats {
 	bool is_ht;
 	bool packet_toself;
 	bool packet_beacon;	/*for rssi */
-	char cck_adc_pwdb[4];	/*for rx path selection */
+	s8 cck_adc_pwdb[4];	/*for rx path selection */
 
 	bool is_vht;
 	bool is_short_gi;
@@ -2246,6 +2246,9 @@ struct rtl_mod_params {
 
 	/* default 0: 1 means do not disable interrupts */
 	bool int_clear;
+
+	/* select antenna */
+	int ant_sel;
 };
 
 struct rtl_hal_usbint_cfg {
@@ -2410,9 +2413,9 @@ struct dig_t {
 	u8 presta_cstate;
 	u8 curmultista_cstate;
 	u8 stop_dig;
-	char back_val;
-	char back_range_max;
-	char back_range_min;
+	s8 back_val;
+	s8 back_range_max;
+	s8 back_range_min;
 	u8 rx_gain_max;
 	u8 rx_gain_min;
 	u8 min_undec_pwdb_for_dm;
@@ -2438,8 +2441,8 @@ struct dig_t {
 	u8 cur_cs_ratiostate;
 	u8 pre_cs_ratiostate;
 	u8 backoff_enable_flag;
-	char backoffval_range_max;
-	char backoffval_range_min;
+	s8 backoffval_range_max;
+	s8 backoffval_range_min;
 	u8 dig_min_0;
 	u8 dig_min_1;
 	u8 bt30_cur_igi;
@@ -2590,7 +2593,7 @@ struct rtl_priv {
 	 *intf_ops : for diff interrface usb/pcie
 	 */
 	struct rtl_hal_cfg *cfg;
-	struct rtl_intf_ops *intf_ops;
+	const struct rtl_intf_ops *intf_ops;
 
 	/*this var will be set by set_bit,
 	   and was used to indicate status of
@@ -2867,7 +2870,7 @@ value to host byte ordering.*/
 	(ppsc->cur_ps_level |= _ps_flg)
 
 #define container_of_dwork_rtl(x, y, z) \
-	container_of(container_of(x, struct delayed_work, work), y, z)
+	container_of(to_delayed_work(x), y, z)
 
 #define FILL_OCTET_STRING(_os, _octet, _len)	\
 		(_os).octet = (u8 *)(_octet);		\

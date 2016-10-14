@@ -2105,7 +2105,7 @@ static void lmc_driver_timeout(struct net_device *dev)
     sc->lmc_device->stats.tx_errors++;
     sc->extra_stats.tx_ProcTimeout++; /* -baz */
 
-    dev->trans_start = jiffies; /* prevent tx timeout */
+    netif_trans_update(dev); /* prevent tx timeout */
 
 bug_out:
 

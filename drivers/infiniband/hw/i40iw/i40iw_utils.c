@@ -59,7 +59,7 @@
  * @action: modify, delete or add
  */
 int i40iw_arp_table(struct i40iw_device *iwdev,
-		    __be32 *ip_addr,
+		    u32 *ip_addr,
 		    bool ipv4,
 		    u8 *mac_addr,
 		    u32 action)
@@ -152,7 +152,7 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 	struct net_device *upper_dev;
 	struct i40iw_device *iwdev;
 	struct i40iw_handler *hdl;
-	__be32 local_ipaddr;
+	u32 local_ipaddr;
 
 	hdl = i40iw_find_netdev(event_netdev);
 	if (!hdl)
@@ -167,11 +167,10 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 	switch (event) {
 	case NETDEV_DOWN:
 		if (upper_dev)
-			local_ipaddr =
-				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address;
+			local_ipaddr = ntohl(
+				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
 		else
-			local_ipaddr = ifa->ifa_address;
-		local_ipaddr = ntohl(local_ipaddr);
+			local_ipaddr = ntohl(ifa->ifa_address);
 		i40iw_manage_arp_cache(iwdev,
 				       netdev->dev_addr,
 				       &local_ipaddr,
@@ -180,11 +179,10 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 		return NOTIFY_OK;
 	case NETDEV_UP:
 		if (upper_dev)
-			local_ipaddr =
-				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address;
+			local_ipaddr = ntohl(
+				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
 		else
-			local_ipaddr = ifa->ifa_address;
-		local_ipaddr = ntohl(local_ipaddr);
+			local_ipaddr = ntohl(ifa->ifa_address);
 		i40iw_manage_arp_cache(iwdev,
 				       netdev->dev_addr,
 				       &local_ipaddr,
@@ -194,12 +192,11 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 	case NETDEV_CHANGEADDR:
 		/* Add the address to the IP table */
 		if (upper_dev)
-			local_ipaddr =
-				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address;
+			local_ipaddr = ntohl(
+				((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address);
 		else
-			local_ipaddr = ifa->ifa_address;
+			local_ipaddr = ntohl(ifa->ifa_address);
 
-		local_ipaddr = ntohl(local_ipaddr);
 		i40iw_manage_arp_cache(iwdev,
 				       netdev->dev_addr,
 				       &local_ipaddr,
@@ -227,7 +224,7 @@ int i40iw_inet6addr_event(struct notifier_block *notifier,
 	struct net_device *netdev;
 	struct i40iw_device *iwdev;
 	struct i40iw_handler *hdl;
-	__be32 local_ipaddr6[4];
+	u32 local_ipaddr6[4];
 
 	hdl = i40iw_find_netdev(event_netdev);
 	if (!hdl)
@@ -506,14 +503,19 @@ void i40iw_rem_ref(struct ib_qp *ibqp)
 	struct cqp_commands_info *cqp_info;
 	struct i40iw_device *iwdev;
 	u32 qp_num;
+	unsigned long flags;
 
 	iwqp = to_iwqp(ibqp);
-	if (!atomic_dec_and_test(&iwqp->refcount))
-		return;
-
 	iwdev = iwqp->iwdev;
+	spin_lock_irqsave(&iwdev->qptable_lock, flags);
+	if (!atomic_dec_and_test(&iwqp->refcount)) {
+		spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
+		return;
+	}
+
 	qp_num = iwqp->ibqp.qp_num;
 	iwdev->qp_table[qp_num] = NULL;
+	spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
 	cqp_request = i40iw_get_cqp_request(&iwdev->cqp, false);
 	if (!cqp_request)
 		return;
@@ -671,8 +673,11 @@ enum i40iw_status_code i40iw_free_virt_mem(struct i40iw_hw *hw,
 {
 	if (!mem)
 		return I40IW_ERR_PARAM;
+	/*
+	 * mem->va points to the parent of mem, so both mem and mem->va
+	 * can not be touched once mem->va is freed
+	 */
 	kfree(mem->va);
-	mem->va = NULL;
 	return 0;
 }
 
@@ -985,21 +990,24 @@ enum i40iw_status_code i40iw_cqp_commit_fpm_values_cmd(struct i40iw_sc_dev *dev,
 enum i40iw_status_code i40iw_vf_wait_vchnl_resp(struct i40iw_sc_dev *dev)
 {
 	struct i40iw_device *iwdev = dev->back_dev;
-	enum i40iw_status_code err_code = 0;
 	int timeout_ret;
 
 	i40iw_debug(dev, I40IW_DEBUG_VIRT, "%s[%u] dev %p, iwdev %p\n",
 		    __func__, __LINE__, dev, iwdev);
-	atomic_add(2, &iwdev->vchnl_msgs);
+
+	atomic_set(&iwdev->vchnl_msgs, 2);
 	timeout_ret = wait_event_timeout(iwdev->vchnl_waitq,
 					 (atomic_read(&iwdev->vchnl_msgs) == 1),
 					 I40IW_VCHNL_EVENT_TIMEOUT);
 	atomic_dec(&iwdev->vchnl_msgs);
 	if (!timeout_ret) {
 		i40iw_pr_err("virt channel completion timeout = 0x%x\n", timeout_ret);
-		err_code = I40IW_ERR_TIMEOUT;
+		atomic_set(&iwdev->vchnl_msgs, 0);
+		dev->vchnl_up = false;
+		return I40IW_ERR_TIMEOUT;
 	}
-	return err_code;
+	wake_up(&dev->vf_reqs);
+	return 0;
 }
 
 /**

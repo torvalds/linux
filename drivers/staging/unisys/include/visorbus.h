@@ -61,54 +61,55 @@ struct visor_channeltype_descriptor {
 	const char *name;
 };
 
-/** Information provided by each visor driver when it registers with the
- *  visorbus driver.
+/**
+ * struct visor_driver - Information provided by each visor driver when it
+ * registers with the visorbus driver.
+ * @name:		Name of the visor driver.
+ * @version:		The numbered version of the driver (x.x.xxx).
+ * @vertag:		A human readable version string.
+ * @owner:		The module owner.
+ * @channel_types:	Types of channels handled by this driver, ending with
+ *			a zero GUID. Our specialized BUS.match() method knows
+ *			about this list, and uses it to determine whether this
+ *			driver will in fact handle a new device that it has
+ *			detected.
+ * @probe:		Called when a new device comes online, by our probe()
+ *			function specified by driver.probe() (triggered
+ *			ultimately by some call to driver_register(),
+ *			bus_add_driver(), or driver_attach()).
+ * @remove:		Called when a new device is removed, by our remove()
+ *			function specified by driver.remove() (triggered
+ *			ultimately by some call to device_release_driver()).
+ * @channel_interrupt:	Called periodically, whenever there is a possiblity
+ *			that "something interesting" may have happened to the
+ *			channel.
+ * @pause:		Called to initiate a change of the device's state.  If
+ *			the return valu`e is < 0, there was an error and the
+ *			state transition will NOT occur.  If the return value
+ *			is >= 0, then the state transition was INITIATED
+ *			successfully, and complete_func() will be called (or
+ *			was just called) with the final status when either the
+ *			state transition fails or completes successfully.
+ * @resume:		Behaves similar to pause.
+ * @driver:		Private reference to the device driver. For use by bus
+ *			driver only.
+ * @version_attr:	Private version field. For use by bus driver only.
  */
 struct visor_driver {
 	const char *name;
 	const char *version;
 	const char *vertag;
-	const char *build_date;
-	const char *build_time;
 	struct module *owner;
-
-	/** Types of channels handled by this driver, ending with 0 GUID.
-	 *  Our specialized BUS.match() method knows about this list, and
-	 *  uses it to determine whether this driver will in fact handle a
-	 *  new device that it has detected.
-	 */
 	struct visor_channeltype_descriptor *channel_types;
-
-	/** Called when a new device comes online, by our probe() function
-	 *  specified by driver.probe() (triggered ultimately by some call
-	 *  to driver_register() / bus_add_driver() / driver_attach()).
-	 */
 	int (*probe)(struct visor_device *dev);
-
-	/** Called when a new device is removed, by our remove() function
-	 *  specified by driver.remove() (triggered ultimately by some call
-	 *  to device_release_driver()).
-	 */
 	void (*remove)(struct visor_device *dev);
-
-	/** Called periodically, whenever there is a possibility that
-	 *  "something interesting" may have happened to the channel state.
-	 */
 	void (*channel_interrupt)(struct visor_device *dev);
-
-	/** Called to initiate a change of the device's state.  If the return
-	 *  valu`e is < 0, there was an error and the state transition will NOT
-	 *  occur.  If the return value is >= 0, then the state transition was
-	 *  INITIATED successfully, and complete_func() will be called (or was
-	 *  just called) with the final status when either the state transition
-	 *  fails or completes successfully.
-	 */
 	int (*pause)(struct visor_device *dev,
 		     visorbus_state_complete_func complete_func);
 	int (*resume)(struct visor_device *dev,
 		      visorbus_state_complete_func complete_func);
 
-	/** These fields are for private use by the bus driver only. */
+	/* These fields are for private use by the bus driver only. */
 	struct device_driver driver;
 	struct driver_attribute version_attr;
 };
@@ -116,48 +117,58 @@ struct visor_driver {
 #define to_visor_driver(x) ((x) ? \
 	(container_of(x, struct visor_driver, driver)) : (NULL))
 
-/** A device type for things "plugged" into the visorbus bus */
+/**
+ * struct visor_device - A device type for things "plugged" into the visorbus
+ * bus
+ * visorchannel:		Points to the channel that the device is
+ *				associated with.
+ * channel_type_guid:		Identifies the channel type to the bus driver.
+ * device:			Device struct meant for use by the bus driver
+ *				only.
+ * list_all:			Used by the bus driver to enumerate devices.
+ * periodic_work:		Device work queue. Private use by bus driver
+ *				only.
+ * being_removed:		Indicates that the device is being removed from
+ *				the bus. Private bus driver use only.
+ * visordriver_callback_lock:	Used by the bus driver to lock when handling
+ *				channel events.
+ * pausing:			Indicates that a change towards a paused state.
+ *				is in progress. Only modified by the bus driver.
+ * resuming:			Indicates that a change towards a running state
+ *				is in progress. Only modified by the bus driver.
+ * chipset_bus_no:		Private field used by the bus driver.
+ * chipset_dev_no:		Private field used the bus driver.
+ * state:			Used to indicate the current state of the
+ *				device.
+ * inst:			Unique GUID for this instance of the device.
+ * name:			Name of the device.
+ * pending_msg_hdr:		For private use by bus driver to respond to
+ *				hypervisor requests.
+ * vbus_hdr_info:		A pointer to header info. Private use by bus
+ *				driver.
+ * partition_uuid:		Indicates client partion id. This should be the
+ *				same across all visor_devices in the current
+ *				guest. Private use by bus driver only.
+ */
 
 struct visor_device {
-	/** visor driver can use the visorchannel member with the functions
-	 *  defined in visorchannel.h to access the channel
-	 */
 	struct visorchannel *visorchannel;
 	uuid_le channel_type_guid;
-	u64 channel_bytes;
-
-	/** These fields are for private use by the bus driver only.
-	 *  A notable exception is that the visor driver can use
-	 *  visor_get_drvdata() and visor_set_drvdata() to retrieve or stash
-	 *  private visor driver specific data within the device member.
-	 */
+	/* These fields are for private use by the bus driver only. */
 	struct device device;
 	struct list_head list_all;
 	struct periodic_work *periodic_work;
 	bool being_removed;
-	bool responded_to_device_create;
-	struct kobject kobjdevmajorminor; /* visorbus<x>/dev<y>/devmajorminor/*/
-	struct {
-		int major, minor;
-		void *attr;	/* private use by devmajorminor_attr.c you can
-				 * change this constant to whatever you want
-				 */
-	} devnodes[5];
-	/* the code will detect and behave appropriately) */
 	struct semaphore visordriver_callback_lock;
 	bool pausing;
 	bool resuming;
 	u32 chipset_bus_no;
 	u32 chipset_dev_no;
 	struct visorchipset_state state;
-	uuid_le type;
 	uuid_le inst;
 	u8 *name;
-	u8 *description;
 	struct controlvm_message_header *pending_msg_hdr;
 	void *vbus_hdr_info;
-	u32 switch_no;
-	u32 internal_port_no;
 	uuid_le partition_uuid;
 };
 
@@ -174,8 +185,6 @@ int visorbus_write_channel(struct visor_device *dev,
 			   unsigned long nbytes);
 int visorbus_clear_channel(struct visor_device *dev,
 			   unsigned long offset, u8 ch, unsigned long nbytes);
-int visorbus_registerdevnode(struct visor_device *dev,
-			     const char *name, int major, int minor);
 void visorbus_enable_channel_interrupts(struct visor_device *dev);
 void visorbus_disable_channel_interrupts(struct visor_device *dev);
 #endif

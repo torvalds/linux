@@ -1834,7 +1834,7 @@ void inet_netconf_notify_devconf(struct net *net, int type, int ifindex,
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 
-	skb = nlmsg_new(inet_netconf_msgsize_devconf(type), GFP_ATOMIC);
+	skb = nlmsg_new(inet_netconf_msgsize_devconf(type), GFP_KERNEL);
 	if (!skb)
 		goto errout;
 
@@ -1846,7 +1846,7 @@ void inet_netconf_notify_devconf(struct net *net, int type, int ifindex,
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, net, 0, RTNLGRP_IPV4_NETCONF, NULL, GFP_ATOMIC);
+	rtnl_notify(skb, net, 0, RTNLGRP_IPV4_NETCONF, NULL, GFP_KERNEL);
 	return;
 errout:
 	if (err < 0)
@@ -1903,7 +1903,7 @@ static int inet_netconf_get_devconf(struct sk_buff *in_skb,
 	}
 
 	err = -ENOBUFS;
-	skb = nlmsg_new(inet_netconf_msgsize_devconf(NETCONFA_ALL), GFP_ATOMIC);
+	skb = nlmsg_new(inet_netconf_msgsize_devconf(NETCONFA_ALL), GFP_KERNEL);
 	if (!skb)
 		goto errout;
 
@@ -2027,16 +2027,16 @@ static void inet_forward_change(struct net *net)
 
 	for_each_netdev(net, dev) {
 		struct in_device *in_dev;
+
 		if (on)
 			dev_disable_lro(dev);
-		rcu_read_lock();
-		in_dev = __in_dev_get_rcu(dev);
+
+		in_dev = __in_dev_get_rtnl(dev);
 		if (in_dev) {
 			IN_DEV_CONF_SET(in_dev, FORWARDING, on);
 			inet_netconf_notify_devconf(net, NETCONFA_FORWARDING,
 						    dev->ifindex, &in_dev->cnf);
 		}
-		rcu_read_unlock();
 	}
 }
 
@@ -2232,7 +2232,7 @@ static struct devinet_sysctl_table {
 };
 
 static int __devinet_sysctl_register(struct net *net, char *dev_name,
-					struct ipv4_devconf *p)
+				     int ifindex, struct ipv4_devconf *p)
 {
 	int i;
 	struct devinet_sysctl_table *t;
@@ -2255,6 +2255,8 @@ static int __devinet_sysctl_register(struct net *net, char *dev_name,
 		goto free;
 
 	p->sysctl = t;
+
+	inet_netconf_notify_devconf(net, NETCONFA_ALL, ifindex, p);
 	return 0;
 
 free:
@@ -2286,7 +2288,7 @@ static int devinet_sysctl_register(struct in_device *idev)
 	if (err)
 		return err;
 	err = __devinet_sysctl_register(dev_net(idev->dev), idev->dev->name,
-					&idev->cnf);
+					idev->dev->ifindex, &idev->cnf);
 	if (err)
 		neigh_sysctl_unregister(idev->arp_parms);
 	return err;
@@ -2347,11 +2349,12 @@ static __net_init int devinet_init_net(struct net *net)
 	}
 
 #ifdef CONFIG_SYSCTL
-	err = __devinet_sysctl_register(net, "all", all);
+	err = __devinet_sysctl_register(net, "all", NETCONFA_IFINDEX_ALL, all);
 	if (err < 0)
 		goto err_reg_all;
 
-	err = __devinet_sysctl_register(net, "default", dflt);
+	err = __devinet_sysctl_register(net, "default",
+					NETCONFA_IFINDEX_DEFAULT, dflt);
 	if (err < 0)
 		goto err_reg_dflt;
 

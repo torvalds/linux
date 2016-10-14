@@ -116,9 +116,9 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
 	struct page *ptepage;
 
 #ifdef CONFIG_HIGHPTE
-	int flags = GFP_KERNEL | __GFP_HIGHMEM | __GFP_REPEAT;
+	int flags = GFP_KERNEL | __GFP_HIGHMEM;
 #else
-	int flags = GFP_KERNEL | __GFP_REPEAT;
+	int flags = GFP_KERNEL;
 #endif
 
 	ptepage = alloc_pages(flags, 0);

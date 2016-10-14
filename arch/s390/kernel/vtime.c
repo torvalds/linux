@@ -18,6 +18,8 @@
 #include <asm/cpu_mf.h>
 #include <asm/smp.h>
 
+#include "entry.h"
+
 static void virt_timer_expire(void);
 
 static LIST_HEAD(virt_timer_list);

@@ -94,12 +94,14 @@ struct fsl_mc_resource_pool {
  * from the physical DPRC.
  * @irq_resources: Pointer to array of IRQ objects for the IRQ pool
  * @scan_mutex: Serializes bus scanning
+ * @dprc_attr: DPRC attributes
  */
 struct fsl_mc_bus {
 	struct fsl_mc_device mc_dev;
 	struct fsl_mc_resource_pool resource_pools[FSL_MC_NUM_POOL_TYPES];
 	struct fsl_mc_device_irq *irq_resources;
 	struct mutex scan_mutex;    /* serializes bus scanning */
+	struct dprc_attributes dprc_attr;
 };
 
 #define to_fsl_mc_bus(_mc_dev) \

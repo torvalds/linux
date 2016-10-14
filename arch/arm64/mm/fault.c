@@ -41,6 +41,28 @@
 
 static const char *fault_name(unsigned int esr);
 
+#ifdef CONFIG_KPROBES
+static inline int notify_page_fault(struct pt_regs *regs, unsigned int esr)
+{
+	int ret = 0;
+
+	/* kprobe_running() needs smp_processor_id() */
+	if (!user_mode(regs)) {
+		preempt_disable();
+		if (kprobe_running() && kprobe_fault_handler(regs, esr))
+			ret = 1;
+		preempt_enable();
+	}
+
+	return ret;
+}
+#else
+static inline int notify_page_fault(struct pt_regs *regs, unsigned int esr)
+{
+	return 0;
+}
+#endif
+
 /*
  * Dump out the page tables associated with 'addr' in mm 'mm'.
  */
@@ -81,6 +103,61 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 	printk("\n");
 }
 
+#ifdef CONFIG_ARM64_HW_AFDBM
+/*
+ * This function sets the access flags (dirty, accessed), as well as write
+ * permission, and only to a more permissive setting.
+ *
+ * It needs to cope with hardware update of the accessed/dirty state by other
+ * agents in the system and can safely skip the __sync_icache_dcache() call as,
+ * like set_pte_at(), the PTE is never changed from no-exec to exec here.
+ *
+ * Returns whether or not the PTE actually changed.
+ */
+int ptep_set_access_flags(struct vm_area_struct *vma,
+			  unsigned long address, pte_t *ptep,
+			  pte_t entry, int dirty)
+{
+	pteval_t old_pteval;
+	unsigned int tmp;
+
+	if (pte_same(*ptep, entry))
+		return 0;
+
+	/* only preserve the access flags and write permission */
+	pte_val(entry) &= PTE_AF | PTE_WRITE | PTE_DIRTY;
+
+	/*
+	 * PTE_RDONLY is cleared by default in the asm below, so set it in
+	 * back if necessary (read-only or clean PTE).
+	 */
+	if (!pte_write(entry) || !pte_sw_dirty(entry))
+		pte_val(entry) |= PTE_RDONLY;
+
+	/*
+	 * Setting the flags must be done atomically to avoid racing with the
+	 * hardware update of the access/dirty state.
+	 */
+	asm volatile("//	ptep_set_access_flags\n"
+	"	prfm	pstl1strm, %2\n"
+	"1:	ldxr	%0, %2\n"
+	"	and	%0, %0, %3		// clear PTE_RDONLY\n"
+	"	orr	%0, %0, %4		// set flags\n"
+	"	stxr	%w1, %0, %2\n"
+	"	cbnz	%w1, 1b\n"
+	: "=&r" (old_pteval), "=&r" (tmp), "+Q" (pte_val(*ptep))
+	: "L" (~PTE_RDONLY), "r" (pte_val(entry)));
+
+	flush_tlb_fix_spurious_fault(vma, address);
+	return 1;
+}
+#endif
+
+static bool is_el1_instruction_abort(unsigned int esr)
+{
+	return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_CUR;
+}
+
 /*
  * The kernel tried to access some page that wasn't present.
  */
@@ -89,8 +166,9 @@ static void __do_kernel_fault(struct mm_struct *mm, unsigned long addr,
 {
 	/*
 	 * Are we prepared to handle this kernel fault?
+	 * We are almost certainly not prepared to handle instruction faults.
 	 */
-	if (fixup_exception(regs))
+	if (!is_el1_instruction_abort(esr) && fixup_exception(regs))
 		return;
 
 	/*
@@ -152,8 +230,6 @@ static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *re
 #define VM_FAULT_BADMAP		0x010000
 #define VM_FAULT_BADACCESS	0x020000
 
-#define ESR_LNX_EXEC		(1 << 24)
-
 static int __do_page_fault(struct mm_struct *mm, unsigned long addr,
 			   unsigned int mm_flags, unsigned long vm_flags,
 			   struct task_struct *tsk)
@@ -183,7 +259,7 @@ good_area:
 		goto out;
 	}
 
-	return handle_mm_fault(mm, vma, addr & PAGE_MASK, mm_flags);
+	return handle_mm_fault(vma, addr & PAGE_MASK, mm_flags);
 
 check_stack:
 	if (vma->vm_flags & VM_GROWSDOWN && !expand_stack(vma, addr))
@@ -192,12 +268,18 @@ out:
 	return fault;
 }
 
-static inline int permission_fault(unsigned int esr)
+static inline bool is_permission_fault(unsigned int esr)
 {
-	unsigned int ec       = (esr & ESR_ELx_EC_MASK) >> ESR_ELx_EC_SHIFT;
+	unsigned int ec       = ESR_ELx_EC(esr);
 	unsigned int fsc_type = esr & ESR_ELx_FSC_TYPE;
 
-	return (ec == ESR_ELx_EC_DABT_CUR && fsc_type == ESR_ELx_FSC_PERM);
+	return (ec == ESR_ELx_EC_DABT_CUR && fsc_type == ESR_ELx_FSC_PERM) ||
+	       (ec == ESR_ELx_EC_IABT_CUR && fsc_type == ESR_ELx_FSC_PERM);
+}
+
+static bool is_el0_instruction_abort(unsigned int esr)
+{
+	return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_LOW;
 }
 
 static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
@@ -209,12 +291,11 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	unsigned long vm_flags = VM_READ | VM_WRITE | VM_EXEC;
 	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
+	if (notify_page_fault(regs, esr))
+		return 0;
+
 	tsk = current;
 	mm  = tsk->mm;
-
-	/* Enable interrupts if they were enabled in the parent context. */
-	if (interrupts_enabled(regs))
-		local_irq_enable();
 
 	/*
 	 * If we're in an interrupt or have no user context, we must not take
@@ -226,16 +307,20 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	if (user_mode(regs))
 		mm_flags |= FAULT_FLAG_USER;
 
-	if (esr & ESR_LNX_EXEC) {
+	if (is_el0_instruction_abort(esr)) {
 		vm_flags = VM_EXEC;
 	} else if ((esr & ESR_ELx_WNR) && !(esr & ESR_ELx_CM)) {
 		vm_flags = VM_WRITE;
 		mm_flags |= FAULT_FLAG_WRITE;
 	}
 
-	if (permission_fault(esr) && (addr < USER_DS)) {
-		if (get_fs() == KERNEL_DS)
+	if (is_permission_fault(esr) && (addr < USER_DS)) {
+		/* regs->orig_addr_limit may be 0 if we entered from EL0 */
+		if (regs->orig_addr_limit == KERNEL_DS)
 			die("Accessing user space memory with fs=KERNEL_DS", regs, esr);
+
+		if (is_el1_instruction_abort(esr))
+			die("Attempting to execute userspace memory", regs, esr);
 
 		if (!search_exception_tables(regs->pc))
 			die("Accessing user space memory outside uaccess.h routines", regs, esr);
@@ -395,7 +480,7 @@ static int do_bad(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 	return 1;
 }
 
-static struct fault_info {
+static const struct fault_info {
 	int	(*fn)(unsigned long addr, unsigned int esr, struct pt_regs *regs);
 	int	sig;
 	int	code;
@@ -555,21 +640,35 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 {
 	const struct fault_info *inf = debug_fault_info + DBG_ESR_EVT(esr);
 	struct siginfo info;
+	int rv;
 
-	if (!inf->fn(addr, esr, regs))
-		return 1;
+	/*
+	 * Tell lockdep we disabled irqs in entry.S. Do nothing if they were
+	 * already disabled to preserve the last enabled/disabled addresses.
+	 */
+	if (interrupts_enabled(regs))
+		trace_hardirqs_off();
 
-	pr_alert("Unhandled debug exception: %s (0x%08x) at 0x%016lx\n",
-		 inf->name, esr, addr);
+	if (!inf->fn(addr, esr, regs)) {
+		rv = 1;
+	} else {
+		pr_alert("Unhandled debug exception: %s (0x%08x) at 0x%016lx\n",
+			 inf->name, esr, addr);
 
-	info.si_signo = inf->sig;
-	info.si_errno = 0;
-	info.si_code  = inf->code;
-	info.si_addr  = (void __user *)addr;
-	arm64_notify_die("", regs, &info, 0);
+		info.si_signo = inf->sig;
+		info.si_errno = 0;
+		info.si_code  = inf->code;
+		info.si_addr  = (void __user *)addr;
+		arm64_notify_die("", regs, &info, 0);
+		rv = 0;
+	}
 
-	return 0;
+	if (interrupts_enabled(regs))
+		trace_hardirqs_on();
+
+	return rv;
 }
+NOKPROBE_SYMBOL(do_debug_exception);
 
 #ifdef CONFIG_ARM64_PAN
 void cpu_enable_pan(void *__unused)

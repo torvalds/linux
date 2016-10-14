@@ -705,7 +705,7 @@ spider_net_prepare_tx_descr(struct spider_net_card *card,
 	wmb();
 	descr->prev->hwdescr->next_descr_addr = descr->bus_addr;
 
-	card->netdev->trans_start = jiffies; /* set netdev watchdog timer */
+	netif_trans_update(card->netdev); /* set netdev watchdog timer */
 	return 0;
 }
 

@@ -21,6 +21,8 @@
 #include <asm/byteorder.h>
 #include <linux/types.h>
 
+#define batadv_tp_is_error(n) ((u8)n > 127 ? 1 : 0)
+
 /**
  * enum batadv_packettype - types for batman-adv encapsulated packets
  * @BATADV_IV_OGM: originator messages for B.A.T.M.A.N. IV
@@ -93,6 +95,7 @@ enum batadv_icmp_packettype {
 	BATADV_ECHO_REQUEST	       = 8,
 	BATADV_TTL_EXCEEDED	       = 11,
 	BATADV_PARAMETER_PROBLEM       = 12,
+	BATADV_TP		       = 15,
 };
 
 /**
@@ -175,6 +178,7 @@ enum batadv_bla_claimframe {
 	BATADV_CLAIM_TYPE_UNCLAIM	= 0x01,
 	BATADV_CLAIM_TYPE_ANNOUNCE	= 0x02,
 	BATADV_CLAIM_TYPE_REQUEST	= 0x03,
+	BATADV_CLAIM_TYPE_LOOPDETECT	= 0x04,
 };
 
 /**
@@ -284,6 +288,16 @@ struct batadv_elp_packet {
 #define BATADV_ELP_HLEN sizeof(struct batadv_elp_packet)
 
 /**
+ * enum batadv_icmp_user_cmd_type - types for batman-adv icmp cmd modes
+ * @BATADV_TP_START: start a throughput meter run
+ * @BATADV_TP_STOP: stop a throughput meter run
+ */
+enum batadv_icmp_user_cmd_type {
+	BATADV_TP_START		= 0,
+	BATADV_TP_STOP		= 2,
+};
+
+/**
  * struct batadv_icmp_header - common members among all the ICMP packets
  * @packet_type: batman-adv packet type, part of the general header
  * @version: batman-adv protocol version, part of the genereal header
@@ -331,6 +345,47 @@ struct batadv_icmp_packet {
 	u8     uid;
 	u8     reserved;
 	__be16 seqno;
+};
+
+/**
+ * struct batadv_icmp_tp_packet - ICMP TP Meter packet
+ * @packet_type: batman-adv packet type, part of the general header
+ * @version: batman-adv protocol version, part of the genereal header
+ * @ttl: time to live for this packet, part of the genereal header
+ * @msg_type: ICMP packet type
+ * @dst: address of the destination node
+ * @orig: address of the source node
+ * @uid: local ICMP socket identifier
+ * @subtype: TP packet subtype (see batadv_icmp_tp_subtype)
+ * @session: TP session identifier
+ * @seqno: the TP sequence number
+ * @timestamp: time when the packet has been sent. This value is filled in a
+ *  TP_MSG and echoed back in the next TP_ACK so that the sender can compute the
+ *  RTT. Since it is read only by the host which wrote it, there is no need to
+ *  store it using network order
+ */
+struct batadv_icmp_tp_packet {
+	u8  packet_type;
+	u8  version;
+	u8  ttl;
+	u8  msg_type; /* see ICMP message types above */
+	u8  dst[ETH_ALEN];
+	u8  orig[ETH_ALEN];
+	u8  uid;
+	u8  subtype;
+	u8  session[2];
+	__be32 seqno;
+	__be32 timestamp;
+};
+
+/**
+ * enum batadv_icmp_tp_subtype - ICMP TP Meter packet subtypes
+ * @BATADV_TP_MSG: Msg from sender to receiver
+ * @BATADV_TP_ACK: acknowledgment from receiver to sender
+ */
+enum batadv_icmp_tp_subtype {
+	BATADV_TP_MSG	= 0,
+	BATADV_TP_ACK,
 };
 
 #define BATADV_RR_LEN 16
@@ -419,6 +474,7 @@ struct batadv_unicast_4addr_packet {
  * @dest: final destination used when routing fragments
  * @orig: originator of the fragment used when merging the packet
  * @no: fragment number within this sequence
+ * @priority: priority of frame, from ToS IP precedence or 802.1p
  * @reserved: reserved byte for alignment
  * @seqno: sequence identification
  * @total_size: size of the merged packet
@@ -429,9 +485,11 @@ struct batadv_frag_packet {
 	u8     ttl;
 #if defined(__BIG_ENDIAN_BITFIELD)
 	u8     no:4;
-	u8     reserved:4;
+	u8     priority:3;
+	u8     reserved:1;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u8     reserved:4;
+	u8     reserved:1;
+	u8     priority:3;
 	u8     no:4;
 #else
 #error "unknown bitfield endianness"
@@ -501,7 +559,7 @@ struct batadv_coded_packet {
 #pragma pack()
 
 /**
- * struct batadv_unicast_tvlv - generic unicast packet with tvlv payload
+ * struct batadv_unicast_tvlv_packet - generic unicast packet with tvlv payload
  * @packet_type: batman-adv packet type, part of the general header
  * @version: batman-adv protocol version, part of the genereal header
  * @ttl: time to live for this packet, part of the genereal header

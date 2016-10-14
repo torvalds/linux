@@ -277,13 +277,15 @@ static void notify_update(struct vc_data *vc)
  *	Low-Level Functions
  */
 
-#define IS_FG(vc)	((vc)->vc_num == fg_console)
+static inline bool con_is_fg(const struct vc_data *vc)
+{
+	return vc->vc_num == fg_console;
+}
 
-#ifdef VT_BUF_VRAM_ONLY
-#define DO_UPDATE(vc)	0
-#else
-#define DO_UPDATE(vc)	(CON_IS_VISIBLE(vc) && !console_blanked)
-#endif
+static inline bool con_should_update(const struct vc_data *vc)
+{
+	return con_is_visible(vc) && !console_blanked;
+}
 
 static inline unsigned short *screenpos(struct vc_data *vc, int offset, int viewed)
 {
@@ -321,7 +323,7 @@ static void scrup(struct vc_data *vc, unsigned int t, unsigned int b, int nr)
 		nr = b - t - 1;
 	if (b > vc->vc_rows || t >= b || nr < 1)
 		return;
-	if (CON_IS_VISIBLE(vc) && vc->vc_sw->con_scroll(vc, t, b, SM_UP, nr))
+	if (con_is_visible(vc) && vc->vc_sw->con_scroll(vc, t, b, SM_UP, nr))
 		return;
 	d = (unsigned short *)(vc->vc_origin + vc->vc_size_row * t);
 	s = (unsigned short *)(vc->vc_origin + vc->vc_size_row * (t + nr));
@@ -339,7 +341,7 @@ static void scrdown(struct vc_data *vc, unsigned int t, unsigned int b, int nr)
 		nr = b - t - 1;
 	if (b > vc->vc_rows || t >= b || nr < 1)
 		return;
-	if (CON_IS_VISIBLE(vc) && vc->vc_sw->con_scroll(vc, t, b, SM_DOWN, nr))
+	if (con_is_visible(vc) && vc->vc_sw->con_scroll(vc, t, b, SM_DOWN, nr))
 		return;
 	s = (unsigned short *)(vc->vc_origin + vc->vc_size_row * t);
 	step = vc->vc_cols * nr;
@@ -349,7 +351,6 @@ static void scrdown(struct vc_data *vc, unsigned int t, unsigned int b, int nr)
 
 static void do_update_region(struct vc_data *vc, unsigned long start, int count)
 {
-#ifndef VT_BUF_VRAM_ONLY
 	unsigned int xx, yy, offset;
 	u16 *p;
 
@@ -390,14 +391,13 @@ static void do_update_region(struct vc_data *vc, unsigned long start, int count)
 			start = vc->vc_sw->con_getxy(vc, start, NULL, NULL);
 		}
 	}
-#endif
 }
 
 void update_region(struct vc_data *vc, unsigned long start, int count)
 {
 	WARN_CONSOLE_UNLOCKED();
 
-	if (DO_UPDATE(vc)) {
+	if (con_should_update(vc)) {
 		hide_cursor(vc);
 		do_update_region(vc, start, count);
 		set_cursor(vc);
@@ -413,7 +413,6 @@ static u8 build_attr(struct vc_data *vc, u8 _color, u8 _intensity, u8 _blink,
 		return vc->vc_sw->con_build_attr(vc, _color, _intensity,
 		       _blink, _underline, _reverse, _italic);
 
-#ifndef VT_BUF_VRAM_ONLY
 /*
  * ++roman: I completely changed the attribute format for monochrome
  * mode (!can_do_color). The formerly used MDA (monochrome display
@@ -448,9 +447,6 @@ static u8 build_attr(struct vc_data *vc, u8 _color, u8 _intensity, u8 _blink,
 		a <<= 1;
 	return a;
 	}
-#else
-	return 0;
-#endif
 }
 
 static void update_attr(struct vc_data *vc)
@@ -470,10 +466,9 @@ void invert_screen(struct vc_data *vc, int offset, int count, int viewed)
 
 	count /= 2;
 	p = screenpos(vc, offset, viewed);
-	if (vc->vc_sw->con_invert_region)
+	if (vc->vc_sw->con_invert_region) {
 		vc->vc_sw->con_invert_region(vc, p, count);
-#ifndef VT_BUF_VRAM_ONLY
-	else {
+	} else {
 		u16 *q = p;
 		int cnt = count;
 		u16 a;
@@ -501,8 +496,8 @@ void invert_screen(struct vc_data *vc, int offset, int count, int viewed)
 			}
 		}
 	}
-#endif
-	if (DO_UPDATE(vc))
+
+	if (con_should_update(vc))
 		do_update_region(vc, (unsigned long) p, count);
 	notify_update(vc);
 }
@@ -519,7 +514,7 @@ void complement_pos(struct vc_data *vc, int offset)
 	if (old_offset != -1 && old_offset >= 0 &&
 	    old_offset < vc->vc_screenbuf_size) {
 		scr_writew(old, screenpos(vc, old_offset, 1));
-		if (DO_UPDATE(vc))
+		if (con_should_update(vc))
 			vc->vc_sw->con_putc(vc, old, oldy, oldx);
 		notify_update(vc);
 	}
@@ -534,7 +529,7 @@ void complement_pos(struct vc_data *vc, int offset)
 		old = scr_readw(p);
 		new = old ^ vc->vc_complement_mask;
 		scr_writew(new, p);
-		if (DO_UPDATE(vc)) {
+		if (con_should_update(vc)) {
 			oldx = (offset >> 1) % vc->vc_cols;
 			oldy = (offset >> 1) / vc->vc_cols;
 			vc->vc_sw->con_putc(vc, new, oldy, oldx);
@@ -550,7 +545,7 @@ static void insert_char(struct vc_data *vc, unsigned int nr)
 	scr_memmovew(p + nr, p, (vc->vc_cols - vc->vc_x - nr) * 2);
 	scr_memsetw(p, vc->vc_video_erase_char, nr * 2);
 	vc->vc_need_wrap = 0;
-	if (DO_UPDATE(vc))
+	if (con_should_update(vc))
 		do_update_region(vc, (unsigned long) p,
 			vc->vc_cols - vc->vc_x);
 }
@@ -563,7 +558,7 @@ static void delete_char(struct vc_data *vc, unsigned int nr)
 	scr_memsetw(p + vc->vc_cols - vc->vc_x - nr, vc->vc_video_erase_char,
 			nr * 2);
 	vc->vc_need_wrap = 0;
-	if (DO_UPDATE(vc))
+	if (con_should_update(vc))
 		do_update_region(vc, (unsigned long) p,
 			vc->vc_cols - vc->vc_x);
 }
@@ -583,7 +578,7 @@ static void add_softcursor(struct vc_data *vc)
 	if ((type & 0x20) && ((softcursor_original & 0x7000) == (i & 0x7000))) i ^= 0x7000;
 	if ((type & 0x40) && ((i & 0x700) == ((i & 0x7000) >> 4))) i ^= 0x0700;
 	scr_writew(i, (u16 *) vc->vc_pos);
-	if (DO_UPDATE(vc))
+	if (con_should_update(vc))
 		vc->vc_sw->con_putc(vc, i, vc->vc_y, vc->vc_x);
 }
 
@@ -591,7 +586,7 @@ static void hide_softcursor(struct vc_data *vc)
 {
 	if (softcursor_original != -1) {
 		scr_writew(softcursor_original, (u16 *)vc->vc_pos);
-		if (DO_UPDATE(vc))
+		if (con_should_update(vc))
 			vc->vc_sw->con_putc(vc, softcursor_original,
 					vc->vc_y, vc->vc_x);
 		softcursor_original = -1;
@@ -608,8 +603,7 @@ static void hide_cursor(struct vc_data *vc)
 
 static void set_cursor(struct vc_data *vc)
 {
-	if (!IS_FG(vc) || console_blanked ||
-	    vc->vc_mode == KD_GRAPHICS)
+	if (!con_is_fg(vc) || console_blanked || vc->vc_mode == KD_GRAPHICS)
 		return;
 	if (vc->vc_deccm) {
 		if (vc == sel_cons)
@@ -625,7 +619,7 @@ static void set_origin(struct vc_data *vc)
 {
 	WARN_CONSOLE_UNLOCKED();
 
-	if (!CON_IS_VISIBLE(vc) ||
+	if (!con_is_visible(vc) ||
 	    !vc->vc_sw->con_set_origin ||
 	    !vc->vc_sw->con_set_origin(vc))
 		vc->vc_origin = (unsigned long)vc->vc_screenbuf;
@@ -673,12 +667,12 @@ void redraw_screen(struct vc_data *vc, int is_switch)
 		struct vc_data *old_vc = vc_cons[fg_console].d;
 		if (old_vc == vc)
 			return;
-		if (!CON_IS_VISIBLE(vc))
+		if (!con_is_visible(vc))
 			redraw = 1;
 		*vc->vc_display_fg = vc;
 		fg_console = vc->vc_num;
 		hide_cursor(old_vc);
-		if (!CON_IS_VISIBLE(old_vc)) {
+		if (!con_is_visible(old_vc)) {
 			save_screen(old_vc);
 			set_origin(old_vc);
 		}
@@ -750,6 +744,7 @@ static void visual_init(struct vc_data *vc, int num, int init)
 	vc->vc_complement_mask = 0;
 	vc->vc_can_do_color = 0;
 	vc->vc_panic_force_write = false;
+	vc->vc_cur_blink_ms = DEFAULT_CURSOR_BLINK_MS;
 	vc->vc_sw->con_init(vc, init);
 	if (!vc->vc_complement_mask)
 		vc->vc_complement_mask = vc->vc_can_do_color ? 0x7700 : 0x0800;
@@ -760,50 +755,54 @@ static void visual_init(struct vc_data *vc, int num, int init)
 
 int vc_allocate(unsigned int currcons)	/* return 0 on success */
 {
+	struct vt_notifier_param param;
+	struct vc_data *vc;
+
 	WARN_CONSOLE_UNLOCKED();
 
 	if (currcons >= MAX_NR_CONSOLES)
 		return -ENXIO;
-	if (!vc_cons[currcons].d) {
-	    struct vc_data *vc;
-	    struct vt_notifier_param param;
 
-	    /* prevent users from taking too much memory */
-	    if (currcons >= MAX_NR_USER_CONSOLES && !capable(CAP_SYS_RESOURCE))
-	      return -EPERM;
+	if (vc_cons[currcons].d)
+		return 0;
 
-	    /* due to the granularity of kmalloc, we waste some memory here */
-	    /* the alloc is done in two steps, to optimize the common situation
-	       of a 25x80 console (structsize=216, screenbuf_size=4000) */
-	    /* although the numbers above are not valid since long ago, the
-	       point is still up-to-date and the comment still has its value
-	       even if only as a historical artifact.  --mj, July 1998 */
-	    param.vc = vc = kzalloc(sizeof(struct vc_data), GFP_KERNEL);
-	    if (!vc)
+	/* due to the granularity of kmalloc, we waste some memory here */
+	/* the alloc is done in two steps, to optimize the common situation
+	   of a 25x80 console (structsize=216, screenbuf_size=4000) */
+	/* although the numbers above are not valid since long ago, the
+	   point is still up-to-date and the comment still has its value
+	   even if only as a historical artifact.  --mj, July 1998 */
+	param.vc = vc = kzalloc(sizeof(struct vc_data), GFP_KERNEL);
+	if (!vc)
 		return -ENOMEM;
-	    vc_cons[currcons].d = vc;
-	    tty_port_init(&vc->port);
-	    INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
-	    visual_init(vc, currcons, 1);
-	    if (!*vc->vc_uni_pagedir_loc)
+
+	vc_cons[currcons].d = vc;
+	tty_port_init(&vc->port);
+	INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
+
+	visual_init(vc, currcons, 1);
+
+	if (!*vc->vc_uni_pagedir_loc)
 		con_set_default_unimap(vc);
-	    vc->vc_screenbuf = kmalloc(vc->vc_screenbuf_size, GFP_KERNEL);
-	    if (!vc->vc_screenbuf) {
-		kfree(vc);
-		vc_cons[currcons].d = NULL;
-		return -ENOMEM;
-	    }
 
-	    /* If no drivers have overridden us and the user didn't pass a
-	       boot option, default to displaying the cursor */
-	    if (global_cursor_default == -1)
-		    global_cursor_default = 1;
+	vc->vc_screenbuf = kmalloc(vc->vc_screenbuf_size, GFP_KERNEL);
+	if (!vc->vc_screenbuf)
+		goto err_free;
 
-	    vc_init(vc, vc->vc_rows, vc->vc_cols, 1);
-	    vcs_make_sysfs(currcons);
-	    atomic_notifier_call_chain(&vt_notifier_list, VT_ALLOCATE, &param);
-	}
+	/* If no drivers have overridden us and the user didn't pass a
+	   boot option, default to displaying the cursor */
+	if (global_cursor_default == -1)
+		global_cursor_default = 1;
+
+	vc_init(vc, vc->vc_rows, vc->vc_cols, 1);
+	vcs_make_sysfs(currcons);
+	atomic_notifier_call_chain(&vt_notifier_list, VT_ALLOCATE, &param);
+
 	return 0;
+err_free:
+	kfree(vc);
+	vc_cons[currcons].d = NULL;
+	return -ENOMEM;
 }
 
 static inline int resize_screen(struct vc_data *vc, int width, int height,
@@ -949,7 +948,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 		tty_do_resize(tty, &ws);
 	}
 
-	if (CON_IS_VISIBLE(vc))
+	if (con_is_visible(vc))
 		update_screen(vc);
 	vt_event_post(VT_EVENT_RESIZE, vc->vc_num, vc->vc_num);
 	return err;
@@ -1035,20 +1034,27 @@ struct vc_data *vc_deallocate(unsigned int currcons)
 #define VT100ID "\033[?1;2c"
 #define VT102ID "\033[?6c"
 
-unsigned char color_table[] = { 0, 4, 2, 6, 1, 5, 3, 7,
+const unsigned char color_table[] = { 0, 4, 2, 6, 1, 5, 3, 7,
 				       8,12,10,14, 9,13,11,15 };
 
 /* the default colour table, for VGA+ colour systems */
-int default_red[] = {0x00,0xaa,0x00,0xaa,0x00,0xaa,0x00,0xaa,
-    0x55,0xff,0x55,0xff,0x55,0xff,0x55,0xff};
-int default_grn[] = {0x00,0x00,0xaa,0x55,0x00,0x00,0xaa,0xaa,
-    0x55,0x55,0xff,0xff,0x55,0x55,0xff,0xff};
-int default_blu[] = {0x00,0x00,0x00,0x00,0xaa,0xaa,0xaa,0xaa,
-    0x55,0x55,0x55,0x55,0xff,0xff,0xff,0xff};
+unsigned char default_red[] = {
+	0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa,
+	0x55, 0xff, 0x55, 0xff, 0x55, 0xff, 0x55, 0xff
+};
+module_param_array(default_red, byte, NULL, S_IRUGO | S_IWUSR);
 
-module_param_array(default_red, int, NULL, S_IRUGO | S_IWUSR);
-module_param_array(default_grn, int, NULL, S_IRUGO | S_IWUSR);
-module_param_array(default_blu, int, NULL, S_IRUGO | S_IWUSR);
+unsigned char default_grn[] = {
+	0x00, 0x00, 0xaa, 0x55, 0x00, 0x00, 0xaa, 0xaa,
+	0x55, 0x55, 0xff, 0xff, 0x55, 0x55, 0xff, 0xff
+};
+module_param_array(default_grn, byte, NULL, S_IRUGO | S_IWUSR);
+
+unsigned char default_blu[] = {
+	0x00, 0x00, 0x00, 0x00, 0xaa, 0xaa, 0xaa, 0xaa,
+	0x55, 0x55, 0x55, 0x55, 0xff, 0xff, 0xff, 0xff
+};
+module_param_array(default_blu, byte, NULL, S_IRUGO | S_IWUSR);
 
 /*
  * gotoxy() must verify all boundaries, because the arguments
@@ -1091,11 +1097,9 @@ static void gotoxay(struct vc_data *vc, int new_x, int new_y)
 	gotoxy(vc, new_x, vc->vc_decom ? (vc->vc_top + new_y) : new_y);
 }
 
-void scrollback(struct vc_data *vc, int lines)
+void scrollback(struct vc_data *vc)
 {
-	if (!lines)
-		lines = vc->vc_rows / 2;
-	scrolldelta(-lines);
+	scrolldelta(-(vc->vc_rows / 2));
 }
 
 void scrollfront(struct vc_data *vc, int lines)
@@ -1174,7 +1178,7 @@ static void csi_J(struct vc_data *vc, int vpar)
 			scr_memsetw(vc->vc_screenbuf, vc->vc_video_erase_char,
 				    vc->vc_screenbuf_size >> 1);
 			set_origin(vc);
-			if (CON_IS_VISIBLE(vc))
+			if (con_is_visible(vc))
 				update_screen(vc);
 			/* fall through */
 		case 2: /* erase whole display */
@@ -1185,7 +1189,7 @@ static void csi_J(struct vc_data *vc, int vpar)
 			return;
 	}
 	scr_memsetw(start, vc->vc_video_erase_char, 2 * count);
-	if (DO_UPDATE(vc))
+	if (con_should_update(vc))
 		do_update_region(vc, (unsigned long) start, count);
 	vc->vc_need_wrap = 0;
 }
@@ -1213,7 +1217,7 @@ static void csi_K(struct vc_data *vc, int vpar)
 	}
 	scr_memsetw(start, vc->vc_video_erase_char, 2 * count);
 	vc->vc_need_wrap = 0;
-	if (DO_UPDATE(vc))
+	if (con_should_update(vc))
 		do_update_region(vc, (unsigned long) start, count);
 }
 
@@ -1226,7 +1230,7 @@ static void csi_X(struct vc_data *vc, int vpar) /* erase the following vpar posi
 	count = (vpar > vc->vc_cols - vc->vc_x) ? (vc->vc_cols - vc->vc_x) : vpar;
 
 	scr_memsetw((unsigned short *)vc->vc_pos, vc->vc_video_erase_char, 2 * count);
-	if (DO_UPDATE(vc))
+	if (con_should_update(vc))
 		vc->vc_sw->con_clear(vc, vc->vc_y, vc->vc_x, 1, count);
 	vc->vc_need_wrap = 0;
 }
@@ -1243,48 +1247,87 @@ static void default_attr(struct vc_data *vc)
 
 struct rgb { u8 r; u8 g; u8 b; };
 
-static struct rgb rgb_from_256(int i)
+static void rgb_from_256(int i, struct rgb *c)
 {
-	struct rgb c;
 	if (i < 8) {            /* Standard colours. */
-		c.r = i&1 ? 0xaa : 0x00;
-		c.g = i&2 ? 0xaa : 0x00;
-		c.b = i&4 ? 0xaa : 0x00;
+		c->r = i&1 ? 0xaa : 0x00;
+		c->g = i&2 ? 0xaa : 0x00;
+		c->b = i&4 ? 0xaa : 0x00;
 	} else if (i < 16) {
-		c.r = i&1 ? 0xff : 0x55;
-		c.g = i&2 ? 0xff : 0x55;
-		c.b = i&4 ? 0xff : 0x55;
+		c->r = i&1 ? 0xff : 0x55;
+		c->g = i&2 ? 0xff : 0x55;
+		c->b = i&4 ? 0xff : 0x55;
 	} else if (i < 232) {   /* 6x6x6 colour cube. */
-		c.r = (i - 16) / 36 * 85 / 2;
-		c.g = (i - 16) / 6 % 6 * 85 / 2;
-		c.b = (i - 16) % 6 * 85 / 2;
+		c->r = (i - 16) / 36 * 85 / 2;
+		c->g = (i - 16) / 6 % 6 * 85 / 2;
+		c->b = (i - 16) % 6 * 85 / 2;
 	} else                  /* Grayscale ramp. */
-		c.r = c.g = c.b = i * 10 - 2312;
-	return c;
+		c->r = c->g = c->b = i * 10 - 2312;
 }
 
-static void rgb_foreground(struct vc_data *vc, struct rgb c)
+static void rgb_foreground(struct vc_data *vc, const struct rgb *c)
 {
-	u8 hue, max = c.r;
-	if (c.g > max)
-		max = c.g;
-	if (c.b > max)
-		max = c.b;
-	hue = (c.r > max/2 ? 4 : 0)
-	    | (c.g > max/2 ? 2 : 0)
-	    | (c.b > max/2 ? 1 : 0);
-	if (hue == 7 && max <= 0x55)
-		hue = 0, vc->vc_intensity = 2;
+	u8 hue = 0, max = max3(c->r, c->g, c->b);
+
+	if (c->r > max / 2)
+		hue |= 4;
+	if (c->g > max / 2)
+		hue |= 2;
+	if (c->b > max / 2)
+		hue |= 1;
+
+	if (hue == 7 && max <= 0x55) {
+		hue = 0;
+		vc->vc_intensity = 2;
+	} else if (max > 0xaa)
+		vc->vc_intensity = 2;
 	else
-		vc->vc_intensity = (max > 0xaa) + 1;
+		vc->vc_intensity = 1;
+
 	vc->vc_color = (vc->vc_color & 0xf0) | hue;
 }
 
-static void rgb_background(struct vc_data *vc, struct rgb c)
+static void rgb_background(struct vc_data *vc, const struct rgb *c)
 {
 	/* For backgrounds, err on the dark side. */
 	vc->vc_color = (vc->vc_color & 0x0f)
-		| (c.r&0x80) >> 1 | (c.g&0x80) >> 2 | (c.b&0x80) >> 3;
+		| (c->r&0x80) >> 1 | (c->g&0x80) >> 2 | (c->b&0x80) >> 3;
+}
+
+/*
+ * ITU T.416 Higher colour modes. They break the usual properties of SGR codes
+ * and thus need to be detected and ignored by hand. Strictly speaking, that
+ * standard also wants : rather than ; as separators, contrary to ECMA-48, but
+ * no one produces such codes and almost no one accepts them.
+ *
+ * Subcommands 3 (CMY) and 4 (CMYK) are so insane there's no point in
+ * supporting them.
+ */
+static int vc_t416_color(struct vc_data *vc, int i,
+		void(*set_color)(struct vc_data *vc, const struct rgb *c))
+{
+	struct rgb c;
+
+	i++;
+	if (i > vc->vc_npar)
+		return i;
+
+	if (vc->vc_par[i] == 5 && i < vc->vc_npar) {
+		/* 256 colours -- ubiquitous */
+		i++;
+		rgb_from_256(vc->vc_par[i], &c);
+	} else if (vc->vc_par[i] == 2 && i <= vc->vc_npar + 3) {
+		/* 24 bit -- extremely rare */
+		c.r = vc->vc_par[i + 1];
+		c.g = vc->vc_par[i + 2];
+		c.b = vc->vc_par[i + 3];
+		i += 3;
+	} else
+		return i;
+
+	set_color(vc, &c);
+
+	return i;
 }
 
 /* console_lock is held */
@@ -1294,135 +1337,91 @@ static void csi_m(struct vc_data *vc)
 
 	for (i = 0; i <= vc->vc_npar; i++)
 		switch (vc->vc_par[i]) {
-			case 0:	/* all attributes off */
-				default_attr(vc);
-				break;
-			case 1:
-				vc->vc_intensity = 2;
-				break;
-			case 2:
-				vc->vc_intensity = 0;
-				break;
-			case 3:
-				vc->vc_italic = 1;
-				break;
-			case 4:
-				vc->vc_underline = 1;
-				break;
-			case 5:
-				vc->vc_blink = 1;
-				break;
-			case 7:
-				vc->vc_reverse = 1;
-				break;
-			case 10: /* ANSI X3.64-1979 (SCO-ish?)
-				  * Select primary font, don't display
-				  * control chars if defined, don't set
-				  * bit 8 on output.
-				  */
-				vc->vc_translate = set_translate(vc->vc_charset == 0
-						? vc->vc_G0_charset
-						: vc->vc_G1_charset, vc);
-				vc->vc_disp_ctrl = 0;
-				vc->vc_toggle_meta = 0;
-				break;
-			case 11: /* ANSI X3.64-1979 (SCO-ish?)
-				  * Select first alternate font, lets
-				  * chars < 32 be displayed as ROM chars.
-				  */
-				vc->vc_translate = set_translate(IBMPC_MAP, vc);
-				vc->vc_disp_ctrl = 1;
-				vc->vc_toggle_meta = 0;
-				break;
-			case 12: /* ANSI X3.64-1979 (SCO-ish?)
-				  * Select second alternate font, toggle
-				  * high bit before displaying as ROM char.
-				  */
-				vc->vc_translate = set_translate(IBMPC_MAP, vc);
-				vc->vc_disp_ctrl = 1;
-				vc->vc_toggle_meta = 1;
-				break;
-			case 21:
-			case 22:
-				vc->vc_intensity = 1;
-				break;
-			case 23:
-				vc->vc_italic = 0;
-				break;
-			case 24:
-				vc->vc_underline = 0;
-				break;
-			case 25:
-				vc->vc_blink = 0;
-				break;
-			case 27:
-				vc->vc_reverse = 0;
-				break;
-			case 38: /* ITU T.416
-				  * Higher colour modes.
-				  * They break the usual properties of SGR codes
-				  * and thus need to be detected and ignored by
-				  * hand.  Strictly speaking, that standard also
-				  * wants : rather than ; as separators, contrary
-				  * to ECMA-48, but no one produces such codes
-				  * and almost no one accepts them.
-				  */
-				i++;
-				if (i > vc->vc_npar)
-					break;
-				if (vc->vc_par[i] == 5 &&  /* 256 colours */
-				    i < vc->vc_npar) {     /* ubiquitous */
-					i++;
-					rgb_foreground(vc,
-						rgb_from_256(vc->vc_par[i]));
-				} else if (vc->vc_par[i] == 2 &&  /* 24 bit */
-				           i <= vc->vc_npar + 3) {/* extremely rare */
-					struct rgb c = {
-						.r = vc->vc_par[i + 1],
-						.g = vc->vc_par[i + 2],
-						.b = vc->vc_par[i + 3],
-					};
-					rgb_foreground(vc, c);
-					i += 3;
-				}
-				/* Subcommands 3 (CMY) and 4 (CMYK) are so insane
-				 * there's no point in supporting them.
-				 */
-				break;
-			case 48:
-				i++;
-				if (i > vc->vc_npar)
-					break;
-				if (vc->vc_par[i] == 5 &&  /* 256 colours */
-				    i < vc->vc_npar) {
-					i++;
-					rgb_background(vc,
-						rgb_from_256(vc->vc_par[i]));
-				} else if (vc->vc_par[i] == 2 && /* 24 bit */
-				           i <= vc->vc_npar + 3) {
-					struct rgb c = {
-						.r = vc->vc_par[i + 1],
-						.g = vc->vc_par[i + 2],
-						.b = vc->vc_par[i + 3],
-					};
-					rgb_background(vc, c);
-					i += 3;
-				}
-				break;
-			case 39:
-				vc->vc_color = (vc->vc_def_color & 0x0f) | (vc->vc_color & 0xf0);
-				break;
-			case 49:
-				vc->vc_color = (vc->vc_def_color & 0xf0) | (vc->vc_color & 0x0f);
-				break;
-			default:
-				if (vc->vc_par[i] >= 30 && vc->vc_par[i] <= 37)
-					vc->vc_color = color_table[vc->vc_par[i] - 30]
-						| (vc->vc_color & 0xf0);
-				else if (vc->vc_par[i] >= 40 && vc->vc_par[i] <= 47)
-					vc->vc_color = (color_table[vc->vc_par[i] - 40] << 4)
-						| (vc->vc_color & 0x0f);
-				break;
+		case 0:	/* all attributes off */
+			default_attr(vc);
+			break;
+		case 1:
+			vc->vc_intensity = 2;
+			break;
+		case 2:
+			vc->vc_intensity = 0;
+			break;
+		case 3:
+			vc->vc_italic = 1;
+			break;
+		case 4:
+			vc->vc_underline = 1;
+			break;
+		case 5:
+			vc->vc_blink = 1;
+			break;
+		case 7:
+			vc->vc_reverse = 1;
+			break;
+		case 10: /* ANSI X3.64-1979 (SCO-ish?)
+			  * Select primary font, don't display control chars if
+			  * defined, don't set bit 8 on output.
+			  */
+			vc->vc_translate = set_translate(vc->vc_charset == 0
+					? vc->vc_G0_charset
+					: vc->vc_G1_charset, vc);
+			vc->vc_disp_ctrl = 0;
+			vc->vc_toggle_meta = 0;
+			break;
+		case 11: /* ANSI X3.64-1979 (SCO-ish?)
+			  * Select first alternate font, lets chars < 32 be
+			  * displayed as ROM chars.
+			  */
+			vc->vc_translate = set_translate(IBMPC_MAP, vc);
+			vc->vc_disp_ctrl = 1;
+			vc->vc_toggle_meta = 0;
+			break;
+		case 12: /* ANSI X3.64-1979 (SCO-ish?)
+			  * Select second alternate font, toggle high bit
+			  * before displaying as ROM char.
+			  */
+			vc->vc_translate = set_translate(IBMPC_MAP, vc);
+			vc->vc_disp_ctrl = 1;
+			vc->vc_toggle_meta = 1;
+			break;
+		case 21:
+		case 22:
+			vc->vc_intensity = 1;
+			break;
+		case 23:
+			vc->vc_italic = 0;
+			break;
+		case 24:
+			vc->vc_underline = 0;
+			break;
+		case 25:
+			vc->vc_blink = 0;
+			break;
+		case 27:
+			vc->vc_reverse = 0;
+			break;
+		case 38:
+			i = vc_t416_color(vc, i, rgb_foreground);
+			break;
+		case 48:
+			i = vc_t416_color(vc, i, rgb_background);
+			break;
+		case 39:
+			vc->vc_color = (vc->vc_def_color & 0x0f) |
+				(vc->vc_color & 0xf0);
+			break;
+		case 49:
+			vc->vc_color = (vc->vc_def_color & 0xf0) |
+				(vc->vc_color & 0x0f);
+			break;
+		default:
+			if (vc->vc_par[i] >= 30 && vc->vc_par[i] <= 37)
+				vc->vc_color = color_table[vc->vc_par[i] - 30]
+					| (vc->vc_color & 0xf0);
+			else if (vc->vc_par[i] >= 40 && vc->vc_par[i] <= 47)
+				vc->vc_color = (color_table[vc->vc_par[i] - 40] << 4)
+					| (vc->vc_color & 0x0f);
+			break;
 		}
 	update_attr(vc);
 }
@@ -1484,7 +1483,6 @@ static void set_mode(struct vc_data *vc, int on_off)
 					clr_kbd(vc, decckm);
 				break;
 			case 3:	/* 80/132 mode switch unimplemented */
-				vc->vc_deccolm = on_off;
 #if 0
 				vc_resize(deccolm ? 132 : 80, vc->vc_rows);
 				/* this alone does not suffice; some user mode
@@ -2166,18 +2164,20 @@ static int is_double_width(uint32_t ucs)
 	return bisearch(ucs, double_width, ARRAY_SIZE(double_width) - 1);
 }
 
+static void con_flush(struct vc_data *vc, unsigned long draw_from,
+		unsigned long draw_to, int *draw_x)
+{
+	if (*draw_x < 0)
+		return;
+
+	vc->vc_sw->con_putcs(vc, (u16 *)draw_from,
+			(u16 *)draw_to - (u16 *)draw_from, vc->vc_y, *draw_x);
+	*draw_x = -1;
+}
+
 /* acquires console_lock */
 static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
-#ifdef VT_BUF_VRAM_ONLY
-#define FLUSH do { } while(0);
-#else
-#define FLUSH if (draw_x >= 0) { \
-	vc->vc_sw->con_putcs(vc, (u16 *)draw_from, (u16 *)draw_to - (u16 *)draw_from, vc->vc_y, draw_x); \
-	draw_x = -1; \
-	}
-#endif
-
 	int c, tc, ok, n = 0, draw_x = -1;
 	unsigned int currcons;
 	unsigned long draw_from = 0, draw_to = 0;
@@ -2214,7 +2214,7 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 	charmask = himask ? 0x1ff : 0xff;
 
 	/* undraw cursor first */
-	if (IS_FG(vc))
+	if (con_is_fg(vc))
 		hide_cursor(vc);
 
 	param.vc = vc;
@@ -2369,12 +2369,13 @@ rescan_last_byte:
 				} else {
 					vc_attr = ((vc->vc_attr) & 0x88) | (((vc->vc_attr) & 0x70) >> 4) | (((vc->vc_attr) & 0x07) << 4);
 				}
-				FLUSH
+				con_flush(vc, draw_from, draw_to, &draw_x);
 			}
 
 			while (1) {
 				if (vc->vc_need_wrap || vc->vc_decim)
-					FLUSH
+					con_flush(vc, draw_from, draw_to,
+							&draw_x);
 				if (vc->vc_need_wrap) {
 					cr(vc);
 					lf(vc);
@@ -2385,7 +2386,7 @@ rescan_last_byte:
 					     ((vc_attr << 8) & ~himask) + ((tc & 0x100) ? himask : 0) + (tc & 0xff) :
 					     (vc_attr << 8) + tc,
 					   (u16 *) vc->vc_pos);
-				if (DO_UPDATE(vc) && draw_x < 0) {
+				if (con_should_update(vc) && draw_x < 0) {
 					draw_x = vc->vc_x;
 					draw_from = vc->vc_pos;
 				}
@@ -2404,9 +2405,8 @@ rescan_last_byte:
 			}
 			notify_write(vc, c);
 
-			if (inverse) {
-				FLUSH
-			}
+			if (inverse)
+				con_flush(vc, draw_from, draw_to, &draw_x);
 
 			if (rescan) {
 				rescan = 0;
@@ -2417,15 +2417,14 @@ rescan_last_byte:
 			}
 			continue;
 		}
-		FLUSH
+		con_flush(vc, draw_from, draw_to, &draw_x);
 		do_con_trol(tty, vc, orig);
 	}
-	FLUSH
+	con_flush(vc, draw_from, draw_to, &draw_x);
 	console_conditional_schedule();
 	console_unlock();
 	notify_update(vc);
 	return n;
-#undef FLUSH
 }
 
 /*
@@ -2459,7 +2458,7 @@ static void console_callback(struct work_struct *ignored)
 	if (scrollback_delta) {
 		struct vc_data *vc = vc_cons[fg_console].d;
 		clear_selection();
-		if (vc->vc_mode == KD_TEXT)
+		if (vc->vc_mode == KD_TEXT && vc->vc_sw->con_scrolldelta)
 			vc->vc_sw->con_scrolldelta(vc, scrollback_delta);
 		scrollback_delta = 0;
 	}
@@ -2571,7 +2570,7 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 		goto quit;
 
 	/* undraw cursor first */
-	if (IS_FG(vc))
+	if (con_is_fg(vc))
 		hide_cursor(vc);
 
 	start = (ushort *)vc->vc_pos;
@@ -2582,7 +2581,7 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 		c = *b++;
 		if (c == 10 || c == 13 || c == 8 || vc->vc_need_wrap) {
 			if (cnt > 0) {
-				if (CON_IS_VISIBLE(vc))
+				if (con_is_visible(vc))
 					vc->vc_sw->con_putcs(vc, start, cnt, vc->vc_y, vc->vc_x);
 				vc->vc_x += cnt;
 				if (vc->vc_need_wrap)
@@ -2614,7 +2613,7 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 		myx++;
 	}
 	if (cnt > 0) {
-		if (CON_IS_VISIBLE(vc))
+		if (con_is_visible(vc))
 			vc->vc_sw->con_putcs(vc, start, cnt, vc->vc_y, vc->vc_x);
 		vc->vc_x += cnt;
 		if (vc->vc_x == vc->vc_cols) {
@@ -3161,7 +3160,7 @@ static int do_bind_con_driver(const struct consw *csw, int first, int last,
 
 		j = i;
 
-		if (CON_IS_VISIBLE(vc)) {
+		if (con_is_visible(vc)) {
 			k = i;
 			save_screen(vc);
 		}
@@ -3564,7 +3563,7 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 	struct module *owner = csw->owner;
 	struct con_driver *con_driver;
 	const char *desc;
-	int i, retval = 0;
+	int i, retval;
 
 	WARN_CONSOLE_UNLOCKED();
 
@@ -3575,17 +3574,17 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 		con_driver = &registered_con_driver[i];
 
 		/* already registered */
-		if (con_driver->con == csw)
+		if (con_driver->con == csw) {
 			retval = -EBUSY;
+			goto err;
+		}
 	}
 
-	if (retval)
-		goto err;
-
 	desc = csw->con_startup();
-
-	if (!desc)
+	if (!desc) {
+		retval = -ENODEV;
 		goto err;
+	}
 
 	retval = -EINVAL;
 
@@ -3969,7 +3968,7 @@ static void set_palette(struct vc_data *vc)
 {
 	WARN_CONSOLE_UNLOCKED();
 
-	if (vc->vc_mode != KD_GRAPHICS)
+	if (vc->vc_mode != KD_GRAPHICS && vc->vc_sw->con_set_palette)
 		vc->vc_sw->con_set_palette(vc, color_table);
 }
 

@@ -1,3 +1,6 @@
+/* For the CLR_() macros */
+#include <pthread.h>
+
 #include <sched.h>
 #include "evlist.h"
 #include "evsel.h"
@@ -99,12 +102,12 @@ int test__PERF_RECORD(int subtest __maybe_unused)
 	perf_evsel__set_sample_bit(evsel, CPU);
 	perf_evsel__set_sample_bit(evsel, TID);
 	perf_evsel__set_sample_bit(evsel, TIME);
-	perf_evlist__config(evlist, &opts);
+	perf_evlist__config(evlist, &opts, NULL);
 
 	err = sched__get_first_possible_cpu(evlist->workload.pid, &cpu_mask);
 	if (err < 0) {
 		pr_debug("sched__get_first_possible_cpu: %s\n",
-			 strerror_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -115,7 +118,7 @@ int test__PERF_RECORD(int subtest __maybe_unused)
 	 */
 	if (sched_setaffinity(evlist->workload.pid, cpu_mask_size, &cpu_mask) < 0) {
 		pr_debug("sched_setaffinity: %s\n",
-			 strerror_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -126,7 +129,7 @@ int test__PERF_RECORD(int subtest __maybe_unused)
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
-			 strerror_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -138,7 +141,7 @@ int test__PERF_RECORD(int subtest __maybe_unused)
 	err = perf_evlist__mmap(evlist, opts.mmap_pages, false);
 	if (err < 0) {
 		pr_debug("perf_evlist__mmap: %s\n",
-			 strerror_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 

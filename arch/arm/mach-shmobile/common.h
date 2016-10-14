@@ -10,6 +10,7 @@ extern void shmobile_smp_sleep(void);
 extern void shmobile_smp_hook(unsigned int cpu, unsigned long fn,
 			      unsigned long arg);
 extern bool shmobile_smp_cpu_can_disable(unsigned int cpu);
+extern bool shmobile_smp_init_fallback_ops(void);
 extern void shmobile_boot_scu(void);
 extern void shmobile_smp_scu_prepare_cpus(phys_addr_t scu_base_phys,
 					  unsigned int max_cpus);
@@ -25,16 +26,9 @@ static inline int shmobile_suspend_init(void) { return 0; }
 static inline void shmobile_smp_apmu_suspend_init(void) { }
 #endif
 
-#ifdef CONFIG_CPU_FREQ
-int shmobile_cpufreq_init(void);
-#else
-static inline int shmobile_cpufreq_init(void) { return 0; }
-#endif
-
 static inline void __init shmobile_init_late(void)
 {
 	shmobile_suspend_init();
-	shmobile_cpufreq_init();
 }
 
 #endif /* __ARCH_MACH_COMMON_H */

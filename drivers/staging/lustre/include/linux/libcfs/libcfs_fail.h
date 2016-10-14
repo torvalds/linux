@@ -16,10 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see http://www.gnu.org/licenses
  *
- * Please contact Oracle Corporation, Inc., 500 Oracle Parkway, Redwood Shores,
- * CA 94065 USA or visit www.oracle.com if you need additional information or
- * have any questions.
- *
  * GPL HEADER END
  */
 /*
@@ -38,6 +34,7 @@
 
 extern unsigned long cfs_fail_loc;
 extern unsigned int cfs_fail_val;
+extern int cfs_fail_err;
 
 extern wait_queue_head_t cfs_race_waitq;
 extern int cfs_race_state;
@@ -70,9 +67,14 @@ enum {
 #define CFS_FAIL_RAND	0x08000000 /* fail 1/N of the times */
 #define CFS_FAIL_USR1	0x04000000 /* user flag */
 
-#define CFS_FAIL_PRECHECK(id) (cfs_fail_loc &&				\
-			      (cfs_fail_loc & CFS_FAIL_MASK_LOC) ==	   \
-			      ((id) & CFS_FAIL_MASK_LOC))
+#define CFS_FAULT	0x02000000 /* match any CFS_FAULT_CHECK */
+
+static inline bool CFS_FAIL_PRECHECK(__u32 id)
+{
+	return cfs_fail_loc != 0 &&
+	       ((cfs_fail_loc & CFS_FAIL_MASK_LOC) == (id & CFS_FAIL_MASK_LOC) ||
+	        (cfs_fail_loc & id & CFS_FAULT));
+}
 
 static inline int cfs_fail_check_set(__u32 id, __u32 value,
 				     int set, int quiet)
@@ -143,6 +145,9 @@ static inline int cfs_fail_timeout_set(__u32 id, __u32 value, int ms, int set)
 
 #define CFS_FAIL_TIMEOUT_MS_ORSET(id, value, ms) \
 	cfs_fail_timeout_set(id, value, ms, CFS_FAIL_LOC_ORSET)
+
+#define CFS_FAULT_CHECK(id)			\
+	CFS_FAIL_CHECK(CFS_FAULT | (id))
 
 /* The idea here is to synchronise two threads to force a race. The
  * first thread that calls this with a matching fail_loc is put to

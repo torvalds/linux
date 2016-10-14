@@ -246,7 +246,7 @@ static void tb_handle_hotplug(struct work_struct *work)
 	if (ev->unplug) {
 		if (port->remote) {
 			tb_port_info(port, "unplugged\n");
-			tb_sw_set_unpplugged(port->remote->sw);
+			tb_sw_set_unplugged(port->remote->sw);
 			tb_free_invalid_tunnels(tb);
 			tb_switch_free(port->remote->sw);
 			port->remote = NULL;

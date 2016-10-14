@@ -72,6 +72,11 @@
 		};
 	};
 
+	pmu {
+		compatible = "arm,cortex-a5-pmu";
+		interrupts = <2 IRQ_TYPE_LEVEL_HIGH 0>;
+	};
+
 	memory {
 		reg = <0x20000000 0x20000000>;
 	};
@@ -112,13 +117,13 @@
 			clock-names = "pclk", "hclk";
 			status = "disabled";
 
-			ep0 {
+			ep@0 {
 				reg = <0>;
 				atmel,fifo-size = <64>;
 				atmel,nb-banks = <1>;
 			};
 
-			ep1 {
+			ep@1 {
 				reg = <1>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <3>;
@@ -126,7 +131,7 @@
 				atmel,can-isoc;
 			};
 
-			ep2 {
+			ep@2 {
 				reg = <2>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <3>;
@@ -134,7 +139,7 @@
 				atmel,can-isoc;
 			};
 
-			ep3 {
+			ep@3 {
 				reg = <3>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
@@ -142,7 +147,7 @@
 				atmel,can-isoc;
 			};
 
-			ep4 {
+			ep@4 {
 				reg = <4>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
@@ -150,7 +155,7 @@
 				atmel,can-isoc;
 			};
 
-			ep5 {
+			ep@5 {
 				reg = <5>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
@@ -158,7 +163,7 @@
 				atmel,can-isoc;
 			};
 
-			ep6 {
+			ep@6 {
 				reg = <6>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
@@ -166,7 +171,7 @@
 				atmel,can-isoc;
 			};
 
-			ep7 {
+			ep@7 {
 				reg = <7>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
@@ -174,56 +179,56 @@
 				atmel,can-isoc;
 			};
 
-			ep8 {
+			ep@8 {
 				reg = <8>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 				atmel,can-isoc;
 			};
 
-			ep9 {
+			ep@9 {
 				reg = <9>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 				atmel,can-isoc;
 			};
 
-			ep10 {
+			ep@10 {
 				reg = <10>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 				atmel,can-isoc;
 			};
 
-			ep11 {
+			ep@11 {
 				reg = <11>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 				atmel,can-isoc;
 			};
 
-			ep12 {
+			ep@12 {
 				reg = <12>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 				atmel,can-isoc;
 			};
 
-			ep13 {
+			ep@13 {
 				reg = <13>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 				atmel,can-isoc;
 			};
 
-			ep14 {
+			ep@14 {
 				reg = <14>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
 				atmel,can-isoc;
 			};
 
-			ep15 {
+			ep@15 {
 				reg = <15>;
 				atmel,fifo-size = <1024>;
 				atmel,nb-banks = <2>;
@@ -232,7 +237,7 @@
 		};
 
 		usb1: ohci@00400000 {
-			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
+			compatible = "atmel,sama5d2-ohci", "usb-ohci";
 			reg = <0x00400000 0x100000>;
 			interrupts = <41 IRQ_TYPE_LEVEL_HIGH 2>;
 			clocks = <&uhphs_clk>, <&uhphs_clk>, <&uhpck>;
@@ -318,6 +323,32 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
+
+			hlcdc: hlcdc@f0000000 {
+				compatible = "atmel,sama5d2-hlcdc";
+				reg = <0xf0000000 0x2000>;
+				interrupts = <45 IRQ_TYPE_LEVEL_HIGH 0>;
+				clocks = <&lcdc_clk>, <&lcdck>, <&clk32k>;
+				clock-names = "periph_clk","sys_clk", "slow_clk";
+				status = "disabled";
+
+				hlcdc-display-controller {
+					compatible = "atmel,hlcdc-display-controller";
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						#address-cells = <1>;
+						#size-cells = <0>;
+						reg = <0>;
+					};
+				};
+
+				hlcdc_pwm: hlcdc-pwm {
+					compatible = "atmel,hlcdc-pwm";
+					#pwm-cells = <3>;
+				};
+			};
 
 			ramc0: ramc@f000c000 {
 				compatible = "atmel,sama5d3-ddramc";
@@ -973,6 +1004,11 @@
 				status = "disabled";
 			};
 
+			sfr: sfr@f8030000 {
+				compatible = "atmel,sama5d2-sfr", "syscon";
+				reg = <0xf8030000 0x98>;
+			};
+
 			flx0: flexcom@f8034000 {
 				compatible = "atmel,sama5d2-flexcom";
 				reg = <0xf8034000 0x200>;
@@ -999,6 +1035,15 @@
 				clocks = <&clk32k>;
 			};
 
+			shdwc@f8048010 {
+				compatible = "atmel,sama5d2-shdwc";
+				reg = <0xf8048010 0x10>;
+				clocks = <&clk32k>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				atmel,wakeup-rtc-timer;
+			};
+
 			pit: timer@f8048030 {
 				compatible = "atmel,at91sam9260-pit";
 				reg = <0xf8048030 0x10>;
@@ -1010,6 +1055,7 @@
 				compatible = "atmel,sama5d4-wdt";
 				reg = <0xf8048040 0x10>;
 				interrupts = <4 IRQ_TYPE_LEVEL_HIGH 7>;
+				clocks = <&clk32k>;
 				status = "disabled";
 			};
 
@@ -1127,6 +1173,13 @@
 				status = "disabled";
 			};
 
+			trng@fc01c000 {
+				compatible = "atmel,at91sam9g45-trng";
+				reg = <0xfc01c000 0x100>;
+				interrupts = <47 IRQ_TYPE_LEVEL_HIGH 0>;
+				clocks = <&trng_clk>;
+			};
+
 			aic: interrupt-controller@fc020000 {
 				#interrupt-cells = <3>;
 				compatible = "atmel,sama5d2-aic";
@@ -1192,6 +1245,11 @@
 				clocks = <&tdes_clk>;
 				clock-names = "tdes_clk";
 				status = "okay";
+			};
+
+			chipid@fc069000 {
+				compatible = "atmel,sama5d2-chipid";
+				reg = <0xfc069000 0x8>;
 			};
 		};
 	};

@@ -54,7 +54,7 @@ static bool ip_exceeds_mtu(const struct sk_buff *skb, unsigned int mtu)
 	if (skb->ignore_df)
 		return false;
 
-	if (skb_is_gso(skb) && skb_gso_network_seglen(skb) <= mtu)
+	if (skb_is_gso(skb) && skb_gso_validate_mtu(skb, mtu))
 		return false;
 
 	return true;
@@ -65,8 +65,8 @@ static int ip_forward_finish(struct net *net, struct sock *sk, struct sk_buff *s
 {
 	struct ip_options *opt	= &(IPCB(skb)->opt);
 
-	IP_INC_STATS_BH(net, IPSTATS_MIB_OUTFORWDATAGRAMS);
-	IP_ADD_STATS_BH(net, IPSTATS_MIB_OUTOCTETS, skb->len);
+	__IP_INC_STATS(net, IPSTATS_MIB_OUTFORWDATAGRAMS);
+	__IP_ADD_STATS(net, IPSTATS_MIB_OUTOCTETS, skb->len);
 
 	if (unlikely(opt->optlen))
 		ip_forward_options(skb);
@@ -117,7 +117,7 @@ int ip_forward(struct sk_buff *skb)
 	if (opt->is_strictroute && rt->rt_uses_gateway)
 		goto sr_failed;
 
-	IPCB(skb)->flags |= IPSKB_FORWARDED;
+	IPCB(skb)->flags |= IPSKB_FORWARDED | IPSKB_FRAG_SEGS;
 	mtu = ip_dst_mtu_maybe_forward(&rt->dst, true);
 	if (ip_exceeds_mtu(skb, mtu)) {
 		IP_INC_STATS(net, IPSTATS_MIB_FRAGFAILS);
@@ -157,7 +157,7 @@ sr_failed:
 
 too_many_hops:
 	/* Tell the sender its packet died... */
-	IP_INC_STATS_BH(net, IPSTATS_MIB_INHDRERRORS);
+	__IP_INC_STATS(net, IPSTATS_MIB_INHDRERRORS);
 	icmp_send(skb, ICMP_TIME_EXCEEDED, ICMP_EXC_TTL, 0);
 drop:
 	kfree_skb(skb);

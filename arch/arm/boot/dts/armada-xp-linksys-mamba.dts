@@ -304,13 +304,13 @@
 		button@1 {
 			label = "WPS";
 			linux,code = <KEY_WPS_BUTTON>;
-			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
 		};
 
 		button@2 {
 			label = "Factory Reset Button";
 			linux,code = <KEY_RESTART>;
-			gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
 		};
 	};
 

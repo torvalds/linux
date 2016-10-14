@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #define _RTW_MLME_C_
 
@@ -1584,13 +1579,13 @@ int rtw_set_auth(struct adapter *adapter, struct security_priv *psecuritypriv)
 	int		res = _SUCCESS;
 
 	pcmd = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
-	if (pcmd == NULL) {
+	if (!pcmd) {
 		res = _FAIL;  /* try again */
 		goto exit;
 	}
 
 	psetauthparm = kzalloc(sizeof(struct setauth_parm), GFP_KERNEL);
-	if (psetauthparm == NULL) {
+	if (!psetauthparm) {
 		kfree(pcmd);
 		res = _FAIL;
 		goto exit;
@@ -1621,11 +1616,11 @@ int rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, in
 	int	res = _SUCCESS;
 
 	pcmd = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
-	if (pcmd == NULL)
+	if (!pcmd)
 		return _FAIL;  /* try again */
 
 	psetkeyparm = kzalloc(sizeof(struct setkey_parm), GFP_KERNEL);
-	if (psetkeyparm == NULL) {
+	if (!psetkeyparm) {
 		res = _FAIL;
 		goto err_free_cmd;
 	}

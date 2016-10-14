@@ -2,6 +2,9 @@
 #define _UAPI_IF_TUNNEL_H_
 
 #include <linux/types.h>
+#include <linux/if.h>
+#include <linux/ip.h>
+#include <linux/in6.h>
 #include <asm/byteorder.h>
 
 
@@ -113,6 +116,7 @@ enum {
 	IFLA_GRE_ENCAP_SPORT,
 	IFLA_GRE_ENCAP_DPORT,
 	IFLA_GRE_COLLECT_METADATA,
+	IFLA_GRE_IGNORE_DF,
 	__IFLA_GRE_MAX,
 };
 

@@ -77,18 +77,18 @@ static int __sigp_conditional_emergency(struct kvm_vcpu *vcpu,
 	const u64 psw_int_mask = PSW_MASK_IO | PSW_MASK_EXT;
 	u16 p_asn, s_asn;
 	psw_t *psw;
-	u32 flags;
+	bool idle;
 
-	flags = atomic_read(&dst_vcpu->arch.sie_block->cpuflags);
+	idle = is_vcpu_idle(vcpu);
 	psw = &dst_vcpu->arch.sie_block->gpsw;
 	p_asn = dst_vcpu->arch.sie_block->gcr[4] & 0xffff;  /* Primary ASN */
 	s_asn = dst_vcpu->arch.sie_block->gcr[3] & 0xffff;  /* Secondary ASN */
 
 	/* Inject the emergency signal? */
-	if (!(flags & CPUSTAT_STOPPED)
+	if (!is_vcpu_stopped(vcpu)
 	    || (psw->mask & psw_int_mask) != psw_int_mask
-	    || ((flags & CPUSTAT_WAIT) && psw->addr != 0)
-	    || (!(flags & CPUSTAT_WAIT) && (asn == p_asn || asn == s_asn))) {
+	    || (idle && psw->addr != 0)
+	    || (!idle && (asn == p_asn || asn == s_asn))) {
 		return __inject_sigp_emergency(vcpu, dst_vcpu);
 	} else {
 		*reg &= 0xffffffff00000000UL;
@@ -239,6 +239,12 @@ static int __sigp_sense_running(struct kvm_vcpu *vcpu,
 {
 	struct kvm_s390_local_interrupt *li;
 	int rc;
+
+	if (!test_kvm_facility(vcpu->kvm, 9)) {
+		*reg &= 0xffffffff00000000UL;
+		*reg |= SIGP_STATUS_INVALID_ORDER;
+		return SIGP_CC_STATUS_STORED;
+	}
 
 	li = &dst_vcpu->arch.local_int;
 	if (atomic_read(li->cpuflags) & CPUSTAT_RUNNING) {

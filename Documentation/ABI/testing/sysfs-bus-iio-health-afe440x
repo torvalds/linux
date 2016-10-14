@@ -1,54 +1,41 @@
-What:		/sys/bus/iio/devices/iio:deviceX/tia_resistanceY
-		/sys/bus/iio/devices/iio:deviceX/tia_capacitanceY
-Date:		December 2015
-KernelVersion:
-Contact:	Andrew F. Davis <afd@ti.com>
-Description:
-		Get and set the resistance and the capacitance settings for the
-		Transimpedance Amplifier. Y is 1 for Rf1 and Cf1, Y is 2 for
-		Rf2 and Cf2 values.
-
-What:		/sys/bus/iio/devices/iio:deviceX/tia_separate_en
-Date:		December 2015
-KernelVersion:
-Contact:	Andrew F. Davis <afd@ti.com>
-Description:
-		Enable or disable separate settings for the TransImpedance
-		Amplifier above, when disabled both values are set by the
-		first channel.
-
-What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_ledY_raw
-		/sys/bus/iio/devices/iio:deviceX/in_intensity_ledY_ambient_raw
-Date:		December 2015
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensityY_raw
+Date:		May 2016
 KernelVersion:
 Contact:	Andrew F. Davis <afd@ti.com>
 Description:
 		Get measured values from the ADC for these stages. Y is the
-		specific LED number. The values are expressed in 24-bit twos
-		complement.
+		specific stage number corresponding to datasheet stage names
+		as follows:
+		1 -> LED2
+		2 -> ALED2/LED3
+		3 -> LED1
+		4 -> ALED1/LED4
+		Note that channels 5 and 6 represent LED2-ALED2 and LED1-ALED1
+		respectively which simply helper channels containing the
+		calculated difference in the value of stage 1 - 2 and 3 - 4.
+		The values are expressed in 24-bit twos complement.
 
-What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_ledY-ledY_ambient_raw
-Date:		December 2015
-KernelVersion:
-Contact:	Andrew F. Davis <afd@ti.com>
-Description:
-		Get differential values from the ADC for these stages. Y is the
-		specific LED number. The values are expressed in 24-bit twos
-		complement for the specified LEDs.
-
-What:		/sys/bus/iio/devices/iio:deviceX/out_current_ledY_offset
-		/sys/bus/iio/devices/iio:deviceX/out_current_ledY_ambient_offset
-Date:		December 2015
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensityY_offset
+Date:		May 2016
 KernelVersion:
 Contact:	Andrew F. Davis <afd@ti.com>
 Description:
 		Get and set the offset cancellation DAC setting for these
 		stages. The values are expressed in 5-bit sign-magnitude.
 
-What:		/sys/bus/iio/devices/iio:deviceX/out_current_ledY_raw
-Date:		December 2015
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensityY_resistance
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensityY_capacitance
+Date:		May 2016
 KernelVersion:
 Contact:	Andrew F. Davis <afd@ti.com>
 Description:
-		Get and set the LED current for the specified LED. Y is the
-		specific LED number.
+		Get and set the resistance and the capacitance settings for the
+		Transimpedance Amplifier during the associated stage.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_currentY_raw
+Date:		May 2016
+KernelVersion:
+Contact:	Andrew F. Davis <afd@ti.com>
+Description:
+		Get and set the LED current for the specified LED active during
+		this stage. Y is the specific stage number.

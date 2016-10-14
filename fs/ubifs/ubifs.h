@@ -37,6 +37,7 @@
 #include <linux/pagemap.h>
 #include <linux/backing-dev.h>
 #include <linux/security.h>
+#include <linux/xattr.h>
 #include "ubifs-media.h"
 
 /* Version of this UBIFS implementation */
@@ -1732,12 +1733,8 @@ int ubifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		  struct kstat *stat);
 
 /* xattr.c */
-int ubifs_setxattr(struct dentry *dentry, const char *name,
-		   const void *value, size_t size, int flags);
-ssize_t ubifs_getxattr(struct dentry *dentry, const char *name, void *buf,
-		       size_t size);
+extern const struct xattr_handler *ubifs_xattr_handlers[];
 ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size);
-int ubifs_removexattr(struct dentry *dentry, const char *name);
 int ubifs_init_security(struct inode *dentry, struct inode *inode,
 			const struct qstr *qstr);
 
@@ -1786,8 +1783,8 @@ void ubifs_err(const struct ubifs_info *c, const char *fmt, ...);
 __printf(2, 3)
 void ubifs_warn(const struct ubifs_info *c, const char *fmt, ...);
 /*
- * A variant of 'ubifs_err()' which takes the UBIFS file-sytem description
- * object as an argument.
+ * A conditional variant of 'ubifs_err()' which doesn't output anything
+ * if probing (ie. MS_SILENT set).
  */
 #define ubifs_errc(c, fmt, ...)						\
 do {									\

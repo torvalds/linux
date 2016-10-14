@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/anon_inodes.h>
 #include <linux/debugfs.h>
+#include <linux/mutex.h>
 #include <linux/iio/iio.h>
 #include "iio_core.h"
 #include "iio_core_trigger.h"
@@ -78,6 +79,8 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_CONCENTRATION] = "concentration",
 	[IIO_RESISTANCE] = "resistance",
 	[IIO_PH] = "ph",
+	[IIO_UVINDEX] = "uvindex",
+	[IIO_ELECTRICALCONDUCTIVITY] = "electricalconductivity",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -100,6 +103,7 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_LIGHT_RED] = "red",
 	[IIO_MOD_LIGHT_GREEN] = "green",
 	[IIO_MOD_LIGHT_BLUE] = "blue",
+	[IIO_MOD_LIGHT_UV] = "uv",
 	[IIO_MOD_QUATERNION] = "quaternion",
 	[IIO_MOD_TEMP_AMBIENT] = "ambient",
 	[IIO_MOD_TEMP_OBJECT] = "object",
@@ -173,6 +177,86 @@ ssize_t iio_read_const_attr(struct device *dev,
 	return sprintf(buf, "%s\n", to_iio_const_attr(attr)->string);
 }
 EXPORT_SYMBOL(iio_read_const_attr);
+
+static int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id)
+{
+	int ret;
+	const struct iio_event_interface *ev_int = indio_dev->event_interface;
+
+	ret = mutex_lock_interruptible(&indio_dev->mlock);
+	if (ret)
+		return ret;
+	if ((ev_int && iio_event_enabled(ev_int)) ||
+	    iio_buffer_enabled(indio_dev)) {
+		mutex_unlock(&indio_dev->mlock);
+		return -EBUSY;
+	}
+	indio_dev->clock_id = clock_id;
+	mutex_unlock(&indio_dev->mlock);
+
+	return 0;
+}
+
+/**
+ * iio_get_time_ns() - utility function to get a time stamp for events etc
+ * @indio_dev: device
+ */
+s64 iio_get_time_ns(const struct iio_dev *indio_dev)
+{
+	struct timespec tp;
+
+	switch (iio_device_get_clock(indio_dev)) {
+	case CLOCK_REALTIME:
+		ktime_get_real_ts(&tp);
+		break;
+	case CLOCK_MONOTONIC:
+		ktime_get_ts(&tp);
+		break;
+	case CLOCK_MONOTONIC_RAW:
+		getrawmonotonic(&tp);
+		break;
+	case CLOCK_REALTIME_COARSE:
+		tp = current_kernel_time();
+		break;
+	case CLOCK_MONOTONIC_COARSE:
+		tp = get_monotonic_coarse();
+		break;
+	case CLOCK_BOOTTIME:
+		get_monotonic_boottime(&tp);
+		break;
+	case CLOCK_TAI:
+		timekeeping_clocktai(&tp);
+		break;
+	default:
+		BUG();
+	}
+
+	return timespec_to_ns(&tp);
+}
+EXPORT_SYMBOL(iio_get_time_ns);
+
+/**
+ * iio_get_time_res() - utility function to get time stamp clock resolution in
+ *                      nano seconds.
+ * @indio_dev: device
+ */
+unsigned int iio_get_time_res(const struct iio_dev *indio_dev)
+{
+	switch (iio_device_get_clock(indio_dev)) {
+	case CLOCK_REALTIME:
+	case CLOCK_MONOTONIC:
+	case CLOCK_MONOTONIC_RAW:
+	case CLOCK_BOOTTIME:
+	case CLOCK_TAI:
+		return hrtimer_resolution;
+	case CLOCK_REALTIME_COARSE:
+	case CLOCK_MONOTONIC_COARSE:
+		return LOW_RES_NSEC;
+	default:
+		BUG();
+	}
+}
+EXPORT_SYMBOL(iio_get_time_res);
 
 static int __init iio_init(void)
 {
@@ -409,6 +493,88 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
 }
 EXPORT_SYMBOL_GPL(iio_enum_write);
 
+static const struct iio_mount_matrix iio_mount_idmatrix = {
+	.rotation = {
+		"1", "0", "0",
+		"0", "1", "0",
+		"0", "0", "1"
+	}
+};
+
+static int iio_setup_mount_idmatrix(const struct device *dev,
+				    struct iio_mount_matrix *matrix)
+{
+	*matrix = iio_mount_idmatrix;
+	dev_info(dev, "mounting matrix not found: using identity...\n");
+	return 0;
+}
+
+ssize_t iio_show_mount_matrix(struct iio_dev *indio_dev, uintptr_t priv,
+			      const struct iio_chan_spec *chan, char *buf)
+{
+	const struct iio_mount_matrix *mtx = ((iio_get_mount_matrix_t *)
+					      priv)(indio_dev, chan);
+
+	if (IS_ERR(mtx))
+		return PTR_ERR(mtx);
+
+	if (!mtx)
+		mtx = &iio_mount_idmatrix;
+
+	return snprintf(buf, PAGE_SIZE, "%s, %s, %s; %s, %s, %s; %s, %s, %s\n",
+			mtx->rotation[0], mtx->rotation[1], mtx->rotation[2],
+			mtx->rotation[3], mtx->rotation[4], mtx->rotation[5],
+			mtx->rotation[6], mtx->rotation[7], mtx->rotation[8]);
+}
+EXPORT_SYMBOL_GPL(iio_show_mount_matrix);
+
+/**
+ * of_iio_read_mount_matrix() - retrieve iio device mounting matrix from
+ *                              device-tree "mount-matrix" property
+ * @dev:	device the mounting matrix property is assigned to
+ * @propname:	device specific mounting matrix property name
+ * @matrix:	where to store retrieved matrix
+ *
+ * If device is assigned no mounting matrix property, a default 3x3 identity
+ * matrix will be filled in.
+ *
+ * Return: 0 if success, or a negative error code on failure.
+ */
+#ifdef CONFIG_OF
+int of_iio_read_mount_matrix(const struct device *dev,
+			     const char *propname,
+			     struct iio_mount_matrix *matrix)
+{
+	if (dev->of_node) {
+		int err = of_property_read_string_array(dev->of_node,
+				propname, matrix->rotation,
+				ARRAY_SIZE(iio_mount_idmatrix.rotation));
+
+		if (err == ARRAY_SIZE(iio_mount_idmatrix.rotation))
+			return 0;
+
+		if (err >= 0)
+			/* Invalid number of matrix entries. */
+			return -EINVAL;
+
+		if (err != -EINVAL)
+			/* Invalid matrix declaration format. */
+			return err;
+	}
+
+	/* Matrix was not declared at all: fallback to identity. */
+	return iio_setup_mount_idmatrix(dev, matrix);
+}
+#else
+int of_iio_read_mount_matrix(const struct device *dev,
+			     const char *propname,
+			     struct iio_mount_matrix *matrix)
+{
+	return iio_setup_mount_idmatrix(dev, matrix);
+}
+#endif
+EXPORT_SYMBOL(of_iio_read_mount_matrix);
+
 /**
  * iio_format_value() - Formats a IIO value into its string representation
  * @buf:	The buffer to which the formatted value gets written
@@ -447,9 +613,8 @@ ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals)
 			return sprintf(buf, "%d.%09u\n", vals[0], vals[1]);
 	case IIO_VAL_FRACTIONAL:
 		tmp = div_s64((s64)vals[0] * 1000000000LL, vals[1]);
-		vals[1] = do_div(tmp, 1000000000LL);
-		vals[0] = tmp;
-		return sprintf(buf, "%d.%09u\n", vals[0], vals[1]);
+		vals[0] = (int)div_s64_rem(tmp, 1000000000, &vals[1]);
+		return sprintf(buf, "%d.%09u\n", vals[0], abs(vals[1]));
 	case IIO_VAL_FRACTIONAL_LOG2:
 		tmp = (s64)vals[0] * 1000000000LL >> vals[1];
 		vals[1] = do_div(tmp, 1000000000LL);
@@ -904,11 +1069,91 @@ static ssize_t iio_show_dev_name(struct device *dev,
 
 static DEVICE_ATTR(name, S_IRUGO, iio_show_dev_name, NULL);
 
+static ssize_t iio_show_timestamp_clock(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	const struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	const clockid_t clk = iio_device_get_clock(indio_dev);
+	const char *name;
+	ssize_t sz;
+
+	switch (clk) {
+	case CLOCK_REALTIME:
+		name = "realtime\n";
+		sz = sizeof("realtime\n");
+		break;
+	case CLOCK_MONOTONIC:
+		name = "monotonic\n";
+		sz = sizeof("monotonic\n");
+		break;
+	case CLOCK_MONOTONIC_RAW:
+		name = "monotonic_raw\n";
+		sz = sizeof("monotonic_raw\n");
+		break;
+	case CLOCK_REALTIME_COARSE:
+		name = "realtime_coarse\n";
+		sz = sizeof("realtime_coarse\n");
+		break;
+	case CLOCK_MONOTONIC_COARSE:
+		name = "monotonic_coarse\n";
+		sz = sizeof("monotonic_coarse\n");
+		break;
+	case CLOCK_BOOTTIME:
+		name = "boottime\n";
+		sz = sizeof("boottime\n");
+		break;
+	case CLOCK_TAI:
+		name = "tai\n";
+		sz = sizeof("tai\n");
+		break;
+	default:
+		BUG();
+	}
+
+	memcpy(buf, name, sz);
+	return sz;
+}
+
+static ssize_t iio_store_timestamp_clock(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t len)
+{
+	clockid_t clk;
+	int ret;
+
+	if (sysfs_streq(buf, "realtime"))
+		clk = CLOCK_REALTIME;
+	else if (sysfs_streq(buf, "monotonic"))
+		clk = CLOCK_MONOTONIC;
+	else if (sysfs_streq(buf, "monotonic_raw"))
+		clk = CLOCK_MONOTONIC_RAW;
+	else if (sysfs_streq(buf, "realtime_coarse"))
+		clk = CLOCK_REALTIME_COARSE;
+	else if (sysfs_streq(buf, "monotonic_coarse"))
+		clk = CLOCK_MONOTONIC_COARSE;
+	else if (sysfs_streq(buf, "boottime"))
+		clk = CLOCK_BOOTTIME;
+	else if (sysfs_streq(buf, "tai"))
+		clk = CLOCK_TAI;
+	else
+		return -EINVAL;
+
+	ret = iio_device_set_clock(dev_to_iio_dev(dev), clk);
+	if (ret)
+		return ret;
+
+	return len;
+}
+
+static DEVICE_ATTR(current_timestamp_clock, S_IRUGO | S_IWUSR,
+		   iio_show_timestamp_clock, iio_store_timestamp_clock);
+
 static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 {
 	int i, ret = 0, attrcount, attrn, attrcount_orig = 0;
 	struct iio_dev_attr *p;
-	struct attribute **attr;
+	struct attribute **attr, *clk = NULL;
 
 	/* First count elements in any existing group */
 	if (indio_dev->info->attrs) {
@@ -923,15 +1168,24 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 	 */
 	if (indio_dev->channels)
 		for (i = 0; i < indio_dev->num_channels; i++) {
-			ret = iio_device_add_channel_sysfs(indio_dev,
-							   &indio_dev
-							   ->channels[i]);
+			const struct iio_chan_spec *chan =
+				&indio_dev->channels[i];
+
+			if (chan->type == IIO_TIMESTAMP)
+				clk = &dev_attr_current_timestamp_clock.attr;
+
+			ret = iio_device_add_channel_sysfs(indio_dev, chan);
 			if (ret < 0)
 				goto error_clear_attrs;
 			attrcount += ret;
 		}
 
+	if (indio_dev->event_interface)
+		clk = &dev_attr_current_timestamp_clock.attr;
+
 	if (indio_dev->name)
+		attrcount++;
+	if (clk)
 		attrcount++;
 
 	indio_dev->chan_attr_group.attrs = kcalloc(attrcount + 1,
@@ -953,6 +1207,8 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 		indio_dev->chan_attr_group.attrs[attrn++] = &p->dev_attr.attr;
 	if (indio_dev->name)
 		indio_dev->chan_attr_group.attrs[attrn++] = &dev_attr_name.attr;
+	if (clk)
+		indio_dev->chan_attr_group.attrs[attrn++] = clk;
 
 	indio_dev->groups[indio_dev->groupcounter++] =
 		&indio_dev->chan_attr_group;
@@ -1374,6 +1630,44 @@ void devm_iio_device_unregister(struct device *dev, struct iio_dev *indio_dev)
 	WARN_ON(rc);
 }
 EXPORT_SYMBOL_GPL(devm_iio_device_unregister);
+
+/**
+ * iio_device_claim_direct_mode - Keep device in direct mode
+ * @indio_dev:	the iio_dev associated with the device
+ *
+ * If the device is in direct mode it is guaranteed to stay
+ * that way until iio_device_release_direct_mode() is called.
+ *
+ * Use with iio_device_release_direct_mode()
+ *
+ * Returns: 0 on success, -EBUSY on failure
+ */
+int iio_device_claim_direct_mode(struct iio_dev *indio_dev)
+{
+	mutex_lock(&indio_dev->mlock);
+
+	if (iio_buffer_enabled(indio_dev)) {
+		mutex_unlock(&indio_dev->mlock);
+		return -EBUSY;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iio_device_claim_direct_mode);
+
+/**
+ * iio_device_release_direct_mode - releases claim on direct mode
+ * @indio_dev:	the iio_dev associated with the device
+ *
+ * Release the claim. Device is no longer guaranteed to stay
+ * in direct mode.
+ *
+ * Use with iio_device_claim_direct_mode()
+ */
+void iio_device_release_direct_mode(struct iio_dev *indio_dev)
+{
+	mutex_unlock(&indio_dev->mlock);
+}
+EXPORT_SYMBOL_GPL(iio_device_release_direct_mode);
 
 subsys_initcall(iio_init);
 module_exit(iio_exit);

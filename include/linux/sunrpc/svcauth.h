@@ -16,6 +16,7 @@
 #include <linux/sunrpc/cache.h>
 #include <linux/sunrpc/gss_api.h>
 #include <linux/hash.h>
+#include <linux/stringhash.h>
 #include <linux/cred.h>
 
 struct svc_cred {
@@ -165,41 +166,18 @@ extern int svcauth_unix_set_client(struct svc_rqst *rqstp);
 extern int unix_gid_cache_create(struct net *net);
 extern void unix_gid_cache_destroy(struct net *net);
 
-static inline unsigned long hash_str(char *name, int bits)
+/*
+ * The <stringhash.h> functions are good enough that we don't need to
+ * use hash_32() on them; just extracting the high bits is enough.
+ */
+static inline unsigned long hash_str(char const *name, int bits)
 {
-	unsigned long hash = 0;
-	unsigned long l = 0;
-	int len = 0;
-	unsigned char c;
-	do {
-		if (unlikely(!(c = *name++))) {
-			c = (char)len; len = -1;
-		}
-		l = (l << 8) | c;
-		len++;
-		if ((len & (BITS_PER_LONG/8-1))==0)
-			hash = hash_long(hash^l, BITS_PER_LONG);
-	} while (len);
-	return hash >> (BITS_PER_LONG - bits);
+	return hashlen_hash(hashlen_string(NULL, name)) >> (32 - bits);
 }
 
-static inline unsigned long hash_mem(char *buf, int length, int bits)
+static inline unsigned long hash_mem(char const *buf, int length, int bits)
 {
-	unsigned long hash = 0;
-	unsigned long l = 0;
-	int len = 0;
-	unsigned char c;
-	do {
-		if (len == length) {
-			c = (char)len; len = -1;
-		} else
-			c = *buf++;
-		l = (l << 8) | c;
-		len++;
-		if ((len & (BITS_PER_LONG/8-1))==0)
-			hash = hash_long(hash^l, BITS_PER_LONG);
-	} while (len);
-	return hash >> (BITS_PER_LONG - bits);
+	return full_name_hash(NULL, buf, length) >> (32 - bits);
 }
 
 #endif /* __KERNEL__ */

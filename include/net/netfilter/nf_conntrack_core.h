@@ -51,6 +51,8 @@ bool nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
 			const struct nf_conntrack_l3proto *l3proto,
 			const struct nf_conntrack_l4proto *l4proto);
 
+void nf_conntrack_get_ht(struct hlist_nulls_head **hash, unsigned int *hsize);
+
 /* Find a connection corresponding to a tuple. */
 struct nf_conntrack_tuple_hash *
 nf_conntrack_find_get(struct net *net,
@@ -81,6 +83,7 @@ print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
 
 #define CONNTRACK_LOCKS 1024
 
+extern struct hlist_nulls_head *nf_conntrack_hash;
 extern spinlock_t nf_conntrack_locks[CONNTRACK_LOCKS];
 void nf_conntrack_lock(spinlock_t *lock);
 

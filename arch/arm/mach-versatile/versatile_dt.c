@@ -32,7 +32,6 @@
 #include <linux/amba/clcd.h>
 #include <linux/platform_data/video-clcd-versatile.h>
 #include <linux/amba/mmci.h>
-#include <linux/mtd/physmap.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -42,25 +41,13 @@
 #define __io_address(n)		((void __iomem __force *)IO_ADDRESS(n))
 
 /*
- * Memory definitions
- */
-#define VERSATILE_FLASH_BASE           0x34000000
-#define VERSATILE_FLASH_SIZE           SZ_64M
-
-/*
  * ------------------------------------------------------------------------
  *  Versatile Registers
  * ------------------------------------------------------------------------
  */
 #define VERSATILE_SYS_PCICTL_OFFSET           0x44
 #define VERSATILE_SYS_MCI_OFFSET              0x48
-#define VERSATILE_SYS_FLASH_OFFSET            0x4C
 #define VERSATILE_SYS_CLCD_OFFSET             0x50
-
-/*
- * VERSATILE_SYS_FLASH
- */
-#define VERSATILE_FLASHPROG_FLVPPEN	(1 << 0)	/* Enable writing to flash */
 
 /*
  * VERSATILE peripheral addresses
@@ -85,39 +72,6 @@
 
 static void __iomem *versatile_sys_base;
 static void __iomem *versatile_ib2_ctrl;
-
-static void versatile_flash_set_vpp(struct platform_device *pdev, int on)
-{
-	u32 val;
-
-	val = readl(versatile_sys_base + VERSATILE_SYS_FLASH_OFFSET);
-	if (on)
-		val |= VERSATILE_FLASHPROG_FLVPPEN;
-	else
-		val &= ~VERSATILE_FLASHPROG_FLVPPEN;
-	writel(val, versatile_sys_base + VERSATILE_SYS_FLASH_OFFSET);
-}
-
-static struct physmap_flash_data versatile_flash_data = {
-	.width			= 4,
-	.set_vpp		= versatile_flash_set_vpp,
-};
-
-static struct resource versatile_flash_resource = {
-	.start			= VERSATILE_FLASH_BASE,
-	.end			= VERSATILE_FLASH_BASE + VERSATILE_FLASH_SIZE - 1,
-	.flags			= IORESOURCE_MEM,
-};
-
-struct platform_device versatile_flash_device = {
-	.name			= "physmap-flash",
-	.id			= 0,
-	.dev			= {
-		.platform_data	= &versatile_flash_data,
-	},
-	.num_resources		= 1,
-	.resource		= &versatile_flash_resource,
-};
 
 unsigned int mmc_status(struct device *dev)
 {
@@ -390,9 +344,7 @@ static void __init versatile_dt_init(void)
 
 	versatile_dt_pci_init();
 
-	platform_device_register(&versatile_flash_device);
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     versatile_auxdata_lookup, NULL);
+	of_platform_default_populate(NULL, versatile_auxdata_lookup, NULL);
 }
 
 static const char *const versatile_dt_match[] __initconst = {

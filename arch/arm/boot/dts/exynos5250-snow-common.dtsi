@@ -61,7 +61,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		i2c-parent = <&{/i2c@12CA0000}>;
+		i2c-parent = <&i2c_4>;
 
 		our-claim-gpio = <&gpf0 3 GPIO_ACTIVE_LOW>;
 		their-claim-gpios = <&gpe0 4 GPIO_ACTIVE_LOW>;
@@ -84,7 +84,7 @@
 				sbs,poll-retry-count = <1>;
 			};
 
-			cros_ec: embedded-controller {
+			cros_ec: embedded-controller@1e {
 				compatible = "google,cros-ec-i2c";
 				reg = <0x1e>;
 				interrupts = <6 IRQ_TYPE_NONE>;
@@ -94,7 +94,7 @@
 				wakeup-source;
 			};
 
-			power-regulator {
+			power-regulator@48 {
 				compatible = "ti,tps65090";
 				reg = <0x48>;
 
@@ -236,15 +236,13 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&dp_hpd>;
 	samsung,color-space = <0>;
-	samsung,dynamic-range = <0>;
-	samsung,ycbcr-coeff = <0>;
 	samsung,color-depth = <1>;
 	samsung,link-rate = <0x0a>;
 	samsung,lane-count = <2>;
-	samsung,hpd-gpio = <&gpx0 7 GPIO_ACTIVE_HIGH>;
+	hpd-gpios = <&gpx0 7 GPIO_ACTIVE_HIGH>;
 
 	ports {
-		port@0 {
+		port {
 			dp_out: endpoint {
 				remote-endpoint = <&bridge_in>;
 			};
@@ -428,7 +426,7 @@
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <378000>;
 
-	trackpad {
+	trackpad@67 {
 		reg = <0x67>;
 		compatible = "cypress,cyapa";
 		interrupts = <2 IRQ_TYPE_NONE>;
@@ -487,13 +485,20 @@
 		edid-emulation = <5>;
 
 		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
 			port@0 {
+				reg = <0>;
+
 				bridge_out: endpoint {
 					remote-endpoint = <&panel_in>;
 				};
 			};
 
 			port@1 {
+				reg = <1>;
+
 				bridge_in: endpoint {
 					remote-endpoint = <&dp_out>;
 				};

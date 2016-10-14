@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -124,9 +120,15 @@ int ldlm_debugfs_setup(void)
 	}
 
 	rc = ldebugfs_add_vars(ldlm_debugfs_dir, ldlm_debugfs_list, NULL);
+	if (rc) {
+		CERROR("LProcFS failed in ldlm-init\n");
+		goto err_svc;
+	}
 
 	return 0;
 
+err_svc:
+	ldebugfs_remove(&ldlm_svc_debugfs_dir);
 err_ns:
 	ldebugfs_remove(&ldlm_ns_debugfs_dir);
 err_type:
@@ -758,12 +760,12 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 		list_for_each(tmp, q) {
 			lock = list_entry(tmp, struct ldlm_lock,
 					      l_res_link);
-			if (lock->l_flags & LDLM_FL_CLEANED) {
+			if (ldlm_is_cleaned(lock)) {
 				lock = NULL;
 				continue;
 			}
 			LDLM_LOCK_GET(lock);
-			lock->l_flags |= LDLM_FL_CLEANED;
+			ldlm_set_cleaned(lock);
 			break;
 		}
 
@@ -775,13 +777,13 @@ static void cleanup_resource(struct ldlm_resource *res, struct list_head *q,
 		/* Set CBPENDING so nothing in the cancellation path
 		 * can match this lock.
 		 */
-		lock->l_flags |= LDLM_FL_CBPENDING;
-		lock->l_flags |= LDLM_FL_FAILED;
+		ldlm_set_cbpending(lock);
+		ldlm_set_failed(lock);
 		lock->l_flags |= flags;
 
 		/* ... without sending a CANCEL message for local_only. */
 		if (local_only)
-			lock->l_flags |= LDLM_FL_LOCAL_ONLY;
+			ldlm_set_local_only(lock);
 
 		if (local_only && (lock->l_readers || lock->l_writers)) {
 			/* This is a little bit gross, but much better than the
@@ -1273,9 +1275,9 @@ void ldlm_resource_add_lock(struct ldlm_resource *res, struct list_head *head,
 {
 	check_res_locked(res);
 
-	LDLM_DEBUG(lock, "About to add this lock:\n");
+	LDLM_DEBUG(lock, "About to add this lock:");
 
-	if (lock->l_flags & LDLM_FL_DESTROYED) {
+	if (ldlm_is_destroyed(lock)) {
 		CDEBUG(D_OTHER, "Lock destroyed, not adding to resource\n");
 		return;
 	}
@@ -1400,3 +1402,4 @@ void ldlm_resource_dump(int level, struct ldlm_resource *res)
 			LDLM_DEBUG_LIMIT(level, lock, "###");
 	}
 }
+EXPORT_SYMBOL(ldlm_resource_dump);

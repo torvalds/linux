@@ -601,6 +601,7 @@ struct x86_pmu {
 	u64		lbr_sel_mask;		   /* LBR_SELECT valid bits */
 	const int	*lbr_sel_map;		   /* lbr_select mappings */
 	bool		lbr_double_abort;	   /* duplicated lbr aborts */
+	bool		lbr_pt_coexist;		   /* LBR may coexist with PT */
 
 	/*
 	 * Intel PT/LBR/BTS are exclusive
@@ -666,6 +667,14 @@ static struct perf_pmu_events_attr event_attr_##v = {			\
 	.id		= 0,						\
 	.event_str	= str,						\
 };
+
+#define EVENT_ATTR_STR_HT(_name, v, noht, ht)				\
+static struct perf_pmu_events_ht_attr event_attr_##v = {		\
+	.attr		= __ATTR(_name, 0444, events_ht_sysfs_show, NULL),\
+	.id		= 0,						\
+	.event_str_noht	= noht,						\
+	.event_str_ht	= ht,						\
+}
 
 extern struct x86_pmu x86_pmu __read_mostly;
 
@@ -802,6 +811,8 @@ struct attribute **merge_attr(struct attribute **a, struct attribute **b);
 
 ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
 			  char *page);
+ssize_t events_ht_sysfs_show(struct device *dev, struct device_attribute *attr,
+			  char *page);
 
 #ifdef CONFIG_CPU_SUP_AMD
 
@@ -859,6 +870,8 @@ extern struct event_constraint intel_atom_pebs_event_constraints[];
 
 extern struct event_constraint intel_slm_pebs_event_constraints[];
 
+extern struct event_constraint intel_glm_pebs_event_constraints[];
+
 extern struct event_constraint intel_nehalem_pebs_event_constraints[];
 
 extern struct event_constraint intel_westmere_pebs_event_constraints[];
@@ -889,6 +902,8 @@ void intel_ds_init(void);
 
 void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in);
 
+u64 lbr_from_signext_quirk_wr(u64 val);
+
 void intel_pmu_lbr_reset(void);
 
 void intel_pmu_lbr_enable(struct perf_event *event);
@@ -906,6 +921,8 @@ void intel_pmu_lbr_init_core(void);
 void intel_pmu_lbr_init_nhm(void);
 
 void intel_pmu_lbr_init_atom(void);
+
+void intel_pmu_lbr_init_slm(void);
 
 void intel_pmu_lbr_init_snb(void);
 

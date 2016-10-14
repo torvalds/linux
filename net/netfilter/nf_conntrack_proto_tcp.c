@@ -313,13 +313,7 @@ static void tcp_print_tuple(struct seq_file *s,
 /* Print out the private part of the conntrack. */
 static void tcp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 {
-	enum tcp_conntrack state;
-
-	spin_lock_bh(&ct->lock);
-	state = ct->proto.tcp.state;
-	spin_unlock_bh(&ct->lock);
-
-	seq_printf(s, "%s ", tcp_conntrack_names[state]);
+	seq_printf(s, "%s ", tcp_conntrack_names[ct->proto.tcp.state]);
 }
 
 static unsigned int get_conntrack_index(const struct tcphdr *tcph)

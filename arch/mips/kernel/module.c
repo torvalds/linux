@@ -73,8 +73,7 @@ static int apply_r_mips_26_rel(struct module *me, u32 *location, Elf_Addr v)
 	}
 
 	if ((v & 0xf0000000) != (((unsigned long)location + 4) & 0xf0000000)) {
-		printk(KERN_ERR
-		       "module %s: relocation overflow\n",
+		pr_err("module %s: relocation overflow\n",
 		       me->name);
 		return -ENOEXEC;
 	}
@@ -183,13 +182,62 @@ out_danger:
 	return -ENOEXEC;
 }
 
+static int apply_r_mips_pc_rel(struct module *me, u32 *location, Elf_Addr v,
+			       unsigned bits)
+{
+	unsigned long mask = GENMASK(bits - 1, 0);
+	unsigned long se_bits;
+	long offset;
+
+	if (v % 4) {
+		pr_err("module %s: dangerous R_MIPS_PC%u REL relocation\n",
+		       me->name, bits);
+		return -ENOEXEC;
+	}
+
+	/* retrieve & sign extend implicit addend */
+	offset = *location & mask;
+	offset |= (offset & BIT(bits - 1)) ? ~mask : 0;
+
+	offset += ((long)v - (long)location) >> 2;
+
+	/* check the sign bit onwards are identical - ie. we didn't overflow */
+	se_bits = (offset & BIT(bits - 1)) ? ~0ul : 0;
+	if ((offset & ~mask) != (se_bits & ~mask)) {
+		pr_err("module %s: relocation overflow\n", me->name);
+		return -ENOEXEC;
+	}
+
+	*location = (*location & ~mask) | (offset & mask);
+
+	return 0;
+}
+
+static int apply_r_mips_pc16_rel(struct module *me, u32 *location, Elf_Addr v)
+{
+	return apply_r_mips_pc_rel(me, location, v, 16);
+}
+
+static int apply_r_mips_pc21_rel(struct module *me, u32 *location, Elf_Addr v)
+{
+	return apply_r_mips_pc_rel(me, location, v, 21);
+}
+
+static int apply_r_mips_pc26_rel(struct module *me, u32 *location, Elf_Addr v)
+{
+	return apply_r_mips_pc_rel(me, location, v, 26);
+}
+
 static int (*reloc_handlers_rel[]) (struct module *me, u32 *location,
 				Elf_Addr v) = {
 	[R_MIPS_NONE]		= apply_r_mips_none,
 	[R_MIPS_32]		= apply_r_mips_32_rel,
 	[R_MIPS_26]		= apply_r_mips_26_rel,
 	[R_MIPS_HI16]		= apply_r_mips_hi16_rel,
-	[R_MIPS_LO16]		= apply_r_mips_lo16_rel
+	[R_MIPS_LO16]		= apply_r_mips_lo16_rel,
+	[R_MIPS_PC16]		= apply_r_mips_pc16_rel,
+	[R_MIPS_PC21_S2]	= apply_r_mips_pc21_rel,
+	[R_MIPS_PC26_S2]	= apply_r_mips_pc26_rel,
 };
 
 int apply_relocate(Elf_Shdr *sechdrs, const char *strtab,
@@ -215,12 +263,12 @@ int apply_relocate(Elf_Shdr *sechdrs, const char *strtab,
 		/* This is the symbol it is referring to */
 		sym = (Elf_Sym *)sechdrs[symindex].sh_addr
 			+ ELF_MIPS_R_SYM(rel[i]);
-		if (IS_ERR_VALUE(sym->st_value)) {
+		if (sym->st_value >= -MAX_ERRNO) {
 			/* Ignore unresolved weak symbol */
 			if (ELF_ST_BIND(sym->st_info) == STB_WEAK)
 				continue;
-			printk(KERN_WARNING "%s: Unknown symbol %s\n",
-			       me->name, strtab + sym->st_name);
+			pr_warn("%s: Unknown symbol %s\n",
+				me->name, strtab + sym->st_name);
 			return -ENOENT;
 		}
 

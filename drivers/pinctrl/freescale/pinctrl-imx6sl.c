@@ -1,4 +1,7 @@
 /*
+ * Freescale imx6sl pinctrl driver
+ *
+ * Author: Shawn Guo <shawn.guo@linaro.org>
  * Copyright (C) 2013 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -9,7 +12,6 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -371,7 +373,6 @@ static const struct of_device_id imx6sl_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx6sl-iomuxc", },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, imx6sl_pinctrl_of_match);
 
 static int imx6sl_pinctrl_probe(struct platform_device *pdev)
 {
@@ -384,7 +385,6 @@ static struct platform_driver imx6sl_pinctrl_driver = {
 		.of_match_table = imx6sl_pinctrl_of_match,
 	},
 	.probe = imx6sl_pinctrl_probe,
-	.remove = imx_pinctrl_remove,
 };
 
 static int __init imx6sl_pinctrl_init(void)
@@ -392,13 +392,3 @@ static int __init imx6sl_pinctrl_init(void)
 	return platform_driver_register(&imx6sl_pinctrl_driver);
 }
 arch_initcall(imx6sl_pinctrl_init);
-
-static void __exit imx6sl_pinctrl_exit(void)
-{
-	platform_driver_unregister(&imx6sl_pinctrl_driver);
-}
-module_exit(imx6sl_pinctrl_exit);
-
-MODULE_AUTHOR("Shawn Guo <shawn.guo@linaro.org>");
-MODULE_DESCRIPTION("Freescale imx6sl pinctrl driver");
-MODULE_LICENSE("GPL v2");

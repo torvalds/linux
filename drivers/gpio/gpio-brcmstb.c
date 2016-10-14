@@ -461,6 +461,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 		bank->id = num_banks;
 		if (bank_width <= 0 || bank_width > MAX_GPIO_PER_BANK) {
 			dev_err(dev, "Invalid bank width %d\n", bank_width);
+			err = -EINVAL;
 			goto fail;
 		} else {
 			bank->width = bank_width;

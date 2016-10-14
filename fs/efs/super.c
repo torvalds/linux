@@ -275,7 +275,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 
 	if (!bh) {
 		pr_err("cannot read volume header\n");
-		return -EINVAL;
+		return -EIO;
 	}
 
 	/*
@@ -293,7 +293,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	bh = sb_bread(s, sb->fs_start + EFS_SUPER);
 	if (!bh) {
 		pr_err("cannot read superblock\n");
-		return -EINVAL;
+		return -EIO;
 	}
 		
 	if (efs_validate_super(sb, (struct efs_super *) bh->b_data)) {

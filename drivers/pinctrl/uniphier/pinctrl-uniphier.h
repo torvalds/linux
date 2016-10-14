@@ -15,14 +15,18 @@
 #ifndef __PINCTRL_UNIPHIER_H__
 #define __PINCTRL_UNIPHIER_H__
 
+#include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+
+struct platform_device;
 
 #define UNIPHIER_PINCTRL_PINMUX_BASE	0x0
 #define UNIPHIER_PINCTRL_LOAD_PINMUX	0x700
 #define UNIPHIER_PINCTRL_DRVCTRL_BASE	0x800
 #define UNIPHIER_PINCTRL_DRV2CTRL_BASE	0x900
+#define UNIPHIER_PINCTRL_DRV3CTRL_BASE	0x980
 #define UNIPHIER_PINCTRL_PUPDCTRL_BASE	0xa00
 #define UNIPHIER_PINCTRL_IECTRL		0xd00
 
@@ -39,16 +43,16 @@
 #define UNIPHIER_PIN_DRVCTRL_MASK	((1UL << (UNIPHIER_PIN_DRVCTRL_BITS)) \
 					 - 1)
 
-/* supported drive strength (mA) */
-#define UNIPHIER_PIN_DRV_STR_SHIFT	((UNIPHIER_PIN_DRVCTRL_SHIFT) + \
+/* drive control type */
+#define UNIPHIER_PIN_DRV_TYPE_SHIFT	((UNIPHIER_PIN_DRVCTRL_SHIFT) + \
 					 (UNIPHIER_PIN_DRVCTRL_BITS))
-#define UNIPHIER_PIN_DRV_STR_BITS	3
-#define UNIPHIER_PIN_DRV_STR_MASK	((1UL << (UNIPHIER_PIN_DRV_STR_BITS)) \
+#define UNIPHIER_PIN_DRV_TYPE_BITS	3
+#define UNIPHIER_PIN_DRV_TYPE_MASK	((1UL << (UNIPHIER_PIN_DRV_TYPE_BITS)) \
 					 - 1)
 
 /* pull-up / pull-down register number */
-#define UNIPHIER_PIN_PUPDCTRL_SHIFT	((UNIPHIER_PIN_DRV_STR_SHIFT) + \
-					 (UNIPHIER_PIN_DRV_STR_BITS))
+#define UNIPHIER_PIN_PUPDCTRL_SHIFT	((UNIPHIER_PIN_DRV_TYPE_SHIFT) + \
+					 (UNIPHIER_PIN_DRV_TYPE_BITS))
 #define UNIPHIER_PIN_PUPDCTRL_BITS	9
 #define UNIPHIER_PIN_PUPDCTRL_MASK	((1UL << (UNIPHIER_PIN_PUPDCTRL_BITS))\
 					 - 1)
@@ -66,13 +70,14 @@
 
 #define UNIPHIER_PIN_IECTRL_NONE	(UNIPHIER_PIN_IECTRL_MASK)
 
-/* selectable drive strength */
-enum uniphier_pin_drv_str {
-	UNIPHIER_PIN_DRV_4_8,		/* 2 level control: 4/8 mA */
-	UNIPHIER_PIN_DRV_8_12_16_20,	/* 4 level control: 8/12/16/20 mA */
-	UNIPHIER_PIN_DRV_FIXED_4,	/* fixed to 4mA */
-	UNIPHIER_PIN_DRV_FIXED_5,	/* fixed to 5mA */
-	UNIPHIER_PIN_DRV_FIXED_8,	/* fixed to 8mA */
+/* drive control type */
+enum uniphier_pin_drv_type {
+	UNIPHIER_PIN_DRV_1BIT,		/* 2 level control: 4/8 mA */
+	UNIPHIER_PIN_DRV_2BIT,		/* 4 level control: 8/12/16/20 mA */
+	UNIPHIER_PIN_DRV_3BIT,		/* 8 level control: 4/5/7/9/11/12/14/16 mA */
+	UNIPHIER_PIN_DRV_FIXED4,	/* fixed to 4mA */
+	UNIPHIER_PIN_DRV_FIXED5,	/* fixed to 5mA */
+	UNIPHIER_PIN_DRV_FIXED8,	/* fixed to 8mA */
 	UNIPHIER_PIN_DRV_NONE,		/* no support (input only pin) */
 };
 
@@ -89,17 +94,17 @@ enum uniphier_pin_pull_dir {
 	(((x) & (UNIPHIER_PIN_IECTRL_MASK)) << (UNIPHIER_PIN_IECTRL_SHIFT))
 #define UNIPHIER_PIN_DRVCTRL(x) \
 	(((x) & (UNIPHIER_PIN_DRVCTRL_MASK)) << (UNIPHIER_PIN_DRVCTRL_SHIFT))
-#define UNIPHIER_PIN_DRV_STR(x) \
-	(((x) & (UNIPHIER_PIN_DRV_STR_MASK)) << (UNIPHIER_PIN_DRV_STR_SHIFT))
+#define UNIPHIER_PIN_DRV_TYPE(x) \
+	(((x) & (UNIPHIER_PIN_DRV_TYPE_MASK)) << (UNIPHIER_PIN_DRV_TYPE_SHIFT))
 #define UNIPHIER_PIN_PUPDCTRL(x) \
 	(((x) & (UNIPHIER_PIN_PUPDCTRL_MASK)) << (UNIPHIER_PIN_PUPDCTRL_SHIFT))
 #define UNIPHIER_PIN_PULL_DIR(x) \
 	(((x) & (UNIPHIER_PIN_PULL_DIR_MASK)) << (UNIPHIER_PIN_PULL_DIR_SHIFT))
 
-#define UNIPHIER_PIN_ATTR_PACKED(iectrl, drvctrl, drv_str, pupdctrl, pull_dir)\
+#define UNIPHIER_PIN_ATTR_PACKED(iectrl, drvctrl, drv_type, pupdctrl, pull_dir)\
 				(UNIPHIER_PIN_IECTRL(iectrl) |		\
 				 UNIPHIER_PIN_DRVCTRL(drvctrl) |	\
-				 UNIPHIER_PIN_DRV_STR(drv_str) |	\
+				 UNIPHIER_PIN_DRV_TYPE(drv_type) |	\
 				 UNIPHIER_PIN_PUPDCTRL(pupdctrl) |	\
 				 UNIPHIER_PIN_PULL_DIR(pull_dir))
 
@@ -115,10 +120,10 @@ static inline unsigned int uniphier_pin_get_drvctrl(void *drv_data)
 						UNIPHIER_PIN_DRVCTRL_MASK;
 }
 
-static inline unsigned int uniphier_pin_get_drv_str(void *drv_data)
+static inline unsigned int uniphier_pin_get_drv_type(void *drv_data)
 {
-	return ((unsigned long)drv_data >> UNIPHIER_PIN_DRV_STR_SHIFT) &
-						UNIPHIER_PIN_DRV_STR_MASK;
+	return ((unsigned long)drv_data >> UNIPHIER_PIN_DRV_TYPE_SHIFT) &
+						UNIPHIER_PIN_DRV_TYPE_MASK;
 }
 
 static inline unsigned int uniphier_pin_get_pupdctrl(void *drv_data)
@@ -143,7 +148,7 @@ struct uniphier_pinctrl_group {
 	const char *name;
 	const unsigned *pins;
 	unsigned num_pins;
-	const unsigned *muxvals;
+	const int *muxvals;
 	enum uniphier_pinmux_gpio_range_type range_type;
 };
 
@@ -154,13 +159,15 @@ struct uniphier_pinmux_function {
 };
 
 struct uniphier_pinctrl_socdata {
+	const struct pinctrl_pin_desc *pins;
+	unsigned int npins;
 	const struct uniphier_pinctrl_group *groups;
 	int groups_count;
 	const struct uniphier_pinmux_function *functions;
 	int functions_count;
-	unsigned mux_bits;
-	unsigned reg_stride;
-	bool load_pinctrl;
+	unsigned int caps;
+#define UNIPHIER_PINCTRL_CAPS_PERPIN_IECTRL	BIT(1)
+#define UNIPHIER_PINCTRL_CAPS_DBGMUX_SEPARATE	BIT(0)
 };
 
 #define UNIPHIER_PINCTRL_PIN(a, b, c, d, e, f, g)			\
@@ -205,13 +212,7 @@ struct uniphier_pinctrl_socdata {
 		.num_groups = ARRAY_SIZE(func##_groups),		\
 	}
 
-struct platform_device;
-struct pinctrl_desc;
-
 int uniphier_pinctrl_probe(struct platform_device *pdev,
-			   struct pinctrl_desc *desc,
 			   struct uniphier_pinctrl_socdata *socdata);
-
-int uniphier_pinctrl_remove(struct platform_device *pdev);
 
 #endif /* __PINCTRL_UNIPHIER_H__ */

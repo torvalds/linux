@@ -13,10 +13,10 @@
 
 #include <linux/device.h>
 #include <linux/slab.h>
-#include <linux/vsp1.h>
 
 #include <media/media-entity.h>
 #include <media/v4l2-subdev.h>
+#include <media/vsp1.h>
 
 #include "vsp1.h"
 #include "vsp1_bru.h"
@@ -26,18 +26,14 @@
 #include "vsp1_pipe.h"
 #include "vsp1_rwpf.h"
 
+
 /* -----------------------------------------------------------------------------
- * Runtime Handling
+ * Interrupt Handling
  */
 
-static void vsp1_drm_pipeline_frame_end(struct vsp1_pipeline *pipe)
+void vsp1_drm_display_start(struct vsp1_device *vsp1)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&pipe->irqlock, flags);
-	if (pipe->num_inputs)
-		vsp1_pipeline_run(pipe);
-	spin_unlock_irqrestore(&pipe->irqlock, flags);
+	vsp1_dlm_irq_display_start(vsp1->drm->pipe.output->dlm);
 }
 
 /* -----------------------------------------------------------------------------
@@ -97,20 +93,20 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int width,
 		media_entity_pipeline_stop(&pipe->output->entity.subdev.entity);
 
 		for (i = 0; i < bru->entity.source_pad; ++i) {
+			vsp1->drm->inputs[i].enabled = false;
 			bru->inputs[i].rpf = NULL;
 			pipe->inputs[i] = NULL;
 		}
 
 		pipe->num_inputs = 0;
 
+		vsp1_dlm_reset(pipe->output->dlm);
 		vsp1_device_put(vsp1);
 
 		dev_dbg(vsp1->dev, "%s: pipeline disabled\n", __func__);
 
 		return 0;
 	}
-
-	vsp1_dl_reset(vsp1->drm->dl);
 
 	/* Configure the format at the BRU sinks and propagate it through the
 	 * pipeline.
@@ -222,16 +218,11 @@ void vsp1_du_atomic_begin(struct device *dev)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	struct vsp1_pipeline *pipe = &vsp1->drm->pipe;
-	unsigned long flags;
-
-	spin_lock_irqsave(&pipe->irqlock, flags);
 
 	vsp1->drm->num_inputs = pipe->num_inputs;
 
-	spin_unlock_irqrestore(&pipe->irqlock, flags);
-
 	/* Prepare the display list. */
-	vsp1_dl_begin(vsp1->drm->dl);
+	pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
 
@@ -239,107 +230,107 @@ EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
  * vsp1_du_atomic_update - Setup one RPF input of the VSP pipeline
  * @dev: the VSP device
  * @rpf_index: index of the RPF to setup (0-based)
- * @pixelformat: V4L2 pixel format for the RPF memory input
- * @pitch: number of bytes per line in the image stored in memory
- * @mem: DMA addresses of the memory buffers (one per plane)
- * @src: the source crop rectangle for the RPF
- * @dst: the destination compose rectangle for the BRU input
+ * @cfg: the RPF configuration
  *
- * Configure the VSP to perform composition of the image referenced by @mem
- * through RPF @rpf_index, using the @src crop rectangle and the @dst
- * composition rectangle. The Z-order is fixed with RPF 0 at the bottom.
+ * Configure the VSP to perform image composition through RPF @rpf_index as
+ * described by the @cfg configuration. The image to compose is referenced by
+ * @cfg.mem and composed using the @cfg.src crop rectangle and the @cfg.dst
+ * composition rectangle. The Z-order is configurable with higher @zpos values
+ * displayed on top.
  *
- * Image format as stored in memory is expressed as a V4L2 @pixelformat value.
- * As a special case, setting the pixel format to 0 will disable the RPF. The
- * @pitch, @mem, @src and @dst parameters are ignored in that case. Calling the
+ * If the @cfg configuration is NULL, the RPF will be disabled. Calling the
  * function on a disabled RPF is allowed.
  *
- * The memory pitch is configurable to allow for padding at end of lines, or
- * simple for images that extend beyond the crop rectangle boundaries. The
- * @pitch value is expressed in bytes and applies to all planes for multiplanar
- * formats.
+ * Image format as stored in memory is expressed as a V4L2 @cfg.pixelformat
+ * value. The memory pitch is configurable to allow for padding at end of lines,
+ * or simply for images that extend beyond the crop rectangle boundaries. The
+ * @cfg.pitch value is expressed in bytes and applies to all planes for
+ * multiplanar formats.
  *
  * The source memory buffer is referenced by the DMA address of its planes in
- * the @mem array. Up to two planes are supported. The second plane DMA address
- * is ignored for formats using a single plane.
+ * the @cfg.mem array. Up to two planes are supported. The second plane DMA
+ * address is ignored for formats using a single plane.
  *
  * This function isn't reentrant, the caller needs to serialize calls.
- *
- * TODO: Implement Z-order control by decoupling the RPF index from the BRU
- * input index.
  *
  * Return 0 on success or a negative error code on failure.
  */
 int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
-			  u32 pixelformat, unsigned int pitch,
-			  dma_addr_t mem[2], const struct v4l2_rect *src,
-			  const struct v4l2_rect *dst)
+			  const struct vsp1_du_atomic_config *cfg)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
-	struct vsp1_pipeline *pipe = &vsp1->drm->pipe;
 	const struct vsp1_format_info *fmtinfo;
-	struct v4l2_subdev_selection sel;
-	struct v4l2_subdev_format format;
-	struct vsp1_rwpf_memory memory;
 	struct vsp1_rwpf *rpf;
-	unsigned long flags;
-	int ret;
 
 	if (rpf_index >= vsp1->info->rpf_count)
 		return -EINVAL;
 
 	rpf = vsp1->rpf[rpf_index];
 
-	if (pixelformat == 0) {
+	if (!cfg) {
 		dev_dbg(vsp1->dev, "%s: RPF%u: disable requested\n", __func__,
 			rpf_index);
 
-		spin_lock_irqsave(&pipe->irqlock, flags);
-
-		if (pipe->inputs[rpf_index]) {
-			/* Remove the RPF from the pipeline if it was previously
-			 * enabled.
-			 */
-			vsp1->bru->inputs[rpf_index].rpf = NULL;
-			pipe->inputs[rpf_index] = NULL;
-
-			pipe->num_inputs--;
-		}
-
-		spin_unlock_irqrestore(&pipe->irqlock, flags);
-
+		vsp1->drm->inputs[rpf_index].enabled = false;
 		return 0;
 	}
 
 	dev_dbg(vsp1->dev,
-		"%s: RPF%u: (%u,%u)/%ux%u -> (%u,%u)/%ux%u (%08x), pitch %u dma { %pad, %pad }\n",
+		"%s: RPF%u: (%u,%u)/%ux%u -> (%u,%u)/%ux%u (%08x), pitch %u dma { %pad, %pad } zpos %u\n",
 		__func__, rpf_index,
-		src->left, src->top, src->width, src->height,
-		dst->left, dst->top, dst->width, dst->height,
-		pixelformat, pitch, &mem[0], &mem[1]);
+		cfg->src.left, cfg->src.top, cfg->src.width, cfg->src.height,
+		cfg->dst.left, cfg->dst.top, cfg->dst.width, cfg->dst.height,
+		cfg->pixelformat, cfg->pitch, &cfg->mem[0], &cfg->mem[1],
+		cfg->zpos);
 
-	/* Set the stride at the RPF input. */
-	fmtinfo = vsp1_get_format_info(pixelformat);
+	/* Store the format, stride, memory buffer address, crop and compose
+	 * rectangles and Z-order position and for the input.
+	 */
+	fmtinfo = vsp1_get_format_info(cfg->pixelformat);
 	if (!fmtinfo) {
 		dev_dbg(vsp1->dev, "Unsupport pixel format %08x for RPF\n",
-			pixelformat);
+			cfg->pixelformat);
 		return -EINVAL;
 	}
 
 	rpf->fmtinfo = fmtinfo;
 	rpf->format.num_planes = fmtinfo->planes;
-	rpf->format.plane_fmt[0].bytesperline = pitch;
-	rpf->format.plane_fmt[1].bytesperline = pitch;
+	rpf->format.plane_fmt[0].bytesperline = cfg->pitch;
+	rpf->format.plane_fmt[1].bytesperline = cfg->pitch;
+	rpf->alpha = cfg->alpha;
+
+	rpf->mem.addr[0] = cfg->mem[0];
+	rpf->mem.addr[1] = cfg->mem[1];
+	rpf->mem.addr[2] = 0;
+
+	vsp1->drm->inputs[rpf_index].crop = cfg->src;
+	vsp1->drm->inputs[rpf_index].compose = cfg->dst;
+	vsp1->drm->inputs[rpf_index].zpos = cfg->zpos;
+	vsp1->drm->inputs[rpf_index].enabled = true;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vsp1_du_atomic_update);
+
+static int vsp1_du_setup_rpf_pipe(struct vsp1_device *vsp1,
+				  struct vsp1_rwpf *rpf, unsigned int bru_input)
+{
+	struct v4l2_subdev_selection sel;
+	struct v4l2_subdev_format format;
+	const struct v4l2_rect *crop;
+	int ret;
 
 	/* Configure the format on the RPF sink pad and propagate it up to the
 	 * BRU sink pad.
 	 */
+	crop = &vsp1->drm->inputs[rpf->entity.index].crop;
+
 	memset(&format, 0, sizeof(format));
 	format.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	format.pad = RWPF_PAD_SINK;
-	format.format.width = src->width + src->left;
-	format.format.height = src->height + src->top;
-	format.format.code = fmtinfo->mbus;
+	format.format.width = crop->width + crop->left;
+	format.format.height = crop->height + crop->top;
+	format.format.code = rpf->fmtinfo->mbus;
 	format.format.field = V4L2_FIELD_NONE;
 
 	ret = v4l2_subdev_call(&rpf->entity.subdev, pad, set_fmt, NULL,
@@ -356,7 +347,7 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
 	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sel.pad = RWPF_PAD_SINK;
 	sel.target = V4L2_SEL_TGT_CROP;
-	sel.r = *src;
+	sel.r = *crop;
 
 	ret = v4l2_subdev_call(&rpf->entity.subdev, pad, set_selection, NULL,
 			       &sel);
@@ -391,7 +382,7 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
 		return ret;
 
 	/* BRU sink, propagate the format from the RPF source. */
-	format.pad = rpf->entity.index;
+	format.pad = bru_input;
 
 	ret = v4l2_subdev_call(&vsp1->bru->entity.subdev, pad, set_fmt, NULL,
 			       &format);
@@ -402,9 +393,9 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
 		__func__, format.format.width, format.format.height,
 		format.format.code, format.pad);
 
-	sel.pad = rpf->entity.index;
+	sel.pad = bru_input;
 	sel.target = V4L2_SEL_TGT_COMPOSE;
-	sel.r = *dst;
+	sel.r = vsp1->drm->inputs[rpf->entity.index].compose;
 
 	ret = v4l2_subdev_call(&vsp1->bru->entity.subdev, pad, set_selection,
 			       NULL, &sel);
@@ -416,33 +407,13 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int rpf_index,
 		__func__, sel.r.left, sel.r.top, sel.r.width, sel.r.height,
 		sel.pad);
 
-	/* Store the compose rectangle coordinates in the RPF. */
-	rpf->location.left = dst->left;
-	rpf->location.top = dst->top;
-
-	/* Set the memory buffer address. */
-	memory.num_planes = fmtinfo->planes;
-	memory.addr[0] = mem[0];
-	memory.addr[1] = mem[1];
-
-	rpf->ops->set_memory(rpf, &memory);
-
-	spin_lock_irqsave(&pipe->irqlock, flags);
-
-	/* If the RPF was previously stopped set the BRU input to the RPF and
-	 * store the RPF in the pipeline inputs array.
-	 */
-	if (!pipe->inputs[rpf->entity.index]) {
-		vsp1->bru->inputs[rpf_index].rpf = rpf;
-		pipe->inputs[rpf->entity.index] = rpf;
-		pipe->num_inputs++;
-	}
-
-	spin_unlock_irqrestore(&pipe->irqlock, flags);
-
 	return 0;
 }
-EXPORT_SYMBOL_GPL(vsp1_du_atomic_update);
+
+static unsigned int rpf_zpos(struct vsp1_device *vsp1, struct vsp1_rwpf *rpf)
+{
+	return vsp1->drm->inputs[rpf->entity.index].zpos;
+}
 
 /**
  * vsp1_du_atomic_flush - Commit an atomic update
@@ -452,51 +423,98 @@ void vsp1_du_atomic_flush(struct device *dev)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	struct vsp1_pipeline *pipe = &vsp1->drm->pipe;
+	struct vsp1_rwpf *inputs[VSP1_MAX_RPF] = { NULL, };
 	struct vsp1_entity *entity;
 	unsigned long flags;
-	bool stop = false;
+	unsigned int i;
 	int ret;
 
+	/* Count the number of enabled inputs and sort them by Z-order. */
+	pipe->num_inputs = 0;
+
+	for (i = 0; i < vsp1->info->rpf_count; ++i) {
+		struct vsp1_rwpf *rpf = vsp1->rpf[i];
+		unsigned int j;
+
+		if (!vsp1->drm->inputs[i].enabled) {
+			pipe->inputs[i] = NULL;
+			continue;
+		}
+
+		pipe->inputs[i] = rpf;
+
+		/* Insert the RPF in the sorted RPFs array. */
+		for (j = pipe->num_inputs++; j > 0; --j) {
+			if (rpf_zpos(vsp1, inputs[j-1]) <= rpf_zpos(vsp1, rpf))
+				break;
+			inputs[j] = inputs[j-1];
+		}
+
+		inputs[j] = rpf;
+	}
+
+	/* Setup the RPF input pipeline for every enabled input. */
+	for (i = 0; i < vsp1->info->num_bru_inputs; ++i) {
+		struct vsp1_rwpf *rpf = inputs[i];
+
+		if (!rpf) {
+			vsp1->bru->inputs[i].rpf = NULL;
+			continue;
+		}
+
+		vsp1->bru->inputs[i].rpf = rpf;
+		rpf->bru_input = i;
+		rpf->entity.sink_pad = i;
+
+		dev_dbg(vsp1->dev, "%s: connecting RPF.%u to BRU:%u\n",
+			__func__, rpf->entity.index, i);
+
+		ret = vsp1_du_setup_rpf_pipe(vsp1, rpf, i);
+		if (ret < 0)
+			dev_err(vsp1->dev,
+				"%s: failed to setup RPF.%u\n",
+				__func__, rpf->entity.index);
+	}
+
+	/* Configure all entities in the pipeline. */
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
 		/* Disconnect unused RPFs from the pipeline. */
 		if (entity->type == VSP1_ENTITY_RPF) {
 			struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
 
 			if (!pipe->inputs[rpf->entity.index]) {
-				vsp1_mod_write(entity, entity->route->reg,
-					   VI6_DPR_NODE_UNUSED);
+				vsp1_dl_list_write(pipe->dl, entity->route->reg,
+						   VI6_DPR_NODE_UNUSED);
 				continue;
 			}
 		}
 
-		vsp1_entity_route_setup(entity);
+		vsp1_entity_route_setup(entity, pipe->dl);
 
-		ret = v4l2_subdev_call(&entity->subdev, video,
-				       s_stream, 1);
-		if (ret < 0) {
-			dev_err(vsp1->dev,
-				"DRM pipeline start failure on entity %s\n",
-				entity->subdev.name);
-			return;
+		if (entity->ops->configure) {
+			entity->ops->configure(entity, pipe, pipe->dl, true);
+			entity->ops->configure(entity, pipe, pipe->dl, false);
 		}
+
+		/* The memory buffer address must be applied after configuring
+		 * the RPF to make sure the crop offset are computed.
+		 */
+		if (entity->type == VSP1_ENTITY_RPF)
+			vsp1_rwpf_set_memory(to_rwpf(&entity->subdev),
+					     pipe->dl);
 	}
 
-	vsp1_dl_commit(vsp1->drm->dl);
-
-	spin_lock_irqsave(&pipe->irqlock, flags);
+	vsp1_dl_list_commit(pipe->dl);
+	pipe->dl = NULL;
 
 	/* Start or stop the pipeline if needed. */
 	if (!vsp1->drm->num_inputs && pipe->num_inputs) {
 		vsp1_write(vsp1, VI6_DISP_IRQ_STA, 0);
 		vsp1_write(vsp1, VI6_DISP_IRQ_ENB, VI6_DISP_IRQ_ENB_DSTE);
+		spin_lock_irqsave(&pipe->irqlock, flags);
 		vsp1_pipeline_run(pipe);
+		spin_unlock_irqrestore(&pipe->irqlock, flags);
 	} else if (vsp1->drm->num_inputs && !pipe->num_inputs) {
-		stop = true;
-	}
-
-	spin_unlock_irqrestore(&pipe->irqlock, flags);
-
-	if (stop) {
 		vsp1_write(vsp1, VI6_DISP_IRQ_ENB, 0);
 		vsp1_pipeline_stop(pipe);
 	}
@@ -562,14 +580,9 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 	if (!vsp1->drm)
 		return -ENOMEM;
 
-	vsp1->drm->dl = vsp1_dl_create(vsp1);
-	if (!vsp1->drm->dl)
-		return -ENOMEM;
-
 	pipe = &vsp1->drm->pipe;
 
 	vsp1_pipeline_init(pipe);
-	pipe->frame_end = vsp1_drm_pipeline_frame_end;
 
 	/* The DRM pipeline is static, add entities manually. */
 	for (i = 0; i < vsp1->info->rpf_count; ++i) {
@@ -586,12 +599,9 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 	pipe->lif = &vsp1->lif->entity;
 	pipe->output = vsp1->wpf[0];
 
-	pipe->dl = vsp1->drm->dl;
-
 	return 0;
 }
 
 void vsp1_drm_cleanup(struct vsp1_device *vsp1)
 {
-	vsp1_dl_destroy(vsp1->drm->dl);
 }

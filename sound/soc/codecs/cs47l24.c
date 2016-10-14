@@ -359,6 +359,11 @@ SND_SOC_DAPM_INPUT("IN2R"),
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
 
+SND_SOC_DAPM_OUTPUT("DSP Voice Trigger"),
+
+SND_SOC_DAPM_SWITCH("DSP3 Voice Trigger", SND_SOC_NOPM, 2, 0,
+		    &arizona_voice_trigger_switch[2]),
+
 SND_SOC_DAPM_PGA_E("IN1L PGA", ARIZONA_INPUT_ENABLES, ARIZONA_IN1L_ENA_SHIFT,
 		   0, NULL, 0, arizona_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
@@ -807,6 +812,9 @@ static const struct snd_soc_dapm_route cs47l24_dapm_routes[] = {
 	{ "IN2L PGA", NULL, "IN2L" },
 	{ "IN2R PGA", NULL, "IN2R" },
 
+	{ "Audio Trace DSP", NULL, "DSP2" },
+	{ "Audio Trace DSP", NULL, "SYSCLK" },
+
 	ARIZONA_MIXER_ROUTES("OUT1L", "HPOUT1L"),
 	ARIZONA_MIXER_ROUTES("OUT1R", "HPOUT1R"),
 
@@ -896,10 +904,16 @@ static const struct snd_soc_dapm_route cs47l24_dapm_routes[] = {
 
 	{ "MICSUPP", NULL, "SYSCLK" },
 
+	{ "DRC1 Signal Activity", NULL, "SYSCLK" },
+	{ "DRC2 Signal Activity", NULL, "SYSCLK" },
 	{ "DRC1 Signal Activity", NULL, "DRC1L" },
 	{ "DRC1 Signal Activity", NULL, "DRC1R" },
 	{ "DRC2 Signal Activity", NULL, "DRC2L" },
 	{ "DRC2 Signal Activity", NULL, "DRC2R" },
+
+	{ "DSP Voice Trigger", NULL, "SYSCLK" },
+	{ "DSP Voice Trigger", NULL, "DSP3 Voice Trigger" },
+	{ "DSP3 Voice Trigger", "Switch", "DSP3" },
 };
 
 static int cs47l24_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
@@ -1016,6 +1030,27 @@ static struct snd_soc_dai_driver cs47l24_dai[] = {
 			.formats = CS47L24_FORMATS,
 		},
 	},
+	{
+		.name = "cs47l24-cpu-trace",
+		.capture = {
+			.stream_name = "Audio Trace CPU",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = CS47L24_RATES,
+			.formats = CS47L24_FORMATS,
+		},
+		.compress_new = snd_soc_new_compress,
+	},
+	{
+		.name = "cs47l24-dsp-trace",
+		.capture = {
+			.stream_name = "Audio Trace DSP",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = CS47L24_RATES,
+			.formats = CS47L24_FORMATS,
+		},
+	},
 };
 
 static int cs47l24_open(struct snd_compr_stream *stream)
@@ -1027,6 +1062,8 @@ static int cs47l24_open(struct snd_compr_stream *stream)
 
 	if (strcmp(rtd->codec_dai->name, "cs47l24-dsp-voicectrl") == 0) {
 		n_adsp = 2;
+	} else if (strcmp(rtd->codec_dai->name, "cs47l24-dsp-trace") == 0) {
+		n_adsp = 1;
 	} else {
 		dev_err(arizona->dev,
 			"No suitable compressed stream for DAI '%s'\n",
@@ -1041,10 +1078,23 @@ static irqreturn_t cs47l24_adsp2_irq(int irq, void *data)
 {
 	struct cs47l24_priv *priv = data;
 	struct arizona *arizona = priv->core.arizona;
-	int ret;
+	struct arizona_voice_trigger_info info;
+	int serviced = 0;
+	int i, ret;
 
-	ret = wm_adsp_compr_handle_irq(&priv->core.adsp[2]);
-	if (ret == -ENODEV) {
+	for (i = 1; i <= 2; ++i) {
+		ret = wm_adsp_compr_handle_irq(&priv->core.adsp[i]);
+		if (ret != -ENODEV)
+			serviced++;
+		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER) {
+			info.core = i;
+			arizona_call_notifiers(arizona,
+					       ARIZONA_NOTIFY_VOICE_TRIGGER,
+					       &info);
+		}
+	}
+
+	if (!serviced) {
 		dev_err(arizona->dev, "Spurious compressed data IRQ\n");
 		return IRQ_NONE;
 	}
@@ -1064,6 +1114,7 @@ static int cs47l24_codec_probe(struct snd_soc_codec *codec)
 	arizona_init_spk(codec);
 	arizona_init_gpio(codec);
 	arizona_init_mono(codec);
+	arizona_init_notifiers(codec);
 
 	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
 				  "ADSP2 Compressed IRQ", cs47l24_adsp2_irq,
@@ -1160,6 +1211,7 @@ static struct snd_compr_ops cs47l24_compr_ops = {
 static struct snd_soc_platform_driver cs47l24_compr_platform = {
 	.compr_ops = &cs47l24_compr_ops,
 };
+
 static int cs47l24_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
@@ -1228,9 +1280,9 @@ static int cs47l24_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register platform: %d\n", ret);
 		return ret;
 	}
+
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_cs47l24,
 				      cs47l24_dai, ARRAY_SIZE(cs47l24_dai));
-
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
 		snd_soc_unregister_platform(&pdev->dev);
@@ -1241,9 +1293,14 @@ static int cs47l24_probe(struct platform_device *pdev)
 
 static int cs47l24_remove(struct platform_device *pdev)
 {
+	struct cs47l24_priv *cs47l24 = platform_get_drvdata(pdev);
+
 	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	wm_adsp2_remove(&cs47l24->core.adsp[1]);
+	wm_adsp2_remove(&cs47l24->core.adsp[2]);
 
 	return 0;
 }

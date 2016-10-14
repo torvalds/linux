@@ -61,17 +61,18 @@ psched_tdiff_bounded(psched_time_t tv1, psched_time_t tv2, psched_time_t bound)
 }
 
 struct qdisc_watchdog {
+	u64		last_expires;
 	struct hrtimer	timer;
 	struct Qdisc	*qdisc;
 };
 
 void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc);
-void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires, bool throttle);
+void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires);
 
 static inline void qdisc_watchdog_schedule(struct qdisc_watchdog *wd,
 					   psched_time_t expires)
 {
-	qdisc_watchdog_schedule_ns(wd, PSCHED_TICKS2NS(expires), true);
+	qdisc_watchdog_schedule_ns(wd, PSCHED_TICKS2NS(expires));
 }
 
 void qdisc_watchdog_cancel(struct qdisc_watchdog *wd);

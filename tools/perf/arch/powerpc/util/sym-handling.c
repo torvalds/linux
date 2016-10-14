@@ -19,12 +19,6 @@ bool elf__needs_adjust_symbols(GElf_Ehdr ehdr)
 	       ehdr.e_type == ET_DYN;
 }
 
-#if defined(_CALL_ELF) && _CALL_ELF == 2
-void arch__elf_sym_adjust(GElf_Sym *sym)
-{
-	sym->st_value += PPC64_LOCAL_ENTRY_OFFSET(sym->st_other);
-}
-#endif
 #endif
 
 #if !defined(_CALL_ELF) || _CALL_ELF != 2
@@ -60,23 +54,71 @@ int arch__compare_symbol_names(const char *namea, const char *nameb)
 #endif
 
 #if defined(_CALL_ELF) && _CALL_ELF == 2
-bool arch__prefers_symtab(void)
+
+#ifdef HAVE_LIBELF_SUPPORT
+void arch__sym_update(struct symbol *s, GElf_Sym *sym)
 {
-	return true;
+	s->arch_sym = sym->st_other;
 }
+#endif
 
 #define PPC64LE_LEP_OFFSET	8
 
 void arch__fix_tev_from_maps(struct perf_probe_event *pev,
-			     struct probe_trace_event *tev, struct map *map)
+			     struct probe_trace_event *tev, struct map *map,
+			     struct symbol *sym)
 {
+	int lep_offset;
+
 	/*
-	 * ppc64 ABIv2 local entry point is currently always 2 instructions
-	 * (8 bytes) after the global entry point.
+	 * When probing at a function entry point, we normally always want the
+	 * LEP since that catches calls to the function through both the GEP and
+	 * the LEP. Hence, we would like to probe at an offset of 8 bytes if
+	 * the user only specified the function entry.
+	 *
+	 * However, if the user specifies an offset, we fall back to using the
+	 * GEP since all userspace applications (objdump/readelf) show function
+	 * disassembly with offsets from the GEP.
+	 *
+	 * In addition, we shouldn't specify an offset for kretprobes.
 	 */
-	if (!pev->uprobes && map->dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS) {
-		tev->point.address += PPC64LE_LEP_OFFSET;
+	if (pev->point.offset || pev->point.retprobe || !map || !sym)
+		return;
+
+	lep_offset = PPC64_LOCAL_ENTRY_OFFSET(sym->arch_sym);
+
+	if (map->dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS)
 		tev->point.offset += PPC64LE_LEP_OFFSET;
+	else if (lep_offset) {
+		if (pev->uprobes)
+			tev->point.address += lep_offset;
+		else
+			tev->point.offset += lep_offset;
 	}
 }
+
+#ifdef HAVE_LIBELF_SUPPORT
+void arch__post_process_probe_trace_events(struct perf_probe_event *pev,
+					   int ntevs)
+{
+	struct probe_trace_event *tev;
+	struct map *map;
+	struct symbol *sym = NULL;
+	struct rb_node *tmp;
+	int i = 0;
+
+	map = get_target_map(pev->target, pev->uprobes);
+	if (!map || map__load(map, NULL) < 0)
+		return;
+
+	for (i = 0; i < ntevs; i++) {
+		tev = &pev->tevs[i];
+		map__for_each_symbol(map, sym, tmp) {
+			if (map->unmap_ip(map, sym->start) == tev->point.address)
+				arch__fix_tev_from_maps(pev, tev, map, sym);
+		}
+	}
+}
+#endif /* HAVE_LIBELF_SUPPORT */
+
 #endif

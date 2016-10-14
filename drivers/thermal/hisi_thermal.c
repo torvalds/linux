@@ -160,7 +160,7 @@ static int hisi_thermal_get_temp(void *_sensor, int *temp)
 	struct hisi_thermal_sensor *sensor = _sensor;
 	struct hisi_thermal_data *data = sensor->thermal;
 
-	int sensor_id = 0, i;
+	int sensor_id = -1, i;
 	long max_temp = 0;
 
 	*temp = hisi_thermal_get_sensor_temp(data, sensor);
@@ -168,11 +168,18 @@ static int hisi_thermal_get_temp(void *_sensor, int *temp)
 	sensor->sensor_temp = *temp;
 
 	for (i = 0; i < HISI_MAX_SENSORS; i++) {
+		if (!data->sensors[i].tzd)
+			continue;
+
 		if (data->sensors[i].sensor_temp >= max_temp) {
 			max_temp = data->sensors[i].sensor_temp;
 			sensor_id = i;
 		}
 	}
+
+	/* If no sensor has been enabled, then skip to enable irq */
+	if (sensor_id == -1)
+		return 0;
 
 	mutex_lock(&data->thermal_lock);
 	data->irq_bind_sensor = sensor_id;
@@ -226,8 +233,12 @@ static irqreturn_t hisi_thermal_alarm_irq_thread(int irq, void *dev)
 		 sensor->thres_temp / 1000);
 	mutex_unlock(&data->thermal_lock);
 
-	for (i = 0; i < HISI_MAX_SENSORS; i++)
+	for (i = 0; i < HISI_MAX_SENSORS; i++) {
+		if (!data->sensors[i].tzd)
+			continue;
+
 		thermal_zone_device_update(data->sensors[i].tzd);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -243,10 +254,11 @@ static int hisi_thermal_register_sensor(struct platform_device *pdev,
 	sensor->id = index;
 	sensor->thermal = data;
 
-	sensor->tzd = thermal_zone_of_sensor_register(&pdev->dev, sensor->id,
-				sensor, &hisi_of_thermal_ops);
+	sensor->tzd = devm_thermal_zone_of_sensor_register(&pdev->dev,
+				sensor->id, sensor, &hisi_of_thermal_ops);
 	if (IS_ERR(sensor->tzd)) {
 		ret = PTR_ERR(sensor->tzd);
+		sensor->tzd = NULL;
 		dev_err(&pdev->dev, "failed to register sensor id %d: %d\n",
 			sensor->id, ret);
 		return ret;
@@ -331,28 +343,21 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	hisi_thermal_enable_bind_irq_sensor(data);
+	irq_get_irqchip_state(data->irq, IRQCHIP_STATE_MASKED,
+			      &data->irq_enabled);
+
 	for (i = 0; i < HISI_MAX_SENSORS; ++i) {
 		ret = hisi_thermal_register_sensor(pdev, data,
 						   &data->sensors[i], i);
-		if (ret) {
+		if (ret)
 			dev_err(&pdev->dev,
 				"failed to register thermal sensor: %d\n", ret);
-			goto err_get_sensor_data;
-		}
+		else
+			hisi_thermal_toggle_sensor(&data->sensors[i], true);
 	}
 
-	hisi_thermal_enable_bind_irq_sensor(data);
-	data->irq_enabled = true;
-
-	for (i = 0; i < HISI_MAX_SENSORS; i++)
-		hisi_thermal_toggle_sensor(&data->sensors[i], true);
-
 	return 0;
-
-err_get_sensor_data:
-	clk_disable_unprepare(data->clk);
-
-	return ret;
 }
 
 static int hisi_thermal_remove(struct platform_device *pdev)
@@ -363,8 +368,10 @@ static int hisi_thermal_remove(struct platform_device *pdev)
 	for (i = 0; i < HISI_MAX_SENSORS; i++) {
 		struct hisi_thermal_sensor *sensor = &data->sensors[i];
 
+		if (!sensor->tzd)
+			continue;
+
 		hisi_thermal_toggle_sensor(sensor, false);
-		thermal_zone_of_sensor_unregister(&pdev->dev, sensor->tzd);
 	}
 
 	hisi_thermal_disable_sensor(data);

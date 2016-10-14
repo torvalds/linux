@@ -216,8 +216,8 @@ void r8712_free_all_stainfo(struct _adapter *padapter)
 		phead = &(pstapriv->sta_hash[index]);
 		plist = phead->next;
 		while (!end_of_queue_search(phead, plist)) {
-			psta = LIST_CONTAINOR(plist,
-					      struct sta_info, hash_list);
+			psta = container_of(plist,
+					    struct sta_info, hash_list);
 			plist = plist->next;
 			if (pbcmc_stainfo != psta)
 				r8712_free_stainfo(padapter, psta);
@@ -241,7 +241,7 @@ struct sta_info *r8712_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	phead = &(pstapriv->sta_hash[index]);
 	plist = phead->next;
 	while (!end_of_queue_search(phead, plist)) {
-		psta = LIST_CONTAINOR(plist, struct sta_info, hash_list);
+		psta = container_of(plist, struct sta_info, hash_list);
 		if ((!memcmp(psta->hwaddr, hwaddr, ETH_ALEN))) {
 			/* if found the matched address */
 			break;

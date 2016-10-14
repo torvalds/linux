@@ -104,7 +104,7 @@ enum si_intf_state {
 #define IPMI_BT_INTMASK_ENABLE_IRQ_BIT	1
 
 enum si_type {
-    SI_KCS, SI_SMIC, SI_BT
+	SI_KCS, SI_SMIC, SI_BT
 };
 
 static const char * const si_to_str[] = { "kcs", "smic", "bt" };
@@ -410,7 +410,7 @@ static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 
 		rv = SI_SM_CALL_WITHOUT_DELAY;
 	}
- out:
+out:
 	return rv;
 }
 
@@ -539,7 +539,7 @@ static struct ipmi_smi_msg *alloc_msg_handle_irq(struct smi_info *smi_info)
 
 static void handle_flags(struct smi_info *smi_info)
 {
- retry:
+retry:
 	if (smi_info->msg_flags & WDT_PRE_TIMEOUT_INT) {
 		/* Watchdog pre-timeout */
 		smi_inc_stat(smi_info, watchdog_pretimeouts);
@@ -831,7 +831,7 @@ static enum si_sm_result smi_event_handler(struct smi_info *smi_info,
 {
 	enum si_sm_result si_sm_result;
 
- restart:
+restart:
 	/*
 	 * There used to be a loop here that waited a little while
 	 * (around 25us) before giving up.  That turned out to be
@@ -944,7 +944,7 @@ static enum si_sm_result smi_event_handler(struct smi_info *smi_info,
 			smi_info->timer_running = false;
 	}
 
- out:
+out:
 	return si_sm_result;
 }
 
@@ -1190,7 +1190,7 @@ static void smi_timeout(unsigned long data)
 		timeout = jiffies + SI_TIMEOUT_JIFFIES;
 	}
 
- do_mod_timer:
+do_mod_timer:
 	if (smi_result != SI_SM_IDLE)
 		smi_mod_timer(smi_info, timeout);
 	else
@@ -1322,7 +1322,6 @@ static bool          si_tryplatform = true;
 #ifdef CONFIG_PCI
 static bool          si_trypci = true;
 #endif
-static bool          si_trydefaults = IS_ENABLED(CONFIG_IPMI_SI_PROBE_DEFAULTS);
 static char          *si_type[SI_MAX_PARMS];
 #define MAX_SI_TYPE_STR 30
 static char          si_type_str[MAX_SI_TYPE_STR];
@@ -1371,10 +1370,6 @@ module_param_named(trypci, si_trypci, bool, 0);
 MODULE_PARM_DESC(trypci, "Setting this to zero will disable the"
 		 " default scan of the interfaces identified via pci");
 #endif
-module_param_named(trydefaults, si_trydefaults, bool, 0);
-MODULE_PARM_DESC(trydefaults, "Setting this to 'false' will disable the"
-		 " default scan of the KCS and SMIC interface at the standard"
-		 " address");
 module_param_string(type, si_type_str, MAX_SI_TYPE_STR, 0);
 MODULE_PARM_DESC(type, "Defines the type of each interface, each"
 		 " interface separated by commas.  The types are 'kcs',"
@@ -1576,10 +1571,9 @@ static int port_setup(struct smi_info *info)
 		if (request_region(addr + idx * info->io.regspacing,
 				   info->io.regsize, DEVICE_NAME) == NULL) {
 			/* Undo allocations */
-			while (idx--) {
+			while (idx--)
 				release_region(addr + idx * info->io.regspacing,
 					       info->io.regsize);
-			}
 			return -EIO;
 		}
 	}
@@ -1638,25 +1632,28 @@ static void mem_outq(const struct si_sm_io *io, unsigned int offset,
 }
 #endif
 
-static void mem_cleanup(struct smi_info *info)
+static void mem_region_cleanup(struct smi_info *info, int num)
 {
 	unsigned long addr = info->io.addr_data;
-	int           mapsize;
+	int idx;
 
+	for (idx = 0; idx < num; idx++)
+		release_mem_region(addr + idx * info->io.regspacing,
+				   info->io.regsize);
+}
+
+static void mem_cleanup(struct smi_info *info)
+{
 	if (info->io.addr) {
 		iounmap(info->io.addr);
-
-		mapsize = ((info->io_size * info->io.regspacing)
-			   - (info->io.regspacing - info->io.regsize));
-
-		release_mem_region(addr, mapsize);
+		mem_region_cleanup(info, info->io_size);
 	}
 }
 
 static int mem_setup(struct smi_info *info)
 {
 	unsigned long addr = info->io.addr_data;
-	int           mapsize;
+	int           mapsize, idx;
 
 	if (!addr)
 		return -ENODEV;
@@ -1693,6 +1690,21 @@ static int mem_setup(struct smi_info *info)
 	}
 
 	/*
+	 * Some BIOSes reserve disjoint memory regions in their ACPI
+	 * tables.  This causes problems when trying to request the
+	 * entire region.  Therefore we must request each register
+	 * separately.
+	 */
+	for (idx = 0; idx < info->io_size; idx++) {
+		if (request_mem_region(addr + idx * info->io.regspacing,
+				       info->io.regsize, DEVICE_NAME) == NULL) {
+			/* Undo allocations */
+			mem_region_cleanup(info, idx);
+			return -EIO;
+		}
+	}
+
+	/*
 	 * Calculate the total amount of memory to claim.  This is an
 	 * unusual looking calculation, but it avoids claiming any
 	 * more memory than it has to.  It will claim everything
@@ -1701,13 +1713,9 @@ static int mem_setup(struct smi_info *info)
 	 */
 	mapsize = ((info->io_size * info->io.regspacing)
 		   - (info->io.regspacing - info->io.regsize));
-
-	if (request_mem_region(addr, mapsize, DEVICE_NAME) == NULL)
-		return -EIO;
-
 	info->io.addr = ioremap(addr, mapsize);
 	if (info->io.addr == NULL) {
-		release_mem_region(addr, mapsize);
+		mem_region_cleanup(info, info->io_size);
 		return -EIO;
 	}
 	return 0;
@@ -1975,7 +1983,7 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 		}
 	}
 	rv = len;
- out:
+out:
 	kfree(str);
 	return rv;
 }
@@ -2945,7 +2953,7 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	/* Check and record info from the get device id, in case we need it. */
 	rv = ipmi_demangle_device_id(resp, resp_len, &smi_info->device_id);
 
- out:
+out:
 	kfree(resp);
 	return rv;
 }
@@ -3192,7 +3200,7 @@ static int try_enable_event_buffer(struct smi_info *smi_info)
 	else
 		smi_info->supports_event_msg_buff = true;
 
- out:
+out:
 	kfree(resp);
 	return rv;
 }
@@ -3448,62 +3456,6 @@ static inline void wait_for_timer_and_thread(struct smi_info *smi_info)
 		del_timer_sync(&smi_info->si_timer);
 }
 
-static const struct ipmi_default_vals
-{
-	const int type;
-	const int port;
-} ipmi_defaults[] =
-{
-	{ .type = SI_KCS, .port = 0xca2 },
-	{ .type = SI_SMIC, .port = 0xca9 },
-	{ .type = SI_BT, .port = 0xe4 },
-	{ .port = 0 }
-};
-
-static void default_find_bmc(void)
-{
-	struct smi_info *info;
-	int             i;
-
-	for (i = 0; ; i++) {
-		if (!ipmi_defaults[i].port)
-			break;
-#ifdef CONFIG_PPC
-		if (check_legacy_ioport(ipmi_defaults[i].port))
-			continue;
-#endif
-		info = smi_info_alloc();
-		if (!info)
-			return;
-
-		info->addr_source = SI_DEFAULT;
-
-		info->si_type = ipmi_defaults[i].type;
-		info->io_setup = port_setup;
-		info->io.addr_data = ipmi_defaults[i].port;
-		info->io.addr_type = IPMI_IO_ADDR_SPACE;
-
-		info->io.addr = NULL;
-		info->io.regspacing = DEFAULT_REGSPACING;
-		info->io.regsize = DEFAULT_REGSPACING;
-		info->io.regshift = 0;
-
-		if (add_smi(info) == 0) {
-			if ((try_smi_init(info)) == 0) {
-				/* Found one... */
-				printk(KERN_INFO PFX "Found default %s"
-				" state machine at %s address 0x%lx\n",
-				si_to_str[info->si_type],
-				addr_space_to_str[info->io.addr_type],
-				info->io.addr_data);
-			} else
-				cleanup_one_si(info);
-		} else {
-			kfree(info);
-		}
-	}
-}
-
 static int is_new_interface(struct smi_info *info)
 {
 	struct smi_info *e;
@@ -3718,10 +3670,10 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	return 0;
 
- out_err_stop_timer:
+out_err_stop_timer:
 	wait_for_timer_and_thread(new_smi);
 
- out_err:
+out_err:
 	new_smi->interrupt_disabled = true;
 
 	if (new_smi->intf) {
@@ -3831,8 +3783,6 @@ static int init_ipmi_si(void)
 #ifdef CONFIG_PARISC
 	register_parisc_driver(&ipmi_parisc_driver);
 	parisc_registered = true;
-	/* poking PC IO addresses will crash machine, don't do it */
-	si_trydefaults = 0;
 #endif
 
 	/* We prefer devices with interrupts, but in the case of a machine
@@ -3871,16 +3821,6 @@ static int init_ipmi_si(void)
 
 	if (type)
 		return 0;
-
-	if (si_trydefaults) {
-		mutex_lock(&smi_infos_lock);
-		if (list_empty(&smi_infos)) {
-			/* No BMC was found, try defaults. */
-			mutex_unlock(&smi_infos_lock);
-			default_find_bmc();
-		} else
-			mutex_unlock(&smi_infos_lock);
-	}
 
 	mutex_lock(&smi_infos_lock);
 	if (unload_when_empty && list_empty(&smi_infos)) {

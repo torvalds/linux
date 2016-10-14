@@ -19,13 +19,13 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/soc/renesas/rcar-sysc.h>
 
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 
 #include "common.h"
-#include "pm-rcar.h"
 #include "r8a7779.h"
 
 #define AVECR IOMEM(0xfe700040)

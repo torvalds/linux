@@ -33,6 +33,7 @@
 #include <linux/cleancache.h>
 #include <linux/fsnotify.h>
 #include <linux/lockdep.h>
+#include <linux/user_namespace.h>
 #include "internal.h"
 
 
@@ -165,6 +166,7 @@ static void destroy_super(struct super_block *s)
 	list_lru_destroy(&s->s_inode_lru);
 	security_sb_free(s);
 	WARN_ON(!list_empty(&s->s_mounts));
+	put_user_ns(s->s_user_ns);
 	kfree(s->s_subtype);
 	kfree(s->s_options);
 	call_rcu(&s->rcu, destroy_super_rcu);
@@ -174,11 +176,13 @@ static void destroy_super(struct super_block *s)
  *	alloc_super	-	create new superblock
  *	@type:	filesystem type superblock should belong to
  *	@flags: the mount flags
+ *	@user_ns: User namespace for the super_block
  *
  *	Allocates and initializes a new &struct super_block.  alloc_super()
  *	returns a pointer new superblock or %NULL if allocation had failed.
  */
-static struct super_block *alloc_super(struct file_system_type *type, int flags)
+static struct super_block *alloc_super(struct file_system_type *type, int flags,
+				       struct user_namespace *user_ns)
 {
 	struct super_block *s = kzalloc(sizeof(struct super_block),  GFP_USER);
 	static const struct super_operations default_op;
@@ -188,6 +192,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 		return NULL;
 
 	INIT_LIST_HEAD(&s->s_mounts);
+	s->s_user_ns = get_user_ns(user_ns);
 
 	if (security_sb_alloc(s))
 		goto fail;
@@ -201,11 +206,15 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 	init_waitqueue_head(&s->s_writers.wait_unfrozen);
 	s->s_bdi = &noop_backing_dev_info;
 	s->s_flags = flags;
+	if (s->s_user_ns != &init_user_ns)
+		s->s_iflags |= SB_I_NODEV;
 	INIT_HLIST_NODE(&s->s_instances);
 	INIT_HLIST_BL_HEAD(&s->s_anon);
 	mutex_init(&s->s_sync_lock);
 	INIT_LIST_HEAD(&s->s_inodes);
 	spin_lock_init(&s->s_inode_list_lock);
+	INIT_LIST_HEAD(&s->s_inodes_wb);
+	spin_lock_init(&s->s_inode_wblist_lock);
 
 	if (list_lru_init_memcg(&s->s_dentry_lru))
 		goto fail;
@@ -285,7 +294,7 @@ static void put_super(struct super_block *sb)
  *	deactivate_locked_super	-	drop an active reference to superblock
  *	@s: superblock to deactivate
  *
- *	Drops an active reference to superblock, converting it into a temprory
+ *	Drops an active reference to superblock, converting it into a temporary
  *	one if there is no other active references left.  In that case we
  *	tell fs driver to shut it down and drop the temporary reference we
  *	had just acquired.
@@ -443,29 +452,42 @@ void generic_shutdown_super(struct super_block *sb)
 EXPORT_SYMBOL(generic_shutdown_super);
 
 /**
- *	sget	-	find or create a superblock
+ *	sget_userns -	find or create a superblock
  *	@type:	filesystem type superblock should belong to
  *	@test:	comparison callback
  *	@set:	setup callback
  *	@flags:	mount flags
+ *	@user_ns: User namespace for the super_block
  *	@data:	argument to each of them
  */
-struct super_block *sget(struct file_system_type *type,
+struct super_block *sget_userns(struct file_system_type *type,
 			int (*test)(struct super_block *,void *),
 			int (*set)(struct super_block *,void *),
-			int flags,
+			int flags, struct user_namespace *user_ns,
 			void *data)
 {
 	struct super_block *s = NULL;
 	struct super_block *old;
 	int err;
 
+	if (!(flags & MS_KERNMOUNT) &&
+	    !(type->fs_flags & FS_USERNS_MOUNT) &&
+	    !capable(CAP_SYS_ADMIN))
+		return ERR_PTR(-EPERM);
 retry:
 	spin_lock(&sb_lock);
 	if (test) {
 		hlist_for_each_entry(old, &type->fs_supers, s_instances) {
 			if (!test(old, data))
 				continue;
+			if (user_ns != old->s_user_ns) {
+				spin_unlock(&sb_lock);
+				if (s) {
+					up_write(&s->s_umount);
+					destroy_super(s);
+				}
+				return ERR_PTR(-EBUSY);
+			}
 			if (!grab_super(old))
 				goto retry;
 			if (s) {
@@ -478,7 +500,7 @@ retry:
 	}
 	if (!s) {
 		spin_unlock(&sb_lock);
-		s = alloc_super(type, flags);
+		s = alloc_super(type, flags, user_ns);
 		if (!s)
 			return ERR_PTR(-ENOMEM);
 		goto retry;
@@ -499,6 +521,31 @@ retry:
 	get_filesystem(type);
 	register_shrinker(&s->s_shrink);
 	return s;
+}
+
+EXPORT_SYMBOL(sget_userns);
+
+/**
+ *	sget	-	find or create a superblock
+ *	@type:	  filesystem type superblock should belong to
+ *	@test:	  comparison callback
+ *	@set:	  setup callback
+ *	@flags:	  mount flags
+ *	@data:	  argument to each of them
+ */
+struct super_block *sget(struct file_system_type *type,
+			int (*test)(struct super_block *,void *),
+			int (*set)(struct super_block *,void *),
+			int flags,
+			void *data)
+{
+	struct user_namespace *user_ns = current_user_ns();
+
+	/* Ensure the requestor has permissions over the target filesystem */
+	if (!(flags & MS_KERNMOUNT) && !ns_capable(user_ns, CAP_SYS_ADMIN))
+		return ERR_PTR(-EPERM);
+
+	return sget_userns(type, test, set, flags, user_ns, data);
 }
 
 EXPORT_SYMBOL(sget);
@@ -918,12 +965,20 @@ static int ns_set_super(struct super_block *sb, void *data)
 	return set_anon_super(sb, NULL);
 }
 
-struct dentry *mount_ns(struct file_system_type *fs_type, int flags,
-	void *data, int (*fill_super)(struct super_block *, void *, int))
+struct dentry *mount_ns(struct file_system_type *fs_type,
+	int flags, void *data, void *ns, struct user_namespace *user_ns,
+	int (*fill_super)(struct super_block *, void *, int))
 {
 	struct super_block *sb;
 
-	sb = sget(fs_type, ns_test_super, ns_set_super, flags, data);
+	/* Don't allow mounting unless the caller has CAP_SYS_ADMIN
+	 * over the namespace.
+	 */
+	if (!(flags & MS_KERNMOUNT) && !ns_capable(user_ns, CAP_SYS_ADMIN))
+		return ERR_PTR(-EPERM);
+
+	sb = sget_userns(fs_type, ns_test_super, ns_set_super, flags,
+			 user_ns, ns);
 	if (IS_ERR(sb))
 		return ERR_CAST(sb);
 

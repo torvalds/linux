@@ -19,6 +19,7 @@
 
 #include "main.h"
 #include "11ac.h"
+#include "11n.h"
 
 /* This function parses security related parameters from cfg80211_ap_settings
  * and sets into FW understandable bss_config structure.
@@ -521,9 +522,9 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 		tlv += sizeof(struct host_cmd_tlv_rates) + i;
 	}
 	if (bss_cfg->channel &&
-	    ((bss_cfg->band_cfg == BAND_CONFIG_BG &&
+	    (((bss_cfg->band_cfg & BIT(0)) == BAND_CONFIG_BG &&
 	      bss_cfg->channel <= MAX_CHANNEL_BAND_BG) ||
-	    (bss_cfg->band_cfg == BAND_CONFIG_A &&
+	    ((bss_cfg->band_cfg & BIT(0)) == BAND_CONFIG_A &&
 	     bss_cfg->channel <= MAX_CHANNEL_BAND_A))) {
 		chan_band = (struct host_cmd_tlv_channel_band *)tlv;
 		chan_band->header.type = cpu_to_le16(TLV_TYPE_CHANNELBANDLIST);
@@ -694,7 +695,7 @@ static int mwifiex_uap_custom_ie_prepare(u8 *tlv, void *cmd_buf, u16 *ie_size)
 	struct mwifiex_ie_list *ap_ie = cmd_buf;
 	struct mwifiex_ie_types_header *tlv_ie = (void *)tlv;
 
-	if (!ap_ie || !ap_ie->len || !ap_ie->ie_list)
+	if (!ap_ie || !ap_ie->len)
 		return -1;
 
 	*ie_size += le16_to_cpu(ap_ie->len) +
@@ -816,7 +817,7 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 						     chandef.chan->center_freq);
 
 	/* Set appropriate bands */
-	if (chandef.chan->band == IEEE80211_BAND_2GHZ) {
+	if (chandef.chan->band == NL80211_BAND_2GHZ) {
 		bss_cfg->band_cfg = BAND_CONFIG_BG;
 		config_bands = BAND_B | BAND_G;
 
@@ -831,6 +832,31 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 
 		if (chandef.width > NL80211_CHAN_WIDTH_40)
 			config_bands |= BAND_AAC;
+	}
+
+	switch (chandef.width) {
+	case NL80211_CHAN_WIDTH_5:
+	case NL80211_CHAN_WIDTH_10:
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20:
+		break;
+	case NL80211_CHAN_WIDTH_40:
+		if (chandef.center_freq1 < chandef.chan->center_freq)
+			bss_cfg->band_cfg |= MWIFIEX_SEC_CHAN_BELOW;
+		else
+			bss_cfg->band_cfg |= MWIFIEX_SEC_CHAN_ABOVE;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+	case NL80211_CHAN_WIDTH_80P80:
+	case NL80211_CHAN_WIDTH_160:
+		bss_cfg->band_cfg |=
+		    mwifiex_get_sec_chan_offset(bss_cfg->channel) << 4;
+		break;
+	default:
+		mwifiex_dbg(priv->adapter,
+			    WARN, "Unknown channel width: %d\n",
+			    chandef.width);
+		break;
 	}
 
 	priv->adapter->config_bands = config_bands;

@@ -172,8 +172,10 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
 	err = -EAGAIN;
 	ptep = page_check_address(page, mm, addr, &ptl, 0);
-	if (!ptep)
+	if (!ptep) {
+		mem_cgroup_cancel_charge(kpage, memcg, false);
 		goto unlock;
+	}
 
 	get_page(kpage);
 	page_add_new_anon_rmap(kpage, vma, addr, false);
@@ -200,7 +202,6 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 
 	err = 0;
  unlock:
-	mem_cgroup_cancel_charge(kpage, memcg, false);
 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
 	unlock_page(page);
 	return err;
@@ -1130,7 +1131,9 @@ static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
 	struct vm_area_struct *vma;
 	int ret;
 
-	down_write(&mm->mmap_sem);
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
+
 	if (mm->uprobes_state.xol_area) {
 		ret = -EALREADY;
 		goto fail;
@@ -1469,7 +1472,8 @@ static void dup_xol_work(struct callback_head *work)
 	if (current->flags & PF_EXITING)
 		return;
 
-	if (!__create_xol_area(current->utask->dup_xol_addr))
+	if (!__create_xol_area(current->utask->dup_xol_addr) &&
+			!fatal_signal_pending(current))
 		uprobe_warn(current, "dup xol area");
 }
 
@@ -1694,8 +1698,7 @@ static int is_trap_at_addr(struct mm_struct *mm, unsigned long vaddr)
 	int result;
 
 	pagefault_disable();
-	result = __copy_from_user_inatomic(&opcode, (void __user*)vaddr,
-							sizeof(opcode));
+	result = __get_user(opcode, (uprobe_opcode_t __user *)vaddr);
 	pagefault_enable();
 
 	if (likely(result == 0))

@@ -24,6 +24,7 @@ struct devlink_ops;
 struct devlink {
 	struct list_head list;
 	struct list_head port_list;
+	struct list_head sb_list;
 	const struct devlink_ops *ops;
 	struct device *dev;
 	possible_net_t _net;
@@ -42,6 +43,12 @@ struct devlink_port {
 	u32 split_group;
 };
 
+struct devlink_sb_pool_info {
+	enum devlink_sb_pool_type pool_type;
+	u32 size;
+	enum devlink_sb_threshold_type threshold_type;
+};
+
 struct devlink_ops {
 	size_t priv_size;
 	int (*port_type_set)(struct devlink_port *devlink_port,
@@ -49,6 +56,43 @@ struct devlink_ops {
 	int (*port_split)(struct devlink *devlink, unsigned int port_index,
 			  unsigned int count);
 	int (*port_unsplit)(struct devlink *devlink, unsigned int port_index);
+	int (*sb_pool_get)(struct devlink *devlink, unsigned int sb_index,
+			   u16 pool_index,
+			   struct devlink_sb_pool_info *pool_info);
+	int (*sb_pool_set)(struct devlink *devlink, unsigned int sb_index,
+			   u16 pool_index, u32 size,
+			   enum devlink_sb_threshold_type threshold_type);
+	int (*sb_port_pool_get)(struct devlink_port *devlink_port,
+				unsigned int sb_index, u16 pool_index,
+				u32 *p_threshold);
+	int (*sb_port_pool_set)(struct devlink_port *devlink_port,
+				unsigned int sb_index, u16 pool_index,
+				u32 threshold);
+	int (*sb_tc_pool_bind_get)(struct devlink_port *devlink_port,
+				   unsigned int sb_index,
+				   u16 tc_index,
+				   enum devlink_sb_pool_type pool_type,
+				   u16 *p_pool_index, u32 *p_threshold);
+	int (*sb_tc_pool_bind_set)(struct devlink_port *devlink_port,
+				   unsigned int sb_index,
+				   u16 tc_index,
+				   enum devlink_sb_pool_type pool_type,
+				   u16 pool_index, u32 threshold);
+	int (*sb_occ_snapshot)(struct devlink *devlink,
+			       unsigned int sb_index);
+	int (*sb_occ_max_clear)(struct devlink *devlink,
+				unsigned int sb_index);
+	int (*sb_occ_port_pool_get)(struct devlink_port *devlink_port,
+				    unsigned int sb_index, u16 pool_index,
+				    u32 *p_cur, u32 *p_max);
+	int (*sb_occ_tc_port_bind_get)(struct devlink_port *devlink_port,
+				       unsigned int sb_index,
+				       u16 tc_index,
+				       enum devlink_sb_pool_type pool_type,
+				       u32 *p_cur, u32 *p_max);
+
+	int (*eswitch_mode_get)(struct devlink *devlink, u16 *p_mode);
+	int (*eswitch_mode_set)(struct devlink *devlink, u16 mode);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)
@@ -82,6 +126,11 @@ void devlink_port_type_ib_set(struct devlink_port *devlink_port,
 void devlink_port_type_clear(struct devlink_port *devlink_port);
 void devlink_port_split_set(struct devlink_port *devlink_port,
 			    u32 split_group);
+int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
+			u32 size, u16 ingress_pools_count,
+			u16 egress_pools_count, u16 ingress_tc_count,
+			u16 egress_tc_count);
+void devlink_sb_unregister(struct devlink *devlink, unsigned int sb_index);
 
 #else
 
@@ -132,6 +181,21 @@ static inline void devlink_port_type_clear(struct devlink_port *devlink_port)
 
 static inline void devlink_port_split_set(struct devlink_port *devlink_port,
 					  u32 split_group)
+{
+}
+
+static inline int devlink_sb_register(struct devlink *devlink,
+				      unsigned int sb_index, u32 size,
+				      u16 ingress_pools_count,
+				      u16 egress_pools_count,
+				      u16 ingress_tc_count,
+				      u16 egress_tc_count)
+{
+	return 0;
+}
+
+static inline void devlink_sb_unregister(struct devlink *devlink,
+					 unsigned int sb_index)
 {
 }
 

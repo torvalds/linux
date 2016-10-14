@@ -125,8 +125,8 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 					IB_DEVICE_SYS_IMAGE_GUID |
 					IB_DEVICE_LOCAL_DMA_LKEY |
 					IB_DEVICE_MEM_MGT_EXTENSIONS;
-	attr->max_sge = dev->attr.max_send_sge;
-	attr->max_sge_rd = attr->max_sge;
+	attr->max_sge = min(dev->attr.max_send_sge, dev->attr.max_recv_sge);
+	attr->max_sge_rd = dev->attr.max_rdma_sge;
 	attr->max_cq = dev->attr.max_cq;
 	attr->max_cqe = dev->attr.max_cqe;
 	attr->max_mr = dev->attr.max_mr;
@@ -3081,13 +3081,12 @@ static int ocrdma_set_page(struct ib_mr *ibmr, u64 addr)
 	return 0;
 }
 
-int ocrdma_map_mr_sg(struct ib_mr *ibmr,
-		     struct scatterlist *sg,
-		     int sg_nents)
+int ocrdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
+		     unsigned int *sg_offset)
 {
 	struct ocrdma_mr *mr = get_ocrdma_mr(ibmr);
 
 	mr->npages = 0;
 
-	return ib_sg_to_pages(ibmr, sg, sg_nents, ocrdma_set_page);
+	return ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, ocrdma_set_page);
 }

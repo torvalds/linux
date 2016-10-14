@@ -263,6 +263,7 @@ struct c4iw_dev {
 	struct idr stid_idr;
 	struct list_head db_fc_list;
 	u32 avail_ird;
+	wait_queue_head_t wait;
 };
 
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)
@@ -384,6 +385,7 @@ struct c4iw_mr {
 	struct ib_mr ibmr;
 	struct ib_umem *umem;
 	struct c4iw_dev *rhp;
+	struct sk_buff *dereg_skb;
 	u64 kva;
 	struct tpt_attributes attr;
 	u64 *mpl;
@@ -400,6 +402,7 @@ static inline struct c4iw_mr *to_c4iw_mr(struct ib_mr *ibmr)
 struct c4iw_mw {
 	struct ib_mw ibmw;
 	struct c4iw_dev *rhp;
+	struct sk_buff *dereg_skb;
 	u64 kva;
 	struct tpt_attributes attr;
 };
@@ -412,6 +415,7 @@ static inline struct c4iw_mw *to_c4iw_mw(struct ib_mw *ibmw)
 struct c4iw_cq {
 	struct ib_cq ibcq;
 	struct c4iw_dev *rhp;
+	struct sk_buff *destroy_skb;
 	struct t4_cq cq;
 	spinlock_t lock;
 	spinlock_t comp_handler_lock;
@@ -472,7 +476,7 @@ struct c4iw_qp {
 	struct t4_wq wq;
 	spinlock_t lock;
 	struct mutex mutex;
-	atomic_t refcnt;
+	struct kref kref;
 	wait_queue_head_t wait;
 	struct timer_list timer;
 	int sq_sig_all;
@@ -755,6 +759,7 @@ enum c4iw_ep_flags {
 	CLOSE_SENT		= 3,
 	TIMEOUT                 = 4,
 	QP_REFERENCED           = 5,
+	STOP_MPA_TIMER		= 7,
 };
 
 enum c4iw_ep_history {
@@ -779,13 +784,38 @@ enum c4iw_ep_history {
 	EP_DISC_ABORT           = 18,
 	CONN_RPL_UPCALL         = 19,
 	ACT_RETRY_NOMEM         = 20,
-	ACT_RETRY_INUSE         = 21
+	ACT_RETRY_INUSE         = 21,
+	CLOSE_CON_RPL		= 22,
+	EP_DISC_FAIL		= 24,
+	QP_REFED		= 25,
+	QP_DEREFED		= 26,
+	CM_ID_REFED		= 27,
+	CM_ID_DEREFED		= 28,
+};
+
+enum conn_pre_alloc_buffers {
+	CN_ABORT_REQ_BUF,
+	CN_ABORT_RPL_BUF,
+	CN_CLOSE_CON_REQ_BUF,
+	CN_DESTROY_BUF,
+	CN_FLOWC_BUF,
+	CN_MAX_CON_BUF
+};
+
+#define FLOWC_LEN 80
+union cpl_wr_size {
+	struct cpl_abort_req abrt_req;
+	struct cpl_abort_rpl abrt_rpl;
+	struct fw_ri_wr ri_req;
+	struct cpl_close_con_req close_req;
+	char flowc_buf[FLOWC_LEN];
 };
 
 struct c4iw_ep_common {
 	struct iw_cm_id *cm_id;
 	struct c4iw_qp *qp;
 	struct c4iw_dev *dev;
+	struct sk_buff_head ep_skb_list;
 	enum c4iw_ep_state state;
 	struct kref kref;
 	struct mutex mutex;
@@ -917,9 +947,8 @@ void c4iw_qp_rem_ref(struct ib_qp *qp);
 struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd,
 			    enum ib_mr_type mr_type,
 			    u32 max_num_sg);
-int c4iw_map_mr_sg(struct ib_mr *ibmr,
-		   struct scatterlist *sg,
-		   int sg_nents);
+int c4iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
+		   unsigned int *sg_offset);
 int c4iw_dealloc_mw(struct ib_mw *mw);
 struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 			    struct ib_udata *udata);

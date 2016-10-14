@@ -77,7 +77,7 @@ static inline void __down_read(struct rw_semaphore *sem)
 /*
  * trylock for reading -- returns 1 if successful, 0 if contention
  */
-static inline int __down_read_trylock(struct rw_semaphore *sem)
+static inline bool __down_read_trylock(struct rw_semaphore *sem)
 {
 	long result, tmp;
 	asm volatile("# beginning __down_read_trylock\n\t"
@@ -93,40 +93,51 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 		     : "+m" (sem->count), "=&a" (result), "=&r" (tmp)
 		     : "i" (RWSEM_ACTIVE_READ_BIAS)
 		     : "memory", "cc");
-	return result >= 0 ? 1 : 0;
+	return result >= 0;
 }
 
 /*
  * lock for writing
  */
-static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
-{
-	long tmp;
-	asm volatile("# beginning down_write\n\t"
-		     LOCK_PREFIX "  xadd      %1,(%2)\n\t"
-		     /* adds 0xffff0001, returns the old value */
-		     "  test " __ASM_SEL(%w1,%k1) "," __ASM_SEL(%w1,%k1) "\n\t"
-		     /* was the active mask 0 before? */
-		     "  jz        1f\n"
-		     "  call call_rwsem_down_write_failed\n"
-		     "1:\n"
-		     "# ending down_write"
-		     : "+m" (sem->count), "=d" (tmp)
-		     : "a" (sem), "1" (RWSEM_ACTIVE_WRITE_BIAS)
-		     : "memory", "cc");
-}
+#define ____down_write(sem, slow_path)			\
+({							\
+	long tmp;					\
+	struct rw_semaphore* ret;			\
+	asm volatile("# beginning down_write\n\t"	\
+		     LOCK_PREFIX "  xadd      %1,(%3)\n\t"	\
+		     /* adds 0xffff0001, returns the old value */ \
+		     "  test " __ASM_SEL(%w1,%k1) "," __ASM_SEL(%w1,%k1) "\n\t" \
+		     /* was the active mask 0 before? */\
+		     "  jz        1f\n"			\
+		     "  call " slow_path "\n"		\
+		     "1:\n"				\
+		     "# ending down_write"		\
+		     : "+m" (sem->count), "=d" (tmp), "=a" (ret)	\
+		     : "a" (sem), "1" (RWSEM_ACTIVE_WRITE_BIAS) \
+		     : "memory", "cc");			\
+	ret;						\
+})
 
 static inline void __down_write(struct rw_semaphore *sem)
 {
-	__down_write_nested(sem, 0);
+	____down_write(sem, "call_rwsem_down_write_failed");
+}
+
+static inline int __down_write_killable(struct rw_semaphore *sem)
+{
+	if (IS_ERR(____down_write(sem, "call_rwsem_down_write_failed_killable")))
+		return -EINTR;
+
+	return 0;
 }
 
 /*
  * trylock for writing -- returns 1 if successful, 0 if contention
  */
-static inline int __down_write_trylock(struct rw_semaphore *sem)
+static inline bool __down_write_trylock(struct rw_semaphore *sem)
 {
-	long result, tmp;
+	bool result;
+	long tmp0, tmp1;
 	asm volatile("# beginning __down_write_trylock\n\t"
 		     "  mov          %0,%1\n\t"
 		     "1:\n\t"
@@ -134,14 +145,14 @@ static inline int __down_write_trylock(struct rw_semaphore *sem)
 		     /* was the active mask 0 before? */
 		     "  jnz          2f\n\t"
 		     "  mov          %1,%2\n\t"
-		     "  add          %3,%2\n\t"
+		     "  add          %4,%2\n\t"
 		     LOCK_PREFIX "  cmpxchg  %2,%0\n\t"
 		     "  jnz	     1b\n\t"
 		     "2:\n\t"
-		     "  sete         %b1\n\t"
-		     "  movzbl       %b1, %k1\n\t"
+		     CC_SET(e)
 		     "# ending __down_write_trylock\n\t"
-		     : "+m" (sem->count), "=&a" (result), "=&r" (tmp)
+		     : "+m" (sem->count), "=&a" (tmp0), "=&r" (tmp1),
+		       CC_OUT(e) (result)
 		     : "er" (RWSEM_ACTIVE_WRITE_BIAS)
 		     : "memory", "cc");
 	return result;
@@ -201,24 +212,6 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
 		     : "+m" (sem->count)
 		     : "a" (sem), "er" (-RWSEM_WAITING_BIAS)
 		     : "memory", "cc");
-}
-
-/*
- * implement atomic add functionality
- */
-static inline void rwsem_atomic_add(long delta, struct rw_semaphore *sem)
-{
-	asm volatile(LOCK_PREFIX _ASM_ADD "%1,%0"
-		     : "+m" (sem->count)
-		     : "er" (delta));
-}
-
-/*
- * implement exchange and add functionality
- */
-static inline long rwsem_atomic_update(long delta, struct rw_semaphore *sem)
-{
-	return delta + xadd(&sem->count, delta);
 }
 
 #endif /* __KERNEL__ */

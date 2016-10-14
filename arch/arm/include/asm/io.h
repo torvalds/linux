@@ -282,7 +282,7 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
  * These perform PCI memory accesses via an ioremap region.  They don't
  * take an address as such, but a cookie.
  *
- * Again, this are defined to perform little endian accesses.  See the
+ * Again, these are defined to perform little endian accesses.  See the
  * IO port primitives for more information.
  */
 #ifndef readl
@@ -392,8 +392,17 @@ void __iomem *ioremap(resource_size_t res_cookie, size_t size);
 #define ioremap ioremap
 #define ioremap_nocache ioremap
 
+/*
+ * Do not use ioremap_cache for mapping memory. Use memremap instead.
+ */
 void __iomem *ioremap_cache(resource_size_t res_cookie, size_t size);
 #define ioremap_cache ioremap_cache
+
+/*
+ * Do not use ioremap_cached in new code. Provided for the benefit of
+ * the pxa2xx-flash MTD driver only.
+ */
+void __iomem *ioremap_cached(resource_size_t res_cookie, size_t size);
 
 void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size);
 #define ioremap_wc ioremap_wc
@@ -401,6 +410,9 @@ void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size);
 
 void iounmap(volatile void __iomem *iomem_cookie);
 #define iounmap iounmap
+
+void *arch_memremap_wb(phys_addr_t phys_addr, size_t size);
+#define arch_memremap_wb arch_memremap_wb
 
 /*
  * io{read,write}{16,32}be() macros

@@ -33,6 +33,7 @@
 	evm_3v3_sw: fixedregulator-evm_3v3_sw {
 		compatible = "regulator-fixed";
 		regulator-name = "evm_3v3_sw";
+		vin-supply = <&sysen1>;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
@@ -64,10 +65,11 @@
 		regulator-always-on;
 		regulator-boot-on;
 		enable-active-high;
+		vin-supply = <&sysen2>;
 		gpio = <&gpio7 11 GPIO_ACTIVE_HIGH>;
 	};
 
-	sound0: sound@0 {
+	sound0: sound0 {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "DRA7xx-EVM";
 		simple-audio-card,widgets =
@@ -224,21 +226,6 @@
 		>;
 	};
 
-	qspi1_pins: pinmux_qspi1_pins {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x344c, PIN_INPUT | MUX_MODE1)  /* gpmc_a3.qspi1_cs2 */
-			DRA7XX_CORE_IOPAD(0x3450, PIN_INPUT | MUX_MODE1)  /* gpmc_a4.qspi1_cs3 */
-			DRA7XX_CORE_IOPAD(0x3474, PIN_INPUT | MUX_MODE1)  /* gpmc_a13.qspi1_rtclk */
-			DRA7XX_CORE_IOPAD(0x3478, PIN_INPUT | MUX_MODE1)  /* gpmc_a14.qspi1_d3 */
-			DRA7XX_CORE_IOPAD(0x347c, PIN_INPUT | MUX_MODE1)  /* gpmc_a15.qspi1_d2 */
-			DRA7XX_CORE_IOPAD(0x3480, PIN_INPUT | MUX_MODE1) /* gpmc_a16.qspi1_d1 */
-			DRA7XX_CORE_IOPAD(0x3484, PIN_INPUT | MUX_MODE1)  /* gpmc_a17.qspi1_d0 */
-			DRA7XX_CORE_IOPAD(0x3488, PIN_INPUT | MUX_MODE1)  /* qpmc_a18.qspi1_sclk */
-			DRA7XX_CORE_IOPAD(0x34b8, PIN_INPUT_PULLUP | MUX_MODE1)  /* gpmc_cs2.qspi1_cs0 */
-			DRA7XX_CORE_IOPAD(0x34bc, PIN_INPUT_PULLUP | MUX_MODE1)  /* gpmc_cs3.qspi1_cs1 */
-		>;
-	};
-
 	usb1_pins: pinmux_usb1_pins {
                 pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x3680, PIN_INPUT_SLEW | MUX_MODE0) /* usb1_drvvbus */
@@ -254,8 +241,9 @@
 	nand_flash_x16: nand_flash_x16 {
 		/* On DRA7 EVM, GPMC_WPN and NAND_BOOTn comes from DIP switch
 		 * So NAND flash requires following switch settings:
-		 * SW5.9 (GPMC_WPN) = LOW
-		 * SW5.1 (NAND_BOOTn) = HIGH */
+		 * SW5.1 (NAND_BOOTn) = ON (LOW)
+		 * SW5.9 (GPMC_WPN) = OFF (HIGH)
+		 */
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x3400, PIN_INPUT  | MUX_MODE0)	/* gpmc_ad0	*/
 			DRA7XX_CORE_IOPAD(0x3404, PIN_INPUT  | MUX_MODE0)	/* gpmc_ad1	*/
@@ -428,7 +416,7 @@
 					/* VDD_DSPEVE */
 					regulator-name = "smps45";
 					regulator-min-microvolt = < 850000>;
-					regulator-max-microvolt = <1150000>;
+					regulator-max-microvolt = <1250000>;
 					regulator-always-on;
 					regulator-boot-on;
 				};
@@ -446,7 +434,7 @@
 					/* CORE_VDD */
 					regulator-name = "smps7";
 					regulator-min-microvolt = <850000>;
-					regulator-max-microvolt = <1060000>;
+					regulator-max-microvolt = <1150000>;
 					regulator-always-on;
 					regulator-boot-on;
 				};
@@ -523,12 +511,37 @@
 					regulator-max-microvolt = <3300000>;
 					regulator-boot-on;
 				};
+
+				/* REGEN1 is unused */
+
+				regen2: regen2 {
+					/* Needed for PMIC internal resources */
+					regulator-name = "regen2";
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				/* REGEN3 is unused */
+
+				sysen1: sysen1 {
+					/* PMIC_REGEN_3V3 */
+					regulator-name = "sysen1";
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				sysen2: sysen2 {
+					/* PMIC_REGEN_DDR */
+					regulator-name = "sysen2";
+					regulator-boot-on;
+					regulator-always-on;
+				};
 			};
 		};
 	};
 
 	pcf_lcd: gpio@20 {
-		compatible = "nxp,pcf8575";
+		compatible = "ti,pcf8575", "nxp,pcf8575";
 		reg = <0x20>;
 		gpio-controller;
 		#gpio-cells = <2>;
@@ -539,7 +552,7 @@
 	};
 
 	pcf_gpio_21: gpio@21 {
-		compatible = "ti,pcf8575";
+		compatible = "ti,pcf8575", "nxp,pcf8575";
 		reg = <0x21>;
 		lines-initial-states = <0x1408>;
 		gpio-controller;
@@ -573,7 +586,7 @@
 	clock-frequency = <400000>;
 
 	pcf_hdmi: gpio@26 {
-		compatible = "nxp,pcf8575";
+		compatible = "ti,pcf8575", "nxp,pcf8575";
 		reg = <0x26>;
 		gpio-controller;
 		#gpio-cells = <2>;
@@ -650,18 +663,14 @@
 
 &qspi {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&qspi1_pins>;
 
-	spi-max-frequency = <48000000>;
+	spi-max-frequency = <64000000>;
 	m25p80@0 {
 		compatible = "s25fl256s1";
-		spi-max-frequency = <48000000>;
+		spi-max-frequency = <64000000>;
 		reg = <0>;
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <4>;
-		spi-cpol;
-		spi-cpha;
 		#address-cells = <1>;
 		#size-cells = <1>;
 
@@ -748,6 +757,7 @@
 		interrupt-parent = <&gpmc>;
 		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
 			     <1 IRQ_TYPE_NONE>; /* termcount */
+		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 pin */
 		ti,nand-ecc-opt = "bch8";
 		ti,elm-id = <&elm>;
 		nand-bus-width = <16>;
@@ -904,6 +914,8 @@
 	serial-dir = <  /* 0: INACTIVE, 1: TX, 2: RX */
 		1 2 0 0
 	>;
+	tx-num-evt = <32>;
+	rx-num-evt = <32>;
 };
 
 &mailbox5 {

@@ -637,6 +637,8 @@ struct ath9k_vif_iter_data {
 	int nwds;      /* number of WDS vifs */
 	int nadhocs;   /* number of adhoc vifs */
 	int nocbs;     /* number of OCB vifs */
+	int nbcnvifs;  /* number of beaconing vifs */
+	struct ieee80211_vif *primary_beacon_vif;
 	struct ieee80211_vif *primary_sta;
 };
 
@@ -685,10 +687,11 @@ struct ath_beacon {
 };
 
 void ath9k_beacon_tasklet(unsigned long data);
-void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif,
-			 u32 changed);
+void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *main_vif,
+			 bool beacons);
 void ath9k_beacon_assign_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
 void ath9k_beacon_remove_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
+void ath9k_beacon_ensure_primary_slot(struct ath_softc *sc);
 void ath9k_set_beacon(struct ath_softc *sc);
 bool ath9k_csa_is_finished(struct ath_softc *sc, struct ieee80211_vif *vif);
 void ath9k_csa_update(struct ath_softc *sc);
@@ -813,16 +816,12 @@ static inline int ath9k_dump_btcoex(struct ath_softc *sc, u8 *buf, u32 size)
 #ifdef CONFIG_MAC80211_LEDS
 void ath_init_leds(struct ath_softc *sc);
 void ath_deinit_leds(struct ath_softc *sc);
-void ath_fill_led_pin(struct ath_softc *sc);
 #else
 static inline void ath_init_leds(struct ath_softc *sc)
 {
 }
 
 static inline void ath_deinit_leds(struct ath_softc *sc)
-{
-}
-static inline void ath_fill_led_pin(struct ath_softc *sc)
 {
 }
 #endif

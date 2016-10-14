@@ -29,6 +29,7 @@
 #include <linux/spinlock.h>
 #include <linux/reboot.h>
 #include <linux/pm.h>
+#include <linux/log2.h>
 
 #include "../core.h"
 #include "../pinconf.h"
@@ -101,7 +102,7 @@ static const struct pinctrl_ops msm_pinctrl_ops = {
 	.get_group_name		= msm_get_group_name,
 	.get_group_pins		= msm_get_group_pins,
 	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
-	.dt_free_map		= pinctrl_utils_dt_free_map,
+	.dt_free_map		= pinctrl_utils_free_map,
 };
 
 static int msm_get_functions_count(struct pinctrl_dev *pctldev)
@@ -138,10 +139,11 @@ static int msm_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	struct msm_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	const struct msm_pingroup *g;
 	unsigned long flags;
-	u32 val;
+	u32 val, mask;
 	int i;
 
 	g = &pctrl->soc->groups[group];
+	mask = GENMASK(g->mux_bit + order_base_2(g->nfuncs) - 1, g->mux_bit);
 
 	for (i = 0; i < g->nfuncs; i++) {
 		if (g->funcs[i] == function)
@@ -154,7 +156,7 @@ static int msm_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	spin_lock_irqsave(&pctrl->lock, flags);
 
 	val = readl(pctrl->regs + g->ctl_reg);
-	val &= ~(0x7 << g->mux_bit);
+	val &= mask;
 	val |= i << g->mux_bit;
 	writel(val, pctrl->regs + g->ctl_reg);
 
@@ -898,17 +900,16 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 	msm_pinctrl_desc.name = dev_name(&pdev->dev);
 	msm_pinctrl_desc.pins = pctrl->soc->pins;
 	msm_pinctrl_desc.npins = pctrl->soc->npins;
-	pctrl->pctrl = pinctrl_register(&msm_pinctrl_desc, &pdev->dev, pctrl);
+	pctrl->pctrl = devm_pinctrl_register(&pdev->dev, &msm_pinctrl_desc,
+					     pctrl);
 	if (IS_ERR(pctrl->pctrl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
 		return PTR_ERR(pctrl->pctrl);
 	}
 
 	ret = msm_gpio_init(pctrl);
-	if (ret) {
-		pinctrl_unregister(pctrl->pctrl);
+	if (ret)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, pctrl);
 
@@ -923,7 +924,6 @@ int msm_pinctrl_remove(struct platform_device *pdev)
 	struct msm_pinctrl *pctrl = platform_get_drvdata(pdev);
 
 	gpiochip_remove(&pctrl->chip);
-	pinctrl_unregister(pctrl->pctrl);
 
 	unregister_restart_handler(&pctrl->restart_nb);
 

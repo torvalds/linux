@@ -679,7 +679,7 @@ static void __init init_free_pfn_range(unsigned long start, unsigned long end)
 			 * Hacky direct set to avoid unnecessary
 			 * lock take/release for EVERY page here.
 			 */
-			p->_count.counter = 0;
+			p->_refcount.counter = 0;
 			p->_mapcount.counter = -1;
 		}
 		init_page_count(page);

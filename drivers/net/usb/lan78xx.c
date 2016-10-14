@@ -3045,7 +3045,7 @@ gso_skb:
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	switch (ret) {
 	case 0:
-		dev->net->trans_start = jiffies;
+		netif_trans_update(dev->net);
 		lan78xx_queue_skb(&dev->txq, skb, tx_start);
 		if (skb_queue_len(&dev->txq) >= dev->tx_qlen)
 			netif_stop_queue(dev->net);
@@ -3729,7 +3729,7 @@ int lan78xx_resume(struct usb_interface *intf)
 				usb_free_urb(res);
 				usb_autopm_put_interface_async(dev->intf);
 			} else {
-				dev->net->trans_start = jiffies;
+				netif_trans_update(dev->net);
 				lan78xx_queue_skb(&dev->txq, skb, tx_start);
 			}
 		}

@@ -7,7 +7,7 @@
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
 #include <linux/kdebug.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/ptrace.h>
 #include <linux/kexec.h>
 #include <linux/sysfs.h>
@@ -61,15 +61,13 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		bp = stack_frame(task, regs);
 
 	for (;;) {
-		struct thread_info *context;
 		void *end_stack;
 
 		end_stack = is_hardirq_stack(stack, cpu);
 		if (!end_stack)
 			end_stack = is_softirq_stack(stack, cpu);
 
-		context = task_thread_info(task);
-		bp = ops->walk_stack(context, stack, bp, ops, data,
+		bp = ops->walk_stack(task, stack, bp, ops, data,
 				     end_stack, &graph);
 
 		/* Stop if not on irq stack */
@@ -98,7 +96,9 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	int i;
 
 	if (sp == NULL) {
-		if (task)
+		if (regs)
+			sp = (unsigned long *)regs->sp;
+		else if (task)
 			sp = (unsigned long *)task->thread.sp;
 		else
 			sp = (unsigned long *)&sp;

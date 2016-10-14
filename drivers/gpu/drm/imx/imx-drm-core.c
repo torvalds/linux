@@ -15,16 +15,21 @@
  */
 #include <linux/component.h>
 #include <linux/device.h>
+#include <linux/dma-buf.h>
 #include <linux/fb.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/reservation.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_of.h>
+#include <video/imx-ipu-v3.h>
 
 #include "imx-drm.h"
 
@@ -40,6 +45,7 @@ struct imx_drm_device {
 	struct imx_drm_crtc			*crtc[MAX_CRTC];
 	unsigned int				pipes;
 	struct drm_fbdev_cma			*fbhelper;
+	struct drm_atomic_state			*state;
 };
 
 struct imx_drm_crtc {
@@ -83,42 +89,6 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 
 	return 0;
 }
-
-static struct imx_drm_crtc *imx_drm_find_crtc(struct drm_crtc *crtc)
-{
-	struct imx_drm_device *imxdrm = crtc->dev->dev_private;
-	unsigned i;
-
-	for (i = 0; i < MAX_CRTC; i++)
-		if (imxdrm->crtc[i] && imxdrm->crtc[i]->crtc == crtc)
-			return imxdrm->crtc[i];
-
-	return NULL;
-}
-
-int imx_drm_set_bus_format_pins(struct drm_encoder *encoder, u32 bus_format,
-		int hsync_pin, int vsync_pin)
-{
-	struct imx_drm_crtc_helper_funcs *helper;
-	struct imx_drm_crtc *imx_crtc;
-
-	imx_crtc = imx_drm_find_crtc(encoder->crtc);
-	if (!imx_crtc)
-		return -EINVAL;
-
-	helper = &imx_crtc->imx_drm_helper_funcs;
-	if (helper->set_interface_pix_fmt)
-		return helper->set_interface_pix_fmt(encoder->crtc,
-					bus_format, hsync_pin, vsync_pin);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(imx_drm_set_bus_format_pins);
-
-int imx_drm_set_bus_format(struct drm_encoder *encoder, u32 bus_format)
-{
-	return imx_drm_set_bus_format_pins(encoder, bus_format, 2, 3);
-}
-EXPORT_SYMBOL_GPL(imx_drm_set_bus_format);
 
 int imx_drm_crtc_vblank_get(struct imx_drm_crtc *imx_drm_crtc)
 {
@@ -201,9 +171,90 @@ static void imx_drm_output_poll_changed(struct drm_device *drm)
 	drm_fbdev_cma_hotplug_event(imxdrm->fbhelper);
 }
 
+static int imx_drm_atomic_check(struct drm_device *dev,
+				struct drm_atomic_state *state)
+{
+	int ret;
+
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		return ret;
+
+	/*
+	 * Check modeset again in case crtc_state->mode_changed is
+	 * updated in plane's ->atomic_check callback.
+	 */
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 static const struct drm_mode_config_funcs imx_drm_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
 	.output_poll_changed = imx_drm_output_poll_changed,
+	.atomic_check = imx_drm_atomic_check,
+	.atomic_commit = drm_atomic_helper_commit,
+};
+
+static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_plane_state *plane_state;
+	struct drm_gem_cma_object *cma_obj;
+	struct fence *excl;
+	unsigned shared_count;
+	struct fence **shared;
+	unsigned int i, j;
+	int ret;
+
+	/* Wait for fences. */
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		plane_state = crtc->primary->state;
+		if (plane_state->fb) {
+			cma_obj = drm_fb_cma_get_gem_obj(plane_state->fb, 0);
+			if (cma_obj->base.dma_buf) {
+				ret = reservation_object_get_fences_rcu(
+					cma_obj->base.dma_buf->resv, &excl,
+					&shared_count, &shared);
+				if (unlikely(ret))
+					DRM_ERROR("failed to get fences "
+						  "for buffer\n");
+
+				if (excl) {
+					fence_wait(excl, false);
+					fence_put(excl);
+				}
+				for (j = 0; j < shared_count; i++) {
+					fence_wait(shared[j], false);
+					fence_put(shared[j]);
+				}
+			}
+		}
+	}
+
+	drm_atomic_helper_commit_modeset_disables(dev, state);
+
+	drm_atomic_helper_commit_planes(dev, state, true);
+
+	drm_atomic_helper_commit_modeset_enables(dev, state);
+
+	drm_atomic_helper_commit_hw_done(state);
+
+	drm_atomic_helper_wait_for_vblanks(dev, state);
+
+	drm_atomic_helper_cleanup_planes(dev, state);
+}
+
+static struct drm_mode_config_helper_funcs imx_drm_mode_config_helpers = {
+	.atomic_commit_tail = imx_drm_atomic_commit_tail,
 };
 
 /*
@@ -245,19 +296,13 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	drm->mode_config.max_width = 4096;
 	drm->mode_config.max_height = 4096;
 	drm->mode_config.funcs = &imx_drm_mode_config_funcs;
+	drm->mode_config.helper_private = &imx_drm_mode_config_helpers;
 
 	drm_mode_config_init(drm);
 
 	ret = drm_vblank_init(drm, MAX_CRTC);
 	if (ret)
 		goto err_kms;
-
-	/*
-	 * with vblank_disable_allowed = true, vblank interrupt will be
-	 * disabled by drm timer once a current process gives up ownership
-	 * of vblank event. (after drm_vblank_put function is called)
-	 */
-	drm->vblank_disable_allowed = true;
 
 	platform_set_drvdata(drm->platformdev, drm);
 
@@ -282,6 +327,8 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 		}
 	}
 
+	drm_mode_config_reset(drm);
+
 	/*
 	 * All components are now initialised, so setup the fb helper.
 	 * The fb helper takes copies of key hardware information, so the
@@ -292,7 +339,6 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 		dev_warn(drm->dev, "Invalid legacyfb_depth.  Defaulting to 16bpp\n");
 		legacyfb_depth = 16;
 	}
-	drm_helper_disable_unused_functions(drm);
 	imxdrm->fbhelper = drm_fbdev_cma_init(drm, legacyfb_depth,
 				drm->mode_config.num_crtc, MAX_CRTC);
 	if (IS_ERR(imxdrm->fbhelper)) {
@@ -406,12 +452,12 @@ static const struct drm_ioctl_desc imx_drm_ioctls[] = {
 };
 
 static struct drm_driver imx_drm_driver = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
+				  DRIVER_ATOMIC,
 	.load			= imx_drm_driver_load,
 	.unload			= imx_drm_driver_unload,
 	.lastclose		= imx_drm_driver_lastclose,
-	.set_busid		= drm_platform_set_busid,
-	.gem_free_object	= drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
 	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
@@ -443,6 +489,13 @@ static struct drm_driver imx_drm_driver = {
 static int compare_of(struct device *dev, void *data)
 {
 	struct device_node *np = data;
+
+	/* Special case for DI, dev->of_node may not be set yet */
+	if (strcmp(dev->driver->name, "imx-ipuv3-crtc") == 0) {
+		struct ipu_client_platformdata *pdata = dev->platform_data;
+
+		return pdata->of_node == np;
+	}
 
 	/* Special case for LDB, one device for two channels */
 	if (of_node_cmp(np->name, "lvds-channel") == 0) {
@@ -488,6 +541,7 @@ static int imx_drm_platform_remove(struct platform_device *pdev)
 static int imx_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	struct imx_drm_device *imxdrm;
 
 	/* The drm_dev is NULL before .load hook is called */
 	if (drm_dev == NULL)
@@ -495,17 +549,26 @@ static int imx_drm_suspend(struct device *dev)
 
 	drm_kms_helper_poll_disable(drm_dev);
 
+	imxdrm = drm_dev->dev_private;
+	imxdrm->state = drm_atomic_helper_suspend(drm_dev);
+	if (IS_ERR(imxdrm->state)) {
+		drm_kms_helper_poll_enable(drm_dev);
+		return PTR_ERR(imxdrm->state);
+	}
+
 	return 0;
 }
 
 static int imx_drm_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	struct imx_drm_device *imx_drm;
 
 	if (drm_dev == NULL)
 		return 0;
 
-	drm_helper_resume_force_mode(drm_dev);
+	imx_drm = drm_dev->dev_private;
+	drm_atomic_helper_resume(drm_dev, imx_drm->state);
 	drm_kms_helper_poll_enable(drm_dev);
 
 	return 0;

@@ -28,11 +28,6 @@
 #define BO_LOCKED   0x4000
 #define BO_PINNED   0x2000
 
-static inline void __user *to_user_ptr(u64 address)
-{
-	return (void __user *)(uintptr_t)address;
-}
-
 static struct etnaviv_gem_submit *submit_create(struct drm_device *dev,
 		struct etnaviv_gpu *gpu, size_t nr)
 {
@@ -347,21 +342,21 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	cmdbuf->exec_state = args->exec_state;
 	cmdbuf->ctx = file->driver_priv;
 
-	ret = copy_from_user(bos, to_user_ptr(args->bos),
+	ret = copy_from_user(bos, u64_to_user_ptr(args->bos),
 			     args->nr_bos * sizeof(*bos));
 	if (ret) {
 		ret = -EFAULT;
 		goto err_submit_cmds;
 	}
 
-	ret = copy_from_user(relocs, to_user_ptr(args->relocs),
+	ret = copy_from_user(relocs, u64_to_user_ptr(args->relocs),
 			     args->nr_relocs * sizeof(*relocs));
 	if (ret) {
 		ret = -EFAULT;
 		goto err_submit_cmds;
 	}
 
-	ret = copy_from_user(stream, to_user_ptr(args->stream),
+	ret = copy_from_user(stream, u64_to_user_ptr(args->stream),
 			     args->stream_size);
 	if (ret) {
 		ret = -EFAULT;

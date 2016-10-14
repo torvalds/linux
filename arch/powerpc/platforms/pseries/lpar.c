@@ -45,6 +45,7 @@
 #include <asm/plpar_wrappers.h>
 #include <asm/kexec.h>
 #include <asm/fadump.h>
+#include <asm/asm-prototypes.h>
 
 #include "pseries.h"
 
@@ -89,18 +90,21 @@ void vpa_init(int cpu)
 		       "%lx failed with %ld\n", cpu, hwcpu, addr, ret);
 		return;
 	}
+
+#ifdef CONFIG_PPC_STD_MMU_64
 	/*
 	 * PAPR says this feature is SLB-Buffer but firmware never
 	 * reports that.  All SPLPAR support SLB shadow buffer.
 	 */
-	addr = __pa(paca[cpu].slb_shadow_ptr);
-	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
+	if (!radix_enabled() && firmware_has_feature(FW_FEATURE_SPLPAR)) {
+		addr = __pa(paca[cpu].slb_shadow_ptr);
 		ret = register_slb_shadow(hwcpu, addr);
 		if (ret)
 			pr_err("WARNING: SLB shadow buffer registration for "
 			       "cpu %d (hw %d) of area %lx failed with %ld\n",
 			       cpu, hwcpu, addr, ret);
 	}
+#endif /* CONFIG_PPC_STD_MMU_64 */
 
 	/*
 	 * Register dispatch trace log, if one has been allocated.
@@ -123,6 +127,8 @@ void vpa_init(int cpu)
 	}
 }
 
+#ifdef CONFIG_PPC_STD_MMU_64
+
 static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 				     unsigned long vpn, unsigned long pa,
 				     unsigned long rflags, unsigned long vflags,
@@ -139,7 +145,7 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 			 hpte_group, vpn,  pa, rflags, vflags, psize);
 
 	hpte_v = hpte_encode_v(vpn, psize, apsize, ssize) | vflags | HPTE_V_VALID;
-	hpte_r = hpte_encode_r(pa, psize, apsize) | rflags;
+	hpte_r = hpte_encode_r(pa, psize, apsize, ssize) | rflags;
 
 	if (!(vflags & HPTE_V_BOLTED))
 		pr_devel(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
@@ -151,10 +157,6 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	/* I-cache synchronize = 0     */
 	/* Exact = 0                   */
 	flags = 0;
-
-	/* Make pHyp happy */
-	if ((rflags & _PAGE_NO_CACHE) && !(rflags & _PAGE_WRITETHRU))
-		hpte_r &= ~HPTE_R_M;
 
 	if (firmware_has_feature(FW_FEATURE_XCMO) && !(hpte_r & HPTE_R_N))
 		flags |= H_COALESCE_CAND;
@@ -259,24 +261,8 @@ static void pSeries_lpar_hptab_clear(void)
 	 * This is also called on boot when a fadump happens. In that case we
 	 * must not change the exception endian mode.
 	 */
-	if (firmware_has_feature(FW_FEATURE_SET_MODE) && !is_fadump_active()) {
-		long rc;
-
-		rc = pseries_big_endian_exceptions();
-		/*
-		 * At this point it is unlikely panic() will get anything
-		 * out to the user, but at least this will stop us from
-		 * continuing on further and creating an even more
-		 * difficult to debug situation.
-		 *
-		 * There is a known problem when kdump'ing, if cpus are offline
-		 * the above call will fail. Rather than panicking again, keep
-		 * going and hope the kdump kernel is also little endian, which
-		 * it usually is.
-		 */
-		if (rc && !kdump_in_progress())
-			panic("Could not enable big endian exceptions");
-	}
+	if (firmware_has_feature(FW_FEATURE_SET_MODE) && !is_fadump_active())
+		pseries_big_endian_exceptions();
 #endif
 }
 
@@ -603,17 +589,17 @@ static int __init disable_bulk_remove(char *str)
 
 __setup("bulk_remove=", disable_bulk_remove);
 
-void __init hpte_init_lpar(void)
+void __init hpte_init_pseries(void)
 {
-	ppc_md.hpte_invalidate	= pSeries_lpar_hpte_invalidate;
-	ppc_md.hpte_updatepp	= pSeries_lpar_hpte_updatepp;
-	ppc_md.hpte_updateboltedpp = pSeries_lpar_hpte_updateboltedpp;
-	ppc_md.hpte_insert	= pSeries_lpar_hpte_insert;
-	ppc_md.hpte_remove	= pSeries_lpar_hpte_remove;
-	ppc_md.hpte_removebolted = pSeries_lpar_hpte_removebolted;
-	ppc_md.flush_hash_range	= pSeries_lpar_flush_hash_range;
-	ppc_md.hpte_clear_all   = pSeries_lpar_hptab_clear;
-	ppc_md.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
+	mmu_hash_ops.hpte_invalidate	 = pSeries_lpar_hpte_invalidate;
+	mmu_hash_ops.hpte_updatepp	 = pSeries_lpar_hpte_updatepp;
+	mmu_hash_ops.hpte_updateboltedpp = pSeries_lpar_hpte_updateboltedpp;
+	mmu_hash_ops.hpte_insert	 = pSeries_lpar_hpte_insert;
+	mmu_hash_ops.hpte_remove	 = pSeries_lpar_hpte_remove;
+	mmu_hash_ops.hpte_removebolted   = pSeries_lpar_hpte_removebolted;
+	mmu_hash_ops.flush_hash_range	 = pSeries_lpar_flush_hash_range;
+	mmu_hash_ops.hpte_clear_all      = pSeries_lpar_hptab_clear;
+	mmu_hash_ops.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
 }
 
 #ifdef CONFIG_PPC_SMLPAR
@@ -659,6 +645,8 @@ static void pSeries_set_page_state(struct page *page, int order,
 
 void arch_free_page(struct page *page, int order)
 {
+	if (radix_enabled())
+		return;
 	if (!cmo_free_hint_flag || !firmware_has_feature(FW_FEATURE_CMO))
 		return;
 
@@ -666,7 +654,8 @@ void arch_free_page(struct page *page, int order)
 }
 EXPORT_SYMBOL(arch_free_page);
 
-#endif
+#endif /* CONFIG_PPC_SMLPAR */
+#endif /* CONFIG_PPC_STD_MMU_64 */
 
 #ifdef CONFIG_TRACEPOINTS
 #ifdef HAVE_JUMP_LABEL

@@ -79,6 +79,11 @@ static const char *id_str[PERF_STAT_EVSEL_ID__MAX] = {
 	ID(TRANSACTION_START,	cpu/tx-start/),
 	ID(ELISION_START,	cpu/el-start/),
 	ID(CYCLES_IN_TX_CP,	cpu/cycles-ct/),
+	ID(TOPDOWN_TOTAL_SLOTS, topdown-total-slots),
+	ID(TOPDOWN_SLOTS_ISSUED, topdown-slots-issued),
+	ID(TOPDOWN_SLOTS_RETIRED, topdown-slots-retired),
+	ID(TOPDOWN_FETCH_BUBBLES, topdown-fetch-bubbles),
+	ID(TOPDOWN_RECOVERY_BUBBLES, topdown-recovery-bubbles),
 };
 #undef ID
 
@@ -157,7 +162,7 @@ int perf_evlist__alloc_stats(struct perf_evlist *evlist, bool alloc_raw)
 {
 	struct perf_evsel *evsel;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (perf_evsel__alloc_stats(evsel, alloc_raw))
 			goto out_free;
 	}
@@ -173,7 +178,7 @@ void perf_evlist__free_stats(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		perf_evsel__free_stat_priv(evsel);
 		perf_evsel__free_counts(evsel);
 		perf_evsel__free_prev_raw_counts(evsel);
@@ -184,7 +189,7 @@ void perf_evlist__reset_stats(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		perf_evsel__reset_stat_priv(evsel);
 		perf_evsel__reset_counts(evsel);
 	}
@@ -307,6 +312,7 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	struct perf_counts_values *aggr = &counter->counts->aggr;
 	struct perf_stat_evsel *ps = counter->priv;
 	u64 *count = counter->counts->aggr.values;
+	u64 val;
 	int i, ret;
 
 	aggr->val = aggr->ena = aggr->run = 0;
@@ -346,7 +352,8 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	/*
 	 * Save the full runtime - to allow normalization during printout:
 	 */
-	perf_stat__update_shadow_stats(counter, count, 0);
+	val = counter->scale * *count;
+	perf_stat__update_shadow_stats(counter, &val, 0);
 
 	return 0;
 }

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -101,12 +97,6 @@ struct fld_cache {
 	unsigned int		 fci_no_shrink:1;
 };
 
-enum fld_op {
-	FLD_CREATE = 0,
-	FLD_DELETE = 1,
-	FLD_LOOKUP = 2
-};
-
 enum {
 	/* 4M of FLD cache will not hurt client a lot. */
 	FLD_SERVER_CACHE_SIZE      = (4 * 0x100000),
@@ -126,7 +116,8 @@ enum {
 extern struct lu_fld_hash fld_hash[];
 
 int fld_client_rpc(struct obd_export *exp,
-		   struct lu_seq_range *range, __u32 fld_op);
+		   struct lu_seq_range *range, __u32 fld_op,
+		   struct ptlrpc_request **reqp);
 
 extern struct lprocfs_vars fld_client_debugfs_list[];
 

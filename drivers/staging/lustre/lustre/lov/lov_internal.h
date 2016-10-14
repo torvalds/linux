@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -72,6 +68,21 @@
 })
 #endif
 
+#define pool_tgt_size(p)	((p)->pool_obds.op_size)
+#define pool_tgt_count(p)	((p)->pool_obds.op_count)
+#define pool_tgt_array(p)	((p)->pool_obds.op_array)
+#define pool_tgt_rw_sem(p)	((p)->pool_obds.op_rw_sem)
+
+struct pool_desc {
+	char			 pool_name[LOV_MAXPOOLNAME + 1];
+	struct ost_pool		 pool_obds;
+	atomic_t		 pool_refcount;
+	struct hlist_node	 pool_hash;		/* access by poolname */
+	struct list_head	 pool_list;		/* serial access */
+	struct dentry		*pool_debugfs_entry;	/* file in debugfs */
+	struct obd_device	*pool_lobd;		/* owner */
+};
+
 struct lov_request {
 	struct obd_info	  rq_oi;
 	struct lov_request_set  *rq_rqset;
@@ -88,7 +99,6 @@ struct lov_request {
 };
 
 struct lov_request_set {
-	struct ldlm_enqueue_info	*set_ei;
 	struct obd_info			*set_oi;
 	atomic_t			set_refcount;
 	struct obd_export		*set_exp;
@@ -102,10 +112,8 @@ struct lov_request_set {
 	atomic_t			set_finish_checked;
 	struct llog_cookie		*set_cookies;
 	int				set_cookie_sent;
-	struct obd_trans_info		*set_oti;
 	struct list_head			set_list;
 	wait_queue_head_t			set_waitq;
-	spinlock_t			set_lock;
 };
 
 extern struct kmem_cache *lov_oinfo_slab;
@@ -113,12 +121,6 @@ extern struct kmem_cache *lov_oinfo_slab;
 extern struct lu_kmem_descr lov_caches[];
 
 void lov_finish_set(struct lov_request_set *set);
-
-static inline void lov_get_reqset(struct lov_request_set *set)
-{
-	LASSERT(atomic_read(&set->set_refcount) > 0);
-	atomic_inc(&set->set_refcount);
-}
 
 static inline void lov_put_reqset(struct lov_request_set *set)
 {
@@ -146,10 +148,8 @@ int lov_stripe_intersects(struct lov_stripe_md *lsm, int stripeno,
 			  u64 start, u64 end,
 			  u64 *obd_start, u64 *obd_end);
 int lov_stripe_number(struct lov_stripe_md *lsm, u64 lov_off);
-
-/* lov_qos.c */
-#define LOV_USES_ASSIGNED_STRIPE	0
-#define LOV_USES_DEFAULT_STRIPE	 1
+pgoff_t lov_stripe_pgoff(struct lov_stripe_md *lsm, pgoff_t stripe_index,
+			 int stripe);
 
 /* lov_request.c */
 int lov_update_common_set(struct lov_request_set *set,
@@ -176,6 +176,8 @@ int lov_fini_statfs_set(struct lov_request_set *set);
 int lov_statfs_interpret(struct ptlrpc_request_set *rqset, void *data, int rc);
 
 /* lov_obd.c */
+void lov_stripe_lock(struct lov_stripe_md *md);
+void lov_stripe_unlock(struct lov_stripe_md *md);
 void lov_fix_desc(struct lov_desc *desc);
 void lov_fix_desc_stripe_size(__u64 *val);
 void lov_fix_desc_stripe_count(__u32 *val);
@@ -231,8 +233,6 @@ int lov_pool_new(struct obd_device *obd, char *poolname);
 int lov_pool_del(struct obd_device *obd, char *poolname);
 int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname);
 int lov_pool_remove(struct obd_device *obd, char *poolname, char *ostname);
-struct pool_desc *lov_find_pool(struct lov_obd *lov, char *poolname);
-int lov_check_index_in_pool(__u32 idx, struct pool_desc *pool);
 void lov_pool_putref(struct pool_desc *pool);
 
 static inline struct lov_stripe_md *lsm_addref(struct lov_stripe_md *lsm)

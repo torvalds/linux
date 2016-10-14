@@ -11,6 +11,7 @@
 #include <linux/hugetlb.h>
 #include <linux/slab.h>
 #include <linux/memblock.h>
+#include <asm/cacheflush.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/setup.h>
@@ -29,9 +30,11 @@ static LIST_HEAD(mem_segs);
 
 static void __ref *vmem_alloc_pages(unsigned int order)
 {
+	unsigned long size = PAGE_SIZE << order;
+
 	if (slab_is_available())
 		return (void *)__get_free_pages(GFP_KERNEL, order);
-	return alloc_bootmem_pages((1 << order) * PAGE_SIZE);
+	return alloc_bootmem_align(size, size);
 }
 
 static inline pud_t *vmem_pud_alloc(void)
@@ -45,7 +48,7 @@ static inline pud_t *vmem_pud_alloc(void)
 	return pud;
 }
 
-static inline pmd_t *vmem_pmd_alloc(void)
+pmd_t *vmem_pmd_alloc(void)
 {
 	pmd_t *pmd = NULL;
 
@@ -56,7 +59,7 @@ static inline pmd_t *vmem_pmd_alloc(void)
 	return pmd;
 }
 
-static pte_t __ref *vmem_pte_alloc(unsigned long address)
+pte_t __ref *vmem_pte_alloc(void)
 {
 	pte_t *pte;
 
@@ -75,8 +78,9 @@ static pte_t __ref *vmem_pte_alloc(unsigned long address)
 /*
  * Add a physical memory range to the 1:1 mapping.
  */
-static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
+static int vmem_add_mem(unsigned long start, unsigned long size)
 {
+	unsigned long pages4k, pages1m, pages2g;
 	unsigned long end = start + size;
 	unsigned long address = start;
 	pgd_t *pg_dir;
@@ -85,6 +89,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 	pte_t *pt_dir;
 	int ret = -ENOMEM;
 
+	pages4k = pages1m = pages2g = 0;
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
@@ -97,10 +102,9 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		if (MACHINE_HAS_EDAT2 && pud_none(*pu_dir) && address &&
 		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end) &&
 		     !debug_pagealloc_enabled()) {
-			pud_val(*pu_dir) = __pa(address) |
-				_REGION_ENTRY_TYPE_R3 | _REGION3_ENTRY_LARGE |
-				(ro ? _REGION_ENTRY_PROTECT : 0);
+			pud_val(*pu_dir) = address | pgprot_val(REGION3_KERNEL);
 			address += PUD_SIZE;
+			pages2g++;
 			continue;
 		}
 		if (pud_none(*pu_dir)) {
@@ -113,27 +117,28 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		if (MACHINE_HAS_EDAT1 && pmd_none(*pm_dir) && address &&
 		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end) &&
 		    !debug_pagealloc_enabled()) {
-			pmd_val(*pm_dir) = __pa(address) |
-				_SEGMENT_ENTRY | _SEGMENT_ENTRY_LARGE |
-				_SEGMENT_ENTRY_YOUNG |
-				(ro ? _SEGMENT_ENTRY_PROTECT : 0);
+			pmd_val(*pm_dir) = address | pgprot_val(SEGMENT_KERNEL);
 			address += PMD_SIZE;
+			pages1m++;
 			continue;
 		}
 		if (pmd_none(*pm_dir)) {
-			pt_dir = vmem_pte_alloc(address);
+			pt_dir = vmem_pte_alloc();
 			if (!pt_dir)
 				goto out;
 			pmd_populate(&init_mm, pm_dir, pt_dir);
 		}
 
 		pt_dir = pte_offset_kernel(pm_dir, address);
-		pte_val(*pt_dir) = __pa(address) |
-			pgprot_val(ro ? PAGE_KERNEL_RO : PAGE_KERNEL);
+		pte_val(*pt_dir) = address |  pgprot_val(PAGE_KERNEL);
 		address += PAGE_SIZE;
+		pages4k++;
 	}
 	ret = 0;
 out:
+	update_page_count(PG_DIRECT_MAP_4K, pages4k);
+	update_page_count(PG_DIRECT_MAP_1M, pages1m);
+	update_page_count(PG_DIRECT_MAP_2G, pages2g);
 	return ret;
 }
 
@@ -143,15 +148,15 @@ out:
  */
 static void vmem_remove_range(unsigned long start, unsigned long size)
 {
+	unsigned long pages4k, pages1m, pages2g;
 	unsigned long end = start + size;
 	unsigned long address = start;
 	pgd_t *pg_dir;
 	pud_t *pu_dir;
 	pmd_t *pm_dir;
 	pte_t *pt_dir;
-	pte_t  pte;
 
-	pte_val(pte) = _PAGE_INVALID;
+	pages4k = pages1m = pages2g = 0;
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
@@ -166,6 +171,7 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 		if (pud_large(*pu_dir)) {
 			pud_clear(pu_dir);
 			address += PUD_SIZE;
+			pages2g++;
 			continue;
 		}
 		pm_dir = pmd_offset(pu_dir, address);
@@ -176,13 +182,18 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 		if (pmd_large(*pm_dir)) {
 			pmd_clear(pm_dir);
 			address += PMD_SIZE;
+			pages1m++;
 			continue;
 		}
 		pt_dir = pte_offset_kernel(pm_dir, address);
-		*pt_dir = pte;
+		pte_clear(&init_mm, address, pt_dir);
 		address += PAGE_SIZE;
+		pages4k++;
 	}
 	flush_tlb_kernel_range(start, end);
+	update_page_count(PG_DIRECT_MAP_4K, -pages4k);
+	update_page_count(PG_DIRECT_MAP_1M, -pages1m);
+	update_page_count(PG_DIRECT_MAP_2G, -pages2g);
 }
 
 /*
@@ -233,7 +244,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 				address = (address + PMD_SIZE) & PMD_MASK;
 				continue;
 			}
-			pt_dir = vmem_pte_alloc(address);
+			pt_dir = vmem_pte_alloc();
 			if (!pt_dir)
 				goto out;
 			pmd_populate(&init_mm, pm_dir, pt_dir);
@@ -341,7 +352,7 @@ int vmem_add_mapping(unsigned long start, unsigned long size)
 	if (ret)
 		goto out_free;
 
-	ret = vmem_add_mem(start, size, 0);
+	ret = vmem_add_mem(start, size);
 	if (ret)
 		goto out_remove;
 	goto out;
@@ -362,31 +373,13 @@ out:
  */
 void __init vmem_map_init(void)
 {
-	unsigned long ro_start, ro_end;
+	unsigned long size = _eshared - _stext;
 	struct memblock_region *reg;
-	phys_addr_t start, end;
 
-	ro_start = PFN_ALIGN((unsigned long)&_stext);
-	ro_end = (unsigned long)&_eshared & PAGE_MASK;
-	for_each_memblock(memory, reg) {
-		start = reg->base;
-		end = reg->base + reg->size - 1;
-		if (start >= ro_end || end <= ro_start)
-			vmem_add_mem(start, end - start, 0);
-		else if (start >= ro_start && end <= ro_end)
-			vmem_add_mem(start, end - start, 1);
-		else if (start >= ro_start) {
-			vmem_add_mem(start, ro_end - start, 1);
-			vmem_add_mem(ro_end, end - ro_end, 0);
-		} else if (end < ro_end) {
-			vmem_add_mem(start, ro_start - start, 0);
-			vmem_add_mem(ro_start, end - ro_start, 1);
-		} else {
-			vmem_add_mem(start, ro_start - start, 0);
-			vmem_add_mem(ro_start, ro_end - ro_start, 1);
-			vmem_add_mem(ro_end, end - ro_end, 0);
-		}
-	}
+	for_each_memblock(memory, reg)
+		vmem_add_mem(reg->base, reg->size);
+	set_memory_ro((unsigned long)_stext, size >> PAGE_SHIFT);
+	pr_info("Write protected kernel read-only data: %luk\n", size >> 10);
 }
 
 /*

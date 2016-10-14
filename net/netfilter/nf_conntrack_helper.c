@@ -38,10 +38,10 @@ unsigned int nf_ct_helper_hsize __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_helper_hsize);
 static unsigned int nf_ct_helper_count __read_mostly;
 
-static bool nf_ct_auto_assign_helper __read_mostly = true;
+static bool nf_ct_auto_assign_helper __read_mostly = false;
 module_param_named(nf_conntrack_helper, nf_ct_auto_assign_helper, bool, 0644);
 MODULE_PARM_DESC(nf_conntrack_helper,
-		 "Enable automatic conntrack helper assignment (default 1)");
+		 "Enable automatic conntrack helper assignment (default 0)");
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table helper_sysctl_table[] = {
@@ -361,9 +361,10 @@ EXPORT_SYMBOL_GPL(nf_ct_helper_log);
 
 int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 {
-	int ret = 0;
-	struct nf_conntrack_helper *cur;
+	struct nf_conntrack_tuple_mask mask = { .src.u.all = htons(0xFFFF) };
 	unsigned int h = helper_hash(&me->tuple);
+	struct nf_conntrack_helper *cur;
+	int ret = 0;
 
 	BUG_ON(me->expect_policy == NULL);
 	BUG_ON(me->expect_class_max >= NF_CT_MAX_EXPECT_CLASSES);
@@ -371,9 +372,7 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 
 	mutex_lock(&nf_ct_helper_mutex);
 	hlist_for_each_entry(cur, &nf_ct_helper_hash[h], hnode) {
-		if (strncmp(cur->name, me->name, NF_CT_HELPER_NAME_LEN) == 0 &&
-		    cur->tuple.src.l3num == me->tuple.src.l3num &&
-		    cur->tuple.dst.protonum == me->tuple.dst.protonum) {
+		if (nf_ct_tuple_src_mask_cmp(&cur->tuple, &me->tuple, &mask)) {
 			ret = -EEXIST;
 			goto out;
 		}
@@ -390,17 +389,46 @@ static void __nf_conntrack_helper_unregister(struct nf_conntrack_helper *me,
 					     struct net *net)
 {
 	struct nf_conntrack_tuple_hash *h;
+	const struct hlist_nulls_node *nn;
+	int cpu;
+
+	/* Get rid of expecteds, set helpers to NULL. */
+	for_each_possible_cpu(cpu) {
+		struct ct_pcpu *pcpu = per_cpu_ptr(net->ct.pcpu_lists, cpu);
+
+		spin_lock_bh(&pcpu->lock);
+		hlist_nulls_for_each_entry(h, nn, &pcpu->unconfirmed, hnnode)
+			unhelp(h, me);
+		spin_unlock_bh(&pcpu->lock);
+	}
+}
+
+void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
+{
+	struct nf_conntrack_tuple_hash *h;
 	struct nf_conntrack_expect *exp;
 	const struct hlist_node *next;
 	const struct hlist_nulls_node *nn;
+	unsigned int last_hsize;
+	spinlock_t *lock;
+	struct net *net;
 	unsigned int i;
-	int cpu;
+
+	mutex_lock(&nf_ct_helper_mutex);
+	hlist_del_rcu(&me->hnode);
+	nf_ct_helper_count--;
+	mutex_unlock(&nf_ct_helper_mutex);
+
+	/* Make sure every nothing is still using the helper unless its a
+	 * connection in the hash.
+	 */
+	synchronize_rcu();
 
 	/* Get rid of expectations */
 	spin_lock_bh(&nf_conntrack_expect_lock);
 	for (i = 0; i < nf_ct_expect_hsize; i++) {
 		hlist_for_each_entry_safe(exp, next,
-					  &net->ct.expect_hash[i], hnode) {
+					  &nf_ct_expect_hash[i], hnode) {
 			struct nf_conn_help *help = nfct_help(exp->master);
 			if ((rcu_dereference_protected(
 					help->helper,
@@ -414,47 +442,85 @@ static void __nf_conntrack_helper_unregister(struct nf_conntrack_helper *me,
 	}
 	spin_unlock_bh(&nf_conntrack_expect_lock);
 
-	/* Get rid of expecteds, set helpers to NULL. */
-	for_each_possible_cpu(cpu) {
-		struct ct_pcpu *pcpu = per_cpu_ptr(net->ct.pcpu_lists, cpu);
-
-		spin_lock_bh(&pcpu->lock);
-		hlist_nulls_for_each_entry(h, nn, &pcpu->unconfirmed, hnnode)
-			unhelp(h, me);
-		spin_unlock_bh(&pcpu->lock);
-	}
-	local_bh_disable();
-	for (i = 0; i < net->ct.htable_size; i++) {
-		nf_conntrack_lock(&nf_conntrack_locks[i % CONNTRACK_LOCKS]);
-		if (i < net->ct.htable_size) {
-			hlist_nulls_for_each_entry(h, nn, &net->ct.hash[i], hnnode)
-				unhelp(h, me);
-		}
-		spin_unlock(&nf_conntrack_locks[i % CONNTRACK_LOCKS]);
-	}
-	local_bh_enable();
-}
-
-void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
-{
-	struct net *net;
-
-	mutex_lock(&nf_ct_helper_mutex);
-	hlist_del_rcu(&me->hnode);
-	nf_ct_helper_count--;
-	mutex_unlock(&nf_ct_helper_mutex);
-
-	/* Make sure every nothing is still using the helper unless its a
-	 * connection in the hash.
-	 */
-	synchronize_rcu();
-
 	rtnl_lock();
 	for_each_net(net)
 		__nf_conntrack_helper_unregister(me, net);
 	rtnl_unlock();
+
+	local_bh_disable();
+restart:
+	last_hsize = nf_conntrack_htable_size;
+	for (i = 0; i < last_hsize; i++) {
+		lock = &nf_conntrack_locks[i % CONNTRACK_LOCKS];
+		nf_conntrack_lock(lock);
+		if (last_hsize != nf_conntrack_htable_size) {
+			spin_unlock(lock);
+			goto restart;
+		}
+		hlist_nulls_for_each_entry(h, nn, &nf_conntrack_hash[i], hnnode)
+			unhelp(h, me);
+		spin_unlock(lock);
+	}
+	local_bh_enable();
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helper_unregister);
+
+void nf_ct_helper_init(struct nf_conntrack_helper *helper,
+		       u16 l3num, u16 protonum, const char *name,
+		       u16 default_port, u16 spec_port, u32 id,
+		       const struct nf_conntrack_expect_policy *exp_pol,
+		       u32 expect_class_max, u32 data_len,
+		       int (*help)(struct sk_buff *skb, unsigned int protoff,
+				   struct nf_conn *ct,
+				   enum ip_conntrack_info ctinfo),
+		       int (*from_nlattr)(struct nlattr *attr,
+					  struct nf_conn *ct),
+		       struct module *module)
+{
+	helper->tuple.src.l3num = l3num;
+	helper->tuple.dst.protonum = protonum;
+	helper->tuple.src.u.all = htons(spec_port);
+	helper->expect_policy = exp_pol;
+	helper->expect_class_max = expect_class_max;
+	helper->data_len = data_len;
+	helper->help = help;
+	helper->from_nlattr = from_nlattr;
+	helper->me = module;
+
+	if (spec_port == default_port)
+		snprintf(helper->name, sizeof(helper->name), "%s", name);
+	else
+		snprintf(helper->name, sizeof(helper->name), "%s-%u", name, id);
+}
+EXPORT_SYMBOL_GPL(nf_ct_helper_init);
+
+int nf_conntrack_helpers_register(struct nf_conntrack_helper *helper,
+				  unsigned int n)
+{
+	unsigned int i;
+	int err = 0;
+
+	for (i = 0; i < n; i++) {
+		err = nf_conntrack_helper_register(&helper[i]);
+		if (err < 0)
+			goto err;
+	}
+
+	return err;
+err:
+	if (i > 0)
+		nf_conntrack_helpers_unregister(helper, i);
+	return err;
+}
+EXPORT_SYMBOL_GPL(nf_conntrack_helpers_register);
+
+void nf_conntrack_helpers_unregister(struct nf_conntrack_helper *helper,
+				unsigned int n)
+{
+	while (n-- > 0)
+		nf_conntrack_helper_unregister(&helper[n]);
+}
+EXPORT_SYMBOL_GPL(nf_conntrack_helpers_unregister);
 
 static struct nf_ct_ext_type helper_extend __read_mostly = {
 	.len	= sizeof(struct nf_conn_help),

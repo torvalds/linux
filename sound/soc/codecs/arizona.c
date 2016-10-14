@@ -85,30 +85,9 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
-	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
-	bool manual_ena = false;
 	int val;
 
-	switch (arizona->type) {
-	case WM5102:
-		switch (arizona->rev) {
-		case 0:
-			break;
-		default:
-			manual_ena = true;
-			break;
-		}
-	default:
-		break;
-	}
-
 	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		if (!priv->spk_ena && manual_ena) {
-			regmap_write_async(arizona->regmap, 0x4f5, 0x25a);
-			priv->spk_ena_pending = true;
-		}
-		break;
 	case SND_SOC_DAPM_POST_PMU:
 		val = snd_soc_read(codec, ARIZONA_INTERRUPT_RAW_STATUS_3);
 		if (val & ARIZONA_SPK_OVERHEAT_STS) {
@@ -120,32 +99,11 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 		regmap_update_bits_async(arizona->regmap,
 					 ARIZONA_OUTPUT_ENABLES_1,
 					 1 << w->shift, 1 << w->shift);
-
-		if (priv->spk_ena_pending) {
-			msleep(75);
-			regmap_write_async(arizona->regmap, 0x4f5, 0xda);
-			priv->spk_ena_pending = false;
-			priv->spk_ena++;
-		}
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		if (manual_ena) {
-			priv->spk_ena--;
-			if (!priv->spk_ena)
-				regmap_write_async(arizona->regmap,
-						   0x4f5, 0x25a);
-		}
-
 		regmap_update_bits_async(arizona->regmap,
 					 ARIZONA_OUTPUT_ENABLES_1,
 					 1 << w->shift, 0);
-		break;
-	case SND_SOC_DAPM_POST_PMD:
-		if (manual_ena) {
-			if (!priv->spk_ena)
-				regmap_write_async(arizona->regmap,
-						   0x4f5, 0x0da);
-		}
 		break;
 	default:
 		break;
@@ -221,6 +179,8 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 
 	switch (arizona->type) {
 	case WM8997:
+	case CS47L24:
+	case WM1831:
 		break;
 	default:
 		ret = snd_soc_dapm_new_controls(dapm, &arizona_spkr, 1);
@@ -321,6 +281,17 @@ int arizona_init_gpio(struct snd_soc_codec *codec)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(arizona_init_gpio);
+
+int arizona_init_notifiers(struct snd_soc_codec *codec)
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
+
+	BLOCKING_INIT_NOTIFIER_HEAD(&arizona->notifier);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_init_notifiers);
 
 const char * const arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"None",
@@ -617,7 +588,7 @@ const struct soc_enum arizona_asrc_rate1 =
 			      arizona_rate_text, arizona_rate_val);
 EXPORT_SYMBOL_GPL(arizona_asrc_rate1);
 
-static const char *arizona_vol_ramp_text[] = {
+static const char * const arizona_vol_ramp_text[] = {
 	"0ms/6dB", "0.5ms/6dB", "1ms/6dB", "2ms/6dB", "4ms/6dB", "8ms/6dB",
 	"15ms/6dB", "30ms/6dB",
 };
@@ -646,7 +617,7 @@ SOC_ENUM_SINGLE_DECL(arizona_out_vi_ramp,
 		     arizona_vol_ramp_text);
 EXPORT_SYMBOL_GPL(arizona_out_vi_ramp);
 
-static const char *arizona_lhpf_mode_text[] = {
+static const char * const arizona_lhpf_mode_text[] = {
 	"Low-pass", "High-pass"
 };
 
@@ -674,7 +645,7 @@ SOC_ENUM_SINGLE_DECL(arizona_lhpf4_mode,
 		     arizona_lhpf_mode_text);
 EXPORT_SYMBOL_GPL(arizona_lhpf4_mode);
 
-static const char *arizona_ng_hold_text[] = {
+static const char * const arizona_ng_hold_text[] = {
 	"30ms", "120ms", "250ms", "500ms",
 };
 
@@ -807,6 +778,14 @@ const struct soc_enum arizona_output_anc_src[] = {
 			arizona_output_anc_src_text),
 };
 EXPORT_SYMBOL_GPL(arizona_output_anc_src);
+
+const struct snd_kcontrol_new arizona_voice_trigger_switch[] = {
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 1, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 2, 1, 0),
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 3, 1, 0),
+};
+EXPORT_SYMBOL_GPL(arizona_voice_trigger_switch);
 
 static void arizona_in_set_vu(struct snd_soc_codec *codec, int ena)
 {
@@ -1134,7 +1113,6 @@ int arizona_anc_ev(struct snd_soc_dapm_widget *w,
 		   int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	unsigned int mask = 0x3 << w->shift;
 	unsigned int val;
 
 	switch (event) {
@@ -1148,7 +1126,7 @@ int arizona_anc_ev(struct snd_soc_dapm_widget *w,
 		return 0;
 	}
 
-	snd_soc_update_bits(codec, ARIZONA_CLOCK_CONTROL, mask, val);
+	snd_soc_write(codec, ARIZONA_CLOCK_CONTROL, val);
 
 	return 0;
 }
@@ -2047,7 +2025,21 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 			init_ratio, Fref, refdiv);
 
 	while (div <= ARIZONA_FLL_MAX_REFDIV) {
-		for (ratio = init_ratio; ratio <= ARIZONA_FLL_MAX_FRATIO;
+		/* start from init_ratio because this may already give a
+		 * fractional N.K
+		 */
+		for (ratio = init_ratio; ratio > 0; ratio--) {
+			if (target % (ratio * Fref)) {
+				cfg->refdiv = refdiv;
+				cfg->fratio = ratio - 1;
+				arizona_fll_dbg(fll,
+					"pseudo: found fref=%u refdiv=%d(%d) ratio=%d\n",
+					Fref, refdiv, div, ratio);
+				return ratio;
+			}
+		}
+
+		for (ratio = init_ratio + 1; ratio <= ARIZONA_FLL_MAX_FRATIO;
 		     ratio++) {
 			if ((ARIZONA_FLL_VCO_CORNER / 2) /
 			    (fll->vco_mult * ratio) < Fref) {
@@ -2063,17 +2055,6 @@ static int arizona_calc_fratio(struct arizona_fll *fll,
 				break;
 			}
 
-			if (target % (ratio * Fref)) {
-				cfg->refdiv = refdiv;
-				cfg->fratio = ratio - 1;
-				arizona_fll_dbg(fll,
-					"pseudo: found fref=%u refdiv=%d(%d) ratio=%d\n",
-					Fref, refdiv, div, ratio);
-				return ratio;
-			}
-		}
-
-		for (ratio = init_ratio - 1; ratio > 0; ratio--) {
 			if (target % (ratio * Fref)) {
 				cfg->refdiv = refdiv;
 				cfg->fratio = ratio - 1;
@@ -2568,6 +2549,30 @@ int arizona_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
 	return snd_soc_bytes_put(kcontrol, ucontrol);
 }
 EXPORT_SYMBOL_GPL(arizona_lhpf_coeff_put);
+
+int arizona_register_notifier(struct snd_soc_codec *codec,
+			      struct notifier_block *nb,
+			      int (*notify)(struct notifier_block *nb,
+					    unsigned long action, void *data))
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
+
+	nb->notifier_call = notify;
+
+	return blocking_notifier_chain_register(&arizona->notifier, nb);
+}
+EXPORT_SYMBOL_GPL(arizona_register_notifier);
+
+int arizona_unregister_notifier(struct snd_soc_codec *codec,
+				struct notifier_block *nb)
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
+
+	return blocking_notifier_chain_unregister(&arizona->notifier, nb);
+}
+EXPORT_SYMBOL_GPL(arizona_unregister_notifier);
 
 MODULE_DESCRIPTION("ASoC Wolfson Arizona class device support");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

@@ -124,7 +124,7 @@ static int journal_submit_commit_record(journal_t *journal,
 	struct commit_header *tmp;
 	struct buffer_head *bh;
 	int ret;
-	struct timespec now = current_kernel_time();
+	struct timespec64 now = current_kernel_time64();
 
 	*cbh = NULL;
 
@@ -155,9 +155,9 @@ static int journal_submit_commit_record(journal_t *journal,
 
 	if (journal->j_flags & JBD2_BARRIER &&
 	    !jbd2_has_feature_async_commit(journal))
-		ret = submit_bh(WRITE_SYNC | WRITE_FLUSH_FUA, bh);
+		ret = submit_bh(REQ_OP_WRITE, WRITE_SYNC | WRITE_FLUSH_FUA, bh);
 	else
-		ret = submit_bh(WRITE_SYNC, bh);
+		ret = submit_bh(REQ_OP_WRITE, WRITE_SYNC, bh);
 
 	*cbh = bh;
 	return ret;
@@ -219,6 +219,8 @@ static int journal_submit_data_buffers(journal_t *journal,
 
 	spin_lock(&journal->j_list_lock);
 	list_for_each_entry(jinode, &commit_transaction->t_inode_list, i_list) {
+		if (!(jinode->i_flags & JI_WRITE_DATA))
+			continue;
 		mapping = jinode->i_vfs_inode->i_mapping;
 		jinode->i_flags |= JI_COMMIT_RUNNING;
 		spin_unlock(&journal->j_list_lock);
@@ -256,6 +258,8 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 	/* For locking, see the comment in journal_submit_data_buffers() */
 	spin_lock(&journal->j_list_lock);
 	list_for_each_entry(jinode, &commit_transaction->t_inode_list, i_list) {
+		if (!(jinode->i_flags & JI_WAIT_DATA))
+			continue;
 		jinode->i_flags |= JI_COMMIT_RUNNING;
 		spin_unlock(&journal->j_list_lock);
 		err = filemap_fdatawait(jinode->i_vfs_inode->i_mapping);
@@ -714,7 +718,7 @@ start_journal_io:
 				clear_buffer_dirty(bh);
 				set_buffer_uptodate(bh);
 				bh->b_end_io = journal_end_buffer_io_sync;
-				submit_bh(WRITE_SYNC, bh);
+				submit_bh(REQ_OP_WRITE, WRITE_SYNC, bh);
 			}
 			cond_resched();
 			stats.run.rs_blocks_logged += bufs;

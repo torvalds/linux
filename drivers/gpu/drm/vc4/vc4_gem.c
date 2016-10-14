@@ -53,10 +53,8 @@ vc4_free_hang_state(struct drm_device *dev, struct vc4_hang_state *state)
 {
 	unsigned int i;
 
-	mutex_lock(&dev->struct_mutex);
 	for (i = 0; i < state->user_state.bo_count; i++)
-		drm_gem_object_unreference(state->bo[i]);
-	mutex_unlock(&dev->struct_mutex);
+		drm_gem_object_unreference_unlocked(state->bo[i]);
 
 	kfree(state);
 }
@@ -536,8 +534,8 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	exec->bo = kcalloc(exec->bo_count, sizeof(struct drm_gem_cma_object *),
-			   GFP_KERNEL);
+	exec->bo = drm_calloc_large(exec->bo_count,
+				    sizeof(struct drm_gem_cma_object *));
 	if (!exec->bo) {
 		DRM_ERROR("Failed to allocate validated BO pointers\n");
 		return -ENOMEM;
@@ -574,8 +572,8 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 	spin_unlock(&file_priv->table_lock);
 
 fail:
-	kfree(handles);
-	return 0;
+	drm_free_large(handles);
+	return ret;
 }
 
 static int
@@ -610,7 +608,7 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	 * read the contents back for validation, and I think the
 	 * bo->vaddr is uncached access.
 	 */
-	temp = kmalloc(temp_size, GFP_KERNEL);
+	temp = drm_malloc_ab(temp_size, 1);
 	if (!temp) {
 		DRM_ERROR("Failed to allocate storage for copying "
 			  "in bin/render CLs.\n");
@@ -677,7 +675,7 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	ret = vc4_validate_shader_recs(dev, exec);
 
 fail:
-	kfree(temp);
+	drm_free_large(temp);
 	return ret;
 }
 
@@ -687,21 +685,18 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	unsigned i;
 
-	/* Need the struct lock for drm_gem_object_unreference(). */
-	mutex_lock(&dev->struct_mutex);
 	if (exec->bo) {
 		for (i = 0; i < exec->bo_count; i++)
-			drm_gem_object_unreference(&exec->bo[i]->base);
-		kfree(exec->bo);
+			drm_gem_object_unreference_unlocked(&exec->bo[i]->base);
+		drm_free_large(exec->bo);
 	}
 
 	while (!list_empty(&exec->unref_list)) {
 		struct vc4_bo *bo = list_first_entry(&exec->unref_list,
 						     struct vc4_bo, unref_head);
 		list_del(&bo->unref_head);
-		drm_gem_object_unreference(&bo->base.base);
+		drm_gem_object_unreference_unlocked(&bo->base.base);
 	}
-	mutex_unlock(&dev->struct_mutex);
 
 	mutex_lock(&vc4->power_lock);
 	if (--vc4->power_refcount == 0)
@@ -822,7 +817,7 @@ vc4_wait_bo_ioctl(struct drm_device *dev, void *data,
 	if (args->pad != 0)
 		return -EINVAL;
 
-	gem_obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
 		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
 		return -EINVAL;
@@ -947,8 +942,8 @@ vc4_gem_destroy(struct drm_device *dev)
 		vc4->overflow_mem = NULL;
 	}
 
-	vc4_bo_cache_destroy(dev);
-
 	if (vc4->hang_state)
 		vc4_free_hang_state(dev, vc4->hang_state);
+
+	vc4_bo_cache_destroy(dev);
 }

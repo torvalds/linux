@@ -57,39 +57,34 @@ static int tpic2810_direction_output(struct gpio_chip *chip,
 	return 0;
 }
 
-static void tpic2810_set(struct gpio_chip *chip, unsigned offset, int value)
+static void tpic2810_set_mask_bits(struct gpio_chip *chip, u8 mask, u8 bits)
 {
 	struct tpic2810 *gpio = gpiochip_get_data(chip);
+	u8 buffer;
+	int err;
 
 	mutex_lock(&gpio->lock);
 
-	if (value)
-		gpio->buffer |= BIT(offset);
-	else
-		gpio->buffer &= ~BIT(offset);
+	buffer = gpio->buffer & ~mask;
+	buffer |= (mask & bits);
 
-	i2c_smbus_write_byte_data(gpio->client, TPIC2810_WS_COMMAND,
-				  gpio->buffer);
+	err = i2c_smbus_write_byte_data(gpio->client, TPIC2810_WS_COMMAND,
+					buffer);
+	if (!err)
+		gpio->buffer = buffer;
 
 	mutex_unlock(&gpio->lock);
+}
+
+static void tpic2810_set(struct gpio_chip *chip, unsigned offset, int value)
+{
+	tpic2810_set_mask_bits(chip, BIT(offset), value ? BIT(offset) : 0);
 }
 
 static void tpic2810_set_multiple(struct gpio_chip *chip, unsigned long *mask,
 				  unsigned long *bits)
 {
-	struct tpic2810 *gpio = gpiochip_get_data(chip);
-
-	mutex_lock(&gpio->lock);
-
-	/* clear bits under mask */
-	gpio->buffer &= ~(*mask);
-	/* set bits under mask */
-	gpio->buffer |= ((*mask) & (*bits));
-
-	i2c_smbus_write_byte_data(gpio->client, TPIC2810_WS_COMMAND,
-				  gpio->buffer);
-
-	mutex_unlock(&gpio->lock);
+	tpic2810_set_mask_bits(chip, *mask, *bits);
 }
 
 static struct gpio_chip template_chip = {

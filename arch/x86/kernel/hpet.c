@@ -54,7 +54,7 @@ struct hpet_dev {
 	char				name[10];
 };
 
-inline struct hpet_dev *EVT_TO_HPET_DEV(struct clock_event_device *evtdev)
+static inline struct hpet_dev *EVT_TO_HPET_DEV(struct clock_event_device *evtdev)
 {
 	return container_of(evtdev, struct hpet_dev, evt);
 }
@@ -710,31 +710,29 @@ static void hpet_work(struct work_struct *w)
 	complete(&hpet_work->complete);
 }
 
-static int hpet_cpuhp_notify(struct notifier_block *n,
-		unsigned long action, void *hcpu)
+static int hpet_cpuhp_online(unsigned int cpu)
 {
-	unsigned long cpu = (unsigned long)hcpu;
 	struct hpet_work_struct work;
+
+	INIT_DELAYED_WORK_ONSTACK(&work.work, hpet_work);
+	init_completion(&work.complete);
+	/* FIXME: add schedule_work_on() */
+	schedule_delayed_work_on(cpu, &work.work, 0);
+	wait_for_completion(&work.complete);
+	destroy_delayed_work_on_stack(&work.work);
+	return 0;
+}
+
+static int hpet_cpuhp_dead(unsigned int cpu)
+{
 	struct hpet_dev *hdev = per_cpu(cpu_hpet_dev, cpu);
 
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_ONLINE:
-		INIT_DELAYED_WORK_ONSTACK(&work.work, hpet_work);
-		init_completion(&work.complete);
-		/* FIXME: add schedule_work_on() */
-		schedule_delayed_work_on(cpu, &work.work, 0);
-		wait_for_completion(&work.complete);
-		destroy_delayed_work_on_stack(&work.work);
-		break;
-	case CPU_DEAD:
-		if (hdev) {
-			free_irq(hdev->irq, hdev);
-			hdev->flags &= ~HPET_DEV_USED;
-			per_cpu(cpu_hpet_dev, cpu) = NULL;
-		}
-		break;
-	}
-	return NOTIFY_OK;
+	if (!hdev)
+		return 0;
+	free_irq(hdev->irq, hdev);
+	hdev->flags &= ~HPET_DEV_USED;
+	per_cpu(cpu_hpet_dev, cpu) = NULL;
+	return 0;
 }
 #else
 
@@ -750,11 +748,8 @@ static void hpet_reserve_msi_timers(struct hpet_data *hd)
 }
 #endif
 
-static int hpet_cpuhp_notify(struct notifier_block *n,
-		unsigned long action, void *hcpu)
-{
-	return NOTIFY_OK;
-}
+#define hpet_cpuhp_online	NULL
+#define hpet_cpuhp_dead		NULL
 
 #endif
 
@@ -773,7 +768,6 @@ static struct clocksource clocksource_hpet = {
 	.mask		= HPET_MASK,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 	.resume		= hpet_resume_counter,
-	.archdata	= { .vclock_mode = VCLOCK_HPET },
 };
 
 static int hpet_clocksource_register(void)
@@ -932,7 +926,7 @@ out_nohpet:
  */
 static __init int hpet_late_init(void)
 {
-	int cpu;
+	int ret;
 
 	if (boot_hpet_disable)
 		return -ENODEV;
@@ -962,16 +956,20 @@ static __init int hpet_late_init(void)
 	if (boot_cpu_has(X86_FEATURE_ARAT))
 		return 0;
 
-	cpu_notifier_register_begin();
-	for_each_online_cpu(cpu) {
-		hpet_cpuhp_notify(NULL, CPU_ONLINE, (void *)(long)cpu);
-	}
-
 	/* This notifier should be called after workqueue is ready */
-	__hotcpu_notifier(hpet_cpuhp_notify, -20);
-	cpu_notifier_register_done();
-
+	ret = cpuhp_setup_state(CPUHP_AP_X86_HPET_ONLINE, "AP_X86_HPET_ONLINE",
+				hpet_cpuhp_online, NULL);
+	if (ret)
+		return ret;
+	ret = cpuhp_setup_state(CPUHP_X86_HPET_DEAD, "X86_HPET_DEAD", NULL,
+				hpet_cpuhp_dead);
+	if (ret)
+		goto err_cpuhp;
 	return 0;
+
+err_cpuhp:
+	cpuhp_remove_state(CPUHP_AP_X86_HPET_ONLINE);
+	return ret;
 }
 fs_initcall(hpet_late_init);
 
@@ -1021,7 +1019,6 @@ void hpet_disable(void)
  */
 #include <linux/mc146818rtc.h>
 #include <linux/rtc.h>
-#include <asm/rtc.h>
 
 #define DEFAULT_RTC_INT_FREQ	64
 #define DEFAULT_RTC_SHIFT	6
@@ -1245,7 +1242,7 @@ irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id)
 	memset(&curr_time, 0, sizeof(struct rtc_time));
 
 	if (hpet_rtc_flags & (RTC_UIE | RTC_AIE))
-		get_rtc_time(&curr_time);
+		mc146818_get_time(&curr_time);
 
 	if (hpet_rtc_flags & RTC_UIE &&
 	    curr_time.tm_sec != hpet_prev_update_sec) {

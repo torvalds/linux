@@ -180,6 +180,9 @@ enum wmi_service {
 	WMI_SERVICE_MESH_NON_11S,
 	WMI_SERVICE_PEER_STATS,
 	WMI_SERVICE_RESTRT_CHNL_SUPPORT,
+	WMI_SERVICE_TX_MODE_PUSH_ONLY,
+	WMI_SERVICE_TX_MODE_PUSH_PULL,
+	WMI_SERVICE_TX_MODE_DYNAMIC,
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -302,6 +305,9 @@ enum wmi_10_4_service {
 	WMI_10_4_SERVICE_RESTRT_CHNL_SUPPORT,
 	WMI_10_4_SERVICE_PEER_STATS,
 	WMI_10_4_SERVICE_MESH_11S,
+	WMI_10_4_SERVICE_TX_MODE_PUSH_ONLY,
+	WMI_10_4_SERVICE_TX_MODE_PUSH_PULL,
+	WMI_10_4_SERVICE_TX_MODE_DYNAMIC,
 };
 
 static inline char *wmi_service_name(int service_id)
@@ -396,6 +402,9 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_MESH_NON_11S);
 	SVCSTR(WMI_SERVICE_PEER_STATS);
 	SVCSTR(WMI_SERVICE_RESTRT_CHNL_SUPPORT);
+	SVCSTR(WMI_SERVICE_TX_MODE_PUSH_ONLY);
+	SVCSTR(WMI_SERVICE_TX_MODE_PUSH_PULL);
+	SVCSTR(WMI_SERVICE_TX_MODE_DYNAMIC);
 	default:
 		return NULL;
 	}
@@ -405,8 +414,8 @@ static inline char *wmi_service_name(int service_id)
 
 #define WMI_SERVICE_IS_ENABLED(wmi_svc_bmap, svc_id, len) \
 	((svc_id) < (len) && \
-	 __le32_to_cpu((wmi_svc_bmap)[(svc_id)/(sizeof(u32))]) & \
-	 BIT((svc_id)%(sizeof(u32))))
+	 __le32_to_cpu((wmi_svc_bmap)[(svc_id) / (sizeof(u32))]) & \
+	 BIT((svc_id) % (sizeof(u32))))
 
 #define SVCMAP(x, y, len) \
 	do { \
@@ -643,6 +652,12 @@ static inline void wmi_10_4_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_PEER_STATS, len);
 	SVCMAP(WMI_10_4_SERVICE_MESH_11S,
 	       WMI_SERVICE_MESH_11S, len);
+	SVCMAP(WMI_10_4_SERVICE_TX_MODE_PUSH_ONLY,
+	       WMI_SERVICE_TX_MODE_PUSH_ONLY, len);
+	SVCMAP(WMI_10_4_SERVICE_TX_MODE_PUSH_PULL,
+	       WMI_SERVICE_TX_MODE_PUSH_PULL, len);
+	SVCMAP(WMI_10_4_SERVICE_TX_MODE_DYNAMIC,
+	       WMI_SERVICE_TX_MODE_DYNAMIC, len);
 }
 
 #undef SVCMAP
@@ -816,6 +831,7 @@ struct wmi_cmd_map {
 	u32 set_cca_params_cmdid;
 	u32 pdev_bss_chan_info_request_cmdid;
 	u32 pdev_enable_adaptive_cca_cmdid;
+	u32 ext_resource_cfg_cmdid;
 };
 
 /*
@@ -1308,7 +1324,7 @@ enum wmi_10x_event_id {
 	WMI_10X_PDEV_TPC_CONFIG_EVENTID,
 
 	WMI_10X_GPIO_INPUT_EVENTID,
-	WMI_10X_PDEV_UTF_EVENTID = WMI_10X_END_EVENTID-1,
+	WMI_10X_PDEV_UTF_EVENTID = WMI_10X_END_EVENTID - 1,
 };
 
 enum wmi_10_2_cmd_id {
@@ -1428,6 +1444,7 @@ enum wmi_10_2_cmd_id {
 	WMI_10_2_MU_CAL_START_CMDID,
 	WMI_10_2_SET_LTEU_CONFIG_CMDID,
 	WMI_10_2_SET_CCA_PARAMS,
+	WMI_10_2_PDEV_BSS_CHAN_INFO_REQUEST_CMDID,
 	WMI_10_2_PDEV_UTF_CMDID = WMI_10_2_END_CMDID - 1,
 };
 
@@ -1471,6 +1488,8 @@ enum wmi_10_2_event_id {
 	WMI_10_2_WDS_PEER_EVENTID,
 	WMI_10_2_PEER_STA_PS_STATECHG_EVENTID,
 	WMI_10_2_PDEV_TEMPERATURE_EVENTID,
+	WMI_10_2_MU_REPORT_EVENTID,
+	WMI_10_2_PDEV_BSS_CHAN_INFO_EVENTID,
 	WMI_10_2_PDEV_UTF_EVENTID = WMI_10_2_END_EVENTID - 1,
 };
 
@@ -1779,6 +1798,7 @@ struct wmi_channel {
 		__le32 reginfo1;
 		struct {
 			u8 antenna_max;
+			u8 max_tx_power;
 		} __packed;
 	} __packed;
 } __packed;
@@ -2041,8 +2061,8 @@ struct wmi_10x_service_ready_event {
 	struct wlan_host_mem_req mem_reqs[0];
 } __packed;
 
-#define WMI_SERVICE_READY_TIMEOUT_HZ (5*HZ)
-#define WMI_UNIFIED_READY_TIMEOUT_HZ (5*HZ)
+#define WMI_SERVICE_READY_TIMEOUT_HZ (5 * HZ)
+#define WMI_UNIFIED_READY_TIMEOUT_HZ (5 * HZ)
 
 struct wmi_ready_event {
 	__le32 sw_version;
@@ -2434,6 +2454,7 @@ enum wmi_10_2_feature_mask {
 	WMI_10_2_RX_BATCH_MODE = BIT(0),
 	WMI_10_2_ATF_CONFIG    = BIT(1),
 	WMI_10_2_COEX_GPIO     = BIT(3),
+	WMI_10_2_BSS_CHAN_INFO = BIT(6),
 	WMI_10_2_PEER_STATS    = BIT(7),
 };
 
@@ -2660,12 +2681,42 @@ struct wmi_resource_config_10_4 {
 	 */
 	__le32 iphdr_pad_config;
 
-	/* qwrap configuration
+	/* qwrap configuration (bits 15-0)
 	 * 1  - This is qwrap configuration
 	 * 0  - This is not qwrap
+	 *
+	 * Bits 31-16 is alloc_frag_desc_for_data_pkt (1 enables, 0 disables)
+	 * In order to get ack-RSSI reporting and to specify the tx-rate for
+	 * individual frames, this option must be enabled.  This uses an extra
+	 * 4 bytes per tx-msdu descriptor, so don't enable it unless you need it.
 	 */
 	__le32 qwrap_config;
 } __packed;
+
+/**
+ * enum wmi_10_4_feature_mask - WMI 10.4 feature enable/disable flags
+ * @WMI_10_4_LTEU_SUPPORT: LTEU config
+ * @WMI_10_4_COEX_GPIO_SUPPORT: COEX GPIO config
+ * @WMI_10_4_AUX_RADIO_SPECTRAL_INTF: AUX Radio Enhancement for spectral scan
+ * @WMI_10_4_AUX_RADIO_CHAN_LOAD_INTF: AUX Radio Enhancement for chan load scan
+ * @WMI_10_4_BSS_CHANNEL_INFO_64: BSS channel info stats
+ * @WMI_10_4_PEER_STATS: Per station stats
+ */
+enum wmi_10_4_feature_mask {
+	WMI_10_4_LTEU_SUPPORT			= BIT(0),
+	WMI_10_4_COEX_GPIO_SUPPORT		= BIT(1),
+	WMI_10_4_AUX_RADIO_SPECTRAL_INTF	= BIT(2),
+	WMI_10_4_AUX_RADIO_CHAN_LOAD_INTF	= BIT(3),
+	WMI_10_4_BSS_CHANNEL_INFO_64		= BIT(4),
+	WMI_10_4_PEER_STATS			= BIT(5),
+};
+
+struct wmi_ext_resource_config_10_4_cmd {
+	/* contains enum wmi_host_platform_type */
+	__le32 host_platform_config;
+	/* see enum wmi_10_4_feature_mask */
+	__le32 fw_feature_bitmap;
+};
 
 /* strucutre describing host memory chunk. */
 struct host_memory_chunk {
@@ -3037,11 +3088,17 @@ struct wmi_10_4_mgmt_rx_event {
 	u8 buf[0];
 } __packed;
 
+struct wmi_mgmt_rx_ext_info {
+	__le64 rx_mac_timestamp;
+} __packed __aligned(4);
+
 #define WMI_RX_STATUS_OK			0x00
 #define WMI_RX_STATUS_ERR_CRC			0x01
 #define WMI_RX_STATUS_ERR_DECRYPT		0x08
 #define WMI_RX_STATUS_ERR_MIC			0x10
 #define WMI_RX_STATUS_ERR_KEY_CACHE_MISS	0x20
+/* Extension data at the end of mgmt frame */
+#define WMI_RX_STATUS_EXT_INFO		0x40
 
 #define PHY_ERROR_GEN_SPECTRAL_SCAN		0x26
 #define PHY_ERROR_GEN_FALSE_RADAR_EXT		0x24
@@ -3390,6 +3447,7 @@ struct wmi_pdev_param_map {
 	u32 wapi_mbssid_offset;
 	u32 arp_srcaddr;
 	u32 arp_dstaddr;
+	u32 enable_btcoex;
 };
 
 #define WMI_PDEV_PARAM_UNSUPPORTED 0
@@ -3703,6 +3761,9 @@ enum wmi_10_4_pdev_param {
 	WMI_10_4_PDEV_PARAM_ATF_OBSS_NOISE_SCH,
 	WMI_10_4_PDEV_PARAM_ATF_OBSS_NOISE_SCALING_FACTOR,
 	WMI_10_4_PDEV_PARAM_CUST_TXPOWER_SCALE,
+	WMI_10_4_PDEV_PARAM_ATF_DYNAMIC_ENABLE,
+	WMI_10_4_PDEV_PARAM_ATF_SSID_GROUP_POLICY,
+	WMI_10_4_PDEV_PARAM_ENABLE_BTCOEX,
 };
 
 struct wmi_pdev_set_param_cmd {
@@ -4072,6 +4133,13 @@ enum wmi_stats_id {
 	WMI_STAT_VDEV_RATE = BIT(5),
 };
 
+enum wmi_10_4_stats_id {
+	WMI_10_4_STAT_PEER		= BIT(0),
+	WMI_10_4_STAT_AP		= BIT(1),
+	WMI_10_4_STAT_INST		= BIT(2),
+	WMI_10_4_STAT_PEER_EXTD		= BIT(3),
+};
+
 struct wlan_inst_rssi_args {
 	__le16 cfg_retry_count;
 	__le16 retry_count;
@@ -4271,6 +4339,27 @@ struct wmi_10_4_peer_stats {
 	__le32 peer_rssi_changed;
 } __packed;
 
+struct wmi_10_4_peer_extd_stats {
+	struct wmi_mac_addr peer_macaddr;
+	__le32 inactive_time;
+	__le32 peer_chain_rssi;
+	__le32 rx_duration;
+	__le32 reserved[10];
+} __packed;
+
+struct wmi_10_4_bss_bcn_stats {
+	__le32 vdev_id;
+	__le32 bss_bcns_dropped;
+	__le32 bss_bcn_delivered;
+} __packed;
+
+struct wmi_10_4_bss_bcn_filter_stats {
+	__le32 bcns_dropped;
+	__le32 bcns_delivered;
+	__le32 active_filters;
+	struct wmi_10_4_bss_bcn_stats bss_stats;
+} __packed;
+
 struct wmi_10_2_pdev_ext_stats {
 	__le32 rx_rssi_comb;
 	__le32 rx_rssi[4];
@@ -4336,14 +4425,14 @@ enum wmi_vdev_subtype_10_4 {
 /*
  * Indicates that AP VDEV uses hidden ssid. only valid for
  *  AP/GO */
-#define WMI_VDEV_START_HIDDEN_SSID  (1<<0)
+#define WMI_VDEV_START_HIDDEN_SSID  (1 << 0)
 /*
  * Indicates if robust management frame/management frame
  *  protection is enabled. For GO/AP vdevs, it indicates that
  *  it may support station/client associations with RMF enabled.
  *  For STA/client vdevs, it indicates that sta will
  *  associate with AP with RMF enabled. */
-#define WMI_VDEV_START_PMF_ENABLED  (1<<1)
+#define WMI_VDEV_START_PMF_ENABLED  (1 << 1)
 
 struct wmi_p2p_noa_descriptor {
 	__le32 type_count; /* 255: continuous schedule, 0: reserved */
@@ -4582,6 +4671,7 @@ struct wmi_vdev_param_map {
 	u32 meru_vc;
 	u32 rx_decap_type;
 	u32 bw_nss_ratemask;
+	u32 set_tsf;
 };
 
 #define WMI_VDEV_PARAM_UNSUPPORTED 0
@@ -4838,6 +4928,7 @@ enum wmi_10x_vdev_param {
 	WMI_10X_VDEV_PARAM_RTS_FIXED_RATE,
 	WMI_10X_VDEV_PARAM_VHT_SGIMASK,
 	WMI_10X_VDEV_PARAM_VHT80_RATEMASK,
+	WMI_10X_VDEV_PARAM_TSF_INCREMENT,
 };
 
 enum wmi_10_4_vdev_param {
@@ -4907,6 +4998,12 @@ enum wmi_10_4_vdev_param {
 	WMI_10_4_VDEV_PARAM_MERU_VC,
 	WMI_10_4_VDEV_PARAM_RX_DECAP_TYPE,
 	WMI_10_4_VDEV_PARAM_BW_NSS_RATEMASK,
+	WMI_10_4_VDEV_PARAM_SENSOR_AP,
+	WMI_10_4_VDEV_PARAM_BEACON_RATE,
+	WMI_10_4_VDEV_PARAM_DTIM_ENABLE_CTS,
+	WMI_10_4_VDEV_PARAM_STA_KICKOUT,
+	WMI_10_4_VDEV_PARAM_CAPABILITIES,
+	WMI_10_4_VDEV_PARAM_TSF_INCREMENT,
 };
 
 #define WMI_VDEV_PARAM_TXBF_SU_TX_BFEE BIT(0)
@@ -5281,7 +5378,7 @@ enum wmi_sta_ps_param_pspoll_count {
 #define WMI_UAPSD_AC_TYPE_TRIG 1
 
 #define WMI_UAPSD_AC_BIT_MASK(ac, type) \
-	((type ==  WMI_UAPSD_AC_TYPE_DELI) ? (1<<(ac<<1)) : (1<<((ac<<1)+1)))
+	((type ==  WMI_UAPSD_AC_TYPE_DELI) ? (1 << (ac << 1)) : (1 << ((ac << 1) + 1)))
 
 enum wmi_sta_ps_param_uapsd {
 	WMI_STA_PS_UAPSD_AC0_DELIVERY_EN = (1 << 0),
@@ -5696,7 +5793,7 @@ struct wmi_rate_set {
 	 * the rates are filled from least significant byte to most
 	 * significant byte.
 	 */
-	__le32 rates[(MAX_SUPPORTED_RATES/4)+1];
+	__le32 rates[(MAX_SUPPORTED_RATES / 4) + 1];
 } __packed;
 
 struct wmi_rate_set_arg {
@@ -6116,6 +6213,7 @@ struct wmi_mgmt_rx_ev_arg {
 	__le32 phy_mode;
 	__le32 buf_len;
 	__le32 status; /* %WMI_RX_STATUS_ */
+	struct wmi_mgmt_rx_ext_info ext_info;
 };
 
 struct wmi_ch_info_ev_arg {
@@ -6201,6 +6299,17 @@ struct wmi_roam_ev_arg {
 struct wmi_pdev_temperature_event {
 	/* temperature value in Celcius degree */
 	__le32 temperature;
+} __packed;
+
+struct wmi_pdev_bss_chan_info_event {
+	__le32 freq;
+	__le32 noise_floor;
+	__le64 cycle_busy;
+	__le64 cycle_total;
+	__le64 cycle_tx;
+	__le64 cycle_rx;
+	__le64 cycle_rx_bss;
+	__le32 reserved;
 } __packed;
 
 /* WOW structures */
@@ -6399,6 +6508,21 @@ struct wmi_pdev_set_adaptive_cca_params {
 	__le32 enable;
 	__le32 cca_detect_level;
 	__le32 cca_detect_margin;
+} __packed;
+
+enum wmi_host_platform_type {
+	WMI_HOST_PLATFORM_HIGH_PERF,
+	WMI_HOST_PLATFORM_LOW_PERF,
+};
+
+enum wmi_bss_survey_req_type {
+	WMI_BSS_SURVEY_REQ_TYPE_READ = 1,
+	WMI_BSS_SURVEY_REQ_TYPE_READ_CLEAR,
+};
+
+struct wmi_pdev_chan_info_req_cmd {
+	__le32 type;
+	__le32 reserved;
 } __packed;
 
 struct ath10k;

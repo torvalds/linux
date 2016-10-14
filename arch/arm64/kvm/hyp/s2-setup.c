@@ -66,6 +66,14 @@ u32 __hyp_text __init_stage2_translation(void)
 	val |= 64 - (parange > 40 ? 40 : parange);
 
 	/*
+	 * Check the availability of Hardware Access Flag / Dirty Bit
+	 * Management in ID_AA64MMFR1_EL1 and enable the feature in VTCR_EL2.
+	 */
+	tmp = (read_sysreg(id_aa64mmfr1_el1) >> ID_AA64MMFR1_HADBS_SHIFT) & 0xf;
+	if (IS_ENABLED(CONFIG_ARM64_HW_AFDBM) && tmp)
+		val |= VTCR_EL2_HA;
+
+	/*
 	 * Read the VMIDBits bits from ID_AA64MMFR1_EL1 and set the VS
 	 * bit in VTCR_EL2.
 	 */

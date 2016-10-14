@@ -263,7 +263,7 @@ struct fiji_hwmgr {
 	bool                           enable_tdc_limit_feature;
 	bool                           enable_pkg_pwr_tracking_feature;
 	bool                           disable_uvd_power_tune_feature;
-	struct fiji_pt_defaults       *power_tune_defaults;
+	const struct fiji_pt_defaults  *power_tune_defaults;
 	struct SMU73_Discrete_PmFuses  power_tune_table;
 	uint32_t                       dte_tj_offset;
 	uint32_t                       fast_watermark_threshold;
@@ -338,7 +338,6 @@ enum Fiji_I2CLineID {
 #define FIJI_UNUSED_GPIO_PIN       0x7F
 
 extern int tonga_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr);
-extern int tonga_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);
 extern int tonga_get_mc_microcode_version (struct pp_hwmgr *hwmgr);
 extern int tonga_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr);
 extern int tonga_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display);

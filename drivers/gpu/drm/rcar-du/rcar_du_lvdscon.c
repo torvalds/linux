@@ -59,7 +59,6 @@ static int rcar_du_lvds_connector_get_modes(struct drm_connector *connector)
 
 static const struct drm_connector_helper_funcs connector_helper_funcs = {
 	.get_modes = rcar_du_lvds_connector_get_modes,
-	.best_encoder = rcar_du_connector_best_encoder,
 };
 
 static enum drm_connector_status

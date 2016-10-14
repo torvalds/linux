@@ -140,6 +140,18 @@ static const struct regulator_ops rpm_smps_ldo_ops = {
 	.enable = rpm_reg_enable,
 	.disable = rpm_reg_disable,
 	.is_enabled = rpm_reg_is_enabled,
+	.list_voltage = regulator_list_voltage_linear_range,
+
+	.get_voltage = rpm_reg_get_voltage,
+	.set_voltage = rpm_reg_set_voltage,
+
+	.set_load = rpm_reg_set_load,
+};
+
+static const struct regulator_ops rpm_smps_ldo_ops_fixed = {
+	.enable = rpm_reg_enable,
+	.disable = rpm_reg_disable,
+	.is_enabled = rpm_reg_is_enabled,
 
 	.get_voltage = rpm_reg_get_voltage,
 	.set_voltage = rpm_reg_set_voltage,
@@ -166,20 +178,21 @@ static const struct regulator_desc pma8084_hfsmps = {
 static const struct regulator_desc pma8084_ftsmps = {
 	.linear_ranges = (struct regulator_linear_range[]) {
 		REGULATOR_LINEAR_RANGE(350000,  0, 184, 5000),
-		REGULATOR_LINEAR_RANGE(700000, 185, 339, 10000),
+		REGULATOR_LINEAR_RANGE(1280000, 185, 261, 10000),
 	},
 	.n_linear_ranges = 2,
-	.n_voltages = 340,
+	.n_voltages = 262,
 	.ops = &rpm_smps_ldo_ops,
 };
 
 static const struct regulator_desc pma8084_pldo = {
 	.linear_ranges = (struct regulator_linear_range[]) {
-		REGULATOR_LINEAR_RANGE(750000,  0,  30, 25000),
-		REGULATOR_LINEAR_RANGE(1500000, 31, 99, 50000),
+		REGULATOR_LINEAR_RANGE( 750000,  0,  63, 12500),
+		REGULATOR_LINEAR_RANGE(1550000, 64, 126, 25000),
+		REGULATOR_LINEAR_RANGE(3100000, 127, 163, 50000),
 	},
-	.n_linear_ranges = 2,
-	.n_voltages = 100,
+	.n_linear_ranges = 3,
+	.n_voltages = 164,
 	.ops = &rpm_smps_ldo_ops,
 };
 
@@ -199,7 +212,7 @@ static const struct regulator_desc pma8084_switch = {
 static const struct regulator_desc pm8x41_hfsmps = {
 	.linear_ranges = (struct regulator_linear_range[]) {
 		REGULATOR_LINEAR_RANGE( 375000,  0,  95, 12500),
-		REGULATOR_LINEAR_RANGE(1550000, 96, 158, 25000),
+		REGULATOR_LINEAR_RANGE(1575000, 96, 158, 25000),
 	},
 	.n_linear_ranges = 2,
 	.n_voltages = 159,
@@ -209,29 +222,30 @@ static const struct regulator_desc pm8x41_hfsmps = {
 static const struct regulator_desc pm8841_ftsmps = {
 	.linear_ranges = (struct regulator_linear_range[]) {
 		REGULATOR_LINEAR_RANGE(350000,  0, 184, 5000),
-		REGULATOR_LINEAR_RANGE(700000, 185, 339, 10000),
+		REGULATOR_LINEAR_RANGE(1280000, 185, 261, 10000),
 	},
 	.n_linear_ranges = 2,
-	.n_voltages = 340,
+	.n_voltages = 262,
 	.ops = &rpm_smps_ldo_ops,
 };
 
 static const struct regulator_desc pm8941_boost = {
 	.linear_ranges = (struct regulator_linear_range[]) {
-		REGULATOR_LINEAR_RANGE(4000000, 0, 15, 100000),
+		REGULATOR_LINEAR_RANGE(4000000, 0, 30, 50000),
 	},
 	.n_linear_ranges = 1,
-	.n_voltages = 16,
+	.n_voltages = 31,
 	.ops = &rpm_smps_ldo_ops,
 };
 
 static const struct regulator_desc pm8941_pldo = {
 	.linear_ranges = (struct regulator_linear_range[]) {
-		REGULATOR_LINEAR_RANGE( 750000,  0,  30, 25000),
-		REGULATOR_LINEAR_RANGE(1500000, 31, 99, 50000),
+		REGULATOR_LINEAR_RANGE( 750000,  0,  63, 12500),
+		REGULATOR_LINEAR_RANGE(1550000, 64, 126, 25000),
+		REGULATOR_LINEAR_RANGE(3100000, 127, 163, 50000),
 	},
-	.n_linear_ranges = 2,
-	.n_voltages = 100,
+	.n_linear_ranges = 3,
+	.n_voltages = 164,
 	.ops = &rpm_smps_ldo_ops,
 };
 
@@ -247,7 +261,7 @@ static const struct regulator_desc pm8941_nldo = {
 static const struct regulator_desc pm8941_lnldo = {
 	.fixed_uV = 1740000,
 	.n_voltages = 1,
-	.ops = &rpm_smps_ldo_ops,
+	.ops = &rpm_smps_ldo_ops_fixed,
 };
 
 static const struct regulator_desc pm8941_switch = {

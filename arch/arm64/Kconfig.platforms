@@ -8,10 +8,23 @@ config ARCH_SUNXI
 
 config ARCH_ALPINE
 	bool "Annapurna Labs Alpine platform"
-	select ALPINE_MSI
+	select ALPINE_MSI if PCI
 	help
 	  This enables support for the Annapurna Labs Alpine
 	  Soc family.
+
+config ARCH_BCM2835
+	bool "Broadcom BCM2835 family"
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKSRC_OF
+	select PINCTRL
+	select PINCTRL_BCM2835
+	select ARM_AMBA
+	select ARM_TIMER_SP804
+	select HAVE_ARM_ARCH_TIMER
+	help
+	  This enables support for the Broadcom BCM2837 SoC.
+	  This SoC is used in the Raspberry Pi 3 device.
 
 config ARCH_BCM_IPROC
 	bool "Broadcom iProc SoC Family"
@@ -36,6 +49,7 @@ config ARCH_EXYNOS
 	select HAVE_S3C_RTC if RTC_CLASS
 	select PINCTRL
 	select PINCTRL_EXYNOS
+	select SOC_SAMSUNG
 	help
 	  This enables support for ARMv8 based Samsung Exynos SoC family.
 
@@ -44,9 +58,15 @@ config ARCH_LAYERSCAPE
 	help
 	  This enables support for the Freescale Layerscape SoC family.
 
+config ARCH_LG1K
+	bool "LG Electronics LG1K SoC Family"
+	help
+	  This enables support for LG Electronics LG1K SoC Family
+
 config ARCH_HISI
 	bool "Hisilicon SoC Family"
-	select HISILICON_IRQ_MBIGEN
+	select ARM_TIMER_SP804
+	select HISILICON_IRQ_MBIGEN if PCI
 	help
 	  This enables support for Hisilicon ARMv8 SoC family
 
@@ -60,13 +80,18 @@ config ARCH_MEDIATEK
 
 config ARCH_MESON
 	bool "Amlogic Platforms"
+	select PINCTRL
+	select PINCTRL_MESON
+	select COMMON_CLK_AMLOGIC
+	select COMMON_CLK_GXBB
 	help
 	  This enables support for the Amlogic S905 SoCs.
 
 config ARCH_MVEBU
 	bool "Marvell EBU SoC Family"
-	select ARMADA_AP806_CORE_CLK
-	select ARMADA_AP806_RING_CLK
+	select ARMADA_AP806_SYSCON
+	select ARMADA_CP110_SYSCON
+	select ARMADA_37XX_CLK
 	select MVEBU_ODMI
 	help
 	  This enables support for Marvell EBU familly, including:
@@ -115,6 +140,12 @@ config ARCH_R8A7795
 	help
 	  This enables support for the Renesas R-Car H3 SoC.
 
+config ARCH_R8A7796
+	bool "Renesas R-Car M3-W SoC Platform"
+	depends on ARCH_RENESAS
+	help
+	  This enables support for the Renesas R-Car M3-W SoC.
+
 config ARCH_STRATIX10
 	bool "Altera's Stratix 10 SoCFPGA Family"
 	help
@@ -154,6 +185,8 @@ config ARCH_VEXPRESS
 	bool "ARMv8 software model (Versatile Express)"
 	select ARCH_REQUIRE_GPIOLIB
 	select COMMON_CLK_VERSATILE
+	select PM
+	select PM_GENERIC_DOMAINS
 	select POWER_RESET_VEXPRESS
 	select VEXPRESS_CONFIG
 	help
@@ -162,6 +195,7 @@ config ARCH_VEXPRESS
 
 config ARCH_VULCAN
 	bool "Broadcom Vulcan SOC Family"
+	select GPIOLIB
 	help
 	  This enables support for Broadcom Vulcan SoC Family
 

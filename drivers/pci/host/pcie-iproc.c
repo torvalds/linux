@@ -462,6 +462,10 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	if (!pcie || !pcie->dev || !pcie->base)
 		return -EINVAL;
 
+	ret = devm_request_pci_bus_resources(pcie->dev, res);
+	if (ret)
+		return ret;
+
 	ret = phy_init(pcie->phy);
 	if (ret) {
 		dev_err(pcie->dev, "unable to initialize PCIe PHY\n");

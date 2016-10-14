@@ -305,7 +305,7 @@ static int msi_quota_for_device(struct pci_dev *dev, int request)
 	memset(&counts, 0, sizeof(struct msi_counts));
 
 	/* Work out how many devices we have below this PE */
-	traverse_pci_devices(pe_dn, count_non_bridge_devices, &counts);
+	pci_traverse_device_nodes(pe_dn, count_non_bridge_devices, &counts);
 
 	if (counts.num_devices == 0) {
 		pr_err("rtas_msi: found 0 devices under PE for %s\n",
@@ -320,7 +320,7 @@ static int msi_quota_for_device(struct pci_dev *dev, int request)
 	/* else, we have some more calculating to do */
 	counts.requestor = pci_device_to_OF_node(dev);
 	counts.request = request;
-	traverse_pci_devices(pe_dn, count_spare_msis, &counts);
+	pci_traverse_device_nodes(pe_dn, count_spare_msis, &counts);
 
 	/* If the quota isn't an integer multiple of the total, we can
 	 * use the remainder as spare MSIs for anyone that wants them. */

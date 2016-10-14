@@ -139,7 +139,7 @@ acpi_ps_complete_final_op(struct acpi_walk_state *walk_state,
  */
 const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode);
 
-char *acpi_ps_get_opcode_name(u16 opcode);
+const char *acpi_ps_get_opcode_name(u16 opcode);
 
 u8 acpi_ps_get_argument_count(u32 op_type);
 

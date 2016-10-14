@@ -121,6 +121,8 @@
 #define ARM_V7S_TEX_MASK		0x7
 #define ARM_V7S_ATTR_TEX(val)		(((val) & ARM_V7S_TEX_MASK) << ARM_V7S_TEX_SHIFT)
 
+#define ARM_V7S_ATTR_MTK_4GB		BIT(9) /* MTK extend it for 4GB mode */
+
 /* *well, except for TEX on level 2 large pages, of course :( */
 #define ARM_V7S_CONT_PAGE_TEX_SHIFT	6
 #define ARM_V7S_CONT_PAGE_TEX_MASK	(ARM_V7S_TEX_MASK << ARM_V7S_CONT_PAGE_TEX_SHIFT)
@@ -258,9 +260,10 @@ static arm_v7s_iopte arm_v7s_prot_to_pte(int prot, int lvl,
 					 struct io_pgtable_cfg *cfg)
 {
 	bool ap = !(cfg->quirks & IO_PGTABLE_QUIRK_NO_PERMS);
-	arm_v7s_iopte pte = ARM_V7S_ATTR_NG | ARM_V7S_ATTR_S |
-			    ARM_V7S_ATTR_TEX(1);
+	arm_v7s_iopte pte = ARM_V7S_ATTR_NG | ARM_V7S_ATTR_S;
 
+	if (!(prot & IOMMU_MMIO))
+		pte |= ARM_V7S_ATTR_TEX(1);
 	if (ap) {
 		pte |= ARM_V7S_PTE_AF | ARM_V7S_PTE_AP_UNPRIV;
 		if (!(prot & IOMMU_WRITE))
@@ -270,7 +273,9 @@ static arm_v7s_iopte arm_v7s_prot_to_pte(int prot, int lvl,
 
 	if ((prot & IOMMU_NOEXEC) && ap)
 		pte |= ARM_V7S_ATTR_XN(lvl);
-	if (prot & IOMMU_CACHE)
+	if (prot & IOMMU_MMIO)
+		pte |= ARM_V7S_ATTR_B;
+	else if (prot & IOMMU_CACHE)
 		pte |= ARM_V7S_ATTR_B | ARM_V7S_ATTR_C;
 
 	return pte;
@@ -279,11 +284,16 @@ static arm_v7s_iopte arm_v7s_prot_to_pte(int prot, int lvl,
 static int arm_v7s_pte_to_prot(arm_v7s_iopte pte, int lvl)
 {
 	int prot = IOMMU_READ;
+	arm_v7s_iopte attr = pte >> ARM_V7S_ATTR_SHIFT(lvl);
 
-	if (pte & (ARM_V7S_PTE_AP_RDONLY << ARM_V7S_ATTR_SHIFT(lvl)))
+	if (!(attr & ARM_V7S_PTE_AP_RDONLY))
 		prot |= IOMMU_WRITE;
-	if (pte & ARM_V7S_ATTR_C)
+	if ((attr & (ARM_V7S_TEX_MASK << ARM_V7S_TEX_SHIFT)) == 0)
+		prot |= IOMMU_MMIO;
+	else if (pte & ARM_V7S_ATTR_C)
 		prot |= IOMMU_CACHE;
+	if (pte & ARM_V7S_ATTR_XN(lvl))
+		prot |= IOMMU_NOEXEC;
 
 	return prot;
 }
@@ -363,6 +373,9 @@ static int arm_v7s_init_pte(struct arm_v7s_io_pgtable *data,
 	pte |= ARM_V7S_PTE_TYPE_PAGE;
 	if (lvl == 1 && (cfg->quirks & IO_PGTABLE_QUIRK_ARM_NS))
 		pte |= ARM_V7S_ATTR_NS_SECTION;
+
+	if (cfg->quirks & IO_PGTABLE_QUIRK_ARM_MTK_4GB)
+		pte |= ARM_V7S_ATTR_MTK_4GB;
 
 	if (num_entries > 1)
 		pte = arm_v7s_pte_to_cont(pte, lvl);
@@ -625,8 +638,14 @@ static struct io_pgtable *arm_v7s_alloc_pgtable(struct io_pgtable_cfg *cfg,
 
 	if (cfg->quirks & ~(IO_PGTABLE_QUIRK_ARM_NS |
 			    IO_PGTABLE_QUIRK_NO_PERMS |
-			    IO_PGTABLE_QUIRK_TLBI_ON_MAP))
+			    IO_PGTABLE_QUIRK_TLBI_ON_MAP |
+			    IO_PGTABLE_QUIRK_ARM_MTK_4GB))
 		return NULL;
+
+	/* If ARM_MTK_4GB is enabled, the NO_PERMS is also expected. */
+	if (cfg->quirks & IO_PGTABLE_QUIRK_ARM_MTK_4GB &&
+	    !(cfg->quirks & IO_PGTABLE_QUIRK_NO_PERMS))
+			return NULL;
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)

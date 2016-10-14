@@ -109,7 +109,7 @@
 #define SCHED_READ    0x01
 #define SCHED_WRITE   0x02
 
-#define SET_RUN_TIMEOUT 2 * HZ /* 2 seconds */
+#define SET_RUN_TIMEOUT (2 * HZ) /* 2 seconds */
 
 struct frame_buf {
 	ulong msg;

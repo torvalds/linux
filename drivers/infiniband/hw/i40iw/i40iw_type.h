@@ -479,16 +479,17 @@ struct i40iw_sc_dev {
 	struct i40iw_virt_mem ieq_mem;
 	struct i40iw_puda_rsrc *ieq;
 
-	struct i40iw_vf_cqp_ops *iw_vf_cqp_ops;
+	const struct i40iw_vf_cqp_ops *iw_vf_cqp_ops;
 
 	struct i40iw_hmc_fpm_misc hmc_fpm_misc;
 	u16 qs_handle;
-	u32	debug_mask;
+	u32 debug_mask;
 	u16 exception_lan_queue;
 	u8 hmc_fn_id;
 	bool is_pf;
 	bool vchnl_up;
 	u8 vf_id;
+	wait_queue_head_t vf_reqs;
 	u64 cqp_cmd_stats[OP_SIZE_CQP_STAT_ARRAY];
 	struct i40iw_vchnl_vf_msg_buffer vchnl_vf_msg_buf;
 	u8 hw_rev;
@@ -666,7 +667,7 @@ struct i40iw_tcp_offload_info {
 	bool time_stamp;
 	u8 cwnd_inc_limit;
 	bool drop_ooo_seg;
-	bool dup_ack_thresh;
+	u8 dup_ack_thresh;
 	u8 ttl;
 	u8 src_mac_addr_idx;
 	bool avoid_stretch_ack;
@@ -889,8 +890,8 @@ struct i40iw_qhash_table_info {
 	u32 qp_num;
 	u32 dest_ip[4];
 	u32 src_ip[4];
-	u32 dest_port;
-	u32 src_port;
+	u16 dest_port;
+	u16 src_port;
 };
 
 struct i40iw_local_mac_ipaddr_entry_info {
@@ -1040,6 +1041,9 @@ struct i40iw_priv_qp_ops {
 	void (*qp_send_lsmm_nostag)(struct i40iw_sc_qp *, void *, u32);
 	void (*qp_send_rtt)(struct i40iw_sc_qp *, bool);
 	enum i40iw_status_code (*qp_post_wqe0)(struct i40iw_sc_qp *, u8);
+	enum i40iw_status_code (*iw_mr_fast_register)(struct i40iw_sc_qp *,
+						      struct i40iw_fast_reg_stag_info *,
+						      bool);
 };
 
 struct i40iw_priv_cq_ops {
@@ -1108,7 +1112,7 @@ struct i40iw_hmc_ops {
 	enum i40iw_status_code (*parse_fpm_query_buf)(u64 *, struct i40iw_hmc_info *,
 						      struct i40iw_hmc_fpm_misc *);
 	enum i40iw_status_code (*configure_iw_fpm)(struct i40iw_sc_dev *, u8);
-	enum i40iw_status_code (*parse_fpm_commit_buf)(u64 *, struct i40iw_hmc_obj_info *);
+	enum i40iw_status_code (*parse_fpm_commit_buf)(u64 *, struct i40iw_hmc_obj_info *, u32 *sd);
 	enum i40iw_status_code (*create_hmc_object)(struct i40iw_sc_dev *dev,
 						    struct i40iw_hmc_create_obj_info *);
 	enum i40iw_status_code (*del_hmc_object)(struct i40iw_sc_dev *dev,

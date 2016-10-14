@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -95,15 +91,12 @@ static void ll_invalidatepage(struct page *vmpage, unsigned int offset,
 			if (obj) {
 				page = cl_vmpage_page(vmpage, obj);
 				if (page) {
-					lu_ref_add(&page->cp_reference,
-						   "delete", vmpage);
 					cl_page_delete(env, page);
-					lu_ref_del(&page->cp_reference,
-						   "delete", vmpage);
 					cl_page_put(env, page);
 				}
-			} else
+			} else {
 				LASSERT(vmpage->private == 0);
+			}
 			cl_env_put(env, &refcheck);
 		}
 	}
@@ -111,12 +104,12 @@ static void ll_invalidatepage(struct page *vmpage, unsigned int offset,
 
 static int ll_releasepage(struct page *vmpage, gfp_t gfp_mask)
 {
-	struct cl_env_nest nest;
 	struct lu_env     *env;
+	void			*cookie;
 	struct cl_object  *obj;
 	struct cl_page    *page;
 	struct address_space *mapping;
-	int result;
+	int result = 0;
 
 	LASSERT(PageLocked(vmpage));
 	if (PageWriteback(vmpage) || PageDirty(vmpage))
@@ -130,53 +123,42 @@ static int ll_releasepage(struct page *vmpage, gfp_t gfp_mask)
 	if (!obj)
 		return 1;
 
-	/* 1 for page allocator, 1 for cl_page and 1 for page cache */
+	/* 1 for caller, 1 for cl_page and 1 for page cache */
 	if (page_count(vmpage) > 3)
 		return 0;
 
-	/* TODO: determine what gfp should be used by @gfp_mask. */
-	env = cl_env_nested_get(&nest);
-	if (IS_ERR(env))
-		/* If we can't allocate an env we won't call cl_page_put()
-		 * later on which further means it's impossible to drop
-		 * page refcount by cl_page, so ask kernel to not free
-		 * this page.
-		 */
-		return 0;
-
 	page = cl_vmpage_page(vmpage, obj);
-	result = !page;
-	if (page) {
-		if (!cl_page_in_use(page)) {
-			result = 1;
-			cl_page_delete(env, page);
-		}
-		cl_page_put(env, page);
+	if (!page)
+		return 1;
+
+	cookie = cl_env_reenter();
+	env = cl_env_percpu_get();
+	LASSERT(!IS_ERR(env));
+
+	if (!cl_page_in_use(page)) {
+		result = 1;
+		cl_page_delete(env, page);
 	}
-	cl_env_nested_put(&nest, env);
+
+	/* To use percpu env array, the call path can not be rescheduled;
+	 * otherwise percpu array will be messed if ll_releaspage() called
+	 * again on the same CPU.
+	 *
+	 * If this page holds the last refc of cl_object, the following
+	 * call path may cause reschedule:
+	 *   cl_page_put -> cl_page_free -> cl_object_put ->
+	 *     lu_object_put -> lu_object_free -> lov_delete_raid0.
+	 *
+	 * However, the kernel can't get rid of this inode until all pages have
+	 * been cleaned up. Now that we hold page lock here, it's pretty safe
+	 * that we won't get into object delete path.
+	 */
+	LASSERT(cl_object_refc(obj) > 1);
+	cl_page_put(env, page);
+
+	cl_env_percpu_put(env);
+	cl_env_reexit(cookie);
 	return result;
-}
-
-static int ll_set_page_dirty(struct page *vmpage)
-{
-#if 0
-	struct cl_page    *page = vvp_vmpage_page_transient(vmpage);
-	struct vvp_object *obj  = cl_inode2vvp(vmpage->mapping->host);
-	struct vvp_page   *cpg;
-
-	/*
-	 * XXX should page method be called here?
-	 */
-	LASSERT(&obj->co_cl == page->cp_obj);
-	cpg = cl2vvp_page(cl_page_at(page, &vvp_device_type));
-	/*
-	 * XXX cannot do much here, because page is possibly not locked:
-	 * sys_munmap()->...
-	 *     ->unmap_page_range()->zap_pte_range()->set_page_dirty().
-	 */
-	vvp_write_pending(obj, cpg);
-#endif
-	return __set_page_dirty_nobuffers(vmpage);
 }
 
 #define MAX_DIRECTIO_SIZE (2*1024*1024*1024UL)
@@ -266,7 +248,7 @@ ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 		 * write directly
 		 */
 		if (clp->cp_type == CPT_CACHEABLE) {
-			struct page *vmpage = cl_page_vmpage(env, clp);
+			struct page *vmpage = cl_page_vmpage(clp);
 			struct page *src_page;
 			struct page *dst_page;
 			void       *src;
@@ -358,14 +340,14 @@ static ssize_t ll_direct_IO_26_seg(const struct lu_env *env, struct cl_io *io,
  */
 #define MAX_DIO_SIZE ((KMALLOC_MAX_SIZE / sizeof(struct brw_page) *	  \
 		       PAGE_SIZE) & ~(DT_MAX_BRW_SIZE - 1))
-static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
-			       loff_t file_offset)
+static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct lu_env *env;
 	struct cl_io *io;
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
-	struct ccc_object *obj = cl_inode2ccc(inode);
+	struct vvp_object *obj = cl_inode2vvp(inode);
+	loff_t file_offset = iocb->ki_pos;
 	ssize_t count = iov_iter_count(iter);
 	ssize_t tot_bytes = 0, result = 0;
 	struct ll_inode_info *lli = ll_i2info(inode);
@@ -376,22 +358,21 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 		return -EBADF;
 
 	/* FIXME: io smaller than PAGE_SIZE is broken on ia64 ??? */
-	if ((file_offset & ~CFS_PAGE_MASK) || (count & ~CFS_PAGE_MASK))
+	if ((file_offset & ~PAGE_MASK) || (count & ~PAGE_MASK))
 		return -EINVAL;
 
-	CDEBUG(D_VFSTRACE,
-	       "VFS Op:inode=%lu/%u(%p), size=%zd (max %lu), offset=%lld=%llx, pages %zd (max %lu)\n",
-	       inode->i_ino, inode->i_generation, inode, count, MAX_DIO_SIZE,
+	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), size=%zd (max %lu), offset=%lld=%llx, pages %zd (max %lu)\n",
+	       PFID(ll_inode2fid(inode)), inode, count, MAX_DIO_SIZE,
 	       file_offset, file_offset, count >> PAGE_SHIFT,
 	       MAX_DIO_SIZE >> PAGE_SHIFT);
 
 	/* Check that all user buffers are aligned as well */
-	if (iov_iter_alignment(iter) & ~CFS_PAGE_MASK)
+	if (iov_iter_alignment(iter) & ~PAGE_MASK)
 		return -EINVAL;
 
 	env = cl_env_get(&refcheck);
 	LASSERT(!IS_ERR(env));
-	io = ccc_env_io(env)->cui_cl.cis_io;
+	io = vvp_env_io(env)->vui_cl.cis_io;
 	LASSERT(io);
 
 	/* 0. Need locking between buffered and direct access. and race with
@@ -401,7 +382,7 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 	if (iov_iter_rw(iter) == READ)
 		inode_lock(inode);
 
-	LASSERT(obj->cob_transient_pages == 0);
+	LASSERT(obj->vob_transient_pages == 0);
 	while (iov_iter_count(iter)) {
 		struct page **pages;
 		size_t offs;
@@ -435,8 +416,8 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 			    size > (PAGE_SIZE / sizeof(*pages)) *
 			    PAGE_SIZE) {
 				size = ((((size / 2) - 1) |
-					 ~CFS_PAGE_MASK) + 1) &
-					CFS_PAGE_MASK;
+					 ~PAGE_MASK) + 1) &
+					PAGE_MASK;
 				CDEBUG(D_VFSTRACE, "DIO size now %lu\n",
 				       size);
 				continue;
@@ -449,62 +430,214 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
 		file_offset += result;
 	}
 out:
-	LASSERT(obj->cob_transient_pages == 0);
+	LASSERT(obj->vob_transient_pages == 0);
 	if (iov_iter_rw(iter) == READ)
 		inode_unlock(inode);
 
 	if (tot_bytes > 0) {
-		if (iov_iter_rw(iter) == WRITE) {
-			struct lov_stripe_md *lsm;
+		struct vvp_io *vio = vvp_env_io(env);
 
-			lsm = ccc_inode_lsm_get(inode);
-			LASSERT(lsm);
-			lov_stripe_lock(lsm);
-			obd_adjust_kms(ll_i2dtexp(inode), lsm, file_offset, 0);
-			lov_stripe_unlock(lsm);
-			ccc_inode_lsm_put(inode, lsm);
-		}
+		/* no commit async for direct IO */
+		vio->u.write.vui_written += tot_bytes;
 	}
 
 	cl_env_put(env, &refcheck);
-	return tot_bytes ? : result;
+	return tot_bytes ? tot_bytes : result;
+}
+
+/**
+ * Prepare partially written-to page for a write.
+ */
+static int ll_prepare_partial_page(const struct lu_env *env, struct cl_io *io,
+				   struct cl_page *pg)
+{
+	struct cl_attr *attr   = vvp_env_thread_attr(env);
+	struct cl_object *obj  = io->ci_obj;
+	struct vvp_page *vpg   = cl_object_page_slice(obj, pg);
+	loff_t          offset = cl_offset(obj, vvp_index(vpg));
+	int             result;
+
+	cl_object_attr_lock(obj);
+	result = cl_object_attr_get(env, obj, attr);
+	cl_object_attr_unlock(obj);
+	if (result == 0) {
+		/*
+		 * If are writing to a new page, no need to read old data.
+		 * The extent locking will have updated the KMS, and for our
+		 * purposes here we can treat it like i_size.
+		 */
+		if (attr->cat_kms <= offset) {
+			char *kaddr = kmap_atomic(vpg->vpg_page);
+
+			memset(kaddr, 0, cl_page_size(obj));
+			kunmap_atomic(kaddr);
+		} else if (vpg->vpg_defer_uptodate) {
+			vpg->vpg_ra_used = 1;
+		} else {
+			result = ll_page_sync_io(env, io, pg, CRT_READ);
+		}
+	}
+	return result;
 }
 
 static int ll_write_begin(struct file *file, struct address_space *mapping,
 			  loff_t pos, unsigned len, unsigned flags,
 			  struct page **pagep, void **fsdata)
 {
+	struct ll_cl_context *lcc;
+	const struct lu_env  *env;
+	struct cl_io   *io;
+	struct cl_page *page;
+	struct cl_object *clob = ll_i2info(mapping->host)->lli_clob;
 	pgoff_t index = pos >> PAGE_SHIFT;
-	struct page *page;
-	int rc;
-	unsigned from = pos & (PAGE_SIZE - 1);
+	struct page *vmpage = NULL;
+	unsigned int from = pos & (PAGE_SIZE - 1);
+	unsigned int to = from + len;
+	int result = 0;
 
-	page = grab_cache_page_write_begin(mapping, index, flags);
-	if (!page)
-		return -ENOMEM;
+	CDEBUG(D_VFSTRACE, "Writing %lu of %d to %d bytes\n", index, from, len);
 
-	*pagep = page;
-
-	rc = ll_prepare_write(file, page, from, from + len);
-	if (rc) {
-		unlock_page(page);
-		put_page(page);
+	lcc = ll_cl_find(file);
+	if (!lcc) {
+		result = -EIO;
+		goto out;
 	}
-	return rc;
+
+	env = lcc->lcc_env;
+	io  = lcc->lcc_io;
+
+	/* To avoid deadlock, try to lock page first. */
+	vmpage = grab_cache_page_nowait(mapping, index);
+	if (unlikely(!vmpage || PageDirty(vmpage) || PageWriteback(vmpage))) {
+		struct vvp_io *vio = vvp_env_io(env);
+		struct cl_page_list *plist = &vio->u.write.vui_queue;
+
+		/* if the page is already in dirty cache, we have to commit
+		 * the pages right now; otherwise, it may cause deadlock
+		 * because it holds page lock of a dirty page and request for
+		 * more grants. It's okay for the dirty page to be the first
+		 * one in commit page list, though.
+		 */
+		if (vmpage && plist->pl_nr > 0) {
+			unlock_page(vmpage);
+			put_page(vmpage);
+			vmpage = NULL;
+		}
+
+		/* commit pages and then wait for page lock */
+		result = vvp_io_write_commit(env, io);
+		if (result < 0)
+			goto out;
+
+		if (!vmpage) {
+			vmpage = grab_cache_page_write_begin(mapping, index,
+							     flags);
+			if (!vmpage) {
+				result = -ENOMEM;
+				goto out;
+			}
+		}
+	}
+
+	page = cl_page_find(env, clob, vmpage->index, vmpage, CPT_CACHEABLE);
+	if (IS_ERR(page)) {
+		result = PTR_ERR(page);
+		goto out;
+	}
+
+	lcc->lcc_page = page;
+	lu_ref_add(&page->cp_reference, "cl_io", io);
+
+	cl_page_assume(env, io, page);
+	if (!PageUptodate(vmpage)) {
+		/*
+		 * We're completely overwriting an existing page,
+		 * so _don't_ set it up to date until commit_write
+		 */
+		if (from == 0 && to == PAGE_SIZE) {
+			CL_PAGE_HEADER(D_PAGE, env, page, "full page write\n");
+			POISON_PAGE(vmpage, 0x11);
+		} else {
+			/* TODO: can be optimized at OSC layer to check if it
+			 * is a lockless IO. In that case, it's not necessary
+			 * to read the data.
+			 */
+			result = ll_prepare_partial_page(env, io, page);
+			if (result == 0)
+				SetPageUptodate(vmpage);
+		}
+	}
+	if (result < 0)
+		cl_page_unassume(env, io, page);
+out:
+	if (result < 0) {
+		if (vmpage) {
+			unlock_page(vmpage);
+			put_page(vmpage);
+		}
+	} else {
+		*pagep = vmpage;
+		*fsdata = lcc;
+	}
+	return result;
 }
 
 static int ll_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata)
+			struct page *vmpage, void *fsdata)
 {
+	struct ll_cl_context *lcc = fsdata;
+	const struct lu_env *env;
+	struct cl_io *io;
+	struct vvp_io *vio;
+	struct cl_page *page;
 	unsigned from = pos & (PAGE_SIZE - 1);
-	int rc;
+	bool unplug = false;
+	int result = 0;
 
-	rc = ll_commit_write(file, page, from, from + copied);
-	unlock_page(page);
-	put_page(page);
+	put_page(vmpage);
 
-	return rc ?: copied;
+	env  = lcc->lcc_env;
+	page = lcc->lcc_page;
+	io   = lcc->lcc_io;
+	vio  = vvp_env_io(env);
+
+	LASSERT(cl_page_is_owned(page, io));
+	if (copied > 0) {
+		struct cl_page_list *plist = &vio->u.write.vui_queue;
+
+		lcc->lcc_page = NULL; /* page will be queued */
+
+		/* Add it into write queue */
+		cl_page_list_add(plist, page);
+		if (plist->pl_nr == 1) /* first page */
+			vio->u.write.vui_from = from;
+		else
+			LASSERT(from == 0);
+		vio->u.write.vui_to = from + copied;
+
+		/* We may have one full RPC, commit it soon */
+		if (plist->pl_nr >= PTLRPC_MAX_BRW_PAGES)
+			unplug = true;
+
+		CL_PAGE_DEBUG(D_VFSTRACE, env, page,
+			      "queued page: %d.\n", plist->pl_nr);
+	} else {
+		cl_page_disown(env, io, page);
+
+		lcc->lcc_page = NULL;
+		lu_ref_del(&page->cp_reference, "cl_io", io);
+		cl_page_put(env, page);
+
+		/* page list is not contiguous now, commit it now */
+		unplug = true;
+	}
+
+	if (unplug ||
+	    file->f_flags & O_SYNC || IS_SYNC(file_inode(file)))
+		result = vvp_io_write_commit(env, io);
+
+	return result >= 0 ? copied : result;
 }
 
 #ifdef CONFIG_MIGRATION
@@ -523,7 +656,7 @@ const struct address_space_operations ll_aops = {
 	.direct_IO      = ll_direct_IO_26,
 	.writepage      = ll_writepage,
 	.writepages     = ll_writepages,
-	.set_page_dirty = ll_set_page_dirty,
+	.set_page_dirty = __set_page_dirty_nobuffers,
 	.write_begin    = ll_write_begin,
 	.write_end      = ll_write_end,
 	.invalidatepage = ll_invalidatepage,

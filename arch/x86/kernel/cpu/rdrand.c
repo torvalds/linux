@@ -39,9 +39,9 @@ __setup("nordrand", x86_rdrand_setup);
  */
 #define SANITY_CHECK_LOOPS 8
 
+#ifdef CONFIG_ARCH_RANDOM
 void x86_init_rdrand(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_ARCH_RANDOM
 	unsigned long tmp;
 	int i;
 
@@ -55,5 +55,5 @@ void x86_init_rdrand(struct cpuinfo_x86 *c)
 			return;
 		}
 	}
-#endif
 }
+#endif

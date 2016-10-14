@@ -156,7 +156,7 @@ struct nvme_nvm_completion {
 
 #define NVME_NVM_LP_MLC_PAIRS 886
 struct nvme_nvm_lp_mlc {
-	__u16			num_pairs;
+	__le16			num_pairs;
 	__u8			pairs[NVME_NVM_LP_MLC_PAIRS];
 };
 
@@ -367,8 +367,8 @@ static int nvme_nvm_get_l2p_tbl(struct nvm_dev *nvmdev, u64 slba, u32 nlb,
 		ret = nvme_submit_sync_cmd(ns->ctrl->admin_q,
 				(struct nvme_command *)&c, entries, len);
 		if (ret) {
-			dev_err(ns->ctrl->dev, "L2P table transfer failed (%d)\n",
-									ret);
+			dev_err(ns->ctrl->device,
+				"L2P table transfer failed (%d)\n", ret);
 			ret = -EIO;
 			goto out;
 		}
@@ -387,41 +387,16 @@ out:
 	return ret;
 }
 
-static void nvme_nvm_bb_tbl_fold(struct nvm_dev *nvmdev,
-						int nr_dst_blks, u8 *dst_blks,
-						int nr_src_blks, u8 *src_blks)
-{
-	int blk, offset, pl, blktype;
-
-	for (blk = 0; blk < nr_dst_blks; blk++) {
-		offset = blk * nvmdev->plane_mode;
-		blktype = src_blks[offset];
-
-		/* Bad blocks on any planes take precedence over other types */
-		for (pl = 0; pl < nvmdev->plane_mode; pl++) {
-			if (src_blks[offset + pl] &
-					(NVM_BLK_T_BAD|NVM_BLK_T_GRWN_BAD)) {
-				blktype = src_blks[offset + pl];
-				break;
-			}
-		}
-
-		dst_blks[blk] = blktype;
-	}
-}
-
 static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
-				int nr_dst_blks, nvm_bb_update_fn *update_bbtbl,
-				void *priv)
+								u8 *blks)
 {
 	struct request_queue *q = nvmdev->q;
 	struct nvme_ns *ns = q->queuedata;
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	struct nvme_nvm_command c = {};
 	struct nvme_nvm_bb_tbl *bb_tbl;
-	u8 *dst_blks = NULL;
-	int nr_src_blks = nr_dst_blks * nvmdev->plane_mode;
-	int tblsz = sizeof(struct nvme_nvm_bb_tbl) + nr_src_blks;
+	int nr_blks = nvmdev->blks_per_lun * nvmdev->plane_mode;
+	int tblsz = sizeof(struct nvme_nvm_bb_tbl) + nr_blks;
 	int ret = 0;
 
 	c.get_bb.opcode = nvme_nvm_admin_get_bb_tbl;
@@ -432,54 +407,43 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 	if (!bb_tbl)
 		return -ENOMEM;
 
-	dst_blks = kzalloc(nr_dst_blks, GFP_KERNEL);
-	if (!dst_blks) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
 	ret = nvme_submit_sync_cmd(ctrl->admin_q, (struct nvme_command *)&c,
 								bb_tbl, tblsz);
 	if (ret) {
-		dev_err(ctrl->dev, "get bad block table failed (%d)\n", ret);
+		dev_err(ctrl->device, "get bad block table failed (%d)\n", ret);
 		ret = -EIO;
 		goto out;
 	}
 
 	if (bb_tbl->tblid[0] != 'B' || bb_tbl->tblid[1] != 'B' ||
 		bb_tbl->tblid[2] != 'L' || bb_tbl->tblid[3] != 'T') {
-		dev_err(ctrl->dev, "bbt format mismatch\n");
+		dev_err(ctrl->device, "bbt format mismatch\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if (le16_to_cpu(bb_tbl->verid) != 1) {
 		ret = -EINVAL;
-		dev_err(ctrl->dev, "bbt version not supported\n");
+		dev_err(ctrl->device, "bbt version not supported\n");
 		goto out;
 	}
 
-	if (le32_to_cpu(bb_tbl->tblks) != nr_src_blks) {
+	if (le32_to_cpu(bb_tbl->tblks) != nr_blks) {
 		ret = -EINVAL;
-		dev_err(ctrl->dev, "bbt unsuspected blocks returned (%u!=%u)",
-				le32_to_cpu(bb_tbl->tblks), nr_src_blks);
+		dev_err(ctrl->device,
+				"bbt unsuspected blocks returned (%u!=%u)",
+				le32_to_cpu(bb_tbl->tblks), nr_blks);
 		goto out;
 	}
 
-	nvme_nvm_bb_tbl_fold(nvmdev, nr_dst_blks, dst_blks,
-						nr_src_blks, bb_tbl->blk);
-
-	ppa = dev_to_generic_addr(nvmdev, ppa);
-	ret = update_bbtbl(ppa, nr_dst_blks, dst_blks, priv);
-
+	memcpy(blks, bb_tbl->blk, nvmdev->blks_per_lun * nvmdev->plane_mode);
 out:
-	kfree(dst_blks);
 	kfree(bb_tbl);
 	return ret;
 }
 
-static int nvme_nvm_set_bb_tbl(struct nvm_dev *nvmdev, struct nvm_rq *rqd,
-								int type)
+static int nvme_nvm_set_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr *ppas,
+							int nr_ppas, int type)
 {
 	struct nvme_ns *ns = nvmdev->q->queuedata;
 	struct nvme_nvm_command c = {};
@@ -487,14 +451,15 @@ static int nvme_nvm_set_bb_tbl(struct nvm_dev *nvmdev, struct nvm_rq *rqd,
 
 	c.set_bb.opcode = nvme_nvm_admin_set_bb_tbl;
 	c.set_bb.nsid = cpu_to_le32(ns->ns_id);
-	c.set_bb.spba = cpu_to_le64(rqd->ppa_addr.ppa);
-	c.set_bb.nlb = cpu_to_le16(rqd->nr_pages - 1);
+	c.set_bb.spba = cpu_to_le64(ppas->ppa);
+	c.set_bb.nlb = cpu_to_le16(nr_ppas - 1);
 	c.set_bb.value = type;
 
 	ret = nvme_submit_sync_cmd(ns->ctrl->admin_q, (struct nvme_command *)&c,
 								NULL, 0);
 	if (ret)
-		dev_err(ns->ctrl->dev, "set bad block table failed (%d)\n", ret);
+		dev_err(ns->ctrl->device, "set bad block table failed (%d)\n",
+									ret);
 	return ret;
 }
 
@@ -504,8 +469,9 @@ static inline void nvme_nvm_rqtocmd(struct request *rq, struct nvm_rq *rqd,
 	c->ph_rw.opcode = rqd->opcode;
 	c->ph_rw.nsid = cpu_to_le32(ns->ns_id);
 	c->ph_rw.spba = cpu_to_le64(rqd->ppa_addr.ppa);
+	c->ph_rw.metadata = cpu_to_le64(rqd->dma_meta_list);
 	c->ph_rw.control = cpu_to_le16(rqd->flags);
-	c->ph_rw.length = cpu_to_le16(rqd->nr_pages - 1);
+	c->ph_rw.length = cpu_to_le16(rqd->nr_ppas - 1);
 
 	if (rqd->opcode == NVM_OP_HBWRITE || rqd->opcode == NVM_OP_HBREAD)
 		c->hb_rw.slba = cpu_to_le64(nvme_block_nr(ns,
@@ -534,7 +500,7 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	struct bio *bio = rqd->bio;
 	struct nvme_nvm_command *cmd;
 
-	rq = blk_mq_alloc_request(q, bio_rw(bio), 0);
+	rq = blk_mq_alloc_request(q, bio_data_dir(bio), 0);
 	if (IS_ERR(rq))
 		return -ENOMEM;
 
@@ -576,7 +542,7 @@ static int nvme_nvm_erase_block(struct nvm_dev *dev, struct nvm_rq *rqd)
 	c.erase.opcode = NVM_OP_ERASE;
 	c.erase.nsid = cpu_to_le32(ns->ns_id);
 	c.erase.spba = cpu_to_le64(rqd->ppa_addr.ppa);
-	c.erase.length = cpu_to_le16(rqd->nr_pages - 1);
+	c.erase.length = cpu_to_le16(rqd->nr_ppas - 1);
 
 	return nvme_submit_sync_cmd(q, (struct nvme_command *)&c, NULL, 0);
 }
@@ -601,10 +567,10 @@ static void *nvme_nvm_dev_dma_alloc(struct nvm_dev *dev, void *pool,
 	return dma_pool_alloc(pool, mem_flags, dma_handler);
 }
 
-static void nvme_nvm_dev_dma_free(void *pool, void *ppa_list,
+static void nvme_nvm_dev_dma_free(void *pool, void *addr,
 							dma_addr_t dma_handler)
 {
-	dma_pool_free(pool, ppa_list, dma_handler);
+	dma_pool_free(pool, addr, dma_handler);
 }
 
 static struct nvm_dev_ops nvme_nvm_dev_ops = {

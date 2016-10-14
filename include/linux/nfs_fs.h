@@ -163,11 +163,9 @@ struct nfs_inode {
 	/* Open contexts for shared mmap writes */
 	struct list_head	open_files;
 
-	/* Number of in-flight sillydelete RPC calls */
-	atomic_t		silly_count;
-	/* List of deferred sillydelete requests */
-	struct hlist_head	silly_list;
-	wait_queue_head_t	waitqueue;
+	/* Readers: in-flight sillydelete RPC calls */
+	/* Writers: rmdir */
+	struct rw_semaphore	rmdir_sem;
 
 #if IS_ENABLED(CONFIG_NFS_V4)
 	struct nfs4_cached_acl	*nfs4_acl;
@@ -207,12 +205,12 @@ struct nfs_inode {
 #define NFS_INO_STALE		(1)		/* possible stale inode */
 #define NFS_INO_ACL_LRU_SET	(2)		/* Inode is on the LRU list */
 #define NFS_INO_INVALIDATING	(3)		/* inode is being invalidated */
-#define NFS_INO_FLUSHING	(4)		/* inode is flushing out data */
 #define NFS_INO_FSCACHE		(5)		/* inode can be cached by FS-Cache */
 #define NFS_INO_FSCACHE_LOCK	(6)		/* FS-Cache cookie management lock */
 #define NFS_INO_LAYOUTCOMMIT	(9)		/* layoutcommit required */
 #define NFS_INO_LAYOUTCOMMITTING (10)		/* layoutcommit inflight */
 #define NFS_INO_LAYOUTSTATS	(11)		/* layoutstats inflight */
+#define NFS_INO_ODIRECT		(12)		/* I/O setting is O_DIRECT */
 
 static inline struct nfs_inode *NFS_I(const struct inode *inode)
 {
@@ -353,7 +351,6 @@ extern int nfs_revalidate_inode_rcu(struct nfs_server *server, struct inode *ino
 extern int __nfs_revalidate_inode(struct nfs_server *, struct inode *);
 extern int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping);
 extern int nfs_revalidate_mapping_rcu(struct inode *inode);
-extern int nfs_revalidate_mapping_protected(struct inode *inode, struct address_space *mapping);
 extern int nfs_setattr(struct dentry *, struct iattr *);
 extern void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr, struct nfs_fattr *);
 extern void nfs_setsecurity(struct inode *inode, struct nfs_fattr *fattr,
@@ -445,10 +442,9 @@ static inline struct rpc_cred *nfs_file_cred(struct file *file)
 /*
  * linux/fs/nfs/direct.c
  */
-extern ssize_t nfs_direct_IO(struct kiocb *, struct iov_iter *, loff_t);
+extern ssize_t nfs_direct_IO(struct kiocb *, struct iov_iter *);
 extern ssize_t nfs_file_direct_read(struct kiocb *iocb,
-			struct iov_iter *iter,
-			loff_t pos);
+			struct iov_iter *iter);
 extern ssize_t nfs_file_direct_write(struct kiocb *iocb,
 			struct iov_iter *iter);
 
@@ -492,9 +488,6 @@ extern void nfs_release_automount_timer(void);
  * linux/fs/nfs/unlink.c
  */
 extern void nfs_complete_unlink(struct dentry *dentry, struct inode *);
-extern void nfs_wait_on_sillyrename(struct dentry *dentry);
-extern void nfs_block_sillyrename(struct dentry *dentry);
-extern void nfs_unblock_sillyrename(struct dentry *dentry);
 
 /*
  * linux/fs/nfs/write.c

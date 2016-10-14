@@ -88,7 +88,7 @@ static void watchdog_check_min_max_timeout(struct watchdog_device *wdd)
 	 * Check that we have valid min and max timeout values, if
 	 * not reset them both to 0 (=not used or unknown)
 	 */
-	if (wdd->min_timeout > wdd->max_timeout) {
+	if (!wdd->max_hw_heartbeat_ms && wdd->min_timeout > wdd->max_timeout) {
 		pr_info("Invalid min and max timeout values, resetting to 0!\n");
 		wdd->min_timeout = 0;
 		wdd->max_timeout = 0;
@@ -104,7 +104,7 @@ static void watchdog_check_min_max_timeout(struct watchdog_device *wdd)
  * timeout module parameter (if it is valid value) or the timeout-sec property
  * (only if it is a valid value and the timeout_parm is out of bounds).
  * If none of them are valid then we keep the old value (which should normally
- * be the default timeout value.
+ * be the default timeout value).
  *
  * A zero is returned on success and -EINVAL for failure.
  */
@@ -262,7 +262,7 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 
 		ret = register_restart_handler(&wdd->restart_nb);
 		if (ret)
-			pr_warn("watchog%d: Cannot register restart handler (%d)\n",
+			pr_warn("watchdog%d: Cannot register restart handler (%d)\n",
 				wdd->id, ret);
 	}
 
@@ -328,6 +328,43 @@ void watchdog_unregister_device(struct watchdog_device *wdd)
 }
 
 EXPORT_SYMBOL_GPL(watchdog_unregister_device);
+
+static void devm_watchdog_unregister_device(struct device *dev, void *res)
+{
+	watchdog_unregister_device(*(struct watchdog_device **)res);
+}
+
+/**
+ * devm_watchdog_register_device() - resource managed watchdog_register_device()
+ * @dev: device that is registering this watchdog device
+ * @wdd: watchdog device
+ *
+ * Managed watchdog_register_device(). For watchdog device registered by this
+ * function,  watchdog_unregister_device() is automatically called on driver
+ * detach. See watchdog_register_device() for more information.
+ */
+int devm_watchdog_register_device(struct device *dev,
+				struct watchdog_device *wdd)
+{
+	struct watchdog_device **rcwdd;
+	int ret;
+
+	rcwdd = devres_alloc(devm_watchdog_unregister_device, sizeof(*wdd),
+			     GFP_KERNEL);
+	if (!rcwdd)
+		return -ENOMEM;
+
+	ret = watchdog_register_device(wdd);
+	if (!ret) {
+		*rcwdd = wdd;
+		devres_add(dev, rcwdd);
+	} else {
+		devres_free(rcwdd);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_watchdog_register_device);
 
 static int __init watchdog_deferred_registration(void)
 {

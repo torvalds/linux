@@ -26,7 +26,6 @@ struct si2157_dev {
 	struct mutex i2c_mutex;
 	struct dvb_frontend *fe;
 	bool active;
-	bool fw_loaded;
 	bool inversion;
 	u8 chiptype;
 	u8 if_port;

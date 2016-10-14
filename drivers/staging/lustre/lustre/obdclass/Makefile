@@ -5,5 +5,4 @@ obdclass-y := linux/linux-module.o linux/linux-obdo.o linux/linux-sysctl.o \
 	      genops.o uuid.o lprocfs_status.o lprocfs_counters.o \
 	      lustre_handles.o lustre_peer.o statfs_pack.o \
 	      obdo.o obd_config.o obd_mount.o lu_object.o lu_ref.o \
-	      cl_object.o cl_page.o cl_lock.o cl_io.o \
-	      acl.o kernelcomm.o
+	      cl_object.o cl_page.o cl_lock.o cl_io.o kernelcomm.o

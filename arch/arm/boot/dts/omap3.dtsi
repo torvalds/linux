@@ -43,7 +43,7 @@
 		};
 	};
 
-	pmu {
+	pmu@54000000 {
 		compatible = "arm,cortex-a8-pmu";
 		reg = <0x54000000 0x800000>;
 		interrupts = <3>;
@@ -119,7 +119,7 @@
 					#size-cells = <1>;
 					ranges = <0 0x270 0x330>;
 
-					pbias_regulator: pbias_regulator {
+					pbias_regulator: pbias_regulator@2b0 {
 						compatible = "ti,pbias-omap3", "ti,pbias-omap";
 						reg = <0x2b0 0x4>;
 						syscon = <&scm_conf>;
@@ -493,6 +493,8 @@
 			dmas = <&sdma 31>,
 			       <&sdma 32>;
 			dma-names = "tx", "rx";
+			clocks = <&mcbsp1_fck>;
+			clock-names = "fck";
 			status = "disabled";
 		};
 
@@ -511,6 +513,8 @@
 			dmas = <&sdma 33>,
 			       <&sdma 34>;
 			dma-names = "tx", "rx";
+			clocks = <&mcbsp2_fck>, <&mcbsp2_ick>;
+			clock-names = "fck", "ick";
 			status = "disabled";
 		};
 
@@ -529,6 +533,8 @@
 			dmas = <&sdma 17>,
 			       <&sdma 18>;
 			dma-names = "tx", "rx";
+			clocks = <&mcbsp3_fck>, <&mcbsp3_ick>;
+			clock-names = "fck", "ick";
 			status = "disabled";
 		};
 
@@ -545,6 +551,8 @@
 			dmas = <&sdma 19>,
 			       <&sdma 20>;
 			dma-names = "tx", "rx";
+			clocks = <&mcbsp4_fck>;
+			clock-names = "fck";
 			status = "disabled";
 		};
 
@@ -561,6 +569,8 @@
 			dmas = <&sdma 21>,
 			       <&sdma 22>;
 			dma-names = "tx", "rx";
+			clocks = <&mcbsp5_fck>;
+			clock-names = "fck";
 			status = "disabled";
 		};
 
@@ -725,6 +735,8 @@
 			#size-cells = <1>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		usb_otg_hs: usb_otg_hs@480ab000 {

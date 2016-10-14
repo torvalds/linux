@@ -1020,9 +1020,12 @@ static int v4l_querycap(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
 	struct v4l2_capability *cap = (struct v4l2_capability *)arg;
+	struct video_device *vfd = video_devdata(file);
 	int ret;
 
 	cap->version = LINUX_VERSION_CODE;
+	cap->device_caps = vfd->device_caps;
+	cap->capabilities = vfd->device_caps | V4L2_CAP_DEVICE_CAPS;
 
 	ret = ops->vidioc_querycap(file, fh, cap);
 
@@ -2157,40 +2160,56 @@ static int v4l_cropcap(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
 	struct v4l2_cropcap *p = arg;
-
-	if (ops->vidioc_g_selection) {
-		struct v4l2_selection s = { .type = p->type };
-		int ret;
-
-		/* obtaining bounds */
-		if (V4L2_TYPE_IS_OUTPUT(p->type))
-			s.target = V4L2_SEL_TGT_COMPOSE_BOUNDS;
-		else
-			s.target = V4L2_SEL_TGT_CROP_BOUNDS;
-
-		ret = ops->vidioc_g_selection(file, fh, &s);
-		if (ret)
-			return ret;
-		p->bounds = s.r;
-
-		/* obtaining defrect */
-		if (V4L2_TYPE_IS_OUTPUT(p->type))
-			s.target = V4L2_SEL_TGT_COMPOSE_DEFAULT;
-		else
-			s.target = V4L2_SEL_TGT_CROP_DEFAULT;
-
-		ret = ops->vidioc_g_selection(file, fh, &s);
-		if (ret)
-			return ret;
-		p->defrect = s.r;
-	}
+	struct v4l2_selection s = { .type = p->type };
+	int ret = 0;
 
 	/* setting trivial pixelaspect */
 	p->pixelaspect.numerator = 1;
 	p->pixelaspect.denominator = 1;
 
+	/*
+	 * The determine_valid_ioctls() call already should ensure
+	 * that this can never happen, but just in case...
+	 */
+	if (WARN_ON(!ops->vidioc_cropcap && !ops->vidioc_g_selection))
+		return -ENOTTY;
+
 	if (ops->vidioc_cropcap)
-		return ops->vidioc_cropcap(file, fh, p);
+		ret = ops->vidioc_cropcap(file, fh, p);
+
+	if (!ops->vidioc_g_selection)
+		return ret;
+
+	/*
+	 * Ignore ENOTTY or ENOIOCTLCMD error returns, just use the
+	 * square pixel aspect ratio in that case.
+	 */
+	if (ret && ret != -ENOTTY && ret != -ENOIOCTLCMD)
+		return ret;
+
+	/* Use g_selection() to fill in the bounds and defrect rectangles */
+
+	/* obtaining bounds */
+	if (V4L2_TYPE_IS_OUTPUT(p->type))
+		s.target = V4L2_SEL_TGT_COMPOSE_BOUNDS;
+	else
+		s.target = V4L2_SEL_TGT_CROP_BOUNDS;
+
+	ret = ops->vidioc_g_selection(file, fh, &s);
+	if (ret)
+		return ret;
+	p->bounds = s.r;
+
+	/* obtaining defrect */
+	if (V4L2_TYPE_IS_OUTPUT(p->type))
+		s.target = V4L2_SEL_TGT_COMPOSE_DEFAULT;
+	else
+		s.target = V4L2_SEL_TGT_CROP_DEFAULT;
+
+	ret = ops->vidioc_g_selection(file, fh, &s);
+	if (ret)
+		return ret;
+	p->defrect = s.r;
 
 	return 0;
 }
@@ -2522,14 +2541,14 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_FNC(VIDIOC_DBG_S_REGISTER, v4l_dbg_s_register, v4l_print_dbg_register, 0),
 	IOCTL_INFO_FNC(VIDIOC_DBG_G_REGISTER, v4l_dbg_g_register, v4l_print_dbg_register, 0),
 	IOCTL_INFO_FNC(VIDIOC_S_HW_FREQ_SEEK, v4l_s_hw_freq_seek, v4l_print_hw_freq_seek, INFO_FL_PRIO),
-	IOCTL_INFO_STD(VIDIOC_S_DV_TIMINGS, vidioc_s_dv_timings, v4l_print_dv_timings, INFO_FL_PRIO),
+	IOCTL_INFO_STD(VIDIOC_S_DV_TIMINGS, vidioc_s_dv_timings, v4l_print_dv_timings, INFO_FL_PRIO | INFO_FL_CLEAR(v4l2_dv_timings, bt.flags)),
 	IOCTL_INFO_STD(VIDIOC_G_DV_TIMINGS, vidioc_g_dv_timings, v4l_print_dv_timings, 0),
 	IOCTL_INFO_FNC(VIDIOC_DQEVENT, v4l_dqevent, v4l_print_event, 0),
 	IOCTL_INFO_FNC(VIDIOC_SUBSCRIBE_EVENT, v4l_subscribe_event, v4l_print_event_subscription, 0),
 	IOCTL_INFO_FNC(VIDIOC_UNSUBSCRIBE_EVENT, v4l_unsubscribe_event, v4l_print_event_subscription, 0),
 	IOCTL_INFO_FNC(VIDIOC_CREATE_BUFS, v4l_create_bufs, v4l_print_create_buffers, INFO_FL_PRIO | INFO_FL_QUEUE),
 	IOCTL_INFO_FNC(VIDIOC_PREPARE_BUF, v4l_prepare_buf, v4l_print_buffer, INFO_FL_QUEUE),
-	IOCTL_INFO_STD(VIDIOC_ENUM_DV_TIMINGS, vidioc_enum_dv_timings, v4l_print_enum_dv_timings, 0),
+	IOCTL_INFO_STD(VIDIOC_ENUM_DV_TIMINGS, vidioc_enum_dv_timings, v4l_print_enum_dv_timings, INFO_FL_CLEAR(v4l2_enum_dv_timings, pad)),
 	IOCTL_INFO_STD(VIDIOC_QUERY_DV_TIMINGS, vidioc_query_dv_timings, v4l_print_dv_timings, 0),
 	IOCTL_INFO_STD(VIDIOC_DV_TIMINGS_CAP, vidioc_dv_timings_cap, v4l_print_dv_timings_cap, INFO_FL_CLEAR(v4l2_dv_timings_cap, type)),
 	IOCTL_INFO_FNC(VIDIOC_ENUM_FREQ_BANDS, v4l_enum_freq_bands, v4l_print_freq_band, 0),

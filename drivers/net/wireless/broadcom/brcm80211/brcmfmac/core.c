@@ -40,19 +40,6 @@
 
 #define MAX_WAIT_FOR_8021X_TX			msecs_to_jiffies(950)
 
-/* AMPDU rx reordering definitions */
-#define BRCMF_RXREORDER_FLOWID_OFFSET		0
-#define BRCMF_RXREORDER_MAXIDX_OFFSET		2
-#define BRCMF_RXREORDER_FLAGS_OFFSET		4
-#define BRCMF_RXREORDER_CURIDX_OFFSET		6
-#define BRCMF_RXREORDER_EXPIDX_OFFSET		8
-
-#define BRCMF_RXREORDER_DEL_FLOW		0x01
-#define BRCMF_RXREORDER_FLUSH_ALL		0x02
-#define BRCMF_RXREORDER_CURIDX_VALID		0x04
-#define BRCMF_RXREORDER_EXPIDX_VALID		0x08
-#define BRCMF_RXREORDER_NEW_HOLE		0x10
-
 #define BRCMF_BSSIDX_INVALID			-1
 
 char *brcmf_ifname(struct brcmf_if *ifp)
@@ -313,14 +300,8 @@ void brcmf_txflowblock(struct device *dev, bool state)
 
 void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
 {
-	skb->dev = ifp->ndev;
-	skb->protocol = eth_type_trans(skb, skb->dev);
-
 	if (skb->pkt_type == PACKET_MULTICAST)
 		ifp->stats.multicast++;
-
-	/* Process special event packets */
-	brcmf_fweh_process_skb(ifp->drvr, skb);
 
 	if (!(ifp->ndev->flags & IFF_UP)) {
 		brcmu_pkt_buf_free_skb(skb);
@@ -341,226 +322,60 @@ void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb)
 		netif_rx_ni(skb);
 }
 
-static void brcmf_rxreorder_get_skb_list(struct brcmf_ampdu_rx_reorder *rfi,
-					 u8 start, u8 end,
-					 struct sk_buff_head *skb_list)
+static int brcmf_rx_hdrpull(struct brcmf_pub *drvr, struct sk_buff *skb,
+			    struct brcmf_if **ifp)
 {
-	/* initialize return list */
-	__skb_queue_head_init(skb_list);
+	int ret;
 
-	if (rfi->pend_pkts == 0) {
-		brcmf_dbg(INFO, "no packets in reorder queue\n");
-		return;
+	/* process and remove protocol-specific header */
+	ret = brcmf_proto_hdrpull(drvr, true, skb, ifp);
+
+	if (ret || !(*ifp) || !(*ifp)->ndev) {
+		if (ret != -ENODATA && *ifp)
+			(*ifp)->stats.rx_errors++;
+		brcmu_pkt_buf_free_skb(skb);
+		return -ENODATA;
 	}
 
-	do {
-		if (rfi->pktslots[start]) {
-			__skb_queue_tail(skb_list, rfi->pktslots[start]);
-			rfi->pktslots[start] = NULL;
-		}
-		start++;
-		if (start > rfi->max_idx)
-			start = 0;
-	} while (start != end);
-	rfi->pend_pkts -= skb_queue_len(skb_list);
+	skb->protocol = eth_type_trans(skb, (*ifp)->ndev);
+	return 0;
 }
 
-static void brcmf_rxreorder_process_info(struct brcmf_if *ifp, u8 *reorder_data,
-					 struct sk_buff *pkt)
-{
-	u8 flow_id, max_idx, cur_idx, exp_idx, end_idx;
-	struct brcmf_ampdu_rx_reorder *rfi;
-	struct sk_buff_head reorder_list;
-	struct sk_buff *pnext;
-	u8 flags;
-	u32 buf_size;
-
-	flow_id = reorder_data[BRCMF_RXREORDER_FLOWID_OFFSET];
-	flags = reorder_data[BRCMF_RXREORDER_FLAGS_OFFSET];
-
-	/* validate flags and flow id */
-	if (flags == 0xFF) {
-		brcmf_err("invalid flags...so ignore this packet\n");
-		brcmf_netif_rx(ifp, pkt);
-		return;
-	}
-
-	rfi = ifp->drvr->reorder_flows[flow_id];
-	if (flags & BRCMF_RXREORDER_DEL_FLOW) {
-		brcmf_dbg(INFO, "flow-%d: delete\n",
-			  flow_id);
-
-		if (rfi == NULL) {
-			brcmf_dbg(INFO, "received flags to cleanup, but no flow (%d) yet\n",
-				  flow_id);
-			brcmf_netif_rx(ifp, pkt);
-			return;
-		}
-
-		brcmf_rxreorder_get_skb_list(rfi, rfi->exp_idx, rfi->exp_idx,
-					     &reorder_list);
-		/* add the last packet */
-		__skb_queue_tail(&reorder_list, pkt);
-		kfree(rfi);
-		ifp->drvr->reorder_flows[flow_id] = NULL;
-		goto netif_rx;
-	}
-	/* from here on we need a flow reorder instance */
-	if (rfi == NULL) {
-		buf_size = sizeof(*rfi);
-		max_idx = reorder_data[BRCMF_RXREORDER_MAXIDX_OFFSET];
-
-		buf_size += (max_idx + 1) * sizeof(pkt);
-
-		/* allocate space for flow reorder info */
-		brcmf_dbg(INFO, "flow-%d: start, maxidx %d\n",
-			  flow_id, max_idx);
-		rfi = kzalloc(buf_size, GFP_ATOMIC);
-		if (rfi == NULL) {
-			brcmf_err("failed to alloc buffer\n");
-			brcmf_netif_rx(ifp, pkt);
-			return;
-		}
-
-		ifp->drvr->reorder_flows[flow_id] = rfi;
-		rfi->pktslots = (struct sk_buff **)(rfi+1);
-		rfi->max_idx = max_idx;
-	}
-	if (flags & BRCMF_RXREORDER_NEW_HOLE)  {
-		if (rfi->pend_pkts) {
-			brcmf_rxreorder_get_skb_list(rfi, rfi->exp_idx,
-						     rfi->exp_idx,
-						     &reorder_list);
-			WARN_ON(rfi->pend_pkts);
-		} else {
-			__skb_queue_head_init(&reorder_list);
-		}
-		rfi->cur_idx = reorder_data[BRCMF_RXREORDER_CURIDX_OFFSET];
-		rfi->exp_idx = reorder_data[BRCMF_RXREORDER_EXPIDX_OFFSET];
-		rfi->max_idx = reorder_data[BRCMF_RXREORDER_MAXIDX_OFFSET];
-		rfi->pktslots[rfi->cur_idx] = pkt;
-		rfi->pend_pkts++;
-		brcmf_dbg(DATA, "flow-%d: new hole %d (%d), pending %d\n",
-			  flow_id, rfi->cur_idx, rfi->exp_idx, rfi->pend_pkts);
-	} else if (flags & BRCMF_RXREORDER_CURIDX_VALID) {
-		cur_idx = reorder_data[BRCMF_RXREORDER_CURIDX_OFFSET];
-		exp_idx = reorder_data[BRCMF_RXREORDER_EXPIDX_OFFSET];
-
-		if ((exp_idx == rfi->exp_idx) && (cur_idx != rfi->exp_idx)) {
-			/* still in the current hole */
-			/* enqueue the current on the buffer chain */
-			if (rfi->pktslots[cur_idx] != NULL) {
-				brcmf_dbg(INFO, "HOLE: ERROR buffer pending..free it\n");
-				brcmu_pkt_buf_free_skb(rfi->pktslots[cur_idx]);
-				rfi->pktslots[cur_idx] = NULL;
-			}
-			rfi->pktslots[cur_idx] = pkt;
-			rfi->pend_pkts++;
-			rfi->cur_idx = cur_idx;
-			brcmf_dbg(DATA, "flow-%d: store pkt %d (%d), pending %d\n",
-				  flow_id, cur_idx, exp_idx, rfi->pend_pkts);
-
-			/* can return now as there is no reorder
-			 * list to process.
-			 */
-			return;
-		}
-		if (rfi->exp_idx == cur_idx) {
-			if (rfi->pktslots[cur_idx] != NULL) {
-				brcmf_dbg(INFO, "error buffer pending..free it\n");
-				brcmu_pkt_buf_free_skb(rfi->pktslots[cur_idx]);
-				rfi->pktslots[cur_idx] = NULL;
-			}
-			rfi->pktslots[cur_idx] = pkt;
-			rfi->pend_pkts++;
-
-			/* got the expected one. flush from current to expected
-			 * and update expected
-			 */
-			brcmf_dbg(DATA, "flow-%d: expected %d (%d), pending %d\n",
-				  flow_id, cur_idx, exp_idx, rfi->pend_pkts);
-
-			rfi->cur_idx = cur_idx;
-			rfi->exp_idx = exp_idx;
-
-			brcmf_rxreorder_get_skb_list(rfi, cur_idx, exp_idx,
-						     &reorder_list);
-			brcmf_dbg(DATA, "flow-%d: freeing buffers %d, pending %d\n",
-				  flow_id, skb_queue_len(&reorder_list),
-				  rfi->pend_pkts);
-		} else {
-			u8 end_idx;
-
-			brcmf_dbg(DATA, "flow-%d (0x%x): both moved, old %d/%d, new %d/%d\n",
-				  flow_id, flags, rfi->cur_idx, rfi->exp_idx,
-				  cur_idx, exp_idx);
-			if (flags & BRCMF_RXREORDER_FLUSH_ALL)
-				end_idx = rfi->exp_idx;
-			else
-				end_idx = exp_idx;
-
-			/* flush pkts first */
-			brcmf_rxreorder_get_skb_list(rfi, rfi->exp_idx, end_idx,
-						     &reorder_list);
-
-			if (exp_idx == ((cur_idx + 1) % (rfi->max_idx + 1))) {
-				__skb_queue_tail(&reorder_list, pkt);
-			} else {
-				rfi->pktslots[cur_idx] = pkt;
-				rfi->pend_pkts++;
-			}
-			rfi->exp_idx = exp_idx;
-			rfi->cur_idx = cur_idx;
-		}
-	} else {
-		/* explicity window move updating the expected index */
-		exp_idx = reorder_data[BRCMF_RXREORDER_EXPIDX_OFFSET];
-
-		brcmf_dbg(DATA, "flow-%d (0x%x): change expected: %d -> %d\n",
-			  flow_id, flags, rfi->exp_idx, exp_idx);
-		if (flags & BRCMF_RXREORDER_FLUSH_ALL)
-			end_idx =  rfi->exp_idx;
-		else
-			end_idx =  exp_idx;
-
-		brcmf_rxreorder_get_skb_list(rfi, rfi->exp_idx, end_idx,
-					     &reorder_list);
-		__skb_queue_tail(&reorder_list, pkt);
-		/* set the new expected idx */
-		rfi->exp_idx = exp_idx;
-	}
-netif_rx:
-	skb_queue_walk_safe(&reorder_list, pkt, pnext) {
-		__skb_unlink(pkt, &reorder_list);
-		brcmf_netif_rx(ifp, pkt);
-	}
-}
-
-void brcmf_rx_frame(struct device *dev, struct sk_buff *skb)
+void brcmf_rx_frame(struct device *dev, struct sk_buff *skb, bool handle_event)
 {
 	struct brcmf_if *ifp;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
-	struct brcmf_skb_reorder_data *rd;
-	int ret;
 
 	brcmf_dbg(DATA, "Enter: %s: rxp=%p\n", dev_name(dev), skb);
 
-	/* process and remove protocol-specific header */
-	ret = brcmf_proto_hdrpull(drvr, true, skb, &ifp);
-
-	if (ret || !ifp || !ifp->ndev) {
-		if (ret != -ENODATA && ifp)
-			ifp->stats.rx_errors++;
-		brcmu_pkt_buf_free_skb(skb);
+	if (brcmf_rx_hdrpull(drvr, skb, &ifp))
 		return;
-	}
 
-	rd = (struct brcmf_skb_reorder_data *)skb->cb;
-	if (rd->reorder)
-		brcmf_rxreorder_process_info(ifp, rd->reorder, skb);
-	else
+	if (brcmf_proto_is_reorder_skb(skb)) {
+		brcmf_proto_rxreorder(ifp, skb);
+	} else {
+		/* Process special event packets */
+		if (handle_event)
+			brcmf_fweh_process_skb(ifp->drvr, skb);
+
 		brcmf_netif_rx(ifp, skb);
+	}
+}
+
+void brcmf_rx_event(struct device *dev, struct sk_buff *skb)
+{
+	struct brcmf_if *ifp;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
+
+	brcmf_dbg(EVENT, "Enter: %s: rxp=%p\n", dev_name(dev), skb);
+
+	if (brcmf_rx_hdrpull(drvr, skb, &ifp))
+		return;
+
+	brcmf_fweh_process_skb(ifp->drvr, skb);
+	brcmu_pkt_buf_free_skb(skb);
 }
 
 void brcmf_txfinalize(struct brcmf_if *ifp, struct sk_buff *txp, bool success)
@@ -701,7 +516,7 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 	/* set appropriate operations */
 	ndev->netdev_ops = &brcmf_netdev_ops_pri;
 
-	ndev->hard_header_len += drvr->hdrlen;
+	ndev->needed_headroom += drvr->hdrlen;
 	ndev->ethtool_ops = &brcmf_ethtool_ops;
 
 	drvr->rxsz = ndev->mtu + ndev->hard_header_len +
@@ -733,12 +548,16 @@ fail:
 	return -EBADE;
 }
 
-static void brcmf_net_detach(struct net_device *ndev)
+static void brcmf_net_detach(struct net_device *ndev, bool rtnl_locked)
 {
-	if (ndev->reg_state == NETREG_REGISTERED)
-		unregister_netdev(ndev);
-	else
+	if (ndev->reg_state == NETREG_REGISTERED) {
+		if (rtnl_locked)
+			unregister_netdevice(ndev);
+		else
+			unregister_netdev(ndev);
+	} else {
 		brcmf_cfg80211_free_netdev(ndev);
+	}
 }
 
 void brcmf_net_setcarrier(struct brcmf_if *ifp, bool on)
@@ -819,7 +638,7 @@ fail:
 }
 
 struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
-			      bool is_p2pdev, char *name, u8 *mac_addr)
+			      bool is_p2pdev, const char *name, u8 *mac_addr)
 {
 	struct brcmf_if *ifp;
 	struct net_device *ndev;
@@ -836,7 +655,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 			brcmf_err("ERROR: netdev:%s already exists\n",
 				  ifp->ndev->name);
 			netif_stop_queue(ifp->ndev);
-			brcmf_net_detach(ifp->ndev);
+			brcmf_net_detach(ifp->ndev, false);
 			drvr->iflist[bsscfgidx] = NULL;
 		} else {
 			brcmf_dbg(INFO, "netdev:%s ignore IF event\n",
@@ -884,7 +703,8 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 	return ifp;
 }
 
-static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx)
+static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx,
+			 bool rtnl_locked)
 {
 	struct brcmf_if *ifp;
 
@@ -914,7 +734,7 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx)
 			cancel_work_sync(&ifp->multicast_work);
 			cancel_work_sync(&ifp->ndoffload_work);
 		}
-		brcmf_net_detach(ifp->ndev);
+		brcmf_net_detach(ifp->ndev, rtnl_locked);
 	} else {
 		/* Only p2p device interfaces which get dynamically created
 		 * end up here. In this case the p2p module should be informed
@@ -923,43 +743,19 @@ static void brcmf_del_if(struct brcmf_pub *drvr, s32 bsscfgidx)
 		 * serious troublesome side effects. The p2p module will clean
 		 * up the ifp if needed.
 		 */
-		brcmf_p2p_ifp_removed(ifp);
+		brcmf_p2p_ifp_removed(ifp, rtnl_locked);
 		kfree(ifp);
 	}
 }
 
-void brcmf_remove_interface(struct brcmf_if *ifp)
+void brcmf_remove_interface(struct brcmf_if *ifp, bool rtnl_locked)
 {
 	if (!ifp || WARN_ON(ifp->drvr->iflist[ifp->bsscfgidx] != ifp))
 		return;
 	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d, ifidx=%d\n", ifp->bsscfgidx,
 		  ifp->ifidx);
 	brcmf_fws_del_interface(ifp);
-	brcmf_del_if(ifp->drvr, ifp->bsscfgidx);
-}
-
-int brcmf_get_next_free_bsscfgidx(struct brcmf_pub *drvr)
-{
-	int ifidx;
-	int bsscfgidx;
-	bool available;
-	int highest;
-
-	available = false;
-	bsscfgidx = 2;
-	highest = 2;
-	for (ifidx = 0; ifidx < BRCMF_MAX_IFS; ifidx++) {
-		if (drvr->iflist[ifidx]) {
-			if (drvr->iflist[ifidx]->bsscfgidx == bsscfgidx)
-				bsscfgidx = highest + 1;
-			else if (drvr->iflist[ifidx]->bsscfgidx > highest)
-				highest = drvr->iflist[ifidx]->bsscfgidx;
-		} else {
-			available = true;
-		}
-	}
-
-	return available ? bsscfgidx : -ENOMEM;
+	brcmf_del_if(ifp->drvr, ifp->bsscfgidx, rtnl_locked);
 }
 
 #ifdef CONFIG_INET
@@ -1266,9 +1062,9 @@ fail:
 		brcmf_fws_deinit(drvr);
 	}
 	if (ifp)
-		brcmf_net_detach(ifp->ndev);
+		brcmf_net_detach(ifp->ndev, false);
 	if (p2p_ifp)
-		brcmf_net_detach(p2p_ifp->ndev);
+		brcmf_net_detach(p2p_ifp->ndev, false);
 	drvr->iflist[0] = NULL;
 	drvr->iflist[1] = NULL;
 	if (drvr->settings->ignore_probe_fail)
@@ -1337,7 +1133,7 @@ void brcmf_detach(struct device *dev)
 
 	/* make sure primary interface removed last */
 	for (i = BRCMF_MAX_IFS-1; i > -1; i--)
-		brcmf_remove_interface(drvr->iflist[i]);
+		brcmf_remove_interface(drvr->iflist[i], false);
 
 	brcmf_cfg80211_detach(drvr->config);
 

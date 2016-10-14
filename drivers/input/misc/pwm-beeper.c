@@ -115,6 +115,12 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 		goto err_free;
 	}
 
+	/*
+	 * FIXME: pwm_apply_args() should be removed when switching to
+	 * the atomic PWM API.
+	 */
+	pwm_apply_args(beeper->pwm);
+
 	INIT_WORK(&beeper->work, pwm_beeper_work);
 
 	beeper->input = input_allocate_device();

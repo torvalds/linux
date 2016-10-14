@@ -42,6 +42,7 @@
 
 #include "gateway_common.h"
 #include "hard-interface.h"
+#include "log.h"
 #include "originator.h"
 #include "packet.h"
 #include "routing.h"
@@ -135,8 +136,8 @@ static void batadv_gw_select(struct batadv_priv *bat_priv,
 
 	spin_lock_bh(&bat_priv->gw.list_lock);
 
-	if (new_gw_node && !kref_get_unless_zero(&new_gw_node->refcount))
-		new_gw_node = NULL;
+	if (new_gw_node)
+		kref_get(&new_gw_node->refcount);
 
 	curr_gw_node = rcu_dereference_protected(bat_priv->gw.curr_gw, 1);
 	rcu_assign_pointer(bat_priv->gw.curr_gw, new_gw_node);
@@ -192,7 +193,7 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 
 		tq_avg = router_ifinfo->bat_iv.tq_avg;
 
-		switch (atomic_read(&bat_priv->gw_sel_class)) {
+		switch (atomic_read(&bat_priv->gw.sel_class)) {
 		case 1: /* fast connection */
 			tmp_gw_factor = tq_avg * tq_avg;
 			tmp_gw_factor *= gw_node->bandwidth_down;
@@ -255,7 +256,7 @@ void batadv_gw_check_client_stop(struct batadv_priv *bat_priv)
 {
 	struct batadv_gw_node *curr_gw;
 
-	if (atomic_read(&bat_priv->gw_mode) != BATADV_GW_MODE_CLIENT)
+	if (atomic_read(&bat_priv->gw.mode) != BATADV_GW_MODE_CLIENT)
 		return;
 
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
@@ -283,7 +284,7 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 	struct batadv_neigh_ifinfo *router_ifinfo = NULL;
 	char gw_addr[18] = { '\0' };
 
-	if (atomic_read(&bat_priv->gw_mode) != BATADV_GW_MODE_CLIENT)
+	if (atomic_read(&bat_priv->gw.mode) != BATADV_GW_MODE_CLIENT)
 		goto out;
 
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
@@ -402,8 +403,8 @@ void batadv_gw_check_election(struct batadv_priv *bat_priv,
 	/* if the routing class is greater than 3 the value tells us how much
 	 * greater the TQ value of the new gateway must be
 	 */
-	if ((atomic_read(&bat_priv->gw_sel_class) > 3) &&
-	    (orig_tq_avg - gw_tq_avg < atomic_read(&bat_priv->gw_sel_class)))
+	if ((atomic_read(&bat_priv->gw.sel_class) > 3) &&
+	    (orig_tq_avg - gw_tq_avg < atomic_read(&bat_priv->gw.sel_class)))
 		goto out;
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
@@ -440,15 +441,11 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 	if (gateway->bandwidth_down == 0)
 		return;
 
-	if (!kref_get_unless_zero(&orig_node->refcount))
-		return;
-
 	gw_node = kzalloc(sizeof(*gw_node), GFP_ATOMIC);
-	if (!gw_node) {
-		batadv_orig_node_put(orig_node);
+	if (!gw_node)
 		return;
-	}
 
+	kref_get(&orig_node->refcount);
 	INIT_HLIST_NODE(&gw_node->list);
 	gw_node->orig_node = orig_node;
 	gw_node->bandwidth_down = ntohl(gateway->bandwidth_down);
@@ -642,8 +639,7 @@ int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 		goto out;
 
 	seq_printf(seq,
-		   "      %-12s (%s/%i) %17s [%10s]: advertised uplink bandwidth ... [B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s)]\n",
-		   "Gateway", "#", BATADV_TQ_MAX_VALUE, "Nexthop", "outgoingIF",
+		   "      Gateway      (#/255)           Nexthop [outgoingIF]: advertised uplink bandwidth ... [B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s)]\n",
 		   BATADV_SOURCE_VERSION, primary_if->net_dev->name,
 		   primary_if->net_dev->dev_addr, net_dev->name);
 
@@ -825,7 +821,7 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 	if (!gw_node)
 		goto out;
 
-	switch (atomic_read(&bat_priv->gw_mode)) {
+	switch (atomic_read(&bat_priv->gw.mode)) {
 	case BATADV_GW_MODE_SERVER:
 		/* If we are a GW then we are our best GW. We can artificially
 		 * set the tq towards ourself as the maximum value

@@ -190,7 +190,7 @@ extern struct task_group root_task_group;
 #define INIT_TASK(tsk)	\
 {									\
 	.state		= 0,						\
-	.stack		= &init_thread_info,				\
+	.stack		= init_stack,					\
 	.usage		= ATOMIC_INIT(2),				\
 	.flags		= PF_KTHREAD,					\
 	.prio		= MAX_PRIO-20,					\

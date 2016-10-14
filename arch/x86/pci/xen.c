@@ -9,7 +9,7 @@
  *           Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
  *           Stefano Stabellini <stefano.stabellini@eu.citrix.com>
  */
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/acpi.h>
@@ -445,7 +445,7 @@ void __init xen_msi_init(void)
 		uint32_t eax = cpuid_eax(xen_cpuid_base() + 4);
 
 		if (((eax & XEN_HVM_CPUID_X2APIC_VIRT) && x2apic_mode) ||
-		    ((eax & XEN_HVM_CPUID_APIC_ACCESS_VIRT) && cpu_has_apic))
+		    ((eax & XEN_HVM_CPUID_APIC_ACCESS_VIRT) && boot_cpu_has(X86_FEATURE_APIC)))
 			return;
 	}
 
@@ -491,8 +491,11 @@ int __init pci_xen_initial_domain(void)
 #endif
 	__acpi_register_gsi = acpi_register_gsi_xen;
 	__acpi_unregister_gsi = NULL;
-	/* Pre-allocate legacy irqs */
-	for (irq = 0; irq < nr_legacy_irqs(); irq++) {
+	/*
+	 * Pre-allocate the legacy IRQs.  Use NR_LEGACY_IRQS here
+	 * because we don't have a PIC and thus nr_legacy_irqs() is zero.
+	 */
+	for (irq = 0; irq < NR_IRQS_LEGACY; irq++) {
 		int trigger, polarity;
 
 		if (acpi_get_override_irq(irq, &trigger, &polarity) == -1)

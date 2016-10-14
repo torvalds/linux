@@ -1190,7 +1190,8 @@
  *	Return 0 if permission is granted.
  * @settime:
  *	Check permission to change the system time.
- *	struct timespec and timezone are defined in include/linux/time.h
+ *	struct timespec64 is defined in include/linux/time64.h and timezone
+ *	is defined in include/linux/time.h
  *	@ts contains new time
  *	@tz contains new timezone
  *	Return 0 if permission is granted.
@@ -1327,7 +1328,7 @@ union security_list_options {
 	int (*quotactl)(int cmds, int type, int id, struct super_block *sb);
 	int (*quota_on)(struct dentry *dentry);
 	int (*syslog)(int type);
-	int (*settime)(const struct timespec *ts, const struct timezone *tz);
+	int (*settime)(const struct timespec64 *ts, const struct timezone *tz);
 	int (*vm_enough_memory)(struct mm_struct *mm, long pages);
 
 	int (*bprm_set_creds)(struct linux_binprm *bprm);
@@ -1343,10 +1344,10 @@ union security_list_options {
 	int (*sb_kern_mount)(struct super_block *sb, int flags, void *data);
 	int (*sb_show_options)(struct seq_file *m, struct super_block *sb);
 	int (*sb_statfs)(struct dentry *dentry);
-	int (*sb_mount)(const char *dev_name, struct path *path,
+	int (*sb_mount)(const char *dev_name, const struct path *path,
 			const char *type, unsigned long flags, void *data);
 	int (*sb_umount)(struct vfsmount *mnt, int flags);
-	int (*sb_pivotroot)(struct path *old_path, struct path *new_path);
+	int (*sb_pivotroot)(const struct path *old_path, const struct path *new_path);
 	int (*sb_set_mnt_opts)(struct super_block *sb,
 				struct security_mnt_opts *opts,
 				unsigned long kern_flags,
@@ -1355,28 +1356,28 @@ union security_list_options {
 					struct super_block *newsb);
 	int (*sb_parse_opts_str)(char *options, struct security_mnt_opts *opts);
 	int (*dentry_init_security)(struct dentry *dentry, int mode,
-					struct qstr *name, void **ctx,
+					const struct qstr *name, void **ctx,
 					u32 *ctxlen);
 
 
 #ifdef CONFIG_SECURITY_PATH
-	int (*path_unlink)(struct path *dir, struct dentry *dentry);
-	int (*path_mkdir)(struct path *dir, struct dentry *dentry,
+	int (*path_unlink)(const struct path *dir, struct dentry *dentry);
+	int (*path_mkdir)(const struct path *dir, struct dentry *dentry,
 				umode_t mode);
-	int (*path_rmdir)(struct path *dir, struct dentry *dentry);
-	int (*path_mknod)(struct path *dir, struct dentry *dentry,
+	int (*path_rmdir)(const struct path *dir, struct dentry *dentry);
+	int (*path_mknod)(const struct path *dir, struct dentry *dentry,
 				umode_t mode, unsigned int dev);
-	int (*path_truncate)(struct path *path);
-	int (*path_symlink)(struct path *dir, struct dentry *dentry,
+	int (*path_truncate)(const struct path *path);
+	int (*path_symlink)(const struct path *dir, struct dentry *dentry,
 				const char *old_name);
-	int (*path_link)(struct dentry *old_dentry, struct path *new_dir,
+	int (*path_link)(struct dentry *old_dentry, const struct path *new_dir,
 				struct dentry *new_dentry);
-	int (*path_rename)(struct path *old_dir, struct dentry *old_dentry,
-				struct path *new_dir,
+	int (*path_rename)(const struct path *old_dir, struct dentry *old_dentry,
+				const struct path *new_dir,
 				struct dentry *new_dentry);
-	int (*path_chmod)(struct path *path, umode_t mode);
-	int (*path_chown)(struct path *path, kuid_t uid, kgid_t gid);
-	int (*path_chroot)(struct path *path);
+	int (*path_chmod)(const struct path *path, umode_t mode);
+	int (*path_chown)(const struct path *path, kuid_t uid, kgid_t gid);
+	int (*path_chroot)(const struct path *path);
 #endif
 
 	int (*inode_alloc_security)(struct inode *inode);
@@ -1804,7 +1805,6 @@ struct security_hook_heads {
 	struct list_head tun_dev_attach_queue;
 	struct list_head tun_dev_attach;
 	struct list_head tun_dev_open;
-	struct list_head skb_owned_by;
 #endif	/* CONFIG_SECURITY_NETWORK */
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	struct list_head xfrm_policy_alloc_security;
@@ -1892,6 +1892,11 @@ extern void __init capability_add_hooks(void);
 extern void __init yama_add_hooks(void);
 #else
 static inline void __init yama_add_hooks(void) { }
+#endif
+#ifdef CONFIG_SECURITY_LOADPIN
+void __init loadpin_add_hooks(void);
+#else
+static inline void loadpin_add_hooks(void) { };
 #endif
 
 #endif /* ! __LINUX_LSM_HOOKS_H */

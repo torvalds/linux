@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -67,10 +63,10 @@ int lovsub_object_init(const struct lu_env *env, struct lu_object *obj,
 		lu_object_add(obj, below);
 		cl_object_page_init(lu2cl(obj), sizeof(struct lovsub_page));
 		result = 0;
-	} else
+	} else {
 		result = -ENOMEM;
+	}
 	return result;
-
 }
 
 static void lovsub_object_free(const struct lu_env *env, struct lu_object *obj)
@@ -154,8 +150,9 @@ struct lu_object *lovsub_object_alloc(const struct lu_env *env,
 		lu_object_add_top(&hdr->coh_lu, obj);
 		los->lso_cl.co_ops = &lovsub_ops;
 		obj->lo_ops = &lovsub_lu_obj_ops;
-	} else
+	} else {
 		obj = NULL;
+	}
 	return obj;
 }
 

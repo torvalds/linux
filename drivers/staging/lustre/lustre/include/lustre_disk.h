@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -130,7 +126,6 @@ struct lustre_sb_info {
 	struct lustre_mount_data *lsi_lmd;     /* mount command info */
 	struct ll_sb_info	*lsi_llsbi;   /* add'l client sbi info */
 	struct dt_device	 *lsi_dt_dev;  /* dt device to access disk fs*/
-	struct vfsmount	  *lsi_srv_mnt; /* the one server mount */
 	atomic_t	      lsi_mounts;  /* references to the srv_mnt */
 	char			  lsi_svname[MTI_NAME_MAXLEN];
 	char			  lsi_osd_obdname[64];
@@ -158,7 +153,6 @@ struct lustre_sb_info {
 struct lustre_mount_info {
 	char		 *lmi_name;
 	struct super_block   *lmi_sb;
-	struct vfsmount      *lmi_mnt;
 	struct list_head	    lmi_list_chain;
 };
 

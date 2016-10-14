@@ -195,10 +195,9 @@ static bool can_free_region(u64 start, u64 size)
 */
 void __init efi_reserve_boot_services(void)
 {
-	void *p;
+	efi_memory_desc_t *md;
 
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-		efi_memory_desc_t *md = p;
+	for_each_efi_memory_desc(md) {
 		u64 start = md->phys_addr;
 		u64 size = md->num_pages << EFI_PAGE_SHIFT;
 		bool already_reserved;
@@ -250,12 +249,12 @@ void __init efi_reserve_boot_services(void)
 
 void __init efi_free_boot_services(void)
 {
-	void *p;
+	efi_memory_desc_t *md;
 
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-		efi_memory_desc_t *md = p;
+	for_each_efi_memory_desc(md) {
 		unsigned long long start = md->phys_addr;
 		unsigned long long size = md->num_pages << EFI_PAGE_SHIFT;
+		size_t rm_size;
 
 		if (md->type != EFI_BOOT_SERVICES_CODE &&
 		    md->type != EFI_BOOT_SERVICES_DATA)
@@ -264,6 +263,26 @@ void __init efi_free_boot_services(void)
 		/* Do not free, someone else owns it: */
 		if (md->attribute & EFI_MEMORY_RUNTIME)
 			continue;
+
+		/*
+		 * Nasty quirk: if all sub-1MB memory is used for boot
+		 * services, we can get here without having allocated the
+		 * real mode trampoline.  It's too late to hand boot services
+		 * memory back to the memblock allocator, so instead
+		 * try to manually allocate the trampoline if needed.
+		 *
+		 * I've seen this on a Dell XPS 13 9350 with firmware
+		 * 1.4.4 with SGX enabled booting Linux via Fedora 24's
+		 * grub2-efi on a hard disk.  (And no, I don't know why
+		 * this happened, but Linux should still try to boot rather
+		 * panicing early.)
+		 */
+		rm_size = real_mode_size_needed();
+		if (rm_size && (start + rm_size) < (1<<20) && size >= rm_size) {
+			set_real_mode_mem(start, rm_size);
+			start += rm_size;
+			size -= rm_size;
+		}
 
 		free_bootmem_late(start, size);
 	}
@@ -373,5 +392,5 @@ bool efi_reboot_required(void)
 
 bool efi_poweroff_required(void)
 {
-	return !!acpi_gbl_reduced_hardware;
+	return acpi_gbl_reduced_hardware || acpi_no_s5;
 }

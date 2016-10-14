@@ -60,6 +60,7 @@ EXPORT_SYMBOL(dec_kn_slot_size);
 int dec_tc_bus;
 
 DEFINE_SPINLOCK(ioasic_ssr_lock);
+EXPORT_SYMBOL(ioasic_ssr_lock);
 
 volatile u32 *ioasic_base;
 

@@ -27,32 +27,6 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&gpmi_pins_a &gpmi_status_cfg>;
 				status = "okay";
-
-				partition@0 {
-					label = "bootloader";
-					reg = <0x00000000 0x00300000>;
-					read-only;
-				};
-
-				partition@1 {
-					label = "environment";
-					reg = <0x00300000 0x00080000>;
-				};
-
-				partition@2 {
-					label = "redundant-environment";
-					reg = <0x00380000 0x00080000>;
-				};
-
-				partition@3 {
-					label = "kernel";
-					reg = <0x00400000 0x00400000>;
-				};
-
-				partition@4 {
-					label = "filesystem";
-					reg = <0x00800000 0x0f800000>;
-				};
 			};
 		};
 
@@ -63,7 +37,7 @@
 				status = "okay";
 
 				rtc: rtc@68 {
-					compatible = "stm,m41t62";
+					compatible = "st,m41t62";
 					reg = <0x68>;
 				};
 			};

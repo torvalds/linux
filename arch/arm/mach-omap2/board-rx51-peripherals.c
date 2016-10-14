@@ -30,6 +30,8 @@
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
 
+#include <plat/dmtimer.h>
+
 #include <asm/system_info.h>
 
 #include "common.h"
@@ -47,9 +49,8 @@
 
 #include <video/omap-panel-data.h>
 
-#if defined(CONFIG_IR_RX51) || defined(CONFIG_IR_RX51_MODULE)
+#include <linux/platform_data/pwm_omap_dmtimer.h>
 #include <linux/platform_data/media/ir-rx51.h>
-#endif
 
 #include "mux.h"
 #include "omap-pm.h"
@@ -1212,10 +1213,35 @@ static void __init rx51_init_tsc2005(void)
 				gpio_to_irq(RX51_TSC2005_IRQ_GPIO);
 }
 
+#if IS_ENABLED(CONFIG_OMAP_DM_TIMER)
+static struct pwm_omap_dmtimer_pdata __maybe_unused pwm_dmtimer_pdata = {
+	.request_by_node = omap_dm_timer_request_by_node,
+	.request_specific = omap_dm_timer_request_specific,
+	.request = omap_dm_timer_request,
+	.set_source = omap_dm_timer_set_source,
+	.get_irq = omap_dm_timer_get_irq,
+	.set_int_enable = omap_dm_timer_set_int_enable,
+	.set_int_disable = omap_dm_timer_set_int_disable,
+	.free = omap_dm_timer_free,
+	.enable = omap_dm_timer_enable,
+	.disable = omap_dm_timer_disable,
+	.get_fclk = omap_dm_timer_get_fclk,
+	.start = omap_dm_timer_start,
+	.stop = omap_dm_timer_stop,
+	.set_load = omap_dm_timer_set_load,
+	.set_match = omap_dm_timer_set_match,
+	.set_pwm = omap_dm_timer_set_pwm,
+	.set_prescaler = omap_dm_timer_set_prescaler,
+	.read_counter = omap_dm_timer_read_counter,
+	.write_counter = omap_dm_timer_write_counter,
+	.read_status = omap_dm_timer_read_status,
+	.write_status = omap_dm_timer_write_status,
+};
+#endif
+
 #if defined(CONFIG_IR_RX51) || defined(CONFIG_IR_RX51_MODULE)
 static struct lirc_rx51_platform_data rx51_lirc_data = {
 	.set_max_mpu_wakeup_lat = omap_pm_set_max_mpu_wakeup_lat,
-	.pwm_timer = 9, /* Use GPT 9 for CIR */
 };
 
 static struct platform_device rx51_lirc_device = {

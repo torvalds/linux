@@ -175,6 +175,7 @@ struct fscrypt_name {
  */
 struct fscrypt_operations {
 	int (*get_context)(struct inode *, void *, size_t);
+	int (*key_prefix)(struct inode *, u8 **);
 	int (*prepare_context)(struct inode *);
 	int (*set_context)(struct inode *, const void *, size_t, void *);
 	int (*dummy_context)(struct inode *);
@@ -273,8 +274,7 @@ extern void fscrypt_restore_control_page(struct page *);
 extern int fscrypt_zeroout_range(struct inode *, pgoff_t, sector_t,
 						unsigned int);
 /* policy.c */
-extern int fscrypt_process_policy(struct inode *,
-					const struct fscrypt_policy *);
+extern int fscrypt_process_policy(struct file *, const struct fscrypt_policy *);
 extern int fscrypt_get_policy(struct inode *, struct fscrypt_policy *);
 extern int fscrypt_has_permitted_context(struct inode *, struct inode *);
 extern int fscrypt_inherit_context(struct inode *, struct inode *,
@@ -344,7 +344,7 @@ static inline int fscrypt_notsupp_zeroout_range(struct inode *i, pgoff_t p,
 }
 
 /* policy.c */
-static inline int fscrypt_notsupp_process_policy(struct inode *i,
+static inline int fscrypt_notsupp_process_policy(struct file *f,
 				const struct fscrypt_policy *p)
 {
 	return -EOPNOTSUPP;

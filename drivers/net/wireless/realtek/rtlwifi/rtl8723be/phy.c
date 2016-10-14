@@ -379,7 +379,7 @@ static void _rtl8723be_phy_store_txpower_by_rate_base(struct ieee80211_hw *hw)
 static void _phy_convert_txpower_dbm_to_relative_value(u32 *data, u8 start,
 						u8 end, u8 base_val)
 {
-	char i = 0;
+	s8 i = 0;
 	u8 temp_value = 0;
 	u32 temp_data = 0;
 
@@ -467,7 +467,7 @@ static bool _rtl8723be_phy_bb8723b_config_parafile(struct ieee80211_hw *hw)
 	rtstatus = _rtl8723be_phy_config_bb_with_headerfile(hw,
 						BASEBAND_CONFIG_PHY_REG);
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Write BB Reg Fail!!");
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Write BB Reg Fail!!\n");
 		return false;
 	}
 	_rtl8723be_phy_init_tx_power_by_rate(hw);
@@ -478,7 +478,7 @@ static bool _rtl8723be_phy_bb8723b_config_parafile(struct ieee80211_hw *hw)
 	}
 	phy_txpower_by_rate_config(hw);
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "BB_PG Reg Fail!!");
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "BB_PG Reg Fail!!\n");
 		return false;
 	}
 	rtstatus = _rtl8723be_phy_config_bb_with_headerfile(hw,
@@ -953,7 +953,7 @@ static u8 _rtl8723be_get_txpower_by_rate(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	u8 shift = 0, rate_section, tx_num;
-	char tx_pwr_diff = 0;
+	s8 tx_pwr_diff = 0;
 
 	rate_section = _rtl8723be_phy_get_ratesection_intxpower_byrate(rfpath,
 								       rate);
@@ -1019,7 +1019,7 @@ static u8 _rtl8723be_get_txpower_index(struct ieee80211_hw *hw, u8 path,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	u8 index = (channel - 1);
-	u8 txpower;
+	u8 txpower = 0;
 	u8 power_diff_byrate = 0;
 
 	if (channel > 14 || channel < 1) {
@@ -1395,7 +1395,7 @@ u8 rtl8723be_phy_sw_chnl(struct ieee80211_hw *hw)
 	if (!(is_hal_stop(rtlhal)) && !(RT_CANNOT_IO(hw))) {
 		rtl8723be_phy_sw_chnl_callback(hw);
 		RT_TRACE(rtlpriv, COMP_CHAN, DBG_LOUD,
-			 "sw_chnl_inprogress false schdule workitem current channel %d\n",
+			 "sw_chnl_inprogress false schedule workitem current channel %d\n",
 			 rtlphy->current_channel);
 		rtlphy->sw_chnl_inprogress = false;
 	} else {
@@ -1723,8 +1723,8 @@ static u8 _rtl8723be_phy_path_a_rx_iqk(struct ieee80211_hw *hw)
 
 	/* Allen 20131125 */
 	tmp = (reg_eac & 0x03FF0000) >> 16;
-		if ((tmp & 0x200) > 0)
-			tmp = 0x400 - tmp;
+	if ((tmp & 0x200) > 0)
+		tmp = 0x400 - tmp;
 	/* if Tx is OK, check whether Rx is OK */
 	if (!(reg_eac & BIT(27)) &&
 	    (((reg_ea4 & 0x03FF0000) >> 16) != 0x132) &&
@@ -2301,8 +2301,7 @@ static void _rtl8723be_phy_lc_calibrate(struct ieee80211_hw *hw, bool is2t)
 	} else {
 		rtl_write_byte(rtlpriv, REG_TXPAUSE, 0x00);
 	}
-RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "\n");
-
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "\n");
 }
 
 static void _rtl8723be_phy_set_rfpath_switch(struct ieee80211_hw *hw,
@@ -2606,8 +2605,7 @@ static bool _rtl8723be_phy_set_rf_power_state(struct ieee80211_hw *hw,
 					 "IPS Set eRf nic enable\n");
 				rtstatus = rtl_ps_enable_nic(hw);
 			} while (!rtstatus && (initializecount < 10));
-				RT_CLEAR_PS_LEVEL(ppsc,
-						  RT_RF_OFF_LEVL_HALT_NIC);
+			RT_CLEAR_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_HALT_NIC);
 		} else {
 			RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
 				 "Set ERFON sleeped:%d ms\n",

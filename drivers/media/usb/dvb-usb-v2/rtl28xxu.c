@@ -624,7 +624,7 @@ static int rtl28xxu_identify_state(struct dvb_usb_device *d, const char **name)
 	dev_dbg(&d->intf->dev, "chip_id=%u\n", dev->chip_id);
 
 	/* Retry failed I2C messages */
-	d->i2c_adap.retries = 1;
+	d->i2c_adap.retries = 3;
 	d->i2c_adap.timeout = msecs_to_jiffies(10);
 
 	return WARM;
@@ -1333,10 +1333,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 	case TUNER_RTL2832_R828D:
 		pdata.clk = dev->rtl2832_platform_data.clk;
 		pdata.tuner = dev->tuner;
-		pdata.i2c_client = dev->i2c_client_demod;
-		pdata.bulk_read = dev->rtl2832_platform_data.bulk_read;
-		pdata.bulk_write = dev->rtl2832_platform_data.bulk_write;
-		pdata.update_bits = dev->rtl2832_platform_data.update_bits;
+		pdata.regmap = dev->rtl2832_platform_data.regmap;
 		pdata.dvb_frontend = adap->fe[0];
 		pdata.dvb_usb_device = d;
 		pdata.v4l2_subdev = subdev;

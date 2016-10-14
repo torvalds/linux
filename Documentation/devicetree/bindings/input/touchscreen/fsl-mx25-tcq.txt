@@ -15,7 +15,7 @@ Optional properties:
  - fsl,pen-debounce-ns: Pen debounce time in nanoseconds.
  - fsl,pen-threshold: Pen-down threshold for the touchscreen. This is a value
    between 1 and 4096. It is the ratio between the internal reference voltage
-   and the measured voltage after the plate was precharged. Resistence between
+   and the measured voltage after the plate was precharged. Resistance between
    plates and therefore the voltage decreases with pressure so that a smaller
    value is equivalent to a higher pressure.
  - fsl,settling-time-ns: Settling time in nanoseconds. The settling time is before

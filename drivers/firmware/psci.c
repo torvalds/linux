@@ -13,6 +13,7 @@
 
 #define pr_fmt(fmt) "psci: " fmt
 
+#include <linux/acpi.h>
 #include <linux/arm-smccc.h>
 #include <linux/cpuidle.h>
 #include <linux/errno.h>
@@ -91,7 +92,7 @@ static inline bool psci_has_ext_power_state(void)
 				PSCI_1_0_FEATURES_CPU_SUSPEND_PF_MASK;
 }
 
-bool psci_power_state_loses_context(u32 state)
+static inline bool psci_power_state_loses_context(u32 state)
 {
 	const u32 mask = psci_has_ext_power_state() ?
 					PSCI_1_0_EXT_POWER_STATE_TYPE_MASK :
@@ -100,7 +101,7 @@ bool psci_power_state_loses_context(u32 state)
 	return state & mask;
 }
 
-bool psci_power_state_is_valid(u32 state)
+static inline bool psci_power_state_is_valid(u32 state)
 {
 	const u32 valid_mask = psci_has_ext_power_state() ?
 			       PSCI_1_0_EXT_POWER_STATE_MASK :
@@ -256,13 +257,6 @@ static int psci_dt_cpu_init_idle(struct device_node *cpu_node, int cpu)
 	u32 *psci_states;
 	struct device_node *state_node;
 
-	/*
-	 * If the PSCI cpu_suspend function hook has not been initialized
-	 * idle states must not be enabled, so bail out
-	 */
-	if (!psci_ops.cpu_suspend)
-		return -EOPNOTSUPP;
-
 	/* Count idle states */
 	while ((state_node = of_parse_phandle(cpu_node, "cpu-idle-states",
 					      count))) {
@@ -310,10 +304,68 @@ free_mem:
 	return ret;
 }
 
+#ifdef CONFIG_ACPI
+#include <acpi/processor.h>
+
+static int __maybe_unused psci_acpi_cpu_init_idle(unsigned int cpu)
+{
+	int i, count;
+	u32 *psci_states;
+	struct acpi_lpi_state *lpi;
+	struct acpi_processor *pr = per_cpu(processors, cpu);
+
+	if (unlikely(!pr || !pr->flags.has_lpi))
+		return -EINVAL;
+
+	count = pr->power.count - 1;
+	if (count <= 0)
+		return -ENODEV;
+
+	psci_states = kcalloc(count, sizeof(*psci_states), GFP_KERNEL);
+	if (!psci_states)
+		return -ENOMEM;
+
+	for (i = 0; i < count; i++) {
+		u32 state;
+
+		lpi = &pr->power.lpi_states[i + 1];
+		/*
+		 * Only bits[31:0] represent a PSCI power_state while
+		 * bits[63:32] must be 0x0 as per ARM ACPI FFH Specification
+		 */
+		state = lpi->address;
+		if (!psci_power_state_is_valid(state)) {
+			pr_warn("Invalid PSCI power state %#x\n", state);
+			kfree(psci_states);
+			return -EINVAL;
+		}
+		psci_states[i] = state;
+	}
+	/* Idle states parsed correctly, initialize per-cpu pointer */
+	per_cpu(psci_power_state, cpu) = psci_states;
+	return 0;
+}
+#else
+static int __maybe_unused psci_acpi_cpu_init_idle(unsigned int cpu)
+{
+	return -EINVAL;
+}
+#endif
+
 int psci_cpu_init_idle(unsigned int cpu)
 {
 	struct device_node *cpu_node;
 	int ret;
+
+	/*
+	 * If the PSCI cpu_suspend function hook has not been initialized
+	 * idle states must not be enabled, so bail out
+	 */
+	if (!psci_ops.cpu_suspend)
+		return -EOPNOTSUPP;
+
+	if (!acpi_disabled)
+		return psci_acpi_cpu_init_idle(cpu);
 
 	cpu_node = of_get_cpu_node(cpu, NULL);
 	if (!cpu_node)
@@ -355,7 +407,7 @@ int psci_cpu_suspend_enter(unsigned long index)
 
 /* ARM specific CPU idle operations */
 #ifdef CONFIG_ARM
-static struct cpuidle_ops psci_cpuidle_ops __initdata = {
+static const struct cpuidle_ops psci_cpuidle_ops __initconst = {
 	.suspend = psci_cpu_suspend_enter,
 	.init = psci_dt_cpu_init_idle,
 };
@@ -563,7 +615,7 @@ out_put_node:
 	return err;
 }
 
-static const struct of_device_id const psci_of_match[] __initconst = {
+static const struct of_device_id psci_of_match[] __initconst = {
 	{ .compatible = "arm,psci",	.data = psci_0_1_init},
 	{ .compatible = "arm,psci-0.2",	.data = psci_0_2_init},
 	{ .compatible = "arm,psci-1.0",	.data = psci_0_2_init},

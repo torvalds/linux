@@ -492,7 +492,6 @@ static int cobalt_subdevs_init(struct cobalt *cobalt)
 		.ain_sel = ADV7604_AIN7_8_9_NC_SYNC_3_1,
 		.bus_order = ADV7604_BUS_ORDER_BRG,
 		.blank_data = 1,
-		.op_656_range = 1,
 		.op_format_mode_sel = ADV7604_OP_FORMAT_MODE0,
 		.int1_config = ADV76XX_INT1_CONFIG_ACTIVE_HIGH,
 		.dr_str_data = ADV76XX_DR_STR_HIGH,
@@ -571,7 +570,6 @@ static int cobalt_subdevs_hsma_init(struct cobalt *cobalt)
 		.bus_order = ADV7842_BUS_ORDER_RBG,
 		.op_format_mode_sel = ADV7842_OP_FORMAT_MODE0,
 		.blank_data = 1,
-		.op_656_range = 1,
 		.dr_str_data = 3,
 		.dr_str_clk = 3,
 		.dr_str_sync = 3,
@@ -691,17 +689,10 @@ static int cobalt_probe(struct pci_dev *pci_dev,
 	cobalt->pci_dev = pci_dev;
 	cobalt->instance = i;
 
-	cobalt->alloc_ctx = vb2_dma_sg_init_ctx(&pci_dev->dev);
-	if (IS_ERR(cobalt->alloc_ctx)) {
-		kfree(cobalt);
-		return -ENOMEM;
-	}
-
 	retval = v4l2_device_register(&pci_dev->dev, &cobalt->v4l2_dev);
 	if (retval) {
 		pr_err("cobalt: v4l2_device_register of card %d failed\n",
 				cobalt->instance);
-		vb2_dma_sg_cleanup_ctx(cobalt->alloc_ctx);
 		kfree(cobalt);
 		return retval;
 	}
@@ -782,7 +773,6 @@ err:
 	cobalt_err("error %d on initialization\n", retval);
 
 	v4l2_device_unregister(&cobalt->v4l2_dev);
-	vb2_dma_sg_cleanup_ctx(cobalt->alloc_ctx);
 	kfree(cobalt);
 	return retval;
 }
@@ -818,7 +808,6 @@ static void cobalt_remove(struct pci_dev *pci_dev)
 	cobalt_info("removed cobalt card\n");
 
 	v4l2_device_unregister(v4l2_dev);
-	vb2_dma_sg_cleanup_ctx(cobalt->alloc_ctx);
 	kfree(cobalt);
 }
 

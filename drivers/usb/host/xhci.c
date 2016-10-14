@@ -490,8 +490,6 @@ static void compliance_mode_recovery_timer_init(struct xhci_hcd *xhci)
 	xhci->comp_mode_recovery_timer.expires = jiffies +
 			msecs_to_jiffies(COMP_MODE_RCVRY_MSECS);
 
-	set_timer_slack(&xhci->comp_mode_recovery_timer,
-			msecs_to_jiffies(COMP_MODE_RCVRY_MSECS));
 	add_timer(&xhci->comp_mode_recovery_timer);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
 			"Compliance mode recovery timer initialized");
@@ -685,20 +683,23 @@ void xhci_stop(struct usb_hcd *hcd)
 	u32 temp;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 
-	if (xhci->xhc_state & XHCI_STATE_HALTED)
-		return;
-
 	mutex_lock(&xhci->mutex);
-	spin_lock_irq(&xhci->lock);
-	xhci->xhc_state |= XHCI_STATE_HALTED;
-	xhci->cmd_ring_state = CMD_RING_STATE_STOPPED;
 
-	/* Make sure the xHC is halted for a USB3 roothub
-	 * (xhci_stop() could be called as part of failed init).
-	 */
-	xhci_halt(xhci);
-	xhci_reset(xhci);
-	spin_unlock_irq(&xhci->lock);
+	if (!(xhci->xhc_state & XHCI_STATE_HALTED)) {
+		spin_lock_irq(&xhci->lock);
+
+		xhci->xhc_state |= XHCI_STATE_HALTED;
+		xhci->cmd_ring_state = CMD_RING_STATE_STOPPED;
+		xhci_halt(xhci);
+		xhci_reset(xhci);
+
+		spin_unlock_irq(&xhci->lock);
+	}
+
+	if (!usb_hcd_is_primary_hcd(hcd)) {
+		mutex_unlock(&xhci->mutex);
+		return;
+	}
 
 	xhci_cleanup_msix(xhci);
 
@@ -1457,47 +1458,6 @@ free_priv:
 	urb->hcpriv = NULL;
 	spin_unlock_irqrestore(&xhci->lock, flags);
 	return ret;
-}
-
-/* Get the right ring for the given URB.
- * If the endpoint supports streams, boundary check the URB's stream ID.
- * If the endpoint doesn't support streams, return the singular endpoint ring.
- */
-static struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
-		struct urb *urb)
-{
-	unsigned int slot_id;
-	unsigned int ep_index;
-	unsigned int stream_id;
-	struct xhci_virt_ep *ep;
-
-	slot_id = urb->dev->slot_id;
-	ep_index = xhci_get_endpoint_index(&urb->ep->desc);
-	stream_id = urb->stream_id;
-	ep = &xhci->devs[slot_id]->eps[ep_index];
-	/* Common case: no streams */
-	if (!(ep->ep_state & EP_HAS_STREAMS))
-		return ep->ring;
-
-	if (stream_id == 0) {
-		xhci_warn(xhci,
-				"WARN: Slot ID %u, ep index %u has streams, "
-				"but URB has no stream ID.\n",
-				slot_id, ep_index);
-		return NULL;
-	}
-
-	if (stream_id < ep->stream_info->num_streams)
-		return ep->stream_info->stream_rings[stream_id];
-
-	xhci_warn(xhci,
-			"WARN: Slot ID %u, ep index %u has "
-			"stream IDs 1 to %u allocated, "
-			"but stream ID %u is requested.\n",
-			slot_id, ep_index,
-			ep->stream_info->num_streams - 1,
-			stream_id);
-	return NULL;
 }
 
 /*
@@ -3177,6 +3137,7 @@ int xhci_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
 	struct xhci_input_control_ctx *ctrl_ctx;
 	unsigned int ep_index;
 	unsigned int num_stream_ctxs;
+	unsigned int max_packet;
 	unsigned long flags;
 	u32 changed_ep_bitmask = 0;
 
@@ -3250,9 +3211,11 @@ int xhci_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
 
 	for (i = 0; i < num_eps; i++) {
 		ep_index = xhci_get_endpoint_index(&eps[i]->desc);
+		max_packet = GET_MAX_PACKET(usb_endpoint_maxp(&eps[i]->desc));
 		vdev->eps[ep_index].stream_info = xhci_alloc_stream_info(xhci,
 				num_stream_ctxs,
-				num_streams, mem_flags);
+				num_streams,
+				max_packet, mem_flags);
 		if (!vdev->eps[ep_index].stream_info)
 			goto cleanup;
 		/* Set maxPstreams in endpoint context and update deq ptr to
@@ -4927,7 +4890,7 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 		xhci->hcc_params2 = readl(&xhci->cap_regs->hcc_params2);
 	xhci_print_registers(xhci);
 
-	xhci->quirks = quirks;
+	xhci->quirks |= quirks;
 
 	get_quirks(dev, xhci);
 

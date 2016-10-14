@@ -155,7 +155,8 @@ static unsigned int skb_gso_mac_seglen(const struct sk_buff *skb)
 /* GSO packet is too big, segment it so that tbf can transmit
  * each segment in time
  */
-static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch)
+static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch,
+		       struct sk_buff **to_free)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *segs, *nskb;
@@ -166,7 +167,7 @@ static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch)
 	segs = skb_gso_segment(skb, features & ~NETIF_F_GSO_MASK);
 
 	if (IS_ERR_OR_NULL(segs))
-		return qdisc_reshape_fail(skb, sch);
+		return qdisc_drop(skb, sch, to_free);
 
 	nb = 0;
 	while (segs) {
@@ -174,7 +175,7 @@ static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch)
 		segs->next = NULL;
 		qdisc_skb_cb(segs)->pkt_len = segs->len;
 		len += segs->len;
-		ret = qdisc_enqueue(segs, q->qdisc);
+		ret = qdisc_enqueue(segs, q->qdisc, to_free);
 		if (ret != NET_XMIT_SUCCESS) {
 			if (net_xmit_drop_count(ret))
 				qdisc_qstats_drop(sch);
@@ -190,37 +191,27 @@ static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch)
 	return nb > 0 ? NET_XMIT_SUCCESS : NET_XMIT_DROP;
 }
 
-static int tbf_enqueue(struct sk_buff *skb, struct Qdisc *sch)
+static int tbf_enqueue(struct sk_buff *skb, struct Qdisc *sch,
+		       struct sk_buff **to_free)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
 	int ret;
 
 	if (qdisc_pkt_len(skb) > q->max_size) {
 		if (skb_is_gso(skb) && skb_gso_mac_seglen(skb) <= q->max_size)
-			return tbf_segment(skb, sch);
-		return qdisc_reshape_fail(skb, sch);
+			return tbf_segment(skb, sch, to_free);
+		return qdisc_drop(skb, sch, to_free);
 	}
-	ret = qdisc_enqueue(skb, q->qdisc);
+	ret = qdisc_enqueue(skb, q->qdisc, to_free);
 	if (ret != NET_XMIT_SUCCESS) {
 		if (net_xmit_drop_count(ret))
 			qdisc_qstats_drop(sch);
 		return ret;
 	}
 
+	qdisc_qstats_backlog_inc(sch, skb);
 	sch->q.qlen++;
 	return NET_XMIT_SUCCESS;
-}
-
-static unsigned int tbf_drop(struct Qdisc *sch)
-{
-	struct tbf_sched_data *q = qdisc_priv(sch);
-	unsigned int len = 0;
-
-	if (q->qdisc->ops->drop && (len = q->qdisc->ops->drop(q->qdisc)) != 0) {
-		sch->q.qlen--;
-		qdisc_qstats_drop(sch);
-	}
-	return len;
 }
 
 static bool tbf_peak_present(const struct tbf_sched_data *q)
@@ -263,15 +254,14 @@ static struct sk_buff *tbf_dequeue(struct Qdisc *sch)
 			q->t_c = now;
 			q->tokens = toks;
 			q->ptokens = ptoks;
+			qdisc_qstats_backlog_dec(sch, skb);
 			sch->q.qlen--;
-			qdisc_unthrottled(sch);
 			qdisc_bstats_update(sch, skb);
 			return skb;
 		}
 
 		qdisc_watchdog_schedule_ns(&q->watchdog,
-					   now + max_t(long, -toks, -ptoks),
-					   true);
+					   now + max_t(long, -toks, -ptoks));
 
 		/* Maybe we have a shorter packet in the queue,
 		   which can be sent now. It sounds cool,
@@ -294,6 +284,7 @@ static void tbf_reset(struct Qdisc *sch)
 	struct tbf_sched_data *q = qdisc_priv(sch);
 
 	qdisc_reset(q->qdisc);
+	sch->qstats.backlog = 0;
 	sch->q.qlen = 0;
 	q->t_c = ktime_get_ns();
 	q->tokens = q->buffer;
@@ -472,11 +463,13 @@ static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (nla_put(skb, TCA_TBF_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
 	if (q->rate.rate_bytes_ps >= (1ULL << 32) &&
-	    nla_put_u64(skb, TCA_TBF_RATE64, q->rate.rate_bytes_ps))
+	    nla_put_u64_64bit(skb, TCA_TBF_RATE64, q->rate.rate_bytes_ps,
+			      TCA_TBF_PAD))
 		goto nla_put_failure;
 	if (tbf_peak_present(q) &&
 	    q->peak.rate_bytes_ps >= (1ULL << 32) &&
-	    nla_put_u64(skb, TCA_TBF_PRATE64, q->peak.rate_bytes_ps))
+	    nla_put_u64_64bit(skb, TCA_TBF_PRATE64, q->peak.rate_bytes_ps,
+			      TCA_TBF_PAD))
 		goto nla_put_failure;
 
 	return nla_nest_end(skb, nest);
@@ -553,7 +546,6 @@ static struct Qdisc_ops tbf_qdisc_ops __read_mostly = {
 	.enqueue	=	tbf_enqueue,
 	.dequeue	=	tbf_dequeue,
 	.peek		=	qdisc_peek_dequeued,
-	.drop		=	tbf_drop,
 	.init		=	tbf_init,
 	.reset		=	tbf_reset,
 	.destroy	=	tbf_destroy,

@@ -158,7 +158,7 @@ static irqreturn_t bcm_iproc_i2c_isr(int irq, void *data)
 
 	if (status & BIT(IS_M_START_BUSY_SHIFT)) {
 		iproc_i2c->xfer_is_done = 1;
-		complete_all(&iproc_i2c->done);
+		complete(&iproc_i2c->done);
 	}
 
 	writel(status, iproc_i2c->base + IS_OFFSET);
@@ -267,7 +267,7 @@ static int bcm_iproc_i2c_xfer_single_msg(struct bcm_iproc_i2c_dev *iproc_i2c,
 	iproc_i2c->msg = msg;
 
 	/* format and load slave address into the TX FIFO */
-	addr = msg->addr << 1 | (msg->flags & I2C_M_RD ? 1 : 0);
+	addr = i2c_8bit_addr_from_msg(msg);
 	writel(addr, iproc_i2c->base + M_TX_OFFSET);
 
 	/*

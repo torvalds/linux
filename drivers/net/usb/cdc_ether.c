@@ -388,6 +388,12 @@ void usbnet_cdc_status(struct usbnet *dev, struct urb *urb)
 	case USB_CDC_NOTIFY_NETWORK_CONNECTION:
 		netif_dbg(dev, timer, dev->net, "CDC: carrier %s\n",
 			  event->wValue ? "on" : "off");
+
+		/* Work-around for devices with broken off-notifications */
+		if (event->wValue &&
+		    !test_bit(__LINK_STATE_NOCARRIER, &dev->net->state))
+			usbnet_link_change(dev, 0, 0);
+
 		usbnet_link_change(dev, !!event->wValue, 0);
 		break;
 	case USB_CDC_NOTIFY_SPEED_CHANGE:	/* tx/rx rates */
@@ -432,6 +438,34 @@ int usbnet_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 }
 EXPORT_SYMBOL_GPL(usbnet_cdc_bind);
 
+static int usbnet_cdc_zte_bind(struct usbnet *dev, struct usb_interface *intf)
+{
+	int status = usbnet_cdc_bind(dev, intf);
+
+	if (!status && (dev->net->dev_addr[0] & 0x02))
+		eth_hw_addr_random(dev->net);
+
+	return status;
+}
+
+/* Make sure packets have correct destination MAC address
+ *
+ * A firmware bug observed on some devices (ZTE MF823/831/910) is that the
+ * device sends packets with a static, bogus, random MAC address (event if
+ * device MAC address has been updated). Always set MAC address to that of the
+ * device.
+ */
+static int usbnet_cdc_zte_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
+{
+	if (skb->len < ETH_HLEN || !(skb->data[0] & 0x02))
+		return 1;
+
+	skb_reset_mac_header(skb);
+	ether_addr_copy(eth_hdr(skb)->h_dest, dev->net->dev_addr);
+
+	return 1;
+}
+
 static const struct driver_info	cdc_info = {
 	.description =	"CDC Ethernet Device",
 	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT,
@@ -440,6 +474,17 @@ static const struct driver_info	cdc_info = {
 	.status =	usbnet_cdc_status,
 	.set_rx_mode =	usbnet_cdc_update_filter,
 	.manage_power =	usbnet_manage_power,
+};
+
+static const struct driver_info	zte_cdc_info = {
+	.description =	"ZTE CDC Ethernet Device",
+	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT,
+	.bind =		usbnet_cdc_zte_bind,
+	.unbind =	usbnet_cdc_unbind,
+	.status =	usbnet_cdc_status,
+	.set_rx_mode =	usbnet_cdc_update_filter,
+	.manage_power =	usbnet_manage_power,
+	.rx_fixup = usbnet_cdc_zte_rx_fixup,
 };
 
 static const struct driver_info wwan_info = {
@@ -706,6 +751,12 @@ static const struct usb_device_id	products[] = {
 	USB_DEVICE_AND_INTERFACE_INFO(DELL_VENDOR_ID, 0x81ba, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
 	.driver_info = (kernel_ulong_t)&wwan_info,
+}, {
+	/* ZTE modules */
+	USB_VENDOR_AND_INTERFACE_INFO(ZTE_VENDOR_ID, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
+	.driver_info = (unsigned long)&zte_cdc_info,
 }, {
 	USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ETHERNET,
 			USB_CDC_PROTO_NONE),

@@ -359,7 +359,7 @@ send_sync:
 		goto discard;
 	}
 
-	DCCP_INC_STATS_BH(DCCP_MIB_INERRS);
+	DCCP_INC_STATS(DCCP_MIB_INERRS);
 discard:
 	__kfree_skb(skb);
 	return 0;

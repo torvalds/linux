@@ -37,6 +37,32 @@ enum {
 	XFS_LOWSP_MAX,
 };
 
+/*
+ * Error Configuration
+ *
+ * Error classes define the subsystem the configuration belongs to.
+ * Error numbers define the errors that are configurable.
+ */
+enum {
+	XFS_ERR_METADATA,
+	XFS_ERR_CLASS_MAX,
+};
+enum {
+	XFS_ERR_DEFAULT,
+	XFS_ERR_EIO,
+	XFS_ERR_ENOSPC,
+	XFS_ERR_ENODEV,
+	XFS_ERR_ERRNO_MAX,
+};
+
+#define XFS_ERR_RETRY_FOREVER	-1
+
+struct xfs_error_cfg {
+	struct xfs_kobj	kobj;
+	int		max_retries;
+	unsigned long	retry_timeout;	/* in jiffies, 0 = no timeout */
+};
+
 typedef struct xfs_mount {
 	struct super_block	*m_super;
 	xfs_tid_t		m_tid;		/* next unused tid for fs */
@@ -90,9 +116,15 @@ typedef struct xfs_mount {
 	uint			m_bmap_dmnr[2];	/* min bmap btree records */
 	uint			m_inobt_mxr[2];	/* max inobt btree records */
 	uint			m_inobt_mnr[2];	/* min inobt btree records */
+	uint			m_rmap_mxr[2];	/* max rmap btree records */
+	uint			m_rmap_mnr[2];	/* min rmap btree records */
 	uint			m_ag_maxlevels;	/* XFS_AG_MAXLEVELS */
 	uint			m_bm_maxlevels[2]; /* XFS_BM_MAXLEVELS */
 	uint			m_in_maxlevels;	/* max inobt btree levels. */
+	uint			m_rmap_maxlevels; /* max rmap btree levels */
+	xfs_extlen_t		m_ag_prealloc_blocks; /* reserved ag blocks */
+	uint			m_alloc_set_aside; /* space we can't use */
+	uint			m_ag_max_usable; /* max space per AG */
 	struct radix_tree_root	m_perag_tree;	/* per-ag accounting info */
 	spinlock_t		m_perag_lock;	/* lock for m_perag_tree */
 	struct mutex		m_growlock;	/* growfs mutex */
@@ -127,6 +159,9 @@ typedef struct xfs_mount {
 	int64_t			m_low_space[XFS_LOWSP_MAX];
 						/* low free space thresholds */
 	struct xfs_kobj		m_kobj;
+	struct xfs_kobj		m_error_kobj;
+	struct xfs_kobj		m_error_meta_kobj;
+	struct xfs_error_cfg	m_error_cfg[XFS_ERR_CLASS_MAX][XFS_ERR_ERRNO_MAX];
 	struct xstats		m_stats;	/* per-fs stats */
 
 	struct workqueue_struct *m_buf_workqueue;
@@ -148,6 +183,7 @@ typedef struct xfs_mount {
 	 */
 	__uint32_t		m_generation;
 
+	bool			m_fail_unmount;
 #ifdef DEBUG
 	/*
 	 * DEBUG mode instrumentation to test and/or trigger delayed allocation
@@ -166,6 +202,7 @@ typedef struct xfs_mount {
 #define XFS_MOUNT_WSYNC		(1ULL << 0)	/* for nfs - all metadata ops
 						   must be synchronous except
 						   for space allocations */
+#define XFS_MOUNT_UNMOUNTING	(1ULL << 1)	/* filesystem is unmounting */
 #define XFS_MOUNT_WAS_CLEAN	(1ULL << 3)
 #define XFS_MOUNT_FS_SHUTDOWN	(1ULL << 4)	/* atomic stop of all filesystem
 						   operations, typically for
@@ -363,5 +400,8 @@ extern void	xfs_set_low_space_thresholds(struct xfs_mount *);
 
 int	xfs_zero_extent(struct xfs_inode *ip, xfs_fsblock_t start_fsb,
 			xfs_off_t count_fsb);
+
+struct xfs_error_cfg * xfs_error_get_cfg(struct xfs_mount *mp,
+		int error_class, int error);
 
 #endif	/* __XFS_MOUNT_H__ */
