@@ -214,6 +214,7 @@ static void __init imx6sll_clocks_init(struct device_node *ccm_node)
 	clks[IMX6SLL_CLK_PERCLK_SEL] 	  = imx_clk_mux("perclk_sel",	base + 0x1c, 6,  1, perclk_sels, ARRAY_SIZE(perclk_sels));
 	clks[IMX6SLL_CLK_UART_SEL]	  = imx_clk_mux("uart_sel",	base + 0x24, 6,  1, uart_sels, ARRAY_SIZE(uart_sels));
 	clks[IMX6SLL_CLK_SPDIF_SEL]	  = imx_clk_mux("spdif_sel",	base + 0x30, 20, 2, spdif_sels, ARRAY_SIZE(spdif_sels));
+	clks[IMX6SLL_CLK_EXTERN_AUDIO_SEL] = imx_clk_mux("extern_audio_sel",   base + 0x30, 7,  2, spdif_sels, ARRAY_SIZE(spdif_sels));
 	clks[IMX6SLL_CLK_EPDC_PRE_SEL]	  = imx_clk_mux("epdc_pre_sel",	base + 0x34, 15, 3, epdc_pre_sels, ARRAY_SIZE(epdc_pre_sels));
 	clks[IMX6SLL_CLK_EPDC_SEL]	  = imx_clk_mux("epdc_sel",	base + 0x34, 9, 3, epdc_sels, ARRAY_SIZE(epdc_sels));
 	clks[IMX6SLL_CLK_ECSPI_SEL]	  = imx_clk_mux("ecspi_sel",	base + 0x38, 18, 1, ecspi_sels, ARRAY_SIZE(ecspi_sels));
@@ -240,6 +241,8 @@ static void __init imx6sll_clocks_init(struct device_node *ccm_node)
 	clks[IMX6SLL_CLK_SSI2_PODF]	= imx_clk_divider("ssi2_podf",	   "ssi2_pred",		base + 0x2c, 0,  6);
 	clks[IMX6SLL_CLK_SPDIF_PRED]	= imx_clk_divider("spdif_pred",	   "spdif_sel",		base + 0x30, 25, 3);
 	clks[IMX6SLL_CLK_SPDIF_PODF]	= imx_clk_divider("spdif_podf",	   "spdif_pred",	base + 0x30, 22, 3);
+	clks[IMX6SLL_CLK_EXTERN_AUDIO_PRED]   = imx_clk_divider("extern_audio_pred",   "extern_audio_sel",        base + 0x30, 12, 3);
+	clks[IMX6SLL_CLK_EXTERN_AUDIO_PODF]   = imx_clk_divider("extern_audio_podf",   "extern_audio_pred",       base + 0x30, 9,  3);
 	clks[IMX6SLL_CLK_EPDC_PODF]	= imx_clk_divider("epdc_podf",	   "epdc_pre_sel",	base + 0x34, 12, 3);
 	clks[IMX6SLL_CLK_ECSPI_PODF]	= imx_clk_divider("ecspi_podf",	   "ecspi_sel",		base + 0x38, 19, 6);
 	clks[IMX6SLL_CLK_LCDIF_PRED]	= imx_clk_divider("lcdif_pred",	   "lcdif_pre_sel",	base + 0x38, 12, 3);
@@ -311,6 +314,7 @@ static void __init imx6sll_clocks_init(struct device_node *ccm_node)
 	clks[IMX6SLL_CLK_SDMA]		= imx_clk_gate2("sdma",		"ahb",		base + 0x7c,	6);
 	clks[IMX6SLL_CLK_WDOG2]		= imx_clk_gate2("wdog2",	"ipg",		base + 0x7c,	10);
 	clks[IMX6SLL_CLK_SPBA]		= imx_clk_gate2("spba",		"ipg",		base + 0x7c,	12);
+	clks[IMX6SLL_CLK_EXTERN_AUDIO]	= imx_clk_gate2_shared("extern_audio",	"extern_audio_podf",	base + 0x7c,	14, &share_count_audio);
 	clks[IMX6SLL_CLK_SPDIF]		= imx_clk_gate2_shared("spdif",		"spdif_podf",	base + 0x7c,	14, &share_count_audio);
 	clks[IMX6SLL_CLK_SPDIF_GCLK]	= imx_clk_gate2_shared("spdif_gclk",	"ipg",		base + 0x7c,	14, &share_count_audio);
 	clks[IMX6SLL_CLK_SSI1]		= imx_clk_gate2_shared("ssi1",		"ssi1_podf",	base + 0x7c, 	18, &share_count_ssi1);
