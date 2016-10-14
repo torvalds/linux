@@ -108,23 +108,6 @@ module_param_cb(h_ipi_redirect, &module_param_ops, &h_ipi_redirect,
 MODULE_PARM_DESC(h_ipi_redirect, "Redirect H_IPI wakeup to a free host core");
 #endif
 
-/* Maximum halt poll interval defaults to KVM_HALT_POLL_NS_DEFAULT */
-static unsigned int halt_poll_max_ns = KVM_HALT_POLL_NS_DEFAULT;
-module_param(halt_poll_max_ns, uint, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(halt_poll_max_ns, "Maximum halt poll time in ns");
-
-/* Factor by which the vcore halt poll interval is grown, default is to double
- */
-static unsigned int halt_poll_ns_grow = 2;
-module_param(halt_poll_ns_grow, int, S_IRUGO);
-MODULE_PARM_DESC(halt_poll_ns_grow, "Factor halt poll time is grown by");
-
-/* Factor by which the vcore halt poll interval is shrunk, default is to reset
- */
-static unsigned int halt_poll_ns_shrink;
-module_param(halt_poll_ns_shrink, int, S_IRUGO);
-MODULE_PARM_DESC(halt_poll_ns_shrink, "Factor halt poll time is shrunk by");
-
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
 
@@ -2617,8 +2600,8 @@ static void grow_halt_poll_ns(struct kvmppc_vcore *vc)
 	else
 		vc->halt_poll_ns *= halt_poll_ns_grow;
 
-	if (vc->halt_poll_ns > halt_poll_max_ns)
-		vc->halt_poll_ns = halt_poll_max_ns;
+	if (vc->halt_poll_ns > halt_poll_ns)
+		vc->halt_poll_ns = halt_poll_ns;
 }
 
 static void shrink_halt_poll_ns(struct kvmppc_vcore *vc)
@@ -2728,15 +2711,15 @@ out:
 	}
 
 	/* Adjust poll time */
-	if (halt_poll_max_ns) {
+	if (halt_poll_ns) {
 		if (block_ns <= vc->halt_poll_ns)
 			;
 		/* We slept and blocked for longer than the max halt time */
-		else if (vc->halt_poll_ns && block_ns > halt_poll_max_ns)
+		else if (vc->halt_poll_ns && block_ns > halt_poll_ns)
 			shrink_halt_poll_ns(vc);
 		/* We slept and our poll time is too small */
-		else if (vc->halt_poll_ns < halt_poll_max_ns &&
-				block_ns < halt_poll_max_ns)
+		else if (vc->halt_poll_ns < halt_poll_ns &&
+				block_ns < halt_poll_ns)
 			grow_halt_poll_ns(vc);
 	} else
 		vc->halt_poll_ns = 0;
