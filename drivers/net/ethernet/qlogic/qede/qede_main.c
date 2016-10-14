@@ -171,9 +171,13 @@ static struct pci_driver qede_pci_driver = {
 #endif
 };
 
-static void qede_force_mac(void *dev, u8 *mac)
+static void qede_force_mac(void *dev, u8 *mac, bool forced)
 {
 	struct qede_dev *edev = dev;
+
+	/* MAC hints take effect only if we haven't set one already */
+	if (is_valid_ether_addr(edev->ndev->dev_addr) && !forced)
+		return;
 
 	ether_addr_copy(edev->ndev->dev_addr, mac);
 	ether_addr_copy(edev->primary_mac, mac);
@@ -396,8 +400,19 @@ static u32 qede_xmit_type(struct qede_dev *edev,
 	    (ipv6_hdr(skb)->nexthdr == NEXTHDR_IPV6))
 		*ipv6_ext = 1;
 
-	if (skb->encapsulation)
+	if (skb->encapsulation) {
 		rc |= XMIT_ENC;
+		if (skb_is_gso(skb)) {
+			unsigned short gso_type = skb_shinfo(skb)->gso_type;
+
+			if ((gso_type & SKB_GSO_UDP_TUNNEL_CSUM) ||
+			    (gso_type & SKB_GSO_GRE_CSUM))
+				rc |= XMIT_ENC_GSO_L4_CSUM;
+
+			rc |= XMIT_LSO;
+			return rc;
+		}
+	}
 
 	if (skb_is_gso(skb))
 		rc |= XMIT_LSO;
@@ -633,6 +648,12 @@ static netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 		if (unlikely(xmit_type & XMIT_ENC)) {
 			first_bd->data.bd_flags.bitfields |=
 				1 << ETH_TX_1ST_BD_FLAGS_TUNN_IP_CSUM_SHIFT;
+
+			if (xmit_type & XMIT_ENC_GSO_L4_CSUM) {
+				u8 tmp = ETH_TX_1ST_BD_FLAGS_TUNN_L4_CSUM_SHIFT;
+
+				first_bd->data.bd_flags.bitfields |= 1 << tmp;
+			}
 			hlen = qede_get_skb_hlen(skb, true);
 		} else {
 			first_bd->data.bd_flags.bitfields |=
@@ -2219,6 +2240,40 @@ static void qede_udp_tunnel_del(struct net_device *dev,
 	schedule_delayed_work(&edev->sp_task, 0);
 }
 
+/* 8B udp header + 8B base tunnel header + 32B option length */
+#define QEDE_MAX_TUN_HDR_LEN 48
+
+static netdev_features_t qede_features_check(struct sk_buff *skb,
+					     struct net_device *dev,
+					     netdev_features_t features)
+{
+	if (skb->encapsulation) {
+		u8 l4_proto = 0;
+
+		switch (vlan_get_protocol(skb)) {
+		case htons(ETH_P_IP):
+			l4_proto = ip_hdr(skb)->protocol;
+			break;
+		case htons(ETH_P_IPV6):
+			l4_proto = ipv6_hdr(skb)->nexthdr;
+			break;
+		default:
+			return features;
+		}
+
+		/* Disable offloads for geneve tunnels, as HW can't parse
+		 * the geneve header which has option length greater than 32B.
+		 */
+		if ((l4_proto == IPPROTO_UDP) &&
+		    ((skb_inner_mac_header(skb) -
+		      skb_transport_header(skb)) > QEDE_MAX_TUN_HDR_LEN))
+			return features & ~(NETIF_F_CSUM_MASK |
+					    NETIF_F_GSO_MASK);
+	}
+
+	return features;
+}
+
 static const struct net_device_ops qede_netdev_ops = {
 	.ndo_open = qede_open,
 	.ndo_stop = qede_close,
@@ -2243,6 +2298,7 @@ static const struct net_device_ops qede_netdev_ops = {
 #endif
 	.ndo_udp_tunnel_add = qede_udp_tunnel_add,
 	.ndo_udp_tunnel_del = qede_udp_tunnel_del,
+	.ndo_features_check = qede_features_check,
 };
 
 /* -------------------------------------------------------------------------
@@ -2309,6 +2365,8 @@ static void qede_init_ndev(struct qede_dev *edev)
 
 	qede_set_ethtool_ops(ndev);
 
+	ndev->priv_flags = IFF_UNICAST_FLT;
+
 	/* user-changeble features */
 	hw_features = NETIF_F_GRO | NETIF_F_SG |
 		      NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
@@ -2316,11 +2374,14 @@ static void qede_init_ndev(struct qede_dev *edev)
 
 	/* Encap features*/
 	hw_features |= NETIF_F_GSO_GRE | NETIF_F_GSO_UDP_TUNNEL |
-		       NETIF_F_TSO_ECN;
+		       NETIF_F_TSO_ECN | NETIF_F_GSO_UDP_TUNNEL_CSUM |
+		       NETIF_F_GSO_GRE_CSUM;
 	ndev->hw_enc_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 				NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO_ECN |
 				NETIF_F_TSO6 | NETIF_F_GSO_GRE |
-				NETIF_F_GSO_UDP_TUNNEL | NETIF_F_RXCSUM;
+				NETIF_F_GSO_UDP_TUNNEL | NETIF_F_RXCSUM |
+				NETIF_F_GSO_UDP_TUNNEL_CSUM |
+				NETIF_F_GSO_GRE_CSUM;
 
 	ndev->vlan_features = hw_features | NETIF_F_RXHASH | NETIF_F_RXCSUM |
 			      NETIF_F_HIGHDMA;
@@ -3878,7 +3939,7 @@ static void qede_config_rx_mode(struct net_device *ndev)
 
 	/* Check for promiscuous */
 	if ((ndev->flags & IFF_PROMISC) ||
-	    (uc_count > 15)) { /* @@@TBD resource allocation - 1 */
+	    (uc_count > edev->dev_info.num_mac_filters - 1)) {
 		accept_flags = QED_FILTER_RX_MODE_TYPE_PROMISC;
 	} else {
 		/* Add MAC filters according to the unicast secondary macs */
