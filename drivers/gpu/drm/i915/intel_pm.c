@@ -4317,15 +4317,13 @@ static inline void skl_wm_level_from_reg_val(uint32_t val,
 		PLANE_WM_LINES_MASK;
 }
 
-static void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc)
+void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc,
+			      struct skl_pipe_wm *out)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct skl_wm_values *hw = &dev_priv->wm.skl_hw;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
 	struct intel_plane *intel_plane;
-	struct skl_pipe_wm *active = &cstate->wm.skl.optimal;
 	struct skl_plane_wm *wm;
 	enum pipe pipe = intel_crtc->pipe;
 	int level, id, max_level;
@@ -4335,7 +4333,7 @@ static void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 
 	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
 		id = skl_wm_plane_id(intel_plane);
-		wm = &cstate->wm.skl.optimal.planes[id];
+		wm = &out->planes[id];
 
 		for (level = 0; level <= max_level; level++) {
 			if (id != PLANE_CURSOR)
@@ -4357,20 +4355,30 @@ static void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 	if (!intel_crtc->active)
 		return;
 
-	hw->dirty_pipes |= drm_crtc_mask(crtc);
-	active->linetime = I915_READ(PIPE_WM_LINETIME(pipe));
-	intel_crtc->wm.active.skl = *active;
+	out->linetime = I915_READ(PIPE_WM_LINETIME(pipe));
 }
 
 void skl_wm_get_hw_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct skl_wm_values *hw = &dev_priv->wm.skl_hw;
 	struct skl_ddb_allocation *ddb = &dev_priv->wm.skl_hw.ddb;
 	struct drm_crtc *crtc;
+	struct intel_crtc *intel_crtc;
+	struct intel_crtc_state *cstate;
 
 	skl_ddb_get_hw_state(dev_priv, ddb);
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		skl_pipe_wm_get_hw_state(crtc);
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		intel_crtc = to_intel_crtc(crtc);
+		cstate = to_intel_crtc_state(crtc->state);
+
+		skl_pipe_wm_get_hw_state(crtc, &cstate->wm.skl.optimal);
+
+		if (intel_crtc->active) {
+			hw->dirty_pipes |= drm_crtc_mask(crtc);
+			intel_crtc->wm.active.skl = cstate->wm.skl.optimal;
+		}
+	}
 
 	if (dev_priv->active_crtcs) {
 		/* Fully recompute DDB on first atomic commit */
