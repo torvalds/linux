@@ -257,12 +257,7 @@ static s16 *read_rds_samples(struct cx88_core *core, u32 *N)
 		offset += 4;
 	}
 
-	if (dsp_debug >= 2) {
-		dprintk(2, "RDS samples dump: ");
-		for (i = 0; i < sample_count; i++)
-			printk("%hd ", samples[i]);
-		printk(".\n");
-	}
+	dprintk(2, "RDS samples dump: %*ph\n", sample_count, samples);
 
 	return samples;
 }

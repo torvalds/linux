@@ -399,12 +399,12 @@ static int cx88_risc_decode(u32 risc)
 	};
 	int i;
 
-	printk("0x%08x [ %s", risc,
+	printk(KERN_DEBUG "0x%08x [ %s", risc,
 	       instr[risc >> 28] ? instr[risc >> 28] : "INVALID");
 	for (i = ARRAY_SIZE(bits)-1; i >= 0; i--)
 		if (risc & (1 << (i + 12)))
-			printk(" %s",bits[i]);
-	printk(" count=%d ]\n", risc & 0xfff);
+			printk(KERN_CONT " %s", bits[i]);
+	printk(KERN_CONT " count=%d ]\n", risc & 0xfff);
 	return incr[risc >> 28] ? incr[risc >> 28] : 1;
 }
 
@@ -428,42 +428,42 @@ void cx88_sram_channel_dump(struct cx88_core *core,
 	u32 risc;
 	unsigned int i,j,n;
 
-	printk("%s: %s - dma channel status dump\n",
+	printk(KERN_DEBUG "%s: %s - dma channel status dump\n",
 	       core->name,ch->name);
 	for (i = 0; i < ARRAY_SIZE(name); i++)
-		printk("%s:   cmds: %-12s: 0x%08x\n",
+		printk(KERN_DEBUG "%s:   cmds: %-12s: 0x%08x\n",
 		       core->name,name[i],
 		       cx_read(ch->cmds_start + 4*i));
 	for (n = 1, i = 0; i < 4; i++) {
 		risc = cx_read(ch->cmds_start + 4 * (i+11));
-		printk("%s:   risc%d: ", core->name, i);
+		printk(KERN_CONT "%s:   risc%d: ", core->name, i);
 		if (--n)
-			printk("0x%08x [ arg #%d ]\n", risc, n);
+			printk(KERN_CONT "0x%08x [ arg #%d ]\n", risc, n);
 		else
 			n = cx88_risc_decode(risc);
 	}
 	for (i = 0; i < 16; i += n) {
 		risc = cx_read(ch->ctrl_start + 4 * i);
-		printk("%s:   iq %x: ", core->name, i);
+		printk(KERN_DEBUG "%s:   iq %x: ", core->name, i);
 		n = cx88_risc_decode(risc);
 		for (j = 1; j < n; j++) {
 			risc = cx_read(ch->ctrl_start + 4 * (i+j));
-			printk("%s:   iq %x: 0x%08x [ arg #%d ]\n",
+			printk(KERN_CONT "%s:   iq %x: 0x%08x [ arg #%d ]\n",
 			       core->name, i+j, risc, j);
 		}
 	}
 
-	printk("%s: fifo: 0x%08x -> 0x%x\n",
+	printk(KERN_DEBUG "%s: fifo: 0x%08x -> 0x%x\n",
 	       core->name, ch->fifo_start, ch->fifo_start+ch->fifo_size);
-	printk("%s: ctrl: 0x%08x -> 0x%x\n",
+	printk(KERN_DEBUG "%s: ctrl: 0x%08x -> 0x%x\n",
 	       core->name, ch->ctrl_start, ch->ctrl_start+6*16);
-	printk("%s:   ptr1_reg: 0x%08x\n",
+	printk(KERN_DEBUG "%s:   ptr1_reg: 0x%08x\n",
 	       core->name,cx_read(ch->ptr1_reg));
-	printk("%s:   ptr2_reg: 0x%08x\n",
+	printk(KERN_DEBUG "%s:   ptr2_reg: 0x%08x\n",
 	       core->name,cx_read(ch->ptr2_reg));
-	printk("%s:   cnt1_reg: 0x%08x\n",
+	printk(KERN_DEBUG "%s:   cnt1_reg: 0x%08x\n",
 	       core->name,cx_read(ch->cnt1_reg));
-	printk("%s:   cnt2_reg: 0x%08x\n",
+	printk(KERN_DEBUG "%s:   cnt2_reg: 0x%08x\n",
 	       core->name,cx_read(ch->cnt2_reg));
 }
 
@@ -484,14 +484,14 @@ void cx88_print_irqbits(const char *name, const char *tag, const char *strings[]
 		if (!(bits & (1 << i)))
 			continue;
 		if (strings[i])
-			printk(" %s", strings[i]);
+			printk(KERN_CONT " %s", strings[i]);
 		else
-			printk(" %d", i);
+			printk(KERN_CONT " %d", i);
 		if (!(mask & (1 << i)))
 			continue;
-		printk("*");
+		printk(KERN_CONT "*");
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 
 /* ------------------------------------------------------------------ */
