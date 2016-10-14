@@ -3988,6 +3988,31 @@ go_again:
 }
 
 static void
+intel_dp_retrain_link(struct intel_dp *intel_dp)
+{
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+
+	/* Suppress underruns caused by re-training */
+	intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, false);
+	if (crtc->config->has_pch_encoder)
+		intel_set_pch_fifo_underrun_reporting(dev_priv,
+						      intel_crtc_pch_transcoder(crtc), false);
+
+	intel_dp_start_link_train(intel_dp);
+	intel_dp_stop_link_train(intel_dp);
+
+	/* Keep underrun reporting disabled until things are stable */
+	intel_wait_for_vblank(&dev_priv->drm, crtc->pipe);
+
+	intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, true);
+	if (crtc->config->has_pch_encoder)
+		intel_set_pch_fifo_underrun_reporting(dev_priv,
+						      intel_crtc_pch_transcoder(crtc), true);
+}
+
+static void
 intel_dp_check_link_status(struct intel_dp *intel_dp)
 {
 	struct intel_encoder *intel_encoder = &dp_to_dig_port(intel_dp)->base;
@@ -4012,8 +4037,8 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 	    (!drm_dp_channel_eq_ok(link_status, intel_dp->lane_count))) {
 		DRM_DEBUG_KMS("%s: channel EQ not ok, retraining\n",
 			      intel_encoder->base.name);
-		intel_dp_start_link_train(intel_dp);
-		intel_dp_stop_link_train(intel_dp);
+
+		intel_dp_retrain_link(intel_dp);
 	}
 }
 
