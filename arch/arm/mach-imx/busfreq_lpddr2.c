@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2011-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 /*
@@ -56,6 +56,7 @@ void (*mx6_change_lpddr2_freq)(u32 ddr_freq, int bus_freq_mode) = NULL;
 extern unsigned int ddr_normal_rate;
 extern void mx6_lpddr2_freq_change(u32 freq, int bus_freq_mode);
 extern void imx6_up_lpddr2_freq_change(u32 freq, int bus_freq_mode);
+extern void imx6sll_lpddr2_freq_change(u32 freq, int bus_freq_mode);
 extern unsigned long save_ttbr1(void);
 extern void restore_ttbr1(unsigned long ttbr1);
 extern void mx6q_lpddr2_freq_change(u32 freq, void *ddr_settings);
@@ -163,6 +164,10 @@ int init_mmdc_lpddr2_settings(struct platform_device *busfreq_pdev)
 		mx6_change_lpddr2_freq = (void *)fncpy(
 			(void *)ddr_freq_change_iram_base,
 			&imx6_up_lpddr2_freq_change, ddr_code_size);
+	if (cpu_is_imx6sll())
+		mx6_change_lpddr2_freq = (void *)fncpy(
+			(void *)ddr_freq_change_iram_base,
+			&imx6sll_lpddr2_freq_change, ddr_code_size);
 
 	curr_ddr_rate = ddr_normal_rate;
 

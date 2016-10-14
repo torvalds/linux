@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015-2016 Freescale Semiconductor, Inc.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -130,6 +130,10 @@ EXPORT_SYMBOL_GPL(imx_gpc_mf_request_on);
 #if !defined(CONFIG_SOC_IMX6SL)
 u32 imx6_lpddr2_freq_change_start, imx6_lpddr2_freq_change_end;
 void mx6_lpddr2_freq_change(u32 freq, int bus_freq_mode) {}
+#endif
+
+#if !defined(CONFIG_SOC_IMX6SL)
+void imx6sll_lpddr2_freq_change(u32 freq, int bus_freq_mode) {}
 #endif
 
 #if !defined(CONFIG_SOC_IMX6SX) && !defined(CONFIG_SOC_IMX6UL)

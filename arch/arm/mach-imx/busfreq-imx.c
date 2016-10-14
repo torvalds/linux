@@ -206,7 +206,8 @@ static void enter_lpm_imx6_up(void)
 		clk_prepare_enable(pll2_400_clk);
 		if (ddr_type == IMX_DDR_TYPE_DDR3)
 			update_ddr_freq_imx6_up(LOW_AUDIO_CLK);
-		else if (ddr_type == IMX_DDR_TYPE_LPDDR2)
+		else if (ddr_type == IMX_DDR_TYPE_LPDDR2 ||
+			 ddr_type == IMX_MMDC_DDR_TYPE_LPDDR3)
 			update_lpddr2_freq(HIGH_AUDIO_CLK);
 		imx_clk_set_parent(periph2_clk2_sel_clk, pll3_clk);
 		imx_clk_set_parent(periph2_pre_clk, pll2_400_clk);
@@ -223,11 +224,12 @@ static void enter_lpm_imx6_up(void)
 		if (high_bus_freq_mode) {
 			if (ddr_type == IMX_DDR_TYPE_DDR3)
 				imx_clk_set_rate(mmdc_clk, LOW_AUDIO_CLK);
-			else if (ddr_type == IMX_DDR_TYPE_LPDDR2)
+			else if (ddr_type == IMX_DDR_TYPE_LPDDR2 ||
+				 ddr_type == IMX_MMDC_DDR_TYPE_LPDDR3)
 				imx_clk_set_rate(mmdc_clk, HIGH_AUDIO_CLK);
 		}
 
-		if (cpu_is_imx6ull() && low_bus_freq_mode)
+		if ((cpu_is_imx6ull() || cpu_is_imx6sll()) && low_bus_freq_mode)
 			imx6ull_lower_cpu_rate(false);
 
 		audio_bus_freq_mode = 1;
@@ -236,7 +238,8 @@ static void enter_lpm_imx6_up(void)
 	} else {
 		if (ddr_type == IMX_DDR_TYPE_DDR3)
 			update_ddr_freq_imx6_up(LPAPM_CLK);
-		else if (ddr_type == IMX_DDR_TYPE_LPDDR2)
+		else if (ddr_type == IMX_DDR_TYPE_LPDDR2 ||
+			 ddr_type == IMX_MMDC_DDR_TYPE_LPDDR3)
 			update_lpddr2_freq(LPAPM_CLK);
 		imx_clk_set_parent(periph2_clk2_sel_clk, osc_clk);
 		imx_clk_set_parent(periph2_clk, periph2_clk2_clk);
@@ -244,7 +247,7 @@ static void enter_lpm_imx6_up(void)
 		if (audio_bus_freq_mode)
 			clk_disable_unprepare(pll2_400_clk);
 
-		if (cpu_is_imx6ull())
+		if (cpu_is_imx6ull() || cpu_is_imx6sll())
 			imx6ull_lower_cpu_rate(true);
 
 		low_bus_freq_mode = 1;
@@ -295,7 +298,7 @@ static void enter_lpm_imx6_smp(void)
 
 static void exit_lpm_imx6_up(void)
 {
-	if (cpu_is_imx6ull() && low_bus_freq_mode)
+	if ((cpu_is_imx6ull() || cpu_is_imx6sll()) && low_bus_freq_mode)
 		imx6ull_lower_cpu_rate(false);
 
 	clk_prepare_enable(pll2_400_clk);
@@ -304,14 +307,14 @@ static void exit_lpm_imx6_up(void)
 	 * lower ahb/ocram's freq first to avoid too high
 	 * freq during parent switch from OSC to pll3.
 	 */
-	if (cpu_is_imx6ul() || cpu_is_imx6ull())
+	if (cpu_is_imx6ul() || cpu_is_imx6ull() || cpu_is_imx6sll())
 		imx_clk_set_rate(ahb_clk, LPAPM_CLK / 4);
 	else
 		imx_clk_set_rate(ahb_clk, LPAPM_CLK / 3);
 
 	imx_clk_set_rate(ocram_clk, LPAPM_CLK / 2);
 	/* set periph clk to from pll2_bus on i.MX6UL */
-	if (cpu_is_imx6ul() || cpu_is_imx6ull())
+	if (cpu_is_imx6ul() || cpu_is_imx6ull() || cpu_is_imx6sll())
 		imx_clk_set_parent(periph_pre_clk, pll2_bus_clk);
 	/* set periph clk to from pll2_400 */
 	else
@@ -322,7 +325,7 @@ static void exit_lpm_imx6_up(void)
 
 	if (ddr_type == IMX_DDR_TYPE_DDR3)
 		update_ddr_freq_imx6_up(ddr_normal_rate);
-	else if (ddr_type == IMX_DDR_TYPE_LPDDR2)
+	else if (ddr_type == IMX_DDR_TYPE_LPDDR2 || ddr_type == IMX_MMDC_DDR_TYPE_LPDDR3)
 		update_lpddr2_freq(ddr_normal_rate);
 	/* correct parent info after ddr freq change in asm code */
 	imx_clk_set_parent(periph2_pre_clk, pll2_400_clk);
@@ -606,7 +609,7 @@ static void reduce_bus_freq(void)
 
 	if (cpu_is_imx7d())
 		enter_lpm_imx7d();
-	else if (cpu_is_imx6sx() || cpu_is_imx6ul() || cpu_is_imx6ull())
+	else if (cpu_is_imx6sx() || cpu_is_imx6ul() || cpu_is_imx6ull() || cpu_is_imx6sll())
 		enter_lpm_imx6_up();
 	else if (cpu_is_imx6q() || cpu_is_imx6dl())
 		enter_lpm_imx6_smp();
@@ -699,7 +702,7 @@ static int set_high_bus_freq(int high_bus_freq)
 
 	if (cpu_is_imx7d())
 		exit_lpm_imx7d();
-	else if (cpu_is_imx6sx() || cpu_is_imx6ul() || cpu_is_imx6ull())
+	else if (cpu_is_imx6sx() || cpu_is_imx6ul() || cpu_is_imx6ull() || cpu_is_imx6sll())
 		exit_lpm_imx6_up();
 	else if (cpu_is_imx6q() || cpu_is_imx6dl())
 		exit_lpm_imx6_smp();
@@ -1058,7 +1061,8 @@ static int busfreq_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (cpu_is_imx6sx() || cpu_is_imx6ul() || cpu_is_imx6sl() || cpu_is_imx6ull()) {
+	if (cpu_is_imx6sx() || cpu_is_imx6ul() || cpu_is_imx6sl() || cpu_is_imx6ull() ||
+	    cpu_is_imx6sll()) {
 		ahb_clk = devm_clk_get(&pdev->dev, "ahb");
 		ocram_clk = devm_clk_get(&pdev->dev, "ocram");
 		periph2_clk = devm_clk_get(&pdev->dev, "periph2");
@@ -1076,7 +1080,7 @@ static int busfreq_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (cpu_is_imx6sx() || cpu_is_imx6ul() || cpu_is_imx6ull()) {
+	if (cpu_is_imx6sx() || cpu_is_imx6ul() || cpu_is_imx6ull() || cpu_is_imx6sll()) {
 		mmdc_clk = devm_clk_get(&pdev->dev, "mmdc");
 		if (IS_ERR(mmdc_clk)) {
 			dev_err(busfreq_dev,
@@ -1105,7 +1109,7 @@ static int busfreq_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (cpu_is_imx6ull() || cpu_is_imx6sl()) {
+	if (cpu_is_imx6ull() || cpu_is_imx6sl() || cpu_is_imx6sll()) {
 		arm_clk = devm_clk_get(&pdev->dev, "arm");
 		step_clk = devm_clk_get(&pdev->dev, "step");
 		pll1_clk = devm_clk_get(&pdev->dev, "pll1");
@@ -1209,11 +1213,13 @@ static int busfreq_probe(struct platform_device *pdev)
 			pr_info("ddr3 normal rate changed to 400MHz for TO1.1.\n");
 		}
 		err = init_ddrc_ddr_settings(pdev);
-	} else if (cpu_is_imx6sx() || cpu_is_imx6ul() || cpu_is_imx6ull()) {
+	} else if (cpu_is_imx6sx() || cpu_is_imx6ul() || cpu_is_imx6ull() ||
+		   cpu_is_imx6sll()) {
 		ddr_type = imx_mmdc_get_ddr_type();
 		if (ddr_type == IMX_DDR_TYPE_DDR3)
 			err = init_mmdc_ddr3_settings_imx6_up(pdev);
-		else if (ddr_type == IMX_DDR_TYPE_LPDDR2)
+		else if (ddr_type == IMX_DDR_TYPE_LPDDR2 ||
+			 ddr_type == IMX_MMDC_DDR_TYPE_LPDDR3)
 			err = init_mmdc_lpddr2_settings(pdev);
 	} else if (cpu_is_imx6q() || cpu_is_imx6dl()) {
 		ddr_type = imx_mmdc_get_ddr_type();
