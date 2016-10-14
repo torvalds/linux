@@ -1434,6 +1434,8 @@
 		reset-names = "uphy", "uphy-pipe", "uphy-tcphy";
 		rockchip,typec-conn-dir = <0xe580 0 16>;
 		rockchip,usb3tousb2-en = <0xe580 3 19>;
+		rockchip,usb3-host-disable = <0x2434 0 16>;
+		rockchip,usb3-host-port = <0x2434 12 28>;
 		rockchip,external-psm = <0xe588 14 30>;
 		rockchip,pipe-status = <0xe5c0 0 0>;
 		rockchip,uphy-dp-sel = <0x6268 19 19>;
@@ -1464,6 +1466,8 @@
 		reset-names = "uphy", "uphy-pipe", "uphy-tcphy";
 		rockchip,typec-conn-dir = <0xe58c 0 16>;
 		rockchip,usb3tousb2-en = <0xe58c 3 19>;
+		rockchip,usb3-host-disable = <0x2444 0 16>;
+		rockchip,usb3-host-port = <0x2444 12 28>;
 		rockchip,external-psm = <0xe594 14 30>;
 		rockchip,pipe-status = <0xe5c0 16 16>;
 		rockchip,uphy-dp-sel = <0x6268 3 19>;
