@@ -2438,7 +2438,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	struct intel_digital_port *intel_dig_port;
 	struct intel_encoder *intel_encoder;
 	struct drm_encoder *encoder;
-	bool init_hdmi, init_dp;
+	bool init_hdmi, init_dp, init_lspcon = false;
 	int max_lanes;
 
 	if (I915_READ(DDI_BUF_CTL(PORT_A)) & DDI_A_4_LANES) {
@@ -2470,6 +2470,19 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	init_hdmi = (dev_priv->vbt.ddi_port_info[port].supports_dvi ||
 		     dev_priv->vbt.ddi_port_info[port].supports_hdmi);
 	init_dp = dev_priv->vbt.ddi_port_info[port].supports_dp;
+
+	if (intel_bios_is_lspcon_present(dev_priv, port)) {
+		/*
+		 * Lspcon device needs to be driven with DP connector
+		 * with special detection sequence. So make sure DP
+		 * is initialized before lspcon.
+		 */
+		init_dp = true;
+		init_lspcon = true;
+		init_hdmi = false;
+		DRM_DEBUG_KMS("VBT says port %c has lspcon\n", port_name(port));
+	}
+
 	if (!init_dp && !init_hdmi) {
 		DRM_DEBUG_KMS("VBT says port %c is not DVI/HDMI/DP compatible, respect it\n",
 			      port_name(port));
@@ -2544,6 +2557,20 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	if (intel_encoder->type != INTEL_OUTPUT_EDP && init_hdmi) {
 		if (!intel_ddi_init_hdmi_connector(intel_dig_port))
 			goto err;
+	}
+
+	if (init_lspcon) {
+		if (lspcon_init(intel_dig_port))
+			/* TODO: handle hdmi info frame part */
+			DRM_DEBUG_KMS("LSPCON init success on port %c\n",
+				port_name(port));
+		else
+			/*
+			 * LSPCON init faied, but DP init was success, so
+			 * lets try to drive as DP++ port.
+			 */
+			DRM_ERROR("LSPCON init failed on port %c\n",
+				port_name(port));
 	}
 
 	return;
