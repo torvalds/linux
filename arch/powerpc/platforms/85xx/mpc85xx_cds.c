@@ -83,7 +83,8 @@ static int mpc85xx_exclude_device(struct pci_controller *hose,
 		return PCIBIOS_SUCCESSFUL;
 }
 
-static void __noreturn mpc85xx_cds_restart(char *cmd)
+static int mpc85xx_cds_restart(struct notifier_block *this,
+			       unsigned long mode, void *cmd)
 {
 	struct pci_dev *dev;
 	u_char tmp;
@@ -108,11 +109,24 @@ static void __noreturn mpc85xx_cds_restart(char *cmd)
 	}
 
 	/*
-	 *  If we can't find the VIA chip (maybe the P2P bridge is disabled)
-	 *  or the VIA chip reset didn't work, just use the default reset.
+	 *  If we can't find the VIA chip (maybe the P2P bridge is
+	 *  disabled) or the VIA chip reset didn't work, just return
+	 *  and let default reset sequence happen.
 	 */
-	fsl_rstcr_restart(NULL);
+	return NOTIFY_DONE;
 }
+
+static int mpc85xx_cds_restart_register(void)
+{
+	static struct notifier_block restart_handler;
+
+	restart_handler.notifier_call = mpc85xx_cds_restart;
+	restart_handler.priority = 192;
+
+	return register_restart_handler(&restart_handler);
+}
+machine_arch_initcall(mpc85xx_cds, mpc85xx_cds_restart_register);
+
 
 static void __init mpc85xx_cds_pci_irq_fixup(struct pci_dev *dev)
 {
@@ -380,11 +394,8 @@ define_machine(mpc85xx_cds) {
 	.show_cpuinfo	= mpc85xx_cds_show_cpuinfo,
 	.get_irq	= mpic_get_irq,
 #ifdef CONFIG_PCI
-	.restart	= mpc85xx_cds_restart,
 	.pcibios_fixup_bus	= mpc85xx_cds_fixup_bus,
 	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
-#else
-	.restart	= fsl_rstcr_restart,
 #endif
 	.calibrate_decr = generic_calibrate_decr,
 	.progress	= udbg_progress,
