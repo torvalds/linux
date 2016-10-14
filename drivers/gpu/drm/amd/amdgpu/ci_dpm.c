@@ -6100,6 +6100,56 @@ static void ci_dpm_print_power_state(struct amdgpu_device *adev,
 	amdgpu_dpm_print_ps_status(adev, rps);
 }
 
+static inline bool ci_are_power_levels_equal(const struct ci_pl *ci_cpl1,
+						const struct ci_pl *ci_cpl2)
+{
+	return ((ci_cpl1->mclk == ci_cpl2->mclk) &&
+		  (ci_cpl1->sclk == ci_cpl2->sclk) &&
+		  (ci_cpl1->pcie_gen == ci_cpl2->pcie_gen) &&
+		  (ci_cpl1->pcie_lane == ci_cpl2->pcie_lane));
+}
+
+static int ci_check_state_equal(struct amdgpu_device *adev,
+				struct amdgpu_ps *cps,
+				struct amdgpu_ps *rps,
+				bool *equal)
+{
+	struct ci_ps *ci_cps;
+	struct ci_ps *ci_rps;
+	int i;
+
+	if (adev == NULL || cps == NULL || rps == NULL || equal == NULL)
+		return -EINVAL;
+
+	ci_cps = ci_get_ps(cps);
+	ci_rps = ci_get_ps(rps);
+
+	if (ci_cps == NULL) {
+		*equal = false;
+		return 0;
+	}
+
+	if (ci_cps->performance_level_count != ci_rps->performance_level_count) {
+
+		*equal = false;
+		return 0;
+	}
+
+	for (i = 0; i < ci_cps->performance_level_count; i++) {
+		if (!ci_are_power_levels_equal(&(ci_cps->performance_levels[i]),
+					&(ci_rps->performance_levels[i]))) {
+			*equal = false;
+			return 0;
+		}
+	}
+
+	/* If all performance levels are the same try to use the UVD clocks to break the tie.*/
+	*equal = ((cps->vclk == rps->vclk) && (cps->dclk == rps->dclk));
+	*equal &= ((cps->evclk == rps->evclk) && (cps->ecclk == rps->ecclk));
+
+	return 0;
+}
+
 static u32 ci_dpm_get_sclk(struct amdgpu_device *adev, bool low)
 {
 	struct ci_power_info *pi = ci_get_pi(adev);
@@ -6650,6 +6700,7 @@ static const struct amdgpu_dpm_funcs ci_dpm_funcs = {
 	.set_sclk_od = ci_dpm_set_sclk_od,
 	.get_mclk_od = ci_dpm_get_mclk_od,
 	.set_mclk_od = ci_dpm_set_mclk_od,
+	.check_state_equal = ci_check_state_equal,
 	.get_vce_clock_state = amdgpu_get_vce_clock_state,
 };
 
