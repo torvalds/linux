@@ -1292,6 +1292,12 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!oe)
 		goto out_put_cred;
 
+	sb->s_magic = OVERLAYFS_SUPER_MAGIC;
+	sb->s_op = &ovl_super_operations;
+	sb->s_xattr = ovl_xattr_handlers;
+	sb->s_fs_info = ufs;
+	sb->s_flags |= MS_POSIXACL | MS_NOREMOTELOCK;
+
 	root_dentry = d_make_root(ovl_new_inode(sb, S_IFDIR));
 	if (!root_dentry)
 		goto out_free_oe;
@@ -1315,12 +1321,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	ovl_inode_init(d_inode(root_dentry), realinode, !!upperpath.dentry);
 	ovl_copyattr(realinode, d_inode(root_dentry));
 
-	sb->s_magic = OVERLAYFS_SUPER_MAGIC;
-	sb->s_op = &ovl_super_operations;
-	sb->s_xattr = ovl_xattr_handlers;
 	sb->s_root = root_dentry;
-	sb->s_fs_info = ufs;
-	sb->s_flags |= MS_POSIXACL | MS_NOREMOTELOCK;
 
 	return 0;
 
