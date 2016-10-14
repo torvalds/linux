@@ -116,6 +116,7 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		usleep_range(1000, 1200);
 		reset_control_deassert(rockchip->otg_rst);
 
+		pm_runtime_get_sync(rockchip->dev);
 		pm_runtime_get_sync(dwc->dev);
 
 		spin_lock_irqsave(&dwc->lock, flags);
@@ -151,6 +152,13 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		reset_control_assert(rockchip->otg_rst);
 		usleep_range(1000, 1200);
 		reset_control_deassert(rockchip->otg_rst);
+
+		/*
+		 * In usb3 phy init, it will access usb3 module, so we need
+		 * to resume rockchip dev before phy init to make sure usb3
+		 * pd is enabled.
+		 */
+		pm_runtime_get_sync(rockchip->dev);
 
 		/*
 		 * Don't abort on errors. If powering on a phy fails,
@@ -221,6 +229,7 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 			phy_power_off(dwc->usb3_generic_phy);
 		}
 
+		pm_runtime_put_sync(rockchip->dev);
 		pm_runtime_put_sync_suspend(dwc->dev);
 
 		rockchip->connected = false;
