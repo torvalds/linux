@@ -265,6 +265,8 @@ struct usb3phy_reg {
 struct rockchip_usb3phy_port_cfg {
 	struct usb3phy_reg typec_conn_dir;
 	struct usb3phy_reg usb3tousb2_en;
+	struct usb3phy_reg usb3host_disable;
+	struct usb3phy_reg usb3host_port;
 	struct usb3phy_reg external_psm;
 	struct usb3phy_reg pipe_status;
 };
@@ -559,12 +561,28 @@ static int tcphy_phy_init(struct rockchip_typec_phy *tcphy, u8 mode)
 	tcphy_cfg_24m(tcphy);
 
 	if (mode == MODE_DFP_DP) {
+		/*
+		 * Config usb work in USB2.0 only mode, we need to ensure
+		 * usb3 pd is enabled before access these regiters.
+		 */
+		property_enable(tcphy, &cfg->usb3tousb2_en, 1);
+		property_enable(tcphy, &cfg->usb3host_disable, 1);
+		property_enable(tcphy, &cfg->usb3host_port, 0);
+
 		tcphy_cfg_dp_pll(tcphy);
 		for (i = 0; i < 4; i++)
 			tcphy_dp_cfg_lane(tcphy, i);
 
 		writel(PIN_ASSIGN_C_E, tcphy->base + PMA_LANE_CFG);
 	} else {
+		/*
+		 * Enable usb work in usb3.0, we need to ensure usb3
+		 * pd is enabled before access these registers.
+		 */
+		property_enable(tcphy, &cfg->usb3tousb2_en, 0);
+		property_enable(tcphy, &cfg->usb3host_disable, 0);
+		property_enable(tcphy, &cfg->usb3host_port, 1);
+
 		tcphy_cfg_usb3_pll(tcphy);
 		tcphy_cfg_dp_pll(tcphy);
 		if (tcphy->flip) {
@@ -863,6 +881,16 @@ static int tcphy_parse_dt(struct rockchip_typec_phy *tcphy,
 
 	ret = tcphy_get_param(dev, &cfg->usb3tousb2_en,
 			      "rockchip,usb3tousb2-en");
+	if (ret)
+		return ret;
+
+	ret = tcphy_get_param(dev, &cfg->usb3host_disable,
+			      "rockchip,usb3-host-disable");
+	if (ret)
+		return ret;
+
+	ret = tcphy_get_param(dev, &cfg->usb3host_port,
+			      "rockchip,usb3-host-port");
 	if (ret)
 		return ret;
 
