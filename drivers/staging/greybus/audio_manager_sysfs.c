@@ -44,7 +44,7 @@ static ssize_t manager_sysfs_remove_store(
 {
 	int id;
 
-	int num = sscanf(buf, "%d", &id);
+	int num = kstrtoint(buf, 10, &id);
 
 	if (num != 1)
 		return -EINVAL;
@@ -65,7 +65,7 @@ static ssize_t manager_sysfs_dump_store(
 {
 	int id;
 
-	int num = sscanf(buf, "%d", &id);
+	int num = kstrtoint(buf, 10, &id);
 
 	if (num == 1) {
 		num = gb_audio_manager_dump_module(id);
