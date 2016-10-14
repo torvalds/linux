@@ -54,11 +54,10 @@ static void qed_spq_blocking_cb(struct qed_hwfn *p_hwfn,
 
 	comp_done = (struct qed_spq_comp_done *)cookie;
 
-	comp_done->done			= 0x1;
-	comp_done->fw_return_code	= fw_return_code;
+	comp_done->fw_return_code = fw_return_code;
 
-	/* make update visible to waiting thread */
-	smp_wmb();
+	/* Make sure completion done is visible on waiting thread */
+	smp_store_release(&comp_done->done, 0x1);
 }
 
 static int __qed_spq_block(struct qed_hwfn *p_hwfn,
@@ -74,8 +73,9 @@ static int __qed_spq_block(struct qed_hwfn *p_hwfn,
 
 	while (iter_cnt--) {
 		/* Validate we receive completion update */
-		smp_rmb();
-		if (comp_done->done == 1) {
+		if (READ_ONCE(comp_done->done) == 1) {
+			/* Read updated FW return value */
+			smp_read_barrier_depends();
 			if (p_fw_ret)
 				*p_fw_ret = comp_done->fw_return_code;
 			return 0;
