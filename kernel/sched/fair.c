@@ -130,7 +130,7 @@ unsigned int sysctl_sched_cfs_bandwidth_slice = 5000UL;
 
 /*
  * The margin used when comparing utilization with CPU capacity:
- * util * 1024 < capacity * margin
+ * util * margin < capacity * 1024
  */
 unsigned int capacity_margin = 1280; /* ~20% */
 
