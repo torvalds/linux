@@ -56,9 +56,11 @@
 
 	aliases {
 		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		serial0 = &uart1;
 		serial1 = &uart3;
+		spi0 = &spi2;
 	};
 
 	chosen {
@@ -125,6 +127,12 @@
 };
 
 #include "axp209.dtsi"
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins_a>;
+	status = "disabled";
+};
 
 &i2c2 {
 	pinctrl-names = "default";
@@ -255,6 +263,12 @@
 	vin-supply = <&reg_vcc5v0>;
 	gpio = <&pio 1 10 GPIO_ACTIVE_HIGH>; /* PB10 */
 	status = "okay";
+};
+
+&spi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi2_pins_a>;
+	status = "disabled";
 };
 
 &tcon0 {
