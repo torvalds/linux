@@ -327,6 +327,7 @@ static const struct of_device_id asm9260_dt_ids[] = {
 	{ .compatible = "alphascale,asm9260-rtc", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, asm9260_dt_ids);
 
 static struct platform_driver asm9260_rtc_driver = {
 	.probe		= asm9260_rtc_probe,
