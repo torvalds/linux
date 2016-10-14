@@ -479,6 +479,15 @@ config RELOCATABLE
 	  setting can still be useful to bootwrappers that need to know the
 	  load address of the kernel (eg. u-boot/mkimage).
 
+config RELOCATABLE_TEST
+	bool "Test relocatable kernel"
+	depends on (PPC64 && RELOCATABLE)
+	default n
+	help
+	  This runs the relocatable kernel at the address it was initially
+	  loaded at, which tends to be non-zero and therefore test the
+	  relocation code.
+
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
 	depends on PPC64 || 6xx || FSL_BOOKE || (44x && !SMP)

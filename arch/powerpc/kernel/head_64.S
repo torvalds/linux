@@ -107,12 +107,19 @@ __secondary_hold_acknowledge:
 	 * crash_kernel region.  The loader is responsible for
 	 * observing the alignment requirement.
 	 */
+
+#ifdef CONFIG_RELOCATABLE_TEST
+#define RUN_AT_LOAD_DEFAULT 1		/* Test relocation, do not copy to 0 */
+#else
+#define RUN_AT_LOAD_DEFAULT 0x72756e30  /* "run0" -- relocate to 0 by default */
+#endif
+
 	/* Do not move this variable as kexec-tools knows about it. */
 	. = 0x5c
 	.globl	__run_at_load
 __run_at_load:
 DEFINE_FIXED_SYMBOL(__run_at_load)
-	.long	0x72756e30	/* "run0" -- relocate to 0 by default */
+	.long	RUN_AT_LOAD_DEFAULT
 #endif
 
 	. = 0x60
