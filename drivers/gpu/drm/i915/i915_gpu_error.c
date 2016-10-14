@@ -1541,6 +1541,8 @@ static int capture(void *data)
 	return 0;
 }
 
+#define DAY_AS_SECONDS(x) (24 * 60 * 60 * (x))
+
 /**
  * i915_capture_error_state - capture an error record for later analysis
  * @dev: drm device
@@ -1593,7 +1595,8 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	if (!warned) {
+	if (!warned &&
+	    ktime_get_real_seconds() - DRIVER_TIMESTAMP < DAY_AS_SECONDS(180)) {
 		DRM_INFO("GPU hangs can indicate a bug anywhere in the entire gfx stack, including userspace.\n");
 		DRM_INFO("Please file a _new_ bug report on bugs.freedesktop.org against DRI -> DRM/Intel\n");
 		DRM_INFO("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
