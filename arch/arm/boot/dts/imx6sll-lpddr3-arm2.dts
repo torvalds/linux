@@ -141,6 +141,16 @@
 	soc-supply = <&sw1c_reg>;
 };
 
+&csi {
+	status = "disabled";
+
+	port {
+		csi1_ep: endpoint {
+			remote-endpoint = <&ov5640_ep>;
+		};
+	};
+};
+
 &i2c1 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
@@ -338,6 +348,28 @@
 		SPKVDD2-supply = <&reg_aud4v>;
 		amic-mono;
 	};
+
+	ov5640: ov5640@3c {
+		compatible = "ovti,ov5640";
+		reg = <0x3c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_csi1>;
+		clocks = <&clks IMX6SLL_CLK_CSI>;
+		clock-names = "csi_mclk";
+		AVDD-supply = <&vgen6_reg>;  /* 2.8v */
+		DVDD-supply = <&vgen2_reg>;  /* 1.5v*/
+		pwn-gpios = <&gpio1 25 1>;
+		rst-gpios = <&gpio1 26 0>;
+		csi_id = <0>;
+		mclk = <24000000>;
+		mclk_source = <0>;
+		status = "disabled";
+		port {
+			ov5640_ep: endpoint {
+				remote-endpoint = <&csi1_ep>;
+			};
+		};
+	};
 };
 
 &gpc {
@@ -370,6 +402,25 @@
 				MX6SLL_PAD_AUD_TXD__AUD3_TXD		0x4110b0
 				MX6SLL_PAD_AUD_RXD__AUD3_RXD		0x4130b0
 				MX6SLL_PAD_AUD_MCLK__AUDIO_CLK_OUT	0x4130b0
+			>;
+		};
+
+		pinctrl_csi1: csi1grp {
+			fsl,pins = <
+				MX6SLL_PAD_EPDC_GDRL__CSI_MCLK		0x1b088
+				MX6SLL_PAD_EPDC_GDCLK__CSI_PIXCLK	0x1b088
+				MX6SLL_PAD_EPDC_GDSP__CSI_VSYNC		0x1b088
+				MX6SLL_PAD_EPDC_GDOE__CSI_HSYNC		0x1b088
+				MX6SLL_PAD_EPDC_DATA02__CSI_DATA02	0x1b088
+				MX6SLL_PAD_EPDC_DATA03__CSI_DATA03	0x1b088
+				MX6SLL_PAD_EPDC_DATA04__CSI_DATA04	0x1b088
+				MX6SLL_PAD_EPDC_DATA05__CSI_DATA05	0x1b088
+				MX6SLL_PAD_EPDC_DATA06__CSI_DATA06	0x1b088
+				MX6SLL_PAD_EPDC_DATA07__CSI_DATA07	0x1b088
+				MX6SLL_PAD_EPDC_SDCLK__CSI_DATA08	0x1b088
+				MX6SLL_PAD_EPDC_SDLE__CSI_DATA09	0x1b088
+				MX6SLL_PAD_EPDC_SDSHR__GPIO1_IO26	0x80000000
+				MX6SLL_PAD_EPDC_SDOE__GPIO1_IO25	0x80000000
 			>;
 		};
 
