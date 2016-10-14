@@ -6442,6 +6442,7 @@ F:	include/linux/mei_cl_bus.h
 F:	drivers/misc/mei/*
 F:	drivers/watchdog/mei_wdt.c
 F:	Documentation/misc-devices/mei/*
+F:	samples/mei/*
 
 INTEL MIC DRIVERS (mic)
 M:	Sudeep Dutt <sudeep.dutt@intel.com>
@@ -9383,6 +9384,7 @@ W:	http://lists.infradead.org/mailman/listinfo/linux-pcmcia
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/brodo/pcmcia.git
 S:	Maintained
 F:	Documentation/pcmcia/
+F:	tools/pcmcia/
 F:	drivers/pcmcia/
 F:	include/pcmcia/
 
