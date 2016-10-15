@@ -14,6 +14,11 @@ CFLAGS_prom_init.o      += -fPIC
 CFLAGS_btext.o		+= -fPIC
 endif
 
+CFLAGS_cputable.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
+CFLAGS_init.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
+CFLAGS_btext.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
+CFLAGS_prom.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
+
 ifdef CONFIG_FUNCTION_TRACER
 # Do not trace early boot code
 CFLAGS_REMOVE_cputable.o = -mno-sched-epilog $(CC_FLAGS_FTRACE)
