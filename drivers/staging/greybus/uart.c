@@ -832,7 +832,7 @@ static const struct tty_operations gb_ops = {
 	.tiocmset =		gb_tty_tiocmset,
 };
 
-static struct tty_port_operations gb_port_ops = {
+static const struct tty_port_operations gb_port_ops = {
 	.dtr_rts =		gb_tty_dtr_rts,
 	.activate =		gb_tty_port_activate,
 	.shutdown =		gb_tty_port_shutdown,
