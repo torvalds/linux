@@ -561,7 +561,7 @@ static inline void omap_mux_decode(struct seq_file *s, u16 val)
 	do {
 		seq_printf(s, "%s", flags[i]);
 		if (i > 0)
-			seq_printf(s, " | ");
+			seq_puts(s, " | ");
 	} while (i-- > 0);
 }
 
@@ -602,7 +602,7 @@ static int omap_mux_dbg_board_show(struct seq_file *s, void *unused)
 		 */
 		seq_printf(s, "OMAP%d_MUX(%s, ", omap_gen, m0_def);
 		omap_mux_decode(s, val);
-		seq_printf(s, "),\n");
+		seq_puts(s, "),\n");
 	}
 
 	return 0;
@@ -659,7 +659,7 @@ static int omap_mux_dbg_signal_show(struct seq_file *s, void *unused)
 			partition->phys + m->reg_offset, m->reg_offset, val,
 			m->balls[0] ? m->balls[0] : none,
 			m->balls[1] ? m->balls[1] : none);
-	seq_printf(s, "mode: ");
+	seq_puts(s, "mode: ");
 	omap_mux_decode(s, val);
 	seq_printf(s, "\n");
 	seq_printf(s, "signals: %s | %s | %s | %s | %s | %s | %s | %s\n",
