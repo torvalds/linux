@@ -1317,7 +1317,7 @@ static struct attribute *visorchipset_install_attrs[] = {
 	NULL
 };
 
-static struct attribute_group visorchipset_install_group = {
+static const struct attribute_group visorchipset_install_group = {
 	.name = "install",
 	.attrs = visorchipset_install_attrs
 };
