@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 
 if [ ! -f .dest ]; then
@@ -10,103 +10,137 @@ DEST=`cat .dest`
 
 minor=0
 major=0
-GRUB=1
-REBOOT=1
-MEDUSA_ONLY=1
 
 [ -f .minor ] && minor=`cat .minor`
 [ -f .major ] && major=`cat .major`
 echo $(($minor + 1)) > .minor
 
-for arg in "$@"; do
-        if [[ "$arg" == '--delete' || "$arg" == '-delete' ]]; then
-                sudo find security/ -name '*.o' -delete
-                sudo find security/ -name '*.cmd' -delete
-        elif [[ "$arg" == '--clean' || "$arg" == '-clean' ]]; then
-                sudo make clean
-                sudo rm -rf debian
-        elif [[ "$arg" == '--nogdb' || "$arg" == '-nogdb' || "$arg" == '--nogrub' || "$arg" == '-nogrub' ]]; then
-                GRUB=0
-        elif [[ "$arg" == '--noreboot' || "$arg" == '-noreboot' ]]; then
-                REBOOT=0
-        elif [[ "$arg" == '--medusa-only' || "$arg" == '-medusa-only' ]]; then
-                MEDUSA_ONLY=1
-                GRUB=0
-        elif [[ "$arg" == '-h' || "$arg" == '--help' || "$arg" == '-help' ]]; then
-                echo "$0 [--help] [--delete] [--clean] [--nogrub] [--noreboot] [--medusa-only] [--nogdb]";
-                exit 0
-        else
-                echo "Error unknown parameter"
-        fi
-done
-sudo rm vmlinux 2> /dev/null
+function parse_argv {
+        GRUB=1
+        REBOOT=1
+        MEDUSA_ONLY=0
+        DELETE=0
 
-#make -j4
+        for arg in "$@"; do
+                if [[ "$arg" == '--delete' || "$arg" == '-delete' ]]; then
+                        DELETE=1
+                elif [[ "$arg" == '--clean' || "$arg" == '-clean' ]]; then
+                        sudo make clean
+                        sudo rm -rf debian
+                elif [[ "$arg" == '--nogdb' || "$arg" == '-nogdb' || "$arg" == '--nogrub' || "$arg" == '-nogrub' ]]; then
+                        GRUB=0
+                elif [[ "$arg" == '--noreboot' || "$arg" == '-noreboot' ]]; then
+                        REBOOT=0
+                elif [[ "$arg" == '--medusa-only' || "$arg" == '-medusa-only' ]]; then
+                        MEDUSA_ONLY=1
+                        DELETE=1
+                        GRUB=0
+                elif [[ "$arg" == '-h' || "$arg" == '--help' || "$arg" == '-help' ]]; then
+                        help
+                else
+                        echo "Error unknown parameter '$arg'"
+                        help
+                fi
+        done
 
-#[ $? -ne 0 ] && exit 1
-PROCESSORS=`cat /proc/cpuinfo | grep processor | wc -l`
+        PROCESSORS=`cat /proc/cpuinfo | grep processor | wc -l`
+}
 
-if [ $MEDUSA_ONLY -eq 1 ]; then
+function help {
+        echo "$0 [--help] [--delete] [--clean] [--nogrub] [--noreboot] [--medusa-only] [--nogdb]";
+        echo "    --help           - Prints this help"
+        echo "    --delete         - Deletes the medusa object files (handy when changing"
+        echo "                       header files or makefiles)"
+        echo "    --clean          - Does make clean before the compilation (handy when"
+        echo "                       changing kernel release)"
+        echo "    --nogrub/--nogdb - Turns off the waiting for GDB connection during booting"
+        echo "    --noreboot       - Does not reboot at the end"
+        echo "    --medusa-only    - Rebuilds just medusa not the whole kernel"
+        exit 0
+}
+
+function delete_medusa {
         sudo find security/medusa/ -name '*.o' -delete
         sudo find security/medusa/ -name '*.cmd' -delete
+}
+
+function medusa_only {
+        if [[ `uname -a` != *medusa* ]]; then
+                echo "Sorry you can use parameter --medusa-only only when running medusa kernel"
+                help
+                exit 0
+        fi
         sudo make -j `expr $PROCESSORS + 1`
+
         [ $? -ne 0 ] && exit 1
         sudo cp arch/x86/boot/bzImage /boot/vmlinuz-`uname -r`
         [ $? -ne 0 ] && exit 1
 
         sudo update-initramfs -u 
         [ $? -ne 0 ] && exit 1
-else
+}
+
+function create_package {
         sudo rm -rf ../linux-image-*.deb
-        
+ 
         export CONCURRENCY_LEVEL=`expr $PROCESSORS + 1`
-        #export CLEAN_SOURCE=no
-        #fakeroot make-kpkg --initrd --revision=1.2 --append_to_version medusa kernel_image
         fakeroot make-kpkg --initrd --revision=1.2 kernel_image
 
         [ $? -ne 0 ] && exit 1
-fi
+}
 
-PID=0
-if [ "$DEST" != "NONE" ]; then
+function rsync_repo {
         rsync -avz --exclude 'Documentation' --exclude '*.o' --exclude '.*' --exclude '*.cmd' --exclude '.git' --exclude '*.xz' -e ssh . $DEST 
-fi
+}
 
-echo $(($major + 1)) > .major
-echo 0 > .minor
-
-CONTINUE=1
-if [ $MEDUSA_ONLY -ne 1 ]; then
+function install_package {
+        CONTINUE=1
         while [ $CONTINUE -ne 0 ]; do
                 sudo dpkg --force-all -i ../linux-image-*.deb
                 CONTINUE=$?
                 [ $CONTINUE -ne 0 ] && sleep 5;
         done
+}
+
+function update_grub {
+        temp=`mktemp XXXXXX`
+
+        sudo cat /boot/grub/grub.cfg | while read line; do
+                if [[ "$line" = */boot/vmlinuz-*medusa* ]]; then
+                        echo "$line" | sed -e 's/quiet/kgdboc=ttyS0,115200 kgdbwait/' >> $temp
+                else
+                        echo "$line" >> $temp
+                fi
+        done
+
+        sudo mv $temp /boot/grub/grub.cfg
+
+        rm $temp 2> /dev/null
+}
+
+parse_argv $@
+
+[ -f vmlinux ] && sudo rm -f vmlinux 2> /dev/null
+
+[ $DELETE -eq 1 ] && delete_medusa
+
+if [ $MEDUSA_ONLY -eq 1 ]; then
+        medusa_only
+else
+        create_package
 fi
+
+[ "$DEST" != "NONE" ] && rsync_repo
+
+echo $(($major + 1)) > .major
+echo 0 > .minor
+
+[ $MEDUSA_ONLY -ne 1 ] && install_package
 
 # [ $? -ne 0 ] && exit 1
 echo $major.$minor >> myversioning
 
-temp=`mktemp XXXXXX`
-sudo cat /boot/grub/grub.cfg | while read line; do
-        if [[ "$line" = */boot/vmlinuz-*medusa* ]]; then
-                if [ $GRUB == 1 ]; then
-                        echo "$line" | sed -e 's/quiet/kgdboc=ttyS0,115200 kgdbwait/' >> $temp
-                else
-                        echo "$line" | sed -e 's/quiet/kgdboc=ttyS0,115200/' >> $temp
-                fi
-        else
-                echo "$line" >> $temp
-        fi
-done
+[ $GRUB -eq 1 ] && update_grub
 
-sudo mv $temp /boot/grub/grub.cfg
-
-rm $temp 2> /dev/null
-
-#if [ "$DEST" != "NONE" ]; then
-#        wait $PID
-#fi
-
-[ $REBOOT == 1 ] && sudo reboot
+[ $REBOOT -eq 1 ] && sudo reboot
 
