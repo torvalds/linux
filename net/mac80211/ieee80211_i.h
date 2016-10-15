@@ -443,7 +443,7 @@ struct ieee80211_if_managed {
 	struct ieee80211_mgd_auth_data *auth_data;
 	struct ieee80211_mgd_assoc_data *assoc_data;
 
-	u8 bssid[ETH_ALEN];
+	u8 bssid[ETH_ALEN] __aligned(2);
 
 	u16 aid;
 

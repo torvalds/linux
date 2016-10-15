@@ -1438,7 +1438,7 @@ enum ieee80211_vif_flags {
 struct ieee80211_vif {
 	enum nl80211_iftype type;
 	struct ieee80211_bss_conf bss_conf;
-	u8 addr[ETH_ALEN];
+	u8 addr[ETH_ALEN] __aligned(2);
 	bool p2p;
 	bool csa_active;
 	bool mu_mimo_owner;
