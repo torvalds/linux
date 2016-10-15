@@ -100,3 +100,69 @@ $(obj)/uImage.lzo: $(obj)/vmlinux.bin.lzo FORCE
 $(obj)/uImage: $(obj)/uImage.$(suffix-y)
 	@ln -sf $(notdir $<) $@
 	@echo '  Image $@ is ready'
+
+#
+# Flattened Image Tree (.itb) images
+#
+
+targets += vmlinux.itb
+targets += vmlinux.gz.itb
+targets += vmlinux.bz2.itb
+targets += vmlinux.lzma.itb
+targets += vmlinux.lzo.itb
+
+ifeq ($(ADDR_BITS),32)
+	itb_addr_cells = 1
+endif
+ifeq ($(ADDR_BITS),64)
+	itb_addr_cells = 2
+endif
+
+quiet_cmd_cpp_its_S = ITS     $@
+      cmd_cpp_its_S = $(CPP) $(cpp_flags) -P -C -o $@ $< \
+		        -DKERNEL_NAME="\"Linux $(KERNELRELEASE)\"" \
+			-DVMLINUX_BINARY="\"$(3)\"" \
+			-DVMLINUX_COMPRESSION="\"$(2)\"" \
+			-DVMLINUX_LOAD_ADDRESS=$(VMLINUX_LOAD_ADDRESS) \
+			-DVMLINUX_ENTRY_ADDRESS=$(VMLINUX_ENTRY_ADDRESS) \
+			-DADDR_BITS=$(ADDR_BITS) \
+			-DADDR_CELLS=$(itb_addr_cells)
+
+$(obj)/vmlinux.its: $(srctree)/arch/mips/$(PLATFORM)/vmlinux.its.S FORCE
+	$(call if_changed_dep,cpp_its_S,none,vmlinux.bin)
+
+$(obj)/vmlinux.gz.its: $(srctree)/arch/mips/$(PLATFORM)/vmlinux.its.S FORCE
+	$(call if_changed_dep,cpp_its_S,gzip,vmlinux.bin.gz)
+
+$(obj)/vmlinux.bz2.its: $(srctree)/arch/mips/$(PLATFORM)/vmlinux.its.S FORCE
+	$(call if_changed_dep,cpp_its_S,bzip2,vmlinux.bin.bz2)
+
+$(obj)/vmlinux.lzma.its: $(srctree)/arch/mips/$(PLATFORM)/vmlinux.its.S FORCE
+	$(call if_changed_dep,cpp_its_S,lzma,vmlinux.bin.lzma)
+
+$(obj)/vmlinux.lzo.its: $(srctree)/arch/mips/$(PLATFORM)/vmlinux.its.S FORCE
+	$(call if_changed_dep,cpp_its_S,lzo,vmlinux.bin.lzo)
+
+quiet_cmd_itb-image = ITB     $@
+      cmd_itb-image = \
+		env PATH="$(objtree)/scripts/dtc:$(PATH)" \
+		$(CONFIG_SHELL) $(MKIMAGE) \
+		-D "-I dts -O dtb -p 500 \
+			--include $(objtree)/arch/mips \
+			--warning no-unit_address_vs_reg" \
+		-f $(2) $@
+
+$(obj)/vmlinux.itb: $(obj)/vmlinux.its $(obj)/vmlinux.bin FORCE
+	$(call if_changed,itb-image,$<)
+
+$(obj)/vmlinux.gz.itb: $(obj)/vmlinux.gz.its $(obj)/vmlinux.bin.gz FORCE
+	$(call if_changed,itb-image,$<)
+
+$(obj)/vmlinux.bz2.itb: $(obj)/vmlinux.bz2.its $(obj)/vmlinux.bin.bz2 FORCE
+	$(call if_changed,itb-image,$<)
+
+$(obj)/vmlinux.lzma.itb: $(obj)/vmlinux.lzma.its $(obj)/vmlinux.bin.lzma FORCE
+	$(call if_changed,itb-image,$<)
+
+$(obj)/vmlinux.lzo.itb: $(obj)/vmlinux.lzo.its $(obj)/vmlinux.bin.lzo FORCE
+	$(call if_changed,itb-image,$<)
