@@ -124,22 +124,8 @@ $65:
 	bis $31,$31,$0
 $41:
 $35:
-$exitout:
-	ret $31,($28),1
-
 $exitin:
-	/* A stupid byte-by-byte zeroing of the rest of the output
-	   buffer.  This cures security holes by never leaving 
-	   random kernel data around to be copied elsewhere.  */
-
-	mov $0,$1
-$101:
-	EXO ( ldq_u $2,0($6) )
-	subq $1,1,$1
-	mskbl $2,$6,$2
-	EXO ( stq_u $2,0($6) )
-	addq $6,1,$6
-	bgt $1,$101
+$exitout:
 	ret $31,($28),1
 
 	.end __copy_user
