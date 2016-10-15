@@ -250,11 +250,11 @@ static int cht_aif1_startup(struct snd_pcm_substream *substream)
 			SNDRV_PCM_HW_PARAM_RATE, 48000);
 }
 
-static struct snd_soc_ops cht_aif1_ops = {
+static const struct snd_soc_ops cht_aif1_ops = {
 	.startup = cht_aif1_startup,
 };
 
-static struct snd_soc_ops cht_be_ssp2_ops = {
+static const struct snd_soc_ops cht_be_ssp2_ops = {
 	.hw_params = cht_aif1_hw_params,
 };
 

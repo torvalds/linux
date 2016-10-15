@@ -248,7 +248,7 @@ static int broxton_da7219_hw_free(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-static struct snd_soc_ops broxton_da7219_ops = {
+static const struct snd_soc_ops broxton_da7219_ops = {
 	.hw_params = broxton_da7219_hw_params,
 	.hw_free = broxton_da7219_hw_free,
 };
@@ -295,7 +295,7 @@ static int broxton_refcap_startup(struct snd_pcm_substream *substream)
 			&constraints_16000);
 };
 
-static struct snd_soc_ops broxton_refcap_ops = {
+static const struct snd_soc_ops broxton_refcap_ops = {
 	.startup = broxton_refcap_startup,
 };
 
