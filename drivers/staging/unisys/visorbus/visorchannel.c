@@ -23,6 +23,7 @@
 #include <linux/io.h>
 
 #include "visorbus.h"
+#include "visorbus_private.h"
 #include "controlvmchannel.h"
 
 #define MYDRVNAME "visorchannel"
