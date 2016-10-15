@@ -1275,6 +1275,7 @@ static inline void deactivate_task(struct task_struct *p, struct rq *rq)
 
 	p->on_rq = 0;
 	atomic_dec(&grq.nr_running);
+	sched_info_dequeued(rq, p);
 }
 
 #ifdef CONFIG_SMP
