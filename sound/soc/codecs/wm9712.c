@@ -22,7 +22,6 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
-#include "wm9712.h"
 
 #define WM9712_VENDOR_ID 0x574d4c12
 #define WM9712_VENDOR_ID_MASK 0xffffffff

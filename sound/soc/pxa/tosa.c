@@ -31,7 +31,6 @@
 #include <mach/tosa.h>
 #include <mach/audio.h>
 
-#include "../codecs/wm9712.h"
 #include "pxa2xx-ac97.h"
 
 #define TOSA_HP        0
