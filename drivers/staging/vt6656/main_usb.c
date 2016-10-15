@@ -85,7 +85,7 @@ MODULE_PARM_DESC(tx_buffers, "Number of receive usb tx buffers");
  * Static vars definitions
  */
 
-static struct usb_device_id vt6656_table[] = {
+static const struct usb_device_id vt6656_table[] = {
 	{USB_DEVICE(VNT_USB_VENDOR_ID, VNT_USB_PRODUCT_ID)},
 	{}
 };
