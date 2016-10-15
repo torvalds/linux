@@ -1741,6 +1741,12 @@ void scheduler_ipi(void)
 	 * this IPI.
 	 */
 	preempt_fold_need_resched();
+
+	if (!idle_cpu(smp_processor_id()) || need_resched())
+		return;
+
+	irq_enter();
+	irq_exit();
 }
 
 static int valid_task_cpu(struct task_struct *p)
