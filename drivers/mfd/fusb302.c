@@ -214,6 +214,8 @@ static void platform_set_vbus_lvl_enable(struct fusb30x_chip *chip, int vbus_5v,
 {
 	if (chip->gpio_vbus_5v) {
 		gpiod_set_raw_value(chip->gpio_vbus_5v, vbus_5v);
+		/* Only set state here, don't sync notifier to PMIC */
+		extcon_set_state(chip->extcon, EXTCON_USB_VBUS_EN, vbus_5v);
 	} else {
 		extcon_set_state(chip->extcon, EXTCON_USB_VBUS_EN, vbus_5v);
 		extcon_sync(chip->extcon, EXTCON_USB_VBUS_EN);
@@ -1323,7 +1325,6 @@ static void fusb_state_attach_wait_source(struct fusb30x_chip *chip, int evt)
 static void fusb_state_attached_source(struct fusb30x_chip *chip, int evt)
 {
 	tcpm_set_polarity(chip, !(chip->cc_state & 0x01));
-	extcon_set_state(chip->extcon, EXTCON_USB_HOST, 1);
 	platform_set_vbus_lvl_enable(chip, 1, 0);
 	tcpm_set_vconn(chip, 1);
 
