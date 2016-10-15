@@ -58,7 +58,7 @@ static int snd_seq_call_port_info_ioctl(struct snd_seq_client *client, unsigned 
 		goto error;
 	data->kernel = NULL;
 
-	err = snd_seq_kernel_client_ctl(client->number, cmd, &data);
+	err = snd_seq_kernel_client_ctl(client->number, cmd, data);
 	if (err < 0)
 		goto error;
 
