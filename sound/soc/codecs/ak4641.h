@@ -38,10 +38,4 @@
 
 #define AK4641_CACHEREGNUM	0x14
 
-
-
-#define AK4641_DAI_HIFI		0
-#define AK4641_DAI_VOICE	1
-
-
 #endif
