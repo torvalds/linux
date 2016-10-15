@@ -1188,7 +1188,7 @@ static int __init lynxfb_setup(char *options)
 	return 0;
 }
 
-static struct pci_device_id smi_pci_table[] = {
+static const struct pci_device_id smi_pci_table[] = {
 	{ PCI_DEVICE(0x126f, 0x0750), },
 	{0,}
 };
