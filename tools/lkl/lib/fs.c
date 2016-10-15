@@ -72,7 +72,7 @@ int lkl_get_virtio_blkdev(int disk_id, uint32_t *pdevid)
 	char sysfs_path[LKL_PATH_MAX];
 	int sysfs_path_len = 0;
 	char buf[16] = { 0, };
-	long fd, ret;
+	long fd, ret = 0;
 	int major, minor;
 	int opendir_ret;
 	char *virtio_name = NULL;
@@ -138,13 +138,15 @@ int lkl_get_virtio_blkdev(int disk_id, uint32_t *pdevid)
 	}
 
 	device_id = new_encode_dev(major, minor);
+	ret = 0;
 
 out_close:
 	lkl_sys_close(fd);
 
-	*pdevid = device_id;
+	if (!ret)
+		*pdevid = device_id;
 
-	return 0;
+	return ret;
 }
 
 long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
