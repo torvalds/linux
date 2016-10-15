@@ -1513,9 +1513,7 @@ out_unplug:
 	 */
 	ldd = ll_d2d(*dentryp);
 	lli = ll_i2info(dir);
-	/* ldd can be NULL if llite lookup failed. */
-	if (ldd)
-		ldd->lld_sa_generation = lli->lli_sa_generation;
+	ldd->lld_sa_generation = lli->lli_sa_generation;
 	sa_put(sai, entry);
 	return rc;
 }
