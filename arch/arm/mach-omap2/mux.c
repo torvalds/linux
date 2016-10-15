@@ -661,7 +661,7 @@ static int omap_mux_dbg_signal_show(struct seq_file *s, void *unused)
 			m->balls[1] ? m->balls[1] : none);
 	seq_puts(s, "mode: ");
 	omap_mux_decode(s, val);
-	seq_printf(s, "\n");
+	seq_putc(s, '\n');
 	seq_printf(s, "signals: %s | %s | %s | %s | %s | %s | %s | %s\n",
 			m->muxnames[0] ? m->muxnames[0] : none,
 			m->muxnames[1] ? m->muxnames[1] : none,
