@@ -2214,7 +2214,7 @@ void wake_up_new_task(struct task_struct *p)
 			 */
 			rq_curr->time_slice = 0;
 			__set_tsk_resched(rq_curr);
-			time_slice_expired(p, rq);
+			time_slice_expired(p, new_rq);
 			if (suitable_idle_cpus(p))
 				resched_best_idle(p, task_cpu(p));
 			else if (unlikely(rq != new_rq))
@@ -2232,7 +2232,7 @@ void wake_up_new_task(struct task_struct *p)
 				try_preempt(p, new_rq);
 		}
 	} else {
-		time_slice_expired(p, rq);
+		time_slice_expired(p, new_rq);
 		try_preempt(p, new_rq);
 	}
 	double_rq_unlock(rq, new_rq);
