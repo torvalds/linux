@@ -30,6 +30,7 @@ struct wilc_spi {
 };
 
 static struct wilc_spi g_spi;
+static const struct wilc_hif_func wilc_hif_spi;
 
 static int wilc_spi_read(struct wilc *wilc, u32, u8 *, u32);
 static int wilc_spi_write(struct wilc *wilc, u32, u8 *, u32);
@@ -1134,7 +1135,7 @@ static int wilc_spi_sync_ext(struct wilc *wilc, int nint)
  *      Global spi HIF function table
  *
  ********************************************/
-const struct wilc_hif_func wilc_hif_spi = {
+static const struct wilc_hif_func wilc_hif_spi = {
 	.hif_init = wilc_spi_init,
 	.hif_deinit = _wilc_spi_deinit,
 	.hif_read_reg = wilc_spi_read_reg,
