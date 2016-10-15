@@ -405,7 +405,7 @@ static const unsigned long dwAL7230ChannelTable2[CB_MAX_CHANNEL] = {
  *
  * Parameters:
  *  In:
- *      dwIoBase    - I/O base address
+ *      iobase      - I/O base address
  *  Out:
  *      none
  *
@@ -414,16 +414,16 @@ static const unsigned long dwAL7230ChannelTable2[CB_MAX_CHANNEL] = {
  */
 static bool s_bAL7230Init(struct vnt_private *priv)
 {
-	void __iomem *dwIoBase = priv->PortOffset;
+	void __iomem *iobase = priv->PortOffset;
 	int     ii;
 	bool ret;
 
 	ret = true;
 
 	/* 3-wire control for normal mode */
-	VNSvOutPortB(dwIoBase + MAC_REG_SOFTPWRCTL, 0);
+	VNSvOutPortB(iobase + MAC_REG_SOFTPWRCTL, 0);
 
-	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPECTI  |
+	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPECTI  |
 							 SOFTPWRCTL_TXPEINV));
 	BBvPowerSaveModeOFF(priv); /* RobertYu:20050106, have DC value for Calibration */
 
@@ -431,7 +431,7 @@ static bool s_bAL7230Init(struct vnt_private *priv)
 		ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[ii]);
 
 	/* PLL On */
-	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
+	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 
 	/* Calibration */
 	MACvTimer0MicroSDelay(priv, 150);/* 150us */
@@ -444,7 +444,7 @@ static bool s_bAL7230Init(struct vnt_private *priv)
 	/* TXDCOC:disable, RCK:disable */
 	ret &= IFRFbWriteEmbedded(priv, dwAL7230InitTable[CB_AL7230_INIT_SEQ-1]);
 
-	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPE3    |
+	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPE3    |
 							 SOFTPWRCTL_SWPE2    |
 							 SOFTPWRCTL_SWPECTI  |
 							 SOFTPWRCTL_TXPEINV));
@@ -453,7 +453,7 @@ static bool s_bAL7230Init(struct vnt_private *priv)
 
 	/* PE1: TX_ON, PE2: RX_ON, PE3: PLLON */
 	/* 3-wire control for power saving mode */
-	VNSvOutPortB(dwIoBase + MAC_REG_PSPWRSIG, (PSSIG_WPE3 | PSSIG_WPE2)); /* 1100 0000 */
+	VNSvOutPortB(iobase + MAC_REG_PSPWRSIG, (PSSIG_WPE3 | PSSIG_WPE2)); /* 1100 0000 */
 
 	return ret;
 }
@@ -463,26 +463,26 @@ static bool s_bAL7230Init(struct vnt_private *priv)
  */
 static bool s_bAL7230SelectChannel(struct vnt_private *priv, unsigned char byChannel)
 {
-	void __iomem *dwIoBase = priv->PortOffset;
+	void __iomem *iobase = priv->PortOffset;
 	bool ret;
 
 	ret = true;
 
 	/* PLLON Off */
-	MACvWordRegBitsOff(dwIoBase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
+	MACvWordRegBitsOff(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 
 	ret &= IFRFbWriteEmbedded(priv, dwAL7230ChannelTable0[byChannel - 1]);
 	ret &= IFRFbWriteEmbedded(priv, dwAL7230ChannelTable1[byChannel - 1]);
 	ret &= IFRFbWriteEmbedded(priv, dwAL7230ChannelTable2[byChannel - 1]);
 
 	/* PLLOn On */
-	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
+	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 
 	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
-	VNSvOutPortB(dwIoBase + MAC_REG_CHANNEL, (byChannel & 0x7F));
+	VNSvOutPortB(iobase + MAC_REG_CHANNEL, (byChannel & 0x7F));
 	MACvTimer0MicroSDelay(priv, SWITCH_CHANNEL_DELAY_AL7230);
 	/* Set Channel[7] = 1 to tell H/W channel change is done. */
-	VNSvOutPortB(dwIoBase + MAC_REG_CHANNEL, (byChannel | 0x80));
+	VNSvOutPortB(iobase + MAC_REG_CHANNEL, (byChannel | 0x80));
 
 	return ret;
 }
@@ -492,7 +492,7 @@ static bool s_bAL7230SelectChannel(struct vnt_private *priv, unsigned char byCha
  *
  * Parameters:
  *  In:
- *      dwIoBase    - I/O base address
+ *      iobase      - I/O base address
  *      dwData      - data to write
  *  Out:
  *      none
@@ -502,15 +502,15 @@ static bool s_bAL7230SelectChannel(struct vnt_private *priv, unsigned char byCha
  */
 bool IFRFbWriteEmbedded(struct vnt_private *priv, unsigned long dwData)
 {
-	void __iomem *dwIoBase = priv->PortOffset;
+	void __iomem *iobase = priv->PortOffset;
 	unsigned short ww;
 	unsigned long dwValue;
 
-	VNSvOutPortD(dwIoBase + MAC_REG_IFREGCTL, dwData);
+	VNSvOutPortD(iobase + MAC_REG_IFREGCTL, dwData);
 
 	/* W_MAX_TIMEOUT is the timeout period */
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
-		VNSvInPortD(dwIoBase + MAC_REG_IFREGCTL, &dwValue);
+		VNSvInPortD(iobase + MAC_REG_IFREGCTL, &dwValue);
 		if (dwValue & IFREGCTL_DONE)
 			break;
 	}
@@ -526,7 +526,7 @@ bool IFRFbWriteEmbedded(struct vnt_private *priv, unsigned long dwData)
  *
  * Parameters:
  *  In:
- *      dwIoBase    - I/O base address
+ *      iobase      - I/O base address
  *  Out:
  *      none
  *
@@ -535,19 +535,19 @@ bool IFRFbWriteEmbedded(struct vnt_private *priv, unsigned long dwData)
  */
 static bool RFbAL2230Init(struct vnt_private *priv)
 {
-	void __iomem *dwIoBase = priv->PortOffset;
+	void __iomem *iobase = priv->PortOffset;
 	int     ii;
 	bool ret;
 
 	ret = true;
 
 	/* 3-wire control for normal mode */
-	VNSvOutPortB(dwIoBase + MAC_REG_SOFTPWRCTL, 0);
+	VNSvOutPortB(iobase + MAC_REG_SOFTPWRCTL, 0);
 
-	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPECTI  |
+	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPECTI  |
 							 SOFTPWRCTL_TXPEINV));
 	/* PLL  Off */
-	MACvWordRegBitsOff(dwIoBase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
+	MACvWordRegBitsOff(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 
 	/* patch abnormal AL2230 frequency output */
 	IFRFbWriteEmbedded(priv, (0x07168700 + (BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW));
@@ -557,7 +557,7 @@ static bool RFbAL2230Init(struct vnt_private *priv)
 	MACvTimer0MicroSDelay(priv, 30); /* delay 30 us */
 
 	/* PLL On */
-	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
+	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 
 	MACvTimer0MicroSDelay(priv, 150);/* 150us */
 	ret &= IFRFbWriteEmbedded(priv, (0x00d80f00 + (BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW));
@@ -566,20 +566,20 @@ static bool RFbAL2230Init(struct vnt_private *priv)
 	MACvTimer0MicroSDelay(priv, 30);/* 30us */
 	ret &= IFRFbWriteEmbedded(priv, dwAL2230InitTable[CB_AL2230_INIT_SEQ-1]);
 
-	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPE3    |
+	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPE3    |
 							 SOFTPWRCTL_SWPE2    |
 							 SOFTPWRCTL_SWPECTI  |
 							 SOFTPWRCTL_TXPEINV));
 
 	/* 3-wire control for power saving mode */
-	VNSvOutPortB(dwIoBase + MAC_REG_PSPWRSIG, (PSSIG_WPE3 | PSSIG_WPE2)); /* 1100 0000 */
+	VNSvOutPortB(iobase + MAC_REG_PSPWRSIG, (PSSIG_WPE3 | PSSIG_WPE2)); /* 1100 0000 */
 
 	return ret;
 }
 
 static bool RFbAL2230SelectChannel(struct vnt_private *priv, unsigned char byChannel)
 {
-	void __iomem *dwIoBase = priv->PortOffset;
+	void __iomem *iobase = priv->PortOffset;
 	bool ret;
 
 	ret = true;
@@ -588,10 +588,10 @@ static bool RFbAL2230SelectChannel(struct vnt_private *priv, unsigned char byCha
 	ret &= IFRFbWriteEmbedded(priv, dwAL2230ChannelTable1[byChannel - 1]);
 
 	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
-	VNSvOutPortB(dwIoBase + MAC_REG_CHANNEL, (byChannel & 0x7F));
+	VNSvOutPortB(iobase + MAC_REG_CHANNEL, (byChannel & 0x7F));
 	MACvTimer0MicroSDelay(priv, SWITCH_CHANNEL_DELAY_AL2230);
 	/* Set Channel[7] = 1 to tell H/W channel change is done. */
-	VNSvOutPortB(dwIoBase + MAC_REG_CHANNEL, (byChannel | 0x80));
+	VNSvOutPortB(iobase + MAC_REG_CHANNEL, (byChannel | 0x80));
 
 	return ret;
 }
@@ -676,7 +676,7 @@ bool RFbSelectChannel(struct vnt_private *priv, unsigned char byRFType,
  *
  * Parameters:
  *  In:
- *      dwIoBase    - I/O base address
+ *      iobase      - I/O base address
  *      uChannel    - channel number
  *      bySleepCnt  - SleepProgSyn count
  *
@@ -686,12 +686,12 @@ bool RFbSelectChannel(struct vnt_private *priv, unsigned char byRFType,
 bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType,
 			 u16 uChannel)
 {
-	void __iomem *dwIoBase = priv->PortOffset;
+	void __iomem *iobase = priv->PortOffset;
 	int   ii;
 	unsigned char byInitCount = 0;
 	unsigned char bySleepCount = 0;
 
-	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, 0);
+	VNSvOutPortW(iobase + MAC_REG_MISCFFNDEX, 0);
 	switch (byRFType) {
 	case RF_AIROHA:
 	case RF_AL2230S:
@@ -753,7 +753,7 @@ bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType,
  *
  * Parameters:
  *  In:
- *      dwIoBase       - I/O base address
+ *      iobase         - I/O base address
  *      dwRFPowerTable - RF Tx Power Setting
  *  Out:
  *      none
@@ -825,7 +825,7 @@ bool RFbSetPower(
  *
  * Parameters:
  *  In:
- *      dwIoBase       - I/O base address
+ *      iobase         - I/O base address
  *      dwRFPowerTable - RF Tx Power Setting
  *  Out:
  *      none
