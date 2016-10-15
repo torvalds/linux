@@ -50,7 +50,7 @@ static unsigned char		*dgnc_TmpWriteBuf;
 /*
  * Default transparent print information.
  */
-static struct digi_t dgnc_digi_init = {
+static const struct digi_t dgnc_digi_init = {
 	.digi_flags =	DIGI_COOK,	/* Flags			*/
 	.digi_maxcps =	100,		/* Max CPS			*/
 	.digi_maxchar =	50,		/* Max chars in print queue	*/
