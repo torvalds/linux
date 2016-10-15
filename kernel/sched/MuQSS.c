@@ -3357,8 +3357,6 @@ static void task_running_tick(struct rq *rq)
 	} else if (p->time_slice >= RESCHED_US)
 			return;
 out_resched:
-	p = rq->curr;
-
 	rq_lock(rq);
 	__set_tsk_resched(p);
 	rq_unlock(rq);
