@@ -67,10 +67,10 @@ hash_ipmac4_data_list(struct sk_buff *skb, const struct hash_ipmac4_elem *e)
 	if (nla_put_ipaddr4(skb, IPSET_ATTR_IP, e->ip) ||
 	    nla_put(skb, IPSET_ATTR_ETHER, ETH_ALEN, e->ether))
 		goto nla_put_failure;
-	return 0;
+	return false;
 
 nla_put_failure:
-	return 1;
+	return true;
 }
 
 static inline void
@@ -175,10 +175,10 @@ hash_ipmac6_data_list(struct sk_buff *skb, const struct hash_ipmac6_elem *e)
 	if (nla_put_ipaddr6(skb, IPSET_ATTR_IP, &e->ip.in6) ||
 	    nla_put(skb, IPSET_ATTR_ETHER, ETH_ALEN, e->ether))
 		goto nla_put_failure;
-	return 0;
+	return false;
 
 nla_put_failure:
-	return 1;
+	return true;
 }
 
 static inline void
