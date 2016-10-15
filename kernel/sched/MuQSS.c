@@ -3330,12 +3330,12 @@ static void task_running_tick(struct rq *rq)
 	if (iso_task(p)) {
 		if (task_running_iso(p)) {
 			if (rq->iso_refractory) {
-			/*
-			 * SCHED_ISO task is running as RT and limit
-			 * has been hit. Force it to reschedule as
-			 * SCHED_NORMAL by zeroing its time_slice
-			 */
-			p->time_slice = 0;
+				/*
+				 * SCHED_ISO task is running as RT and limit
+				 * has been hit. Force it to reschedule as
+				 * SCHED_NORMAL by zeroing its time_slice
+				 */
+				p->time_slice = 0;
 			}
 		} else if (!rq->iso_refractory) {
 			/* Can now run again ISO. Reschedule to pick up prio */
@@ -3349,13 +3349,8 @@ static void task_running_tick(struct rq *rq)
 	 * run out of time slice in the interim. Otherwise, if they have
 	 * less than RESCHED_US μs of time slice left they will be rescheduled.
 	 */
-	if (rq->dither) {
-		if (p->time_slice > HALF_JIFFY_US)
-			return;
-		else
-			p->time_slice = 0;
-	} else if (p->time_slice >= RESCHED_US)
-			return;
+	if (p->time_slice - rq->dither >= RESCHED_US)
+		return;
 out_resched:
 	rq_lock(rq);
 	__set_tsk_resched(p);
@@ -3839,9 +3834,9 @@ static void __sched notrace __schedule(bool preempt)
 	update_clocks(rq);
 	update_cpu_clock_switch(rq, prev);
 	if (rq->clock - rq->last_tick > HALF_JIFFY_NS)
-		rq->dither = false;
+		rq->dither = 0;
 	else
-		rq->dither = true;
+		rq->dither = HALF_JIFFY_US;
 
 	clear_tsk_need_resched(prev);
 	clear_preempt_need_resched();
@@ -7572,7 +7567,7 @@ void __init sched_init(void)
 		rq->last_jiffy = jiffies;
 		rq->user_pc = rq->nice_pc = rq->softirq_pc = rq->system_pc =
 			      rq->iowait_pc = rq->idle_pc = 0;
-		rq->dither = false;
+		rq->dither = 0;
 		set_rq_task(rq, &init_task);
 		rq->iso_ticks = 0;
 		rq->iso_refractory = false;

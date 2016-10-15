@@ -77,7 +77,7 @@ struct rq {
 
 	u64 clock, old_clock, last_tick;
 	u64 clock_task;
-	bool dither;
+	int dither;
 
 	int iso_ticks;
 	bool iso_refractory;
