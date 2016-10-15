@@ -176,9 +176,9 @@
 				reg = <0x8000 0x1000>;
 				cache-unified;
 				cache-level = <2>;
-				arm,double-linefill-incr = <1>;
+				arm,double-linefill-incr = <0>;
 				arm,double-linefill-wrap = <0>;
-				arm,double-linefill = <1>;
+				arm,double-linefill = <0>;
 				prefetch-data = <1>;
 			};
 
