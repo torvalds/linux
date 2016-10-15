@@ -26,7 +26,7 @@ static struct nf_hook_ops ipvl_nfops[] __read_mostly = {
 	},
 };
 
-static struct l3mdev_ops ipvl_l3mdev_ops __read_mostly = {
+static const struct l3mdev_ops ipvl_l3mdev_ops = {
 	.l3mdev_l3_rcv = ipvlan_l3_rcv,
 };
 
