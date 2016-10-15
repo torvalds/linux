@@ -21,8 +21,6 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include "wm9705.h"
-
 #define WM9705_VENDOR_ID 0x574d4c05
 #define WM9705_VENDOR_ID_MASK 0xffffffff
 
