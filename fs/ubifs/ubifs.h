@@ -39,6 +39,7 @@
 #include <linux/security.h>
 #include <linux/xattr.h>
 #include <linux/fscrypto.h>
+#include <linux/random.h>
 #include "ubifs-media.h"
 
 /* Version of this UBIFS implementation */

@@ -589,6 +589,7 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 	dent->nlen = cpu_to_le16(fname_len(nm));
 	memcpy(dent->name, fname_name(nm), fname_len(nm));
 	dent->name[fname_len(nm)] = '\0';
+	dent->cookie = prandom_u32();
 
 	zero_dent_node_unused(dent);
 	ubifs_prep_grp_node(c, dent, dlen, 0);
@@ -1124,6 +1125,7 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	dent->nlen = cpu_to_le16(fname_len(new_nm));
 	memcpy(dent->name, fname_name(new_nm), fname_len(new_nm));
 	dent->name[fname_len(new_nm)] = '\0';
+	dent->cookie = prandom_u32();
 	zero_dent_node_unused(dent);
 	ubifs_prep_grp_node(c, dent, dlen1, 0);
 
@@ -1142,6 +1144,7 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	dent2->nlen = cpu_to_le16(fname_len(old_nm));
 	memcpy(dent2->name, fname_name(old_nm), fname_len(old_nm));
 	dent2->name[fname_len(old_nm)] = '\0';
+	dent2->cookie = prandom_u32();
 	zero_dent_node_unused(dent2);
 	ubifs_prep_grp_node(c, dent2, dlen2, 0);
 
