@@ -111,6 +111,10 @@ static int uniphier_clk_remove(struct platform_device *pdev)
 static const struct of_device_id uniphier_clk_match[] = {
 	/* System clock */
 	{
+		.compatible = "socionext,uniphier-sld3-clock",
+		.data = uniphier_sld3_sys_clk_data,
+	},
+	{
 		.compatible = "socionext,uniphier-ld4-clock",
 		.data = uniphier_ld4_sys_clk_data,
 	},
