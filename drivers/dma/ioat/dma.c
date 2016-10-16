@@ -66,7 +66,6 @@ static char *chanerr_str[] = {
 	"Result Guard Tag verification Error",
 	"Result Application Tag verification Error",
 	"Result Reference Tag verification Error",
-	NULL
 };
 
 static void ioat_eh(struct ioatdma_chan *ioat_chan);
@@ -75,13 +74,10 @@ static void ioat_print_chanerrs(struct ioatdma_chan *ioat_chan, u32 chanerr)
 {
 	int i;
 
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < ARRAY_SIZE(chanerr_str); i++) {
 		if ((chanerr >> i) & 1) {
-			if (chanerr_str[i]) {
-				dev_err(to_dev(ioat_chan), "Err(%d): %s\n",
-					i, chanerr_str[i]);
-			} else
-				break;
+			dev_err(to_dev(ioat_chan), "Err(%d): %s\n",
+				i, chanerr_str[i]);
 		}
 	}
 }
