@@ -373,7 +373,7 @@ static void pio_bank_show(struct seq_file *s, struct gpio_chip *chip)
 		if (imr & mask)
 			seq_printf(s, " irq-%d edge-both",
 				gpio_to_irq(chip->base + i));
-		seq_printf(s, "\n");
+		seq_putc(s, '\n');
 	}
 }
 
