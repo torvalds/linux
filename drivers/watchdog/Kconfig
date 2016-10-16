@@ -72,16 +72,16 @@ config SOFT_WATCHDOG
 	  module will be called softdog.
 
 config DA9052_WATCHDOG
-        tristate "Dialog DA9052 Watchdog"
-        depends on PMIC_DA9052
-        select WATCHDOG_CORE
-        help
-          Support for the watchdog in the DA9052 PMIC. Watchdog trigger
-          cause system reset.
+	tristate "Dialog DA9052 Watchdog"
+	depends on PMIC_DA9052
+	select WATCHDOG_CORE
+	help
+	  Support for the watchdog in the DA9052 PMIC. Watchdog trigger
+	  cause system reset.
 
-          Say Y here to include support for the DA9052 watchdog.
-          Alternatively say M to compile the driver as a module,
-          which will be called da9052_wdt.
+	  Say Y here to include support for the DA9052 watchdog.
+	  Alternatively say M to compile the driver as a module,
+	  which will be called da9052_wdt.
 
 config DA9055_WATCHDOG
 	tristate "Dialog Semiconductor DA9055 Watchdog"
@@ -1624,16 +1624,16 @@ config BOOKE_WDT_DEFAULT_TIMEOUT
 	  The value can be overridden by the wdt_period command-line parameter.
 
 config MEN_A21_WDT
-       tristate "MEN A21 VME CPU Carrier Board Watchdog Timer"
-       select WATCHDOG_CORE
-       depends on GPIOLIB || COMPILE_TEST
-       help
-        Watchdog driver for MEN A21 VMEbus CPU Carrier Boards.
+	tristate "MEN A21 VME CPU Carrier Board Watchdog Timer"
+	select WATCHDOG_CORE
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Watchdog driver for MEN A21 VMEbus CPU Carrier Boards.
 
-	The driver can also be built as a module. If so, the module will be
-	called mena21_wdt.
+	  The driver can also be built as a module. If so, the module will be
+	  called mena21_wdt.
 
-	If unsure select N here.
+	  If unsure select N here.
 
 # PPC64 Architecture
 
