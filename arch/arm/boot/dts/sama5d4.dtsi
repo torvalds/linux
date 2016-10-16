@@ -1461,8 +1461,8 @@
 				dbgu {
 					pinctrl_dbgu: dbgu-0 {
 						atmel,pins =
-							<AT91_PIOB 24 AT91_PERIPH_A AT91_PINCTRL_NONE>,     /* conflicts with D14 and TDI */
-							<AT91_PIOB 25 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;  /* conflicts with D15 and TDO */
+							<AT91_PIOB 24 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* conflicts with D14 and TDI */
+							 AT91_PIOB 25 AT91_PERIPH_A AT91_PINCTRL_NONE>;		/* conflicts with D15 and TDO */
 					};
 				};
 
