@@ -242,7 +242,7 @@ dump_clock(struct clk *parent, struct clkinf *r)
 		clk_get_rate(parent));
 	if (parent->dev)
 		seq_printf(r->s, ", for %s", dev_name(parent->dev));
-	seq_printf(r->s, "\n");
+	seq_putc(r->s, '\n');
 
 	/* cost of this scan is small, but not linear... */
 	r->nest = nest + NEST_DELTA;
@@ -276,8 +276,7 @@ static int clk_show(struct seq_file *s, void *unused)
 		seq_printf(s, "GCCTRL%d = %8x\n", i, pm_readl(GCCTRL(i)));
 	}
 
-	seq_printf(s, "\n");
-
+	seq_putc(s, '\n');
 	r.s = s;
 	r.nest = 0;
 	/* protected from changes on the list while dumping */
