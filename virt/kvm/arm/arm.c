@@ -354,18 +354,18 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	vcpu->arch.host_cpu_context = this_cpu_ptr(kvm_host_cpu_state);
 
 	kvm_arm_set_running_vcpu(vcpu);
-
 	kvm_vgic_load(vcpu);
+	kvm_timer_vcpu_load(vcpu);
 }
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
+	kvm_timer_vcpu_put(vcpu);
 	kvm_vgic_put(vcpu);
 
 	vcpu->cpu = -1;
 
 	kvm_arm_set_running_vcpu(NULL);
-	kvm_timer_vcpu_put(vcpu);
 }
 
 static void vcpu_power_off(struct kvm_vcpu *vcpu)
@@ -710,14 +710,25 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		kvm_arm_clear_debug(vcpu);
 
 		/*
-		 * We must sync the PMU and timer state before the vgic state so
+		 * We must sync the PMU state before the vgic state so
 		 * that the vgic can properly sample the updated state of the
 		 * interrupt line.
 		 */
 		kvm_pmu_sync_hwstate(vcpu);
-		kvm_timer_sync_hwstate(vcpu);
 
+		/*
+		 * Sync the vgic state before syncing the timer state because
+		 * the timer code needs to know if the virtual timer
+		 * interrupts are active.
+		 */
 		kvm_vgic_sync_hwstate(vcpu);
+
+		/*
+		 * Sync the timer hardware state before enabling interrupts as
+		 * we don't want vtimer interrupts to race with syncing the
+		 * timer virtual interrupt state.
+		 */
+		kvm_timer_sync_hwstate(vcpu);
 
 		/*
 		 * We may have taken a host interrupt in HYP mode (ie

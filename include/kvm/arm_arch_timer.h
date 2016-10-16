@@ -31,8 +31,15 @@ struct arch_timer_context {
 	/* Timer IRQ */
 	struct kvm_irq_level		irq;
 
-	/* Active IRQ state caching */
-	bool				active_cleared_last;
+	/*
+	 * We have multiple paths which can save/restore the timer state
+	 * onto the hardware, so we need some way of keeping track of
+	 * where the latest state is.
+	 *
+	 * loaded == true:  State is loaded on the hardware registers.
+	 * loaded == false: State is stored in memory.
+	 */
+	bool			loaded;
 
 	/* Virtual offset */
 	u64			cntvoff;
@@ -78,10 +85,15 @@ void kvm_timer_unschedule(struct kvm_vcpu *vcpu);
 
 u64 kvm_phys_timer_read(void);
 
+void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu);
 void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu);
 
 void kvm_timer_init_vhe(void);
 
 #define vcpu_vtimer(v)	(&(v)->arch.timer_cpu.vtimer)
 #define vcpu_ptimer(v)	(&(v)->arch.timer_cpu.ptimer)
+
+void enable_el1_phys_timer_access(void);
+void disable_el1_phys_timer_access(void);
+
 #endif
