@@ -28,7 +28,7 @@ LED sub-node optional properties:
   - active-low : Boolean, makes LED active low.
     Default : false
   - default-state : see
-    Documentation/devicetree/bindings/leds/leds-gpio.txt
+    Documentation/devicetree/bindings/leds/common.txt
   - linux,default-trigger : see
     Documentation/devicetree/bindings/leds/common.txt
 

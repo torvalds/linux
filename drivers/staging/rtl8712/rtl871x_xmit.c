@@ -204,7 +204,8 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 
 {
 	/*If driver xmit ARP packet, driver can set ps mode to initial
-	 * setting. It stands for getting DHCP or fix IP.*/
+	 * setting. It stands for getting DHCP or fix IP.
+	 */
 	if (pattrib->ether_type == 0x0806) {
 		if (padapter->pwrctrlpriv.pwr_mode !=
 		    padapter->registrypriv.power_mgnt) {
@@ -232,7 +233,8 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 		if (pattrib->ether_type != 0x8712)
 			return _FAIL;
 		/* for mp storing the txcmd per packet,
-		 * according to the info of txcmd to update pattrib */
+		 * according to the info of txcmd to update pattrib
+		 */
 		/*get MP_TXDESC_SIZE bytes txcmd per packet*/
 		_r8712_pktfile_read(&pktfile, (u8 *)&txdesc, TXDESC_SIZE);
 		memcpy(pattrib->ra, pattrib->dst, ETH_ALEN);
@@ -244,7 +246,8 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 	if (pattrib->ether_type == ETH_P_IP) {
 		/* The following is for DHCP and ARP packet, we use cck1M to
 		 * tx these packets and let LPS awake some time
-		 * to prevent DHCP protocol fail */
+		 * to prevent DHCP protocol fail
+		 */
 		u8 tmp[24];
 
 		_r8712_pktfile_read(&pktfile, &tmp[0], 24);
@@ -255,7 +258,8 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 					((tmp[21] == 67) && (tmp[23] == 68))) {
 					/* 68 : UDP BOOTP client
 					 * 67 : UDP BOOTP server
-					 * Use low rate to send DHCP packet.*/
+					 * Use low rate to send DHCP packet.
+					 */
 					pattrib->dhcp_pkt = 1;
 				}
 			}
@@ -337,7 +341,8 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 	else
 		pattrib->bswenc = false;
 	/* if in MP_STATE, update pkt_attrib from mp_txcmd, and overwrite
-	 * some settings above.*/
+	 * some settings above.
+	 */
 	if (check_fwstate(pmlmepriv, WIFI_MP_STATE))
 		pattrib->priority = (txdesc.txdw1 >> QSEL_SHT) & 0x1f;
 	return _SUCCESS;
@@ -438,7 +443,8 @@ static sint xmitframe_addmic(struct _adapter *padapter,
 			}
 			r8712_secgetmic(&micdata, &(mic[0]));
 			/* add mic code  and add the mic code length in
-			 * last_txcmdsz */
+			 * last_txcmdsz
+			 */
 			memcpy(payload, &(mic[0]), 8);
 			pattrib->last_txcmdsz += 8;
 			payload = payload - pattrib->last_txcmdsz + 8;

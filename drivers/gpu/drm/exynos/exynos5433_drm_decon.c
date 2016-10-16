@@ -551,7 +551,6 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 {
 	struct decon_context *ctx = dev_id;
 	u32 val;
-	int win;
 
 	if (!test_bit(BIT_CLKS_ENABLED, &ctx->flags))
 		goto out;
@@ -560,16 +559,6 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 	val &= VIDINTCON1_INTFRMDONEPEND | VIDINTCON1_INTFRMPEND;
 
 	if (val) {
-		for (win = ctx->first_win; win < WINDOWS_NR ; win++) {
-			struct exynos_drm_plane *plane = &ctx->planes[win];
-
-			if (!plane->pending_fb)
-				continue;
-
-			exynos_drm_crtc_finish_update(ctx->crtc, plane);
-		}
-
-		/* clear */
 		writel(val, ctx->addr + DECON_VIDINTCON1);
 		drm_crtc_handle_vblank(&ctx->crtc->base);
 	}

@@ -1767,8 +1767,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* alloc, and start init */
 	dev = kzalloc (sizeof *dev, GFP_KERNEL);
-	if (dev == NULL){
-		pr_debug("enomem %s\n", pci_name(pdev));
+	if (!dev) {
 		retval = -ENOMEM;
 		goto err;
 	}
@@ -1839,6 +1838,8 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 err:
 	if (dev)
 		goku_remove (pdev);
+	/* gadget_release is not registered yet, kfree explicitly */
+	kfree(dev);
 	return retval;
 }
 

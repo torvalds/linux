@@ -4,6 +4,8 @@
  * Author: Patrice Chotard <patrice.chotard@st.com>
  * License terms: GNU General Public License (GPL) version 2
  *
+ * Driver allows to use AxB5xx unused pins to be used as GPIO
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -12,7 +14,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -1269,8 +1270,3 @@ static int __init abx500_gpio_init(void)
 	return platform_driver_register(&abx500_gpio_driver);
 }
 core_initcall(abx500_gpio_init);
-
-MODULE_AUTHOR("Patrice Chotard <patrice.chotard@st.com>");
-MODULE_DESCRIPTION("Driver allows to use AxB5xx unused pins to be used as GPIO");
-MODULE_ALIAS("platform:abx500-gpio");
-MODULE_LICENSE("GPL v2");

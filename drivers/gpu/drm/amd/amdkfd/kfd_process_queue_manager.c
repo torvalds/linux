@@ -129,7 +129,7 @@ static int create_cp_queue(struct process_queue_manager *pqm,
 	q_properties->vmid = 0;
 	q_properties->queue_id = qid;
 
-	retval = init_queue(q, *q_properties);
+	retval = init_queue(q, q_properties);
 	if (retval != 0)
 		goto err_init_queue;
 

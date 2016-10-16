@@ -1425,9 +1425,15 @@ static u8 f1x_determine_channel(struct amd64_pvt *pvt, u64 sys_addr,
 
 		if (intlv_addr & 0x2) {
 			u8 shift = intlv_addr & 0x1 ? 9 : 6;
-			u32 temp = hweight_long((u32) ((sys_addr >> 16) & 0x1F)) % 2;
+			u32 temp = hweight_long((u32) ((sys_addr >> 16) & 0x1F)) & 1;
 
 			return ((sys_addr >> shift) & 1) ^ temp;
+		}
+
+		if (intlv_addr & 0x4) {
+			u8 shift = intlv_addr & 0x1 ? 9 : 8;
+
+			return (sys_addr >> shift) & 1;
 		}
 
 		return (sys_addr >> (12 + hweight8(intlv_en))) & 1;
@@ -1726,8 +1732,11 @@ static int f15_m30h_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 	if (!(num_dcts_intlv % 2 == 0) || (num_dcts_intlv > 4))
 		return -EINVAL;
 
-	channel = f15_m30h_determine_channel(pvt, sys_addr, intlv_en,
-					     num_dcts_intlv, dct_sel);
+	if (pvt->model >= 0x60)
+		channel = f1x_determine_channel(pvt, sys_addr, false, intlv_en);
+	else
+		channel = f15_m30h_determine_channel(pvt, sys_addr, intlv_en,
+						     num_dcts_intlv, dct_sel);
 
 	/* Verify we stay within the MAX number of channels allowed */
 	if (channel > 3)
@@ -2960,6 +2969,15 @@ static void setup_pci_device(void)
 		pr_warn("%s(): PCI error report via EDAC not set\n", __func__);
 	}
 }
+
+static const struct x86_cpu_id amd64_cpuids[] = {
+	{ X86_VENDOR_AMD, 0xF,	X86_MODEL_ANY,	X86_FEATURE_ANY, 0 },
+	{ X86_VENDOR_AMD, 0x10, X86_MODEL_ANY,	X86_FEATURE_ANY, 0 },
+	{ X86_VENDOR_AMD, 0x15, X86_MODEL_ANY,	X86_FEATURE_ANY, 0 },
+	{ X86_VENDOR_AMD, 0x16, X86_MODEL_ANY,	X86_FEATURE_ANY, 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(x86cpu, amd64_cpuids);
 
 static int __init amd64_edac_init(void)
 {

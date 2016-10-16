@@ -26,6 +26,7 @@ enum dsa_tag_protocol {
 	DSA_TAG_PROTO_TRAILER,
 	DSA_TAG_PROTO_EDSA,
 	DSA_TAG_PROTO_BRCM,
+	DSA_TAG_PROTO_QCA,
 	DSA_TAG_LAST,		/* MUST BE LAST */
 };
 
@@ -142,6 +143,7 @@ struct dsa_port {
 	struct net_device	*netdev;
 	struct device_node	*dn;
 	unsigned int		ageing_time;
+	u8			stp_state;
 };
 
 struct dsa_switch {
@@ -165,9 +167,9 @@ struct dsa_switch {
 	struct dsa_chip_data	*cd;
 
 	/*
-	 * The used switch driver.
+	 * The switch operations.
 	 */
-	struct dsa_switch_driver	*drv;
+	struct dsa_switch_ops	*ops;
 
 	/*
 	 * An array of which element [a] indicates which port on this
@@ -234,12 +236,11 @@ static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 struct switchdev_trans;
 struct switchdev_obj;
 struct switchdev_obj_port_fdb;
+struct switchdev_obj_port_mdb;
 struct switchdev_obj_port_vlan;
 
-struct dsa_switch_driver {
+struct dsa_switch_ops {
 	struct list_head	list;
-
-	enum dsa_tag_protocol	tag_protocol;
 
 	/*
 	 * Probing and setup.
@@ -247,6 +248,9 @@ struct dsa_switch_driver {
 	const char	*(*probe)(struct device *dsa_dev,
 				  struct device *host_dev, int sw_addr,
 				  void **priv);
+
+	enum dsa_tag_protocol (*get_tag_protocol)(struct dsa_switch *ds);
+
 	int	(*setup)(struct dsa_switch *ds);
 	int	(*set_addr)(struct dsa_switch *ds, u8 *addr);
 	u32	(*get_phy_flags)(struct dsa_switch *ds, int port);
@@ -336,6 +340,7 @@ struct dsa_switch_driver {
 	void	(*port_bridge_leave)(struct dsa_switch *ds, int port);
 	void	(*port_stp_state_set)(struct dsa_switch *ds, int port,
 				      u8 state);
+	void	(*port_fast_age)(struct dsa_switch *ds, int port);
 
 	/*
 	 * VLAN support
@@ -368,16 +373,26 @@ struct dsa_switch_driver {
 	int	(*port_fdb_dump)(struct dsa_switch *ds, int port,
 				 struct switchdev_obj_port_fdb *fdb,
 				 int (*cb)(struct switchdev_obj *obj));
+
+	/*
+	 * Multicast database
+	 */
+	int	(*port_mdb_prepare)(struct dsa_switch *ds, int port,
+				    const struct switchdev_obj_port_mdb *mdb,
+				    struct switchdev_trans *trans);
+	void	(*port_mdb_add)(struct dsa_switch *ds, int port,
+				const struct switchdev_obj_port_mdb *mdb,
+				struct switchdev_trans *trans);
+	int	(*port_mdb_del)(struct dsa_switch *ds, int port,
+				const struct switchdev_obj_port_mdb *mdb);
+	int	(*port_mdb_dump)(struct dsa_switch *ds, int port,
+				 struct switchdev_obj_port_mdb *mdb,
+				 int (*cb)(struct switchdev_obj *obj));
 };
 
-void register_switch_driver(struct dsa_switch_driver *type);
-void unregister_switch_driver(struct dsa_switch_driver *type);
+void register_switch_driver(struct dsa_switch_ops *type);
+void unregister_switch_driver(struct dsa_switch_ops *type);
 struct mii_bus *dsa_host_dev_to_mii_bus(struct device *dev);
-
-static inline void *ds_to_priv(struct dsa_switch *ds)
-{
-	return ds->priv;
-}
 
 static inline bool dsa_uses_tagged_protocol(struct dsa_switch_tree *dst)
 {
@@ -386,4 +401,18 @@ static inline bool dsa_uses_tagged_protocol(struct dsa_switch_tree *dst)
 
 void dsa_unregister_switch(struct dsa_switch *ds);
 int dsa_register_switch(struct dsa_switch *ds, struct device_node *np);
+#ifdef CONFIG_PM_SLEEP
+int dsa_switch_suspend(struct dsa_switch *ds);
+int dsa_switch_resume(struct dsa_switch *ds);
+#else
+static inline int dsa_switch_suspend(struct dsa_switch *ds)
+{
+	return 0;
+}
+static inline int dsa_switch_resume(struct dsa_switch *ds)
+{
+	return 0;
+}
+#endif /* CONFIG_PM_SLEEP */
+
 #endif

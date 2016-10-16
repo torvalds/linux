@@ -2,6 +2,7 @@
 #include "qed_dev_api.h"
 #include "qed_mcp.h"
 #include "qed_sp.h"
+#include "qed_selftest.h"
 
 int qed_selftest_memory(struct qed_dev *cdev)
 {

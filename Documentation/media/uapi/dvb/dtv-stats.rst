@@ -1,6 +1,6 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _dtv-stats:
+.. c:type:: dtv_stats
 
 ****************
 struct dtv_stats

@@ -29,7 +29,6 @@
 #include <net/flow.h>
 #include <net/inet_sock.h>
 #include <net/ip_fib.h>
-#include <net/l3mdev.h>
 #include <linux/in_route.h>
 #include <linux/rtnetlink.h>
 #include <linux/rcupdate.h>
@@ -285,15 +284,6 @@ static inline struct rtable *ip_route_connect(struct flowi4 *fl4,
 	ip_route_connect_init(fl4, dst, src, tos, oif, protocol,
 			      sport, dport, sk);
 
-	if (!src && oif) {
-		int rc;
-
-		rc = l3mdev_get_saddr(net, oif, fl4);
-		if (rc < 0)
-			return ERR_PTR(rc);
-
-		src = fl4->saddr;
-	}
 	if (!dst || !src) {
 		rt = __ip_route_output_key(net, fl4);
 		if (IS_ERR(rt))

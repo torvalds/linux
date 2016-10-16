@@ -10,12 +10,13 @@
 */
 
 #include <dt-bindings/clock/exynos5440.h>
-#include "skeleton.dtsi"
 
 / {
 	compatible = "samsung,exynos5440", "samsung,exynos5";
 
 	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	aliases {
 		serial0 = &serial_0;

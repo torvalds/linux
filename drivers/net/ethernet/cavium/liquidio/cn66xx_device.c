@@ -338,7 +338,7 @@ void lio_cn6xxx_setup_oq_regs(struct octeon_device *oct, u32 oq_no)
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_CNT_INT_ENB, intr);
 }
 
-void lio_cn6xxx_enable_io_queues(struct octeon_device *oct)
+int lio_cn6xxx_enable_io_queues(struct octeon_device *oct)
 {
 	u32 mask;
 
@@ -353,6 +353,8 @@ void lio_cn6xxx_enable_io_queues(struct octeon_device *oct)
 	mask = octeon_read_csr(oct, CN6XXX_SLI_PKT_OUT_ENB);
 	mask |= oct->io_qmask.oq;
 	octeon_write_csr(oct, CN6XXX_SLI_PKT_OUT_ENB, mask);
+
+	return 0;
 }
 
 void lio_cn6xxx_disable_io_queues(struct octeon_device *oct)
@@ -418,36 +420,6 @@ void lio_cn6xxx_disable_io_queues(struct octeon_device *oct)
 		octeon_write_csr(oct, CN6XXX_SLI_PKT_TIME_INT, d32);
 }
 
-void lio_cn6xxx_reinit_regs(struct octeon_device *oct)
-{
-	int i;
-
-	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
-		if (!(oct->io_qmask.iq & (1ULL << i)))
-			continue;
-		oct->fn_list.setup_iq_regs(oct, i);
-	}
-
-	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
-		if (!(oct->io_qmask.oq & (1ULL << i)))
-			continue;
-		oct->fn_list.setup_oq_regs(oct, i);
-	}
-
-	oct->fn_list.setup_device_regs(oct);
-
-	oct->fn_list.enable_interrupt(oct->chip);
-
-	oct->fn_list.enable_io_queues(oct);
-
-	/* for (i = 0; i < oct->num_oqs; i++) { */
-	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
-		if (!(oct->io_qmask.oq & (1ULL << i)))
-			continue;
-		writel(oct->droq[i]->max_count, oct->droq[i]->pkts_credit_reg);
-	}
-}
-
 void
 lio_cn6xxx_bar1_idx_setup(struct octeon_device *oct,
 			  u64 core_addr,
@@ -507,18 +479,20 @@ lio_cn6xxx_update_read_index(struct octeon_instr_queue *iq)
 	return new_idx;
 }
 
-void lio_cn6xxx_enable_interrupt(void *chip)
+void lio_cn6xxx_enable_interrupt(struct octeon_device *oct,
+				 u8 unused __attribute__((unused)))
 {
-	struct octeon_cn6xxx *cn6xxx = (struct octeon_cn6xxx *)chip;
+	struct octeon_cn6xxx *cn6xxx = (struct octeon_cn6xxx *)oct->chip;
 	u64 mask = cn6xxx->intr_mask64 | CN6XXX_INTR_DMA0_FORCE;
 
 	/* Enable Interrupt */
 	writeq(mask, cn6xxx->intr_enb_reg64);
 }
 
-void lio_cn6xxx_disable_interrupt(void *chip)
+void lio_cn6xxx_disable_interrupt(struct octeon_device *oct,
+				  u8 unused __attribute__((unused)))
 {
-	struct octeon_cn6xxx *cn6xxx = (struct octeon_cn6xxx *)chip;
+	struct octeon_cn6xxx *cn6xxx = (struct octeon_cn6xxx *)oct->chip;
 
 	/* Disable Interrupts */
 	writeq(0, cn6xxx->intr_enb_reg64);
@@ -714,7 +688,6 @@ int lio_setup_cn66xx_octeon_device(struct octeon_device *oct)
 
 	oct->fn_list.soft_reset = lio_cn6xxx_soft_reset;
 	oct->fn_list.setup_device_regs = lio_cn6xxx_setup_device_regs;
-	oct->fn_list.reinit_regs = lio_cn6xxx_reinit_regs;
 	oct->fn_list.update_iq_read_idx = lio_cn6xxx_update_read_index;
 
 	oct->fn_list.bar1_idx_setup = lio_cn6xxx_bar1_idx_setup;

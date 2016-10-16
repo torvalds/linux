@@ -12,7 +12,6 @@
 #include <asm/assembler.h>
 
 .syntax unified
-.code   32
 .fpu neon
 
 .text

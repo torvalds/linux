@@ -22,7 +22,6 @@
 #ifndef __S5H1432_H__
 #define __S5H1432_H__
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 #define S5H1432_I2C_TOP_ADDR (0x02 >> 1)

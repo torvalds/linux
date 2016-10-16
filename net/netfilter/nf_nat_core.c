@@ -566,15 +566,9 @@ static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
 	 * Else, when the conntrack is destoyed, nf_nat_cleanup_conntrack()
 	 * will delete entry from already-freed table.
 	 */
-	if (!del_timer(&ct->timeout))
-		return 1;
-
 	ct->status &= ~IPS_NAT_DONE_MASK;
-
 	rhashtable_remove_fast(&nf_nat_bysource_table, &ct->nat_bysource,
 			       nf_nat_bysource_params);
-
-	add_timer(&ct->timeout);
 
 	/* don't delete conntrack.  Although that would make things a lot
 	 * simpler, we'd end up flushing all conntracks on nat rmmod.

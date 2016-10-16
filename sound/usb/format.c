@@ -176,10 +176,8 @@ static int parse_audio_format_rates_v1(struct snd_usb_audio *chip, struct audiof
 		int r, idx;
 
 		fp->rate_table = kmalloc(sizeof(int) * nr_rates, GFP_KERNEL);
-		if (fp->rate_table == NULL) {
-			usb_audio_err(chip, "cannot malloc\n");
+		if (fp->rate_table == NULL)
 			return -ENOMEM;
-		}
 
 		fp->nr_rates = 0;
 		fp->rate_min = fp->rate_max = 0;

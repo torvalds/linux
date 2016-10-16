@@ -184,15 +184,9 @@ struct sst_byt {
 
 static inline u64 sst_byt_header(int msg_id, int data, bool large, int str_id)
 {
-	u64 header;
-
-	header = IPC_HEADER_MSG_ID(msg_id) |
-		 IPC_HEADER_STR_ID(str_id) |
-		 IPC_HEADER_LARGE(large) |
-		 IPC_HEADER_DATA(data) |
-		 SST_BYT_IPCX_BUSY;
-
-	return header;
+	return IPC_HEADER_MSG_ID(msg_id) | IPC_HEADER_STR_ID(str_id) |
+	       IPC_HEADER_LARGE(large) | IPC_HEADER_DATA(data) |
+	       SST_BYT_IPCX_BUSY;
 }
 
 static inline u16 sst_byt_header_msg_id(u64 header)
@@ -344,7 +338,7 @@ static irqreturn_t sst_byt_irq_thread(int irq, void *context)
 	spin_unlock_irqrestore(&sst->spinlock, flags);
 
 	/* continue to send any remaining messages... */
-	queue_kthread_work(&ipc->kworker, &ipc->kwork);
+	kthread_queue_work(&ipc->kworker, &ipc->kwork);
 
 	return IRQ_HANDLED;
 }

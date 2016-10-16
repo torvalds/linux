@@ -87,9 +87,9 @@ struct i2s_dai {
 	/* Driver for this DAI */
 	struct snd_soc_dai_driver i2s_dai_drv;
 	/* DMA parameters */
-	struct s3c_dma_params dma_playback;
-	struct s3c_dma_params dma_capture;
-	struct s3c_dma_params idma_playback;
+	struct snd_dmaengine_dai_dma_data dma_playback;
+	struct snd_dmaengine_dai_dma_data dma_capture;
+	struct snd_dmaengine_dai_dma_data idma_playback;
 	dma_filter_fn filter;
 	u32	quirks;
 	u32	suspend_i2smod;
@@ -692,15 +692,15 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 		break;
 	case 2:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			i2s->dma_playback.dma_size = 4;
+			i2s->dma_playback.addr_width = 4;
 		else
-			i2s->dma_capture.dma_size = 4;
+			i2s->dma_capture.addr_width = 4;
 		break;
 	case 1:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			i2s->dma_playback.dma_size = 2;
+			i2s->dma_playback.addr_width = 2;
 		else
-			i2s->dma_capture.dma_size = 2;
+			i2s->dma_capture.addr_width = 2;
 
 		break;
 	default:
@@ -754,7 +754,7 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 	writel(mod, i2s->addr + I2SMOD);
 	spin_unlock_irqrestore(i2s->lock, flags);
 
-	samsung_asoc_init_dma_data(dai, &i2s->dma_playback, &i2s->dma_capture);
+	snd_soc_dai_init_dma_data(dai, &i2s->dma_playback, &i2s->dma_capture);
 
 	i2s->frmclk = params_rate(params);
 
@@ -991,10 +991,10 @@ static int samsung_i2s_dai_probe(struct snd_soc_dai *dai)
 	unsigned long flags;
 
 	if (is_secondary(i2s)) { /* If this is probe on the secondary DAI */
-		samsung_asoc_init_dma_data(dai, &other->sec_dai->dma_playback,
+		snd_soc_dai_init_dma_data(dai, &other->sec_dai->dma_playback,
 					   NULL);
 	} else {
-		samsung_asoc_init_dma_data(dai, &i2s->dma_playback,
+		snd_soc_dai_init_dma_data(dai, &i2s->dma_playback,
 					   &i2s->dma_capture);
 
 		if (i2s->quirks & QUIRK_NEED_RSTCLR)
@@ -1002,7 +1002,7 @@ static int samsung_i2s_dai_probe(struct snd_soc_dai *dai)
 
 		if (i2s->quirks & QUIRK_SUPPORTS_IDMA)
 			idma_reg_addr_init(i2s->addr,
-					i2s->sec_dai->idma_playback.dma_addr);
+					i2s->sec_dai->idma_playback.addr);
 	}
 
 	/* Reset any constraint on RFS and BFS */
@@ -1262,8 +1262,8 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
-		pri_dai->dma_playback.slave = i2s_pdata->dma_playback;
-		pri_dai->dma_capture.slave = i2s_pdata->dma_capture;
+		pri_dai->dma_playback.filter_data = i2s_pdata->dma_playback;
+		pri_dai->dma_capture.filter_data = i2s_pdata->dma_capture;
 		pri_dai->filter = i2s_pdata->dma_filter;
 
 		if (&i2s_pdata->type)
@@ -1302,12 +1302,12 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to enable clock: %d\n", ret);
 		return ret;
 	}
-	pri_dai->dma_playback.dma_addr = regs_base + I2STXD;
-	pri_dai->dma_capture.dma_addr = regs_base + I2SRXD;
-	pri_dai->dma_playback.ch_name = "tx";
-	pri_dai->dma_capture.ch_name = "rx";
-	pri_dai->dma_playback.dma_size = 4;
-	pri_dai->dma_capture.dma_size = 4;
+	pri_dai->dma_playback.addr = regs_base + I2STXD;
+	pri_dai->dma_capture.addr = regs_base + I2SRXD;
+	pri_dai->dma_playback.chan_name = "tx";
+	pri_dai->dma_capture.chan_name = "rx";
+	pri_dai->dma_playback.addr_width = 4;
+	pri_dai->dma_capture.addr_width = 4;
 	pri_dai->quirks = quirks;
 	pri_dai->variant_regs = i2s_dai_data->i2s_variant_regs;
 
@@ -1318,31 +1318,33 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		sec_dai = i2s_alloc_dai(pdev, true);
 		if (!sec_dai) {
 			dev_err(&pdev->dev, "Unable to alloc I2S_sec\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_disable_clk;
 		}
 
 		sec_dai->lock = &pri_dai->spinlock;
 		sec_dai->variant_regs = pri_dai->variant_regs;
-		sec_dai->dma_playback.dma_addr = regs_base + I2STXDS;
-		sec_dai->dma_playback.ch_name = "tx-sec";
+		sec_dai->dma_playback.addr = regs_base + I2STXDS;
+		sec_dai->dma_playback.chan_name = "tx-sec";
 
 		if (!np) {
-			sec_dai->dma_playback.slave = i2s_pdata->dma_play_sec;
+			sec_dai->dma_playback.filter_data = i2s_pdata->dma_play_sec;
 			sec_dai->filter = i2s_pdata->dma_filter;
 		}
 
-		sec_dai->dma_playback.dma_size = 4;
+		sec_dai->dma_playback.addr_width = 4;
 		sec_dai->addr = pri_dai->addr;
 		sec_dai->clk = pri_dai->clk;
 		sec_dai->quirks = quirks;
-		sec_dai->idma_playback.dma_addr = idma_addr;
+		sec_dai->idma_playback.addr = idma_addr;
 		sec_dai->pri_dai = pri_dai;
 		pri_dai->sec_dai = sec_dai;
 	}
 
 	if (i2s_pdata && i2s_pdata->cfg_gpio && i2s_pdata->cfg_gpio(pdev)) {
 		dev_err(&pdev->dev, "Unable to configure gpio\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_disable_clk;
 	}
 
 	ret = devm_snd_soc_register_component(&pri_dai->pdev->dev,
@@ -1366,6 +1368,8 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 err_free_dai:
 	if (sec_dai)
 		i2s_free_sec_dai(sec_dai);
+err_disable_clk:
+	clk_disable_unprepare(pri_dai->clk);
 	return ret;
 }
 

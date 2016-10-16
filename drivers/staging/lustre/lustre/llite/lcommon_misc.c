@@ -38,7 +38,6 @@
 #include "../include/obd.h"
 #include "../include/cl_object.h"
 
-#include "../include/lustre_lite.h"
 #include "llite_internal.h"
 
 /* Initialize the default and maximum LOV EA and cookie sizes.  This allows

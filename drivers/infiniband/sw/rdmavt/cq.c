@@ -129,7 +129,7 @@ void rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
 		if (likely(worker)) {
 			cq->notify = RVT_CQ_NONE;
 			cq->triggered++;
-			queue_kthread_work(worker, &cq->comptask);
+			kthread_queue_work(worker, &cq->comptask);
 		}
 	}
 
@@ -265,7 +265,7 @@ struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 	cq->ibcq.cqe = entries;
 	cq->notify = RVT_CQ_NONE;
 	spin_lock_init(&cq->lock);
-	init_kthread_work(&cq->comptask, send_complete);
+	kthread_init_work(&cq->comptask, send_complete);
 	cq->queue = wc;
 
 	ret = &cq->ibcq;
@@ -295,7 +295,7 @@ int rvt_destroy_cq(struct ib_cq *ibcq)
 	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
 	struct rvt_dev_info *rdi = cq->rdi;
 
-	flush_kthread_work(&cq->comptask);
+	kthread_flush_work(&cq->comptask);
 	spin_lock(&rdi->n_cqs_lock);
 	rdi->n_cqs_allocated--;
 	spin_unlock(&rdi->n_cqs_lock);
@@ -514,7 +514,7 @@ int rvt_driver_cq_init(struct rvt_dev_info *rdi)
 	rdi->worker = kzalloc(sizeof(*rdi->worker), GFP_KERNEL);
 	if (!rdi->worker)
 		return -ENOMEM;
-	init_kthread_worker(rdi->worker);
+	kthread_init_worker(rdi->worker);
 	task = kthread_create_on_node(
 		kthread_worker_fn,
 		rdi->worker,
@@ -547,7 +547,7 @@ void rvt_cq_exit(struct rvt_dev_info *rdi)
 	/* blocks future queuing from send_complete() */
 	rdi->worker = NULL;
 	smp_wmb(); /* See rdi_cq_enter */
-	flush_kthread_worker(worker);
+	kthread_flush_worker(worker);
 	kthread_stop(worker->task);
 	kfree(worker);
 }

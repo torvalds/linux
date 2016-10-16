@@ -909,7 +909,6 @@ out_busy:
 
 static struct blk_mq_ops blkfront_mq_ops = {
 	.queue_rq = blkif_queue_rq,
-	.map_queue = blk_mq_map_queue,
 };
 
 static void blkif_set_queue_limits(struct blkfront_info *info)

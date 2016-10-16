@@ -432,6 +432,28 @@ TRACE_EVENT(kvmppc_vcore_blocked,
 		   __entry->runner_vcpu, __entry->n_runnable, __entry->tgid)
 );
 
+TRACE_EVENT(kvmppc_vcore_wakeup,
+	TP_PROTO(int do_sleep, __u64 ns),
+
+	TP_ARGS(do_sleep, ns),
+
+	TP_STRUCT__entry(
+		__field(__u64,  ns)
+		__field(int,    waited)
+		__field(pid_t,  tgid)
+	),
+
+	TP_fast_assign(
+		__entry->ns     = ns;
+		__entry->waited = do_sleep;
+		__entry->tgid   = current->tgid;
+	),
+
+	TP_printk("%s time %lld ns, tgid=%d",
+		__entry->waited ? "wait" : "poll",
+		__entry->ns, __entry->tgid)
+);
+
 TRACE_EVENT(kvmppc_run_vcpu_enter,
 	TP_PROTO(struct kvm_vcpu *vcpu),
 

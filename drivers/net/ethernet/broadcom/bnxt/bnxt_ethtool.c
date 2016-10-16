@@ -21,6 +21,8 @@
 #include "bnxt_nvm_defs.h"	/* NVRAM content constant and structure defs */
 #include "bnxt_fw_hdr.h"	/* Firmware hdr constant and structure defs */
 #define FLASH_NVRAM_TIMEOUT	((HWRM_CMD_TIMEOUT) * 100)
+#define FLASH_PACKAGE_TIMEOUT	((HWRM_CMD_TIMEOUT) * 200)
+#define INSTALL_PACKAGE_TIMEOUT	((HWRM_CMD_TIMEOUT) * 200)
 
 static char *bnxt_get_pkgver(struct net_device *dev, char *buf, size_t buflen);
 
@@ -346,7 +348,7 @@ static void bnxt_get_channels(struct net_device *dev,
 	int max_rx_rings, max_tx_rings, tcs;
 
 	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, true);
-	channel->max_combined = max_rx_rings;
+	channel->max_combined = max_t(int, max_rx_rings, max_tx_rings);
 
 	if (bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, false)) {
 		max_rx_rings = 0;
@@ -404,8 +406,8 @@ static int bnxt_set_channels(struct net_device *dev,
 	if (tcs > 1)
 		max_tx_rings /= tcs;
 
-	if (sh && (channel->combined_count > max_rx_rings ||
-		   channel->combined_count > max_tx_rings))
+	if (sh &&
+	    channel->combined_count > max_t(int, max_rx_rings, max_tx_rings))
 		return -ENOMEM;
 
 	if (!sh && (channel->rx_count > max_rx_rings ||
@@ -428,8 +430,10 @@ static int bnxt_set_channels(struct net_device *dev,
 
 	if (sh) {
 		bp->flags |= BNXT_FLAG_SHARED_RINGS;
-		bp->rx_nr_rings = channel->combined_count;
-		bp->tx_nr_rings_per_tc = channel->combined_count;
+		bp->rx_nr_rings = min_t(int, channel->combined_count,
+					max_rx_rings);
+		bp->tx_nr_rings_per_tc = min_t(int, channel->combined_count,
+					       max_tx_rings);
 	} else {
 		bp->flags &= ~BNXT_FLAG_SHARED_RINGS;
 		bp->rx_nr_rings = channel->rx_count;
@@ -1028,6 +1032,10 @@ static u32 bnxt_get_link(struct net_device *dev)
 	return bp->link_info.link_up;
 }
 
+static int bnxt_find_nvram_item(struct net_device *dev, u16 type, u16 ordinal,
+				u16 ext, u16 *index, u32 *item_length,
+				u32 *data_length);
+
 static int bnxt_flash_nvram(struct net_device *dev,
 			    u16 dir_type,
 			    u16 dir_ordinal,
@@ -1179,11 +1187,61 @@ static int bnxt_flash_firmware(struct net_device *dev,
 			   (unsigned long)calculated_crc);
 		return -EINVAL;
 	}
-	/* TODO: Validate digital signature (RSA-encrypted SHA-256 hash) here */
 	rc = bnxt_flash_nvram(dev, dir_type, BNX_DIR_ORDINAL_FIRST,
 			      0, 0, fw_data, fw_size);
 	if (rc == 0)	/* Firmware update successful */
 		rc = bnxt_firmware_reset(dev, dir_type);
+
+	return rc;
+}
+
+static int bnxt_flash_microcode(struct net_device *dev,
+				u16 dir_type,
+				const u8 *fw_data,
+				size_t fw_size)
+{
+	struct bnxt_ucode_trailer *trailer;
+	u32 calculated_crc;
+	u32 stored_crc;
+	int rc = 0;
+
+	if (fw_size < sizeof(struct bnxt_ucode_trailer)) {
+		netdev_err(dev, "Invalid microcode file size: %u\n",
+			   (unsigned int)fw_size);
+		return -EINVAL;
+	}
+	trailer = (struct bnxt_ucode_trailer *)(fw_data + (fw_size -
+						sizeof(*trailer)));
+	if (trailer->sig != cpu_to_le32(BNXT_UCODE_TRAILER_SIGNATURE)) {
+		netdev_err(dev, "Invalid microcode trailer signature: %08X\n",
+			   le32_to_cpu(trailer->sig));
+		return -EINVAL;
+	}
+	if (le16_to_cpu(trailer->dir_type) != dir_type) {
+		netdev_err(dev, "Expected microcode type: %d, read: %d\n",
+			   dir_type, le16_to_cpu(trailer->dir_type));
+		return -EINVAL;
+	}
+	if (le16_to_cpu(trailer->trailer_length) <
+		sizeof(struct bnxt_ucode_trailer)) {
+		netdev_err(dev, "Invalid microcode trailer length: %d\n",
+			   le16_to_cpu(trailer->trailer_length));
+		return -EINVAL;
+	}
+
+	/* Confirm the CRC32 checksum of the file: */
+	stored_crc = le32_to_cpu(*(__le32 *)(fw_data + fw_size -
+					     sizeof(stored_crc)));
+	calculated_crc = ~crc32(~0, fw_data, fw_size - sizeof(stored_crc));
+	if (calculated_crc != stored_crc) {
+		netdev_err(dev,
+			   "CRC32 (%08lX) does not match calculated: %08lX\n",
+			   (unsigned long)stored_crc,
+			   (unsigned long)calculated_crc);
+		return -EINVAL;
+	}
+	rc = bnxt_flash_nvram(dev, dir_type, BNX_DIR_ORDINAL_FIRST,
+			      0, 0, fw_data, fw_size);
 
 	return rc;
 }
@@ -1206,7 +1264,7 @@ static bool bnxt_dir_type_is_ape_bin_format(u16 dir_type)
 	return false;
 }
 
-static bool bnxt_dir_type_is_unprotected_exec_format(u16 dir_type)
+static bool bnxt_dir_type_is_other_exec_format(u16 dir_type)
 {
 	switch (dir_type) {
 	case BNX_DIR_TYPE_AVS:
@@ -1227,7 +1285,7 @@ static bool bnxt_dir_type_is_unprotected_exec_format(u16 dir_type)
 static bool bnxt_dir_type_is_executable(u16 dir_type)
 {
 	return bnxt_dir_type_is_ape_bin_format(dir_type) ||
-		bnxt_dir_type_is_unprotected_exec_format(dir_type);
+		bnxt_dir_type_is_other_exec_format(dir_type);
 }
 
 static int bnxt_flash_firmware_from_file(struct net_device *dev,
@@ -1237,10 +1295,6 @@ static int bnxt_flash_firmware_from_file(struct net_device *dev,
 	const struct firmware  *fw;
 	int			rc;
 
-	if (dir_type != BNX_DIR_TYPE_UPDATE &&
-	    bnxt_dir_type_is_executable(dir_type) == false)
-		return -EINVAL;
-
 	rc = request_firmware(&fw, filename, &dev->dev);
 	if (rc != 0) {
 		netdev_err(dev, "Error %d requesting firmware file: %s\n",
@@ -1249,6 +1303,8 @@ static int bnxt_flash_firmware_from_file(struct net_device *dev,
 	}
 	if (bnxt_dir_type_is_ape_bin_format(dir_type) == true)
 		rc = bnxt_flash_firmware(dev, dir_type, fw->data, fw->size);
+	else if (bnxt_dir_type_is_other_exec_format(dir_type) == true)
+		rc = bnxt_flash_microcode(dev, dir_type, fw->data, fw->size);
 	else
 		rc = bnxt_flash_nvram(dev, dir_type, BNX_DIR_ORDINAL_FIRST,
 				      0, 0, fw->data, fw->size);
@@ -1257,10 +1313,83 @@ static int bnxt_flash_firmware_from_file(struct net_device *dev,
 }
 
 static int bnxt_flash_package_from_file(struct net_device *dev,
-					char *filename)
+					char *filename, u32 install_type)
 {
-	netdev_err(dev, "packages are not yet supported\n");
-	return -EINVAL;
+	struct bnxt *bp = netdev_priv(dev);
+	struct hwrm_nvm_install_update_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_nvm_install_update_input install = {0};
+	const struct firmware *fw;
+	u32 item_len;
+	u16 index;
+	int rc;
+
+	bnxt_hwrm_fw_set_time(bp);
+
+	if (bnxt_find_nvram_item(dev, BNX_DIR_TYPE_UPDATE,
+				 BNX_DIR_ORDINAL_FIRST, BNX_DIR_EXT_NONE,
+				 &index, &item_len, NULL) != 0) {
+		netdev_err(dev, "PKG update area not created in nvram\n");
+		return -ENOBUFS;
+	}
+
+	rc = request_firmware(&fw, filename, &dev->dev);
+	if (rc != 0) {
+		netdev_err(dev, "PKG error %d requesting file: %s\n",
+			   rc, filename);
+		return rc;
+	}
+
+	if (fw->size > item_len) {
+		netdev_err(dev, "PKG insufficient update area in nvram: %lu",
+			   (unsigned long)fw->size);
+		rc = -EFBIG;
+	} else {
+		dma_addr_t dma_handle;
+		u8 *kmem;
+		struct hwrm_nvm_modify_input modify = {0};
+
+		bnxt_hwrm_cmd_hdr_init(bp, &modify, HWRM_NVM_MODIFY, -1, -1);
+
+		modify.dir_idx = cpu_to_le16(index);
+		modify.len = cpu_to_le32(fw->size);
+
+		kmem = dma_alloc_coherent(&bp->pdev->dev, fw->size,
+					  &dma_handle, GFP_KERNEL);
+		if (!kmem) {
+			netdev_err(dev,
+				   "dma_alloc_coherent failure, length = %u\n",
+				   (unsigned int)fw->size);
+			rc = -ENOMEM;
+		} else {
+			memcpy(kmem, fw->data, fw->size);
+			modify.host_src_addr = cpu_to_le64(dma_handle);
+
+			rc = hwrm_send_message(bp, &modify, sizeof(modify),
+					       FLASH_PACKAGE_TIMEOUT);
+			dma_free_coherent(&bp->pdev->dev, fw->size, kmem,
+					  dma_handle);
+		}
+	}
+	release_firmware(fw);
+	if (rc)
+		return rc;
+
+	if ((install_type & 0xffff) == 0)
+		install_type >>= 16;
+	bnxt_hwrm_cmd_hdr_init(bp, &install, HWRM_NVM_INSTALL_UPDATE, -1, -1);
+	install.install_type = cpu_to_le32(install_type);
+
+	rc = hwrm_send_message(bp, &install, sizeof(install),
+			       INSTALL_PACKAGE_TIMEOUT);
+	if (rc)
+		return -EOPNOTSUPP;
+
+	if (resp->result) {
+		netdev_err(dev, "PKG install error = %d, problem_item = %d\n",
+			   (s8)resp->result, (int)resp->problem_item);
+		return -ENOPKG;
+	}
+	return 0;
 }
 
 static int bnxt_flash_device(struct net_device *dev,
@@ -1271,8 +1400,10 @@ static int bnxt_flash_device(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if (flash->region == ETHTOOL_FLASH_ALL_REGIONS)
-		return bnxt_flash_package_from_file(dev, flash->data);
+	if (flash->region == ETHTOOL_FLASH_ALL_REGIONS ||
+	    flash->region > 0xffff)
+		return bnxt_flash_package_from_file(dev, flash->data,
+						    flash->region);
 
 	return bnxt_flash_firmware_from_file(dev, flash->region, flash->data);
 }
@@ -1516,7 +1647,7 @@ static int bnxt_set_eeprom(struct net_device *dev,
 
 	/* Create or re-write an NVM item: */
 	if (bnxt_dir_type_is_executable(type) == true)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	ext = eeprom->magic & 0xffff;
 	ordinal = eeprom->offset >> 16;
 	attr = eeprom->offset & 0xffff;
@@ -1718,6 +1849,25 @@ static int bnxt_get_module_eeprom(struct net_device *dev,
 	return rc;
 }
 
+static int bnxt_nway_reset(struct net_device *dev)
+{
+	int rc = 0;
+
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_link_info *link_info = &bp->link_info;
+
+	if (!BNXT_SINGLE_PF(bp))
+		return -EOPNOTSUPP;
+
+	if (!(link_info->autoneg & BNXT_AUTONEG_SPEED))
+		return -EINVAL;
+
+	if (netif_running(dev))
+		rc = bnxt_hwrm_set_link_setting(bp, true, false);
+
+	return rc;
+}
+
 const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_link_ksettings	= bnxt_get_link_ksettings,
 	.set_link_ksettings	= bnxt_set_link_ksettings,
@@ -1750,4 +1900,5 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.set_eee		= bnxt_set_eee,
 	.get_module_info	= bnxt_get_module_info,
 	.get_module_eeprom	= bnxt_get_module_eeprom,
+	.nway_reset		= bnxt_nway_reset
 };

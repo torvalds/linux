@@ -7,7 +7,6 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/init.h>
-#include <linux/kconfig.h>
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <linux/stringify.h>

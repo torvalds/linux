@@ -172,6 +172,5 @@ static void __exit ila_fini(void)
 
 module_init(ila_init);
 module_exit(ila_fini);
-MODULE_ALIAS_RTNL_LWT(ILA);
 MODULE_AUTHOR("Tom Herbert <tom@herbertland.com>");
 MODULE_LICENSE("GPL");

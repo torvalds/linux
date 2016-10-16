@@ -21,7 +21,18 @@ Optional properties:
   - video-ports: 24 bits value which defines how the video controller
 	output is wired to the TDA998x input - default: <0x230145>
 
+  - audio-ports: array of 8-bit values, 2 values per one DAI[1].
+	The first value defines the DAI type: TDA998x_SPDIF or TDA998x_I2S[2].
+	The second value defines the tda998x AP_ENA reg content when the DAI
+	in question is used. The implementation allows one or two DAIs. If two
+	DAIs are defined, they must be of different type.
+
+[1] Documentation/sound/alsa/soc/DAI.txt
+[2] include/dt-bindings/display/tda998x.h
+
 Example:
+
+#include <dt-bindings/display/tda998x.h>
 
 	tda998x: hdmi-encoder {
 		compatible = "nxp,tda998x";
@@ -30,4 +41,11 @@ Example:
 		interrupts = <27 2>;		/* falling edge */
 		pinctrl-0 = <&pmx_camera>;
 		pinctrl-names = "default";
+		video-ports = <0x230145>;
+
+		#sound-dai-cells = <2>;
+			     /*	DAI-format	AP_ENA reg value */
+		audio-ports = <	TDA998x_SPDIF	0x04
+				TDA998x_I2S	0x03>;
+
 	};

@@ -262,7 +262,7 @@ static int gid_ok(union ib_gid *gid, __be64 gid_prefix, __be64 id)
  *
  * The s_lock will be acquired around the hfi1_migrate_qp() call.
  */
-int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_ib_header *hdr,
+int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct ib_header *hdr,
 		       int has_grh, struct rvt_qp *qp, u32 bth0)
 {
 	__be64 guid;
@@ -352,7 +352,7 @@ err:
  *
  * This is called from hfi1_do_send() to
  * forward a WQE addressed to the same HFI.
- * Note that although we are single threaded due to the tasklet, we still
+ * Note that although we are single threaded due to the send engine, we still
  * have to protect against post_send().  We don't have to worry about
  * receive interrupts since this is a connected protocol and all packets
  * will pass through here.
@@ -765,7 +765,7 @@ static inline void build_ahg(struct rvt_qp *qp, u32 npsn)
 	}
 }
 
-void hfi1_make_ruc_header(struct rvt_qp *qp, struct hfi1_other_headers *ohdr,
+void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 			  u32 bth0, u32 bth2, int middle,
 			  struct hfi1_pkt_state *ps)
 {
@@ -846,7 +846,7 @@ void _hfi1_do_send(struct work_struct *work)
  * @work: contains a pointer to the QP
  *
  * Process entries in the send work queue until credit or queue is
- * exhausted.  Only allow one CPU to send a packet per QP (tasklet).
+ * exhausted.  Only allow one CPU to send a packet per QP.
  * Otherwise, two threads could send packets out of order.
  */
 void hfi1_do_send(struct rvt_qp *qp)
@@ -909,7 +909,7 @@ void hfi1_do_send(struct rvt_qp *qp)
 			spin_unlock_irqrestore(&qp->s_lock, ps.flags);
 			/*
 			 * If the packet cannot be sent now, return and
-			 * the send tasklet will be woken up later.
+			 * the send engine will be woken up later.
 			 */
 			if (hfi1_verbs_send(qp, &ps))
 				return;

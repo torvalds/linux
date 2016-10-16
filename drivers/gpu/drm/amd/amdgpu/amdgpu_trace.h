@@ -247,7 +247,7 @@ DEFINE_EVENT(amdgpu_vm_mapping, amdgpu_vm_bo_mapping,
 	    TP_ARGS(mapping)
 );
 
-TRACE_EVENT(amdgpu_vm_set_page,
+TRACE_EVENT(amdgpu_vm_set_ptes,
 	    TP_PROTO(uint64_t pe, uint64_t addr, unsigned count,
 		     uint32_t incr, uint32_t flags),
 	    TP_ARGS(pe, addr, count, incr, flags),
@@ -269,6 +269,24 @@ TRACE_EVENT(amdgpu_vm_set_page,
 	    TP_printk("pe=%010Lx, addr=%010Lx, incr=%u, flags=%08x, count=%u",
 		      __entry->pe, __entry->addr, __entry->incr,
 		      __entry->flags, __entry->count)
+);
+
+TRACE_EVENT(amdgpu_vm_copy_ptes,
+	    TP_PROTO(uint64_t pe, uint64_t src, unsigned count),
+	    TP_ARGS(pe, src, count),
+	    TP_STRUCT__entry(
+			     __field(u64, pe)
+			     __field(u64, src)
+			     __field(u32, count)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->pe = pe;
+			   __entry->src = src;
+			   __entry->count = count;
+			   ),
+	    TP_printk("pe=%010Lx, src=%010Lx, count=%u",
+		      __entry->pe, __entry->src, __entry->count)
 );
 
 TRACE_EVENT(amdgpu_vm_flush,

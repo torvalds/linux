@@ -772,7 +772,13 @@ static inline void ipoib_unregister_debugfs(void) { }
 #define ipoib_printk(level, priv, format, arg...)	\
 	printk(level "%s: " format, ((struct ipoib_dev_priv *) priv)->dev->name , ## arg)
 #define ipoib_warn(priv, format, arg...)		\
-	ipoib_printk(KERN_WARNING, priv, format , ## arg)
+do {							\
+	static DEFINE_RATELIMIT_STATE(_rs,		\
+		10 * HZ /*10 seconds */,		\
+		100);		\
+	if (__ratelimit(&_rs))				\
+		ipoib_printk(KERN_WARNING, priv, format , ## arg);\
+} while (0)
 
 extern int ipoib_sendq_size;
 extern int ipoib_recvq_size;

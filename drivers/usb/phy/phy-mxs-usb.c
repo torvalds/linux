@@ -27,6 +27,7 @@
 #define DRIVER_NAME "mxs_phy"
 
 #define HW_USBPHY_PWD				0x00
+#define HW_USBPHY_TX				0x10
 #define HW_USBPHY_CTRL				0x30
 #define HW_USBPHY_CTRL_SET			0x34
 #define HW_USBPHY_CTRL_CLR			0x38
@@ -37,6 +38,10 @@
 #define HW_USBPHY_IP				0x90
 #define HW_USBPHY_IP_SET			0x94
 #define HW_USBPHY_IP_CLR			0x98
+
+#define GM_USBPHY_TX_TXCAL45DP(x)            (((x) & 0xf) << 16)
+#define GM_USBPHY_TX_TXCAL45DN(x)            (((x) & 0xf) << 8)
+#define GM_USBPHY_TX_D_CAL(x)                (((x) & 0xf) << 0)
 
 #define BM_USBPHY_CTRL_SFTRST			BIT(31)
 #define BM_USBPHY_CTRL_CLKGATE			BIT(30)
@@ -115,6 +120,12 @@
  */
 #define MXS_PHY_NEED_IP_FIX			BIT(3)
 
+/* Minimum and maximum values for device tree entries */
+#define MXS_PHY_TX_CAL45_MIN			30
+#define MXS_PHY_TX_CAL45_MAX			55
+#define MXS_PHY_TX_D_CAL_MIN			79
+#define MXS_PHY_TX_D_CAL_MAX			119
+
 struct mxs_phy_data {
 	unsigned int flags;
 };
@@ -164,6 +175,8 @@ struct mxs_phy {
 	const struct mxs_phy_data *data;
 	struct regmap *regmap_anatop;
 	int port_id;
+	u32 tx_reg_set;
+	u32 tx_reg_mask;
 };
 
 static inline bool is_imx6q_phy(struct mxs_phy *mxs_phy)
@@ -183,6 +196,20 @@ static inline bool is_imx6sl_phy(struct mxs_phy *mxs_phy)
 static void mxs_phy_clock_switch_delay(void)
 {
 	usleep_range(300, 400);
+}
+
+static void mxs_phy_tx_init(struct mxs_phy *mxs_phy)
+{
+	void __iomem *base = mxs_phy->phy.io_priv;
+	u32 phytx;
+
+	/* Update TX register if there is anything to write */
+	if (mxs_phy->tx_reg_mask) {
+		phytx = readl(base + HW_USBPHY_TX);
+		phytx &= ~mxs_phy->tx_reg_mask;
+		phytx |= mxs_phy->tx_reg_set;
+		writel(phytx, base + HW_USBPHY_TX);
+	}
 }
 
 static int mxs_phy_hw_init(struct mxs_phy *mxs_phy)
@@ -213,6 +240,8 @@ static int mxs_phy_hw_init(struct mxs_phy *mxs_phy)
 
 	if (mxs_phy->data->flags & MXS_PHY_NEED_IP_FIX)
 		writel(BM_USBPHY_IP_FIX, base + HW_USBPHY_IP_SET);
+
+	mxs_phy_tx_init(mxs_phy);
 
 	return 0;
 }
@@ -459,6 +488,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	int ret;
 	const struct of_device_id *of_id;
 	struct device_node *np = pdev->dev.of_node;
+	u32 val;
 
 	of_id = of_match_device(mxs_phy_dt_ids, &pdev->dev);
 	if (!of_id)
@@ -489,6 +519,37 @@ static int mxs_phy_probe(struct platform_device *pdev)
 				"failed to find regmap for anatop\n");
 			return PTR_ERR(mxs_phy->regmap_anatop);
 		}
+	}
+
+	/* Precompute which bits of the TX register are to be updated, if any */
+	if (!of_property_read_u32(np, "fsl,tx-cal-45-dn-ohms", &val) &&
+	    val >= MXS_PHY_TX_CAL45_MIN && val <= MXS_PHY_TX_CAL45_MAX) {
+		/* Scale to a 4-bit value */
+		val = (MXS_PHY_TX_CAL45_MAX - val) * 0xF
+			/ (MXS_PHY_TX_CAL45_MAX - MXS_PHY_TX_CAL45_MIN);
+		mxs_phy->tx_reg_mask |= GM_USBPHY_TX_TXCAL45DN(~0);
+		mxs_phy->tx_reg_set  |= GM_USBPHY_TX_TXCAL45DN(val);
+	}
+
+	if (!of_property_read_u32(np, "fsl,tx-cal-45-dp-ohms", &val) &&
+	    val >= MXS_PHY_TX_CAL45_MIN && val <= MXS_PHY_TX_CAL45_MAX) {
+		/* Scale to a 4-bit value. */
+		val = (MXS_PHY_TX_CAL45_MAX - val) * 0xF
+			/ (MXS_PHY_TX_CAL45_MAX - MXS_PHY_TX_CAL45_MIN);
+		mxs_phy->tx_reg_mask |= GM_USBPHY_TX_TXCAL45DP(~0);
+		mxs_phy->tx_reg_set  |= GM_USBPHY_TX_TXCAL45DP(val);
+	}
+
+	if (!of_property_read_u32(np, "fsl,tx-d-cal", &val) &&
+	    val >= MXS_PHY_TX_D_CAL_MIN && val <= MXS_PHY_TX_D_CAL_MAX) {
+		/* Scale to a 4-bit value.  Round up the values and heavily
+		 * weight the rounding by adding 2/3 of the denominator.
+		 */
+		val = ((MXS_PHY_TX_D_CAL_MAX - val) * 0xF
+			+ (MXS_PHY_TX_D_CAL_MAX - MXS_PHY_TX_D_CAL_MIN) * 2/3)
+			/ (MXS_PHY_TX_D_CAL_MAX - MXS_PHY_TX_D_CAL_MIN);
+		mxs_phy->tx_reg_mask |= GM_USBPHY_TX_D_CAL(~0);
+		mxs_phy->tx_reg_set  |= GM_USBPHY_TX_D_CAL(val);
 	}
 
 	ret = of_alias_get_id(np, "usbphy");

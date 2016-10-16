@@ -28,6 +28,17 @@
 #define RBD_DATA_PREFIX        "rbd_data."
 #define RBD_ID_PREFIX          "rbd_id."
 
+#define RBD_LOCK_NAME          "rbd_lock"
+#define RBD_LOCK_TAG           "internal"
+#define RBD_LOCK_COOKIE_PREFIX "auto"
+
+enum rbd_notify_op {
+	RBD_NOTIFY_OP_ACQUIRED_LOCK      = 0,
+	RBD_NOTIFY_OP_RELEASED_LOCK      = 1,
+	RBD_NOTIFY_OP_REQUEST_LOCK       = 2,
+	RBD_NOTIFY_OP_HEADER_UPDATE      = 3,
+};
+
 /*
  * For format version 1, rbd image 'foo' consists of objects
  *   foo.rbd		- image metadata

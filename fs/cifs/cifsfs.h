@@ -41,6 +41,16 @@ cifs_uniqueid_to_ino_t(u64 fileid)
 
 }
 
+static inline void cifs_set_time(struct dentry *dentry, unsigned long time)
+{
+	dentry->d_fsdata = (void *) time;
+}
+
+static inline unsigned long cifs_get_time(struct dentry *dentry)
+{
+	return (unsigned long) dentry->d_fsdata;
+}
+
 extern struct file_system_type cifs_fs_type;
 extern const struct address_space_operations cifs_addr_ops;
 extern const struct address_space_operations cifs_addr_ops_smallbuf;

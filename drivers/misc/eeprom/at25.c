@@ -121,9 +121,8 @@ static int at25_ee_read(void *priv, unsigned int offset,
 	 * this chip is clocked very slowly
 	 */
 	status = spi_sync(at25->spi, &m);
-	dev_dbg(&at25->spi->dev,
-		"read %Zd bytes at %d --> %d\n",
-		count, offset, (int) status);
+	dev_dbg(&at25->spi->dev, "read %zu bytes at %d --> %zd\n",
+		count, offset, status);
 
 	mutex_unlock(&at25->lock);
 	return status;
@@ -167,8 +166,7 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 		*cp = AT25_WREN;
 		status = spi_write(at25->spi, cp, 1);
 		if (status < 0) {
-			dev_dbg(&at25->spi->dev, "WREN --> %d\n",
-					(int) status);
+			dev_dbg(&at25->spi->dev, "WREN --> %d\n", status);
 			break;
 		}
 
@@ -196,9 +194,8 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 		memcpy(cp, buf, segment);
 		status = spi_write(at25->spi, bounce,
 				segment + at25->addrlen + 1);
-		dev_dbg(&at25->spi->dev,
-				"write %u bytes at %u --> %d\n",
-				segment, offset, (int) status);
+		dev_dbg(&at25->spi->dev, "write %u bytes at %u --> %d\n",
+			segment, offset, status);
 		if (status < 0)
 			break;
 
@@ -225,8 +222,7 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 
 		if ((sr < 0) || (sr & AT25_SR_nRDY)) {
 			dev_err(&at25->spi->dev,
-				"write %d bytes offset %d, "
-				"timeout after %u msecs\n",
+				"write %u bytes offset %u, timeout after %u msecs\n",
 				segment, offset,
 				jiffies_to_msecs(jiffies -
 					(timeout - EE_TIMEOUT)));
@@ -368,9 +364,7 @@ static int at25_probe(struct spi_device *spi)
 		return PTR_ERR(at25->nvmem);
 
 	dev_info(&spi->dev, "%d %s %s eeprom%s, pagesize %u\n",
-		(chip.byte_len < 1024)
-			? chip.byte_len
-			: (chip.byte_len / 1024),
+		(chip.byte_len < 1024) ? chip.byte_len : (chip.byte_len / 1024),
 		(chip.byte_len < 1024) ? "Byte" : "KByte",
 		at25->chip.name,
 		(chip.flags & EE_READONLY) ? " (readonly)" : "",

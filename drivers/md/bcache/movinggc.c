@@ -44,11 +44,8 @@ static void write_moving_finish(struct closure *cl)
 {
 	struct moving_io *io = container_of(cl, struct moving_io, cl);
 	struct bio *bio = &io->bio.bio;
-	struct bio_vec *bv;
-	int i;
 
-	bio_for_each_segment_all(bv, bio, i)
-		__free_page(bv->bv_page);
+	bio_free_pages(bio);
 
 	if (io->op.replace_collision)
 		trace_bcache_gc_copy_collision(&io->w->key);

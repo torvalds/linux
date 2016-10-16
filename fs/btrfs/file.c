@@ -503,7 +503,7 @@ int btrfs_dirty_pages(struct btrfs_root *root, struct inode *inode,
 
 	end_of_last_block = start_pos + num_bytes - 1;
 	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block,
-					cached);
+					cached, 0);
 	if (err)
 		return err;
 
@@ -1110,13 +1110,25 @@ again:
 
 	leaf = path->nodes[0];
 	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
-	BUG_ON(key.objectid != ino || key.type != BTRFS_EXTENT_DATA_KEY);
+	if (key.objectid != ino ||
+	    key.type != BTRFS_EXTENT_DATA_KEY) {
+		ret = -EINVAL;
+		btrfs_abort_transaction(trans, ret);
+		goto out;
+	}
 	fi = btrfs_item_ptr(leaf, path->slots[0],
 			    struct btrfs_file_extent_item);
-	BUG_ON(btrfs_file_extent_type(leaf, fi) !=
-	       BTRFS_FILE_EXTENT_PREALLOC);
+	if (btrfs_file_extent_type(leaf, fi) != BTRFS_FILE_EXTENT_PREALLOC) {
+		ret = -EINVAL;
+		btrfs_abort_transaction(trans, ret);
+		goto out;
+	}
 	extent_end = key.offset + btrfs_file_extent_num_bytes(leaf, fi);
-	BUG_ON(key.offset > start || extent_end < end);
+	if (key.offset > start || extent_end < end) {
+		ret = -EINVAL;
+		btrfs_abort_transaction(trans, ret);
+		goto out;
+	}
 
 	bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
 	num_bytes = btrfs_file_extent_disk_num_bytes(leaf, fi);
@@ -1213,12 +1225,19 @@ again:
 		ret = btrfs_inc_extent_ref(trans, root, bytenr, num_bytes, 0,
 					   root->root_key.objectid,
 					   ino, orig_offset);
-		BUG_ON(ret); /* -ENOMEM */
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out;
+		}
 
 		if (split == start) {
 			key.offset = start;
 		} else {
-			BUG_ON(start != key.offset);
+			if (start != key.offset) {
+				ret = -EINVAL;
+				btrfs_abort_transaction(trans, ret);
+				goto out;
+			}
 			path->slots[0]--;
 			extent_end = end;
 		}
@@ -1240,7 +1259,10 @@ again:
 		ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
 					0, root->root_key.objectid,
 					ino, orig_offset);
-		BUG_ON(ret); /* -ENOMEM */
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out;
+		}
 	}
 	other_start = 0;
 	other_end = start;
@@ -1257,7 +1279,10 @@ again:
 		ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
 					0, root->root_key.objectid,
 					ino, orig_offset);
-		BUG_ON(ret); /* -ENOMEM */
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto out;
+		}
 	}
 	if (del_nr == 0) {
 		fi = btrfs_item_ptr(leaf, path->slots[0],
@@ -1757,7 +1782,7 @@ static void update_time_for_write(struct inode *inode)
 	if (IS_NOCMTIME(inode))
 		return;
 
-	now = current_fs_time(inode->i_sb);
+	now = current_time(inode);
 	if (!timespec_equal(&inode->i_mtime, &now))
 		inode->i_mtime = now;
 
@@ -2040,7 +2065,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		 * flags for any errors that might have happened while doing
 		 * writeback of file data.
 		 */
-		ret = btrfs_inode_check_errors(inode);
+		ret = filemap_check_errors(inode->i_mapping);
 		inode_unlock(inode);
 		goto out;
 	}
@@ -2578,7 +2603,7 @@ out_trans:
 		goto out_free;
 
 	inode_inc_iversion(inode);
-	inode->i_mtime = inode->i_ctime = current_fs_time(inode->i_sb);
+	inode->i_mtime = inode->i_ctime = current_time(inode);
 
 	trans->block_rsv = &root->fs_info->trans_block_rsv;
 	ret = btrfs_update_inode(trans, root, inode);
@@ -2842,7 +2867,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 		if (IS_ERR(trans)) {
 			ret = PTR_ERR(trans);
 		} else {
-			inode->i_ctime = current_fs_time(inode->i_sb);
+			inode->i_ctime = current_time(inode);
 			i_size_write(inode, actual_end);
 			btrfs_ordered_update_i_size(inode, actual_end, NULL);
 			ret = btrfs_update_inode(trans, root, inode);

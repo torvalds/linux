@@ -433,25 +433,42 @@ struct iwl_mvm_rm_sta_cmd {
 } __packed; /* REMOVE_STA_CMD_API_S_VER_2 */
 
 /**
+ * struct iwl_mvm_mgmt_mcast_key_cmd_v1
+ * ( MGMT_MCAST_KEY = 0x1f )
+ * @ctrl_flags: %iwl_sta_key_flag
+ * @igtk:
+ * @k1: unused
+ * @k2: unused
+ * @sta_id: station ID that support IGTK
+ * @key_id:
+ * @receive_seq_cnt: initial RSC/PN needed for replay check
+ */
+struct iwl_mvm_mgmt_mcast_key_cmd_v1 {
+	__le32 ctrl_flags;
+	u8 igtk[16];
+	u8 k1[16];
+	u8 k2[16];
+	__le32 key_id;
+	__le32 sta_id;
+	__le64 receive_seq_cnt;
+} __packed; /* SEC_MGMT_MULTICAST_KEY_CMD_API_S_VER_1 */
+
+/**
  * struct iwl_mvm_mgmt_mcast_key_cmd
  * ( MGMT_MCAST_KEY = 0x1f )
  * @ctrl_flags: %iwl_sta_key_flag
- * @IGTK:
- * @K1: unused
- * @K2: unused
+ * @igtk: IGTK master key
  * @sta_id: station ID that support IGTK
  * @key_id:
  * @receive_seq_cnt: initial RSC/PN needed for replay check
  */
 struct iwl_mvm_mgmt_mcast_key_cmd {
 	__le32 ctrl_flags;
-	u8 IGTK[16];
-	u8 K1[16];
-	u8 K2[16];
+	u8 igtk[32];
 	__le32 key_id;
 	__le32 sta_id;
 	__le64 receive_seq_cnt;
-} __packed; /* SEC_MGMT_MULTICAST_KEY_CMD_API_S_VER_1 */
+} __packed; /* SEC_MGMT_MULTICAST_KEY_CMD_API_S_VER_2 */
 
 struct iwl_mvm_wep_key {
 	u8 key_index;

@@ -12563,39 +12563,62 @@ static int bnx2x_close(struct net_device *dev)
 	return 0;
 }
 
-static int bnx2x_init_mcast_macs_list(struct bnx2x *bp,
-				      struct bnx2x_mcast_ramrod_params *p)
+struct bnx2x_mcast_list_elem_group
 {
-	int mc_count = netdev_mc_count(bp->dev);
-	struct bnx2x_mcast_list_elem *mc_mac =
-		kcalloc(mc_count, sizeof(*mc_mac), GFP_ATOMIC);
-	struct netdev_hw_addr *ha;
+	struct list_head mcast_group_link;
+	struct bnx2x_mcast_list_elem mcast_elems[];
+};
 
-	if (!mc_mac)
-		return -ENOMEM;
+#define MCAST_ELEMS_PER_PG \
+	((PAGE_SIZE - sizeof(struct bnx2x_mcast_list_elem_group)) / \
+	sizeof(struct bnx2x_mcast_list_elem))
 
-	INIT_LIST_HEAD(&p->mcast_list);
+static void bnx2x_free_mcast_macs_list(struct list_head *mcast_group_list)
+{
+	struct bnx2x_mcast_list_elem_group *current_mcast_group;
 
-	netdev_for_each_mc_addr(ha, bp->dev) {
-		mc_mac->mac = bnx2x_mc_addr(ha);
-		list_add_tail(&mc_mac->link, &p->mcast_list);
-		mc_mac++;
+	while (!list_empty(mcast_group_list)) {
+		current_mcast_group = list_first_entry(mcast_group_list,
+				      struct bnx2x_mcast_list_elem_group,
+				      mcast_group_link);
+		list_del(&current_mcast_group->mcast_group_link);
+		free_page((unsigned long)current_mcast_group);
 	}
-
-	p->mcast_list_len = mc_count;
-
-	return 0;
 }
 
-static void bnx2x_free_mcast_macs_list(
-	struct bnx2x_mcast_ramrod_params *p)
+static int bnx2x_init_mcast_macs_list(struct bnx2x *bp,
+				      struct bnx2x_mcast_ramrod_params *p,
+				      struct list_head *mcast_group_list)
 {
-	struct bnx2x_mcast_list_elem *mc_mac =
-		list_first_entry(&p->mcast_list, struct bnx2x_mcast_list_elem,
-				 link);
+	struct bnx2x_mcast_list_elem *mc_mac;
+	struct netdev_hw_addr *ha;
+	struct bnx2x_mcast_list_elem_group *current_mcast_group = NULL;
+	int mc_count = netdev_mc_count(bp->dev);
+	int offset = 0;
 
-	WARN_ON(!mc_mac);
-	kfree(mc_mac);
+	INIT_LIST_HEAD(&p->mcast_list);
+	netdev_for_each_mc_addr(ha, bp->dev) {
+		if (!offset) {
+			current_mcast_group =
+				(struct bnx2x_mcast_list_elem_group *)
+				__get_free_page(GFP_ATOMIC);
+			if (!current_mcast_group) {
+				bnx2x_free_mcast_macs_list(mcast_group_list);
+				BNX2X_ERR("Failed to allocate mc MAC list\n");
+				return -ENOMEM;
+			}
+			list_add(&current_mcast_group->mcast_group_link,
+				 mcast_group_list);
+		}
+		mc_mac = &current_mcast_group->mcast_elems[offset];
+		mc_mac->mac = bnx2x_mc_addr(ha);
+		list_add_tail(&mc_mac->link, &p->mcast_list);
+		offset++;
+		if (offset == MCAST_ELEMS_PER_PG)
+			offset = 0;
+	}
+	p->mcast_list_len = mc_count;
+	return 0;
 }
 
 /**
@@ -12643,8 +12666,9 @@ static int bnx2x_set_uc_list(struct bnx2x *bp)
 				 BNX2X_UC_LIST_MAC, &ramrod_flags);
 }
 
-static int bnx2x_set_mc_list(struct bnx2x *bp)
+static int bnx2x_set_mc_list_e1x(struct bnx2x *bp)
 {
+	LIST_HEAD(mcast_group_list);
 	struct net_device *dev = bp->dev;
 	struct bnx2x_mcast_ramrod_params rparam = {NULL};
 	int rc = 0;
@@ -12660,12 +12684,9 @@ static int bnx2x_set_mc_list(struct bnx2x *bp)
 
 	/* then, configure a new MACs list */
 	if (netdev_mc_count(dev)) {
-		rc = bnx2x_init_mcast_macs_list(bp, &rparam);
-		if (rc) {
-			BNX2X_ERR("Failed to create multicast MACs list: %d\n",
-				  rc);
+		rc = bnx2x_init_mcast_macs_list(bp, &rparam, &mcast_group_list);
+		if (rc)
 			return rc;
-		}
 
 		/* Now add the new MACs */
 		rc = bnx2x_config_mcast(bp, &rparam,
@@ -12674,7 +12695,44 @@ static int bnx2x_set_mc_list(struct bnx2x *bp)
 			BNX2X_ERR("Failed to set a new multicast configuration: %d\n",
 				  rc);
 
-		bnx2x_free_mcast_macs_list(&rparam);
+		bnx2x_free_mcast_macs_list(&mcast_group_list);
+	}
+
+	return rc;
+}
+
+static int bnx2x_set_mc_list(struct bnx2x *bp)
+{
+	LIST_HEAD(mcast_group_list);
+	struct bnx2x_mcast_ramrod_params rparam = {NULL};
+	struct net_device *dev = bp->dev;
+	int rc = 0;
+
+	/* On older adapters, we need to flush and re-add filters */
+	if (CHIP_IS_E1x(bp))
+		return bnx2x_set_mc_list_e1x(bp);
+
+	rparam.mcast_obj = &bp->mcast_obj;
+
+	if (netdev_mc_count(dev)) {
+		rc = bnx2x_init_mcast_macs_list(bp, &rparam, &mcast_group_list);
+		if (rc)
+			return rc;
+
+		/* Override the curently configured set of mc filters */
+		rc = bnx2x_config_mcast(bp, &rparam,
+					BNX2X_MCAST_CMD_SET);
+		if (rc < 0)
+			BNX2X_ERR("Failed to set a new multicast configuration: %d\n",
+				  rc);
+
+		bnx2x_free_mcast_macs_list(&mcast_group_list);
+	} else {
+		/* If no mc addresses are required, flush the configuration */
+		rc = bnx2x_config_mcast(bp, &rparam, BNX2X_MCAST_CMD_DEL);
+		if (rc)
+			BNX2X_ERR("Failed to clear multicast configuration %d\n",
+				  rc);
 	}
 
 	return rc;
@@ -13214,13 +13272,22 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 		NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_GRO |
 		NETIF_F_RXHASH | NETIF_F_HW_VLAN_CTAG_TX;
 	if (!chip_is_e1x) {
-		dev->hw_features |= NETIF_F_GSO_GRE | NETIF_F_GSO_UDP_TUNNEL |
-				    NETIF_F_GSO_IPXIP4;
+		dev->hw_features |= NETIF_F_GSO_GRE | NETIF_F_GSO_GRE_CSUM |
+				    NETIF_F_GSO_IPXIP4 |
+				    NETIF_F_GSO_UDP_TUNNEL |
+				    NETIF_F_GSO_UDP_TUNNEL_CSUM |
+				    NETIF_F_GSO_PARTIAL;
+
 		dev->hw_enc_features =
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
 			NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6 |
 			NETIF_F_GSO_IPXIP4 |
-			NETIF_F_GSO_GRE | NETIF_F_GSO_UDP_TUNNEL;
+			NETIF_F_GSO_GRE | NETIF_F_GSO_GRE_CSUM |
+			NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_UDP_TUNNEL_CSUM |
+			NETIF_F_GSO_PARTIAL;
+
+		dev->gso_partial_features = NETIF_F_GSO_GRE_CSUM |
+					    NETIF_F_GSO_UDP_TUNNEL_CSUM;
 	}
 
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |

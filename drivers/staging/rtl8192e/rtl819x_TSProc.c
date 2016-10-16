@@ -306,6 +306,11 @@ static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *Addr,
 	pTsCommonInfo->TClasNum = TCLAS_Num;
 }
 
+static bool IsACValid(unsigned int tid)
+{
+	return tid < 7;
+}
+
 bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	   u8 *Addr, u8 TID, enum tr_select TxRxSelect, bool bAddNewTs)
 {

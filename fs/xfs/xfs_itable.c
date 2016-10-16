@@ -66,7 +66,7 @@ xfs_bulkstat_one_int(
 	if (!buffer || xfs_internal_inum(mp, ino))
 		return -EINVAL;
 
-	buf = kmem_alloc(sizeof(*buf), KM_SLEEP | KM_MAYFAIL);
+	buf = kmem_zalloc(sizeof(*buf), KM_SLEEP | KM_MAYFAIL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -110,6 +110,12 @@ xfs_bulkstat_one_int(
 	buf->bs_dmstate = dic->di_dmstate;
 	buf->bs_aextents = dic->di_anextents;
 	buf->bs_forkoff = XFS_IFORK_BOFF(ip);
+
+	if (dic->di_version == 3) {
+		if (dic->di_flags2 & XFS_DIFLAG2_COWEXTSIZE)
+			buf->bs_cowextsize = dic->di_cowextsize <<
+					mp->m_sb.sb_blocklog;
+	}
 
 	switch (dic->di_format) {
 	case XFS_DINODE_FMT_DEV:

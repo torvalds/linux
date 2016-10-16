@@ -34,27 +34,27 @@ MODULE_DESCRIPTION("Realtek PCI-Express card reader rts5208/rts5288 driver");
 MODULE_LICENSE("GPL");
 
 static unsigned int delay_use = 1;
-module_param(delay_use, uint, S_IRUGO | S_IWUSR);
+module_param(delay_use, uint, 0644);
 MODULE_PARM_DESC(delay_use, "seconds to delay before using a new device");
 
 static int ss_en;
-module_param(ss_en, int, S_IRUGO | S_IWUSR);
+module_param(ss_en, int, 0644);
 MODULE_PARM_DESC(ss_en, "enable selective suspend");
 
 static int ss_interval = 50;
-module_param(ss_interval, int, S_IRUGO | S_IWUSR);
+module_param(ss_interval, int, 0644);
 MODULE_PARM_DESC(ss_interval, "Interval to enter ss state in seconds");
 
 static int auto_delink_en;
-module_param(auto_delink_en, int, S_IRUGO | S_IWUSR);
+module_param(auto_delink_en, int, 0644);
 MODULE_PARM_DESC(auto_delink_en, "enable auto delink");
 
 static unsigned char aspm_l0s_l1_en;
-module_param(aspm_l0s_l1_en, byte, S_IRUGO | S_IWUSR);
+module_param(aspm_l0s_l1_en, byte, 0644);
 MODULE_PARM_DESC(aspm_l0s_l1_en, "enable device aspm");
 
 static int msi_en;
-module_param(msi_en, int, S_IRUGO | S_IWUSR);
+module_param(msi_en, int, 0644);
 MODULE_PARM_DESC(msi_en, "enable msi");
 
 static irqreturn_t rtsx_interrupt(int irq, void *dev_id);
@@ -81,14 +81,16 @@ static int slave_alloc(struct scsi_device *sdev)
 
 static int slave_configure(struct scsi_device *sdev)
 {
-	/* Scatter-gather buffers (all but the last) must have a length
+	/*
+	 * Scatter-gather buffers (all but the last) must have a length
 	 * divisible by the bulk maxpacket size.  Otherwise a data packet
 	 * would end up being short, causing a premature end to the data
 	 * transfer.  Since high-speed bulk pipes have a maxpacket size
 	 * of 512, we'll use that as the scsi device queue's DMA alignment
 	 * mask.  Guaranteeing proper alignment of the first buffer will
 	 * have the desired effect because, except at the beginning and
-	 * the end, scatter-gather buffers follow page boundaries. */
+	 * the end, scatter-gather buffers follow page boundaries.
+	 */
 	blk_queue_dma_alignment(sdev->request_queue, (512 - 1));
 
 	/* Set the SCSI level to at least 2.  We'll leave it at 3 if that's
@@ -111,7 +113,6 @@ static int slave_configure(struct scsi_device *sdev)
 	return 0;
 }
 
-
 /***********************************************************************
  * /proc/scsi/ functions
  ***********************************************************************/
@@ -130,7 +131,7 @@ static int queuecommand_lck(struct scsi_cmnd *srb,
 	struct rtsx_chip *chip = dev->chip;
 
 	/* check for state-transition errors */
-	if (chip->srb != NULL) {
+	if (chip->srb) {
 		dev_err(&dev->pci->dev, "Error: chip->srb = %p\n",
 			chip->srb);
 		return SCSI_MLQUEUE_HOST_BUSY;
@@ -186,8 +187,10 @@ static int command_abort(struct scsi_cmnd *srb)
 	return SUCCESS;
 }
 
-/* This invokes the transport reset mechanism to reset the state of the
- * device */
+/*
+ * This invokes the transport reset mechanism to reset the state of the
+ * device
+ */
 static int device_reset(struct scsi_cmnd *srb)
 {
 	int result = 0;
@@ -208,7 +211,6 @@ static int bus_reset(struct scsi_cmnd *srb)
 
 	return result < 0 ? FAILED : SUCCESS;
 }
-
 
 /*
  * this defines our host template, with which we'll allocate hosts
@@ -259,7 +261,6 @@ static struct scsi_host_template rtsx_host_template = {
 	.module =			THIS_MODULE
 };
 
-
 static int rtsx_acquire_irq(struct rtsx_dev *dev)
 {
 	struct rtsx_chip *chip = dev->chip;
@@ -281,7 +282,6 @@ static int rtsx_acquire_irq(struct rtsx_dev *dev)
 
 	return 0;
 }
-
 
 int rtsx_read_pci_cfg_byte(u8 bus, u8 dev, u8 func, u8 offset, u8 *val)
 {
@@ -515,7 +515,6 @@ SkipForAbort:
 	complete_and_exit(&dev->control_exit, 0);
 }
 
-
 static int rtsx_polling_thread(void *__dev)
 {
 	struct rtsx_dev *dev = __dev;
@@ -625,7 +624,6 @@ Exit:
 	return IRQ_HANDLED;
 }
 
-
 /* Release all our dynamic resources */
 static void rtsx_release_resources(struct rtsx_dev *dev)
 {
@@ -660,15 +658,19 @@ static void rtsx_release_resources(struct rtsx_dev *dev)
 	kfree(dev->chip);
 }
 
-/* First stage of disconnect processing: stop all commands and remove
- * the host */
+/*
+ * First stage of disconnect processing: stop all commands and remove
+ * the host
+ */
 static void quiesce_and_remove_host(struct rtsx_dev *dev)
 {
 	struct Scsi_Host *host = rtsx_to_host(dev);
 	struct rtsx_chip *chip = dev->chip;
 
-	/* Prevent new transfers, stop the current command, and
-	 * interrupt a SCSI-scan or device-reset delay */
+	/*
+	 * Prevent new transfers, stop the current command, and
+	 * interrupt a SCSI-scan or device-reset delay
+	 */
 	mutex_lock(&dev->dev_mutex);
 	scsi_lock(host);
 	rtsx_set_stat(chip, RTSX_STAT_DISCONNECT);
@@ -680,9 +682,11 @@ static void quiesce_and_remove_host(struct rtsx_dev *dev)
 	/* Wait some time to let other threads exist */
 	wait_timeout(100);
 
-	/* queuecommand won't accept any new commands and the control
+	/*
+	 * queuecommand won't accept any new commands and the control
 	 * thread won't execute a previously-queued command.  If there
-	 * is such a command pending, complete it with an error. */
+	 * is such a command pending, complete it with an error.
+	 */
 	mutex_lock(&dev->dev_mutex);
 	if (chip->srb) {
 		chip->srb->result = DID_NO_CONNECT << 16;
@@ -702,8 +706,10 @@ static void release_everything(struct rtsx_dev *dev)
 {
 	rtsx_release_resources(dev);
 
-	/* Drop our reference to the host; the SCSI core will free it
-	 * when the refcount becomes 0. */
+	/*
+	 * Drop our reference to the host; the SCSI core will free it
+	 * when the refcount becomes 0.
+	 */
 	scsi_host_put(rtsx_to_host(dev));
 }
 
@@ -942,8 +948,10 @@ static int rtsx_probe(struct pci_dev *pci,
 
 	rtsx_init_chip(dev->chip);
 
-	/* set the supported max_lun and max_id for the scsi host
-	 * NOTE: the minimal value of max_id is 1 */
+	/*
+	 * set the supported max_lun and max_id for the scsi host
+	 * NOTE: the minimal value of max_id is 1
+	 */
 	host->max_id = 1;
 	host->max_lun = dev->chip->max_lun;
 
@@ -993,7 +1001,6 @@ errout:
 
 	return err;
 }
-
 
 static void rtsx_remove(struct pci_dev *pci)
 {

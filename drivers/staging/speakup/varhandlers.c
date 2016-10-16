@@ -276,7 +276,7 @@ int spk_set_mask_bits(const char *input, const int which, const int how)
 	u_char *cp;
 	short mask = spk_punc_info[which].mask;
 
-	if (how&1) {
+	if (how & 1) {
 		for (cp = (u_char *)spk_punc_info[3].value; *cp; cp++)
 			spk_chartab[*cp] &= ~mask;
 	}
@@ -290,14 +290,14 @@ int spk_set_mask_bits(const char *input, const int which, const int how)
 			if (mask < PUNC) {
 				if (!(spk_chartab[*cp] & PUNC))
 					break;
-			} else if (spk_chartab[*cp]&B_NUM)
+			} else if (spk_chartab[*cp] & B_NUM)
 				break;
 		}
 		if (*cp)
 			return -EINVAL;
 		cp = (u_char *)input;
 	}
-	if (how&2) {
+	if (how & 2) {
 		for (; *cp; cp++)
 			if (*cp > SPACE)
 				spk_chartab[*cp] |= mask;

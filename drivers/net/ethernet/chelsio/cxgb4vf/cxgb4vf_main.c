@@ -2378,7 +2378,7 @@ static void size_nports_qsets(struct adapter *adapter)
 	 */
 	pmask_nports = hweight32(adapter->params.vfres.pmask);
 	if (pmask_nports < adapter->params.nports) {
-		dev_warn(adapter->pdev_dev, "only using %d of %d provissioned"
+		dev_warn(adapter->pdev_dev, "only using %d of %d provisioned"
 			 " virtual interfaces; limited by Port Access Rights"
 			 " mask %#x\n", pmask_nports, adapter->params.nports,
 			 adapter->params.vfres.pmask);
@@ -2777,6 +2777,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	struct adapter *adapter;
 	struct port_info *pi;
 	struct net_device *netdev;
+	unsigned int pf;
 
 	/*
 	 * Print our driver banner the first time we're called to initialize a
@@ -2903,8 +2904,11 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * Allocate our "adapter ports" and stitch everything together.
 	 */
 	pmask = adapter->params.vfres.pmask;
+	pf = t4vf_get_pf_from_vf(adapter);
 	for_each_port(adapter, pidx) {
 		int port_id, viid;
+		u8 mac[ETH_ALEN];
+		unsigned int naddr = 1;
 
 		/*
 		 * We simplistically allocate our virtual interfaces
@@ -2974,6 +2978,26 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 			dev_err(&pdev->dev, "cannot initialize port %d\n",
 				pidx);
 			goto err_free_dev;
+		}
+
+		err = t4vf_get_vf_mac_acl(adapter, pf, &naddr, mac);
+		if (err) {
+			dev_err(&pdev->dev,
+				"unable to determine MAC ACL address, "
+				"continuing anyway.. (status %d)\n", err);
+		} else if (naddr && adapter->params.vfres.nvi == 1) {
+			struct sockaddr addr;
+
+			ether_addr_copy(addr.sa_data, mac);
+			err = cxgb4vf_set_mac_addr(netdev, &addr);
+			if (err) {
+				dev_err(&pdev->dev,
+					"unable to set MAC address %pM\n",
+					mac);
+				goto err_free_dev;
+			}
+			dev_info(&pdev->dev,
+				 "Using assigned MAC ACL: %pM\n", mac);
 		}
 	}
 

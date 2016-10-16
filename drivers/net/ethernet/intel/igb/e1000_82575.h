@@ -188,6 +188,11 @@ struct e1000_adv_tx_context_desc {
 /* ETQF register bit definitions */
 #define E1000_ETQF_FILTER_ENABLE   BIT(26)
 #define E1000_ETQF_1588            BIT(30)
+#define E1000_ETQF_IMM_INT         BIT(29)
+#define E1000_ETQF_QUEUE_ENABLE    BIT(31)
+#define E1000_ETQF_QUEUE_SHIFT     16
+#define E1000_ETQF_QUEUE_MASK      0x00070000
+#define E1000_ETQF_ETYPE_MASK      0x0000FFFF
 
 /* FTQF register bit definitions */
 #define E1000_FTQF_VF_BP               0x00008000

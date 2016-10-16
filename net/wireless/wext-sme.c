@@ -35,7 +35,6 @@ int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 
 	if (wdev->wext.keys) {
 		wdev->wext.keys->def = wdev->wext.default_key;
-		wdev->wext.keys->defmgmt = wdev->wext.default_mgmt_key;
 		if (wdev->wext.default_key != -1)
 			wdev->wext.connect.privacy = true;
 	}
@@ -43,11 +42,11 @@ int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 	if (!wdev->wext.connect.ssid_len)
 		return 0;
 
-	if (wdev->wext.keys) {
+	if (wdev->wext.keys && wdev->wext.keys->def != -1) {
 		ck = kmemdup(wdev->wext.keys, sizeof(*ck), GFP_KERNEL);
 		if (!ck)
 			return -ENOMEM;
-		for (i = 0; i < 6; i++)
+		for (i = 0; i < CFG80211_MAX_WEP_KEYS; i++)
 			ck->params[i].key = ck->data[i];
 	}
 

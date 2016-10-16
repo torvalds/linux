@@ -201,13 +201,13 @@
 &pinctrl0 {
 	gpio_leds: gpio-leds {
 		samsung,pins = "gpk-4", "gpk-5", "gpk-6", "gpk-7";
-		samsung,pin-pud = <PIN_PULL_NONE>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
 
 	gpio_keys: gpio-keys {
 		samsung,pins = "gpn-0", "gpn-1", "gpn-2", "gpn-3",
 				"gpn-4", "gpn-5", "gpl-11", "gpl-12";
-		samsung,pin-pud = <PIN_PULL_NONE>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
 };
 

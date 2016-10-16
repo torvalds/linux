@@ -28,10 +28,7 @@
  */
 static void __init mpc831x_rdb_setup_arch(void)
 {
-	if (ppc_md.progress)
-		ppc_md.progress("mpc831x_rdb_setup_arch()", 0);
-
-	mpc83xx_setup_pci();
+	mpc83xx_setup_arch();
 	mpc831x_usb_cfg();
 }
 

@@ -889,12 +889,16 @@ static void printer_soft_reset(struct printer_dev *dev)
 /*-------------------------------------------------------------------------*/
 
 static bool gprinter_req_match(struct usb_function *f,
-			       const struct usb_ctrlrequest *ctrl)
+			       const struct usb_ctrlrequest *ctrl,
+			       bool config0)
 {
 	struct printer_dev	*dev = func_to_printer(f);
 	u16			w_index = le16_to_cpu(ctrl->wIndex);
 	u16			w_value = le16_to_cpu(ctrl->wValue);
 	u16			w_length = le16_to_cpu(ctrl->wLength);
+
+	if (config0)
+		return false;
 
 	if ((ctrl->bRequestType & USB_RECIP_MASK) != USB_RECIP_INTERFACE ||
 	    (ctrl->bRequestType & USB_TYPE_MASK) != USB_TYPE_CLASS)

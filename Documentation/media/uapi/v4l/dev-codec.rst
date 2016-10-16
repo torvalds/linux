@@ -21,7 +21,9 @@ for both capture and output to start the codec.
 Video compression codecs use the MPEG controls to setup their codec
 parameters
 
-.. note:: The MPEG controls actually support many more codecs than
+.. note::
+
+   The MPEG controls actually support many more codecs than
    just MPEG. See :ref:`mpeg-controls`.
 
 Memory-to-memory devices can often be used as a shared resource: you can

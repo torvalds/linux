@@ -1,6 +1,0 @@
-TODO:
-
-- implement V4L2_FIELD_INTERLACED* mode(s).
-- add audio support
-
-Please Cc: patches to Krzysztof Halasa <khalasa@piap.pl>.

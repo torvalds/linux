@@ -19,6 +19,9 @@ of PMIC's from Qualcomm.
 		    "qcom,pm8994-mpp",
 		    "qcom,pma8084-mpp",
 
+		    And must contain either "qcom,spmi-mpp" or "qcom,ssbi-mpp"
+		    if the device is on an spmi bus or an ssbi bus respectively.
+
 - reg:
 	Usage: required
 	Value type: <prop-encoded-array>
@@ -158,7 +161,7 @@ to specify in a pin configuration subnode:
 Example:
 
 	mpps@a000 {
-		compatible = "qcom,pm8841-mpp";
+		compatible = "qcom,pm8841-mpp", "qcom,spmi-mpp";
 		reg = <0xa000>;
 		gpio-controller;
 		#gpio-cells = <2>;

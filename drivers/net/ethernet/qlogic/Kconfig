@@ -88,6 +88,9 @@ config QED
 	---help---
 	  This enables the support for ...
 
+config QED_LL2
+	bool
+
 config QED_SRIOV
 	bool "QLogic QED 25/40/100Gb SR-IOV support"
 	depends on QED && PCI_IOV

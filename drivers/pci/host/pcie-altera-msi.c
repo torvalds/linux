@@ -1,4 +1,8 @@
 /*
+ * Altera PCIe MSI support
+ *
+ * Author: Ley Foon Tan <lftan@altera.com>
+ *
  * Copyright Altera Corporation (C) 2013-2015. All rights reserved
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -16,7 +20,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/msi.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -237,11 +241,6 @@ static int altera_msi_probe(struct platform_device *pdev)
 	msi->pdev = pdev;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "csr");
-	if (!res) {
-		dev_err(&pdev->dev, "no csr memory resource defined\n");
-		return -ENODEV;
-	}
-
 	msi->csr_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(msi->csr_base)) {
 		dev_err(&pdev->dev, "failed to map csr memory\n");
@@ -250,11 +249,6 @@ static int altera_msi_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "vector_slave");
-	if (!res) {
-		dev_err(&pdev->dev, "no vector_slave memory resource defined\n");
-		return -ENODEV;
-	}
-
 	msi->vector_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(msi->vector_base)) {
 		dev_err(&pdev->dev, "failed to map vector_slave memory\n");
@@ -308,7 +302,3 @@ static int __init altera_msi_init(void)
 	return platform_driver_register(&altera_msi_driver);
 }
 subsys_initcall(altera_msi_init);
-
-MODULE_AUTHOR("Ley Foon Tan <lftan@altera.com>");
-MODULE_DESCRIPTION("Altera PCIe MSI support");
-MODULE_LICENSE("GPL v2");

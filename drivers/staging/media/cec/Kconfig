@@ -5,9 +5,6 @@ config MEDIA_CEC
 	---help---
 	  Enable the CEC API.
 
-	  To compile this driver as a module, choose M here: the
-	  module will be called cec.
-
 config MEDIA_CEC_DEBUG
 	bool "CEC debugfs interface (EXPERIMENTAL)"
 	depends on MEDIA_CEC && DEBUG_FS

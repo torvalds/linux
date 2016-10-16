@@ -16,7 +16,6 @@
 #ifndef MB86A20S_H
 #define MB86A20S_H
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 /**

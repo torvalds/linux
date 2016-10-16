@@ -20,7 +20,6 @@ config ARCH_SPEAR13XX
 	select HAVE_ARM_TWD if SMP
 	select PINCTRL
 	select MFD_SYSCON
-	select MIGHT_HAVE_PCI
 	help
 	  Supports for ARM's SPEAR13XX family
 

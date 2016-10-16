@@ -19,7 +19,8 @@ Synopsis
     #include <fcntl.h>
 
 
-.. cpp:function:: int open( const char *device_name, int flags )
+.. c:function:: int open( const char *device_name, int flags )
+   :name: cec-open
 
 
 Arguments
@@ -32,7 +33,7 @@ Arguments
     Open flags. Access mode must be ``O_RDWR``.
 
     When the ``O_NONBLOCK`` flag is given, the
-    :ref:`CEC_RECEIVE <CEC_RECEIVE>` and :ref:`CEC_DQEVENT <CEC_DQEVENT>` ioctls
+    :ref:`CEC_RECEIVE <CEC_RECEIVE>` and :c:func:`CEC_DQEVENT` ioctls
     will return the ``EAGAIN`` error code when no message or event is available, and
     ioctls :ref:`CEC_TRANSMIT <CEC_TRANSMIT>`,
     :ref:`CEC_ADAP_S_PHYS_ADDR <CEC_ADAP_S_PHYS_ADDR>` and
@@ -45,7 +46,9 @@ Arguments
 Description
 ===========
 
-.. note:: This documents the proposed CEC API. This API is not yet finalized
+.. note::
+
+   This documents the proposed CEC API. This API is not yet finalized
    and is currently only available as a staging kernel module.
 
 To open a cec device applications call :c:func:`open()` with the

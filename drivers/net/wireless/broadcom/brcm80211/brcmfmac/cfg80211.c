@@ -1595,15 +1595,9 @@ static s32 brcmf_set_auth_type(struct net_device *ndev,
 		val = 1;
 		brcmf_dbg(CONN, "shared key\n");
 		break;
-	case NL80211_AUTHTYPE_AUTOMATIC:
-		val = 2;
-		brcmf_dbg(CONN, "automatic\n");
-		break;
-	case NL80211_AUTHTYPE_NETWORK_EAP:
-		brcmf_dbg(CONN, "network eap\n");
 	default:
 		val = 2;
-		brcmf_err("invalid auth type (%d)\n", sme->auth_type);
+		brcmf_dbg(CONN, "automatic, auth type (%d)\n", sme->auth_type);
 		break;
 	}
 
@@ -2533,7 +2527,7 @@ static void brcmf_fill_bss_param(struct brcmf_if *ifp, struct station_info *si)
 				     WL_BSS_INFO_MAX);
 	if (err) {
 		brcmf_err("Failed to get bss info (%d)\n", err);
-		return;
+		goto out_kfree;
 	}
 	si->filled |= BIT(NL80211_STA_INFO_BSS_PARAM);
 	si->bss_param.beacon_interval = le16_to_cpu(buf->bss_le.beacon_period);
@@ -2545,6 +2539,9 @@ static void brcmf_fill_bss_param(struct brcmf_if *ifp, struct station_info *si)
 		si->bss_param.flags |= BSS_PARAM_FLAGS_SHORT_PREAMBLE;
 	if (capability & WLAN_CAPABILITY_SHORT_SLOT_TIME)
 		si->bss_param.flags |= BSS_PARAM_FLAGS_SHORT_SLOT_TIME;
+
+out_kfree:
+	kfree(buf);
 }
 
 static s32
@@ -3703,6 +3700,7 @@ static void brcmf_configure_wowl(struct brcmf_cfg80211_info *cfg,
 				 struct cfg80211_wowlan *wowl)
 {
 	u32 wowl_config;
+	struct brcmf_wowl_wakeind_le wowl_wakeind;
 	u32 i;
 
 	brcmf_dbg(TRACE, "Suspend, wowl config.\n");
@@ -3744,8 +3742,9 @@ static void brcmf_configure_wowl(struct brcmf_cfg80211_info *cfg,
 	if (!test_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state))
 		wowl_config |= BRCMF_WOWL_UNASSOC;
 
-	brcmf_fil_iovar_data_set(ifp, "wowl_wakeind", "clear",
-				 sizeof(struct brcmf_wowl_wakeind_le));
+	memcpy(&wowl_wakeind, "clear", 6);
+	brcmf_fil_iovar_data_set(ifp, "wowl_wakeind", &wowl_wakeind,
+				 sizeof(wowl_wakeind));
 	brcmf_fil_iovar_int_set(ifp, "wowl", wowl_config);
 	brcmf_fil_iovar_int_set(ifp, "wowl_activate", 1);
 	brcmf_bus_wowl_config(cfg->pub->bus_if, true);
@@ -3884,11 +3883,11 @@ brcmf_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *ndev,
 	if (!check_vif_up(ifp->vif))
 		return -EIO;
 
-	brcmf_dbg(CONN, "del_pmksa - PMK bssid = %pM\n", &pmksa->bssid);
+	brcmf_dbg(CONN, "del_pmksa - PMK bssid = %pM\n", pmksa->bssid);
 
 	npmk = le32_to_cpu(cfg->pmk_list.npmk);
 	for (i = 0; i < npmk; i++)
-		if (!memcmp(&pmksa->bssid, &pmk[i].bssid, ETH_ALEN))
+		if (!memcmp(pmksa->bssid, pmk[i].bssid, ETH_ALEN))
 			break;
 
 	if ((npmk > 0) && (i < npmk)) {
@@ -4502,6 +4501,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	u16 chanspec = chandef_to_chanspec(&cfg->d11inf, &settings->chandef);
 	bool mbss;
 	int is_11d;
+	bool supports_11d;
 
 	brcmf_dbg(TRACE, "ctrlchn=%d, center=%d, bw=%d, beacon_interval=%d, dtim_period=%d,\n",
 		  settings->chandef.chan->hw_value,
@@ -4514,11 +4514,16 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	mbss = ifp->vif->mbss;
 
 	/* store current 11d setting */
-	brcmf_fil_cmd_int_get(ifp, BRCMF_C_GET_REGULATORY, &ifp->vif->is_11d);
-	country_ie = brcmf_parse_tlvs((u8 *)settings->beacon.tail,
-				      settings->beacon.tail_len,
-				      WLAN_EID_COUNTRY);
-	is_11d = country_ie ? 1 : 0;
+	if (brcmf_fil_cmd_int_get(ifp, BRCMF_C_GET_REGULATORY,
+				  &ifp->vif->is_11d)) {
+		supports_11d = false;
+	} else {
+		country_ie = brcmf_parse_tlvs((u8 *)settings->beacon.tail,
+					      settings->beacon.tail_len,
+					      WLAN_EID_COUNTRY);
+		is_11d = country_ie ? 1 : 0;
+		supports_11d = true;
+	}
 
 	memset(&ssid_le, 0, sizeof(ssid_le));
 	if (settings->ssid == NULL || settings->ssid_len == 0) {
@@ -4577,7 +4582,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 
 	/* Parameters shared by all radio interfaces */
 	if (!mbss) {
-		if (is_11d != ifp->vif->is_11d) {
+		if ((supports_11d) && (is_11d != ifp->vif->is_11d)) {
 			err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_REGULATORY,
 						    is_11d);
 			if (err < 0) {
@@ -4619,7 +4624,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 			brcmf_err("SET INFRA error %d\n", err);
 			goto exit;
 		}
-	} else if (WARN_ON(is_11d != ifp->vif->is_11d)) {
+	} else if (WARN_ON(supports_11d && (is_11d != ifp->vif->is_11d))) {
 		/* Multiple-BSS should use same 11d configuration */
 		err = -EINVAL;
 		goto exit;
@@ -4753,11 +4758,8 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 			brcmf_err("setting INFRA mode failed %d\n", err);
 		if (brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MBSS))
 			brcmf_fil_iovar_int_set(ifp, "mbss", 0);
-		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_REGULATORY,
-					    ifp->vif->is_11d);
-		if (err < 0)
-			brcmf_err("restoring REGULATORY setting failed %d\n",
-				  err);
+		brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_REGULATORY,
+				      ifp->vif->is_11d);
 		/* Bring device back up so it can be used again */
 		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 1);
 		if (err < 0)

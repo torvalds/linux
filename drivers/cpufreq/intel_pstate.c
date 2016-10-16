@@ -225,7 +225,7 @@ struct cpudata {
 static struct cpudata **all_cpu_data;
 
 /**
- * struct pid_adjust_policy - Stores static PID configuration data
+ * struct pstate_adjust_policy - Stores static PID configuration data
  * @sample_rate_ms:	PID calculation sample rate in ms
  * @sample_rate_ns:	Sample rate calculation in ns
  * @deadband:		PID deadband
@@ -562,12 +562,12 @@ static void intel_pstate_hwp_set(const struct cpumask *cpumask)
 	int min, hw_min, max, hw_max, cpu, range, adj_range;
 	u64 value, cap;
 
-	rdmsrl(MSR_HWP_CAPABILITIES, cap);
-	hw_min = HWP_LOWEST_PERF(cap);
-	hw_max = HWP_HIGHEST_PERF(cap);
-	range = hw_max - hw_min;
-
 	for_each_cpu(cpu, cpumask) {
+		rdmsrl_on_cpu(cpu, MSR_HWP_CAPABILITIES, &cap);
+		hw_min = HWP_LOWEST_PERF(cap);
+		hw_max = HWP_HIGHEST_PERF(cap);
+		range = hw_max - hw_min;
+
 		rdmsrl_on_cpu(cpu, MSR_HWP_REQUEST, &value);
 		adj_range = limits->min_perf_pct * range / 100;
 		min = hw_min + adj_range;
@@ -1232,6 +1232,7 @@ static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu)
 {
 	struct sample *sample = &cpu->sample;
 	int32_t busy_frac, boost;
+	int target, avg_pstate;
 
 	busy_frac = div_fp(sample->mperf, sample->tsc);
 
@@ -1242,7 +1243,26 @@ static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu)
 		busy_frac = boost;
 
 	sample->busy_scaled = busy_frac * 100;
-	return get_avg_pstate(cpu) - pid_calc(&cpu->pid, sample->busy_scaled);
+
+	target = limits->no_turbo || limits->turbo_disabled ?
+			cpu->pstate.max_pstate : cpu->pstate.turbo_pstate;
+	target += target >> 2;
+	target = mul_fp(target, busy_frac);
+	if (target < cpu->pstate.min_pstate)
+		target = cpu->pstate.min_pstate;
+
+	/*
+	 * If the average P-state during the previous cycle was higher than the
+	 * current target, add 50% of the difference to the target to reduce
+	 * possible performance oscillations and offset possible performance
+	 * loss related to moving the workload from one CPU to another within
+	 * a package/module.
+	 */
+	avg_pstate = get_avg_pstate(cpu);
+	if (avg_pstate > target)
+		target += (avg_pstate - target) >> 1;
+
+	return target;
 }
 
 static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu)
@@ -1251,10 +1271,11 @@ static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu)
 	u64 duration_ns;
 
 	/*
-	 * perf_scaled is the average performance during the last sampling
-	 * period scaled by the ratio of the maximum P-state to the P-state
-	 * requested last time (in percent).  That measures the system's
-	 * response to the previous P-state selection.
+	 * perf_scaled is the ratio of the average P-state during the last
+	 * sampling period to the P-state requested last time (in percent).
+	 *
+	 * That measures the system's response to the previous P-state
+	 * selection.
 	 */
 	max_pstate = cpu->pstate.max_pstate_physical;
 	current_pstate = cpu->pstate.current_pstate;

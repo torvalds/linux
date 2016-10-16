@@ -200,10 +200,9 @@ EXPORT_SYMBOL_GPL(hsu_dma_get_status);
  *      is not a normal timeout interrupt, ie. hsu_dma_get_status() returned 0.
  *
  *      Return:
- *      IRQ_NONE for invalid channel number, IRQ_HANDLED otherwise.
+ *      0 for invalid channel number, 1 otherwise.
  */
-irqreturn_t hsu_dma_do_irq(struct hsu_dma_chip *chip, unsigned short nr,
-			   u32 status)
+int hsu_dma_do_irq(struct hsu_dma_chip *chip, unsigned short nr, u32 status)
 {
 	struct hsu_dma_chan *hsuc;
 	struct hsu_dma_desc *desc;
@@ -211,7 +210,7 @@ irqreturn_t hsu_dma_do_irq(struct hsu_dma_chip *chip, unsigned short nr,
 
 	/* Sanity check */
 	if (nr >= chip->hsu->nr_channels)
-		return IRQ_NONE;
+		return 0;
 
 	hsuc = &chip->hsu->chan[nr];
 
@@ -230,7 +229,7 @@ irqreturn_t hsu_dma_do_irq(struct hsu_dma_chip *chip, unsigned short nr,
 	}
 	spin_unlock_irqrestore(&hsuc->vchan.lock, flags);
 
-	return IRQ_HANDLED;
+	return 1;
 }
 EXPORT_SYMBOL_GPL(hsu_dma_do_irq);
 

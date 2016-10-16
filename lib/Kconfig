@@ -457,9 +457,6 @@ config NLATTR
 config GENERIC_ATOMIC64
        bool
 
-config ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
-	def_bool y if GENERIC_ATOMIC64
-
 config LRU_CACHE
 	tristate
 
@@ -549,5 +546,8 @@ config ARCH_HAS_MMIO_FLUSH
 config STACKDEPOT
 	bool
 	select STACKTRACE
+
+config SBITMAP
+	bool
 
 endmenu

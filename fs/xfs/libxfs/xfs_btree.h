@@ -37,30 +37,19 @@ union xfs_btree_ptr {
 	__be64			l;	/* long form ptr */
 };
 
+/*
+ * The in-core btree key.  Overlapping btrees actually store two keys
+ * per pointer, so we reserve enough memory to hold both.  The __*bigkey
+ * items should never be accessed directly.
+ */
 union xfs_btree_key {
 	struct xfs_bmbt_key		bmbt;
 	xfs_bmdr_key_t			bmbr;	/* bmbt root block */
 	xfs_alloc_key_t			alloc;
 	struct xfs_inobt_key		inobt;
 	struct xfs_rmap_key		rmap;
-};
-
-/*
- * In-core key that holds both low and high keys for overlapped btrees.
- * The two keys are packed next to each other on disk, so do the same
- * in memory.  Preserve the existing xfs_btree_key as a single key to
- * avoid the mental model breakage that would happen if we passed a
- * bigkey into a function that operates on a single key.
- */
-union xfs_btree_bigkey {
-	struct xfs_bmbt_key		bmbt;
-	xfs_bmdr_key_t			bmbr;	/* bmbt root block */
-	xfs_alloc_key_t			alloc;
-	struct xfs_inobt_key		inobt;
-	struct {
-		struct xfs_rmap_key	rmap;
-		struct xfs_rmap_key	rmap_hi;
-	};
+	struct xfs_rmap_key		__rmap_bigkey[2];
+	struct xfs_refcount_key		refc;
 };
 
 union xfs_btree_rec {
@@ -69,6 +58,7 @@ union xfs_btree_rec {
 	struct xfs_alloc_rec		alloc;
 	struct xfs_inobt_rec		inobt;
 	struct xfs_rmap_rec		rmap;
+	struct xfs_refcount_rec		refc;
 };
 
 /*
@@ -84,6 +74,7 @@ union xfs_btree_rec {
 #define	XFS_BTNUM_INO	((xfs_btnum_t)XFS_BTNUM_INOi)
 #define	XFS_BTNUM_FINO	((xfs_btnum_t)XFS_BTNUM_FINOi)
 #define	XFS_BTNUM_RMAP	((xfs_btnum_t)XFS_BTNUM_RMAPi)
+#define	XFS_BTNUM_REFC	((xfs_btnum_t)XFS_BTNUM_REFCi)
 
 /*
  * For logging record fields.
@@ -117,6 +108,7 @@ do {    \
 	case XFS_BTNUM_INO: __XFS_BTREE_STATS_INC(__mp, ibt, stat); break; \
 	case XFS_BTNUM_FINO: __XFS_BTREE_STATS_INC(__mp, fibt, stat); break; \
 	case XFS_BTNUM_RMAP: __XFS_BTREE_STATS_INC(__mp, rmap, stat); break; \
+	case XFS_BTNUM_REFC: __XFS_BTREE_STATS_INC(__mp, refcbt, stat); break; \
 	case XFS_BTNUM_MAX: ASSERT(0); /* fucking gcc */ ; break;	\
 	}       \
 } while (0)
@@ -139,6 +131,8 @@ do {    \
 		__XFS_BTREE_STATS_ADD(__mp, fibt, stat, val); break; \
 	case XFS_BTNUM_RMAP:	\
 		__XFS_BTREE_STATS_ADD(__mp, rmap, stat, val); break; \
+	case XFS_BTNUM_REFC:	\
+		__XFS_BTREE_STATS_ADD(__mp, refcbt, stat, val); break; \
 	case XFS_BTNUM_MAX: ASSERT(0); /* fucking gcc */ ; break; \
 	}       \
 } while (0)
@@ -229,6 +223,15 @@ union xfs_btree_irec {
 	struct xfs_bmbt_irec		b;
 	struct xfs_inobt_rec_incore	i;
 	struct xfs_rmap_irec		r;
+	struct xfs_refcount_irec	rc;
+};
+
+/* Per-AG btree private information. */
+union xfs_btree_cur_private {
+	struct {
+		unsigned long	nr_ops;		/* # record updates */
+		int		shape_changes;	/* # of extent splits */
+	} refc;
 };
 
 /*
@@ -255,6 +258,7 @@ typedef struct xfs_btree_cur
 			struct xfs_buf	*agbp;	/* agf/agi buffer pointer */
 			struct xfs_defer_ops *dfops;	/* deferred updates */
 			xfs_agnumber_t	agno;	/* ag number */
+			union xfs_btree_cur_private	priv;
 		} a;
 		struct {			/* needed for BMAP */
 			struct xfs_inode *ip;	/* pointer to our inode */
@@ -513,6 +517,8 @@ bool xfs_btree_sblock_v5hdr_verify(struct xfs_buf *bp);
 bool xfs_btree_sblock_verify(struct xfs_buf *bp, unsigned int max_recs);
 uint xfs_btree_compute_maxlevels(struct xfs_mount *mp, uint *limits,
 				 unsigned long len);
+xfs_extlen_t xfs_btree_calc_size(struct xfs_mount *mp, uint *limits,
+		unsigned long long len);
 
 /* return codes */
 #define XFS_BTREE_QUERY_RANGE_CONTINUE	0	/* keep iterating */
@@ -528,5 +534,7 @@ typedef int (*xfs_btree_visit_blocks_fn)(struct xfs_btree_cur *cur, int level,
 		void *data);
 int xfs_btree_visit_blocks(struct xfs_btree_cur *cur,
 		xfs_btree_visit_blocks_fn fn, void *data);
+
+int xfs_btree_count_blocks(struct xfs_btree_cur *cur, xfs_extlen_t *blocks);
 
 #endif	/* __XFS_BTREE_H__ */

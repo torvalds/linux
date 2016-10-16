@@ -29,35 +29,12 @@
 #include "iochannel.h"
 
 #define VISORNIC_INFINITE_RSP_WAIT 0
-#define VISORNICSOPENMAX 32
-#define MAXDEVICES     16384
 
 /* MAX_BUF = 64 lines x 32 MAXVNIC x 80 characters
  *         = 163840 bytes
  */
 #define MAX_BUF 163840
 #define NAPI_WEIGHT 64
-
-static int visornic_probe(struct visor_device *dev);
-static void visornic_remove(struct visor_device *dev);
-static int visornic_pause(struct visor_device *dev,
-			  visorbus_state_complete_func complete_func);
-static int visornic_resume(struct visor_device *dev,
-			   visorbus_state_complete_func complete_func);
-
-/* DEBUGFS declarations */
-static ssize_t info_debugfs_read(struct file *file, char __user *buf,
-				 size_t len, loff_t *offset);
-static ssize_t enable_ints_write(struct file *file, const char __user *buf,
-				 size_t len, loff_t *ppos);
-static struct dentry *visornic_debugfs_dir;
-static const struct file_operations debugfs_info_fops = {
-	.read = info_debugfs_read,
-};
-
-static const struct file_operations debugfs_enable_ints_fops = {
-	.write = enable_ints_write,
-};
 
 /* GUIDS for director channel type supported by this driver.  */
 static struct visor_channeltype_descriptor visornic_channel_types[] = {
@@ -76,23 +53,6 @@ MODULE_DEVICE_TABLE(visorbus, visornic_channel_types);
  * properly.
  */
 MODULE_ALIAS("visorbus:" SPAR_VNIC_CHANNEL_PROTOCOL_UUID_STR);
-
-/* This is used to tell the visor bus driver which types of visor devices
- * we support, and what functions to call when a visor device that we support
- * is attached or removed.
- */
-static struct visor_driver visornic_driver = {
-	.name = "visornic",
-	.version = "1.0.0.0",
-	.vertag = NULL,
-	.owner = THIS_MODULE,
-	.channel_types = visornic_channel_types,
-	.probe = visornic_probe,
-	.remove = visornic_remove,
-	.pause = visornic_pause,
-	.resume = visornic_resume,
-	.channel_interrupt = NULL,
-};
 
 struct chanstat {
 	unsigned long got_rcv;
@@ -180,9 +140,6 @@ struct visornic_devdata {
 	struct napi_struct napi;
 	struct uiscmdrsp cmdrsp[SIZEOF_CMDRSP];
 };
-
-static int visornic_poll(struct napi_struct *napi, int budget);
-static void poll_for_irq(unsigned long v);
 
 /**
  *	visor_copy_fragsinfo_from_skb(
@@ -288,6 +245,10 @@ static ssize_t enable_ints_write(struct file *file,
 	 */
 	return count;
 }
+
+static const struct file_operations debugfs_enable_ints_fops = {
+	.write = enable_ints_write,
+};
 
 /**
  *	visornic_serverdown_complete - IOPART went down, pause device
@@ -425,9 +386,9 @@ post_skb(struct uiscmdrsp *cmdrsp,
 	if ((cmdrsp->net.rcvpost.frag.pi_off + skb->len) <= PI_PAGE_SIZE) {
 		cmdrsp->net.type = NET_RCV_POST;
 		cmdrsp->cmdtype = CMD_NET_TYPE;
-		if (visorchannel_signalinsert(devdata->dev->visorchannel,
-					      IOCHAN_TO_IOPART,
-					      cmdrsp)) {
+		if (!visorchannel_signalinsert(devdata->dev->visorchannel,
+					       IOCHAN_TO_IOPART,
+					       cmdrsp)) {
 			atomic_inc(&devdata->num_rcvbuf_in_iovm);
 			devdata->chstat.sent_post++;
 		} else {
@@ -454,9 +415,9 @@ send_enbdis(struct net_device *netdev, int state,
 	devdata->cmdrsp_rcv->net.enbdis.context = netdev;
 	devdata->cmdrsp_rcv->net.type = NET_RCV_ENBDIS;
 	devdata->cmdrsp_rcv->cmdtype = CMD_NET_TYPE;
-	if (visorchannel_signalinsert(devdata->dev->visorchannel,
-				      IOCHAN_TO_IOPART,
-				      devdata->cmdrsp_rcv))
+	if (!visorchannel_signalinsert(devdata->dev->visorchannel,
+				       IOCHAN_TO_IOPART,
+				       devdata->cmdrsp_rcv))
 		devdata->chstat.sent_enbdis++;
 }
 
@@ -920,8 +881,8 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_OK;
 	}
 
-	if (!visorchannel_signalinsert(devdata->dev->visorchannel,
-				       IOCHAN_TO_IOPART, cmdrsp)) {
+	if (visorchannel_signalinsert(devdata->dev->visorchannel,
+				      IOCHAN_TO_IOPART, cmdrsp)) {
 		netif_stop_queue(netdev);
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		devdata->busy_cnt++;
@@ -1522,6 +1483,11 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 	return bytes_read;
 }
 
+static struct dentry *visornic_debugfs_dir;
+static const struct file_operations debugfs_info_fops = {
+	.read = info_debugfs_read,
+};
+
 /**
  *	send_rcv_posts_if_needed
  *	@devdata: visornic device
@@ -1573,9 +1539,9 @@ send_rcv_posts_if_needed(struct visornic_devdata *devdata)
 static void
 drain_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
 {
-	while (visorchannel_signalremove(devdata->dev->visorchannel,
-					 IOCHAN_FROM_IOPART,
-					 cmdrsp))
+	while (!visorchannel_signalremove(devdata->dev->visorchannel,
+					  IOCHAN_FROM_IOPART,
+					  cmdrsp))
 		;
 }
 
@@ -1586,7 +1552,7 @@ drain_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata)
  *
  *	Drain the respones queue of any responses from the IO partition.
  *	Process the responses as we get them.
- *	Returns when response queue is empty or when the threadd stops.
+ *	Returns when response queue is empty or when the thread stops.
  */
 static void
 service_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
@@ -1599,9 +1565,9 @@ service_resp_queue(struct uiscmdrsp *cmdrsp, struct visornic_devdata *devdata,
 	/* TODO: CLIENT ACQUIRE -- Don't really need this at the
 	 * moment
 	 */
-		if (!visorchannel_signalremove(devdata->dev->visorchannel,
-					       IOCHAN_FROM_IOPART,
-					       cmdrsp))
+		if (visorchannel_signalremove(devdata->dev->visorchannel,
+					      IOCHAN_FROM_IOPART,
+					      cmdrsp))
 			break; /* queue empty */
 
 		switch (cmdrsp->net.type) {
@@ -2061,6 +2027,21 @@ static int visornic_resume(struct visor_device *dev,
 	return 0;
 }
 
+/* This is used to tell the visor bus driver which types of visor devices
+ * we support, and what functions to call when a visor device that we support
+ * is attached or removed.
+ */
+static struct visor_driver visornic_driver = {
+	.name = "visornic",
+	.owner = THIS_MODULE,
+	.channel_types = visornic_channel_types,
+	.probe = visornic_probe,
+	.remove = visornic_remove,
+	.pause = visornic_pause,
+	.resume = visornic_resume,
+	.channel_interrupt = NULL,
+};
+
 /**
  *	visornic_init	- Init function
  *
@@ -2115,5 +2096,4 @@ module_exit(visornic_cleanup);
 
 MODULE_AUTHOR("Unisys");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("sPAR nic driver for sparlinux: ver 1.0.0.0");
-MODULE_VERSION("1.0.0.0");
+MODULE_DESCRIPTION("s-Par NIC driver for virtual network devices");

@@ -108,6 +108,14 @@ config OMAP_OCP2SCP
 	  OCP2SCP and in OMAP5, both USB PHY and SATA PHY is connected via
 	  OCP2SCP.
 
+config QCOM_EBI2
+	bool "Qualcomm External Bus Interface 2 (EBI2)"
+	depends on HAS_IOMEM
+	help
+	  Say y here to enable support for the Qualcomm External Bus
+	  Interface 2, which can be used to connect things like NAND Flash,
+	  SRAM, ethernet adapters, FPGAs and LCD displays.
+
 config SIMPLE_PM_BUS
 	bool "Simple Power-Managed Bus Driver"
 	depends on OF && PM
@@ -132,12 +140,8 @@ config SUNXI_RSB
 	  with various RSB based devices, such as AXP223, AXP8XX PMICs,
 	  and AC100/AC200 ICs.
 
-# TODO: This uses pm_clk_*() symbols that aren't exported in v4.7 and hence
-# the driver will fail to build as a module. However there are patches to
-# address that queued for v4.8, so this can be turned into a tristate symbol
-# after v4.8-rc1.
 config TEGRA_ACONNECT
-	bool "Tegra ACONNECT Bus Driver"
+	tristate "Tegra ACONNECT Bus Driver"
 	depends on ARCH_TEGRA_210_SOC
 	depends on OF && PM
 	select PM_CLK

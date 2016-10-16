@@ -454,7 +454,7 @@ void s390_adjust_jiffies(void)
 			: "Q" (info->capability), "d" (10000000), "d" (0)
 			: "cc"
 			);
-		kernel_fpu_end(&fpu);
+		kernel_fpu_end(&fpu, KERNEL_FPR);
 	} else
 		/*
 		 * Really old machine without stsi block for basic

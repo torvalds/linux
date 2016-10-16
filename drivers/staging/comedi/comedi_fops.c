@@ -81,20 +81,20 @@ struct comedi_file {
 	(COMEDI_NUM_MINORS - COMEDI_NUM_BOARD_MINORS)
 
 static int comedi_num_legacy_minors;
-module_param(comedi_num_legacy_minors, int, S_IRUGO);
+module_param(comedi_num_legacy_minors, int, 0444);
 MODULE_PARM_DESC(comedi_num_legacy_minors,
 		 "number of comedi minor devices to reserve for non-auto-configured devices (default 0)"
 		);
 
 unsigned int comedi_default_buf_size_kb = CONFIG_COMEDI_DEFAULT_BUF_SIZE_KB;
-module_param(comedi_default_buf_size_kb, uint, S_IRUGO | S_IWUSR);
+module_param(comedi_default_buf_size_kb, uint, 0644);
 MODULE_PARM_DESC(comedi_default_buf_size_kb,
 		 "default asynchronous buffer size in KiB (default "
 		 __MODULE_STRING(CONFIG_COMEDI_DEFAULT_BUF_SIZE_KB) ")");
 
 unsigned int comedi_default_buf_maxsize_kb
 	= CONFIG_COMEDI_DEFAULT_BUF_MAXSIZE_KB;
-module_param(comedi_default_buf_maxsize_kb, uint, S_IRUGO | S_IWUSR);
+module_param(comedi_default_buf_maxsize_kb, uint, 0644);
 MODULE_PARM_DESC(comedi_default_buf_maxsize_kb,
 		 "default maximum size of asynchronous buffer in KiB (default "
 		 __MODULE_STRING(CONFIG_COMEDI_DEFAULT_BUF_MAXSIZE_KB) ")");
@@ -2233,7 +2233,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 		goto done;
 	}
 
-	n_pages = size >> PAGE_SHIFT;
+	n_pages = vma_pages(vma);
 
 	/* get reference to current buf map (if any) */
 	bm = comedi_buf_map_from_subdev_get(s);

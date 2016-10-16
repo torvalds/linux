@@ -266,6 +266,8 @@ struct drm_crtc_helper_funcs {
 	 * disable anything at the CRTC level. To ensure that runtime PM
 	 * handling (using either DPMS or the new "ACTIVE" property) works
 	 * @disable must be the inverse of @enable for atomic drivers.
+	 * Atomic drivers should consider to use @atomic_disable instead of
+	 * this one.
 	 *
 	 * NOTE:
 	 *
@@ -391,6 +393,28 @@ struct drm_crtc_helper_funcs {
 	 */
 	void (*atomic_flush)(struct drm_crtc *crtc,
 			     struct drm_crtc_state *old_crtc_state);
+
+	/**
+	 * @atomic_disable:
+	 *
+	 * This callback should be used to disable the CRTC. With the atomic
+	 * drivers it is called after all encoders connected to this CRTC have
+	 * been shut off already using their own ->disable hook. If that
+	 * sequence is too simple drivers can just add their own hooks and call
+	 * it from this CRTC callback here by looping over all encoders
+	 * connected to it using for_each_encoder_on_crtc().
+	 *
+	 * This hook is used only by atomic helpers. Atomic drivers don't
+	 * need to implement it if there's no need to disable anything at the
+	 * CRTC level.
+	 *
+	 * Comparing to @disable, this one provides the additional input
+	 * parameter @old_crtc_state which could be used to access the old
+	 * state. Atomic drivers should consider to use this one instead
+	 * of @disable.
+	 */
+	void (*atomic_disable)(struct drm_crtc *crtc,
+			       struct drm_crtc_state *old_crtc_state);
 };
 
 /**
@@ -523,10 +547,39 @@ struct drm_encoder_helper_funcs {
 	 *
 	 * This callback is used both by the legacy CRTC helpers and the atomic
 	 * modeset helpers. It is optional in the atomic helpers.
+	 *
+	 * NOTE:
+	 *
+	 * If the driver uses the atomic modeset helpers and needs to inspect
+	 * the connector state or connector display info during mode setting,
+	 * @atomic_mode_set can be used instead.
 	 */
 	void (*mode_set)(struct drm_encoder *encoder,
 			 struct drm_display_mode *mode,
 			 struct drm_display_mode *adjusted_mode);
+
+	/**
+	 * @atomic_mode_set:
+	 *
+	 * This callback is used to update the display mode of an encoder.
+	 *
+	 * Note that the display pipe is completely off when this function is
+	 * called. Drivers which need hardware to be running before they program
+	 * the new display mode (because they implement runtime PM) should not
+	 * use this hook, because the helper library calls it only once and not
+	 * every time the display pipeline is suspended using either DPMS or the
+	 * new "ACTIVE" property. Such drivers should instead move all their
+	 * encoder setup into the ->enable() callback.
+	 *
+	 * This callback is used by the atomic modeset helpers in place of the
+	 * @mode_set callback, if set by the driver. It is optional and should
+	 * be used instead of @mode_set if the driver needs to inspect the
+	 * connector state or display info, since there is no direct way to
+	 * go from the encoder to the current connector.
+	 */
+	void (*atomic_mode_set)(struct drm_encoder *encoder,
+				struct drm_crtc_state *crtc_state,
+				struct drm_connector_state *conn_state);
 
 	/**
 	 * @get_crtc:
@@ -826,7 +879,7 @@ struct drm_plane_helper_funcs {
 	 * everything else must complete successfully.
 	 */
 	int (*prepare_fb)(struct drm_plane *plane,
-			  const struct drm_plane_state *new_state);
+			  struct drm_plane_state *new_state);
 	/**
 	 * @cleanup_fb:
 	 *
@@ -837,7 +890,7 @@ struct drm_plane_helper_funcs {
 	 * transitional plane helpers, but it is optional.
 	 */
 	void (*cleanup_fb)(struct drm_plane *plane,
-			   const struct drm_plane_state *old_state);
+			   struct drm_plane_state *old_state);
 
 	/**
 	 * @atomic_check:

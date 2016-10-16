@@ -469,7 +469,7 @@ static int davinci_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	return 0;
 }
 
-static struct rtc_class_ops davinci_rtc_ops = {
+static const struct rtc_class_ops davinci_rtc_ops = {
 	.ioctl			= davinci_rtc_ioctl,
 	.read_time		= davinci_rtc_read_time,
 	.set_time		= davinci_rtc_set_time,

@@ -15,23 +15,15 @@ DVB demux close()
 Synopsis
 --------
 
-.. cpp:function:: int close(int fd)
+.. c:function:: int close(int fd)
+    :name: dvb-dmx-close
 
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
+``fd``
+  File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
 
 Description
 -----------

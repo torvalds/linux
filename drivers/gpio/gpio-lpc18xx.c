@@ -78,7 +78,7 @@ static int lpc18xx_gpio_direction_output(struct gpio_chip *chip,
 	return lpc18xx_gpio_direction(chip, offset, true);
 }
 
-static struct gpio_chip lpc18xx_chip = {
+static const struct gpio_chip lpc18xx_chip = {
 	.label			= "lpc18xx/43xx-gpio",
 	.request		= gpiochip_generic_request,
 	.free			= gpiochip_generic_free,

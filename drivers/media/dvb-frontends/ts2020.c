@@ -496,7 +496,7 @@ static int ts2020_read_signal_strength(struct dvb_frontend *fe,
 	return 0;
 }
 
-static struct dvb_tuner_ops ts2020_tuner_ops = {
+static const struct dvb_tuner_ops ts2020_tuner_ops = {
 	.info = {
 		.name = "TS2020",
 		.frequency_min = 950000,

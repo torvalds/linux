@@ -29,10 +29,10 @@ static int submit_audio_in_urb(struct snd_line6_pcm *line6pcm)
 	int ret;
 	struct urb *urb_in;
 
-	index =
-	    find_first_zero_bit(&line6pcm->in.active_urbs, LINE6_ISO_BUFFERS);
+	index = find_first_zero_bit(&line6pcm->in.active_urbs,
+				    line6pcm->line6->iso_buffers);
 
-	if (index < 0 || index >= LINE6_ISO_BUFFERS) {
+	if (index < 0 || index >= line6pcm->line6->iso_buffers) {
 		dev_err(line6pcm->line6->ifcdev, "no free URB found\n");
 		return -EINVAL;
 	}
@@ -44,13 +44,13 @@ static int submit_audio_in_urb(struct snd_line6_pcm *line6pcm)
 		struct usb_iso_packet_descriptor *fin =
 		    &urb_in->iso_frame_desc[i];
 		fin->offset = urb_size;
-		fin->length = line6pcm->max_packet_size;
-		urb_size += line6pcm->max_packet_size;
+		fin->length = line6pcm->max_packet_size_in;
+		urb_size += line6pcm->max_packet_size_in;
 	}
 
 	urb_in->transfer_buffer =
 	    line6pcm->in.buffer +
-	    index * LINE6_ISO_PACKETS * line6pcm->max_packet_size;
+	    index * LINE6_ISO_PACKETS * line6pcm->max_packet_size_in;
 	urb_in->transfer_buffer_length = urb_size;
 	urb_in->context = line6pcm;
 
@@ -73,7 +73,7 @@ int line6_submit_audio_in_all_urbs(struct snd_line6_pcm *line6pcm)
 {
 	int ret = 0, i;
 
-	for (i = 0; i < LINE6_ISO_BUFFERS; ++i) {
+	for (i = 0; i < line6pcm->line6->iso_buffers; ++i) {
 		ret = submit_audio_in_urb(line6pcm);
 		if (ret < 0)
 			break;
@@ -90,7 +90,9 @@ void line6_capture_copy(struct snd_line6_pcm *line6pcm, char *fbuf, int fsize)
 	struct snd_pcm_substream *substream =
 	    get_substream(line6pcm, SNDRV_PCM_STREAM_CAPTURE);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	const int bytes_per_frame = line6pcm->properties->bytes_per_frame;
+	const int bytes_per_frame =
+		line6pcm->properties->bytes_per_channel *
+		line6pcm->properties->capture_hw.channels_max;
 	int frames = fsize / bytes_per_frame;
 
 	if (runtime == NULL)
@@ -154,7 +156,7 @@ static void audio_in_callback(struct urb *urb)
 	line6pcm->in.last_frame = urb->start_frame;
 
 	/* find index of URB */
-	for (index = 0; index < LINE6_ISO_BUFFERS; ++index)
+	for (index = 0; index < line6pcm->line6->iso_buffers; ++index)
 		if (urb == line6pcm->in.urbs[index])
 			break;
 
@@ -173,17 +175,27 @@ static void audio_in_callback(struct urb *urb)
 		fbuf = urb->transfer_buffer + fin->offset;
 		fsize = fin->actual_length;
 
-		if (fsize > line6pcm->max_packet_size) {
+		if (fsize > line6pcm->max_packet_size_in) {
 			dev_err(line6pcm->line6->ifcdev,
 				"driver and/or device bug: packet too large (%d > %d)\n",
-				fsize, line6pcm->max_packet_size);
+				fsize, line6pcm->max_packet_size_in);
 		}
 
 		length += fsize;
 
-		/* the following assumes LINE6_ISO_PACKETS == 1: */
+		BUILD_BUG_ON_MSG(LINE6_ISO_PACKETS != 1,
+			"The following code assumes LINE6_ISO_PACKETS == 1");
+		/* TODO:
+		 * Also, if iso_buffers != 2, the prev frame is almost random at
+		 * playback side.
+		 * This needs to be redesigned. It should be "stable", but we may
+		 * experience sync problems on such high-speed configs.
+		 */
+
 		line6pcm->prev_fbuf = fbuf;
-		line6pcm->prev_fsize = fsize;
+		line6pcm->prev_fsize = fsize /
+			(line6pcm->properties->bytes_per_channel *
+			line6pcm->properties->capture_hw.channels_max);
 
 		if (!test_bit(LINE6_STREAM_IMPULSE, &line6pcm->in.running) &&
 		    test_bit(LINE6_STREAM_PCM, &line6pcm->in.running) &&
@@ -220,6 +232,8 @@ static int snd_line6_capture_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		return err;
 
+	line6_pcm_acquire(line6pcm, LINE6_STREAM_CAPTURE_HELPER, false);
+
 	runtime->hw = line6pcm->properties->capture_hw;
 	return 0;
 }
@@ -227,6 +241,9 @@ static int snd_line6_capture_open(struct snd_pcm_substream *substream)
 /* close capture callback */
 static int snd_line6_capture_close(struct snd_pcm_substream *substream)
 {
+	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
+
+	line6_pcm_release(line6pcm, LINE6_STREAM_CAPTURE_HELPER);
 	return 0;
 }
 
@@ -247,8 +264,13 @@ int line6_create_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 	struct usb_line6 *line6 = line6pcm->line6;
 	int i;
 
+	line6pcm->in.urbs = kzalloc(
+		sizeof(struct urb *) * line6->iso_buffers, GFP_KERNEL);
+	if (line6pcm->in.urbs == NULL)
+		return -ENOMEM;
+
 	/* create audio URBs and fill in constant values: */
-	for (i = 0; i < LINE6_ISO_BUFFERS; ++i) {
+	for (i = 0; i < line6->iso_buffers; ++i) {
 		struct urb *urb;
 
 		/* URB for audio in: */

@@ -96,11 +96,11 @@
  *    6      6      100 kHz	 6   1000000
  *    7     12       50 kHz	 7   10000000
  */
-const unsigned int dt2811_clk_dividers[] = {
+static const unsigned int dt2811_clk_dividers[] = {
 	1, 10, 2, 3, 4, 5, 6, 12
 };
 
-const unsigned int dt2811_clk_multipliers[] = {
+static const unsigned int dt2811_clk_multipliers[] = {
 	1, 10, 100, 1000, 10000, 100000, 1000000, 10000000
 };
 

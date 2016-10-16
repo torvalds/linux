@@ -97,7 +97,10 @@ print_mtime() {
 }
 
 list_parse() {
-	[ ! -L "$1" ] && echo "$1 \\" || :
+	if [ -L "$1" ]; then
+		return
+	fi
+	echo "$1" | sed 's/:/\\:/g; s/$/ \\/'
 }
 
 # for each file print a line in following format

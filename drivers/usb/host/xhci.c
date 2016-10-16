@@ -295,10 +295,8 @@ static int xhci_setup_msix(struct xhci_hcd *xhci)
 	xhci->msix_entries =
 		kmalloc((sizeof(struct msix_entry))*xhci->msix_count,
 				GFP_KERNEL);
-	if (!xhci->msix_entries) {
-		xhci_err(xhci, "Failed to allocate MSI-X entries\n");
+	if (!xhci->msix_entries)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < xhci->msix_count; i++) {
 		xhci->msix_entries[i].entry = i;

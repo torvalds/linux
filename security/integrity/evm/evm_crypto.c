@@ -182,8 +182,9 @@ static int evm_calc_hmac_or_hash(struct dentry *dentry,
 	int error;
 	int size;
 
-	if (!inode->i_op->getxattr)
+	if (!(inode->i_opflags & IOP_XATTR))
 		return -EOPNOTSUPP;
+
 	desc = init_desc(type);
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
@@ -253,8 +254,8 @@ int evm_update_evmxattr(struct dentry *dentry, const char *xattr_name,
 		rc = __vfs_setxattr_noperm(dentry, XATTR_NAME_EVM,
 					   &xattr_data,
 					   sizeof(xattr_data), 0);
-	} else if (rc == -ENODATA && inode->i_op->removexattr) {
-		rc = inode->i_op->removexattr(dentry, XATTR_NAME_EVM);
+	} else if (rc == -ENODATA && (inode->i_opflags & IOP_XATTR)) {
+		rc = __vfs_removexattr(dentry, XATTR_NAME_EVM);
 	}
 	return rc;
 }

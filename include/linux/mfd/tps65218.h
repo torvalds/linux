@@ -63,6 +63,11 @@
 #define TPS65218_CHIPID_CHIP_MASK	0xF8
 #define TPS65218_CHIPID_REV_MASK	0x07
 
+#define TPS65218_REV_1_0		0x0
+#define TPS65218_REV_1_1		0x1
+#define TPS65218_REV_2_0		0x2
+#define TPS65218_REV_2_1		0x3
+
 #define TPS65218_INT1_VPRG		BIT(5)
 #define TPS65218_INT1_AC		BIT(4)
 #define TPS65218_INT1_PB		BIT(3)
@@ -267,6 +272,7 @@ struct tps_info {
 struct tps65218 {
 	struct device *dev;
 	unsigned int id;
+	u8 rev;
 
 	struct mutex tps_lock;		/* lock guarding the data structure */
 	/* IRQ Data */

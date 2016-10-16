@@ -7,15 +7,47 @@
  */
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
 #include "omap5-board-common.dtsi"
 
 / {
 	model = "IGEPv5";
 	compatible = "isee,omap5-igep0050", "ti,omap5";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
-		reg = <0x80000000 0x7f000000>; /* 2032 MB */
+		reg = <0x0 0x80000000 0 0x7f000000>;	/* 2032 MB */
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&power_button_pin>;
+		pinctrl-names = "default";
+
+		power-button {
+			label = "Power Button";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio4 22 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led@1 {
+			label = "board:green:usr0";
+			gpios = <&tca6416 1 0>;
+			default-state = "off";
+		};
+		led@2 {
+			label = "board:red:usr1";
+			gpios = <&tca6416 2 0>;
+			default-state = "off";
+		};
+		led@3 {
+			label = "board:blue:usr1";
+			gpios = <&tca6416 3 0>;
+			default-state = "off";
+		};
 	};
 };
 
@@ -56,6 +88,12 @@
 		pinctrl-single,pins = <
 			OMAP5_IOPAD(0x0f8, PIN_INPUT | MUX_MODE0)	/* i2c4_scl */
 			OMAP5_IOPAD(0x0fa, PIN_INPUT | MUX_MODE0)	/* i2c4_sda */
+		>;
+	};
+
+	power_button_pin: pinctrl_power_button_pin {
+		pinctrl-single,pins = <
+			OMAP5_IOPAD(0x086, PIN_INPUT | MUX_MODE6)	/* gpio4_118 */
 		>;
 	};
 };

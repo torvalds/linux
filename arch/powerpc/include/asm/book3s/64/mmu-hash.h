@@ -245,6 +245,43 @@ static inline int segment_shift(int ssize)
 }
 
 /*
+ * This array is indexed by the LP field of the HPTE second dword.
+ * Since this field may contain some RPN bits, some entries are
+ * replicated so that we get the same value irrespective of RPN.
+ * The top 4 bits are the page size index (MMU_PAGE_*) for the
+ * actual page size, the bottom 4 bits are the base page size.
+ */
+extern u8 hpte_page_sizes[1 << LP_BITS];
+
+static inline unsigned long __hpte_page_size(unsigned long h, unsigned long l,
+					     bool is_base_size)
+{
+	unsigned int i, lp;
+
+	if (!(h & HPTE_V_LARGE))
+		return 1ul << 12;
+
+	/* Look at the 8 bit LP value */
+	lp = (l >> LP_SHIFT) & ((1 << LP_BITS) - 1);
+	i = hpte_page_sizes[lp];
+	if (!i)
+		return 0;
+	if (!is_base_size)
+		i >>= 4;
+	return 1ul << mmu_psize_defs[i & 0xf].shift;
+}
+
+static inline unsigned long hpte_page_size(unsigned long h, unsigned long l)
+{
+	return __hpte_page_size(h, l, 0);
+}
+
+static inline unsigned long hpte_base_page_size(unsigned long h, unsigned long l)
+{
+	return __hpte_page_size(h, l, 1);
+}
+
+/*
  * The current system page and segment sizes
  */
 extern int mmu_kernel_ssize;

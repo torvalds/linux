@@ -13,16 +13,19 @@ config XTENSA
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
+	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_API_DEBUG
 	select HAVE_EXIT_THREAD
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUTEX_CMPXCHG if !MMU
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
 	select HAVE_IRQ_TIME_ACCOUNTING
+	select HAVE_MEMBLOCK
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select IRQ_DOMAIN
 	select MODULES_USE_ELF_RELA
+	select NO_BOOTMEM
 	select PERF_USE_VMALLOC
 	select VIRT_TO_BUS
 	help
@@ -209,7 +212,8 @@ config HOTPLUG_CPU
 
 config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 	bool "Initialize Xtensa MMU inside the Linux kernel code"
-	default y
+	depends on !XTENSA_VARIANT_FSF && !XTENSA_VARIANT_DC232B
+	default y if XTENSA_VARIANT_DC233C || XTENSA_VARIANT_CUSTOM
 	help
 	  Earlier version initialized the MMU in the exception vector
 	  before jumping to _startup in head.S and had an advantage that
@@ -235,6 +239,71 @@ config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 	  address at 0x00003000 instead of the mapped std of 0xD0003000.
 
 	  If in doubt, say Y.
+
+config KSEG_PADDR
+	hex "Physical address of the KSEG mapping"
+	depends on INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX && MMU
+	default 0x00000000
+	help
+	  This is the physical address where KSEG is mapped. Please refer to
+	  the chosen KSEG layout help for the required address alignment.
+	  Unpacked kernel image (including vectors) must be located completely
+	  within KSEG.
+	  Physical memory below this address is not available to linux.
+
+	  If unsure, leave the default value here.
+
+config KERNEL_LOAD_ADDRESS
+	hex "Kernel load address"
+	default 0x60003000 if !MMU
+	default 0x00003000 if MMU && INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	default 0xd0003000 if MMU && !INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	help
+	  This is the address where the kernel is loaded.
+	  It is virtual address for MMUv2 configurations and physical address
+	  for all other configurations.
+
+	  If unsure, leave the default value here.
+
+config VECTORS_OFFSET
+	hex "Kernel vectors offset"
+	default 0x00003000
+	help
+	  This is the offset of the kernel image from the relocatable vectors
+	  base.
+
+	  If unsure, leave the default value here.
+
+choice
+	prompt "KSEG layout"
+	depends on MMU
+	default XTENSA_KSEG_MMU_V2
+
+config XTENSA_KSEG_MMU_V2
+	bool "MMUv2: 128MB cached + 128MB uncached"
+	help
+	  MMUv2 compatible kernel memory map: TLB way 5 maps 128MB starting
+	  at KSEG_PADDR to 0xd0000000 with cache and to 0xd8000000
+	  without cache.
+	  KSEG_PADDR must be aligned to 128MB.
+
+config XTENSA_KSEG_256M
+	bool "256MB cached + 256MB uncached"
+	depends on INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	help
+	  TLB way 6 maps 256MB starting at KSEG_PADDR to 0xb0000000
+	  with cache and to 0xc0000000 without cache.
+	  KSEG_PADDR must be aligned to 256MB.
+
+config XTENSA_KSEG_512M
+	bool "512MB cached + 512MB uncached"
+	depends on INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	help
+	  TLB way 6 maps 512MB starting at KSEG_PADDR to 0xa0000000
+	  with cache and to 0xc0000000 without cache.
+	  KSEG_PADDR must be aligned to 256MB.
+
+endchoice
 
 config HIGHMEM
 	bool "High Memory Support"
@@ -331,7 +400,7 @@ config XTENSA_PLATFORM_XT2000
 config XTENSA_PLATFORM_XTFPGA
 	bool "XTFPGA"
 	select ETHOC if ETHERNET
-	select PLATFORM_WANT_DEFAULT_MEM
+	select PLATFORM_WANT_DEFAULT_MEM if !MMU
 	select SERIAL_CONSOLE
 	select XTENSA_CALIBRATE_CCOUNT
 	help
@@ -369,6 +438,7 @@ config USE_OF
 	bool "Flattened Device Tree support"
 	select OF
 	select OF_EARLY_FLATTREE
+	select OF_RESERVED_MEM
 	help
 	  Include support for flattened device tree machine descriptions.
 
@@ -439,16 +509,9 @@ config DEFAULT_MEM_START
 	default 0x00000000 if MMU
 	default 0x60000000 if !MMU
 	help
-	  This is a fallback start address of the default memory area, it is
-	  used when no physical memory size is passed through DTB or through
-	  boot parameter from bootloader.
-
-	  In noMMU configuration the following parameters are derived from it:
-	  - kernel load address;
-	  - kernel entry point address;
-	  - relocatable vectors base address;
-	  - uBoot load address;
-	  - TASK_SIZE.
+	  This is the base address of the default memory area.
+	  Default memory area has platform-specific meaning, it may be used
+	  for e.g. early cache initialization.
 
 	  If unsure, leave the default value here.
 
@@ -457,11 +520,9 @@ config DEFAULT_MEM_SIZE
 	depends on PLATFORM_WANT_DEFAULT_MEM
 	default 0x04000000
 	help
-	  This is a fallback size of the default memory area, it is used when
-	  no physical memory size is passed through DTB or through boot
-	  parameter from bootloader.
-
-	  It's also used for TASK_SIZE calculation in noMMU configuration.
+	  This is the size of the default memory area.
+	  Default memory area has platform-specific meaning, it may be used
+	  for e.g. early cache initialization.
 
 	  If unsure, leave the default value here.
 

@@ -306,7 +306,7 @@ void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
 			(bt->polarities & V4L2_DV_VSYNC_POS_POL) ? "+" : "-",
 			bt->il_vsync, bt->il_vbackporch);
 	pr_info("%s: pixelclock: %llu\n", dev_prefix, bt->pixelclock);
-	pr_info("%s: flags (0x%x):%s%s%s%s%s%s\n", dev_prefix, bt->flags,
+	pr_info("%s: flags (0x%x):%s%s%s%s%s%s%s\n", dev_prefix, bt->flags,
 			(bt->flags & V4L2_DV_FL_REDUCED_BLANKING) ?
 			" REDUCED_BLANKING" : "",
 			((bt->flags & V4L2_DV_FL_REDUCED_BLANKING) &&
@@ -318,12 +318,15 @@ void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
 			(bt->flags & V4L2_DV_FL_HALF_LINE) ?
 			" HALF_LINE" : "",
 			(bt->flags & V4L2_DV_FL_IS_CE_VIDEO) ?
-			" CE_VIDEO" : "");
-	pr_info("%s: standards (0x%x):%s%s%s%s\n", dev_prefix, bt->standards,
+			" CE_VIDEO" : "",
+			(bt->flags & V4L2_DV_FL_FIRST_FIELD_EXTRA_LINE) ?
+			" FIRST_FIELD_EXTRA_LINE" : "");
+	pr_info("%s: standards (0x%x):%s%s%s%s%s\n", dev_prefix, bt->standards,
 			(bt->standards & V4L2_DV_BT_STD_CEA861) ?  " CEA" : "",
 			(bt->standards & V4L2_DV_BT_STD_DMT) ?  " DMT" : "",
 			(bt->standards & V4L2_DV_BT_STD_CVT) ?  " CVT" : "",
-			(bt->standards & V4L2_DV_BT_STD_GTF) ?  " GTF" : "");
+			(bt->standards & V4L2_DV_BT_STD_GTF) ?  " GTF" : "",
+			(bt->standards & V4L2_DV_BT_STD_SDI) ?  " SDI" : "");
 }
 EXPORT_SYMBOL_GPL(v4l2_print_dv_timings);
 

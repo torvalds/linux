@@ -650,20 +650,27 @@ static int stmmac_init_ptp(struct stmmac_priv *priv)
 	if (IS_ERR(priv->clk_ptp_ref)) {
 		priv->clk_ptp_rate = clk_get_rate(priv->stmmac_clk);
 		priv->clk_ptp_ref = NULL;
+		netdev_dbg(priv->dev, "PTP uses main clock\n");
 	} else {
 		clk_prepare_enable(priv->clk_ptp_ref);
 		priv->clk_ptp_rate = clk_get_rate(priv->clk_ptp_ref);
+		netdev_dbg(priv->dev, "PTP rate %d\n", priv->clk_ptp_rate);
 	}
 
 	priv->adv_ts = 0;
-	if (priv->dma_cap.atime_stamp && priv->extend_desc)
+	/* Check if adv_ts can be enabled for dwmac 4.x core */
+	if (priv->plat->has_gmac4 && priv->dma_cap.atime_stamp)
+		priv->adv_ts = 1;
+	/* Dwmac 3.x core with extend_desc can support adv_ts */
+	else if (priv->extend_desc && priv->dma_cap.atime_stamp)
 		priv->adv_ts = 1;
 
-	if (netif_msg_hw(priv) && priv->dma_cap.time_stamp)
-		pr_debug("IEEE 1588-2002 Time Stamp supported\n");
+	if (priv->dma_cap.time_stamp)
+		netdev_info(priv->dev, "IEEE 1588-2002 Timestamp supported\n");
 
-	if (netif_msg_hw(priv) && priv->adv_ts)
-		pr_debug("IEEE 1588-2008 Advanced Time Stamp supported\n");
+	if (priv->adv_ts)
+		netdev_info(priv->dev,
+			    "IEEE 1588-2008 Advanced Timestamp supported\n");
 
 	priv->hw->ptp = &stmmac_ptp;
 	priv->hwts_tx_en = 0;
@@ -1702,8 +1709,8 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 
 	if (init_ptp) {
 		ret = stmmac_init_ptp(priv);
-		if (ret && ret != -EOPNOTSUPP)
-			pr_warn("%s: failed PTP initialisation\n", __func__);
+		if (ret)
+			netdev_warn(priv->dev, "PTP support cannot init.\n");
 	}
 
 #ifdef CONFIG_DEBUG_FS

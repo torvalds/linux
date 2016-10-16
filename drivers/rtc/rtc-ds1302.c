@@ -102,7 +102,7 @@ static int ds1302_rtc_get_time(struct device *dev, struct rtc_time *time)
 	return rtc_valid_tm(time);
 }
 
-static struct rtc_class_ops ds1302_rtc_ops = {
+static const struct rtc_class_ops ds1302_rtc_ops = {
 	.read_time	= ds1302_rtc_get_time,
 	.set_time	= ds1302_rtc_set_time,
 };

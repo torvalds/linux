@@ -80,11 +80,17 @@ static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 {
 	struct cppc_cpudata *cpu;
 	struct cpufreq_freqs freqs;
+	u32 desired_perf;
 	int ret = 0;
 
 	cpu = all_cpu_data[policy->cpu];
 
-	cpu->perf_ctrls.desired_perf = (u64)target_freq * policy->max / cppc_dmi_max_khz;
+	desired_perf = (u64)target_freq * cpu->perf_caps.highest_perf / cppc_dmi_max_khz;
+	/* Return if it is exactly the same perf */
+	if (desired_perf == cpu->perf_ctrls.desired_perf)
+		return ret;
+
+	cpu->perf_ctrls.desired_perf = desired_perf;
 	freqs.old = policy->cur;
 	freqs.new = target_freq;
 

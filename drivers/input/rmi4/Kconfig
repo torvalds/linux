@@ -61,3 +61,14 @@ config RMI4_F30
 
 	  Function 30 provides GPIO and LED support for RMI4 devices. This
 	  includes support for buttons on TouchPads and ClickPads.
+
+config RMI4_F54
+	bool "RMI4 Function 54 (Analog diagnostics)"
+	depends on RMI4_CORE
+	depends on VIDEO_V4L2=y || (RMI4_CORE=m && VIDEO_V4L2=m)
+	select VIDEOBUF2_VMALLOC
+	help
+	  Say Y here if you want to add support for RMI4 function 54
+
+	  Function 54 provides access to various diagnostic features in certain
+	  RMI4 touch sensors.

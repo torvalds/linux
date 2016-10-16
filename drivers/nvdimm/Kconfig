@@ -89,7 +89,7 @@ config NVDIMM_PFN
 	  Select Y if unsure
 
 config NVDIMM_DAX
-	bool "NVDIMM DAX: Raw access to persistent memory"
+	tristate "NVDIMM DAX: Raw access to persistent memory"
 	default LIBNVDIMM
 	depends on NVDIMM_PFN
 	help

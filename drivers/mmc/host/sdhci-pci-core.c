@@ -156,7 +156,7 @@ static void sdhci_pci_add_own_cd(struct sdhci_pci_slot *slot)
 	if (!gpio_is_valid(gpio))
 		return;
 
-	err = gpio_request(gpio, "sd_cd");
+	err = devm_gpio_request(&slot->chip->pdev->dev, gpio, "sd_cd");
 	if (err < 0)
 		goto out;
 
@@ -179,7 +179,7 @@ static void sdhci_pci_add_own_cd(struct sdhci_pci_slot *slot)
 	return;
 
 out_free:
-	gpio_free(gpio);
+	devm_gpio_free(&slot->chip->pdev->dev, gpio);
 out:
 	dev_warn(&slot->chip->pdev->dev, "failed to setup card detect wake up\n");
 }
@@ -188,8 +188,6 @@ static void sdhci_pci_remove_own_cd(struct sdhci_pci_slot *slot)
 {
 	if (slot->cd_irq >= 0)
 		free_irq(slot->cd_irq, slot);
-	if (gpio_is_valid(slot->cd_gpio))
-		gpio_free(slot->cd_gpio);
 }
 
 #else
@@ -356,6 +354,7 @@ static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
 {
 	slot->host->mmc->caps |= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE |
 				 MMC_CAP_HW_RESET | MMC_CAP_1_8V_DDR |
+				 MMC_CAP_CMD_DURING_TFR |
 				 MMC_CAP_WAIT_WHILE_BUSY;
 	slot->host->mmc->caps2 |= MMC_CAP2_HC_ERASE_SZ;
 	slot->hw_reset = sdhci_pci_int_hw_reset;
@@ -421,17 +420,30 @@ static const struct sdhci_pci_fixes sdhci_intel_byt_sd = {
 /* Define Host controllers for Intel Merrifield platform */
 #define INTEL_MRFLD_EMMC_0	0
 #define INTEL_MRFLD_EMMC_1	1
+#define INTEL_MRFLD_SD		2
+#define INTEL_MRFLD_SDIO	3
 
 static int intel_mrfld_mmc_probe_slot(struct sdhci_pci_slot *slot)
 {
-	if ((PCI_FUNC(slot->chip->pdev->devfn) != INTEL_MRFLD_EMMC_0) &&
-	    (PCI_FUNC(slot->chip->pdev->devfn) != INTEL_MRFLD_EMMC_1))
-		/* SD support is not ready yet */
+	unsigned int func = PCI_FUNC(slot->chip->pdev->devfn);
+
+	switch (func) {
+	case INTEL_MRFLD_EMMC_0:
+	case INTEL_MRFLD_EMMC_1:
+		slot->host->mmc->caps |= MMC_CAP_NONREMOVABLE |
+					 MMC_CAP_8_BIT_DATA |
+					 MMC_CAP_1_8V_DDR;
+		break;
+	case INTEL_MRFLD_SD:
+		slot->host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
+		break;
+	case INTEL_MRFLD_SDIO:
+		slot->host->mmc->caps |= MMC_CAP_NONREMOVABLE |
+					 MMC_CAP_POWER_OFF_CARD;
+		break;
+	default:
 		return -ENODEV;
-
-	slot->host->mmc->caps |= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE |
-				 MMC_CAP_1_8V_DDR;
-
+	}
 	return 0;
 }
 
@@ -1615,7 +1627,6 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 
 	slot->chip = chip;
 	slot->host = host;
-	slot->pci_bar = bar;
 	slot->rst_n_gpio = -EINVAL;
 	slot->cd_gpio = -EINVAL;
 	slot->cd_idx = -1;
@@ -1643,27 +1654,22 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 
 	host->irq = pdev->irq;
 
-	ret = pci_request_region(pdev, bar, mmc_hostname(host->mmc));
+	ret = pcim_iomap_regions(pdev, BIT(bar), mmc_hostname(host->mmc));
 	if (ret) {
 		dev_err(&pdev->dev, "cannot request region\n");
 		goto cleanup;
 	}
 
-	host->ioaddr = pci_ioremap_bar(pdev, bar);
-	if (!host->ioaddr) {
-		dev_err(&pdev->dev, "failed to remap registers\n");
-		ret = -ENOMEM;
-		goto release;
-	}
+	host->ioaddr = pcim_iomap_table(pdev)[bar];
 
 	if (chip->fixes && chip->fixes->probe_slot) {
 		ret = chip->fixes->probe_slot(slot);
 		if (ret)
-			goto unmap;
+			goto cleanup;
 	}
 
 	if (gpio_is_valid(slot->rst_n_gpio)) {
-		if (!gpio_request(slot->rst_n_gpio, "eMMC_reset")) {
+		if (!devm_gpio_request(&pdev->dev, slot->rst_n_gpio, "eMMC_reset")) {
 			gpio_direction_output(slot->rst_n_gpio, 1);
 			slot->host->mmc->caps |= MMC_CAP_HW_RESET;
 			slot->hw_reset = sdhci_pci_gpio_hw_reset;
@@ -1702,17 +1708,8 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	return slot;
 
 remove:
-	if (gpio_is_valid(slot->rst_n_gpio))
-		gpio_free(slot->rst_n_gpio);
-
 	if (chip->fixes && chip->fixes->remove_slot)
 		chip->fixes->remove_slot(slot, 0);
-
-unmap:
-	iounmap(host->ioaddr);
-
-release:
-	pci_release_region(pdev, bar);
 
 cleanup:
 	if (slot->data && slot->data->cleanup)
@@ -1738,16 +1735,11 @@ static void sdhci_pci_remove_slot(struct sdhci_pci_slot *slot)
 
 	sdhci_remove_host(slot->host, dead);
 
-	if (gpio_is_valid(slot->rst_n_gpio))
-		gpio_free(slot->rst_n_gpio);
-
 	if (slot->chip->fixes && slot->chip->fixes->remove_slot)
 		slot->chip->fixes->remove_slot(slot, dead);
 
 	if (slot->data && slot->data->cleanup)
 		slot->data->cleanup(slot->data);
-
-	pci_release_region(slot->chip->pdev, slot->pci_bar);
 
 	sdhci_free_host(slot->host);
 }
