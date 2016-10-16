@@ -376,5 +376,13 @@
 #define UART_EXAR_TXTRG		0x0a	/* Tx FIFO trigger level write-only */
 #define UART_EXAR_RXTRG		0x0b	/* Rx FIFO trigger level write-only */
 
+/*
+ * These are definitions for the Altera ALTR_16550_F32/F64/F128
+ * Normalized from 0x100 to 0x40 because of shift by 2 (32 bit regs).
+ */
+#define UART_ALTR_AFR		0x40	/* Additional Features Register */
+#define UART_ALTR_EN_TXFIFO_LW	0x01	/* Enable the TX FIFO Low Watermark */
+#define UART_ALTR_TX_LOW	0x41	/* Tx FIFO Low Watermark */
+
 #endif /* _LINUX_SERIAL_REG_H */
 

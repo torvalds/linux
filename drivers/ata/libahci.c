@@ -2520,7 +2520,7 @@ static int ahci_host_activate_multi_irqs(struct ata_host *host,
 	 */
 	for (i = 0; i < host->n_ports; i++) {
 		struct ahci_port_priv *pp = host->ports[i]->private_data;
-		int irq = ahci_irq_vector(hpriv, i);
+		int irq = hpriv->get_irq_vector(host, i);
 
 		/* Do not receive interrupts sent by dummy ports */
 		if (!pp) {
@@ -2556,10 +2556,15 @@ int ahci_host_activate(struct ata_host *host, struct scsi_host_template *sht)
 	int irq = hpriv->irq;
 	int rc;
 
-	if (hpriv->flags & (AHCI_HFLAG_MULTI_MSI | AHCI_HFLAG_MULTI_MSIX)) {
+	if (hpriv->flags & AHCI_HFLAG_MULTI_MSI) {
 		if (hpriv->irq_handler)
 			dev_warn(host->dev,
 			         "both AHCI_HFLAG_MULTI_MSI flag set and custom irq handler implemented\n");
+		if (!hpriv->get_irq_vector) {
+			dev_err(host->dev,
+				"AHCI_HFLAG_MULTI_MSI requires ->get_irq_vector!\n");
+			return -EIO;
+		}
 
 		rc = ahci_host_activate_multi_irqs(host, sht);
 	} else {

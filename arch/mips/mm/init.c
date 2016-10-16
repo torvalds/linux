@@ -10,7 +10,7 @@
  */
 #include <linux/bug.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/smp.h>

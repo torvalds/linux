@@ -1,5 +1,6 @@
 /*
  * Support for o32 Linux/MIPS ELF binaries.
+ * Author: Ralf Baechle (ralf@linux-mips.org)
  *
  * Copyright (C) 1999, 2001 Ralf Baechle
  * Copyright (C) 1999, 2001 Silicon Graphics, Inc.
@@ -42,7 +43,6 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 #include <asm/processor.h>
 
-#include <linux/module.h>
 #include <linux/elfcore.h>
 #include <linux/compat.h>
 #include <linux/math64.h>
@@ -98,12 +98,6 @@ jiffies_to_compat_timeval(unsigned long jiffies, struct compat_timeval *value)
 	value->tv_sec = div_u64_rem(nsec, NSEC_PER_SEC, &rem);
 	value->tv_usec = rem / NSEC_PER_USEC;
 }
-
-MODULE_DESCRIPTION("Binary format loader for compatibility with o32 Linux/MIPS binaries");
-MODULE_AUTHOR("Ralf Baechle (ralf@linux-mips.org)");
-
-#undef MODULE_DESCRIPTION
-#undef MODULE_AUTHOR
 
 #undef TASK_SIZE
 #define TASK_SIZE TASK_SIZE32

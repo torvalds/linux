@@ -350,24 +350,6 @@ static inline __be32 vxlan_vni_field(__be32 vni)
 #endif
 }
 
-static inline __be32 vxlan_tun_id_to_vni(__be64 tun_id)
-{
-#if defined(__BIG_ENDIAN)
-	return (__force __be32)tun_id;
-#else
-	return (__force __be32)((__force u64)tun_id >> 32);
-#endif
-}
-
-static inline __be64 vxlan_vni_to_tun_id(__be32 vni)
-{
-#if defined(__BIG_ENDIAN)
-	return (__force __be64)vni;
-#else
-	return (__force __be64)((u64)(__force u32)vni << 32);
-#endif
-}
-
 static inline size_t vxlan_rco_start(__be32 vni_field)
 {
 	return be32_to_cpu(vni_field & VXLAN_RCO_MASK) << VXLAN_RCO_SHIFT;

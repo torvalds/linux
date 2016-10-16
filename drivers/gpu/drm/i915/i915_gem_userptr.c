@@ -63,33 +63,12 @@ struct i915_mmu_object {
 
 static void wait_rendering(struct drm_i915_gem_object *obj)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_gem_request *requests[I915_NUM_ENGINES];
-	int i, n;
+	unsigned long active = __I915_BO_ACTIVE(obj);
+	int idx;
 
-	if (!obj->active)
-		return;
-
-	n = 0;
-	for (i = 0; i < I915_NUM_ENGINES; i++) {
-		struct drm_i915_gem_request *req;
-
-		req = obj->last_read_req[i];
-		if (req == NULL)
-			continue;
-
-		requests[n++] = i915_gem_request_reference(req);
-	}
-
-	mutex_unlock(&dev->struct_mutex);
-
-	for (i = 0; i < n; i++)
-		__i915_wait_request(requests[i], false, NULL, NULL);
-
-	mutex_lock(&dev->struct_mutex);
-
-	for (i = 0; i < n; i++)
-		i915_gem_request_unreference(requests[i]);
+	for_each_active(active, idx)
+		i915_gem_active_wait_unlocked(&obj->last_read[idx],
+					      0, NULL, NULL);
 }
 
 static void cancel_userptr(struct work_struct *work)
@@ -98,28 +77,19 @@ static void cancel_userptr(struct work_struct *work)
 	struct drm_i915_gem_object *obj = mo->obj;
 	struct drm_device *dev = obj->base.dev;
 
+	wait_rendering(obj);
+
 	mutex_lock(&dev->struct_mutex);
 	/* Cancel any active worker and force us to re-evaluate gup */
 	obj->userptr.work = NULL;
 
 	if (obj->pages != NULL) {
-		struct drm_i915_private *dev_priv = to_i915(dev);
-		struct i915_vma *vma, *tmp;
-		bool was_interruptible;
-
-		wait_rendering(obj);
-
-		was_interruptible = dev_priv->mm.interruptible;
-		dev_priv->mm.interruptible = false;
-
-		list_for_each_entry_safe(vma, tmp, &obj->vma_list, obj_link)
-			WARN_ON(i915_vma_unbind(vma));
+		/* We are inside a kthread context and can't be interrupted */
+		WARN_ON(i915_gem_object_unbind(obj));
 		WARN_ON(i915_gem_object_put_pages(obj));
-
-		dev_priv->mm.interruptible = was_interruptible;
 	}
 
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 	mutex_unlock(&dev->struct_mutex);
 }
 
@@ -572,12 +542,10 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 			}
 		}
 		obj->userptr.work = ERR_PTR(ret);
-		if (ret)
-			__i915_gem_userptr_set_active(obj, false);
 	}
 
 	obj->userptr.workers--;
-	drm_gem_object_unreference(&obj->base);
+	i915_gem_object_put(obj);
 	mutex_unlock(&dev->struct_mutex);
 
 	release_pages(pvec, pinned, 0);
@@ -622,8 +590,7 @@ __i915_gem_userptr_get_pages_schedule(struct drm_i915_gem_object *obj,
 	obj->userptr.work = &work->work;
 	obj->userptr.workers++;
 
-	work->obj = obj;
-	drm_gem_object_reference(&obj->base);
+	work->obj = i915_gem_object_get(obj);
 
 	work->task = current;
 	get_task_struct(work->task);
@@ -659,15 +626,14 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 	 * to the vma (discard or cloning) which should prevent the more
 	 * egregious cases from causing harm.
 	 */
-	if (IS_ERR(obj->userptr.work)) {
-		/* active flag will have been dropped already by the worker */
-		ret = PTR_ERR(obj->userptr.work);
-		obj->userptr.work = NULL;
-		return ret;
-	}
-	if (obj->userptr.work)
+
+	if (obj->userptr.work) {
 		/* active flag should still be held for the pending work */
-		return -EAGAIN;
+		if (IS_ERR(obj->userptr.work))
+			return PTR_ERR(obj->userptr.work);
+		else
+			return -EAGAIN;
+	}
 
 	/* Let the mmu-notifier know that we have begun and need cancellation */
 	ret = __i915_gem_userptr_set_active(obj, true);
@@ -846,7 +812,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 		ret = drm_gem_handle_create(file, &obj->base, &handle);
 
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_unreference_unlocked(&obj->base);
+	i915_gem_object_put_unlocked(obj);
 	if (ret)
 		return ret;
 

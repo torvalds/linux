@@ -229,10 +229,8 @@ static int wusb_ccm_mac(struct crypto_skcipher *tfm_cbc,
 		zero_padding = sizeof(struct aes_ccm_block) - zero_padding;
 	dst_size = blen + sizeof(b0) + sizeof(b1) + zero_padding;
 	dst_buf = kzalloc(dst_size, GFP_KERNEL);
-	if (dst_buf == NULL) {
-		printk(KERN_ERR "E: can't alloc destination buffer\n");
+	if (!dst_buf)
 		goto error_dst_buf;
-	}
 
 	memset(iv, 0, sizeof(iv));
 

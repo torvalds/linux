@@ -40,18 +40,29 @@ static inline void vcpu_set_reg(struct kvm_vcpu *vcpu, u8 reg_num,
 	*vcpu_reg(vcpu, reg_num) = val;
 }
 
-bool kvm_condition_valid(struct kvm_vcpu *vcpu);
-void kvm_skip_instr(struct kvm_vcpu *vcpu, bool is_wide_instr);
+bool kvm_condition_valid32(const struct kvm_vcpu *vcpu);
+void kvm_skip_instr32(struct kvm_vcpu *vcpu, bool is_wide_instr);
 void kvm_inject_undefined(struct kvm_vcpu *vcpu);
+void kvm_inject_vabt(struct kvm_vcpu *vcpu);
 void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr);
 void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr);
+
+static inline bool kvm_condition_valid(const struct kvm_vcpu *vcpu)
+{
+	return kvm_condition_valid32(vcpu);
+}
+
+static inline void kvm_skip_instr(struct kvm_vcpu *vcpu, bool is_wide_instr)
+{
+	kvm_skip_instr32(vcpu, is_wide_instr);
+}
 
 static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.hcr = HCR_GUEST_MASK;
 }
 
-static inline unsigned long vcpu_get_hcr(struct kvm_vcpu *vcpu)
+static inline unsigned long vcpu_get_hcr(const struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.hcr;
 }
@@ -61,7 +72,7 @@ static inline void vcpu_set_hcr(struct kvm_vcpu *vcpu, unsigned long hcr)
 	vcpu->arch.hcr = hcr;
 }
 
-static inline bool vcpu_mode_is_32bit(struct kvm_vcpu *vcpu)
+static inline bool vcpu_mode_is_32bit(const struct kvm_vcpu *vcpu)
 {
 	return 1;
 }
@@ -71,9 +82,9 @@ static inline unsigned long *vcpu_pc(struct kvm_vcpu *vcpu)
 	return &vcpu->arch.ctxt.gp_regs.usr_regs.ARM_pc;
 }
 
-static inline unsigned long *vcpu_cpsr(struct kvm_vcpu *vcpu)
+static inline unsigned long *vcpu_cpsr(const struct kvm_vcpu *vcpu)
 {
-	return &vcpu->arch.ctxt.gp_regs.usr_regs.ARM_cpsr;
+	return (unsigned long *)&vcpu->arch.ctxt.gp_regs.usr_regs.ARM_cpsr;
 }
 
 static inline void vcpu_set_thumb(struct kvm_vcpu *vcpu)
@@ -93,9 +104,19 @@ static inline bool vcpu_mode_priv(struct kvm_vcpu *vcpu)
 	return cpsr_mode > USR_MODE;;
 }
 
-static inline u32 kvm_vcpu_get_hsr(struct kvm_vcpu *vcpu)
+static inline u32 kvm_vcpu_get_hsr(const struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.fault.hsr;
+}
+
+static inline int kvm_vcpu_get_condition(const struct kvm_vcpu *vcpu)
+{
+	u32 hsr = kvm_vcpu_get_hsr(vcpu);
+
+	if (hsr & HSR_CV)
+		return (hsr & HSR_COND) >> HSR_COND_SHIFT;
+
+	return -1;
 }
 
 static inline unsigned long kvm_vcpu_get_hfar(struct kvm_vcpu *vcpu)

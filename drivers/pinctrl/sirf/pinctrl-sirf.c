@@ -1,6 +1,11 @@
 /*
  * pinmux driver for CSR SiRFprimaII
  *
+ * Authors:
+ *	Rongjun Ying <rongjun.ying@csr.com>
+ *	Yuping Luo <yuping.luo@csr.com>
+ *	Barry Song <baohua.song@csr.com>
+ *
  * Copyright (c) 2011 - 2014 Cambridge Silicon Radio Limited, a CSR plc group
  * company.
  *
@@ -8,7 +13,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -884,9 +888,3 @@ static int __init sirfsoc_gpio_init(void)
 	return sirfsoc_gpio_probe(np);
 }
 subsys_initcall(sirfsoc_gpio_init);
-
-MODULE_AUTHOR("Rongjun Ying <rongjun.ying@csr.com>");
-MODULE_AUTHOR("Yuping Luo <yuping.luo@csr.com>");
-MODULE_AUTHOR("Barry Song <baohua.song@csr.com>");
-MODULE_DESCRIPTION("SIRFSOC pin control driver");
-MODULE_LICENSE("GPL");

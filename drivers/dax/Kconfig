@@ -23,4 +23,9 @@ config DEV_DAX_PMEM
 
 	  Say Y if unsure
 
+config NR_DEV_DAX
+	int "Maximum number of Device-DAX instances"
+	default 32768
+	range 256 2147483647
+
 endif

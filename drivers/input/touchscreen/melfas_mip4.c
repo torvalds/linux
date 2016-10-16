@@ -157,6 +157,7 @@ struct mip4_ts {
 
 	char phys[32];
 	char product_name[16];
+	char ic_name[4];
 
 	unsigned int max_x;
 	unsigned int max_y;
@@ -262,6 +263,18 @@ static int mip4_query_device(struct mip4_ts *ts)
 	else
 		dev_dbg(&ts->client->dev, "product name: %.*s\n",
 			(int)sizeof(ts->product_name), ts->product_name);
+
+	/* IC name */
+	cmd[0] = MIP4_R0_INFO;
+	cmd[1] = MIP4_R1_INFO_IC_NAME;
+	error = mip4_i2c_xfer(ts, cmd, sizeof(cmd),
+			      ts->ic_name, sizeof(ts->ic_name));
+	if (error)
+		dev_warn(&ts->client->dev,
+			 "Failed to retrieve IC name: %d\n", error);
+	else
+		dev_dbg(&ts->client->dev, "IC name: %.*s\n",
+			(int)sizeof(ts->ic_name), ts->ic_name);
 
 	/* Firmware version */
 	error = mip4_get_fw_version(ts);
@@ -1326,7 +1339,7 @@ static ssize_t mip4_sysfs_read_hw_version(struct device *dev,
 	 * paired with current firmware in the chip.
 	 */
 	count = snprintf(buf, PAGE_SIZE, "%.*s\n",
-		(int)sizeof(ts->product_name), ts->product_name);
+			 (int)sizeof(ts->product_name), ts->product_name);
 
 	mutex_unlock(&ts->input->mutex);
 
@@ -1335,9 +1348,30 @@ static ssize_t mip4_sysfs_read_hw_version(struct device *dev,
 
 static DEVICE_ATTR(hw_version, S_IRUGO, mip4_sysfs_read_hw_version, NULL);
 
+static ssize_t mip4_sysfs_read_ic_name(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct mip4_ts *ts = i2c_get_clientdata(client);
+	size_t count;
+
+	mutex_lock(&ts->input->mutex);
+
+	count = snprintf(buf, PAGE_SIZE, "%.*s\n",
+			 (int)sizeof(ts->ic_name), ts->ic_name);
+
+	mutex_unlock(&ts->input->mutex);
+
+	return count;
+}
+
+static DEVICE_ATTR(ic_name, S_IRUGO, mip4_sysfs_read_ic_name, NULL);
+
 static struct attribute *mip4_attrs[] = {
 	&dev_attr_fw_version.attr,
 	&dev_attr_hw_version.attr,
+	&dev_attr_ic_name.attr,
 	&dev_attr_update_fw.attr,
 	NULL,
 };
@@ -1538,6 +1572,6 @@ static struct i2c_driver mip4_driver = {
 module_i2c_driver(mip4_driver);
 
 MODULE_DESCRIPTION("MELFAS MIP4 Touchscreen");
-MODULE_VERSION("2016.03.12");
+MODULE_VERSION("2016.09.28");
 MODULE_AUTHOR("Sangwon Jee <jeesw@melfas.com>");
 MODULE_LICENSE("GPL");

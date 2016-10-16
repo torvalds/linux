@@ -17,6 +17,7 @@
  */
 
 #include <asm/asmmacro.h>
+#include <asm/export.h>
 
 //
 //
@@ -190,3 +191,4 @@ GLOBAL_ENTRY(strlen)
 	mov ar.pfs=saved_pfs	// because of ar.ec, restore no matter what
 	br.ret.sptk.many rp	// end of successful recovery code
 END(strlen)
+EXPORT_SYMBOL(strlen)

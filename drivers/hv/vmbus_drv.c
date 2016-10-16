@@ -105,8 +105,8 @@ static struct notifier_block hyperv_panic_block = {
 
 static const char *fb_mmio_name = "fb_range";
 static struct resource *fb_mmio;
-struct resource *hyperv_mmio;
-DEFINE_SEMAPHORE(hyperv_mmio_lock);
+static struct resource *hyperv_mmio;
+static DEFINE_SEMAPHORE(hyperv_mmio_lock);
 
 static int vmbus_exists(void)
 {
@@ -874,7 +874,7 @@ err_alloc:
 	bus_unregister(&hv_bus);
 
 err_cleanup:
-	hv_cleanup();
+	hv_cleanup(false);
 
 	return ret;
 }
@@ -961,8 +961,8 @@ int vmbus_device_register(struct hv_device *child_device_obj)
 {
 	int ret = 0;
 
-	dev_set_name(&child_device_obj->device, "vmbus_%d",
-		     child_device_obj->channel->id);
+	dev_set_name(&child_device_obj->device, "vmbus-%pUl",
+		     child_device_obj->channel->offermsg.offer.if_instance.b);
 
 	child_device_obj->device.bus = &hv_bus;
 	child_device_obj->device.parent = &hv_acpi_dev->dev;
@@ -1326,7 +1326,7 @@ static void hv_kexec_handler(void)
 	vmbus_initiate_unload(false);
 	for_each_online_cpu(cpu)
 		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);
-	hv_cleanup();
+	hv_cleanup(false);
 };
 
 static void hv_crash_handler(struct pt_regs *regs)
@@ -1338,7 +1338,7 @@ static void hv_crash_handler(struct pt_regs *regs)
 	 * for kdump.
 	 */
 	hv_synic_cleanup(NULL);
-	hv_cleanup();
+	hv_cleanup(true);
 };
 
 static int __init hv_acpi_init(void)
@@ -1398,7 +1398,7 @@ static void __exit vmbus_exit(void)
 						 &hyperv_panic_block);
 	}
 	bus_unregister(&hv_bus);
-	hv_cleanup();
+	hv_cleanup(false);
 	for_each_online_cpu(cpu) {
 		tasklet_kill(hv_context.event_dpc[cpu]);
 		smp_call_function_single(cpu, hv_synic_cleanup, NULL, 1);

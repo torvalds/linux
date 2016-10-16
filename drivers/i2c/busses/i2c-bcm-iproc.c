@@ -488,13 +488,7 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 	adap->dev.parent = &pdev->dev;
 	adap->dev.of_node = pdev->dev.of_node;
 
-	ret = i2c_add_adapter(adap);
-	if (ret) {
-		dev_err(iproc_i2c->device, "failed to add adapter\n");
-		return ret;
-	}
-
-	return 0;
+	return i2c_add_adapter(adap);
 }
 
 static int bcm_iproc_i2c_remove(struct platform_device *pdev)

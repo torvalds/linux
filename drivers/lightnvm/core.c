@@ -27,6 +27,8 @@
 #include <linux/lightnvm.h>
 #include <linux/sched/sysctl.h>
 
+#include "lightnvm.h"
+
 static LIST_HEAD(nvm_tgt_types);
 static DECLARE_RWSEM(nvm_tgtt_lock);
 static LIST_HEAD(nvm_mgrs);
@@ -581,6 +583,8 @@ static int nvm_core_init(struct nvm_dev *dev)
 	mutex_init(&dev->mlock);
 	spin_lock_init(&dev->lock);
 
+	blk_queue_logical_block_size(dev->q, dev->sec_size);
+
 	return 0;
 err_fmtype:
 	kfree(dev->lun_map);
@@ -596,15 +600,19 @@ static void nvm_free_mgr(struct nvm_dev *dev)
 	dev->mt = NULL;
 }
 
-static void nvm_free(struct nvm_dev *dev)
+void nvm_free(struct nvm_dev *dev)
 {
 	if (!dev)
 		return;
 
 	nvm_free_mgr(dev);
 
+	if (dev->dma_pool)
+		dev->ops->destroy_dma_pool(dev->dma_pool);
+
 	kfree(dev->lptbl);
 	kfree(dev->lun_map);
+	kfree(dev);
 }
 
 static int nvm_init(struct nvm_dev *dev)
@@ -651,29 +659,18 @@ err:
 
 static void nvm_exit(struct nvm_dev *dev)
 {
-	if (dev->dma_pool)
-		dev->ops->destroy_dma_pool(dev->dma_pool);
-	nvm_free(dev);
-
-	pr_info("nvm: successfully unloaded\n");
+	nvm_sysfs_unregister_dev(dev);
 }
 
-int nvm_register(struct request_queue *q, char *disk_name,
-							struct nvm_dev_ops *ops)
+struct nvm_dev *nvm_alloc_dev(int node)
 {
-	struct nvm_dev *dev;
+	return kzalloc_node(sizeof(struct nvm_dev), GFP_KERNEL, node);
+}
+EXPORT_SYMBOL(nvm_alloc_dev);
+
+int nvm_register(struct nvm_dev *dev)
+{
 	int ret;
-
-	if (!ops->identity)
-		return -EINVAL;
-
-	dev = kzalloc(sizeof(struct nvm_dev), GFP_KERNEL);
-	if (!dev)
-		return -ENOMEM;
-
-	dev->q = q;
-	dev->ops = ops;
-	strncpy(dev->name, disk_name, DISK_NAME_LEN);
 
 	ret = nvm_init(dev);
 	if (ret)
@@ -694,6 +691,10 @@ int nvm_register(struct request_queue *q, char *disk_name,
 		}
 	}
 
+	ret = nvm_sysfs_register_dev(dev);
+	if (ret)
+		goto err_ppalist;
+
 	if (dev->identity.cap & NVM_ID_DCAP_BBLKMGMT) {
 		ret = nvm_get_sysblock(dev, &dev->sb);
 		if (!ret)
@@ -710,31 +711,21 @@ int nvm_register(struct request_queue *q, char *disk_name,
 	up_write(&nvm_lock);
 
 	return 0;
+err_ppalist:
+	dev->ops->destroy_dma_pool(dev->dma_pool);
 err_init:
 	kfree(dev->lun_map);
-	kfree(dev);
 	return ret;
 }
 EXPORT_SYMBOL(nvm_register);
 
-void nvm_unregister(char *disk_name)
+void nvm_unregister(struct nvm_dev *dev)
 {
-	struct nvm_dev *dev;
-
 	down_write(&nvm_lock);
-	dev = nvm_find_nvm_dev(disk_name);
-	if (!dev) {
-		pr_err("nvm: could not find device %s to unregister\n",
-								disk_name);
-		up_write(&nvm_lock);
-		return;
-	}
-
 	list_del(&dev->devices);
 	up_write(&nvm_lock);
 
 	nvm_exit(dev);
-	kfree(dev);
 }
 EXPORT_SYMBOL(nvm_unregister);
 
@@ -1171,27 +1162,10 @@ static struct miscdevice _nvm_misc = {
 	.nodename	= "lightnvm/control",
 	.fops		= &_ctl_fops,
 };
+module_misc_device(_nvm_misc);
 
 MODULE_ALIAS_MISCDEV(MISC_DYNAMIC_MINOR);
-
-static int __init nvm_mod_init(void)
-{
-	int ret;
-
-	ret = misc_register(&_nvm_misc);
-	if (ret)
-		pr_err("nvm: misc_register failed for control device");
-
-	return ret;
-}
-
-static void __exit nvm_mod_exit(void)
-{
-	misc_deregister(&_nvm_misc);
-}
 
 MODULE_AUTHOR("Matias Bjorling <m@bjorling.me>");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("0.1");
-module_init(nvm_mod_init);
-module_exit(nvm_mod_exit);

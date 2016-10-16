@@ -385,11 +385,8 @@ static struct btrfs_delayed_item *__btrfs_lookup_delayed_insertion_item(
 					struct btrfs_delayed_node *delayed_node,
 					struct btrfs_key *key)
 {
-	struct btrfs_delayed_item *item;
-
-	item = __btrfs_lookup_delayed_item(&delayed_node->ins_root, key,
+	return __btrfs_lookup_delayed_item(&delayed_node->ins_root, key,
 					   NULL, NULL);
-	return item;
 }
 
 static int __btrfs_add_delayed_item(struct btrfs_delayed_node *delayed_node,
@@ -1481,11 +1478,10 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 	mutex_lock(&delayed_node->mutex);
 	ret = __btrfs_add_delayed_insertion_item(delayed_node, delayed_item);
 	if (unlikely(ret)) {
-		btrfs_err(root->fs_info, "err add delayed dir index item(name: %.*s) "
-				"into the insertion tree of the delayed node"
-				"(root id: %llu, inode id: %llu, errno: %d)",
-				name_len, name, delayed_node->root->objectid,
-				delayed_node->inode_id, ret);
+		btrfs_err(root->fs_info,
+			  "err add delayed dir index item(name: %.*s) into the insertion tree of the delayed node(root id: %llu, inode id: %llu, errno: %d)",
+			  name_len, name, delayed_node->root->objectid,
+			  delayed_node->inode_id, ret);
 		BUG();
 	}
 	mutex_unlock(&delayed_node->mutex);
@@ -1553,11 +1549,9 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	mutex_lock(&node->mutex);
 	ret = __btrfs_add_delayed_deletion_item(node, item);
 	if (unlikely(ret)) {
-		btrfs_err(root->fs_info, "err add delayed dir index item(index: %llu) "
-				"into the deletion tree of the delayed node"
-				"(root id: %llu, inode id: %llu, errno: %d)",
-				index, node->root->objectid, node->inode_id,
-				ret);
+		btrfs_err(root->fs_info,
+			  "err add delayed dir index item(index: %llu) into the deletion tree of the delayed node(root id: %llu, inode id: %llu, errno: %d)",
+			  index, node->root->objectid, node->inode_id, ret);
 		BUG();
 	}
 	mutex_unlock(&node->mutex);
@@ -1874,7 +1868,8 @@ int btrfs_delayed_delete_inode_ref(struct inode *inode)
 	 * leads to enospc problems.  This means we also can't do
 	 * delayed inode refs
 	 */
-	if (BTRFS_I(inode)->root->fs_info->log_root_recovering)
+	if (test_bit(BTRFS_FS_LOG_RECOVERING,
+		     &BTRFS_I(inode)->root->fs_info->flags))
 		return -EAGAIN;
 
 	delayed_node = btrfs_get_or_create_delayed_node(inode);

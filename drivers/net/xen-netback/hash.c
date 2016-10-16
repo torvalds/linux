@@ -32,15 +32,6 @@
 #include <linux/vmalloc.h>
 #include <linux/rculist.h>
 
-static void xenvif_del_hash(struct rcu_head *rcu)
-{
-	struct xenvif_hash_cache_entry *entry;
-
-	entry = container_of(rcu, struct xenvif_hash_cache_entry, rcu);
-
-	kfree(entry);
-}
-
 static void xenvif_add_hash(struct xenvif *vif, const u8 *tag,
 			    unsigned int len, u32 val)
 {
@@ -76,7 +67,7 @@ static void xenvif_add_hash(struct xenvif *vif, const u8 *tag,
 		if (++vif->hash.cache.count > xenvif_hash_cache_size) {
 			list_del_rcu(&oldest->link);
 			vif->hash.cache.count--;
-			call_rcu(&oldest->rcu, xenvif_del_hash);
+			kfree_rcu(oldest, rcu);
 		}
 	}
 
@@ -114,7 +105,7 @@ static void xenvif_flush_hash(struct xenvif *vif)
 	list_for_each_entry_rcu(entry, &vif->hash.cache.list, link) {
 		list_del_rcu(&entry->link);
 		vif->hash.cache.count--;
-		call_rcu(&entry->rcu, xenvif_del_hash);
+		kfree_rcu(entry, rcu);
 	}
 
 	spin_unlock_irqrestore(&vif->hash.cache.lock, flags);
@@ -368,6 +359,74 @@ u32 xenvif_set_hash_mapping(struct xenvif *vif, u32 gref, u32 len,
 
 	return XEN_NETIF_CTRL_STATUS_SUCCESS;
 }
+
+#ifdef CONFIG_DEBUG_FS
+void xenvif_dump_hash_info(struct xenvif *vif, struct seq_file *m)
+{
+	unsigned int i;
+
+	switch (vif->hash.alg) {
+	case XEN_NETIF_CTRL_HASH_ALGORITHM_TOEPLITZ:
+		seq_puts(m, "Hash Algorithm: TOEPLITZ\n");
+		break;
+
+	case XEN_NETIF_CTRL_HASH_ALGORITHM_NONE:
+		seq_puts(m, "Hash Algorithm: NONE\n");
+		/* FALLTHRU */
+	default:
+		return;
+	}
+
+	if (vif->hash.flags) {
+		seq_puts(m, "\nHash Flags:\n");
+
+		if (vif->hash.flags & XEN_NETIF_CTRL_HASH_TYPE_IPV4)
+			seq_puts(m, "- IPv4\n");
+		if (vif->hash.flags & XEN_NETIF_CTRL_HASH_TYPE_IPV4_TCP)
+			seq_puts(m, "- IPv4 + TCP\n");
+		if (vif->hash.flags & XEN_NETIF_CTRL_HASH_TYPE_IPV6)
+			seq_puts(m, "- IPv6\n");
+		if (vif->hash.flags & XEN_NETIF_CTRL_HASH_TYPE_IPV6_TCP)
+			seq_puts(m, "- IPv6 + TCP\n");
+	}
+
+	seq_puts(m, "\nHash Key:\n");
+
+	for (i = 0; i < XEN_NETBK_MAX_HASH_KEY_SIZE; ) {
+		unsigned int j, n;
+
+		n = 8;
+		if (i + n >= XEN_NETBK_MAX_HASH_KEY_SIZE)
+			n = XEN_NETBK_MAX_HASH_KEY_SIZE - i;
+
+		seq_printf(m, "[%2u - %2u]: ", i, i + n - 1);
+
+		for (j = 0; j < n; j++, i++)
+			seq_printf(m, "%02x ", vif->hash.key[i]);
+
+		seq_puts(m, "\n");
+	}
+
+	if (vif->hash.size != 0) {
+		seq_puts(m, "\nHash Mapping:\n");
+
+		for (i = 0; i < vif->hash.size; ) {
+			unsigned int j, n;
+
+			n = 8;
+			if (i + n >= vif->hash.size)
+				n = vif->hash.size - i;
+
+			seq_printf(m, "[%4u - %4u]: ", i, i + n - 1);
+
+			for (j = 0; j < n; j++, i++)
+				seq_printf(m, "%4u ", vif->hash.mapping[i]);
+
+			seq_puts(m, "\n");
+		}
+	}
+}
+#endif /* CONFIG_DEBUG_FS */
 
 void xenvif_init_hash(struct xenvif *vif)
 {

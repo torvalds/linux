@@ -11,11 +11,13 @@ Name
 
 VIDEO_GET_STATUS
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_GET_STATUS, struct video_status *status)
+.. c:function:: int ioctl(fd, VIDEO_GET_STATUS, struct video_status *status)
+    :name: VIDEO_GET_STATUS
 
 
 Arguments
@@ -51,6 +53,17 @@ Description
 This ioctl call asks the Video Device to return the current status of
 the device.
 
+.. c:type:: video_status
+
+.. code-block:: c
+
+	struct video_status {
+		int                   video_blank;   /* blank video on freeze? */
+		video_play_state_t    play_state;    /* current state of playback */
+		video_stream_source_t stream_source; /* current source (demux/memory) */
+		video_format_t        video_format;  /* current aspect ratio of stream*/
+		video_displayformat_t display_format;/* selected cropping mode */
+	};
 
 Return Value
 ------------

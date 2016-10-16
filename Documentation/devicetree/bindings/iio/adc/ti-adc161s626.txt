@@ -1,0 +1,16 @@
+* Texas Instruments ADC141S626 and ADC161S626 chips
+
+Required properties:
+ - compatible: Should be "ti,adc141s626" or "ti,adc161s626"
+ - reg: spi chip select number for the device
+
+Recommended properties:
+ - spi-max-frequency: Definition as per
+		Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Example:
+adc@0 {
+	compatible = "ti,adc161s626";
+	reg = <0>;
+	spi-max-frequency = <4300000>;
+};

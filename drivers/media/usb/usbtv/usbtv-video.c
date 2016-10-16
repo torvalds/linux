@@ -689,7 +689,7 @@ static void usbtv_stop_streaming(struct vb2_queue *vq)
 		usbtv_stop(usbtv);
 }
 
-static struct vb2_ops usbtv_vb2_ops = {
+static const struct vb2_ops usbtv_vb2_ops = {
 	.queue_setup = usbtv_queue_setup,
 	.buf_queue = usbtv_buf_queue,
 	.start_streaming = usbtv_start_streaming,

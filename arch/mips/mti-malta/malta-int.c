@@ -14,11 +14,13 @@
  */
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irqchip/mips-gic.h>
+#include <linux/of_irq.h>
 #include <linux/kernel_stat.h>
 #include <linux/kernel.h>
 #include <linux/random.h>
@@ -36,10 +38,6 @@
 #include <asm/msc01_ic.h>
 #include <asm/setup.h>
 #include <asm/rtlx.h>
-
-static void __iomem *_msc01_biu_base;
-
-static DEFINE_RAW_SPINLOCK(mips_irq_lock);
 
 static inline int mips_pcibios_iack(void)
 {
@@ -83,49 +81,6 @@ static inline int mips_pcibios_iack(void)
 		return -1;
 	}
 	return irq;
-}
-
-static inline int get_int(void)
-{
-	unsigned long flags;
-	int irq;
-	raw_spin_lock_irqsave(&mips_irq_lock, flags);
-
-	irq = mips_pcibios_iack();
-
-	/*
-	 * The only way we can decide if an interrupt is spurious
-	 * is by checking the 8259 registers.  This needs a spinlock
-	 * on an SMP system,  so leave it up to the generic code...
-	 */
-
-	raw_spin_unlock_irqrestore(&mips_irq_lock, flags);
-
-	return irq;
-}
-
-static void malta_hw0_irqdispatch(void)
-{
-	int irq;
-
-	irq = get_int();
-	if (irq < 0) {
-		/* interrupt has already been cleared */
-		return;
-	}
-
-	do_IRQ(MALTA_INT_BASE + irq);
-
-#ifdef CONFIG_MIPS_VPE_APSP_API_MT
-	if (aprp_hook)
-		aprp_hook();
-#endif
-}
-
-static irqreturn_t i8259_handler(int irq, void *dev_id)
-{
-	malta_hw0_irqdispatch();
-	return IRQ_HANDLED;
 }
 
 static void corehi_irqdispatch(void)
@@ -240,12 +195,6 @@ static struct irqaction irq_call = {
 };
 #endif /* CONFIG_MIPS_MT_SMP */
 
-static struct irqaction i8259irq = {
-	.handler = i8259_handler,
-	.name = "XT-PIC cascade",
-	.flags = IRQF_NO_THREAD,
-};
-
 static struct irqaction corehi_irqaction = {
 	.handler = corehi_handler,
 	.name = "CoreHi",
@@ -281,28 +230,10 @@ void __init arch_init_ipiirq(int irq, struct irqaction *action)
 
 void __init arch_init_irq(void)
 {
-	int corehi_irq, i8259_irq;
+	int corehi_irq;
 
-	init_i8259_irqs();
-
-	if (!cpu_has_veic)
-		mips_cpu_irq_init();
-
-	if (mips_cm_present()) {
-		write_gcr_gic_base(GIC_BASE_ADDR | CM_GCR_GIC_BASE_GICEN_MSK);
-		gic_present = 1;
-	} else {
-		if (mips_revision_sconid == MIPS_REVISION_SCON_ROCIT) {
-			_msc01_biu_base = ioremap_nocache(MSC01_BIU_REG_BASE,
-						MSC01_BIU_ADDRSPACE_SZ);
-			gic_present =
-			  (__raw_readl(_msc01_biu_base + MSC01_SC_CFG_OFS) &
-			   MSC01_SC_CFG_GICPRES_MSK) >>
-			  MSC01_SC_CFG_GICPRES_SHF;
-		}
-	}
-	if (gic_present)
-		pr_debug("GIC present\n");
+	i8259_set_poll(mips_pcibios_iack);
+	irqchip_init();
 
 	switch (mips_revision_sconid) {
 	case MIPS_REVISION_SCON_SOCIT:
@@ -330,18 +261,6 @@ void __init arch_init_irq(void)
 	}
 
 	if (gic_present) {
-		int i;
-
-		gic_init(GIC_BASE_ADDR, GIC_ADDRSPACE_SZ, MIPSCPU_INT_GIC,
-			 MIPS_GIC_IRQ_BASE);
-		if (!mips_cm_present()) {
-			/* Enable the GIC */
-			i = __raw_readl(_msc01_biu_base + MSC01_SC_CFG_OFS);
-			__raw_writel(i | (0x1 << MSC01_SC_CFG_GICENA_SHF),
-				 _msc01_biu_base + MSC01_SC_CFG_OFS);
-			pr_debug("GIC Enabled\n");
-		}
-		i8259_irq = MIPS_GIC_IRQ_BASE + GIC_INT_I8259A;
 		corehi_irq = MIPS_CPU_IRQ_BASE + MIPSCPU_INT_COREHI;
 	} else {
 #if defined(CONFIG_MIPS_MT_SMP)
@@ -361,33 +280,13 @@ void __init arch_init_irq(void)
 		arch_init_ipiirq(cpu_ipi_call_irq, &irq_call);
 #endif
 		if (cpu_has_veic) {
-			set_vi_handler(MSC01E_INT_I8259A,
-				       malta_hw0_irqdispatch);
 			set_vi_handler(MSC01E_INT_COREHI,
 				       corehi_irqdispatch);
-			i8259_irq = MSC01E_INT_BASE + MSC01E_INT_I8259A;
 			corehi_irq = MSC01E_INT_BASE + MSC01E_INT_COREHI;
 		} else {
-			i8259_irq = MIPS_CPU_IRQ_BASE + MIPSCPU_INT_I8259A;
 			corehi_irq = MIPS_CPU_IRQ_BASE + MIPSCPU_INT_COREHI;
 		}
 	}
 
-	setup_irq(i8259_irq, &i8259irq);
 	setup_irq(corehi_irq, &corehi_irqaction);
-}
-
-void malta_be_init(void)
-{
-	/* Could change CM error mask register. */
-}
-
-int malta_be_handler(struct pt_regs *regs, int is_fixup)
-{
-	/* This duplicates the handling in do_be which seems wrong */
-	int retval = is_fixup ? MIPS_BE_FIXUP : MIPS_BE_FATAL;
-
-	mips_cm_error_report();
-
-	return retval;
 }

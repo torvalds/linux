@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -3565,7 +3566,9 @@ static int rt5659_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 static int rt5659_set_bias_level(struct snd_soc_codec *codec,
 			enum snd_soc_bias_level level)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct rt5659_priv *rt5659 = snd_soc_codec_get_drvdata(codec);
+	int ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
@@ -3582,6 +3585,17 @@ static int rt5659_set_bias_level(struct snd_soc_codec *codec,
 			RT5659_PWR_FV1 | RT5659_PWR_FV2);
 		break;
 
+	case SND_SOC_BIAS_STANDBY:
+		if (dapm->bias_level == SND_SOC_BIAS_OFF) {
+			ret = clk_prepare_enable(rt5659->mclk);
+			if (ret) {
+				dev_err(codec->dev,
+					"failed to enable MCLK: %d\n", ret);
+				return ret;
+			}
+		}
+		break;
+
 	case SND_SOC_BIAS_OFF:
 		regmap_update_bits(rt5659->regmap, RT5659_PWR_DIG_1,
 			RT5659_PWR_LDO, 0);
@@ -3591,6 +3605,7 @@ static int rt5659_set_bias_level(struct snd_soc_codec *codec,
 			RT5659_PWR_MB | RT5659_PWR_VREF2);
 		regmap_update_bits(rt5659->regmap, RT5659_DIG_MISC,
 			RT5659_DIG_GATE_CTRL, 0);
+		clk_disable_unprepare(rt5659->mclk);
 		break;
 
 	default:
@@ -3722,12 +3737,14 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5659 = {
 	.resume = rt5659_resume,
 	.set_bias_level = rt5659_set_bias_level,
 	.idle_bias_off = true,
-	.controls = rt5659_snd_controls,
-	.num_controls = ARRAY_SIZE(rt5659_snd_controls),
-	.dapm_widgets = rt5659_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt5659_dapm_widgets),
-	.dapm_routes = rt5659_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt5659_dapm_routes),
+	.component_driver = {
+		.controls		= rt5659_snd_controls,
+		.num_controls		= ARRAY_SIZE(rt5659_snd_controls),
+		.dapm_widgets		= rt5659_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rt5659_dapm_widgets),
+		.dapm_routes		= rt5659_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rt5659_dapm_routes),
+	},
 };
 
 
@@ -4020,6 +4037,15 @@ static int rt5659_i2c_probe(struct i2c_client *i2c,
 
 	regmap_write(rt5659->regmap, RT5659_RESET, 0);
 
+	/* Check if MCLK provided */
+	rt5659->mclk = devm_clk_get(&i2c->dev, "mclk");
+	if (IS_ERR(rt5659->mclk)) {
+		if (PTR_ERR(rt5659->mclk) != -ENOENT)
+			return PTR_ERR(rt5659->mclk);
+		/* Otherwise mark the mclk pointer to NULL */
+		rt5659->mclk = NULL;
+	}
+
 	rt5659_calibrate(rt5659);
 
 	/* line in diff mode*/
@@ -4163,6 +4189,9 @@ static int rt5659_i2c_probe(struct i2c_client *i2c,
 		if (ret)
 			dev_err(&i2c->dev, "Failed to reguest IRQ: %d\n", ret);
 
+		/* Enable IRQ output for GPIO1 pin any way */
+		regmap_update_bits(rt5659->regmap, RT5659_GPIO_CTRL_1,
+				   RT5659_GP1_PIN_MASK, RT5659_GP1_PIN_IRQ);
 	}
 
 	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5659,

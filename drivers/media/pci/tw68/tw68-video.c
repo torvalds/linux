@@ -535,7 +535,7 @@ static void tw68_stop_streaming(struct vb2_queue *q)
 	}
 }
 
-static struct vb2_ops tw68_video_qops = {
+static const struct vb2_ops tw68_video_qops = {
 	.queue_setup	= tw68_queue_setup,
 	.buf_queue	= tw68_buf_queue,
 	.buf_prepare	= tw68_buf_prepare,

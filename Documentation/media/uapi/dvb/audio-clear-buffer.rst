@@ -11,12 +11,13 @@ Name
 
 AUDIO_CLEAR_BUFFER
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(int fd, int request = AUDIO_CLEAR_BUFFER)
-
+.. c:function:: int  ioctl(int fd, AUDIO_CLEAR_BUFFER)
+    :name: AUDIO_CLEAR_BUFFER
 
 Arguments
 ---------
@@ -31,13 +32,6 @@ Arguments
        -  int fd
 
        -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals AUDIO_CLEAR_BUFFER for this command.
-
 
 Description
 -----------

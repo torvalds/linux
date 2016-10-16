@@ -18,6 +18,8 @@ struct proc_ns_operations {
 	struct ns_common *(*get)(struct task_struct *task);
 	void (*put)(struct ns_common *ns);
 	int (*install)(struct nsproxy *nsproxy, struct ns_common *ns);
+	struct user_namespace *(*owner)(struct ns_common *ns);
+	struct ns_common *(*get_parent)(struct ns_common *ns);
 };
 
 extern const struct proc_ns_operations netns_operations;

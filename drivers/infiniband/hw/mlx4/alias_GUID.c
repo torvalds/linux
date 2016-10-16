@@ -881,7 +881,7 @@ int mlx4_ib_init_alias_guid_service(struct mlx4_ib_dev *dev)
 
 		snprintf(alias_wq_name, sizeof alias_wq_name, "alias_guid%d", i);
 		dev->sriov.alias_guid.ports_guid[i].wq =
-			create_singlethread_workqueue(alias_wq_name);
+			alloc_ordered_workqueue(alias_wq_name, WQ_MEM_RECLAIM);
 		if (!dev->sriov.alias_guid.ports_guid[i].wq) {
 			ret = -ENOMEM;
 			goto err_thread;

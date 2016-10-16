@@ -77,6 +77,35 @@
 		interrupts = <2 IRQ_TYPE_LEVEL_HIGH 0>;
 	};
 
+	etb {
+		compatible = "arm,coresight-etb10", "arm,primecell";
+		reg = <0x740000 0x1000>;
+
+		clocks = <&mck>;
+		clock-names = "apb_pclk";
+
+		port {
+			etb_in: endpoint {
+				slave-mode;
+				remote-endpoint = <&etm_out>;
+			};
+		};
+	};
+
+	etm {
+		compatible = "arm,coresight-etm3x", "arm,primecell";
+		reg = <0x73C000 0x1000>;
+
+		clocks = <&mck>;
+		clock-names = "apb_pclk";
+
+		port {
+			etm_out: endpoint {
+				remote-endpoint = <&etb_in>;
+			};
+		};
+	};
+
 	memory {
 		reg = <0x20000000 0x20000000>;
 	};

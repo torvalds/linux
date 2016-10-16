@@ -387,10 +387,8 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 		writel(regval, siic->base + SIRFSOC_I2C_SDA_DELAY);
 
 	err = i2c_add_numbered_adapter(adap);
-	if (err < 0) {
-		dev_err(&pdev->dev, "Can't add new i2c adapter\n");
+	if (err < 0)
 		goto out;
-	}
 
 	clk_disable(clk);
 

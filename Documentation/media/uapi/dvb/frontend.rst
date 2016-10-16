@@ -29,7 +29,9 @@ The frontend can be accessed through ``/dev/dvb/adapter?/frontend?``.
 Data types and ioctl definitions can be accessed by including
 ``linux/dvb/frontend.h`` in your application.
 
-.. note:: Transmission via the internet (DVB-IP) is not yet handled by this
+.. note::
+
+   Transmission via the internet (DVB-IP) is not yet handled by this
    API but a future extension is possible.
 
 On Satellite systems, the API support for the Satellite Equipment

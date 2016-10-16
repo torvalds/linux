@@ -22,8 +22,6 @@
 #ifndef MC44S803_H
 #define MC44S803_H
 
-#include <linux/kconfig.h>
-
 struct dvb_frontend;
 struct i2c_adapter;
 

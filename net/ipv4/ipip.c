@@ -115,6 +115,7 @@
 #include <net/xfrm.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
+#include <net/dst_metadata.h>
 
 static bool log_ecn_error = true;
 module_param(log_ecn_error, bool, 0644);
@@ -193,6 +194,7 @@ static int ipip_tunnel_rcv(struct sk_buff *skb, u8 ipproto)
 {
 	struct net *net = dev_net(skb->dev);
 	struct ip_tunnel_net *itn = net_generic(net, ipip_net_id);
+	struct metadata_dst *tun_dst = NULL;
 	struct ip_tunnel *tunnel;
 	const struct iphdr *iph;
 
@@ -216,7 +218,12 @@ static int ipip_tunnel_rcv(struct sk_buff *skb, u8 ipproto)
 			tpi = &ipip_tpi;
 		if (iptunnel_pull_header(skb, 0, tpi->proto, false))
 			goto drop;
-		return ip_tunnel_rcv(tunnel, skb, tpi, NULL, log_ecn_error);
+		if (tunnel->collect_md) {
+			tun_dst = ip_tun_rx_dst(skb, 0, 0, 0);
+			if (!tun_dst)
+				return 0;
+		}
+		return ip_tunnel_rcv(tunnel, skb, tpi, tun_dst, log_ecn_error);
 	}
 
 	return -1;
@@ -270,7 +277,10 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb,
 
 	skb_set_inner_ipproto(skb, ipproto);
 
-	ip_tunnel_xmit(skb, dev, tiph, ipproto);
+	if (tunnel->collect_md)
+		ip_md_tunnel_xmit(skb, dev, ipproto);
+	else
+		ip_tunnel_xmit(skb, dev, tiph, ipproto);
 	return NETDEV_TX_OK;
 
 tx_error:
@@ -380,13 +390,14 @@ static int ipip_tunnel_validate(struct nlattr *tb[], struct nlattr *data[])
 }
 
 static void ipip_netlink_parms(struct nlattr *data[],
-			       struct ip_tunnel_parm *parms)
+			       struct ip_tunnel_parm *parms, bool *collect_md)
 {
 	memset(parms, 0, sizeof(*parms));
 
 	parms->iph.version = 4;
 	parms->iph.protocol = IPPROTO_IPIP;
 	parms->iph.ihl = 5;
+	*collect_md = false;
 
 	if (!data)
 		return;
@@ -414,6 +425,9 @@ static void ipip_netlink_parms(struct nlattr *data[],
 
 	if (!data[IFLA_IPTUN_PMTUDISC] || nla_get_u8(data[IFLA_IPTUN_PMTUDISC]))
 		parms->iph.frag_off = htons(IP_DF);
+
+	if (data[IFLA_IPTUN_COLLECT_METADATA])
+		*collect_md = true;
 }
 
 /* This function returns true when ENCAP attributes are present in the nl msg */
@@ -453,18 +467,18 @@ static bool ipip_netlink_encap_parms(struct nlattr *data[],
 static int ipip_newlink(struct net *src_net, struct net_device *dev,
 			struct nlattr *tb[], struct nlattr *data[])
 {
+	struct ip_tunnel *t = netdev_priv(dev);
 	struct ip_tunnel_parm p;
 	struct ip_tunnel_encap ipencap;
 
 	if (ipip_netlink_encap_parms(data, &ipencap)) {
-		struct ip_tunnel *t = netdev_priv(dev);
 		int err = ip_tunnel_encap_setup(t, &ipencap);
 
 		if (err < 0)
 			return err;
 	}
 
-	ipip_netlink_parms(data, &p);
+	ipip_netlink_parms(data, &p, &t->collect_md);
 	return ip_tunnel_newlink(dev, tb, &p);
 }
 
@@ -473,6 +487,7 @@ static int ipip_changelink(struct net_device *dev, struct nlattr *tb[],
 {
 	struct ip_tunnel_parm p;
 	struct ip_tunnel_encap ipencap;
+	bool collect_md;
 
 	if (ipip_netlink_encap_parms(data, &ipencap)) {
 		struct ip_tunnel *t = netdev_priv(dev);
@@ -482,7 +497,9 @@ static int ipip_changelink(struct net_device *dev, struct nlattr *tb[],
 			return err;
 	}
 
-	ipip_netlink_parms(data, &p);
+	ipip_netlink_parms(data, &p, &collect_md);
+	if (collect_md)
+		return -EINVAL;
 
 	if (((dev->flags & IFF_POINTOPOINT) && !p.iph.daddr) ||
 	    (!(dev->flags & IFF_POINTOPOINT) && p.iph.daddr))
@@ -516,6 +533,8 @@ static size_t ipip_get_size(const struct net_device *dev)
 		nla_total_size(2) +
 		/* IFLA_IPTUN_ENCAP_DPORT */
 		nla_total_size(2) +
+		/* IFLA_IPTUN_COLLECT_METADATA */
+		nla_total_size(0) +
 		0;
 }
 
@@ -544,6 +563,9 @@ static int ipip_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			tunnel->encap.flags))
 		goto nla_put_failure;
 
+	if (tunnel->collect_md)
+		if (nla_put_flag(skb, IFLA_IPTUN_COLLECT_METADATA))
+			goto nla_put_failure;
 	return 0;
 
 nla_put_failure:
@@ -562,6 +584,7 @@ static const struct nla_policy ipip_policy[IFLA_IPTUN_MAX + 1] = {
 	[IFLA_IPTUN_ENCAP_FLAGS]	= { .type = NLA_U16 },
 	[IFLA_IPTUN_ENCAP_SPORT]	= { .type = NLA_U16 },
 	[IFLA_IPTUN_ENCAP_DPORT]	= { .type = NLA_U16 },
+	[IFLA_IPTUN_COLLECT_METADATA]	= { .type = NLA_FLAG },
 };
 
 static struct rtnl_link_ops ipip_link_ops __read_mostly = {

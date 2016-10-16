@@ -82,7 +82,7 @@ config USB_MUSB_DA8XX
 	tristate "DA8xx/OMAP-L1x"
 	depends on ARCH_DAVINCI_DA8XX
 	depends on NOP_USB_XCEIV
-	depends on BROKEN
+	select PHY_DA8XX_USB
 
 config USB_MUSB_TUSB6010
 	tristate "TUSB6010"

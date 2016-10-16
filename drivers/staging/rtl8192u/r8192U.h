@@ -533,7 +533,7 @@ typedef struct _rt_9x_tx_rate_history {
 	u32             ht_mcs[4][16];
 } rt_tx_rahis_t, *prt_tx_rahis_t;
 typedef struct _RT_SMOOTH_DATA_4RF {
-	char    elements[4][100]; /* array to store values */
+	s8    elements[4][100]; /* array to store values */
 	u32     index;            /* index to current array to store */
 	u32     TotalNum;         /* num of valid elements */
 	u32     TotalVal[4];      /* sum of valid elements */
@@ -1031,7 +1031,7 @@ typedef struct r8192_priv {
 	s8 cck_present_attentuation;
 	u8 cck_present_attentuation_20Mdefault;
 	u8 cck_present_attentuation_40Mdefault;
-	char cck_present_attentuation_difference;
+	s8 cck_present_attentuation_difference;
 	bool btxpower_tracking;
 	bool bcck_in_ch14;
 	bool btxpowerdata_readfromEEPORM;

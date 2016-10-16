@@ -387,7 +387,7 @@ int armada_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	if (!access_ok(VERIFY_READ, ptr, args->size))
 		return -EFAULT;
 
-	ret = fault_in_multipages_readable(ptr, args->size);
+	ret = fault_in_pages_readable(ptr, args->size);
 	if (ret)
 		return ret;
 
@@ -547,7 +547,7 @@ armada_gem_prime_export(struct drm_device *dev, struct drm_gem_object *obj,
 	exp_info.flags = O_RDWR;
 	exp_info.priv = obj;
 
-	return dma_buf_export(&exp_info);
+	return drm_gem_dmabuf_export(dev, &exp_info);
 }
 
 struct drm_gem_object *

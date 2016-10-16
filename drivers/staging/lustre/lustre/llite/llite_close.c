@@ -38,7 +38,6 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/lustre_lite.h"
 #include "llite_internal.h"
 
 /** records that a write is in flight */

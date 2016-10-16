@@ -487,7 +487,7 @@ static const struct ieee80211_iface_combination hwsim_if_comb_p2p_dev[] = {
 };
 
 static spinlock_t hwsim_radio_lock;
-static struct list_head hwsim_radios;
+static LIST_HEAD(hwsim_radios);
 static int hwsim_radio_idx;
 
 static struct platform_driver mac80211_hwsim_driver = {
@@ -3376,7 +3376,6 @@ static int __init init_mac80211_hwsim(void)
 		mac80211_hwsim_unassign_vif_chanctx;
 
 	spin_lock_init(&hwsim_radio_lock);
-	INIT_LIST_HEAD(&hwsim_radios);
 
 	err = register_pernet_device(&hwsim_net_ops);
 	if (err)

@@ -10,7 +10,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/kconfig.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -155,10 +154,8 @@ int hdpvr_alloc_buffers(struct hdpvr_device *dev, uint count)
 		buf->dev = dev;
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!urb) {
-			v4l2_err(&dev->v4l2_dev, "cannot allocate urb\n");
+		if (!urb)
 			goto exit_urb;
-		}
 		buf->urb = urb;
 
 		mem = usb_alloc_coherent(dev->udev, dev->bulk_in_size, GFP_KERNEL,

@@ -400,7 +400,6 @@ struct mvneta_port {
 	u16 rx_ring_size;
 
 	struct mii_bus *mii_bus;
-	struct phy_device *phy_dev;
 	phy_interface_t phy_interface;
 	struct device_node *phy_node;
 	unsigned int link;
@@ -637,8 +636,9 @@ static void mvneta_mib_counters_clear(struct mvneta_port *pp)
 }
 
 /* Get System Network Statistics */
-struct rtnl_link_stats64 *mvneta_get_stats64(struct net_device *dev,
-					     struct rtnl_link_stats64 *stats)
+static struct rtnl_link_stats64 *
+mvneta_get_stats64(struct net_device *dev,
+		   struct rtnl_link_stats64 *stats)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
 	unsigned int start;
@@ -2653,6 +2653,7 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 	u32 cause_rx_tx;
 	int rx_queue;
 	struct mvneta_port *pp = netdev_priv(napi->dev);
+	struct net_device *ndev = pp->dev;
 	struct mvneta_pcpu_port *port = this_cpu_ptr(pp->ports);
 
 	if (!netif_running(pp->dev)) {
@@ -2670,7 +2671,7 @@ static int mvneta_poll(struct napi_struct *napi, int budget)
 				(MVNETA_CAUSE_PHY_STATUS_CHANGE |
 				 MVNETA_CAUSE_LINK_CHANGE |
 				 MVNETA_CAUSE_PSC_SYNC_CHANGE))) {
-			mvneta_fixed_link_update(pp, pp->phy_dev);
+			mvneta_fixed_link_update(pp, ndev->phydev);
 		}
 	}
 
@@ -2965,6 +2966,7 @@ static int mvneta_setup_txqs(struct mvneta_port *pp)
 static void mvneta_start_dev(struct mvneta_port *pp)
 {
 	int cpu;
+	struct net_device *ndev = pp->dev;
 
 	mvneta_max_rx_size_set(pp, pp->pkt_size);
 	mvneta_txq_max_tx_size_set(pp, pp->pkt_size);
@@ -2987,15 +2989,16 @@ static void mvneta_start_dev(struct mvneta_port *pp)
 		    MVNETA_CAUSE_LINK_CHANGE |
 		    MVNETA_CAUSE_PSC_SYNC_CHANGE);
 
-	phy_start(pp->phy_dev);
+	phy_start(ndev->phydev);
 	netif_tx_start_all_queues(pp->dev);
 }
 
 static void mvneta_stop_dev(struct mvneta_port *pp)
 {
 	unsigned int cpu;
+	struct net_device *ndev = pp->dev;
 
-	phy_stop(pp->phy_dev);
+	phy_stop(ndev->phydev);
 
 	for_each_online_cpu(cpu) {
 		struct mvneta_pcpu_port *port = per_cpu_ptr(pp->ports, cpu);
@@ -3168,7 +3171,7 @@ static int mvneta_set_mac_addr(struct net_device *dev, void *addr)
 static void mvneta_adjust_link(struct net_device *ndev)
 {
 	struct mvneta_port *pp = netdev_priv(ndev);
-	struct phy_device *phydev = pp->phy_dev;
+	struct phy_device *phydev = ndev->phydev;
 	int status_change = 0;
 
 	if (phydev->link) {
@@ -3246,7 +3249,6 @@ static int mvneta_mdio_probe(struct mvneta_port *pp)
 	phy_dev->supported &= PHY_GBIT_FEATURES;
 	phy_dev->advertising = phy_dev->supported;
 
-	pp->phy_dev = phy_dev;
 	pp->link    = 0;
 	pp->duplex  = 0;
 	pp->speed   = 0;
@@ -3256,8 +3258,9 @@ static int mvneta_mdio_probe(struct mvneta_port *pp)
 
 static void mvneta_mdio_remove(struct mvneta_port *pp)
 {
-	phy_disconnect(pp->phy_dev);
-	pp->phy_dev = NULL;
+	struct net_device *ndev = pp->dev;
+
+	phy_disconnect(ndev->phydev);
 }
 
 /* Electing a CPU must be done in an atomic way: it should be done
@@ -3515,42 +3518,31 @@ static int mvneta_stop(struct net_device *dev)
 
 static int mvneta_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	struct mvneta_port *pp = netdev_priv(dev);
-
-	if (!pp->phy_dev)
+	if (!dev->phydev)
 		return -ENOTSUPP;
 
-	return phy_mii_ioctl(pp->phy_dev, ifr, cmd);
+	return phy_mii_ioctl(dev->phydev, ifr, cmd);
 }
 
 /* Ethtool methods */
 
-/* Get settings (phy address, speed) for ethtools */
-int mvneta_ethtool_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+/* Set link ksettings (phy address, speed) for ethtools */
+static int
+mvneta_ethtool_set_link_ksettings(struct net_device *ndev,
+				  const struct ethtool_link_ksettings *cmd)
 {
-	struct mvneta_port *pp = netdev_priv(dev);
-
-	if (!pp->phy_dev)
-		return -ENODEV;
-
-	return phy_ethtool_gset(pp->phy_dev, cmd);
-}
-
-/* Set settings (phy address, speed) for ethtools */
-int mvneta_ethtool_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct mvneta_port *pp = netdev_priv(dev);
-	struct phy_device *phydev = pp->phy_dev;
+	struct mvneta_port *pp = netdev_priv(ndev);
+	struct phy_device *phydev = ndev->phydev;
 
 	if (!phydev)
 		return -ENODEV;
 
-	if ((cmd->autoneg == AUTONEG_ENABLE) != pp->use_inband_status) {
+	if ((cmd->base.autoneg == AUTONEG_ENABLE) != pp->use_inband_status) {
 		u32 val;
 
-		mvneta_set_autoneg(pp, cmd->autoneg == AUTONEG_ENABLE);
+		mvneta_set_autoneg(pp, cmd->base.autoneg == AUTONEG_ENABLE);
 
-		if (cmd->autoneg == AUTONEG_DISABLE) {
+		if (cmd->base.autoneg == AUTONEG_DISABLE) {
 			val = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
 			val &= ~(MVNETA_GMAC_CONFIG_MII_SPEED |
 				 MVNETA_GMAC_CONFIG_GMII_SPEED |
@@ -3567,17 +3559,17 @@ int mvneta_ethtool_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
 		}
 
-		pp->use_inband_status = (cmd->autoneg == AUTONEG_ENABLE);
+		pp->use_inband_status = (cmd->base.autoneg == AUTONEG_ENABLE);
 		netdev_info(pp->dev, "autoneg status set to %i\n",
 			    pp->use_inband_status);
 
-		if (netif_running(dev)) {
+		if (netif_running(ndev)) {
 			mvneta_port_down(pp);
 			mvneta_port_up(pp);
 		}
 	}
 
-	return phy_ethtool_sset(pp->phy_dev, cmd);
+	return phy_ethtool_ksettings_set(ndev->phydev, cmd);
 }
 
 /* Set interrupt coalescing for ethtools */
@@ -3841,8 +3833,6 @@ static const struct net_device_ops mvneta_netdev_ops = {
 
 const struct ethtool_ops mvneta_eth_tool_ops = {
 	.get_link       = ethtool_op_get_link,
-	.get_settings   = mvneta_ethtool_get_settings,
-	.set_settings   = mvneta_ethtool_set_settings,
 	.set_coalesce   = mvneta_ethtool_set_coalesce,
 	.get_coalesce   = mvneta_ethtool_get_coalesce,
 	.get_drvinfo    = mvneta_ethtool_get_drvinfo,
@@ -3855,6 +3845,8 @@ const struct ethtool_ops mvneta_eth_tool_ops = {
 	.get_rxnfc	= mvneta_ethtool_get_rxnfc,
 	.get_rxfh	= mvneta_ethtool_get_rxfh,
 	.set_rxfh	= mvneta_ethtool_set_rxfh,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = mvneta_ethtool_set_link_ksettings,
 };
 
 /* Initialize hw */

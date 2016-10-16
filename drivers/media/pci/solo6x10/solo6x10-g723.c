@@ -252,7 +252,7 @@ static int snd_solo_pcm_copy(struct snd_pcm_substream *ss, int channel,
 	return 0;
 }
 
-static struct snd_pcm_ops snd_solo_pcm_ops = {
+static const struct snd_pcm_ops snd_solo_pcm_ops = {
 	.open = snd_solo_pcm_open,
 	.close = snd_solo_pcm_close,
 	.ioctl = snd_pcm_lib_ioctl,

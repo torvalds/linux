@@ -346,8 +346,8 @@ s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw)
 				return 0;
 			}
 		}
-		/* clear value if nothing found */
-		hw->phy.mdio.prtad = 0;
+		/* indicate no PHY found */
+		hw->phy.mdio.prtad = MDIO_PRTAD_NONE;
 		return IXGBE_ERR_PHY_ADDR_INVALID;
 	}
 	return 0;

@@ -93,8 +93,8 @@
  * super-class definitions.
  */
 #include "lu_object.h"
+#include "lustre_compat.h"
 #include <linux/atomic.h>
-#include "linux/lustre_compat25.h"
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
 #include <linux/spinlock.h>
@@ -191,6 +191,9 @@ struct cl_attr {
 	 * Group identifier for quota purposes.
 	 */
 	gid_t  cat_gid;
+
+	/* nlink of the directory */
+	__u64  cat_nlink;
 };
 
 /**
@@ -320,7 +323,7 @@ struct cl_object_operations {
 	 *	 to be used instead of newly created.
 	 */
 	int  (*coo_page_init)(const struct lu_env *env, struct cl_object *obj,
-				struct cl_page *page, pgoff_t index);
+			      struct cl_page *page, pgoff_t index);
 	/**
 	 * Initialize lock slice for this layer. Called top-to-bottom through
 	 * every object layer when a new cl_lock is instantiated. Layer
@@ -366,8 +369,8 @@ struct cl_object_operations {
 	 * \return the same convention as for
 	 * cl_object_operations::coo_attr_get() is used.
 	 */
-	int (*coo_attr_set)(const struct lu_env *env, struct cl_object *obj,
-			    const struct cl_attr *attr, unsigned valid);
+	int (*coo_attr_update)(const struct lu_env *env, struct cl_object *obj,
+			       const struct cl_attr *attr, unsigned int valid);
 	/**
 	 * Update object configuration. Called top-to-bottom to modify object
 	 * configuration.
@@ -392,6 +395,11 @@ struct cl_object_operations {
 	 * mainly pages and locks.
 	 */
 	int (*coo_prune)(const struct lu_env *env, struct cl_object *obj);
+	/**
+	 * Object getstripe method.
+	 */
+	int (*coo_getstripe)(const struct lu_env *env, struct cl_object *obj,
+			     struct lov_user_md __user *lum);
 };
 
 /**
@@ -687,17 +695,6 @@ enum cl_page_type {
 };
 
 /**
- * Flags maintained for every cl_page.
- */
-enum cl_page_flags {
-	/**
-	 * Set when pagein completes. Used for debugging (read completes at
-	 * most once for a page).
-	 */
-	CPF_READ_COMPLETED = 1 << 0
-};
-
-/**
  * Fields are protected by the lock on struct page, except for atomics and
  * immutables.
  *
@@ -711,24 +708,19 @@ struct cl_page {
 	atomic_t	     cp_ref;
 	/** An object this page is a part of. Immutable after creation. */
 	struct cl_object	*cp_obj;
-	/** List of slices. Immutable after creation. */
-	struct list_head	       cp_layers;
 	/** vmpage */
 	struct page		*cp_vmpage;
+	/** Linkage of pages within group. Pages must be owned */
+	struct list_head	 cp_batch;
+	/** List of slices. Immutable after creation. */
+	struct list_head	 cp_layers;
+	/** Linkage of pages within cl_req. */
+	struct list_head         cp_flight;
 	/**
 	 * Page state. This field is const to avoid accidental update, it is
 	 * modified only internally within cl_page.c. Protected by a VM lock.
 	 */
 	const enum cl_page_state cp_state;
-	/** Linkage of pages within group. Protected by cl_page::cp_mutex. */
-	struct list_head		cp_batch;
-	/** Mutex serializing membership of a page in a batch. */
-	struct mutex		cp_mutex;
-	/** Linkage of pages within cl_req. */
-	struct list_head	       cp_flight;
-	/** Transfer error. */
-	int		      cp_error;
-
 	/**
 	 * Page type. Only CPT_TRANSIENT is used so far. Immutable after
 	 * creation.
@@ -741,10 +733,6 @@ struct cl_page {
 	 */
 	struct cl_io	    *cp_owner;
 	/**
-	 * Debug information, the task is owning the page.
-	 */
-	struct task_struct	*cp_task;
-	/**
 	 * Owning IO request in cl_page_state::CPS_PAGEOUT and
 	 * cl_page_state::CPS_PAGEIN states. This field is maintained only in
 	 * the top-level pages. Protected by a VM lock.
@@ -756,8 +744,6 @@ struct cl_page {
 	struct lu_ref_link       cp_obj_ref;
 	/** Link to a queue, for debugging. */
 	struct lu_ref_link       cp_queue_ref;
-	/** Per-page flags from enum cl_page_flags. Protected by a VM lock. */
-	unsigned                 cp_flags;
 	/** Assigned if doing a sync_io */
 	struct cl_sync_io       *cp_sync_io;
 };
@@ -1056,22 +1042,31 @@ do {									  \
 	}								     \
 } while (0)
 
-static inline int __page_in_use(const struct cl_page *page, int refc)
-{
-	if (page->cp_type == CPT_CACHEABLE)
-		++refc;
-	LASSERT(atomic_read(&page->cp_ref) > 0);
-	return (atomic_read(&page->cp_ref) > refc);
-}
-
-#define cl_page_in_use(pg)       __page_in_use(pg, 1)
-#define cl_page_in_use_noref(pg) __page_in_use(pg, 0)
-
 static inline struct page *cl_page_vmpage(struct cl_page *page)
 {
 	LASSERT(page->cp_vmpage);
 	return page->cp_vmpage;
 }
+
+/**
+ * Check if a cl_page is in use.
+ *
+ * Client cache holds a refcount, this refcount will be dropped when
+ * the page is taken out of cache, see vvp_page_delete().
+ */
+static inline bool __page_in_use(const struct cl_page *page, int refc)
+{
+	return (atomic_read(&page->cp_ref) > refc + 1);
+}
+
+/**
+ * Caller itself holds a refcount of cl_page.
+ */
+#define cl_page_in_use(pg)	 __page_in_use(pg, 1)
+/**
+ * Caller doesn't hold a refcount.
+ */
+#define cl_page_in_use_noref(pg) __page_in_use(pg, 0)
 
 /** @} cl_page */
 
@@ -1771,12 +1766,14 @@ struct cl_io {
 		struct cl_setattr_io {
 			struct ost_lvb   sa_attr;
 			unsigned int     sa_valid;
+			int		sa_stripe_index;
+			struct lu_fid  *sa_parent_fid;
 		} ci_setattr;
 		struct cl_fault_io {
 			/** page index within file. */
 			pgoff_t	 ft_index;
 			/** bytes valid byte on a faulted page. */
-			int	     ft_nob;
+			size_t	     ft_nob;
 			/** writable page? for nopage() only */
 			int	     ft_writable;
 			/** page of an executable? */
@@ -1909,7 +1906,7 @@ struct cl_req_attr {
 	/** Generic attributes for the server consumption. */
 	struct obdo	*cra_oa;
 	/** Jobid */
-	char		 cra_jobid[JOBSTATS_JOBID_SIZE];
+	char		 cra_jobid[LUSTRE_JOBID_SIZE];
 };
 
 /**
@@ -2176,14 +2173,16 @@ void cl_object_attr_lock(struct cl_object *o);
 void cl_object_attr_unlock(struct cl_object *o);
 int  cl_object_attr_get(const struct lu_env *env, struct cl_object *obj,
 			struct cl_attr *attr);
-int  cl_object_attr_set(const struct lu_env *env, struct cl_object *obj,
-			const struct cl_attr *attr, unsigned valid);
+int  cl_object_attr_update(const struct lu_env *env, struct cl_object *obj,
+			   const struct cl_attr *attr, unsigned int valid);
 int  cl_object_glimpse(const struct lu_env *env, struct cl_object *obj,
 		       struct ost_lvb *lvb);
 int  cl_conf_set(const struct lu_env *env, struct cl_object *obj,
 		 const struct cl_object_conf *conf);
 int cl_object_prune(const struct lu_env *env, struct cl_object *obj);
 void cl_object_kill(const struct lu_env *env, struct cl_object *obj);
+int  cl_object_getstripe(const struct lu_env *env, struct cl_object *obj,
+			 struct lov_user_md __user *lum);
 
 /**
  * Returns true, iff \a o0 and \a o1 are slices of the same object.
@@ -2197,6 +2196,7 @@ static inline void cl_object_page_init(struct cl_object *clob, int size)
 {
 	clob->co_slice_off = cl_object_header(clob)->coh_page_bufsize;
 	cl_object_header(clob)->coh_page_bufsize += cfs_size_round(size);
+	WARN_ON(cl_object_header(clob)->coh_page_bufsize > 512);
 }
 
 static inline void *cl_object_page_slice(struct cl_object *clob,
@@ -2263,6 +2263,8 @@ void cl_page_unassume(const struct lu_env *env,
 		      struct cl_io *io, struct cl_page *pg);
 void cl_page_disown(const struct lu_env *env,
 		    struct cl_io *io, struct cl_page *page);
+void cl_page_disown0(const struct lu_env *env,
+		     struct cl_io *io, struct cl_page *pg);
 int cl_page_is_owned(const struct cl_page *pg, const struct cl_io *io);
 
 /** @} ownership */
@@ -2304,7 +2306,7 @@ int cl_page_is_under_lock(const struct lu_env *env, struct cl_io *io,
 			  struct cl_page *page, pgoff_t *max_index);
 loff_t cl_offset(const struct cl_object *obj, pgoff_t idx);
 pgoff_t cl_index(const struct cl_object *obj, loff_t offset);
-int cl_page_size(const struct cl_object *obj);
+size_t cl_page_size(const struct cl_object *obj);
 int cl_pages_prune(const struct lu_env *env, struct cl_object *obj);
 
 void cl_lock_print(const struct lu_env *env, void *cookie,
@@ -2333,7 +2335,7 @@ struct cl_client_cache {
 	/**
 	 * # of LRU entries available
 	 */
-	atomic_t		ccc_lru_left;
+	atomic_long_t		ccc_lru_left;
 	/**
 	 * List of entities(OSCs) for this LRU cache
 	 */
@@ -2347,14 +2349,18 @@ struct cl_client_cache {
 	 */
 	spinlock_t		ccc_lru_lock;
 	/**
+	 * Set if unstable check is enabled
+	 */
+	unsigned int		ccc_unstable_check:1;
+	/**
 	 * # of unstable pages for this mount point
 	 */
-	atomic_t		ccc_unstable_nr;
+	atomic_long_t		ccc_unstable_nr;
 	/**
 	 * Waitq for awaiting unstable pages to reach zero.
 	 * Used at umounting time and signaled on BRW commit
 	 */
-        wait_queue_head_t	ccc_unstable_waitq;
+	wait_queue_head_t	ccc_unstable_waitq;
 
 };
 

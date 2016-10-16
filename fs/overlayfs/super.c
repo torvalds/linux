@@ -273,12 +273,11 @@ static bool ovl_is_opaquedir(struct dentry *dentry)
 {
 	int res;
 	char val;
-	struct inode *inode = dentry->d_inode;
 
-	if (!S_ISDIR(inode->i_mode) || !inode->i_op->getxattr)
+	if (!d_is_dir(dentry))
 		return false;
 
-	res = inode->i_op->getxattr(dentry, inode, OVL_XATTR_OPAQUE, &val, 1);
+	res = vfs_getxattr(dentry, OVL_XATTR_OPAQUE, &val, 1);
 	if (res == 1 && val == 'y')
 		return true;
 
@@ -419,16 +418,12 @@ static bool ovl_dentry_weird(struct dentry *dentry)
 				  DCACHE_OP_COMPARE);
 }
 
-static inline struct dentry *ovl_lookup_real(struct super_block *ovl_sb,
-					     struct dentry *dir,
+static inline struct dentry *ovl_lookup_real(struct dentry *dir,
 					     const struct qstr *name)
 {
-	const struct cred *old_cred;
 	struct dentry *dentry;
 
-	old_cred = ovl_override_creds(ovl_sb);
 	dentry = lookup_one_len_unlocked(name->name, dir, name->len);
-	revert_creds(old_cred);
 
 	if (IS_ERR(dentry)) {
 		if (PTR_ERR(dentry) == -ENOENT)
@@ -469,6 +464,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			  unsigned int flags)
 {
 	struct ovl_entry *oe;
+	const struct cred *old_cred;
 	struct ovl_entry *poe = dentry->d_parent->d_fsdata;
 	struct path *stack = NULL;
 	struct dentry *upperdir, *upperdentry = NULL;
@@ -479,9 +475,10 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	unsigned int i;
 	int err;
 
+	old_cred = ovl_override_creds(dentry->d_sb);
 	upperdir = ovl_upperdentry_dereference(poe);
 	if (upperdir) {
-		this = ovl_lookup_real(dentry->d_sb, upperdir, &dentry->d_name);
+		this = ovl_lookup_real(upperdir, &dentry->d_name);
 		err = PTR_ERR(this);
 		if (IS_ERR(this))
 			goto out;
@@ -514,8 +511,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		bool opaque = false;
 		struct path lowerpath = poe->lowerstack[i];
 
-		this = ovl_lookup_real(dentry->d_sb,
-				       lowerpath.dentry, &dentry->d_name);
+		this = ovl_lookup_real(lowerpath.dentry, &dentry->d_name);
 		err = PTR_ERR(this);
 		if (IS_ERR(this)) {
 			/*
@@ -588,6 +584,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		ovl_copyattr(realdentry->d_inode, inode);
 	}
 
+	revert_creds(old_cred);
 	oe->opaque = upperopaque;
 	oe->__upperdentry = upperdentry;
 	memcpy(oe->lowerstack, stack, sizeof(struct path) * ctr);
@@ -606,6 +603,7 @@ out_put:
 out_put_upper:
 	dput(upperdentry);
 out:
+	revert_creds(old_cred);
 	return ERR_PTR(err);
 }
 
@@ -834,6 +832,19 @@ retry:
 		if (err)
 			goto out_dput;
 
+		/*
+		 * Try to remove POSIX ACL xattrs from workdir.  We are good if:
+		 *
+		 * a) success (there was a POSIX ACL xattr and was removed)
+		 * b) -ENODATA (there was no POSIX ACL xattr)
+		 * c) -EOPNOTSUPP (POSIX ACL xattrs are not supported)
+		 *
+		 * There are various other error values that could effectively
+		 * mean that the xattr doesn't exist (e.g. -ERANGE is returned
+		 * if the xattr name is too long), but the set of filesystems
+		 * allowed as upper are limited to "normal" ones, where checking
+		 * for the above two errors is sufficient.
+		 */
 		err = vfs_removexattr(work, XATTR_NAME_POSIX_ACL_DEFAULT);
 		if (err && err != -ENODATA && err != -EOPNOTSUPP)
 			goto out_dput;
@@ -1292,6 +1303,12 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	if (!oe)
 		goto out_put_cred;
 
+	sb->s_magic = OVERLAYFS_SUPER_MAGIC;
+	sb->s_op = &ovl_super_operations;
+	sb->s_xattr = ovl_xattr_handlers;
+	sb->s_fs_info = ufs;
+	sb->s_flags |= MS_POSIXACL | MS_NOREMOTELOCK;
+
 	root_dentry = d_make_root(ovl_new_inode(sb, S_IFDIR));
 	if (!root_dentry)
 		goto out_free_oe;
@@ -1315,12 +1332,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	ovl_inode_init(d_inode(root_dentry), realinode, !!upperpath.dentry);
 	ovl_copyattr(realinode, d_inode(root_dentry));
 
-	sb->s_magic = OVERLAYFS_SUPER_MAGIC;
-	sb->s_op = &ovl_super_operations;
-	sb->s_xattr = ovl_xattr_handlers;
 	sb->s_root = root_dentry;
-	sb->s_fs_info = ufs;
-	sb->s_flags |= MS_POSIXACL;
 
 	return 0;
 

@@ -109,7 +109,7 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 		break;
 	}
 
-	return 0;
+	return arizona_out_ev(w, kcontrol, event);
 }
 
 static irqreturn_t arizona_thermal_warn(int irq, void *data)
@@ -159,12 +159,14 @@ static irqreturn_t arizona_thermal_shutdown(int irq, void *data)
 static const struct snd_soc_dapm_widget arizona_spkl =
 	SND_SOC_DAPM_PGA_E("OUT4L", SND_SOC_NOPM,
 			   ARIZONA_OUT4L_ENA_SHIFT, 0, NULL, 0, arizona_spk_ev,
-			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU);
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD);
 
 static const struct snd_soc_dapm_widget arizona_spkr =
 	SND_SOC_DAPM_PGA_E("OUT4R", SND_SOC_NOPM,
 			   ARIZONA_OUT4R_ENA_SHIFT, 0, NULL, 0, arizona_spk_ev,
-			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU);
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD);
 
 int arizona_init_spk(struct snd_soc_codec *codec)
 {
@@ -864,6 +866,7 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -877,6 +880,18 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 			priv->out_up_pending++;
 			priv->out_up_delay += 17;
 			break;
+		case ARIZONA_OUT4L_ENA_SHIFT:
+		case ARIZONA_OUT4R_ENA_SHIFT:
+			priv->out_up_pending++;
+			switch (arizona->type) {
+			case WM5102:
+			case WM8997:
+				break;
+			default:
+				priv->out_up_delay += 10;
+				break;
+			}
+			break;
 		default:
 			break;
 		}
@@ -889,8 +904,12 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 		case ARIZONA_OUT2R_ENA_SHIFT:
 		case ARIZONA_OUT3L_ENA_SHIFT:
 		case ARIZONA_OUT3R_ENA_SHIFT:
+		case ARIZONA_OUT4L_ENA_SHIFT:
+		case ARIZONA_OUT4R_ENA_SHIFT:
 			priv->out_up_pending--;
-			if (!priv->out_up_pending) {
+			if (!priv->out_up_pending && priv->out_up_delay) {
+				dev_dbg(codec->dev, "Power up delay: %d\n",
+					priv->out_up_delay);
 				msleep(priv->out_up_delay);
 				priv->out_up_delay = 0;
 			}
@@ -911,6 +930,21 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 			priv->out_down_pending++;
 			priv->out_down_delay++;
 			break;
+		case ARIZONA_OUT4L_ENA_SHIFT:
+		case ARIZONA_OUT4R_ENA_SHIFT:
+			priv->out_down_pending++;
+			switch (arizona->type) {
+			case WM5102:
+			case WM8997:
+				break;
+			case WM8998:
+			case WM1814:
+				priv->out_down_delay += 5;
+				break;
+			default:
+				priv->out_down_delay++;
+				break;
+			}
 		default:
 			break;
 		}
@@ -923,8 +957,12 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 		case ARIZONA_OUT2R_ENA_SHIFT:
 		case ARIZONA_OUT3L_ENA_SHIFT:
 		case ARIZONA_OUT3R_ENA_SHIFT:
+		case ARIZONA_OUT4L_ENA_SHIFT:
+		case ARIZONA_OUT4R_ENA_SHIFT:
 			priv->out_down_pending--;
-			if (!priv->out_down_pending) {
+			if (!priv->out_down_pending && priv->out_down_delay) {
+				dev_dbg(codec->dev, "Power down delay: %d\n",
+					priv->out_down_delay);
 				msleep(priv->out_down_delay);
 				priv->out_down_delay = 0;
 			}
@@ -1920,8 +1958,8 @@ static struct {
 
 struct arizona_fll_cfg {
 	int n;
-	int theta;
-	int lambda;
+	unsigned int theta;
+	unsigned int lambda;
 	int refdiv;
 	int outdiv;
 	int fratio;
@@ -2188,13 +2226,13 @@ static void arizona_apply_fll(struct arizona *arizona, unsigned int base,
 				 ARIZONA_FLL1_CTRL_UPD | cfg->n);
 }
 
-static int arizona_is_enabled_fll(struct arizona_fll *fll)
+static int arizona_is_enabled_fll(struct arizona_fll *fll, int base)
 {
 	struct arizona *arizona = fll->arizona;
 	unsigned int reg;
 	int ret;
 
-	ret = regmap_read(arizona->regmap, fll->base + 1, &reg);
+	ret = regmap_read(arizona->regmap, base + 1, &reg);
 	if (ret != 0) {
 		arizona_fll_err(fll, "Failed to read current state: %d\n",
 				ret);
@@ -2208,21 +2246,24 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 {
 	struct arizona *arizona = fll->arizona;
 	bool use_sync = false;
-	int already_enabled = arizona_is_enabled_fll(fll);
+	int already_enabled = arizona_is_enabled_fll(fll, fll->base);
+	int sync_enabled = arizona_is_enabled_fll(fll, fll->base + 0x10);
 	struct arizona_fll_cfg cfg;
 	int i;
 	unsigned int val;
 
 	if (already_enabled < 0)
 		return already_enabled;
+	if (sync_enabled < 0)
+		return sync_enabled;
 
 	if (already_enabled) {
 		/* Facilitate smooth refclk across the transition */
-		regmap_update_bits_async(fll->arizona->regmap, fll->base + 0x9,
-					 ARIZONA_FLL1_GAIN_MASK, 0);
 		regmap_update_bits(fll->arizona->regmap, fll->base + 1,
 				   ARIZONA_FLL1_FREERUN, ARIZONA_FLL1_FREERUN);
 		udelay(32);
+		regmap_update_bits_async(fll->arizona->regmap, fll->base + 0x9,
+					 ARIZONA_FLL1_GAIN_MASK, 0);
 	}
 
 	/*
@@ -2232,6 +2273,10 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 	if (fll->ref_src >= 0 && fll->ref_freq &&
 	    fll->ref_src != fll->sync_src) {
 		arizona_calc_fll(fll, &cfg, fll->ref_freq, false);
+
+		/* Ref path hardcodes lambda to 65536 when sync is on */
+		if (fll->sync_src >= 0 && cfg.lambda)
+			cfg.theta = (cfg.theta * (1 << 16)) / cfg.lambda;
 
 		arizona_apply_fll(arizona, fll->base, &cfg, fll->ref_src,
 				  false);
@@ -2255,6 +2300,9 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 		return -EINVAL;
 	}
 
+	if (already_enabled && !!sync_enabled != use_sync)
+		arizona_fll_warn(fll, "Synchroniser changed on active FLL\n");
+
 	/*
 	 * Increase the bandwidth if we're not using a low frequency
 	 * sync source.
@@ -2268,14 +2316,14 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 					 ARIZONA_FLL1_SYNC_BW);
 
 	if (!already_enabled)
-		pm_runtime_get(arizona->dev);
+		pm_runtime_get_sync(arizona->dev);
 
-	regmap_update_bits_async(arizona->regmap, fll->base + 1,
-				 ARIZONA_FLL1_ENA, ARIZONA_FLL1_ENA);
 	if (use_sync)
 		regmap_update_bits_async(arizona->regmap, fll->base + 0x11,
 					 ARIZONA_FLL1_SYNC_ENA,
 					 ARIZONA_FLL1_SYNC_ENA);
+	regmap_update_bits_async(arizona->regmap, fll->base + 1,
+				 ARIZONA_FLL1_ENA, ARIZONA_FLL1_ENA);
 
 	if (already_enabled)
 		regmap_update_bits_async(arizona->regmap, fll->base + 1,

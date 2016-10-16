@@ -96,7 +96,8 @@ static void omap_rproc_kick(struct rproc *rproc, int vqid)
 	/* send the index of the triggered virtqueue in the mailbox payload */
 	ret = mbox_send_message(oproc->mbox, (void *)vqid);
 	if (ret < 0)
-		dev_err(dev, "omap_mbox_msg_send failed: %d\n", ret);
+		dev_err(dev, "failed to send mailbox message, status = %d\n",
+			ret);
 }
 
 /*
@@ -196,7 +197,7 @@ static int omap_rproc_probe(struct platform_device *pdev)
 	}
 
 	rproc = rproc_alloc(&pdev->dev, pdata->name, &omap_rproc_ops,
-				pdata->firmware, sizeof(*oproc));
+			    pdata->firmware, sizeof(*oproc));
 	if (!rproc)
 		return -ENOMEM;
 
@@ -214,7 +215,7 @@ static int omap_rproc_probe(struct platform_device *pdev)
 	return 0;
 
 free_rproc:
-	rproc_put(rproc);
+	rproc_free(rproc);
 	return ret;
 }
 
@@ -223,7 +224,7 @@ static int omap_rproc_remove(struct platform_device *pdev)
 	struct rproc *rproc = platform_get_drvdata(pdev);
 
 	rproc_del(rproc);
-	rproc_put(rproc);
+	rproc_free(rproc);
 
 	return 0;
 }

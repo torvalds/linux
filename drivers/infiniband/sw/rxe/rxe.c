@@ -358,38 +358,16 @@ static int __init rxe_module_init(void)
 	/* initialize slab caches for managed objects */
 	err = rxe_cache_init();
 	if (err) {
-		pr_err("rxe: unable to init object pools\n");
+		pr_err("unable to init object pools\n");
 		return err;
 	}
 
-	err = rxe_net_ipv4_init();
-	if (err) {
-		pr_err("rxe: unable to init ipv4 tunnel\n");
-		rxe_cache_exit();
-		goto exit;
-	}
+	err = rxe_net_init();
+	if (err)
+		return err;
 
-	err = rxe_net_ipv6_init();
-	if (err) {
-		pr_err("rxe: unable to init ipv6 tunnel\n");
-		rxe_cache_exit();
-		goto exit;
-	}
-
-	err = register_netdevice_notifier(&rxe_net_notifier);
-	if (err) {
-		pr_err("rxe: Failed to rigister netdev notifier\n");
-		goto exit;
-	}
-
-	pr_info("rxe: loaded\n");
-
+	pr_info("loaded\n");
 	return 0;
-
-exit:
-	rxe_release_udp_tunnel(recv_sockets.sk4);
-	rxe_release_udp_tunnel(recv_sockets.sk6);
-	return err;
 }
 
 static void __exit rxe_module_exit(void)
@@ -398,8 +376,8 @@ static void __exit rxe_module_exit(void)
 	rxe_net_exit();
 	rxe_cache_exit();
 
-	pr_info("rxe: unloaded\n");
+	pr_info("unloaded\n");
 }
 
-module_init(rxe_module_init);
+late_initcall(rxe_module_init);
 module_exit(rxe_module_exit);

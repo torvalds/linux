@@ -2452,19 +2452,14 @@ static int get_last_alias(struct pci_dev *pdev, u16 alias, void *opaque)
 	return 0;
 }
 
-/* domain is initialized */
-static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
+static struct dmar_domain *find_or_alloc_domain(struct device *dev, int gaw)
 {
 	struct device_domain_info *info = NULL;
-	struct dmar_domain *domain, *tmp;
+	struct dmar_domain *domain = NULL;
 	struct intel_iommu *iommu;
 	u16 req_id, dma_alias;
 	unsigned long flags;
 	u8 bus, devfn;
-
-	domain = find_domain(dev);
-	if (domain)
-		return domain;
 
 	iommu = device_to_iommu(dev, &bus, &devfn);
 	if (!iommu)
@@ -2487,9 +2482,9 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 		}
 		spin_unlock_irqrestore(&device_domain_lock, flags);
 
-		/* DMA alias already has a domain, uses it */
+		/* DMA alias already has a domain, use it */
 		if (info)
-			goto found_domain;
+			goto out;
 	}
 
 	/* Allocate and initialize new domain for the device */
@@ -2501,27 +2496,66 @@ static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
 		return NULL;
 	}
 
-	/* register PCI DMA alias device */
-	if (dev_is_pci(dev) && req_id != dma_alias) {
-		tmp = dmar_insert_one_dev_info(iommu, PCI_BUS_NUM(dma_alias),
-					       dma_alias & 0xff, NULL, domain);
+out:
 
-		if (!tmp || tmp != domain) {
-			domain_exit(domain);
-			domain = tmp;
+	return domain;
+}
+
+static struct dmar_domain *set_domain_for_dev(struct device *dev,
+					      struct dmar_domain *domain)
+{
+	struct intel_iommu *iommu;
+	struct dmar_domain *tmp;
+	u16 req_id, dma_alias;
+	u8 bus, devfn;
+
+	iommu = device_to_iommu(dev, &bus, &devfn);
+	if (!iommu)
+		return NULL;
+
+	req_id = ((u16)bus << 8) | devfn;
+
+	if (dev_is_pci(dev)) {
+		struct pci_dev *pdev = to_pci_dev(dev);
+
+		pci_for_each_dma_alias(pdev, get_last_alias, &dma_alias);
+
+		/* register PCI DMA alias device */
+		if (req_id != dma_alias) {
+			tmp = dmar_insert_one_dev_info(iommu, PCI_BUS_NUM(dma_alias),
+					dma_alias & 0xff, NULL, domain);
+
+			if (!tmp || tmp != domain)
+				return tmp;
 		}
-
-		if (!domain)
-			return NULL;
 	}
 
-found_domain:
 	tmp = dmar_insert_one_dev_info(iommu, bus, devfn, dev, domain);
+	if (!tmp || tmp != domain)
+		return tmp;
 
-	if (!tmp || tmp != domain) {
+	return domain;
+}
+
+static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
+{
+	struct dmar_domain *domain, *tmp;
+
+	domain = find_domain(dev);
+	if (domain)
+		goto out;
+
+	domain = find_or_alloc_domain(dev, gaw);
+	if (!domain)
+		goto out;
+
+	tmp = set_domain_for_dev(dev, domain);
+	if (!tmp || domain != tmp) {
 		domain_exit(domain);
 		domain = tmp;
 	}
+
+out:
 
 	return domain;
 }
@@ -3394,17 +3428,18 @@ static unsigned long intel_alloc_iova(struct device *dev,
 
 static struct dmar_domain *__get_valid_domain_for_dev(struct device *dev)
 {
+	struct dmar_domain *domain, *tmp;
 	struct dmar_rmrr_unit *rmrr;
-	struct dmar_domain *domain;
 	struct device *i_dev;
 	int i, ret;
 
-	domain = get_domain_for_dev(dev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
-	if (!domain) {
-		pr_err("Allocating domain for %s failed\n",
-		       dev_name(dev));
-		return NULL;
-	}
+	domain = find_domain(dev);
+	if (domain)
+		goto out;
+
+	domain = find_or_alloc_domain(dev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
+	if (!domain)
+		goto out;
 
 	/* We have a new domain - setup possible RMRRs for the device */
 	rcu_read_lock();
@@ -3422,6 +3457,18 @@ static struct dmar_domain *__get_valid_domain_for_dev(struct device *dev)
 		}
 	}
 	rcu_read_unlock();
+
+	tmp = set_domain_for_dev(dev, domain);
+	if (!tmp || domain != tmp) {
+		domain_exit(domain);
+		domain = tmp;
+	}
+
+out:
+
+	if (!domain)
+		pr_err("Allocating domain for %s failed\n", dev_name(dev));
+
 
 	return domain;
 }

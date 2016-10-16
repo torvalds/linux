@@ -368,17 +368,17 @@ static int acm_submit_read_urb(struct acm *acm, int index, gfp_t mem_flags)
 	if (!test_and_clear_bit(index, &acm->read_urbs_free))
 		return 0;
 
-	dev_vdbg(&acm->data->dev, "%s - urb %d\n", __func__, index);
-
 	res = usb_submit_urb(acm->read_urbs[index], mem_flags);
 	if (res) {
 		if (res != -EPERM) {
 			dev_err(&acm->data->dev,
-					"%s - usb_submit_urb failed: %d\n",
-					__func__, res);
+					"urb %d failed submission with %d\n",
+					index, res);
 		}
 		set_bit(index, &acm->read_urbs_free);
 		return res;
+	} else {
+		dev_vdbg(&acm->data->dev, "submitted urb %d\n", index);
 	}
 
 	return 0;
@@ -415,8 +415,9 @@ static void acm_read_bulk_callback(struct urb *urb)
 	unsigned long flags;
 	int status = urb->status;
 
-	dev_vdbg(&acm->data->dev, "%s - urb %d, len %d\n", __func__,
-					rb->index, urb->actual_length);
+	dev_vdbg(&acm->data->dev, "got urb %d, len %d, status %d\n",
+					rb->index, urb->actual_length,
+					status);
 
 	if (!acm->dev) {
 		set_bit(rb->index, &acm->read_urbs_free);
@@ -426,8 +427,6 @@ static void acm_read_bulk_callback(struct urb *urb)
 
 	if (status) {
 		set_bit(rb->index, &acm->read_urbs_free);
-		dev_dbg(&acm->data->dev, "%s - non-zero urb status: %d\n",
-							__func__, status);
 		if ((status != -ENOENT) || (urb->actual_length == 0))
 			return;
 	}
@@ -462,8 +461,7 @@ static void acm_write_bulk(struct urb *urb)
 	int status = urb->status;
 
 	if (status || (urb->actual_length != urb->transfer_buffer_length))
-		dev_vdbg(&acm->data->dev, "%s - len %d/%d, status %d\n",
-			__func__,
+		dev_vdbg(&acm->data->dev, "wrote len %d/%d, status %d\n",
 			urb->actual_length,
 			urb->transfer_buffer_length,
 			status);
@@ -478,8 +476,6 @@ static void acm_softint(struct work_struct *work)
 {
 	struct acm *acm = container_of(work, struct acm, work);
 
-	dev_vdbg(&acm->data->dev, "%s\n", __func__);
-
 	tty_port_tty_wakeup(&acm->port);
 }
 
@@ -491,8 +487,6 @@ static int acm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	struct acm *acm;
 	int retval;
-
-	dev_dbg(tty->dev, "%s\n", __func__);
 
 	acm = acm_get_by_minor(tty->index);
 	if (!acm)
@@ -514,8 +508,6 @@ error_init_termios:
 static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 {
 	struct acm *acm = tty->driver_data;
-
-	dev_dbg(tty->dev, "%s\n", __func__);
 
 	return tty_port_open(&acm->port, tty, filp);
 }
@@ -544,8 +536,6 @@ static int acm_port_activate(struct tty_port *port, struct tty_struct *tty)
 	struct acm *acm = container_of(port, struct acm, port);
 	int retval = -ENODEV;
 	int i;
-
-	dev_dbg(&acm->control->dev, "%s\n", __func__);
 
 	mutex_lock(&acm->mutex);
 	if (acm->disconnected)
@@ -607,8 +597,6 @@ static void acm_port_destruct(struct tty_port *port)
 {
 	struct acm *acm = container_of(port, struct acm, port);
 
-	dev_dbg(&acm->control->dev, "%s\n", __func__);
-
 	acm_release_minor(acm);
 	usb_put_intf(acm->control);
 	kfree(acm->country_codes);
@@ -621,8 +609,6 @@ static void acm_port_shutdown(struct tty_port *port)
 	struct urb *urb;
 	struct acm_wb *wb;
 	int i;
-
-	dev_dbg(&acm->control->dev, "%s\n", __func__);
 
 	/*
 	 * Need to grab write_lock to prevent race with resume, but no need to
@@ -654,21 +640,21 @@ static void acm_port_shutdown(struct tty_port *port)
 static void acm_tty_cleanup(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
-	dev_dbg(&acm->control->dev, "%s\n", __func__);
+
 	tty_port_put(&acm->port);
 }
 
 static void acm_tty_hangup(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
-	dev_dbg(&acm->control->dev, "%s\n", __func__);
+
 	tty_port_hangup(&acm->port);
 }
 
 static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 {
 	struct acm *acm = tty->driver_data;
-	dev_dbg(&acm->control->dev, "%s\n", __func__);
+
 	tty_port_close(&acm->port, tty, filp);
 }
 
@@ -684,7 +670,7 @@ static int acm_tty_write(struct tty_struct *tty,
 	if (!count)
 		return 0;
 
-	dev_vdbg(&acm->data->dev, "%s - count %d\n", __func__, count);
+	dev_vdbg(&acm->data->dev, "%d bytes from tty layer\n", count);
 
 	spin_lock_irqsave(&acm->write_lock, flags);
 	wbn = acm_wb_alloc(acm);
@@ -701,7 +687,7 @@ static int acm_tty_write(struct tty_struct *tty,
 	}
 
 	count = (count > acm->writesize) ? acm->writesize : count;
-	dev_vdbg(&acm->data->dev, "%s - write %d\n", __func__, count);
+	dev_vdbg(&acm->data->dev, "writing %d bytes\n", count);
 	memcpy(wb->buf, buf, count);
 	wb->len = count;
 
@@ -1193,6 +1179,9 @@ static int acm_probe(struct usb_interface *intf,
 		return -EINVAL;
 	}
 
+	if (!intf->cur_altsetting)
+		return -EINVAL;
+
 	if (!buflen) {
 		if (intf->cur_altsetting->endpoint &&
 				intf->cur_altsetting->endpoint->extralen &&
@@ -1246,6 +1235,8 @@ static int acm_probe(struct usb_interface *intf,
 		dev_dbg(&intf->dev, "no interfaces\n");
 		return -ENODEV;
 	}
+	if (!data_interface->cur_altsetting || !control_interface->cur_altsetting)
+		return -ENODEV;
 
 	if (data_intf_num != call_intf_num)
 		dev_dbg(&intf->dev, "Separate call control interface. That is not fully supported.\n");
@@ -1533,8 +1524,6 @@ static void stop_data_traffic(struct acm *acm)
 {
 	int i;
 
-	dev_dbg(&acm->control->dev, "%s\n", __func__);
-
 	usb_kill_urb(acm->ctrlurb);
 	for (i = 0; i < ACM_NW; i++)
 		usb_kill_urb(acm->wb[i].urb);
@@ -1550,8 +1539,6 @@ static void acm_disconnect(struct usb_interface *intf)
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
 	struct tty_struct *tty;
 	int i;
-
-	dev_dbg(&intf->dev, "%s\n", __func__);
 
 	/* sibling interface is already cleaning up */
 	if (!acm)

@@ -1,5 +1,6 @@
 config COMMON_RESET_HI6220
 	tristate "Hi6220 Reset Driver"
-	depends on (ARCH_HISI && RESET_CONTROLLER)
+	depends on ARCH_HISI || COMPILE_TEST
+	default ARCH_HISI
 	help
 	  Build the Hisilicon Hi6220 reset driver.

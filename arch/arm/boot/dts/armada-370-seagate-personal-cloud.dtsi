@@ -68,26 +68,6 @@
 				phy-mode = "rgmii-id";
 			};
 
-			spi@10600 {
-				status = "okay";
-				pinctrl-0 = <&spi0_pins2>;
-				pinctrl-names = "default";
-
-				spi-flash@0 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					/* MX25L8006E */
-					compatible = "mxicy,mx25l8005", "jedec,spi-nor";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <50000000>;
-
-					partition@0 {
-						label = "u-boot";
-						reg = <0x0 0x100000>;
-					};
-				};
-			};
-
 			usb@50000 {
 				status = "okay";
 			};
@@ -174,5 +154,25 @@
 	gpio_led_pin: gpio-led-pin {
 		marvell,pins = "mpp60";
 		marvell,function = "gpio";
+	};
+};
+
+&spi0 {
+	status = "okay";
+	pinctrl-0 = <&spi0_pins2>;
+	pinctrl-names = "default";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		/* MX25L8006E */
+		compatible = "mxicy,mx25l8005", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <50000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x100000>;
+		};
 	};
 };

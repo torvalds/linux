@@ -64,7 +64,7 @@
 		};
 	};
 
-	matrix_keypad: matrix_keypad@0 {
+	matrix_keypad: matrix_keypad0 {
 		compatible = "gpio-matrix-keypad";
 
 		pinctrl-names = "default";
@@ -93,28 +93,28 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&leds_pins>;
 
-		led@0 {
+		led0 {
 			label = "am437x-sk:red:heartbeat";
 			gpios = <&gpio5 0 GPIO_ACTIVE_HIGH>;	/* Bank 5, pin 0 */
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
 		};
 
-		led@1 {
+		led1 {
 			label = "am437x-sk:green:mmc1";
 			gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;	/* Bank 5, pin 1 */
 			linux,default-trigger = "mmc0";
 			default-state = "off";
 		};
 
-		led@2 {
+		led2 {
 			label = "am437x-sk:blue:cpu0";
 			gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;	/* Bank 5, pin 2 */
 			linux,default-trigger = "cpu0";
 			default-state = "off";
 		};
 
-		led@3 {
+		led3 {
 			label = "am437x-sk:blue:usr3";
 			gpios = <&gpio5 3 GPIO_ACTIVE_HIGH>;	/* Bank 5, pin 3 */
 			default-state = "off";
@@ -428,7 +428,6 @@
 		#interrupt-cells = <2>;
 
 		dcdc1: regulator-dcdc1 {
-			compatible = "ti,tps65218-dcdc1";
 			/* VDD_CORE limits min of OPP50 and max of OPP100 */
 			regulator-name = "vdd_core";
 			regulator-min-microvolt = <912000>;
@@ -438,7 +437,6 @@
 		};
 
 		dcdc2: regulator-dcdc2 {
-			compatible = "ti,tps65218-dcdc2";
 			/* VDD_MPU limits min of OPP50 and max of OPP_NITRO */
 			regulator-name = "vdd_mpu";
 			regulator-min-microvolt = <912000>;
@@ -448,16 +446,20 @@
 		};
 
 		dcdc3: regulator-dcdc3 {
-			compatible = "ti,tps65218-dcdc3";
 			regulator-name = "vdds_ddr";
 			regulator-min-microvolt = <1500000>;
 			regulator-max-microvolt = <1500000>;
 			regulator-boot-on;
 			regulator-always-on;
+			regulator-state-mem {
+				regulator-on-in-suspend;
+			};
+			regulator-state-disk {
+				regulator-off-in-suspend;
+			};
 		};
 
 		dcdc4: regulator-dcdc4 {
-			compatible = "ti,tps65218-dcdc4";
 			regulator-name = "v3_3d";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
@@ -465,8 +467,31 @@
 			regulator-always-on;
 		};
 
+		dcdc5: regulator-dcdc5 {
+			compatible = "ti,tps65218-dcdc5";
+			regulator-name = "v1_0bat";
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1000000>;
+			regulator-boot-on;
+			regulator-always-on;
+			regulator-state-mem {
+				regulator-on-in-suspend;
+			};
+		};
+
+		dcdc6: regulator-dcdc6 {
+			compatible = "ti,tps65218-dcdc6";
+			regulator-name = "v1_8bat";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-boot-on;
+			regulator-always-on;
+			regulator-state-mem {
+				regulator-on-in-suspend;
+			};
+		};
+
 		ldo1: regulator-ldo1 {
-			compatible = "ti,tps65218-ldo1";
 			regulator-name = "v1_8d";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;

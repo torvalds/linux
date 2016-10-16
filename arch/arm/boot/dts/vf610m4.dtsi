@@ -42,6 +42,7 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include "skeleton.dtsi"
 #include "armv7-m.dtsi"
 #include "vfxxx.dtsi"
 

@@ -1,10 +1,12 @@
-DT bindings for the R-Mobile/R-Car interrupt controller
+DT bindings for the R-Mobile/R-Car/RZ/G interrupt controller
 
 Required properties:
 
 - compatible: has to be "renesas,irqc-<soctype>", "renesas,irqc" as fallback.
   Examples with soctypes are:
     - "renesas,irqc-r8a73a4" (R-Mobile APE6)
+    - "renesas,irqc-r8a7743" (RZ/G1M)
+    - "renesas,irqc-r8a7745" (RZ/G1E)
     - "renesas,irqc-r8a7790" (R-Car H2)
     - "renesas,irqc-r8a7791" (R-Car M2-W)
     - "renesas,irqc-r8a7792" (R-Car V2H)

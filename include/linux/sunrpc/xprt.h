@@ -83,9 +83,11 @@ struct rpc_rqst {
 	void (*rq_release_snd_buf)(struct rpc_rqst *); /* release rq_enc_pages */
 	struct list_head	rq_list;
 
-	__u32 *			rq_buffer;	/* XDR encode buffer */
-	size_t			rq_callsize,
-				rq_rcvsize;
+	void			*rq_xprtdata;	/* Per-xprt private data */
+	void			*rq_buffer;	/* Call XDR encode buffer */
+	size_t			rq_callsize;
+	void			*rq_rbuffer;	/* Reply XDR decode buffer */
+	size_t			rq_rcvsize;
 	size_t			rq_xmit_bytes_sent;	/* total bytes sent */
 	size_t			rq_reply_bytes_recvd;	/* total reply bytes */
 							/* received */
@@ -127,8 +129,8 @@ struct rpc_xprt_ops {
 	void		(*rpcbind)(struct rpc_task *task);
 	void		(*set_port)(struct rpc_xprt *xprt, unsigned short port);
 	void		(*connect)(struct rpc_xprt *xprt, struct rpc_task *task);
-	void *		(*buf_alloc)(struct rpc_task *task, size_t size);
-	void		(*buf_free)(void *buffer);
+	int		(*buf_alloc)(struct rpc_task *task);
+	void		(*buf_free)(struct rpc_task *task);
 	int		(*send_request)(struct rpc_task *task);
 	void		(*set_retrans_timeout)(struct rpc_task *task);
 	void		(*timer)(struct rpc_xprt *xprt, struct rpc_task *task);

@@ -16,13 +16,14 @@
  * published by the Free Software Foundation.
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/clock/exynos4415.h>
 #include <dt-bindings/clock/exynos-audss-clk.h>
 
 / {
 	compatible = "samsung,exynos4415";
 	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	aliases {
 		pinctrl0 = &pinctrl_0;

@@ -19,7 +19,6 @@
 #include <linux/highmem.h>
 #include <linux/rculist.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
 #include "tpm.h"
 
 #define ACPI_SIG_TPM2 "TPM2"
@@ -34,14 +33,14 @@ enum crb_defaults {
 	CRB_ACPI_START_INDEX = 1,
 };
 
-enum crb_ca_request {
-	CRB_CA_REQ_GO_IDLE	= BIT(0),
-	CRB_CA_REQ_CMD_READY	= BIT(1),
+enum crb_ctrl_req {
+	CRB_CTRL_REQ_CMD_READY	= BIT(0),
+	CRB_CTRL_REQ_GO_IDLE	= BIT(1),
 };
 
-enum crb_ca_status {
-	CRB_CA_STS_ERROR	= BIT(0),
-	CRB_CA_STS_TPM_IDLE	= BIT(1),
+enum crb_ctrl_sts {
+	CRB_CTRL_STS_ERROR	= BIT(0),
+	CRB_CTRL_STS_TPM_IDLE	= BIT(1),
 };
 
 enum crb_start {
@@ -67,7 +66,7 @@ struct crb_control_area {
 } __packed;
 
 enum crb_status {
-	CRB_STS_COMPLETE	= BIT(0),
+	CRB_DRV_STS_COMPLETE	= BIT(0),
 };
 
 enum crb_flags {
@@ -81,6 +80,7 @@ struct crb_priv {
 	struct crb_control_area __iomem *cca;
 	u8 __iomem *cmd;
 	u8 __iomem *rsp;
+	u32 cmd_size;
 };
 
 static SIMPLE_DEV_PM_OPS(crb_pm, tpm_pm_suspend, tpm_pm_resume);
@@ -92,7 +92,7 @@ static u8 crb_status(struct tpm_chip *chip)
 
 	if ((ioread32(&priv->cca->start) & CRB_START_INVOKE) !=
 	    CRB_START_INVOKE)
-		sts |= CRB_STS_COMPLETE;
+		sts |= CRB_DRV_STS_COMPLETE;
 
 	return sts;
 }
@@ -106,7 +106,7 @@ static int crb_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	if (count < 6)
 		return -EIO;
 
-	if (ioread32(&priv->cca->sts) & CRB_CA_STS_ERROR)
+	if (ioread32(&priv->cca->sts) & CRB_CTRL_STS_ERROR)
 		return -EIO;
 
 	memcpy_fromio(buf, priv->rsp, 6);
@@ -142,11 +142,14 @@ static int crb_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
 	int rc = 0;
 
-	if (len > ioread32(&priv->cca->cmd_size)) {
-		dev_err(&chip->dev,
-			"invalid command count value %x %zx\n",
-			(unsigned int) len,
-			(size_t) ioread32(&priv->cca->cmd_size));
+	/* Zero the cancel register so that the next command will not get
+	 * canceled.
+	 */
+	iowrite32(0, &priv->cca->cancel);
+
+	if (len > priv->cmd_size) {
+		dev_err(&chip->dev, "invalid command count value %zd %d\n",
+			len, priv->cmd_size);
 		return -E2BIG;
 	}
 
@@ -156,7 +159,7 @@ static int crb_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	wmb();
 
 	if (priv->flags & CRB_FL_CRB_START)
-		iowrite32(cpu_to_le32(CRB_START_INVOKE), &priv->cca->start);
+		iowrite32(CRB_START_INVOKE, &priv->cca->start);
 
 	if (priv->flags & CRB_FL_ACPI_START)
 		rc = crb_do_acpi_start(chip);
@@ -168,15 +171,10 @@ static void crb_cancel(struct tpm_chip *chip)
 {
 	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
 
-	iowrite32(cpu_to_le32(CRB_CANCEL_INVOKE), &priv->cca->cancel);
-
-	/* Make sure that cmd is populated before issuing cancel. */
-	wmb();
+	iowrite32(CRB_CANCEL_INVOKE, &priv->cca->cancel);
 
 	if ((priv->flags & CRB_FL_ACPI_START) && crb_do_acpi_start(chip))
 		dev_err(&chip->dev, "ACPI Start failed\n");
-
-	iowrite32(0, &priv->cca->cancel);
 }
 
 static bool crb_req_canceled(struct tpm_chip *chip, u8 status)
@@ -194,8 +192,8 @@ static const struct tpm_class_ops tpm_crb = {
 	.send = crb_send,
 	.cancel = crb_cancel,
 	.req_canceled = crb_req_canceled,
-	.req_complete_mask = CRB_STS_COMPLETE,
-	.req_complete_val = CRB_STS_COMPLETE,
+	.req_complete_mask = CRB_DRV_STS_COMPLETE,
+	.req_complete_val = CRB_DRV_STS_COMPLETE,
 };
 
 static int crb_init(struct acpi_device *device, struct crb_priv *priv)
@@ -265,8 +263,7 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	acpi_dev_free_resource_list(&resources);
 
 	if (resource_type(&io_res) != IORESOURCE_MEM) {
-		dev_err(dev,
-			FW_BUG "TPM2 ACPI table does not define a memory resource\n");
+		dev_err(dev, FW_BUG "TPM2 ACPI table does not define a memory resource\n");
 		return -EINVAL;
 	}
 
@@ -302,6 +299,7 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 		dev_err(dev, FW_BUG "overlapping command and response buffer sizes are not identical");
 		return -EINVAL;
 	}
+	priv->cmd_size = cmd_size;
 
 	priv->rsp = priv->cmd;
 	return 0;

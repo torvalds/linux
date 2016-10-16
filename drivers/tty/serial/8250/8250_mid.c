@@ -99,27 +99,27 @@ static int dnv_handle_irq(struct uart_port *p)
 	struct uart_8250_port *up = up_to_u8250p(p);
 	unsigned int fisr = serial_port_in(p, INTEL_MID_UART_DNV_FISR);
 	u32 status;
-	int ret = IRQ_NONE;
+	int ret = 0;
 	int err;
 
 	if (fisr & BIT(2)) {
 		err = hsu_dma_get_status(&mid->dma_chip, 1, &status);
 		if (err > 0) {
 			serial8250_rx_dma_flush(up);
-			ret |= IRQ_HANDLED;
+			ret |= 1;
 		} else if (err == 0)
 			ret |= hsu_dma_do_irq(&mid->dma_chip, 1, status);
 	}
 	if (fisr & BIT(1)) {
 		err = hsu_dma_get_status(&mid->dma_chip, 0, &status);
 		if (err > 0)
-			ret |= IRQ_HANDLED;
+			ret |= 1;
 		else if (err == 0)
 			ret |= hsu_dma_do_irq(&mid->dma_chip, 0, status);
 	}
 	if (fisr & BIT(0))
 		ret |= serial8250_handle_irq(p, serial_port_in(p, UART_IIR));
-	return ret;
+	return IRQ_RETVAL(ret);
 }
 
 #define DNV_DMA_CHAN_OFFSET 0x80

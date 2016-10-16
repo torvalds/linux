@@ -352,52 +352,48 @@ void cfg80211_bss_expire(struct cfg80211_registered_device *rdev)
 	__cfg80211_bss_expire(rdev, jiffies - IEEE80211_SCAN_RESULT_EXPIRE);
 }
 
-const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len)
+const u8 *cfg80211_find_ie_match(u8 eid, const u8 *ies, int len,
+				 const u8 *match, int match_len,
+				 int match_offset)
 {
-	while (len > 2 && ies[0] != eid) {
+	/* match_offset can't be smaller than 2, unless match_len is
+	 * zero, in which case match_offset must be zero as well.
+	 */
+	if (WARN_ON((match_len && match_offset < 2) ||
+		    (!match_len && match_offset)))
+		return NULL;
+
+	while (len >= 2 && len >= ies[1] + 2) {
+		if ((ies[0] == eid) &&
+		    (ies[1] + 2 >= match_offset + match_len) &&
+		    !memcmp(ies + match_offset, match, match_len))
+			return ies;
+
 		len -= ies[1] + 2;
 		ies += ies[1] + 2;
 	}
-	if (len < 2)
-		return NULL;
-	if (len < 2 + ies[1])
-		return NULL;
-	return ies;
+
+	return NULL;
 }
-EXPORT_SYMBOL(cfg80211_find_ie);
+EXPORT_SYMBOL(cfg80211_find_ie_match);
 
 const u8 *cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
 				  const u8 *ies, int len)
 {
-	struct ieee80211_vendor_ie *ie;
-	const u8 *pos = ies, *end = ies + len;
-	int ie_oui;
+	const u8 *ie;
+	u8 match[] = { oui >> 16, oui >> 8, oui, oui_type };
+	int match_len = (oui_type < 0) ? 3 : sizeof(match);
 
 	if (WARN_ON(oui_type > 0xff))
 		return NULL;
 
-	while (pos < end) {
-		pos = cfg80211_find_ie(WLAN_EID_VENDOR_SPECIFIC, pos,
-				       end - pos);
-		if (!pos)
-			return NULL;
+	ie = cfg80211_find_ie_match(WLAN_EID_VENDOR_SPECIFIC, ies, len,
+				    match, match_len, 2);
 
-		ie = (struct ieee80211_vendor_ie *)pos;
+	if (ie && (ie[1] < 4))
+		return NULL;
 
-		/* make sure we can access ie->len */
-		BUILD_BUG_ON(offsetof(struct ieee80211_vendor_ie, len) != 1);
-
-		if (ie->len < sizeof(*ie))
-			goto cont;
-
-		ie_oui = ie->oui[0] << 16 | ie->oui[1] << 8 | ie->oui[2];
-		if (ie_oui == oui &&
-		    (oui_type < 0 || ie->oui_type == oui_type))
-			return pos;
-cont:
-		pos += 2 + ie->len;
-	}
-	return NULL;
+	return ie;
 }
 EXPORT_SYMBOL(cfg80211_find_vendor_ie);
 

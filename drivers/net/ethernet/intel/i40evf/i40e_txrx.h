@@ -287,6 +287,14 @@ struct i40e_ring {
 	u8 dcb_tc;			/* Traffic class of ring */
 	u8 __iomem *tail;
 
+	/* high bit set means dynamic, use accessors routines to read/write.
+	 * hardware only supports 2us resolution for the ITR registers.
+	 * these values always store the USER setting, and must be converted
+	 * before programming to a register.
+	 */
+	u16 rx_itr_setting;
+	u16 tx_itr_setting;
+
 	u16 count;			/* Number of descriptors */
 	u16 reg_idx;			/* HW register index of the ring */
 	u16 rx_buf_len;
@@ -444,5 +452,14 @@ static inline bool i40e_rx_is_fcoe(u16 ptype)
 {
 	return (ptype >= I40E_RX_PTYPE_L2_FCOE_PAY3) &&
 	       (ptype <= I40E_RX_PTYPE_L2_FCOE_VFT_FCOTHER);
+}
+
+/**
+ * txring_txq - Find the netdev Tx ring based on the i40e Tx ring
+ * @ring: Tx ring to find the netdev equivalent of
+ **/
+static inline struct netdev_queue *txring_txq(const struct i40e_ring *ring)
+{
+	return netdev_get_tx_queue(ring->netdev, ring->queue_index);
 }
 #endif /* _I40E_TXRX_H_ */

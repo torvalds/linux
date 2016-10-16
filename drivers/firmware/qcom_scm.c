@@ -1,4 +1,7 @@
-/* Copyright (c) 2010,2015, The Linux Foundation. All rights reserved.
+/*
+ * Qualcomm SCM driver
+ *
+ * Copyright (c) 2010,2015, The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -12,7 +15,7 @@
  *
  */
 #include <linux/platform_device.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/cpumask.h>
 #include <linux/export.h>
 #include <linux/dma-mapping.h>
@@ -376,8 +379,6 @@ static const struct of_device_id qcom_scm_dt_match[] = {
 	{}
 };
 
-MODULE_DEVICE_TABLE(of, qcom_scm_dt_match);
-
 static struct platform_driver qcom_scm_driver = {
 	.driver = {
 		.name	= "qcom_scm",
@@ -414,14 +415,4 @@ static int __init qcom_scm_init(void)
 
 	return platform_driver_register(&qcom_scm_driver);
 }
-
 subsys_initcall(qcom_scm_init);
-
-static void __exit qcom_scm_exit(void)
-{
-	platform_driver_unregister(&qcom_scm_driver);
-}
-module_exit(qcom_scm_exit);
-
-MODULE_DESCRIPTION("Qualcomm SCM driver");
-MODULE_LICENSE("GPL v2");

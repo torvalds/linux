@@ -66,6 +66,7 @@ struct portals_handle_ops {
 struct portals_handle {
 	struct list_head			h_link;
 	__u64				h_cookie;
+	const void			*h_owner;
 	struct portals_handle_ops	*h_ops;
 
 	/* newly added fields to handle the RCU issue. -jxiong */
@@ -75,15 +76,13 @@ struct portals_handle {
 	unsigned int			h_in:1;
 };
 
-#define RCU2HANDLE(rcu)    container_of(rcu, struct portals_handle, h_rcu)
-
 /* handles.c */
 
 /* Add a handle to the hash table */
 void class_handle_hash(struct portals_handle *,
 		       struct portals_handle_ops *ops);
 void class_handle_unhash(struct portals_handle *);
-void *class_handle2object(__u64 cookie);
+void *class_handle2object(__u64 cookie, const void *owner);
 void class_handle_free_cb(struct rcu_head *rcu);
 int class_handle_init(void);
 void class_handle_cleanup(void);

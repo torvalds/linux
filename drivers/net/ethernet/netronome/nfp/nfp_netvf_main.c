@@ -148,7 +148,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 		dev_warn(&pdev->dev, "OBSOLETE Firmware detected - VF isolation not available\n");
 	} else {
 		switch (fw_ver.major) {
-		case 1 ... 3:
+		case 1 ... 4:
 			if (is_nfp3200) {
 				stride = 2;
 				tx_bar_no = NFP_NET_Q0_BAR;

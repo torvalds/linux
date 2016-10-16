@@ -75,6 +75,17 @@ Optional SDIO properties:
 - wakeup-source: Enables wake up of host system on SDIO IRQ assertion
 		 (Legacy property supported: "enable-sdio-wakeup")
 
+MMC power
+---------
+
+Controllers may implement power control from both the connected cards and
+the IO signaling (for example to change to high-speed 1.8V signalling). If
+the system supports this, then the following two properties should point
+to valid regulator nodes:
+
+- vqmmc-supply: supply node for IO line power
+- vmmc-supply: supply node for card's power
+
 
 MMC power sequences:
 --------------------
@@ -102,10 +113,12 @@ Required host node properties when using function subnodes:
 - #size-cells: should be zero.
 
 Required function subnode properties:
-- compatible: name of SDIO function following generic names recommended practice
 - reg: Must contain the SDIO function number of the function this subnode
        describes. A value of 0 denotes the memory SD function, values from
        1 to 7 denote the SDIO functions.
+
+Optional function subnode properties:
+- compatible: name of SDIO function following generic names recommended practice
 
 
 Examples

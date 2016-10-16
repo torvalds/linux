@@ -269,6 +269,22 @@ static void twl6030_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 		goto out;
 	}
 
+	val |= TWL6030_PWM_TOGGLE(pwm->hwpwm, TWL6030_PWMXEN);
+
+	ret = twl_i2c_write_u8(TWL6030_MODULE_ID1, val, TWL6030_TOGGLE3_REG);
+	if (ret < 0) {
+		dev_err(chip->dev, "%s: Failed to disable PWM\n", pwm->label);
+		goto out;
+	}
+
+	val &= ~TWL6030_PWM_TOGGLE(pwm->hwpwm, TWL6030_PWMXEN);
+
+	ret = twl_i2c_write_u8(TWL6030_MODULE_ID1, val, TWL6030_TOGGLE3_REG);
+	if (ret < 0) {
+		dev_err(chip->dev, "%s: Failed to disable PWM\n", pwm->label);
+		goto out;
+	}
+
 	twl->twl6030_toggle3 = val;
 out:
 	mutex_unlock(&twl->mutex);

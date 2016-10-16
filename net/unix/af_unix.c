@@ -2475,28 +2475,13 @@ static int unix_stream_recvmsg(struct socket *sock, struct msghdr *msg,
 	return unix_stream_read_generic(&state);
 }
 
-static ssize_t skb_unix_socket_splice(struct sock *sk,
-				      struct pipe_inode_info *pipe,
-				      struct splice_pipe_desc *spd)
-{
-	int ret;
-	struct unix_sock *u = unix_sk(sk);
-
-	mutex_unlock(&u->iolock);
-	ret = splice_to_pipe(pipe, spd);
-	mutex_lock(&u->iolock);
-
-	return ret;
-}
-
 static int unix_stream_splice_actor(struct sk_buff *skb,
 				    int skip, int chunk,
 				    struct unix_stream_read_state *state)
 {
 	return skb_splice_bits(skb, state->socket->sk,
 			       UNIXCB(skb).consumed + skip,
-			       state->pipe, chunk, state->splice_flags,
-			       skb_unix_socket_splice);
+			       state->pipe, chunk, state->splice_flags);
 }
 
 static ssize_t unix_stream_splice_read(struct socket *sock,  loff_t *ppos,

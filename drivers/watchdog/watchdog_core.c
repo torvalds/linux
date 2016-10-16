@@ -349,7 +349,7 @@ int devm_watchdog_register_device(struct device *dev,
 	struct watchdog_device **rcwdd;
 	int ret;
 
-	rcwdd = devres_alloc(devm_watchdog_unregister_device, sizeof(*wdd),
+	rcwdd = devres_alloc(devm_watchdog_unregister_device, sizeof(*rcwdd),
 			     GFP_KERNEL);
 	if (!rcwdd)
 		return -ENOMEM;

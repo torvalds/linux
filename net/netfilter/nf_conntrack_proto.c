@@ -159,54 +159,6 @@ static int kill_l4proto(struct nf_conn *i, void *data)
 	       nf_ct_l3num(i) == l4proto->l3proto;
 }
 
-static struct nf_ip_net *nf_ct_l3proto_net(struct net *net,
-					   struct nf_conntrack_l3proto *l3proto)
-{
-	if (l3proto->l3proto == PF_INET)
-		return &net->ct.nf_ct_proto;
-	else
-		return NULL;
-}
-
-static int nf_ct_l3proto_register_sysctl(struct net *net,
-					 struct nf_conntrack_l3proto *l3proto)
-{
-	int err = 0;
-	struct nf_ip_net *in = nf_ct_l3proto_net(net, l3proto);
-	/* nf_conntrack_l3proto_ipv6 doesn't support sysctl */
-	if (in == NULL)
-		return 0;
-
-#if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
-	if (in->ctl_table != NULL) {
-		err = nf_ct_register_sysctl(net,
-					    &in->ctl_table_header,
-					    l3proto->ctl_table_path,
-					    in->ctl_table);
-		if (err < 0) {
-			kfree(in->ctl_table);
-			in->ctl_table = NULL;
-		}
-	}
-#endif
-	return err;
-}
-
-static void nf_ct_l3proto_unregister_sysctl(struct net *net,
-					    struct nf_conntrack_l3proto *l3proto)
-{
-	struct nf_ip_net *in = nf_ct_l3proto_net(net, l3proto);
-
-	if (in == NULL)
-		return;
-#if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
-	if (in->ctl_table_header != NULL)
-		nf_ct_unregister_sysctl(&in->ctl_table_header,
-					&in->ctl_table,
-					0);
-#endif
-}
-
 int nf_ct_l3proto_register(struct nf_conntrack_l3proto *proto)
 {
 	int ret = 0;
@@ -241,7 +193,7 @@ EXPORT_SYMBOL_GPL(nf_ct_l3proto_register);
 int nf_ct_l3proto_pernet_register(struct net *net,
 				  struct nf_conntrack_l3proto *proto)
 {
-	int ret = 0;
+	int ret;
 
 	if (proto->init_net) {
 		ret = proto->init_net(net);
@@ -249,7 +201,7 @@ int nf_ct_l3proto_pernet_register(struct net *net,
 			return ret;
 	}
 
-	return nf_ct_l3proto_register_sysctl(net, proto);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_pernet_register);
 
@@ -272,8 +224,6 @@ EXPORT_SYMBOL_GPL(nf_ct_l3proto_unregister);
 void nf_ct_l3proto_pernet_unregister(struct net *net,
 				     struct nf_conntrack_l3proto *proto)
 {
-	nf_ct_l3proto_unregister_sysctl(net, proto);
-
 	/* Remove all contrack entries for this protocol */
 	nf_ct_iterate_cleanup(net, kill_l3proto, proto, 0, 0);
 }
@@ -312,26 +262,6 @@ int nf_ct_l4proto_register_sysctl(struct net *net,
 			}
 		}
 	}
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-	if (l4proto->l3proto != AF_INET6 && pn->ctl_compat_table != NULL) {
-		if (err < 0) {
-			nf_ct_kfree_compat_sysctl_table(pn);
-			goto out;
-		}
-		err = nf_ct_register_sysctl(net,
-					    &pn->ctl_compat_header,
-					    "net/ipv4/netfilter",
-					    pn->ctl_compat_table);
-		if (err == 0)
-			goto out;
-
-		nf_ct_kfree_compat_sysctl_table(pn);
-		nf_ct_unregister_sysctl(&pn->ctl_table_header,
-					&pn->ctl_table,
-					pn->users);
-	}
-out:
-#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 	return err;
 }
@@ -346,13 +276,6 @@ void nf_ct_l4proto_unregister_sysctl(struct net *net,
 		nf_ct_unregister_sysctl(&pn->ctl_table_header,
 					&pn->ctl_table,
 					pn->users);
-
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-	if (l4proto->l3proto != AF_INET6 && pn->ctl_compat_header != NULL)
-		nf_ct_unregister_sysctl(&pn->ctl_compat_header,
-					&pn->ctl_compat_table,
-					0);
-#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 }
 

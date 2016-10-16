@@ -2199,12 +2199,14 @@ static struct snd_soc_codec_driver soc_codec_dev_twl4030 = {
 	.set_bias_level = twl4030_set_bias_level,
 	.idle_bias_off = true,
 
-	.controls = twl4030_snd_controls,
-	.num_controls = ARRAY_SIZE(twl4030_snd_controls),
-	.dapm_widgets = twl4030_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(twl4030_dapm_widgets),
-	.dapm_routes = intercon,
-	.num_dapm_routes = ARRAY_SIZE(intercon),
+	.component_driver = {
+		.controls		= twl4030_snd_controls,
+		.num_controls		= ARRAY_SIZE(twl4030_snd_controls),
+		.dapm_widgets		= twl4030_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(twl4030_dapm_widgets),
+		.dapm_routes		= intercon,
+		.num_dapm_routes	= ARRAY_SIZE(intercon),
+	},
 };
 
 static int twl4030_codec_probe(struct platform_device *pdev)

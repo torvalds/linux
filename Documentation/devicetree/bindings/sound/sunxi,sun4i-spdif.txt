@@ -9,6 +9,7 @@ Required properties:
 
   - compatible		: should be one of the following:
     - "allwinner,sun4i-a10-spdif": for the Allwinner A10 SoC
+    - "allwinner,sun6i-a31-spdif": for the Allwinner A31 SoC
 
   - reg			: Offset and length of the register set for the device.
 
@@ -24,6 +25,8 @@ Required properties:
   - clock-names		: Includes the following entries:
 	"apb"		  clock for the spdif bus.
 	"spdif"		  clock for spdif controller.
+
+  - resets		: reset specifier for the ahb reset (A31 and newer only)
 
 Example:
 

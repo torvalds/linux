@@ -24,6 +24,9 @@ config ARMADA_39X_CLK
 	bool
 	select MVEBU_CLK_COMMON
 
+config ARMADA_37XX_CLK
+       bool
+
 config ARMADA_XP_CLK
 	bool
 	select MVEBU_CLK_COMMON

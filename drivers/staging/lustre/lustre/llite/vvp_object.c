@@ -39,7 +39,6 @@
 #include "../../include/linux/libcfs/libcfs.h"
 
 #include "../include/obd.h"
-#include "../include/lustre_lite.h"
 
 #include "llite_internal.h"
 #include "vvp_internal.h"
@@ -68,8 +67,8 @@ static int vvp_object_print(const struct lu_env *env, void *cookie,
 
 	(*p)(env, cookie, "(%s %d %d) inode: %p ",
 	     list_empty(&obj->vob_pending_list) ? "-" : "+",
-	     obj->vob_transient_pages, atomic_read(&obj->vob_mmap_cnt),
-	     inode);
+	     atomic_read(&obj->vob_transient_pages),
+	     atomic_read(&obj->vob_mmap_cnt), inode);
 	if (inode) {
 		lli = ll_i2info(inode);
 		(*p)(env, cookie, "%lu/%u %o %u %d %p "DFID,
@@ -102,8 +101,8 @@ static int vvp_attr_get(const struct lu_env *env, struct cl_object *obj,
 	return 0; /* layers below have to fill in the rest */
 }
 
-static int vvp_attr_set(const struct lu_env *env, struct cl_object *obj,
-			const struct cl_attr *attr, unsigned valid)
+static int vvp_attr_update(const struct lu_env *env, struct cl_object *obj,
+			   const struct cl_attr *attr, unsigned int valid)
 {
 	struct inode *inode = vvp_object_inode(obj);
 
@@ -120,7 +119,7 @@ static int vvp_attr_set(const struct lu_env *env, struct cl_object *obj,
 	if (0 && valid & CAT_SIZE)
 		i_size_write(inode, attr->cat_size);
 	/* not currently necessary */
-	if (0 && valid & (CAT_UID|CAT_GID|CAT_SIZE))
+	if (0 && valid & (CAT_UID | CAT_GID | CAT_SIZE))
 		mark_inode_dirty(inode);
 	return 0;
 }
@@ -210,7 +209,7 @@ static const struct cl_object_operations vvp_ops = {
 	.coo_lock_init = vvp_lock_init,
 	.coo_io_init   = vvp_io_init,
 	.coo_attr_get  = vvp_attr_get,
-	.coo_attr_set  = vvp_attr_set,
+	.coo_attr_update = vvp_attr_update,
 	.coo_conf_set  = vvp_conf_set,
 	.coo_prune     = vvp_prune,
 	.coo_glimpse   = vvp_object_glimpse
@@ -221,7 +220,7 @@ static int vvp_object_init0(const struct lu_env *env,
 			    const struct cl_object_conf *conf)
 {
 	vob->vob_inode = conf->coc_inode;
-	vob->vob_transient_pages = 0;
+	atomic_set(&vob->vob_transient_pages, 0);
 	cl_object_page_init(&vob->vob_cl, sizeof(struct vvp_page));
 	return 0;
 }

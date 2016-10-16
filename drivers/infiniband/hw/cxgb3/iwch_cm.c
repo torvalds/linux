@@ -2258,7 +2258,7 @@ int __init iwch_cm_init(void)
 {
 	skb_queue_head_init(&rxq);
 
-	workq = create_singlethread_workqueue("iw_cxgb3");
+	workq = alloc_ordered_workqueue("iw_cxgb3", WQ_MEM_RECLAIM);
 	if (!workq)
 		return -ENOMEM;
 

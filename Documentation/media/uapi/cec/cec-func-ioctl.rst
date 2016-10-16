@@ -19,17 +19,18 @@ Synopsis
     #include <sys/ioctl.h>
 
 
-.. cpp:function:: int ioctl( int fd, int request, void *argp )
+.. c:function:: int ioctl( int fd, int request, void *argp )
+   :name: cec-ioctl
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open() <cec-open>`.
 
 ``request``
     CEC ioctl request code as defined in the cec.h header file, for
-    example :ref:`CEC_ADAP_G_CAPS`.
+    example :c:func:`CEC_ADAP_G_CAPS`.
 
 ``argp``
     Pointer to a request-specific structure.
@@ -38,7 +39,9 @@ Arguments
 Description
 ===========
 
-.. note:: This documents the proposed CEC API. This API is not yet finalized
+.. note::
+
+   This documents the proposed CEC API. This API is not yet finalized
    and is currently only available as a staging kernel module.
 
 The :c:func:`ioctl()` function manipulates cec device parameters. The

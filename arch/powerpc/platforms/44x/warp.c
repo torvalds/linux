@@ -204,7 +204,7 @@ static void pika_setup_critical_temp(struct device_node *np,
 	i2c_smbus_write_byte_data(client, 3,  0); /* Tlow */
 
 	irq = irq_of_parse_and_map(np, 0);
-	if (irq  == NO_IRQ) {
+	if (!irq) {
 		printk(KERN_ERR __FILE__ ": Unable to get ad7414 irq\n");
 		return;
 	}

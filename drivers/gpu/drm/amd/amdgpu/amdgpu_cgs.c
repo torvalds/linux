@@ -616,7 +616,7 @@ static int amdgpu_cgs_irq_put(struct cgs_device *cgs_device, unsigned src_id, un
 	return amdgpu_irq_put(adev, adev->irq.sources[src_id], type);
 }
 
-int amdgpu_cgs_set_clockgating_state(struct cgs_device *cgs_device,
+static int amdgpu_cgs_set_clockgating_state(struct cgs_device *cgs_device,
 				  enum amd_ip_block_type block_type,
 				  enum amd_clockgating_state state)
 {
@@ -637,7 +637,7 @@ int amdgpu_cgs_set_clockgating_state(struct cgs_device *cgs_device,
 	return r;
 }
 
-int amdgpu_cgs_set_powergating_state(struct cgs_device *cgs_device,
+static int amdgpu_cgs_set_powergating_state(struct cgs_device *cgs_device,
 				  enum amd_ip_block_type block_type,
 				  enum amd_powergating_state state)
 {
@@ -711,6 +711,47 @@ static int amdgpu_cgs_rel_firmware(struct cgs_device *cgs_device, enum cgs_ucode
 	return -EINVAL;
 }
 
+static uint16_t amdgpu_get_firmware_version(struct cgs_device *cgs_device,
+					enum cgs_ucode_id type)
+{
+	CGS_FUNC_ADEV;
+	uint16_t fw_version;
+
+	switch (type) {
+		case CGS_UCODE_ID_SDMA0:
+			fw_version = adev->sdma.instance[0].fw_version;
+			break;
+		case CGS_UCODE_ID_SDMA1:
+			fw_version = adev->sdma.instance[1].fw_version;
+			break;
+		case CGS_UCODE_ID_CP_CE:
+			fw_version = adev->gfx.ce_fw_version;
+			break;
+		case CGS_UCODE_ID_CP_PFP:
+			fw_version = adev->gfx.pfp_fw_version;
+			break;
+		case CGS_UCODE_ID_CP_ME:
+			fw_version = adev->gfx.me_fw_version;
+			break;
+		case CGS_UCODE_ID_CP_MEC:
+			fw_version = adev->gfx.mec_fw_version;
+			break;
+		case CGS_UCODE_ID_CP_MEC_JT1:
+			fw_version = adev->gfx.mec_fw_version;
+			break;
+		case CGS_UCODE_ID_CP_MEC_JT2:
+			fw_version = adev->gfx.mec_fw_version;
+			break;
+		case CGS_UCODE_ID_RLC_G:
+			fw_version = adev->gfx.rlc_fw_version;
+			break;
+		default:
+			DRM_ERROR("firmware type %d do not have version\n", type);
+			fw_version = 0;
+	}
+	return fw_version;
+}
+
 static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 					enum cgs_ucode_id type,
 					struct cgs_firmware_info *info)
@@ -741,6 +782,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 		info->mc_addr = gpu_addr;
 		info->image_size = data_size;
 		info->version = (uint16_t)le32_to_cpu(header->header.ucode_version);
+		info->fw_version = amdgpu_get_firmware_version(cgs_device, type);
 		info->feature_version = (uint16_t)le32_to_cpu(header->ucode_feature_version);
 	} else {
 		char fw_name[30] = {0};
@@ -847,6 +889,12 @@ static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
 		break;
 	case CGS_SYSTEM_INFO_GFX_SE_INFO:
 		sys_info->value = adev->gfx.config.max_shader_engines;
+		break;
+	case CGS_SYSTEM_INFO_PCIE_SUB_SYS_ID:
+		sys_info->value = adev->pdev->subsystem_device;
+		break;
+	case CGS_SYSTEM_INFO_PCIE_SUB_SYS_VENDOR_ID:
+		sys_info->value = adev->pdev->subsystem_vendor;
 		break;
 	default:
 		return -ENODEV;

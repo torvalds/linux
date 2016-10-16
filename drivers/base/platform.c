@@ -97,7 +97,7 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 		int ret;
 
 		ret = of_irq_get(dev->dev.of_node, num);
-		if (ret >= 0 || ret == -EPROBE_DEFER)
+		if (ret > 0 || ret == -EPROBE_DEFER)
 			return ret;
 	}
 
@@ -108,9 +108,14 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 	 * IORESOURCE_BITS correspond 1-to-1 to the IRQF_TRIGGER*
 	 * settings.
 	 */
-	if (r && r->flags & IORESOURCE_BITS)
-		irqd_set_trigger_type(irq_get_irq_data(r->start),
-				      r->flags & IORESOURCE_BITS);
+	if (r && r->flags & IORESOURCE_BITS) {
+		struct irq_data *irqd;
+
+		irqd = irq_get_irq_data(r->start);
+		if (!irqd)
+			return -ENXIO;
+		irqd_set_trigger_type(irqd, r->flags & IORESOURCE_BITS);
+	}
 
 	return r ? r->start : -ENXIO;
 #endif
@@ -175,7 +180,7 @@ int platform_get_irq_byname(struct platform_device *dev, const char *name)
 		int ret;
 
 		ret = of_irq_get_byname(dev->dev.of_node, name);
-		if (ret >= 0 || ret == -EPROBE_DEFER)
+		if (ret > 0 || ret == -EPROBE_DEFER)
 			return ret;
 	}
 
@@ -434,6 +439,7 @@ void platform_device_del(struct platform_device *pdev)
 	int i;
 
 	if (pdev) {
+		device_remove_properties(&pdev->dev);
 		device_del(&pdev->dev);
 
 		if (pdev->id_auto) {
@@ -446,8 +452,6 @@ void platform_device_del(struct platform_device *pdev)
 			if (r->parent)
 				release_resource(r);
 		}
-
-		device_remove_properties(&pdev->dev);
 	}
 }
 EXPORT_SYMBOL_GPL(platform_device_del);

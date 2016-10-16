@@ -62,7 +62,7 @@ static int __init ps3_register_lpm_devices(void)
 		&dev->lpm.rights);
 
 	if (result) {
-		pr_debug("%s:%d: ps3_repository_read_lpm_privleges failed \n",
+		pr_debug("%s:%d: ps3_repository_read_lpm_privileges failed\n",
 			__func__, __LINE__);
 		goto fail_read_repo;
 	}

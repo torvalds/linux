@@ -13,12 +13,13 @@
 #ifndef __DAX_H__
 #define __DAX_H__
 struct device;
+struct dax_dev;
 struct resource;
 struct dax_region;
 void dax_region_put(struct dax_region *dax_region);
 struct dax_region *alloc_dax_region(struct device *parent,
 		int region_id, struct resource *res, unsigned int align,
 		void *addr, unsigned long flags);
-int devm_create_dax_dev(struct dax_region *dax_region, struct resource *res,
-		int count);
+struct dax_dev *devm_create_dax_dev(struct dax_region *dax_region,
+		struct resource *res, int count);
 #endif /* __DAX_H__ */

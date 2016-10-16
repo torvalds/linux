@@ -138,7 +138,7 @@ static struct shash_alg ghash_alg = {
 	.setkey			= ghash_setkey,
 	.descsize		= sizeof(struct ghash_desc_ctx),
 	.base			= {
-		.cra_name	= "ghash",
+		.cra_name	= "__ghash",
 		.cra_driver_name = "__driver-ghash-ce",
 		.cra_priority	= 0,
 		.cra_flags	= CRYPTO_ALG_TYPE_SHASH | CRYPTO_ALG_INTERNAL,
@@ -220,6 +220,27 @@ static int ghash_async_digest(struct ahash_request *req)
 	}
 }
 
+static int ghash_async_import(struct ahash_request *req, const void *in)
+{
+	struct ahash_request *cryptd_req = ahash_request_ctx(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct ghash_async_ctx *ctx = crypto_ahash_ctx(tfm);
+	struct shash_desc *desc = cryptd_shash_desc(cryptd_req);
+
+	desc->tfm = cryptd_ahash_child(ctx->cryptd_tfm);
+	desc->flags = req->base.flags;
+
+	return crypto_shash_import(desc, in);
+}
+
+static int ghash_async_export(struct ahash_request *req, void *out)
+{
+	struct ahash_request *cryptd_req = ahash_request_ctx(req);
+	struct shash_desc *desc = cryptd_shash_desc(cryptd_req);
+
+	return crypto_shash_export(desc, out);
+}
+
 static int ghash_async_setkey(struct crypto_ahash *tfm, const u8 *key,
 			      unsigned int keylen)
 {
@@ -268,7 +289,10 @@ static struct ahash_alg ghash_async_alg = {
 	.final			= ghash_async_final,
 	.setkey			= ghash_async_setkey,
 	.digest			= ghash_async_digest,
+	.import			= ghash_async_import,
+	.export			= ghash_async_export,
 	.halg.digestsize	= GHASH_DIGEST_SIZE,
+	.halg.statesize		= sizeof(struct ghash_desc_ctx),
 	.halg.base		= {
 		.cra_name	= "ghash",
 		.cra_driver_name = "ghash-ce",

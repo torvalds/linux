@@ -30,6 +30,7 @@
 #include <linux/netfilter_ipv6.h>
 #include <linux/netfilter_arp.h>
 #include <linux/in_route.h>
+#include <linux/rculist.h>
 #include <linux/inetdevice.h>
 
 #include <net/ip.h>
@@ -395,11 +396,10 @@ bridged_dnat:
 				skb->dev = nf_bridge->physindev;
 				nf_bridge_update_protocol(skb);
 				nf_bridge_push_encap_header(skb);
-				NF_HOOK_THRESH(NFPROTO_BRIDGE,
-					       NF_BR_PRE_ROUTING,
-					       net, sk, skb, skb->dev, NULL,
-					       br_nf_pre_routing_finish_bridge,
-					       1);
+				br_nf_hook_thresh(NF_BR_PRE_ROUTING,
+						  net, sk, skb, skb->dev,
+						  NULL,
+						  br_nf_pre_routing_finish);
 				return 0;
 			}
 			ether_addr_copy(eth_hdr(skb)->h_dest, dev->dev_addr);
@@ -417,10 +417,8 @@ bridged_dnat:
 	skb->dev = nf_bridge->physindev;
 	nf_bridge_update_protocol(skb);
 	nf_bridge_push_encap_header(skb);
-	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, net, sk, skb,
-		       skb->dev, NULL,
-		       br_handle_frame_finish, 1);
-
+	br_nf_hook_thresh(NF_BR_PRE_ROUTING, net, sk, skb, skb->dev, NULL,
+			  br_handle_frame_finish);
 	return 0;
 }
 
@@ -991,6 +989,43 @@ static struct pernet_operations brnf_net_ops __read_mostly = {
 static struct notifier_block brnf_notifier __read_mostly = {
 	.notifier_call = brnf_device_event,
 };
+
+/* recursively invokes nf_hook_slow (again), skipping already-called
+ * hooks (< NF_BR_PRI_BRNF).
+ *
+ * Called with rcu read lock held.
+ */
+int br_nf_hook_thresh(unsigned int hook, struct net *net,
+		      struct sock *sk, struct sk_buff *skb,
+		      struct net_device *indev,
+		      struct net_device *outdev,
+		      int (*okfn)(struct net *, struct sock *,
+				  struct sk_buff *))
+{
+	struct nf_hook_entry *elem;
+	struct nf_hook_state state;
+	int ret;
+
+	elem = rcu_dereference(net->nf.hooks[NFPROTO_BRIDGE][hook]);
+
+	while (elem && (elem->ops.priority <= NF_BR_PRI_BRNF))
+		elem = rcu_dereference(elem->next);
+
+	if (!elem)
+		return okfn(net, sk, skb);
+
+	/* We may already have this, but read-locks nest anyway */
+	rcu_read_lock();
+	nf_hook_state_init(&state, elem, hook, NF_BR_PRI_BRNF + 1,
+			   NFPROTO_BRIDGE, indev, outdev, sk, net, okfn);
+
+	ret = nf_hook_slow(skb, &state);
+	rcu_read_unlock();
+	if (ret == 1)
+		ret = okfn(net, sk, skb);
+
+	return ret;
+}
 
 #ifdef CONFIG_SYSCTL
 static

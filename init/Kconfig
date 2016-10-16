@@ -1288,6 +1288,7 @@ config SYSFS_DEPRECATED_V2
 
 config RELAY
 	bool "Kernel->user space relay support (formerly relayfs)"
+	select IRQ_WORK
 	help
 	  This option enables support for relay interface support in
 	  certain file systems (such as debugfs).
@@ -2116,12 +2117,6 @@ config PREEMPT_NOTIFIERS
 
 config PADATA
 	depends on SMP
-	bool
-
-# Can be selected by architectures with broken toolchains
-# that get confused by correct const<->read_only section
-# mappings
-config BROKEN_RODATA
 	bool
 
 config ASN1

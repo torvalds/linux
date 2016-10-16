@@ -1249,8 +1249,7 @@ static void __init init_mtd_structs(struct mtd_info *mtd)
 	nand->options = NAND_BUSWIDTH_16 | NAND_NO_SUBPAGE_WRITE;
 	nand->IO_ADDR_R = nand->IO_ADDR_W = doc->virtadr + DOC_IOSPACE_DATA;
 	nand->controller = &nand->hwcontrol;
-	spin_lock_init(&nand->controller->lock);
-	init_waitqueue_head(&nand->controller->wq);
+	nand_hw_control_init(nand->controller);
 
 	/* methods */
 	nand->cmdfunc = docg4_command;

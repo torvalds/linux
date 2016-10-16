@@ -961,9 +961,6 @@ static void mpls_ifdown(struct net_device *dev, int event)
 				RCU_INIT_POINTER(nh->nh_dev, NULL);
 		} endfor_nexthops(rt);
 	}
-
-
-	return;
 }
 
 static void mpls_ifup(struct net_device *dev, unsigned int nh_flags)
@@ -997,8 +994,6 @@ static void mpls_ifup(struct net_device *dev, unsigned int nh_flags)
 
 		ACCESS_ONCE(rt->rt_nhn_alive) = alive;
 	}
-
-	return;
 }
 
 static int mpls_dev_notify(struct notifier_block *this, unsigned long event,

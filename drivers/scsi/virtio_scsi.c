@@ -259,7 +259,7 @@ static void virtscsi_complete_free(struct virtio_scsi *vscsi, void *buf)
 	struct virtio_scsi_cmd *cmd = buf;
 
 	if (cmd->comp)
-		complete_all(cmd->comp);
+		complete(cmd->comp);
 }
 
 static void virtscsi_ctrl_done(struct virtqueue *vq)

@@ -21,7 +21,6 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/mutex.h>
-#include <linux/semaphore.h>
 #include <linux/completion.h>
 
 static int dev_state_ev_handler(struct notifier_block *this,

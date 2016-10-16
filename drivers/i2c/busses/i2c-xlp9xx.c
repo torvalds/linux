@@ -400,10 +400,8 @@ static int xlp9xx_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(&priv->adapter, priv);
 
 	err = i2c_add_adapter(&priv->adapter);
-	if (err) {
-		dev_err(&pdev->dev, "failed to add I2C adapter!\n");
+	if (err)
 		return err;
-	}
 
 	platform_set_drvdata(pdev, priv);
 	dev_dbg(&pdev->dev, "I2C bus:%d added\n", priv->adapter.nr);

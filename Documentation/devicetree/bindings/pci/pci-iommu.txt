@@ -1,0 +1,171 @@
+This document describes the generic device tree binding for describing the
+relationship between PCI(e) devices and IOMMU(s).
+
+Each PCI(e) device under a root complex is uniquely identified by its Requester
+ID (AKA RID). A Requester ID is a triplet of a Bus number, Device number, and
+Function number.
+
+For the purpose of this document, when treated as a numeric value, a RID is
+formatted such that:
+
+* Bits [15:8] are the Bus number.
+* Bits [7:3] are the Device number.
+* Bits [2:0] are the Function number.
+* Any other bits required for padding must be zero.
+
+IOMMUs may distinguish PCI devices through sideband data derived from the
+Requester ID. While a given PCI device can only master through one IOMMU, a
+root complex may split masters across a set of IOMMUs (e.g. with one IOMMU per
+bus).
+
+The generic 'iommus' property is insufficient to describe this relationship,
+and a mechanism is required to map from a PCI device to its IOMMU and sideband
+data.
+
+For generic IOMMU bindings, see
+Documentation/devicetree/bindings/iommu/iommu.txt.
+
+
+PCI root complex
+================
+
+Optional properties
+-------------------
+
+- iommu-map: Maps a Requester ID to an IOMMU and associated iommu-specifier
+  data.
+
+  The property is an arbitrary number of tuples of
+  (rid-base,iommu,iommu-base,length).
+
+  Any RID r in the interval [rid-base, rid-base + length) is associated with
+  the listed IOMMU, with the iommu-specifier (r - rid-base + iommu-base).
+
+- iommu-map-mask: A mask to be applied to each Requester ID prior to being
+  mapped to an iommu-specifier per the iommu-map property.
+
+
+Example (1)
+===========
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	iommu: iommu@a {
+		reg = <0xa 0x1>;
+		compatible = "vendor,some-iommu";
+		#iommu-cells = <1>;
+	};
+
+	pci: pci@f {
+		reg = <0xf 0x1>;
+		compatible = "vendor,pcie-root-complex";
+		device_type = "pci";
+
+		/*
+		 * The sideband data provided to the IOMMU is the RID,
+		 * identity-mapped.
+		 */
+		iommu-map = <0x0 &iommu 0x0 0x10000>;
+	};
+};
+
+
+Example (2)
+===========
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	iommu: iommu@a {
+		reg = <0xa 0x1>;
+		compatible = "vendor,some-iommu";
+		#iommu-cells = <1>;
+	};
+
+	pci: pci@f {
+		reg = <0xf 0x1>;
+		compatible = "vendor,pcie-root-complex";
+		device_type = "pci";
+
+		/*
+		 * The sideband data provided to the IOMMU is the RID with the
+		 * function bits masked out.
+		 */
+		iommu-map = <0x0 &iommu 0x0 0x10000>;
+		iommu-map-mask = <0xfff8>;
+	};
+};
+
+
+Example (3)
+===========
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	iommu: iommu@a {
+		reg = <0xa 0x1>;
+		compatible = "vendor,some-iommu";
+		#iommu-cells = <1>;
+	};
+
+	pci: pci@f {
+		reg = <0xf 0x1>;
+		compatible = "vendor,pcie-root-complex";
+		device_type = "pci";
+
+		/*
+		 * The sideband data provided to the IOMMU is the RID,
+		 * but the high bits of the bus number are flipped.
+		 */
+		iommu-map = <0x0000 &iommu 0x8000 0x8000>,
+			    <0x8000 &iommu 0x0000 0x8000>;
+	};
+};
+
+
+Example (4)
+===========
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	iommu_a: iommu@a {
+		reg = <0xa 0x1>;
+		compatible = "vendor,some-iommu";
+		#iommu-cells = <1>;
+	};
+
+	iommu_b: iommu@b {
+		reg = <0xb 0x1>;
+		compatible = "vendor,some-iommu";
+		#iommu-cells = <1>;
+	};
+
+	iommu_c: iommu@c {
+		reg = <0xc 0x1>;
+		compatible = "vendor,some-iommu";
+		#iommu-cells = <1>;
+	};
+
+	pci: pci@f {
+		reg = <0xf 0x1>;
+		compatible = "vendor,pcie-root-complex";
+		device_type = "pci";
+
+		/*
+		 * Devices with bus number 0-127 are mastered via IOMMU
+		 * a, with sideband data being RID[14:0].
+		 * Devices with bus number 128-255 are mastered via
+		 * IOMMU b, with sideband data being RID[14:0].
+		 * No devices master via IOMMU c.
+		 */
+		iommu-map = <0x0000 &iommu_a 0x0000 0x8000>,
+			    <0x8000 &iommu_b 0x0000 0x8000>;
+	};
+};

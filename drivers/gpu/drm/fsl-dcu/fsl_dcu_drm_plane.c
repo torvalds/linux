@@ -169,25 +169,10 @@ static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
 	return;
 }
 
-static void
-fsl_dcu_drm_plane_cleanup_fb(struct drm_plane *plane,
-			     const struct drm_plane_state *new_state)
-{
-}
-
-static int
-fsl_dcu_drm_plane_prepare_fb(struct drm_plane *plane,
-			     const struct drm_plane_state *new_state)
-{
-	return 0;
-}
-
 static const struct drm_plane_helper_funcs fsl_dcu_drm_plane_helper_funcs = {
 	.atomic_check = fsl_dcu_drm_plane_atomic_check,
 	.atomic_disable = fsl_dcu_drm_plane_atomic_disable,
 	.atomic_update = fsl_dcu_drm_plane_atomic_update,
-	.cleanup_fb = fsl_dcu_drm_plane_cleanup_fb,
-	.prepare_fb = fsl_dcu_drm_plane_prepare_fb,
 };
 
 static void fsl_dcu_drm_plane_destroy(struct drm_plane *plane)

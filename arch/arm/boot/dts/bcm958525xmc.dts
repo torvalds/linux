@@ -33,6 +33,7 @@
 /dts-v1/;
 
 #include "bcm-nsp.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "NorthStar Plus XMC (BCM958525xmc)";
@@ -44,6 +45,35 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x60000000 0x40000000>;
+	};
+
+	gpio-restart {
+		compatible = "gpio-restart";
+		gpios = <&gpioa 31 GPIO_ACTIVE_LOW>;
+		priority = <200>;
+	};
+};
+
+&i2c0 {
+	temperature-sensor@4c {
+		compatible = "adi,adt7461a";
+		reg = <0x4c>;
+	};
+
+	eeprom@52 {
+		compatible = "atmel,24c02";
+		reg = <0x52>;
+		pagesize = <16>;
+	};
+
+	rtc@68 {
+		compatible = "st,m41t81";
+		reg = <0x68>;
 	};
 };
 
@@ -85,7 +115,7 @@
 	};
 };
 
-/* XHCI, SATA, MMC, and Ethernet support needed to be complete */
+/* XHCI, MMC, and Ethernet support needed to be complete */
 
 &uart0 {
 	status = "okay";
@@ -96,6 +126,18 @@
 };
 
 &pcie1 {
+	status = "okay";
+};
+
+&sata_phy0 {
+	status = "okay";
+};
+
+&sata_phy1 {
+	status = "okay";
+};
+
+&sata {
 	status = "okay";
 };
 

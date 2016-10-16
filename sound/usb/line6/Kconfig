@@ -2,6 +2,7 @@ config SND_USB_LINE6
 	tristate
 	select SND_RAWMIDI
 	select SND_PCM
+	select SND_HWDEP
 
 config SND_USB_POD
 	tristate "Line 6 POD USB support"
@@ -21,10 +22,10 @@ config SND_USB_POD
 	      re-amping)
 
 config SND_USB_PODHD
-	tristate "Line 6 POD HD300/400/500 USB support"
+	tristate "Line 6 POD X3/HD300/400/500 USB support"
 	select SND_USB_LINE6
 	help
-	  This is a driver for POD HD300, 400 and 500 devices.
+	  This is a driver for POD X3, HD300, 400 and 500 devices.
 
 config SND_USB_TONEPORT
 	tristate "TonePort GX, UX1 and UX2 USB support"

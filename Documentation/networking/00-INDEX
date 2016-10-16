@@ -10,8 +10,6 @@ LICENSE.qlge
 	- GPLv2 for QLogic Linux qlge NIC Driver
 LICENSE.qlcnic
 	- GPLv2 for QLogic Linux qlcnic NIC Driver
-Makefile
-	- Makefile for docsrc.
 PLIP.txt
 	- PLIP: The Parallel Line Internet Protocol device driver
 README.ipw2100
@@ -74,6 +72,8 @@ dns_resolver.txt
 	- The DNS resolver module allows kernel servies to make DNS queries.
 driver.txt
 	- Softnet driver issues.
+ena.txt
+	- info on Amazon's Elastic Network Adapter (ENA)
 e100.txt
 	- info on Intel's EtherExpress PRO/100 line of 10/100 boards
 e1000.txt
