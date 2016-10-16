@@ -261,15 +261,25 @@ static int clk_show(struct seq_file *s, void *unused)
 	struct clk 	*clk;
 
 	/* show all the power manager registers */
-	seq_printf(s, "MCCTRL  = %8x\n", pm_readl(MCCTRL));
-	seq_printf(s, "CKSEL   = %8x\n", pm_readl(CKSEL));
-	seq_printf(s, "CPUMASK = %8x\n", pm_readl(CPU_MASK));
-	seq_printf(s, "HSBMASK = %8x\n", pm_readl(HSB_MASK));
-	seq_printf(s, "PBAMASK = %8x\n", pm_readl(PBA_MASK));
-	seq_printf(s, "PBBMASK = %8x\n", pm_readl(PBB_MASK));
-	seq_printf(s, "PLL0    = %8x\n", pm_readl(PLL0));
-	seq_printf(s, "PLL1    = %8x\n", pm_readl(PLL1));
-	seq_printf(s, "IMR     = %8x\n", pm_readl(IMR));
+	seq_printf(s,
+		   "MCCTRL  = %8x\n"
+		   "CKSEL   = %8x\n"
+		   "CPUMASK = %8x\n"
+		   "HSBMASK = %8x\n"
+		   "PBAMASK = %8x\n"
+		   "PBBMASK = %8x\n"
+		   "PLL0    = %8x\n"
+		   "PLL1    = %8x\n"
+		   "IMR     = %8x\n",
+		   pm_readl(MCCTRL),
+		   pm_readl(CKSEL),
+		   pm_readl(CPU_MASK),
+		   pm_readl(HSB_MASK),
+		   pm_readl(PBA_MASK),
+		   pm_readl(PBB_MASK),
+		   pm_readl(PLL0),
+		   pm_readl(PLL1),
+		   pm_readl(IMR));
 	for (i = 0; i < 8; i++) {
 		if (i == 5)
 			continue;
