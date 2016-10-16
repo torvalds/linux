@@ -321,7 +321,7 @@ static int rcar_du_probe(struct platform_device *pdev)
 	init_waitqueue_head(&rcdu->commit.wait);
 
 	rcdu->dev = &pdev->dev;
-	rcdu->info = of_match_device(rcar_du_of_table, rcdu->dev)->data;
+	rcdu->info = of_device_get_match_data(rcdu->dev);
 
 	platform_set_drvdata(pdev, rcdu);
 
