@@ -175,10 +175,9 @@ static int output_sync(struct es2_ap_dev *es2, void *req, u16 size, u8 cmd)
 	u8 *data;
 	int retval;
 
-	data = kmalloc(size, GFP_KERNEL);
+	data = kmemdup(req, size, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-	memcpy(data, req, size);
 
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 cmd,
