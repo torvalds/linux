@@ -5074,6 +5074,7 @@ SYSCALL_DEFINE0(sched_yield)
 
 	p = current;
 	rq = this_rq_lock();
+	time_slice_expired(p, rq);
 	schedstat_inc(task_rq(p), yld_count);
 
 	/*
@@ -5208,19 +5209,19 @@ again:
 	}
 
 	double_rq_lock(rq, p_rq);
-	if (task_rq(p) != p_rq) {
+	if (unlikely(task_rq(p) != p_rq)) {
 		double_rq_unlock(rq, p_rq);
 		goto again;
 	}
 
 	yielded = 1;
-	if (p->deadline > rq->rq_deadline)
-		p->deadline = rq->rq_deadline;
 	rq_p = rq->curr;
+	if (p->deadline > rq_p->deadline)
+		p->deadline = rq_p->deadline;
 	p->time_slice += rq_p->time_slice;
-	rq_p->time_slice = 0;
 	if (p->time_slice > timeslice())
 		p->time_slice = timeslice();
+	time_slice_expired(rq_p, rq);
 	if (preempt && rq != p_rq)
 		resched_task(p_rq->curr);
 	double_rq_unlock(rq, p_rq);
