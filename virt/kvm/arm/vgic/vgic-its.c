@@ -278,6 +278,7 @@ static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
 	u64 propbase = GICR_PROPBASER_ADDRESS(kvm->arch.vgic.propbaser);
 	u8 prop;
 	int ret;
+	unsigned long flags;
 
 	ret = kvm_read_guest(kvm, propbase + irq->intid - GIC_LPI_OFFSET,
 			     &prop, 1);
@@ -285,15 +286,15 @@ static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
 	if (ret)
 		return ret;
 
-	spin_lock(&irq->irq_lock);
+	spin_lock_irqsave(&irq->irq_lock, flags);
 
 	if (!filter_vcpu || filter_vcpu == irq->target_vcpu) {
 		irq->priority = LPI_PROP_PRIORITY(prop);
 		irq->enabled = LPI_PROP_ENABLE_BIT(prop);
 
-		vgic_queue_irq_unlock(kvm, irq);
+		vgic_queue_irq_unlock(kvm, irq, flags);
 	} else {
-		spin_unlock(&irq->irq_lock);
+		spin_unlock_irqrestore(&irq->irq_lock, flags);
 	}
 
 	return 0;
@@ -393,6 +394,7 @@ static int its_sync_lpi_pending_table(struct kvm_vcpu *vcpu)
 	int ret = 0;
 	u32 *intids;
 	int nr_irqs, i;
+	unsigned long flags;
 
 	nr_irqs = vgic_copy_lpi_list(vcpu, &intids);
 	if (nr_irqs < 0)
@@ -420,9 +422,9 @@ static int its_sync_lpi_pending_table(struct kvm_vcpu *vcpu)
 		}
 
 		irq = vgic_get_irq(vcpu->kvm, NULL, intids[i]);
-		spin_lock(&irq->irq_lock);
+		spin_lock_irqsave(&irq->irq_lock, flags);
 		irq->pending_latch = pendmask & (1U << bit_nr);
-		vgic_queue_irq_unlock(vcpu->kvm, irq);
+		vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
 		vgic_put_irq(vcpu->kvm, irq);
 	}
 
@@ -515,6 +517,7 @@ static int vgic_its_trigger_msi(struct kvm *kvm, struct vgic_its *its,
 {
 	struct kvm_vcpu *vcpu;
 	struct its_ite *ite;
+	unsigned long flags;
 
 	if (!its->enabled)
 		return -EBUSY;
@@ -530,9 +533,9 @@ static int vgic_its_trigger_msi(struct kvm *kvm, struct vgic_its *its,
 	if (!vcpu->arch.vgic_cpu.lpis_enabled)
 		return -EBUSY;
 
-	spin_lock(&ite->irq->irq_lock);
+	spin_lock_irqsave(&ite->irq->irq_lock, flags);
 	ite->irq->pending_latch = true;
-	vgic_queue_irq_unlock(kvm, ite->irq);
+	vgic_queue_irq_unlock(kvm, ite->irq, flags);
 
 	return 0;
 }

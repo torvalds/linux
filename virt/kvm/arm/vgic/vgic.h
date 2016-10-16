@@ -140,7 +140,8 @@ vgic_get_mmio_region(struct kvm_vcpu *vcpu, struct vgic_io_device *iodev,
 struct vgic_irq *vgic_get_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 			      u32 intid);
 void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq);
-bool vgic_queue_irq_unlock(struct kvm *kvm, struct vgic_irq *irq);
+bool vgic_queue_irq_unlock(struct kvm *kvm, struct vgic_irq *irq,
+			   unsigned long flags);
 void vgic_kick_vcpus(struct kvm *kvm);
 
 int vgic_check_ioaddr(struct kvm *kvm, phys_addr_t *ioaddr,
