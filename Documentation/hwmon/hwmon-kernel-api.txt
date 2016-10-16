@@ -23,7 +23,6 @@ Each hardware monitoring driver must #include <linux/hwmon.h> and, in most
 cases, <linux/hwmon-sysfs.h>. linux/hwmon.h declares the following
 register/unregister functions:
 
-struct device *hwmon_device_register(struct device *dev);
 struct device *
 hwmon_device_register_with_groups(struct device *dev, const char *name,
 				  void *drvdata,
@@ -50,24 +49,19 @@ devm_hwmon_device_register_with_info(struct device *dev,
 void hwmon_device_unregister(struct device *dev);
 void devm_hwmon_device_unregister(struct device *dev);
 
-hwmon_device_register registers a hardware monitoring device. The parameter
-of this function is a pointer to the parent device.
-This function returns a pointer to the newly created hardware monitoring device
-or PTR_ERR for failure. If this registration function is used, hardware
-monitoring sysfs attributes are expected to have been created and attached to
-the parent device prior to calling hwmon_device_register. A name attribute must
-have been created by the caller.
-
-hwmon_device_register_with_groups is similar to hwmon_device_register. However,
-it has additional parameters. The name parameter is a pointer to the hwmon
-device name. The registration function wil create a name sysfs attribute
-pointing to this name. The drvdata parameter is the pointer to the local
-driver data.  hwmon_device_register_with_groups will attach this pointer
-to the newly allocated hwmon device. The pointer can be retrieved by the driver
-using dev_get_drvdata() on the hwmon device pointer. The groups parameter is
+hwmon_device_register_with_groups registers a hardware monitoring device.
+The first parameter of this function is a pointer to the parent device.
+The name parameter is a pointer to the hwmon device name. The registration
+function wil create a name sysfs attribute pointing to this name.
+The drvdata parameter is the pointer to the local driver data.
+hwmon_device_register_with_groups will attach this pointer to the newly
+allocated hwmon device. The pointer can be retrieved by the driver using
+dev_get_drvdata() on the hwmon device pointer. The groups parameter is
 a pointer to a list of sysfs attribute groups. The list must be NULL terminated.
 hwmon_device_register_with_groups creates the hwmon device with name attribute
 as well as all sysfs attributes attached to the hwmon device.
+This function returns a pointer to the newly created hardware monitoring device
+or PTR_ERR for failure.
 
 devm_hwmon_device_register_with_groups is similar to
 hwmon_device_register_with_groups. However, it is device managed, meaning the
@@ -87,13 +81,13 @@ hwmon_device_unregister deregisters a registered hardware monitoring device.
 The parameter of this function is the pointer to the registered hardware
 monitoring device structure. This function must be called from the driver
 remove function if the hardware monitoring device was registered with
-hwmon_device_register, hwmon_device_register_with_groups, or
-hwmon_device_register_with_info.
+hwmon_device_register_with_groups or hwmon_device_register_with_info.
 
 devm_hwmon_device_unregister does not normally have to be called. It is only
 needed for error handling, and only needed if the driver probe fails after
-the call to devm_hwmon_device_register_with_groups and if the automatic
-(device managed) removal would be too late.
+the call to devm_hwmon_device_register_with_groups or
+hwmon_device_register_with_info and if the automatic (device managed)
+removal would be too late.
 
 Using devm_hwmon_device_register_with_info()
 --------------------------------------------
