@@ -3849,10 +3849,7 @@ static void __sched notrace __schedule(bool preempt)
 	clear_preempt_need_resched();
 
 	if (idle != prev) {
-		/* Update all the information stored on struct rq */
-		prev->deadline = rq->rq_deadline;
 		check_deadline(prev, rq);
-		prev->last_ran = rq->clock_task;
 		return_task(prev, rq, cpu, deactivate);
 	}
 
