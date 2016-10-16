@@ -38,12 +38,15 @@ struct hwmon_device {
 
 #define to_hwmon_device(d) container_of(d, struct hwmon_device, dev)
 
+#define MAX_SYSFS_ATTR_NAME_LENGTH	32
+
 struct hwmon_device_attribute {
 	struct device_attribute dev_attr;
 	const struct hwmon_ops *ops;
 	enum hwmon_sensor_types type;
 	u32 attr;
 	int index;
+	char name[MAX_SYSFS_ATTR_NAME_LENGTH];
 };
 
 #define to_hwmon_attr(d) \
@@ -261,19 +264,17 @@ static struct attribute *hwmon_genattr(struct device *dev,
 	if ((mode & S_IWUGO) && !ops->write)
 		return ERR_PTR(-EINVAL);
 
-	if (type == hwmon_chip) {
-		name = (char *)template;
-	} else {
-		name = devm_kzalloc(dev, strlen(template) + 16, GFP_KERNEL);
-		if (!name)
-			return ERR_PTR(-ENOMEM);
-		scnprintf(name, strlen(template) + 16, template,
-			  index + hwmon_attr_base(type));
-	}
-
 	hattr = devm_kzalloc(dev, sizeof(*hattr), GFP_KERNEL);
 	if (!hattr)
 		return ERR_PTR(-ENOMEM);
+
+	if (type == hwmon_chip) {
+		name = (char *)template;
+	} else {
+		scnprintf(hattr->name, sizeof(hattr->name), template,
+			  index + hwmon_attr_base(type));
+		name = hattr->name;
+	}
 
 	hattr->type = type;
 	hattr->attr = attr;
