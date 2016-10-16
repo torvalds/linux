@@ -292,7 +292,11 @@ static struct attribute *hwmon_genattr(struct device *dev,
 	return a;
 }
 
-static const char * const hwmon_chip_attr_templates[] = {
+/*
+ * Chip attributes are not attribute templates but actual sysfs attributes.
+ * See hwmon_genattr() for special handling.
+ */
+static const char * const hwmon_chip_attrs[] = {
 	[hwmon_chip_temp_reset_history] = "temp_reset_history",
 	[hwmon_chip_in_reset_history] = "in_reset_history",
 	[hwmon_chip_curr_reset_history] = "curr_reset_history",
@@ -429,7 +433,7 @@ static const char * const hwmon_pwm_attr_templates[] = {
 };
 
 static const char * const *__templates[] = {
-	[hwmon_chip] = hwmon_chip_attr_templates,
+	[hwmon_chip] = hwmon_chip_attrs,
 	[hwmon_temp] = hwmon_temp_attr_templates,
 	[hwmon_in] = hwmon_in_attr_templates,
 	[hwmon_curr] = hwmon_curr_attr_templates,
@@ -441,7 +445,7 @@ static const char * const *__templates[] = {
 };
 
 static const int __templates_size[] = {
-	[hwmon_chip] = ARRAY_SIZE(hwmon_chip_attr_templates),
+	[hwmon_chip] = ARRAY_SIZE(hwmon_chip_attrs),
 	[hwmon_temp] = ARRAY_SIZE(hwmon_temp_attr_templates),
 	[hwmon_in] = ARRAY_SIZE(hwmon_in_attr_templates),
 	[hwmon_curr] = ARRAY_SIZE(hwmon_curr_attr_templates),

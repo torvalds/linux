@@ -160,7 +160,7 @@ It contains following fields:
 * type: The hardware monitoring sensor type.
   Supported sensor types are
   * hwmon_chip		A virtual sensor type, used to describe attributes
-			which apply to the entire chip.
+  *			which are not bound to a specific input or output
   * hwmon_temp		Temperature sensor
   * hwmon_in		Voltage sensor
   * hwmon_curr		Current sensor
