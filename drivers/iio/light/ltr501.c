@@ -631,14 +631,16 @@ static int ltr501_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_PROCESSED:
-		if (iio_buffer_enabled(indio_dev))
-			return -EBUSY;
-
 		switch (chan->type) {
 		case IIO_LIGHT:
+			ret = iio_device_claim_direct_mode(indio_dev);
+			if (ret)
+				return ret;
+
 			mutex_lock(&data->lock_als);
 			ret = ltr501_read_als(data, buf);
 			mutex_unlock(&data->lock_als);
+			iio_device_release_direct_mode(indio_dev);
 			if (ret < 0)
 				return ret;
 			*val = ltr501_calculate_lux(le16_to_cpu(buf[1]),
@@ -648,8 +650,9 @@ static int ltr501_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 	case IIO_CHAN_INFO_RAW:
-		if (iio_buffer_enabled(indio_dev))
-			return -EBUSY;
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
 
 		switch (chan->type) {
 		case IIO_INTENSITY:
@@ -657,21 +660,28 @@ static int ltr501_read_raw(struct iio_dev *indio_dev,
 			ret = ltr501_read_als(data, buf);
 			mutex_unlock(&data->lock_als);
 			if (ret < 0)
-				return ret;
+				break;
 			*val = le16_to_cpu(chan->address == LTR501_ALS_DATA1 ?
 					   buf[0] : buf[1]);
-			return IIO_VAL_INT;
+			ret = IIO_VAL_INT;
+			break;
 		case IIO_PROXIMITY:
 			mutex_lock(&data->lock_ps);
 			ret = ltr501_read_ps(data);
 			mutex_unlock(&data->lock_ps);
 			if (ret < 0)
-				return ret;
+				break;
 			*val = ret & LTR501_PS_DATA_MASK;
-			return IIO_VAL_INT;
+			ret = IIO_VAL_INT;
+			break;
 		default:
-			return -EINVAL;
+			ret = -EINVAL;
+			break;
 		}
+
+		iio_device_release_direct_mode(indio_dev);
+		return ret;
+
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_INTENSITY:
