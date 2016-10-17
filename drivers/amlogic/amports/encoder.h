@@ -1,14 +1,28 @@
-
 #ifndef __H264_H__
 #define __H264_H__
 
+#include <linux/mutex.h>
+#include <linux/semaphore.h>
+#include <linux/list.h>
+#include <linux/interrupt.h>
+#include <linux/sched.h>
+#include <linux/spinlock.h>
+#include <linux/wait.h>
+#include <linux/slab.h>
+
+#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV
+#define AMVENC_DEV_VERSION "AML-G9"
+#elif MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8
 #define AMVENC_DEV_VERSION "AML-M8"
+#else
+#define AMVENC_DEV_VERSION "AML-MT"
+#endif
+
 #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8
 #define INT_AMVENCODER INT_DOS_MAILBOX_2
 #define HCODEC_IRQ_MBOX_CLR HCODEC_ASSIST_MBOX2_CLR_REG
 #define HCODEC_IRQ_MBOX_MASK HCODEC_ASSIST_MBOX2_MASK
 #else
-//#define AMVENC_DEV_VERSION "AML-MT"
 #define INT_AMVENCODER INT_MAILBOX_1A
 #define HCODEC_IRQ_MBOX_CLR HCODEC_ASSIST_MBOX1_CLR_REG
 #define HCODEC_IRQ_MBOX_MASK HCODEC_ASSIST_MBOX1_MASK
@@ -52,42 +66,54 @@
     WRITE_MPEG_REG_BITS(HHI_VDEC_CLK_CNTL,  0, 24, 1);
 #endif
 
-#if MESON_CPU_TYPE < MESON_CPU_TYPE_MESON8
+#if MESON_CPU_TYPE < MESON_CPU_TYPE_MESON6TVD
 #define HCODEC_ANC0_CANVAS_ADDR ANC0_CANVAS_ADDR
-#define HCODEC_REC_CANVAS_ADDR  REC_CANVAS_ADDR 
+#define HCODEC_REC_CANVAS_ADDR  REC_CANVAS_ADDR
 #define HCODEC_DBKR_CANVAS_ADDR DBKR_CANVAS_ADDR
 #define HCODEC_DBKW_CANVAS_ADDR DBKW_CANVAS_ADDR
 #define HCODEC_CURR_CANVAS_CTRL CURR_CANVAS_CTRL
-#define HCODEC_MPSR             MPSR            
-#define HCODEC_CPSR             CPSR            
-#define HCODEC_IMEM_DMA_CTRL    IMEM_DMA_CTRL   
-#define HCODEC_IMEM_DMA_ADR     IMEM_DMA_ADR    
-#define HCODEC_IMEM_DMA_COUNT   IMEM_DMA_COUNT  
+#define HCODEC_MPSR             MPSR
+#define HCODEC_CPSR             CPSR
+#define HCODEC_IMEM_DMA_CTRL    IMEM_DMA_CTRL
+#define HCODEC_IMEM_DMA_ADR     IMEM_DMA_ADR
+#define HCODEC_IMEM_DMA_COUNT   IMEM_DMA_COUNT
 #endif
+
+#if MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8
+#define USE_VDEC2
+#endif
+
+#ifdef USE_VDEC2
+ #define VDEC2_DEF_BUF_START_ADDR            0x01000000
+#endif
+
+#define LOG_LEVEL_ALL      0
+#define LOG_LEVEL_INFO    1
+#define LOG_LEVEL_DEBUG 2
+#define LOG_LEVEL_ERROR 3
+
+#define encode_debug_level(level, x...) \
+	do { \
+		if (level >= encode_print_level) \
+			printk(x); \
+	} while (0);
 
 #define AMVENC_AVC_IOC_MAGIC  'E'
 
 #define AMVENC_AVC_IOC_GET_DEVINFO 				_IOW(AMVENC_AVC_IOC_MAGIC, 0xf0, unsigned int)
+#define AMVENC_AVC_IOC_MAX_INSTANCE 				_IOW(AMVENC_AVC_IOC_MAGIC, 0xf1, unsigned int)
 
 #define AMVENC_AVC_IOC_GET_ADDR			 		_IOW(AMVENC_AVC_IOC_MAGIC, 0x00, unsigned int)
 #define AMVENC_AVC_IOC_INPUT_UPDATE				_IOW(AMVENC_AVC_IOC_MAGIC, 0x01, unsigned int)
-#define AMVENC_AVC_IOC_GET_STATUS				_IOW(AMVENC_AVC_IOC_MAGIC, 0x02, unsigned int)
-#define AMVENC_AVC_IOC_NEW_CMD					_IOW(AMVENC_AVC_IOC_MAGIC, 0x03, unsigned int)
-#define AMVENC_AVC_IOC_GET_STAGE					_IOW(AMVENC_AVC_IOC_MAGIC, 0x04, unsigned int)
-#define AMVENC_AVC_IOC_GET_OUTPUT_SIZE			_IOW(AMVENC_AVC_IOC_MAGIC, 0x05, unsigned int)
-#define AMVENC_AVC_IOC_SET_QUANT 				_IOW(AMVENC_AVC_IOC_MAGIC, 0x06, unsigned int)
-#define AMVENC_AVC_IOC_SET_ENCODER_WIDTH 		_IOW(AMVENC_AVC_IOC_MAGIC, 0x07, unsigned int)
-#define AMVENC_AVC_IOC_SET_ENCODER_HEIGHT 		_IOW(AMVENC_AVC_IOC_MAGIC, 0x08, unsigned int)
-#define AMVENC_AVC_IOC_CONFIG_INIT 				_IOW(AMVENC_AVC_IOC_MAGIC, 0x09, unsigned int)
-#define AMVENC_AVC_IOC_FLUSH_CACHE 				_IOW(AMVENC_AVC_IOC_MAGIC, 0x0a, unsigned int)
-#define AMVENC_AVC_IOC_FLUSH_DMA 				_IOW(AMVENC_AVC_IOC_MAGIC, 0x0b, unsigned int)
-#define AMVENC_AVC_IOC_GET_BUFFINFO 				_IOW(AMVENC_AVC_IOC_MAGIC, 0x0c, unsigned int)
-
-#define AMVENC_AVC_IOC_SET_IE_ME_MB_TYPE 		_IOW(AMVENC_AVC_IOC_MAGIC, 0x0d, unsigned int)
-#define AMVENC_AVC_IOC_SET_ME_PIXEL_MODE 		_IOW(AMVENC_AVC_IOC_MAGIC, 0x0e, unsigned int)
-#define AMVENC_AVC_IOC_SUBMIT_ENCODE_DONE 		_IOW(AMVENC_AVC_IOC_MAGIC, 0x0f, unsigned int)
-#define AMVENC_AVC_IOC_READ_CANVAS 				_IOW(AMVENC_AVC_IOC_MAGIC, 0x10, unsigned int)
-#define AMVENC_AVC_IOC_LIGHT_RESET 				_IOW(AMVENC_AVC_IOC_MAGIC, 0x11, unsigned int)
+#define AMVENC_AVC_IOC_NEW_CMD					_IOW(AMVENC_AVC_IOC_MAGIC, 0x02, unsigned int)
+#define AMVENC_AVC_IOC_GET_STAGE					_IOW(AMVENC_AVC_IOC_MAGIC, 0x03, unsigned int)
+#define AMVENC_AVC_IOC_GET_OUTPUT_SIZE			_IOW(AMVENC_AVC_IOC_MAGIC, 0x04, unsigned int)
+#define AMVENC_AVC_IOC_CONFIG_INIT 				_IOW(AMVENC_AVC_IOC_MAGIC, 0x05, unsigned int)
+#define AMVENC_AVC_IOC_FLUSH_CACHE 				_IOW(AMVENC_AVC_IOC_MAGIC, 0x06, unsigned int)
+#define AMVENC_AVC_IOC_FLUSH_DMA 				_IOW(AMVENC_AVC_IOC_MAGIC, 0x07, unsigned int)
+#define AMVENC_AVC_IOC_GET_BUFFINFO 				_IOW(AMVENC_AVC_IOC_MAGIC, 0x08, unsigned int)
+#define AMVENC_AVC_IOC_SUBMIT_ENCODE_DONE 		_IOW(AMVENC_AVC_IOC_MAGIC, 0x09, unsigned int)
+#define AMVENC_AVC_IOC_READ_CANVAS 				_IOW(AMVENC_AVC_IOC_MAGIC, 0x0a, unsigned int)
 
 
 #define IE_PIPPELINE_BLOCK_SHIFT 0
@@ -99,7 +125,7 @@ typedef enum{
     LOCAL_BUFF = 0,
     CANVAS_BUFF,
     PHYSICAL_BUFF,
-    MAX_BUFF_TYPE 
+    MAX_BUFF_TYPE
 }amvenc_mem_type;
 
 typedef enum{
@@ -107,38 +133,236 @@ typedef enum{
     FMT_YUV444_SINGLE,
     FMT_NV21,
     FMT_NV12,
-    FMT_YUV420,    
+    FMT_YUV420,
     FMT_YUV444_PLANE,
     FMT_RGB888,
     FMT_RGB888_PLANE,
     FMT_RGB565,
     FMT_RGBA8888,
-    MAX_FRAME_FMT 
+    MAX_FRAME_FMT
 }amvenc_frame_fmt;
 
-// Memory Address 
+#define AMVENC_BUFFER_LEVEL_480P   0
+#define AMVENC_BUFFER_LEVEL_720P   1
+#define AMVENC_BUFFER_LEVEL_1080P 2
+
+#define MAX_ENCODE_REQUEST  8   //64  
+
+#define MAX_ENCODE_INSTANCE  8   //64  
+
+#define ENCODE_PROCESS_QUEUE_START 	0
+#define ENCODE_PROCESS_QUEUE_STOP 	1
+
+#define AMVENC_FLUSH_FLAG_INPUT 			0x1
+#define AMVENC_FLUSH_FLAG_OUTPUT 		0x2
+#define AMVENC_FLUSH_FLAG_REFERENCE 		0x4
+#define AMVENC_FLUSH_FLAG_INTRA_INFO 	0x8
+#define AMVENC_FLUSH_FLAG_INTER_INFO 	0x10
+#define AMVENC_FLUSH_FLAG_QP			 	0x20
+
+#define ENCODER_BUFFER_INPUT              0
+#define ENCODER_BUFFER_REF0                1
+#define ENCODER_BUFFER_REF1                2
+#define ENCODER_BUFFER_OUTPUT           3
+#define ENCODER_BUFFER_INTER_INFO    4
+#define ENCODER_BUFFER_INTRA_INFO    5
+#define ENCODER_BUFFER_QP           	    6
+
+typedef struct encode_wq_s encode_wq_t;
+
+typedef struct {
+    u32 quant;
+    u32 cmd;
+    u32 ucode_mode;
+
+    u32 src;
+    amvenc_mem_type type;
+    amvenc_frame_fmt fmt;
+    u32 framesize;
+    u32 qp_info_size;
+
+    u32 flush_flag;
+    u32 timeout;
+    encode_wq_t* parent;
+}encode_request_t;
+
+typedef  struct {
+    struct list_head list;
+    encode_request_t request ;
+}encode_queue_item_t;
+
+typedef struct
+{
+    u32 buf_start;
+    u32 buf_size;
+    bool used;
+} Buff_t;
+
+typedef struct
+{
+    u32 lev_id;
+    u32 min_buffsize;
+    u32 max_width;
+    u32 max_height;
+    Buff_t dct;
+    Buff_t dec0_y;
+    Buff_t dec0_uv;
+    Buff_t dec1_y;
+    Buff_t dec1_uv;
+    Buff_t assit;
+    Buff_t bitstream;
+    Buff_t inter_bits_info;
+    Buff_t inter_mv_info;
+    Buff_t intra_bits_info;
+    Buff_t intra_pred_info;
+    Buff_t qp_info;
+#ifdef USE_VDEC2
+    Buff_t vdec2_info;
+#endif
+} BuffInfo_t;
+
+typedef struct{
+#ifdef CONFIG_CMA
+    struct page *venc_pages;
+#endif
+    u32 buf_start;
+    u32 buf_size;
+    u8 cur_buf_lev;
+    BuffInfo_t bufspec; 
+    u32 BitstreamStart;
+    u32 BitstreamEnd;
+
+    /*input buffer define*/
+    u32 dct_buff_start_addr;
+    u32 dct_buff_end_addr;
+
+    /*microcode assitant buffer*/
+    u32 assit_buffer_offset;
+
+    u32 inter_bits_info_ddr_start_addr;
+    u32 inter_mv_info_ddr_start_addr;
+    u32 intra_bits_info_ddr_start_addr;
+    u32 intra_pred_info_ddr_start_addr;
+    u32 sw_ctl_info_start_addr;
+#ifdef USE_VDEC2
+    u32 vdec2_start_addr;
+#endif
+
+    u32 dblk_buf_canvas;
+    u32 ref_buf_canvas;
+} encode_meminfo_t;
+
+typedef struct{
+    u32 encoder_width;
+    u32 encoder_height;
+
+    u32 rows_per_slice;
+
+    u32 idr_pic_id;  //need reset as 0 for IDR
+    u32 frame_number;   //need plus each frame
+    u32 pic_order_cnt_lsb; //need reset as 0 for IDR and plus 2 for NON-IDR
+
+    u32 log2_max_pic_order_cnt_lsb;
+    u32 log2_max_frame_num;
+    u32 init_qppicture;
+} encode_picinfo_t;
+
+typedef struct{
+    u32 dct_buffer_write_ptr;
+    u32 dct_flush_start;
+    bool can_update;
+    bool finish;
+} encode_control_t;
+
+struct encode_wq_s{
+    struct list_head list;
+    encode_request_t request;
+    atomic_t request_ready;
+    wait_queue_head_t request_complete;
+
+    // dev info
+    u32 ucode_index;
+    u32 hw_status;
+    u32 output_size;
+
+    u32 sps_size;
+    u32 pps_size;
+
+    encode_meminfo_t mem;
+    encode_picinfo_t pic;
+    encode_control_t control;
+};
+
+typedef  struct {
+    wait_queue_head_t hw_complete;
+    struct completion process_complete;
+    spinlock_t sem_lock; //for queue switch and create destroy queue.
+    struct semaphore request_in_sem;
+}encode_event_t;
+
+typedef  struct {
+    struct list_head wq;
+    struct list_head process_queue;
+    struct list_head free_queue;
+    encode_wq_t* current_wq;
+    encode_wq_t* last_wq;
+    encode_queue_item_t* current_item;
+    struct task_struct* encode_thread;
+    encode_event_t event ;
+
+    struct tasklet_struct encode_tasklet;
+
+    int encode_hw_status;
+    int process_queue_state;
+    int irq_num;
+    int wq_count;
+
+    u32 ucode_index;
+    bool dblk_fix_flag;
+    bool need_reset;
+    bool process_irq;
+    bool inited; // power on encode
+    bool remove_flag; // remove wq;
+    bool uninit_flag; //power off encode
+
+    bool use_reserve;
+    Buff_t reserve_mem;
+    Buff_t* reserve_buff;
+    u32 max_instance;
+
+#ifdef CONFIG_CMA
+    bool check_cma;
+    struct platform_device *this_pdev;
+#endif
+}encode_manager_t ;
+
+extern int encode_wq_add_request(encode_wq_t *wq);
+extern encode_wq_t* create_encode_work_queue(void);
+extern int destroy_encode_work_queue(encode_wq_t* encode_work_queue);
+
+// Memory Address
 ///////////////////////////////////////////////////////////////////////////
 #define MicrocodeStart        0x0000
 #define MicrocodeEnd          0x3fff  // 4kx32bits
-#define HencTopStart          0x4000 
+#define HencTopStart          0x4000
 #define HencTopEnd            0x4fff  // 128*32 = 0x1000
-#define PredTopStart          0x5000 
-#define PredTopEnd            0x5fff  // 128x32 = 0x1000 
+#define PredTopStart          0x5000
+#define PredTopEnd            0x5fff  // 128x32 = 0x1000
 #define MBBOT_START_0         0x6000
 #define MBBOT_START_1         0x8000
 
 
-#define MB_PER_DMA            (256*16/64) // 256 Lmem can hold MB_PER_DMA TOP Info 
+#define MB_PER_DMA            (256*16/64) // 256 Lmem can hold MB_PER_DMA TOP Info
 #define MB_PER_DMA_COUNT_I    (MB_PER_DMA*(64/16))
-#define MB_PER_DMA_P          (256*16/160) // 256 Lmem can hold MB_PER_DMA TOP Info 
+#define MB_PER_DMA_P          (256*16/160) // 256 Lmem can hold MB_PER_DMA TOP Info
 #define MB_PER_DMA_COUNT_P    (MB_PER_DMA_P*(160/16))
 #if 0
 /*output buffer define*/
 #define BitstreamStart        0x01e00000
-#define BitstreamEnd          0x01e001f8  
+#define BitstreamEnd          0x01e001f8
 #define BitstreamIntAddr      0x01e00010
 /*input buffer define*/
-#define dct_buff_start_addr   0x02000000 
+#define dct_buff_start_addr   0x02000000
 #define dct_buff_end_addr     0x037ffff8
 
 /*deblock buffer define*/
@@ -208,13 +432,13 @@ typedef enum{
 #define LAST_MB_MV_BITS           r22
 #define LAST_MB_COEFF_BITS        r23
 
-#define TOP_INFO_0                r24 
-#define TOP_INFO_1                r25 
-#define TOP_INFO_1_NEXT           r26 
-#define TOP_MV_0                  r27 
-#define TOP_MV_1                  r28 
-#define TOP_MV_2                  r29 
-#define TOP_MV_3                  r30 
+#define TOP_INFO_0                r24
+#define TOP_INFO_1                r25
+#define TOP_INFO_1_NEXT           r26
+#define TOP_MV_0                  r27
+#define TOP_MV_1                  r28
+#define TOP_MV_2                  r29
+#define TOP_MV_3                  r30
 
 #define vr00                      r8
 #define vr01                      r9
@@ -225,15 +449,15 @@ typedef enum{
 
 
 #ifdef INTRA_IN_P_TOP
-#define TOP_Y_DDR_SWAP_LEFT_REG   r32 
+#define TOP_Y_DDR_SWAP_LEFT_REG   r32
 #define CURRENT_SLICE_QUANT       r33
-#define TOP_C_DDR_SWAP_LEFT_REG   r34 
+#define TOP_C_DDR_SWAP_LEFT_REG   r34
 
 #define CURRENT_INTRA_REG         r35
-#define TOP_INFO_0_NEXT           r36 
-#define TOP_INFO_0_READ           r37 
-#define SW_IF_REG_0               r38 
-#define SW_IF_REG_1               r39 
+#define TOP_INFO_0_NEXT           r36
+#define TOP_INFO_0_READ           r37
+#define SW_IF_REG_0               r38
+#define SW_IF_REG_1               r39
 // bit[31:1] top
 // bit[0] left
 #define INTRA_STATUS_REG          r40
@@ -312,8 +536,8 @@ typedef enum{
 #define IE_REF_SEL						HENC_SCRATCH_F
 
 
-// [21:16] P_INTRA_QUANT 
-// [15:0]  INTRA_MIN_BITS 
+// [21:16] P_INTRA_QUANT
+// [15:0]  INTRA_MIN_BITS
 #define P_INTRA_CONFIG            HENC_SCRATCH_G
 
 // [31:16] TARGET_BITS_PER_MB
@@ -338,9 +562,9 @@ typedef enum{
 // Each MB have 32 bits :
 // 12-bits MV_BITS, 4-bits MB_TYPE,  and 16-bits COEFF_BITS
 #define BITS_INFO_DDR_START       HENC_SCRATCH_M
-// Each MV has 16 x 32 bits 
+// Each MV has 16 x 32 bits
 #define MV_INFO_DDR_START         HENC_SCRATCH_N
-// Each I4x4 has 64 bits 
+// Each I4x4 has 64 bits
 #define I4x4_INFO_DDR_START       MV_INFO_DDR_START  //shared will not dump I4x4 and MV at same time
 
 // can be shared by BITS_INFO_DDR_START
@@ -351,7 +575,7 @@ typedef enum{
 
 #define CURRENT_Y_CANVAS_START    HENC_SCRATCH_3
 #define CURRENT_C_CANVAS_START    HENC_SCRATCH_4
-// For Block Mode 1 - 32x32 
+// For Block Mode 1 - 32x32
 // If CAVAS width = 1920, then row_size = 1920/32 * 32 * 32 = 61440 (0xf000)
 #define CANVAS_ROW_SIZE           HENC_SCRATCH_C
 
@@ -380,15 +604,17 @@ typedef enum{
 #define ENCODER_NON_IDR_INTRA     13
 #define ENCODER_NON_IDR_INTER     14
 
+#define ENCODER_ERROR     0xff
+
 //---------------------------------------------------
 // NAL start code define
 //---------------------------------------------------
 /* defines for H.264 */
-#define Coded_slice_of_a_non_IDR_picture      1               
-#define Coded_slice_of_an_IDR_picture         5               
+#define Coded_slice_of_a_non_IDR_picture      1
+#define Coded_slice_of_an_IDR_picture         5
 #define Supplemental_enhancement_information  6
-#define Sequence_parameter_set                7    
-#define Picture_parameter_set                 8               
+#define Sequence_parameter_set                7
+#define Picture_parameter_set                 8
 
 /* defines for H.264 slice_type */
 #define I_Slice                               2
@@ -402,10 +628,10 @@ typedef enum{
 #define nal_reference_idc_idr     3
 #define nal_reference_idc_non_idr 2
 
-#define SEQUENCE_NAL ((nal_reference_idc_idr<<5) | Sequence_parameter_set) 
-#define PICTURE_NAL  ((nal_reference_idc_idr<<5) | Picture_parameter_set) 
-#define IDR_NAL      ((nal_reference_idc_idr<<5) | Coded_slice_of_an_IDR_picture) 
-#define NON_IDR_NAL  ((nal_reference_idc_non_idr<<5) | Coded_slice_of_a_non_IDR_picture) 
+#define SEQUENCE_NAL ((nal_reference_idc_idr<<5) | Sequence_parameter_set)
+#define PICTURE_NAL  ((nal_reference_idc_idr<<5) | Picture_parameter_set)
+#define IDR_NAL      ((nal_reference_idc_idr<<5) | Coded_slice_of_an_IDR_picture)
+#define NON_IDR_NAL  ((nal_reference_idc_non_idr<<5) | Coded_slice_of_a_non_IDR_picture)
 
 //---------------------------------------------------
 // I_IN_P TOP Status
@@ -418,7 +644,7 @@ typedef enum{
  *  Local Memory
 ********************************************/
 //#define INTR_MSK_SAVE                  0x000
-//#define QPPicture                      0x001 
+//#define QPPicture                      0x001
 //#define i_pred_mbx                     0x002
 //#define i_pred_mby                     0x003
 //#define log2_max_pic_order_cnt_lsb     0x004
@@ -515,7 +741,7 @@ typedef enum{
 //#define HENC_TOP_LMEM_BEGIN            0x300
 
 /********************************************
-* defines for HENC command 
+* defines for HENC command
 ********************************************/
 #define HENC_SEND_MB_TYPE_COMMAND           1
 #define HENC_SEND_I_PRED_MODE_COMMAND       2
@@ -534,7 +760,7 @@ typedef enum{
 #define HENC_B_PICTURE      2
 
 /********************************************
-* defines for H.264 mb_type 
+* defines for H.264 mb_type
 ********************************************/
 #define HENC_MB_Type_PBSKIP                      0x0
 #define HENC_MB_Type_PSKIP                       0x0
@@ -566,8 +792,8 @@ typedef enum{
 // For I Slice
 #define DEFAULT_INTRA_TYPE      0xffff
 #define DEFAULT_CBP_BLK         0x0000
-#define DEFAULT_C_NNZ           0x0000 
-#define DEFAULT_Y_NNZ           0x0000 
+#define DEFAULT_C_NNZ           0x0000
+#define DEFAULT_Y_NNZ           0x0000
 
 #define DEFAULT_MVX             0x8000
 #define DEFAULT_MVY             0x4000
@@ -575,22 +801,22 @@ typedef enum{
 // For I Slice
 // Bit[31:20] Reserved
 // Bit[19:16] cbp
-// Bit[15:0] IntraType 
-//`define     HENC_TOP_INFO_0        8'h37 
-//`define     HENC_LEFT_INFO_0       8'h38 
+// Bit[15:0] IntraType
+//`define     HENC_TOP_INFO_0        8'h37
+//`define     HENC_LEFT_INFO_0       8'h38
 
 // For I Slice and Intra/Inter Mixed Slice
 // Bit[31:24] V_nnz
 // Bit[23:16] U_nnz
-// Bit[15:0]  Y_nnz 
-//`define     HENC_TOP_INFO_1        8'h39 
-//`define     HENC_LEFT_INFO_1       8'h3a 
+// Bit[15:0]  Y_nnz
+//`define     HENC_TOP_INFO_1        8'h39
+//`define     HENC_LEFT_INFO_1       8'h3a
 
 // For Intra/Inter Mixed Slice
-// 
+//
 // bit[31] -  cbp[3]
 // bit[30:16] - MVY ( 0x3fff Means Intra MB)
-// bit[15:0]  - MVX ( IntraType for Intra MB) 
+// bit[15:0]  - MVX ( IntraType for Intra MB)
 //`define     HENC_TOP_MV_0
 // bit[31] -  cbp[2]
 // bit[30:16] - MVY
@@ -611,7 +837,7 @@ typedef enum{
 //`define     HENC_LEFT_MV_3
 
 ///////////////////////////////////////////////////////////////////////////
-// 
+//
 ///////////////////////////////////////////////////////////////////////////
 
 #endif
