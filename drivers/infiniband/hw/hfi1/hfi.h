@@ -582,8 +582,16 @@ struct hfi1_pportdata {
 	struct kobject vl2mtu_kobj;
 
 	/* PHY support */
-	u32 port_type;
 	struct qsfp_data qsfp_info;
+	/* Values for SI tuning of SerDes */
+	u32 port_type;
+	u32 tx_preset_eq;
+	u32 tx_preset_noeq;
+	u32 rx_preset;
+	u8  local_atten;
+	u8  remote_atten;
+	u8  default_atten;
+	u8  max_power_class;
 
 	/* GUIDs for this interface, in host order, guids[0] is a port guid */
 	u64 guids[HFI1_GUIDS_PER_PORT];
@@ -2018,6 +2026,12 @@ static inline u32 i2c_target(u32 target)
 static inline u32 qsfp_resource(struct hfi1_devdata *dd)
 {
 	return i2c_target(dd->hfi1_id);
+}
+
+/* Is this device integrated or discrete? */
+static inline bool is_integrated(struct hfi1_devdata *dd)
+{
+	return dd->pcidev->device == PCI_DEVICE_ID_INTEL1;
 }
 
 int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp);

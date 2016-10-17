@@ -49,6 +49,90 @@
 #include "efivar.h"
 #include "eprom.h"
 
+static int validate_scratch_checksum(struct hfi1_devdata *dd)
+{
+	u64 checksum = 0, temp_scratch = 0;
+	int i, j, version;
+
+	temp_scratch = read_csr(dd, ASIC_CFG_SCRATCH);
+	version = (temp_scratch & BITMAP_VERSION_SMASK) >> BITMAP_VERSION_SHIFT;
+
+	/* Prevent power on default of all zeroes from passing checksum */
+	if (!version)
+		return 0;
+
+	/*
+	 * ASIC scratch 0 only contains the checksum and bitmap version as
+	 * fields of interest, both of which are handled separately from the
+	 * loop below, so skip it
+	 */
+	checksum += version;
+	for (i = 1; i < ASIC_NUM_SCRATCH; i++) {
+		temp_scratch = read_csr(dd, ASIC_CFG_SCRATCH + (8 * i));
+		for (j = sizeof(u64); j != 0; j -= 2) {
+			checksum += (temp_scratch & 0xFFFF);
+			temp_scratch >>= 16;
+		}
+	}
+
+	while (checksum >> 16)
+		checksum = (checksum & CHECKSUM_MASK) + (checksum >> 16);
+
+	temp_scratch = read_csr(dd, ASIC_CFG_SCRATCH);
+	temp_scratch &= CHECKSUM_SMASK;
+	temp_scratch >>= CHECKSUM_SHIFT;
+
+	if (checksum + temp_scratch == 0xFFFF)
+		return 1;
+	return 0;
+}
+
+static void save_platform_config_fields(struct hfi1_devdata *dd)
+{
+	struct hfi1_pportdata *ppd = dd->pport;
+	u64 temp_scratch = 0, temp_dest = 0;
+
+	temp_scratch = read_csr(dd, ASIC_CFG_SCRATCH_1);
+
+	temp_dest = temp_scratch &
+		    (dd->hfi1_id ? PORT1_PORT_TYPE_SMASK :
+		     PORT0_PORT_TYPE_SMASK);
+	ppd->port_type = temp_dest >>
+			 (dd->hfi1_id ? PORT1_PORT_TYPE_SHIFT :
+			  PORT0_PORT_TYPE_SHIFT);
+
+	temp_dest = temp_scratch &
+		    (dd->hfi1_id ? PORT1_LOCAL_ATTEN_SMASK :
+		     PORT0_LOCAL_ATTEN_SMASK);
+	ppd->local_atten = temp_dest >>
+			   (dd->hfi1_id ? PORT1_LOCAL_ATTEN_SHIFT :
+			    PORT0_LOCAL_ATTEN_SHIFT);
+
+	temp_dest = temp_scratch &
+		    (dd->hfi1_id ? PORT1_REMOTE_ATTEN_SMASK :
+		     PORT0_REMOTE_ATTEN_SMASK);
+	ppd->remote_atten = temp_dest >>
+			    (dd->hfi1_id ? PORT1_REMOTE_ATTEN_SHIFT :
+			     PORT0_REMOTE_ATTEN_SHIFT);
+
+	temp_dest = temp_scratch &
+		    (dd->hfi1_id ? PORT1_DEFAULT_ATTEN_SMASK :
+		     PORT0_DEFAULT_ATTEN_SMASK);
+	ppd->default_atten = temp_dest >>
+			     (dd->hfi1_id ? PORT1_DEFAULT_ATTEN_SHIFT :
+			      PORT0_DEFAULT_ATTEN_SHIFT);
+
+	temp_scratch = read_csr(dd, dd->hfi1_id ? ASIC_CFG_SCRATCH_3 :
+				ASIC_CFG_SCRATCH_2);
+
+	ppd->tx_preset_eq = (temp_scratch & TX_EQ_SMASK) >> TX_EQ_SHIFT;
+	ppd->tx_preset_noeq = (temp_scratch & TX_NO_EQ_SMASK) >> TX_NO_EQ_SHIFT;
+	ppd->rx_preset = (temp_scratch & RX_SMASK) >> RX_SHIFT;
+
+	ppd->max_power_class = (temp_scratch & QSFP_MAX_POWER_SMASK) >>
+				QSFP_MAX_POWER_SHIFT;
+}
+
 void get_platform_config(struct hfi1_devdata *dd)
 {
 	int ret = 0;
@@ -56,38 +140,49 @@ void get_platform_config(struct hfi1_devdata *dd)
 	u8 *temp_platform_config = NULL;
 	u32 esize;
 
-	ret = eprom_read_platform_config(dd, (void **)&temp_platform_config,
-					 &esize);
-	if (!ret) {
-		/* success */
-		size = esize;
-		goto success;
+	if (is_integrated(dd)) {
+		if (validate_scratch_checksum(dd)) {
+			save_platform_config_fields(dd);
+			return;
+		}
+		dd_dev_err(dd, "%s: Config bitmap corrupted/uninitialized\n",
+			   __func__);
+		dd_dev_err(dd,
+			   "%s: Please update your BIOS to support active channels\n",
+			   __func__);
+	} else {
+		ret = eprom_read_platform_config(dd,
+						 (void **)&temp_platform_config,
+						 &esize);
+		if (!ret) {
+			/* success */
+			dd->platform_config.data = temp_platform_config;
+			dd->platform_config.size = esize;
+			return;
+		}
+		/* fail, try EFI variable */
+
+		ret = read_hfi1_efi_var(dd, "configuration", &size,
+					(void **)&temp_platform_config);
+		if (!ret) {
+			dd->platform_config.data = temp_platform_config;
+			dd->platform_config.size = size;
+			return;
+		}
 	}
-	/* fail, try EFI variable */
-
-	ret = read_hfi1_efi_var(dd, "configuration", &size,
-				(void **)&temp_platform_config);
-	if (!ret)
-		goto success;
-
-	dd_dev_info(dd,
-		    "%s: Failed to get platform config from UEFI, falling back to request firmware\n",
-		    __func__);
+	dd_dev_err(dd,
+		   "%s: Failed to get platform config, falling back to sub-optimal default file\n",
+		   __func__);
 	/* fall back to request firmware */
 	platform_config_load = 1;
-	return;
-
-success:
-	dd->platform_config.data = temp_platform_config;
-	dd->platform_config.size = size;
 }
 
 void free_platform_config(struct hfi1_devdata *dd)
 {
 	if (!platform_config_load) {
 		/*
-		 * was loaded from EFI, release memory
-		 * allocated by read_efi_var
+		 * was loaded from EFI or the EPROM, release memory
+		 * allocated by read_efi_var/eprom_read_platform_config
 		 */
 		kfree(dd->platform_config.data);
 	}
@@ -100,12 +195,16 @@ void free_platform_config(struct hfi1_devdata *dd)
 void get_port_type(struct hfi1_pportdata *ppd)
 {
 	int ret;
+	u32 temp;
 
 	ret = get_platform_config_field(ppd->dd, PLATFORM_CONFIG_PORT_TABLE, 0,
-					PORT_TABLE_PORT_TYPE, &ppd->port_type,
+					PORT_TABLE_PORT_TYPE, &temp,
 					4);
-	if (ret)
+	if (ret) {
 		ppd->port_type = PORT_TYPE_UNKNOWN;
+		return;
+	}
+	ppd->port_type = temp;
 }
 
 int set_qsfp_tx(struct hfi1_pportdata *ppd, int on)
