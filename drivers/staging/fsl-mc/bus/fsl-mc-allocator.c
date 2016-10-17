@@ -12,9 +12,9 @@
 #include <linux/msi.h>
 #include "../include/mc-bus.h"
 #include "../include/mc-sys.h"
-#include "../include/dpbp-cmd.h"
-#include "../include/dpcon-cmd.h"
 
+#include "dpbp-cmd.h"
+#include "dpcon-cmd.h"
 #include "fsl-mc-private.h"
 
 #define FSL_MC_IS_ALLOCATABLE(_obj_type) \

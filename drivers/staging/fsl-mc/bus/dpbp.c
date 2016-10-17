@@ -32,7 +32,8 @@
 #include "../include/mc-sys.h"
 #include "../include/mc-cmd.h"
 #include "../include/dpbp.h"
-#include "../include/dpbp-cmd.h"
+
+#include "dpbp-cmd.h"
 
 /**
  * dpbp_open() - Open a control session for the specified object.
