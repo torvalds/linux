@@ -263,6 +263,7 @@ static const struct of_device_id s5p_cec_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, s5p_cec_match);
 
 static struct platform_driver s5p_cec_pdrv = {
 	.probe	= s5p_cec_probe,
