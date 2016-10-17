@@ -154,6 +154,7 @@ struct amdgpu_vm_manager {
 	unsigned				seqno[AMDGPU_MAX_RINGS];
 
 	uint32_t				max_pfn;
+	uint32_t				num_level;
 	/* vram base address for page table entry  */
 	u64					vram_base_offset;
 	/* is vm enabled? */

@@ -945,6 +945,7 @@ static int gmc_v8_0_vm_init(struct amdgpu_device *adev)
 	 * amdkfd will use VMIDs 8-15
 	 */
 	adev->vm_manager.num_ids = AMDGPU_NUM_OF_VMIDS;
+	adev->vm_manager.num_level = 1;
 	amdgpu_vm_manager_init(adev);
 
 	/* base offset of vram pages */
