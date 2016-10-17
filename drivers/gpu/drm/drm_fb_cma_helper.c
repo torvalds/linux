@@ -176,20 +176,20 @@ struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
 	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd,
 	const struct drm_framebuffer_funcs *funcs)
 {
+	const struct drm_format_info *info;
 	struct drm_fb_cma *fb_cma;
 	struct drm_gem_cma_object *objs[4];
 	struct drm_gem_object *obj;
-	unsigned int hsub;
-	unsigned int vsub;
 	int ret;
 	int i;
 
-	hsub = drm_format_horz_chroma_subsampling(mode_cmd->pixel_format);
-	vsub = drm_format_vert_chroma_subsampling(mode_cmd->pixel_format);
+	info = drm_format_info(mode_cmd->pixel_format);
+	if (!info)
+		return ERR_PTR(-EINVAL);
 
-	for (i = 0; i < drm_format_num_planes(mode_cmd->pixel_format); i++) {
-		unsigned int width = mode_cmd->width / (i ? hsub : 1);
-		unsigned int height = mode_cmd->height / (i ? vsub : 1);
+	for (i = 0; i < info->num_planes; i++) {
+		unsigned int width = mode_cmd->width / (i ? info->hsub : 1);
+		unsigned int height = mode_cmd->height / (i ? info->vsub : 1);
 		unsigned int min_size;
 
 		obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[i]);
@@ -200,7 +200,7 @@ struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
 		}
 
 		min_size = (height - 1) * mode_cmd->pitches[i]
-			 + width * drm_format_plane_cpp(mode_cmd->pixel_format, i)
+			 + width * info->cpp[i]
 			 + mode_cmd->offsets[i];
 
 		if (obj->size < min_size) {
@@ -269,12 +269,15 @@ EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_obj);
 static void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
 {
 	struct drm_fb_cma *fb_cma = to_fb_cma(fb);
-	int i, n = drm_format_num_planes(fb->pixel_format);
+	const struct drm_format_info *info;
+	int i;
 
 	seq_printf(m, "fb: %dx%d@%4.4s\n", fb->width, fb->height,
 			(char *)&fb->pixel_format);
 
-	for (i = 0; i < n; i++) {
+	info = drm_format_info(fb->pixel_format);
+
+	for (i = 0; i < info->num_planes; i++) {
 		seq_printf(m, "   %d: offset=%d pitch=%d, obj: ",
 				i, fb->offsets[i], fb->pitches[i]);
 		drm_gem_cma_describe(fb_cma->obj[i], m);

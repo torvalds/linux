@@ -126,111 +126,33 @@ int drm_mode_addfb(struct drm_device *dev,
 	return 0;
 }
 
-static int format_check(const struct drm_mode_fb_cmd2 *r)
-{
-	uint32_t format = r->pixel_format & ~DRM_FORMAT_BIG_ENDIAN;
-	char *format_name;
-
-	switch (format) {
-	case DRM_FORMAT_C8:
-	case DRM_FORMAT_RGB332:
-	case DRM_FORMAT_BGR233:
-	case DRM_FORMAT_XRGB4444:
-	case DRM_FORMAT_XBGR4444:
-	case DRM_FORMAT_RGBX4444:
-	case DRM_FORMAT_BGRX4444:
-	case DRM_FORMAT_ARGB4444:
-	case DRM_FORMAT_ABGR4444:
-	case DRM_FORMAT_RGBA4444:
-	case DRM_FORMAT_BGRA4444:
-	case DRM_FORMAT_XRGB1555:
-	case DRM_FORMAT_XBGR1555:
-	case DRM_FORMAT_RGBX5551:
-	case DRM_FORMAT_BGRX5551:
-	case DRM_FORMAT_ARGB1555:
-	case DRM_FORMAT_ABGR1555:
-	case DRM_FORMAT_RGBA5551:
-	case DRM_FORMAT_BGRA5551:
-	case DRM_FORMAT_RGB565:
-	case DRM_FORMAT_BGR565:
-	case DRM_FORMAT_RGB888:
-	case DRM_FORMAT_BGR888:
-	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_XBGR8888:
-	case DRM_FORMAT_RGBX8888:
-	case DRM_FORMAT_BGRX8888:
-	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_ABGR8888:
-	case DRM_FORMAT_RGBA8888:
-	case DRM_FORMAT_BGRA8888:
-	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_XBGR2101010:
-	case DRM_FORMAT_RGBX1010102:
-	case DRM_FORMAT_BGRX1010102:
-	case DRM_FORMAT_ARGB2101010:
-	case DRM_FORMAT_ABGR2101010:
-	case DRM_FORMAT_RGBA1010102:
-	case DRM_FORMAT_BGRA1010102:
-	case DRM_FORMAT_YUYV:
-	case DRM_FORMAT_YVYU:
-	case DRM_FORMAT_UYVY:
-	case DRM_FORMAT_VYUY:
-	case DRM_FORMAT_AYUV:
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV21:
-	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV61:
-	case DRM_FORMAT_NV24:
-	case DRM_FORMAT_NV42:
-	case DRM_FORMAT_YUV410:
-	case DRM_FORMAT_YVU410:
-	case DRM_FORMAT_YUV411:
-	case DRM_FORMAT_YVU411:
-	case DRM_FORMAT_YUV420:
-	case DRM_FORMAT_YVU420:
-	case DRM_FORMAT_YUV422:
-	case DRM_FORMAT_YVU422:
-	case DRM_FORMAT_YUV444:
-	case DRM_FORMAT_YVU444:
-		return 0;
-	default:
-		format_name = drm_get_format_name(r->pixel_format);
-		DRM_DEBUG_KMS("invalid pixel format %s\n", format_name);
-		kfree(format_name);
-		return -EINVAL;
-	}
-}
-
 static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 {
-	int ret, hsub, vsub, num_planes, i;
+	const struct drm_format_info *info;
+	int i;
 
-	ret = format_check(r);
-	if (ret) {
+	info = drm_format_info(r->pixel_format & ~DRM_FORMAT_BIG_ENDIAN);
+	if (!info) {
 		char *format_name = drm_get_format_name(r->pixel_format);
 		DRM_DEBUG_KMS("bad framebuffer format %s\n", format_name);
 		kfree(format_name);
-		return ret;
+		return -EINVAL;
 	}
 
-	hsub = drm_format_horz_chroma_subsampling(r->pixel_format);
-	vsub = drm_format_vert_chroma_subsampling(r->pixel_format);
-	num_planes = drm_format_num_planes(r->pixel_format);
-
-	if (r->width == 0 || r->width % hsub) {
+	if (r->width == 0 || r->width % info->hsub) {
 		DRM_DEBUG_KMS("bad framebuffer width %u\n", r->width);
 		return -EINVAL;
 	}
 
-	if (r->height == 0 || r->height % vsub) {
+	if (r->height == 0 || r->height % info->vsub) {
 		DRM_DEBUG_KMS("bad framebuffer height %u\n", r->height);
 		return -EINVAL;
 	}
 
-	for (i = 0; i < num_planes; i++) {
-		unsigned int width = r->width / (i != 0 ? hsub : 1);
-		unsigned int height = r->height / (i != 0 ? vsub : 1);
-		unsigned int cpp = drm_format_plane_cpp(r->pixel_format, i);
+	for (i = 0; i < info->num_planes; i++) {
+		unsigned int width = r->width / (i != 0 ? info->hsub : 1);
+		unsigned int height = r->height / (i != 0 ? info->vsub : 1);
+		unsigned int cpp = info->cpp[i];
 
 		if (!r->handles[i]) {
 			DRM_DEBUG_KMS("no buffer object handle for plane %d\n", i);
@@ -273,7 +195,7 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 		}
 	}
 
-	for (i = num_planes; i < 4; i++) {
+	for (i = info->num_planes; i < 4; i++) {
 		if (r->modifier[i]) {
 			DRM_DEBUG_KMS("non-zero modifier for unused plane %d\n", i);
 			return -EINVAL;
