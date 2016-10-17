@@ -1736,8 +1736,7 @@ int qsfp_dump(struct hfi1_pportdata *ppd, char *buf, int len);
 
 int hfi1_pcie_init(struct pci_dev *, const struct pci_device_id *);
 void hfi1_pcie_cleanup(struct pci_dev *);
-int hfi1_pcie_ddinit(struct hfi1_devdata *, struct pci_dev *,
-		     const struct pci_device_id *);
+int hfi1_pcie_ddinit(struct hfi1_devdata *, struct pci_dev *);
 void hfi1_pcie_ddcleanup(struct hfi1_devdata *);
 void hfi1_pcie_flr(struct hfi1_devdata *);
 int pcie_speeds(struct hfi1_devdata *);
