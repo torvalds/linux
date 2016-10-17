@@ -33,7 +33,7 @@ need to scan the entire runqueue looking for the process with the earliest
 deadline and schedule that next, regardless of which CPU it originally came
 from. This made BFS deterministic with respect to latency and provided
 guaranteed latencies dependent on number of processes and CPUs. The single
-runqueue, however, meant that all CPUs would complete for the single lock
+runqueue, however, meant that all CPUs would compete for the single lock
 protecting it, which would lead to increasing lock contention as the number of
 CPUs rose and appeared to limit scalability of common workloads beyond 16
 logical CPUs. Additionally, the O(n) lookup of the runqueue list obviously
