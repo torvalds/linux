@@ -72,16 +72,14 @@ static void set_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct drm_gem_cma_object *gem;
-	unsigned int depth, bpp;
 	dma_addr_t start, end;
 	u64 dma_base_and_ceiling;
 
-	drm_fb_get_bpp_depth(fb->pixel_format, &depth, &bpp);
 	gem = drm_fb_cma_get_gem_obj(fb, 0);
 
 	start = gem->paddr + fb->offsets[0] +
 		crtc->y * fb->pitches[0] +
-		crtc->x * bpp / 8;
+		crtc->x * drm_format_plane_cpp(fb->pixel_format, 0);
 
 	end = start + (crtc->mode.vdisplay * fb->pitches[0]);
 
@@ -461,16 +459,16 @@ static void tilcdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	if (info->tft_alt_mode)
 		reg |= LCDC_TFT_ALT_ENABLE;
 	if (priv->rev == 2) {
-		unsigned int depth, bpp;
-
-		drm_fb_get_bpp_depth(fb->pixel_format, &depth, &bpp);
-		switch (bpp) {
-		case 16:
+		switch (fb->pixel_format) {
+		case DRM_FORMAT_BGR565:
+		case DRM_FORMAT_RGB565:
 			break;
-		case 32:
+		case DRM_FORMAT_XBGR8888:
+		case DRM_FORMAT_XRGB8888:
 			reg |= LCDC_V2_TFT_24BPP_UNPACK;
 			/* fallthrough */
-		case 24:
+		case DRM_FORMAT_BGR888:
+		case DRM_FORMAT_RGB888:
 			reg |= LCDC_V2_TFT_24BPP_MODE;
 			break;
 		default:
