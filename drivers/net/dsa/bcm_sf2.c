@@ -1158,6 +1158,7 @@ static const struct of_device_id bcm_sf2_of_match[] = {
 	{ .compatible = "brcm,bcm7445-switch-v4.0" },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, bcm_sf2_of_match);
 
 static struct platform_driver bcm_sf2_driver = {
 	.probe	= bcm_sf2_sw_probe,
