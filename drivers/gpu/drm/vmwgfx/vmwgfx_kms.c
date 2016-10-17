@@ -980,14 +980,22 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	struct vmw_dma_buffer *bo = NULL;
 	struct ttm_base_object *user_obj;
 	struct drm_mode_fb_cmd mode_cmd;
+	const struct drm_format_info *info;
 	int ret;
+
+	info = drm_format_info(mode_cmd2->pixel_format);
+	if (!info || !info->depth) {
+		DRM_ERROR("Unsupported framebuffer format %s\n",
+			  drm_get_format_name(mode_cmd2->pixel_format));
+		return ERR_PTR(-EINVAL);
+	}
 
 	mode_cmd.width = mode_cmd2->width;
 	mode_cmd.height = mode_cmd2->height;
 	mode_cmd.pitch = mode_cmd2->pitches[0];
 	mode_cmd.handle = mode_cmd2->handles[0];
-	drm_fb_get_bpp_depth(mode_cmd2->pixel_format, &mode_cmd.depth,
-				    &mode_cmd.bpp);
+	mode_cmd.depth = info->depth;
+	mode_cmd.bpp = info->cpp[0] * 8;
 
 	/**
 	 * This code should be conditioned on Screen Objects not being used.
