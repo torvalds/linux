@@ -41,7 +41,6 @@ const char * const *kbase_gator_hwcnt_init_names(uint32_t *total_counters)
 {
 	const char * const *hardware_counters;
 	struct kbase_device *kbdev;
-	uint32_t gpu_id;
 	uint32_t product_id;
 	uint32_t count;
 
@@ -53,25 +52,27 @@ const char * const *kbase_gator_hwcnt_init_names(uint32_t *total_counters)
 	if (!kbdev)
 		return NULL;
 
-	gpu_id = kbdev->gpu_props.props.core_props.product_id;
-	product_id = gpu_id & GPU_ID_VERSION_PRODUCT_ID;
-	product_id >>= GPU_ID_VERSION_PRODUCT_ID_SHIFT;
+	product_id = kbdev->gpu_props.props.core_props.product_id;
 
 	if (GPU_ID_IS_NEW_FORMAT(product_id)) {
-		switch (gpu_id & GPU_ID2_PRODUCT_MODEL) {
+		switch (GPU_ID2_MODEL_MATCH_VALUE(product_id)) {
 		case GPU_ID2_PRODUCT_TMIX:
 			hardware_counters = hardware_counters_mali_tMIx;
 			count = ARRAY_SIZE(hardware_counters_mali_tMIx);
 			break;
+		case GPU_ID2_PRODUCT_THEX:
+			hardware_counters = hardware_counters_mali_tHEx;
+			count = ARRAY_SIZE(hardware_counters_mali_tHEx);
+			break;
 		default:
 			hardware_counters = NULL;
 			count = 0;
-			dev_err(kbdev->dev, "Unrecognized gpu ID: %u\n",
-				gpu_id);
+			dev_err(kbdev->dev, "Unrecognized product ID: %u\n",
+				product_id);
 			break;
 		}
 	} else {
-		switch (gpu_id) {
+		switch (product_id) {
 			/* If we are using a Mali-T60x device */
 		case GPU_ID_PI_T60X:
 			hardware_counters = hardware_counters_mali_t60x;
@@ -115,8 +116,8 @@ const char * const *kbase_gator_hwcnt_init_names(uint32_t *total_counters)
 		default:
 			hardware_counters = NULL;
 			count = 0;
-			dev_err(kbdev->dev, "Unrecognized gpu ID: %u\n",
-				gpu_id);
+			dev_err(kbdev->dev, "Unrecognized product ID: %u\n",
+				product_id);
 			break;
 		}
 	}

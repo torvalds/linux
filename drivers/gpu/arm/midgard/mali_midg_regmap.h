@@ -61,6 +61,7 @@
 #define LATEST_FLUSH            0x038	/* (RO) */
 
 #define GROUPS_L2_COHERENT      (1 << 0)	/* Cores groups are l2 coherent */
+#define GPU_DBGEN               (1 << 8)	/* DBGEN wire status */
 
 #define GPU_FAULTSTATUS         0x03C	/* (RO) GPU exception type and fault status */
 #define GPU_FAULTADDRESS_LO     0x040	/* (RO) GPU exception fault address, low word */

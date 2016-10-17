@@ -26,15 +26,144 @@
 #include <backend/gpu/mali_kbase_device_internal.h>
 
 #if !defined(CONFIG_MALI_NO_MALI)
+
+
+#ifdef CONFIG_DEBUG_FS
+
+
+int kbase_io_history_resize(struct kbase_io_history *h, u16 new_size)
+{
+	struct kbase_io_access *old_buf;
+	struct kbase_io_access *new_buf;
+	unsigned long flags;
+
+	if (!new_size)
+		goto out_err; /* The new size must not be 0 */
+
+	new_buf = vmalloc(new_size * sizeof(*h->buf));
+	if (!new_buf)
+		goto out_err;
+
+	spin_lock_irqsave(&h->lock, flags);
+
+	old_buf = h->buf;
+
+	/* Note: we won't bother with copying the old data over. The dumping
+	 * logic wouldn't work properly as it relies on 'count' both as a
+	 * counter and as an index to the buffer which would have changed with
+	 * the new array. This is a corner case that we don't need to support.
+	 */
+	h->count = 0;
+	h->size = new_size;
+	h->buf = new_buf;
+
+	spin_unlock_irqrestore(&h->lock, flags);
+
+	vfree(old_buf);
+
+	return 0;
+
+out_err:
+	return -1;
+}
+
+
+int kbase_io_history_init(struct kbase_io_history *h, u16 n)
+{
+	h->enabled = false;
+	spin_lock_init(&h->lock);
+	h->count = 0;
+	h->size = 0;
+	h->buf = NULL;
+	if (kbase_io_history_resize(h, n))
+		return -1;
+
+	return 0;
+}
+
+
+void kbase_io_history_term(struct kbase_io_history *h)
+{
+	vfree(h->buf);
+	h->buf = NULL;
+}
+
+
+/* kbase_io_history_add - add new entry to the register access history
+ *
+ * @h: Pointer to the history data structure
+ * @addr: Register address
+ * @value: The value that is either read from or written to the register
+ * @write: 1 if it's a register write, 0 if it's a read
+ */
+static void kbase_io_history_add(struct kbase_io_history *h,
+		void __iomem const *addr, u32 value, u8 write)
+{
+	struct kbase_io_access *io;
+	unsigned long flags;
+
+	spin_lock_irqsave(&h->lock, flags);
+
+	io = &h->buf[h->count % h->size];
+	io->addr = (uintptr_t)addr | write;
+	io->value = value;
+	++h->count;
+	/* If count overflows, move the index by the buffer size so the entire
+	 * buffer will still be dumped later */
+	if (unlikely(!h->count))
+		h->count = h->size;
+
+	spin_unlock_irqrestore(&h->lock, flags);
+}
+
+
+void kbase_io_history_dump(struct kbase_device *kbdev)
+{
+	struct kbase_io_history *const h = &kbdev->io_history;
+	u16 i;
+	size_t iters;
+	unsigned long flags;
+
+	if (!unlikely(h->enabled))
+		return;
+
+	spin_lock_irqsave(&h->lock, flags);
+
+	dev_err(kbdev->dev, "Register IO History:");
+	iters = (h->size > h->count) ? h->count : h->size;
+	dev_err(kbdev->dev, "Last %zu register accesses of %zu total:\n", iters,
+			h->count);
+	for (i = 0; i < iters; ++i) {
+		struct kbase_io_access *io =
+			&h->buf[(h->count - iters + i) % h->size];
+		char const access = (io->addr & 1) ? 'w' : 'r';
+
+		dev_err(kbdev->dev, "%6i: %c: reg 0x%p val %08x\n", i, access,
+				(void *)(io->addr & ~0x1), io->value);
+	}
+
+	spin_unlock_irqrestore(&h->lock, flags);
+}
+
+
+#endif /* CONFIG_DEBUG_FS */
+
+
 void kbase_reg_write(struct kbase_device *kbdev, u16 offset, u32 value,
 						struct kbase_context *kctx)
 {
 	KBASE_DEBUG_ASSERT(kbdev->pm.backend.gpu_powered);
 	KBASE_DEBUG_ASSERT(kctx == NULL || kctx->as_nr != KBASEP_AS_NR_INVALID);
 	KBASE_DEBUG_ASSERT(kbdev->dev != NULL);
-	dev_dbg(kbdev->dev, "w: reg %04x val %08x", offset, value);
 
 	writel(value, kbdev->reg + offset);
+
+#ifdef CONFIG_DEBUG_FS
+	if (unlikely(kbdev->io_history.enabled))
+		kbase_io_history_add(&kbdev->io_history, kbdev->reg + offset,
+				value, 1);
+#endif /* CONFIG_DEBUG_FS */
+	dev_dbg(kbdev->dev, "w: reg %04x val %08x", offset, value);
 
 	if (kctx && kctx->jctx.tb)
 		kbase_device_trace_register_access(kctx, REG_WRITE, offset,
@@ -53,7 +182,13 @@ u32 kbase_reg_read(struct kbase_device *kbdev, u16 offset,
 
 	val = readl(kbdev->reg + offset);
 
+#ifdef CONFIG_DEBUG_FS
+	if (unlikely(kbdev->io_history.enabled))
+		kbase_io_history_add(&kbdev->io_history, kbdev->reg + offset,
+				val, 0);
+#endif /* CONFIG_DEBUG_FS */
 	dev_dbg(kbdev->dev, "r: reg %04x val %08x", offset, val);
+
 	if (kctx && kctx->jctx.tb)
 		kbase_device_trace_register_access(kctx, REG_READ, offset, val);
 	return val;

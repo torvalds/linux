@@ -30,10 +30,10 @@
 #define MALI_JD_DEBUGFS_VERSION 1
 
 /**
- * kbasep_jd_debugfs_ctx_add() - Add debugfs entries for JD system
+ * kbasep_jd_debugfs_ctx_init() - Add debugfs entries for JD system
  *
  * @kctx Pointer to kbase_context
  */
-void kbasep_jd_debugfs_ctx_add(struct kbase_context *kctx);
+void kbasep_jd_debugfs_ctx_init(struct kbase_context *kctx);
 
 #endif  /*_KBASE_JD_DEBUGFS_H*/

@@ -400,7 +400,8 @@ static inline int kbase_reg_prepare_native(struct kbase_va_region *reg,
 		return -ENOMEM;
 	reg->cpu_alloc->imported.kctx = kctx;
 	INIT_LIST_HEAD(&reg->cpu_alloc->evict_node);
-	if (kctx->infinite_cache_active && (reg->flags & KBASE_REG_CPU_CACHED)) {
+	if (kbase_ctx_flag(kctx, KCTX_INFINITE_CACHE)
+	    && (reg->flags & KBASE_REG_CPU_CACHED)) {
 		reg->gpu_alloc = kbase_alloc_create(reg->nr_pages,
 				KBASE_MEM_TYPE_NATIVE);
 		reg->gpu_alloc->imported.kctx = kctx;
@@ -487,7 +488,7 @@ void kbase_mem_pool_term(struct kbase_mem_pool *pool);
  * 1. If there are free pages in the pool, allocate a page from @pool.
  * 2. Otherwise, if @next_pool is not NULL and has free pages, allocate a page
  *    from @next_pool.
- * 3. Finally, allocate a page from the kernel.
+ * 3. Return NULL if no memory in the pool
  *
  * Return: Pointer to allocated page, or NULL if allocation failed.
  */
@@ -573,18 +574,38 @@ static inline size_t kbase_mem_pool_max_size(struct kbase_mem_pool *pool)
 void kbase_mem_pool_set_max_size(struct kbase_mem_pool *pool, size_t max_size);
 
 /**
+ * kbase_mem_pool_grow - Grow the pool
+ * @pool:       Memory pool to grow
+ * @nr_to_grow: Number of pages to add to the pool
+ *
+ * Adds @nr_to_grow pages to the pool. Note that this may cause the pool to
+ * become larger than the maximum size specified.
+ *
+ * Returns: 0 on success, -ENOMEM if unable to allocate sufficent pages
+ */
+int kbase_mem_pool_grow(struct kbase_mem_pool *pool, size_t nr_to_grow);
+
+/**
  * kbase_mem_pool_trim - Grow or shrink the pool to a new size
  * @pool:     Memory pool to trim
  * @new_size: New number of pages in the pool
  *
  * If @new_size > @cur_size, fill the pool with new pages from the kernel, but
- * not above @max_size.
+ * not above the max_size for the pool.
  * If @new_size < @cur_size, shrink the pool by freeing pages to the kernel.
- *
- * Return: The new size of the pool
  */
-size_t kbase_mem_pool_trim(struct kbase_mem_pool *pool, size_t new_size);
+void kbase_mem_pool_trim(struct kbase_mem_pool *pool, size_t new_size);
 
+/*
+ * kbase_mem_alloc_page - Allocate a new page for a device
+ * @kbdev: The kbase device
+ *
+ * Most uses should use kbase_mem_pool_alloc to allocate a page. However that
+ * function can fail in the event the pool is empty.
+ *
+ * Return: A new page or NULL if no memory
+ */
+struct page *kbase_mem_alloc_page(struct kbase_device *kbdev);
 
 int kbase_region_tracker_init(struct kbase_context *kctx);
 int kbase_region_tracker_init_jit(struct kbase_context *kctx, u64 jit_va_pages);
@@ -647,8 +668,8 @@ int kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg);
 
 /**
  * The caller has the following locking conditions:
- * - It must hold kbase_as::transaction_mutex on kctx's address space
- * - It must hold the kbasep_js_device_data::runpool_irq::lock
+ * - It must hold kbase_device->mmu_hw_mutex
+ * - It must hold the hwaccess_lock
  */
 void kbase_mmu_update(struct kbase_context *kctx);
 
@@ -660,8 +681,8 @@ void kbase_mmu_update(struct kbase_context *kctx);
  * data from provided kbase context from the GPU caches.
  *
  * The caller has the following locking conditions:
- * - It must hold kbase_as::transaction_mutex on kctx's address space
- * - It must hold the kbasep_js_device_data::runpool_irq::lock
+ * - It must hold kbase_device->mmu_hw_mutex
+ * - It must hold the hwaccess_lock
  */
 void kbase_mmu_disable(struct kbase_context *kctx);
 
@@ -674,7 +695,7 @@ void kbase_mmu_disable(struct kbase_context *kctx);
  * This function must only be called during reset/power-up and it used to
  * ensure the registers are in a known state.
  *
- * The caller must hold kbdev->as[as_nr].transaction_mutex.
+ * The caller must hold kbdev->mmu_hw_mutex.
  */
 void kbase_mmu_disable_as(struct kbase_device *kbdev, int as_nr);
 
@@ -894,10 +915,10 @@ void kbase_sync_single_for_cpu(struct kbase_device *kbdev, dma_addr_t handle,
 
 #ifdef CONFIG_DEBUG_FS
 /**
- * kbase_jit_debugfs_add - Add per context debugfs entry for JIT.
+ * kbase_jit_debugfs_init - Add per context debugfs entry for JIT.
  * @kctx: kbase context
  */
-void kbase_jit_debugfs_add(struct kbase_context *kctx);
+void kbase_jit_debugfs_init(struct kbase_context *kctx);
 #endif /* CONFIG_DEBUG_FS */
 
 /**

@@ -44,17 +44,6 @@ struct kbase_device;
 struct kbase_jd_atom;
 
 
-/* Types used by the policies must go here */
-enum {
-	/** Context will not submit any jobs */
-	KBASE_CTX_FLAG_SUBMIT_DISABLED = (1u << 0),
-
-	/** Set if the context uses an address space and should be kept scheduled in */
-	KBASE_CTX_FLAG_PRIVILEGED = (1u << 1)
-
-	    /* NOTE: Add flags for other things, such as 'is scheduled', and 'is dying' */
-};
-
 typedef u32 kbase_context_flags;
 
 struct kbasep_atom_req {
@@ -185,9 +174,8 @@ typedef u32 kbasep_js_atom_done_code;
 /**
  * Data used by the scheduler that is unique for each Address Space.
  *
- * This is used in IRQ context and kbasep_js_device_data::runpoool_irq::lock
- * must be held whilst accessing this data (inculding reads and atomic
- * decisions based on the read).
+ * This is used in IRQ context and hwaccess_lock must be held whilst accessing
+ * this data (inculding reads and atomic decisions based on the read).
  */
 struct kbasep_js_per_as_data {
 	/**
@@ -218,27 +206,9 @@ struct kbasep_js_per_as_data {
  * to remove masking).
  */
 struct kbasep_js_device_data {
-	/** Sub-structure to collect together Job Scheduling data used in IRQ context */
+	/* Sub-structure to collect together Job Scheduling data used in IRQ
+	 * context. The hwaccess_lock must be held when accessing. */
 	struct runpool_irq {
-		/**
-		 * Lock for accessing Job Scheduling data used in IRQ context
-		 *
-		 * This lock must be held whenever this data is accessed (read, or
-		 * write). Even for read-only access, memory barriers would be needed.
-		 * In any case, it is likely that decisions based on only reading must
-		 * also be atomic with respect to data held here and elsewhere in the
-		 * Job Scheduler.
-		 *
-		 * This lock must also be held for accessing:
-		 * - kbase_context::as_nr
-		 * - kbase_device::jm_slots
-		 * - Parts of the kbasep_js_policy, dependent on the policy (refer to
-		 * the policy in question for more information)
-		 * - Parts of kbasep_js_policy_ctx_info, dependent on the policy (refer to
-		 * the policy in question for more information)
-		 */
-		spinlock_t lock;
-
 		/** Bitvector indicating whether a currently scheduled context is allowed to submit jobs.
 		 * When bit 'N' is set in this, it indicates whether the context bound to address space
 		 * 'N' (per_as_data[N].kctx) is allowed to submit jobs.
@@ -383,8 +353,8 @@ struct kbasep_js_kctx_info {
 	 * Runpool substructure. This must only be accessed whilst the Run Pool
 	 * mutex ( kbasep_js_device_data::runpool_mutex ) is held.
 	 *
-	 * In addition, the kbasep_js_device_data::runpool_irq::lock may need to be
-	 * held for certain sub-members.
+	 * In addition, the hwaccess_lock may need to be held for certain
+	 * sub-members.
 	 *
 	 * @note some of the members could be moved into struct kbasep_js_device_data for
 	 * improved d-cache/tlb efficiency.
@@ -418,20 +388,10 @@ struct kbasep_js_kctx_info {
 		 * the context. **/
 		u32 ctx_attr_ref_count[KBASEP_JS_CTX_ATTR_COUNT];
 
-		kbase_context_flags flags;
-		/* NOTE: Unify the following flags into kbase_context_flags */
 		/**
-		 * Is the context scheduled on the Run Pool?
-		 *
-		 * This is only ever updated whilst the jsctx_mutex is held.
-		 */
-		bool is_scheduled;
-		/**
-		 * Wait queue to wait for is_scheduled state changes.
+		 * Wait queue to wait for KCTX_SHEDULED flag state changes.
 		 * */
 		wait_queue_head_t is_scheduled_wait;
-
-		bool is_dying;			/**< Is the context in the process of being evicted? */
 
 		/** Link implementing JS queues. Context can be present on one
 		 * list per job slot

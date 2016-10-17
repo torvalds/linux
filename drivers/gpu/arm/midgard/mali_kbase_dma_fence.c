@@ -38,6 +38,8 @@
 /* Spin lock protecting all Mali fences as fence->lock. */
 static DEFINE_SPINLOCK(kbase_dma_fence_lock);
 
+static void
+kbase_dma_fence_work(struct work_struct *pwork);
 
 static void
 kbase_dma_fence_waiters_add(struct kbase_jd_atom *katom)
@@ -168,8 +170,29 @@ kbase_dma_fence_unlock_reservations(struct kbase_dma_fence_resv_info *info,
 }
 
 /**
+ * kbase_dma_fence_queue_work() - Queue work to handle @katom
+ * @katom: Pointer to atom for which to queue work
+ *
+ * Queue kbase_dma_fence_work() for @katom to clean up the fence callbacks and
+ * submit the atom.
+ */
+static void
+kbase_dma_fence_queue_work(struct kbase_jd_atom *katom)
+{
+	struct kbase_context *kctx = katom->kctx;
+	bool ret;
+
+	INIT_WORK(&katom->work, kbase_dma_fence_work);
+	ret = queue_work(kctx->dma_fence.wq, &katom->work);
+	/* Warn if work was already queued, that should not happen. */
+	WARN_ON(!ret);
+}
+
+/**
  * kbase_dma_fence_free_callbacks - Free dma-fence callbacks on a katom
  * @katom: Pointer to katom
+ * @queue_worker: Boolean indicating if fence worker is to be queued when
+ *                dep_count reaches 0.
  *
  * This function will free all fence callbacks on the katom's list of
  * callbacks. Callbacks that have not yet been called, because their fence
@@ -178,7 +201,7 @@ kbase_dma_fence_unlock_reservations(struct kbase_dma_fence_resv_info *info,
  * Locking: katom->dma_fence.callbacks list assumes jctx.lock is held.
  */
 static void
-kbase_dma_fence_free_callbacks(struct kbase_jd_atom *katom)
+kbase_dma_fence_free_callbacks(struct kbase_jd_atom *katom, bool queue_worker)
 {
 	struct kbase_dma_fence_cb *cb, *tmp;
 
@@ -191,10 +214,21 @@ kbase_dma_fence_free_callbacks(struct kbase_jd_atom *katom)
 		/* Cancel callbacks that hasn't been called yet. */
 		ret = fence_remove_callback(cb->fence, &cb->fence_cb);
 		if (ret) {
+			int ret;
+
 			/* Fence had not signaled, clean up after
 			 * canceling.
 			 */
-			atomic_dec(&katom->dma_fence.dep_count);
+			ret = atomic_dec_return(&katom->dma_fence.dep_count);
+
+			if (unlikely(queue_worker && ret == 0)) {
+				/*
+				 * dep_count went to zero and queue_worker is
+				 * true. Queue the worker to handle the
+				 * completion of the katom.
+				 */
+				kbase_dma_fence_queue_work(katom);
+			}
 		}
 
 		/*
@@ -219,7 +253,7 @@ kbase_dma_fence_cancel_atom(struct kbase_jd_atom *katom)
 	lockdep_assert_held(&katom->kctx->jctx.lock);
 
 	/* Cancel callbacks and clean up. */
-	kbase_dma_fence_free_callbacks(katom);
+	kbase_dma_fence_free_callbacks(katom, false);
 
 	KBASE_DEBUG_ASSERT(atomic_read(&katom->dma_fence.dep_count) == 0);
 
@@ -264,9 +298,15 @@ kbase_dma_fence_work(struct work_struct *pwork)
 	/* Remove atom from list of dma-fence waiting atoms. */
 	kbase_dma_fence_waiters_remove(katom);
 	/* Cleanup callbacks. */
-	kbase_dma_fence_free_callbacks(katom);
-	/* Queue atom on GPU. */
-	kbase_jd_dep_clear_locked(katom);
+	kbase_dma_fence_free_callbacks(katom, false);
+	/*
+	 * Queue atom on GPU, unless it has already completed due to a failing
+	 * dependency. Run jd_done_nolock() on the katom if it is completed.
+	 */
+	if (unlikely(katom->status == KBASE_JD_ATOM_STATE_COMPLETED))
+		jd_done_nolock(katom, NULL);
+	else
+		kbase_jd_dep_clear_locked(katom);
 
 out:
 	mutex_unlock(&ctx->lock);
@@ -332,20 +372,13 @@ kbase_dma_fence_cb(struct fence *fence, struct fence_cb *cb)
 				struct kbase_dma_fence_cb,
 				fence_cb);
 	struct kbase_jd_atom *katom = kcb->katom;
-	struct kbase_context *kctx = katom->kctx;
 
 	/* If the atom is zapped dep_count will be forced to a negative number
 	 * preventing this callback from ever scheduling work. Which in turn
 	 * would reschedule the atom.
 	 */
-	if (atomic_dec_and_test(&katom->dma_fence.dep_count)) {
-		bool ret;
-
-		INIT_WORK(&katom->work, kbase_dma_fence_work);
-		ret = queue_work(kctx->dma_fence.wq, &katom->work);
-		/* Warn if work was already queued, that should not happen. */
-		WARN_ON(!ret);
-	}
+	if (atomic_dec_and_test(&katom->dma_fence.dep_count))
+		kbase_dma_fence_queue_work(katom);
 }
 
 static int
@@ -406,7 +439,7 @@ out:
 		 * On error, cancel and clean up all callbacks that was set up
 		 * before the error.
 		 */
-		kbase_dma_fence_free_callbacks(katom);
+		kbase_dma_fence_free_callbacks(katom, false);
 	}
 
 	return err;
@@ -499,7 +532,7 @@ end:
 		/* Test if the callbacks are already triggered */
 		if (atomic_dec_and_test(&katom->dma_fence.dep_count)) {
 			atomic_set(&katom->dma_fence.dep_count, -1);
-			kbase_dma_fence_free_callbacks(katom);
+			kbase_dma_fence_free_callbacks(katom, false);
 		} else {
 			/* Add katom to the list of dma-buf fence waiting atoms
 			 * only if it is still waiting.
@@ -512,7 +545,7 @@ end:
 		 * kill it for us), signal the fence, free callbacks and the
 		 * fence.
 		 */
-		kbase_dma_fence_free_callbacks(katom);
+		kbase_dma_fence_free_callbacks(katom, false);
 		atomic_set(&katom->dma_fence.dep_count, -1);
 		kbase_dma_fence_signal(katom);
 	}
@@ -522,10 +555,12 @@ end:
 
 void kbase_dma_fence_cancel_all_atoms(struct kbase_context *kctx)
 {
-	struct kbase_jd_atom *katom, *katom_tmp;
+	struct list_head *list = &kctx->dma_fence.waiting_resource;
 
-	list_for_each_entry_safe(katom, katom_tmp,
-				 &kctx->dma_fence.waiting_resource, queue) {
+	while (!list_empty(list)) {
+		struct kbase_jd_atom *katom;
+
+		katom = list_first_entry(list, struct kbase_jd_atom, queue);
 		kbase_dma_fence_waiters_remove(katom);
 		kbase_dma_fence_cancel_atom(katom);
 	}
@@ -534,7 +569,7 @@ void kbase_dma_fence_cancel_all_atoms(struct kbase_context *kctx)
 void kbase_dma_fence_cancel_callbacks(struct kbase_jd_atom *katom)
 {
 	/* Cancel callbacks and clean up. */
-	kbase_dma_fence_free_callbacks(katom);
+	kbase_dma_fence_free_callbacks(katom, true);
 }
 
 void kbase_dma_fence_signal(struct kbase_jd_atom *katom)
@@ -549,7 +584,7 @@ void kbase_dma_fence_signal(struct kbase_jd_atom *katom)
 	fence_put(katom->dma_fence.fence);
 	katom->dma_fence.fence = NULL;
 
-	kbase_dma_fence_free_callbacks(katom);
+	kbase_dma_fence_free_callbacks(katom, false);
 }
 
 void kbase_dma_fence_term(struct kbase_context *kctx)

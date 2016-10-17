@@ -485,7 +485,7 @@ int kbase_region_tracker_init(struct kbase_context *kctx)
 #endif
 
 #ifdef CONFIG_64BIT
-	if (kctx->is_compat)
+	if (kbase_ctx_flag(kctx, KCTX_COMPAT))
 		same_va_bits = 32;
 	else if (kbase_hw_has_feature(kctx->kbdev, BASE_HW_FEATURE_33BIT_VA))
 		same_va_bits = 33;
@@ -509,7 +509,7 @@ int kbase_region_tracker_init(struct kbase_context *kctx)
 
 #ifdef CONFIG_64BIT
 	/* 32-bit clients have exec and custom VA zones */
-	if (kctx->is_compat) {
+	if (kbase_ctx_flag(kctx, KCTX_COMPAT)) {
 #endif
 		if (gpu_va_limit <= KBASE_REG_ZONE_CUSTOM_VA_BASE) {
 			err = -EINVAL;
@@ -573,7 +573,7 @@ int kbase_region_tracker_init_jit(struct kbase_context *kctx, u64 jit_va_pages)
 	 * Nothing to do for 32-bit clients, JIT uses the existing
 	 * custom VA zone.
 	 */
-	if (kctx->is_compat)
+	if (kbase_ctx_flag(kctx, KCTX_COMPAT))
 		return 0;
 
 #if defined(CONFIG_ARM64)
@@ -1730,7 +1730,7 @@ static int kbase_jit_debugfs_phys_get(struct kbase_jit_debugfs_data *data)
 KBASE_JIT_DEBUGFS_DECLARE(kbase_jit_debugfs_phys_fops,
 		kbase_jit_debugfs_phys_get);
 
-void kbase_jit_debugfs_add(struct kbase_context *kctx)
+void kbase_jit_debugfs_init(struct kbase_context *kctx)
 {
 	/* Debugfs entry for getting the number of JIT allocations. */
 	debugfs_create_file("mem_jit_count", S_IRUGO, kctx->kctx_dentry,

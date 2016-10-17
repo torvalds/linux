@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -54,10 +54,10 @@ struct kbasep_js_policy_cfs {
  *                     after ctx init
  * @process_priority:  calling process NICE priority, in the range -20..19
  *
- * &kbasep_js_device_data.runpool_irq.lock must be held when updating
- * @runtime_us. Initializing will occur on context init and context enqueue
- * (which can only occur in one thread at a time), but multi-thread access only
- * occurs while the context is in the runpool.
+ * hwaccess_lock must be held when updating @runtime_us. Initializing will occur
+ * on context init and context enqueue (which can only occur in one thread at a
+ * time), but multi-thread access only occurs while the context is in the
+ * runpool.
  *
  * Reads are possible without the spinlock, but an older value might be read if
  * no memory barries are issued beforehand.
@@ -72,7 +72,7 @@ struct kbasep_js_policy_cfs_ctx {
  * struct kbasep_js_policy_cfs_job - per job information for CFS
  * @ticks: number of ticks that this job has been executing for
  *
- * &kbasep_js_device_data.runpool_irq.lock must be held when accessing @ticks.
+ * hwaccess_lock must be held when accessing @ticks.
  */
 struct kbasep_js_policy_cfs_job {
 	u32 ticks;

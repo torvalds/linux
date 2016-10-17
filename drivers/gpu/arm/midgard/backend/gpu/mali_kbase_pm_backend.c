@@ -28,9 +28,11 @@
 #endif /* CONFIG_MALI_PLATFORM_DEVICETREE */
 
 #include <mali_kbase_pm.h>
-#include <backend/gpu/mali_kbase_jm_internal.h>
+#include <mali_kbase_hwaccess_jm.h>
 #include <backend/gpu/mali_kbase_js_internal.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
+
+static void kbase_pm_gpu_poweroff_wait_wq(struct work_struct *data);
 
 void kbase_pm_register_access_enable(struct kbase_device *kbdev)
 {
@@ -64,6 +66,14 @@ int kbase_hwaccess_pm_init(struct kbase_device *kbdev)
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
 	mutex_init(&kbdev->pm.lock);
+
+	kbdev->pm.backend.gpu_poweroff_wait_wq = alloc_workqueue("kbase_pm_poweroff_wait",
+			WQ_HIGHPRI | WQ_UNBOUND, 1);
+	if (!kbdev->pm.backend.gpu_poweroff_wait_wq)
+		return -ENOMEM;
+
+	INIT_WORK(&kbdev->pm.backend.gpu_poweroff_wait_work,
+			kbase_pm_gpu_poweroff_wait_wq);
 
 	kbdev->pm.backend.gpu_powered = false;
 	kbdev->pm.suspending = false;
@@ -119,9 +129,10 @@ int kbase_hwaccess_pm_init(struct kbase_device *kbdev)
 	init_waitqueue_head(&kbdev->pm.zero_active_count_wait);
 	kbdev->pm.active_count = 0;
 
-	spin_lock_init(&kbdev->pm.power_change_lock);
 	spin_lock_init(&kbdev->pm.backend.gpu_cycle_counter_requests_lock);
 	spin_lock_init(&kbdev->pm.backend.gpu_powered_lock);
+
+	init_waitqueue_head(&kbdev->pm.backend.poweroff_wait);
 
 	if (kbase_pm_ca_init(kbdev) != 0)
 		goto workq_fail;
@@ -157,47 +168,121 @@ void kbase_pm_do_poweron(struct kbase_device *kbdev, bool is_resume)
 	 * will wait for that state to be reached anyway */
 }
 
-bool kbase_pm_do_poweroff(struct kbase_device *kbdev, bool is_suspend)
+static void kbase_pm_gpu_poweroff_wait_wq(struct work_struct *data)
+{
+	struct kbase_device *kbdev = container_of(data, struct kbase_device,
+			pm.backend.gpu_poweroff_wait_work);
+	struct kbase_pm_device_data *pm = &kbdev->pm;
+	struct kbase_pm_backend_data *backend = &pm->backend;
+	struct kbasep_js_device_data *js_devdata = &kbdev->js_data;
+	unsigned long flags;
+
+	/* Wait for power transitions to complete. We do this with no locks held
+	 * so that we don't deadlock with any pending workqueues */
+	KBASE_TIMELINE_PM_CHECKTRANS(kbdev,
+				SW_FLOW_PM_CHECKTRANS_PM_DO_POWEROFF_START);
+	kbase_pm_check_transitions_sync(kbdev);
+	KBASE_TIMELINE_PM_CHECKTRANS(kbdev,
+				SW_FLOW_PM_CHECKTRANS_PM_DO_POWEROFF_END);
+
+	mutex_lock(&js_devdata->runpool_mutex);
+	mutex_lock(&kbdev->pm.lock);
+
+	if (!backend->poweron_required) {
+		WARN_ON(kbdev->l2_available_bitmap ||
+				kbdev->shader_available_bitmap ||
+				kbdev->tiler_available_bitmap);
+
+		/* Consume any change-state events */
+		kbase_timeline_pm_check_handle_event(kbdev,
+					KBASE_TIMELINE_PM_EVENT_GPU_STATE_CHANGED);
+
+		/* Disable interrupts and turn the clock off */
+		if (!kbase_pm_clock_off(kbdev, backend->poweroff_is_suspend)) {
+			/*
+			 * Page/bus faults are pending, must drop locks to
+			 * process.  Interrupts are disabled so no more faults
+			 * should be generated at this point.
+			 */
+			mutex_unlock(&kbdev->pm.lock);
+			mutex_unlock(&js_devdata->runpool_mutex);
+			kbase_flush_mmu_wqs(kbdev);
+			mutex_lock(&js_devdata->runpool_mutex);
+			mutex_lock(&kbdev->pm.lock);
+
+			/* Turn off clock now that fault have been handled. We
+			 * dropped locks so poweron_required may have changed -
+			 * power back on if this is the case.*/
+			if (backend->poweron_required)
+				kbase_pm_clock_on(kbdev, false);
+			else
+				WARN_ON(!kbase_pm_clock_off(kbdev,
+						backend->poweroff_is_suspend));
+		}
+	}
+
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	backend->poweroff_wait_in_progress = false;
+	if (backend->poweron_required) {
+		backend->poweron_required = false;
+		kbase_pm_update_cores_state_nolock(kbdev);
+	}
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+
+	mutex_unlock(&kbdev->pm.lock);
+	mutex_unlock(&js_devdata->runpool_mutex);
+
+	wake_up(&kbdev->pm.backend.poweroff_wait);
+}
+
+void kbase_pm_do_poweroff(struct kbase_device *kbdev, bool is_suspend)
 {
 	unsigned long flags;
-	bool cores_are_available;
 
 	lockdep_assert_held(&kbdev->pm.lock);
 
-	spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	if (!kbdev->pm.backend.poweroff_wait_in_progress) {
+		/* Force all cores off */
+		kbdev->pm.backend.desired_shader_state = 0;
+		kbdev->pm.backend.desired_tiler_state = 0;
 
-	/* Force all cores off */
-	kbdev->pm.backend.desired_shader_state = 0;
-	kbdev->pm.backend.desired_tiler_state = 0;
+		/* Force all cores to be unavailable, in the situation where
+		 * transitions are in progress for some cores but not others,
+		 * and kbase_pm_check_transitions_nolock can not immediately
+		 * power off the cores */
+		kbdev->shader_available_bitmap = 0;
+		kbdev->tiler_available_bitmap = 0;
+		kbdev->l2_available_bitmap = 0;
 
-	/* Force all cores to be unavailable, in the situation where
-	 * transitions are in progress for some cores but not others,
-	 * and kbase_pm_check_transitions_nolock can not immediately
-	 * power off the cores */
-	kbdev->shader_available_bitmap = 0;
-	kbdev->tiler_available_bitmap = 0;
-	kbdev->l2_available_bitmap = 0;
+		kbdev->pm.backend.poweroff_wait_in_progress = true;
+		kbdev->pm.backend.poweroff_is_suspend = is_suspend;
 
-	KBASE_TIMELINE_PM_CHECKTRANS(kbdev,
-				SW_FLOW_PM_CHECKTRANS_PM_DO_POWEROFF_START);
-	cores_are_available = kbase_pm_check_transitions_nolock(kbdev);
-	KBASE_TIMELINE_PM_CHECKTRANS(kbdev,
-				SW_FLOW_PM_CHECKTRANS_PM_DO_POWEROFF_END);
-	/* Don't need 'cores_are_available', because we don't return anything */
-	CSTD_UNUSED(cores_are_available);
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+		/*Kick off wq here. Callers will have to wait*/
+		queue_work(kbdev->pm.backend.gpu_poweroff_wait_wq,
+				&kbdev->pm.backend.gpu_poweroff_wait_work);
+	} else {
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+	}
+}
 
-	spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
+static bool is_poweroff_in_progress(struct kbase_device *kbdev)
+{
+	bool ret;
+	unsigned long flags;
 
-	/* NOTE: We won't wait to reach the core's desired state, even if we're
-	 * powering off the GPU itself too. It's safe to cut the power whilst
-	 * they're transitioning to off, because the cores should be idle and
-	 * all cache flushes should already have occurred */
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	ret = (kbdev->pm.backend.poweroff_wait_in_progress == false);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
-	/* Consume any change-state events */
-	kbase_timeline_pm_check_handle_event(kbdev,
-				KBASE_TIMELINE_PM_EVENT_GPU_STATE_CHANGED);
-	/* Disable interrupts and turn the clock off */
-	return kbase_pm_clock_off(kbdev, is_suspend);
+	return ret;
+}
+
+void kbase_pm_wait_for_poweroff_complete(struct kbase_device *kbdev)
+{
+	wait_event_killable(kbdev->pm.backend.poweroff_wait,
+			is_poweroff_in_progress(kbdev));
 }
 
 int kbase_hwaccess_pm_powerup(struct kbase_device *kbdev,
@@ -269,15 +354,7 @@ void kbase_hwaccess_pm_halt(struct kbase_device *kbdev)
 
 	mutex_lock(&kbdev->pm.lock);
 	kbase_pm_cancel_deferred_poweroff(kbdev);
-	if (!kbase_pm_do_poweroff(kbdev, false)) {
-		/* Page/bus faults are pending, must drop pm.lock to process.
-		 * Interrupts are disabled so no more faults should be
-		 * generated at this point */
-		mutex_unlock(&kbdev->pm.lock);
-		kbase_flush_mmu_wqs(kbdev);
-		mutex_lock(&kbdev->pm.lock);
-		WARN_ON(!kbase_pm_do_poweroff(kbdev, false));
-	}
+	kbase_pm_do_poweroff(kbdev, false);
 	mutex_unlock(&kbdev->pm.lock);
 }
 
@@ -295,6 +372,8 @@ void kbase_hwaccess_pm_term(struct kbase_device *kbdev)
 
 	/* Shut down the metrics subsystem */
 	kbasep_pm_metrics_term(kbdev);
+
+	destroy_workqueue(kbdev->pm.backend.gpu_poweroff_wait_wq);
 }
 
 void kbase_pm_power_changed(struct kbase_device *kbdev)
@@ -304,9 +383,8 @@ void kbase_pm_power_changed(struct kbase_device *kbdev)
 
 	KBASE_TIMELINE_PM_CHECKTRANS(kbdev,
 				SW_FLOW_PM_CHECKTRANS_GPU_INTERRUPT_START);
-	spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 	cores_are_available = kbase_pm_check_transitions_nolock(kbdev);
-	spin_unlock_irqrestore(&kbdev->pm.power_change_lock, flags);
 	KBASE_TIMELINE_PM_CHECKTRANS(kbdev,
 				SW_FLOW_PM_CHECKTRANS_GPU_INTERRUPT_END);
 
@@ -316,10 +394,9 @@ void kbase_pm_power_changed(struct kbase_device *kbdev)
 		kbase_timeline_pm_handle_event(kbdev,
 				KBASE_TIMELINE_PM_EVENT_GPU_STATE_CHANGED);
 
-		spin_lock_irqsave(&kbdev->js_data.runpool_irq.lock, flags);
-		kbase_gpu_slot_update(kbdev);
-		spin_unlock_irqrestore(&kbdev->js_data.runpool_irq.lock, flags);
+		kbase_backend_slot_update(kbdev);
 	}
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 }
 
 void kbase_pm_set_debug_core_mask(struct kbase_device *kbdev,
@@ -354,21 +431,16 @@ void kbase_hwaccess_pm_suspend(struct kbase_device *kbdev)
 	 * off prematurely) */
 	mutex_lock(&js_devdata->runpool_mutex);
 	mutex_lock(&kbdev->pm.lock);
+
 	kbase_pm_cancel_deferred_poweroff(kbdev);
-	if (!kbase_pm_do_poweroff(kbdev, true)) {
-		/* Page/bus faults are pending, must drop pm.lock to process.
-		 * Interrupts are disabled so no more faults should be
-		 * generated at this point */
-		mutex_unlock(&kbdev->pm.lock);
-		kbase_flush_mmu_wqs(kbdev);
-		mutex_lock(&kbdev->pm.lock);
-		WARN_ON(!kbase_pm_do_poweroff(kbdev, false));
-	}
+	kbase_pm_do_poweroff(kbdev, true);
 
 	kbase_backend_timer_suspend(kbdev);
 
 	mutex_unlock(&kbdev->pm.lock);
 	mutex_unlock(&js_devdata->runpool_mutex);
+
+	kbase_pm_wait_for_poweroff_complete(kbdev);
 }
 
 void kbase_hwaccess_pm_resume(struct kbase_device *kbdev)

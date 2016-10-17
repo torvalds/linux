@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -52,8 +52,7 @@ static void assign_and_activate_kctx_addr_space(struct kbase_device *kbdev,
 
 	lockdep_assert_held(&kctx->jctx.sched_info.ctx.jsctx_mutex);
 	lockdep_assert_held(&js_devdata->runpool_mutex);
-	lockdep_assert_held(&current_as->transaction_mutex);
-	lockdep_assert_held(&js_devdata->runpool_irq.lock);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 
 	js_per_as_data = &js_devdata->runpool_irq.per_as_data[as_nr];
 
@@ -142,8 +141,7 @@ void kbase_backend_release_ctx_irq(struct kbase_device *kbdev,
 		return;
 	}
 
-	lockdep_assert_held(&kbdev->as[as_nr].transaction_mutex);
-	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 
 	js_per_as_data = &kbdev->js_data.runpool_irq.per_as_data[kctx->as_nr];
 	if (js_per_as_data->as_busy_refcount != 0) {
@@ -219,8 +217,7 @@ static bool check_is_runpool_full(struct kbase_device *kbdev,
 	is_runpool_full = (bool) (js_devdata->nr_all_contexts_running >=
 						kbdev->nr_hw_address_spaces);
 
-	if (kctx != NULL && (kctx->jctx.sched_info.ctx.flags &
-					KBASE_CTX_FLAG_SUBMIT_DISABLED) == 0) {
+	if (kctx && !kbase_ctx_flag(kctx, KCTX_SUBMIT_DISABLED)) {
 		lockdep_assert_held(&kctx->jctx.sched_info.ctx.jsctx_mutex);
 		/* Contexts that submit might use less of the address spaces
 		 * available, due to HW workarounds.  In which case, the runpool
@@ -267,7 +264,7 @@ int kbase_backend_find_free_address_space(struct kbase_device *kbdev,
 		return i;
 	}
 
-	spin_lock_irqsave(&js_devdata->runpool_irq.lock, flags);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
 	/* No address space currently free, see if we can release one */
 	for (i = 0; i < kbdev->nr_hw_address_spaces; i++) {
@@ -281,16 +278,14 @@ int kbase_backend_find_free_address_space(struct kbase_device *kbdev,
 
 		/* Don't release privileged or active contexts, or contexts with
 		 * jobs running */
-		if (as_kctx && !(as_kctx->jctx.sched_info.ctx.flags &
-						KBASE_CTX_FLAG_PRIVILEGED) &&
+		if (as_kctx && !kbase_ctx_flag(as_kctx, KCTX_PRIVILEGED) &&
 			js_per_as_data->as_busy_refcount == 0) {
 			if (!kbasep_js_runpool_retain_ctx_nolock(kbdev,
 								as_kctx)) {
 				WARN(1, "Failed to retain active context\n");
 
-				spin_unlock_irqrestore(
-						&js_devdata->runpool_irq.lock,
-									flags);
+				spin_unlock_irqrestore(&kbdev->hwaccess_lock,
+						flags);
 				mutex_unlock(&js_devdata->runpool_mutex);
 				mutex_unlock(&js_kctx_info->ctx.jsctx_mutex);
 
@@ -303,8 +298,7 @@ int kbase_backend_find_free_address_space(struct kbase_device *kbdev,
 			 * context we're about to release without violating lock
 			 * ordering
 			 */
-			spin_unlock_irqrestore(&js_devdata->runpool_irq.lock,
-									flags);
+			spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 			mutex_unlock(&js_devdata->runpool_mutex);
 			mutex_unlock(&js_kctx_info->ctx.jsctx_mutex);
 
@@ -315,7 +309,7 @@ int kbase_backend_find_free_address_space(struct kbase_device *kbdev,
 
 			kbasep_js_runpool_release_ctx_nolock(kbdev, as_kctx);
 
-			if (!as_js_kctx_info->ctx.is_scheduled) {
+			if (!kbase_ctx_flag(as_kctx, KCTX_SCHEDULED)) {
 				kbasep_js_runpool_requeue_or_kill_ctx(kbdev,
 								as_kctx,
 								true);
@@ -336,11 +330,11 @@ int kbase_backend_find_free_address_space(struct kbase_device *kbdev,
 
 			mutex_lock(&js_kctx_info->ctx.jsctx_mutex);
 			mutex_lock(&js_devdata->runpool_mutex);
-			spin_lock_irqsave(&js_devdata->runpool_irq.lock, flags);
+			spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 		}
 	}
 
-	spin_unlock_irqrestore(&js_devdata->runpool_irq.lock, flags);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 	mutex_unlock(&js_devdata->runpool_mutex);
 	mutex_unlock(&js_kctx_info->ctx.jsctx_mutex);
@@ -369,12 +363,11 @@ bool kbase_backend_use_ctx(struct kbase_device *kbdev,
 	new_address_space = &kbdev->as[as_nr];
 
 	lockdep_assert_held(&js_devdata->runpool_mutex);
-	lockdep_assert_held(&new_address_space->transaction_mutex);
-	lockdep_assert_held(&js_devdata->runpool_irq.lock);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 
 	assign_and_activate_kctx_addr_space(kbdev, kctx, new_address_space);
 
-	if ((js_kctx_info->ctx.flags & KBASE_CTX_FLAG_PRIVILEGED) != 0) {
+	if (kbase_ctx_flag(kctx, KCTX_PRIVILEGED)) {
 		/* We need to retain it to keep the corresponding address space
 		 */
 		kbasep_js_runpool_retain_ctx_nolock(kbdev, kctx);

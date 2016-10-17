@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -531,7 +531,7 @@ void kbasep_js_policy_foreach_ctx_job(union kbasep_js_policy *js_policy, struct 
  * The locking conditions on the caller are as follows:
  * - it will be holding kbasep_js_kctx_info::ctx::jsctx_mutex.
  * - it will be holding kbasep_js_device_data::runpool_mutex.
- * - it will be holding kbasep_js_device_data::runpool_irq::lock (a spinlock)
+ * - it will be holding hwaccess_lock (a spinlock)
  *
  * Due to a spinlock being held, this function must not call any APIs that sleep.
  */
@@ -548,7 +548,7 @@ void kbasep_js_policy_runpool_add_ctx(union kbasep_js_policy *js_policy, struct 
  * The locking conditions on the caller are as follows:
  * - it will be holding kbasep_js_kctx_info::ctx::jsctx_mutex.
  * - it will be holding kbasep_js_device_data::runpool_mutex.
- * - it will be holding kbasep_js_device_data::runpool_irq::lock (a spinlock)
+ * - it will be holding hwaccess_lock (a spinlock)
  *
  * Due to a spinlock being held, this function must not call any APIs that sleep.
  */
@@ -558,7 +558,7 @@ void kbasep_js_policy_runpool_remove_ctx(union kbasep_js_policy *js_policy, stru
  * @brief Indicate whether a context should be removed from the Run Pool
  * (should be scheduled out).
  *
- * The kbasep_js_device_data::runpool_irq::lock will be held by the caller.
+ * The hwaccess_lock will be held by the caller.
  *
  * @note This API is called from IRQ context.
  */
@@ -715,7 +715,7 @@ bool kbasep_js_policy_dequeue_job(struct kbase_device *kbdev, int job_slot_idx, 
  * the policy that the job should be run again at some point later.
  *
  * The caller has the following conditions on locking:
- * - kbasep_js_device_data::runpool_irq::lock (a spinlock) will be held.
+ * - hwaccess_lock (a spinlock) will be held.
  * - kbasep_js_device_data::runpool_mutex will be held.
  * - kbasep_js_kctx_info::ctx::jsctx_mutex will be held.
  */
@@ -746,7 +746,7 @@ void kbasep_js_policy_enqueue_job(union kbasep_js_policy *js_policy, struct kbas
  * @note This API is called from IRQ context.
  *
  * The caller has the following conditions on locking:
- * - kbasep_js_device_data::runpool_irq::lock will be held.
+ * - hwaccess_lock will be held.
  *
  * @param js_policy     job scheduler policy
  * @param katom         job dispatch atom

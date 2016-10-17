@@ -53,13 +53,13 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 
 	kctx->kbdev = kbdev;
 	kctx->as_nr = KBASEP_AS_NR_INVALID;
-	kctx->is_compat = is_compat;
+	if (is_compat)
+		kbase_ctx_flag_set(kctx, KCTX_COMPAT);
 #ifdef CONFIG_MALI_TRACE_TIMELINE
 	kctx->timeline.owner_tgid = task_tgid_nr(current);
 #endif
 	atomic_set(&kctx->setup_complete, 0);
 	atomic_set(&kctx->setup_in_progress, 0);
-	kctx->infinite_cache_active = 0;
 	spin_lock_init(&kctx->mm_update_lock);
 	kctx->process_mm = NULL;
 	atomic_set(&kctx->nonmapped_pages, 0);
@@ -108,11 +108,15 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 	if (err)
 		goto term_dma_fence;
 
-	kctx->pgd = kbase_mmu_alloc_pgd(kctx);
-	if (!kctx->pgd)
-		goto free_mmu;
+	do {
+		err = kbase_mem_pool_grow(&kctx->mem_pool,
+				MIDGARD_MMU_BOTTOMLEVEL);
+		if (err)
+			goto pgd_no_mem;
+		kctx->pgd = kbase_mmu_alloc_pgd(kctx);
+	} while (!kctx->pgd);
 
-	kctx->aliasing_sink_page = kbase_mem_pool_alloc(&kctx->mem_pool);
+	kctx->aliasing_sink_page = kbase_mem_alloc_page(kctx->kbdev);
 	if (!kctx->aliasing_sink_page)
 		goto no_sink_page;
 
@@ -162,7 +166,7 @@ no_sink_page:
 	kbase_gpu_vm_lock(kctx);
 	kbase_mmu_free_pgd(kctx);
 	kbase_gpu_vm_unlock(kctx);
-free_mmu:
+pgd_no_mem:
 	kbase_mmu_term(kctx);
 term_dma_fence:
 	kbase_dma_fence_term(kctx);
@@ -300,17 +304,16 @@ int kbase_context_set_create_flags(struct kbase_context *kctx, u32 flags)
 	}
 
 	mutex_lock(&js_kctx_info->ctx.jsctx_mutex);
-	spin_lock_irqsave(&kctx->kbdev->js_data.runpool_irq.lock, irq_flags);
+	spin_lock_irqsave(&kctx->kbdev->hwaccess_lock, irq_flags);
 
 	/* Translate the flags */
 	if ((flags & BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED) == 0)
-		js_kctx_info->ctx.flags &= ~((u32) KBASE_CTX_FLAG_SUBMIT_DISABLED);
+		kbase_ctx_flag_clear(kctx, KCTX_SUBMIT_DISABLED);
 
 	/* Latch the initial attributes into the Job Scheduler */
 	kbasep_js_ctx_attr_set_initial_attrs(kctx->kbdev, kctx);
 
-	spin_unlock_irqrestore(&kctx->kbdev->js_data.runpool_irq.lock,
-			irq_flags);
+	spin_unlock_irqrestore(&kctx->kbdev->hwaccess_lock, irq_flags);
 	mutex_unlock(&js_kctx_info->ctx.jsctx_mutex);
  out:
 	return err;

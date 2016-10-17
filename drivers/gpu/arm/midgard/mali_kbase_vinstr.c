@@ -29,6 +29,7 @@
 
 #include <mali_kbase.h>
 #include <mali_kbase_hwaccess_instr.h>
+#include <mali_kbase_hwaccess_jm.h>
 #include <mali_kbase_hwcnt_reader.h>
 #include <mali_kbase_mem_linux.h>
 #include <mali_kbase_tlstream.h>
@@ -1636,11 +1637,9 @@ static int kbasep_vinstr_hwcnt_reader_mmap(struct file *filp,
 
 	if (vma->vm_pgoff > (size >> PAGE_SHIFT))
 		return -EINVAL;
-	if (vm_size > size)
-		return -EINVAL;
 
 	offset = vma->vm_pgoff << PAGE_SHIFT;
-	if ((vm_size + offset) > size)
+	if (vm_size > size - offset)
 		return -EINVAL;
 
 	addr = __pa((unsigned long)cli->dump_buffers + offset);
@@ -1687,9 +1686,9 @@ static void kbasep_vinstr_kick_scheduler(struct kbase_device *kbdev)
 	unsigned long flags;
 
 	down(&js_devdata->schedule_sem);
-	spin_lock_irqsave(&js_devdata->runpool_irq.lock, flags);
-	kbase_jm_kick_all(kbdev);
-	spin_unlock_irqrestore(&js_devdata->runpool_irq.lock, flags);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	kbase_backend_slot_update(kbdev);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 	up(&js_devdata->schedule_sem);
 }
 

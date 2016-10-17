@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014, 2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -28,7 +28,7 @@
  * @kbdev:	Device pointer
  * @js_mask:	Mask of the job slots that can be pulled from.
  *
- * Caller must hold the runpool_irq lock and schedule_sem semaphore
+ * Caller must hold the hwaccess_lock and schedule_sem semaphore
  *
  * Return: Mask of the job slots that can still be submitted to.
  */
@@ -39,7 +39,7 @@ u32 kbase_jm_kick(struct kbase_device *kbdev, u32 js_mask);
  *			 slots.
  * @kbdev:	Device pointer
  *
- * Caller must hold the runpool_irq lock and schedule_sem semaphore
+ * Caller must hold the hwaccess_lock and schedule_sem semaphore
  *
  * Return: Mask of the job slots that can still be submitted to.
  */
@@ -52,7 +52,7 @@ static inline u32 kbase_jm_kick_all(struct kbase_device *kbdev)
  * kbase_jm_try_kick - Attempt to call kbase_jm_kick
  * @kbdev:   Device pointer
  * @js_mask: Mask of the job slots that can be pulled from
- * Context: Caller must hold runpool_irq lock
+ * Context: Caller must hold hwaccess_lock
  *
  * If schedule_sem can be immediately obtained then this function will call
  * kbase_jm_kick() otherwise it will do nothing.
@@ -62,7 +62,7 @@ void kbase_jm_try_kick(struct kbase_device *kbdev, u32 js_mask);
 /**
  * kbase_jm_try_kick_all() - Attempt to call kbase_jm_kick_all
  * @kbdev:  Device pointer
- * Context: Caller must hold runpool_irq lock
+ * Context: Caller must hold hwaccess_lock
  *
  * If schedule_sem can be immediately obtained then this function will call
  * kbase_jm_kick_all() otherwise it will do nothing.
@@ -80,7 +80,7 @@ void kbase_jm_try_kick_all(struct kbase_device *kbdev);
  * The context should have no atoms currently pulled from it
  * (kctx->atoms_pulled == 0).
  *
- * Caller must hold the runpool_irq lock
+ * Caller must hold the hwaccess_lock
  */
 void kbase_jm_idle_ctx(struct kbase_device *kbdev, struct kbase_context *kctx);
 
@@ -90,17 +90,21 @@ void kbase_jm_idle_ctx(struct kbase_device *kbdev, struct kbase_context *kctx);
  *				  dependency
  * @kbdev:	Device pointer
  * @katom:	Atom that has been stopped or will be failed
+ *
+ * Return: Atom that has now been unblocked and can now be run, or NULL if none
  */
-void kbase_jm_return_atom_to_js(struct kbase_device *kbdev,
-				struct kbase_jd_atom *katom);
+struct kbase_jd_atom *kbase_jm_return_atom_to_js(struct kbase_device *kbdev,
+			struct kbase_jd_atom *katom);
 
 /**
  * kbase_jm_complete() - Complete an atom
  * @kbdev:		Device pointer
  * @katom:		Atom that has completed
  * @end_timestamp:	Timestamp of atom completion
+ *
+ * Return: Atom that has now been unblocked and can now be run, or NULL if none
  */
-void kbase_jm_complete(struct kbase_device *kbdev, struct kbase_jd_atom *katom,
-			ktime_t *end_timestamp);
+struct kbase_jd_atom *kbase_jm_complete(struct kbase_device *kbdev,
+		struct kbase_jd_atom *katom, ktime_t *end_timestamp);
 
 #endif /* _KBASE_JM_H_ */

@@ -180,7 +180,7 @@ void kbase_event_post(struct kbase_context *ctx, struct kbase_jd_atom *atom)
 		kbase_event_process_noreport(ctx, atom);
 		return;
 	}
-
+	kbase_tlstream_tl_attrib_atom_state(atom, TL_ATOM_STATE_POSTED);
 	if (atom->core_req & BASE_JD_REQ_EVENT_COALESCE) {
 		/* Don't report the event until other event(s) have completed */
 		mutex_lock(&ctx->event_mutex);
