@@ -745,7 +745,8 @@ int radeon_mode_dumb_create(struct drm_file *file_priv,
 	uint32_t handle;
 	int r;
 
-	args->pitch = radeon_align_pitch(rdev, args->width, args->bpp, 0) * ((args->bpp + 1) / 8);
+	args->pitch = radeon_align_pitch(rdev, args->width,
+					 DIV_ROUND_UP(args->bpp, 8), 0);
 	args->size = args->pitch * args->height;
 	args->size = ALIGN(args->size, PAGE_SIZE);
 
