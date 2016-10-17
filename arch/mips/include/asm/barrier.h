@@ -10,6 +10,102 @@
 
 #include <asm/addrspace.h>
 
+/*
+ * Sync types defined by the MIPS architecture (document MD00087 table 6.5)
+ * These values are used with the sync instruction to perform memory barriers.
+ * Types of ordering guarantees available through the SYNC instruction:
+ * - Completion Barriers
+ * - Ordering Barriers
+ * As compared to the completion barrier, the ordering barrier is a
+ * lighter-weight operation as it does not require the specified instructions
+ * before the SYNC to be already completed. Instead it only requires that those
+ * specified instructions which are subsequent to the SYNC in the instruction
+ * stream are never re-ordered for processing ahead of the specified
+ * instructions which are before the SYNC in the instruction stream.
+ * This potentially reduces how many cycles the barrier instruction must stall
+ * before it completes.
+ * Implementations that do not use any of the non-zero values of stype to define
+ * different barriers, such as ordering barriers, must make those stype values
+ * act the same as stype zero.
+ */
+
+/*
+ * Completion barriers:
+ * - Every synchronizable specified memory instruction (loads or stores or both)
+ *   that occurs in the instruction stream before the SYNC instruction must be
+ *   already globally performed before any synchronizable specified memory
+ *   instructions that occur after the SYNC are allowed to be performed, with
+ *   respect to any other processor or coherent I/O module.
+ *
+ * - The barrier does not guarantee the order in which instruction fetches are
+ *   performed.
+ *
+ * - A stype value of zero will always be defined such that it performs the most
+ *   complete set of synchronization operations that are defined.This means
+ *   stype zero always does a completion barrier that affects both loads and
+ *   stores preceding the SYNC instruction and both loads and stores that are
+ *   subsequent to the SYNC instruction. Non-zero values of stype may be defined
+ *   by the architecture or specific implementations to perform synchronization
+ *   behaviors that are less complete than that of stype zero. If an
+ *   implementation does not use one of these non-zero values to define a
+ *   different synchronization behavior, then that non-zero value of stype must
+ *   act the same as stype zero completion barrier. This allows software written
+ *   for an implementation with a lighter-weight barrier to work on another
+ *   implementation which only implements the stype zero completion barrier.
+ *
+ * - A completion barrier is required, potentially in conjunction with SSNOP (in
+ *   Release 1 of the Architecture) or EHB (in Release 2 of the Architecture),
+ *   to guarantee that memory reference results are visible across operating
+ *   mode changes. For example, a completion barrier is required on some
+ *   implementations on entry to and exit from Debug Mode to guarantee that
+ *   memory effects are handled correctly.
+ */
+
+/*
+ * stype 0 - A completion barrier that affects preceding loads and stores and
+ * subsequent loads and stores.
+ * Older instructions which must reach the load/store ordering point before the
+ * SYNC instruction completes: Loads, Stores
+ * Younger instructions which must reach the load/store ordering point only
+ * after the SYNC instruction completes: Loads, Stores
+ * Older instructions which must be globally performed when the SYNC instruction
+ * completes: Loads, Stores
+ */
+#define STYPE_SYNC 0x0
+
+/*
+ * Ordering barriers:
+ * - Every synchronizable specified memory instruction (loads or stores or both)
+ *   that occurs in the instruction stream before the SYNC instruction must
+ *   reach a stage in the load/store datapath after which no instruction
+ *   re-ordering is possible before any synchronizable specified memory
+ *   instruction which occurs after the SYNC instruction in the instruction
+ *   stream reaches the same stage in the load/store datapath.
+ *
+ * - If any memory instruction before the SYNC instruction in program order,
+ *   generates a memory request to the external memory and any memory
+ *   instruction after the SYNC instruction in program order also generates a
+ *   memory request to external memory, the memory request belonging to the
+ *   older instruction must be globally performed before the time the memory
+ *   request belonging to the younger instruction is globally performed.
+ *
+ * - The barrier does not guarantee the order in which instruction fetches are
+ *   performed.
+ */
+
+/*
+ * stype 0x10 - An ordering barrier that affects preceding loads and stores and
+ * subsequent loads and stores.
+ * Older instructions which must reach the load/store ordering point before the
+ * SYNC instruction completes: Loads, Stores
+ * Younger instructions which must reach the load/store ordering point only
+ * after the SYNC instruction completes: Loads, Stores
+ * Older instructions which must be globally performed when the SYNC instruction
+ * completes: N/A
+ */
+#define STYPE_SYNC_MB 0x10
+
+
 #ifdef CONFIG_CPU_HAS_SYNC
 #define __sync()				\
 	__asm__ __volatile__(			\

@@ -387,7 +387,7 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq)
 		dreq->iocb->ki_complete(dreq->iocb, res, 0);
 	}
 
-	complete_all(&dreq->completion);
+	complete(&dreq->completion);
 
 	nfs_direct_req_release(dreq);
 }

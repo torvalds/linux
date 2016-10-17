@@ -99,4 +99,10 @@ config SAMPLE_SECCOMP
 	  Build samples of seccomp filters using various methods of
 	  BPF filter construction.
 
+config SAMPLE_BLACKFIN_GPTIMERS
+	tristate "Build blackfin gptimers sample code -- loadable modules only"
+	depends on BLACKFIN && BFIN_GPTIMERS && m
+	help
+	  Build samples of blackfin gptimers sample module.
+
 endif # SAMPLES

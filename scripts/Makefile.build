@@ -81,6 +81,7 @@ endif
 
 ifneq ($(strip $(lib-y) $(lib-m) $(lib-)),)
 lib-target := $(obj)/lib.a
+obj-y += $(obj)/lib-ksyms.o
 endif
 
 ifneq ($(strip $(obj-y) $(obj-m) $(obj-) $(subdir-m) $(lib-target)),)
@@ -358,12 +359,22 @@ $(sort $(subdir-obj-y)): $(subdir-ym) ;
 # Rule to compile a set of .o files into one .o file
 #
 ifdef builtin-target
-quiet_cmd_link_o_target = LD      $@
+
+ifdef CONFIG_THIN_ARCHIVES
+  cmd_make_builtin = rm -f $@; $(AR) rcST$(KBUILD_ARFLAGS)
+  cmd_make_empty_builtin = rm -f $@; $(AR) rcST$(KBUILD_ARFLAGS)
+  quiet_cmd_link_o_target = AR      $@
+else
+  cmd_make_builtin = $(LD) $(ld_flags) -r -o
+  cmd_make_empty_builtin = rm -f $@; $(AR) rcs$(KBUILD_ARFLAGS)
+  quiet_cmd_link_o_target = LD      $@
+endif
+
 # If the list of objects to link is empty, just create an empty built-in.o
 cmd_link_o_target = $(if $(strip $(obj-y)),\
-		      $(LD) $(ld_flags) -r -o $@ $(filter $(obj-y), $^) \
+		      $(cmd_make_builtin) $@ $(filter $(obj-y), $^) \
 		      $(cmd_secanalysis),\
-		      rm -f $@; $(AR) rcs$(KBUILD_ARFLAGS) $@)
+		      $(cmd_make_empty_builtin) $@)
 
 $(builtin-target): $(obj-y) FORCE
 	$(call if_changed,link_o_target)
@@ -389,12 +400,36 @@ $(modorder-target): $(subdir-ym) FORCE
 #
 ifdef lib-target
 quiet_cmd_link_l_target = AR      $@
-cmd_link_l_target = rm -f $@; $(AR) rcs$(KBUILD_ARFLAGS) $@ $(lib-y)
+
+ifdef CONFIG_THIN_ARCHIVES
+  cmd_link_l_target = rm -f $@; $(AR) rcsT$(KBUILD_ARFLAGS) $@ $(lib-y)
+else
+  cmd_link_l_target = rm -f $@; $(AR) rcs$(KBUILD_ARFLAGS) $@ $(lib-y)
+endif
 
 $(lib-target): $(lib-y) FORCE
 	$(call if_changed,link_l_target)
 
 targets += $(lib-target)
+
+dummy-object = $(obj)/.lib_exports.o
+ksyms-lds = $(dot-target).lds
+ifdef CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX
+ref_prefix = EXTERN(_
+else
+ref_prefix = EXTERN(
+endif
+
+quiet_cmd_export_list = EXPORTS $@
+cmd_export_list = $(OBJDUMP) -h $< | \
+	sed -ne '/___ksymtab/{s/.*+/$(ref_prefix)/;s/ .*/)/;p}' >$(ksyms-lds);\
+	rm -f $(dummy-object);\
+	$(AR) rcs$(KBUILD_ARFLAGS) $(dummy-object);\
+	$(LD) $(ld_flags) -r -o $@ -T $(ksyms-lds) $(dummy-object);\
+	rm $(dummy-object) $(ksyms-lds)
+
+$(obj)/lib-ksyms.o: $(lib-target) FORCE
+	$(call if_changed,export_list)
 endif
 
 #

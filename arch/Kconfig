@@ -383,6 +383,24 @@ config GCC_PLUGIN_SANCOV
 	  gcc-4.5 on). It is based on the commit "Add fuzzing coverage support"
 	  by Dmitry Vyukov <dvyukov@google.com>.
 
+config GCC_PLUGIN_LATENT_ENTROPY
+	bool "Generate some entropy during boot and runtime"
+	depends on GCC_PLUGINS
+	help
+	  By saying Y here the kernel will instrument some kernel code to
+	  extract some entropy from both original and artificially created
+	  program state.  This will help especially embedded systems where
+	  there is little 'natural' source of entropy normally.  The cost
+	  is some slowdown of the boot process (about 0.5%) and fork and
+	  irq processing.
+
+	  Note that entropy extracted this way is not cryptographically
+	  secure!
+
+	  This plugin was ported from grsecurity/PaX. More information at:
+	   * https://grsecurity.net/
+	   * https://pax.grsecurity.net/
+
 config HAVE_CC_STACKPROTECTOR
 	bool
 	help
@@ -449,6 +467,27 @@ config CC_STACKPROTECTOR_STRONG
 	  size by about 2%.
 
 endchoice
+
+config THIN_ARCHIVES
+	bool
+	help
+	  Select this if the architecture wants to use thin archives
+	  instead of ld -r to create the built-in.o files.
+
+config LD_DEAD_CODE_DATA_ELIMINATION
+	bool
+	help
+	  Select this if the architecture wants to do dead code and
+	  data elimination with the linker by compiling with
+	  -ffunction-sections -fdata-sections and linking with
+	  --gc-sections.
+
+	  This requires that the arch annotates or otherwise protects
+	  its external entry points from being discarded. Linker scripts
+	  must also merge .text.*, .data.*, and .bss.* correctly into
+	  output sections. Care must be taken not to pull in unrelated
+	  sections (e.g., '.text.init'). Typically '.' in section names
+	  is used to distinguish them from label names / C identifiers.
 
 config HAVE_ARCH_WITHIN_STACK_FRAMES
 	bool

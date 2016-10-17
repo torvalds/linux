@@ -1249,7 +1249,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	/* Pick the physical address from the device tree if unspecified */
 	if (!phys_addr) {
 		/* Check if it is DCR-based */
-		if (of_get_property(node, "dcr-reg", NULL)) {
+		if (of_property_read_bool(node, "dcr-reg")) {
 			flags |= MPIC_USES_DCR;
 		} else {
 			struct resource r;

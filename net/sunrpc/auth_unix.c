@@ -46,6 +46,14 @@ unx_destroy(struct rpc_auth *auth)
 	rpcauth_clear_credcache(auth->au_credcache);
 }
 
+static int
+unx_hash_cred(struct auth_cred *acred, unsigned int hashbits)
+{
+	return hash_64(from_kgid(&init_user_ns, acred->gid) |
+		((u64)from_kuid(&init_user_ns, acred->uid) <<
+			(sizeof(gid_t) * 8)), hashbits);
+}
+
 /*
  * Lookup AUTH_UNIX creds for current process
  */
@@ -220,6 +228,7 @@ const struct rpc_authops authunix_ops = {
 	.au_name	= "UNIX",
 	.create		= unx_create,
 	.destroy	= unx_destroy,
+	.hash_cred	= unx_hash_cred,
 	.lookup_cred	= unx_lookup_cred,
 	.crcreate	= unx_create_cred,
 };

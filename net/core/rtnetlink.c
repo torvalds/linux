@@ -1144,6 +1144,8 @@ static noinline_for_stack int rtnl_fill_vfinfo(struct sk_buff *skb,
 	if (dev->netdev_ops->ndo_get_vf_config(dev, vfs_num, &ivi))
 		return 0;
 
+	memset(&vf_vlan_info, 0, sizeof(vf_vlan_info));
+
 	vf_mac.vf =
 		vf_vlan.vf =
 		vf_vlan_info.vf =

@@ -38,6 +38,7 @@
 #include "xfs_trans_space.h"
 #include "xfs_rmap_btree.h"
 #include "xfs_btree.h"
+#include "xfs_refcount_btree.h"
 
 /*
  * Per-AG Block Reservations
@@ -108,7 +109,9 @@ xfs_ag_resv_critical(
 	trace_xfs_ag_resv_critical(pag, type, avail);
 
 	/* Critically low if less than 10% or max btree height remains. */
-	return avail < orig / 10 || avail < XFS_BTREE_MAXLEVELS;
+	return XFS_TEST_ERROR(avail < orig / 10 || avail < XFS_BTREE_MAXLEVELS,
+			pag->pag_mount, XFS_ERRTAG_AG_RESV_CRITICAL,
+			XFS_RANDOM_AG_RESV_CRITICAL);
 }
 
 /*
@@ -228,6 +231,11 @@ xfs_ag_resv_init(
 	if (pag->pag_meta_resv.ar_asked == 0) {
 		ask = used = 0;
 
+		error = xfs_refcountbt_calc_reserves(pag->pag_mount,
+				pag->pag_agno, &ask, &used);
+		if (error)
+			goto out;
+
 		error = __xfs_ag_resv_init(pag, XFS_AG_RESV_METADATA,
 				ask, used);
 		if (error)
@@ -237,6 +245,11 @@ xfs_ag_resv_init(
 	/* Create the AGFL metadata reservation */
 	if (pag->pag_agfl_resv.ar_asked == 0) {
 		ask = used = 0;
+
+		error = xfs_rmapbt_calc_reserves(pag->pag_mount, pag->pag_agno,
+				&ask, &used);
+		if (error)
+			goto out;
 
 		error = __xfs_ag_resv_init(pag, XFS_AG_RESV_AGFL, ask, used);
 		if (error)

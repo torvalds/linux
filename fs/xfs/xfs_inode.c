@@ -49,6 +49,7 @@
 #include "xfs_trans_priv.h"
 #include "xfs_log.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_reflink.h"
 
 kmem_zone_t *xfs_inode_zone;
 
@@ -74,6 +75,29 @@ xfs_get_extsz_hint(
 	if (XFS_IS_REALTIME_INODE(ip))
 		return ip->i_mount->m_sb.sb_rextsize;
 	return 0;
+}
+
+/*
+ * Helper function to extract CoW extent size hint from inode.
+ * Between the extent size hint and the CoW extent size hint, we
+ * return the greater of the two.  If the value is zero (automatic),
+ * use the default size.
+ */
+xfs_extlen_t
+xfs_get_cowextsz_hint(
+	struct xfs_inode	*ip)
+{
+	xfs_extlen_t		a, b;
+
+	a = 0;
+	if (ip->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE)
+		a = ip->i_d.di_cowextsize;
+	b = xfs_get_extsz_hint(ip);
+
+	a = max(a, b);
+	if (a == 0)
+		return XFS_DEFAULT_COWEXTSZ_HINT;
+	return a;
 }
 
 /*
@@ -651,6 +675,8 @@ _xfs_dic2xflags(
 	if (di_flags2 & XFS_DIFLAG2_ANY) {
 		if (di_flags2 & XFS_DIFLAG2_DAX)
 			flags |= FS_XFLAG_DAX;
+		if (di_flags2 & XFS_DIFLAG2_COWEXTSIZE)
+			flags |= FS_XFLAG_COWEXTSIZE;
 	}
 
 	if (has_attr)
@@ -834,6 +860,7 @@ xfs_ialloc(
 	if (ip->i_d.di_version == 3) {
 		inode->i_version = 1;
 		ip->i_d.di_flags2 = 0;
+		ip->i_d.di_cowextsize = 0;
 		ip->i_d.di_crtime.t_sec = (__int32_t)tv.tv_sec;
 		ip->i_d.di_crtime.t_nsec = (__int32_t)tv.tv_nsec;
 	}
@@ -895,6 +922,15 @@ xfs_ialloc(
 
 			ip->i_d.di_flags |= di_flags;
 			ip->i_d.di_flags2 |= di_flags2;
+		}
+		if (pip &&
+		    (pip->i_d.di_flags2 & XFS_DIFLAG2_ANY) &&
+		    pip->i_d.di_version == 3 &&
+		    ip->i_d.di_version == 3) {
+			if (pip->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE) {
+				ip->i_d.di_flags2 |= XFS_DIFLAG2_COWEXTSIZE;
+				ip->i_d.di_cowextsize = pip->i_d.di_cowextsize;
+			}
 		}
 		/* FALLTHROUGH */
 	case S_IFLNK:
@@ -1586,6 +1622,20 @@ xfs_itruncate_extents(
 			goto out;
 	}
 
+	/* Remove all pending CoW reservations. */
+	error = xfs_reflink_cancel_cow_blocks(ip, &tp, first_unmap_block,
+			last_block);
+	if (error)
+		goto out;
+
+	/*
+	 * Clear the reflink flag if we truncated everything.
+	 */
+	if (ip->i_d.di_nblocks == 0 && xfs_is_reflink_inode(ip)) {
+		ip->i_d.di_flags2 &= ~XFS_DIFLAG2_REFLINK;
+		xfs_inode_clear_cowblocks_tag(ip);
+	}
+
 	/*
 	 * Always re-log the inode so that our permanent transaction can keep
 	 * on rolling it forward in the log.
@@ -1850,6 +1900,7 @@ xfs_inactive(
 	}
 
 	mp = ip->i_mount;
+	ASSERT(!xfs_iflags_test(ip, XFS_IRECOVERY));
 
 	/* If this is a read-only mount, don't do this (would generate I/O) */
 	if (mp->m_flags & XFS_MOUNT_RDONLY)

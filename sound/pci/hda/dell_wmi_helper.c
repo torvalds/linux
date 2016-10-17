@@ -49,7 +49,7 @@ static void alc_fixup_dell_wmi(struct hda_codec *codec,
 		removefunc = true;
 		if (dell_led_set_func(DELL_LED_MICMUTE, false) >= 0) {
 			dell_led_value = 0;
-			if (spec->gen.num_adc_nids > 1)
+			if (spec->gen.num_adc_nids > 1 && !spec->gen.dyn_adc_switch)
 				codec_dbg(codec, "Skipping micmute LED control due to several ADCs");
 			else {
 				dell_old_cap_hook = spec->gen.cap_sync_hook;

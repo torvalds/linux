@@ -1190,13 +1190,13 @@ static void mvebu_pcie_powerdown(struct mvebu_pcie_port *port)
 
 static int mvebu_pcie_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct mvebu_pcie *pcie;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev->of_node;
 	struct device_node *child;
 	int num, i, ret;
 
-	pcie = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_pcie),
-			    GFP_KERNEL);
+	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
 		return -ENOMEM;
 
@@ -1206,7 +1206,7 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	/* Get the PCIe memory and I/O aperture */
 	mvebu_mbus_get_pcie_mem_aperture(&pcie->mem);
 	if (resource_size(&pcie->mem) == 0) {
-		dev_err(&pdev->dev, "invalid memory aperture size\n");
+		dev_err(dev, "invalid memory aperture size\n");
 		return -EINVAL;
 	}
 
@@ -1224,20 +1224,18 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	/* Get the bus range */
 	ret = of_pci_parse_bus_range(np, &pcie->busn);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to parse bus-range property: %d\n",
-			ret);
+		dev_err(dev, "failed to parse bus-range property: %d\n", ret);
 		return ret;
 	}
 
-	num = of_get_available_child_count(pdev->dev.of_node);
+	num = of_get_available_child_count(np);
 
-	pcie->ports = devm_kcalloc(&pdev->dev, num, sizeof(*pcie->ports),
-				   GFP_KERNEL);
+	pcie->ports = devm_kcalloc(dev, num, sizeof(*pcie->ports), GFP_KERNEL);
 	if (!pcie->ports)
 		return -ENOMEM;
 
 	i = 0;
-	for_each_available_child_of_node(pdev->dev.of_node, child) {
+	for_each_available_child_of_node(np, child) {
 		struct mvebu_pcie_port *port = &pcie->ports[i];
 
 		ret = mvebu_pcie_parse_port(pcie, port, child);
@@ -1266,8 +1264,7 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 
 		port->base = mvebu_pcie_map_registers(pdev, child, port);
 		if (IS_ERR(port->base)) {
-			dev_err(&pdev->dev, "%s: cannot map registers\n",
-				port->name);
+			dev_err(dev, "%s: cannot map registers\n", port->name);
 			port->base = NULL;
 			mvebu_pcie_powerdown(port);
 			continue;

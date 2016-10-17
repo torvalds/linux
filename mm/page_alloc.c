@@ -91,6 +91,11 @@ EXPORT_PER_CPU_SYMBOL(_numa_mem_);
 int _node_numa_mem_[MAX_NUMNODES];
 #endif
 
+#ifdef CONFIG_GCC_PLUGIN_LATENT_ENTROPY
+volatile u64 latent_entropy __latent_entropy;
+EXPORT_SYMBOL(latent_entropy);
+#endif
+
 /*
  * Array of node states.
  */

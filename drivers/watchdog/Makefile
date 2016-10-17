@@ -3,8 +3,14 @@
 #
 
 # The WatchDog Timer Driver Core.
-watchdog-objs	+= watchdog_core.o watchdog_dev.o
 obj-$(CONFIG_WATCHDOG_CORE)	+= watchdog.o
+
+watchdog-objs	+= watchdog_core.o watchdog_dev.o
+
+watchdog-$(CONFIG_WATCHDOG_PRETIMEOUT_GOV)	+= watchdog_pretimeout.o
+
+obj-$(CONFIG_WATCHDOG_PRETIMEOUT_GOV_NOOP)	+= pretimeout_noop.o
+obj-$(CONFIG_WATCHDOG_PRETIMEOUT_GOV_PANIC)	+= pretimeout_panic.o
 
 # Only one watchdog can succeed. We probe the ISA/PCI/USB based
 # watchdog-cards first, then the architecture specific watchdog

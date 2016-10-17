@@ -178,7 +178,7 @@ static const struct watchdog_info tegra_wdt_info = {
 	.identity	= "Tegra Watchdog",
 };
 
-static struct watchdog_ops tegra_wdt_ops = {
+static const struct watchdog_ops tegra_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = tegra_wdt_start,
 	.stop = tegra_wdt_stop,

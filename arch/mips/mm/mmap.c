@@ -10,7 +10,7 @@
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/personality.h>
 #include <linux/random.h>
 #include <linux/sched.h>

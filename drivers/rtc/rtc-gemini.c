@@ -110,7 +110,7 @@ static int gemini_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static struct rtc_class_ops gemini_rtc_ops = {
+static const struct rtc_class_ops gemini_rtc_ops = {
 	.read_time     = gemini_rtc_read_time,
 	.set_time      = gemini_rtc_set_time,
 };

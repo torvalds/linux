@@ -443,6 +443,7 @@ int nfs42_proc_layoutstats_generic(struct nfs_server *server,
 	task = rpc_run_task(&task_setup);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
+	rpc_put_task(task);
 	return 0;
 }
 

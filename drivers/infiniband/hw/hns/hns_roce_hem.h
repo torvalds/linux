@@ -34,6 +34,10 @@
 #ifndef _HNS_ROCE_HEM_H
 #define _HNS_ROCE_HEM_H
 
+#define HW_SYNC_TIMEOUT_MSECS		500
+#define HW_SYNC_SLEEP_TIME_INTERVAL	20
+#define BT_CMD_SYNC_SHIFT		31
+
 enum {
 	/* MAP HEM(Hardware Entry Memory) */
 	HEM_TYPE_QPC = 0,

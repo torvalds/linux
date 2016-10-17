@@ -596,6 +596,7 @@ void timer_interrupt(struct pt_regs * regs)
 	irq_exit();
 	set_irq_regs(old_regs);
 }
+EXPORT_SYMBOL(timer_interrupt);
 
 /*
  * Hypervisor decrementer interrupts shouldn't occur but are sometimes

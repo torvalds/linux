@@ -1377,7 +1377,7 @@ __end_interrupts:
 DEFINE_FIXED_SYMBOL(__end_interrupts)
 
 #ifdef CONFIG_PPC_970_NAP
-TRAMP_REAL_BEGIN(power4_fixup_nap)
+EXC_COMMON_BEGIN(power4_fixup_nap)
 	andc	r9,r9,r10
 	std	r9,TI_LOCAL_FLAGS(r11)
 	ld	r10,_LINK(r1)		/* make idle task do the */

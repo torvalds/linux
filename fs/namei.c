@@ -4668,6 +4668,31 @@ int generic_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 }
 EXPORT_SYMBOL(generic_readlink);
 
+/**
+ * vfs_get_link - get symlink body
+ * @dentry: dentry on which to get symbolic link
+ * @done: caller needs to free returned data with this
+ *
+ * Calls security hook and i_op->get_link() on the supplied inode.
+ *
+ * It does not touch atime.  That's up to the caller if necessary.
+ *
+ * Does not work on "special" symlinks like /proc/$$/fd/N
+ */
+const char *vfs_get_link(struct dentry *dentry, struct delayed_call *done)
+{
+	const char *res = ERR_PTR(-EINVAL);
+	struct inode *inode = d_inode(dentry);
+
+	if (d_is_symlink(dentry)) {
+		res = ERR_PTR(security_inode_readlink(dentry));
+		if (!res)
+			res = inode->i_op->get_link(dentry, inode, done);
+	}
+	return res;
+}
+EXPORT_SYMBOL(vfs_get_link);
+
 /* get the link contents into pagecache */
 const char *page_get_link(struct dentry *dentry, struct inode *inode,
 			  struct delayed_call *callback)
