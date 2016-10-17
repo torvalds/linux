@@ -105,7 +105,7 @@ static int cdn_dp_clk_enable(struct cdn_dp_device *dp)
 
 	ret = cdn_dp_set_fw_rate(dp);
 	if (ret < 0) {
-		dev_err(dp->dev, "cannot get pm runtime %d\n", ret);
+		dev_err(dp->dev, "cannot get set fw rate %d\n", ret);
 		goto err_set_rate;
 	}
 
@@ -158,6 +158,7 @@ int cdn_dp_encoder_disable(void *dp)
 	int ret = 0;
 
 	mutex_lock(&dp_dev->lock);
+	memset(&dp_dev->mode, 0, sizeof(dp_dev->mode));
 	if (dp_dev->hpd_status == connector_status_disconnected) {
 		dp_dev->dpms_mode = DRM_MODE_DPMS_OFF;
 		mutex_unlock(&dp_dev->lock);
@@ -288,6 +289,16 @@ int cdn_dp_encoder_enable(void *dp)
 	mutex_lock(&dp_dev->lock);
 
 	if (dp_dev->dpms_mode == DRM_MODE_DPMS_OFF) {
+		/**
+		* the mode info of dp device will be cleared when dp encoder is disabled
+		* so if clock value of mode is 0, means rockchip_dp_config_video is not
+		* return success, so we don't do cdn_dp_commit.
+		*/
+		if (dp_dev->mode.clock == 0) {
+			dev_err(dp_dev->dev, "Error !Please make sure function cdn_dp_encoder_mode_set return success!\n");
+			mutex_unlock(&dp_dev->lock);
+			return -1;
+		}
 		cdn_dp_commit(dp_dev);
 	} else {
 		dev_warn(dp_dev->dev, "wrong dpms status,dp encoder has already been enabled\n");
