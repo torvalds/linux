@@ -290,6 +290,24 @@ static void rk808_device_shutdown(void)
 		dev_err(&rk808_i2c_client->dev, "power off error!\n");
 }
 
+static void rk818_device_shutdown(void)
+{
+	int ret;
+	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
+
+	if (!rk808) {
+		dev_warn(&rk808_i2c_client->dev,
+			 "have no rk818, so do nothing here\n");
+		return;
+	}
+
+	ret = regmap_update_bits(rk808->regmap,
+				 RK818_DEVCTRL_REG,
+				 DEV_OFF, DEV_OFF);
+	if (ret)
+		dev_err(&rk808_i2c_client->dev, "power off error!\n");
+}
+
 static const struct of_device_id rk808_of_match[] = {
 	{ .compatible = "rockchip,rk808" },
 	{ .compatible = "rockchip,rk818" },
@@ -304,6 +322,7 @@ static int rk808_probe(struct i2c_client *client,
 	struct rk808 *rk808;
 	const struct rk808_reg_data *pre_init_reg;
 	const struct mfd_cell *cells;
+	void (*pm_pwroff_fn)(void);
 	int nr_pre_init_regs;
 	int nr_cells;
 	int pm_off = 0;
@@ -331,6 +350,7 @@ static int rk808_probe(struct i2c_client *client,
 		nr_pre_init_regs = ARRAY_SIZE(rk808_pre_init_reg);
 		cells = rk808s;
 		nr_cells = ARRAY_SIZE(rk808s);
+		pm_pwroff_fn = rk808_device_shutdown;
 		break;
 	case RK818_ID:
 		rk808->regmap_cfg = &rk818_regmap_config;
@@ -339,6 +359,7 @@ static int rk808_probe(struct i2c_client *client,
 		nr_pre_init_regs = ARRAY_SIZE(rk818_pre_init_reg);
 		cells = rk818s;
 		nr_cells = ARRAY_SIZE(rk818s);
+		pm_pwroff_fn = rk818_device_shutdown;
 		break;
 	default:
 		dev_err(&client->dev, "Unsupported RK8XX ID %lu\n",
@@ -393,7 +414,7 @@ static int rk808_probe(struct i2c_client *client,
 				"rockchip,system-power-controller");
 	if (pm_off && !pm_power_off) {
 		rk808_i2c_client = client;
-		pm_power_off = rk808_device_shutdown;
+		pm_power_off = pm_pwroff_fn;
 	}
 
 	return 0;
