@@ -1628,6 +1628,7 @@ static int edma_alloc_chan_resources(struct dma_chan *chan)
 	if (echan->slot[0] < 0) {
 		dev_err(dev, "Entry slot allocation failed for channel %u\n",
 			EDMA_CHAN_SLOT(echan->ch_num));
+		ret = echan->slot[0];
 		goto err_slot;
 	}
 
