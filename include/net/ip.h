@@ -38,7 +38,7 @@ struct sock;
 struct inet_skb_parm {
 	int			iif;
 	struct ip_options	opt;		/* Compiled IP options		*/
-	unsigned char		flags;
+	u16			flags;
 
 #define IPSKB_FORWARDED		BIT(0)
 #define IPSKB_XFRM_TUNNEL_SIZE	BIT(1)
@@ -48,9 +48,15 @@ struct inet_skb_parm {
 #define IPSKB_DOREDIRECT	BIT(5)
 #define IPSKB_FRAG_PMTU		BIT(6)
 #define IPSKB_FRAG_SEGS		BIT(7)
+#define IPSKB_L3SLAVE		BIT(8)
 
 	u16			frag_max_size;
 };
+
+static inline bool ipv4_l3mdev_skb(u16 flags)
+{
+	return !!(flags & IPSKB_L3SLAVE);
+}
 
 static inline unsigned int ip_hdrlen(const struct sk_buff *skb)
 {
