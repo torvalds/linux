@@ -36,6 +36,7 @@ static inline struct ila_params *ila_params_lwtunnel(
 static int ila_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *orig_dst = skb_dst(skb);
+	struct rt6_info *rt = (struct rt6_info *)orig_dst;
 	struct ila_lwt *ilwt = ila_lwt_lwtunnel(orig_dst->lwtstate);
 	struct dst_entry *dst;
 	int err = -EINVAL;
@@ -45,6 +46,13 @@ static int ila_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 
 	ila_update_ipv6_locator(skb, ila_params_lwtunnel(orig_dst->lwtstate),
 				true);
+
+	if (rt->rt6i_flags & (RTF_GATEWAY | RTF_CACHE)) {
+		/* Already have a next hop address in route, no need for
+		 * dest cache route.
+		 */
+		return orig_dst->lwtstate->orig_output(net, sk, skb);
+	}
 
 	dst = dst_cache_get(&ilwt->dst_cache);
 	if (unlikely(!dst)) {
