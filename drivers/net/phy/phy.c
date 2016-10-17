@@ -946,6 +946,7 @@ EXPORT_SYMBOL(phy_start);
 static void phy_adjust_link(struct phy_device *phydev)
 {
 	phydev->adjust_link(phydev->attached_dev);
+	phy_led_trigger_change_speed(phydev);
 }
 
 /**

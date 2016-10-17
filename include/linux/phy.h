@@ -25,6 +25,7 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/mod_devicetable.h>
+#include <linux/phy_led_triggers.h>
 
 #include <linux/atomic.h>
 
@@ -419,6 +420,12 @@ struct phy_device {
 	int autoneg;
 
 	int link_timeout;
+
+#ifdef CONFIG_LED_TRIGGER_PHY
+	struct phy_led_trigger *phy_led_triggers;
+	unsigned int phy_num_led_triggers;
+	struct phy_led_trigger *last_triggered;
+#endif
 
 	/*
 	 * Interrupt number for this PHY
