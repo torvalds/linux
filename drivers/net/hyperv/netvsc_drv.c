@@ -447,7 +447,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	 * Setup the sendside checksum offload only if this is not a
 	 * GSO packet.
 	 */
-	if (skb_is_gso(skb)) {
+	if ((net_trans_info & (INFO_TCP | INFO_UDP)) && skb_is_gso(skb)) {
 		struct ndis_tcp_lso_info *lso_info;
 
 		rndis_msg_size += NDIS_LSO_PPI_SIZE;
