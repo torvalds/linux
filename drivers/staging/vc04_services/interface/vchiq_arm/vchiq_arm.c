@@ -2884,7 +2884,6 @@ MODULE_DEVICE_TABLE(of, vchiq_of_match);
 static struct platform_driver vchiq_driver = {
 	.driver = {
 		.name = "bcm2835_vchiq",
-		.owner = THIS_MODULE,
 		.of_match_table = vchiq_of_match,
 	},
 	.probe = vchiq_probe,
