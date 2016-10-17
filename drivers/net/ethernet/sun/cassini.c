@@ -3863,9 +3863,6 @@ static int cas_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct cas *cp = netdev_priv(dev);
 
-	if (new_mtu < CAS_MIN_MTU || new_mtu > CAS_MAX_MTU)
-		return -EINVAL;
-
 	dev->mtu = new_mtu;
 	if (!netif_running(dev) || !netif_device_present(dev))
 		return 0;
@@ -5114,6 +5111,10 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (pci_using_dac)
 		dev->features |= NETIF_F_HIGHDMA;
+
+	/* MTU range: 60 - varies or 9000 */
+	dev->min_mtu = CAS_MIN_MTU;
+	dev->max_mtu = CAS_MAX_MTU;
 
 	if (register_netdev(dev)) {
 		dev_err(&pdev->dev, "Cannot register net device, aborting\n");
