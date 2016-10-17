@@ -713,8 +713,8 @@ static int rpm_resume(struct device *dev, int rpmflags)
 
 		spin_lock(&parent->power.lock);
 		/*
-		 * We can resume if the parent's runtime PM is disabled or it
-		 * is set to ignore children.
+		 * Resume the parent if it has runtime PM enabled and not been
+		 * set to ignore its children.
 		 */
 		if (!parent->power.disable_depth
 		    && !parent->power.ignore_children) {
