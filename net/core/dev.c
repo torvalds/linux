@@ -6372,7 +6372,7 @@ int dev_set_mtu(struct net_device *dev, int new_mtu)
 
 	if (dev->max_mtu > 0 && new_mtu > dev->max_mtu) {
 		net_err_ratelimited("%s: Invalid MTU %d requested, hw max %d\n",
-				    dev->name, new_mtu, dev->min_mtu);
+				    dev->name, new_mtu, dev->max_mtu);
 		return -EINVAL;
 	}
 
