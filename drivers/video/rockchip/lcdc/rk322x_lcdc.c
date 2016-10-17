@@ -695,7 +695,7 @@ static int rk3399_vop_win_csc_cfg(struct rk_lcdc_driver *dev_drv)
 	int output_color = dev_drv->output_color;
 	int i;
 
-	for (i = 0; i < dev_drv->lcdc_win_num && i <= 4; i++) {
+	for (i = 0; i < dev_drv->lcdc_win_num && i < 4; i++) {
 		struct rk_lcdc_win *win = dev_drv->win[i];
 		int shift = i * 8;
 		u64 val = V_WIN0_YUV2YUV_EN(0) | V_WIN0_YUV2YUV_R2Y_EN(0) |
@@ -728,7 +728,11 @@ static int rk3399_vop_win_csc_cfg(struct rk_lcdc_driver *dev_drv)
 			if (!(IS_YUV(win->area[0].fmt_cfg) ||
 			      win->area[0].yuyv_fmt)) {
 				val |= V_WIN0_YUV2YUV_R2Y_EN(1);
-				LOAD_CSC(vop_dev, R2Y, csc_r2y_bt709_full_10, i);
+				if ((win->id == 0) || (win->id == 1))
+					LOAD_CSC(vop_dev, R2Y, csc_r2y_bt709_full_10, i);
+				else
+					val |= V_WIN0_YUV2YUV_R2Y_MODE(VOP_R2Y_CSC_BT709);
+
 			} else if (win->colorspace == CSC_BT2020) {
 				val |= V_WIN0_YUV2YUV_EN(1) |
 					V_WIN0_YUV2YUV_Y2R_EN(1) |
@@ -742,8 +746,12 @@ static int rk3399_vop_win_csc_cfg(struct rk_lcdc_driver *dev_drv)
 			      win->area[0].yuyv_fmt)) {
 				val |= V_WIN0_YUV2YUV_R2Y_EN(1) |
 					V_WIN0_YUV2YUV_EN(1);
-				LOAD_CSC(vop_dev, R2R, csc_r2r_bt709to2020, i);
-				LOAD_CSC(vop_dev, R2Y, csc_r2y_bt2020, i);
+				if ((win->id == 0) || (win->id == 1)) {
+					LOAD_CSC(vop_dev, R2R, csc_r2r_bt709to2020, i);
+					LOAD_CSC(vop_dev, R2Y, csc_r2y_bt2020, i);
+				} else {
+					val |= V_WIN0_YUV2YUV_R2Y_MODE(VOP_R2Y_CSC_BT2020);
+				}
 			} else if (win->colorspace == CSC_BT601 ||
 					win->colorspace == CSC_BT709) {
 				val |= V_WIN0_YUV2YUV_Y2R_EN(1) |

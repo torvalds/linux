@@ -1621,7 +1621,9 @@ enum factor_mode {
 
 enum _vop_r2y_csc_mode {
 	VOP_R2Y_CSC_BT601 = 0,
-	VOP_R2Y_CSC_BT709
+	VOP_R2Y_CSC_BT709,
+	VOP_R2Y_CSC_BT601_F,
+	VOP_R2Y_CSC_BT2020
 };
 
 enum _vop_y2r_csc_mode {
