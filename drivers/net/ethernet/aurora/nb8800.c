@@ -975,8 +975,10 @@ static int nb8800_open(struct net_device *dev)
 	phydev = of_phy_connect(dev, priv->phy_node,
 				nb8800_link_reconfigure, 0,
 				priv->phy_mode);
-	if (!phydev)
+	if (!phydev) {
+		err = -ENODEV;
 		goto err_free_irq;
+	}
 
 	nb8800_pause_adv(dev);
 
