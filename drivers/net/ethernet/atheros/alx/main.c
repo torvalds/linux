@@ -892,6 +892,9 @@ static int alx_init_sw(struct alx_priv *alx)
 	hw->smb_timer = 400;
 	hw->mtu = alx->dev->mtu;
 	alx->rxbuf_size = ALX_MAX_FRAME_LEN(hw->mtu);
+	/* MTU range: 34 - 9256 */
+	alx->dev->min_mtu = 34;
+	alx->dev->max_mtu = ALX_MAX_FRAME_LEN(ALX_MAX_FRAME_SIZE);
 	alx->tx_ringsz = 256;
 	alx->rx_ringsz = 512;
 	hw->imt = 200;
@@ -993,13 +996,6 @@ static int alx_change_mtu(struct net_device *netdev, int mtu)
 {
 	struct alx_priv *alx = netdev_priv(netdev);
 	int max_frame = ALX_MAX_FRAME_LEN(mtu);
-
-	if ((max_frame < ALX_MIN_FRAME_SIZE) ||
-	    (max_frame > ALX_MAX_FRAME_SIZE))
-		return -EINVAL;
-
-	if (netdev->mtu == mtu)
-		return 0;
 
 	netdev->mtu = mtu;
 	alx->hw.mtu = mtu;
