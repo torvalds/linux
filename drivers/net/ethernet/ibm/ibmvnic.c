@@ -3654,6 +3654,7 @@ static void handle_crq_init_rsp(struct work_struct *work)
 		goto task_failed;
 
 	netdev->real_num_tx_queues = adapter->req_tx_queues;
+	netdev->mtu = adapter->req_mtu;
 
 	if (adapter->failover) {
 		adapter->failover = false;
@@ -3792,6 +3793,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	}
 
 	netdev->real_num_tx_queues = adapter->req_tx_queues;
+	netdev->mtu = adapter->req_mtu;
 
 	rc = register_netdev(netdev);
 	if (rc) {
