@@ -242,7 +242,7 @@ ACPI_GLOBAL(struct acpi_thread_state *, acpi_gbl_current_walk_list);
 
 /* Maximum number of While() loop iterations before forced abort */
 
-ACPI_GLOBAL(u16, acpi_gbl_max_loop_iterations);
+ACPI_GLOBAL(u32, acpi_gbl_max_loop_iterations);
 
 /* Control method single step flag */
 

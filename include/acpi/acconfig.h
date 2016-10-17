@@ -146,7 +146,7 @@
 
 /* Maximum number of While() loops before abort */
 
-#define ACPI_MAX_LOOP_COUNT             0xFFFF
+#define ACPI_MAX_LOOP_COUNT             0x000FFFFF
 
 /******************************************************************************
  *
