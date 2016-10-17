@@ -6301,19 +6301,8 @@ void set_up_vl15(struct hfi1_devdata *dd, u8 vau, u16 vl15buf)
 	/* leave shared count at zero for both global and VL15 */
 	write_global_credit(dd, vau, vl15buf, 0);
 
-	/* We may need some credits for another VL when sending packets
-	 * with the snoop interface. Dividing it down the middle for VL15
-	 * and VL0 should suffice.
-	 */
-	if (unlikely(dd->hfi1_snoop.mode_flag == HFI1_PORT_SNOOP_MODE)) {
-		write_csr(dd, SEND_CM_CREDIT_VL15, (u64)(vl15buf >> 1)
-		    << SEND_CM_CREDIT_VL15_DEDICATED_LIMIT_VL_SHIFT);
-		write_csr(dd, SEND_CM_CREDIT_VL, (u64)(vl15buf >> 1)
-		    << SEND_CM_CREDIT_VL_DEDICATED_LIMIT_VL_SHIFT);
-	} else {
-		write_csr(dd, SEND_CM_CREDIT_VL15, (u64)vl15buf
-			<< SEND_CM_CREDIT_VL15_DEDICATED_LIMIT_VL_SHIFT);
-	}
+	write_csr(dd, SEND_CM_CREDIT_VL15, (u64)vl15buf
+		  << SEND_CM_CREDIT_VL15_DEDICATED_LIMIT_VL_SHIFT);
 }
 
 /*
@@ -9914,9 +9903,6 @@ static void set_lidlmc(struct hfi1_pportdata *ppd)
 	struct hfi1_devdata *dd = ppd->dd;
 	u32 mask = ~((1U << ppd->lmc) - 1);
 	u64 c1 = read_csr(ppd->dd, DCC_CFG_PORT_CONFIG1);
-
-	if (dd->hfi1_snoop.mode_flag)
-		dd_dev_info(dd, "Set lid/lmc while snooping");
 
 	c1 &= ~(DCC_CFG_PORT_CONFIG1_TARGET_DLID_SMASK
 		| DCC_CFG_PORT_CONFIG1_DLID_MASK_SMASK);
