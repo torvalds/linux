@@ -459,10 +459,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		/* return all clocks in KHz */
 		dev_info.gpu_counter_freq = amdgpu_asic_get_xclk(adev) * 10;
 		if (adev->pm.dpm_enabled) {
-			dev_info.max_engine_clock =
-				adev->pm.dpm.dyn_state.max_clock_voltage_on_ac.sclk * 10;
-			dev_info.max_memory_clock =
-				adev->pm.dpm.dyn_state.max_clock_voltage_on_ac.mclk * 10;
+			dev_info.max_engine_clock = amdgpu_dpm_get_sclk(adev, false) * 10;
+			dev_info.max_memory_clock = amdgpu_dpm_get_mclk(adev, false) * 10;
 		} else {
 			dev_info.max_engine_clock = adev->pm.default_sclk * 10;
 			dev_info.max_memory_clock = adev->pm.default_mclk * 10;
