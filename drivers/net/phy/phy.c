@@ -664,7 +664,7 @@ static void phy_error(struct phy_device *phydev)
  * @phy_dat: phy_device pointer
  *
  * Description: When a PHY interrupt occurs, the handler disables
- * interrupts, and schedules a work task to clear the interrupt.
+ * interrupts, and uses phy_change to handle the interrupt.
  */
 static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 {
@@ -673,15 +673,10 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 	if (PHY_HALTED == phydev->state)
 		return IRQ_NONE;		/* It can't be ours.  */
 
-	/* The MDIO bus is not allowed to be written in interrupt
-	 * context, so we need to disable the irq here.  A work
-	 * queue will write the PHY to disable and clear the
-	 * interrupt, and then reenable the irq line.
-	 */
 	disable_irq_nosync(irq);
 	atomic_inc(&phydev->irq_disable);
 
-	queue_work(system_power_efficient_wq, &phydev->phy_queue);
+	phy_change(phydev);
 
 	return IRQ_HANDLED;
 }
@@ -739,10 +734,9 @@ phy_err:
 int phy_start_interrupts(struct phy_device *phydev)
 {
 	atomic_set(&phydev->irq_disable, 0);
-	if (request_irq(phydev->irq, phy_interrupt,
-				IRQF_SHARED,
-				"phy_interrupt",
-				phydev) < 0) {
+	if (request_threaded_irq(phydev->irq, NULL, phy_interrupt,
+				 IRQF_ONESHOT | IRQF_SHARED,
+				 phydev_name(phydev), phydev) < 0) {
 		pr_warn("%s: Can't get IRQ %d (PHY)\n",
 			phydev->mdio.bus->name, phydev->irq);
 		phydev->irq = PHY_POLL;
@@ -766,12 +760,6 @@ int phy_stop_interrupts(struct phy_device *phydev)
 
 	free_irq(phydev->irq, phydev);
 
-	/* Cannot call flush_scheduled_work() here as desired because
-	 * of rtnl_lock(), but we do not really care about what would
-	 * be done, except from enable_irq(), so cancel any work
-	 * possibly pending and take care of the matter below.
-	 */
-	cancel_work_sync(&phydev->phy_queue);
 	/* If work indeed has been cancelled, disable_irq() will have
 	 * been left unbalanced from phy_interrupt() and enable_irq()
 	 * has to be called so that other devices on the line work.
@@ -784,14 +772,11 @@ int phy_stop_interrupts(struct phy_device *phydev)
 EXPORT_SYMBOL(phy_stop_interrupts);
 
 /**
- * phy_change - Scheduled by the phy_interrupt/timer to handle PHY changes
- * @work: work_struct that describes the work to be done
+ * phy_change - Called by the phy_interrupt to handle PHY changes
+ * @phydev: phy_device struct that interrupted
  */
-void phy_change(struct work_struct *work)
+void phy_change(struct phy_device *phydev)
 {
-	struct phy_device *phydev =
-		container_of(work, struct phy_device, phy_queue);
-
 	if (phy_interrupt_is_valid(phydev)) {
 		if (phydev->drv->did_interrupt &&
 		    !phydev->drv->did_interrupt(phydev))
@@ -830,6 +815,18 @@ irq_enable_err:
 	atomic_inc(&phydev->irq_disable);
 phy_err:
 	phy_error(phydev);
+}
+
+/**
+ * phy_change_work - Scheduled by the phy_mac_interrupt to handle PHY changes
+ * @work: work_struct that describes the work to be done
+ */
+void phy_change_work(struct work_struct *work)
+{
+	struct phy_device *phydev =
+		container_of(work, struct phy_device, phy_queue);
+
+	phy_change(phydev);
 }
 
 /**
@@ -1116,6 +1113,15 @@ void phy_state_machine(struct work_struct *work)
 				   PHY_STATE_TIME * HZ);
 }
 
+/**
+ * phy_mac_interrupt - MAC says the link has changed
+ * @phydev: phy_device struct with changed link
+ * @new_link: Link is Up/Down.
+ *
+ * Description: The MAC layer is able indicate there has been a change
+ *   in the PHY link status. Set the new link status, and trigger the
+ *   state machine, work a work queue.
+ */
 void phy_mac_interrupt(struct phy_device *phydev, int new_link)
 {
 	phydev->link = new_link;

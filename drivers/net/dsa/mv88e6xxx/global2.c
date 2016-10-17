@@ -1,5 +1,6 @@
 /*
- * Marvell 88E6xxx Switch Global 2 Registers support (device address 0x1C)
+ * Marvell 88E6xxx Switch Global 2 Registers support (device address
+ * 0x1C)
  *
  * Copyright (c) 2008 Marvell Semiconductor
  *
@@ -11,6 +12,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/irqdomain.h>
 #include "mv88e6xxx.h"
 #include "global2.h"
 
@@ -415,6 +417,141 @@ int mv88e6xxx_g2_smi_phy_write(struct mv88e6xxx_chip *chip, int addr, int reg,
 		return err;
 
 	return mv88e6xxx_g2_smi_phy_cmd(chip, cmd);
+}
+
+static void mv88e6xxx_g2_irq_mask(struct irq_data *d)
+{
+	struct mv88e6xxx_chip *chip = irq_data_get_irq_chip_data(d);
+	unsigned int n = d->hwirq;
+
+	chip->g2_irq.masked |= (1 << n);
+}
+
+static void mv88e6xxx_g2_irq_unmask(struct irq_data *d)
+{
+	struct mv88e6xxx_chip *chip = irq_data_get_irq_chip_data(d);
+	unsigned int n = d->hwirq;
+
+	chip->g2_irq.masked &= ~(1 << n);
+}
+
+static irqreturn_t mv88e6xxx_g2_irq_thread_fn(int irq, void *dev_id)
+{
+	struct mv88e6xxx_chip *chip = dev_id;
+	unsigned int nhandled = 0;
+	unsigned int sub_irq;
+	unsigned int n;
+	int err;
+	u16 reg;
+
+	mutex_lock(&chip->reg_lock);
+	err = mv88e6xxx_g2_read(chip, GLOBAL2_INT_SOURCE, &reg);
+	mutex_unlock(&chip->reg_lock);
+	if (err)
+		goto out;
+
+	for (n = 0; n < 16; ++n) {
+		if (reg & (1 << n)) {
+			sub_irq = irq_find_mapping(chip->g2_irq.domain, n);
+			handle_nested_irq(sub_irq);
+			++nhandled;
+		}
+	}
+out:
+	return (nhandled > 0 ? IRQ_HANDLED : IRQ_NONE);
+}
+
+static void mv88e6xxx_g2_irq_bus_lock(struct irq_data *d)
+{
+	struct mv88e6xxx_chip *chip = irq_data_get_irq_chip_data(d);
+
+	mutex_lock(&chip->reg_lock);
+}
+
+static void mv88e6xxx_g2_irq_bus_sync_unlock(struct irq_data *d)
+{
+	struct mv88e6xxx_chip *chip = irq_data_get_irq_chip_data(d);
+
+	mv88e6xxx_g2_write(chip, GLOBAL2_INT_MASK, ~chip->g2_irq.masked);
+
+	mutex_unlock(&chip->reg_lock);
+}
+
+static struct irq_chip mv88e6xxx_g2_irq_chip = {
+	.name			= "mv88e6xxx-g2",
+	.irq_mask		= mv88e6xxx_g2_irq_mask,
+	.irq_unmask		= mv88e6xxx_g2_irq_unmask,
+	.irq_bus_lock		= mv88e6xxx_g2_irq_bus_lock,
+	.irq_bus_sync_unlock	= mv88e6xxx_g2_irq_bus_sync_unlock,
+};
+
+static int mv88e6xxx_g2_irq_domain_map(struct irq_domain *d,
+				       unsigned int irq,
+				       irq_hw_number_t hwirq)
+{
+	struct mv88e6xxx_chip *chip = d->host_data;
+
+	irq_set_chip_data(irq, d->host_data);
+	irq_set_chip_and_handler(irq, &chip->g2_irq.chip, handle_level_irq);
+	irq_set_noprobe(irq);
+
+	return 0;
+}
+
+static const struct irq_domain_ops mv88e6xxx_g2_irq_domain_ops = {
+	.map	= mv88e6xxx_g2_irq_domain_map,
+	.xlate	= irq_domain_xlate_twocell,
+};
+
+void mv88e6xxx_g2_irq_free(struct mv88e6xxx_chip *chip)
+{
+	int irq, virq;
+
+	for (irq = 0; irq < 16; irq++) {
+		virq = irq_find_mapping(chip->g2_irq.domain, irq);
+		irq_dispose_mapping(virq);
+	}
+
+	irq_domain_remove(chip->g2_irq.domain);
+}
+
+int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip)
+{
+	int device_irq;
+	int err, irq;
+
+	if (!chip->dev->of_node)
+		return -EINVAL;
+
+	chip->g2_irq.domain = irq_domain_add_simple(
+		chip->dev->of_node, 16, 0, &mv88e6xxx_g2_irq_domain_ops, chip);
+	if (!chip->g2_irq.domain)
+		return -ENOMEM;
+
+	for (irq = 0; irq < 16; irq++)
+		irq_create_mapping(chip->g2_irq.domain, irq);
+
+	chip->g2_irq.chip = mv88e6xxx_g2_irq_chip;
+	chip->g2_irq.masked = ~0;
+
+	device_irq = irq_find_mapping(chip->g1_irq.domain,
+				      GLOBAL_STATUS_IRQ_DEVICE);
+	if (device_irq < 0) {
+		err = device_irq;
+		goto out;
+	}
+
+	err = devm_request_threaded_irq(chip->dev, device_irq, NULL,
+					mv88e6xxx_g2_irq_thread_fn,
+					IRQF_ONESHOT, "mv88e6xxx-g1", chip);
+	if (err)
+		goto out;
+
+	return 0;
+out:
+	mv88e6xxx_g2_irq_free(chip);
+
+	return err;
 }
 
 int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)

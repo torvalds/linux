@@ -33,6 +33,8 @@ int mv88e6xxx_g2_get_eeprom16(struct mv88e6xxx_chip *chip,
 int mv88e6xxx_g2_set_eeprom16(struct mv88e6xxx_chip *chip,
 			      struct ethtool_eeprom *eeprom, u8 *data);
 int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip);
+int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip);
+void mv88e6xxx_g2_irq_free(struct mv88e6xxx_chip *chip);
 
 #else /* !CONFIG_NET_DSA_MV88E6XXX_GLOBAL2 */
 
@@ -81,6 +83,15 @@ static inline int mv88e6xxx_g2_set_eeprom16(struct mv88e6xxx_chip *chip,
 static inline int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void mv88e6xxx_g2_irq_free(struct mv88e6xxx_chip *chip)
+{
 }
 
 #endif /* CONFIG_NET_DSA_MV88E6XXX_GLOBAL2 */
