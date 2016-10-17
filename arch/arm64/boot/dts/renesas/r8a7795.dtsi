@@ -1306,28 +1306,28 @@
 		};
 
 		fcpvb1: fcp@fe92f000 {
-			compatible = "renesas,r8a7795-fcpv", "renesas,fcpv";
+			compatible = "renesas,fcpv";
 			reg = <0 0xfe92f000 0 0x200>;
 			clocks = <&cpg CPG_MOD 606>;
 			power-domains = <&sysc R8A7795_PD_A3VP>;
 		};
 
 		fcpf0: fcp@fe950000 {
-			compatible = "renesas,r8a7795-fcpf", "renesas,fcpf";
+			compatible = "renesas,fcpf";
 			reg = <0 0xfe950000 0 0x200>;
 			clocks = <&cpg CPG_MOD 615>;
 			power-domains = <&sysc R8A7795_PD_A3VP>;
 		};
 
 		fcpf1: fcp@fe951000 {
-			compatible = "renesas,r8a7795-fcpf", "renesas,fcpf";
+			compatible = "renesas,fcpf";
 			reg = <0 0xfe951000 0 0x200>;
 			clocks = <&cpg CPG_MOD 614>;
 			power-domains = <&sysc R8A7795_PD_A3VP>;
 		};
 
 		fcpf2: fcp@fe952000 {
-			compatible = "renesas,r8a7795-fcpf", "renesas,fcpf";
+			compatible = "renesas,fcpf";
 			reg = <0 0xfe952000 0 0x200>;
 			clocks = <&cpg CPG_MOD 613>;
 			power-domains = <&sysc R8A7795_PD_A3VP>;
@@ -1344,7 +1344,7 @@
 		};
 
 		fcpvb0: fcp@fe96f000 {
-			compatible = "renesas,r8a7795-fcpv", "renesas,fcpv";
+			compatible = "renesas,fcpv";
 			reg = <0 0xfe96f000 0 0x200>;
 			clocks = <&cpg CPG_MOD 607>;
 			power-domains = <&sysc R8A7795_PD_A3VP>;
@@ -1361,7 +1361,7 @@
 		};
 
 		fcpvi0: fcp@fe9af000 {
-			compatible = "renesas,r8a7795-fcpv", "renesas,fcpv";
+			compatible = "renesas,fcpv";
 			reg = <0 0xfe9af000 0 0x200>;
 			clocks = <&cpg CPG_MOD 611>;
 			power-domains = <&sysc R8A7795_PD_A3VP>;
@@ -1378,7 +1378,7 @@
 		};
 
 		fcpvi1: fcp@fe9bf000 {
-			compatible = "renesas,r8a7795-fcpv", "renesas,fcpv";
+			compatible = "renesas,fcpv";
 			reg = <0 0xfe9bf000 0 0x200>;
 			clocks = <&cpg CPG_MOD 610>;
 			power-domains = <&sysc R8A7795_PD_A3VP>;
@@ -1395,7 +1395,7 @@
 		};
 
 		fcpvi2: fcp@fe9cf000 {
-			compatible = "renesas,r8a7795-fcpv", "renesas,fcpv";
+			compatible = "renesas,fcpv";
 			reg = <0 0xfe9cf000 0 0x200>;
 			clocks = <&cpg CPG_MOD 609>;
 			power-domains = <&sysc R8A7795_PD_A3VP>;
@@ -1412,7 +1412,7 @@
 		};
 
 		fcpvd0: fcp@fea27000 {
-			compatible = "renesas,r8a7795-fcpv", "renesas,fcpv";
+			compatible = "renesas,fcpv";
 			reg = <0 0xfea27000 0 0x200>;
 			clocks = <&cpg CPG_MOD 603>;
 			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
@@ -1429,7 +1429,7 @@
 		};
 
 		fcpvd1: fcp@fea2f000 {
-			compatible = "renesas,r8a7795-fcpv", "renesas,fcpv";
+			compatible = "renesas,fcpv";
 			reg = <0 0xfea2f000 0 0x200>;
 			clocks = <&cpg CPG_MOD 602>;
 			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
@@ -1446,7 +1446,7 @@
 		};
 
 		fcpvd2: fcp@fea37000 {
-			compatible = "renesas,r8a7795-fcpv", "renesas,fcpv";
+			compatible = "renesas,fcpv";
 			reg = <0 0xfea37000 0 0x200>;
 			clocks = <&cpg CPG_MOD 601>;
 			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
@@ -1463,7 +1463,7 @@
 		};
 
 		fcpvd3: fcp@fea3f000 {
-			compatible = "renesas,r8a7795-fcpv", "renesas,fcpv";
+			compatible = "renesas,fcpv";
 			reg = <0 0xfea3f000 0 0x200>;
 			clocks = <&cpg CPG_MOD 600>;
 			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
