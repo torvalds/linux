@@ -1028,7 +1028,17 @@ int __pm_runtime_set_status(struct device *dev, unsigned int status)
 		goto out_set;
 
 	if (status == RPM_SUSPENDED) {
-		/* It always is possible to set the status to 'suspended'. */
+		/*
+		 * It is invalid to suspend a device with an active child,
+		 * unless it has been set to ignore its children.
+		 */
+		if (!dev->power.ignore_children &&
+			atomic_read(&dev->power.child_count)) {
+			dev_err(dev, "runtime PM trying to suspend device but active child\n");
+			error = -EBUSY;
+			goto out;
+		}
+
 		if (parent) {
 			atomic_add_unless(&parent->power.child_count, -1, 0);
 			notify_parent = !parent->power.ignore_children;
