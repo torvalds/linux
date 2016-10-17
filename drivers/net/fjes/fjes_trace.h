@@ -222,8 +222,8 @@ TRACE_EVENT(fjes_hw_start_debug_req,
 		__entry->mode = req_buf->start_trace.mode;
 		__entry->buffer = req_buf->start_trace.buffer[0];
 	),
-	TP_printk("req_buf=[length=%d, mode=%d, buffer=%p]",
-		  __entry->length, __entry->mode, (void *)__entry->buffer)
+	TP_printk("req_buf=[length=%d, mode=%d, buffer=%pap]",
+		  __entry->length, __entry->mode, &__entry->buffer)
 );
 
 TRACE_EVENT(fjes_hw_start_debug,
