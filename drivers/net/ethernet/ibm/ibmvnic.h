@@ -27,7 +27,7 @@
 /**************************************************************************/
 
 #define IBMVNIC_NAME		"ibmvnic"
-#define IBMVNIC_DRIVER_VERSION	"1.0"
+#define IBMVNIC_DRIVER_VERSION	"1.0.1"
 #define IBMVNIC_INVALID_MAP	-1
 #define IBMVNIC_STATS_TIMEOUT	1
 /* basic structures plus 100 2k buffers */
