@@ -507,7 +507,7 @@ static void XGI_SetXG27CRTC(unsigned short RefreshRateTableIndex,
 	/* SR0B */
 	Tempax = XGI_CRT1Table[index].CR[5];
 	Tempax &= 0xC0; /* Tempax[7:6]: SR0B[7:6]: HRS[9:8]*/
-	Tempbx |= (Tempax << 2); /* Tempbx: HRS[9:0] */
+	Tempbx |= Tempax << 2; /* Tempbx: HRS[9:0] */
 
 	Tempax = XGI_CRT1Table[index].CR[4]; /* CR5 HRE */
 	Tempax &= 0x1F; /* Tempax[4:0]: HRE[4:0] */
@@ -530,7 +530,7 @@ static void XGI_SetXG27CRTC(unsigned short RefreshRateTableIndex,
 	Tempax = XGI_CRT1Table[index].CR[5]; /* SR0B */
 	Tempax &= 0xC0; /* Tempax[7:6]: SR0B[7:6]: HRS[9:8]*/
 	Tempax >>= 6; /* Tempax[1:0]: HRS[9:8]*/
-	Tempax |= ((Tempbx << 2) & 0xFF); /* Tempax[7:2]: HRE[5:0] */
+	Tempax |= (Tempbx << 2) & 0xFF; /* Tempax[7:2]: HRE[5:0] */
 	/* SR2F [7:2][1:0]: HRE[5:0]HRS[9:8] */
 	xgifb_reg_set(pVBInfo->P3c4, 0x2F, Tempax);
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x30, 0xE3, 00);
@@ -548,12 +548,12 @@ static void XGI_SetXG27CRTC(unsigned short RefreshRateTableIndex,
 	Tempax >>= 2; /* Tempax[0]: VRS[8] */
 	/* SR35[0]: VRS[8] */
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x35, ~0x01, Tempax);
-	Tempcx |= (Tempax << 8); /* Tempcx <= VRS[8:0] */
-	Tempcx |= ((Tempbx & 0x80) << 2); /* Tempcx <= VRS[9:0] */
+	Tempcx |= Tempax << 8; /* Tempcx <= VRS[8:0] */
+	Tempcx |= (Tempbx & 0x80) << 2; /* Tempcx <= VRS[9:0] */
 	/* Tempax: SR0A */
 	Tempax = XGI_CRT1Table[index].CR[14];
 	Tempax &= 0x08; /* SR0A[3] VRS[10] */
-	Tempcx |= (Tempax << 7); /* Tempcx <= VRS[10:0] */
+	Tempcx |= Tempax << 7; /* Tempcx <= VRS[10:0] */
 
 	/* Tempax: CR11 VRE */
 	Tempax = XGI_CRT1Table[index].CR[11];
@@ -1201,12 +1201,12 @@ static void const *XGI_GetLcdPtr(struct XGI330_LCDDataTablStruct const *table,
 	while (table[i].PANELID != 0xff) {
 		tempdx = pVBInfo->LCDResInfo;
 		if (tempbx & 0x0080) { /* OEMUtil */
-			tempbx &= (~0x0080);
+			tempbx &= ~0x0080;
 			tempdx = pVBInfo->LCDTypeInfo;
 		}
 
 		if (pVBInfo->LCDInfo & EnableScalingLCD)
-			tempdx &= (~PanelResInfo);
+			tempdx &= ~PanelResInfo;
 
 		if (table[i].PANELID == tempdx) {
 			tempbx = table[i].MASK;
@@ -1918,7 +1918,7 @@ static void XGI_GetVBInfo(unsigned short ModeIdIndex,
 			tempbx |= SetCRT2ToHiVision;
 
 			if (temp != YPbPrMode1080i) {
-				tempbx &= (~SetCRT2ToHiVision);
+				tempbx &= ~SetCRT2ToHiVision;
 				tempbx |= SetCRT2ToYPbPr525750;
 			}
 		}
