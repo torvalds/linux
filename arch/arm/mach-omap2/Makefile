@@ -257,4 +257,4 @@ obj-y					+= $(nand-m) $(nand-y)
 smsc911x-$(CONFIG_SMSC911X)		:= gpmc-smsc911x.o
 obj-y					+= $(smsc911x-m) $(smsc911x-y)
 
-obj-y					+= common-board-devices.o twl-common.o dss-common.o
+obj-y					+= common-board-devices.o dss-common.o

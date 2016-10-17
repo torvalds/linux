@@ -3,7 +3,6 @@
 
 #include <sound/tlv320aic3x.h>
 #include <linux/mfd/menelaus.h>
-#include "twl-common.h"
 
 #define NAND_BLOCK_SIZE	SZ_128K
 
