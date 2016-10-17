@@ -85,6 +85,21 @@ typedef enum {
 } phy_interface_t;
 
 /**
+ * phy_supported_speeds - return all speeds currently supported by a phy device
+ * @phy: The phy device to return supported speeds of.
+ * @speeds: buffer to store supported speeds in.
+ * @size: size of speeds buffer.
+ *
+ * Description: Returns the number of supported speeds, and
+ * fills the speeds * buffer with the supported speeds. If speeds buffer is
+ * too small to contain * all currently supported speeds, will return as
+ * many speeds as can fit.
+ */
+unsigned int phy_supported_speeds(struct phy_device *phy,
+				      unsigned int *speeds,
+				      unsigned int size);
+
+/**
  * It maps 'enum phy_interface_t' found in include/linux/phy.h
  * into the device tree binding of 'phy-mode', so that Ethernet
  * device driver can get phy interface from device tree.
