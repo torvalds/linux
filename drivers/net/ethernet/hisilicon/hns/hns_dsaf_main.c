@@ -2761,6 +2761,7 @@ static const struct of_device_id g_dsaf_match[] = {
 	{.compatible = "hisilicon,hns-dsaf-v2"},
 	{}
 };
+MODULE_DEVICE_TABLE(of, g_dsaf_match);
 
 static struct platform_driver g_dsaf_driver = {
 	.probe = hns_dsaf_probe,
