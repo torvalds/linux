@@ -74,6 +74,7 @@ static const struct i2c_device_id pca953x_id[] = {
 	{ "max7312", 16 | PCA953X_TYPE | PCA_INT, },
 	{ "max7313", 16 | PCA953X_TYPE | PCA_INT, },
 	{ "max7315", 8  | PCA953X_TYPE | PCA_INT, },
+	{ "max7318", 16 | PCA953X_TYPE | PCA_INT, },
 	{ "pca6107", 8  | PCA953X_TYPE | PCA_INT, },
 	{ "tca6408", 8  | PCA953X_TYPE | PCA_INT, },
 	{ "tca6416", 16 | PCA953X_TYPE | PCA_INT, },
@@ -907,6 +908,7 @@ static const struct of_device_id pca953x_dt_ids[] = {
 	{ .compatible = "maxim,max7312", .data = OF_953X(16, PCA_INT), },
 	{ .compatible = "maxim,max7313", .data = OF_953X(16, PCA_INT), },
 	{ .compatible = "maxim,max7315", .data = OF_953X( 8, PCA_INT), },
+	{ .compatible = "maxim,max7318", .data = OF_953X(16, PCA_INT), },
 
 	{ .compatible = "ti,pca6107", .data = OF_953X( 8, PCA_INT), },
 	{ .compatible = "ti,pca9536", .data = OF_953X( 4, 0), },
