@@ -151,7 +151,6 @@ static void cleanup(bool sysfiles)
 		dgnc_cleanup_board(dgnc_board[i]);
 	}
 
-	dgnc_tty_post_uninit();
 }
 
 /*
@@ -241,16 +240,6 @@ static int dgnc_start(void)
 		goto failed_device;
 	}
 
-	/*
-	 * Init any global tty stuff.
-	 */
-	rc = dgnc_tty_preinit();
-
-	if (rc < 0) {
-		pr_err(DRVSTR ": tty preinit - not enough memory (%d)\n", rc);
-		goto failed_tty;
-	}
-
 	/* Start the poller */
 	spin_lock_irqsave(&dgnc_poll_lock, flags);
 	setup_timer(&dgnc_poll_timer, dgnc_poll_handler, 0);
@@ -262,8 +251,6 @@ static int dgnc_start(void)
 
 	return 0;
 
-failed_tty:
-	device_destroy(dgnc_class, MKDEV(dgnc_major, 0));
 failed_device:
 	class_destroy(dgnc_class);
 failed_class:

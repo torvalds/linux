@@ -43,11 +43,6 @@
 #include "dgnc_utils.h"
 
 /*
- * internal variables
- */
-static unsigned char		*dgnc_TmpWriteBuf;
-
-/*
  * Default transparent print information.
  */
 static const struct digi_t dgnc_digi_init = {
@@ -142,31 +137,6 @@ static const struct tty_operations dgnc_tty_ops = {
  * TTY Initialization/Cleanup Functions
  *
  ************************************************************************/
-
-/*
- * dgnc_tty_preinit()
- *
- * Initialize any global tty related data before we download any boards.
- */
-int dgnc_tty_preinit(void)
-{
-	/*
-	 * Allocate a buffer for doing the copy from user space to
-	 * kernel space in dgnc_write().  We only use one buffer and
-	 * control access to it with a semaphore.  If we are paging, we
-	 * are already in trouble so one buffer won't hurt much anyway.
-	 *
-	 * We are okay to sleep in the malloc, as this routine
-	 * is only called during module load, (not in interrupt context),
-	 * and with no locks held.
-	 */
-	dgnc_TmpWriteBuf = kmalloc(WRITEBUFLEN, GFP_KERNEL);
-
-	if (!dgnc_TmpWriteBuf)
-		return -ENOMEM;
-
-	return 0;
-}
 
 /*
  * dgnc_tty_register()
@@ -362,17 +332,6 @@ err_free_channels:
 		brd->channels[i] = NULL;
 	}
 	return -ENOMEM;
-}
-
-/*
- * dgnc_tty_post_uninit()
- *
- * UnInitialize any global tty related data.
- */
-void dgnc_tty_post_uninit(void)
-{
-	kfree(dgnc_TmpWriteBuf);
-	dgnc_TmpWriteBuf = NULL;
 }
 
 /*
@@ -1543,7 +1502,7 @@ static int dgnc_tty_write_room(struct tty_struct *tty)
 	int ret = 0;
 	unsigned long flags;
 
-	if (!tty || !dgnc_TmpWriteBuf)
+	if (!tty)
 		return 0;
 
 	un = tty->driver_data;
@@ -1623,7 +1582,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	ushort tmask;
 	uint remain;
 
-	if (!tty || !dgnc_TmpWriteBuf)
+	if (!tty)
 		return 0;
 
 	un = tty->driver_data;
