@@ -1190,7 +1190,7 @@ static struct ibmvnic_sub_crq_queue *init_sub_crq_queue(struct ibmvnic_adapter
 	if (!scrq)
 		return NULL;
 
-	scrq->msgs = (union sub_crq *)__get_free_pages(GFP_KERNEL, 2);
+	scrq->msgs = (union sub_crq *)__get_free_pages(GFP_ATOMIC, 2);
 	memset(scrq->msgs, 0, 4 * PAGE_SIZE);
 	if (!scrq->msgs) {
 		dev_warn(dev, "Couldn't allocate crq queue messages page\n");
