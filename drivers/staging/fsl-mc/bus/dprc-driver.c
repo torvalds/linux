@@ -505,7 +505,7 @@ static int register_dprc_irq_handler(struct fsl_mc_device *mc_dev)
 					  dprc_irq0_handler,
 					  dprc_irq0_handler_thread,
 					  IRQF_NO_SUSPEND | IRQF_ONESHOT,
-					  "FSL MC DPRC irq0",
+					  dev_name(&mc_dev->dev),
 					  &mc_dev->dev);
 	if (error < 0) {
 		dev_err(&mc_dev->dev,
