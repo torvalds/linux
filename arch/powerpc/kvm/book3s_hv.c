@@ -2123,8 +2123,7 @@ static bool can_dynamic_split(struct kvmppc_vcore *vc, struct core_info *cip)
 	cip->subcore_threads[sub] = vc->num_threads;
 	cip->subcore_vm[sub] = vc->kvm;
 	init_master_vcore(vc);
-	list_del(&vc->preempt_list);
-	list_add_tail(&vc->preempt_list, &cip->vcs[sub]);
+	list_move_tail(&vc->preempt_list, &cip->vcs[sub]);
 
 	return true;
 }
