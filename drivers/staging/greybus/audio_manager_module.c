@@ -81,16 +81,6 @@ static ssize_t gb_audio_module_name_show(
 static struct gb_audio_manager_module_attribute gb_audio_module_name_attribute =
 	__ATTR(name, 0664, gb_audio_module_name_show, NULL);
 
-static ssize_t gb_audio_module_slot_show(
-	struct gb_audio_manager_module *module,
-	struct gb_audio_manager_module_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d", module->desc.slot);
-}
-
-static struct gb_audio_manager_module_attribute gb_audio_module_slot_attribute =
-	__ATTR(slot, 0664, gb_audio_module_slot_show, NULL);
-
 static ssize_t gb_audio_module_vid_show(
 	struct gb_audio_manager_module *module,
 	struct gb_audio_manager_module_attribute *attr, char *buf)
@@ -146,7 +136,6 @@ static struct gb_audio_manager_module_attribute
 
 static struct attribute *gb_audio_module_default_attrs[] = {
 	&gb_audio_module_name_attribute.attr,
-	&gb_audio_module_slot_attribute.attr,
 	&gb_audio_module_vid_attribute.attr,
 	&gb_audio_module_pid_attribute.attr,
 	&gb_audio_module_intf_id_attribute.attr,
@@ -164,7 +153,6 @@ static struct kobj_type gb_audio_module_type = {
 static void send_add_uevent(struct gb_audio_manager_module *module)
 {
 	char name_string[128];
-	char slot_string[64];
 	char vid_string[64];
 	char pid_string[64];
 	char intf_id_string[64];
@@ -173,7 +161,6 @@ static void send_add_uevent(struct gb_audio_manager_module *module)
 
 	char *envp[] = {
 		name_string,
-		slot_string,
 		vid_string,
 		pid_string,
 		intf_id_string,
@@ -183,7 +170,6 @@ static void send_add_uevent(struct gb_audio_manager_module *module)
 	};
 
 	snprintf(name_string, 128, "NAME=%s", module->desc.name);
-	snprintf(slot_string, 64, "SLOT=%d", module->desc.slot);
 	snprintf(vid_string, 64, "VID=%d", module->desc.vid);
 	snprintf(pid_string, 64, "PID=%d", module->desc.pid);
 	snprintf(intf_id_string, 64, "INTF_ID=%d", module->desc.intf_id);
@@ -246,10 +232,9 @@ int gb_audio_manager_module_create(
 
 void gb_audio_manager_module_dump(struct gb_audio_manager_module *module)
 {
-	pr_info("audio module #%d name=%s slot=%d vid=%d pid=%d intf_id=%d i/p devices=0x%X o/p devices=0x%X\n",
+	pr_info("audio module #%d name=%s vid=%d pid=%d intf_id=%d i/p devices=0x%X o/p devices=0x%X\n",
 		module->id,
 		module->desc.name,
-		module->desc.slot,
 		module->desc.vid,
 		module->desc.pid,
 		module->desc.intf_id,

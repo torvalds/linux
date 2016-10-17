@@ -20,10 +20,9 @@ static ssize_t manager_sysfs_add_store(
 
 	int num = sscanf(buf,
 			"name=%" GB_AUDIO_MANAGER_MODULE_NAME_LEN_SSCANF "s "
-			"slot=%d vid=%d pid=%d intf_id=%d i/p devices=0x%X"
-			"o/p devices=0x%X",
-			desc.name, &desc.slot, &desc.vid, &desc.pid,
-			&desc.intf_id, &desc.ip_devices, &desc.op_devices);
+			"vid=%d pid=%d intf_id=%d i/p devices=0x%X o/p devices=0x%X",
+			desc.name, &desc.vid, &desc.pid, &desc.intf_id,
+			&desc.ip_devices, &desc.op_devices);
 
 	if (num != 7)
 		return -EINVAL;

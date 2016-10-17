@@ -18,7 +18,6 @@
 
 struct gb_audio_manager_module_descriptor {
 	char name[GB_AUDIO_MANAGER_MODULE_NAME_LEN];
-	int slot;
 	int vid;
 	int pid;
 	int intf_id;
