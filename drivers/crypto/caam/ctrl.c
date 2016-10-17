@@ -330,8 +330,8 @@ static int caam_remove(struct platform_device *pdev)
 	clk_disable_unprepare(ctrlpriv->caam_ipg);
 	clk_disable_unprepare(ctrlpriv->caam_mem);
 	clk_disable_unprepare(ctrlpriv->caam_aclk);
-	clk_disable_unprepare(ctrlpriv->caam_emi_slow);
-
+	if (!of_machine_is_compatible("fsl,imx6ul"))
+		clk_disable_unprepare(ctrlpriv->caam_emi_slow);
 	return 0;
 }
 
@@ -482,14 +482,16 @@ static int caam_probe(struct platform_device *pdev)
 	}
 	ctrlpriv->caam_aclk = clk;
 
-	clk = caam_drv_identify_clk(&pdev->dev, "emi_slow");
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-		dev_err(&pdev->dev,
-			"can't identify CAAM emi_slow clk: %d\n", ret);
-		return ret;
+	if (!of_machine_is_compatible("fsl,imx6ul")) {
+		clk = caam_drv_identify_clk(&pdev->dev, "emi_slow");
+		if (IS_ERR(clk)) {
+			ret = PTR_ERR(clk);
+			dev_err(&pdev->dev,
+				"can't identify CAAM emi_slow clk: %d\n", ret);
+			return ret;
+		}
+		ctrlpriv->caam_emi_slow = clk;
 	}
-	ctrlpriv->caam_emi_slow = clk;
 
 	ret = clk_prepare_enable(ctrlpriv->caam_ipg);
 	if (ret < 0) {
@@ -510,11 +512,13 @@ static int caam_probe(struct platform_device *pdev)
 		goto disable_caam_mem;
 	}
 
-	ret = clk_prepare_enable(ctrlpriv->caam_emi_slow);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "can't enable CAAM emi slow clock: %d\n",
-			ret);
-		goto disable_caam_aclk;
+	if (!of_machine_is_compatible("fsl,imx6ul")) {
+		ret = clk_prepare_enable(ctrlpriv->caam_emi_slow);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "can't enable CAAM emi slow clock: %d\n",
+				ret);
+			goto disable_caam_aclk;
+		}
 	}
 
 	/* Get configuration properties from device tree */
@@ -832,7 +836,8 @@ caam_remove:
 iounmap_ctrl:
 	iounmap(ctrl);
 disable_caam_emi_slow:
-	clk_disable_unprepare(ctrlpriv->caam_emi_slow);
+	if (!of_machine_is_compatible("fsl,imx6ul"))
+		clk_disable_unprepare(ctrlpriv->caam_emi_slow);
 disable_caam_aclk:
 	clk_disable_unprepare(ctrlpriv->caam_aclk);
 disable_caam_mem:
