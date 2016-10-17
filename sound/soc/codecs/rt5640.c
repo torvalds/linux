@@ -2407,6 +2407,9 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 	if (ret != 0)
 		dev_warn(&i2c->dev, "Failed to apply regmap patch: %d\n", ret);
 
+	regmap_update_bits(rt5640->regmap, RT5640_DUMMY1,
+				RT5640_MCLK_DET, RT5640_MCLK_DET);
+
 	if (rt5640->pdata.in1_diff)
 		regmap_update_bits(rt5640->regmap, RT5640_IN1_IN2,
 					RT5640_IN_DF1, RT5640_IN_DF1);
