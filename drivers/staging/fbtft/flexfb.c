@@ -830,6 +830,7 @@ static const struct platform_device_id flexfb_platform_ids[] = {
 	{ "flexpfb", 0 },
 	{ },
 };
+MODULE_DEVICE_TABLE(platform, flexfb_platform_ids);
 
 static struct platform_driver flexfb_platform_driver = {
 	.driver = {
