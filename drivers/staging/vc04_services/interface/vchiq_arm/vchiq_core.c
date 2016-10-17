@@ -2440,7 +2440,7 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 		(void *)state,
 		threadname);
 
-	if (state->slot_handler_thread == NULL) {
+	if (IS_ERR(state->slot_handler_thread)) {
 		vchiq_loud_error_header();
 		vchiq_loud_error("couldn't create thread %s", threadname);
 		vchiq_loud_error_footer();
@@ -2453,7 +2453,7 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 	state->recycle_thread = kthread_create(&recycle_func,
 		(void *)state,
 		threadname);
-	if (state->recycle_thread == NULL) {
+	if (IS_ERR(state->recycle_thread)) {
 		vchiq_loud_error_header();
 		vchiq_loud_error("couldn't create thread %s", threadname);
 		vchiq_loud_error_footer();
@@ -2466,7 +2466,7 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 	state->sync_thread = kthread_create(&sync_func,
 		(void *)state,
 		threadname);
-	if (state->sync_thread == NULL) {
+	if (IS_ERR(state->sync_thread)) {
 		vchiq_loud_error_header();
 		vchiq_loud_error("couldn't create thread %s", threadname);
 		vchiq_loud_error_footer();
