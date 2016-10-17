@@ -45,11 +45,11 @@ static void kbasep_instr_hwcnt_cacheclean(struct kbase_device *kbdev)
 					KBASE_INSTR_STATE_REQUEST_CLEAN);
 
 	/* Enable interrupt */
-	spin_lock_irqsave(&kbdev->pm.power_change_lock, pm_flags);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, pm_flags);
 	irq_mask = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK), NULL);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK),
 				irq_mask | CLEAN_CACHES_COMPLETED, NULL);
-	spin_unlock_irqrestore(&kbdev->pm.power_change_lock, pm_flags);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, pm_flags);
 
 	/* clean&invalidate the caches so we're sure the mmu tables for the dump
 	 * buffer is valid */
@@ -96,11 +96,11 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 	}
 
 	/* Enable interrupt */
-	spin_lock_irqsave(&kbdev->pm.power_change_lock, pm_flags);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, pm_flags);
 	irq_mask = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK), NULL);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK), irq_mask |
 						PRFCNT_SAMPLE_COMPLETED, NULL);
-	spin_unlock_irqrestore(&kbdev->pm.power_change_lock, pm_flags);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, pm_flags);
 
 	/* In use, this context is the owner */
 	kbdev->hwcnt.kctx = kctx;
@@ -185,7 +185,9 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 	dev_dbg(kbdev->dev, "HW counters dumping set-up for context %p", kctx);
 	return err;
  out_unrequest_cores:
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 	kbase_pm_unrequest_cores(kbdev, true, shader_cores_needed);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
  out_err:
 	return err;
 }
@@ -226,11 +228,10 @@ int kbase_instr_hwcnt_disable_internal(struct kbase_context *kctx)
 	kbdev->hwcnt.backend.triggered = 0;
 
 	/* Disable interrupt */
-	spin_lock_irqsave(&kbdev->pm.power_change_lock, pm_flags);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, pm_flags);
 	irq_mask = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK), NULL);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK),
 				irq_mask & ~PRFCNT_SAMPLE_COMPLETED, NULL);
-	spin_unlock_irqrestore(&kbdev->pm.power_change_lock, pm_flags);
 
 	/* Disable the counters */
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_CONFIG), 0, kctx);
@@ -243,9 +244,10 @@ int kbase_instr_hwcnt_disable_internal(struct kbase_context *kctx)
 	kbase_pm_unrequest_cores(kbdev, true,
 		kbase_pm_get_present_cores(kbdev, KBASE_PM_CORE_SHADER));
 
-	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
-
 	kbase_pm_release_l2_caches(kbdev);
+
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, pm_flags);
+	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 
 	dev_dbg(kbdev->dev, "HW counters dumping disabled for context %p",
 									kctx);
@@ -391,12 +393,12 @@ void kbase_clean_caches_done(struct kbase_device *kbdev)
 
 		spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
 		/* Disable interrupt */
-		spin_lock_irqsave(&kbdev->pm.power_change_lock, pm_flags);
+		spin_lock_irqsave(&kbdev->hwaccess_lock, pm_flags);
 		irq_mask = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK),
 									NULL);
 		kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK),
 				irq_mask & ~CLEAN_CACHES_COMPLETED, NULL);
-		spin_unlock_irqrestore(&kbdev->pm.power_change_lock, pm_flags);
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, pm_flags);
 
 		/* Wakeup... */
 		if (kbdev->hwcnt.backend.state == KBASE_INSTR_STATE_CLEANING) {

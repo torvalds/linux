@@ -104,7 +104,7 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 	js_devdata = &kbdev->js_data;
 
 	/* Loop through the slots */
-	spin_lock_irqsave(&js_devdata->runpool_irq.lock, flags);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 	for (s = 0; s < kbdev->gpu_props.num_job_slots; s++) {
 		struct kbase_jd_atom *atom = NULL;
 
@@ -168,8 +168,8 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 					 * However, if it's about to be
 					 * increased then the new context can't
 					 * run any jobs until they take the
-					 * runpool_irq lock, so it's OK to
-					 * observe the older value.
+					 * hwaccess_lock, so it's OK to observe
+					 * the older value.
 					 *
 					 * Similarly, if it's about to be
 					 * decreased, the last job from another
@@ -270,7 +270,7 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 
 	backend->timeouts_updated = false;
 
-	spin_unlock_irqrestore(&js_devdata->runpool_irq.lock, flags);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 	return HRTIMER_NORESTART;
 }
@@ -285,9 +285,9 @@ void kbase_backend_ctx_count_changed(struct kbase_device *kbdev)
 
 	if (!timer_callback_should_run(kbdev)) {
 		/* Take spinlock to force synchronisation with timer */
-		spin_lock_irqsave(&js_devdata->runpool_irq.lock, flags);
+		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 		backend->timer_running = false;
-		spin_unlock_irqrestore(&js_devdata->runpool_irq.lock, flags);
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 		/* From now on, return value of timer_callback_should_run() will
 		 * also cause the timer to not requeue itself. Its return value
 		 * cannot change, because it depends on variables updated with
@@ -298,9 +298,9 @@ void kbase_backend_ctx_count_changed(struct kbase_device *kbdev)
 
 	if (timer_callback_should_run(kbdev) && !backend->timer_running) {
 		/* Take spinlock to force synchronisation with timer */
-		spin_lock_irqsave(&js_devdata->runpool_irq.lock, flags);
+		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 		backend->timer_running = true;
-		spin_unlock_irqrestore(&js_devdata->runpool_irq.lock, flags);
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 		hrtimer_start(&backend->scheduling_timer,
 			HR_TIMER_DELAY_NSEC(js_devdata->scheduling_period_ns),
 							HRTIMER_MODE_REL);

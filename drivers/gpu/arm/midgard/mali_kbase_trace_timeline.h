@@ -28,8 +28,16 @@ enum kbase_trace_timeline_code {
 	#undef KBASE_TIMELINE_TRACE_CODE
 };
 
+#ifdef CONFIG_DEBUG_FS
+
 /** Initialize Timeline DebugFS entries */
 void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
+
+#else /* CONFIG_DEBUG_FS */
+
+#define kbasep_trace_timeline_debugfs_init CSTD_NOP
+
+#endif /* CONFIG_DEBUG_FS */
 
 /* mali_timeline.h defines kernel tracepoints used by the KBASE_TIMELINE
  * functions.
@@ -232,13 +240,12 @@ void kbasep_trace_timeline_debugfs_init(struct kbase_device *kbdev);
 				count);                                      \
 	} while (0)
 
-
 /* NOTE: kbase_timeline_pm_cores_func() is in mali_kbase_pm_policy.c */
 
 /**
  * Trace that an atom is starting on a job slot
  *
- * The caller must be holding kbasep_js_device_data::runpool_irq::lock
+ * The caller must be holding hwaccess_lock
  */
 void kbase_timeline_job_slot_submit(struct kbase_device *kbdev, struct kbase_context *kctx,
 		struct kbase_jd_atom *katom, int js);
@@ -257,7 +264,7 @@ void kbase_timeline_job_slot_submit(struct kbase_device *kbdev, struct kbase_con
  * - kbasep_jm_dequeue_submit_slot()
  * - kbasep_jm_dequeue_tail_submit_slot()
  *
- * The caller must be holding kbasep_js_device_data::runpool_irq::lock
+ * The caller must be holding hwaccess_lock
  */
 void kbase_timeline_job_slot_done(struct kbase_device *kbdev, struct kbase_context *kctx,
 		struct kbase_jd_atom *katom, int js,
@@ -321,14 +328,14 @@ void kbase_timeline_pm_l2_transition_done(struct kbase_device *kbdev);
 static inline void kbase_timeline_job_slot_submit(struct kbase_device *kbdev, struct kbase_context *kctx,
 		struct kbase_jd_atom *katom, int js)
 {
-	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 }
 
 static inline void kbase_timeline_job_slot_done(struct kbase_device *kbdev, struct kbase_context *kctx,
 		struct kbase_jd_atom *katom, int js,
 		kbasep_js_atom_done_code done_code)
 {
-	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 }
 
 static inline void kbase_timeline_pm_send_event(struct kbase_device *kbdev, enum kbase_timeline_pm_event event_sent)

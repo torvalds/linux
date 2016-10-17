@@ -40,7 +40,7 @@
  * calling this.
  *
  * The following locking conditions are made on the caller:
- * - it must hold the kbasep_js_device_data::runpoool_irq::lock
+ * - it must hold the hwaccess_lock
  */
 void kbase_job_submit_nolock(struct kbase_device *kbdev,
 					struct kbase_jd_atom *katom, int js);
@@ -74,7 +74,7 @@ static inline char *kbasep_make_job_slot_string(int js, char *js_string)
  * calling this.
  *
  * The following locking conditions are made on the caller:
- * - it must hold the kbasep_js_device_data::runpoool_irq::lock
+ * - it must hold the hwaccess_lock
  */
 void kbase_job_hw_submit(struct kbase_device *kbdev,
 				struct kbase_jd_atom *katom,
@@ -91,7 +91,7 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
  * @target_katom:	Atom to stop
  *
  * The following locking conditions are made on the caller:
- * - it must hold the kbasep_js_device_data::runpool_irq::lock
+ * - it must hold the hwaccess_lock
  */
 void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev,
 					int js,

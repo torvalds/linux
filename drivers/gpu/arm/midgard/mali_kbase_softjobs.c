@@ -639,8 +639,7 @@ struct kbase_debug_copy_buffer {
 	struct page **pages;
 	int nr_pages;
 	size_t offset;
-	/*To find memory region*/
-	u64 gpu_addr;
+	struct kbase_mem_phy_alloc *gpu_alloc;
 
 	struct page **extres_pages;
 	int nr_extres_pages;
@@ -677,10 +676,7 @@ static void kbase_debug_copy_finish(struct kbase_jd_atom *katom)
 	kbase_gpu_vm_lock(katom->kctx);
 	for (i = 0; i < nr; i++) {
 		int p;
-		struct kbase_va_region *reg;
-
-		reg = kbase_region_tracker_find_region_enclosing_address(
-				katom->kctx, buffers[i].gpu_addr);
+		struct kbase_mem_phy_alloc *gpu_alloc = buffers[i].gpu_alloc;
 
 		if (!buffers[i].pages)
 			break;
@@ -691,8 +687,8 @@ static void kbase_debug_copy_finish(struct kbase_jd_atom *katom)
 				put_page(pg);
 		}
 		kfree(buffers[i].pages);
-		if (reg && reg->gpu_alloc) {
-			switch (reg->gpu_alloc->type) {
+		if (gpu_alloc) {
+			switch (gpu_alloc->type) {
 			case KBASE_MEM_TYPE_IMPORTED_USER_BUF:
 			{
 				free_user_buffer(&buffers[i]);
@@ -702,7 +698,7 @@ static void kbase_debug_copy_finish(struct kbase_jd_atom *katom)
 				/* Nothing to be done. */
 				break;
 			}
-			kbase_mem_phy_alloc_put(reg->gpu_alloc);
+			kbase_mem_phy_alloc_put(gpu_alloc);
 		}
 	}
 	kbase_gpu_vm_unlock(katom->kctx);
@@ -790,20 +786,20 @@ static int kbase_debug_copy_prepare(struct kbase_jd_atom *katom)
 			goto out_cleanup;
 		}
 
-		buffers[i].gpu_addr = user_extres.ext_resource &
-			~BASE_EXT_RES_ACCESS_EXCLUSIVE;
 		kbase_gpu_vm_lock(katom->kctx);
 		reg = kbase_region_tracker_find_region_enclosing_address(
-				katom->kctx, buffers[i].gpu_addr);
+				katom->kctx, user_extres.ext_resource &
+				~BASE_EXT_RES_ACCESS_EXCLUSIVE);
 
-		if (NULL == reg || NULL == reg->cpu_alloc ||
+		if (NULL == reg || NULL == reg->gpu_alloc ||
 				(reg->flags & KBASE_REG_FREE)) {
 			ret = -EINVAL;
 			goto out_unlock;
 		}
-		kbase_mem_phy_alloc_get(reg->gpu_alloc);
 
+		buffers[i].gpu_alloc = kbase_mem_phy_alloc_get(reg->gpu_alloc);
 		buffers[i].nr_extres_pages = reg->nr_pages;
+
 		if (reg->nr_pages*PAGE_SIZE != buffers[i].size)
 			dev_warn(katom->kctx->kbdev->dev, "Copy buffer is not of same size as the external resource to copy.\n");
 
@@ -909,25 +905,22 @@ static int kbase_mem_copy_from_extres(struct kbase_context *kctx,
 {
 	unsigned int i;
 	unsigned int target_page_nr = 0;
-	struct kbase_va_region *reg;
 	struct page **pages = buf_data->pages;
 	u64 offset = buf_data->offset;
 	size_t extres_size = buf_data->nr_extres_pages*PAGE_SIZE;
 	size_t to_copy = min(extres_size, buf_data->size);
+	struct kbase_mem_phy_alloc *gpu_alloc = buf_data->gpu_alloc;
 	int ret = 0;
 
 	KBASE_DEBUG_ASSERT(pages != NULL);
 
 	kbase_gpu_vm_lock(kctx);
-	reg = kbase_region_tracker_find_region_enclosing_address(
-			kctx, buf_data->gpu_addr);
-
-	if (!reg) {
+	if (!gpu_alloc) {
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 
-	switch (reg->gpu_alloc->type) {
+	switch (gpu_alloc->type) {
 	case KBASE_MEM_TYPE_IMPORTED_USER_BUF:
 	{
 		for (i = 0; i < buf_data->nr_extres_pages; i++) {
@@ -950,14 +943,14 @@ static int kbase_mem_copy_from_extres(struct kbase_context *kctx,
 	break;
 #ifdef CONFIG_DMA_SHARED_BUFFER
 	case KBASE_MEM_TYPE_IMPORTED_UMM: {
-		struct dma_buf *dma_buf = reg->gpu_alloc->imported.umm.dma_buf;
+		struct dma_buf *dma_buf = gpu_alloc->imported.umm.dma_buf;
 
 		KBASE_DEBUG_ASSERT(dma_buf != NULL);
 		KBASE_DEBUG_ASSERT(dma_buf->size ==
 				   buf_data->nr_extres_pages * PAGE_SIZE);
 
 		ret = dma_buf_begin_cpu_access(dma_buf,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0) && !defined(CONFIG_CHROMEOS)
 				0, buf_data->nr_extres_pages*PAGE_SIZE,
 #endif
 				DMA_FROM_DEVICE);
@@ -980,7 +973,7 @@ static int kbase_mem_copy_from_extres(struct kbase_context *kctx,
 				break;
 		}
 		dma_buf_end_cpu_access(dma_buf,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0) && !defined(CONFIG_CHROMEOS)
 				0, buf_data->nr_extres_pages*PAGE_SIZE,
 #endif
 				DMA_FROM_DEVICE);
@@ -1329,9 +1322,11 @@ int kbase_process_soft_job(struct kbase_jd_atom *katom)
 		break;
 	}
 	case BASE_JD_REQ_SOFT_JIT_ALLOC:
+		return -EINVAL; /* Temporarily disabled */
 		kbase_jit_allocate_process(katom);
 		break;
 	case BASE_JD_REQ_SOFT_JIT_FREE:
+		return -EINVAL; /* Temporarily disabled */
 		kbase_jit_free_process(katom);
 		break;
 	case BASE_JD_REQ_SOFT_EXT_RES_MAP:

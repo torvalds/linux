@@ -168,6 +168,16 @@ void kbase_pm_enable_interrupts(struct kbase_device *kbdev);
 void kbase_pm_disable_interrupts(struct kbase_device *kbdev);
 
 /**
+ * kbase_pm_disable_interrupts_nolock - Version of kbase_pm_disable_interrupts()
+ *                                      that does not take the hwaccess_lock
+ *
+ * Caller must hold the hwaccess_lock.
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ */
+void kbase_pm_disable_interrupts_nolock(struct kbase_device *kbdev);
+
+/**
  * kbase_pm_init_hw - Initialize the hardware.
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  * @flags: Flags specifying the type of PM init
@@ -373,13 +383,34 @@ void kbase_pm_request_gpu_cycle_counter_l2_is_on(struct kbase_device *kbdev);
  * kbase_pm_release_gpu_cycle_counter - Mark that the GPU cycle counter is no
  *                                      longer in use
  *
- * If the caller is the
- * last caller then the GPU cycle counters will be disabled. A request must have
- * been made before a call to this.
+ * If the caller is the last caller then the GPU cycle counters will be
+ * disabled. A request must have been made before a call to this.
+ *
+ * Caller must not hold the hwaccess_lock, as it will be taken in this function.
+ * If the caller is already holding this lock then
+ * kbase_pm_release_gpu_cycle_counter_nolock() must be used instead.
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  */
 void kbase_pm_release_gpu_cycle_counter(struct kbase_device *kbdev);
+
+/**
+ * kbase_pm_release_gpu_cycle_counter_nolock - Version of kbase_pm_release_gpu_cycle_counter()
+ *                                             that does not take hwaccess_lock
+ *
+ * Caller must hold the hwaccess_lock.
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ */
+void kbase_pm_release_gpu_cycle_counter_nolock(struct kbase_device *kbdev);
+
+/**
+ * kbase_pm_wait_for_poweroff_complete - Wait for the poweroff workqueue to
+ *                                       complete
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ */
+void kbase_pm_wait_for_poweroff_complete(struct kbase_device *kbdev);
 
 /**
  * kbase_pm_register_access_enable - Enable access to GPU registers
@@ -454,12 +485,8 @@ void kbase_pm_do_poweron(struct kbase_device *kbdev, bool is_resume);
  *              pointer)
  * @is_suspend: true if power off due to suspend,
  *              false otherwise
- * Return:
- *         true      if power was turned off, else
- *         false     if power can not be turned off due to pending page/bus
- *                   fault workers. Caller must flush MMU workqueues and retry
  */
-bool kbase_pm_do_poweroff(struct kbase_device *kbdev, bool is_suspend);
+void kbase_pm_do_poweroff(struct kbase_device *kbdev, bool is_suspend);
 
 #ifdef CONFIG_PM_DEVFREQ
 void kbase_pm_get_dvfs_utilisation(struct kbase_device *kbdev,
@@ -496,7 +523,7 @@ void kbase_pm_power_changed(struct kbase_device *kbdev);
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
  * @now:   Pointer to the timestamp of the change, or NULL to use current time
  *
- * Caller must hold runpool_irq.lock
+ * Caller must hold hwaccess_lock
  */
 void kbase_pm_metrics_update(struct kbase_device *kbdev,
 				ktime_t *now);

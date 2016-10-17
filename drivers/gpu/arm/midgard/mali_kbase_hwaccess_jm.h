@@ -34,6 +34,17 @@ void kbase_backend_run_atom(struct kbase_device *kbdev,
 				struct kbase_jd_atom *katom);
 
 /**
+ * kbase_backend_slot_update - Update state based on slot ringbuffers
+ *
+ * @kbdev:  Device pointer
+ *
+ * Inspect the jobs in the slot ringbuffers and update state.
+ *
+ * This will cause jobs to be submitted to hardware if they are unblocked
+ */
+void kbase_backend_slot_update(struct kbase_device *kbdev);
+
+/**
  * kbase_backend_find_free_address_space() - Find a free address space.
  * @kbdev:	Device pointer
  * @kctx:	Context pointer
@@ -88,7 +99,7 @@ bool kbase_backend_use_ctx(struct kbase_device *kbdev,
  * the context is not scheduled, then kbase_gpu_use_ctx() should be used
  * instead.
  *
- * Caller must hold runpool_irq.lock
+ * Caller must hold hwaccess_lock
  *
  * Return: true if context is now active, false otherwise (ie if context does
  *	   not have an address space assigned)
@@ -102,7 +113,7 @@ bool kbase_backend_use_ctx_sched(struct kbase_device *kbdev,
  * @kbdev: Device pointer
  * @kctx:  Context pointer
  *
- * Caller must hold as->transaction_mutex and runpool_irq.lock
+ * Caller must hold kbase_device->mmu_hw_mutex and hwaccess_lock
  */
 void kbase_backend_release_ctx_irq(struct kbase_device *kbdev,
 				struct kbase_context *kctx);
@@ -113,7 +124,7 @@ void kbase_backend_release_ctx_irq(struct kbase_device *kbdev,
  * @kbdev: Device pointer
  * @kctx:  Context pointer
  *
- * Caller must hold as->transaction_mutex
+ * Caller must hold kbase_device->mmu_hw_mutex
  *
  * This function must perform any operations that could not be performed in IRQ
  * context by kbase_backend_release_ctx_irq().

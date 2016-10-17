@@ -37,8 +37,9 @@ void kbase_tlstream_term(void);
 
 /**
  * kbase_tlstream_acquire - acquire timeline stream file descriptor
- * @kctx: kernel common context
- * @fd:   timeline stream file descriptor
+ * @kctx:  kernel common context
+ * @fd:    timeline stream file descriptor
+ * @flags: timeline stream flags
  *
  * This descriptor is meant to be used by userspace timeline to gain access to
  * kernel timeline stream. This stream is later broadcasted by user space to the
@@ -50,7 +51,7 @@ void kbase_tlstream_term(void);
  * Return: zero on success (this does not necessarily mean that stream
  *         descriptor could be returned), negative number on error
  */
-int kbase_tlstream_acquire(struct kbase_context *kctx, int *fd);
+int kbase_tlstream_acquire(struct kbase_context *kctx, int *fd, u32 flags);
 
 /**
  * kbase_tlstream_flush_streams - flush timeline streams.
@@ -102,6 +103,11 @@ void kbase_tlstream_stats(u32 *bytes_collected, u32 *bytes_generated);
 
 /*****************************************************************************/
 
+#define TL_ATOM_STATE_IDLE 0
+#define TL_ATOM_STATE_READY 1
+#define TL_ATOM_STATE_DONE 2
+#define TL_ATOM_STATE_POSTED 3
+
 void __kbase_tlstream_tl_summary_new_ctx(void *context, u32 nr, u32 tgid);
 void __kbase_tlstream_tl_summary_new_gpu(void *gpu, u32 id, u32 core_count);
 void __kbase_tlstream_tl_summary_new_lpu(void *lpu, u32 nr, u32 fn);
@@ -128,23 +134,36 @@ void __kbase_tlstream_tl_ndep_atom_atom(void *atom1, void *atom2);
 void __kbase_tlstream_tl_rdep_atom_atom(void *atom1, void *atom2);
 void __kbase_tlstream_tl_attrib_atom_config(
 		void *atom, u64 jd, u64 affinity, u32 config);
+void __kbase_tlstream_tl_attrib_atom_priority(void *atom, u32 prio);
+void __kbase_tlstream_tl_attrib_atom_state(void *atom, u32 state);
+void __kbase_tlstream_tl_attrib_atom_priority_change(void *atom);
 void __kbase_tlstream_tl_attrib_as_config(
 		void *as, u64 transtab, u64 memattr, u64 transcfg);
+void __kbase_tlstream_tl_event_atom_softstop_ex(void *atom);
+void __kbase_tlstream_tl_event_lpu_softstop(void *lpu);
+void __kbase_tlstream_tl_event_atom_softstop_issue(void *atom);
 void __kbase_tlstream_jd_gpu_soft_reset(void *gpu);
 void __kbase_tlstream_aux_pm_state(u32 core_type, u64 state);
-void __kbase_tlstream_aux_issue_job_softstop(void *katom);
-void __kbase_tlstream_aux_job_softstop(u32 js_id);
-void __kbase_tlstream_aux_job_softstop_ex(struct kbase_jd_atom *katom);
 void __kbase_tlstream_aux_pagefault(u32 ctx_nr, u64 page_count_change);
 void __kbase_tlstream_aux_pagesalloc(u32 ctx_nr, u64 page_count);
+void __kbase_tlstream_aux_devfreq_target(u64 target_freq);
+
+#define TLSTREAM_ENABLED (1 << 31)
 
 extern atomic_t kbase_tlstream_enabled;
 
 #define __TRACE_IF_ENABLED(trace_name, ...)                         \
 	do {                                                        \
 		int enabled = atomic_read(&kbase_tlstream_enabled); \
-		if (enabled)                                        \
+		if (enabled & TLSTREAM_ENABLED)                     \
 			__kbase_tlstream_##trace_name(__VA_ARGS__); \
+	} while (0)
+
+#define __TRACE_IF_ENABLED_LATENCY(trace_name, ...)                     \
+	do {                                                            \
+		int enabled = atomic_read(&kbase_tlstream_enabled);     \
+		if (enabled & BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS) \
+			__kbase_tlstream_##trace_name(__VA_ARGS__);     \
 	} while (0)
 
 /*****************************************************************************/
@@ -430,6 +449,35 @@ extern atomic_t kbase_tlstream_enabled;
 	__TRACE_IF_ENABLED(tl_attrib_atom_config, atom, jd, affinity, config)
 
 /**
+ * kbase_tlstream_tl_attrib_atom_priority - atom priority
+ * @atom: name of the atom object
+ * @prio: atom priority
+ *
+ * Function emits a timeline message containing atom priority.
+ */
+#define kbase_tlstream_tl_attrib_atom_priority(atom, prio) \
+	__TRACE_IF_ENABLED_LATENCY(tl_attrib_atom_priority, atom, prio)
+
+/**
+ * kbase_tlstream_tl_attrib_atom_state - atom state
+ * @atom:  name of the atom object
+ * @state: atom state
+ *
+ * Function emits a timeline message containing atom state.
+ */
+#define kbase_tlstream_tl_attrib_atom_state(atom, state) \
+	__TRACE_IF_ENABLED_LATENCY(tl_attrib_atom_state, atom, state)
+
+/**
+ * kbase_tlstream_tl_attrib_atom_priority_change - atom caused priority change
+ * @atom:  name of the atom object
+ *
+ * Function emits a timeline message signalling priority change
+ */
+#define kbase_tlstream_tl_attrib_atom_priority_change(atom) \
+	__TRACE_IF_ENABLED_LATENCY(tl_attrib_atom_priority_change, atom)
+
+/**
  * kbase_tlstream_tl_attrib_as_config - address space attributes
  * @as:       assigned address space
  * @transtab: configuration of the TRANSTAB register
@@ -440,6 +488,27 @@ extern atomic_t kbase_tlstream_enabled;
  */
 #define kbase_tlstream_tl_attrib_as_config(as, transtab, memattr, transcfg) \
 	__TRACE_IF_ENABLED(tl_attrib_as_config, as, transtab, memattr, transcfg)
+
+/**
+ * kbase_tlstream_tl_event_atom_softstop_ex
+ * @atom:       atom identifier
+ */
+#define kbase_tlstream_tl_event_atom_softstop_ex(atom) \
+	__TRACE_IF_ENABLED(tl_event_atom_softstop_ex, atom)
+
+/**
+ * kbase_tlstream_tl_event_lpu_softstop
+ * @lpu:        name of the LPU object
+ */
+#define kbase_tlstream_tl_event_lpu_softstop(lpu) \
+	__TRACE_IF_ENABLED(tl_event_lpu_softstop, lpu)
+
+/**
+ * kbase_tlstream_tl_event_atom_softstop_issue
+ * @atom:       atom identifier
+ */
+#define kbase_tlstream_tl_event_atom_softstop_issue(atom) \
+	__TRACE_IF_ENABLED(tl_event_atom_softstop_issue, atom)
 
 /**
  * kbase_tlstream_jd_gpu_soft_reset - The GPU is being soft reset
@@ -460,34 +529,6 @@ extern atomic_t kbase_tlstream_enabled;
 	__TRACE_IF_ENABLED(aux_pm_state, core_type, state)
 
 /**
- * kbase_tlstream_aux_issue_job_softstop - a soft-stop command is being issued
- * @katom: the atom that is being soft-stopped
- */
-#define kbase_tlstream_aux_issue_job_softstop(katom) \
-	__TRACE_IF_ENABLED(aux_issue_job_softstop, katom)
-
-/**
- * kbase_tlstream_aux_job_softstop - soft job stop occurred
- * @js_id: job slot id
- */
-#define kbase_tlstream_aux_job_softstop(js_id) \
-	__TRACE_IF_ENABLED(aux_job_softstop, js_id)
-
-/**
- * kbase_tlstream_aux_job_softstop_ex - extra info about soft-stopped atom
- * @katom: the atom that has been soft-stopped
- *
- * This trace point adds more details about the soft-stopped atom. These details
- * can't be safety collected inside the interrupt handler so we're doing it
- * inside a worker.
- *
- * Note: this is not the same information that is recorded in the trace point,
- * refer to __kbase_tlstream_aux_job_softstop_ex() for more details.
- */
-#define kbase_tlstream_aux_job_softstop_ex(katom) \
-	__TRACE_IF_ENABLED(aux_job_softstop_ex, katom)
-
-/**
  * kbase_tlstream_aux_pagefault - timeline message: MMU page fault event
  *                                resulting in new pages being mapped
  * @ctx_nr:            kernel context number
@@ -504,6 +545,14 @@ extern atomic_t kbase_tlstream_enabled;
  */
 #define kbase_tlstream_aux_pagesalloc(ctx_nr, page_count) \
 	__TRACE_IF_ENABLED(aux_pagesalloc, ctx_nr, page_count)
+
+/**
+ * kbase_tlstream_aux_devfreq_target - timeline message: new target DVFS
+ *                                     frequency
+ * @target_freq: new target frequency
+ */
+#define kbase_tlstream_aux_devfreq_target(target_freq) \
+	__TRACE_IF_ENABLED(aux_devfreq_target, target_freq)
 
 #endif /* _KBASE_TLSTREAM_H */
 

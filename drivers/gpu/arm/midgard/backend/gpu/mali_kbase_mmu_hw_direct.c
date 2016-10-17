@@ -97,6 +97,30 @@ static int write_cmd(struct kbase_device *kbdev, int as_nr, u32 cmd,
 	return status;
 }
 
+static void validate_protected_page_fault(struct kbase_device *kbdev,
+		struct kbase_context *kctx)
+{
+	/* GPUs which support (native) protected mode shall not report page
+	 * fault addresses unless it has protected debug mode and protected
+	 * debug mode is turned on */
+	u32 protected_debug_mode = 0;
+
+	if (!kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_PROTECTED_MODE))
+		return;
+
+	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_PROTECTED_DEBUG_MODE)) {
+		protected_debug_mode = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(GPU_STATUS),
+				kctx) & GPU_DBGEN;
+	}
+
+	if (!protected_debug_mode) {
+		/* fault_addr should never be reported in protected mode.
+		 * However, we just continue by printing an error message */
+		dev_err(kbdev->dev, "Fault address reported in protected mode\n");
+	}
+}
+
 void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 {
 	const int num_as = 16;
@@ -141,6 +165,7 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 		 */
 		kctx = kbasep_js_runpool_lookup_ctx(kbdev, as_no);
 
+
 		/* find faulting address */
 		as->fault_addr = kbase_reg_read(kbdev,
 						MMU_AS_REG(as_no,
@@ -151,6 +176,15 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 						MMU_AS_REG(as_no,
 							AS_FAULTADDRESS_LO),
 						kctx);
+
+		/* Mark the fault protected or not */
+		as->protected_mode = kbdev->protected_mode;
+
+		if (kbdev->protected_mode && as->fault_addr)
+		{
+			/* check if address reporting is allowed */
+			validate_protected_page_fault(kbdev, kctx);
+		}
 
 		/* report the fault to debugfs */
 		kbase_as_fault_debugfs_new(kbdev, as_no);
@@ -195,10 +229,9 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 		}
 
 		/* Process the interrupt for this address space */
-		spin_lock_irqsave(&kbdev->js_data.runpool_irq.lock, flags);
+		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 		kbase_mmu_interrupt_process(kbdev, kctx, as);
-		spin_unlock_irqrestore(&kbdev->js_data.runpool_irq.lock,
-				flags);
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 	}
 
 	/* reenable interrupts */
@@ -267,6 +300,8 @@ int kbase_mmu_hw_do_operation(struct kbase_device *kbdev, struct kbase_as *as,
 		unsigned int handling_irq)
 {
 	int ret;
+
+	lockdep_assert_held(&kbdev->mmu_hw_mutex);
 
 	if (op == AS_COMMAND_UNLOCK) {
 		/* Unlock doesn't require a lock first */

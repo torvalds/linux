@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -21,7 +21,7 @@
 #include <mali_kbase.h>
 
 /**
- * kbase_mem_pool_debugfs_add - add debugfs knobs for @pool
+ * kbase_mem_pool_debugfs_init - add debugfs knobs for @pool
  * @parent: Parent debugfs dentry
  * @pool:   Memory pool to control
  *
@@ -29,7 +29,7 @@
  * - mem_pool_size: get/set the current size of @pool
  * - mem_pool_max_size: get/set the max size of @pool
  */
-void kbase_mem_pool_debugfs_add(struct dentry *parent,
+void kbase_mem_pool_debugfs_init(struct dentry *parent,
 		struct kbase_mem_pool *pool);
 
 #endif  /*_KBASE_MEM_POOL_DEBUGFS_H*/

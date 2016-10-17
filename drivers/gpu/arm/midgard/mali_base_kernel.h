@@ -45,6 +45,9 @@
 /* Support UK10_2 IOCTLS */
 #define BASE_LEGACY_UK10_2_SUPPORT 1
 
+/* Support UK10_4 IOCTLS */
+#define BASE_LEGACY_UK10_4_SUPPORT 1
+
 typedef struct base_mem_handle {
 	struct {
 		u64 handle;
@@ -1806,5 +1809,11 @@ typedef struct base_jd_replay_jc {
 typedef struct base_profiling_controls {
 	u32 profiling_controls[FBDUMP_CONTROL_MAX];
 } base_profiling_controls;
+
+/* Enable additional tracepoints for latency measurements (TL_ATOM_READY,
+ * TL_ATOM_DONE, TL_ATOM_PRIO_CHANGE, TL_ATOM_EVENT_POST) */
+#define BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS (1 << 0)
+
+#define BASE_TLSTREAM_FLAGS_MASK (BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS)
 
 #endif				/* _BASE_KERNEL_H_ */

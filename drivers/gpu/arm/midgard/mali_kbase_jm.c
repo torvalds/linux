@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -60,7 +60,7 @@ u32 kbase_jm_kick(struct kbase_device *kbdev, u32 js_mask)
 {
 	u32 ret_mask = 0;
 
-	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 
 	while (js_mask) {
 		int js = ffs(js_mask) - 1;
@@ -79,7 +79,7 @@ void kbase_jm_try_kick(struct kbase_device *kbdev, u32 js_mask)
 {
 	struct kbasep_js_device_data *js_devdata = &kbdev->js_data;
 
-	lockdep_assert_held(&js_devdata->runpool_irq.lock);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 
 	if (!down_trylock(&js_devdata->schedule_sem)) {
 		kbase_jm_kick(kbdev, js_mask);
@@ -91,7 +91,7 @@ void kbase_jm_try_kick_all(struct kbase_device *kbdev)
 {
 	struct kbasep_js_device_data *js_devdata = &kbdev->js_data;
 
-	lockdep_assert_held(&js_devdata->runpool_irq.lock);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 
 	if (!down_trylock(&js_devdata->schedule_sem)) {
 		kbase_jm_kick_all(kbdev);
@@ -101,30 +101,31 @@ void kbase_jm_try_kick_all(struct kbase_device *kbdev)
 
 void kbase_jm_idle_ctx(struct kbase_device *kbdev, struct kbase_context *kctx)
 {
-	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 
 	if (kbdev->hwaccess.active_kctx == kctx)
 		kbdev->hwaccess.active_kctx = NULL;
 }
 
-void kbase_jm_return_atom_to_js(struct kbase_device *kbdev,
+struct kbase_jd_atom *kbase_jm_return_atom_to_js(struct kbase_device *kbdev,
 				struct kbase_jd_atom *katom)
 {
-	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 
 	if (katom->event_code != BASE_JD_EVENT_STOPPED &&
 			katom->event_code != BASE_JD_EVENT_REMOVED_FROM_NEXT) {
-		kbase_js_complete_atom(katom, NULL);
+		return kbase_js_complete_atom(katom, NULL);
 	} else {
 		kbase_js_unpull(katom->kctx, katom);
+		return NULL;
 	}
 }
 
-void kbase_jm_complete(struct kbase_device *kbdev, struct kbase_jd_atom *katom,
-			ktime_t *end_timestamp)
+struct kbase_jd_atom *kbase_jm_complete(struct kbase_device *kbdev,
+		struct kbase_jd_atom *katom, ktime_t *end_timestamp)
 {
-	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 
-	kbase_js_complete_atom(katom, end_timestamp);
+	return kbase_js_complete_atom(katom, end_timestamp);
 }
 

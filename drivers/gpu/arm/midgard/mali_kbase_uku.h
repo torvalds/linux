@@ -56,9 +56,15 @@
  *
  * 10.4:
  * - Removed KBASE_FUNC_EXT_BUFFER_LOCK used only in internal tests
+ *
+ * 10.5:
+ * - Reverted to performing mmap in user space so that tools like valgrind work.
+ *
+ * 10.6:
+ * - Add flags input variable to KBASE_FUNC_TLSTREAM_ACQUIRE
  */
 #define BASE_UK_VERSION_MAJOR 10
-#define BASE_UK_VERSION_MINOR 4
+#define BASE_UK_VERSION_MINOR 6
 
 struct kbase_uk_mem_alloc {
 	union uk_header header;
@@ -319,6 +325,7 @@ struct kbase_uk_profiling_controls {
 struct kbase_uk_debugfs_mem_profile_add {
 	union uk_header header;
 	u32 len;
+	u32 padding;
 	union kbase_pointer buf;
 };
 
@@ -333,12 +340,30 @@ struct kbase_uk_context_id {
 /**
  * struct kbase_uk_tlstream_acquire - User/Kernel space data exchange structure
  * @header: UK structure header
+ * @flags:  timeline stream flags
  * @fd:     timeline stream file descriptor
  *
- * This structure is used used when performing a call to acquire kernel side
- * timeline stream file descriptor.
+ * This structure is used when performing a call to acquire kernel side timeline
+ * stream file descriptor.
  */
 struct kbase_uk_tlstream_acquire {
+	union uk_header header;
+	/* IN */
+	u32 flags;
+	/* OUT */
+	s32  fd;
+};
+
+/**
+ * struct kbase_uk_tlstream_acquire_v10_4 - User/Kernel space data exchange
+ *                                          structure
+ * @header: UK structure header
+ * @fd:     timeline stream file descriptor
+ *
+ * This structure is used when performing a call to acquire kernel side timeline
+ * stream file descriptor.
+ */
+struct kbase_uk_tlstream_acquire_v10_4 {
 	union uk_header header;
 	/* IN */
 	/* OUT */
@@ -497,7 +522,7 @@ enum kbase_uk_function_id {
 
 #if (defined(MALI_MIPE_ENABLED) && MALI_MIPE_ENABLED) || \
 	!defined(MALI_MIPE_ENABLED)
-	KBASE_FUNC_TLSTREAM_ACQUIRE = (UK_FUNC_ID + 32),
+	KBASE_FUNC_TLSTREAM_ACQUIRE_V10_4 = (UK_FUNC_ID + 32),
 #if MALI_UNIT_TEST
 	KBASE_FUNC_TLSTREAM_TEST = (UK_FUNC_ID + 33),
 	KBASE_FUNC_TLSTREAM_STATS = (UK_FUNC_ID + 34),
@@ -514,6 +539,11 @@ enum kbase_uk_function_id {
 	KBASE_FUNC_SOFT_EVENT_UPDATE = (UK_FUNC_ID + 38),
 
 	KBASE_FUNC_MEM_JIT_INIT = (UK_FUNC_ID + 39),
+
+#if (defined(MALI_MIPE_ENABLED) && MALI_MIPE_ENABLED) || \
+	!defined(MALI_MIPE_ENABLED)
+	KBASE_FUNC_TLSTREAM_ACQUIRE = (UK_FUNC_ID + 40),
+#endif /* MALI_MIPE_ENABLED */
 
 	KBASE_FUNC_MAX
 };

@@ -142,7 +142,13 @@ enum tl_msg_id_obj {
 	KBASE_TL_NDEP_ATOM_ATOM,
 	KBASE_TL_RDEP_ATOM_ATOM,
 	KBASE_TL_ATTRIB_ATOM_CONFIG,
+	KBASE_TL_ATTRIB_ATOM_PRIORITY,
+	KBASE_TL_ATTRIB_ATOM_STATE,
+	KBASE_TL_ATTRIB_ATOM_PRIORITY_CHANGE,
 	KBASE_TL_ATTRIB_AS_CONFIG,
+	KBASE_TL_EVENT_LPU_SOFTSTOP,
+	KBASE_TL_EVENT_ATOM_SOFTSTOP_EX,
+	KBASE_TL_EVENT_ATOM_SOFTSTOP_ISSUE,
 
 	/* Job dump specific events. */
 	KBASE_JD_GPU_SOFT_RESET
@@ -151,11 +157,9 @@ enum tl_msg_id_obj {
 /* Message ids of trace events that are recorded in the auxiliary stream. */
 enum tl_msg_id_aux {
 	KBASE_AUX_PM_STATE,
-	KBASE_AUX_ISSUE_JOB_SOFTSTOP,
-	KBASE_AUX_JOB_SOFTSTOP,
-	KBASE_AUX_JOB_SOFTSTOP_EX,
 	KBASE_AUX_PAGEFAULT,
-	KBASE_AUX_PAGESALLOC
+	KBASE_AUX_PAGESALLOC,
+	KBASE_AUX_DEVFREQ_TARGET
 };
 
 /*****************************************************************************/
@@ -430,11 +434,53 @@ static const struct tp_desc tp_desc_obj[] = {
 		"atom,descriptor,affinity,config"
 	},
 	{
+		KBASE_TL_ATTRIB_ATOM_PRIORITY,
+		__stringify(KBASE_TL_ATTRIB_ATOM_PRIORITY),
+		"atom priority",
+		"@pI",
+		"atom,prio"
+	},
+	{
+		KBASE_TL_ATTRIB_ATOM_STATE,
+		__stringify(KBASE_TL_ATTRIB_ATOM_STATE),
+		"atom state",
+		"@pI",
+		"atom,state"
+	},
+	{
+		KBASE_TL_ATTRIB_ATOM_PRIORITY_CHANGE,
+		__stringify(KBASE_TL_ATTRIB_ATOM_PRIORITY_CHANGE),
+		"atom caused priority change",
+		"@p",
+		"atom"
+	},
+	{
 		KBASE_TL_ATTRIB_AS_CONFIG,
 		__stringify(KBASE_TL_ATTRIB_AS_CONFIG),
 		"address space attributes",
 		"@pLLL",
 		"address_space,transtab,memattr,transcfg"
+	},
+	{
+		KBASE_TL_EVENT_LPU_SOFTSTOP,
+		__stringify(KBASE_TL_EVENT_LPU_SOFTSTOP),
+		"softstop event on given lpu",
+		"@p",
+		"lpu"
+	},
+	{
+		KBASE_TL_EVENT_ATOM_SOFTSTOP_EX,
+		__stringify(KBASE_TL_EVENT_ATOM_SOFTSTOP_EX),
+		"atom softstopped",
+		"@p",
+		"atom"
+	},
+	{
+		KBASE_TL_EVENT_ATOM_SOFTSTOP_ISSUE,
+		__stringify(KBASE_TL_EVENT_SOFTSTOP_ISSUE),
+		"atom softstop issued",
+		"@p",
+		"atom"
 	},
 	{
 		KBASE_JD_GPU_SOFT_RESET,
@@ -455,27 +501,6 @@ static const struct tp_desc tp_desc_aux[] = {
 		"core_type,core_state_bitset"
 	},
 	{
-		KBASE_AUX_ISSUE_JOB_SOFTSTOP,
-		__stringify(KBASE_AUX_ISSUE_JOB_SOFTSTOP),
-		"Issuing job soft stop",
-		"@p",
-		"atom"
-	},
-	{
-		KBASE_AUX_JOB_SOFTSTOP,
-		__stringify(KBASE_AUX_JOB_SOFTSTOP),
-		"Job soft stop",
-		"@I",
-		"tag_id"
-	},
-	{
-		KBASE_AUX_JOB_SOFTSTOP_EX,
-		__stringify(KBASE_AUX_JOB_SOFTSTOP_EX),
-		"Job soft stop, more details",
-		"@pI",
-		"atom,job_type"
-	},
-	{
 		KBASE_AUX_PAGEFAULT,
 		__stringify(KBASE_AUX_PAGEFAULT),
 		"Page fault",
@@ -488,6 +513,13 @@ static const struct tp_desc tp_desc_aux[] = {
 		"Total alloc pages change",
 		"@IL",
 		"ctx_nr,page_cnt"
+	},
+	{
+		KBASE_AUX_DEVFREQ_TARGET,
+		__stringify(KBASE_AUX_DEVFREQ_TARGET),
+		"New device frequency target",
+		"@L",
+		"target_freq"
 	}
 };
 
@@ -1085,9 +1117,10 @@ static ssize_t kbasep_tlstream_read(
 	ssize_t copy_len = 0;
 
 	KBASE_DEBUG_ASSERT(filp);
-	KBASE_DEBUG_ASSERT(buffer);
 	KBASE_DEBUG_ASSERT(f_pos);
-	CSTD_UNUSED(filp);
+
+	if (!buffer)
+		return -EINVAL;
 
 	if ((0 > *f_pos) || (PACKET_SIZE > size))
 		return -EINVAL;
@@ -1315,9 +1348,11 @@ void kbase_tlstream_term(void)
 	}
 }
 
-int kbase_tlstream_acquire(struct kbase_context *kctx, int *fd)
+int kbase_tlstream_acquire(struct kbase_context *kctx, int *fd, u32 flags)
 {
-	if (0 == atomic_cmpxchg(&kbase_tlstream_enabled, 0, 1)) {
+	u32 tlstream_enabled = TLSTREAM_ENABLED | flags;
+
+	if (0 == atomic_cmpxchg(&kbase_tlstream_enabled, 0, tlstream_enabled)) {
 		int rcode;
 
 		*fd = anon_inode_getfd(
@@ -1581,8 +1616,8 @@ void __kbase_tlstream_tl_new_ctx(void *context, u32 nr, u32 tgid)
 void __kbase_tlstream_tl_new_atom(void *atom, u32 nr)
 {
 	const u32     msg_id = KBASE_TL_NEW_ATOM;
-	const size_t  msg_size =
-		sizeof(msg_id) + sizeof(u64) + sizeof(atom) + sizeof(nr);
+	const size_t  msg_size = sizeof(msg_id) + sizeof(u64) + sizeof(atom) +
+			sizeof(nr);
 	unsigned long flags;
 	char          *buffer;
 	size_t        pos = 0;
@@ -2011,6 +2046,79 @@ void __kbase_tlstream_tl_attrib_atom_config(
 	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
 }
 
+void __kbase_tlstream_tl_attrib_atom_priority(void *atom, u32 prio)
+{
+	const u32     msg_id = KBASE_TL_ATTRIB_ATOM_PRIORITY;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(atom) + sizeof(prio);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_OBJ,
+			msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &atom, sizeof(atom));
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &prio, sizeof(prio));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
+}
+
+void __kbase_tlstream_tl_attrib_atom_state(void *atom, u32 state)
+{
+	const u32     msg_id = KBASE_TL_ATTRIB_ATOM_STATE;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(atom) + sizeof(state);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_OBJ,
+			msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &atom, sizeof(atom));
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &state, sizeof(state));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
+}
+
+void __kbase_tlstream_tl_attrib_atom_priority_change(void *atom)
+{
+	const u32     msg_id = KBASE_TL_ATTRIB_ATOM_PRIORITY_CHANGE;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(atom);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_OBJ,
+			msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &atom, sizeof(atom));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
+}
+
 void __kbase_tlstream_tl_attrib_as_config(
 		void *as, u64 transtab, u64 memattr, u64 transcfg)
 {
@@ -2037,6 +2145,75 @@ void __kbase_tlstream_tl_attrib_as_config(
 			buffer, pos, &memattr, sizeof(memattr));
 	pos = kbasep_tlstream_write_bytes(
 			buffer, pos, &transcfg, sizeof(transcfg));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
+}
+
+void __kbase_tlstream_tl_event_lpu_softstop(void *lpu)
+{
+	const u32     msg_id = KBASE_TL_EVENT_LPU_SOFTSTOP;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(lpu);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_OBJ,
+			msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &lpu, sizeof(lpu));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
+}
+
+void __kbase_tlstream_tl_event_atom_softstop_ex(void *atom)
+{
+	const u32     msg_id = KBASE_TL_EVENT_ATOM_SOFTSTOP_EX;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(atom);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_OBJ,
+			msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &atom, sizeof(atom));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
+}
+
+void __kbase_tlstream_tl_event_atom_softstop_issue(void *atom)
+{
+	const u32     msg_id = KBASE_TL_EVENT_ATOM_SOFTSTOP_ISSUE;
+	const size_t  msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(atom);
+	unsigned long flags;
+	char          *buffer;
+	size_t        pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_OBJ,
+			msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &atom, sizeof(atom));
 	KBASE_DEBUG_ASSERT(msg_size == pos);
 
 	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
@@ -2092,108 +2269,6 @@ void __kbase_tlstream_aux_pm_state(u32 core_type, u64 state)
 	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_AUX, flags);
 }
 
-void __kbase_tlstream_aux_issue_job_softstop(void *katom)
-{
-	const u32     msg_id = KBASE_AUX_ISSUE_JOB_SOFTSTOP;
-	const size_t  msg_size =
-		sizeof(msg_id) + sizeof(u64) + sizeof(katom);
-	unsigned long flags;
-	char          *buffer;
-	size_t        pos = 0;
-
-	buffer = kbasep_tlstream_msgbuf_acquire(
-			TL_STREAM_TYPE_AUX, msg_size, &flags);
-	KBASE_DEBUG_ASSERT(buffer);
-
-	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
-	pos = kbasep_tlstream_write_timestamp(buffer, pos);
-	pos = kbasep_tlstream_write_bytes(buffer, pos, &katom, sizeof(katom));
-	KBASE_DEBUG_ASSERT(msg_size == pos);
-
-	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_AUX, flags);
-}
-
-void __kbase_tlstream_aux_job_softstop(u32 js_id)
-{
-	const u32     msg_id = KBASE_AUX_JOB_SOFTSTOP;
-	const size_t  msg_size =
-		sizeof(msg_id) + sizeof(u64) + sizeof(js_id);
-	unsigned long flags;
-	char          *buffer;
-	size_t        pos = 0;
-
-	buffer = kbasep_tlstream_msgbuf_acquire(
-			TL_STREAM_TYPE_AUX,
-			msg_size, &flags);
-	KBASE_DEBUG_ASSERT(buffer);
-
-	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
-	pos = kbasep_tlstream_write_timestamp(buffer, pos);
-	pos = kbasep_tlstream_write_bytes(buffer, pos, &js_id, sizeof(js_id));
-	KBASE_DEBUG_ASSERT(msg_size == pos);
-
-	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_AUX, flags);
-}
-
-/**
- * __kbase_tlstream_aux_job_softstop_ex_record - record the trace point
- * @katom: the atom that has been soft-stopped
- * @job_type: the job type
- */
-static void __kbase_tlstream_aux_job_softstop_ex_record(
-		void *katom, u32 job_type)
-{
-	const u32     msg_id = KBASE_AUX_JOB_SOFTSTOP_EX;
-	const size_t  msg_size =
-		sizeof(msg_id) + sizeof(u64) + sizeof(katom) + sizeof(job_type);
-	unsigned long flags;
-	char          *buffer;
-	size_t        pos = 0;
-
-	buffer = kbasep_tlstream_msgbuf_acquire(
-			TL_STREAM_TYPE_AUX, msg_size, &flags);
-	KBASE_DEBUG_ASSERT(buffer);
-
-	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
-	pos = kbasep_tlstream_write_timestamp(buffer, pos);
-	pos = kbasep_tlstream_write_bytes(buffer, pos, &katom, sizeof(katom));
-	pos = kbasep_tlstream_write_bytes(
-			buffer, pos, &job_type, sizeof(job_type));
-	KBASE_DEBUG_ASSERT(msg_size == pos);
-
-	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_AUX, flags);
-}
-
-void __kbase_tlstream_aux_job_softstop_ex(struct kbase_jd_atom *katom)
-{
-	struct kbase_context *kctx = katom->kctx;
-	u64 jd = katom->jc;
-
-	while (jd != 0) {
-		struct job_descriptor_header *job;
-		struct kbase_vmap_struct map;
-
-		job = kbase_vmap(kctx, jd, sizeof(*job), &map);
-		if (!job) {
-			dev_err(kctx->kbdev->dev,
-				"__kbase_tlstream_aux_job_softstop_ex: failed to map job descriptor 0x%llx for atom 0x%p\n",
-				jd, (void *)katom);
-			break;
-		}
-		if (job->exception_status != BASE_JD_EVENT_STOPPED) {
-			kbase_vunmap(kctx, &map);
-			break;
-		}
-
-		__kbase_tlstream_aux_job_softstop_ex_record(
-				katom, job->job_type);
-
-		jd = job->job_descriptor_size ?
-			job->next_job._64 : job->next_job._32;
-		kbase_vunmap(kctx, &map);
-	}
-}
-
 void __kbase_tlstream_aux_pagefault(u32 ctx_nr, u64 page_count_change)
 {
 	const u32     msg_id = KBASE_AUX_PAGEFAULT;
@@ -2238,6 +2313,28 @@ void __kbase_tlstream_aux_pagesalloc(u32 ctx_nr, u64 page_count)
 	pos = kbasep_tlstream_write_bytes(buffer, pos, &ctx_nr, sizeof(ctx_nr));
 	pos = kbasep_tlstream_write_bytes(
 			buffer, pos, &page_count, sizeof(page_count));
+	KBASE_DEBUG_ASSERT(msg_size == pos);
+
+	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_AUX, flags);
+}
+
+void __kbase_tlstream_aux_devfreq_target(u64 target_freq)
+{
+	const u32       msg_id = KBASE_AUX_DEVFREQ_TARGET;
+	const size_t    msg_size =
+		sizeof(msg_id) + sizeof(u64) + sizeof(target_freq);
+	unsigned long   flags;
+	char            *buffer;
+	size_t          pos = 0;
+
+	buffer = kbasep_tlstream_msgbuf_acquire(
+			TL_STREAM_TYPE_AUX, msg_size, &flags);
+	KBASE_DEBUG_ASSERT(buffer);
+
+	pos = kbasep_tlstream_write_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_tlstream_write_timestamp(buffer, pos);
+	pos = kbasep_tlstream_write_bytes(
+			buffer, pos, &target_freq, sizeof(target_freq));
 	KBASE_DEBUG_ASSERT(msg_size == pos);
 
 	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_AUX, flags);

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -51,9 +51,9 @@ static bool kbasep_js_ctx_attr_runpool_retain_attr(struct kbase_device *kbdev, s
 	js_kctx_info = &kctx->jctx.sched_info;
 
 	lockdep_assert_held(&js_kctx_info->ctx.jsctx_mutex);
-	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 
-	KBASE_DEBUG_ASSERT(js_kctx_info->ctx.is_scheduled != false);
+	KBASE_DEBUG_ASSERT(kbase_ctx_flag(kctx, KCTX_SCHEDULED));
 
 	if (kbasep_js_ctx_attr_is_attr_on_ctx(kctx, attribute) != false) {
 		KBASE_DEBUG_ASSERT(js_devdata->runpool_irq.ctx_attr_ref_count[attribute] < S8_MAX);
@@ -97,8 +97,8 @@ static bool kbasep_js_ctx_attr_runpool_release_attr(struct kbase_device *kbdev, 
 	js_kctx_info = &kctx->jctx.sched_info;
 
 	lockdep_assert_held(&js_kctx_info->ctx.jsctx_mutex);
-	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
-	KBASE_DEBUG_ASSERT(js_kctx_info->ctx.is_scheduled != false);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+	KBASE_DEBUG_ASSERT(kbase_ctx_flag(kctx, KCTX_SCHEDULED));
 
 	if (kbasep_js_ctx_attr_is_attr_on_ctx(kctx, attribute) != false) {
 		KBASE_DEBUG_ASSERT(js_devdata->runpool_irq.ctx_attr_ref_count[attribute] > 0);
@@ -136,13 +136,13 @@ static bool kbasep_js_ctx_attr_ctx_retain_attr(struct kbase_device *kbdev, struc
 	KBASE_DEBUG_ASSERT(attribute < KBASEP_JS_CTX_ATTR_COUNT);
 	js_kctx_info = &kctx->jctx.sched_info;
 
-	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 	lockdep_assert_held(&js_kctx_info->ctx.jsctx_mutex);
 	KBASE_DEBUG_ASSERT(js_kctx_info->ctx.ctx_attr_ref_count[attribute] < U32_MAX);
 
 	++(js_kctx_info->ctx.ctx_attr_ref_count[attribute]);
 
-	if (js_kctx_info->ctx.is_scheduled != false && js_kctx_info->ctx.ctx_attr_ref_count[attribute] == 1) {
+	if (kbase_ctx_flag(kctx, KCTX_SCHEDULED) && js_kctx_info->ctx.ctx_attr_ref_count[attribute] == 1) {
 		/* Only ref-count the attribute on the runpool for the first time this contexts sees this attribute */
 		KBASE_TRACE_ADD(kbdev, JS_CTX_ATTR_NOW_ON_CTX, kctx, NULL, 0u, attribute);
 		runpool_state_changed = kbasep_js_ctx_attr_runpool_retain_attr(kbdev, kctx, attribute);
@@ -176,8 +176,8 @@ static bool kbasep_js_ctx_attr_ctx_release_attr(struct kbase_device *kbdev, stru
 	lockdep_assert_held(&js_kctx_info->ctx.jsctx_mutex);
 	KBASE_DEBUG_ASSERT(js_kctx_info->ctx.ctx_attr_ref_count[attribute] > 0);
 
-	if (js_kctx_info->ctx.is_scheduled != false && js_kctx_info->ctx.ctx_attr_ref_count[attribute] == 1) {
-		lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
+	if (kbase_ctx_flag(kctx, KCTX_SCHEDULED) && js_kctx_info->ctx.ctx_attr_ref_count[attribute] == 1) {
+		lockdep_assert_held(&kbdev->hwaccess_lock);
 		/* Only de-ref-count the attribute on the runpool when this is the last ctx-reference to it */
 		runpool_state_changed = kbasep_js_ctx_attr_runpool_release_attr(kbdev, kctx, attribute);
 		KBASE_TRACE_ADD(kbdev, JS_CTX_ATTR_NOW_OFF_CTX, kctx, NULL, 0u, attribute);
@@ -202,7 +202,7 @@ void kbasep_js_ctx_attr_set_initial_attrs(struct kbase_device *kbdev, struct kba
 	KBASE_DEBUG_ASSERT(kctx != NULL);
 	js_kctx_info = &kctx->jctx.sched_info;
 
-	if ((js_kctx_info->ctx.flags & KBASE_CTX_FLAG_SUBMIT_DISABLED) != false) {
+	if (kbase_ctx_flag(kctx, KCTX_SUBMIT_DISABLED)) {
 		/* This context never submits, so don't track any scheduling attributes */
 		return;
 	}

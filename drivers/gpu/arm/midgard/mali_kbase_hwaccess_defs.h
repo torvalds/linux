@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014, 2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -26,8 +26,7 @@
 
 #include <mali_kbase_jm_defs.h>
 
-/* The kbasep_js_device_data::runpool_irq::lock (a spinlock) must be held when
- * accessing this structure */
+/* The hwaccess_lock (a spinlock) must be held when accessing this structure */
 struct kbase_hwaccess_data {
 	struct kbase_context *active_kctx;
 

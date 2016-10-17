@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -362,14 +362,15 @@ static void kbase_pm_metrics_active_calc(struct kbase_device *kbdev)
 				int device_nr = (katom->core_req &
 					BASE_JD_REQ_SPECIFIC_COHERENT_GROUP)
 						? katom->device_nr : 0;
-				WARN_ON(device_nr >= 2);
-				kbdev->pm.backend.metrics.active_cl_ctx[
-						device_nr] = 1;
+				if (!WARN_ON(device_nr >= 2))
+					kbdev->pm.backend.metrics.
+						active_cl_ctx[device_nr] = 1;
 			} else {
 				/* Slot 2 should not be running non-compute
 				 * atoms */
-				WARN_ON(js >= 2);
-				kbdev->pm.backend.metrics.active_gl_ctx[js] = 1;
+				if (!WARN_ON(js >= 2))
+					kbdev->pm.backend.metrics.
+						active_gl_ctx[js] = 1;
 			}
 			kbdev->pm.backend.metrics.gpu_active = true;
 		}
@@ -382,7 +383,7 @@ void kbase_pm_metrics_update(struct kbase_device *kbdev, ktime_t *timestamp)
 	unsigned long flags;
 	ktime_t now;
 
-	lockdep_assert_held(&kbdev->js_data.runpool_irq.lock);
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 
 	spin_lock_irqsave(&kbdev->pm.backend.metrics.lock, flags);
 

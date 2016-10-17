@@ -38,10 +38,9 @@
  * violated.
  *
  * The following locking conditions are made on the caller
- * - it must hold kbasep_js_device_data.runpool_irq.lock
+ * - it must hold hwaccess_lock
  */
-bool kbase_js_can_run_job_on_slot_no_lock(struct kbase_device *kbdev,
-									int js);
+bool kbase_js_can_run_job_on_slot_no_lock(struct kbase_device *kbdev, int js);
 
 /**
  * kbase_js_choose_affinity - Compute affinity for a given job.
@@ -71,7 +70,7 @@ bool kbase_js_choose_affinity(u64 * const affinity,
  * @affinity: The affinity mask to test
  *
  * The following locks must be held by the caller
- * - kbasep_js_device_data.runpool_irq.lock
+ * - hwaccess_lock
  *
  * Return: true if the affinity would violate the restrictions
  */
@@ -87,7 +86,7 @@ bool kbase_js_affinity_would_violate(struct kbase_device *kbdev, int js,
  * @affinity: The cores to retain
  *
  * The following locks must be held by the caller
- * - kbasep_js_device_data.runpool_irq.lock
+ * - hwaccess_lock
  */
 void kbase_js_affinity_retain_slot_cores(struct kbase_device *kbdev, int js,
 								u64 affinity);
@@ -106,7 +105,7 @@ void kbase_js_affinity_retain_slot_cores(struct kbase_device *kbdev, int js,
  * %BASE_JM_SUBMIT_SLOTS.
  *
  * The following locks must be held by the caller
- * - kbasep_js_device_data.runpool_irq.lock
+ * - hwaccess_lock
  */
 void kbase_js_affinity_release_slot_cores(struct kbase_device *kbdev, int js,
 								u64 affinity);

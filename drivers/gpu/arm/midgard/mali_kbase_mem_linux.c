@@ -30,13 +30,15 @@
 #include <linux/fs.h>
 #include <linux/version.h>
 #include <linux/dma-mapping.h>
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
-	#include <linux/dma-attrs.h>
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)  */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)) && \
+	(LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0))
+#include <linux/dma-attrs.h>
+#endif /* LINUX_VERSION_CODE >= 3.5.0 && < 4.8.0 */
 #ifdef CONFIG_DMA_SHARED_BUFFER
 #include <linux/dma-buf.h>
 #endif				/* defined(CONFIG_DMA_SHARED_BUFFER) */
 #include <linux/shrinker.h>
+#include <linux/cache.h>
 
 #include <mali_kbase.h>
 #include <mali_kbase_mem_linux.h>
@@ -112,7 +114,7 @@ struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx, u64 va_pages
 		goto bad_size;
 
 #if defined(CONFIG_64BIT)
-	if (kctx->is_compat)
+	if (kbase_ctx_flag(kctx, KCTX_COMPAT))
 		cpu_va_bits = 32;
 #endif
 
@@ -208,18 +210,19 @@ struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx, u64 va_pages
 		}
 
 		/*
-		 * Pre-10.1 UKU userland calls mmap for us so return the
-		 * unaligned address and skip the map.
+		 * 10.1-10.4 UKU userland relies on the kernel to call mmap.
+		 * For all other versions we can just return the cookie
 		 */
-		if (kctx->api_version < KBASE_API_VERSION(10, 1)) {
+		if (kctx->api_version < KBASE_API_VERSION(10, 1) ||
+		    kctx->api_version > KBASE_API_VERSION(10, 4)) {
 			*gpu_va = (u64) cookie;
 			return reg;
 		}
 
 		/*
-		 * GPUCORE-2190:
-		 *
-		 * We still need to return alignment for old userspace.
+		 * To achieve alignment and avoid allocating on large alignment
+		 * (to work around a GPU hardware issue) we must allocate 3
+		 * times the required size.
 		 */
 		if (*va_alignment)
 			va_map += 3 * (1UL << *va_alignment);
@@ -233,8 +236,10 @@ struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx, u64 va_pages
 				MAP_SHARED, cookie);
 
 		if (IS_ERR_VALUE(cpu_addr)) {
+			kbase_gpu_vm_lock(kctx);
 			kctx->pending_regions[cookie_nr] = NULL;
 			kctx->cookies |= (1UL << cookie_nr);
+			kbase_gpu_vm_unlock(kctx);
 			goto no_mmap;
 		}
 
@@ -1036,7 +1041,7 @@ static struct kbase_va_region *kbase_mem_from_umm(struct kbase_context *kctx, in
 		shared_zone = true;
 
 #ifdef CONFIG_64BIT
-	if (!kctx->is_compat) {
+	if (!kbase_ctx_flag(kctx, KCTX_COMPAT)) {
 		/*
 		 * 64-bit tasks require us to reserve VA on the CPU that we use
 		 * on the GPU.
@@ -1133,7 +1138,7 @@ static struct kbase_va_region *kbase_mem_from_user_buffer(
 		shared_zone = true;
 
 #ifdef CONFIG_64BIT
-	if (!kctx->is_compat) {
+	if (!kbase_ctx_flag(kctx, KCTX_COMPAT)) {
 		/*
 		 * 64-bit tasks require us to reserve VA on the CPU that we use
 		 * on the GPU.
@@ -1266,7 +1271,7 @@ u64 kbase_mem_alias(struct kbase_context *kctx, u64 *flags, u64 stride,
 	*num_pages = nents * stride;
 
 #ifdef CONFIG_64BIT
-	if (!kctx->is_compat) {
+	if (!kbase_ctx_flag(kctx, KCTX_COMPAT)) {
 		/* 64-bit tasks must MMAP anyway, but not expose this address to
 		 * clients */
 		*flags |= BASE_MEM_NEED_MMAP;
@@ -1358,7 +1363,7 @@ u64 kbase_mem_alias(struct kbase_context *kctx, u64 *flags, u64 stride,
 	}
 
 #ifdef CONFIG_64BIT
-	if (!kctx->is_compat) {
+	if (!kbase_ctx_flag(kctx, KCTX_COMPAT)) {
 		/* Bind to a cookie */
 		if (!kctx->cookies) {
 			dev_err(kctx->kbdev->dev, "No cookies available for allocation!");
@@ -1411,6 +1416,32 @@ bad_flags:
 	return 0;
 }
 
+static u32 kbase_get_cache_line_alignment(struct kbase_context *kctx)
+{
+	u32 cpu_cache_line_size = cache_line_size();
+	u32 gpu_cache_line_size =
+		(1UL << kctx->kbdev->gpu_props.props.l2_props.log2_line_size);
+
+	return ((cpu_cache_line_size > gpu_cache_line_size) ?
+				cpu_cache_line_size :
+				gpu_cache_line_size);
+}
+
+static int kbase_check_buffer_size(struct kbase_context *kctx, u64 size)
+{
+	u32 cache_line_align = kbase_get_cache_line_alignment(kctx);
+
+	return (size & (cache_line_align - 1)) == 0 ? 0 : -EINVAL;
+}
+
+static int kbase_check_buffer_cache_alignment(struct kbase_context *kctx,
+					void __user *ptr)
+{
+	u32 cache_line_align = kbase_get_cache_line_alignment(kctx);
+
+	return ((uintptr_t)ptr & (cache_line_align - 1)) == 0 ? 0 : -EINVAL;
+}
+
 int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type,
 		void __user *phandle, u64 *gpu_va, u64 *va_pages,
 		u64 *flags)
@@ -1423,7 +1454,7 @@ int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type,
 	KBASE_DEBUG_ASSERT(flags);
 
 #ifdef CONFIG_64BIT
-	if (!kctx->is_compat)
+	if (!kbase_ctx_flag(kctx, KCTX_COMPAT))
 		*flags |= BASE_MEM_SAME_VA;
 #endif
 
@@ -1466,11 +1497,25 @@ int kbase_mem_import(struct kbase_context *kctx, enum base_mem_import_type type,
 			reg = NULL;
 		} else {
 #ifdef CONFIG_COMPAT
-			if (kctx->is_compat)
+			if (kbase_ctx_flag(kctx, KCTX_COMPAT))
 				uptr = compat_ptr(user_buffer.ptr.compat_value);
 			else
 #endif
 				uptr = user_buffer.ptr.value;
+
+			if (0 != kbase_check_buffer_cache_alignment(kctx,
+									uptr)) {
+				dev_warn(kctx->kbdev->dev,
+				"User buffer is not cache line aligned!\n");
+				goto no_reg;
+			}
+
+			if (0 != kbase_check_buffer_size(kctx,
+					user_buffer.length)) {
+				dev_warn(kctx->kbdev->dev,
+				"User buffer size is not multiple of cache line size!\n");
+				goto no_reg;
+			}
 
 			reg = kbase_mem_from_user_buffer(kctx,
 					(unsigned long)uptr, user_buffer.length,
@@ -2146,44 +2191,6 @@ void kbase_os_mem_map_unlock(struct kbase_context *kctx)
 	up_read(&mm->mmap_sem);
 }
 
-#if defined(CONFIG_DMA_SHARED_BUFFER) && defined(CONFIG_MALI_TRACE_TIMELINE)
-/* This section is required only for instrumentation. */
-
-static void kbase_dma_buf_vm_open(struct vm_area_struct *vma)
-{
-	struct kbase_cpu_mapping *map = vma->vm_private_data;
-
-	KBASE_DEBUG_ASSERT(map);
-	KBASE_DEBUG_ASSERT(map->count > 0);
-	/* Non-atomic as we're under Linux's mm lock. */
-	map->count++;
-}
-
-static void kbase_dma_buf_vm_close(struct vm_area_struct *vma)
-{
-	struct kbase_cpu_mapping *map = vma->vm_private_data;
-
-	KBASE_DEBUG_ASSERT(map);
-	KBASE_DEBUG_ASSERT(map->count > 0);
-
-	/* Non-atomic as we're under Linux's mm lock. */
-	if (--map->count)
-		return;
-
-	KBASE_DEBUG_ASSERT(map->kctx);
-
-	kbase_gpu_vm_lock(map->kctx);
-	list_del(&map->mappings_list);
-	kbase_gpu_vm_unlock(map->kctx);
-	kfree(map);
-}
-
-static const struct vm_operations_struct kbase_dma_mmap_ops = {
-	.open  = kbase_dma_buf_vm_open,
-	.close = kbase_dma_buf_vm_close,
-};
-#endif /* CONFIG_DMA_SHARED_BUFFER && CONFIG_MALI_TRACE_TIMELINE */
-
 int kbase_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct kbase_context *kctx = file->private_data;
@@ -2402,35 +2409,6 @@ map:
 #ifdef CONFIG_DMA_SHARED_BUFFER
 dma_map:
 	err = dma_buf_mmap(reg->cpu_alloc->imported.umm.dma_buf, vma, vma->vm_pgoff - reg->start_pfn);
-#if defined(CONFIG_MALI_TRACE_TIMELINE)
-	/* This section is required only for instrumentation. */
-	/* Add created mapping to imported region mapping list.
-	 * It is important to make it visible to dumping infrastructure.
-	 * Add mapping only if vm_ops structure is not used by memory owner. */
-	WARN_ON(vma->vm_ops);
-	WARN_ON(vma->vm_private_data);
-	if (!err && !vma->vm_ops && !vma->vm_private_data) {
-		struct kbase_cpu_mapping *map = kzalloc(
-			sizeof(*map),
-			GFP_KERNEL);
-
-		if (map) {
-			map->kctx     = reg->kctx;
-			map->region   = NULL;
-			map->page_off = vma->vm_pgoff;
-			map->vm_start = vma->vm_start;
-			map->vm_end   = vma->vm_end;
-			map->count    = 1; /* start with one ref */
-
-			vma->vm_ops          = &kbase_dma_mmap_ops;
-			vma->vm_private_data = map;
-
-			list_add(
-				&map->mappings_list,
-				&reg->cpu_alloc->mappings);
-		}
-	}
-#endif /* CONFIG_MALI_TRACE_TIMELINE */
 #endif /* CONFIG_DMA_SHARED_BUFFER */
 out_unlock:
 	kbase_gpu_vm_unlock(kctx);
@@ -2719,7 +2697,9 @@ void *kbase_va_alloc(struct kbase_context *kctx, u32 size, struct kbase_hwc_dma_
 	dma_addr_t  dma_pa;
 	struct kbase_va_region *reg;
 	phys_addr_t *page_array;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0))
+	unsigned long attrs = DMA_ATTR_WRITE_COMBINE;
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
 	DEFINE_DMA_ATTRS(attrs);
 #endif
 
@@ -2735,9 +2715,13 @@ void *kbase_va_alloc(struct kbase_context *kctx, u32 size, struct kbase_hwc_dma_
 		goto err;
 
 	/* All the alloc calls return zeroed memory */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0))
+	va = dma_alloc_attrs(kctx->kbdev->dev, size, &dma_pa, GFP_KERNEL,
+			     attrs);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
-	va = dma_alloc_attrs(kctx->kbdev->dev, size, &dma_pa, GFP_KERNEL, &attrs);
+	va = dma_alloc_attrs(kctx->kbdev->dev, size, &dma_pa, GFP_KERNEL,
+			     &attrs);
 #else
 	va = dma_alloc_writecombine(kctx->kbdev->dev, size, &dma_pa, GFP_KERNEL);
 #endif
@@ -2784,7 +2768,9 @@ no_mmap:
 no_alloc:
 	kfree(reg);
 no_reg:
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0))
+	dma_free_attrs(kctx->kbdev->dev, size, va, dma_pa, attrs);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
 	dma_free_attrs(kctx->kbdev->dev, size, va, dma_pa, &attrs);
 #else
 	dma_free_writecombine(kctx->kbdev->dev, size, va, dma_pa);
@@ -2798,7 +2784,8 @@ void kbase_va_free(struct kbase_context *kctx, struct kbase_hwc_dma_mapping *han
 {
 	struct kbase_va_region *reg;
 	int err;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)) && \
+	(LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0))
 	DEFINE_DMA_ATTRS(attrs);
 #endif
 
@@ -2816,7 +2803,10 @@ void kbase_va_free(struct kbase_context *kctx, struct kbase_hwc_dma_mapping *han
 	kbase_mem_phy_alloc_put(reg->gpu_alloc);
 	kfree(reg);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0))
+	dma_free_attrs(kctx->kbdev->dev, handle->size,
+		       handle->cpu_va, handle->dma_pa, DMA_ATTR_WRITE_COMBINE);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
 	dma_free_attrs(kctx->kbdev->dev, handle->size,
 			handle->cpu_va, handle->dma_pa, &attrs);

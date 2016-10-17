@@ -73,8 +73,7 @@ struct slot_rb {
  * @reset_timer:		Timeout for soft-stops before the reset
  * @timeouts_updated:           Have timeout values just been updated?
  *
- * The kbasep_js_device_data::runpool_irq::lock (a spinlock) must be held when
- * accessing this structure
+ * The hwaccess_lock (a spinlock) must be held when accessing this structure
  */
 struct kbase_backend_data {
 	struct slot_rb slot_rb[BASE_JM_MAX_NR_SLOTS];
