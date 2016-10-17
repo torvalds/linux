@@ -1682,13 +1682,11 @@ static unsigned char XGI_GetVCLKPtr(unsigned short RefreshRateTableIndex,
 			}
 
 			if (pVBInfo->TVInfo & TVSetYPbPr750p) {
-				tempal = XGI_YPbPr750pVCLK;
-				return tempal;
+				return XGI_YPbPr750pVCLK;
 			}
 
 			if (pVBInfo->TVInfo & TVSetYPbPr525p) {
-				tempal = YPbPr525pVCLK;
-				return tempal;
+				return YPbPr525pVCLK;
 			}
 
 			tempal = NTSC1024VCLK;
@@ -1705,8 +1703,7 @@ static unsigned char XGI_GetVCLKPtr(unsigned short RefreshRateTableIndex,
 	} /* {End of VB} */
 
 	inb((pVBInfo->P3ca + 0x02));
-	tempal = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
-	return tempal;
+	return XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
 }
 
 static void XGI_GetVCLKLen(unsigned char tempal, unsigned char *di_0,
