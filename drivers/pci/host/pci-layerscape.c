@@ -251,10 +251,8 @@ static int __init ls_pcie_probe(struct platform_device *pdev)
 
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
 	pcie->pp.dbi_base = devm_ioremap_resource(dev, dbi_base);
-	if (IS_ERR(pcie->pp.dbi_base)) {
-		dev_err(dev, "missing *regs* space\n");
+	if (IS_ERR(pcie->pp.dbi_base))
 		return PTR_ERR(pcie->pp.dbi_base);
-	}
 
 	pcie->drvdata = match->data;
 	pcie->lut = pcie->pp.dbi_base + pcie->drvdata->lut_offset;
