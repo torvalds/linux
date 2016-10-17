@@ -5353,6 +5353,10 @@ dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 
 
 	else {
+		if (dhdp->conf->chip == BCM4354_CHIP_ID) {
+			ret = -1;
+			goto exit;
+		}
 		/* Disable F2 again */
 		enable = SDIO_FUNC_ENABLE_1;
 		bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_0, SDIOD_CCCR_IOEN, enable, NULL);
