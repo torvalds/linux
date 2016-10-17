@@ -655,7 +655,7 @@ static struct ad5755_platform_data *ad5755_parse_dt(struct device *dev)
 
 	devnr = 0;
 	for_each_child_of_node(np, pp) {
-		if (devnr > AD5755_NUM_CHANNELS) {
+		if (devnr >= AD5755_NUM_CHANNELS) {
 			dev_err(dev,
 				"There is to many channels defined in DT\n");
 			goto error_out;

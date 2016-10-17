@@ -38,7 +38,6 @@
 #include <rdma/ib_user_verbs.h>
 
 #include "mlx5_ib.h"
-#include "user.h"
 
 /* not supported currently */
 static int srq_signature;

@@ -719,6 +719,16 @@ static inline char *msg_media_addr(struct tipc_msg *m)
 	return (char *)&m->hdr[TIPC_MEDIA_INFO_OFFSET];
 }
 
+static inline u32 msg_bc_gap(struct tipc_msg *m)
+{
+	return msg_bits(m, 8, 0, 0x3ff);
+}
+
+static inline void msg_set_bc_gap(struct tipc_msg *m, u32 n)
+{
+	msg_set_bits(m, 8, 0, 0x3ff, n);
+}
+
 /*
  * Word 9
  */

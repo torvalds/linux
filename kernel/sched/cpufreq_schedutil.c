@@ -12,7 +12,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/cpufreq.h>
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <trace/events/power.h>
 
@@ -48,11 +47,14 @@ struct sugov_cpu {
 	struct sugov_policy *sg_policy;
 
 	unsigned int cached_raw_freq;
+	unsigned long iowait_boost;
+	unsigned long iowait_boost_max;
+	u64 last_update;
 
 	/* The fields below are only needed when sharing a policy. */
 	unsigned long util;
 	unsigned long max;
-	u64 last_update;
+	unsigned int flags;
 };
 
 static DEFINE_PER_CPU(struct sugov_cpu, sugov_cpu);
@@ -144,24 +146,75 @@ static unsigned int get_next_freq(struct sugov_cpu *sg_cpu, unsigned long util,
 	return cpufreq_driver_resolve_freq(policy, freq);
 }
 
+static void sugov_get_util(unsigned long *util, unsigned long *max)
+{
+	struct rq *rq = this_rq();
+	unsigned long cfs_max;
+
+	cfs_max = arch_scale_cpu_capacity(NULL, smp_processor_id());
+
+	*util = min(rq->cfs.avg.util_avg, cfs_max);
+	*max = cfs_max;
+}
+
+static void sugov_set_iowait_boost(struct sugov_cpu *sg_cpu, u64 time,
+				   unsigned int flags)
+{
+	if (flags & SCHED_CPUFREQ_IOWAIT) {
+		sg_cpu->iowait_boost = sg_cpu->iowait_boost_max;
+	} else if (sg_cpu->iowait_boost) {
+		s64 delta_ns = time - sg_cpu->last_update;
+
+		/* Clear iowait_boost if the CPU apprears to have been idle. */
+		if (delta_ns > TICK_NSEC)
+			sg_cpu->iowait_boost = 0;
+	}
+}
+
+static void sugov_iowait_boost(struct sugov_cpu *sg_cpu, unsigned long *util,
+			       unsigned long *max)
+{
+	unsigned long boost_util = sg_cpu->iowait_boost;
+	unsigned long boost_max = sg_cpu->iowait_boost_max;
+
+	if (!boost_util)
+		return;
+
+	if (*util * boost_max < *max * boost_util) {
+		*util = boost_util;
+		*max = boost_max;
+	}
+	sg_cpu->iowait_boost >>= 1;
+}
+
 static void sugov_update_single(struct update_util_data *hook, u64 time,
-				unsigned long util, unsigned long max)
+				unsigned int flags)
 {
 	struct sugov_cpu *sg_cpu = container_of(hook, struct sugov_cpu, update_util);
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
 	struct cpufreq_policy *policy = sg_policy->policy;
+	unsigned long util, max;
 	unsigned int next_f;
+
+	sugov_set_iowait_boost(sg_cpu, time, flags);
+	sg_cpu->last_update = time;
 
 	if (!sugov_should_update_freq(sg_policy, time))
 		return;
 
-	next_f = util == ULONG_MAX ? policy->cpuinfo.max_freq :
-			get_next_freq(sg_cpu, util, max);
+	if (flags & SCHED_CPUFREQ_RT_DL) {
+		next_f = policy->cpuinfo.max_freq;
+	} else {
+		sugov_get_util(&util, &max);
+		sugov_iowait_boost(sg_cpu, &util, &max);
+		next_f = get_next_freq(sg_cpu, util, max);
+	}
 	sugov_update_commit(sg_policy, time, next_f);
 }
 
 static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu,
-					   unsigned long util, unsigned long max)
+					   unsigned long util, unsigned long max,
+					   unsigned int flags)
 {
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
 	struct cpufreq_policy *policy = sg_policy->policy;
@@ -169,8 +222,10 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu,
 	u64 last_freq_update_time = sg_policy->last_freq_update_time;
 	unsigned int j;
 
-	if (util == ULONG_MAX)
+	if (flags & SCHED_CPUFREQ_RT_DL)
 		return max_f;
+
+	sugov_iowait_boost(sg_cpu, &util, &max);
 
 	for_each_cpu(j, policy->cpus) {
 		struct sugov_cpu *j_sg_cpu;
@@ -186,41 +241,50 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu,
 		 * frequency update and the time elapsed between the last update
 		 * of the CPU utilization and the last frequency update is long
 		 * enough, don't take the CPU into account as it probably is
-		 * idle now.
+		 * idle now (and clear iowait_boost for it).
 		 */
 		delta_ns = last_freq_update_time - j_sg_cpu->last_update;
-		if (delta_ns > TICK_NSEC)
+		if (delta_ns > TICK_NSEC) {
+			j_sg_cpu->iowait_boost = 0;
 			continue;
-
-		j_util = j_sg_cpu->util;
-		if (j_util == ULONG_MAX)
+		}
+		if (j_sg_cpu->flags & SCHED_CPUFREQ_RT_DL)
 			return max_f;
 
+		j_util = j_sg_cpu->util;
 		j_max = j_sg_cpu->max;
 		if (j_util * max > j_max * util) {
 			util = j_util;
 			max = j_max;
 		}
+
+		sugov_iowait_boost(j_sg_cpu, &util, &max);
 	}
 
 	return get_next_freq(sg_cpu, util, max);
 }
 
 static void sugov_update_shared(struct update_util_data *hook, u64 time,
-				unsigned long util, unsigned long max)
+				unsigned int flags)
 {
 	struct sugov_cpu *sg_cpu = container_of(hook, struct sugov_cpu, update_util);
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
+	unsigned long util, max;
 	unsigned int next_f;
+
+	sugov_get_util(&util, &max);
 
 	raw_spin_lock(&sg_policy->update_lock);
 
 	sg_cpu->util = util;
 	sg_cpu->max = max;
+	sg_cpu->flags = flags;
+
+	sugov_set_iowait_boost(sg_cpu, time, flags);
 	sg_cpu->last_update = time;
 
 	if (sugov_should_update_freq(sg_policy, time)) {
-		next_f = sugov_next_freq_shared(sg_cpu, util, max);
+		next_f = sugov_next_freq_shared(sg_cpu, util, max, flags);
 		sugov_update_commit(sg_policy, time, next_f);
 	}
 
@@ -444,10 +508,13 @@ static int sugov_start(struct cpufreq_policy *policy)
 
 		sg_cpu->sg_policy = sg_policy;
 		if (policy_is_shared(policy)) {
-			sg_cpu->util = ULONG_MAX;
+			sg_cpu->util = 0;
 			sg_cpu->max = 0;
+			sg_cpu->flags = SCHED_CPUFREQ_RT;
 			sg_cpu->last_update = 0;
 			sg_cpu->cached_raw_freq = 0;
+			sg_cpu->iowait_boost = 0;
+			sg_cpu->iowait_boost_max = policy->cpuinfo.max_freq;
 			cpufreq_add_update_util_hook(cpu, &sg_cpu->update_util,
 						     sugov_update_shared);
 		} else {
@@ -495,28 +562,15 @@ static struct cpufreq_governor schedutil_gov = {
 	.limits = sugov_limits,
 };
 
-static int __init sugov_module_init(void)
-{
-	return cpufreq_register_governor(&schedutil_gov);
-}
-
-static void __exit sugov_module_exit(void)
-{
-	cpufreq_unregister_governor(&schedutil_gov);
-}
-
-MODULE_AUTHOR("Rafael J. Wysocki <rafael.j.wysocki@intel.com>");
-MODULE_DESCRIPTION("Utilization-based CPU frequency selection");
-MODULE_LICENSE("GPL");
-
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL
 struct cpufreq_governor *cpufreq_default_governor(void)
 {
 	return &schedutil_gov;
 }
-
-fs_initcall(sugov_module_init);
-#else
-module_init(sugov_module_init);
 #endif
-module_exit(sugov_module_exit);
+
+static int __init sugov_register(void)
+{
+	return cpufreq_register_governor(&schedutil_gov);
+}
+fs_initcall(sugov_register);

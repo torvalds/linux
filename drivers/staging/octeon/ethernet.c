@@ -17,6 +17,8 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/of_net.h>
+#include <linux/if_ether.h>
+#include <linux/if_vlan.h>
 
 #include <net/dst.h>
 
@@ -35,9 +37,11 @@
 #include <asm/octeon/cvmx-fau.h>
 #include <asm/octeon/cvmx-ipd.h>
 #include <asm/octeon/cvmx-helper.h>
-
+#include <asm/octeon/cvmx-asxx-defs.h>
 #include <asm/octeon/cvmx-gmxx-defs.h>
 #include <asm/octeon/cvmx-smix-defs.h>
+
+#define OCTEON_MAX_MTU 65392
 
 static int num_packet_buffers = 1024;
 module_param(num_packet_buffers, int, 0444);
@@ -45,13 +49,22 @@ MODULE_PARM_DESC(num_packet_buffers, "\n"
 	"\tNumber of packet buffers to allocate and store in the\n"
 	"\tFPA. By default, 1024 packet buffers are used.\n");
 
-int pow_receive_group = 15;
+static int pow_receive_group = 15;
 module_param(pow_receive_group, int, 0444);
 MODULE_PARM_DESC(pow_receive_group, "\n"
 	"\tPOW group to receive packets from. All ethernet hardware\n"
 	"\twill be configured to send incoming packets to this POW\n"
 	"\tgroup. Also any other software can submit packets to this\n"
 	"\tgroup for the kernel to process.");
+
+static int receive_group_order;
+module_param(receive_group_order, int, 0444);
+MODULE_PARM_DESC(receive_group_order, "\n"
+	"\tOrder (0..4) of receive groups to take into use. Ethernet hardware\n"
+	"\twill be configured to send incoming packets to multiple POW\n"
+	"\tgroups. pow_receive_group parameter is ignored when multiple\n"
+	"\tgroups are taken into use and groups are allocated starting\n"
+	"\tfrom 0. By default, a single group is used.\n");
 
 int pow_send_group = -1;
 module_param(pow_send_group, int, 0644);
@@ -86,6 +99,8 @@ int rx_napi_weight = 32;
 module_param(rx_napi_weight, int, 0444);
 MODULE_PARM_DESC(rx_napi_weight, "The NAPI WEIGHT parameter.");
 
+/* Mask indicating which receive groups are in use. */
+int pow_receive_groups;
 
 /*
  * cvm_oct_poll_queue_stopping - flag to indicate polling should stop.
@@ -237,21 +252,22 @@ static int cvm_oct_common_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	int interface = INTERFACE(priv->port);
-	int index = INDEX(priv->port);
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-	int vlan_bytes = 4;
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
+	int vlan_bytes = VLAN_HLEN;
 #else
 	int vlan_bytes = 0;
 #endif
+	int mtu_overhead = ETH_HLEN + ETH_FCS_LEN + vlan_bytes;
 
 	/*
 	 * Limit the MTU to make sure the ethernet packets are between
 	 * 64 bytes and 65535 bytes.
 	 */
-	if ((new_mtu + 14 + 4 + vlan_bytes < 64) ||
-	    (new_mtu + 14 + 4 + vlan_bytes > 65392)) {
+	if ((new_mtu + mtu_overhead < VLAN_ETH_ZLEN) ||
+	    (new_mtu + mtu_overhead > OCTEON_MAX_MTU)) {
 		pr_err("MTU must be between %d and %d.\n",
-		       64 - 14 - 4 - vlan_bytes, 65392 - 14 - 4 - vlan_bytes);
+		       VLAN_ETH_ZLEN - mtu_overhead,
+		       OCTEON_MAX_MTU - mtu_overhead);
 		return -EINVAL;
 	}
 	dev->mtu = new_mtu;
@@ -259,8 +275,9 @@ static int cvm_oct_common_change_mtu(struct net_device *dev, int new_mtu)
 	if ((interface < 2) &&
 	    (cvmx_helper_interface_get_mode(interface) !=
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
+		int index = INDEX(priv->port);
 		/* Add ethernet header and FCS, and VLAN if configured. */
-		int max_packet = new_mtu + 14 + 4 + vlan_bytes;
+		int max_packet = new_mtu + mtu_overhead;
 
 		if (OCTEON_IS_MODEL(OCTEON_CN3XXX) ||
 		    OCTEON_IS_MODEL(OCTEON_CN58XX)) {
@@ -275,7 +292,7 @@ static int cvm_oct_common_change_mtu(struct net_device *dev, int new_mtu)
 			union cvmx_pip_frm_len_chkx frm_len_chk;
 
 			frm_len_chk.u64 = 0;
-			frm_len_chk.s.minlen = 64;
+			frm_len_chk.s.minlen = VLAN_ETH_ZLEN;
 			frm_len_chk.s.maxlen = max_packet;
 			cvmx_write_csr(CVMX_PIP_FRM_LEN_CHKX(interface),
 				       frm_len_chk.u64);
@@ -300,12 +317,12 @@ static void cvm_oct_common_set_multicast_list(struct net_device *dev)
 	union cvmx_gmxx_prtx_cfg gmx_cfg;
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	int interface = INTERFACE(priv->port);
-	int index = INDEX(priv->port);
 
 	if ((interface < 2) &&
 	    (cvmx_helper_interface_get_mode(interface) !=
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
 		union cvmx_gmxx_rxx_adr_ctl control;
+		int index = INDEX(priv->port);
 
 		control.u64 = 0;
 		control.s.bcst = 1;	/* Allow broadcast MAC addresses */
@@ -352,7 +369,6 @@ static int cvm_oct_set_mac_filter(struct net_device *dev)
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	union cvmx_gmxx_prtx_cfg gmx_cfg;
 	int interface = INTERFACE(priv->port);
-	int index = INDEX(priv->port);
 
 	if ((interface < 2) &&
 	    (cvmx_helper_interface_get_mode(interface) !=
@@ -360,6 +376,7 @@ static int cvm_oct_set_mac_filter(struct net_device *dev)
 		int i;
 		u8 *ptr = dev->dev_addr;
 		u64 mac = 0;
+		int index = INDEX(priv->port);
 
 		for (i = 0; i < 6; i++)
 			mac = (mac << 8) | (u64)ptr[i];
@@ -457,10 +474,8 @@ int cvm_oct_common_init(struct net_device *dev)
 
 void cvm_oct_common_uninit(struct net_device *dev)
 {
-	struct octeon_ethernet *priv = netdev_priv(dev);
-
-	if (priv->phydev)
-		phy_disconnect(priv->phydev);
+	if (dev->phydev)
+		phy_disconnect(dev->phydev);
 }
 
 int cvm_oct_common_open(struct net_device *dev,
@@ -479,15 +494,17 @@ int cvm_oct_common_open(struct net_device *dev,
 
 	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
 	gmx_cfg.s.en = 1;
+	if (octeon_has_feature(OCTEON_FEATURE_PKND))
+		gmx_cfg.s.pknd = priv->port;
 	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
 
 	if (octeon_is_simulation())
 		return 0;
 
-	if (priv->phydev) {
-		int r = phy_read_status(priv->phydev);
+	if (dev->phydev) {
+		int r = phy_read_status(dev->phydev);
 
-		if (r == 0 && priv->phydev->link == 0)
+		if (r == 0 && dev->phydev->link == 0)
 			netif_carrier_off(dev);
 		cvm_oct_adjust_link(dev);
 	} else {
@@ -510,8 +527,10 @@ void cvm_oct_link_poll(struct net_device *dev)
 	if (link_info.u64 == priv->link_info)
 		return;
 
-	link_info = cvmx_helper_link_autoconf(priv->port);
-	priv->link_info = link_info.u64;
+	if (cvmx_helper_link_set(priv->port, link_info))
+		link_info.u64 = priv->link_info;
+	else
+		priv->link_info = link_info.u64;
 
 	if (link_info.s.link_up) {
 		if (!netif_carrier_ok(dev))
@@ -649,6 +668,16 @@ static struct device_node *cvm_oct_node_for_port(struct device_node *pip,
 	return np;
 }
 
+static void cvm_set_rgmii_delay(struct device_node *np, int iface, int port)
+{
+	u32 delay_value;
+
+	if (!of_property_read_u32(np, "rx-delay", &delay_value))
+		cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(port, iface), delay_value);
+	if (!of_property_read_u32(np, "tx-delay", &delay_value))
+		cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(port, iface), delay_value);
+}
+
 static int cvm_oct_probe(struct platform_device *pdev)
 {
 	int num_interfaces;
@@ -665,10 +694,17 @@ static int cvm_oct_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-
 	cvm_oct_configure_common_hw();
 
 	cvmx_helper_initialize_packet_io_global();
+
+	if (receive_group_order) {
+		if (receive_group_order > 4)
+			receive_group_order = 4;
+		pow_receive_groups = (1 << (1 << receive_group_order)) - 1;
+	} else {
+		pow_receive_groups = BIT(pow_receive_group);
+	}
 
 	/* Change the input group for all ports before input is enabled */
 	num_interfaces = cvmx_helper_get_number_of_interfaces();
@@ -683,7 +719,37 @@ static int cvm_oct_probe(struct platform_device *pdev)
 
 			pip_prt_tagx.u64 =
 			    cvmx_read_csr(CVMX_PIP_PRT_TAGX(port));
-			pip_prt_tagx.s.grp = pow_receive_group;
+
+			if (receive_group_order) {
+				int tag_mask;
+
+				/* We support only 16 groups at the moment, so
+				 * always disable the two additional "hidden"
+				 * tag_mask bits on CN68XX.
+				 */
+				if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+					pip_prt_tagx.u64 |= 0x3ull << 44;
+
+				tag_mask = ~((1 << receive_group_order) - 1);
+				pip_prt_tagx.s.grptagbase	= 0;
+				pip_prt_tagx.s.grptagmask	= tag_mask;
+				pip_prt_tagx.s.grptag		= 1;
+				pip_prt_tagx.s.tag_mode		= 0;
+				pip_prt_tagx.s.inc_prt_flag	= 1;
+				pip_prt_tagx.s.ip6_dprt_flag	= 1;
+				pip_prt_tagx.s.ip4_dprt_flag	= 1;
+				pip_prt_tagx.s.ip6_sprt_flag	= 1;
+				pip_prt_tagx.s.ip4_sprt_flag	= 1;
+				pip_prt_tagx.s.ip6_dst_flag	= 1;
+				pip_prt_tagx.s.ip4_dst_flag	= 1;
+				pip_prt_tagx.s.ip6_src_flag	= 1;
+				pip_prt_tagx.s.ip4_src_flag	= 1;
+				pip_prt_tagx.s.grp		= 0;
+			} else {
+				pip_prt_tagx.s.grptag	= 0;
+				pip_prt_tagx.s.grp	= pow_receive_group;
+			}
+
 			cvmx_write_csr(CVMX_PIP_PRT_TAGX(port),
 				       pip_prt_tagx.u64);
 		}
@@ -705,7 +771,6 @@ static int cvm_oct_probe(struct platform_device *pdev)
 	if ((pow_send_group != -1)) {
 		struct net_device *dev;
 
-		pr_info("\tConfiguring device for POW only access\n");
 		dev = alloc_etherdev(sizeof(struct octeon_ethernet));
 		if (dev) {
 			/* Initialize the device private structure. */
@@ -808,6 +873,8 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			case CVMX_HELPER_INTERFACE_MODE_GMII:
 				dev->netdev_ops = &cvm_oct_rgmii_netdev_ops;
 				strcpy(dev->name, "eth%d");
+				cvm_set_rgmii_delay(priv->of_node, interface,
+						    port_index);
 				break;
 			}
 
@@ -844,16 +911,7 @@ static int cvm_oct_remove(struct platform_device *pdev)
 {
 	int port;
 
-	/* Disable POW interrupt */
-	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
-		cvmx_write_csr(CVMX_SSO_WQ_INT_THRX(pow_receive_group), 0);
-	else
-		cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0);
-
 	cvmx_ipd_disable();
-
-	/* Free the interrupt handler */
-	free_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group, cvm_oct_device);
 
 	atomic_inc_return(&cvm_oct_poll_queue_stopping);
 	cancel_delayed_work_sync(&cvm_oct_rx_refill_work);
@@ -877,7 +935,6 @@ static int cvm_oct_remove(struct platform_device *pdev)
 			cvm_oct_device[port] = NULL;
 		}
 	}
-
 
 	cvmx_pko_shutdown();
 

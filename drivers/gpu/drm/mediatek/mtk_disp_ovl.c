@@ -103,7 +103,8 @@ static void mtk_ovl_stop(struct mtk_ddp_comp *comp)
 }
 
 static void mtk_ovl_config(struct mtk_ddp_comp *comp, unsigned int w,
-			   unsigned int h, unsigned int vrefresh)
+			   unsigned int h, unsigned int vrefresh,
+			   unsigned int bpc)
 {
 	if (w != 0 && h != 0)
 		writel_relaxed(h << 16 | w, comp->regs + DISP_REG_OVL_ROI_SIZE);

@@ -184,7 +184,8 @@ static void __init lpc18xx_creg_clk_init(struct device_node *np)
 
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_creg_early_data);
 }
-CLK_OF_DECLARE(lpc18xx_creg_clk, "nxp,lpc1850-creg-clk", lpc18xx_creg_clk_init);
+CLK_OF_DECLARE_DRIVER(lpc18xx_creg_clk, "nxp,lpc1850-creg-clk",
+		      lpc18xx_creg_clk_init);
 
 static struct clk *clk_creg[CREG_CLK_MAX];
 static struct clk_onecell_data clk_creg_data = {

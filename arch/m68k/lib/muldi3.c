@@ -14,6 +14,9 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details. */
 
+#include <linux/compiler.h>
+#include <linux/export.h>
+
 #ifdef CONFIG_CPU_HAS_NO_MULDIV64
 
 #define SI_TYPE_SIZE 32
@@ -90,3 +93,4 @@ __muldi3 (DItype u, DItype v)
 
   return w.ll;
 }
+EXPORT_SYMBOL(__muldi3);

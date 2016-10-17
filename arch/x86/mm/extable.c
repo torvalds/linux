@@ -1,4 +1,4 @@
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <asm/uaccess.h>
 #include <asm/traps.h>
 #include <asm/kdebug.h>

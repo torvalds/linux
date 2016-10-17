@@ -260,4 +260,7 @@ int __ilog2_u32(u32 n)
 	return 31 - bit;
 }
 
+long partial_decompress(void *inbuf, unsigned long input_size, void *outbuf,
+	unsigned long output_size, unsigned long skip);
+
 #endif /* _PPC_BOOT_OPS_H_ */

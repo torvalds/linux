@@ -284,7 +284,8 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 	}
 }
 
-inline void softmac_ps_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee)
+static inline void
+softmac_ps_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee)
 {
 
 	short single = ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE;
@@ -320,7 +321,7 @@ inline void softmac_ps_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *i
 	//dev_kfree_skb_any(skb);//edit by thomas
 }
 
-inline struct sk_buff *ieee80211_probe_req(struct ieee80211_device *ieee)
+static inline struct sk_buff *ieee80211_probe_req(struct ieee80211_device *ieee)
 {
 	unsigned int len, rate_len;
 	u8 *tag;
@@ -640,8 +641,9 @@ void ieee80211_start_scan_syncro(struct ieee80211_device *ieee)
 }
 EXPORT_SYMBOL(ieee80211_start_scan_syncro);
 
-inline struct sk_buff *ieee80211_authentication_req(struct ieee80211_network *beacon,
-	struct ieee80211_device *ieee, int challengelen)
+static inline struct sk_buff *
+ieee80211_authentication_req(struct ieee80211_network *beacon,
+			     struct ieee80211_device *ieee, int challengelen)
 {
 	struct sk_buff *skb;
 	struct ieee80211_authentication *auth;
@@ -806,7 +808,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 		*(tag++) = 2;
 
 		put_unaligned_le16(ieee->current_network.atim_window,
-				   (u8 *)tag);
+				   tag);
 		tag+=2;
 	}
 
@@ -978,7 +980,9 @@ static void ieee80211_resp_to_probe(struct ieee80211_device *ieee, u8 *dest)
 }
 
 
-inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beacon,struct ieee80211_device *ieee)
+static inline struct sk_buff *
+ieee80211_association_req(struct ieee80211_network *beacon,
+			  struct ieee80211_device *ieee)
 {
 	struct sk_buff *skb;
 	//unsigned long flags;
@@ -3091,7 +3095,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 	return ret;
 }
 
-inline struct sk_buff *ieee80211_disassociate_skb(
+static inline struct sk_buff *ieee80211_disassociate_skb(
 							struct ieee80211_network *beacon,
 							struct ieee80211_device *ieee,
 							u8	asRsn)

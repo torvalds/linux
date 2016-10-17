@@ -17,6 +17,7 @@
 struct cs_policy_dbs_info {
 	struct policy_dbs_info policy_dbs;
 	unsigned int down_skip;
+	unsigned int requested_freq;
 };
 
 static inline struct cs_policy_dbs_info *to_dbs_info(struct policy_dbs_info *policy_dbs)
@@ -61,6 +62,7 @@ static unsigned int cs_dbs_timer(struct cpufreq_policy *policy)
 {
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct cs_policy_dbs_info *dbs_info = to_dbs_info(policy_dbs);
+	unsigned int requested_freq = dbs_info->requested_freq;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	struct cs_dbs_tuners *cs_tuners = dbs_data->tuners;
 	unsigned int load = dbs_update(policy);
@@ -72,10 +74,16 @@ static unsigned int cs_dbs_timer(struct cpufreq_policy *policy)
 	if (cs_tuners->freq_step == 0)
 		goto out;
 
+	/*
+	 * If requested_freq is out of range, it is likely that the limits
+	 * changed in the meantime, so fall back to current frequency in that
+	 * case.
+	 */
+	if (requested_freq > policy->max || requested_freq < policy->min)
+		requested_freq = policy->cur;
+
 	/* Check for frequency increase */
 	if (load > dbs_data->up_threshold) {
-		unsigned int requested_freq = policy->cur;
-
 		dbs_info->down_skip = 0;
 
 		/* if we are already at full speed then break out early */
@@ -83,8 +91,11 @@ static unsigned int cs_dbs_timer(struct cpufreq_policy *policy)
 			goto out;
 
 		requested_freq += get_freq_target(cs_tuners, policy);
+		if (requested_freq > policy->max)
+			requested_freq = policy->max;
 
 		__cpufreq_driver_target(policy, requested_freq, CPUFREQ_RELATION_H);
+		dbs_info->requested_freq = requested_freq;
 		goto out;
 	}
 
@@ -95,7 +106,7 @@ static unsigned int cs_dbs_timer(struct cpufreq_policy *policy)
 
 	/* Check for frequency decrease */
 	if (load < cs_tuners->down_threshold) {
-		unsigned int freq_target, requested_freq = policy->cur;
+		unsigned int freq_target;
 		/*
 		 * if we cannot reduce the frequency anymore, break out early
 		 */
@@ -109,6 +120,7 @@ static unsigned int cs_dbs_timer(struct cpufreq_policy *policy)
 			requested_freq = policy->min;
 
 		__cpufreq_driver_target(policy, requested_freq, CPUFREQ_RELATION_L);
+		dbs_info->requested_freq = requested_freq;
 	}
 
  out:
@@ -287,6 +299,7 @@ static void cs_start(struct cpufreq_policy *policy)
 	struct cs_policy_dbs_info *dbs_info = to_dbs_info(policy->governor_data);
 
 	dbs_info->down_skip = 0;
+	dbs_info->requested_freq = policy->cur;
 }
 
 static struct dbs_governor cs_governor = {

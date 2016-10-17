@@ -761,8 +761,7 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-	spin_lock_init(&info->controller.lock);
-	init_waitqueue_head(&info->controller.wq);
+	nand_hw_control_init(&info->controller);
 
 	info->device     = &pdev->dev;
 	info->platform   = plat;

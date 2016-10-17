@@ -309,6 +309,13 @@
 				status = "disabled";
 			};
 
+			iim@53ff0000 {
+				compatible = "fsl,imx35-iim";
+				reg = <0x53ff0000 0x4000>;
+				interrupts = <19>;
+				clocks = <&clks 80>;
+			};
+
 			usbotg: usb@53ff4000 {
 				compatible = "fsl,imx35-usb", "fsl,imx27-usb";
 				reg = <0x53ff4000 0x0200>;

@@ -294,6 +294,8 @@ The kernel-doc extension is included in the kernel source tree, at
 ``scripts/kernel-doc`` script to extract the documentation comments from the
 source.
 
+.. _kernel_doc:
+
 Writing kernel-doc comments
 ===========================
 

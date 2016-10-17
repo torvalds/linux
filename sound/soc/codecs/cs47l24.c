@@ -746,6 +746,16 @@ static const struct snd_soc_dapm_route cs47l24_dapm_routes[] = {
 	{ "IN2L", NULL, "SYSCLK" },
 	{ "IN2R", NULL, "SYSCLK" },
 
+	{ "ASRC1L", NULL, "SYSCLK" },
+	{ "ASRC1R", NULL, "SYSCLK" },
+	{ "ASRC2L", NULL, "SYSCLK" },
+	{ "ASRC2R", NULL, "SYSCLK" },
+
+	{ "ASRC1L", NULL, "ASYNCCLK" },
+	{ "ASRC1R", NULL, "ASYNCCLK" },
+	{ "ASRC2L", NULL, "ASYNCCLK" },
+	{ "ASRC2R", NULL, "ASYNCCLK" },
+
 	{ "MICBIAS1", NULL, "MICVDD" },
 	{ "MICBIAS2", NULL, "MICVDD" },
 
@@ -804,7 +814,6 @@ static const struct snd_soc_dapm_route cs47l24_dapm_routes[] = {
 	{ "AIF3 Capture", NULL, "SYSCLK" },
 
 	{ "Voice Control DSP", NULL, "DSP3" },
-	{ "Voice Control DSP", NULL, "SYSCLK" },
 
 	{ "IN1L PGA", NULL, "IN1L" },
 	{ "IN1R PGA", NULL, "IN1R" },
@@ -813,7 +822,6 @@ static const struct snd_soc_dapm_route cs47l24_dapm_routes[] = {
 	{ "IN2R PGA", NULL, "IN2R" },
 
 	{ "Audio Trace DSP", NULL, "DSP2" },
-	{ "Audio Trace DSP", NULL, "SYSCLK" },
 
 	ARIZONA_MIXER_ROUTES("OUT1L", "HPOUT1L"),
 	ARIZONA_MIXER_ROUTES("OUT1R", "HPOUT1R"),
@@ -1190,12 +1198,14 @@ static struct snd_soc_codec_driver soc_codec_dev_cs47l24 = {
 	.set_sysclk = arizona_set_sysclk,
 	.set_pll = cs47l24_set_fll,
 
-	.controls = cs47l24_snd_controls,
-	.num_controls = ARRAY_SIZE(cs47l24_snd_controls),
-	.dapm_widgets = cs47l24_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs47l24_dapm_widgets),
-	.dapm_routes = cs47l24_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(cs47l24_dapm_routes),
+	.component_driver = {
+		.controls		= cs47l24_snd_controls,
+		.num_controls		= ARRAY_SIZE(cs47l24_snd_controls),
+		.dapm_widgets		= cs47l24_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(cs47l24_dapm_widgets),
+		.dapm_routes		= cs47l24_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(cs47l24_dapm_routes),
+	},
 };
 
 static struct snd_compr_ops cs47l24_compr_ops = {

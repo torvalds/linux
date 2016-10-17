@@ -15,7 +15,7 @@
 		serial3 = &uart4;
 	};
 
-	ocp {
+	ocp@68000000 {
 		am35x_otg_hs: am35x_otg_hs@5c040000 {
 			compatible = "ti,omap3-musb";
 			ti,hwmods = "am35x_otg_hs";

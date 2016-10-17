@@ -660,12 +660,12 @@ static int dt9812_find_endpoints(struct comedi_device *dev)
 		case 1:
 			dir = USB_DIR_OUT;
 			devpriv->cmd_wr.addr = ep->bEndpointAddress;
-			devpriv->cmd_wr.size = le16_to_cpu(ep->wMaxPacketSize);
+			devpriv->cmd_wr.size = usb_endpoint_maxp(ep);
 			break;
 		case 2:
 			dir = USB_DIR_IN;
 			devpriv->cmd_rd.addr = ep->bEndpointAddress;
-			devpriv->cmd_rd.size = le16_to_cpu(ep->wMaxPacketSize);
+			devpriv->cmd_rd.size = usb_endpoint_maxp(ep);
 			break;
 		case 3:
 			/* unused write stream */

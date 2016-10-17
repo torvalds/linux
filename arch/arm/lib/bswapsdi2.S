@@ -1,5 +1,6 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/export.h>
 
 #if __LINUX_ARM_ARCH__ >= 6
 ENTRY(__bswapsi2)
@@ -35,3 +36,5 @@ ENTRY(__bswapdi2)
 	ret lr
 ENDPROC(__bswapdi2)
 #endif
+EXPORT_SYMBOL(__bswapsi2)
+EXPORT_SYMBOL(__bswapdi2)

@@ -57,13 +57,6 @@ struct	__queue	{
 		spin_lock_init(&((pqueue)->lock));	\
 	} while (0)
 
-static inline u32 _down_sema(struct semaphore *sema)
-{
-	if (down_interruptible(sema))
-		return _FAIL;
-	return _SUCCESS;
-}
-
 static inline u32 end_of_queue_search(struct list_head *head,
 		struct list_head *plist)
 {

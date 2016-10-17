@@ -63,19 +63,14 @@ static struct mlx5_rl_entry *find_rl_entry(struct mlx5_rl_table *table,
 static int mlx5_set_rate_limit_cmd(struct mlx5_core_dev *dev,
 				   u32 rate, u16 index)
 {
-	u32 in[MLX5_ST_SZ_DW(set_rate_limit_in)];
-	u32 out[MLX5_ST_SZ_DW(set_rate_limit_out)];
-
-	memset(in, 0, sizeof(in));
-	memset(out, 0, sizeof(out));
+	u32 in[MLX5_ST_SZ_DW(set_rate_limit_in)]   = {0};
+	u32 out[MLX5_ST_SZ_DW(set_rate_limit_out)] = {0};
 
 	MLX5_SET(set_rate_limit_in, in, opcode,
 		 MLX5_CMD_OP_SET_RATE_LIMIT);
 	MLX5_SET(set_rate_limit_in, in, rate_limit_index, index);
 	MLX5_SET(set_rate_limit_in, in, rate_limit, rate);
-
-	return mlx5_cmd_exec_check_status(dev, in, sizeof(in),
-					  out, sizeof(out));
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
 bool mlx5_rl_is_in_range(struct mlx5_core_dev *dev, u32 rate)

@@ -5,7 +5,7 @@
  *
  * Copyright (C) 1997, 99, 2001 - 2004 Ralf Baechle <ralf@linux-mips.org>
  */
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/spinlock.h>
 #include <asm/branch.h>
 #include <asm/uaccess.h>

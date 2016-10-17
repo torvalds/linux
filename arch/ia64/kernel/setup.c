@@ -71,7 +71,11 @@ EXPORT_SYMBOL(__per_cpu_offset);
 #endif
 
 DEFINE_PER_CPU(struct cpuinfo_ia64, ia64_cpu_info);
+EXPORT_SYMBOL(ia64_cpu_info);
 DEFINE_PER_CPU(unsigned long, local_per_cpu_offset);
+#ifdef CONFIG_SMP
+EXPORT_SYMBOL(local_per_cpu_offset);
+#endif
 unsigned long ia64_cycles_per_usec;
 struct ia64_boot_param *ia64_boot_param;
 struct screen_info screen_info;

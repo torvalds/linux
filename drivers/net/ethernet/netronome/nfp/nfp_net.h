@@ -62,6 +62,9 @@
 /* Max time to wait for NFP to respond on updates (in seconds) */
 #define NFP_NET_POLL_TIMEOUT	5
 
+/* Interval for reading offloaded filter stats */
+#define NFP_NET_STAT_POLL_IVL	msecs_to_jiffies(100)
+
 /* Bar allocation */
 #define NFP_NET_CTRL_BAR	0
 #define NFP_NET_Q0_BAR		2
@@ -220,7 +223,7 @@ struct nfp_net_tx_ring {
 #define PCIE_DESC_RX_I_TCP_CSUM_OK	cpu_to_le16(BIT(11))
 #define PCIE_DESC_RX_I_UDP_CSUM		cpu_to_le16(BIT(10))
 #define PCIE_DESC_RX_I_UDP_CSUM_OK	cpu_to_le16(BIT(9))
-#define PCIE_DESC_RX_SPARE		cpu_to_le16(BIT(8))
+#define PCIE_DESC_RX_BPF		cpu_to_le16(BIT(8))
 #define PCIE_DESC_RX_EOP		cpu_to_le16(BIT(7))
 #define PCIE_DESC_RX_IP4_CSUM		cpu_to_le16(BIT(6))
 #define PCIE_DESC_RX_IP4_CSUM_OK	cpu_to_le16(BIT(5))
@@ -265,6 +268,8 @@ struct nfp_net_rx_desc {
 		__le32 vals[2];
 	};
 };
+
+#define NFP_NET_META_FIELD_MASK GENMASK(NFP_NET_META_FIELD_SIZE - 1, 0)
 
 struct nfp_net_rx_hash {
 	__be32 hash_type;
@@ -405,6 +410,11 @@ static inline bool nfp_net_fw_ver_eq(struct nfp_net_fw_version *fw_ver,
 	       fw_ver->minor == minor;
 }
 
+struct nfp_stat_pair {
+	u64 pkts;
+	u64 bytes;
+};
+
 /**
  * struct nfp_net - NFP network device structure
  * @pdev:               Backpointer to PCI device
@@ -413,6 +423,7 @@ static inline bool nfp_net_fw_ver_eq(struct nfp_net_fw_version *fw_ver,
  * @is_vf:              Is the driver attached to a VF?
  * @is_nfp3200:         Is the driver for a NFP-3200 card?
  * @fw_loaded:          Is the firmware loaded?
+ * @bpf_offload_skip_sw:  Offloaded BPF program will not be rerun by cls_bpf
  * @ctrl:               Local copy of the control register/word.
  * @fl_bufsz:           Currently configured size of the freelist buffers
  * @rx_offset:		Offset in the RX buffers where packet data starts
@@ -427,6 +438,11 @@ static inline bool nfp_net_fw_ver_eq(struct nfp_net_fw_version *fw_ver,
  * @rss_cfg:            RSS configuration
  * @rss_key:            RSS secret key
  * @rss_itbl:           RSS indirection table
+ * @rx_filter:		Filter offload statistics - dropped packets/bytes
+ * @rx_filter_prev:	Filter offload statistics - values from previous update
+ * @rx_filter_change:	Jiffies when statistics last changed
+ * @rx_filter_stats_timer:  Timer for polling filter offload statistics
+ * @rx_filter_lock:	Lock protecting timer state changes (teardown)
  * @max_tx_rings:       Maximum number of TX rings supported by the Firmware
  * @max_rx_rings:       Maximum number of RX rings supported by the Firmware
  * @num_tx_rings:       Currently configured number of TX rings
@@ -473,6 +489,7 @@ struct nfp_net {
 	unsigned is_vf:1;
 	unsigned is_nfp3200:1;
 	unsigned fw_loaded:1;
+	unsigned bpf_offload_skip_sw:1;
 
 	u32 ctrl;
 	u32 fl_bufsz;
@@ -501,6 +518,11 @@ struct nfp_net {
 	u32 rss_cfg;
 	u8 rss_key[NFP_NET_CFG_RSS_KEY_SZ];
 	u8 rss_itbl[NFP_NET_CFG_RSS_ITBL_SZ];
+
+	struct nfp_stat_pair rx_filter, rx_filter_prev;
+	unsigned long rx_filter_change;
+	struct timer_list rx_filter_stats_timer;
+	spinlock_t rx_filter_lock;
 
 	int max_tx_rings;
 	int max_rx_rings;
@@ -561,12 +583,28 @@ struct nfp_net {
 /* Functions to read/write from/to a BAR
  * Performs any endian conversion necessary.
  */
+static inline u16 nn_readb(struct nfp_net *nn, int off)
+{
+	return readb(nn->ctrl_bar + off);
+}
+
 static inline void nn_writeb(struct nfp_net *nn, int off, u8 val)
 {
 	writeb(val, nn->ctrl_bar + off);
 }
 
-/* NFP-3200 can't handle 16-bit accesses too well - hence no readw/writew */
+/* NFP-3200 can't handle 16-bit accesses too well */
+static inline u16 nn_readw(struct nfp_net *nn, int off)
+{
+	WARN_ON_ONCE(nn->is_nfp3200);
+	return readw(nn->ctrl_bar + off);
+}
+
+static inline void nn_writew(struct nfp_net *nn, int off, u16 val)
+{
+	WARN_ON_ONCE(nn->is_nfp3200);
+	writew(val, nn->ctrl_bar + off);
+}
 
 static inline u32 nn_readl(struct nfp_net *nn, int off)
 {
@@ -756,5 +794,10 @@ static inline void nfp_net_debugfs_adapter_del(struct nfp_net *nn)
 {
 }
 #endif /* CONFIG_NFP_NET_DEBUG */
+
+void nfp_net_filter_stats_timer(unsigned long data);
+int
+nfp_net_bpf_offload(struct nfp_net *nn, u32 handle, __be16 proto,
+		    struct tc_cls_bpf_offload *cls_bpf);
 
 #endif /* _NFP_NET_H_ */

@@ -121,7 +121,7 @@ static int da9055_gpio_to_irq(struct gpio_chip *gc, u32 offset)
 				  DA9055_IRQ_GPI0 + offset);
 }
 
-static struct gpio_chip reference_gp = {
+static const struct gpio_chip reference_gp = {
 	.label = "da9055-gpio",
 	.owner = THIS_MODULE,
 	.get = da9055_gpio_get,

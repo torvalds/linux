@@ -1669,10 +1669,9 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 	if (ret)
 		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(supply); ++i) {
+	for (i = 0; i < ARRAY_SIZE(supply); ++i)
 		hdata->regul_bulk[i].supply = supply[i];
-		hdata->regul_bulk[i].consumer = NULL;
-	}
+
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(supply), hdata->regul_bulk);
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
@@ -1760,28 +1759,74 @@ static const struct component_ops hdmi_component_ops = {
 	.unbind = hdmi_unbind,
 };
 
-static struct device_node *hdmi_legacy_ddc_dt_binding(struct device *dev)
+static int hdmi_get_ddc_adapter(struct hdmi_context *hdata)
 {
 	const char *compatible_str = "samsung,exynos4210-hdmiddc";
 	struct device_node *np;
+	struct i2c_adapter *adpt;
 
 	np = of_find_compatible_node(NULL, NULL, compatible_str);
 	if (np)
-		return of_get_next_parent(np);
+		np = of_get_next_parent(np);
+	else
+		np = of_parse_phandle(hdata->dev->of_node, "ddc", 0);
 
-	return NULL;
+	if (!np) {
+		DRM_ERROR("Failed to find ddc node in device tree\n");
+		return -ENODEV;
+	}
+
+	adpt = of_find_i2c_adapter_by_node(np);
+	of_node_put(np);
+
+	if (!adpt) {
+		DRM_INFO("Failed to get ddc i2c adapter by node\n");
+		return -EPROBE_DEFER;
+	}
+
+	hdata->ddc_adpt = adpt;
+
+	return 0;
 }
 
-static struct device_node *hdmi_legacy_phy_dt_binding(struct device *dev)
+static int hdmi_get_phy_io(struct hdmi_context *hdata)
 {
 	const char *compatible_str = "samsung,exynos4212-hdmiphy";
+	struct device_node *np;
+	int ret = 0;
 
-	return of_find_compatible_node(NULL, NULL, compatible_str);
+	np = of_find_compatible_node(NULL, NULL, compatible_str);
+	if (!np) {
+		np = of_parse_phandle(hdata->dev->of_node, "phy", 0);
+		if (!np) {
+			DRM_ERROR("Failed to find hdmiphy node in device tree\n");
+			return -ENODEV;
+		}
+	}
+
+	if (hdata->drv_data->is_apb_phy) {
+		hdata->regs_hdmiphy = of_iomap(np, 0);
+		if (!hdata->regs_hdmiphy) {
+			DRM_ERROR("failed to ioremap hdmi phy\n");
+			ret = -ENOMEM;
+			goto out;
+		}
+	} else {
+		hdata->hdmiphy_port = of_find_i2c_device_by_node(np);
+		if (!hdata->hdmiphy_port) {
+			DRM_INFO("Failed to get hdmi phy i2c client\n");
+			ret = -EPROBE_DEFER;
+			goto out;
+		}
+	}
+
+out:
+	of_node_put(np);
+	return ret;
 }
 
 static int hdmi_probe(struct platform_device *pdev)
 {
-	struct device_node *ddc_node, *phy_node;
 	struct device *dev = &pdev->dev;
 	struct hdmi_context *hdata;
 	struct resource *res;
@@ -1811,52 +1856,13 @@ static int hdmi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ddc_node = hdmi_legacy_ddc_dt_binding(dev);
-	if (ddc_node)
-		goto out_get_ddc_adpt;
+	ret = hdmi_get_ddc_adapter(hdata);
+	if (ret)
+		return ret;
 
-	ddc_node = of_parse_phandle(dev->of_node, "ddc", 0);
-	if (!ddc_node) {
-		DRM_ERROR("Failed to find ddc node in device tree\n");
-		return -ENODEV;
-	}
-	of_node_put(dev->of_node);
-
-out_get_ddc_adpt:
-	hdata->ddc_adpt = of_find_i2c_adapter_by_node(ddc_node);
-	if (!hdata->ddc_adpt) {
-		DRM_ERROR("Failed to get ddc i2c adapter by node\n");
-		return -EPROBE_DEFER;
-	}
-
-	phy_node = hdmi_legacy_phy_dt_binding(dev);
-	if (phy_node)
-		goto out_get_phy_port;
-
-	phy_node = of_parse_phandle(dev->of_node, "phy", 0);
-	if (!phy_node) {
-		DRM_ERROR("Failed to find hdmiphy node in device tree\n");
-		ret = -ENODEV;
+	ret = hdmi_get_phy_io(hdata);
+	if (ret)
 		goto err_ddc;
-	}
-	of_node_put(dev->of_node);
-
-out_get_phy_port:
-	if (hdata->drv_data->is_apb_phy) {
-		hdata->regs_hdmiphy = of_iomap(phy_node, 0);
-		if (!hdata->regs_hdmiphy) {
-			DRM_ERROR("failed to ioremap hdmi phy\n");
-			ret = -ENOMEM;
-			goto err_ddc;
-		}
-	} else {
-		hdata->hdmiphy_port = of_find_i2c_device_by_node(phy_node);
-		if (!hdata->hdmiphy_port) {
-			DRM_ERROR("Failed to get hdmi phy i2c client\n");
-			ret = -EPROBE_DEFER;
-			goto err_ddc;
-		}
-	}
 
 	INIT_DELAYED_WORK(&hdata->hotplug_work, hdmi_hotplug_work_func);
 

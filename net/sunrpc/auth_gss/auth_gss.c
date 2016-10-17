@@ -1298,6 +1298,12 @@ gss_destroy_cred(struct rpc_cred *cred)
 	gss_destroy_nullcred(cred);
 }
 
+static int
+gss_hash_cred(struct auth_cred *acred, unsigned int hashbits)
+{
+	return hash_64(from_kuid(&init_user_ns, acred->uid), hashbits);
+}
+
 /*
  * Lookup RPCSEC_GSS cred for the current process
  */
@@ -1982,6 +1988,7 @@ static const struct rpc_authops authgss_ops = {
 	.au_name	= "RPCSEC_GSS",
 	.create		= gss_create,
 	.destroy	= gss_destroy,
+	.hash_cred	= gss_hash_cred,
 	.lookup_cred	= gss_lookup_cred,
 	.crcreate	= gss_create_cred,
 	.list_pseudoflavors = gss_mech_list_pseudoflavors,

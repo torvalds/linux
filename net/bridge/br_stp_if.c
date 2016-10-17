@@ -134,17 +134,36 @@ void br_stp_disable_port(struct net_bridge_port *p)
 		br_become_root_bridge(br);
 }
 
+static int br_stp_call_user(struct net_bridge *br, char *arg)
+{
+	char *argv[] = { BR_STP_PROG, br->dev->name, arg, NULL };
+	char *envp[] = { NULL };
+	int rc;
+
+	/* call userspace STP and report program errors */
+	rc = call_usermodehelper(BR_STP_PROG, argv, envp, UMH_WAIT_PROC);
+	if (rc > 0) {
+		if (rc & 0xff)
+			br_debug(br, BR_STP_PROG " received signal %d\n",
+				 rc & 0x7f);
+		else
+			br_debug(br, BR_STP_PROG " exited with code %d\n",
+				 (rc >> 8) & 0xff);
+	}
+
+	return rc;
+}
+
 static void br_stp_start(struct net_bridge *br)
 {
-	int r;
-	char *argv[] = { BR_STP_PROG, br->dev->name, "start", NULL };
-	char *envp[] = { NULL };
 	struct net_bridge_port *p;
+	int err = -ENOENT;
 
 	if (net_eq(dev_net(br->dev), &init_net))
-		r = call_usermodehelper(BR_STP_PROG, argv, envp, UMH_WAIT_PROC);
-	else
-		r = -ENOENT;
+		err = br_stp_call_user(br, "start");
+
+	if (err && err != -ENOENT)
+		br_err(br, "failed to start userspace STP (%d)\n", err);
 
 	spin_lock_bh(&br->lock);
 
@@ -153,9 +172,10 @@ static void br_stp_start(struct net_bridge *br)
 	else if (br->bridge_forward_delay > BR_MAX_FORWARD_DELAY)
 		__br_set_forward_delay(br, BR_MAX_FORWARD_DELAY);
 
-	if (r == 0) {
+	if (!err) {
 		br->stp_enabled = BR_USER_STP;
 		br_debug(br, "userspace STP started\n");
+
 		/* Stop hello and hold timers */
 		del_timer(&br->hello_timer);
 		list_for_each_entry(p, &br->port_list, list)
@@ -173,14 +193,13 @@ static void br_stp_start(struct net_bridge *br)
 
 static void br_stp_stop(struct net_bridge *br)
 {
-	int r;
-	char *argv[] = { BR_STP_PROG, br->dev->name, "stop", NULL };
-	char *envp[] = { NULL };
 	struct net_bridge_port *p;
+	int err;
 
 	if (br->stp_enabled == BR_USER_STP) {
-		r = call_usermodehelper(BR_STP_PROG, argv, envp, UMH_WAIT_PROC);
-		br_info(br, "userspace STP stopped, return code %d\n", r);
+		err = br_stp_call_user(br, "stop");
+		if (err)
+			br_err(br, "failed to stop userspace STP (%d)\n", err);
 
 		/* To start timers on any ports left in blocking */
 		mod_timer(&br->hello_timer, jiffies + br->hello_time);

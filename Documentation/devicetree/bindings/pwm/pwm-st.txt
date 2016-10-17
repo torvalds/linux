@@ -13,13 +13,14 @@ Required parameters:
 - pinctrl-0: 		List of phandles pointing to pin configuration nodes
 			for PWM module.
 			For Pinctrl properties, please refer to [1].
-- clock-names: 		Set to "pwm".
+- clock-names: 		Valid entries are "pwm" and/or "capture".
 - clocks: 		phandle of the clock used by the PWM module.
 			For Clk properties, please refer to [2].
+- interrupts:		IRQ for the Capture device
 
 Optional properties:
-- st,pwm-num-chan:	Number of available channels. If not passed, the driver
-			will consider single channel by default.
+- st,pwm-num-chan:	Number of available PWM channels.  Default is 0.
+- st,capture-num-chan:	Number of available Capture channels.  Default is 0.
 
 [1] Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 [2] Documentation/devicetree/bindings/clock/clock-bindings.txt
@@ -38,4 +39,5 @@ pwm1: pwm@fe510000 {
 	clocks = <&clk_sysin>;
 	clock-names = "pwm";
 	st,pwm-num-chan = <4>;
+	st,capture-num-chan = <2>;
 };

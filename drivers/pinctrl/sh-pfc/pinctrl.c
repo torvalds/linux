@@ -596,6 +596,7 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 	struct sh_pfc *pfc = pmx->pfc;
 	enum pin_config_param param = pinconf_to_config_param(*config);
 	unsigned long flags;
+	unsigned int arg;
 
 	if (!sh_pfc_pinconf_validate(pfc, _pin, param))
 		return -ENOTSUPP;
@@ -616,7 +617,7 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 		if (bias != param)
 			return -EINVAL;
 
-		*config = 0;
+		arg = 0;
 		break;
 	}
 
@@ -627,7 +628,7 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 		if (ret < 0)
 			return ret;
 
-		*config = ret;
+		arg = ret;
 		break;
 	}
 
@@ -646,7 +647,7 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 		val = sh_pfc_read_reg(pfc, pocctrl, 32);
 		spin_unlock_irqrestore(&pfc->lock, flags);
 
-		*config = (val & BIT(bit)) ? 3300 : 1800;
+		arg = (val & BIT(bit)) ? 3300 : 1800;
 		break;
 	}
 
@@ -654,6 +655,7 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 		return -ENOTSUPP;
 	}
 
+	*config = pinconf_to_config_packed(param, arg);
 	return 0;
 }
 

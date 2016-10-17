@@ -183,10 +183,6 @@ struct dgnc_board {
 	uint		nasync;		/* Number of ports on card */
 
 	uint		irq;		/* Interrupt request number */
-	ulong		intr_count;	/* Count of interrupts */
-	ulong		intr_modem;	/* Count of interrupts */
-	ulong		intr_tx;	/* Count of interrupts */
-	ulong		intr_rx;	/* Count of interrupts */
 
 	ulong		membase;	/* Start of base memory of the card */
 	ulong		membase_end;	/* End of base memory of the card */
@@ -207,21 +203,12 @@ struct dgnc_board {
 	struct tty_driver *print_driver;
 	char		print_name[200];
 
-	bool		dgnc_major_serial_registered;
-	bool		dgnc_major_transparent_print_registered;
-
 	u16		dpatype;	/* The board "type",
 					 * as defined by DPA
 					 */
 	u16		dpastatus;	/* The board "status",
 					 * as defined by DPA
 					 */
-
-	/*
-	 *	Mgmt data.
-	 */
-	char		*msgbuf_head;
-	char		*msgbuf;
 
 	uint		bd_dividend;	/* Board/UARTs specific dividend */
 
@@ -381,10 +368,6 @@ struct channel_t {
 	ulong		ch_xon_sends;	/* Count of xons transmitted */
 	ulong		ch_xoff_sends;	/* Count of xoffs transmitted */
 
-	ulong		ch_intr_modem;	/* Count of interrupts */
-	ulong		ch_intr_tx;	/* Count of interrupts */
-	ulong		ch_intr_rx;	/* Count of interrupts */
-
 	/* /proc/<board>/<channel> entries */
 	struct proc_dir_entry *proc_entry_pointer;
 	struct dgnc_proc_entry *dgnc_channel_table;
@@ -398,7 +381,7 @@ extern uint		dgnc_major;		/* Our driver/mgmt major */
 extern int		dgnc_poll_tick;		/* Poll interval - 20 ms */
 extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock */
 extern spinlock_t	dgnc_poll_lock;		/* Poll scheduling lock */
-extern uint		dgnc_num_boards;		/* Total number of boards */
+extern uint		dgnc_num_boards;	/* Total number of boards */
 extern struct dgnc_board	*dgnc_board[MAXBOARDS];	/* Array of board
 							 * structs
 							 */

@@ -36,12 +36,31 @@ u32 bcma_chipco_get_alp_clock(struct bcma_drv_cc *cc)
 }
 EXPORT_SYMBOL_GPL(bcma_chipco_get_alp_clock);
 
+static bool bcma_core_cc_has_pmu_watchdog(struct bcma_drv_cc *cc)
+{
+	struct bcma_bus *bus = cc->core->bus;
+
+	if (cc->capabilities & BCMA_CC_CAP_PMU) {
+		if (bus->chipinfo.id == BCMA_CHIP_ID_BCM53573) {
+			WARN(bus->chipinfo.rev <= 1, "No watchdog available\n");
+			/* 53573B0 and 53573B1 have bugged PMU watchdog. It can
+			 * be enabled but timer can't be bumped. Use CC one
+			 * instead.
+			 */
+			return false;
+		}
+		return true;
+	} else {
+		return false;
+	}
+}
+
 static u32 bcma_chipco_watchdog_get_max_timer(struct bcma_drv_cc *cc)
 {
 	struct bcma_bus *bus = cc->core->bus;
 	u32 nb;
 
-	if (cc->capabilities & BCMA_CC_CAP_PMU) {
+	if (bcma_core_cc_has_pmu_watchdog(cc)) {
 		if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4706)
 			nb = 32;
 		else if (cc->core->id.rev < 26)
@@ -95,8 +114,15 @@ static int bcma_chipco_watchdog_ticks_per_ms(struct bcma_drv_cc *cc)
 
 int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc)
 {
+	struct bcma_bus *bus = cc->core->bus;
 	struct bcm47xx_wdt wdt = {};
 	struct platform_device *pdev;
+
+	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM53573 &&
+	    bus->chipinfo.rev <= 1) {
+		pr_debug("No watchdog on 53573A0 / 53573A1\n");
+		return 0;
+	}
 
 	wdt.driver_data = cc;
 	wdt.timer_set = bcma_chipco_watchdog_timer_set_wdt;
@@ -105,7 +131,7 @@ int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc)
 		bcma_chipco_watchdog_get_max_timer(cc) / cc->ticks_per_ms;
 
 	pdev = platform_device_register_data(NULL, "bcm47xx-wdt",
-					     cc->core->bus->num, &wdt,
+					     bus->num, &wdt,
 					     sizeof(wdt));
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
@@ -217,7 +243,7 @@ u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks)
 	u32 maxt;
 
 	maxt = bcma_chipco_watchdog_get_max_timer(cc);
-	if (cc->capabilities & BCMA_CC_CAP_PMU) {
+	if (bcma_core_cc_has_pmu_watchdog(cc)) {
 		if (ticks == 1)
 			ticks = 2;
 		else if (ticks > maxt)

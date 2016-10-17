@@ -306,12 +306,14 @@ static struct snd_soc_codec_driver soc_codec_dev_max9850 = {
 	.set_bias_level = max9850_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = max9850_controls,
-	.num_controls = ARRAY_SIZE(max9850_controls),
-	.dapm_widgets = max9850_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(max9850_dapm_widgets),
-	.dapm_routes = max9850_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(max9850_dapm_routes),
+	.component_driver = {
+		.controls		= max9850_controls,
+		.num_controls		= ARRAY_SIZE(max9850_controls),
+		.dapm_widgets		= max9850_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(max9850_dapm_widgets),
+		.dapm_routes		= max9850_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(max9850_dapm_routes),
+	},
 };
 
 static int max9850_i2c_probe(struct i2c_client *i2c,

@@ -645,12 +645,14 @@ static struct snd_soc_codec_driver soc_codec_dev_cs4271 = {
 	.suspend		= cs4271_soc_suspend,
 	.resume			= cs4271_soc_resume,
 
-	.controls		= cs4271_snd_controls,
-	.num_controls		= ARRAY_SIZE(cs4271_snd_controls),
-	.dapm_widgets		= cs4271_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(cs4271_dapm_widgets),
-	.dapm_routes		= cs4271_dapm_routes,
-	.num_dapm_routes	= ARRAY_SIZE(cs4271_dapm_routes),
+	.component_driver = {
+		.controls		= cs4271_snd_controls,
+		.num_controls		= ARRAY_SIZE(cs4271_snd_controls),
+		.dapm_widgets		= cs4271_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(cs4271_dapm_widgets),
+		.dapm_routes		= cs4271_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(cs4271_dapm_routes),
+	},
 };
 
 static int cs4271_common_probe(struct device *dev,

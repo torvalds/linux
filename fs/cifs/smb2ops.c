@@ -28,6 +28,7 @@
 #include "cifs_unicode.h"
 #include "smb2status.h"
 #include "smb2glob.h"
+#include "cifs_ioctl.h"
 
 static int
 change_conf(struct TCP_Server_Info *server)
@@ -70,6 +71,10 @@ smb2_add_credits(struct TCP_Server_Info *server, const unsigned int add,
 	spin_lock(&server->req_lock);
 	val = server->ops->get_credits_field(server, optype);
 	*val += add;
+	if (*val > 65000) {
+		*val = 65000; /* Don't get near 64K credits, avoid srv bugs */
+		printk_once(KERN_WARNING "server overflowed SMB3 credits\n");
+	}
 	server->in_flight--;
 	if (server->in_flight == 0 && (optype & CIFS_OP_MASK) != CIFS_NEG_OP)
 		rc = change_conf(server);
@@ -287,7 +292,7 @@ SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon)
 		cifs_dbg(FYI, "Link Speed %lld\n",
 			le64_to_cpu(out_buf->LinkSpeed));
 	}
-
+	kfree(out_buf);
 	return rc;
 }
 #endif /* STATS2 */
@@ -541,6 +546,7 @@ smb2_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 	server->ops->set_oplock_level(cinode, oplock, fid->epoch,
 				      &fid->purge_cache);
 	cinode->can_cache_brlcks = CIFS_CACHE_WRITE(cinode);
+	memcpy(cfile->fid.create_guid, fid->create_guid, 16);
 }
 
 static void
@@ -699,6 +705,7 @@ smb2_clone_range(const unsigned int xid,
 
 cchunk_out:
 	kfree(pcchunk);
+	kfree(retbuf);
 	return rc;
 }
 
@@ -823,7 +830,6 @@ smb2_duplicate_extents(const unsigned int xid,
 {
 	int rc;
 	unsigned int ret_data_len;
-	char *retbuf = NULL;
 	struct duplicate_extents_to_file dup_ext_buf;
 	struct cifs_tcon *tcon = tlink_tcon(trgtfile->tlink);
 
@@ -849,7 +855,7 @@ smb2_duplicate_extents(const unsigned int xid,
 			FSCTL_DUPLICATE_EXTENTS_TO_FILE,
 			true /* is_fsctl */, (char *)&dup_ext_buf,
 			sizeof(struct duplicate_extents_to_file),
-			(char **)&retbuf,
+			NULL,
 			&ret_data_len);
 
 	if (ret_data_len > 0)
@@ -872,7 +878,6 @@ smb3_set_integrity(const unsigned int xid, struct cifs_tcon *tcon,
 		   struct cifsFileInfo *cfile)
 {
 	struct fsctl_set_integrity_information_req integr_info;
-	char *retbuf = NULL;
 	unsigned int ret_data_len;
 
 	integr_info.ChecksumAlgorithm = cpu_to_le16(CHECKSUM_TYPE_UNCHANGED);
@@ -884,9 +889,53 @@ smb3_set_integrity(const unsigned int xid, struct cifs_tcon *tcon,
 			FSCTL_SET_INTEGRITY_INFORMATION,
 			true /* is_fsctl */, (char *)&integr_info,
 			sizeof(struct fsctl_set_integrity_information_req),
-			(char **)&retbuf,
+			NULL,
 			&ret_data_len);
 
+}
+
+static int
+smb3_enum_snapshots(const unsigned int xid, struct cifs_tcon *tcon,
+		   struct cifsFileInfo *cfile, void __user *ioc_buf)
+{
+	char *retbuf = NULL;
+	unsigned int ret_data_len = 0;
+	int rc;
+	struct smb_snapshot_array snapshot_in;
+
+	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
+			cfile->fid.volatile_fid,
+			FSCTL_SRV_ENUMERATE_SNAPSHOTS,
+			true /* is_fsctl */, NULL, 0 /* no input data */,
+			(char **)&retbuf,
+			&ret_data_len);
+	cifs_dbg(FYI, "enum snaphots ioctl returned %d and ret buflen is %d\n",
+			rc, ret_data_len);
+	if (rc)
+		return rc;
+
+	if (ret_data_len && (ioc_buf != NULL) && (retbuf != NULL)) {
+		/* Fixup buffer */
+		if (copy_from_user(&snapshot_in, ioc_buf,
+		    sizeof(struct smb_snapshot_array))) {
+			rc = -EFAULT;
+			kfree(retbuf);
+			return rc;
+		}
+		if (snapshot_in.snapshot_array_size < sizeof(struct smb_snapshot_array)) {
+			rc = -ERANGE;
+			return rc;
+		}
+
+		if (ret_data_len > snapshot_in.snapshot_array_size)
+			ret_data_len = snapshot_in.snapshot_array_size;
+
+		if (copy_to_user(ioc_buf, retbuf, ret_data_len))
+			rc = -EFAULT;
+	}
+
+	kfree(retbuf);
+	return rc;
 }
 
 static int
@@ -1041,7 +1090,7 @@ smb2_set_lease_key(struct inode *inode, struct cifs_fid *fid)
 static void
 smb2_new_lease_key(struct cifs_fid *fid)
 {
-	get_random_bytes(fid->lease_key, SMB2_LEASE_KEY_SIZE);
+	generate_random_uuid(fid->lease_key);
 }
 
 #define SMB2_SYMLINK_STRUCT_SIZE \
@@ -1654,6 +1703,7 @@ struct smb_version_operations smb21_operations = {
 	.clone_range = smb2_clone_range,
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
+	.enum_snapshots = smb3_enum_snapshots,
 };
 
 struct smb_version_operations smb30_operations = {
@@ -1740,6 +1790,7 @@ struct smb_version_operations smb30_operations = {
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
 	.fallocate = smb3_fallocate,
+	.enum_snapshots = smb3_enum_snapshots,
 };
 
 #ifdef CONFIG_CIFS_SMB311
@@ -1827,6 +1878,7 @@ struct smb_version_operations smb311_operations = {
 	.wp_retry_size = smb2_wp_retry_size,
 	.dir_needs_close = smb2_dir_needs_close,
 	.fallocate = smb3_fallocate,
+	.enum_snapshots = smb3_enum_snapshots,
 };
 #endif /* CIFS_SMB311 */
 

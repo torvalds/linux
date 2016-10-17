@@ -1760,17 +1760,14 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 		nintf = cp->desc.bNumInterfaces;
 		new_interfaces = kmalloc(nintf * sizeof(*new_interfaces),
 				GFP_NOIO);
-		if (!new_interfaces) {
-			dev_err(&dev->dev, "Out of memory\n");
+		if (!new_interfaces)
 			return -ENOMEM;
-		}
 
 		for (; n < nintf; ++n) {
 			new_interfaces[n] = kzalloc(
 					sizeof(struct usb_interface),
 					GFP_NOIO);
 			if (!new_interfaces[n]) {
-				dev_err(&dev->dev, "Out of memory\n");
 				ret = -ENOMEM;
 free_interfaces:
 				while (--n >= 0)
@@ -1862,7 +1859,12 @@ free_interfaces:
 		intf->dev.bus = &usb_bus_type;
 		intf->dev.type = &usb_if_device_type;
 		intf->dev.groups = usb_interface_groups;
+		/*
+		 * Please refer to usb_alloc_dev() to see why we set
+		 * dma_mask and dma_pfn_offset.
+		 */
 		intf->dev.dma_mask = dev->dev.dma_mask;
+		intf->dev.dma_pfn_offset = dev->dev.dma_pfn_offset;
 		INIT_WORK(&intf->reset_ws, __usb_queue_reset_device);
 		intf->minor = -1;
 		device_initialize(&intf->dev);

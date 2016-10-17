@@ -13,6 +13,7 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/unwind.h>
+#include <asm/export.h>
 
 /*
  * Prototype:
@@ -99,6 +100,9 @@ WEAK(arm_copy_to_user)
 
 ENDPROC(arm_copy_to_user)
 ENDPROC(__copy_to_user_std)
+#ifndef CONFIG_UACCESS_WITH_MEMCPY
+EXPORT_SYMBOL(arm_copy_to_user)
+#endif
 
 	.pushsection .text.fixup,"ax"
 	.align 0

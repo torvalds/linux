@@ -133,7 +133,7 @@ struct mvneta_bm_pool {
 void *mvneta_frag_alloc(unsigned int frag_size);
 void mvneta_frag_free(unsigned int frag_size, void *data);
 
-#if defined(CONFIG_MVNETA_BM) || defined(CONFIG_MVNETA_BM_MODULE)
+#if IS_ENABLED(CONFIG_MVNETA_BM)
 void mvneta_bm_pool_destroy(struct mvneta_bm *priv,
 			    struct mvneta_bm_pool *bm_pool, u8 port_map);
 void mvneta_bm_bufs_free(struct mvneta_bm *priv, struct mvneta_bm_pool *bm_pool,

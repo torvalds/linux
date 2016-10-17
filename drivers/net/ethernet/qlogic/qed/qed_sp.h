@@ -61,6 +61,10 @@ union ramrod_data {
 	struct vport_start_ramrod_data vport_start;
 	struct vport_stop_ramrod_data vport_stop;
 	struct vport_update_ramrod_data vport_update;
+	struct core_rx_start_ramrod_data core_rx_queue_start;
+	struct core_rx_stop_ramrod_data core_rx_queue_stop;
+	struct core_tx_start_ramrod_data core_tx_queue_start;
+	struct core_tx_stop_ramrod_data core_tx_queue_stop;
 	struct vport_filter_update_ramrod_data vport_filter_update;
 
 	struct rdma_init_func_ramrod_data rdma_init_func;
@@ -81,6 +85,7 @@ union ramrod_data {
 	struct rdma_srq_create_ramrod_data rdma_create_srq;
 	struct rdma_srq_destroy_ramrod_data rdma_destroy_srq;
 	struct rdma_srq_modify_ramrod_data rdma_modify_srq;
+	struct roce_init_func_ramrod_data roce_init_func;
 
 	struct iscsi_slow_path_hdr iscsi_empty;
 	struct iscsi_init_ramrod_params iscsi_init;

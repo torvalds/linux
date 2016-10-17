@@ -28,7 +28,7 @@ struct omap2_hsmmc_info {
 	void (*init_card)(struct mmc_card *card);
 };
 
-#if defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
+#if IS_ENABLED(CONFIG_MMC_OMAP_HS)
 
 void omap_hsmmc_init(struct omap2_hsmmc_info *);
 void omap_hsmmc_late_init(struct omap2_hsmmc_info *);

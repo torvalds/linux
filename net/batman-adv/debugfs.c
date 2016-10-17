@@ -31,6 +31,7 @@
 #include <linux/stddef.h>
 #include <linux/stringify.h>
 #include <linux/sysfs.h>
+#include <net/net_namespace.h>
 
 #include "bat_algo.h"
 #include "bridge_loop_avoidance.h"
@@ -305,11 +306,15 @@ void batadv_debugfs_destroy(void)
  */
 int batadv_debugfs_add_hardif(struct batadv_hard_iface *hard_iface)
 {
+	struct net *net = dev_net(hard_iface->net_dev);
 	struct batadv_debuginfo **bat_debug;
 	struct dentry *file;
 
 	if (!batadv_debugfs)
 		goto out;
+
+	if (net != &init_net)
+		return 0;
 
 	hard_iface->debug_dir = debugfs_create_dir(hard_iface->net_dev->name,
 						   batadv_debugfs);
@@ -341,6 +346,11 @@ out:
  */
 void batadv_debugfs_del_hardif(struct batadv_hard_iface *hard_iface)
 {
+	struct net *net = dev_net(hard_iface->net_dev);
+
+	if (net != &init_net)
+		return;
+
 	if (batadv_debugfs) {
 		debugfs_remove_recursive(hard_iface->debug_dir);
 		hard_iface->debug_dir = NULL;
@@ -351,10 +361,14 @@ int batadv_debugfs_add_meshif(struct net_device *dev)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
 	struct batadv_debuginfo **bat_debug;
+	struct net *net = dev_net(dev);
 	struct dentry *file;
 
 	if (!batadv_debugfs)
 		goto out;
+
+	if (net != &init_net)
+		return 0;
 
 	bat_priv->debug_dir = debugfs_create_dir(dev->name, batadv_debugfs);
 	if (!bat_priv->debug_dir)
@@ -392,6 +406,10 @@ out:
 void batadv_debugfs_del_meshif(struct net_device *dev)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
+	struct net *net = dev_net(dev);
+
+	if (net != &init_net)
+		return;
 
 	batadv_debug_log_cleanup(bat_priv);
 

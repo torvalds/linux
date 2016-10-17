@@ -9,16 +9,26 @@
 #ifndef THUNDER_BGX_H
 #define THUNDER_BGX_H
 
-#define    MAX_BGX_THUNDER			8 /* Max 4 nodes, 2 per node */
+/* PCI device ID */
+#define	PCI_DEVICE_ID_THUNDER_BGX		0xA026
+#define	PCI_DEVICE_ID_THUNDER_RGX		0xA054
+
+/* Subsystem device IDs */
+#define PCI_SUBSYS_DEVID_88XX_BGX		0xA126
+#define PCI_SUBSYS_DEVID_81XX_BGX		0xA226
+#define PCI_SUBSYS_DEVID_83XX_BGX		0xA326
+
+#define    MAX_BGX_THUNDER			8 /* Max 2 nodes, 4 per node */
 #define    MAX_BGX_PER_CN88XX			2
+#define    MAX_BGX_PER_CN81XX			3 /* 2 BGXs + 1 RGX */
+#define    MAX_BGX_PER_CN83XX			4
+#define    MAX_BGX_PER_NODE			4
 #define    MAX_LMAC_PER_BGX			4
 #define    MAX_BGX_CHANS_PER_LMAC		16
 #define    MAX_DMAC_PER_LMAC			8
 #define    MAX_FRAME_SIZE			9216
 
 #define    MAX_DMAC_PER_LMAC_TNS_BYPASS_MODE	2
-
-#define    MAX_LMAC	(MAX_BGX_PER_CN88XX * MAX_LMAC_PER_BGX)
 
 /* Registers */
 #define BGX_CMRX_CFG			0x00
@@ -136,6 +146,7 @@
 #define BGX_GMP_PCS_ANX_AN_RESULTS	0x30020
 #define BGX_GMP_PCS_SGM_AN_ADV		0x30068
 #define BGX_GMP_PCS_MISCX_CTL		0x30078
+#define  PCS_MISC_CTL_DISP_EN			BIT_ULL(13)
 #define  PCS_MISC_CTL_GMX_ENO			BIT_ULL(11)
 #define  PCS_MISC_CTL_SAMP_PT_MASK	0x7Full
 #define BGX_GMP_GMI_PRTX_CFG		0x38020
@@ -194,6 +205,9 @@ void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const u8 *mac);
 void bgx_get_lmac_link_state(int node, int bgx_idx, int lmacid, void *status);
 void bgx_lmac_internal_loopback(int node, int bgx_idx,
 				int lmac_idx, bool enable);
+void xcv_init_hw(void);
+void xcv_setup_link(bool link_up, int link_speed);
+
 u64 bgx_get_rx_stats(int node, int bgx_idx, int lmac, int idx);
 u64 bgx_get_tx_stats(int node, int bgx_idx, int lmac, int idx);
 #define BGX_RX_STATS_COUNT 11
@@ -213,16 +227,9 @@ enum LMAC_TYPE {
 	BGX_MODE_XLAUI = 4, /* 4 lanes, 10.3125 Gbaud */
 	BGX_MODE_10G_KR = 3,/* 1 lane, 10.3125 Gbaud */
 	BGX_MODE_40G_KR = 4,/* 4 lanes, 10.3125 Gbaud */
-};
-
-enum qlm_mode {
-	QLM_MODE_SGMII,         /* SGMII, each lane independent */
-	QLM_MODE_XAUI_1X4,      /* 1 XAUI or DXAUI, 4 lanes */
-	QLM_MODE_RXAUI_2X2,     /* 2 RXAUI, 2 lanes each */
-	QLM_MODE_XFI_4X1,       /* 4 XFI, 1 lane each */
-	QLM_MODE_XLAUI_1X4,     /* 1 XLAUI, 4 lanes each */
-	QLM_MODE_10G_KR_4X1,    /* 4 10GBASE-KR, 1 lane each */
-	QLM_MODE_40G_KR4_1X4,   /* 1 40GBASE-KR4, 4 lanes each */
+	BGX_MODE_RGMII = 5,
+	BGX_MODE_QSGMII = 6,
+	BGX_MODE_INVALID = 7,
 };
 
 #endif /* THUNDER_BGX_H */

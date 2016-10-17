@@ -90,10 +90,10 @@ struct samsung_spdif_info {
 	u32		saved_clkcon;
 	u32		saved_con;
 	u32		saved_cstas;
-	struct s3c_dma_params	*dma_playback;
+	struct snd_dmaengine_dai_dma_data *dma_playback;
 };
 
-static struct s3c_dma_params spdif_stereo_out;
+static struct snd_dmaengine_dai_dma_data spdif_stereo_out;
 static struct samsung_spdif_info spdif_info;
 
 static inline struct samsung_spdif_info *to_info(struct snd_soc_dai *cpu_dai)
@@ -179,7 +179,7 @@ static int spdif_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct samsung_spdif_info *spdif = to_info(rtd->cpu_dai);
 	void __iomem *regs = spdif->regs;
-	struct s3c_dma_params *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 	u32 con, clkcon, cstas;
 	unsigned long flags;
 	int i, ratio;
@@ -425,11 +425,11 @@ static int spdif_probe(struct platform_device *pdev)
 		goto err4;
 	}
 
-	spdif_stereo_out.dma_size = 2;
-	spdif_stereo_out.dma_addr = mem_res->start + DATA_OUTBUF;
+	spdif_stereo_out.addr_width = 2;
+	spdif_stereo_out.addr = mem_res->start + DATA_OUTBUF;
 	filter = NULL;
 	if (spdif_pdata) {
-		spdif_stereo_out.slave = spdif_pdata->dma_playback;
+		spdif_stereo_out.filter_data = spdif_pdata->dma_playback;
 		filter = spdif_pdata->dma_filter;
 	}
 

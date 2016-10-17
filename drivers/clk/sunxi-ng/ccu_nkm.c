@@ -93,19 +93,30 @@ static unsigned long ccu_nkm_recalc_rate(struct clk_hw *hw,
 	return parent_rate * (n + 1) * (k + 1) / (m + 1);
 }
 
-static long ccu_nkm_round_rate(struct clk_hw *hw, unsigned long rate,
-			      unsigned long *parent_rate)
+static unsigned long ccu_nkm_round_rate(struct ccu_mux_internal *mux,
+					unsigned long parent_rate,
+					unsigned long rate,
+					void *data)
 {
-	struct ccu_nkm *nkm = hw_to_ccu_nkm(hw);
+	struct ccu_nkm *nkm = data;
 	struct _ccu_nkm _nkm;
 
 	_nkm.max_n = 1 << nkm->n.width;
 	_nkm.max_k = 1 << nkm->k.width;
-	_nkm.max_m = 1 << nkm->m.width;
+	_nkm.max_m = nkm->m.max ?: 1 << nkm->m.width;
 
-	ccu_nkm_find_best(*parent_rate, rate, &_nkm);
+	ccu_nkm_find_best(parent_rate, rate, &_nkm);
 
-	return *parent_rate * _nkm.n * _nkm.k / _nkm.m;
+	return parent_rate * _nkm.n * _nkm.k / _nkm.m;
+}
+
+static int ccu_nkm_determine_rate(struct clk_hw *hw,
+				  struct clk_rate_request *req)
+{
+	struct ccu_nkm *nkm = hw_to_ccu_nkm(hw);
+
+	return ccu_mux_helper_determine_rate(&nkm->common, &nkm->mux,
+					     req, ccu_nkm_round_rate, nkm);
 }
 
 static int ccu_nkm_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -118,7 +129,7 @@ static int ccu_nkm_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	_nkm.max_n = 1 << nkm->n.width;
 	_nkm.max_k = 1 << nkm->k.width;
-	_nkm.max_m = 1 << nkm->m.width;
+	_nkm.max_m = nkm->m.max ?: 1 << nkm->m.width;
 
 	ccu_nkm_find_best(parent_rate, rate, &_nkm);
 
@@ -142,12 +153,29 @@ static int ccu_nkm_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
+static u8 ccu_nkm_get_parent(struct clk_hw *hw)
+{
+	struct ccu_nkm *nkm = hw_to_ccu_nkm(hw);
+
+	return ccu_mux_helper_get_parent(&nkm->common, &nkm->mux);
+}
+
+static int ccu_nkm_set_parent(struct clk_hw *hw, u8 index)
+{
+	struct ccu_nkm *nkm = hw_to_ccu_nkm(hw);
+
+	return ccu_mux_helper_set_parent(&nkm->common, &nkm->mux, index);
+}
+
 const struct clk_ops ccu_nkm_ops = {
 	.disable	= ccu_nkm_disable,
 	.enable		= ccu_nkm_enable,
 	.is_enabled	= ccu_nkm_is_enabled,
 
+	.get_parent	= ccu_nkm_get_parent,
+	.set_parent	= ccu_nkm_set_parent,
+
+	.determine_rate	= ccu_nkm_determine_rate,
 	.recalc_rate	= ccu_nkm_recalc_rate,
-	.round_rate	= ccu_nkm_round_rate,
 	.set_rate	= ccu_nkm_set_rate,
 };

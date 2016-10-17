@@ -203,7 +203,8 @@ static void free_long_term_buff(struct ibmvnic_adapter *adapter,
 	struct device *dev = &adapter->vdev->dev;
 
 	dma_free_coherent(dev, ltb->size, ltb->buff, ltb->addr);
-	send_request_unmap(adapter, ltb->map_id);
+	if (!adapter->failover)
+		send_request_unmap(adapter, ltb->map_id);
 }
 
 static int alloc_rx_pool(struct ibmvnic_adapter *adapter,
@@ -522,7 +523,8 @@ static int ibmvnic_close(struct net_device *netdev)
 	for (i = 0; i < adapter->req_rx_queues; i++)
 		napi_disable(&adapter->napi[i]);
 
-	netif_tx_stop_all_queues(netdev);
+	if (!adapter->failover)
+		netif_tx_stop_all_queues(netdev);
 
 	if (adapter->bounce_buffer) {
 		if (!dma_mapping_error(dev, adapter->bounce_buffer_dma)) {
@@ -1422,7 +1424,7 @@ static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter)
 		scrq = adapter->tx_scrq[i];
 		scrq->irq = irq_create_mapping(NULL, scrq->hw_irq);
 
-		if (scrq->irq == NO_IRQ) {
+		if (!scrq->irq) {
 			rc = -EINVAL;
 			dev_err(dev, "Error mapping irq\n");
 			goto req_tx_irq_failed;
@@ -1442,7 +1444,7 @@ static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter)
 	for (i = 0; i < adapter->req_rx_queues; i++) {
 		scrq = adapter->rx_scrq[i];
 		scrq->irq = irq_create_mapping(NULL, scrq->hw_irq);
-		if (scrq->irq == NO_IRQ) {
+		if (!scrq->irq) {
 			rc = -EINVAL;
 			dev_err(dev, "Error mapping irq\n");
 			goto req_rx_irq_failed;
@@ -2777,12 +2779,6 @@ static void handle_control_ras_rsp(union ibmvnic_crq *crq,
 	}
 }
 
-static int ibmvnic_fw_comp_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t trace_read(struct file *file, char __user *user_buf, size_t len,
 			  loff_t *ppos)
 {
@@ -2834,7 +2830,7 @@ static ssize_t trace_read(struct file *file, char __user *user_buf, size_t len,
 
 static const struct file_operations trace_ops = {
 	.owner		= THIS_MODULE,
-	.open		= ibmvnic_fw_comp_open,
+	.open		= simple_open,
 	.read		= trace_read,
 };
 
@@ -2884,7 +2880,7 @@ static ssize_t paused_write(struct file *file, const char __user *user_buf,
 
 static const struct file_operations paused_ops = {
 	.owner		= THIS_MODULE,
-	.open		= ibmvnic_fw_comp_open,
+	.open		= simple_open,
 	.read		= paused_read,
 	.write		= paused_write,
 };
@@ -2932,7 +2928,7 @@ static ssize_t tracing_write(struct file *file, const char __user *user_buf,
 
 static const struct file_operations tracing_ops = {
 	.owner		= THIS_MODULE,
-	.open		= ibmvnic_fw_comp_open,
+	.open		= simple_open,
 	.read		= tracing_read,
 	.write		= tracing_write,
 };
@@ -2985,7 +2981,7 @@ static ssize_t error_level_write(struct file *file, const char __user *user_buf,
 
 static const struct file_operations error_level_ops = {
 	.owner		= THIS_MODULE,
-	.open		= ibmvnic_fw_comp_open,
+	.open		= simple_open,
 	.read		= error_level_read,
 	.write		= error_level_write,
 };
@@ -3036,7 +3032,7 @@ static ssize_t trace_level_write(struct file *file, const char __user *user_buf,
 
 static const struct file_operations trace_level_ops = {
 	.owner		= THIS_MODULE,
-	.open		= ibmvnic_fw_comp_open,
+	.open		= simple_open,
 	.read		= trace_level_read,
 	.write		= trace_level_write,
 };
@@ -3089,7 +3085,7 @@ static ssize_t trace_buff_size_write(struct file *file,
 
 static const struct file_operations trace_size_ops = {
 	.owner		= THIS_MODULE,
-	.open		= ibmvnic_fw_comp_open,
+	.open		= simple_open,
 	.read		= trace_buff_size_read,
 	.write		= trace_buff_size_write,
 };
@@ -3280,6 +3276,10 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 			rc = ibmvnic_send_crq_init(adapter);
 			if (rc)
 				dev_err(dev, "Error sending init rc=%ld\n", rc);
+		} else if (gen_crq->cmd == IBMVNIC_DEVICE_FAILOVER) {
+			dev_info(dev, "Backing device failover detected\n");
+			netif_carrier_off(netdev);
+			adapter->failover = true;
 		} else {
 			/* The adapter lost the connection */
 			dev_err(dev, "Virtual Adapter failed (rc=%d)\n",
@@ -3615,7 +3615,17 @@ static void handle_crq_init_rsp(struct work_struct *work)
 	struct device *dev = &adapter->vdev->dev;
 	struct net_device *netdev = adapter->netdev;
 	unsigned long timeout = msecs_to_jiffies(30000);
+	bool restart = false;
 	int rc;
+
+	if (adapter->failover) {
+		release_sub_crqs(adapter);
+		if (netif_running(netdev)) {
+			netif_tx_disable(netdev);
+			ibmvnic_close(netdev);
+			restart = true;
+		}
+	}
 
 	send_version_xchg(adapter);
 	reinit_completion(&adapter->init_done);
@@ -3645,6 +3655,17 @@ static void handle_crq_init_rsp(struct work_struct *work)
 
 	netdev->real_num_tx_queues = adapter->req_tx_queues;
 
+	if (adapter->failover) {
+		adapter->failover = false;
+		if (restart) {
+			rc = ibmvnic_open(netdev);
+			if (rc)
+				goto restart_failed;
+		}
+		netif_carrier_on(netdev);
+		return;
+	}
+
 	rc = register_netdev(netdev);
 	if (rc) {
 		dev_err(dev,
@@ -3655,6 +3676,8 @@ static void handle_crq_init_rsp(struct work_struct *work)
 
 	return;
 
+restart_failed:
+	dev_err(dev, "Failed to restart ibmvnic, rc=%d\n", rc);
 register_failed:
 	release_sub_crqs(adapter);
 task_failed:
@@ -3692,6 +3715,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	dev_set_drvdata(&dev->dev, netdev);
 	adapter->vdev = dev;
 	adapter->netdev = netdev;
+	adapter->failover = false;
 
 	ether_addr_copy(adapter->mac_addr, mac_addr_p);
 	ether_addr_copy(netdev->dev_addr, adapter->mac_addr);
@@ -3721,6 +3745,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	if (dma_mapping_error(&dev->dev, adapter->stats_token)) {
 		if (!firmware_has_feature(FW_FEATURE_CMO))
 			dev_err(&dev->dev, "Couldn't map stats buffer\n");
+		rc = -ENOMEM;
 		goto free_crq;
 	}
 

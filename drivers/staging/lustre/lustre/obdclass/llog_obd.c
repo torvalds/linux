@@ -210,7 +210,6 @@ LU_KEY_INIT_FINI(llog, struct llog_thread_info);
 /* context key: llog_thread_key */
 LU_CONTEXT_KEY_DEFINE(llog, LCT_MD_THREAD | LCT_MG_THREAD | LCT_LOCAL);
 LU_KEY_INIT_GENERIC(llog);
-EXPORT_SYMBOL(llog_thread_key);
 
 int llog_info_init(void)
 {

@@ -56,7 +56,7 @@ static void mgag200_kick_out_firmware_fb(struct pci_dev *pdev)
 #ifdef CONFIG_X86
 	primary = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 #endif
-	remove_conflicting_framebuffers(ap, "mgag200drmfb", primary);
+	drm_fb_helper_remove_conflicting_framebuffers(ap, "mgag200drmfb", primary);
 	kfree(ap);
 }
 

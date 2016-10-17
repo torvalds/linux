@@ -280,7 +280,7 @@ static struct rtl_mod_params rtl88ee_mod_params = {
 	.debug = DBG_EMERG,
 };
 
-static struct rtl_hal_cfg rtl88ee_hal_cfg = {
+static const struct rtl_hal_cfg rtl88ee_hal_cfg = {
 	.bar_id = 2,
 	.write_readback = true,
 	.name = "rtl88e_pci",

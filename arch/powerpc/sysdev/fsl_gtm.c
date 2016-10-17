@@ -406,7 +406,7 @@ static int __init fsl_gtm_init(void)
 			unsigned int irq;
 
 			irq = irq_of_parse_and_map(np, i);
-			if (irq == NO_IRQ) {
+			if (!irq) {
 				pr_err("%s: not enough interrupts specified\n",
 				       np->full_name);
 				goto err;

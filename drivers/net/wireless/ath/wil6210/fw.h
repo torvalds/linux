@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014,2016 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -58,6 +58,15 @@ struct wil_fw_record_comment { /* type == wil_fw_type_comment */
 	u8 data[0]; /* free-form data [data_size], see above */
 } __packed;
 
+/* FW capabilities encoded inside a comment record */
+#define WIL_FW_CAPABILITIES_MAGIC (0xabcddcba)
+struct wil_fw_record_capabilities { /* type == wil_fw_type_comment */
+	/* identifies capabilities record */
+	__le32 magic;
+	/* capabilities (variable size), see enum wmi_fw_capability */
+	u8 capabilities[0];
+};
+
 /* perform action
  * data_size = @head.size - offsetof(struct wil_fw_record_action, data)
  */
@@ -93,6 +102,9 @@ struct wil_fw_record_verify { /* type == wil_fw_verify */
 /* file header
  * First record of every file
  */
+/* the FW version prefix in the comment */
+#define WIL_FW_VERSION_PREFIX "FW version: "
+#define WIL_FW_VERSION_PREFIX_LEN (sizeof(WIL_FW_VERSION_PREFIX) - 1)
 struct wil_fw_record_file_header {
 	__le32 signature ; /* Wilocity signature */
 	__le32 reserved;

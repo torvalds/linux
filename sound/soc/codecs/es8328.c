@@ -823,12 +823,14 @@ static struct snd_soc_codec_driver es8328_codec_driver = {
 	.set_bias_level	  = es8328_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls	  = es8328_snd_controls,
-	.num_controls	  = ARRAY_SIZE(es8328_snd_controls),
-	.dapm_widgets	  = es8328_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(es8328_dapm_widgets),
-	.dapm_routes	  = es8328_dapm_routes,
-	.num_dapm_routes  = ARRAY_SIZE(es8328_dapm_routes),
+	.component_driver = {
+		.controls		= es8328_snd_controls,
+		.num_controls		= ARRAY_SIZE(es8328_snd_controls),
+		.dapm_widgets		= es8328_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(es8328_dapm_widgets),
+		.dapm_routes		= es8328_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(es8328_dapm_routes),
+	},
 };
 
 int es8328_probe(struct device *dev, struct regmap *regmap)

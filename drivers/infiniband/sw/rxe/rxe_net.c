@@ -65,7 +65,7 @@ struct rxe_dev *net_to_rxe(struct net_device *ndev)
 	return found;
 }
 
-struct rxe_dev *get_rxe_by_name(const char* name)
+struct rxe_dev *get_rxe_by_name(const char *name)
 {
 	struct rxe_dev *rxe;
 	struct rxe_dev *found = NULL;
@@ -350,14 +350,14 @@ static void prepare_ipv6_hdr(struct dst_entry *dst, struct sk_buff *skb,
 	ip6h->payload_len = htons(skb->len - sizeof(*ip6h));
 }
 
-static int prepare4(struct rxe_dev *rxe, struct sk_buff *skb, struct rxe_av *av)
+static int prepare4(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
+		    struct sk_buff *skb, struct rxe_av *av)
 {
 	struct dst_entry *dst;
 	bool xnet = false;
 	__be16 df = htons(IP_DF);
 	struct in_addr *saddr = &av->sgid_addr._sockaddr_in.sin_addr;
 	struct in_addr *daddr = &av->dgid_addr._sockaddr_in.sin_addr;
-	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
 
 	dst = rxe_find_route4(rxe->ndev, saddr, daddr);
 	if (!dst) {
@@ -376,12 +376,12 @@ static int prepare4(struct rxe_dev *rxe, struct sk_buff *skb, struct rxe_av *av)
 	return 0;
 }
 
-static int prepare6(struct rxe_dev *rxe, struct sk_buff *skb, struct rxe_av *av)
+static int prepare6(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
+		    struct sk_buff *skb, struct rxe_av *av)
 {
 	struct dst_entry *dst;
 	struct in6_addr *saddr = &av->sgid_addr._sockaddr_in6.sin6_addr;
 	struct in6_addr *daddr = &av->dgid_addr._sockaddr_in6.sin6_addr;
-	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
 
 	dst = rxe_find_route6(rxe->ndev, saddr, daddr);
 	if (!dst) {
@@ -408,9 +408,9 @@ static int prepare(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	struct rxe_av *av = rxe_get_av(pkt);
 
 	if (av->network_type == RDMA_NETWORK_IPV4)
-		err = prepare4(rxe, skb, av);
+		err = prepare4(rxe, pkt, skb, av);
 	else if (av->network_type == RDMA_NETWORK_IPV6)
-		err = prepare6(rxe, skb, av);
+		err = prepare6(rxe, pkt, skb, av);
 
 	*crc = rxe_icrc_hdr(pkt, skb);
 
@@ -601,8 +601,7 @@ void rxe_port_up(struct rxe_dev *rxe)
 	port->attr.phys_state = IB_PHYS_STATE_LINK_UP;
 
 	rxe_port_event(rxe, IB_EVENT_PORT_ACTIVE);
-	pr_info("rxe: set %s active\n", rxe->ib_dev.name);
-	return;
+	pr_info("set %s active\n", rxe->ib_dev.name);
 }
 
 /* Caller must hold net_info_lock */
@@ -615,8 +614,7 @@ void rxe_port_down(struct rxe_dev *rxe)
 	port->attr.phys_state = IB_PHYS_STATE_LINK_DOWN;
 
 	rxe_port_event(rxe, IB_EVENT_PORT_ERR);
-	pr_info("rxe: set %s down\n", rxe->ib_dev.name);
-	return;
+	pr_info("set %s down\n", rxe->ib_dev.name);
 }
 
 static int rxe_notify(struct notifier_block *not_blk,
@@ -641,7 +639,7 @@ static int rxe_notify(struct notifier_block *not_blk,
 		rxe_port_down(rxe);
 		break;
 	case NETDEV_CHANGEMTU:
-		pr_info("rxe: %s changed mtu to %d\n", ndev->name, ndev->mtu);
+		pr_info("%s changed mtu to %d\n", ndev->name, ndev->mtu);
 		rxe_set_mtu(rxe, ndev->mtu);
 		break;
 	case NETDEV_REBOOT:
@@ -651,7 +649,7 @@ static int rxe_notify(struct notifier_block *not_blk,
 	case NETDEV_CHANGENAME:
 	case NETDEV_FEAT_CHANGE:
 	default:
-		pr_info("rxe: ignoring netdev event = %ld for %s\n",
+		pr_info("ignoring netdev event = %ld for %s\n",
 			event, ndev->name);
 		break;
 	}
@@ -671,7 +669,7 @@ int rxe_net_ipv4_init(void)
 				htons(ROCE_V2_UDP_DPORT), false);
 	if (IS_ERR(recv_sockets.sk4)) {
 		recv_sockets.sk4 = NULL;
-		pr_err("rxe: Failed to create IPv4 UDP tunnel\n");
+		pr_err("Failed to create IPv4 UDP tunnel\n");
 		return -1;
 	}
 
@@ -688,7 +686,7 @@ int rxe_net_ipv6_init(void)
 						htons(ROCE_V2_UDP_DPORT), true);
 	if (IS_ERR(recv_sockets.sk6)) {
 		recv_sockets.sk6 = NULL;
-		pr_err("rxe: Failed to create IPv6 UDP tunnel\n");
+		pr_err("Failed to create IPv6 UDP tunnel\n");
 		return -1;
 	}
 #endif
@@ -700,4 +698,27 @@ void rxe_net_exit(void)
 	rxe_release_udp_tunnel(recv_sockets.sk6);
 	rxe_release_udp_tunnel(recv_sockets.sk4);
 	unregister_netdevice_notifier(&rxe_net_notifier);
+}
+
+int rxe_net_init(void)
+{
+	int err;
+
+	recv_sockets.sk6 = NULL;
+
+	err = rxe_net_ipv4_init();
+	if (err)
+		return err;
+	err = rxe_net_ipv6_init();
+	if (err)
+		goto err_out;
+	err = register_netdevice_notifier(&rxe_net_notifier);
+	if (err) {
+		pr_err("Failed to register netdev notifier\n");
+		goto err_out;
+	}
+	return 0;
+err_out:
+	rxe_net_exit();
+	return err;
 }

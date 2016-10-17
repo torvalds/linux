@@ -288,7 +288,7 @@ void blk_sync_queue(struct request_queue *q)
 		int i;
 
 		queue_for_each_hw_ctx(q, hctx, i) {
-			cancel_delayed_work_sync(&hctx->run_work);
+			cancel_work_sync(&hctx->run_work);
 			cancel_delayed_work_sync(&hctx->delay_work);
 		}
 	} else {
@@ -3097,6 +3097,12 @@ int kblockd_schedule_work(struct work_struct *work)
 }
 EXPORT_SYMBOL(kblockd_schedule_work);
 
+int kblockd_schedule_work_on(int cpu, struct work_struct *work)
+{
+	return queue_work_on(cpu, kblockd_workqueue, work);
+}
+EXPORT_SYMBOL(kblockd_schedule_work_on);
+
 int kblockd_schedule_delayed_work(struct delayed_work *dwork,
 				  unsigned long delay)
 {
@@ -3301,10 +3307,16 @@ bool blk_poll(struct request_queue *q, blk_qc_t cookie)
 {
 	struct blk_plug *plug;
 	long state;
+	unsigned int queue_num;
+	struct blk_mq_hw_ctx *hctx;
 
 	if (!q->mq_ops || !q->mq_ops->poll || !blk_qc_t_valid(cookie) ||
 	    !test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
 		return false;
+
+	queue_num = blk_qc_t_to_queue_num(cookie);
+	hctx = q->queue_hw_ctx[queue_num];
+	hctx->poll_considered++;
 
 	plug = current->plug;
 	if (plug)
@@ -3312,8 +3324,6 @@ bool blk_poll(struct request_queue *q, blk_qc_t cookie)
 
 	state = current->state;
 	while (!need_resched()) {
-		unsigned int queue_num = blk_qc_t_to_queue_num(cookie);
-		struct blk_mq_hw_ctx *hctx = q->queue_hw_ctx[queue_num];
 		int ret;
 
 		hctx->poll_invoked++;

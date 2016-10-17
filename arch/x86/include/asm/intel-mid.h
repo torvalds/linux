@@ -18,6 +18,8 @@
 extern int intel_mid_pci_init(void);
 extern int intel_mid_pci_set_power_state(struct pci_dev *pdev, pci_power_t state);
 
+extern void intel_mid_pwr_power_off(void);
+
 #define INTEL_MID_PWR_LSS_OFFSET	4
 #define INTEL_MID_PWR_LSS_TYPE		(1 << 7)
 

@@ -165,6 +165,7 @@ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 	int order = get_order(size);
 	unsigned long flags;
 	int pageno;
+	int dma_memory_map;
 
 	if (!dev)
 		return 0;
@@ -187,11 +188,12 @@ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 	 */
 	*dma_handle = mem->device_base + (pageno << PAGE_SHIFT);
 	*ret = mem->virt_base + (pageno << PAGE_SHIFT);
-	if (mem->flags & DMA_MEMORY_MAP)
+	dma_memory_map = (mem->flags & DMA_MEMORY_MAP);
+	spin_unlock_irqrestore(&mem->spinlock, flags);
+	if (dma_memory_map)
 		memset(*ret, 0, size);
 	else
 		memset_io(*ret, 0, size);
-	spin_unlock_irqrestore(&mem->spinlock, flags);
 
 	return 1;
 
@@ -261,8 +263,8 @@ int dma_mmap_from_coherent(struct device *dev, struct vm_area_struct *vma,
 		   (mem->virt_base + (mem->size << PAGE_SHIFT))) {
 		unsigned long off = vma->vm_pgoff;
 		int start = (vaddr - mem->virt_base) >> PAGE_SHIFT;
-		int user_count = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
-		int count = size >> PAGE_SHIFT;
+		int user_count = vma_pages(vma);
+		int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 
 		*ret = -ENXIO;
 		if (off < count && user_count <= count - off) {

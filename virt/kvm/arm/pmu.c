@@ -423,6 +423,14 @@ static int kvm_arm_pmu_v3_init(struct kvm_vcpu *vcpu)
 	if (!kvm_arm_support_pmu_v3())
 		return -ENODEV;
 
+	/*
+	 * We currently require an in-kernel VGIC to use the PMU emulation,
+	 * because we do not support forwarding PMU overflow interrupts to
+	 * userspace yet.
+	 */
+	if (!irqchip_in_kernel(vcpu->kvm) || !vgic_initialized(vcpu->kvm))
+		return -ENODEV;
+
 	if (!test_bit(KVM_ARM_VCPU_PMU_V3, vcpu->arch.features) ||
 	    !kvm_arm_pmu_irq_initialized(vcpu))
 		return -ENXIO;

@@ -206,6 +206,37 @@ Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 	return NULL;
 }
 
+static bool want_demangle(bool is_kernel_sym)
+{
+	return is_kernel_sym ? symbol_conf.demangle_kernel : symbol_conf.demangle;
+}
+
+static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
+{
+	int demangle_flags = verbose ? (DMGL_PARAMS | DMGL_ANSI) : DMGL_NO_OPTS;
+	char *demangled = NULL;
+
+	/*
+	 * We need to figure out if the object was created from C++ sources
+	 * DWARF DW_compile_unit has this, but we don't always have access
+	 * to it...
+	 */
+	if (!want_demangle(dso->kernel || kmodule))
+	    return demangled;
+
+	demangled = bfd_demangle(NULL, elf_name, demangle_flags);
+	if (demangled == NULL)
+		demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
+	else if (rust_is_mangled(demangled))
+		/*
+		    * Input to Rust demangling is the BFD-demangled
+		    * name which it Rust-demangles in place.
+		    */
+		rust_demangle_sym(demangled);
+
+	return demangled;
+}
+
 #define elf_section__for_each_rel(reldata, pos, pos_mem, idx, nr_entries) \
 	for (idx = 0, pos = gelf_getrel(reldata, 0, &pos_mem); \
 	     idx < nr_entries; \
@@ -223,8 +254,7 @@ Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
  * And always look at the original dso, not at debuginfo packages, that
  * have the PLT data stripped out (shdr_rel_plt.sh_type == SHT_NOBITS).
  */
-int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *map,
-				symbol_filter_t filter)
+int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *map)
 {
 	uint32_t nr_rel_entries, idx;
 	GElf_Sym sym;
@@ -301,45 +331,53 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *
 
 		elf_section__for_each_rela(reldata, pos, pos_mem, idx,
 					   nr_rel_entries) {
+			const char *elf_name = NULL;
+			char *demangled = NULL;
 			symidx = GELF_R_SYM(pos->r_info);
 			plt_offset += shdr_plt.sh_entsize;
 			gelf_getsym(syms, symidx, &sym);
+
+			elf_name = elf_sym__name(&sym, symstrs);
+			demangled = demangle_sym(dso, 0, elf_name);
+			if (demangled != NULL)
+				elf_name = demangled;
 			snprintf(sympltname, sizeof(sympltname),
-				 "%s@plt", elf_sym__name(&sym, symstrs));
+				 "%s@plt", elf_name);
+			free(demangled);
 
 			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
 					STB_GLOBAL, sympltname);
 			if (!f)
 				goto out_elf_end;
 
-			if (filter && filter(map, f))
-				symbol__delete(f);
-			else {
-				symbols__insert(&dso->symbols[map->type], f);
-				++nr;
-			}
+			symbols__insert(&dso->symbols[map->type], f);
+			++nr;
 		}
 	} else if (shdr_rel_plt.sh_type == SHT_REL) {
 		GElf_Rel pos_mem, *pos;
 		elf_section__for_each_rel(reldata, pos, pos_mem, idx,
 					  nr_rel_entries) {
+			const char *elf_name = NULL;
+			char *demangled = NULL;
 			symidx = GELF_R_SYM(pos->r_info);
 			plt_offset += shdr_plt.sh_entsize;
 			gelf_getsym(syms, symidx, &sym);
+
+			elf_name = elf_sym__name(&sym, symstrs);
+			demangled = demangle_sym(dso, 0, elf_name);
+			if (demangled != NULL)
+				elf_name = demangled;
 			snprintf(sympltname, sizeof(sympltname),
-				 "%s@plt", elf_sym__name(&sym, symstrs));
+				 "%s@plt", elf_name);
+			free(demangled);
 
 			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
 					STB_GLOBAL, sympltname);
 			if (!f)
 				goto out_elf_end;
 
-			if (filter && filter(map, f))
-				symbol__delete(f);
-			else {
-				symbols__insert(&dso->symbols[map->type], f);
-				++nr;
-			}
+			symbols__insert(&dso->symbols[map->type], f);
+			++nr;
 		}
 	}
 
@@ -685,7 +723,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	}
 
 	/* Always reject images with a mismatched build-id: */
-	if (dso->has_build_id) {
+	if (dso->has_build_id && !symbol_conf.ignore_vmlinux_buildid) {
 		u8 build_id[BUILD_ID_SIZE];
 
 		if (elf_read_build_id(elf, build_id, BUILD_ID_SIZE) < 0) {
@@ -775,17 +813,11 @@ static u64 ref_reloc(struct kmap *kmap)
 	return 0;
 }
 
-static bool want_demangle(bool is_kernel_sym)
-{
-	return is_kernel_sym ? symbol_conf.demangle_kernel : symbol_conf.demangle;
-}
-
 void __weak arch__sym_update(struct symbol *s __maybe_unused,
 		GElf_Sym *sym __maybe_unused) { }
 
-int dso__load_sym(struct dso *dso, struct map *map,
-		  struct symsrc *syms_ss, struct symsrc *runtime_ss,
-		  symbol_filter_t filter, int kmodule)
+int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
+		  struct symsrc *runtime_ss, int kmodule)
 {
 	struct kmap *kmap = dso->kernel ? map__kmap(map) : NULL;
 	struct map_groups *kmaps = kmap ? map__kmaps(map) : NULL;
@@ -1070,29 +1102,10 @@ int dso__load_sym(struct dso *dso, struct map *map,
 			sym.st_value -= shdr.sh_addr - shdr.sh_offset;
 		}
 new_symbol:
-		/*
-		 * We need to figure out if the object was created from C++ sources
-		 * DWARF DW_compile_unit has this, but we don't always have access
-		 * to it...
-		 */
-		if (want_demangle(dso->kernel || kmodule)) {
-			int demangle_flags = DMGL_NO_OPTS;
-			if (verbose)
-				demangle_flags = DMGL_PARAMS | DMGL_ANSI;
+		demangled = demangle_sym(dso, kmodule, elf_name);
+		if (demangled != NULL)
+			elf_name = demangled;
 
-			demangled = bfd_demangle(NULL, elf_name, demangle_flags);
-			if (demangled == NULL)
-				demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
-			else if (rust_is_mangled(demangled))
-				/*
-				 * Input to Rust demangling is the BFD-demangled
-				 * name which it Rust-demangles in place.
-				 */
-				rust_demangle_sym(demangled);
-
-			if (demangled != NULL)
-				elf_name = demangled;
-		}
 		f = symbol__new(sym.st_value, sym.st_size,
 				GELF_ST_BIND(sym.st_info), elf_name);
 		free(demangled);
@@ -1101,21 +1114,16 @@ new_symbol:
 
 		arch__sym_update(f, &sym);
 
-		if (filter && filter(curr_map, f))
-			symbol__delete(f);
-		else {
-			symbols__insert(&curr_dso->symbols[curr_map->type], f);
-			nr++;
-		}
+		__symbols__insert(&curr_dso->symbols[curr_map->type], f, dso->kernel);
+		nr++;
 	}
 
 	/*
 	 * For misannotated, zeroed, ASM function sizes.
 	 */
 	if (nr > 0) {
-		if (!symbol_conf.allow_aliases)
-			symbols__fixup_duplicate(&dso->symbols[map->type]);
 		symbols__fixup_end(&dso->symbols[map->type]);
+		symbols__fixup_duplicate(&dso->symbols[map->type]);
 		if (kmap) {
 			/*
 			 * We need to fixup this here too because we create new

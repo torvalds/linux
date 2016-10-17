@@ -227,7 +227,7 @@ static void cluster_vector_allocation_domain(int cpu, struct cpumask *retmask,
 		cpumask_and(retmask, mask, per_cpu(cpus_in_cluster, cpu));
 }
 
-static struct apic apic_x2apic_cluster = {
+static struct apic apic_x2apic_cluster __ro_after_init = {
 
 	.name				= "cluster x2apic",
 	.probe				= x2apic_cluster_probe,

@@ -76,7 +76,7 @@ static int __init pasemi_register_i2c_devices(void)
 			}
 
 			info.irq = irq_of_parse_and_map(node, 0);
-			if (info.irq == NO_IRQ)
+			if (!info.irq)
 				info.irq = -1;
 
 			if (find_i2c_driver(node, &info) < 0)

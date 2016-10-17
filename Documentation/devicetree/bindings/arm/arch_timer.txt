@@ -25,6 +25,12 @@ to deliver its interrupts via SPIs.
 - always-on : a boolean property. If present, the timer is powered through an
   always-on power domain, therefore it never loses context.
 
+- fsl,erratum-a008585 : A boolean property. Indicates the presence of
+  QorIQ erratum A-008585, which says that reading the counter is
+  unreliable unless the same value is returned by back-to-back reads.
+  This also affects writes to the tval register, due to the implicit
+  counter read.
+
 ** Optional properties:
 
 - arm,cpu-registers-not-fw-configured : Firmware does not initialize

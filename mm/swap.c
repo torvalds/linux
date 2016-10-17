@@ -748,10 +748,8 @@ void release_pages(struct page **pages, int nr, bool cold)
 			locked_pgdat = NULL;
 		}
 
-		if (is_huge_zero_page(page)) {
-			put_huge_zero_page();
+		if (is_huge_zero_page(page))
 			continue;
-		}
 
 		page = compound_head(page);
 		if (!put_page_testzero(page))

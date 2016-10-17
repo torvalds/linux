@@ -1577,7 +1577,7 @@ static void s3c24xx_serial_resetport(struct uart_port *port,
 }
 
 
-#ifdef CONFIG_CPU_FREQ
+#ifdef CONFIG_ARM_S3C24XX_CPUFREQ
 
 static int s3c24xx_serial_cpufreq_transition(struct notifier_block *nb,
 					     unsigned long val, void *data)

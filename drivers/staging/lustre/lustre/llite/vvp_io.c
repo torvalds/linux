@@ -38,7 +38,6 @@
 #define DEBUG_SUBSYSTEM S_LLITE
 
 #include "../include/obd.h"
-#include "../include/lustre_lite.h"
 
 #include "llite_internal.h"
 #include "vvp_internal.h"
@@ -52,18 +51,6 @@ static struct vvp_io *cl2vvp_io(const struct lu_env *env,
 	LASSERT(vio == vvp_env_io(env));
 
 	return vio;
-}
-
-/**
- * True, if \a io is a normal io, False for splice_{read,write}
- */
-static int cl_is_normalio(const struct lu_env *env, const struct cl_io *io)
-{
-	struct vvp_io *vio = vvp_env_io(env);
-
-	LASSERT(io->ci_type == CIT_READ || io->ci_type == CIT_WRITE);
-
-	return vio->vui_io_subtype == IO_NORMAL;
 }
 
 /**
@@ -391,9 +378,6 @@ static int vvp_mmap_locks(const struct lu_env *env,
 
 	LASSERT(io->ci_type == CIT_READ || io->ci_type == CIT_WRITE);
 
-	if (!cl_is_normalio(env, io))
-		return 0;
-
 	if (!vio->vui_iter) /* nfs or loop back device write */
 		return 0;
 
@@ -462,14 +446,9 @@ static void vvp_io_advance(const struct lu_env *env,
 			   const struct cl_io_slice *ios,
 			   size_t nob)
 {
-	struct vvp_io    *vio = cl2vvp_io(env, ios);
-	struct cl_io     *io  = ios->cis_io;
 	struct cl_object *obj = ios->cis_io->ci_obj;
-
+	struct vvp_io	 *vio = cl2vvp_io(env, ios);
 	CLOBINVRNT(env, obj, vvp_object_invariant(obj));
-
-	if (!cl_is_normalio(env, io))
-		return;
 
 	iov_iter_reexpand(vio->vui_iter, vio->vui_tot_count  -= nob);
 }
@@ -479,7 +458,7 @@ static void vvp_io_update_iov(const struct lu_env *env,
 {
 	size_t size = io->u.ci_rw.crw_count;
 
-	if (!cl_is_normalio(env, io) || !vio->vui_iter)
+	if (!vio->vui_iter)
 		return;
 
 	iov_iter_truncate(vio->vui_iter, size);
@@ -628,7 +607,7 @@ static int vvp_io_setattr_time(const struct lu_env *env,
 		attr->cat_mtime = io->u.ci_setattr.sa_attr.lvb_mtime;
 		valid |= CAT_MTIME;
 	}
-	result = cl_object_attr_set(env, obj, attr, valid);
+	result = cl_object_attr_update(env, obj, attr, valid);
 	cl_object_attr_unlock(obj);
 
 	return result;
@@ -716,25 +695,8 @@ static int vvp_io_read_start(const struct lu_env *env,
 
 	/* BUG: 5972 */
 	file_accessed(file);
-	switch (vio->vui_io_subtype) {
-	case IO_NORMAL:
-		LASSERT(vio->vui_iocb->ki_pos == pos);
-		result = generic_file_read_iter(vio->vui_iocb, vio->vui_iter);
-		break;
-	case IO_SPLICE:
-		result = generic_file_splice_read(file, &pos,
-						  vio->u.splice.vui_pipe, cnt,
-						  vio->u.splice.vui_flags);
-		/* LU-1109: do splice read stripe by stripe otherwise if it
-		 * may make nfsd stuck if this read occupied all internal pipe
-		 * buffers.
-		 */
-		io->ci_continue = 0;
-		break;
-	default:
-		CERROR("Wrong IO type %u\n", vio->vui_io_subtype);
-		LBUG();
-	}
+	LASSERT(vio->vui_iocb->ki_pos == pos);
+	result = generic_file_read_iter(vio->vui_iocb, vio->vui_iter);
 
 out:
 	if (result >= 0) {
@@ -821,7 +783,7 @@ static void write_commit_callback(const struct lu_env *env, struct cl_io *io,
 	cl_page_disown(env, io, page);
 
 	/* held in ll_cl_init() */
-	lu_ref_del(&page->cp_reference, "cl_io", io);
+	lu_ref_del(&page->cp_reference, "cl_io", cl_io_top(io));
 	cl_page_put(env, page);
 }
 
@@ -959,10 +921,30 @@ static int vvp_io_write_start(const struct lu_env *env,
 
 	CDEBUG(D_VFSTRACE, "write: [%lli, %lli)\n", pos, pos + (long long)cnt);
 
-	if (!vio->vui_iter) /* from a temp io in ll_cl_init(). */
+	if (!vio->vui_iter) {
+		/* from a temp io in ll_cl_init(). */
 		result = 0;
-	else
-		result = generic_file_write_iter(vio->vui_iocb, vio->vui_iter);
+	} else {
+		/*
+		 * When using the locked AIO function (generic_file_aio_write())
+		 * testing has shown the inode mutex to be a limiting factor
+		 * with multi-threaded single shared file performance. To get
+		 * around this, we now use the lockless version. To maintain
+		 * consistency, proper locking to protect against writes,
+		 * trucates, etc. is handled in the higher layers of lustre.
+		 */
+		bool lock_node = !IS_NOSEC(inode);
+
+		if (lock_node)
+			inode_lock(inode);
+		result = __generic_file_write_iter(vio->vui_iocb,
+						   vio->vui_iter);
+		if (lock_node)
+			inode_unlock(inode);
+
+		if (result > 0 || result == -EIOCBQUEUED)
+			result = generic_write_sync(vio->vui_iocb, result);
+	}
 
 	if (result > 0) {
 		result = vvp_io_write_commit(env, io);

@@ -117,7 +117,7 @@ struct dentry *securityfs_create_file(const char *name, umode_t mode,
 
 	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
 	inode->i_private = data;
 	if (is_dir) {
 		inode->i_op = &simple_dir_inode_operations;
@@ -156,12 +156,11 @@ EXPORT_SYMBOL_GPL(securityfs_create_file);
  * This function returns a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the securityfs_remove() function when the file is
  * to be removed (no automatic cleanup happens if your module is unloaded,
- * you are responsible here).  If an error occurs, %NULL will be returned.
+ * you are responsible here).  If an error occurs, the function will return
+ * the error value (via ERR_PTR).
  *
  * If securityfs is not enabled in the kernel, the value %-ENODEV is
- * returned.  It is not wise to check for this value, but rather, check for
- * %NULL or !%NULL instead as to eliminate the need for #ifdef in the calling
- * code.
+ * returned.
  */
 struct dentry *securityfs_create_dir(const char *name, struct dentry *parent)
 {

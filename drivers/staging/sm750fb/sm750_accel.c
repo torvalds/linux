@@ -67,7 +67,8 @@ void hw_de_init(struct lynx_accel *accel)
 
 /* set2dformat only be called from setmode functions
  * but if you need dual framebuffer driver,need call set2dformat
- * every time you use 2d function */
+ * every time you use 2d function
+ */
 
 void hw_set2dformat(struct lynx_accel *accel, int fmt)
 {
@@ -90,7 +91,8 @@ int hw_fillrect(struct lynx_accel *accel,
 
 	if (accel->de_wait() != 0) {
 		/* int time wait and always busy,seems hardware
-		 * got something error */
+		 * got something error
+		 */
 		pr_debug("De engine always busy\n");
 		return -1;
 	}
@@ -152,24 +154,26 @@ unsigned int rop2)   /* ROP value */
 		/* Determine direction of operation */
 		if (sy < dy) {
 			/* +----------+
-			   |S         |
-			   |   +----------+
-			   |   |      |   |
-			   |   |      |   |
-			   +---|------+   |
-			   |         D|
-			   +----------+ */
+			 * |S         |
+			 * |   +----------+
+			 * |   |      |   |
+			 * |   |      |   |
+			 * +---|------+   |
+			 * |         D|
+			 * +----------+
+			 */
 
 			nDirection = BOTTOM_TO_TOP;
 		} else if (sy > dy) {
 			/* +----------+
-			   |D         |
-			   |   +----------+
-			   |   |      |   |
-			   |   |      |   |
-			   +---|------+   |
-			   |         S|
-			   +----------+ */
+			 * |D         |
+			 * |   +----------+
+			 * |   |      |   |
+			 * |   |      |   |
+			 * +---|------+   |
+			 * |         S|
+			 * +----------+
+			 */
 
 			nDirection = TOP_TO_BOTTOM;
 		} else {
@@ -177,22 +181,24 @@ unsigned int rop2)   /* ROP value */
 
 			if (sx <= dx) {
 				/* +------+---+------+
-				   |S     |   |     D|
-				   |      |   |      |
-				   |      |   |      |
-				   |      |   |      |
-				   +------+---+------+ */
+				 * |S     |   |     D|
+				 * |      |   |      |
+				 * |      |   |      |
+				 * |      |   |      |
+				 * +------+---+------+
+				 */
 
 				nDirection = RIGHT_TO_LEFT;
 			} else {
 			/* sx > dx */
 
 				/* +------+---+------+
-				   |D     |   |     S|
-				   |      |   |      |
-				   |      |   |      |
-				   |      |   |      |
-				   +------+---+------+ */
+				 * |D     |   |     S|
+				 * |      |   |      |
+				 * |      |   |      |
+				 * |      |   |      |
+				 * +------+---+------+
+				 */
 
 				nDirection = LEFT_TO_RIGHT;
 			}
@@ -208,32 +214,36 @@ unsigned int rop2)   /* ROP value */
 	}
 
 	/* Note:
-	   DE_FOREGROUND are DE_BACKGROUND are don't care.
-	  DE_COLOR_COMPARE and DE_COLOR_COMPARE_MAKS are set by set deSetTransparency().
+	 * DE_FOREGROUND are DE_BACKGROUND are don't care.
+	 * DE_COLOR_COMPARE and DE_COLOR_COMPARE_MAKS
+	 * are set by set deSetTransparency().
 	 */
 
 	/* 2D Source Base.
-	 It is an address offset (128 bit aligned) from the beginning of frame buffer.
+	 * It is an address offset (128 bit aligned)
+	 * from the beginning of frame buffer.
 	 */
 	write_dpr(accel, DE_WINDOW_SOURCE_BASE, sBase); /* dpr40 */
 
 	/* 2D Destination Base.
-	 It is an address offset (128 bit aligned) from the beginning of frame buffer.
+	 * It is an address offset (128 bit aligned)
+	 * from the beginning of frame buffer.
 	 */
 	write_dpr(accel, DE_WINDOW_DESTINATION_BASE, dBase); /* dpr44 */
 
     /* Program pitch (distance between the 1st points of two adjacent lines).
-       Note that input pitch is BYTE value, but the 2D Pitch register uses
-       pixel values. Need Byte to pixel conversion.
-    */
+     * Note that input pitch is BYTE value, but the 2D Pitch register uses
+     * pixel values. Need Byte to pixel conversion.
+     */
 	write_dpr(accel, DE_PITCH,
 		  ((dPitch / Bpp << DE_PITCH_DESTINATION_SHIFT) &
 		   DE_PITCH_DESTINATION_MASK) |
 		  (sPitch / Bpp & DE_PITCH_SOURCE_MASK)); /* dpr10 */
 
     /* Screen Window width in Pixels.
-       2D engine uses this value to calculate the linear address in frame buffer for a given point.
-    */
+     * 2D engine uses this value to calculate the linear address in frame buffer
+     * for a given point.
+     */
 	write_dpr(accel, DE_WINDOW_WIDTH,
 		  ((dPitch / Bpp << DE_WINDOW_WIDTH_DST_SHIFT) &
 		   DE_WINDOW_WIDTH_DST_MASK) |
@@ -307,33 +317,37 @@ int hw_imageblit(struct lynx_accel *accel,
 		return -1;
 
 	/* 2D Source Base.
-	 Use 0 for HOST Blt.
+	 * Use 0 for HOST Blt.
 	 */
 	write_dpr(accel, DE_WINDOW_SOURCE_BASE, 0);
 
 	/* 2D Destination Base.
-	 It is an address offset (128 bit aligned) from the beginning of frame buffer.
+	 * It is an address offset (128 bit aligned)
+	 * from the beginning of frame buffer.
 	 */
 	write_dpr(accel, DE_WINDOW_DESTINATION_BASE, dBase);
     /* Program pitch (distance between the 1st points of two adjacent lines).
-       Note that input pitch is BYTE value, but the 2D Pitch register uses
-       pixel values. Need Byte to pixel conversion.
-    */
+     * Note that input pitch is BYTE value, but the 2D Pitch register uses
+     * pixel values. Need Byte to pixel conversion.
+     */
 	write_dpr(accel, DE_PITCH,
 		  ((dPitch / bytePerPixel << DE_PITCH_DESTINATION_SHIFT) &
 		   DE_PITCH_DESTINATION_MASK) |
 		  (dPitch / bytePerPixel & DE_PITCH_SOURCE_MASK)); /* dpr10 */
 
 	/* Screen Window width in Pixels.
-	 2D engine uses this value to calculate the linear address in frame buffer for a given point.
+	 * 2D engine uses this value to calculate the linear address
+	 * in frame buffer for a given point.
 	 */
 	write_dpr(accel, DE_WINDOW_WIDTH,
 		  ((dPitch / bytePerPixel << DE_WINDOW_WIDTH_DST_SHIFT) &
 		   DE_WINDOW_WIDTH_DST_MASK) |
 		  (dPitch / bytePerPixel & DE_WINDOW_WIDTH_SRC_MASK));
 
-	 /* Note: For 2D Source in Host Write, only X_K1_MONO field is needed, and Y_K2 field is not used.
-	    For mono bitmap, use startBit for X_K1. */
+	 /* Note: For 2D Source in Host Write, only X_K1_MONO field is needed,
+	  * and Y_K2 field is not used.
+	  * For mono bitmap, use startBit for X_K1.
+	  */
 	write_dpr(accel, DE_SOURCE,
 		  (startBit << DE_SOURCE_X_K1_SHIFT) &
 		  DE_SOURCE_X_K1_MONO_MASK); /* dpr00 */

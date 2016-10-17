@@ -135,6 +135,13 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "package\t\t\t: %d\n", cpu_data[n].package);
 	seq_printf(m, "core\t\t\t: %d\n", cpu_data[n].core);
 
+#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_CPU_MIPSR6)
+	if (cpu_has_mipsmt)
+		seq_printf(m, "VPE\t\t\t: %d\n", cpu_data[n].vpe_id);
+	else if (cpu_has_vp)
+		seq_printf(m, "VP\t\t\t: %d\n", cpu_data[n].vpe_id);
+#endif
+
 	sprintf(fmt, "VCE%%c exceptions\t\t: %s\n",
 		      cpu_has_vce ? "%u" : "not available");
 	seq_printf(m, fmt, 'D', vced_count);

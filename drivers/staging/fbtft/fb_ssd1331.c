@@ -102,26 +102,26 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 }
 
 /*
-	Grayscale Lookup Table
-	GS1 - GS63
-	The driver Gamma curve contains the relative values between the entries
-	in the Lookup table.
-
-	From datasheet:
-	8.8 Gray Scale Decoder
-
-		there are total 180 Gamma Settings (Setting 0 to Setting 180)
-		available for the Gray Scale table.
-
-		The gray scale is defined in incremental way, with reference
-		to the length of previous table entry:
-			Setting of GS1 has to be >= 0
-			Setting of GS2 has to be > Setting of GS1 +1
-			Setting of GS3 has to be > Setting of GS2 +1
-			:
-			Setting of GS63 has to be > Setting of GS62 +1
-
-*/
+ * Grayscale Lookup Table
+ * GS1 - GS63
+ * The driver Gamma curve contains the relative values between the entries
+ * in the Lookup table.
+ *
+ * From datasheet:
+ * 8.8 Gray Scale Decoder
+ *
+ * there are total 180 Gamma Settings (Setting 0 to Setting 180)
+ * available for the Gray Scale table.
+ *
+ * The gray scale is defined in incremental way, with reference
+ * to the length of previous table entry:
+ * Setting of GS1 has to be >= 0
+ * Setting of GS2 has to be > Setting of GS1 +1
+ * Setting of GS3 has to be > Setting of GS2 +1
+ * :
+ * Setting of GS63 has to be > Setting of GS62 +1
+ *
+ */
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
 	unsigned long tmp[GAMMA_NUM * GAMMA_LEN];

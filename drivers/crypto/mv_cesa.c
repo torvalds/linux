@@ -1091,11 +1091,8 @@ static int mv_probe(struct platform_device *pdev)
 
 	cp->max_req_size = cp->sram_size - SRAM_CFG_SPACE;
 
-	if (pdev->dev.of_node)
-		irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
-	else
-		irq = platform_get_irq(pdev, 0);
-	if (irq < 0 || irq == NO_IRQ) {
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
 		ret = irq;
 		goto err;
 	}

@@ -645,11 +645,9 @@ pcbit_l2_error(struct pcbit_dev *dev)
 
 		dev->l2_state = L2_DOWN;
 
-		init_timer(&dev->error_recover_timer);
-		dev->error_recover_timer.function = &pcbit_l2_err_recover;
-		dev->error_recover_timer.data = (ulong) dev;
-		dev->error_recover_timer.expires = jiffies + ERRTIME;
-		add_timer(&dev->error_recover_timer);
+		setup_timer(&dev->error_recover_timer, &pcbit_l2_err_recover,
+			    (ulong)dev);
+		mod_timer(&dev->error_recover_timer, jiffies + ERRTIME);
 	}
 }
 

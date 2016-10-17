@@ -52,6 +52,7 @@
 #include <linux/kref.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
+#include <rdma/ib_hdrs.h>
 #include <rdma/rdma_vt.h>
 
 #include "qib_common.h"
@@ -1131,7 +1132,6 @@ extern spinlock_t qib_devs_lock;
 extern struct qib_devdata *qib_lookup(int unit);
 extern u32 qib_cpulist_count;
 extern unsigned long *qib_cpulist;
-extern u16 qpt_mask;
 extern unsigned qib_cc_table_size;
 
 int qib_init(struct qib_devdata *, int);

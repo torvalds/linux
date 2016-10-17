@@ -93,7 +93,7 @@ static int wm8350_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return wm8350->irq_base + WM8350_IRQ_GPIO(offset);
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "wm8350",
 	.owner			= THIS_MODULE,
 	.direction_input	= wm8350_gpio_direction_in,
