@@ -247,12 +247,10 @@ ipv6:
 	case htons(ETH_P_8021Q): {
 		const struct vlan_hdr *vlan;
 
-		if (skb_vlan_tag_present(skb))
+		if (skb && skb_vlan_tag_present(skb))
 			proto = skb->protocol;
 
-		if (!skb_vlan_tag_present(skb) ||
-		    proto == cpu_to_be16(ETH_P_8021Q) ||
-		    proto == cpu_to_be16(ETH_P_8021AD)) {
+		if (eth_type_vlan(proto)) {
 			struct vlan_hdr _vlan;
 
 			vlan = __skb_header_pointer(skb, nhoff, sizeof(_vlan),
