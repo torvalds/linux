@@ -884,7 +884,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	dev = host_to_rtsx(host);
 	memset(dev, 0, sizeof(struct rtsx_dev));
 
-	dev->chip = kzalloc(sizeof(dev->chip), GFP_KERNEL);
+	dev->chip = kzalloc(sizeof(*dev->chip), GFP_KERNEL);
 	if (!dev->chip) {
 		err = -ENOMEM;
 		goto errout;
