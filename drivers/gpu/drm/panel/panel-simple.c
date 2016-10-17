@@ -1191,6 +1191,29 @@ static const struct panel_desc nec_nl4827hc19_05b = {
 	.bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE,
 };
 
+static const struct drm_display_mode nvd_9128_mode = {
+	.clock = 29500,
+	.hdisplay = 800,
+	.hsync_start = 800 + 130,
+	.hsync_end = 800 + 130 + 98,
+	.htotal = 800 + 0 + 130 + 98,
+	.vdisplay = 480,
+	.vsync_start = 480 + 10,
+	.vsync_end = 480 + 10 + 50,
+	.vtotal = 480 + 0 + 10 + 50,
+};
+
+static const struct panel_desc nvd_9128 = {
+	.modes = &nvd_9128_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 156,
+		.height = 88,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+};
+
 static const struct display_timing okaya_rs800480t_7x0gp_timing = {
 	.pixelclock = { 30000000, 30000000, 40000000 },
 	.hactive = { 800, 800, 800 },
@@ -1706,6 +1729,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "nec,nl4827hc19-05b",
 		.data = &nec_nl4827hc19_05b,
+	}, {
+		.compatible = "nvd,9128",
+		.data = &nvd_9128,
 	}, {
 		.compatible = "okaya,rs800480t-7x0gp",
 		.data = &okaya_rs800480t_7x0gp,
