@@ -83,8 +83,7 @@ static int hns_roce_sw2hw_cq(struct hns_roce_dev *dev,
 static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 			     struct hns_roce_mtt *hr_mtt,
 			     struct hns_roce_uar *hr_uar,
-			     struct hns_roce_cq *hr_cq, int vector,
-			     int collapsed)
+			     struct hns_roce_cq *hr_cq, int vector)
 {
 	struct hns_roce_cmd_mailbox *mailbox = NULL;
 	struct hns_roce_cq_table *cq_table = NULL;
@@ -153,6 +152,9 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 	hr_cq->cons_index = 0;
 	hr_cq->uar = hr_uar;
 
+	atomic_set(&hr_cq->refcount, 1);
+	init_completion(&hr_cq->free);
+
 	return 0;
 
 err_radix:
@@ -191,6 +193,11 @@ static void hns_roce_free_cq(struct hns_roce_dev *hr_dev,
 
 	/* Waiting interrupt process procedure carried out */
 	synchronize_irq(hr_dev->eq_table.eq[hr_cq->vector].irq);
+
+	/* wait for all interrupt processed */
+	if (atomic_dec_and_test(&hr_cq->refcount))
+		complete(&hr_cq->free);
+	wait_for_completion(&hr_cq->free);
 
 	spin_lock_irq(&cq_table->lock);
 	radix_tree_delete(&cq_table->tree, hr_cq->cqn);
@@ -300,10 +307,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 
 	cq_entries = roundup_pow_of_two((unsigned int)cq_entries);
 	hr_cq->ib_cq.cqe = cq_entries - 1;
-	mutex_init(&hr_cq->resize_mutex);
 	spin_lock_init(&hr_cq->lock);
-	hr_cq->hr_resize_buf = NULL;
-	hr_cq->resize_umem = NULL;
 
 	if (context) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
@@ -338,8 +342,8 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	}
 
 	/* Allocate cq index, fill cq_context */
-	ret = hns_roce_cq_alloc(hr_dev, cq_entries, &hr_cq->hr_buf.hr_mtt,
-				uar, hr_cq, vector, 0);
+	ret = hns_roce_cq_alloc(hr_dev, cq_entries, &hr_cq->hr_buf.hr_mtt, uar,
+				hr_cq, vector);
 	if (ret) {
 		dev_err(dev, "Creat CQ .Failed to cq_alloc.\n");
 		goto err_mtt;
@@ -353,11 +357,14 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	if (context) {
 		if (ib_copy_to_udata(udata, &hr_cq->cqn, sizeof(u64))) {
 			ret = -EFAULT;
-			goto err_mtt;
+			goto err_cqc;
 		}
 	}
 
 	return &hr_cq->ib_cq;
+
+err_cqc:
+	hns_roce_free_cq(hr_dev, hr_cq);
 
 err_mtt:
 	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);

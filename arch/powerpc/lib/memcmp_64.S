@@ -8,6 +8,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 #include <asm/ppc_asm.h>
+#include <asm/export.h>
 
 #define off8	r6
 #define off16	r7
@@ -231,3 +232,4 @@ _GLOBAL(memcmp)
 	ld	r28,-32(r1)
 	ld	r27,-40(r1)
 	blr
+EXPORT_SYMBOL(memcmp)

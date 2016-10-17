@@ -273,7 +273,6 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 	force_sig_info(signr, &info, current);
 }
 
-#ifdef CONFIG_PPC64
 void system_reset_exception(struct pt_regs *regs)
 {
 	/* See if any machine dependent calls */
@@ -291,6 +290,7 @@ void system_reset_exception(struct pt_regs *regs)
 	/* What should we do here? We could issue a shutdown or hard reset. */
 }
 
+#ifdef CONFIG_PPC64
 /*
  * This function is called in real mode. Strictly no printk's please.
  *
@@ -352,12 +352,11 @@ static inline int check_io_access(struct pt_regs *regs)
 		 * For the debug message, we look at the preceding
 		 * load or store.
 		 */
-		if (*nip == 0x60000000)		/* nop */
+		if (*nip == PPC_INST_NOP)
 			nip -= 2;
-		else if (*nip == 0x4c00012c)	/* isync */
+		else if (*nip == PPC_INST_ISYNC)
 			--nip;
-		if (*nip == 0x7c0004ac || (*nip >> 26) == 3) {
-			/* sync or twi */
+		if (*nip == PPC_INST_SYNC || (*nip >> 26) == OP_TRAP) {
 			unsigned int rb;
 
 			--nip;
@@ -668,6 +667,31 @@ int machine_check_e200(struct pt_regs *regs)
 
 	return 0;
 }
+#elif defined(CONFIG_PPC_8xx)
+int machine_check_8xx(struct pt_regs *regs)
+{
+	unsigned long reason = get_mc_reason(regs);
+
+	pr_err("Machine check in kernel mode.\n");
+	pr_err("Caused by (from SRR1=%lx): ", reason);
+	if (reason & 0x40000000)
+		pr_err("Fetch error at address %lx\n", regs->nip);
+	else
+		pr_err("Data access error at address %lx\n", regs->dar);
+
+#ifdef CONFIG_PCI
+	/* the qspan pci read routines can cause machine checks -- Cort
+	 *
+	 * yuck !!! that totally needs to go away ! There are better ways
+	 * to deal with that than having a wart in the mcheck handler.
+	 * -- BenH
+	 */
+	bad_page_fault(regs, regs->dar, SIGBUS);
+	return 1;
+#else
+	return 0;
+#endif
+}
 #else
 int machine_check_generic(struct pt_regs *regs)
 {
@@ -726,17 +750,6 @@ void machine_check_exception(struct pt_regs *regs)
 
 	if (recover > 0)
 		goto bail;
-
-#if defined(CONFIG_8xx) && defined(CONFIG_PCI)
-	/* the qspan pci read routines can cause machine checks -- Cort
-	 *
-	 * yuck !!! that totally needs to go away ! There are better ways
-	 * to deal with that than having a wart in the mcheck handler.
-	 * -- BenH
-	 */
-	bad_page_fault(regs, regs->dar, SIGBUS);
-	goto bail;
-#endif
 
 	if (debugger_fault_handler(regs))
 		goto bail;

@@ -62,7 +62,7 @@
 #define HNS_ROCE_AEQE_OF_VEC_NUM		1
 
 /* 4G/4K = 1M */
-#define HNS_ROCE_SL_SHIFT			29
+#define HNS_ROCE_SL_SHIFT			28
 #define HNS_ROCE_TCLASS_SHIFT			20
 #define HNS_ROCE_FLOW_LABLE_MASK		0xfffff
 
@@ -74,7 +74,9 @@
 #define MR_TYPE_DMA				0x03
 
 #define PKEY_ID					0xffff
+#define GUID_LEN				8
 #define NODE_DESC_SIZE				64
+#define DB_REG_OFFSET				0x1000
 
 #define SERV_TYPE_RC				0
 #define SERV_TYPE_RD				1
@@ -282,20 +284,11 @@ struct hns_roce_cq_buf {
 	struct hns_roce_mtt hr_mtt;
 };
 
-struct hns_roce_cq_resize {
-	struct hns_roce_cq_buf	hr_buf;
-	int			cqe;
-};
-
 struct hns_roce_cq {
 	struct ib_cq			ib_cq;
 	struct hns_roce_cq_buf		hr_buf;
-	/* pointer to store information after resize*/
-	struct hns_roce_cq_resize	*hr_resize_buf;
 	spinlock_t			lock;
-	struct mutex			resize_mutex;
 	struct ib_umem			*umem;
-	struct ib_umem			*resize_umem;
 	void (*comp)(struct hns_roce_cq *);
 	void (*event)(struct hns_roce_cq *, enum hns_roce_event);
 
@@ -408,6 +401,7 @@ struct hns_roce_qp {
 	u32			buff_size;
 	struct mutex		mutex;
 	u8			port;
+	u8			phy_port;
 	u8			sl;
 	u8			resp_depth;
 	u8			state;
@@ -471,7 +465,6 @@ struct hns_roce_caps {
 	u32		max_rq_desc_sz;	/* 64 */
 	int		max_qp_init_rdma;
 	int		max_qp_dest_rdma;
-	int		sqp_start;
 	int		num_cqs;
 	int		max_cqes;
 	int		reserved_cqs;
@@ -512,6 +505,8 @@ struct hns_roce_hw {
 	void (*write_cqc)(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_cq *hr_cq, void *mb_buf, u64 *mtts,
 			  dma_addr_t dma_handle, int nent, u32 vector);
+	int (*clear_hem)(struct hns_roce_dev *hr_dev,
+			 struct hns_roce_hem_table *table, int obj);
 	int (*query_qp)(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 			int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr);
 	int (*modify_qp)(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
@@ -533,7 +528,6 @@ struct hns_roce_dev {
 	struct hns_roce_uar     priv_uar;
 	const char		*irq_names[HNS_ROCE_MAX_IRQ_NUM];
 	spinlock_t		sm_lock;
-	spinlock_t		cq_db_lock;
 	spinlock_t		bt_cmd_lock;
 	struct hns_roce_ib_iboe iboe;
 

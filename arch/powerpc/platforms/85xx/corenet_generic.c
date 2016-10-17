@@ -225,7 +225,6 @@ define_machine(corenet_generic) {
 #else
 	.get_irq		= mpic_get_coreint_irq,
 #endif
-	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 #ifdef CONFIG_PPC64

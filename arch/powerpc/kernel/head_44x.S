@@ -39,6 +39,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
 #include <asm/synch.h>
+#include <asm/export.h>
 #include "head_booke.h"
 
 
@@ -1254,6 +1255,7 @@ sdata:
 	.globl	empty_zero_page
 empty_zero_page:
 	.space	PAGE_SIZE
+EXPORT_SYMBOL(empty_zero_page)
 
 /*
  * To support >32-bit physical addresses, we use an 8KB pgdir.

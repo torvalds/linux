@@ -187,7 +187,7 @@ static irqreturn_t at32_rtc_interrupt(int irq, void *dev_id)
 	return ret;
 }
 
-static struct rtc_class_ops at32_rtc_ops = {
+static const struct rtc_class_ops at32_rtc_ops = {
 	.read_time	= at32_rtc_readtime,
 	.set_time	= at32_rtc_settime,
 	.read_alarm	= at32_rtc_readalarm,

@@ -359,6 +359,7 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 /* GCR_Cx_COHERENCE register fields */
 #define CM_GCR_Cx_COHERENCE_COHDOMAINEN_SHF	0
 #define CM_GCR_Cx_COHERENCE_COHDOMAINEN_MSK	(_ULCAST_(0xff) << 0)
+#define CM3_GCR_Cx_COHERENCE_COHEN_MSK		(_ULCAST_(0x1) << 0)
 
 /* GCR_Cx_CONFIG register fields */
 #define CM_GCR_Cx_CONFIG_IOCUTYPE_SHF		10

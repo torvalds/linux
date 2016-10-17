@@ -11,7 +11,7 @@ Optional properties:
 - trickle-diode-disable : Do not use internal trickle charger diode
 	Should be given if internal trickle charger diode should be disabled
 Example:
-	ds1390: rtc@68 {
+	ds1390: rtc@0 {
 		compatible = "dallas,ds1390";
 		trickle-resistor-ohms = <250>;
 		reg = <0>;

@@ -2715,7 +2715,7 @@ void __cpuset_memory_pressure_bump(void)
 int proc_cpuset_show(struct seq_file *m, struct pid_namespace *ns,
 		     struct pid *pid, struct task_struct *tsk)
 {
-	char *buf, *p;
+	char *buf;
 	struct cgroup_subsys_state *css;
 	int retval;
 
@@ -2724,14 +2724,15 @@ int proc_cpuset_show(struct seq_file *m, struct pid_namespace *ns,
 	if (!buf)
 		goto out;
 
-	retval = -ENAMETOOLONG;
 	css = task_get_css(tsk, cpuset_cgrp_id);
-	p = cgroup_path_ns(css->cgroup, buf, PATH_MAX,
-			   current->nsproxy->cgroup_ns);
+	retval = cgroup_path_ns(css->cgroup, buf, PATH_MAX,
+				current->nsproxy->cgroup_ns);
 	css_put(css);
-	if (!p)
+	if (retval >= PATH_MAX)
+		retval = -ENAMETOOLONG;
+	if (retval < 0)
 		goto out_free;
-	seq_puts(m, p);
+	seq_puts(m, buf);
 	seq_putc(m, '\n');
 	retval = 0;
 out_free:

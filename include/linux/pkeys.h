@@ -25,7 +25,6 @@ static inline int mm_pkey_alloc(struct mm_struct *mm)
 
 static inline int mm_pkey_free(struct mm_struct *mm, int pkey)
 {
-	WARN_ONCE(1, "free of protection key when disabled");
 	return -EINVAL;
 }
 

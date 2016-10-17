@@ -57,6 +57,7 @@ int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 	ssize_t list_size, size, value_size = 0;
 	char *buf, *name, *value = NULL;
 	int uninitialized_var(error);
+	size_t slen;
 
 	if (!(old->d_inode->i_opflags & IOP_XATTR) ||
 	    !(new->d_inode->i_opflags & IOP_XATTR))
@@ -79,7 +80,16 @@ int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 		goto out;
 	}
 
-	for (name = buf; name < (buf + list_size); name += strlen(name) + 1) {
+	for (name = buf; list_size; name += slen) {
+		slen = strnlen(name, list_size) + 1;
+
+		/* underlying fs providing us with an broken xattr list? */
+		if (WARN_ON(slen > list_size)) {
+			error = -EIO;
+			break;
+		}
+		list_size -= slen;
+
 		if (ovl_is_private_xattr(name))
 			continue;
 retry:
@@ -172,40 +182,6 @@ static int ovl_copy_up_data(struct path *old, struct path *new, loff_t len)
 out_fput:
 	fput(old_file);
 	return error;
-}
-
-static char *ovl_read_symlink(struct dentry *realdentry)
-{
-	int res;
-	char *buf;
-	struct inode *inode = realdentry->d_inode;
-	mm_segment_t old_fs;
-
-	res = -EINVAL;
-	if (!inode->i_op->readlink)
-		goto err;
-
-	res = -ENOMEM;
-	buf = (char *) __get_free_page(GFP_KERNEL);
-	if (!buf)
-		goto err;
-
-	old_fs = get_fs();
-	set_fs(get_ds());
-	/* The cast to a user pointer is valid due to the set_fs() */
-	res = inode->i_op->readlink(realdentry,
-				    (char __user *)buf, PAGE_SIZE - 1);
-	set_fs(old_fs);
-	if (res < 0) {
-		free_page((unsigned long) buf);
-		goto err;
-	}
-	buf[res] = '\0';
-
-	return buf;
-
-err:
-	return ERR_PTR(res);
 }
 
 static int ovl_set_timestamps(struct dentry *upperdentry, struct kstat *stat)
@@ -354,19 +330,20 @@ out_cleanup:
 int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 		    struct path *lowerpath, struct kstat *stat)
 {
+	DEFINE_DELAYED_CALL(done);
 	struct dentry *workdir = ovl_workdir(dentry);
 	int err;
 	struct kstat pstat;
 	struct path parentpath;
+	struct dentry *lowerdentry = lowerpath->dentry;
 	struct dentry *upperdir;
 	struct dentry *upperdentry;
-	const struct cred *old_cred;
-	char *link = NULL;
+	const char *link = NULL;
 
 	if (WARN_ON(!workdir))
 		return -EROFS;
 
-	ovl_do_check_copy_up(lowerpath->dentry);
+	ovl_do_check_copy_up(lowerdentry);
 
 	ovl_path_upper(parent, &parentpath);
 	upperdir = parentpath.dentry;
@@ -376,12 +353,10 @@ int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 		return err;
 
 	if (S_ISLNK(stat->mode)) {
-		link = ovl_read_symlink(lowerpath->dentry);
+		link = vfs_get_link(lowerdentry, &done);
 		if (IS_ERR(link))
 			return PTR_ERR(link);
 	}
-
-	old_cred = ovl_override_creds(dentry->d_sb);
 
 	err = -EIO;
 	if (lock_rename(workdir, upperdir) != NULL) {
@@ -403,19 +378,16 @@ int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	}
 out_unlock:
 	unlock_rename(workdir, upperdir);
-	revert_creds(old_cred);
-
-	if (link)
-		free_page((unsigned long) link);
+	do_delayed_call(&done);
 
 	return err;
 }
 
 int ovl_copy_up(struct dentry *dentry)
 {
-	int err;
+	int err = 0;
+	const struct cred *old_cred = ovl_override_creds(dentry->d_sb);
 
-	err = 0;
 	while (!err) {
 		struct dentry *next;
 		struct dentry *parent;
@@ -447,6 +419,7 @@ int ovl_copy_up(struct dentry *dentry)
 		dput(parent);
 		dput(next);
 	}
+	revert_creds(old_cred);
 
 	return err;
 }

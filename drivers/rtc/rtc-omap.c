@@ -13,19 +13,23 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/rtc.h>
+#include <dt-bindings/gpio/gpio.h>
 #include <linux/bcd.h>
-#include <linux/platform_device.h>
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/init.h>
+#include <linux/io.h>
+#include <linux/ioport.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/pinconf.h>
+#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/io.h>
-#include <linux/clk.h>
+#include <linux/rtc.h>
 
 /*
  * The OMAP RTC is a year/month/day/hours/minutes/seconds BCD clock
@@ -115,6 +119,8 @@
 
 /* OMAP_RTC_PMIC bit fields: */
 #define OMAP_RTC_PMIC_POWER_EN_EN	BIT(16)
+#define OMAP_RTC_PMIC_EXT_WKUP_EN(x)	BIT(x)
+#define OMAP_RTC_PMIC_EXT_WKUP_POL(x)	BIT(4 + x)
 
 /* OMAP_RTC_KICKER values */
 #define	KICK0_VALUE			0x83e70b13
@@ -141,6 +147,7 @@ struct omap_rtc {
 	bool is_pmic_controller;
 	bool has_ext_clk;
 	const struct omap_rtc_device_type *type;
+	struct pinctrl_dev *pctldev;
 };
 
 static inline u8 rtc_read(struct omap_rtc *rtc, unsigned int reg)
@@ -469,7 +476,7 @@ static void omap_rtc_power_off(void)
 	mdelay(2500);
 }
 
-static struct rtc_class_ops omap_rtc_ops = {
+static const struct rtc_class_ops omap_rtc_ops = {
 	.read_time	= omap_rtc_read_time,
 	.set_time	= omap_rtc_set_time,
 	.read_alarm	= omap_rtc_read_alarm,
@@ -524,6 +531,139 @@ static const struct of_device_id omap_rtc_of_match[] = {
 	}
 };
 MODULE_DEVICE_TABLE(of, omap_rtc_of_match);
+
+static const struct pinctrl_pin_desc rtc_pins_desc[] = {
+	PINCTRL_PIN(0, "ext_wakeup0"),
+	PINCTRL_PIN(1, "ext_wakeup1"),
+	PINCTRL_PIN(2, "ext_wakeup2"),
+	PINCTRL_PIN(3, "ext_wakeup3"),
+};
+
+static int rtc_pinctrl_get_groups_count(struct pinctrl_dev *pctldev)
+{
+	return 0;
+}
+
+static const char *rtc_pinctrl_get_group_name(struct pinctrl_dev *pctldev,
+					unsigned int group)
+{
+	return NULL;
+}
+
+static const struct pinctrl_ops rtc_pinctrl_ops = {
+	.get_groups_count = rtc_pinctrl_get_groups_count,
+	.get_group_name = rtc_pinctrl_get_group_name,
+	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_free_map = pinconf_generic_dt_free_map,
+};
+
+enum rtc_pin_config_param {
+	PIN_CONFIG_ACTIVE_HIGH = PIN_CONFIG_END + 1,
+};
+
+static const struct pinconf_generic_params rtc_params[] = {
+	{"ti,active-high", PIN_CONFIG_ACTIVE_HIGH, 0},
+};
+
+#ifdef CONFIG_DEBUG_FS
+static const struct pin_config_item rtc_conf_items[ARRAY_SIZE(rtc_params)] = {
+	PCONFDUMP(PIN_CONFIG_ACTIVE_HIGH, "input active high", NULL, false),
+};
+#endif
+
+static int rtc_pinconf_get(struct pinctrl_dev *pctldev,
+			unsigned int pin, unsigned long *config)
+{
+	struct omap_rtc *rtc = pinctrl_dev_get_drvdata(pctldev);
+	unsigned int param = pinconf_to_config_param(*config);
+	u32 val;
+	u16 arg = 0;
+
+	rtc->type->unlock(rtc);
+	val = rtc_readl(rtc, OMAP_RTC_PMIC_REG);
+	rtc->type->lock(rtc);
+
+	switch (param) {
+	case PIN_CONFIG_INPUT_ENABLE:
+		if (!(val & OMAP_RTC_PMIC_EXT_WKUP_EN(pin)))
+			return -EINVAL;
+		break;
+	case PIN_CONFIG_ACTIVE_HIGH:
+		if (val & OMAP_RTC_PMIC_EXT_WKUP_POL(pin))
+			return -EINVAL;
+		break;
+	default:
+		return -ENOTSUPP;
+	};
+
+	*config = pinconf_to_config_packed(param, arg);
+
+	return 0;
+}
+
+static int rtc_pinconf_set(struct pinctrl_dev *pctldev,
+			unsigned int pin, unsigned long *configs,
+			unsigned int num_configs)
+{
+	struct omap_rtc *rtc = pinctrl_dev_get_drvdata(pctldev);
+	u32 val;
+	unsigned int param;
+	u16 param_val;
+	int i;
+
+	rtc->type->unlock(rtc);
+	val = rtc_readl(rtc, OMAP_RTC_PMIC_REG);
+	rtc->type->lock(rtc);
+
+	/* active low by default */
+	val |= OMAP_RTC_PMIC_EXT_WKUP_POL(pin);
+
+	for (i = 0; i < num_configs; i++) {
+		param = pinconf_to_config_param(configs[i]);
+		param_val = pinconf_to_config_argument(configs[i]);
+
+		switch (param) {
+		case PIN_CONFIG_INPUT_ENABLE:
+			if (param_val)
+				val |= OMAP_RTC_PMIC_EXT_WKUP_EN(pin);
+			else
+				val &= ~OMAP_RTC_PMIC_EXT_WKUP_EN(pin);
+			break;
+		case PIN_CONFIG_ACTIVE_HIGH:
+			val &= ~OMAP_RTC_PMIC_EXT_WKUP_POL(pin);
+			break;
+		default:
+			dev_err(&rtc->rtc->dev, "Property %u not supported\n",
+				param);
+			return -ENOTSUPP;
+		}
+	}
+
+	rtc->type->unlock(rtc);
+	rtc_writel(rtc, OMAP_RTC_PMIC_REG, val);
+	rtc->type->lock(rtc);
+
+	return 0;
+}
+
+static const struct pinconf_ops rtc_pinconf_ops = {
+	.is_generic = true,
+	.pin_config_get = rtc_pinconf_get,
+	.pin_config_set = rtc_pinconf_set,
+};
+
+static struct pinctrl_desc rtc_pinctrl_desc = {
+	.pins = rtc_pins_desc,
+	.npins = ARRAY_SIZE(rtc_pins_desc),
+	.pctlops = &rtc_pinctrl_ops,
+	.confops = &rtc_pinconf_ops,
+	.custom_params = rtc_params,
+	.num_custom_params = ARRAY_SIZE(rtc_params),
+#ifdef CONFIG_DEBUG_FS
+	.custom_conf_items = rtc_conf_items,
+#endif
+	.owner = THIS_MODULE,
+};
 
 static int omap_rtc_probe(struct platform_device *pdev)
 {
@@ -681,6 +821,15 @@ static int omap_rtc_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* Support ext_wakeup pinconf */
+	rtc_pinctrl_desc.name = dev_name(&pdev->dev);
+
+	rtc->pctldev = pinctrl_register(&rtc_pinctrl_desc, &pdev->dev, rtc);
+	if (IS_ERR(rtc->pctldev)) {
+		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
+		return PTR_ERR(rtc->pctldev);
+	}
+
 	return 0;
 
 err:
@@ -723,6 +872,9 @@ static int __exit omap_rtc_remove(struct platform_device *pdev)
 	/* Disable the clock/module */
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	/* Remove ext_wakeup pinconf */
+	pinctrl_unregister(rtc->pctldev);
 
 	return 0;
 }

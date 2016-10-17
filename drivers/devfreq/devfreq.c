@@ -137,6 +137,10 @@ static int devfreq_update_status(struct devfreq *devfreq, unsigned long freq)
 
 	cur_time = jiffies;
 
+	/* Immediately exit if previous_freq is not initialized yet. */
+	if (!devfreq->previous_freq)
+		goto out;
+
 	prev_lev = devfreq_get_freq_level(devfreq, devfreq->previous_freq);
 	if (prev_lev < 0) {
 		ret = prev_lev;
@@ -594,17 +598,19 @@ struct devfreq *devfreq_add_device(struct device *dev,
 	if (devfreq->governor)
 		err = devfreq->governor->event_handler(devfreq,
 					DEVFREQ_GOV_START, NULL);
-	mutex_unlock(&devfreq_list_lock);
 	if (err) {
 		dev_err(dev, "%s: Unable to start governor for the device\n",
 			__func__);
 		goto err_init;
 	}
+	mutex_unlock(&devfreq_list_lock);
 
 	return devfreq;
 
 err_init:
 	list_del(&devfreq->node);
+	mutex_unlock(&devfreq_list_lock);
+
 	device_unregister(&devfreq->dev);
 err_out:
 	return ERR_PTR(err);

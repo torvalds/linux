@@ -796,9 +796,9 @@ enum station_parameters_apply_mask {
  *	(or NULL for no change)
  * @supported_rates_len: number of supported rates
  * @sta_flags_mask: station flags that changed
- *	(bitmask of BIT(NL80211_STA_FLAG_...))
+ *	(bitmask of BIT(%NL80211_STA_FLAG_...))
  * @sta_flags_set: station flags values
- *	(bitmask of BIT(NL80211_STA_FLAG_...))
+ *	(bitmask of BIT(%NL80211_STA_FLAG_...))
  * @listen_interval: listen interval or -1 for no change
  * @aid: AID or zero for no change
  * @peer_aid: mesh peer AID or zero for no change
@@ -3088,47 +3088,54 @@ struct ieee80211_iface_limit {
  *
  * 1. Allow #STA <= 1, #AP <= 1, matching BI, channels = 1, 2 total:
  *
- *  struct ieee80211_iface_limit limits1[] = {
- *	{ .max = 1, .types = BIT(NL80211_IFTYPE_STATION), },
- *	{ .max = 1, .types = BIT(NL80211_IFTYPE_AP}, },
- *  };
- *  struct ieee80211_iface_combination combination1 = {
- *	.limits = limits1,
- *	.n_limits = ARRAY_SIZE(limits1),
- *	.max_interfaces = 2,
- *	.beacon_int_infra_match = true,
- *  };
+ *    .. code-block:: c
+ *
+ *	struct ieee80211_iface_limit limits1[] = {
+ *		{ .max = 1, .types = BIT(NL80211_IFTYPE_STATION), },
+ *		{ .max = 1, .types = BIT(NL80211_IFTYPE_AP}, },
+ *	};
+ *	struct ieee80211_iface_combination combination1 = {
+ *		.limits = limits1,
+ *		.n_limits = ARRAY_SIZE(limits1),
+ *		.max_interfaces = 2,
+ *		.beacon_int_infra_match = true,
+ *	};
  *
  *
  * 2. Allow #{AP, P2P-GO} <= 8, channels = 1, 8 total:
  *
- *  struct ieee80211_iface_limit limits2[] = {
- *	{ .max = 8, .types = BIT(NL80211_IFTYPE_AP) |
- *			     BIT(NL80211_IFTYPE_P2P_GO), },
- *  };
- *  struct ieee80211_iface_combination combination2 = {
- *	.limits = limits2,
- *	.n_limits = ARRAY_SIZE(limits2),
- *	.max_interfaces = 8,
- *	.num_different_channels = 1,
- *  };
+ *    .. code-block:: c
+ *
+ *	struct ieee80211_iface_limit limits2[] = {
+ *		{ .max = 8, .types = BIT(NL80211_IFTYPE_AP) |
+ *				     BIT(NL80211_IFTYPE_P2P_GO), },
+ *	};
+ *	struct ieee80211_iface_combination combination2 = {
+ *		.limits = limits2,
+ *		.n_limits = ARRAY_SIZE(limits2),
+ *		.max_interfaces = 8,
+ *		.num_different_channels = 1,
+ *	};
  *
  *
  * 3. Allow #STA <= 1, #{P2P-client,P2P-GO} <= 3 on two channels, 4 total.
  *
- * This allows for an infrastructure connection and three P2P connections.
+ *    This allows for an infrastructure connection and three P2P connections.
  *
- *  struct ieee80211_iface_limit limits3[] = {
- *	{ .max = 1, .types = BIT(NL80211_IFTYPE_STATION), },
- *	{ .max = 3, .types = BIT(NL80211_IFTYPE_P2P_GO) |
- *			     BIT(NL80211_IFTYPE_P2P_CLIENT), },
- *  };
- *  struct ieee80211_iface_combination combination3 = {
- *	.limits = limits3,
- *	.n_limits = ARRAY_SIZE(limits3),
- *	.max_interfaces = 4,
- *	.num_different_channels = 2,
- *  };
+ *    .. code-block:: c
+ *
+ *	struct ieee80211_iface_limit limits3[] = {
+ *		{ .max = 1, .types = BIT(NL80211_IFTYPE_STATION), },
+ *		{ .max = 3, .types = BIT(NL80211_IFTYPE_P2P_GO) |
+ *				     BIT(NL80211_IFTYPE_P2P_CLIENT), },
+ *	};
+ *	struct ieee80211_iface_combination combination3 = {
+ *		.limits = limits3,
+ *		.n_limits = ARRAY_SIZE(limits3),
+ *		.max_interfaces = 4,
+ *		.num_different_channels = 2,
+ *	};
+ *
  */
 struct ieee80211_iface_combination {
 	const struct ieee80211_iface_limit *limits;
