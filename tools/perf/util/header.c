@@ -1895,7 +1895,6 @@ static int process_numa_topology(struct perf_file_section *section __maybe_unuse
 	if (ph->needs_swap)
 		nr = bswap_32(nr);
 
-	ph->env.nr_numa_nodes = nr;
 	nodes = zalloc(sizeof(*nodes) * nr);
 	if (!nodes)
 		return -ENOMEM;
@@ -1932,6 +1931,7 @@ static int process_numa_topology(struct perf_file_section *section __maybe_unuse
 
 		free(str);
 	}
+	ph->env.nr_numa_nodes = nr;
 	ph->env.numa_nodes = nodes;
 	return 0;
 
