@@ -1622,19 +1622,18 @@ static int bcm_enet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 }
 
 /*
- * calculate actual hardware mtu
+ * adjust mtu, can't be called while device is running
  */
-static int compute_hw_mtu(struct bcm_enet_priv *priv, int mtu)
+static int bcm_enet_change_mtu(struct net_device *dev, int new_mtu)
 {
-	int actual_mtu;
+	struct bcm_enet_priv *priv = netdev_priv(dev);
+	int actual_mtu = new_mtu;
 
-	actual_mtu = mtu;
+	if (netif_running(dev))
+		return -EBUSY;
 
 	/* add ethernet header + vlan tag size */
 	actual_mtu += VLAN_ETH_HLEN;
-
-	if (actual_mtu < 64 || actual_mtu > BCMENET_MAX_MTU)
-		return -EINVAL;
 
 	/*
 	 * setup maximum size before we get overflow mark in
@@ -1650,22 +1649,7 @@ static int compute_hw_mtu(struct bcm_enet_priv *priv, int mtu)
 	 */
 	priv->rx_skb_size = ALIGN(actual_mtu + ETH_FCS_LEN,
 				  priv->dma_maxburst * 4);
-	return 0;
-}
 
-/*
- * adjust mtu, can't be called while device is running
- */
-static int bcm_enet_change_mtu(struct net_device *dev, int new_mtu)
-{
-	int ret;
-
-	if (netif_running(dev))
-		return -EBUSY;
-
-	ret = compute_hw_mtu(netdev_priv(dev), new_mtu);
-	if (ret)
-		return ret;
 	dev->mtu = new_mtu;
 	return 0;
 }
@@ -1755,7 +1739,7 @@ static int bcm_enet_probe(struct platform_device *pdev)
 	priv->enet_is_sw = false;
 	priv->dma_maxburst = BCMENET_DMA_MAXBURST;
 
-	ret = compute_hw_mtu(priv, dev->mtu);
+	ret = bcm_enet_change_mtu(dev, dev->mtu);
 	if (ret)
 		goto out;
 
@@ -1888,6 +1872,9 @@ static int bcm_enet_probe(struct platform_device *pdev)
 	netif_napi_add(dev, &priv->napi, bcm_enet_poll, 16);
 
 	dev->ethtool_ops = &bcm_enet_ethtool_ops;
+	/* MTU range: 46 - 2028 */
+	dev->min_mtu = ETH_ZLEN - ETH_HLEN;
+	dev->max_mtu = BCMENET_MAX_MTU - VLAN_ETH_HLEN;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	ret = register_netdev(dev);
@@ -2742,7 +2729,7 @@ static int bcm_enetsw_probe(struct platform_device *pdev)
 		priv->dma_chan_width = pd->dma_chan_width;
 	}
 
-	ret = compute_hw_mtu(priv, dev->mtu);
+	ret = bcm_enet_change_mtu(dev, dev->mtu);
 	if (ret)
 		goto out;
 
