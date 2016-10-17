@@ -34,12 +34,6 @@ struct mtk_iommu_suspend_reg {
 	u32				int_main_control;
 };
 
-struct mtk_iommu_client_priv {
-	struct list_head		client;
-	unsigned int			mtk_m4u_id;
-	struct device			*m4udev;
-};
-
 struct mtk_iommu_domain;
 
 struct mtk_iommu_data {
