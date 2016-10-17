@@ -672,11 +672,11 @@ static int crypto_gcm_create_common(struct crypto_template *tmpl,
 	ctr = crypto_spawn_skcipher_alg(&ctx->ctr);
 
 	/* We only support 16-byte blocks. */
+	err = -EINVAL;
 	if (crypto_skcipher_alg_ivsize(ctr) != 16)
 		goto out_put_ctr;
 
 	/* Not a stream cipher? */
-	err = -EINVAL;
 	if (ctr->base.cra_blocksize != 1)
 		goto out_put_ctr;
 
