@@ -271,6 +271,11 @@ struct amdgpu_dpm_funcs {
 	int (*set_sclk_od)(struct amdgpu_device *adev, uint32_t value);
 	int (*get_mclk_od)(struct amdgpu_device *adev);
 	int (*set_mclk_od)(struct amdgpu_device *adev, uint32_t value);
+	int (*check_state_equal)(struct amdgpu_device *adev,
+				struct amdgpu_ps *cps,
+				struct amdgpu_ps *rps,
+				bool *equal);
+
 	struct amd_vce_state* (*get_vce_clock_state)(struct amdgpu_device *adev, unsigned idx);
 };
 
@@ -373,6 +378,8 @@ struct amdgpu_dpm_funcs {
 
 #define amdgpu_dpm_dispatch_task(adev, event_id, input, output)		\
 	(adev)->powerplay.pp_funcs->dispatch_tasks((adev)->powerplay.pp_handle, (event_id), (input), (output))
+
+#define amgdpu_dpm_check_state_equal(adev, cps, rps, equal) (adev)->pm.funcs->check_state_equal((adev), (cps),(rps),(equal))
 
 #define amdgpu_dpm_get_vce_clock_state(adev, i)				\
 	((adev)->pp_enabled ?						\
