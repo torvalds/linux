@@ -418,6 +418,8 @@ int lov_getstripe(struct lov_object *obj, struct lov_stripe_md *lsm,
 	((struct lov_user_md *)lmmk)->lmm_stripe_count = lum.lmm_stripe_count;
 	if (copy_to_user(lump, lmmk, lmm_size))
 		rc = -EFAULT;
+	else
+		rc = 0;
 
 out_free:
 	kvfree(lmmk);
