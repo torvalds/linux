@@ -355,8 +355,6 @@ static int of_inv_parse_platform_data(struct i2c_client *client,
 	irq_pin = gpio_to_irq(gpio_pin);
 	client->irq = irq_pin;
 
-	i2c_set_clientdata(client, &mpu_data);
-
 	ret = of_property_read_u8(np, "mpu-int_config", &mpu_data.int_config);
 	if (ret != 0) {
 		dev_err(&client->dev, "get mpu-int_config error\n");
