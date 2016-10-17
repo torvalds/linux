@@ -559,7 +559,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 
 	hdev = &hwdev->dev;
 
-	if (chip && chip->ops->is_visible) {
+	if (chip) {
 		struct attribute **attrs;
 		int ngroups = 2;
 
@@ -605,7 +605,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 	if (err)
 		goto free_hwmon;
 
-	if (chip && chip->ops->is_visible && chip->ops->read &&
+	if (chip && chip->ops->read &&
 	    chip->info[0]->type == hwmon_chip &&
 	    (chip->info[0]->config[0] & HWMON_C_REGISTER_TZ)) {
 		const struct hwmon_channel_info **info = chip->info;
@@ -673,7 +673,7 @@ hwmon_device_register_with_info(struct device *dev, const char *name,
 				const struct hwmon_chip_info *chip,
 				const struct attribute_group **groups)
 {
-	if (chip && (!chip->ops || !chip->info))
+	if (chip && (!chip->ops || !chip->ops->is_visible || !chip->info))
 		return ERR_PTR(-EINVAL);
 
 	return __hwmon_device_register(dev, name, drvdata, chip, groups);
