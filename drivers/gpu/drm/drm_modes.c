@@ -1509,6 +1509,12 @@ void drm_mode_convert_to_umode(struct drm_mode_modeinfo *out,
 	case HDMI_PICTURE_ASPECT_16_9:
 		out->flags |= DRM_MODE_FLAG_PIC_AR_16_9;
 		break;
+	case HDMI_PICTURE_ASPECT_64_27:
+		out->flags |= DRM_MODE_FLAG_PIC_AR_64_27;
+		break;
+	case DRM_MODE_PICTURE_ASPECT_256_135:
+		out->flags |= DRM_MODE_FLAG_PIC_AR_256_135;
+		break;
 	case HDMI_PICTURE_ASPECT_RESERVED:
 	default:
 		out->flags |= DRM_MODE_FLAG_PIC_AR_NONE;
@@ -1569,6 +1575,12 @@ int drm_mode_convert_umode(struct drm_display_mode *out,
 		break;
 	case DRM_MODE_FLAG_PIC_AR_16_9:
 		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_16_9;
+		break;
+	case DRM_MODE_FLAG_PIC_AR_64_27:
+		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_64_27;
+		break;
+	case DRM_MODE_FLAG_PIC_AR_256_135:
+		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_256_135;
 		break;
 	default:
 		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
