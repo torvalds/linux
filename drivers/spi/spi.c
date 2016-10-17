@@ -1618,9 +1618,11 @@ static void of_register_spi_devices(struct spi_master *master)
 		if (of_node_test_and_set_flag(nc, OF_POPULATED))
 			continue;
 		spi = of_register_spi_device(master, nc);
-		if (IS_ERR(spi))
+		if (IS_ERR(spi)) {
 			dev_warn(&master->dev, "Failed to create SPI device for %s\n",
 				nc->full_name);
+			of_node_clear_flag(nc, OF_POPULATED);
+		}
 	}
 }
 #else
@@ -3131,6 +3133,7 @@ static int of_spi_notify(struct notifier_block *nb, unsigned long action,
 		if (IS_ERR(spi)) {
 			pr_err("%s: failed to create for '%s'\n",
 					__func__, rd->dn->full_name);
+			of_node_clear_flag(rd->dn, OF_POPULATED);
 			return notifier_from_errno(PTR_ERR(spi));
 		}
 		break;
