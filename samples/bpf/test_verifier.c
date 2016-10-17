@@ -14,6 +14,7 @@
 #include <linux/unistd.h>
 #include <string.h>
 #include <linux/filter.h>
+#include <linux/bpf_perf_event.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <sys/resource.h>
@@ -1128,6 +1129,108 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 	},
 	{
+		"unpriv: spill/fill of ctx",
+		.insns = {
+			BPF_ALU64_REG(BPF_MOV, BPF_REG_6, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_6, -8),
+			BPF_STX_MEM(BPF_DW, BPF_REG_6, BPF_REG_1, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_6, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+	},
+	{
+		"unpriv: spill/fill of ctx 2",
+		.insns = {
+			BPF_ALU64_REG(BPF_MOV, BPF_REG_6, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_6, -8),
+			BPF_STX_MEM(BPF_DW, BPF_REG_6, BPF_REG_1, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_6, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_hash_recalc),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	},
+	{
+		"unpriv: spill/fill of ctx 3",
+		.insns = {
+			BPF_ALU64_REG(BPF_MOV, BPF_REG_6, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_6, -8),
+			BPF_STX_MEM(BPF_DW, BPF_REG_6, BPF_REG_1, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_6, BPF_REG_10, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_6, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_hash_recalc),
+			BPF_EXIT_INSN(),
+		},
+		.result = REJECT,
+		.errstr = "R1 type=fp expected=ctx",
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	},
+	{
+		"unpriv: spill/fill of ctx 4",
+		.insns = {
+			BPF_ALU64_REG(BPF_MOV, BPF_REG_6, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_6, -8),
+			BPF_STX_MEM(BPF_DW, BPF_REG_6, BPF_REG_1, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_RAW_INSN(BPF_STX | BPF_XADD | BPF_DW, BPF_REG_10, BPF_REG_0, -8, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_6, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_hash_recalc),
+			BPF_EXIT_INSN(),
+		},
+		.result = REJECT,
+		.errstr = "R1 type=inv expected=ctx",
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	},
+	{
+		"unpriv: spill/fill of different pointers stx",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_3, 42),
+			BPF_ALU64_REG(BPF_MOV, BPF_REG_6, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_6, -8),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 3),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -16),
+			BPF_STX_MEM(BPF_DW, BPF_REG_6, BPF_REG_2, 0),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_1, 0, 1),
+			BPF_STX_MEM(BPF_DW, BPF_REG_6, BPF_REG_1, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_6, 0),
+			BPF_STX_MEM(BPF_W, BPF_REG_1, BPF_REG_3,
+				    offsetof(struct __sk_buff, mark)),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = REJECT,
+		.errstr = "same insn cannot be used with different pointers",
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	},
+	{
+		"unpriv: spill/fill of different pointers ldx",
+		.insns = {
+			BPF_ALU64_REG(BPF_MOV, BPF_REG_6, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_6, -8),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 3),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2,
+				      -(__s32)offsetof(struct bpf_perf_event_data,
+						       sample_period) - 8),
+			BPF_STX_MEM(BPF_DW, BPF_REG_6, BPF_REG_2, 0),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_1, 0, 1),
+			BPF_STX_MEM(BPF_DW, BPF_REG_6, BPF_REG_1, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_6, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data,
+					     sample_period)),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = REJECT,
+		.errstr = "same insn cannot be used with different pointers",
+		.prog_type = BPF_PROG_TYPE_PERF_EVENT,
+	},
+	{
 		"unpriv: write pointer into map elem value",
 		.insns = {
 			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
@@ -1187,6 +1290,19 @@ static struct bpf_test tests[] = {
 		"unpriv: write into frame pointer",
 		.insns = {
 			BPF_MOV64_REG(BPF_REG_10, BPF_REG_1),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "frame pointer is read only",
+		.result = REJECT,
+	},
+	{
+		"unpriv: spill/fill frame pointer",
+		.insns = {
+			BPF_ALU64_REG(BPF_MOV, BPF_REG_6, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_6, -8),
+			BPF_STX_MEM(BPF_DW, BPF_REG_6, BPF_REG_10, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_10, BPF_REG_6, 0),
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_EXIT_INSN(),
 		},
