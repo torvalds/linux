@@ -1806,7 +1806,7 @@ static void scan_nat_page(struct f2fs_sb_info *sbi,
 	}
 }
 
-void __build_free_nids(struct f2fs_sb_info *sbi, bool sync)
+static void __build_free_nids(struct f2fs_sb_info *sbi, bool sync)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
