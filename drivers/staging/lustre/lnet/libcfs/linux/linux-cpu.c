@@ -829,13 +829,6 @@ cfs_cpt_table_create_pattern(char *pattern)
 	int			c;
 	int i;
 
-	for (ncpt = 0;; ncpt++) { /* quick scan bracket */
-		str = strchr(str, '[');
-		if (!str)
-			break;
-		str++;
-	}
-
 	str = cfs_trimwhite(pattern);
 	if (*str == 'n' || *str == 'N') {
 		pattern = str + 1;
