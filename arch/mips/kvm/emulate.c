@@ -1792,7 +1792,7 @@ enum emulation_result kvm_mips_emulate_cache(union mips_instruction inst,
 skip_fault:
 	/* XXXKYMA: Only a subset of cache ops are supported, used by Linux */
 	if (op_inst == Hit_Writeback_Inv_D || op_inst == Hit_Invalidate_D) {
-		flush_dcache_line(va);
+		protected_writeback_dcache_line(va);
 
 #ifdef CONFIG_KVM_MIPS_DYN_TRANS
 		/*
@@ -1802,8 +1802,8 @@ skip_fault:
 		kvm_mips_trans_cache_va(inst, opc, vcpu);
 #endif
 	} else if (op_inst == Hit_Invalidate_I) {
-		flush_dcache_line(va);
-		flush_icache_line(va);
+		protected_writeback_dcache_line(va);
+		protected_flush_icache_line(va);
 
 #ifdef CONFIG_KVM_MIPS_DYN_TRANS
 		/* Replace the CACHE instruction, with a SYNCI */
