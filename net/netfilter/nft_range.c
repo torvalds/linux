@@ -28,22 +28,20 @@ static void nft_range_eval(const struct nft_expr *expr,
 			 const struct nft_pktinfo *pkt)
 {
 	const struct nft_range_expr *priv = nft_expr_priv(expr);
-	bool mismatch;
 	int d1, d2;
 
 	d1 = memcmp(&regs->data[priv->sreg], &priv->data_from, priv->len);
 	d2 = memcmp(&regs->data[priv->sreg], &priv->data_to, priv->len);
 	switch (priv->op) {
 	case NFT_RANGE_EQ:
-		mismatch = (d1 < 0 || d2 > 0);
+		if (d1 < 0 || d2 > 0)
+			regs->verdict.code = NFT_BREAK;
 		break;
 	case NFT_RANGE_NEQ:
-		mismatch = (d1 >= 0 && d2 <= 0);
+		if (d1 >= 0 && d2 <= 0)
+			regs->verdict.code = NFT_BREAK;
 		break;
 	}
-
-	if (mismatch)
-		regs->verdict.code = NFT_BREAK;
 }
 
 static const struct nla_policy nft_range_policy[NFTA_RANGE_MAX + 1] = {
