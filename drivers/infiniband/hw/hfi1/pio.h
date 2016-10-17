@@ -104,7 +104,6 @@ struct send_context {
 	void __iomem *base_addr;	/* start of PIO memory */
 	union pio_shadow_ring *sr;	/* shadow ring */
 
-	volatile __le64 *hw_free;	/* HW free counter */
 	struct work_struct halt_work;	/* halted context work queue entry */
 	unsigned long flags;		/* flags */
 	int node;			/* context home node */
@@ -116,19 +115,20 @@ struct send_context {
 	u32 group;			/* credit return group */
 	/* allocator fields */
 	spinlock_t alloc_lock ____cacheline_aligned_in_smp;
+	u32 sr_head;			/* shadow ring head */
 	unsigned long fill;		/* official alloc count */
 	unsigned long alloc_free;	/* copy of free (less cache thrash) */
-	u32 sr_head;			/* shadow ring head */
+	u32 __percpu *buffers_allocated;/* count of buffers allocated */
 	/* releaser fields */
 	spinlock_t release_lock ____cacheline_aligned_in_smp;
-	unsigned long free;		/* official free count */
 	u32 sr_tail;			/* shadow ring tail */
+	unsigned long free;		/* official free count */
+	volatile __le64 *hw_free;	/* HW free counter */
 	/* list for PIO waiters */
 	struct list_head piowait  ____cacheline_aligned_in_smp;
 	spinlock_t credit_ctrl_lock ____cacheline_aligned_in_smp;
-	u64 credit_ctrl;		/* cache for credit control */
 	u32 credit_intr_count;		/* count of credit intr users */
-	u32 __percpu *buffers_allocated;/* count of buffers allocated */
+	u64 credit_ctrl;		/* cache for credit control */
 	wait_queue_head_t halt_wait;    /* wait until kernel sees interrupt */
 };
 
