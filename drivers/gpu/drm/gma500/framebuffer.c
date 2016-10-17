@@ -236,22 +236,20 @@ static int psb_framebuffer_init(struct drm_device *dev,
 					const struct drm_mode_fb_cmd2 *mode_cmd,
 					struct gtt_range *gt)
 {
-	u32 bpp, depth;
+	const struct drm_format_info *info;
 	int ret;
 
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
+	/*
+	 * Reject unknown formats, YUV formats, and formats with more than
+	 * 4 bytes per pixel.
+	 */
+	info = drm_format_info(mode_cmd->pixel_format);
+	if (!info || !info->depth || info->cpp[0] > 4)
+		return -EINVAL;
 
 	if (mode_cmd->pitches[0] & 63)
 		return -EINVAL;
-	switch (bpp) {
-	case 8:
-	case 16:
-	case 24:
-	case 32:
-		break;
-	default:
-		return -EINVAL;
-	}
+
 	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
 	fb->gtt = gt;
 	ret = drm_framebuffer_init(dev, &fb->base, &psb_fb_funcs);
