@@ -387,14 +387,6 @@
 		RESTORE_SP
 		.endm
 
-		.macro	RESTORE_ALL_AND_RET
-		RESTORE_TEMP
-		RESTORE_STATIC
-		RESTORE_AT
-		RESTORE_SOME
-		RESTORE_SP_AND_RET
-		.endm
-
 /*
  * Move to kernel mode and disable interrupts.
  * Set cp0 enable bit as sign that we're running on the kernel stack
