@@ -507,7 +507,6 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 	INIT_WORK(&ppd->qsfp_info.qsfp_work, qsfp_event);
 
 	mutex_init(&ppd->hls_lock);
-	spin_lock_init(&ppd->sdma_alllock);
 	spin_lock_init(&ppd->qsfp_info.qsfp_lock);
 
 	ppd->qsfp_info.ppd = ppd;

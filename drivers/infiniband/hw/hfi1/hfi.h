@@ -593,8 +593,6 @@ struct hfi1_pportdata {
 	struct mutex hls_lock;
 	u32 host_link_state;
 
-	spinlock_t            sdma_alllock ____cacheline_aligned_in_smp;
-
 	u32 lstate;	/* logical link state */
 
 	/* these are the "32 bit" regs */
