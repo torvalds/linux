@@ -64,7 +64,7 @@ static const struct digi_t dgnc_digi_init = {
  * This defines a raw port at 9600 baud, 8 data bits, no parity,
  * 1 stop bit.
  */
-static struct ktermios DgncDefaultTermios = {
+static struct ktermios default_termios = {
 	.c_iflag =	(DEFAULT_IFLAGS),	/* iflags */
 	.c_oflag =	(DEFAULT_OFLAGS),	/* oflags */
 	.c_cflag =	(DEFAULT_CFLAGS),	/* cflags */
@@ -164,7 +164,7 @@ int dgnc_tty_register(struct dgnc_board *brd)
 	brd->serial_driver->minor_start = 0;
 	brd->serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	brd->serial_driver->subtype = SERIAL_TYPE_NORMAL;
-	brd->serial_driver->init_termios = DgncDefaultTermios;
+	brd->serial_driver->init_termios = default_termios;
 	brd->serial_driver->driver_name = DRVSTR;
 
 	/*
@@ -203,7 +203,7 @@ int dgnc_tty_register(struct dgnc_board *brd)
 	brd->print_driver->minor_start = 0x80;
 	brd->print_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	brd->print_driver->subtype = SERIAL_TYPE_NORMAL;
-	brd->print_driver->init_termios = DgncDefaultTermios;
+	brd->print_driver->init_termios = default_termios;
 	brd->print_driver->driver_name = DRVSTR;
 
 	/*
