@@ -2288,7 +2288,7 @@ config MIPS_MT_FPAFF
 
 config MIPSR2_TO_R6_EMULATOR
 	bool "MIPS R2-to-R6 emulator"
-	depends on CPU_MIPSR6 && !SMP
+	depends on CPU_MIPSR6
 	default y
 	help
 	  Choose this option if you want to run non-R6 MIPS userland code.
@@ -2296,8 +2296,6 @@ config MIPSR2_TO_R6_EMULATOR
 	  default. You can enable it using the 'mipsr2emu' kernel option.
 	  The only reason this is a build-time option is to save ~14K from the
 	  final kernel image.
-comment "MIPS R2-to-R6 emulator is only available for UP kernels"
-	depends on SMP && CPU_MIPSR6
 
 config MIPS_VPE_LOADER
 	bool "VPE loader support."
