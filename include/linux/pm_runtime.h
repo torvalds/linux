@@ -258,9 +258,9 @@ static inline int pm_runtime_set_active(struct device *dev)
 	return __pm_runtime_set_status(dev, RPM_ACTIVE);
 }
 
-static inline void pm_runtime_set_suspended(struct device *dev)
+static inline int pm_runtime_set_suspended(struct device *dev)
 {
-	__pm_runtime_set_status(dev, RPM_SUSPENDED);
+	return __pm_runtime_set_status(dev, RPM_SUSPENDED);
 }
 
 static inline void pm_runtime_disable(struct device *dev)
