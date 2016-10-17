@@ -4,4 +4,75 @@ See sched-BFS.txt for basic design; MuQSS is a per-cpu runqueue variant with
 one 8 level skiplist per runqueue, and fine grained locking for much more
 scalability.
 
+Goals.
+
+The goal of the Multiple Queue Skiplist Scheduler, referred to as MuQSS from
+here on (pronounced mux) is to completely do away with the complex designs of
+the past for the cpu process scheduler and instead implement one that is very
+simple in basic design. The main focus of MuQSS is to achieve excellent desktop
+interactivity and responsiveness without heuristics and tuning knobs that are
+difficult to understand, impossible to model and predict the effect of, and when
+tuned to one workload cause massive detriment to another, while still being
+scalable to many CPUs and processes.
+
+
+Design summary.
+
+MuQSS is best described as per-cpu multiple runqueue, O(log n) insertion, O(1)
+lookup, earliest effective virtual deadline first design, loosely based on EEVDF
+(earliest eligible virtual deadline first) and my previous Staircase Deadline
+scheduler, and evolved from the single runqueue O(n) BFS scheduler. Each
+component shall be described in order to understand the significance of, and
+reasoning for it.
+
+
+Design reasoning.
+
+In BFS, the use of a single runqueue across all CPUs meant that each CPU would
+need to scan the entire runqueue looking for the process with the earliest
+deadline and schedule that next, regardless of which CPU it originally came
+from. This made BFS deterministic with respect to latency and provided
+guaranteed latencies dependent on number of processes and CPUs. The single
+runqueue, however, meant that all CPUs would complete for the single lock
+protecting it, which would lead to increasing lock contention as the number of
+CPUs rose and appeared to limit scalability of common workloads beyond 16
+logical CPUs. Additionally, the O(n) lookup of the runqueue list obviously
+increased overhead proportionate to the number of queued proecesses and led to
+cache thrashing while iterating over the linked list.
+
+MuQSS is an evolution of BFS, designed to maintain the same scheduling
+decision mechanism and be virtually deterministic without relying on the
+constrained design of the single runqueue by splitting out the single runqueue
+to be per-CPU and use skiplists instead of linked lists.
+
+The original reason for going back to a single runqueue design for BFS was that
+once multiple runqueues are introduced, per-CPU or otherwise, there will be
+complex interactions as each runqueue will be responsible for the scheduling
+latency and fairness of the tasks only on its own runqueue, and to achieve
+fairness and low latency across multiple CPUs, any advantage in throughput of
+having CPU local tasks causes other disadvantages. This is due to requiring a
+very complex balancing system to at best achieve some semblance of fairness
+across CPUs and can only maintain relatively low latency for tasks bound to the
+same CPUs, not across them. To increase said fairness and latency across CPUs,
+the advantage of local runqueue locking, which makes for better scalability, is
+lost due to having to grab multiple locks.
+
+MuQSS works around the problems inherent in multiple runqueue designs by
+making its skip lists priority ordered and through novel use of lockless
+examination of each other runqueue it can decide if it should take the earliest
+deadline task from another runqueue for latency reasons, or for CPU balancing
+reasons. It still does not have a balancing system, choosing to allow the
+next task scheduling decision and task wakeup CPU choice to allow balancing to
+happen by virtue of its choices.
+
+
+Design:
+
+MuQSS is an 8 level skip list per runqueue variant of BFS.
+
+See sched-BFS.txt for some of the shared design details.
+
+Documentation yet to be completed.
+
+
 Con Kolivas <kernel@kolivas.org> Sun, 2nd October 2016
