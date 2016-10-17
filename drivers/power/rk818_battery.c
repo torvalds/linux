@@ -693,6 +693,8 @@ static bool rk818_bat_adc_calib(struct rk818_battery *di)
 		}
 	}
 
+	rk818_bat_set_coffset(di, save_coffset);
+
 	return false;
 }
 
