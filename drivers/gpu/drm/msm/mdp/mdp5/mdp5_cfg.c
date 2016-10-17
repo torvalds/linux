@@ -272,7 +272,7 @@ const struct mdp5_cfg_hw msm8x16_config = {
 		.count = 2,
 		.base = { 0x14000, 0x16000 },
 		.caps = MDP_PIPE_CAP_HFLIP | MDP_PIPE_CAP_VFLIP |
-				MDP_PIPE_CAP_SCALE | MDP_PIPE_CAP_DECIMATION,
+				MDP_PIPE_CAP_DECIMATION,
 	},
 	.pipe_dma = {
 		.count = 1,
