@@ -696,10 +696,15 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
 	if (!sem) {
 		return (AE_BAD_PARAMETER);
 	}
-
+#ifdef __APPLE__
+	if (sem_close(sem) == -1) {
+		return (AE_BAD_PARAMETER);
+	}
+#else
 	if (sem_destroy(sem) == -1) {
 		return (AE_BAD_PARAMETER);
 	}
+#endif
 
 	return (AE_OK);
 }
