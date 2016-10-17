@@ -776,6 +776,7 @@ static void update_load_avg(struct rq *rq)
 static void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 {
 	skiplist_delete(rq->sl, &p->node);
+	rq->best_key = rq->node.next[0]->key;
 	update_clocks(rq);
 	if (!(flags & DEQUEUE_SAVE))
 		sched_info_dequeued(task_rq(p), p);
@@ -858,6 +859,7 @@ static void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 		sched_info_queued(rq, p);
 	randseed = (rq->niffies >> 10) & 0xFFFFFFFF;
 	skiplist_insert(rq->sl, &p->node, sl_id, p, randseed);
+	rq->best_key = rq->node.next[0]->key;
 	update_load_avg(rq);
 }
 
@@ -3516,24 +3518,29 @@ static inline void check_deadline(struct task_struct *p, struct rq *rq)
  * is thus done here in an extremely simple first come best fit manner.
  *
  * This iterates over runqueues in cache locality order. In interactive mode
- * it iterates over all CPUs and finds the task with the earliest deadline.
+ * it iterates over all CPUs and finds the task with the best key/deadline.
  * In non-interactive mode it will only take a task if it's from the current
  * runqueue or a runqueue with more tasks than the current one with a better
- * deadline.
+ * key/deadline.
  */
 static inline struct
 task_struct *earliest_deadline_task(struct rq *rq, int cpu, struct task_struct *idle)
 {
 	struct task_struct *edt = idle;
-	u64 earliest_deadline = ~0ULL;
 	struct rq *locked = NULL;
 	int i, best_entries = 0;
+	u64 best_key = ~0ULL;
 
 	for (i = 0; i < num_possible_cpus(); i++) {
 		struct rq *other_rq = rq_order(rq, i);
 		int entries = other_rq->sl->entries;
 		struct task_struct *p;
+		u64 key;
 
+		/*
+		 * Check for queued entres lockless first. The local runqueue
+		 * is locked so entries will always be accurate.
+		 */
 		if (!sched_interactive) {
 			if (entries <= best_entries)
 				continue;
@@ -3542,8 +3549,13 @@ task_struct *earliest_deadline_task(struct rq *rq, int cpu, struct task_struct *
 
 		/* if (i) implies other_rq != rq */
 		if (i) {
+			/* Check for best id queued lockless first */
+			if (other_rq->best_key >= best_key)
+				continue;
+
 			if (unlikely(!trylock_rq(rq, other_rq)))
 				continue;
+
 			/* Need to reevaluate entries after locking */
 			entries = other_rq->sl->entries;
 			if (unlikely(!entries)) {
@@ -3551,14 +3563,15 @@ task_struct *earliest_deadline_task(struct rq *rq, int cpu, struct task_struct *
 				continue;
 			}
 		}
-		p = other_rq->node.next[0]->value;
-
-		if (!deadline_before(p->deadline, earliest_deadline)) {
+		key = other_rq->node.next[0]->key;
+		/* Reevaluate key after locking */
+		if (unlikely(key >= best_key)) {
 			if (i)
 				unlock_rq(other_rq);
 			continue;
 		}
 
+		p = other_rq->node.next[0]->value;
 		if (!smt_schedule(p, rq)) {
 			if (i)
 				unlock_rq(other_rq);
@@ -3577,7 +3590,7 @@ task_struct *earliest_deadline_task(struct rq *rq, int cpu, struct task_struct *
 		}
 
 		best_entries = entries;
-		earliest_deadline = p->deadline;
+		best_key = key;
 		edt = p;
 	}
 

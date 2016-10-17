@@ -24,6 +24,9 @@ struct rq {
 	u64 rq_deadline;
 	int rq_prio;
 
+	/* Best queued id for use outside lock */
+	u64 best_key;
+
 	unsigned long last_scheduler_tick; /* Last jiffy this RQ ticked */
 	unsigned long last_jiffy; /* Last jiffy this RQ updated rq clock */
 	u64 niffies; /* Last time this RQ updated rq clock */
