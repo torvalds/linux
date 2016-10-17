@@ -3765,7 +3765,6 @@ static void
 rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 {
 	unsigned long flags;
-	unsigned long mask;
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
@@ -3788,7 +3787,6 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	 * of the next grace period.
 	 */
 	rnp = rdp->mynode;
-	mask = rdp->grpmask;
 	raw_spin_lock_rcu_node(rnp);		/* irqs already disabled. */
 	if (!rdp->beenonline)
 		WRITE_ONCE(rsp->ncpus, READ_ONCE(rsp->ncpus) + 1);
