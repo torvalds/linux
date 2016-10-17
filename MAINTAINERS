@@ -8164,7 +8164,7 @@ F:	include/linux/mfd/
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
 M:	Ulf Hansson <ulf.hansson@linaro.org>
 L:	linux-mmc@vger.kernel.org
-T:	git git://git.linaro.org/people/ulf.hansson/mmc.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ulfh/mmc.git
 S:	Maintained
 F:	Documentation/devicetree/bindings/mmc/
 F:	drivers/mmc/
