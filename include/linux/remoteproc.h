@@ -415,7 +415,7 @@ struct rproc {
 	struct list_head node;
 	struct iommu_domain *domain;
 	const char *name;
-	const char *firmware;
+	char *firmware;
 	void *priv;
 	const struct rproc_ops *ops;
 	struct device dev;
