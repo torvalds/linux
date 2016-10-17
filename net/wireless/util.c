@@ -1676,8 +1676,10 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 
 		if (params->beacon_int_gcd) {
 			if (c->beacon_int_min_gcd &&
-			    params->beacon_int_gcd < c->beacon_int_min_gcd)
+			    params->beacon_int_gcd < c->beacon_int_min_gcd) {
+				kfree(limits);
 				return -EINVAL;
+			}
 			if (!c->beacon_int_min_gcd &&
 			    params->beacon_int_different)
 				goto cont;
