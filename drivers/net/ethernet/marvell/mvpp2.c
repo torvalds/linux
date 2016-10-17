@@ -5453,29 +5453,6 @@ static void mvpp2_stop_dev(struct mvpp2_port *port)
 	phy_stop(ndev->phydev);
 }
 
-/* Return positive if MTU is valid */
-static inline int mvpp2_check_mtu_valid(struct net_device *dev, int mtu)
-{
-	if (mtu < 68) {
-		netdev_err(dev, "cannot change mtu to less than 68\n");
-		return -EINVAL;
-	}
-
-	/* 9676 == 9700 - 20 and rounding to 8 */
-	if (mtu > 9676) {
-		netdev_info(dev, "illegal MTU value %d, round to 9676\n", mtu);
-		mtu = 9676;
-	}
-
-	if (!IS_ALIGNED(MVPP2_RX_PKT_SIZE(mtu), 8)) {
-		netdev_info(dev, "illegal MTU value %d, round to %d\n", mtu,
-			    ALIGN(MVPP2_RX_PKT_SIZE(mtu), 8));
-		mtu = ALIGN(MVPP2_RX_PKT_SIZE(mtu), 8);
-	}
-
-	return mtu;
-}
-
 static int mvpp2_check_ringparam_valid(struct net_device *dev,
 				       struct ethtool_ringparam *ring)
 {
@@ -5717,10 +5694,10 @@ static int mvpp2_change_mtu(struct net_device *dev, int mtu)
 	struct mvpp2_port *port = netdev_priv(dev);
 	int err;
 
-	mtu = mvpp2_check_mtu_valid(dev, mtu);
-	if (mtu < 0) {
-		err = mtu;
-		goto error;
+	if (!IS_ALIGNED(MVPP2_RX_PKT_SIZE(mtu), 8)) {
+		netdev_info(dev, "illegal MTU value %d, round to %d\n", mtu,
+			    ALIGN(MVPP2_RX_PKT_SIZE(mtu), 8));
+		mtu = ALIGN(MVPP2_RX_PKT_SIZE(mtu), 8);
 	}
 
 	if (!netif_running(dev)) {
@@ -6211,6 +6188,11 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	dev->features = features | NETIF_F_RXCSUM;
 	dev->hw_features |= features | NETIF_F_RXCSUM | NETIF_F_GRO;
 	dev->vlan_features |= features;
+
+	/* MTU range: 68 - 9676 */
+	dev->min_mtu = ETH_MIN_MTU;
+	/* 9676 == 9700 - 20 and rounding to 8 */
+	dev->max_mtu = 9676;
 
 	err = register_netdev(dev);
 	if (err < 0) {

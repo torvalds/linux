@@ -2900,9 +2900,6 @@ static int skge_change_mtu(struct net_device *dev, int new_mtu)
 {
 	int err;
 
-	if (new_mtu < ETH_ZLEN || new_mtu > ETH_JUMBO_MTU)
-		return -EINVAL;
-
 	if (!netif_running(dev)) {
 		dev->mtu = new_mtu;
 		return 0;
@@ -3856,6 +3853,10 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 	dev->ethtool_ops = &skge_ethtool_ops;
 	dev->watchdog_timeo = TX_WATCHDOG;
 	dev->irq = hw->pdev->irq;
+
+	/* MTU range: 60 - 9000 */
+	dev->min_mtu = ETH_ZLEN;
+	dev->max_mtu = ETH_JUMBO_MTU;
 
 	if (highmem)
 		dev->features |= NETIF_F_HIGHDMA;
