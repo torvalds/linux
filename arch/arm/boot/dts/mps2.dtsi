@@ -42,10 +42,12 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "skeleton.dtsi"
 #include "armv7-m.dtsi"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	oscclk0: clk-osc0 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
