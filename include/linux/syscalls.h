@@ -902,8 +902,5 @@ asmlinkage long sys_pkey_mprotect(unsigned long start, size_t len,
 				  unsigned long prot, int pkey);
 asmlinkage long sys_pkey_alloc(unsigned long flags, unsigned long init_val);
 asmlinkage long sys_pkey_free(int pkey);
-//asmlinkage long sys_pkey_get(int pkey, unsigned long flags);
-//asmlinkage long sys_pkey_set(int pkey, unsigned long access_rights,
-//			     unsigned long flags);
 
 #endif
