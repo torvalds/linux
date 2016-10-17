@@ -787,7 +787,8 @@ int ata_build_rw_tf(struct ata_taskfile *tf, struct ata_device *dev,
 		if (tf->flags & ATA_TFLAG_FUA)
 			tf->device |= 1 << 7;
 
-		if (dev->flags & ATA_DFLAG_NCQ_PRIO) {
+		if ((dev->flags & ATA_DFLAG_NCQ_PRIO) &&
+		    (dev->flags & ATA_DFLAG_NCQ_PRIO_ENABLE)) {
 			if (class == IOPRIO_CLASS_RT)
 				tf->hob_nsect |= ATA_PRIO_HIGH <<
 						 ATA_SHIFT_PRIO;
