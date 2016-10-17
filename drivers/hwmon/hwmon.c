@@ -659,8 +659,8 @@ EXPORT_SYMBOL_GPL(hwmon_device_register_with_groups);
  * @dev: the parent device
  * @name: hwmon name attribute
  * @drvdata: driver data to attach to created device
- * @info: Pointer to hwmon chip information
- * @groups - pointer to list of driver specific attribute groups
+ * @info: pointer to hwmon chip information
+ * @extra_groups: pointer to list of additional non-standard attribute groups
  *
  * hwmon_device_unregister() must be called when the device is no
  * longer needed.
@@ -671,12 +671,12 @@ struct device *
 hwmon_device_register_with_info(struct device *dev, const char *name,
 				void *drvdata,
 				const struct hwmon_chip_info *chip,
-				const struct attribute_group **groups)
+				const struct attribute_group **extra_groups)
 {
 	if (chip && (!chip->ops || !chip->ops->is_visible || !chip->info))
 		return ERR_PTR(-EINVAL);
 
-	return __hwmon_device_register(dev, name, drvdata, chip, groups);
+	return __hwmon_device_register(dev, name, drvdata, chip, extra_groups);
 }
 EXPORT_SYMBOL_GPL(hwmon_device_register_with_info);
 

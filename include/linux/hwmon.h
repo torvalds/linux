@@ -377,12 +377,12 @@ struct device *
 hwmon_device_register_with_info(struct device *dev,
 				const char *name, void *drvdata,
 				const struct hwmon_chip_info *info,
-				const struct attribute_group **groups);
+				const struct attribute_group **extra_groups);
 struct device *
 devm_hwmon_device_register_with_info(struct device *dev,
-				     const char *name, void *drvdata,
-				     const struct hwmon_chip_info *info,
-				     const struct attribute_group **groups);
+				const char *name, void *drvdata,
+				const struct hwmon_chip_info *info,
+				const struct attribute_group **extra_groups);
 
 void hwmon_device_unregister(struct device *dev);
 void devm_hwmon_device_unregister(struct device *dev);

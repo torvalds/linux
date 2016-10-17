@@ -37,14 +37,14 @@ struct device *
 hwmon_device_register_with_info(struct device *dev,
 				const char *name, void *drvdata,
 				const struct hwmon_chip_info *info,
-				const struct attribute_group **groups);
+				const struct attribute_group **extra_groups);
 
 struct device *
 devm_hwmon_device_register_with_info(struct device *dev,
-				     const char *name,
-				     void *drvdata,
-				     const struct hwmon_chip_info *info,
-				     const struct attribute_group **groups);
+				const char *name,
+				void *drvdata,
+				const struct hwmon_chip_info *info,
+				const struct attribute_group **extra_groups);
 
 void hwmon_device_unregister(struct device *dev);
 void devm_hwmon_device_unregister(struct device *dev);
@@ -100,9 +100,9 @@ const char *name	Device name
 void *drvdata		Driver private data
 const struct hwmon_chip_info *info
 			Pointer to chip description.
-const struct attribute_group **groups
-			Null-terminated list of additional sysfs attribute
-			groups.
+const struct attribute_group **extra_groups
+			Null-terminated list of additional non-standard
+			sysfs attribute groups.
 
 This function returns a pointer to the created hardware monitoring device
 on success and a negative error code for failure.
@@ -287,9 +287,9 @@ Driver-provided sysfs attributes
 
 If the hardware monitoring device is registered with
 hwmon_device_register_with_info or devm_hwmon_device_register_with_info,
-it is most likely not necessary to provide sysfs attributes. Only non-standard
-sysfs attributes need to be provided when one of those registration functions
-is used.
+it is most likely not necessary to provide sysfs attributes. Only additional
+non-standard sysfs attributes need to be provided when one of those registration
+functions is used.
 
 The header file linux/hwmon-sysfs.h provides a number of useful macros to
 declare and use hardware monitoring sysfs attributes.
