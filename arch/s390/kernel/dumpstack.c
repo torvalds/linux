@@ -38,10 +38,10 @@ __dump_trace(dump_trace_func_t func, void *data, unsigned long sp,
 		if (sp < low || sp > high - sizeof(*sf))
 			return sp;
 		sf = (struct stack_frame *) sp;
+		if (func(data, sf->gprs[8], 0))
+			return sp;
 		/* Follow the backchain. */
 		while (1) {
-			if (func(data, sf->gprs[8]))
-				return sp;
 			low = sp;
 			sp = sf->back_chain;
 			if (!sp)
@@ -49,6 +49,8 @@ __dump_trace(dump_trace_func_t func, void *data, unsigned long sp,
 			if (sp <= low || sp > high - sizeof(*sf))
 				return sp;
 			sf = (struct stack_frame *) sp;
+			if (func(data, sf->gprs[8], 1))
+				return sp;
 		}
 		/* Zero backchain detected, check for interrupt frame. */
 		sp = (unsigned long) (sf + 1);
@@ -56,7 +58,7 @@ __dump_trace(dump_trace_func_t func, void *data, unsigned long sp,
 			return sp;
 		regs = (struct pt_regs *) sp;
 		if (!user_mode(regs)) {
-			if (func(data, regs->psw.addr))
+			if (func(data, regs->psw.addr, 1))
 				return sp;
 		}
 		low = sp;
@@ -90,7 +92,7 @@ struct return_address_data {
 	int depth;
 };
 
-static int __return_address(void *data, unsigned long address)
+static int __return_address(void *data, unsigned long address, int reliable)
 {
 	struct return_address_data *rd = data;
 
@@ -109,9 +111,12 @@ unsigned long return_address(int depth)
 }
 EXPORT_SYMBOL_GPL(return_address);
 
-static int show_address(void *data, unsigned long address)
+static int show_address(void *data, unsigned long address, int reliable)
 {
-	printk("([<%016lx>] %pSR)\n", address, (void *)address);
+	if (reliable)
+		printk(" [<%016lx>] %pSR \n", address, (void *)address);
+	else
+		printk("([<%016lx>] %pSR)\n", address, (void *)address);
 	return 0;
 }
 
