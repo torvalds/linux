@@ -348,7 +348,7 @@ static struct snd_soc_dai_link broxton_dais[] = {
 		.dynamic = 1,
 		.ops = &broxton_refcap_ops,
 	},
-	[BXT_DPCM_AUDIO_DMIC_CP]
+	[BXT_DPCM_AUDIO_DMIC_CP] =
 	{
 		.name = "Bxt Audio DMIC cap",
 		.stream_name = "dmiccap",
