@@ -1402,7 +1402,7 @@ static void postinit_cleanup(struct hfi1_devdata *dd)
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int ret = 0, j, pidx, initfail;
-	struct hfi1_devdata *dd = ERR_PTR(-EINVAL);
+	struct hfi1_devdata *dd;
 	struct hfi1_pportdata *ppd;
 
 	/* First, lock the non-writable module parameters */
@@ -1461,26 +1461,25 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto bail;
 
-	/*
-	 * Do device-specific initialization, function table setup, dd
-	 * allocation, etc.
-	 */
-	switch (ent->device) {
-	case PCI_DEVICE_ID_INTEL0:
-	case PCI_DEVICE_ID_INTEL1:
-		dd = hfi1_init_dd(pdev, ent);
-		break;
-	default:
+	if (!(ent->device == PCI_DEVICE_ID_INTEL0 ||
+	      ent->device == PCI_DEVICE_ID_INTEL1)) {
 		hfi1_early_err(&pdev->dev,
 			       "Failing on unknown Intel deviceid 0x%x\n",
 			       ent->device);
 		ret = -ENODEV;
+		goto clean_bail;
 	}
 
-	if (IS_ERR(dd))
+	/*
+	 * Do device-specific initialization, function table setup, dd
+	 * allocation, etc.
+	 */
+	dd = hfi1_init_dd(pdev, ent);
+
+	if (IS_ERR(dd)) {
 		ret = PTR_ERR(dd);
-	if (ret)
 		goto clean_bail; /* error already printed */
+	}
 
 	ret = create_workqueues(dd);
 	if (ret)
