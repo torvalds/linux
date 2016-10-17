@@ -168,13 +168,13 @@ void show_registers(struct pt_regs *regs)
 	mode = user_mode(regs) ? "User" : "Krnl";
 	printk("%s PSW : %p %p", mode, (void *)regs->psw.mask, (void *)regs->psw.addr);
 	if (!user_mode(regs))
-		printk(" (%pSR)", (void *)regs->psw.addr);
-	printk("\n");
+		pr_cont(" (%pSR)", (void *)regs->psw.addr);
+	pr_cont("\n");
 	printk("           R:%x T:%x IO:%x EX:%x Key:%x M:%x W:%x "
 	       "P:%x AS:%x CC:%x PM:%x", psw->r, psw->t, psw->i, psw->e,
 	       psw->key, psw->m, psw->w, psw->p, psw->as, psw->cc, psw->pm);
-	printk(" RI:%x EA:%x", psw->ri, psw->eaba);
-	printk("\n%s GPRS: %016lx %016lx %016lx %016lx\n", mode,
+	pr_cont(" RI:%x EA:%x\n", psw->ri, psw->eaba);
+	printk("%s GPRS: %016lx %016lx %016lx %016lx\n", mode,
 	       regs->gprs[0], regs->gprs[1], regs->gprs[2], regs->gprs[3]);
 	printk("           %016lx %016lx %016lx %016lx\n",
 	       regs->gprs[4], regs->gprs[5], regs->gprs[6], regs->gprs[7]);
