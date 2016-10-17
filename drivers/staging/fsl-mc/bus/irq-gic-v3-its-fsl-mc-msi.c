@@ -19,7 +19,7 @@
 #include "../include/mc-bus.h"
 
 static struct irq_chip its_msi_irq_chip = {
-	.name = "fsl-mc-bus-msi",
+	.name = "ITS-fMSI",
 	.irq_mask = irq_chip_mask_parent,
 	.irq_unmask = irq_chip_unmask_parent,
 	.irq_eoi = irq_chip_eoi_parent,
