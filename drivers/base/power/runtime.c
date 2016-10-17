@@ -241,7 +241,8 @@ static int rpm_check_suspend_allowed(struct device *dev)
 		retval = -EACCES;
 	else if (atomic_read(&dev->power.usage_count) > 0)
 		retval = -EAGAIN;
-	else if (!pm_children_suspended(dev))
+	else if (!dev->power.ignore_children &&
+			atomic_read(&dev->power.child_count))
 		retval = -EBUSY;
 
 	/* Pending resume requests take precedence over suspends. */
