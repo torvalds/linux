@@ -10786,7 +10786,8 @@ static int nl80211_nan_add_func(struct sk_buff *skb,
 
 		err = nla_parse(srf_tb, NL80211_NAN_SRF_ATTR_MAX,
 				nla_data(tb[NL80211_NAN_FUNC_SRF]),
-				nla_len(tb[NL80211_NAN_FUNC_SRF]), NULL);
+				nla_len(tb[NL80211_NAN_FUNC_SRF]),
+				nl80211_nan_srf_policy);
 		if (err)
 			goto out;
 
