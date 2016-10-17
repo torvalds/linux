@@ -41,7 +41,7 @@ struct ccp_tasklet_data {
 };
 
 /* Human-readable error strings */
-char *ccp_error_codes[] = {
+static char *ccp_error_codes[] = {
 	"",
 	"ERR 01: ILLEGAL_ENGINE",
 	"ERR 02: ILLEGAL_KEY_ID",
