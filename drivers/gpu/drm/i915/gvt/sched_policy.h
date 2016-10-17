@@ -19,28 +19,40 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * Authors:
+ *    Anhua Xu
+ *    Kevin Tian <kevin.tian@intel.com>
+ *
+ * Contributors:
+ *    Min He <min.he@intel.com>
+ *    Bing Niu <bing.niu@intel.com>
+ *    Zhi Wang <zhi.a.wang@intel.com>
+ *
  */
 
-#ifndef _INTEL_GVT_H_
-#define _INTEL_GVT_H_
+#ifndef __GVT_SCHED_POLICY__
+#define __GVT_SCHED_POLICY__
 
-#include "i915_pvinfo.h"
-#include "gvt/gvt.h"
+struct intel_gvt_sched_policy_ops {
+	int (*init)(struct intel_gvt *gvt);
+	void (*clean)(struct intel_gvt *gvt);
+	int (*init_vgpu)(struct intel_vgpu *vgpu);
+	void (*clean_vgpu)(struct intel_vgpu *vgpu);
+	void (*start_schedule)(struct intel_vgpu *vgpu);
+	void (*stop_schedule)(struct intel_vgpu *vgpu);
+};
 
-#ifdef CONFIG_DRM_I915_GVT
-int intel_gvt_init(struct drm_i915_private *dev_priv);
-void intel_gvt_cleanup(struct drm_i915_private *dev_priv);
-int intel_gvt_init_device(struct drm_i915_private *dev_priv);
-void intel_gvt_clean_device(struct drm_i915_private *dev_priv);
-int intel_gvt_init_host(void);
-#else
-static inline int intel_gvt_init(struct drm_i915_private *dev_priv)
-{
-	return 0;
-}
-static inline void intel_gvt_cleanup(struct drm_i915_private *dev_priv)
-{
-}
+int intel_gvt_init_sched_policy(struct intel_gvt *gvt);
+
+void intel_gvt_clean_sched_policy(struct intel_gvt *gvt);
+
+int intel_vgpu_init_sched_policy(struct intel_vgpu *vgpu);
+
+void intel_vgpu_clean_sched_policy(struct intel_vgpu *vgpu);
+
+void intel_vgpu_start_schedule(struct intel_vgpu *vgpu);
+
+void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu);
+
 #endif
-
-#endif /* _INTEL_GVT_H_ */

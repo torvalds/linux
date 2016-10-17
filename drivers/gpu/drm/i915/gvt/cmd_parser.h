@@ -19,28 +19,31 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * Authors:
+ *    Ke Yu
+ *    Kevin Tian <kevin.tian@intel.com>
+ *    Zhiyuan Lv <zhiyuan.lv@intel.com>
+ *
+ * Contributors:
+ *    Min He <min.he@intel.com>
+ *    Ping Gao <ping.a.gao@intel.com>
+ *    Tina Zhang <tina.zhang@intel.com>
+ *    Yulei Zhang <yulei.zhang@intel.com>
+ *    Zhi Wang <zhi.a.wang@intel.com>
+ *
  */
+#ifndef _GVT_CMD_PARSER_H_
+#define _GVT_CMD_PARSER_H_
 
-#ifndef _INTEL_GVT_H_
-#define _INTEL_GVT_H_
+#define GVT_CMD_HASH_BITS 7
 
-#include "i915_pvinfo.h"
-#include "gvt/gvt.h"
+void intel_gvt_clean_cmd_parser(struct intel_gvt *gvt);
 
-#ifdef CONFIG_DRM_I915_GVT
-int intel_gvt_init(struct drm_i915_private *dev_priv);
-void intel_gvt_cleanup(struct drm_i915_private *dev_priv);
-int intel_gvt_init_device(struct drm_i915_private *dev_priv);
-void intel_gvt_clean_device(struct drm_i915_private *dev_priv);
-int intel_gvt_init_host(void);
-#else
-static inline int intel_gvt_init(struct drm_i915_private *dev_priv)
-{
-	return 0;
-}
-static inline void intel_gvt_cleanup(struct drm_i915_private *dev_priv)
-{
-}
+int intel_gvt_init_cmd_parser(struct intel_gvt *gvt);
+
+int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload);
+
+int intel_gvt_scan_and_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx);
+
 #endif
-
-#endif /* _INTEL_GVT_H_ */

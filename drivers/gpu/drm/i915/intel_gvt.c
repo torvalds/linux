@@ -39,6 +39,8 @@ static bool is_supported_device(struct drm_i915_private *dev_priv)
 {
 	if (IS_BROADWELL(dev_priv))
 		return true;
+	if (IS_SKYLAKE(dev_priv))
+		return true;
 	return false;
 }
 

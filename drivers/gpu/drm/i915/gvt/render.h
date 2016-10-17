@@ -19,28 +19,25 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * Authors:
+ *    Eddie Dong <eddie.dong@intel.com>
+ *    Kevin Tian <kevin.tian@intel.com>
+ *
+ * Contributors:
+ *    Zhi Wang <zhi.a.wang@intel.com>
+ *    Changbin Du <changbin.du@intel.com>
+ *    Zhenyu Wang <zhenyuw@linux.intel.com>
+ *    Tina Zhang <tina.zhang@intel.com>
+ *    Bing Niu <bing.niu@intel.com>
+ *
  */
 
-#ifndef _INTEL_GVT_H_
-#define _INTEL_GVT_H_
+#ifndef __GVT_RENDER_H__
+#define __GVT_RENDER_H__
 
-#include "i915_pvinfo.h"
-#include "gvt/gvt.h"
+void intel_gvt_load_render_mmio(struct intel_vgpu *vgpu, int ring_id);
 
-#ifdef CONFIG_DRM_I915_GVT
-int intel_gvt_init(struct drm_i915_private *dev_priv);
-void intel_gvt_cleanup(struct drm_i915_private *dev_priv);
-int intel_gvt_init_device(struct drm_i915_private *dev_priv);
-void intel_gvt_clean_device(struct drm_i915_private *dev_priv);
-int intel_gvt_init_host(void);
-#else
-static inline int intel_gvt_init(struct drm_i915_private *dev_priv)
-{
-	return 0;
-}
-static inline void intel_gvt_cleanup(struct drm_i915_private *dev_priv)
-{
-}
+void intel_gvt_restore_render_mmio(struct intel_vgpu *vgpu, int ring_id);
+
 #endif
-
-#endif /* _INTEL_GVT_H_ */
