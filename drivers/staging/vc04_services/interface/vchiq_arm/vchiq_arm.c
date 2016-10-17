@@ -2774,7 +2774,7 @@ void vchiq_platform_conn_state_changed(VCHIQ_STATE_T *state,
 				&vchiq_keepalive_thread_func,
 				(void *)state,
 				threadname);
-			if (arm_state->ka_thread == NULL) {
+			if (IS_ERR(arm_state->ka_thread)) {
 				vchiq_log_error(vchiq_susp_log_level,
 					"vchiq: FATAL: couldn't create thread %s",
 					threadname);
