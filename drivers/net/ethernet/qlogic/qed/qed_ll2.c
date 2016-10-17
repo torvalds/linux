@@ -538,8 +538,7 @@ static void qed_ll2_rxq_flush(struct qed_hwfn *p_hwfn, u8 connection_handle)
 		if (!p_pkt)
 			break;
 
-		list_del(&p_pkt->list_entry);
-		list_add_tail(&p_pkt->list_entry, &p_rx->free_descq);
+		list_move_tail(&p_pkt->list_entry, &p_rx->free_descq);
 
 		rx_buf_addr = p_pkt->rx_buf_addr;
 		cookie = p_pkt->cookie;
@@ -993,9 +992,8 @@ static void qed_ll2_post_rx_buffer_notify_fw(struct qed_hwfn *p_hwfn,
 		p_posting_packet = list_first_entry(&p_rx->posting_descq,
 						    struct qed_ll2_rx_packet,
 						    list_entry);
-		list_del(&p_posting_packet->list_entry);
-		list_add_tail(&p_posting_packet->list_entry,
-			      &p_rx->active_descq);
+		list_move_tail(&p_posting_packet->list_entry,
+			       &p_rx->active_descq);
 		b_notify_fw = true;
 	}
 
@@ -1186,8 +1184,7 @@ static void qed_ll2_tx_packet_notify(struct qed_hwfn *p_hwfn,
 		if (!p_pkt)
 			break;
 
-		list_del(&p_pkt->list_entry);
-		list_add_tail(&p_pkt->list_entry, &p_tx->active_descq);
+		list_move_tail(&p_pkt->list_entry, &p_tx->active_descq);
 	}
 
 	SET_FIELD(db_msg.params, CORE_DB_DATA_DEST, DB_DEST_XCM);
