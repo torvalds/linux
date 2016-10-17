@@ -1313,15 +1313,13 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	edid = new;
 
 	for (j = 1; j <= edid[0x7e]; j++) {
+		u8 *block = edid + (valid_extensions + 1) * EDID_LENGTH;
+
 		for (i = 0; i < 4; i++) {
-			if (get_edid_block(data,
-				  edid + (valid_extensions + 1) * EDID_LENGTH,
-				  j, EDID_LENGTH))
+			if (get_edid_block(data, block, j, EDID_LENGTH))
 				goto out;
-			if (drm_edid_block_valid(edid + (valid_extensions + 1)
-						 * EDID_LENGTH, j,
-						 print_bad_edid,
-						 NULL)) {
+			if (drm_edid_block_valid(block, j,
+						 print_bad_edid, NULL)) {
 				valid_extensions++;
 				break;
 			}
