@@ -2239,12 +2239,7 @@ static void i40e_sync_filters_subtask(struct i40e_pf *pf)
 static int i40e_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
-	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 	struct i40e_vsi *vsi = np->vsi;
-
-	/* MTU < 68 is an error and causes problems on some kernels */
-	if ((new_mtu < 68) || (max_frame > I40E_MAX_RXBUFFER))
-		return -EINVAL;
 
 	netdev_info(netdev, "changing MTU from %d to %d\n",
 		    netdev->mtu, new_mtu);
@@ -9219,6 +9214,11 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 #ifdef I40E_FCOE
 	i40e_fcoe_config_netdev(netdev, vsi);
 #endif
+
+	/* MTU range: 68 - 9706 */
+	netdev->min_mtu = ETH_MIN_MTU;
+	netdev->max_mtu = I40E_MAX_RXBUFFER -
+			  (ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
 
 	return 0;
 }
