@@ -589,10 +589,10 @@ config I2C_IMG
 
 config I2C_IMX
 	tristate "IMX I2C interface"
-	depends on ARCH_MXC || ARCH_LAYERSCAPE
+	depends on ARCH_MXC || ARCH_LAYERSCAPE || COLDFIRE
 	help
 	  Say Y here if you want to use the IIC bus controller on
-	  the Freescale i.MX/MXC or Layerscape processors.
+	  the Freescale i.MX/MXC, Layerscape or ColdFire processors.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-imx.
