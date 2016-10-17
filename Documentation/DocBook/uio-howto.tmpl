@@ -46,6 +46,13 @@ GPL version 2.
 
 <revhistory>
 	<revision>
+	<revnumber>0.10</revnumber>
+	<date>2016-10-17</date>
+	<authorinitials>sch</authorinitials>
+	<revremark>Added generic hyperv driver
+		</revremark>
+	</revision>
+	<revision>
 	<revnumber>0.9</revnumber>
 	<date>2009-07-16</date>
 	<authorinitials>mst</authorinitials>
@@ -1031,6 +1038,61 @@ int main()
 	</para>
 </sect1>
 
+</chapter>
+
+<chapter id="uio_hv_generic" xreflabel="Using Generic driver for Hyper-V VMBUS">
+<?dbhtml filename="uio_hv_generic.html"?>
+<title>Generic Hyper-V UIO driver</title>
+	<para>
+	The generic driver is a kernel module named uio_hv_generic.
+	It supports devices on the Hyper-V VMBus similar to uio_pci_generic
+	on PCI bus.
+	</para>
+
+<sect1 id="uio_hv_generic_binding">
+<title>Making the driver recognize the device</title>
+	<para>
+Since the driver does not declare any device GUID's, it will not get loaded
+automatically and will not automatically bind to any devices, you must load it
+and allocate id to the driver yourself. For example, to use the network device
+GUID:
+	<programlisting>
+ modprobe uio_hv_generic
+ echo &quot;f8615163-df3e-46c5-913f-f2d2f965ed0e&quot; &gt; /sys/bus/vmbus/drivers/uio_hv_generic/new_id
+	</programlisting>
+	</para>
+	<para>
+If there already is a hardware specific kernel driver for the device, the
+generic driver still won't bind to it, in this case if you want to use the
+generic driver (why would you?) you'll have to manually unbind the hardware
+specific driver and bind the generic driver, like this:
+	<programlisting>
+	  echo -n vmbus-ed963694-e847-4b2a-85af-bc9cfc11d6f3 &gt; /sys/bus/vmbus/drivers/hv_netvsc/unbind
+	  echo -n vmbus-ed963694-e847-4b2a-85af-bc9cfc11d6f3 &gt; /sys/bus/vmbus/drivers/uio_hv_generic/bind
+	</programlisting>
+	</para>
+	<para>
+You can verify that the device has been bound to the driver
+by looking for it in sysfs, for example like the following:
+	<programlisting>
+    ls -l /sys/bus/vmbus/devices/vmbus-ed963694-e847-4b2a-85af-bc9cfc11d6f3/driver
+	</programlisting>
+Which if successful should print
+	<programlisting>
+  .../vmbus-ed963694-e847-4b2a-85af-bc9cfc11d6f3/driver -&gt; ../../../bus/vmbus/drivers/uio_hv_generic
+	</programlisting>
+	</para>
+</sect1>
+
+<sect1 id="uio_hv_generic_internals">
+<title>Things to know about uio_hv_generic</title>
+	<para>
+On each interrupt, uio_hv_generic sets the Interrupt Disable bit.
+This prevents the device from generating further interrupts
+until the bit is cleared. The userspace driver should clear this
+bit before blocking and waiting for more interrupts.
+	</para>
+</sect1>
 </chapter>
 
 <appendix id="app1">
