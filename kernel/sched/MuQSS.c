@@ -7820,21 +7820,7 @@ void vtime_account_system_irqsafe(struct task_struct *tsk)
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(vtime_account_system_irqsafe);
-
-#ifndef __ARCH_HAS_VTIME_TASK_SWITCH
-void vtime_task_switch(struct task_struct *prev)
-{
-	if (is_idle_task(prev))
-		vtime_account_idle(prev);
-	else
-		vtime_account_system(prev);
-
-	vtime_account_user(prev);
-	arch_vtime_task_switch(prev);
-}
-#endif
-
-#else
+#else /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 /*
  * Perform (stime * rtime) / total, but avoid multiplication overflow by
  * losing precision when the numbers are big.
@@ -7956,7 +7942,7 @@ void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime
 	thread_group_cputime(p, &cputime);
 	cputime_adjust(&cputime, &p->signal->prev_cputime, ut, st);
 }
-#endif
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 void init_idle_bootup_task(struct task_struct *idle)
 {}
