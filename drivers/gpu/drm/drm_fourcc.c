@@ -203,37 +203,6 @@ const struct drm_format_info *drm_format_info(u32 format)
 EXPORT_SYMBOL(drm_format_info);
 
 /**
- * drm_fb_get_bpp_depth - get the bpp/depth values for format
- * @format: pixel format (DRM_FORMAT_*)
- * @depth: storage for the depth value
- * @bpp: storage for the bpp value
- *
- * This only supports RGB formats here for compat with code that doesn't use
- * pixel formats directly yet.
- */
-void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
-			  int *bpp)
-{
-	const struct drm_format_info *info;
-
-	info = drm_format_info(format);
-	if (!info || !info->depth) {
-		char *format_name = drm_get_format_name(format);
-
-		DRM_DEBUG_KMS("unsupported pixel format %s\n", format_name);
-		kfree(format_name);
-
-		*depth = 0;
-		*bpp = 0;
-		return;
-	}
-
-	*depth = info->depth;
-	*bpp = info->cpp[0] * 8;
-}
-EXPORT_SYMBOL(drm_fb_get_bpp_depth);
-
-/**
  * drm_format_num_planes - get the number of planes for format
  * @format: pixel format (DRM_FORMAT_*)
  *
