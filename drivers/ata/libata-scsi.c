@@ -50,6 +50,7 @@
 #include <linux/uaccess.h>
 #include <linux/suspend.h>
 #include <asm/unaligned.h>
+#include <linux/ioprio.h>
 
 #include "libata.h"
 #include "libata-transport.h"
@@ -1755,6 +1756,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *scmd = qc->scsicmd;
 	const u8 *cdb = scmd->cmnd;
+	struct request *rq = scmd->request;
+	int class = IOPRIO_PRIO_CLASS(req_get_ioprio(rq));
 	unsigned int tf_flags = 0;
 	u64 block;
 	u32 n_block;
@@ -1821,7 +1824,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 	qc->nbytes = n_block * scmd->device->sector_size;
 
 	rc = ata_build_rw_tf(&qc->tf, qc->dev, block, n_block, tf_flags,
-			     qc->tag);
+			     qc->tag, class);
+
 	if (likely(rc == 0))
 		return 0;
 
