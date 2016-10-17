@@ -435,6 +435,7 @@ nl80211_key_default_policy[NUM_NL80211_KEY_DEFAULT_TYPES] = {
 	[NL80211_KEY_DEFAULT_TYPE_MULTICAST] = { .type = NLA_FLAG },
 };
 
+#ifdef CONFIG_PM
 /* policy for WoWLAN attributes */
 static const struct nla_policy
 nl80211_wowlan_policy[NUM_NL80211_WOWLAN_TRIG] = {
@@ -468,6 +469,7 @@ nl80211_wowlan_tcp_policy[NUM_NL80211_WOWLAN_TCP] = {
 	[NL80211_WOWLAN_TCP_WAKE_PAYLOAD] = { .len = 1 },
 	[NL80211_WOWLAN_TCP_WAKE_MASK] = { .len = 1 },
 };
+#endif /* CONFIG_PM */
 
 /* policy for coalesce rule attributes */
 static const struct nla_policy
