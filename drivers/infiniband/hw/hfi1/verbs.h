@@ -73,7 +73,6 @@ struct hfi1_packet;
 #include "iowait.h"
 
 #define HFI1_MAX_RDMA_ATOMIC     16
-#define HFI1_GUIDS_PER_PORT	5
 
 /*
  * Increment this value if any changes that break userspace ABI
@@ -168,8 +167,6 @@ static inline void inc_opstats(
 struct hfi1_ibport {
 	struct rvt_qp __rcu *qp[2];
 	struct rvt_ibport rvp;
-
-	__be64 guids[HFI1_GUIDS_PER_PORT	- 1];	/* writable GUIDs */
 
 	/* the first 16 entries are sl_to_vl for !OPA */
 	u8 sl_to_sc[32];

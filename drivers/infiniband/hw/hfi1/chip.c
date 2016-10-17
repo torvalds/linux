@@ -9567,11 +9567,11 @@ int bringup_serdes(struct hfi1_pportdata *ppd)
 	if (HFI1_CAP_IS_KSET(EXTENDED_PSN))
 		add_rcvctrl(dd, RCV_CTRL_RCV_EXTENDED_PSN_ENABLE_SMASK);
 
-	guid = ppd->guid;
+	guid = ppd->guids[HFI1_PORT_GUID_INDEX];
 	if (!guid) {
 		if (dd->base_guid)
 			guid = dd->base_guid + ppd->port - 1;
-		ppd->guid = guid;
+		ppd->guids[HFI1_PORT_GUID_INDEX] = guid;
 	}
 
 	/* Set linkinit_reason on power up per OPA spec */

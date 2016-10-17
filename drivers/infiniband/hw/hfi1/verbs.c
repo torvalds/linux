@@ -1486,15 +1486,11 @@ static int hfi1_get_guid_be(struct rvt_dev_info *rdi, struct rvt_ibport *rvp,
 			    int guid_index, __be64 *guid)
 {
 	struct hfi1_ibport *ibp = container_of(rvp, struct hfi1_ibport, rvp);
-	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 
-	if (guid_index == 0)
-		*guid = cpu_to_be64(ppd->guid);
-	else if (guid_index < HFI1_GUIDS_PER_PORT)
-		*guid = ibp->guids[guid_index - 1];
-	else
+	if (guid_index >= HFI1_GUIDS_PER_PORT)
 		return -EINVAL;
 
+	*guid = get_sguid(ibp, guid_index);
 	return 0;
 }
 
@@ -1623,6 +1619,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	struct hfi1_ibdev *dev = &dd->verbs_dev;
 	struct ib_device *ibdev = &dev->rdi.ibdev;
 	struct hfi1_pportdata *ppd = dd->pport;
+	struct hfi1_ibport *ibp = &ppd->ibport_data;
 	unsigned i;
 	int ret;
 	size_t lcpysz = IB_DEVICE_NAME_MAX;
@@ -1643,17 +1640,19 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	if (ret)
 		goto err_verbs_txreq;
 
+	/* Use first-port GUID as node guid */
+	ibdev->node_guid = get_sguid(ibp, HFI1_PORT_GUID_INDEX);
+
 	/*
 	 * The system image GUID is supposed to be the same for all
 	 * HFIs in a single system but since there can be other
 	 * device types in the system, we can't be sure this is unique.
 	 */
 	if (!ib_hfi1_sys_image_guid)
-		ib_hfi1_sys_image_guid = cpu_to_be64(ppd->guid);
+		ib_hfi1_sys_image_guid = ibdev->node_guid;
 	lcpysz = strlcpy(ibdev->name, class_name(), lcpysz);
 	strlcpy(ibdev->name + lcpysz, "_%d", IB_DEVICE_NAME_MAX - lcpysz);
 	ibdev->owner = THIS_MODULE;
-	ibdev->node_guid = cpu_to_be64(ppd->guid);
 	ibdev->phys_port_cnt = dd->num_pports;
 	ibdev->dma_device = &dd->pcidev->dev;
 	ibdev->modify_device = modify_device;

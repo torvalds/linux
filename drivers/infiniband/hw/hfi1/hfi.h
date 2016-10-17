@@ -512,6 +512,9 @@ struct rvt_sge_state;
 #define HFI1_MIN_VLS_SUPPORTED 1
 #define HFI1_MAX_VLS_SUPPORTED 8
 
+#define HFI1_GUIDS_PER_PORT  5
+#define HFI1_PORT_GUID_INDEX 0
+
 static inline void incr_cntr64(u64 *cntr)
 {
 	if (*cntr < (u64)-1LL)
@@ -582,8 +585,9 @@ struct hfi1_pportdata {
 	u32 port_type;
 	struct qsfp_data qsfp_info;
 
-	/* GUID for this interface, in host order */
-	u64 guid;
+	/* GUIDs for this interface, in host order, guids[0] is a port guid */
+	u64 guids[HFI1_GUIDS_PER_PORT];
+
 	/* GUID for peer interface, in host order */
 	u64 neighbor_guid;
 
@@ -1630,6 +1634,17 @@ static inline u16 hfi1_get_pkey(struct hfi1_ibport *ibp, unsigned index)
 		ret = ppd->pkeys[index];
 
 	return ret;
+}
+
+/*
+ * Return the indexed GUID from the port GUIDs table.
+ */
+static inline __be64 get_sguid(struct hfi1_ibport *ibp, unsigned int index)
+{
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+
+	WARN_ON(index >= HFI1_GUIDS_PER_PORT);
+	return cpu_to_be64(ppd->guids[index]);
 }
 
 /*
