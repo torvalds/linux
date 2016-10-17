@@ -10332,7 +10332,7 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 	    ftype != LPFC_FILE_TYPE_GROUP || fsize != fw->size) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3022 Invalid FW image found. "
-				"Magic:%x Type:%x ID:%x Size %d %ld\n",
+				"Magic:%x Type:%x ID:%x Size %d %zd\n",
 				magic_number, ftype, fid, fsize, fw->size);
 		rc = -EINVAL;
 		goto release_out;
