@@ -1338,7 +1338,10 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	/* Fill in the dev structure */
 	dev->watchdog_timeo = TX_TIMEOUT;
+	/* MTU range: 50 - 9586 */
 	dev->mtu = 1500;
+	dev->min_mtu = 50;
+	dev->max_mtu = GFAR_JUMBO_FRAME_SIZE - ETH_HLEN;
 	dev->netdev_ops = &gfar_netdev_ops;
 	dev->ethtool_ops = &gfar_ethtool_ops;
 
@@ -2592,12 +2595,6 @@ static int gfar_set_mac_address(struct net_device *dev)
 static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	int frame_size = new_mtu + ETH_HLEN;
-
-	if ((frame_size < 64) || (frame_size > GFAR_JUMBO_FRAME_SIZE)) {
-		netif_err(priv, drv, dev, "Invalid MTU setting\n");
-		return -EINVAL;
-	}
 
 	while (test_and_set_bit_lock(GFAR_RESETTING, &priv->state))
 		cpu_relax();

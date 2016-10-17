@@ -443,7 +443,6 @@ struct altera_tse_private {
 	/* RX/TX MAC FIFO configs */
 	u32 tx_fifo_depth;
 	u32 rx_fifo_depth;
-	u32 max_mtu;
 
 	/* Hash filter settings */
 	u32 hash_filter;

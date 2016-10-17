@@ -1953,12 +1953,6 @@ static int rocker_port_change_mtu(struct net_device *dev, int new_mtu)
 	int running = netif_running(dev);
 	int err;
 
-#define ROCKER_PORT_MIN_MTU	68
-#define ROCKER_PORT_MAX_MTU	9000
-
-	if (new_mtu < ROCKER_PORT_MIN_MTU || new_mtu > ROCKER_PORT_MAX_MTU)
-		return -EINVAL;
-
 	if (running)
 		rocker_port_stop(dev);
 
@@ -2536,6 +2530,8 @@ static void rocker_port_dev_addr_init(struct rocker_port *rocker_port)
 	}
 }
 
+#define ROCKER_PORT_MIN_MTU	ETH_MIN_MTU
+#define ROCKER_PORT_MAX_MTU	9000
 static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 {
 	const struct pci_dev *pdev = rocker->pdev;
@@ -2569,6 +2565,10 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	rocker_carrier_init(rocker_port);
 
 	dev->features |= NETIF_F_NETNS_LOCAL | NETIF_F_SG;
+
+	/* MTU range: 68 - 9000 */
+	dev->min_mtu = ROCKER_PORT_MIN_MTU;
+	dev->max_mtu = ROCKER_PORT_MAX_MTU;
 
 	err = rocker_world_port_pre_init(rocker_port);
 	if (err) {

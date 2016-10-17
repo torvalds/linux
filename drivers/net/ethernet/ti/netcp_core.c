@@ -1766,21 +1766,6 @@ out:
 	return (ret == 0) ? 0 : err;
 }
 
-static int netcp_ndo_change_mtu(struct net_device *ndev, int new_mtu)
-{
-	struct netcp_intf *netcp = netdev_priv(ndev);
-
-	/* MTU < 68 is an error for IPv4 traffic */
-	if ((new_mtu < 68) ||
-	    (new_mtu > (NETCP_MAX_FRAME_SIZE - ETH_HLEN - ETH_FCS_LEN))) {
-		dev_err(netcp->ndev_dev, "Invalid mtu size = %d\n", new_mtu);
-		return -EINVAL;
-	}
-
-	ndev->mtu = new_mtu;
-	return 0;
-}
-
 static void netcp_ndo_tx_timeout(struct net_device *ndev)
 {
 	struct netcp_intf *netcp = netdev_priv(ndev);
@@ -1886,7 +1871,6 @@ static const struct net_device_ops netcp_netdev_ops = {
 	.ndo_start_xmit		= netcp_ndo_start_xmit,
 	.ndo_set_rx_mode	= netcp_set_rx_mode,
 	.ndo_do_ioctl           = netcp_ndo_ioctl,
-	.ndo_change_mtu		= netcp_ndo_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_vlan_rx_add_vid	= netcp_rx_add_vid,
@@ -1922,6 +1906,10 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 	ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	ndev->hw_features = ndev->features;
 	ndev->vlan_features |=  NETIF_F_SG;
+
+	/* MTU range: 68 - 9486 */
+	ndev->min_mtu = ETH_MIN_MTU;
+	ndev->max_mtu = NETCP_MAX_FRAME_SIZE - (ETH_HLEN + ETH_FCS_LEN);
 
 	netcp = netdev_priv(ndev);
 	spin_lock_init(&netcp->lock);

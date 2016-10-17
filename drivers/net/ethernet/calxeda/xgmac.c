@@ -394,7 +394,7 @@ struct xgmac_priv {
 };
 
 /* XGMAC Configuration Settings */
-#define MAX_MTU			9000
+#define XGMAC_MAX_MTU		9000
 #define PAUSE_TIME		0x400
 
 #define DMA_RX_RING_SZ		256
@@ -1360,20 +1360,6 @@ out:
  */
 static int xgmac_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct xgmac_priv *priv = netdev_priv(dev);
-	int old_mtu;
-
-	if ((new_mtu < 46) || (new_mtu > MAX_MTU)) {
-		netdev_err(priv->dev, "invalid MTU, max MTU is: %d\n", MAX_MTU);
-		return -EINVAL;
-	}
-
-	old_mtu = dev->mtu;
-
-	/* return early if the buffer sizes will not change */
-	if (old_mtu == new_mtu)
-		return 0;
-
 	/* Stop everything, get ready to change the MTU */
 	if (!netif_running(dev))
 		return 0;
@@ -1803,6 +1789,10 @@ static int xgmac_probe(struct platform_device *pdev)
 				     NETIF_F_RXCSUM;
 	ndev->features |= ndev->hw_features;
 	ndev->priv_flags |= IFF_UNICAST_FLT;
+
+	/* MTU range: 46 - 9000 */
+	ndev->min_mtu = ETH_ZLEN - ETH_HLEN;
+	ndev->max_mtu = XGMAC_MAX_MTU;
 
 	/* Get the MAC address */
 	xgmac_get_mac_addr(priv->base, ndev->dev_addr, 0);
