@@ -1713,6 +1713,7 @@ static const struct of_device_id msdc_of_ids[] = {
 	{   .compatible = "mediatek,mt8135-mmc", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, msdc_of_ids);
 
 static struct platform_driver mt_msdc_driver = {
 	.probe = msdc_drv_probe,
