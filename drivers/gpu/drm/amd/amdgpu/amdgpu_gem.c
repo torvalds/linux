@@ -702,7 +702,8 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 	uint32_t handle;
 	int r;
 
-	args->pitch = amdgpu_align_pitch(adev, args->width, args->bpp, 0) * ((args->bpp + 1) / 8);
+	args->pitch = amdgpu_align_pitch(adev, args->width,
+					 DIV_ROUND_UP(args->bpp, 8), 0);
 	args->size = (u64)args->pitch * args->height;
 	args->size = ALIGN(args->size, PAGE_SIZE);
 
