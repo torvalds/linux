@@ -131,7 +131,7 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 	const struct drm_format_info *info;
 	int i;
 
-	info = drm_format_info(r->pixel_format & ~DRM_FORMAT_BIG_ENDIAN);
+	info = __drm_format_info(r->pixel_format & ~DRM_FORMAT_BIG_ENDIAN);
 	if (!info) {
 		char *format_name = drm_get_format_name(r->pixel_format);
 		DRM_DEBUG_KMS("bad framebuffer format %s\n", format_name);

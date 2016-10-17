@@ -102,15 +102,11 @@ char *drm_get_format_name(uint32_t format)
 }
 EXPORT_SYMBOL(drm_get_format_name);
 
-/**
- * drm_format_info - query information for a given format
- * @format: pixel format (DRM_FORMAT_*)
- *
- * Returns:
- * The instance of struct drm_format_info that describes the pixel format, or
- * NULL if the format is unsupported.
+/*
+ * Internal function to query information for a given format. See
+ * drm_format_info() for the public API.
  */
-const struct drm_format_info *drm_format_info(u32 format)
+const struct drm_format_info *__drm_format_info(u32 format)
 {
 	static const struct drm_format_info formats[] = {
 		{ .format = DRM_FORMAT_C8,		.depth = 8,  .num_planes = 1, .cpp = { 1, 0, 0 }, .hsub = 1, .vsub = 1 },
@@ -183,6 +179,26 @@ const struct drm_format_info *drm_format_info(u32 format)
 	}
 
 	return NULL;
+}
+
+/**
+ * drm_format_info - query information for a given format
+ * @format: pixel format (DRM_FORMAT_*)
+ *
+ * The caller should only pass a supported pixel format to this function.
+ * Unsupported pixel formats will generate a warning in the kernel log.
+ *
+ * Returns:
+ * The instance of struct drm_format_info that describes the pixel format, or
+ * NULL if the format is unsupported.
+ */
+const struct drm_format_info *drm_format_info(u32 format)
+{
+	const struct drm_format_info *info;
+
+	info = __drm_format_info(format);
+	WARN_ON(!info);
+	return info;
 }
 EXPORT_SYMBOL(drm_format_info);
 
