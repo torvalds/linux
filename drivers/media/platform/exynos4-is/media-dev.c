@@ -938,8 +938,7 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 
 			csis = fmd->csis[pdata->mux_id].sd;
 			if (WARN(csis == NULL,
-				 "MIPI-CSI interface specified "
-				 "but s5p-csis module is not loaded!\n"))
+				 "MIPI-CSI interface specified but s5p-csis module is not loaded!\n"))
 				return -EINVAL;
 
 			pad = sensor->entity.num_pads - 1;
