@@ -533,8 +533,7 @@ out:
  * Note: The frame will be freed either by a direct call to fc_frame_free(fp)
  * or indirectly by calling libfc_function_template.frame_send().
  */
-static int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp,
-		       struct fc_frame *fp)
+int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp, struct fc_frame *fp)
 {
 	struct fc_exch *ep;
 	int error;
@@ -544,6 +543,7 @@ static int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp,
 	spin_unlock_bh(&ep->ex_lock);
 	return error;
 }
+EXPORT_SYMBOL(fc_seq_send);
 
 /**
  * fc_seq_alloc() - Allocate a sequence for a given exchange
@@ -2647,9 +2647,6 @@ int fc_exch_init(struct fc_lport *lport)
 
 	if (!lport->tt.seq_set_resp)
 		lport->tt.seq_set_resp = fc_seq_set_resp;
-
-	if (!lport->tt.seq_send)
-		lport->tt.seq_send = fc_seq_send;
 
 	if (!lport->tt.exch_done)
 		lport->tt.exch_done = fc_exch_done;

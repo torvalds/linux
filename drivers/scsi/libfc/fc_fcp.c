@@ -731,7 +731,7 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 		/*
 		 * send fragment using for a sequence.
 		 */
-		error = lport->tt.seq_send(lport, seq, fp);
+		error = fc_seq_send(lport, seq, fp);
 		if (error) {
 			WARN_ON(1);		/* send error should be rare */
 			return error;
@@ -1033,7 +1033,7 @@ static void fc_fcp_complete_locked(struct fc_fcp_pkt *fsp)
 				fc_fill_fc_hdr(conf_frame, FC_RCTL_DD_SOL_CTL,
 					       ep->did, ep->sid,
 					       FC_TYPE_FCP, f_ctl, 0);
-				lport->tt.seq_send(lport, csp, conf_frame);
+				fc_seq_send(lport, csp, conf_frame);
 			}
 		}
 		lport->tt.exch_done(seq);

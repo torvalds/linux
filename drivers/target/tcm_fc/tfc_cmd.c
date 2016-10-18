@@ -165,7 +165,7 @@ int ft_queue_status(struct se_cmd *se_cmd)
 	fc_fill_fc_hdr(fp, FC_RCTL_DD_CMD_STATUS, ep->did, ep->sid, FC_TYPE_FCP,
 		       FC_FC_EX_CTX | FC_FC_LAST_SEQ | FC_FC_END_SEQ, 0);
 
-	rc = lport->tt.seq_send(lport, cmd->seq, fp);
+	rc = fc_seq_send(lport, cmd->seq, fp);
 	if (rc) {
 		pr_info_ratelimited("%s: Failed to send response frame %p, "
 				    "xid <0x%x>\n", __func__, fp, ep->xid);
@@ -242,7 +242,7 @@ int ft_write_pending(struct se_cmd *se_cmd)
 				cmd->was_ddp_setup = 1;
 		}
 	}
-	lport->tt.seq_send(lport, cmd->seq, fp);
+	fc_seq_send(lport, cmd->seq, fp);
 	return 0;
 }
 
@@ -323,7 +323,7 @@ static void ft_send_resp_status(struct fc_lport *lport,
 	fc_fill_reply_hdr(fp, rx_fp, FC_RCTL_DD_CMD_STATUS, 0);
 	sp = fr_seq(fp);
 	if (sp) {
-		lport->tt.seq_send(lport, sp, fp);
+		fc_seq_send(lport, sp, fp);
 		lport->tt.exch_done(sp);
 	} else {
 		lport->tt.frame_send(lport, fp);

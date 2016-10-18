@@ -513,13 +513,6 @@ struct libfc_function_template {
 	 * STATUS: OPTIONAL
 	 */
 	void (*get_lesb)(struct fc_lport *, struct fc_els_lesb *lesb);
-	/*
-	 * Send a frame using an existing sequence and exchange.
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	int (*seq_send)(struct fc_lport *, struct fc_seq *,
-			struct fc_frame *);
 
 	/*
 	 * Abort an exchange and sequence. Generally called because of a
@@ -1058,6 +1051,7 @@ struct fc_exch_mgr *fc_exch_mgr_alloc(struct fc_lport *, enum fc_class class,
 void fc_exch_mgr_free(struct fc_lport *);
 void fc_exch_recv(struct fc_lport *, struct fc_frame *);
 void fc_exch_mgr_reset(struct fc_lport *, u32 s_id, u32 d_id);
+int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp, struct fc_frame *fp);
 
 /*
  * Functions for fc_functions_template
