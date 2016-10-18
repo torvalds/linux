@@ -1887,7 +1887,6 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 	struct tcp_iter_state *st = seq->private;
 	struct net *net = seq_file_net(seq);
 	struct inet_listen_hashbucket *ilb;
-	struct inet_connection_sock *icsk;
 	struct sock *sk = cur;
 
 	if (!sk) {
@@ -1909,7 +1908,6 @@ get_sk:
 			continue;
 		if (sk->sk_family == st->family)
 			return sk;
-		icsk = inet_csk(sk);
 	}
 	spin_unlock_bh(&ilb->lock);
 	st->offset = 0;
