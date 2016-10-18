@@ -1378,6 +1378,10 @@ int sdhci_esdhc_suspend(struct device *dev)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct pltfm_imx_data *imx_data = pltfm_host->priv;
 
+#ifdef CONFIG_PM
+	pm_runtime_get_sync(host->mmc->parent);
+#endif
+
 	if ((imx_data->socdata->flags & ESDHC_FLAG_STATE_LOST_IN_LPMODE) &&
 		(host->tuning_mode != SDHCI_TUNING_MODE_1)) {
 		mmc_retune_timer_stop(host->mmc);
@@ -1389,7 +1393,17 @@ int sdhci_esdhc_suspend(struct device *dev)
 
 int sdhci_esdhc_resume(struct device *dev)
 {
-	return sdhci_pltfm_resume(dev);
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	int ret;
+
+	ret = sdhci_pltfm_resume(dev);
+
+#ifdef CONFIG_PM
+	pm_runtime_mark_last_busy(host->mmc->parent);
+	pm_runtime_put_autosuspend(host->mmc->parent);
+#endif
+
+	return ret;
 }
 #endif
 
