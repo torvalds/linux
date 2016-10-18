@@ -344,6 +344,8 @@ static long linehandle_ioctl(struct file *filep, unsigned int cmd,
 	if (cmd == GPIOHANDLE_GET_LINE_VALUES_IOCTL) {
 		int val;
 
+		memset(&ghd, 0, sizeof(ghd));
+
 		/* TODO: check if descriptors are really input */
 		for (i = 0; i < lh->numdescs; i++) {
 			val = gpiod_get_value_cansleep(lh->descs[i]);
