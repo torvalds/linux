@@ -873,10 +873,7 @@ void cx25840_std_setup(struct i2c_client *client)
 					"Chroma sub-carrier freq = %d.%06d MHz\n",
 					fsc / 1000000, fsc % 1000000);
 
-			v4l_dbg(1, cx25840_debug, client, "hblank %i, hactive %i, "
-				"vblank %i, vactive %i, vblank656 %i, src_dec %i, "
-				"burst 0x%02x, luma_lpf %i, uv_lpf %i, comb 0x%02x, "
-				"sc 0x%06x\n",
+			v4l_dbg(1, cx25840_debug, client, "hblank %i, hactive %i, vblank %i, vactive %i, vblank656 %i, src_dec %i, burst 0x%02x, luma_lpf %i, uv_lpf %i, comb 0x%02x, sc 0x%06x\n",
 				hblank, hactive, vblank, vactive, vblank656,
 				src_decimation, burst, luma_lpf, uv_lpf, comb, sc);
 		}
@@ -5169,11 +5166,9 @@ static int cx25840_probe(struct i2c_client *client,
 		id = CX2310X_AV;
 	} else if ((device_id & 0xff) == (device_id >> 8)) {
 		v4l_err(client,
-			"likely a confused/unresponsive cx2388[578] A/V decoder"
-			" found @ 0x%x (%s)\n",
+			"likely a confused/unresponsive cx2388[578] A/V decoder found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
-		v4l_err(client, "A method to reset it from the cx25840 driver"
-			" software is not known at this time\n");
+		v4l_err(client, "A method to reset it from the cx25840 driver software is not known at this time\n");
 		return -ENODEV;
 	} else {
 		v4l_dbg(1, cx25840_debug, client, "cx25840 not found\n");
