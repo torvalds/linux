@@ -316,6 +316,27 @@ extern int blkdev_report_zones(struct block_device *bdev,
 extern int blkdev_reset_zones(struct block_device *bdev, sector_t sectors,
 			      sector_t nr_sectors, gfp_t gfp_mask);
 
+extern int blkdev_report_zones_ioctl(struct block_device *bdev, fmode_t mode,
+				     unsigned int cmd, unsigned long arg);
+extern int blkdev_reset_zones_ioctl(struct block_device *bdev, fmode_t mode,
+				    unsigned int cmd, unsigned long arg);
+
+#else /* CONFIG_BLK_DEV_ZONED */
+
+static inline int blkdev_report_zones_ioctl(struct block_device *bdev,
+					    fmode_t mode, unsigned int cmd,
+					    unsigned long arg)
+{
+	return -ENOTTY;
+}
+
+static inline int blkdev_reset_zones_ioctl(struct block_device *bdev,
+					   fmode_t mode, unsigned int cmd,
+					   unsigned long arg)
+{
+	return -ENOTTY;
+}
+
 #endif /* CONFIG_BLK_DEV_ZONED */
 
 struct request_queue {

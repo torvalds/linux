@@ -16,6 +16,7 @@
 #define _UAPI_BLKZONED_H
 
 #include <linux/types.h>
+#include <linux/ioctl.h>
 
 /**
  * enum blk_zone_type - Types of zones allowed in a zoned device.
@@ -99,5 +100,44 @@ struct blk_zone {
 	__u8	reset;		/* Reset write pointer recommended */
 	__u8	reserved[36];
 };
+
+/**
+ * struct blk_zone_report - BLKREPORTZONE ioctl request/reply
+ *
+ * @sector: starting sector of report
+ * @nr_zones: IN maximum / OUT actual
+ * @reserved: padding to 16 byte alignment
+ * @zones: Space to hold @nr_zones @zones entries on reply.
+ *
+ * The array of at most @nr_zones must follow this structure in memory.
+ */
+struct blk_zone_report {
+	__u64		sector;
+	__u32		nr_zones;
+	__u8		reserved[4];
+	struct blk_zone zones[0];
+} __packed;
+
+/**
+ * struct blk_zone_range - BLKRESETZONE ioctl request
+ * @sector: starting sector of the first zone to issue reset write pointer
+ * @nr_sectors: Total number of sectors of 1 or more zones to reset
+ */
+struct blk_zone_range {
+	__u64		sector;
+	__u64		nr_sectors;
+};
+
+/**
+ * Zoned block device ioctl's:
+ *
+ * @BLKREPORTZONE: Get zone information. Takes a zone report as argument.
+ *                 The zone report will start from the zone containing the
+ *                 sector specified in the report request structure.
+ * @BLKRESETZONE: Reset the write pointer of the zones in the specified
+ *                sector range. The sector range must be zone aligned.
+ */
+#define BLKREPORTZONE	_IOWR(0x12, 130, struct blk_zone_report)
+#define BLKRESETZONE	_IOW(0x12, 131, struct blk_zone_range)
 
 #endif /* _UAPI_BLKZONED_H */

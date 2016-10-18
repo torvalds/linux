@@ -255,3 +255,96 @@ int blkdev_reset_zones(struct block_device *bdev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(blkdev_reset_zones);
+
+/**
+ * BLKREPORTZONE ioctl processing.
+ * Called from blkdev_ioctl.
+ */
+int blkdev_report_zones_ioctl(struct block_device *bdev, fmode_t mode,
+			      unsigned int cmd, unsigned long arg)
+{
+	void __user *argp = (void __user *)arg;
+	struct request_queue *q;
+	struct blk_zone_report rep;
+	struct blk_zone *zones;
+	int ret;
+
+	if (!argp)
+		return -EINVAL;
+
+	q = bdev_get_queue(bdev);
+	if (!q)
+		return -ENXIO;
+
+	if (!blk_queue_is_zoned(q))
+		return -ENOTTY;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	if (copy_from_user(&rep, argp, sizeof(struct blk_zone_report)))
+		return -EFAULT;
+
+	if (!rep.nr_zones)
+		return -EINVAL;
+
+	zones = kcalloc(rep.nr_zones, sizeof(struct blk_zone), GFP_KERNEL);
+	if (!zones)
+		return -ENOMEM;
+
+	ret = blkdev_report_zones(bdev, rep.sector,
+				  zones, &rep.nr_zones,
+				  GFP_KERNEL);
+	if (ret)
+		goto out;
+
+	if (copy_to_user(argp, &rep, sizeof(struct blk_zone_report))) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	if (rep.nr_zones) {
+		if (copy_to_user(argp + sizeof(struct blk_zone_report), zones,
+				 sizeof(struct blk_zone) * rep.nr_zones))
+			ret = -EFAULT;
+	}
+
+ out:
+	kfree(zones);
+
+	return ret;
+}
+
+/**
+ * BLKRESETZONE ioctl processing.
+ * Called from blkdev_ioctl.
+ */
+int blkdev_reset_zones_ioctl(struct block_device *bdev, fmode_t mode,
+			     unsigned int cmd, unsigned long arg)
+{
+	void __user *argp = (void __user *)arg;
+	struct request_queue *q;
+	struct blk_zone_range zrange;
+
+	if (!argp)
+		return -EINVAL;
+
+	q = bdev_get_queue(bdev);
+	if (!q)
+		return -ENXIO;
+
+	if (!blk_queue_is_zoned(q))
+		return -ENOTTY;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	if (!(mode & FMODE_WRITE))
+		return -EBADF;
+
+	if (copy_from_user(&zrange, argp, sizeof(struct blk_zone_range)))
+		return -EFAULT;
+
+	return blkdev_reset_zones(bdev, zrange.sector, zrange.nr_sectors,
+				  GFP_KERNEL);
+}
