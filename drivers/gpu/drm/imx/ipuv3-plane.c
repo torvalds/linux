@@ -103,62 +103,6 @@ drm_plane_state_to_vbo(struct drm_plane_state *state)
 	       (state->src_x >> 16) / 2 - eba;
 }
 
-static void ipu_plane_atomic_set_base(struct ipu_plane *ipu_plane)
-{
-	struct drm_plane *plane = &ipu_plane->base;
-	struct drm_plane_state *state = plane->state;
-	struct drm_crtc_state *crtc_state = state->crtc->state;
-	struct drm_framebuffer *fb = state->fb;
-	unsigned long eba, ubo, vbo;
-	int active;
-
-	eba = drm_plane_state_to_eba(state);
-
-	switch (fb->pixel_format) {
-	case DRM_FORMAT_YUV420:
-	case DRM_FORMAT_YVU420:
-		if (!drm_atomic_crtc_needs_modeset(crtc_state))
-			break;
-
-		/*
-		 * Multiplanar formats have to meet the following restrictions:
-		 * - The (up to) three plane addresses are EBA, EBA+UBO, EBA+VBO
-		 * - EBA, UBO and VBO are a multiple of 8
-		 * - UBO and VBO are unsigned and not larger than 0xfffff8
-		 * - Only EBA may be changed while scanout is active
-		 * - The strides of U and V planes must be identical.
-		 */
-		ubo = drm_plane_state_to_ubo(state);
-		vbo = drm_plane_state_to_vbo(state);
-
-		if (fb->pixel_format == DRM_FORMAT_YUV420)
-			ipu_cpmem_set_yuv_planar_full(ipu_plane->ipu_ch,
-						      fb->pitches[1], ubo, vbo);
-		else
-			ipu_cpmem_set_yuv_planar_full(ipu_plane->ipu_ch,
-						      fb->pitches[1], vbo, ubo);
-
-		dev_dbg(ipu_plane->base.dev->dev,
-			"phy = %lu %lu %lu, x = %d, y = %d", eba, ubo, vbo,
-			state->src_x >> 16, state->src_y >> 16);
-		break;
-	default:
-		dev_dbg(ipu_plane->base.dev->dev, "phys = %lu, x = %d, y = %d",
-			eba, state->src_x >> 16, state->src_y >> 16);
-
-		break;
-	}
-
-	if (!drm_atomic_crtc_needs_modeset(crtc_state)) {
-		active = ipu_idmac_get_current_buffer(ipu_plane->ipu_ch);
-		ipu_cpmem_set_buffer(ipu_plane->ipu_ch, !active, eba);
-		ipu_idmac_select_buffer(ipu_plane->ipu_ch, !active);
-	} else {
-		ipu_cpmem_set_buffer(ipu_plane->ipu_ch, 0, eba);
-		ipu_cpmem_set_buffer(ipu_plane->ipu_ch, 1, eba);
-	}
-}
-
 void ipu_plane_put_resources(struct ipu_plane *ipu_plane)
 {
 	if (!IS_ERR_OR_NULL(ipu_plane->dp))
@@ -397,15 +341,19 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 {
 	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
 	struct drm_plane_state *state = plane->state;
+	struct drm_crtc_state *crtc_state = state->crtc->state;
+	struct drm_framebuffer *fb = state->fb;
+	unsigned long eba, ubo, vbo;
 	enum ipu_color_space ics;
+	int active;
 
-	if (old_state->fb) {
-		struct drm_crtc_state *crtc_state = state->crtc->state;
+	eba = drm_plane_state_to_eba(state);
 
-		if (!drm_atomic_crtc_needs_modeset(crtc_state)) {
-			ipu_plane_atomic_set_base(ipu_plane);
-			return;
-		}
+	if (old_state->fb && !drm_atomic_crtc_needs_modeset(crtc_state)) {
+		active = ipu_idmac_get_current_buffer(ipu_plane->ipu_ch);
+		ipu_cpmem_set_buffer(ipu_plane->ipu_ch, !active, eba);
+		ipu_idmac_select_buffer(ipu_plane->ipu_ch, !active);
+		return;
 	}
 
 	switch (ipu_plane->dp_flow) {
@@ -449,7 +397,30 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	ipu_cpmem_set_high_priority(ipu_plane->ipu_ch);
 	ipu_idmac_set_double_buffer(ipu_plane->ipu_ch, 1);
 	ipu_cpmem_set_stride(ipu_plane->ipu_ch, state->fb->pitches[0]);
-	ipu_plane_atomic_set_base(ipu_plane);
+	switch (fb->pixel_format) {
+	case DRM_FORMAT_YUV420:
+	case DRM_FORMAT_YVU420:
+		ubo = drm_plane_state_to_ubo(state);
+		vbo = drm_plane_state_to_vbo(state);
+
+		if (fb->pixel_format == DRM_FORMAT_YUV420)
+			ipu_cpmem_set_yuv_planar_full(ipu_plane->ipu_ch,
+						      fb->pitches[1], ubo, vbo);
+		else
+			ipu_cpmem_set_yuv_planar_full(ipu_plane->ipu_ch,
+						      fb->pitches[1], vbo, ubo);
+
+		dev_dbg(ipu_plane->base.dev->dev,
+			"phy = %lu %lu %lu, x = %d, y = %d", eba, ubo, vbo,
+			state->src_x >> 16, state->src_y >> 16);
+		break;
+	default:
+		dev_dbg(ipu_plane->base.dev->dev, "phys = %lu, x = %d, y = %d",
+			eba, state->src_x >> 16, state->src_y >> 16);
+		break;
+	}
+	ipu_cpmem_set_buffer(ipu_plane->ipu_ch, 0, eba);
+	ipu_cpmem_set_buffer(ipu_plane->ipu_ch, 1, eba);
 	ipu_plane_enable(ipu_plane);
 }
 
