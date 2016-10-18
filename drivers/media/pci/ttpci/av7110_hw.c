@@ -235,8 +235,7 @@ int av7110_bootarm(struct av7110 *av7110)
 	iwdebi(av7110, DEBISWAP, DPRAM_BASE, 0x76543210, 4);
 
 	if ((ret=irdebi(av7110, DEBINOSWAP, DPRAM_BASE, 0, 4)) != 0x10325476) {
-		printk(KERN_ERR "dvb-ttpci: debi test in av7110_bootarm() failed: "
-		       "%08x != %08x (check your BIOS 'Plug&Play OS' settings)\n",
+		printk(KERN_ERR "dvb-ttpci: debi test in av7110_bootarm() failed: %08x != %08x (check your BIOS 'Plug&Play OS' settings)\n",
 		       ret, 0x10325476);
 		return -1;
 	}
@@ -262,8 +261,7 @@ int av7110_bootarm(struct av7110 *av7110)
 	iwdebi(av7110, DEBINOSWAP, AV7110_BOOT_STATE, BOOTSTATE_BUFFER_FULL, 2);
 
 	if (saa7146_wait_for_debi_done(av7110->dev, 1)) {
-		printk(KERN_ERR "dvb-ttpci: av7110_bootarm(): "
-		       "saa7146_wait_for_debi_done() timed out\n");
+		printk(KERN_ERR "dvb-ttpci: av7110_bootarm(): saa7146_wait_for_debi_done() timed out\n");
 		return -ETIMEDOUT;
 	}
 	saa7146_setgpio(dev, RESET_LINE, SAA7146_GPIO_OUTHI);
@@ -271,8 +269,7 @@ int av7110_bootarm(struct av7110 *av7110)
 
 	dprintk(1, "load dram code\n");
 	if (load_dram(av7110, (u32 *)av7110->bin_root, av7110->size_root) < 0) {
-		printk(KERN_ERR "dvb-ttpci: av7110_bootarm(): "
-		       "load_dram() failed\n");
+		printk(KERN_ERR "dvb-ttpci: av7110_bootarm(): load_dram() failed\n");
 		return -1;
 	}
 
@@ -283,8 +280,7 @@ int av7110_bootarm(struct av7110 *av7110)
 	mwdebi(av7110, DEBISWAB, DPRAM_BASE, av7110->bin_dpram, av7110->size_dpram);
 
 	if (saa7146_wait_for_debi_done(av7110->dev, 1)) {
-		printk(KERN_ERR "dvb-ttpci: av7110_bootarm(): "
-		       "saa7146_wait_for_debi_done() timed out after loading DRAM\n");
+		printk(KERN_ERR "dvb-ttpci: av7110_bootarm(): saa7146_wait_for_debi_done() timed out after loading DRAM\n");
 		return -ETIMEDOUT;
 	}
 	saa7146_setgpio(dev, RESET_LINE, SAA7146_GPIO_OUTHI);
