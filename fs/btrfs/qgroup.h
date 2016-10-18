@@ -23,6 +23,34 @@
 #include "delayed-ref.h"
 
 /*
+ * Btrfs qgroup overview
+ *
+ * Btrfs qgroup splits into 3 main part:
+ * 1) Reserve
+ *    Reserve metadata/data space for incoming operations
+ *    Affect how qgroup limit works
+ *
+ * 2) Trace
+ *    Tell btrfs qgroup to trace dirty extents.
+ *
+ *    Dirty extents including:
+ *    - Newly allocated extents
+ *    - Extents going to be deleted (in this trans)
+ *    - Extents whose owner is going to be modified
+ *
+ *    This is the main part affects whether qgroup numbers will stay
+ *    consistent.
+ *    Btrfs qgroup can trace clean extents and won't cause any problem,
+ *    but it will consume extra CPU time, it should be avoided if possible.
+ *
+ * 3) Account
+ *    Btrfs qgroup will updates its numbers, based on dirty extents traced
+ *    in previous step.
+ *
+ *    Normally at qgroup rescan and transaction commit time.
+ */
+
+/*
  * Record a dirty extent, and info qgroup to update quota on it
  * TODO: Use kmem cache to alloc it.
  */
