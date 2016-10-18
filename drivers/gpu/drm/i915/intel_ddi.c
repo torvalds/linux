@@ -167,8 +167,47 @@ static const struct ddi_buf_trans skl_y_ddi_translations_dp[] = {
 	{ 0x80005012, 0x000000C0, 0x3 },
 };
 
+/* Kabylake H and S */
+static const struct ddi_buf_trans kbl_ddi_translations_dp[] = {
+	{ 0x00002016, 0x000000A0, 0x0 },
+	{ 0x00005012, 0x0000009B, 0x0 },
+	{ 0x00007011, 0x00000088, 0x0 },
+	{ 0x80009010, 0x000000C0, 0x1 },
+	{ 0x00002016, 0x0000009B, 0x0 },
+	{ 0x00005012, 0x00000088, 0x0 },
+	{ 0x80007011, 0x000000C0, 0x1 },
+	{ 0x00002016, 0x00000097, 0x0 },
+	{ 0x80005012, 0x000000C0, 0x1 },
+};
+
+/* Kabylake U */
+static const struct ddi_buf_trans kbl_u_ddi_translations_dp[] = {
+	{ 0x0000201B, 0x000000A1, 0x0 },
+	{ 0x00005012, 0x00000088, 0x0 },
+	{ 0x80007011, 0x000000CD, 0x3 },
+	{ 0x80009010, 0x000000C0, 0x3 },
+	{ 0x0000201B, 0x0000009D, 0x0 },
+	{ 0x80005012, 0x000000C0, 0x3 },
+	{ 0x80007011, 0x000000C0, 0x3 },
+	{ 0x00002016, 0x0000004F, 0x0 },
+	{ 0x80005012, 0x000000C0, 0x3 },
+};
+
+/* Kabylake Y */
+static const struct ddi_buf_trans kbl_y_ddi_translations_dp[] = {
+	{ 0x00001017, 0x000000A1, 0x0 },
+	{ 0x00005012, 0x00000088, 0x0 },
+	{ 0x80007011, 0x000000CD, 0x3 },
+	{ 0x8000800F, 0x000000C0, 0x3 },
+	{ 0x00001017, 0x0000009D, 0x0 },
+	{ 0x80005012, 0x000000C0, 0x3 },
+	{ 0x80007011, 0x000000C0, 0x3 },
+	{ 0x00001017, 0x0000004C, 0x0 },
+	{ 0x80005012, 0x000000C0, 0x3 },
+};
+
 /*
- * Skylake H and S
+ * Skylake/Kabylake H and S
  * eDP 1.4 low vswing translation parameters
  */
 static const struct ddi_buf_trans skl_ddi_translations_edp[] = {
@@ -185,7 +224,7 @@ static const struct ddi_buf_trans skl_ddi_translations_edp[] = {
 };
 
 /*
- * Skylake U
+ * Skylake/Kabylake U
  * eDP 1.4 low vswing translation parameters
  */
 static const struct ddi_buf_trans skl_u_ddi_translations_edp[] = {
@@ -202,7 +241,7 @@ static const struct ddi_buf_trans skl_u_ddi_translations_edp[] = {
 };
 
 /*
- * Skylake Y
+ * Skylake/Kabylake Y
  * eDP 1.4 low vswing translation parameters
  */
 static const struct ddi_buf_trans skl_y_ddi_translations_edp[] = {
@@ -218,7 +257,7 @@ static const struct ddi_buf_trans skl_y_ddi_translations_edp[] = {
 	{ 0x00000018, 0x0000008A, 0x0 },
 };
 
-/* Skylake U, H and S */
+/* Skylake/Kabylake U, H and S */
 static const struct ddi_buf_trans skl_ddi_translations_hdmi[] = {
 	{ 0x00000018, 0x000000AC, 0x0 },
 	{ 0x00005012, 0x0000009D, 0x0 },
@@ -233,7 +272,7 @@ static const struct ddi_buf_trans skl_ddi_translations_hdmi[] = {
 	{ 0x80000018, 0x000000C0, 0x1 },
 };
 
-/* Skylake Y */
+/* Skylake/Kabylake Y */
 static const struct ddi_buf_trans skl_y_ddi_translations_hdmi[] = {
 	{ 0x00000018, 0x000000A1, 0x0 },
 	{ 0x00005012, 0x000000DF, 0x0 },
@@ -334,15 +373,30 @@ bdw_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 static const struct ddi_buf_trans *
 skl_get_buf_trans_dp(struct drm_i915_private *dev_priv, int *n_entries)
 {
-	if (IS_SKL_ULX(dev_priv) || IS_KBL_ULX(dev_priv)) {
+	if (IS_SKL_ULX(dev_priv)) {
 		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_dp);
 		return skl_y_ddi_translations_dp;
-	} else if (IS_SKL_ULT(dev_priv) || IS_KBL_ULT(dev_priv)) {
+	} else if (IS_SKL_ULT(dev_priv)) {
 		*n_entries = ARRAY_SIZE(skl_u_ddi_translations_dp);
 		return skl_u_ddi_translations_dp;
 	} else {
 		*n_entries = ARRAY_SIZE(skl_ddi_translations_dp);
 		return skl_ddi_translations_dp;
+	}
+}
+
+static const struct ddi_buf_trans *
+kbl_get_buf_trans_dp(struct drm_i915_private *dev_priv, int *n_entries)
+{
+	if (IS_KBL_ULX(dev_priv)) {
+		*n_entries = ARRAY_SIZE(kbl_y_ddi_translations_dp);
+		return kbl_y_ddi_translations_dp;
+	} else if (IS_KBL_ULT(dev_priv)) {
+		*n_entries = ARRAY_SIZE(kbl_u_ddi_translations_dp);
+		return kbl_u_ddi_translations_dp;
+	} else {
+		*n_entries = ARRAY_SIZE(kbl_ddi_translations_dp);
+		return kbl_ddi_translations_dp;
 	}
 }
 
@@ -362,7 +416,10 @@ skl_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 		}
 	}
 
-	return skl_get_buf_trans_dp(dev_priv, n_entries);
+	if (IS_KABYLAKE(dev_priv))
+		return kbl_get_buf_trans_dp(dev_priv, n_entries);
+	else
+		return skl_get_buf_trans_dp(dev_priv, n_entries);
 }
 
 static const struct ddi_buf_trans *
@@ -430,7 +487,13 @@ void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder)
 	if (IS_BROXTON(dev_priv))
 		return;
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	if (IS_KABYLAKE(dev_priv)) {
+		ddi_translations_fdi = NULL;
+		ddi_translations_dp =
+				kbl_get_buf_trans_dp(dev_priv, &n_dp_entries);
+		ddi_translations_edp =
+				skl_get_buf_trans_edp(dev_priv, &n_edp_entries);
+	} else if (IS_SKYLAKE(dev_priv)) {
 		ddi_translations_fdi = NULL;
 		ddi_translations_dp =
 				skl_get_buf_trans_dp(dev_priv, &n_dp_entries);
@@ -1436,7 +1499,12 @@ static void skl_ddi_set_iboost(struct intel_encoder *encoder, u32 level)
 		if (dp_iboost) {
 			iboost = dp_iboost;
 		} else {
-			ddi_translations = skl_get_buf_trans_dp(dev_priv, &n_entries);
+			if (IS_KABYLAKE(dev_priv))
+				ddi_translations = kbl_get_buf_trans_dp(dev_priv,
+									&n_entries);
+			else
+				ddi_translations = skl_get_buf_trans_dp(dev_priv,
+									&n_entries);
 			iboost = ddi_translations[level].i_boost;
 		}
 	} else if (type == INTEL_OUTPUT_EDP) {
