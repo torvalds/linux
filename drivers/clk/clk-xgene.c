@@ -351,8 +351,8 @@ static int xgene_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 		/* Set new divider */
 		data = xgene_clk_read(pclk->param.divider_reg +
 				pclk->param.reg_divider_offset);
-		data &= ~((1 << pclk->param.reg_divider_width) - 1)
-				<< pclk->param.reg_divider_shift;
+		data &= ~(((1 << pclk->param.reg_divider_width) - 1)
+				<< pclk->param.reg_divider_shift);
 		data |= divider;
 		xgene_clk_write(data, pclk->param.divider_reg +
 					pclk->param.reg_divider_offset);
