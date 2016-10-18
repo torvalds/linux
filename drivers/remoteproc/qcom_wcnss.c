@@ -609,6 +609,7 @@ static const struct of_device_id wcnss_of_match[] = {
 	{ .compatible = "qcom,pronto-v2-pil", &pronto_v2_data },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, wcnss_of_match);
 
 static struct platform_driver wcnss_driver = {
 	.probe = wcnss_probe,
