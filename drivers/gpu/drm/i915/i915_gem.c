@@ -4131,13 +4131,28 @@ static const struct drm_i915_gem_object_ops i915_gem_object_ops = {
 	.put_pages = i915_gem_object_put_pages_gtt,
 };
 
-struct drm_i915_gem_object *i915_gem_object_create(struct drm_device *dev,
-						  size_t size)
+/* Note we don't consider signbits :| */
+#define overflows_type(x, T) \
+	(sizeof(x) > sizeof(T) && (x) >> (sizeof(T) * BITS_PER_BYTE))
+
+struct drm_i915_gem_object *
+i915_gem_object_create(struct drm_device *dev, u64 size)
 {
 	struct drm_i915_gem_object *obj;
 	struct address_space *mapping;
 	gfp_t mask;
 	int ret;
+
+	/* There is a prevalence of the assumption that we fit the object's
+	 * page count inside a 32bit _signed_ variable. Let's document this and
+	 * catch if we ever need to fix it. In the meantime, if you do spot
+	 * such a local variable, please consider fixing!
+	 */
+	if (WARN_ON(size >> PAGE_SHIFT > INT_MAX))
+		return ERR_PTR(-E2BIG);
+
+	if (overflows_type(size, obj->base.size))
+		return ERR_PTR(-E2BIG);
 
 	obj = i915_gem_object_alloc(dev);
 	if (obj == NULL)

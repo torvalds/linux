@@ -3107,7 +3107,7 @@ void i915_gem_object_free(struct drm_i915_gem_object *obj);
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			 const struct drm_i915_gem_object_ops *ops);
 struct drm_i915_gem_object *i915_gem_object_create(struct drm_device *dev,
-						  size_t size);
+						   u64 size);
 struct drm_i915_gem_object *i915_gem_object_create_from_data(
 		struct drm_device *dev, const void *data, size_t size);
 void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file);
