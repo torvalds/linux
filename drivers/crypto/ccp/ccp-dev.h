@@ -515,7 +515,6 @@ struct ccp_op {
 		struct ccp_passthru_op passthru;
 		struct ccp_ecc_op ecc;
 	} u;
-	struct ccp_mem key;
 };
 
 static inline u32 ccp_addr_lo(struct ccp_dma_info *info)
