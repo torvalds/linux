@@ -1057,7 +1057,7 @@ static void slic_upr_request_complete(struct adapter *adapter, u32 isr)
 		if (stats->rcv_drops > old->rcv_drops)
 			adapter->rcv_drops += (stats->rcv_drops -
 					       old->rcv_drops);
-		memcpy_fromio(old, stats, sizeof(*stats));
+		memcpy(old, stats, sizeof(*stats));
 		break;
 	}
 	case SLIC_UPR_RLSR:
