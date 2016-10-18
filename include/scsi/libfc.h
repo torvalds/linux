@@ -978,7 +978,6 @@ void fc_lport_iterate(void (*func)(struct fc_lport *, void *), void *);
 /*
  * REMOTE PORT LAYER
  *****************************/
-int fc_rport_init(struct fc_lport *);
 void fc_rport_terminate_io(struct fc_rport *);
 struct fc_rport_priv *fc_rport_lookup(const struct fc_lport *lport,
 				      u32 port_id);

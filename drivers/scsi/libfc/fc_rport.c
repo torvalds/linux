@@ -2182,16 +2182,6 @@ void fc_rport_flush_queue(void)
 EXPORT_SYMBOL(fc_rport_flush_queue);
 
 /**
- * fc_rport_init() - Initialize the remote port layer for a local port
- * @lport: The local port to initialize the remote port layer for
- */
-int fc_rport_init(struct fc_lport *lport)
-{
-	return 0;
-}
-EXPORT_SYMBOL(fc_rport_init);
-
-/**
  * fc_rport_fcp_prli() - Handle incoming PRLI for the FCP initiator.
  * @rdata: remote port private
  * @spp_len: service parameter page length

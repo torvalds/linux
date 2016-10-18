@@ -3235,7 +3235,6 @@ int fcoe_libfc_config(struct fc_lport *lport, struct fcoe_ctlr *fip,
 	fc_exch_init(lport);
 	fc_elsct_init(lport);
 	fc_lport_init(lport);
-	fc_rport_init(lport);
 	fc_disc_init(lport);
 	fcoe_ctlr_mode_set(lport, fip, fip->mode);
 	return 0;
