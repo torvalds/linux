@@ -158,8 +158,6 @@ static int modeset_init(struct drm_device *dev)
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	struct tilcdc_module *mod;
 
-	drm_mode_config_init(dev);
-
 	priv->crtc = tilcdc_crtc_create(dev);
 
 	list_for_each_entry(mod, &module_list, list) {
@@ -198,22 +196,25 @@ static void tilcdc_fini(struct drm_device *dev)
 {
 	struct tilcdc_drm_private *priv = dev->dev_private;
 
-	drm_modeset_lock_crtc(priv->crtc, NULL);
-	tilcdc_crtc_disable(priv->crtc);
-	drm_modeset_unlock_crtc(priv->crtc);
+	if (priv->crtc)
+		tilcdc_crtc_off(priv->crtc);
 
-	drm_dev_unregister(dev);
+	if (priv->is_registered)
+		drm_dev_unregister(dev);
 
 	drm_kms_helper_poll_fini(dev);
-	drm_fbdev_cma_fini(priv->fbdev);
+
+	if (priv->fbdev)
+		drm_fbdev_cma_fini(priv->fbdev);
+
 	drm_irq_uninstall(dev);
 	drm_mode_config_cleanup(dev);
-
 	tilcdc_remove_external_encoders(dev);
 
 #ifdef CONFIG_CPU_FREQ
-	cpufreq_unregister_notifier(&priv->freq_transition,
-			CPUFREQ_TRANSITION_NOTIFIER);
+	if (priv->freq_transition.notifier_call)
+		cpufreq_unregister_notifier(&priv->freq_transition,
+					    CPUFREQ_TRANSITION_NOTIFIER);
 #endif
 
 	if (priv->clk)
@@ -222,8 +223,10 @@ static void tilcdc_fini(struct drm_device *dev)
 	if (priv->mmio)
 		iounmap(priv->mmio);
 
-	flush_workqueue(priv->wq);
-	destroy_workqueue(priv->wq);
+	if (priv->wq) {
+		flush_workqueue(priv->wq);
+		destroy_workqueue(priv->wq);
+	}
 
 	dev->dev_private = NULL;
 
@@ -254,6 +257,8 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 
 	ddev->platformdev = pdev;
 	ddev->dev_private = priv;
+	platform_set_drvdata(pdev, ddev);
+	drm_mode_config_init(ddev);
 
 	priv->is_componentized =
 		tilcdc_get_external_components(dev, NULL) > 0;
@@ -261,28 +266,28 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 	priv->wq = alloc_ordered_workqueue("tilcdc", 0);
 	if (!priv->wq) {
 		ret = -ENOMEM;
-		goto fail_unset_priv;
+		goto init_failed;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "failed to get memory resource\n");
 		ret = -EINVAL;
-		goto fail_free_wq;
+		goto init_failed;
 	}
 
 	priv->mmio = ioremap_nocache(res->start, resource_size(res));
 	if (!priv->mmio) {
 		dev_err(dev, "failed to ioremap\n");
 		ret = -ENOMEM;
-		goto fail_free_wq;
+		goto init_failed;
 	}
 
 	priv->clk = clk_get(dev, "fck");
 	if (IS_ERR(priv->clk)) {
 		dev_err(dev, "failed to get functional clock\n");
 		ret = -ENODEV;
-		goto fail_iounmap;
+		goto init_failed;
 	}
 
 #ifdef CONFIG_CPU_FREQ
@@ -291,7 +296,8 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 			CPUFREQ_TRANSITION_NOTIFIER);
 	if (ret) {
 		dev_err(dev, "failed to register cpufreq notifier\n");
-		goto fail_put_clk;
+		priv->freq_transition.notifier_call = NULL;
+		goto init_failed;
 	}
 #endif
 
@@ -367,37 +373,35 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 	ret = modeset_init(ddev);
 	if (ret < 0) {
 		dev_err(dev, "failed to initialize mode setting\n");
-		goto fail_cpufreq_unregister;
+		goto init_failed;
 	}
-
-	platform_set_drvdata(pdev, ddev);
 
 	if (priv->is_componentized) {
 		ret = component_bind_all(dev, ddev);
 		if (ret < 0)
-			goto fail_mode_config_cleanup;
+			goto init_failed;
 
 		ret = tilcdc_add_external_encoders(ddev);
 		if (ret < 0)
-			goto fail_component_cleanup;
+			goto init_failed;
 	}
 
 	if ((priv->num_encoders == 0) || (priv->num_connectors == 0)) {
 		dev_err(dev, "no encoders/connectors found\n");
 		ret = -ENXIO;
-		goto fail_external_cleanup;
+		goto init_failed;
 	}
 
 	ret = drm_vblank_init(ddev, 1);
 	if (ret < 0) {
 		dev_err(dev, "failed to initialize vblank\n");
-		goto fail_external_cleanup;
+		goto init_failed;
 	}
 
 	ret = drm_irq_install(ddev, platform_get_irq(pdev, 0));
 	if (ret < 0) {
 		dev_err(dev, "failed to install IRQ handler\n");
-		goto fail_vblank_cleanup;
+		goto init_failed;
 	}
 
 	drm_mode_config_reset(ddev);
@@ -407,57 +411,20 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 			ddev->mode_config.num_connector);
 	if (IS_ERR(priv->fbdev)) {
 		ret = PTR_ERR(priv->fbdev);
-		goto fail_irq_uninstall;
+		goto init_failed;
 	}
 
 	drm_kms_helper_poll_init(ddev);
 
 	ret = drm_dev_register(ddev, 0);
 	if (ret)
-		goto fail_platform_init;
+		goto init_failed;
 
+	priv->is_registered = true;
 	return 0;
 
-fail_platform_init:
-	drm_kms_helper_poll_fini(ddev);
-	drm_fbdev_cma_fini(priv->fbdev);
-
-fail_irq_uninstall:
-	drm_irq_uninstall(ddev);
-
-fail_vblank_cleanup:
-	drm_vblank_cleanup(ddev);
-
-fail_component_cleanup:
-	if (priv->is_componentized)
-		component_unbind_all(dev, dev);
-
-fail_mode_config_cleanup:
-	drm_mode_config_cleanup(ddev);
-
-fail_external_cleanup:
-	tilcdc_remove_external_encoders(ddev);
-
-fail_cpufreq_unregister:
-	pm_runtime_disable(dev);
-#ifdef CONFIG_CPU_FREQ
-	cpufreq_unregister_notifier(&priv->freq_transition,
-			CPUFREQ_TRANSITION_NOTIFIER);
-
-fail_put_clk:
-#endif
-	clk_put(priv->clk);
-
-fail_iounmap:
-	iounmap(priv->mmio);
-
-fail_free_wq:
-	flush_workqueue(priv->wq);
-	destroy_workqueue(priv->wq);
-
-fail_unset_priv:
-	ddev->dev_private = NULL;
-	drm_dev_unref(ddev);
+init_failed:
+	tilcdc_fini(ddev);
 
 	return ret;
 }

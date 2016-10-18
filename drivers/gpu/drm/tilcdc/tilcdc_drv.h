@@ -89,6 +89,7 @@ struct tilcdc_drm_private {
 	struct drm_connector *connectors[8];
 	const struct drm_connector_helper_funcs *connector_funcs[8];
 
+	bool is_registered;
 	bool is_componentized;
 };
 
@@ -172,7 +173,7 @@ void tilcdc_crtc_set_simulate_vesa_sync(struct drm_crtc *crtc,
 					bool simulate_vesa_sync);
 int tilcdc_crtc_mode_valid(struct drm_crtc *crtc, struct drm_display_mode *mode);
 int tilcdc_crtc_max_width(struct drm_crtc *crtc);
-void tilcdc_crtc_disable(struct drm_crtc *crtc);
+void tilcdc_crtc_off(struct drm_crtc *crtc);
 int tilcdc_crtc_update_fb(struct drm_crtc *crtc,
 		struct drm_framebuffer *fb,
 		struct drm_pending_vblank_event *event);
