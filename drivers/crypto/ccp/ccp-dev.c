@@ -478,6 +478,10 @@ struct ccp_device *ccp_alloc_struct(struct device *dev)
 	ccp->sb_count = KSB_COUNT;
 	ccp->sb_start = 0;
 
+	/* Initialize the wait queues */
+	init_waitqueue_head(&ccp->sb_queue);
+	init_waitqueue_head(&ccp->suspend_queue);
+
 	ccp->ord = ccp_increment_unit_ordinal();
 	snprintf(ccp->name, MAX_CCP_NAME_LEN, "ccp-%u", ccp->ord);
 	snprintf(ccp->rngname, MAX_CCP_NAME_LEN, "ccp-%u-rng", ccp->ord);
