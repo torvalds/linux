@@ -2402,13 +2402,11 @@ void hostif_sme_set_pmksa(struct ks_wlan_private *priv)
 		} __packed list[PMK_LIST_MAX];
 	} __packed pmkcache;
 	struct pmk_t *pmk;
-	struct list_head *ptr;
 	int i;
 
 	DPRINTK(4, "pmklist.size=%d\n", priv->pmklist.size);
 	i = 0;
-	list_for_each(ptr, &priv->pmklist.head) {
-		pmk = list_entry(ptr, struct pmk_t, list);
+	list_for_each_entry(pmk, &priv->pmklist.head, list) {
 		if (i < PMK_LIST_MAX) {
 			memcpy(pmkcache.list[i].bssid, pmk->bssid, ETH_ALEN);
 			memcpy(pmkcache.list[i].pmkid, pmk->pmkid,
