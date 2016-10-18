@@ -1561,8 +1561,7 @@ struct em28xx_board em28xx_boards[] = {
 		} },
 	},
 	[EM2820_BOARD_PINNACLE_DVC_90] = {
-		.name         = "Pinnacle Dazzle DVC 90/100/101/107 / Kaiser Baas Video to DVD maker "
-			       "/ Kworld DVD Maker 2 / Plextor ConvertX PX-AV100U",
+		.name	      = "Pinnacle Dazzle DVC 90/100/101/107 / Kaiser Baas Video to DVD maker / Kworld DVD Maker 2 / Plextor ConvertX PX-AV100U",
 		.tuner_type   = TUNER_ABSENT, /* capture only board */
 		.decoder      = EM28XX_SAA711X,
 		.input        = { {
