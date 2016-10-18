@@ -259,6 +259,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_framebuffer *old_fb = old_state->fb;
 	unsigned long eba, ubo, vbo, old_ubo, old_vbo;
+	int hsub, vsub;
 
 	/* Ok to disable */
 	if (!fb)
@@ -372,6 +373,16 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 
 		if (old_fb && old_fb->pitches[1] != fb->pitches[1])
 			crtc_state->mode_changed = true;
+
+		/*
+		 * The x/y offsets must be even in case of horizontal/vertical
+		 * chroma subsampling.
+		 */
+		hsub = drm_format_horz_chroma_subsampling(fb->pixel_format);
+		vsub = drm_format_vert_chroma_subsampling(fb->pixel_format);
+		if (((state->src_x >> 16) & (hsub - 1)) ||
+		    ((state->src_y >> 16) & (vsub - 1)))
+			return -EINVAL;
 	}
 
 	return 0;
