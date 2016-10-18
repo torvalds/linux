@@ -5051,9 +5051,11 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 			__func__);
 	} else {
 		ret = ufshcd_config_pwr_mode(hba, &hba->max_pwr_info.info);
-		if (ret)
+		if (ret) {
 			dev_err(hba->dev, "%s: Failed setting power mode, err = %d\n",
 					__func__, ret);
+			goto out;
+		}
 	}
 
 	/* set the state as operational after switching to desired gear */
