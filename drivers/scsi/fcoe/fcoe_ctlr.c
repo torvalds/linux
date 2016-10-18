@@ -2674,7 +2674,7 @@ static void fcoe_ctlr_vn_beacon(struct fcoe_ctlr *fip,
 				LIBFCOE_FIP_DBG(fip, "beacon expired "
 						"for rport %x\n",
 						rdata->ids.port_id);
-				lport->tt.rport_login(rdata);
+				fc_rport_login(rdata);
 			}
 			frport->time = jiffies;
 		}
@@ -3088,7 +3088,7 @@ static void fcoe_ctlr_vn_disc(struct fcoe_ctlr *fip)
 			continue;
 		frport = fcoe_ctlr_rport(rdata);
 		if (frport->time)
-			lport->tt.rport_login(rdata);
+			fc_rport_login(rdata);
 		kref_put(&rdata->kref, fc_rport_destroy);
 	}
 	rcu_read_unlock();

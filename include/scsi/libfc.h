@@ -610,19 +610,6 @@ struct libfc_function_template {
 				  struct fc_frame *);
 
 	/*
-	 * Initiates the RP state machine. It is called from the LP module.
-	 * This function will issue the following commands to the N_Port
-	 * identified by the FC ID provided.
-	 *
-	 * - PLOGI
-	 * - PRLI
-	 * - RTV
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	int (*rport_login)(struct fc_rport_priv *);
-
-	/*
 	 * Logoff, and remove the rport from the transport if
 	 * it had been added. This will send a LOGO to the target.
 	 *
@@ -1019,6 +1006,7 @@ struct fc_rport_priv *fc_rport_lookup(const struct fc_lport *lport,
 				      u32 port_id);
 struct fc_rport_priv *fc_rport_create(struct fc_lport *, u32);
 void fc_rport_destroy(struct kref *kref);
+int fc_rport_login(struct fc_rport_priv *rdata);
 
 /*
  * DISCOVERY LAYER

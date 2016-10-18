@@ -299,7 +299,7 @@ static void fc_disc_done(struct fc_disc *disc, enum fc_disc_event event)
 			continue;
 		if (rdata->disc_id) {
 			if (rdata->disc_id == disc->disc_id)
-				lport->tt.rport_login(rdata);
+				fc_rport_login(rdata);
 			else
 				lport->tt.rport_logoff(rdata);
 		}
@@ -628,13 +628,13 @@ static void fc_disc_gpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 			mutex_unlock(&lport->disc.disc_mutex);
 			if (new_rdata) {
 				new_rdata->disc_id = disc->disc_id;
-				lport->tt.rport_login(new_rdata);
+				fc_rport_login(new_rdata);
 			}
 			goto out;
 		}
 		rdata->disc_id = disc->disc_id;
 		mutex_unlock(&rdata->rp_mutex);
-		lport->tt.rport_login(rdata);
+		fc_rport_login(rdata);
 	} else if (ntohs(cp->ct_cmd) == FC_FS_RJT) {
 		FC_DISC_DBG(disc, "GPN_ID rejected reason %x exp %x\n",
 			    cp->ct_reason, cp->ct_explan);

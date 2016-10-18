@@ -256,7 +256,7 @@ static void fc_lport_ptp_setup(struct fc_lport *lport,
 	lport->ptp_rdata->ids.node_name = remote_wwnn;
 	mutex_unlock(&lport->disc.disc_mutex);
 
-	lport->tt.rport_login(lport->ptp_rdata);
+	fc_rport_login(lport->ptp_rdata);
 
 	fc_lport_enter_ready(lport);
 }
@@ -1437,7 +1437,7 @@ static void fc_lport_enter_dns(struct fc_lport *lport)
 		goto err;
 
 	rdata->ops = &fc_lport_rport_ops;
-	lport->tt.rport_login(rdata);
+	fc_rport_login(rdata);
 	return;
 
 err:
@@ -1554,7 +1554,7 @@ static void fc_lport_enter_fdmi(struct fc_lport *lport)
 		goto err;
 
 	rdata->ops = &fc_lport_rport_ops;
-	lport->tt.rport_login(rdata);
+	fc_rport_login(rdata);
 	return;
 
 err:

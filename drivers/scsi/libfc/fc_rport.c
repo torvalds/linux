@@ -412,6 +412,14 @@ static void fc_rport_work(struct work_struct *work)
  * fc_rport_login() - Start the remote port login state machine
  * @rdata: The remote port to be logged in to
  *
+ * Initiates the RP state machine. It is called from the LP module.
+ * This function will issue the following commands to the N_Port
+ * identified by the FC ID provided.
+ *
+ * - PLOGI
+ * - PRLI
+ * - RTV
+ *
  * Locking Note: Called without the rport lock held. This
  * function will hold the rport lock, call an _enter_*
  * function and then unlock the rport.
@@ -420,7 +428,7 @@ static void fc_rport_work(struct work_struct *work)
  * If it appears we are already logged in, ADISC is used to verify
  * the setup.
  */
-static int fc_rport_login(struct fc_rport_priv *rdata)
+int fc_rport_login(struct fc_rport_priv *rdata)
 {
 	mutex_lock(&rdata->rp_mutex);
 
@@ -452,6 +460,7 @@ static int fc_rport_login(struct fc_rport_priv *rdata)
 
 	return 0;
 }
+EXPORT_SYMBOL(fc_rport_login);
 
 /**
  * fc_rport_enter_delete() - Schedule a remote port to be deleted
@@ -2175,9 +2184,6 @@ static void fc_rport_flush_queue(void)
  */
 int fc_rport_init(struct fc_lport *lport)
 {
-	if (!lport->tt.rport_login)
-		lport->tt.rport_login = fc_rport_login;
-
 	if (!lport->tt.rport_logoff)
 		lport->tt.rport_logoff = fc_rport_logoff;
 
