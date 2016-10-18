@@ -122,6 +122,29 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans,
 		struct btrfs_fs_info *fs_info, u64 bytenr, u64 num_bytes,
 		gfp_t gfp_flag);
 
+/*
+ * Inform qgroup to trace all leaf items of data
+ *
+ * Return 0 for success
+ * Return <0 for error(ENOMEM)
+ */
+int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
+				  struct btrfs_root *root,
+				  struct extent_buffer *eb);
+/*
+ * Inform qgroup to trace a whole subtree, including all its child tree
+ * blocks and data.
+ * The root tree block is specified by @root_eb.
+ *
+ * Normally used by relocation(tree block swap) and subvolume deletion.
+ *
+ * Return 0 for success
+ * Return <0 for error(ENOMEM or tree search error)
+ */
+int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       struct extent_buffer *root_eb,
+			       u64 root_gen, int root_level);
 int
 btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
 			    struct btrfs_fs_info *fs_info,
