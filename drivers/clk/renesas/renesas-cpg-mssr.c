@@ -308,7 +308,7 @@ static void __init cpg_mssr_register_core_clk(const struct cpg_core_clk *core,
 	return;
 
 fail:
-	dev_err(dev, "Failed to register %s clock %s: %ld\n", "core,",
+	dev_err(dev, "Failed to register %s clock %s: %ld\n", "core",
 		core->name, PTR_ERR(clk));
 }
 
@@ -376,7 +376,7 @@ static void __init cpg_mssr_register_mod_clk(const struct mssr_mod_clk *mod,
 	return;
 
 fail:
-	dev_err(dev, "Failed to register %s clock %s: %ld\n", "module,",
+	dev_err(dev, "Failed to register %s clock %s: %ld\n", "module",
 		mod->name, PTR_ERR(clk));
 	kfree(clock);
 }
