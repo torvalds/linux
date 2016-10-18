@@ -39,7 +39,7 @@
 #define _EL_OFFSET_STATUS_PTR   0x3A0
 
 #define execlist_ring_mmio(gvt, ring_id, offset) \
-	(gvt->dev_priv->engine[ring_id].mmio_base + (offset))
+	(gvt->dev_priv->engine[ring_id]->mmio_base + (offset))
 
 #define valid_context(ctx) ((ctx)->valid)
 #define same_context(a, b) (((a)->context_id == (b)->context_id) && \

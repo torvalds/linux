@@ -68,7 +68,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 			workload->ctx_desc.lrca);
 
 	context_page_num = intel_lr_context_size(
-			&gvt->dev_priv->engine[ring_id]);
+			gvt->dev_priv->engine[ring_id]);
 
 	context_page_num = context_page_num >> PAGE_SHIFT;
 
@@ -171,7 +171,7 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 	shadow_ctx->desc_template = workload->ctx_desc.addressing_mode <<
 				    GEN8_CTX_ADDRESSING_MODE_SHIFT;
 
-	workload->req = i915_gem_request_alloc(&dev_priv->engine[ring_id],
+	workload->req = i915_gem_request_alloc(dev_priv->engine[ring_id],
 					       shadow_ctx);
 	if (IS_ERR_OR_NULL(workload->req)) {
 		gvt_err("fail to allocate gem request\n");
@@ -298,7 +298,7 @@ static void update_guest_context(struct intel_vgpu_workload *workload)
 			workload->ctx_desc.lrca);
 
 	context_page_num = intel_lr_context_size(
-			&gvt->dev_priv->engine[ring_id]);
+			gvt->dev_priv->engine[ring_id]);
 
 	context_page_num = context_page_num >> PAGE_SHIFT;
 

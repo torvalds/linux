@@ -134,7 +134,7 @@ static int render_mmio_to_ring_id(struct intel_gvt *gvt, unsigned int reg)
 
 	reg &= ~GENMASK(11, 0);
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
-		if (gvt->dev_priv->engine[i].mmio_base == reg)
+		if (gvt->dev_priv->engine[i]->mmio_base == reg)
 			return i;
 	}
 	return -1;
