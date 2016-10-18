@@ -19,6 +19,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
+#include <linux/of.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -364,21 +365,40 @@ static const struct iio_info mcp4725_info = {
 	.driver_module = THIS_MODULE,
 };
 
+#ifdef CONFIG_OF
+static int mcp4725_probe_dt(struct device *dev,
+			    struct mcp4725_platform_data *pdata)
+{
+	struct device_node *np = dev->of_node;
+
+	if (!np)
+		return -ENODEV;
+
+	/* check if is the vref-supply defined */
+	pdata->use_vref = of_property_read_bool(np, "vref-supply");
+	pdata->vref_buffered =
+		of_property_read_bool(np, "microchip,vref-buffered");
+
+	return 0;
+}
+#else
+static int mcp4725_probe_dt(struct device *dev,
+			    struct mcp4725_platform_data *platform_data)
+{
+	return -ENODEV;
+}
+#endif
+
 static int mcp4725_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct mcp4725_data *data;
 	struct iio_dev *indio_dev;
-	struct mcp4725_platform_data *pdata = dev_get_platdata(&client->dev);
+	struct mcp4725_platform_data *pdata, pdata_dt;
 	u8 inbuf[4];
 	u8 pd;
 	u8 ref;
 	int err;
-
-	if (!pdata) {
-		dev_err(&client->dev, "invalid platform data");
-		return -EINVAL;
-	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (indio_dev == NULL)
@@ -387,6 +407,17 @@ static int mcp4725_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 	data->id = id->driver_data;
+	pdata = dev_get_platdata(&client->dev);
+
+	if (!pdata) {
+		err = mcp4725_probe_dt(&client->dev, &pdata_dt);
+		if (err) {
+			dev_err(&client->dev,
+				"invalid platform or devicetree data");
+			return err;
+		}
+		pdata = &pdata_dt;
+	}
 
 	if (data->id == MCP4725 && pdata->use_vref) {
 		dev_err(&client->dev,
