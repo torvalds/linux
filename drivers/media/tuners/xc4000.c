@@ -43,14 +43,11 @@ MODULE_PARM_DESC(debug, "Debugging level (0 to 2, default: 0 (off)).");
 
 static int no_poweroff;
 module_param(no_poweroff, int, 0644);
-MODULE_PARM_DESC(no_poweroff, "Power management (1: disabled, 2: enabled, "
-	"0 (default): use device-specific default mode).");
+MODULE_PARM_DESC(no_poweroff, "Power management (1: disabled, 2: enabled, 0 (default): use device-specific default mode).");
 
 static int audio_std;
 module_param(audio_std, int, 0644);
-MODULE_PARM_DESC(audio_std, "Audio standard. XC4000 audio decoder explicitly "
-	"needs to know what audio standard is needed for some video standards "
-	"with audio A2 or NICAM. The valid settings are a sum of:\n"
+MODULE_PARM_DESC(audio_std, "Audio standard. XC4000 audio decoder explicitly needs to know what audio standard is needed for some video standards with audio A2 or NICAM. The valid settings are a sum of:\n"
 	" 1: use NICAM/B or A2/B instead of NICAM/A or A2/A\n"
 	" 2: use A2 instead of NICAM or BTSC\n"
 	" 4: use SECAM/K3 instead of K1\n"
@@ -60,8 +57,7 @@ MODULE_PARM_DESC(audio_std, "Audio standard. XC4000 audio decoder explicitly "
 
 static char firmware_name[30];
 module_param_string(firmware_name, firmware_name, sizeof(firmware_name), 0);
-MODULE_PARM_DESC(firmware_name, "Firmware file name. Allows overriding the "
-	"default firmware name.");
+MODULE_PARM_DESC(firmware_name, "Firmware file name. Allows overriding the default firmware name.");
 
 static DEFINE_MUTEX(xc4000_list_mutex);
 static LIST_HEAD(hybrid_tuner_instance_list);
@@ -290,8 +286,7 @@ static int xc4000_tuner_reset(struct dvb_frontend *fe)
 			return -EREMOTEIO;
 		}
 	} else {
-		printk(KERN_ERR "xc4000: no tuner reset callback function, "
-				"fatal\n");
+		printk(KERN_ERR "xc4000: no tuner reset callback function, fatal\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -679,8 +674,7 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 
 	if (best_nr_diffs > 0U) {
 		printk(KERN_WARNING
-		       "Selecting best matching firmware (%u bits differ) for "
-		       "type=(%x), id %016llx:\n",
+		       "Selecting best matching firmware (%u bits differ) for type=(%x), id %016llx:\n",
 		       best_nr_diffs, type, (unsigned long long)*id);
 		i = best_i;
 	}
@@ -800,8 +794,7 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 
 		n++;
 		if (n >= n_array) {
-			printk(KERN_ERR "More firmware images in file than "
-			       "were expected!\n");
+			printk(KERN_ERR "More firmware images in file than were expected!\n");
 			goto corrupt;
 		}
 
@@ -1055,8 +1048,7 @@ check_device:
 		goto fail;
 	}
 
-	dprintk(1, "Device is Xceive %d version %d.%d, "
-		"firmware version %d.%d\n",
+	dprintk(1, "Device is Xceive %d version %d.%d, firmware version %d.%d\n",
 		hwmodel, hw_major, hw_minor, fw_major, fw_minor);
 
 	/* Check firmware version against what we downloaded. */
@@ -1076,8 +1068,7 @@ check_device:
 	} else if (priv->hwmodel == 0 || priv->hwmodel != hwmodel ||
 		   priv->hwvers != ((hw_major << 8) | hw_minor)) {
 		printk(KERN_WARNING
-		       "Read invalid device hardware information - tuner "
-		       "hung?\n");
+		       "Read invalid device hardware information - tuner hung?\n");
 		goto fail;
 	}
 

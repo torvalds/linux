@@ -617,8 +617,8 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 
 	if (tuner_addrs == 0) {
 		tuner_addrs = 0x60;
-		tuner_info("could not clearly identify tuner address, "
-			   "defaulting to %x\n", tuner_addrs);
+		tuner_info("could not clearly identify tuner address, defaulting to %x\n",
+			   tuner_addrs);
 	} else {
 		tuner_addrs = tuner_addrs & 0xff;
 		tuner_info("setting tuner address to %x\n", tuner_addrs);

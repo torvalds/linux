@@ -349,8 +349,8 @@ struct dvb_frontend *mc44s803_attach(struct dvb_frontend *fe,
 	id = MC44S803_REG_MS(reg, MC44S803_ID);
 
 	if (id != 0x14) {
-		mc_printk(KERN_ERR, "unsupported ID "
-		       "(%x should be 0x14)\n", id);
+		mc_printk(KERN_ERR, "unsupported ID (%x should be 0x14)\n",
+			  id);
 		goto error;
 	}
 

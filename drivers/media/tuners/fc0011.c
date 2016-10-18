@@ -262,8 +262,7 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 		regs[FC11_REG_VCOSEL] |= FC11_VCOSEL_BW7M;
 		break;
 	default:
-		dev_warn(&priv->i2c->dev, "Unsupported bandwidth %u kHz. "
-			 "Using 6000 kHz.\n",
+		dev_warn(&priv->i2c->dev, "Unsupported bandwidth %u kHz. Using 6000 kHz.\n",
 			 bandwidth);
 		bandwidth = 6000;
 		/* fallthrough */
@@ -435,9 +434,7 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 	if (err)
 		return err;
 
-	dev_dbg(&priv->i2c->dev, "Tuned to "
-		"fa=%02X fp=%02X xin=%02X%02X vco=%02X vcosel=%02X "
-		"vcocal=%02X(%u) bw=%u\n",
+	dev_dbg(&priv->i2c->dev, "Tuned to fa=%02X fp=%02X xin=%02X%02X vco=%02X vcosel=%02X vcocal=%02X(%u) bw=%u\n",
 		(unsigned int)regs[FC11_REG_FA],
 		(unsigned int)regs[FC11_REG_FP],
 		(unsigned int)regs[FC11_REG_XINHI],
