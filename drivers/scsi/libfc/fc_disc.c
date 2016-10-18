@@ -154,7 +154,7 @@ static void fc_disc_recv_rscn_req(struct fc_disc *disc, struct fc_frame *fp)
 			break;
 		}
 	}
-	lport->tt.seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
+	fc_seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
 
 	/*
 	 * If not doing a complete rediscovery, do GPN_ID on
@@ -182,7 +182,7 @@ reject:
 	FC_DISC_DBG(disc, "Received a bad RSCN frame\n");
 	rjt_data.reason = ELS_RJT_LOGIC;
 	rjt_data.explan = ELS_EXPL_NONE;
-	lport->tt.seq_els_rsp_send(fp, ELS_LS_RJT, &rjt_data);
+	fc_seq_els_rsp_send(fp, ELS_LS_RJT, &rjt_data);
 	fc_frame_free(fp);
 }
 

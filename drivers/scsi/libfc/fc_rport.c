@@ -967,7 +967,7 @@ out:
 reject_put:
 	kref_put(&rdata->kref, lport->tt.rport_destroy);
 reject:
-	lport->tt.seq_els_rsp_send(rx_fp, ELS_LS_RJT, &rjt_data);
+	fc_seq_els_rsp_send(rx_fp, ELS_LS_RJT, &rjt_data);
 	fc_frame_free(rx_fp);
 }
 
@@ -1416,7 +1416,7 @@ static void fc_rport_recv_rtv_req(struct fc_rport_priv *rdata,
 	if (!fp) {
 		rjt_data.reason = ELS_RJT_UNAB;
 		rjt_data.reason = ELS_EXPL_INSUF_RES;
-		lport->tt.seq_els_rsp_send(in_fp, ELS_LS_RJT, &rjt_data);
+		fc_seq_els_rsp_send(in_fp, ELS_LS_RJT, &rjt_data);
 		goto drop;
 	}
 	rtv = fc_frame_payload_get(fp, sizeof(*rtv));
@@ -1591,7 +1591,7 @@ static void fc_rport_recv_adisc_req(struct fc_rport_priv *rdata,
 	if (!adisc) {
 		rjt_data.reason = ELS_RJT_PROT;
 		rjt_data.explan = ELS_EXPL_INV_LEN;
-		lport->tt.seq_els_rsp_send(in_fp, ELS_LS_RJT, &rjt_data);
+		fc_seq_els_rsp_send(in_fp, ELS_LS_RJT, &rjt_data);
 		goto drop;
 	}
 
@@ -1667,7 +1667,7 @@ static void fc_rport_recv_rls_req(struct fc_rport_priv *rdata,
 	goto out;
 
 out_rjt:
-	lport->tt.seq_els_rsp_send(rx_fp, ELS_LS_RJT, &rjt_data);
+	fc_seq_els_rsp_send(rx_fp, ELS_LS_RJT, &rjt_data);
 out:
 	fc_frame_free(rx_fp);
 }
@@ -1734,11 +1734,11 @@ static void fc_rport_recv_els_req(struct fc_lport *lport, struct fc_frame *fp)
 		fc_rport_recv_adisc_req(rdata, fp);
 		break;
 	case ELS_RRQ:
-		lport->tt.seq_els_rsp_send(fp, ELS_RRQ, NULL);
+		fc_seq_els_rsp_send(fp, ELS_RRQ, NULL);
 		fc_frame_free(fp);
 		break;
 	case ELS_REC:
-		lport->tt.seq_els_rsp_send(fp, ELS_REC, NULL);
+		fc_seq_els_rsp_send(fp, ELS_REC, NULL);
 		fc_frame_free(fp);
 		break;
 	case ELS_RLS:
@@ -1759,14 +1759,14 @@ static void fc_rport_recv_els_req(struct fc_lport *lport, struct fc_frame *fp)
 reject:
 	els_data.reason = ELS_RJT_UNAB;
 	els_data.explan = ELS_EXPL_PLOGI_REQD;
-	lport->tt.seq_els_rsp_send(fp, ELS_LS_RJT, &els_data);
+	fc_seq_els_rsp_send(fp, ELS_LS_RJT, &els_data);
 	fc_frame_free(fp);
 	return;
 
 busy:
 	els_data.reason = ELS_RJT_BUSY;
 	els_data.explan = ELS_EXPL_NONE;
-	lport->tt.seq_els_rsp_send(fp, ELS_LS_RJT, &els_data);
+	fc_seq_els_rsp_send(fp, ELS_LS_RJT, &els_data);
 	fc_frame_free(fp);
 	return;
 }
@@ -1812,7 +1812,7 @@ static void fc_rport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 	default:
 		els_data.reason = ELS_RJT_UNSUP;
 		els_data.explan = ELS_EXPL_NONE;
-		lport->tt.seq_els_rsp_send(fp, ELS_LS_RJT, &els_data);
+		fc_seq_els_rsp_send(fp, ELS_LS_RJT, &els_data);
 		fc_frame_free(fp);
 		break;
 	}
@@ -1939,7 +1939,7 @@ out:
 	return;
 
 reject:
-	lport->tt.seq_els_rsp_send(fp, ELS_LS_RJT, &rjt_data);
+	fc_seq_els_rsp_send(fp, ELS_LS_RJT, &rjt_data);
 	fc_frame_free(fp);
 }
 
@@ -2055,7 +2055,7 @@ reject_len:
 	rjt_data.reason = ELS_RJT_PROT;
 	rjt_data.explan = ELS_EXPL_INV_LEN;
 reject:
-	lport->tt.seq_els_rsp_send(rx_fp, ELS_LS_RJT, &rjt_data);
+	fc_seq_els_rsp_send(rx_fp, ELS_LS_RJT, &rjt_data);
 drop:
 	fc_frame_free(rx_fp);
 }
@@ -2126,7 +2126,7 @@ reject_len:
 	rjt_data.reason = ELS_RJT_PROT;
 	rjt_data.explan = ELS_EXPL_INV_LEN;
 reject:
-	lport->tt.seq_els_rsp_send(rx_fp, ELS_LS_RJT, &rjt_data);
+	fc_seq_els_rsp_send(rx_fp, ELS_LS_RJT, &rjt_data);
 drop:
 	fc_frame_free(rx_fp);
 }
@@ -2146,7 +2146,7 @@ static void fc_rport_recv_logo_req(struct fc_lport *lport, struct fc_frame *fp)
 	struct fc_rport_priv *rdata;
 	u32 sid;
 
-	lport->tt.seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
+	fc_seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
 
 	sid = fc_frame_sid(fp);
 

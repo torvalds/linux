@@ -553,14 +553,6 @@ struct libfc_function_template {
 			struct fc_frame *);
 
 	/*
-	 * Send an ELS response using information from the received frame.
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	void (*seq_els_rsp_send)(struct fc_frame *, enum fc_els_cmd,
-				 struct fc_seq_els_data *);
-
-	/*
 	 * Abort an exchange and sequence. Generally called because of a
 	 * exchange timeout or an abort from the upper layer.
 	 *
@@ -1138,6 +1130,8 @@ void fc_fill_hdr(struct fc_frame *, const struct fc_frame *,
  *****************************/
 int fc_exch_init(struct fc_lport *);
 void fc_exch_update_stats(struct fc_lport *lport);
+void fc_seq_els_rsp_send(struct fc_frame *, enum fc_els_cmd,
+			 struct fc_seq_els_data *);
 struct fc_exch_mgr_anchor *fc_exch_mgr_add(struct fc_lport *,
 					   struct fc_exch_mgr *,
 					   bool (*match)(struct fc_frame *));

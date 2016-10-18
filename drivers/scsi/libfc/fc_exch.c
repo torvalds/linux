@@ -1222,8 +1222,8 @@ static void fc_exch_set_addr(struct fc_exch *ep,
  *
  * The received frame is not freed.
  */
-static void fc_seq_els_rsp_send(struct fc_frame *fp, enum fc_els_cmd els_cmd,
-				struct fc_seq_els_data *els_data)
+void fc_seq_els_rsp_send(struct fc_frame *fp, enum fc_els_cmd els_cmd,
+			 struct fc_seq_els_data *els_data)
 {
 	switch (els_cmd) {
 	case ELS_LS_RJT:
@@ -1242,6 +1242,7 @@ static void fc_seq_els_rsp_send(struct fc_frame *fp, enum fc_els_cmd els_cmd,
 		FC_LPORT_DBG(fr_dev(fp), "Invalid ELS CMD:%x\n", els_cmd);
 	}
 }
+EXPORT_SYMBOL_GPL(fc_seq_els_rsp_send);
 
 /**
  * fc_seq_send_last() - Send a sequence that is the last in the exchange
@@ -2634,9 +2635,6 @@ int fc_exch_init(struct fc_lport *lport)
 
 	if (!lport->tt.seq_send)
 		lport->tt.seq_send = fc_seq_send;
-
-	if (!lport->tt.seq_els_rsp_send)
-		lport->tt.seq_els_rsp_send = fc_seq_els_rsp_send;
 
 	if (!lport->tt.exch_done)
 		lport->tt.exch_done = fc_exch_done;

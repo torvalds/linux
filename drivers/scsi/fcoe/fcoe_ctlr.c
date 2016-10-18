@@ -3031,7 +3031,7 @@ static void fcoe_ctlr_disc_recv(struct fc_lport *lport, struct fc_frame *fp)
 
 	rjt_data.reason = ELS_RJT_UNSUP;
 	rjt_data.explan = ELS_EXPL_NONE;
-	lport->tt.seq_els_rsp_send(fp, ELS_LS_RJT, &rjt_data);
+	fc_seq_els_rsp_send(fp, ELS_LS_RJT, &rjt_data);
 	fc_frame_free(fp);
 }
 

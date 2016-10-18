@@ -412,7 +412,7 @@ static void fc_lport_recv_rlir_req(struct fc_lport *lport, struct fc_frame *fp)
 	FC_LPORT_DBG(lport, "Received RLIR request while in state %s\n",
 		     fc_lport_state(lport));
 
-	lport->tt.seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
+	fc_seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
 	fc_frame_free(fp);
 }
 
@@ -481,7 +481,7 @@ static void fc_lport_recv_rnid_req(struct fc_lport *lport,
 	if (!req) {
 		rjt_data.reason = ELS_RJT_LOGIC;
 		rjt_data.explan = ELS_EXPL_NONE;
-		lport->tt.seq_els_rsp_send(in_fp, ELS_LS_RJT, &rjt_data);
+		fc_seq_els_rsp_send(in_fp, ELS_LS_RJT, &rjt_data);
 	} else {
 		fmt = req->rnid_fmt;
 		len = sizeof(*rp);
@@ -521,7 +521,7 @@ static void fc_lport_recv_rnid_req(struct fc_lport *lport,
  */
 static void fc_lport_recv_logo_req(struct fc_lport *lport, struct fc_frame *fp)
 {
-	lport->tt.seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
+	fc_seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
 	fc_lport_enter_reset(lport);
 	fc_frame_free(fp);
 }
