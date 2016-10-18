@@ -408,3 +408,6 @@
 391	common	copy_file_range		sys_copy_file_range
 392	common	preadv2			sys_preadv2
 393	common	pwritev2		sys_pwritev2
+394	common	pkey_mprotect		sys_pkey_mprotect
+395	common	pkey_alloc		sys_pkey_alloc
+396	common	pkey_free		sys_pkey_free
