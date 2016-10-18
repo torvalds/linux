@@ -3092,19 +3092,30 @@ static bool mlxsw_sp_port_dev_check(const struct net_device *dev)
 	return dev->netdev_ops == &mlxsw_sp_port_netdev_ops;
 }
 
+static int mlxsw_lower_dev_walk(struct net_device *lower_dev, void *data)
+{
+	struct mlxsw_sp_port **port = data;
+	int ret = 0;
+
+	if (mlxsw_sp_port_dev_check(lower_dev)) {
+		*port = netdev_priv(lower_dev);
+		ret = 1;
+	}
+
+	return ret;
+}
+
 static struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find(struct net_device *dev)
 {
-	struct net_device *lower_dev;
-	struct list_head *iter;
+	struct mlxsw_sp_port *port;
 
 	if (mlxsw_sp_port_dev_check(dev))
 		return netdev_priv(dev);
 
-	netdev_for_each_all_lower_dev(dev, lower_dev, iter) {
-		if (mlxsw_sp_port_dev_check(lower_dev))
-			return netdev_priv(lower_dev);
-	}
-	return NULL;
+	port = NULL;
+	netdev_walk_all_lower_dev(dev, mlxsw_lower_dev_walk, &port);
+
+	return port;
 }
 
 static struct mlxsw_sp *mlxsw_sp_lower_get(struct net_device *dev)
@@ -3117,17 +3128,15 @@ static struct mlxsw_sp *mlxsw_sp_lower_get(struct net_device *dev)
 
 static struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find_rcu(struct net_device *dev)
 {
-	struct net_device *lower_dev;
-	struct list_head *iter;
+	struct mlxsw_sp_port *port;
 
 	if (mlxsw_sp_port_dev_check(dev))
 		return netdev_priv(dev);
 
-	netdev_for_each_all_lower_dev_rcu(dev, lower_dev, iter) {
-		if (mlxsw_sp_port_dev_check(lower_dev))
-			return netdev_priv(lower_dev);
-	}
-	return NULL;
+	port = NULL;
+	netdev_walk_all_lower_dev_rcu(dev, mlxsw_lower_dev_walk, &port);
+
+	return port;
 }
 
 struct mlxsw_sp_port *mlxsw_sp_port_lower_dev_hold(struct net_device *dev)

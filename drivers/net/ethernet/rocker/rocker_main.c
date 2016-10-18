@@ -2839,20 +2839,37 @@ static bool rocker_port_dev_check_under(const struct net_device *dev,
 	return true;
 }
 
+struct rocker_walk_data {
+	struct rocker *rocker;
+	struct rocker_port *port;
+};
+
+static int rocker_lower_dev_walk(struct net_device *lower_dev, void *_data)
+{
+	struct rocker_walk_data *data = _data;
+	int ret = 0;
+
+	if (rocker_port_dev_check_under(lower_dev, data->rocker)) {
+		data->port = netdev_priv(lower_dev);
+		ret = 1;
+	}
+
+	return ret;
+}
+
 struct rocker_port *rocker_port_dev_lower_find(struct net_device *dev,
 					       struct rocker *rocker)
 {
-	struct net_device *lower_dev;
-	struct list_head *iter;
+	struct rocker_walk_data data;
 
 	if (rocker_port_dev_check_under(dev, rocker))
 		return netdev_priv(dev);
 
-	netdev_for_each_all_lower_dev(dev, lower_dev, iter) {
-		if (rocker_port_dev_check_under(lower_dev, rocker))
-			return netdev_priv(lower_dev);
-	}
-	return NULL;
+	data.rocker = rocker;
+	data.port = NULL;
+	netdev_walk_all_lower_dev(dev, rocker_lower_dev_walk, &data);
+
+	return data.port;
 }
 
 static int rocker_netdevice_event(struct notifier_block *unused,
