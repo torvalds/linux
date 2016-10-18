@@ -30,6 +30,7 @@
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
 #include <drm/drmP.h>
+#include "drm_internal.h"
 
 /**
  * DOC: CRC ABI
@@ -115,7 +116,7 @@ static ssize_t crc_control_write(struct file *file, const char __user *ubuf,
 	return len;
 }
 
-const struct file_operations drm_crtc_crc_control_fops = {
+static const struct file_operations drm_crtc_crc_control_fops = {
 	.owner = THIS_MODULE,
 	.open = crc_control_open,
 	.read = seq_read,
@@ -261,7 +262,7 @@ static ssize_t crtc_crc_read(struct file *filep, char __user *user_buf,
 	return LINE_LEN(crc->values_cnt);
 }
 
-const struct file_operations drm_crtc_crc_data_fops = {
+static const struct file_operations drm_crtc_crc_data_fops = {
 	.owner = THIS_MODULE,
 	.open = crtc_crc_open,
 	.read = crtc_crc_read,
