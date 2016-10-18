@@ -708,8 +708,8 @@ static void ttusb_dec_process_urb_frame(struct ttusb_dec *dec, u8 *b,
 					dec->packet_payload_length = 2;
 					dec->packet_state = 7;
 				} else {
-					printk("%s: unknown packet type: "
-					       "%02x%02x\n", __func__,
+					printk("%s: unknown packet type: %02x%02x\n",
+					       __func__,
 					       dec->packet[0], dec->packet[1]);
 					dec->packet_state = 0;
 				}
@@ -961,8 +961,8 @@ static int ttusb_dec_start_iso_xfer(struct ttusb_dec *dec)
 		for (i = 0; i < ISO_BUF_COUNT; i++) {
 			if ((result = usb_submit_urb(dec->iso_urb[i],
 						     GFP_ATOMIC))) {
-				printk("%s: failed urb submission %d: "
-				       "error %d\n", __func__, i, result);
+				printk("%s: failed urb submission %d: error %d\n",
+				       __func__, i, result);
 
 				while (i) {
 					usb_kill_urb(dec->iso_urb[i - 1]);
@@ -1375,8 +1375,7 @@ static int ttusb_dec_boot_dsp(struct ttusb_dec *dec)
 	memcpy(&tmp, &firmware[56], 4);
 	crc32_check = ntohl(tmp);
 	if (crc32_csum != crc32_check) {
-		printk("%s: crc32 check of DSP code failed (calculated "
-		       "0x%08x != 0x%08x in file), file invalid.\n",
+		printk("%s: crc32 check of DSP code failed (calculated 0x%08x != 0x%08x in file), file invalid.\n",
 			__func__, crc32_csum, crc32_check);
 		release_firmware(fw_entry);
 		return -ENOENT;
@@ -1453,11 +1452,9 @@ static int ttusb_dec_init_stb(struct ttusb_dec *dec)
 
 	if (!mode) {
 		if (version == 0xABCDEFAB)
-			printk(KERN_INFO "ttusb_dec: no version "
-			       "info in Firmware\n");
+			printk(KERN_INFO "ttusb_dec: no version info in Firmware\n");
 		else
-			printk(KERN_INFO "ttusb_dec: Firmware "
-			       "%x.%02x%c%c\n",
+			printk(KERN_INFO "ttusb_dec: Firmware %x.%02x%c%c\n",
 			       version >> 24, (version >> 16) & 0xff,
 			       (version >> 8) & 0xff, version & 0xff);
 
@@ -1481,8 +1478,7 @@ static int ttusb_dec_init_stb(struct ttusb_dec *dec)
 			ttusb_dec_set_model(dec, TTUSB_DEC2540T);
 			break;
 		default:
-			printk(KERN_ERR "%s: unknown model returned "
-			       "by firmware (%08x) - please report\n",
+			printk(KERN_ERR "%s: unknown model returned by firmware (%08x) - please report\n",
 			       __func__, model);
 			return -ENOENT;
 		}
