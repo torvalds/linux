@@ -444,6 +444,11 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 		u32 lflags = handlereq.flags;
 		struct gpio_desc *desc;
 
+		if (offset >= gdev->ngpio) {
+			ret = -EINVAL;
+			goto out_free_descs;
+		}
+
 		desc = &gdev->descs[offset];
 		ret = gpiod_request(desc, lh->label);
 		if (ret)
