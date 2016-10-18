@@ -372,8 +372,7 @@ static void stk_isoc_handler(struct urb *urb)
 			if (fb->v4lbuf.bytesused != 0
 				&& fb->v4lbuf.bytesused != dev->frame_size) {
 				(void) (printk_ratelimit() &&
-				STK_ERROR("frame %d, "
-					"bytesused=%d, skipping\n",
+				STK_ERROR("frame %d, bytesused=%d, skipping\n",
 					i, fb->v4lbuf.bytesused));
 				fb->v4lbuf.bytesused = 0;
 				fill = fb->buffer;

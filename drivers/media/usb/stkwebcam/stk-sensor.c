@@ -391,8 +391,8 @@ int stk_sensor_init(struct stk_camera *dev)
 	}
 	stk_sensor_write_regvals(dev, ov_initvals);
 	msleep(10);
-	STK_INFO("OmniVision sensor detected, id %02X%02X"
-		" at address %x\n", idh, idl, SENSOR_ADDRESS);
+	STK_INFO("OmniVision sensor detected, id %02X%02X at address %x\n",
+		 idh, idl, SENSOR_ADDRESS);
 	return 0;
 }
 
