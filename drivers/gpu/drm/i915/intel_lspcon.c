@@ -27,7 +27,7 @@
 #include <drm/drm_dp_dual_mode_helper.h>
 #include "intel_drv.h"
 
-enum drm_lspcon_mode lspcon_get_current_mode(struct intel_lspcon *lspcon)
+static enum drm_lspcon_mode lspcon_get_current_mode(struct intel_lspcon *lspcon)
 {
 	enum drm_lspcon_mode current_mode = DRM_LSPCON_MODE_INVALID;
 	struct i2c_adapter *adapter = &lspcon->aux->ddc;
