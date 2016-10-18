@@ -2180,7 +2180,7 @@ static void fcoe_ctlr_disc_stop_locked(struct fc_lport *lport)
 	list_for_each_entry_rcu(rdata, &lport->disc.rports, peers) {
 		if (kref_get_unless_zero(&rdata->kref)) {
 			lport->tt.rport_logoff(rdata);
-			kref_put(&rdata->kref, lport->tt.rport_destroy);
+			kref_put(&rdata->kref, fc_rport_destroy);
 		}
 	}
 	rcu_read_unlock();
@@ -2566,7 +2566,7 @@ static int fcoe_ctlr_vn_lookup(struct fcoe_ctlr *fip, u32 port_id, u8 *mac)
 		frport = fcoe_ctlr_rport(rdata);
 		memcpy(mac, frport->enode_mac, ETH_ALEN);
 		ret = 0;
-		kref_put(&rdata->kref, lport->tt.rport_destroy);
+		kref_put(&rdata->kref, fc_rport_destroy);
 	}
 	return ret;
 }
@@ -2678,7 +2678,7 @@ static void fcoe_ctlr_vn_beacon(struct fcoe_ctlr *fip,
 			}
 			frport->time = jiffies;
 		}
-		kref_put(&rdata->kref, lport->tt.rport_destroy);
+		kref_put(&rdata->kref, fc_rport_destroy);
 		return;
 	}
 	if (fip->state != FIP_ST_VNMP_UP)
@@ -2719,7 +2719,7 @@ static unsigned long fcoe_ctlr_vn_age(struct fcoe_ctlr *fip)
 			continue;
 		frport = fcoe_ctlr_rport(rdata);
 		if (!frport->time) {
-			kref_put(&rdata->kref, lport->tt.rport_destroy);
+			kref_put(&rdata->kref, fc_rport_destroy);
 			continue;
 		}
 		deadline = frport->time +
@@ -2732,7 +2732,7 @@ static unsigned long fcoe_ctlr_vn_age(struct fcoe_ctlr *fip)
 			lport->tt.rport_logoff(rdata);
 		} else if (time_before(deadline, next_time))
 			next_time = deadline;
-		kref_put(&rdata->kref, lport->tt.rport_destroy);
+		kref_put(&rdata->kref, fc_rport_destroy);
 	}
 	rcu_read_unlock();
 	return next_time;
@@ -3089,7 +3089,7 @@ static void fcoe_ctlr_vn_disc(struct fcoe_ctlr *fip)
 		frport = fcoe_ctlr_rport(rdata);
 		if (frport->time)
 			lport->tt.rport_login(rdata);
-		kref_put(&rdata->kref, lport->tt.rport_destroy);
+		kref_put(&rdata->kref, fc_rport_destroy);
 	}
 	rcu_read_unlock();
 	if (callback)

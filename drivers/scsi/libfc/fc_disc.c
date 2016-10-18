@@ -72,7 +72,7 @@ static void fc_disc_stop_rports(struct fc_disc *disc)
 	list_for_each_entry_rcu(rdata, &disc->rports, peers) {
 		if (kref_get_unless_zero(&rdata->kref)) {
 			lport->tt.rport_logoff(rdata);
-			kref_put(&rdata->kref, lport->tt.rport_destroy);
+			kref_put(&rdata->kref, fc_rport_destroy);
 		}
 	}
 	rcu_read_unlock();
@@ -303,7 +303,7 @@ static void fc_disc_done(struct fc_disc *disc, enum fc_disc_event event)
 			else
 				lport->tt.rport_logoff(rdata);
 		}
-		kref_put(&rdata->kref, lport->tt.rport_destroy);
+		kref_put(&rdata->kref, fc_rport_destroy);
 	}
 	rcu_read_unlock();
 	mutex_unlock(&disc->disc_mutex);
@@ -649,7 +649,7 @@ redisc:
 		mutex_unlock(&disc->disc_mutex);
 	}
 out:
-	kref_put(&rdata->kref, lport->tt.rport_destroy);
+	kref_put(&rdata->kref, fc_rport_destroy);
 }
 
 /**

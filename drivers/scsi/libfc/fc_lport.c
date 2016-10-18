@@ -247,7 +247,7 @@ static void fc_lport_ptp_setup(struct fc_lport *lport,
 {
 	if (lport->ptp_rdata) {
 		lport->tt.rport_logoff(lport->ptp_rdata);
-		kref_put(&lport->ptp_rdata->kref, lport->tt.rport_destroy);
+		kref_put(&lport->ptp_rdata->kref, fc_rport_destroy);
 	}
 	mutex_lock(&lport->disc.disc_mutex);
 	lport->ptp_rdata = lport->tt.rport_create(lport, remote_fid);
@@ -1017,7 +1017,7 @@ static void fc_lport_reset_locked(struct fc_lport *lport)
 
 	if (lport->ptp_rdata) {
 		lport->tt.rport_logoff(lport->ptp_rdata);
-		kref_put(&lport->ptp_rdata->kref, lport->tt.rport_destroy);
+		kref_put(&lport->ptp_rdata->kref, fc_rport_destroy);
 		lport->ptp_rdata = NULL;
 	}
 
@@ -2129,7 +2129,7 @@ int fc_lport_bsg_request(struct fc_bsg_job *job)
 			if (!rdata)
 				break;
 			tov = rdata->e_d_tov;
-			kref_put(&rdata->kref, lport->tt.rport_destroy);
+			kref_put(&rdata->kref, fc_rport_destroy);
 		}
 
 		rc = fc_lport_ct_request(job, lport, did, tov);

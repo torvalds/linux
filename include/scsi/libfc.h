@@ -652,12 +652,6 @@ struct libfc_function_template {
 	struct fc_rport_priv *(*rport_lookup)(const struct fc_lport *, u32);
 
 	/*
-	 * Destroy an rport after final kref_put().
-	 * The argument is a pointer to the kref inside the fc_rport_priv.
-	 */
-	void (*rport_destroy)(struct kref *);
-
-	/*
 	 * Callback routine after the remote port is logged in
 	 *
 	 * STATUS: OPTIONAL
@@ -1035,6 +1029,7 @@ void fc_lport_iterate(void (*func)(struct fc_lport *, void *), void *);
  *****************************/
 int fc_rport_init(struct fc_lport *);
 void fc_rport_terminate_io(struct fc_rport *);
+void fc_rport_destroy(struct kref *kref);
 
 /*
  * DISCOVERY LAYER
