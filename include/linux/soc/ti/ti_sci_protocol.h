@@ -115,11 +115,89 @@ struct ti_sci_dev_ops {
 };
 
 /**
+ * struct ti_sci_clk_ops - Clock control operations
+ * @get_clock:	Request for activation of clock and manage by processor
+ *		- needs_ssc: 'true' if Spread Spectrum clock is desired.
+ *		- can_change_freq: 'true' if frequency change is desired.
+ *		- enable_input_term: 'true' if input termination is desired.
+ * @idle_clock:	Request for Idling a clock managed by processor
+ * @put_clock:	Release the clock to be auto managed by TISCI
+ * @is_auto:	Is the clock being auto managed
+ *		- req_state: state indicating if the clock is auto managed
+ * @is_on:	Is the clock ON
+ *		- req_state: if the clock is requested to be forced ON
+ *		- current_state: if the clock is currently ON
+ * @is_off:	Is the clock OFF
+ *		- req_state: if the clock is requested to be forced OFF
+ *		- current_state: if the clock is currently Gated
+ * @set_parent:	Set the clock source of a specific device clock
+ *		- parent_id: Parent clock identifier to set.
+ * @get_parent:	Get the current clock source of a specific device clock
+ *		- parent_id: Parent clock identifier which is the parent.
+ * @get_num_parents: Get the number of parents of the current clock source
+ *		- num_parents: returns the number of parent clocks.
+ * @get_best_match_freq: Find a best matching frequency for a frequency
+ *		range.
+ *		- match_freq: Best matching frequency in Hz.
+ * @set_freq:	Set the Clock frequency
+ * @get_freq:	Get the Clock frequency
+ *		- current_freq: Frequency in Hz that the clock is at.
+ *
+ * NOTE: for all these functions, the following parameters are generic in
+ * nature:
+ * -handle:	Pointer to TISCI handle as retrieved by *ti_sci_get_handle
+ * -did:	Device identifier this request is for
+ * -cid:	Clock identifier for the device for this request.
+ *		Each device has it's own set of clock inputs. This indexes
+ *		which clock input to modify.
+ * -min_freq:	The minimum allowable frequency in Hz. This is the minimum
+ *		allowable programmed frequency and does not account for clock
+ *		tolerances and jitter.
+ * -target_freq: The target clock frequency in Hz. A frequency will be
+ *		processed as close to this target frequency as possible.
+ * -max_freq:	The maximum allowable frequency in Hz. This is the maximum
+ *		allowable programmed frequency and does not account for clock
+ *		tolerances and jitter.
+ *
+ * Request for the clock - NOTE: the client MUST maintain integrity of
+ * usage count by balancing get_clock with put_clock. No refcounting is
+ * managed by driver for that purpose.
+ */
+struct ti_sci_clk_ops {
+	int (*get_clock)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+			 bool needs_ssc, bool can_change_freq,
+			 bool enable_input_term);
+	int (*idle_clock)(const struct ti_sci_handle *handle, u32 did, u8 cid);
+	int (*put_clock)(const struct ti_sci_handle *handle, u32 did, u8 cid);
+	int (*is_auto)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+		       bool *req_state);
+	int (*is_on)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+		     bool *req_state, bool *current_state);
+	int (*is_off)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+		      bool *req_state, bool *current_state);
+	int (*set_parent)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+			  u8 parent_id);
+	int (*get_parent)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+			  u8 *parent_id);
+	int (*get_num_parents)(const struct ti_sci_handle *handle, u32 did,
+			       u8 cid, u8 *num_parents);
+	int (*get_best_match_freq)(const struct ti_sci_handle *handle, u32 did,
+				   u8 cid, u64 min_freq, u64 target_freq,
+				   u64 max_freq, u64 *match_freq);
+	int (*set_freq)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+			u64 min_freq, u64 target_freq, u64 max_freq);
+	int (*get_freq)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+			u64 *current_freq);
+};
+
+/**
  * struct ti_sci_ops - Function support for TI SCI
  * @dev_ops:	Device specific operations
+ * @clk_ops:	Clock specific operations
  */
 struct ti_sci_ops {
 	struct ti_sci_dev_ops dev_ops;
+	struct ti_sci_clk_ops clk_ops;
 };
 
 /**
