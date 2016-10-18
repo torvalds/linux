@@ -11,6 +11,12 @@
  */
 
 / {
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0>;
+	};
+
 	pwmleds {
 		compatible = "pwm-leds";
 

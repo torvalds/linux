@@ -97,7 +97,6 @@ static struct acpi_driver fjes_acpi_driver = {
 static struct platform_driver fjes_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = fjes_probe,
 	.remove = fjes_remove,

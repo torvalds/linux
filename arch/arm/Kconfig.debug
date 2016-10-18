@@ -186,10 +186,11 @@ choice
 	config DEBUG_BRCMSTB_UART
 		bool "Use BRCMSTB UART for low-level debug"
 		depends on ARCH_BRCMSTB
-		select DEBUG_UART_8250
 		help
 		  Say Y here if you want the debug print routines to direct
-		  their output to the first serial port on these devices.
+		  their output to the first serial port on these devices. The
+		  UART physical and virtual address is automatically provided
+		  based on the chip identification register value.
 
 		  If you have a Broadcom STB chip and would like early print
 		  messages to appear over the UART, select this option.
@@ -861,12 +862,12 @@ choice
 		  via SCIF2 on Renesas R-Car H1 (R8A7779).
 
 	config DEBUG_RCAR_GEN2_SCIF0
-		bool "Kernel low-level debugging messages via SCIF0 on R8A7790/R8A7791/R8A7793"
-		depends on ARCH_R8A7790 || ARCH_R8A7791 || ARCH_R8A7793
+		bool "Kernel low-level debugging messages via SCIF0 on R8A7790/R8A7791/R8A7792/R8A7793"
+		depends on ARCH_R8A7790 || ARCH_R8A7791 || ARCH_R8A7792 || ARCH_R8A7793
 		help
 		  Say Y here if you want kernel low-level debugging support
-		  via SCIF0 on Renesas R-Car H2 (R8A7790), M2-W (R8A7791), or
-		  M2-N (R8A7793).
+		  via SCIF0 on Renesas R-Car H2 (R8A7790), M2-W (R8A7791), V2H
+		  (R8A7792), or M2-N (R8A7793).
 
 	config DEBUG_RCAR_GEN2_SCIF2
 		bool "Kernel low-level debugging messages via SCIF2 on R8A7794"
@@ -1430,6 +1431,7 @@ config DEBUG_LL_INCLUDE
 	default "debug/zynq.S" if DEBUG_ZYNQ_UART0 || DEBUG_ZYNQ_UART1
 	default "debug/bcm63xx.S" if DEBUG_BCM63XX_UART
 	default "debug/digicolor.S" if DEBUG_DIGICOLOR_UA0
+	default "debug/brcmstb.S" if DEBUG_BRCMSTB_UART
 	default "mach/debug-macro.S"
 
 # Compatibility options for PL01x
@@ -1520,7 +1522,6 @@ config DEBUG_UART_PHYS
 	default 0xe6e60000 if DEBUG_RCAR_GEN2_SCIF0
 	default 0xe8008000 if DEBUG_R7S72100_SCIF2
 	default 0xf0000be0 if ARCH_EBSA110
-	default 0xf040ab00 if DEBUG_BRCMSTB_UART
 	default 0xf1012000 if DEBUG_MVEBU_UART0_ALTERNATE
 	default 0xf1012100 if DEBUG_MVEBU_UART1_ALTERNATE
 	default 0xf7fc9000 if DEBUG_BERLIN_UART
@@ -1604,7 +1605,6 @@ config DEBUG_UART_VIRT
 	default 0xfb009000 if DEBUG_REALVIEW_STD_PORT
 	default 0xfb00c000 if DEBUG_AT91_SAMA5D4_USART3
 	default 0xfb10c000 if DEBUG_REALVIEW_PB1176_PORT
-	default 0xfc40ab00 if DEBUG_BRCMSTB_UART
 	default 0xfc705000 if DEBUG_ZTE_ZX
 	default 0xfcfe8600 if DEBUG_BCM63XX_UART
 	default 0xfd000000 if DEBUG_SPEAR3XX || DEBUG_SPEAR13XX
@@ -1677,8 +1677,7 @@ config DEBUG_UART_8250_WORD
 		DEBUG_ALPINE_UART0 || \
 		DEBUG_DAVINCI_DMx_UART0 || DEBUG_DAVINCI_DA8XX_UART1 || \
 		DEBUG_DAVINCI_DA8XX_UART2 || \
-		DEBUG_BCM_KONA_UART || DEBUG_RK32_UART2 || \
-		DEBUG_BRCMSTB_UART
+		DEBUG_BCM_KONA_UART || DEBUG_RK32_UART2
 
 config DEBUG_UART_8250_PALMCHIP
 	bool "8250 UART is Palmchip BK-310x"
@@ -1697,7 +1696,8 @@ config DEBUG_UNCOMPRESS
 	bool
 	depends on ARCH_MULTIPLATFORM || PLAT_SAMSUNG || ARM_SINGLE_ARMV7M
 	default y if DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
-		     (!DEBUG_TEGRA_UART || !ZBOOT_ROM)
+		     (!DEBUG_TEGRA_UART || !ZBOOT_ROM) && \
+		     !DEBUG_BRCMSTB_UART
 	help
 	  This option influences the normal decompressor output for
 	  multiplatform kernels.  Normally, multiplatform kernels disable

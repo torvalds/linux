@@ -699,7 +699,7 @@ static int hisi_femac_net_ioctl(struct net_device *dev,
 	return phy_mii_ioctl(dev->phydev, ifreq, cmd);
 }
 
-static struct ethtool_ops hisi_femac_ethtools_ops = {
+static const struct ethtool_ops hisi_femac_ethtools_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
@@ -940,8 +940,8 @@ static int hisi_femac_drv_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-int hisi_femac_drv_suspend(struct platform_device *pdev,
-			   pm_message_t state)
+static int hisi_femac_drv_suspend(struct platform_device *pdev,
+				  pm_message_t state)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct hisi_femac_priv *priv = netdev_priv(ndev);
@@ -957,7 +957,7 @@ int hisi_femac_drv_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-int hisi_femac_drv_resume(struct platform_device *pdev)
+static int hisi_femac_drv_resume(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct hisi_femac_priv *priv = netdev_priv(ndev);

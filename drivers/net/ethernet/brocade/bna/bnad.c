@@ -54,9 +54,7 @@ MODULE_PARM_DESC(bna_debugfs_enable, "Enables debugfs feature, default=1,"
  * Global variables
  */
 static u32 bnad_rxqs_per_cq = 2;
-static u32 bna_id;
-static struct mutex bnad_list_mutex;
-static LIST_HEAD(bnad_list);
+static atomic_t bna_id;
 static const u8 bnad_bcast_addr[] __aligned(2) =
 	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -75,23 +73,6 @@ do {								\
 	(_res_info)->res_u.mem_info.num = (_num);		\
 	(_res_info)->res_u.mem_info.len = (_size);		\
 } while (0)
-
-static void
-bnad_add_to_list(struct bnad *bnad)
-{
-	mutex_lock(&bnad_list_mutex);
-	list_add_tail(&bnad->list_entry, &bnad_list);
-	bnad->id = bna_id++;
-	mutex_unlock(&bnad_list_mutex);
-}
-
-static void
-bnad_remove_from_list(struct bnad *bnad)
-{
-	mutex_lock(&bnad_list_mutex);
-	list_del(&bnad->list_entry);
-	mutex_unlock(&bnad_list_mutex);
-}
 
 /*
  * Reinitialize completions in CQ, once Rx is taken down
@@ -3573,14 +3554,12 @@ bnad_lock_init(struct bnad *bnad)
 {
 	spin_lock_init(&bnad->bna_lock);
 	mutex_init(&bnad->conf_mutex);
-	mutex_init(&bnad_list_mutex);
 }
 
 static void
 bnad_lock_uninit(struct bnad *bnad)
 {
 	mutex_destroy(&bnad->conf_mutex);
-	mutex_destroy(&bnad_list_mutex);
 }
 
 /* PCI Initialization */
@@ -3653,7 +3632,7 @@ bnad_pci_probe(struct pci_dev *pdev,
 	}
 	bnad = netdev_priv(netdev);
 	bnad_lock_init(bnad);
-	bnad_add_to_list(bnad);
+	bnad->id = atomic_inc_return(&bna_id) - 1;
 
 	mutex_lock(&bnad->conf_mutex);
 	/*
@@ -3807,7 +3786,6 @@ pci_uninit:
 	bnad_pci_uninit(pdev);
 unlock_mutex:
 	mutex_unlock(&bnad->conf_mutex);
-	bnad_remove_from_list(bnad);
 	bnad_lock_uninit(bnad);
 	free_netdev(netdev);
 	return err;
@@ -3845,7 +3823,6 @@ bnad_pci_remove(struct pci_dev *pdev)
 	bnad_disable_msix(bnad);
 	bnad_pci_uninit(pdev);
 	mutex_unlock(&bnad->conf_mutex);
-	bnad_remove_from_list(bnad);
 	bnad_lock_uninit(bnad);
 	/* Remove the debugfs node for this bnad */
 	kfree(bnad->regdata);

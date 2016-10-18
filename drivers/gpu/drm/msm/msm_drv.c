@@ -26,9 +26,10 @@
  * MSM driver version:
  * - 1.0.0 - initial interface
  * - 1.1.0 - adds madvise, and support for submits with > 4 cmd buffers
+ * - 1.2.0 - adds explicit fence support for submit ioctl
  */
 #define MSM_VERSION_MAJOR	1
-#define MSM_VERSION_MINOR	1
+#define MSM_VERSION_MINOR	2
 #define MSM_VERSION_PATCHLEVEL	0
 
 static void msm_fb_output_poll_changed(struct drm_device *dev)
@@ -347,9 +348,9 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	int ret;
 
 	ddev = drm_dev_alloc(drv, dev);
-	if (!ddev) {
+	if (IS_ERR(ddev)) {
 		dev_err(dev, "failed to allocate drm_device\n");
-		return -ENOMEM;
+		return PTR_ERR(ddev);
 	}
 
 	platform_set_drvdata(pdev, ddev);

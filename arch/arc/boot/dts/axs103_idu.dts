@@ -16,6 +16,7 @@
 /include/ "axs10x_mb.dtsi"
 
 / {
+	model = "snps,axs103-smp";
 	compatible = "snps,axs103", "snps,arc-sdp";
 
 	chosen {

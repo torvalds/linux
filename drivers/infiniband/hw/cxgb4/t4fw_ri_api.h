@@ -669,6 +669,18 @@ struct fw_ri_fr_nsmr_wr {
 #define FW_RI_FR_NSMR_WR_DCACPU_G(x)	\
 	(((x) >> FW_RI_FR_NSMR_WR_DCACPU_S) & FW_RI_FR_NSMR_WR_DCACPU_M)
 
+struct fw_ri_fr_nsmr_tpte_wr {
+	__u8	opcode;
+	__u8   flags;
+	__u16  wrid;
+	__u8   r1[3];
+	__u8   len16;
+	__u32  r2;
+	__u32  stag;
+	struct fw_ri_tpte tpte;
+	__u64  pbl[2];
+};
+
 struct fw_ri_inv_lstag_wr {
 	__u8   opcode;
 	__u8   flags;

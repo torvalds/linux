@@ -34,7 +34,6 @@ static int pwmss_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
 
 	/* Populate all the child nodes here... */
 	ret = of_platform_populate(node, NULL, NULL, &pdev->dev);
@@ -46,31 +45,13 @@ static int pwmss_probe(struct platform_device *pdev)
 
 static int pwmss_remove(struct platform_device *pdev)
 {
-	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int pwmss_suspend(struct device *dev)
-{
-	pm_runtime_put_sync(dev);
-	return 0;
-}
-
-static int pwmss_resume(struct device *dev)
-{
-	pm_runtime_get_sync(dev);
-	return 0;
-}
-#endif
-
-static SIMPLE_DEV_PM_OPS(pwmss_pm_ops, pwmss_suspend, pwmss_resume);
-
 static struct platform_driver pwmss_driver = {
 	.driver	= {
 		.name	= "pwmss",
-		.pm	= &pwmss_pm_ops,
 		.of_match_table	= pwmss_of_match,
 	},
 	.probe	= pwmss_probe,

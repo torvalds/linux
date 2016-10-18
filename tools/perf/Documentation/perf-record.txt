@@ -35,15 +35,15 @@ OPTIONS
 
 	- a symbolically formed PMU event like 'pmu/param1=0x3,param2/' where
 	  'param1', 'param2', etc are defined as formats for the PMU in
-	  /sys/bus/event_sources/devices/<pmu>/format/*.
+	  /sys/bus/event_source/devices/<pmu>/format/*.
 
 	- a symbolically formed event like 'pmu/config=M,config1=N,config3=K/'
 
           where M, N, K are numbers (in decimal, hex, octal format). Acceptable
           values for each of 'config', 'config1' and 'config2' are defined by
-          corresponding entries in /sys/bus/event_sources/devices/<pmu>/format/*
+          corresponding entries in /sys/bus/event_source/devices/<pmu>/format/*
           param1 and param2 are defined as formats for the PMU in:
-          /sys/bus/event_sources/devices/<pmu>/format/*
+          /sys/bus/event_source/devices/<pmu>/format/*
 
 	  There are also some params which are not defined in .../<pmu>/format/*.
 	  These params can be used to overload default config values per event.
@@ -59,6 +59,18 @@ OPTIONS
 	  - 'stack-size': user stack size for dwarf mode
 	  Note: If user explicitly sets options which conflict with the params,
 	  the value set by the params will be overridden.
+
+	  Also not defined in .../<pmu>/format/* are PMU driver specific
+	  configuration parameters.  Any configuration parameter preceded by
+	  the letter '@' is not interpreted in user space and sent down directly
+	  to the PMU driver.  For example:
+
+	  perf record -e some_event/@cfg1,@cfg2=config/ ...
+
+	  will see 'cfg1' and 'cfg2=config' pushed to the PMU driver associated
+	  with the event for further processing.  There is no restriction on
+	  what the configuration parameters are, as long as their semantic is
+	  understood and supported by the PMU driver.
 
         - a hardware breakpoint event in the form of '\mem:addr[/len][:access]'
           where addr is the address in memory you want to break in.
@@ -77,8 +89,61 @@ OPTIONS
 
 --filter=<filter>::
         Event filter. This option should follow a event selector (-e) which
-	selects tracepoint event(s). Multiple '--filter' options are combined
+	selects either tracepoint event(s) or a hardware trace PMU
+	(e.g. Intel PT or CoreSight).
+
+	- tracepoint filters
+
+	In the case of tracepoints, multiple '--filter' options are combined
 	using '&&'.
+
+	- address filters
+
+	A hardware trace PMU advertises its ability to accept a number of
+	address filters	by specifying a non-zero value in
+	/sys/bus/event_source/devices/<pmu>/nr_addr_filters.
+
+	Address filters have the format:
+
+	filter|start|stop|tracestop <start> [/ <size>] [@<file name>]
+
+	Where:
+	- 'filter': defines a region that will be traced.
+	- 'start': defines an address at which tracing will begin.
+	- 'stop': defines an address at which tracing will stop.
+	- 'tracestop': defines a region in which tracing will stop.
+
+	<file name> is the name of the object file, <start> is the offset to the
+	code to trace in that file, and <size> is the size of the region to
+	trace. 'start' and 'stop' filters need not specify a <size>.
+
+	If no object file is specified then the kernel is assumed, in which case
+	the start address must be a current kernel memory address.
+
+	<start> can also be specified by providing the name of a symbol. If the
+	symbol name is not unique, it can be disambiguated by inserting #n where
+	'n' selects the n'th symbol in address order. Alternately #0, #g or #G
+	select only a global symbol. <size> can also be specified by providing
+	the name of a symbol, in which case the size is calculated to the end
+	of that symbol. For 'filter' and 'tracestop' filters, if <size> is
+	omitted and <start> is a symbol, then the size is calculated to the end
+	of that symbol.
+
+	If <size> is omitted and <start> is '*', then the start and size will
+	be calculated from the first and last symbols, i.e. to trace the whole
+	file.
+
+	If symbol names (or '*') are provided, they must be surrounded by white
+	space.
+
+	The filter passed to the kernel is not necessarily the same as entered.
+	To see the filter that is passed, use the -v option.
+
+	The kernel may not be able to configure a trace region if it is not
+	within a single mapping.  MMAP events (or /proc/<pid>/maps) can be
+	examined to determine if that is a possibility.
+
+	Multiple filters can be separated with space or comma.
 
 --exclude-perf::
 	Don't record events issued by perf itself. This option should follow

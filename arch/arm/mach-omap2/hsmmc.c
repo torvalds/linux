@@ -26,7 +26,7 @@
 #include "hsmmc.h"
 #include "control.h"
 
-#if defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
+#if IS_ENABLED(CONFIG_MMC_OMAP_HS)
 
 static u16 control_pbias_offset;
 static u16 control_devconf1_offset;

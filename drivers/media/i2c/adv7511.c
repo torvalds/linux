@@ -1898,6 +1898,7 @@ static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *
 					       state->i2c_cec_addr >> 1);
 		if (state->i2c_cec == NULL) {
 			v4l2_err(sd, "failed to register cec i2c client\n");
+			err = -ENOMEM;
 			goto err_unreg_edid;
 		}
 		adv7511_wr(sd, 0xe2, 0x00); /* power up cec section */

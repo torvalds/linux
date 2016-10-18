@@ -175,10 +175,7 @@ static int spi_st_transfer_one(struct spi_master *master,
 
 static void spi_st_cleanup(struct spi_device *spi)
 {
-	int cs = spi->cs_gpio;
-
-	if (gpio_is_valid(cs))
-		devm_gpio_free(&spi->dev, cs);
+	gpio_free(spi->cs_gpio);
 }
 
 /* the spi->mode bits understood by this driver: */
@@ -201,14 +198,15 @@ static int spi_st_setup(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	if (devm_gpio_request(&spi->dev, cs, dev_name(&spi->dev))) {
+	ret = gpio_request(cs, dev_name(&spi->dev));
+	if (ret) {
 		dev_err(&spi->dev, "could not request gpio:%d\n", cs);
-		return -EINVAL;
+		return ret;
 	}
 
 	ret = gpio_direction_output(cs, spi->mode & SPI_CS_HIGH);
 	if (ret)
-		return ret;
+		goto out_free_gpio;
 
 	spi_st_clk = clk_get_rate(spi_st->clk);
 
@@ -217,7 +215,8 @@ static int spi_st_setup(struct spi_device *spi)
 	if (sscbrg < 0x07 || sscbrg > BIT(16)) {
 		dev_err(&spi->dev,
 			"baudrate %d outside valid range %d\n", sscbrg, hz);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_free_gpio;
 	}
 
 	spi_st->baud = spi_st_clk / (2 * sscbrg);
@@ -266,6 +265,10 @@ static int spi_st_setup(struct spi_device *spi)
 	 readl_relaxed(spi_st->base + SSC_RBUF);
 
 	 return 0;
+
+out_free_gpio:
+	gpio_free(cs);
+	return ret;
 }
 
 /* Interrupt fired when TX shift register becomes empty */

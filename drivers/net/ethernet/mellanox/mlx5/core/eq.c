@@ -86,23 +86,12 @@ struct cre_des_eq {
 
 static int mlx5_cmd_destroy_eq(struct mlx5_core_dev *dev, u8 eqn)
 {
-	struct mlx5_destroy_eq_mbox_in in;
-	struct mlx5_destroy_eq_mbox_out out;
-	int err;
+	u32 out[MLX5_ST_SZ_DW(destroy_eq_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(destroy_eq_in)]   = {0};
 
-	memset(&in, 0, sizeof(in));
-	memset(&out, 0, sizeof(out));
-	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_DESTROY_EQ);
-	in.eqn = eqn;
-	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
-	if (!err)
-		goto ex;
-
-	if (out.hdr.status)
-		err = mlx5_cmd_status_to_err(&out.hdr);
-
-ex:
-	return err;
+	MLX5_SET(destroy_eq_in, in, opcode, MLX5_CMD_OP_DESTROY_EQ);
+	MLX5_SET(destroy_eq_in, in, eq_number, eqn);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
 static struct mlx5_eqe *get_eqe(struct mlx5_eq *eq, u32 entry)
@@ -351,11 +340,13 @@ static void init_eq_buf(struct mlx5_eq *eq)
 int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		       int nent, u64 mask, const char *name, struct mlx5_uar *uar)
 {
+	u32 out[MLX5_ST_SZ_DW(create_eq_out)] = {0};
 	struct mlx5_priv *priv = &dev->priv;
-	struct mlx5_create_eq_mbox_in *in;
-	struct mlx5_create_eq_mbox_out out;
-	int err;
+	__be64 *pas;
+	void *eqc;
 	int inlen;
+	u32 *in;
+	int err;
 
 	eq->nent = roundup_pow_of_two(nent + MLX5_NUM_SPARE_EQE);
 	eq->cons_index = 0;
@@ -365,35 +356,36 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 
 	init_eq_buf(eq);
 
-	inlen = sizeof(*in) + sizeof(in->pas[0]) * eq->buf.npages;
+	inlen = MLX5_ST_SZ_BYTES(create_eq_in) +
+		MLX5_FLD_SZ_BYTES(create_eq_in, pas[0]) * eq->buf.npages;
+
 	in = mlx5_vzalloc(inlen);
 	if (!in) {
 		err = -ENOMEM;
 		goto err_buf;
 	}
-	memset(&out, 0, sizeof(out));
 
-	mlx5_fill_page_array(&eq->buf, in->pas);
+	pas = (__be64 *)MLX5_ADDR_OF(create_eq_in, in, pas);
+	mlx5_fill_page_array(&eq->buf, pas);
 
-	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_CREATE_EQ);
-	in->ctx.log_sz_usr_page = cpu_to_be32(ilog2(eq->nent) << 24 | uar->index);
-	in->ctx.intr = vecidx;
-	in->ctx.log_page_size = eq->buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT;
-	in->events_mask = cpu_to_be64(mask);
+	MLX5_SET(create_eq_in, in, opcode, MLX5_CMD_OP_CREATE_EQ);
+	MLX5_SET64(create_eq_in, in, event_bitmask, mask);
 
-	err = mlx5_cmd_exec(dev, in, inlen, &out, sizeof(out));
+	eqc = MLX5_ADDR_OF(create_eq_in, in, eq_context_entry);
+	MLX5_SET(eqc, eqc, log_eq_size, ilog2(eq->nent));
+	MLX5_SET(eqc, eqc, uar_page, uar->index);
+	MLX5_SET(eqc, eqc, intr, vecidx);
+	MLX5_SET(eqc, eqc, log_page_size,
+		 eq->buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT);
+
+	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 	if (err)
 		goto err_in;
-
-	if (out.hdr.status) {
-		err = mlx5_cmd_status_to_err(&out.hdr);
-		goto err_in;
-	}
 
 	snprintf(priv->irq_info[vecidx].name, MLX5_MAX_IRQ_NAME, "%s@pci:%s",
 		 name, pci_name(dev->pdev));
 
-	eq->eqn = out.eq_number;
+	eq->eqn = MLX5_GET(create_eq_out, out, eq_number);
 	eq->irqn = priv->msix_arr[vecidx].vector;
 	eq->dev = dev;
 	eq->doorbell = uar->map + MLX5_EQ_DOORBEL_OFFSET;
@@ -547,22 +539,12 @@ int mlx5_stop_eqs(struct mlx5_core_dev *dev)
 }
 
 int mlx5_core_eq_query(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
-		       struct mlx5_query_eq_mbox_out *out, int outlen)
+		       u32 *out, int outlen)
 {
-	struct mlx5_query_eq_mbox_in in;
-	int err;
+	u32 in[MLX5_ST_SZ_DW(query_eq_in)] = {0};
 
-	memset(&in, 0, sizeof(in));
-	memset(out, 0, outlen);
-	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_QUERY_EQ);
-	in.eqn = eq->eqn;
-	err = mlx5_cmd_exec(dev, &in, sizeof(in), out, outlen);
-	if (err)
-		return err;
-
-	if (out->hdr.status)
-		err = mlx5_cmd_status_to_err(&out->hdr);
-
-	return err;
+	MLX5_SET(query_eq_in, in, opcode, MLX5_CMD_OP_QUERY_EQ);
+	MLX5_SET(query_eq_in, in, eq_number, eq->eqn);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
 }
 EXPORT_SYMBOL_GPL(mlx5_core_eq_query);

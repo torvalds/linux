@@ -11,7 +11,7 @@
 struct ctl_table_header;
 
 struct xfrm_policy_hash {
-	struct hlist_head	*table;
+	struct hlist_head	__rcu *table;
 	unsigned int		hmask;
 	u8			dbits4;
 	u8			sbits4;
@@ -38,14 +38,12 @@ struct netns_xfrm {
 	 * mode. Also, it can be used by ah/esp icmp error handler to find
 	 * offending SA.
 	 */
-	struct hlist_head	*state_bydst;
-	struct hlist_head	*state_bysrc;
-	struct hlist_head	*state_byspi;
+	struct hlist_head	__rcu *state_bydst;
+	struct hlist_head	__rcu *state_bysrc;
+	struct hlist_head	__rcu *state_byspi;
 	unsigned int		state_hmask;
 	unsigned int		state_num;
 	struct work_struct	state_hash_work;
-	struct hlist_head	state_gc_list;
-	struct work_struct	state_gc_work;
 
 	struct list_head	policy_all;
 	struct hlist_head	*policy_byidx;
@@ -73,7 +71,7 @@ struct netns_xfrm {
 	struct dst_ops		xfrm6_dst_ops;
 #endif
 	spinlock_t xfrm_state_lock;
-	rwlock_t xfrm_policy_lock;
+	spinlock_t xfrm_policy_lock;
 	struct mutex xfrm_cfg_mutex;
 
 	/* flow cache part */

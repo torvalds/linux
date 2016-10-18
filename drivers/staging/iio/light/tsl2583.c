@@ -803,7 +803,7 @@ static struct attribute *sysfs_attrs_ctrl[] = {
 	NULL
 };
 
-static struct attribute_group tsl2583_attribute_group = {
+static const struct attribute_group tsl2583_attribute_group = {
 	.attrs = sysfs_attrs_ctrl,
 };
 

@@ -848,7 +848,7 @@ nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 	ndev->device = cm_id->device;
 	kref_init(&ndev->ref);
 
-	ndev->pd = ib_alloc_pd(ndev->device);
+	ndev->pd = ib_alloc_pd(ndev->device, 0);
 	if (IS_ERR(ndev->pd))
 		goto out_free_dev;
 

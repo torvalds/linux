@@ -25,6 +25,7 @@
 #include "amdgpu.h"
 #include "atom.h"
 #include "atombios_encoders.h"
+#include "amdgpu_pll.h"
 #include <asm/div64.h>
 #include <linux/gcd.h>
 

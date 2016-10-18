@@ -276,7 +276,7 @@ inline int hfi1_rcvbuf_validate(u32 size, u8 type, u16 *encoded)
 static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 		       struct hfi1_packet *packet)
 {
-	struct hfi1_message_header *rhdr = packet->hdr;
+	struct ib_header *rhdr = packet->hdr;
 	u32 rte = rhf_rcv_type_err(packet->rhf);
 	int lnh = be16_to_cpu(rhdr->lrh[0]) & 3;
 	struct hfi1_ibport *ibp = &ppd->ibport_data;
@@ -288,10 +288,9 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 
 	if (packet->rhf & RHF_TID_ERR) {
 		/* For TIDERR and RC QPs preemptively schedule a NAK */
-		struct hfi1_ib_header *hdr = (struct hfi1_ib_header *)rhdr;
-		struct hfi1_other_headers *ohdr = NULL;
+		struct ib_other_headers *ohdr = NULL;
 		u32 tlen = rhf_pkt_len(packet->rhf); /* in bytes */
-		u16 lid  = be16_to_cpu(hdr->lrh[1]);
+		u16 lid  = be16_to_cpu(rhdr->lrh[1]);
 		u32 qp_num;
 		u32 rcv_flags = 0;
 
@@ -301,14 +300,14 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 
 		/* Check for GRH */
 		if (lnh == HFI1_LRH_BTH) {
-			ohdr = &hdr->u.oth;
+			ohdr = &rhdr->u.oth;
 		} else if (lnh == HFI1_LRH_GRH) {
 			u32 vtf;
 
-			ohdr = &hdr->u.l.oth;
-			if (hdr->u.l.grh.next_hdr != IB_GRH_NEXT_HDR)
+			ohdr = &rhdr->u.l.oth;
+			if (rhdr->u.l.grh.next_hdr != IB_GRH_NEXT_HDR)
 				goto drop;
-			vtf = be32_to_cpu(hdr->u.l.grh.version_tclass_flow);
+			vtf = be32_to_cpu(rhdr->u.l.grh.version_tclass_flow);
 			if ((vtf >> IB_GRH_VERSION_SHIFT) != IB_GRH_VERSION)
 				goto drop;
 			rcv_flags |= HFI1_HAS_GRH;
@@ -344,7 +343,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 			case IB_QPT_RC:
 				hfi1_rc_hdrerr(
 					rcd,
-					hdr,
+					rhdr,
 					rcv_flags,
 					qp);
 				break;
@@ -452,8 +451,8 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool do_cnp)
 {
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
-	struct hfi1_ib_header *hdr = pkt->hdr;
-	struct hfi1_other_headers *ohdr = pkt->ohdr;
+	struct ib_header *hdr = pkt->hdr;
+	struct ib_other_headers *ohdr = pkt->ohdr;
 	struct ib_grh *grh = NULL;
 	u32 rqpn = 0, bth1;
 	u16 rlid, dlid = be16_to_cpu(hdr->lrh[1]);
@@ -487,7 +486,7 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 		return;
 	}
 
-	sc = hdr2sc((struct hfi1_message_header *)hdr, pkt->rhf);
+	sc = hdr2sc(hdr, pkt->rhf);
 
 	bth1 = be32_to_cpu(ohdr->bth[1]);
 	if (do_cnp && (bth1 & HFI1_FECN_SMASK)) {
@@ -599,8 +598,8 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 		__le32 *rhf_addr = (__le32 *)rcd->rcvhdrq + mdata.ps_head +
 					 dd->rhf_offset;
 		struct rvt_qp *qp;
-		struct hfi1_ib_header *hdr;
-		struct hfi1_other_headers *ohdr;
+		struct ib_header *hdr;
+		struct ib_other_headers *ohdr;
 		struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 		u64 rhf = rhf_to_cpu(rhf_addr);
 		u32 etype = rhf_rcv_type(rhf), qpn, bth1;
@@ -616,8 +615,8 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 		if (etype != RHF_RCV_TYPE_IB)
 			goto next;
 
-		hdr = (struct hfi1_ib_header *)
-			hfi1_get_msgheader(dd, rhf_addr);
+		hdr = hfi1_get_msgheader(dd, rhf_addr);
+
 		lnh = be16_to_cpu(hdr->lrh[0]) & 3;
 
 		if (lnh == HFI1_LRH_BTH)
@@ -892,8 +891,8 @@ static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
 				      struct hfi1_devdata *dd)
 {
 	struct work_struct *lsaw = &rcd->ppd->linkstate_active_work;
-	struct hfi1_message_header *hdr = hfi1_get_msgheader(packet->rcd->dd,
-							     packet->rhf_addr);
+	struct ib_header *hdr = hfi1_get_msgheader(packet->rcd->dd,
+						   packet->rhf_addr);
 	u8 etype = rhf_rcv_type(packet->rhf);
 
 	if (etype == RHF_RCV_TYPE_IB && hdr2sc(hdr, packet->rhf) != 0xf) {

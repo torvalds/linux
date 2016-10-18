@@ -213,8 +213,8 @@ static void logfs_init_inode(struct super_block *sb, struct inode *inode)
 	i_gid_write(inode, 0);
 	inode->i_size	= 0;
 	inode->i_blocks	= 0;
-	inode->i_ctime	= CURRENT_TIME;
-	inode->i_mtime	= CURRENT_TIME;
+	inode->i_ctime	= current_time(inode);
+	inode->i_mtime	= current_time(inode);
 	li->li_refcount = 1;
 	INIT_LIST_HEAD(&li->li_freeing_list);
 

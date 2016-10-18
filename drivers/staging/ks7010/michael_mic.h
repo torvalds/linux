@@ -20,7 +20,6 @@ struct michel_mic_t {
 	uint8_t Result[8];
 };
 
-extern
-void MichaelMICFunction(struct michel_mic_t *Mic, uint8_t * Key,
-			uint8_t * Data, int Len, uint8_t priority,
-			uint8_t * Result);
+void MichaelMICFunction(struct michel_mic_t *Mic, uint8_t *Key,
+			uint8_t *Data, int Len, uint8_t priority,
+			uint8_t *Result);

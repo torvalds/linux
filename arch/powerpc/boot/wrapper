@@ -20,6 +20,8 @@
 # -D dir	specify directory containing data files used by script
 #		(default ./arch/powerpc/boot)
 # -W dir	specify working directory for temporary files (default .)
+# -z		use gzip (legacy)
+# -Z zsuffix    compression to use (gz, xz or none)
 
 # Stop execution if any command fails
 set -e
@@ -38,7 +40,7 @@ dtb=
 dts=
 cacheit=
 binary=
-gzip=.gz
+compression=.gz
 pie=
 format=
 
@@ -59,7 +61,8 @@ tmpdir=.
 usage() {
     echo 'Usage: wrapper [-o output] [-p platform] [-i initrd]' >&2
     echo '       [-d devtree] [-s tree.dts] [-c] [-C cross-prefix]' >&2
-    echo '       [-D datadir] [-W workingdir] [--no-gzip] [vmlinux]' >&2
+    echo '       [-D datadir] [-W workingdir] [-Z (gz|xz|none)]' >&2
+    echo '       [--no-compression] [vmlinux]' >&2
     exit 1
 }
 
@@ -126,8 +129,24 @@ while [ "$#" -gt 0 ]; do
 	[ "$#" -gt 0 ] || usage
 	tmpdir="$1"
 	;;
+    -z)
+	compression=.gz
+	;;
+    -Z)
+	shift
+	[ "$#" -gt 0 ] || usage
+        [ "$1" != "gz" -o "$1" != "xz" -o "$1" != "none" ] || usage
+
+	compression=".$1"
+
+        if [ $compression = ".none" ]; then
+                compression=
+        fi
+	;;
     --no-gzip)
-        gzip=
+        # a "feature" of the the wrapper script is that it can be used outside
+        # the kernel tree. So keeping this around for backwards compatibility.
+        compression=
         ;;
     -?)
 	usage
@@ -139,6 +158,7 @@ while [ "$#" -gt 0 ]; do
     esac
     shift
 done
+
 
 if [ -n "$dts" ]; then
     if [ ! -r "$dts" -a -r "$object/dts/$dts" ]; then
@@ -212,7 +232,7 @@ miboot|uboot*)
     ;;
 cuboot*)
     binary=y
-    gzip=
+    compression=
     case "$platform" in
     *-mpc866ads|*-mpc885ads|*-adder875*|*-ep88xc)
         platformo=$object/cuboot-8xx.o
@@ -243,7 +263,7 @@ cuboot*)
 ps3)
     platformo="$object/ps3-head.o $object/ps3-hvcall.o $object/ps3.o"
     lds=$object/zImage.ps3.lds
-    gzip=
+    compression=
     ext=bin
     objflags="-O binary --set-section-flags=.bss=contents,alloc,load,data"
     ksection=.kernel:vmlinux.bin
@@ -310,26 +330,36 @@ mvme7100)
 esac
 
 vmz="$tmpdir/`basename \"$kernel\"`.$ext"
-if [ -z "$cacheit" -o ! -f "$vmz$gzip" -o "$vmz$gzip" -ot "$kernel" ]; then
-    ${CROSS}objcopy $objflags "$kernel" "$vmz.$$"
 
-    strip_size=$(stat -c %s $vmz.$$)
+# Calculate the vmlinux.strip size
+${CROSS}objcopy $objflags "$kernel" "$vmz.$$"
+strip_size=$(stat -c %s $vmz.$$)
 
-    if [ -n "$gzip" ]; then
+if [ -z "$cacheit" -o ! -f "$vmz$compression" -o "$vmz$compression" -ot "$kernel" ]; then
+    # recompress the image if we need to
+    case $compression in
+    .xz)
+        xz --check=crc32 -f -6 "$vmz.$$"
+        ;;
+    .gz)
         gzip -n -f -9 "$vmz.$$"
-    fi
+        ;;
+    *)
+        # drop the compression suffix so the stripped vmlinux is used
+        compression=
+	;;
+    esac
 
     if [ -n "$cacheit" ]; then
-	mv -f "$vmz.$$$gzip" "$vmz$gzip"
+	mv -f "$vmz.$$$compression" "$vmz$compression"
     else
 	vmz="$vmz.$$"
     fi
 else
-    # Calculate the vmlinux.strip size
-    ${CROSS}objcopy $objflags "$kernel" "$vmz.$$"
-    strip_size=$(stat -c %s $vmz.$$)
     rm -f $vmz.$$
 fi
+
+vmz="$vmz$compression"
 
 if [ "$make_space" = "y" ]; then
 	# Round the size to next higher MB limit
@@ -345,8 +375,6 @@ if [ "$make_space" = "y" ]; then
 	    link_address=$round_size
 	fi
 fi
-
-vmz="$vmz$gzip"
 
 # Extract kernel version information, some platforms want to include
 # it in the image header
@@ -417,6 +445,7 @@ if [ "$platform" != "miboot" ]; then
     if [ -n "$link_address" ] ; then
         text_start="-Ttext $link_address"
     fi
+#link everything
     ${CROSS}ld -m $format -T $lds $text_start $pie -o "$ofile" \
 	$platformo $tmp $object/wrapper.a
     rm $tmp

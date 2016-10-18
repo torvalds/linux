@@ -42,6 +42,7 @@
 #include <linux/atomic.h>
 #include <linux/hrtimer.h>
 #include <linux/uuid.h>
+#include <linux/t10-pi.h>
 
 #include <net/checksum.h>
 
@@ -627,7 +628,7 @@ static LIST_HEAD(sdebug_host_list);
 static DEFINE_SPINLOCK(sdebug_host_list_lock);
 
 static unsigned char *fake_storep;	/* ramdisk storage */
-static struct sd_dif_tuple *dif_storep;	/* protection info */
+static struct t10_pi_tuple *dif_storep;	/* protection info */
 static void *map_storep;		/* provisioning map */
 
 static unsigned long map_size;
@@ -682,7 +683,7 @@ static void *fake_store(unsigned long long lba)
 	return fake_storep + lba * sdebug_sector_size;
 }
 
-static struct sd_dif_tuple *dif_store(sector_t sector)
+static struct t10_pi_tuple *dif_store(sector_t sector)
 {
 	sector = sector_div(sector, sdebug_store_sectors);
 
@@ -1349,7 +1350,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		} else if (0x86 == cmd[2]) { /* extended inquiry */
 			arr[1] = cmd[2];	/*sanity */
 			arr[3] = 0x3c;	/* number of following entries */
-			if (sdebug_dif == SD_DIF_TYPE3_PROTECTION)
+			if (sdebug_dif == T10_PI_TYPE3_PROTECTION)
 				arr[4] = 0x4;	/* SPT: GRD_CHK:1 */
 			else if (have_dif_prot)
 				arr[4] = 0x5;   /* SPT: GRD_CHK:1, REF_CHK:1 */
@@ -2430,7 +2431,7 @@ static __be16 dif_compute_csum(const void *buf, int len)
 	return csum;
 }
 
-static int dif_verify(struct sd_dif_tuple *sdt, const void *data,
+static int dif_verify(struct t10_pi_tuple *sdt, const void *data,
 		      sector_t sector, u32 ei_lba)
 {
 	__be16 csum = dif_compute_csum(data, sdebug_sector_size);
@@ -2442,13 +2443,13 @@ static int dif_verify(struct sd_dif_tuple *sdt, const void *data,
 			be16_to_cpu(csum));
 		return 0x01;
 	}
-	if (sdebug_dif == SD_DIF_TYPE1_PROTECTION &&
+	if (sdebug_dif == T10_PI_TYPE1_PROTECTION &&
 	    be32_to_cpu(sdt->ref_tag) != (sector & 0xffffffff)) {
 		pr_err("REF check failed on sector %lu\n",
 			(unsigned long)sector);
 		return 0x03;
 	}
-	if (sdebug_dif == SD_DIF_TYPE2_PROTECTION &&
+	if (sdebug_dif == T10_PI_TYPE2_PROTECTION &&
 	    be32_to_cpu(sdt->ref_tag) != ei_lba) {
 		pr_err("REF check failed on sector %lu\n",
 			(unsigned long)sector);
@@ -2504,7 +2505,7 @@ static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
 			    unsigned int sectors, u32 ei_lba)
 {
 	unsigned int i;
-	struct sd_dif_tuple *sdt;
+	struct t10_pi_tuple *sdt;
 	sector_t sector;
 
 	for (i = 0; i < sectors; i++, ei_lba++) {
@@ -2580,13 +2581,13 @@ static int resp_read_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		break;
 	}
 	if (unlikely(have_dif_prot && check_prot)) {
-		if (sdebug_dif == SD_DIF_TYPE2_PROTECTION &&
+		if (sdebug_dif == T10_PI_TYPE2_PROTECTION &&
 		    (cmd[1] & 0xe0)) {
 			mk_sense_invalid_opcode(scp);
 			return check_condition_result;
 		}
-		if ((sdebug_dif == SD_DIF_TYPE1_PROTECTION ||
-		     sdebug_dif == SD_DIF_TYPE3_PROTECTION) &&
+		if ((sdebug_dif == T10_PI_TYPE1_PROTECTION ||
+		     sdebug_dif == T10_PI_TYPE3_PROTECTION) &&
 		    (cmd[1] & 0xe0) == 0)
 			sdev_printk(KERN_ERR, scp->device, "Unprotected RD "
 				    "to DIF device\n");
@@ -2696,7 +2697,7 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 			     unsigned int sectors, u32 ei_lba)
 {
 	int ret;
-	struct sd_dif_tuple *sdt;
+	struct t10_pi_tuple *sdt;
 	void *daddr;
 	sector_t sector = start_sec;
 	int ppage_offset;
@@ -2722,7 +2723,7 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 		}
 
 		for (ppage_offset = 0; ppage_offset < piter.length;
-		     ppage_offset += sizeof(struct sd_dif_tuple)) {
+		     ppage_offset += sizeof(struct t10_pi_tuple)) {
 			/* If we're at the end of the current
 			 * data page advance to the next one
 			 */
@@ -2893,13 +2894,13 @@ static int resp_write_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		break;
 	}
 	if (unlikely(have_dif_prot && check_prot)) {
-		if (sdebug_dif == SD_DIF_TYPE2_PROTECTION &&
+		if (sdebug_dif == T10_PI_TYPE2_PROTECTION &&
 		    (cmd[1] & 0xe0)) {
 			mk_sense_invalid_opcode(scp);
 			return check_condition_result;
 		}
-		if ((sdebug_dif == SD_DIF_TYPE1_PROTECTION ||
-		     sdebug_dif == SD_DIF_TYPE3_PROTECTION) &&
+		if ((sdebug_dif == T10_PI_TYPE1_PROTECTION ||
+		     sdebug_dif == T10_PI_TYPE3_PROTECTION) &&
 		    (cmd[1] & 0xe0) == 0)
 			sdev_printk(KERN_ERR, scp->device, "Unprotected WR "
 				    "to DIF device\n");
@@ -3135,13 +3136,13 @@ static int resp_comp_write(struct scsi_cmnd *scp,
 	num = cmd[13];		/* 1 to a maximum of 255 logical blocks */
 	if (0 == num)
 		return 0;	/* degenerate case, not an error */
-	if (sdebug_dif == SD_DIF_TYPE2_PROTECTION &&
+	if (sdebug_dif == T10_PI_TYPE2_PROTECTION &&
 	    (cmd[1] & 0xe0)) {
 		mk_sense_invalid_opcode(scp);
 		return check_condition_result;
 	}
-	if ((sdebug_dif == SD_DIF_TYPE1_PROTECTION ||
-	     sdebug_dif == SD_DIF_TYPE3_PROTECTION) &&
+	if ((sdebug_dif == T10_PI_TYPE1_PROTECTION ||
+	     sdebug_dif == T10_PI_TYPE3_PROTECTION) &&
 	    (cmd[1] & 0xe0) == 0)
 		sdev_printk(KERN_ERR, scp->device, "Unprotected WR "
 			    "to DIF device\n");
@@ -4939,12 +4940,11 @@ static int __init scsi_debug_init(void)
 	}
 
 	switch (sdebug_dif) {
-
-	case SD_DIF_TYPE0_PROTECTION:
+	case T10_PI_TYPE0_PROTECTION:
 		break;
-	case SD_DIF_TYPE1_PROTECTION:
-	case SD_DIF_TYPE2_PROTECTION:
-	case SD_DIF_TYPE3_PROTECTION:
+	case T10_PI_TYPE1_PROTECTION:
+	case T10_PI_TYPE2_PROTECTION:
+	case T10_PI_TYPE3_PROTECTION:
 		have_dif_prot = true;
 		break;
 
@@ -5026,7 +5026,7 @@ static int __init scsi_debug_init(void)
 	if (sdebug_dix) {
 		int dif_size;
 
-		dif_size = sdebug_store_sectors * sizeof(struct sd_dif_tuple);
+		dif_size = sdebug_store_sectors * sizeof(struct t10_pi_tuple);
 		dif_storep = vmalloc(dif_size);
 
 		pr_err("dif_storep %u bytes @ %p\n", dif_size, dif_storep);
@@ -5480,19 +5480,19 @@ static int sdebug_driver_probe(struct device * dev)
 
 	switch (sdebug_dif) {
 
-	case SD_DIF_TYPE1_PROTECTION:
+	case T10_PI_TYPE1_PROTECTION:
 		hprot = SHOST_DIF_TYPE1_PROTECTION;
 		if (sdebug_dix)
 			hprot |= SHOST_DIX_TYPE1_PROTECTION;
 		break;
 
-	case SD_DIF_TYPE2_PROTECTION:
+	case T10_PI_TYPE2_PROTECTION:
 		hprot = SHOST_DIF_TYPE2_PROTECTION;
 		if (sdebug_dix)
 			hprot |= SHOST_DIX_TYPE2_PROTECTION;
 		break;
 
-	case SD_DIF_TYPE3_PROTECTION:
+	case T10_PI_TYPE3_PROTECTION:
 		hprot = SHOST_DIF_TYPE3_PROTECTION;
 		if (sdebug_dix)
 			hprot |= SHOST_DIX_TYPE3_PROTECTION;

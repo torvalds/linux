@@ -10,6 +10,8 @@ Required Properties:
   - "samsung,exynos4210-audss-clock" - controller compatible with all Exynos4 SoCs.
   - "samsung,exynos5250-audss-clock" - controller compatible with Exynos5250
     SoCs.
+  - "samsung,exynos5410-audss-clock" - controller compatible with Exynos5410
+    SoCs.
   - "samsung,exynos5420-audss-clock" - controller compatible with Exynos5420
     SoCs.
 - reg: physical base address and length of the controller's register set.
@@ -91,5 +93,5 @@ i2s0: i2s@03830000 {
 		<&clock_audss EXYNOS_MOUT_AUDSS>,
 		<&clock_audss EXYNOS_MOUT_I2S>;
 	clock-names = "iis", "i2s_opclk0", "i2s_opclk1",
-	"mout_audss", "mout_i2s";
+		      "mout_audss", "mout_i2s";
 };

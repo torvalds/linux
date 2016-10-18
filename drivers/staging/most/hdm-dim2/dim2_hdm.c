@@ -1,7 +1,7 @@
 /*
  * dim2_hdm.c - MediaLB DIM2 Hardware Dependent Module
  *
- * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2015-2016, Microchip Technology Germany II GmbH & Co. KG
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -45,15 +45,15 @@ module_param(clock_speed, charp, 0);
 MODULE_PARM_DESC(clock_speed, "MediaLB Clock Speed");
 
 /*
- * #############################################################################
+ * The parameter representing the number of frames per sub-buffer for
+ * synchronous channels.  Valid values: [0 .. 6].
  *
- * The define below activates an utility function used by HAL-simu
- * for calling DIM interrupt handler.
- * It is used only for TEST PURPOSE and shall be commented before release.
- *
- * #############################################################################
+ * The values 0, 1, 2, 3, 4, 5, 6 represent corresponding number of frames per
+ * sub-buffer 1, 2, 4, 8, 16, 32, 64.
  */
-/* #define ENABLE_HDM_TEST */
+static u8 fcnt = 4;  /* (1 << fcnt) frames per subbuffer */
+module_param(fcnt, byte, 0);
+MODULE_PARM_DESC(fcnt, "Num of frames per sub-buffer for sync channels as a power of 2");
 
 static DEFINE_SPINLOCK(dim_lock);
 
@@ -85,7 +85,6 @@ struct hdm_channel {
  * @most_iface: most interface structure
  * @capabilities: an array of channel capability data
  * @io_base: I/O register base address
- * @irq_ahb0: dim2 AHB0 irq number
  * @clk_speed: user selectable (through command line parameter) clock speed
  * @netinfo_task: thread to deliver network status
  * @netinfo_waitq: waitq for the thread to sleep
@@ -100,7 +99,6 @@ struct dim2_hdm {
 	struct most_interface most_iface;
 	char name[16 + sizeof "dim2-"];
 	void __iomem *io_base;
-	unsigned int irq_ahb0;
 	int clk_speed;
 	struct task_struct *netinfo_task;
 	wait_queue_head_t netinfo_waitq;
@@ -117,10 +115,6 @@ struct dim2_hdm {
 #define PACKET_IS_NET_INFO(p)  \
 	(((p)[1] == 0x18) && ((p)[2] == 0x05) && ((p)[3] == 0x0C) && \
 	 ((p)[13] == 0x3C) && ((p)[14] == 0x00) && ((p)[15] == 0x0A))
-
-#if defined(ENABLE_HDM_TEST)
-static struct dim2_hdm *test_dev;
-#endif
 
 bool dim2_sysfs_get_state_cb(void)
 {
@@ -212,7 +206,8 @@ static int startup_dim(struct platform_device *pdev)
 			return ret;
 	}
 
-	hal_ret = dim_startup(dev->io_base, dev->clk_speed);
+	pr_info("sync: num of frames per sub-buffer: %u\n", fcnt);
+	hal_ret = dim_startup(dev->io_base, dev->clk_speed, fcnt);
 	if (hal_ret != DIM_NO_ERROR) {
 		pr_err("dim_startup failed: %d\n", hal_ret);
 		if (pdata && pdata->destroy)
@@ -253,6 +248,11 @@ static int try_start_dim_transfer(struct hdm_channel *hdm_ch)
 
 	mbo = list_first_entry(head, struct mbo, list);
 	buf_size = mbo->buffer_length;
+
+	if (dim_dbr_space(&hdm_ch->ch) < buf_size) {
+		spin_unlock_irqrestore(&dim_lock, flags);
+		return -EAGAIN;
+	}
 
 	BUG_ON(mbo->bus_address == 0);
 	if (!dim_enqueue_buffer(&hdm_ch->ch, mbo->bus_address, buf_size)) {
@@ -411,6 +411,22 @@ static struct dim_channel **get_active_channels(struct dim2_hdm *dev,
 	return buffer;
 }
 
+static irqreturn_t dim2_mlb_isr(int irq, void *_dev)
+{
+	struct dim2_hdm *dev = _dev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dim_lock, flags);
+	dim_service_mlb_int_irq();
+	spin_unlock_irqrestore(&dim_lock, flags);
+
+	if (dev->atx_idx >= 0 && dev->hch[dev->atx_idx].is_initialized)
+		while (!try_start_dim_transfer(dev->hch + dev->atx_idx))
+			continue;
+
+	return IRQ_HANDLED;
+}
+
 /**
  * dim2_tasklet_fn - tasklet function
  * @data: private data
@@ -452,29 +468,13 @@ static irqreturn_t dim2_ahb_isr(int irq, void *_dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dim_lock, flags);
-	dim_service_irq(get_active_channels(dev, buffer));
+	dim_service_ahb_int_irq(get_active_channels(dev, buffer));
 	spin_unlock_irqrestore(&dim_lock, flags);
 
-#if !defined(ENABLE_HDM_TEST)
 	dim2_tasklet.data = (unsigned long)dev;
 	tasklet_schedule(&dim2_tasklet);
-#else
-	dim2_tasklet_fn((unsigned long)dev);
-#endif
 	return IRQ_HANDLED;
 }
-
-#if defined(ENABLE_HDM_TEST)
-
-/*
- * Utility function used by HAL-simu for calling DIM interrupt handler.
- * It is used only for TEST PURPOSE.
- */
-void raise_dim_interrupt(void)
-{
-	(void)dim2_ahb_isr(0, test_dev);
-}
-#endif
 
 /**
  * complete_all_mbos - complete MBO's in a list
@@ -545,7 +545,7 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 				hdm_ch->name, buf_size, new_size);
 		spin_lock_irqsave(&dim_lock, flags);
 		hal_ret = dim_init_control(&hdm_ch->ch, is_tx, ch_addr,
-					   buf_size);
+					   is_tx ? new_size * 2 : new_size);
 		break;
 	case MOST_CH_ASYNC:
 		new_size = dim_norm_ctrl_async_buffer_size(buf_size);
@@ -558,9 +558,10 @@ static int configure_channel(struct most_interface *most_iface, int ch_idx,
 			pr_warn("%s: fixed buffer size (%d -> %d)\n",
 				hdm_ch->name, buf_size, new_size);
 		spin_lock_irqsave(&dim_lock, flags);
-		hal_ret = dim_init_async(&hdm_ch->ch, is_tx, ch_addr, buf_size);
+		hal_ret = dim_init_async(&hdm_ch->ch, is_tx, ch_addr,
+					 is_tx ? new_size * 2 : new_size);
 		break;
-	case MOST_CH_ISOC_AVP:
+	case MOST_CH_ISOC:
 		new_size = dim_norm_isoc_buffer_size(buf_size, sub_size);
 		if (new_size == 0) {
 			pr_err("%s: invalid sub-buffer size or too small buffer size\n",
@@ -705,12 +706,14 @@ static int poison_channel(struct most_interface *most_iface, int ch_idx)
 	if (!hdm_ch->is_initialized)
 		return -EPERM;
 
+	tasklet_disable(&dim2_tasklet);
 	spin_lock_irqsave(&dim_lock, flags);
 	hal_ret = dim_destroy_channel(&hdm_ch->ch);
 	hdm_ch->is_initialized = false;
 	if (ch_idx == dev->atx_idx)
 		dev->atx_idx = -1;
 	spin_unlock_irqrestore(&dim_lock, flags);
+	tasklet_enable(&dim2_tasklet);
 	if (hal_ret != DIM_NO_ERROR) {
 		pr_err("HAL Failed to close channel %s\n", hdm_ch->name);
 		ret = -EFAULT;
@@ -735,6 +738,7 @@ static int dim2_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, i;
 	struct kobject *kobj;
+	int irq;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -743,29 +747,37 @@ static int dim2_probe(struct platform_device *pdev)
 	dev->atx_idx = -1;
 
 	platform_set_drvdata(pdev, dev);
-#if defined(ENABLE_HDM_TEST)
-	test_dev = dev;
-#else
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dev->io_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(dev->io_base))
 		return PTR_ERR(dev->io_base);
 
-	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to get irq\n");
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "failed to get ahb0_int irq\n");
 		return -ENODEV;
 	}
-	dev->irq_ahb0 = ret;
 
-	ret = devm_request_irq(&pdev->dev, dev->irq_ahb0, dim2_ahb_isr, 0,
-			       "mlb_ahb0", dev);
+	ret = devm_request_irq(&pdev->dev, irq, dim2_ahb_isr, 0,
+			       "dim2_ahb0_int", dev);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to request IRQ: %d, err: %d\n",
-			dev->irq_ahb0, ret);
+		dev_err(&pdev->dev, "failed to request ahb0_int irq %d\n", irq);
 		return ret;
 	}
-#endif
+
+	irq = platform_get_irq(pdev, 1);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "failed to get mlb_int irq\n");
+		return -ENODEV;
+	}
+
+	ret = devm_request_irq(&pdev->dev, irq, dim2_mlb_isr, 0,
+			       "dim2_mlb_int", dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to request mlb_int irq %d\n", irq);
+		return ret;
+	}
+
 	init_waitqueue_head(&dev->netinfo_waitq);
 	dev->deliver_netinfo = 0;
 	dev->netinfo_task = kthread_run(&deliver_netinfo_thread, (void *)dev,
@@ -785,7 +797,7 @@ static int dim2_probe(struct platform_device *pdev)
 		cap->name_suffix = hdm_ch->name;
 		cap->direction = MOST_CH_RX | MOST_CH_TX;
 		cap->data_type = MOST_CH_CONTROL | MOST_CH_ASYNC |
-				 MOST_CH_ISOC_AVP | MOST_CH_SYNC;
+				 MOST_CH_ISOC | MOST_CH_SYNC;
 		cap->num_buffers_packet = MAX_BUFFERS_PACKET;
 		cap->buffer_size_packet = MAX_BUF_SIZE_PACKET;
 		cap->num_buffers_streaming = MAX_BUFFERS_STREAMING;

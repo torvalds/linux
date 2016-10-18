@@ -228,10 +228,8 @@ static int dln2_i2c_probe(struct platform_device *pdev)
 
 	/* and finally attach to i2c layer */
 	ret = i2c_add_adapter(&dln2->adapter);
-	if (ret < 0) {
-		dev_err(dev, "failed to add I2C adapter: %d\n", ret);
+	if (ret < 0)
 		goto out_disable;
-	}
 
 	return 0;
 

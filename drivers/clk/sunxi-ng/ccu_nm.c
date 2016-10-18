@@ -61,11 +61,13 @@ static long ccu_nm_round_rate(struct clk_hw *hw, unsigned long rate,
 			      unsigned long *parent_rate)
 {
 	struct ccu_nm *nm = hw_to_ccu_nm(hw);
+	unsigned long max_n, max_m;
 	unsigned long n, m;
 
-	rational_best_approximation(rate, *parent_rate,
-				    1 << nm->n.width, 1 << nm->m.width,
-				    &n, &m);
+	max_n = 1 << nm->n.width;
+	max_m = nm->m.max ?: 1 << nm->m.width;
+
+	rational_best_approximation(rate, *parent_rate, max_n, max_m, &n, &m);
 
 	return *parent_rate * n / m;
 }
@@ -75,6 +77,7 @@ static int ccu_nm_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct ccu_nm *nm = hw_to_ccu_nm(hw);
 	unsigned long flags;
+	unsigned long max_n, max_m;
 	unsigned long n, m;
 	u32 reg;
 
@@ -83,9 +86,10 @@ static int ccu_nm_set_rate(struct clk_hw *hw, unsigned long rate,
 	else
 		ccu_frac_helper_disable(&nm->common, &nm->frac);
 
-	rational_best_approximation(rate, parent_rate,
-				    1 << nm->n.width, 1 << nm->m.width,
-				    &n, &m);
+	max_n = 1 << nm->n.width;
+	max_m = nm->m.max ?: 1 << nm->m.width;
+
+	rational_best_approximation(rate, parent_rate, max_n, max_m, &n, &m);
 
 	spin_lock_irqsave(nm->common.lock, flags);
 

@@ -117,9 +117,9 @@ __printf(2, 3)
 void seq_printf(struct seq_file *m, const char *fmt, ...);
 void seq_putc(struct seq_file *m, char c);
 void seq_puts(struct seq_file *m, const char *s);
-void seq_put_decimal_ull(struct seq_file *m, char delimiter,
+void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
 			 unsigned long long num);
-void seq_put_decimal_ll(struct seq_file *m, char delimiter, long long num);
+void seq_put_decimal_ll(struct seq_file *m, const char *delimiter, long long num);
 void seq_escape(struct seq_file *m, const char *s, const char *esc);
 
 void seq_hex_dump(struct seq_file *m, const char *prefix_str, int prefix_type,

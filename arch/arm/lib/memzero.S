@@ -10,6 +10,7 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/unwind.h>
+#include <asm/export.h>
 
 	.text
 	.align	5
@@ -135,3 +136,4 @@ UNWIND(	.fnstart			)
 	ret	lr			@ 1
 UNWIND(	.fnend				)
 ENDPROC(__memzero)
+EXPORT_SYMBOL(__memzero)

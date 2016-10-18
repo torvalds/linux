@@ -289,224 +289,118 @@ struct slic_rspbuf {
 	u32 pad2[4];
 };
 
-struct slic_regs {
-	u32	slic_reset;	/* Reset Register */
-	u32	pad0;
+/* Reset Register */
+#define SLIC_REG_RESET		0x0000
+/* Interrupt Control Register */
+#define SLIC_REG_ICR		0x0008
+/* Interrupt status pointer */
+#define SLIC_REG_ISP		0x0010
+/* Interrupt status */
+#define SLIC_REG_ISR		0x0018
+/*
+ * Header buffer address reg
+ * 31-8 - phy addr of set of contiguous hdr buffers
+ *  7-0 - number of buffers passed
+ * Buffers are 256 bytes long on 256-byte boundaries.
+ */
+#define SLIC_REG_HBAR		0x0020
+/*
+ * Data buffer handle & address reg
+ * 4 sets of registers; Buffers are 2K bytes long 2 per 4K page.
+ */
+#define SLIC_REG_DBAR		0x0028
+/*
+ * Xmt Cmd buf addr regs.
+ * 1 per XMT interface
+ * 31-5 - phy addr of host command buffer
+ *  4-0 - length of cmd in multiples of 32 bytes
+ * Buffers are 32 bytes up to 512 bytes long
+ */
+#define SLIC_REG_CBAR		0x0030
+/* Write control store */
+#define	SLIC_REG_WCS		0x0034
+/*
+ * Response buffer address reg.
+ * 31-8 - phy addr of set of contiguous response buffers
+ * 7-0 - number of buffers passed
+ * Buffers are 32 bytes long on 32-byte boundaries.
+ */
+#define	SLIC_REG_RBAR		0x0038
+/* Read statistics (UPR) */
+#define	SLIC_REG_RSTAT		0x0040
+/* Read link status */
+#define	SLIC_REG_LSTAT		0x0048
+/* Write Mac Config */
+#define	SLIC_REG_WMCFG		0x0050
+/* Write phy register */
+#define SLIC_REG_WPHY		0x0058
+/* Rcv Cmd buf addr reg */
+#define	SLIC_REG_RCBAR		0x0060
+/* Read SLIC Config*/
+#define SLIC_REG_RCONFIG	0x0068
+/* Interrupt aggregation time */
+#define SLIC_REG_INTAGG		0x0070
+/* Write XMIT config reg */
+#define	SLIC_REG_WXCFG		0x0078
+/* Write RCV config reg */
+#define	SLIC_REG_WRCFG		0x0080
+/* Write rcv addr a low */
+#define	SLIC_REG_WRADDRAL	0x0088
+/* Write rcv addr a high */
+#define	SLIC_REG_WRADDRAH	0x0090
+/* Write rcv addr b low */
+#define	SLIC_REG_WRADDRBL	0x0098
+/* Write rcv addr b high */
+#define	SLIC_REG_WRADDRBH	0x00a0
+/* Low bits of mcast mask */
+#define	SLIC_REG_MCASTLOW	0x00a8
+/* High bits of mcast mask */
+#define	SLIC_REG_MCASTHIGH	0x00b0
+/* Ping the card */
+#define SLIC_REG_PING		0x00b8
+/* Dump command */
+#define SLIC_REG_DUMP_CMD	0x00c0
+/* Dump data pointer */
+#define SLIC_REG_DUMP_DATA	0x00c8
+/* Read card's pci_status register */
+#define	SLIC_REG_PCISTATUS	0x00d0
+/* Write hostid field */
+#define SLIC_REG_WRHOSTID	0x00d8
+/* Put card in a low power state */
+#define SLIC_REG_LOW_POWER	0x00e0
+/* Force slic into quiescent state  before soft reset */
+#define SLIC_REG_QUIESCE	0x00e8
+/* Reset interface queues */
+#define SLIC_REG_RESET_IFACE	0x00f0
+/*
+ * Register is only written when it has changed.
+ * Bits 63-32 for host i/f addrs.
+ */
+#define SLIC_REG_ADDR_UPPER	0x00f8
+/* 64 bit Header buffer address reg */
+#define SLIC_REG_HBAR64		0x0100
+/* 64 bit Data buffer handle & address reg */
+#define SLIC_REG_DBAR64		0x0108
+/* 64 bit Xmt Cmd buf addr regs. */
+#define SLIC_REG_CBAR64		0x0110
+/* 64 bit Response buffer address reg.*/
+#define SLIC_REG_RBAR64		0x0118
+/* 64 bit Rcv Cmd buf addr reg*/
+#define	SLIC_REG_RCBAR64	0x0120
+/* Read statistics (64 bit UPR) */
+#define	SLIC_REG_RSTAT64	0x0128
+/* Download Gigabit RCV sequencer ucode */
+#define SLIC_REG_RCV_WCS	0x0130
+/* Write VlanId field */
+#define SLIC_REG_WRVLANID	0x0138
+/* Read Transformer info */
+#define SLIC_REG_READ_XF_INFO	0x0140
+/* Write Transformer info */
+#define SLIC_REG_WRITE_XF_INFO	0x0148
+/* Write card ticks per second */
+#define SLIC_REG_TICKS_PER_SEC	0x0170
 
-	u32	slic_icr;	/* Interrupt Control Register */
-	u32	pad2;
-#define SLIC_ICR		0x0008
-
-	u32	slic_isp;	/* Interrupt status pointer */
-	u32	pad1;
-#define SLIC_ISP		0x0010
-
-	u32	slic_isr;	/* Interrupt status */
-	u32	pad3;
-#define SLIC_ISR		0x0018
-
-	u32	slic_hbar;	/* Header buffer address reg */
-	u32	pad4;
-	/*
-	 * 31-8 - phy addr of set of contiguous hdr buffers
-	 *  7-0 - number of buffers passed
-	 * Buffers are 256 bytes long on 256-byte boundaries.
-	 */
-#define SLIC_HBAR		0x0020
-#define SLIC_HBAR_CNT_MSK	0x000000FF
-
-	u32	slic_dbar;	/* Data buffer handle & address reg */
-	u32	pad5;
-
-	/* 4 sets of registers; Buffers are 2K bytes long 2 per 4K page. */
-#define SLIC_DBAR		0x0028
-#define SLIC_DBAR_SIZE		2048
-
-	u32	slic_cbar;	/* Xmt Cmd buf addr regs.*/
-	/*
-	 * 1 per XMT interface
-	 * 31-5 - phy addr of host command buffer
-	 *  4-0 - length of cmd in multiples of 32 bytes
-	 * Buffers are 32 bytes up to 512 bytes long
-	 */
-#define SLIC_CBAR		0x0030
-#define SLIC_CBAR_LEN_MSK	0x0000001F
-#define SLIC_CBAR_ALIGN		0x00000020
-
-	u32	slic_wcs;	/* write control store*/
-#define	SLIC_WCS		0x0034
-#define SLIC_WCS_START		0x80000000	/*Start the SLIC (Jump to WCS)*/
-#define SLIC_WCS_COMPARE	0x40000000	/* Compare with value in WCS*/
-
-	u32	slic_rbar;	/* Response buffer address reg.*/
-	u32	pad7;
-	/*
-	 * 31-8 - phy addr of set of contiguous response buffers
-	 * 7-0 - number of buffers passed
-	 * Buffers are 32 bytes long on 32-byte boundaries.
-	 */
-#define SLIC_RBAR		0x0038
-#define SLIC_RBAR_CNT_MSK	0x000000FF
-#define SLIC_RBAR_SIZE		32
-
-	u32	slic_stats;	/* read statistics (UPR) */
-	u32	pad8;
-#define	SLIC_RSTAT		0x0040
-
-	u32	slic_rlsr;	/* read link status */
-	u32	pad9;
-#define SLIC_LSTAT		0x0048
-
-	u32	slic_wmcfg;	/* Write Mac Config */
-	u32	pad10;
-#define	SLIC_WMCFG		0x0050
-
-	u32	slic_wphy;	/* Write phy register */
-	u32	pad11;
-#define SLIC_WPHY		0x0058
-
-	u32	slic_rcbar;	/* Rcv Cmd buf addr reg */
-	u32	pad12;
-#define	SLIC_RCBAR		0x0060
-
-	u32	slic_rconfig;	/* Read SLIC Config*/
-	u32	pad13;
-#define SLIC_RCONFIG	0x0068
-
-	u32	slic_intagg;	/* Interrupt aggregation time */
-	u32	pad14;
-#define SLIC_INTAGG		0x0070
-
-	u32	slic_wxcfg;	/* Write XMIT config reg*/
-	u32	pad16;
-#define	SLIC_WXCFG		0x0078
-
-	u32	slic_wrcfg;	/* Write RCV config reg*/
-	u32	pad17;
-#define	SLIC_WRCFG		0x0080
-
-	u32	slic_wraddral;	/* Write rcv addr a low*/
-	u32	pad18;
-#define	SLIC_WRADDRAL	0x0088
-
-	u32	slic_wraddrah;	/* Write rcv addr a high*/
-	u32	pad19;
-#define	SLIC_WRADDRAH	0x0090
-
-	u32	slic_wraddrbl;	/* Write rcv addr b low*/
-	u32	pad20;
-#define	SLIC_WRADDRBL	0x0098
-
-	u32	slic_wraddrbh;	/* Write rcv addr b high*/
-	u32		pad21;
-#define	SLIC_WRADDRBH	0x00a0
-
-	u32	slic_mcastlow;	/* Low bits of mcast mask*/
-	u32		pad22;
-#define	SLIC_MCASTLOW	0x00a8
-
-	u32	slic_mcasthigh;	/* High bits of mcast mask*/
-	u32		pad23;
-#define	SLIC_MCASTHIGH	0x00b0
-
-	u32	slic_ping;	/* Ping the card*/
-	u32	pad24;
-#define SLIC_PING		0x00b8
-
-	u32	slic_dump_cmd;	/* Dump command */
-	u32	pad25;
-#define SLIC_DUMP_CMD	0x00c0
-
-	u32	slic_dump_data;	/* Dump data pointer */
-	u32	pad26;
-#define SLIC_DUMP_DATA	0x00c8
-
-	u32	slic_pcistatus;	/* Read card's pci_status register */
-	u32	pad27;
-#define	SLIC_PCISTATUS	0x00d0
-
-	u32	slic_wrhostid;	/* Write hostid field */
-	u32		pad28;
-#define SLIC_WRHOSTID		 0x00d8
-#define SLIC_RDHOSTID_1GB	 0x1554
-#define SLIC_RDHOSTID_2GB	 0x1554
-
-	u32	slic_low_power;	/* Put card in a low power state */
-	u32	pad29;
-#define SLIC_LOW_POWER	0x00e0
-
-	u32	slic_quiesce;	/* force slic into quiescent state
-				 * before soft reset
-				 */
-	u32	pad30;
-#define SLIC_QUIESCE	0x00e8
-
-	u32	slic_reset_iface;/* reset interface queues */
-	u32	pad31;
-#define SLIC_RESET_IFACE 0x00f0
-
-	u32	slic_addr_upper;/* Bits 63-32 for host i/f addrs */
-	u32	pad32;
-#define SLIC_ADDR_UPPER	0x00f8 /*Register is only written when it has changed*/
-
-	u32	slic_hbar64;	/* 64 bit Header buffer address reg */
-	u32	pad33;
-#define SLIC_HBAR64		0x0100
-
-	u32	slic_dbar64;	/* 64 bit Data buffer handle & address reg */
-	u32	pad34;
-#define SLIC_DBAR64		0x0108
-
-	u32	slic_cbar64;	/* 64 bit Xmt Cmd buf addr regs. */
-	u32	pad35;
-#define SLIC_CBAR64		0x0110
-
-	u32	slic_rbar64;	/* 64 bit Response buffer address reg.*/
-	u32	pad36;
-#define SLIC_RBAR64		0x0118
-
-	u32	slic_rcbar64;	/* 64 bit Rcv Cmd buf addr reg*/
-	u32	pad37;
-#define	SLIC_RCBAR64	0x0120
-
-	u32	slic_stats64;	/* read statistics (64 bit UPR) */
-	u32	pad38;
-#define	SLIC_RSTAT64	0x0128
-
-	u32	slic_rcv_wcs;	/*Download Gigabit RCV sequencer ucode*/
-	u32	pad39;
-#define SLIC_RCV_WCS	0x0130
-#define SLIC_RCVWCS_BEGIN	0x40000000
-#define SLIC_RCVWCS_FINISH	0x80000000
-
-	u32	slic_wrvlanid;	/* Write VlanId field */
-	u32	pad40;
-#define SLIC_WRVLANID	0x0138
-
-	u32	slic_read_xf_info;	/* Read Transformer info */
-	u32	pad41;
-#define SLIC_READ_XF_INFO	0x0140
-
-	u32	slic_write_xf_info;	/* Write Transformer info */
-	u32	pad42;
-#define SLIC_WRITE_XF_INFO	0x0148
-
-	u32	RSVD1;		/* TOE Only */
-	u32	pad43;
-
-	u32	RSVD2;		/* TOE Only */
-	u32	pad44;
-
-	u32	RSVD3;		/* TOE Only */
-	u32	pad45;
-
-	u32	RSVD4;		/* TOE Only */
-	u32	pad46;
-
-	u32	slic_ticks_per_sec; /* Write card ticks per second */
-	u32	pad47;
-#define SLIC_TICKS_PER_SEC	0x0170
-};
+#define SLIC_REG_HOSTID		0x1554
 
 enum UPR_REQUEST {
 	SLIC_UPR_STATS,
@@ -564,85 +458,6 @@ struct slic_pnp_capabilities {
 	u32 flags;
 	struct slicpm_wakeup_capabilities wakeup_capabilities;
 };
-
-struct xmt_stats {
-	u32 xmit_tcp_bytes;
-	u32 xmit_tcp_segs;
-	u32 xmit_bytes;
-	u32 xmit_collisions;
-	u32 xmit_unicasts;
-	u32 xmit_other_error;
-	u32 xmit_excess_collisions;
-};
-
-struct rcv_stats {
-	u32 rcv_tcp_bytes;
-	u32 rcv_tcp_segs;
-	u32 rcv_bytes;
-	u32 rcv_unicasts;
-	u32 rcv_other_error;
-	u32 rcv_drops;
-};
-
-struct xmt_statsgb {
-	u64 xmit_tcp_bytes;
-	u64 xmit_tcp_segs;
-	u64 xmit_bytes;
-	u64 xmit_collisions;
-	u64 xmit_unicasts;
-	u64 xmit_other_error;
-	u64 xmit_excess_collisions;
-};
-
-struct rcv_statsgb {
-	u64 rcv_tcp_bytes;
-	u64 rcv_tcp_segs;
-	u64 rcv_bytes;
-	u64 rcv_unicasts;
-	u64 rcv_other_error;
-	u64 rcv_drops;
-};
-
-struct slic_stats {
-	union {
-		struct {
-			struct xmt_stats xmt100;
-			struct rcv_stats rcv100;
-		} stats_100;
-		struct {
-			struct xmt_statsgb xmtGB;
-			struct rcv_statsgb rcvGB;
-		} stats_GB;
-	} u;
-};
-
-#define xmit_tcp_segs100		u.stats_100.xmt100.xmit_tcp_segs
-#define xmit_tcp_bytes100		u.stats_100.xmt100.xmit_tcp_bytes
-#define xmit_bytes100			u.stats_100.xmt100.xmit_bytes
-#define xmit_collisions100		u.stats_100.xmt100.xmit_collisions
-#define xmit_unicasts100		u.stats_100.xmt100.xmit_unicasts
-#define xmit_other_error100		u.stats_100.xmt100.xmit_other_error
-#define xmit_excess_collisions100	u.stats_100.xmt100.xmit_excess_collisions
-#define rcv_tcp_segs100			u.stats_100.rcv100.rcv_tcp_segs
-#define rcv_tcp_bytes100		u.stats_100.rcv100.rcv_tcp_bytes
-#define rcv_bytes100			u.stats_100.rcv100.rcv_bytes
-#define rcv_unicasts100			u.stats_100.rcv100.rcv_unicasts
-#define rcv_other_error100		u.stats_100.rcv100.rcv_other_error
-#define rcv_drops100			u.stats_100.rcv100.rcv_drops
-#define xmit_tcp_segs_gb		u.stats_GB.xmtGB.xmit_tcp_segs
-#define xmit_tcp_bytes_gb		u.stats_GB.xmtGB.xmit_tcp_bytes
-#define xmit_bytes_gb			u.stats_GB.xmtGB.xmit_bytes
-#define xmit_collisions_gb		u.stats_GB.xmtGB.xmit_collisions
-#define xmit_unicasts_gb		u.stats_GB.xmtGB.xmit_unicasts
-#define xmit_other_error_gb		u.stats_GB.xmtGB.xmit_other_error
-#define xmit_excess_collisions_gb	u.stats_GB.xmtGB.xmit_excess_collisions
-
-#define rcv_tcp_segs_gb			u.stats_GB.rcvGB.rcv_tcp_segs
-#define rcv_tcp_bytes_gb		u.stats_GB.rcvGB.rcv_tcp_bytes
-#define rcv_bytes_gb			u.stats_GB.rcvGB.rcv_bytes
-#define rcv_unicasts_gb			u.stats_GB.rcvGB.rcv_unicasts
-#define rcv_other_error_gb		u.stats_GB.rcvGB.rcv_other_error
-#define rcv_drops_gb			u.stats_GB.rcvGB.rcv_drops
 
 struct slic_config_mac {
 	u8 macaddrA[6];

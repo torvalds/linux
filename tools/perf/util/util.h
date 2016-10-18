@@ -179,10 +179,6 @@ static inline void *zalloc(size_t size)
 #undef tolower
 #undef toupper
 
-#ifndef NSEC_PER_MSEC
-#define NSEC_PER_MSEC	1000000L
-#endif
-
 int parse_nsec_time(const char *str, u64 *ptime);
 
 extern unsigned char sane_ctype[256];

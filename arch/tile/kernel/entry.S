@@ -50,7 +50,7 @@ STD_ENTRY(smp_nap)
  * When interrupted at _cpu_idle_nap, we bump the PC forward 8, and
  * as a result return to the function that called _cpu_idle().
  */
-STD_ENTRY(_cpu_idle)
+STD_ENTRY_SECTION(_cpu_idle, .cpuidle.text)
 	movei r1, 1
 	IRQ_ENABLE_LOAD(r2, r3)
 	mtspr INTERRUPT_CRITICAL_SECTION, r1

@@ -229,8 +229,8 @@ int msm_perf_debugfs_init(struct drm_minor *minor)
 	perf->ent = debugfs_create_file("perf", S_IFREG | S_IRUGO,
 			minor->debugfs_root, perf, &perf_debugfs_fops);
 	if (!perf->ent) {
-		DRM_ERROR("Cannot create /sys/kernel/debug/dri/%s/perf\n",
-				minor->debugfs_root->d_name.name);
+		DRM_ERROR("Cannot create /sys/kernel/debug/dri/%pd/perf\n",
+				minor->debugfs_root);
 		goto fail;
 	}
 

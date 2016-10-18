@@ -36,7 +36,7 @@ struct ins_operands {
 
 struct ins_ops {
 	void (*free)(struct ins_operands *ops);
-	int (*parse)(struct ins_operands *ops);
+	int (*parse)(struct ins_operands *ops, struct map *map);
 	int (*scnprintf)(struct ins *ins, char *bf, size_t size,
 			 struct ins_operands *ops);
 };
@@ -130,6 +130,7 @@ struct annotated_source {
 
 struct annotation {
 	pthread_mutex_t		lock;
+	u64			max_coverage;
 	struct annotated_source *src;
 };
 
@@ -177,7 +178,6 @@ enum symbol_disassemble_errno {
 int symbol__strerror_disassemble(struct symbol *sym, struct map *map,
 				 int errnum, char *buf, size_t buflen);
 
-int symbol__annotate_init(struct map *map, struct symbol *sym);
 int symbol__annotate_printf(struct symbol *sym, struct map *map,
 			    struct perf_evsel *evsel, bool full_paths,
 			    int min_pcnt, int max_lines, int context);

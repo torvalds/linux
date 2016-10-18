@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2007 Rik Snel <rsnel@cube.dyndns.org>
  *
- * Based om ecb.c
+ * Based on ecb.c
  * Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
  *
  * This program is free software; you can redistribute it and/or modify it

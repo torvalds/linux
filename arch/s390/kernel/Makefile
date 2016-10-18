@@ -48,6 +48,9 @@ AFLAGS_head.o		+= -march=z900
 endif
 GCOV_PROFILE_sclp.o := n
 GCOV_PROFILE_als.o := n
+UBSAN_SANITIZE_als.o := n
+UBSAN_SANITIZE_early.o := n
+UBSAN_SANITIZE_sclp.o := n
 
 obj-y	:= traps.o time.o process.o base.o early.o setup.o idle.o vtime.o
 obj-y	+= processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o
@@ -58,7 +61,7 @@ obj-y	+= entry.o reipl.o relocate_kernel.o
 
 extra-y				+= head.o head64.o vmlinux.lds
 
-obj-$(CONFIG_MODULES)		+= s390_ksyms.o module.o
+obj-$(CONFIG_MODULES)		+= module.o
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_SCHED_TOPOLOGY)	+= topology.o
 obj-$(CONFIG_HIBERNATION)	+= suspend.o swsusp.o

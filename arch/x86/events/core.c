@@ -37,6 +37,7 @@
 #include <asm/timer.h>
 #include <asm/desc.h>
 #include <asm/ldt.h>
+#include <asm/unwind.h>
 
 #include "perf_event.h"
 
@@ -1201,6 +1202,9 @@ static int x86_pmu_add(struct perf_event *event, int flags)
 	 * If group events scheduling transaction was started,
 	 * skip the schedulability test here, it will be performed
 	 * at commit time (->commit_txn) as a whole.
+	 *
+	 * If commit fails, we'll call ->del() on all events
+	 * for which ->add() was called.
 	 */
 	if (cpuc->txn_flags & PERF_PMU_TXN_ADD)
 		goto done_collect;
@@ -1222,6 +1226,14 @@ done_collect:
 	cpuc->n_events = n;
 	cpuc->n_added += n - n0;
 	cpuc->n_txn += n - n0;
+
+	if (x86_pmu.add) {
+		/*
+		 * This is before x86_pmu_enable() will call x86_pmu_start(),
+		 * so we enable LBRs before an event needs them etc..
+		 */
+		x86_pmu.add(event);
+	}
 
 	ret = 0;
 out:
@@ -1346,7 +1358,7 @@ static void x86_pmu_del(struct perf_event *event, int flags)
 	event->hw.flags &= ~PERF_X86_EVENT_COMMITTED;
 
 	/*
-	 * If we're called during a txn, we don't need to do anything.
+	 * If we're called during a txn, we only need to undo x86_pmu.add.
 	 * The events never got scheduled and ->cancel_txn will truncate
 	 * the event_list.
 	 *
@@ -1354,7 +1366,7 @@ static void x86_pmu_del(struct perf_event *event, int flags)
 	 * an event added during that same TXN.
 	 */
 	if (cpuc->txn_flags & PERF_PMU_TXN_ADD)
-		return;
+		goto do_del;
 
 	/*
 	 * Not a TXN, therefore cleanup properly.
@@ -1384,6 +1396,15 @@ static void x86_pmu_del(struct perf_event *event, int flags)
 	--cpuc->n_events;
 
 	perf_event_update_userpage(event);
+
+do_del:
+	if (x86_pmu.del) {
+		/*
+		 * This is after x86_pmu_stop(); so we disable LBRs after any
+		 * event can need them etc..
+		 */
+		x86_pmu.del(event);
+	}
 }
 
 int x86_pmu_handle_irq(struct pt_regs *regs)
@@ -2247,39 +2268,26 @@ void arch_perf_update_userpage(struct perf_event *event,
 	cyc2ns_read_end(data);
 }
 
-/*
- * callchain support
- */
-
-static int backtrace_stack(void *data, char *name)
-{
-	return 0;
-}
-
-static int backtrace_address(void *data, unsigned long addr, int reliable)
-{
-	struct perf_callchain_entry_ctx *entry = data;
-
-	return perf_callchain_store(entry, addr);
-}
-
-static const struct stacktrace_ops backtrace_ops = {
-	.stack			= backtrace_stack,
-	.address		= backtrace_address,
-	.walk_stack		= print_context_stack_bp,
-};
-
 void
 perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
+	struct unwind_state state;
+	unsigned long addr;
+
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
 		/* TODO: We don't support guest os callchain now */
 		return;
 	}
 
-	perf_callchain_store(entry, regs->ip);
+	if (perf_callchain_store(entry, regs->ip))
+		return;
 
-	dump_trace(NULL, regs, NULL, 0, &backtrace_ops, entry);
+	for (unwind_start(&state, current, regs, NULL); !unwind_done(&state);
+	     unwind_next_frame(&state)) {
+		addr = unwind_get_return_address(&state);
+		if (!addr || perf_callchain_store(entry, addr))
+			return;
+	}
 }
 
 static inline int

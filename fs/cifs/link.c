@@ -399,7 +399,7 @@ cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	io_parms.offset = 0;
 	io_parms.length = CIFS_MF_SYMLINK_FILE_SIZE;
 
-	rc = CIFSSMBWrite(xid, &io_parms, pbytes_written, pbuf, NULL, 0);
+	rc = CIFSSMBWrite(xid, &io_parms, pbytes_written, pbuf);
 	CIFSSMBClose(xid, tcon, fid.netfid);
 	return rc;
 }

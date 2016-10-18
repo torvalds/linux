@@ -4,6 +4,7 @@
  * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
+ * Author: Gary R Hook <gary.hook@amd.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -60,7 +61,69 @@
 #define CMD_Q_ERROR(__qs)		((__qs) & 0x0000003f)
 #define CMD_Q_DEPTH(__qs)		(((__qs) >> 12) & 0x0000000f)
 
-/****** REQ0 Related Values ******/
+/* ------------------------ CCP Version 5 Specifics ------------------------ */
+#define CMD5_QUEUE_MASK_OFFSET		0x00
+#define	CMD5_QUEUE_PRIO_OFFSET		0x04
+#define CMD5_REQID_CONFIG_OFFSET	0x08
+#define	CMD5_CMD_TIMEOUT_OFFSET		0x10
+#define LSB_PUBLIC_MASK_LO_OFFSET	0x18
+#define LSB_PUBLIC_MASK_HI_OFFSET	0x1C
+#define LSB_PRIVATE_MASK_LO_OFFSET	0x20
+#define LSB_PRIVATE_MASK_HI_OFFSET	0x24
+
+#define CMD5_Q_CONTROL_BASE		0x0000
+#define CMD5_Q_TAIL_LO_BASE		0x0004
+#define CMD5_Q_HEAD_LO_BASE		0x0008
+#define CMD5_Q_INT_ENABLE_BASE		0x000C
+#define CMD5_Q_INTERRUPT_STATUS_BASE	0x0010
+
+#define CMD5_Q_STATUS_BASE		0x0100
+#define CMD5_Q_INT_STATUS_BASE		0x0104
+#define CMD5_Q_DMA_STATUS_BASE		0x0108
+#define CMD5_Q_DMA_READ_STATUS_BASE	0x010C
+#define CMD5_Q_DMA_WRITE_STATUS_BASE	0x0110
+#define CMD5_Q_ABORT_BASE		0x0114
+#define CMD5_Q_AX_CACHE_BASE		0x0118
+
+#define	CMD5_CONFIG_0_OFFSET		0x6000
+#define	CMD5_TRNG_CTL_OFFSET		0x6008
+#define	CMD5_AES_MASK_OFFSET		0x6010
+#define	CMD5_CLK_GATE_CTL_OFFSET	0x603C
+
+/* Address offset between two virtual queue registers */
+#define CMD5_Q_STATUS_INCR		0x1000
+
+/* Bit masks */
+#define CMD5_Q_RUN			0x1
+#define CMD5_Q_HALT			0x2
+#define CMD5_Q_MEM_LOCATION		0x4
+#define CMD5_Q_SIZE			0x1F
+#define CMD5_Q_SHIFT			3
+#define COMMANDS_PER_QUEUE		16
+#define QUEUE_SIZE_VAL			((ffs(COMMANDS_PER_QUEUE) - 2) & \
+					  CMD5_Q_SIZE)
+#define Q_PTR_MASK			(2 << (QUEUE_SIZE_VAL + 5) - 1)
+#define Q_DESC_SIZE			sizeof(struct ccp5_desc)
+#define Q_SIZE(n)			(COMMANDS_PER_QUEUE*(n))
+
+#define INT_COMPLETION			0x1
+#define INT_ERROR			0x2
+#define INT_QUEUE_STOPPED		0x4
+#define ALL_INTERRUPTS			(INT_COMPLETION| \
+					 INT_ERROR| \
+					 INT_QUEUE_STOPPED)
+
+#define LSB_REGION_WIDTH		5
+#define MAX_LSB_CNT			8
+
+#define LSB_SIZE			16
+#define LSB_ITEM_SIZE			32
+#define PLSB_MAP_SIZE			(LSB_SIZE)
+#define SLSB_MAP_SIZE			(MAX_LSB_CNT * LSB_SIZE)
+
+#define LSB_ENTRY_NUMBER(LSB_ADDR)	(LSB_ADDR / LSB_ITEM_SIZE)
+
+/* ------------------------ CCP Version 3 Specifics ------------------------ */
 #define REQ0_WAIT_FOR_WRITE		0x00000004
 #define REQ0_INT_ON_COMPLETE		0x00000002
 #define REQ0_STOP_ON_COMPLETE		0x00000001
@@ -110,29 +173,30 @@
 #define KSB_START			77
 #define KSB_END				127
 #define KSB_COUNT			(KSB_END - KSB_START + 1)
-#define CCP_KSB_BITS			256
-#define CCP_KSB_BYTES			32
+#define CCP_SB_BITS			256
 
 #define CCP_JOBID_MASK			0x0000003f
+
+/* ------------------------ General CCP Defines ------------------------ */
 
 #define CCP_DMAPOOL_MAX_SIZE		64
 #define CCP_DMAPOOL_ALIGN		BIT(5)
 
 #define CCP_REVERSE_BUF_SIZE		64
 
-#define CCP_AES_KEY_KSB_COUNT		1
-#define CCP_AES_CTX_KSB_COUNT		1
+#define CCP_AES_KEY_SB_COUNT		1
+#define CCP_AES_CTX_SB_COUNT		1
 
-#define CCP_XTS_AES_KEY_KSB_COUNT	1
-#define CCP_XTS_AES_CTX_KSB_COUNT	1
+#define CCP_XTS_AES_KEY_SB_COUNT	1
+#define CCP_XTS_AES_CTX_SB_COUNT	1
 
-#define CCP_SHA_KSB_COUNT		1
+#define CCP_SHA_SB_COUNT		1
 
 #define CCP_RSA_MAX_WIDTH		4096
 
 #define CCP_PASSTHRU_BLOCKSIZE		256
 #define CCP_PASSTHRU_MASKSIZE		32
-#define CCP_PASSTHRU_KSB_COUNT		1
+#define CCP_PASSTHRU_SB_COUNT		1
 
 #define CCP_ECC_MODULUS_BYTES		48      /* 384-bits */
 #define CCP_ECC_MAX_OPERANDS		6
@@ -144,31 +208,12 @@
 #define CCP_ECC_RESULT_OFFSET		60
 #define CCP_ECC_RESULT_SUCCESS		0x0001
 
+#define CCP_SB_BYTES			32
+
 struct ccp_op;
-
-/* Structure for computation functions that are device-specific */
-struct ccp_actions {
-	int (*perform_aes)(struct ccp_op *);
-	int (*perform_xts_aes)(struct ccp_op *);
-	int (*perform_sha)(struct ccp_op *);
-	int (*perform_rsa)(struct ccp_op *);
-	int (*perform_passthru)(struct ccp_op *);
-	int (*perform_ecc)(struct ccp_op *);
-	int (*init)(struct ccp_device *);
-	void (*destroy)(struct ccp_device *);
-	irqreturn_t (*irqhandler)(int, void *);
-};
-
-/* Structure to hold CCP version-specific values */
-struct ccp_vdata {
-	unsigned int version;
-	const struct ccp_actions *perform;
-};
-
-extern struct ccp_vdata ccpv3;
-
 struct ccp_device;
 struct ccp_cmd;
+struct ccp_fns;
 
 struct ccp_dma_cmd {
 	struct list_head entry;
@@ -212,9 +257,29 @@ struct ccp_cmd_queue {
 	/* Queue dma pool */
 	struct dma_pool *dma_pool;
 
-	/* Queue reserved KSB regions */
-	u32 ksb_key;
-	u32 ksb_ctx;
+	/* Queue base address (not neccessarily aligned)*/
+	struct ccp5_desc *qbase;
+
+	/* Aligned queue start address (per requirement) */
+	struct mutex q_mutex ____cacheline_aligned;
+	unsigned int qidx;
+
+	/* Version 5 has different requirements for queue memory */
+	unsigned int qsize;
+	dma_addr_t qbase_dma;
+	dma_addr_t qdma_tail;
+
+	/* Per-queue reserved storage block(s) */
+	u32 sb_key;
+	u32 sb_ctx;
+
+	/* Bitmap of LSBs that can be accessed by this queue */
+	DECLARE_BITMAP(lsbmask, MAX_LSB_CNT);
+	/* Private LSB that is assigned to this queue, or -1 if none.
+	 * Bitmap for my private LSB, unused otherwise
+	 */
+	unsigned int lsb;
+	DECLARE_BITMAP(lsbmap, PLSB_MAP_SIZE);
 
 	/* Queue processing thread */
 	struct task_struct *kthread;
@@ -229,8 +294,17 @@ struct ccp_cmd_queue {
 	u32 int_err;
 
 	/* Register addresses for queue */
+	void __iomem *reg_control;
+	void __iomem *reg_tail_lo;
+	void __iomem *reg_head_lo;
+	void __iomem *reg_int_enable;
+	void __iomem *reg_interrupt_status;
 	void __iomem *reg_status;
 	void __iomem *reg_int_status;
+	void __iomem *reg_dma_status;
+	void __iomem *reg_dma_read_status;
+	void __iomem *reg_dma_write_status;
+	u32 qcontrol; /* Cached control register */
 
 	/* Status values from job */
 	u32 int_status;
@@ -253,16 +327,14 @@ struct ccp_device {
 
 	struct device *dev;
 
-	/*
-	 * Bus specific device information
+	/* Bus specific device information
 	 */
 	void *dev_specific;
 	int (*get_irq)(struct ccp_device *ccp);
 	void (*free_irq)(struct ccp_device *ccp);
 	unsigned int irq;
 
-	/*
-	 * I/O area used for device communication. The register mapping
+	/* I/O area used for device communication. The register mapping
 	 * starts at an offset into the mapped bar.
 	 *   The CMD_REQx registers and the Delete_Cmd_Queue_Job register
 	 *   need to be protected while a command queue thread is accessing
@@ -272,8 +344,7 @@ struct ccp_device {
 	void __iomem *io_map;
 	void __iomem *io_regs;
 
-	/*
-	 * Master lists that all cmds are queued on. Because there can be
+	/* Master lists that all cmds are queued on. Because there can be
 	 * more than one CCP command queue that can process a cmd a separate
 	 * backlog list is neeeded so that the backlog completion call
 	 * completes before the cmd is available for execution.
@@ -283,47 +354,54 @@ struct ccp_device {
 	struct list_head cmd;
 	struct list_head backlog;
 
-	/*
-	 * The command queues. These represent the queues available on the
+	/* The command queues. These represent the queues available on the
 	 * CCP that are available for processing cmds
 	 */
 	struct ccp_cmd_queue cmd_q[MAX_HW_QUEUES];
 	unsigned int cmd_q_count;
 
-	/*
-	 * Support for the CCP True RNG
+	/* Support for the CCP True RNG
 	 */
 	struct hwrng hwrng;
 	unsigned int hwrng_retries;
 
-	/*
-	 * Support for the CCP DMA capabilities
+	/* Support for the CCP DMA capabilities
 	 */
 	struct dma_device dma_dev;
 	struct ccp_dma_chan *ccp_dma_chan;
 	struct kmem_cache *dma_cmd_cache;
 	struct kmem_cache *dma_desc_cache;
 
-	/*
-	 * A counter used to generate job-ids for cmds submitted to the CCP
+	/* A counter used to generate job-ids for cmds submitted to the CCP
 	 */
 	atomic_t current_id ____cacheline_aligned;
 
-	/*
-	 * The CCP uses key storage blocks (KSB) to maintain context for certain
-	 * operations. To prevent multiple cmds from using the same KSB range
-	 * a command queue reserves a KSB range for the duration of the cmd.
-	 * Each queue, will however, reserve 2 KSB blocks for operations that
-	 * only require single KSB entries (eg. AES context/iv and key) in order
-	 * to avoid allocation contention.  This will reserve at most 10 KSB
-	 * entries, leaving 40 KSB entries available for dynamic allocation.
+	/* The v3 CCP uses key storage blocks (SB) to maintain context for
+	 * certain operations. To prevent multiple cmds from using the same
+	 * SB range a command queue reserves an SB range for the duration of
+	 * the cmd. Each queue, will however, reserve 2 SB blocks for
+	 * operations that only require single SB entries (eg. AES context/iv
+	 * and key) in order to avoid allocation contention.  This will reserve
+	 * at most 10 SB entries, leaving 40 SB entries available for dynamic
+	 * allocation.
+	 *
+	 * The v5 CCP Local Storage Block (LSB) is broken up into 8
+	 * memrory ranges, each of which can be enabled for access by one
+	 * or more queues. Device initialization takes this into account,
+	 * and attempts to assign one region for exclusive use by each
+	 * available queue; the rest are then aggregated as "public" use.
+	 * If there are fewer regions than queues, all regions are shared
+	 * amongst all queues.
 	 */
-	struct mutex ksb_mutex ____cacheline_aligned;
-	DECLARE_BITMAP(ksb, KSB_COUNT);
-	wait_queue_head_t ksb_queue;
-	unsigned int ksb_avail;
-	unsigned int ksb_count;
-	u32 ksb_start;
+	struct mutex sb_mutex ____cacheline_aligned;
+	DECLARE_BITMAP(sb, KSB_COUNT);
+	wait_queue_head_t sb_queue;
+	unsigned int sb_avail;
+	unsigned int sb_count;
+	u32 sb_start;
+
+	/* Bitmap of shared LSBs, if any */
+	DECLARE_BITMAP(lsbmap, SLSB_MAP_SIZE);
 
 	/* Suspend support */
 	unsigned int suspending;
@@ -335,10 +413,11 @@ struct ccp_device {
 
 enum ccp_memtype {
 	CCP_MEMTYPE_SYSTEM = 0,
-	CCP_MEMTYPE_KSB,
+	CCP_MEMTYPE_SB,
 	CCP_MEMTYPE_LOCAL,
 	CCP_MEMTYPE__LAST,
 };
+#define	CCP_MEMTYPE_LSB	CCP_MEMTYPE_KSB
 
 struct ccp_dma_info {
 	dma_addr_t address;
@@ -379,7 +458,7 @@ struct ccp_mem {
 	enum ccp_memtype type;
 	union {
 		struct ccp_dma_info dma;
-		u32 ksb;
+		u32 sb;
 	} u;
 };
 
@@ -419,13 +498,14 @@ struct ccp_op {
 	u32 jobid;
 	u32 ioc;
 	u32 soc;
-	u32 ksb_key;
-	u32 ksb_ctx;
+	u32 sb_key;
+	u32 sb_ctx;
 	u32 init;
 	u32 eom;
 
 	struct ccp_mem src;
 	struct ccp_mem dst;
+	struct ccp_mem exp;
 
 	union {
 		struct ccp_aes_op aes;
@@ -435,6 +515,7 @@ struct ccp_op {
 		struct ccp_passthru_op passthru;
 		struct ccp_ecc_op ecc;
 	} u;
+	struct ccp_mem key;
 };
 
 static inline u32 ccp_addr_lo(struct ccp_dma_info *info)
@@ -447,6 +528,70 @@ static inline u32 ccp_addr_hi(struct ccp_dma_info *info)
 	return upper_32_bits(info->address + info->offset) & 0x0000ffff;
 }
 
+/**
+ * descriptor for version 5 CPP commands
+ * 8 32-bit words:
+ * word 0: function; engine; control bits
+ * word 1: length of source data
+ * word 2: low 32 bits of source pointer
+ * word 3: upper 16 bits of source pointer; source memory type
+ * word 4: low 32 bits of destination pointer
+ * word 5: upper 16 bits of destination pointer; destination memory type
+ * word 6: low 32 bits of key pointer
+ * word 7: upper 16 bits of key pointer; key memory type
+ */
+struct dword0 {
+	__le32 soc:1;
+	__le32 ioc:1;
+	__le32 rsvd1:1;
+	__le32 init:1;
+	__le32 eom:1;		/* AES/SHA only */
+	__le32 function:15;
+	__le32 engine:4;
+	__le32 prot:1;
+	__le32 rsvd2:7;
+};
+
+struct dword3 {
+	__le32 src_hi:16;
+	__le32 src_mem:2;
+	__le32 lsb_cxt_id:8;
+	__le32 rsvd1:5;
+	__le32 fixed:1;
+};
+
+union dword4 {
+	__le32 dst_lo;		/* NON-SHA	*/
+	__le32 sha_len_lo;	/* SHA		*/
+};
+
+union dword5 {
+	struct {
+		__le32 dst_hi:16;
+		__le32 dst_mem:2;
+		__le32 rsvd1:13;
+		__le32 fixed:1;
+	} fields;
+	__le32 sha_len_hi;
+};
+
+struct dword7 {
+	__le32 key_hi:16;
+	__le32 key_mem:2;
+	__le32 rsvd1:14;
+};
+
+struct ccp5_desc {
+	struct dword0 dw0;
+	__le32 length;
+	__le32 src_lo;
+	struct dword3 dw3;
+	union dword4 dw4;
+	union dword5 dw5;
+	__le32 key_lo;
+	struct dword7 dw7;
+};
+
 int ccp_pci_init(void);
 void ccp_pci_exit(void);
 
@@ -456,13 +601,48 @@ void ccp_platform_exit(void);
 void ccp_add_device(struct ccp_device *ccp);
 void ccp_del_device(struct ccp_device *ccp);
 
+extern void ccp_log_error(struct ccp_device *, int);
+
 struct ccp_device *ccp_alloc_struct(struct device *dev);
 bool ccp_queues_suspended(struct ccp_device *ccp);
 int ccp_cmd_queue_thread(void *data);
+int ccp_trng_read(struct hwrng *rng, void *data, size_t max, bool wait);
 
 int ccp_run_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd);
 
+int ccp_register_rng(struct ccp_device *ccp);
+void ccp_unregister_rng(struct ccp_device *ccp);
 int ccp_dmaengine_register(struct ccp_device *ccp);
 void ccp_dmaengine_unregister(struct ccp_device *ccp);
+
+/* Structure for computation functions that are device-specific */
+struct ccp_actions {
+	int (*aes)(struct ccp_op *);
+	int (*xts_aes)(struct ccp_op *);
+	int (*sha)(struct ccp_op *);
+	int (*rsa)(struct ccp_op *);
+	int (*passthru)(struct ccp_op *);
+	int (*ecc)(struct ccp_op *);
+	u32 (*sballoc)(struct ccp_cmd_queue *, unsigned int);
+	void (*sbfree)(struct ccp_cmd_queue *, unsigned int,
+			       unsigned int);
+	unsigned int (*get_free_slots)(struct ccp_cmd_queue *);
+	int (*init)(struct ccp_device *);
+	void (*destroy)(struct ccp_device *);
+	irqreturn_t (*irqhandler)(int, void *);
+};
+
+/* Structure to hold CCP version-specific values */
+struct ccp_vdata {
+	const unsigned int version;
+	void (*setup)(struct ccp_device *);
+	const struct ccp_actions *perform;
+	const unsigned int bar;
+	const unsigned int offset;
+};
+
+extern const struct ccp_vdata ccpv3;
+extern const struct ccp_vdata ccpv5a;
+extern const struct ccp_vdata ccpv5b;
 
 #endif

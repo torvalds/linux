@@ -151,17 +151,6 @@ static struct ctl_table generic_sysctl_table[] = {
 	},
 	{ }
 };
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-static struct ctl_table generic_compat_sysctl_table[] = {
-	{
-		.procname	= "ip_conntrack_generic_timeout",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{ }
-};
-#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 
 static int generic_kmemdup_sysctl_table(struct nf_proto_net *pn,
@@ -179,40 +168,14 @@ static int generic_kmemdup_sysctl_table(struct nf_proto_net *pn,
 	return 0;
 }
 
-static int generic_kmemdup_compat_sysctl_table(struct nf_proto_net *pn,
-					       struct nf_generic_net *gn)
-{
-#ifdef CONFIG_SYSCTL
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-	pn->ctl_compat_table = kmemdup(generic_compat_sysctl_table,
-				       sizeof(generic_compat_sysctl_table),
-				       GFP_KERNEL);
-	if (!pn->ctl_compat_table)
-		return -ENOMEM;
-
-	pn->ctl_compat_table[0].data = &gn->timeout;
-#endif
-#endif
-	return 0;
-}
-
 static int generic_init_net(struct net *net, u_int16_t proto)
 {
-	int ret;
 	struct nf_generic_net *gn = generic_pernet(net);
 	struct nf_proto_net *pn = &gn->pn;
 
 	gn->timeout = nf_ct_generic_timeout;
 
-	ret = generic_kmemdup_compat_sysctl_table(pn, gn);
-	if (ret < 0)
-		return ret;
-
-	ret = generic_kmemdup_sysctl_table(pn, gn);
-	if (ret < 0)
-		nf_ct_kfree_compat_sysctl_table(pn);
-
-	return ret;
+	return generic_kmemdup_sysctl_table(pn, gn);
 }
 
 static struct nf_proto_net *generic_get_net_proto(struct net *net)

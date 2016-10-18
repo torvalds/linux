@@ -138,6 +138,18 @@ enum g2d_reg_type {
 	MAX_REG_TYPE_NR
 };
 
+enum g2d_flag_bits {
+	/*
+	 * If set, suspends the runqueue worker after the currently
+	 * processed node is finished.
+	 */
+	G2D_BIT_SUSPEND_RUNQUEUE,
+	/*
+	 * If set, indicates that the engine is currently busy.
+	 */
+	G2D_BIT_ENGINE_BUSY,
+};
+
 /* cmdlist data structure */
 struct g2d_cmdlist {
 	u32		head;
@@ -226,7 +238,7 @@ struct g2d_data {
 	struct workqueue_struct		*g2d_workq;
 	struct work_struct		runqueue_work;
 	struct exynos_drm_subdrv	subdrv;
-	bool				suspended;
+	unsigned long			flags;
 
 	/* cmdlist */
 	struct g2d_cmdlist_node		*cmdlist_node;
@@ -245,6 +257,12 @@ struct g2d_data {
 	unsigned long			current_pool;
 	unsigned long			max_pool;
 };
+
+static inline void g2d_hw_reset(struct g2d_data *g2d)
+{
+	writel(G2D_R | G2D_SFRCLEAR, g2d->regs + G2D_SOFT_RESET);
+	clear_bit(G2D_BIT_ENGINE_BUSY, &g2d->flags);
+}
 
 static int g2d_init_cmdlist(struct g2d_data *g2d)
 {
@@ -803,12 +821,8 @@ static void g2d_dma_start(struct g2d_data *g2d,
 	struct g2d_cmdlist_node *node =
 				list_first_entry(&runqueue_node->run_cmdlist,
 						struct g2d_cmdlist_node, list);
-	int ret;
 
-	ret = pm_runtime_get_sync(g2d->dev);
-	if (ret < 0)
-		return;
-
+	set_bit(G2D_BIT_ENGINE_BUSY, &g2d->flags);
 	writel_relaxed(node->dma_addr, g2d->regs + G2D_DMA_SFR_BASE_ADDR);
 	writel_relaxed(G2D_DMA_START, g2d->regs + G2D_DMA_COMMAND);
 }
@@ -831,9 +845,6 @@ static void g2d_free_runqueue_node(struct g2d_data *g2d,
 {
 	struct g2d_cmdlist_node *node;
 
-	if (!runqueue_node)
-		return;
-
 	mutex_lock(&g2d->cmdlist_mutex);
 	/*
 	 * commands in run_cmdlist have been completed so unmap all gem
@@ -847,29 +858,65 @@ static void g2d_free_runqueue_node(struct g2d_data *g2d,
 	kmem_cache_free(g2d->runqueue_slab, runqueue_node);
 }
 
-static void g2d_exec_runqueue(struct g2d_data *g2d)
+/**
+ * g2d_remove_runqueue_nodes - remove items from the list of runqueue nodes
+ * @g2d: G2D state object
+ * @file: if not zero, only remove items with this DRM file
+ *
+ * Has to be called under runqueue lock.
+ */
+static void g2d_remove_runqueue_nodes(struct g2d_data *g2d, struct drm_file* file)
 {
-	g2d->runqueue_node = g2d_get_runqueue_node(g2d);
-	if (g2d->runqueue_node)
-		g2d_dma_start(g2d, g2d->runqueue_node);
+	struct g2d_runqueue_node *node, *n;
+
+	if (list_empty(&g2d->runqueue))
+		return;
+
+	list_for_each_entry_safe(node, n, &g2d->runqueue, list) {
+		if (file && node->filp != file)
+			continue;
+
+		list_del_init(&node->list);
+		g2d_free_runqueue_node(g2d, node);
+	}
 }
 
 static void g2d_runqueue_worker(struct work_struct *work)
 {
 	struct g2d_data *g2d = container_of(work, struct g2d_data,
 					    runqueue_work);
+	struct g2d_runqueue_node *runqueue_node;
+
+	/*
+	 * The engine is busy and the completion of the current node is going
+	 * to poke the runqueue worker, so nothing to do here.
+	 */
+	if (test_bit(G2D_BIT_ENGINE_BUSY, &g2d->flags))
+		return;
 
 	mutex_lock(&g2d->runqueue_mutex);
-	pm_runtime_put_sync(g2d->dev);
 
-	complete(&g2d->runqueue_node->complete);
-	if (g2d->runqueue_node->async)
-		g2d_free_runqueue_node(g2d, g2d->runqueue_node);
+	runqueue_node = g2d->runqueue_node;
+	g2d->runqueue_node = NULL;
 
-	if (g2d->suspended)
-		g2d->runqueue_node = NULL;
-	else
-		g2d_exec_runqueue(g2d);
+	if (runqueue_node) {
+		pm_runtime_mark_last_busy(g2d->dev);
+		pm_runtime_put_autosuspend(g2d->dev);
+
+		complete(&runqueue_node->complete);
+		if (runqueue_node->async)
+			g2d_free_runqueue_node(g2d, runqueue_node);
+	}
+
+	if (!test_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags)) {
+		g2d->runqueue_node = g2d_get_runqueue_node(g2d);
+
+		if (g2d->runqueue_node) {
+			pm_runtime_get_sync(g2d->dev);
+			g2d_dma_start(g2d, g2d->runqueue_node);
+		}
+	}
+
 	mutex_unlock(&g2d->runqueue_mutex);
 }
 
@@ -918,10 +965,70 @@ static irqreturn_t g2d_irq_handler(int irq, void *dev_id)
 		}
 	}
 
-	if (pending & G2D_INTP_ACMD_FIN)
+	if (pending & G2D_INTP_ACMD_FIN) {
+		clear_bit(G2D_BIT_ENGINE_BUSY, &g2d->flags);
 		queue_work(g2d->g2d_workq, &g2d->runqueue_work);
+	}
 
 	return IRQ_HANDLED;
+}
+
+/**
+ * g2d_wait_finish - wait for the G2D engine to finish the current runqueue node
+ * @g2d: G2D state object
+ * @file: if not zero, only wait if the current runqueue node belongs
+ *        to the DRM file
+ *
+ * Should the engine not become idle after a 100ms timeout, a hardware
+ * reset is issued.
+ */
+static void g2d_wait_finish(struct g2d_data *g2d, struct drm_file *file)
+{
+	struct device *dev = g2d->dev;
+
+	struct g2d_runqueue_node *runqueue_node = NULL;
+	unsigned int tries = 10;
+
+	mutex_lock(&g2d->runqueue_mutex);
+
+	/* If no node is currently processed, we have nothing to do. */
+	if (!g2d->runqueue_node)
+		goto out;
+
+	runqueue_node = g2d->runqueue_node;
+
+	/* Check if the currently processed item belongs to us. */
+	if (file && runqueue_node->filp != file)
+		goto out;
+
+	mutex_unlock(&g2d->runqueue_mutex);
+
+	/* Wait for the G2D engine to finish. */
+	while (tries-- && (g2d->runqueue_node == runqueue_node))
+		mdelay(10);
+
+	mutex_lock(&g2d->runqueue_mutex);
+
+	if (g2d->runqueue_node != runqueue_node)
+		goto out;
+
+	dev_err(dev, "wait timed out, resetting engine...\n");
+	g2d_hw_reset(g2d);
+
+	/*
+	 * After the hardware reset of the engine we are going to loose
+	 * the IRQ which triggers the PM runtime put().
+	 * So do this manually here.
+	 */
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
+	complete(&runqueue_node->complete);
+	if (runqueue_node->async)
+		g2d_free_runqueue_node(g2d, runqueue_node);
+
+out:
+	mutex_unlock(&g2d->runqueue_mutex);
 }
 
 static int g2d_check_reg_offset(struct device *dev,
@@ -1259,9 +1366,10 @@ int exynos_g2d_exec_ioctl(struct drm_device *drm_dev, void *data,
 	runqueue_node->pid = current->pid;
 	runqueue_node->filp = file;
 	list_add_tail(&runqueue_node->list, &g2d->runqueue);
-	if (!g2d->runqueue_node)
-		g2d_exec_runqueue(g2d);
 	mutex_unlock(&g2d->runqueue_mutex);
+
+	/* Let the runqueue know that there is work to do. */
+	queue_work(g2d->g2d_workq, &g2d->runqueue_work);
 
 	if (runqueue_node->async)
 		goto out;
@@ -1339,15 +1447,26 @@ static void g2d_close(struct drm_device *drm_dev, struct device *dev,
 	if (!g2d)
 		return;
 
+	/* Remove the runqueue nodes that belong to us. */
+	mutex_lock(&g2d->runqueue_mutex);
+	g2d_remove_runqueue_nodes(g2d, file);
+	mutex_unlock(&g2d->runqueue_mutex);
+
+	/*
+	 * Wait for the runqueue worker to finish its current node.
+	 * After this the engine should no longer be accessing any
+	 * memory belonging to us.
+	 */
+	g2d_wait_finish(g2d, file);
+
+	/*
+	 * Even after the engine is idle, there might still be stale cmdlists
+	 * (i.e. cmdlisst which we submitted but never executed) around, with
+	 * their corresponding GEM/userptr buffers.
+	 * Properly unmap these buffers here.
+	 */
 	mutex_lock(&g2d->cmdlist_mutex);
 	list_for_each_entry_safe(node, n, &g2d_priv->inuse_cmdlist, list) {
-		/*
-		 * unmap all gem objects not completed.
-		 *
-		 * P.S. if current process was terminated forcely then
-		 * there may be some commands in inuse_cmdlist so unmap
-		 * them.
-		 */
 		g2d_unmap_cmdlist_gem(g2d, node, file);
 		list_move_tail(&node->list, &g2d->free_cmdlist);
 	}
@@ -1399,7 +1518,11 @@ static int g2d_probe(struct platform_device *pdev)
 		goto err_destroy_workqueue;
 	}
 
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_autosuspend_delay(dev, 2000);
 	pm_runtime_enable(dev);
+	clear_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags);
+	clear_bit(G2D_BIT_ENGINE_BUSY, &g2d->flags);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -1440,7 +1563,7 @@ static int g2d_probe(struct platform_device *pdev)
 		goto err_put_clk;
 	}
 
-	dev_info(dev, "The exynos g2d(ver %d.%d) successfully probed\n",
+	dev_info(dev, "The Exynos G2D (ver %d.%d) successfully probed.\n",
 			G2D_HW_MAJOR_VER, G2D_HW_MINOR_VER);
 
 	return 0;
@@ -1458,14 +1581,17 @@ static int g2d_remove(struct platform_device *pdev)
 {
 	struct g2d_data *g2d = platform_get_drvdata(pdev);
 
+	/* Suspend operation and wait for engine idle. */
+	set_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags);
+	g2d_wait_finish(g2d, NULL);
+
 	cancel_work_sync(&g2d->runqueue_work);
 	exynos_drm_subdrv_unregister(&g2d->subdrv);
 
-	while (g2d->runqueue_node) {
-		g2d_free_runqueue_node(g2d, g2d->runqueue_node);
-		g2d->runqueue_node = g2d_get_runqueue_node(g2d);
-	}
+	/* There should be no locking needed here. */
+	g2d_remove_runqueue_nodes(g2d, NULL);
 
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	g2d_fini_cmdlist(g2d);
@@ -1475,20 +1601,37 @@ static int g2d_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int g2d_suspend(struct device *dev)
+{
+	struct g2d_data *g2d = dev_get_drvdata(dev);
+
+	/*
+	 * Suspend the runqueue worker operation and wait until the G2D
+	 * engine is idle.
+	 */
+	set_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags);
+	g2d_wait_finish(g2d, NULL);
+	flush_work(&g2d->runqueue_work);
+
+	return 0;
+}
+
+static int g2d_resume(struct device *dev)
+{
+	struct g2d_data *g2d = dev_get_drvdata(dev);
+
+	clear_bit(G2D_BIT_SUSPEND_RUNQUEUE, &g2d->flags);
+	queue_work(g2d->g2d_workq, &g2d->runqueue_work);
+
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_PM
 static int g2d_runtime_suspend(struct device *dev)
 {
 	struct g2d_data *g2d = dev_get_drvdata(dev);
-
-	mutex_lock(&g2d->runqueue_mutex);
-	g2d->suspended = true;
-	mutex_unlock(&g2d->runqueue_mutex);
-
-	while (g2d->runqueue_node)
-		/* FIXME: good range? */
-		usleep_range(500, 1000);
-
-	flush_work(&g2d->runqueue_work);
 
 	clk_disable_unprepare(g2d->gate_clk);
 
@@ -1504,16 +1647,12 @@ static int g2d_runtime_resume(struct device *dev)
 	if (ret < 0)
 		dev_warn(dev, "failed to enable clock.\n");
 
-	g2d->suspended = false;
-	g2d_exec_runqueue(g2d);
-
 	return ret;
 }
 #endif
 
 static const struct dev_pm_ops g2d_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(g2d_suspend, g2d_resume)
 	SET_RUNTIME_PM_OPS(g2d_runtime_suspend, g2d_runtime_resume, NULL)
 };
 

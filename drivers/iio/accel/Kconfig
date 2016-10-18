@@ -52,6 +52,27 @@ config BMC150_ACCEL_SPI
 	tristate
 	select REGMAP_SPI
 
+config DMARD06
+	tristate "Domintech DMARD06 Digital Accelerometer Driver"
+	depends on OF || COMPILE_TEST
+	depends on I2C
+	help
+	  Say yes here to build support for the Domintech low-g tri-axial
+	  digital accelerometers: DMARD05, DMARD06, DMARD07.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dmard06.
+
+config DMARD09
+	tristate "Domintech DMARD09 3-axis Accelerometer Driver"
+	depends on I2C
+	help
+	  Say yes here to get support for the Domintech DMARD09 3-axis
+	  accelerometer.
+
+	  Choosing M will build the driver as a module. If so, the module
+	  will be called dmard09.
+
 config HID_SENSOR_ACCEL_3D
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
@@ -98,13 +119,34 @@ config IIO_ST_ACCEL_SPI_3AXIS
 
 config KXSD9
 	tristate "Kionix KXSD9 Accelerometer Driver"
-	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for the Kionix KXSD9 accelerometer.
-	  Currently this only supports the device via an SPI interface.
+	  It can be accessed using an (optional) SPI or I2C interface.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called kxsd9.
+
+config KXSD9_SPI
+	tristate "Kionix KXSD9 SPI transport"
+	depends on KXSD9
+	depends on SPI
+	default KXSD9
+	select REGMAP_SPI
+	help
+	  Say yes here to enable the Kionix KXSD9 accelerometer
+	  SPI transport channel.
+
+config KXSD9_I2C
+	tristate "Kionix KXSD9 I2C transport"
+	depends on KXSD9
+	depends on I2C
+	default KXSD9
+	select REGMAP_I2C
+	help
+	  Say yes here to enable the Kionix KXSD9 accelerometer
+	  I2C transport channel.
 
 config KXCJK1013
 	tristate "Kionix 3-Axis Accelerometer Driver"
@@ -118,6 +160,16 @@ config KXCJK1013
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called kxcjk-1013.
+
+config MC3230
+	tristate "mCube MC3230 Digital Accelerometer Driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the mCube MC3230 low-g tri-axial
+	  digital accelerometer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mc3230.
 
 config MMA7455
 	tristate

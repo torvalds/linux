@@ -23,7 +23,6 @@ ifeq ($(CONFIG_ARM_MODULE_PLTS),y)
 LDFLAGS_MODULE	+= -T $(srctree)/arch/arm/kernel/module.lds
 endif
 
-OBJCOPYFLAGS	:=-O binary -R .comment -S
 GZFLAGS		:=-9
 #KBUILD_CFLAGS	+=-pipe
 

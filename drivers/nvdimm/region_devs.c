@@ -38,7 +38,7 @@ static int nvdimm_map_flush(struct device *dev, struct nvdimm *nvdimm, int dimm,
 
 	dev_dbg(dev, "%s: map %d flush address%s\n", nvdimm_name(nvdimm),
 			nvdimm->num_flush, nvdimm->num_flush == 1 ? "" : "es");
-	for (i = 0; i < nvdimm->num_flush; i++) {
+	for (i = 0; i < (1 << ndrd->hints_shift); i++) {
 		struct resource *res = &nvdimm->flush_wpq[i];
 		unsigned long pfn = PHYS_PFN(res->start);
 		void __iomem *flush_page;
@@ -54,14 +54,15 @@ static int nvdimm_map_flush(struct device *dev, struct nvdimm *nvdimm, int dimm,
 
 		if (j < i)
 			flush_page = (void __iomem *) ((unsigned long)
-					ndrd->flush_wpq[dimm][j] & PAGE_MASK);
+					ndrd_get_flush_wpq(ndrd, dimm, j)
+					& PAGE_MASK);
 		else
 			flush_page = devm_nvdimm_ioremap(dev,
-					PHYS_PFN(pfn), PAGE_SIZE);
+					PFN_PHYS(pfn), PAGE_SIZE);
 		if (!flush_page)
 			return -ENXIO;
-		ndrd->flush_wpq[dimm][i] = flush_page
-			+ (res->start & ~PAGE_MASK);
+		ndrd_set_flush_wpq(ndrd, dimm, i, flush_page
+				+ (res->start & ~PAGE_MASK));
 	}
 
 	return 0;
@@ -69,7 +70,7 @@ static int nvdimm_map_flush(struct device *dev, struct nvdimm *nvdimm, int dimm,
 
 int nd_region_activate(struct nd_region *nd_region)
 {
-	int i, num_flush = 0;
+	int i, j, num_flush = 0;
 	struct nd_region_data *ndrd;
 	struct device *dev = &nd_region->dev;
 	size_t flush_data_size = sizeof(void *);
@@ -93,7 +94,10 @@ int nd_region_activate(struct nd_region *nd_region)
 		return -ENOMEM;
 	dev_set_drvdata(dev, ndrd);
 
-	ndrd->flush_mask = (1 << ilog2(num_flush)) - 1;
+	if (!num_flush)
+		return 0;
+
+	ndrd->hints_shift = ilog2(num_flush);
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
 		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
 		struct nvdimm *nvdimm = nd_mapping->nvdimm;
@@ -101,6 +105,21 @@ int nd_region_activate(struct nd_region *nd_region)
 
 		if (rc)
 			return rc;
+	}
+
+	/*
+	 * Clear out entries that are duplicates. This should prevent the
+	 * extra flushings.
+	 */
+	for (i = 0; i < nd_region->ndr_mappings - 1; i++) {
+		/* ignore if NULL already */
+		if (!ndrd_get_flush_wpq(ndrd, i, 0))
+			continue;
+
+		for (j = i + 1; j < nd_region->ndr_mappings; j++)
+			if (ndrd_get_flush_wpq(ndrd, i, 0) ==
+			    ndrd_get_flush_wpq(ndrd, j, 0))
+				ndrd_set_flush_wpq(ndrd, j, 0, NULL);
 	}
 
 	return 0;
@@ -294,9 +313,8 @@ resource_size_t nd_region_available_dpa(struct nd_region *nd_region)
 				blk_max_overlap = overlap;
 				goto retry;
 			}
-		} else if (is_nd_blk(&nd_region->dev)) {
-			available += nd_blk_available_dpa(nd_mapping);
-		}
+		} else if (is_nd_blk(&nd_region->dev))
+			available += nd_blk_available_dpa(nd_region);
 	}
 
 	return available;
@@ -487,6 +505,17 @@ u64 nd_region_interleave_set_cookie(struct nd_region *nd_region)
 	return 0;
 }
 
+void nd_mapping_free_labels(struct nd_mapping *nd_mapping)
+{
+	struct nd_label_ent *label_ent, *e;
+
+	WARN_ON(!mutex_is_locked(&nd_mapping->lock));
+	list_for_each_entry_safe(label_ent, e, &nd_mapping->labels, list) {
+		list_del(&label_ent->list);
+		kfree(label_ent);
+	}
+}
+
 /*
  * Upon successful probe/remove, take/release a reference on the
  * associated interleave set (if present), and plant new btt + namespace
@@ -507,8 +536,10 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 			struct nvdimm_drvdata *ndd = nd_mapping->ndd;
 			struct nvdimm *nvdimm = nd_mapping->nvdimm;
 
-			kfree(nd_mapping->labels);
-			nd_mapping->labels = NULL;
+			mutex_lock(&nd_mapping->lock);
+			nd_mapping_free_labels(nd_mapping);
+			mutex_unlock(&nd_mapping->lock);
+
 			put_ndd(ndd);
 			nd_mapping->ndd = NULL;
 			if (ndd)
@@ -518,11 +549,12 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 		if (is_nd_pmem(dev))
 			return;
 	}
-	if (dev->parent && is_nd_blk(dev->parent) && probe) {
+	if (dev->parent && (is_nd_blk(dev->parent) || is_nd_pmem(dev->parent))
+			&& probe) {
 		nd_region = to_nd_region(dev->parent);
 		nvdimm_bus_lock(dev);
 		if (nd_region->ns_seed == dev)
-			nd_region_create_blk_seed(nd_region);
+			nd_region_create_ns_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
 	if (is_nd_btt(dev) && probe) {
@@ -532,23 +564,30 @@ static void nd_region_notify_driver_action(struct nvdimm_bus *nvdimm_bus,
 		nvdimm_bus_lock(dev);
 		if (nd_region->btt_seed == dev)
 			nd_region_create_btt_seed(nd_region);
-		if (nd_region->ns_seed == &nd_btt->ndns->dev &&
-				is_nd_blk(dev->parent))
-			nd_region_create_blk_seed(nd_region);
+		if (nd_region->ns_seed == &nd_btt->ndns->dev)
+			nd_region_create_ns_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
 	if (is_nd_pfn(dev) && probe) {
+		struct nd_pfn *nd_pfn = to_nd_pfn(dev);
+
 		nd_region = to_nd_region(dev->parent);
 		nvdimm_bus_lock(dev);
 		if (nd_region->pfn_seed == dev)
 			nd_region_create_pfn_seed(nd_region);
+		if (nd_region->ns_seed == &nd_pfn->ndns->dev)
+			nd_region_create_ns_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
 	if (is_nd_dax(dev) && probe) {
+		struct nd_dax *nd_dax = to_nd_dax(dev);
+
 		nd_region = to_nd_region(dev->parent);
 		nvdimm_bus_lock(dev);
 		if (nd_region->dax_seed == dev)
 			nd_region_create_dax_seed(nd_region);
+		if (nd_region->ns_seed == &nd_dax->nd_pfn.ndns->dev)
+			nd_region_create_ns_seed(nd_region);
 		nvdimm_bus_unlock(dev);
 	}
 }
@@ -755,10 +794,10 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	int ro = 0;
 
 	for (i = 0; i < ndr_desc->num_mappings; i++) {
-		struct nd_mapping *nd_mapping = &ndr_desc->nd_mapping[i];
-		struct nvdimm *nvdimm = nd_mapping->nvdimm;
+		struct nd_mapping_desc *mapping = &ndr_desc->mapping[i];
+		struct nvdimm *nvdimm = mapping->nvdimm;
 
-		if ((nd_mapping->start | nd_mapping->size) % SZ_4K) {
+		if ((mapping->start | mapping->size) % SZ_4K) {
 			dev_err(&nvdimm_bus->dev, "%s: %s mapping%d is not 4K aligned\n",
 					caller, dev_name(&nvdimm->dev), i);
 
@@ -809,11 +848,15 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 		ndl->count = 0;
 	}
 
-	memcpy(nd_region->mapping, ndr_desc->nd_mapping,
-			sizeof(struct nd_mapping) * ndr_desc->num_mappings);
 	for (i = 0; i < ndr_desc->num_mappings; i++) {
-		struct nd_mapping *nd_mapping = &ndr_desc->nd_mapping[i];
-		struct nvdimm *nvdimm = nd_mapping->nvdimm;
+		struct nd_mapping_desc *mapping = &ndr_desc->mapping[i];
+		struct nvdimm *nvdimm = mapping->nvdimm;
+
+		nd_region->mapping[i].nvdimm = nvdimm;
+		nd_region->mapping[i].start = mapping->start;
+		nd_region->mapping[i].size = mapping->size;
+		INIT_LIST_HEAD(&nd_region->mapping[i].labels);
+		mutex_init(&nd_region->mapping[i].lock);
 
 		get_device(&nvdimm->dev);
 	}
@@ -900,8 +943,8 @@ void nvdimm_flush(struct nd_region *nd_region)
 	 */
 	wmb();
 	for (i = 0; i < nd_region->ndr_mappings; i++)
-		if (ndrd->flush_wpq[i][0])
-			writeq(1, ndrd->flush_wpq[i][idx & ndrd->flush_mask]);
+		if (ndrd_get_flush_wpq(ndrd, i, 0))
+			writeq(1, ndrd_get_flush_wpq(ndrd, i, idx));
 	wmb();
 }
 EXPORT_SYMBOL_GPL(nvdimm_flush);
@@ -925,7 +968,7 @@ int nvdimm_has_flush(struct nd_region *nd_region)
 
 	for (i = 0; i < nd_region->ndr_mappings; i++)
 		/* flush hints present, flushing required */
-		if (ndrd->flush_wpq[i][0])
+		if (ndrd_get_flush_wpq(ndrd, i, 0))
 			return 1;
 
 	/*

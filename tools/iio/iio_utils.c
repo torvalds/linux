@@ -121,10 +121,6 @@ int iioutils_get_type(unsigned *is_signed, unsigned *bytes, unsigned *bits_used,
 
 	ret = -ENOENT;
 	while (ent = readdir(dp), ent)
-		/*
-		 * Do we allow devices to override a generic name with
-		 * a specific one?
-		 */
 		if ((strcmp(builtname, ent->d_name) == 0) ||
 		    (strcmp(builtname_generic, ent->d_name) == 0)) {
 			ret = asprintf(&filename,
@@ -178,6 +174,13 @@ int iioutils_get_type(unsigned *is_signed, unsigned *bytes, unsigned *bits_used,
 			sysfsfp = 0;
 			free(filename);
 			filename = 0;
+
+			/*
+			 * Avoid having a more generic entry overwriting
+			 * the settings.
+			 */
+			if (strcmp(builtname, ent->d_name) == 0)
+				break;
 		}
 
 error_close_sysfsfp:

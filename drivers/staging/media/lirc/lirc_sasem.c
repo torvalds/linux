@@ -47,7 +47,6 @@
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
 
-
 #define MOD_AUTHOR	"Oliver Stabel <oliver.stabel@gmx.de>, " \
 			"Tim Davies <tim@opensystems.net.au>"
 #define MOD_DESC	"USB Driver for Sasem Remote Controller V1.1"
@@ -73,7 +72,7 @@ static void usb_tx_callback(struct urb *urb);
 
 /* VFD file_operations function prototypes */
 static int vfd_open(struct inode *inode, struct file *file);
-static long vfd_ioctl(struct file *file, unsigned cmd, unsigned long arg);
+static long vfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static int vfd_close(struct inode *inode, struct file *file);
 static ssize_t vfd_write(struct file *file, const char __user *buf,
 				size_t n_bytes, loff_t *pos);
@@ -86,7 +85,6 @@ static void ir_close(void *data);
 #define SASEM_DATA_BUF_SZ	32
 
 struct sasem_context {
-
 	struct usb_device *dev;
 	int vfd_isopen;			/* VFD port has been opened */
 	unsigned int vfd_contrast;	/* VFD contrast */
@@ -156,7 +154,6 @@ static int debug;
 
 
 /*** M O D U L E   C O D E ***/
-
 MODULE_AUTHOR(MOD_AUTHOR);
 MODULE_DESCRIPTION(MOD_DESC);
 MODULE_LICENSE("GPL");
@@ -186,7 +183,6 @@ static void deregister_from_lirc(struct sasem_context *context)
 	else
 		dev_info(&context->dev->dev,
 			 "Deregistered Sasem driver (minor:%d)\n", minor);
-
 }
 
 /**
@@ -243,7 +239,7 @@ exit:
  * Called when the VFD device (e.g. /dev/usb/lcd)
  * is closed by the application.
  */
-static long vfd_ioctl(struct file *file, unsigned cmd, unsigned long arg)
+static long vfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct sasem_context *context;
 
@@ -297,7 +293,6 @@ static int vfd_close(struct inode *inode, struct file *file)
 		context->vfd_isopen = 0;
 		dev_info(&context->dev->dev, "VFD port closed\n");
 		if (!context->dev_present && !context->ir_isopen) {
-
 			/* Device disconnected before close and IR port is
 			 * not open. If IR port is open, context will be
 			 * deleted by ir_close. */
@@ -546,9 +541,7 @@ static void ir_close(void *data)
 		 * at disconnect time, so do it now.
 		 */
 		deregister_from_lirc(context);
-
 		if (!context->vfd_isopen) {
-
 			mutex_unlock(&context->ctx_lock);
 			delete_context(context);
 			return;
@@ -633,7 +626,6 @@ static void usb_rx_callback(struct urb *urb)
 		return;
 
 	switch (urb->status) {
-
 	case -ENOENT:		/* usbcore unlink successful! */
 		return;
 
@@ -650,8 +642,6 @@ static void usb_rx_callback(struct urb *urb)
 
 	usb_submit_urb(context->rx_urb, GFP_ATOMIC);
 }
-
-
 
 /**
  * Callback function for USB core API: Probe
@@ -709,7 +699,6 @@ static int sasem_probe(struct usb_interface *interface,
 
 		} else if (!vfd_ep_found &&
 			usb_endpoint_is_int_out(ep)) {
-
 			tx_endpoint = ep;
 			vfd_ep_found = 1;
 			if (debug)
@@ -735,17 +724,17 @@ static int sasem_probe(struct usb_interface *interface,
 	/* Allocate memory */
 	alloc_status = 0;
 
-	context = kzalloc(sizeof(struct sasem_context), GFP_KERNEL);
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context) {
 		alloc_status = 1;
 		goto alloc_status_switch;
 	}
-	driver = kzalloc(sizeof(struct lirc_driver), GFP_KERNEL);
+	driver = kzalloc(sizeof(*driver), GFP_KERNEL);
 	if (!driver) {
 		alloc_status = 2;
 		goto alloc_status_switch;
 	}
-	rbuf = kmalloc(sizeof(struct lirc_buffer), GFP_KERNEL);
+	rbuf = kmalloc(sizeof(*rbuf), GFP_KERNEL);
 	if (!rbuf) {
 		alloc_status = 3;
 		goto alloc_status_switch;
@@ -758,17 +747,12 @@ static int sasem_probe(struct usb_interface *interface,
 	}
 	rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!rx_urb) {
-		dev_err(&interface->dev,
-			"%s: usb_alloc_urb failed for IR urb\n", __func__);
 		alloc_status = 5;
 		goto alloc_status_switch;
 	}
 	if (vfd_ep_found) {
 		tx_urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!tx_urb) {
-			dev_err(&interface->dev,
-				"%s: usb_alloc_urb failed for VFD urb",
-				__func__);
 			alloc_status = 6;
 			goto alloc_status_switch;
 		}

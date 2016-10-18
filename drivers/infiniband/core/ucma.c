@@ -1638,7 +1638,8 @@ static int ucma_open(struct inode *inode, struct file *filp)
 	if (!file)
 		return -ENOMEM;
 
-	file->close_wq = create_singlethread_workqueue("ucma_close_id");
+	file->close_wq = alloc_ordered_workqueue("ucma_close_id",
+						 WQ_MEM_RECLAIM);
 	if (!file->close_wq) {
 		kfree(file);
 		return -ENOMEM;

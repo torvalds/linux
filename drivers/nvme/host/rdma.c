@@ -54,7 +54,6 @@
 struct nvme_rdma_device {
 	struct ib_device       *dev;
 	struct ib_pd	       *pd;
-	struct ib_mr	       *mr;
 	struct kref		ref;
 	struct list_head	entry;
 };
@@ -408,10 +407,7 @@ static void nvme_rdma_free_dev(struct kref *ref)
 	list_del(&ndev->entry);
 	mutex_unlock(&device_list_mutex);
 
-	if (!register_always)
-		ib_dereg_mr(ndev->mr);
 	ib_dealloc_pd(ndev->pd);
-
 	kfree(ndev);
 }
 
@@ -444,24 +440,16 @@ nvme_rdma_find_get_device(struct rdma_cm_id *cm_id)
 	ndev->dev = cm_id->device;
 	kref_init(&ndev->ref);
 
-	ndev->pd = ib_alloc_pd(ndev->dev);
+	ndev->pd = ib_alloc_pd(ndev->dev,
+		register_always ? 0 : IB_PD_UNSAFE_GLOBAL_RKEY);
 	if (IS_ERR(ndev->pd))
 		goto out_free_dev;
-
-	if (!register_always) {
-		ndev->mr = ib_get_dma_mr(ndev->pd,
-					    IB_ACCESS_LOCAL_WRITE |
-					    IB_ACCESS_REMOTE_READ |
-					    IB_ACCESS_REMOTE_WRITE);
-		if (IS_ERR(ndev->mr))
-			goto out_free_pd;
-	}
 
 	if (!(ndev->dev->attrs.device_cap_flags &
 	      IB_DEVICE_MEM_MGT_EXTENSIONS)) {
 		dev_err(&ndev->dev->dev,
 			"Memory registrations not supported.\n");
-		goto out_free_mr;
+		goto out_free_pd;
 	}
 
 	list_add(&ndev->entry, &device_list);
@@ -469,9 +457,6 @@ out_unlock:
 	mutex_unlock(&device_list_mutex);
 	return ndev;
 
-out_free_mr:
-	if (!register_always)
-		ib_dereg_mr(ndev->mr);
 out_free_pd:
 	ib_dealloc_pd(ndev->pd);
 out_free_dev:
@@ -915,7 +900,7 @@ static int nvme_rdma_map_sg_single(struct nvme_rdma_queue *queue,
 
 	sg->addr = cpu_to_le64(sg_dma_address(req->sg_table.sgl));
 	put_unaligned_le24(sg_dma_len(req->sg_table.sgl), sg->length);
-	put_unaligned_le32(queue->device->mr->rkey, sg->key);
+	put_unaligned_le32(queue->device->pd->unsafe_global_rkey, sg->key);
 	sg->type = NVME_KEY_SGL_FMT_DATA_DESC << 4;
 	return 0;
 }
@@ -1000,7 +985,7 @@ static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
 		    nvme_rdma_queue_idx(queue))
 			return nvme_rdma_map_sg_inline(queue, req, c);
 
-		if (!register_always)
+		if (dev->pd->flags & IB_PD_UNSAFE_GLOBAL_RKEY)
 			return nvme_rdma_map_sg_single(queue, req, c);
 	}
 
@@ -1495,7 +1480,6 @@ static void nvme_rdma_complete_rq(struct request *rq)
 static struct blk_mq_ops nvme_rdma_mq_ops = {
 	.queue_rq	= nvme_rdma_queue_rq,
 	.complete	= nvme_rdma_complete_rq,
-	.map_queue	= blk_mq_map_queue,
 	.init_request	= nvme_rdma_init_request,
 	.exit_request	= nvme_rdma_exit_request,
 	.reinit_request	= nvme_rdma_reinit_request,
@@ -1507,7 +1491,6 @@ static struct blk_mq_ops nvme_rdma_mq_ops = {
 static struct blk_mq_ops nvme_rdma_admin_mq_ops = {
 	.queue_rq	= nvme_rdma_queue_rq,
 	.complete	= nvme_rdma_complete_rq,
-	.map_queue	= blk_mq_map_queue,
 	.init_request	= nvme_rdma_init_admin_request,
 	.exit_request	= nvme_rdma_exit_admin_request,
 	.reinit_request	= nvme_rdma_reinit_request,

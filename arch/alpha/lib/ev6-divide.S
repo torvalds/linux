@@ -55,6 +55,7 @@
  * Try not to change the actual algorithm if possible for consistency.
  */
 
+#include <asm/export.h>
 #define halt .long 0
 
 /*
@@ -205,6 +206,7 @@ ufunction:
 	addq	$30,STACK,$30		# E :
 	ret	$31,($23),1		# L0 : L U U L
 	.end	ufunction
+EXPORT_SYMBOL(ufunction)
 
 /*
  * Uhh.. Ugly signed division. I'd rather not have it at all, but
@@ -257,3 +259,4 @@ sfunction:
 	addq	$30,STACK,$30		# E :
 	ret	$31,($23),1		# L0 : L U U L
 	.end	sfunction
+EXPORT_SYMBOL(sfunction)

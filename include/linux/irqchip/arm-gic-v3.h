@@ -430,9 +430,9 @@ struct rdists {
 };
 
 struct irq_domain;
-struct device_node;
+struct fwnode_handle;
 int its_cpu_init(void);
-int its_init(struct device_node *node, struct rdists *rdists,
+int its_init(struct fwnode_handle *handle, struct rdists *rdists,
 	     struct irq_domain *domain);
 
 static inline bool gic_enable_sre(void)

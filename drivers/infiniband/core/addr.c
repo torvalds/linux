@@ -800,7 +800,7 @@ static struct notifier_block nb = {
 
 int addr_init(void)
 {
-	addr_wq = create_singlethread_workqueue("ib_addr");
+	addr_wq = alloc_workqueue("ib_addr", WQ_MEM_RECLAIM, 0);
 	if (!addr_wq)
 		return -ENOMEM;
 

@@ -17,33 +17,35 @@ CEC_ADAP_G_LOG_ADDRS, CEC_ADAP_S_LOG_ADDRS - Get or set the logical addresses
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct cec_log_addrs *argp )
+.. c:function:: int ioctl( int fd, CEC_ADAP_G_LOG_ADDRS, struct cec_log_addrs *argp )
+   :name: CEC_ADAP_G_LOG_ADDRS
 
+.. c:function:: int ioctl( int fd, CEC_ADAP_S_LOG_ADDRS, struct cec_log_addrs *argp )
+   :name: CEC_ADAP_S_LOG_ADDRS
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <cec-func-open>`.
-
-``request``
-    CEC_ADAP_G_LOG_ADDRS, CEC_ADAP_S_LOG_ADDRS
+    File descriptor returned by :c:func:`open() <cec-open>`.
 
 ``argp``
-
+    Pointer to struct :c:type:`cec_log_addrs`.
 
 Description
 ===========
 
-.. note:: This documents the proposed CEC API. This API is not yet finalized
+.. note::
+
+   This documents the proposed CEC API. This API is not yet finalized
    and is currently only available as a staging kernel module.
 
 To query the current CEC logical addresses, applications call
 :ref:`ioctl CEC_ADAP_G_LOG_ADDRS <CEC_ADAP_G_LOG_ADDRS>` with a pointer to a
-:c:type:`struct cec_log_addrs` where the driver stores the logical addresses.
+struct :c:type:`cec_log_addrs` where the driver stores the logical addresses.
 
 To set new logical addresses, applications fill in
-:c:type:`struct cec_log_addrs` and call :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
+struct :c:type:`cec_log_addrs` and call :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
 with a pointer to this struct. The :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
 is only available if ``CEC_CAP_LOG_ADDRS`` is set (the ``ENOTTY`` error code is
 returned otherwise). The :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
@@ -64,8 +66,11 @@ logical addresses are claimed or cleared.
 Attempting to call :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>` when
 logical address types are already defined will return with error ``EBUSY``.
 
+.. c:type:: cec_log_addrs
 
-.. _cec-log-addrs:
+.. tabularcolumns:: |p{1.0cm}|p{7.5cm}|p{8.0cm}|
+
+.. cssclass:: longtable
 
 .. flat-table:: struct cec_log_addrs
     :header-rows:  0
@@ -220,6 +225,8 @@ logical address types are already defined will return with error ``EBUSY``.
 	  fallback to the Unregistered logical address. Note that if the Unregistered
 	  logical address was explicitly requested, then this flag has no effect.
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+
 .. _cec-versions:
 
 .. flat-table:: CEC Versions
@@ -253,6 +260,7 @@ logical address types are already defined will return with error ``EBUSY``.
        -  CEC version according to the HDMI 2.0 standard.
 
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _cec-prim-dev-types:
 
@@ -319,6 +327,7 @@ logical address types are already defined will return with error ``EBUSY``.
        -  Use for a video processor device.
 
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _cec-log-addr-types:
 
@@ -387,6 +396,8 @@ logical address types are already defined will return with error ``EBUSY``.
 	  Control).
 
 
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _cec-all-dev-types-flags:
 

@@ -25,19 +25,13 @@ const struct inode_operations jfs_fast_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.get_link	= simple_get_link,
 	.setattr	= jfs_setattr,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
 	.listxattr	= jfs_listxattr,
-	.removexattr	= generic_removexattr,
 };
 
 const struct inode_operations jfs_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.get_link	= page_get_link,
 	.setattr	= jfs_setattr,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
 	.listxattr	= jfs_listxattr,
-	.removexattr	= generic_removexattr,
 };
 

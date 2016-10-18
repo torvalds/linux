@@ -11,6 +11,7 @@ config DRM_MSM
 	select TMPFS
 	select QCOM_SCM
 	select SND_SOC_HDMI_CODEC if SND_SOC
+	select SYNC_FILE
 	default y
 	help
 	  DRM/KMS driver for MSM/snapdragon.

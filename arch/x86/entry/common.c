@@ -31,13 +31,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
 
-static struct thread_info *pt_regs_to_thread_info(struct pt_regs *regs)
-{
-	unsigned long top_of_stack =
-		(unsigned long)(regs + 1) + TOP_OF_KERNEL_STACK_PADDING;
-	return (struct thread_info *)(top_of_stack - THREAD_SIZE);
-}
-
 #ifdef CONFIG_CONTEXT_TRACKING
 /* Called on entry from user mode with IRQs off. */
 __visible inline void enter_from_user_mode(void)
@@ -71,7 +64,7 @@ static long syscall_trace_enter(struct pt_regs *regs)
 {
 	u32 arch = in_ia32_syscall() ? AUDIT_ARCH_I386 : AUDIT_ARCH_X86_64;
 
-	struct thread_info *ti = pt_regs_to_thread_info(regs);
+	struct thread_info *ti = current_thread_info();
 	unsigned long ret = 0;
 	bool emulated = false;
 	u32 work;
@@ -173,18 +166,17 @@ static void exit_to_usermode_loop(struct pt_regs *regs, u32 cached_flags)
 		/* Disable IRQs and retry */
 		local_irq_disable();
 
-		cached_flags = READ_ONCE(pt_regs_to_thread_info(regs)->flags);
+		cached_flags = READ_ONCE(current_thread_info()->flags);
 
 		if (!(cached_flags & EXIT_TO_USERMODE_LOOP_FLAGS))
 			break;
-
 	}
 }
 
 /* Called with IRQs disabled. */
 __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
 {
-	struct thread_info *ti = pt_regs_to_thread_info(regs);
+	struct thread_info *ti = current_thread_info();
 	u32 cached_flags;
 
 	if (IS_ENABLED(CONFIG_PROVE_LOCKING) && WARN_ON(!irqs_disabled()))
@@ -209,7 +201,7 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
 	 * special case only applies after poking regs and before the
 	 * very next return to user mode.
 	 */
-	ti->status &= ~(TS_COMPAT|TS_I386_REGS_POKED);
+	current->thread.status &= ~(TS_COMPAT|TS_I386_REGS_POKED);
 #endif
 
 	user_enter_irqoff();
@@ -247,7 +239,7 @@ static void syscall_slow_exit_work(struct pt_regs *regs, u32 cached_flags)
  */
 __visible inline void syscall_return_slowpath(struct pt_regs *regs)
 {
-	struct thread_info *ti = pt_regs_to_thread_info(regs);
+	struct thread_info *ti = current_thread_info();
 	u32 cached_flags = READ_ONCE(ti->flags);
 
 	CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
@@ -270,7 +262,7 @@ __visible inline void syscall_return_slowpath(struct pt_regs *regs)
 #ifdef CONFIG_X86_64
 __visible void do_syscall_64(struct pt_regs *regs)
 {
-	struct thread_info *ti = pt_regs_to_thread_info(regs);
+	struct thread_info *ti = current_thread_info();
 	unsigned long nr = regs->orig_ax;
 
 	enter_from_user_mode();
@@ -303,11 +295,11 @@ __visible void do_syscall_64(struct pt_regs *regs)
  */
 static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
 {
-	struct thread_info *ti = pt_regs_to_thread_info(regs);
+	struct thread_info *ti = current_thread_info();
 	unsigned int nr = (unsigned int)regs->orig_ax;
 
 #ifdef CONFIG_IA32_EMULATION
-	ti->status |= TS_COMPAT;
+	current->thread.status |= TS_COMPAT;
 #endif
 
 	if (READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY) {

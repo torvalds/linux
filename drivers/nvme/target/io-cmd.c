@@ -58,6 +58,7 @@ static void nvmet_execute_rw(struct nvmet_req *req)
 
 	if (req->cmd->rw.opcode == nvme_cmd_write) {
 		op = REQ_OP_WRITE;
+		op_flags = WRITE_ODIRECT;
 		if (req->cmd->rw.control & cpu_to_le16(NVME_RW_FUA))
 			op_flags |= REQ_FUA;
 	} else {
@@ -205,7 +206,7 @@ int nvmet_parse_io_cmd(struct nvmet_req *req)
 		return 0;
 	case nvme_cmd_dsm:
 		req->execute = nvmet_execute_dsm;
-		req->data_len = le32_to_cpu(cmd->dsm.nr) *
+		req->data_len = le32_to_cpu(cmd->dsm.nr + 1) *
 			sizeof(struct nvme_dsm_range);
 		return 0;
 	default:

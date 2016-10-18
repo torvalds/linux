@@ -1583,15 +1583,10 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
 }
 EXPORT_SYMBOL(radix_tree_delete);
 
-struct radix_tree_node *radix_tree_replace_clear_tags(
-			struct radix_tree_root *root,
-			unsigned long index, void *entry)
+void radix_tree_clear_tags(struct radix_tree_root *root,
+			   struct radix_tree_node *node,
+			   void **slot)
 {
-	struct radix_tree_node *node;
-	void **slot;
-
-	__radix_tree_lookup(root, index, &node, &slot);
-
 	if (node) {
 		unsigned int tag, offset = get_slot_offset(node, slot);
 		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
@@ -1600,9 +1595,6 @@ struct radix_tree_node *radix_tree_replace_clear_tags(
 		/* Clear root node tags */
 		root->gfp_mask &= __GFP_BITS_MASK;
 	}
-
-	radix_tree_replace_slot(slot, entry);
-	return node;
 }
 
 /**

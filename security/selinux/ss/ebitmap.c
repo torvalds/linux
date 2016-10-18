@@ -374,6 +374,9 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 		goto ok;
 	}
 
+	if (e->highbit && !count)
+		goto bad;
+
 	for (i = 0; i < count; i++) {
 		rc = next_entry(&startbit, fp, sizeof(u32));
 		if (rc < 0) {

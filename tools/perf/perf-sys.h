@@ -20,7 +20,6 @@
 #endif
 
 #ifdef __powerpc__
-#include "../../arch/powerpc/include/uapi/asm/unistd.h"
 #define CPUINFO_PROC	{"cpu"}
 #endif
 

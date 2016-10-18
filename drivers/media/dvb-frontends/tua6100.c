@@ -157,7 +157,7 @@ static int tua6100_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static struct dvb_tuner_ops tua6100_tuner_ops = {
+static const struct dvb_tuner_ops tua6100_tuner_ops = {
 	.info = {
 		.name = "Infineon TUA6100",
 		.frequency_min = 950000,

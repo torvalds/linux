@@ -165,6 +165,18 @@ struct iio_channel
 *iio_channel_cb_get_channels(const struct iio_cb_buffer *cb_buffer);
 
 /**
+ * iio_channel_cb_get_iio_dev() - get access to the underlying device.
+ * @cb_buffer:		The callback buffer from whom we want the device
+ *			information.
+ *
+ * This function allows one to obtain information about the device.
+ * The primary aim is to allow drivers that are consuming a device to query
+ * things like current trigger.
+ */
+struct iio_dev
+*iio_channel_cb_get_iio_dev(const struct iio_cb_buffer *cb_buffer);
+
+/**
  * iio_read_channel_raw() - read from a given channel
  * @chan:		The channel being queried.
  * @val:		Value read back.

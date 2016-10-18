@@ -6,8 +6,6 @@
 V4L2_SDR_FMT_CS14LE ('CS14')
 ****************************
 
-*man V4L2_SDR_FMT_CS14LE(2)*
-
 Complex signed 14-bit little endian IQ sample
 
 
@@ -24,25 +22,13 @@ space with unused high bits padded with 0.
 Each cell is one byte.
 
 
-
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1 1
 
-
-    -  .. row 1
-
-       -  start + 0:
-
-       -  I'\ :sub:`0[7:0]`
-
-       -  I'\ :sub:`0[13:8]`
-
-    -  .. row 2
-
-       -  start + 2:
-
-       -  Q'\ :sub:`0[7:0]`
-
-       -  Q'\ :sub:`0[13:8]`
+    * - start + 0:
+      - I'\ :sub:`0[7:0]`
+      - I'\ :sub:`0[13:8]`
+    * - start + 2:
+      - Q'\ :sub:`0[7:0]`
+      - Q'\ :sub:`0[13:8]`

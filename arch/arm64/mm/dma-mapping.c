@@ -20,6 +20,7 @@
 #include <linux/gfp.h>
 #include <linux/acpi.h>
 #include <linux/bootmem.h>
+#include <linux/cache.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/genalloc.h>
@@ -30,7 +31,7 @@
 
 #include <asm/cacheflush.h>
 
-static int swiotlb __read_mostly;
+static int swiotlb __ro_after_init;
 
 static pgprot_t __get_dma_pgprot(unsigned long attrs, pgprot_t prot,
 				 bool coherent)
@@ -168,7 +169,7 @@ static void *__dma_alloc(struct device *dev, size_t size,
 		return ptr;
 
 	/* remove any dirty cache lines on the kernel alias */
-	__dma_flush_range(ptr, ptr + size);
+	__dma_flush_area(ptr, size);
 
 	/* create a coherent mapping */
 	page = virt_to_page(ptr);
@@ -387,7 +388,7 @@ static int __init atomic_pool_init(void)
 		void *page_addr = page_address(page);
 
 		memset(page_addr, 0, atomic_pool_size);
-		__dma_flush_range(page_addr, page_addr + atomic_pool_size);
+		__dma_flush_area(page_addr, atomic_pool_size);
 
 		atomic_pool = gen_pool_create(PAGE_SHIFT, -1);
 		if (!atomic_pool)
@@ -548,7 +549,7 @@ fs_initcall(dma_debug_do_init);
 /* Thankfully, all cache ops are by VA so we can ignore phys here */
 static void flush_page(struct device *dev, const void *virt, phys_addr_t phys)
 {
-	__dma_flush_range(virt, virt + PAGE_SIZE);
+	__dma_flush_area(virt, PAGE_SIZE);
 }
 
 static void *__iommu_alloc_attrs(struct device *dev, size_t size,
@@ -827,7 +828,7 @@ static bool do_iommu_attach(struct device *dev, const struct iommu_ops *ops,
 	 * then the IOMMU core will have already configured a group for this
 	 * device, and allocated the default domain for that group.
 	 */
-	if (!domain || iommu_dma_init_domain(domain, dma_base, size)) {
+	if (!domain || iommu_dma_init_domain(domain, dma_base, size, dev)) {
 		pr_warn("Failed to set up IOMMU for device %s; retaining platform DMA ops\n",
 			dev_name(dev));
 		return false;

@@ -58,7 +58,7 @@
 #include "cxgb4.h"
 #include "cxgb4_uld.h"
 #include "l2t.h"
-#include "user.h"
+#include <rdma/cxgb4-abi.h>
 
 #define DRV_NAME "iw_cxgb4"
 #define MOD DRV_NAME ":"
@@ -880,15 +880,6 @@ static inline struct c4iw_ep *to_ep(struct iw_cm_id *cm_id)
 static inline struct c4iw_listen_ep *to_listen_ep(struct iw_cm_id *cm_id)
 {
 	return cm_id->provider_data;
-}
-
-static inline int compute_wscale(int win)
-{
-	int wscale = 0;
-
-	while (wscale < 14 && (65535<<wscale) < win)
-		wscale++;
-	return wscale;
 }
 
 static inline int ocqp_supported(const struct cxgb4_lld_info *infop)

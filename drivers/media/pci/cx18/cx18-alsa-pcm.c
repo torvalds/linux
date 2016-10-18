@@ -311,7 +311,7 @@ static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
 	return vmalloc_to_page(pageptr);
 }
 
-static struct snd_pcm_ops snd_cx18_pcm_capture_ops = {
+static const struct snd_pcm_ops snd_cx18_pcm_capture_ops = {
 	.open		= snd_cx18_pcm_capture_open,
 	.close		= snd_cx18_pcm_capture_close,
 	.ioctl		= snd_cx18_pcm_ioctl,

@@ -7,8 +7,6 @@
 V4L2_PIX_FMT_NV16 ('NV16'), V4L2_PIX_FMT_NV61 ('NV61')
 ******************************************************
 
-*man V4L2_PIX_FMT_NV16(2)*
-
 V4L2_PIX_FMT_NV61
 Formats with ½ horizontal chroma resolution, also known as YUV 4:2:2.
 One luminance and one chrominance plane with alternating chroma samples
@@ -35,108 +33,50 @@ many pad bytes after its rows.
 Each cell is one byte.
 
 
-
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1 1 1 1
 
-
-    -  .. row 1
-
-       -  start + 0:
-
-       -  Y'\ :sub:`00`
-
-       -  Y'\ :sub:`01`
-
-       -  Y'\ :sub:`02`
-
-       -  Y'\ :sub:`03`
-
-    -  .. row 2
-
-       -  start + 4:
-
-       -  Y'\ :sub:`10`
-
-       -  Y'\ :sub:`11`
-
-       -  Y'\ :sub:`12`
-
-       -  Y'\ :sub:`13`
-
-    -  .. row 3
-
-       -  start + 8:
-
-       -  Y'\ :sub:`20`
-
-       -  Y'\ :sub:`21`
-
-       -  Y'\ :sub:`22`
-
-       -  Y'\ :sub:`23`
-
-    -  .. row 4
-
-       -  start + 12:
-
-       -  Y'\ :sub:`30`
-
-       -  Y'\ :sub:`31`
-
-       -  Y'\ :sub:`32`
-
-       -  Y'\ :sub:`33`
-
-    -  .. row 5
-
-       -  start + 16:
-
-       -  Cb\ :sub:`00`
-
-       -  Cr\ :sub:`00`
-
-       -  Cb\ :sub:`01`
-
-       -  Cr\ :sub:`01`
-
-    -  .. row 6
-
-       -  start + 20:
-
-       -  Cb\ :sub:`10`
-
-       -  Cr\ :sub:`10`
-
-       -  Cb\ :sub:`11`
-
-       -  Cr\ :sub:`11`
-
-    -  .. row 7
-
-       -  start + 24:
-
-       -  Cb\ :sub:`20`
-
-       -  Cr\ :sub:`20`
-
-       -  Cb\ :sub:`21`
-
-       -  Cr\ :sub:`21`
-
-    -  .. row 8
-
-       -  start + 28:
-
-       -  Cb\ :sub:`30`
-
-       -  Cr\ :sub:`30`
-
-       -  Cb\ :sub:`31`
-
-       -  Cr\ :sub:`31`
+    * - start + 0:
+      - Y'\ :sub:`00`
+      - Y'\ :sub:`01`
+      - Y'\ :sub:`02`
+      - Y'\ :sub:`03`
+    * - start + 4:
+      - Y'\ :sub:`10`
+      - Y'\ :sub:`11`
+      - Y'\ :sub:`12`
+      - Y'\ :sub:`13`
+    * - start + 8:
+      - Y'\ :sub:`20`
+      - Y'\ :sub:`21`
+      - Y'\ :sub:`22`
+      - Y'\ :sub:`23`
+    * - start + 12:
+      - Y'\ :sub:`30`
+      - Y'\ :sub:`31`
+      - Y'\ :sub:`32`
+      - Y'\ :sub:`33`
+    * - start + 16:
+      - Cb\ :sub:`00`
+      - Cr\ :sub:`00`
+      - Cb\ :sub:`01`
+      - Cr\ :sub:`01`
+    * - start + 20:
+      - Cb\ :sub:`10`
+      - Cr\ :sub:`10`
+      - Cb\ :sub:`11`
+      - Cr\ :sub:`11`
+    * - start + 24:
+      - Cb\ :sub:`20`
+      - Cr\ :sub:`20`
+      - Cb\ :sub:`21`
+      - Cr\ :sub:`21`
+    * - start + 28:
+      - Cb\ :sub:`30`
+      - Cr\ :sub:`30`
+      - Cb\ :sub:`31`
+      - Cr\ :sub:`31`
 
 
 **Color Sample Location..**
@@ -147,124 +87,67 @@ Each cell is one byte.
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -
-       -  0
-
-       -
-       -  1
-
-       -  2
-
-       -
-       -  3
-
-    -  .. row 2
-
-       -  0
-
-       -  Y
-
-       -
-       -  Y
-
-       -  Y
-
-       -
-       -  Y
-
-    -  .. row 3
-
-       -
-       -
-       -  C
-
-       -
-       -
-       -  C
-
-       -
-
-    -  .. row 4
-
-       -  1
-
-       -  Y
-
-       -
-       -  Y
-
-       -  Y
-
-       -
-       -  Y
-
-    -  .. row 5
-
-       -
-       -
-       -  C
-
-       -
-       -
-       -  C
-
-       -
-
-    -  .. row 6
-
-       -
-
-    -  .. row 7
-
-       -  2
-
-       -  Y
-
-       -
-       -  Y
-
-       -  Y
-
-       -
-       -  Y
-
-    -  .. row 8
-
-       -
-       -
-       -  C
-
-       -
-       -
-       -  C
-
-       -
-
-    -  .. row 9
-
-       -  3
-
-       -  Y
-
-       -
-       -  Y
-
-       -  Y
-
-       -
-       -  Y
-
-    -  .. row 10
-
-       -
-       -
-       -  C
-
-       -
-       -
-       -  C
-
-       -
+    * -
+      - 0
+      -
+      - 1
+      - 2
+      -
+      - 3
+    * - 0
+      - Y
+      -
+      - Y
+      - Y
+      -
+      - Y
+    * -
+      -
+      - C
+      -
+      -
+      - C
+      -
+    * - 1
+      - Y
+      -
+      - Y
+      - Y
+      -
+      - Y
+    * -
+      -
+      - C
+      -
+      -
+      - C
+      -
+    * -
+    * - 2
+      - Y
+      -
+      - Y
+      - Y
+      -
+      - Y
+    * -
+      -
+      - C
+      -
+      -
+      - C
+      -
+    * - 3
+      - Y
+      -
+      - Y
+      - Y
+      -
+      - Y
+    * -
+      -
+      - C
+      -
+      -
+      - C
+      -

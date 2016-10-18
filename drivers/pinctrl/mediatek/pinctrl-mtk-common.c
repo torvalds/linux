@@ -15,7 +15,6 @@
 
 #include <linux/io.h>
 #include <linux/gpio/driver.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -1055,7 +1054,7 @@ static int mtk_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
 	return 0;
 }
 
-static struct gpio_chip mtk_gpio_chip = {
+static const struct gpio_chip mtk_gpio_chip = {
 	.owner			= THIS_MODULE,
 	.request		= gpiochip_generic_request,
 	.free			= gpiochip_generic_free,
@@ -1496,7 +1495,3 @@ chip_error:
 	gpiochip_remove(pctl->chip);
 	return ret;
 }
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("MediaTek Pinctrl Driver");
-MODULE_AUTHOR("Hongzhou Yang <hongzhou.yang@mediatek.com>");

@@ -215,7 +215,6 @@ void __init tx4927_setup(void)
 		txx9_tmr_init(TX4927_TMR_REG(i) & 0xfffffffffULL);
 
 	/* PIO */
-	txx9_gpio_init(TX4927_PIO_REG & 0xfffffffffULL, 0, TX4927_NUM_PIO);
 	__raw_writel(0, &tx4927_pioptr->maskcpu);
 	__raw_writel(0, &tx4927_pioptr->maskext);
 

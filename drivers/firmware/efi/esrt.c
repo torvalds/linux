@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/efi.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
@@ -235,7 +236,7 @@ static struct attribute_group esrt_attr_group = {
 };
 
 /*
- * remap the table, copy it to kmalloced pages, and unmap it.
+ * remap the table, validate it, mark it reserved and unmap it.
  */
 void __init efi_esrt_init(void)
 {
@@ -335,7 +336,7 @@ void __init efi_esrt_init(void)
 
 	end = esrt_data + size;
 	pr_info("Reserving ESRT space from %pa to %pa.\n", &esrt_data, &end);
-	memblock_reserve(esrt_data, esrt_data_size);
+	efi_mem_reserve(esrt_data, esrt_data_size);
 
 	pr_debug("esrt-init: loaded.\n");
 err_memunmap:
@@ -382,27 +383,17 @@ static void cleanup_entry_list(void)
 static int __init esrt_sysfs_init(void)
 {
 	int error;
-	struct efi_system_resource_table __iomem *ioesrt;
 
 	pr_debug("esrt-sysfs: loading.\n");
 	if (!esrt_data || !esrt_data_size)
 		return -ENOSYS;
 
-	ioesrt = ioremap(esrt_data, esrt_data_size);
-	if (!ioesrt) {
-		pr_err("ioremap(%pa, %zu) failed.\n", &esrt_data,
+	esrt = memremap(esrt_data, esrt_data_size, MEMREMAP_WB);
+	if (!esrt) {
+		pr_err("memremap(%pa, %zu) failed.\n", &esrt_data,
 		       esrt_data_size);
 		return -ENOMEM;
 	}
-
-	esrt = kmalloc(esrt_data_size, GFP_KERNEL);
-	if (!esrt) {
-		pr_err("kmalloc failed. (wanted %zu bytes)\n", esrt_data_size);
-		iounmap(ioesrt);
-		return -ENOMEM;
-	}
-
-	memcpy_fromio(esrt, ioesrt, esrt_data_size);
 
 	esrt_kobj = kobject_create_and_add("esrt", efi_kobj);
 	if (!esrt_kobj) {
@@ -428,8 +419,6 @@ static int __init esrt_sysfs_init(void)
 	error = register_entries();
 	if (error)
 		goto err_cleanup_list;
-
-	memblock_remove(esrt_data, esrt_data_size);
 
 	pr_debug("esrt-sysfs: loaded.\n");
 

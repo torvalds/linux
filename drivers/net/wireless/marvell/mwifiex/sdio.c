@@ -122,9 +122,11 @@ static int mwifiex_sdio_probe_of(struct device *dev, struct sdio_mmc_card *card)
 					       IRQF_TRIGGER_LOW,
 					       "wifi_wake", cfg);
 			if (ret) {
-				dev_err(dev,
+				dev_dbg(dev,
 					"Failed to request irq_wifi %d (%d)\n",
 					cfg->irq_wifi, ret);
+				card->plt_wake_cfg = NULL;
+				return 0;
 			}
 			disable_irq(cfg->irq_wifi);
 		}
@@ -289,7 +291,7 @@ mwifiex_sdio_remove(struct sdio_func *func)
 
 	mwifiex_dbg(adapter, INFO, "info: SDIO func num=%d\n", func->num);
 
-	if (user_rmmod) {
+	if (user_rmmod && !adapter->mfg_mode) {
 		if (adapter->is_suspended)
 			mwifiex_sdio_resume(adapter->dev);
 

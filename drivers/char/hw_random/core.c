@@ -449,22 +449,6 @@ int hwrng_register(struct hwrng *rng)
 		goto out;
 
 	mutex_lock(&rng_mutex);
-
-	/* kmalloc makes this safe for virt_to_page() in virtio_rng.c */
-	err = -ENOMEM;
-	if (!rng_buffer) {
-		rng_buffer = kmalloc(rng_buffer_size(), GFP_KERNEL);
-		if (!rng_buffer)
-			goto out_unlock;
-	}
-	if (!rng_fillbuf) {
-		rng_fillbuf = kmalloc(rng_buffer_size(), GFP_KERNEL);
-		if (!rng_fillbuf) {
-			kfree(rng_buffer);
-			goto out_unlock;
-		}
-	}
-
 	/* Must not register two RNGs with the same name. */
 	err = -EEXIST;
 	list_for_each_entry(tmp, &rng_list, list) {
@@ -573,7 +557,26 @@ EXPORT_SYMBOL_GPL(devm_hwrng_unregister);
 
 static int __init hwrng_modinit(void)
 {
-	return register_miscdev();
+	int ret = -ENOMEM;
+
+	/* kmalloc makes this safe for virt_to_page() in virtio_rng.c */
+	rng_buffer = kmalloc(rng_buffer_size(), GFP_KERNEL);
+	if (!rng_buffer)
+		return -ENOMEM;
+
+	rng_fillbuf = kmalloc(rng_buffer_size(), GFP_KERNEL);
+	if (!rng_fillbuf) {
+		kfree(rng_buffer);
+		return -ENOMEM;
+	}
+
+	ret = register_miscdev();
+	if (ret) {
+		kfree(rng_fillbuf);
+		kfree(rng_buffer);
+	}
+
+	return ret;
 }
 
 static void __exit hwrng_modexit(void)

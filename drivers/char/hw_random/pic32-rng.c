@@ -143,7 +143,6 @@ static struct platform_driver pic32_rng_driver = {
 	.remove		= pic32_rng_remove,
 	.driver		= {
 		.name	= "pic32-rng",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(pic32_rng_of_match),
 	},
 };

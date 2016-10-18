@@ -1448,7 +1448,7 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 {
 	u8 reg;
 	char *type;
-	char aInfo[90], aRevision[32], aDate[12];
+	char aInfo[90];
 	void __iomem	*mbase = musb->mregs;
 	int		status = 0;
 	int		i;
@@ -1482,7 +1482,6 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 
 	pr_debug("%s: ConfigData=0x%02x (%s)\n", musb_driver_name, reg, aInfo);
 
-	aDate[0] = 0;
 	if (MUSB_CONTROLLER_MHDRC == musb_type) {
 		musb->is_multipoint = 1;
 		type = "M";
@@ -1497,11 +1496,10 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 
 	/* log release info */
 	musb->hwvers = musb_read_hwvers(mbase);
-	snprintf(aRevision, 32, "%d.%d%s", MUSB_HWVERS_MAJOR(musb->hwvers),
-		MUSB_HWVERS_MINOR(musb->hwvers),
-		(musb->hwvers & MUSB_HWVERS_RC) ? "RC" : "");
-	pr_debug("%s: %sHDRC RTL version %s %s\n",
-		 musb_driver_name, type, aRevision, aDate);
+	pr_debug("%s: %sHDRC RTL version %d.%d%s\n",
+		 musb_driver_name, type, MUSB_HWVERS_MAJOR(musb->hwvers),
+		 MUSB_HWVERS_MINOR(musb->hwvers),
+		 (musb->hwvers & MUSB_HWVERS_RC) ? "RC" : "");
 
 	/* configure ep0 */
 	musb_configure_ep0(musb);
@@ -1831,10 +1829,79 @@ static const struct attribute_group musb_attr_group = {
 	.attrs = musb_attributes,
 };
 
+#define MUSB_QUIRK_B_INVALID_VBUS_91	(MUSB_DEVCTL_BDEVICE | \
+					 (2 << MUSB_DEVCTL_VBUS_SHIFT) | \
+					 MUSB_DEVCTL_SESSION)
+#define MUSB_QUIRK_A_DISCONNECT_19	((3 << MUSB_DEVCTL_VBUS_SHIFT) | \
+					 MUSB_DEVCTL_SESSION)
+
+/*
+ * Check the musb devctl session bit to determine if we want to
+ * allow PM runtime for the device. In general, we want to keep things
+ * active when the session bit is set except after host disconnect.
+ *
+ * Only called from musb_irq_work. If this ever needs to get called
+ * elsewhere, proper locking must be implemented for musb->session.
+ */
+static void musb_pm_runtime_check_session(struct musb *musb)
+{
+	u8 devctl, s;
+	int error;
+
+	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
+
+	/* Handle session status quirks first */
+	s = MUSB_DEVCTL_FSDEV | MUSB_DEVCTL_LSDEV |
+		MUSB_DEVCTL_HR;
+	switch (devctl & ~s) {
+	case MUSB_QUIRK_B_INVALID_VBUS_91:
+		if (!musb->session && !musb->quirk_invalid_vbus) {
+			musb->quirk_invalid_vbus = true;
+			musb_dbg(musb,
+				 "First invalid vbus, assume no session");
+			return;
+		}
+		break;
+	case MUSB_QUIRK_A_DISCONNECT_19:
+		if (!musb->session)
+			break;
+		musb_dbg(musb, "Allow PM on possible host mode disconnect");
+		pm_runtime_mark_last_busy(musb->controller);
+		pm_runtime_put_autosuspend(musb->controller);
+		musb->session = false;
+		return;
+	default:
+		break;
+	}
+
+	/* No need to do anything if session has not changed */
+	s = devctl & MUSB_DEVCTL_SESSION;
+	if (s == musb->session)
+		return;
+
+	/* Block PM or allow PM? */
+	if (s) {
+		musb_dbg(musb, "Block PM on active session: %02x", devctl);
+		error = pm_runtime_get_sync(musb->controller);
+		if (error < 0)
+			dev_err(musb->controller, "Could not enable: %i\n",
+				error);
+	} else {
+		musb_dbg(musb, "Allow PM with no session: %02x", devctl);
+		musb->quirk_invalid_vbus = false;
+		pm_runtime_mark_last_busy(musb->controller);
+		pm_runtime_put_autosuspend(musb->controller);
+	}
+
+	musb->session = s;
+}
+
 /* Only used to provide driver mode change events */
 static void musb_irq_work(struct work_struct *data)
 {
 	struct musb *musb = container_of(data, struct musb, irq_work);
+
+	musb_pm_runtime_check_session(musb);
 
 	if (musb->xceiv->otg->state != musb->xceiv_old_state) {
 		musb->xceiv_old_state = musb->xceiv->otg->state;

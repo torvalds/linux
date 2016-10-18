@@ -151,7 +151,7 @@ static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int c
 	spin_lock(&inode->i_lock);
 	i_size = i_size_read(inode);
 	end_index = (i_size - 1) >> PAGE_SHIFT;
-	if (i_size > 0 && page_file_index(page) < end_index)
+	if (i_size > 0 && page_index(page) < end_index)
 		goto out;
 	end = page_file_offset(page) + ((loff_t)offset+count);
 	if (i_size >= end)
@@ -603,7 +603,7 @@ static int nfs_do_writepage(struct page *page, struct writeback_control *wbc,
 {
 	int ret;
 
-	nfs_pageio_cond_complete(pgio, page_file_index(page));
+	nfs_pageio_cond_complete(pgio, page_index(page));
 	ret = nfs_page_async_flush(pgio, page, wbc->sync_mode == WB_SYNC_NONE,
 				   launder);
 	if (ret == -EAGAIN) {

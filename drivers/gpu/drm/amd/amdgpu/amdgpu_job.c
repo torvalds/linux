@@ -91,7 +91,7 @@ void amdgpu_job_free_resources(struct amdgpu_job *job)
 		amdgpu_ib_free(job->adev, &job->ibs[i], f);
 }
 
-void amdgpu_job_free_cb(struct amd_sched_job *s_job)
+static void amdgpu_job_free_cb(struct amd_sched_job *s_job)
 {
 	struct amdgpu_job *job = container_of(s_job, struct amdgpu_job, base);
 
@@ -124,7 +124,7 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 		return r;
 
 	job->owner = owner;
-	job->ctx = entity->fence_context;
+	job->fence_ctx = entity->fence_context;
 	*f = fence_get(&job->base.s_fence->finished);
 	amdgpu_job_free_resources(job);
 	amd_sched_entity_push_job(&job->base);

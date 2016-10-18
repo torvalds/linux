@@ -19,8 +19,6 @@
 #include "ext4_jbd2.h"
 #include "ext4.h"
 
-#define MAX_32_NUM ((((unsigned long long) 1) << 32) - 1)
-
 /**
  * Swap memory between @a and @b for @len bytes.
  *
@@ -310,8 +308,7 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 	struct ext4_inode *raw_inode;
 	struct dquot *transfer_to[MAXQUOTAS] = { };
 
-	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb,
-			EXT4_FEATURE_RO_COMPAT_PROJECT)) {
+	if (!ext4_has_feature_project(sb)) {
 		if (projid != EXT4_DEF_PROJID)
 			return -EOPNOTSUPP;
 		else
@@ -772,6 +769,9 @@ resizefs_out:
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
 		struct fscrypt_policy policy;
 
+		if (!ext4_has_feature_encrypt(sb))
+			return -EOPNOTSUPP;
+
 		if (copy_from_user(&policy,
 				   (struct fscrypt_policy __user *)arg,
 				   sizeof(policy)))
@@ -842,8 +842,7 @@ resizefs_out:
 		ext4_get_inode_flags(ei);
 		fa.fsx_xflags = ext4_iflags_to_xflags(ei->i_flags & EXT4_FL_USER_VISIBLE);
 
-		if (EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
-				EXT4_FEATURE_RO_COMPAT_PROJECT)) {
+		if (ext4_has_feature_project(inode->i_sb)) {
 			fa.fsx_projid = (__u32)from_kprojid(&init_user_ns,
 				EXT4_I(inode)->i_projid);
 		}

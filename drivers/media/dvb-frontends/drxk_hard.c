@@ -6448,7 +6448,7 @@ static int get_strength(struct drxk_state *state, u64 *strength)
 			return status;
 
 		/* SCU c.o.c. */
-		read16(state, SCU_RAM_AGC_RF_IACCU_HI_CO__A, &scu_coc);
+		status = read16(state, SCU_RAM_AGC_RF_IACCU_HI_CO__A, &scu_coc);
 		if (status < 0)
 			return status;
 

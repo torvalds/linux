@@ -8,10 +8,10 @@ http://0x04.net/cgit/index.cgi/rules-ng-ng
 git clone git://0x04.net/rules-ng-ng
 
 The rules-ng-ng source files this header was generated from are:
-- state_hi.xml (  24309 bytes, from 2015-12-12 09:02:53)
-- common.xml   (  18437 bytes, from 2015-12-12 09:02:53)
+- state_hi.xml (  25620 bytes, from 2016-08-19 22:07:37)
+- common.xml   (  20583 bytes, from 2016-06-07 05:22:38)
 
-Copyright (C) 2015
+Copyright (C) 2016
 */
 
 
@@ -78,9 +78,10 @@ Copyright (C) 2015
 #define VIVS_HI_AXI_STATUS_DET_RD_ERR				0x00000200
 
 #define VIVS_HI_INTR_ACKNOWLEDGE				0x00000010
-#define VIVS_HI_INTR_ACKNOWLEDGE_INTR_VEC__MASK			0x7fffffff
+#define VIVS_HI_INTR_ACKNOWLEDGE_INTR_VEC__MASK			0x3fffffff
 #define VIVS_HI_INTR_ACKNOWLEDGE_INTR_VEC__SHIFT		0
 #define VIVS_HI_INTR_ACKNOWLEDGE_INTR_VEC(x)			(((x) << VIVS_HI_INTR_ACKNOWLEDGE_INTR_VEC__SHIFT) & VIVS_HI_INTR_ACKNOWLEDGE_INTR_VEC__MASK)
+#define VIVS_HI_INTR_ACKNOWLEDGE_MMU_EXCEPTION			0x40000000
 #define VIVS_HI_INTR_ACKNOWLEDGE_AXI_BUS_ERROR			0x80000000
 
 #define VIVS_HI_INTR_ENBL					0x00000014

@@ -493,23 +493,11 @@ static void __init armadillo5x0_init(void)
 
 	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
-	armadillo5x0_smc911x_resources[1].start =
-			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_0));
-	armadillo5x0_smc911x_resources[1].end =
-			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_0));
-	platform_add_devices(devices, ARRAY_SIZE(devices));
-	imx_add_gpio_keys(&armadillo5x0_button_data);
 	imx31_add_imx_i2c1(NULL);
 
 	/* Register UART */
 	imx31_add_imx_uart0(&uart_pdata);
 	imx31_add_imx_uart1(&uart_pdata);
-
-	/* SMSC9118 IRQ pin */
-	gpio_direction_input(MX31_PIN_GPIO1_0);
-
-	/* Register SDHC */
-	imx31_add_mxc_mmc(0, &sdhc_pdata);
 
 	/* Register FB */
 	imx31_add_ipu_core();
@@ -527,21 +515,39 @@ static void __init armadillo5x0_init(void)
 	/* set NAND page size to 2k if not configured via boot mode pins */
 	imx_writel(imx_readl(mx3_ccm_base + MXC_CCM_RCSR) | (1 << 30),
 		   mx3_ccm_base + MXC_CCM_RCSR);
+}
+
+static void __init armadillo5x0_late(void)
+{
+	armadillo5x0_smc911x_resources[1].start =
+		gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_0));
+	armadillo5x0_smc911x_resources[1].end =
+		gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_0));
+	platform_add_devices(devices, ARRAY_SIZE(devices));
+
+	imx_add_gpio_keys(&armadillo5x0_button_data);
+
+	/* SMSC9118 IRQ pin */
+	gpio_direction_input(MX31_PIN_GPIO1_0);
+
+	/* Register SDHC */
+	imx31_add_mxc_mmc(0, &sdhc_pdata);
 
 	/* RTC */
 	/* Get RTC IRQ and register the chip */
-	if (gpio_request(ARMADILLO5X0_RTC_GPIO, "rtc") == 0) {
-		if (gpio_direction_input(ARMADILLO5X0_RTC_GPIO) == 0)
-			armadillo5x0_i2c_rtc.irq = gpio_to_irq(ARMADILLO5X0_RTC_GPIO);
+	if (!gpio_request(ARMADILLO5X0_RTC_GPIO, "rtc")) {
+		if (!gpio_direction_input(ARMADILLO5X0_RTC_GPIO))
+			armadillo5x0_i2c_rtc.irq =
+				gpio_to_irq(ARMADILLO5X0_RTC_GPIO);
 		else
 			gpio_free(ARMADILLO5X0_RTC_GPIO);
 	}
+
 	if (armadillo5x0_i2c_rtc.irq == 0)
 		pr_warn("armadillo5x0_init: failed to get RTC IRQ\n");
 	i2c_register_board_info(1, &armadillo5x0_i2c_rtc, 1);
 
 	/* USB */
-
 	usbotg_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
 			ULPI_OTG_DRVVBUS_EXT);
 	if (usbotg_pdata.otg)
@@ -565,5 +571,6 @@ MACHINE_START(ARMADILLO5X0, "Armadillo-500")
 	.init_irq = mx31_init_irq,
 	.init_time	= armadillo5x0_timer_init,
 	.init_machine = armadillo5x0_init,
+	.init_late	= armadillo5x0_late,
 	.restart	= mxc_restart,
 MACHINE_END

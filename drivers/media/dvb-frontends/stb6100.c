@@ -522,7 +522,7 @@ static int stb6100_set_params(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct dvb_tuner_ops stb6100_ops = {
+static const struct dvb_tuner_ops stb6100_ops = {
 	.info = {
 		.name			= "STB6100 Silicon Tuner",
 		.frequency_min		= 950000,

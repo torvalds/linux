@@ -17,6 +17,7 @@ KBUILD_CFLAGS += $(call cc-option,-mpacked-stack)
 KBUILD_CFLAGS += $(call cc-option,-ffreestanding)
 
 GCOV_PROFILE := n
+UBSAN_SANITIZE := n
 
 OBJECTS := $(addprefix $(objtree)/arch/s390/kernel/, head.o sclp.o ebcdic.o als.o)
 OBJECTS += $(obj)/head.o $(obj)/misc.o $(obj)/piggy.o

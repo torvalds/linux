@@ -9,8 +9,6 @@
 V4L2_PIX_FMT_SBGGR10ALAW8 ('aBA8'), V4L2_PIX_FMT_SGBRG10ALAW8 ('aGA8'), V4L2_PIX_FMT_SGRBG10ALAW8 ('agA8'), V4L2_PIX_FMT_SRGGB10ALAW8 ('aRA8'),
 ***********************************************************************************************************************************************
 
-*man V4L2_PIX_FMT_SBGGR10ALAW8(2)*
-
 V4L2_PIX_FMT_SGBRG10ALAW8
 V4L2_PIX_FMT_SGRBG10ALAW8
 V4L2_PIX_FMT_SRGGB10ALAW8

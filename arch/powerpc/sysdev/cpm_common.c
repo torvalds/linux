@@ -37,6 +37,21 @@
 #include <linux/of_gpio.h>
 #endif
 
+static int __init cpm_init(void)
+{
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,cpm1");
+	if (!np)
+		np = of_find_compatible_node(NULL, NULL, "fsl,cpm2");
+	if (!np)
+		return -ENODEV;
+	cpm_muram_init();
+	of_node_put(np);
+	return 0;
+}
+subsys_initcall(cpm_init);
+
 #ifdef CONFIG_PPC_EARLY_DEBUG_CPM
 static u32 __iomem *cpm_udbg_txdesc;
 static u8 __iomem *cpm_udbg_txbuf;

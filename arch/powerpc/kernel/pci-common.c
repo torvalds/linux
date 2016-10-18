@@ -56,6 +56,7 @@ static DECLARE_BITMAP(phb_bitmap, MAX_PHBS);
 
 /* ISA Memory physical address */
 resource_size_t isa_mem_base;
+EXPORT_SYMBOL(isa_mem_base);
 
 
 static struct dma_map_ops *pci_dma_ops = &dma_direct_ops;
@@ -360,7 +361,7 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 			 line, pin);
 
 		virq = irq_create_mapping(NULL, line);
-		if (virq != NO_IRQ)
+		if (virq)
 			irq_set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
 	} else {
 		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
@@ -369,7 +370,8 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 
 		virq = irq_create_of_mapping(&oirq);
 	}
-	if(virq == NO_IRQ) {
+
+	if (!virq) {
 		pr_debug(" Failed to map !\n");
 		return -1;
 	}

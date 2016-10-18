@@ -10,7 +10,8 @@ FILES = audio.h.rst ca.h.rst dmx.h.rst frontend.h.rst net.h.rst video.h.rst \
 
 TARGETS := $(addprefix $(BUILDDIR)/, $(FILES))
 
-htmldocs: $(BUILDDIR) ${TARGETS}
+.PHONY: all
+all: $(BUILDDIR) ${TARGETS}
 
 $(BUILDDIR):
 	$(Q)mkdir -p $@

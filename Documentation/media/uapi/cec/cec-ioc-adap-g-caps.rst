@@ -14,7 +14,8 @@ CEC_ADAP_G_CAPS - Query device capabilities
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct cec_caps *argp )
+.. c:function:: int ioctl( int fd, CEC_ADAP_G_CAPS, struct cec_caps *argp )
+    :name: CEC_ADAP_G_CAPS
 
 Arguments
 =========
@@ -22,25 +23,25 @@ Arguments
 ``fd``
     File descriptor returned by :ref:`open() <cec-func-open>`.
 
-``request``
-    CEC_ADAP_G_CAPS
-
 ``argp``
 
 
 Description
 ===========
 
-.. note:: This documents the proposed CEC API. This API is not yet finalized
+.. note::
+
+   This documents the proposed CEC API. This API is not yet finalized
    and is currently only available as a staging kernel module.
 
 All cec devices must support :ref:`ioctl CEC_ADAP_G_CAPS <CEC_ADAP_G_CAPS>`. To query
 device information, applications call the ioctl with a pointer to a
-struct :ref:`cec_caps <cec-caps>`. The driver fills the structure and
+struct :c:type:`cec_caps`. The driver fills the structure and
 returns the information to the application. The ioctl never fails.
 
+.. tabularcolumns:: |p{1.2cm}|p{2.5cm}|p{13.8cm}|
 
-.. _cec-caps:
+.. c:type:: cec_caps
 
 .. flat-table:: struct cec_caps
     :header-rows:  0
@@ -84,6 +85,7 @@ returns the information to the application. The ioctl never fails.
 	  macro.
 
 
+.. tabularcolumns:: |p{4.4cm}|p{2.5cm}|p{10.6cm}|
 
 .. _cec-capabilities:
 

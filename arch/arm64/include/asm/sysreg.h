@@ -100,6 +100,7 @@
 /* SCTLR_EL1 specific flags. */
 #define SCTLR_EL1_UCI		(1 << 26)
 #define SCTLR_EL1_SPAN		(1 << 23)
+#define SCTLR_EL1_UCT		(1 << 15)
 #define SCTLR_EL1_SED		(1 << 8)
 #define SCTLR_EL1_CP15BEN	(1 << 5)
 
@@ -253,16 +254,6 @@ asm(
 "	.endm\n"
 );
 
-static inline void config_sctlr_el1(u32 clear, u32 set)
-{
-	u32 val;
-
-	asm volatile("mrs %0, sctlr_el1" : "=r" (val));
-	val &= ~clear;
-	val |= set;
-	asm volatile("msr sctlr_el1, %0" : : "r" (val));
-}
-
 /*
  * Unlike read_cpuid, calls to read_sysreg are never expected to be
  * optimized away or replaced with synthetic values.
@@ -273,11 +264,40 @@ static inline void config_sctlr_el1(u32 clear, u32 set)
 	__val;							\
 })
 
+/*
+ * The "Z" constraint normally means a zero immediate, but when combined with
+ * the "%x0" template means XZR.
+ */
 #define write_sysreg(v, r) do {					\
 	u64 __val = (u64)v;					\
-	asm volatile("msr " __stringify(r) ", %0"		\
-		     : : "r" (__val));				\
+	asm volatile("msr " __stringify(r) ", %x0"		\
+		     : : "rZ" (__val));				\
 } while (0)
+
+/*
+ * For registers without architectural names, or simply unsupported by
+ * GAS.
+ */
+#define read_sysreg_s(r) ({						\
+	u64 __val;							\
+	asm volatile("mrs_s %0, " __stringify(r) : "=r" (__val));	\
+	__val;								\
+})
+
+#define write_sysreg_s(v, r) do {					\
+	u64 __val = (u64)v;						\
+	asm volatile("msr_s " __stringify(r) ", %0" : : "rZ" (__val));	\
+} while (0)
+
+static inline void config_sctlr_el1(u32 clear, u32 set)
+{
+	u32 val;
+
+	val = read_sysreg(sctlr_el1);
+	val &= ~clear;
+	val |= set;
+	write_sysreg(val, sctlr_el1);
+}
 
 #endif
 

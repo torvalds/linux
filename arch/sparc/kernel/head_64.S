@@ -32,7 +32,8 @@
 #include <asm/estate.h>
 #include <asm/sfafsr.h>
 #include <asm/unistd.h>
-	
+#include <asm/export.h>
+
 /* This section from from _start to sparc64_boot_end should fit into
  * 0x0000000000404000 to 0x0000000000408000.
  */
@@ -143,6 +144,7 @@ prom_cpu_compatible:
 	.skip	64
 prom_root_node:
 	.word	0
+EXPORT_SYMBOL(prom_root_node)
 prom_mmu_ihandle_cache:
 	.word	0
 prom_boot_mapped_pc:
@@ -158,6 +160,7 @@ is_sun4v:
 	.word	0
 sun4v_chip_type:
 	.word	SUN4V_CHIP_INVALID
+EXPORT_SYMBOL(sun4v_chip_type)
 1:
 	rd	%pc, %l0
 
@@ -920,6 +923,7 @@ swapper_4m_tsb:
 	.globl	prom_tba, tlb_type
 prom_tba:	.xword	0
 tlb_type:	.word	0	/* Must NOT end up in BSS */
+EXPORT_SYMBOL(tlb_type)
 	.section	".fixup",#alloc,#execinstr
 
 	.globl	__ret_efault, __retl_efault, __ret_one, __retl_one
@@ -927,6 +931,7 @@ ENTRY(__ret_efault)
 	ret
 	 restore %g0, -EFAULT, %o0
 ENDPROC(__ret_efault)
+EXPORT_SYMBOL(__ret_efault)
 
 ENTRY(__retl_efault)
 	retl
