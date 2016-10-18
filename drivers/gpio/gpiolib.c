@@ -333,6 +333,13 @@ struct linehandle_state {
 	u32 numdescs;
 };
 
+#define GPIOHANDLE_REQUEST_VALID_FLAGS \
+	(GPIOHANDLE_REQUEST_INPUT | \
+	GPIOHANDLE_REQUEST_OUTPUT | \
+	GPIOHANDLE_REQUEST_ACTIVE_LOW | \
+	GPIOHANDLE_REQUEST_OPEN_DRAIN | \
+	GPIOHANDLE_REQUEST_OPEN_SOURCE)
+
 static long linehandle_ioctl(struct file *filep, unsigned int cmd,
 			     unsigned long arg)
 {
@@ -447,6 +454,12 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 		struct gpio_desc *desc;
 
 		if (offset >= gdev->ngpio) {
+			ret = -EINVAL;
+			goto out_free_descs;
+		}
+
+		/* Return an error if a unknown flag is set */
+		if (lflags & ~GPIOHANDLE_REQUEST_VALID_FLAGS) {
 			ret = -EINVAL;
 			goto out_free_descs;
 		}
