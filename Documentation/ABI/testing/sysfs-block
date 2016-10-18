@@ -251,3 +251,16 @@ Description:
 		since drive-managed zoned block devices do not support
 		zone commands, they will be treated as regular block
 		devices and zoned will report "none".
+
+What:		/sys/block/<disk>/queue/chunk_sectors
+Date:		September 2016
+Contact:	Hannes Reinecke <hare@suse.com>
+Description:
+		chunk_sectors has different meaning depending on the type
+		of the disk. For a RAID device (dm-raid), chunk_sectors
+		indicates the size in 512B sectors of the RAID volume
+		stripe segment. For a zoned block device, either
+		host-aware or host-managed, chunk_sectors indicates the
+		size of 512B sectors of the zones of the device, with
+		the eventual exception of the last zone of the device
+		which may be smaller.
