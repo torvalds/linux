@@ -29,6 +29,7 @@
 #define PCH_THERMAL_DID_HSW_2	0x8C24 /* Haswell PCH */
 #define PCH_THERMAL_DID_WPT	0x9CA4 /* Wildcat Point */
 #define PCH_THERMAL_DID_SKL	0x9D31 /* Skylake PCH */
+#define PCH_THERMAL_DID_SKL_H	0xA131 /* Skylake PCH 100 series */
 
 /* Wildcat Point-LP  PCH Thermal registers */
 #define WPT_TEMP	0x0000	/* Temperature */
@@ -273,37 +274,44 @@ static struct thermal_zone_device_ops tzd_ops = {
 	.get_trip_temp = pch_get_trip_temp,
 };
 
+enum board_ids {
+	board_hsw,
+	board_wpt,
+	board_skl,
+};
+
+static const struct board_info {
+	const char *name;
+	const struct pch_dev_ops *ops;
+} board_info[] = {
+	[board_hsw] = {
+		.name = "pch_haswell",
+		.ops = &pch_dev_ops_wpt,
+	},
+	[board_wpt] = {
+		.name = "pch_wildcat_point",
+		.ops = &pch_dev_ops_wpt,
+	},
+	[board_skl] = {
+		.name = "pch_skylake",
+		.ops = &pch_dev_ops_wpt,
+	},
+};
 
 static int intel_pch_thermal_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
+	enum board_ids board_id = id->driver_data;
+	const struct board_info *bi = &board_info[board_id];
 	struct pch_thermal_device *ptd;
 	int err;
 	int nr_trips;
-	char *dev_name;
 
 	ptd = devm_kzalloc(&pdev->dev, sizeof(*ptd), GFP_KERNEL);
 	if (!ptd)
 		return -ENOMEM;
 
-	switch (pdev->device) {
-	case PCH_THERMAL_DID_WPT:
-		ptd->ops = &pch_dev_ops_wpt;
-		dev_name = "pch_wildcat_point";
-		break;
-	case PCH_THERMAL_DID_SKL:
-		ptd->ops = &pch_dev_ops_wpt;
-		dev_name = "pch_skylake";
-		break;
-	case PCH_THERMAL_DID_HSW_1:
-	case PCH_THERMAL_DID_HSW_2:
-		ptd->ops = &pch_dev_ops_wpt;
-		dev_name = "pch_haswell";
-		break;
-	default:
-		dev_err(&pdev->dev, "unknown pch thermal device\n");
-		return -ENODEV;
-	}
+	ptd->ops = bi->ops;
 
 	pci_set_drvdata(pdev, ptd);
 	ptd->pdev = pdev;
@@ -331,11 +339,11 @@ static int intel_pch_thermal_probe(struct pci_dev *pdev,
 	if (err)
 		goto error_cleanup;
 
-	ptd->tzd = thermal_zone_device_register(dev_name, nr_trips, 0, ptd,
+	ptd->tzd = thermal_zone_device_register(bi->name, nr_trips, 0, ptd,
 						&tzd_ops, NULL, 0, 0);
 	if (IS_ERR(ptd->tzd)) {
 		dev_err(&pdev->dev, "Failed to register thermal zone %s\n",
-			dev_name);
+			bi->name);
 		err = PTR_ERR(ptd->tzd);
 		goto error_cleanup;
 	}
@@ -380,10 +388,16 @@ static int intel_pch_thermal_resume(struct device *device)
 }
 
 static struct pci_device_id intel_pch_thermal_id[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_WPT) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_SKL) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_HSW_1) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_HSW_2) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_HSW_1),
+		.driver_data = board_hsw, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_HSW_2),
+		.driver_data = board_hsw, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_WPT),
+		.driver_data = board_wpt, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_SKL),
+		.driver_data = board_skl, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_SKL_H),
+		.driver_data = board_skl, },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, intel_pch_thermal_id);
