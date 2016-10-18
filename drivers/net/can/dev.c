@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
+#include <linux/workqueue.h>
 #include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/skb.h>
@@ -471,9 +472,8 @@ EXPORT_SYMBOL_GPL(can_free_echo_skb);
 /*
  * CAN device restart for bus-off recovery
  */
-static void can_restart(unsigned long data)
+static void can_restart(struct net_device *dev)
 {
-	struct net_device *dev = (struct net_device *)data;
 	struct can_priv *priv = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	struct sk_buff *skb;
@@ -513,6 +513,14 @@ restart:
 		netdev_err(dev, "Error %d during restart", err);
 }
 
+static void can_restart_work(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct can_priv *priv = container_of(dwork, struct can_priv, restart_work);
+
+	can_restart(priv->dev);
+}
+
 int can_restart_now(struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
@@ -526,8 +534,8 @@ int can_restart_now(struct net_device *dev)
 	if (priv->state != CAN_STATE_BUS_OFF)
 		return -EBUSY;
 
-	/* Runs as soon as possible in the timer context */
-	mod_timer(&priv->restart_timer, jiffies);
+	cancel_delayed_work_sync(&priv->restart_work);
+	can_restart(dev);
 
 	return 0;
 }
@@ -548,8 +556,8 @@ void can_bus_off(struct net_device *dev)
 	netif_carrier_off(dev);
 
 	if (priv->restart_ms)
-		mod_timer(&priv->restart_timer,
-			  jiffies + (priv->restart_ms * HZ) / 1000);
+		schedule_delayed_work(&priv->restart_work,
+				      msecs_to_jiffies(priv->restart_ms));
 }
 EXPORT_SYMBOL_GPL(can_bus_off);
 
@@ -658,6 +666,7 @@ struct net_device *alloc_candev(int sizeof_priv, unsigned int echo_skb_max)
 		return NULL;
 
 	priv = netdev_priv(dev);
+	priv->dev = dev;
 
 	if (echo_skb_max) {
 		priv->echo_skb_max = echo_skb_max;
@@ -667,7 +676,7 @@ struct net_device *alloc_candev(int sizeof_priv, unsigned int echo_skb_max)
 
 	priv->state = CAN_STATE_STOPPED;
 
-	init_timer(&priv->restart_timer);
+	INIT_DELAYED_WORK(&priv->restart_work, can_restart_work);
 
 	return dev;
 }
@@ -748,8 +757,6 @@ int open_candev(struct net_device *dev)
 	if (!netif_carrier_ok(dev))
 		netif_carrier_on(dev);
 
-	setup_timer(&priv->restart_timer, can_restart, (unsigned long)dev);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(open_candev);
@@ -764,7 +771,7 @@ void close_candev(struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
-	del_timer_sync(&priv->restart_timer);
+	cancel_delayed_work_sync(&priv->restart_work);
 	can_flush_echo_skb(dev);
 }
 EXPORT_SYMBOL_GPL(close_candev);

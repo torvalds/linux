@@ -259,7 +259,7 @@ static int log_one_block(struct log_writes_c *lc,
 	sector++;
 
 	atomic_inc(&lc->io_blocks);
-	bio = bio_alloc(GFP_KERNEL, block->vec_cnt);
+	bio = bio_alloc(GFP_KERNEL, min(block->vec_cnt, BIO_MAX_PAGES));
 	if (!bio) {
 		DMERR("Couldn't alloc log bio");
 		goto error;
@@ -280,7 +280,7 @@ static int log_one_block(struct log_writes_c *lc,
 		if (ret != block->vecs[i].bv_len) {
 			atomic_inc(&lc->io_blocks);
 			submit_bio(WRITE, bio);
-			bio = bio_alloc(GFP_KERNEL, block->vec_cnt - i);
+			bio = bio_alloc(GFP_KERNEL, min(block->vec_cnt - i, BIO_MAX_PAGES));
 			if (!bio) {
 				DMERR("Couldn't alloc log bio");
 				goto error;
