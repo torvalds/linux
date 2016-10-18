@@ -92,7 +92,7 @@ static void ft_free_cmd(struct ft_cmd *cmd)
 	fp = cmd->req_frame;
 	lport = fr_dev(fp);
 	if (fr_seq(fp))
-		lport->tt.seq_release(fr_seq(fp));
+		fc_seq_release(fr_seq(fp));
 	fc_frame_free(fp);
 	percpu_ida_free(&sess->se_sess->sess_tag_pool, cmd->se_cmd.map_tag);
 	ft_sess_put(sess);	/* undo get from lookup at recv */

@@ -1497,10 +1497,11 @@ EXPORT_SYMBOL(fc_seq_assign);
  * fc_seq_release() - Release the hold
  * @sp:    The sequence.
  */
-static void fc_seq_release(struct fc_seq *sp)
+void fc_seq_release(struct fc_seq *sp)
 {
 	fc_exch_release(fc_seq_exch(sp));
 }
+EXPORT_SYMBOL(fc_seq_release);
 
 /**
  * fc_exch_recv_req() - Handler for an incoming request
@@ -2653,9 +2654,6 @@ int fc_exch_init(struct fc_lport *lport)
 {
 	if (!lport->tt.exch_mgr_reset)
 		lport->tt.exch_mgr_reset = fc_exch_mgr_reset;
-
-	if (!lport->tt.seq_release)
-		lport->tt.seq_release = fc_seq_release;
 
 	return 0;
 }

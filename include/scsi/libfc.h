@@ -515,13 +515,6 @@ struct libfc_function_template {
 	void (*get_lesb)(struct fc_lport *, struct fc_els_lesb *lesb);
 
 	/*
-	 * Release the reference on the sequence returned by seq_assign().
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	void (*seq_release)(struct fc_seq *);
-
-	/*
 	 * Reset an exchange manager, completing all sequences and exchanges.
 	 * If s_id is non-zero, reset only exchanges originating from that FID.
 	 * If d_id is non-zero, reset only exchanges sending to that FID.
@@ -1000,6 +993,7 @@ void fc_seq_set_resp(struct fc_seq *sp,
 		     void (*resp)(struct fc_seq *, struct fc_frame *, void *),
 		     void *arg);
 struct fc_seq *fc_seq_assign(struct fc_lport *lport, struct fc_frame *fp);
+void fc_seq_release(struct fc_seq *sp);
 struct fc_exch_mgr_anchor *fc_exch_mgr_add(struct fc_lport *,
 					   struct fc_exch_mgr *,
 					   bool (*match)(struct fc_frame *));
