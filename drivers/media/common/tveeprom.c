@@ -510,8 +510,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 			len = eeprom_data[i] & 0x07;
 			++i;
 		} else {
-			tveeprom_warn("Encountered bad packet header [%02x]. "
-				"Corrupt or not a Hauppauge eeprom.\n",
+			tveeprom_warn("Encountered bad packet header [%02x]. Corrupt or not a Hauppauge eeprom.\n",
 				eeprom_data[i]);
 			return;
 		}
