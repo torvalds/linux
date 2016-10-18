@@ -355,7 +355,9 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		if ((ubo > 0xfffff8) || (vbo > 0xfffff8))
 			return -EINVAL;
 
-		if (old_fb) {
+		if (old_fb &&
+		    (old_fb->pixel_format == DRM_FORMAT_YUV420 ||
+		     old_fb->pixel_format == DRM_FORMAT_YVU420)) {
 			old_ubo = drm_plane_state_to_ubo(old_state);
 			old_vbo = drm_plane_state_to_vbo(old_state);
 			if (ubo != old_ubo || vbo != old_vbo)
