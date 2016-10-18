@@ -265,14 +265,10 @@ static long efi_runtime_set_variable(unsigned long arg)
 			return rv;
 	}
 
-	data = kmalloc(setvariable.data_size, GFP_KERNEL);
-	if (!data) {
+	data = memdup_user(setvariable.data, setvariable.data_size);
+	if (IS_ERR(data)) {
 		kfree(name);
-		return -ENOMEM;
-	}
-	if (copy_from_user(data, setvariable.data, setvariable.data_size)) {
-		rv = -EFAULT;
-		goto out;
+		return PTR_ERR(data);
 	}
 
 	status = efi.set_variable(name, &vendor_guid,
