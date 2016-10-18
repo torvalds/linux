@@ -384,6 +384,7 @@ void pnfs_lgopen_prepare(struct nfs4_opendata *data,
 			 struct nfs_open_context *ctx);
 void pnfs_parse_lgopen(struct inode *ino, struct nfs4_layoutget *lgp,
 		       struct nfs_open_context *ctx);
+void nfs4_lgopen_release(struct nfs4_layoutget *lgp);
 
 static inline bool nfs_have_layout(struct inode *inode)
 {
@@ -795,6 +796,11 @@ static inline void pnfs_parse_lgopen(struct inode *ino,
 		struct nfs_open_context *ctx)
 {
 }
+
+static inline void nfs4_lgopen_release(struct nfs4_layoutget *lgp)
+{
+}
+
 #endif /* CONFIG_NFS_V4_1 */
 
 #if IS_ENABLED(CONFIG_NFS_V4_2)

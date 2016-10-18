@@ -2129,13 +2129,11 @@ void pnfs_parse_lgopen(struct inode *ino, struct nfs4_layoutget *lgp,
 		lgp->args.inode = ino;
 	} else
 		lo = NFS_I(lgp->args.inode)->layout;
-	pnfs_get_layout_hdr(lo);
 
 	if (read_seqcount_retry(&srv->nfs_client->cl_callback_count,
 				lgp->callback_count))
-		goto out;
+		return;
 	lseg = pnfs_layout_process(lgp);
-	atomic_dec(&lo->plh_outstanding);
 	if (IS_ERR(lseg)) {
 		/* ignore lseg, but would like to mark not to try lgopen */
 		/* clear some lo flags - first and fail ???? */
@@ -2144,9 +2142,19 @@ void pnfs_parse_lgopen(struct inode *ino, struct nfs4_layoutget *lgp,
 		pnfs_layout_clear_fail_bit(lo, pnfs_iomode_to_fail_bit(iomode));
 		pnfs_put_lseg(lseg);
 	}
-out:
-	pnfs_clear_first_layoutget(lo);
-	pnfs_put_layout_hdr(lo);
+}
+
+void nfs4_lgopen_release(struct nfs4_layoutget *lgp)
+{
+	if (lgp != NULL) {
+		struct inode *inode = lgp->args.inode;
+		if (inode) {
+			struct pnfs_layout_hdr *lo = NFS_I(inode)->layout;
+			atomic_dec(&lo->plh_outstanding);
+			pnfs_clear_first_layoutget(lo);
+		}
+		pnfs_layoutget_free(lgp);
+	}
 }
 
 struct pnfs_layout_segment *
