@@ -58,7 +58,6 @@ config DA8XX_REMOTEPROC
 	tristate "DA8xx/OMAP-L13x remoteproc support"
 	depends on ARCH_DAVINCI_DA8XX
 	select CMA if MMU
-	select REMOTEPROC
 	select RPMSG_VIRTIO
 	help
 	  Say y here to support DA8xx/OMAP-L13x remote processors via the
@@ -99,10 +98,10 @@ config QCOM_WCNSS_PIL
 	tristate "Qualcomm WCNSS Peripheral Image Loader"
 	depends on OF && ARCH_QCOM
 	depends on QCOM_SMEM
+	depends on REMOTEPROC
 	select QCOM_MDT_LOADER
 	select QCOM_SCM
 	select QCOM_WCNSS_IRIS
-	select REMOTEPROC
 	help
 	  Say y here to support the Peripheral Image Loader for the Qualcomm
 	  Wireless Connectivity Subsystem.
@@ -115,5 +114,9 @@ config ST_REMOTEPROC
 	  Say y here to support ST's adjunct processors via the remote
 	  processor framework.
 	  This can be either built-in or a loadable module.
+
+config ST_SLIM_REMOTEPROC
+	tristate
+	select REMOTEPROC
 
 endmenu
