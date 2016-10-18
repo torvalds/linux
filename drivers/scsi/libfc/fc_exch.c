@@ -1477,7 +1477,7 @@ reject:
  * A reference will be held on the exchange/sequence for the caller, which
  * must call fc_seq_release().
  */
-static struct fc_seq *fc_seq_assign(struct fc_lport *lport, struct fc_frame *fp)
+struct fc_seq *fc_seq_assign(struct fc_lport *lport, struct fc_frame *fp)
 {
 	struct fc_exch_mgr_anchor *ema;
 
@@ -1491,6 +1491,7 @@ static struct fc_seq *fc_seq_assign(struct fc_lport *lport, struct fc_frame *fp)
 			break;
 	return fr_seq(fp);
 }
+EXPORT_SYMBOL(fc_seq_assign);
 
 /**
  * fc_seq_release() - Release the hold
@@ -2652,9 +2653,6 @@ int fc_exch_init(struct fc_lport *lport)
 {
 	if (!lport->tt.exch_mgr_reset)
 		lport->tt.exch_mgr_reset = fc_exch_mgr_reset;
-
-	if (!lport->tt.seq_assign)
-		lport->tt.seq_assign = fc_seq_assign;
 
 	if (!lport->tt.seq_release)
 		lport->tt.seq_release = fc_seq_release;

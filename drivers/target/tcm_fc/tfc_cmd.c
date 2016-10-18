@@ -461,7 +461,7 @@ static void ft_recv_cmd(struct ft_sess *sess, struct fc_frame *fp)
 
 	cmd->se_cmd.map_tag = tag;
 	cmd->sess = sess;
-	cmd->seq = lport->tt.seq_assign(lport, fp);
+	cmd->seq = fc_seq_assign(lport, fp);
 	if (!cmd->seq) {
 		percpu_ida_free(&se_sess->sess_tag_pool, tag);
 		goto busy;
