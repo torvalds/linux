@@ -15,7 +15,7 @@ give up. Report as much as you have found to the relevant maintainer. See
 MAINTAINERS for who that is for the subsystem you have worked on.
 
 Before you submit a bug report read
-:ref:`Documentation/REPORTING-BUGS <reportingbugs>`.
+:ref:`Documentation/admin-guide/reporting-bugs.rst <reportingbugs>`.
 
 Devices not appearing
 =====================
@@ -244,5 +244,6 @@ Once you have worked out a fix please submit it upstream. After all open
 source is about sharing what you do and don't you want to be recognised for
 your genius?
 
-Please do read :ref:`Documentation/SubmittingPatches <submittingpatches>`
-though to help your code get accepted.
+Please do read
+ref:`Documentation/process/submitting-patches.rst <submittingpatches>` though
+to help your code get accepted.

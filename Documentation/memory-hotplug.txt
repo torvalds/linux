@@ -324,7 +324,7 @@ guarantee that the memory block contains only migratable pages.
 Now, a boot option for making a memory block which consists of migratable pages
 is supported. By specifying "kernelcore=" or "movablecore=" boot option, you can
 create ZONE_MOVABLE...a zone which is just used for movable pages.
-(See also Documentation/kernel-parameters.txt)
+(See also Documentation/admin-guide/kernel-parameters.rst)
 
 Assume the system has "TOTAL" amount of memory at boot time, this boot option
 creates ZONE_MOVABLE as following.

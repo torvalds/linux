@@ -13,7 +13,7 @@ config PRINTK_TIME
 	  be included, not that the timestamp is recorded.
 
 	  The behavior is also controlled by the kernel command line
-	  parameter printk.time=1. See Documentation/kernel-parameters.txt
+	  parameter printk.time=1. See Documentation/admin-guide/kernel-parameters.rst
 
 config MESSAGE_LOGLEVEL_DEFAULT
 	int "Default message log level (1-7)"

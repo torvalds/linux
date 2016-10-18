@@ -33,7 +33,7 @@ memmap is already in the kernel and usable as kernel-parameter at
 boot-time.  Its syntax is slightly strange and you may need to
 calculate the values by yourself!
 
-Syntax to exclude a memory area (see kernel-parameters.txt for details)::
+Syntax to exclude a memory area (see admin-guide/kernel-parameters.rst for details)::
 
 	memmap=<size>$<address>
 

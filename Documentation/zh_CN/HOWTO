@@ -1,4 +1,4 @@
-﻿Chinese translated version of Documentation/HOWTO
+﻿Chinese translated version of Documentation/process/howto.rst
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem
@@ -9,7 +9,7 @@ or if there is a problem with the translation.
 Maintainer: Greg Kroah-Hartman <greg@kroah.com>
 Chinese maintainer: Li Yang <leoli@freescale.com>
 ---------------------------------------------------------------------
-Documentation/HOWTO 的中文翻译
+Documentation/process/howto.rst 的中文翻译
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
@@ -93,16 +93,16 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
     文件简要介绍了Linux内核的背景，并且描述了如何配置和编译内核。内核的
     新用户应该从这里开始。
 
-  Documentation/Changes
+  Documentation/process/changes.rst
     文件给出了用来编译和使用内核所需要的最小软件包列表。
 
-  Documentation/CodingStyle
+  Documentation/process/coding-style.rst
     描述Linux内核的代码风格和理由。所有新代码需要遵守这篇文档中定义的规
     范。大多数维护者只会接收符合规定的补丁，很多人也只会帮忙检查符合风格
     的代码。
 
-  Documentation/SubmittingPatches
-  Documentation/SubmittingDrivers
+  Documentation/process/submitting-patches.rst
+  Documentation/process/submitting-drivers.rst
     这两份文档明确描述如何创建和发送补丁，其中包括（但不仅限于)：
        - 邮件内容
        - 邮件格式
@@ -116,7 +116,7 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
     "Linux kernel patch submission format"
         http://linux.yyz.us/patch-format.html
 
-  Documentation/stable_api_nonsense.txt
+  Documentation/process/stable-api-nonsense.rst
     论证内核为什么特意不包括稳定的内核内部API，也就是说不包括像这样的特
     性：
        - 子系统中间层（为了兼容性？）
@@ -125,23 +125,23 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
     这篇文档对于理解Linux的开发哲学至关重要。对于将开发平台从其他操作系
     统转移到Linux的人来说也很重要。
 
-  Documentation/SecurityBugs
+  Documentation/admin-guide/security-bugs.rst
     如果你认为自己发现了Linux内核的安全性问题，请根据这篇文档中的步骤来
     提醒其他内核开发者并帮助解决这个问题。
 
-  Documentation/ManagementStyle
+  Documentation/process/management-style.rst
     描述内核维护者的工作方法及其共有特点。这对于刚刚接触内核开发（或者对
     它感到好奇）的人来说很重要，因为它解释了很多对于内核维护者独特行为的
     普遍误解与迷惑。
 
-  Documentation/stable_kernel_rules.txt
+  Documentation/process/stable-kernel-rules.rst
     解释了稳定版内核发布的规则，以及如何将改动放入这些版本的步骤。
 
-  Documentation/kernel-docs.txt
+  Documentation/process/kernel-docs.rst
     有助于内核开发的外部文档列表。如果你在内核自带的文档中没有找到你想找
     的内容，可以查看这些文档。
 
-  Documentation/applying-patches.txt
+  Documentation/process/applying-patches.rst
     关于补丁是什么以及如何将它打在不同内核开发分支上的好介绍
 
 内核还拥有大量从代码自动生成的文档。它包含内核内部API的全面介绍以及如何
@@ -238,7 +238,7 @@ kernel.org网站的pub/linux/kernel/v2.6/目录下找到它。它的开发遵循
 2.6.x.y版本由“稳定版”小组（邮件地址<stable@vger.kernel.org>）维护，一般隔周发
 布新版本。
 
-内核源码中的Documentation/stable_kernel_rules.txt文件具体描述了可被稳定
+内核源码中的Documentation/process/stable-kernel-rules.rst文件具体描述了可被稳定
 版内核接受的修改类型以及发布的流程。
 
 
@@ -329,7 +329,7 @@ bugzilla.kernel.org是Linux内核开发者们用来跟踪内核Bug的网站。�
 户在这个工具中报告找到的所有bug。如何使用内核bugzilla的细节请访问：
 	http://test.kernel.org/bugzilla/faq.html
 
-内核源码主目录中的REPORTING-BUGS文件里有一个很好的模板。它指导用户如何报
+内核源码主目录中的admin-guide/reporting-bugs.rst文件里有一个很好的模板。它指导用户如何报
 告可能的内核bug以及需要提供哪些信息来帮助内核开发者们找到问题的根源。
 
 
@@ -380,7 +380,7 @@ MAINTAINERS文件中可以找到不同话题对应的邮件列表。
 这几行。将你的评论加在被引用的段落之间而不要放在邮件的顶部。
 
 如果你在邮件中附带补丁，请确认它们是可以直接阅读的纯文本（如
-Documentation/SubmittingPatches文档中所述）。内核开发者们不希望遇到附件
+Documentation/process/submitting-patches.rst文档中所述）。内核开发者们不希望遇到附件
 或者被压缩了的补丁。只有这样才能保证他们可以直接评论你的每行代码。请确保
 你使用的邮件发送程序不会修改空格和制表符。一个防范性的测试方法是先将邮件
 发送给自己，然后自己尝试是否可以顺利地打上收到的补丁。如果测试不成功，请

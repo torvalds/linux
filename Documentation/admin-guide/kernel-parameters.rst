@@ -815,7 +815,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted::
 			bits, and "f" is flow control ("r" for RTS or
 			omit it).  Default is "9600n8".
 
-			See Documentation/serial-console.txt for more
+			See Documentation/admin-guide/serial-console.rst for more
 			information.  See
 			Documentation/networking/netconsole.txt for an
 			alternative.
@@ -2239,7 +2239,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted::
 	mce=option	[X86-64] See Documentation/x86/x86_64/boot-options.txt
 
 	md=		[HW] RAID subsystems devices and level
-			See Documentation/md.txt.
+			See Documentation/admin-guide/md.rst.
 
 	mdacon=		[MDA]
 			Format: <first>,<last>
@@ -3322,7 +3322,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted::
 	r128=		[HW,DRM]
 
 	raid=		[HW,RAID]
-			See Documentation/md.txt.
+			See Documentation/admin-guide/md.rst.
 
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
 			See Documentation/blockdev/ramdisk.txt.

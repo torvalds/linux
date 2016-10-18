@@ -35,13 +35,13 @@ trivial patch so apply some common sense.
 
 	PLEASE check your patch with the automated style checker
 	(scripts/checkpatch.pl) to catch trivial style violations.
-	See Documentation/CodingStyle for guidance here.
+	See Documentation/process/coding-style.rst for guidance here.
 
 	PLEASE CC: the maintainers and mailing lists that are generated
 	by scripts/get_maintainer.pl.  The results returned by the
 	script will be best if you have git installed and are making
 	your changes in a branch derived from Linus' latest git tree.
-	See Documentation/SubmittingPatches for details.
+	See Documentation/process/submitting-patches.rst for details.
 
 	PLEASE try to include any credit lines you want added with the
 	patch. It avoids people being missed off by mistake and makes
@@ -54,7 +54,7 @@ trivial patch so apply some common sense.
 	of the Linux Foundation certificate of contribution and should
 	include a Signed-off-by: line.  The current version of this
 	"Developer's Certificate of Origin" (DCO) is listed in the file
-	Documentation/SubmittingPatches.
+	Documentation/process/submitting-patches.rst.
 
 6.	Make sure you have the right to send any changes you make. If you
 	do changes at work you may find your employer owns the patch
@@ -2924,7 +2924,7 @@ CAPELLA MICROSYSTEMS LIGHT SENSOR DRIVER
 M:	Kevin Tsai <ktsai@capellamicro.com>
 S:	Maintained
 F:	drivers/iio/light/cm*
-F:	Documentation/devicetree/bindings/i2c/trivial-devices.txt
+F:	Documentation/devicetree/bindings/i2c/trivial-admin-guide/devices.rst
 
 CAVIUM I2C DRIVER
 M:	Jan Glauber <jglauber@cavium.com>
@@ -11438,7 +11438,7 @@ STABLE BRANCH
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	stable@vger.kernel.org
 S:	Supported
-F:	Documentation/stable_kernel_rules.txt
+F:	Documentation/process/stable-kernel-rules.rst
 
 STAGING SUBSYSTEM
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>

@@ -22,7 +22,7 @@ Coding style
 ************
 
 The kernel has long had a standard coding style, described in
-Documentation/CodingStyle.  For much of that time, the policies described
+Documentation/process/coding-style.rst.  For much of that time, the policies described
 in that file were taken as being, at most, advisory.  As a result, there is
 a substantial amount of code in the kernel which does not meet the coding
 style guidelines.  The presence of that code leads to two independent
@@ -343,7 +343,7 @@ user-space developers to know what they are working with.  See
 Documentation/ABI/README for a description of how this documentation should
 be formatted and what information needs to be provided.
 
-The file Documentation/kernel-parameters.txt describes all of the kernel's
+The file Documentation/admin-guide/kernel-parameters.rst describes all of the kernel's
 boot-time parameters.  Any patch which adds new parameters should add the
 appropriate entries to this file.
 

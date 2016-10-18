@@ -27,7 +27,7 @@ Rules on what kind of patches are accepted, and which ones are not, into the
  - It cannot contain any "trivial" fixes in it (spelling changes,
    whitespace cleanups, etc).
  - It must follow the
-   :ref:`Documentation/SubmittingPatches <submittingpatches>`
+   :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
    rules.
  - It or an equivalent fix must already exist in Linus' tree (upstream).
 
@@ -40,7 +40,7 @@ Procedure for submitting patches to the -stable tree
    Documentation/networking/netdev-FAQ.txt
  - Security patches should not be handled (solely) by the -stable review
    process but should follow the procedures in
-   :ref:`Documentation/SecurityBugs <securitybugs>`.
+   :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`.
 
 For all other submissions, choose one of the following procedures
 -----------------------------------------------------------------

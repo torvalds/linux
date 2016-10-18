@@ -90,19 +90,19 @@ required reading:
     what is necessary to do to configure and build the kernel.  People
     who are new to the kernel should start here.
 
-  :ref:`Documentation/Changes <changes>`
+  :ref:`Documentation/process/changes.rst <changes>`
     This file gives a list of the minimum levels of various software
     packages that are necessary to build and run the kernel
     successfully.
 
-  :ref:`Documentation/CodingStyle <codingstyle>`
+  :ref:`Documentation/process/coding-style.rst <codingstyle>`
     This describes the Linux kernel coding style, and some of the
     rationale behind it. All new code is expected to follow the
     guidelines in this document. Most maintainers will only accept
     patches if these rules are followed, and many people will only
     review code if it is in the proper style.
 
-  :ref:`Documentation/SubmittingPatches <submittingpatches>` and :ref:`Documentation/SubmittingDrivers <submittingdrivers>`
+  :ref:`Documentation/process/submitting-patches.rst <submittingpatches>` and :ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`
     These files describe in explicit detail how to successfully create
     and send a patch, including (but not limited to):
 
@@ -122,7 +122,7 @@ required reading:
 	"Linux kernel patch submission format"
 		http://linux.yyz.us/patch-format.html
 
-  :ref:`Documentation/stable_api_nonsense.txt <stable_api_nonsense>`
+  :ref:`Documentation/process/stable-api-nonsense.rst <stable_api_nonsense>`
     This file describes the rationale behind the conscious decision to
     not have a stable API within the kernel, including things like:
 
@@ -135,29 +135,29 @@ required reading:
     philosophy and is very important for people moving to Linux from
     development on other Operating Systems.
 
-  :ref:`Documentation/SecurityBugs <securitybugs>`
+  :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`
     If you feel you have found a security problem in the Linux kernel,
     please follow the steps in this document to help notify the kernel
     developers, and help solve the issue.
 
-  :ref:`Documentation/ManagementStyle <managementstyle>`
+  :ref:`Documentation/process/management-style.rst <managementstyle>`
     This document describes how Linux kernel maintainers operate and the
     shared ethos behind their methodologies.  This is important reading
     for anyone new to kernel development (or anyone simply curious about
     it), as it resolves a lot of common misconceptions and confusion
     about the unique behavior of kernel maintainers.
 
-  :ref:`Documentation/stable_kernel_rules.txt <stable_kernel_rules>`
+  :ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rules>`
     This file describes the rules on how the stable kernel releases
     happen, and what to do if you want to get a change into one of these
     releases.
 
-  :ref:`Documentation/kernel-docs.txt <kernel_docs>`
+  :ref:`Documentation/process/kernel-docs.rst <kernel_docs>`
     A list of external documentation that pertains to kernel
     development.  Please consult this list if you do not find what you
     are looking for within the in-kernel documentation.
 
-  :ref:`Documentation/applying-patches.txt <applying_patches>`
+  :ref:`Documentation/process/applying-patches.rst <applying_patches>`
     A good introduction describing exactly what a patch is and how to
     apply it to the different development branches of the kernel.
 
@@ -307,7 +307,7 @@ two weeks, but it can be longer if there are no pressing problems.  A
 security-related problem, instead, can cause a release to happen almost
 instantly.
 
-The file Documentation/stable_kernel_rules.txt in the kernel tree
+The file Documentation/process/stable-kernel-rules.rst in the kernel tree
 documents what kinds of changes are acceptable for the -stable tree, and
 how the release process works.
 
@@ -366,7 +366,7 @@ tool.  For details on how to use the kernel bugzilla, please see:
 
 	https://bugzilla.kernel.org/page.cgi?id=faq.html
 
-The file REPORTING-BUGS in the main kernel source directory has a good
+The file admin-guide/reporting-bugs.rst in the main kernel source directory has a good
 template for how to report a possible kernel bug, and details what kind
 of information is needed by the kernel developers to help track down the
 problem.
@@ -440,7 +440,7 @@ add your statements between the individual quoted sections instead of
 writing at the top of the mail.
 
 If you add patches to your mail, make sure they are plain readable text
-as stated in Documentation/SubmittingPatches.
+as stated in Documentation/process/submitting-patches.rst.
 Kernel developers don't want to deal with
 attachments or compressed patches; they may want to comment on
 individual lines of your patch, which works only that way. Make sure you

@@ -1,4 +1,4 @@
-﻿Chinese translated version of Documentation/SubmittingDrivers
+﻿Chinese translated version of Documentation/process/submitting-drivers.rst
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem
@@ -8,7 +8,7 @@ or if there is a problem with the translation.
 
 Chinese maintainer: Li Yang <leo@zh-kernel.org>
 ---------------------------------------------------------------------
-Documentation/SubmittingDrivers 的中文翻译
+Documentation/process/submitting-drivers.rst 的中文翻译
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
@@ -30,7 +30,7 @@ Documentation/SubmittingDrivers 的中文翻译
 兴趣的是显卡驱动程序，你也许应该访问 XFree86 项目(http://www.xfree86.org/)
 和／或 X.org 项目 (http://x.org)。
 
-另请参阅 Documentation/SubmittingPatches 文档。
+另请参阅 Documentation/process/submitting-patches.rst 文档。
 
 
 分配设备号
@@ -39,7 +39,7 @@ Documentation/SubmittingDrivers 的中文翻译
 块设备和字符设备的主设备号与从设备号是由 Linux 命名编号分配权威 LANANA（
 现在是 Torben Mathiasen）负责分配。申请的网址是 http://www.lanana.org/。
 即使不准备提交到主流内核的设备驱动也需要在这里分配设备号。有关详细信息，
-请参阅 Documentation/devices.txt。
+请参阅 Documentation/admin-guide/devices.rst。
 
 如果你使用的不是已经分配的设备号，那么当你提交设备驱动的时候，它将会被强
 制分配一个新的设备号，即便这个设备号和你之前发给客户的截然不同。
@@ -81,7 +81,7 @@ Linux 2.6:
 		如果你需要一个 Linux 和 NT 的通用驱动接口，那么请在用
 		户空间实现它。
 
-代码：		请使用 Documentation/CodingStyle 中所描述的 Linux 代码风
+代码：		请使用 Documentation/process/coding-style.rst 中所描述的 Linux 代码风
 		格。如果你的某些代码段（例如那些与 Windows 驱动程序包共
 		享的代码段）需要使用其他格式，而你却只希望维护一份代码，
 		那么请将它们很好地区分出来，并且注明原因。
@@ -107,7 +107,7 @@ Linux 2.6:
 		程序测试的指导，请参阅
 		Documentation/power/drivers-testing.txt。有关驱动程序电
 		源管理问题相对全面的概述，请参阅
-		Documentation/power/devices.txt。
+		Documentation/power/admin-guide/devices.rst。
 
 管理：		如果一个驱动程序的作者还在进行有效的维护，那么通常除了那
 		些明显正确且不需要任何检查的补丁以外，其他所有的补丁都会

@@ -1306,7 +1306,7 @@ config BLK_DEV_INITRD
 	  boot loader (loadlin or lilo) and that is mounted as root
 	  before the normal boot procedure. It is typically used to
 	  load modules needed to mount the "real" root file system,
-	  etc. See <file:Documentation/initrd.txt> for details.
+	  etc. See <file:Documentation/admin-guide/initrd.rst> for details.
 
 	  If RAM disk support (BLK_DEV_RAM) is also included, this
 	  also enables initial RAM disk (initrd) support and adds

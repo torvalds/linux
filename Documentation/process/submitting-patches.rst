@@ -11,10 +11,10 @@ can greatly increase the chances of your change being accepted.
 This document contains a large number of suggestions in a relatively terse
 format.  For detailed information on how the kernel development process
 works, see :ref:`Documentation/process <development_process_main>`.
-Also, read :ref:`Documentation/SubmitChecklist <submitchecklist>`
+Also, read :ref:`Documentation/process/submit-checklist.rst <submitchecklist>`
 for a list of items to check before
 submitting code.  If you are submitting a driver, also read
-:ref:`Documentation/SubmittingDrivers <submittingdrivers>`;
+:ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`;
 for device tree binding patches, read
 Documentation/devicetree/bindings/submitting-patches.txt.
 
@@ -238,7 +238,7 @@ then only post say 15 or so at a time and wait for review and integration.
 
 Check your patch for basic style violations, details of which can be
 found in
-:ref:`Documentation/CodingStyle <codingstyle>`.
+:ref:`Documentation/process/coding-style.rst <codingstyle>`.
 Failure to do so simply wastes
 the reviewers time and will get your patch rejected, probably
 without even being read.
@@ -305,7 +305,7 @@ toward the stable maintainers by putting a line like this::
 
 into the sign-off area of your patch (note, NOT an email recipient).  You
 should also read
-:ref:`Documentation/stable_kernel_rules.txt <stable_kernel_rules>`
+:ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rules>`
 in addition to this file.
 
 Note, however, that some subsystem maintainers want to come to their own
@@ -363,7 +363,7 @@ decreasing the likelihood of your MIME-attached change being accepted.
 Exception:  If your mailer is mangling patches then someone may ask
 you to re-send them using MIME.
 
-See :ref:`Documentation/email-clients.txt <email_clients>`
+See :ref:`Documentation/process/email-clients.rst <email_clients>`
 for hints about configuring your e-mail client so that it sends your patches
 untouched.
 
@@ -828,8 +828,8 @@ Greg Kroah-Hartman, "How to piss off a kernel subsystem maintainer".
 NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
   <https://lkml.org/lkml/2005/7/11/336>
 
-Kernel Documentation/CodingStyle:
-  :ref:`Documentation/CodingStyle <codingstyle>`
+Kernel Documentation/process/coding-style.rst:
+  :ref:`Documentation/process/coding-style.rst <codingstyle>`
 
 Linus Torvalds's mail on the canonical patch format:
   <http://lkml.org/lkml/2005/4/7/183>

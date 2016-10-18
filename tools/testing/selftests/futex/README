@@ -59,4 +59,4 @@ o FIXME: decide on a sane test naming scheme.  Currently the tests are named
 Coding Style
 ------------
 o The Futex Test project adheres to the coding standards set forth by Linux
-  kernel as defined in the Linux source Documentation/CodingStyle.
+  kernel as defined in the Linux source Documentation/process/coding-style.rst.

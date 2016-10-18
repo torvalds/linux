@@ -71,7 +71,7 @@ show up in /proc/sys/kernel:
 - printk_ratelimit_burst
 - pty                         ==> Documentation/filesystems/devpts.txt
 - randomize_va_space
-- real-root-dev               ==> Documentation/initrd.txt
+- real-root-dev               ==> Documentation/admin-guide/initrd.rst
 - reboot-cmd                  [ SPARC only ]
 - rtsig-max
 - rtsig-nr
@@ -453,7 +453,7 @@ in a KVM virtual machine. This default can be overridden by adding
 
    nmi_watchdog=1
 
-to the guest kernel command line (see Documentation/kernel-parameters.txt).
+to the guest kernel command line (see Documentation/admin-guide/kernel-parameters.rst).
 
 ==============================================================
 

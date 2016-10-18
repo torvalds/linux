@@ -50,7 +50,8 @@ Documentation
  - There are various README files in the Documentation/ subdirectory:
    these typically contain kernel-specific installation notes for some
    drivers for example. See Documentation/00-INDEX for a list of what
-   is contained in each file.  Please read the Changes file, as it
+   is contained in each file.  Please read the
+   :ref:`Documentation/process/changes.rst <changes>` file, as it
    contains information about the problems, which may result by upgrading
    your kernel.
 
@@ -96,7 +97,7 @@ Installing the kernel source
    and 4.0.2 patches. Similarly, if you are running kernel version 4.0.2 and
    want to jump to 4.0.3, you must first reverse the 4.0.2 patch (that is,
    patch -R) **before** applying the 4.0.3 patch. You can read more on this in
-   :ref:`Documentation/applying-patches.txt <applying_patches>`.
+   :ref:`Documentation/process/applying-patches.rst <applying_patches>`.
 
    Alternatively, the script patch-kernel can be used to automate this
    process.  It determines the current kernel version and applies any
@@ -120,7 +121,7 @@ Software requirements
 
    Compiling and running the 4.x kernels requires up-to-date
    versions of various software packages.  Consult
-   :ref:`Documentation/Changes <changes>` for the minimum version numbers
+   :ref:`Documentation/process/changes.rst <changes>` for the minimum version numbers
    required and how to get updates for these packages.  Beware that using
    excessively old versions of these packages can cause indirect
    errors that are very difficult to track down, so don't assume that
@@ -254,7 +255,7 @@ Compiling the kernel
 --------------------
 
  - Make sure you have at least gcc 3.2 available.
-   For more information, refer to :ref:`Documentation/Changes <changes>`.
+   For more information, refer to :ref:`Documentation/process/changes.rst <changes>`.
 
    Please note that you can still run a.out user programs with this kernel.
 
@@ -355,7 +356,7 @@ If something goes wrong
    help debugging the problem.  The text above the dump is also
    important: it tells something about why the kernel dumped code (in
    the above example, it's due to a bad kernel pointer). More information
-   on making sense of the dump is in Documentation/oops-tracing.txt
+   on making sense of the dump is in Documentation/admin-guide/oops-tracing.rst
 
  - If you compiled the kernel with CONFIG_KALLSYMS you can send the dump
    as is, otherwise you will have to use the ``ksymoops`` program to make
@@ -393,7 +394,7 @@ If something goes wrong
 
    If you for some reason cannot do the above (you have a pre-compiled
    kernel image or similar), telling me as much about your setup as
-   possible will help.  Please read the :ref:`REPORTING-BUGS <reportingbugs>`
+   possible will help.  Please read the :ref:`admin-guide/reporting-bugs.rst <reportingbugs>`
    document for details.
 
  - Alternatively, you can use gdb on a running kernel. (read-only; i.e. you

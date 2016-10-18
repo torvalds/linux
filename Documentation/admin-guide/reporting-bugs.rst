@@ -61,7 +61,7 @@ files to the get_maintainer.pl script::
 
 If it is a security bug, please copy the Security Contact listed in the
 MAINTAINERS file.  They can help coordinate bugfix and disclosure.  See
-:ref:`Documentation/SecurityBugs <securitybugs>` for more information.
+:ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>` for more information.
 
 If you can't figure out which subsystem caused the issue, you should file
 a bug in kernel.org bugzilla and send email to
@@ -94,7 +94,7 @@ step-by-step instructions for how a user can trigger the bug.
 
 If the failure includes an "OOPS:", take a picture of the screen, capture
 a netconsole trace, or type the message from your screen into the bug
-report.  Please read "Documentation/oops-tracing.txt" before posting your
+report.  Please read "Documentation/admin-guide/oops-tracing.rst" before posting your
 bug report. This explains what you should do with the "Oops" information
 to make it useful to the recipient.
 
@@ -120,7 +120,7 @@ summary from [1.]>" for easy identification by the developers::
   [4.2.] Kernel .config file:
   [5.] Most recent kernel version which did not have the bug:
   [6.] Output of Oops.. message (if applicable) with symbolic information
-       resolved (see Documentation/oops-tracing.txt)
+       resolved (see Documentation/admin-guide/oops-tracing.rst)
   [7.] A small shell script or example program which triggers the
        problem (if possible)
   [8.] Environment

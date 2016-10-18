@@ -44,7 +44,7 @@ the disk is not available then you have three options :
     so won't help for 'early' oopses)
 
 (2) Boot with a serial console (see
-    :ref:`Documentation/serial-console.txt <serial_console>`),
+    :ref:`Documentation/admin-guide/serial-console.rst <serial_console>`),
     run a null modem to a second machine and capture the output there
     using your favourite communication program.  Minicom works well.
 

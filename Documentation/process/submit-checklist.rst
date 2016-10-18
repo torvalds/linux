@@ -7,7 +7,7 @@ Here are some basic things that developers should do if they want to see their
 kernel patch submissions accepted more quickly.
 
 These are all above and beyond the documentation that is provided in
-:ref:`Documentation/SubmittingPatches <submittingpatches>`
+:ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
 and elsewhere regarding submitting Linux kernel patches.
 
 
@@ -31,7 +31,7 @@ and elsewhere regarding submitting Linux kernel patches.
    tends to use ``unsigned long`` for 64-bit quantities.
 
 5) Check your patch for general style as detailed in
-   :ref:`Documentation/CodingStyle <codingstyle>`.
+   :ref:`Documentation/process/coding-style.rst <codingstyle>`.
    Check for trivial violations with the patch style checker prior to
    submission (``scripts/checkpatch.pl``).
    You should be able to justify all violations that remain in
@@ -78,7 +78,7 @@ and elsewhere regarding submitting Linux kernel patches.
 16) All new ``/proc`` entries are documented under ``Documentation/``
 
 17) All new kernel boot parameters are documented in
-    ``Documentation/kernel-parameters.txt``.
+    ``Documentation/admin-guide/kernel-parameters.rst``.
 
 18) All new module parameters are documented with ``MODULE_PARM_DESC()``
 

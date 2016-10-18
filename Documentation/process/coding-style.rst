@@ -1058,5 +1058,5 @@ gcc internals and indent, all available from http://www.gnu.org/manual/
 WG14 is the international standardization working group for the programming
 language C, URL: http://www.open-std.org/JTC1/SC22/WG14/
 
-Kernel CodingStyle, by greg@kroah.com at OLS 2002:
+Kernel process/coding-style.rst, by greg@kroah.com at OLS 2002:
 http://www.kroah.com/linux/talks/ols_2002_kernel_codingstyle_talk/html/

@@ -1,4 +1,4 @@
-Chinese translated version of Documentation/SecurityBugs
+Chinese translated version of Documentation/admin-guide/security-bugs.rst
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem
@@ -8,7 +8,7 @@ or if there is a problem with the translation.
 
 Chinese maintainer: Harry Wei <harryxiyou@gmail.com>
 ---------------------------------------------------------------------
-Documentation/SecurityBugs 的中文翻译
+Documentation/admin-guide/security-bugs.rst 的中文翻译
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
@@ -31,7 +31,7 @@ linux内核安全团队可以通过email<security@kernel.org>来联系。这是
 一组独立的安全工作人员，可以帮助改善漏洞报告并且公布和取消一个修复。安
 全团队有可能会从部分的维护者那里引进额外的帮助来了解并且修复安全漏洞。
 当遇到任何漏洞，所能提供的信息越多就越能诊断和修复。如果你不清楚什么
-是有帮助的信息，那就请重温一下REPORTING-BUGS文件中的概述过程。任
+是有帮助的信息，那就请重温一下admin-guide/reporting-bugs.rst文件中的概述过程。任
 何攻击性的代码都是非常有用的，未经报告者的同意不会被取消，除非它已经
 被公布于众。
 

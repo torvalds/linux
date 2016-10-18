@@ -19,7 +19,7 @@ area maintainers to understand and fix the security vulnerability.
 
 As it is with any bug, the more information provided the easier it
 will be to diagnose and fix.  Please review the procedure outlined in
-REPORTING-BUGS if you are unclear about what information is helpful.
+admin-guide/reporting-bugs.rst if you are unclear about what information is helpful.
 Any exploit code is very helpful and will not be released without
 consent from the reporter unless it has already been made public.
 

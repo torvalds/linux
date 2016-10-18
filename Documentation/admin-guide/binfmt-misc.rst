@@ -124,7 +124,7 @@ A few examples (assumed you are in ``/proc/sys/fs/binfmt_misc``):
 
     echo ':DOSWin:M::MZ::/usr/local/bin/wine:' > register
 
-For java support see Documentation/java.txt
+For java support see Documentation/admin-guide/java.rst
 
 
 You can enable/disable binfmt_misc or one binary type by echoing 0 (to disable)
@@ -140,7 +140,7 @@ Hints
 -----
 
 If you want to pass special arguments to your interpreter, you can
-write a wrapper script for it. See Documentation/java.txt for an
+write a wrapper script for it. See Documentation/admin-guide/java.rst for an
 example.
 
 Your interpreter should NOT look in the PATH for the filename; the kernel

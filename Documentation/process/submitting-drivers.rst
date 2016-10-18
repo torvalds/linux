@@ -8,7 +8,7 @@ various kernel trees. Note that if you are interested in video card drivers
 you should probably talk to XFree86 (http://www.xfree86.org/) and/or X.Org
 (http://x.org/) instead.
 
-Also read the Documentation/SubmittingPatches document.
+Also read the Documentation/process/submitting-patches.rst document.
 
 
 Allocating Device Numbers
@@ -19,7 +19,7 @@ by the Linux assigned name and number authority (currently this is
 Torben Mathiasen). The site is http://www.lanana.org/. This
 also deals with allocating numbers for devices that are not going to
 be submitted to the mainstream kernel.
-See Documentation/devices.txt for more information on this.
+See Documentation/admin-guide/devices.rst for more information on this.
 
 If you don't use assigned numbers then when your device is submitted it will
 be given an assigned number even if that is different from values you may
@@ -73,7 +73,7 @@ Interfaces:
 
 Code:
 		Please use the Linux style of code formatting as documented
-		in :ref:`Documentation/CodingStyle <codingStyle>`.
+		in :ref:`Documentation/process/coding-style.rst <codingStyle>`.
 		If you have sections of code
 		that need to be in other formats, for example because they
 		are shared with a windows driver kit and you want to
@@ -109,7 +109,7 @@ PM support:
 		anything.  For the driver testing instructions see
 		Documentation/power/drivers-testing.txt and for a relatively
 		complete overview of the power management issues related to
-		drivers see Documentation/power/devices.txt .
+		drivers see Documentation/power/admin-guide/devices.rst .
 
 Control:
 		In general if there is active maintenance of a driver by
