@@ -285,7 +285,6 @@ static int rcar_du_remove(struct platform_device *pdev)
 
 	drm_kms_helper_poll_fini(ddev);
 	drm_mode_config_cleanup(ddev);
-	drm_vblank_cleanup(ddev);
 
 	drm_dev_unref(ddev);
 
@@ -305,7 +304,7 @@ static int rcar_du_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* Allocate and initialize the DRM and R-Car device structures. */
+	/* Allocate and initialize the R-Car device structure. */
 	rcdu = devm_kzalloc(&pdev->dev, sizeof(*rcdu), GFP_KERNEL);
 	if (rcdu == NULL)
 		return -ENOMEM;
@@ -315,6 +314,15 @@ static int rcar_du_probe(struct platform_device *pdev)
 	rcdu->dev = &pdev->dev;
 	rcdu->info = of_match_device(rcar_du_of_table, rcdu->dev)->data;
 
+	platform_set_drvdata(pdev, rcdu);
+
+	/* I/O resources */
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	rcdu->mmio = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(rcdu->mmio))
+		return PTR_ERR(rcdu->mmio);
+
+	/* DRM/KMS objects */
 	ddev = drm_dev_alloc(&rcar_du_driver, &pdev->dev);
 	if (IS_ERR(ddev))
 		return PTR_ERR(ddev);
@@ -322,24 +330,6 @@ static int rcar_du_probe(struct platform_device *pdev)
 	rcdu->ddev = ddev;
 	ddev->dev_private = rcdu;
 
-	platform_set_drvdata(pdev, rcdu);
-
-	/* I/O resources */
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rcdu->mmio = devm_ioremap_resource(&pdev->dev, mem);
-	if (IS_ERR(rcdu->mmio)) {
-		ret = PTR_ERR(rcdu->mmio);
-		goto error;
-	}
-
-	/* Initialize vertical blanking interrupts handling. Start with vblank
-	 * disabled for all CRTCs.
-	 */
-	ret = drm_vblank_init(ddev, (1 << rcdu->info->num_crtcs) - 1);
-	if (ret < 0)
-		goto error;
-
-	/* DRM/KMS objects */
 	ret = rcar_du_modeset_init(rcdu);
 	if (ret < 0) {
 		if (ret != -EPROBE_DEFER)
