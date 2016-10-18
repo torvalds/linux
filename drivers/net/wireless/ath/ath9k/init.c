@@ -734,9 +734,11 @@ static const struct ieee80211_iface_limit if_limits[] = {
 				 BIT(NL80211_IFTYPE_P2P_GO) },
 };
 
+#ifdef CONFIG_WIRELESS_WDS
 static const struct ieee80211_iface_limit wds_limits[] = {
 	{ .max = 2048,	.types = BIT(NL80211_IFTYPE_WDS) },
 };
+#endif
 
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 
@@ -774,6 +776,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 					BIT(NL80211_CHAN_WIDTH_40),
 #endif
 	},
+#ifdef CONFIG_WIRELESS_WDS
 	{
 		.limits = wds_limits,
 		.n_limits = ARRAY_SIZE(wds_limits),
@@ -781,6 +784,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
 	},
+#endif
 };
 
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
@@ -851,7 +855,9 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 			BIT(NL80211_IFTYPE_STATION) |
 			BIT(NL80211_IFTYPE_ADHOC) |
 			BIT(NL80211_IFTYPE_MESH_POINT) |
+#ifdef CONFIG_WIRELESS_WDS
 			BIT(NL80211_IFTYPE_WDS) |
+#endif
 			BIT(NL80211_IFTYPE_OCB);
 
 		if (ath9k_is_chanctx_enabled())
