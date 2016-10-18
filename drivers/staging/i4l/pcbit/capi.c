@@ -27,7 +27,6 @@
  *              encode our number in CallerPN and ConnectedPN
  */
 
-#include <linux/string.h>
 #include <linux/kernel.h>
 
 #include <linux/types.h>
