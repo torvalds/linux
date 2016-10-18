@@ -511,8 +511,10 @@ int qedr_dealloc_pd(struct ib_pd *ibpd)
 	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
 	struct qedr_pd *pd = get_qedr_pd(ibpd);
 
-	if (!pd)
+	if (!pd) {
 		pr_err("Invalid PD received in dealloc_pd\n");
+		return -EINVAL;
+	}
 
 	DP_DEBUG(dev, QEDR_MSG_INIT, "Deallocating PD %d\n", pd->pd_id);
 	dev->ops->rdma_dealloc_pd(dev->rdma_ctx, pd->pd_id);
