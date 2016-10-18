@@ -2205,7 +2205,7 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
-static unsigned long swiotlb_max_size(void)
+static unsigned int swiotlb_max_size(void)
 {
 #if IS_ENABLED(CONFIG_SWIOTLB)
 	return rounddown(swiotlb_nr_tbl() << IO_TLB_SHIFT, PAGE_SIZE);
@@ -2225,7 +2225,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	struct sgt_iter sgt_iter;
 	struct page *page;
 	unsigned long last_pfn = 0;	/* suppress gcc warning */
-	unsigned long max_segment;
+	unsigned int max_segment;
 	int ret;
 	gfp_t gfp;
 
@@ -2238,7 +2238,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 
 	max_segment = swiotlb_max_size();
 	if (!max_segment)
-		max_segment = obj->base.size;
+		max_segment = rounddown(UINT_MAX, PAGE_SIZE);
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (st == NULL)
