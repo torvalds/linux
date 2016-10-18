@@ -392,7 +392,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 
-	seq_printf(m, "%u objects, %zu bytes\n",
+	seq_printf(m, "%u objects, %llu bytes\n",
 		   dev_priv->mm.object_count,
 		   dev_priv->mm.object_memory);
 

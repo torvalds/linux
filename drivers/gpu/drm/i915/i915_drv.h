@@ -1389,7 +1389,7 @@ struct i915_gem_mm {
 
 	/* accounting, useful for userland debugging */
 	spinlock_t object_stat_lock;
-	size_t object_memory;
+	u64 object_memory;
 	u32 object_count;
 };
 

@@ -82,7 +82,7 @@ remove_mappable_node(struct drm_mm_node *node)
 
 /* some bookkeeping */
 static void i915_gem_info_add_obj(struct drm_i915_private *dev_priv,
-				  size_t size)
+				  u64 size)
 {
 	spin_lock(&dev_priv->mm.object_stat_lock);
 	dev_priv->mm.object_count++;
@@ -91,7 +91,7 @@ static void i915_gem_info_add_obj(struct drm_i915_private *dev_priv,
 }
 
 static void i915_gem_info_remove_obj(struct drm_i915_private *dev_priv,
-				     size_t size)
+				     u64 size)
 {
 	spin_lock(&dev_priv->mm.object_stat_lock);
 	dev_priv->mm.object_count--;
