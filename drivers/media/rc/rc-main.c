@@ -660,8 +660,7 @@ static void ir_do_keydown(struct rc_dev *dev, enum rc_type protocol,
 		dev->last_toggle = toggle;
 		dev->last_keycode = keycode;
 
-		IR_dprintk(1, "%s: key down event, "
-			   "key 0x%04x, protocol 0x%04x, scancode 0x%08x\n",
+		IR_dprintk(1, "%s: key down event, key 0x%04x, protocol 0x%04x, scancode 0x%08x\n",
 			   dev->input_name, keycode, protocol, scancode);
 		input_report_key(dev->input_dev, keycode, 1);
 
