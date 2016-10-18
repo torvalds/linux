@@ -604,9 +604,7 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 			break;
 		case MCE_RSP_EQWAKEVERSION:
 			if (!out)
-				dev_dbg(dev, "Wake version, proto: 0x%02x, "
-					 "payload: 0x%02x, address: 0x%02x, "
-					 "version: 0x%02x",
+				dev_dbg(dev, "Wake version, proto: 0x%02x, payload: 0x%02x, address: 0x%02x, version: 0x%02x",
 					 data1, data2, data3, data4);
 			break;
 		case MCE_RSP_GETPORTSTATUS:

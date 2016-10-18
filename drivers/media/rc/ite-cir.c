@@ -55,14 +55,12 @@ MODULE_PARM_DESC(debug, "Enable debugging output");
 /* low limit for RX carrier freq, Hz, 0 for no RX demodulation */
 static int rx_low_carrier_freq;
 module_param(rx_low_carrier_freq, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(rx_low_carrier_freq, "Override low RX carrier frequency, Hz, "
-		 "0 for no RX demodulation");
+MODULE_PARM_DESC(rx_low_carrier_freq, "Override low RX carrier frequency, Hz, 0 for no RX demodulation");
 
 /* high limit for RX carrier freq, Hz, 0 for no RX demodulation */
 static int rx_high_carrier_freq;
 module_param(rx_high_carrier_freq, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(rx_high_carrier_freq, "Override high RX carrier frequency, "
-		 "Hz, 0 for no RX demodulation");
+MODULE_PARM_DESC(rx_high_carrier_freq, "Override high RX carrier frequency, Hz, 0 for no RX demodulation");
 
 /* override tx carrier frequency */
 static int tx_carrier_freq;
@@ -1484,8 +1482,7 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 
 	if (model_number >= 0 && model_number < ARRAY_SIZE(ite_dev_descs)) {
 		model_no = model_number;
-		ite_pr(KERN_NOTICE, "The model has been fixed by a module "
-			"parameter.");
+		ite_pr(KERN_NOTICE, "The model has been fixed by a module parameter.");
 	}
 
 	ite_pr(KERN_NOTICE, "Using model: %s\n", ite_dev_descs[model_no].model);

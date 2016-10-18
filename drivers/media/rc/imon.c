@@ -441,13 +441,11 @@ MODULE_PARM_DESC(debug, "Debug messages: 0=no, 1=yes (default: no)");
 /* lcd, vfd, vga or none? should be auto-detected, but can be overridden... */
 static int display_type;
 module_param(display_type, int, S_IRUGO);
-MODULE_PARM_DESC(display_type, "Type of attached display. 0=autodetect, "
-		 "1=vfd, 2=lcd, 3=vga, 4=none (default: autodetect)");
+MODULE_PARM_DESC(display_type, "Type of attached display. 0=autodetect, 1=vfd, 2=lcd, 3=vga, 4=none (default: autodetect)");
 
 static int pad_stabilize = 1;
 module_param(pad_stabilize, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(pad_stabilize, "Apply stabilization algorithm to iMON PAD "
-		 "presses in arrow key mode. 0=disable, 1=enable (default).");
+MODULE_PARM_DESC(pad_stabilize, "Apply stabilization algorithm to iMON PAD presses in arrow key mode. 0=disable, 1=enable (default).");
 
 /*
  * In certain use cases, mouse mode isn't really helpful, and could actually
@@ -455,14 +453,12 @@ MODULE_PARM_DESC(pad_stabilize, "Apply stabilization algorithm to iMON PAD "
  */
 static bool nomouse;
 module_param(nomouse, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(nomouse, "Disable mouse input device mode when IR device is "
-		 "open. 0=don't disable, 1=disable. (default: don't disable)");
+MODULE_PARM_DESC(nomouse, "Disable mouse input device mode when IR device is open. 0=don't disable, 1=disable. (default: don't disable)");
 
 /* threshold at which a pad push registers as an arrow key in kbd mode */
 static int pad_thresh;
 module_param(pad_thresh, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(pad_thresh, "Threshold at which a pad push registers as an "
-		 "arrow key in kbd mode (default: 28)");
+MODULE_PARM_DESC(pad_thresh, "Threshold at which a pad push registers as an arrow key in kbd mode (default: 28)");
 
 
 static void free_imon_context(struct imon_context *ictx)
@@ -785,9 +781,7 @@ static ssize_t show_associate_remote(struct device *d,
 	else
 		strcpy(buf, "closed\n");
 
-	dev_info(d, "Visit http://www.lirc.org/html/imon-24g.html for "
-		 "instructions on how to associate your iMON 2.4G DT/LT "
-		 "remote\n");
+	dev_info(d, "Visit http://www.lirc.org/html/imon-24g.html for instructions on how to associate your iMON 2.4G DT/LT remote\n");
 	mutex_unlock(&ictx->lock);
 	return strlen(buf);
 }
@@ -1115,8 +1109,7 @@ static int imon_ir_change_protocol(struct rc_dev *rc, u64 *rc_type)
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x86 };
 
 	if (*rc_type && !(*rc_type & rc->allowed_protocols))
-		dev_warn(dev, "Looks like you're trying to use an IR protocol "
-			 "this device does not support\n");
+		dev_warn(dev, "Looks like you're trying to use an IR protocol this device does not support\n");
 
 	if (*rc_type & RC_BIT_RC6_MCE) {
 		dev_dbg(dev, "Configuring IR receiver for MCE protocol\n");
@@ -1129,8 +1122,7 @@ static int imon_ir_change_protocol(struct rc_dev *rc, u64 *rc_type)
 		/* ir_proto_packet[0] = 0x00; // already the default */
 		*rc_type = RC_BIT_OTHER;
 	} else {
-		dev_warn(dev, "Unsupported IR protocol specified, overriding "
-			 "to iMON IR protocol\n");
+		dev_warn(dev, "Unsupported IR protocol specified, overriding to iMON IR protocol\n");
 		if (!pad_stabilize)
 			dev_dbg(dev, "PAD stabilize functionality disabled\n");
 		/* ir_proto_packet[0] = 0x00; // already the default */
@@ -1719,8 +1711,8 @@ static void imon_incoming_packet(struct imon_context *ictx,
 
 not_input_data:
 	if (len != 8) {
-		dev_warn(dev, "imon %s: invalid incoming packet "
-			 "size (len = %d, intf%d)\n", __func__, len, intf);
+		dev_warn(dev, "imon %s: invalid incoming packet size (len = %d, intf%d)\n",
+			 __func__, len, intf);
 		return;
 	}
 
@@ -1876,8 +1868,7 @@ static void imon_get_ffdc_type(struct imon_context *ictx)
 		allowed_protos = RC_BIT_RC6_MCE;
 		break;
 	default:
-		dev_info(ictx->dev, "Unknown 0xffdc device, "
-			 "defaulting to VFD and iMON IR");
+		dev_info(ictx->dev, "Unknown 0xffdc device, defaulting to VFD and iMON IR");
 		detected_display_type = IMON_DISPLAY_TYPE_VFD;
 		/* We don't know which one it is, allow user to set the
 		 * RC6 one from userspace if OTHER wasn't correct. */
@@ -1934,8 +1925,8 @@ static void imon_set_display_type(struct imon_context *ictx)
 			ictx->display_supported = false;
 		else
 			ictx->display_supported = true;
-		dev_info(ictx->dev, "%s: overriding display type to %d via "
-			 "modparam\n", __func__, display_type);
+		dev_info(ictx->dev, "%s: overriding display type to %d via modparam\n",
+			 __func__, display_type);
 	}
 
 	ictx->display_type = configured_display_type;
@@ -2156,8 +2147,8 @@ static bool imon_find_endpoints(struct imon_context *ictx,
 	if (!display_ep_found) {
 		tx_control = true;
 		display_ep_found = true;
-		dev_dbg(ictx->dev, "%s: device uses control endpoint, not "
-			"interface OUT endpoint\n", __func__);
+		dev_dbg(ictx->dev, "%s: device uses control endpoint, not interface OUT endpoint\n",
+			__func__);
 	}
 
 	/*
@@ -2366,8 +2357,8 @@ static void imon_init_display(struct imon_context *ictx,
 	/* set up sysfs entry for built-in clock */
 	ret = sysfs_create_group(&intf->dev.kobj, &imon_display_attr_group);
 	if (ret)
-		dev_err(ictx->dev, "Could not create display sysfs "
-			"entries(%d)", ret);
+		dev_err(ictx->dev, "Could not create display sysfs entries(%d)",
+			ret);
 
 	if (ictx->display_type == IMON_DISPLAY_TYPE_LCD)
 		ret = usb_register_dev(intf, &imon_lcd_class);
@@ -2375,8 +2366,7 @@ static void imon_init_display(struct imon_context *ictx,
 		ret = usb_register_dev(intf, &imon_vfd_class);
 	if (ret)
 		/* Not a fatal error, so ignore */
-		dev_info(ictx->dev, "could not get a minor number for "
-			 "display\n");
+		dev_info(ictx->dev, "could not get a minor number for display\n");
 
 }
 
@@ -2456,8 +2446,8 @@ static int imon_probe(struct usb_interface *interface,
 		mutex_unlock(&ictx->lock);
 	}
 
-	dev_info(dev, "iMON device (%04x:%04x, intf%d) on "
-		 "usb<%d:%d> initialized\n", vendor, product, ifnum,
+	dev_info(dev, "iMON device (%04x:%04x, intf%d) on usb<%d:%d> initialized\n",
+		 vendor, product, ifnum,
 		 usbdev->bus->busnum, usbdev->devnum);
 
 	mutex_unlock(&driver_lock);
