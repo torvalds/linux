@@ -666,10 +666,12 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			if (nqnlen >= NVMF_NQN_SIZE) {
 				pr_err("%s needs to be < %d bytes\n",
 					p, NVMF_NQN_SIZE);
+				kfree(p);
 				ret = -EINVAL;
 				goto out;
 			}
 			opts->host = nvmf_host_add(p);
+			kfree(p);
 			if (!opts->host) {
 				ret = -ENOMEM;
 				goto out;
