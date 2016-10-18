@@ -47,6 +47,11 @@
 #define TI_SCI_MSG_WAKE_REASON	0x0003
 #define TI_SCI_MSG_GOODBYE	0x0004
 
+/* Device requests */
+#define TI_SCI_MSG_SET_DEVICE_STATE	0x0200
+#define TI_SCI_MSG_GET_DEVICE_STATE	0x0201
+#define TI_SCI_MSG_SET_DEVICE_RESETS	0x0202
+
 /**
  * struct ti_sci_msg_hdr - Generic Message Header for All messages and responses
  * @type:	Type of messages: One of TI_SCI_MSG* values
@@ -88,6 +93,99 @@ struct ti_sci_msg_resp_version {
 	u16 firmware_revision;
 	u8 abi_major;
 	u8 abi_minor;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_set_device_state - Set the desired state of the device
+ * @hdr:		Generic header
+ * @id:	Indicates which device to modify
+ * @reserved: Reserved space in message, must be 0 for backward compatibility
+ * @state: The desired state of the device.
+ *
+ * Certain flags can also be set to alter the device state:
+ * + MSG_FLAG_DEVICE_WAKE_ENABLED - Configure the device to be a wake source.
+ * The meaning of this flag will vary slightly from device to device and from
+ * SoC to SoC but it generally allows the device to wake the SoC out of deep
+ * suspend states.
+ * + MSG_FLAG_DEVICE_RESET_ISO - Enable reset isolation for this device.
+ * + MSG_FLAG_DEVICE_EXCLUSIVE - Claim this device exclusively. When passed
+ * with STATE_RETENTION or STATE_ON, it will claim the device exclusively.
+ * If another host already has this device set to STATE_RETENTION or STATE_ON,
+ * the message will fail. Once successful, other hosts attempting to set
+ * STATE_RETENTION or STATE_ON will fail.
+ *
+ * Request type is TI_SCI_MSG_SET_DEVICE_STATE, responded with a generic
+ * ACK/NACK message.
+ */
+struct ti_sci_msg_req_set_device_state {
+	/* Additional hdr->flags options */
+#define MSG_FLAG_DEVICE_WAKE_ENABLED	TI_SCI_MSG_FLAG(8)
+#define MSG_FLAG_DEVICE_RESET_ISO	TI_SCI_MSG_FLAG(9)
+#define MSG_FLAG_DEVICE_EXCLUSIVE	TI_SCI_MSG_FLAG(10)
+	struct ti_sci_msg_hdr hdr;
+	u32 id;
+	u32 reserved;
+
+#define MSG_DEVICE_SW_STATE_AUTO_OFF	0
+#define MSG_DEVICE_SW_STATE_RETENTION	1
+#define MSG_DEVICE_SW_STATE_ON		2
+	u8 state;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_get_device_state - Request to get device.
+ * @hdr:		Generic header
+ * @id:		Device Identifier
+ *
+ * Request type is TI_SCI_MSG_GET_DEVICE_STATE, responded device state
+ * information
+ */
+struct ti_sci_msg_req_get_device_state {
+	struct ti_sci_msg_hdr hdr;
+	u32 id;
+} __packed;
+
+/**
+ * struct ti_sci_msg_resp_get_device_state - Response to get device request.
+ * @hdr:		Generic header
+ * @context_loss_count: Indicates how many times the device has lost context. A
+ *	driver can use this monotonic counter to determine if the device has
+ *	lost context since the last time this message was exchanged.
+ * @resets: Programmed state of the reset lines.
+ * @programmed_state:	The state as programmed by set_device.
+ *			- Uses the MSG_DEVICE_SW_* macros
+ * @current_state:	The actual state of the hardware.
+ *
+ * Response to request TI_SCI_MSG_GET_DEVICE_STATE.
+ */
+struct ti_sci_msg_resp_get_device_state {
+	struct ti_sci_msg_hdr hdr;
+	u32 context_loss_count;
+	u32 resets;
+	u8 programmed_state;
+#define MSG_DEVICE_HW_STATE_OFF		0
+#define MSG_DEVICE_HW_STATE_ON		1
+#define MSG_DEVICE_HW_STATE_TRANS	2
+	u8 current_state;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_set_device_resets - Set the desired resets
+ *				configuration of the device
+ * @hdr:		Generic header
+ * @id:	Indicates which device to modify
+ * @resets: A bit field of resets for the device. The meaning, behavior,
+ *	and usage of the reset flags are device specific. 0 for a bit
+ *	indicates releasing the reset represented by that bit while 1
+ *	indicates keeping it held.
+ *
+ * Request type is TI_SCI_MSG_SET_DEVICE_RESETS, responded with a generic
+ * ACK/NACK message.
+ */
+struct ti_sci_msg_req_set_device_resets {
+	struct ti_sci_msg_hdr hdr;
+	u32 id;
+	u32 resets;
 } __packed;
 
 #endif /* __TI_SCI_H */
