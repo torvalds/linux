@@ -235,3 +235,19 @@ Description:
 		write_same_max_bytes is 0, write same is not supported
 		by the device.
 
+What:		/sys/block/<disk>/queue/zoned
+Date:		September 2016
+Contact:	Damien Le Moal <damien.lemoal@hgst.com>
+Description:
+		zoned indicates if the device is a zoned block device
+		and the zone model of the device if it is indeed zoned.
+		The possible values indicated by zoned are "none" for
+		regular block devices and "host-aware" or "host-managed"
+		for zoned block devices. The characteristics of
+		host-aware and host-managed zoned block devices are
+		described in the ZBC (Zoned Block Commands) and ZAC
+		(Zoned Device ATA Command Set) standards. These standards
+		also define the "drive-managed" zone model. However,
+		since drive-managed zoned block devices do not support
+		zone commands, they will be treated as regular block
+		devices and zoned will report "none".
