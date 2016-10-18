@@ -600,6 +600,20 @@ static bool ufshcd_is_unipro_pa_params_tuning_req(struct ufs_hba *hba)
 		return false;
 }
 
+static void ufshcd_suspend_clkscaling(struct ufs_hba *hba)
+{
+	if (ufshcd_is_clkscaling_enabled(hba)) {
+		devfreq_suspend_device(hba->devfreq);
+		hba->clk_scaling.window_start_t = 0;
+	}
+}
+
+static void ufshcd_resume_clkscaling(struct ufs_hba *hba)
+{
+	if (ufshcd_is_clkscaling_enabled(hba))
+		devfreq_resume_device(hba->devfreq);
+}
+
 static void ufshcd_ungate_work(struct work_struct *work)
 {
 	int ret;
@@ -633,8 +647,7 @@ static void ufshcd_ungate_work(struct work_struct *work)
 		hba->clk_gating.is_suspended = false;
 	}
 unblock_reqs:
-	if (ufshcd_is_clkscaling_enabled(hba))
-		devfreq_resume_device(hba->devfreq);
+	ufshcd_resume_clkscaling(hba);
 	scsi_unblock_requests(hba->host);
 }
 
@@ -733,10 +746,7 @@ static void ufshcd_gate_work(struct work_struct *work)
 		ufshcd_set_link_hibern8(hba);
 	}
 
-	if (ufshcd_is_clkscaling_enabled(hba)) {
-		devfreq_suspend_device(hba->devfreq);
-		hba->clk_scaling.window_start_t = 0;
-	}
+	ufshcd_suspend_clkscaling(hba);
 
 	if (!ufshcd_is_link_active(hba))
 		ufshcd_setup_clocks(hba, false);
@@ -5076,8 +5086,7 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 		hba->is_init_prefetch = true;
 
 	/* Resume devfreq after UFS device is detected */
-	if (ufshcd_is_clkscaling_enabled(hba))
-		devfreq_resume_device(hba->devfreq);
+	ufshcd_resume_clkscaling(hba);
 
 out:
 	/*
@@ -5583,6 +5592,7 @@ static void ufshcd_hba_exit(struct ufs_hba *hba)
 	if (hba->is_powered) {
 		ufshcd_variant_hba_exit(hba);
 		ufshcd_setup_vreg(hba, false);
+		ufshcd_suspend_clkscaling(hba);
 		ufshcd_setup_clocks(hba, false);
 		ufshcd_setup_hba_vreg(hba, false);
 		hba->is_powered = false;
@@ -5911,10 +5921,8 @@ disable_clks:
 	 * for pending clock scaling work to be done before clocks are
 	 * turned off.
 	 */
-	if (ufshcd_is_clkscaling_enabled(hba)) {
-		devfreq_suspend_device(hba->devfreq);
-		hba->clk_scaling.window_start_t = 0;
-	}
+	ufshcd_suspend_clkscaling(hba);
+
 	/*
 	 * Call vendor specific suspend callback. As these callbacks may access
 	 * vendor specific host controller register space call them before the
@@ -5941,6 +5949,7 @@ disable_clks:
 	goto out;
 
 set_link_active:
+	ufshcd_resume_clkscaling(hba);
 	ufshcd_vreg_set_hpm(hba);
 	if (ufshcd_is_link_hibern8(hba) && !ufshcd_uic_hibern8_exit(hba))
 		ufshcd_set_link_active(hba);
@@ -6028,8 +6037,7 @@ static int ufshcd_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	ufshcd_urgent_bkops(hba);
 	hba->clk_gating.is_suspended = false;
 
-	if (ufshcd_is_clkscaling_enabled(hba))
-		devfreq_resume_device(hba->devfreq);
+	ufshcd_resume_clkscaling(hba);
 
 	/* Schedule clock gating in case of no access to UFS device yet */
 	ufshcd_release(hba);
@@ -6043,6 +6051,7 @@ disable_vreg:
 	ufshcd_vreg_set_lpm(hba);
 disable_irq_and_vops_clks:
 	ufshcd_disable_irq(hba);
+	ufshcd_suspend_clkscaling(hba);
 	ufshcd_setup_clocks(hba, false);
 out:
 	hba->pm_op_in_progress = 0;
@@ -6529,8 +6538,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 			goto out_remove_scsi_host;
 		}
 		/* Suspend devfreq until the UFS device is detected */
-		devfreq_suspend_device(hba->devfreq);
-		hba->clk_scaling.window_start_t = 0;
+		ufshcd_suspend_clkscaling(hba);
 	}
 
 	/* Hold auto suspend until async scan completes */
