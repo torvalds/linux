@@ -949,6 +949,7 @@ static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l4_per__i2c2,
 	&am33xx_l4_per__i2c3,
 	&am33xx_l4_per__mailbox,
+	&am33xx_l4_per__rng,
 	&am33xx_l4_ls__mcasp0,
 	&am33xx_l4_ls__mcasp1,
 	&am33xx_l4_ls__mmc0,
