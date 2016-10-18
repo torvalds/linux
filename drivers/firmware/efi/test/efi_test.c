@@ -8,7 +8,6 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/init.h>
