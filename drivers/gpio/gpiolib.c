@@ -839,7 +839,7 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		if (copy_from_user(&lineinfo, ip, sizeof(lineinfo)))
 			return -EFAULT;
-		if (lineinfo.line_offset > gdev->ngpio)
+		if (lineinfo.line_offset >= gdev->ngpio)
 			return -EINVAL;
 
 		desc = &gdev->descs[lineinfo.line_offset];
