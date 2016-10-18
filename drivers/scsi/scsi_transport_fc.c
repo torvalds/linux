@@ -2592,7 +2592,7 @@ fc_rport_final_delete(struct work_struct *work)
 
 
 /**
- * fc_rport_create - allocates and creates a remote FC port.
+ * fc_remote_port_create - allocates and creates a remote FC port.
  * @shost:	scsi host the remote port is connected to.
  * @channel:	Channel on shost port connected to.
  * @ids:	The world wide names, fc address, and FC4 port
@@ -2605,8 +2605,8 @@ fc_rport_final_delete(struct work_struct *work)
  *	This routine assumes no locks are held on entry.
  */
 static struct fc_rport *
-fc_rport_create(struct Scsi_Host *shost, int channel,
-	struct fc_rport_identifiers  *ids)
+fc_remote_port_create(struct Scsi_Host *shost, int channel,
+		      struct fc_rport_identifiers  *ids)
 {
 	struct fc_host_attrs *fc_host = shost_to_fc_host(shost);
 	struct fc_internal *fci = to_fc_internal(shost->transportt);
@@ -2914,7 +2914,7 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	/* No consistent binding found - create new remote port entry */
-	rport = fc_rport_create(shost, channel, ids);
+	rport = fc_remote_port_create(shost, channel, ids);
 
 	return rport;
 }
