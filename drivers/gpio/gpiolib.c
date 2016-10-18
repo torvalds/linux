@@ -628,6 +628,8 @@ static long lineevent_ioctl(struct file *filep, unsigned int cmd,
 	if (cmd == GPIOHANDLE_GET_LINE_VALUES_IOCTL) {
 		int val;
 
+		memset(&ghd, 0, sizeof(ghd));
+
 		val = gpiod_get_value_cansleep(le->desc);
 		if (val < 0)
 			return val;
