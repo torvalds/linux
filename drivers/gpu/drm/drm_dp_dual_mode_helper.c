@@ -148,8 +148,8 @@ static bool is_type2_adaptor(uint8_t adaptor_id)
 			      DP_DUAL_MODE_REV_TYPE2);
 }
 
-bool is_lspcon_adaptor(const char hdmi_id[DP_DUAL_MODE_HDMI_ID_LEN],
-	const uint8_t adaptor_id)
+static bool is_lspcon_adaptor(const char hdmi_id[DP_DUAL_MODE_HDMI_ID_LEN],
+			      const uint8_t adaptor_id)
 {
 	return is_hdmi_adaptor(hdmi_id) &&
 		(adaptor_id == (DP_DUAL_MODE_TYPE_TYPE2 |
