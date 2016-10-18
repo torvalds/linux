@@ -5471,12 +5471,17 @@ static inline int select_idle_smt(struct task_struct *p, struct sched_domain *sd
  */
 static int select_idle_cpu(struct task_struct *p, struct sched_domain *sd, int target)
 {
-	struct sched_domain *this_sd = rcu_dereference(*this_cpu_ptr(&sd_llc));
-	u64 avg_idle = this_rq()->avg_idle;
-	u64 avg_cost = this_sd->avg_scan_cost;
+	struct sched_domain *this_sd;
+	u64 avg_cost, avg_idle = this_rq()->avg_idle;
 	u64 time, cost;
 	s64 delta;
 	int cpu, wrap;
+
+	this_sd = rcu_dereference(*this_cpu_ptr(&sd_llc));
+	if (!this_sd)
+		return -1;
+
+	avg_cost = this_sd->avg_scan_cost;
 
 	/*
 	 * Due to large variance we need a large fuzz factor; hackbench in
