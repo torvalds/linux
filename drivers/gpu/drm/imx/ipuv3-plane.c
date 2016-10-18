@@ -64,13 +64,14 @@ drm_plane_state_to_eba(struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *cma_obj;
+	int x = state->src_x >> 16;
+	int y = state->src_y >> 16;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	BUG_ON(!cma_obj);
 
-	return cma_obj->paddr + fb->offsets[0] +
-	       fb->pitches[0] * (state->src_y >> 16) +
-	       (fb->bits_per_pixel >> 3) * (state->src_x >> 16);
+	return cma_obj->paddr + fb->offsets[0] + fb->pitches[0] * y +
+	       drm_format_plane_cpp(fb->pixel_format, 0) * x;
 }
 
 static inline unsigned long
@@ -79,13 +80,17 @@ drm_plane_state_to_ubo(struct drm_plane_state *state)
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *cma_obj;
 	unsigned long eba = drm_plane_state_to_eba(state);
+	int x = state->src_x >> 16;
+	int y = state->src_y >> 16;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 1);
 	BUG_ON(!cma_obj);
 
-	return cma_obj->paddr + fb->offsets[1] +
-	       fb->pitches[1] * (state->src_y >> 16) / 2 +
-	       (state->src_x >> 16) / 2 - eba;
+	x /= drm_format_horz_chroma_subsampling(fb->pixel_format);
+	y /= drm_format_vert_chroma_subsampling(fb->pixel_format);
+
+	return cma_obj->paddr + fb->offsets[1] + fb->pitches[1] * y +
+	       drm_format_plane_cpp(fb->pixel_format, 1) * x - eba;
 }
 
 static inline unsigned long
@@ -94,13 +99,17 @@ drm_plane_state_to_vbo(struct drm_plane_state *state)
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *cma_obj;
 	unsigned long eba = drm_plane_state_to_eba(state);
+	int x = state->src_x >> 16;
+	int y = state->src_y >> 16;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 2);
 	BUG_ON(!cma_obj);
 
-	return cma_obj->paddr + fb->offsets[2] +
-	       fb->pitches[2] * (state->src_y >> 16) / 2 +
-	       (state->src_x >> 16) / 2 - eba;
+	x /= drm_format_horz_chroma_subsampling(fb->pixel_format);
+	y /= drm_format_vert_chroma_subsampling(fb->pixel_format);
+
+	return cma_obj->paddr + fb->offsets[2] + fb->pitches[2] * y +
+	       drm_format_plane_cpp(fb->pixel_format, 2) * x - eba;
 }
 
 void ipu_plane_put_resources(struct ipu_plane *ipu_plane)
