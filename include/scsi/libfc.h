@@ -610,13 +610,6 @@ struct libfc_function_template {
 				  struct fc_frame *);
 
 	/*
-	 * Receive a request from a remote port.
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	void (*rport_recv_req)(struct fc_lport *, struct fc_frame *);
-
-	/*
 	 * Callback routine after the remote port is logged in
 	 *
 	 * STATUS: OPTIONAL
@@ -1000,6 +993,7 @@ struct fc_rport_priv *fc_rport_create(struct fc_lport *, u32);
 void fc_rport_destroy(struct kref *kref);
 int fc_rport_login(struct fc_rport_priv *rdata);
 int fc_rport_logoff(struct fc_rport_priv *rdata);
+void fc_rport_recv_req(struct fc_lport *lport, struct fc_frame *fp);
 
 /*
  * DISCOVERY LAYER

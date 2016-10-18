@@ -902,7 +902,7 @@ static void fc_lport_recv_els_req(struct fc_lport *lport,
 		/*
 		 * Check opcode.
 		 */
-		recv = lport->tt.rport_recv_req;
+		recv = fc_rport_recv_req;
 		switch (fc_frame_payload_op(fp)) {
 		case ELS_FLOGI:
 			if (!lport->point_to_multipoint)
