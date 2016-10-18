@@ -166,8 +166,6 @@ dontdiff
 	- file containing a list of files that should never be diff'ed.
 driver-model/
 	- directory with info about Linux driver model.
-dvb/
-	- info on Linux Digital Video Broadcast (DVB) subsystem.
 dynamic-debug-howto.txt
 	- how to use the dynamic debug (dyndbg) feature.
 early-userspace/
@@ -458,8 +456,6 @@ vgaarbiter.txt
 	- info on enable/disable the legacy decoding on different VGA devices
 video-output.txt
 	- sysfs class driver interface to enable/disable a video output device.
-video4linux/
-	- directory with info regarding video/TV/radio cards and linux.
 virtual/
 	- directory with information on the various linux virtualizations.
 vm/
