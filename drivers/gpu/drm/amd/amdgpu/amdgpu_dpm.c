@@ -113,24 +113,26 @@ void amdgpu_dpm_print_ps_status(struct amdgpu_device *adev,
 	printk("\n");
 }
 
+
 u32 amdgpu_dpm_get_vblank_time(struct amdgpu_device *adev)
 {
 	struct drm_device *dev = adev->ddev;
 	struct drm_crtc *crtc;
 	struct amdgpu_crtc *amdgpu_crtc;
-	u32 line_time_us, vblank_lines;
+	u32 vblank_in_pixels;
 	u32 vblank_time_us = 0xffffffff; /* if the displays are off, vblank time is max */
 
 	if (adev->mode_info.num_crtc && adev->mode_info.mode_config_initialized) {
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 			amdgpu_crtc = to_amdgpu_crtc(crtc);
 			if (crtc->enabled && amdgpu_crtc->enabled && amdgpu_crtc->hw_mode.clock) {
-				line_time_us = (amdgpu_crtc->hw_mode.crtc_htotal * 1000) /
-					amdgpu_crtc->hw_mode.clock;
-				vblank_lines = amdgpu_crtc->hw_mode.crtc_vblank_end -
+				vblank_in_pixels =
+					amdgpu_crtc->hw_mode.crtc_htotal *
+					(amdgpu_crtc->hw_mode.crtc_vblank_end -
 					amdgpu_crtc->hw_mode.crtc_vdisplay +
-					(amdgpu_crtc->v_border * 2);
-				vblank_time_us = vblank_lines * line_time_us;
+					(amdgpu_crtc->v_border * 2));
+
+				vblank_time_us = vblank_in_pixels * 1000 / amdgpu_crtc->hw_mode.clock;
 				break;
 			}
 		}
