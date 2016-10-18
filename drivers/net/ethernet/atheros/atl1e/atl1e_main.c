@@ -2274,7 +2274,7 @@ static int atl1e_init_netdev(struct net_device *netdev, struct pci_dev *pdev)
 	netdev->watchdog_timeo = AT_TX_WATCHDOG;
 	atl1e_set_ethtool_ops(netdev);
 
-	netdev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_TSO |
+	netdev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM |
 			      NETIF_F_HW_VLAN_CTAG_RX;
 	netdev->features = netdev->hw_features | NETIF_F_HW_VLAN_CTAG_TX;
 	/* not enabled by default */
