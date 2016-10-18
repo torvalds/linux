@@ -22,6 +22,9 @@ Required root node properties:
   * FriendlyARM
 	- "friendlyarm,tiny4412"  - for Exynos4412-based FriendlyARM
 				    TINY4412 board.
+  * TOPEET
+	- "topeet,itop4412-elite" - for Exynos4412-based TOPEET
+                                    Elite base board.
 
   * Google
 	- "google,pi"		- for Exynos5800-based Google Peach Pi
