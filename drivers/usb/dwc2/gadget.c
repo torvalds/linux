@@ -186,7 +186,7 @@ static void dwc2_hsotg_ctrl_epint(struct dwc2_hsotg *hsotg,
  */
 static void dwc2_hsotg_init_fifo(struct dwc2_hsotg *hsotg)
 {
-	unsigned int fifo;
+	unsigned int ep;
 	unsigned int addr;
 	int timeout;
 	u32 dptxfsizn;
@@ -217,8 +217,8 @@ static void dwc2_hsotg_init_fifo(struct dwc2_hsotg *hsotg)
 	 * them to endpoints dynamically according to maxpacket size value of
 	 * given endpoint.
 	 */
-	for (fifo = 1; fifo < MAX_EPS_CHANNELS; fifo++) {
-		dptxfsizn = dwc2_readl(hsotg->regs + DPTXFSIZN(fifo));
+	for (ep = 1; ep < MAX_EPS_CHANNELS; ep++) {
+		dptxfsizn = dwc2_readl(hsotg->regs + DPTXFSIZN(ep));
 
 		val = (dptxfsizn & FIFOSIZE_DEPTH_MASK) | addr;
 		addr += dptxfsizn >> FIFOSIZE_DEPTH_SHIFT;
@@ -226,7 +226,7 @@ static void dwc2_hsotg_init_fifo(struct dwc2_hsotg *hsotg)
 		if (addr > hsotg->fifo_mem)
 			break;
 
-		dwc2_writel(val, hsotg->regs + DPTXFSIZN(fifo));
+		dwc2_writel(val, hsotg->regs + DPTXFSIZN(ep));
 	}
 
 	/*
