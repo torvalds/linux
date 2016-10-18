@@ -150,7 +150,7 @@ debugging-via-ohci1394.txt
 	- how to use firewire like a hardware debugger memory reader.
 dell_rbu.txt
 	- document demonstrating the use of the Dell Remote BIOS Update driver.
-development-process/
+process/
 	- how to work with the mainline kernel development process.
 device-mapper/
 	- directory with info on Device Mapper.

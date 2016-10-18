@@ -176,5 +176,3 @@ security issues, duplication of code found elsewhere, adequate
 documentation, adverse effects on performance, user-space ABI changes, etc.
 All types of review, if they lead to better code going into the kernel, are
 welcome and worthwhile.
-
-

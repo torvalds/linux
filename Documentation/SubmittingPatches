@@ -10,7 +10,7 @@ can greatly increase the chances of your change being accepted.
 
 This document contains a large number of suggestions in a relatively terse
 format.  For detailed information on how the kernel development process
-works, see :ref:`Documentation/development-process <development_process_main>`.
+works, see :ref:`Documentation/process <development_process_main>`.
 Also, read :ref:`Documentation/SubmitChecklist <submitchecklist>`
 for a list of items to check before
 submitting code.  If you are submitting a driver, also read
