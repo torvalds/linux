@@ -716,9 +716,9 @@ static int si4713_tx_tune_status(struct si4713_device *sdev, u8 intack,
 		*power = val[5];
 		*antcap = val[6];
 		*noise = val[7];
-		v4l2_dbg(1, debug, &sdev->sd, "%s: response: %d x 10 kHz "
-				"(power %d, antcap %d, rnl %d)\n", __func__,
-				*frequency, *power, *antcap, *noise);
+		v4l2_dbg(1, debug, &sdev->sd,
+			 "%s: response: %d x 10 kHz (power %d, antcap %d, rnl %d)\n",
+			 __func__, *frequency, *power, *antcap, *noise);
 	}
 
 	return err;
@@ -758,10 +758,9 @@ static int si4713_tx_rds_buff(struct si4713_device *sdev, u8 mode, u16 rdsb,
 		v4l2_dbg(1, debug, &sdev->sd,
 			"%s: status=0x%02x\n", __func__, val[0]);
 		*cbleft = (s8)val[2] - val[3];
-		v4l2_dbg(1, debug, &sdev->sd, "%s: response: interrupts"
-				" 0x%02x cb avail: %d cb used %d fifo avail"
-				" %d fifo used %d\n", __func__, val[1],
-				val[2], val[3], val[4], val[5]);
+		v4l2_dbg(1, debug, &sdev->sd,
+			 "%s: response: interrupts 0x%02x cb avail: %d cb used %d fifo avail %d fifo used %d\n",
+			 __func__, val[1], val[2], val[3], val[4], val[5]);
 	}
 
 	return err;
