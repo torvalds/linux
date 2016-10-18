@@ -823,6 +823,8 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (cmd == GPIO_GET_CHIPINFO_IOCTL) {
 		struct gpiochip_info chipinfo;
 
+		memset(&chipinfo, 0, sizeof(chipinfo));
+
 		strncpy(chipinfo.name, dev_name(&gdev->dev),
 			sizeof(chipinfo.name));
 		chipinfo.name[sizeof(chipinfo.name)-1] = '\0';
