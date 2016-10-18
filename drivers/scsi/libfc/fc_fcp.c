@@ -311,7 +311,7 @@ static int fc_fcp_send_abort(struct fc_fcp_pkt *fsp)
 static void fc_fcp_retry_cmd(struct fc_fcp_pkt *fsp, int status_code)
 {
 	if (fsp->seq_ptr) {
-		fsp->lp->tt.exch_done(fsp->seq_ptr);
+		fc_exch_done(fsp->seq_ptr);
 		fsp->seq_ptr = NULL;
 	}
 
@@ -1036,7 +1036,7 @@ static void fc_fcp_complete_locked(struct fc_fcp_pkt *fsp)
 				fc_seq_send(lport, csp, conf_frame);
 			}
 		}
-		lport->tt.exch_done(seq);
+		fc_exch_done(seq);
 	}
 	/*
 	 * Some resets driven by SCSI are not I/Os and do not have
@@ -1054,10 +1054,8 @@ static void fc_fcp_complete_locked(struct fc_fcp_pkt *fsp)
  */
 static void fc_fcp_cleanup_cmd(struct fc_fcp_pkt *fsp, int error)
 {
-	struct fc_lport *lport = fsp->lp;
-
 	if (fsp->seq_ptr) {
-		lport->tt.exch_done(fsp->seq_ptr);
+		fc_exch_done(fsp->seq_ptr);
 		fsp->seq_ptr = NULL;
 	}
 	fsp->status_code = error;
@@ -1349,7 +1347,7 @@ static int fc_lun_reset(struct fc_lport *lport, struct fc_fcp_pkt *fsp,
 
 	spin_lock_bh(&fsp->scsi_pkt_lock);
 	if (fsp->seq_ptr) {
-		lport->tt.exch_done(fsp->seq_ptr);
+		fc_exch_done(fsp->seq_ptr);
 		fsp->seq_ptr = NULL;
 	}
 	fsp->wait_for_comp = 0;
@@ -1403,7 +1401,7 @@ static void fc_tm_done(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 	if (fh->fh_type != FC_TYPE_BLS)
 		fc_fcp_resp(fsp, fp);
 	fsp->seq_ptr = NULL;
-	fsp->lp->tt.exch_done(seq);
+	fc_exch_done(seq);
 out_unlock:
 	fc_fcp_unlock_pkt(fsp);
 out:
@@ -1793,9 +1791,9 @@ static void fc_fcp_srr_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 
 	fh = fc_frame_header_get(fp);
 	/*
-	 * BUG? fc_fcp_srr_error calls exch_done which would release
+	 * BUG? fc_fcp_srr_error calls fc_exch_done which would release
 	 * the ep. But if fc_fcp_srr_error had got -FC_EX_TIMEOUT,
-	 * then fc_exch_timeout would be sending an abort. The exch_done
+	 * then fc_exch_timeout would be sending an abort. The fc_exch_done
 	 * call by fc_fcp_srr_error would prevent fc_exch.c from seeing
 	 * an abort response though.
 	 */
@@ -1816,7 +1814,7 @@ static void fc_fcp_srr_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 	}
 	fc_fcp_unlock_pkt(fsp);
 out:
-	fsp->lp->tt.exch_done(seq);
+	fc_exch_done(seq);
 	fc_frame_free(fp);
 }
 
@@ -1846,7 +1844,7 @@ static void fc_fcp_srr_error(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 	}
 	fc_fcp_unlock_pkt(fsp);
 out:
-	fsp->lp->tt.exch_done(fsp->recov_seq);
+	fc_exch_done(fsp->recov_seq);
 }
 
 /**

@@ -980,7 +980,7 @@ drop:
 	FC_LPORT_DBG(lport, "dropping unexpected frame type %x\n", fh->fh_type);
 	fc_frame_free(fp);
 	if (sp)
-		lport->tt.exch_done(sp);
+		fc_exch_done(sp);
 }
 EXPORT_SYMBOL(fc_lport_recv);
 

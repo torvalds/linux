@@ -515,14 +515,6 @@ struct libfc_function_template {
 	void (*get_lesb)(struct fc_lport *, struct fc_els_lesb *lesb);
 
 	/*
-	 * Indicate that an exchange/sequence tuple is complete and the memory
-	 * allocated for the related objects may be freed.
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	void (*exch_done)(struct fc_seq *);
-
-	/*
 	 * Start a new sequence on the same exchange/sequence tuple.
 	 *
 	 * STATUS: OPTIONAL
@@ -1040,6 +1032,7 @@ void fc_exch_recv(struct fc_lport *, struct fc_frame *);
 void fc_exch_mgr_reset(struct fc_lport *, u32 s_id, u32 d_id);
 int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp, struct fc_frame *fp);
 int fc_seq_exch_abort(const struct fc_seq *, unsigned int timer_msec);
+void fc_exch_done(struct fc_seq *sp);
 
 /*
  * Functions for fc_functions_template

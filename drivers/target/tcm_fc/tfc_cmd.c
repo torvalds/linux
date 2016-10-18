@@ -177,7 +177,7 @@ int ft_queue_status(struct se_cmd *se_cmd)
 		se_cmd->scsi_status = SAM_STAT_TASK_SET_FULL;
 		return -ENOMEM;
 	}
-	lport->tt.exch_done(cmd->seq);
+	fc_exch_done(cmd->seq);
 	/*
 	 * Drop the extra ACK_KREF reference taken by target_submit_cmd()
 	 * ahead of ft_check_stop_free() -> transport_generic_free_cmd()
@@ -324,7 +324,7 @@ static void ft_send_resp_status(struct fc_lport *lport,
 	sp = fr_seq(fp);
 	if (sp) {
 		fc_seq_send(lport, sp, fp);
-		lport->tt.exch_done(sp);
+		fc_exch_done(sp);
 	} else {
 		lport->tt.frame_send(lport, fp);
 	}

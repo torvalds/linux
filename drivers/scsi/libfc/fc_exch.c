@@ -969,7 +969,7 @@ static struct fc_exch *fc_exch_find(struct fc_exch_mgr *mp, u16 xid)
  *
  * Note: May sleep if invoked from outside a response handler.
  */
-static void fc_exch_done(struct fc_seq *sp)
+void fc_exch_done(struct fc_seq *sp)
 {
 	struct fc_exch *ep = fc_seq_exch(sp);
 	int rc;
@@ -982,6 +982,7 @@ static void fc_exch_done(struct fc_seq *sp)
 	if (!rc)
 		fc_exch_delete(ep);
 }
+EXPORT_SYMBOL(fc_exch_done);
 
 /**
  * fc_exch_resp() - Allocate a new exchange for a response frame
@@ -2653,9 +2654,6 @@ int fc_exch_init(struct fc_lport *lport)
 
 	if (!lport->tt.seq_set_resp)
 		lport->tt.seq_set_resp = fc_seq_set_resp;
-
-	if (!lport->tt.exch_done)
-		lport->tt.exch_done = fc_exch_done;
 
 	if (!lport->tt.exch_mgr_reset)
 		lport->tt.exch_mgr_reset = fc_exch_mgr_reset;
