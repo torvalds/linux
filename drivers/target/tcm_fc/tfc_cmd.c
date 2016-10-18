@@ -563,7 +563,7 @@ static void ft_send_work(struct work_struct *work)
 		task_attr = TCM_SIMPLE_TAG;
 	}
 
-	fc_seq_exch(cmd->seq)->lp->tt.seq_set_resp(cmd->seq, ft_recv_seq, cmd);
+	fc_seq_set_resp(cmd->seq, ft_recv_seq, cmd);
 	cmd->se_cmd.tag = fc_seq_exch(cmd->seq)->rxid;
 	/*
 	 * Use a single se_cmd->cmd_kref as we expect to release se_cmd

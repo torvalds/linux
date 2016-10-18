@@ -515,16 +515,6 @@ struct libfc_function_template {
 	void (*get_lesb)(struct fc_lport *, struct fc_els_lesb *lesb);
 
 	/*
-	 * Set a response handler for the exchange of the sequence.
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	void (*seq_set_resp)(struct fc_seq *sp,
-			     void (*resp)(struct fc_seq *, struct fc_frame *,
-					  void *),
-			     void *arg);
-
-	/*
 	 * Assign a sequence for an incoming request frame.
 	 *
 	 * STATUS: OPTIONAL
@@ -1013,6 +1003,9 @@ struct fc_seq *fc_exch_seq_send(struct fc_lport *lport,
 void fc_seq_els_rsp_send(struct fc_frame *, enum fc_els_cmd,
 			 struct fc_seq_els_data *);
 struct fc_seq *fc_seq_start_next(struct fc_seq *sp);
+void fc_seq_set_resp(struct fc_seq *sp,
+		     void (*resp)(struct fc_seq *, struct fc_frame *, void *),
+		     void *arg);
 struct fc_exch_mgr_anchor *fc_exch_mgr_add(struct fc_lport *,
 					   struct fc_exch_mgr *,
 					   bool (*match)(struct fc_frame *));

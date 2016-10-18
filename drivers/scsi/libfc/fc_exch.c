@@ -602,10 +602,9 @@ EXPORT_SYMBOL(fc_seq_start_next);
  *
  * Note: May sleep if invoked from outside a response handler.
  */
-static void fc_seq_set_resp(struct fc_seq *sp,
-			    void (*resp)(struct fc_seq *, struct fc_frame *,
-					 void *),
-			    void *arg)
+void fc_seq_set_resp(struct fc_seq *sp,
+		     void (*resp)(struct fc_seq *, struct fc_frame *, void *),
+		     void *arg)
 {
 	struct fc_exch *ep = fc_seq_exch(sp);
 	DEFINE_WAIT(wait);
@@ -624,6 +623,7 @@ static void fc_seq_set_resp(struct fc_seq *sp,
 	ep->arg = arg;
 	spin_unlock_bh(&ep->ex_lock);
 }
+EXPORT_SYMBOL(fc_seq_set_resp);
 
 /**
  * fc_exch_abort_locked() - Abort an exchange
@@ -2650,9 +2650,6 @@ EXPORT_SYMBOL(fc_exch_recv);
  */
 int fc_exch_init(struct fc_lport *lport)
 {
-	if (!lport->tt.seq_set_resp)
-		lport->tt.seq_set_resp = fc_seq_set_resp;
-
 	if (!lport->tt.exch_mgr_reset)
 		lport->tt.exch_mgr_reset = fc_exch_mgr_reset;
 
