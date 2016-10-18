@@ -116,7 +116,6 @@
 	cap-mmc-highspeed;
 	clock-frequency = <150000000>;
 	disable-wp;
-	keep-power-in-suspend;
 	non-removable;
 	num-slots = <1>;
 	vmmc-supply = <&vcc_io>;
