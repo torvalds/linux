@@ -2171,11 +2171,11 @@ static void fcoe_dcb_create(struct fcoe_interface *fcoe)
 {
 	int ctlr_prio = TC_PRIO_BESTEFFORT;
 	int fcoe_prio = TC_PRIO_INTERACTIVE;
+	struct fcoe_ctlr *ctlr = fcoe_to_ctlr(fcoe);
 #ifdef CONFIG_DCB
 	int dcbx;
 	u8 fup, up;
 	struct net_device *netdev = fcoe->realdev;
-	struct fcoe_ctlr *ctlr = fcoe_to_ctlr(fcoe);
 	struct dcb_app app = {
 				.priority = 0,
 				.protocol = ETH_P_FCOE
