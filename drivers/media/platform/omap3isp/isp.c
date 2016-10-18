@@ -480,8 +480,8 @@ void omap3isp_hist_dma_done(struct isp_device *isp)
 	    omap3isp_stat_pcr_busy(&isp->isp_hist)) {
 		/* Histogram cannot be enabled in this frame anymore */
 		atomic_set(&isp->isp_hist.buf_err, 1);
-		dev_dbg(isp->dev, "hist: Out of synchronization with "
-				  "CCDC. Ignoring next buffer.\n");
+		dev_dbg(isp->dev,
+			"hist: Out of synchronization with CCDC. Ignoring next buffer.\n");
 	}
 }
 
