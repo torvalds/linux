@@ -744,7 +744,7 @@ config SCSI_ISCI
 
 config SCSI_GENERIC_NCR5380
 	tristate "Generic NCR5380/53c400 SCSI ISA card support"
-	depends on ISA && SCSI
+	depends on ISA && SCSI && HAS_IOPORT_MAP
 	select SCSI_SPI_ATTRS
 	---help---
 	  This is a driver for old ISA card SCSI controllers based on a
