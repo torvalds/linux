@@ -437,6 +437,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 			ipu_dp_set_global_alpha(ipu_plane->dp, false, 0, false);
 			break;
 		default:
+			ipu_dp_set_global_alpha(ipu_plane->dp, true, 0, true);
 			break;
 		}
 	}
