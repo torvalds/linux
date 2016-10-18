@@ -466,10 +466,10 @@ static void dump_cfd(struct vpdma_cfd *cfd)
 
 	pr_debug("word2: payload_addr = 0x%08x\n", cfd->payload_addr);
 
-	pr_debug("word3: pkt_type = %d, direct = %d, class = %d, dest = %d, "
-		"payload_len = %d\n", cfd_get_pkt_type(cfd),
-		cfd_get_direct(cfd), class, cfd_get_dest(cfd),
-		cfd_get_payload_len(cfd));
+	pr_debug("word3: pkt_type = %d, direct = %d, class = %d, dest = %d, payload_len = %d\n",
+		 cfd_get_pkt_type(cfd),
+		 cfd_get_direct(cfd), class, cfd_get_dest(cfd),
+		 cfd_get_payload_len(cfd));
 }
 
 /*
@@ -574,8 +574,7 @@ static void dump_dtd(struct vpdma_dtd *dtd)
 	pr_debug("%s data transfer descriptor for channel %d\n",
 		dir == DTD_DIR_OUT ? "outbound" : "inbound", chan);
 
-	pr_debug("word0: data_type = %d, notify = %d, field = %d, 1D = %d, "
-		"even_ln_skp = %d, odd_ln_skp = %d, line_stride = %d\n",
+	pr_debug("word0: data_type = %d, notify = %d, field = %d, 1D = %d, even_ln_skp = %d, odd_ln_skp = %d, line_stride = %d\n",
 		dtd_get_data_type(dtd), dtd_get_notify(dtd), dtd_get_field(dtd),
 		dtd_get_1d(dtd), dtd_get_even_line_skip(dtd),
 		dtd_get_odd_line_skip(dtd), dtd_get_line_stride(dtd));
@@ -586,17 +585,16 @@ static void dump_dtd(struct vpdma_dtd *dtd)
 
 	pr_debug("word2: start_addr = %pad\n", &dtd->start_addr);
 
-	pr_debug("word3: pkt_type = %d, mode = %d, dir = %d, chan = %d, "
-		"pri = %d, next_chan = %d\n", dtd_get_pkt_type(dtd),
-		dtd_get_mode(dtd), dir, chan, dtd_get_priority(dtd),
-		dtd_get_next_chan(dtd));
+	pr_debug("word3: pkt_type = %d, mode = %d, dir = %d, chan = %d, pri = %d, next_chan = %d\n",
+		 dtd_get_pkt_type(dtd),
+		 dtd_get_mode(dtd), dir, chan, dtd_get_priority(dtd),
+		 dtd_get_next_chan(dtd));
 
 	if (dir == DTD_DIR_IN)
 		pr_debug("word4: frame_width = %d, frame_height = %d\n",
 			dtd_get_frame_width(dtd), dtd_get_frame_height(dtd));
 	else
-		pr_debug("word4: desc_write_addr = 0x%08x, write_desc = %d, "
-			"drp_data = %d, use_desc_reg = %d\n",
+		pr_debug("word4: desc_write_addr = 0x%08x, write_desc = %d, drp_data = %d, use_desc_reg = %d\n",
 			dtd_get_desc_write_addr(dtd), dtd_get_write_desc(dtd),
 			dtd_get_drop_data(dtd), dtd_get_use_desc(dtd));
 

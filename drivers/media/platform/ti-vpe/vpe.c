@@ -1263,8 +1263,7 @@ static irqreturn_t vpe_irq(int irq_vpe, void *data)
 	}
 
 	if (irqst0 | irqst1) {
-		dev_warn(dev->v4l2_dev.dev, "Unexpected interrupt: "
-			"INT0_STATUS0 = 0x%08x, INT0_STATUS1 = 0x%08x\n",
+		dev_warn(dev->v4l2_dev.dev, "Unexpected interrupt: INT0_STATUS0 = 0x%08x, INT0_STATUS1 = 0x%08x\n",
 			irqst0, irqst1);
 	}
 
