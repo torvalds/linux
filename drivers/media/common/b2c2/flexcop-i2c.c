@@ -33,8 +33,8 @@ static int flexcop_i2c_operation(struct flexcop_device *fc,
 			return -EREMOTEIO;
 		}
 	}
-	deb_i2c("tried %d times i2c operation, "
-			"never finished or too many ack errors.\n", i);
+	deb_i2c("tried %d times i2c operation, never finished or too many ack errors.\n",
+		i);
 	return -EREMOTEIO;
 }
 
