@@ -128,7 +128,7 @@ static void send_trap(struct hfi1_ibport *ibp, void *data, unsigned len)
 	smp = send_buf->mad;
 	smp->base_version = OPA_MGMT_BASE_VERSION;
 	smp->mgmt_class = IB_MGMT_CLASS_SUBN_LID_ROUTED;
-	smp->class_version = OPA_SMI_CLASS_VERSION;
+	smp->class_version = OPA_SM_CLASS_VERSION;
 	smp->method = IB_MGMT_METHOD_TRAP;
 	ibp->rvp.tid++;
 	smp->tid = cpu_to_be64(ibp->rvp.tid);
@@ -343,7 +343,7 @@ static int __subn_get_opa_nodeinfo(struct opa_smp *smp, u32 am, u8 *data,
 
 	ni->port_guid = cpu_to_be64(dd->pport[pidx].guid);
 	ni->base_version = OPA_MGMT_BASE_VERSION;
-	ni->class_version = OPA_SMI_CLASS_VERSION;
+	ni->class_version = OPA_SM_CLASS_VERSION;
 	ni->node_type = 1;     /* channel adapter */
 	ni->num_ports = ibdev->phys_port_cnt;
 	/* This is already in network order */
@@ -379,7 +379,7 @@ static int subn_get_nodeinfo(struct ib_smp *smp, struct ib_device *ibdev,
 		nip->port_guid = cpu_to_be64(dd->pport[pidx].guid);
 
 	nip->base_version = OPA_MGMT_BASE_VERSION;
-	nip->class_version = OPA_SMI_CLASS_VERSION;
+	nip->class_version = OPA_SM_CLASS_VERSION;
 	nip->node_type = 1;     /* channel adapter */
 	nip->num_ports = ibdev->phys_port_cnt;
 	/* This is already in network order */
@@ -2302,7 +2302,7 @@ static int pma_get_opa_classportinfo(struct opa_pma_mad *pmp,
 		pmp->mad_hdr.status |= IB_SMP_INVALID_FIELD;
 
 	p->base_version = OPA_MGMT_BASE_VERSION;
-	p->class_version = OPA_SMI_CLASS_VERSION;
+	p->class_version = OPA_SM_CLASS_VERSION;
 	/*
 	 * Expected response time is 4.096 usec. * 2^18 == 1.073741824 sec.
 	 */
@@ -4022,7 +4022,7 @@ static int process_subn_opa(struct ib_device *ibdev, int mad_flags,
 
 	am = be32_to_cpu(smp->attr_mod);
 	attr_id = smp->attr_id;
-	if (smp->class_version != OPA_SMI_CLASS_VERSION) {
+	if (smp->class_version != OPA_SM_CLASS_VERSION) {
 		smp->status |= IB_SMP_UNSUP_VERSION;
 		ret = reply((struct ib_mad_hdr *)smp);
 		return ret;
@@ -4232,7 +4232,7 @@ static int process_perf_opa(struct ib_device *ibdev, u8 port,
 
 	*out_mad = *in_mad;
 
-	if (pmp->mad_hdr.class_version != OPA_SMI_CLASS_VERSION) {
+	if (pmp->mad_hdr.class_version != OPA_SM_CLASS_VERSION) {
 		pmp->mad_hdr.status |= IB_SMP_UNSUP_VERSION;
 		return reply((struct ib_mad_hdr *)pmp);
 	}
