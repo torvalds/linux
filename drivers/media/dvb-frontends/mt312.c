@@ -457,8 +457,8 @@ static int mt312_read_status(struct dvb_frontend *fe, enum fe_status *s)
 	if (ret < 0)
 		return ret;
 
-	dprintk("QPSK_STAT_H: 0x%02x, QPSK_STAT_L: 0x%02x,"
-		" FEC_STATUS: 0x%02x\n", status[0], status[1], status[2]);
+	dprintk("QPSK_STAT_H: 0x%02x, QPSK_STAT_L: 0x%02x, FEC_STATUS: 0x%02x\n",
+		status[0], status[1], status[2]);
 
 	if (status[0] & 0xc0)
 		*s |= FE_HAS_SIGNAL;	/* signal noise ratio */
@@ -827,8 +827,7 @@ struct dvb_frontend *mt312_attach(const struct mt312_config *config,
 		state->freq_mult = 9;
 		break;
 	default:
-		printk(KERN_WARNING "Only Zarlink VP310/MT312/ZL10313"
-			" are supported chips.\n");
+		printk(KERN_WARNING "Only Zarlink VP310/MT312/ZL10313 are supported chips.\n");
 		goto error;
 	}
 

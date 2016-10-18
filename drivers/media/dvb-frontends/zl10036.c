@@ -85,8 +85,8 @@ static int zl10036_read_status_reg(struct zl10036_state *state)
 	deb_i2c("R(status): %02x  [FL=%d]\n", status,
 		(status & STATUS_FL) ? 1 : 0);
 	if (status & STATUS_POR)
-		deb_info("%s: Power-On-Reset bit enabled - "
-			"need to initialize the tuner\n", __func__);
+		deb_info("%s: Power-On-Reset bit enabled - need to initialize the tuner\n",
+			 __func__);
 
 	return status;
 }

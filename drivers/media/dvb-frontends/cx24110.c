@@ -120,8 +120,8 @@ static int cx24110_writereg (struct cx24110_state* state, int reg, int data)
 	int err;
 
 	if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
-		dprintk ("%s: writereg error (err == %i, reg == 0x%02x,"
-			 " data == 0x%02x)\n", __func__, err, reg, data);
+		dprintk("%s: writereg error (err == %i, reg == 0x%02x, data == 0x%02x)\n",
+			__func__, err, reg, data);
 		return -EREMOTEIO;
 	}
 

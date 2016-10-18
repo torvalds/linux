@@ -152,8 +152,7 @@ static int zl10039_init(struct dvb_frontend *fe)
 	/* Reset logic */
 	ret = zl10039_writereg(state, GENERAL, 0x40);
 	if (ret < 0) {
-		dprintk("Note: i2c write error normal when resetting the "
-			"tuner\n");
+		dprintk("Note: i2c write error normal when resetting the tuner\n");
 	}
 	/* Wake up */
 	ret = zl10039_writereg(state, GENERAL, 0x01);

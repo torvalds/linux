@@ -405,8 +405,7 @@ static int lgdt330x_set_parameters(struct dvb_frontend *fe)
 			return -1;
 		}
 		if (err < 0)
-			printk(KERN_WARNING "lgdt330x: %s: error blasting "
-			       "bytes to lgdt3303 for modulation type(%d)\n",
+			printk(KERN_WARNING "lgdt330x: %s: error blasting bytes to lgdt3303 for modulation type(%d)\n",
 			       __func__, p->modulation);
 
 		/*

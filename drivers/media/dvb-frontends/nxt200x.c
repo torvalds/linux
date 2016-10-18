@@ -289,8 +289,7 @@ static void nxt200x_microcontroller_stop (struct nxt200x_state* state)
 		counter++;
 	}
 
-	pr_warn("Timeout waiting for nxt200x to stop. This is ok after "
-		"firmware upload.\n");
+	pr_warn("Timeout waiting for nxt200x to stop. This is ok after firmware upload.\n");
 	return;
 }
 
@@ -893,8 +892,8 @@ static int nxt2002_init(struct dvb_frontend* fe)
 			       state->i2c->dev.parent);
 	pr_debug("%s: Waiting for firmware upload(2)...\n", __func__);
 	if (ret) {
-		pr_err("%s: No firmware uploaded (timeout or file not found?)"
-		       "\n", __func__);
+		pr_err("%s: No firmware uploaded (timeout or file not found?)\n",
+		       __func__);
 		return ret;
 	}
 
@@ -960,8 +959,8 @@ static int nxt2004_init(struct dvb_frontend* fe)
 			       state->i2c->dev.parent);
 	pr_debug("%s: Waiting for firmware upload(2)...\n", __func__);
 	if (ret) {
-		pr_err("%s: No firmware uploaded (timeout or file not found?)"
-		       "\n", __func__);
+		pr_err("%s: No firmware uploaded (timeout or file not found?)\n",
+		       __func__);
 		return ret;
 	}
 

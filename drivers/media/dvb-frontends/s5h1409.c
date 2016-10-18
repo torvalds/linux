@@ -321,8 +321,8 @@ static int s5h1409_writereg(struct s5h1409_state *state, u8 reg, u16 data)
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		printk(KERN_ERR "%s: error (reg == 0x%02x, val == 0x%04x, "
-		       "ret == %i)\n", __func__, reg, data, ret);
+		printk(KERN_ERR "%s: error (reg == 0x%02x, val == 0x%04x, ret == %i)\n",
+		       __func__, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
 }

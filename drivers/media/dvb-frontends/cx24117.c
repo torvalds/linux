@@ -474,8 +474,8 @@ static int cx24117_firmware_ondemand(struct dvb_frontend *fe)
 			"%s: Waiting for firmware upload(2)...\n", __func__);
 		if (ret) {
 			dev_err(&state->priv->i2c->dev,
-				"%s: No firmware uploaded "
-				"(timeout or file not found?)\n", __func__);
+				"%s: No firmware uploaded (timeout or file not found?)\n",
+__func__);
 			return ret;
 		}
 

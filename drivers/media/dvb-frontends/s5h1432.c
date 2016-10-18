@@ -63,8 +63,8 @@ static int s5h1432_writereg(struct s5h1432_state *state,
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		printk(KERN_ERR "%s: writereg error 0x%02x 0x%02x 0x%04x, "
-		       "ret == %i)\n", __func__, addr, reg, data, ret);
+		printk(KERN_ERR "%s: writereg error 0x%02x 0x%02x 0x%04x, ret == %i)\n",
+		       __func__, addr, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
 }

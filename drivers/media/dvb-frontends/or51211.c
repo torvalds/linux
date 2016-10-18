@@ -377,8 +377,7 @@ static int or51211_init(struct dvb_frontend* fe)
 					       OR51211_DEFAULT_FIRMWARE);
 		pr_info("Got Hotplug firmware\n");
 		if (ret) {
-			pr_warn("No firmware uploaded "
-				"(timeout or file not found?)\n");
+			pr_warn("No firmware uploaded (timeout or file not found?)\n");
 			return ret;
 		}
 

@@ -1063,32 +1063,28 @@ static void tda10048_establish_defaults(struct dvb_frontend *fe)
 	/* Validate/default the config */
 	if (config->dtv6_if_freq_khz == 0) {
 		config->dtv6_if_freq_khz = TDA10048_IF_4300;
-		printk(KERN_WARNING "%s() tda10048_config.dtv6_if_freq_khz "
-			"is not set (defaulting to %d)\n",
+		printk(KERN_WARNING "%s() tda10048_config.dtv6_if_freq_khz is not set (defaulting to %d)\n",
 			__func__,
 			config->dtv6_if_freq_khz);
 	}
 
 	if (config->dtv7_if_freq_khz == 0) {
 		config->dtv7_if_freq_khz = TDA10048_IF_4300;
-		printk(KERN_WARNING "%s() tda10048_config.dtv7_if_freq_khz "
-			"is not set (defaulting to %d)\n",
+		printk(KERN_WARNING "%s() tda10048_config.dtv7_if_freq_khz is not set (defaulting to %d)\n",
 			__func__,
 			config->dtv7_if_freq_khz);
 	}
 
 	if (config->dtv8_if_freq_khz == 0) {
 		config->dtv8_if_freq_khz = TDA10048_IF_4300;
-		printk(KERN_WARNING "%s() tda10048_config.dtv8_if_freq_khz "
-			"is not set (defaulting to %d)\n",
+		printk(KERN_WARNING "%s() tda10048_config.dtv8_if_freq_khz is not set (defaulting to %d)\n",
 			__func__,
 			config->dtv8_if_freq_khz);
 	}
 
 	if (config->clk_freq_khz == 0) {
 		config->clk_freq_khz = TDA10048_CLK_16000;
-		printk(KERN_WARNING "%s() tda10048_config.clk_freq_khz "
-			"is not set (defaulting to %d)\n",
+		printk(KERN_WARNING "%s() tda10048_config.clk_freq_khz is not set (defaulting to %d)\n",
 			__func__,
 			config->clk_freq_khz);
 	}

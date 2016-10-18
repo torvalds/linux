@@ -255,8 +255,8 @@ static int cx24123_i2c_writereg(struct cx24123_state *state,
 
 	err = i2c_transfer(state->i2c, &msg, 1);
 	if (err != 1) {
-		printk("%s: writereg error(err == %i, reg == 0x%02x,"
-			 " data == 0x%02x)\n", __func__, err, reg, data);
+		printk("%s: writereg error(err == %i, reg == 0x%02x, data == 0x%02x)\n",
+		       __func__, err, reg, data);
 		return err;
 	}
 

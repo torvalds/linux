@@ -77,8 +77,7 @@ static int _tda10021_writereg (struct tda10021_state* state, u8 reg, u8 data)
 
 	ret = i2c_transfer (state->i2c, &msg, 1);
 	if (ret != 1)
-		printk("DVB: TDA10021(%d): %s, writereg error "
-			"(reg == 0x%02x, val == 0x%02x, ret == %i)\n",
+		printk("DVB: TDA10021(%d): %s, writereg error (reg == 0x%02x, val == 0x%02x, ret == %i)\n",
 			state->frontend.dvb->num, __func__, reg, data, ret);
 
 	msleep(10);

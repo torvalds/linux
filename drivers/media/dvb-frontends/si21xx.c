@@ -245,8 +245,8 @@ static int si21_writeregs(struct si21xx_state *state, u8 reg1,
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		dprintk("%s: writereg error (reg1 == 0x%02x, data == 0x%02x, "
-			"ret == %i)\n", __func__, reg1, data[0], ret);
+		dprintk("%s: writereg error (reg1 == 0x%02x, data == 0x%02x, ret == %i)\n",
+			__func__, reg1, data[0], ret);
 
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
@@ -265,8 +265,8 @@ static int si21_writereg(struct si21xx_state *state, u8 reg, u8 data)
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		dprintk("%s: writereg error (reg == 0x%02x, data == 0x%02x, "
-			"ret == %i)\n", __func__, reg, data, ret);
+		dprintk("%s: writereg error (reg == 0x%02x, data == 0x%02x, ret == %i)\n",
+			__func__, reg, data, ret);
 
 	return (ret != 1) ? -EREMOTEIO : 0;
 }

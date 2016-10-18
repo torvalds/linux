@@ -248,8 +248,8 @@ static int ds3000_writereg(struct ds3000_state *state, int reg, int data)
 
 	err = i2c_transfer(state->i2c, &msg, 1);
 	if (err != 1) {
-		printk(KERN_ERR "%s: writereg error(err == %i, reg == 0x%02x,"
-			 " value == 0x%02x)\n", __func__, err, reg, data);
+		printk(KERN_ERR "%s: writereg error(err == %i, reg == 0x%02x, value == 0x%02x)\n",
+		       __func__, err, reg, data);
 		return -EREMOTEIO;
 	}
 
@@ -296,8 +296,8 @@ static int ds3000_writeFW(struct ds3000_state *state, int reg,
 
 		ret = i2c_transfer(state->i2c, &msg, 1);
 		if (ret != 1) {
-			printk(KERN_ERR "%s: write error(err == %i, "
-				"reg == 0x%02x\n", __func__, ret, reg);
+			printk(KERN_ERR "%s: write error(err == %i, reg == 0x%02x\n",
+			       __func__, ret, reg);
 			ret = -EREMOTEIO;
 			goto error;
 		}
@@ -364,8 +364,8 @@ static int ds3000_firmware_ondemand(struct dvb_frontend *fe)
 				state->i2c->dev.parent);
 	printk(KERN_INFO "%s: Waiting for firmware upload(2)...\n", __func__);
 	if (ret) {
-		printk(KERN_ERR "%s: No firmware uploaded (timeout or file not "
-				"found?)\n", __func__);
+		printk(KERN_ERR "%s: No firmware uploaded (timeout or file not found?)\n",
+		       __func__);
 		return ret;
 	}
 
@@ -1144,8 +1144,7 @@ static struct dvb_frontend_ops ds3000_ops = {
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 
-MODULE_DESCRIPTION("DVB Frontend module for Montage Technology "
-			"DS3000 hardware");
+MODULE_DESCRIPTION("DVB Frontend module for Montage Technology DS3000 hardware");
 MODULE_AUTHOR("Konstantin Dimitrov <kosio.dimitrov@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(DS3000_DEFAULT_FIRMWARE);
