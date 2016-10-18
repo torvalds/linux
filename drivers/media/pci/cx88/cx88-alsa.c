@@ -120,9 +120,7 @@ MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(CX88_VERSION);
 
-MODULE_SUPPORTED_DEVICE("{{Conexant,23881},"
-			"{{Conexant,23882},"
-			"{{Conexant,23883}");
+MODULE_SUPPORTED_DEVICE("{{Conexant,23881},{{Conexant,23882},{{Conexant,23883}");
 static unsigned int debug;
 module_param(debug,int,0644);
 MODULE_PARM_DESC(debug,"enable debug messages");
@@ -154,8 +152,8 @@ static int _cx88_start_audio_dma(snd_cx88_card_t *chip)
 	cx_write(MO_AUDD_GPCNTRL, GP_COUNT_CONTROL_RESET);
 	atomic_set(&chip->count, 0);
 
-	dprintk(1, "Start audio DMA, %d B/line, %d lines/FIFO, %d periods, %d "
-		"byte buffer\n", buf->bpl, cx_read(audio_ch->cmds_start + 8)>>1,
+	dprintk(1, "Start audio DMA, %d B/line, %d lines/FIFO, %d periods, %d byte buffer\n",
+		buf->bpl, cx_read(audio_ch->cmds_start + 8)>>1,
 		chip->num_periods, buf->bpl * chip->num_periods);
 
 	/* Enables corresponding bits at AUD_INT_STAT */
@@ -425,8 +423,7 @@ static int snd_cx88_pcm_open(struct snd_pcm_substream *substream)
 	int err;
 
 	if (!chip) {
-		printk(KERN_ERR "BUG: cx88 can't find device struct."
-				" Can't proceed with open\n");
+		printk(KERN_ERR "BUG: cx88 can't find device struct. Can't proceed with open\n");
 		return -ENODEV;
 	}
 
@@ -914,8 +911,8 @@ static int snd_cx88_create(struct snd_card *card, struct pci_dev *pci,
 	/* print pci info */
 	pci_read_config_byte(pci, PCI_LATENCY_TIMER, &pci_lat);
 
-	dprintk(1,"ALSA %s/%i: found at %s, rev: %d, irq: %d, "
-	       "latency: %d, mmio: 0x%llx\n", core->name, devno,
+	dprintk(1, "ALSA %s/%i: found at %s, rev: %d, irq: %d, latency: %d, mmio: 0x%llx\n",
+		core->name, devno,
 	       pci_name(pci), pci->revision, pci->irq,
 	       pci_lat, (unsigned long long)pci_resource_start(pci,0));
 

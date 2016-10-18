@@ -62,8 +62,7 @@ MODULE_PARM_DESC(always_analog,"force analog audio out");
 
 static unsigned int radio_deemphasis;
 module_param(radio_deemphasis,int,0644);
-MODULE_PARM_DESC(radio_deemphasis, "Radio deemphasis time constant, "
-		 "0=None, 1=50us (elsewhere), 2=75us (USA)");
+MODULE_PARM_DESC(radio_deemphasis, "Radio deemphasis time constant, 0=None, 1=50us (elsewhere), 2=75us (USA)");
 
 #define dprintk(fmt, arg...)	if (audio_debug) \
 	printk(KERN_DEBUG "%s/0: " fmt, core->name , ## arg)
@@ -976,8 +975,7 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 	}
 
 	if (UNSET != ctl) {
-		dprintk("cx88_set_stereo: mask 0x%x, ctl 0x%x "
-			"[status=0x%x,ctl=0x%x,vol=0x%x]\n",
+		dprintk("cx88_set_stereo: mask 0x%x, ctl 0x%x [status=0x%x,ctl=0x%x,vol=0x%x]\n",
 			mask, ctl, cx_read(AUD_STATUS),
 			cx_read(AUD_CTL), cx_sread(SHADOW_AUD_VOL_CTL));
 		cx_andor(AUD_CTL, mask, ctl);

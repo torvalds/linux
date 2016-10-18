@@ -186,8 +186,8 @@ static s32 detect_a2_a2m_eiaj(struct cx88_core *core, s16 x[], u32 N)
 	dual    = freq_magnitude(x, N, dual_freq);
 	noise   = noise_magnitude(x, N, FREQ_NOISE_START, FREQ_NOISE_END);
 
-	dprintk(1, "detect a2/a2m/eiaj: carrier=%d, stereo=%d, dual=%d, "
-		   "noise=%d\n", carrier, stereo, dual, noise);
+	dprintk(1, "detect a2/a2m/eiaj: carrier=%d, stereo=%d, dual=%d, noise=%d\n",
+		carrier, stereo, dual, noise);
 
 	if (stereo > dual)
 		ret = V4L2_TUNER_SUB_STEREO;
@@ -222,8 +222,8 @@ static s32 detect_btsc(struct cx88_core *core, s16 x[], u32 N)
 	s32 sap = freq_magnitude(x, N, FREQ_BTSC_SAP);
 	s32 dual_ref = freq_magnitude(x, N, FREQ_BTSC_DUAL_REF);
 	s32 dual = freq_magnitude(x, N, FREQ_BTSC_DUAL);
-	dprintk(1, "detect btsc: dual_ref=%d, dual=%d, sap_ref=%d, sap=%d"
-		   "\n", dual_ref, dual, sap_ref, sap);
+	dprintk(1, "detect btsc: dual_ref=%d, dual=%d, sap_ref=%d, sap=%d\n",
+		dual_ref, dual, sap_ref, sap);
 	/* FIXME: Currently not supported */
 	return UNSET;
 }
@@ -241,8 +241,8 @@ static s16 *read_rds_samples(struct cx88_core *core, u32 *N)
 	u32 current_address = cx_read(srch->ptr1_reg);
 	u32 offset = (current_address - srch->fifo_start + bpl);
 
-	dprintk(1, "read RDS samples: current_address=%08x (offset=%08x), "
-		"sample_count=%d, aud_intstat=%08x\n", current_address,
+	dprintk(1, "read RDS samples: current_address=%08x (offset=%08x), sample_count=%d, aud_intstat=%08x\n",
+		current_address,
 		current_address - srch->fifo_start, sample_count,
 		cx_read(MO_AUD_INTSTAT));
 

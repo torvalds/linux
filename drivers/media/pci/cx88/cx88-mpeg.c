@@ -401,8 +401,8 @@ static int cx8802_init_common(struct cx8802_dev *dev)
 
 	dev->pci_rev = dev->pci->revision;
 	pci_read_config_byte(dev->pci, PCI_LATENCY_TIMER,  &dev->pci_lat);
-	printk(KERN_INFO "%s/2: found at %s, rev: %d, irq: %d, "
-	       "latency: %d, mmio: 0x%llx\n", dev->core->name,
+	printk(KERN_INFO "%s/2: found at %s, rev: %d, irq: %d, latency: %d, mmio: 0x%llx\n",
+	       dev->core->name,
 	       pci_name(dev->pci), dev->pci_rev, dev->pci->irq,
 	       dev->pci_lat,(unsigned long long)pci_resource_start(dev->pci,0));
 
@@ -690,8 +690,8 @@ int cx8802_unregister_driver(struct cx8802_driver *drv)
 				list_del(&d->drvlist);
 				kfree(d);
 			} else
-				printk(KERN_ERR "%s/2: cx8802 driver remove "
-				       "failed (%d)\n", dev->core->name, err);
+				printk(KERN_ERR "%s/2: cx8802 driver remove failed (%d)\n",
+				       dev->core->name, err);
 		}
 
 		mutex_unlock(&dev->core->lock);
@@ -768,8 +768,7 @@ static void cx8802_remove(struct pci_dev *pci_dev)
 		struct cx8802_driver *drv, *tmp;
 		int err;
 
-		printk(KERN_WARNING "%s/2: Trying to remove cx8802 driver "
-		       "while cx8802 sub-drivers still loaded?!\n",
+		printk(KERN_WARNING "%s/2: Trying to remove cx8802 driver while cx8802 sub-drivers still loaded?!\n",
 		       dev->core->name);
 
 		list_for_each_entry_safe(drv, tmp, &dev->drvlist, drvlist) {
@@ -777,8 +776,8 @@ static void cx8802_remove(struct pci_dev *pci_dev)
 			if (err == 0) {
 				list_del(&drv->drvlist);
 			} else
-				printk(KERN_ERR "%s/2: cx8802 driver remove "
-				       "failed (%d)\n", dev->core->name, err);
+				printk(KERN_ERR "%s/2: cx8802 driver remove failed (%d)\n",
+				       dev->core->name, err);
 			kfree(drv);
 		}
 	}

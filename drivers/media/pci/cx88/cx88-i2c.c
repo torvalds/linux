@@ -45,8 +45,7 @@ MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
 
 static unsigned int i2c_udelay = 5;
 module_param(i2c_udelay, int, 0644);
-MODULE_PARM_DESC(i2c_udelay,"i2c delay at insmod time, in usecs "
-		"(should be 5 or higher). Lower value means higher bus speed.");
+MODULE_PARM_DESC(i2c_udelay, "i2c delay at insmod time, in usecs (should be 5 or higher). Lower value means higher bus speed.");
 
 #define dprintk(level,fmt, arg...)	if (i2c_debug >= level) \
 	printk(KERN_DEBUG "%s: " fmt, core->name , ## arg)

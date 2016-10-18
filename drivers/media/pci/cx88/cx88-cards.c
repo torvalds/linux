@@ -2847,8 +2847,7 @@ static void leadtek_eeprom(struct cx88_core *core, u8 *eeprom_data)
 		break;
 	}
 
-	info_printk(core, "Leadtek Winfast 2000XP Expert config: "
-		    "tuner=%d, eeprom[0]=0x%02x\n",
+	info_printk(core, "Leadtek Winfast 2000XP Expert config: tuner=%d, eeprom[0]=0x%02x\n",
 		    core->board.tuner_type, eeprom_data[0]);
 }
 
@@ -3107,8 +3106,8 @@ static void dvico_fusionhdtv_hybrid_init(struct cx88_core *core)
 		msg.len = (i != 12 ? 5 : 2);
 		err = i2c_transfer(&core->i2c_adap, &msg, 1);
 		if (err != 1) {
-			warn_printk(core, "dvico_fusionhdtv_hybrid_init buf %d "
-					  "failed (err = %d)!\n", i, err);
+			warn_printk(core, "dvico_fusionhdtv_hybrid_init buf %d failed (err = %d)!\n",
+				    i, err);
 			return;
 		}
 	}
@@ -3284,8 +3283,7 @@ static void cx88_card_list(struct cx88_core *core, struct pci_dev *pci)
 		       "%s: version might help as well.\n",
 		       core->name,core->name,core->name,core->name);
 	}
-	err_printk(core, "Here is a list of valid choices for the card=<n> "
-		   "insmod option:\n");
+	err_printk(core, "Here is a list of valid choices for the card=<n> insmod option:\n");
 	for (i = 0; i < ARRAY_SIZE(cx88_boards); i++)
 		printk(KERN_ERR "%s:    card=%d -> %s\n",
 		       core->name, i, cx88_boards[i].name);
@@ -3510,8 +3508,8 @@ static void cx88_card_setup(struct cx88_core *core)
 			for (i = 0; i < ARRAY_SIZE(buffer); i++)
 				if (2 != i2c_master_send(&core->i2c_client,
 							buffer[i],2))
-					warn_printk(core, "Unable to enable "
-						    "tuner(%i).\n", i);
+					warn_printk(core, "Unable to enable tuner(%i).\n",
+						    i);
 		}
 		break;
 	case CX88_BOARD_MSI_TVANYWHERE_MASTER:

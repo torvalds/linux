@@ -625,8 +625,7 @@ static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 		return -EINVAL;
 
 	if (!fe0->dvb.frontend) {
-		printk(KERN_ERR "%s/2: dvb frontend not attached. "
-				"Can't attach xc3028\n",
+		printk(KERN_ERR "%s/2: dvb frontend not attached. Can't attach xc3028\n",
 		       dev->core->name);
 		return -EINVAL;
 	}
@@ -665,8 +664,7 @@ static int attach_xc4000(struct cx8802_dev *dev, struct xc4000_config *cfg)
 		return -EINVAL;
 
 	if (!fe0->dvb.frontend) {
-		printk(KERN_ERR "%s/2: dvb frontend not attached. "
-				"Can't attach xc4000\n",
+		printk(KERN_ERR "%s/2: dvb frontend not attached. Can't attach xc4000\n",
 		       dev->core->name);
 		return -EINVAL;
 	}
