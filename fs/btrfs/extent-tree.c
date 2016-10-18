@@ -8571,8 +8571,8 @@ static int account_leaf_items(struct btrfs_trans_handle *trans,
 
 		num_bytes = btrfs_file_extent_disk_num_bytes(eb, fi);
 
-		ret = btrfs_qgroup_insert_dirty_extent(trans, root->fs_info,
-				bytenr, num_bytes, GFP_NOFS);
+		ret = btrfs_qgroup_trace_extent(trans, root->fs_info,
+						bytenr, num_bytes, GFP_NOFS);
 		if (ret)
 			return ret;
 	}
@@ -8721,7 +8721,7 @@ walk_down:
 			btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
 			path->locks[level] = BTRFS_READ_LOCK_BLOCKING;
 
-			ret = btrfs_qgroup_insert_dirty_extent(trans,
+			ret = btrfs_qgroup_trace_extent(trans,
 					root->fs_info, child_bytenr,
 					root->nodesize, GFP_NOFS);
 			if (ret)

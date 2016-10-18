@@ -1406,7 +1406,7 @@ DEFINE_EVENT(btrfs_qgroup_extent, btrfs_qgroup_account_extents,
 	TP_ARGS(fs_info, rec)
 );
 
-DEFINE_EVENT(btrfs_qgroup_extent, btrfs_qgroup_insert_dirty_extent,
+DEFINE_EVENT(btrfs_qgroup_extent, btrfs_qgroup_trace_extent,
 
 	TP_PROTO(struct btrfs_fs_info *fs_info,
 		 struct btrfs_qgroup_extent_record *rec),
