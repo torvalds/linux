@@ -200,7 +200,7 @@ static void fc_lport_rport_callback(struct fc_lport *lport,
 				     "in the DNS or FDMI state, it's in the "
 				     "%d state", rdata->ids.port_id,
 				     lport->state);
-			lport->tt.rport_logoff(rdata);
+			fc_rport_logoff(rdata);
 		}
 		break;
 	case RPORT_EV_LOGO:
@@ -246,7 +246,7 @@ static void fc_lport_ptp_setup(struct fc_lport *lport,
 			       u64 remote_wwnn)
 {
 	if (lport->ptp_rdata) {
-		lport->tt.rport_logoff(lport->ptp_rdata);
+		fc_rport_logoff(lport->ptp_rdata);
 		kref_put(&lport->ptp_rdata->kref, fc_rport_destroy);
 	}
 	mutex_lock(&lport->disc.disc_mutex);
@@ -623,7 +623,7 @@ int fc_fabric_logoff(struct fc_lport *lport)
 	lport->tt.disc_stop_final(lport);
 	mutex_lock(&lport->lp_mutex);
 	if (lport->dns_rdata)
-		lport->tt.rport_logoff(lport->dns_rdata);
+		fc_rport_logoff(lport->dns_rdata);
 	mutex_unlock(&lport->lp_mutex);
 	lport->tt.rport_flush_queue();
 	mutex_lock(&lport->lp_mutex);
@@ -1011,12 +1011,12 @@ EXPORT_SYMBOL(fc_lport_reset);
 static void fc_lport_reset_locked(struct fc_lport *lport)
 {
 	if (lport->dns_rdata) {
-		lport->tt.rport_logoff(lport->dns_rdata);
+		fc_rport_logoff(lport->dns_rdata);
 		lport->dns_rdata = NULL;
 	}
 
 	if (lport->ptp_rdata) {
-		lport->tt.rport_logoff(lport->ptp_rdata);
+		fc_rport_logoff(lport->ptp_rdata);
 		kref_put(&lport->ptp_rdata->kref, fc_rport_destroy);
 		lport->ptp_rdata = NULL;
 	}

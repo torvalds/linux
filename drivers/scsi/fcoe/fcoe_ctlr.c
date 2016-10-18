@@ -2153,7 +2153,7 @@ static void fcoe_ctlr_vn_rport_callback(struct fc_lport *lport,
 			LIBFCOE_FIP_DBG(fip,
 					"rport FLOGI limited port_id %6.6x\n",
 					rdata->ids.port_id);
-			lport->tt.rport_logoff(rdata);
+			fc_rport_logoff(rdata);
 		}
 		break;
 	default:
@@ -2179,7 +2179,7 @@ static void fcoe_ctlr_disc_stop_locked(struct fc_lport *lport)
 	rcu_read_lock();
 	list_for_each_entry_rcu(rdata, &lport->disc.rports, peers) {
 		if (kref_get_unless_zero(&rdata->kref)) {
-			lport->tt.rport_logoff(rdata);
+			fc_rport_logoff(rdata);
 			kref_put(&rdata->kref, fc_rport_destroy);
 		}
 	}
@@ -2531,7 +2531,7 @@ static void fcoe_ctlr_vn_add(struct fcoe_ctlr *fip, struct fc_rport_priv *new)
 	    (ids->node_name != -1 && ids->node_name != new->ids.node_name)) {
 		mutex_unlock(&rdata->rp_mutex);
 		LIBFCOE_FIP_DBG(fip, "vn_add rport logoff %6.6x\n", port_id);
-		lport->tt.rport_logoff(rdata);
+		fc_rport_logoff(rdata);
 		mutex_lock(&rdata->rp_mutex);
 	}
 	ids->port_name = new->ids.port_name;
@@ -2729,7 +2729,7 @@ static unsigned long fcoe_ctlr_vn_age(struct fcoe_ctlr *fip)
 			LIBFCOE_FIP_DBG(fip,
 				"port %16.16llx fc_id %6.6x beacon expired\n",
 				rdata->ids.port_name, rdata->ids.port_id);
-			lport->tt.rport_logoff(rdata);
+			fc_rport_logoff(rdata);
 		} else if (time_before(deadline, next_time))
 			next_time = deadline;
 		kref_put(&rdata->kref, fc_rport_destroy);

@@ -610,14 +610,6 @@ struct libfc_function_template {
 				  struct fc_frame *);
 
 	/*
-	 * Logoff, and remove the rport from the transport if
-	 * it had been added. This will send a LOGO to the target.
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	int (*rport_logoff)(struct fc_rport_priv *);
-
-	/*
 	 * Receive a request from a remote port.
 	 *
 	 * STATUS: OPTIONAL
@@ -1007,6 +999,7 @@ struct fc_rport_priv *fc_rport_lookup(const struct fc_lport *lport,
 struct fc_rport_priv *fc_rport_create(struct fc_lport *, u32);
 void fc_rport_destroy(struct kref *kref);
 int fc_rport_login(struct fc_rport_priv *rdata);
+int fc_rport_logoff(struct fc_rport_priv *rdata);
 
 /*
  * DISCOVERY LAYER

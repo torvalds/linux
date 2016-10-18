@@ -71,7 +71,7 @@ static void fc_disc_stop_rports(struct fc_disc *disc)
 	rcu_read_lock();
 	list_for_each_entry_rcu(rdata, &disc->rports, peers) {
 		if (kref_get_unless_zero(&rdata->kref)) {
-			lport->tt.rport_logoff(rdata);
+			fc_rport_logoff(rdata);
 			kref_put(&rdata->kref, fc_rport_destroy);
 		}
 	}
@@ -301,7 +301,7 @@ static void fc_disc_done(struct fc_disc *disc, enum fc_disc_event event)
 			if (rdata->disc_id == disc->disc_id)
 				fc_rport_login(rdata);
 			else
-				lport->tt.rport_logoff(rdata);
+				fc_rport_logoff(rdata);
 		}
 		kref_put(&rdata->kref, fc_rport_destroy);
 	}
@@ -622,7 +622,7 @@ static void fc_disc_gpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 				    "Port-id %6.6x wwpn %16.16llx\n",
 				    rdata->ids.port_id, port_name);
 			mutex_unlock(&rdata->rp_mutex);
-			lport->tt.rport_logoff(rdata);
+			fc_rport_logoff(rdata);
 			mutex_lock(&lport->disc.disc_mutex);
 			new_rdata = fc_rport_create(lport, rdata->ids.port_id);
 			mutex_unlock(&lport->disc.disc_mutex);
@@ -638,7 +638,7 @@ static void fc_disc_gpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 	} else if (ntohs(cp->ct_cmd) == FC_FS_RJT) {
 		FC_DISC_DBG(disc, "GPN_ID rejected reason %x exp %x\n",
 			    cp->ct_reason, cp->ct_explan);
-		lport->tt.rport_logoff(rdata);
+		fc_rport_logoff(rdata);
 	} else {
 		FC_DISC_DBG(disc, "GPN_ID unexpected response code %x\n",
 			    ntohs(cp->ct_cmd));

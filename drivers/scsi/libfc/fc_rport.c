@@ -295,7 +295,7 @@ static void fc_rport_work(struct work_struct *work)
 		}
 		if (!rport) {
 			FC_RPORT_DBG(rdata, "Failed to add the rport\n");
-			lport->tt.rport_logoff(rdata);
+			fc_rport_logoff(rdata);
 			kref_put(&rdata->kref, fc_rport_destroy);
 			return;
 		}
@@ -504,7 +504,7 @@ static void fc_rport_enter_delete(struct fc_rport_priv *rdata,
  * function will hold the rport lock, call an _enter_*
  * function and then unlock the rport.
  */
-static int fc_rport_logoff(struct fc_rport_priv *rdata)
+int fc_rport_logoff(struct fc_rport_priv *rdata)
 {
 	struct fc_lport *lport = rdata->local_port;
 	u32 port_id = rdata->ids.port_id;
@@ -538,6 +538,7 @@ out:
 	mutex_unlock(&rdata->rp_mutex);
 	return 0;
 }
+EXPORT_SYMBOL(fc_rport_logoff);
 
 /**
  * fc_rport_enter_ready() - Transition to the RPORT_ST_READY state
@@ -2184,9 +2185,6 @@ static void fc_rport_flush_queue(void)
  */
 int fc_rport_init(struct fc_lport *lport)
 {
-	if (!lport->tt.rport_logoff)
-		lport->tt.rport_logoff = fc_rport_logoff;
-
 	if (!lport->tt.rport_recv_req)
 		lport->tt.rport_recv_req = fc_rport_recv_req;
 
