@@ -797,11 +797,13 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	spin_lock_irqsave(&qhp->lock, flag);
 	if (t4_wq_in_error(&qhp->wq)) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
+		*bad_wr = wr;
 		return -EINVAL;
 	}
 	num_wrs = t4_sq_avail(&qhp->wq);
 	if (num_wrs == 0) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
+		*bad_wr = wr;
 		return -ENOMEM;
 	}
 	while (wr) {
@@ -934,11 +936,13 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	spin_lock_irqsave(&qhp->lock, flag);
 	if (t4_wq_in_error(&qhp->wq)) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
+		*bad_wr = wr;
 		return -EINVAL;
 	}
 	num_wrs = t4_rq_avail(&qhp->wq);
 	if (num_wrs == 0) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
+		*bad_wr = wr;
 		return -ENOMEM;
 	}
 	while (wr) {
