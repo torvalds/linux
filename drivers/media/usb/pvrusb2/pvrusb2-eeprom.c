@@ -56,8 +56,7 @@ static u8 *pvr2_eeprom_fetch(struct pvr2_hdw *hdw)
 	eeprom = kmalloc(EEPROM_SIZE,GFP_KERNEL);
 	if (!eeprom) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Failed to allocate memory"
-			   " required to read eeprom");
+			   "Failed to allocate memory required to read eeprom");
 		return NULL;
 	}
 
@@ -74,8 +73,8 @@ static u8 *pvr2_eeprom_fetch(struct pvr2_hdw *hdw)
 	   strange but it's what they do) */
 	mode16 = (addr & 1);
 	eepromSize = (mode16 ? 4096 : 256);
-	trace_eeprom("Examining %d byte eeprom at location 0x%x"
-		     " using %d bit addressing",eepromSize,addr,
+	trace_eeprom("Examining %d byte eeprom at location 0x%x using %d bit addressing",
+		     eepromSize, addr,
 		     mode16 ? 16 : 8);
 
 	msg[0].addr = addr;
