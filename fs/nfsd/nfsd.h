@@ -361,25 +361,18 @@ void		nfsd_lockd_shutdown(void);
 	(NFSD4_1_SUPPORTED_ATTRS_WORD2 | \
 	NFSD4_2_SECURITY_ATTRS)
 
-static inline u32 nfsd_suppattrs0(u32 minorversion)
+extern u32 nfsd_suppattrs[3][3];
+
+static inline bool bmval_is_subset(u32 *bm1, u32 *bm2)
 {
-	return minorversion ? NFSD4_1_SUPPORTED_ATTRS_WORD0
-			    : NFSD4_SUPPORTED_ATTRS_WORD0;
+	return !((bm1[0] & ~bm2[0]) ||
+	         (bm1[1] & ~bm2[1]) ||
+		 (bm1[2] & ~bm2[2]));
 }
 
-static inline u32 nfsd_suppattrs1(u32 minorversion)
+static inline bool nfsd_attrs_supported(u32 minorversion, u32 *bmval)
 {
-	return minorversion ? NFSD4_1_SUPPORTED_ATTRS_WORD1
-			    : NFSD4_SUPPORTED_ATTRS_WORD1;
-}
-
-static inline u32 nfsd_suppattrs2(u32 minorversion)
-{
-	switch (minorversion) {
-	default: return NFSD4_2_SUPPORTED_ATTRS_WORD2;
-	case 1:  return NFSD4_1_SUPPORTED_ATTRS_WORD2;
-	case 0:  return NFSD4_SUPPORTED_ATTRS_WORD2;
-	}
+	return bmval_is_subset(bmval, nfsd_suppattrs[minorversion]);
 }
 
 /* These will return ERR_INVAL if specified in GETATTR or READDIR. */

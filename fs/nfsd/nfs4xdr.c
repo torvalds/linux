@@ -57,6 +57,20 @@
 
 #define NFSDDBG_FACILITY		NFSDDBG_XDR
 
+u32 nfsd_suppattrs[3][3] = {
+	{NFSD4_SUPPORTED_ATTRS_WORD0,
+	 NFSD4_SUPPORTED_ATTRS_WORD1,
+	 NFSD4_SUPPORTED_ATTRS_WORD2},
+
+	{NFSD4_1_SUPPORTED_ATTRS_WORD0,
+	 NFSD4_1_SUPPORTED_ATTRS_WORD1,
+	 NFSD4_1_SUPPORTED_ATTRS_WORD2},
+
+	{NFSD4_1_SUPPORTED_ATTRS_WORD0,
+	 NFSD4_1_SUPPORTED_ATTRS_WORD1,
+	 NFSD4_2_SUPPORTED_ATTRS_WORD2},
+};
+
 /*
  * As per referral draft, the fsid for a referral MUST be different from the fsid of the containing
  * directory in order to indicate to the client that a filesystem boundary is present
@@ -2340,9 +2354,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
 	BUG_ON(bmval1 & NFSD_WRITEONLY_ATTRS_WORD1);
-	BUG_ON(bmval0 & ~nfsd_suppattrs0(minorversion));
-	BUG_ON(bmval1 & ~nfsd_suppattrs1(minorversion));
-	BUG_ON(bmval2 & ~nfsd_suppattrs2(minorversion));
+	BUG_ON(!nfsd_attrs_supported(minorversion, bmval));
 
 	if (exp->ex_fslocs.migrated) {
 		status = fattr_handle_absent_fs(&bmval0, &bmval1, &bmval2, &rdattr_err);
@@ -2409,29 +2421,27 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	p++;                /* to be backfilled later */
 
 	if (bmval0 & FATTR4_WORD0_SUPPORTED_ATTRS) {
-		u32 word0 = nfsd_suppattrs0(minorversion);
-		u32 word1 = nfsd_suppattrs1(minorversion);
-		u32 word2 = nfsd_suppattrs2(minorversion);
+		u32 *supp = nfsd_suppattrs[minorversion];
 
 		if (!IS_POSIXACL(dentry->d_inode))
-			word0 &= ~FATTR4_WORD0_ACL;
+			supp[0] &= ~FATTR4_WORD0_ACL;
 		if (!contextsupport)
-			word2 &= ~FATTR4_WORD2_SECURITY_LABEL;
-		if (!word2) {
+			supp[2] &= ~FATTR4_WORD2_SECURITY_LABEL;
+		if (!supp[2]) {
 			p = xdr_reserve_space(xdr, 12);
 			if (!p)
 				goto out_resource;
 			*p++ = cpu_to_be32(2);
-			*p++ = cpu_to_be32(word0);
-			*p++ = cpu_to_be32(word1);
+			*p++ = cpu_to_be32(supp[0]);
+			*p++ = cpu_to_be32(supp[1]);
 		} else {
 			p = xdr_reserve_space(xdr, 16);
 			if (!p)
 				goto out_resource;
 			*p++ = cpu_to_be32(3);
-			*p++ = cpu_to_be32(word0);
-			*p++ = cpu_to_be32(word1);
-			*p++ = cpu_to_be32(word2);
+			*p++ = cpu_to_be32(supp[0]);
+			*p++ = cpu_to_be32(supp[1]);
+			*p++ = cpu_to_be32(supp[2]);
 		}
 	}
 	if (bmval0 & FATTR4_WORD0_TYPE) {
