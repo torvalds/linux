@@ -135,7 +135,7 @@ ENTRY(_cpu_resume)
 
 #ifdef CONFIG_KASAN
 	mov	x0, sp
-	bl	kasan_unpoison_remaining_stack
+	bl	kasan_unpoison_task_stack_below
 #endif
 
 	ldp	x19, x20, [x29, #16]
