@@ -130,6 +130,9 @@
 			ngpios = <6>;
 			#gpio-cells = <2>;
 			gpio-controller;
+			interrupt-controller;
+			interrupt-parent = <&mailbox>;
+			interrupts = <0>;
 		};
 
 		i2c0: i2c@18008000 {
