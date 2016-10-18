@@ -629,6 +629,13 @@ static void fc_seq_set_resp(struct fc_seq *sp,
  * @ep:	The exchange to be aborted
  * @timer_msec: The period of time to wait before aborting
  *
+ * Abort an exchange and sequence. Generally called because of a
+ * exchange timeout or an abort from the upper layer.
+ *
+ * A timer_msec can be specified for abort timeout, if non-zero
+ * timer_msec value is specified then exchange resp handler
+ * will be called with timeout error if no response to abort.
+ *
  * Locking notes:  Called with exch lock held
  *
  * Return value: 0 on success else error code
@@ -692,8 +699,7 @@ static int fc_exch_abort_locked(struct fc_exch *ep,
  *
  * Return value: 0 on success else error code
  */
-static int fc_seq_exch_abort(const struct fc_seq *req_sp,
-			     unsigned int timer_msec)
+int fc_seq_exch_abort(const struct fc_seq *req_sp, unsigned int timer_msec)
 {
 	struct fc_exch *ep;
 	int error;
@@ -2653,9 +2659,6 @@ int fc_exch_init(struct fc_lport *lport)
 
 	if (!lport->tt.exch_mgr_reset)
 		lport->tt.exch_mgr_reset = fc_exch_mgr_reset;
-
-	if (!lport->tt.seq_exch_abort)
-		lport->tt.seq_exch_abort = fc_seq_exch_abort;
 
 	if (!lport->tt.seq_assign)
 		lport->tt.seq_assign = fc_seq_assign;

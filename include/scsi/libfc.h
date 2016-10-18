@@ -515,19 +515,6 @@ struct libfc_function_template {
 	void (*get_lesb)(struct fc_lport *, struct fc_els_lesb *lesb);
 
 	/*
-	 * Abort an exchange and sequence. Generally called because of a
-	 * exchange timeout or an abort from the upper layer.
-	 *
-	 * A timer_msec can be specified for abort timeout, if non-zero
-	 * timer_msec value is specified then exchange resp handler
-	 * will be called with timeout error if no response to abort.
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	int (*seq_exch_abort)(const struct fc_seq *,
-			      unsigned int timer_msec);
-
-	/*
 	 * Indicate that an exchange/sequence tuple is complete and the memory
 	 * allocated for the related objects may be freed.
 	 *
@@ -1052,6 +1039,7 @@ void fc_exch_mgr_free(struct fc_lport *);
 void fc_exch_recv(struct fc_lport *, struct fc_frame *);
 void fc_exch_mgr_reset(struct fc_lport *, u32 s_id, u32 d_id);
 int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp, struct fc_frame *fp);
+int fc_seq_exch_abort(const struct fc_seq *, unsigned int timer_msec);
 
 /*
  * Functions for fc_functions_template

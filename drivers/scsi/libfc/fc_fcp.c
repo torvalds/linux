@@ -287,9 +287,9 @@ static int fc_fcp_send_abort(struct fc_fcp_pkt *fsp)
 	put_cpu();
 
 	fsp->state |= FC_SRB_ABORT_PENDING;
-	rc = fsp->lp->tt.seq_exch_abort(fsp->seq_ptr, 0);
+	rc = fc_seq_exch_abort(fsp->seq_ptr, 0);
 	/*
-	 * ->seq_exch_abort() might return -ENXIO if
+	 * fc_seq_exch_abort() might return -ENXIO if
 	 * the sequence is already completed
 	 */
 	if (rc == -ENXIO) {
