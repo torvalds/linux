@@ -733,6 +733,11 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	lflags = eventreq.handleflags;
 	eflags = eventreq.eventflags;
 
+	if (offset >= gdev->ngpio) {
+		ret = -EINVAL;
+		goto out_free_label;
+	}
+
 	/* This is just wrong: we don't look for events on output lines */
 	if (lflags & GPIOHANDLE_REQUEST_OUTPUT) {
 		ret = -EINVAL;
