@@ -944,15 +944,14 @@ struct fc4_prov fc_lport_els_prov = {
 };
 
 /**
- * fc_lport_recv_req() - The generic lport request handler
+ * fc_lport_recv() - The generic lport request handler
  * @lport: The lport that received the request
  * @fp: The frame the request is in
  *
  * Locking Note: This function should not be called with the lport
  *		 lock held because it may grab the lock.
  */
-static void fc_lport_recv_req(struct fc_lport *lport,
-			      struct fc_frame *fp)
+void fc_lport_recv(struct fc_lport *lport, struct fc_frame *fp)
 {
 	struct fc_frame_header *fh = fc_frame_header_get(fp);
 	struct fc_seq *sp = fr_seq(fp);
@@ -983,6 +982,7 @@ drop:
 	if (sp)
 		lport->tt.exch_done(sp);
 }
+EXPORT_SYMBOL(fc_lport_recv);
 
 /**
  * fc_lport_reset() - Reset a local port
@@ -1865,9 +1865,6 @@ EXPORT_SYMBOL(fc_lport_config);
  */
 int fc_lport_init(struct fc_lport *lport)
 {
-	if (!lport->tt.lport_recv)
-		lport->tt.lport_recv = fc_lport_recv_req;
-
 	fc_host_port_type(lport->host) = FC_PORTTYPE_NPORT;
 	fc_host_node_name(lport->host) = lport->wwnn;
 	fc_host_port_name(lport->host) = lport->wwpn;

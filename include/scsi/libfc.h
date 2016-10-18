@@ -621,13 +621,6 @@ struct libfc_function_template {
 	void (*rport_flush_queue)(void);
 
 	/*
-	 * Receive a frame for a local port.
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	void (*lport_recv)(struct fc_lport *, struct fc_frame *);
-
-	/*
 	 * Set the local port FC_ID.
 	 *
 	 * This may be provided by the LLD to allow it to be
@@ -1060,6 +1053,7 @@ void fc_vport_setlink(struct fc_lport *);
 void fc_vports_linkchange(struct fc_lport *);
 int fc_lport_config(struct fc_lport *);
 int fc_lport_reset(struct fc_lport *);
+void fc_lport_recv(struct fc_lport *lport, struct fc_frame *fp);
 int fc_set_mfs(struct fc_lport *, u32 mfs);
 struct fc_lport *libfc_vport_create(struct fc_vport *, int privsize);
 struct fc_lport *fc_vport_id_lookup(struct fc_lport *, u32 port_id);
