@@ -485,37 +485,6 @@ struct libfc_function_template {
 				     void *arg, u32 timer_msec);
 
 	/*
-	 * Send the FC frame payload using a new exchange and sequence.
-	 *
-	 * The exchange response handler is set in this routine to resp()
-	 * function pointer. It can be called in two scenarios: if a timeout
-	 * occurs or if a response frame is received for the exchange. The
-	 * fc_frame pointer in response handler will also indicate timeout
-	 * as error using IS_ERR related macros.
-	 *
-	 * The exchange destructor handler is also set in this routine.
-	 * The destructor handler is invoked by EM layer when exchange
-	 * is about to free, this can be used by caller to free its
-	 * resources along with exchange free.
-	 *
-	 * The arg is passed back to resp and destructor handler.
-	 *
-	 * The timeout value (in msec) for an exchange is set if non zero
-	 * timer_msec argument is specified. The timer is canceled when
-	 * it fires or when the exchange is done. The exchange timeout handler
-	 * is registered by EM layer.
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	struct fc_seq *(*exch_seq_send)(struct fc_lport *, struct fc_frame *,
-					void (*resp)(struct fc_seq *,
-						     struct fc_frame *,
-						     void *),
-					void (*destructor)(struct fc_seq *,
-							   void *),
-					void *, unsigned int timer_msec);
-
-	/*
 	 * Sets up the DDP context for a given exchange id on the given
 	 * scatterlist if LLD supports DDP for large receive.
 	 *
@@ -1117,6 +1086,13 @@ void fc_fill_hdr(struct fc_frame *, const struct fc_frame *,
  *****************************/
 int fc_exch_init(struct fc_lport *);
 void fc_exch_update_stats(struct fc_lport *lport);
+struct fc_seq *fc_exch_seq_send(struct fc_lport *lport,
+				struct fc_frame *fp,
+				void (*resp)(struct fc_seq *,
+					     struct fc_frame *fp,
+					     void *arg),
+				void (*destructor)(struct fc_seq *, void *),
+				void *arg, u32 timer_msec);
 void fc_seq_els_rsp_send(struct fc_frame *, enum fc_els_cmd,
 			 struct fc_seq_els_data *);
 struct fc_exch_mgr_anchor *fc_exch_mgr_add(struct fc_lport *,

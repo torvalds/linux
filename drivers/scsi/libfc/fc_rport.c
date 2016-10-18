@@ -1282,8 +1282,8 @@ static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
 		       FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
 
 	kref_get(&rdata->kref);
-	if (!lport->tt.exch_seq_send(lport, fp, fc_rport_prli_resp,
-				     NULL, rdata, 2 * lport->r_a_tov)) {
+	if (!fc_exch_seq_send(lport, fp, fc_rport_prli_resp,
+			      NULL, rdata, 2 * lport->r_a_tov)) {
 		fc_rport_error_retry(rdata, -FC_EX_XMIT_ERR);
 		kref_put(&rdata->kref, lport->tt.rport_destroy);
 	}

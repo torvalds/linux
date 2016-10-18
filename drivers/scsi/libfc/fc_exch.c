@@ -2127,6 +2127,24 @@ cleanup:
  * @arg:	The argument to be passed to the response handler
  * @timer_msec: The timeout period for the exchange
  *
+ * The exchange response handler is set in this routine to resp()
+ * function pointer. It can be called in two scenarios: if a timeout
+ * occurs or if a response frame is received for the exchange. The
+ * fc_frame pointer in response handler will also indicate timeout
+ * as error using IS_ERR related macros.
+ *
+ * The exchange destructor handler is also set in this routine.
+ * The destructor handler is invoked by EM layer when exchange
+ * is about to free, this can be used by caller to free its
+ * resources along with exchange free.
+ *
+ * The arg is passed back to resp and destructor handler.
+ *
+ * The timeout value (in msec) for an exchange is set if non zero
+ * timer_msec argument is specified. The timer is canceled when
+ * it fires or when the exchange is done. The exchange timeout handler
+ * is registered by EM layer.
+ *
  * The frame pointer with some of the header's fields must be
  * filled before calling this routine, those fields are:
  *
@@ -2137,14 +2155,13 @@ cleanup:
  * - frame control
  * - parameter or relative offset
  */
-static struct fc_seq *fc_exch_seq_send(struct fc_lport *lport,
-				       struct fc_frame *fp,
-				       void (*resp)(struct fc_seq *,
-						    struct fc_frame *fp,
-						    void *arg),
-				       void (*destructor)(struct fc_seq *,
-							  void *),
-				       void *arg, u32 timer_msec)
+struct fc_seq *fc_exch_seq_send(struct fc_lport *lport,
+				struct fc_frame *fp,
+				void (*resp)(struct fc_seq *,
+					     struct fc_frame *fp,
+					     void *arg),
+				void (*destructor)(struct fc_seq *, void *),
+				void *arg, u32 timer_msec)
 {
 	struct fc_exch *ep;
 	struct fc_seq *sp = NULL;
@@ -2197,6 +2214,7 @@ err:
 		fc_exch_delete(ep);
 	return NULL;
 }
+EXPORT_SYMBOL(fc_exch_seq_send);
 
 /**
  * fc_exch_rrq() - Send an ELS RRQ (Reinstate Recovery Qualifier) command
@@ -2629,9 +2647,6 @@ int fc_exch_init(struct fc_lport *lport)
 
 	if (!lport->tt.seq_set_resp)
 		lport->tt.seq_set_resp = fc_seq_set_resp;
-
-	if (!lport->tt.exch_seq_send)
-		lport->tt.exch_seq_send = fc_exch_seq_send;
 
 	if (!lport->tt.seq_send)
 		lport->tt.seq_send = fc_seq_send;

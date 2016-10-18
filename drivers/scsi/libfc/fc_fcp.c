@@ -196,7 +196,7 @@ static void fc_fcp_pkt_hold(struct fc_fcp_pkt *fsp)
  * @seq: The sequence that the FCP packet is on (required by destructor API)
  * @fsp: The FCP packet to be released
  *
- * This routine is called by a destructor callback in the exch_seq_send()
+ * This routine is called by a destructor callback in the fc_exch_seq_send()
  * routine of the libfc Transport Template. The 'struct fc_seq' is a required
  * argument even though it is not used by this routine.
  *
@@ -1206,8 +1206,7 @@ static int fc_fcp_cmd_send(struct fc_lport *lport, struct fc_fcp_pkt *fsp,
 		       rpriv->local_port->port_id, FC_TYPE_FCP,
 		       FC_FCTL_REQ, 0);
 
-	seq = lport->tt.exch_seq_send(lport, fp, resp, fc_fcp_pkt_destroy,
-				      fsp, 0);
+	seq = fc_exch_seq_send(lport, fp, resp, fc_fcp_pkt_destroy, fsp, 0);
 	if (!seq) {
 		rc = -1;
 		goto unlock;
@@ -1757,9 +1756,9 @@ static void fc_fcp_srr(struct fc_fcp_pkt *fsp, enum fc_rctl r_ctl, u32 offset)
 		       rpriv->local_port->port_id, FC_TYPE_FCP,
 		       FC_FCTL_REQ, 0);
 
-	seq = lport->tt.exch_seq_send(lport, fp, fc_fcp_srr_resp,
-				      fc_fcp_pkt_destroy,
-				      fsp, get_fsp_rec_tov(fsp));
+	seq = fc_exch_seq_send(lport, fp, fc_fcp_srr_resp,
+			       fc_fcp_pkt_destroy,
+			       fsp, get_fsp_rec_tov(fsp));
 	if (!seq)
 		goto retry;
 

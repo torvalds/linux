@@ -2006,8 +2006,8 @@ static int fc_lport_els_request(struct fc_bsg_job *job,
 	info->nents = job->reply_payload.sg_cnt;
 	info->sg = job->reply_payload.sg_list;
 
-	if (!lport->tt.exch_seq_send(lport, fp, fc_lport_bsg_resp,
-				     NULL, info, tov)) {
+	if (!fc_exch_seq_send(lport, fp, fc_lport_bsg_resp,
+			      NULL, info, tov)) {
 		kfree(info);
 		return -ECOMM;
 	}
@@ -2067,8 +2067,8 @@ static int fc_lport_ct_request(struct fc_bsg_job *job,
 	info->nents = job->reply_payload.sg_cnt;
 	info->sg = job->reply_payload.sg_list;
 
-	if (!lport->tt.exch_seq_send(lport, fp, fc_lport_bsg_resp,
-				     NULL, info, tov)) {
+	if (!fc_exch_seq_send(lport, fp, fc_lport_bsg_resp,
+			      NULL, info, tov)) {
 		kfree(info);
 		return -ECOMM;
 	}
