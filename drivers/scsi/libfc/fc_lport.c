@@ -2125,7 +2125,7 @@ int fc_lport_bsg_request(struct fc_bsg_job *job)
 				break;
 			tov = rdata->e_d_tov;
 		} else {
-			rdata = lport->tt.rport_lookup(lport, did);
+			rdata = fc_rport_lookup(lport, did);
 			if (!rdata)
 				break;
 			tov = rdata->e_d_tov;

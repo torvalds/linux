@@ -2561,7 +2561,7 @@ static int fcoe_ctlr_vn_lookup(struct fcoe_ctlr *fip, u32 port_id, u8 *mac)
 	struct fcoe_rport *frport;
 	int ret = -1;
 
-	rdata = lport->tt.rport_lookup(lport, port_id);
+	rdata = fc_rport_lookup(lport, port_id);
 	if (rdata) {
 		frport = fcoe_ctlr_rport(rdata);
 		memcpy(mac, frport->enode_mac, ETH_ALEN);
@@ -2663,7 +2663,7 @@ static void fcoe_ctlr_vn_beacon(struct fcoe_ctlr *fip,
 		fcoe_ctlr_vn_send(fip, FIP_SC_VN_PROBE_REQ, fcoe_all_vn2vn, 0);
 		return;
 	}
-	rdata = lport->tt.rport_lookup(lport, new->ids.port_id);
+	rdata = fc_rport_lookup(lport, new->ids.port_id);
 	if (rdata) {
 		if (rdata->ids.node_name == new->ids.node_name &&
 		    rdata->ids.port_name == new->ids.port_name) {

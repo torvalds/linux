@@ -111,8 +111,8 @@ static const char *fc_rport_state_names[] = {
  * The reference count of the fc_rport_priv structure is
  * increased by one.
  */
-static struct fc_rport_priv *fc_rport_lookup(const struct fc_lport *lport,
-					     u32 port_id)
+struct fc_rport_priv *fc_rport_lookup(const struct fc_lport *lport,
+				      u32 port_id)
 {
 	struct fc_rport_priv *rdata = NULL, *tmp_rdata;
 
@@ -126,6 +126,7 @@ static struct fc_rport_priv *fc_rport_lookup(const struct fc_lport *lport,
 	rcu_read_unlock();
 	return rdata;
 }
+EXPORT_SYMBOL(fc_rport_lookup);
 
 /**
  * fc_rport_create() - Create a new remote port
@@ -141,7 +142,7 @@ static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
 {
 	struct fc_rport_priv *rdata;
 
-	rdata = lport->tt.rport_lookup(lport, port_id);
+	rdata = fc_rport_lookup(lport, port_id);
 	if (rdata)
 		return rdata;
 
@@ -875,7 +876,7 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 		goto reject;
 	}
 
-	rdata = lport->tt.rport_lookup(lport, sid);
+	rdata = fc_rport_lookup(lport, sid);
 	if (!rdata) {
 		rjt_data.reason = ELS_RJT_FIP;
 		rjt_data.explan = ELS_EXPL_NOT_NEIGHBOR;
@@ -1684,7 +1685,7 @@ static void fc_rport_recv_els_req(struct fc_lport *lport, struct fc_frame *fp)
 	struct fc_rport_priv *rdata;
 	struct fc_seq_els_data els_data;
 
-	rdata = lport->tt.rport_lookup(lport, fc_frame_sid(fp));
+	rdata = fc_rport_lookup(lport, fc_frame_sid(fp));
 	if (!rdata) {
 		FC_RPORT_ID_DBG(lport, fc_frame_sid(fp),
 				"Received ELS 0x%02x from non-logged-in port\n",
@@ -2145,7 +2146,7 @@ static void fc_rport_recv_logo_req(struct fc_lport *lport, struct fc_frame *fp)
 
 	sid = fc_frame_sid(fp);
 
-	rdata = lport->tt.rport_lookup(lport, sid);
+	rdata = fc_rport_lookup(lport, sid);
 	if (rdata) {
 		mutex_lock(&rdata->rp_mutex);
 		FC_RPORT_DBG(rdata, "Received LOGO request while in state %s\n",
@@ -2174,9 +2175,6 @@ static void fc_rport_flush_queue(void)
  */
 int fc_rport_init(struct fc_lport *lport)
 {
-	if (!lport->tt.rport_lookup)
-		lport->tt.rport_lookup = fc_rport_lookup;
-
 	if (!lport->tt.rport_create)
 		lport->tt.rport_create = fc_rport_create;
 
