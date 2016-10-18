@@ -46,6 +46,7 @@
 #define TI_SCI_MSG_VERSION	0x0002
 #define TI_SCI_MSG_WAKE_REASON	0x0003
 #define TI_SCI_MSG_GOODBYE	0x0004
+#define TI_SCI_MSG_SYS_RESET	0x0005
 
 /* Device requests */
 #define TI_SCI_MSG_SET_DEVICE_STATE	0x0200
@@ -103,6 +104,17 @@ struct ti_sci_msg_resp_version {
 	u16 firmware_revision;
 	u8 abi_major;
 	u8 abi_minor;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_reboot - Reboot the SoC
+ * @hdr:	Generic Header
+ *
+ * Request type is TI_SCI_MSG_SYS_RESET, responded with a generic
+ * ACK/NACK message.
+ */
+struct ti_sci_msg_req_reboot {
+	struct ti_sci_msg_hdr hdr;
 } __packed;
 
 /**

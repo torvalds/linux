@@ -36,6 +36,16 @@ struct ti_sci_version_info {
 struct ti_sci_handle;
 
 /**
+ * struct ti_sci_core_ops - SoC Core Operations
+ * @reboot_device: Reboot the SoC
+ *		Returns 0 for successful request(ideally should never return),
+ *		else returns corresponding error value.
+ */
+struct ti_sci_core_ops {
+	int (*reboot_device)(const struct ti_sci_handle *handle);
+};
+
+/**
  * struct ti_sci_dev_ops - Device control operations
  * @get_device: Command to request for device managed by TISCI
  *		Returns 0 for successful exclusive request, else returns
@@ -196,6 +206,7 @@ struct ti_sci_clk_ops {
  * @clk_ops:	Clock specific operations
  */
 struct ti_sci_ops {
+	struct ti_sci_core_ops core_ops;
 	struct ti_sci_dev_ops dev_ops;
 	struct ti_sci_clk_ops clk_ops;
 };
