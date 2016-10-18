@@ -412,8 +412,7 @@ static void stv06xx_pkt_scan(struct gspca_dev *gspca_dev,
 		len -= 4;
 
 		if (len < chunk_len) {
-			PERR("URB packet length is smaller"
-				" than the specified chunk length");
+			PERR("URB packet length is smaller than the specified chunk length");
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			return;
 		}
@@ -455,8 +454,7 @@ frame_data:
 				sd->to_skip = gspca_dev->pixfmt.width * 4;
 
 			if (chunk_len)
-				PERR("Chunk length is "
-					      "non-zero on a SOF");
+				PERR("Chunk length is non-zero on a SOF");
 			break;
 
 		case 0x8002:
@@ -469,8 +467,7 @@ frame_data:
 					NULL, 0);
 
 			if (chunk_len)
-				PERR("Chunk length is "
-					      "non-zero on a EOF");
+				PERR("Chunk length is non-zero on a EOF");
 			break;
 
 		case 0x0005:
