@@ -428,7 +428,7 @@ static long efi_runtime_get_nextvariablename(unsigned long arg)
 	efi_guid_t *vd = NULL;
 	efi_guid_t vendor_guid;
 	efi_char16_t *name = NULL;
-	int rv;
+	int rv = 0;
 
 	getnextvariablename_user = (struct efi_getnextvariablename __user *)arg;
 
