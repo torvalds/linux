@@ -1394,13 +1394,14 @@ void ieee80211_sta_uapsd_trigger(struct ieee80211_sta *pubsta, u8 tid)
 	u8 ac = ieee802_1d_to_ac[tid & 7];
 
 	/*
-	 * If this AC is not trigger-enabled do nothing.
+	 * If this AC is not trigger-enabled do nothing unless the
+	 * driver is calling us after it already checked.
 	 *
 	 * NB: This could/should check a separate bitmap of trigger-
 	 * enabled queues, but for now we only implement uAPSD w/o
 	 * TSPEC changes to the ACs, so they're always the same.
 	 */
-	if (!(sta->sta.uapsd_queues & BIT(ac)))
+	if (!(sta->sta.uapsd_queues & BIT(ac)) && tid != IEEE80211_NUM_TIDS)
 		return;
 
 	/* if we are in a service period, do nothing */
