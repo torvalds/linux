@@ -2701,15 +2701,7 @@ static void atl1_reset_dev_task(struct work_struct *work)
 static int atl1_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
-	int old_mtu = netdev->mtu;
 	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
-
-	if ((max_frame < ETH_ZLEN + ETH_FCS_LEN) ||
-	    (max_frame > MAX_JUMBO_FRAME_SIZE)) {
-		if (netif_msg_link(adapter))
-			dev_warn(&adapter->pdev->dev, "invalid MTU setting\n");
-		return -EINVAL;
-	}
 
 	adapter->hw.max_frame_size = max_frame;
 	adapter->hw.tx_jumbo_task_th = (max_frame + 7) >> 3;
@@ -2717,7 +2709,7 @@ static int atl1_change_mtu(struct net_device *netdev, int new_mtu)
 	adapter->hw.rx_jumbo_th = adapter->rx_buffer_len / 8;
 
 	netdev->mtu = new_mtu;
-	if ((old_mtu != new_mtu) && netif_running(netdev)) {
+	if (netif_running(netdev)) {
 		atl1_down(adapter);
 		atl1_up(adapter);
 	}
@@ -3030,6 +3022,11 @@ static int atl1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* is this valid? see atl1_setup_mac_ctrl() */
 	netdev->features |= NETIF_F_RXCSUM;
+
+	/* MTU range: 42 - 10218 */
+	netdev->min_mtu = ETH_ZLEN - (ETH_HLEN + VLAN_HLEN);
+	netdev->max_mtu = MAX_JUMBO_FRAME_SIZE -
+			  (ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
 
 	/*
 	 * patch for some L1 of old version,

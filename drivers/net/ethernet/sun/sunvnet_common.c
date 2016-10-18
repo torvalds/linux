@@ -1583,16 +1583,6 @@ void sunvnet_set_rx_mode_common(struct net_device *dev, struct vnet *vp)
 }
 EXPORT_SYMBOL_GPL(sunvnet_set_rx_mode_common);
 
-int sunvnet_change_mtu_common(struct net_device *dev, int new_mtu)
-{
-	if (new_mtu < 68 || new_mtu > 65535)
-		return -EINVAL;
-
-	dev->mtu = new_mtu;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(sunvnet_change_mtu_common);
-
 int sunvnet_set_mac_addr_common(struct net_device *dev, void *p)
 {
 	return -EINVAL;

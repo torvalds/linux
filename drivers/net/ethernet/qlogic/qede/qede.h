@@ -362,8 +362,9 @@ void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, struct qede_dev *edev,
 #define NUM_TX_BDS_MIN		128
 #define NUM_TX_BDS_DEF		NUM_TX_BDS_MAX
 
-#define QEDE_MIN_PKT_LEN	64
-#define QEDE_RX_HDR_SIZE	256
+#define QEDE_MIN_PKT_LEN		64
+#define QEDE_RX_HDR_SIZE		256
+#define QEDE_MAX_JUMBO_PACKET_SIZE	9600
 #define	for_each_queue(i) for (i = 0; i < edev->num_queues; i++)
 
 #endif /* _QEDE_H_ */

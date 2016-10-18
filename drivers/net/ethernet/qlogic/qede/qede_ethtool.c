@@ -723,18 +723,10 @@ static void qede_update_mtu(struct qede_dev *edev, union qede_reload_args *args)
 }
 
 /* Netdevice NDOs */
-#define ETH_MAX_JUMBO_PACKET_SIZE	9600
-#define ETH_MIN_PACKET_SIZE		60
 int qede_change_mtu(struct net_device *ndev, int new_mtu)
 {
 	struct qede_dev *edev = netdev_priv(ndev);
 	union qede_reload_args args;
-
-	if ((new_mtu > ETH_MAX_JUMBO_PACKET_SIZE) ||
-	    ((new_mtu + ETH_HLEN) < ETH_MIN_PACKET_SIZE)) {
-		DP_ERR(edev, "Can't support requested MTU size\n");
-		return -EINVAL;
-	}
 
 	DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
 		   "Configuring MTU size of %d\n", new_mtu);

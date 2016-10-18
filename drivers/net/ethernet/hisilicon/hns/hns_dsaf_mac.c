@@ -446,8 +446,7 @@ int hns_mac_set_mtu(struct hns_mac_cb *mac_cb, u32 new_mtu)
 	if (mac_cb->mac_type == HNAE_PORT_DEBUG)
 		max_frm = MAC_MAX_MTU_DBG;
 
-	if ((new_mtu < MAC_MIN_MTU) || (new_frm > max_frm) ||
-	    (new_frm > HNS_RCB_RING_MAX_BD_PER_PKT * buf_size))
+	if (new_frm > HNS_RCB_RING_MAX_BD_PER_PKT * buf_size)
 		return -EINVAL;
 
 	if (!drv->config_max_frame_length)

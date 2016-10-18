@@ -1820,19 +1820,6 @@ static int sxgbe_set_features(struct net_device *dev,
  */
 static int sxgbe_change_mtu(struct net_device *dev, int new_mtu)
 {
-	/* RFC 791, page 25, "Every internet module must be able to forward
-	 * a datagram of 68 octets without further fragmentation."
-	 */
-	if (new_mtu < MIN_MTU || (new_mtu > MAX_MTU)) {
-		netdev_err(dev, "invalid MTU, MTU should be in between %d and %d\n",
-			   MIN_MTU, MAX_MTU);
-		return -EINVAL;
-	}
-
-	/* Return if the buffer sizes will not change */
-	if (dev->mtu == new_mtu)
-		return 0;
-
 	dev->mtu = new_mtu;
 
 	if (!netif_running(dev))
@@ -2143,6 +2130,10 @@ struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 
 	/* assign filtering support */
 	ndev->priv_flags |= IFF_UNICAST_FLT;
+
+	/* MTU range: 68 - 9000 */
+	ndev->min_mtu = MIN_MTU;
+	ndev->max_mtu = MAX_MTU;
 
 	priv->msg_enable = netif_msg_init(debug, default_msg_level);
 

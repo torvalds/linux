@@ -159,7 +159,6 @@ static const struct net_device_ops vnet_ops = {
 	.ndo_set_mac_address	= sunvnet_set_mac_addr_common,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= sunvnet_tx_timeout_common,
-	.ndo_change_mtu		= sunvnet_change_mtu_common,
 	.ndo_start_xmit		= vnet_start_xmit,
 	.ndo_select_queue	= vnet_select_queue,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -201,6 +200,10 @@ static struct vnet *vnet_new(const u64 *local_mac,
 	dev->hw_features = NETIF_F_TSO | NETIF_F_GSO | NETIF_F_GSO_SOFTWARE |
 			   NETIF_F_HW_CSUM | NETIF_F_SG;
 	dev->features = dev->hw_features;
+
+	/* MTU range: 68 - 65535 */
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = VNET_MAX_MTU;
 
 	SET_NETDEV_DEV(dev, &vdev->dev);
 

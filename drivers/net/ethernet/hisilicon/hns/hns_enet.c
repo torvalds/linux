@@ -22,6 +22,7 @@
 
 #include "hnae.h"
 #include "hns_enet.h"
+#include "hns_dsaf_mac.h"
 
 #define NIC_MAX_Q_PER_VF 16
 #define HNS_NIC_TX_TIMEOUT (5 * HZ)
@@ -1405,10 +1406,6 @@ static int hns_nic_change_mtu(struct net_device *ndev, int new_mtu)
 	struct hnae_handle *h = priv->ae_handle;
 	int ret;
 
-	/* MTU < 68 is an error and causes problems on some kernels */
-	if (new_mtu < 68)
-		return -EINVAL;
-
 	if (!h->dev->ops->set_mtu)
 		return -ENOTSUPP;
 
@@ -1953,14 +1950,20 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM;
 	ndev->vlan_features |= NETIF_F_SG | NETIF_F_GSO | NETIF_F_GRO;
 
+	/* MTU range: 68 - 9578 (v1) or 9706 (v2) */
+	ndev->min_mtu = MAC_MIN_MTU;
 	switch (priv->enet_ver) {
 	case AE_VERSION_2:
 		ndev->features |= NETIF_F_TSO | NETIF_F_TSO6;
 		ndev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
 			NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6;
+		ndev->max_mtu = MAC_MAX_MTU_V2 -
+				(ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
 		break;
 	default:
+		ndev->max_mtu = MAC_MAX_MTU -
+				(ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
 		break;
 	}
 
