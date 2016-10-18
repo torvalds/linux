@@ -3460,9 +3460,8 @@ int ks_wlan_net_start(struct net_device *dev)
 
 	/* phy information update timer */
 	atomic_set(&update_phyinfo, 0);
-	init_timer(&update_phyinfo_timer);
-	update_phyinfo_timer.function = ks_wlan_update_phyinfo_timeout;
-	update_phyinfo_timer.data = (unsigned long)priv;
+	setup_timer(&update_phyinfo_timer, ks_wlan_update_phyinfo_timeout,
+		    (unsigned long)priv);
 
 	/* dummy address set */
 	memcpy(priv->eth_addr, dummy_addr, ETH_ALEN);
