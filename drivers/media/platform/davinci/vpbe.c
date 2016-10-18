@@ -705,15 +705,13 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 					  "v4l2 sub device %s registered\n",
 					  enc_info->module_name);
 			else {
-				v4l2_err(&vpbe_dev->v4l2_dev, "encoder %s"
-					 " failed to register",
+				v4l2_err(&vpbe_dev->v4l2_dev, "encoder %s failed to register",
 					 enc_info->module_name);
 				ret = -ENODEV;
 				goto fail_kfree_encoders;
 			}
 		} else
-			v4l2_warn(&vpbe_dev->v4l2_dev, "non-i2c encoders"
-				 " currently not supported");
+			v4l2_warn(&vpbe_dev->v4l2_dev, "non-i2c encoders currently not supported");
 	}
 	/* Add amplifier subdevice for dm365 */
 	if ((strcmp(vpbe_dev->cfg->module_name, "dm365-vpbe-display") == 0) &&
@@ -735,8 +733,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 					  amp_info->module_name);
 		} else {
 			    vpbe_dev->amp = NULL;
-			    v4l2_warn(&vpbe_dev->v4l2_dev, "non-i2c amplifiers"
-			    " currently not supported");
+			    v4l2_warn(&vpbe_dev->v4l2_dev, "non-i2c amplifiers currently not supported");
 		}
 	} else {
 	    vpbe_dev->amp = NULL;
@@ -835,15 +832,13 @@ static int vpbe_probe(struct platform_device *pdev)
 	if (!cfg->module_name[0] ||
 	    !cfg->osd.module_name[0] ||
 	    !cfg->venc.module_name[0]) {
-		v4l2_err(pdev->dev.driver, "vpbe display module names not"
-			 " defined\n");
+		v4l2_err(pdev->dev.driver, "vpbe display module names not defined\n");
 		return ret;
 	}
 
 	vpbe_dev = kzalloc(sizeof(*vpbe_dev), GFP_KERNEL);
 	if (vpbe_dev == NULL) {
-		v4l2_err(pdev->dev.driver, "Unable to allocate memory"
-			 " for vpbe_device\n");
+		v4l2_err(pdev->dev.driver, "Unable to allocate memory for vpbe_device\n");
 		return -ENOMEM;
 	}
 	vpbe_dev->cfg = cfg;
