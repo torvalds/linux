@@ -23,13 +23,13 @@ struct bpf_reg_state {
 	 * result in a bad access.
 	 */
 	u64 min_value, max_value;
+	u32 id;
 	union {
 		/* valid when type == CONST_IMM | PTR_TO_STACK | UNKNOWN_VALUE */
 		s64 imm;
 
 		/* valid when type == PTR_TO_PACKET* */
 		struct {
-			u32 id;
 			u16 off;
 			u16 range;
 		};
