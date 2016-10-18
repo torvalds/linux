@@ -827,8 +827,7 @@ nvmf_create_ctrl(struct device *dev, const char *buf, size_t count)
 out_unlock:
 	mutex_unlock(&nvmf_transports_mutex);
 out_free_opts:
-	nvmf_host_put(opts->host);
-	kfree(opts);
+	nvmf_free_options(opts);
 	return ERR_PTR(ret);
 }
 
