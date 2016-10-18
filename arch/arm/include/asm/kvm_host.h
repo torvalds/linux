@@ -57,6 +57,9 @@ struct kvm_arch {
 	/* VTTBR value associated with below pgd and vmid */
 	u64    vttbr;
 
+	/* The last vcpu id that ran on each physical CPU */
+	int __percpu *last_vcpu_ran;
+
 	/* Timer */
 	struct arch_timer_kvm	timer;
 

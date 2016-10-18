@@ -128,7 +128,7 @@ static inline unsigned long __kern_hyp_va(unsigned long v)
 	return v;
 }
 
-#define kern_hyp_va(v) 	(typeof(v))(__kern_hyp_va((unsigned long)(v)))
+#define kern_hyp_va(v) 	((typeof(v))(__kern_hyp_va((unsigned long)(v))))
 
 /*
  * We currently only support a 40bit IPA.
