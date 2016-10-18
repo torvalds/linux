@@ -50,8 +50,7 @@ int s5p_mfc_alloc_priv_buf(struct device *dev, dma_addr_t base,
 	}
 
 	if (b->dma < base) {
-		mfc_err("Invaling memory configuration!\n");
-		mfc_err("Allocated buffer (%pad) is lower than memory base address (%pad)\n",
+		mfc_err("Invalid memory configuration - buffer (%pad) is below base memory address(%pad)\n",
 			&b->dma, &base);
 		dma_free_coherent(dev, b->size, b->virt, b->dma);
 		return -ENOMEM;
