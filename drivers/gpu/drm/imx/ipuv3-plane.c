@@ -50,6 +50,12 @@ static const uint32_t ipu_plane_formats[] = {
 	DRM_FORMAT_YVYU,
 	DRM_FORMAT_YUV420,
 	DRM_FORMAT_YVU420,
+	DRM_FORMAT_YUV422,
+	DRM_FORMAT_YVU422,
+	DRM_FORMAT_YUV444,
+	DRM_FORMAT_YVU444,
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_NV16,
 	DRM_FORMAT_RGB565,
 };
 
@@ -292,6 +298,10 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_YUV420:
 	case DRM_FORMAT_YVU420:
+	case DRM_FORMAT_YUV422:
+	case DRM_FORMAT_YVU422:
+	case DRM_FORMAT_YUV444:
+	case DRM_FORMAT_YVU444:
 		/*
 		 * Multiplanar formats have to meet the following restrictions:
 		 * - The (up to) three plane addresses are EBA, EBA+UBO, EBA+VBO
@@ -300,24 +310,33 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		 * - Only EBA may be changed while scanout is active
 		 * - The strides of U and V planes must be identical.
 		 */
-		ubo = drm_plane_state_to_ubo(state);
 		vbo = drm_plane_state_to_vbo(state);
 
-		if ((ubo & 0x7) || (vbo & 0x7))
-			return -EINVAL;
-
-		if ((ubo > 0xfffff8) || (vbo > 0xfffff8))
+		if (vbo & 0x7 || vbo > 0xfffff8)
 			return -EINVAL;
 
 		if (old_fb && (fb->pixel_format == old_fb->pixel_format)) {
-			old_ubo = drm_plane_state_to_ubo(old_state);
 			old_vbo = drm_plane_state_to_vbo(old_state);
-			if (ubo != old_ubo || vbo != old_vbo)
+			if (vbo != old_vbo)
 				crtc_state->mode_changed = true;
 		}
 
 		if (fb->pitches[1] != fb->pitches[2])
 			return -EINVAL;
+
+		/* fall-through */
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV16:
+		ubo = drm_plane_state_to_ubo(state);
+
+		if (ubo & 0x7 || ubo > 0xfffff8)
+			return -EINVAL;
+
+		if (old_fb && (fb->pixel_format == old_fb->pixel_format)) {
+			old_ubo = drm_plane_state_to_ubo(old_state);
+			if (ubo != old_ubo)
+				crtc_state->mode_changed = true;
+		}
 
 		if (fb->pitches[1] < 1 || fb->pitches[1] > 16384)
 			return -EINVAL;
@@ -409,18 +428,33 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_YUV420:
 	case DRM_FORMAT_YVU420:
+	case DRM_FORMAT_YUV422:
+	case DRM_FORMAT_YVU422:
+	case DRM_FORMAT_YUV444:
+	case DRM_FORMAT_YVU444:
 		ubo = drm_plane_state_to_ubo(state);
 		vbo = drm_plane_state_to_vbo(state);
+		if (fb->pixel_format == DRM_FORMAT_YVU420 ||
+		    fb->pixel_format == DRM_FORMAT_YVU422 ||
+		    fb->pixel_format == DRM_FORMAT_YVU444)
+			swap(ubo, vbo);
 
-		if (fb->pixel_format == DRM_FORMAT_YUV420)
-			ipu_cpmem_set_yuv_planar_full(ipu_plane->ipu_ch,
-						      fb->pitches[1], ubo, vbo);
-		else
-			ipu_cpmem_set_yuv_planar_full(ipu_plane->ipu_ch,
-						      fb->pitches[1], vbo, ubo);
+		ipu_cpmem_set_yuv_planar_full(ipu_plane->ipu_ch,
+					      fb->pitches[1], ubo, vbo);
 
 		dev_dbg(ipu_plane->base.dev->dev,
 			"phy = %lu %lu %lu, x = %d, y = %d", eba, ubo, vbo,
+			state->src_x >> 16, state->src_y >> 16);
+		break;
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV16:
+		ubo = drm_plane_state_to_ubo(state);
+
+		ipu_cpmem_set_yuv_planar_full(ipu_plane->ipu_ch,
+					      fb->pitches[1], ubo, ubo);
+
+		dev_dbg(ipu_plane->base.dev->dev,
+			"phy = %lu %lu, x = %d, y = %d", eba, ubo,
 			state->src_x >> 16, state->src_y >> 16);
 		break;
 	default:
