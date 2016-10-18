@@ -3517,11 +3517,15 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 	struct dasd_device *device;
 	struct dasd_block *block;
 	int max_count, open_count, rc;
+	unsigned long flags;
 
 	rc = 0;
-	device = dasd_device_from_cdev(cdev);
-	if (IS_ERR(device))
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
+	device = dasd_device_from_cdev_locked(cdev);
+	if (IS_ERR(device)) {
+		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 		return PTR_ERR(device);
+	}
 
 	/*
 	 * We must make sure that this device is currently not in use.
@@ -3540,8 +3544,7 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 				pr_warn("%s: The DASD cannot be set offline while it is in use\n",
 					dev_name(&cdev->dev));
 			clear_bit(DASD_FLAG_OFFLINE, &device->flags);
-			dasd_put_device(device);
-			return -EBUSY;
+			goto out_busy;
 		}
 	}
 
@@ -3551,19 +3554,19 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 		 * could only be called by normal offline so safe_offline flag
 		 * needs to be removed to run normal offline and kill all I/O
 		 */
-		if (test_and_set_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+		if (test_and_set_bit(DASD_FLAG_OFFLINE, &device->flags))
 			/* Already doing normal offline processing */
-			dasd_put_device(device);
-			return -EBUSY;
-		} else
+			goto out_busy;
+		else
 			clear_bit(DASD_FLAG_SAFE_OFFLINE, &device->flags);
-
-	} else
-		if (test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+	} else {
+		if (test_bit(DASD_FLAG_OFFLINE, &device->flags))
 			/* Already doing offline processing */
-			dasd_put_device(device);
-			return -EBUSY;
-		}
+			goto out_busy;
+	}
+
+	set_bit(DASD_FLAG_OFFLINE, &device->flags);
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 
 	/*
 	 * if safe_offline called set safe_offline_running flag and
@@ -3591,7 +3594,6 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 			goto interrupted;
 	}
 
-	set_bit(DASD_FLAG_OFFLINE, &device->flags);
 	dasd_set_target_state(device, DASD_STATE_NEW);
 	/* dasd_delete_device destroys the device reference. */
 	block = device->block;
@@ -3610,7 +3612,14 @@ interrupted:
 	clear_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags);
 	clear_bit(DASD_FLAG_OFFLINE, &device->flags);
 	dasd_put_device(device);
+
 	return rc;
+
+out_busy:
+	dasd_put_device(device);
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+
+	return -EBUSY;
 }
 EXPORT_SYMBOL_GPL(dasd_generic_set_offline);
 
