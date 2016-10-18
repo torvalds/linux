@@ -628,13 +628,6 @@ struct libfc_function_template {
 	void (*lport_recv)(struct fc_lport *, struct fc_frame *);
 
 	/*
-	 * Reset the local port.
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	int (*lport_reset)(struct fc_lport *);
-
-	/*
 	 * Set the local port FC_ID.
 	 *
 	 * This may be provided by the LLD to allow it to be

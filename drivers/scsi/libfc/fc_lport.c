@@ -1868,9 +1868,6 @@ int fc_lport_init(struct fc_lport *lport)
 	if (!lport->tt.lport_recv)
 		lport->tt.lport_recv = fc_lport_recv_req;
 
-	if (!lport->tt.lport_reset)
-		lport->tt.lport_reset = fc_lport_reset;
-
 	fc_host_port_type(lport->host) = FC_PORTTYPE_NPORT;
 	fc_host_node_name(lport->host) = lport->wwnn;
 	fc_host_port_name(lport->host) = lport->wwpn;

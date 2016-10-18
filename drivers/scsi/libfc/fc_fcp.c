@@ -2224,7 +2224,7 @@ int fc_eh_host_reset(struct scsi_cmnd *sc_cmd)
 
 	fc_block_scsi_eh(sc_cmd);
 
-	lport->tt.lport_reset(lport);
+	fc_lport_reset(lport);
 	wait_tmo = jiffies + FC_HOST_RESET_TIMEOUT;
 	while (!fc_fcp_lport_queue_ready(lport) && time_before(jiffies,
 							       wait_tmo))
