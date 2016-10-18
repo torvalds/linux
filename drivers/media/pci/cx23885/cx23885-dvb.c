@@ -2482,8 +2482,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		break;
 
 	default:
-		printk(KERN_INFO "%s: The frontend of your DVB/ATSC card "
-		       " isn't supported yet\n",
+		printk(KERN_INFO "%s: The frontend of your DVB/ATSC card  isn't supported yet\n",
 		       dev->name);
 		break;
 	}

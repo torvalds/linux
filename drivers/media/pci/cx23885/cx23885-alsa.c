@@ -186,8 +186,8 @@ static int cx23885_start_audio_dma(struct cx23885_audio_dev *chip)
 	cx_write(AUD_INT_A_GPCNT_CTL, GP_COUNT_CONTROL_RESET);
 	atomic_set(&chip->count, 0);
 
-	dprintk(1, "Start audio DMA, %d B/line, %d lines/FIFO, %d periods, %d "
-		"byte buffer\n", buf->bpl, cx_read(audio_ch->cmds_start+12)>>1,
+	dprintk(1, "Start audio DMA, %d B/line, %d lines/FIFO, %d periods, %d byte buffer\n",
+		buf->bpl, cx_read(audio_ch->cmds_start+12)>>1,
 		chip->num_periods, buf->bpl * chip->num_periods);
 
 	/* Enables corresponding bits at AUD_INT_STAT */
@@ -327,8 +327,7 @@ static int snd_cx23885_pcm_open(struct snd_pcm_substream *substream)
 	int err;
 
 	if (!chip) {
-		printk(KERN_ERR "BUG: cx23885 can't find device struct."
-				" Can't proceed with open\n");
+		printk(KERN_ERR "BUG: cx23885 can't find device struct. Can't proceed with open\n");
 		return -ENODEV;
 	}
 
@@ -555,8 +554,8 @@ struct cx23885_audio_dev *cx23885_audio_register(struct cx23885_dev *dev)
 		return NULL;
 
 	if (dev->sram_channels[AUDIO_SRAM_CHANNEL].cmds_start == 0) {
-		printk(KERN_WARNING "%s(): Missing SRAM channel configuration "
-			"for analog TV Audio\n", __func__);
+		printk(KERN_WARNING "%s(): Missing SRAM channel configuration for analog TV Audio\n",
+		       __func__);
 		return NULL;
 	}
 
@@ -590,8 +589,8 @@ struct cx23885_audio_dev *cx23885_audio_register(struct cx23885_dev *dev)
 
 error:
 	snd_card_free(card);
-	printk(KERN_ERR "%s(): Failed to register analog "
-			"audio adapter\n", __func__);
+	printk(KERN_ERR "%s(): Failed to register analog audio adapter\n",
+	       __func__);
 
 	return NULL;
 }

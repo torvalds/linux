@@ -770,9 +770,8 @@ static int cx23885_mbox_func(void *priv,
 	mc417_memory_read(dev, dev->cx23417_mailbox - 4, &value);
 	if (value != 0x12345678) {
 		printk(KERN_ERR
-			"Firmware and/or mailbox pointer not initialized "
-			"or corrupted, signature = 0x%x, cmd = %s\n", value,
-			cmd_to_str(command));
+			"Firmware and/or mailbox pointer not initialized or corrupted, signature = 0x%x, cmd = %s\n",
+			value, cmd_to_str(command));
 		return -1;
 	}
 
@@ -781,8 +780,8 @@ static int cx23885_mbox_func(void *priv,
 	 */
 	mc417_memory_read(dev, dev->cx23417_mailbox, &flag);
 	if (flag) {
-		printk(KERN_ERR "ERROR: Mailbox appears to be in use "
-			"(%x), cmd = %s\n", flag, cmd_to_str(command));
+		printk(KERN_ERR "ERROR: Mailbox appears to be in use (%x), cmd = %s\n",
+		       flag, cmd_to_str(command));
 		return -1;
 	}
 
@@ -935,14 +934,12 @@ static int cx23885_load_firmware(struct cx23885_dev *dev)
 		printk(KERN_ERR
 			"ERROR: Hotplug firmware request failed (%s).\n",
 			CX23885_FIRM_IMAGE_NAME);
-		printk(KERN_ERR "Please fix your hotplug setup, the board will "
-			"not work without firmware loaded!\n");
+		printk(KERN_ERR "Please fix your hotplug setup, the board will not work without firmware loaded!\n");
 		return -1;
 	}
 
 	if (firmware->size != CX23885_FIRM_IMAGE_SIZE) {
-		printk(KERN_ERR "ERROR: Firmware size mismatch "
-			"(have %zu, expected %d)\n",
+		printk(KERN_ERR "ERROR: Firmware size mismatch (have %zu, expected %d)\n",
 			firmware->size, CX23885_FIRM_IMAGE_SIZE);
 		release_firmware(firmware);
 		return -1;
@@ -1077,8 +1074,7 @@ static int cx23885_initialize_codec(struct cx23885_dev *dev, int startencoder)
 		retval = cx23885_api_cmd(dev, CX2341X_ENC_GET_VERSION, 0, 1,
 			&version);
 		if (retval < 0) {
-			printk(KERN_ERR "ERROR: cx23417 firmware get encoder :"
-				"version failed!\n");
+			printk(KERN_ERR "ERROR: cx23417 firmware get encoder :version failed!\n");
 			return -1;
 		}
 		dprintk(1, "cx23417 firmware version is 0x%08x\n", version);

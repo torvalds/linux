@@ -915,8 +915,7 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 		cx23885_init_tsport(dev, &dev->ts2, 2);
 
 	if (get_resources(dev) < 0) {
-		printk(KERN_ERR "CORE %s No more PCIe resources for "
-		       "subsystem: %04x:%04x\n",
+		printk(KERN_ERR "CORE %s No more PCIe resources for subsystem: %04x:%04x\n",
 		       dev->name, dev->pci->subsystem_vendor,
 		       dev->pci->subsystem_device);
 
@@ -980,8 +979,8 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 
 	if (cx23885_boards[dev->board].porta == CX23885_ANALOG_VIDEO) {
 		if (cx23885_video_register(dev) < 0) {
-			printk(KERN_ERR "%s() Failed to register analog "
-				"video adapters on VID_A\n", __func__);
+			printk(KERN_ERR "%s() Failed to register analog video adapters on VID_A\n",
+			       __func__);
 		}
 	}
 
@@ -1579,8 +1578,8 @@ int cx23885_irq_417(struct cx23885_dev *dev, u32 status)
 		(status & VID_B_MSK_VBI_SYNC)    ||
 		(status & VID_B_MSK_OF)          ||
 		(status & VID_B_MSK_VBI_OF)) {
-		printk(KERN_ERR "%s: V4L mpeg risc op code error, status "
-			"= 0x%x\n", dev->name, status);
+		printk(KERN_ERR "%s: V4L mpeg risc op code error, status = 0x%x\n",
+		       dev->name, status);
 		if (status & VID_B_MSK_BAD_PKT)
 			dprintk(1, "        VID_B_MSK_BAD_PKT\n");
 		if (status & VID_B_MSK_OPC_ERR)
@@ -1995,8 +1994,8 @@ static int cx23885_initdev(struct pci_dev *pci_dev,
 	/* print pci info */
 	dev->pci_rev = pci_dev->revision;
 	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
-	printk(KERN_INFO "%s/0: found at %s, rev: %d, irq: %d, "
-	       "latency: %d, mmio: 0x%llx\n", dev->name,
+	printk(KERN_INFO "%s/0: found at %s, rev: %d, irq: %d, latency: %d, mmio: 0x%llx\n",
+	       dev->name,
 	       pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
 	       dev->pci_lat,
 		(unsigned long long)pci_resource_start(pci_dev, 0));

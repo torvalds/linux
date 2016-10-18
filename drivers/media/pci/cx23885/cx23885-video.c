@@ -1065,8 +1065,7 @@ int cx23885_video_irq(struct cx23885_dev *dev, u32 status)
 		}
 
 		if (status & VID_BC_MSK_SYNC)
-			dprintk(7, " (VID_BC_MSK_SYNC 0x%08x) "
-				"video lines miss-match\n",
+			dprintk(7, " (VID_BC_MSK_SYNC 0x%08x) video lines miss-match\n",
 				VID_BC_MSK_SYNC);
 
 		if (status & VID_BC_MSK_OF)

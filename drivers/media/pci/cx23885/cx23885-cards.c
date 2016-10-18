@@ -1304,8 +1304,7 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 		 */
 		break;
 	default:
-		printk(KERN_WARNING "%s: warning: "
-			"unknown hauppauge model #%d\n",
+		printk(KERN_WARNING "%s: warning: unknown hauppauge model #%d\n",
 			dev->name, tv.model);
 		break;
 	}
@@ -2342,9 +2341,8 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 
 		ret = request_firmware(&fw, filename, &dev->pci->dev);
 		if (ret != 0)
-			printk(KERN_ERR "did not find the firmware file. (%s) "
-			"Please see linux/Documentation/dvb/ for more details "
-			"on firmware-problems.", filename);
+			printk(KERN_ERR "did not find the firmware file. (%s) Please see linux/Documentation/dvb/ for more details on firmware-problems.",
+			       filename);
 		else
 			altera_init(&netup_config, fw);
 

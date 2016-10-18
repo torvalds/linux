@@ -365,11 +365,8 @@ static void netup_read_ci_status(struct work_struct *work)
 		if (ret != 0)
 			return;
 
-		ci_dbg_print("%s: Slot Status Addr=[0x%04x], "
-				"Reg=[0x%02x], data=%02x, "
-				"TS config = %02x\n", __func__,
-				state->ci_i2c_addr, 0, buf[0],
-				buf[0]);
+		ci_dbg_print("%s: Slot Status Addr=[0x%04x], Reg=[0x%02x], data=%02x, TS config = %02x\n",
+			     __func__,	state->ci_i2c_addr, 0, buf[0], buf[0]);
 
 
 		if (buf[0] & 1)
