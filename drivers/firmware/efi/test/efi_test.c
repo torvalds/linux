@@ -155,7 +155,7 @@ static long efi_runtime_get_variable(unsigned long arg)
 {
 	struct efi_getvariable __user *getvariable_user;
 	struct efi_getvariable getvariable;
-	unsigned long datasize, prev_datasize, *dz;
+	unsigned long datasize = 0, prev_datasize, *dz;
 	efi_guid_t vendor_guid, *vd = NULL;
 	efi_status_t status;
 	efi_char16_t *name = NULL;
