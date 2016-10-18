@@ -208,6 +208,8 @@ skl_update_plane(struct drm_plane *drm_plane,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	const int pipe = intel_plane->pipe;
 	const int plane = intel_plane->plane + 1;
+	const struct skl_plane_wm *p_wm =
+		&crtc_state->wm.skl.optimal.planes[plane];
 	u32 plane_ctl;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	u32 surf_addr = plane_state->main.offset;
@@ -232,7 +234,7 @@ skl_update_plane(struct drm_plane *drm_plane,
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
 
 	if (wm->dirty_pipes & drm_crtc_mask(crtc))
-		skl_write_plane_wm(intel_crtc, wm, plane);
+		skl_write_plane_wm(intel_crtc, p_wm, &wm->ddb, plane);
 
 	if (key->flags) {
 		I915_WRITE(PLANE_KEYVAL(pipe, plane), key->min_value);
@@ -289,6 +291,7 @@ skl_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 	struct drm_device *dev = dplane->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *intel_plane = to_intel_plane(dplane);
+	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
 	const int pipe = intel_plane->pipe;
 	const int plane = intel_plane->plane + 1;
 
@@ -298,7 +301,8 @@ skl_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 	 */
 	if (!dplane->state->visible)
 		skl_write_plane_wm(to_intel_crtc(crtc),
-				   &dev_priv->wm.skl_results, plane);
+				   &cstate->wm.skl.optimal.planes[plane],
+				   &dev_priv->wm.skl_results.ddb, plane);
 
 	I915_WRITE(PLANE_CTL(pipe, plane), 0);
 

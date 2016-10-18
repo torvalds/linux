@@ -3385,6 +3385,8 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	const struct skl_wm_values *wm = &dev_priv->wm.skl_results;
+	const struct skl_plane_wm *p_wm =
+		&crtc_state->wm.skl.optimal.planes[0];
 	int pipe = intel_crtc->pipe;
 	u32 plane_ctl;
 	unsigned int rotation = plane_state->base.rotation;
@@ -3421,7 +3423,7 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	intel_crtc->adjusted_y = src_y;
 
 	if (wm->dirty_pipes & drm_crtc_mask(&intel_crtc->base))
-		skl_write_plane_wm(intel_crtc, wm, 0);
+		skl_write_plane_wm(intel_crtc, p_wm, &wm->ddb, 0);
 
 	I915_WRITE(PLANE_CTL(pipe, 0), plane_ctl);
 	I915_WRITE(PLANE_OFFSET(pipe, 0), (src_y << 16) | src_x);
@@ -3455,6 +3457,8 @@ static void skylake_disable_primary_plane(struct drm_plane *primary,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
+	const struct skl_plane_wm *p_wm = &cstate->wm.skl.optimal.planes[0];
 	int pipe = intel_crtc->pipe;
 
 	/*
@@ -3462,7 +3466,8 @@ static void skylake_disable_primary_plane(struct drm_plane *primary,
 	 * plane's visiblity isn't actually changing neither is its watermarks.
 	 */
 	if (!crtc->primary->state->visible)
-		skl_write_plane_wm(intel_crtc, &dev_priv->wm.skl_results, 0);
+		skl_write_plane_wm(intel_crtc, p_wm,
+				   &dev_priv->wm.skl_results.ddb, 0);
 
 	I915_WRITE(PLANE_CTL(pipe, 0), 0);
 	I915_WRITE(PLANE_SURF(pipe, 0), 0);
@@ -10833,12 +10838,15 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
 	const struct skl_wm_values *wm = &dev_priv->wm.skl_results;
+	const struct skl_plane_wm *p_wm =
+		&cstate->wm.skl.optimal.planes[PLANE_CURSOR];
 	int pipe = intel_crtc->pipe;
 	uint32_t cntl = 0;
 
 	if (INTEL_GEN(dev_priv) >= 9 && wm->dirty_pipes & drm_crtc_mask(crtc))
-		skl_write_cursor_wm(intel_crtc, wm);
+		skl_write_cursor_wm(intel_crtc, p_wm, &wm->ddb);
 
 	if (plane_state && plane_state->base.visible) {
 		cntl = MCURSOR_GAMMA_ENABLE;

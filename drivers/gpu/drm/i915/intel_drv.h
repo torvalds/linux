@@ -1773,9 +1773,11 @@ bool skl_ddb_allocation_equals(const struct skl_ddb_allocation *old,
 bool skl_ddb_allocation_overlaps(struct drm_atomic_state *state,
 				 struct intel_crtc *intel_crtc);
 void skl_write_cursor_wm(struct intel_crtc *intel_crtc,
-			 const struct skl_wm_values *wm);
+			 const struct skl_plane_wm *wm,
+			 const struct skl_ddb_allocation *ddb);
 void skl_write_plane_wm(struct intel_crtc *intel_crtc,
-			const struct skl_wm_values *wm,
+			const struct skl_plane_wm *wm,
+			const struct skl_ddb_allocation *ddb,
 			int plane);
 uint32_t ilk_pipe_pixel_rate(const struct intel_crtc_state *pipe_config);
 bool ilk_disable_lp_wm(struct drm_device *dev);
