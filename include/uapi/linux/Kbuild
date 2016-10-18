@@ -70,6 +70,7 @@ header-y += bfs_fs.h
 header-y += binfmts.h
 header-y += blkpg.h
 header-y += blktrace_api.h
+header-y += blkzoned.h
 header-y += bpf_common.h
 header-y += bpf_perf_event.h
 header-y += bpf.h

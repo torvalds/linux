@@ -24,6 +24,7 @@
 #include <linux/rcupdate.h>
 #include <linux/percpu-refcount.h>
 #include <linux/scatterlist.h>
+#include <linux/blkzoned.h>
 
 struct module;
 struct scsi_ioctl_command;
@@ -301,6 +302,21 @@ struct queue_limits {
 	unsigned char		raid_partial_stripes_expensive;
 	enum blk_zoned_model	zoned;
 };
+
+#ifdef CONFIG_BLK_DEV_ZONED
+
+struct blk_zone_report_hdr {
+	unsigned int	nr_zones;
+	u8		padding[60];
+};
+
+extern int blkdev_report_zones(struct block_device *bdev,
+			       sector_t sector, struct blk_zone *zones,
+			       unsigned int *nr_zones, gfp_t gfp_mask);
+extern int blkdev_reset_zones(struct block_device *bdev, sector_t sectors,
+			      sector_t nr_sectors, gfp_t gfp_mask);
+
+#endif /* CONFIG_BLK_DEV_ZONED */
 
 struct request_queue {
 	/*
@@ -652,6 +668,11 @@ static inline bool blk_queue_is_zoned(struct request_queue *q)
 	default:
 		return false;
 	}
+}
+
+static inline unsigned int blk_queue_zone_size(struct request_queue *q)
+{
+	return blk_queue_is_zoned(q) ? q->limits.chunk_sectors : 0;
 }
 
 /*
@@ -1399,6 +1420,16 @@ static inline bool bdev_is_zoned(struct block_device *bdev)
 		return blk_queue_is_zoned(q);
 
 	return false;
+}
+
+static inline unsigned int bdev_zone_size(struct block_device *bdev)
+{
+	struct request_queue *q = bdev_get_queue(bdev);
+
+	if (q)
+		return blk_queue_zone_size(q);
+
+	return 0;
 }
 
 static inline int queue_dma_alignment(struct request_queue *q)
