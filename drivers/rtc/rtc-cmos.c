@@ -776,7 +776,7 @@ static void cmos_do_shutdown(int rtc_irq)
 	spin_unlock_irq(&rtc_lock);
 }
 
-static void __exit cmos_do_remove(struct device *dev)
+static void cmos_do_remove(struct device *dev)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 	struct resource *ports;
@@ -1129,7 +1129,7 @@ static int cmos_pnp_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 				pnp_irq(pnp, 0));
 }
 
-static void __exit cmos_pnp_remove(struct pnp_dev *pnp)
+static void cmos_pnp_remove(struct pnp_dev *pnp)
 {
 	cmos_do_remove(&pnp->dev);
 }
@@ -1161,7 +1161,7 @@ static struct pnp_driver cmos_pnp_driver = {
 	.name		= (char *) driver_name,
 	.id_table	= rtc_ids,
 	.probe		= cmos_pnp_probe,
-	.remove		= __exit_p(cmos_pnp_remove),
+	.remove		= cmos_pnp_remove,
 	.shutdown	= cmos_pnp_shutdown,
 
 	/* flag ensures resume() gets called, and stops syslog spam */
@@ -1238,7 +1238,7 @@ static int __init cmos_platform_probe(struct platform_device *pdev)
 	return cmos_do_probe(&pdev->dev, resource, irq);
 }
 
-static int __exit cmos_platform_remove(struct platform_device *pdev)
+static int cmos_platform_remove(struct platform_device *pdev)
 {
 	cmos_do_remove(&pdev->dev);
 	return 0;
@@ -1263,7 +1263,7 @@ static void cmos_platform_shutdown(struct platform_device *pdev)
 MODULE_ALIAS("platform:rtc_cmos");
 
 static struct platform_driver cmos_platform_driver = {
-	.remove		= __exit_p(cmos_platform_remove),
+	.remove		= cmos_platform_remove,
 	.shutdown	= cmos_platform_shutdown,
 	.driver = {
 		.name		= driver_name,
