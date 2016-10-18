@@ -135,6 +135,10 @@
 #define PCIE_RC_CONFIG_VENDOR		(PCIE_RC_CONFIG_BASE + 0x00)
 #define PCIE_RC_CONFIG_RID_CCR		(PCIE_RC_CONFIG_BASE + 0x08)
 #define   PCIE_RC_CONFIG_SCC_SHIFT		16
+#define PCIE_RC_CONFIG_DCR		(PCIE_RC_CONFIG_BASE + 0xc4)
+#define   PCIE_RC_CONFIG_DCR_CSPL_SHIFT		18
+#define   PCIE_RC_CONFIG_DCR_CSPL_LIMIT		0xff
+#define   PCIE_RC_CONFIG_DCR_CPLS_SHIFT		26
 #define PCIE_RC_CONFIG_LCS		(PCIE_RC_CONFIG_BASE + 0xd0)
 #define   PCIE_RC_CONFIG_LCS_RETRAIN_LINK	BIT(5)
 #define   PCIE_RC_CONFIG_LCS_LBMIE		BIT(10)
@@ -395,6 +399,40 @@ static struct pci_ops rockchip_pcie_ops = {
 	.write = rockchip_pcie_wr_conf,
 };
 
+static void rockchip_pcie_set_power_limit(struct rockchip_pcie *rockchip)
+{
+	u32 status, curr, scale, power;
+
+	if (IS_ERR(rockchip->vpcie3v3))
+		return;
+
+	/*
+	 * Set RC's captured slot power limit and scale if
+	 * vpcie3v3 available. The default values are both zero
+	 * which means the software should set these two according
+	 * to the actual power supply.
+	 */
+	curr = regulator_get_current_limit(rockchip->vpcie3v3);
+	if (curr > 0) {
+		scale = 3; /* 0.001x */
+		curr = curr / 1000; /* convert to mA */
+		power = (curr * 3300) / 1000; /* milliwatt */
+		while (power > PCIE_RC_CONFIG_DCR_CSPL_LIMIT) {
+			if (!scale) {
+				dev_warn(rockchip->dev, "invalid power supply\n");
+				return;
+			}
+			scale--;
+			power = power / 10;
+		}
+
+		status = rockchip_pcie_read(rockchip, PCIE_RC_CONFIG_DCR);
+		status |= (power << PCIE_RC_CONFIG_DCR_CSPL_SHIFT) |
+			  (scale << PCIE_RC_CONFIG_DCR_CPLS_SHIFT);
+		rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_DCR);
+	}
+}
+
 /**
  * rockchip_pcie_init_port - Initialize hardware
  * @rockchip: PCIe port information
@@ -495,6 +533,8 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 	status = (status & PCIE_CORE_CTRL_PLC1_FTS_MASK) |
 		 (PCIE_CORE_CTRL_PLC1_FTS_CNT << PCIE_CORE_CTRL_PLC1_FTS_SHIFT);
 	rockchip_pcie_write(rockchip, status, PCIE_CORE_CTRL_PLC1);
+
+	rockchip_pcie_set_power_limit(rockchip);
 
 	/* Enable Gen1 training */
 	rockchip_pcie_write(rockchip, PCIE_CLIENT_LINK_TRAIN_ENABLE,
