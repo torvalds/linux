@@ -719,7 +719,7 @@ static void fc_disc_stop(struct fc_lport *lport)
 static void fc_disc_stop_final(struct fc_lport *lport)
 {
 	fc_disc_stop(lport);
-	lport->tt.rport_flush_queue();
+	fc_rport_flush_queue();
 }
 
 /**

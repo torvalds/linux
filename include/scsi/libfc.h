@@ -583,13 +583,6 @@ struct libfc_function_template {
 	void (*exch_mgr_reset)(struct fc_lport *, u32 s_id, u32 d_id);
 
 	/*
-	 * Flush the rport work queue. Generally used before shutdown.
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	void (*rport_flush_queue)(void);
-
-	/*
 	 * Set the local port FC_ID.
 	 *
 	 * This may be provided by the LLD to allow it to be
@@ -994,6 +987,7 @@ void fc_rport_destroy(struct kref *kref);
 int fc_rport_login(struct fc_rport_priv *rdata);
 int fc_rport_logoff(struct fc_rport_priv *rdata);
 void fc_rport_recv_req(struct fc_lport *lport, struct fc_frame *fp);
+void fc_rport_flush_queue(void);
 
 /*
  * DISCOVERY LAYER

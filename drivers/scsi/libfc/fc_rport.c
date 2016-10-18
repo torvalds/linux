@@ -2175,10 +2175,11 @@ static void fc_rport_recv_logo_req(struct fc_lport *lport, struct fc_frame *fp)
 /**
  * fc_rport_flush_queue() - Flush the rport_event_queue
  */
-static void fc_rport_flush_queue(void)
+void fc_rport_flush_queue(void)
 {
 	flush_workqueue(rport_event_queue);
 }
+EXPORT_SYMBOL(fc_rport_flush_queue);
 
 /**
  * fc_rport_init() - Initialize the remote port layer for a local port
@@ -2186,9 +2187,6 @@ static void fc_rport_flush_queue(void)
  */
 int fc_rport_init(struct fc_lport *lport)
 {
-	if (!lport->tt.rport_flush_queue)
-		lport->tt.rport_flush_queue = fc_rport_flush_queue;
-
 	return 0;
 }
 EXPORT_SYMBOL(fc_rport_init);

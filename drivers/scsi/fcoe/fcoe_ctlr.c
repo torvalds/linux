@@ -2215,7 +2215,7 @@ static void fcoe_ctlr_disc_stop(struct fc_lport *lport)
 static void fcoe_ctlr_disc_stop_final(struct fc_lport *lport)
 {
 	fcoe_ctlr_disc_stop(lport);
-	lport->tt.rport_flush_queue();
+	fc_rport_flush_queue();
 	synchronize_rcu();
 }
 
