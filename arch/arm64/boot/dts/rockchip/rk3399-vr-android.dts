@@ -442,6 +442,7 @@
 	opp@200000000 {
 		opp-hz = /bits/ 64 <200000000>;
 		opp-microvolt = <825000>;
+		status = "disabled";
 	};
 	opp@300000000 {
 		opp-hz = /bits/ 64 <300000000>;
