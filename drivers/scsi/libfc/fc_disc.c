@@ -454,7 +454,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 
 		if (ids.port_id != lport->port_id &&
 		    ids.port_name != lport->wwpn) {
-			rdata = lport->tt.rport_create(lport, ids.port_id);
+			rdata = fc_rport_create(lport, ids.port_id);
 			if (rdata) {
 				rdata->ids.port_name = ids.port_name;
 				rdata->disc_id = disc->disc_id;
@@ -624,8 +624,7 @@ static void fc_disc_gpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 			mutex_unlock(&rdata->rp_mutex);
 			lport->tt.rport_logoff(rdata);
 			mutex_lock(&lport->disc.disc_mutex);
-			new_rdata = lport->tt.rport_create(lport,
-							   rdata->ids.port_id);
+			new_rdata = fc_rport_create(lport, rdata->ids.port_id);
 			mutex_unlock(&lport->disc.disc_mutex);
 			if (new_rdata) {
 				new_rdata->disc_id = disc->disc_id;
@@ -690,7 +689,7 @@ static int fc_disc_single(struct fc_lport *lport, struct fc_disc_port *dp)
 {
 	struct fc_rport_priv *rdata;
 
-	rdata = lport->tt.rport_create(lport, dp->port_id);
+	rdata = fc_rport_create(lport, dp->port_id);
 	if (!rdata)
 		return -ENOMEM;
 	rdata->disc_id = 0;

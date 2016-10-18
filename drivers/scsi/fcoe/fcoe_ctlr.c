@@ -2515,7 +2515,7 @@ static void fcoe_ctlr_vn_add(struct fcoe_ctlr *fip, struct fc_rport_priv *new)
 		return;
 
 	mutex_lock(&lport->disc.disc_mutex);
-	rdata = lport->tt.rport_create(lport, port_id);
+	rdata = fc_rport_create(lport, port_id);
 	if (!rdata) {
 		mutex_unlock(&lport->disc.disc_mutex);
 		return;

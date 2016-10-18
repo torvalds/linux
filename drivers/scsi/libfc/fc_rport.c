@@ -137,8 +137,7 @@ EXPORT_SYMBOL(fc_rport_lookup);
  *
  * Locking note:  must be called with the disc_mutex held.
  */
-static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
-					     u32 port_id)
+struct fc_rport_priv *fc_rport_create(struct fc_lport *lport, u32 port_id)
 {
 	struct fc_rport_priv *rdata;
 
@@ -172,6 +171,7 @@ static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
 	}
 	return rdata;
 }
+EXPORT_SYMBOL(fc_rport_create);
 
 /**
  * fc_rport_destroy() - Free a remote port after last reference is released
@@ -1847,7 +1847,7 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 
 	disc = &lport->disc;
 	mutex_lock(&disc->disc_mutex);
-	rdata = lport->tt.rport_create(lport, sid);
+	rdata = fc_rport_create(lport, sid);
 	if (!rdata) {
 		mutex_unlock(&disc->disc_mutex);
 		rjt_data.reason = ELS_RJT_UNAB;
@@ -2175,9 +2175,6 @@ static void fc_rport_flush_queue(void)
  */
 int fc_rport_init(struct fc_lport *lport)
 {
-	if (!lport->tt.rport_create)
-		lport->tt.rport_create = fc_rport_create;
-
 	if (!lport->tt.rport_login)
 		lport->tt.rport_login = fc_rport_login;
 

@@ -250,7 +250,7 @@ static void fc_lport_ptp_setup(struct fc_lport *lport,
 		kref_put(&lport->ptp_rdata->kref, fc_rport_destroy);
 	}
 	mutex_lock(&lport->disc.disc_mutex);
-	lport->ptp_rdata = lport->tt.rport_create(lport, remote_fid);
+	lport->ptp_rdata = fc_rport_create(lport, remote_fid);
 	kref_get(&lport->ptp_rdata->kref);
 	lport->ptp_rdata->ids.port_name = remote_wwpn;
 	lport->ptp_rdata->ids.node_name = remote_wwnn;
@@ -1431,7 +1431,7 @@ static void fc_lport_enter_dns(struct fc_lport *lport)
 	fc_lport_state_enter(lport, LPORT_ST_DNS);
 
 	mutex_lock(&lport->disc.disc_mutex);
-	rdata = lport->tt.rport_create(lport, FC_FID_DIR_SERV);
+	rdata = fc_rport_create(lport, FC_FID_DIR_SERV);
 	mutex_unlock(&lport->disc.disc_mutex);
 	if (!rdata)
 		goto err;
@@ -1548,7 +1548,7 @@ static void fc_lport_enter_fdmi(struct fc_lport *lport)
 	fc_lport_state_enter(lport, LPORT_ST_FDMI);
 
 	mutex_lock(&lport->disc.disc_mutex);
-	rdata = lport->tt.rport_create(lport, FC_FID_MGMT_SERV);
+	rdata = fc_rport_create(lport, FC_FID_MGMT_SERV);
 	mutex_unlock(&lport->disc.disc_mutex);
 	if (!rdata)
 		goto err;

@@ -610,13 +610,6 @@ struct libfc_function_template {
 				  struct fc_frame *);
 
 	/*
-	 * Create a remote port with a given port ID
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	struct fc_rport_priv *(*rport_create)(struct fc_lport *, u32);
-
-	/*
 	 * Initiates the RP state machine. It is called from the LP module.
 	 * This function will issue the following commands to the N_Port
 	 * identified by the FC ID provided.
@@ -1024,6 +1017,7 @@ int fc_rport_init(struct fc_lport *);
 void fc_rport_terminate_io(struct fc_rport *);
 struct fc_rport_priv *fc_rport_lookup(const struct fc_lport *lport,
 				      u32 port_id);
+struct fc_rport_priv *fc_rport_create(struct fc_lport *, u32);
 void fc_rport_destroy(struct kref *kref);
 
 /*
