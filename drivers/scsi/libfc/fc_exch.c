@@ -585,7 +585,7 @@ static struct fc_seq *fc_seq_start_next_locked(struct fc_seq *sp)
  *			 for a given sequence/exchange pair
  * @sp: The sequence/exchange to get a new exchange for
  */
-static struct fc_seq *fc_seq_start_next(struct fc_seq *sp)
+struct fc_seq *fc_seq_start_next(struct fc_seq *sp)
 {
 	struct fc_exch *ep = fc_seq_exch(sp);
 
@@ -595,6 +595,7 @@ static struct fc_seq *fc_seq_start_next(struct fc_seq *sp)
 
 	return sp;
 }
+EXPORT_SYMBOL(fc_seq_start_next);
 
 /*
  * Set the response handler for the exchange associated with a sequence.
@@ -2649,9 +2650,6 @@ EXPORT_SYMBOL(fc_exch_recv);
  */
 int fc_exch_init(struct fc_lport *lport)
 {
-	if (!lport->tt.seq_start_next)
-		lport->tt.seq_start_next = fc_seq_start_next;
-
 	if (!lport->tt.seq_set_resp)
 		lport->tt.seq_set_resp = fc_seq_set_resp;
 

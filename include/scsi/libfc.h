@@ -515,13 +515,6 @@ struct libfc_function_template {
 	void (*get_lesb)(struct fc_lport *, struct fc_els_lesb *lesb);
 
 	/*
-	 * Start a new sequence on the same exchange/sequence tuple.
-	 *
-	 * STATUS: OPTIONAL
-	 */
-	struct fc_seq *(*seq_start_next)(struct fc_seq *);
-
-	/*
 	 * Set a response handler for the exchange of the sequence.
 	 *
 	 * STATUS: OPTIONAL
@@ -1019,6 +1012,7 @@ struct fc_seq *fc_exch_seq_send(struct fc_lport *lport,
 				void *arg, u32 timer_msec);
 void fc_seq_els_rsp_send(struct fc_frame *, enum fc_els_cmd,
 			 struct fc_seq_els_data *);
+struct fc_seq *fc_seq_start_next(struct fc_seq *sp);
 struct fc_exch_mgr_anchor *fc_exch_mgr_add(struct fc_lport *,
 					   struct fc_exch_mgr *,
 					   bool (*match)(struct fc_frame *));

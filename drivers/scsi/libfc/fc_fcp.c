@@ -653,7 +653,7 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 	remaining = seq_blen;
 	fh_parm_offset = frame_offset = offset;
 	tlen = 0;
-	seq = lport->tt.seq_start_next(seq);
+	seq = fc_seq_start_next(seq);
 	f_ctl = FC_FC_REL_OFF;
 	WARN_ON(!seq);
 
@@ -1024,7 +1024,7 @@ static void fc_fcp_complete_locked(struct fc_fcp_pkt *fsp)
 			struct fc_frame *conf_frame;
 			struct fc_seq *csp;
 
-			csp = lport->tt.seq_start_next(seq);
+			csp = fc_seq_start_next(seq);
 			conf_frame = fc_fcp_frame_alloc(fsp->lp, 0);
 			if (conf_frame) {
 				f_ctl = FC_FC_SEQ_INIT;

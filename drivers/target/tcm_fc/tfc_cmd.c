@@ -161,7 +161,7 @@ int ft_queue_status(struct se_cmd *se_cmd)
 	/*
 	 * Send response.
 	 */
-	cmd->seq = lport->tt.seq_start_next(cmd->seq);
+	cmd->seq = fc_seq_start_next(cmd->seq);
 	fc_fill_fc_hdr(fp, FC_RCTL_DD_CMD_STATUS, ep->did, ep->sid, FC_TYPE_FCP,
 		       FC_FC_EX_CTX | FC_FC_LAST_SEQ | FC_FC_END_SEQ, 0);
 
@@ -221,7 +221,7 @@ int ft_write_pending(struct se_cmd *se_cmd)
 	memset(txrdy, 0, sizeof(*txrdy));
 	txrdy->ft_burst_len = htonl(se_cmd->data_length);
 
-	cmd->seq = lport->tt.seq_start_next(cmd->seq);
+	cmd->seq = fc_seq_start_next(cmd->seq);
 	fc_fill_fc_hdr(fp, FC_RCTL_DD_DATA_DESC, ep->did, ep->sid, FC_TYPE_FCP,
 		       FC_FC_EX_CTX | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
 
