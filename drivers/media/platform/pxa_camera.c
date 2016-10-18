@@ -2347,8 +2347,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 		 * Platform hasn't set available data widths. This is bad.
 		 * Warn and use a default.
 		 */
-		dev_warn(&pdev->dev, "WARNING! Platform hasn't set available "
-			 "data widths, using default 10 bit\n");
+		dev_warn(&pdev->dev, "WARNING! Platform hasn't set available data widths, using default 10 bit\n");
 		pcdev->platform_flags |= PXA_CAMERA_DATAWIDTH_10;
 	}
 	if (pcdev->platform_flags & PXA_CAMERA_DATAWIDTH_8)
@@ -2359,8 +2358,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 		pcdev->width_flags |= 1 << 9;
 	if (!pcdev->mclk) {
 		dev_warn(&pdev->dev,
-			 "mclk == 0! Please, fix your platform data. "
-			 "Using default 20MHz\n");
+			 "mclk == 0! Please, fix your platform data. Using default 20MHz\n");
 		pcdev->mclk = 20000000;
 	}
 
