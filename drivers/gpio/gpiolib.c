@@ -556,6 +556,10 @@ struct lineevent_state {
 	struct mutex read_lock;
 };
 
+#define GPIOEVENT_REQUEST_VALID_FLAGS \
+	(GPIOEVENT_REQUEST_RISING_EDGE | \
+	GPIOEVENT_REQUEST_FALLING_EDGE)
+
 static unsigned int lineevent_poll(struct file *filep,
 				   struct poll_table_struct *wait)
 {
@@ -749,6 +753,13 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	eflags = eventreq.eventflags;
 
 	if (offset >= gdev->ngpio) {
+		ret = -EINVAL;
+		goto out_free_label;
+	}
+
+	/* Return an error if a unknown flag is set */
+	if ((lflags & ~GPIOHANDLE_REQUEST_VALID_FLAGS) ||
+	    (eflags & ~GPIOEVENT_REQUEST_VALID_FLAGS)) {
 		ret = -EINVAL;
 		goto out_free_label;
 	}
