@@ -46,7 +46,7 @@
  * UBIFS went into mainline kernel with format version 4. The older formats
  * were development formats.
  */
-#define UBIFS_FORMAT_VERSION 4
+#define UBIFS_FORMAT_VERSION 5
 
 /*
  * Read-only compatibility version. If the UBIFS format is changed, older UBIFS
@@ -428,6 +428,8 @@ enum {
 	UBIFS_FLG_DOUBLE_HASH = 0x08,
 	UBIFS_FLG_ENCRYPTION = 0x10,
 };
+
+#define UBIFS_FLG_MASK (UBIFS_FLG_BIGLPT|UBIFS_FLG_SPACE_FIXUP|UBIFS_FLG_DOUBLE_HASH|UBIFS_FLG_ENCRYPTION)
 
 /**
  * struct ubifs_ch - common header node.
