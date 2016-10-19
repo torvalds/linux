@@ -21,14 +21,16 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 
 #include "mtu3.h"
+#include "mtu3_dr.h"
 
 /* u2-port0 should be powered on and enabled; */
-int ssusb_check_clocks(struct mtu3 *mtu, u32 ex_clks)
+int ssusb_check_clocks(struct ssusb_mtk *ssusb, u32 ex_clks)
 {
-	void __iomem *ibase = mtu->ippc_base;
+	void __iomem *ibase = ssusb->ippc_base;
 	u32 value, check_val;
 	int ret;
 
@@ -38,136 +40,209 @@ int ssusb_check_clocks(struct mtu3 *mtu, u32 ex_clks)
 	ret = readl_poll_timeout(ibase + U3D_SSUSB_IP_PW_STS1, value,
 			(check_val == (value & check_val)), 100, 20000);
 	if (ret) {
-		dev_err(mtu->dev, "clks of sts1 are not stable!\n");
+		dev_err(ssusb->dev, "clks of sts1 are not stable!\n");
 		return ret;
 	}
 
 	ret = readl_poll_timeout(ibase + U3D_SSUSB_IP_PW_STS2, value,
 			(value & SSUSB_U2_MAC_SYS_RST_B_STS), 100, 10000);
 	if (ret) {
-		dev_err(mtu->dev, "mac2 clock is not stable\n");
+		dev_err(ssusb->dev, "mac2 clock is not stable\n");
 		return ret;
 	}
 
 	return 0;
 }
 
-static int ssusb_rscs_init(struct mtu3 *mtu)
+static int ssusb_phy_init(struct ssusb_mtk *ssusb)
+{
+	int i;
+	int ret;
+
+	for (i = 0; i < ssusb->num_phys; i++) {
+		ret = phy_init(ssusb->phys[i]);
+		if (ret)
+			goto exit_phy;
+	}
+	return 0;
+
+exit_phy:
+	for (; i > 0; i--)
+		phy_exit(ssusb->phys[i - 1]);
+
+	return ret;
+}
+
+static int ssusb_phy_exit(struct ssusb_mtk *ssusb)
+{
+	int i;
+
+	for (i = 0; i < ssusb->num_phys; i++)
+		phy_exit(ssusb->phys[i]);
+
+	return 0;
+}
+
+static int ssusb_phy_power_on(struct ssusb_mtk *ssusb)
+{
+	int i;
+	int ret;
+
+	for (i = 0; i < ssusb->num_phys; i++) {
+		ret = phy_power_on(ssusb->phys[i]);
+		if (ret)
+			goto power_off_phy;
+	}
+	return 0;
+
+power_off_phy:
+	for (; i > 0; i--)
+		phy_power_off(ssusb->phys[i - 1]);
+
+	return ret;
+}
+
+static void ssusb_phy_power_off(struct ssusb_mtk *ssusb)
+{
+	unsigned int i;
+
+	for (i = 0; i < ssusb->num_phys; i++)
+		phy_power_off(ssusb->phys[i]);
+}
+
+static int ssusb_rscs_init(struct ssusb_mtk *ssusb)
 {
 	int ret = 0;
 
-	ret = regulator_enable(mtu->vusb33);
+	ret = regulator_enable(ssusb->vusb33);
 	if (ret) {
-		dev_err(mtu->dev, "failed to enable vusb33\n");
+		dev_err(ssusb->dev, "failed to enable vusb33\n");
 		goto vusb33_err;
 	}
 
-	ret = clk_prepare_enable(mtu->sys_clk);
+	ret = clk_prepare_enable(ssusb->sys_clk);
 	if (ret) {
-		dev_err(mtu->dev, "failed to enable sys_clk\n");
+		dev_err(ssusb->dev, "failed to enable sys_clk\n");
 		goto clk_err;
 	}
 
-	ret = phy_init(mtu->phy);
+	ret = ssusb_phy_init(ssusb);
 	if (ret) {
-		dev_err(mtu->dev, "failed to init phy\n");
+		dev_err(ssusb->dev, "failed to init phy\n");
 		goto phy_init_err;
 	}
 
-	ret = phy_power_on(mtu->phy);
+	ret = ssusb_phy_power_on(ssusb);
 	if (ret) {
-		dev_err(mtu->dev, "failed to power on phy\n");
+		dev_err(ssusb->dev, "failed to power on phy\n");
 		goto phy_err;
 	}
 
 	return 0;
 
 phy_err:
-	phy_exit(mtu->phy);
+	ssusb_phy_exit(ssusb);
 
 phy_init_err:
-	clk_disable_unprepare(mtu->sys_clk);
+	clk_disable_unprepare(ssusb->sys_clk);
 
 clk_err:
-	regulator_disable(mtu->vusb33);
+	regulator_disable(ssusb->vusb33);
 
 vusb33_err:
 
 	return ret;
 }
 
-static void ssusb_rscs_exit(struct mtu3 *mtu)
+static void ssusb_rscs_exit(struct ssusb_mtk *ssusb)
 {
-	clk_disable_unprepare(mtu->sys_clk);
-	regulator_disable(mtu->vusb33);
-	phy_power_off(mtu->phy);
-	phy_exit(mtu->phy);
+	clk_disable_unprepare(ssusb->sys_clk);
+	regulator_disable(ssusb->vusb33);
+	ssusb_phy_power_off(ssusb);
+	ssusb_phy_exit(ssusb);
 }
 
-static void ssusb_ip_sw_reset(struct mtu3 *mtu)
+static void ssusb_ip_sw_reset(struct ssusb_mtk *ssusb)
 {
-	mtu3_setbits(mtu->ippc_base, U3D_SSUSB_IP_PW_CTRL0, SSUSB_IP_SW_RST);
+	/* reset whole ip (xhci & u3d) */
+	mtu3_setbits(ssusb->ippc_base, U3D_SSUSB_IP_PW_CTRL0, SSUSB_IP_SW_RST);
 	udelay(1);
-	mtu3_clrbits(mtu->ippc_base, U3D_SSUSB_IP_PW_CTRL0, SSUSB_IP_SW_RST);
+	mtu3_clrbits(ssusb->ippc_base, U3D_SSUSB_IP_PW_CTRL0, SSUSB_IP_SW_RST);
 }
 
-static int get_ssusb_rscs(struct platform_device *pdev, struct mtu3 *mtu)
+static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
+	int i;
+	int ret;
 
-	mtu->phy = devm_of_phy_get_by_index(dev, node, 0);
-	if (IS_ERR(mtu->phy)) {
-		dev_err(dev, "failed to get phy\n");
-		return PTR_ERR(mtu->phy);
+	ssusb->num_phys = of_count_phandle_with_args(node,
+			"phys", "#phy-cells");
+	if (ssusb->num_phys > 0) {
+		ssusb->phys = devm_kcalloc(dev, ssusb->num_phys,
+					sizeof(*ssusb->phys), GFP_KERNEL);
+		if (!ssusb->phys)
+			return -ENOMEM;
+	} else {
+		ssusb->num_phys = 0;
 	}
 
-	mtu->irq = platform_get_irq(pdev, 0);
-	if (mtu->irq <= 0) {
-		dev_err(dev, "fail to get irq number\n");
-		return -ENODEV;
-	}
-	dev_info(dev, "irq %d\n", mtu->irq);
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mac");
-	mtu->mac_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(mtu->mac_base)) {
-		dev_err(dev, "error mapping memory for dev mac\n");
-		return PTR_ERR(mtu->mac_base);
+	for (i = 0; i < ssusb->num_phys; i++) {
+		ssusb->phys[i] = devm_of_phy_get_by_index(dev, node, i);
+		if (IS_ERR(ssusb->phys[i])) {
+			dev_err(dev, "failed to get phy-%d\n", i);
+			return PTR_ERR(ssusb->phys[i]);
+		}
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ippc");
-	mtu->ippc_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(mtu->ippc_base)) {
+	ssusb->ippc_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(ssusb->ippc_base)) {
 		dev_err(dev, "failed to map memory for ippc\n");
-		return PTR_ERR(mtu->ippc_base);
+		return PTR_ERR(ssusb->ippc_base);
 	}
 
-	mtu->vusb33 = devm_regulator_get(&pdev->dev, "vusb33");
-	if (IS_ERR(mtu->vusb33)) {
+	ssusb->vusb33 = devm_regulator_get(&pdev->dev, "vusb33");
+	if (IS_ERR(ssusb->vusb33)) {
 		dev_err(dev, "failed to get vusb33\n");
-		return PTR_ERR(mtu->vusb33);
+		return PTR_ERR(ssusb->vusb33);
 	}
 
-	mtu->sys_clk = devm_clk_get(dev, "sys_ck");
-	if (IS_ERR(mtu->sys_clk)) {
+	ssusb->sys_clk = devm_clk_get(dev, "sys_ck");
+	if (IS_ERR(ssusb->sys_clk)) {
 		dev_err(dev, "failed to get sys clock\n");
-		return PTR_ERR(mtu->sys_clk);
+		return PTR_ERR(ssusb->sys_clk);
 	}
+
+	ssusb->dr_mode = usb_get_dr_mode(dev);
+	if (ssusb->dr_mode == USB_DR_MODE_UNKNOWN) {
+		dev_err(dev, "dr_mode is error\n");
+		return -EINVAL;
+	}
+
+	if (ssusb->dr_mode == USB_DR_MODE_PERIPHERAL)
+		return 0;
+
+	/* if host role is supported */
+	ret = ssusb_wakeup_of_property_parse(ssusb, node);
+	if (ret)
+		return ret;
 
 	return 0;
 }
 
 static int mtu3_probe(struct platform_device *pdev)
 {
+	struct device_node *node = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
-	struct mtu3 *mtu;
+	struct ssusb_mtk *ssusb;
 	int ret = -ENOMEM;
 
 	/* all elements are set to ZERO as default value */
-	mtu = devm_kzalloc(dev, sizeof(struct mtu3), GFP_KERNEL);
-	if (!mtu)
+	ssusb = devm_kzalloc(dev, sizeof(*ssusb), GFP_KERNEL);
+	if (!ssusb)
 		return -ENOMEM;
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
@@ -176,11 +251,10 @@ static int mtu3_probe(struct platform_device *pdev)
 		return -ENOTSUPP;
 	}
 
-	platform_set_drvdata(pdev, mtu);
-	mtu->dev = dev;
-	spin_lock_init(&mtu->lock);
+	platform_set_drvdata(pdev, ssusb);
+	ssusb->dev = dev;
 
-	ret = get_ssusb_rscs(pdev, mtu);
+	ret = get_ssusb_rscs(pdev, ssusb);
 	if (ret)
 		return ret;
 
@@ -189,22 +263,45 @@ static int mtu3_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(dev);
 	device_enable_async_suspend(dev);
 
-	ret = ssusb_rscs_init(mtu);
+	ret = ssusb_rscs_init(ssusb);
 	if (ret)
 		goto comm_init_err;
 
-	ssusb_ip_sw_reset(mtu);
+	ssusb_ip_sw_reset(ssusb);
 
-	ret = ssusb_gadget_init(mtu);
-	if (ret) {
-		dev_err(dev, "failed to initialize gadget\n");
+	if (IS_ENABLED(CONFIG_USB_MTU3_HOST))
+		ssusb->dr_mode = USB_DR_MODE_HOST;
+	else if (IS_ENABLED(CONFIG_USB_MTU3_GADGET))
+		ssusb->dr_mode = USB_DR_MODE_PERIPHERAL;
+
+	/* default as host */
+	ssusb->is_host = !(ssusb->dr_mode == USB_DR_MODE_PERIPHERAL);
+
+	switch (ssusb->dr_mode) {
+	case USB_DR_MODE_PERIPHERAL:
+		ret = ssusb_gadget_init(ssusb);
+		if (ret) {
+			dev_err(dev, "failed to initialize gadget\n");
+			goto comm_exit;
+		}
+		break;
+	case USB_DR_MODE_HOST:
+		ret = ssusb_host_init(ssusb, node);
+		if (ret) {
+			dev_err(dev, "failed to initialize host\n");
+			goto comm_exit;
+		}
+		break;
+	default:
+		dev_err(dev, "unsupported mode: %d\n", ssusb->dr_mode);
+		ret = -EINVAL;
 		goto comm_exit;
 	}
 
 	return 0;
 
 comm_exit:
-	ssusb_rscs_exit(mtu);
+	ssusb_rscs_exit(ssusb);
 
 comm_init_err:
 	pm_runtime_put_sync(dev);
@@ -215,15 +312,72 @@ comm_init_err:
 
 static int mtu3_remove(struct platform_device *pdev)
 {
-	struct mtu3 *mtu = platform_get_drvdata(pdev);
+	struct ssusb_mtk *ssusb = platform_get_drvdata(pdev);
 
-	ssusb_gadget_exit(mtu);
-	ssusb_rscs_exit(mtu);
+	switch (ssusb->dr_mode) {
+	case USB_DR_MODE_PERIPHERAL:
+		ssusb_gadget_exit(ssusb);
+		break;
+	case USB_DR_MODE_HOST:
+		ssusb_host_exit(ssusb);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ssusb_rscs_exit(ssusb);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
+
+/*
+ * when support dual-role mode, we reject suspend when
+ * it works as device mode;
+ */
+static int __maybe_unused mtu3_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ssusb_mtk *ssusb = platform_get_drvdata(pdev);
+
+	dev_dbg(dev, "%s\n", __func__);
+
+	/* REVISIT: disconnect it for only device mode? */
+	if (!ssusb->is_host)
+		return 0;
+
+	ssusb_host_disable(ssusb, true);
+	ssusb_phy_power_off(ssusb);
+	clk_disable_unprepare(ssusb->sys_clk);
+	ssusb_wakeup_enable(ssusb);
+
+	return 0;
+}
+
+static int __maybe_unused mtu3_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct ssusb_mtk *ssusb = platform_get_drvdata(pdev);
+
+	dev_dbg(dev, "%s\n", __func__);
+
+	if (!ssusb->is_host)
+		return 0;
+
+	ssusb_wakeup_disable(ssusb);
+	clk_prepare_enable(ssusb->sys_clk);
+	ssusb_phy_power_on(ssusb);
+	ssusb_host_enable(ssusb);
+
+	return 0;
+}
+
+static const struct dev_pm_ops mtu3_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(mtu3_suspend, mtu3_resume)
+};
+
+#define DEV_PM_OPS (IS_ENABLED(CONFIG_PM) ? &mtu3_pm_ops : NULL)
 
 #ifdef CONFIG_OF
 
@@ -241,6 +395,7 @@ static struct platform_driver mtu3_driver = {
 	.remove = mtu3_remove,
 	.driver = {
 		.name = MTU3_DRIVER_NAME,
+		.pm = DEV_PM_OPS,
 		.of_match_table = of_match_ptr(mtu3_of_match),
 	},
 };

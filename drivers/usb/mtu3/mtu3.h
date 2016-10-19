@@ -172,6 +172,40 @@ struct mtu3_gpd_ring {
 	struct qmu_gpd *enqueue;
 	struct qmu_gpd *dequeue;
 };
+/**
+ * @mac_base: register base address of device MAC, exclude xHCI's
+ * @ippc_base: register base address of ip port controller interface (IPPC)
+ * @vusb33: usb3.3V shared by device/host IP
+ * @sys_clk: system clock of mtu3, shared by device/host IP
+ * @dr_mode: works in which mode:
+ *		host only, device only or dual-role mode
+ * @u2_ports: number of usb2.0 host ports
+ * @u3_ports: number of usb3.0 host ports
+ * @wakeup_en: it's true when supports remote wakeup in host mode
+ * @wk_deb_p0: port0's wakeup debounce clock
+ * @wk_deb_p1: it's optional, and depends on port1 is supported or not
+ */
+struct ssusb_mtk {
+	struct device *dev;
+	struct mtu3 *u3d;
+	void __iomem *mac_base;
+	void __iomem *ippc_base;
+	struct phy **phys;
+	int num_phys;
+	/* common power & clock */
+	struct regulator *vusb33;
+	struct clk *sys_clk;
+	/* otg */
+	enum usb_dr_mode dr_mode;
+	bool is_host;
+	int u2_ports;
+	int u3_ports;
+	/* usb wakeup for host mode */
+	bool wakeup_en;
+	struct clk *wk_deb_p0;
+	struct clk *wk_deb_p1;
+	struct regmap *pericfg;
+};
 
 /**
  * @fifo_size: it is (@slot + 1) * @fifo_seg_size
@@ -210,6 +244,11 @@ struct mtu3_request {
 	int epnum;
 };
 
+static inline struct ssusb_mtk *dev_to_ssusb(struct device *dev)
+{
+	return dev_get_drvdata(dev);
+}
+
 /**
  * struct mtu3 - device driver instance data.
  * @slot: MTU3_U2_IP_SLOT_DEFAULT for U2 IP only,
@@ -222,12 +261,10 @@ struct mtu3_request {
  */
 struct mtu3 {
 	spinlock_t lock;
+	struct ssusb_mtk *ssusb;
 	struct device *dev;
 	void __iomem *mac_base;
 	void __iomem *ippc_base;
-	struct phy *phy;
-	struct regulator *vusb33;
-	struct clk *sys_clk;
 	int irq;
 
 	struct mtu3_fifo_info tx_fifo;
@@ -320,7 +357,7 @@ static inline void mtu3_clrbits(void __iomem *base, u32 offset, u32 bits)
 	writel((tmp & ~(bits)), addr);
 }
 
-int ssusb_check_clocks(struct mtu3 *mtu, u32 ex_clks);
+int ssusb_check_clocks(struct ssusb_mtk *ssusb, u32 ex_clks);
 struct usb_request *mtu3_alloc_request(struct usb_ep *ep, gfp_t gfp_flags);
 void mtu3_free_request(struct usb_ep *ep, struct usb_request *req);
 void mtu3_req_complete(struct mtu3_ep *mep,
@@ -341,8 +378,6 @@ void mtu3_gadget_reset(struct mtu3 *mtu);
 void mtu3_gadget_suspend(struct mtu3 *mtu);
 void mtu3_gadget_resume(struct mtu3 *mtu);
 void mtu3_gadget_disconnect(struct mtu3 *mtu);
-int ssusb_gadget_init(struct mtu3 *mtu);
-void ssusb_gadget_exit(struct mtu3 *mtu);
 
 irqreturn_t mtu3_ep0_isr(struct mtu3 *mtu);
 extern const struct usb_ep_ops mtu3_ep0_ops;

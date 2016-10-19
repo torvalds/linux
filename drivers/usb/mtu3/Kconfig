@@ -4,6 +4,7 @@ config USB_MTU3
 	tristate "MediaTek USB3 Dual Role controller"
 	depends on (USB || USB_GADGET) && HAS_DMA
 	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select USB_XHCI_MTK if USB_SUPPORT && USB_XHCI_HCD
 	help
 	  Say Y or M here if your system runs on MediaTek SoCs with
 	  Dual Role SuperSpeed USB controller. You can select usb
@@ -18,7 +19,15 @@ config USB_MTU3
 if USB_MTU3
 choice
 	bool "MTU3 Mode Selection"
+	default USB_MTU3_HOST if (USB && !USB_GADGET)
 	default USB_MTU3_GADGET if (!USB && USB_GADGET)
+
+config USB_MTU3_HOST
+	bool "Host only mode"
+	depends on USB=y || USB=USB_MTU3
+	help
+	  Select this when you want to use MTU3 in host mode only,
+	  thereby the gadget feature will be regressed.
 
 config USB_MTU3_GADGET
 	bool "Gadget only mode"

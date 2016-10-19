@@ -116,7 +116,7 @@ static int mtu3_device_enable(struct mtu3 *mtu)
 		SSUSB_U2_PORT_HOST_SEL));
 	mtu3_setbits(ibase, SSUSB_U2_CTRL(0), SSUSB_U2_PORT_OTG_SEL);
 
-	return ssusb_check_clocks(mtu, check_clk);
+	return ssusb_check_clocks(mtu->ssusb, check_clk);
 }
 
 static void mtu3_device_disable(struct mtu3 *mtu)
@@ -765,11 +765,38 @@ static void mtu3_hw_exit(struct mtu3 *mtu)
 
 /*-------------------------------------------------------------------------*/
 
-int ssusb_gadget_init(struct mtu3 *mtu)
+int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 {
-	struct device *dev = mtu->dev;
-	int ret;
+	struct device *dev = ssusb->dev;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct mtu3 *mtu = NULL;
+	struct resource *res;
+	int ret = -ENOMEM;
 
+	mtu = devm_kzalloc(dev, sizeof(struct mtu3), GFP_KERNEL);
+	if (mtu == NULL)
+		return -ENOMEM;
+
+	mtu->irq = platform_get_irq(pdev, 0);
+	if (mtu->irq <= 0) {
+		dev_err(dev, "fail to get irq number\n");
+		return -ENODEV;
+	}
+	dev_info(dev, "irq %d\n", mtu->irq);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mac");
+	mtu->mac_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(mtu->mac_base)) {
+		dev_err(dev, "error mapping memory for dev mac\n");
+		return PTR_ERR(mtu->mac_base);
+	}
+
+	spin_lock_init(&mtu->lock);
+	mtu->dev = dev;
+	mtu->ippc_base = ssusb->ippc_base;
+	ssusb->mac_base	= mtu->mac_base;
+	ssusb->u3d = mtu;
+	mtu->ssusb = ssusb;
 	mtu->max_speed = usb_get_maximum_speed(dev);
 
 	/* check the max_speed parameter */
@@ -820,14 +847,17 @@ gadget_err:
 
 irq_err:
 	mtu3_hw_exit(mtu);
+	ssusb->u3d = NULL;
 	dev_err(dev, " %s() fail...\n", __func__);
 
 	return ret;
 }
 
-void ssusb_gadget_exit(struct mtu3 *mtu)
+void ssusb_gadget_exit(struct ssusb_mtk *ssusb)
 {
+	struct mtu3 *mtu = ssusb->u3d;
+
 	mtu3_gadget_cleanup(mtu);
-	device_init_wakeup(mtu->dev, false);
+	device_init_wakeup(ssusb->dev, false);
 	mtu3_hw_exit(mtu);
 }
