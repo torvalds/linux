@@ -4041,6 +4041,11 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 	if (!to_intel_crtc(intel_encoder->base.crtc)->active)
 		return;
 
+	/* FIXME: we need to synchronize this sort of stuff with hardware
+	 * readout */
+	if (WARN_ON_ONCE(!intel_dp->lane_count))
+		return;
+
 	/* if link training is requested we should perform it always */
 	if ((intel_dp->compliance_test_type == DP_TEST_LINK_TRAINING) ||
 	    (!drm_dp_channel_eq_ok(link_status, intel_dp->lane_count))) {
