@@ -54,4 +54,7 @@ int test_fence_merge_same_fence(void);
 /* Fence wait tests */
 int test_fence_multi_timeline_wait(void);
 
+/* Stress test - parallelism */
+int test_stress_two_threads_shared_timeline(void);
+
 #endif
