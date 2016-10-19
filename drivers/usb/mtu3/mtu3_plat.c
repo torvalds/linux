@@ -142,13 +142,10 @@ static int ssusb_rscs_init(struct ssusb_mtk *ssusb)
 
 phy_err:
 	ssusb_phy_exit(ssusb);
-
 phy_init_err:
 	clk_disable_unprepare(ssusb->sys_clk);
-
 clk_err:
 	regulator_disable(ssusb->vusb33);
-
 vusb33_err:
 
 	return ret;
@@ -170,10 +167,39 @@ static void ssusb_ip_sw_reset(struct ssusb_mtk *ssusb)
 	mtu3_clrbits(ssusb->ippc_base, U3D_SSUSB_IP_PW_CTRL0, SSUSB_IP_SW_RST);
 }
 
+static int get_iddig_pinctrl(struct ssusb_mtk *ssusb)
+{
+	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
+
+	otg_sx->id_pinctrl = devm_pinctrl_get(ssusb->dev);
+	if (IS_ERR(otg_sx->id_pinctrl)) {
+		dev_err(ssusb->dev, "Cannot find id pinctrl!\n");
+		return PTR_ERR(otg_sx->id_pinctrl);
+	}
+
+	otg_sx->id_float =
+		pinctrl_lookup_state(otg_sx->id_pinctrl, "id_float");
+	if (IS_ERR(otg_sx->id_float)) {
+		dev_err(ssusb->dev, "Cannot find pinctrl id_float!\n");
+		return PTR_ERR(otg_sx->id_float);
+	}
+
+	otg_sx->id_ground =
+		pinctrl_lookup_state(otg_sx->id_pinctrl, "id_ground");
+	if (IS_ERR(otg_sx->id_ground)) {
+		dev_err(ssusb->dev, "Cannot find pinctrl id_ground!\n");
+		return PTR_ERR(otg_sx->id_ground);
+	}
+
+	return 0;
+}
+
 static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 {
 	struct device_node *node = pdev->dev.of_node;
+	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 	struct device *dev = &pdev->dev;
+	struct regulator *vbus;
 	struct resource *res;
 	int i;
 	int ret;
@@ -229,6 +255,37 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 	ret = ssusb_wakeup_of_property_parse(ssusb, node);
 	if (ret)
 		return ret;
+
+	if (ssusb->dr_mode != USB_DR_MODE_OTG)
+		return 0;
+
+	/* if dual-role mode is supported */
+	vbus = devm_regulator_get(&pdev->dev, "vbus");
+	if (IS_ERR(vbus)) {
+		dev_err(dev, "failed to get vbus\n");
+		return PTR_ERR(vbus);
+	}
+	otg_sx->vbus = vbus;
+
+	otg_sx->is_u3_drd = of_property_read_bool(node, "mediatek,usb3-drd");
+	otg_sx->manual_drd_enabled =
+		of_property_read_bool(node, "enable-manual-drd");
+
+	if (of_property_read_bool(node, "extcon")) {
+		otg_sx->edev = extcon_get_edev_by_phandle(ssusb->dev, 0);
+		if (IS_ERR(otg_sx->edev)) {
+			dev_err(ssusb->dev, "couldn't get extcon device\n");
+			return -EPROBE_DEFER;
+		}
+		if (otg_sx->manual_drd_enabled) {
+			ret = get_iddig_pinctrl(ssusb);
+			if (ret)
+				return ret;
+		}
+	}
+
+	dev_info(dev, "dr_mode: %d, is_u3_dr: %d\n",
+		ssusb->dr_mode, otg_sx->is_u3_drd);
 
 	return 0;
 }
@@ -292,6 +349,21 @@ static int mtu3_probe(struct platform_device *pdev)
 			goto comm_exit;
 		}
 		break;
+	case USB_DR_MODE_OTG:
+		ret = ssusb_gadget_init(ssusb);
+		if (ret) {
+			dev_err(dev, "failed to initialize gadget\n");
+			goto comm_exit;
+		}
+
+		ret = ssusb_host_init(ssusb, node);
+		if (ret) {
+			dev_err(dev, "failed to initialize host\n");
+			goto gadget_exit;
+		}
+
+		ssusb_otg_switch_init(ssusb);
+		break;
 	default:
 		dev_err(dev, "unsupported mode: %d\n", ssusb->dr_mode);
 		ret = -EINVAL;
@@ -300,9 +372,10 @@ static int mtu3_probe(struct platform_device *pdev)
 
 	return 0;
 
+gadget_exit:
+	ssusb_gadget_exit(ssusb);
 comm_exit:
 	ssusb_rscs_exit(ssusb);
-
 comm_init_err:
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
@@ -319,6 +392,11 @@ static int mtu3_remove(struct platform_device *pdev)
 		ssusb_gadget_exit(ssusb);
 		break;
 	case USB_DR_MODE_HOST:
+		ssusb_host_exit(ssusb);
+		break;
+	case USB_DR_MODE_OTG:
+		ssusb_otg_switch_exit(ssusb);
+		ssusb_gadget_exit(ssusb);
 		ssusb_host_exit(ssusb);
 		break;
 	default:

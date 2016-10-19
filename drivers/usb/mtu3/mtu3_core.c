@@ -150,7 +150,6 @@ static void mtu3_intr_disable(struct mtu3 *mtu)
 
 	/* Disable level 1 interrupts */
 	mtu3_writel(mbase, U3D_LV1IECR, ~0x0);
-
 	/* Disable endpoint interrupts */
 	mtu3_writel(mbase, U3D_EPIECR, ~0x0);
 }
@@ -161,13 +160,10 @@ static void mtu3_intr_status_clear(struct mtu3 *mtu)
 
 	/* Clear EP0 and Tx/Rx EPn interrupts status */
 	mtu3_writel(mbase, U3D_EPISR, ~0x0);
-
 	/* Clear U2 USB common interrupts status */
 	mtu3_writel(mbase, U3D_COMMON_USB_INTR, ~0x0);
-
 	/* Clear U3 LTSSM interrupts status */
 	mtu3_writel(mbase, U3D_LTSSM_INTR, ~0x0);
-
 	/* Clear speed change interrupt status */
 	mtu3_writel(mbase, U3D_DEV_LINK_INTR, ~0x0);
 }
@@ -268,7 +264,6 @@ void mtu3_start(struct mtu3 *mtu)
 
 	/* Initialize the default interrupts */
 	mtu3_intr_enable(mtu);
-
 	mtu->is_active = 1;
 
 	if (mtu->softconnect)
@@ -516,7 +511,6 @@ static int mtu3_mem_alloc(struct mtu3 *mtu)
 	mtu->out_eps = &ep_array[mtu->num_eps];
 	/* ep0 uses in_eps[0], out_eps[0] is reserved */
 	mtu->ep0 = mtu->in_eps;
-
 	mtu->ep0->mtu = mtu;
 	mtu->ep0->epnum = 0;
 
@@ -560,6 +554,7 @@ static void mtu3_set_speed(struct mtu3 *mtu)
 		/* HS/FS detected by HW */
 		mtu3_setbits(mbase, U3D_POWER_MANAGEMENT, HS_ENABLE);
 	}
+
 	dev_info(mtu->dev, "max_speed: %s\n",
 		usb_speed_string(mtu->max_speed));
 }
@@ -586,13 +581,10 @@ static void mtu3_regs_init(struct mtu3 *mtu)
 
 	/* delay about 0.1us from detecting reset to send chirp-K */
 	mtu3_clrbits(mbase, U3D_LINK_RESET_INFO, WTCHRP_MSK);
-
 	/* U2/U3 detected by HW */
 	mtu3_writel(mbase, U3D_DEVICE_CONF, 0);
-
 	/* enable QMU 16B checksum */
 	mtu3_setbits(mbase, U3D_QCR0, QMU_CS16B_EN);
-
 	/* vbus detected by HW */
 	mtu3_clrbits(mbase, U3D_MISC_CTRL, VBUS_FRC_EN | VBUS_ON);
 }
@@ -837,6 +829,10 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 		dev_err(dev, "mtu3 gadget init failed:%d\n", ret);
 		goto gadget_err;
 	}
+
+	/* init as host mode, power down device IP for power saving */
+	if (mtu->ssusb->dr_mode == USB_DR_MODE_OTG)
+		mtu3_stop(mtu);
 
 	dev_dbg(dev, " %s() done...\n", __func__);
 

@@ -522,7 +522,8 @@ static int mtu3_gadget_start(struct usb_gadget *gadget,
 	mtu->softconnect = 0;
 	mtu->gadget_driver = driver;
 
-	mtu3_start(mtu);
+	if (mtu->ssusb->dr_mode == USB_DR_MODE_PERIPHERAL)
+		mtu3_start(mtu);
 
 	spin_unlock_irqrestore(&mtu->lock, flags);
 
@@ -575,7 +576,8 @@ static int mtu3_gadget_stop(struct usb_gadget *g)
 	stop_activity(mtu);
 	mtu->gadget_driver = NULL;
 
-	mtu3_stop(mtu);
+	if (mtu->ssusb->dr_mode == USB_DR_MODE_PERIPHERAL)
+		mtu3_stop(mtu);
 
 	spin_unlock_irqrestore(&mtu->lock, flags);
 

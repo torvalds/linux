@@ -19,7 +19,7 @@
 #ifndef _MTU3_DR_H_
 #define _MTU3_DR_H_
 
-#if IS_ENABLED(CONFIG_USB_MTU3_HOST)
+#if IS_ENABLED(CONFIG_USB_MTU3_HOST) || IS_ENABLED(CONFIG_USB_MTU3_DUAL_ROLE)
 
 int ssusb_host_init(struct ssusb_mtk *ssusb, struct device_node *parent_dn);
 void ssusb_host_exit(struct ssusb_mtk *ssusb);
@@ -69,7 +69,7 @@ static inline void ssusb_wakeup_disable(struct ssusb_mtk *ssusb)
 #endif
 
 
-#if IS_ENABLED(CONFIG_USB_MTU3_GADGET)
+#if IS_ENABLED(CONFIG_USB_MTU3_GADGET) || IS_ENABLED(CONFIG_USB_MTU3_DUAL_ROLE)
 int ssusb_gadget_init(struct ssusb_mtk *ssusb);
 void ssusb_gadget_exit(struct ssusb_mtk *ssusb);
 #else
@@ -80,6 +80,29 @@ static inline int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 
 static inline void ssusb_gadget_exit(struct ssusb_mtk *ssusb)
 {}
+#endif
+
+
+#if IS_ENABLED(CONFIG_USB_MTU3_DUAL_ROLE)
+int ssusb_otg_switch_init(struct ssusb_mtk *ssusb);
+void ssusb_otg_switch_exit(struct ssusb_mtk *ssusb);
+int ssusb_set_vbus(struct otg_switch_mtk *otg_sx, int is_on);
+
+#else
+
+static inline int ssusb_otg_switch_init(struct ssusb_mtk *ssusb)
+{
+	return 0;
+}
+
+static inline void ssusb_otg_switch_exit(struct ssusb_mtk *ssusb)
+{}
+
+static inline int ssusb_set_vbus(struct otg_switch_mtk *otg_sx, int is_on)
+{
+	return 0;
+}
+
 #endif
 
 #endif		/* _MTU3_DR_H_ */

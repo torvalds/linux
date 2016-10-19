@@ -2,7 +2,7 @@
 
 config USB_MTU3
 	tristate "MediaTek USB3 Dual Role controller"
-	depends on (USB || USB_GADGET) && HAS_DMA
+	depends on EXTCON && (USB || USB_GADGET) && HAS_DMA
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select USB_XHCI_MTK if USB_SUPPORT && USB_XHCI_HCD
 	help
@@ -19,6 +19,7 @@ config USB_MTU3
 if USB_MTU3
 choice
 	bool "MTU3 Mode Selection"
+	default USB_MTU3_DUAL_ROLE if (USB && USB_GADGET)
 	default USB_MTU3_HOST if (USB && !USB_GADGET)
 	default USB_MTU3_GADGET if (!USB && USB_GADGET)
 
@@ -36,6 +37,18 @@ config USB_MTU3_GADGET
 	  Select this when you want to use MTU3 in gadget mode only,
 	  thereby the host feature will be regressed.
 
+config USB_MTU3_DUAL_ROLE
+	bool "Dual Role mode"
+	depends on ((USB=y || USB=USB_MTU3) && (USB_GADGET=y || USB_GADGET=USB_MTU3))
+	help
+	  This is the default mode of working of MTU3 controller where
+	  both host and gadget features are enabled.
+
 endchoice
+
+config USB_MTU3_DEBUG
+	bool "Enable Debugging Messages"
+	help
+	  Say Y here to enable debugging messages in the MTU3 Driver.
 
 endif

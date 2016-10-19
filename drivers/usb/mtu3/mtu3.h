@@ -21,6 +21,7 @@
 
 #include <linux/device.h>
 #include <linux/dmapool.h>
+#include <linux/extcon.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/phy/phy.h>
@@ -172,15 +173,44 @@ struct mtu3_gpd_ring {
 	struct qmu_gpd *enqueue;
 	struct qmu_gpd *dequeue;
 };
+
+/**
+* @vbus: vbus 5V used by host mode
+* @edev: external connector used to detect vbus and iddig changes
+* @vbus_nb: notifier for vbus detection
+* @vbus_nb: notifier for iddig(idpin) detection
+* @extcon_reg_dwork: delay work for extcon notifier register, waiting for
+*		xHCI driver initialization, it's necessary for system bootup
+*		as device.
+* @is_u3_drd: whether port0 supports usb3.0 dual-role device or not
+* @id_*: used to maually switch between host and device modes by idpin
+* @manual_drd_enabled: it's true when supports dual-role device by debugfs
+*		to switch host/device modes depending on user input.
+*/
+struct otg_switch_mtk {
+	struct regulator *vbus;
+	struct extcon_dev *edev;
+	struct notifier_block vbus_nb;
+	struct notifier_block id_nb;
+	struct delayed_work extcon_reg_dwork;
+	bool is_u3_drd;
+	/* dual-role switch by debugfs */
+	struct pinctrl *id_pinctrl;
+	struct pinctrl_state *id_float;
+	struct pinctrl_state *id_ground;
+	bool manual_drd_enabled;
+};
+
 /**
  * @mac_base: register base address of device MAC, exclude xHCI's
- * @ippc_base: register base address of ip port controller interface (IPPC)
+ * @ippc_base: register base address of IP Power and Clock interface (IPPC)
  * @vusb33: usb3.3V shared by device/host IP
  * @sys_clk: system clock of mtu3, shared by device/host IP
  * @dr_mode: works in which mode:
  *		host only, device only or dual-role mode
  * @u2_ports: number of usb2.0 host ports
  * @u3_ports: number of usb3.0 host ports
+ * @dbgfs_root: only used when supports manual dual-role switch via debugfs
  * @wakeup_en: it's true when supports remote wakeup in host mode
  * @wk_deb_p0: port0's wakeup debounce clock
  * @wk_deb_p1: it's optional, and depends on port1 is supported or not
@@ -196,10 +226,12 @@ struct ssusb_mtk {
 	struct regulator *vusb33;
 	struct clk *sys_clk;
 	/* otg */
+	struct otg_switch_mtk otg_switch;
 	enum usb_dr_mode dr_mode;
 	bool is_host;
 	int u2_ports;
 	int u3_ports;
+	struct dentry *dbgfs_root;
 	/* usb wakeup for host mode */
 	bool wakeup_en;
 	struct clk *wk_deb_p0;
