@@ -1142,10 +1142,8 @@ static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
 	*min = clamp_t(int, min_perf, cpu->pstate.min_pstate, max_perf);
 }
 
-static void intel_pstate_set_min_pstate(struct cpudata *cpu)
+static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
 {
-	int pstate = cpu->pstate.min_pstate;
-
 	trace_cpu_frequency(pstate * cpu->pstate.scaling, cpu->cpu);
 	cpu->pstate.current_pstate = pstate;
 	/*
@@ -1155,6 +1153,20 @@ static void intel_pstate_set_min_pstate(struct cpudata *cpu)
 	 */
 	wrmsrl_on_cpu(cpu->cpu, MSR_IA32_PERF_CTL,
 		      pstate_funcs.get_val(cpu, pstate));
+}
+
+static void intel_pstate_set_min_pstate(struct cpudata *cpu)
+{
+	intel_pstate_set_pstate(cpu, cpu->pstate.min_pstate);
+}
+
+static void intel_pstate_max_within_limits(struct cpudata *cpu)
+{
+	int min_pstate, max_pstate;
+
+	update_turbo_state();
+	intel_pstate_get_min_max(cpu, &min_pstate, &max_pstate);
+	intel_pstate_set_pstate(cpu, max_pstate);
 }
 
 static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
@@ -1491,7 +1503,7 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	pr_debug("set_policy cpuinfo.max %u policy->max %u\n",
 		 policy->cpuinfo.max_freq, policy->max);
 
-	cpu = all_cpu_data[0];
+	cpu = all_cpu_data[policy->cpu];
 	if (cpu->pstate.max_pstate_physical > cpu->pstate.max_pstate &&
 	    policy->max < policy->cpuinfo.max_freq &&
 	    policy->max > cpu->pstate.max_pstate * cpu->pstate.scaling) {
@@ -1535,6 +1547,15 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	limits->max_perf = round_up(limits->max_perf, FRAC_BITS);
 
  out:
+	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE) {
+		/*
+		 * NOHZ_FULL CPUs need this as the governor callback may not
+		 * be invoked on them.
+		 */
+		intel_pstate_clear_update_util_hook(policy->cpu);
+		intel_pstate_max_within_limits(cpu);
+	}
+
 	intel_pstate_set_update_util_hook(policy->cpu);
 
 	intel_pstate_hwp_set_policy(policy);
