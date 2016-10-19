@@ -199,11 +199,14 @@ static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 	if (err)
 		return err;
 
-	if (p->psi->erase)
+	if (p->psi->erase) {
+		mutex_lock(&p->psi->read_mutex);
 		p->psi->erase(p->type, p->id, p->count,
 			      d_inode(dentry)->i_ctime, p->psi);
-	else
+		mutex_unlock(&p->psi->read_mutex);
+	} else {
 		return -EPERM;
+	}
 
 	return simple_unlink(dir, dentry);
 }
