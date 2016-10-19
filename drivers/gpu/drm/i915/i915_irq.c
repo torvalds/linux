@@ -2578,90 +2578,26 @@ i915_err_print_instdone(struct drm_i915_private *dev_priv,
 		       slice, subslice, instdone->row[slice][subslice]);
 }
 
-static void i915_report_and_clear_eir(struct drm_i915_private *dev_priv)
+static void i915_clear_error_registers(struct drm_i915_private *dev_priv)
 {
-	struct intel_instdone instdone;
-	u32 eir = I915_READ(EIR);
-	int pipe;
+	u32 eir;
 
-	if (!eir)
-		return;
+	if (!IS_GEN2(dev_priv))
+		I915_WRITE(PGTBL_ER, I915_READ(PGTBL_ER));
 
-	pr_err("render error detected, EIR: 0x%08x\n", eir);
+	if (INTEL_GEN(dev_priv) < 4)
+		I915_WRITE(IPEIR, I915_READ(IPEIR));
+	else
+		I915_WRITE(IPEIR_I965, I915_READ(IPEIR_I965));
 
-	intel_engine_get_instdone(dev_priv->engine[RCS], &instdone);
-
-	if (IS_G4X(dev_priv)) {
-		if (eir & (GM45_ERROR_MEM_PRIV | GM45_ERROR_CP_PRIV)) {
-			u32 ipeir = I915_READ(IPEIR_I965);
-
-			pr_err("  IPEIR: 0x%08x\n", I915_READ(IPEIR_I965));
-			pr_err("  IPEHR: 0x%08x\n", I915_READ(IPEHR_I965));
-			i915_err_print_instdone(dev_priv, &instdone);
-			pr_err("  INSTPS: 0x%08x\n", I915_READ(INSTPS));
-			pr_err("  ACTHD: 0x%08x\n", I915_READ(ACTHD_I965));
-			I915_WRITE(IPEIR_I965, ipeir);
-			POSTING_READ(IPEIR_I965);
-		}
-		if (eir & GM45_ERROR_PAGE_TABLE) {
-			u32 pgtbl_err = I915_READ(PGTBL_ER);
-			pr_err("page table error\n");
-			pr_err("  PGTBL_ER: 0x%08x\n", pgtbl_err);
-			I915_WRITE(PGTBL_ER, pgtbl_err);
-			POSTING_READ(PGTBL_ER);
-		}
-	}
-
-	if (!IS_GEN2(dev_priv)) {
-		if (eir & I915_ERROR_PAGE_TABLE) {
-			u32 pgtbl_err = I915_READ(PGTBL_ER);
-			pr_err("page table error\n");
-			pr_err("  PGTBL_ER: 0x%08x\n", pgtbl_err);
-			I915_WRITE(PGTBL_ER, pgtbl_err);
-			POSTING_READ(PGTBL_ER);
-		}
-	}
-
-	if (eir & I915_ERROR_MEMORY_REFRESH) {
-		pr_err("memory refresh error:\n");
-		for_each_pipe(dev_priv, pipe)
-			pr_err("pipe %c stat: 0x%08x\n",
-			       pipe_name(pipe), I915_READ(PIPESTAT(pipe)));
-		/* pipestat has already been acked */
-	}
-	if (eir & I915_ERROR_INSTRUCTION) {
-		pr_err("instruction error\n");
-		pr_err("  INSTPM: 0x%08x\n", I915_READ(INSTPM));
-		i915_err_print_instdone(dev_priv, &instdone);
-		if (INTEL_GEN(dev_priv) < 4) {
-			u32 ipeir = I915_READ(IPEIR);
-
-			pr_err("  IPEIR: 0x%08x\n", I915_READ(IPEIR));
-			pr_err("  IPEHR: 0x%08x\n", I915_READ(IPEHR));
-			pr_err("  ACTHD: 0x%08x\n", I915_READ(ACTHD));
-			I915_WRITE(IPEIR, ipeir);
-			POSTING_READ(IPEIR);
-		} else {
-			u32 ipeir = I915_READ(IPEIR_I965);
-
-			pr_err("  IPEIR: 0x%08x\n", I915_READ(IPEIR_I965));
-			pr_err("  IPEHR: 0x%08x\n", I915_READ(IPEHR_I965));
-			pr_err("  INSTPS: 0x%08x\n", I915_READ(INSTPS));
-			pr_err("  ACTHD: 0x%08x\n", I915_READ(ACTHD_I965));
-			I915_WRITE(IPEIR_I965, ipeir);
-			POSTING_READ(IPEIR_I965);
-		}
-	}
-
-	I915_WRITE(EIR, eir);
-	POSTING_READ(EIR);
+	I915_WRITE(EIR, I915_READ(EIR));
 	eir = I915_READ(EIR);
 	if (eir) {
 		/*
 		 * some errors might have become stuck,
 		 * mask them.
 		 */
-		DRM_ERROR("EIR stuck: 0x%08x, masking\n", eir);
+		DRM_DEBUG_DRIVER("EIR stuck: 0x%08x, masking\n", eir);
 		I915_WRITE(EMR, I915_READ(EMR) | eir);
 		I915_WRITE(IIR, I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
 	}
@@ -2690,7 +2626,7 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 	va_end(args);
 
 	i915_capture_error_state(dev_priv, engine_mask, error_msg);
-	i915_report_and_clear_eir(dev_priv);
+	i915_clear_error_registers(dev_priv);
 
 	if (!engine_mask)
 		return;
