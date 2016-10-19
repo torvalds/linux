@@ -11,6 +11,7 @@ include ../lib.mk
 OBJS = sync_test.o sync.o
 
 TESTS += sync_alloc.o
+TESTS += sync_fence.o
 
 sync_test: $(OBJS) $(TESTS)
 

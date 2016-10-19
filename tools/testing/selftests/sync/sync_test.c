@@ -62,6 +62,9 @@ int main(void)
 	err += RUN_TEST(test_alloc_fence);
 	err += RUN_TEST(test_alloc_fence_negative);
 
+	err += RUN_TEST(test_fence_one_timeline_wait);
+	err += RUN_TEST(test_fence_one_timeline_merge);
+
 	if (err)
 		printf("[FAIL]\tsync errors: %d\n", err);
 	else

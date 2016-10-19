@@ -44,4 +44,8 @@ int test_alloc_timeline(void);
 int test_alloc_fence(void);
 int test_alloc_fence_negative(void);
 
+/* Fence tests with one timeline */
+int test_fence_one_timeline_wait(void);
+int test_fence_one_timeline_merge(void);
+
 #endif
