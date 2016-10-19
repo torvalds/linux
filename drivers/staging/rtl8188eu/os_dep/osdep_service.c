@@ -12,8 +12,6 @@
  * more details.
  *
  ******************************************************************************/
-
-
 #define _OSDEP_SERVICE_C_
 
 #include <osdep_service.h>
