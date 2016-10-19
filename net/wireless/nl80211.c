@@ -11258,7 +11258,8 @@ static int nl80211_vendor_cmd(struct sk_buff *skb, struct genl_info *info)
 				if (wdev->netdev &&
 				    !netif_running(wdev->netdev))
 					return -ENETDOWN;
-				if (!wdev->netdev && !wdev->p2p_started)
+				if (!wdev->netdev && !wdev->p2p_started &&
+				    !wdev->nan_started)
 					return -ENETDOWN;
 			}
 
