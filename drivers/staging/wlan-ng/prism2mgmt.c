@@ -123,7 +123,7 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 	int i, timeout;
 	int istmpenable = 0;
 
-	struct hfa384x_HostScanRequest_data scanreq;
+	struct hfa384x_host_scan_request_data scanreq;
 
 	/* gatekeeper check */
 	if (HFA384x_FIRMWARE_VERSION(hw->ident_sta_fw.major,
@@ -185,7 +185,7 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 
 	/* set up the txrate to be 2MBPS. Should be fastest basicrate... */
 	word = HFA384x_RATEBIT_2;
-	scanreq.txRate = cpu_to_le16(word);
+	scanreq.tx_rate = cpu_to_le16(word);
 
 	/* set up the channel list */
 	word = 0;
@@ -197,7 +197,7 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 		/* channel 1 is BIT 0 ... channel 14 is BIT 13 */
 		word |= (1 << (channel - 1));
 	}
-	scanreq.channelList = cpu_to_le16(word);
+	scanreq.channel_list = cpu_to_le16(word);
 
 	/* set up the ssid, if present. */
 	scanreq.ssid.len = cpu_to_le16(msg->ssid.data.len);
@@ -293,7 +293,7 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 
 	result = hfa384x_drvr_setconfig(hw,
 					HFA384x_RID_HOSTSCAN, &scanreq,
-					sizeof(struct hfa384x_HostScanRequest_data));
+					sizeof(struct hfa384x_host_scan_request_data));
 	if (result) {
 		netdev_err(wlandev->netdev,
 			   "setconfig(SCANREQUEST) failed. result=%d\n",

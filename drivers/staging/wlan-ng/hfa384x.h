@@ -408,9 +408,9 @@ struct hfa384x_caplevel {
 #define HFA384x_CREATEIBSS_JOINCREATEIBSS          0
 
 /*-- Configuration Record: HostScanRequest (data portion only) --*/
-struct hfa384x_HostScanRequest_data {
-	u16 channelList;
-	u16 txRate;
+struct hfa384x_host_scan_request_data {
+	u16 channel_list;
+	u16 tx_rate;
 	struct hfa384x_bytestr32 ssid;
 } __packed;
 
