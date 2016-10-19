@@ -93,7 +93,7 @@
 		audio-codec = <&codec>;
 		asrc-controller = <&asrc>;
 		codec-master;
-		gpr = <&gpr>;
+		gpr = <&gpr 4 0x100000 0x100000>;
 		/*
                  * hp-det = <hp-det-pin hp-det-polarity>;
 		 * hp-det-pin: JD1 JD2  or JD3
