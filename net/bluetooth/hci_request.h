@@ -106,6 +106,8 @@ static inline void hci_update_background_scan(struct hci_dev *hdev)
 void hci_request_setup(struct hci_dev *hdev);
 void hci_request_cancel_all(struct hci_dev *hdev);
 
+u8 append_local_name(struct hci_dev *hdev, u8 *ptr, u8 ad_len);
+
 static inline u16 eir_append_data(u8 *eir, u16 eir_len, u8 type,
 				  u8 *data, u8 data_len)
 {
