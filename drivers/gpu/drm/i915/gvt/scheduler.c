@@ -423,12 +423,7 @@ static int workload_thread(void *priv)
 		/*
 		 * Always take i915 big lock first
 		 */
-		ret = i915_mutex_lock_interruptible(&gvt->dev_priv->drm);
-		if (ret < 0) {
-			gvt_err("i915 submission is not available, retry\n");
-			schedule_timeout(1);
-			continue;
-		}
+		mutex_lock(&gvt->dev_priv->drm.struct_mutex);
 
 		gvt_dbg_sched("ring id %d will dispatch workload %p\n",
 				workload->ring_id, workload);
@@ -447,7 +442,7 @@ static int workload_thread(void *priv)
 				workload->ring_id, workload);
 
 		workload->status = i915_wait_request(workload->req,
-						     I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
+						     I915_WAIT_LOCKED,
 						     NULL, NULL);
 		if (workload->status != 0)
 			gvt_err("fail to wait workload, skip\n");
