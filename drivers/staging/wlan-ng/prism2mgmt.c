@@ -583,7 +583,7 @@ int prism2mgmt_start(struct wlandevice *wlandev, void *msgp)
 
 	/* beacon period */
 	word = msg->beaconperiod.data;
-	result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFAPBCNint, word);
+	result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFAPBCNINT, word);
 	if (result) {
 		netdev_err(wlandev->netdev,
 			   "Failed to set beacon period=%d.\n", word);
