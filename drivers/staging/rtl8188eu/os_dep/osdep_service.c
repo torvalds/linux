@@ -54,10 +54,10 @@ void *rtw_malloc2d(int h, int w, int size)
 	return a;
 }
 
-void	_rtw_init_queue(struct __queue *pqueue)
+void _rtw_init_queue(struct __queue *pqueue)
 {
-	INIT_LIST_HEAD(&(pqueue->queue));
-	spin_lock_init(&(pqueue->lock));
+	INIT_LIST_HEAD(&pqueue->queue);
+	spin_lock_init(&pqueue->lock);
 }
 
 struct net_device *rtw_alloc_etherdev_with_old_priv(void *old_priv)
