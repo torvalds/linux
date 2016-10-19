@@ -153,13 +153,17 @@ static ssize_t altr_sdr_mc_err_inject_write(struct file *file,
 	if (count == 3) {
 		edac_printk(KERN_ALERT, EDAC_MC,
 			    "Inject Double bit error\n");
+		local_irq_disable();
 		regmap_write(drvdata->mc_vbase, priv->ce_ue_trgr_offset,
 			     (read_reg | priv->ue_set_mask));
+		local_irq_enable();
 	} else {
 		edac_printk(KERN_ALERT, EDAC_MC,
 			    "Inject Single bit error\n");
+		local_irq_disable();
 		regmap_write(drvdata->mc_vbase,	priv->ce_ue_trgr_offset,
 			     (read_reg | priv->ce_set_mask));
+		local_irq_enable();
 	}
 
 	ptemp[0] = 0x5A5A5A5A;
