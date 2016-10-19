@@ -744,7 +744,7 @@ struct hfa384x_assoc_status {
 
 /*--  Unsolicited Frame, MAC Mgmt: AuthRequest (AP Only) --*/
 
-struct hfa384x_AuthRequest {
+struct hfa384x_auth_request {
 	u8 sta_addr[ETH_ALEN];
 	u16 algorithm;
 } __packed;
@@ -769,7 +769,7 @@ union hfa384x_infodata {
 	struct hfa384x_hscan_result hscanresult;
 	struct hfa384x_link_status linkstatus;
 	struct hfa384x_assoc_status assocstatus;
-	struct hfa384x_AuthRequest authreq;
+	struct hfa384x_auth_request authreq;
 	struct hfa384x_PSUserCount psusercnt;
 	struct hfa384x_KeyIDChanged keyidchanged;
 } __packed;
