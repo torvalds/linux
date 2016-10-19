@@ -136,8 +136,60 @@ struct ffs_epfile {
 	/*
 	 * Buffer for holding data from partial reads which may happen since
 	 * we’re rounding user read requests to a multiple of a max packet size.
+	 *
+	 * The pointer is initialised with NULL value and may be set by
+	 * __ffs_epfile_read_data function to point to a temporary buffer.
+	 *
+	 * In normal operation, calls to __ffs_epfile_read_buffered will consume
+	 * data from said buffer and eventually free it.  Importantly, while the
+	 * function is using the buffer, it sets the pointer to NULL.  This is
+	 * all right since __ffs_epfile_read_data and __ffs_epfile_read_buffered
+	 * can never run concurrently (they are synchronised by epfile->mutex)
+	 * so the latter will not assign a new value to the pointer.
+	 *
+	 * Meanwhile ffs_func_eps_disable frees the buffer (if the pointer is
+	 * valid) and sets the pointer to READ_BUFFER_DROP value.  This special
+	 * value is crux of the synchronisation between ffs_func_eps_disable and
+	 * __ffs_epfile_read_data.
+	 *
+	 * Once __ffs_epfile_read_data is about to finish it will try to set the
+	 * pointer back to its old value (as described above), but seeing as the
+	 * pointer is not-NULL (namely READ_BUFFER_DROP) it will instead free
+	 * the buffer.
+	 *
+	 * == State transitions ==
+	 *
+	 * • ptr == NULL:  (initial state)
+	 *   ◦ __ffs_epfile_read_buffer_free: go to ptr == DROP
+	 *   ◦ __ffs_epfile_read_buffered:    nop
+	 *   ◦ __ffs_epfile_read_data allocates temp buffer: go to ptr == buf
+	 *   ◦ reading finishes:              n/a, not in ‘and reading’ state
+	 * • ptr == DROP:
+	 *   ◦ __ffs_epfile_read_buffer_free: nop
+	 *   ◦ __ffs_epfile_read_buffered:    go to ptr == NULL
+	 *   ◦ __ffs_epfile_read_data allocates temp buffer: free buf, nop
+	 *   ◦ reading finishes:              n/a, not in ‘and reading’ state
+	 * • ptr == buf:
+	 *   ◦ __ffs_epfile_read_buffer_free: free buf, go to ptr == DROP
+	 *   ◦ __ffs_epfile_read_buffered:    go to ptr == NULL and reading
+	 *   ◦ __ffs_epfile_read_data:        n/a, __ffs_epfile_read_buffered
+	 *                                    is always called first
+	 *   ◦ reading finishes:              n/a, not in ‘and reading’ state
+	 * • ptr == NULL and reading:
+	 *   ◦ __ffs_epfile_read_buffer_free: go to ptr == DROP and reading
+	 *   ◦ __ffs_epfile_read_buffered:    n/a, mutex is held
+	 *   ◦ __ffs_epfile_read_data:        n/a, mutex is held
+	 *   ◦ reading finishes and …
+	 *     … all data read:               free buf, go to ptr == NULL
+	 *     … otherwise:                   go to ptr == buf and reading
+	 * • ptr == DROP and reading:
+	 *   ◦ __ffs_epfile_read_buffer_free: nop
+	 *   ◦ __ffs_epfile_read_buffered:    n/a, mutex is held
+	 *   ◦ __ffs_epfile_read_data:        n/a, mutex is held
+	 *   ◦ reading finishes:              free buf, go to ptr == DROP
 	 */
-	struct ffs_buffer		*read_buffer;	/* P: epfile->mutex */
+	struct ffs_buffer		*read_buffer;
+#define READ_BUFFER_DROP ((struct ffs_buffer *)ERR_PTR(-ESHUTDOWN))
 
 	char				name[5];
 
@@ -736,25 +788,47 @@ static void ffs_epfile_async_io_complete(struct usb_ep *_ep,
 	schedule_work(&io_data->work);
 }
 
+static void __ffs_epfile_read_buffer_free(struct ffs_epfile *epfile)
+{
+	/*
+	 * See comment in struct ffs_epfile for full read_buffer pointer
+	 * synchronisation story.
+	 */
+	struct ffs_buffer *buf = xchg(&epfile->read_buffer, READ_BUFFER_DROP);
+	if (buf && buf != READ_BUFFER_DROP)
+		kfree(buf);
+}
+
 /* Assumes epfile->mutex is held. */
 static ssize_t __ffs_epfile_read_buffered(struct ffs_epfile *epfile,
 					  struct iov_iter *iter)
 {
-	struct ffs_buffer *buf = epfile->read_buffer;
+	/*
+	 * Null out epfile->read_buffer so ffs_func_eps_disable does not free
+	 * the buffer while we are using it.  See comment in struct ffs_epfile
+	 * for full read_buffer pointer synchronisation story.
+	 */
+	struct ffs_buffer *buf = xchg(&epfile->read_buffer, NULL);
 	ssize_t ret;
-	if (!buf)
+	if (!buf || buf == READ_BUFFER_DROP)
 		return 0;
 
 	ret = copy_to_iter(buf->data, buf->length, iter);
 	if (buf->length == ret) {
 		kfree(buf);
-		epfile->read_buffer = NULL;
-	} else if (unlikely(iov_iter_count(iter))) {
+		return ret;
+	}
+
+	if (unlikely(iov_iter_count(iter))) {
 		ret = -EFAULT;
 	} else {
 		buf->length -= ret;
 		buf->data += ret;
 	}
+
+	if (cmpxchg(&epfile->read_buffer, NULL, buf))
+		kfree(buf);
+
 	return ret;
 }
 
@@ -783,7 +857,15 @@ static ssize_t __ffs_epfile_read_data(struct ffs_epfile *epfile,
 	buf->length = data_len;
 	buf->data = buf->storage;
 	memcpy(buf->storage, data + ret, data_len);
-	epfile->read_buffer = buf;
+
+	/*
+	 * At this point read_buffer is NULL or READ_BUFFER_DROP (if
+	 * ffs_func_eps_disable has been called in the meanwhile).  See comment
+	 * in struct ffs_epfile for full read_buffer pointer synchronisation
+	 * story.
+	 */
+	if (unlikely(cmpxchg(&epfile->read_buffer, NULL, buf)))
+		kfree(buf);
 
 	return ret;
 }
@@ -1097,8 +1179,7 @@ ffs_epfile_release(struct inode *inode, struct file *file)
 
 	ENTER();
 
-	kfree(epfile->read_buffer);
-	epfile->read_buffer = NULL;
+	__ffs_epfile_read_buffer_free(epfile);
 	ffs_data_closed(epfile->ffs);
 
 	return 0;
@@ -1724,24 +1805,20 @@ static void ffs_func_eps_disable(struct ffs_function *func)
 	unsigned count            = func->ffs->eps_count;
 	unsigned long flags;
 
+	spin_lock_irqsave(&func->ffs->eps_lock, flags);
 	do {
-		if (epfile)
-			mutex_lock(&epfile->mutex);
-		spin_lock_irqsave(&func->ffs->eps_lock, flags);
 		/* pending requests get nuked */
 		if (likely(ep->ep))
 			usb_ep_disable(ep->ep);
 		++ep;
-		spin_unlock_irqrestore(&func->ffs->eps_lock, flags);
 
 		if (epfile) {
 			epfile->ep = NULL;
-			kfree(epfile->read_buffer);
-			epfile->read_buffer = NULL;
-			mutex_unlock(&epfile->mutex);
+			__ffs_epfile_read_buffer_free(epfile);
 			++epfile;
 		}
 	} while (--count);
+	spin_unlock_irqrestore(&func->ffs->eps_lock, flags);
 }
 
 static int ffs_func_eps_enable(struct ffs_function *func)

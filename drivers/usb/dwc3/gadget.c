@@ -783,6 +783,7 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 		req->trb = trb;
 		req->trb_dma = dwc3_trb_dma_offset(dep, trb);
 		req->first_trb_index = dep->trb_enqueue;
+		dep->queued_requests++;
 	}
 
 	dwc3_ep_inc_enq(dep);
@@ -832,8 +833,6 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 		trb->ctrl |= DWC3_TRB_CTRL_SID_SOFN(req->request.stream_id);
 
 	trb->ctrl |= DWC3_TRB_CTRL_HWO;
-
-	dep->queued_requests++;
 
 	trace_dwc3_prepare_trb(dep, trb);
 }
@@ -1074,9 +1073,17 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 
 	list_add_tail(&req->list, &dep->pending_list);
 
-	if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
-			dep->flags & DWC3_EP_PENDING_REQUEST) {
-		if (list_empty(&dep->started_list)) {
+	/*
+	 * NOTICE: Isochronous endpoints should NEVER be prestarted. We must
+	 * wait for a XferNotReady event so we will know what's the current
+	 * (micro-)frame number.
+	 *
+	 * Without this trick, we are very, very likely gonna get Bus Expiry
+	 * errors which will force us issue EndTransfer command.
+	 */
+	if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
+		if ((dep->flags & DWC3_EP_PENDING_REQUEST) &&
+				list_empty(&dep->started_list)) {
 			dwc3_stop_active_transfer(dwc, dep->number, true);
 			dep->flags = DWC3_EP_ENABLED;
 		}
@@ -1861,8 +1868,11 @@ static int __dwc3_cleanup_done_trbs(struct dwc3 *dwc, struct dwc3_ep *dep,
 	unsigned int		s_pkt = 0;
 	unsigned int		trb_status;
 
-	dep->queued_requests--;
 	dwc3_ep_inc_deq(dep);
+
+	if (req->trb == trb)
+		dep->queued_requests--;
+
 	trace_dwc3_complete_trb(dep, trb);
 
 	/*
@@ -2980,7 +2990,7 @@ err3:
 	kfree(dwc->setup_buf);
 
 err2:
-	dma_free_coherent(dwc->dev, sizeof(*dwc->ep0_trb),
+	dma_free_coherent(dwc->dev, sizeof(*dwc->ep0_trb) * 2,
 			dwc->ep0_trb, dwc->ep0_trb_addr);
 
 err1:
@@ -3005,7 +3015,7 @@ void dwc3_gadget_exit(struct dwc3 *dwc)
 	kfree(dwc->setup_buf);
 	kfree(dwc->zlp_buf);
 
-	dma_free_coherent(dwc->dev, sizeof(*dwc->ep0_trb),
+	dma_free_coherent(dwc->dev, sizeof(*dwc->ep0_trb) * 2,
 			dwc->ep0_trb, dwc->ep0_trb_addr);
 
 	dma_free_coherent(dwc->dev, sizeof(*dwc->ctrl_req),
