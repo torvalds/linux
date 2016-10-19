@@ -988,7 +988,7 @@ struct i40iw_cqp_query_fpm_values {
 struct i40iw_cqp_ops {
 	enum i40iw_status_code (*cqp_init)(struct i40iw_sc_cqp *,
 					   struct i40iw_cqp_init_info *);
-	enum i40iw_status_code (*cqp_create)(struct i40iw_sc_cqp *, bool, u16 *, u16 *);
+	enum i40iw_status_code (*cqp_create)(struct i40iw_sc_cqp *, u16 *, u16 *);
 	void (*cqp_post_sq)(struct i40iw_sc_cqp *);
 	u64 *(*cqp_get_next_send_wqe)(struct i40iw_sc_cqp *, u64 scratch);
 	enum i40iw_status_code (*cqp_destroy)(struct i40iw_sc_cqp *);

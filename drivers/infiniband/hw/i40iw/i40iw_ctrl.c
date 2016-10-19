@@ -429,12 +429,10 @@ static enum i40iw_status_code i40iw_sc_cqp_init(struct i40iw_sc_cqp *cqp,
 /**
  * i40iw_sc_cqp_create - create cqp during bringup
  * @cqp: struct for cqp hw
- * @disable_pfpdus: if pfpdu to be disabled
  * @maj_err: If error, major err number
  * @min_err: If error, minor err number
  */
 static enum i40iw_status_code i40iw_sc_cqp_create(struct i40iw_sc_cqp *cqp,
-						  bool disable_pfpdus,
 						  u16 *maj_err,
 						  u16 *min_err)
 {
@@ -452,9 +450,6 @@ static enum i40iw_status_code i40iw_sc_cqp_create(struct i40iw_sc_cqp *cqp,
 
 	temp = LS_64(cqp->hw_sq_size, I40IW_CQPHC_SQSIZE) |
 	       LS_64(cqp->struct_ver, I40IW_CQPHC_SVER);
-
-	if (disable_pfpdus)
-		temp |= LS_64(1, I40IW_CQPHC_DISABLE_PFPDUS);
 
 	set_64bit_val(cqp->host_ctx, 0, temp);
 	set_64bit_val(cqp->host_ctx, 8, cqp->sq_pa);
