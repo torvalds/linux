@@ -541,6 +541,11 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 	} else if (info->ack_frame_id) {
 		ieee80211_report_ack_skb(local, info, acked, dropped);
 	}
+
+	if (!dropped && skb->destructor) {
+		skb->wifi_acked_valid = 1;
+		skb->wifi_acked = acked;
+	}
 }
 
 /*
