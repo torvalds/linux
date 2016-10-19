@@ -499,7 +499,7 @@ int mce_available(struct cpuinfo_x86 *c)
 
 static void mce_schedule_work(void)
 {
-	if (!mce_gen_pool_empty() && keventd_up())
+	if (!mce_gen_pool_empty())
 		schedule_work(&mce_work);
 }
 
