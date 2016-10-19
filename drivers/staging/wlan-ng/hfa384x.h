@@ -723,7 +723,7 @@ struct hfa384x_hscan_result {
 #define HFA384x_LINK_AP_INRANGE		((u16)5)
 #define HFA384x_LINK_ASSOCFAIL		((u16)6)
 
-struct hfa384x_LinkStatus {
+struct hfa384x_link_status {
 	u16 linkstatus;
 } __packed;
 
@@ -767,7 +767,7 @@ union hfa384x_infodata {
 	struct hfa384x_scan_result scanresult;
 	struct hfa384x_ch_info_result chinforesult;
 	struct hfa384x_hscan_result hscanresult;
-	struct hfa384x_LinkStatus linkstatus;
+	struct hfa384x_link_status linkstatus;
 	struct hfa384x_assoc_status assocstatus;
 	struct hfa384x_AuthRequest authreq;
 	struct hfa384x_PSUserCount psusercnt;
