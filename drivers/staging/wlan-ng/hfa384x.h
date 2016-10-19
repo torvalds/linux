@@ -688,7 +688,7 @@ struct hfa384x_ch_info_result_sub {
 #define HFA384x_CHINFORESULT_BSSACTIVE	BIT(0)
 #define HFA384x_CHINFORESULT_PCFACTIVE	BIT(1)
 
-struct hfa384x_ChInfoResult {
+struct hfa384x_ch_info_result {
 	u16 scanchannels;
 	struct hfa384x_ch_info_result_sub result[HFA384x_CHINFORESULT_MAX];
 } __packed;
@@ -765,7 +765,7 @@ union hfa384x_infodata {
 	struct hfa384x_comm_tallies_16 commtallies16;
 	struct hfa384x_comm_tallies_32 commtallies32;
 	struct hfa384x_scan_result scanresult;
-	struct hfa384x_ChInfoResult chinforesult;
+	struct hfa384x_ch_info_result chinforesult;
 	struct hfa384x_HScanResult hscanresult;
 	struct hfa384x_LinkStatus linkstatus;
 	struct hfa384x_assoc_status assocstatus;
@@ -1366,7 +1366,7 @@ struct hfa384x {
 	struct {
 		atomic_t done;
 		u8 count;
-		struct hfa384x_ChInfoResult results;
+		struct hfa384x_ch_info_result results;
 	} channel_info;
 
 	struct hfa384x_inf_frame *scanresults;
