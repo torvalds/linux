@@ -1640,16 +1640,19 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	if (entry_obj == NULL)
 		return -ENOMEM;
 
-	entry_obj->obj = i915_gem_object_create(&(s->vgpu->gvt->dev_priv->drm),
-		round_up(bb_size, PAGE_SIZE));
-	if (entry_obj->obj == NULL)
-		return -ENOMEM;
+	entry_obj->obj =
+		i915_gem_object_create(&(s->vgpu->gvt->dev_priv->drm),
+				       roundup(bb_size, PAGE_SIZE));
+	if (IS_ERR(entry_obj->obj)) {
+		ret = PTR_ERR(entry_obj->obj);
+		goto free_entry;
+	}
 	entry_obj->len = bb_size;
 	INIT_LIST_HEAD(&entry_obj->list);
 
 	ret = i915_gem_object_get_pages(entry_obj->obj);
 	if (ret)
-		return ret;
+		goto put_obj;
 
 	i915_gem_object_pin_pages(entry_obj->obj);
 
@@ -1675,7 +1678,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 				gma, gma + bb_size, dst);
 	if (ret) {
 		gvt_err("fail to copy guest ring buffer\n");
-		return ret;
+		goto unmap_src;
 	}
 
 	list_add(&entry_obj->list, &s->workload->shadow_bb);
@@ -1696,7 +1699,10 @@ unmap_src:
 	vunmap(dst);
 unpin_src:
 	i915_gem_object_unpin_pages(entry_obj->obj);
-
+put_obj:
+	i915_gem_object_put(entry_obj->obj);
+free_entry:
+	kfree(entry_obj);
 	return ret;
 }
 
@@ -2709,31 +2715,31 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	struct drm_device *dev = &wa_ctx->workload->vgpu->gvt->dev_priv->drm;
 	int ctx_size = wa_ctx->indirect_ctx.size;
 	unsigned long guest_gma = wa_ctx->indirect_ctx.guest_gma;
+	struct drm_i915_gem_object *obj;
 	int ret = 0;
 	void *dest = NULL;
 
-	wa_ctx->indirect_ctx.obj = i915_gem_object_create(dev,
-			round_up(ctx_size + CACHELINE_BYTES, PAGE_SIZE));
-	if (wa_ctx->indirect_ctx.obj == NULL)
-		return -ENOMEM;
+	obj = i915_gem_object_create(dev,
+				     roundup(ctx_size + CACHELINE_BYTES,
+					     PAGE_SIZE));
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
 
-	ret = i915_gem_object_get_pages(wa_ctx->indirect_ctx.obj);
+	ret = i915_gem_object_get_pages(obj);
 	if (ret)
-		return ret;
+		goto put_obj;
 
-	i915_gem_object_pin_pages(wa_ctx->indirect_ctx.obj);
+	i915_gem_object_pin_pages(obj);
 
 	/* get the va of the shadow batch buffer */
-	dest = (void *)vmap_batch(wa_ctx->indirect_ctx.obj, 0,
-			ctx_size + CACHELINE_BYTES);
+	dest = (void *)vmap_batch(obj, 0, ctx_size + CACHELINE_BYTES);
 	if (!dest) {
 		gvt_err("failed to vmap shadow indirect ctx\n");
 		ret = -ENOMEM;
 		goto unpin_src;
 	}
 
-	ret = i915_gem_object_set_to_cpu_domain(wa_ctx->indirect_ctx.obj,
-			false);
+	ret = i915_gem_object_set_to_cpu_domain(obj, false);
 	if (ret) {
 		gvt_err("failed to set shadow indirect ctx to CPU\n");
 		goto unmap_src;
@@ -2748,16 +2754,18 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 				guest_gma, guest_gma + ctx_size, dest);
 	if (ret) {
 		gvt_err("fail to copy guest indirect ctx\n");
-		return ret;
+		goto unmap_src;
 	}
 
+	wa_ctx->indirect_ctx.obj = obj;
 	return 0;
 
 unmap_src:
 	vunmap(dest);
 unpin_src:
 	i915_gem_object_unpin_pages(wa_ctx->indirect_ctx.obj);
-
+put_obj:
+	i915_gem_object_put(wa_ctx->indirect_ctx.obj);
 	return ret;
 }
 
