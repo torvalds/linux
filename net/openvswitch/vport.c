@@ -463,7 +463,6 @@ int ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 	ovs_dp_process_packet(skb, &key);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ovs_vport_receive);
 
 static unsigned int packet_length(const struct sk_buff *skb)
 {
