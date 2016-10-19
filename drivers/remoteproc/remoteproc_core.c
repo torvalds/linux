@@ -1347,6 +1347,7 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	device_initialize(&rproc->dev);
 	rproc->dev.parent = dev;
 	rproc->dev.type = &rproc_type;
+	rproc->dev.class = &rproc_class;
 
 	/* Assign a unique device index and name */
 	rproc->index = ida_simple_get(&rproc_dev_index, 0, 0, GFP_KERNEL);
@@ -1485,6 +1486,7 @@ EXPORT_SYMBOL(rproc_report_crash);
 
 static int __init remoteproc_init(void)
 {
+	rproc_init_sysfs();
 	rproc_init_debugfs();
 
 	return 0;
@@ -1496,6 +1498,7 @@ static void __exit remoteproc_exit(void)
 	ida_destroy(&rproc_dev_index);
 
 	rproc_exit_debugfs();
+	rproc_exit_sysfs();
 }
 module_exit(remoteproc_exit);
 
