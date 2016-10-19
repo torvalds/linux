@@ -811,6 +811,9 @@ struct macb {
 	void			*rx_buffers;
 	size_t			rx_buffer_size;
 
+	unsigned int		rx_ring_size;
+	unsigned int		tx_ring_size;
+
 	unsigned int		num_queues;
 	unsigned int		queue_mask;
 	struct macb_queue	queues[MACB_MAX_QUEUES];
