@@ -297,8 +297,7 @@ static int mei_nfc_recv(struct nfc_mei_phy *phy, u8 *buf, size_t length)
 }
 
 
-static void nfc_mei_event_cb(struct mei_cl_device *cldev, u32 events,
-			     void *context)
+static void nfc_mei_event_cb(struct mei_cl_device *cldev, u32 events)
 {
 	struct nfc_mei_phy *phy = mei_cldev_get_drvdata(cldev);
 
@@ -360,7 +359,7 @@ static int nfc_mei_phy_enable(void *phy_id)
 	}
 
 	r = mei_cldev_register_event_cb(phy->cldev, BIT(MEI_CL_EVENT_RX),
-				     nfc_mei_event_cb, phy);
+					nfc_mei_event_cb);
 	if (r) {
 		pr_err("Event cb registration failed %d\n", r);
 		goto err;

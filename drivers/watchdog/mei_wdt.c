@@ -501,10 +501,8 @@ static void mei_wdt_notify_event(struct mei_cl_device *cldev)
  *
  * @cldev: bus device
  * @events: event mask
- * @context: callback context
  */
-static void mei_wdt_event(struct mei_cl_device *cldev,
-			  u32 events, void *context)
+static void mei_wdt_event(struct mei_cl_device *cldev, u32 events)
 {
 	if (events & BIT(MEI_CL_EVENT_RX))
 		mei_wdt_event_rx(cldev);
@@ -626,7 +624,7 @@ static int mei_wdt_probe(struct mei_cl_device *cldev,
 	ret = mei_cldev_register_event_cb(wdt->cldev,
 					  BIT(MEI_CL_EVENT_RX) |
 					  BIT(MEI_CL_EVENT_NOTIF),
-					  mei_wdt_event, NULL);
+					  mei_wdt_event);
 
 	/* on legacy devices notification is not supported
 	 * this doesn't fail the registration for RX event

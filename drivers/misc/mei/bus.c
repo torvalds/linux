@@ -228,7 +228,7 @@ static void mei_cl_bus_event_work(struct work_struct *work)
 	bus = cldev->bus;
 
 	if (cldev->event_cb)
-		cldev->event_cb(cldev, cldev->events, cldev->event_context);
+		cldev->event_cb(cldev, cldev->events);
 
 	cldev->events = 0;
 
@@ -301,7 +301,6 @@ bool mei_cl_bus_rx_event(struct mei_cl *cl)
  * @cldev: me client devices
  * @event_cb: callback function
  * @events_mask: requested events bitmask
- * @context: driver context data
  *
  * Return: 0 on success
  *         -EALREADY if an callback is already registered
@@ -309,7 +308,7 @@ bool mei_cl_bus_rx_event(struct mei_cl *cl)
  */
 int mei_cldev_register_event_cb(struct mei_cl_device *cldev,
 				unsigned long events_mask,
-				mei_cldev_event_cb_t event_cb, void *context)
+				mei_cldev_event_cb_t event_cb)
 {
 	struct mei_device *bus = cldev->bus;
 	int ret;
@@ -320,7 +319,6 @@ int mei_cldev_register_event_cb(struct mei_cl_device *cldev,
 	cldev->events = 0;
 	cldev->events_mask = events_mask;
 	cldev->event_cb = event_cb;
-	cldev->event_context = context;
 	INIT_WORK(&cldev->event_work, mei_cl_bus_event_work);
 
 	if (cldev->events_mask & BIT(MEI_CL_EVENT_RX)) {
