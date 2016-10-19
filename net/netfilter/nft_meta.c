@@ -310,6 +310,11 @@ int nft_meta_set_validate(const struct nft_ctx *ctx,
 	case NFPROTO_NETDEV:
 		hooks = 1 << NF_NETDEV_INGRESS;
 		break;
+	case NFPROTO_IPV4:
+	case NFPROTO_IPV6:
+	case NFPROTO_INET:
+		hooks = 1 << NF_INET_PRE_ROUTING;
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
