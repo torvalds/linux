@@ -377,6 +377,18 @@ int rsnd_runtime_is_ssi_multi(struct rsnd_dai_stream *io);
 int rsnd_runtime_is_ssi_tdm(struct rsnd_dai_stream *io);
 
 /*
+ * DT
+ */
+#define rsnd_parse_of_node(priv, node)					\
+	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, node)
+#define RSND_NODE_DAI	"rcar_sound,dai"
+#define RSND_NODE_SSI	"rcar_sound,ssi"
+#define RSND_NODE_SRC	"rcar_sound,src"
+#define RSND_NODE_CTU	"rcar_sound,ctu"
+#define RSND_NODE_MIX	"rcar_sound,mix"
+#define RSND_NODE_DVC	"rcar_sound,dvc"
+
+/*
  *	R-Car sound DAI
  */
 #define RSND_DAI_NAME_SIZE	16
@@ -440,8 +452,7 @@ int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
 int rsnd_dai_connect(struct rsnd_mod *mod,
 		     struct rsnd_dai_stream *io,
 		     enum rsnd_mod_type type);
-#define rsnd_dai_of_node(priv)						\
-	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,dai")
+#define rsnd_dai_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_DAI)
 
 /*
  *	R-Car Gen1/Gen2
@@ -618,8 +629,7 @@ u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io);
 	__rsnd_ssi_is_pin_sharing(rsnd_io_to_mod_ssi(io))
 int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 
-#define rsnd_ssi_of_node(priv)						\
-	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,ssi")
+#define rsnd_ssi_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_SSI)
 void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
 			    struct device_node *playback,
 			    struct device_node *capture);
@@ -645,8 +655,7 @@ unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
 			       struct rsnd_dai_stream *io,
 			       int is_in);
 
-#define rsnd_src_of_node(priv)						\
-	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,src")
+#define rsnd_src_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_SRC)
 #define rsnd_parse_connect_src(rdai, playback, capture)			\
 	rsnd_parse_connect_common(rdai, rsnd_src_mod_get,		\
 				  rsnd_src_of_node(rsnd_rdai_to_priv(rdai)), \
@@ -659,8 +668,7 @@ int rsnd_ctu_probe(struct rsnd_priv *priv);
 void rsnd_ctu_remove(struct rsnd_priv *priv);
 int rsnd_ctu_converted_channel(struct rsnd_mod *mod);
 struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id);
-#define rsnd_ctu_of_node(priv)						\
-	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,ctu")
+#define rsnd_ctu_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_CTU)
 #define rsnd_parse_connect_ctu(rdai, playback, capture)			\
 	rsnd_parse_connect_common(rdai, rsnd_ctu_mod_get,		\
 				  rsnd_ctu_of_node(rsnd_rdai_to_priv(rdai)), \
@@ -672,8 +680,7 @@ struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id);
 int rsnd_mix_probe(struct rsnd_priv *priv);
 void rsnd_mix_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id);
-#define rsnd_mix_of_node(priv)						\
-	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,mix")
+#define rsnd_mix_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_MIX)
 #define rsnd_parse_connect_mix(rdai, playback, capture)			\
 	rsnd_parse_connect_common(rdai, rsnd_mix_mod_get,		\
 				  rsnd_mix_of_node(rsnd_rdai_to_priv(rdai)), \
@@ -685,8 +692,7 @@ struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id);
 int rsnd_dvc_probe(struct rsnd_priv *priv);
 void rsnd_dvc_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id);
-#define rsnd_dvc_of_node(priv)						\
-	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,dvc")
+#define rsnd_dvc_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_DVC)
 #define rsnd_parse_connect_dvc(rdai, playback, capture)			\
 	rsnd_parse_connect_common(rdai, rsnd_dvc_mod_get,		\
 				  rsnd_dvc_of_node(rsnd_rdai_to_priv(rdai)), \
