@@ -227,7 +227,17 @@ skip_below_100Mhz_ch1_timings:
 
 	.macro	mmdc_clk_lower_equal_100MHz
 
+	ldr     r10, =100000000
+	cmp     r0, r10
+	beq	set_timmings_100MHz
 	set_timings_below_100MHz_operation
+	b	common_to_lower_equal_100MHz
+
+set_timmings_100MHz:
+	restore_mmdc_settings_info
+	set_mmdc_misc_ralat_2_cycles
+
+common_to_lower_equal_100MHz:
 	/*
 	 * Prior to reducing the DDR frequency (at 528/400 MHz),
 	 * read the Measure unit count bits (MU_UNIT_DEL_NUM)
