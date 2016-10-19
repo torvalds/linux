@@ -369,6 +369,16 @@ config CHARGER_MAX14577
 	  Say Y to enable support for the battery charger control sysfs and
 	  platform data of MAX14577/77836 MUICs.
 
+config CHARGER_DETECTOR_MAX14656
+	tristate "Maxim MAX14656 USB charger detector"
+	depends on I2C
+	depends on OF
+	help
+	  Say Y to enable support for the Maxim MAX14656 USB charger detector.
+	  The device is compliant with the USB Battery Charging Specification
+	  Revision 1.2 and can be found e.g. in Kindle 4/5th generation
+	  readers and certain LG devices.
+
 config CHARGER_MAX77693
 	tristate "Maxim MAX77693 battery charger driver"
 	depends on MFD_MAX77693
