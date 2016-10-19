@@ -57,7 +57,8 @@ static int is_setting_trap_flag(struct task_struct *child, struct pt_regs *regs)
 	unsigned char opcode[15];
 	unsigned long addr = convert_ip_to_linear(child, regs);
 
-	copied = access_process_vm(child, addr, opcode, sizeof(opcode), 0);
+	copied = access_process_vm(child, addr, opcode, sizeof(opcode),
+			FOLL_FORCE);
 	for (i = 0; i < copied; i++) {
 		switch (opcode[i]) {
 		/* popf and iret */
