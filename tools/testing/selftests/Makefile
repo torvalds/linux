@@ -23,6 +23,7 @@ TARGETS += seccomp
 TARGETS += sigaltstack
 TARGETS += size
 TARGETS += static_keys
+TARGETS += sync
 TARGETS += sysctl
 ifneq (1, $(quicktest))
 TARGETS += timers
