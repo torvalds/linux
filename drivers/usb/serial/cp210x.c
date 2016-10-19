@@ -401,7 +401,7 @@ static int cp210x_read_reg_block(struct usb_serial_port *port, u8 req,
 		dev_err(&port->dev, "failed get req 0x%x size %d status: %d\n",
 				req, bufsize, result);
 		if (result >= 0)
-			result = -EPROTO;
+			result = -EIO;
 
 		/*
 		 * FIXME Some callers don't bother to check for error,
@@ -514,7 +514,7 @@ static int cp210x_write_reg_block(struct usb_serial_port *port, u8 req,
 		dev_err(&port->dev, "failed set req 0x%x size %d status: %d\n",
 				req, bufsize, result);
 		if (result >= 0)
-			result = -EPROTO;
+			result = -EIO;
 	}
 
 	return result;
@@ -682,7 +682,7 @@ static int cp210x_get_tx_queue_byte_count(struct usb_serial_port *port,
 	} else {
 		dev_err(&port->dev, "failed to get comm status: %d\n", result);
 		if (result >= 0)
-			result = -EPROTO;
+			result = -EIO;
 	}
 
 	kfree(sts);
