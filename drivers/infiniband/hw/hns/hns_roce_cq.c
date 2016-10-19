@@ -35,7 +35,7 @@
 #include "hns_roce_device.h"
 #include "hns_roce_cmd.h"
 #include "hns_roce_hem.h"
-#include "hns_roce_user.h"
+#include <rdma/hns-abi.h>
 #include "hns_roce_common.h"
 
 static void hns_roce_ib_cq_comp(struct hns_roce_cq *hr_cq)

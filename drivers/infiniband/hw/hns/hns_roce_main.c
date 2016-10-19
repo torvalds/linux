@@ -38,7 +38,7 @@
 #include <rdma/ib_cache.h>
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
-#include "hns_roce_user.h"
+#include <rdma/hns-abi.h>
 #include "hns_roce_hem.h"
 
 /**
