@@ -184,11 +184,11 @@ enum {
 
 #define DEBUG_INITIALISE(local) int *debug_ptr = (local)->debug;
 #define DEBUG_TRACE(d) \
-	do { debug_ptr[DEBUG_ ## d] = __LINE__; dsb(); } while (0)
+	do { debug_ptr[DEBUG_ ## d] = __LINE__; dsb(sy); } while (0)
 #define DEBUG_VALUE(d, v) \
-	do { debug_ptr[DEBUG_ ## d] = (v); dsb(); } while (0)
+	do { debug_ptr[DEBUG_ ## d] = (v); dsb(sy); } while (0)
 #define DEBUG_COUNT(d) \
-	do { debug_ptr[DEBUG_ ## d]++; dsb(); } while (0)
+	do { debug_ptr[DEBUG_ ## d]++; dsb(sy); } while (0)
 
 #else /* VCHIQ_ENABLE_DEBUG */
 

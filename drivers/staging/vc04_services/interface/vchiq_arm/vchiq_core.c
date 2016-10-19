@@ -419,7 +419,7 @@ remote_event_wait(REMOTE_EVENT_T *event)
 {
 	if (!event->fired) {
 		event->armed = 1;
-		dsb();
+		dsb(sy);
 		if (!event->fired) {
 			if (down_interruptible(event->event) != 0) {
 				event->armed = 0;

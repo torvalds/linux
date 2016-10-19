@@ -210,7 +210,7 @@ remote_event_signal(REMOTE_EVENT_T *event)
 
 	event->fired = 1;
 
-	dsb();         /* data barrier operation */
+	dsb(sy);         /* data barrier operation */
 
 	if (event->armed)
 		writel(0, g_regs + BELL2); /* trigger vc interrupt */
