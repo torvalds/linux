@@ -149,7 +149,7 @@ static IIO_CONST_ATTR(in_voltage_range_available, "5000 10000");
 
 static int ad7606_oversampling_get_index(unsigned int val)
 {
-	unsigned char supported[] = {0, 2, 4, 8, 16, 32, 64};
+	unsigned char supported[] = {1, 2, 4, 8, 16, 32, 64};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(supported); i++)
@@ -188,7 +188,7 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static IIO_CONST_ATTR(oversampling_ratio_available, "0 2 4 8 16 32 64");
+static IIO_CONST_ATTR(oversampling_ratio_available, "1 2 4 8 16 32 64");
 
 static struct attribute *ad7606_attributes_os_and_range[] = {
 	&iio_dev_attr_in_voltage_range.dev_attr.attr,
@@ -449,7 +449,7 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 	st->bops = bops;
 	st->base_address = base_address;
 	st->range = 5000;
-	st->oversampling = 0;
+	st->oversampling = 1;
 
 	st->reg = devm_regulator_get(dev, "vcc");
 	if (!IS_ERR(st->reg)) {
