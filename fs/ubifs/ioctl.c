@@ -183,12 +183,17 @@ long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	case FS_IOC_SET_ENCRYPTION_POLICY: {
 #ifdef CONFIG_UBIFS_FS_ENCRYPTION
+		struct ubifs_info *c = inode->i_sb->s_fs_info;
 		struct fscrypt_policy policy;
 
 		if (copy_from_user(&policy,
 				   (struct fscrypt_policy __user *)arg,
 				   sizeof(policy)))
 			return -EFAULT;
+
+		err = ubifs_enable_encryption(c);
+		if (err)
+			return err;
 
 		err = fscrypt_process_policy(file, &policy);
 

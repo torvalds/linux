@@ -420,11 +420,13 @@ enum {
  * UBIFS_FLG_SPACE_FIXUP: first-mount "fixup" of free space within LEBs needed
  * UBIFS_FLG_DOUBLE_HASH: store a 32bit cookie in directory entry nodes to
  *			  support 64bit cookies for lookups by hash
+ * UBIFS_FLG_ENCRYPTION: this filesystem contains encrypted files
  */
 enum {
 	UBIFS_FLG_BIGLPT = 0x02,
 	UBIFS_FLG_SPACE_FIXUP = 0x04,
 	UBIFS_FLG_DOUBLE_HASH = 0x08,
+	UBIFS_FLG_ENCRYPTION = 0x10,
 };
 
 /**

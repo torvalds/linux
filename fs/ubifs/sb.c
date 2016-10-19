@@ -622,6 +622,16 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	c->big_lpt = !!(sup_flags & UBIFS_FLG_BIGLPT);
 	c->space_fixup = !!(sup_flags & UBIFS_FLG_SPACE_FIXUP);
 	c->double_hash = !!(sup_flags & UBIFS_FLG_DOUBLE_HASH);
+	c->encrypted = !!(sup_flags & UBIFS_FLG_ENCRYPTION);
+
+#ifndef CONFIG_UBIFS_FS_ENCRYPTION
+	if (c->encrypted) {
+		ubifs_err(c, "file system contains encrypted files but UBIFS"
+			     " was built without crypto support.");
+		err = -EINVAL;
+		goto out;
+	}
+#endif
 
 	/* Automatically increase file system size to the maximum size */
 	c->old_leb_cnt = c->leb_cnt;
@@ -807,5 +817,35 @@ int ubifs_fixup_free_space(struct ubifs_info *c)
 		return err;
 
 	ubifs_msg(c, "free space fixup complete");
+	return err;
+}
+
+int ubifs_enable_encryption(struct ubifs_info *c)
+{
+	int err;
+	struct ubifs_sb_node *sup;
+
+	if (c->encrypted)
+		return 0;
+
+	if (c->ro_mount || c->ro_media)
+		return -EROFS;
+
+	if (c->fmt_version < 5) {
+		ubifs_err(c, "on-flash format version 5 is needed for encryption");
+		return -EINVAL;
+	}
+
+	sup = ubifs_read_sb_node(c);
+	if (IS_ERR(sup))
+		return PTR_ERR(sup);
+
+	sup->flags |= cpu_to_le32(UBIFS_FLG_ENCRYPTION);
+
+	err = ubifs_write_sb_node(c, sup);
+	if (!err)
+		c->encrypted = 1;
+	kfree(sup);
+
 	return err;
 }
