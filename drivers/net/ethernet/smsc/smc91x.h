@@ -63,6 +63,8 @@
 
 #if defined(CONFIG_ARM)
 
+#include <asm/mach-types.h>
+
 /* Now the bus width is specified in the platform data
  * pretend here to support all I/O access types
  */
