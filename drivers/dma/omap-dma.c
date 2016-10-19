@@ -1286,7 +1286,7 @@ static int omap_dma_pause(struct dma_chan *chan)
 	struct omap_dmadev *od = to_omap_dma_dev(chan->device);
 	unsigned long flags;
 	int ret = -EINVAL;
-	bool can_pause;
+	bool can_pause = false;
 
 	spin_lock_irqsave(&od->irq_lock, flags);
 
