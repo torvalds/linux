@@ -694,7 +694,7 @@ struct hfa384x_ch_info_result {
 } __packed;
 
 /*--  Inquiry Frame, Diagnose: Host Scan Results & Subfields--*/
-struct hfa384x_HScanResultSub {
+struct hfa384x_hscan_result_sub {
 	u16 chid;
 	u16 anl;
 	u16 sl;
@@ -710,7 +710,7 @@ struct hfa384x_HScanResultSub {
 struct hfa384x_HScanResult {
 	u16 nresult;
 	u16 rsvd;
-	struct hfa384x_HScanResultSub result[HFA384x_HSCANRESULT_MAX];
+	struct hfa384x_hscan_result_sub result[HFA384x_HSCANRESULT_MAX];
 } __packed;
 
 /*--  Unsolicited Frame, MAC Mgmt: LinkStatus --*/

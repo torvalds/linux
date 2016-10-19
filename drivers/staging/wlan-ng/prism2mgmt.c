@@ -373,7 +373,7 @@ int prism2mgmt_scan_results(struct wlandevice *wlandev, void *msgp)
 	int result = 0;
 	struct p80211msg_dot11req_scan_results *req;
 	struct hfa384x *hw = wlandev->priv;
-	struct hfa384x_HScanResultSub *item = NULL;
+	struct hfa384x_hscan_result_sub *item = NULL;
 
 	int count;
 
