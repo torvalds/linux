@@ -699,25 +699,7 @@ static struct mei_cl_driver mei_wdt_driver = {
 	.remove = mei_wdt_remove,
 };
 
-static int __init mei_wdt_init(void)
-{
-	int ret;
-
-	ret = mei_cldev_driver_register(&mei_wdt_driver);
-	if (ret) {
-		pr_err(KBUILD_MODNAME ": module registration failed\n");
-		return ret;
-	}
-	return 0;
-}
-
-static void __exit mei_wdt_exit(void)
-{
-	mei_cldev_driver_unregister(&mei_wdt_driver);
-}
-
-module_init(mei_wdt_init);
-module_exit(mei_wdt_exit);
+module_mei_cl_driver(mei_wdt_driver);
 
 MODULE_AUTHOR("Intel Corporation");
 MODULE_LICENSE("GPL");
