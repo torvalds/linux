@@ -412,7 +412,7 @@ struct module {
 	/* Protected by RCU and/or module_mutex: use rcu_dereference() */
 	struct mod_kallsyms *kallsyms;
 	struct mod_kallsyms core_kallsyms;
-	
+
 	/* Section attributes */
 	struct module_sect_attrs *sect_attrs;
 
