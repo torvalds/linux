@@ -462,9 +462,9 @@ struct hfa384x_commsquality {
 
 /*-- Information Record: dmbcommsquality --*/
 struct hfa384x_dbmcommsquality {
-	u16 CQdbm_currBSS;
-	u16 ASLdbm_currBSS;
-	u16 ANLdbm_currFC;
+	u16 cq_dbm_curr_bss;
+	u16 asl_dbm_curr_bss;
+	u16 anl_dbm_curr_fc;
 } __packed;
 
 /*--------------------------------------------------------------------
