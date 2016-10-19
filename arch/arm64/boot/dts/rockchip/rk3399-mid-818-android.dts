@@ -864,6 +864,7 @@
 		type = <SENSOR_TYPE_ACCEL>;
 		irq_enable = <1>;
 		poll_delay_ms = <30>;
+		power-off-in-suspend = <1>;
 		layout = <4>;
 	};
 
@@ -876,6 +877,7 @@
 		irq-gpio = <&gpio1 20 IRQ_TYPE_EDGE_RISING>;
 		type = <SENSOR_TYPE_GYROSCOPE>;
 		irq_enable = <0>;
+		power-off-in-suspend = <1>;
 		poll_delay_ms = <30>;
 	};
 
