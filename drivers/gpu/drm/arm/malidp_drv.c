@@ -493,7 +493,9 @@ static int malidp_platform_probe(struct platform_device *pdev)
 		return -EAGAIN;
 	}
 
-	component_match_add(&pdev->dev, &match, malidp_compare_dev, port);
+	drm_of_component_match_add(&pdev->dev, &match, malidp_compare_dev,
+				   port);
+	of_node_put(port);
 	return component_master_add_with_match(&pdev->dev, &malidp_master_ops,
 					       match);
 }

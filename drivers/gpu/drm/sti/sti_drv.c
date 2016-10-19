@@ -17,6 +17,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_of.h>
 
 #include "sti_crtc.h"
 #include "sti_drv.h"
@@ -424,8 +425,8 @@ static int sti_platform_probe(struct platform_device *pdev)
 	child_np = of_get_next_available_child(node, NULL);
 
 	while (child_np) {
-		component_match_add(dev, &match, compare_of, child_np);
-		of_node_put(child_np);
+		drm_of_component_match_add(dev, &match, compare_of,
+					   child_np);
 		child_np = of_get_next_available_child(node, child_np);
 	}
 

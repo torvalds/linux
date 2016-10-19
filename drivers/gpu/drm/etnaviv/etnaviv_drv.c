@@ -16,6 +16,7 @@
 
 #include <linux/component.h>
 #include <linux/of_platform.h>
+#include <drm/drm_of.h>
 
 #include "etnaviv_drv.h"
 #include "etnaviv_gpu.h"
@@ -629,8 +630,8 @@ static int etnaviv_pdev_probe(struct platform_device *pdev)
 			if (!core_node)
 				break;
 
-			component_match_add(&pdev->dev, &match, compare_of,
-					    core_node);
+			drm_of_component_match_add(&pdev->dev, &match,
+						   compare_of, core_node);
 			of_node_put(core_node);
 		}
 	} else if (dev->platform_data) {

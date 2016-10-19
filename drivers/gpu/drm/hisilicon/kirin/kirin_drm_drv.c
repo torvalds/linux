@@ -24,6 +24,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_of.h>
 
 #include "kirin_drm_drv.h"
 
@@ -260,14 +261,13 @@ static struct device_node *kirin_get_remote_node(struct device_node *np)
 		DRM_ERROR("no valid endpoint node\n");
 		return ERR_PTR(-ENODEV);
 	}
-	of_node_put(endpoint);
 
 	remote = of_graph_get_remote_port_parent(endpoint);
+	of_node_put(endpoint);
 	if (!remote) {
 		DRM_ERROR("no valid remote node\n");
 		return ERR_PTR(-ENODEV);
 	}
-	of_node_put(remote);
 
 	if (!of_device_is_available(remote)) {
 		DRM_ERROR("not available for remote node\n");
@@ -294,7 +294,8 @@ static int kirin_drm_platform_probe(struct platform_device *pdev)
 	if (IS_ERR(remote))
 		return PTR_ERR(remote);
 
-	component_match_add(dev, &match, compare_of, remote);
+	drm_of_component_match_add(dev, &match, compare_of, remote);
+	of_node_put(remote);
 
 	return component_master_add_with_match(dev, &kirin_drm_ops, match);
 

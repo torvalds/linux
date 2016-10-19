@@ -18,6 +18,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_of.h>
 #include <linux/component.h>
 #include <linux/iommu.h>
 #include <linux/of_address.h>
@@ -416,7 +417,8 @@ static int mtk_drm_probe(struct platform_device *pdev)
 		    comp_type == MTK_DPI) {
 			dev_info(dev, "Adding component match for %s\n",
 				 node->full_name);
-			component_match_add(dev, &match, compare_of, node);
+			drm_of_component_match_add(dev, &match, compare_of,
+						   node);
 		} else {
 			struct mtk_ddp_comp *comp;
 
