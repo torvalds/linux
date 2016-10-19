@@ -966,6 +966,7 @@ static void rk818_cg_charger_evt_worker(struct work_struct *work)
 	if (charger != USB_TYPE_UNKNOWN_CHARGER) {
 		CG_INFO("receive type-c notifier event: %s...\n",
 			event[charger]);
+		cg->usb_charger = charger;
 		rk818_cg_set_chrg_param(cg, charger);
 		rk818_cg_pr_info(cg);
 	}
@@ -1061,6 +1062,7 @@ static long rk818_cg_init_usb(struct rk818_charger *cg)
 		cg->cable_edev = edev;
 
 		schedule_delayed_work(&cg->host_work, 0);
+		schedule_delayed_work(&cg->usb_work, 0);
 
 		CG_INFO("register typec extcon evt notifier\n");
 	} else {
