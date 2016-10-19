@@ -75,30 +75,37 @@ static int rga2_mmu_buf_get(struct rga2_mmu_buf_t *t, uint32_t size)
 
 static int rga2_mmu_buf_get_try(struct rga2_mmu_buf_t *t, uint32_t size)
 {
-    mutex_lock(&rga2_service.lock);
-    if((t->back - t->front) > t->size) {
-        if(t->front + size > t->back - t->size) {
-	    pr_info("front %d, back %d dsize %d size %d", t->front, t->back, t->size, size);
-            return -1;
-	}
-    }
-    else {
-        if((t->front + size) > t->back) {
-	    pr_info("front %d, back %d dsize %d size %d", t->front, t->back, t->size, size);
-            return -1;
-	}
+	int ret = 0;
 
-        if(t->front + size > t->size) {
-            if (size > (t->back - t->size)) {
-	        pr_info("front %d, back %d dsize %d size %d", t->front, t->back, t->size, size);
-                return -1;
-            }
-            t->front = 0;
-        }
-    }
-    mutex_unlock(&rga2_service.lock);
+	mutex_lock(&rga2_service.lock);
+	if ((t->back - t->front) > t->size) {
+		if (t->front + size > t->back - t->size) {
+			pr_info("front %d, back %d dsize %d size %d",
+				t->front, t->back, t->size, size);
+			ret = -ENOMEM;
+			goto out;
+		}
+	} else {
+		if ((t->front + size) > t->back) {
+			pr_info("front %d, back %d dsize %d size %d",
+				t->front, t->back, t->size, size);
+			ret = -ENOMEM;
+			goto out;
+		}
 
-    return 0;
+		if (t->front + size > t->size) {
+			if (size > (t->back - t->size)) {
+				pr_info("front %d, back %d dsize %d size %d",
+					t->front, t->back, t->size, size);
+				ret = -ENOMEM;
+				goto out;
+			}
+			t->front = 0;
+		}
+	}
+out:
+	mutex_unlock(&rga2_service.lock);
+	return ret;
 }
 
 static int rga2_mem_size_cal(unsigned long Mem, uint32_t MemSize, unsigned long *StartAddr)
