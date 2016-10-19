@@ -33,6 +33,26 @@
 
 	.endm
 
+	.macro set_mmdc_misc_ralat_2_cycles
+
+	/* Set MMDCx_MISC[RALAT] = 2 cycles */
+	ldr	r6, [r8, #0x18]
+	bic	r6, r6, #(0x7 << 6)
+	orr	r6, r6, #(0x2 << 6)
+	str	r6, [r8, #0x18]
+
+	/* Check if lpddr2 channel 1 is enabled */
+	ldr 	r6, [r8, #0x18]
+	ands	r6, r6, #(1 << 2)
+	beq	1f
+
+	ldr	r6, [r4, #0x18]
+	bic	r6, r6, #(0x7 << 6)
+	orr	r6, r6, #(0x2 << 6)
+	str	r6, [r4, #0x18]
+1:
+	.endm
+
 	.macro	switch_to_400MHz
 	/* set the MMDC_DIV=1, AXI_DIV=2, AHB_DIV=3 */
 	ldr	r9, [r2, #CCM_CBCDR]
@@ -151,11 +171,7 @@ skip_periph_clk_switch_100m:
 	.endm
 
 	.macro	set_timings_below_100MHz_operation
-	/* Set MMDCx_MISC[RALAT] = 2 cycles */
-	ldr	r6, [r8, #0x18]
-	bic	r6, r6, #(0x7 << 6)
-	orr	r6, r6, #(0x2 << 6)
-	str	r6, [r8, #0x18]
+	set_mmdc_misc_ralat_2_cycles
 
 	/* Adjust LPDDR2 timings for 24Mhz operation */
 	ldr	r5, =0x03162073
@@ -171,11 +187,6 @@ skip_periph_clk_switch_100m:
 	ldr	r6, [r8, #0x18]
 	ands	r6, r6, #(1 << 2)
 	beq	skip_below_100Mhz_ch1_timings
-
-	ldr	r6, [r4, #0x18]
-	bic	r6, r6, #(0x7 << 6)
-	orr	r6, r6, #(0x2 << 6)
-	str	r6, [r4, #0x18]
 
 	str	r5, [r4, #0xC]  	/* MMDC1_MDCFG0 */
 	str	r7, [r4, #0x10] 	/* MMDC1_MDCFG1 */
