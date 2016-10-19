@@ -792,7 +792,7 @@ static int st_fdma_probe(struct platform_device *pdev)
 	}
 
 	fdev->slim_rproc = st_slim_rproc_alloc(pdev, fdev->fw_name);
-	if (!fdev->slim_rproc) {
+	if (IS_ERR(fdev->slim_rproc)) {
 		ret = PTR_ERR(fdev->slim_rproc);
 		dev_err(&pdev->dev, "slim_rproc_alloc failed (%d)\n", ret);
 		goto err;
