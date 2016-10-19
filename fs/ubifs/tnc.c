@@ -1930,6 +1930,9 @@ int ubifs_tnc_lookup_dh(struct ubifs_info *c, const union ubifs_key *key,
 	int err;
 	const struct ubifs_dent_node *dent = node;
 
+	if (!c->double_hash)
+		return -EOPNOTSUPP;
+
 	/*
 	 * We assume that in most of the cases there are no name collisions and
 	 * 'ubifs_tnc_lookup()' returns us the right direntry.
