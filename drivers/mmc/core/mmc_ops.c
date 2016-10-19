@@ -495,34 +495,32 @@ static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
 	timeout = jiffies + msecs_to_jiffies(timeout_ms) + 1;
 	do {
 		/*
-		 * Due to the possibility of being preempted after
-		 * sending the status command, check the expiration
-		 * time first.
+		 * Due to the possibility of being preempted while polling,
+		 * check the expiration time first.
 		 */
 		expired = time_after(jiffies, timeout);
-		if (send_status) {
+
+		if (host->ops->card_busy) {
+			busy = host->ops->card_busy(host);
+		} else {
 			err = __mmc_send_status(card, &status, ignore_crc);
 			if (err)
 				return err;
-		}
-		if (host->ops->card_busy) {
-			if (!host->ops->card_busy(host))
-				break;
-			busy = true;
+			busy = R1_CURRENT_STATE(status) == R1_STATE_PRG;
 		}
 
-		/* Timeout if the device never leaves the program state. */
-		if (expired &&
-		    (R1_CURRENT_STATE(status) == R1_STATE_PRG || busy)) {
-			pr_err("%s: Card stuck in programming state! %s\n",
+		/* Timeout if the device still remains busy. */
+		if (expired && busy) {
+			pr_err("%s: Card stuck being busy! %s\n",
 				mmc_hostname(host), __func__);
 			return -ETIMEDOUT;
 		}
-	} while (R1_CURRENT_STATE(status) == R1_STATE_PRG || busy);
+	} while (busy);
 
-	err = mmc_switch_status_error(host, status);
+	if (host->ops->card_busy && send_status)
+		return mmc_switch_status(card);
 
-	return err;
+	return mmc_switch_status_error(host, status);
 }
 
 /**
