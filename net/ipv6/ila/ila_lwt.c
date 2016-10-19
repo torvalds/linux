@@ -122,7 +122,7 @@ static int ila_build_state(struct net_device *dev, struct nlattr *nla,
 	struct ila_lwt *ilwt;
 	struct ila_params *p;
 	struct nlattr *tb[ILA_ATTR_MAX + 1];
-	size_t encap_len = sizeof(*p);
+	size_t encap_len = sizeof(*ilwt);
 	struct lwtunnel_state *newts;
 	const struct fib6_config *cfg6 = cfg;
 	struct ila_addr *iaddr;
