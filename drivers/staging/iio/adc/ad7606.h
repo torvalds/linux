@@ -9,33 +9,6 @@
 #ifndef IIO_ADC_AD7606_H_
 #define IIO_ADC_AD7606_H_
 
-/*
- * TODO: struct ad7606_platform_data needs to go into include/linux/iio
- */
-
-/**
- * struct ad7606_platform_data - platform/board specific information
- * @gpio_convst:	number of gpio connected to the CONVST pin
- * @gpio_reset:		gpio connected to the RESET pin, if not used set to -1
- * @gpio_range:		gpio connected to the RANGE pin, if not used set to -1
- * @gpio_os0:		gpio connected to the OS0 pin, if not used set to -1
- * @gpio_os1:		gpio connected to the OS1 pin, if not used set to -1
- * @gpio_os2:		gpio connected to the OS2 pin, if not used set to -1
- * @gpio_frstdata:	gpio connected to the FRSTDAT pin, if not used set to -1
- * @gpio_stby:		gpio connected to the STBY pin, if not used set to -1
- */
-
-struct ad7606_platform_data {
-	unsigned int			gpio_convst;
-	unsigned int			gpio_reset;
-	unsigned int			gpio_range;
-	unsigned int			gpio_os0;
-	unsigned int			gpio_os1;
-	unsigned int			gpio_os2;
-	unsigned int			gpio_frstdata;
-	unsigned int			gpio_stby;
-};
-
 /**
  * struct ad7606_chip_info - chip specific information
  * @name:		identification string for chip
@@ -55,7 +28,6 @@ struct ad7606_chip_info {
 struct ad7606_state {
 	struct device			*dev;
 	const struct ad7606_chip_info	*chip_info;
-	struct ad7606_platform_data	*pdata;
 	struct regulator		*reg;
 	struct work_struct		poll_work;
 	wait_queue_head_t		wq_data_avail;
@@ -64,6 +36,13 @@ struct ad7606_state {
 	unsigned int			oversampling;
 	bool				done;
 	void __iomem			*base_address;
+
+	struct gpio_desc		*gpio_convst;
+	struct gpio_desc		*gpio_reset;
+	struct gpio_desc		*gpio_range;
+	struct gpio_desc		*gpio_standby;
+	struct gpio_desc		*gpio_frstdata;
+	struct gpio_descs		*gpio_os;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
