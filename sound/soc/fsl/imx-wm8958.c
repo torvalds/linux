@@ -397,12 +397,13 @@ static int imx_wm8958_set_bias_level_post(struct snd_soc_card *card,
 
 static int imx_wm8958_probe(struct platform_device *pdev)
 {
-	struct device_node *cpu_np, *codec_np = NULL, *gpr_np;
+	struct device_node *cpu_np, *codec_np = NULL;
 	struct device_node *np = pdev->dev.of_node;
 	struct platform_device *cpu_pdev;
 	struct imx_priv *priv = &card_priv;
 	struct i2c_client *codec_dev;
 	struct imx_wm8958_data *data;
+	struct of_phandle_args args;
 	int ret;
 
 	priv->pdev = pdev;
@@ -441,16 +442,19 @@ static int imx_wm8958_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	gpr_np = of_parse_phandle(pdev->dev.of_node, "gpr", 0);
-	if (gpr_np) {
-		data->gpr = syscon_node_to_regmap(gpr_np);
+	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node, "gpr", 3,
+				0, &args);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to get gpr property\n");
+		goto fail;
+	} else {
+		data->gpr = syscon_node_to_regmap(args.np);
 		if (IS_ERR(data->gpr)) {
 			ret = PTR_ERR(data->gpr);
 			dev_err(&pdev->dev, "failed to get gpr regmap\n");
 			goto fail;
 		}
-		if (data->gpr)
-			regmap_update_bits(data->gpr, 4, 1<<20, 1<<20);
+		regmap_update_bits(data->gpr, args.args[0], args.args[1], args.args[2]);
 	}
 
 	if (of_property_read_bool(np, "codec-master")) {

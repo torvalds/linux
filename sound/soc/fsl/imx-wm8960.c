@@ -420,13 +420,13 @@ static struct snd_soc_dai_link imx_wm8960_dai[] = {
 static int imx_wm8960_probe(struct platform_device *pdev)
 {
 	struct device_node *cpu_np, *codec_np = NULL;
-	struct device_node *gpr_np;
 	struct platform_device *cpu_pdev;
 	struct imx_priv *priv = &card_priv;
 	struct i2c_client *codec_dev;
 	struct imx_wm8960_data *data;
 	struct platform_device *asrc_pdev = NULL;
 	struct device_node *asrc_np;
+	struct of_phandle_args args;
 	u32 width;
 	int ret;
 
@@ -476,17 +476,19 @@ static int imx_wm8960_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	gpr_np = of_parse_phandle(pdev->dev.of_node, "gpr", 0);
-        if (gpr_np) {
-		data->gpr = syscon_node_to_regmap(gpr_np);
+	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node, "gpr", 3,
+				0, &args);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to get gpr property\n");
+		goto fail;
+	} else {
+		data->gpr = syscon_node_to_regmap(args.np);
 		if (IS_ERR(data->gpr)) {
 			ret = PTR_ERR(data->gpr);
 			dev_err(&pdev->dev, "failed to get gpr regmap\n");
 			goto fail;
 		}
-
-		/* set SAI2_MCLK_DIR to enable codec MCLK for imx7d */
-		regmap_update_bits(data->gpr, 4, 1<<20, 1<<20);
+		regmap_update_bits(data->gpr, args.args[0], args.args[1], args.args[2]);
 	}
 
 	of_property_read_u32_array(pdev->dev.of_node, "hp-det", data->hp_det, 2);
