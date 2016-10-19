@@ -262,15 +262,15 @@ static void __show_regs(const struct pt_regs *regs)
 		if ((i % 4) == 0)
 			printk("$%2d   :", i);
 		if (i == 0)
-			printk(" %0*lx", field, 0UL);
+			pr_cont(" %0*lx", field, 0UL);
 		else if (i == 26 || i == 27)
-			printk(" %*s", field, "");
+			pr_cont(" %*s", field, "");
 		else
-			printk(" %0*lx", field, regs->regs[i]);
+			pr_cont(" %0*lx", field, regs->regs[i]);
 
 		i++;
 		if ((i % 4) == 0)
-			printk("\n");
+			pr_cont("\n");
 	}
 
 #ifdef CONFIG_CPU_HAS_SMARTMIPS
@@ -291,46 +291,46 @@ static void __show_regs(const struct pt_regs *regs)
 
 	if (cpu_has_3kex) {
 		if (regs->cp0_status & ST0_KUO)
-			printk("KUo ");
+			pr_cont("KUo ");
 		if (regs->cp0_status & ST0_IEO)
-			printk("IEo ");
+			pr_cont("IEo ");
 		if (regs->cp0_status & ST0_KUP)
-			printk("KUp ");
+			pr_cont("KUp ");
 		if (regs->cp0_status & ST0_IEP)
-			printk("IEp ");
+			pr_cont("IEp ");
 		if (regs->cp0_status & ST0_KUC)
-			printk("KUc ");
+			pr_cont("KUc ");
 		if (regs->cp0_status & ST0_IEC)
-			printk("IEc ");
+			pr_cont("IEc ");
 	} else if (cpu_has_4kex) {
 		if (regs->cp0_status & ST0_KX)
-			printk("KX ");
+			pr_cont("KX ");
 		if (regs->cp0_status & ST0_SX)
-			printk("SX ");
+			pr_cont("SX ");
 		if (regs->cp0_status & ST0_UX)
-			printk("UX ");
+			pr_cont("UX ");
 		switch (regs->cp0_status & ST0_KSU) {
 		case KSU_USER:
-			printk("USER ");
+			pr_cont("USER ");
 			break;
 		case KSU_SUPERVISOR:
-			printk("SUPERVISOR ");
+			pr_cont("SUPERVISOR ");
 			break;
 		case KSU_KERNEL:
-			printk("KERNEL ");
+			pr_cont("KERNEL ");
 			break;
 		default:
-			printk("BAD_MODE ");
+			pr_cont("BAD_MODE ");
 			break;
 		}
 		if (regs->cp0_status & ST0_ERL)
-			printk("ERL ");
+			pr_cont("ERL ");
 		if (regs->cp0_status & ST0_EXL)
-			printk("EXL ");
+			pr_cont("EXL ");
 		if (regs->cp0_status & ST0_IE)
-			printk("IE ");
+			pr_cont("IE ");
 	}
-	printk("\n");
+	pr_cont("\n");
 
 	exccode = (cause & CAUSEF_EXCCODE) >> CAUSEB_EXCCODE;
 	printk("Cause : %08x (ExcCode %02x)\n", cause, exccode);
