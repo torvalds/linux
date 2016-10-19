@@ -1253,7 +1253,7 @@ enum i40iw_status_code i40iw_puda_get_tcpip_info(struct i40iw_puda_completion_in
 
 	buf->totallen = pkt_len + buf->maclen;
 
-	if (info->payload_len < buf->totallen - 4) {
+	if (info->payload_len < buf->totallen) {
 		i40iw_pr_err("payload_len = 0x%x totallen expected0x%x\n",
 			     info->payload_len, buf->totallen);
 		return I40IW_ERR_INVALID_SIZE;

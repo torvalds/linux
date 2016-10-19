@@ -361,15 +361,6 @@ static void i40iw_cleanup_retrans_entry(struct i40iw_cm_node *cm_node)
 	spin_unlock_irqrestore(&cm_node->retrans_list_lock, flags);
 }
 
-static bool is_remote_ne020_or_chelsio(struct i40iw_cm_node *cm_node)
-{
-	if ((cm_node->rem_mac[0] == 0x0) &&
-	    (((cm_node->rem_mac[1] == 0x12) && (cm_node->rem_mac[2] == 0x55)) ||
-	     ((cm_node->rem_mac[1] == 0x07 && (cm_node->rem_mac[2] == 0x43)))))
-		return true;
-	return false;
-}
-
 /**
  * i40iw_form_cm_frame - get a free packet and build frame
  * @cm_node: connection's node ionfo to use in frame
@@ -410,11 +401,8 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 	if (hdr)
 		hdr_len = hdr->size;
 
-	if (pdata) {
+	if (pdata)
 		pd_len = pdata->size;
-		if (!is_remote_ne020_or_chelsio(cm_node))
-			pd_len += MPA_ZERO_PAD_LEN;
-	}
 
 	if (cm_node->vlan_id < VLAN_TAG_PRESENT)
 		eth_hlen += 4;
@@ -3587,7 +3575,7 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	iwqp->cm_node = (void *)cm_node;
 	cm_node->iwqp = iwqp;
 
-	buf_len = conn_param->private_data_len + I40IW_MAX_IETF_SIZE + MPA_ZERO_PAD_LEN;
+	buf_len = conn_param->private_data_len + I40IW_MAX_IETF_SIZE;
 
 	status = i40iw_allocate_dma_mem(dev->hw, &iwqp->ietf_mem, buf_len, 1);
 
@@ -3621,17 +3609,9 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		iwqp->lsmm_mr = ibmr;
 		if (iwqp->page)
 			iwqp->sc_qp.qp_uk.sq_base = kmap(iwqp->page);
-		if (is_remote_ne020_or_chelsio(cm_node))
-			dev->iw_priv_qp_ops->qp_send_lsmm(
-							&iwqp->sc_qp,
+		dev->iw_priv_qp_ops->qp_send_lsmm(&iwqp->sc_qp,
 							iwqp->ietf_mem.va,
 							(accept.size + conn_param->private_data_len),
-							ibmr->lkey);
-		else
-			dev->iw_priv_qp_ops->qp_send_lsmm(
-							&iwqp->sc_qp,
-							iwqp->ietf_mem.va,
-							(accept.size + conn_param->private_data_len + MPA_ZERO_PAD_LEN),
 							ibmr->lkey);
 
 	} else {

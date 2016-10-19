@@ -56,8 +56,6 @@
 
 #define I40IW_MAX_IETF_SIZE      32
 
-#define MPA_ZERO_PAD_LEN	4
-
 /* IETF RTR MSG Fields               */
 #define IETF_PEER_TO_PEER       0x8000
 #define IETF_FLPDU_ZERO_LEN     0x4000
