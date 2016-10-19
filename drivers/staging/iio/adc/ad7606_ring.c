@@ -18,11 +18,7 @@
 
 #include "ad7606.h"
 
-/**
- * ad7606_trigger_handler_th() th/bh of trigger launched polling to ring buffer
- *
- **/
-static irqreturn_t ad7606_trigger_handler_th_bh(int irq, void *p)
+static irqreturn_t ad7606_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct ad7606_state *st = iio_priv(pf->indio_dev);
@@ -63,9 +59,8 @@ int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 
 	INIT_WORK(&st->poll_work, &ad7606_poll_bh_to_ring);
 
-	return iio_triggered_buffer_setup(indio_dev,
-		&ad7606_trigger_handler_th_bh, &ad7606_trigger_handler_th_bh,
-		NULL);
+	return iio_triggered_buffer_setup(indio_dev, &ad7606_trigger_handler,
+					  NULL, NULL);
 }
 
 void ad7606_ring_cleanup(struct iio_dev *indio_dev)
