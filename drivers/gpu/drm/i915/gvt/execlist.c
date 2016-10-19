@@ -499,7 +499,7 @@ static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 
 		list_for_each_entry_safe(entry_obj, temp, &workload->shadow_bb,
 					 list) {
-			drm_gem_object_unreference(&(entry_obj->obj->base));
+			i915_gem_object_put(entry_obj->obj);
 			kvfree(entry_obj->va);
 			list_del(&entry_obj->list);
 			kfree(entry_obj);
@@ -512,7 +512,7 @@ static void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	if (wa_ctx->indirect_ctx.size == 0)
 		return;
 
-	drm_gem_object_unreference(&(wa_ctx->indirect_ctx.obj->base));
+	i915_gem_object_put(wa_ctx->indirect_ctx.obj);
 	kvfree(wa_ctx->indirect_ctx.shadow_va);
 }
 
