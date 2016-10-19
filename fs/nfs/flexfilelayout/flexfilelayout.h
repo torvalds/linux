@@ -21,6 +21,7 @@
 
 /* LAYOUTSTATS report interval in ms */
 #define FF_LAYOUTSTATS_REPORT_INTERVAL (60000L)
+#define FF_LAYOUTSTATS_MAXDEV 4
 
 struct nfs4_ff_ds_version {
 	u32				version;
@@ -108,7 +109,9 @@ struct nfs4_flexfile_layout {
 
 struct nfs4_flexfile_layoutreturn_args {
 	struct list_head errors;
+	struct nfs42_layoutstat_devinfo devinfo[FF_LAYOUTSTATS_MAXDEV];
 	unsigned int num_errors;
+	unsigned int num_dev;
 };
 
 static inline struct nfs4_flexfile_layout *
