@@ -386,8 +386,6 @@ static int set_gma_to_bb_cmd(struct intel_shadow_bb_entry *entry_obj,
 static void prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 {
 	int gmadr_bytes = workload->vgpu->gvt->device_info.gmadr_bytes_in_cmd;
-	struct i915_vma *vma;
-	unsigned long gma;
 
 	/* pin the gem object to ggtt */
 	if (!list_empty(&workload->shadow_bb)) {
@@ -399,8 +397,10 @@ static void prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 
 		list_for_each_entry_safe(entry_obj, temp, &workload->shadow_bb,
 				list) {
+			struct i915_vma *vma;
+
 			vma = i915_gem_object_ggtt_pin(entry_obj->obj, NULL, 0,
-					0, 0);
+						       4, 0);
 			if (IS_ERR(vma)) {
 				gvt_err("Cannot pin\n");
 				return;
@@ -408,9 +408,9 @@ static void prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 			i915_gem_object_unpin_pages(entry_obj->obj);
 
 			/* update the relocate gma with shadow batch buffer*/
-			gma = i915_gem_object_ggtt_offset(entry_obj->obj, NULL);
-			WARN_ON(!IS_ALIGNED(gma, 4));
-			set_gma_to_bb_cmd(entry_obj, gma, gmadr_bytes);
+			set_gma_to_bb_cmd(entry_obj,
+					  i915_ggtt_offset(vma),
+					  gmadr_bytes);
 		}
 	}
 }
@@ -442,7 +442,6 @@ static int update_wa_ctx_2_shadow_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 static void prepare_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 {
 	struct i915_vma *vma;
-	unsigned long gma;
 	unsigned char *per_ctx_va =
 		(unsigned char *)wa_ctx->indirect_ctx.shadow_va +
 		wa_ctx->indirect_ctx.size;
@@ -450,16 +449,15 @@ static void prepare_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	if (wa_ctx->indirect_ctx.size == 0)
 		return;
 
-	vma = i915_gem_object_ggtt_pin(wa_ctx->indirect_ctx.obj, NULL, 0, 0, 0);
+	vma = i915_gem_object_ggtt_pin(wa_ctx->indirect_ctx.obj, NULL,
+				       0, CACHELINE_BYTES, 0);
 	if (IS_ERR(vma)) {
 		gvt_err("Cannot pin indirect ctx obj\n");
 		return;
 	}
 	i915_gem_object_unpin_pages(wa_ctx->indirect_ctx.obj);
 
-	gma = i915_gem_object_ggtt_offset(wa_ctx->indirect_ctx.obj, NULL);
-	WARN_ON(!IS_ALIGNED(gma, CACHELINE_BYTES));
-	wa_ctx->indirect_ctx.shadow_gma = gma;
+	wa_ctx->indirect_ctx.shadow_gma = i915_ggtt_offset(vma);
 
 	wa_ctx->per_ctx.shadow_gma = *((unsigned int *)per_ctx_va + 1);
 	memset(per_ctx_va, 0, CACHELINE_BYTES);
