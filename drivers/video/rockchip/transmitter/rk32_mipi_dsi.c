@@ -1394,7 +1394,7 @@ ssize_t reg_proc_write(struct file *file, const char __user *buff, size_t count,
 		while (*(++data) == ' ')
 			;
 		i = 0;
-		MIPI_TRACE("****%d:%d\n", data-buf, count);
+
 		do {
 			if (i > 31) {
 				MIPI_TRACE("payload entry is larger than 32\n");
@@ -1523,7 +1523,7 @@ ssize_t reg_proc_write1(struct file *file, const char __user *buff, size_t count
 		while (*(++data) == ' ')
 			;
 		i = 0;
-		MIPI_TRACE("****%d:%d\n", data-buf, count);
+
 		do {
 			if (i > 31) {
 				MIPI_TRACE("payload entry is larger than 32\n");
