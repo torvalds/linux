@@ -300,7 +300,10 @@ static int mei_nfc_recv(struct nfc_mei_phy *phy, u8 *buf, size_t length)
 static void nfc_mei_event_cb(struct mei_cl_device *cldev, u32 events,
 			     void *context)
 {
-	struct nfc_mei_phy *phy = context;
+	struct nfc_mei_phy *phy = mei_cldev_get_drvdata(cldev);
+
+	if (!phy)
+		return;
 
 	if (phy->hard_fault != 0)
 		return;
