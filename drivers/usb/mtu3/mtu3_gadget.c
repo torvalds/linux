@@ -73,6 +73,7 @@ static void nuke(struct mtu3_ep *mep, const int status)
 static int mtu3_ep_enable(struct mtu3_ep *mep)
 {
 	const struct usb_endpoint_descriptor *desc;
+	const struct usb_ss_ep_comp_descriptor *comp_desc;
 	struct mtu3 *mtu = mep->mtu;
 	u32 interval = 0;
 	u32 mult = 0;
@@ -81,11 +82,24 @@ static int mtu3_ep_enable(struct mtu3_ep *mep)
 	int ret;
 
 	desc = mep->desc;
+	comp_desc = mep->comp_desc;
 	mep->type = usb_endpoint_type(desc);
 	max_packet = usb_endpoint_maxp(desc);
 	mep->maxp = max_packet & GENMASK(10, 0);
 
 	switch (mtu->g.speed) {
+	case USB_SPEED_SUPER:
+		if (usb_endpoint_xfer_int(desc) ||
+				usb_endpoint_xfer_isoc(desc)) {
+			interval = desc->bInterval;
+			interval = clamp_val(interval, 1, 16) - 1;
+			if (usb_endpoint_xfer_isoc(desc) && comp_desc)
+				mult = comp_desc->bmAttributes;
+		}
+		if (comp_desc)
+			burst = comp_desc->bMaxBurst;
+
+		break;
 	case USB_SPEED_HIGH:
 		if (usb_endpoint_xfer_isoc(desc) ||
 				usb_endpoint_xfer_int(desc)) {
@@ -103,6 +117,7 @@ static int mtu3_ep_enable(struct mtu3_ep *mep)
 
 	mep->ep.maxpacket = mep->maxp;
 	mep->ep.desc = desc;
+	mep->ep.comp_desc = comp_desc;
 
 	/* slot mainly affects bulk/isoc transfer, so ignore int */
 	mep->slot = usb_endpoint_xfer_int(desc) ? 0 : mtu->slot;
@@ -135,6 +150,7 @@ static int mtu3_ep_disable(struct mtu3_ep *mep)
 
 	mep->desc = NULL;
 	mep->ep.desc = NULL;
+	mep->comp_desc = NULL;
 	mep->type = 0;
 	mep->flags = 0;
 
@@ -178,6 +194,7 @@ static int mtu3_gadget_ep_enable(struct usb_ep *ep,
 
 	spin_lock_irqsave(&mtu->lock, flags);
 	mep->desc = desc;
+	mep->comp_desc = ep->comp_desc;
 
 	ret = mtu3_ep_enable(mep);
 	if (ret)
@@ -439,13 +456,15 @@ static int mtu3_gadget_wakeup(struct usb_gadget *gadget)
 		return  -EOPNOTSUPP;
 
 	spin_lock_irqsave(&mtu->lock, flags);
-
-	mtu3_setbits(mtu->mac_base, U3D_POWER_MANAGEMENT, RESUME);
-	spin_unlock_irqrestore(&mtu->lock, flags);
-	usleep_range(10000, 11000);
-	spin_lock_irqsave(&mtu->lock, flags);
-	mtu3_clrbits(mtu->mac_base, U3D_POWER_MANAGEMENT, RESUME);
-
+	if (mtu->g.speed == USB_SPEED_SUPER) {
+		mtu3_setbits(mtu->mac_base, U3D_LINK_POWER_CONTROL, UX_EXIT);
+	} else {
+		mtu3_setbits(mtu->mac_base, U3D_POWER_MANAGEMENT, RESUME);
+		spin_unlock_irqrestore(&mtu->lock, flags);
+		usleep_range(10000, 11000);
+		spin_lock_irqsave(&mtu->lock, flags);
+		mtu3_clrbits(mtu->mac_base, U3D_POWER_MANAGEMENT, RESUME);
+	}
 	spin_unlock_irqrestore(&mtu->lock, flags);
 	return 0;
 }
@@ -476,7 +495,7 @@ static int mtu3_gadget_pullup(struct usb_gadget *gadget, int is_on)
 		mtu->softconnect = is_on;
 	} else if (is_on != mtu->softconnect) {
 		mtu->softconnect = is_on;
-		mtu3_hs_softconn_set(mtu, is_on);
+		mtu3_dev_on_off(mtu, is_on);
 	}
 
 	spin_unlock_irqrestore(&mtu->lock, flags);
@@ -524,7 +543,7 @@ static void stop_activity(struct mtu3 *mtu)
 	/* deactivate the hardware */
 	if (mtu->softconnect) {
 		mtu->softconnect = 0;
-		mtu3_hs_softconn_set(mtu, 0);
+		mtu3_dev_on_off(mtu, 0);
 	}
 
 	/*
@@ -587,14 +606,14 @@ static void init_hw_ep(struct mtu3 *mtu, struct mtu3_ep *mep,
 	mep->ep.name = mep->name;
 	INIT_LIST_HEAD(&mep->ep.ep_list);
 
-	/* initialize maxpacket as HS */
+	/* initialize maxpacket as SS */
 	if (!epnum) {
-		usb_ep_set_maxpacket_limit(&mep->ep, 64);
+		usb_ep_set_maxpacket_limit(&mep->ep, 512);
 		mep->ep.caps.type_control = true;
 		mep->ep.ops = &mtu3_ep0_ops;
 		mtu->g.ep0 = &mep->ep;
 	} else {
-		usb_ep_set_maxpacket_limit(&mep->ep, 512);
+		usb_ep_set_maxpacket_limit(&mep->ep, 1024);
 		mep->ep.caps.type_iso = true;
 		mep->ep.caps.type_bulk = true;
 		mep->ep.caps.type_int = true;
@@ -637,7 +656,7 @@ int mtu3_gadget_setup(struct mtu3 *mtu)
 	int ret;
 
 	mtu->g.ops = &mtu3_gadget_ops;
-	mtu->g.max_speed = USB_SPEED_HIGH;
+	mtu->g.max_speed = mtu->max_speed;
 	mtu->g.speed = USB_SPEED_UNKNOWN;
 	mtu->g.sg_supported = 0;
 	mtu->g.name = MTU3_DRIVER_NAME;

@@ -161,6 +161,41 @@ static int ep0_queue(struct mtu3_ep *mep0, struct mtu3_request *mreq);
 static void ep0_dummy_complete(struct usb_ep *ep, struct usb_request *req)
 {}
 
+static void ep0_set_sel_complete(struct usb_ep *ep, struct usb_request *req)
+{
+	struct mtu3_request *mreq;
+	struct mtu3 *mtu;
+	struct usb_set_sel_req sel;
+
+	memcpy(&sel, req->buf, sizeof(sel));
+
+	mreq = to_mtu3_request(req);
+	mtu = mreq->mtu;
+	dev_dbg(mtu->dev, "u1sel:%d, u1pel:%d, u2sel:%d, u2pel:%d\n",
+		sel.u1_sel, sel.u1_pel, sel.u2_sel, sel.u2_pel);
+}
+
+/* queue data stage to handle 6 byte SET_SEL request */
+static int ep0_set_sel(struct mtu3 *mtu, struct usb_ctrlrequest *setup)
+{
+	int ret;
+	u16 length = le16_to_cpu(setup->wLength);
+
+	if (unlikely(length != 6)) {
+		dev_err(mtu->dev, "%s wrong wLength:%d\n",
+			__func__, length);
+		return -EINVAL;
+	}
+
+	mtu->ep0_req.mep = mtu->ep0;
+	mtu->ep0_req.request.length = 6;
+	mtu->ep0_req.request.buf = mtu->setup_buf;
+	mtu->ep0_req.request.complete = ep0_set_sel_complete;
+	ret = ep0_queue(mtu->ep0, &mtu->ep0_req);
+
+	return ret < 0 ? ret : 1;
+}
+
 static int
 ep0_get_status(struct mtu3 *mtu, const struct usb_ctrlrequest *setup)
 {
@@ -174,6 +209,15 @@ ep0_get_status(struct mtu3 *mtu, const struct usb_ctrlrequest *setup)
 	case USB_RECIP_DEVICE:
 		result[0] = mtu->is_self_powered << USB_DEVICE_SELF_POWERED;
 		result[0] |= mtu->may_wakeup << USB_DEVICE_REMOTE_WAKEUP;
+		/* superspeed only */
+		if (mtu->g.speed == USB_SPEED_SUPER) {
+			result[0] |= mtu->u1_enable << USB_DEV_STAT_U1_ENABLED;
+			result[0] |= mtu->u2_enable << USB_DEV_STAT_U2_ENABLED;
+		}
+
+		dev_dbg(mtu->dev, "%s result=%x, U1=%x, U2=%x\n", __func__,
+			result[0], mtu->u1_enable, mtu->u2_enable);
+
 		break;
 	case USB_RECIP_INTERFACE:
 		break;
@@ -265,7 +309,9 @@ out:
 static int ep0_handle_feature_dev(struct mtu3 *mtu,
 		struct usb_ctrlrequest *setup, bool set)
 {
+	void __iomem *mbase = mtu->mac_base;
 	int handled = -EINVAL;
+	u32 lpc;
 
 	switch (le16_to_cpu(setup->wValue)) {
 	case USB_DEVICE_REMOTE_WAKEUP:
@@ -278,6 +324,36 @@ static int ep0_handle_feature_dev(struct mtu3 *mtu,
 			break;
 
 		handled = handle_test_mode(mtu, setup);
+		break;
+	case USB_DEVICE_U1_ENABLE:
+		if (mtu->g.speed != USB_SPEED_SUPER ||
+			mtu->g.state != USB_STATE_CONFIGURED)
+			break;
+
+		lpc = mtu3_readl(mbase, U3D_LINK_POWER_CONTROL);
+		if (set)
+			lpc |= SW_U1_ACCEPT_ENABLE;
+		else
+			lpc &= ~SW_U1_ACCEPT_ENABLE;
+		mtu3_writel(mbase, U3D_LINK_POWER_CONTROL, lpc);
+
+		mtu->u1_enable = !!set;
+		handled = 1;
+		break;
+	case USB_DEVICE_U2_ENABLE:
+		if (mtu->g.speed != USB_SPEED_SUPER ||
+			mtu->g.state != USB_STATE_CONFIGURED)
+			break;
+
+		lpc = mtu3_readl(mbase, U3D_LINK_POWER_CONTROL);
+		if (set)
+			lpc |= SW_U2_ACCEPT_ENABLE;
+		else
+			lpc &= ~SW_U2_ACCEPT_ENABLE;
+		mtu3_writel(mbase, U3D_LINK_POWER_CONTROL, lpc);
+
+		mtu->u2_enable = !!set;
+		handled = 1;
 		break;
 	default:
 		handled = -EINVAL;
@@ -302,6 +378,17 @@ static int ep0_handle_feature(struct mtu3 *mtu,
 	switch (setup->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
 		handled = ep0_handle_feature_dev(mtu, setup, set);
+		break;
+	case USB_RECIP_INTERFACE:
+		/* superspeed only */
+		if ((value == USB_INTRF_FUNC_SUSPEND)
+			&& (mtu->g.speed == USB_SPEED_SUPER)) {
+			/*
+			 * forward the request because function drivers
+			 * should handle it
+			 */
+			handled = 0;
+		}
 		break;
 	case USB_RECIP_ENDPOINT:
 		epnum = index & USB_ENDPOINT_NUMBER_MASK;
@@ -389,6 +476,9 @@ static int handle_standard_request(struct mtu3 *mtu,
 		break;
 	case USB_REQ_GET_STATUS:
 		handled = ep0_get_status(mtu, setup);
+		break;
+	case USB_REQ_SET_SEL:
+		handled = ep0_set_sel(mtu, setup);
 		break;
 	case USB_REQ_SET_ISOCH_DELAY:
 		handled = 1;

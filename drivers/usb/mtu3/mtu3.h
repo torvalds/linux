@@ -53,6 +53,7 @@ struct mtu3_request;
 #define USB_QMU_TQSAR(epnum)	(U3D_TXQSAR1 + (((epnum) - 1) * 0x10))
 #define USB_QMU_TQCPR(epnum)	(U3D_TXQCPR1 + (((epnum) - 1) * 0x10))
 
+#define SSUSB_U3_CTRL(p)	(U3D_SSUSB_U3_CTRL_0P + ((p) * 0x08))
 #define SSUSB_U2_CTRL(p)	(U3D_SSUSB_U2_CTRL_0P + ((p) * 0x08))
 
 #define MTU3_DRIVER_NAME	"mtu3"
@@ -63,6 +64,7 @@ struct mtu3_request;
 #define MTU3_EP_WEDGE		BIT(2)
 #define MTU3_EP_BUSY		BIT(3)
 
+#define MTU3_U3_IP_SLOT_DEFAULT 2
 #define MTU3_U2_IP_SLOT_DEFAULT 1
 
 /**
@@ -87,6 +89,7 @@ enum mtu3_speed {
 	MTU3_SPEED_INACTIVE = 0,
 	MTU3_SPEED_FULL = 1,
 	MTU3_SPEED_HIGH = 3,
+	MTU3_SPEED_SUPER = 4,
 };
 
 /**
@@ -190,6 +193,7 @@ struct mtu3_ep {
 
 	struct list_head req_list;
 	struct mtu3_gpd_ring gpd_ring;
+	const struct usb_ss_ep_comp_descriptor *comp_desc;
 	const struct usb_endpoint_descriptor *desc;
 
 	int flags;
@@ -208,7 +212,8 @@ struct mtu3_request {
 
 /**
  * struct mtu3 - device driver instance data.
- * @slot: MTU3_U2_IP_SLOT_DEFAULT for U2 IP
+ * @slot: MTU3_U2_IP_SLOT_DEFAULT for U2 IP only,
+ *		MTU3_U3_IP_SLOT_DEFAULT for U3 IP
  * @may_wakeup: means device's remote wakeup is enabled
  * @is_self_powered: is reported in device status and the config descriptor
  * @ep0_req: dummy request used while handling standard USB requests
@@ -242,12 +247,16 @@ struct mtu3 {
 	struct usb_gadget_driver *gadget_driver;
 	struct mtu3_request ep0_req;
 	u8 setup_buf[EP0_RESPONSE_BUF];
+	u32 max_speed;
 
 	unsigned is_active:1;
 	unsigned may_wakeup:1;
 	unsigned is_self_powered:1;
 	unsigned test_mode:1;
 	unsigned softconnect:1;
+	unsigned u1_enable:1;
+	unsigned u2_enable:1;
+	unsigned is_u3_ip:1;
 
 	u8 address;
 	u8 test_mode_nr;
@@ -324,7 +333,7 @@ void mtu3_ep_stall_set(struct mtu3_ep *mep, bool set);
 void mtu3_ep0_setup(struct mtu3 *mtu);
 void mtu3_start(struct mtu3 *mtu);
 void mtu3_stop(struct mtu3 *mtu);
-void mtu3_hs_softconn_set(struct mtu3 *mtu, bool enable);
+void mtu3_dev_on_off(struct mtu3 *mtu, int is_on);
 
 int mtu3_gadget_setup(struct mtu3 *mtu);
 void mtu3_gadget_cleanup(struct mtu3 *mtu);
