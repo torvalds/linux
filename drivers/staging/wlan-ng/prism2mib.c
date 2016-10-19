@@ -709,7 +709,7 @@ static int prism2mib_priv(struct mibrec *mib,
 
 	switch (mib->did) {
 	case DIDmib_lnx_lnxConfigTable_lnxRSNAIE:{
-			struct hfa384x_WPAData wpa;
+			struct hfa384x_wpa_data wpa;
 
 			if (isget) {
 				hfa384x_drvr_getconfig(hw,

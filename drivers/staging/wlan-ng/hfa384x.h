@@ -428,7 +428,7 @@ struct hfa384x_authenticate_station_data {
 } __packed;
 
 /*-- Configuration Record: WPAData       (data portion only) --*/
-struct hfa384x_WPAData {
+struct hfa384x_wpa_data {
 	u16 datalen;
 	u8 data[0];		/* max 80 */
 } __packed;
