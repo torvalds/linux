@@ -707,7 +707,7 @@ struct hfa384x_hscan_result_sub {
 	u16 atim;
 } __packed;
 
-struct hfa384x_HScanResult {
+struct hfa384x_hscan_result {
 	u16 nresult;
 	u16 rsvd;
 	struct hfa384x_hscan_result_sub result[HFA384x_HSCANRESULT_MAX];
@@ -766,7 +766,7 @@ union hfa384x_infodata {
 	struct hfa384x_comm_tallies_32 commtallies32;
 	struct hfa384x_scan_result scanresult;
 	struct hfa384x_ch_info_result chinforesult;
-	struct hfa384x_HScanResult hscanresult;
+	struct hfa384x_hscan_result hscanresult;
 	struct hfa384x_LinkStatus linkstatus;
 	struct hfa384x_assoc_status assocstatus;
 	struct hfa384x_AuthRequest authreq;
