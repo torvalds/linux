@@ -174,22 +174,24 @@ static void show_stacktrace(struct task_struct *task,
 	printk("Stack :");
 	i = 0;
 	while ((unsigned long) sp & (PAGE_SIZE - 1)) {
-		if (i && ((i % (64 / field)) == 0))
-			printk("\n	 ");
+		if (i && ((i % (64 / field)) == 0)) {
+			pr_cont("\n");
+			printk("       ");
+		}
 		if (i > 39) {
-			printk(" ...");
+			pr_cont(" ...");
 			break;
 		}
 
 		if (__get_user(stackdata, sp++)) {
-			printk(" (Bad stack address)");
+			pr_cont(" (Bad stack address)");
 			break;
 		}
 
-		printk(" %0*lx", field, stackdata);
+		pr_cont(" %0*lx", field, stackdata);
 		i++;
 	}
-	printk("\n");
+	pr_cont("\n");
 	show_backtrace(task, regs);
 }
 
