@@ -1959,6 +1959,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 	/* evict remaining vram memory */
 	amdgpu_bo_evict_vram(adev);
 
+	amdgpu_atombios_scratch_regs_save(adev);
 	pci_save_state(dev->pdev);
 	if (suspend) {
 		/* Shut down the device */
@@ -2010,6 +2011,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 			return r;
 		}
 	}
+	amdgpu_atombios_scratch_regs_restore(adev);
 
 	/* post card */
 	if (!amdgpu_card_posted(adev) || !resume) {
@@ -2277,8 +2279,9 @@ retry:
 			amdgpu_display_stop_mc_access(adev, &save);
 			amdgpu_wait_for_idle(adev, AMD_IP_BLOCK_TYPE_GMC);
 		}
-
+		amdgpu_atombios_scratch_regs_save(adev);
 		r = amdgpu_asic_reset(adev);
+		amdgpu_atombios_scratch_regs_restore(adev);
 		/* post card */
 		amdgpu_atom_asic_init(adev->mode_info.atom_context);
 
