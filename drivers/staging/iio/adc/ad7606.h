@@ -61,17 +61,12 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		 const char *name, unsigned int id,
 		 const struct ad7606_bus_ops *bops);
 int ad7606_remove(struct device *dev, int irq);
-int ad7606_reset(struct ad7606_state *st);
-int ad7606_read_samples(struct ad7606_state *st);
 
 enum ad7606_supported_device_ids {
 	ID_AD7606_8,
 	ID_AD7606_6,
 	ID_AD7606_4
 };
-
-int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev);
-void ad7606_ring_cleanup(struct iio_dev *indio_dev);
 
 #ifdef CONFIG_PM_SLEEP
 extern const struct dev_pm_ops ad7606_pm_ops;

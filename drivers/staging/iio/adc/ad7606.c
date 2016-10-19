@@ -21,10 +21,12 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #include "ad7606.h"
 
-int ad7606_reset(struct ad7606_state *st)
+static int ad7606_reset(struct ad7606_state *st)
 {
 	if (st->gpio_reset) {
 		gpiod_set_value(st->gpio_reset, 1);
@@ -36,7 +38,7 @@ int ad7606_reset(struct ad7606_state *st)
 	return -ENODEV;
 }
 
-int ad7606_read_samples(struct ad7606_state *st)
+static int ad7606_read_samples(struct ad7606_state *st)
 {
 	unsigned int num = st->chip_info->num_channels;
 	u16 *data = st->data;
@@ -67,6 +69,41 @@ int ad7606_read_samples(struct ad7606_state *st)
 	}
 
 	return st->bops->read_block(st->dev, num, data);
+}
+
+static irqreturn_t ad7606_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct ad7606_state *st = iio_priv(pf->indio_dev);
+
+	gpiod_set_value(st->gpio_convst, 1);
+
+	return IRQ_HANDLED;
+}
+
+/**
+ * ad7606_poll_bh_to_ring() bh of trigger launched polling to ring buffer
+ * @work_s:	the work struct through which this was scheduled
+ *
+ * Currently there is no option in this driver to disable the saving of
+ * timestamps within the ring.
+ * I think the one copy of this at a time was to avoid problems if the
+ * trigger was set far too high and the reads then locked up the computer.
+ **/
+static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
+{
+	struct ad7606_state *st = container_of(work_s, struct ad7606_state,
+						poll_work);
+	struct iio_dev *indio_dev = iio_priv_to_dev(st);
+	int ret;
+
+	ret = ad7606_read_samples(st);
+	if (ret == 0)
+		iio_push_to_buffers_with_timestamp(indio_dev, st->data,
+						   iio_get_time_ns(indio_dev));
+
+	gpiod_set_value(st->gpio_convst, 0);
+	iio_trigger_notify_done(indio_dev->trig);
 }
 
 static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch)
@@ -385,6 +422,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	st->base_address = base_address;
 	st->range = 5000;
 	st->oversampling = 1;
+	INIT_WORK(&st->poll_work, &ad7606_poll_bh_to_ring);
 
 	st->reg = devm_regulator_get(dev, "vcc");
 	if (!IS_ERR(st->reg)) {
@@ -427,7 +465,8 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	if (ret)
 		goto error_disable_reg;
 
-	ret = ad7606_register_ring_funcs_and_init(indio_dev);
+	ret = iio_triggered_buffer_setup(indio_dev, &ad7606_trigger_handler,
+					 NULL, NULL);
 	if (ret)
 		goto error_free_irq;
 
@@ -439,7 +478,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 
 	return 0;
 error_unregister_ring:
-	ad7606_ring_cleanup(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
 
 error_free_irq:
 	free_irq(irq, indio_dev);
@@ -457,7 +496,7 @@ int ad7606_remove(struct device *dev, int irq)
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	ad7606_ring_cleanup(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
 
 	free_irq(irq, indio_dev);
 	if (!IS_ERR(st->reg))
