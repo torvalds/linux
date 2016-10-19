@@ -2621,11 +2621,6 @@ static enum i40iw_status_code i40iw_sc_qp_setctx(
 			      152,
 			      LS_64(iw->last_byte_sent, I40IWQPC_LASTBYTESENT));
 
-		/*
-		* Hard-code IRD_SIZE to hw-limit, 128, in qpctx, i.e matching an
-		*advertisable IRD of 64
-		*/
-		iw->ird_size = I40IW_QPCTX_ENCD_MAXIRD;
 		set_64bit_val(qp_ctx,
 			      160,
 			      LS_64(iw->ord_size, I40IWQPC_ORDSIZE) |
