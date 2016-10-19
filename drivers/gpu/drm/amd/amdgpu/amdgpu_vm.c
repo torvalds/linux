@@ -78,27 +78,37 @@ struct amdgpu_prt_cb {
 };
 
 /**
- * amdgpu_vm_num_pde - return the number of page directory entries
+ * amdgpu_vm_num_entries - return the number of entries in a PD/PT
  *
  * @adev: amdgpu_device pointer
  *
- * Calculate the number of page directory entries.
+ * Calculate the number of entries in a page directory or page table.
  */
-static unsigned amdgpu_vm_num_pdes(struct amdgpu_device *adev)
+static unsigned amdgpu_vm_num_entries(struct amdgpu_device *adev,
+				      unsigned level)
 {
-	return adev->vm_manager.max_pfn >> amdgpu_vm_block_size;
+	if (level == 0)
+		/* For the root directory */
+		return adev->vm_manager.max_pfn >>
+			(amdgpu_vm_block_size * adev->vm_manager.num_level);
+	else if (level == adev->vm_manager.num_level)
+		/* For the page tables on the leaves */
+		return AMDGPU_VM_PTE_COUNT;
+	else
+		/* Everything in between */
+		return 1 << amdgpu_vm_block_size;
 }
 
 /**
- * amdgpu_vm_directory_size - returns the size of the page directory in bytes
+ * amdgpu_vm_bo_size - returns the size of the BOs in bytes
  *
  * @adev: amdgpu_device pointer
  *
- * Calculate the size of the page directory in bytes.
+ * Calculate the size of the BO for a page directory or page table in bytes.
  */
-static unsigned amdgpu_vm_directory_size(struct amdgpu_device *adev)
+static unsigned amdgpu_vm_bo_size(struct amdgpu_device *adev, unsigned level)
 {
-	return AMDGPU_GPU_PAGE_ALIGN(amdgpu_vm_num_pdes(adev) * 8);
+	return AMDGPU_GPU_PAGE_ALIGN(amdgpu_vm_num_entries(adev, level) * 8);
 }
 
 /**
@@ -225,7 +235,7 @@ int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 	saddr >>= amdgpu_vm_block_size;
 	eaddr >>= amdgpu_vm_block_size;
 
-	BUG_ON(eaddr >= amdgpu_vm_num_pdes(adev));
+	BUG_ON(eaddr >= amdgpu_vm_num_entries(adev, 0));
 
 	if (eaddr > vm->root.last_entry_used)
 		vm->root.last_entry_used = eaddr;
@@ -1893,8 +1903,8 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	INIT_LIST_HEAD(&vm->cleared);
 	INIT_LIST_HEAD(&vm->freed);
 
-	pd_size = amdgpu_vm_directory_size(adev);
-	pd_entries = amdgpu_vm_num_pdes(adev);
+	pd_size = amdgpu_vm_bo_size(adev, 0);
+	pd_entries = amdgpu_vm_num_entries(adev, 0);
 
 	/* allocate page table array */
 	vm->root.entries = drm_calloc_large(pd_entries, sizeof(struct amdgpu_vm_pt));
@@ -1984,7 +1994,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		amdgpu_vm_free_mapping(adev, vm, mapping, NULL);
 	}
 
-	for (i = 0; i < amdgpu_vm_num_pdes(adev); i++) {
+	for (i = 0; i < amdgpu_vm_num_entries(adev, 0); i++) {
 		struct amdgpu_bo *pt = vm->root.entries[i].bo;
 
 		if (!pt)
