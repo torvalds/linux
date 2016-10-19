@@ -84,6 +84,7 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 			      const struct ad7606_bus_ops *bops);
 int ad7606_remove(struct iio_dev *indio_dev, int irq);
 int ad7606_reset(struct ad7606_state *st);
+int ad7606_read_samples(struct ad7606_state *st);
 
 enum ad7606_supported_device_ids {
 	ID_AD7606_8,

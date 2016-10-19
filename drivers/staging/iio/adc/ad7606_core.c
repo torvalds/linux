@@ -36,6 +36,39 @@ int ad7606_reset(struct ad7606_state *st)
 	return -ENODEV;
 }
 
+int ad7606_read_samples(struct ad7606_state *st)
+{
+	unsigned int num = st->chip_info->num_channels;
+	u16 *data = st->data;
+	int ret;
+
+	/*
+	 * The frstdata signal is set to high while and after reading the sample
+	 * of the first channel and low for all other channels. This can be used
+	 * to check that the incoming data is correctly aligned. During normal
+	 * operation the data should never become unaligned, but some glitch or
+	 * electrostatic discharge might cause an extra read or clock cycle.
+	 * Monitoring the frstdata signal allows to recover from such failure
+	 * situations.
+	 */
+
+	if (gpio_is_valid(st->pdata->gpio_frstdata)) {
+		ret = st->bops->read_block(st->dev, 1, data);
+		if (ret)
+			return ret;
+
+		if (!gpio_get_value(st->pdata->gpio_frstdata)) {
+			ad7606_reset(st);
+			return -EIO;
+		}
+
+		data++;
+		num--;
+	}
+
+	return st->bops->read_block(st->dev, num, data);
+}
+
 static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
@@ -48,28 +81,9 @@ static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch)
 	if (ret)
 		goto error_ret;
 
-	if (gpio_is_valid(st->pdata->gpio_frstdata)) {
-		ret = st->bops->read_block(st->dev, 1, st->data);
-		if (ret)
-			goto error_ret;
-		if (!gpio_get_value(st->pdata->gpio_frstdata)) {
-			/* This should never happen */
-			ad7606_reset(st);
-			ret = -EIO;
-			goto error_ret;
-		}
-		ret = st->bops->read_block(st->dev,
-			st->chip_info->num_channels - 1, &st->data[1]);
-		if (ret)
-			goto error_ret;
-	} else {
-		ret = st->bops->read_block(st->dev,
-			st->chip_info->num_channels, st->data);
-		if (ret)
-			goto error_ret;
-	}
-
-	ret = st->data[ch];
+	ret = ad7606_read_samples(st);
+	if (ret == 0)
+		ret = st->data[ch];
 
 error_ret:
 	gpio_set_value(st->pdata->gpio_convst, 0);

@@ -48,33 +48,11 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 	struct iio_dev *indio_dev = iio_priv_to_dev(st);
 	int ret;
 
-	if (gpio_is_valid(st->pdata->gpio_frstdata)) {
-		ret = st->bops->read_block(st->dev, 1, st->data);
-		if (ret)
-			goto done;
-		if (!gpio_get_value(st->pdata->gpio_frstdata)) {
-			/* This should never happen. However
-			 * some signal glitch caused by bad PCB desgin or
-			 * electrostatic discharge, could cause an extra read
-			 * or clock. This allows recovery.
-			 */
-			ad7606_reset(st);
-			goto done;
-		}
-		ret = st->bops->read_block(st->dev,
-			st->chip_info->num_channels - 1, st->data + 1);
-		if (ret)
-			goto done;
-	} else {
-		ret = st->bops->read_block(st->dev,
-			st->chip_info->num_channels, st->data);
-		if (ret)
-			goto done;
-	}
+	ret = ad7606_read_samples(st);
+	if (ret == 0)
+		iio_push_to_buffers_with_timestamp(indio_dev, st->data,
+						   iio_get_time_ns(indio_dev));
 
-	iio_push_to_buffers_with_timestamp(indio_dev, st->data,
-					   iio_get_time_ns(indio_dev));
-done:
 	gpio_set_value(st->pdata->gpio_convst, 0);
 	iio_trigger_notify_done(indio_dev->trig);
 }
