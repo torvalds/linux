@@ -345,8 +345,8 @@ static int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 	ent = debugfs_create_file(name,
 				  S_IFREG | S_IRUGO, root,
 				  ring, &amdgpu_debugfs_ring_fops);
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
+	if (!ent)
+		return -ENOMEM;
 
 	i_size_write(ent->d_inode, ring->ring_size + 12);
 	ring->ent = ent;

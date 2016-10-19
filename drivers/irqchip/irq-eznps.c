@@ -85,7 +85,7 @@ static void nps400_irq_eoi_global(struct irq_data *irqd)
 	nps_ack_gic();
 }
 
-static void nps400_irq_eoi(struct irq_data *irqd)
+static void nps400_irq_ack(struct irq_data *irqd)
 {
 	unsigned int __maybe_unused irq = irqd_to_hwirq(irqd);
 
@@ -103,7 +103,7 @@ static struct irq_chip nps400_irq_chip_percpu = {
 	.name		= "NPS400 IC",
 	.irq_mask	= nps400_irq_mask,
 	.irq_unmask	= nps400_irq_unmask,
-	.irq_eoi	= nps400_irq_eoi,
+	.irq_ack	= nps400_irq_ack,
 };
 
 static int nps400_irq_map(struct irq_domain *d, unsigned int virq,
