@@ -996,8 +996,9 @@ static u32 rtc_handler(void *context)
 	struct cmos_rtc *cmos = dev_get_drvdata(dev);
 	unsigned char rtc_control = 0;
 	unsigned char rtc_intr;
+	unsigned long flags;
 
-	spin_lock_irq(&rtc_lock);
+	spin_lock_irqsave(&rtc_lock, flags);
 	if (cmos_rtc.suspend_ctrl)
 		rtc_control = CMOS_READ(RTC_CONTROL);
 	if (rtc_control & RTC_AIE) {
@@ -1006,7 +1007,7 @@ static u32 rtc_handler(void *context)
 		rtc_intr = CMOS_READ(RTC_INTR_FLAGS);
 		rtc_update_irq(cmos->rtc, 1, rtc_intr);
 	}
-	spin_unlock_irq(&rtc_lock);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	pm_wakeup_event(dev, 0);
 	acpi_clear_event(ACPI_EVENT_RTC);
