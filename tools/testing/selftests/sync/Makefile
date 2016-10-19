@@ -13,6 +13,7 @@ OBJS = sync_test.o sync.o
 TESTS += sync_alloc.o
 TESTS += sync_fence.o
 TESTS += sync_merge.o
+TESTS += sync_wait.o
 
 sync_test: $(OBJS) $(TESTS)
 

@@ -51,4 +51,7 @@ int test_fence_one_timeline_merge(void);
 /* Fence merge tests */
 int test_fence_merge_same_fence(void);
 
+/* Fence wait tests */
+int test_fence_multi_timeline_wait(void);
+
 #endif
