@@ -3877,7 +3877,7 @@ struct net_device *netdev_all_lower_get_next_rcu(struct net_device *dev,
 	     ldev = netdev_all_lower_get_next(dev, &(iter)))
 
 #define netdev_for_each_all_lower_dev_rcu(dev, ldev, iter) \
-	for (iter = (dev)->all_adj_list.lower.next, \
+	for (iter = &(dev)->all_adj_list.lower, \
 	     ldev = netdev_all_lower_get_next_rcu(dev, &(iter)); \
 	     ldev; \
 	     ldev = netdev_all_lower_get_next_rcu(dev, &(iter)))
