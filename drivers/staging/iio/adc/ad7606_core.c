@@ -452,16 +452,8 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 	st->dev = dev;
 	st->bops = bops;
 	st->base_address = base_address;
-	st->range = pdata->default_range == 10000 ? 10000 : 5000;
-
-	ret = ad7606_oversampling_get_index(pdata->default_os);
-	if (ret < 0) {
-		dev_warn(dev, "oversampling %d is not supported\n",
-			 pdata->default_os);
-		st->oversampling = 0;
-	} else {
-		st->oversampling = pdata->default_os;
-	}
+	st->range = 5000;
+	st->oversampling = 0;
 
 	st->reg = devm_regulator_get(dev, "vcc");
 	if (!IS_ERR(st->reg)) {

@@ -15,8 +15,6 @@
 
 /**
  * struct ad7606_platform_data - platform/board specific information
- * @default_os:		default oversampling value {0, 2, 4, 8, 16, 32, 64}
- * @default_range:	default range +/-{5000, 10000} mVolt
  * @gpio_convst:	number of gpio connected to the CONVST pin
  * @gpio_reset:		gpio connected to the RESET pin, if not used set to -1
  * @gpio_range:		gpio connected to the RANGE pin, if not used set to -1
@@ -28,8 +26,6 @@
  */
 
 struct ad7606_platform_data {
-	unsigned int			default_os;
-	unsigned int			default_range;
 	unsigned int			gpio_convst;
 	unsigned int			gpio_reset;
 	unsigned int			gpio_range;
