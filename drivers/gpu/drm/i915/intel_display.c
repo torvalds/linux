@@ -11251,9 +11251,14 @@ found:
 	return true;
 
 fail:
-	drm_atomic_state_put(state);
-	drm_atomic_state_put(restore_state);
-	restore_state = state = NULL;
+	if (state) {
+		drm_atomic_state_put(state);
+		state = NULL;
+	}
+	if (restore_state) {
+		drm_atomic_state_put(restore_state);
+		restore_state = NULL;
+	}
 
 	if (ret == -EDEADLK) {
 		drm_modeset_backoff(ctx);
