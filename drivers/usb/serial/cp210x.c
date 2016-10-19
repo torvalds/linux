@@ -929,16 +929,9 @@ static void cp210x_set_termios(struct tty_struct *tty,
 			dev_dbg(dev, "%s - data bits = 7\n", __func__);
 			break;
 		case CS8:
+		default:
 			bits |= BITS_DATA_8;
 			dev_dbg(dev, "%s - data bits = 8\n", __func__);
-			break;
-		/*case CS9:
-			bits |= BITS_DATA_9;
-			dev_dbg(dev, "%s - data bits = 9\n", __func__);
-			break;*/
-		default:
-			dev_dbg(dev, "cp210x driver does not support the number of bits requested, using 8 bit mode\n");
-			bits |= BITS_DATA_8;
 			break;
 		}
 		if (cp210x_write_u16_reg(port, CP210X_SET_LINE_CTL, bits))
