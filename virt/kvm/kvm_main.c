@@ -595,7 +595,7 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, int fd)
 		stat_data->kvm = kvm;
 		stat_data->offset = p->offset;
 		kvm->debugfs_stat_data[p - debugfs_entries] = stat_data;
-		if (!debugfs_create_file(p->name, 0444,
+		if (!debugfs_create_file(p->name, 0644,
 					 kvm->debugfs_dentry,
 					 stat_data,
 					 stat_fops_per_vm[p->kind]))
@@ -3663,11 +3663,23 @@ static int vm_stat_get_per_vm(void *data, u64 *val)
 	return 0;
 }
 
+static int vm_stat_clear_per_vm(void *data, u64 val)
+{
+	struct kvm_stat_data *stat_data = (struct kvm_stat_data *)data;
+
+	if (val)
+		return -EINVAL;
+
+	*(ulong *)((void *)stat_data->kvm + stat_data->offset) = 0;
+
+	return 0;
+}
+
 static int vm_stat_get_per_vm_open(struct inode *inode, struct file *file)
 {
 	__simple_attr_check_format("%llu\n", 0ull);
 	return kvm_debugfs_open(inode, file, vm_stat_get_per_vm,
-				NULL, "%llu\n");
+				vm_stat_clear_per_vm, "%llu\n");
 }
 
 static const struct file_operations vm_stat_get_per_vm_fops = {
@@ -3693,11 +3705,26 @@ static int vcpu_stat_get_per_vm(void *data, u64 *val)
 	return 0;
 }
 
+static int vcpu_stat_clear_per_vm(void *data, u64 val)
+{
+	int i;
+	struct kvm_stat_data *stat_data = (struct kvm_stat_data *)data;
+	struct kvm_vcpu *vcpu;
+
+	if (val)
+		return -EINVAL;
+
+	kvm_for_each_vcpu(i, vcpu, stat_data->kvm)
+		*(u64 *)((void *)vcpu + stat_data->offset) = 0;
+
+	return 0;
+}
+
 static int vcpu_stat_get_per_vm_open(struct inode *inode, struct file *file)
 {
 	__simple_attr_check_format("%llu\n", 0ull);
 	return kvm_debugfs_open(inode, file, vcpu_stat_get_per_vm,
-				 NULL, "%llu\n");
+				 vcpu_stat_clear_per_vm, "%llu\n");
 }
 
 static const struct file_operations vcpu_stat_get_per_vm_fops = {
@@ -3732,7 +3759,26 @@ static int vm_stat_get(void *_offset, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(vm_stat_fops, vm_stat_get, NULL, "%llu\n");
+static int vm_stat_clear(void *_offset, u64 val)
+{
+	unsigned offset = (long)_offset;
+	struct kvm *kvm;
+	struct kvm_stat_data stat_tmp = {.offset = offset};
+
+	if (val)
+		return -EINVAL;
+
+	spin_lock(&kvm_lock);
+	list_for_each_entry(kvm, &vm_list, vm_list) {
+		stat_tmp.kvm = kvm;
+		vm_stat_clear_per_vm((void *)&stat_tmp, 0);
+	}
+	spin_unlock(&kvm_lock);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(vm_stat_fops, vm_stat_get, vm_stat_clear, "%llu\n");
 
 static int vcpu_stat_get(void *_offset, u64 *val)
 {
@@ -3752,7 +3798,27 @@ static int vcpu_stat_get(void *_offset, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(vcpu_stat_fops, vcpu_stat_get, NULL, "%llu\n");
+static int vcpu_stat_clear(void *_offset, u64 val)
+{
+	unsigned offset = (long)_offset;
+	struct kvm *kvm;
+	struct kvm_stat_data stat_tmp = {.offset = offset};
+
+	if (val)
+		return -EINVAL;
+
+	spin_lock(&kvm_lock);
+	list_for_each_entry(kvm, &vm_list, vm_list) {
+		stat_tmp.kvm = kvm;
+		vcpu_stat_clear_per_vm((void *)&stat_tmp, 0);
+	}
+	spin_unlock(&kvm_lock);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(vcpu_stat_fops, vcpu_stat_get, vcpu_stat_clear,
+			"%llu\n");
 
 static const struct file_operations *stat_fops[] = {
 	[KVM_STAT_VCPU] = &vcpu_stat_fops,
@@ -3770,7 +3836,7 @@ static int kvm_init_debug(void)
 
 	kvm_debugfs_num_entries = 0;
 	for (p = debugfs_entries; p->name; ++p, kvm_debugfs_num_entries++) {
-		if (!debugfs_create_file(p->name, 0444, kvm_debugfs_dir,
+		if (!debugfs_create_file(p->name, 0644, kvm_debugfs_dir,
 					 (void *)(long)p->offset,
 					 stat_fops[p->kind]))
 			goto out_dir;
