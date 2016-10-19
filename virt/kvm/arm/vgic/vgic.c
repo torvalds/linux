@@ -637,18 +637,35 @@ next:
 /* Sync back the hardware VGIC state into our emulation after a guest's run. */
 void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu)
 {
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+
 	if (unlikely(!vgic_initialized(vcpu->kvm)))
 		return;
 
 	vgic_process_maintenance_interrupt(vcpu);
 	vgic_fold_lr_state(vcpu);
 	vgic_prune_ap_list(vcpu);
+
+	/* Make sure we can fast-path in flush_hwstate */
+	vgic_cpu->used_lrs = 0;
 }
 
 /* Flush our emulation state into the GIC hardware before entering the guest. */
 void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 {
 	if (unlikely(!vgic_initialized(vcpu->kvm)))
+		return;
+
+	/*
+	 * If there are no virtual interrupts active or pending for this
+	 * VCPU, then there is no work to do and we can bail out without
+	 * taking any lock.  There is a potential race with someone injecting
+	 * interrupts to the VCPU, but it is a benign race as the VCPU will
+	 * either observe the new interrupt before or after doing this check,
+	 * and introducing additional synchronization mechanism doesn't change
+	 * this.
+	 */
+	if (list_empty(&vcpu->arch.vgic_cpu.ap_list_head))
 		return;
 
 	spin_lock(&vcpu->arch.vgic_cpu.ap_list_lock);
