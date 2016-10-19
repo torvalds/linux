@@ -503,33 +503,23 @@ int rvt_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
  */
 int rvt_driver_cq_init(struct rvt_dev_info *rdi)
 {
-	int ret = 0;
 	int cpu;
-	struct task_struct *task;
+	struct kthread_worker *worker;
 
 	if (rdi->worker)
 		return 0;
-	spin_lock_init(&rdi->n_cqs_lock);
-	rdi->worker = kzalloc(sizeof(*rdi->worker), GFP_KERNEL);
-	if (!rdi->worker)
-		return -ENOMEM;
-	kthread_init_worker(rdi->worker);
-	task = kthread_create_on_node(
-		kthread_worker_fn,
-		rdi->worker,
-		rdi->dparms.node,
-		"%s", rdi->dparms.cq_name);
-	if (IS_ERR(task)) {
-		kfree(rdi->worker);
-		rdi->worker = NULL;
-		return PTR_ERR(task);
-	}
 
-	set_user_nice(task, MIN_NICE);
+	spin_lock_init(&rdi->n_cqs_lock);
+
 	cpu = cpumask_first(cpumask_of_node(rdi->dparms.node));
-	kthread_bind(task, cpu);
-	wake_up_process(task);
-	return ret;
+	worker = kthread_create_worker_on_cpu(cpu, 0,
+					      "%s", rdi->dparms.cq_name);
+	if (IS_ERR(worker))
+		return PTR_ERR(worker);
+
+	set_user_nice(worker->task, MIN_NICE);
+	rdi->worker = worker;
+	return 0;
 }
 
 /**
@@ -549,7 +539,5 @@ void rvt_cq_exit(struct rvt_dev_info *rdi)
 	rdi->worker = NULL;
 	spin_unlock_irq(&rdi->n_cqs_lock);
 
-	kthread_flush_worker(worker);
-	kthread_stop(worker->task);
-	kfree(worker);
+	kthread_destroy_worker(worker);
 }
