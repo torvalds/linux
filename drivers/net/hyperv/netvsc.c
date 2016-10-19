@@ -888,6 +888,13 @@ int netvsc_send(struct hv_device *device,
 	if (!net_device)
 		return -ENODEV;
 
+	/* We may race with netvsc_connect_vsp()/netvsc_init_buf() and get
+	 * here before the negotiation with the host is finished and
+	 * send_section_map may not be allocated yet.
+	 */
+	if (!net_device->send_section_map)
+		return -EAGAIN;
+
 	out_channel = net_device->chn_table[q_idx];
 
 	packet->send_buf_index = NETVSC_INVALID_INDEX;
