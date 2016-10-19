@@ -167,26 +167,58 @@ static u32 bxt_phy_port_mask(const struct bxt_ddi_phy_info *phy_info)
 		BIT(phy_info->channel[DPIO_CH0].port);
 }
 
+void bxt_port_to_phy_channel(enum port port,
+			     enum dpio_phy *phy, enum dpio_channel *ch)
+{
+	const struct bxt_ddi_phy_info *phy_info;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(bxt_ddi_phy_info); i++) {
+		phy_info = &bxt_ddi_phy_info[i];
+
+		if (port == phy_info->channel[DPIO_CH0].port) {
+			*phy = i;
+			*ch = DPIO_CH0;
+			return;
+		}
+
+		if (phy_info->dual_channel &&
+		    port == phy_info->channel[DPIO_CH1].port) {
+			*phy = i;
+			*ch = DPIO_CH1;
+			return;
+		}
+	}
+
+	WARN(1, "PHY not found for PORT %c", port_name(port));
+	*phy = DPIO_PHY0;
+	*ch = DPIO_CH0;
+}
+
 void bxt_ddi_phy_set_signal_level(struct drm_i915_private *dev_priv,
 				  enum port port, u32 margin, u32 scale,
 				  u32 enable, u32 deemphasis)
 {
 	u32 val;
+	enum dpio_phy phy;
+	enum dpio_channel ch;
+
+	bxt_port_to_phy_channel(port, &phy, &ch);
 
 	/*
 	 * While we write to the group register to program all lanes at once we
 	 * can read only lane registers and we pick lanes 0/1 for that.
 	 */
-	val = I915_READ(BXT_PORT_PCS_DW10_LN01(port));
+	val = I915_READ(BXT_PORT_PCS_DW10_LN01(phy, ch));
 	val &= ~(TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT);
-	I915_WRITE(BXT_PORT_PCS_DW10_GRP(port), val);
+	I915_WRITE(BXT_PORT_PCS_DW10_GRP(phy, ch), val);
 
-	val = I915_READ(BXT_PORT_TX_DW2_LN0(port));
+	val = I915_READ(BXT_PORT_TX_DW2_LN0(phy, ch));
 	val &= ~(MARGIN_000 | UNIQ_TRANS_SCALE);
 	val |= margin << MARGIN_000_SHIFT | scale << UNIQ_TRANS_SCALE_SHIFT;
-	I915_WRITE(BXT_PORT_TX_DW2_GRP(port), val);
+	I915_WRITE(BXT_PORT_TX_DW2_GRP(phy, ch), val);
 
-	val = I915_READ(BXT_PORT_TX_DW3_LN0(port));
+	val = I915_READ(BXT_PORT_TX_DW3_LN0(phy, ch));
 	val &= ~SCALE_DCOMP_METHOD;
 	if (enable)
 		val |= SCALE_DCOMP_METHOD;
@@ -194,16 +226,16 @@ void bxt_ddi_phy_set_signal_level(struct drm_i915_private *dev_priv,
 	if ((val & UNIQUE_TRANGE_EN_METHOD) && !(val & SCALE_DCOMP_METHOD))
 		DRM_ERROR("Disabled scaling while ouniqetrangenmethod was set");
 
-	I915_WRITE(BXT_PORT_TX_DW3_GRP(port), val);
+	I915_WRITE(BXT_PORT_TX_DW3_GRP(phy, ch), val);
 
-	val = I915_READ(BXT_PORT_TX_DW4_LN0(port));
+	val = I915_READ(BXT_PORT_TX_DW4_LN0(phy, ch));
 	val &= ~DE_EMPHASIS;
 	val |= deemphasis << DEEMPH_SHIFT;
-	I915_WRITE(BXT_PORT_TX_DW4_GRP(port), val);
+	I915_WRITE(BXT_PORT_TX_DW4_GRP(phy, ch), val);
 
-	val = I915_READ(BXT_PORT_PCS_DW10_LN01(port));
+	val = I915_READ(BXT_PORT_PCS_DW10_LN01(phy, ch));
 	val |= TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT;
-	I915_WRITE(BXT_PORT_PCS_DW10_GRP(port), val);
+	I915_WRITE(BXT_PORT_PCS_DW10_GRP(phy, ch), val);
 }
 
 bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
@@ -490,7 +522,7 @@ bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 		mask = GRC_CODE_FAST_MASK | GRC_CODE_SLOW_MASK |
 		       GRC_CODE_NOM_MASK;
 		ok &= _CHK(BXT_PORT_REF_DW6(phy), mask, grc_code,
-			    "BXT_PORT_REF_DW6(%d)", phy);
+			   "BXT_PORT_REF_DW6(%d)", phy);
 
 		mask = GRC_DIS | GRC_RDY_OVRD;
 		ok &= _CHK(BXT_PORT_REF_DW8(phy), mask, mask,
@@ -525,10 +557,14 @@ void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
 	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
 	enum port port = dport->port;
+	enum dpio_phy phy;
+	enum dpio_channel ch;
 	int lane;
 
+	bxt_port_to_phy_channel(port, &phy, &ch);
+
 	for (lane = 0; lane < 4; lane++) {
-		u32 val = I915_READ(BXT_PORT_TX_DW14_LN(port, lane));
+		u32 val = I915_READ(BXT_PORT_TX_DW14_LN(phy, ch, lane));
 
 		/*
 		 * Note that on CHV this flag is called UPAR, but has
@@ -538,7 +574,7 @@ void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
 		if (lane_lat_optim_mask & BIT(lane))
 			val |= LATENCY_OPTIM;
 
-		I915_WRITE(BXT_PORT_TX_DW14_LN(port, lane), val);
+		I915_WRITE(BXT_PORT_TX_DW14_LN(phy, ch, lane), val);
 	}
 }
 
@@ -548,12 +584,16 @@ bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder)
 	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
 	enum port port = dport->port;
+	enum dpio_phy phy;
+	enum dpio_channel ch;
 	int lane;
 	uint8_t mask;
 
+	bxt_port_to_phy_channel(port, &phy, &ch);
+
 	mask = 0;
 	for (lane = 0; lane < 4; lane++) {
-		u32 val = I915_READ(BXT_PORT_TX_DW14_LN(port, lane));
+		u32 val = I915_READ(BXT_PORT_TX_DW14_LN(phy, ch, lane));
 
 		if (val & LATENCY_OPTIM)
 			mask |= BIT(lane);
