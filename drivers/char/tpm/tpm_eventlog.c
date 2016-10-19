@@ -7,6 +7,7 @@
  *	Stefan Berger <stefanb@us.ibm.com>
  *	Reiner Sailer <sailer@watson.ibm.com>
  *	Kylene Hall <kjhall@us.ibm.com>
+ *	Nayna Jain <nayna@linux.vnet.ibm.com>
  *
  * Maintained by: <tpmdd-devel@lists.sourceforge.net>
  *
@@ -304,26 +305,28 @@ static int tpm_ascii_bios_measurements_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static const struct seq_operations tpm_ascii_b_measurments_seqops = {
+static const struct seq_operations tpm_ascii_b_measurements_seqops = {
 	.start = tpm_bios_measurements_start,
 	.next = tpm_bios_measurements_next,
 	.stop = tpm_bios_measurements_stop,
 	.show = tpm_ascii_bios_measurements_show,
 };
 
-static const struct seq_operations tpm_binary_b_measurments_seqops = {
+static const struct seq_operations tpm_binary_b_measurements_seqops = {
 	.start = tpm_bios_measurements_start,
 	.next = tpm_bios_measurements_next,
 	.stop = tpm_bios_measurements_stop,
 	.show = tpm_binary_bios_measurements_show,
 };
 
-static int tpm_ascii_bios_measurements_open(struct inode *inode,
+static int tpm_bios_measurements_open(struct inode *inode,
 					    struct file *file)
 {
 	int err;
 	struct tpm_bios_log *log;
 	struct seq_file *seq;
+	const struct seq_operations *seqops =
+		(const struct seq_operations *)inode->i_private;
 
 	log = kzalloc(sizeof(struct tpm_bios_log), GFP_KERNEL);
 	if (!log)
@@ -333,7 +336,7 @@ static int tpm_ascii_bios_measurements_open(struct inode *inode,
 		goto out_free;
 
 	/* now register seq file */
-	err = seq_open(file, &tpm_ascii_b_measurments_seqops);
+	err = seq_open(file, seqops);
 	if (!err) {
 		seq = file->private_data;
 		seq->private = log;
@@ -349,46 +352,8 @@ out_free:
 	goto out;
 }
 
-static const struct file_operations tpm_ascii_bios_measurements_ops = {
-	.open = tpm_ascii_bios_measurements_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = tpm_bios_measurements_release,
-};
-
-static int tpm_binary_bios_measurements_open(struct inode *inode,
-					     struct file *file)
-{
-	int err;
-	struct tpm_bios_log *log;
-	struct seq_file *seq;
-
-	log = kzalloc(sizeof(struct tpm_bios_log), GFP_KERNEL);
-	if (!log)
-		return -ENOMEM;
-
-	if ((err = read_log(log)))
-		goto out_free;
-
-	/* now register seq file */
-	err = seq_open(file, &tpm_binary_b_measurments_seqops);
-	if (!err) {
-		seq = file->private_data;
-		seq->private = log;
-	} else {
-		goto out_free;
-	}
-
-out:
-	return err;
-out_free:
-	kfree(log->bios_event_log);
-	kfree(log);
-	goto out;
-}
-
-static const struct file_operations tpm_binary_bios_measurements_ops = {
-	.open = tpm_binary_bios_measurements_open,
+static const struct file_operations tpm_bios_measurements_ops = {
+	.open = tpm_bios_measurements_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = tpm_bios_measurements_release,
@@ -413,15 +378,17 @@ struct dentry **tpm_bios_log_setup(const char *name)
 
 	bin_file =
 	    securityfs_create_file("binary_bios_measurements",
-				   S_IRUSR | S_IRGRP, tpm_dir, NULL,
-				   &tpm_binary_bios_measurements_ops);
+				   S_IRUSR | S_IRGRP, tpm_dir,
+				   (void *)&tpm_binary_b_measurements_seqops,
+				   &tpm_bios_measurements_ops);
 	if (is_bad(bin_file))
 		goto out_tpm;
 
 	ascii_file =
 	    securityfs_create_file("ascii_bios_measurements",
-				   S_IRUSR | S_IRGRP, tpm_dir, NULL,
-				   &tpm_ascii_bios_measurements_ops);
+				   S_IRUSR | S_IRGRP, tpm_dir,
+				   (void *)&tpm_ascii_b_measurements_seqops,
+				   &tpm_bios_measurements_ops);
 	if (is_bad(ascii_file))
 		goto out_bin;
 
