@@ -233,7 +233,6 @@ static struct cpudata **all_cpu_data;
  * @p_gain_pct:		PID proportional gain
  * @i_gain_pct:		PID integral gain
  * @d_gain_pct:		PID derivative gain
- * @boost_iowait:	Whether or not to use iowait boosting.
  *
  * Stores per CPU model static PID configuration data.
  */
@@ -245,7 +244,6 @@ struct pstate_adjust_policy {
 	int p_gain_pct;
 	int d_gain_pct;
 	int i_gain_pct;
-	bool boost_iowait;
 };
 
 /**
@@ -1043,7 +1041,6 @@ static const struct cpu_defaults silvermont_params = {
 		.p_gain_pct = 14,
 		.d_gain_pct = 0,
 		.i_gain_pct = 4,
-		.boost_iowait = true,
 	},
 	.funcs = {
 		.get_max = atom_get_max_pstate,
@@ -1065,7 +1062,6 @@ static const struct cpu_defaults airmont_params = {
 		.p_gain_pct = 14,
 		.d_gain_pct = 0,
 		.i_gain_pct = 4,
-		.boost_iowait = true,
 	},
 	.funcs = {
 		.get_max = atom_get_max_pstate,
@@ -1107,7 +1103,6 @@ static const struct cpu_defaults bxt_params = {
 		.p_gain_pct = 14,
 		.d_gain_pct = 0,
 		.i_gain_pct = 4,
-		.boost_iowait = true,
 	},
 	.funcs = {
 		.get_max = core_get_max_pstate,
@@ -1347,7 +1342,7 @@ static void intel_pstate_update_util(struct update_util_data *data, u64 time,
 	struct cpudata *cpu = container_of(data, struct cpudata, update_util);
 	u64 delta_ns;
 
-	if (pid_params.boost_iowait) {
+	if (pstate_funcs.get_target_pstate == get_target_pstate_use_cpu_load) {
 		if (flags & SCHED_CPUFREQ_IOWAIT) {
 			cpu->iowait_boost = int_tofp(1);
 		} else if (cpu->iowait_boost) {
