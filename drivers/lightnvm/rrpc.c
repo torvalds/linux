@@ -594,9 +594,6 @@ static struct rrpc_addr *rrpc_map_page(struct rrpc *rrpc, sector_t laddr,
 	rlun = rrpc_get_lun_rr(rrpc, is_gc);
 	lun = rlun->parent;
 
-	if (!is_gc && lun->nr_free_blocks < rrpc->nr_luns * 4)
-		return NULL;
-
 	/*
 	 * page allocation steps:
 	 * 1. Try to allocate new page from current rblk
@@ -613,15 +610,19 @@ static struct rrpc_addr *rrpc_map_page(struct rrpc *rrpc, sector_t laddr,
 
 	spin_lock(&rlun->lock);
 	cur_rblk = &rlun->cur;
-	rblk = rlun->cur;
 retry:
-	paddr = rrpc_alloc_addr(rrpc, rblk);
+	if (!is_gc && lun->nr_free_blocks < rrpc->nr_luns * 4) {
+		spin_unlock(&rlun->lock);
+		return NULL;
+	}
 
+	rblk = *cur_rblk;
+
+	paddr = rrpc_alloc_addr(rrpc, rblk);
 	if (paddr != ADDR_EMPTY)
 		goto done;
 
 	if (!list_empty(&rlun->wblk_list)) {
-new_blk:
 		rblk = list_first_entry(&rlun->wblk_list, struct rrpc_block,
 									prio);
 		rrpc_set_lun_cur(rlun, rblk, cur_rblk);
@@ -639,19 +640,18 @@ new_blk:
 		 * Therefore, make sure that one is used, instead of the
 		 * one just added.
 		 */
-		goto new_blk;
+		goto retry;
 	}
 
 	if (unlikely(is_gc) && !gc_force) {
 		/* retry from emergency gc block */
-		cur_rblk = &rlun->gc_cur;
-		rblk = rlun->gc_cur;
-		gc_force = 1;
 		spin_lock(&rlun->lock);
+		cur_rblk = &rlun->gc_cur;
+		gc_force = 1;
 		goto retry;
 	}
 
-	pr_err("rrpc: failed to allocate new block\n");
+	pr_err("rrpc: failed to allocate new block (is_gc=%u)\n", is_gc);
 	return NULL;
 done:
 	spin_unlock(&rlun->lock);
