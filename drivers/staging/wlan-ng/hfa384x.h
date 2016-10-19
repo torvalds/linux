@@ -755,7 +755,7 @@ struct hfa384x_ps_user_count {
 	u16 usercnt;
 } __packed;
 
-struct hfa384x_KeyIDChanged {
+struct hfa384x_key_id_changed {
 	u8 sta_addr[ETH_ALEN];
 	u16 keyid;
 } __packed;
@@ -771,7 +771,7 @@ union hfa384x_infodata {
 	struct hfa384x_assoc_status assocstatus;
 	struct hfa384x_auth_request authreq;
 	struct hfa384x_ps_user_count psusercnt;
-	struct hfa384x_KeyIDChanged keyidchanged;
+	struct hfa384x_key_id_changed keyidchanged;
 } __packed;
 
 struct hfa384x_inf_frame {
