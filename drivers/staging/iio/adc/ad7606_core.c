@@ -517,6 +517,8 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 	if (ret)
 		goto error_unregister_ring;
 
+	dev_set_drvdata(dev, indio_dev);
+
 	return indio_dev;
 error_unregister_ring:
 	ad7606_ring_cleanup(indio_dev);

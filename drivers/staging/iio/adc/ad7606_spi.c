@@ -52,8 +52,6 @@ static int ad7606_spi_probe(struct spi_device *spi)
 	if (IS_ERR(indio_dev))
 		return PTR_ERR(indio_dev);
 
-	spi_set_drvdata(spi, indio_dev);
-
 	return 0;
 }
 

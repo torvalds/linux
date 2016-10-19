@@ -77,8 +77,6 @@ static int ad7606_par_probe(struct platform_device *pdev)
 	if (IS_ERR(indio_dev))
 		return PTR_ERR(indio_dev);
 
-	platform_set_drvdata(pdev, indio_dev);
-
 	return 0;
 }
 
