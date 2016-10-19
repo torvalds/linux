@@ -70,12 +70,13 @@ ssize_t drm_dp_dual_mode_write(struct i2c_adapter *adapter,
 			       u8 offset, const void *buffer, size_t size);
 
 /**
-* enum drm_lspcon_mode
-* @lspcon_mode_ls: Level shifter mode of LSPCON
-*	which drives DP++ to HDMI 1.4 conversion.
-* @lspcon_mode_pcon: Protocol converter mode of LSPCON
-*	which drives DP++ to HDMI 2.0 active conversion.
-*/
+ * enum drm_lspcon_mode
+ * @DRM_LSPCON_MODE_INVALID: No LSPCON.
+ * @DRM_LSPCON_MODE_LS: Level shifter mode of LSPCON
+ *	which drives DP++ to HDMI 1.4 conversion.
+ * @DRM_LSPCON_MODE_PCON: Protocol converter mode of LSPCON
+ *	which drives DP++ to HDMI 2.0 active conversion.
+ */
 enum drm_lspcon_mode {
 	DRM_LSPCON_MODE_INVALID,
 	DRM_LSPCON_MODE_LS,
@@ -90,7 +91,7 @@ enum drm_lspcon_mode {
  * @DRM_DP_DUAL_MODE_TYPE1_HDMI: Type 1 HDMI adaptor
  * @DRM_DP_DUAL_MODE_TYPE2_DVI: Type 2 DVI adaptor
  * @DRM_DP_DUAL_MODE_TYPE2_HDMI: Type 2 HDMI adaptor
- * @DRM_DP_DUAL_MODE_TYPE2_LSPCON: Level shifter /protocol converter
+ * @DRM_DP_DUAL_MODE_LSPCON: Level shifter / protocol converter
  */
 enum drm_dp_dual_mode_type {
 	DRM_DP_DUAL_MODE_NONE,

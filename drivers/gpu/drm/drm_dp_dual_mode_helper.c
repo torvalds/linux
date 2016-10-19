@@ -377,9 +377,9 @@ EXPORT_SYMBOL(drm_dp_get_dual_mode_type_name);
 
 /**
  * drm_lspcon_get_mode: Get LSPCON's current mode of operation by
- * by reading offset (0x80, 0x41)
- * @i2c_adapter: I2C-over-aux adapter
- * @current_mode: out vaiable, current lspcon mode of operation
+ * reading offset (0x80, 0x41)
+ * @adapter: I2C-over-aux adapter
+ * @mode: current lspcon mode of operation output variable
  *
  * Returns:
  * 0 on success, sets the current_mode value to appropriate mode
@@ -413,10 +413,10 @@ int drm_lspcon_get_mode(struct i2c_adapter *adapter,
 EXPORT_SYMBOL(drm_lspcon_get_mode);
 
 /**
- * drm_lspcon_change_mode: Change LSPCON's mode of operation by
- * by writing offset (0x80, 0x40)
- * @i2c_adapter: I2C-over-aux adapter
- * @reqd_mode: required mode of operation
+ * drm_lspcon_set_mode: Change LSPCON's mode of operation by
+ * writing offset (0x80, 0x40)
+ * @adapter: I2C-over-aux adapter
+ * @mode: required mode of operation
  *
  * Returns:
  * 0 on success, -error on failure/timeout
