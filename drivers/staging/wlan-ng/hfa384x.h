@@ -610,7 +610,7 @@ struct hfa384x_rx_frame {
  */
 
 /*--  Inquiry Frame, Diagnose: Communication Tallies --*/
-struct hfa384x_CommTallies16 {
+struct hfa384x_comm_tallies_16 {
 	u16 txunicastframes;
 	u16 txmulticastframes;
 	u16 txfragments;
@@ -762,7 +762,7 @@ struct hfa384x_KeyIDChanged {
 
 /*--  Collection of all Inf frames ---------------*/
 union hfa384x_infodata {
-	struct hfa384x_CommTallies16 commtallies16;
+	struct hfa384x_comm_tallies_16 commtallies16;
 	struct hfa384x_comm_tallies_32 commtallies32;
 	struct hfa384x_scan_result scanresult;
 	struct hfa384x_ChInfoResult chinforesult;
