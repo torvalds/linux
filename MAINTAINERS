@@ -11392,6 +11392,17 @@ W:	http://www.st.com/spear
 S:	Maintained
 F:	drivers/clk/spear/
 
+SPI NOR SUBSYSTEM
+M:	Cyrille Pitchen <cyrille.pitchen@atmel.com>
+M:	Marek Vasut <marek.vasut@gmail.com>
+L:	linux-mtd@lists.infradead.org
+W:	http://www.linux-mtd.infradead.org/
+Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
+T:	git git://github.com/spi-nor/linux.git
+S:	Maintained
+F:	drivers/mtd/spi-nor/
+F:	include/linux/mtd/spi-nor.h
+
 SPI SUBSYSTEM
 M:	Mark Brown <broonie@kernel.org>
 L:	linux-spi@vger.kernel.org
