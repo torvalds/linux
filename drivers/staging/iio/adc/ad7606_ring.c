@@ -46,15 +46,10 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 	struct ad7606_state *st = container_of(work_s, struct ad7606_state,
 						poll_work);
 	struct iio_dev *indio_dev = iio_priv_to_dev(st);
-	__u8 *buf;
 	int ret;
 
-	buf = kzalloc(indio_dev->scan_bytes, GFP_KERNEL);
-	if (!buf)
-		return;
-
 	if (gpio_is_valid(st->pdata->gpio_frstdata)) {
-		ret = st->bops->read_block(st->dev, 1, buf);
+		ret = st->bops->read_block(st->dev, 1, st->data);
 		if (ret)
 			goto done;
 		if (!gpio_get_value(st->pdata->gpio_frstdata)) {
@@ -67,22 +62,21 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 			goto done;
 		}
 		ret = st->bops->read_block(st->dev,
-			st->chip_info->num_channels - 1, buf + 2);
+			st->chip_info->num_channels - 1, st->data + 1);
 		if (ret)
 			goto done;
 	} else {
 		ret = st->bops->read_block(st->dev,
-			st->chip_info->num_channels, buf);
+			st->chip_info->num_channels, st->data);
 		if (ret)
 			goto done;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buf,
+	iio_push_to_buffers_with_timestamp(indio_dev, st->data,
 					   iio_get_time_ns(indio_dev));
 done:
 	gpio_set_value(st->pdata->gpio_convst, 0);
 	iio_trigger_notify_done(indio_dev->trig);
-	kfree(buf);
 }
 
 int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)

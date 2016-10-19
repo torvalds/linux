@@ -68,9 +68,9 @@ struct ad7606_state {
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
+	 * 8 * 16-bit samples + 64-bit timestamp
 	 */
-
-	unsigned short			data[8] ____cacheline_aligned;
+	unsigned short			data[12] ____cacheline_aligned;
 };
 
 struct ad7606_bus_ops {
