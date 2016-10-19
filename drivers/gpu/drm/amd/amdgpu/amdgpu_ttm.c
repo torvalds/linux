@@ -1103,13 +1103,37 @@ static struct list_head *amdgpu_ttm_swap_lru_tail(struct ttm_buffer_object *tbo)
 	return res;
 }
 
+static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
+					    const struct ttm_place *place)
+{
+	if (bo->mem.mem_type == TTM_PL_VRAM &&
+	    bo->mem.start == AMDGPU_BO_INVALID_OFFSET) {
+		unsigned long num_pages = bo->mem.num_pages;
+		struct drm_mm_node *node = bo->mem.mm_node;
+
+		/* Check each drm MM node individually */
+		while (num_pages) {
+			if (place->fpfn < (node->start + node->size) &&
+			    !(place->lpfn && place->lpfn <= node->start))
+				return true;
+
+			num_pages -= node->size;
+			++node;
+		}
+
+		return false;
+	}
+
+	return ttm_bo_eviction_valuable(bo, place);
+}
+
 static struct ttm_bo_driver amdgpu_bo_driver = {
 	.ttm_tt_create = &amdgpu_ttm_tt_create,
 	.ttm_tt_populate = &amdgpu_ttm_tt_populate,
 	.ttm_tt_unpopulate = &amdgpu_ttm_tt_unpopulate,
 	.invalidate_caches = &amdgpu_invalidate_caches,
 	.init_mem_type = &amdgpu_init_mem_type,
-	.eviction_valuable = ttm_bo_eviction_valuable,
+	.eviction_valuable = amdgpu_ttm_bo_eviction_valuable,
 	.evict_flags = &amdgpu_evict_flags,
 	.move = &amdgpu_bo_move,
 	.verify_access = &amdgpu_verify_access,
