@@ -346,6 +346,18 @@ void rsnd_mod_interrupt(struct rsnd_mod *mod,
 u32 *rsnd_mod_get_status(struct rsnd_dai_stream *io,
 			 struct rsnd_mod *mod,
 			 enum rsnd_mod_type type);
+struct rsnd_mod *rsnd_mod_next(int *iterator,
+			       struct rsnd_dai_stream *io,
+			       enum rsnd_mod_type *array,
+			       int array_size);
+#define for_each_rsnd_mod(iterator, pos, io)				\
+	for (iterator = 0;						\
+	     (pos = rsnd_mod_next(&iterator, io, NULL, 0));)
+#define for_each_rsnd_mod_arrays(iterator, pos, io, array, size)	\
+	for (iterator = 0;						\
+	     (pos = rsnd_mod_next(&iterator, io, array, size));)
+#define for_each_rsnd_mod_array(iterator, pos, io, array)		\
+	for_each_rsnd_mod_arrays(iterator, pos, io, array, ARRAY_SIZE(array))
 
 void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 		struct rsnd_mod* (*mod_get)(struct rsnd_priv *priv, int id),

@@ -348,6 +348,29 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 /*
  *	rsnd_dai functions
  */
+struct rsnd_mod *rsnd_mod_next(int *iterator,
+			       struct rsnd_dai_stream *io,
+			       enum rsnd_mod_type *array,
+			       int array_size)
+{
+	struct rsnd_mod *mod;
+	enum rsnd_mod_type type;
+	int max = array ? array_size : RSND_MOD_MAX;
+
+	for (; *iterator < max; (*iterator)++) {
+		type = (array) ? array[*iterator] : *iterator;
+		mod = io->mod[type];
+		if (!mod)
+			continue;
+
+		(*iterator)++;
+
+		return mod;
+	}
+
+	return NULL;
+}
+
 #define rsnd_mod_call(idx, io, func, param...)			\
 ({								\
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);		\
