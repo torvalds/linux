@@ -405,7 +405,11 @@ static void prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 				gvt_err("Cannot pin\n");
 				return;
 			}
-			i915_gem_object_unpin_pages(entry_obj->obj);
+
+			/* FIXME: we are not tracking our pinned VMA leaving it
+			 * up to the core to fix up the stray pin_count upon
+			 * free.
+			 */
 
 			/* update the relocate gma with shadow batch buffer*/
 			set_gma_to_bb_cmd(entry_obj,
@@ -455,7 +459,11 @@ static void prepare_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 		gvt_err("Cannot pin indirect ctx obj\n");
 		return;
 	}
-	i915_gem_object_unpin_pages(wa_ctx->indirect_ctx.obj);
+
+	/* FIXME: we are not tracking our pinned VMA leaving it
+	 * up to the core to fix up the stray pin_count upon
+	 * free.
+	 */
 
 	wa_ctx->indirect_ctx.shadow_gma = i915_ggtt_offset(vma);
 
