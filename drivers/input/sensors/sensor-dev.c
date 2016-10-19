@@ -395,6 +395,38 @@ static void sensor_resume(struct early_suspend *h)
 }
 #endif
 
+#ifdef CONFIG_PM
+static int sensor_of_suspend(struct device *dev)
+{
+	struct sensor_private_data *sensor = dev_get_drvdata(dev);
+
+	if (sensor->ops->suspend)
+		sensor->ops->suspend(sensor->client);
+
+	return 0;
+}
+
+static int sensor_of_resume(struct device *dev)
+{
+	struct sensor_private_data *sensor = dev_get_drvdata(dev);
+
+	if (sensor->ops->resume)
+		sensor->ops->resume(sensor->client);
+	if (sensor->pdata->power_off_in_suspend)
+		sensor_initial(sensor->client);
+
+	return 0;
+}
+
+static const struct dev_pm_ops sensor_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(sensor_of_suspend, sensor_of_resume)
+};
+
+#define SENSOR_PM_OPS (&sensor_pm_ops)
+#else
+#define SENSOR_PM_OPS NULL
+#endif
+
 static int angle_dev_open(struct inode *inode, struct file *file)
 {
 	//struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];	
@@ -1807,6 +1839,8 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	of_property_read_u8(np,"address",&(pdata->address));
 	of_get_property(np, "project_name", pdata->project_name);
 
+	of_property_read_u32(np, "power-off-in-suspend",
+			     &pdata->power_off_in_suspend);
 
 	switch(pdata->layout)
 	{
@@ -2305,9 +2339,10 @@ static struct i2c_driver sensor_driver = {
 	.shutdown = sensor_shut_down,
 	.id_table = sensor_id,
 	.driver = {
-		   .owner = THIS_MODULE,
-		   .name = "sensors",
-		   .of_match_table = of_match_ptr(sensor_dt_ids),
+		.owner = THIS_MODULE,
+		.name = "sensors",
+		.of_match_table = of_match_ptr(sensor_dt_ids),
+		.pm = SENSOR_PM_OPS,
 	},
 };
 

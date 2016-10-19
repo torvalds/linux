@@ -202,6 +202,7 @@ struct sensor_platform_data {
 	signed char orientation[9];
 	short m_layout[4][3][3];
 	int* project_name;
+	int power_off_in_suspend;
 };
 
  struct gsensor_platform_data {
