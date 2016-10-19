@@ -1650,18 +1650,10 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	entry_obj->len = bb_size;
 	INIT_LIST_HEAD(&entry_obj->list);
 
-	ret = i915_gem_object_get_pages(entry_obj->obj);
-	if (ret)
+	dst = i915_gem_object_pin_map(entry_obj->obj, I915_MAP_WB);
+	if (IS_ERR(dst)) {
+		ret = PTR_ERR(dst);
 		goto put_obj;
-
-	i915_gem_object_pin_pages(entry_obj->obj);
-
-	/* get the va of the shadow batch buffer */
-	dst = (void *)vmap_batch(entry_obj->obj, 0, bb_size);
-	if (!dst) {
-		gvt_err("failed to vmap shadow batch\n");
-		ret = -ENOMEM;
-		goto unpin_src;
 	}
 
 	ret = i915_gem_object_set_to_cpu_domain(entry_obj->obj, false);
@@ -1675,7 +1667,8 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 
 	/* copy batch buffer to shadow batch buffer*/
 	ret = copy_gma_to_hva(s->vgpu, s->vgpu->gtt.ggtt_mm,
-				gma, gma + bb_size, dst);
+			      gma, gma + bb_size,
+			      dst);
 	if (ret) {
 		gvt_err("fail to copy guest ring buffer\n");
 		goto unmap_src;
@@ -1696,9 +1689,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	return 0;
 
 unmap_src:
-	vunmap(dst);
-unpin_src:
-	i915_gem_object_unpin_pages(entry_obj->obj);
+	i915_gem_object_unpin_map(entry_obj->obj);
 put_obj:
 	i915_gem_object_put(entry_obj->obj);
 free_entry:

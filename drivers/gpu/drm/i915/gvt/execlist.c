@@ -505,8 +505,8 @@ static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 
 		list_for_each_entry_safe(entry_obj, temp, &workload->shadow_bb,
 					 list) {
+			i915_gem_object_unpin_map(entry_obj->obj);
 			i915_gem_object_put(entry_obj->obj);
-			kvfree(entry_obj->va);
 			list_del(&entry_obj->list);
 			kfree(entry_obj);
 		}
