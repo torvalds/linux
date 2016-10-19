@@ -79,7 +79,7 @@ static int uniphier_clk_probe(struct platform_device *pdev)
 	hw_data->num = clk_num;
 
 	/* avoid returning NULL for unused idx */
-	for (; clk_num >= 0; clk_num--)
+	while (--clk_num >= 0)
 		hw_data->hws[clk_num] = ERR_PTR(-EINVAL);
 
 	for (p = data; p->name; p++) {
