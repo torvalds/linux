@@ -57,4 +57,7 @@ int test_fence_multi_timeline_wait(void);
 /* Stress test - parallelism */
 int test_stress_two_threads_shared_timeline(void);
 
+/* Stress test - consumer */
+int test_consumer_stress_multi_producer_single_consumer(void);
+
 #endif

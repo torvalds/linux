@@ -15,6 +15,7 @@ TESTS += sync_fence.o
 TESTS += sync_merge.o
 TESTS += sync_wait.o
 TESTS += sync_stress_parallelism.o
+TESTS += sync_stress_consumer.o
 
 sync_test: $(OBJS) $(TESTS)
 
