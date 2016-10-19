@@ -518,8 +518,8 @@ static void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	if (wa_ctx->indirect_ctx.size == 0)
 		return;
 
+	i915_gem_object_unpin_map(wa_ctx->indirect_ctx.obj);
 	i915_gem_object_put(wa_ctx->indirect_ctx.obj);
-	kvfree(wa_ctx->indirect_ctx.shadow_va);
 }
 
 static int complete_execlist_workload(struct intel_vgpu_workload *workload)

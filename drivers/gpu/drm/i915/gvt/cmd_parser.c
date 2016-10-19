@@ -2717,7 +2717,7 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	unsigned long guest_gma = wa_ctx->indirect_ctx.guest_gma;
 	struct drm_i915_gem_object *obj;
 	int ret = 0;
-	void *dest = NULL;
+	void *map;
 
 	obj = i915_gem_object_create(dev,
 				     roundup(ctx_size + CACHELINE_BYTES,
@@ -2725,18 +2725,12 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	ret = i915_gem_object_get_pages(obj);
-	if (ret)
-		goto put_obj;
-
-	i915_gem_object_pin_pages(obj);
-
 	/* get the va of the shadow batch buffer */
-	dest = (void *)vmap_batch(obj, 0, ctx_size + CACHELINE_BYTES);
-	if (!dest) {
+	map = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	if (IS_ERR(map)) {
 		gvt_err("failed to vmap shadow indirect ctx\n");
-		ret = -ENOMEM;
-		goto unpin_src;
+		ret = PTR_ERR(map);
+		goto put_obj;
 	}
 
 	ret = i915_gem_object_set_to_cpu_domain(obj, false);
@@ -2745,25 +2739,21 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 		goto unmap_src;
 	}
 
-	wa_ctx->indirect_ctx.shadow_va = dest;
-
-	memset(dest, 0, round_up(ctx_size + CACHELINE_BYTES, PAGE_SIZE));
-
 	ret = copy_gma_to_hva(wa_ctx->workload->vgpu,
 				wa_ctx->workload->vgpu->gtt.ggtt_mm,
-				guest_gma, guest_gma + ctx_size, dest);
+				guest_gma, guest_gma + ctx_size,
+				map);
 	if (ret) {
 		gvt_err("fail to copy guest indirect ctx\n");
 		goto unmap_src;
 	}
 
 	wa_ctx->indirect_ctx.obj = obj;
+	wa_ctx->indirect_ctx.shadow_va = map;
 	return 0;
 
 unmap_src:
-	vunmap(dest);
-unpin_src:
-	i915_gem_object_unpin_pages(wa_ctx->indirect_ctx.obj);
+	i915_gem_object_unpin_map(obj);
 put_obj:
 	i915_gem_object_put(wa_ctx->indirect_ctx.obj);
 	return ret;
