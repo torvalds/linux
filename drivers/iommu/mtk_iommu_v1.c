@@ -601,17 +601,19 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 			continue;
 
 		plarbdev = of_find_device_by_node(larb_spec.np);
-		of_node_put(larb_spec.np);
 		if (!plarbdev) {
 			plarbdev = of_platform_device_create(
 						larb_spec.np, NULL,
 						platform_bus_type.dev_root);
-			if (!plarbdev)
+			if (!plarbdev) {
+				of_node_put(larb_spec.np);
 				return -EPROBE_DEFER;
+			}
 		}
 
 		data->smi_imu.larb_imu[larb_nr].dev = &plarbdev->dev;
-		component_match_add(dev, &match, compare_of, larb_spec.np);
+		component_match_add_release(dev, &match, release_of,
+					    compare_of, larb_spec.np);
 		larb_nr++;
 	}
 
