@@ -1689,8 +1689,8 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 					min(64, size));
 		}
 
-		if (((unsigned int)header & VCHIQ_SLOT_MASK) + calc_stride(size)
-			> VCHIQ_SLOT_SIZE) {
+		if (((unsigned long)header & VCHIQ_SLOT_MASK) +
+		    calc_stride(size) > VCHIQ_SLOT_SIZE) {
 			vchiq_log_error(vchiq_core_log_level,
 				"header %pK (msgid %x) - size %x too big for slot",
 				header, (unsigned int)msgid,
@@ -1800,7 +1800,7 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 				bulk = &queue->bulks[
 					BULK_INDEX(queue->remote_insert)];
 				bulk->remote_data =
-					(void *)((int *)header->data)[0];
+					(void *)(long)((int *)header->data)[0];
 				bulk->remote_size = ((int *)header->data)[1];
 				wmb();
 
@@ -2223,7 +2223,8 @@ get_conn_state_name(VCHIQ_CONNSTATE_T conn_state)
 VCHIQ_SLOT_ZERO_T *
 vchiq_init_slots(void *mem_base, int mem_size)
 {
-	int mem_align = (VCHIQ_SLOT_SIZE - (int)mem_base) & VCHIQ_SLOT_MASK;
+	int mem_align =
+		(int)((VCHIQ_SLOT_SIZE - (long)mem_base) & VCHIQ_SLOT_MASK);
 	VCHIQ_SLOT_ZERO_T *slot_zero =
 		(VCHIQ_SLOT_ZERO_T *)((char *)mem_base + mem_align);
 	int num_slots = (mem_size - mem_align)/VCHIQ_SLOT_SIZE;
@@ -3303,7 +3304,7 @@ vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
 				(dir == VCHIQ_BULK_TRANSMIT) ?
 				VCHIQ_POLL_TXNOTIFY : VCHIQ_POLL_RXNOTIFY);
 	} else {
-		int payload[2] = { (int)bulk->data, bulk->size };
+		int payload[2] = { (int)(long)bulk->data, bulk->size };
 		VCHIQ_ELEMENT_T element = { payload, sizeof(payload) };
 
 		status = queue_message(state, NULL,
