@@ -371,33 +371,6 @@ struct rsnd_mod *rsnd_mod_next(int *iterator,
 	return NULL;
 }
 
-#define rsnd_mod_call(idx, io, func, param...)			\
-({								\
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);		\
-	struct rsnd_mod *mod = (io)->mod[idx];			\
-	struct device *dev = rsnd_priv_to_dev(priv);		\
-	u32 *status = mod->get_status(io, mod, idx);			\
-	u32 mask = 0xF << __rsnd_mod_shift_##func;			\
-	u8 val  = (*status >> __rsnd_mod_shift_##func) & 0xF;		\
-	u8 add  = ((val + __rsnd_mod_add_##func) & 0xF);		\
-	int ret = 0;							\
-	int call = (val == __rsnd_mod_call_##func) && (mod)->ops->func;	\
-	if (add == 0xF)							\
-		call = 0;						\
-	else								\
-		*status = (*status & ~mask) +				\
-			(add << __rsnd_mod_shift_##func);		\
-	dev_dbg(dev, "%s[%d]\t0x%08x %s\n",				\
-		rsnd_mod_name(mod), rsnd_mod_id(mod),			\
-		*status, call ? #func : "");				\
-	if (call)							\
-		ret = (mod)->ops->func(mod, io, param);			\
-	if (ret)							\
-		dev_dbg(dev, "%s[%d] : rsnd_mod_call error %d\n",	\
-			rsnd_mod_name(mod), rsnd_mod_id(mod), ret);	\
-	ret;								\
-})
-
 static enum rsnd_mod_type rsnd_mod_sequence[][RSND_MOD_MAX] = {
 	{
 		/* CAPTURE */
@@ -432,19 +405,49 @@ static enum rsnd_mod_type rsnd_mod_sequence[][RSND_MOD_MAX] = {
 	},
 };
 
-#define rsnd_dai_call(fn, io, param...)				\
-({								\
-	struct rsnd_mod *mod;					\
-	int type, is_play = rsnd_io_is_play(io);		\
-	int ret = 0, i;						\
-	for (i = 0; i < RSND_MOD_MAX; i++) {			\
-		type = rsnd_mod_sequence[is_play][i];		\
-		mod = (io)->mod[type];				\
-		if (!mod)					\
-			continue;				\
-		ret |= rsnd_mod_call(type, io, fn, param);	\
-	}							\
-	ret;							\
+static int rsnd_status_update(u32 *status,
+			      int shift, int add, int timing)
+{
+	u32 mask	= 0xF << shift;
+	u8 val		= (*status >> shift) & 0xF;
+	u8 next_val	= (val + add) & 0xF;
+	int func_call	= (val == timing);
+
+	if (next_val == 0xF) /* underflow case */
+		func_call = 0;
+	else
+		*status = (*status & ~mask) + (next_val << shift);
+
+	return func_call;
+}
+
+#define rsnd_dai_call(fn, io, param...)					\
+({									\
+	struct rsnd_priv *priv = rsnd_io_to_priv(io);			\
+	struct device *dev = rsnd_priv_to_dev(priv);			\
+	struct rsnd_mod *mod;						\
+	int is_play = rsnd_io_is_play(io);				\
+	int ret = 0, i;							\
+	enum rsnd_mod_type *types = rsnd_mod_sequence[is_play];		\
+	for_each_rsnd_mod_arrays(i, mod, io, types, RSND_MOD_MAX) {	\
+		int tmp = 0;						\
+		u32 *status = mod->get_status(io, mod, types[i]);	\
+		int func_call = rsnd_status_update(status,		\
+						__rsnd_mod_shift_##fn,	\
+						__rsnd_mod_add_##fn,	\
+						__rsnd_mod_call_##fn);	\
+		dev_dbg(dev, "%s[%d]\t0x%08x %s\n",			\
+			rsnd_mod_name(mod), rsnd_mod_id(mod), *status,	\
+			(func_call && (mod)->ops->fn) ? #fn : "");	\
+		if (func_call && (mod)->ops->fn)			\
+			tmp = (mod)->ops->fn(mod, io, param);		\
+		if (tmp)						\
+			dev_err(dev, "%s[%d] : %s error %d\n",		\
+				rsnd_mod_name(mod), rsnd_mod_id(mod),	\
+						     #fn, tmp);		\
+		ret |= tmp;						\
+	}								\
+	ret;								\
 })
 
 int rsnd_dai_connect(struct rsnd_mod *mod,
