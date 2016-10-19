@@ -351,6 +351,7 @@ static const struct of_device_id exynos_ppmu_id_match[] = {
 	},
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, exynos_ppmu_id_match);
 
 static struct devfreq_event_ops *exynos_bus_get_ops(struct device_node *np)
 {
