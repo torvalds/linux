@@ -293,7 +293,7 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 
 	result = hfa384x_drvr_setconfig(hw,
 					HFA384x_RID_HOSTSCAN, &scanreq,
-					sizeof(struct hfa384x_host_scan_request_data));
+					sizeof(scanreq));
 	if (result) {
 		netdev_err(wlandev->netdev,
 			   "setconfig(SCANREQUEST) failed. result=%d\n",
