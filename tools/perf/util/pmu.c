@@ -1139,8 +1139,8 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 			bool is_cpu = !strcmp(pmu->name, "cpu");
 
 			if (event_glob != NULL &&
-			    !(strglobmatch(name, event_glob) ||
-			      (!is_cpu && strglobmatch(alias->name,
+			    !(strglobmatch_nocase(name, event_glob) ||
+			      (!is_cpu && strglobmatch_nocase(alias->name,
 						       event_glob))))
 				continue;
 
