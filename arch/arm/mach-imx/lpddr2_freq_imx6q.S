@@ -186,36 +186,35 @@ skip_below_100Mhz_ch1_timings:
 
 	.endm
 
-	.macro	set_timings_above_100MHz_operation
+	.macro restore_mmdc_settings_info
 	/* restore timing from mmdc_settings_info */
 	ldr	r6, [r1, #0x0]
 	ldr	r7, [r1, #0x4]
-tloop:
+1:
 	ldr	r9, [r7], #0x4
 	ldr	r10, [r7], #0x4
 	str	r10, [r8, r9]
 	subs	r6, r6, #0x1
-	bne	tloop
+	bne	1b
 
 	/* Check if lpddr2 channel 1 is enabled */
 	ldr	r6, [r8, #0x18]
 	ands	r6, r6, #(1 << 2)
-	beq	skip_above_100Mhz_ch1_timings
+	beq	3f
 
 	ldr	r6, [r1, #0x0]
 	ldr	r7, [r1, #0x4]
-tloop2:
+2:
 	ldr	r9, [r7], #0x4
 	ldr	r10, [r7], #0x4
 	str	r10, [r4, r9]
 	subs	r6, r6, #0x1
-	bne	tloop2
-
-skip_above_100Mhz_ch1_timings:
+	bne	2b
+3:
 
 	.endm
 
-	.macro	mmdc_clk_lower_100MHz
+	.macro	mmdc_clk_lower_equal_100MHz
 
 	set_timings_below_100MHz_operation
 	/*
@@ -305,7 +304,7 @@ skip_lower_force_measure_ch1:
 
 	.macro	mmdc_clk_above_100MHz
 
-	set_timings_above_100MHz_operation
+	restore_mmdc_settings_info
 
 	/* Make sure that the PHY measurement unit is NOT in bypass mode */
 	ldr	r5, =0x8B8
@@ -518,7 +517,7 @@ skip_sbs_ch1:
 	ldr	r10, =100000000
 	cmp	r0, r10
 	bgt	set_ddr_mu_above_100
-	mmdc_clk_lower_100MHz
+	mmdc_clk_lower_equal_100MHz
 
 set_ddr_mu_above_100:
 	ldr	r10, =24000000
