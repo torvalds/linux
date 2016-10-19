@@ -68,6 +68,7 @@ int main(void)
 	err += RUN_TEST(test_fence_multi_timeline_wait);
 	err += RUN_TEST(test_stress_two_threads_shared_timeline);
 	err += RUN_TEST(test_consumer_stress_multi_producer_single_consumer);
+	err += RUN_TEST(test_merge_stress_random_merge);
 
 	if (err)
 		printf("[FAIL]\tsync errors: %d\n", err);

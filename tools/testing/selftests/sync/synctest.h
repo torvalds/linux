@@ -60,4 +60,7 @@ int test_stress_two_threads_shared_timeline(void);
 /* Stress test - consumer */
 int test_consumer_stress_multi_producer_single_consumer(void);
 
+/* Stress test - merging */
+int test_merge_stress_random_merge(void);
+
 #endif
