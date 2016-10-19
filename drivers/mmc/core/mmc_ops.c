@@ -535,18 +535,29 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	if (!use_busy_signal)
 		goto out;
 
-	/*
-	 * CRC errors shall only be ignored in cases were CMD13 is used to poll
-	 * to detect busy completion.
-	 */
-	if ((host->caps & MMC_CAP_WAIT_WHILE_BUSY) && use_r1b_resp)
-		ignore_crc = false;
+	/*If SPI or used HW busy detection above, then we don't need to poll. */
+	if (((host->caps & MMC_CAP_WAIT_WHILE_BUSY) && use_r1b_resp) ||
+		mmc_host_is_spi(host)) {
+		if (send_status)
+			err = mmc_switch_status(card);
+		goto out;
+	}
 
 	/* We have an unspecified cmd timeout, use the fallback value. */
 	if (!timeout_ms)
 		timeout_ms = MMC_OPS_TIMEOUT_MS;
 
-	/* Must check status to be sure of no errors. */
+	/*
+	 * In cases when not allowed to poll by using CMD13 or because we aren't
+	 * capable of polling by using ->card_busy(), then rely on waiting the
+	 * stated timeout to be sufficient.
+	 */
+	if (!send_status && !host->ops->card_busy) {
+		mmc_delay(timeout_ms);
+		goto out;
+	}
+
+	/* Let's poll to find out when the command is completed. */
 	timeout = jiffies + msecs_to_jiffies(timeout_ms) + 1;
 	do {
 		/*
@@ -560,24 +571,10 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 			if (err)
 				goto out;
 		}
-		if ((host->caps & MMC_CAP_WAIT_WHILE_BUSY) && use_r1b_resp)
-			break;
 		if (host->ops->card_busy) {
 			if (!host->ops->card_busy(host))
 				break;
 			busy = true;
-		}
-		if (mmc_host_is_spi(host))
-			break;
-
-		/*
-		 * We are not allowed to issue a status command and the host
-		 * does'nt support MMC_CAP_WAIT_WHILE_BUSY, then we can only
-		 * rely on waiting for the stated timeout to be sufficient.
-		 */
-		if (!send_status && !host->ops->card_busy) {
-			mmc_delay(timeout_ms);
-			goto out;
 		}
 
 		/* Timeout if the device never leaves the program state. */
