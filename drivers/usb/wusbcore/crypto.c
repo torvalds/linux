@@ -339,8 +339,10 @@ ssize_t wusb_prf(void *out, size_t out_size,
 		goto error_setkey_aes;
 	}
 	scratch = kmalloc(sizeof(*scratch), GFP_KERNEL);
-	if (!scratch)
+	if (!scratch) {
+		result = -ENOMEM;
 		goto error_alloc_scratch;
+	}
 
 	for (bitr = 0; bitr < (len + 63) / 64; bitr++) {
 		sfn_le = cpu_to_le64(sfn++);
