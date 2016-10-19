@@ -400,8 +400,16 @@ EXPORT_SYMBOL(vchi_msg_queuev);
  ***********************************************************/
 int32_t vchi_held_msg_release(VCHI_HELD_MSG_T *message)
 {
-	vchiq_release_message((VCHIQ_SERVICE_HANDLE_T)message->service,
-		(VCHIQ_HEADER_T *)message->message);
+	/*
+	 * Convert the service field pointer back to an
+	 * VCHIQ_SERVICE_HANDLE_T which is an int.
+	 * This pointer is opaque to everything except
+	 * vchi_msg_hold which simply upcasted the int
+	 * to a pointer.
+	 */
+
+	vchiq_release_message((VCHIQ_SERVICE_HANDLE_T)(long)message->service,
+			      (VCHIQ_HEADER_T *)message->message);
 
 	return 0;
 }
@@ -445,8 +453,16 @@ int32_t vchi_msg_hold(VCHI_SERVICE_HANDLE_T handle,
 	*data = header->data;
 	*msg_size = header->size;
 
+	/*
+	 * upcast the VCHIQ_SERVICE_HANDLE_T which is an int
+	 * to a pointer and stuff it in the held message.
+	 * This pointer is opaque to everything except
+	 * vchi_held_msg_release which simply downcasts it back
+	 * to an int.
+	 */
+
 	message_handle->service =
-		(struct opaque_vchi_service_t *)service->handle;
+		(struct opaque_vchi_service_t *)(long)service->handle;
 	message_handle->message = header;
 
 	return 0;
