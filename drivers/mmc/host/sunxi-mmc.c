@@ -822,10 +822,13 @@ static void sunxi_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		break;
 
 	case MMC_POWER_UP:
-		host->ferror = mmc_regulator_set_ocr(mmc, mmc->supply.vmmc,
-						     ios->vdd);
-		if (host->ferror)
-			return;
+		if (!IS_ERR(mmc->supply.vmmc)) {
+			host->ferror = mmc_regulator_set_ocr(mmc,
+							     mmc->supply.vmmc,
+							     ios->vdd);
+			if (host->ferror)
+				return;
+		}
 
 		if (!IS_ERR(mmc->supply.vqmmc)) {
 			host->ferror = regulator_enable(mmc->supply.vqmmc);
@@ -847,7 +850,9 @@ static void sunxi_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_OFF:
 		dev_dbg(mmc_dev(mmc), "power off!\n");
 		sunxi_mmc_reset_host(host);
-		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
+		if (!IS_ERR(mmc->supply.vmmc))
+			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
+
 		if (!IS_ERR(mmc->supply.vqmmc) && host->vqmmc_enabled)
 			regulator_disable(mmc->supply.vqmmc);
 		host->vqmmc_enabled = false;
