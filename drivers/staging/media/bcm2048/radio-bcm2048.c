@@ -999,7 +999,7 @@ static int bcm2048_set_fm_search_tune_mode(struct bcm2048_device *bdev,
 		timeout = BCM2048_AUTO_SEARCH_TIMEOUT;
 
 	if (!wait_for_completion_timeout(&bdev->compl,
-		msecs_to_jiffies(timeout)))
+					 msecs_to_jiffies(timeout)))
 		dev_err(&bdev->client->dev, "IRQ timeout.\n");
 
 	if (value)
@@ -2204,7 +2204,7 @@ static ssize_t bcm2048_fops_read(struct file *file, char __user *buf,
 		}
 		/* interruptible_sleep_on(&bdev->read_queue); */
 		if (wait_event_interruptible(bdev->read_queue,
-		    bdev->rds_data_available) < 0) {
+					     bdev->rds_data_available) < 0) {
 			retval = -EINTR;
 			goto done;
 		}
