@@ -42,10 +42,11 @@ static const struct ad7606_bus_ops ad7606_spi_bops = {
 
 static int ad7606_spi_probe(struct spi_device *spi)
 {
+	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct iio_dev *indio_dev;
 
 	indio_dev = ad7606_probe(&spi->dev, spi->irq, NULL,
-				 spi_get_device_id(spi)->driver_data,
+				 id->name, id->driver_data,
 				 &ad7606_spi_bops);
 
 	if (IS_ERR(indio_dev))

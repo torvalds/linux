@@ -49,6 +49,7 @@ static const struct ad7606_bus_ops ad7606_par8_bops = {
 
 static int ad7606_par_probe(struct platform_device *pdev)
 {
+	const struct platform_device_id *id = platform_get_device_id(pdev);
 	struct resource *res;
 	struct iio_dev *indio_dev;
 	void __iomem *addr;
@@ -69,7 +70,7 @@ static int ad7606_par_probe(struct platform_device *pdev)
 	remap_size = resource_size(res);
 
 	indio_dev = ad7606_probe(&pdev->dev, irq, addr,
-				 platform_get_device_id(pdev)->driver_data,
+				 id->name, id->driver_data,
 				 remap_size > 1 ? &ad7606_par16_bops :
 				 &ad7606_par8_bops);
 

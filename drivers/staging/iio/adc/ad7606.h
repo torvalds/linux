@@ -48,7 +48,6 @@ struct ad7606_platform_data {
  */
 
 struct ad7606_chip_info {
-	const char			*name;
 	const struct iio_chan_spec	*channels;
 	unsigned int			num_channels;
 };
@@ -84,7 +83,8 @@ struct ad7606_bus_ops {
 };
 
 struct iio_dev *ad7606_probe(struct device *dev, int irq,
-			      void __iomem *base_address, unsigned int id,
+			      void __iomem *base_address,
+			      const char *name, unsigned int id,
 			      const struct ad7606_bus_ops *bops);
 int ad7606_remove(struct iio_dev *indio_dev, int irq);
 int ad7606_reset(struct ad7606_state *st);

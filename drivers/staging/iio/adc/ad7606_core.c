@@ -260,17 +260,14 @@ static const struct ad7606_chip_info ad7606_chip_info_tbl[] = {
 	 * More devices added in future
 	 */
 	[ID_AD7606_8] = {
-		.name = "ad7606",
 		.channels = ad7606_channels,
 		.num_channels = 9,
 	},
 	[ID_AD7606_6] = {
-		.name = "ad7606-6",
 		.channels = ad7606_channels,
 		.num_channels = 7,
 	},
 	[ID_AD7606_4] = {
-		.name = "ad7606-4",
 		.channels = ad7606_channels,
 		.num_channels = 5,
 	},
@@ -438,7 +435,7 @@ static const struct iio_info ad7606_info_range = {
 
 struct iio_dev *ad7606_probe(struct device *dev, int irq,
 			     void __iomem *base_address,
-			     unsigned int id,
+			     const char *name, unsigned int id,
 			     const struct ad7606_bus_ops *bops)
 {
 	struct ad7606_platform_data *pdata = dev->platform_data;
@@ -491,7 +488,7 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 			indio_dev->info = &ad7606_info_no_os_or_range;
 	}
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->name = st->chip_info->name;
+	indio_dev->name = name;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
 
@@ -505,8 +502,8 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 	if (ret)
 		dev_warn(st->dev, "failed to RESET: no RESET GPIO specified\n");
 
-	ret = request_irq(irq, ad7606_interrupt,
-			  IRQF_TRIGGER_FALLING, st->chip_info->name, indio_dev);
+	ret = request_irq(irq, ad7606_interrupt, IRQF_TRIGGER_FALLING, name,
+			  indio_dev);
 	if (ret)
 		goto error_free_gpios;
 
