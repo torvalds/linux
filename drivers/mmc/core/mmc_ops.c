@@ -468,6 +468,63 @@ int mmc_switch_status(struct mmc_card *card)
 	return mmc_switch_status_error(card->host, status);
 }
 
+static int mmc_poll_for_busy(struct mmc_card *card, unsigned int timeout_ms,
+			bool send_status, bool ignore_crc)
+{
+	struct mmc_host *host = card->host;
+	int err;
+	unsigned long timeout;
+	u32 status = 0;
+	bool expired = false;
+	bool busy = false;
+
+	/* We have an unspecified cmd timeout, use the fallback value. */
+	if (!timeout_ms)
+		timeout_ms = MMC_OPS_TIMEOUT_MS;
+
+	/*
+	 * In cases when not allowed to poll by using CMD13 or because we aren't
+	 * capable of polling by using ->card_busy(), then rely on waiting the
+	 * stated timeout to be sufficient.
+	 */
+	if (!send_status && !host->ops->card_busy) {
+		mmc_delay(timeout_ms);
+		return 0;
+	}
+
+	timeout = jiffies + msecs_to_jiffies(timeout_ms) + 1;
+	do {
+		/*
+		 * Due to the possibility of being preempted after
+		 * sending the status command, check the expiration
+		 * time first.
+		 */
+		expired = time_after(jiffies, timeout);
+		if (send_status) {
+			err = __mmc_send_status(card, &status, ignore_crc);
+			if (err)
+				return err;
+		}
+		if (host->ops->card_busy) {
+			if (!host->ops->card_busy(host))
+				break;
+			busy = true;
+		}
+
+		/* Timeout if the device never leaves the program state. */
+		if (expired &&
+		    (R1_CURRENT_STATE(status) == R1_STATE_PRG || busy)) {
+			pr_err("%s: Card stuck in programming state! %s\n",
+				mmc_hostname(host), __func__);
+			return -ETIMEDOUT;
+		}
+	} while (R1_CURRENT_STATE(status) == R1_STATE_PRG || busy);
+
+	err = mmc_switch_status_error(host, status);
+
+	return err;
+}
+
 /**
  *	__mmc_switch - modify EXT_CSD register
  *	@card: the MMC card associated with the data transfer
@@ -489,11 +546,7 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	struct mmc_host *host = card->host;
 	int err;
 	struct mmc_command cmd = {0};
-	unsigned long timeout;
-	u32 status = 0;
 	bool use_r1b_resp = use_busy_signal;
-	bool expired = false;
-	bool busy = false;
 
 	mmc_retune_hold(host);
 
@@ -543,51 +596,8 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		goto out;
 	}
 
-	/* We have an unspecified cmd timeout, use the fallback value. */
-	if (!timeout_ms)
-		timeout_ms = MMC_OPS_TIMEOUT_MS;
-
-	/*
-	 * In cases when not allowed to poll by using CMD13 or because we aren't
-	 * capable of polling by using ->card_busy(), then rely on waiting the
-	 * stated timeout to be sufficient.
-	 */
-	if (!send_status && !host->ops->card_busy) {
-		mmc_delay(timeout_ms);
-		goto out;
-	}
-
-	/* Let's poll to find out when the command is completed. */
-	timeout = jiffies + msecs_to_jiffies(timeout_ms) + 1;
-	do {
-		/*
-		 * Due to the possibility of being preempted after
-		 * sending the status command, check the expiration
-		 * time first.
-		 */
-		expired = time_after(jiffies, timeout);
-		if (send_status) {
-			err = __mmc_send_status(card, &status, ignore_crc);
-			if (err)
-				goto out;
-		}
-		if (host->ops->card_busy) {
-			if (!host->ops->card_busy(host))
-				break;
-			busy = true;
-		}
-
-		/* Timeout if the device never leaves the program state. */
-		if (expired &&
-		    (R1_CURRENT_STATE(status) == R1_STATE_PRG || busy)) {
-			pr_err("%s: Card stuck in programming state! %s\n",
-				mmc_hostname(host), __func__);
-			err = -ETIMEDOUT;
-			goto out;
-		}
-	} while (R1_CURRENT_STATE(status) == R1_STATE_PRG || busy);
-
-	err = mmc_switch_status_error(host, status);
+	/* Let's try to poll to find out when the command is completed. */
+	err = mmc_poll_for_busy(card, timeout_ms, send_status, ignore_crc);
 out:
 	mmc_retune_release(host);
 
