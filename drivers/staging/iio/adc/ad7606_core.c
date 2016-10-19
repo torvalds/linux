@@ -443,10 +443,9 @@ static const struct iio_info ad7606_info_range = {
 	.attrs = &ad7606_attribute_group_range,
 };
 
-struct iio_dev *ad7606_probe(struct device *dev, int irq,
-			     void __iomem *base_address,
-			     const char *name, unsigned int id,
-			     const struct ad7606_bus_ops *bops)
+int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
+		 const char *name, unsigned int id,
+		 const struct ad7606_bus_ops *bops)
 {
 	struct ad7606_platform_data *pdata = dev->platform_data;
 	struct ad7606_state *st;
@@ -455,7 +454,7 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 
@@ -469,7 +468,7 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
-			return ERR_PTR(ret);
+			return ret;
 	}
 
 	st->pdata = pdata;
@@ -519,7 +518,7 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 
 	dev_set_drvdata(dev, indio_dev);
 
-	return indio_dev;
+	return 0;
 error_unregister_ring:
 	ad7606_ring_cleanup(indio_dev);
 
@@ -532,7 +531,7 @@ error_free_gpios:
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-	return ERR_PTR(ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(ad7606_probe);
 

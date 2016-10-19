@@ -78,10 +78,9 @@ struct ad7606_bus_ops {
 	int (*read_block)(struct device *, int, void *);
 };
 
-struct iio_dev *ad7606_probe(struct device *dev, int irq,
-			      void __iomem *base_address,
-			      const char *name, unsigned int id,
-			      const struct ad7606_bus_ops *bops);
+int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
+		 const char *name, unsigned int id,
+		 const struct ad7606_bus_ops *bops);
 int ad7606_remove(struct iio_dev *indio_dev, int irq);
 int ad7606_reset(struct ad7606_state *st);
 int ad7606_read_samples(struct ad7606_state *st);
