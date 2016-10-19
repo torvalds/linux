@@ -749,10 +749,11 @@
 				clock-names = "ipg", "ahb", "per";
 				bus-width = <4>;
 				fsl,tuning-step = <2>;
+				fsl,tuning-start-tap = <20>;
 				status = "disabled";
 			};
 
-			usdhc3: usdhc3@02198000 {
+			usdhc3: usdhc@02198000 {
 				compatible = "fsl,imx6sll-usdhc", "fsl,imx6sx-usdhc";
 				reg = <0x02198000 0x4000>;
 				interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
