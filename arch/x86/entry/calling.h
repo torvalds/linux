@@ -90,8 +90,8 @@ For 32-bit we have the following conventions - kernel is built with
 
 #define SIZEOF_PTREGS	21*8
 
-	.macro ALLOC_PT_GPREGS_ON_STACK addskip=0
-	addq	$-(15*8+\addskip), %rsp
+	.macro ALLOC_PT_GPREGS_ON_STACK
+	addq	$-(15*8), %rsp
 	.endm
 
 	.macro SAVE_C_REGS_HELPER offset=0 rax=1 rcx=1 r8910=1 r11=1
