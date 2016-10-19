@@ -1,0 +1,32 @@
+# For MTK USB3.0 IP
+
+config USB_MTU3
+	tristate "MediaTek USB3 Dual Role controller"
+	depends on (USB || USB_GADGET) && HAS_DMA
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+	  Say Y or M here if your system runs on MediaTek SoCs with
+	  Dual Role SuperSpeed USB controller. You can select usb
+	  mode as peripheral role or host role, or both.
+
+	  If you don't know what this is, please say N.
+
+	  Choose M here to compile this driver as a module, and it
+	  will be called mtu3.ko.
+
+
+if USB_MTU3
+choice
+	bool "MTU3 Mode Selection"
+	default USB_MTU3_GADGET if (!USB && USB_GADGET)
+
+config USB_MTU3_GADGET
+	bool "Gadget only mode"
+	depends on USB_GADGET=y || USB_GADGET=USB_MTU3
+	help
+	  Select this when you want to use MTU3 in gadget mode only,
+	  thereby the host feature will be regressed.
+
+endchoice
+
+endif
