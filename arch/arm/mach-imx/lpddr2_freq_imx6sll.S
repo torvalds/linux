@@ -26,6 +26,8 @@
 #define MMDC0_MAPSR	0x404
 #define MMDC0_MADPCR0	0x410
 
+#define HIGH_BUS_MODE	0x0
+
 	.macro	wait_for_ccm_handshake
 
 1:
@@ -125,6 +127,9 @@ skip_periph2_clk2_switch_400m:
 	.endm
 
 	.macro	mmdc_clk_lower_100MHz
+	/* if MMDC is not in 400MHz mode, skip double mu count */
+	cmp	r1, #HIGH_BUS_MODE
+	bne	1f
 
 	/*
 	 * Prior to reducing the DDR frequency (at 528/400 MHz),
@@ -155,23 +160,13 @@ skip_periph2_clk2_switch_400m:
 	bic	r6, r6, r4
 	orr	r6, r6, r7
 	str	r6, [r5, r8]
-	/* Now perform a Force Measurement. */
-	ldr	r6, [r5, r8]
-	orr	r6, r6, #0x800
-	str	r6, [r5, r8]
-	/* Wait for FRC_MSR to clear. */
-force_measure:
-	ldr	r6, [r5, r8]
-	and	r6, r6, #0x800
-	cmp	r6, #0x0
-	bne	force_measure
 
 	/* For freq lower than 100MHz, need to set RALAT to 2 */
 	ldr	r6, [r5, #0x18]
 	bic	r6, r6, #(0x7 << 6)
 	orr	r6, r6, #(0x2 << 6)
 	str	r6, [r5, #0x18]
-
+1:
 	.endm
 
 	.macro	mmdc_clk_above_100MHz

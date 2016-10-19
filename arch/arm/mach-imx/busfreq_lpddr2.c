@@ -137,8 +137,13 @@ int update_lpddr2_freq(int ddr_rate)
 	ttbr1 = save_ttbr1();
 
 	/* Now change DDR frequency. */
-	mx6_change_lpddr2_freq(ddr_rate,
-		(mode == BUS_FREQ_LOW || mode == BUS_FREQ_ULTRA_LOW) ? 1 : 0);
+	if (cpu_is_imx6sl())
+		mx6_change_lpddr2_freq(ddr_rate,
+			(mode == BUS_FREQ_LOW || mode == BUS_FREQ_ULTRA_LOW) ? 1 : 0);
+	else
+		mx6_change_lpddr2_freq(ddr_rate,
+			(mode == BUS_FREQ_LOW || mode == BUS_FREQ_AUDIO) ? 1 : 0);
+
 	restore_ttbr1(ttbr1);
 
 	curr_ddr_rate = ddr_rate;

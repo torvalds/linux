@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2015 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2012-2016 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -300,16 +300,6 @@ mmdc_podf1:
 	bic	r6, r6, r4
 	orr	r6, r6, r7
 	str	r6, [r8, r5]
-	/* Now perform a Force Measurement. */
-	ldr	r6, [r8, r5]
-	orr	r6, r6, #0x800
-	str	r6, [r8, r5]
-	/* Wait for FRC_MSR to clear. */
-force_measure:
-	ldr	r6, [r8, r5]
-	and	r6, r6, #0x800
-	cmp	r6, #0x0
-	bne	force_measure
 
 	.endm
 
