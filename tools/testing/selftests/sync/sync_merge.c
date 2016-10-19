@@ -1,5 +1,5 @@
 /*
- *  sync test runner
+ *  sync fence merge tests
  *  Copyright 2015-2016 Collabora Ltd.
  *
  *  Based on the implementation from the Android Open Source Project,
@@ -25,51 +25,36 @@
  *  OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-
+#include "sync.h"
+#include "sw_sync.h"
 #include "synctest.h"
 
-static int run_test(int (*test)(void), char *name)
+int test_fence_merge_same_fence(void)
 {
-	int result;
-	pid_t childpid;
+	int fence, valid, merged;
+	int timeline = sw_sync_timeline_create();
 
-	fflush(stdout);
-	childpid = fork();
+	valid = sw_sync_timeline_is_valid(timeline);
+	ASSERT(valid, "Failure allocating timeline\n");
 
-	if (childpid) {
-		waitpid(childpid, &result, 0);
-		if (WIFEXITED(result))
-			return WEXITSTATUS(result);
-		return 1;
-	}
+	fence = sw_sync_fence_create(timeline, "allocFence", 5);
+	valid = sw_sync_fence_is_valid(fence);
+	ASSERT(valid, "Failure allocating fence\n");
 
-	printf("[RUN]\tExecuting %s\n", name);
-	exit(test());
-}
+	merged = sync_merge("mergeFence", fence, fence);
+	valid = sw_sync_fence_is_valid(fence);
+	ASSERT(valid, "Failure merging fence\n");
 
-int main(void)
-{
-	int err = 0;
+	ASSERT(sync_fence_count_with_status(merged, FENCE_STATUS_SIGNALED) == 0,
+	       "fence signaled too early!\n");
 
-	printf("[RUN]\tTesting sync framework\n");
+	sw_sync_timeline_inc(timeline, 5);
+	ASSERT(sync_fence_count_with_status(merged, FENCE_STATUS_SIGNALED) == 1,
+	       "fence did not signal!\n");
 
-	err += RUN_TEST(test_alloc_timeline);
-	err += RUN_TEST(test_alloc_fence);
-	err += RUN_TEST(test_alloc_fence_negative);
+	sw_sync_fence_destroy(merged);
+	sw_sync_fence_destroy(fence);
+	sw_sync_timeline_destroy(timeline);
 
-	err += RUN_TEST(test_fence_one_timeline_wait);
-	err += RUN_TEST(test_fence_one_timeline_merge);
-	err += RUN_TEST(test_fence_merge_same_fence);
-
-	if (err)
-		printf("[FAIL]\tsync errors: %d\n", err);
-	else
-		printf("[OK]\tsync\n");
-
-	return !!err;
+	return 0;
 }
