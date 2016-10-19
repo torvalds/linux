@@ -300,22 +300,30 @@ EXPORT_SYMBOL_GPL(visorchannel_signalremove);
  * Return: boolean indicating whether any messages in the designated
  *         channel/queue are present
  */
+
+static bool
+queue_empty(struct visorchannel *channel, u32 queue)
+{
+	struct signal_queue_header sig_hdr;
+
+	if (sig_read_header(channel, queue, &sig_hdr))
+		return true;
+
+	return (sig_hdr.head == sig_hdr.tail);
+}
+
 bool
 visorchannel_signalempty(struct visorchannel *channel, u32 queue)
 {
-	unsigned long flags = 0;
-	struct signal_queue_header sig_hdr;
-	bool rc = false;
+	bool rc;
+	unsigned long flags;
 
-	if (channel->needs_lock)
-		spin_lock_irqsave(&channel->remove_lock, flags);
+	if (!channel->needs_lock)
+		return queue_empty(channel, queue);
 
-	if (sig_read_header(channel, queue, &sig_hdr))
-		rc = true;
-	if (sig_hdr.head == sig_hdr.tail)
-		rc = true;
-	if (channel->needs_lock)
-		spin_unlock_irqrestore(&channel->remove_lock, flags);
+	spin_lock_irqsave(&channel->remove_lock, flags);
+	rc = queue_empty(channel, queue);
+	spin_unlock_irqrestore(&channel->remove_lock, flags);
 
 	return rc;
 }
