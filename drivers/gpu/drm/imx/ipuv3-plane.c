@@ -70,8 +70,8 @@ drm_plane_state_to_eba(struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *cma_obj;
-	int x = state->src_x >> 16;
-	int y = state->src_y >> 16;
+	int x = state->src.x1 >> 16;
+	int y = state->src.y1 >> 16;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	BUG_ON(!cma_obj);
@@ -86,8 +86,8 @@ drm_plane_state_to_ubo(struct drm_plane_state *state)
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *cma_obj;
 	unsigned long eba = drm_plane_state_to_eba(state);
-	int x = state->src_x >> 16;
-	int y = state->src_y >> 16;
+	int x = state->src.x1 >> 16;
+	int y = state->src.y1 >> 16;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 1);
 	BUG_ON(!cma_obj);
@@ -105,8 +105,8 @@ drm_plane_state_to_vbo(struct drm_plane_state *state)
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *cma_obj;
 	unsigned long eba = drm_plane_state_to_eba(state);
-	int x = state->src_x >> 16;
-	int y = state->src_y >> 16;
+	int x = state->src.x1 >> 16;
+	int y = state->src.y1 >> 16;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 2);
 	BUG_ON(!cma_obj);
@@ -218,7 +218,10 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_framebuffer *old_fb = old_state->fb;
 	unsigned long eba, ubo, vbo, old_ubo, old_vbo;
+	bool can_position = (plane->type == DRM_PLANE_TYPE_OVERLAY);
+	struct drm_rect clip;
 	int hsub, vsub;
+	int ret;
 
 	/* Ok to disable */
 	if (!fb)
@@ -232,44 +235,35 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
+	clip.x1 = 0;
+	clip.y1 = 0;
+	clip.x2 = crtc_state->adjusted_mode.hdisplay;
+	clip.y2 = crtc_state->adjusted_mode.vdisplay;
+	ret = drm_plane_helper_check_state(state, &clip,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   DRM_PLANE_HELPER_NO_SCALING,
+					   can_position, true);
+	if (ret)
+		return ret;
+
 	/* CRTC should be enabled */
 	if (!crtc_state->enable)
 		return -EINVAL;
 
-	/* no scaling */
-	if (state->src_w >> 16 != state->crtc_w ||
-	    state->src_h >> 16 != state->crtc_h)
-		return -EINVAL;
-
 	switch (plane->type) {
 	case DRM_PLANE_TYPE_PRIMARY:
-		/* full plane doesn't support partial off screen */
-		if (state->crtc_x || state->crtc_y ||
-		    state->crtc_w != crtc_state->adjusted_mode.hdisplay ||
-		    state->crtc_h != crtc_state->adjusted_mode.vdisplay)
-			return -EINVAL;
-
 		/* full plane minimum width is 13 pixels */
-		if (state->crtc_w < 13)
+		if (drm_rect_width(&state->dst) < 13)
 			return -EINVAL;
 		break;
 	case DRM_PLANE_TYPE_OVERLAY:
-		if (state->crtc_x < 0 || state->crtc_y < 0)
-			return -EINVAL;
-
-		if (state->crtc_x + state->crtc_w >
-		    crtc_state->adjusted_mode.hdisplay)
-			return -EINVAL;
-		if (state->crtc_y + state->crtc_h >
-		    crtc_state->adjusted_mode.vdisplay)
-			return -EINVAL;
 		break;
 	default:
-		dev_warn(dev, "Unsupported plane type\n");
+		dev_warn(dev, "Unsupported plane type %d\n", plane->type);
 		return -EINVAL;
 	}
 
-	if (state->crtc_h < 2)
+	if (drm_rect_height(&state->dst) < 2)
 		return -EINVAL;
 
 	/*
@@ -279,9 +273,10 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	 * callback.  The planes will be reenabled in plane's ->atomic_update
 	 * callback.
 	 */
-	if (old_fb && (state->src_w != old_state->src_w ||
-			      state->src_h != old_state->src_h ||
-			      fb->format != old_fb->format))
+	if (old_fb &&
+	    (drm_rect_width(&state->dst) != drm_rect_width(&old_state->dst) ||
+	     drm_rect_height(&state->dst) != drm_rect_height(&old_state->dst) ||
+	     fb->format != old_fb->format))
 		crtc_state->mode_changed = true;
 
 	eba = drm_plane_state_to_eba(state);
@@ -350,8 +345,8 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		 */
 		hsub = drm_format_horz_chroma_subsampling(fb->format->format);
 		vsub = drm_format_vert_chroma_subsampling(fb->format->format);
-		if (((state->src_x >> 16) & (hsub - 1)) ||
-		    ((state->src_y >> 16) & (vsub - 1)))
+		if (((state->src.x1 >> 16) & (hsub - 1)) ||
+		    ((state->src.y1 >> 16) & (vsub - 1)))
 			return -EINVAL;
 	}
 
@@ -395,8 +390,8 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		ics = ipu_drm_fourcc_to_colorspace(state->fb->format->format);
 		ipu_dp_setup_channel(ipu_plane->dp, ics,
 					IPUV3_COLORSPACE_UNKNOWN);
-		ipu_dp_set_window_pos(ipu_plane->dp, state->crtc_x,
-					state->crtc_y);
+		ipu_dp_set_window_pos(ipu_plane->dp,
+				      state->dst.x1, state->dst.y1);
 		/* Enable local alpha on partial plane */
 		switch (state->fb->format->format) {
 		case DRM_FORMAT_ARGB1555:
@@ -416,11 +411,12 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		}
 	}
 
-	ipu_dmfc_config_wait4eot(ipu_plane->dmfc, state->crtc_w);
+	ipu_dmfc_config_wait4eot(ipu_plane->dmfc, drm_rect_width(&state->dst));
 
 	ipu_cpmem_zero(ipu_plane->ipu_ch);
-	ipu_cpmem_set_resolution(ipu_plane->ipu_ch, state->src_w >> 16,
-					state->src_h >> 16);
+	ipu_cpmem_set_resolution(ipu_plane->ipu_ch,
+				 drm_rect_width(&state->src) >> 16,
+				 drm_rect_height(&state->src) >> 16);
 	ipu_cpmem_set_fmt(ipu_plane->ipu_ch, state->fb->format->format);
 	ipu_cpmem_set_high_priority(ipu_plane->ipu_ch);
 	ipu_idmac_set_double_buffer(ipu_plane->ipu_ch, 1);
@@ -444,7 +440,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 
 		dev_dbg(ipu_plane->base.dev->dev,
 			"phy = %lu %lu %lu, x = %d, y = %d", eba, ubo, vbo,
-			state->src_x >> 16, state->src_y >> 16);
+			state->src.x1 >> 16, state->src.y1 >> 16);
 		break;
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV16:
@@ -455,11 +451,11 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 
 		dev_dbg(ipu_plane->base.dev->dev,
 			"phy = %lu %lu, x = %d, y = %d", eba, ubo,
-			state->src_x >> 16, state->src_y >> 16);
+			state->src.x1 >> 16, state->src.y1 >> 16);
 		break;
 	default:
 		dev_dbg(ipu_plane->base.dev->dev, "phys = %lu, x = %d, y = %d",
-			eba, state->src_x >> 16, state->src_y >> 16);
+			eba, state->src.x1 >> 16, state->src.y1 >> 16);
 		break;
 	}
 	ipu_cpmem_set_buffer(ipu_plane->ipu_ch, 0, eba);
