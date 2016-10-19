@@ -719,7 +719,7 @@ static int ks7010_sdio_update_index(struct ks_wlan_private *priv, u32 index)
 	return rc;
 }
 
-#define ROM_BUFF_SIZE (64*1024)
+#define ROM_BUFF_SIZE (64 * 1024)
 static int ks7010_sdio_data_compare(struct ks_wlan_private *priv, u32 address,
 				    unsigned char *data, unsigned int size)
 {
