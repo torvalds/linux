@@ -76,11 +76,7 @@ static int ad7606_par_probe(struct platform_device *pdev)
 
 static int ad7606_par_remove(struct platform_device *pdev)
 {
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-
-	ad7606_remove(indio_dev, platform_get_irq(pdev, 0));
-
-	return 0;
+	return ad7606_remove(&pdev->dev, platform_get_irq(pdev, 0));
 }
 
 static const struct platform_device_id ad7606_driver_ids[] = {

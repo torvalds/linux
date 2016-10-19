@@ -535,8 +535,9 @@ error_disable_reg:
 }
 EXPORT_SYMBOL_GPL(ad7606_probe);
 
-int ad7606_remove(struct iio_dev *indio_dev, int irq)
+int ad7606_remove(struct device *dev, int irq)
 {
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
