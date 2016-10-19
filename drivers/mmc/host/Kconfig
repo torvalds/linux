@@ -322,6 +322,16 @@ config MMC_SDHCI_IPROC
 
 	  If unsure, say N.
 
+config MMC_MESON_GX
+	tristate "Amlogic S905/GX* SD/MMC Host Controller support"
+	depends on ARCH_MESON && MMC
+	help
+	  This selects support for the Amlogic SD/MMC Host Controller
+	  found on the S905/GX* family of SoCs.  This controller is
+	  MMC 5.1 compliant and supports SD, eMMC and SDIO interfaces.
+
+	  If you have a controller with this interface, say Y here.
+
 config MMC_MOXART
 	tristate "MOXART SD/MMC Host Controller support"
 	depends on ARCH_MOXART && MMC

@@ -1043,6 +1043,7 @@ F:	arch/arm/mach-meson/
 F:	arch/arm/boot/dts/meson*
 F:	arch/arm64/boot/dts/amlogic/
 F: 	drivers/pinctrl/meson/
+F:	drivers/mmc/host/meson*
 N:	meson
 
 ARM/Annapurna Labs ALPINE ARCHITECTURE
