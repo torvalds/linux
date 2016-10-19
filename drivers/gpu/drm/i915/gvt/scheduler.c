@@ -390,6 +390,8 @@ struct workload_thread_param {
 	int ring_id;
 };
 
+static DEFINE_MUTEX(scheduler_mutex);
+
 static int workload_thread(void *priv)
 {
 	struct workload_thread_param *p = (struct workload_thread_param *)priv;
@@ -414,16 +416,13 @@ static int workload_thread(void *priv)
 		if (kthread_should_stop())
 			break;
 
+		mutex_lock(&scheduler_mutex);
+
 		gvt_dbg_sched("ring id %d next workload %p vgpu %d\n",
 				workload->ring_id, workload,
 				workload->vgpu->id);
 
 		intel_runtime_pm_get(gvt->dev_priv);
-
-		/*
-		 * Always take i915 big lock first
-		 */
-		mutex_lock(&gvt->dev_priv->drm.struct_mutex);
 
 		gvt_dbg_sched("ring id %d will dispatch workload %p\n",
 				workload->ring_id, workload);
@@ -432,7 +431,10 @@ static int workload_thread(void *priv)
 			intel_uncore_forcewake_get(gvt->dev_priv,
 					FORCEWAKE_ALL);
 
+		mutex_lock(&gvt->dev_priv->drm.struct_mutex);
 		ret = dispatch_workload(workload);
+		mutex_unlock(&gvt->dev_priv->drm.struct_mutex);
+
 		if (ret) {
 			gvt_err("fail to dispatch workload, skip\n");
 			goto complete;
@@ -442,8 +444,7 @@ static int workload_thread(void *priv)
 				workload->ring_id, workload);
 
 		workload->status = i915_wait_request(workload->req,
-						     I915_WAIT_LOCKED,
-						     NULL, NULL);
+						     0, NULL, NULL);
 		if (workload->status != 0)
 			gvt_err("fail to wait workload, skip\n");
 
@@ -451,7 +452,9 @@ complete:
 		gvt_dbg_sched("will complete workload %p\n, status: %d\n",
 				workload, workload->status);
 
+		mutex_lock(&gvt->dev_priv->drm.struct_mutex);
 		complete_current_workload(gvt, ring_id);
+		mutex_unlock(&gvt->dev_priv->drm.struct_mutex);
 
 		i915_gem_request_put(fetch_and_zero(&workload->req));
 
@@ -459,9 +462,10 @@ complete:
 			intel_uncore_forcewake_put(gvt->dev_priv,
 					FORCEWAKE_ALL);
 
-		mutex_unlock(&gvt->dev_priv->drm.struct_mutex);
-
 		intel_runtime_pm_put(gvt->dev_priv);
+
+		mutex_unlock(&scheduler_mutex);
+
 	}
 	return 0;
 }
