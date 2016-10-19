@@ -261,19 +261,16 @@ static const struct ad7606_chip_info ad7606_chip_info_tbl[] = {
 	 */
 	[ID_AD7606_8] = {
 		.name = "ad7606",
-		.int_vref_mv = 2500,
 		.channels = ad7606_channels,
 		.num_channels = 9,
 	},
 	[ID_AD7606_6] = {
 		.name = "ad7606-6",
-		.int_vref_mv = 2500,
 		.channels = ad7606_channels,
 		.num_channels = 7,
 	},
 	[ID_AD7606_4] = {
 		.name = "ad7606-4",
-		.int_vref_mv = 2500,
 		.channels = ad7606_channels,
 		.num_channels = 5,
 	},
