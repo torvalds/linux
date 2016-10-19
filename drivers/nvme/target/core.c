@@ -882,7 +882,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 	if (!subsys)
 		return NULL;
 
-	subsys->ver = (1 << 16) | (2 << 8) | 1; /* NVMe 1.2.1 */
+	subsys->ver = NVME_VS(1, 2, 1); /* NVMe 1.2.1 */
 
 	switch (type) {
 	case NVME_NQN_NVME:

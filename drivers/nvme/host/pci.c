@@ -1214,7 +1214,7 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 	u64 cap = lo_hi_readq(dev->bar + NVME_REG_CAP);
 	struct nvme_queue *nvmeq;
 
-	dev->subsystem = readl(dev->bar + NVME_REG_VS) >= NVME_VS(1, 1) ?
+	dev->subsystem = readl(dev->bar + NVME_REG_VS) >= NVME_VS(1, 1, 0) ?
 						NVME_CAP_NSSRC(cap) : 0;
 
 	if (dev->subsystem &&
@@ -1633,7 +1633,7 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 	 * NULL as final argument to sysfs_add_file_to_group.
 	 */
 
-	if (readl(dev->bar + NVME_REG_VS) >= NVME_VS(1, 2)) {
+	if (readl(dev->bar + NVME_REG_VS) >= NVME_VS(1, 2, 0)) {
 		dev->cmb = nvme_map_cmb(dev);
 
 		if (dev->cmbsz) {
