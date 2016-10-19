@@ -3181,14 +3181,15 @@ i915_gem_object_get_page(struct drm_i915_gem_object *obj, int n)
 
 static inline void i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {
-	BUG_ON(obj->pages == NULL);
+	GEM_BUG_ON(obj->pages == NULL);
 	obj->pages_pin_count++;
 }
 
 static inline void i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 {
-	BUG_ON(obj->pages_pin_count == 0);
+	GEM_BUG_ON(obj->pages_pin_count == 0);
 	obj->pages_pin_count--;
+	GEM_BUG_ON(obj->pages_pin_count < obj->bind_count);
 }
 
 enum i915_map_type {
