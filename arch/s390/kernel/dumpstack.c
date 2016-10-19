@@ -119,14 +119,14 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 		else
 			stack = (unsigned long *)task->thread.ksp;
 	}
+	printk(KERN_DEFAULT "Stack:\n");
 	for (i = 0; i < 20; i++) {
 		if (((addr_t) stack & (THREAD_SIZE-1)) == 0)
 			break;
-		if ((i * sizeof(long) % 32) == 0)
-			printk("%s       ", i == 0 ? "" : "\n");
-		printk("%016lx ", *stack++);
+		if (i % 4 == 0)
+			printk(KERN_DEFAULT "       ");
+		pr_cont("%016lx%c", *stack++, i % 4 == 3 ? '\n' : ' ');
 	}
-	printk("\n");
 	show_trace(task, (unsigned long)sp);
 }
 
@@ -186,14 +186,14 @@ void die(struct pt_regs *regs, const char *str)
 	printk("%s: %04x ilc:%d [#%d] ", str, regs->int_code & 0xffff,
 	       regs->int_code >> 17, ++die_counter);
 #ifdef CONFIG_PREEMPT
-	printk("PREEMPT ");
+	pr_cont("PREEMPT ");
 #endif
 #ifdef CONFIG_SMP
-	printk("SMP ");
+	pr_cont("SMP ");
 #endif
 	if (debug_pagealloc_enabled())
-		printk("DEBUG_PAGEALLOC");
-	printk("\n");
+		pr_cont("DEBUG_PAGEALLOC");
+	pr_cont("\n");
 	notify_die(DIE_OOPS, str, regs, 0, regs->int_code & 0xffff, SIGSEGV);
 	print_modules();
 	show_regs(regs);
