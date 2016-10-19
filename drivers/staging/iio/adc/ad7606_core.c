@@ -132,10 +132,9 @@ static ssize_t ad7606_store_range(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (!(lval == 5000 || lval == 10000)) {
-		dev_err(dev, "range is not supported\n");
+	if (!(lval == 5000 || lval == 10000))
 		return -EINVAL;
-	}
+
 	mutex_lock(&indio_dev->mlock);
 	gpio_set_value(st->pdata->gpio_range, lval == 10000);
 	st->range = lval;
@@ -174,11 +173,8 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 		if (val2)
 			return -EINVAL;
 		ret = ad7606_oversampling_get_index(val);
-		if (ret < 0) {
-			dev_err(st->dev, "oversampling %d is not supported\n",
-				val);
+		if (ret < 0)
 			return ret;
-		}
 
 		mutex_lock(&indio_dev->mlock);
 		gpio_set_value(st->pdata->gpio_os0, (ret >> 0) & 1);
