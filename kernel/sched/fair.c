@@ -93,13 +93,6 @@ unsigned int normalized_sysctl_sched_wakeup_granularity = 1000000UL;
 
 const_debug unsigned int sysctl_sched_migration_cost = 500000UL;
 
-/*
- * The exponential sliding  window over which load is averaged for shares
- * distribution.
- * (default: 10msec)
- */
-unsigned int __read_mostly sysctl_sched_shares_window = 10000000UL;
-
 #ifdef CONFIG_CFS_BANDWIDTH
 /*
  * Amount of runtime to allocate from global (tg) to local (per-cfs_rq) pool
