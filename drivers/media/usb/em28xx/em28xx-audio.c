@@ -695,7 +695,7 @@ static int em28xx_cvol_new(struct snd_card *card, struct em28xx *dev,
 /*
  * register/unregister code and data
  */
-static struct snd_pcm_ops snd_em28xx_pcm_capture = {
+static const struct snd_pcm_ops snd_em28xx_pcm_capture = {
 	.open      = snd_em28xx_capture_open,
 	.close     = snd_em28xx_pcm_close,
 	.ioctl     = snd_pcm_lib_ioctl,
@@ -850,7 +850,6 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 
 		urb = usb_alloc_urb(npackets, GFP_ATOMIC);
 		if (!urb) {
-			em28xx_errdev("usb_alloc_urb failed!\n");
 			em28xx_audio_free_urb(dev);
 			return -ENOMEM;
 		}

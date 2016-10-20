@@ -34,7 +34,17 @@
 #ifndef __I915_GEM_GTT_H__
 #define __I915_GEM_GTT_H__
 
+#include <linux/io-mapping.h>
+
+#include "i915_gem_request.h"
+
+#define I915_FENCE_REG_NONE -1
+#define I915_MAX_NUM_FENCES 32
+/* 32 fences + sign bit for FENCE_REG_NONE */
+#define I915_MAX_NUM_FENCE_BITS 6
+
 struct drm_i915_file_private;
+struct drm_i915_fence_reg;
 
 typedef uint32_t gen6_pte_t;
 typedef uint64_t gen8_pte_t;
@@ -135,12 +145,9 @@ enum i915_ggtt_view_type {
 };
 
 struct intel_rotation_info {
-	unsigned int uv_offset;
-	uint32_t pixel_format;
-	unsigned int uv_start_page;
 	struct {
 		/* tiles */
-		unsigned int width, height;
+		unsigned int width, height, stride, offset;
 	} plane[2];
 };
 
@@ -154,8 +161,6 @@ struct i915_ggtt_view {
 		} partial;
 		struct intel_rotation_info rotated;
 	} params;
-
-	struct sg_table *pages;
 };
 
 extern const struct i915_ggtt_view i915_ggtt_view_normal;
@@ -175,12 +180,38 @@ struct i915_vma {
 	struct drm_mm_node node;
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
+	struct drm_i915_fence_reg *fence;
+	struct sg_table *pages;
+	void __iomem *iomap;
+	u64 size;
+	u64 display_alignment;
+
+	unsigned int flags;
+	/**
+	 * How many users have pinned this object in GTT space. The following
+	 * users can each hold at most one reference: pwrite/pread, execbuffer
+	 * (objects are not allowed multiple times for the same batchbuffer),
+	 * and the framebuffer code. When switching/pageflipping, the
+	 * framebuffer code has at most two buffers pinned per crtc.
+	 *
+	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
+	 * bits with absolutely no headroom. So use 4 bits.
+	 */
+#define I915_VMA_PIN_MASK 0xf
+#define I915_VMA_PIN_OVERFLOW	BIT(5)
 
 	/** Flags and address space this VMA is bound to */
-#define GLOBAL_BIND	(1<<0)
-#define LOCAL_BIND	(1<<1)
-	unsigned int bound : 4;
-	bool is_ggtt : 1;
+#define I915_VMA_GLOBAL_BIND	BIT(6)
+#define I915_VMA_LOCAL_BIND	BIT(7)
+#define I915_VMA_BIND_MASK (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND | I915_VMA_PIN_OVERFLOW)
+
+#define I915_VMA_GGTT		BIT(8)
+#define I915_VMA_CAN_FENCE	BIT(9)
+#define I915_VMA_CLOSED		BIT(10)
+
+	unsigned int active;
+	struct i915_gem_active last_read[I915_NUM_ENGINES];
+	struct i915_gem_active last_fence;
 
 	/**
 	 * Support different GGTT views into the same object.
@@ -205,19 +236,65 @@ struct i915_vma {
 	struct hlist_node exec_node;
 	unsigned long exec_handle;
 	struct drm_i915_gem_exec_object2 *exec_entry;
-
-	/**
-	 * How many users have pinned this object in GTT space. The following
-	 * users can each hold at most one reference: pwrite/pread, execbuffer
-	 * (objects are not allowed multiple times for the same batchbuffer),
-	 * and the framebuffer code. When switching/pageflipping, the
-	 * framebuffer code has at most two buffers pinned per crtc.
-	 *
-	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
-	 * bits with absolutely no headroom. So use 4 bits. */
-	unsigned int pin_count:4;
-#define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
 };
+
+struct i915_vma *
+i915_vma_create(struct drm_i915_gem_object *obj,
+		struct i915_address_space *vm,
+		const struct i915_ggtt_view *view);
+void i915_vma_unpin_and_release(struct i915_vma **p_vma);
+
+static inline bool i915_vma_is_ggtt(const struct i915_vma *vma)
+{
+	return vma->flags & I915_VMA_GGTT;
+}
+
+static inline bool i915_vma_is_map_and_fenceable(const struct i915_vma *vma)
+{
+	return vma->flags & I915_VMA_CAN_FENCE;
+}
+
+static inline bool i915_vma_is_closed(const struct i915_vma *vma)
+{
+	return vma->flags & I915_VMA_CLOSED;
+}
+
+static inline unsigned int i915_vma_get_active(const struct i915_vma *vma)
+{
+	return vma->active;
+}
+
+static inline bool i915_vma_is_active(const struct i915_vma *vma)
+{
+	return i915_vma_get_active(vma);
+}
+
+static inline void i915_vma_set_active(struct i915_vma *vma,
+				       unsigned int engine)
+{
+	vma->active |= BIT(engine);
+}
+
+static inline void i915_vma_clear_active(struct i915_vma *vma,
+					 unsigned int engine)
+{
+	vma->active &= ~BIT(engine);
+}
+
+static inline bool i915_vma_has_active_engine(const struct i915_vma *vma,
+					      unsigned int engine)
+{
+	return vma->active & BIT(engine);
+}
+
+static inline u32 i915_ggtt_offset(const struct i915_vma *vma)
+{
+	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
+	GEM_BUG_ON(!vma->node.allocated);
+	GEM_BUG_ON(upper_32_bits(vma->node.start));
+	GEM_BUG_ON(upper_32_bits(vma->node.start + vma->node.size - 1));
+	return lower_32_bits(vma->node.start);
+}
 
 struct i915_page_dma {
 	struct page *page;
@@ -234,10 +311,6 @@ struct i915_page_dma {
 #define px_base(px) (&(px)->base)
 #define px_page(px) (px_base(px)->page)
 #define px_dma(px) (px_base(px)->daddr)
-
-struct i915_page_scratch {
-	struct i915_page_dma base;
-};
 
 struct i915_page_table {
 	struct i915_page_dma base;
@@ -269,13 +342,22 @@ struct i915_pml4 {
 struct i915_address_space {
 	struct drm_mm mm;
 	struct drm_device *dev;
+	/* Every address space belongs to a struct file - except for the global
+	 * GTT that is owned by the driver (and so @file is set to NULL). In
+	 * principle, no information should leak from one context to another
+	 * (or between files/processes etc) unless explicitly shared by the
+	 * owner. Tracking the owner is important in order to free up per-file
+	 * objects along with the file, to aide resource tracking, and to
+	 * assign blame.
+	 */
+	struct drm_i915_file_private *file;
 	struct list_head global_link;
 	u64 start;		/* Start offset always 0 for dri2 */
 	u64 total;		/* size addr space maps (ex. 2GB for ggtt) */
 
-	bool is_ggtt;
+	bool closed;
 
-	struct i915_page_scratch *scratch_page;
+	struct i915_page_dma scratch_page;
 	struct i915_page_table *scratch_pt;
 	struct i915_page_directory *scratch_pd;
 	struct i915_page_directory_pointer *scratch_pdp; /* GEN8+ & 48b PPGTT */
@@ -303,6 +385,13 @@ struct i915_address_space {
 	 */
 	struct list_head inactive_list;
 
+	/**
+	 * List of vma that have been unbound.
+	 *
+	 * A reference is not held on the buffer while on this list.
+	 */
+	struct list_head unbound_list;
+
 	/* FIXME: Need a more generic return type */
 	gen6_pte_t (*pte_encode)(dma_addr_t addr,
 				 enum i915_cache_level level,
@@ -316,6 +405,11 @@ struct i915_address_space {
 			    uint64_t start,
 			    uint64_t length,
 			    bool use_scratch);
+	void (*insert_page)(struct i915_address_space *vm,
+			    dma_addr_t addr,
+			    uint64_t offset,
+			    enum i915_cache_level cache_level,
+			    u32 flags);
 	void (*insert_entries)(struct i915_address_space *vm,
 			       struct sg_table *st,
 			       uint64_t start,
@@ -330,7 +424,7 @@ struct i915_address_space {
 			u32 flags);
 };
 
-#define i915_is_ggtt(V) ((V)->is_ggtt)
+#define i915_is_ggtt(V) (!(V)->file)
 
 /* The Graphics Translation Table is the way in which GEN hardware translates a
  * Graphics Virtual Address into a Physical Address. In addition to the normal
@@ -341,14 +435,13 @@ struct i915_address_space {
  */
 struct i915_ggtt {
 	struct i915_address_space base;
+	struct io_mapping mappable;	/* Mapping to our CPU mappable region */
 
 	size_t stolen_size;		/* Total size of stolen memory */
 	size_t stolen_usable_size;	/* Total size minus BIOS reserved */
 	size_t stolen_reserved_base;
 	size_t stolen_reserved_size;
-	size_t size;			/* Total size of Global GTT */
 	u64 mappable_end;		/* End offset that we can CPU map */
-	struct io_mapping *mappable;	/* Mapping to our CPU mappable region */
 	phys_addr_t mappable_base;	/* PA of our GMADR */
 
 	/** "Graphics Stolen Memory" holds the global PTEs */
@@ -357,8 +450,6 @@ struct i915_ggtt {
 	bool do_idle_maps;
 
 	int mtrr;
-
-	int (*probe)(struct i915_ggtt *ggtt);
 };
 
 struct i915_hw_ppgtt {
@@ -372,8 +463,6 @@ struct i915_hw_ppgtt {
 		struct i915_page_directory pd;		/* GEN6-7 */
 	};
 
-	struct drm_i915_file_private *file_priv;
-
 	gen6_pte_t __iomem *pd_addr;
 
 	int (*enable)(struct i915_hw_ppgtt *ppgtt);
@@ -382,27 +471,27 @@ struct i915_hw_ppgtt {
 	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
 };
 
-/* For each pde iterates over every pde between from start until start + length.
- * If start, and start+length are not perfectly divisible, the macro will round
- * down, and up as needed. The macro modifies pde, start, and length. Dev is
- * only used to differentiate shift values. Temp is temp.  On gen6/7, start = 0,
- * and length = 2G effectively iterates over every PDE in the system.
- *
- * XXX: temp is not actually needed, but it saves doing the ALIGN operation.
+/*
+ * gen6_for_each_pde() iterates over every pde from start until start+length.
+ * If start and start+length are not perfectly divisible, the macro will round
+ * down and up as needed. Start=0 and length=2G effectively iterates over
+ * every PDE in the system. The macro modifies ALL its parameters except 'pd',
+ * so each of the other parameters should preferably be a simple variable, or
+ * at most an lvalue with no side-effects!
  */
-#define gen6_for_each_pde(pt, pd, start, length, temp, iter) \
-	for (iter = gen6_pde_index(start); \
-	     length > 0 && iter < I915_PDES ? \
-			(pt = (pd)->page_table[iter]), 1 : 0; \
-	     iter++, \
-	     temp = ALIGN(start+1, 1 << GEN6_PDE_SHIFT) - start, \
-	     temp = min_t(unsigned, temp, length), \
-	     start += temp, length -= temp)
+#define gen6_for_each_pde(pt, pd, start, length, iter)			\
+	for (iter = gen6_pde_index(start);				\
+	     length > 0 && iter < I915_PDES &&				\
+		(pt = (pd)->page_table[iter], true);			\
+	     ({ u32 temp = ALIGN(start+1, 1 << GEN6_PDE_SHIFT);		\
+		    temp = min(temp - start, length);			\
+		    start += temp, length -= temp; }), ++iter)
 
-#define gen6_for_all_pdes(pt, ppgtt, iter)  \
-	for (iter = 0;		\
-	     pt = ppgtt->pd.page_table[iter], iter < I915_PDES;	\
-	     iter++)
+#define gen6_for_all_pdes(pt, pd, iter)					\
+	for (iter = 0;							\
+	     iter < I915_PDES &&					\
+		(pt = (pd)->page_table[iter], true);			\
+	     ++iter)
 
 static inline uint32_t i915_pte_index(uint64_t address, uint32_t pde_shift)
 {
@@ -513,16 +602,15 @@ i915_page_dir_dma_addr(const struct i915_hw_ppgtt *ppgtt, const unsigned n)
 		px_dma(ppgtt->base.scratch_pd);
 }
 
-int i915_ggtt_init_hw(struct drm_device *dev);
-int i915_ggtt_enable_hw(struct drm_device *dev);
-void i915_gem_init_ggtt(struct drm_device *dev);
-void i915_ggtt_cleanup_hw(struct drm_device *dev);
+int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv);
+int i915_ggtt_init_hw(struct drm_i915_private *dev_priv);
+int i915_ggtt_enable_hw(struct drm_i915_private *dev_priv);
+int i915_gem_init_ggtt(struct drm_i915_private *dev_priv);
+void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv);
 
-int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
 int i915_ppgtt_init_hw(struct drm_device *dev);
-int i915_ppgtt_init_ring(struct drm_i915_gem_request *req);
 void i915_ppgtt_release(struct kref *kref);
-struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_device *dev,
+struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_i915_private *dev_priv,
 					struct drm_i915_file_private *fpriv);
 static inline void i915_ppgtt_get(struct i915_hw_ppgtt *ppgtt)
 {
@@ -535,29 +623,111 @@ static inline void i915_ppgtt_put(struct i915_hw_ppgtt *ppgtt)
 		kref_put(&ppgtt->ref, i915_ppgtt_release);
 }
 
-void i915_check_and_clear_faults(struct drm_device *dev);
+void i915_check_and_clear_faults(struct drm_i915_private *dev_priv);
 void i915_gem_suspend_gtt_mappings(struct drm_device *dev);
 void i915_gem_restore_gtt_mappings(struct drm_device *dev);
 
 int __must_check i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj);
 void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj);
 
-static inline bool
-i915_ggtt_view_equal(const struct i915_ggtt_view *a,
-                     const struct i915_ggtt_view *b)
-{
-	if (WARN_ON(!a || !b))
-		return false;
+/* Flags used by pin/bind&friends. */
+#define PIN_NONBLOCK		BIT(0)
+#define PIN_MAPPABLE		BIT(1)
+#define PIN_ZONE_4G		BIT(2)
+#define PIN_NONFAULT		BIT(3)
 
-	if (a->type != b->type)
-		return false;
-	if (a->type != I915_GGTT_VIEW_NORMAL)
-		return !memcmp(&a->params, &b->params, sizeof(a->params));
-	return true;
+#define PIN_MBZ			BIT(5) /* I915_VMA_PIN_OVERFLOW */
+#define PIN_GLOBAL		BIT(6) /* I915_VMA_GLOBAL_BIND */
+#define PIN_USER		BIT(7) /* I915_VMA_LOCAL_BIND */
+#define PIN_UPDATE		BIT(8)
+
+#define PIN_HIGH		BIT(9)
+#define PIN_OFFSET_BIAS		BIT(10)
+#define PIN_OFFSET_FIXED	BIT(11)
+#define PIN_OFFSET_MASK		(~4095)
+
+int __i915_vma_do_pin(struct i915_vma *vma,
+		      u64 size, u64 alignment, u64 flags);
+static inline int __must_check
+i915_vma_pin(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
+{
+	BUILD_BUG_ON(PIN_MBZ != I915_VMA_PIN_OVERFLOW);
+	BUILD_BUG_ON(PIN_GLOBAL != I915_VMA_GLOBAL_BIND);
+	BUILD_BUG_ON(PIN_USER != I915_VMA_LOCAL_BIND);
+
+	/* Pin early to prevent the shrinker/eviction logic from destroying
+	 * our vma as we insert and bind.
+	 */
+	if (likely(((++vma->flags ^ flags) & I915_VMA_BIND_MASK) == 0))
+		return 0;
+
+	return __i915_vma_do_pin(vma, size, alignment, flags);
 }
 
-size_t
-i915_ggtt_view_size(struct drm_i915_gem_object *obj,
-		    const struct i915_ggtt_view *view);
+static inline int i915_vma_pin_count(const struct i915_vma *vma)
+{
+	return vma->flags & I915_VMA_PIN_MASK;
+}
+
+static inline bool i915_vma_is_pinned(const struct i915_vma *vma)
+{
+	return i915_vma_pin_count(vma);
+}
+
+static inline void __i915_vma_pin(struct i915_vma *vma)
+{
+	vma->flags++;
+	GEM_BUG_ON(vma->flags & I915_VMA_PIN_OVERFLOW);
+}
+
+static inline void __i915_vma_unpin(struct i915_vma *vma)
+{
+	GEM_BUG_ON(!i915_vma_is_pinned(vma));
+	vma->flags--;
+}
+
+static inline void i915_vma_unpin(struct i915_vma *vma)
+{
+	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	__i915_vma_unpin(vma);
+}
+
+/**
+ * i915_vma_pin_iomap - calls ioremap_wc to map the GGTT VMA via the aperture
+ * @vma: VMA to iomap
+ *
+ * The passed in VMA has to be pinned in the global GTT mappable region.
+ * An extra pinning of the VMA is acquired for the return iomapping,
+ * the caller must call i915_vma_unpin_iomap to relinquish the pinning
+ * after the iomapping is no longer required.
+ *
+ * Callers must hold the struct_mutex.
+ *
+ * Returns a valid iomapped pointer or ERR_PTR.
+ */
+void __iomem *i915_vma_pin_iomap(struct i915_vma *vma);
+#define IO_ERR_PTR(x) ((void __iomem *)ERR_PTR(x))
+
+/**
+ * i915_vma_unpin_iomap - unpins the mapping returned from i915_vma_iomap
+ * @vma: VMA to unpin
+ *
+ * Unpins the previously iomapped VMA from i915_vma_pin_iomap().
+ *
+ * Callers must hold the struct_mutex. This function is only valid to be
+ * called on a VMA previously iomapped by the caller with i915_vma_pin_iomap().
+ */
+static inline void i915_vma_unpin_iomap(struct i915_vma *vma)
+{
+	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+	GEM_BUG_ON(vma->iomap == NULL);
+	i915_vma_unpin(vma);
+}
+
+static inline struct page *i915_vma_first_page(struct i915_vma *vma)
+{
+	GEM_BUG_ON(!vma->pages);
+	return sg_page(vma->pages->sgl);
+}
 
 #endif

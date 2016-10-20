@@ -57,10 +57,16 @@ enum {
 
 #define XFS_ERR_RETRY_FOREVER	-1
 
+/*
+ * Although retry_timeout is in jiffies which is normally an unsigned long,
+ * we limit the retry timeout to 86400 seconds, or one day.  So even a
+ * signed 32-bit long is sufficient for a HZ value up to 24855.  Making it
+ * signed lets us store the special "-1" value, meaning retry forever.
+ */
 struct xfs_error_cfg {
 	struct xfs_kobj	kobj;
 	int		max_retries;
-	unsigned long	retry_timeout;	/* in jiffies, 0 = no timeout */
+	long		retry_timeout;	/* in jiffies, -1 = infinite */
 };
 
 typedef struct xfs_mount {
@@ -116,9 +122,18 @@ typedef struct xfs_mount {
 	uint			m_bmap_dmnr[2];	/* min bmap btree records */
 	uint			m_inobt_mxr[2];	/* max inobt btree records */
 	uint			m_inobt_mnr[2];	/* min inobt btree records */
+	uint			m_rmap_mxr[2];	/* max rmap btree records */
+	uint			m_rmap_mnr[2];	/* min rmap btree records */
+	uint			m_refc_mxr[2];	/* max refc btree records */
+	uint			m_refc_mnr[2];	/* min refc btree records */
 	uint			m_ag_maxlevels;	/* XFS_AG_MAXLEVELS */
 	uint			m_bm_maxlevels[2]; /* XFS_BM_MAXLEVELS */
 	uint			m_in_maxlevels;	/* max inobt btree levels. */
+	uint			m_rmap_maxlevels; /* max rmap btree levels */
+	uint			m_refc_maxlevels; /* max refcount btree level */
+	xfs_extlen_t		m_ag_prealloc_blocks; /* reserved ag blocks */
+	uint			m_alloc_set_aside; /* space we can't use */
+	uint			m_ag_max_usable; /* max space per AG */
 	struct radix_tree_root	m_perag_tree;	/* per-ag accounting info */
 	spinlock_t		m_perag_lock;	/* lock for m_perag_tree */
 	struct mutex		m_growlock;	/* growfs mutex */
@@ -148,6 +163,8 @@ typedef struct xfs_mount {
 	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
 	struct delayed_work	m_reclaim_work;	/* background inode reclaim */
 	struct delayed_work	m_eofblocks_work; /* background eof blocks
+						     trimming */
+	struct delayed_work	m_cowblocks_work; /* background cow blocks
 						     trimming */
 	bool			m_update_sb;	/* sb needs update in mount */
 	int64_t			m_low_space[XFS_LOWSP_MAX];
@@ -319,6 +336,22 @@ xfs_mp_fail_writes(struct xfs_mount *mp)
 }
 #endif
 
+/* per-AG block reservation data structures*/
+enum xfs_ag_resv_type {
+	XFS_AG_RESV_NONE = 0,
+	XFS_AG_RESV_METADATA,
+	XFS_AG_RESV_AGFL,
+};
+
+struct xfs_ag_resv {
+	/* number of blocks originally reserved here */
+	xfs_extlen_t			ar_orig_reserved;
+	/* number of blocks reserved here */
+	xfs_extlen_t			ar_reserved;
+	/* number of blocks originally asked for */
+	xfs_extlen_t			ar_asked;
+};
+
 /*
  * Per-ag incore structure, copies of information in agf and agi, to improve the
  * performance of allocation group selection.
@@ -366,7 +399,30 @@ typedef struct xfs_perag {
 	/* for rcu-safe freeing */
 	struct rcu_head	rcu_head;
 	int		pagb_count;	/* pagb slots in use */
+
+	/* Blocks reserved for all kinds of metadata. */
+	struct xfs_ag_resv	pag_meta_resv;
+	/* Blocks reserved for just AGFL-based metadata. */
+	struct xfs_ag_resv	pag_agfl_resv;
+
+	/* reference count */
+	__uint8_t		pagf_refcount_level;
 } xfs_perag_t;
+
+static inline struct xfs_ag_resv *
+xfs_perag_resv(
+	struct xfs_perag	*pag,
+	enum xfs_ag_resv_type	type)
+{
+	switch (type) {
+	case XFS_AG_RESV_METADATA:
+		return &pag->pag_meta_resv;
+	case XFS_AG_RESV_AGFL:
+		return &pag->pag_agfl_resv;
+	default:
+		return NULL;
+	}
+}
 
 extern void	xfs_uuid_table_free(void);
 extern int	xfs_log_sbcount(xfs_mount_t *);

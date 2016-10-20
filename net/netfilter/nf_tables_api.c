@@ -1196,6 +1196,83 @@ static void nf_tables_chain_destroy(struct nft_chain *chain)
 	}
 }
 
+struct nft_chain_hook {
+	u32				num;
+	u32				priority;
+	const struct nf_chain_type	*type;
+	struct net_device		*dev;
+};
+
+static int nft_chain_parse_hook(struct net *net,
+				const struct nlattr * const nla[],
+				struct nft_af_info *afi,
+				struct nft_chain_hook *hook, bool create)
+{
+	struct nlattr *ha[NFTA_HOOK_MAX + 1];
+	const struct nf_chain_type *type;
+	struct net_device *dev;
+	int err;
+
+	err = nla_parse_nested(ha, NFTA_HOOK_MAX, nla[NFTA_CHAIN_HOOK],
+			       nft_hook_policy);
+	if (err < 0)
+		return err;
+
+	if (ha[NFTA_HOOK_HOOKNUM] == NULL ||
+	    ha[NFTA_HOOK_PRIORITY] == NULL)
+		return -EINVAL;
+
+	hook->num = ntohl(nla_get_be32(ha[NFTA_HOOK_HOOKNUM]));
+	if (hook->num >= afi->nhooks)
+		return -EINVAL;
+
+	hook->priority = ntohl(nla_get_be32(ha[NFTA_HOOK_PRIORITY]));
+
+	type = chain_type[afi->family][NFT_CHAIN_T_DEFAULT];
+	if (nla[NFTA_CHAIN_TYPE]) {
+		type = nf_tables_chain_type_lookup(afi, nla[NFTA_CHAIN_TYPE],
+						   create);
+		if (IS_ERR(type))
+			return PTR_ERR(type);
+	}
+	if (!(type->hook_mask & (1 << hook->num)))
+		return -EOPNOTSUPP;
+	if (!try_module_get(type->owner))
+		return -ENOENT;
+
+	hook->type = type;
+
+	hook->dev = NULL;
+	if (afi->flags & NFT_AF_NEEDS_DEV) {
+		char ifname[IFNAMSIZ];
+
+		if (!ha[NFTA_HOOK_DEV]) {
+			module_put(type->owner);
+			return -EOPNOTSUPP;
+		}
+
+		nla_strlcpy(ifname, ha[NFTA_HOOK_DEV], IFNAMSIZ);
+		dev = dev_get_by_name(net, ifname);
+		if (!dev) {
+			module_put(type->owner);
+			return -ENOENT;
+		}
+		hook->dev = dev;
+	} else if (ha[NFTA_HOOK_DEV]) {
+		module_put(type->owner);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static void nft_chain_release_hook(struct nft_chain_hook *hook)
+{
+	module_put(hook->type->owner);
+	if (hook->dev != NULL)
+		dev_put(hook->dev);
+}
+
 static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 			      struct sk_buff *skb, const struct nlmsghdr *nlh,
 			      const struct nlattr * const nla[])
@@ -1206,10 +1283,8 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 	struct nft_table *table;
 	struct nft_chain *chain;
 	struct nft_base_chain *basechain = NULL;
-	struct nlattr *ha[NFTA_HOOK_MAX + 1];
 	u8 genmask = nft_genmask_next(net);
 	int family = nfmsg->nfgen_family;
-	struct net_device *dev = NULL;
 	u8 policy = NF_ACCEPT;
 	u64 handle = 0;
 	unsigned int i;
@@ -1273,6 +1348,37 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 		if (nlh->nlmsg_flags & NLM_F_REPLACE)
 			return -EOPNOTSUPP;
 
+		if (nla[NFTA_CHAIN_HOOK]) {
+			struct nft_base_chain *basechain;
+			struct nft_chain_hook hook;
+			struct nf_hook_ops *ops;
+
+			if (!(chain->flags & NFT_BASE_CHAIN))
+				return -EBUSY;
+
+			err = nft_chain_parse_hook(net, nla, afi, &hook,
+						   create);
+			if (err < 0)
+				return err;
+
+			basechain = nft_base_chain(chain);
+			if (basechain->type != hook.type) {
+				nft_chain_release_hook(&hook);
+				return -EBUSY;
+			}
+
+			for (i = 0; i < afi->nops; i++) {
+				ops = &basechain->ops[i];
+				if (ops->hooknum != hook.num ||
+				    ops->priority != hook.priority ||
+				    ops->dev != hook.dev) {
+					nft_chain_release_hook(&hook);
+					return -EBUSY;
+				}
+			}
+			nft_chain_release_hook(&hook);
+		}
+
 		if (nla[NFTA_CHAIN_HANDLE] && name) {
 			struct nft_chain *chain2;
 
@@ -1320,102 +1426,53 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 		return -EOVERFLOW;
 
 	if (nla[NFTA_CHAIN_HOOK]) {
-		const struct nf_chain_type *type;
+		struct nft_chain_hook hook;
 		struct nf_hook_ops *ops;
 		nf_hookfn *hookfn;
-		u32 hooknum, priority;
 
-		type = chain_type[family][NFT_CHAIN_T_DEFAULT];
-		if (nla[NFTA_CHAIN_TYPE]) {
-			type = nf_tables_chain_type_lookup(afi,
-							   nla[NFTA_CHAIN_TYPE],
-							   create);
-			if (IS_ERR(type))
-				return PTR_ERR(type);
-		}
-
-		err = nla_parse_nested(ha, NFTA_HOOK_MAX, nla[NFTA_CHAIN_HOOK],
-				       nft_hook_policy);
+		err = nft_chain_parse_hook(net, nla, afi, &hook, create);
 		if (err < 0)
 			return err;
-		if (ha[NFTA_HOOK_HOOKNUM] == NULL ||
-		    ha[NFTA_HOOK_PRIORITY] == NULL)
-			return -EINVAL;
-
-		hooknum = ntohl(nla_get_be32(ha[NFTA_HOOK_HOOKNUM]));
-		if (hooknum >= afi->nhooks)
-			return -EINVAL;
-		priority = ntohl(nla_get_be32(ha[NFTA_HOOK_PRIORITY]));
-
-		if (!(type->hook_mask & (1 << hooknum)))
-			return -EOPNOTSUPP;
-		if (!try_module_get(type->owner))
-			return -ENOENT;
-		hookfn = type->hooks[hooknum];
-
-		if (afi->flags & NFT_AF_NEEDS_DEV) {
-			char ifname[IFNAMSIZ];
-
-			if (!ha[NFTA_HOOK_DEV]) {
-				module_put(type->owner);
-				return -EOPNOTSUPP;
-			}
-
-			nla_strlcpy(ifname, ha[NFTA_HOOK_DEV], IFNAMSIZ);
-			dev = dev_get_by_name(net, ifname);
-			if (!dev) {
-				module_put(type->owner);
-				return -ENOENT;
-			}
-		} else if (ha[NFTA_HOOK_DEV]) {
-			module_put(type->owner);
-			return -EOPNOTSUPP;
-		}
 
 		basechain = kzalloc(sizeof(*basechain), GFP_KERNEL);
 		if (basechain == NULL) {
-			module_put(type->owner);
-			if (dev != NULL)
-				dev_put(dev);
+			nft_chain_release_hook(&hook);
 			return -ENOMEM;
 		}
 
-		if (dev != NULL)
-			strncpy(basechain->dev_name, dev->name, IFNAMSIZ);
+		if (hook.dev != NULL)
+			strncpy(basechain->dev_name, hook.dev->name, IFNAMSIZ);
 
 		if (nla[NFTA_CHAIN_COUNTERS]) {
 			stats = nft_stats_alloc(nla[NFTA_CHAIN_COUNTERS]);
 			if (IS_ERR(stats)) {
-				module_put(type->owner);
+				nft_chain_release_hook(&hook);
 				kfree(basechain);
-				if (dev != NULL)
-					dev_put(dev);
 				return PTR_ERR(stats);
 			}
 			basechain->stats = stats;
 		} else {
 			stats = netdev_alloc_pcpu_stats(struct nft_stats);
 			if (stats == NULL) {
-				module_put(type->owner);
+				nft_chain_release_hook(&hook);
 				kfree(basechain);
-				if (dev != NULL)
-					dev_put(dev);
 				return -ENOMEM;
 			}
 			rcu_assign_pointer(basechain->stats, stats);
 		}
 
-		basechain->type = type;
+		hookfn = hook.type->hooks[hook.num];
+		basechain->type = hook.type;
 		chain = &basechain->chain;
 
 		for (i = 0; i < afi->nops; i++) {
 			ops = &basechain->ops[i];
 			ops->pf		= family;
-			ops->hooknum	= hooknum;
-			ops->priority	= priority;
+			ops->hooknum	= hook.num;
+			ops->priority	= hook.priority;
 			ops->priv	= chain;
 			ops->hook	= afi->hooks[ops->hooknum];
-			ops->dev	= dev;
+			ops->dev	= hook.dev;
 			if (hookfn)
 				ops->hook = hookfn;
 			if (afi->hook_ops_init)
@@ -3426,12 +3483,12 @@ static int nft_setelem_parse_flags(const struct nft_set *set,
 }
 
 static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
-			    const struct nlattr *attr)
+			    const struct nlattr *attr, u32 nlmsg_flags)
 {
 	struct nlattr *nla[NFTA_SET_ELEM_MAX + 1];
 	struct nft_data_desc d1, d2;
 	struct nft_set_ext_tmpl tmpl;
-	struct nft_set_ext *ext;
+	struct nft_set_ext *ext, *ext2;
 	struct nft_set_elem elem;
 	struct nft_set_binding *binding;
 	struct nft_userdata *udata;
@@ -3558,9 +3615,19 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 		goto err4;
 
 	ext->genmask = nft_genmask_cur(ctx->net) | NFT_SET_ELEM_BUSY_MASK;
-	err = set->ops->insert(ctx->net, set, &elem);
-	if (err < 0)
+	err = set->ops->insert(ctx->net, set, &elem, &ext2);
+	if (err) {
+		if (err == -EEXIST) {
+			if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA) &&
+			    nft_set_ext_exists(ext2, NFT_SET_EXT_DATA) &&
+			    memcmp(nft_set_ext_data(ext),
+				   nft_set_ext_data(ext2), set->dlen) != 0)
+				err = -EBUSY;
+			else if (!(nlmsg_flags & NLM_F_EXCL))
+				err = 0;
+		}
 		goto err5;
+	}
 
 	nft_trans_elem(trans) = elem;
 	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
@@ -3616,7 +3683,7 @@ static int nf_tables_newsetelem(struct net *net, struct sock *nlsk,
 		    !atomic_add_unless(&set->nelems, 1, set->size + set->ndeact))
 			return -ENFILE;
 
-		err = nft_add_set_elem(&ctx, set, attr);
+		err = nft_add_set_elem(&ctx, set, attr, nlh->nlmsg_flags);
 		if (err < 0) {
 			atomic_dec(&set->nelems);
 			break;
@@ -4341,6 +4408,31 @@ static int nf_tables_check_loops(const struct nft_ctx *ctx,
 
 	return 0;
 }
+
+/**
+ *	nft_parse_u32_check - fetch u32 attribute and check for maximum value
+ *
+ *	@attr: netlink attribute to fetch value from
+ *	@max: maximum value to be stored in dest
+ *	@dest: pointer to the variable
+ *
+ *	Parse, check and store a given u32 netlink attribute into variable.
+ *	This function returns -ERANGE if the value goes over maximum value.
+ *	Otherwise a 0 is returned and the attribute value is stored in the
+ *	destination variable.
+ */
+unsigned int nft_parse_u32_check(const struct nlattr *attr, int max, u32 *dest)
+{
+	int val;
+
+	val = ntohl(nla_get_be32(attr));
+	if (val > max)
+		return -ERANGE;
+
+	*dest = val;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nft_parse_u32_check);
 
 /**
  *	nft_parse_register - parse a register value from a netlink attribute

@@ -227,11 +227,11 @@
 		};
 	};
 
-	i2c@0 {
+	i2c-gpio-0 {
 		status = "okay";
 	};
 
-	i2c@1 {
+	i2c-gpio-1 {
 		status = "okay";
 	};
 };

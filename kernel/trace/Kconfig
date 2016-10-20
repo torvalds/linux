@@ -24,11 +24,6 @@ config HAVE_FUNCTION_GRAPH_TRACER
 	help
 	  See Documentation/trace/ftrace-design.txt
 
-config HAVE_FUNCTION_GRAPH_FP_TEST
-	bool
-	help
-	  See Documentation/trace/ftrace-design.txt
-
 config HAVE_DYNAMIC_FTRACE
 	bool
 	help
@@ -220,6 +215,41 @@ config SCHED_TRACER
 	help
 	  This tracer tracks the latency of the highest priority task
 	  to be scheduled in, starting from the point it has woken up.
+
+config HWLAT_TRACER
+	bool "Tracer to detect hardware latencies (like SMIs)"
+	select GENERIC_TRACER
+	help
+	 This tracer, when enabled will create one or more kernel threads,
+	 depening on what the cpumask file is set to, which each thread
+	 spinning in a loop looking for interruptions caused by
+	 something other than the kernel. For example, if a
+	 System Management Interrupt (SMI) takes a noticeable amount of
+	 time, this tracer will detect it. This is useful for testing
+	 if a system is reliable for Real Time tasks.
+
+	 Some files are created in the tracing directory when this
+	 is enabled:
+
+	   hwlat_detector/width   - time in usecs for how long to spin for
+	   hwlat_detector/window  - time in usecs between the start of each
+				     iteration
+
+	 A kernel thread is created that will spin with interrupts disabled
+	 for "width" microseconds in every "widow" cycle. It will not spin
+	 for "window - width" microseconds, where the system can
+	 continue to operate.
+
+	 The output will appear in the trace and trace_pipe files.
+
+	 When the tracer is not running, it has no affect on the system,
+	 but when it is running, it can cause the system to be
+	 periodically non responsive. Do not run this tracer on a
+	 production system.
+
+	 To enable this tracer, echo in "hwlat" into the current_tracer
+	 file. Every time a latency is greater than tracing_thresh, it will
+	 be recorded into the ring buffer.
 
 config ENABLE_DEFAULT_TRACERS
 	bool "Trace process context switches and events"
@@ -542,6 +572,7 @@ config HIST_TRIGGERS
 	bool "Histogram triggers"
 	depends on ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select TRACING_MAP
+	select TRACING
 	default n
 	help
 	  Hist triggers allow one or more arbitrary trace event fields

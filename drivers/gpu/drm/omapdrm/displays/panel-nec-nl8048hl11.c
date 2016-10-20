@@ -14,11 +14,10 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
-#include <linux/fb.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of_gpio.h>
 
-#include <video/omapdss.h>
+#include "../dss/omapdss.h"
 
 struct panel_drv_data {
 	struct omap_dss_device	dssdev;

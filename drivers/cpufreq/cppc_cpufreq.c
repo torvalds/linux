@@ -19,9 +19,18 @@
 #include <linux/delay.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
+#include <linux/dmi.h>
 #include <linux/vmalloc.h>
 
+#include <asm/unaligned.h>
+
 #include <acpi/cppc_acpi.h>
+
+/* Minimum struct length needed for the DMI processor entry we want */
+#define DMI_ENTRY_PROCESSOR_MIN_LENGTH	48
+
+/* Offest in the DMI processor structure for the max frequency */
+#define DMI_PROCESSOR_MAX_SPEED  0x14
 
 /*
  * These structs contain information parsed from per CPU
@@ -30,19 +39,58 @@
  * performance capabilities, desired performance level
  * requested etc.
  */
-static struct cpudata **all_cpu_data;
+static struct cppc_cpudata **all_cpu_data;
+
+/* Capture the max KHz from DMI */
+static u64 cppc_dmi_max_khz;
+
+/* Callback function used to retrieve the max frequency from DMI */
+static void cppc_find_dmi_mhz(const struct dmi_header *dm, void *private)
+{
+	const u8 *dmi_data = (const u8 *)dm;
+	u16 *mhz = (u16 *)private;
+
+	if (dm->type == DMI_ENTRY_PROCESSOR &&
+	    dm->length >= DMI_ENTRY_PROCESSOR_MIN_LENGTH) {
+		u16 val = (u16)get_unaligned((const u16 *)
+				(dmi_data + DMI_PROCESSOR_MAX_SPEED));
+		*mhz = val > *mhz ? val : *mhz;
+	}
+}
+
+/* Look up the max frequency in DMI */
+static u64 cppc_get_dmi_max_khz(void)
+{
+	u16 mhz = 0;
+
+	dmi_walk(cppc_find_dmi_mhz, &mhz);
+
+	/*
+	 * Real stupid fallback value, just in case there is no
+	 * actual value set.
+	 */
+	mhz = mhz ? mhz : 1;
+
+	return (1000 * mhz);
+}
 
 static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 		unsigned int target_freq,
 		unsigned int relation)
 {
-	struct cpudata *cpu;
+	struct cppc_cpudata *cpu;
 	struct cpufreq_freqs freqs;
+	u32 desired_perf;
 	int ret = 0;
 
 	cpu = all_cpu_data[policy->cpu];
 
-	cpu->perf_ctrls.desired_perf = target_freq;
+	desired_perf = (u64)target_freq * cpu->perf_caps.highest_perf / cppc_dmi_max_khz;
+	/* Return if it is exactly the same perf */
+	if (desired_perf == cpu->perf_ctrls.desired_perf)
+		return ret;
+
+	cpu->perf_ctrls.desired_perf = desired_perf;
 	freqs.old = policy->cur;
 	freqs.new = target_freq;
 
@@ -66,7 +114,7 @@ static int cppc_verify_policy(struct cpufreq_policy *policy)
 static void cppc_cpufreq_stop_cpu(struct cpufreq_policy *policy)
 {
 	int cpu_num = policy->cpu;
-	struct cpudata *cpu = all_cpu_data[cpu_num];
+	struct cppc_cpudata *cpu = all_cpu_data[cpu_num];
 	int ret;
 
 	cpu->perf_ctrls.desired_perf = cpu->perf_caps.lowest_perf;
@@ -79,7 +127,7 @@ static void cppc_cpufreq_stop_cpu(struct cpufreq_policy *policy)
 
 static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	struct cpudata *cpu;
+	struct cppc_cpudata *cpu;
 	unsigned int cpu_num = policy->cpu;
 	int ret = 0;
 
@@ -94,10 +142,13 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		return ret;
 	}
 
-	policy->min = cpu->perf_caps.lowest_perf;
-	policy->max = cpu->perf_caps.highest_perf;
+	cppc_dmi_max_khz = cppc_get_dmi_max_khz();
+
+	policy->min = cpu->perf_caps.lowest_perf * cppc_dmi_max_khz / cpu->perf_caps.highest_perf;
+	policy->max = cppc_dmi_max_khz;
 	policy->cpuinfo.min_freq = policy->min;
 	policy->cpuinfo.max_freq = policy->max;
+	policy->cpuinfo.transition_latency = cppc_get_transition_latency(cpu_num);
 	policy->shared_type = cpu->shared_type;
 
 	if (policy->shared_type == CPUFREQ_SHARED_TYPE_ANY)
@@ -112,7 +163,8 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	cpu->cur_policy = policy;
 
 	/* Set policy->cur to max now. The governors will adjust later. */
-	policy->cur = cpu->perf_ctrls.desired_perf = cpu->perf_caps.highest_perf;
+	policy->cur = cppc_dmi_max_khz;
+	cpu->perf_ctrls.desired_perf = cpu->perf_caps.highest_perf;
 
 	ret = cppc_set_perf(cpu_num, &cpu->perf_ctrls);
 	if (ret)
@@ -134,7 +186,7 @@ static struct cpufreq_driver cppc_cpufreq_driver = {
 static int __init cppc_cpufreq_init(void)
 {
 	int i, ret = 0;
-	struct cpudata *cpu;
+	struct cppc_cpudata *cpu;
 
 	if (acpi_disabled)
 		return -ENODEV;
@@ -144,7 +196,7 @@ static int __init cppc_cpufreq_init(void)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
-		all_cpu_data[i] = kzalloc(sizeof(struct cpudata), GFP_KERNEL);
+		all_cpu_data[i] = kzalloc(sizeof(struct cppc_cpudata), GFP_KERNEL);
 		if (!all_cpu_data[i])
 			goto out;
 
@@ -175,7 +227,7 @@ out:
 
 static void __exit cppc_cpufreq_exit(void)
 {
-	struct cpudata *cpu;
+	struct cppc_cpudata *cpu;
 	int i;
 
 	cpufreq_unregister_driver(&cppc_cpufreq_driver);

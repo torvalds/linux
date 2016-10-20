@@ -2482,6 +2482,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		return -EINVAL;
 	}
 
+	ath9k_gpio_cap_init(ah);
+
 	if (AR_SREV_9485(ah) ||
 	    AR_SREV_9285(ah) ||
 	    AR_SREV_9330(ah) ||
@@ -2530,8 +2532,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->hw_caps |= ATH9K_HW_CAP_HT;
 	else
 		pCap->hw_caps &= ~ATH9K_HW_CAP_HT;
-
-	ath9k_gpio_cap_init(ah);
 
 	if (AR_SREV_9160_10_OR_LATER(ah) || AR_SREV_9100(ah))
 		pCap->rts_aggr_limit = ATH_AMPDU_LIMIT_MAX;

@@ -1,31 +1,31 @@
 /******************************************************************************
-
-  Copyright(c) 2003 - 2004 Intel Corporation. All rights reserved.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
-
-  Contact Information:
-  James P. Ketrenos <ipw2100-admin@linux.intel.com>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-******************************************************************************
-
-  Few modifications for Realtek's Wi-Fi drivers by
-  Andrea Merello <andrea.merello@gmail.com>
-
-  A special thanks goes to Realtek for their support !
-
-******************************************************************************/
+ *
+ * Copyright(c) 2003 - 2004 Intel Corporation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ *
+ *****************************************************************************
+ *
+ * Few modifications for Realtek's Wi-Fi drivers by
+ * Andrea Merello <andrea.merello@gmail.com>
+ *
+ * A special thanks goes to Realtek for their support !
+ *
+ *****************************************************************************/
 
 #include <linux/compiler.h>
 #include <linux/errno.h>
@@ -731,17 +731,19 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		if (qos_actived) {
 			hdr_len = RTLLIB_3ADDR_LEN + 2;
 
-		/* in case we are a client verify acm is not set for this ac */
-		while (unlikely(ieee->wmm_acm & (0x01 << skb->priority))) {
-			netdev_info(ieee->dev, "skb->priority = %x\n",
-				    skb->priority);
-			if (wme_downgrade_ac(skb))
-				break;
-			netdev_info(ieee->dev, "converted skb->priority = %x\n",
-			       skb->priority);
-		 }
+			/* in case we are a client verify acm is not set for this ac */
+			while (unlikely(ieee->wmm_acm & (0x01 << skb->priority))) {
+				netdev_info(ieee->dev, "skb->priority = %x\n",
+						skb->priority);
+				if (wme_downgrade_ac(skb))
+					break;
+				netdev_info(ieee->dev, "converted skb->priority = %x\n",
+					   skb->priority);
+			}
+
 			qos_ctl |= skb->priority;
 			header.qos_ctl = cpu_to_le16(qos_ctl & RTLLIB_QOS_TID);
+
 		} else {
 			hdr_len = RTLLIB_3ADDR_LEN;
 		}
@@ -981,6 +983,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 	return 1;
 
 }
+
 int rtllib_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	memset(skb->cb, 0, sizeof(skb->cb));

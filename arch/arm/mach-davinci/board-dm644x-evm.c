@@ -264,8 +264,6 @@ static struct platform_device rtc_dev = {
 	.id             = -1,
 };
 
-static struct snd_platform_data dm644x_evm_snd_data;
-
 /*----------------------------------------------------------------------*/
 #ifdef CONFIG_I2C
 /*
@@ -799,7 +797,7 @@ static __init void davinci_evm_init(void)
 	dm644x_init_video(&dm644xevm_capture_cfg, &dm644xevm_display_cfg);
 
 	davinci_serial_init(dm644x_serial_device);
-	dm644x_init_asp(&dm644x_evm_snd_data);
+	dm644x_init_asp();
 
 	/* irlml6401 switches over 1A, in under 8 msec */
 	davinci_setup_usb(1000, 8);

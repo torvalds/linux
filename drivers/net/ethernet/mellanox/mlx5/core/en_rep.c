@@ -135,17 +135,16 @@ static const struct ethtool_ops mlx5e_rep_ethtool_ops = {
 int mlx5e_attr_get(struct net_device *dev, struct switchdev_attr *attr)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5_eswitch_rep *rep = priv->ppriv;
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	u8 mac[ETH_ALEN];
 
 	if (esw->mode == SRIOV_NONE)
 		return -EOPNOTSUPP;
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_ID_PORT_PARENT_ID:
-		mlx5_query_nic_vport_mac_address(priv->mdev, 0, mac);
 		attr->u.ppid.id_len = ETH_ALEN;
-		memcpy(&attr->u.ppid.id, &mac, ETH_ALEN);
+		ether_addr_copy(attr->u.ppid.id, rep->hw_id);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -414,19 +413,50 @@ static struct mlx5e_profile mlx5e_rep_profile = {
 int mlx5e_vport_rep_load(struct mlx5_eswitch *esw,
 			 struct mlx5_eswitch_rep *rep)
 {
-	rep->priv_data = mlx5e_create_netdev(esw->dev, &mlx5e_rep_profile, rep);
-	if (!rep->priv_data) {
-		pr_warn("Failed to create representor for vport %d\n",
+	struct net_device *netdev;
+	int err;
+
+	netdev = mlx5e_create_netdev(esw->dev, &mlx5e_rep_profile, rep);
+	if (!netdev) {
+		pr_warn("Failed to create representor netdev for vport %d\n",
 			rep->vport);
 		return -EINVAL;
 	}
+
+	rep->priv_data = netdev_priv(netdev);
+
+	err = mlx5e_attach_netdev(esw->dev, netdev);
+	if (err) {
+		pr_warn("Failed to attach representor netdev for vport %d\n",
+			rep->vport);
+		goto err_destroy_netdev;
+	}
+
+	err = register_netdev(netdev);
+	if (err) {
+		pr_warn("Failed to register representor netdev for vport %d\n",
+			rep->vport);
+		goto err_detach_netdev;
+	}
+
 	return 0;
+
+err_detach_netdev:
+	mlx5e_detach_netdev(esw->dev, netdev);
+
+err_destroy_netdev:
+	mlx5e_destroy_netdev(esw->dev, rep->priv_data);
+
+	return err;
+
 }
 
 void mlx5e_vport_rep_unload(struct mlx5_eswitch *esw,
 			    struct mlx5_eswitch_rep *rep)
 {
 	struct mlx5e_priv *priv = rep->priv_data;
+	struct net_device *netdev = priv->netdev;
 
+	mlx5e_detach_netdev(esw->dev, netdev);
 	mlx5e_destroy_netdev(esw->dev, priv);
 }

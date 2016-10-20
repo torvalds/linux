@@ -510,9 +510,15 @@ typedef void (*perf_overflow_handler_t)(struct perf_event *,
 					struct perf_sample_data *,
 					struct pt_regs *regs);
 
-enum perf_group_flag {
-	PERF_GROUP_SOFTWARE		= 0x1,
-};
+/*
+ * Event capabilities. For event_caps and groups caps.
+ *
+ * PERF_EV_CAP_SOFTWARE: Is a software event.
+ * PERF_EV_CAP_READ_ACTIVE_PKG: A CPU event (or cgroup event) that can be read
+ * from any CPU in the package where it is active.
+ */
+#define PERF_EV_CAP_SOFTWARE		BIT(0)
+#define PERF_EV_CAP_READ_ACTIVE_PKG	BIT(1)
 
 #define SWEVENT_HLIST_BITS		8
 #define SWEVENT_HLIST_SIZE		(1 << SWEVENT_HLIST_BITS)
@@ -568,7 +574,12 @@ struct perf_event {
 	struct hlist_node		hlist_entry;
 	struct list_head		active_entry;
 	int				nr_siblings;
-	int				group_flags;
+
+	/* Not serialized. Only written during event initialization. */
+	int				event_caps;
+	/* The cumulative AND of all event_caps for events in this group. */
+	int				group_caps;
+
 	struct perf_event		*group_leader;
 	struct pmu			*pmu;
 	void				*pmu_private;
@@ -679,6 +690,10 @@ struct perf_event {
 	u64				(*clock)(void);
 	perf_overflow_handler_t		overflow_handler;
 	void				*overflow_handler_context;
+#ifdef CONFIG_BPF_SYSCALL
+	perf_overflow_handler_t		orig_overflow_handler;
+	struct bpf_prog			*prog;
+#endif
 
 #ifdef CONFIG_EVENT_TRACING
 	struct trace_event_call		*tp_event;
@@ -743,7 +758,9 @@ struct perf_event_context {
 	u64				parent_gen;
 	u64				generation;
 	int				pin_count;
+#ifdef CONFIG_CGROUP_PERF
 	int				nr_cgroups;	 /* cgroup evts */
+#endif
 	void				*task_ctx_data; /* pmu specific data */
 	struct rcu_head			rcu_head;
 };
@@ -769,7 +786,12 @@ struct perf_cpu_context {
 	unsigned int			hrtimer_active;
 
 	struct pmu			*unique_pmu;
+#ifdef CONFIG_CGROUP_PERF
 	struct perf_cgroup		*cgrp;
+#endif
+
+	struct list_head		sched_cb_entry;
+	int				sched_cb_usage;
 };
 
 struct perf_output_handle {
@@ -782,6 +804,11 @@ struct perf_output_handle {
 		unsigned long		head;
 	};
 	int				page;
+};
+
+struct bpf_perf_event_data_kern {
+	struct pt_regs *regs;
+	struct perf_sample_data *data;
 };
 
 #ifdef CONFIG_CGROUP_PERF
@@ -981,7 +1008,7 @@ static inline bool is_sampling_event(struct perf_event *event)
  */
 static inline int is_software_event(struct perf_event *event)
 {
-	return event->pmu->task_ctx_nr == perf_sw_context;
+	return event->event_caps & PERF_EV_CAP_SOFTWARE;
 }
 
 extern struct static_key perf_swevent_enabled[PERF_COUNT_SW_MAX];
@@ -1309,41 +1336,6 @@ static __always_inline bool perf_raw_frag_last(const struct perf_raw_frag *frag)
 
 #define perf_output_put(handle, x) perf_output_copy((handle), &(x), sizeof(x))
 
-/*
- * This has to have a higher priority than migration_notifier in sched/core.c.
- */
-#define perf_cpu_notifier(fn)						\
-do {									\
-	static struct notifier_block fn##_nb =				\
-		{ .notifier_call = fn, .priority = CPU_PRI_PERF };	\
-	unsigned long cpu = smp_processor_id();				\
-	unsigned long flags;						\
-									\
-	cpu_notifier_register_begin();					\
-	fn(&fn##_nb, (unsigned long)CPU_UP_PREPARE,			\
-		(void *)(unsigned long)cpu);				\
-	local_irq_save(flags);						\
-	fn(&fn##_nb, (unsigned long)CPU_STARTING,			\
-		(void *)(unsigned long)cpu);				\
-	local_irq_restore(flags);					\
-	fn(&fn##_nb, (unsigned long)CPU_ONLINE,				\
-		(void *)(unsigned long)cpu);				\
-	__register_cpu_notifier(&fn##_nb);				\
-	cpu_notifier_register_done();					\
-} while (0)
-
-/*
- * Bare-bones version of perf_cpu_notifier(), which doesn't invoke the
- * callback for already online CPUs.
- */
-#define __perf_cpu_notifier(fn)						\
-do {									\
-	static struct notifier_block fn##_nb =				\
-		{ .notifier_call = fn, .priority = CPU_PRI_PERF };	\
-									\
-	__register_cpu_notifier(&fn##_nb);				\
-} while (0)
-
 struct perf_pmu_events_attr {
 	struct device_attribute attr;
 	u64 id;
@@ -1384,5 +1376,14 @@ _name##_show(struct device *dev,					\
 }									\
 									\
 static struct device_attribute format_attr_##_name = __ATTR_RO(_name)
+
+/* Performance counter hotplug functions */
+#ifdef CONFIG_PERF_EVENTS
+int perf_event_init_cpu(unsigned int cpu);
+int perf_event_exit_cpu(unsigned int cpu);
+#else
+#define perf_event_init_cpu	NULL
+#define perf_event_exit_cpu	NULL
+#endif
 
 #endif /* _LINUX_PERF_EVENT_H */

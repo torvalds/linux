@@ -136,7 +136,7 @@ static struct watchdog_info rn5t618_wdt_info = {
 	.identity	= DRIVER_NAME,
 };
 
-static struct watchdog_ops rn5t618_wdt_ops = {
+static const struct watchdog_ops rn5t618_wdt_ops = {
 	.owner          = THIS_MODULE,
 	.start          = rn5t618_wdt_start,
 	.stop           = rn5t618_wdt_stop,

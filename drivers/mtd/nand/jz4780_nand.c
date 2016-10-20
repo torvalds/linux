@@ -368,9 +368,8 @@ static int jz4780_nand_probe(struct platform_device *pdev)
 	nfc->dev = dev;
 	nfc->num_banks = num_banks;
 
-	spin_lock_init(&nfc->controller.lock);
+	nand_hw_control_init(&nfc->controller);
 	INIT_LIST_HEAD(&nfc->chips);
-	init_waitqueue_head(&nfc->controller.wq);
 
 	ret = jz4780_nand_init_chips(nfc, pdev);
 	if (ret) {
@@ -412,6 +411,6 @@ static struct platform_driver jz4780_nand_driver = {
 module_platform_driver(jz4780_nand_driver);
 
 MODULE_AUTHOR("Alex Smith <alex@alex-smith.me.uk>");
-MODULE_AUTHOR("Harvey Hunt <harvey.hunt@imgtec.com>");
+MODULE_AUTHOR("Harvey Hunt <harveyhuntnexus@gmail.com>");
 MODULE_DESCRIPTION("Ingenic JZ4780 NAND driver");
 MODULE_LICENSE("GPL v2");

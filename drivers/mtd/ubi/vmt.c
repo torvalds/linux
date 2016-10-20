@@ -138,7 +138,7 @@ static void vol_release(struct device *dev)
 {
 	struct ubi_volume *vol = container_of(dev, struct ubi_volume, dev);
 
-	kfree(vol->eba_tbl);
+	ubi_eba_replace_table(vol, NULL);
 	kfree(vol);
 }
 
@@ -158,6 +158,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	int i, err, vol_id = req->vol_id, do_free = 1;
 	struct ubi_volume *vol;
 	struct ubi_vtbl_record vtbl_rec;
+	struct ubi_eba_table *eba_tbl = NULL;
 	dev_t dev;
 
 	if (ubi->ro_mode)
@@ -241,14 +242,13 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	if (err)
 		goto out_acc;
 
-	vol->eba_tbl = kmalloc(vol->reserved_pebs * sizeof(int), GFP_KERNEL);
-	if (!vol->eba_tbl) {
-		err = -ENOMEM;
+	eba_tbl = ubi_eba_create_table(vol, vol->reserved_pebs);
+	if (IS_ERR(eba_tbl)) {
+		err = PTR_ERR(eba_tbl);
 		goto out_acc;
 	}
 
-	for (i = 0; i < vol->reserved_pebs; i++)
-		vol->eba_tbl[i] = UBI_LEB_UNMAPPED;
+	ubi_eba_replace_table(vol, eba_tbl);
 
 	if (vol->vol_type == UBI_DYNAMIC_VOLUME) {
 		vol->used_ebs = vol->reserved_pebs;
@@ -329,7 +329,7 @@ out_cdev:
 	cdev_del(&vol->cdev);
 out_mapping:
 	if (do_free)
-		kfree(vol->eba_tbl);
+		ubi_eba_destroy_table(eba_tbl);
 out_acc:
 	spin_lock(&ubi->volumes_lock);
 	ubi->rsvd_pebs -= vol->reserved_pebs;
@@ -427,10 +427,11 @@ out_unlock:
  */
 int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 {
-	int i, err, pebs, *new_mapping;
+	int i, err, pebs;
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
 	struct ubi_vtbl_record vtbl_rec;
+	struct ubi_eba_table *new_eba_tbl = NULL;
 	int vol_id = vol->vol_id;
 
 	if (ubi->ro_mode)
@@ -450,12 +451,9 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 	if (reserved_pebs == vol->reserved_pebs)
 		return 0;
 
-	new_mapping = kmalloc(reserved_pebs * sizeof(int), GFP_KERNEL);
-	if (!new_mapping)
-		return -ENOMEM;
-
-	for (i = 0; i < reserved_pebs; i++)
-		new_mapping[i] = UBI_LEB_UNMAPPED;
+	new_eba_tbl = ubi_eba_create_table(vol, reserved_pebs);
+	if (IS_ERR(new_eba_tbl))
+		return PTR_ERR(new_eba_tbl);
 
 	spin_lock(&ubi->volumes_lock);
 	if (vol->ref_count > 1) {
@@ -481,19 +479,10 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 		}
 		ubi->avail_pebs -= pebs;
 		ubi->rsvd_pebs += pebs;
-		for (i = 0; i < vol->reserved_pebs; i++)
-			new_mapping[i] = vol->eba_tbl[i];
-		kfree(vol->eba_tbl);
-		vol->eba_tbl = new_mapping;
+		ubi_eba_copy_table(vol, new_eba_tbl, vol->reserved_pebs);
+		ubi_eba_replace_table(vol, new_eba_tbl);
 		spin_unlock(&ubi->volumes_lock);
 	}
-
-	/* Change volume table record */
-	vtbl_rec = ubi->vtbl[vol_id];
-	vtbl_rec.reserved_pebs = cpu_to_be32(reserved_pebs);
-	err = ubi_change_vtbl_record(ubi, vol_id, &vtbl_rec);
-	if (err)
-		goto out_acc;
 
 	if (pebs < 0) {
 		for (i = 0; i < -pebs; i++) {
@@ -505,12 +494,28 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 		ubi->rsvd_pebs += pebs;
 		ubi->avail_pebs -= pebs;
 		ubi_update_reserved(ubi);
-		for (i = 0; i < reserved_pebs; i++)
-			new_mapping[i] = vol->eba_tbl[i];
-		kfree(vol->eba_tbl);
-		vol->eba_tbl = new_mapping;
+		ubi_eba_copy_table(vol, new_eba_tbl, reserved_pebs);
+		ubi_eba_replace_table(vol, new_eba_tbl);
 		spin_unlock(&ubi->volumes_lock);
 	}
+
+	/*
+	 * When we shrink a volume we have to flush all pending (erase) work.
+	 * Otherwise it can happen that upon next attach UBI finds a LEB with
+	 * lnum > highest_lnum and refuses to attach.
+	 */
+	if (pebs < 0) {
+		err = ubi_wl_flush(ubi, vol_id, UBI_ALL);
+		if (err)
+			goto out_acc;
+	}
+
+	/* Change volume table record */
+	vtbl_rec = ubi->vtbl[vol_id];
+	vtbl_rec.reserved_pebs = cpu_to_be32(reserved_pebs);
+	err = ubi_change_vtbl_record(ubi, vol_id, &vtbl_rec);
+	if (err)
+		goto out_acc;
 
 	vol->reserved_pebs = reserved_pebs;
 	if (vol->vol_type == UBI_DYNAMIC_VOLUME) {
@@ -532,7 +537,7 @@ out_acc:
 		spin_unlock(&ubi->volumes_lock);
 	}
 out_free:
-	kfree(new_mapping);
+	kfree(new_eba_tbl);
 	return err;
 }
 

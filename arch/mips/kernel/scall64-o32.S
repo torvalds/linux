@@ -504,7 +504,7 @@ EXPORT(sys32_call_table)
 	PTR	sys_ni_syscall			/* available, was setaltroot */
 	PTR	sys_add_key			/* 4280 */
 	PTR	sys_request_key
-	PTR	sys_keyctl
+	PTR	compat_sys_keyctl
 	PTR	sys_set_thread_area
 	PTR	sys_inotify_init
 	PTR	sys_inotify_add_watch		/* 4285 */
@@ -585,4 +585,7 @@ EXPORT(sys32_call_table)
 	PTR	sys_copy_file_range		/* 4360 */
 	PTR	compat_sys_preadv2
 	PTR	compat_sys_pwritev2
+	PTR	sys_pkey_mprotect
+	PTR	sys_pkey_alloc
+	PTR	sys_pkey_free			/* 4365 */
 	.size	sys32_call_table,.-sys32_call_table

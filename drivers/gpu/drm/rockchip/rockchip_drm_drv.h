@@ -39,15 +39,6 @@ struct drm_connector;
 struct rockchip_crtc_funcs {
 	int (*enable_vblank)(struct drm_crtc *crtc);
 	void (*disable_vblank)(struct drm_crtc *crtc);
-	void (*wait_for_update)(struct drm_crtc *crtc);
-	void (*cancel_pending_vblank)(struct drm_crtc *crtc, struct drm_file *file_priv);
-};
-
-struct rockchip_atomic_commit {
-	struct work_struct	work;
-	struct drm_atomic_state *state;
-	struct drm_device *dev;
-	struct mutex lock;
 };
 
 struct rockchip_crtc_state {
@@ -68,11 +59,12 @@ struct rockchip_drm_private {
 	struct drm_fb_helper fbdev_helper;
 	struct drm_gem_object *fbdev_bo;
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];
+	struct drm_atomic_state *state;
 
-	struct rockchip_atomic_commit commit;
+	struct list_head psr_list;
+	spinlock_t psr_list_lock;
 };
 
-void rockchip_drm_atomic_work(struct work_struct *work);
 int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
 				 const struct rockchip_crtc_funcs *crtc_funcs);
 void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc);
@@ -80,4 +72,7 @@ int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 				   struct device *dev);
 void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
 				    struct device *dev);
+int rockchip_drm_wait_line_flag(struct drm_crtc *crtc, unsigned int line_num,
+				unsigned int mstimeout);
+
 #endif /* _ROCKCHIP_DRM_DRV_H_ */

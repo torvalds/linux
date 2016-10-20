@@ -17,6 +17,13 @@ config DRM_ANALOGIX_ANX78XX
 	  the HDMI output of an application processor to MyDP
 	  or DisplayPort.
 
+config DRM_DUMB_VGA_DAC
+	tristate "Dumb VGA DAC Bridge support"
+	depends on OF
+	select DRM_KMS_HELPER
+	help
+	  Support for RGB to VGA DAC based bridges
+
 config DRM_DW_HDMI
 	tristate
 	select DRM_KMS_HELPER
@@ -50,6 +57,25 @@ config DRM_PARADE_PS8622
 	---help---
 	  Parade eDP-LVDS bridge chip driver.
 
+config DRM_SII902X
+	tristate "Silicon Image sii902x RGB/HDMI bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	---help---
+	  Silicon Image sii902x bridge chip driver.
+
+config DRM_TOSHIBA_TC358767
+	tristate "Toshiba TC358767 eDP bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select REGMAP_I2C
+	select DRM_PANEL
+	---help---
+	  Toshiba TC358767 eDP bridge chip driver.
+
 source "drivers/gpu/drm/bridge/analogix/Kconfig"
+
+source "drivers/gpu/drm/bridge/adv7511/Kconfig"
 
 endmenu

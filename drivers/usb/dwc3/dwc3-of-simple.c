@@ -36,35 +36,25 @@ struct dwc3_of_simple {
 	int			num_clocks;
 };
 
-static int dwc3_of_simple_probe(struct platform_device *pdev)
+static int dwc3_of_simple_clk_init(struct dwc3_of_simple *simple, int count)
 {
-	struct dwc3_of_simple	*simple;
-	struct device		*dev = &pdev->dev;
+	struct device		*dev = simple->dev;
 	struct device_node	*np = dev->of_node;
-
-	unsigned int		count;
-	int			ret;
 	int			i;
 
-	simple = devm_kzalloc(dev, sizeof(*simple), GFP_KERNEL);
-	if (!simple)
-		return -ENOMEM;
-
-	count = of_clk_get_parent_count(np);
-	if (!count)
-		return -ENOENT;
-
 	simple->num_clocks = count;
+
+	if (!count)
+		return 0;
 
 	simple->clks = devm_kcalloc(dev, simple->num_clocks,
 			sizeof(struct clk *), GFP_KERNEL);
 	if (!simple->clks)
 		return -ENOMEM;
 
-	simple->dev = dev;
-
 	for (i = 0; i < simple->num_clocks; i++) {
 		struct clk	*clk;
+		int		ret;
 
 		clk = of_clk_get(np, i);
 		if (IS_ERR(clk)) {
@@ -86,6 +76,29 @@ static int dwc3_of_simple_probe(struct platform_device *pdev)
 
 		simple->clks[i] = clk;
 	}
+
+	return 0;
+}
+
+static int dwc3_of_simple_probe(struct platform_device *pdev)
+{
+	struct dwc3_of_simple	*simple;
+	struct device		*dev = &pdev->dev;
+	struct device_node	*np = dev->of_node;
+
+	int			ret;
+	int			i;
+
+	simple = devm_kzalloc(dev, sizeof(*simple), GFP_KERNEL);
+	if (!simple)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, simple);
+	simple->dev = dev;
+
+	ret = dwc3_of_simple_clk_init(simple, of_clk_get_parent_count(np));
+	if (ret)
+		return ret;
 
 	ret = of_platform_populate(np, NULL, NULL, dev);
 	if (ret) {
@@ -111,7 +124,7 @@ static int dwc3_of_simple_remove(struct platform_device *pdev)
 	int			i;
 
 	for (i = 0; i < simple->num_clocks; i++) {
-		clk_unprepare(simple->clks[i]);
+		clk_disable_unprepare(simple->clks[i]);
 		clk_put(simple->clks[i]);
 	}
 
@@ -161,7 +174,9 @@ static const struct dev_pm_ops dwc3_of_simple_dev_pm_ops = {
 
 static const struct of_device_id of_dwc3_simple_match[] = {
 	{ .compatible = "qcom,dwc3" },
+	{ .compatible = "rockchip,rk3399-dwc3" },
 	{ .compatible = "xlnx,zynqmp-dwc3" },
+	{ .compatible = "cavium,octeon-7130-usb-uctl" },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, of_dwc3_simple_match);

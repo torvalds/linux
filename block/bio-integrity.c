@@ -86,7 +86,7 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 
 	bip->bip_bio = bio;
 	bio->bi_integrity = bip;
-	bio->bi_rw |= REQ_INTEGRITY;
+	bio->bi_opf |= REQ_INTEGRITY;
 
 	return bip;
 err:

@@ -326,14 +326,14 @@ static int nfnl_acct_try_del(struct nf_acct *cur)
 {
 	int ret = 0;
 
-	/* we want to avoid races with nfnl_acct_find_get. */
-	if (atomic_dec_and_test(&cur->refcnt)) {
+	/* We want to avoid races with nfnl_acct_put. So only when the current
+	 * refcnt is 1, we decrease it to 0.
+	 */
+	if (atomic_cmpxchg(&cur->refcnt, 1, 0) == 1) {
 		/* We are protected by nfnl mutex. */
 		list_del_rcu(&cur->head);
 		kfree_rcu(cur, rcu_head);
 	} else {
-		/* still in use, restore reference counter. */
-		atomic_inc(&cur->refcnt);
 		ret = -EBUSY;
 	}
 	return ret;
@@ -343,12 +343,12 @@ static int nfnl_acct_del(struct net *net, struct sock *nfnl,
 			 struct sk_buff *skb, const struct nlmsghdr *nlh,
 			 const struct nlattr * const tb[])
 {
-	char *acct_name;
-	struct nf_acct *cur;
+	struct nf_acct *cur, *tmp;
 	int ret = -ENOENT;
+	char *acct_name;
 
 	if (!tb[NFACCT_NAME]) {
-		list_for_each_entry(cur, &net->nfnl_acct_list, head)
+		list_for_each_entry_safe(cur, tmp, &net->nfnl_acct_list, head)
 			nfnl_acct_try_del(cur);
 
 		return 0;
@@ -443,7 +443,7 @@ void nfnl_acct_update(const struct sk_buff *skb, struct nf_acct *nfacct)
 }
 EXPORT_SYMBOL_GPL(nfnl_acct_update);
 
-static void nfnl_overquota_report(struct nf_acct *nfacct)
+static void nfnl_overquota_report(struct net *net, struct nf_acct *nfacct)
 {
 	int ret;
 	struct sk_buff *skb;
@@ -458,11 +458,12 @@ static void nfnl_overquota_report(struct nf_acct *nfacct)
 		kfree_skb(skb);
 		return;
 	}
-	netlink_broadcast(init_net.nfnl, skb, 0, NFNLGRP_ACCT_QUOTA,
+	netlink_broadcast(net->nfnl, skb, 0, NFNLGRP_ACCT_QUOTA,
 			  GFP_ATOMIC);
 }
 
-int nfnl_acct_overquota(const struct sk_buff *skb, struct nf_acct *nfacct)
+int nfnl_acct_overquota(struct net *net, const struct sk_buff *skb,
+			struct nf_acct *nfacct)
 {
 	u64 now;
 	u64 *quota;
@@ -480,7 +481,7 @@ int nfnl_acct_overquota(const struct sk_buff *skb, struct nf_acct *nfacct)
 
 	if (now >= *quota &&
 	    !test_and_set_bit(NFACCT_OVERQUOTA_BIT, &nfacct->flags)) {
-		nfnl_overquota_report(nfacct);
+		nfnl_overquota_report(net, nfacct);
 	}
 
 	return ret;

@@ -17,6 +17,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -37,6 +38,7 @@ static const char * const axp20x_model_names[] = {
 	"AXP221",
 	"AXP223",
 	"AXP288",
+	"AXP806",
 	"AXP809",
 };
 
@@ -93,7 +95,10 @@ static const struct regmap_range axp22x_writeable_ranges[] = {
 };
 
 static const struct regmap_range axp22x_volatile_ranges[] = {
+	regmap_reg_range(AXP20X_PWR_INPUT_STATUS, AXP20X_PWR_OP_MODE),
 	regmap_reg_range(AXP20X_IRQ1_EN, AXP20X_IRQ5_STATE),
+	regmap_reg_range(AXP22X_GPIO_STATE, AXP22X_GPIO_STATE),
+	regmap_reg_range(AXP20X_FG_RES, AXP20X_FG_RES),
 };
 
 static const struct regmap_access_table axp22x_writeable_table = {
@@ -123,6 +128,27 @@ static const struct regmap_access_table axp288_writeable_table = {
 static const struct regmap_access_table axp288_volatile_table = {
 	.yes_ranges	= axp288_volatile_ranges,
 	.n_yes_ranges	= ARRAY_SIZE(axp288_volatile_ranges),
+};
+
+static const struct regmap_range axp806_writeable_ranges[] = {
+	regmap_reg_range(AXP20X_DATACACHE(0), AXP20X_DATACACHE(3)),
+	regmap_reg_range(AXP806_PWR_OUT_CTRL1, AXP806_CLDO3_V_CTRL),
+	regmap_reg_range(AXP20X_IRQ1_EN, AXP20X_IRQ2_EN),
+	regmap_reg_range(AXP20X_IRQ1_STATE, AXP20X_IRQ2_STATE),
+};
+
+static const struct regmap_range axp806_volatile_ranges[] = {
+	regmap_reg_range(AXP20X_IRQ1_STATE, AXP20X_IRQ2_STATE),
+};
+
+static const struct regmap_access_table axp806_writeable_table = {
+	.yes_ranges	= axp806_writeable_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(axp806_writeable_ranges),
+};
+
+static const struct regmap_access_table axp806_volatile_table = {
+	.yes_ranges	= axp806_volatile_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(axp806_volatile_ranges),
 };
 
 static struct resource axp152_pek_resources[] = {
@@ -155,6 +181,11 @@ static struct resource axp20x_usb_power_supply_resources[] = {
 	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_REMOVAL, "VBUS_REMOVAL"),
 	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_VALID, "VBUS_VALID"),
 	DEFINE_RES_IRQ_NAMED(AXP20X_IRQ_VBUS_NOT_VALID, "VBUS_NOT_VALID"),
+};
+
+static struct resource axp22x_usb_power_supply_resources[] = {
+	DEFINE_RES_IRQ_NAMED(AXP22X_IRQ_VBUS_PLUGIN, "VBUS_PLUGIN"),
+	DEFINE_RES_IRQ_NAMED(AXP22X_IRQ_VBUS_REMOVAL, "VBUS_REMOVAL"),
 };
 
 static struct resource axp22x_pek_resources[] = {
@@ -266,6 +297,15 @@ static const struct regmap_config axp288_regmap_config = {
 	.wr_table	= &axp288_writeable_table,
 	.volatile_table	= &axp288_volatile_table,
 	.max_register	= AXP288_FG_TUNE5,
+	.cache_type	= REGCACHE_RBTREE,
+};
+
+static const struct regmap_config axp806_regmap_config = {
+	.reg_bits	= 8,
+	.val_bits	= 8,
+	.wr_table	= &axp806_writeable_table,
+	.volatile_table	= &axp806_volatile_table,
+	.max_register	= AXP806_VREF_TEMP_WARN_L,
 	.cache_type	= REGCACHE_RBTREE,
 };
 
@@ -400,6 +440,21 @@ static const struct regmap_irq axp288_regmap_irqs[] = {
 	INIT_REGMAP_IRQ(AXP288, BC_USB_CHNG,            5, 1),
 };
 
+static const struct regmap_irq axp806_regmap_irqs[] = {
+	INIT_REGMAP_IRQ(AXP806, DIE_TEMP_HIGH_LV1,	0, 0),
+	INIT_REGMAP_IRQ(AXP806, DIE_TEMP_HIGH_LV2,	0, 1),
+	INIT_REGMAP_IRQ(AXP806, DCDCA_V_LOW,		0, 3),
+	INIT_REGMAP_IRQ(AXP806, DCDCB_V_LOW,		0, 4),
+	INIT_REGMAP_IRQ(AXP806, DCDCC_V_LOW,		0, 5),
+	INIT_REGMAP_IRQ(AXP806, DCDCD_V_LOW,		0, 6),
+	INIT_REGMAP_IRQ(AXP806, DCDCE_V_LOW,		0, 7),
+	INIT_REGMAP_IRQ(AXP806, PWROK_LONG,		1, 0),
+	INIT_REGMAP_IRQ(AXP806, PWROK_SHORT,		1, 1),
+	INIT_REGMAP_IRQ(AXP806, WAKEUP,			1, 4),
+	INIT_REGMAP_IRQ(AXP806, PWROK_FALL,		1, 5),
+	INIT_REGMAP_IRQ(AXP806, PWROK_RISE,		1, 6),
+};
+
 static const struct regmap_irq axp809_regmap_irqs[] = {
 	INIT_REGMAP_IRQ(AXP809, ACIN_OVER_V,		0, 7),
 	INIT_REGMAP_IRQ(AXP809, ACIN_PLUGIN,		0, 6),
@@ -485,6 +540,18 @@ static const struct regmap_irq_chip axp288_regmap_irq_chip = {
 
 };
 
+static const struct regmap_irq_chip axp806_regmap_irq_chip = {
+	.name			= "axp806",
+	.status_base		= AXP20X_IRQ1_STATE,
+	.ack_base		= AXP20X_IRQ1_STATE,
+	.mask_base		= AXP20X_IRQ1_EN,
+	.mask_invert		= true,
+	.init_ack_masked	= true,
+	.irqs			= axp806_regmap_irqs,
+	.num_irqs		= ARRAY_SIZE(axp806_regmap_irqs),
+	.num_regs		= 2,
+};
+
 static const struct regmap_irq_chip axp809_regmap_irq_chip = {
 	.name			= "axp809",
 	.status_base		= AXP20X_IRQ1_STATE,
@@ -499,6 +566,9 @@ static const struct regmap_irq_chip axp809_regmap_irq_chip = {
 
 static struct mfd_cell axp20x_cells[] = {
 	{
+		.name		= "axp20x-gpio",
+		.of_compatible	= "x-powers,axp209-gpio",
+	}, {
 		.name		= "axp20x-pek",
 		.num_resources	= ARRAY_SIZE(axp20x_pek_resources),
 		.resources	= axp20x_pek_resources,
@@ -524,6 +594,11 @@ static struct mfd_cell axp22x_cells[] = {
 		.resources		= axp22x_pek_resources,
 	}, {
 		.name			= "axp20x-regulator",
+	}, {
+		.name		= "axp20x-usb-power-supply",
+		.of_compatible	= "x-powers,axp221-usb-power-supply",
+		.num_resources	= ARRAY_SIZE(axp22x_usb_power_supply_resources),
+		.resources	= axp22x_usb_power_supply_resources,
 	},
 };
 
@@ -646,12 +721,20 @@ static struct mfd_cell axp288_cells[] = {
 	},
 };
 
+static struct mfd_cell axp806_cells[] = {
+	{
+		.id			= 2,
+		.name			= "axp20x-regulator",
+	},
+};
+
 static struct mfd_cell axp809_cells[] = {
 	{
 		.name			= "axp20x-pek",
 		.num_resources		= ARRAY_SIZE(axp809_pek_resources),
 		.resources		= axp809_pek_resources,
 	}, {
+		.id			= 1,
 		.name			= "axp20x-regulator",
 	},
 };
@@ -664,6 +747,9 @@ static void axp20x_power_off(void)
 
 	regmap_write(axp20x_pm_power_off->regmap, AXP20X_OFF_CTRL,
 		     AXP20X_OFF);
+
+	/* Give capacitors etc. time to drain to avoid kernel panic msg. */
+	msleep(500);
 }
 
 int axp20x_match_device(struct axp20x_dev *axp20x)
@@ -714,6 +800,12 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 		axp20x->nr_cells = ARRAY_SIZE(axp288_cells);
 		axp20x->regmap_cfg = &axp288_regmap_config;
 		axp20x->regmap_irq_chip = &axp288_regmap_irq_chip;
+		break;
+	case AXP806_ID:
+		axp20x->nr_cells = ARRAY_SIZE(axp806_cells);
+		axp20x->cells = axp806_cells;
+		axp20x->regmap_cfg = &axp806_regmap_config;
+		axp20x->regmap_irq_chip = &axp806_regmap_irq_chip;
 		break;
 	case AXP809_ID:
 		axp20x->nr_cells = ARRAY_SIZE(axp809_cells);

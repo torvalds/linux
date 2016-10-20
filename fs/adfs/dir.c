@@ -101,7 +101,7 @@ out:
 }
 
 static int
-adfs_match(struct qstr *name, struct object_info *obj)
+adfs_match(const struct qstr *name, struct object_info *obj)
 {
 	int i;
 
@@ -126,7 +126,7 @@ adfs_match(struct qstr *name, struct object_info *obj)
 }
 
 static int
-adfs_dir_lookup_byname(struct inode *inode, struct qstr *name, struct object_info *obj)
+adfs_dir_lookup_byname(struct inode *inode, const struct qstr *name, struct object_info *obj)
 {
 	struct super_block *sb = inode->i_sb;
 	const struct adfs_dir_ops *ops = ADFS_SB(sb)->s_dir;
@@ -227,7 +227,7 @@ adfs_hash(const struct dentry *parent, struct qstr *qstr)
  * requirements of the underlying filesystem.
  */
 static int
-adfs_compare(const struct dentry *parent, const struct dentry *dentry,
+adfs_compare(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	int i;

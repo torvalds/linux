@@ -36,7 +36,8 @@ int is_syscall(unsigned long addr)
 		 * slow, but that doesn't matter, since it will be called only
 		 * in case of singlestepping, if copy_from_user failed.
 		 */
-		n = access_process_vm(current, addr, &instr, sizeof(instr), 0);
+		n = access_process_vm(current, addr, &instr, sizeof(instr),
+				FOLL_FORCE);
 		if (n != sizeof(instr)) {
 			printk(KERN_ERR "is_syscall : failed to read "
 			       "instruction from 0x%lx\n", addr);
@@ -84,7 +85,10 @@ int putreg(struct task_struct *child, int regno, unsigned long value)
 	case EAX:
 	case EIP:
 	case UESP:
+		break;
 	case ORIG_EAX:
+		/* Update the syscall number. */
+		UPT_SYSCALL_NR(&child->thread.regs.regs) = value;
 		break;
 	case FS:
 		if (value && (value & 3) != 3)
@@ -191,7 +195,7 @@ int peek_user(struct task_struct *child, long addr, long data)
 
 static int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 {
-	int err, n, cpu = ((struct thread_info *) child->stack)->cpu;
+	int err, n, cpu = task_cpu(child);
 	struct user_i387_struct fpregs;
 
 	err = save_i387_registers(userspace_pid[cpu],
@@ -208,7 +212,7 @@ static int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *c
 
 static int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 {
-	int n, cpu = ((struct thread_info *) child->stack)->cpu;
+	int n, cpu = task_cpu(child);
 	struct user_i387_struct fpregs;
 
 	n = copy_from_user(&fpregs, buf, sizeof(fpregs));
@@ -221,7 +225,7 @@ static int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *c
 
 static int get_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *child)
 {
-	int err, n, cpu = ((struct thread_info *) child->stack)->cpu;
+	int err, n, cpu = task_cpu(child);
 	struct user_fxsr_struct fpregs;
 
 	err = save_fpx_registers(userspace_pid[cpu], (unsigned long *) &fpregs);
@@ -237,7 +241,7 @@ static int get_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *
 
 static int set_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *child)
 {
-	int n, cpu = ((struct thread_info *) child->stack)->cpu;
+	int n, cpu = task_cpu(child);
 	struct user_fxsr_struct fpregs;
 
 	n = copy_from_user(&fpregs, buf, sizeof(fpregs));

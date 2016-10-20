@@ -16,7 +16,7 @@ menuconfig VIRTUALIZATION
 
 if VIRTUALIZATION
 
-config KVM_ARM_VGIC_V3
+config KVM_ARM_VGIC_V3_ITS
 	bool
 
 config KVM
@@ -34,8 +34,11 @@ config KVM
 	select KVM_VFIO
 	select HAVE_KVM_EVENTFD
 	select HAVE_KVM_IRQFD
-	select KVM_ARM_VGIC_V3
+	select KVM_ARM_VGIC_V3_ITS
 	select KVM_ARM_PMU if HW_PERF_EVENTS
+	select HAVE_KVM_MSI
+	select HAVE_KVM_IRQCHIP
+	select HAVE_KVM_IRQ_ROUTING
 	---help---
 	  Support hosting virtualized guest machines.
 	  We don't support KVM with 16K page tables yet, due to the multiple
@@ -53,13 +56,6 @@ config KVM_ARM_PMU
 	---help---
 	  Adds support for a virtual Performance Monitoring Unit (PMU) in
 	  virtual machines.
-
-config KVM_NEW_VGIC
-	bool "New VGIC implementation"
-	depends on KVM
-	default y
-        ---help---
-          uses the new VGIC implementation
 
 source drivers/vhost/Kconfig
 

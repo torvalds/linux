@@ -14,7 +14,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/mm.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/seq_file.h>
 
 #include <asm/pgtable.h>
@@ -454,8 +454,4 @@ static int __init pt_dump_init(void)
 
 	return 0;
 }
-
 __initcall(pt_dump_init);
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Arjan van de Ven <arjan@linux.intel.com>");
-MODULE_DESCRIPTION("Kernel debugging helper that dumps pagetables");

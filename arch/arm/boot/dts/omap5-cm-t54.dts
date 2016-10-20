@@ -11,9 +11,9 @@
 	model = "CompuLab CM-T54";
 	compatible = "compulab,omap5-cm-t54", "ti,omap5";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
-		reg = <0x80000000 0x7F000000>; /* 2048 MB */
+		reg = <0 0x80000000 0 0x7f000000>; /* 2048 MB */
 	};
 
 	aliases {
@@ -72,7 +72,7 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led@1 {
+		led1 {
 			label = "Heartbeat";
 			gpios = <&gpio3 16 GPIO_ACTIVE_HIGH>; /* gpio3_80 ACT_LED */
 			linux,default-trigger = "heartbeat";
@@ -112,7 +112,7 @@
                 };
         };
 
-	hdmi0: connector@0 {
+	hdmi0: connector0 {
 		compatible = "hdmi-connector";
 		label = "hdmi";
 
@@ -130,7 +130,7 @@
 		};
 	};
 
-	tfp410: encoder@0 {
+	tfp410: encoder0 {
 		compatible = "ti,tfp410";
 
 		ports {
@@ -140,7 +140,7 @@
 			port@0 {
 				reg = <0>;
 
-				tfp410_in: endpoint@0 {
+				tfp410_in: endpoint {
 					remote-endpoint = <&dpi_dvi_out>;
 				};
 			};
@@ -148,14 +148,14 @@
 			port@1 {
 				reg = <1>;
 
-				tfp410_out: endpoint@0 {
+				tfp410_out: endpoint {
 					remote-endpoint = <&dvi_connector_in>;
 				};
 			};
 		};
 	};
 
-	dvi0: connector@1 {
+	dvi0: connector1 {
 		compatible = "dvi-connector";
 		label = "dvi";
 
@@ -646,12 +646,17 @@
 	pinctrl-0 = <&dss_dpi_pins>;
 
 	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
 		dpi_dvi_out: endpoint@0 {
+			reg = <0>;
 			remote-endpoint = <&tfp410_in>;
 			data-lines = <24>;
 		};
 
 		dpi_lcd_out: endpoint@1 {
+			reg = <1>;
 			remote-endpoint = <&lcd_in>;
 			data-lines = <24>;
 		};

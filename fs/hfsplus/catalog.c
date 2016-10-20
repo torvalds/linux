@@ -40,7 +40,7 @@ int hfsplus_cat_bin_cmp_key(const hfsplus_btree_key *k1,
 
 /* Generates key for catalog file/folders record. */
 int hfsplus_cat_build_key(struct super_block *sb,
-		hfsplus_btree_key *key, u32 parent, struct qstr *str)
+		hfsplus_btree_key *key, u32 parent, const struct qstr *str)
 {
 	int len, err;
 
@@ -174,7 +174,7 @@ static int hfsplus_cat_build_record(hfsplus_cat_entry *entry,
 
 static int hfsplus_fill_cat_thread(struct super_block *sb,
 				   hfsplus_cat_entry *entry, int type,
-				   u32 parentid, struct qstr *str)
+				   u32 parentid, const struct qstr *str)
 {
 	int err;
 
@@ -250,7 +250,7 @@ static void hfsplus_subfolders_dec(struct inode *dir)
 }
 
 int hfsplus_create_cat(u32 cnid, struct inode *dir,
-		struct qstr *str, struct inode *inode)
+		const struct qstr *str, struct inode *inode)
 {
 	struct super_block *sb = dir->i_sb;
 	struct hfs_find_data fd;
@@ -303,7 +303,7 @@ int hfsplus_create_cat(u32 cnid, struct inode *dir,
 	dir->i_size++;
 	if (S_ISDIR(inode->i_mode))
 		hfsplus_subfolders_inc(dir);
-	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	hfsplus_mark_inode_dirty(dir, HFSPLUS_I_CAT_DIRTY);
 
 	hfs_find_exit(&fd);
@@ -318,7 +318,7 @@ err2:
 	return err;
 }
 
-int hfsplus_delete_cat(u32 cnid, struct inode *dir, struct qstr *str)
+int hfsplus_delete_cat(u32 cnid, struct inode *dir, const struct qstr *str)
 {
 	struct super_block *sb = dir->i_sb;
 	struct hfs_find_data fd;
@@ -400,7 +400,7 @@ int hfsplus_delete_cat(u32 cnid, struct inode *dir, struct qstr *str)
 	dir->i_size--;
 	if (type == HFSPLUS_FOLDER)
 		hfsplus_subfolders_dec(dir);
-	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	hfsplus_mark_inode_dirty(dir, HFSPLUS_I_CAT_DIRTY);
 
 	if (type == HFSPLUS_FILE || type == HFSPLUS_FOLDER) {
@@ -415,8 +415,8 @@ out:
 }
 
 int hfsplus_rename_cat(u32 cnid,
-		       struct inode *src_dir, struct qstr *src_name,
-		       struct inode *dst_dir, struct qstr *dst_name)
+		       struct inode *src_dir, const struct qstr *src_name,
+		       struct inode *dst_dir, const struct qstr *dst_name)
 {
 	struct super_block *sb = src_dir->i_sb;
 	struct hfs_find_data src_fd, dst_fd;
@@ -469,7 +469,7 @@ int hfsplus_rename_cat(u32 cnid,
 	dst_dir->i_size++;
 	if (type == HFSPLUS_FOLDER)
 		hfsplus_subfolders_inc(dst_dir);
-	dst_dir->i_mtime = dst_dir->i_ctime = CURRENT_TIME_SEC;
+	dst_dir->i_mtime = dst_dir->i_ctime = current_time(dst_dir);
 
 	/* finally remove the old entry */
 	err = hfsplus_cat_build_key(sb, src_fd.search_key,
@@ -486,7 +486,7 @@ int hfsplus_rename_cat(u32 cnid,
 	src_dir->i_size--;
 	if (type == HFSPLUS_FOLDER)
 		hfsplus_subfolders_dec(src_dir);
-	src_dir->i_mtime = src_dir->i_ctime = CURRENT_TIME_SEC;
+	src_dir->i_mtime = src_dir->i_ctime = current_time(src_dir);
 
 	/* remove old thread entry */
 	hfsplus_cat_build_key_with_cnid(sb, src_fd.search_key, cnid);

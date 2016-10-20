@@ -51,7 +51,7 @@
 	#size-cells = <2>;
 
 	cpus {
-		#address-cells = <2>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
 		/*
@@ -65,57 +65,81 @@
 		cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
-			reg = <0x0 0x0>;
+			reg = <0x0>;
 			clocks = <&clockgen 1 0>;
+			next-level-cache = <&cluster0_l2>;
 		};
 
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
-			reg = <0x0 0x1>;
+			reg = <0x1>;
 			clocks = <&clockgen 1 0>;
+			next-level-cache = <&cluster0_l2>;
 		};
 
 		cpu@100 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
-			reg = <0x0 0x100>;
+			reg = <0x100>;
 			clocks = <&clockgen 1 1>;
+			next-level-cache = <&cluster1_l2>;
 		};
 
 		cpu@101 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
-			reg = <0x0 0x101>;
+			reg = <0x101>;
 			clocks = <&clockgen 1 1>;
+			next-level-cache = <&cluster1_l2>;
 		};
 
 		cpu@200 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
-			reg = <0x0 0x200>;
+			reg = <0x200>;
 			clocks = <&clockgen 1 2>;
+			next-level-cache = <&cluster2_l2>;
 		};
 
 		cpu@201 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
-			reg = <0x0 0x201>;
+			reg = <0x201>;
 			clocks = <&clockgen 1 2>;
+			next-level-cache = <&cluster2_l2>;
 		};
 
 		cpu@300 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
-			reg = <0x0 0x300>;
+			reg = <0x300>;
 			clocks = <&clockgen 1 3>;
+			next-level-cache = <&cluster3_l2>;
 		};
 
 		cpu@301 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57";
-			reg = <0x0 0x301>;
+			reg = <0x301>;
 			clocks = <&clockgen 1 3>;
+			next-level-cache = <&cluster3_l2>;
+		};
+
+		cluster0_l2: l2-cache0 {
+			compatible = "cache";
+		};
+
+		cluster1_l2: l2-cache1 {
+			compatible = "cache";
+		};
+
+		cluster2_l2: l2-cache2 {
+			compatible = "cache";
+		};
+
+		cluster3_l2: l2-cache3 {
+			compatible = "cache";
 		};
 	};
 
@@ -167,10 +191,10 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <1 13 0x8>, /* Physical Secure PPI, active-low */
-			     <1 14 0x8>, /* Physical Non-Secure PPI, active-low */
-			     <1 11 0x8>, /* Virtual PPI, active-low */
-			     <1 10 0x8>; /* Hypervisor PPI, active-low */
+		interrupts = <1 13 4>, /* Physical Secure PPI, active-low */
+			     <1 14 4>, /* Physical Non-Secure PPI, active-low */
+			     <1 11 4>, /* Virtual PPI, active-low */
+			     <1 10 4>; /* Hypervisor PPI, active-low */
 	};
 
 	pmu {
@@ -564,6 +588,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
+			dma-coherent;
 			num-lanes = <4>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x10 0x00010000 0x0 0x00010000   /* downstream I/O */
@@ -588,6 +613,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
+			dma-coherent;
 			num-lanes = <4>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x12 0x00010000 0x0 0x00010000   /* downstream I/O */
@@ -612,6 +638,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
+			dma-coherent;
 			num-lanes = <8>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x14 0x00010000 0x0 0x00010000   /* downstream I/O */
@@ -636,6 +663,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
+			dma-coherent;
 			num-lanes = <4>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x16 0x00010000 0x0 0x00010000   /* downstream I/O */
@@ -655,6 +683,7 @@
 			reg = <0x0 0x3200000 0x0 0x10000>;
 			interrupts = <0 133 0x4>; /* Level high type */
 			clocks = <&clockgen 4 3>;
+			dma-coherent;
 		};
 
 		sata1: sata@3210000 {
@@ -663,6 +692,7 @@
 			reg = <0x0 0x3210000 0x0 0x10000>;
 			interrupts = <0 136 0x4>; /* Level high type */
 			clocks = <&clockgen 4 3>;
+			dma-coherent;
 		};
 
 		usb0: usb3@3100000 {
@@ -672,6 +702,7 @@
 			interrupts = <0 80 0x4>; /* Level high type */
 			dr_mode = "host";
 			snps,quirk-frame-length-adjustment = <0x20>;
+			snps,dis_rxdet_inp3_quirk;
 		};
 
 		usb1: usb3@3110000 {
@@ -681,6 +712,7 @@
 			interrupts = <0 81 0x4>; /* Level high type */
 			dr_mode = "host";
 			snps,quirk-frame-length-adjustment = <0x20>;
+			snps,dis_rxdet_inp3_quirk;
 		};
 
 		ccn@4000000 {
@@ -688,5 +720,19 @@
 			reg = <0x0 0x04000000 0x0 0x01000000>;
 			interrupts = <0 12 4>;
 		};
+	};
+
+	ddr1: memory-controller@1080000 {
+		compatible = "fsl,qoriq-memory-controller";
+		reg = <0x0 0x1080000 0x0 0x1000>;
+		interrupts = <0 17 0x4>;
+		little-endian;
+	};
+
+	ddr2: memory-controller@1090000 {
+		compatible = "fsl,qoriq-memory-controller";
+		reg = <0x0 0x1090000 0x0 0x1000>;
+		interrupts = <0 18 0x4>;
+		little-endian;
 	};
 };

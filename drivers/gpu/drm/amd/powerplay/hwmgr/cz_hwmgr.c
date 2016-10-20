@@ -178,7 +178,6 @@ static int cz_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 	int result;
 
 	cz_hwmgr->gfx_ramp_step = 256*25/100;
-
 	cz_hwmgr->gfx_ramp_delay = 1; /* by default, we delay 1us */
 
 	for (i = 0; i < CZ_MAX_HARDWARE_POWERLEVELS; i++)
@@ -186,33 +185,19 @@ static int cz_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 
 	cz_hwmgr->mgcg_cgtt_local0 = 0x00000000;
 	cz_hwmgr->mgcg_cgtt_local1 = 0x00000000;
-
 	cz_hwmgr->clock_slow_down_freq = 25000;
-
 	cz_hwmgr->skip_clock_slow_down = 1;
-
 	cz_hwmgr->enable_nb_ps_policy = 1; /* disable until UNB is ready, Enabled */
-
 	cz_hwmgr->voltage_drop_in_dce_power_gating = 0; /* disable until fully verified */
-
 	cz_hwmgr->voting_rights_clients = 0x00C00033;
-
 	cz_hwmgr->static_screen_threshold = 8;
-
 	cz_hwmgr->ddi_power_gating_disabled = 0;
-
 	cz_hwmgr->bapm_enabled = 1;
-
 	cz_hwmgr->voltage_drop_threshold = 0;
-
 	cz_hwmgr->gfx_power_gating_threshold = 500;
-
 	cz_hwmgr->vce_slow_sclk_threshold = 20000;
-
 	cz_hwmgr->dce_slow_sclk_threshold = 30000;
-
 	cz_hwmgr->disable_driver_thermal_policy = 1;
-
 	cz_hwmgr->disable_nb_ps3_in_battery = 0;
 
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
@@ -220,9 +205,6 @@ static int cz_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				    PHM_PlatformCaps_NonABMSupportInPPLib);
-
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-					   PHM_PlatformCaps_SclkDeepSleep);
 
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_DynamicM3Arbiter);
@@ -233,9 +215,7 @@ static int cz_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 				  PHM_PlatformCaps_DynamicPatchPowerState);
 
 	cz_hwmgr->thermal_auto_throttling_treshold = 0;
-
 	cz_hwmgr->tdr_clock = 0;
-
 	cz_hwmgr->disable_gfx_power_gating_in_uvd = 0;
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
@@ -450,19 +430,12 @@ static int cz_construct_boot_state(struct pp_hwmgr *hwmgr)
 			(uint8_t)cz_hwmgr->sys_info.bootup_nb_voltage_index;
 
 	cz_hwmgr->boot_power_level.dsDividerIndex = 0;
-
 	cz_hwmgr->boot_power_level.ssDividerIndex = 0;
-
 	cz_hwmgr->boot_power_level.allowGnbSlow = 1;
-
 	cz_hwmgr->boot_power_level.forceNBPstate = 0;
-
 	cz_hwmgr->boot_power_level.hysteresis_up = 0;
-
 	cz_hwmgr->boot_power_level.numSIMDToPowerDown = 0;
-
 	cz_hwmgr->boot_power_level.display_wm = 0;
-
 	cz_hwmgr->boot_power_level.vce_wm = 0;
 
 	return 0;
@@ -749,7 +722,6 @@ static int cz_tf_update_sclk_limit(struct pp_hwmgr *hwmgr,
 		cz_hwmgr->sclk_dpm.soft_max_clk  = table->entries[table->count - 1].clk;
 
 	clock = hwmgr->display_config.min_core_set_clock;
-;
 	if (clock == 0)
 		printk(KERN_INFO "[ powerplay ] min_core_set_clock not set\n");
 
@@ -832,7 +804,7 @@ static int cz_tf_set_watermark_threshold(struct pp_hwmgr *hwmgr,
 
 	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 					PPSMC_MSG_SetWatermarkFrequency,
-				      cz_hwmgr->sclk_dpm.soft_max_clk);
+					cz_hwmgr->sclk_dpm.soft_max_clk);
 
 	return 0;
 }
@@ -858,9 +830,9 @@ static int cz_tf_enable_nb_dpm(struct pp_hwmgr *hwmgr,
 		PP_DBG_LOG("enabling ALL SMU features.\n");
 		dpm_features |= NB_DPM_MASK;
 		ret = smum_send_msg_to_smc_with_parameter(
-							     hwmgr->smumgr,
-					 PPSMC_MSG_EnableAllSmuFeatures,
-							     dpm_features);
+							  hwmgr->smumgr,
+							  PPSMC_MSG_EnableAllSmuFeatures,
+							  dpm_features);
 		if (ret == 0)
 			cz_hwmgr->is_nb_dpm_enabled = true;
 	}
@@ -1167,9 +1139,9 @@ static int cz_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 	cz_ps->action = cz_current_ps->action;
 
-	if ((force_high == false) && (cz_ps->action == FORCE_HIGH))
+	if (!force_high && (cz_ps->action == FORCE_HIGH))
 		cz_ps->action = CANCEL_FORCE_HIGH;
-	else if ((force_high == true) && (cz_ps->action != FORCE_HIGH))
+	else if (force_high && (cz_ps->action != FORCE_HIGH))
 		cz_ps->action = FORCE_HIGH;
 	else
 		cz_ps->action = DO_NOTHING;
@@ -1180,6 +1152,13 @@ static int cz_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 static int cz_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
+	struct cz_hwmgr *data;
+
+	data = kzalloc(sizeof(struct cz_hwmgr), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	hwmgr->backend = data;
 
 	result = cz_initialize_dpm_defaults(hwmgr);
 	if (result != 0) {
@@ -1239,7 +1218,7 @@ static int cz_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 static int cz_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr != NULL || hwmgr->backend != NULL) {
+	if (hwmgr != NULL && hwmgr->backend != NULL) {
 		kfree(hwmgr->backend);
 		kfree(hwmgr);
 	}
@@ -1395,10 +1374,12 @@ int cz_dpm_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 						   PPSMC_MSG_SetUvdHardMin));
 
 			cz_enable_disable_uvd_dpm(hwmgr, true);
-		} else
+		} else {
 			cz_enable_disable_uvd_dpm(hwmgr, true);
-	} else
+		}
+	} else {
 		cz_enable_disable_uvd_dpm(hwmgr, false);
+	}
 
 	return 0;
 }
@@ -1557,78 +1538,6 @@ int cz_get_power_state_size(struct pp_hwmgr *hwmgr)
 	return sizeof(struct cz_power_state);
 }
 
-static void
-cz_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
-{
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
-
-	struct phm_clock_voltage_dependency_table *table =
-				hwmgr->dyn_state.vddc_dependency_on_sclk;
-
-	struct phm_vce_clock_voltage_dependency_table *vce_table =
-		hwmgr->dyn_state.vce_clock_voltage_dependency_table;
-
-	struct phm_uvd_clock_voltage_dependency_table *uvd_table =
-		hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
-
-	uint32_t sclk_index = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixTARGET_AND_CURRENT_PROFILE_INDEX),
-					TARGET_AND_CURRENT_PROFILE_INDEX, CURR_SCLK_INDEX);
-	uint32_t uvd_index = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixTARGET_AND_CURRENT_PROFILE_INDEX_2),
-					TARGET_AND_CURRENT_PROFILE_INDEX_2, CURR_UVD_INDEX);
-	uint32_t vce_index = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixTARGET_AND_CURRENT_PROFILE_INDEX_2),
-					TARGET_AND_CURRENT_PROFILE_INDEX_2, CURR_VCE_INDEX);
-
-	uint32_t sclk, vclk, dclk, ecclk, tmp, activity_percent;
-	uint16_t vddnb, vddgfx;
-	int result;
-
-	if (sclk_index >= NUM_SCLK_LEVELS) {
-		seq_printf(m, "\n invalid sclk dpm profile %d\n", sclk_index);
-	} else {
-		sclk = table->entries[sclk_index].clk;
-		seq_printf(m, "\n index: %u sclk: %u MHz\n", sclk_index, sclk/100);
-	}
-
-	tmp = (cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixSMUSVI_NB_CURRENTVID) &
-		CURRENT_NB_VID_MASK) >> CURRENT_NB_VID__SHIFT;
-	vddnb = cz_convert_8Bit_index_to_voltage(hwmgr, tmp);
-	tmp = (cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixSMUSVI_GFX_CURRENTVID) &
-		CURRENT_GFX_VID_MASK) >> CURRENT_GFX_VID__SHIFT;
-	vddgfx = cz_convert_8Bit_index_to_voltage(hwmgr, (u16)tmp);
-	seq_printf(m, "\n vddnb: %u vddgfx: %u\n", vddnb, vddgfx);
-
-	seq_printf(m, "\n uvd    %sabled\n", cz_hwmgr->uvd_power_gated ? "dis" : "en");
-	if (!cz_hwmgr->uvd_power_gated) {
-		if (uvd_index >= CZ_MAX_HARDWARE_POWERLEVELS) {
-			seq_printf(m, "\n invalid uvd dpm level %d\n", uvd_index);
-		} else {
-			vclk = uvd_table->entries[uvd_index].vclk;
-			dclk = uvd_table->entries[uvd_index].dclk;
-			seq_printf(m, "\n index: %u uvd vclk: %u MHz dclk: %u MHz\n", uvd_index, vclk/100, dclk/100);
-		}
-	}
-
-	seq_printf(m, "\n vce    %sabled\n", cz_hwmgr->vce_power_gated ? "dis" : "en");
-	if (!cz_hwmgr->vce_power_gated) {
-		if (vce_index >= CZ_MAX_HARDWARE_POWERLEVELS) {
-			seq_printf(m, "\n invalid vce dpm level %d\n", vce_index);
-		} else {
-			ecclk = vce_table->entries[vce_index].ecclk;
-			seq_printf(m, "\n index: %u vce ecclk: %u MHz\n", vce_index, ecclk/100);
-		}
-	}
-
-	result = smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetAverageGraphicsActivity);
-	if (0 == result) {
-		activity_percent = cgs_read_register(hwmgr->device, mmSMU_MP1_SRBM2P_ARG_0);
-		activity_percent = activity_percent > 100 ? 100 : activity_percent;
-	} else {
-		activity_percent = 50;
-	}
-
-	seq_printf(m, "\n [GPU load]: %u %%\n\n", activity_percent);
-}
-
 static void cz_hw_print_display_cfg(
 	const struct cc6_settings *cc6_settings)
 {
@@ -1649,7 +1558,7 @@ static void cz_hw_print_display_cfg(
 	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
 	uint32_t data = 0;
 
-	if (hw_data->cc6_settings.cc6_setting_changed == true) {
+	if (hw_data->cc6_settings.cc6_setting_changed) {
 
 		hw_data->cc6_settings.cc6_setting_changed = false;
 
@@ -1683,13 +1592,10 @@ static int cz_store_cc6_data(struct pp_hwmgr *hwmgr, uint32_t separation_time,
 	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
 
 	if (separation_time !=
-		hw_data->cc6_settings.cpu_pstate_separation_time
-		|| cc6_disable !=
-		hw_data->cc6_settings.cpu_cc6_disable
-		|| pstate_disable !=
-		hw_data->cc6_settings.cpu_pstate_disable
-		|| pstate_switch_disable !=
-		hw_data->cc6_settings.nb_pstate_switch_disable) {
+	    hw_data->cc6_settings.cpu_pstate_separation_time ||
+	    cc6_disable != hw_data->cc6_settings.cpu_cc6_disable ||
+	    pstate_disable != hw_data->cc6_settings.cpu_pstate_disable ||
+	    pstate_switch_disable != hw_data->cc6_settings.nb_pstate_switch_disable) {
 
 		hw_data->cc6_settings.cc6_setting_changed = true;
 
@@ -1792,8 +1698,7 @@ static int cz_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_p
 	ps = cast_const_PhwCzPowerState(state);
 
 	level_index = index > ps->level - 1 ? ps->level - 1 : index;
-
-	level->coreClock  = ps->levels[level_index].engineClock;
+	level->coreClock = ps->levels[level_index].engineClock;
 
 	if (designation == PHM_PerformanceLevelDesignation_PowerContainment) {
 		for (i = 1; i < ps->level; i++) {
@@ -1880,6 +1785,125 @@ static int cz_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_c
 	return 0;
 }
 
+static int cz_thermal_get_temperature(struct pp_hwmgr *hwmgr)
+{
+	int actual_temp = 0;
+	uint32_t val = cgs_read_ind_register(hwmgr->device,
+					     CGS_IND_REG__SMC, ixTHM_TCON_CUR_TMP);
+	uint32_t temp = PHM_GET_FIELD(val, THM_TCON_CUR_TMP, CUR_TEMP);
+
+	if (PHM_GET_FIELD(val, THM_TCON_CUR_TMP, CUR_TEMP_RANGE_SEL))
+		actual_temp = ((temp / 8) - 49) * PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	else
+		actual_temp = (temp / 8) * PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	return actual_temp;
+}
+
+static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
+{
+	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+
+	struct phm_clock_voltage_dependency_table *table =
+				hwmgr->dyn_state.vddc_dependency_on_sclk;
+
+	struct phm_vce_clock_voltage_dependency_table *vce_table =
+		hwmgr->dyn_state.vce_clock_voltage_dependency_table;
+
+	struct phm_uvd_clock_voltage_dependency_table *uvd_table =
+		hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
+
+	uint32_t sclk_index = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixTARGET_AND_CURRENT_PROFILE_INDEX),
+					TARGET_AND_CURRENT_PROFILE_INDEX, CURR_SCLK_INDEX);
+	uint32_t uvd_index = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixTARGET_AND_CURRENT_PROFILE_INDEX_2),
+					TARGET_AND_CURRENT_PROFILE_INDEX_2, CURR_UVD_INDEX);
+	uint32_t vce_index = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixTARGET_AND_CURRENT_PROFILE_INDEX_2),
+					TARGET_AND_CURRENT_PROFILE_INDEX_2, CURR_VCE_INDEX);
+
+	uint32_t sclk, vclk, dclk, ecclk, tmp, activity_percent;
+	uint16_t vddnb, vddgfx;
+	int result;
+
+	switch (idx) {
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		if (sclk_index < NUM_SCLK_LEVELS) {
+			sclk = table->entries[sclk_index].clk;
+			*value = sclk;
+			return 0;
+		}
+		return -EINVAL;
+	case AMDGPU_PP_SENSOR_VDDNB:
+		tmp = (cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixSMUSVI_NB_CURRENTVID) &
+			CURRENT_NB_VID_MASK) >> CURRENT_NB_VID__SHIFT;
+		vddnb = cz_convert_8Bit_index_to_voltage(hwmgr, tmp);
+		*value = vddnb;
+		return 0;
+	case AMDGPU_PP_SENSOR_VDDGFX:
+		tmp = (cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixSMUSVI_GFX_CURRENTVID) &
+			CURRENT_GFX_VID_MASK) >> CURRENT_GFX_VID__SHIFT;
+		vddgfx = cz_convert_8Bit_index_to_voltage(hwmgr, (u16)tmp);
+		*value = vddgfx;
+		return 0;
+	case AMDGPU_PP_SENSOR_UVD_VCLK:
+		if (!cz_hwmgr->uvd_power_gated) {
+			if (uvd_index >= CZ_MAX_HARDWARE_POWERLEVELS) {
+				return -EINVAL;
+			} else {
+				vclk = uvd_table->entries[uvd_index].vclk;
+				*value = vclk;
+				return 0;
+			}
+		}
+		*value = 0;
+		return 0;
+	case AMDGPU_PP_SENSOR_UVD_DCLK:
+		if (!cz_hwmgr->uvd_power_gated) {
+			if (uvd_index >= CZ_MAX_HARDWARE_POWERLEVELS) {
+				return -EINVAL;
+			} else {
+				dclk = uvd_table->entries[uvd_index].dclk;
+				*value = dclk;
+				return 0;
+			}
+		}
+		*value = 0;
+		return 0;
+	case AMDGPU_PP_SENSOR_VCE_ECCLK:
+		if (!cz_hwmgr->vce_power_gated) {
+			if (vce_index >= CZ_MAX_HARDWARE_POWERLEVELS) {
+				return -EINVAL;
+			} else {
+				ecclk = vce_table->entries[vce_index].ecclk;
+				*value = ecclk;
+				return 0;
+			}
+		}
+		*value = 0;
+		return 0;
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		result = smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_GetAverageGraphicsActivity);
+		if (0 == result) {
+			activity_percent = cgs_read_register(hwmgr->device, mmSMU_MP1_SRBM2P_ARG_0);
+			activity_percent = activity_percent > 100 ? 100 : activity_percent;
+		} else {
+			activity_percent = 50;
+		}
+		*value = activity_percent;
+		return 0;
+	case AMDGPU_PP_SENSOR_UVD_POWER:
+		*value = cz_hwmgr->uvd_power_gated ? 0 : 1;
+		return 0;
+	case AMDGPU_PP_SENSOR_VCE_POWER:
+		*value = cz_hwmgr->vce_power_gated ? 0 : 1;
+		return 0;
+	case AMDGPU_PP_SENSOR_GPU_TEMP:
+		*value = cz_thermal_get_temperature(hwmgr);
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.backend_init = cz_hwmgr_backend_init,
 	.backend_fini = cz_hwmgr_backend_fini,
@@ -1895,7 +1919,6 @@ static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.patch_boot_state = cz_dpm_patch_boot_state,
 	.get_pp_table_entry = cz_dpm_get_pp_table_entry,
 	.get_num_of_pp_table_entries = cz_dpm_get_num_of_pp_table_entries,
-	.print_current_perforce_level = cz_print_current_perforce_level,
 	.set_cpu_power_state = cz_set_cpu_power_state,
 	.store_cc6_data = cz_store_cc6_data,
 	.force_clock_level = cz_force_clock_level,
@@ -1905,19 +1928,12 @@ static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.get_current_shallow_sleep_clocks = cz_get_current_shallow_sleep_clocks,
 	.get_clock_by_type = cz_get_clock_by_type,
 	.get_max_high_clocks = cz_get_max_high_clocks,
+	.read_sensor = cz_read_sensor,
 };
 
 int cz_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr;
-	int ret = 0;
-
-	cz_hwmgr = kzalloc(sizeof(struct cz_hwmgr), GFP_KERNEL);
-	if (cz_hwmgr == NULL)
-		return -ENOMEM;
-
-	hwmgr->backend = cz_hwmgr;
 	hwmgr->hwmgr_func = &cz_hwmgr_funcs;
 	hwmgr->pptable_func = &pptable_funcs;
-	return ret;
+	return 0;
 }

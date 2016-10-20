@@ -163,9 +163,8 @@ static int __init weim_parse_dt(struct platform_device *pdev,
 	}
 
 	if (have_child)
-		ret = of_platform_populate(pdev->dev.of_node,
-				   of_default_bus_match_table,
-				   NULL, &pdev->dev);
+		ret = of_platform_default_populate(pdev->dev.of_node,
+						   NULL, &pdev->dev);
 	if (ret)
 		dev_err(&pdev->dev, "%s fail to create devices.\n",
 			pdev->dev.of_node->full_name);

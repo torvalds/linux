@@ -32,12 +32,19 @@ static void xgene_cle_sband_to_hw(u8 frag, enum xgene_cle_prot_version ver,
 		SET_VAL(SB_HDRLEN, len);
 }
 
-static void xgene_cle_idt_to_hw(u32 dstqid, u32 fpsel,
+static void xgene_cle_idt_to_hw(struct xgene_enet_pdata *pdata,
+				u32 dstqid, u32 fpsel,
 				u32 nfpsel, u32 *idt_reg)
 {
-	*idt_reg =  SET_VAL(IDT_DSTQID, dstqid) |
-		    SET_VAL(IDT_FPSEL, fpsel) |
-		    SET_VAL(IDT_NFPSEL, nfpsel);
+	if (pdata->enet_id == XGENE_ENET1) {
+		*idt_reg = SET_VAL(IDT_DSTQID, dstqid) |
+			   SET_VAL(IDT_FPSEL1, fpsel)  |
+			   SET_VAL(IDT_NFPSEL1, nfpsel);
+	} else {
+		*idt_reg = SET_VAL(IDT_DSTQID, dstqid) |
+			   SET_VAL(IDT_FPSEL, fpsel)   |
+			   SET_VAL(IDT_NFPSEL, nfpsel);
+	}
 }
 
 static void xgene_cle_dbptr_to_hw(struct xgene_enet_pdata *pdata,
@@ -344,7 +351,7 @@ static int xgene_cle_set_rss_idt(struct xgene_enet_pdata *pdata)
 		nfpsel = 0;
 		idt_reg = 0;
 
-		xgene_cle_idt_to_hw(dstqid, fpsel, nfpsel, &idt_reg);
+		xgene_cle_idt_to_hw(pdata, dstqid, fpsel, nfpsel, &idt_reg);
 		ret = xgene_cle_dram_wr(&pdata->cle, &idt_reg, 1, i,
 					RSS_IDT, CLE_CMD_WR);
 		if (ret)

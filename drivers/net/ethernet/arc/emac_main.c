@@ -749,14 +749,16 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	err = of_address_to_resource(dev->of_node, 0, &res_regs);
 	if (err) {
 		dev_err(dev, "failed to retrieve registers base from device tree\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto out_put_node;
 	}
 
 	/* Get IRQ from device tree */
 	irq = irq_of_parse_and_map(dev->of_node, 0);
 	if (!irq) {
 		dev_err(dev, "failed to retrieve <irq> value from device tree\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto out_put_node;
 	}
 
 	ndev->netdev_ops = &arc_emac_netdev_ops;
@@ -769,8 +771,10 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	priv->dev = dev;
 
 	priv->regs = devm_ioremap_resource(dev, &res_regs);
-	if (IS_ERR(priv->regs))
-		return PTR_ERR(priv->regs);
+	if (IS_ERR(priv->regs)) {
+		err = PTR_ERR(priv->regs);
+		goto out_put_node;
+	}
 
 	dev_dbg(dev, "Registers base address is 0x%p\n", priv->regs);
 
@@ -778,7 +782,7 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 		err = clk_prepare_enable(priv->clk);
 		if (err) {
 			dev_err(dev, "failed to enable clock\n");
-			return err;
+			goto out_put_node;
 		}
 
 		clock_frequency = clk_get_rate(priv->clk);
@@ -787,7 +791,8 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 		if (of_property_read_u32(dev->of_node, "clock-frequency",
 					 &clock_frequency)) {
 			dev_err(dev, "failed to retrieve <clock-frequency> from device tree\n");
-			return -EINVAL;
+			err = -EINVAL;
+			goto out_put_node;
 		}
 	}
 
@@ -867,6 +872,7 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 		goto out_netif_api;
 	}
 
+	of_node_put(phy_node);
 	return 0;
 
 out_netif_api:
@@ -877,6 +883,9 @@ out_mdio:
 out_clken:
 	if (priv->clk)
 		clk_disable_unprepare(priv->clk);
+out_put_node:
+	of_node_put(phy_node);
+
 	return err;
 }
 EXPORT_SYMBOL_GPL(arc_emac_probe);

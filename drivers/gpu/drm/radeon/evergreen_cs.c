@@ -2209,6 +2209,12 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 		}
 		break;
 	}
+	case PACKET3_PFP_SYNC_ME:
+		if (pkt->count) {
+			DRM_ERROR("bad PFP_SYNC_ME\n");
+			return -EINVAL;
+		}
+		break;
 	case PACKET3_SURFACE_SYNC:
 		if (pkt->count != 3) {
 			DRM_ERROR("bad SURFACE_SYNC\n");
@@ -3381,6 +3387,7 @@ static int evergreen_vm_packet3_check(struct radeon_device *rdev,
 	case PACKET3_MPEG_INDEX:
 	case PACKET3_WAIT_REG_MEM:
 	case PACKET3_MEM_WRITE:
+	case PACKET3_PFP_SYNC_ME:
 	case PACKET3_SURFACE_SYNC:
 	case PACKET3_EVENT_WRITE:
 	case PACKET3_EVENT_WRITE_EOP:

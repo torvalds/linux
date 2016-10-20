@@ -39,6 +39,12 @@
 
 #define EXT_ACC           0xe4
 
+#define SDHI_VER_GEN2_SDR50	0x490c
+/* very old datasheets said 0x490c for SDR104, too. They are wrong! */
+#define SDHI_VER_GEN2_SDR104	0xcb0d
+#define SDHI_VER_GEN3_SD	0xcc10
+#define SDHI_VER_GEN3_SDMMC	0xcd10
+
 #define host_to_priv(host) container_of((host)->pdata, struct sh_mobile_sdhi, mmc_data)
 
 struct sh_mobile_sdhi_of_data {
@@ -88,6 +94,7 @@ static const struct of_device_id sh_mobile_sdhi_of_match[] = {
 	{ .compatible = "renesas,sdhi-r8a7793", .data = &of_rcar_gen2_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7794", .data = &of_rcar_gen2_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7795", .data = &of_rcar_gen3_compatible, },
+	{ .compatible = "renesas,sdhi-r8a7796", .data = &of_rcar_gen3_compatible, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sh_mobile_sdhi_of_match);
@@ -109,14 +116,14 @@ static void sh_mobile_sdhi_sdbuf_width(struct tmio_mmc_host *host, int width)
 	 *	sh_mobile_sdhi_of_data :: dma_buswidth
 	 */
 	switch (sd_ctrl_read16(host, CTL_VERSION)) {
-	case 0x490C:
+	case SDHI_VER_GEN2_SDR50:
 		val = (width == 32) ? 0x0001 : 0x0000;
 		break;
-	case 0xCB0D:
+	case SDHI_VER_GEN2_SDR104:
 		val = (width == 32) ? 0x0000 : 0x0001;
 		break;
-	case 0xCC10: /* Gen3, SD only */
-	case 0xCD10: /* Gen3, SD + MMC */
+	case SDHI_VER_GEN3_SD:
+	case SDHI_VER_GEN3_SDMMC:
 		if (width == 64)
 			val = 0x0000;
 		else if (width == 32)
@@ -205,6 +212,13 @@ static void sh_mobile_sdhi_clk_disable(struct tmio_mmc_host *host)
 	struct sh_mobile_sdhi *priv = host_to_priv(host);
 
 	clk_disable_unprepare(priv->clk);
+}
+
+static int sh_mobile_sdhi_card_busy(struct mmc_host *mmc)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+
+	return !(sd_ctrl_read16_and_16_as_32(host, CTL_STATUS) & TMIO_STAT_DAT0);
 }
 
 static int sh_mobile_sdhi_start_signal_voltage_switch(struct mmc_host *mmc,
@@ -363,7 +377,14 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	host->clk_update	= sh_mobile_sdhi_clk_update;
 	host->clk_disable	= sh_mobile_sdhi_clk_disable;
 	host->multi_io_quirk	= sh_mobile_sdhi_multi_io_quirk;
-	host->start_signal_voltage_switch = sh_mobile_sdhi_start_signal_voltage_switch;
+
+	/* SDR speeds are only available on Gen2+ */
+	if (mmc_data->flags & TMIO_MMC_MIN_RCAR2) {
+		/* card_busy caused issues on r8a73a4 (pre-Gen2) CD-less SDHI */
+		host->card_busy	= sh_mobile_sdhi_card_busy;
+		host->start_signal_voltage_switch =
+			sh_mobile_sdhi_start_signal_voltage_switch;
+	}
 
 	/* Orginally registers were 16 bit apart, could be 32 or 64 nowadays */
 	if (!host->bus_shift && resource_size(res) > 0x100) /* old way to determine the shift */

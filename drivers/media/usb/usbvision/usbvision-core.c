@@ -2303,11 +2303,8 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 		struct urb *urb;
 
 		urb = usb_alloc_urb(USBVISION_URB_FRAMES, GFP_KERNEL);
-		if (urb == NULL) {
-			dev_err(&usbvision->dev->dev,
-				"%s: usb_alloc_urb() failed\n", __func__);
+		if (urb == NULL)
 			return -ENOMEM;
-		}
 		usbvision->sbuf[buf_idx].urb = urb;
 		usbvision->sbuf[buf_idx].data =
 			usb_alloc_coherent(usbvision->dev,

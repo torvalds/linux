@@ -130,20 +130,20 @@ int rxrpc_init_server_conn_security(struct rxrpc_connection *conn)
 	}
 
 	/* find the service */
-	read_lock_bh(&local->services_lock);
-	list_for_each_entry(rx, &local->services, listen_link) {
-		if (rx->srx.srx_service == conn->params.service_id)
-			goto found_service;
-	}
+	read_lock(&local->services_lock);
+	rx = rcu_dereference_protected(local->service,
+				       lockdep_is_held(&local->services_lock));
+	if (rx && rx->srx.srx_service == conn->params.service_id)
+		goto found_service;
 
 	/* the service appears to have died */
-	read_unlock_bh(&local->services_lock);
+	read_unlock(&local->services_lock);
 	_leave(" = -ENOENT");
 	return -ENOENT;
 
 found_service:
 	if (!rx->securities) {
-		read_unlock_bh(&local->services_lock);
+		read_unlock(&local->services_lock);
 		_leave(" = -ENOKEY");
 		return -ENOKEY;
 	}
@@ -152,13 +152,13 @@ found_service:
 	kref = keyring_search(make_key_ref(rx->securities, 1UL),
 			      &key_type_rxrpc_s, kdesc);
 	if (IS_ERR(kref)) {
-		read_unlock_bh(&local->services_lock);
+		read_unlock(&local->services_lock);
 		_leave(" = %ld [search]", PTR_ERR(kref));
 		return PTR_ERR(kref);
 	}
 
 	key = key_ref_to_ptr(kref);
-	read_unlock_bh(&local->services_lock);
+	read_unlock(&local->services_lock);
 
 	conn->server_key = key;
 	conn->security = sec;

@@ -614,7 +614,7 @@ static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
 			(!pin->eld.eld_valid)) {
 
 		dev_warn(&hdac->hdac.dev,
-			"Failed: montior present? %d ELD valid?: %d for pin: %d\n",
+			"Failed: monitor present? %d ELD valid?: %d for pin: %d\n",
 			pin->eld.monitor_present, pin->eld.eld_valid, pin->nid);
 
 		return 0;
@@ -1124,8 +1124,10 @@ static void hdac_hdmi_present_sense(struct hdac_hdmi_pin *pin, int repoll)
 			}
 			hdac_hdmi_parse_eld(edev, pin);
 
-			print_hex_dump_bytes("ELD: ", DUMP_PREFIX_OFFSET,
-					pin->eld.eld_buffer, pin->eld.eld_size);
+			print_hex_dump_debug("ELD: ",
+					DUMP_PREFIX_OFFSET, 16, 1,
+					pin->eld.eld_buffer, pin->eld.eld_size,
+					true);
 		} else {
 			pin->eld.monitor_present = false;
 			pin->eld.eld_valid = false;
@@ -1816,6 +1818,7 @@ static const struct dev_pm_ops hdac_hdmi_pm = {
 static const struct hda_device_id hdmi_list[] = {
 	HDA_CODEC_EXT_ENTRY(0x80862809, 0x100000, "Skylake HDMI", 0),
 	HDA_CODEC_EXT_ENTRY(0x8086280a, 0x100000, "Broxton HDMI", 0),
+	HDA_CODEC_EXT_ENTRY(0x8086280b, 0x100000, "Kabylake HDMI", 0),
 	{}
 };
 

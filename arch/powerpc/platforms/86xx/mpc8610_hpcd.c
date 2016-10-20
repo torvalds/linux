@@ -319,9 +319,7 @@ static void __init mpc86xx_hpcd_setup_arch(void)
  */
 static int __init mpc86xx_hpcd_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (of_flat_dt_is_compatible(root, "fsl,MPC8610HPCD"))
+	if (of_machine_is_compatible("fsl,MPC8610HPCD"))
 		return 1;	/* Looks good */
 
 	return 0;
@@ -333,7 +331,6 @@ define_machine(mpc86xx_hpcd) {
 	.setup_arch		= mpc86xx_hpcd_setup_arch,
 	.init_IRQ		= mpc86xx_init_irq,
 	.get_irq		= mpic_get_irq,
-	.restart		= fsl_rstcr_restart,
 	.time_init		= mpc86xx_time_init,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,

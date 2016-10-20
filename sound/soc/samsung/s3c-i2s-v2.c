@@ -24,7 +24,6 @@
 
 #include "regs-i2s-v2.h"
 #include "s3c-i2s-v2.h"
-#include "dma.h"
 
 #undef S3C_IIS_V2_SUPPORTED
 
@@ -268,7 +267,7 @@ static int s3c2412_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		iismod &= ~S3C2412_IISMOD_SLAVE;
 		break;
 	default:
-		pr_err("unknwon master/slave format\n");
+		pr_err("unknown master/slave format\n");
 		return -EINVAL;
 	}
 
@@ -302,7 +301,7 @@ static int s3c_i2sv2_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	struct s3c_i2sv2_info *i2s = to_info(dai);
-	struct s3c_dma_params *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 	u32 iismod;
 
 	pr_debug("Entered %s\n", __func__);

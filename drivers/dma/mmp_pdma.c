@@ -864,19 +864,15 @@ static void dma_do_tasklet(unsigned long data)
 	struct mmp_pdma_desc_sw *desc, *_desc;
 	LIST_HEAD(chain_cleanup);
 	unsigned long flags;
+	struct dmaengine_desc_callback cb;
 
 	if (chan->cyclic_first) {
-		dma_async_tx_callback cb = NULL;
-		void *cb_data = NULL;
-
 		spin_lock_irqsave(&chan->desc_lock, flags);
 		desc = chan->cyclic_first;
-		cb = desc->async_tx.callback;
-		cb_data = desc->async_tx.callback_param;
+		dmaengine_desc_get_callback(&desc->async_tx, &cb);
 		spin_unlock_irqrestore(&chan->desc_lock, flags);
 
-		if (cb)
-			cb(cb_data);
+		dmaengine_desc_callback_invoke(&cb, NULL);
 
 		return;
 	}
@@ -921,8 +917,8 @@ static void dma_do_tasklet(unsigned long data)
 		/* Remove from the list of transactions */
 		list_del(&desc->node);
 		/* Run the link descriptor callback function */
-		if (txd->callback)
-			txd->callback(txd->callback_param);
+		dmaengine_desc_get_callback(txd, &cb);
+		dmaengine_desc_callback_invoke(&cb, NULL);
 
 		dma_pool_free(chan->desc_pool, desc, txd->phys);
 	}
@@ -931,6 +927,25 @@ static void dma_do_tasklet(unsigned long data)
 static int mmp_pdma_remove(struct platform_device *op)
 {
 	struct mmp_pdma_device *pdev = platform_get_drvdata(op);
+	struct mmp_pdma_phy *phy;
+	int i, irq = 0, irq_num = 0;
+
+
+	for (i = 0; i < pdev->dma_channels; i++) {
+		if (platform_get_irq(op, i) > 0)
+			irq_num++;
+	}
+
+	if (irq_num != pdev->dma_channels) {
+		irq = platform_get_irq(op, 0);
+		devm_free_irq(&op->dev, irq, pdev);
+	} else {
+		for (i = 0; i < pdev->dma_channels; i++) {
+			phy = &pdev->phy[i];
+			irq = platform_get_irq(op, i);
+			devm_free_irq(&op->dev, irq, phy);
+		}
+	}
 
 	dma_async_device_unregister(&pdev->device);
 	return 0;

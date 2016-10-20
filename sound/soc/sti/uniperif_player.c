@@ -100,7 +100,7 @@ static irqreturn_t uni_player_irq_handler(int irq, void *dev_id)
 		dev_err(player->dev, "FIFO underflow error detected");
 
 		/* Interrupt is just for information when underflow recovery */
-		if (player->info->underflow_enabled) {
+		if (player->underflow_enabled) {
 			/* Update state to underflow */
 			player->state = UNIPERIF_STATE_UNDERFLOW;
 
@@ -134,7 +134,7 @@ static irqreturn_t uni_player_irq_handler(int irq, void *dev_id)
 
 	/* Check for underflow recovery done */
 	if (unlikely(status & UNIPERIF_ITM_UNDERFLOW_REC_DONE_MASK(player))) {
-		if (!player->info->underflow_enabled) {
+		if (!player->underflow_enabled) {
 			dev_err(player->dev, "unexpected Underflow recovering");
 			return -EPERM;
 		}
@@ -764,7 +764,7 @@ static int uni_player_prepare(struct snd_pcm_substream *substream,
 	}
 
 	/* Calculate transfer size (in fifo cells and bytes) for frame count */
-	if (player->info->type == SND_ST_UNIPERIF_TYPE_TDM) {
+	if (player->type == SND_ST_UNIPERIF_TYPE_TDM) {
 		/* transfer size = user frame size (in 32 bits FIFO cell) */
 		transfer_size =
 			sti_uniperiph_get_user_frame_size(runtime) / 4;
@@ -794,7 +794,7 @@ static int uni_player_prepare(struct snd_pcm_substream *substream,
 	SET_UNIPERIF_CONFIG_DMA_TRIG_LIMIT(player, trigger_limit);
 
 	/* Uniperipheral setup depends on player type */
-	switch (player->info->type) {
+	switch (player->type) {
 	case SND_ST_UNIPERIF_TYPE_HDMI:
 		ret = uni_player_prepare_iec958(player, runtime);
 		break;
@@ -884,7 +884,7 @@ static int uni_player_start(struct uniperif *player)
 	SET_UNIPERIF_ITM_BSET_FIFO_ERROR(player);
 
 	/* Enable underflow recovery interrupts */
-	if (player->info->underflow_enabled) {
+	if (player->underflow_enabled) {
 		SET_UNIPERIF_ITM_BSET_UNDERFLOW_REC_DONE(player);
 		SET_UNIPERIF_ITM_BSET_UNDERFLOW_REC_FAILED(player);
 	}
@@ -893,8 +893,10 @@ static int uni_player_start(struct uniperif *player)
 	SET_UNIPERIF_SOFT_RST_SOFT_RST(player);
 
 	ret = reset_player(player);
-	if (ret < 0)
+	if (ret < 0) {
+		clk_disable_unprepare(player->clk);
 		return ret;
+	}
 
 	/*
 	 * Does not use IEC61937 features of the uniperipheral hardware.
@@ -1021,75 +1023,21 @@ static int uni_player_parse_dt_audio_glue(struct platform_device *pdev,
 	struct reg_field regfield[2] = {
 		/* PCM_CLK_SEL */
 		REG_FIELD(SYS_CFG_AUDIO_GLUE,
-			  8 + player->info->id,
-			  8 + player->info->id),
+			  8 + player->id,
+			  8 + player->id),
 		/* PCMP_VALID_SEL */
 		REG_FIELD(SYS_CFG_AUDIO_GLUE, 0, 1)
 	};
 
 	regmap = syscon_regmap_lookup_by_phandle(node, "st,syscfg");
 
-	if (!regmap) {
+	if (IS_ERR(regmap)) {
 		dev_err(&pdev->dev, "sti-audio-clk-glue syscf not found\n");
-		return -EINVAL;
+		return PTR_ERR(regmap);
 	}
 
 	player->clk_sel = regmap_field_alloc(regmap, regfield[0]);
 	player->valid_sel = regmap_field_alloc(regmap, regfield[1]);
-
-	return 0;
-}
-
-static int uni_player_parse_dt(struct platform_device *pdev,
-			       struct uniperif *player)
-{
-	struct uniperif_info *info;
-	struct device *dev = &pdev->dev;
-	struct device_node *pnode = pdev->dev.of_node;
-	const char *mode;
-
-	/* Allocate memory for the info structure */
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-
-	if (of_property_read_u32(pnode, "st,version", &player->ver) ||
-	    player->ver == SND_ST_UNIPERIF_VERSION_UNKNOWN) {
-		dev_err(dev, "Unknown uniperipheral version ");
-		return -EINVAL;
-	}
-	/* Underflow recovery is only supported on later ip revisions */
-	if (player->ver >= SND_ST_UNIPERIF_VERSION_UNI_PLR_TOP_1_0)
-		info->underflow_enabled = 1;
-
-	if (of_property_read_u32(pnode, "st,uniperiph-id", &info->id)) {
-		dev_err(dev, "uniperipheral id not defined");
-		return -EINVAL;
-	}
-
-	/* Read the device mode property */
-	if (of_property_read_string(pnode, "st,mode", &mode)) {
-		dev_err(dev, "uniperipheral mode not defined");
-		return -EINVAL;
-	}
-
-	if (strcasecmp(mode, "hdmi") == 0)
-		info->type = SND_ST_UNIPERIF_TYPE_HDMI;
-	else if (strcasecmp(mode, "pcm") == 0)
-		info->type = SND_ST_UNIPERIF_TYPE_PCM;
-	else if (strcasecmp(mode, "spdif") == 0)
-		info->type = SND_ST_UNIPERIF_TYPE_SPDIF;
-	else if (strcasecmp(mode, "tdm") == 0)
-		info->type = SND_ST_UNIPERIF_TYPE_TDM;
-	else
-		info->type = SND_ST_UNIPERIF_TYPE_NONE;
-
-	/* Save the info structure */
-	player->info = info;
-
-	/* Get PCM_CLK_SEL & PCMP_VALID_SEL from audio-glue-ctrl SoC reg */
-	if (uni_player_parse_dt_audio_glue(pdev, player))
-		return -EINVAL;
 
 	return 0;
 }
@@ -1114,12 +1062,17 @@ int uni_player_init(struct platform_device *pdev,
 	player->state = UNIPERIF_STATE_STOPPED;
 	player->dai_ops = &uni_player_dai_ops;
 
-	ret = uni_player_parse_dt(pdev, player);
+	/* Get PCM_CLK_SEL & PCMP_VALID_SEL from audio-glue-ctrl SoC reg */
+	ret = uni_player_parse_dt_audio_glue(pdev, player);
 
 	if (ret < 0) {
 		dev_err(player->dev, "Failed to parse DeviceTree");
 		return ret;
 	}
+
+	/* Underflow recovery is only supported on later ip revisions */
+	if (player->ver >= SND_ST_UNIPERIF_VERSION_UNI_PLR_TOP_1_0)
+		player->underflow_enabled = 1;
 
 	if (UNIPERIF_TYPE_IS_TDM(player))
 		player->hw = &uni_tdm_hw;
@@ -1144,8 +1097,8 @@ int uni_player_init(struct platform_device *pdev,
 
 	/* connect to I2S/TDM TX bus */
 	if (player->valid_sel &&
-	    (player->info->id == UNIPERIF_PLAYER_I2S_OUT)) {
-		ret = regmap_field_write(player->valid_sel, player->info->id);
+	    (player->id == UNIPERIF_PLAYER_I2S_OUT)) {
+		ret = regmap_field_write(player->valid_sel, player->id);
 		if (ret) {
 			dev_err(player->dev,
 				"%s: unable to connect to tdm bus", __func__);

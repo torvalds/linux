@@ -769,21 +769,11 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 			rawir.pulse ? "pulse" : "space", rawir.duration);
 
 		ir_raw_event_store_with_filter(nvt->rdev, &rawir);
-
-		/*
-		 * BUF_PULSE_BIT indicates end of IR data, BUF_REPEAT_BYTE
-		 * indicates end of IR signal, but new data incoming. In both
-		 * cases, it means we're ready to call ir_raw_event_handle
-		 */
-		if ((sample == BUF_PULSE_BIT) && (i + 1 < nvt->pkts)) {
-			nvt_dbg("Calling ir_raw_event_handle (signal end)\n");
-			ir_raw_event_handle(nvt->rdev);
-		}
 	}
 
 	nvt->pkts = 0;
 
-	nvt_dbg("Calling ir_raw_event_handle (buffer empty)\n");
+	nvt_dbg("Calling ir_raw_event_handle\n");
 	ir_raw_event_handle(nvt->rdev);
 
 	nvt_dbg_verbose("%s done", __func__);
@@ -801,8 +791,7 @@ static void nvt_handle_rx_fifo_overrun(struct nvt_dev *nvt)
 /* copy data from hardware rx fifo into driver buffer */
 static void nvt_get_rx_ir_data(struct nvt_dev *nvt)
 {
-	u8 fifocount, val;
-	unsigned int b_idx;
+	u8 fifocount;
 	int i;
 
 	/* Get count of how many bytes to read from RX FIFO */
@@ -810,21 +799,11 @@ static void nvt_get_rx_ir_data(struct nvt_dev *nvt)
 
 	nvt_dbg("attempting to fetch %u bytes from hw rx fifo", fifocount);
 
-	b_idx = nvt->pkts;
-
-	/* This should never happen, but lets check anyway... */
-	if (b_idx + fifocount > RX_BUF_LEN) {
-		nvt_process_rx_ir_data(nvt);
-		b_idx = 0;
-	}
-
 	/* Read fifocount bytes from CIR Sample RX FIFO register */
-	for (i = 0; i < fifocount; i++) {
-		val = nvt_cir_reg_read(nvt, CIR_SRXFIFO);
-		nvt->buf[b_idx + i] = val;
-	}
+	for (i = 0; i < fifocount; i++)
+		nvt->buf[i] = nvt_cir_reg_read(nvt, CIR_SRXFIFO);
 
-	nvt->pkts += fifocount;
+	nvt->pkts = fifocount;
 	nvt_dbg("%s: pkts now %d", __func__, nvt->pkts);
 
 	nvt_process_rx_ir_data(nvt);
@@ -885,6 +864,15 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	 */
 	status = nvt_cir_reg_read(nvt, CIR_IRSTS);
 	iren = nvt_cir_reg_read(nvt, CIR_IREN);
+
+	/* At least NCT6779D creates a spurious interrupt when the
+	 * logical device is being disabled.
+	 */
+	if (status == 0xff && iren == 0xff) {
+		spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+		nvt_dbg_verbose("Spurious interrupt detected");
+		return IRQ_HANDLED;
+	}
 
 	/* IRQ may be shared with CIR WAKE, therefore check for each
 	 * status bit whether the related interrupt source is enabled

@@ -15,10 +15,6 @@ struct nf_proto_net {
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header *ctl_table_header;
 	struct ctl_table        *ctl_table;
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-	struct ctl_table_header *ctl_compat_header;
-	struct ctl_table        *ctl_compat_table;
-#endif
 #endif
 	unsigned int		users;
 };
@@ -58,10 +54,6 @@ struct nf_ip_net {
 	struct nf_udp_net	udp;
 	struct nf_icmp_net	icmp;
 	struct nf_icmp_net	icmpv6;
-#if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
-	struct ctl_table_header *ctl_table_header;
-	struct ctl_table	*ctl_table;
-#endif
 };
 
 struct ct_pcpu {

@@ -13,6 +13,7 @@
 
 #include <drm/drmP.h>
 
+#include "sti_drv.h"
 #include "sti_vtg.h"
 
 #define VTG_MODE_MASTER         0
@@ -65,14 +66,14 @@
 #define HDMI_DELAY          (5)
 
 /* Delay introduced by the DVO in nb of pixel */
-#define DVO_DELAY           (2)
+#define DVO_DELAY           (7)
 
 /* delay introduced by the Arbitrary Waveform Generator in nb of pixels */
 #define AWG_DELAY_HD        (-9)
 #define AWG_DELAY_ED        (-8)
 #define AWG_DELAY_SD        (-7)
 
-LIST_HEAD(vtg_lookup);
+static LIST_HEAD(vtg_lookup);
 
 /*
  * STI VTG register offset structure
@@ -432,6 +433,7 @@ static int vtg_probe(struct platform_device *pdev)
 	np = of_parse_phandle(pdev->dev.of_node, "st,slave", 0);
 	if (np) {
 		vtg->slave = of_vtg_find(np);
+		of_node_put(np);
 
 		if (!vtg->slave)
 			return -EPROBE_DEFER;

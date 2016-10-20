@@ -96,13 +96,11 @@ mpc86xx_hpcn_show_cpuinfo(struct seq_file *m)
  */
 static int __init mpc86xx_hpcn_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (of_flat_dt_is_compatible(root, "fsl,mpc8641hpcn"))
+	if (of_machine_is_compatible("fsl,mpc8641hpcn"))
 		return 1;	/* Looks good */
 
 	/* Be nice and don't give silent boot death.  Delete this in 2.6.27 */
-	if (of_flat_dt_is_compatible(root, "mpc86xx")) {
+	if (of_machine_is_compatible("mpc86xx")) {
 		pr_warning("WARNING: your dts/dtb is old. You must update before the next kernel release\n");
 		return 1;
 	}
@@ -132,7 +130,6 @@ define_machine(mpc86xx_hpcn) {
 	.init_IRQ		= mpc86xx_init_irq,
 	.show_cpuinfo		= mpc86xx_hpcn_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
-	.restart		= fsl_rstcr_restart,
 	.time_init		= mpc86xx_time_init,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,

@@ -82,10 +82,6 @@ struct exception_table_entry {
 	unsigned long insn, fixup;
 };
 
-/* Returns 0 if exception not found and fixup otherwise.  */
-extern unsigned long search_exception_table(unsigned long);
-extern void sort_exception_table(void);
-
 /*
  * These are the main single-value transfer routines.  They automatically
  * use the right size if we just have the right pointer type.
@@ -273,28 +269,20 @@ __copy_tofrom_user(void *to, const void *from, unsigned long size);
 static inline unsigned long
 copy_from_user(void *to, const void *from, unsigned long n)
 {
-	unsigned long over;
+	unsigned long res = n;
 
-	if (access_ok(VERIFY_READ, from, n))
-		return __copy_tofrom_user(to, from, n);
-	if ((unsigned long)from < TASK_SIZE) {
-		over = (unsigned long)from + n - TASK_SIZE;
-		return __copy_tofrom_user(to, from, n - over) + over;
-	}
-	return n;
+	if (likely(access_ok(VERIFY_READ, from, n)))
+		res = __copy_tofrom_user(to, from, n);
+	if (unlikely(res))
+		memset(to + (n - res), 0, res);
+	return res;
 }
 
 static inline unsigned long
 copy_to_user(void *to, const void *from, unsigned long n)
 {
-	unsigned long over;
-
-	if (access_ok(VERIFY_WRITE, to, n))
-		return __copy_tofrom_user(to, from, n);
-	if ((unsigned long)to < TASK_SIZE) {
-		over = (unsigned long)to + n - TASK_SIZE;
-		return __copy_tofrom_user(to, from, n - over) + over;
-	}
+	if (likely(access_ok(VERIFY_WRITE, to, n)))
+		n = __copy_tofrom_user(to, from, n);
 	return n;
 }
 
@@ -303,13 +291,8 @@ extern unsigned long __clear_user(void *addr, unsigned long size);
 static inline __must_check unsigned long
 clear_user(void *addr, unsigned long size)
 {
-
-	if (access_ok(VERIFY_WRITE, addr, size))
-		return __clear_user(addr, size);
-	if ((unsigned long)addr < TASK_SIZE) {
-		unsigned long over = (unsigned long)addr + size - TASK_SIZE;
-		return __clear_user(addr, size - over) + over;
-	}
+	if (likely(access_ok(VERIFY_WRITE, addr, size)))
+		size = __clear_user(addr, size);
 	return size;
 }
 

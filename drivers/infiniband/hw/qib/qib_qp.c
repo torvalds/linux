@@ -41,14 +41,6 @@
 
 #include "qib.h"
 
-/*
- * mask field which was present in now deleted qib_qpn_table
- * is not present in rvt_qpn_table. Defining the same field
- * as qpt_mask here instead of adding the mask field to
- * rvt_qpn_table.
- */
-u16 qpt_mask;
-
 static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
 			      struct rvt_qpn_map *map, unsigned off)
 {
@@ -57,7 +49,7 @@ static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
 
 static inline unsigned find_next_offset(struct rvt_qpn_table *qpt,
 					struct rvt_qpn_map *map, unsigned off,
-					unsigned n)
+					unsigned n, u16 qpt_mask)
 {
 	if (qpt_mask) {
 		off++;
@@ -106,6 +98,49 @@ static u32 credit_table[31] = {
 	32768                   /* 1E */
 };
 
+const struct rvt_operation_params qib_post_parms[RVT_OPERATION_MAX] = {
+[IB_WR_RDMA_WRITE] = {
+	.length = sizeof(struct ib_rdma_wr),
+	.qpt_support = BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+},
+
+[IB_WR_RDMA_READ] = {
+	.length = sizeof(struct ib_rdma_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_ATOMIC,
+},
+
+[IB_WR_ATOMIC_CMP_AND_SWP] = {
+	.length = sizeof(struct ib_atomic_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_ATOMIC | RVT_OPERATION_ATOMIC_SGE,
+},
+
+[IB_WR_ATOMIC_FETCH_AND_ADD] = {
+	.length = sizeof(struct ib_atomic_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_ATOMIC | RVT_OPERATION_ATOMIC_SGE,
+},
+
+[IB_WR_RDMA_WRITE_WITH_IMM] = {
+	.length = sizeof(struct ib_rdma_wr),
+	.qpt_support = BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+},
+
+[IB_WR_SEND] = {
+	.length = sizeof(struct ib_send_wr),
+	.qpt_support = BIT(IB_QPT_UD) | BIT(IB_QPT_SMI) | BIT(IB_QPT_GSI) |
+		       BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+},
+
+[IB_WR_SEND_WITH_IMM] = {
+	.length = sizeof(struct ib_send_wr),
+	.qpt_support = BIT(IB_QPT_UD) | BIT(IB_QPT_SMI) | BIT(IB_QPT_GSI) |
+		       BIT(IB_QPT_UC) | BIT(IB_QPT_RC),
+},
+
+};
+
 static void get_map_page(struct rvt_qpn_table *qpt, struct rvt_qpn_map *map,
 			 gfp_t gfp)
 {
@@ -136,6 +171,7 @@ int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 	struct qib_ibdev *verbs_dev = container_of(rdi, struct qib_ibdev, rdi);
 	struct qib_devdata *dd = container_of(verbs_dev, struct qib_devdata,
 					      verbs_dev);
+	u16 qpt_mask = dd->qpn_mask;
 
 	if (type == IB_QPT_SMI || type == IB_QPT_GSI) {
 		unsigned n;
@@ -172,7 +208,7 @@ int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 				goto bail;
 			}
 			offset = find_next_offset(qpt, map, offset,
-				dd->n_krcv_queues);
+				dd->n_krcv_queues, qpt_mask);
 			qpn = mk_qpn(qpt, map, offset);
 			/*
 			 * This test differs from alloc_pidmap().
@@ -530,10 +566,6 @@ struct qib_qp_iter *qib_qp_iter_init(struct qib_ibdev *dev)
 		return NULL;
 
 	iter->dev = dev;
-	if (qib_qp_iter_next(iter)) {
-		kfree(iter);
-		return NULL;
-	}
 
 	return iter;
 }

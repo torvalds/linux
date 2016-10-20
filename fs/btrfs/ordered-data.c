@@ -67,8 +67,8 @@ static void ordered_data_tree_panic(struct inode *inode, int errno,
 					       u64 offset)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	btrfs_panic(fs_info, errno, "Inconsistency in ordered tree at offset "
-		    "%llu", offset);
+	btrfs_panic(fs_info, errno,
+		    "Inconsistency in ordered tree at offset %llu", offset);
 }
 
 /*
@@ -1122,7 +1122,7 @@ int __init ordered_data_init(void)
 {
 	btrfs_ordered_extent_cache = kmem_cache_create("btrfs_ordered_extent",
 				     sizeof(struct btrfs_ordered_extent), 0,
-				     SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+				     SLAB_MEM_SPREAD,
 				     NULL);
 	if (!btrfs_ordered_extent_cache)
 		return -ENOMEM;

@@ -42,9 +42,16 @@ const struct trace_print_flags vmaflag_names[] = {
 
 void __dump_page(struct page *page, const char *reason)
 {
+	/*
+	 * Avoid VM_BUG_ON() in page_mapcount().
+	 * page->_mapcount space in struct page is used by sl[aou]b pages to
+	 * encode own info.
+	 */
+	int mapcount = PageSlab(page) ? 0 : page_mapcount(page);
+
 	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx",
-		  page, page_ref_count(page), page_mapcount(page),
-		  page->mapping, page->index);
+		  page, page_ref_count(page), mapcount,
+		  page->mapping, page_to_pgoff(page));
 	if (PageCompound(page))
 		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
 	pr_cont("\n");

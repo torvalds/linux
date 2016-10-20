@@ -41,7 +41,8 @@
 			compatible = "st,st-ohci-300x";
 			reg = <0x9a03c00 0x100>;
 			interrupts = <GIC_SPI 180 IRQ_TYPE_NONE>;
-			clocks = <&clk_s_c0_flexgen CLK_TX_ICN_DISP_0>;
+			clocks = <&clk_s_c0_flexgen CLK_TX_ICN_DISP_0>,
+				 <&clk_s_c0_flexgen CLK_RX_ICN_DISP_0>;
 			resets = <&powerdown STIH407_USB2_PORT0_POWERDOWN>,
 				 <&softreset STIH407_USB2_PORT0_SOFTRESET>;
 			reset-names = "power", "softreset";
@@ -57,7 +58,8 @@
 			interrupts = <GIC_SPI 151 IRQ_TYPE_NONE>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb0>;
-			clocks = <&clk_s_c0_flexgen CLK_TX_ICN_DISP_0>;
+			clocks = <&clk_s_c0_flexgen CLK_TX_ICN_DISP_0>,
+				 <&clk_s_c0_flexgen CLK_RX_ICN_DISP_0>;
 			resets = <&powerdown STIH407_USB2_PORT0_POWERDOWN>,
 				 <&softreset STIH407_USB2_PORT0_SOFTRESET>;
 			reset-names = "power", "softreset";
@@ -71,7 +73,8 @@
 			compatible = "st,st-ohci-300x";
 			reg = <0x9a83c00 0x100>;
 			interrupts = <GIC_SPI 181 IRQ_TYPE_NONE>;
-			clocks = <&clk_s_c0_flexgen CLK_TX_ICN_DISP_0>;
+			clocks = <&clk_s_c0_flexgen CLK_TX_ICN_DISP_0>,
+				 <&clk_s_c0_flexgen CLK_RX_ICN_DISP_0>;
 			resets = <&powerdown STIH407_USB2_PORT1_POWERDOWN>,
 				 <&softreset STIH407_USB2_PORT1_SOFTRESET>;
 			reset-names = "power", "softreset";
@@ -87,7 +90,8 @@
 			interrupts = <GIC_SPI 153 IRQ_TYPE_NONE>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb1>;
-			clocks = <&clk_s_c0_flexgen CLK_TX_ICN_DISP_0>;
+			clocks = <&clk_s_c0_flexgen CLK_TX_ICN_DISP_0>,
+				 <&clk_s_c0_flexgen CLK_RX_ICN_DISP_0>;
 			resets = <&powerdown STIH407_USB2_PORT1_POWERDOWN>,
 				 <&softreset STIH407_USB2_PORT1_SOFTRESET>;
 			reset-names = "power", "softreset";
@@ -103,7 +107,10 @@
 			#size-cells = <1>;
 
 			assigned-clocks	= <&clk_s_d2_quadfs 0>,
-					  <&clk_s_d2_quadfs 0>,
+					  <&clk_s_d2_quadfs 1>,
+					  <&clk_s_c0_pll1 0>,
+					  <&clk_s_c0_flexgen CLK_COMPO_DVP>,
+					  <&clk_s_c0_flexgen CLK_MAIN_DISP>,
 					  <&clk_s_d2_flexgen CLK_PIX_MAIN_DISP>,
 					  <&clk_s_d2_flexgen CLK_PIX_AUX_DISP>,
 					  <&clk_s_d2_flexgen CLK_PIX_GDP1>,
@@ -113,14 +120,21 @@
 
 			assigned-clock-parents = <0>,
 						 <0>,
+						 <0>,
+						 <&clk_s_c0_pll1 0>,
+						 <&clk_s_c0_pll1 0>,
 						 <&clk_s_d2_quadfs 0>,
-						 <&clk_s_d2_quadfs 0>,
+						 <&clk_s_d2_quadfs 1>,
 						 <&clk_s_d2_quadfs 0>,
 						 <&clk_s_d2_quadfs 0>,
 						 <&clk_s_d2_quadfs 0>,
 						 <&clk_s_d2_quadfs 0>;
 
-			assigned-clock-rates = <297000000>, <297000000>;
+			assigned-clock-rates = <297000000>,
+					       <108000000>,
+					       <0>,
+					       <400000000>,
+					       <400000000>;
 
 			ranges;
 
@@ -226,6 +240,24 @@
 			interrupts = <GIC_SPI 38 IRQ_TYPE_NONE>;
 			clock-names = "bdisp";
 			clocks = <&clk_s_c0_flexgen CLK_IC_BDISP_0>;
+		};
+
+		hva@8c85000 {
+			compatible = "st,st-hva";
+			reg = <0x8c85000 0x400>, <0x6000000 0x40000>;
+			reg-names = "hva_registers", "hva_esram";
+			interrupts = <GIC_SPI 58 IRQ_TYPE_NONE>,
+				     <GIC_SPI 59 IRQ_TYPE_NONE>;
+			clock-names = "clk_hva";
+			clocks = <&clk_s_c0_flexgen CLK_HVA>;
+		};
+
+		thermal@91a0000 {
+			compatible = "st,stih407-thermal";
+			reg = <0x91a0000 0x28>;
+			clock-names = "thermal";
+			clocks = <&clk_sysin>;
+			interrupts = <GIC_SPI 205 IRQ_TYPE_EDGE_RISING>;
 		};
 	};
 };

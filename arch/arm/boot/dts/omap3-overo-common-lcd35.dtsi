@@ -119,7 +119,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcspi1_pins>;
 
-	lcd0: display@0 {
+	lcd0: display@1 {
 		compatible = "lgphilips,lb035q02";
 		label = "lcd35";
 

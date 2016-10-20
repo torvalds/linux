@@ -62,13 +62,7 @@
 #define SCALE_CTRL_CR_DFLT              0x00DB0249
 
 /* Video DACs control */
-#define VIDEO_DACS_CONTROL_MASK         0x0FFF
-#define VIDEO_DACS_CONTROL_SYSCFG2535   0x085C /* for stih416 */
-#define DAC_CFG_HD_OFF_SHIFT            5
-#define DAC_CFG_HD_OFF_MASK             (0x7 << DAC_CFG_HD_OFF_SHIFT)
-#define VIDEO_DACS_CONTROL_SYSCFG5072   0x0120 /* for stih407 */
 #define DAC_CFG_HD_HZUVW_OFF_MASK       BIT(1)
-
 
 /* Upsampler values for the alternative 2X Filter */
 #define SAMPLER_COEF_NB                 8
@@ -300,28 +294,14 @@ static bool hda_get_mode_idx(struct drm_display_mode mode, int *idx)
  */
 static void hda_enable_hd_dacs(struct sti_hda *hda, bool enable)
 {
-	u32 mask;
-
 	if (hda->video_dacs_ctrl) {
 		u32 val;
 
-		switch ((u32)hda->video_dacs_ctrl & VIDEO_DACS_CONTROL_MASK) {
-		case VIDEO_DACS_CONTROL_SYSCFG2535:
-			mask = DAC_CFG_HD_OFF_MASK;
-			break;
-		case VIDEO_DACS_CONTROL_SYSCFG5072:
-			mask = DAC_CFG_HD_HZUVW_OFF_MASK;
-			break;
-		default:
-			DRM_INFO("Video DACS control register not supported!");
-			return;
-		}
-
 		val = readl(hda->video_dacs_ctrl);
 		if (enable)
-			val &= ~mask;
+			val &= ~DAC_CFG_HD_HZUVW_OFF_MASK;
 		else
-			val |= mask;
+			val |= DAC_CFG_HD_HZUVW_OFF_MASK;
 
 		writel(val, hda->video_dacs_ctrl);
 	}
@@ -352,36 +332,17 @@ static void hda_dbg_awg_microcode(struct seq_file *s, void __iomem *reg)
 static void hda_dbg_video_dacs_ctrl(struct seq_file *s, void __iomem *reg)
 {
 	u32 val = readl(reg);
-	u32 mask;
-
-	switch ((u32)reg & VIDEO_DACS_CONTROL_MASK) {
-	case VIDEO_DACS_CONTROL_SYSCFG2535:
-		mask = DAC_CFG_HD_OFF_MASK;
-		break;
-	case VIDEO_DACS_CONTROL_SYSCFG5072:
-		mask = DAC_CFG_HD_HZUVW_OFF_MASK;
-		break;
-	default:
-		DRM_DEBUG_DRIVER("Warning: DACS ctrl register not supported!");
-		return;
-	}
 
 	seq_puts(s, "\n");
 	seq_printf(s, "\n  %-25s 0x%08X", "VIDEO_DACS_CONTROL", val);
 	seq_puts(s, "\tHD DACs ");
-	seq_puts(s, val & mask ? "disabled" : "enabled");
+	seq_puts(s, val & DAC_CFG_HD_HZUVW_OFF_MASK ? "disabled" : "enabled");
 }
 
 static int hda_dbg_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct sti_hda *hda = (struct sti_hda *)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(s, "HD Analog: (vaddr = 0x%p)", hda->regs);
 	DBGFS_DUMP(HDA_ANA_CFG);
@@ -397,7 +358,6 @@ static int hda_dbg_show(struct seq_file *s, void *data)
 		hda_dbg_video_dacs_ctrl(s, hda->video_dacs_ctrl);
 	seq_puts(s, "\n");
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -676,20 +636,10 @@ static int sti_hda_connector_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-struct drm_encoder *sti_hda_best_encoder(struct drm_connector *connector)
-{
-	struct sti_hda_connector *hda_connector
-		= to_sti_hda_connector(connector);
-
-	/* Best encoder is the one associated during connector creation */
-	return hda_connector->encoder;
-}
-
 static const
 struct drm_connector_helper_funcs sti_hda_connector_helper_funcs = {
 	.get_modes = sti_hda_connector_get_modes,
 	.mode_valid = sti_hda_connector_mode_valid,
-	.best_encoder = sti_hda_best_encoder,
 };
 
 static enum drm_connector_status
@@ -698,24 +648,29 @@ sti_hda_connector_detect(struct drm_connector *connector, bool force)
 	return connector_status_connected;
 }
 
-static void sti_hda_connector_destroy(struct drm_connector *connector)
+static int sti_hda_late_register(struct drm_connector *connector)
 {
 	struct sti_hda_connector *hda_connector
 		= to_sti_hda_connector(connector);
+	struct sti_hda *hda = hda_connector->hda;
 
-	drm_connector_unregister(connector);
-	drm_connector_cleanup(connector);
-	kfree(hda_connector);
+	if (hda_debugfs_init(hda, hda->drm_dev->primary)) {
+		DRM_ERROR("HDA debugfs setup failed\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static const struct drm_connector_funcs sti_hda_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = sti_hda_connector_detect,
-	.destroy = sti_hda_connector_destroy,
+	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.late_register = sti_hda_late_register,
 };
 
 static struct drm_encoder *sti_hda_find_encoder(struct drm_device *dev)
@@ -773,10 +728,6 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 	drm_connector_helper_add(drm_connector,
 			&sti_hda_connector_helper_funcs);
 
-	err = drm_connector_register(drm_connector);
-	if (err)
-		goto err_connector;
-
 	err = drm_mode_connector_attach_encoder(drm_connector, encoder);
 	if (err) {
 		DRM_ERROR("Failed to attach a connector to a encoder\n");
@@ -786,15 +737,10 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 	/* force to disable hd dacs at startup */
 	hda_enable_hd_dacs(hda, false);
 
-	if (hda_debugfs_init(hda, drm_dev->primary))
-		DRM_ERROR("HDA debugfs setup failed\n");
-
 	return 0;
 
 err_sysfs:
-	drm_connector_unregister(drm_connector);
-err_connector:
-	drm_connector_cleanup(drm_connector);
+	drm_bridge_remove(bridge);
 	return -EINVAL;
 }
 

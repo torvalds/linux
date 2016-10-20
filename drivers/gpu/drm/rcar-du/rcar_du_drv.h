@@ -92,7 +92,6 @@ struct rcar_du_device {
 	struct {
 		struct drm_property *alpha;
 		struct drm_property *colorkey;
-		struct drm_property *zpos;
 	} props;
 
 	unsigned int dpad0_source;

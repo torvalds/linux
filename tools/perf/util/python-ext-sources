@@ -13,7 +13,6 @@ util/cpumap.c
 ../lib/bitmap.c
 ../lib/find_bit.c
 ../lib/hweight.c
-../lib/str_error_r.c
 ../lib/vsprintf.c
 util/thread_map.c
 util/util.c

@@ -403,7 +403,8 @@ static void update_scanned_network(struct _adapter *adapter,
 
 
 	/* If we didn't find a match, then get a new network slot to initialize
-	 * with this beacon's information */
+	 * with this beacon's information
+	 */
 	if (end_of_queue_search(phead, plist)) {
 		if (list_empty(&pmlmepriv->free_bss_pool.queue)) {
 			/* If there are no more slots, expire the oldest */
@@ -926,7 +927,8 @@ void r8712_stassoc_event_callback(struct _adapter *adapter, u8 *pbuf)
 	if (psta != NULL) {
 		/*the sta have been in sta_info_queue => do nothing
 		 *(between drv has received this event before and
-		 *  fw have not yet to set key to CAM_ENTRY) */
+		 * fw have not yet to set key to CAM_ENTRY)
+		 */
 		return;
 	}
 
@@ -1171,7 +1173,8 @@ int r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv)
 		     pmlmepriv->assoc_ssid.SsidLength))) {
 			if (pmlmepriv->assoc_by_rssi) {
 				/* if the ssid is the same, select the bss
-				 *  which has the max rssi*/
+				 * which has the max rssi
+				 */
 				if (pnetwork_max_rssi) {
 					if (pnetwork->network.Rssi >
 					    pnetwork_max_rssi->network.Rssi)
@@ -1352,7 +1355,8 @@ static int SecIsInPMKIDList(struct _adapter *Adapter, u8 *bssid)
 		i = -1; /* Could not find. */
 	} else {
 		; /* There is one Pre-Authentication Key for the
-		   * specific BSSID. */
+		   * specific BSSID.
+		   */
 	}
 	return i;
 }
@@ -1430,7 +1434,8 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 	if (match) {
 		if (sec_ie[0] == _WPA_IE_ID_) {
 			/* parsing SSN IE to select required encryption
-			 * algorithm, and set the bc/mc encryption algorithm */
+			 * algorithm, and set the bc/mc encryption algorithm
+			 */
 			while (true) {
 				/*check wpa_oui tag*/
 				if (memcmp(&sec_ie[2], &wpa_oui[0], 4)) {
@@ -1444,7 +1449,8 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 				}
 				if (!memcmp(&sec_ie[8], &wpa_oui[0], 3)) {
 					/* get bc/mc encryption type (group
-					 * key type)*/
+					 * key type)
+					 */
 					switch (sec_ie[11]) {
 					case 0x0: /*none*/
 						psecuritypriv->XGrpPrivacy =
@@ -1482,7 +1488,8 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 					} /*else the uncst_oui is match*/
 				} else { /*mixed mode, unicast_enc_type > 1*/
 					/*select the uncst_oui and remove
-					 * the other uncst_oui*/
+					 * the other uncst_oui
+					 */
 					cnt = sec_ie[12];
 					remove_cnt = (cnt - 1) * 4;
 					sec_ie[12] = 0x01;
@@ -1499,7 +1506,8 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 		}
 		if (authmode == _WPA2_IE_ID_) {
 			/* parsing RSN IE to select required encryption
-			 * algorithm, and set the bc/mc encryption algorithm */
+			 * algorithm, and set the bc/mc encryption algorithm
+			 */
 			while (true) {
 				if ((sec_ie[2] != 0x01) || (sec_ie[3] != 0x0)) {
 					/*IE Ver error*/
@@ -1543,7 +1551,8 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 					} /*else the uncst_oui is match*/
 				} else { /*mixed mode, unicast_enc_type > 1*/
 					/*select the uncst_oui and remove the
-					 * other uncst_oui*/
+					 * other uncst_oui
+					 */
 					cnt = sec_ie[8];
 					remove_cnt = (cnt - 1) * 4;
 					sec_ie[8] = 0x01;
@@ -1667,7 +1676,8 @@ void r8712_joinbss_reset(struct _adapter *padapter)
 	struct ht_priv		*phtpriv = &pmlmepriv->htpriv;
 
 	/* todo: if you want to do something io/reg/hw setting before join_bss,
-	 * please add code here */
+	 * please add code here
+	 */
 	phtpriv->ampdu_enable = false;/*reset to disabled*/
 	for (i = 0; i < 16; i++)
 		phtpriv->baddbareq_issued[i] = false;/*reset it*/

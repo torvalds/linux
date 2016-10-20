@@ -45,18 +45,34 @@ corrupt, but usually it is restorable.
 
 2. Setting the parameters
 
-Setting the ramoops parameters can be done in 3 different manners:
- 1. Use the module parameters (which have the names of the variables described
- as before).
- For quick debugging, you can also reserve parts of memory during boot
- and then use the reserved memory for ramoops. For example, assuming a machine
- with > 128 MB of memory, the following kernel command line will tell the
- kernel to use only the first 128 MB of memory, and place ECC-protected ramoops
- region at 128 MB boundary:
+Setting the ramoops parameters can be done in several different manners:
+
+ A. Use the module parameters (which have the names of the variables described
+ as before). For quick debugging, you can also reserve parts of memory during
+ boot and then use the reserved memory for ramoops. For example, assuming a
+ machine with > 128 MB of memory, the following kernel command line will tell
+ the kernel to use only the first 128 MB of memory, and place ECC-protected
+ ramoops region at 128 MB boundary:
  "mem=128M ramoops.mem_address=0x8000000 ramoops.ecc=1"
- 2. Use Device Tree bindings, as described in
- Documentation/device-tree/bindings/misc/ramoops.txt.
- 3. Use a platform device and set the platform data. The parameters can then
+
+ B. Use Device Tree bindings, as described in
+ Documentation/device-tree/bindings/reserved-memory/ramoops.txt.
+ For example:
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		ramoops@8f000000 {
+			compatible = "ramoops";
+			reg = <0 0x8f000000 0 0x100000>;
+			record-size = <0x4000>;
+			console-size = <0x4000>;
+		};
+	};
+
+ C. Use a platform device and set the platform data. The parameters can then
  be set through that platform data. An example of doing that is:
 
 #include <linux/pstore_ram.h>

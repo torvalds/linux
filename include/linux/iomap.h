@@ -19,6 +19,13 @@ struct vm_fault;
 #define IOMAP_UNWRITTEN	0x04	/* blocks allocated @blkno in unwritten state */
 
 /*
+ * Flags for iomap mappings:
+ */
+#define IOMAP_F_MERGED	0x01	/* contains multiple blocks/extents */
+#define IOMAP_F_SHARED	0x02	/* block shared with another file */
+#define IOMAP_F_NEW	0x04	/* blocks have been newly allocated */
+
+/*
  * Magic value for blkno:
  */
 #define IOMAP_NULL_BLOCK -1LL	/* blkno is not valid */
@@ -27,7 +34,8 @@ struct iomap {
 	sector_t		blkno;	/* 1st sector of mapping, 512b units */
 	loff_t			offset;	/* file offset of mapping, bytes */
 	u64			length;	/* length of mapping, bytes */
-	int			type;	/* type of mapping */
+	u16			type;	/* type of mapping */
+	u16			flags;	/* flags for mapping */
 	struct block_device	*bdev;	/* block device for I/O */
 };
 
@@ -57,6 +65,8 @@ struct iomap_ops {
 };
 
 ssize_t iomap_file_buffered_write(struct kiocb *iocb, struct iov_iter *from,
+		struct iomap_ops *ops);
+int iomap_file_dirty(struct inode *inode, loff_t pos, loff_t len,
 		struct iomap_ops *ops);
 int iomap_zero_range(struct inode *inode, loff_t pos, loff_t len,
 		bool *did_zero, struct iomap_ops *ops);

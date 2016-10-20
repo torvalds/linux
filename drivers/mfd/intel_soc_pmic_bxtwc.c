@@ -47,6 +47,8 @@
 #define BXTWC_MIRQLVL1		0x4E0E
 #define BXTWC_MPWRTNIRQ		0x4E0F
 
+#define BXTWC_MIRQLVL1_MCHGR	BIT(5)
+
 #define BXTWC_MTHRM0IRQ		0x4E12
 #define BXTWC_MTHRM1IRQ		0x4E13
 #define BXTWC_MTHRM2IRQ		0x4E14
@@ -109,7 +111,7 @@ static const struct regmap_irq bxtwc_regmap_irqs_level2[] = {
 	REGMAP_IRQ_REG(BXTWC_THRM2_IRQ, 2, 0xff),
 	REGMAP_IRQ_REG(BXTWC_BCU_IRQ, 3, 0x1f),
 	REGMAP_IRQ_REG(BXTWC_ADC_IRQ, 4, 0xff),
-	REGMAP_IRQ_REG(BXTWC_CHGR0_IRQ, 5, 0x1f),
+	REGMAP_IRQ_REG(BXTWC_CHGR0_IRQ, 5, 0x3f),
 	REGMAP_IRQ_REG(BXTWC_CHGR1_IRQ, 6, 0x1f),
 	REGMAP_IRQ_REG(BXTWC_GPIO0_IRQ, 7, 0xff),
 	REGMAP_IRQ_REG(BXTWC_GPIO1_IRQ, 8, 0x3f),
@@ -143,6 +145,10 @@ static struct resource adc_resources[] = {
 	DEFINE_RES_IRQ_NAMED(BXTWC_ADC_IRQ, "ADC"),
 };
 
+static struct resource usbc_resources[] = {
+	DEFINE_RES_IRQ_NAMED(BXTWC_CHGR0_IRQ, "USBC"),
+};
+
 static struct resource charger_resources[] = {
 	DEFINE_RES_IRQ_NAMED(BXTWC_CHGR0_IRQ, "CHARGER"),
 	DEFINE_RES_IRQ_NAMED(BXTWC_CHGR1_IRQ, "CHARGER1"),
@@ -168,6 +174,11 @@ static struct mfd_cell bxt_wc_dev[] = {
 		.name = "bxt_wcove_thermal",
 		.num_resources = ARRAY_SIZE(thermal_resources),
 		.resources = thermal_resources,
+	},
+	{
+		.name = "bxt_wcove_usbc",
+		.num_resources = ARRAY_SIZE(usbc_resources),
+		.resources = usbc_resources,
 	},
 	{
 		.name = "bxt_wcove_ext_charger",
@@ -402,6 +413,16 @@ static int bxtwc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to create sysfs group %d\n", ret);
 		goto err_sysfs;
 	}
+
+	/*
+	 * There is known hw bug. Upon reset BIT 5 of register
+	 * BXTWC_CHGR_LVL1_IRQ is 0 which is the expected value. However,
+	 * later it's set to 1(masked) automatically by hardware. So we
+	 * have the software workaround here to unmaksed it in order to let
+	 * charger interrutp work.
+	 */
+	regmap_update_bits(pmic->regmap, BXTWC_MIRQLVL1,
+				BXTWC_MIRQLVL1_MCHGR, 0);
 
 	return 0;
 

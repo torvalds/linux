@@ -265,21 +265,17 @@ lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout)
 	long jiffies_left = timeout * msecs_to_jiffies(MSEC_PER_SEC);
 	unsigned long then;
 	struct timeval tv;
+	struct kvec  iov = { .iov_base = buffer, .iov_len  = nob };
+	struct msghdr msg = {NULL,};
 
 	LASSERT(nob > 0);
 	/*
 	 * Caller may pass a zero timeout if she thinks the socket buffer is
 	 * empty enough to take the whole message immediately
 	 */
+	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC, &iov, 1, nob);
 	for (;;) {
-		struct kvec  iov = {
-			.iov_base = buffer,
-			.iov_len  = nob
-		};
-		struct msghdr msg = {
-			.msg_flags      = !timeout ? MSG_DONTWAIT : 0
-		};
-
+		msg.msg_flags = !timeout ? MSG_DONTWAIT : 0;
 		if (timeout) {
 			/* Set send timeout to remaining time */
 			jiffies_to_timeval(jiffies_left, &tv);
@@ -296,9 +292,6 @@ lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout)
 		rc = kernel_sendmsg(sock, &msg, &iov, 1, nob);
 		jiffies_left -= jiffies - then;
 
-		if (rc == nob)
-			return 0;
-
 		if (rc < 0)
 			return rc;
 
@@ -307,11 +300,11 @@ lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout)
 			return -ECONNABORTED;
 		}
 
+		if (!msg_data_left(&msg))
+			break;
+
 		if (jiffies_left <= 0)
 			return -EAGAIN;
-
-		buffer = ((char *)buffer) + rc;
-		nob -= rc;
 	}
 	return 0;
 }

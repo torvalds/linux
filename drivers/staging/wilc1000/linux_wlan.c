@@ -21,7 +21,6 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/mutex.h>
-#include <linux/semaphore.h>
 #include <linux/completion.h>
 
 static int dev_state_ev_handler(struct notifier_block *this,
@@ -648,7 +647,7 @@ void wilc1000_wlan_deinit(struct net_device *dev)
 			mutex_unlock(&wl->hif_cs);
 		}
 		if (&wl->txq_event)
-			wait_for_completion(&wl->txq_event);
+			complete(&wl->txq_event);
 
 		wlan_deinitialize_threads(dev);
 		deinit_irq(dev);

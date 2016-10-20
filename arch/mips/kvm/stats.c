@@ -11,27 +11,6 @@
 
 #include <linux/kvm_host.h>
 
-char *kvm_mips_exit_types_str[MAX_KVM_MIPS_EXIT_TYPES] = {
-	"WAIT",
-	"CACHE",
-	"Signal",
-	"Interrupt",
-	"COP0/1 Unusable",
-	"TLB Mod",
-	"TLB Miss (LD)",
-	"TLB Miss (ST)",
-	"Address Err (ST)",
-	"Address Error (LD)",
-	"System Call",
-	"Reserved Inst",
-	"Break Inst",
-	"Trap Inst",
-	"MSA FPE",
-	"FPE",
-	"MSA Disabled",
-	"D-Cache Flushes",
-};
-
 char *kvm_cop0_str[N_MIPS_COPROC_REGS] = {
 	"Index",
 	"Random",

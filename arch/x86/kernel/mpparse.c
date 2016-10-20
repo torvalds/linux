@@ -16,7 +16,6 @@
 #include <linux/mc146818rtc.h>
 #include <linux/bitops.h>
 #include <linux/acpi.h>
-#include <linux/module.h>
 #include <linux/smp.h>
 #include <linux/pci.h>
 
@@ -499,6 +498,9 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
 void __init default_get_smp_config(unsigned int early)
 {
 	struct mpf_intel *mpf = mpf_found;
+
+	if (!smp_found_config)
+		return;
 
 	if (!mpf)
 		return;

@@ -60,9 +60,7 @@ machine_arch_initcall(bsc9132_qds, mpc85xx_common_publish_devices);
 
 static int __init bsc9132_qds_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "fsl,bsc9132qds");
+	return of_machine_is_compatible("fsl,bsc9132qds");
 }
 
 define_machine(bsc9132_qds) {
@@ -74,7 +72,6 @@ define_machine(bsc9132_qds) {
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 #endif
 	.get_irq		= mpic_get_irq,
-	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

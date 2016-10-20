@@ -111,6 +111,7 @@ static void hidma_process_completed(struct hidma_chan *mchan)
 	struct dma_async_tx_descriptor *desc;
 	dma_cookie_t last_cookie;
 	struct hidma_desc *mdesc;
+	struct hidma_desc *next;
 	unsigned long irqflags;
 	struct list_head list;
 
@@ -122,28 +123,36 @@ static void hidma_process_completed(struct hidma_chan *mchan)
 	spin_unlock_irqrestore(&mchan->lock, irqflags);
 
 	/* Execute callbacks and run dependencies */
-	list_for_each_entry(mdesc, &list, node) {
+	list_for_each_entry_safe(mdesc, next, &list, node) {
 		enum dma_status llstat;
+		struct dmaengine_desc_callback cb;
+		struct dmaengine_result result;
 
 		desc = &mdesc->desc;
+		last_cookie = desc->cookie;
 
 		spin_lock_irqsave(&mchan->lock, irqflags);
 		dma_cookie_complete(desc);
 		spin_unlock_irqrestore(&mchan->lock, irqflags);
 
 		llstat = hidma_ll_status(mdma->lldev, mdesc->tre_ch);
-		if (desc->callback && (llstat == DMA_COMPLETE))
-			desc->callback(desc->callback_param);
+		dmaengine_desc_get_callback(desc, &cb);
 
-		last_cookie = desc->cookie;
 		dma_run_dependencies(desc);
+
+		spin_lock_irqsave(&mchan->lock, irqflags);
+		list_move(&mdesc->node, &mchan->free);
+
+		if (llstat == DMA_COMPLETE) {
+			mchan->last_success = last_cookie;
+			result.result = DMA_TRANS_NOERROR;
+		} else
+			result.result = DMA_TRANS_ABORTED;
+
+		spin_unlock_irqrestore(&mchan->lock, irqflags);
+
+		dmaengine_desc_callback_invoke(&cb, &result);
 	}
-
-	/* Free descriptors */
-	spin_lock_irqsave(&mchan->lock, irqflags);
-	list_splice_tail_init(&list, &mchan->free);
-	spin_unlock_irqrestore(&mchan->lock, irqflags);
-
 }
 
 /*
@@ -238,6 +247,19 @@ static void hidma_issue_pending(struct dma_chan *dmach)
 		hidma_ll_start(dmadev->lldev);
 }
 
+static inline bool hidma_txn_is_success(dma_cookie_t cookie,
+		dma_cookie_t last_success, dma_cookie_t last_used)
+{
+	if (last_success <= last_used) {
+		if ((cookie <= last_success) || (cookie > last_used))
+			return true;
+	} else {
+		if ((cookie <= last_success) && (cookie > last_used))
+			return true;
+	}
+	return false;
+}
+
 static enum dma_status hidma_tx_status(struct dma_chan *dmach,
 				       dma_cookie_t cookie,
 				       struct dma_tx_state *txstate)
@@ -246,8 +268,13 @@ static enum dma_status hidma_tx_status(struct dma_chan *dmach,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(dmach, cookie, txstate);
-	if (ret == DMA_COMPLETE)
-		return ret;
+	if (ret == DMA_COMPLETE) {
+		bool is_success;
+
+		is_success = hidma_txn_is_success(cookie, mchan->last_success,
+						  dmach->cookie);
+		return is_success ? ret : DMA_ERROR;
+	}
 
 	if (mchan->paused && (ret == DMA_IN_PROGRESS)) {
 		unsigned long flags;
@@ -398,6 +425,7 @@ static int hidma_terminate_channel(struct dma_chan *chan)
 	hidma_process_completed(mchan);
 
 	spin_lock_irqsave(&mchan->lock, irqflags);
+	mchan->last_success = 0;
 	list_splice_init(&mchan->active, &list);
 	list_splice_init(&mchan->prepared, &list);
 	list_splice_init(&mchan->completed, &list);
@@ -413,14 +441,9 @@ static int hidma_terminate_channel(struct dma_chan *chan)
 	/* return all user requests */
 	list_for_each_entry_safe(mdesc, tmp, &list, node) {
 		struct dma_async_tx_descriptor *txd = &mdesc->desc;
-		dma_async_tx_callback callback = mdesc->desc.callback;
-		void *param = mdesc->desc.callback_param;
 
 		dma_descriptor_unmap(txd);
-
-		if (callback)
-			callback(param);
-
+		dmaengine_desc_get_callback_invoke(txd, NULL);
 		dma_run_dependencies(txd);
 
 		/* move myself to free_list */
@@ -708,6 +731,7 @@ static int hidma_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(dmadev->ddev.dev);
 	dma_async_device_unregister(&dmadev->ddev);
 	devm_free_irq(dmadev->ddev.dev, dmadev->irq, dmadev->lldev);
+	tasklet_kill(&dmadev->task);
 	hidma_debug_uninit(dmadev);
 	hidma_ll_uninit(dmadev->lldev);
 	hidma_free(dmadev);

@@ -344,7 +344,7 @@ err:
 	return ret;
 }
 
-static struct b53_io_ops b53_srab_ops = {
+static const struct b53_io_ops b53_srab_ops = {
 	.read8 = b53_srab_read8,
 	.read16 = b53_srab_read16,
 	.read32 = b53_srab_read32,

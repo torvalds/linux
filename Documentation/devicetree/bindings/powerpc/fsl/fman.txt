@@ -35,7 +35,7 @@ PROPERTIES
 		Definition: Specifies the index of the FMan unit.
 
 		The cell-index value may be used by the SoC, to identify the
-		FMan unit in the SoC memory map. In the table bellow,
+		FMan unit in the SoC memory map. In the table below,
 		there's a description of the cell-index use in each SoC:
 
 		- P1023:
@@ -247,7 +247,7 @@ PROPERTIES
 
 		The cell-index value may be used by the FMan or the SoC, to
 		identify the MAC unit in the FMan (or SoC) memory map.
-		In the tables bellow there's a description of the cell-index
+		In the tables below there's a description of the cell-index
 		use, there are two tables, one describes the use of cell-index
 		by the FMan, the second describes the use by the SoC:
 

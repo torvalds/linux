@@ -41,16 +41,52 @@ const struct cvb_coef gm20b_cvb_coef[] = {
 	/* 921600 */ { 2647676, -106455, 1632 },
 };
 
+static const struct cvb_coef gm20b_na_cvb_coef[] = {
+	/* KHz,         c0,     c1,   c2,    c3,     c4,   c5 */
+	/*  76800 */ {  814294, 8144, -940, 808, -21583, 226 },
+	/* 153600 */ {  856185, 8144, -940, 808, -21583, 226 },
+	/* 230400 */ {  898077, 8144, -940, 808, -21583, 226 },
+	/* 307200 */ {  939968, 8144, -940, 808, -21583, 226 },
+	/* 384000 */ {  981860, 8144, -940, 808, -21583, 226 },
+	/* 460800 */ { 1023751, 8144, -940, 808, -21583, 226 },
+	/* 537600 */ { 1065642, 8144, -940, 808, -21583, 226 },
+	/* 614400 */ { 1107534, 8144, -940, 808, -21583, 226 },
+	/* 691200 */ { 1149425, 8144, -940, 808, -21583, 226 },
+	/* 768000 */ { 1191317, 8144, -940, 808, -21583, 226 },
+	/* 844800 */ { 1233208, 8144, -940, 808, -21583, 226 },
+	/* 921600 */ { 1275100, 8144, -940, 808, -21583, 226 },
+	/* 998400 */ { 1316991, 8144, -940, 808, -21583, 226 },
+};
+
+const u32 speedo_to_vmin[] = {
+	/*   0,      1,      2,      3,      4, */
+	950000, 840000, 818750, 840000, 810000,
+};
+
 int
 gm20b_volt_new(struct nvkm_device *device, int index, struct nvkm_volt **pvolt)
 {
+	struct nvkm_device_tegra *tdev = device->func->tegra(device);
 	struct gk20a_volt *volt;
+	u32 vmin;
+
+	if (tdev->gpu_speedo_id >= ARRAY_SIZE(speedo_to_vmin)) {
+		nvdev_error(device, "unsupported speedo %d\n",
+			    tdev->gpu_speedo_id);
+		return -EINVAL;
+	}
 
 	volt = kzalloc(sizeof(*volt), GFP_KERNEL);
 	if (!volt)
 		return -ENOMEM;
 	*pvolt = &volt->base;
 
-	return _gk20a_volt_ctor(device, index, gm20b_cvb_coef,
-				ARRAY_SIZE(gm20b_cvb_coef), volt);
+	vmin = speedo_to_vmin[tdev->gpu_speedo_id];
+
+	if (tdev->gpu_speedo_id >= 1)
+		return gk20a_volt_ctor(device, index, gm20b_na_cvb_coef,
+				     ARRAY_SIZE(gm20b_na_cvb_coef), vmin, volt);
+	else
+		return gk20a_volt_ctor(device, index, gm20b_cvb_coef,
+					ARRAY_SIZE(gm20b_cvb_coef), vmin, volt);
 }

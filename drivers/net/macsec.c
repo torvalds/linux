@@ -270,6 +270,7 @@ struct macsec_dev {
 	struct pcpu_secy_stats __percpu *stats;
 	struct list_head secys;
 	struct gro_cells gro_cells;
+	unsigned int nest_level;
 };
 
 /**
@@ -344,7 +345,6 @@ static void free_rxsa(struct rcu_head *head)
 
 	crypto_free_aead(sa->key.tfm);
 	free_percpu(sa->stats);
-	macsec_rxsc_put(sa->sc);
 	kfree(sa);
 }
 
@@ -863,6 +863,7 @@ static void macsec_decrypt_done(struct crypto_async_request *base, int err)
 	struct net_device *dev = skb->dev;
 	struct macsec_dev *macsec = macsec_priv(dev);
 	struct macsec_rx_sa *rx_sa = macsec_skb_cb(skb)->rx_sa;
+	struct macsec_rx_sc *rx_sc = rx_sa->sc;
 	int len, ret;
 	u32 pn;
 
@@ -891,6 +892,7 @@ static void macsec_decrypt_done(struct crypto_async_request *base, int err)
 
 out:
 	macsec_rxsa_put(rx_sa);
+	macsec_rxsc_put(rx_sc);
 	dev_put(dev);
 }
 
@@ -1106,6 +1108,7 @@ static rx_handler_result_t macsec_handle_frame(struct sk_buff **pskb)
 
 	list_for_each_entry_rcu(macsec, &rxd->secys, secys) {
 		struct macsec_rx_sc *sc = find_rx_sc(&macsec->secy, sci);
+		sc = sc ? macsec_rxsc_get(sc) : NULL;
 
 		if (sc) {
 			secy = &macsec->secy;
@@ -1180,8 +1183,10 @@ static rx_handler_result_t macsec_handle_frame(struct sk_buff **pskb)
 
 	if (IS_ERR(skb)) {
 		/* the decrypt callback needs the reference */
-		if (PTR_ERR(skb) != -EINPROGRESS)
+		if (PTR_ERR(skb) != -EINPROGRESS) {
 			macsec_rxsa_put(rx_sa);
+			macsec_rxsc_put(rx_sc);
+		}
 		rcu_read_unlock();
 		*pskb = NULL;
 		return RX_HANDLER_CONSUMED;
@@ -1197,6 +1202,7 @@ deliver:
 
 	if (rx_sa)
 		macsec_rxsa_put(rx_sa);
+	macsec_rxsc_put(rx_sc);
 
 	ret = gro_cells_receive(&macsec->gro_cells, skb);
 	if (ret == NET_RX_SUCCESS)
@@ -1212,6 +1218,7 @@ deliver:
 drop:
 	macsec_rxsa_put(rx_sa);
 drop_nosa:
+	macsec_rxsc_put(rx_sc);
 	rcu_read_unlock();
 drop_direct:
 	kfree_skb(skb);
@@ -1646,7 +1653,7 @@ static int macsec_add_rxsa(struct sk_buff *skb, struct genl_info *info)
 
 	rtnl_lock();
 	rx_sc = get_rxsc_from_nl(genl_info_net(info), attrs, tb_rxsc, &dev, &secy);
-	if (IS_ERR(rx_sc) || !macsec_rxsc_get(rx_sc)) {
+	if (IS_ERR(rx_sc)) {
 		rtnl_unlock();
 		return PTR_ERR(rx_sc);
 	}
@@ -2693,6 +2700,8 @@ static netdev_tx_t macsec_start_xmit(struct sk_buff *skb,
 
 #define MACSEC_FEATURES \
 	(NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST)
+static struct lock_class_key macsec_netdev_addr_lock_key;
+
 static int macsec_dev_init(struct net_device *dev)
 {
 	struct macsec_dev *macsec = macsec_priv(dev);
@@ -2904,6 +2913,13 @@ static int macsec_get_iflink(const struct net_device *dev)
 	return macsec_priv(dev)->real_dev->ifindex;
 }
 
+
+static int macsec_get_nest_level(struct net_device *dev)
+{
+	return macsec_priv(dev)->nest_level;
+}
+
+
 static const struct net_device_ops macsec_netdev_ops = {
 	.ndo_init		= macsec_dev_init,
 	.ndo_uninit		= macsec_dev_uninit,
@@ -2917,6 +2933,7 @@ static const struct net_device_ops macsec_netdev_ops = {
 	.ndo_start_xmit		= macsec_start_xmit,
 	.ndo_get_stats64	= macsec_get_stats64,
 	.ndo_get_iflink		= macsec_get_iflink,
+	.ndo_get_lock_subclass  = macsec_get_nest_level,
 };
 
 static const struct device_type macsec_type = {
@@ -2956,6 +2973,7 @@ static void macsec_setup(struct net_device *dev)
 	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->netdev_ops = &macsec_netdev_ops;
 	dev->destructor = macsec_free_netdev;
+	SET_NETDEV_DEVTYPE(dev, &macsec_type);
 
 	eth_zero_addr(dev->broadcast);
 }
@@ -3041,22 +3059,31 @@ static void macsec_del_dev(struct macsec_dev *macsec)
 	}
 }
 
+static void macsec_common_dellink(struct net_device *dev, struct list_head *head)
+{
+	struct macsec_dev *macsec = macsec_priv(dev);
+	struct net_device *real_dev = macsec->real_dev;
+
+	unregister_netdevice_queue(dev, head);
+	list_del_rcu(&macsec->secys);
+	macsec_del_dev(macsec);
+	netdev_upper_dev_unlink(real_dev, dev);
+
+	macsec_generation++;
+}
+
 static void macsec_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct macsec_dev *macsec = macsec_priv(dev);
 	struct net_device *real_dev = macsec->real_dev;
 	struct macsec_rxh_data *rxd = macsec_data_rtnl(real_dev);
 
-	macsec_generation++;
+	macsec_common_dellink(dev, head);
 
-	unregister_netdevice_queue(dev, head);
-	list_del_rcu(&macsec->secys);
 	if (list_empty(&rxd->secys)) {
 		netdev_rx_handler_unregister(real_dev);
 		kfree(rxd);
 	}
-
-	macsec_del_dev(macsec);
 }
 
 static int register_macsec_dev(struct net_device *real_dev,
@@ -3173,6 +3200,18 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 	if (err < 0)
 		return err;
 
+	dev_hold(real_dev);
+
+	macsec->nest_level = dev_get_nest_level(real_dev) + 1;
+	netdev_lockdep_set_classes(dev);
+	lockdep_set_class_and_subclass(&dev->addr_list_lock,
+				       &macsec_netdev_addr_lock_key,
+				       macsec_get_nest_level(dev));
+
+	err = netdev_upper_dev_link(real_dev, dev);
+	if (err < 0)
+		goto unregister;
+
 	/* need to be already registered so that ->init has run and
 	 * the MAC addr is set
 	 */
@@ -3185,12 +3224,12 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 
 	if (rx_handler && sci_exists(real_dev, sci)) {
 		err = -EBUSY;
-		goto unregister;
+		goto unlink;
 	}
 
 	err = macsec_add_dev(dev, sci, icv_len);
 	if (err)
-		goto unregister;
+		goto unlink;
 
 	if (data)
 		macsec_changelink_common(dev, data);
@@ -3201,12 +3240,12 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 
 	macsec_generation++;
 
-	dev_hold(real_dev);
-
 	return 0;
 
 del_dev:
 	macsec_del_dev(macsec);
+unlink:
+	netdev_upper_dev_unlink(real_dev, dev);
 unregister:
 	unregister_netdevice(dev);
 	return err;
@@ -3376,8 +3415,12 @@ static int macsec_notify(struct notifier_block *this, unsigned long event,
 
 		rxd = macsec_data_rtnl(real_dev);
 		list_for_each_entry_safe(m, n, &rxd->secys, secys) {
-			macsec_dellink(m->secy.netdev, &head);
+			macsec_common_dellink(m->secy.netdev, &head);
 		}
+
+		netdev_rx_handler_unregister(real_dev);
+		kfree(rxd);
+
 		unregister_netdevice_many(&head);
 		break;
 	}

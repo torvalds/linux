@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
+#include <linux/delay.h>
 
 #include "radeon_acpi.h"
 
@@ -27,6 +28,8 @@ struct radeon_atpx_functions {
 struct radeon_atpx {
 	acpi_handle handle;
 	struct radeon_atpx_functions functions;
+	bool is_hybrid;
+	bool dgpu_req_power_for_displays;
 };
 
 static struct radeon_atpx_priv {
@@ -60,6 +63,18 @@ struct atpx_mux {
 
 bool radeon_has_atpx(void) {
 	return radeon_atpx_priv.atpx_detected;
+}
+
+bool radeon_has_atpx_dgpu_power_cntl(void) {
+	return radeon_atpx_priv.atpx.functions.power_cntl;
+}
+
+bool radeon_is_atpx_hybrid(void) {
+	return radeon_atpx_priv.atpx.is_hybrid;
+}
+
+bool radeon_atpx_dgpu_req_power_for_displays(void) {
+	return radeon_atpx_priv.atpx.dgpu_req_power_for_displays;
 }
 
 /**
@@ -141,18 +156,12 @@ static void radeon_atpx_parse_functions(struct radeon_atpx_functions *f, u32 mas
  */
 static int radeon_atpx_validate(struct radeon_atpx *atpx)
 {
-	/* make sure required functions are enabled */
-	/* dGPU power control is required */
-	if (atpx->functions.power_cntl == false) {
-		printk("ATPX dGPU power cntl not present, forcing\n");
-		atpx->functions.power_cntl = true;
-	}
+	u32 valid_bits = 0;
 
 	if (atpx->functions.px_params) {
 		union acpi_object *info;
 		struct atpx_px_params output;
 		size_t size;
-		u32 valid_bits;
 
 		info = radeon_atpx_call(atpx->handle, ATPX_FUNCTION_GET_PX_PARAMETERS, NULL);
 		if (!info)
@@ -171,19 +180,33 @@ static int radeon_atpx_validate(struct radeon_atpx *atpx)
 		memcpy(&output, info->buffer.pointer, size);
 
 		valid_bits = output.flags & output.valid_flags;
-		/* if separate mux flag is set, mux controls are required */
-		if (valid_bits & ATPX_SEPARATE_MUX_FOR_I2C) {
-			atpx->functions.i2c_mux_cntl = true;
-			atpx->functions.disp_mux_cntl = true;
-		}
-		/* if any outputs are muxed, mux controls are required */
-		if (valid_bits & (ATPX_CRT1_RGB_SIGNAL_MUXED |
-				  ATPX_TV_SIGNAL_MUXED |
-				  ATPX_DFP_SIGNAL_MUXED))
-			atpx->functions.disp_mux_cntl = true;
 
 		kfree(info);
 	}
+
+	/* if separate mux flag is set, mux controls are required */
+	if (valid_bits & ATPX_SEPARATE_MUX_FOR_I2C) {
+		atpx->functions.i2c_mux_cntl = true;
+		atpx->functions.disp_mux_cntl = true;
+	}
+	/* if any outputs are muxed, mux controls are required */
+	if (valid_bits & (ATPX_CRT1_RGB_SIGNAL_MUXED |
+			  ATPX_TV_SIGNAL_MUXED |
+			  ATPX_DFP_SIGNAL_MUXED))
+		atpx->functions.disp_mux_cntl = true;
+
+	/* some bioses set these bits rather than flagging power_cntl as supported */
+	if (valid_bits & (ATPX_DYNAMIC_PX_SUPPORTED |
+			  ATPX_DYNAMIC_DGPU_POWER_OFF_SUPPORTED))
+		atpx->functions.power_cntl = true;
+
+	atpx->is_hybrid = false;
+	if (valid_bits & ATPX_MS_HYBRID_GFX_SUPPORTED) {
+		printk("ATPX Hybrid Graphics\n");
+		atpx->functions.power_cntl = false;
+		atpx->is_hybrid = true;
+	}
+
 	return 0;
 }
 
@@ -258,6 +281,10 @@ static int radeon_atpx_set_discrete_state(struct radeon_atpx *atpx, u8 state)
 		if (!info)
 			return -EIO;
 		kfree(info);
+
+		/* 200ms delay is required after off */
+		if (state == 0)
+			msleep(200);
 	}
 	return 0;
 }
@@ -505,7 +532,6 @@ static int radeon_atpx_get_client_id(struct pci_dev *pdev)
 static const struct vga_switcheroo_handler radeon_atpx_handler = {
 	.switchto = radeon_atpx_switchto,
 	.power_state = radeon_atpx_power_state,
-	.init = radeon_atpx_init,
 	.get_client_id = radeon_atpx_get_client_id,
 };
 
@@ -541,6 +567,7 @@ static bool radeon_atpx_detect(void)
 		printk(KERN_INFO "vga_switcheroo: detected switching method %s handle\n",
 		       acpi_method_name);
 		radeon_atpx_priv.atpx_detected = true;
+		radeon_atpx_init();
 		return true;
 	}
 	return false;

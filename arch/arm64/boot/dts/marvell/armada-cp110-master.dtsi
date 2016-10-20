@@ -107,6 +107,24 @@
 				status = "disabled";
 			};
 
+			cpm_xor0: xor@6a0000 {
+				compatible = "marvell,armada-7k-xor", "marvell,xor-v2";
+				reg = <0x6a0000 0x1000>,
+				      <0x6b0000 0x1000>;
+				dma-coherent;
+				msi-parent = <&gic_v2m0>;
+				clocks = <&cpm_syscon0 1 8>;
+			};
+
+			cpm_xor1: xor@6c0000 {
+				compatible = "marvell,armada-7k-xor", "marvell,xor-v2";
+				reg = <0x6c0000 0x1000>,
+				      <0x6d0000 0x1000>;
+				dma-coherent;
+				msi-parent = <&gic_v2m0>;
+				clocks = <&cpm_syscon0 1 7>;
+			};
+
 			cpm_spi0: spi@700600 {
 				compatible = "marvell,armada-380-spi";
 				reg = <0x700600 0x50>;
@@ -158,6 +176,7 @@
 			#interrupt-cells = <1>;
 			device_type = "pci";
 			dma-coherent;
+			msi-parent = <&gic_v2m0>;
 
 			bus-range = <0 0xff>;
 			ranges =
@@ -183,6 +202,7 @@
 			#interrupt-cells = <1>;
 			device_type = "pci";
 			dma-coherent;
+			msi-parent = <&gic_v2m0>;
 
 			bus-range = <0 0xff>;
 			ranges =
@@ -209,6 +229,7 @@
 			#interrupt-cells = <1>;
 			device_type = "pci";
 			dma-coherent;
+			msi-parent = <&gic_v2m0>;
 
 			bus-range = <0 0xff>;
 			ranges =

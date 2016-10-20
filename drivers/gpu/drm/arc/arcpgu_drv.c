@@ -28,21 +28,14 @@ static void arcpgu_fb_output_poll_changed(struct drm_device *dev)
 {
 	struct arcpgu_drm_private *arcpgu = dev->dev_private;
 
-	if (arcpgu->fbdev)
-		drm_fbdev_cma_hotplug_event(arcpgu->fbdev);
-}
-
-static int arcpgu_atomic_commit(struct drm_device *dev,
-				    struct drm_atomic_state *state, bool async)
-{
-	return drm_atomic_helper_commit(dev, state, false);
+	drm_fbdev_cma_hotplug_event(arcpgu->fbdev);
 }
 
 static struct drm_mode_config_funcs arcpgu_drm_modecfg_funcs = {
 	.fb_create  = drm_fb_cma_create,
 	.output_poll_changed = arcpgu_fb_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = arcpgu_atomic_commit,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static void arcpgu_setup_mode_config(struct drm_device *drm)
@@ -55,7 +48,7 @@ static void arcpgu_setup_mode_config(struct drm_device *drm)
 	drm->mode_config.funcs = &arcpgu_drm_modecfg_funcs;
 }
 
-int arcpgu_gem_mmap(struct file *filp, struct vm_area_struct *vma)
+static int arcpgu_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	int ret;
 
@@ -80,22 +73,6 @@ static const struct file_operations arcpgu_drm_ops = {
 	.llseek = no_llseek,
 	.mmap = arcpgu_gem_mmap,
 };
-
-static void arcpgu_preclose(struct drm_device *drm, struct drm_file *file)
-{
-	struct arcpgu_drm_private *arcpgu = drm->dev_private;
-	struct drm_pending_vblank_event *e, *t;
-	unsigned long flags;
-
-	spin_lock_irqsave(&drm->event_lock, flags);
-	list_for_each_entry_safe(e, t, &arcpgu->event_list, base.link) {
-		if (e->base.file_priv != file)
-			continue;
-		list_del(&e->base.link);
-		e->base.destroy(&e->base);
-	}
-	spin_unlock_irqrestore(&drm->event_lock, flags);
-}
 
 static void arcpgu_lastclose(struct drm_device *drm)
 {
@@ -122,16 +99,12 @@ static int arcpgu_load(struct drm_device *drm)
 	if (IS_ERR(arcpgu->clk))
 		return PTR_ERR(arcpgu->clk);
 
-	INIT_LIST_HEAD(&arcpgu->event_list);
-
 	arcpgu_setup_mode_config(drm);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	arcpgu->regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(arcpgu->regs)) {
-		dev_err(drm->dev, "Could not remap IO mem\n");
+	if (IS_ERR(arcpgu->regs))
 		return PTR_ERR(arcpgu->regs);
-	}
 
 	dev_info(drm->dev, "arc_pgu ID: 0x%x\n",
 		 arc_pgu_read(arcpgu, ARCPGU_REG_ID));
@@ -149,14 +122,16 @@ static int arcpgu_load(struct drm_device *drm)
 
 	/* find the encoder node and initialize it */
 	encoder_node = of_parse_phandle(drm->dev->of_node, "encoder-slave", 0);
-	if (!encoder_node) {
-		dev_err(drm->dev, "failed to get an encoder slave node\n");
-		return -ENODEV;
+	if (encoder_node) {
+		ret = arcpgu_drm_hdmi_init(drm, encoder_node);
+		of_node_put(encoder_node);
+		if (ret < 0)
+			return ret;
+	} else {
+		ret = arcpgu_drm_sim_init(drm, NULL);
+		if (ret < 0)
+			return ret;
 	}
-
-	ret = arcpgu_drm_hdmi_init(drm, encoder_node);
-	if (ret < 0)
-		return ret;
 
 	drm_mode_config_reset(drm);
 	drm_kms_helper_poll_init(drm);
@@ -174,7 +149,7 @@ static int arcpgu_load(struct drm_device *drm)
 	return 0;
 }
 
-int arcpgu_unload(struct drm_device *drm)
+static int arcpgu_unload(struct drm_device *drm)
 {
 	struct arcpgu_drm_private *arcpgu = drm->dev_private;
 
@@ -192,7 +167,6 @@ int arcpgu_unload(struct drm_device *drm)
 static struct drm_driver arcpgu_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
-	.preclose = arcpgu_preclose,
 	.lastclose = arcpgu_lastclose,
 	.name = "drm-arcpgu",
 	.desc = "ARC PGU Controller",
@@ -207,7 +181,7 @@ static struct drm_driver arcpgu_drm_driver = {
 	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_free_object = drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.gem_prime_export = drm_gem_prime_export,
 	.gem_prime_import = drm_gem_prime_import,
@@ -224,8 +198,8 @@ static int arcpgu_probe(struct platform_device *pdev)
 	int ret;
 
 	drm = drm_dev_alloc(&arcpgu_drm_driver, &pdev->dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	ret = arcpgu_load(drm);
 	if (ret)
@@ -235,14 +209,7 @@ static int arcpgu_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unload;
 
-	ret = drm_connector_register_all(drm);
-	if (ret)
-		goto err_unregister;
-
 	return 0;
-
-err_unregister:
-	drm_dev_unregister(drm);
 
 err_unload:
 	arcpgu_unload(drm);
@@ -257,7 +224,6 @@ static int arcpgu_remove(struct platform_device *pdev)
 {
 	struct drm_device *drm = platform_get_drvdata(pdev);
 
-	drm_connector_unregister_all(drm);
 	drm_dev_unregister(drm);
 	arcpgu_unload(drm);
 	drm_dev_unref(drm);

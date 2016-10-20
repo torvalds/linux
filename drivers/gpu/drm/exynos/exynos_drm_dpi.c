@@ -93,17 +93,8 @@ static int exynos_dpi_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
-static struct drm_encoder *
-exynos_dpi_best_encoder(struct drm_connector *connector)
-{
-	struct exynos_dpi *ctx = connector_to_dpi(connector);
-
-	return &ctx->encoder;
-}
-
 static const struct drm_connector_helper_funcs exynos_dpi_connector_helper_funcs = {
 	.get_modes = exynos_dpi_get_modes,
-	.best_encoder = exynos_dpi_best_encoder,
 };
 
 static int exynos_dpi_create_connector(struct drm_encoder *encoder)

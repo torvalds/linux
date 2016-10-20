@@ -241,9 +241,9 @@ typedef void (*regmap_unlock)(void *);
  *                register cache support).
  * @num_reg_defaults: Number of elements in reg_defaults.
  *
- * @read_flag_mask: Mask to be set in the top byte of the register when doing
+ * @read_flag_mask: Mask to be set in the top bytes of the register when doing
  *                  a read.
- * @write_flag_mask: Mask to be set in the top byte of the register when doing
+ * @write_flag_mask: Mask to be set in the top bytes of the register when doing
  *                   a write. If both read_flag_mask and write_flag_mask are
  *                   empty the regmap_bus default masks are used.
  * @use_single_rw: If set, converts the bulk read and write operations into
@@ -299,8 +299,8 @@ struct regmap_config {
 	const void *reg_defaults_raw;
 	unsigned int num_reg_defaults_raw;
 
-	u8 read_flag_mask;
-	u8 write_flag_mask;
+	unsigned long read_flag_mask;
+	unsigned long write_flag_mask;
 
 	bool use_single_rw;
 	bool can_multi_write;

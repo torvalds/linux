@@ -88,7 +88,8 @@ struct kmem_cache {
 };
 
 static inline void *nearest_obj(struct kmem_cache *cache, struct page *page,
-				void *x) {
+				void *x)
+{
 	void *object = x - (x - page->s_mem) % cache->size;
 	void *last_object = page->s_mem + (cache->num - 1) * cache->size;
 

@@ -186,6 +186,7 @@ static const struct i2c_device_id ds1307_id[] = {
 	{ "mcp7941x", mcp794xx },
 	{ "pt7c4338", ds_1307 },
 	{ "rx8025", rx_8025 },
+	{ "isl12057", ds_1337 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds1307_id);
@@ -382,9 +383,24 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 	t->tm_mday = bcd2bin(ds1307->regs[DS1307_REG_MDAY] & 0x3f);
 	tmp = ds1307->regs[DS1307_REG_MONTH] & 0x1f;
 	t->tm_mon = bcd2bin(tmp) - 1;
-
-	/* assume 20YY not 19YY, and ignore DS1337_BIT_CENTURY */
 	t->tm_year = bcd2bin(ds1307->regs[DS1307_REG_YEAR]) + 100;
+
+#ifdef CONFIG_RTC_DRV_DS1307_CENTURY
+	switch (ds1307->type) {
+	case ds_1337:
+	case ds_1339:
+	case ds_3231:
+		if (ds1307->regs[DS1307_REG_MONTH] & DS1337_BIT_CENTURY)
+			t->tm_year += 100;
+		break;
+	case ds_1340:
+		if (ds1307->regs[DS1307_REG_HOUR] & DS1340_BIT_CENTURY)
+			t->tm_year += 100;
+		break;
+	default:
+		break;
+	}
+#endif
 
 	dev_dbg(dev, "%s secs=%d, mins=%d, "
 		"hours=%d, mday=%d, mon=%d, year=%d, wday=%d\n",
@@ -409,6 +425,27 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 		t->tm_hour, t->tm_mday,
 		t->tm_mon, t->tm_year, t->tm_wday);
 
+#ifdef CONFIG_RTC_DRV_DS1307_CENTURY
+	if (t->tm_year < 100)
+		return -EINVAL;
+
+	switch (ds1307->type) {
+	case ds_1337:
+	case ds_1339:
+	case ds_3231:
+	case ds_1340:
+		if (t->tm_year > 299)
+			return -EINVAL;
+	default:
+		if (t->tm_year > 199)
+			return -EINVAL;
+		break;
+	}
+#else
+	if (t->tm_year < 100 || t->tm_year > 199)
+		return -EINVAL;
+#endif
+
 	buf[DS1307_REG_SECS] = bin2bcd(t->tm_sec);
 	buf[DS1307_REG_MIN] = bin2bcd(t->tm_min);
 	buf[DS1307_REG_HOUR] = bin2bcd(t->tm_hour);
@@ -424,11 +461,13 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 	case ds_1337:
 	case ds_1339:
 	case ds_3231:
-		buf[DS1307_REG_MONTH] |= DS1337_BIT_CENTURY;
+		if (t->tm_year > 199)
+			buf[DS1307_REG_MONTH] |= DS1337_BIT_CENTURY;
 		break;
 	case ds_1340:
-		buf[DS1307_REG_HOUR] |= DS1340_BIT_CENTURY_EN
-				| DS1340_BIT_CENTURY;
+		buf[DS1307_REG_HOUR] |= DS1340_BIT_CENTURY_EN;
+		if (t->tm_year > 199)
+			buf[DS1307_REG_HOUR] |= DS1340_BIT_CENTURY;
 		break;
 	case mcp794xx:
 		/*
@@ -482,11 +521,6 @@ static int ds1337_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	t->time.tm_min = bcd2bin(ds1307->regs[1] & 0x7f);
 	t->time.tm_hour = bcd2bin(ds1307->regs[2] & 0x3f);
 	t->time.tm_mday = bcd2bin(ds1307->regs[3] & 0x3f);
-	t->time.tm_mon = -1;
-	t->time.tm_year = -1;
-	t->time.tm_wday = -1;
-	t->time.tm_yday = -1;
-	t->time.tm_isdst = -1;
 
 	/* ... and status */
 	t->enabled = !!(ds1307->regs[7] & DS1337_BIT_A1IE);
@@ -602,6 +636,8 @@ static const struct rtc_class_ops ds13xx_rtc_ops = {
  * Alarm support for mcp794xx devices.
  */
 
+#define MCP794XX_REG_WEEKDAY		0x3
+#define MCP794XX_REG_WEEKDAY_WDAY_MASK	0x7
 #define MCP794XX_REG_CONTROL		0x07
 #	define MCP794XX_BIT_ALM0_EN	0x10
 #	define MCP794XX_BIT_ALM1_EN	0x20
@@ -1231,13 +1267,16 @@ static int ds1307_probe(struct i2c_client *client,
 {
 	struct ds1307		*ds1307;
 	int			err = -ENODEV;
-	int			tmp;
+	int			tmp, wday;
 	struct chip_desc	*chip = &chips[id->driver_data];
 	struct i2c_adapter	*adapter = to_i2c_adapter(client->dev.parent);
 	bool			want_irq = false;
 	bool			ds1307_can_wakeup_device = false;
 	unsigned char		*buf;
 	struct ds1307_platform_data *pdata = dev_get_platdata(&client->dev);
+	struct rtc_time		tm;
+	unsigned long		timestamp;
+
 	irq_handler_t	irq_handler = ds1307_irq;
 
 	static const int	bbsqi_bitpos[] = {
@@ -1293,6 +1332,11 @@ static int ds1307_probe(struct i2c_client *client,
  * if supported by the RTC.
  */
 	if (of_property_read_bool(client->dev.of_node, "wakeup-source")) {
+		ds1307_can_wakeup_device = true;
+	}
+	/* Intersil ISL12057 DT backward compatibility */
+	if (of_property_read_bool(client->dev.of_node,
+				  "isil,irq2-can-wakeup-machine")) {
 		ds1307_can_wakeup_device = true;
 	}
 #endif
@@ -1524,6 +1568,27 @@ read_rtc:
 		i2c_smbus_write_byte_data(client,
 				ds1307->offset + DS1307_REG_HOUR,
 				bin2bcd(tmp));
+	}
+
+	/*
+	 * Some IPs have weekday reset value = 0x1 which might not correct
+	 * hence compute the wday using the current date/month/year values
+	 */
+	ds1307_get_time(&client->dev, &tm);
+	wday = tm.tm_wday;
+	timestamp = rtc_tm_to_time64(&tm);
+	rtc_time64_to_tm(timestamp, &tm);
+
+	/*
+	 * Check if reset wday is different from the computed wday
+	 * If different then set the wday which we computed using
+	 * timestamp
+	 */
+	if (wday != tm.tm_wday) {
+		wday = i2c_smbus_read_byte_data(client, MCP794XX_REG_WEEKDAY);
+		wday = wday & ~MCP794XX_REG_WEEKDAY_WDAY_MASK;
+		wday = wday | (tm.tm_wday + 1);
+		i2c_smbus_write_byte_data(client, MCP794XX_REG_WEEKDAY, wday);
 	}
 
 	if (want_irq) {

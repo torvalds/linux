@@ -386,7 +386,21 @@ static void synic_init(struct kvm_vcpu_hv_synic *synic)
 
 static u64 get_time_ref_counter(struct kvm *kvm)
 {
-	return div_u64(get_kernel_ns() + kvm->arch.kvmclock_offset, 100);
+	struct kvm_hv *hv = &kvm->arch.hyperv;
+	struct kvm_vcpu *vcpu;
+	u64 tsc;
+
+	/*
+	 * The guest has not set up the TSC page or the clock isn't
+	 * stable, fall back to get_kvmclock_ns.
+	 */
+	if (!hv->tsc_ref.tsc_sequence)
+		return div_u64(get_kvmclock_ns(kvm), 100);
+
+	vcpu = kvm_get_vcpu(kvm, 0);
+	tsc = kvm_read_l1_tsc(vcpu, rdtsc());
+	return mul_u64_u64_shr(tsc, hv->tsc_ref.tsc_scale, 64)
+		+ hv->tsc_ref.tsc_offset;
 }
 
 static void stimer_mark_pending(struct kvm_vcpu_hv_stimer *stimer,
@@ -756,6 +770,129 @@ static int kvm_hv_msr_set_crash_data(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+/*
+ * The kvmclock and Hyper-V TSC page use similar formulas, and converting
+ * between them is possible:
+ *
+ * kvmclock formula:
+ *    nsec = (ticks - tsc_timestamp) * tsc_to_system_mul * 2^(tsc_shift-32)
+ *           + system_time
+ *
+ * Hyper-V formula:
+ *    nsec/100 = ticks * scale / 2^64 + offset
+ *
+ * When tsc_timestamp = system_time = 0, offset is zero in the Hyper-V formula.
+ * By dividing the kvmclock formula by 100 and equating what's left we get:
+ *    ticks * scale / 2^64 = ticks * tsc_to_system_mul * 2^(tsc_shift-32) / 100
+ *            scale / 2^64 =         tsc_to_system_mul * 2^(tsc_shift-32) / 100
+ *            scale        =         tsc_to_system_mul * 2^(32+tsc_shift) / 100
+ *
+ * Now expand the kvmclock formula and divide by 100:
+ *    nsec = ticks * tsc_to_system_mul * 2^(tsc_shift-32)
+ *           - tsc_timestamp * tsc_to_system_mul * 2^(tsc_shift-32)
+ *           + system_time
+ *    nsec/100 = ticks * tsc_to_system_mul * 2^(tsc_shift-32) / 100
+ *               - tsc_timestamp * tsc_to_system_mul * 2^(tsc_shift-32) / 100
+ *               + system_time / 100
+ *
+ * Replace tsc_to_system_mul * 2^(tsc_shift-32) / 100 by scale / 2^64:
+ *    nsec/100 = ticks * scale / 2^64
+ *               - tsc_timestamp * scale / 2^64
+ *               + system_time / 100
+ *
+ * Equate with the Hyper-V formula so that ticks * scale / 2^64 cancels out:
+ *    offset = system_time / 100 - tsc_timestamp * scale / 2^64
+ *
+ * These two equivalencies are implemented in this function.
+ */
+static bool compute_tsc_page_parameters(struct pvclock_vcpu_time_info *hv_clock,
+					HV_REFERENCE_TSC_PAGE *tsc_ref)
+{
+	u64 max_mul;
+
+	if (!(hv_clock->flags & PVCLOCK_TSC_STABLE_BIT))
+		return false;
+
+	/*
+	 * check if scale would overflow, if so we use the time ref counter
+	 *    tsc_to_system_mul * 2^(tsc_shift+32) / 100 >= 2^64
+	 *    tsc_to_system_mul / 100 >= 2^(32-tsc_shift)
+	 *    tsc_to_system_mul >= 100 * 2^(32-tsc_shift)
+	 */
+	max_mul = 100ull << (32 - hv_clock->tsc_shift);
+	if (hv_clock->tsc_to_system_mul >= max_mul)
+		return false;
+
+	/*
+	 * Otherwise compute the scale and offset according to the formulas
+	 * derived above.
+	 */
+	tsc_ref->tsc_scale =
+		mul_u64_u32_div(1ULL << (32 + hv_clock->tsc_shift),
+				hv_clock->tsc_to_system_mul,
+				100);
+
+	tsc_ref->tsc_offset = hv_clock->system_time;
+	do_div(tsc_ref->tsc_offset, 100);
+	tsc_ref->tsc_offset -=
+		mul_u64_u64_shr(hv_clock->tsc_timestamp, tsc_ref->tsc_scale, 64);
+	return true;
+}
+
+void kvm_hv_setup_tsc_page(struct kvm *kvm,
+			   struct pvclock_vcpu_time_info *hv_clock)
+{
+	struct kvm_hv *hv = &kvm->arch.hyperv;
+	u32 tsc_seq;
+	u64 gfn;
+
+	BUILD_BUG_ON(sizeof(tsc_seq) != sizeof(hv->tsc_ref.tsc_sequence));
+	BUILD_BUG_ON(offsetof(HV_REFERENCE_TSC_PAGE, tsc_sequence) != 0);
+
+	if (!(hv->hv_tsc_page & HV_X64_MSR_TSC_REFERENCE_ENABLE))
+		return;
+
+	gfn = hv->hv_tsc_page >> HV_X64_MSR_TSC_REFERENCE_ADDRESS_SHIFT;
+	/*
+	 * Because the TSC parameters only vary when there is a
+	 * change in the master clock, do not bother with caching.
+	 */
+	if (unlikely(kvm_read_guest(kvm, gfn_to_gpa(gfn),
+				    &tsc_seq, sizeof(tsc_seq))))
+		return;
+
+	/*
+	 * While we're computing and writing the parameters, force the
+	 * guest to use the time reference count MSR.
+	 */
+	hv->tsc_ref.tsc_sequence = 0;
+	if (kvm_write_guest(kvm, gfn_to_gpa(gfn),
+			    &hv->tsc_ref, sizeof(hv->tsc_ref.tsc_sequence)))
+		return;
+
+	if (!compute_tsc_page_parameters(hv_clock, &hv->tsc_ref))
+		return;
+
+	/* Ensure sequence is zero before writing the rest of the struct.  */
+	smp_wmb();
+	if (kvm_write_guest(kvm, gfn_to_gpa(gfn), &hv->tsc_ref, sizeof(hv->tsc_ref)))
+		return;
+
+	/*
+	 * Now switch to the TSC page mechanism by writing the sequence.
+	 */
+	tsc_seq++;
+	if (tsc_seq == 0xFFFFFFFF || tsc_seq == 0)
+		tsc_seq = 1;
+
+	/* Write the struct entirely before the non-zero sequence.  */
+	smp_wmb();
+
+	hv->tsc_ref.tsc_sequence = tsc_seq;
+	kvm_write_guest(kvm, gfn_to_gpa(gfn),
+			&hv->tsc_ref, sizeof(hv->tsc_ref.tsc_sequence));
+}
+
 static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 			     bool host)
 {
@@ -793,23 +930,11 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 		mark_page_dirty(kvm, gfn);
 		break;
 	}
-	case HV_X64_MSR_REFERENCE_TSC: {
-		u64 gfn;
-		HV_REFERENCE_TSC_PAGE tsc_ref;
-
-		memset(&tsc_ref, 0, sizeof(tsc_ref));
+	case HV_X64_MSR_REFERENCE_TSC:
 		hv->hv_tsc_page = data;
-		if (!(data & HV_X64_MSR_TSC_REFERENCE_ENABLE))
-			break;
-		gfn = data >> HV_X64_MSR_TSC_REFERENCE_ADDRESS_SHIFT;
-		if (kvm_write_guest(
-				kvm,
-				gfn << HV_X64_MSR_TSC_REFERENCE_ADDRESS_SHIFT,
-				&tsc_ref, sizeof(tsc_ref)))
-			return 1;
-		mark_page_dirty(kvm, gfn);
+		if (hv->hv_tsc_page & HV_X64_MSR_TSC_REFERENCE_ENABLE)
+			kvm_make_request(KVM_REQ_MASTERCLOCK_UPDATE, vcpu);
 		break;
-	}
 	case HV_X64_MSR_CRASH_P0 ... HV_X64_MSR_CRASH_P4:
 		return kvm_hv_msr_set_crash_data(vcpu,
 						 msr - HV_X64_MSR_CRASH_P0,

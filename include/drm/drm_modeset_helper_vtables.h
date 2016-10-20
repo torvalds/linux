@@ -266,6 +266,8 @@ struct drm_crtc_helper_funcs {
 	 * disable anything at the CRTC level. To ensure that runtime PM
 	 * handling (using either DPMS or the new "ACTIVE" property) works
 	 * @disable must be the inverse of @enable for atomic drivers.
+	 * Atomic drivers should consider to use @atomic_disable instead of
+	 * this one.
 	 *
 	 * NOTE:
 	 *
@@ -391,6 +393,28 @@ struct drm_crtc_helper_funcs {
 	 */
 	void (*atomic_flush)(struct drm_crtc *crtc,
 			     struct drm_crtc_state *old_crtc_state);
+
+	/**
+	 * @atomic_disable:
+	 *
+	 * This callback should be used to disable the CRTC. With the atomic
+	 * drivers it is called after all encoders connected to this CRTC have
+	 * been shut off already using their own ->disable hook. If that
+	 * sequence is too simple drivers can just add their own hooks and call
+	 * it from this CRTC callback here by looping over all encoders
+	 * connected to it using for_each_encoder_on_crtc().
+	 *
+	 * This hook is used only by atomic helpers. Atomic drivers don't
+	 * need to implement it if there's no need to disable anything at the
+	 * CRTC level.
+	 *
+	 * Comparing to @disable, this one provides the additional input
+	 * parameter @old_crtc_state which could be used to access the old
+	 * state. Atomic drivers should consider to use this one instead
+	 * of @disable.
+	 */
+	void (*atomic_disable)(struct drm_crtc *crtc,
+			       struct drm_crtc_state *old_crtc_state);
 };
 
 /**
@@ -523,10 +547,39 @@ struct drm_encoder_helper_funcs {
 	 *
 	 * This callback is used both by the legacy CRTC helpers and the atomic
 	 * modeset helpers. It is optional in the atomic helpers.
+	 *
+	 * NOTE:
+	 *
+	 * If the driver uses the atomic modeset helpers and needs to inspect
+	 * the connector state or connector display info during mode setting,
+	 * @atomic_mode_set can be used instead.
 	 */
 	void (*mode_set)(struct drm_encoder *encoder,
 			 struct drm_display_mode *mode,
 			 struct drm_display_mode *adjusted_mode);
+
+	/**
+	 * @atomic_mode_set:
+	 *
+	 * This callback is used to update the display mode of an encoder.
+	 *
+	 * Note that the display pipe is completely off when this function is
+	 * called. Drivers which need hardware to be running before they program
+	 * the new display mode (because they implement runtime PM) should not
+	 * use this hook, because the helper library calls it only once and not
+	 * every time the display pipeline is suspended using either DPMS or the
+	 * new "ACTIVE" property. Such drivers should instead move all their
+	 * encoder setup into the ->enable() callback.
+	 *
+	 * This callback is used by the atomic modeset helpers in place of the
+	 * @mode_set callback, if set by the driver. It is optional and should
+	 * be used instead of @mode_set if the driver needs to inspect the
+	 * connector state or display info, since there is no direct way to
+	 * go from the encoder to the current connector.
+	 */
+	void (*atomic_mode_set)(struct drm_encoder *encoder,
+				struct drm_crtc_state *crtc_state,
+				struct drm_connector_state *conn_state);
 
 	/**
 	 * @get_crtc:
@@ -736,6 +789,11 @@ struct drm_connector_helper_funcs {
 	 * inspect dynamic configuration state should instead use
 	 * @atomic_best_encoder.
 	 *
+	 * You can leave this function to NULL if the connector is only
+	 * attached to a single encoder and you are using the atomic helpers.
+	 * In this case, the core will call drm_atomic_helper_best_encoder()
+	 * for you.
+	 *
 	 * RETURNS:
 	 *
 	 * Encoder that should be used for the given connector and connector
@@ -752,8 +810,9 @@ struct drm_connector_helper_funcs {
 	 * need to select the best encoder depending upon the desired
 	 * configuration and can't select it statically.
 	 *
-	 * This function is used by drm_atomic_helper_check_modeset() and either
-	 * this or @best_encoder is required.
+	 * This function is used by drm_atomic_helper_check_modeset().
+	 * If it is not implemented, the core will fallback to @best_encoder
+	 * (or drm_atomic_helper_best_encoder() if @best_encoder is NULL).
 	 *
 	 * NOTE:
 	 *
@@ -820,7 +879,7 @@ struct drm_plane_helper_funcs {
 	 * everything else must complete successfully.
 	 */
 	int (*prepare_fb)(struct drm_plane *plane,
-			  const struct drm_plane_state *new_state);
+			  struct drm_plane_state *new_state);
 	/**
 	 * @cleanup_fb:
 	 *
@@ -831,7 +890,7 @@ struct drm_plane_helper_funcs {
 	 * transitional plane helpers, but it is optional.
 	 */
 	void (*cleanup_fb)(struct drm_plane *plane,
-			   const struct drm_plane_state *old_state);
+			   struct drm_plane_state *old_state);
 
 	/**
 	 * @atomic_check:
@@ -924,5 +983,44 @@ static inline void drm_plane_helper_add(struct drm_plane *plane,
 {
 	plane->helper_private = funcs;
 }
+
+/**
+ * struct drm_mode_config_helper_funcs - global modeset helper operations
+ *
+ * These helper functions are used by the atomic helpers.
+ */
+struct drm_mode_config_helper_funcs {
+	/**
+	 * @atomic_commit_tail:
+	 *
+	 * This hook is used by the default atomic_commit() hook implemented in
+	 * drm_atomic_helper_commit() together with the nonblocking commit
+	 * helpers (see drm_atomic_helper_setup_commit() for a starting point)
+	 * to implement blocking and nonblocking commits easily. It is not used
+	 * by the atomic helpers
+	 *
+	 * This hook should first commit the given atomic state to the hardware.
+	 * But drivers can add more waiting calls at the start of their
+	 * implementation, e.g. to wait for driver-internal request for implicit
+	 * syncing, before starting to commit the update to the hardware.
+	 *
+	 * After the atomic update is committed to the hardware this hook needs
+	 * to call drm_atomic_helper_commit_hw_done(). Then wait for the upate
+	 * to be executed by the hardware, for example using
+	 * drm_atomic_helper_wait_for_vblanks(), and then clean up the old
+	 * framebuffers using drm_atomic_helper_cleanup_planes().
+	 *
+	 * When disabling a CRTC this hook _must_ stall for the commit to
+	 * complete. Vblank waits don't work on disabled CRTC, hence the core
+	 * can't take care of this. And it also can't rely on the vblank event,
+	 * since that can be signalled already when the screen shows black,
+	 * which can happen much earlier than the last hardware access needed to
+	 * shut off the display pipeline completely.
+	 *
+	 * This hook is optional, the default implementation is
+	 * drm_atomic_helper_commit_tail().
+	 */
+	void (*atomic_commit_tail)(struct drm_atomic_state *state);
+};
 
 #endif

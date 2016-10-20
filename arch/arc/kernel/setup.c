@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/cpu.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/cache.h>
 #include <asm/sections.h>
 #include <asm/arcregs.h>
@@ -171,6 +171,7 @@ static const struct cpuinfo_data arc_cpu_tbl[] = {
 #else
 	{ {0x50, "ARC HS38 R2.0"}, 0x51},
 	{ {0x52, "ARC HS38 R2.1"}, 0x52},
+	{ {0x53, "ARC HS38 R3.0"}, 0x53},
 #endif
 	{ {0x00, NULL		} }
 };
@@ -272,8 +273,8 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	FIX_PTR(cpu);
 
 	n += scnprintf(buf + n, len - n,
-		       "Vector Table\t: %#x\nUncached Base\t: %#lx\n",
-		       cpu->vec_base, perip_base);
+		       "Vector Table\t: %#x\nPeripherals\t: %#lx:%#lx\n",
+		       cpu->vec_base, perip_base, perip_end);
 
 	if (cpu->extn.fpu_sp || cpu->extn.fpu_dp)
 		n += scnprintf(buf + n, len - n, "FPU\t\t: %s%s\n",
@@ -291,8 +292,10 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 			       cpu->dccm.base_addr, TO_KB(cpu->dccm.sz),
 			       cpu->iccm.base_addr, TO_KB(cpu->iccm.sz));
 
-	n += scnprintf(buf + n, len - n,
-		       "OS ABI [v3]\t: no-legacy-syscalls\n");
+	n += scnprintf(buf + n, len - n, "OS ABI [v%d]\t: %s\n",
+			EF_ARC_OSABI_CURRENT >> 8,
+			EF_ARC_OSABI_CURRENT == EF_ARC_OSABI_V3 ?
+			"no-legacy-syscalls" : "64-bit data any register aligned");
 
 	return buf;
 }
@@ -435,12 +438,6 @@ void __init setup_arch(char **cmdline_p)
 
 static int __init customize_machine(void)
 {
-	/*
-	 * Traverses flattened DeviceTree - registering platform devices
-	 * (if any) complete with their resources
-	 */
-	of_platform_default_populate(NULL, NULL, NULL);
-
 	if (machine_desc->init_machine)
 		machine_desc->init_machine();
 

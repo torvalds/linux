@@ -74,6 +74,8 @@
 #define EDID_QUIRK_FORCE_8BPC			(1 << 8)
 /* Force 12bpc */
 #define EDID_QUIRK_FORCE_12BPC			(1 << 9)
+/* Force 6bpc */
+#define EDID_QUIRK_FORCE_6BPC			(1 << 10)
 
 struct detailed_mode_closure {
 	struct drm_connector *connector;
@@ -99,6 +101,9 @@ static struct edid_quirk {
 	{ "API", 0x7602, EDID_QUIRK_PREFER_LARGE_60 },
 	/* Unknown Acer */
 	{ "ACR", 2423, EDID_QUIRK_FIRST_DETAILED_PREFERRED },
+
+	/* AEO model 0 reports 8 bpc, but is a 6 bpc panel */
+	{ "AEO", 0, EDID_QUIRK_FORCE_6BPC },
 
 	/* Belinea 10 15 55 */
 	{ "MAX", 1516, EDID_QUIRK_PREFER_LARGE_60 },
@@ -986,7 +991,7 @@ static const struct drm_display_mode edid_cea_modes[] = {
 	 .vrefresh = 120, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
 	/* 64 - 1920x1080@100Hz */
 	{ DRM_MODE("1920x1080", DRM_MODE_TYPE_DRIVER, 297000, 1920, 2448,
-		   2492, 2640, 0, 1080, 1084, 1094, 1125, 0,
+		   2492, 2640, 0, 1080, 1084, 1089, 1125, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
 	 .vrefresh = 100, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
 };
@@ -3248,16 +3253,12 @@ static void fixup_detailed_cea_mode_clock(struct drm_display_mode *mode)
 }
 
 static void
-parse_hdmi_vsdb(struct drm_connector *connector, const u8 *db)
+drm_parse_hdmi_vsdb_audio(struct drm_connector *connector, const u8 *db)
 {
 	u8 len = cea_db_payload_len(db);
 
-	if (len >= 6) {
+	if (len >= 6)
 		connector->eld[5] |= (db[6] >> 7) << 1;  /* Supports_AI */
-		connector->dvi_dual = db[6] & 1;
-	}
-	if (len >= 7)
-		connector->max_tmds_clock = db[7] * 5;
 	if (len >= 8) {
 		connector->latency_present[0] = db[8] >> 7;
 		connector->latency_present[1] = (db[8] >> 6) & 1;
@@ -3271,19 +3272,15 @@ parse_hdmi_vsdb(struct drm_connector *connector, const u8 *db)
 	if (len >= 12)
 		connector->audio_latency[1] = db[12];
 
-	DRM_DEBUG_KMS("HDMI: DVI dual %d, "
-		    "max TMDS clock %d, "
-		    "latency present %d %d, "
-		    "video latency %d %d, "
-		    "audio latency %d %d\n",
-		    connector->dvi_dual,
-		    connector->max_tmds_clock,
-	      (int) connector->latency_present[0],
-	      (int) connector->latency_present[1],
-		    connector->video_latency[0],
-		    connector->video_latency[1],
-		    connector->audio_latency[0],
-		    connector->audio_latency[1]);
+	DRM_DEBUG_KMS("HDMI: latency present %d %d, "
+		      "video latency %d %d, "
+		      "audio latency %d %d\n",
+		      connector->latency_present[0],
+		      connector->latency_present[1],
+		      connector->video_latency[0],
+		      connector->video_latency[1],
+		      connector->audio_latency[0],
+		      connector->audio_latency[1]);
 }
 
 static void
@@ -3353,6 +3350,13 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 
 	memset(eld, 0, sizeof(connector->eld));
 
+	connector->latency_present[0] = false;
+	connector->latency_present[1] = false;
+	connector->video_latency[0] = 0;
+	connector->audio_latency[0] = 0;
+	connector->video_latency[1] = 0;
+	connector->audio_latency[1] = 0;
+
 	cea = drm_find_cea_extension(edid);
 	if (!cea) {
 		DRM_DEBUG_KMS("ELD: no CEA Extension found\n");
@@ -3402,7 +3406,7 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 			case VENDOR_BLOCK:
 				/* HDMI Vendor-Specific Data Block */
 				if (cea_db_is_hdmi_vsdb(db))
-					parse_hdmi_vsdb(connector, db);
+					drm_parse_hdmi_vsdb_audio(connector, db);
 				break;
 			default:
 				break;
@@ -3716,122 +3720,127 @@ bool drm_rgb_quant_range_selectable(struct edid *edid)
 }
 EXPORT_SYMBOL(drm_rgb_quant_range_selectable);
 
-/**
- * drm_assign_hdmi_deep_color_info - detect whether monitor supports
- * hdmi deep color modes and update drm_display_info if so.
- * @edid: monitor EDID information
- * @info: Updated with maximum supported deep color bpc and color format
- *        if deep color supported.
- * @connector: DRM connector, used only for debug output
- *
- * Parse the CEA extension according to CEA-861-B.
- * Return true if HDMI deep color supported, false if not or unknown.
- */
-static bool drm_assign_hdmi_deep_color_info(struct edid *edid,
-                                            struct drm_display_info *info,
-                                            struct drm_connector *connector)
+static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
+					   const u8 *hdmi)
 {
-	u8 *edid_ext, *hdmi;
-	int i;
-	int start_offset, end_offset;
+	struct drm_display_info *info = &connector->display_info;
 	unsigned int dc_bpc = 0;
+
+	/* HDMI supports at least 8 bpc */
+	info->bpc = 8;
+
+	if (cea_db_payload_len(hdmi) < 6)
+		return;
+
+	if (hdmi[6] & DRM_EDID_HDMI_DC_30) {
+		dc_bpc = 10;
+		info->edid_hdmi_dc_modes |= DRM_EDID_HDMI_DC_30;
+		DRM_DEBUG("%s: HDMI sink does deep color 30.\n",
+			  connector->name);
+	}
+
+	if (hdmi[6] & DRM_EDID_HDMI_DC_36) {
+		dc_bpc = 12;
+		info->edid_hdmi_dc_modes |= DRM_EDID_HDMI_DC_36;
+		DRM_DEBUG("%s: HDMI sink does deep color 36.\n",
+			  connector->name);
+	}
+
+	if (hdmi[6] & DRM_EDID_HDMI_DC_48) {
+		dc_bpc = 16;
+		info->edid_hdmi_dc_modes |= DRM_EDID_HDMI_DC_48;
+		DRM_DEBUG("%s: HDMI sink does deep color 48.\n",
+			  connector->name);
+	}
+
+	if (dc_bpc == 0) {
+		DRM_DEBUG("%s: No deep color support on this HDMI sink.\n",
+			  connector->name);
+		return;
+	}
+
+	DRM_DEBUG("%s: Assigning HDMI sink color depth as %d bpc.\n",
+		  connector->name, dc_bpc);
+	info->bpc = dc_bpc;
+
+	/*
+	 * Deep color support mandates RGB444 support for all video
+	 * modes and forbids YCRCB422 support for all video modes per
+	 * HDMI 1.3 spec.
+	 */
+	info->color_formats = DRM_COLOR_FORMAT_RGB444;
+
+	/* YCRCB444 is optional according to spec. */
+	if (hdmi[6] & DRM_EDID_HDMI_DC_Y444) {
+		info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
+		DRM_DEBUG("%s: HDMI sink does YCRCB444 in deep color.\n",
+			  connector->name);
+	}
+
+	/*
+	 * Spec says that if any deep color mode is supported at all,
+	 * then deep color 36 bit must be supported.
+	 */
+	if (!(hdmi[6] & DRM_EDID_HDMI_DC_36)) {
+		DRM_DEBUG("%s: HDMI sink should do DC_36, but does not!\n",
+			  connector->name);
+	}
+}
+
+static void
+drm_parse_hdmi_vsdb_video(struct drm_connector *connector, const u8 *db)
+{
+	struct drm_display_info *info = &connector->display_info;
+	u8 len = cea_db_payload_len(db);
+
+	if (len >= 6)
+		info->dvi_dual = db[6] & 1;
+	if (len >= 7)
+		info->max_tmds_clock = db[7] * 5000;
+
+	DRM_DEBUG_KMS("HDMI: DVI dual %d, "
+		      "max TMDS clock %d kHz\n",
+		      info->dvi_dual,
+		      info->max_tmds_clock);
+
+	drm_parse_hdmi_deep_color_info(connector, db);
+}
+
+static void drm_parse_cea_ext(struct drm_connector *connector,
+			      struct edid *edid)
+{
+	struct drm_display_info *info = &connector->display_info;
+	const u8 *edid_ext;
+	int i, start, end;
 
 	edid_ext = drm_find_cea_extension(edid);
 	if (!edid_ext)
-		return false;
+		return;
 
-	if (cea_db_offsets(edid_ext, &start_offset, &end_offset))
-		return false;
+	info->cea_rev = edid_ext[1];
 
-	/*
-	 * Because HDMI identifier is in Vendor Specific Block,
-	 * search it from all data blocks of CEA extension.
-	 */
-	for_each_cea_db(edid_ext, i, start_offset, end_offset) {
-		if (cea_db_is_hdmi_vsdb(&edid_ext[i])) {
-			/* HDMI supports at least 8 bpc */
-			info->bpc = 8;
+	/* The existence of a CEA block should imply RGB support */
+	info->color_formats = DRM_COLOR_FORMAT_RGB444;
+	if (edid_ext[3] & EDID_CEA_YCRCB444)
+		info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
+	if (edid_ext[3] & EDID_CEA_YCRCB422)
+		info->color_formats |= DRM_COLOR_FORMAT_YCRCB422;
 
-			hdmi = &edid_ext[i];
-			if (cea_db_payload_len(hdmi) < 6)
-				return false;
+	if (cea_db_offsets(edid_ext, &start, &end))
+		return;
 
-			if (hdmi[6] & DRM_EDID_HDMI_DC_30) {
-				dc_bpc = 10;
-				info->edid_hdmi_dc_modes |= DRM_EDID_HDMI_DC_30;
-				DRM_DEBUG("%s: HDMI sink does deep color 30.\n",
-						  connector->name);
-			}
+	for_each_cea_db(edid_ext, i, start, end) {
+		const u8 *db = &edid_ext[i];
 
-			if (hdmi[6] & DRM_EDID_HDMI_DC_36) {
-				dc_bpc = 12;
-				info->edid_hdmi_dc_modes |= DRM_EDID_HDMI_DC_36;
-				DRM_DEBUG("%s: HDMI sink does deep color 36.\n",
-						  connector->name);
-			}
-
-			if (hdmi[6] & DRM_EDID_HDMI_DC_48) {
-				dc_bpc = 16;
-				info->edid_hdmi_dc_modes |= DRM_EDID_HDMI_DC_48;
-				DRM_DEBUG("%s: HDMI sink does deep color 48.\n",
-						  connector->name);
-			}
-
-			if (dc_bpc > 0) {
-				DRM_DEBUG("%s: Assigning HDMI sink color depth as %d bpc.\n",
-						  connector->name, dc_bpc);
-				info->bpc = dc_bpc;
-
-				/*
-				 * Deep color support mandates RGB444 support for all video
-				 * modes and forbids YCRCB422 support for all video modes per
-				 * HDMI 1.3 spec.
-				 */
-				info->color_formats = DRM_COLOR_FORMAT_RGB444;
-
-				/* YCRCB444 is optional according to spec. */
-				if (hdmi[6] & DRM_EDID_HDMI_DC_Y444) {
-					info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
-					DRM_DEBUG("%s: HDMI sink does YCRCB444 in deep color.\n",
-							  connector->name);
-				}
-
-				/*
-				 * Spec says that if any deep color mode is supported at all,
-				 * then deep color 36 bit must be supported.
-				 */
-				if (!(hdmi[6] & DRM_EDID_HDMI_DC_36)) {
-					DRM_DEBUG("%s: HDMI sink should do DC_36, but does not!\n",
-							  connector->name);
-				}
-
-				return true;
-			}
-			else {
-				DRM_DEBUG("%s: No deep color support on this HDMI sink.\n",
-						  connector->name);
-			}
-		}
+		if (cea_db_is_hdmi_vsdb(db))
+			drm_parse_hdmi_vsdb_video(connector, db);
 	}
-
-	return false;
 }
 
-/**
- * drm_add_display_info - pull display info out if present
- * @edid: EDID data
- * @info: display info (attached to connector)
- * @connector: connector whose edid is used to build display info
- *
- * Grab any available display info and stuff it into the drm_display_info
- * structure that's part of the connector.  Useful for tracking bpp and
- * color spaces.
- */
-static void drm_add_display_info(struct edid *edid,
-                                 struct drm_display_info *info,
-                                 struct drm_connector *connector)
+static void drm_add_display_info(struct drm_connector *connector,
+				 struct edid *edid)
 {
-	u8 *edid_ext;
+	struct drm_display_info *info = &connector->display_info;
 
 	info->width_mm = edid->width_cm * 10;
 	info->height_mm = edid->height_cm * 10;
@@ -3839,6 +3848,9 @@ static void drm_add_display_info(struct edid *edid,
 	/* driver figures it out in this case */
 	info->bpc = 0;
 	info->color_formats = 0;
+	info->cea_rev = 0;
+	info->max_tmds_clock = 0;
+	info->dvi_dual = false;
 
 	if (edid->revision < 3)
 		return;
@@ -3846,21 +3858,21 @@ static void drm_add_display_info(struct edid *edid,
 	if (!(edid->input & DRM_EDID_INPUT_DIGITAL))
 		return;
 
-	/* Get data from CEA blocks if present */
-	edid_ext = drm_find_cea_extension(edid);
-	if (edid_ext) {
-		info->cea_rev = edid_ext[1];
+	drm_parse_cea_ext(connector, edid);
 
-		/* The existence of a CEA block should imply RGB support */
-		info->color_formats = DRM_COLOR_FORMAT_RGB444;
-		if (edid_ext[3] & EDID_CEA_YCRCB444)
-			info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
-		if (edid_ext[3] & EDID_CEA_YCRCB422)
-			info->color_formats |= DRM_COLOR_FORMAT_YCRCB422;
+	/*
+	 * Digital sink with "DFP 1.x compliant TMDS" according to EDID 1.3?
+	 *
+	 * For such displays, the DFP spec 1.0, section 3.10 "EDID support"
+	 * tells us to assume 8 bpc color depth if the EDID doesn't have
+	 * extensions which tell otherwise.
+	 */
+	if ((info->bpc == 0) && (edid->revision < 4) &&
+	    (edid->input & DRM_EDID_DIGITAL_TYPE_DVI)) {
+		info->bpc = 8;
+		DRM_DEBUG("%s: Assigning DFP sink color depth as %d bpc.\n",
+			  connector->name, info->bpc);
 	}
-
-	/* HDMI deep color modes supported? Assign to info, if so */
-	drm_assign_hdmi_deep_color_info(edid, info, connector);
 
 	/* Only defined for 1.4 with digital displays */
 	if (edid->revision < 4)
@@ -4033,7 +4045,9 @@ static int add_displayid_detailed_modes(struct drm_connector *connector,
  * @connector: connector we're probing
  * @edid: EDID data
  *
- * Add the specified modes to the connector's mode list.
+ * Add the specified modes to the connector's mode list. Also fills out the
+ * &drm_display_info structure in @connector with any information which can be
+ * derived from the edid.
  *
  * Return: The number of modes added or 0 if we couldn't find any.
  */
@@ -4080,7 +4094,10 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	if (quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
 		edid_fixup_preferred(connector, quirks);
 
-	drm_add_display_info(edid, &connector->display_info, connector);
+	drm_add_display_info(connector, edid);
+
+	if (quirks & EDID_QUIRK_FORCE_6BPC)
+		connector->display_info.bpc = 6;
 
 	if (quirks & EDID_QUIRK_FORCE_8BPC)
 		connector->display_info.bpc = 8;

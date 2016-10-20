@@ -52,6 +52,12 @@
 		};
 	};
 
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+
 	reg_wl18xx_vmmc: regulator-wl18xx {
 		compatible = "regulator-fixed";
 		regulator-name = "vwl1807";
@@ -177,6 +183,76 @@
 				interrupt-controller;
 				interrupt-parent = <&gpio2>;
 				interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+
+				P06 {
+					gpio-hog;
+					gpios = <6 0>;
+					output-low;
+					line-name = "PCA9539-P06";
+				};
+
+				P07 {
+					gpio-hog;
+					gpios = <7 0>;
+					output-low;
+					line-name = "PCA9539-P07";
+				};
+
+				P10 {
+					gpio-hog;
+					gpios = <8 0>;
+					output-low;
+					line-name = "PCA9539-P10";
+				};
+
+				P11 {
+					gpio-hog;
+					gpios = <9 0>;
+					output-low;
+					line-name = "PCA9539-P11";
+				};
+
+				P12 {
+					gpio-hog;
+					gpios = <10 0>;
+					output-low;
+					line-name = "PCA9539-P12";
+				};
+
+				P13 {
+					gpio-hog;
+					gpios = <11 0>;
+					output-low;
+					line-name = "PCA9539-P13";
+				};
+
+				P14 {
+					gpio-hog;
+					gpios = <12 0>;
+					output-low;
+					line-name = "PCA9539-P14";
+				};
+
+				P15 {
+					gpio-hog;
+					gpios = <13 0>;
+					output-low;
+					line-name = "PCA9539-P15";
+				};
+
+				P16 {
+					gpio-hog;
+					gpios = <14 0>;
+					output-low;
+					line-name = "PCA9539-P16";
+				};
+
+				P17 {
+					gpio-hog;
+					gpios = <15 0>;
+					output-low;
+					line-name = "PCA9539-P17";
+				};
 			};
 		};
 

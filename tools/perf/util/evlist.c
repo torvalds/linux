@@ -239,31 +239,13 @@ void perf_event_attr__set_max_precise_ip(struct perf_event_attr *attr)
 
 int perf_evlist__add_default(struct perf_evlist *evlist)
 {
-	struct perf_event_attr attr = {
-		.type = PERF_TYPE_HARDWARE,
-		.config = PERF_COUNT_HW_CPU_CYCLES,
-	};
-	struct perf_evsel *evsel;
+	struct perf_evsel *evsel = perf_evsel__new_cycles();
 
-	event_attr_init(&attr);
-
-	perf_event_attr__set_max_precise_ip(&attr);
-
-	evsel = perf_evsel__new(&attr);
 	if (evsel == NULL)
-		goto error;
-
-	/* use asprintf() because free(evsel) assumes name is allocated */
-	if (asprintf(&evsel->name, "cycles%.*s",
-		     attr.precise_ip ? attr.precise_ip + 1 : 0, ":ppp") < 0)
-		goto error_free;
+		return -ENOMEM;
 
 	perf_evlist__add(evlist, evsel);
 	return 0;
-error_free:
-	perf_evsel__delete(evsel);
-error:
-	return -ENOMEM;
 }
 
 int perf_evlist__add_dummy(struct perf_evlist *evlist)
@@ -402,15 +384,14 @@ void perf_evlist__toggle_enable(struct perf_evlist *evlist)
 static int perf_evlist__enable_event_cpu(struct perf_evlist *evlist,
 					 struct perf_evsel *evsel, int cpu)
 {
-	int thread, err;
+	int thread;
 	int nr_threads = perf_evlist__nr_threads(evlist, evsel);
 
 	if (!evsel->fd)
 		return -EINVAL;
 
 	for (thread = 0; thread < nr_threads; thread++) {
-		err = ioctl(FD(evsel, cpu, thread),
-			    PERF_EVENT_IOC_ENABLE, 0);
+		int err = ioctl(FD(evsel, cpu, thread), PERF_EVENT_IOC_ENABLE, 0);
 		if (err)
 			return err;
 	}
@@ -421,14 +402,14 @@ static int perf_evlist__enable_event_thread(struct perf_evlist *evlist,
 					    struct perf_evsel *evsel,
 					    int thread)
 {
-	int cpu, err;
+	int cpu;
 	int nr_cpus = cpu_map__nr(evlist->cpus);
 
 	if (!evsel->fd)
 		return -EINVAL;
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
-		err = ioctl(FD(evsel, cpu, thread), PERF_EVENT_IOC_ENABLE, 0);
+		int err = ioctl(FD(evsel, cpu, thread), PERF_EVENT_IOC_ENABLE, 0);
 		if (err)
 			return err;
 	}
@@ -1050,16 +1031,18 @@ perf_evlist__should_poll(struct perf_evlist *evlist __maybe_unused,
 }
 
 static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
-				       struct mmap_params *mp, int cpu,
+				       struct mmap_params *mp, int cpu_idx,
 				       int thread, int *_output, int *_output_backward)
 {
 	struct perf_evsel *evsel;
 	int revent;
+	int evlist_cpu = cpu_map__cpu(evlist->cpus, cpu_idx);
 
 	evlist__for_each_entry(evlist, evsel) {
 		struct perf_mmap *maps = evlist->mmap;
 		int *output = _output;
 		int fd;
+		int cpu;
 
 		if (evsel->attr.write_backward) {
 			output = _output_backward;
@@ -1076,6 +1059,10 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 		}
 
 		if (evsel->system_wide && thread)
+			continue;
+
+		cpu = cpu_map__idx(evsel->cpus, evlist_cpu);
+		if (cpu == -1)
 			continue;
 
 		fd = FD(evsel, cpu, thread);
@@ -1618,10 +1605,9 @@ void perf_evlist__close(struct perf_evlist *evlist)
 	struct perf_evsel *evsel;
 	int ncpus = cpu_map__nr(evlist->cpus);
 	int nthreads = thread_map__nr(evlist->threads);
-	int n;
 
 	evlist__for_each_entry_reverse(evlist, evsel) {
-		n = evsel->cpus ? evsel->cpus->nr : ncpus;
+		int n = evsel->cpus ? evsel->cpus->nr : ncpus;
 		perf_evsel__close(evsel, n, nthreads);
 	}
 }

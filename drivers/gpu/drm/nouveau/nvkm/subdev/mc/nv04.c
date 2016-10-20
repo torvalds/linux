@@ -56,7 +56,7 @@ nv04_mc_intr_rearm(struct nvkm_mc *mc)
 }
 
 u32
-nv04_mc_intr_mask(struct nvkm_mc *mc)
+nv04_mc_intr_stat(struct nvkm_mc *mc)
 {
 	return nvkm_rd32(mc->subdev.device, 0x000100);
 }
@@ -75,7 +75,7 @@ nv04_mc = {
 	.intr = nv04_mc_intr,
 	.intr_unarm = nv04_mc_intr_unarm,
 	.intr_rearm = nv04_mc_intr_rearm,
-	.intr_mask = nv04_mc_intr_mask,
+	.intr_stat = nv04_mc_intr_stat,
 	.reset = nv04_mc_reset,
 };
 

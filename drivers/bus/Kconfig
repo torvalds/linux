@@ -108,6 +108,14 @@ config OMAP_OCP2SCP
 	  OCP2SCP and in OMAP5, both USB PHY and SATA PHY is connected via
 	  OCP2SCP.
 
+config QCOM_EBI2
+	bool "Qualcomm External Bus Interface 2 (EBI2)"
+	depends on HAS_IOMEM
+	help
+	  Say y here to enable support for the Qualcomm External Bus
+	  Interface 2, which can be used to connect things like NAND Flash,
+	  SRAM, ethernet adapters, FPGAs and LCD displays.
+
 config SIMPLE_PM_BUS
 	bool "Simple Power-Managed Bus Driver"
 	depends on OF && PM
@@ -131,6 +139,15 @@ config SUNXI_RSB
 	  (RSB) support. This controller is responsible for communicating
 	  with various RSB based devices, such as AXP223, AXP8XX PMICs,
 	  and AC100/AC200 ICs.
+
+config TEGRA_ACONNECT
+	tristate "Tegra ACONNECT Bus Driver"
+	depends on ARCH_TEGRA_210_SOC
+	depends on OF && PM
+	select PM_CLK
+	help
+	  Driver for the Tegra ACONNECT bus which is used to interface with
+	  the devices inside the Audio Processing Engine (APE) for Tegra210.
 
 config UNIPHIER_SYSTEM_BUS
 	tristate "UniPhier System Bus driver"

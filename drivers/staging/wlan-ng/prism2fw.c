@@ -96,16 +96,16 @@ struct s3inforec {
 	u16 len;
 	u16 type;
 	union {
-		hfa384x_compident_t version;
-		hfa384x_caplevel_t compat;
+		struct hfa384x_compident version;
+		struct hfa384x_caplevel compat;
 		u16 buildseq;
-		hfa384x_compident_t platform;
+		struct hfa384x_compident platform;
 	} info;
 };
 
 struct pda {
 	u8 buf[HFA384x_PDA_LEN_MAX];
-	hfa384x_pdrec_t *rec[HFA384x_PDA_RECS_MAX];
+	struct hfa384x_pdrec *rec[HFA384x_PDA_RECS_MAX];
 	unsigned int nrec;
 };
 
@@ -152,22 +152,22 @@ static struct imgchunk fchunk[CHUNKS_MAX];
 /* PDA, built from [card|newfile]+[addfile1+addfile2...] */
 
 static struct pda pda;
-static hfa384x_compident_t nicid;
-static hfa384x_caplevel_t rfid;
-static hfa384x_caplevel_t macid;
-static hfa384x_caplevel_t priid;
+static struct hfa384x_compident nicid;
+static struct hfa384x_caplevel rfid;
+static struct hfa384x_caplevel macid;
+static struct hfa384x_caplevel priid;
 
 /*================================================================*/
 /* Local Function Declarations */
 
 static int prism2_fwapply(const struct ihex_binrec *rfptr,
-wlandevice_t *wlandev);
+struct wlandevice *wlandev);
 
 static int read_fwfile(const struct ihex_binrec *rfptr);
 
 static int mkimage(struct imgchunk *clist, unsigned int *ccnt);
 
-static int read_cardpda(struct pda *pda, wlandevice_t *wlandev);
+static int read_cardpda(struct pda *pda, struct wlandevice *wlandev);
 
 static int mkpdrlist(struct pda *pda);
 
@@ -177,7 +177,7 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 static int crcimage(struct imgchunk *fchunk, unsigned int nfchunks,
 	     struct s3crcrec *s3crc, unsigned int ns3crc);
 
-static int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
+static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	       unsigned int nfchunks);
 static void free_chunks(struct imgchunk *fchunk, unsigned int *nfchunks);
 
@@ -201,7 +201,7 @@ static int validate_identity(void);
 *	0	- success
 *	~0	- failure
 ----------------------------------------------------------------*/
-static int prism2_fwtry(struct usb_device *udev, wlandevice_t *wlandev)
+static int prism2_fwtry(struct usb_device *udev, struct wlandevice *wlandev)
 {
 	const struct firmware *fw_entry = NULL;
 
@@ -239,11 +239,11 @@ static int prism2_fwtry(struct usb_device *udev, wlandevice_t *wlandev)
 *	~0	- failure
 ----------------------------------------------------------------*/
 static int prism2_fwapply(const struct ihex_binrec *rfptr,
-			  wlandevice_t *wlandev)
+			  struct wlandevice *wlandev)
 {
 	signed int result = 0;
 	struct p80211msg_dot11req_mibget getmsg;
-	p80211itemd_t *item;
+	struct p80211itemd *item;
 	u32 *data;
 
 	/* Initialize the data structures */
@@ -266,7 +266,7 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 
 	/* clear the pda and add an initial END record */
 	memset(&pda, 0, sizeof(pda));
-	pda.rec[0] = (hfa384x_pdrec_t *) pda.buf;
+	pda.rec[0] = (struct hfa384x_pdrec *)pda.buf;
 	pda.rec[0]->len = cpu_to_le16(2);	/* len in words */
 	pda.rec[0]->code = cpu_to_le16(HFA384x_PDR_END_OF_PDA);
 	pda.nrec = 1;
@@ -293,11 +293,11 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 	getmsg.resultcode.did = DIDmsg_dot11req_mibget_resultcode;
 	getmsg.resultcode.status = P80211ENUM_msgitem_status_no_value;
 
-	item = (p80211itemd_t *) getmsg.mibattribute.data;
+	item = (struct p80211itemd *)getmsg.mibattribute.data;
 	item->did = DIDmib_p2_p2NIC_p2PRISupRange;
 	item->status = P80211ENUM_msgitem_status_no_value;
 
-	data = (u32 *) item->data;
+	data = (u32 *)item->data;
 
 	/* DIDmsg_dot11req_mibget */
 	prism2mgmt_mibset_mibget(wlandev, &getmsg);
@@ -592,14 +592,14 @@ static int mkimage(struct imgchunk *clist, unsigned int *ccnt)
 ----------------------------------------------------------------*/
 static int mkpdrlist(struct pda *pda)
 {
-	u16 *pda16 = (u16 *) pda->buf;
+	u16 *pda16 = (u16 *)pda->buf;
 	int curroff;		/* in 'words' */
 
 	pda->nrec = 0;
 	curroff = 0;
 	while (curroff < (HFA384x_PDA_LEN_MAX / 2 - 1) &&
 	       le16_to_cpu(pda16[curroff + 1]) != HFA384x_PDR_END_OF_PDA) {
-		pda->rec[pda->nrec] = (hfa384x_pdrec_t *) &(pda16[curroff]);
+		pda->rec[pda->nrec] = (struct hfa384x_pdrec *)&(pda16[curroff]);
 
 		if (le16_to_cpu(pda->rec[pda->nrec]->code) ==
 		    HFA384x_PDR_NICID) {
@@ -638,7 +638,7 @@ static int mkpdrlist(struct pda *pda)
 		       curroff, pda->nrec);
 		return 1;
 	}
-	pda->rec[pda->nrec] = (hfa384x_pdrec_t *) &(pda16[curroff]);
+	pda->rec[pda->nrec] = (struct hfa384x_pdrec *)&(pda16[curroff]);
 	(pda->nrec)++;
 	return 0;
 }
@@ -766,7 +766,7 @@ static int plugimage(struct imgchunk *fchunk, unsigned int nfchunks,
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-static int read_cardpda(struct pda *pda, wlandevice_t *wlandev)
+static int read_cardpda(struct pda *pda, struct wlandevice *wlandev)
 {
 	int result = 0;
 	struct p80211msg_p2req_readpda *msg;
@@ -879,8 +879,8 @@ static int read_fwfile(const struct ihex_binrec *record)
 		addr = be32_to_cpu(record->addr);
 
 		/* Point into data for different word lengths */
-		ptr32 = (u32 *) record->data;
-		ptr16 = (u16 *) record->data;
+		ptr32 = (u32 *)record->data;
+		ptr16 = (u16 *)record->data;
 
 		/* parse what was an S3 srec and put it in the right array */
 		switch (addr) {
@@ -954,7 +954,7 @@ static int read_fwfile(const struct ihex_binrec *record)
 		default:	/* Data record */
 			s3data[ns3data].addr = addr;
 			s3data[ns3data].len = len;
-			s3data[ns3data].data = (uint8_t *) record->data;
+			s3data[ns3data].data = (uint8_t *)record->data;
 			ns3data++;
 			if (ns3data == S3DATA_MAX) {
 				pr_err("S3 datarec limit reached - aborting\n");
@@ -982,7 +982,7 @@ static int read_fwfile(const struct ihex_binrec *record)
 *	0	success
 *	~0	failure
 ----------------------------------------------------------------*/
-static int writeimage(wlandevice_t *wlandev, struct imgchunk *fchunk,
+static int writeimage(struct wlandevice *wlandev, struct imgchunk *fchunk,
 	       unsigned int nfchunks)
 {
 	int result = 0;

@@ -45,6 +45,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
@@ -270,6 +271,8 @@
 		#io-channel-cells = <1>;
 		clocks = <&cru SCLK_SARADC>, <&cru PCLK_SARADC>;
 		clock-names = "saradc", "apb_pclk";
+		resets = <&cru SRST_SARADC>;
+		reset-names = "saradc-apb";
 		status = "disabled";
 	};
 
@@ -632,8 +635,22 @@
 	};
 
 	pmugrf: syscon@ff738000 {
-		compatible = "rockchip,rk3368-pmugrf", "syscon";
+		compatible = "rockchip,rk3368-pmugrf", "syscon", "simple-mfd";
 		reg = <0x0 0xff738000 0x0 0x1000>;
+
+		pmu_io_domains: io-domains {
+			compatible = "rockchip,rk3368-pmu-io-voltage-domain";
+			status = "disabled";
+		};
+
+		reboot-mode {
+			compatible = "syscon-reboot-mode";
+			offset = <0x200>;
+			mode-normal = <BOOT_NORMAL>;
+			mode-recovery = <BOOT_RECOVERY>;
+			mode-bootloader = <BOOT_FASTBOOT>;
+			mode-loader = <BOOT_BL_DOWNLOAD>;
+		};
 	};
 
 	cru: clock-controller@ff760000 {
@@ -645,8 +662,13 @@
 	};
 
 	grf: syscon@ff770000 {
-		compatible = "rockchip,rk3368-grf", "syscon";
+		compatible = "rockchip,rk3368-grf", "syscon", "simple-mfd";
 		reg = <0x0 0xff770000 0x0 0x1000>;
+
+		io_domains: io-domains {
+			compatible = "rockchip,rk3368-io-voltage-domain";
+			status = "disabled";
+		};
 	};
 
 	wdt: watchdog@ff800000 {
@@ -670,7 +692,7 @@
 		#address-cells = <0>;
 
 		reg = <0x0 0xffb71000 0x0 0x1000>,
-		      <0x0 0xffb72000 0x0 0x1000>,
+		      <0x0 0xffb72000 0x0 0x2000>,
 		      <0x0 0xffb74000 0x0 0x2000>,
 		      <0x0 0xffb76000 0x0 0x2000>;
 		interrupts = <GIC_PPI 9

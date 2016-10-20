@@ -22,7 +22,7 @@
 #include "coresight-priv.h"
 #include "coresight-tmc.h"
 
-void tmc_etb_enable_hw(struct tmc_drvdata *drvdata)
+static void tmc_etb_enable_hw(struct tmc_drvdata *drvdata)
 {
 	CS_UNLOCK(drvdata->base);
 
@@ -48,6 +48,7 @@ static void tmc_etb_dump_hw(struct tmc_drvdata *drvdata)
 	int i;
 
 	bufp = drvdata->buf;
+	drvdata->len = 0;
 	while (1) {
 		for (i = 0; i < drvdata->memwidth; i++) {
 			read_data = readl_relaxed(drvdata->base + TMC_RRD);
@@ -55,6 +56,7 @@ static void tmc_etb_dump_hw(struct tmc_drvdata *drvdata)
 				return;
 			memcpy(bufp, &read_data, 4);
 			bufp += 4;
+			drvdata->len += 4;
 		}
 	}
 }
@@ -166,7 +168,7 @@ out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	/* Free memory outside the spinlock if need be */
-	if (!used && buf)
+	if (!used)
 		kfree(buf);
 
 	if (!ret)

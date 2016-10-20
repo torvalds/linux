@@ -32,6 +32,7 @@
 #define IMA_FSUUID	0x0020
 #define IMA_INMASK	0x0040
 #define IMA_EUID	0x0080
+#define IMA_PCR		0x0100
 
 #define UNKNOWN		0
 #define MEASURE		0x0001	/* same as IMA_MEASURE */
@@ -39,6 +40,9 @@
 #define APPRAISE	0x0004	/* same as IMA_APPRAISE */
 #define DONT_APPRAISE	0x0008
 #define AUDIT		0x0040
+
+#define INVALID_PCR(a) (((a) < 0) || \
+	(a) >= (FIELD_SIZEOF(struct integrity_iint_cache, measured_pcrs) * 8))
 
 int ima_policy_flag;
 static int temp_ima_appraise;
@@ -60,6 +64,7 @@ struct ima_rule_entry {
 	u8 fsuuid[16];
 	kuid_t uid;
 	kuid_t fowner;
+	int pcr;
 	struct {
 		void *rule;	/* LSM file metadata specific */
 		void *args_p;	/* audit value */
@@ -319,6 +324,7 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
  * @inode: pointer to an inode for which the policy decision is being made
  * @func: IMA hook identifier
  * @mask: requested action (MAY_READ | MAY_WRITE | MAY_APPEND | MAY_EXEC)
+ * @pcr: set the pcr to extend
  *
  * Measure decision based on func/mask/fsmagic and LSM(subj/obj/type)
  * conditions.
@@ -328,7 +334,7 @@ static int get_subaction(struct ima_rule_entry *rule, enum ima_hooks func)
  * than writes so ima_match_policy() is classical RCU candidate.
  */
 int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
-		     int flags)
+		     int flags, int *pcr)
 {
 	struct ima_rule_entry *entry;
 	int action = 0, actmask = flags | (flags << 1);
@@ -352,6 +358,9 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 			actmask &= ~(entry->action | entry->action << 1);
 		else
 			actmask &= ~(entry->action | entry->action >> 1);
+
+		if ((pcr) && (entry->flags & IMA_PCR))
+			*pcr = entry->pcr;
 
 		if (!actmask)
 			break;
@@ -478,7 +487,8 @@ enum {
 	Opt_subj_user, Opt_subj_role, Opt_subj_type,
 	Opt_func, Opt_mask, Opt_fsmagic,
 	Opt_fsuuid, Opt_uid, Opt_euid, Opt_fowner,
-	Opt_appraise_type, Opt_permit_directio
+	Opt_appraise_type, Opt_permit_directio,
+	Opt_pcr
 };
 
 static match_table_t policy_tokens = {
@@ -502,6 +512,7 @@ static match_table_t policy_tokens = {
 	{Opt_fowner, "fowner=%s"},
 	{Opt_appraise_type, "appraise_type=%s"},
 	{Opt_permit_directio, "permit_directio"},
+	{Opt_pcr, "pcr=%s"},
 	{Opt_err, NULL}
 };
 
@@ -774,6 +785,20 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 		case Opt_permit_directio:
 			entry->flags |= IMA_PERMIT_DIRECTIO;
 			break;
+		case Opt_pcr:
+			if (entry->action != MEASURE) {
+				result = -EINVAL;
+				break;
+			}
+			ima_log_string(ab, "pcr", args[0].from);
+
+			result = kstrtoint(args[0].from, 10, &entry->pcr);
+			if (result || INVALID_PCR(entry->pcr))
+				result = -EINVAL;
+			else
+				entry->flags |= IMA_PCR;
+
+			break;
 		case Opt_err:
 			ima_log_string(ab, "UNKNOWN", p);
 			result = -EINVAL;
@@ -1008,6 +1033,12 @@ int ima_policy_show(struct seq_file *m, void *v)
 	if (entry->flags & IMA_FSMAGIC) {
 		snprintf(tbuf, sizeof(tbuf), "0x%lx", entry->fsmagic);
 		seq_printf(m, pt(Opt_fsmagic), tbuf);
+		seq_puts(m, " ");
+	}
+
+	if (entry->flags & IMA_PCR) {
+		snprintf(tbuf, sizeof(tbuf), "%d", entry->pcr);
+		seq_printf(m, pt(Opt_pcr), tbuf);
 		seq_puts(m, " ");
 	}
 

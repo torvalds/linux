@@ -1506,6 +1506,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 		}
 		of_property_read_u32(np, "reg", &pep->phy_addr);
 		pep->phy_intf = of_get_phy_mode(pdev->dev.of_node);
+		of_node_put(np);
 	}
 
 	/* Hardware supports only 3 ports */

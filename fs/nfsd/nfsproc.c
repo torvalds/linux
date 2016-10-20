@@ -74,10 +74,10 @@ nfsd_proc_setattr(struct svc_rqst *rqstp, struct nfsd_sattrargs *argp,
 	 * which only requires access, and "set-[ac]time-to-X" which
 	 * requires ownership.
 	 * So if it looks like it might be "set both to the same time which
-	 * is close to now", and if inode_change_ok fails, then we
+	 * is close to now", and if setattr_prepare fails, then we
 	 * convert to "set to now" instead of "set to explicit time"
 	 *
-	 * We only call inode_change_ok as the last test as technically
+	 * We only call setattr_prepare as the last test as technically
 	 * it is not an interface that we should be using.
 	 */
 #define BOTH_TIME_SET (ATTR_ATIME_SET | ATTR_MTIME_SET)
@@ -92,17 +92,15 @@ nfsd_proc_setattr(struct svc_rqst *rqstp, struct nfsd_sattrargs *argp,
 		 * request is.  We require it be within 30 minutes of now.
 		 */
 		time_t delta = iap->ia_atime.tv_sec - get_seconds();
-		struct inode *inode;
 
 		nfserr = fh_verify(rqstp, fhp, 0, NFSD_MAY_NOP);
 		if (nfserr)
 			goto done;
-		inode = d_inode(fhp->fh_dentry);
 
 		if (delta < 0)
 			delta = -delta;
 		if (delta < MAX_TOUCH_TIME_ERROR &&
-		    inode_change_ok(inode, iap) != 0) {
+		    setattr_prepare(fhp->fh_dentry, iap) != 0) {
 			/*
 			 * Turn off ATTR_[AM]TIME_SET but leave ATTR_[AM]TIME.
 			 * This will cause notify_change to set these times
@@ -251,9 +249,6 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 
 	/* Check for NFSD_MAY_WRITE in nfsd_create if necessary */
 
-	nfserr = nfserr_acces;
-	if (!argp->len)
-		goto done;
 	nfserr = nfserr_exist;
 	if (isdotent(argp->name, argp->len))
 		goto done;
@@ -362,8 +357,8 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 	nfserr = 0;
 	if (!inode) {
 		/* File doesn't exist. Create it and set attrs */
-		nfserr = nfsd_create(rqstp, dirfhp, argp->name, argp->len,
-					attr, type, rdev, newfhp);
+		nfserr = nfsd_create_locked(rqstp, dirfhp, argp->name,
+					argp->len, attr, type, rdev, newfhp);
 	} else if (type == S_IFREG) {
 		dprintk("nfsd:   existing %s, valid=%x, size=%ld\n",
 			argp->name, attr->ia_valid, (long) attr->ia_size);
@@ -794,6 +789,7 @@ nfserrno (int errno)
 		{ nfserr_toosmall, -ETOOSMALL },
 		{ nfserr_serverfault, -ESERVERFAULT },
 		{ nfserr_serverfault, -ENFILE },
+		{ nfserr_io, -EUCLEAN },
 	};
 	int	i;
 
@@ -801,7 +797,7 @@ nfserrno (int errno)
 		if (nfs_errtbl[i].syserr == errno)
 			return nfs_errtbl[i].nfserr;
 	}
-	WARN(1, "nfsd: non-standard errno: %d\n", errno);
+	WARN_ONCE(1, "nfsd: non-standard errno: %d\n", errno);
 	return nfserr_io;
 }
 

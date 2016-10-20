@@ -669,8 +669,6 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned long flags)
 		return 0;
 	}
 
-	flags &= IRQ_TYPE_SENSE_MASK;
-
 	if (chip->flags & IRQCHIP_SET_TYPE_MASKED) {
 		if (!irqd_irq_masked(&desc->irq_data))
 			mask_irq(desc);
@@ -678,7 +676,8 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned long flags)
 			unmask = 1;
 	}
 
-	/* caller masked out all except trigger mode flags */
+	/* Mask all flags except trigger mode */
+	flags &= IRQ_TYPE_SENSE_MASK;
 	ret = chip->irq_set_type(&desc->irq_data, flags);
 
 	switch (ret) {
@@ -1681,8 +1680,10 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 	action->dev_id = dev_id;
 
 	retval = irq_chip_pm_get(&desc->irq_data);
-	if (retval < 0)
+	if (retval < 0) {
+		kfree(action);
 		return retval;
+	}
 
 	chip_bus_lock(desc);
 	retval = __setup_irq(irq, desc, action);
@@ -1985,8 +1986,10 @@ int request_percpu_irq(unsigned int irq, irq_handler_t handler,
 	action->percpu_dev_id = dev_id;
 
 	retval = irq_chip_pm_get(&desc->irq_data);
-	if (retval < 0)
+	if (retval < 0) {
+		kfree(action);
 		return retval;
+	}
 
 	chip_bus_lock(desc);
 	retval = __setup_irq(irq, desc, action);

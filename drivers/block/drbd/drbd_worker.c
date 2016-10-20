@@ -256,7 +256,7 @@ void drbd_request_endio(struct bio *bio)
 				what = DISCARD_COMPLETED_WITH_ERROR;
 			break;
 		case REQ_OP_READ:
-			if (bio->bi_rw & REQ_RAHEAD)
+			if (bio->bi_opf & REQ_RAHEAD)
 				what = READ_AHEAD_COMPLETED_WITH_ERROR;
 			else
 				what = READ_COMPLETED_WITH_ERROR;

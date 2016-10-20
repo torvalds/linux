@@ -29,7 +29,7 @@
 #define DEFAULT_GAMMA	"02 03 2 5 7 7 4 2 4 2\n" \
 			"02 03 2 5 7 5 4 2 4 2"
 
-static unsigned reg11 = 0x6040;
+static unsigned int reg11 = 0x6040;
 module_param(reg11, uint, 0);
 MODULE_PARM_DESC(reg11, "Register 11h value");
 
@@ -131,10 +131,10 @@ static int set_var(struct fbtft_par *par)
 }
 
 /*
-  Gamma string format:
-    VRP0 VRP1 PRP0 PRP1 PKP0 PKP1 PKP2 PKP3 PKP4 PKP5
-    VRN0 VRN1 PRN0 PRN1 PKN0 PKN1 PKN2 PKN3 PKN4 PKN5
-*/
+ * Gamma string format:
+ * VRP0 VRP1 PRP0 PRP1 PKP0 PKP1 PKP2 PKP3 PKP4 PKP5
+ * VRN0 VRN1 PRN0 PRN1 PKN0 PKN1 PKN2 PKN3 PKN4 PKN5
+ */
 #define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {

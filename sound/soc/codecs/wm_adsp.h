@@ -19,6 +19,10 @@
 
 #include "wmfw.h"
 
+/* Return values for wm_adsp_compr_handle_irq */
+#define WM_ADSP_COMPR_OK                 0
+#define WM_ADSP_COMPR_VOICE_TRIGGER      1
+
 struct wm_adsp_region {
 	int type;
 	unsigned int base;
@@ -57,6 +61,8 @@ struct wm_adsp {
 
 	int fw;
 	int fw_ver;
+
+	bool booted;
 	bool running;
 
 	struct list_head ctl_list;
@@ -81,9 +87,10 @@ struct wm_adsp {
 		wm_adsp1_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD)
 
 #define WM_ADSP2(wname, num, event_fn) \
-{	.id = snd_soc_dapm_dai_link, .name = wname " Preloader", \
+{	.id = snd_soc_dapm_supply, .name = wname " Preloader", \
 	.reg = SND_SOC_NOPM, .shift = num, .event = event_fn, \
-	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD }, \
+	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD, \
+	.subseq = 100, /* Ensure we run after SYSCLK supply widget */ }, \
 {	.id = snd_soc_dapm_out_drv, .name = wname, \
 	.reg = SND_SOC_NOPM, .shift = num, .event = wm_adsp2_event, \
 	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD }

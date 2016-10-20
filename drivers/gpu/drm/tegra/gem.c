@@ -613,7 +613,7 @@ struct dma_buf *tegra_gem_prime_export(struct drm_device *drm,
 	exp_info.flags = flags;
 	exp_info.priv = gem;
 
-	return dma_buf_export(&exp_info);
+	return drm_gem_dmabuf_export(drm, &exp_info);
 }
 
 struct drm_gem_object *tegra_gem_prime_import(struct drm_device *drm,

@@ -16,7 +16,8 @@
 	model = "Samsung SMDK5410 board based on EXYNOS5410";
 	compatible = "samsung,smdk5410", "samsung,exynos5410", "samsung,exynos5";
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg = <0x40000000 0x80000000>;
 	};
 
@@ -66,8 +67,8 @@
 	srom_ctl: srom-ctl {
 		samsung,pins = "gpy0-3", "gpy0-4", "gpy0-5",
 			       "gpy1-0", "gpy1-1", "gpy1-2", "gpy1-3";
-		samsung,pin-function = <2>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 
 	srom_ebi: srom-ebi {
@@ -77,9 +78,9 @@
 			       "gpy5-4", "gpy5-5", "gpy5-6", "gpy5-7",
 			       "gpy6-0", "gpy6-1", "gpy6-2", "gpy6-3",
 			       "gpy6-4", "gpy6-5", "gpy6-6", "gpy6-7";
-		samsung,pin-function = <2>;
-		samsung,pin-pud = <3>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 };
 
@@ -102,14 +103,14 @@
 	};
 };
 
-&uart0 {
+&serial_0 {
 	status = "okay";
 };
 
-&uart1 {
+&serial_1 {
 	status = "okay";
 };
 
-&uart2 {
+&serial_2 {
 	status = "okay";
 };

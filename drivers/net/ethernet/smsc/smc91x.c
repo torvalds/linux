@@ -2275,6 +2275,13 @@ static int smc_drv_probe(struct platform_device *pdev)
 	if (pd) {
 		memcpy(&lp->cfg, pd, sizeof(lp->cfg));
 		lp->io_shift = SMC91X_IO_SHIFT(lp->cfg.flags);
+
+		if (!SMC_8BIT(lp) && !SMC_16BIT(lp)) {
+			dev_err(&pdev->dev,
+				"at least one of 8-bit or 16-bit access support is required.\n");
+			ret = -ENXIO;
+			goto out_free_netdev;
+		}
 	}
 
 #if IS_BUILTIN(CONFIG_OF)
@@ -2316,6 +2323,9 @@ static int smc_drv_probe(struct platform_device *pdev)
 		} else {
 			lp->cfg.flags |= SMC91X_USE_16BIT;
 		}
+		if (!device_property_read_u32(&pdev->dev, "reg-shift",
+					      &val))
+			lp->io_shift = val;
 	}
 #endif
 

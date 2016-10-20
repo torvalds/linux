@@ -4,6 +4,8 @@
  * Copyright (C) 2013 Renesas Solutions Corp.
  * Copyright (C) 2013 Cogent Embedded, Inc.
  *
+ * Author: Valentine Barshak <valentine.barshak@cogentembedded.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -14,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/pci.h>
@@ -97,7 +98,6 @@
 struct rcar_pci_priv {
 	struct device *dev;
 	void __iomem *reg;
-	struct resource io_res;
 	struct resource mem_res;
 	struct resource *cfg_res;
 	unsigned busnr;
@@ -154,10 +154,11 @@ static int rcar_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 static irqreturn_t rcar_pci_err_irq(int irq, void *pw)
 {
 	struct rcar_pci_priv *priv = pw;
+	struct device *dev = priv->dev;
 	u32 status = ioread32(priv->reg + RCAR_PCI_INT_STATUS_REG);
 
 	if (status & RCAR_PCI_INT_ALLERRORS) {
-		dev_err(priv->dev, "error irq: status %08x\n", status);
+		dev_err(dev, "error irq: status %08x\n", status);
 
 		/* clear the error(s) */
 		iowrite32(status & RCAR_PCI_INT_ALLERRORS,
@@ -170,13 +171,14 @@ static irqreturn_t rcar_pci_err_irq(int irq, void *pw)
 
 static void rcar_pci_setup_errirq(struct rcar_pci_priv *priv)
 {
+	struct device *dev = priv->dev;
 	int ret;
 	u32 val;
 
-	ret = devm_request_irq(priv->dev, priv->irq, rcar_pci_err_irq,
+	ret = devm_request_irq(dev, priv->irq, rcar_pci_err_irq,
 			       IRQF_SHARED, "error irq", priv);
 	if (ret) {
-		dev_err(priv->dev, "cannot claim IRQ for error handling\n");
+		dev_err(dev, "cannot claim IRQ for error handling\n");
 		return;
 	}
 
@@ -192,14 +194,16 @@ static inline void rcar_pci_setup_errirq(struct rcar_pci_priv *priv) { }
 static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 {
 	struct rcar_pci_priv *priv = sys->private_data;
+	struct device *dev = priv->dev;
 	void __iomem *reg = priv->reg;
 	u32 val;
+	int ret;
 
-	pm_runtime_enable(priv->dev);
-	pm_runtime_get_sync(priv->dev);
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
 
 	val = ioread32(reg + RCAR_PCI_UNIT_REV_REG);
-	dev_info(priv->dev, "PCI: bus%u revision %x\n", sys->busnr, val);
+	dev_info(dev, "PCI: bus%u revision %x\n", sys->busnr, val);
 
 	/* Disable Direct Power Down State and assert reset */
 	val = ioread32(reg + RCAR_USBCTR_REG) & ~RCAR_USBCTR_DIRPD;
@@ -273,8 +277,10 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 		rcar_pci_setup_errirq(priv);
 
 	/* Add PCI resources */
-	pci_add_resource(&sys->resources, &priv->io_res);
 	pci_add_resource(&sys->resources, &priv->mem_res);
+	ret = devm_request_pci_bus_resources(dev, &sys->resources);
+	if (ret < 0)
+		return ret;
 
 	/* Setup bus number based on platform device id / of bus-range */
 	sys->busnr = priv->busnr;
@@ -308,6 +314,7 @@ static int pci_dma_range_parser_init(struct of_pci_range_parser *parser,
 static int rcar_pci_parse_map_dma_ranges(struct rcar_pci_priv *pci,
 					 struct device_node *np)
 {
+	struct device *dev = pci->dev;
 	struct of_pci_range range;
 	struct of_pci_range_parser parser;
 	int index = 0;
@@ -328,14 +335,14 @@ static int rcar_pci_parse_map_dma_ranges(struct rcar_pci_priv *pci,
 
 		/* Catch HW limitations */
 		if (!(range.flags & IORESOURCE_PREFETCH)) {
-			dev_err(pci->dev, "window must be prefetchable\n");
+			dev_err(dev, "window must be prefetchable\n");
 			return -EINVAL;
 		}
 		if (pci->window_addr) {
 			u32 lowaddr = 1 << (ffs(pci->window_addr) - 1);
 
 			if (lowaddr < pci->window_size) {
-				dev_err(pci->dev, "invalid window size/addr\n");
+				dev_err(dev, "invalid window size/addr\n");
 				return -EINVAL;
 			}
 		}
@@ -347,6 +354,7 @@ static int rcar_pci_parse_map_dma_ranges(struct rcar_pci_priv *pci,
 
 static int rcar_pci_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct resource *cfg_res, *mem_res;
 	struct rcar_pci_priv *priv;
 	void __iomem *reg;
@@ -354,7 +362,7 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	void *hw_private[1];
 
 	cfg_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg = devm_ioremap_resource(&pdev->dev, cfg_res);
+	reg = devm_ioremap_resource(dev, cfg_res);
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
@@ -365,28 +373,19 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	if (mem_res->start & 0xFFFF)
 		return -EINVAL;
 
-	priv = devm_kzalloc(&pdev->dev,
-			    sizeof(struct rcar_pci_priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(struct rcar_pci_priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	priv->mem_res = *mem_res;
-	/*
-	 * The controller does not support/use port I/O,
-	 * so setup a dummy port I/O region here.
-	 */
-	priv->io_res.start = priv->mem_res.start;
-	priv->io_res.end = priv->mem_res.end;
-	priv->io_res.flags = IORESOURCE_IO;
-
 	priv->cfg_res = cfg_res;
 
 	priv->irq = platform_get_irq(pdev, 0);
 	priv->reg = reg;
-	priv->dev = &pdev->dev;
+	priv->dev = dev;
 
 	if (priv->irq < 0) {
-		dev_err(&pdev->dev, "no valid irq found\n");
+		dev_err(dev, "no valid irq found\n");
 		return priv->irq;
 	}
 
@@ -395,23 +394,23 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	priv->window_pci = 0x40000000;
 	priv->window_size = SZ_1G;
 
-	if (pdev->dev.of_node) {
+	if (dev->of_node) {
 		struct resource busnr;
 		int ret;
 
-		ret = of_pci_parse_bus_range(pdev->dev.of_node, &busnr);
+		ret = of_pci_parse_bus_range(dev->of_node, &busnr);
 		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to parse bus-range\n");
+			dev_err(dev, "failed to parse bus-range\n");
 			return ret;
 		}
 
 		priv->busnr = busnr.start;
 		if (busnr.end != busnr.start)
-			dev_warn(&pdev->dev, "only one bus number supported\n");
+			dev_warn(dev, "only one bus number supported\n");
 
-		ret = rcar_pci_parse_map_dma_ranges(priv, pdev->dev.of_node);
+		ret = rcar_pci_parse_map_dma_ranges(priv, dev->of_node);
 		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to parse dma-range\n");
+			dev_err(dev, "failed to parse dma-range\n");
 			return ret;
 		}
 	} else {
@@ -421,11 +420,12 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	hw_private[0] = priv;
 	memset(&hw, 0, sizeof(hw));
 	hw.nr_controllers = ARRAY_SIZE(hw_private);
+	hw.io_optional = 1;
 	hw.private_data = hw_private;
 	hw.map_irq = rcar_pci_map_irq;
 	hw.ops = &rcar_pci_ops;
 	hw.setup = rcar_pci_setup;
-	pci_common_init_dev(&pdev->dev, &hw);
+	pci_common_init_dev(dev, &hw);
 	return 0;
 }
 
@@ -437,8 +437,6 @@ static struct of_device_id rcar_pci_of_match[] = {
 	{ },
 };
 
-MODULE_DEVICE_TABLE(of, rcar_pci_of_match);
-
 static struct platform_driver rcar_pci_driver = {
 	.driver = {
 		.name = "pci-rcar-gen2",
@@ -447,9 +445,4 @@ static struct platform_driver rcar_pci_driver = {
 	},
 	.probe = rcar_pci_probe,
 };
-
-module_platform_driver(rcar_pci_driver);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Renesas R-Car Gen2 internal PCI");
-MODULE_AUTHOR("Valentine Barshak <valentine.barshak@cogentembedded.com>");
+builtin_platform_driver(rcar_pci_driver);

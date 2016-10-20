@@ -562,6 +562,7 @@ int alx_reset_mac(struct alx_hw *hw);
 void alx_set_macaddr(struct alx_hw *hw, const u8 *addr);
 bool alx_phy_configured(struct alx_hw *hw);
 void alx_configure_basic(struct alx_hw *hw);
+void alx_mask_msix(struct alx_hw *hw, int index, bool mask);
 void alx_disable_rss(struct alx_hw *hw);
 bool alx_get_phy_info(struct alx_hw *hw);
 void alx_update_hw_stats(struct alx_hw *hw);

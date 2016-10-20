@@ -140,6 +140,15 @@
 		};
 	};
 
+	usb2_phy: usb2-phy {
+		compatible = "brcm,ns-usb2-phy";
+		reg = <0x1800c000 0x1000>;
+		reg-names = "dmu";
+		#phy-cells = <0>;
+		clocks = <&genpll BCM_NSP_GENPLL_USB_PHY_REF_CLK>;
+		clock-names = "phy-ref-clk";
+	};
+
 	axi@18000000 {
 		compatible = "brcm,bus-axi";
 		reg = <0x18000000 0x1000>;
@@ -152,6 +161,21 @@
 		interrupt-map = 
 			/* ChipCommon */
 			<0x00000000 0 &gic GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>,
+
+			/* Switch Register Access Block */
+			<0x00007000 0 &gic GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00007000 1 &gic GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00007000 2 &gic GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00007000 3 &gic GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00007000 4 &gic GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00007000 5 &gic GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00007000 6 &gic GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00007000 7 &gic GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00007000 8 &gic GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00007000 9 &gic GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00007000 10 &gic GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00007000 11 &gic GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00007000 12 &gic GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
 
 			/* PCIe Controller 0 */
 			<0x00012000 0 &gic GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>,
@@ -217,6 +241,8 @@
 
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			phys = <&usb2_phy>;
 		};
 
 		usb3: usb3@23000 {
@@ -239,6 +265,22 @@
 				status = "disabled";
 			};
 		};
+
+		gmac0: ethernet@24000 {
+			reg = <0x24000 0x800>;
+		};
+
+		gmac1: ethernet@25000 {
+			reg = <0x25000 0x800>;
+		};
+
+		gmac2: ethernet@26000 {
+			reg = <0x26000 0x800>;
+		};
+
+		gmac3: ethernet@27000 {
+			reg = <0x27000 0x800>;
+		};
 	};
 
 	lcpll0: lcpll0@1800c100 {
@@ -258,6 +300,22 @@
 		clock-output-names = "genpll", "phy", "ethernetclk",
 				     "usbclk", "iprocfast", "sata1",
 				     "sata2";
+	};
+
+	srab: srab@18007000 {
+		compatible = "brcm,bcm5301x-srab";
+		reg = <0x18007000 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		status = "disabled";
+
+		/* ports are defined in board DTS */
+	};
+
+	rng: rng@18004000 {
+		compatible = "brcm,bcm5301x-rng";
+		reg = <0x18004000 0x14>;
 	};
 
 	nand: nand@18028000 {

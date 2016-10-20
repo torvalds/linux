@@ -95,12 +95,10 @@ acpi_ut_create_list(const char *list_name,
 {
 	struct acpi_memory_list *cache;
 
-	cache = acpi_os_allocate(sizeof(struct acpi_memory_list));
+	cache = acpi_os_allocate_zeroed(sizeof(struct acpi_memory_list));
 	if (!cache) {
 		return (AE_NO_MEMORY);
 	}
-
-	memset(cache, 0, sizeof(struct acpi_memory_list));
 
 	cache->list_name = list_name;
 	cache->object_size = object_size;

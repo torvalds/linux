@@ -18,7 +18,7 @@
 		display0 = &hdmi0;
 	};
 
-	evm_3v3: fixedregulator-evm_3v3 {
+	evm_3v3_sw: fixedregulator-evm_3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "evm_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -29,7 +29,7 @@
 		/* TPS77018DBVT */
 		compatible = "regulator-fixed";
 		regulator-name = "aic_dvdd";
-		vin-supply = <&evm_3v3>;
+		vin-supply = <&evm_3v3_sw>;
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 	};
@@ -414,9 +414,9 @@
 		status = "okay";
 
 		/* Regulators */
-		AVDD-supply = <&evm_3v3>;
-		IOVDD-supply = <&evm_3v3>;
-		DRVDD-supply = <&evm_3v3>;
+		AVDD-supply = <&evm_3v3_sw>;
+		IOVDD-supply = <&evm_3v3_sw>;
+		DRVDD-supply = <&evm_3v3_sw>;
 		DVDD-supply = <&aic_dvdd>;
 	};
 };
@@ -597,7 +597,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins_default>;
 
-	vmmc-supply = <&evm_3v3>;
+	vmmc-supply = <&evm_3v3_sw>;
 	bus-width = <8>;
 	ti,non-removable;
 	max-frequency = <192000000>;
@@ -681,10 +681,10 @@
 &qspi {
 	status = "okay";
 
-	spi-max-frequency = <64000000>;
+	spi-max-frequency = <76800000>;
 	m25p80@0 {
 		compatible = "s25fl256s1";
-		spi-max-frequency = <64000000>;
+		spi-max-frequency = <76800000>;
 		reg = <0>;
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <4>;

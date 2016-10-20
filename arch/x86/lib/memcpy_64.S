@@ -4,6 +4,7 @@
 #include <asm/errno.h>
 #include <asm/cpufeatures.h>
 #include <asm/alternative-asm.h>
+#include <asm/export.h>
 
 /*
  * We build a jump to memcpy_orig by default which gets NOPped out on
@@ -40,6 +41,8 @@ ENTRY(memcpy)
 	ret
 ENDPROC(memcpy)
 ENDPROC(__memcpy)
+EXPORT_SYMBOL(memcpy)
+EXPORT_SYMBOL(__memcpy)
 
 /*
  * memcpy_erms() - enhanced fast string memcpy. This is faster and
@@ -181,11 +184,11 @@ ENDPROC(memcpy_orig)
 
 #ifndef CONFIG_UML
 /*
- * memcpy_mcsafe - memory copy with machine check exception handling
+ * memcpy_mcsafe_unrolled - memory copy with machine check exception handling
  * Note that we only catch machine checks when reading the source addresses.
  * Writes to target are posted and don't generate machine checks.
  */
-ENTRY(memcpy_mcsafe)
+ENTRY(memcpy_mcsafe_unrolled)
 	cmpl $8, %edx
 	/* Less than 8 bytes? Go to byte copy loop */
 	jb .L_no_whole_words
@@ -273,7 +276,8 @@ ENTRY(memcpy_mcsafe)
 .L_done_memcpy_trap:
 	xorq %rax, %rax
 	ret
-ENDPROC(memcpy_mcsafe)
+ENDPROC(memcpy_mcsafe_unrolled)
+EXPORT_SYMBOL_GPL(memcpy_mcsafe_unrolled)
 
 	.section .fixup, "ax"
 	/* Return -EFAULT for any failure */

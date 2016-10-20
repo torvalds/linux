@@ -30,12 +30,12 @@
 #include <linux/usb/ezusb.h>
 
 /* make a simple define to handle if we are compiling keyspan_pda or xircom support */
-#if defined(CONFIG_USB_SERIAL_KEYSPAN_PDA) || defined(CONFIG_USB_SERIAL_KEYSPAN_PDA_MODULE)
+#if IS_ENABLED(CONFIG_USB_SERIAL_KEYSPAN_PDA)
 	#define KEYSPAN
 #else
 	#undef KEYSPAN
 #endif
-#if defined(CONFIG_USB_SERIAL_XIRCOM) || defined(CONFIG_USB_SERIAL_XIRCOM_MODULE)
+#if IS_ENABLED(CONFIG_USB_SERIAL_XIRCOM)
 	#define XIRCOM
 #else
 	#undef XIRCOM

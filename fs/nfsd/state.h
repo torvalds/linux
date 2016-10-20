@@ -63,7 +63,6 @@ typedef struct {
 
 struct nfsd4_callback {
 	struct nfs4_client *cb_clp;
-	u32 cb_minorversion;
 	struct rpc_message cb_msg;
 	const struct nfsd4_callback_ops *cb_ops;
 	struct work_struct cb_work;
@@ -345,6 +344,7 @@ struct nfs4_client {
 	u32			cl_exchange_flags;
 	/* number of rpc's in progress over an associated session: */
 	atomic_t		cl_refcount;
+	struct nfs4_op_map      cl_spo_must_allow;
 
 	/* for nfs41 callbacks */
 	/* We currently support a single back channel with a single slot */
@@ -440,11 +440,11 @@ struct nfs4_openowner {
 /*
  * Represents a generic "lockowner". Similar to an openowner. References to it
  * are held by the lock stateids that are created on its behalf. This object is
- * a superset of the nfs4_stateowner struct (or would be if it needed any extra
- * fields).
+ * a superset of the nfs4_stateowner struct.
  */
 struct nfs4_lockowner {
-	struct nfs4_stateowner	lo_owner; /* must be first element */
+	struct nfs4_stateowner	lo_owner;	/* must be first element */
+	struct list_head	lo_blocked;	/* blocked file_locks */
 };
 
 static inline struct nfs4_openowner * openowner(struct nfs4_stateowner *so)
@@ -571,6 +571,7 @@ enum nfsd4_cb_op {
 	NFSPROC4_CLNT_CB_RECALL,
 	NFSPROC4_CLNT_CB_LAYOUT,
 	NFSPROC4_CLNT_CB_SEQUENCE,
+	NFSPROC4_CLNT_CB_NOTIFY_LOCK,
 };
 
 /* Returns true iff a is later than b: */
@@ -578,6 +579,20 @@ static inline bool nfsd4_stateid_generation_after(stateid_t *a, stateid_t *b)
 {
 	return (s32)(a->si_generation - b->si_generation) > 0;
 }
+
+/*
+ * When a client tries to get a lock on a file, we set one of these objects
+ * on the blocking lock. When the lock becomes free, we can then issue a
+ * CB_NOTIFY_LOCK to the server.
+ */
+struct nfsd4_blocked_lock {
+	struct list_head	nbl_list;
+	struct list_head	nbl_lru;
+	unsigned long		nbl_time;
+	struct file_lock	nbl_lock;
+	struct knfsd_fh		nbl_fh;
+	struct nfsd4_callback	nbl_cb;
+};
 
 struct nfsd4_compound_state;
 struct nfsd_net;

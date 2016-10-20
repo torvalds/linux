@@ -10,6 +10,7 @@
 /include/ "skeleton_hs.dtsi"
 
 / {
+	model = "snps,nsimosci_hs";
 	compatible = "snps,nsimosci_hs";
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -19,7 +20,7 @@
 		/* this is for console on PGU */
 		/* bootargs = "console=tty0 consoleblank=0"; */
 		/* this is for console on serial */
-		bootargs = "earlycon=uart8250,mmio32,0xf0000000,115200n8 console=tty0 console=ttyS0,115200n8 consoleblank=0 debug";
+		bootargs = "earlycon=uart8250,mmio32,0xf0000000,115200n8 console=tty0 console=ttyS0,115200n8 consoleblank=0 debug video=640x480-24";
 	};
 
 	aliases {
@@ -57,9 +58,17 @@
 			no-loopback-test = <1>;
 		};
 
-		pgu0: pgu@f9000000 {
-			compatible = "snps,arcpgufb";
+		pguclk: pguclk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <25175000>;
+		};
+
+		pgu@f9000000 {
+			compatible = "snps,arcpgu";
 			reg = <0xf9000000 0x400>;
+			clocks = <&pguclk>;
+			clock-names = "pxlclk";
 		};
 
 		ps2: ps2@f9001000 {

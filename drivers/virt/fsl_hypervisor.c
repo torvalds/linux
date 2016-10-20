@@ -245,8 +245,8 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
 	/* Get the physical addresses of the source buffer */
 	down_read(&current->mm->mmap_sem);
 	num_pinned = get_user_pages(param.local_vaddr - lb_offset,
-		num_pages, (param.source == -1) ? READ : WRITE,
-		0, pages, NULL);
+		num_pages, (param.source == -1) ? 0 : FOLL_WRITE,
+		pages, NULL);
 	up_read(&current->mm->mmap_sem);
 
 	if (num_pinned != num_pages) {

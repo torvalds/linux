@@ -266,8 +266,12 @@ IIO
   devm_iio_device_unregister()
   devm_iio_kfifo_allocate()
   devm_iio_kfifo_free()
+  devm_iio_triggered_buffer_setup()
+  devm_iio_triggered_buffer_cleanup()
   devm_iio_trigger_alloc()
   devm_iio_trigger_free()
+  devm_iio_trigger_register()
+  devm_iio_trigger_unregister()
   devm_iio_channel_get()
   devm_iio_channel_release()
   devm_iio_channel_get_all()
@@ -342,6 +346,10 @@ PINCTRL
   devm_pinctrl_register()
   devm_pinctrl_unregister()
 
+POWER
+  devm_reboot_mode_register()
+  devm_reboot_mode_unregister()
+
 PWM
   devm_pwm_get()
   devm_pwm_put()
@@ -352,8 +360,15 @@ REGULATOR
   devm_regulator_put()
   devm_regulator_register()
 
+RESET
+  devm_reset_control_get()
+  devm_reset_controller_register()
+
 SLAVE DMA ENGINE
   devm_acpi_dma_controller_register()
 
 SPI
   devm_spi_register_master()
+
+WATCHDOG
+  devm_watchdog_register_device()

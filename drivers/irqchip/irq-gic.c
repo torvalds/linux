@@ -91,7 +91,27 @@ struct gic_chip_data {
 #endif
 };
 
-static DEFINE_RAW_SPINLOCK(irq_controller_lock);
+#ifdef CONFIG_BL_SWITCHER
+
+static DEFINE_RAW_SPINLOCK(cpu_map_lock);
+
+#define gic_lock_irqsave(f)		\
+	raw_spin_lock_irqsave(&cpu_map_lock, (f))
+#define gic_unlock_irqrestore(f)	\
+	raw_spin_unlock_irqrestore(&cpu_map_lock, (f))
+
+#define gic_lock()			raw_spin_lock(&cpu_map_lock)
+#define gic_unlock()			raw_spin_unlock(&cpu_map_lock)
+
+#else
+
+#define gic_lock_irqsave(f)		do { (void)(f); } while(0)
+#define gic_unlock_irqrestore(f)	do { (void)(f); } while(0)
+
+#define gic_lock()			do { } while(0)
+#define gic_unlock()			do { } while(0)
+
+#endif
 
 /*
  * The GIC mapping of CPU interfaces does not necessarily match
@@ -317,12 +337,12 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	if (cpu >= NR_GIC_CPU_IF || cpu >= nr_cpu_ids)
 		return -EINVAL;
 
-	raw_spin_lock_irqsave(&irq_controller_lock, flags);
+	gic_lock_irqsave(flags);
 	mask = 0xff << shift;
 	bit = gic_cpu_map[cpu] << shift;
 	val = readl_relaxed(reg) & ~mask;
 	writel_relaxed(val | bit, reg);
-	raw_spin_unlock_irqrestore(&irq_controller_lock, flags);
+	gic_unlock_irqrestore(flags);
 
 	return IRQ_SET_MASK_OK_DONE;
 }
@@ -374,9 +394,7 @@ static void gic_handle_cascade_irq(struct irq_desc *desc)
 
 	chained_irq_enter(chip, desc);
 
-	raw_spin_lock(&irq_controller_lock);
 	status = readl_relaxed(gic_data_cpu_base(chip_data) + GIC_CPU_INTACK);
-	raw_spin_unlock(&irq_controller_lock);
 
 	gic_irq = (status & GICC_IAR_INT_ID_MASK);
 	if (gic_irq == GICC_INT_SPURIOUS)
@@ -769,7 +787,14 @@ static void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 	int cpu;
 	unsigned long flags, map = 0;
 
-	raw_spin_lock_irqsave(&irq_controller_lock, flags);
+	if (unlikely(nr_cpu_ids == 1)) {
+		/* Only one CPU? let's do a self-IPI... */
+		writel_relaxed(2 << 24 | irq,
+			       gic_data_dist_base(&gic_data[0]) + GIC_DIST_SOFTINT);
+		return;
+	}
+
+	gic_lock_irqsave(flags);
 
 	/* Convert our logical CPU mask into a physical one. */
 	for_each_cpu(cpu, mask)
@@ -784,7 +809,7 @@ static void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 	/* this always happens on GIC0 */
 	writel_relaxed(map << 16 | irq, gic_data_dist_base(&gic_data[0]) + GIC_DIST_SOFTINT);
 
-	raw_spin_unlock_irqrestore(&irq_controller_lock, flags);
+	gic_unlock_irqrestore(flags);
 }
 #endif
 
@@ -852,7 +877,7 @@ void gic_migrate_target(unsigned int new_cpu_id)
 	cur_target_mask = 0x01010101 << cur_cpu_id;
 	ror_val = (cur_cpu_id - new_cpu_id) & 31;
 
-	raw_spin_lock(&irq_controller_lock);
+	gic_lock();
 
 	/* Update the target interface for this logical CPU */
 	gic_cpu_map[cpu] = 1 << new_cpu_id;
@@ -872,7 +897,7 @@ void gic_migrate_target(unsigned int new_cpu_id)
 		}
 	}
 
-	raw_spin_unlock(&irq_controller_lock);
+	gic_unlock();
 
 	/*
 	 * Now let's migrate and clear any potential SGIs that might be
@@ -914,7 +939,7 @@ unsigned long gic_get_sgir_physaddr(void)
 	return gic_dist_physaddr + GIC_DIST_SOFTINT;
 }
 
-void __init gic_init_physaddr(struct device_node *node)
+static void __init gic_init_physaddr(struct device_node *node)
 {
 	struct resource res;
 	if (of_address_to_resource(node, 0, &res) == 0) {
@@ -984,24 +1009,11 @@ static int gic_irq_domain_translate(struct irq_domain *d,
 	return -EINVAL;
 }
 
-#ifdef CONFIG_SMP
-static int gic_secondary_init(struct notifier_block *nfb, unsigned long action,
-			      void *hcpu)
+static int gic_starting_cpu(unsigned int cpu)
 {
-	if (action == CPU_STARTING || action == CPU_STARTING_FROZEN)
-		gic_cpu_init(&gic_data[0]);
-	return NOTIFY_OK;
+	gic_cpu_init(&gic_data[0]);
+	return 0;
 }
-
-/*
- * Notifier for enabling the GIC CPU interface. Set an arbitrarily high
- * priority because the GIC needs to be up before the ARM generic timers.
- */
-static struct notifier_block gic_cpu_notifier = {
-	.notifier_call = gic_secondary_init,
-	.priority = 100,
-};
-#endif
 
 static int gic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 				unsigned int nr_irqs, void *arg)
@@ -1177,8 +1189,10 @@ static int __init __gic_init_bases(struct gic_chip_data *gic,
 			gic_cpu_map[i] = 0xff;
 #ifdef CONFIG_SMP
 		set_smp_cross_call(gic_raise_softirq);
-		register_cpu_notifier(&gic_cpu_notifier);
 #endif
+		cpuhp_setup_state_nocalls(CPUHP_AP_IRQ_GIC_STARTING,
+					  "AP_IRQ_GIC_STARTING",
+					  gic_starting_cpu, NULL);
 		set_handle_irq(gic_handle_irq);
 		if (static_key_true(&supports_deactivate))
 			pr_info("GIC: Using split EOI/Deactivate mode\n");

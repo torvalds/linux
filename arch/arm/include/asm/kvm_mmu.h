@@ -26,16 +26,7 @@
  * We directly use the kernel VA for the HYP, as we can directly share
  * the mapping (HTTBR "covers" TTBR1).
  */
-#define HYP_PAGE_OFFSET_MASK	UL(~0)
-#define HYP_PAGE_OFFSET		PAGE_OFFSET
-#define KERN_TO_HYP(kva)	(kva)
-
-/*
- * Our virtual mapping for the boot-time MMU-enable code. Must be
- * shared across all the page-tables. Conveniently, we use the vectors
- * page, where no kernel data will ever be shared with HYP.
- */
-#define TRAMPOLINE_VA		UL(CONFIG_VECTORS_BASE)
+#define kern_hyp_va(kva)	(kva)
 
 /*
  * KVM_MMU_CACHE_MIN_PAGES is the number of stage2 page table translation levels.
@@ -49,9 +40,8 @@
 #include <asm/pgalloc.h>
 #include <asm/stage2_pgtable.h>
 
-int create_hyp_mappings(void *from, void *to);
+int create_hyp_mappings(void *from, void *to, pgprot_t prot);
 int create_hyp_io_mappings(void *from, void *to, phys_addr_t);
-void free_boot_hyp_pgd(void);
 void free_hyp_pgds(void);
 
 void stage2_unmap_vm(struct kvm *kvm);
@@ -65,7 +55,6 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run);
 void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
 
 phys_addr_t kvm_mmu_get_httbr(void);
-phys_addr_t kvm_mmu_get_boot_httbr(void);
 phys_addr_t kvm_get_idmap_vector(void);
 phys_addr_t kvm_get_idmap_start(void);
 int kvm_mmu_init(void);
@@ -74,37 +63,13 @@ void kvm_clear_hyp_idmap(void);
 static inline void kvm_set_pmd(pmd_t *pmd, pmd_t new_pmd)
 {
 	*pmd = new_pmd;
-	flush_pmd_entry(pmd);
+	dsb(ishst);
 }
 
 static inline void kvm_set_pte(pte_t *pte, pte_t new_pte)
 {
 	*pte = new_pte;
-	/*
-	 * flush_pmd_entry just takes a void pointer and cleans the necessary
-	 * cache entries, so we can reuse the function for ptes.
-	 */
-	flush_pmd_entry(pte);
-}
-
-static inline void kvm_clean_pgd(pgd_t *pgd)
-{
-	clean_dcache_area(pgd, PTRS_PER_S2_PGD * sizeof(pgd_t));
-}
-
-static inline void kvm_clean_pmd(pmd_t *pmd)
-{
-	clean_dcache_area(pmd, PTRS_PER_PMD * sizeof(pmd_t));
-}
-
-static inline void kvm_clean_pmd_entry(pmd_t *pmd)
-{
-	clean_pmd_entry(pmd);
-}
-
-static inline void kvm_clean_pte(pte_t *pte)
-{
-	clean_pte_table(pte);
+	dsb(ishst);
 }
 
 static inline pte_t kvm_s2pte_mkwrite(pte_t pte)

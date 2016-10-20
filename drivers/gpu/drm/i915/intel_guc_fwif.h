@@ -71,7 +71,8 @@
 #define   WQ_WORKLOAD_TOUCH		(2 << WQ_WORKLOAD_SHIFT)
 
 #define WQ_RING_TAIL_SHIFT		20
-#define WQ_RING_TAIL_MASK		(0x7FF << WQ_RING_TAIL_SHIFT)
+#define WQ_RING_TAIL_MAX		0x7FF	/* 2^11 QWords */
+#define WQ_RING_TAIL_MASK		(WQ_RING_TAIL_MAX << WQ_RING_TAIL_SHIFT)
 
 #define GUC_DOORBELL_ENABLED		1
 #define GUC_DOORBELL_DISABLED		0
@@ -154,6 +155,7 @@
  *
  *     +-------------------------------+
  *     |        guc_css_header         |
+ *     |                               |
  *     | contains major/minor version  |
  *     +-------------------------------+
  *     |             uCode             |
@@ -175,10 +177,10 @@
  *
  * 1. Header, uCode and RSA are must-have components.
  * 2. All firmware components, if they present, are in the sequence illustrated
- * in the layout table above.
+ *    in the layout table above.
  * 3. Length info of each component can be found in header, in dwords.
  * 4. Modulus and exponent key are not required by driver. They may not appear
- * in fw. So driver will load a truncated firmware in this case.
+ *    in fw. So driver will load a truncated firmware in this case.
  */
 
 struct guc_css_header {

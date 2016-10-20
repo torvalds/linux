@@ -229,9 +229,6 @@ void __init pas_pci_init(void)
 			of_node_get(np);
 
 	of_node_put(root);
-
-	/* Setup the linkage between OF nodes and PHBs */
-	pci_devs_phb_init();
 }
 
 void __iomem *pasemi_pci_getcfgaddr(struct pci_dev *dev, int offset)

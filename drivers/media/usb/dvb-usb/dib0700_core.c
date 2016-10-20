@@ -710,7 +710,6 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 
 	switch (d->props.rc.core.protocol) {
 	case RC_BIT_NEC:
-		protocol = RC_TYPE_NEC;
 		toggle = 0;
 
 		/* NEC protocol sends repeat code as 0 0 0 FF */
@@ -728,16 +727,19 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 						     poll_reply->nec.not_system << 16 |
 						     poll_reply->nec.data       << 8  |
 						     poll_reply->nec.not_data);
+			protocol = RC_TYPE_NEC32;
 		} else if ((poll_reply->nec.system ^ poll_reply->nec.not_system) != 0xff) {
 			deb_data("NEC extended protocol\n");
 			keycode = RC_SCANCODE_NECX(poll_reply->nec.system << 8 |
 						    poll_reply->nec.not_system,
 						    poll_reply->nec.data);
 
+			protocol = RC_TYPE_NECX;
 		} else {
 			deb_data("NEC normal protocol\n");
 			keycode = RC_SCANCODE_NEC(poll_reply->nec.system,
 						   poll_reply->nec.data);
+			protocol = RC_TYPE_NEC;
 		}
 
 		break;
@@ -783,10 +785,8 @@ int dib0700_rc_setup(struct dvb_usb_device *d, struct usb_interface *intf)
 	/* Starting in firmware 1.20, the RC info is provided on a bulk pipe */
 
 	purb = usb_alloc_urb(0, GFP_KERNEL);
-	if (purb == NULL) {
-		err("rc usb alloc urb failed");
+	if (purb == NULL)
 		return -ENOMEM;
-	}
 
 	purb->transfer_buffer = kzalloc(RC_MSG_SIZE_V1_20, GFP_KERNEL);
 	if (purb->transfer_buffer == NULL) {

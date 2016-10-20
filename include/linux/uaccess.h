@@ -114,8 +114,8 @@ extern long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count);
 #ifndef user_access_begin
 #define user_access_begin() do { } while (0)
 #define user_access_end() do { } while (0)
-#define unsafe_get_user(x, ptr) __get_user(x, ptr)
-#define unsafe_put_user(x, ptr) __put_user(x, ptr)
+#define unsafe_get_user(x, ptr, err) do { if (unlikely(__get_user(x, ptr))) goto err; } while (0)
+#define unsafe_put_user(x, ptr, err) do { if (unlikely(__put_user(x, ptr))) goto err; } while (0)
 #endif
 
 #endif		/* __LINUX_UACCESS_H__ */

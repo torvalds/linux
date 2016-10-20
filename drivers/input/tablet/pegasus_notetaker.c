@@ -40,6 +40,7 @@
 #include <linux/input.h>
 #include <linux/usb/input.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 
 /* USB HID defines */
 #define USB_REQ_GET_REPORT		0x01

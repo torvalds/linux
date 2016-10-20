@@ -133,7 +133,7 @@ static void pcibios_fixup_device_resources(struct pci_dev *dev)
 	if (pci_probe & PCI_NOASSIGN_BARS) {
 		/*
 		* If the BIOS did not assign the BAR, zero out the
-		* resource so the kernel doesn't attmept to assign
+		* resource so the kernel doesn't attempt to assign
 		* it later on in pci_assign_unassigned_resources
 		*/
 		for (bar = 0; bar <= PCI_STD_RESOURCE_END; bar++) {
@@ -677,6 +677,12 @@ static void set_dma_domain_ops(struct pci_dev *pdev)
 static void set_dma_domain_ops(struct pci_dev *pdev) {}
 #endif
 
+static void set_dev_domain_options(struct pci_dev *pdev)
+{
+	if (is_vmd(pdev->bus))
+		pdev->hotplug_user_indicators = 1;
+}
+
 int pcibios_add_device(struct pci_dev *dev)
 {
 	struct setup_data *data;
@@ -707,6 +713,7 @@ int pcibios_add_device(struct pci_dev *dev)
 		iounmap(data);
 	}
 	set_dma_domain_ops(dev);
+	set_dev_domain_options(dev);
 	return 0;
 }
 

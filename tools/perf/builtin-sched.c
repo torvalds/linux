@@ -26,6 +26,7 @@
 #include <pthread.h>
 #include <math.h>
 #include <api/fs/fs.h>
+#include <linux/time64.h>
 
 #define PR_SET_NAME		15               /* Set process name */
 #define MAX_CPUS		4096
@@ -199,7 +200,7 @@ static u64 get_nsecs(void)
 
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 
-	return ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+	return ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec;
 }
 
 static void burn_nsecs(struct perf_sched *sched, u64 nsecs)
@@ -223,7 +224,7 @@ static void sleep_nsecs(u64 nsecs)
 
 static void calibrate_run_measurement_overhead(struct perf_sched *sched)
 {
-	u64 T0, T1, delta, min_delta = 1000000000ULL;
+	u64 T0, T1, delta, min_delta = NSEC_PER_SEC;
 	int i;
 
 	for (i = 0; i < 10; i++) {
@@ -240,7 +241,7 @@ static void calibrate_run_measurement_overhead(struct perf_sched *sched)
 
 static void calibrate_sleep_measurement_overhead(struct perf_sched *sched)
 {
-	u64 T0, T1, delta, min_delta = 1000000000ULL;
+	u64 T0, T1, delta, min_delta = NSEC_PER_SEC;
 	int i;
 
 	for (i = 0; i < 10; i++) {
@@ -452,8 +453,8 @@ static u64 get_cpu_usage_nsec_parent(void)
 	err = getrusage(RUSAGE_SELF, &ru);
 	BUG_ON(err);
 
-	sum =  ru.ru_utime.tv_sec*1e9 + ru.ru_utime.tv_usec*1e3;
-	sum += ru.ru_stime.tv_sec*1e9 + ru.ru_stime.tv_usec*1e3;
+	sum =  ru.ru_utime.tv_sec * NSEC_PER_SEC + ru.ru_utime.tv_usec * NSEC_PER_USEC;
+	sum += ru.ru_stime.tv_sec * NSEC_PER_SEC + ru.ru_stime.tv_usec * NSEC_PER_USEC;
 
 	return sum;
 }
@@ -667,12 +668,12 @@ static void run_one_test(struct perf_sched *sched)
 		sched->run_avg = delta;
 	sched->run_avg = (sched->run_avg * (sched->replay_repeat - 1) + delta) / sched->replay_repeat;
 
-	printf("#%-3ld: %0.3f, ", sched->nr_runs, (double)delta / 1000000.0);
+	printf("#%-3ld: %0.3f, ", sched->nr_runs, (double)delta / NSEC_PER_MSEC);
 
-	printf("ravg: %0.2f, ", (double)sched->run_avg / 1e6);
+	printf("ravg: %0.2f, ", (double)sched->run_avg / NSEC_PER_MSEC);
 
 	printf("cpu: %0.2f / %0.2f",
-		(double)sched->cpu_usage / 1e6, (double)sched->runavg_cpu_usage / 1e6);
+		(double)sched->cpu_usage / NSEC_PER_MSEC, (double)sched->runavg_cpu_usage / NSEC_PER_MSEC);
 
 #if 0
 	/*
@@ -680,8 +681,8 @@ static void run_one_test(struct perf_sched *sched)
 	 * accurate than the sched->sum_exec_runtime based statistics:
 	 */
 	printf(" [%0.2f / %0.2f]",
-		(double)sched->parent_cpu_usage/1e6,
-		(double)sched->runavg_parent_cpu_usage/1e6);
+		(double)sched->parent_cpu_usage / NSEC_PER_MSEC,
+		(double)sched->runavg_parent_cpu_usage / NSEC_PER_MSEC);
 #endif
 
 	printf("\n");
@@ -696,13 +697,13 @@ static void test_calibrations(struct perf_sched *sched)
 	u64 T0, T1;
 
 	T0 = get_nsecs();
-	burn_nsecs(sched, 1e6);
+	burn_nsecs(sched, NSEC_PER_MSEC);
 	T1 = get_nsecs();
 
 	printf("the run test took %" PRIu64 " nsecs\n", T1 - T0);
 
 	T0 = get_nsecs();
-	sleep_nsecs(1e6);
+	sleep_nsecs(NSEC_PER_MSEC);
 	T1 = get_nsecs();
 
 	printf("the sleep test took %" PRIu64 " nsecs\n", T1 - T0);
@@ -1213,10 +1214,10 @@ static void output_lat_thread(struct perf_sched *sched, struct work_atoms *work_
 	avg = work_list->total_lat / work_list->nb_atoms;
 
 	printf("|%11.3f ms |%9" PRIu64 " | avg:%9.3f ms | max:%9.3f ms | max at: %13.6f s\n",
-	      (double)work_list->total_runtime / 1e6,
-		 work_list->nb_atoms, (double)avg / 1e6,
-		 (double)work_list->max_lat / 1e6,
-		 (double)work_list->max_lat_at / 1e9);
+	      (double)work_list->total_runtime / NSEC_PER_MSEC,
+		 work_list->nb_atoms, (double)avg / NSEC_PER_MSEC,
+		 (double)work_list->max_lat / NSEC_PER_MSEC,
+		 (double)work_list->max_lat_at / NSEC_PER_SEC);
 }
 
 static int pid_cmp(struct work_atoms *l, struct work_atoms *r)
@@ -1491,7 +1492,7 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 	if (sched->map.cpus && !cpu_map__has(sched->map.cpus, this_cpu))
 		goto out;
 
-	color_fprintf(stdout, color, "  %12.6f secs ", (double)timestamp/1e9);
+	color_fprintf(stdout, color, "  %12.6f secs ", (double)timestamp / NSEC_PER_SEC);
 	if (new_shortname) {
 		const char *pid_color = color;
 
@@ -1753,7 +1754,7 @@ static int perf_sched__lat(struct perf_sched *sched)
 
 	printf(" -----------------------------------------------------------------------------------------------------------------\n");
 	printf("  TOTAL:                |%11.3f ms |%9" PRIu64 " |\n",
-		(double)sched->all_runtime / 1e6, sched->all_count);
+		(double)sched->all_runtime / NSEC_PER_MSEC, sched->all_count);
 
 	printf(" ---------------------------------------------------\n");
 

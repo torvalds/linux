@@ -73,11 +73,10 @@ static void print_both_open_warning(int kerr, int uerr)
 static int open_probe_events(const char *trace_file, bool readwrite)
 {
 	char buf[PATH_MAX];
-	const char *tracing_dir = "";
 	int ret;
 
-	ret = e_snprintf(buf, PATH_MAX, "%s/%s%s",
-			 tracing_path, tracing_dir, trace_file);
+	ret = e_snprintf(buf, PATH_MAX, "%s/%s",
+			 tracing_path, trace_file);
 	if (ret >= 0) {
 		pr_debug("Opening %s write=%d\n", buf, readwrite);
 		if (readwrite && !probe_event_dry_run)
@@ -133,7 +132,7 @@ int probe_file__open_both(int *kfd, int *ufd, int flag)
 /* Get raw string list of current kprobe_events  or uprobe_events */
 struct strlist *probe_file__get_rawlist(int fd)
 {
-	int ret, idx;
+	int ret, idx, fddup;
 	FILE *fp;
 	char buf[MAX_CMDLEN];
 	char *p;
@@ -143,8 +142,17 @@ struct strlist *probe_file__get_rawlist(int fd)
 		return NULL;
 
 	sl = strlist__new(NULL, NULL);
+	if (sl == NULL)
+		return NULL;
 
-	fp = fdopen(dup(fd), "r");
+	fddup = dup(fd);
+	if (fddup < 0)
+		goto out_free_sl;
+
+	fp = fdopen(fddup, "r");
+	if (!fp)
+		goto out_close_fddup;
+
 	while (!feof(fp)) {
 		p = fgets(buf, MAX_CMDLEN, fp);
 		if (!p)
@@ -156,13 +164,21 @@ struct strlist *probe_file__get_rawlist(int fd)
 		ret = strlist__add(sl, buf);
 		if (ret < 0) {
 			pr_debug("strlist__add failed (%d)\n", ret);
-			strlist__delete(sl);
-			return NULL;
+			goto out_close_fp;
 		}
 	}
 	fclose(fp);
 
 	return sl;
+
+out_close_fp:
+	fclose(fp);
+	goto out_free_sl;
+out_close_fddup:
+	close(fddup);
+out_free_sl:
+	strlist__delete(sl);
+	return NULL;
 }
 
 static struct strlist *__probe_file__get_namelist(int fd, bool include_group)
@@ -447,12 +463,17 @@ static int probe_cache__load(struct probe_cache *pcache)
 {
 	struct probe_cache_entry *entry = NULL;
 	char buf[MAX_CMDLEN], *p;
-	int ret = 0;
+	int ret = 0, fddup;
 	FILE *fp;
 
-	fp = fdopen(dup(pcache->fd), "r");
-	if (!fp)
+	fddup = dup(pcache->fd);
+	if (fddup < 0)
+		return -errno;
+	fp = fdopen(fddup, "r");
+	if (!fp) {
+		close(fddup);
 		return -EINVAL;
+	}
 
 	while (!feof(fp)) {
 		if (!fgets(buf, MAX_CMDLEN, fp))
@@ -678,7 +699,7 @@ int probe_cache__scan_sdt(struct probe_cache *pcache, const char *pathname)
 	INIT_LIST_HEAD(&sdtlist);
 	ret = get_sdt_note_list(&sdtlist, pathname);
 	if (ret < 0) {
-		pr_debug("Failed to get sdt note: %d\n", ret);
+		pr_debug4("Failed to get sdt note: %d\n", ret);
 		return ret;
 	}
 	list_for_each_entry(note, &sdtlist, note_list) {
@@ -854,4 +875,61 @@ int probe_cache__show_all_caches(struct strfilter *filter)
 	strlist__delete(bidlist);
 
 	return 0;
+}
+
+static struct {
+	const char *pattern;
+	bool	avail;
+	bool	checked;
+} probe_type_table[] = {
+#define DEFINE_TYPE(idx, pat, def_avail)	\
+	[idx] = {.pattern = pat, .avail = (def_avail)}
+	DEFINE_TYPE(PROBE_TYPE_U, "* u8/16/32/64,*", true),
+	DEFINE_TYPE(PROBE_TYPE_S, "* s8/16/32/64,*", true),
+	DEFINE_TYPE(PROBE_TYPE_X, "* x8/16/32/64,*", false),
+	DEFINE_TYPE(PROBE_TYPE_STRING, "* string,*", true),
+	DEFINE_TYPE(PROBE_TYPE_BITFIELD,
+		    "* b<bit-width>@<bit-offset>/<container-size>", true),
+};
+
+bool probe_type_is_available(enum probe_type type)
+{
+	FILE *fp;
+	char *buf = NULL;
+	size_t len = 0;
+	bool target_line = false;
+	bool ret = probe_type_table[type].avail;
+
+	if (type >= PROBE_TYPE_END)
+		return false;
+	/* We don't have to check the type which supported by default */
+	if (ret || probe_type_table[type].checked)
+		return ret;
+
+	if (asprintf(&buf, "%s/README", tracing_path) < 0)
+		return ret;
+
+	fp = fopen(buf, "r");
+	if (!fp)
+		goto end;
+
+	zfree(&buf);
+	while (getline(&buf, &len, fp) > 0 && !ret) {
+		if (!target_line) {
+			target_line = !!strstr(buf, " type: ");
+			if (!target_line)
+				continue;
+		} else if (strstr(buf, "\t          ") != buf)
+			break;
+		ret = strglobmatch(buf, probe_type_table[type].pattern);
+	}
+	/* Cache the result */
+	probe_type_table[type].checked = true;
+	probe_type_table[type].avail = ret;
+
+	fclose(fp);
+end:
+	free(buf);
+
+	return ret;
 }

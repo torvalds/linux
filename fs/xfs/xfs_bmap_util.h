@@ -21,7 +21,7 @@
 /* Kernel only BMAP related definitions and functions */
 
 struct xfs_bmbt_irec;
-struct xfs_bmap_free_item;
+struct xfs_extent_free_item;
 struct xfs_ifork;
 struct xfs_inode;
 struct xfs_mount;
@@ -40,8 +40,6 @@ int	xfs_getbmap(struct xfs_inode *ip, struct getbmapx *bmv,
 		xfs_bmap_format_t formatter, void *arg);
 
 /* functions in xfs_bmap.c that are only needed by xfs_bmap_util.c */
-void	xfs_bmap_del_free(struct xfs_bmap_free *flist,
-			  struct xfs_bmap_free_item *free);
 int	xfs_bmap_extsize_align(struct xfs_mount *mp, struct xfs_bmbt_irec *gotp,
 			       struct xfs_bmbt_irec *prevp, xfs_extlen_t extsz,
 			       int rt, int eof, int delay, int convert,

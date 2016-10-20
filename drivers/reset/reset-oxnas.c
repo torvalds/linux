@@ -112,21 +112,11 @@ static int oxnas_reset_probe(struct platform_device *pdev)
 	data->rcdev.ops = &oxnas_reset_ops;
 	data->rcdev.of_node = pdev->dev.of_node;
 
-	return reset_controller_register(&data->rcdev);
-}
-
-static int oxnas_reset_remove(struct platform_device *pdev)
-{
-	struct oxnas_reset *data = platform_get_drvdata(pdev);
-
-	reset_controller_unregister(&data->rcdev);
-
-	return 0;
+	return devm_reset_controller_register(&pdev->dev, &data->rcdev);
 }
 
 static struct platform_driver oxnas_reset_driver = {
 	.probe	= oxnas_reset_probe,
-	.remove	= oxnas_reset_remove,
 	.driver = {
 		.name		= "oxnas-reset",
 		.of_match_table	= oxnas_reset_dt_ids,

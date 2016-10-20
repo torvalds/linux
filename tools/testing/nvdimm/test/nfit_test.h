@@ -12,11 +12,22 @@
  */
 #ifndef __NFIT_TEST_H__
 #define __NFIT_TEST_H__
+#include <linux/list.h>
+#include <linux/ioport.h>
+#include <linux/spinlock_types.h>
+
+struct nfit_test_request {
+	struct list_head list;
+	struct resource res;
+};
 
 struct nfit_test_resource {
+	struct list_head requests;
 	struct list_head list;
-	struct resource *res;
+	struct resource res;
 	struct device *dev;
+	spinlock_t lock;
+	int req_count;
 	void *buf;
 };
 
@@ -26,4 +37,5 @@ void __iomem *__wrap_ioremap_nocache(resource_size_t offset,
 void __wrap_iounmap(volatile void __iomem *addr);
 void nfit_test_setup(nfit_test_lookup_fn lookup);
 void nfit_test_teardown(void);
+struct nfit_test_resource *get_nfit_res(resource_size_t resource);
 #endif

@@ -220,8 +220,8 @@ void *__genwqe_alloc_consistent(struct genwqe_dev *cd, size_t size,
 	if (get_order(size) > MAX_ORDER)
 		return NULL;
 
-	return dma_alloc_coherent(&cd->pci_dev->dev, size, dma_handle,
-				  GFP_KERNEL);
+	return dma_zalloc_coherent(&cd->pci_dev->dev, size, dma_handle,
+				   GFP_KERNEL);
 }
 
 void __genwqe_free_consistent(struct genwqe_dev *cd, size_t size,

@@ -1,0 +1,7 @@
+LG LP079QX1-SP0V 7.9" (1536x2048 pixels) TFT LCD panel
+
+Required properties:
+- compatible: should be "lg,lp079qx1-sp0v"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

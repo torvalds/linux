@@ -60,6 +60,7 @@ struct net {
 	struct list_head	exit_list;	/* Use only net_mutex */
 
 	struct user_namespace   *user_ns;	/* Owning user namespace */
+	struct ucounts		*ucounts;
 	spinlock_t		nsid_lock;
 	struct idr		netns_ids;
 
@@ -275,7 +276,7 @@ static inline struct net *read_pnet(const possible_net_t *pnet)
 #define __net_initconst
 #else
 #define __net_init	__init
-#define __net_exit	__exit_refok
+#define __net_exit	__ref
 #define __net_initdata	__initdata
 #define __net_initconst	__initconst
 #endif

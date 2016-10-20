@@ -70,6 +70,7 @@ struct amdgpu_irq {
 	/* gen irq stuff */
 	struct irq_domain		*domain; /* GPU irq controller domain */
 	unsigned			virq[AMDGPU_MAX_IRQ_SRC_ID];
+	uint32_t                        srbm_soft_reset;
 };
 
 void amdgpu_irq_preinstall(struct drm_device *dev);
@@ -94,6 +95,7 @@ int amdgpu_irq_put(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 		   unsigned type);
 bool amdgpu_irq_enabled(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 			unsigned type);
+void amdgpu_irq_gpu_reset_resume_helper(struct amdgpu_device *adev);
 
 int amdgpu_irq_add_domain(struct amdgpu_device *adev);
 void amdgpu_irq_remove_domain(struct amdgpu_device *adev);

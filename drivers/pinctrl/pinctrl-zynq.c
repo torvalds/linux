@@ -20,7 +20,7 @@
  */
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -233,7 +233,7 @@ static const unsigned int sdio0_2_pins[] = {40, 41, 42, 43, 44, 45};
 static const unsigned int sdio1_0_pins[] = {10, 11, 12, 13, 14, 15};
 static const unsigned int sdio1_1_pins[] = {22, 23, 24, 25, 26, 27};
 static const unsigned int sdio1_2_pins[] = {34, 35, 36, 37, 38, 39};
-static const unsigned int sdio1_3_pins[] = {46, 47, 48, 49, 40, 51};
+static const unsigned int sdio1_3_pins[] = {46, 47, 48, 49, 50, 51};
 static const unsigned int sdio0_emio_wp_pins[] = {54};
 static const unsigned int sdio0_emio_cd_pins[] = {55};
 static const unsigned int sdio1_emio_wp_pins[] = {56};
@@ -1210,7 +1210,6 @@ static const struct of_device_id zynq_pinctrl_of_match[] = {
 	{ .compatible = "xlnx,pinctrl-zynq" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, zynq_pinctrl_of_match);
 
 static struct platform_driver zynq_pinctrl_driver = {
 	.driver = {
@@ -1225,13 +1224,3 @@ static int __init zynq_pinctrl_init(void)
 	return platform_driver_register(&zynq_pinctrl_driver);
 }
 arch_initcall(zynq_pinctrl_init);
-
-static void __exit zynq_pinctrl_exit(void)
-{
-	platform_driver_unregister(&zynq_pinctrl_driver);
-}
-module_exit(zynq_pinctrl_exit);
-
-MODULE_AUTHOR("Sören Brinkmann <soren.brinkmann@xilinx.com>");
-MODULE_DESCRIPTION("Xilinx Zynq pinctrl driver");
-MODULE_LICENSE("GPL");

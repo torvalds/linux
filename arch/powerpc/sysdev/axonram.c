@@ -143,12 +143,12 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
  */
 static long
 axon_ram_direct_access(struct block_device *device, sector_t sector,
-		       void __pmem **kaddr, pfn_t *pfn, long size)
+		       void **kaddr, pfn_t *pfn, long size)
 {
 	struct axon_ram_bank *bank = device->bd_disk->private_data;
 	loff_t offset = (loff_t)sector << AXON_RAM_SECTOR_SHIFT;
 
-	*kaddr = (void __pmem __force *) bank->io_addr + offset;
+	*kaddr = (void *) bank->io_addr + offset;
 	*pfn = phys_to_pfn_t(bank->ph_addr + offset, PFN_DEV);
 	return bank->size - offset;
 }
@@ -240,7 +240,7 @@ static int axon_ram_probe(struct platform_device *device)
 	device_add_disk(&device->dev, bank->disk);
 
 	bank->irq_id = irq_of_parse_and_map(device->dev.of_node, 0);
-	if (bank->irq_id == NO_IRQ) {
+	if (!bank->irq_id) {
 		dev_err(&device->dev, "Cannot access ECC interrupt ID\n");
 		rc = -EFAULT;
 		goto failed;
@@ -250,7 +250,7 @@ static int axon_ram_probe(struct platform_device *device)
 			AXON_RAM_IRQ_FLAGS, bank->disk->disk_name, device);
 	if (rc != 0) {
 		dev_err(&device->dev, "Cannot register ECC interrupt handler\n");
-		bank->irq_id = NO_IRQ;
+		bank->irq_id = 0;
 		rc = -EFAULT;
 		goto failed;
 	}
@@ -268,7 +268,7 @@ static int axon_ram_probe(struct platform_device *device)
 
 failed:
 	if (bank != NULL) {
-		if (bank->irq_id != NO_IRQ)
+		if (bank->irq_id)
 			free_irq(bank->irq_id, device);
 		if (bank->disk != NULL) {
 			if (bank->disk->major > 0)

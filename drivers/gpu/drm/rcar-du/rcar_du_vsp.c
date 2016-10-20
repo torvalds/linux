@@ -43,12 +43,12 @@ void rcar_du_vsp_enable(struct rcar_du_crtc *crtc)
 			.src_y = 0,
 			.src_w = mode->hdisplay << 16,
 			.src_h = mode->vdisplay << 16,
+			.zpos = 0,
 		},
 		.format = rcar_du_format_info(DRM_FORMAT_ARGB8888),
 		.source = RCAR_DU_PLANE_VSPD1,
 		.alpha = 255,
 		.colorkey = 0,
-		.zpos = 0,
 	};
 
 	if (rcdu->info->gen >= 3)
@@ -152,7 +152,7 @@ static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 		.pixelformat = 0,
 		.pitch = fb->pitches[0],
 		.alpha = state->alpha,
-		.zpos = state->zpos,
+		.zpos = state->state.zpos,
 	};
 	unsigned int i;
 
@@ -267,7 +267,7 @@ static void rcar_du_vsp_plane_reset(struct drm_plane *plane)
 		return;
 
 	state->alpha = 255;
-	state->zpos = plane->type == DRM_PLANE_TYPE_PRIMARY ? 0 : 1;
+	state->state.zpos = plane->type == DRM_PLANE_TYPE_PRIMARY ? 0 : 1;
 
 	plane->state = &state->state;
 	plane->state->plane = plane;
@@ -282,8 +282,6 @@ static int rcar_du_vsp_plane_atomic_set_property(struct drm_plane *plane,
 
 	if (property == rcdu->props.alpha)
 		rstate->alpha = val;
-	else if (property == rcdu->props.zpos)
-		rstate->zpos = val;
 	else
 		return -EINVAL;
 
@@ -300,8 +298,6 @@ static int rcar_du_vsp_plane_atomic_get_property(struct drm_plane *plane,
 
 	if (property == rcdu->props.alpha)
 		*val = rstate->alpha;
-	else if (property == rcdu->props.zpos)
-		*val = rstate->zpos;
 	else
 		return -EINVAL;
 
@@ -381,8 +377,8 @@ int rcar_du_vsp_init(struct rcar_du_vsp *vsp)
 
 		drm_object_attach_property(&plane->plane.base,
 					   rcdu->props.alpha, 255);
-		drm_object_attach_property(&plane->plane.base,
-					   rcdu->props.zpos, 1);
+		drm_plane_create_zpos_property(&plane->plane, 1, 1,
+					       vsp->num_planes - 1);
 	}
 
 	return 0;

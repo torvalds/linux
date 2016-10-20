@@ -59,6 +59,7 @@ struct nfsd4_compound_state {
 	struct nfsd4_session	*session;
 	struct nfsd4_slot	*slot;
 	int			data_offset;
+	bool                    spo_must_allowed;
 	size_t			iovlen;
 	u32			minorversion;
 	__be32			status;
@@ -403,6 +404,8 @@ struct nfsd4_exchange_id {
 	clientid_t	clientid;
 	u32		seqid;
 	int		spa_how;
+	u32             spo_must_enforce[3];
+	u32             spo_must_allow[3];
 };
 
 struct nfsd4_sequence {
@@ -500,6 +503,28 @@ struct nfsd4_clone {
 	u64		cl_count;
 };
 
+struct nfsd42_write_res {
+	u64			wr_bytes_written;
+	u32			wr_stable_how;
+	nfs4_verifier		wr_verifier;
+};
+
+struct nfsd4_copy {
+	/* request */
+	stateid_t	cp_src_stateid;
+	stateid_t	cp_dst_stateid;
+	u64		cp_src_pos;
+	u64		cp_dst_pos;
+	u64		cp_count;
+
+	/* both */
+	bool		cp_consecutive;
+	bool		cp_synchronous;
+
+	/* response */
+	struct nfsd42_write_res	cp_res;
+};
+
 struct nfsd4_seek {
 	/* request */
 	stateid_t	seek_stateid;
@@ -565,6 +590,7 @@ struct nfsd4_op {
 		struct nfsd4_fallocate		allocate;
 		struct nfsd4_fallocate		deallocate;
 		struct nfsd4_clone		clone;
+		struct nfsd4_copy		copy;
 		struct nfsd4_seek		seek;
 	} u;
 	struct nfs4_replay *			replay;
@@ -654,6 +680,8 @@ set_change_info(struct nfsd4_change_info *cinfo, struct svc_fh *fhp)
 
 }
 
+
+bool nfsd4_mach_creds_match(struct nfs4_client *cl, struct svc_rqst *rqstp);
 int nfs4svc_encode_voidres(struct svc_rqst *, __be32 *, void *);
 int nfs4svc_decode_compoundargs(struct svc_rqst *, __be32 *,
 		struct nfsd4_compoundargs *);

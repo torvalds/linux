@@ -38,6 +38,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
+#include <linux/memblock.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -99,6 +100,7 @@ static DEFINE_MUTEX(smu_mutex);
 static struct smu_device	*smu;
 static DEFINE_MUTEX(smu_part_access);
 static int smu_irq_inited;
+static unsigned long smu_cmdbuf_abs;
 
 static void smu_i2c_retry(unsigned long data);
 
@@ -277,7 +279,7 @@ int smu_queue_cmd(struct smu_cmd *cmd)
 	spin_unlock_irqrestore(&smu->lock, flags);
 
 	/* Workaround for early calls when irq isn't available */
-	if (!smu_irq_inited || smu->db_irq == NO_IRQ)
+	if (!smu_irq_inited || !smu->db_irq)
 		smu_spinwait_cmd(cmd);
 
 	return 0;
@@ -479,8 +481,13 @@ int __init smu_init (void)
 
 	printk(KERN_INFO "SMU: Driver %s %s\n", VERSION, AUTHOR);
 
+	/*
+	 * SMU based G5s need some memory below 2Gb. Thankfully this is
+	 * called at a time where memblock is still available.
+	 */
+	smu_cmdbuf_abs = memblock_alloc_base(4096, 4096, 0x80000000UL);
 	if (smu_cmdbuf_abs == 0) {
-		printk(KERN_ERR "SMU: Command buffer not allocated !\n");
+		printk(KERN_ERR "SMU: Command buffer allocation failed !\n");
 		ret = -EINVAL;
 		goto fail_np;
 	}
@@ -491,8 +498,8 @@ int __init smu_init (void)
 	INIT_LIST_HEAD(&smu->cmd_list);
 	INIT_LIST_HEAD(&smu->cmd_i2c_list);
 	smu->of_node = np;
-	smu->db_irq = NO_IRQ;
-	smu->msg_irq = NO_IRQ;
+	smu->db_irq = 0;
+	smu->msg_irq = 0;
 
 	/* smu_cmdbuf_abs is in the low 2G of RAM, can be converted to a
 	 * 32 bits value safely
@@ -580,13 +587,13 @@ static int smu_late_init(void)
 
 	if (smu->db_node) {
 		smu->db_irq = irq_of_parse_and_map(smu->db_node, 0);
-		if (smu->db_irq == NO_IRQ)
+		if (!smu->db_irq)
 			printk(KERN_ERR "smu: failed to map irq for node %s\n",
 			       smu->db_node->full_name);
 	}
 	if (smu->msg_node) {
 		smu->msg_irq = irq_of_parse_and_map(smu->msg_node, 0);
-		if (smu->msg_irq == NO_IRQ)
+		if (!smu->msg_irq)
 			printk(KERN_ERR "smu: failed to map irq for node %s\n",
 			       smu->msg_node->full_name);
 	}
@@ -595,23 +602,23 @@ static int smu_late_init(void)
 	 * Try to request the interrupts
 	 */
 
-	if (smu->db_irq != NO_IRQ) {
+	if (smu->db_irq) {
 		if (request_irq(smu->db_irq, smu_db_intr,
 				IRQF_SHARED, "SMU doorbell", smu) < 0) {
 			printk(KERN_WARNING "SMU: can't "
 			       "request interrupt %d\n",
 			       smu->db_irq);
-			smu->db_irq = NO_IRQ;
+			smu->db_irq = 0;
 		}
 	}
 
-	if (smu->msg_irq != NO_IRQ) {
+	if (smu->msg_irq) {
 		if (request_irq(smu->msg_irq, smu_msg_intr,
 				IRQF_SHARED, "SMU message", smu) < 0) {
 			printk(KERN_WARNING "SMU: can't "
 			       "request interrupt %d\n",
 			       smu->msg_irq);
-			smu->msg_irq = NO_IRQ;
+			smu->msg_irq = 0;
 		}
 	}
 

@@ -49,10 +49,30 @@ struct nvdimm_drvdata {
 	struct kref kref;
 };
 
-struct nd_region_namespaces {
-	int count;
-	int active;
+struct nd_region_data {
+	int ns_count;
+	int ns_active;
+	unsigned int hints_shift;
+	void __iomem *flush_wpq[0];
 };
+
+static inline void __iomem *ndrd_get_flush_wpq(struct nd_region_data *ndrd,
+		int dimm, int hint)
+{
+	unsigned int num = 1 << ndrd->hints_shift;
+	unsigned int mask = num - 1;
+
+	return ndrd->flush_wpq[dimm * num + (hint & mask)];
+}
+
+static inline void ndrd_set_flush_wpq(struct nd_region_data *ndrd, int dimm,
+		int hint, void __iomem *flush)
+{
+	unsigned int num = 1 << ndrd->hints_shift;
+	unsigned int mask = num - 1;
+
+	ndrd->flush_wpq[dimm * num + (hint & mask)] = flush;
+}
 
 static inline struct nd_namespace_index *to_namespace_index(
 		struct nvdimm_drvdata *ndd, int i)
@@ -81,9 +101,6 @@ static inline struct nd_namespace_index *to_next_namespace_index(
 		(unsigned long long) (res ? resource_size(res) : 0), \
 		(unsigned long long) (res ? res->start : 0), ##arg)
 
-#define for_each_label(l, label, labels) \
-	for (l = 0; (label = labels ? labels[l] : NULL); l++)
-
 #define for_each_dpa_resource(ndd, res) \
 	for (res = (ndd)->dpa.child; res; res = res->sibling)
 
@@ -94,6 +111,31 @@ static inline struct nd_namespace_index *to_next_namespace_index(
 struct nd_percpu_lane {
 	int count;
 	spinlock_t lock;
+};
+
+struct nd_label_ent {
+	struct list_head list;
+	struct nd_namespace_label *label;
+};
+
+enum nd_mapping_lock_class {
+	ND_MAPPING_CLASS0,
+	ND_MAPPING_UUID_SCAN,
+};
+
+struct nd_mapping {
+	struct nvdimm *nvdimm;
+	u64 start;
+	u64 size;
+	struct list_head labels;
+	struct mutex lock;
+	/*
+	 * @ndd is for private use at region enable / disable time for
+	 * get_ndd() + put_ndd(), all other nd_mapping to ndd
+	 * conversions use to_ndd() which respects enabled state of the
+	 * nvdimm.
+	 */
+	struct nvdimm_drvdata *ndd;
 };
 
 struct nd_region {
@@ -119,7 +161,6 @@ struct nd_region {
 
 struct nd_blk_region {
 	int (*enable)(struct nvdimm_bus *nvdimm_bus, struct device *dev);
-	void (*disable)(struct nvdimm_bus *nvdimm_bus, struct device *dev);
 	int (*do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
 			void *iobuf, u64 len, int rw);
 	void *blk_provider_data;
@@ -142,6 +183,7 @@ struct nd_btt {
 	struct nd_namespace_common *ndns;
 	struct btt *btt;
 	unsigned long lbasize;
+	u64 size;
 	u8 *uuid;
 	int id;
 };
@@ -189,6 +231,7 @@ void nvdimm_exit(void);
 void nd_region_exit(void);
 struct nvdimm;
 struct nvdimm_drvdata *to_ndd(struct nd_mapping *nd_mapping);
+int nvdimm_check_config_data(struct device *dev);
 int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd);
 int nvdimm_init_config_data(struct nvdimm_drvdata *ndd);
 int nvdimm_set_config_data(struct nvdimm_drvdata *ndd, size_t offset,
@@ -325,6 +368,7 @@ static inline void devm_nsio_disable(struct device *dev,
 }
 #endif
 int nd_blk_region_init(struct nd_region *nd_region);
+int nd_region_activate(struct nd_region *nd_region);
 void __nd_iostat_start(struct bio *bio, unsigned long *start);
 static inline bool nd_iostat_start(struct bio *bio, unsigned long *start)
 {

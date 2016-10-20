@@ -27,6 +27,7 @@
 #include "backref.h"
 #include "hash.h"
 #include "compression.h"
+#include "qgroup.h"
 
 /* magic values for the inode_only field in btrfs_log_inode:
  *
@@ -679,6 +680,21 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 		ins.offset = btrfs_file_extent_disk_num_bytes(eb, item);
 		ins.type = BTRFS_EXTENT_ITEM_KEY;
 		offset = key->offset - btrfs_file_extent_offset(eb, item);
+
+		/*
+		 * Manually record dirty extent, as here we did a shallow
+		 * file extent item copy and skip normal backref update,
+		 * but modifying extent tree all by ourselves.
+		 * So need to manually record dirty extent for qgroup,
+		 * as the owner of the file extent changed from log tree
+		 * (doesn't affect qgroup) to fs/file tree(affects qgroup)
+		 */
+		ret = btrfs_qgroup_insert_dirty_extent(trans, root->fs_info,
+				btrfs_file_extent_disk_bytenr(eb, item),
+				btrfs_file_extent_disk_num_bytes(eb, item),
+				GFP_NOFS);
+		if (ret < 0)
+			goto out;
 
 		if (ins.objectid > 0) {
 			u64 csum_start;
@@ -2757,7 +2773,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	while (1) {
 		int batch = atomic_read(&root->log_batch);
 		/* when we're on an ssd, just kick the log commit out */
-		if (!btrfs_test_opt(root, SSD) &&
+		if (!btrfs_test_opt(root->fs_info, SSD) &&
 		    test_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state)) {
 			mutex_unlock(&root->log_mutex);
 			schedule_timeout_uninterruptible(1);
@@ -2788,7 +2804,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	ret = btrfs_write_marked_extents(log, &log->dirty_log_pages, mark);
 	if (ret) {
 		blk_finish_plug(&plug);
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 		btrfs_free_logged_extents(log, log_transid);
 		btrfs_set_log_full_commit(root->fs_info, trans);
 		mutex_unlock(&root->log_mutex);
@@ -2807,7 +2823,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 */
 	mutex_unlock(&root->log_mutex);
 
-	btrfs_init_log_ctx(&root_log_ctx);
+	btrfs_init_log_ctx(&root_log_ctx, NULL);
 
 	mutex_lock(&log_root_tree->log_mutex);
 	atomic_inc(&log_root_tree->log_batch);
@@ -2838,7 +2854,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		btrfs_set_log_full_commit(root->fs_info, trans);
 
 		if (ret != -ENOSPC) {
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			mutex_unlock(&log_root_tree->log_mutex);
 			goto out;
 		}
@@ -2851,6 +2867,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	if (log_root_tree->log_transid_committed >= root_log_ctx.log_transid) {
 		blk_finish_plug(&plug);
+		list_del_init(&root_log_ctx.list);
 		mutex_unlock(&log_root_tree->log_mutex);
 		ret = root_log_ctx.log_ret;
 		goto out;
@@ -2898,7 +2915,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	blk_finish_plug(&plug);
 	if (ret) {
 		btrfs_set_log_full_commit(root->fs_info, trans);
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 		btrfs_free_logged_extents(log, log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
 		goto out_wake_log_root;
@@ -2934,7 +2951,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	ret = write_ctree_super(trans, root->fs_info->tree_root, 1);
 	if (ret) {
 		btrfs_set_log_full_commit(root->fs_info, trans);
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 		goto out_wake_log_root;
 	}
 
@@ -2991,7 +3008,7 @@ static void free_log_tree(struct btrfs_trans_handle *trans,
 	ret = walk_log_tree(trans, log, &wc);
 	/* I don't think this can happen but just in case */
 	if (ret)
-		btrfs_abort_transaction(trans, log, ret);
+		btrfs_abort_transaction(trans, ret);
 
 	while (1) {
 		ret = find_first_extent_bit(&log->dirty_log_pages,
@@ -3160,7 +3177,7 @@ out_unlock:
 		btrfs_set_log_full_commit(root->fs_info, trans);
 		ret = 0;
 	} else if (ret < 0)
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 
 	btrfs_end_log_trans(root);
 
@@ -3193,7 +3210,7 @@ int btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 		btrfs_set_log_full_commit(root->fs_info, trans);
 		ret = 0;
 	} else if (ret < 0 && ret != -ENOENT)
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 	btrfs_end_log_trans(root);
 
 	return ret;
@@ -3944,7 +3961,7 @@ static int wait_ordered_extents(struct btrfs_trans_handle *trans,
 			 * i_mapping flags, so that the next fsync won't get
 			 * an outdated io error too.
 			 */
-			btrfs_inode_check_errors(inode);
+			filemap_check_errors(inode->i_mapping);
 			*ordered_io_error = true;
 			break;
 		}
@@ -4181,7 +4198,7 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 	 * without writing to the log tree and the fsync must report the
 	 * file data write error and not commit the current transaction.
 	 */
-	ret = btrfs_inode_check_errors(inode);
+	ret = filemap_check_errors(inode->i_mapping);
 	if (ret)
 		ctx->io_err = ret;
 process:
@@ -4469,7 +4486,8 @@ static int btrfs_log_trailing_hole(struct btrfs_trans_handle *trans,
 static int btrfs_check_ref_name_override(struct extent_buffer *eb,
 					 const int slot,
 					 const struct btrfs_key *key,
-					 struct inode *inode)
+					 struct inode *inode,
+					 u64 *other_ino)
 {
 	int ret;
 	struct btrfs_path *search_path;
@@ -4528,7 +4546,16 @@ static int btrfs_check_ref_name_override(struct extent_buffer *eb,
 					   search_path, parent,
 					   name, this_name_len, 0);
 		if (di && !IS_ERR(di)) {
-			ret = 1;
+			struct btrfs_key di_key;
+
+			btrfs_dir_item_key_to_cpu(search_path->nodes[0],
+						  di, &di_key);
+			if (di_key.type == BTRFS_INODE_ITEM_KEY) {
+				ret = 1;
+				*other_ino = di_key.objectid;
+			} else {
+				ret = -EAGAIN;
+			}
 			goto out;
 		} else if (IS_ERR(di)) {
 			ret = PTR_ERR(di);
@@ -4703,6 +4730,10 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 		ins_nr = 0;
 		ret = btrfs_search_forward(root, &min_key,
 					   path, trans->transid);
+		if (ret < 0) {
+			err = ret;
+			goto out_unlock;
+		}
 		if (ret != 0)
 			break;
 again:
@@ -4718,16 +4749,72 @@ again:
 		if ((min_key.type == BTRFS_INODE_REF_KEY ||
 		     min_key.type == BTRFS_INODE_EXTREF_KEY) &&
 		    BTRFS_I(inode)->generation == trans->transid) {
+			u64 other_ino = 0;
+
 			ret = btrfs_check_ref_name_override(path->nodes[0],
 							    path->slots[0],
-							    &min_key, inode);
+							    &min_key, inode,
+							    &other_ino);
 			if (ret < 0) {
 				err = ret;
 				goto out_unlock;
-			} else if (ret > 0) {
-				err = 1;
-				btrfs_set_log_full_commit(root->fs_info, trans);
-				goto out_unlock;
+			} else if (ret > 0 && ctx &&
+				   other_ino != btrfs_ino(ctx->inode)) {
+				struct btrfs_key inode_key;
+				struct inode *other_inode;
+
+				if (ins_nr > 0) {
+					ins_nr++;
+				} else {
+					ins_nr = 1;
+					ins_start_slot = path->slots[0];
+				}
+				ret = copy_items(trans, inode, dst_path, path,
+						 &last_extent, ins_start_slot,
+						 ins_nr, inode_only,
+						 logged_isize);
+				if (ret < 0) {
+					err = ret;
+					goto out_unlock;
+				}
+				ins_nr = 0;
+				btrfs_release_path(path);
+				inode_key.objectid = other_ino;
+				inode_key.type = BTRFS_INODE_ITEM_KEY;
+				inode_key.offset = 0;
+				other_inode = btrfs_iget(root->fs_info->sb,
+							 &inode_key, root,
+							 NULL);
+				/*
+				 * If the other inode that had a conflicting dir
+				 * entry was deleted in the current transaction,
+				 * we don't need to do more work nor fallback to
+				 * a transaction commit.
+				 */
+				if (IS_ERR(other_inode) &&
+				    PTR_ERR(other_inode) == -ENOENT) {
+					goto next_key;
+				} else if (IS_ERR(other_inode)) {
+					err = PTR_ERR(other_inode);
+					goto out_unlock;
+				}
+				/*
+				 * We are safe logging the other inode without
+				 * acquiring its i_mutex as long as we log with
+				 * the LOG_INODE_EXISTS mode. We're safe against
+				 * concurrent renames of the other inode as well
+				 * because during a rename we pin the log and
+				 * update the log with the new name before we
+				 * unpin it.
+				 */
+				err = btrfs_log_inode(trans, root, other_inode,
+						      LOG_INODE_EXISTS,
+						      0, LLONG_MAX, ctx);
+				iput(other_inode);
+				if (err)
+					goto out_unlock;
+				else
+					goto next_key;
 			}
 		}
 
@@ -4795,7 +4882,7 @@ next_slot:
 			ins_nr = 0;
 		}
 		btrfs_release_path(path);
-
+next_key:
 		if (min_key.offset < (u64)-1) {
 			min_key.offset++;
 		} else if (min_key.type < max_key.type) {
@@ -4989,8 +5076,12 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 		if (!parent || d_really_is_negative(parent) || sb != parent->d_sb)
 			break;
 
-		if (IS_ROOT(parent))
+		if (IS_ROOT(parent)) {
+			inode = d_inode(parent);
+			if (btrfs_must_commit_transaction(trans, inode))
+				ret = 1;
 			break;
+		}
 
 		parent = dget_parent(parent);
 		dput(old_parent);
@@ -5301,7 +5392,7 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 
 	sb = inode->i_sb;
 
-	if (btrfs_test_opt(root, NOTREELOG)) {
+	if (btrfs_test_opt(root->fs_info, NOTREELOG)) {
 		ret = 1;
 		goto end_no_trans;
 	}
@@ -5488,7 +5579,7 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	if (!path)
 		return -ENOMEM;
 
-	fs_info->log_root_recovering = 1;
+	set_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags);
 
 	trans = btrfs_start_transaction(fs_info->tree_root, 0);
 	if (IS_ERR(trans)) {
@@ -5501,8 +5592,8 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 
 	ret = walk_log_tree(trans, log_root_tree, &wc);
 	if (ret) {
-		btrfs_handle_fs_error(fs_info, ret, "Failed to pin buffers while "
-			    "recovering log root tree.");
+		btrfs_handle_fs_error(fs_info, ret,
+			"Failed to pin buffers while recovering log root tree.");
 		goto error;
 	}
 
@@ -5548,8 +5639,8 @@ again:
 			free_extent_buffer(log->node);
 			free_extent_buffer(log->commit_root);
 			kfree(log);
-			btrfs_handle_fs_error(fs_info, ret, "Couldn't read target root "
-				    "for tree log recovery.");
+			btrfs_handle_fs_error(fs_info, ret,
+				"Couldn't read target root for tree log recovery.");
 			goto error;
 		}
 
@@ -5598,7 +5689,7 @@ again:
 
 	free_extent_buffer(log_root_tree->node);
 	log_root_tree->log_root = NULL;
-	fs_info->log_root_recovering = 0;
+	clear_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags);
 	kfree(log_root_tree);
 
 	return 0;

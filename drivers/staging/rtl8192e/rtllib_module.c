@@ -138,7 +138,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	rtllib_softmac_init(ieee);
 
 	ieee->pHTInfo = kzalloc(sizeof(struct rt_hi_throughput), GFP_KERNEL);
-	if (ieee->pHTInfo == NULL)
+	if (!ieee->pHTInfo)
 		return NULL;
 
 	HTUpdateDefaultSetting(ieee);

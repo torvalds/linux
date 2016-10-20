@@ -960,7 +960,7 @@ static int __init amd_iommu_v2_init(void)
 	spin_lock_init(&state_lock);
 
 	ret = -ENOMEM;
-	iommu_wq = create_workqueue("amd_iommu_v2");
+	iommu_wq = alloc_workqueue("amd_iommu_v2", WQ_MEM_RECLAIM, 0);
 	if (iommu_wq == NULL)
 		goto out;
 

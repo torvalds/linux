@@ -30,6 +30,7 @@
 #include <sound/jack.h>
 #include "../../codecs/rt5645.h"
 #include "../atom/sst-atom-controls.h"
+#include "../common/sst-acpi.h"
 
 #define CHT_PLAT_CLK_3_HZ	19200000
 #define CHT_CODEC_DAI	"rt5645-aif1"
@@ -340,9 +341,12 @@ static struct snd_soc_card snd_soc_card_chtrt5650 = {
 };
 
 static struct cht_acpi_card snd_soc_cards[] = {
+	{"10EC5640", CODEC_TYPE_RT5645, &snd_soc_card_chtrt5645},
 	{"10EC5645", CODEC_TYPE_RT5645, &snd_soc_card_chtrt5645},
 	{"10EC5650", CODEC_TYPE_RT5650, &snd_soc_card_chtrt5650},
 };
+
+static char cht_rt5640_codec_name[16]; /* i2c-<HID>:00 with HID being 8 chars */
 
 static int snd_cht_mc_probe(struct platform_device *pdev)
 {
@@ -351,6 +355,9 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	struct cht_mc_private *drv;
 	struct snd_soc_card *card = snd_soc_cards[0].soc_card;
 	char codec_name[16];
+	struct sst_acpi_mach *mach;
+	const char *i2c_name = NULL;
+	int dai_index = 0;
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_ATOMIC);
 	if (!drv)
@@ -366,12 +373,23 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		}
 	}
 	card->dev = &pdev->dev;
+	mach = card->dev->platform_data;
 	sprintf(codec_name, "i2c-%s:00", drv->acpi_card->codec_id);
 
 	/* set correct codec name */
 	for (i = 0; i < ARRAY_SIZE(cht_dailink); i++)
-		if (!strcmp(card->dai_link[i].codec_name, "i2c-10EC5645:00"))
+		if (!strcmp(card->dai_link[i].codec_name, "i2c-10EC5645:00")) {
 			card->dai_link[i].codec_name = kstrdup(codec_name, GFP_KERNEL);
+			dai_index = i;
+		}
+
+	/* fixup codec name based on HID */
+	i2c_name = sst_acpi_find_name_from_hid(mach->id);
+	if (i2c_name != NULL) {
+		snprintf(cht_rt5640_codec_name, sizeof(cht_rt5640_codec_name),
+			"%s%s", "i2c-", i2c_name);
+		cht_dailink[dai_index].codec_name = cht_rt5640_codec_name;
+	}
 
 	snd_soc_card_set_drvdata(card, drv);
 	ret_val = devm_snd_soc_register_card(&pdev->dev, card);

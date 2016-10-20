@@ -38,7 +38,6 @@
 #define get_ds()	(KERNEL_DS)
 #define get_fs()	(current_thread_info()->addr_limit)
 #define set_fs(x)	(current_thread_info()->addr_limit = (x))
-#define __kernel_ds_p() (current_thread_info()->addr_limit.seg == 0x9FFFFFFF)
 
 #define segment_eq(a, b) ((a).seg == (b).seg)
 
@@ -71,12 +70,6 @@ static inline int ___range_ok(unsigned long addr, unsigned int size)
 
 #define access_ok(type, addr, size) (__range_ok((addr), (size)) == 0)
 #define __access_ok(addr, size)     (__range_ok((addr), (size)) == 0)
-
-static inline int verify_area(int type, const void *addr, unsigned long size)
-{
-	return access_ok(type, addr, size) ? 0 : -EFAULT;
-}
-
 
 /*
  * The exception table consists of pairs of addresses: the first is the
@@ -166,6 +159,7 @@ struct __large_struct { unsigned long buf[100]; };
 		"2:\n"						\
 		"	.section	.fixup,\"ax\"\n"	\
 		"3:\n\t"					\
+		"	mov		0,%1\n"			\
 		"	mov		%3,%0\n"		\
 		"	jmp		2b\n"			\
 		"	.previous\n"				\

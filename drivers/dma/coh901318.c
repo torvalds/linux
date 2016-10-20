@@ -266,7 +266,7 @@ static int dma_memcpy_channels[] = {
 			COH901318_CX_CTRL_DDMA_LEGACY | \
 			COH901318_CX_CTRL_PRDD_SOURCE)
 
-const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
+static const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 	{
 		.number = U300_DMA_MSL_TX_0,
 		.name = "MSL TX 0",
@@ -1280,6 +1280,7 @@ struct coh901318_desc {
 struct coh901318_base {
 	struct device *dev;
 	void __iomem *virtbase;
+	unsigned int irq;
 	struct coh901318_pool pool;
 	struct powersave pm;
 	struct dma_device dma_slave;
@@ -1318,10 +1319,10 @@ static void coh901318_list_print(struct coh901318_chan *cohc,
 	int i = 0;
 
 	while (l) {
-		dev_vdbg(COHC_2_DEV(cohc), "i %d, lli %p, ctrl 0x%x, src 0x%x"
-			 ", dst 0x%x, link 0x%x virt_link_addr 0x%p\n",
-			 i, l, l->control, l->src_addr, l->dst_addr,
-			 l->link_addr, l->virt_link_addr);
+		dev_vdbg(COHC_2_DEV(cohc), "i %d, lli %p, ctrl 0x%x, src 0x%pad"
+			 ", dst 0x%pad, link 0x%pad virt_link_addr 0x%p\n",
+			 i, l, l->control, &l->src_addr, &l->dst_addr,
+			 &l->link_addr, l->virt_link_addr);
 		i++;
 		l = l->virt_link_addr;
 	}
@@ -1334,7 +1335,7 @@ static void coh901318_list_print(struct coh901318_chan *cohc,
 static struct coh901318_base *debugfs_dma_base;
 static struct dentry *dma_dentry;
 
-static int coh901318_debugfs_read(struct file *file, char __user *buf,
+static ssize_t coh901318_debugfs_read(struct file *file, char __user *buf,
 				  size_t count, loff_t *f_pos)
 {
 	u64 started_channels = debugfs_dma_base->pm.started_channels;
@@ -1351,9 +1352,10 @@ static int coh901318_debugfs_read(struct file *file, char __user *buf,
 
 	tmp += sprintf(tmp, "DMA -- enabled dma channels\n");
 
-	for (i = 0; i < U300_DMA_CHANNELS; i++)
-		if (started_channels & (1 << i))
+	for (i = 0; i < U300_DMA_CHANNELS; i++) {
+		if (started_channels & (1ULL << i))
 			tmp += sprintf(tmp, "channel %d\n", i);
+	}
 
 	tmp += sprintf(tmp, "Pool alloc nbr %d\n", pool_count);
 
@@ -1364,7 +1366,6 @@ static int coh901318_debugfs_read(struct file *file, char __user *buf,
 }
 
 static const struct file_operations coh901318_debugfs_status_operations = {
-	.owner		= THIS_MODULE,
 	.open		= simple_open,
 	.read		= coh901318_debugfs_read,
 	.llseek		= default_llseek,
@@ -1553,15 +1554,8 @@ coh901318_desc_submit(struct coh901318_chan *cohc, struct coh901318_desc *desc)
 static struct coh901318_desc *
 coh901318_first_active_get(struct coh901318_chan *cohc)
 {
-	struct coh901318_desc *d;
-
-	if (list_empty(&cohc->active))
-		return NULL;
-
-	d = list_first_entry(&cohc->active,
-			     struct coh901318_desc,
-			     node);
-	return d;
+	return list_first_entry_or_null(&cohc->active, struct coh901318_desc,
+					node);
 }
 
 static void
@@ -1579,15 +1573,8 @@ coh901318_desc_queue(struct coh901318_chan *cohc, struct coh901318_desc *desc)
 static struct coh901318_desc *
 coh901318_first_queued(struct coh901318_chan *cohc)
 {
-	struct coh901318_desc *d;
-
-	if (list_empty(&cohc->queue))
-		return NULL;
-
-	d = list_first_entry(&cohc->queue,
-			     struct coh901318_desc,
-			     node);
-	return d;
+	return list_first_entry_or_null(&cohc->queue, struct coh901318_desc,
+					node);
 }
 
 static inline u32 coh901318_get_bytes_in_lli(struct coh901318_lli *in_lli)
@@ -1766,7 +1753,7 @@ static int coh901318_resume(struct dma_chan *chan)
 
 bool coh901318_filter_id(struct dma_chan *chan, void *chan_id)
 {
-	unsigned int ch_nr = (unsigned int) chan_id;
+	unsigned long ch_nr = (unsigned long) chan_id;
 
 	if (ch_nr == to_coh901318_chan(chan)->id)
 		return true;
@@ -1888,8 +1875,7 @@ static void dma_tasklet(unsigned long data)
 	struct coh901318_chan *cohc = (struct coh901318_chan *) data;
 	struct coh901318_desc *cohd_fin;
 	unsigned long flags;
-	dma_async_tx_callback callback;
-	void *callback_param;
+	struct dmaengine_desc_callback cb;
 
 	dev_vdbg(COHC_2_DEV(cohc), "[%s] chan_id %d"
 		 " nbr_active_done %ld\n", __func__,
@@ -1904,8 +1890,7 @@ static void dma_tasklet(unsigned long data)
 		goto err;
 
 	/* locate callback to client */
-	callback = cohd_fin->desc.callback;
-	callback_param = cohd_fin->desc.callback_param;
+	dmaengine_desc_get_callback(&cohd_fin->desc, &cb);
 
 	/* sign this job as completed on the channel */
 	dma_cookie_complete(&cohd_fin->desc);
@@ -1920,8 +1905,7 @@ static void dma_tasklet(unsigned long data)
 	spin_unlock_irqrestore(&cohc->lock, flags);
 
 	/* Call the callback when we're done */
-	if (callback)
-		callback(callback_param);
+	dmaengine_desc_callback_invoke(&cb, NULL);
 
 	spin_lock_irqsave(&cohc->lock, flags);
 
@@ -2247,8 +2231,8 @@ coh901318_prep_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	spin_lock_irqsave(&cohc->lock, flg);
 
 	dev_vdbg(COHC_2_DEV(cohc),
-		 "[%s] channel %d src 0x%x dest 0x%x size %d\n",
-		 __func__, cohc->id, src, dest, size);
+		 "[%s] channel %d src 0x%pad dest 0x%pad size %zu\n",
+		 __func__, cohc->id, &src, &dest, size);
 
 	if (flags & DMA_PREP_INTERRUPT)
 		/* Trigger interrupt after last lli */
@@ -2422,7 +2406,7 @@ coh901318_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_COMPLETE)
+	if (ret == DMA_COMPLETE || !txstate)
 		return ret;
 
 	dma_set_residue(txstate, coh901318_get_bytes_left(chan));
@@ -2680,6 +2664,8 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
+	base->irq = irq;
+
 	err = coh901318_pool_create(&base->pool, &pdev->dev,
 				    sizeof(struct coh901318_lli),
 				    32);
@@ -2742,8 +2728,8 @@ static int __init coh901318_probe(struct platform_device *pdev)
 		goto err_register_of_dma;
 
 	platform_set_drvdata(pdev, base);
-	dev_info(&pdev->dev, "Initialized COH901318 DMA on virtual base 0x%08x\n",
-		(u32) base->virtbase);
+	dev_info(&pdev->dev, "Initialized COH901318 DMA on virtual base 0x%p\n",
+		base->virtbase);
 
 	return err;
 
@@ -2755,10 +2741,30 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	coh901318_pool_destroy(&base->pool);
 	return err;
 }
+static void coh901318_base_remove(struct coh901318_base *base, const int *pick_chans)
+{
+	int chans_i;
+	int i = 0;
+	struct coh901318_chan *cohc;
+
+	for (chans_i = 0; pick_chans[chans_i] != -1; chans_i += 2) {
+		for (i = pick_chans[chans_i]; i <= pick_chans[chans_i+1]; i++) {
+			cohc = &base->chans[i];
+
+			tasklet_kill(&cohc->tasklet);
+		}
+	}
+
+}
 
 static int coh901318_remove(struct platform_device *pdev)
 {
 	struct coh901318_base *base = platform_get_drvdata(pdev);
+
+	devm_free_irq(&pdev->dev, base->irq, base);
+
+	coh901318_base_remove(base, dma_slave_channels);
+	coh901318_base_remove(base, dma_memcpy_channels);
 
 	of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&base->dma_memcpy);
@@ -2780,13 +2786,13 @@ static struct platform_driver coh901318_driver = {
 	},
 };
 
-int __init coh901318_init(void)
+static int __init coh901318_init(void)
 {
 	return platform_driver_probe(&coh901318_driver, coh901318_probe);
 }
 subsys_initcall(coh901318_init);
 
-void __exit coh901318_exit(void)
+static void __exit coh901318_exit(void)
 {
 	platform_driver_unregister(&coh901318_driver);
 }

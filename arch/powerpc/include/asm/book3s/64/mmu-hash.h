@@ -24,6 +24,7 @@
 #include <asm/book3s/64/pgtable.h>
 #include <asm/bug.h>
 #include <asm/processor.h>
+#include <asm/cpu_has_feature.h>
 
 /*
  * SLB
@@ -124,6 +125,45 @@
 
 #ifndef __ASSEMBLY__
 
+struct mmu_hash_ops {
+	void            (*hpte_invalidate)(unsigned long slot,
+					   unsigned long vpn,
+					   int bpsize, int apsize,
+					   int ssize, int local);
+	long		(*hpte_updatepp)(unsigned long slot,
+					 unsigned long newpp,
+					 unsigned long vpn,
+					 int bpsize, int apsize,
+					 int ssize, unsigned long flags);
+	void            (*hpte_updateboltedpp)(unsigned long newpp,
+					       unsigned long ea,
+					       int psize, int ssize);
+	long		(*hpte_insert)(unsigned long hpte_group,
+				       unsigned long vpn,
+				       unsigned long prpn,
+				       unsigned long rflags,
+				       unsigned long vflags,
+				       int psize, int apsize,
+				       int ssize);
+	long		(*hpte_remove)(unsigned long hpte_group);
+	int             (*hpte_removebolted)(unsigned long ea,
+					     int psize, int ssize);
+	void		(*flush_hash_range)(unsigned long number, int local);
+	void		(*hugepage_invalidate)(unsigned long vsid,
+					       unsigned long addr,
+					       unsigned char *hpte_slot_array,
+					       int psize, int ssize, int local);
+	/*
+	 * Special for kexec.
+	 * To be called in real mode with interrupts disabled. No locks are
+	 * taken as such, concurrent access on pre POWER5 hardware could result
+	 * in a deadlock.
+	 * The linear mapping is destroyed as well.
+	 */
+	void		(*hpte_clear_all)(void);
+};
+extern struct mmu_hash_ops mmu_hash_ops;
+
 struct hash_pte {
 	__be64 v;
 	__be64 r;
@@ -149,6 +189,15 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
 	if (mmu_psize_defs[mmu_psize].shift)
 		return mmu_psize_defs[mmu_psize].shift;
 	BUG();
+}
+
+static inline unsigned long get_sllp_encoding(int psize)
+{
+	unsigned long sllp;
+
+	sllp = ((mmu_psize_defs[psize].sllp & SLB_VSID_L) >> 6) |
+		((mmu_psize_defs[psize].sllp & SLB_VSID_LP) >> 4);
+	return sllp;
 }
 
 #endif /* __ASSEMBLY__ */
@@ -193,6 +242,43 @@ static inline int segment_shift(int ssize)
 	if (ssize == MMU_SEGSIZE_256M)
 		return SID_SHIFT;
 	return SID_SHIFT_1T;
+}
+
+/*
+ * This array is indexed by the LP field of the HPTE second dword.
+ * Since this field may contain some RPN bits, some entries are
+ * replicated so that we get the same value irrespective of RPN.
+ * The top 4 bits are the page size index (MMU_PAGE_*) for the
+ * actual page size, the bottom 4 bits are the base page size.
+ */
+extern u8 hpte_page_sizes[1 << LP_BITS];
+
+static inline unsigned long __hpte_page_size(unsigned long h, unsigned long l,
+					     bool is_base_size)
+{
+	unsigned int i, lp;
+
+	if (!(h & HPTE_V_LARGE))
+		return 1ul << 12;
+
+	/* Look at the 8 bit LP value */
+	lp = (l >> LP_SHIFT) & ((1 << LP_BITS) - 1);
+	i = hpte_page_sizes[lp];
+	if (!i)
+		return 0;
+	if (!is_base_size)
+		i >>= 4;
+	return 1ul << mmu_psize_defs[i & 0xf].shift;
+}
+
+static inline unsigned long hpte_page_size(unsigned long h, unsigned long l)
+{
+	return __hpte_page_size(h, l, 0);
+}
+
+static inline unsigned long hpte_base_page_size(unsigned long h, unsigned long l)
+{
+	return __hpte_page_size(h, l, 1);
 }
 
 /*
@@ -352,10 +438,13 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 extern void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages);
 extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
 
+#ifdef CONFIG_PPC_PSERIES
+void hpte_init_pseries(void);
+#else
+static inline void hpte_init_pseries(void) { }
+#endif
+
 extern void hpte_init_native(void);
-extern void hpte_init_lpar(void);
-extern void hpte_init_beat(void);
-extern void hpte_init_beat_v3(void);
 
 extern void slb_initialize(void);
 extern void slb_flush_and_rebolt(void);
@@ -435,7 +524,7 @@ extern void slb_set_size(u16 size);
  * function.  Used in slb_allocate() and do_stab_bolted.  The function
  * computed is: (protovsid*VSID_MULTIPLIER) % VSID_MODULUS
  *
- *	rt = register continaing the proto-VSID and into which the
+ *	rt = register containing the proto-VSID and into which the
  *		VSID will be stored
  *	rx = scratch register (clobbered)
  *

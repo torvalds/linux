@@ -321,12 +321,14 @@ static int aic26_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver aic26_soc_codec_dev = {
 	.probe = aic26_probe,
-	.controls = aic26_snd_controls,
-	.num_controls = ARRAY_SIZE(aic26_snd_controls),
-	.dapm_widgets = tlv320aic26_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(tlv320aic26_dapm_widgets),
-	.dapm_routes = tlv320aic26_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(tlv320aic26_dapm_routes),
+	.component_driver = {
+		.controls		= aic26_snd_controls,
+		.num_controls		= ARRAY_SIZE(aic26_snd_controls),
+		.dapm_widgets		= tlv320aic26_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(tlv320aic26_dapm_widgets),
+		.dapm_routes		= tlv320aic26_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(tlv320aic26_dapm_routes),
+	},
 };
 
 static const struct regmap_config aic26_regmap = {

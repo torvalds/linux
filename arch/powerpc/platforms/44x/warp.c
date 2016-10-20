@@ -44,9 +44,7 @@ machine_device_initcall(warp, warp_device_probe);
 
 static int __init warp_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "pika,warp"))
+	if (!of_machine_is_compatible("pika,warp"))
 		return 0;
 
 	/* For __dma_alloc_coherent */
@@ -206,7 +204,7 @@ static void pika_setup_critical_temp(struct device_node *np,
 	i2c_smbus_write_byte_data(client, 3,  0); /* Tlow */
 
 	irq = irq_of_parse_and_map(np, 0);
-	if (irq  == NO_IRQ) {
+	if (!irq) {
 		printk(KERN_ERR __FILE__ ": Unable to get ad7414 irq\n");
 		return;
 	}

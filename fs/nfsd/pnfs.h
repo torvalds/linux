@@ -19,8 +19,10 @@ struct nfsd4_deviceid_map {
 
 struct nfsd4_layout_ops {
 	u32		notify_types;
+	bool		disable_recalls;
 
 	__be32 (*proc_getdeviceinfo)(struct super_block *sb,
+			struct svc_rqst *rqstp,
 			struct nfs4_client *clp,
 			struct nfsd4_getdeviceinfo *gdevp);
 	__be32 (*encode_getdeviceinfo)(struct xdr_stream *xdr,
@@ -43,6 +45,9 @@ extern const struct nfsd4_layout_ops bl_layout_ops;
 #endif
 #ifdef CONFIG_NFSD_SCSILAYOUT
 extern const struct nfsd4_layout_ops scsi_layout_ops;
+#endif
+#ifdef CONFIG_NFSD_FLEXFILELAYOUT
+extern const struct nfsd4_layout_ops ff_layout_ops;
 #endif
 
 __be32 nfsd4_preprocess_layout_stateid(struct svc_rqst *rqstp,

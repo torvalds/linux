@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 
 #include "dss.h"
 

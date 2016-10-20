@@ -639,7 +639,7 @@ static int univ8250_console_match(struct console *co, char *name, int idx,
 {
 	char match[] = "uart";	/* 8250-specific earlycon name */
 	unsigned char iotype;
-	unsigned long addr;
+	resource_size_t addr;
 	int i;
 
 	if (strncmp(name, match, 4) != 0)
@@ -974,8 +974,6 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 
 	uart = serial8250_find_match_or_unused(&up->port);
 	if (uart && uart->port.type != PORT_8250_CIR) {
-		struct mctrl_gpios *gpios;
-
 		if (uart->port.dev)
 			uart_remove_one_port(&serial8250_reg, &uart->port);
 
@@ -1012,13 +1010,6 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 
 		if (up->port.flags & UPF_FIXED_TYPE)
 			uart->port.type = up->port.type;
-
-		gpios = mctrl_gpio_init(&uart->port, 0);
-		if (IS_ERR(gpios)) {
-			if (PTR_ERR(gpios) != -ENOSYS)
-				return PTR_ERR(gpios);
-		} else
-			uart->gpios = gpios;
 
 		serial8250_set_defaults(uart);
 

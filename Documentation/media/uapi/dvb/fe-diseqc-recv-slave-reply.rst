@@ -15,7 +15,8 @@ FE_DISEQC_RECV_SLAVE_REPLY - Receives reply from a DiSEqC 2.0 command
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct dvb_diseqc_slave_reply *argp )
+.. c:function:: int ioctl( int fd, FE_DISEQC_RECV_SLAVE_REPLY, struct dvb_diseqc_slave_reply *argp )
+    :name: FE_DISEQC_RECV_SLAVE_REPLY
 
 
 Arguments
@@ -24,12 +25,9 @@ Arguments
 ``fd``
     File descriptor returned by :ref:`open() <frontend_f_open>`.
 
-``request``
-    FE_DISEQC_RECV_SLAVE_REPLY
-
 ``argp``
     pointer to struct
-    :ref:`dvb_diseqc_slave_reply <dvb-diseqc-slave-reply>`
+    :c:type:`dvb_diseqc_slave_reply`
 
 
 Description
@@ -37,10 +35,9 @@ Description
 
 Receives reply from a DiSEqC 2.0 command.
 
-.. _dvb-diseqc-slave-reply:
+.. c:type:: dvb_diseqc_slave_reply
 
-struct dvb_diseqc_slave_reply
------------------------------
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct dvb_diseqc_slave_reply
     :header-rows:  0

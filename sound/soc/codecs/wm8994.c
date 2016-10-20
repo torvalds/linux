@@ -4439,7 +4439,7 @@ static struct regmap *wm8994_get_regmap(struct device *dev)
 	return control->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8994 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8994 = {
 	.probe =	wm8994_codec_probe,
 	.remove =	wm8994_codec_remove,
 	.suspend =	wm8994_codec_suspend,

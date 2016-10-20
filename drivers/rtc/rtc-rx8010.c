@@ -272,14 +272,8 @@ static int rx8010_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	t->time.tm_min = bcd2bin(alarmvals[0] & 0x7f);
 	t->time.tm_hour = bcd2bin(alarmvals[1] & 0x3f);
 
-	if (alarmvals[2] & RX8010_ALARM_AE)
-		t->time.tm_mday = -1;
-	else
+	if (!(alarmvals[2] & RX8010_ALARM_AE))
 		t->time.tm_mday = bcd2bin(alarmvals[2] & 0x7f);
-
-	t->time.tm_wday = -1;
-	t->time.tm_mon = -1;
-	t->time.tm_year = -1;
 
 	t->enabled = !!(rx8010->ctrlreg & RX8010_CTRL_AIE);
 	t->pending = (flagreg & RX8010_FLAG_AF) && t->enabled;

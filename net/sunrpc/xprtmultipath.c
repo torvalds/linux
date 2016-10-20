@@ -15,6 +15,7 @@
 #include <asm/cmpxchg.h>
 #include <linux/spinlock.h>
 #include <linux/sunrpc/xprt.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/xprtmultipath.h>
 
 typedef struct rpc_xprt *(*xprt_switch_find_xprt_t)(struct list_head *head,
@@ -49,7 +50,8 @@ void rpc_xprt_switch_add_xprt(struct rpc_xprt_switch *xps,
 	if (xprt == NULL)
 		return;
 	spin_lock(&xps->xps_lock);
-	if (xps->xps_net == xprt->xprt_net || xps->xps_net == NULL)
+	if ((xps->xps_net == xprt->xprt_net || xps->xps_net == NULL) &&
+	    !rpc_xprt_switch_has_addr(xps, (struct sockaddr *)&xprt->addr))
 		xprt_switch_add_xprt_locked(xps, xprt);
 	spin_unlock(&xps->xps_lock);
 }
@@ -232,6 +234,26 @@ struct rpc_xprt *xprt_iter_current_entry(struct rpc_xprt_iter *xpi)
 	return xprt_switch_find_current_entry(head, xpi->xpi_cursor);
 }
 
+bool rpc_xprt_switch_has_addr(struct rpc_xprt_switch *xps,
+			      const struct sockaddr *sap)
+{
+	struct list_head *head;
+	struct rpc_xprt *pos;
+
+	if (xps == NULL || sap == NULL)
+		return false;
+
+	head = &xps->xps_xprt_list;
+	list_for_each_entry_rcu(pos, head, xprt_switch) {
+		if (rpc_cmp_addr_port(sap, (struct sockaddr *)&pos->addr)) {
+			pr_info("RPC:   addr %s already in xprt switch\n",
+				pos->address_strings[RPC_DISPLAY_ADDR]);
+			return true;
+		}
+	}
+	return false;
+}
+
 static
 struct rpc_xprt *xprt_switch_find_next_entry(struct list_head *head,
 		const struct rpc_xprt *cur)
@@ -271,14 +293,12 @@ struct rpc_xprt *xprt_iter_next_entry_multiple(struct rpc_xprt_iter *xpi,
 		xprt_switch_find_xprt_t find_next)
 {
 	struct rpc_xprt_switch *xps = rcu_dereference(xpi->xpi_xpswitch);
-	struct list_head *head;
 
 	if (xps == NULL)
 		return NULL;
-	head = &xps->xps_xprt_list;
-	if (xps->xps_nxprts < 2)
-		return xprt_switch_find_first_entry(head);
-	return xprt_switch_set_next_cursor(head, &xpi->xpi_cursor, find_next);
+	return xprt_switch_set_next_cursor(&xps->xps_xprt_list,
+			&xpi->xpi_cursor,
+			find_next);
 }
 
 static

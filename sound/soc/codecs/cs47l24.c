@@ -359,6 +359,11 @@ SND_SOC_DAPM_INPUT("IN2R"),
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
 
+SND_SOC_DAPM_OUTPUT("DSP Voice Trigger"),
+
+SND_SOC_DAPM_SWITCH("DSP3 Voice Trigger", SND_SOC_NOPM, 2, 0,
+		    &arizona_voice_trigger_switch[2]),
+
 SND_SOC_DAPM_PGA_E("IN1L PGA", ARIZONA_INPUT_ENABLES, ARIZONA_IN1L_ENA_SHIFT,
 		   0, NULL, 0, arizona_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
@@ -741,6 +746,16 @@ static const struct snd_soc_dapm_route cs47l24_dapm_routes[] = {
 	{ "IN2L", NULL, "SYSCLK" },
 	{ "IN2R", NULL, "SYSCLK" },
 
+	{ "ASRC1L", NULL, "SYSCLK" },
+	{ "ASRC1R", NULL, "SYSCLK" },
+	{ "ASRC2L", NULL, "SYSCLK" },
+	{ "ASRC2R", NULL, "SYSCLK" },
+
+	{ "ASRC1L", NULL, "ASYNCCLK" },
+	{ "ASRC1R", NULL, "ASYNCCLK" },
+	{ "ASRC2L", NULL, "ASYNCCLK" },
+	{ "ASRC2R", NULL, "ASYNCCLK" },
+
 	{ "MICBIAS1", NULL, "MICVDD" },
 	{ "MICBIAS2", NULL, "MICVDD" },
 
@@ -799,7 +814,6 @@ static const struct snd_soc_dapm_route cs47l24_dapm_routes[] = {
 	{ "AIF3 Capture", NULL, "SYSCLK" },
 
 	{ "Voice Control DSP", NULL, "DSP3" },
-	{ "Voice Control DSP", NULL, "SYSCLK" },
 
 	{ "IN1L PGA", NULL, "IN1L" },
 	{ "IN1R PGA", NULL, "IN1R" },
@@ -808,7 +822,6 @@ static const struct snd_soc_dapm_route cs47l24_dapm_routes[] = {
 	{ "IN2R PGA", NULL, "IN2R" },
 
 	{ "Audio Trace DSP", NULL, "DSP2" },
-	{ "Audio Trace DSP", NULL, "SYSCLK" },
 
 	ARIZONA_MIXER_ROUTES("OUT1L", "HPOUT1L"),
 	ARIZONA_MIXER_ROUTES("OUT1R", "HPOUT1R"),
@@ -899,10 +912,16 @@ static const struct snd_soc_dapm_route cs47l24_dapm_routes[] = {
 
 	{ "MICSUPP", NULL, "SYSCLK" },
 
+	{ "DRC1 Signal Activity", NULL, "SYSCLK" },
+	{ "DRC2 Signal Activity", NULL, "SYSCLK" },
 	{ "DRC1 Signal Activity", NULL, "DRC1L" },
 	{ "DRC1 Signal Activity", NULL, "DRC1R" },
 	{ "DRC2 Signal Activity", NULL, "DRC2L" },
 	{ "DRC2 Signal Activity", NULL, "DRC2R" },
+
+	{ "DSP Voice Trigger", NULL, "SYSCLK" },
+	{ "DSP Voice Trigger", NULL, "DSP3 Voice Trigger" },
+	{ "DSP3 Voice Trigger", "Switch", "DSP3" },
 };
 
 static int cs47l24_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
@@ -1067,6 +1086,7 @@ static irqreturn_t cs47l24_adsp2_irq(int irq, void *data)
 {
 	struct cs47l24_priv *priv = data;
 	struct arizona *arizona = priv->core.arizona;
+	struct arizona_voice_trigger_info info;
 	int serviced = 0;
 	int i, ret;
 
@@ -1074,6 +1094,12 @@ static irqreturn_t cs47l24_adsp2_irq(int irq, void *data)
 		ret = wm_adsp_compr_handle_irq(&priv->core.adsp[i]);
 		if (ret != -ENODEV)
 			serviced++;
+		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER) {
+			info.core = i;
+			arizona_call_notifiers(arizona,
+					       ARIZONA_NOTIFY_VOICE_TRIGGER,
+					       &info);
+		}
 	}
 
 	if (!serviced) {
@@ -1096,6 +1122,7 @@ static int cs47l24_codec_probe(struct snd_soc_codec *codec)
 	arizona_init_spk(codec);
 	arizona_init_gpio(codec);
 	arizona_init_mono(codec);
+	arizona_init_notifiers(codec);
 
 	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
 				  "ADSP2 Compressed IRQ", cs47l24_adsp2_irq,
@@ -1171,12 +1198,14 @@ static struct snd_soc_codec_driver soc_codec_dev_cs47l24 = {
 	.set_sysclk = arizona_set_sysclk,
 	.set_pll = cs47l24_set_fll,
 
-	.controls = cs47l24_snd_controls,
-	.num_controls = ARRAY_SIZE(cs47l24_snd_controls),
-	.dapm_widgets = cs47l24_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs47l24_dapm_widgets),
-	.dapm_routes = cs47l24_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(cs47l24_dapm_routes),
+	.component_driver = {
+		.controls		= cs47l24_snd_controls,
+		.num_controls		= ARRAY_SIZE(cs47l24_snd_controls),
+		.dapm_widgets		= cs47l24_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(cs47l24_dapm_widgets),
+		.dapm_routes		= cs47l24_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(cs47l24_dapm_routes),
+	},
 };
 
 static struct snd_compr_ops cs47l24_compr_ops = {

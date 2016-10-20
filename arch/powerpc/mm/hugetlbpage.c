@@ -81,6 +81,13 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 	if (! new)
 		return -ENOMEM;
 
+	/*
+	 * Make sure other cpus find the hugepd set only after a
+	 * properly initialized page table is visible to them.
+	 * For more details look for comment in __pte_alloc().
+	 */
+	smp_wmb();
+
 	spin_lock(&mm->page_table_lock);
 #ifdef CONFIG_PPC_FSL_BOOK3E
 	/*
@@ -1012,8 +1019,15 @@ int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 
 	pte = READ_ONCE(*ptep);
 	mask = _PAGE_PRESENT | _PAGE_READ;
+
+	/*
+	 * On some CPUs like the 8xx, _PAGE_RW hence _PAGE_WRITE is defined
+	 * as 0 and _PAGE_RO has to be set when a page is not writable
+	 */
 	if (write)
 		mask |= _PAGE_WRITE;
+	else
+		mask |= _PAGE_RO;
 
 	if ((pte_val(pte) & mask) != mask)
 		return 0;

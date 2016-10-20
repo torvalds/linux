@@ -62,6 +62,30 @@ extern "C" {
 #define I915_ERROR_UEVENT		"ERROR"
 #define I915_RESET_UEVENT		"RESET"
 
+/*
+ * MOCS indexes used for GPU surfaces, defining the cacheability of the
+ * surface data and the coherency for this data wrt. CPU vs. GPU accesses.
+ */
+enum i915_mocs_table_index {
+	/*
+	 * Not cached anywhere, coherency between CPU and GPU accesses is
+	 * guaranteed.
+	 */
+	I915_MOCS_UNCACHED,
+	/*
+	 * Cacheability and coherency controlled by the kernel automatically
+	 * based on the DRM_I915_GEM_SET_CACHING IOCTL setting and the current
+	 * usage of the surface (used for display scanout or not).
+	 */
+	I915_MOCS_PTE,
+	/*
+	 * Cached in all GPU caches available on the platform.
+	 * Coherency between CPU and GPU accesses to the surface is not
+	 * guaranteed without extra synchronization.
+	 */
+	I915_MOCS_CACHED,
+};
+
 /* Each region is a minimum of 16k, and there are at most 255 of them.
  */
 #define I915_NR_TEX_REGIONS 255	/* table size 2k - maximum due to use
@@ -361,6 +385,9 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_GPU_RESET	 35
 #define I915_PARAM_HAS_RESOURCE_STREAMER 36
 #define I915_PARAM_HAS_EXEC_SOFTPIN	 37
+#define I915_PARAM_HAS_POOLED_EU	 38
+#define I915_PARAM_MIN_EU_IN_POOL	 39
+#define I915_PARAM_MMAP_GTT_VERSION	 40
 
 typedef struct drm_i915_getparam {
 	__s32 param;
@@ -696,15 +723,20 @@ struct drm_i915_gem_exec_object2 {
 	 */
 	__u64 offset;
 
-#define EXEC_OBJECT_NEEDS_FENCE (1<<0)
-#define EXEC_OBJECT_NEEDS_GTT	(1<<1)
-#define EXEC_OBJECT_WRITE	(1<<2)
+#define EXEC_OBJECT_NEEDS_FENCE		 (1<<0)
+#define EXEC_OBJECT_NEEDS_GTT		 (1<<1)
+#define EXEC_OBJECT_WRITE		 (1<<2)
 #define EXEC_OBJECT_SUPPORTS_48B_ADDRESS (1<<3)
-#define EXEC_OBJECT_PINNED	(1<<4)
-#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_PINNED<<1)
+#define EXEC_OBJECT_PINNED		 (1<<4)
+#define EXEC_OBJECT_PAD_TO_SIZE		 (1<<5)
+/* All remaining bits are MBZ and RESERVED FOR FUTURE USE */
+#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_PAD_TO_SIZE<<1)
 	__u64 flags;
 
-	__u64 rsvd1;
+	union {
+		__u64 rsvd1;
+		__u64 pad_to_size;
+	};
 	__u64 rsvd2;
 };
 
@@ -824,7 +856,16 @@ struct drm_i915_gem_busy {
 	 * having flushed any pending activity), and a non-zero return that
 	 * the object is still in-flight on the GPU. (The GPU has not yet
 	 * signaled completion for all pending requests that reference the
-	 * object.)
+	 * object.) An object is guaranteed to become idle eventually (so
+	 * long as no new GPU commands are executed upon it). Due to the
+	 * asynchronous nature of the hardware, an object reported
+	 * as busy may become idle before the ioctl is completed.
+	 *
+	 * Furthermore, if the object is busy, which engine is busy is only
+	 * provided as a guide. There are race conditions which prevent the
+	 * report of which engines are busy from being always accurate.
+	 * However, the converse is not true. If the object is idle, the
+	 * result of the ioctl, that all engines are idle, is accurate.
 	 *
 	 * The returned dword is split into two fields to indicate both
 	 * the engines on which the object is being read, and the
@@ -847,6 +888,11 @@ struct drm_i915_gem_busy {
 	 * execution engines, e.g. multiple media engines, which are
 	 * mapped to the same identifier in the EXECBUFFER2 ioctl and
 	 * so are not separately reported for busyness.
+	 *
+	 * Caveat emptor:
+	 * Only the boolean result of this query is reliable; that is whether
+	 * the object is idle or busy. The report of which engines are busy
+	 * should be only used as a heuristic.
 	 */
 	__u32 busy;
 };
@@ -895,6 +941,7 @@ struct drm_i915_gem_caching {
 #define I915_TILING_NONE	0
 #define I915_TILING_X		1
 #define I915_TILING_Y		2
+#define I915_TILING_LAST	I915_TILING_Y
 
 #define I915_BIT_6_SWIZZLE_NONE		0
 #define I915_BIT_6_SWIZZLE_9		1
@@ -1171,6 +1218,7 @@ struct drm_i915_gem_context_param {
 #define I915_CONTEXT_PARAM_BAN_PERIOD	0x1
 #define I915_CONTEXT_PARAM_NO_ZEROMAP	0x2
 #define I915_CONTEXT_PARAM_GTT_SIZE	0x3
+#define I915_CONTEXT_PARAM_NO_ERROR_CAPTURE	0x4
 	__u64 value;
 };
 

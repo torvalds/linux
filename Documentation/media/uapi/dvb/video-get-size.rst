@@ -11,11 +11,13 @@ Name
 
 VIDEO_GET_SIZE
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(int fd, int request = VIDEO_GET_SIZE, video_size_t *size)
+.. c:function:: int ioctl(int fd, VIDEO_GET_SIZE, video_size_t *size)
+    :name: VIDEO_GET_SIZE
 
 
 Arguments
@@ -49,6 +51,16 @@ Description
 -----------
 
 This ioctl returns the size and aspect ratio.
+
+.. c:type:: video_size_t
+
+.. code-block::c
+
+	typedef struct {
+		int w;
+		int h;
+		video_format_t aspect_ratio;
+	} video_size_t;
 
 
 Return Value

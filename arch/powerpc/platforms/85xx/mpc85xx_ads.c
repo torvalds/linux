@@ -160,9 +160,7 @@ machine_arch_initcall(mpc85xx_ads, mpc85xx_common_publish_devices);
  */
 static int __init mpc85xx_ads_probe(void)
 {
-        unsigned long root = of_get_flat_dt_root();
-
-        return of_flat_dt_is_compatible(root, "MPC85xxADS");
+	return of_machine_is_compatible("MPC85xxADS");
 }
 
 define_machine(mpc85xx_ads) {
@@ -172,7 +170,6 @@ define_machine(mpc85xx_ads) {
 	.init_IRQ		= mpc85xx_ads_pic_init,
 	.show_cpuinfo		= mpc85xx_ads_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
-	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 };

@@ -139,7 +139,7 @@ static void eeh_enable_irq(struct pci_dev *dev)
 		 * into it.
 		 *
 		 * That's just wrong.The warning in the core code is
-		 * there to tell people to fix their assymetries in
+		 * there to tell people to fix their asymmetries in
 		 * their own code, not by abusing the core information
 		 * to avoid it.
 		 *
@@ -993,9 +993,17 @@ static void eeh_handle_special_event(void)
 
 				/* Notify all devices to be down */
 				eeh_pe_state_clear(pe, EEH_PE_PRI_BUS);
-				bus = eeh_pe_bus_get(phb_pe);
 				eeh_pe_dev_traverse(pe,
 					eeh_report_failure, NULL);
+				bus = eeh_pe_bus_get(phb_pe);
+				if (!bus) {
+					pr_err("%s: Cannot find PCI bus for "
+					       "PHB#%d-PE#%x\n",
+					       __func__,
+					       pe->phb->global_number,
+					       pe->addr);
+					break;
+				}
 				pci_hp_remove_devices(bus);
 			}
 			pci_unlock_rescan_remove();

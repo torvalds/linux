@@ -13,13 +13,13 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
-#include <linux/skbuff.h>
 #include <linux/rxrpc.h>
 #include <linux/key.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/fscache.h>
 #include <linux/backing-dev.h>
+#include <net/af_rxrpc.h>
 
 #include "afs.h"
 #include "afs_vl.h"
@@ -56,7 +56,7 @@ struct afs_mount_params {
  */
 struct afs_wait_mode {
 	/* RxRPC received message notification */
-	void (*rx_wakeup)(struct afs_call *call);
+	rxrpc_notify_rx_t notify_rx;
 
 	/* synchronous call waiter and call dispatched notification */
 	int (*wait)(struct afs_call *call);
@@ -75,10 +75,8 @@ struct afs_call {
 	const struct afs_call_type *type;	/* type of call */
 	const struct afs_wait_mode *wait_mode;	/* completion wait mode */
 	wait_queue_head_t	waitq;		/* processes awaiting completion */
-	void (*async_workfn)(struct afs_call *call); /* asynchronous work function */
 	struct work_struct	async_work;	/* asynchronous work processor */
 	struct work_struct	work;		/* actual work processor */
-	struct sk_buff_head	rx_queue;	/* received packets */
 	struct rxrpc_call	*rxcall;	/* RxRPC call handle */
 	struct key		*key;		/* security for this call */
 	struct afs_server	*server;	/* server affected by incoming CM call */
@@ -92,6 +90,7 @@ struct afs_call {
 	void			*reply4;	/* reply buffer (fourth part) */
 	pgoff_t			first;		/* first page in mapping to deal with */
 	pgoff_t			last;		/* last page in mapping to deal with */
+	size_t			offset;		/* offset into received data store */
 	enum {					/* call state */
 		AFS_CALL_REQUESTING,	/* request is being sent for outgoing call */
 		AFS_CALL_AWAIT_REPLY,	/* awaiting reply to outgoing call */
@@ -99,21 +98,18 @@ struct afs_call {
 		AFS_CALL_AWAIT_REQUEST,	/* awaiting request data on incoming call */
 		AFS_CALL_REPLYING,	/* replying to incoming call */
 		AFS_CALL_AWAIT_ACK,	/* awaiting final ACK of incoming call */
-		AFS_CALL_COMPLETE,	/* successfully completed */
-		AFS_CALL_BUSY,		/* server was busy */
-		AFS_CALL_ABORTED,	/* call was aborted */
-		AFS_CALL_ERROR,		/* call failed due to error */
+		AFS_CALL_COMPLETE,	/* Completed or failed */
 	}			state;
 	int			error;		/* error code */
+	u32			abort_code;	/* Remote abort ID or 0 */
 	unsigned		request_size;	/* size of request data */
 	unsigned		reply_max;	/* maximum size of reply */
-	unsigned		reply_size;	/* current size of reply */
 	unsigned		first_offset;	/* offset into mapping[first] */
 	unsigned		last_to;	/* amount of mapping[last] */
-	unsigned		offset;		/* offset into received data store */
 	unsigned char		unmarshall;	/* unmarshalling phase */
 	bool			incoming;	/* T if incoming call */
 	bool			send_pages;	/* T if data from mapping should be sent */
+	bool			need_attention;	/* T if RxRPC poked us */
 	u16			service_id;	/* RxRPC service ID to call */
 	__be16			port;		/* target UDP port */
 	__be32			operation_ID;	/* operation ID for an incoming call */
@@ -128,8 +124,7 @@ struct afs_call_type {
 	/* deliver request or reply data to an call
 	 * - returning an error will cause the call to be aborted
 	 */
-	int (*deliver)(struct afs_call *call, struct sk_buff *skb,
-		       bool last);
+	int (*deliver)(struct afs_call *call);
 
 	/* map an abort code to an error number */
 	int (*abort_to_error)(u32 abort_code);
@@ -607,6 +602,8 @@ extern void afs_proc_cell_remove(struct afs_cell *);
 /*
  * rxrpc.c
  */
+extern struct socket *afs_socket;
+
 extern int afs_open_socket(void);
 extern void afs_close_socket(void);
 extern int afs_make_call(struct in_addr *, struct afs_call *, gfp_t,
@@ -614,11 +611,14 @@ extern int afs_make_call(struct in_addr *, struct afs_call *, gfp_t,
 extern struct afs_call *afs_alloc_flat_call(const struct afs_call_type *,
 					    size_t, size_t);
 extern void afs_flat_call_destructor(struct afs_call *);
-extern void afs_transfer_reply(struct afs_call *, struct sk_buff *);
 extern void afs_send_empty_reply(struct afs_call *);
 extern void afs_send_simple_reply(struct afs_call *, const void *, size_t);
-extern int afs_extract_data(struct afs_call *, struct sk_buff *, bool, void *,
-			    size_t);
+extern int afs_extract_data(struct afs_call *, void *, size_t, bool);
+
+static inline int afs_transfer_reply(struct afs_call *call)
+{
+	return afs_extract_data(call, call->buffer, call->reply_max, false);
+}
 
 /*
  * security.c
@@ -642,7 +642,7 @@ do {								\
 
 extern struct afs_server *afs_lookup_server(struct afs_cell *,
 					    const struct in_addr *);
-extern struct afs_server *afs_find_server(const struct in_addr *);
+extern struct afs_server *afs_find_server(const struct sockaddr_rxrpc *);
 extern void afs_put_server(struct afs_server *);
 extern void __exit afs_purge_servers(void);
 

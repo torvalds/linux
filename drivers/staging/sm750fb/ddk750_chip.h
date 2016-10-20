@@ -69,7 +69,7 @@ typedef struct _initchip_param_t {
 }
 initchip_param_t;
 
-logical_chip_type_t getChipType(void);
+logical_chip_type_t sm750_get_chip_type(void);
 unsigned int calcPllValue(unsigned int request, pll_value_t *pll);
 unsigned int formatPllReg(pll_value_t *pPLL);
 void ddk750_set_mmio(void __iomem *, unsigned short, char);

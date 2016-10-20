@@ -242,8 +242,8 @@ static inline int is_module_addr(void *addr)
  * swap				.11..ttttt.0
  * prot-none, clean, old	.11.xx0000.1
  * prot-none, clean, young	.11.xx0001.1
- * prot-none, dirty, old	.10.xx0010.1
- * prot-none, dirty, young	.10.xx0011.1
+ * prot-none, dirty, old	.11.xx0010.1
+ * prot-none, dirty, young	.11.xx0011.1
  * read-only, clean, old	.11.xx0100.1
  * read-only, clean, young	.01.xx0101.1
  * read-only, dirty, old	.11.xx0110.1
@@ -277,6 +277,7 @@ static inline int is_module_addr(void *addr)
 /* Bits in the region table entry */
 #define _REGION_ENTRY_ORIGIN	~0xfffUL/* region/segment table origin	    */
 #define _REGION_ENTRY_PROTECT	0x200	/* region protection bit	    */
+#define _REGION_ENTRY_OFFSET	0xc0	/* region table offset		    */
 #define _REGION_ENTRY_INVALID	0x20	/* invalid region table entry	    */
 #define _REGION_ENTRY_TYPE_MASK	0x0c	/* region/segment table type mask   */
 #define _REGION_ENTRY_TYPE_R1	0x0c	/* region first table type	    */
@@ -323,8 +324,8 @@ static inline int is_module_addr(void *addr)
 #define _SEGMENT_ENTRY_DIRTY	0x2000	/* SW segment dirty bit */
 #define _SEGMENT_ENTRY_YOUNG	0x1000	/* SW segment young bit */
 #define _SEGMENT_ENTRY_LARGE	0x0400	/* STE-format control, large page */
-#define _SEGMENT_ENTRY_READ	0x0002	/* SW segment read bit */
-#define _SEGMENT_ENTRY_WRITE	0x0001	/* SW segment write bit */
+#define _SEGMENT_ENTRY_WRITE	0x0002	/* SW segment write bit */
+#define _SEGMENT_ENTRY_READ	0x0001	/* SW segment read bit */
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
 #define _SEGMENT_ENTRY_SOFT_DIRTY 0x4000 /* SW segment soft dirty bit */
@@ -335,15 +336,15 @@ static inline int is_module_addr(void *addr)
 /*
  * Segment table and region3 table entry encoding
  * (R = read-only, I = invalid, y = young bit):
- *				dy..R...I...rw
+ *				dy..R...I...wr
  * prot-none, clean, old	00..1...1...00
  * prot-none, clean, young	01..1...1...00
  * prot-none, dirty, old	10..1...1...00
  * prot-none, dirty, young	11..1...1...00
- * read-only, clean, old	00..1...1...10
- * read-only, clean, young	01..1...0...10
- * read-only, dirty, old	10..1...1...10
- * read-only, dirty, young	11..1...0...10
+ * read-only, clean, old	00..1...1...01
+ * read-only, clean, young	01..1...0...01
+ * read-only, dirty, old	10..1...1...01
+ * read-only, dirty, young	11..1...0...01
  * read-write, clean, old	00..1...1...11
  * read-write, clean, young	01..1...0...11
  * read-write, dirty, old	10..0...1...11
@@ -364,6 +365,7 @@ static inline int is_module_addr(void *addr)
 #define PGSTE_GC_BIT	0x0002000000000000UL
 #define PGSTE_UC_BIT	0x0000800000000000UL	/* user dirty (migration) */
 #define PGSTE_IN_BIT	0x0000400000000000UL	/* IPTE notify bit */
+#define PGSTE_VSIE_BIT	0x0000200000000000UL	/* ref'd in a shadow table */
 
 /* Guest Page State used for virtualization */
 #define _PGSTE_GPS_ZERO		0x0000000080000000UL
@@ -382,7 +384,7 @@ static inline int is_module_addr(void *addr)
 /*
  * Page protection definitions.
  */
-#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_INVALID)
+#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_INVALID | _PAGE_PROTECT)
 #define PAGE_READ	__pgprot(_PAGE_PRESENT | _PAGE_READ | \
 				 _PAGE_INVALID | _PAGE_PROTECT)
 #define PAGE_WRITE	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
@@ -872,35 +874,31 @@ static inline pte_t pte_mkhuge(pte_t pte)
 }
 #endif
 
-static inline void __ptep_ipte(unsigned long address, pte_t *ptep)
+#define IPTE_GLOBAL	0
+#define	IPTE_LOCAL	1
+
+static inline void __ptep_ipte(unsigned long address, pte_t *ptep, int local)
 {
 	unsigned long pto = (unsigned long) ptep;
 
-	/* Invalidation + global TLB flush for the pte */
+	/* Invalidation + TLB flush for the pte */
 	asm volatile(
-		"	ipte	%2,%3"
-		: "=m" (*ptep) : "m" (*ptep), "a" (pto), "a" (address));
+		"       .insn rrf,0xb2210000,%[r1],%[r2],0,%[m4]"
+		: "+m" (*ptep) : [r1] "a" (pto), [r2] "a" (address),
+		  [m4] "i" (local));
 }
 
-static inline void __ptep_ipte_local(unsigned long address, pte_t *ptep)
+static inline void __ptep_ipte_range(unsigned long address, int nr,
+				     pte_t *ptep, int local)
 {
 	unsigned long pto = (unsigned long) ptep;
 
-	/* Invalidation + local TLB flush for the pte */
-	asm volatile(
-		"	.insn rrf,0xb2210000,%2,%3,0,1"
-		: "=m" (*ptep) : "m" (*ptep), "a" (pto), "a" (address));
-}
-
-static inline void __ptep_ipte_range(unsigned long address, int nr, pte_t *ptep)
-{
-	unsigned long pto = (unsigned long) ptep;
-
-	/* Invalidate a range of ptes + global TLB flush of the ptes */
+	/* Invalidate a range of ptes + TLB flush of the ptes */
 	do {
 		asm volatile(
-			"	.insn rrf,0xb2210000,%2,%0,%1,0"
-			: "+a" (address), "+a" (nr) : "a" (pto) : "memory");
+			"       .insn rrf,0xb2210000,%[r1],%[r2],%[r3],%[m4]"
+			: [r2] "+a" (address), [r3] "+a" (nr)
+			: [r1] "a" (pto), [m4] "i" (local) : "memory");
 	} while (nr != 255);
 }
 
@@ -1002,15 +1000,26 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
 void ptep_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t entry);
 void ptep_set_notify(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
-void ptep_notify(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
+void ptep_notify(struct mm_struct *mm, unsigned long addr,
+		 pte_t *ptep, unsigned long bits);
+int ptep_force_prot(struct mm_struct *mm, unsigned long gaddr,
+		    pte_t *ptep, int prot, unsigned long bit);
 void ptep_zap_unused(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep , int reset);
 void ptep_zap_key(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
+int ptep_shadow_pte(struct mm_struct *mm, unsigned long saddr,
+		    pte_t *sptep, pte_t *tptep, pte_t pte);
+void ptep_unshadow_pte(struct mm_struct *mm, unsigned long saddr, pte_t *ptep);
 
 bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long address);
 int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			  unsigned char key, bool nq);
-unsigned char get_guest_storage_key(struct mm_struct *mm, unsigned long addr);
+int cond_set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
+			       unsigned char key, unsigned char *oldkey,
+			       bool nq, bool mr, bool mc);
+int reset_guest_reference_bit(struct mm_struct *mm, unsigned long addr);
+int get_guest_storage_key(struct mm_struct *mm, unsigned long addr,
+			  unsigned char *key);
 
 /*
  * Certain architectures need to do special things when PTEs
@@ -1226,53 +1235,33 @@ static inline void __pmdp_csp(pmd_t *pmdp)
 	    pmd_val(*pmdp) | _SEGMENT_ENTRY_INVALID);
 }
 
-static inline void __pmdp_idte(unsigned long address, pmd_t *pmdp)
+#define IDTE_GLOBAL	0
+#define IDTE_LOCAL	1
+
+static inline void __pmdp_idte(unsigned long address, pmd_t *pmdp, int local)
 {
 	unsigned long sto;
 
 	sto = (unsigned long) pmdp - pmd_index(address) * sizeof(pmd_t);
 	asm volatile(
-		"	.insn	rrf,0xb98e0000,%2,%3,0,0"
-		: "=m" (*pmdp)
-		: "m" (*pmdp), "a" (sto), "a" ((address & HPAGE_MASK))
+		"	.insn	rrf,0xb98e0000,%[r1],%[r2],0,%[m4]"
+		: "+m" (*pmdp)
+		: [r1] "a" (sto), [r2] "a" ((address & HPAGE_MASK)),
+		  [m4] "i" (local)
 		: "cc" );
 }
 
-static inline void __pudp_idte(unsigned long address, pud_t *pudp)
+static inline void __pudp_idte(unsigned long address, pud_t *pudp, int local)
 {
 	unsigned long r3o;
 
 	r3o = (unsigned long) pudp - pud_index(address) * sizeof(pud_t);
 	r3o |= _ASCE_TYPE_REGION3;
 	asm volatile(
-		"	.insn	rrf,0xb98e0000,%2,%3,0,0"
-		: "=m" (*pudp)
-		: "m" (*pudp), "a" (r3o), "a" ((address & PUD_MASK))
-		: "cc");
-}
-
-static inline void __pmdp_idte_local(unsigned long address, pmd_t *pmdp)
-{
-	unsigned long sto;
-
-	sto = (unsigned long) pmdp - pmd_index(address) * sizeof(pmd_t);
-	asm volatile(
-		"	.insn	rrf,0xb98e0000,%2,%3,0,1"
-		: "=m" (*pmdp)
-		: "m" (*pmdp), "a" (sto), "a" ((address & HPAGE_MASK))
-		: "cc" );
-}
-
-static inline void __pudp_idte_local(unsigned long address, pud_t *pudp)
-{
-	unsigned long r3o;
-
-	r3o = (unsigned long) pudp - pud_index(address) * sizeof(pud_t);
-	r3o |= _ASCE_TYPE_REGION3;
-	asm volatile(
-		"	.insn	rrf,0xb98e0000,%2,%3,0,1"
-		: "=m" (*pudp)
-		: "m" (*pudp), "a" (r3o), "a" ((address & PUD_MASK))
+		"	.insn	rrf,0xb98e0000,%[r1],%[r2],0,%[m4]"
+		: "+m" (*pudp)
+		: [r1] "a" (r3o), [r2] "a" ((address & PUD_MASK)),
+		  [m4] "i" (local)
 		: "cc");
 }
 

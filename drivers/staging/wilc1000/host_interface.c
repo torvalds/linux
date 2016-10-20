@@ -3279,7 +3279,6 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 int wilc_hif_set_cfg(struct wilc_vif *vif,
 		     struct cfg_param_attr *cfg_param)
 {
-	int result = 0;
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
@@ -3293,9 +3292,7 @@ int wilc_hif_set_cfg(struct wilc_vif *vif,
 	msg.body.cfg_info = *cfg_param;
 	msg.vif = vif;
 
-	result = wilc_enqueue_cmd(&msg);
-
-	return result;
+	return wilc_enqueue_cmd(&msg);
 }
 
 static void GetPeriodicRSSI(unsigned long arg)
@@ -3329,7 +3326,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	init_completion(&hif_wait_response);
 
-	hif_drv  = kzalloc(sizeof(struct host_if_drv), GFP_KERNEL);
+	hif_drv  = kzalloc(sizeof(*hif_drv), GFP_KERNEL);
 	if (!hif_drv) {
 		result = -ENOMEM;
 		goto _fail_;
@@ -3363,7 +3360,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 		if (!hif_workqueue) {
 			netdev_err(vif->ndev, "Failed to create workqueue\n");
 			result = -ENOMEM;
-			goto _fail_mq_;
+			goto _fail_;
 		}
 
 		setup_timer(&periodic_rssi, GetPeriodicRSSI,
@@ -3391,7 +3388,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	clients_count++;
 
-_fail_mq_:
 	destroy_workqueue(hif_workqueue);
 _fail_:
 	return result;
@@ -3879,7 +3875,7 @@ static void *host_int_ParseJoinBssParam(struct network_info *ptstrNetworkInfo)
 	pu8IEs = ptstrNetworkInfo->ies;
 	u16IEsLen = ptstrNetworkInfo->ies_len;
 
-	pNewJoinBssParam = kzalloc(sizeof(struct join_bss_param), GFP_KERNEL);
+	pNewJoinBssParam = kzalloc(sizeof(*pNewJoinBssParam), GFP_KERNEL);
 	if (pNewJoinBssParam) {
 		pNewJoinBssParam->dtim_period = ptstrNetworkInfo->dtim_period;
 		pNewJoinBssParam->beacon_period = ptstrNetworkInfo->beacon_period;

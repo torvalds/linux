@@ -66,9 +66,10 @@ struct drm_i915_mocs_table {
 #define L3_WB			3
 
 /* Target cache */
-#define ELLC			0
-#define LLC			1
-#define LLC_ELLC		2
+#define LE_TC_PAGETABLE		0
+#define LE_TC_LLC		1
+#define LE_TC_LLC_ELLC		2
+#define LE_TC_LLC_ELLC_ALT	3
 
 /*
  * MOCS tables
@@ -96,34 +97,68 @@ struct drm_i915_mocs_table {
  *       end.
  */
 static const struct drm_i915_mocs_entry skylake_mocs_table[] = {
-	/* { 0x00000009, 0x0010 } */
-	{ (LE_CACHEABILITY(LE_UC) | LE_TGT_CACHE(LLC_ELLC) | LE_LRUM(0) |
-	   LE_AOM(0) | LE_RSC(0) | LE_SCC(0) | LE_PFM(0) | LE_SCF(0)),
-	  (L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_UC)) },
-	/* { 0x00000038, 0x0030 } */
-	{ (LE_CACHEABILITY(LE_PAGETABLE) | LE_TGT_CACHE(LLC_ELLC) | LE_LRUM(3) |
-	   LE_AOM(0) | LE_RSC(0) | LE_SCC(0) | LE_PFM(0) | LE_SCF(0)),
-	  (L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB)) },
-	/* { 0x0000003b, 0x0030 } */
-	{ (LE_CACHEABILITY(LE_WB) | LE_TGT_CACHE(LLC_ELLC) | LE_LRUM(3) |
-	   LE_AOM(0) | LE_RSC(0) | LE_SCC(0) | LE_PFM(0) | LE_SCF(0)),
-	  (L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB)) }
+	[I915_MOCS_UNCACHED] = {
+	  /* 0x00000009 */
+	  .control_value = LE_CACHEABILITY(LE_UC) |
+			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
+			   LE_LRUM(0) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
+			   LE_PFM(0) | LE_SCF(0),
+
+	  /* 0x0010 */
+	  .l3cc_value =    L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_UC),
+	},
+	[I915_MOCS_PTE] = {
+	  /* 0x00000038 */
+	  .control_value = LE_CACHEABILITY(LE_PAGETABLE) |
+			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
+			   LE_LRUM(3) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
+			   LE_PFM(0) | LE_SCF(0),
+	  /* 0x0030 */
+	  .l3cc_value =    L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB),
+	},
+	[I915_MOCS_CACHED] = {
+	  /* 0x0000003b */
+	  .control_value = LE_CACHEABILITY(LE_WB) |
+			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
+			   LE_LRUM(3) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
+			   LE_PFM(0) | LE_SCF(0),
+	  /* 0x0030 */
+	  .l3cc_value =   L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB),
+	},
 };
 
 /* NOTE: the LE_TGT_CACHE is not used on Broxton */
 static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
-	/* { 0x00000009, 0x0010 } */
-	{ (LE_CACHEABILITY(LE_UC) | LE_TGT_CACHE(LLC_ELLC) | LE_LRUM(0) |
-	   LE_AOM(0) | LE_RSC(0) | LE_SCC(0) | LE_PFM(0) | LE_SCF(0)),
-	  (L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_UC)) },
-	/* { 0x00000038, 0x0030 } */
-	{ (LE_CACHEABILITY(LE_PAGETABLE) | LE_TGT_CACHE(LLC_ELLC) | LE_LRUM(3) |
-	   LE_AOM(0) | LE_RSC(0) | LE_SCC(0) | LE_PFM(0) | LE_SCF(0)),
-	  (L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB)) },
-	/* { 0x0000003b, 0x0030 } */
-	{ (LE_CACHEABILITY(LE_WB) | LE_TGT_CACHE(LLC_ELLC) | LE_LRUM(3) |
-	   LE_AOM(0) | LE_RSC(0) | LE_SCC(0) | LE_PFM(0) | LE_SCF(0)),
-	  (L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB)) }
+	[I915_MOCS_UNCACHED] = {
+	  /* 0x00000009 */
+	  .control_value = LE_CACHEABILITY(LE_UC) |
+			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
+			   LE_LRUM(0) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
+			   LE_PFM(0) | LE_SCF(0),
+
+	  /* 0x0010 */
+	  .l3cc_value =    L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_UC),
+	},
+	[I915_MOCS_PTE] = {
+	  /* 0x00000038 */
+	  .control_value = LE_CACHEABILITY(LE_PAGETABLE) |
+			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
+			   LE_LRUM(3) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
+			   LE_PFM(0) | LE_SCF(0),
+
+	  /* 0x0030 */
+	  .l3cc_value =    L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB),
+	},
+	[I915_MOCS_CACHED] = {
+	  /* 0x00000039 */
+	  .control_value = LE_CACHEABILITY(LE_UC) |
+			   LE_TGT_CACHE(LE_TC_LLC_ELLC) |
+			   LE_LRUM(3) | LE_AOM(0) | LE_RSC(0) | LE_SCC(0) |
+			   LE_PFM(0) | LE_SCF(0),
+
+	  /* 0x0030 */
+	  .l3cc_value =    L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB),
+	},
 };
 
 /**
@@ -156,12 +191,22 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 			  "Platform that should have a MOCS table does not.\n");
 	}
 
+	/* WaDisableSkipCaching:skl,bxt,kbl */
+	if (IS_GEN9(dev_priv)) {
+		int i;
+
+		for (i = 0; i < table->size; i++)
+			if (WARN_ON(table->table[i].l3cc_value &
+				    (L3_ESC(1) | L3_SCC(0x7))))
+				return false;
+	}
+
 	return result;
 }
 
-static i915_reg_t mocs_register(enum intel_engine_id ring, int index)
+static i915_reg_t mocs_register(enum intel_engine_id engine_id, int index)
 {
-	switch (ring) {
+	switch (engine_id) {
 	case RCS:
 		return GEN9_GFX_MOCS(index);
 	case VCS:
@@ -173,7 +218,7 @@ static i915_reg_t mocs_register(enum intel_engine_id ring, int index)
 	case VCS2:
 		return GEN9_MFX1_MOCS(index);
 	default:
-		MISSING_CASE(ring);
+		MISSING_CASE(engine_id);
 		return INVALID_MMIO_REG;
 	}
 }
@@ -189,7 +234,7 @@ static i915_reg_t mocs_register(enum intel_engine_id ring, int index)
  */
 int intel_mocs_init_engine(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = to_i915(engine->dev);
+	struct drm_i915_private *dev_priv = engine->i915;
 	struct drm_i915_mocs_table table;
 	unsigned int index;
 
@@ -231,7 +276,7 @@ int intel_mocs_init_engine(struct intel_engine_cs *engine)
 static int emit_mocs_control_table(struct drm_i915_gem_request *req,
 				   const struct drm_i915_mocs_table *table)
 {
-	struct intel_ringbuffer *ringbuf = req->ringbuf;
+	struct intel_ring *ring = req->ring;
 	enum intel_engine_id engine = req->engine->id;
 	unsigned int index;
 	int ret;
@@ -243,14 +288,11 @@ static int emit_mocs_control_table(struct drm_i915_gem_request *req,
 	if (ret)
 		return ret;
 
-	intel_logical_ring_emit(ringbuf,
-				MI_LOAD_REGISTER_IMM(GEN9_NUM_MOCS_ENTRIES));
+	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(GEN9_NUM_MOCS_ENTRIES));
 
 	for (index = 0; index < table->size; index++) {
-		intel_logical_ring_emit_reg(ringbuf,
-					    mocs_register(engine, index));
-		intel_logical_ring_emit(ringbuf,
-					table->table[index].control_value);
+		intel_ring_emit_reg(ring, mocs_register(engine, index));
+		intel_ring_emit(ring, table->table[index].control_value);
 	}
 
 	/*
@@ -262,14 +304,12 @@ static int emit_mocs_control_table(struct drm_i915_gem_request *req,
 	 * that value to all the used entries.
 	 */
 	for (; index < GEN9_NUM_MOCS_ENTRIES; index++) {
-		intel_logical_ring_emit_reg(ringbuf,
-					    mocs_register(engine, index));
-		intel_logical_ring_emit(ringbuf,
-					table->table[0].control_value);
+		intel_ring_emit_reg(ring, mocs_register(engine, index));
+		intel_ring_emit(ring, table->table[0].control_value);
 	}
 
-	intel_logical_ring_emit(ringbuf, MI_NOOP);
-	intel_logical_ring_advance(ringbuf);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
 
 	return 0;
 }
@@ -296,7 +336,7 @@ static inline u32 l3cc_combine(const struct drm_i915_mocs_table *table,
 static int emit_mocs_l3cc_table(struct drm_i915_gem_request *req,
 				const struct drm_i915_mocs_table *table)
 {
-	struct intel_ringbuffer *ringbuf = req->ringbuf;
+	struct intel_ring *ring = req->ring;
 	unsigned int i;
 	int ret;
 
@@ -307,19 +347,18 @@ static int emit_mocs_l3cc_table(struct drm_i915_gem_request *req,
 	if (ret)
 		return ret;
 
-	intel_logical_ring_emit(ringbuf,
+	intel_ring_emit(ring,
 			MI_LOAD_REGISTER_IMM(GEN9_NUM_MOCS_ENTRIES / 2));
 
 	for (i = 0; i < table->size/2; i++) {
-		intel_logical_ring_emit_reg(ringbuf, GEN9_LNCFCMOCS(i));
-		intel_logical_ring_emit(ringbuf,
-					l3cc_combine(table, 2*i, 2*i+1));
+		intel_ring_emit_reg(ring, GEN9_LNCFCMOCS(i));
+		intel_ring_emit(ring, l3cc_combine(table, 2*i, 2*i+1));
 	}
 
 	if (table->size & 0x01) {
 		/* Odd table size - 1 left over */
-		intel_logical_ring_emit_reg(ringbuf, GEN9_LNCFCMOCS(i));
-		intel_logical_ring_emit(ringbuf, l3cc_combine(table, 2*i, 0));
+		intel_ring_emit_reg(ring, GEN9_LNCFCMOCS(i));
+		intel_ring_emit(ring, l3cc_combine(table, 2*i, 0));
 		i++;
 	}
 
@@ -329,12 +368,12 @@ static int emit_mocs_l3cc_table(struct drm_i915_gem_request *req,
 	 * they are reserved by the hardware.
 	 */
 	for (; i < GEN9_NUM_MOCS_ENTRIES / 2; i++) {
-		intel_logical_ring_emit_reg(ringbuf, GEN9_LNCFCMOCS(i));
-		intel_logical_ring_emit(ringbuf, l3cc_combine(table, 0, 0));
+		intel_ring_emit_reg(ring, GEN9_LNCFCMOCS(i));
+		intel_ring_emit(ring, l3cc_combine(table, 0, 0));
 	}
 
-	intel_logical_ring_emit(ringbuf, MI_NOOP);
-	intel_logical_ring_advance(ringbuf);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
 
 	return 0;
 }

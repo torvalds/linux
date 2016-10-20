@@ -24,7 +24,7 @@
 
 #include <linux/bootmem.h>
 #include <linux/memblock.h>
-#include <linux/module.h>
+#include <linux/init.h>
 
 #include "numa_internal.h"
 

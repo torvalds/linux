@@ -215,7 +215,7 @@ static int ec_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg i2c_msgs[],
 	msg->outsize = request_len;
 	msg->insize = response_len;
 
-	result = cros_ec_cmd_xfer(bus->ec, msg);
+	result = cros_ec_cmd_xfer_status(bus->ec, msg);
 	if (result < 0) {
 		dev_err(dev, "Error transferring EC i2c message %d\n", result);
 		goto exit;
@@ -281,10 +281,8 @@ static int ec_i2c_probe(struct platform_device *pdev)
 	bus->adap.retries = I2C_MAX_RETRIES;
 
 	err = i2c_add_adapter(&bus->adap);
-	if (err) {
-		dev_err(dev, "cannot register i2c adapter\n");
+	if (err)
 		return err;
-	}
 	platform_set_drvdata(pdev, bus);
 
 	return err;

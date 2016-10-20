@@ -2408,28 +2408,28 @@ static void ab8500_codec_of_probe(struct device *dev, struct device_node *np,
 {
 	u32 value;
 
-	if (of_get_property(np, "stericsson,amic1-type-single-ended", NULL))
+	if (of_property_read_bool(np, "stericsson,amic1-type-single-ended"))
 		codec->amics.mic1_type = AMIC_TYPE_SINGLE_ENDED;
 	else
 		codec->amics.mic1_type = AMIC_TYPE_DIFFERENTIAL;
 
-	if (of_get_property(np, "stericsson,amic2-type-single-ended", NULL))
+	if (of_property_read_bool(np, "stericsson,amic2-type-single-ended"))
 		codec->amics.mic2_type = AMIC_TYPE_SINGLE_ENDED;
 	else
 		codec->amics.mic2_type = AMIC_TYPE_DIFFERENTIAL;
 
 	/* Has a non-standard Vamic been requested? */
-	if (of_get_property(np, "stericsson,amic1a-bias-vamic2", NULL))
+	if (of_property_read_bool(np, "stericsson,amic1a-bias-vamic2"))
 		codec->amics.mic1a_micbias = AMIC_MICBIAS_VAMIC2;
 	else
 		codec->amics.mic1a_micbias = AMIC_MICBIAS_VAMIC1;
 
-	if (of_get_property(np, "stericsson,amic1b-bias-vamic2", NULL))
+	if (of_property_read_bool(np, "stericsson,amic1b-bias-vamic2"))
 		codec->amics.mic1b_micbias = AMIC_MICBIAS_VAMIC2;
 	else
 		codec->amics.mic1b_micbias = AMIC_MICBIAS_VAMIC1;
 
-	if (of_get_property(np, "stericsson,amic2-bias-vamic1", NULL))
+	if (of_property_read_bool(np, "stericsson,amic2-bias-vamic1"))
 		codec->amics.mic2_micbias = AMIC_MICBIAS_VAMIC1;
 	else
 		codec->amics.mic2_micbias = AMIC_MICBIAS_VAMIC2;
@@ -2464,45 +2464,20 @@ static int ab8500_codec_probe(struct snd_soc_codec *codec)
 	struct device *dev = codec->dev;
 	struct device_node *np = dev->of_node;
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(dev);
-	struct ab8500_platform_data *pdata;
+	struct ab8500_codec_platform_data codec_pdata;
 	struct filter_control *fc;
 	int status;
 
 	dev_dbg(dev, "%s: Enter.\n", __func__);
 
-	/* Setup AB8500 according to board-settings */
-	pdata = dev_get_platdata(dev->parent);
+	ab8500_codec_of_probe(dev, np, &codec_pdata);
 
-	if (np) {
-		if (!pdata)
-			pdata = devm_kzalloc(dev,
-					sizeof(struct ab8500_platform_data),
-					GFP_KERNEL);
-
-		if (pdata && !pdata->codec)
-			pdata->codec
-				= devm_kzalloc(dev,
-					sizeof(struct ab8500_codec_platform_data),
-					GFP_KERNEL);
-
-		if (!(pdata && pdata->codec))
-			return -ENOMEM;
-
-		ab8500_codec_of_probe(dev, np, pdata->codec);
-
-	} else {
-		if (!(pdata && pdata->codec)) {
-			dev_err(dev, "No codec platform data or DT found\n");
-			return -EINVAL;
-		}
-	}
-
-	status = ab8500_audio_setup_mics(codec, &pdata->codec->amics);
+	status = ab8500_audio_setup_mics(codec, &codec_pdata.amics);
 	if (status < 0) {
 		pr_err("%s: Failed to setup mics (%d)!\n", __func__, status);
 		return status;
 	}
-	status = ab8500_audio_set_ear_cmv(codec, pdata->codec->ear_cmv);
+	status = ab8500_audio_set_ear_cmv(codec, codec_pdata.ear_cmv);
 	if (status < 0) {
 		pr_err("%s: Failed to set earpiece CM-voltage (%d)!\n",
 			__func__, status);
@@ -2550,12 +2525,14 @@ static int ab8500_codec_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver ab8500_codec_driver = {
 	.probe =		ab8500_codec_probe,
-	.controls =		ab8500_ctrls,
-	.num_controls =		ARRAY_SIZE(ab8500_ctrls),
-	.dapm_widgets =		ab8500_dapm_widgets,
-	.num_dapm_widgets =	ARRAY_SIZE(ab8500_dapm_widgets),
-	.dapm_routes =		ab8500_dapm_routes,
-	.num_dapm_routes =	ARRAY_SIZE(ab8500_dapm_routes),
+	.component_driver = {
+		.controls =		ab8500_ctrls,
+		.num_controls =		ARRAY_SIZE(ab8500_ctrls),
+		.dapm_widgets =		ab8500_dapm_widgets,
+		.num_dapm_widgets =	ARRAY_SIZE(ab8500_dapm_widgets),
+		.dapm_routes =		ab8500_dapm_routes,
+		.num_dapm_routes =	ARRAY_SIZE(ab8500_dapm_routes),
+	},
 };
 
 static int ab8500_codec_driver_probe(struct platform_device *pdev)

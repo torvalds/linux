@@ -39,7 +39,6 @@ static void print_facility_list(struct facility_def *def)
 	printf("#define %s ", def->name);
 	for (i = 0; i <= high; i++)
 		printf("_AC(0x%016llx,UL)%c", array[i], i < high ? ',' : '\n');
-	printf("#define %s_DWORDS %d\n", def->name, high + 1);
 	free(array);
 }
 

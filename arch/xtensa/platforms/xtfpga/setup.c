@@ -26,6 +26,8 @@
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/of.h>
+#include <linux/clk-provider.h>
+#include <linux/of_address.h>
 
 #include <asm/timex.h>
 #include <asm/processor.h>
@@ -54,27 +56,7 @@ void platform_restart(void)
 {
 	/* Flush and reset the mmu, simulate a processor reset, and
 	 * jump to the reset vector. */
-
-
-	__asm__ __volatile__ ("movi	a2, 15\n\t"
-			      "wsr	a2, icountlevel\n\t"
-			      "movi	a2, 0\n\t"
-			      "wsr	a2, icount\n\t"
-#if XCHAL_NUM_IBREAK > 0
-			      "wsr	a2, ibreakenable\n\t"
-#endif
-#if XCHAL_HAVE_LOOPS
-			      "wsr	a2, lcount\n\t"
-#endif
-			      "movi	a2, 0x1f\n\t"
-			      "wsr	a2, ps\n\t"
-			      "isync\n\t"
-			      "jx	%0\n\t"
-			      :
-			      : "a" (XCHAL_RESET_VECTOR_VADDR)
-			      : "a2"
-			      );
-
+	cpu_reset();
 	/* control never gets here */
 }
 
@@ -82,30 +64,55 @@ void __init platform_setup(char **cmdline)
 {
 }
 
+/* early initialization */
+
+void __init platform_init(bp_tag_t *first)
+{
+}
+
+/* Heartbeat. */
+
+void platform_heartbeat(void)
+{
+}
+
+#ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
+
+void __init platform_calibrate_ccount(void)
+{
+	ccount_freq = *(long *)XTFPGA_CLKFRQ_VADDR;
+}
+
+#endif
+
 #ifdef CONFIG_OF
 
-static void __init update_clock_frequency(struct device_node *node)
+static void __init xtfpga_clk_setup(struct device_node *np)
 {
-	struct property *newfreq;
+	void __iomem *base = of_iomap(np, 0);
+	struct clk *clk;
 	u32 freq;
 
-	if (!of_property_read_u32(node, "clock-frequency", &freq) && freq != 0)
-		return;
-
-	newfreq = kzalloc(sizeof(*newfreq) + sizeof(u32), GFP_KERNEL);
-	if (!newfreq)
-		return;
-	newfreq->value = newfreq + 1;
-	newfreq->length = sizeof(freq);
-	newfreq->name = kstrdup("clock-frequency", GFP_KERNEL);
-	if (!newfreq->name) {
-		kfree(newfreq);
+	if (!base) {
+		pr_err("%s: invalid address\n", np->name);
 		return;
 	}
 
-	*(u32 *)newfreq->value = cpu_to_be32(*(u32 *)XTFPGA_CLKFRQ_VADDR);
-	of_update_property(node, newfreq);
+	freq = __raw_readl(base);
+	iounmap(base);
+	clk = clk_register_fixed_rate(NULL, np->name, NULL, 0, freq);
+
+	if (IS_ERR(clk)) {
+		pr_err("%s: clk registration failed\n", np->name);
+		return;
+	}
+
+	if (of_clk_add_provider(np, of_clk_src_simple_get, clk)) {
+		pr_err("%s: clk provider registration failed\n", np->name);
+		return;
+	}
 }
+CLK_OF_DECLARE(xtfpga_clk, "cdns,xtfpga-clock", xtfpga_clk_setup);
 
 #define MAC_LEN 6
 static void __init update_local_mac(struct device_node *node)
@@ -137,11 +144,7 @@ static void __init update_local_mac(struct device_node *node)
 
 static int __init machine_setup(void)
 {
-	struct device_node *clock;
 	struct device_node *eth = NULL;
-
-	for_each_node_by_name(clock, "main-oscillator")
-		update_clock_frequency(clock);
 
 	if ((eth = of_find_compatible_node(eth, NULL, "opencores,ethoc")))
 		update_local_mac(eth);
@@ -149,44 +152,7 @@ static int __init machine_setup(void)
 }
 arch_initcall(machine_setup);
 
-#endif
-
-/* early initialization */
-
-void __init platform_init(bp_tag_t *first)
-{
-}
-
-/* Heartbeat. */
-
-void platform_heartbeat(void)
-{
-}
-
-#ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
-
-void __init platform_calibrate_ccount(void)
-{
-	long clk_freq = 0;
-#ifdef CONFIG_OF
-	struct device_node *cpu =
-		of_find_compatible_node(NULL, NULL, "cdns,xtensa-cpu");
-	if (cpu) {
-		u32 freq;
-		update_clock_frequency(cpu);
-		if (!of_property_read_u32(cpu, "clock-frequency", &freq))
-			clk_freq = freq;
-	}
-#endif
-	if (!clk_freq)
-		clk_freq = *(long *)XTFPGA_CLKFRQ_VADDR;
-
-	ccount_freq = clk_freq;
-}
-
-#endif
-
-#ifndef CONFIG_OF
+#else
 
 #include <linux/serial_8250.h>
 #include <linux/if.h>

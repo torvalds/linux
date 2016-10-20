@@ -131,7 +131,7 @@ typedef int (*dm_busy_fn) (struct dm_target *ti);
  * >= 0 : the number of bytes accessible at the address
  */
 typedef long (*dm_direct_access_fn) (struct dm_target *ti, sector_t sector,
-				     void __pmem **kaddr, pfn_t *pfn, long size);
+				     void **kaddr, pfn_t *pfn, long size);
 
 void dm_error(const char *message);
 
@@ -590,6 +590,7 @@ extern struct ratelimit_state dm_ratelimit_state;
 #define DM_MAPIO_SUBMITTED	0
 #define DM_MAPIO_REMAPPED	1
 #define DM_MAPIO_REQUEUE	DM_ENDIO_REQUEUE
+#define DM_MAPIO_DELAY_REQUEUE	3
 
 #define dm_sector_div64(x, y)( \
 { \

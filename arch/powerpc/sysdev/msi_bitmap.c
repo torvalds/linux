@@ -112,7 +112,7 @@ int msi_bitmap_reserve_dt_hwirqs(struct msi_bitmap *bmp)
 	return 0;
 }
 
-int __init_refok msi_bitmap_alloc(struct msi_bitmap *bmp, unsigned int irq_count,
+int __ref msi_bitmap_alloc(struct msi_bitmap *bmp, unsigned int irq_count,
 		     struct device_node *of_node)
 {
 	int size;

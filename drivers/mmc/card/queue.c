@@ -19,7 +19,9 @@
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
+
 #include "queue.h"
+#include "block.h"
 
 #define MMC_QUEUE_BOUNCESZ	65536
 
@@ -33,7 +35,8 @@ static int mmc_prep_request(struct request_queue *q, struct request *req)
 	/*
 	 * We only like normal block requests and discards.
 	 */
-	if (req->cmd_type != REQ_TYPE_FS && req_op(req) != REQ_OP_DISCARD) {
+	if (req->cmd_type != REQ_TYPE_FS && req_op(req) != REQ_OP_DISCARD &&
+	    req_op(req) != REQ_OP_SECURE_ERASE) {
 		blk_dump_rq_flags(req, "MMC bad request");
 		return BLKPREP_KILL;
 	}
@@ -64,8 +67,10 @@ static int mmc_queue_thread(void *d)
 		spin_unlock_irq(q->queue_lock);
 
 		if (req || mq->mqrq_prev->req) {
+			bool req_is_special = mmc_req_is_special(req);
+
 			set_current_state(TASK_RUNNING);
-			mq->issue_fn(mq, req);
+			mmc_blk_issue_rq(mq, req);
 			cond_resched();
 			if (mq->flags & MMC_QUEUE_NEW_REQUEST) {
 				mq->flags &= ~MMC_QUEUE_NEW_REQUEST;
@@ -79,7 +84,7 @@ static int mmc_queue_thread(void *d)
 			 * has been finished. Do not assign it to previous
 			 * request.
 			 */
-			if (mmc_req_is_special(req))
+			if (req_is_special)
 				mq->mqrq_cur->req = NULL;
 
 			mq->mqrq_prev->brq.mrq.data = NULL;

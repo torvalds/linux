@@ -5,6 +5,10 @@
 config RTC_LIB
 	bool
 
+config RTC_MC146818_LIB
+	bool
+	select RTC_LIB
+
 menuconfig RTC_CLASS
 	bool "Real Time Clock"
 	default n
@@ -183,6 +187,16 @@ config RTC_DRV_ABX80X
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-abx80x.
 
+config RTC_DRV_AC100
+	tristate "X-Powers AC100"
+	depends on MFD_AC100
+	help
+	  If you say yes here you get support for the real-time clock found
+	  in X-Powers AC100 family peripheral ICs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ac100.
+
 config RTC_DRV_AS3722
 	tristate "ams AS3722 RTC driver"
 	depends on MFD_AS3722
@@ -194,14 +208,14 @@ config RTC_DRV_AS3722
 	  will be called rtc-as3722.
 
 config RTC_DRV_DS1307
-	tristate "Dallas/Maxim DS1307/37/38/39/40, ST M41T00, EPSON RX-8025"
+	tristate "Dallas/Maxim DS1307/37/38/39/40, ST M41T00, EPSON RX-8025, ISL12057"
 	help
 	  If you say yes here you get support for various compatible RTC
 	  chips (often with battery backup) connected with I2C. This driver
 	  should handle DS1307, DS1337, DS1338, DS1339, DS1340, ST M41T00,
-	  EPSON RX-8025 and probably other chips. In some cases the RTC
-	  must already have been initialized (by manufacturing or a
-	  bootloader).
+	  EPSON RX-8025, Intersil ISL12057 and probably other chips. In some
+	  cases the RTC must already have been initialized (by manufacturing or
+	  a bootloader).
 
 	  The first seven registers on these chips hold an RTC, and other
 	  registers may add features such as NVRAM, a trickle charger for
@@ -219,6 +233,20 @@ config RTC_DRV_DS1307_HWMON
 	help
 	  Say Y here if you want to expose temperature sensor data on
 	  rtc-ds1307 (only DS3231)
+
+config RTC_DRV_DS1307_CENTURY
+	bool "Century bit support for rtc-ds1307"
+	depends on RTC_DRV_DS1307
+	default n
+	help
+	  The DS1307 driver suffered from a bug where it was enabling the
+	  century bit inconditionnally but never used it when reading the time.
+	  It made the driver unable to support dates beyond 2099.
+	  Setting this option will add proper support for the century bit but if
+	  the time was previously set using a kernel predating this option,
+	  reading the date will return a date in the next century.
+	  To solve that, you could boot a kernel without this option set, set
+	  the RTC date and then boot a kernel with this option set.
 
 config RTC_DRV_DS1374
 	tristate "Dallas/Maxim DS1374"
@@ -324,11 +352,11 @@ config RTC_DRV_MAX77686
 	  will be called rtc-max77686.
 
 config RTC_DRV_RK808
-	tristate "Rockchip RK808 RTC"
+	tristate "Rockchip RK808/RK818 RTC"
 	depends on MFD_RK808
 	help
 	  If you say yes here you will get support for the
-	  RTC of RK808 PMIC.
+	  RTC of RK808 and RK818 PMIC.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rk808-rtc.
@@ -359,16 +387,6 @@ config RTC_DRV_ISL12022
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-isl12022.
-
-config RTC_DRV_ISL12057
-	select REGMAP_I2C
-	tristate "Intersil ISL12057"
-	help
-	  If you say yes here you get support for the Intersil ISL12057
-	  I2C RTC chip.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-isl12057.
 
 config RTC_DRV_X1205
 	tristate "Xicor/Intersil X1205"
@@ -574,10 +592,10 @@ config RTC_DRV_EM3027
 	  will be called rtc-em3027.
 
 config RTC_DRV_RV8803
-	tristate "Micro Crystal RV8803"
+	tristate "Micro Crystal RV8803, Epson RX8900"
 	help
-	  If you say yes here you get support for the Micro Crystal
-	  RV8803 RTC chips.
+	  If you say yes here you get support for the Micro Crystal RV8803 and
+	  Epson RX8900 RTC chips.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rv8803.
@@ -647,6 +665,7 @@ config RTC_DRV_DS1343
 	  will be called rtc-ds1343.
 
 config RTC_DRV_DS1347
+	select REGMAP_SPI
 	tristate "Dallas/Maxim DS1347"
 	help
 	  If you say yes here you get support for the
@@ -669,6 +688,18 @@ config RTC_DRV_DS1390
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1390.
+
+config RTC_DRV_MAX6916
+	tristate "Maxim MAX6916"
+	help
+	  If you say yes here you will get support for the
+	  Maxim MAX6916 SPI RTC chip.
+
+	  This driver only supports the RTC feature, and not other chip
+	  features such as alarms.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max6916.
 
 config RTC_DRV_R9701
 	tristate "Epson RTC-9701JE"
@@ -795,8 +826,9 @@ comment "Platform RTC drivers"
 
 config RTC_DRV_CMOS
 	tristate "PC-style 'CMOS'"
-	depends on X86 || ARM || M32R || PPC || MIPS || SPARC64
+	depends on X86 || ARM || M32R || PPC || MIPS || SPARC64 || MN10300
 	default y if X86
+	select RTC_MC146818_LIB
 	help
 	  Say "yes" here to get direct support for the real time clock
 	  found in every PC or ACPI-based system, and some other boards.
@@ -815,6 +847,7 @@ config RTC_DRV_CMOS
 config RTC_DRV_ALPHA
 	bool "Alpha PC-style CMOS"
 	depends on ALPHA
+	select RTC_MC146818_LIB
 	default y
 	help
 	  Direct support for the real-time clock found on every Alpha
@@ -1173,7 +1206,7 @@ comment "on-CPU RTC drivers"
 
 config RTC_DRV_ASM9260
 	tristate "Alphascale asm9260 RTC"
-	depends on MACH_ASM9260
+	depends on MACH_ASM9260 || COMPILE_TEST
 	help
 	  If you say yes here you get support for the RTC on the
 	  Alphascale asm9260 SoC.
@@ -1213,6 +1246,9 @@ config RTC_DRV_IMXDI
 config RTC_DRV_OMAP
 	tristate "TI OMAP Real Time Clock"
 	depends on ARCH_OMAP || ARCH_DAVINCI || COMPILE_TEST
+	depends on OF
+	depends on PINCTRL
+	select GENERIC_PINCONF
 	help
 	  Say "yes" here to support the on chip real time clock
 	  present on TI OMAP1, AM33xx, DA8xx/OMAP-L13x, AM43xx and DRA7xx.

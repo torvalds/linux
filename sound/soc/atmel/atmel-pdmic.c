@@ -80,7 +80,7 @@ static struct atmel_pdmic_pdata *atmel_pdmic_dt_init(struct device *dev)
 
 	if (pdata->mic_max_freq < pdata->mic_min_freq) {
 		dev_err(dev,
-			"mic-max-freq should not less than mic-min-freq\n");
+			"mic-max-freq should not be less than mic-min-freq\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -115,8 +115,10 @@ static int atmel_pdmic_cpu_dai_startup(struct snd_pcm_substream *substream,
 		return ret;
 
 	ret =  clk_prepare_enable(dd->pclk);
-	if (ret)
+	if (ret) {
+		clk_disable_unprepare(dd->gclk);
 		return ret;
+	}
 
 	/* Clear all bits in the Control Register(PDMIC_CR) */
 	regmap_write(dd->regmap, PDMIC_CR, 0);
@@ -283,7 +285,7 @@ static const DECLARE_TLV_DB_RANGE(mic_gain_tlv,
 	8, ARRAY_SIZE(mic_gain_table)-1, TLV_DB_SCALE_ITEM(-6500, 100, 0),
 );
 
-int pdmic_get_mic_volsw(struct snd_kcontrol *kcontrol,
+static int pdmic_get_mic_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
@@ -357,8 +359,10 @@ static int atmel_pdmic_codec_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver soc_codec_dev_pdmic = {
 	.probe		= atmel_pdmic_codec_probe,
-	.controls	= atmel_pdmic_snd_controls,
-	.num_controls	= ARRAY_SIZE(atmel_pdmic_snd_controls),
+	.component_driver = {
+		.controls		= atmel_pdmic_snd_controls,
+		.num_controls		= ARRAY_SIZE(atmel_pdmic_snd_controls),
+	},
 };
 
 /* codec dai component */
@@ -596,7 +600,7 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 	dd->irq = platform_get_irq(pdev, 0);
 	if (dd->irq < 0) {
 		ret = dd->irq;
-		dev_err(dev, "failed to could not get irq: %d\n", ret);
+		dev_err(dev, "failed to get irq: %d\n", ret);
 		return ret;
 	}
 
@@ -614,7 +618,7 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* The gclk clock frequency must always be tree times
+	/* The gclk clock frequency must always be three times
 	 * lower than the pclk clock frequency
 	 */
 	ret = clk_set_rate(dd->gclk, clk_get_rate(dd->pclk)/3);
@@ -624,11 +628,6 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "no memory resource\n");
-		return -ENXIO;
-	}
-
 	io_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(io_base)) {
 		ret = PTR_ERR(io_base);
@@ -654,7 +653,7 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Get the minimal and maximal sample rate that micphone supports */
+	/* Get the minimal and maximal sample rate that the microphone supports */
 	atmel_pdmic_get_sample_rate(dd, &rate_min, &rate_max);
 
 	/* register cpu dai */

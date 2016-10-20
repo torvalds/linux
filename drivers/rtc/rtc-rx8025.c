@@ -319,11 +319,6 @@ static int rx8025_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 		t->time.tm_hour = bcd2bin(ald[1] & 0x1f) % 12
 			+ (ald[1] & 0x20 ? 12 : 0);
 
-	t->time.tm_wday = -1;
-	t->time.tm_mday = -1;
-	t->time.tm_mon = -1;
-	t->time.tm_year = -1;
-
 	dev_dbg(dev, "%s: date: %ds %dm %dh %dmd %dm %dy\n",
 		__func__,
 		t->time.tm_sec, t->time.tm_min, t->time.tm_hour,
@@ -408,7 +403,7 @@ static int rx8025_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static struct rtc_class_ops rx8025_rtc_ops = {
+static const struct rtc_class_ops rx8025_rtc_ops = {
 	.read_time = rx8025_get_time,
 	.set_time = rx8025_set_time,
 	.read_alarm = rx8025_read_alarm,

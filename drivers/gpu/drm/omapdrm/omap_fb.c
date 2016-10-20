@@ -115,24 +115,16 @@ static void omap_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	for (i = 0; i < n; i++) {
 		struct plane *plane = &omap_fb->planes[i];
-		if (plane->bo)
-			drm_gem_object_unreference_unlocked(plane->bo);
+
+		drm_gem_object_unreference_unlocked(plane->bo);
 	}
 
 	kfree(omap_fb);
 }
 
-static int omap_framebuffer_dirty(struct drm_framebuffer *fb,
-		struct drm_file *file_priv, unsigned flags, unsigned color,
-		struct drm_clip_rect *clips, unsigned num_clips)
-{
-	return 0;
-}
-
 static const struct drm_framebuffer_funcs omap_framebuffer_funcs = {
 	.create_handle = omap_framebuffer_create_handle,
 	.destroy = omap_framebuffer_destroy,
-	.dirty = omap_framebuffer_dirty,
 };
 
 static uint32_t get_linear_addr(struct plane *plane,
@@ -187,24 +179,24 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 					(uint32_t)win->rotation);
 			/* fallthru to default to no rotation */
 		case 0:
-		case BIT(DRM_ROTATE_0):
+		case DRM_ROTATE_0:
 			orient = 0;
 			break;
-		case BIT(DRM_ROTATE_90):
+		case DRM_ROTATE_90:
 			orient = MASK_XY_FLIP | MASK_X_INVERT;
 			break;
-		case BIT(DRM_ROTATE_180):
+		case DRM_ROTATE_180:
 			orient = MASK_X_INVERT | MASK_Y_INVERT;
 			break;
-		case BIT(DRM_ROTATE_270):
+		case DRM_ROTATE_270:
 			orient = MASK_XY_FLIP | MASK_Y_INVERT;
 			break;
 		}
 
-		if (win->rotation & BIT(DRM_REFLECT_X))
+		if (win->rotation & DRM_REFLECT_X)
 			orient ^= MASK_X_INVERT;
 
-		if (win->rotation & BIT(DRM_REFLECT_Y))
+		if (win->rotation & DRM_REFLECT_Y)
 			orient ^= MASK_Y_INVERT;
 
 		/* adjust x,y offset for flip/invert: */
@@ -221,7 +213,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 	} else {
 		switch (win->rotation & DRM_ROTATE_MASK) {
 		case 0:
-		case BIT(DRM_ROTATE_0):
+		case DRM_ROTATE_0:
 			/* OK */
 			break;
 
@@ -318,14 +310,6 @@ void omap_framebuffer_unpin(struct drm_framebuffer *fb)
 	}
 
 	mutex_unlock(&omap_fb->lock);
-}
-
-struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb, int p)
-{
-	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
-	if (p >= drm_format_num_planes(fb->pixel_format))
-		return NULL;
-	return omap_fb->planes[p].bo;
 }
 
 /* iterate thru all the connectors, returning ones that are attached

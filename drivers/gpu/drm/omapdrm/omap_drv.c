@@ -96,7 +96,7 @@ static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
 	dispc_runtime_get();
 
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
-	drm_atomic_helper_commit_planes(dev, old_state, false);
+	drm_atomic_helper_commit_planes(dev, old_state, 0);
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 
 	omap_atomic_wait_for_completion(dev, old_state);
@@ -142,8 +142,9 @@ static int omap_atomic_commit(struct drm_device *dev,
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_atomic_state_commit *commit;
-	unsigned int i;
-	int ret;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	int i, ret;
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
 	if (ret)
@@ -163,10 +164,8 @@ static int omap_atomic_commit(struct drm_device *dev,
 	/* Wait until all affected CRTCs have completed previous commits and
 	 * mark them as pending.
 	 */
-	for (i = 0; i < dev->mode_config.num_crtc; ++i) {
-		if (state->crtcs[i])
-			commit->crtcs |= 1 << drm_crtc_index(state->crtcs[i]);
-	}
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
+		commit->crtcs |= drm_crtc_mask(crtc);
 
 	wait_event(priv->commit.wait, !omap_atomic_is_pending(priv, commit));
 
@@ -175,7 +174,7 @@ static int omap_atomic_commit(struct drm_device *dev,
 	spin_unlock(&priv->commit.lock);
 
 	/* Swap the state, this is the point of no return. */
-	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_swap_state(state, true);
 
 	if (nonblock)
 		schedule_work(&commit->work);
@@ -203,6 +202,8 @@ static int get_connector_type(struct omap_dss_device *dssdev)
 		return DRM_MODE_CONNECTOR_HDMIA;
 	case OMAP_DISPLAY_TYPE_DVI:
 		return DRM_MODE_CONNECTOR_DVID;
+	case OMAP_DISPLAY_TYPE_DSI:
+		return DRM_MODE_CONNECTOR_DSI;
 	default:
 		return DRM_MODE_CONNECTOR_Unknown;
 	}
@@ -294,9 +295,9 @@ static int omap_modeset_init_properties(struct drm_device *dev)
 	if (priv->has_dmm) {
 		dev->mode_config.rotation_property =
 			drm_mode_create_rotation_property(dev,
-				BIT(DRM_ROTATE_0) | BIT(DRM_ROTATE_90) |
-				BIT(DRM_ROTATE_180) | BIT(DRM_ROTATE_270) |
-				BIT(DRM_REFLECT_X) | BIT(DRM_REFLECT_Y));
+				DRM_ROTATE_0 | DRM_ROTATE_90 |
+				DRM_ROTATE_180 | DRM_ROTATE_270 |
+				DRM_REFLECT_X | DRM_REFLECT_Y);
 		if (!dev->mode_config.rotation_property)
 			return -ENOMEM;
 	}
@@ -800,7 +801,6 @@ static struct drm_driver omap_drm_driver = {
 	.unload = dev_unload,
 	.open = dev_open,
 	.lastclose = dev_lastclose,
-	.set_busid = drm_platform_set_busid,
 	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = omap_irq_enable_vblank,
 	.disable_vblank = omap_irq_disable_vblank,

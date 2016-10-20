@@ -11,7 +11,6 @@
  * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -1033,102 +1032,6 @@ static inline void nmk_gpio_dbg_show_one(struct seq_file *s,
 #define nmk_gpio_dbg_show	NULL
 #endif
 
-void nmk_gpio_clocks_enable(void)
-{
-	int i;
-
-	for (i = 0; i < NUM_BANKS; i++) {
-		struct nmk_gpio_chip *chip = nmk_gpio_chips[i];
-
-		if (!chip)
-			continue;
-
-		clk_enable(chip->clk);
-	}
-}
-
-void nmk_gpio_clocks_disable(void)
-{
-	int i;
-
-	for (i = 0; i < NUM_BANKS; i++) {
-		struct nmk_gpio_chip *chip = nmk_gpio_chips[i];
-
-		if (!chip)
-			continue;
-
-		clk_disable(chip->clk);
-	}
-}
-
-/*
- * Called from the suspend/resume path to only keep the real wakeup interrupts
- * (those that have had set_irq_wake() called on them) as wakeup interrupts,
- * and not the rest of the interrupts which we needed to have as wakeups for
- * cpuidle.
- *
- * PM ops are not used since this needs to be done at the end, after all the
- * other drivers are done with their suspend callbacks.
- */
-void nmk_gpio_wakeups_suspend(void)
-{
-	int i;
-
-	for (i = 0; i < NUM_BANKS; i++) {
-		struct nmk_gpio_chip *chip = nmk_gpio_chips[i];
-
-		if (!chip)
-			break;
-
-		clk_enable(chip->clk);
-
-		writel(chip->rwimsc & chip->real_wake,
-		       chip->addr + NMK_GPIO_RWIMSC);
-		writel(chip->fwimsc & chip->real_wake,
-		       chip->addr + NMK_GPIO_FWIMSC);
-
-		clk_disable(chip->clk);
-	}
-}
-
-void nmk_gpio_wakeups_resume(void)
-{
-	int i;
-
-	for (i = 0; i < NUM_BANKS; i++) {
-		struct nmk_gpio_chip *chip = nmk_gpio_chips[i];
-
-		if (!chip)
-			break;
-
-		clk_enable(chip->clk);
-
-		writel(chip->rwimsc, chip->addr + NMK_GPIO_RWIMSC);
-		writel(chip->fwimsc, chip->addr + NMK_GPIO_FWIMSC);
-
-		clk_disable(chip->clk);
-	}
-}
-
-/*
- * Read the pull up/pull down status.
- * A bit set in 'pull_up' means that pull up
- * is selected if pull is enabled in PDIS register.
- * Note: only pull up/down set via this driver can
- * be detected due to HW limitations.
- */
-void nmk_gpio_read_pull(int gpio_bank, u32 *pull_up)
-{
-	if (gpio_bank < NUM_BANKS) {
-		struct nmk_gpio_chip *chip = nmk_gpio_chips[gpio_bank];
-
-		if (!chip)
-			return;
-
-		*pull_up = chip->pull_up;
-	}
-}
-
 /*
  * We will allocate memory for the state container using devm* allocators
  * binding to the first device reaching this point, it doesn't matter if
@@ -1206,10 +1109,8 @@ static int nmk_gpio_probe(struct platform_device *dev)
 		return PTR_ERR(nmk_chip);
 	}
 
-	if (of_get_property(np, "st,supports-sleepmode", NULL))
-		supports_sleepmode = true;
-	else
-		supports_sleepmode = false;
+	supports_sleepmode =
+		of_property_read_bool(np, "st,supports-sleepmode");
 
 	/* Correct platform device ID */
 	dev->id = nmk_chip->bank;
@@ -1276,7 +1177,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 				   irqchip,
 				   0,
 				   handle_edge_irq,
-				   IRQ_TYPE_EDGE_FALLING);
+				   IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(&dev->dev, "could not add irqchip\n");
 		gpiochip_remove(&nmk_chip->chip);
@@ -2081,7 +1982,3 @@ static int __init nmk_pinctrl_init(void)
 	return platform_driver_register(&nmk_pinctrl_driver);
 }
 core_initcall(nmk_pinctrl_init);
-
-MODULE_AUTHOR("Prafulla WADASKAR and Alessandro Rubini");
-MODULE_DESCRIPTION("Nomadik GPIO Driver");
-MODULE_LICENSE("GPL");

@@ -56,7 +56,7 @@ struct smtcfb_info {
 
 void __iomem *smtc_regbaseaddress;	/* Memory Map IO starting address */
 
-static struct fb_var_screeninfo smtcfb_var = {
+static const struct fb_var_screeninfo smtcfb_var = {
 	.xres           = 1024,
 	.yres           = 600,
 	.xres_virtual   = 1024,

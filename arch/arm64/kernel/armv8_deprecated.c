@@ -121,7 +121,7 @@ static int run_all_cpu_set_hw_mode(struct insn_emulation *insn, bool enable)
  *  0 		- If all the hooks ran successfully.
  * -EINVAL	- At least one hook is not supported by the CPU.
  */
-static int run_all_insn_set_hw_mode(unsigned long cpu)
+static int run_all_insn_set_hw_mode(unsigned int cpu)
 {
 	int rc = 0;
 	unsigned long flags;
@@ -131,7 +131,7 @@ static int run_all_insn_set_hw_mode(unsigned long cpu)
 	list_for_each_entry(insn, &insn_emulation, node) {
 		bool enable = (insn->current_mode == INSN_HW);
 		if (insn->ops->set_hw_mode && insn->ops->set_hw_mode(enable)) {
-			pr_warn("CPU[%ld] cannot support the emulation of %s",
+			pr_warn("CPU[%u] cannot support the emulation of %s",
 				cpu, insn->ops->name);
 			rc = -EINVAL;
 		}
@@ -611,20 +611,6 @@ static struct insn_emulation_ops setend_ops = {
 	.set_hw_mode = setend_set_hw_mode,
 };
 
-static int insn_cpu_hotplug_notify(struct notifier_block *b,
-			      unsigned long action, void *hcpu)
-{
-	int rc = 0;
-	if ((action & ~CPU_TASKS_FROZEN) == CPU_STARTING)
-		rc = run_all_insn_set_hw_mode((unsigned long)hcpu);
-
-	return notifier_from_errno(rc);
-}
-
-static struct notifier_block insn_cpu_hotplug_notifier = {
-	.notifier_call = insn_cpu_hotplug_notify,
-};
-
 /*
  * Invoked as late_initcall, since not needed before init spawned.
  */
@@ -643,7 +629,9 @@ static int __init armv8_deprecated_init(void)
 			pr_info("setend instruction emulation is not supported on the system");
 	}
 
-	register_cpu_notifier(&insn_cpu_hotplug_notifier);
+	cpuhp_setup_state_nocalls(CPUHP_AP_ARM64_ISNDEP_STARTING,
+				  "AP_ARM64_ISNDEP_STARTING",
+				  run_all_insn_set_hw_mode, NULL);
 	register_insn_emulation_sysctl(ctl_abi);
 
 	return 0;

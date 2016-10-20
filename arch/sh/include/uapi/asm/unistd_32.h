@@ -380,7 +380,21 @@
 #define __NR_process_vm_writev	366
 #define __NR_kcmp		367
 #define __NR_finit_module	368
+#define __NR_sched_getattr	369
+#define __NR_sched_setattr	370
+#define __NR_renameat2		371
+#define __NR_seccomp		372
+#define __NR_getrandom		373
+#define __NR_memfd_create	374
+#define __NR_bpf		375
+#define __NR_execveat		376
+#define __NR_userfaultfd	377
+#define __NR_membarrier		378
+#define __NR_mlock2		379
+#define __NR_copy_file_range	380
+#define __NR_preadv2		381
+#define __NR_pwritev2		382
 
-#define NR_syscalls 369
+#define NR_syscalls 383
 
 #endif /* __ASM_SH_UNISTD_32_H */

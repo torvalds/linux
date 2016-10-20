@@ -754,23 +754,27 @@ static inline void ftrace_init(void) { }
 
 /*
  * Structure that defines an entry function trace.
+ * It's already packed but the attribute "packed" is needed
+ * to remove extra padding at the end.
  */
 struct ftrace_graph_ent {
 	unsigned long func; /* Current function */
 	int depth;
-};
+} __packed;
 
 /*
  * Structure that defines a return function trace.
+ * It's already packed but the attribute "packed" is needed
+ * to remove extra padding at the end.
  */
 struct ftrace_graph_ret {
 	unsigned long func; /* Current function */
-	unsigned long long calltime;
-	unsigned long long rettime;
 	/* Number of functions that overran the depth limit for current task */
 	unsigned long overrun;
+	unsigned long long calltime;
+	unsigned long long rettime;
 	int depth;
-};
+} __packed;
 
 /* Type of the callback handlers for tracing function graph*/
 typedef void (*trace_func_graph_ret_t)(struct ftrace_graph_ret *); /* return */
@@ -790,8 +794,15 @@ struct ftrace_ret_stack {
 	unsigned long ret;
 	unsigned long func;
 	unsigned long long calltime;
+#ifdef CONFIG_FUNCTION_PROFILER
 	unsigned long long subtime;
+#endif
+#ifdef HAVE_FUNCTION_GRAPH_FP_TEST
 	unsigned long fp;
+#endif
+#ifdef HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
+	unsigned long *retp;
+#endif
 };
 
 /*
@@ -803,7 +814,10 @@ extern void return_to_handler(void);
 
 extern int
 ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
-			 unsigned long frame_pointer);
+			 unsigned long frame_pointer, unsigned long *retp);
+
+unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
+				    unsigned long ret, unsigned long *retp);
 
 /*
  * Sometimes we don't want to trace a function with the function
@@ -864,6 +878,13 @@ static inline void unregister_ftrace_graph(void) { }
 static inline int task_curr_ret_stack(struct task_struct *tsk)
 {
 	return -1;
+}
+
+static inline unsigned long
+ftrace_graph_ret_addr(struct task_struct *task, int *idx, unsigned long ret,
+		      unsigned long *retp)
+{
+	return ret;
 }
 
 static inline void pause_graph_tracing(void) { }

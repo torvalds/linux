@@ -13,7 +13,7 @@
 	model = "TeeJet Mt.Ventoux";
 	compatible = "teejet,mt_ventoux", "ti,omap3";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};

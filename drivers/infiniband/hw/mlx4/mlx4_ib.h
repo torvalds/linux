@@ -448,7 +448,7 @@ struct mlx4_ib_demux_ctx {
 	struct workqueue_struct *wq;
 	struct workqueue_struct *ud_wq;
 	spinlock_t ud_lock;
-	__be64 subnet_prefix;
+	atomic64_t subnet_prefix;
 	__be64 guid_cache[128];
 	struct mlx4_ib_dev *dev;
 	/* the following lock protects both mcg_table and mcg_mgid0_list */
@@ -549,6 +549,14 @@ struct mlx4_ib_counters {
 	u32			default_counter;
 };
 
+#define MLX4_DIAG_COUNTERS_TYPES 2
+
+struct mlx4_ib_diag_counters {
+	const char **name;
+	u32 *offset;
+	u32 num_counters;
+};
+
 struct mlx4_ib_dev {
 	struct ib_device	ib_dev;
 	struct mlx4_dev	       *dev;
@@ -562,6 +570,7 @@ struct mlx4_ib_dev {
 	struct ib_mad_agent    *send_agent[MLX4_MAX_PORTS][2];
 	struct ib_ah	       *sm_ah[MLX4_MAX_PORTS];
 	spinlock_t		sm_lock;
+	atomic64_t		sl2vl[MLX4_MAX_PORTS];
 	struct mlx4_ib_sriov	sriov;
 
 	struct mutex		cap_mask_mutex;
@@ -585,12 +594,14 @@ struct mlx4_ib_dev {
 	/* protect resources needed as part of reset flow */
 	spinlock_t		reset_flow_resource_lock;
 	struct list_head		qp_list;
+	struct mlx4_ib_diag_counters diag_counters[MLX4_DIAG_COUNTERS_TYPES];
 };
 
 struct ib_event_work {
 	struct work_struct	work;
 	struct mlx4_ib_dev	*ib_dev;
 	struct mlx4_eqe		ib_eqe;
+	int			port;
 };
 
 struct mlx4_ib_qp_tunnel_init_attr {
@@ -873,5 +884,10 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 			  struct ib_udata *udata);
 int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
 				    u8 port_num, int index);
+
+void mlx4_sched_ib_sl2vl_update_work(struct mlx4_ib_dev *ibdev,
+				     int port);
+
+void mlx4_ib_sl2vl_update(struct mlx4_ib_dev *mdev, int port);
 
 #endif /* MLX4_IB_H */

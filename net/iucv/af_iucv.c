@@ -22,6 +22,7 @@
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/poll.h>
+#include <linux/security.h>
 #include <net/sock.h>
 #include <asm/ebcdic.h>
 #include <asm/cpcmd.h>
@@ -530,8 +531,10 @@ static void iucv_sock_close(struct sock *sk)
 
 static void iucv_sock_init(struct sock *sk, struct sock *parent)
 {
-	if (parent)
+	if (parent) {
 		sk->sk_type = parent->sk_type;
+		security_sk_clone(parent, sk);
+	}
 }
 
 static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio, int kern)

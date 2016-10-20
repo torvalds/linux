@@ -28,6 +28,11 @@ struct imx_hdmi {
 	struct regmap *regmap;
 };
 
+static inline struct imx_hdmi *enc_to_imx_hdmi(struct drm_encoder *e)
+{
+	return container_of(e, struct imx_hdmi, encoder);
+}
+
 static const struct dw_hdmi_mpll_config imx_mpll_cfg[] = {
 	{
 		45250000, {
@@ -109,15 +114,9 @@ static void dw_hdmi_imx_encoder_disable(struct drm_encoder *encoder)
 {
 }
 
-static void dw_hdmi_imx_encoder_mode_set(struct drm_encoder *encoder,
-					 struct drm_display_mode *mode,
-					 struct drm_display_mode *adj_mode)
+static void dw_hdmi_imx_encoder_enable(struct drm_encoder *encoder)
 {
-}
-
-static void dw_hdmi_imx_encoder_commit(struct drm_encoder *encoder)
-{
-	struct imx_hdmi *hdmi = container_of(encoder, struct imx_hdmi, encoder);
+	struct imx_hdmi *hdmi = enc_to_imx_hdmi(encoder);
 	int mux = drm_of_encoder_active_port_id(hdmi->dev->of_node, encoder);
 
 	regmap_update_bits(hdmi->regmap, IOMUXC_GPR3,
@@ -125,16 +124,23 @@ static void dw_hdmi_imx_encoder_commit(struct drm_encoder *encoder)
 			   mux << IMX6Q_GPR3_HDMI_MUX_CTL_SHIFT);
 }
 
-static void dw_hdmi_imx_encoder_prepare(struct drm_encoder *encoder)
+static int dw_hdmi_imx_atomic_check(struct drm_encoder *encoder,
+				    struct drm_crtc_state *crtc_state,
+				    struct drm_connector_state *conn_state)
 {
-	imx_drm_set_bus_format(encoder, MEDIA_BUS_FMT_RGB888_1X24);
+	struct imx_crtc_state *imx_crtc_state = to_imx_crtc_state(crtc_state);
+
+	imx_crtc_state->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	imx_crtc_state->di_hsync_pin = 2;
+	imx_crtc_state->di_vsync_pin = 3;
+
+	return 0;
 }
 
 static const struct drm_encoder_helper_funcs dw_hdmi_imx_encoder_helper_funcs = {
-	.mode_set   = dw_hdmi_imx_encoder_mode_set,
-	.prepare    = dw_hdmi_imx_encoder_prepare,
-	.commit     = dw_hdmi_imx_encoder_commit,
+	.enable     = dw_hdmi_imx_encoder_enable,
 	.disable    = dw_hdmi_imx_encoder_disable,
+	.atomic_check = dw_hdmi_imx_atomic_check,
 };
 
 static const struct drm_encoder_funcs dw_hdmi_imx_encoder_funcs = {

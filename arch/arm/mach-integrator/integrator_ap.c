@@ -17,33 +17,19 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/list.h>
-#include <linux/platform_device.h>
-#include <linux/slab.h>
-#include <linux/string.h>
 #include <linux/syscore_ops.h>
 #include <linux/amba/bus.h>
-#include <linux/amba/kmi.h>
 #include <linux/io.h>
 #include <linux/irqchip.h>
-#include <linux/platform_data/clk-integrator.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/stat.h>
 #include <linux/termios.h>
 
-#include <asm/setup.h>
-#include <asm/param.h>		/* HZ */
-#include <asm/mach-types.h>
-
 #include <asm/mach/arch.h>
-#include <asm/mach/irq.h>
 #include <asm/mach/map.h>
-#include <asm/mach/time.h>
 
 #include "hardware.h"
 #include "cm.h"
@@ -68,14 +54,8 @@ static void __iomem *ebi_base;
 
 /*
  * Logical      Physical
- * ef000000			Cache flush
- * f1100000	11000000	System controller registers
- * f1300000	13000000	Counter/Timer
  * f1400000	14000000	Interrupt controller
  * f1600000	16000000	UART 0
- * f1700000	17000000	UART 1
- * f1a00000	1a000000	Debug LEDs
- * f1b00000	1b000000	GPIO
  */
 
 static struct map_desc ap_io_desc[] __initdata __maybe_unused = {
@@ -87,16 +67,6 @@ static struct map_desc ap_io_desc[] __initdata __maybe_unused = {
 	}, {
 		.virtual	= IO_ADDRESS(INTEGRATOR_UART0_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_UART0_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_DBG_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_DBG_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_AP_GPIO_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_AP_GPIO_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}
@@ -196,16 +166,10 @@ static void __init ap_init_irq_of(void)
 
 /* For the Device Tree, add in the UART callbacks as AUXDATA */
 static struct of_dev_auxdata ap_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_RTC_BASE,
-		"rtc", NULL),
 	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART0_BASE,
 		"uart0", &ap_uart_data),
 	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART1_BASE,
 		"uart1", &ap_uart_data),
-	OF_DEV_AUXDATA("arm,primecell", KMI0_BASE,
-		"kmi0", NULL),
-	OF_DEV_AUXDATA("arm,primecell", KMI1_BASE,
-		"kmi1", NULL),
 	{ /* sentinel */ },
 };
 
@@ -240,8 +204,7 @@ static void __init ap_init_of(void)
 	if (!ebi_base)
 		return;
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-			ap_auxdata_lookup, NULL);
+	of_platform_default_populate(NULL, ap_auxdata_lookup, NULL);
 
 	sc_dec = readl(ap_syscon_base + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {

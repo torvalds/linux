@@ -667,7 +667,7 @@ struct i40iw_tcp_offload_info {
 	bool time_stamp;
 	u8 cwnd_inc_limit;
 	bool drop_ooo_seg;
-	bool dup_ack_thresh;
+	u8 dup_ack_thresh;
 	u8 ttl;
 	u8 src_mac_addr_idx;
 	bool avoid_stretch_ack;

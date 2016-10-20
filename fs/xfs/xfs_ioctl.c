@@ -232,7 +232,7 @@ xfs_open_by_handle(
 	}
 
 	if ((fmode & FMODE_WRITE) && IS_IMMUTABLE(inode)) {
-		error = -EACCES;
+		error = -EPERM;
 		goto out_dput;
 	}
 
@@ -387,6 +387,7 @@ xfs_attrlist_by_handle(
 {
 	int			error = -ENOMEM;
 	attrlist_cursor_kern_t	*cursor;
+	struct xfs_fsop_attrlist_handlereq __user	*p = arg;
 	xfs_fsop_attrlist_handlereq_t al_hreq;
 	struct dentry		*dentry;
 	char			*kbuf;
@@ -418,6 +419,11 @@ xfs_attrlist_by_handle(
 					al_hreq.flags, cursor);
 	if (error)
 		goto out_kfree;
+
+	if (copy_to_user(&p->pos, cursor, sizeof(attrlist_cursor_kern_t))) {
+		error = -EFAULT;
+		goto out_kfree;
+	}
 
 	if (copy_to_user(al_hreq.buffer, kbuf, al_hreq.buflen))
 		error = -EFAULT;
@@ -714,7 +720,7 @@ xfs_ioc_space(
 		iattr.ia_valid = ATTR_SIZE;
 		iattr.ia_size = bf->l_start;
 
-		error = xfs_setattr_size(ip, &iattr);
+		error = xfs_vn_setattr_size(file_dentry(filp), &iattr);
 		break;
 	default:
 		ASSERT(0);
@@ -897,6 +903,8 @@ xfs_ioc_fsgetxattr(
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	fa.fsx_xflags = xfs_ip2xflags(ip);
 	fa.fsx_extsize = ip->i_d.di_extsize << ip->i_mount->m_sb.sb_blocklog;
+	fa.fsx_cowextsize = ip->i_d.di_cowextsize <<
+			ip->i_mount->m_sb.sb_blocklog;
 	fa.fsx_projid = xfs_get_projid(ip);
 
 	if (attr) {
@@ -967,12 +975,13 @@ xfs_set_diflags(
 	if (ip->i_d.di_version < 3)
 		return;
 
-	di_flags2 = 0;
+	di_flags2 = (ip->i_d.di_flags2 & XFS_DIFLAG2_REFLINK);
 	if (xflags & FS_XFLAG_DAX)
 		di_flags2 |= XFS_DIFLAG2_DAX;
+	if (xflags & FS_XFLAG_COWEXTSIZE)
+		di_flags2 |= XFS_DIFLAG2_COWEXTSIZE;
 
 	ip->i_d.di_flags2 = di_flags2;
-
 }
 
 STATIC void
@@ -1024,6 +1033,14 @@ xfs_ioctl_setattr_xflags(
 		    (ip->i_d.di_extsize % mp->m_sb.sb_rextsize))
 			return -EINVAL;
 	}
+
+	/* Clear reflink if we are actually able to set the rt flag. */
+	if ((fa->fsx_xflags & FS_XFLAG_REALTIME) && xfs_is_reflink_inode(ip))
+		ip->i_d.di_flags2 &= ~XFS_DIFLAG2_REFLINK;
+
+	/* Don't allow us to set DAX mode for a reflinked file for now. */
+	if ((fa->fsx_xflags & FS_XFLAG_DAX) && xfs_is_reflink_inode(ip))
+		return -EINVAL;
 
 	/*
 	 * Can't modify an immutable/append-only file unless
@@ -1213,6 +1230,56 @@ xfs_ioctl_setattr_check_extsize(
 	return 0;
 }
 
+/*
+ * CoW extent size hint validation rules are:
+ *
+ * 1. CoW extent size hint can only be set if reflink is enabled on the fs.
+ *    The inode does not have to have any shared blocks, but it must be a v3.
+ * 2. FS_XFLAG_COWEXTSIZE is only valid for directories and regular files;
+ *    for a directory, the hint is propagated to new files.
+ * 3. Can be changed on files & directories at any time.
+ * 4. CoW extsize hint of 0 turns off hints, clears inode flags.
+ * 5. Extent size must be a multiple of the appropriate block size.
+ * 6. The extent size hint must be limited to half the AG size to avoid
+ *    alignment extending the extent beyond the limits of the AG.
+ */
+static int
+xfs_ioctl_setattr_check_cowextsize(
+	struct xfs_inode	*ip,
+	struct fsxattr		*fa)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+
+	if (!(fa->fsx_xflags & FS_XFLAG_COWEXTSIZE))
+		return 0;
+
+	if (!xfs_sb_version_hasreflink(&ip->i_mount->m_sb) ||
+	    ip->i_d.di_version != 3)
+		return -EINVAL;
+
+	if (!S_ISREG(VFS_I(ip)->i_mode) && !S_ISDIR(VFS_I(ip)->i_mode))
+		return -EINVAL;
+
+	if (fa->fsx_cowextsize != 0) {
+		xfs_extlen_t    size;
+		xfs_fsblock_t   cowextsize_fsb;
+
+		cowextsize_fsb = XFS_B_TO_FSB(mp, fa->fsx_cowextsize);
+		if (cowextsize_fsb > MAXEXTLEN)
+			return -EINVAL;
+
+		size = mp->m_sb.sb_blocksize;
+		if (cowextsize_fsb > mp->m_sb.sb_agblocks / 2)
+			return -EINVAL;
+
+		if (fa->fsx_cowextsize % size)
+			return -EINVAL;
+	} else
+		fa->fsx_xflags &= ~FS_XFLAG_COWEXTSIZE;
+
+	return 0;
+}
+
 static int
 xfs_ioctl_setattr_check_projid(
 	struct xfs_inode	*ip,
@@ -1305,6 +1372,10 @@ xfs_ioctl_setattr(
 	if (code)
 		goto error_trans_cancel;
 
+	code = xfs_ioctl_setattr_check_cowextsize(ip, fa);
+	if (code)
+		goto error_trans_cancel;
+
 	code = xfs_ioctl_setattr_xflags(tp, ip, fa);
 	if (code)
 		goto error_trans_cancel;
@@ -1340,6 +1411,12 @@ xfs_ioctl_setattr(
 		ip->i_d.di_extsize = fa->fsx_extsize >> mp->m_sb.sb_blocklog;
 	else
 		ip->i_d.di_extsize = 0;
+	if (ip->i_d.di_version == 3 &&
+	    (ip->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE))
+		ip->i_d.di_cowextsize = fa->fsx_cowextsize >>
+				mp->m_sb.sb_blocklog;
+	else
+		ip->i_d.di_cowextsize = 0;
 
 	code = xfs_trans_commit(tp);
 

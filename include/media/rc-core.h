@@ -231,7 +231,7 @@ void rc_unregister_device(struct rc_dev *dev);
 int rc_open(struct rc_dev *rdev);
 
 /**
- * rc_open - Closes a RC device
+ * rc_close - Closes a RC device
  *
  * @rdev: pointer to struct rc_dev.
  */

@@ -61,12 +61,12 @@ static bool log_ecn_error = true;
 module_param(log_ecn_error, bool, 0644);
 MODULE_PARM_DESC(log_ecn_error, "Log packets received with corrupted ECN");
 
-#define HASH_SIZE_SHIFT  5
-#define HASH_SIZE (1 << HASH_SIZE_SHIFT)
+#define IP6_GRE_HASH_SIZE_SHIFT  5
+#define IP6_GRE_HASH_SIZE (1 << IP6_GRE_HASH_SIZE_SHIFT)
 
 static int ip6gre_net_id __read_mostly;
 struct ip6gre_net {
-	struct ip6_tnl __rcu *tunnels[4][HASH_SIZE];
+	struct ip6_tnl __rcu *tunnels[4][IP6_GRE_HASH_SIZE];
 
 	struct net_device *fb_tunnel_dev;
 };
@@ -96,12 +96,12 @@ static void ip6gre_tnl_link_config(struct ip6_tnl *t, int set_mtu);
    will match fallback tunnel.
  */
 
-#define HASH_KEY(key) (((__force u32)key^((__force u32)key>>4))&(HASH_SIZE - 1))
+#define HASH_KEY(key) (((__force u32)key^((__force u32)key>>4))&(IP6_GRE_HASH_SIZE - 1))
 static u32 HASH_ADDR(const struct in6_addr *addr)
 {
 	u32 hash = ipv6_addr_hash(addr);
 
-	return hash_32(hash, HASH_SIZE_SHIFT);
+	return hash_32(hash, IP6_GRE_HASH_SIZE_SHIFT);
 }
 
 #define tunnels_r_l	tunnels[3]
@@ -519,8 +519,6 @@ static netdev_tx_t __gre6_xmit(struct sk_buff *skb,
 	gre_build_header(skb, tunnel->tun_hlen, tunnel->parms.o_flags,
 			 protocol, tunnel->parms.o_key, htonl(tunnel->o_seqno));
 
-	skb_set_inner_protocol(skb, protocol);
-
 	return ip6_tnl_xmit(skb, dev, dsfield, fl6, encap_limit, pmtu,
 			    NEXTHDR_GRE);
 }
@@ -650,7 +648,6 @@ static int ip6gre_xmit_other(struct sk_buff *skb, struct net_device *dev)
 		encap_limit = t->parms.encap_limit;
 
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
-	fl6.flowi6_proto = skb->protocol;
 
 	err = gre_handle_offloads(skb, !!(t->parms.o_flags & TUNNEL_CSUM));
 	if (err)
@@ -1089,7 +1086,7 @@ static void ip6gre_destroy_tunnels(struct net *net, struct list_head *head)
 
 	for (prio = 0; prio < 4; prio++) {
 		int h;
-		for (h = 0; h < HASH_SIZE; h++) {
+		for (h = 0; h < IP6_GRE_HASH_SIZE; h++) {
 			struct ip6_tnl *t;
 
 			t = rtnl_dereference(ign->tunnels[prio][h]);
@@ -1241,7 +1238,7 @@ static void ip6gre_netlink_parms(struct nlattr *data[],
 		parms->encap_limit = nla_get_u8(data[IFLA_GRE_ENCAP_LIMIT]);
 
 	if (data[IFLA_GRE_FLOWINFO])
-		parms->flowinfo = nla_get_u32(data[IFLA_GRE_FLOWINFO]);
+		parms->flowinfo = nla_get_be32(data[IFLA_GRE_FLOWINFO]);
 
 	if (data[IFLA_GRE_FLAGS])
 		parms->flags = nla_get_u32(data[IFLA_GRE_FLAGS]);

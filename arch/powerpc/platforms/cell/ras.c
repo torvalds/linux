@@ -298,7 +298,7 @@ int cbe_sysreset_hack(void)
 }
 #endif /* CONFIG_PPC_IBM_CELL_RESETBUTTON */
 
-int __init cbe_ptcal_init(void)
+static int __init cbe_ptcal_init(void)
 {
 	int ret;
 	ptcal_start_tok = rtas_token("ibm,cbe-start-ptcal");

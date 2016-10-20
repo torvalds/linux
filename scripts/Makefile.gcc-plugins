@@ -1,0 +1,67 @@
+ifdef CONFIG_GCC_PLUGINS
+  __PLUGINCC := $(call cc-ifversion, -ge, 0408, $(HOSTCXX), $(HOSTCC))
+  PLUGINCC := $(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-plugin.sh "$(__PLUGINCC)" "$(HOSTCXX)" "$(CC)")
+
+  SANCOV_PLUGIN := -fplugin=$(objtree)/scripts/gcc-plugins/sancov_plugin.so
+
+  gcc-plugin-$(CONFIG_GCC_PLUGIN_CYC_COMPLEXITY)	+= cyc_complexity_plugin.so
+
+  gcc-plugin-$(CONFIG_GCC_PLUGIN_LATENT_ENTROPY)	+= latent_entropy_plugin.so
+  gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_LATENT_ENTROPY)	+= -DLATENT_ENTROPY_PLUGIN
+  ifdef CONFIG_PAX_LATENT_ENTROPY
+    DISABLE_LATENT_ENTROPY_PLUGIN			+= -fplugin-arg-latent_entropy_plugin-disable
+  endif
+
+  ifdef CONFIG_GCC_PLUGIN_SANCOV
+    ifeq ($(CFLAGS_KCOV),)
+      # It is needed because of the gcc-plugin.sh and gcc version checks.
+      gcc-plugin-$(CONFIG_GCC_PLUGIN_SANCOV)           += sancov_plugin.so
+
+      ifneq ($(PLUGINCC),)
+        CFLAGS_KCOV := $(SANCOV_PLUGIN)
+      else
+        $(warning warning: cannot use CONFIG_KCOV: -fsanitize-coverage=trace-pc is not supported by compiler)
+      endif
+    endif
+  endif
+
+  GCC_PLUGINS_CFLAGS := $(strip $(addprefix -fplugin=$(objtree)/scripts/gcc-plugins/, $(gcc-plugin-y)) $(gcc-plugin-cflags-y))
+
+  export PLUGINCC GCC_PLUGINS_CFLAGS GCC_PLUGIN GCC_PLUGIN_SUBDIR
+  export SANCOV_PLUGIN DISABLE_LATENT_ENTROPY_PLUGIN
+
+  ifneq ($(PLUGINCC),)
+    # SANCOV_PLUGIN can be only in CFLAGS_KCOV because avoid duplication.
+    GCC_PLUGINS_CFLAGS := $(filter-out $(SANCOV_PLUGIN), $(GCC_PLUGINS_CFLAGS))
+  endif
+
+  KBUILD_CFLAGS += $(GCC_PLUGINS_CFLAGS)
+  GCC_PLUGIN := $(gcc-plugin-y)
+  GCC_PLUGIN_SUBDIR := $(gcc-plugin-subdir-y)
+endif
+
+# If plugins aren't supported, abort the build before hard-to-read compiler
+# errors start getting spewed by the main build.
+PHONY += gcc-plugins-check
+gcc-plugins-check: FORCE
+ifdef CONFIG_GCC_PLUGINS
+  ifeq ($(PLUGINCC),)
+    ifneq ($(GCC_PLUGINS_CFLAGS),)
+      ifeq ($(call cc-ifversion, -ge, 0405, y), y)
+	$(Q)$(srctree)/scripts/gcc-plugin.sh --show-error "$(__PLUGINCC)" "$(HOSTCXX)" "$(CC)" || true
+	@echo "Cannot use CONFIG_GCC_PLUGINS: your gcc installation does not support plugins, perhaps the necessary headers are missing?" >&2 && exit 1
+      else
+	@echo "Cannot use CONFIG_GCC_PLUGINS: your gcc version does not support plugins, you should upgrade it to at least gcc 4.5" >&2 && exit 1
+      endif
+    endif
+  endif
+endif
+	@:
+
+# Actually do the build, if requested.
+PHONY += gcc-plugins
+gcc-plugins: scripts_basic gcc-plugins-check
+ifdef CONFIG_GCC_PLUGINS
+	$(Q)$(MAKE) $(build)=scripts/gcc-plugins
+endif
+	@:

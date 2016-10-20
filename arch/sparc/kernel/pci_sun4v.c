@@ -30,8 +30,19 @@
 #define DRIVER_NAME	"pci_sun4v"
 #define PFX		DRIVER_NAME ": "
 
-static unsigned long vpci_major = 1;
-static unsigned long vpci_minor = 1;
+static unsigned long vpci_major;
+static unsigned long vpci_minor;
+
+struct vpci_version {
+	unsigned long major;
+	unsigned long minor;
+};
+
+/* Ordered from largest major to lowest */
+static struct vpci_version vpci_versions[] = {
+	{ .major = 2, .minor = 0 },
+	{ .major = 1, .minor = 1 },
+};
 
 #define PGLIST_NENTS	(PAGE_SIZE / sizeof(u64))
 
@@ -66,6 +77,10 @@ static long iommu_batch_flush(struct iommu_batch *p)
 	unsigned long entry = p->entry;
 	u64 *pglist = p->pglist;
 	unsigned long npages = p->npages;
+
+	/* VPCI maj=1, min=[0,1] only supports read and write */
+	if (vpci_major < 2)
+		prot &= (HV_PCI_MAP_ATTR_READ | HV_PCI_MAP_ATTR_WRITE);
 
 	while (npages != 0) {
 		long num;
@@ -130,9 +145,10 @@ static inline long iommu_batch_end(void)
 
 static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 				   dma_addr_t *dma_addrp, gfp_t gfp,
-				   struct dma_attrs *attrs)
+				   unsigned long attrs)
 {
 	unsigned long flags, order, first_page, npages, n;
+	unsigned long prot = 0;
 	struct iommu *iommu;
 	struct page *page;
 	void *ret;
@@ -145,6 +161,9 @@ static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 		return NULL;
 
 	npages = size >> IO_PAGE_SHIFT;
+
+	if (attrs & DMA_ATTR_WEAK_ORDERING)
+		prot = HV_PCI_MAP_ATTR_RELAXED_ORDER;
 
 	nid = dev->archdata.numa_node;
 	page = alloc_pages_node(nid, gfp, order);
@@ -169,7 +188,7 @@ static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 	local_irq_save(flags);
 
 	iommu_batch_start(dev,
-			  (HV_PCI_MAP_ATTR_READ |
+			  (HV_PCI_MAP_ATTR_READ | prot |
 			   HV_PCI_MAP_ATTR_WRITE),
 			  entry);
 
@@ -213,7 +232,7 @@ static void dma_4v_iommu_demap(void *demap_arg, unsigned long entry,
 }
 
 static void dma_4v_free_coherent(struct device *dev, size_t size, void *cpu,
-				 dma_addr_t dvma, struct dma_attrs *attrs)
+				 dma_addr_t dvma, unsigned long attrs)
 {
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
@@ -235,7 +254,7 @@ static void dma_4v_free_coherent(struct device *dev, size_t size, void *cpu,
 static dma_addr_t dma_4v_map_page(struct device *dev, struct page *page,
 				  unsigned long offset, size_t sz,
 				  enum dma_data_direction direction,
-				  struct dma_attrs *attrs)
+				  unsigned long attrs)
 {
 	struct iommu *iommu;
 	unsigned long flags, npages, oaddr;
@@ -266,6 +285,9 @@ static dma_addr_t dma_4v_map_page(struct device *dev, struct page *page,
 	if (direction != DMA_TO_DEVICE)
 		prot |= HV_PCI_MAP_ATTR_WRITE;
 
+	if (attrs & DMA_ATTR_WEAK_ORDERING)
+		prot |= HV_PCI_MAP_ATTR_RELAXED_ORDER;
+
 	local_irq_save(flags);
 
 	iommu_batch_start(dev, prot, entry);
@@ -294,7 +316,7 @@ iommu_map_fail:
 
 static void dma_4v_unmap_page(struct device *dev, dma_addr_t bus_addr,
 			      size_t sz, enum dma_data_direction direction,
-			      struct dma_attrs *attrs)
+			      unsigned long attrs)
 {
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
@@ -322,7 +344,7 @@ static void dma_4v_unmap_page(struct device *dev, dma_addr_t bus_addr,
 
 static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
 			 int nelems, enum dma_data_direction direction,
-			 struct dma_attrs *attrs)
+			 unsigned long attrs)
 {
 	struct scatterlist *s, *outs, *segstart;
 	unsigned long flags, handle, prot;
@@ -343,6 +365,9 @@ static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
 	prot = HV_PCI_MAP_ATTR_READ;
 	if (direction != DMA_TO_DEVICE)
 		prot |= HV_PCI_MAP_ATTR_WRITE;
+
+	if (attrs & DMA_ATTR_WEAK_ORDERING)
+		prot |= HV_PCI_MAP_ATTR_RELAXED_ORDER;
 
 	outs = s = segstart = &sglist[0];
 	outcount = 1;
@@ -466,7 +491,7 @@ iommu_map_failed:
 
 static void dma_4v_unmap_sg(struct device *dev, struct scatterlist *sglist,
 			    int nelems, enum dma_data_direction direction,
-			    struct dma_attrs *attrs)
+			    unsigned long attrs)
 {
 	struct pci_pbm_info *pbm;
 	struct scatterlist *sg;
@@ -907,22 +932,27 @@ static int pci_sun4v_probe(struct platform_device *op)
 	struct device_node *dp;
 	struct iommu *iommu;
 	u32 devhandle;
-	int i, err;
+	int i, err = -ENODEV;
 
 	dp = op->dev.of_node;
 
 	if (!hvapi_negotiated++) {
-		err = sun4v_hvapi_register(HV_GRP_PCI,
-					   vpci_major,
-					   &vpci_minor);
+		for (i = 0; i < ARRAY_SIZE(vpci_versions); i++) {
+			vpci_major = vpci_versions[i].major;
+			vpci_minor = vpci_versions[i].minor;
+
+			err = sun4v_hvapi_register(HV_GRP_PCI, vpci_major,
+						   &vpci_minor);
+			if (!err)
+				break;
+		}
 
 		if (err) {
-			printk(KERN_ERR PFX "Could not register hvapi, "
-			       "err=%d\n", err);
+			pr_err(PFX "Could not register hvapi, err=%d\n", err);
 			return err;
 		}
-		printk(KERN_INFO PFX "Registered hvapi major[%lu] minor[%lu]\n",
-		       vpci_major, vpci_minor);
+		pr_info(PFX "Registered hvapi major[%lu] minor[%lu]\n",
+			vpci_major, vpci_minor);
 
 		dma_ops = &sun4v_dma_ops;
 	}

@@ -149,7 +149,7 @@ static unsigned int pcm037_pins[] = {
 	MX31_PIN_CONTRAST__CONTRAST,
 	MX31_PIN_D3_SPL__D3_SPL,
 	MX31_PIN_D3_CLS__D3_CLS,
-	MX31_PIN_LCS0__GPI03_23,
+	MX31_PIN_LCS0__GPIO3_23,
 	/* CSI */
 	IOMUX_MODE(MX31_PIN_CSI_D5, IOMUX_CONFIG_GPIO),
 	MX31_PIN_CSI_D6__CSI_D6,
@@ -576,8 +576,6 @@ static struct regulator_consumer_supply dummy_supplies[] = {
  */
 static void __init pcm037_init(void)
 {
-	int ret;
-
 	imx31_soc_init();
 
 	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
@@ -621,20 +619,6 @@ static void __init pcm037_init(void)
 
 	imx31_add_mxc_w1();
 
-	/* LAN9217 IRQ pin */
-	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1), "lan9217-irq");
-	if (ret)
-		pr_warn("could not get LAN irq gpio\n");
-	else {
-		gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1));
-		smsc911x_resources[1].start =
-			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1));
-		smsc911x_resources[1].end =
-			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1));
-		platform_device_register(&pcm037_eth);
-	}
-
-
 	/* I2C adapters and devices */
 	i2c_register_board_info(1, pcm037_i2c_devices,
 			ARRAY_SIZE(pcm037_i2c_devices));
@@ -643,9 +627,55 @@ static void __init pcm037_init(void)
 	imx31_add_imx_i2c2(&pcm037_i2c2_data);
 
 	imx31_add_mxc_nand(&pcm037_nand_board_info);
-	imx31_add_mxc_mmc(0, &sdhc_pdata);
 	imx31_add_ipu_core();
 	imx31_add_mx3_sdc_fb(&mx3fb_pdata);
+
+	if (otg_mode_host) {
+		otg_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+				ULPI_OTG_DRVVBUS_EXT);
+		if (otg_pdata.otg)
+			imx31_add_mxc_ehci_otg(&otg_pdata);
+	}
+
+	usbh2_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+			ULPI_OTG_DRVVBUS_EXT);
+	if (usbh2_pdata.otg)
+		imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
+
+	if (!otg_mode_host)
+		imx31_add_fsl_usb2_udc(&otg_device_pdata);
+}
+
+static void __init pcm037_timer_init(void)
+{
+	mx31_clocks_init(26000000);
+}
+
+static void __init pcm037_reserve(void)
+{
+	/* reserve 4 MiB for mx3-camera */
+	mx3_camera_base = arm_memblock_steal(MX3_CAMERA_BUF_SIZE,
+			MX3_CAMERA_BUF_SIZE);
+}
+
+static void __init pcm037_init_late(void)
+{
+	int ret;
+
+	/* LAN9217 IRQ pin */
+	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1), "lan9217-irq");
+	if (!ret) {
+		gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1));
+		smsc911x_resources[1].start =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1));
+		smsc911x_resources[1].end =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1));
+		platform_device_register(&pcm037_eth);
+	} else {
+		pr_warn("could not get LAN irq gpio\n");
+	}
+
+	imx31_add_mxc_mmc(0, &sdhc_pdata);
 
 	/* CSI */
 	/* Camera power: default - off */
@@ -663,37 +693,6 @@ static void __init pcm037_init(void)
 			gpio_to_irq(IOMUX_TO_GPIO(IOMUX_PIN(48, 105)));
 	platform_device_register(&pcm970_sja1000);
 
-	if (otg_mode_host) {
-		otg_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
-				ULPI_OTG_DRVVBUS_EXT);
-		if (otg_pdata.otg)
-			imx31_add_mxc_ehci_otg(&otg_pdata);
-	}
-
-	usbh2_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
-			ULPI_OTG_DRVVBUS_EXT);
-	if (usbh2_pdata.otg)
-		imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
-
-	if (!otg_mode_host)
-		imx31_add_fsl_usb2_udc(&otg_device_pdata);
-
-}
-
-static void __init pcm037_timer_init(void)
-{
-	mx31_clocks_init(26000000);
-}
-
-static void __init pcm037_reserve(void)
-{
-	/* reserve 4 MiB for mx3-camera */
-	mx3_camera_base = arm_memblock_steal(MX3_CAMERA_BUF_SIZE,
-			MX3_CAMERA_BUF_SIZE);
-}
-
-static void __init pcm037_init_late(void)
-{
 	pcm037_eet_init_devices();
 }
 

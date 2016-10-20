@@ -47,7 +47,7 @@
 #include <linux/mlx4/qp.h>
 
 #include "mlx4_ib.h"
-#include "user.h"
+#include <rdma/mlx4-abi.h>
 
 static void mlx4_ib_lock_cqs(struct mlx4_ib_cq *send_cq,
 			     struct mlx4_ib_cq *recv_cq);
@@ -2405,6 +2405,22 @@ static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
 	return 0;
 }
 
+static u8 sl_to_vl(struct mlx4_ib_dev *dev, u8 sl, int port_num)
+{
+	union sl2vl_tbl_to_u64 tmp_vltab;
+	u8 vl;
+
+	if (sl > 15)
+		return 0xf;
+	tmp_vltab.sl64 = atomic64_read(&dev->sl2vl[port_num - 1]);
+	vl = tmp_vltab.sl8[sl >> 1];
+	if (sl & 1)
+		vl &= 0x0f;
+	else
+		vl >>= 4;
+	return vl;
+}
+
 #define MLX4_ROCEV2_QP1_SPORT 0xC000
 static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 			    void *wqe, unsigned *mlx_seg_len)
@@ -2493,24 +2509,27 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 		sqp->ud_header.grh.flow_label    =
 			ah->av.ib.sl_tclass_flowlabel & cpu_to_be32(0xfffff);
 		sqp->ud_header.grh.hop_limit     = ah->av.ib.hop_limit;
-		if (is_eth)
+		if (is_eth) {
 			memcpy(sqp->ud_header.grh.source_gid.raw, sgid.raw, 16);
-		else {
-		if (mlx4_is_mfunc(to_mdev(ib_dev)->dev)) {
-			/* When multi-function is enabled, the ib_core gid
-			 * indexes don't necessarily match the hw ones, so
-			 * we must use our own cache */
-			sqp->ud_header.grh.source_gid.global.subnet_prefix =
-				to_mdev(ib_dev)->sriov.demux[sqp->qp.port - 1].
-						       subnet_prefix;
-			sqp->ud_header.grh.source_gid.global.interface_id =
-				to_mdev(ib_dev)->sriov.demux[sqp->qp.port - 1].
-					       guid_cache[ah->av.ib.gid_index];
-		} else
-			ib_get_cached_gid(ib_dev,
-					  be32_to_cpu(ah->av.ib.port_pd) >> 24,
-					  ah->av.ib.gid_index,
-					  &sqp->ud_header.grh.source_gid, NULL);
+		} else {
+			if (mlx4_is_mfunc(to_mdev(ib_dev)->dev)) {
+				/* When multi-function is enabled, the ib_core gid
+				 * indexes don't necessarily match the hw ones, so
+				 * we must use our own cache
+				 */
+				sqp->ud_header.grh.source_gid.global.subnet_prefix =
+					cpu_to_be64(atomic64_read(&(to_mdev(ib_dev)->sriov.
+								    demux[sqp->qp.port - 1].
+								    subnet_prefix)));
+				sqp->ud_header.grh.source_gid.global.interface_id =
+					to_mdev(ib_dev)->sriov.demux[sqp->qp.port - 1].
+						       guid_cache[ah->av.ib.gid_index];
+			} else {
+				ib_get_cached_gid(ib_dev,
+						  be32_to_cpu(ah->av.ib.port_pd) >> 24,
+						  ah->av.ib.gid_index,
+						  &sqp->ud_header.grh.source_gid, NULL);
+			}
 		}
 		memcpy(sqp->ud_header.grh.destination_gid.raw,
 		       ah->av.ib.dgid, 16);
@@ -2587,7 +2606,12 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 			sqp->ud_header.vlan.tag = cpu_to_be16(vlan | pcp);
 		}
 	} else {
-		sqp->ud_header.lrh.virtual_lane    = !sqp->qp.ibqp.qp_num ? 15 : 0;
+		sqp->ud_header.lrh.virtual_lane    = !sqp->qp.ibqp.qp_num ? 15 :
+							sl_to_vl(to_mdev(ib_dev),
+								 sqp->ud_header.lrh.service_level,
+								 sqp->qp.port);
+		if (sqp->qp.ibqp.qp_num && sqp->ud_header.lrh.virtual_lane == 15)
+			return -EINVAL;
 		if (sqp->ud_header.lrh.destination_lid == IB_LID_PERMISSIVE)
 			sqp->ud_header.lrh.source_lid = IB_LID_PERMISSIVE;
 	}

@@ -167,6 +167,8 @@ signal will be rolled back anyway.
 For signals taken in non-TM or suspended mode, we use the
 normal/non-checkpointed stack pointer.
 
+Any transaction initiated inside a sighandler and suspended on return
+from the sighandler to the kernel will get reclaimed and discarded.
 
 Failure cause codes used by kernel
 ==================================

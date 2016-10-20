@@ -37,13 +37,14 @@ MODULE_SUPPORTED_DEVICE("dgnc");
  *
  */
 static int		dgnc_start(void);
-static int		dgnc_finalize_board_init(struct dgnc_board *brd);
-static int		dgnc_found_board(struct pci_dev *pdev, int id);
+static int dgnc_request_irq(struct dgnc_board *brd);
+static void dgnc_free_irq(struct dgnc_board *brd);
+static struct dgnc_board *dgnc_found_board(struct pci_dev *pdev, int id);
 static void		dgnc_cleanup_board(struct dgnc_board *brd);
 static void		dgnc_poll_handler(ulong dummy);
 static int		dgnc_init_one(struct pci_dev *pdev,
 				      const struct pci_device_id *ent);
-static void		dgnc_do_remap(struct dgnc_board *brd);
+static int		dgnc_do_remap(struct dgnc_board *brd);
 
 /*
  * File operations permitted on Control/Management major.
@@ -146,7 +147,7 @@ static void cleanup(bool sysfiles)
 
 	for (i = 0; i < dgnc_num_boards; ++i) {
 		dgnc_remove_ports_sysfiles(dgnc_board[i]);
-		dgnc_tty_uninit(dgnc_board[i]);
+		dgnc_cleanup_tty(dgnc_board[i]);
 		dgnc_cleanup_board(dgnc_board[i]);
 	}
 
@@ -158,7 +159,7 @@ static void cleanup(bool sysfiles)
  *
  * Module unload.  This is where it all ends.
  */
-static void dgnc_cleanup_module(void)
+static void __exit dgnc_cleanup_module(void)
 {
 	cleanup(true);
 	pci_unregister_driver(&dgnc_driver);
@@ -274,6 +275,7 @@ failed_class:
 static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int rc;
+	struct dgnc_board *brd;
 
 	/* wake up and enable device */
 	rc = pci_enable_device(pdev);
@@ -281,9 +283,48 @@ static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return -EIO;
 
-	rc = dgnc_found_board(pdev, ent->driver_data);
-	if (rc == 0)
-		dgnc_num_boards++;
+	brd = dgnc_found_board(pdev, ent->driver_data);
+	if (IS_ERR(brd))
+		return PTR_ERR(brd);
+
+	/*
+	 * Do tty device initialization.
+	 */
+
+	rc = dgnc_tty_register(brd);
+	if (rc < 0) {
+		pr_err(DRVSTR ": Can't register tty devices (%d)\n", rc);
+		goto failed;
+	}
+
+	rc = dgnc_request_irq(brd);
+	if (rc < 0) {
+		pr_err(DRVSTR ": Can't finalize board init (%d)\n", rc);
+		goto unregister_tty;
+	}
+
+	rc = dgnc_tty_init(brd);
+	if (rc < 0) {
+		pr_err(DRVSTR ": Can't init tty devices (%d)\n", rc);
+		goto free_irq;
+	}
+
+	brd->state = BOARD_READY;
+	brd->dpastatus = BD_RUNNING;
+
+	dgnc_create_ports_sysfiles(brd);
+
+	dgnc_board[dgnc_num_boards++] = brd;
+
+	return 0;
+
+free_irq:
+	dgnc_free_irq(brd);
+unregister_tty:
+	dgnc_tty_unregister(brd);
+
+failed:
+	kfree(brd);
 
 	return rc;
 }
@@ -324,17 +365,6 @@ static void dgnc_cleanup_board(struct dgnc_board *brd)
 		brd->re_map_membase = NULL;
 	}
 
-	if (brd->msgbuf_head) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&dgnc_global_lock, flags);
-		brd->msgbuf = NULL;
-		dev_dbg(&brd->pdev->dev, "%s\n", brd->msgbuf_head);
-		kfree(brd->msgbuf_head);
-		brd->msgbuf_head = NULL;
-		spin_unlock_irqrestore(&dgnc_global_lock, flags);
-	}
-
 	/* Free all allocated channels structs */
 	for (i = 0; i < MAXPORTS ; i++) {
 		if (brd->channels[i]) {
@@ -356,29 +386,17 @@ static void dgnc_cleanup_board(struct dgnc_board *brd)
  *
  * A board has been found, init it.
  */
-static int dgnc_found_board(struct pci_dev *pdev, int id)
+static struct dgnc_board *dgnc_found_board(struct pci_dev *pdev, int id)
 {
 	struct dgnc_board *brd;
 	unsigned int pci_irq;
 	int i = 0;
 	int rc = 0;
-	unsigned long flags;
 
 	/* get the board structure and prep it */
-	dgnc_board[dgnc_num_boards] = kzalloc(sizeof(*brd), GFP_KERNEL);
-	brd = dgnc_board[dgnc_num_boards];
-
+	brd = kzalloc(sizeof(*brd), GFP_KERNEL);
 	if (!brd)
-		return -ENOMEM;
-
-	/* make a temporary message buffer for the boot messages */
-	brd->msgbuf_head = kcalloc(8192, sizeof(u8), GFP_KERNEL);
-	brd->msgbuf = brd->msgbuf_head;
-
-	if (!brd->msgbuf) {
-		kfree(brd);
-		return -ENOMEM;
-	}
+		return ERR_PTR(-ENOMEM);
 
 	/* store the info for the board we've found */
 	brd->magic = DGNC_BOARD_MAGIC;
@@ -399,9 +417,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	spin_lock_init(&brd->bd_intr_lock);
 
 	brd->state		= BOARD_FOUND;
-
-	for (i = 0; i < MAXPORTS; i++)
-		brd->channels[i] = NULL;
 
 	/* store which card & revision we have */
 	pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, &brd->subvendor);
@@ -435,7 +450,8 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		if (!brd->membase) {
 			dev_err(&brd->pdev->dev,
 				"Card has no PCI IO resources, failing.\n");
-			return -ENODEV;
+			rc = -ENODEV;
+			goto failed;
 		}
 
 		brd->membase_end = pci_resource_end(pdev, 4);
@@ -455,7 +471,10 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		brd->bd_uart_offset = 0x8;
 		brd->bd_dividend = 921600;
 
-		dgnc_do_remap(brd);
+		rc = dgnc_do_remap(brd);
+
+		if (rc < 0)
+			goto failed;
 
 		/* Get and store the board VPD, if it exists */
 		brd->bd_ops->vpd(brd);
@@ -507,80 +526,44 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		brd->bd_uart_offset = 0x200;
 		brd->bd_dividend = 921600;
 
-		dgnc_do_remap(brd);
+		rc = dgnc_do_remap(brd);
 
-		if (brd->re_map_membase) {
-			/* Read and store the dvid after remapping */
-			brd->dvid = readb(brd->re_map_membase + 0x8D);
+		if (rc < 0)
+			goto failed;
 
-			/* Get and store the board VPD, if it exists */
-			brd->bd_ops->vpd(brd);
-		}
+		/* Read and store the dvid after remapping */
+		brd->dvid = readb(brd->re_map_membase + 0x8D);
+
+		/* Get and store the board VPD, if it exists */
+		brd->bd_ops->vpd(brd);
+
 		break;
 
 	default:
 		dev_err(&brd->pdev->dev,
 			"Didn't find any compatible Neo/Classic PCI boards.\n");
-		return -ENXIO;
-	}
-
-	/*
-	 * Do tty device initialization.
-	 */
-
-	rc = dgnc_tty_register(brd);
-	if (rc < 0) {
-		pr_err(DRVSTR ": Can't register tty devices (%d)\n", rc);
+		rc = -ENXIO;
 		goto failed;
 	}
-
-	rc = dgnc_finalize_board_init(brd);
-	if (rc < 0) {
-		pr_err(DRVSTR ": Can't finalize board init (%d)\n", rc);
-		goto failed;
-	}
-
-	rc = dgnc_tty_init(brd);
-	if (rc < 0) {
-		pr_err(DRVSTR ": Can't init tty devices (%d)\n", rc);
-		goto failed;
-	}
-
-	brd->state = BOARD_READY;
-	brd->dpastatus = BD_RUNNING;
-
-	dgnc_create_ports_sysfiles(brd);
 
 	/* init our poll helper tasklet */
 	tasklet_init(&brd->helper_tasklet,
 		     brd->bd_ops->tasklet,
 		     (unsigned long)brd);
 
-	spin_lock_irqsave(&dgnc_global_lock, flags);
-	brd->msgbuf = NULL;
-	dev_dbg(&brd->pdev->dev, "%s\n", brd->msgbuf_head);
-	kfree(brd->msgbuf_head);
-	brd->msgbuf_head = NULL;
-	spin_unlock_irqrestore(&dgnc_global_lock, flags);
-
 	wake_up_interruptible(&brd->state_wait);
 
-	return 0;
+	return brd;
 
 failed:
-	dgnc_tty_uninit(brd);
-	brd->state = BOARD_FAILED;
-	brd->dpastatus = BD_NOFEP;
+	kfree(brd);
 
-	return -ENXIO;
+	return ERR_PTR(rc);
 }
 
-static int dgnc_finalize_board_init(struct dgnc_board *brd)
+static int dgnc_request_irq(struct dgnc_board *brd)
 {
 	int rc = 0;
-
-	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
-		return -ENODEV;
 
 	if (brd->irq) {
 		rc = request_irq(brd->irq, brd->bd_ops->intr,
@@ -597,42 +580,51 @@ static int dgnc_finalize_board_init(struct dgnc_board *brd)
 	return rc;
 }
 
+static void dgnc_free_irq(struct dgnc_board *brd)
+{
+	if (brd->irq)
+		free_irq(brd->irq, brd);
+}
+
 /*
  * Remap PCI memory.
  */
-static void dgnc_do_remap(struct dgnc_board *brd)
+static int dgnc_do_remap(struct dgnc_board *brd)
 {
-	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
-		return;
+	int rc = 0;
 
 	brd->re_map_membase = ioremap(brd->membase, 0x1000);
+	if (!brd->re_map_membase)
+		rc = -ENOMEM;
+
+	return rc;
 }
 
-/*****************************************************************************
-*
-* Function:
-*
-*    dgnc_poll_handler
-*
-* Author:
-*
-*    Scott H Kilau
-*
-* Parameters:
-*
-*    dummy -- ignored
-*
-* Return Values:
-*
-*    none
-*
-* Description:
-*
-*    As each timer expires, it determines (a) whether the "transmit"
-*    waiter needs to be woken up, and (b) whether the poller needs to
-*    be rescheduled.
-*
-******************************************************************************/
+/*
+ *
+ * Function:
+ *
+ *    dgnc_poll_handler
+ *
+ * Author:
+ *
+ *    Scott H Kilau
+ *
+ * Parameters:
+ *
+ *    dummy -- ignored
+ *
+ * Return Values:
+ *
+ *    none
+ *
+ * Description:
+ *
+ *    As each timer expires, it determines (a) whether the "transmit"
+ *    waiter needs to be woken up, and (b) whether the poller needs to
+ *    be rescheduled.
+ *
+ */
 
 static void dgnc_poll_handler(ulong dummy)
 {

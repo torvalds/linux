@@ -16,6 +16,6 @@ struct netns_nf {
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header *nf_log_dir_header;
 #endif
-	struct list_head hooks[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
+	struct nf_hook_entry __rcu *hooks[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 };
 #endif

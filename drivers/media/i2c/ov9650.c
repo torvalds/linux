@@ -23,6 +23,7 @@
 #include <linux/videodev2.h>
 
 #include <media/media-entity.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
@@ -1520,6 +1521,10 @@ static int ov965x_probe(struct i2c_client *client,
 	/* Update exposure time min/max to match frame format */
 	ov965x_update_exposure_ctrl(ov965x);
 
+	ret = v4l2_async_register_subdev(sd);
+	if (ret < 0)
+		goto err_ctrls;
+
 	return 0;
 err_ctrls:
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
@@ -1532,7 +1537,7 @@ static int ov965x_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
-	v4l2_device_unregister_subdev(sd);
+	v4l2_async_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	media_entity_cleanup(&sd->entity);
 

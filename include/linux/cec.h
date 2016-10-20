@@ -364,7 +364,7 @@ struct cec_caps {
  * @num_log_addrs: how many logical addresses should be claimed. Set by the
  *	caller.
  * @vendor_id: the vendor ID of the device. Set by the caller.
- * @flags: set to 0.
+ * @flags: flags.
  * @osd_name: the OSD name of the device. Set by the caller.
  * @primary_device_type: the primary device type for each logical address.
  *	Set by the caller.
@@ -388,6 +388,9 @@ struct cec_log_addrs {
 	__u8 all_device_types[CEC_MAX_LOG_ADDRS];
 	__u8 features[CEC_MAX_LOG_ADDRS][12];
 };
+
+/* Allow a fallback to unregistered */
+#define CEC_LOG_ADDRS_FL_ALLOW_UNREG_FALLBACK	(1 << 0)
 
 /* Events */
 

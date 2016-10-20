@@ -50,7 +50,7 @@ DEFINE_PER_CPU(struct vcpu_info *, xen_vcpu);
 static struct vcpu_info __percpu *xen_vcpu_info;
 
 /* Linux <-> Xen vCPU id mapping */
-DEFINE_PER_CPU(int, xen_vcpu_id) = -1;
+DEFINE_PER_CPU(uint32_t, xen_vcpu_id);
 EXPORT_PER_CPU_SYMBOL(xen_vcpu_id);
 
 /* These are unused until we support booting "pre-ballooned" */
@@ -153,12 +153,11 @@ static struct notifier_block xen_pvclock_gtod_notifier = {
 	.notifier_call = xen_pvclock_gtod_notify,
 };
 
-static void xen_percpu_init(void)
+static int xen_starting_cpu(unsigned int cpu)
 {
 	struct vcpu_register_vcpu_info info;
 	struct vcpu_info *vcpup;
 	int err;
-	int cpu = get_cpu();
 
 	/* 
 	 * VCPUOP_register_vcpu_info cannot be called twice for the same
@@ -170,9 +169,6 @@ static void xen_percpu_init(void)
 
 	pr_info("Xen: initializing cpu%d\n", cpu);
 	vcpup = per_cpu_ptr(xen_vcpu_info, cpu);
-
-	/* Direct vCPU id mapping for ARM guests. */
-	per_cpu(xen_vcpu_id, cpu) = cpu;
 
 	info.mfn = virt_to_gfn(vcpup);
 	info.offset = xen_offset_in_page(vcpup);
@@ -186,7 +182,13 @@ static void xen_percpu_init(void)
 
 after_register_vcpu_info:
 	enable_percpu_irq(xen_events_irq, 0);
-	put_cpu();
+	return 0;
+}
+
+static int xen_dying_cpu(unsigned int cpu)
+{
+	disable_percpu_irq(xen_events_irq);
+	return 0;
 }
 
 static void xen_restart(enum reboot_mode reboot_mode, const char *cmd)
@@ -204,28 +206,6 @@ static void xen_power_off(void)
 	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
 	BUG_ON(rc);
 }
-
-static int xen_cpu_notification(struct notifier_block *self,
-				unsigned long action,
-				void *hcpu)
-{
-	switch (action) {
-	case CPU_STARTING:
-		xen_percpu_init();
-		break;
-	case CPU_DYING:
-		disable_percpu_irq(xen_events_irq);
-		break;
-	default:
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block xen_cpu_notifier = {
-	.notifier_call = xen_cpu_notification,
-};
 
 static irqreturn_t xen_arm_callback(int irq, void *arg)
 {
@@ -347,6 +327,7 @@ static int __init xen_guest_init(void)
 {
 	struct xen_add_to_physmap xatp;
 	struct shared_info *shared_info_page = NULL;
+	int cpu;
 
 	if (!xen_domain())
 		return 0;
@@ -397,7 +378,8 @@ static int __init xen_guest_init(void)
 		return -ENOMEM;
 
 	/* Direct vCPU id mapping for ARM guests. */
-	per_cpu(xen_vcpu_id, 0) = 0;
+	for_each_possible_cpu(cpu)
+		per_cpu(xen_vcpu_id, cpu) = cpu;
 
 	xen_auto_xlat_grant_frames.count = gnttab_max_grant_frames();
 	if (xen_xlate_map_ballooned_pages(&xen_auto_xlat_grant_frames.pfn,
@@ -425,16 +407,14 @@ static int __init xen_guest_init(void)
 		return -EINVAL;
 	}
 
-	xen_percpu_init();
-
-	register_cpu_notifier(&xen_cpu_notifier);
-
 	xen_time_setup_guest();
 
 	if (xen_initial_domain())
 		pvclock_gtod_register_notifier(&xen_pvclock_gtod_notifier);
 
-	return 0;
+	return cpuhp_setup_state(CPUHP_AP_ARM_XEN_STARTING,
+				 "AP_ARM_XEN_STARTING", xen_starting_cpu,
+				 xen_dying_cpu);
 }
 early_initcall(xen_guest_init);
 

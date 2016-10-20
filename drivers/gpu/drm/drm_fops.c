@@ -40,6 +40,7 @@
 #include <linux/module.h>
 #include "drm_legacy.h"
 #include "drm_internal.h"
+#include "drm_crtc_internal.h"
 
 /* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);
@@ -67,7 +68,7 @@ DEFINE_MUTEX(drm_global_mutex);
  * specific implementations. For GEM-based drivers this is drm_gem_mmap().
  *
  * No other file operations are supported by the DRM userspace API. Overall the
- * following is an example #file_operations structure:
+ * following is an example #file_operations structure::
  *
  *     static const example_drm_fops = {
  *             .owner = THIS_MODULE,
@@ -91,7 +92,7 @@ static int drm_setup(struct drm_device * dev)
 	int ret;
 
 	if (dev->driver->firstopen &&
-	    !drm_core_check_feature(dev, DRIVER_MODESET)) {
+	    drm_core_check_feature(dev, DRIVER_LEGACY)) {
 		ret = dev->driver->firstopen(dev);
 		if (ret != 0)
 			return ret;
@@ -168,60 +169,6 @@ static int drm_cpu_valid(void)
 }
 
 /*
- * drm_new_set_master - Allocate a new master object and become master for the
- * associated master realm.
- *
- * @dev: The associated device.
- * @fpriv: File private identifying the client.
- *
- * This function must be called with dev::struct_mutex held.
- * Returns negative error code on failure. Zero on success.
- */
-int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
-{
-	struct drm_master *old_master;
-	int ret;
-
-	lockdep_assert_held_once(&dev->master_mutex);
-
-	/* create a new master */
-	fpriv->minor->master = drm_master_create(fpriv->minor);
-	if (!fpriv->minor->master)
-		return -ENOMEM;
-
-	/* take another reference for the copy in the local file priv */
-	old_master = fpriv->master;
-	fpriv->master = drm_master_get(fpriv->minor->master);
-
-	if (dev->driver->master_create) {
-		ret = dev->driver->master_create(dev, fpriv->master);
-		if (ret)
-			goto out_err;
-	}
-	if (dev->driver->master_set) {
-		ret = dev->driver->master_set(dev, fpriv, true);
-		if (ret)
-			goto out_err;
-	}
-
-	fpriv->is_master = 1;
-	fpriv->allowed_master = 1;
-	fpriv->authenticated = 1;
-	if (old_master)
-		drm_master_put(&old_master);
-
-	return 0;
-
-out_err:
-	/* drop both references and restore old master on failure */
-	drm_master_put(&fpriv->minor->master);
-	drm_master_put(&fpriv->master);
-	fpriv->master = old_master;
-
-	return ret;
-}
-
-/*
  * Called whenever a process opens /dev/drm.
  *
  * \param filp file pointer.
@@ -252,7 +199,6 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 
 	filp->private_data = priv;
 	priv->filp = filp;
-	priv->uid = current_euid();
 	priv->pid = get_pid(task_pid(current));
 	priv->minor = minor;
 
@@ -283,19 +229,11 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 			goto out_prime_destroy;
 	}
 
-	/* if there is no current master make this fd it, but do not create
-	 * any master object for render clients */
-	mutex_lock(&dev->master_mutex);
-	if (drm_is_primary_client(priv) && !priv->minor->master) {
-		/* create a new master */
-		ret = drm_new_set_master(dev, priv);
+	if (drm_is_primary_client(priv)) {
+		ret = drm_master_open(priv);
 		if (ret)
 			goto out_close;
-	} else if (drm_is_primary_client(priv)) {
-		/* get a reference to the master */
-		priv->master = drm_master_get(priv->minor->master);
 	}
-	mutex_unlock(&dev->master_mutex);
 
 	mutex_lock(&dev->filelist_mutex);
 	list_add(&priv->lhead, &dev->filelist);
@@ -324,7 +262,6 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	return 0;
 
 out_close:
-	mutex_unlock(&dev->master_mutex);
 	if (dev->driver->postclose)
 		dev->driver->postclose(dev, priv);
 out_prime_destroy:
@@ -336,18 +273,6 @@ out_prime_destroy:
 	kfree(priv);
 	filp->private_data = NULL;
 	return ret;
-}
-
-static void drm_master_release(struct drm_device *dev, struct file *filp)
-{
-	struct drm_file *file_priv = filp->private_data;
-
-	if (drm_legacy_i_have_hw_lock(dev, file_priv)) {
-		DRM_DEBUG("File %p released, freeing lock for context %d\n",
-			  filp, _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
-		drm_legacy_lock_free(&file_priv->master->lock,
-				     _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
-	}
 }
 
 static void drm_events_release(struct drm_file *file_priv)
@@ -368,7 +293,7 @@ static void drm_events_release(struct drm_file *file_priv)
 	/* Remove unconsumed events */
 	list_for_each_entry_safe(e, et, &file_priv->event_list, link) {
 		list_del(&e->link);
-		e->destroy(e);
+		kfree(e);
 	}
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
@@ -420,7 +345,7 @@ void drm_lastclose(struct drm_device * dev)
 		dev->driver->lastclose(dev);
 	DRM_DEBUG("driver lastclose completed\n");
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+	if (drm_core_check_feature(dev, DRIVER_LEGACY))
 		drm_legacy_dev_reinit(dev);
 }
 
@@ -451,11 +376,6 @@ int drm_release(struct inode *inode, struct file *filp)
 	list_del(&file_priv->lhead);
 	mutex_unlock(&dev->filelist_mutex);
 
-	mutex_lock(&dev->struct_mutex);
-	if (file_priv->magic)
-		idr_remove(&file_priv->master->magic_map, file_priv->magic);
-	mutex_unlock(&dev->struct_mutex);
-
 	if (dev->driver->preclose)
 		dev->driver->preclose(dev, file_priv);
 
@@ -468,9 +388,8 @@ int drm_release(struct inode *inode, struct file *filp)
 		  (long)old_encode_dev(file_priv->minor->kdev->devt),
 		  dev->open_count);
 
-	/* if the master has gone away we can't do anything with the lock */
-	if (file_priv->minor->master)
-		drm_master_release(dev, filp);
+	if (drm_core_check_feature(dev, DRIVER_LEGACY))
+		drm_legacy_lock_release(dev, filp);
 
 	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA))
 		drm_legacy_reclaim_buffers(dev, file_priv);
@@ -487,42 +406,11 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	drm_legacy_ctxbitmap_flush(dev, file_priv);
 
-	mutex_lock(&dev->master_mutex);
-
-	if (file_priv->is_master) {
-		struct drm_master *master = file_priv->master;
-
-		/*
-		 * Since the master is disappearing, so is the
-		 * possibility to lock.
-		 */
-		mutex_lock(&dev->struct_mutex);
-		if (master->lock.hw_lock) {
-			if (dev->sigdata.lock == master->lock.hw_lock)
-				dev->sigdata.lock = NULL;
-			master->lock.hw_lock = NULL;
-			master->lock.file_priv = NULL;
-			wake_up_interruptible_all(&master->lock.lock_queue);
-		}
-		mutex_unlock(&dev->struct_mutex);
-
-		if (file_priv->minor->master == file_priv->master) {
-			/* drop the reference held my the minor */
-			if (dev->driver->master_drop)
-				dev->driver->master_drop(dev, file_priv, true);
-			drm_master_put(&file_priv->minor->master);
-		}
-	}
-
-	/* drop the master reference held by the file priv */
-	if (file_priv->master)
-		drm_master_put(&file_priv->master);
-	file_priv->is_master = 0;
-	mutex_unlock(&dev->master_mutex);
+	if (drm_is_primary_client(file_priv))
+		drm_master_release(file_priv);
 
 	if (dev->driver->postclose)
 		dev->driver->postclose(dev, file_priv);
-
 
 	if (drm_core_check_feature(dev, DRIVER_PRIME))
 		drm_prime_destroy_file_private(&file_priv->prime);
@@ -636,7 +524,7 @@ put_back_event:
 			}
 
 			ret += length;
-			e->destroy(e);
+			kfree(e);
 		}
 	}
 	mutex_unlock(&file_priv->event_read_lock);
@@ -713,9 +601,6 @@ int drm_event_reserve_init_locked(struct drm_device *dev,
 	list_add(&p->pending_link, &file_priv->pending_event_list);
 	p->file_priv = file_priv;
 
-	/* we *could* pass this in as arg, but everyone uses kfree: */
-	p->destroy = (void (*) (struct drm_pending_event *)) kfree;
-
 	return 0;
 }
 EXPORT_SYMBOL(drm_event_reserve_init_locked);
@@ -778,7 +663,7 @@ void drm_event_cancel_free(struct drm_device *dev,
 		list_del(&p->pending_link);
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
-	p->destroy(p);
+	kfree(p);
 }
 EXPORT_SYMBOL(drm_event_cancel_free);
 
@@ -800,8 +685,19 @@ void drm_send_event_locked(struct drm_device *dev, struct drm_pending_event *e)
 {
 	assert_spin_locked(&dev->event_lock);
 
+	if (e->completion) {
+		/* ->completion might disappear as soon as it signalled. */
+		complete_all(e->completion);
+		e->completion = NULL;
+	}
+
+	if (e->fence) {
+		fence_signal(e->fence);
+		fence_put(e->fence);
+	}
+
 	if (!e->file_priv) {
-		e->destroy(e);
+		kfree(e);
 		return;
 	}
 

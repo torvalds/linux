@@ -105,9 +105,9 @@ static struct clocksource msm_clocksource = {
 static int msm_timer_irq;
 static int msm_timer_has_ppi;
 
-static int msm_local_timer_setup(struct clock_event_device *evt)
+static int msm_local_timer_starting_cpu(unsigned int cpu)
 {
-	int cpu = smp_processor_id();
+	struct clock_event_device *evt = per_cpu_ptr(msm_evt, cpu);
 	int err;
 
 	evt->irq = msm_timer_irq;
@@ -135,34 +135,14 @@ static int msm_local_timer_setup(struct clock_event_device *evt)
 	return 0;
 }
 
-static void msm_local_timer_stop(struct clock_event_device *evt)
+static int msm_local_timer_dying_cpu(unsigned int cpu)
 {
+	struct clock_event_device *evt = per_cpu_ptr(msm_evt, cpu);
+
 	evt->set_state_shutdown(evt);
 	disable_percpu_irq(evt->irq);
+	return 0;
 }
-
-static int msm_timer_cpu_notify(struct notifier_block *self,
-					   unsigned long action, void *hcpu)
-{
-	/*
-	 * Grab cpu pointer in each case to avoid spurious
-	 * preemptible warnings
-	 */
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_STARTING:
-		msm_local_timer_setup(this_cpu_ptr(msm_evt));
-		break;
-	case CPU_DYING:
-		msm_local_timer_stop(this_cpu_ptr(msm_evt));
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block msm_timer_cpu_nb = {
-	.notifier_call = msm_timer_cpu_notify,
-};
 
 static u64 notrace msm_sched_clock_read(void)
 {
@@ -200,14 +180,15 @@ static int __init msm_timer_init(u32 dgt_hz, int sched_bits, int irq,
 	if (res) {
 		pr_err("request_percpu_irq failed\n");
 	} else {
-		res = register_cpu_notifier(&msm_timer_cpu_nb);
+		/* Install and invoke hotplug callbacks */
+		res = cpuhp_setup_state(CPUHP_AP_QCOM_TIMER_STARTING,
+					"AP_QCOM_TIMER_STARTING",
+					msm_local_timer_starting_cpu,
+					msm_local_timer_dying_cpu);
 		if (res) {
 			free_percpu_irq(irq, msm_evt);
 			goto err;
 		}
-
-		/* Immediately configure the timer on the boot CPU */
-		msm_local_timer_setup(raw_cpu_ptr(msm_evt));
 	}
 
 err:

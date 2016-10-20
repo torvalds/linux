@@ -76,7 +76,8 @@ void req_capsule_init(struct req_capsule *pill, struct ptlrpc_request *req,
 void req_capsule_fini(struct req_capsule *pill);
 
 void req_capsule_set(struct req_capsule *pill, const struct req_format *fmt);
-int req_capsule_filled_sizes(struct req_capsule *pill, enum req_location loc);
+size_t req_capsule_filled_sizes(struct req_capsule *pill,
+				enum req_location loc);
 int  req_capsule_server_pack(struct req_capsule *pill);
 
 void *req_capsule_client_get(struct req_capsule *pill,
@@ -86,27 +87,27 @@ void *req_capsule_client_swab_get(struct req_capsule *pill,
 				  void *swabber);
 void *req_capsule_client_sized_get(struct req_capsule *pill,
 				   const struct req_msg_field *field,
-				   int len);
+				   u32 len);
 void *req_capsule_server_get(struct req_capsule *pill,
 			     const struct req_msg_field *field);
 void *req_capsule_server_sized_get(struct req_capsule *pill,
 				   const struct req_msg_field *field,
-				   int len);
+				   u32 len);
 void *req_capsule_server_swab_get(struct req_capsule *pill,
 				  const struct req_msg_field *field,
 				  void *swabber);
 void *req_capsule_server_sized_swab_get(struct req_capsule *pill,
 					const struct req_msg_field *field,
-					int len, void *swabber);
+					u32 len, void *swabber);
 
 void req_capsule_set_size(struct req_capsule *pill,
 			  const struct req_msg_field *field,
-			  enum req_location loc, int size);
-int req_capsule_get_size(const struct req_capsule *pill,
+			  enum req_location loc, u32 size);
+u32 req_capsule_get_size(const struct req_capsule *pill,
 			 const struct req_msg_field *field,
 			 enum req_location loc);
-int req_capsule_msg_size(struct req_capsule *pill, enum req_location loc);
-int req_capsule_fmt_size(__u32 magic, const struct req_format *fmt,
+u32 req_capsule_msg_size(struct req_capsule *pill, enum req_location loc);
+u32 req_capsule_fmt_size(__u32 magic, const struct req_format *fmt,
 			 enum req_location loc);
 void req_capsule_extend(struct req_capsule *pill, const struct req_format *fmt);
 
@@ -115,8 +116,7 @@ int req_capsule_has_field(const struct req_capsule *pill,
 			  enum req_location loc);
 void req_capsule_shrink(struct req_capsule *pill,
 			const struct req_msg_field *field,
-			unsigned int newlen,
-			enum req_location loc);
+			u32 newlen, enum req_location loc);
 int  req_layout_init(void);
 void req_layout_fini(void);
 
@@ -149,14 +149,11 @@ extern struct req_format RQF_MDS_GETATTR;
 extern struct req_format RQF_MDS_GETATTR_NAME;
 extern struct req_format RQF_MDS_CLOSE;
 extern struct req_format RQF_MDS_RELEASE_CLOSE;
-extern struct req_format RQF_MDS_PIN;
-extern struct req_format RQF_MDS_UNPIN;
 extern struct req_format RQF_MDS_CONNECT;
 extern struct req_format RQF_MDS_DISCONNECT;
 extern struct req_format RQF_MDS_GET_INFO;
 extern struct req_format RQF_MDS_READPAGE;
 extern struct req_format RQF_MDS_WRITEPAGE;
-extern struct req_format RQF_MDS_IS_SUBDIR;
 extern struct req_format RQF_MDS_DONE_WRITING;
 extern struct req_format RQF_MDS_REINT;
 extern struct req_format RQF_MDS_REINT_CREATE;

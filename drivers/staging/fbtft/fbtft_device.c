@@ -32,20 +32,20 @@ static char *name;
 module_param(name, charp, 0);
 MODULE_PARM_DESC(name, "Devicename (required). name=list => list all supported devices.");
 
-static unsigned rotate;
+static unsigned int rotate;
 module_param(rotate, uint, 0);
 MODULE_PARM_DESC(rotate,
 "Angle to rotate display counter clockwise: 0, 90, 180, 270");
 
-static unsigned busnum;
+static unsigned int busnum;
 module_param(busnum, uint, 0);
 MODULE_PARM_DESC(busnum, "SPI bus number (default=0)");
 
-static unsigned cs;
+static unsigned int cs;
 module_param(cs, uint, 0);
 MODULE_PARM_DESC(cs, "SPI chip select (default=0)");
 
-static unsigned speed;
+static unsigned int speed;
 module_param(speed, uint, 0);
 MODULE_PARM_DESC(speed, "SPI speed (override device default)");
 
@@ -58,7 +58,7 @@ module_param(gpios, charp, 0);
 MODULE_PARM_DESC(gpios,
 "List of gpios. Comma separated with the form: reset:23,dc:24 (when overriding the default, all gpios must be specified)");
 
-static unsigned fps;
+static unsigned int fps;
 module_param(fps, uint, 0);
 MODULE_PARM_DESC(fps, "Frames per second (override driver default)");
 
@@ -76,7 +76,7 @@ module_param(bgr, int, 0);
 MODULE_PARM_DESC(bgr,
 "BGR bit (supported by some drivers).");
 
-static unsigned startbyte;
+static unsigned int startbyte;
 module_param(startbyte, uint, 0);
 MODULE_PARM_DESC(startbyte, "Sets the Start byte used by some SPI displays.");
 
@@ -84,15 +84,15 @@ static bool custom;
 module_param(custom, bool, 0);
 MODULE_PARM_DESC(custom, "Add a custom display device. Use speed= argument to make it a SPI device, else platform_device");
 
-static unsigned width;
+static unsigned int width;
 module_param(width, uint, 0);
 MODULE_PARM_DESC(width, "Display width, used with the custom argument");
 
-static unsigned height;
+static unsigned int height;
 module_param(height, uint, 0);
 MODULE_PARM_DESC(height, "Display height, used with the custom argument");
 
-static unsigned buswidth = 8;
+static unsigned int buswidth = 8;
 module_param(buswidth, uint, 0);
 MODULE_PARM_DESC(buswidth, "Display bus width, used with the custom argument");
 
@@ -106,7 +106,7 @@ module_param(debug, ulong, 0);
 MODULE_PARM_DESC(debug,
 "level: 0-7 (the remaining 29 bits is for advanced usage)");
 
-static unsigned verbose = 3;
+static unsigned int verbose = 3;
 module_param(verbose, uint, 0);
 MODULE_PARM_DESC(verbose,
 "0 silent, >0 show gpios, >1 show devices, >2 show devices before (default=3)");
@@ -1215,7 +1215,8 @@ static struct fbtft_device_display displays[] = {
 		}
 	}, {
 		/* This should be the last item.
-		   Used with the custom argument */
+		 * Used with the custom argument
+		 */
 		.name = "",
 		.spi = &(struct spi_board_info) {
 			.modalias = "",
@@ -1306,8 +1307,9 @@ static struct fbtft_gpio fbtft_device_param_gpios[MAX_GPIOS + 1] = { };
 static void fbtft_device_pdev_release(struct device *dev)
 {
 /* Needed to silence this message:
-Device 'xxx' does not have a release() function, it is broken and must be fixed
-*/
+ * Device 'xxx' does not have a release() function,
+ * it is broken and must be fixed
+ */
 }
 
 static int spi_device_found(struct device *dev, void *data)
@@ -1346,7 +1348,7 @@ static void pr_p_devices(void)
 }
 
 #ifdef MODULE
-static void fbtft_device_spi_delete(struct spi_master *master, unsigned cs)
+static void fbtft_device_spi_delete(struct spi_master *master, unsigned int cs)
 {
 	struct device *dev;
 	char str[32];
@@ -1399,7 +1401,7 @@ static int __init fbtft_device_init(void)
 	long val;
 	int ret = 0;
 
-	if (name == NULL) {
+	if (!name) {
 #ifdef MODULE
 		pr_err("missing module parameter: 'name'\n");
 		return -EINVAL;
@@ -1416,14 +1418,14 @@ static int __init fbtft_device_init(void)
 
 	/* parse module parameter: gpios */
 	while ((p_gpio = strsep(&gpios, ","))) {
-		if (strchr(p_gpio, ':') == NULL) {
+		if (!strchr(p_gpio, ':')) {
 			pr_err("error: missing ':' in gpios parameter: %s\n",
 			       p_gpio);
 			return -EINVAL;
 		}
 		p_num = p_gpio;
 		p_name = strsep(&p_num, ":");
-		if (p_name == NULL || p_num == NULL) {
+		if (!p_name || !p_num) {
 			pr_err("something bad happened parsing gpios parameter: %s\n",
 			       p_gpio);
 			return -EINVAL;

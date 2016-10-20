@@ -39,7 +39,7 @@ static struct attribute *bus_default_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group bus_attr_group = {
+static const struct attribute_group bus_attr_group = {
 	.attrs = bus_default_attrs,
 };
 

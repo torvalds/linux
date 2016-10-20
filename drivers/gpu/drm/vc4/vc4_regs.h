@@ -175,6 +175,8 @@
 # define PV_CONTROL_CLR_AT_START		BIT(14)
 # define PV_CONTROL_TRIGGER_UNDERFLOW		BIT(13)
 # define PV_CONTROL_WAIT_HSTART			BIT(12)
+# define PV_CONTROL_PIXEL_REP_MASK		VC4_MASK(5, 4)
+# define PV_CONTROL_PIXEL_REP_SHIFT		4
 # define PV_CONTROL_CLK_SELECT_DSI_VEC		0
 # define PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI	1
 # define PV_CONTROL_CLK_SELECT_MASK		VC4_MASK(3, 2)
@@ -183,6 +185,9 @@
 # define PV_CONTROL_EN				BIT(0)
 
 #define PV_V_CONTROL				0x04
+# define PV_VCONTROL_ODD_DELAY_MASK		VC4_MASK(22, 6)
+# define PV_VCONTROL_ODD_DELAY_SHIFT		6
+# define PV_VCONTROL_ODD_FIRST			BIT(5)
 # define PV_VCONTROL_INTERLACE			BIT(4)
 # define PV_VCONTROL_CONTINUOUS			BIT(1)
 # define PV_VCONTROL_VIDEN			BIT(0)
@@ -366,7 +371,6 @@
 # define SCALER_DISPBKGND_FILL			BIT(24)
 
 #define SCALER_DISPSTAT0                        0x00000048
-#define SCALER_DISPBASE0                        0x0000004c
 # define SCALER_DISPSTATX_MODE_MASK		VC4_MASK(31, 30)
 # define SCALER_DISPSTATX_MODE_SHIFT		30
 # define SCALER_DISPSTATX_MODE_DISABLED		0
@@ -375,6 +379,24 @@
 # define SCALER_DISPSTATX_MODE_EOF		3
 # define SCALER_DISPSTATX_FULL			BIT(29)
 # define SCALER_DISPSTATX_EMPTY			BIT(28)
+# define SCALER_DISPSTATX_FRAME_COUNT_MASK	VC4_MASK(17, 12)
+# define SCALER_DISPSTATX_FRAME_COUNT_SHIFT	12
+# define SCALER_DISPSTATX_LINE_MASK		VC4_MASK(11, 0)
+# define SCALER_DISPSTATX_LINE_SHIFT		0
+
+#define SCALER_DISPBASE0                        0x0000004c
+/* Last pixel in the COB (display FIFO memory) allocated to this HVS
+ * channel.  Must be 4-pixel aligned (and thus 4 pixels less than the
+ * next COB base).
+ */
+# define SCALER_DISPBASEX_TOP_MASK		VC4_MASK(31, 16)
+# define SCALER_DISPBASEX_TOP_SHIFT		16
+/* First pixel in the COB (display FIFO memory) allocated to this HVS
+ * channel.  Must be 4-pixel aligned.
+ */
+# define SCALER_DISPBASEX_BASE_MASK		VC4_MASK(15, 0)
+# define SCALER_DISPBASEX_BASE_SHIFT		0
+
 #define SCALER_DISPCTRL1                        0x00000050
 #define SCALER_DISPBKGND1                       0x00000054
 #define SCALER_DISPBKGNDX(x)			(SCALER_DISPBKGND0 +        \
@@ -385,6 +407,9 @@
 						 (x) * (SCALER_DISPSTAT1 - \
 							SCALER_DISPSTAT0))
 #define SCALER_DISPBASE1                        0x0000005c
+#define SCALER_DISPBASEX(x)			(SCALER_DISPBASE0 +        \
+						 (x) * (SCALER_DISPBASE1 - \
+							SCALER_DISPBASE0))
 #define SCALER_DISPCTRL2                        0x00000060
 #define SCALER_DISPCTRLX(x)			(SCALER_DISPCTRL0 +        \
 						 (x) * (SCALER_DISPCTRL1 - \
@@ -417,6 +442,8 @@
 
 #define VC4_HDMI_RAM_PACKET_CONFIG		0x0a0
 # define VC4_HDMI_RAM_PACKET_ENABLE		BIT(16)
+
+#define VC4_HDMI_RAM_PACKET_STATUS		0x0a4
 
 #define VC4_HDMI_HORZA				0x0c4
 # define VC4_HDMI_HORZA_VPOS			BIT(14)
@@ -479,6 +506,9 @@
 
 #define VC4_HDMI_TX_PHY_RESET_CTL		0x2c0
 
+#define VC4_HDMI_GCP_0				0x400
+#define VC4_HDMI_PACKET_STRIDE			0x24
+
 #define VC4_HD_M_CTL				0x00c
 # define VC4_HD_M_REGISTER_FILE_STANDBY		(3 << 6)
 # define VC4_HD_M_RAM_STANDBY			(3 << 4)
@@ -508,9 +538,16 @@
 # define VC4_HD_CSC_CTL_MODE_SHIFT		2
 # define VC4_HD_CSC_CTL_MODE_RGB_TO_SD_YPRPB	0
 # define VC4_HD_CSC_CTL_MODE_RGB_TO_HD_YPRPB	1
-# define VC4_HD_CSC_CTL_MODE_CUSTOM		2
+# define VC4_HD_CSC_CTL_MODE_CUSTOM		3
 # define VC4_HD_CSC_CTL_RGB2YCC			BIT(1)
 # define VC4_HD_CSC_CTL_ENABLE			BIT(0)
+
+#define VC4_HD_CSC_12_11			0x044
+#define VC4_HD_CSC_14_13			0x048
+#define VC4_HD_CSC_22_21			0x04c
+#define VC4_HD_CSC_24_23			0x050
+#define VC4_HD_CSC_32_31			0x054
+#define VC4_HD_CSC_34_33			0x058
 
 #define VC4_HD_FRAME_COUNT			0x068
 

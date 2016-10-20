@@ -10,7 +10,7 @@ Required properties:
 			subsystem (mmcss) inside the FlashSS (available in STiH407 SoC
 			family).
 
-- clock-names:		Should be "mmc".
+- clock-names:		Should be "mmc" and "icn".  (NB: The latter is not compulsory)
 			See: Documentation/devicetree/bindings/resource-names.txt
 - clocks:		Phandle to the clock.
 			See: Documentation/devicetree/bindings/clock/clock-bindings.txt

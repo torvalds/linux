@@ -139,11 +139,11 @@ void ath10k_debug_print_hwfw_info(struct ath10k *ar)
 		    ar->id.subsystem_vendor, ar->id.subsystem_device);
 
 	ath10k_info(ar, "kconfig debug %d debugfs %d tracing %d dfs %d testmode %d\n",
-		    config_enabled(CONFIG_ATH10K_DEBUG),
-		    config_enabled(CONFIG_ATH10K_DEBUGFS),
-		    config_enabled(CONFIG_ATH10K_TRACING),
-		    config_enabled(CONFIG_ATH10K_DFS_CERTIFIED),
-		    config_enabled(CONFIG_NL80211_TESTMODE));
+		    IS_ENABLED(CONFIG_ATH10K_DEBUG),
+		    IS_ENABLED(CONFIG_ATH10K_DEBUGFS),
+		    IS_ENABLED(CONFIG_ATH10K_TRACING),
+		    IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED),
+		    IS_ENABLED(CONFIG_NL80211_TESTMODE));
 
 	firmware = ar->normal_mode_fw.fw_file.firmware;
 	if (firmware)
@@ -1228,9 +1228,9 @@ static ssize_t ath10k_read_fw_dbglog(struct file *file,
 {
 	struct ath10k *ar = file->private_data;
 	unsigned int len;
-	char buf[64];
+	char buf[96];
 
-	len = scnprintf(buf, sizeof(buf), "0x%08x %u\n",
+	len = scnprintf(buf, sizeof(buf), "0x%16llx %u\n",
 			ar->debug.fw_dbglog_mask, ar->debug.fw_dbglog_level);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
@@ -1242,15 +1242,16 @@ static ssize_t ath10k_write_fw_dbglog(struct file *file,
 {
 	struct ath10k *ar = file->private_data;
 	int ret;
-	char buf[64];
-	unsigned int log_level, mask;
+	char buf[96];
+	unsigned int log_level;
+	u64 mask;
 
 	simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
 
 	/* make sure that buf is null terminated */
 	buf[sizeof(buf) - 1] = 0;
 
-	ret = sscanf(buf, "%x %u", &mask, &log_level);
+	ret = sscanf(buf, "%llx %u", &mask, &log_level);
 
 	if (!ret)
 		return -EINVAL;
@@ -2424,7 +2425,7 @@ int ath10k_debug_register(struct ath10k *ar)
 	debugfs_create_file("nf_cal_period", S_IRUSR | S_IWUSR,
 			    ar->debug.debugfs_phy, ar, &fops_nf_cal_period);
 
-	if (config_enabled(CONFIG_ATH10K_DFS_CERTIFIED)) {
+	if (IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED)) {
 		debugfs_create_file("dfs_simulate_radar", S_IWUSR,
 				    ar->debug.debugfs_phy, ar,
 				    &fops_simulate_radar);

@@ -87,7 +87,7 @@ enum {
 
 enum {
 	/* Start from the last defined clock in dt bindings */
-	LPC32XX_CLK_ADC_DIV = LPC32XX_CLK_HCLK_PLL + 1,
+	LPC32XX_CLK_ADC_DIV = LPC32XX_CLK_PERIPH + 1,
 	LPC32XX_CLK_ADC_RTC,
 	LPC32XX_CLK_TEST1,
 	LPC32XX_CLK_TEST2,
@@ -99,7 +99,6 @@ enum {
 	LPC32XX_CLK_HCLK_DIV_PERIPH,
 	LPC32XX_CLK_HCLK_DIV,
 	LPC32XX_CLK_HCLK,
-	LPC32XX_CLK_PERIPH,
 	LPC32XX_CLK_ARM,
 	LPC32XX_CLK_ARM_VFP,
 
@@ -1514,6 +1513,7 @@ static void __init lpc32xx_clk_init(struct device_node *np)
 	if (IS_ERR(clk_regmap)) {
 		pr_err("failed to regmap system control block: %ld\n",
 			PTR_ERR(clk_regmap));
+		iounmap(base);
 		return;
 	}
 

@@ -258,7 +258,7 @@
  * BCM5325 and BCM5365 share most definitions below
  */
 #define B53_ARLTBL_MAC_VID_ENTRY(n)	(0x10 * (n))
-#define   ARLTBL_MAC_MASK		0xffffffffffff
+#define   ARLTBL_MAC_MASK		0xffffffffffffULL
 #define   ARLTBL_VID_S			48
 #define   ARLTBL_VID_MASK_25		0xff
 #define   ARLTBL_VID_MASK		0xfff
@@ -308,6 +308,9 @@
 
 /* Port VLAN mask (16 bit) IMP port is always 8, also on 5325 & co */
 #define B53_PVLAN_PORT_MASK(i)		((i) * 2)
+
+/* Join all VLANs register (16 bit) */
+#define B53_JOIN_ALL_VLAN_EN		0x50
 
 /*************************************************************************
  * 802.1Q Page Registers

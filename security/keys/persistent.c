@@ -114,7 +114,7 @@ found:
 		ret = key_link(key_ref_to_ptr(dest_ref), persistent);
 		if (ret == 0) {
 			key_set_timeout(persistent, persistent_keyring_expiry);
-			ret = persistent->serial;		
+			ret = persistent->serial;
 		}
 	}
 

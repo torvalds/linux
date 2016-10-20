@@ -1192,7 +1192,7 @@ out_free:	dev_kfree_skb_any(skb);
 
 	/* Discard the packet if the length is greater than mtu */
 	max_pkt_len = ETH_HLEN + dev->mtu;
-	if (skb_vlan_tag_present(skb))
+	if (skb_vlan_tagged(skb))
 		max_pkt_len += VLAN_HLEN;
 	if (!skb_shinfo(skb)->gso_size && (unlikely(skb->len > max_pkt_len)))
 		goto out_free;
@@ -2860,6 +2860,18 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 	return 0;
 }
 
+int t4_sge_mod_ctrl_txq(struct adapter *adap, unsigned int eqid,
+			unsigned int cmplqid)
+{
+	u32 param, val;
+
+	param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
+		 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DMAQ_EQ_CMPLIQID_CTRL) |
+		 FW_PARAMS_PARAM_YZ_V(eqid));
+	val = cmplqid;
+	return t4_set_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
+}
+
 int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 			  struct net_device *dev, unsigned int iqid)
 {
@@ -2928,8 +2940,8 @@ static void free_txq(struct adapter *adap, struct sge_txq *q)
 	q->desc = NULL;
 }
 
-static void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq,
-			 struct sge_fl *fl)
+void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq,
+		  struct sge_fl *fl)
 {
 	struct sge *s = &adap->sge;
 	unsigned int fl_id = fl ? fl->cntxt_id : 0xffff;
@@ -3013,12 +3025,6 @@ void t4_free_sge_resources(struct adapter *adap)
 			free_txq(adap, &etq->q);
 		}
 	}
-
-	/* clean up RDMA and iSCSI Rx queues */
-	t4_free_ofld_rxqs(adap, adap->sge.iscsiqsets, adap->sge.iscsirxq);
-	t4_free_ofld_rxqs(adap, adap->sge.niscsitq, adap->sge.iscsitrxq);
-	t4_free_ofld_rxqs(adap, adap->sge.rdmaqs, adap->sge.rdmarxq);
-	t4_free_ofld_rxqs(adap, adap->sge.rdmaciqs, adap->sge.rdmaciq);
 
 	/* clean up offload Tx queues */
 	for (i = 0; i < ARRAY_SIZE(adap->sge.ofldtxq); i++) {

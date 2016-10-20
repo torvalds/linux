@@ -1409,11 +1409,18 @@ static int omap_hsmmc_pre_dma_transfer(struct omap_hsmmc_host *host,
 static int omap_hsmmc_setup_dma_transfer(struct omap_hsmmc_host *host,
 					struct mmc_request *req)
 {
-	struct dma_slave_config cfg;
 	struct dma_async_tx_descriptor *tx;
 	int ret = 0, i;
 	struct mmc_data *data = req->data;
 	struct dma_chan *chan;
+	struct dma_slave_config cfg = {
+		.src_addr = host->mapbase + OMAP_HSMMC_DATA,
+		.dst_addr = host->mapbase + OMAP_HSMMC_DATA,
+		.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
+		.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
+		.src_maxburst = data->blksz / 4,
+		.dst_maxburst = data->blksz / 4,
+	};
 
 	/* Sanity check: all the SG entries must be aligned by block size. */
 	for (i = 0; i < data->sg_len; i++) {
@@ -1432,13 +1439,6 @@ static int omap_hsmmc_setup_dma_transfer(struct omap_hsmmc_host *host,
 	BUG_ON(host->dma_ch != -1);
 
 	chan = omap_hsmmc_get_dma_chan(host, data);
-
-	cfg.src_addr = host->mapbase + OMAP_HSMMC_DATA;
-	cfg.dst_addr = host->mapbase + OMAP_HSMMC_DATA;
-	cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	cfg.src_maxburst = data->blksz / 4;
-	cfg.dst_maxburst = data->blksz / 4;
 
 	ret = dmaengine_slave_config(chan, &cfg);
 	if (ret)

@@ -125,7 +125,7 @@ struct etnaviv_gpu {
 	u32 completed_fence;
 	u32 retired_fence;
 	wait_queue_head_t fence_event;
-	unsigned int fence_context;
+	u64 fence_context;
 	spinlock_t fence_spinlock;
 
 	/* worker for handling active-list retiring: */
@@ -160,6 +160,8 @@ struct etnaviv_cmdbuf {
 	dma_addr_t paddr;
 	u32 size;
 	u32 user_size;
+	/* vram node used if the cmdbuf is mapped through the MMUv2 */
+	struct drm_mm_node vram_node;
 	/* fence after which this buffer is to be disposed */
 	struct fence *fence;
 	/* target exec state */
@@ -214,6 +216,8 @@ struct etnaviv_cmdbuf *etnaviv_gpu_cmdbuf_new(struct etnaviv_gpu *gpu,
 void etnaviv_gpu_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf);
 int etnaviv_gpu_pm_get_sync(struct etnaviv_gpu *gpu);
 void etnaviv_gpu_pm_put(struct etnaviv_gpu *gpu);
+int etnaviv_gpu_wait_idle(struct etnaviv_gpu *gpu, unsigned int timeout_ms);
+void etnaviv_gpu_start_fe(struct etnaviv_gpu *gpu, u32 address, u16 prefetch);
 
 extern struct platform_driver etnaviv_gpu_driver;
 

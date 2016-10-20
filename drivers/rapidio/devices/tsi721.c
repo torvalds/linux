@@ -37,10 +37,19 @@
 #include "tsi721.h"
 
 #ifdef DEBUG
-u32 dbg_level = DBG_INIT | DBG_EXIT;
+u32 dbg_level;
 module_param(dbg_level, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(dbg_level, "Debugging output level (default 0 = none)");
 #endif
+
+static int pcie_mrrs = -1;
+module_param(pcie_mrrs, int, S_IRUGO);
+MODULE_PARM_DESC(pcie_mrrs, "PCIe MRRS override value (0...5)");
+
+static u8 mbox_sel = 0x0f;
+module_param(mbox_sel, byte, S_IRUGO);
+MODULE_PARM_DESC(mbox_sel,
+		 "RIO Messaging MBOX Selection Mask (default: 0x0f = all)");
 
 static void tsi721_omsg_handler(struct tsi721_device *priv, int ch);
 static void tsi721_imsg_handler(struct tsi721_device *priv, int ch);
@@ -1081,7 +1090,7 @@ static void tsi721_init_pc2sr_mapping(struct tsi721_device *priv)
  * from rstart to lstart.
  */
 static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
-		u64 rstart, u32 size, u32 flags)
+		u64 rstart, u64 size, u32 flags)
 {
 	struct tsi721_device *priv = mport->priv;
 	int i, avail = -1;
@@ -1094,6 +1103,10 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 	struct tsi721_ib_win_mapping *map = NULL;
 	int ret = -EBUSY;
 
+	/* Max IBW size supported by HW is 16GB */
+	if (size > 0x400000000UL)
+		return -EINVAL;
+
 	if (direct) {
 		/* Calculate minimal acceptable window size and base address */
 
@@ -1101,15 +1114,15 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 		ibw_start = lstart & ~(ibw_size - 1);
 
 		tsi_debug(IBW, &priv->pdev->dev,
-			"Direct (RIO_0x%llx -> PCIe_0x%pad), size=0x%x, ibw_start = 0x%llx",
+			"Direct (RIO_0x%llx -> PCIe_%pad), size=0x%llx, ibw_start = 0x%llx",
 			rstart, &lstart, size, ibw_start);
 
 		while ((lstart + size) > (ibw_start + ibw_size)) {
 			ibw_size *= 2;
 			ibw_start = lstart & ~(ibw_size - 1);
-			if (ibw_size > 0x80000000) { /* Limit max size to 2GB */
+			/* Check for crossing IBW max size 16GB */
+			if (ibw_size > 0x400000000UL)
 				return -EBUSY;
-			}
 		}
 
 		loc_start = ibw_start;
@@ -1120,7 +1133,7 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 
 	} else {
 		tsi_debug(IBW, &priv->pdev->dev,
-			"Translated (RIO_0x%llx -> PCIe_0x%pad), size=0x%x",
+			"Translated (RIO_0x%llx -> PCIe_%pad), size=0x%llx",
 			rstart, &lstart, size);
 
 		if (!is_power_of_2(size) || size < 0x1000 ||
@@ -1148,7 +1161,7 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 		} else if (ibw_start < (ib_win->rstart + ib_win->size) &&
 			   (ibw_start + ibw_size) > ib_win->rstart) {
 			/* Return error if address translation involved */
-			if (direct && ib_win->xlat) {
+			if (!direct || ib_win->xlat) {
 				ret = -EFAULT;
 				break;
 			}
@@ -1215,7 +1228,7 @@ static int tsi721_rio_map_inb_mem(struct rio_mport *mport, dma_addr_t lstart,
 	priv->ibwin_cnt--;
 
 	tsi_debug(IBW, &priv->pdev->dev,
-		"Configured IBWIN%d (RIO_0x%llx -> PCIe_0x%pad), size=0x%llx",
+		"Configured IBWIN%d (RIO_0x%llx -> PCIe_%pad), size=0x%llx",
 		i, ibw_start, &loc_start, ibw_size);
 
 	return 0;
@@ -1237,7 +1250,7 @@ static void tsi721_rio_unmap_inb_mem(struct rio_mport *mport,
 	int i;
 
 	tsi_debug(IBW, &priv->pdev->dev,
-		"Unmap IBW mapped to PCIe_0x%pad", &lstart);
+		"Unmap IBW mapped to PCIe_%pad", &lstart);
 
 	/* Search for matching active inbound translation window */
 	for (i = 0; i < TSI721_IBWIN_NUM; i++) {
@@ -1877,6 +1890,11 @@ static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 		goto out;
 	}
 
+	if ((mbox_sel & (1 << mbox)) == 0) {
+		rc = -ENODEV;
+		goto out;
+	}
+
 	priv->omsg_ring[mbox].dev_id = dev_id;
 	priv->omsg_ring[mbox].size = entries;
 	priv->omsg_ring[mbox].sts_rdptr = 0;
@@ -2158,6 +2176,11 @@ static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 	    (entries > TSI721_IMSGD_RING_SIZE) ||
 	    (!is_power_of_2(entries)) || mbox >= RIO_MAX_MBOX) {
 		rc = -EINVAL;
+		goto out;
+	}
+
+	if ((mbox_sel & (1 << mbox)) == 0) {
+		rc = -ENODEV;
 		goto out;
 	}
 
@@ -2532,11 +2555,11 @@ static int tsi721_query_mport(struct rio_mport *mport,
 	struct tsi721_device *priv = mport->priv;
 	u32 rval;
 
-	rval = ioread32(priv->regs + (0x100 + RIO_PORT_N_ERR_STS_CSR(0)));
+	rval = ioread32(priv->regs + 0x100 + RIO_PORT_N_ERR_STS_CSR(0, 0));
 	if (rval & RIO_PORT_N_ERR_STS_PORT_OK) {
-		rval = ioread32(priv->regs + (0x100 + RIO_PORT_N_CTL2_CSR(0)));
+		rval = ioread32(priv->regs + 0x100 + RIO_PORT_N_CTL2_CSR(0, 0));
 		attr->link_speed = (rval & RIO_PORT_N_CTL2_SEL_BAUD) >> 28;
-		rval = ioread32(priv->regs + (0x100 + RIO_PORT_N_CTL_CSR(0)));
+		rval = ioread32(priv->regs + 0x100 + RIO_PORT_N_CTL_CSR(0, 0));
 		attr->link_width = (rval & RIO_PORT_N_CTL_IPW) >> 27;
 	} else
 		attr->link_speed = RIO_LINK_DOWN;
@@ -2650,9 +2673,9 @@ static int tsi721_setup_mport(struct tsi721_device *priv)
 	mport->ops = &tsi721_rio_ops;
 	mport->index = 0;
 	mport->sys_size = 0; /* small system */
-	mport->phy_type = RIO_PHY_SERIAL;
 	mport->priv = (void *)priv;
 	mport->phys_efptr = 0x100;
+	mport->phys_rmap = 1;
 	mport->dev.parent = &pdev->dev;
 	mport->dev.release = tsi721_mport_release;
 
@@ -2839,6 +2862,16 @@ static int tsi721_probe(struct pci_dev *pdev,
 	/* Clear "no snoop" and "relaxed ordering" bits. */
 	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
 		PCI_EXP_DEVCTL_RELAX_EN | PCI_EXP_DEVCTL_NOSNOOP_EN, 0);
+
+	/* Override PCIe Maximum Read Request Size setting if requested */
+	if (pcie_mrrs >= 0) {
+		if (pcie_mrrs <= 5)
+			pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL,
+					PCI_EXP_DEVCTL_READRQ, pcie_mrrs << 12);
+		else
+			tsi_info(&pdev->dev,
+				 "Invalid MRRS override value %d", pcie_mrrs);
+	}
 
 	/* Adjust PCIe completion timeout. */
 	pcie_capability_clear_and_set_word(pdev, PCI_EXP_DEVCTL2, 0xf, 0x2);

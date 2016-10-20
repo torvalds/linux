@@ -12,7 +12,7 @@
  */
 
 /*
- * First half is MMU families
+ * MMU families
  */
 #define MMU_FTR_HPTE_TABLE		ASM_CONST(0x00000001)
 #define MMU_FTR_TYPE_8xx		ASM_CONST(0x00000002)
@@ -21,9 +21,18 @@
 #define MMU_FTR_TYPE_FSL_E		ASM_CONST(0x00000010)
 #define MMU_FTR_TYPE_47x		ASM_CONST(0x00000020)
 
+/* Radix page table supported and enabled */
+#define MMU_FTR_TYPE_RADIX		ASM_CONST(0x00000040)
+
 /*
- * This is individual features
+ * Individual features below.
  */
+
+/*
+ * We need to clear top 16bits of va (from the remaining 64 bits )in
+ * tlbie* instructions
+ */
+#define MMU_FTR_TLBIE_CROP_VA		ASM_CONST(0x00008000)
 
 /* Enable use of high BAT registers */
 #define MMU_FTR_USE_HIGH_BATS		ASM_CONST(0x00010000)
@@ -88,16 +97,11 @@
  */
 #define MMU_FTR_1T_SEGMENT		ASM_CONST(0x40000000)
 
-/*
- * Radix page table available
- */
-#define MMU_FTR_RADIX			ASM_CONST(0x80000000)
-
 /* MMU feature bit sets for various CPUs */
 #define MMU_FTRS_DEFAULT_HPTE_ARCH_V2	\
 	MMU_FTR_HPTE_TABLE | MMU_FTR_PPCAS_ARCH_V2
 #define MMU_FTRS_POWER4		MMU_FTRS_DEFAULT_HPTE_ARCH_V2
-#define MMU_FTRS_PPC970		MMU_FTRS_POWER4
+#define MMU_FTRS_PPC970		MMU_FTRS_POWER4 | MMU_FTR_TLBIE_CROP_VA
 #define MMU_FTRS_POWER5		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE
 #define MMU_FTRS_POWER6		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE
 #define MMU_FTRS_POWER7		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE
@@ -108,6 +112,7 @@
 #define MMU_FTRS_PA6T		MMU_FTRS_DEFAULT_HPTE_ARCH_V2 | \
 				MMU_FTR_CI_LARGE_PAGE | MMU_FTR_NO_SLBIE_B
 #ifndef __ASSEMBLY__
+#include <linux/bug.h>
 #include <asm/cputable.h>
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
@@ -124,22 +129,73 @@ enum {
 		MMU_FTR_USE_TLBRSRV | MMU_FTR_USE_PAIRED_MAS |
 		MMU_FTR_NO_SLBIE_B | MMU_FTR_16M_PAGE | MMU_FTR_TLBIEL |
 		MMU_FTR_LOCKLESS_TLBIE | MMU_FTR_CI_LARGE_PAGE |
-		MMU_FTR_1T_SEGMENT |
+		MMU_FTR_1T_SEGMENT | MMU_FTR_TLBIE_CROP_VA |
 #ifdef CONFIG_PPC_RADIX_MMU
-		MMU_FTR_RADIX |
+		MMU_FTR_TYPE_RADIX |
 #endif
 		0,
 };
 
-static inline int mmu_has_feature(unsigned long feature)
+static inline bool early_mmu_has_feature(unsigned long feature)
 {
-	return (MMU_FTRS_POSSIBLE & cur_cpu_spec->mmu_features & feature);
+	return !!(MMU_FTRS_POSSIBLE & cur_cpu_spec->mmu_features & feature);
+}
+
+#ifdef CONFIG_JUMP_LABEL_FEATURE_CHECKS
+#include <linux/jump_label.h>
+
+#define NUM_MMU_FTR_KEYS	32
+
+extern struct static_key_true mmu_feature_keys[NUM_MMU_FTR_KEYS];
+
+extern void mmu_feature_keys_init(void);
+
+static __always_inline bool mmu_has_feature(unsigned long feature)
+{
+	int i;
+
+	BUILD_BUG_ON(!__builtin_constant_p(feature));
+
+#ifdef CONFIG_JUMP_LABEL_FEATURE_CHECK_DEBUG
+	if (!static_key_initialized) {
+		printk("Warning! mmu_has_feature() used prior to jump label init!\n");
+		dump_stack();
+		return early_mmu_has_feature(feature);
+	}
+#endif
+
+	if (!(MMU_FTRS_POSSIBLE & feature))
+		return false;
+
+	i = __builtin_ctzl(feature);
+	return static_branch_likely(&mmu_feature_keys[i]);
+}
+
+static inline void mmu_clear_feature(unsigned long feature)
+{
+	int i;
+
+	i = __builtin_ctzl(feature);
+	cur_cpu_spec->mmu_features &= ~feature;
+	static_branch_disable(&mmu_feature_keys[i]);
+}
+#else
+
+static inline void mmu_feature_keys_init(void)
+{
+
+}
+
+static inline bool mmu_has_feature(unsigned long feature)
+{
+	return early_mmu_has_feature(feature);
 }
 
 static inline void mmu_clear_feature(unsigned long feature)
 {
 	cur_cpu_spec->mmu_features &= ~feature;
 }
+#endif /* CONFIG_JUMP_LABEL */
 
 extern unsigned int __start___mmu_ftr_fixup, __stop___mmu_ftr_fixup;
 
@@ -148,6 +204,10 @@ extern unsigned int __start___mmu_ftr_fixup, __stop___mmu_ftr_fixup;
  * make it match the size our of bolted TLB area
  */
 extern u64 ppc64_rma_size;
+
+/* Cleanup function used by kexec */
+extern void mmu_cleanup_all(void);
+extern void radix__mmu_cleanup_all(void);
 #endif /* CONFIG_PPC64 */
 
 struct mm_struct;
@@ -158,6 +218,28 @@ static inline void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 {
 }
 #endif /* !CONFIG_DEBUG_VM */
+
+#ifdef CONFIG_PPC_RADIX_MMU
+static inline bool radix_enabled(void)
+{
+	return mmu_has_feature(MMU_FTR_TYPE_RADIX);
+}
+
+static inline bool early_radix_enabled(void)
+{
+	return early_mmu_has_feature(MMU_FTR_TYPE_RADIX);
+}
+#else
+static inline bool radix_enabled(void)
+{
+	return false;
+}
+
+static inline bool early_radix_enabled(void)
+{
+	return false;
+}
+#endif
 
 #endif /* !__ASSEMBLY__ */
 
@@ -193,6 +275,7 @@ static inline void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 #define MMU_PAGE_16G	13
 #define MMU_PAGE_64G	14
 
+/* N.B. we need to change the type of hpte_page_sizes if this gets to be > 16 */
 #define MMU_PAGE_COUNT	15
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -205,6 +288,7 @@ extern void early_init_mmu(void);
 extern void early_init_mmu_secondary(void);
 extern void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				       phys_addr_t first_memblock_size);
+static inline void mmu_early_init_devtree(void) { }
 #endif /* __ASSEMBLY__ */
 #endif
 
@@ -223,10 +307,6 @@ extern void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 #elif defined (CONFIG_PPC_8xx)
 /* Motorola/Freescale 8xx software loaded TLB */
 #  include <asm/mmu-8xx.h>
-#endif
-
-#ifndef radix_enabled
-#define radix_enabled() (0)
 #endif
 
 #endif /* __KERNEL__ */

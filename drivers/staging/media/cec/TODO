@@ -12,6 +12,7 @@ Hopefully this will happen later in 2016.
 
 Other TODOs:
 
+- There are two possible replies to CEC_MSG_INITIATE_ARC. How to handle that?
 - Add a flag to inhibit passing CEC RC messages to the rc subsystem.
   Applications should be able to choose this when calling S_LOG_ADDRS.
 - If the reply field of cec_msg is set then when the reply arrives it

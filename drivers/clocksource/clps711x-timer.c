@@ -119,5 +119,5 @@ static int __init clps711x_timer_init(struct device_node *np)
 		return -EINVAL;
 	}
 }
-CLOCKSOURCE_OF_DECLARE(clps711x, "cirrus,clps711x-timer", clps711x_timer_init);
+CLOCKSOURCE_OF_DECLARE(clps711x, "cirrus,ep7209-timer", clps711x_timer_init);
 #endif

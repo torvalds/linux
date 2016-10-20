@@ -165,7 +165,7 @@ xenvif_write_io_ring(struct file *filp, const char __user *buf, size_t count,
 	return count;
 }
 
-static int xenvif_dump_open(struct inode *inode, struct file *filp)
+static int xenvif_io_ring_open(struct inode *inode, struct file *filp)
 {
 	int ret;
 	void *queue = NULL;
@@ -179,11 +179,33 @@ static int xenvif_dump_open(struct inode *inode, struct file *filp)
 
 static const struct file_operations xenvif_dbg_io_ring_ops_fops = {
 	.owner = THIS_MODULE,
-	.open = xenvif_dump_open,
+	.open = xenvif_io_ring_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 	.write = xenvif_write_io_ring,
+};
+
+static int xenvif_read_ctrl(struct seq_file *m, void *v)
+{
+	struct xenvif *vif = m->private;
+
+	xenvif_dump_hash_info(vif, m);
+
+	return 0;
+}
+
+static int xenvif_ctrl_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, xenvif_read_ctrl, inode->i_private);
+}
+
+static const struct file_operations xenvif_dbg_ctrl_ops_fops = {
+	.owner = THIS_MODULE,
+	.open = xenvif_ctrl_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
 static void xenvif_debugfs_addif(struct xenvif *vif)
@@ -208,6 +230,17 @@ static void xenvif_debugfs_addif(struct xenvif *vif)
 						    &xenvif_dbg_io_ring_ops_fops);
 			if (IS_ERR_OR_NULL(pfile))
 				pr_warn("Creation of io_ring file returned %ld!\n",
+					PTR_ERR(pfile));
+		}
+
+		if (vif->ctrl_irq) {
+			pfile = debugfs_create_file("ctrl",
+						    S_IRUSR,
+						    vif->xenvif_dbg_root,
+						    vif,
+						    &xenvif_dbg_ctrl_ops_fops);
+			if (IS_ERR_OR_NULL(pfile))
+				pr_warn("Creation of ctrl file returned %ld!\n",
 					PTR_ERR(pfile));
 		}
 	} else
@@ -270,6 +303,11 @@ static int netback_probe(struct xenbus_device *dev,
 
 	be->dev = dev;
 	dev_set_drvdata(&dev->dev, be);
+
+	be->state = XenbusStateInitialising;
+	err = xenbus_switch_state(dev, XenbusStateInitialising);
+	if (err)
+		goto fail;
 
 	sg = 1;
 
@@ -383,11 +421,6 @@ static int netback_probe(struct xenbus_device *dev,
 
 	be->hotplug_script = script;
 
-	err = xenbus_switch_state(dev, XenbusStateInitWait);
-	if (err)
-		goto fail;
-
-	be->state = XenbusStateInitWait;
 
 	/* This kicks hotplug scripts, so do it immediately. */
 	err = backend_create_xenvif(be);
@@ -492,20 +525,20 @@ static inline void backend_switch_state(struct backend_info *be,
 
 /* Handle backend state transitions:
  *
- * The backend state starts in InitWait and the following transitions are
+ * The backend state starts in Initialising and the following transitions are
  * allowed.
  *
- * InitWait -> Connected
+ * Initialising -> InitWait -> Connected
+ *          \
+ *           \        ^    \         |
+ *            \       |     \        |
+ *             \      |      \       |
+ *              \     |       \      |
+ *               \    |        \     |
+ *                \   |         \    |
+ *                 V  |          V   V
  *
- *    ^    \         |
- *    |     \        |
- *    |      \       |
- *    |       \      |
- *    |        \     |
- *    |         \    |
- *    |          V   V
- *
- *  Closed  <-> Closing
+ *                  Closed  <-> Closing
  *
  * The state argument specifies the eventual state of the backend and the
  * function transitions to that state via the shortest path.
@@ -515,6 +548,20 @@ static void set_backend_state(struct backend_info *be,
 {
 	while (be->state != state) {
 		switch (be->state) {
+		case XenbusStateInitialising:
+			switch (state) {
+			case XenbusStateInitWait:
+			case XenbusStateConnected:
+			case XenbusStateClosing:
+				backend_switch_state(be, XenbusStateInitWait);
+				break;
+			case XenbusStateClosed:
+				backend_switch_state(be, XenbusStateClosed);
+				break;
+			default:
+				BUG();
+			}
+			break;
 		case XenbusStateClosed:
 			switch (state) {
 			case XenbusStateInitWait:
@@ -1121,7 +1168,6 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 	vif->can_sg = !!val;
 
 	vif->gso_mask = 0;
-	vif->gso_prefix_mask = 0;
 
 	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-gso-tcpv4",
 			 "%d", &val) < 0)
@@ -1129,31 +1175,11 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 	if (val)
 		vif->gso_mask |= GSO_BIT(TCPV4);
 
-	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-gso-tcpv4-prefix",
-			 "%d", &val) < 0)
-		val = 0;
-	if (val)
-		vif->gso_prefix_mask |= GSO_BIT(TCPV4);
-
 	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-gso-tcpv6",
 			 "%d", &val) < 0)
 		val = 0;
 	if (val)
 		vif->gso_mask |= GSO_BIT(TCPV6);
-
-	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-gso-tcpv6-prefix",
-			 "%d", &val) < 0)
-		val = 0;
-	if (val)
-		vif->gso_prefix_mask |= GSO_BIT(TCPV6);
-
-	if (vif->gso_mask & vif->gso_prefix_mask) {
-		xenbus_dev_fatal(dev, err,
-				 "%s: gso and gso prefix flags are not "
-				 "mutually exclusive",
-				 dev->otherend);
-		return -EOPNOTSUPP;
-	}
 
 	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-no-csum-offload",
 			 "%d", &val) < 0)

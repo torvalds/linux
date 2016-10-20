@@ -26,6 +26,7 @@
 #include <asm/suspend.h>
 #include <asm/psci.h>
 
+#include "cpuidle.h"
 #include "pm.h"
 #include "sleep.h"
 

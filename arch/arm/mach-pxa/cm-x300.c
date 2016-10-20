@@ -25,7 +25,7 @@
 #include <linux/gpio.h>
 #include <linux/dm9000.h>
 #include <linux/leds.h>
-#include <linux/rtc-v3020.h>
+#include <linux/platform_data/rtc-v3020.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 

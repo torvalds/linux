@@ -370,15 +370,4 @@ static struct isa_driver snd_gusmax_driver = {
 	},
 };
 
-static int __init alsa_card_gusmax_init(void)
-{
-	return isa_register_driver(&snd_gusmax_driver, SNDRV_CARDS);
-}
-
-static void __exit alsa_card_gusmax_exit(void)
-{
-	isa_unregister_driver(&snd_gusmax_driver);
-}
-
-module_init(alsa_card_gusmax_init)
-module_exit(alsa_card_gusmax_exit)
+module_isa_driver(snd_gusmax_driver, SNDRV_CARDS);

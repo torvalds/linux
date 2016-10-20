@@ -34,7 +34,7 @@ int __init btrfs_delayed_inode_init(void)
 	delayed_node_cache = kmem_cache_create("btrfs_delayed_node",
 					sizeof(struct btrfs_delayed_node),
 					0,
-					SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+					SLAB_MEM_SPREAD,
 					NULL);
 	if (!delayed_node_cache)
 		return -ENOMEM;
@@ -385,11 +385,8 @@ static struct btrfs_delayed_item *__btrfs_lookup_delayed_insertion_item(
 					struct btrfs_delayed_node *delayed_node,
 					struct btrfs_key *key)
 {
-	struct btrfs_delayed_item *item;
-
-	item = __btrfs_lookup_delayed_item(&delayed_node->ins_root, key,
+	return __btrfs_lookup_delayed_item(&delayed_node->ins_root, key,
 					   NULL, NULL);
-	return item;
 }
 
 static int __btrfs_add_delayed_item(struct btrfs_delayed_node *delayed_node,
@@ -553,7 +550,7 @@ static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
 	dst_rsv = &root->fs_info->delayed_block_rsv;
 
 	num_bytes = btrfs_calc_trans_metadata_size(root, 1);
-	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
+	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
 	if (!ret) {
 		trace_btrfs_space_reservation(root->fs_info, "delayed_item",
 					      item->key.objectid,
@@ -598,6 +595,29 @@ static int btrfs_delayed_inode_reserve_metadata(
 	num_bytes = btrfs_calc_trans_metadata_size(root, 1);
 
 	/*
+	 * If our block_rsv is the delalloc block reserve then check and see if
+	 * we have our extra reservation for updating the inode.  If not fall
+	 * through and try to reserve space quickly.
+	 *
+	 * We used to try and steal from the delalloc block rsv or the global
+	 * reserve, but we'd steal a full reservation, which isn't kind.  We are
+	 * here through delalloc which means we've likely just cowed down close
+	 * to the leaf that contains the inode, so we would steal less just
+	 * doing the fallback inode update, so if we do end up having to steal
+	 * from the global block rsv we hopefully only steal one or two blocks
+	 * worth which is less likely to hurt us.
+	 */
+	if (src_rsv && src_rsv->type == BTRFS_BLOCK_RSV_DELALLOC) {
+		spin_lock(&BTRFS_I(inode)->lock);
+		if (test_and_clear_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
+				       &BTRFS_I(inode)->runtime_flags))
+			release = true;
+		else
+			src_rsv = NULL;
+		spin_unlock(&BTRFS_I(inode)->lock);
+	}
+
+	/*
 	 * btrfs_dirty_inode will update the inode under btrfs_join_transaction
 	 * which doesn't reserve space for speed.  This is a problem since we
 	 * still need to reserve space for this update, so try to reserve the
@@ -626,51 +646,10 @@ static int btrfs_delayed_inode_reserve_metadata(
 						      num_bytes, 1);
 		}
 		return ret;
-	} else if (src_rsv->type == BTRFS_BLOCK_RSV_DELALLOC) {
-		spin_lock(&BTRFS_I(inode)->lock);
-		if (test_and_clear_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
-				       &BTRFS_I(inode)->runtime_flags)) {
-			spin_unlock(&BTRFS_I(inode)->lock);
-			release = true;
-			goto migrate;
-		}
-		spin_unlock(&BTRFS_I(inode)->lock);
-
-		/* Ok we didn't have space pre-reserved.  This shouldn't happen
-		 * too often but it can happen if we do delalloc to an existing
-		 * inode which gets dirtied because of the time update, and then
-		 * isn't touched again until after the transaction commits and
-		 * then we try to write out the data.  First try to be nice and
-		 * reserve something strictly for us.  If not be a pain and try
-		 * to steal from the delalloc block rsv.
-		 */
-		ret = btrfs_block_rsv_add(root, dst_rsv, num_bytes,
-					  BTRFS_RESERVE_NO_FLUSH);
-		if (!ret)
-			goto out;
-
-		ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
-		if (!ret)
-			goto out;
-
-		if (btrfs_test_opt(root, ENOSPC_DEBUG)) {
-			btrfs_debug(root->fs_info,
-				    "block rsv migrate returned %d", ret);
-			WARN_ON(1);
-		}
-		/*
-		 * Ok this is a problem, let's just steal from the global rsv
-		 * since this really shouldn't happen that often.
-		 */
-		ret = btrfs_block_rsv_migrate(&root->fs_info->global_block_rsv,
-					      dst_rsv, num_bytes);
-		goto out;
 	}
 
-migrate:
-	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
+	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
 
-out:
 	/*
 	 * Migrate only takes a reservation, it doesn't touch the size of the
 	 * block_rsv.  This is to simplify people who don't normally have things
@@ -1188,7 +1167,7 @@ static int __btrfs_run_delayed_items(struct btrfs_trans_handle *trans,
 		if (ret) {
 			btrfs_release_delayed_node(curr_node);
 			curr_node = NULL;
-			btrfs_abort_transaction(trans, root, ret);
+			btrfs_abort_transaction(trans, ret);
 			break;
 		}
 
@@ -1499,11 +1478,10 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 	mutex_lock(&delayed_node->mutex);
 	ret = __btrfs_add_delayed_insertion_item(delayed_node, delayed_item);
 	if (unlikely(ret)) {
-		btrfs_err(root->fs_info, "err add delayed dir index item(name: %.*s) "
-				"into the insertion tree of the delayed node"
-				"(root id: %llu, inode id: %llu, errno: %d)",
-				name_len, name, delayed_node->root->objectid,
-				delayed_node->inode_id, ret);
+		btrfs_err(root->fs_info,
+			  "err add delayed dir index item(name: %.*s) into the insertion tree of the delayed node(root id: %llu, inode id: %llu, errno: %d)",
+			  name_len, name, delayed_node->root->objectid,
+			  delayed_node->inode_id, ret);
 		BUG();
 	}
 	mutex_unlock(&delayed_node->mutex);
@@ -1571,11 +1549,9 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	mutex_lock(&node->mutex);
 	ret = __btrfs_add_delayed_deletion_item(node, item);
 	if (unlikely(ret)) {
-		btrfs_err(root->fs_info, "err add delayed dir index item(index: %llu) "
-				"into the deletion tree of the delayed node"
-				"(root id: %llu, inode id: %llu, errno: %d)",
-				index, node->root->objectid, node->inode_id,
-				ret);
+		btrfs_err(root->fs_info,
+			  "err add delayed dir index item(index: %llu) into the deletion tree of the delayed node(root id: %llu, inode id: %llu, errno: %d)",
+			  index, node->root->objectid, node->inode_id, ret);
 		BUG();
 	}
 	mutex_unlock(&node->mutex);
@@ -1892,7 +1868,8 @@ int btrfs_delayed_delete_inode_ref(struct inode *inode)
 	 * leads to enospc problems.  This means we also can't do
 	 * delayed inode refs
 	 */
-	if (BTRFS_I(inode)->root->fs_info->log_root_recovering)
+	if (test_bit(BTRFS_FS_LOG_RECOVERING,
+		     &BTRFS_I(inode)->root->fs_info->flags))
 		return -EAGAIN;
 
 	delayed_node = btrfs_get_or_create_delayed_node(inode);

@@ -22,7 +22,7 @@
 #include <linux/types.h>
 #include <linux/buffer_head.h>
 #include <linux/list.h>
-#include <linux/nilfs2_fs.h>
+#include <linux/nilfs2_ondisk.h>	/* nilfs_btree_node */
 #include "btnode.h"
 #include "bmap.h"
 
