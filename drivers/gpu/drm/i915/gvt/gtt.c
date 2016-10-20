@@ -1995,8 +1995,7 @@ int intel_vgpu_init_gtt(struct intel_vgpu *vgpu)
 
 	gtt->ggtt_mm = ggtt_mm;
 
-	create_scratch_page(vgpu);
-	return 0;
+	return create_scratch_page(vgpu);
 }
 
 /**
