@@ -384,7 +384,7 @@ config NF_NAT_NEEDED
 	default y
 
 config NF_NAT_PROTO_DCCP
-	tristate
+	bool
 	depends on NF_NAT && NF_CT_PROTO_DCCP
 	default NF_NAT && NF_CT_PROTO_DCCP
 
