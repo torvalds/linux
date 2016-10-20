@@ -98,6 +98,8 @@ static int sun6i_drc_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id sun6i_drc_of_table[] = {
+	{ .compatible = "allwinner,sun6i-a31-drc" },
+	{ .compatible = "allwinner,sun6i-a31s-drc" },
 	{ .compatible = "allwinner,sun8i-a33-drc" },
 	{ }
 };

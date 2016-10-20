@@ -64,6 +64,8 @@ adaptive backlight control.
 
 Required properties:
   - compatible: value must be one of:
+    * allwinner,sun6i-a31-drc
+    * allwinner,sun6i-a31s-drc
     * allwinner,sun8i-a33-drc
   - reg: base address and size of the memory-mapped region.
   - interrupts: interrupt associated to this IP
