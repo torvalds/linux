@@ -116,18 +116,6 @@ __be16 hippi_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 EXPORT_SYMBOL(hippi_type_trans);
 
-int hippi_change_mtu(struct net_device *dev, int new_mtu)
-{
-	/*
-	 * HIPPI's got these nice large MTUs.
-	 */
-	if ((new_mtu < 68) || (new_mtu > 65280))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-EXPORT_SYMBOL(hippi_change_mtu);
-
 /*
  * For HIPPI we will actually use the lower 4 bytes of the hardware
  * address as the I-FIELD rather than the actual hardware address.
@@ -174,6 +162,8 @@ static void hippi_setup(struct net_device *dev)
 	dev->type		= ARPHRD_HIPPI;
 	dev->hard_header_len 	= HIPPI_HLEN;
 	dev->mtu		= 65280;
+	dev->min_mtu		= 68;
+	dev->max_mtu		= 65280;
 	dev->addr_len		= HIPPI_ALEN;
 	dev->tx_queue_len	= 25 /* 5 */;
 	memset(dev->broadcast, 0xFF, HIPPI_ALEN);

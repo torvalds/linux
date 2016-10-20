@@ -466,17 +466,6 @@ static void rionet_set_msglevel(struct net_device *ndev, u32 value)
 	rnet->msg_enable = value;
 }
 
-static int rionet_change_mtu(struct net_device *ndev, int new_mtu)
-{
-	if ((new_mtu < 68) || (new_mtu > RIONET_MAX_MTU)) {
-		printk(KERN_ERR "%s: Invalid MTU size %d\n",
-		       ndev->name, new_mtu);
-		return -EINVAL;
-	}
-	ndev->mtu = new_mtu;
-	return 0;
-}
-
 static const struct ethtool_ops rionet_ethtool_ops = {
 	.get_drvinfo = rionet_get_drvinfo,
 	.get_msglevel = rionet_get_msglevel,
@@ -488,7 +477,6 @@ static const struct net_device_ops rionet_netdev_ops = {
 	.ndo_open		= rionet_open,
 	.ndo_stop		= rionet_close,
 	.ndo_start_xmit		= rionet_start_xmit,
-	.ndo_change_mtu		= rionet_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 };
@@ -525,6 +513,9 @@ static int rionet_setup_netdev(struct rio_mport *mport, struct net_device *ndev)
 
 	ndev->netdev_ops = &rionet_netdev_ops;
 	ndev->mtu = RIONET_MAX_MTU;
+	/* MTU range: 68 - 4082 */
+	ndev->min_mtu = ETH_MIN_MTU;
+	ndev->max_mtu = RIONET_MAX_MTU;
 	ndev->features = NETIF_F_LLTX;
 	SET_NETDEV_DEV(ndev, &mport->dev);
 	ndev->ethtool_ops = &rionet_ethtool_ops;
