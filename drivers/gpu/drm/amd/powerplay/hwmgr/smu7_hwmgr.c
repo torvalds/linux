@@ -1168,8 +1168,8 @@ int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 	tmp_result = (!smum_is_dpm_running(hwmgr)) ? 0 : -1;
 	PP_ASSERT_WITH_CODE(tmp_result == 0,
-			"DPM is already running right now, no need to enable DPM!",
-			return 0);
+			"DPM is already running",
+			);
 
 	if (smu7_voltage_control(hwmgr)) {
 		tmp_result = smu7_enable_voltage_control(hwmgr);
