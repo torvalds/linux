@@ -142,6 +142,11 @@
 
 #define SUN4I_TCON_MAX_CHANNELS		2
 
+struct sun4i_tcon_quirks {
+	bool	has_unknown_mux; /* sun5i has undocumented mux */
+	bool	has_channel_1;	/* a33 does not have channel 1 */
+};
+
 struct sun4i_tcon {
 	struct device			*dev;
 	struct drm_device		*drm;
@@ -160,12 +165,10 @@ struct sun4i_tcon {
 	/* Reset control */
 	struct reset_control		*lcd_rst;
 
-	/* Platform adjustments */
-	bool				has_mux;
-
 	struct drm_panel		*panel;
 
-	bool				has_channel_1;
+	/* Platform adjustments */
+	const struct sun4i_tcon_quirks	*quirks;
 };
 
 struct drm_bridge *sun4i_tcon_find_bridge(struct device_node *node);
