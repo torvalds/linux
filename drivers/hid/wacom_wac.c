@@ -1539,6 +1539,9 @@ static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
 	case HID_DG_TOOLSERIALNUMBER:
 		wacom_map_usage(input, usage, field, EV_MSC, MSC_SERIAL, 0);
 		break;
+	case WACOM_HID_WD_FINGERWHEEL:
+		wacom_map_usage(input, usage, field, EV_ABS, ABS_WHEEL, 0);
+		break;
 	}
 }
 
