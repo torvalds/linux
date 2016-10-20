@@ -1038,6 +1038,9 @@ static int __device_suspend_noirq(struct device *dev, pm_message_t state, bool a
 
 	dpm_wait_for_children(dev, async);
 
+	if (async_error)
+		goto Complete;
+
 	if (dev->pm_domain) {
 		info = "noirq power domain ";
 		callback = pm_noirq_op(&dev->pm_domain->ops, state);
@@ -1184,6 +1187,9 @@ static int __device_suspend_late(struct device *dev, pm_message_t state, bool as
 		goto Complete;
 
 	dpm_wait_for_children(dev, async);
+
+	if (async_error)
+		goto Complete;
 
 	if (dev->pm_domain) {
 		info = "late power domain ";
