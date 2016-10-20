@@ -5204,7 +5204,7 @@ xfs_bunmapi_cow(
 	ep = xfs_bmap_search_extents(ip, del->br_startoff, XFS_COW_FORK, &eof,
 			&eidx, &got, &new);
 
-	ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK); ifp = ifp;
+	ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
 	ASSERT((eidx >= 0) && (eidx < ifp->if_bytes /
 		(uint)sizeof(xfs_bmbt_rec_t)));
 	ASSERT(del->br_blockcount > 0);
