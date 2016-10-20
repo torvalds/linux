@@ -282,14 +282,13 @@ static const struct virtio_config_ops rproc_virtio_config_ops = {
  * Never call this function directly; it will be called by the driver
  * core when needed.
  */
-static void rproc_vdev_release(struct device *dev)
+static void rproc_virtio_dev_release(struct device *dev)
 {
 	struct virtio_device *vdev = dev_to_virtio(dev);
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 	struct rproc *rproc = vdev_to_rproc(vdev);
 
-	list_del(&rvdev->node);
-	kfree(rvdev);
+	kref_put(&rvdev->refcount, rproc_vdev_release);
 
 	put_device(&rproc->dev);
 }
@@ -313,7 +312,7 @@ int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 	vdev->id.device	= id,
 	vdev->config = &rproc_virtio_config_ops,
 	vdev->dev.parent = dev;
-	vdev->dev.release = rproc_vdev_release;
+	vdev->dev.release = rproc_virtio_dev_release;
 
 	/*
 	 * We're indirectly making a non-temporary copy of the rproc pointer
@@ -324,6 +323,9 @@ int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 	 * it _only_ when the vdev is released.
 	 */
 	get_device(&rproc->dev);
+
+	/* Reference the vdev and vring allocations */
+	kref_get(&rvdev->refcount);
 
 	ret = register_virtio_device(vdev);
 	if (ret) {

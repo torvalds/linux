@@ -356,6 +356,8 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 	if (!rvdev)
 		return -ENOMEM;
 
+	kref_init(&rvdev->refcount);
+
 	rvdev->rproc = rproc;
 
 	/* parse the vrings */
@@ -382,6 +384,14 @@ remove_rvdev:
 free_rvdev:
 	kfree(rvdev);
 	return ret;
+}
+
+void rproc_vdev_release(struct kref *ref)
+{
+	struct rproc_vdev *rvdev = container_of(ref, struct rproc_vdev, refcount);
+
+	list_del(&rvdev->node);
+	kfree(rvdev);
 }
 
 /**
