@@ -5414,28 +5414,6 @@ done:
 	return error;
 }
 
-/* Remove an extent from the CoW fork.  Similar to xfs_bmap_del_extent. */
-int
-xfs_bunmapi_cow(
-	struct xfs_inode		*ip,
-	struct xfs_bmbt_irec		*del)
-{
-	struct xfs_bmbt_rec_host	*ep;
-	struct xfs_bmbt_irec		got;
-	struct xfs_bmbt_irec		new;
-	int				eof;
-	xfs_extnum_t			eidx;
-
-	ep = xfs_bmap_search_extents(ip, del->br_startoff, XFS_COW_FORK, &eof,
-				&eidx, &got, &new);
-	ASSERT(ep);
-	if (isnullstartblock(got.br_startblock))
-		xfs_bmap_del_extent_delay(ip, XFS_COW_FORK, &eidx, &got, del);
-	else
-		xfs_bmap_del_extent_cow(ip, &eidx, &got, del);
-	return 0;
-}
-
 /*
  * Unmap (remove) blocks from a file.
  * If nexts is nonzero then the number of extents to remove is limited to
