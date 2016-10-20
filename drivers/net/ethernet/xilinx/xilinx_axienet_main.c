@@ -1034,9 +1034,6 @@ static int axienet_change_mtu(struct net_device *ndev, int new_mtu)
 		XAE_TRL_SIZE) > lp->rxmem)
 		return -EINVAL;
 
-	if ((new_mtu > XAE_JUMBO_MTU) || (new_mtu < 64))
-		return -EINVAL;
-
 	ndev->mtu = new_mtu;
 
 	return 0;
@@ -1474,6 +1471,10 @@ static int axienet_probe(struct platform_device *pdev)
 	ndev->features = NETIF_F_SG;
 	ndev->netdev_ops = &axienet_netdev_ops;
 	ndev->ethtool_ops = &axienet_ethtool_ops;
+
+	/* MTU range: 64 - 9000 */
+	ndev->min_mtu = 64;
+	ndev->max_mtu = XAE_JUMBO_MTU;
 
 	lp = netdev_priv(ndev);
 	lp->ndev = ndev;

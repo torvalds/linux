@@ -738,6 +738,8 @@ static int xgbe_probe(struct platform_device *pdev)
 	pdata->netdev_features = netdev->features;
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
+	netdev->min_mtu = 0;
+	netdev->max_mtu = XGMAC_JUMBO_PACKET_MTU;
 
 	/* Use default watchdog timeout */
 	netdev->watchdog_timeo = 0;

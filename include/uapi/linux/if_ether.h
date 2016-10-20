@@ -36,6 +36,7 @@
 #define ETH_FCS_LEN	4		/* Octets in the FCS		 */
 
 #define ETH_MIN_MTU	68		/* Min IPv4 MTU per RFC791	*/
+#define ETH_MAX_MTU	0xFFFFU		/* 65535, same as IP_MAX_MTU	*/
 
 /*
  *	These are the defined Ethernet Protocol ID's.

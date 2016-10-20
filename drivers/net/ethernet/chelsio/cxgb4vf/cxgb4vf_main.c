@@ -1108,10 +1108,6 @@ static int cxgb4vf_change_mtu(struct net_device *dev, int new_mtu)
 	int ret;
 	struct port_info *pi = netdev_priv(dev);
 
-	/* accommodate SACK */
-	if (new_mtu < 81)
-		return -EINVAL;
-
 	ret = t4vf_set_rxmode(pi->adapter, pi->viid, new_mtu,
 			      -1, -1, -1, -1, true);
 	if (!ret)
@@ -2966,6 +2962,8 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 			netdev->features |= NETIF_F_HIGHDMA;
 
 		netdev->priv_flags |= IFF_UNICAST_FLT;
+		netdev->min_mtu = 81;
+		netdev->max_mtu = ETH_MAX_MTU;
 
 		netdev->netdev_ops = &cxgb4vf_netdev_ops;
 		netdev->ethtool_ops = &cxgb4vf_ethtool_ops;

@@ -257,11 +257,6 @@ static int xgbe_calc_rx_buf_size(struct net_device *netdev, unsigned int mtu)
 {
 	unsigned int rx_buf_size;
 
-	if (mtu > XGMAC_JUMBO_PACKET_MTU) {
-		netdev_alert(netdev, "MTU exceeds maximum supported value\n");
-		return -EINVAL;
-	}
-
 	rx_buf_size = mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 	rx_buf_size = clamp_val(rx_buf_size, XGBE_RX_MIN_BUF_SIZE, PAGE_SIZE);
 
