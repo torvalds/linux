@@ -47,39 +47,24 @@
     root (the system's master), hubs as interior nodes, and
     peripherals as leaves (and slaves).
     Modern PCs support several such trees of USB devices, usually
-    one USB 2.0 tree (480 Mbit/sec each) with
-    a few USB 1.1 trees (12 Mbit/sec each) that are used when you
-    connect a USB 1.1 device directly to the machine's "root hub".
+    a few USB 3.0 (5 GBit/s) or USB 3.1 (10 GBit/s) and some legacy
+    USB 2.0 (480 MBit/s) busses just in case.
     </para>
 
     <para>That master/slave asymmetry was designed-in for a number of
     reasons, one being ease of use.  It is not physically possible to
-    assemble (legal) USB cables incorrectly:  all upstream "to the host"
-    connectors are the rectangular type (matching the sockets on
-    root hubs), and all downstream connectors are the squarish type
+    mistake upstream and downstream or it does not matter with a type C
+    plug
     (or they are built into the peripheral).
     Also, the host software doesn't need to deal with distributed
     auto-configuration since the pre-designated master node manages all that.
-    And finally, at the electrical level, bus protocol overhead is reduced by
-    eliminating arbitration and moving scheduling into the host software.
-    </para>
-
-    <para>USB 1.0 was announced in January 1996 and was revised
-    as USB 1.1 (with improvements in hub specification and
-    support for interrupt-out transfers) in September 1998.
-    USB 2.0 was released in April 2000, adding high-speed
-    transfers and transaction-translating hubs (used for USB 1.1
-    and 1.0 backward compatibility).
     </para>
 
     <para>Kernel developers added USB support to Linux early in the 2.2 kernel
-    series, shortly before 2.3 development forked.  Updates from 2.3 were
-    regularly folded back into 2.2 releases, which improved reliability and
-    brought <filename>/sbin/hotplug</filename> support as well more drivers.
-    Such improvements were continued in the 2.5 kernel series, where they added
-    USB 2.0 support, improved performance, and made the host controller drivers
-    (HCDs) more consistent.  They also simplified the API (to make bugs less
-    likely) and added internal "kerneldoc" documentation.
+    series and have been developing it further since then. Besides support
+    for each new generation of USB, various host controllers gained support,
+    new drivers for peripherals have been added and advanced features for latency
+    measurement and improved power management introduced.
     </para>
 
     <para>Linux can run inside USB devices as well as on
@@ -121,12 +106,17 @@
 
 	<listitem><para>The device description model includes one or more
 	"configurations" per device, only one of which is active at a time.
-	Devices that are capable of high-speed operation must also support
-	full-speed configurations, along with a way to ask about the
-	"other speed" configurations which might be used.
+	Devices are supposed to be capable of operating at lower than their top
+	speeds and may provide a BOS descriptor showing the lowest speed they
+	remain fully operational at.
 	</para></listitem>
 
-	<listitem><para>Configurations have one or more "interfaces", each
+	<listitem><para>From USB 3.0 on configurations have one or more "functions", which
+	provide a common functionality and are grouped together for purposes
+	of power management.
+	</para></listitem>
+
+	<listitem><para>Configurations or functions have one or more "interfaces", each
 	of which may have "alternate settings".  Interfaces may be
 	standardized by USB "Class" specifications, or may be specific to
 	a vendor or device.</para>
@@ -135,7 +125,7 @@
 	Think of them as "interface drivers", though you
 	may not see many devices where the distinction is important.
 	<emphasis>Most USB devices are simple, with only one configuration,
-	one interface, and one alternate setting.</emphasis>
+	one function, one interface, and one alternate setting.</emphasis>
 	</para></listitem>
 
 	<listitem><para>Interfaces have one or more "endpoints", each of
@@ -161,26 +151,25 @@
 
     <para>Accordingly, the USB Core API exposed to device drivers
     covers quite a lot of territory.  You'll probably need to consult
-    the USB 2.0 specification, available online from www.usb.org at
+    the USB 3.0 specification, available online from www.usb.org at
     no cost, as well as class or device specifications.
     </para>
 
     <para>The only host-side drivers that actually touch hardware
     (reading/writing registers, handling IRQs, and so on) are the HCDs.
     In theory, all HCDs provide the same functionality through the same
-    API.  In practice, that's becoming more true on the 2.5 kernels,
+    API.  In practice, that's becoming mostly true,
     but there are still differences that crop up especially with
-    fault handling.  Different controllers don't necessarily report
+    fault handling on the less common controllers. 
+    Different controllers don't necessarily report
     the same aspects of failures, and recovery from faults (including
     software-induced ones like unlinking an URB) isn't yet fully
     consistent.
     Device driver authors should make a point of doing disconnect
     testing (while the device is active) with each different host
     controller driver, to make sure drivers don't have bugs of
-    their own as well as to make sure they aren't relying on some
+    thei1r own as well as to make sure they aren't relying on some
     HCD-specific behavior.
-    (You will need external USB 1.1 and/or
-    USB 2.0 hubs to perform all those tests.)
     </para>
 
     </chapter>
@@ -216,7 +205,7 @@
     <para>There are two basic I/O models in the USB API.
     The most elemental one is asynchronous:  drivers submit requests
     in the form of an URB, and the URB's completion callback
-    handle the next step.
+    handles the next step.
     All USB transfer types support that model, although there
     are special cases for control URBs (which always have setup
     and status stages, but may not have a data stage) and
@@ -252,7 +241,7 @@
 
     <para>These APIs are only for use by host controller drivers,
     most of which implement standard register interfaces such as
-    EHCI, OHCI, or UHCI.
+    XHCI, EHCI, OHCI, or UHCI.
     UHCI was one of the first interfaces, designed by Intel and
     also used by VIA; it doesn't do much in hardware.
     OHCI was designed later, to have the hardware do more work
@@ -260,13 +249,16 @@
     EHCI was designed with USB 2.0; its design has features that
     resemble OHCI (hardware does much more work) as well as
     UHCI (some parts of ISO support, TD list processing).
+    XHCI was designed with USB 3.0. It continues to shift support
+    for functionality into hardware.
     </para>
 
     <para>There are host controllers other than the "big three",
     although most PCI based controllers (and a few non-PCI based
     ones) use one of those interfaces.
     Not all host controllers use DMA; some use PIO, and there
-    is also a simulator.
+    is also a simulator and a virtual host controller to pipe
+    USB over the network.
     </para>
 
     <para>The same basic APIs are available to drivers for all
@@ -275,7 +267,7 @@
     <structname>struct usb_bus</structname> is a rather thin
     layer that became available in the 2.2 kernels, while
     <structname>struct usb_hcd</structname> is a more featureful
-    layer (available in later 2.4 kernels and in 2.5) that
+    layer that
     lets HCDs share common code, to shrink driver size
     and significantly reduce hcd-specific behaviors.
     </para>
