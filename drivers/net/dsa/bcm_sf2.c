@@ -30,6 +30,7 @@
 #include <linux/etherdevice.h>
 #include <net/switchdev.h>
 #include <linux/platform_data/b53.h>
+#include <linux/kexec.h>
 
 #include "bcm_sf2.h"
 #include "bcm_sf2_regs.h"
@@ -1133,6 +1134,18 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void bcm_sf2_sw_shutdown(struct platform_device *pdev)
+{
+	struct bcm_sf2_priv *priv = platform_get_drvdata(pdev);
+
+	/* For a kernel about to be kexec'd we want to keep the GPHY on for a
+	 * successful MDIO bus scan to occur. If we did turn off the GPHY
+	 * before (e.g: port_disable), this will also power it back on.
+	 */
+	if (priv->hw_params.num_gphy == 1)
+		bcm_sf2_gphy_enable_set(priv->dev->ds, kexec_in_progress);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int bcm_sf2_suspend(struct device *dev)
 {
@@ -1163,6 +1176,7 @@ MODULE_DEVICE_TABLE(of, bcm_sf2_of_match);
 static struct platform_driver bcm_sf2_driver = {
 	.probe	= bcm_sf2_sw_probe,
 	.remove	= bcm_sf2_sw_remove,
+	.shutdown = bcm_sf2_sw_shutdown,
 	.driver = {
 		.name = "brcm-sf2",
 		.of_match_table = bcm_sf2_of_match,
