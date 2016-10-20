@@ -83,17 +83,6 @@ static inline bool bio_no_advance_iter(struct bio *bio)
 	       bio_op(bio) == REQ_OP_WRITE_SAME;
 }
 
-static inline bool bio_is_rw(struct bio *bio)
-{
-	if (!bio_has_data(bio))
-		return false;
-
-	if (bio_no_advance_iter(bio))
-		return false;
-
-	return true;
-}
-
 static inline bool bio_mergeable(struct bio *bio)
 {
 	if (bio->bi_opf & REQ_NOMERGE_FLAGS)
