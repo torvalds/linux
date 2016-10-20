@@ -1944,7 +1944,7 @@ static int create_scratch_page(struct intel_vgpu *vgpu)
 	mfn = intel_gvt_hypervisor_virt_to_mfn(vaddr);
 
 	if (mfn == INTEL_GVT_INVALID_ADDR) {
-		gvt_err("fail to translate vaddr:0x%llx\n", (u64)vaddr);
+		gvt_err("fail to translate vaddr: 0x%p\n", vaddr);
 		__free_page(gtt->scratch_page);
 		gtt->scratch_page = NULL;
 		return -ENXIO;
