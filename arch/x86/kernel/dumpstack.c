@@ -82,7 +82,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	 * - softirq stack
 	 * - hardirq stack
 	 */
-	for (; stack; stack = stack_info.next_sp) {
+	for (regs = NULL; stack; stack = stack_info.next_sp) {
 		const char *str_begin, *str_end;
 
 		/*
@@ -119,6 +119,15 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			if (!__kernel_text_address(addr))
 				continue;
 
+			/*
+			 * Don't print regs->ip again if it was already printed
+			 * by __show_regs() below.
+			 */
+			if (regs && stack == &regs->ip) {
+				unwind_next_frame(&state);
+				continue;
+			}
+
 			if (stack == ret_addr_p)
 				reliable = 1;
 
@@ -146,6 +155,11 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			 * of the addresses will just be printed as unreliable.
 			 */
 			unwind_next_frame(&state);
+
+			/* if the frame has entry regs, print them */
+			regs = unwind_get_entry_regs(&state);
+			if (regs)
+				__show_regs(regs, 0);
 		}
 
 		if (str_end)
