@@ -377,6 +377,9 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 			goto unwind_vring_allocations;
 	}
 
+	/* track the rvdevs list reference */
+	kref_get(&rvdev->refcount);
+
 	list_add_tail(&rvdev->node, &rproc->rvdevs);
 
 	/* it is now safe to add the virtio device */
@@ -839,8 +842,10 @@ static void rproc_resource_cleanup(struct rproc *rproc)
 	}
 
 	/* clean up remote vdev entries */
-	list_for_each_entry_safe(rvdev, rvtmp, &rproc->rvdevs, node)
+	list_for_each_entry_safe(rvdev, rvtmp, &rproc->rvdevs, node) {
 		rproc_remove_virtio_dev(rvdev);
+		kref_put(&rvdev->refcount, rproc_vdev_release);
+	}
 }
 
 /*
