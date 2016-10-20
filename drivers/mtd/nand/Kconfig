@@ -426,6 +426,11 @@ config MTD_NAND_ORION
 	  No board specific support is done by this driver, each board
 	  must advertise a platform_device for the driver to attach.
 
+config MTD_NAND_OXNAS
+	tristate "NAND Flash support for Oxford Semiconductor SoC"
+	help
+	  This enables the NAND flash controller on Oxford Semiconductor SoCs.
+
 config MTD_NAND_FSL_ELBC
 	tristate "NAND support for Freescale eLBC controllers"
 	depends on FSL_SOC
