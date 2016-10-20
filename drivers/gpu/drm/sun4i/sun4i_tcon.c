@@ -587,12 +587,22 @@ static const struct sun4i_tcon_quirks sun5i_a13_quirks = {
 	.has_channel_1	= true,
 };
 
+static const struct sun4i_tcon_quirks sun6i_a31_quirks = {
+	.has_channel_1	= true,
+};
+
+static const struct sun4i_tcon_quirks sun6i_a31s_quirks = {
+	.has_channel_1	= true,
+};
+
 static const struct sun4i_tcon_quirks sun8i_a33_quirks = {
 	/* nothing is supported */
 };
 
 static const struct of_device_id sun4i_tcon_of_table[] = {
 	{ .compatible = "allwinner,sun5i-a13-tcon", .data = &sun5i_a13_quirks },
+	{ .compatible = "allwinner,sun6i-a31-tcon", .data = &sun6i_a31_quirks },
+	{ .compatible = "allwinner,sun6i-a31s-tcon", .data = &sun6i_a31s_quirks },
 	{ .compatible = "allwinner,sun8i-a33-tcon", .data = &sun8i_a33_quirks },
 	{ }
 };
