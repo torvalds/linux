@@ -425,10 +425,13 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	INIT_WORK(&st->poll_work, &ad7606_poll_bh_to_ring);
 
 	st->reg = devm_regulator_get(dev, "avcc");
-	if (!IS_ERR(st->reg)) {
-		ret = regulator_enable(st->reg);
-		if (ret)
-			return ret;
+	if (IS_ERR(st->reg))
+		return PTR_ERR(st->reg);
+
+	ret = regulator_enable(st->reg);
+	if (ret) {
+		dev_err(dev, "Failed to enable specified AVcc supply\n");
+		return ret;
 	}
 
 	ret = ad7606_request_gpios(st);
@@ -484,8 +487,7 @@ error_free_irq:
 	free_irq(irq, indio_dev);
 
 error_disable_reg:
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
+	regulator_disable(st->reg);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ad7606_probe);
@@ -499,8 +501,7 @@ int ad7606_remove(struct device *dev, int irq)
 	iio_triggered_buffer_cleanup(indio_dev);
 
 	free_irq(irq, indio_dev);
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
+	regulator_disable(st->reg);
 
 	return 0;
 }
