@@ -1341,15 +1341,6 @@ xfs_reflink_remap_range(
 
 	trace_xfs_reflink_remap_range(src, srcoff, len, dest, destoff);
 
-	/* Lock both files against IO */
-	if (src->i_ino == dest->i_ino) {
-		xfs_ilock(src, XFS_IOLOCK_EXCL);
-		xfs_ilock(src, XFS_MMAPLOCK_EXCL);
-	} else {
-		xfs_lock_two_inodes(src, dest, XFS_IOLOCK_EXCL);
-		xfs_lock_two_inodes(src, dest, XFS_MMAPLOCK_EXCL);
-	}
-
 	/*
 	 * Check that the extents are the same.
 	 */
@@ -1401,12 +1392,6 @@ xfs_reflink_remap_range(
 		goto out_error;
 
 out_error:
-	xfs_iunlock(src, XFS_MMAPLOCK_EXCL);
-	xfs_iunlock(src, XFS_IOLOCK_EXCL);
-	if (src->i_ino != dest->i_ino) {
-		xfs_iunlock(dest, XFS_MMAPLOCK_EXCL);
-		xfs_iunlock(dest, XFS_IOLOCK_EXCL);
-	}
 	if (error)
 		trace_xfs_reflink_remap_range_error(dest, error, _RET_IP_);
 	return error;
