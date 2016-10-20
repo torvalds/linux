@@ -32,6 +32,7 @@
  */
 
 #include "i915_drv.h"
+#include "gvt.h"
 
 enum {
 	INTEL_GVT_PCI_BAR_GTTMMIO = 0,

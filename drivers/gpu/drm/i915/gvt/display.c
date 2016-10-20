@@ -33,6 +33,7 @@
  */
 
 #include "i915_drv.h"
+#include "gvt.h"
 
 static int get_edp_pipe(struct intel_vgpu *vgpu)
 {

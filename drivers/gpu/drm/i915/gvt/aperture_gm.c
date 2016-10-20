@@ -35,6 +35,7 @@
  */
 
 #include "i915_drv.h"
+#include "gvt.h"
 
 #define MB_TO_BYTES(mb) ((mb) << 20ULL)
 #define BYTES_TO_MB(b) ((b) >> 20ULL)

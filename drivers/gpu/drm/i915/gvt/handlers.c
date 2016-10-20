@@ -37,6 +37,8 @@
  */
 
 #include "i915_drv.h"
+#include "gvt.h"
+#include "i915_pvinfo.h"
 
 /* XXX FIXME i915 has changed PP_XXX definition */
 #define PCH_PP_STATUS  _MMIO(0xc7200)

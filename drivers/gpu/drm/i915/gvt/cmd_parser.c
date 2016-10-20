@@ -36,6 +36,8 @@
 
 #include <linux/slab.h>
 #include "i915_drv.h"
+#include "gvt.h"
+#include "i915_pvinfo.h"
 #include "trace.h"
 
 #define INVALID_OP    (~0U)

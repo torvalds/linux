@@ -32,6 +32,8 @@
  */
 
 #include "i915_drv.h"
+#include "gvt.h"
+#include "i915_pvinfo.h"
 
 static void clean_vgpu_mmio(struct intel_vgpu *vgpu)
 {

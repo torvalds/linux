@@ -33,9 +33,10 @@
  *
  */
 
-#include "i915_drv.h"
-
 #include <linux/kthread.h>
+
+#include "i915_drv.h"
+#include "gvt.h"
 
 #define RING_CTX_OFF(x) \
 	offsetof(struct execlist_ring_context, x)

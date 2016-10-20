@@ -34,6 +34,8 @@
  */
 
 #include "i915_drv.h"
+#include "gvt.h"
+#include "i915_pvinfo.h"
 #include "trace.h"
 
 static bool enable_out_of_sync = false;

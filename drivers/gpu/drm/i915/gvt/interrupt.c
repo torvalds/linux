@@ -30,6 +30,7 @@
  */
 
 #include "i915_drv.h"
+#include "gvt.h"
 
 /* common offset among interrupt control registers */
 #define regbase_to_isr(base)	(base)

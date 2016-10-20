@@ -32,6 +32,7 @@
  */
 
 #include "i915_drv.h"
+#include "gvt.h"
 
 static bool vgpu_has_pending_workload(struct intel_vgpu *vgpu)
 {
