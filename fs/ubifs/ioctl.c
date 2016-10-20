@@ -181,6 +181,41 @@ long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		mnt_drop_write_file(file);
 		return err;
 	}
+	case FS_IOC_SET_ENCRYPTION_POLICY: {
+#ifdef CONFIG_UBIFS_FS_ENCRYPTION
+		struct fscrypt_policy policy;
+
+		if (copy_from_user(&policy,
+				   (struct fscrypt_policy __user *)arg,
+				   sizeof(policy)))
+			return -EFAULT;
+
+		err = fscrypt_process_policy(file, &policy);
+
+		return err;
+#else
+		return -EOPNOTSUPP;
+#endif
+	}
+	case FS_IOC_GET_ENCRYPTION_POLICY: {
+#ifdef CONFIG_UBIFS_FS_ENCRYPTION
+		struct fscrypt_policy policy;
+
+		if (!ubifs_crypt_is_encrypted(inode))
+			return -ENOENT;
+
+		err = fscrypt_get_policy(inode, &policy);
+		if (err)
+			return err;
+
+		if (copy_to_user((void __user *)arg, &policy, sizeof(policy)))
+			return -EFAULT;
+
+		return 0;
+#else
+		return -EOPNOTSUPP;
+#endif
+	}
 
 	default:
 		return -ENOTTY;

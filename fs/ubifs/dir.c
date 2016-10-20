@@ -85,11 +85,26 @@ static int inherit_flags(const struct inode *dir, umode_t mode)
  * initializes it. Returns new inode in case of success and an error code in
  * case of failure.
  */
-struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
+struct inode *ubifs_new_inode(struct ubifs_info *c, struct inode *dir,
 			      umode_t mode)
 {
+	int err;
 	struct inode *inode;
 	struct ubifs_inode *ui;
+	bool encrypted = false;
+
+	if (ubifs_crypt_is_encrypted(dir)) {
+		err = fscrypt_get_encryption_info(dir);
+		if (err) {
+			ubifs_err(c, "fscrypt_get_encryption_info failed: %i", err);
+			return ERR_PTR(err);
+		}
+
+		if (!fscrypt_has_encryption_key(dir))
+			return ERR_PTR(-EPERM);
+
+		encrypted = true;
+	}
 
 	inode = new_inode(c->vfs_sb);
 	ui = ubifs_inode(inode);
@@ -165,6 +180,17 @@ struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
 	 */
 	ui->creat_sqnum = ++c->max_sqnum;
 	spin_unlock(&c->cnt_lock);
+
+	if (encrypted) {
+		err = fscrypt_inherit_context(dir, inode, &encrypted, true);
+		if (err) {
+			ubifs_err(c, "fscrypt_inherit_context failed: %i", err);
+			make_bad_inode(inode);
+			iput(inode);
+			return ERR_PTR(err);
+		}
+	}
+
 	return inode;
 }
 

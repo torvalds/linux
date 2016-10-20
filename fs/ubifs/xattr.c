@@ -158,6 +158,15 @@ static int create_xattr(struct ubifs_info *c, struct inode *host,
 	host_ui->xattr_size += CALC_XATTR_BYTES(size);
 	host_ui->xattr_names += nm->len;
 
+	/*
+	 * We handle UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT here because we
+	 * have to set the UBIFS_CRYPT_FL flag on the host inode.
+	 * To avoid multiple updates of the same inode in the same operation,
+	 * let's do it here.
+	 */
+	if (strcmp(nm->name, UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT) == 0)
+		host_ui->flags |= UBIFS_CRYPT_FL;
+
 	err = ubifs_jnl_update(c, host, nm, inode, 0, 1);
 	if (err)
 		goto out_cancel;
@@ -173,6 +182,7 @@ out_cancel:
 	host_ui->xattr_size -= CALC_DENT_SIZE(nm->len);
 	host_ui->xattr_size -= CALC_XATTR_BYTES(size);
 	host_ui->xattr_names -= nm->len;
+	host_ui->flags &= ~UBIFS_CRYPT_FL;
 	mutex_unlock(&host_ui->ui_mutex);
 out_free:
 	make_bad_inode(inode);
