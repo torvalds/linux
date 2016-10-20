@@ -39,6 +39,7 @@ struct persistent_ram_zone {
 	void *vaddr;
 	struct persistent_ram_buffer *buffer;
 	size_t buffer_size;
+	raw_spinlock_t buffer_lock;
 
 	/* ECC correction */
 	char *par_buffer;
