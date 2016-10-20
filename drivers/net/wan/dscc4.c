@@ -887,7 +887,6 @@ static inline int dscc4_set_quartz(struct dscc4_dev_priv *dpriv, int hz)
 static const struct net_device_ops dscc4_ops = {
 	.ndo_open       = dscc4_open,
 	.ndo_stop       = dscc4_close,
-	.ndo_change_mtu = hdlc_change_mtu,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = dscc4_ioctl,
 	.ndo_tx_timeout = dscc4_tx_timeout,
