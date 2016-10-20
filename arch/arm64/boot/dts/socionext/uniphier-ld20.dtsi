@@ -79,28 +79,112 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0 0x000>;
+			clocks = <&sys_clk 32>;
 			enable-method = "psci";
+			operating-points-v2 = <&cluster0_opp>;
 		};
 
 		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0 0x001>;
+			clocks = <&sys_clk 32>;
 			enable-method = "psci";
+			operating-points-v2 = <&cluster0_opp>;
 		};
 
 		cpu2: cpu@100 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0 0x100>;
+			clocks = <&sys_clk 33>;
 			enable-method = "psci";
+			operating-points-v2 = <&cluster1_opp>;
 		};
 
 		cpu3: cpu@101 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0 0x101>;
+			clocks = <&sys_clk 33>;
 			enable-method = "psci";
+			operating-points-v2 = <&cluster1_opp>;
+		};
+	};
+
+	cluster0_opp: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp@250000000 {
+			opp-hz = /bits/ 64 <250000000>;
+			clock-latency-ns = <300>;
+		};
+		opp@275000000 {
+			opp-hz = /bits/ 64 <275000000>;
+			clock-latency-ns = <300>;
+		};
+		opp@500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			clock-latency-ns = <300>;
+		};
+		opp@550000000 {
+			opp-hz = /bits/ 64 <550000000>;
+			clock-latency-ns = <300>;
+		};
+		opp@666667000 {
+			opp-hz = /bits/ 64 <666667000>;
+			clock-latency-ns = <300>;
+		};
+		opp@733334000 {
+			opp-hz = /bits/ 64 <733334000>;
+			clock-latency-ns = <300>;
+		};
+		opp@1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			clock-latency-ns = <300>;
+		};
+		opp@1100000000 {
+			opp-hz = /bits/ 64 <1100000000>;
+			clock-latency-ns = <300>;
+		};
+	};
+
+	cluster1_opp: opp_table1 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp@250000000 {
+			opp-hz = /bits/ 64 <250000000>;
+			clock-latency-ns = <300>;
+		};
+		opp@275000000 {
+			opp-hz = /bits/ 64 <275000000>;
+			clock-latency-ns = <300>;
+		};
+		opp@500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			clock-latency-ns = <300>;
+		};
+		opp@550000000 {
+			opp-hz = /bits/ 64 <550000000>;
+			clock-latency-ns = <300>;
+		};
+		opp@666667000 {
+			opp-hz = /bits/ 64 <666667000>;
+			clock-latency-ns = <300>;
+		};
+		opp@733334000 {
+			opp-hz = /bits/ 64 <733334000>;
+			clock-latency-ns = <300>;
+		};
+		opp@1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			clock-latency-ns = <300>;
+		};
+		opp@1100000000 {
+			opp-hz = /bits/ 64 <1100000000>;
+			clock-latency-ns = <300>;
 		};
 	};
 
