@@ -512,13 +512,13 @@ static struct attribute *xfs_error_attrs[] = {
 };
 
 
-struct kobj_type xfs_error_cfg_ktype = {
+static struct kobj_type xfs_error_cfg_ktype = {
 	.release = xfs_sysfs_release,
 	.sysfs_ops = &xfs_sysfs_ops,
 	.default_attrs = xfs_error_attrs,
 };
 
-struct kobj_type xfs_error_ktype = {
+static struct kobj_type xfs_error_ktype = {
 	.release = xfs_sysfs_release,
 	.sysfs_ops = &xfs_sysfs_ops,
 };
