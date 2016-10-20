@@ -645,6 +645,7 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 	struct net_device *dev = nd->dev;
 	struct ncsi_package *np = ndp->active_package;
 	struct ncsi_channel *nc = ndp->active_channel;
+	struct ncsi_channel *hot_nc = NULL;
 	struct ncsi_cmd_arg nca;
 	unsigned char index;
 	unsigned long flags;
@@ -750,11 +751,19 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 		break;
 	case ncsi_dev_state_config_done:
 		spin_lock_irqsave(&nc->lock, flags);
-		if (nc->modes[NCSI_MODE_LINK].data[2] & 0x1)
+		if (nc->modes[NCSI_MODE_LINK].data[2] & 0x1) {
+			hot_nc = nc;
 			nc->state = NCSI_CHANNEL_ACTIVE;
-		else
+		} else {
+			hot_nc = NULL;
 			nc->state = NCSI_CHANNEL_INACTIVE;
+		}
 		spin_unlock_irqrestore(&nc->lock, flags);
+
+		/* Update the hot channel */
+		spin_lock_irqsave(&ndp->lock, flags);
+		ndp->hot_channel = hot_nc;
+		spin_unlock_irqrestore(&ndp->lock, flags);
 
 		ncsi_start_channel_monitor(nc);
 		ncsi_process_next_channel(ndp);
@@ -773,9 +782,13 @@ error:
 static int ncsi_choose_active_channel(struct ncsi_dev_priv *ndp)
 {
 	struct ncsi_package *np;
-	struct ncsi_channel *nc, *found;
+	struct ncsi_channel *nc, *found, *hot_nc;
 	struct ncsi_channel_mode *ncm;
 	unsigned long flags;
+
+	spin_lock_irqsave(&ndp->lock, flags);
+	hot_nc = ndp->hot_channel;
+	spin_unlock_irqrestore(&ndp->lock, flags);
 
 	/* The search is done once an inactive channel with up
 	 * link is found.
@@ -792,6 +805,9 @@ static int ncsi_choose_active_channel(struct ncsi_dev_priv *ndp)
 			}
 
 			if (!found)
+				found = nc;
+
+			if (nc == hot_nc)
 				found = nc;
 
 			ncm = &nc->modes[NCSI_MODE_LINK];
