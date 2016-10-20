@@ -583,7 +583,7 @@ static struct sk_buff **vxlan_gro_receive(struct sock *sk,
 		}
 	}
 
-	pp = eth_gro_receive(head, skb);
+	pp = call_gro_receive(eth_gro_receive, head, skb);
 	flush = 0;
 
 out:
