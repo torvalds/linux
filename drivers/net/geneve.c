@@ -1034,37 +1034,16 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 	return geneve_xmit_skb(skb, dev, info);
 }
 
-static int __geneve_change_mtu(struct net_device *dev, int new_mtu, bool strict)
+static int geneve_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct geneve_dev *geneve = netdev_priv(dev);
-	/* The max_mtu calculation does not take account of GENEVE
-	 * options, to avoid excluding potentially valid
-	 * configurations.
+	/* Only possible if called internally, ndo_change_mtu path's new_mtu
+	 * is guaranteed to be between dev->min_mtu and dev->max_mtu.
 	 */
-	int max_mtu = IP_MAX_MTU - GENEVE_BASE_HLEN - dev->hard_header_len;
-
-	if (geneve->remote.sa.sa_family == AF_INET6)
-		max_mtu -= sizeof(struct ipv6hdr);
-	else
-		max_mtu -= sizeof(struct iphdr);
-
-	if (new_mtu < 68)
-		return -EINVAL;
-
-	if (new_mtu > max_mtu) {
-		if (strict)
-			return -EINVAL;
-
-		new_mtu = max_mtu;
-	}
+	if (new_mtu > dev->max_mtu)
+		new_mtu = dev->max_mtu;
 
 	dev->mtu = new_mtu;
 	return 0;
-}
-
-static int geneve_change_mtu(struct net_device *dev, int new_mtu)
-{
-	return __geneve_change_mtu(dev, new_mtu, true);
 }
 
 static int geneve_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
@@ -1169,6 +1148,14 @@ static void geneve_setup(struct net_device *dev)
 
 	dev->hw_features |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_RXCSUM;
 	dev->hw_features |= NETIF_F_GSO_SOFTWARE;
+
+	/* MTU range: 68 - (something less than 65535) */
+	dev->min_mtu = ETH_MIN_MTU;
+	/* The max_mtu calculation does not take account of GENEVE
+	 * options, to avoid excluding potentially valid
+	 * configurations. This will be further reduced by IPvX hdr size.
+	 */
+	dev->max_mtu = IP_MAX_MTU - GENEVE_BASE_HLEN - dev->hard_header_len;
 
 	netif_keep_dst(dev);
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
@@ -1285,10 +1272,13 @@ static int geneve_configure(struct net *net, struct net_device *dev,
 
 	/* make enough headroom for basic scenario */
 	encap_len = GENEVE_BASE_HLEN + ETH_HLEN;
-	if (remote->sa.sa_family == AF_INET)
+	if (remote->sa.sa_family == AF_INET) {
 		encap_len += sizeof(struct iphdr);
-	else
+		dev->max_mtu -= sizeof(struct iphdr);
+	} else {
 		encap_len += sizeof(struct ipv6hdr);
+		dev->max_mtu -= sizeof(struct ipv6hdr);
+	}
 	dev->needed_headroom = encap_len + ETH_HLEN;
 
 	if (metadata) {
@@ -1488,7 +1478,7 @@ struct net_device *geneve_dev_create_fb(struct net *net, const char *name,
 	/* openvswitch users expect packet sizes to be unrestricted,
 	 * so set the largest MTU we can.
 	 */
-	err = __geneve_change_mtu(dev, IP_MAX_MTU, false);
+	err = geneve_change_mtu(dev, IP_MAX_MTU);
 	if (err)
 		goto err;
 

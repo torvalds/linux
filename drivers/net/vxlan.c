@@ -2367,41 +2367,29 @@ static void vxlan_set_multicast_list(struct net_device *dev)
 {
 }
 
-static int __vxlan_change_mtu(struct net_device *dev,
-			      struct net_device *lowerdev,
-			      struct vxlan_rdst *dst, int new_mtu, bool strict)
-{
-	int max_mtu = IP_MAX_MTU;
-
-	if (lowerdev)
-		max_mtu = lowerdev->mtu;
-
-	if (dst->remote_ip.sa.sa_family == AF_INET6)
-		max_mtu -= VXLAN6_HEADROOM;
-	else
-		max_mtu -= VXLAN_HEADROOM;
-
-	if (new_mtu < 68)
-		return -EINVAL;
-
-	if (new_mtu > max_mtu) {
-		if (strict)
-			return -EINVAL;
-
-		new_mtu = max_mtu;
-	}
-
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static int vxlan_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_rdst *dst = &vxlan->default_dst;
 	struct net_device *lowerdev = __dev_get_by_index(vxlan->net,
 							 dst->remote_ifindex);
-	return __vxlan_change_mtu(dev, lowerdev, dst, new_mtu, true);
+	bool use_ipv6 = false;
+
+	if (dst->remote_ip.sa.sa_family == AF_INET6)
+		use_ipv6 = true;
+
+	/* This check is different than dev->max_mtu, because it looks at
+	 * the lowerdev->mtu, rather than the static dev->max_mtu
+	 */
+	if (lowerdev) {
+		int max_mtu = lowerdev->mtu -
+			      (use_ipv6 ? VXLAN6_HEADROOM : VXLAN_HEADROOM);
+		if (new_mtu > max_mtu)
+			return -EINVAL;
+	}
+
+	dev->mtu = new_mtu;
+	return 0;
 }
 
 static int vxlan_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
@@ -2795,6 +2783,10 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 		vxlan_ether_setup(dev);
 	}
 
+	/* MTU range: 68 - 65535 */
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = ETH_MAX_MTU;
+
 	vxlan->net = src_net;
 
 	dst->remote_vni = conf->vni;
@@ -2838,7 +2830,8 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 #endif
 
 		if (!conf->mtu)
-			dev->mtu = lowerdev->mtu - (use_ipv6 ? VXLAN6_HEADROOM : VXLAN_HEADROOM);
+			dev->mtu = lowerdev->mtu -
+				   (use_ipv6 ? VXLAN6_HEADROOM : VXLAN_HEADROOM);
 
 		needed_headroom = lowerdev->hard_header_len;
 	} else if (vxlan_addr_multicast(&dst->remote_ip)) {
@@ -2847,9 +2840,20 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 	}
 
 	if (conf->mtu) {
-		err = __vxlan_change_mtu(dev, lowerdev, dst, conf->mtu, false);
-		if (err)
-			return err;
+		int max_mtu = ETH_MAX_MTU;
+
+		if (lowerdev)
+			max_mtu = lowerdev->mtu;
+
+		max_mtu -= (use_ipv6 ? VXLAN6_HEADROOM : VXLAN_HEADROOM);
+
+		if (conf->mtu < dev->min_mtu || conf->mtu > dev->max_mtu)
+			return -EINVAL;
+
+		dev->mtu = conf->mtu;
+
+		if (conf->mtu > max_mtu)
+			dev->mtu = max_mtu;
 	}
 
 	if (use_ipv6 || conf->flags & VXLAN_F_COLLECT_METADATA)
