@@ -1442,7 +1442,8 @@ static int wacom_equivalent_usage(int usage)
 		int subusage = (usage & 0xFF);
 
 		if (subpage == WACOM_HID_SP_DIGITIZER ||
-		    subpage == WACOM_HID_SP_DIGITIZERINFO) {
+		    subpage == WACOM_HID_SP_DIGITIZERINFO ||
+		    usage == WACOM_HID_WD_DISTANCE) {
 			return usage;
 		}
 
@@ -1502,6 +1503,7 @@ static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
 	case HID_GD_Y:
 		wacom_map_usage(input, usage, field, EV_ABS, ABS_Y, 4);
 		break;
+	case WACOM_HID_WD_DISTANCE:
 	case HID_GD_Z:
 		wacom_map_usage(input, usage, field, EV_ABS, ABS_DISTANCE, 0);
 		break;
