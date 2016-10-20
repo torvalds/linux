@@ -147,15 +147,6 @@ For 32-bit we have the following conventions - kernel is built with
 	movq 5*8+\offset(%rsp), %rbx
 	.endm
 
-	.macro ZERO_EXTRA_REGS
-	xorl	%r15d, %r15d
-	xorl	%r14d, %r14d
-	xorl	%r13d, %r13d
-	xorl	%r12d, %r12d
-	xorl	%ebp, %ebp
-	xorl	%ebx, %ebx
-	.endm
-
 	.macro RESTORE_C_REGS_HELPER rstor_rax=1, rstor_rcx=1, rstor_r11=1, rstor_r8910=1, rstor_rdx=1
 	.if \rstor_r11
 	movq 6*8(%rsp), %r11
