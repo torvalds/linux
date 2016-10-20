@@ -57,6 +57,9 @@ extern const struct nf_nat_l4proto nf_nat_l4proto_unknown;
 #ifdef CONFIG_NF_NAT_PROTO_DCCP
 extern const struct nf_nat_l4proto nf_nat_l4proto_dccp;
 #endif
+#ifdef CONFIG_NF_NAT_PROTO_SCTP
+extern const struct nf_nat_l4proto nf_nat_l4proto_sctp;
+#endif
 
 bool nf_nat_l4proto_in_range(const struct nf_conntrack_tuple *tuple,
 			     enum nf_nat_manip_type maniptype,
