@@ -518,7 +518,7 @@ static void XGIfb_search_crt2type(const char *name)
 {
 	int i = 0;
 
-	if (name == NULL)
+	if (!name)
 		return;
 
 	while (XGI_crt2type[i].type_no != -1) {
@@ -589,7 +589,7 @@ static void XGIfb_search_tvstd(const char *name)
 {
 	int i = 0;
 
-	if (name == NULL)
+	if (!name)
 		return;
 
 	while (XGI_tvtype[i].type_no != -1) {
