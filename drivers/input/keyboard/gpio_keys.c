@@ -659,6 +659,7 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 					dev_err(dev,
 						"Failed to get gpio flags, error: %d\n",
 						error);
+				of_node_put(pp);
 				return ERR_PTR(error);
 			}
 		} else {
@@ -669,12 +670,14 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 
 		if (!gpio_is_valid(button->gpio) && !button->irq) {
 			dev_err(dev, "Found button without gpios or irqs\n");
+			of_node_put(pp);
 			return ERR_PTR(-EINVAL);
 		}
 
 		if (of_property_read_u32(pp, "linux,code", &button->code)) {
 			dev_err(dev, "Button without keycode: 0x%x\n",
 				button->gpio);
+			of_node_put(pp);
 			return ERR_PTR(-EINVAL);
 		}
 
