@@ -792,7 +792,7 @@
 			};
 
 			i2s0_mclk_pins_a: i2s0-mclk@0 {
-				allwinner,pins = "PB6", "PB7", "PB8", "PB9";
+				allwinner,pins = "PB5";
 				allwinner,function = "i2s0";
 				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
