@@ -406,17 +406,17 @@ static const struct iwl_prph_range iwl_prph_dump_addr_9000[] = {
 	{ .start = 0x00a02400, .end = 0x00a02758 },
 };
 
-static u32 iwl_dump_prph(struct iwl_trans *trans,
-			 struct iwl_fw_error_dump_data **data,
-			 const struct iwl_prph_range *iwl_prph_dump_addr,
-			 u32 range_len)
+static void iwl_dump_prph(struct iwl_trans *trans,
+			  struct iwl_fw_error_dump_data **data,
+			  const struct iwl_prph_range *iwl_prph_dump_addr,
+			  u32 range_len)
 {
 	struct iwl_fw_error_dump_prph *prph;
 	unsigned long flags;
-	u32 prph_len = 0, i;
+	u32 i;
 
 	if (!iwl_trans_grab_nic_access(trans, &flags))
-		return 0;
+		return;
 
 	for (i = 0; i < range_len; i++) {
 		/* The range includes both boundaries */
@@ -424,8 +424,6 @@ static u32 iwl_dump_prph(struct iwl_trans *trans,
 			 iwl_prph_dump_addr[i].start + 4;
 		int reg;
 		__le32 *val;
-
-		prph_len += sizeof(**data) + sizeof(*prph) + num_bytes_in_chunk;
 
 		(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_PRPH);
 		(*data)->len = cpu_to_le32(sizeof(*prph) +
@@ -444,8 +442,6 @@ static u32 iwl_dump_prph(struct iwl_trans *trans,
 	}
 
 	iwl_trans_release_nic_access(trans, &flags);
-
-	return prph_len;
 }
 
 /*
