@@ -489,25 +489,9 @@ enum iwl_fw_dbg_monitor_mode {
 };
 
 /**
- * enum iwl_fw_mem_seg_type - data types for dumping on error
- *
- * @FW_DBG_MEM_SMEM: the data type is SMEM
- * @FW_DBG_MEM_DCCM_LMAC: the data type is DCCM_LMAC
- * @FW_DBG_MEM_DCCM_UMAC: the data type is DCCM_UMAC
- */
-enum iwl_fw_dbg_mem_seg_type {
-	FW_DBG_MEM_DCCM_LMAC = 0,
-	FW_DBG_MEM_DCCM_UMAC,
-	FW_DBG_MEM_SMEM,
-
-	/* Must be last */
-	FW_DBG_MEM_MAX,
-};
-
-/**
  * struct iwl_fw_dbg_mem_seg_tlv - configures the debug data memory segments
  *
- * @data_type: enum %iwl_fw_mem_seg_type
+ * @data_type: the memory segment type to record
  * @ofs: the memory segment offset
  * @len: the memory segment length, in bytes
  *

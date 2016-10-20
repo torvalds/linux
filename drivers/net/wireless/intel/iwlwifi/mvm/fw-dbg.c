@@ -495,11 +495,10 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	struct iwl_mvm_dump_ptrs *fw_error_dump;
 	struct scatterlist *sg_dump_data;
 	u32 sram_len, sram_ofs;
-	struct iwl_fw_dbg_mem_seg_tlv * const *fw_dbg_mem =
-		mvm->fw->dbg_mem_tlv;
+	const struct iwl_fw_dbg_mem_seg_tlv *fw_dbg_mem = mvm->fw->dbg_mem_tlv;
 	u32 file_len, fifo_data_len = 0, prph_len = 0, radio_len = 0;
-	u32 smem_len = mvm->fw->dbg_dynamic_mem ? 0 : mvm->cfg->smem_len;
-	u32 sram2_len = mvm->fw->dbg_dynamic_mem ? 0 : mvm->cfg->dccm2_len;
+	u32 smem_len = mvm->fw->n_dbg_mem_tlv ? 0 : mvm->cfg->smem_len;
+	u32 sram2_len = mvm->fw->n_dbg_mem_tlv ? 0 : mvm->cfg->dccm2_len;
 	bool monitor_dump_only = false;
 	int i;
 
@@ -624,10 +623,9 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + sram2_len;
 
 	/* Make room for MEM segments */
-	for (i = 0; i < ARRAY_SIZE(mvm->fw->dbg_mem_tlv); i++) {
-		if (fw_dbg_mem[i])
-			file_len += sizeof(*dump_data) + sizeof(*dump_mem) +
-				le32_to_cpu(fw_dbg_mem[i]->len);
+	for (i = 0; i < mvm->fw->n_dbg_mem_tlv; i++) {
+		file_len += sizeof(*dump_data) + sizeof(*dump_mem) +
+			    le32_to_cpu(fw_dbg_mem[i].len);
 	}
 
 	/* Make room for fw's virtual image pages, if it exists */
@@ -656,7 +654,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		file_len += sizeof(*dump_data) + sizeof(*dump_trig) +
 			    mvm->fw_dump_desc->len;
 
-	if (!mvm->fw->dbg_dynamic_mem)
+	if (!mvm->fw->n_dbg_mem_tlv)
 		file_len += sram_len + sizeof(*dump_mem);
 
 	dump_file = vzalloc(file_len);
@@ -708,7 +706,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	if (monitor_dump_only)
 		goto dump_trans_data;
 
-	if (!mvm->fw->dbg_dynamic_mem) {
+	if (!mvm->fw->n_dbg_mem_tlv) {
 		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
 		dump_data->len = cpu_to_le32(sram_len + sizeof(*dump_mem));
 		dump_mem = (void *)dump_data->data;
@@ -719,22 +717,19 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		dump_data = iwl_fw_error_next_data(dump_data);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(mvm->fw->dbg_mem_tlv); i++) {
-		if (fw_dbg_mem[i]) {
-			u32 len = le32_to_cpu(fw_dbg_mem[i]->len);
-			u32 ofs = le32_to_cpu(fw_dbg_mem[i]->ofs);
+	for (i = 0; i < mvm->fw->n_dbg_mem_tlv; i++) {
+		u32 len = le32_to_cpu(fw_dbg_mem[i].len);
+		u32 ofs = le32_to_cpu(fw_dbg_mem[i].ofs);
 
-			dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
-			dump_data->len = cpu_to_le32(len +
-					sizeof(*dump_mem));
-			dump_mem = (void *)dump_data->data;
-			dump_mem->type = fw_dbg_mem[i]->data_type;
-			dump_mem->offset = cpu_to_le32(ofs);
-			iwl_trans_read_mem_bytes(mvm->trans, ofs,
-						 dump_mem->data,
-						 len);
-			dump_data = iwl_fw_error_next_data(dump_data);
-		}
+		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
+		dump_data->len = cpu_to_le32(len + sizeof(*dump_mem));
+		dump_mem = (void *)dump_data->data;
+		dump_mem->type = fw_dbg_mem[i].data_type;
+		dump_mem->offset = cpu_to_le32(ofs);
+		iwl_trans_read_mem_bytes(mvm->trans, ofs,
+					 dump_mem->data,
+					 len);
+		dump_data = iwl_fw_error_next_data(dump_data);
 	}
 
 	if (smem_len) {
