@@ -108,6 +108,7 @@ static int fsl_dcu_unload(struct drm_device *dev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 
+	drm_crtc_force_disable_all(dev);
 	drm_kms_helper_poll_fini(dev);
 
 	if (fsl_dev->fbdev)
