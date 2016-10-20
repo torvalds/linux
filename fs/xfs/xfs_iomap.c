@@ -996,11 +996,14 @@ xfs_file_iomap_begin(
 		return error;
 	}
 
-	/* Trim the mapping to the nearest shared extent boundary. */
-	error = xfs_reflink_trim_around_shared(ip, &imap, &shared, &trimmed);
-	if (error) {
-		xfs_iunlock(ip, lockmode);
-		return error;
+	if (flags & (IOMAP_WRITE | IOMAP_ZERO | IOMAP_REPORT)) {
+		/* Trim the mapping to the nearest shared extent boundary. */
+		error = xfs_reflink_trim_around_shared(ip, &imap, &shared,
+				&trimmed);
+		if (error) {
+			xfs_iunlock(ip, lockmode);
+			return error;
+		}
 	}
 
 	if ((flags & IOMAP_WRITE) && imap_needs_alloc(inode, &imap, nimaps)) {
