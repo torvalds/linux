@@ -3974,9 +3974,6 @@ xfs_bmap_remap_alloc(
 	 * allocating, so skip that check by pretending to be freeing.
 	 */
 	error = xfs_alloc_fix_freelist(&args, XFS_ALLOC_FLAG_FREEING);
-	if (error)
-		goto error0;
-error0:
 	xfs_perag_put(args.pag);
 	if (error)
 		trace_xfs_bmap_remap_alloc_error(ap->ip, error, _RET_IP_);
