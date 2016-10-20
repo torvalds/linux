@@ -65,6 +65,8 @@ struct sdhci_pci_fixes {
 
 	int			(*suspend) (struct sdhci_pci_chip *);
 	int			(*resume) (struct sdhci_pci_chip *);
+
+	const struct sdhci_ops	*ops;
 };
 
 struct sdhci_pci_slot {
