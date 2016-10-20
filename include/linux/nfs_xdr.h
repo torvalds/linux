@@ -216,6 +216,20 @@ struct nfs4_get_lease_time_res {
 	struct nfs_fsinfo	       *lr_fsinfo;
 };
 
+struct xdr_stream;
+struct nfs4_xdr_opaque_data;
+
+struct nfs4_xdr_opaque_ops {
+	void (*encode)(struct xdr_stream *, const void *args,
+			const struct nfs4_xdr_opaque_data *);
+	void (*free)(struct nfs4_xdr_opaque_data *);
+};
+
+struct nfs4_xdr_opaque_data {
+	const struct nfs4_xdr_opaque_ops *ops;
+	void *data;
+};
+
 #define PNFS_LAYOUT_MAXSIZE 4096
 
 struct nfs4_layoutdriver_data {
