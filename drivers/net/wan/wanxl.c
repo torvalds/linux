@@ -551,7 +551,6 @@ static void wanxl_pci_remove_one(struct pci_dev *pdev)
 static const struct net_device_ops wanxl_ops = {
 	.ndo_open       = wanxl_open,
 	.ndo_stop       = wanxl_close,
-	.ndo_change_mtu = hdlc_change_mtu,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = wanxl_ioctl,
 	.ndo_get_stats  = wanxl_get_stats,

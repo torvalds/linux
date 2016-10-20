@@ -150,15 +150,6 @@ void ieee80211_recalc_idle(struct ieee80211_local *local)
 		ieee80211_hw_config(local, change);
 }
 
-static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if (new_mtu < 256 || new_mtu > IEEE80211_MAX_DATA_LEN)
-		return -EINVAL;
-
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static int ieee80211_verify_mac(struct ieee80211_sub_if_data *sdata, u8 *addr,
 				bool check_dup)
 {
@@ -1166,7 +1157,6 @@ static const struct net_device_ops ieee80211_dataif_ops = {
 	.ndo_uninit		= ieee80211_uninit,
 	.ndo_start_xmit		= ieee80211_subif_start_xmit,
 	.ndo_set_rx_mode	= ieee80211_set_multicast_list,
-	.ndo_change_mtu 	= ieee80211_change_mtu,
 	.ndo_set_mac_address 	= ieee80211_change_mac,
 	.ndo_select_queue	= ieee80211_netdev_select_queue,
 	.ndo_get_stats64	= ieee80211_get_stats64,
@@ -1200,7 +1190,6 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
 	.ndo_uninit		= ieee80211_uninit,
 	.ndo_start_xmit		= ieee80211_monitor_start_xmit,
 	.ndo_set_rx_mode	= ieee80211_set_multicast_list,
-	.ndo_change_mtu 	= ieee80211_change_mtu,
 	.ndo_set_mac_address 	= ieee80211_change_mac,
 	.ndo_select_queue	= ieee80211_monitor_select_queue,
 	.ndo_get_stats64	= ieee80211_get_stats64,
@@ -1883,6 +1872,10 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		ndev->features |= local->hw.netdev_features;
 
 		netdev_set_default_ethtool_ops(ndev, &ieee80211_ethtool_ops);
+
+		/* MTU range: 256 - 2304 */
+		ndev->min_mtu = 256;
+		ndev->max_mtu = IEEE80211_MAX_DATA_LEN;
 
 		ret = register_netdevice(ndev);
 		if (ret) {

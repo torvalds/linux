@@ -2585,9 +2585,6 @@ static int mv643xx_eth_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
-	if (new_mtu < 64 || new_mtu > 9500)
-		return -EINVAL;
-
 	dev->mtu = new_mtu;
 	mv643xx_eth_recalc_skb_size(mp);
 	tx_set_rate(mp, 1000000000, 16777216);
@@ -3205,6 +3202,10 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	dev->priv_flags |= IFF_UNICAST_FLT;
 	dev->gso_max_segs = MV643XX_MAX_TSO_SEGS;
+
+	/* MTU range: 64 - 9500 */
+	dev->min_mtu = 64;
+	dev->max_mtu = 9500;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 

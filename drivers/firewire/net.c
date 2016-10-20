@@ -1349,15 +1349,6 @@ static netdev_tx_t fwnet_tx(struct sk_buff *skb, struct net_device *net)
 	return NETDEV_TX_OK;
 }
 
-static int fwnet_change_mtu(struct net_device *net, int new_mtu)
-{
-	if (new_mtu < 68)
-		return -EINVAL;
-
-	net->mtu = new_mtu;
-	return 0;
-}
-
 static const struct ethtool_ops fwnet_ethtool_ops = {
 	.get_link	= ethtool_op_get_link,
 };
@@ -1366,7 +1357,6 @@ static const struct net_device_ops fwnet_netdev_ops = {
 	.ndo_open       = fwnet_open,
 	.ndo_stop	= fwnet_stop,
 	.ndo_start_xmit = fwnet_tx,
-	.ndo_change_mtu = fwnet_change_mtu,
 };
 
 static void fwnet_init_dev(struct net_device *net)
@@ -1435,7 +1425,6 @@ static int fwnet_probe(struct fw_unit *unit,
 	struct net_device *net;
 	bool allocated_netdev = false;
 	struct fwnet_device *dev;
-	unsigned max_mtu;
 	int ret;
 	union fwnet_hwaddr *ha;
 
@@ -1478,9 +1467,10 @@ static int fwnet_probe(struct fw_unit *unit,
 	 * Use the RFC 2734 default 1500 octets or the maximum payload
 	 * as initial MTU
 	 */
-	max_mtu = (1 << (card->max_receive + 1))
-		  - sizeof(struct rfc2734_header) - IEEE1394_GASP_HDR_SIZE;
-	net->mtu = min(1500U, max_mtu);
+	net->max_mtu = (1 << (card->max_receive + 1))
+		       - sizeof(struct rfc2734_header) - IEEE1394_GASP_HDR_SIZE;
+	net->mtu = min(1500U, net->max_mtu);
+	net->min_mtu = ETH_MIN_MTU;
 
 	/* Set our hardware address while we're at it */
 	ha = (union fwnet_hwaddr *)net->dev_addr;

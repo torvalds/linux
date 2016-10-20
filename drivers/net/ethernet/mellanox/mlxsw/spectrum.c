@@ -2284,6 +2284,9 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 			 NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_TC;
 	dev->hw_features |= NETIF_F_HW_TC;
 
+	dev->min_mtu = 0;
+	dev->max_mtu = ETH_MAX_MTU;
+
 	/* Each packet needs to have a Tx header (metadata) on top all other
 	 * headers.
 	 */

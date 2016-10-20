@@ -1428,27 +1428,6 @@ static struct net_device_stats *netiucv_stats (struct net_device * dev)
 	return &priv->stats;
 }
 
-/**
- * netiucv_change_mtu
- * @dev: Pointer to interface struct.
- * @new_mtu: The new MTU to use for this interface.
- *
- * Sets MTU of an interface.
- *
- * Returns 0 on success, -EINVAL if MTU is out of valid range.
- *         (valid range is 576 .. NETIUCV_MTU_MAX).
- */
-static int netiucv_change_mtu(struct net_device * dev, int new_mtu)
-{
-	IUCV_DBF_TEXT(trace, 3, __func__);
-	if (new_mtu < 576 || new_mtu > NETIUCV_MTU_MAX) {
-		IUCV_DBF_TEXT(setup, 2, "given MTU out of valid range\n");
-		return -EINVAL;
-	}
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 /*
  * attributes in sysfs
  */
@@ -1986,12 +1965,13 @@ static const struct net_device_ops netiucv_netdev_ops = {
 	.ndo_stop		= netiucv_close,
 	.ndo_get_stats		= netiucv_stats,
 	.ndo_start_xmit		= netiucv_tx,
-	.ndo_change_mtu	   	= netiucv_change_mtu,
 };
 
 static void netiucv_setup_netdevice(struct net_device *dev)
 {
 	dev->mtu	         = NETIUCV_MTU_DEFAULT;
+	dev->min_mtu		 = 576;
+	dev->max_mtu		 = NETIUCV_MTU_MAX;
 	dev->destructor          = netiucv_free_netdevice;
 	dev->hard_header_len     = NETIUCV_HDRLEN;
 	dev->addr_len            = 0;

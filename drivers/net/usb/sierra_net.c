@@ -165,7 +165,6 @@ struct lsi_umts {
 
 /* Forward definitions */
 static void sierra_sync_timer(unsigned long syncdata);
-static int sierra_net_change_mtu(struct net_device *net, int new_mtu);
 
 /* Our own net device operations structure */
 static const struct net_device_ops sierra_net_device_ops = {
@@ -173,7 +172,7 @@ static const struct net_device_ops sierra_net_device_ops = {
 	.ndo_stop               = usbnet_stop,
 	.ndo_start_xmit         = usbnet_start_xmit,
 	.ndo_tx_timeout         = usbnet_tx_timeout,
-	.ndo_change_mtu         = sierra_net_change_mtu,
+	.ndo_change_mtu         = usbnet_change_mtu,
 	.ndo_set_mac_address    = eth_mac_addr,
 	.ndo_validate_addr      = eth_validate_addr,
 };
@@ -622,15 +621,6 @@ static const struct ethtool_ops sierra_net_ethtool_ops = {
 	.nway_reset = usbnet_nway_reset,
 };
 
-/* MTU can not be more than 1500 bytes, enforce it. */
-static int sierra_net_change_mtu(struct net_device *net, int new_mtu)
-{
-	if (new_mtu > SIERRA_NET_MAX_SUPPORTED_MTU)
-		return -EINVAL;
-
-	return usbnet_change_mtu(net, new_mtu);
-}
-
 static int sierra_net_get_fw_attr(struct usbnet *dev, u16 *datap)
 {
 	int result = 0;
@@ -720,6 +710,7 @@ static int sierra_net_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	dev->net->hard_header_len += SIERRA_NET_HIP_EXT_HDR_LEN;
 	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;
+	dev->net->max_mtu = SIERRA_NET_MAX_SUPPORTED_MTU;
 
 	/* Set up the netdev */
 	dev->net->flags |= IFF_NOARP;

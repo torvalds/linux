@@ -669,18 +669,6 @@ static int p80211knetdev_set_mac_address(struct net_device *dev, void *addr)
 	return result;
 }
 
-static int wlan_change_mtu(struct net_device *dev, int new_mtu)
-{
-	/* 2312 is max 802.11 payload, 20 is overhead, (ether + llc +snap)
-	   and another 8 for wep. */
-	if ((new_mtu < 68) || (new_mtu > (2312 - 20 - 8)))
-		return -EINVAL;
-
-	dev->mtu = new_mtu;
-
-	return 0;
-}
-
 static const struct net_device_ops p80211_netdev_ops = {
 	.ndo_init = p80211knetdev_init,
 	.ndo_open = p80211knetdev_open,
@@ -690,7 +678,6 @@ static const struct net_device_ops p80211_netdev_ops = {
 	.ndo_do_ioctl = p80211knetdev_do_ioctl,
 	.ndo_set_mac_address = p80211knetdev_set_mac_address,
 	.ndo_tx_timeout = p80211knetdev_tx_timeout,
-	.ndo_change_mtu = wlan_change_mtu,
 	.ndo_validate_addr = eth_validate_addr,
 };
 
@@ -756,6 +743,11 @@ int wlan_setup(struct wlandevice *wlandev, struct device *physdev)
 		wdev->wiphy = wiphy;
 		wdev->iftype = NL80211_IFTYPE_STATION;
 		netdev->ieee80211_ptr = wdev;
+		netdev->min_mtu = 68;
+		/* 2312 is max 802.11 payload, 20 is overhead,
+		 * (ether + llc + snap) and another 8 for wep.
+		 */
+		netdev->max_mtu = (2312 - 20 - 8);
 
 		netif_stop_queue(netdev);
 		netif_carrier_off(netdev);

@@ -2531,8 +2531,6 @@ static int cxgb_change_mtu(struct net_device *dev, int new_mtu)
 	struct adapter *adapter = pi->adapter;
 	int ret;
 
-	if (new_mtu < 81)	/* accommodate SACK */
-		return -EINVAL;
 	if ((ret = t3_mac_set_mtu(&pi->mac, new_mtu)))
 		return ret;
 	dev->mtu = new_mtu;
@@ -3295,6 +3293,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		netdev->netdev_ops = &cxgb_netdev_ops;
 		netdev->ethtool_ops = &cxgb_ethtool_ops;
+		netdev->min_mtu = 81;
+		netdev->max_mtu = ETH_MAX_MTU;
 	}
 
 	pci_set_drvdata(pdev, adapter);

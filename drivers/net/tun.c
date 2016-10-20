@@ -925,18 +925,6 @@ static void tun_net_mclist(struct net_device *dev)
 	 */
 }
 
-#define MIN_MTU 68
-#define MAX_MTU 65535
-
-static int
-tun_net_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if (new_mtu < MIN_MTU || new_mtu + dev->hard_header_len > MAX_MTU)
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static netdev_features_t tun_net_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
@@ -1014,7 +1002,6 @@ static const struct net_device_ops tun_netdev_ops = {
 	.ndo_open		= tun_net_open,
 	.ndo_stop		= tun_net_close,
 	.ndo_start_xmit		= tun_net_xmit,
-	.ndo_change_mtu		= tun_net_change_mtu,
 	.ndo_fix_features	= tun_net_fix_features,
 	.ndo_select_queue	= tun_select_queue,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1029,7 +1016,6 @@ static const struct net_device_ops tap_netdev_ops = {
 	.ndo_open		= tun_net_open,
 	.ndo_stop		= tun_net_close,
 	.ndo_start_xmit		= tun_net_xmit,
-	.ndo_change_mtu		= tun_net_change_mtu,
 	.ndo_fix_features	= tun_net_fix_features,
 	.ndo_set_rx_mode	= tun_net_mclist,
 	.ndo_set_mac_address	= eth_mac_addr,
@@ -1062,6 +1048,9 @@ static void tun_flow_uninit(struct tun_struct *tun)
 	tun_flow_flush(tun);
 }
 
+#define MIN_MTU 68
+#define MAX_MTU 65535
+
 /* Initialize net device. */
 static void tun_net_init(struct net_device *dev)
 {
@@ -1092,6 +1081,9 @@ static void tun_net_init(struct net_device *dev)
 
 		break;
 	}
+
+	dev->min_mtu = MIN_MTU;
+	dev->max_mtu = MAX_MTU - dev->hard_header_len;
 }
 
 /* Character device part */

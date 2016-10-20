@@ -2394,7 +2394,6 @@ fst_init_card(struct fst_card_info *card)
 static const struct net_device_ops fst_ops = {
 	.ndo_open       = fst_open,
 	.ndo_stop       = fst_close,
-	.ndo_change_mtu = hdlc_change_mtu,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = fst_ioctl,
 	.ndo_tx_timeout = fst_tx_timeout,

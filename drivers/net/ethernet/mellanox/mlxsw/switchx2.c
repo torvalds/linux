@@ -994,6 +994,9 @@ static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 	dev->features |= NETIF_F_NETNS_LOCAL | NETIF_F_LLTX | NETIF_F_SG |
 			 NETIF_F_VLAN_CHALLENGED;
 
+	dev->min_mtu = 0;
+	dev->max_mtu = ETH_MAX_MTU;
+
 	/* Each packet needs to have a Tx header (metadata) on top all other
 	 * headers.
 	 */
