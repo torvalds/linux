@@ -261,20 +261,29 @@ static unsigned long *sunxi_pctrl_build_pin_config(struct device_node *node,
 {
 	unsigned long *pinconfig;
 	unsigned int configlen = 0, idx = 0;
+	int ret;
 
 	if (sunxi_pctrl_has_drive_prop(node))
 		configlen++;
 	if (sunxi_pctrl_has_bias_prop(node))
 		configlen++;
 
+	/*
+	 * If we don't have any configuration, bail out
+	 */
+	if (!configlen)
+		return NULL;
+
 	pinconfig = kzalloc(configlen * sizeof(*pinconfig), GFP_KERNEL);
 	if (!pinconfig)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	if (sunxi_pctrl_has_drive_prop(node)) {
 		int drive = sunxi_pctrl_parse_drive_prop(node);
-		if (drive < 0)
+		if (drive < 0) {
+			ret = drive;
 			goto err_free;
+		}
 
 		pinconfig[idx++] = pinconf_to_config_packed(PIN_CONFIG_DRIVE_STRENGTH,
 							  drive);
@@ -282,8 +291,10 @@ static unsigned long *sunxi_pctrl_build_pin_config(struct device_node *node,
 
 	if (sunxi_pctrl_has_bias_prop(node)) {
 		int pull = sunxi_pctrl_parse_bias_prop(node);
-		if (pull < 0)
+		if (pull < 0) {
+			ret = pull;
 			goto err_free;
+		}
 
 		pinconfig[idx++] = pinconf_to_config_packed(pull, 0);
 	}
@@ -294,7 +305,7 @@ static unsigned long *sunxi_pctrl_build_pin_config(struct device_node *node,
 
 err_free:
 	kfree(pinconfig);
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
@@ -328,7 +339,10 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	/*
 	 * We have two maps for each pin: one for the function, one
-	 * for the configuration (bias, strength, etc)
+	 * for the configuration (bias, strength, etc).
+	 *
+	 * We might be slightly overshooting, since we might not have
+	 * any configuration.
 	 */
 	nmaps = npins * 2;
 	*map = kmalloc(nmaps * sizeof(struct pinctrl_map), GFP_KERNEL);
@@ -336,8 +350,8 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		return -ENOMEM;
 
 	pinconfig = sunxi_pctrl_build_pin_config(node, &configlen);
-	if (!pinconfig) {
-		ret = -EINVAL;
+	if (IS_ERR(pinconfig)) {
+		ret = PTR_ERR(pinconfig);
 		goto err_free_map;
 	}
 
@@ -364,15 +378,24 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 		i++;
 
-		(*map)[i].type = PIN_MAP_TYPE_CONFIGS_GROUP;
-		(*map)[i].data.configs.group_or_pin = group;
-		(*map)[i].data.configs.configs = pinconfig;
-		(*map)[i].data.configs.num_configs = configlen;
-
-		i++;
+		if (pinconfig) {
+			(*map)[i].type = PIN_MAP_TYPE_CONFIGS_GROUP;
+			(*map)[i].data.configs.group_or_pin = group;
+			(*map)[i].data.configs.configs = pinconfig;
+			(*map)[i].data.configs.num_configs = configlen;
+			i++;
+		}
 	}
 
-	*num_maps = nmaps;
+	*num_maps = i;
+
+	/*
+	 * We know have the number of maps we need, we can resize our
+	 * map array
+	 */
+	*map = krealloc(*map, i * sizeof(struct pinctrl_map), GFP_KERNEL);
+	if (!map)
+		return -ENOMEM;
 
 	return 0;
 
