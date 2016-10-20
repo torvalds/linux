@@ -149,18 +149,33 @@ static int sunxi_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
 
 static bool sunxi_pctrl_has_bias_prop(struct device_node *node)
 {
-	return of_find_property(node, "allwinner,pull", NULL);
+	return of_find_property(node, "bias-pull-up", NULL) ||
+		of_find_property(node, "bias-pull-down", NULL) ||
+		of_find_property(node, "bias-disable", NULL) ||
+		of_find_property(node, "allwinner,pull", NULL);
 }
 
 static bool sunxi_pctrl_has_drive_prop(struct device_node *node)
 {
-	return of_find_property(node, "allwinner,drive", NULL);
+	return of_find_property(node, "drive-strength", NULL) ||
+		of_find_property(node, "allwinner,drive", NULL);
 }
 
 static int sunxi_pctrl_parse_bias_prop(struct device_node *node)
 {
 	u32 val;
 
+	/* Try the new style binding */
+	if (of_find_property(node, "bias-pull-up", NULL))
+		return PIN_CONFIG_BIAS_PULL_UP;
+
+	if (of_find_property(node, "bias-pull-down", NULL))
+		return PIN_CONFIG_BIAS_PULL_DOWN;
+
+	if (of_find_property(node, "bias-disable", NULL))
+		return PIN_CONFIG_BIAS_DISABLE;
+
+	/* And fall back to the old binding */
 	if (of_property_read_u32(node, "allwinner,pull", &val))
 		return -EINVAL;
 
@@ -180,6 +195,21 @@ static int sunxi_pctrl_parse_drive_prop(struct device_node *node)
 {
 	u32 val;
 
+	/* Try the new style binding */
+	if (!of_property_read_u32(node, "drive-strength", &val)) {
+		/* We can't go below 10mA ... */
+		if (val < 10)
+			return -EINVAL;
+
+		/* ... and only up to 40 mA ... */
+		if (val > 40)
+			val = 40;
+
+		/* by steps of 10 mA */
+		return rounddown(val, 10);
+	}
+
+	/* And then fall back to the old binding */
 	if (of_property_read_u32(node, "allwinner,drive", &val))
 		return -EINVAL;
 
@@ -191,6 +221,12 @@ static const char *sunxi_pctrl_parse_function_prop(struct device_node *node)
 	const char *function;
 	int ret;
 
+	/* Try the generic binding */
+	ret = of_property_read_string(node, "function", &function);
+	if (!ret)
+		return function;
+
+	/* And fall back to our legacy one */
 	ret = of_property_read_string(node, "allwinner,function", &function);
 	if (!ret)
 		return function;
@@ -203,6 +239,14 @@ static const char *sunxi_pctrl_find_pins_prop(struct device_node *node,
 {
 	int count;
 
+	/* Try the generic binding */
+	count = of_property_count_strings(node, "pins");
+	if (count > 0) {
+		*npins = count;
+		return "pins";
+	}
+
+	/* And fall back to our legacy one */
 	count = of_property_count_strings(node, "allwinner,pins");
 	if (count > 0) {
 		*npins = count;
