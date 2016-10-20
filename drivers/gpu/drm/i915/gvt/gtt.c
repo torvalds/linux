@@ -34,6 +34,8 @@
  */
 
 #include "i915_drv.h"
+#include "gvt.h"
+#include "i915_pvinfo.h"
 #include "trace.h"
 
 static bool enable_out_of_sync = false;
@@ -267,7 +269,7 @@ static inline int get_pse_type(int type)
 
 static u64 read_pte64(struct drm_i915_private *dev_priv, unsigned long index)
 {
-	void *addr = (u64 *)dev_priv->ggtt.gsm + index;
+	void __iomem *addr = (gen8_pte_t __iomem *)dev_priv->ggtt.gsm + index;
 	u64 pte;
 
 #ifdef readq
@@ -282,7 +284,7 @@ static u64 read_pte64(struct drm_i915_private *dev_priv, unsigned long index)
 static void write_pte64(struct drm_i915_private *dev_priv,
 		unsigned long index, u64 pte)
 {
-	void *addr = (u64 *)dev_priv->ggtt.gsm + index;
+	void __iomem *addr = (gen8_pte_t __iomem *)dev_priv->ggtt.gsm + index;
 
 #ifdef writeq
 	writeq(pte, addr);
@@ -1919,7 +1921,7 @@ int intel_vgpu_emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	return ret;
 }
 
-bool intel_gvt_create_scratch_page(struct intel_vgpu *vgpu)
+static int create_scratch_page(struct intel_vgpu *vgpu)
 {
 	struct intel_vgpu_gtt *gtt = &vgpu->gtt;
 	void *p;
@@ -1953,7 +1955,7 @@ bool intel_gvt_create_scratch_page(struct intel_vgpu *vgpu)
 	return 0;
 }
 
-void intel_gvt_release_scratch_page(struct intel_vgpu *vgpu)
+static void release_scratch_page(struct intel_vgpu *vgpu)
 {
 	if (vgpu->gtt.scratch_page != NULL) {
 		__free_page(vgpu->gtt.scratch_page);
@@ -1993,8 +1995,7 @@ int intel_vgpu_init_gtt(struct intel_vgpu *vgpu)
 
 	gtt->ggtt_mm = ggtt_mm;
 
-	intel_gvt_create_scratch_page(vgpu);
-	return 0;
+	return create_scratch_page(vgpu);
 }
 
 /**
@@ -2013,7 +2014,7 @@ void intel_vgpu_clean_gtt(struct intel_vgpu *vgpu)
 	struct intel_vgpu_mm *mm;
 
 	ppgtt_free_all_shadow_page(vgpu);
-	intel_gvt_release_scratch_page(vgpu);
+	release_scratch_page(vgpu);
 
 	list_for_each_safe(pos, n, &vgpu->gtt.mm_list_head) {
 		mm = container_of(pos, struct intel_vgpu_mm, list);

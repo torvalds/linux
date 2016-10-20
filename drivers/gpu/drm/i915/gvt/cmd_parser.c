@@ -36,6 +36,8 @@
 
 #include <linux/slab.h>
 #include "i915_drv.h"
+#include "gvt.h"
+#include "i915_pvinfo.h"
 #include "trace.h"
 
 #define INVALID_OP    (~0U)
@@ -478,8 +480,8 @@ struct parser_exec_state {
 #define gmadr_dw_number(s)	\
 	(s->vgpu->gvt->device_info.gmadr_bytes_in_cmd >> 2)
 
-unsigned long bypass_scan_mask = 0;
-bool bypass_batch_buffer_scan = true;
+static unsigned long bypass_scan_mask = 0;
+static bool bypass_batch_buffer_scan = true;
 
 /* ring ALL, type = 0 */
 static struct sub_op_bits sub_op_mi[] = {
@@ -958,7 +960,7 @@ struct cmd_interrupt_event {
 	int mi_user_interrupt;
 };
 
-struct cmd_interrupt_event cmd_interrupt_events[] = {
+static struct cmd_interrupt_event cmd_interrupt_events[] = {
 	[RCS] = {
 		.pipe_control_notify = RCS_PIPE_CONTROL,
 		.mi_flush_dw = INTEL_GVT_EVENT_RESERVED,
@@ -1581,44 +1583,6 @@ static uint32_t find_bb_size(struct parser_exec_state *s)
 	return bb_size;
 }
 
-static u32 *vmap_batch(struct drm_i915_gem_object *obj,
-		       unsigned int start, unsigned int len)
-{
-	int i;
-	void *addr = NULL;
-	struct sg_page_iter sg_iter;
-	int first_page = start >> PAGE_SHIFT;
-	int last_page = (len + start + 4095) >> PAGE_SHIFT;
-	int npages = last_page - first_page;
-	struct page **pages;
-
-	pages = drm_malloc_ab(npages, sizeof(*pages));
-	if (pages == NULL) {
-		DRM_DEBUG_DRIVER("Failed to get space for pages\n");
-		goto finish;
-	}
-
-	i = 0;
-	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents,
-			 first_page) {
-		pages[i++] = sg_page_iter_page(&sg_iter);
-		if (i == npages)
-			break;
-	}
-
-	addr = vmap(pages, i, 0, PAGE_KERNEL);
-	if (addr == NULL) {
-		DRM_DEBUG_DRIVER("Failed to vmap pages\n");
-		goto finish;
-	}
-
-finish:
-	if (pages)
-		drm_free_large(pages);
-	return (u32 *)addr;
-}
-
-
 static int perform_bb_shadow(struct parser_exec_state *s)
 {
 	struct intel_shadow_bb_entry *entry_obj;
@@ -1638,25 +1602,20 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	if (entry_obj == NULL)
 		return -ENOMEM;
 
-	entry_obj->obj = i915_gem_object_create(&(s->vgpu->gvt->dev_priv->drm),
-		round_up(bb_size, PAGE_SIZE));
-	if (entry_obj->obj == NULL)
-		return -ENOMEM;
+	entry_obj->obj =
+		i915_gem_object_create(&(s->vgpu->gvt->dev_priv->drm),
+				       roundup(bb_size, PAGE_SIZE));
+	if (IS_ERR(entry_obj->obj)) {
+		ret = PTR_ERR(entry_obj->obj);
+		goto free_entry;
+	}
 	entry_obj->len = bb_size;
 	INIT_LIST_HEAD(&entry_obj->list);
 
-	ret = i915_gem_object_get_pages(entry_obj->obj);
-	if (ret)
-		return ret;
-
-	i915_gem_object_pin_pages(entry_obj->obj);
-
-	/* get the va of the shadow batch buffer */
-	dst = (void *)vmap_batch(entry_obj->obj, 0, bb_size);
-	if (!dst) {
-		gvt_err("failed to vmap shadow batch\n");
-		ret = -ENOMEM;
-		goto unpin_src;
+	dst = i915_gem_object_pin_map(entry_obj->obj, I915_MAP_WB);
+	if (IS_ERR(dst)) {
+		ret = PTR_ERR(dst);
+		goto put_obj;
 	}
 
 	ret = i915_gem_object_set_to_cpu_domain(entry_obj->obj, false);
@@ -1670,10 +1629,11 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 
 	/* copy batch buffer to shadow batch buffer*/
 	ret = copy_gma_to_hva(s->vgpu, s->vgpu->gtt.ggtt_mm,
-				gma, gma + bb_size, dst);
+			      gma, gma + bb_size,
+			      dst);
 	if (ret) {
 		gvt_err("fail to copy guest ring buffer\n");
-		return ret;
+		goto unmap_src;
 	}
 
 	list_add(&entry_obj->list, &s->workload->shadow_bb);
@@ -1691,10 +1651,11 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	return 0;
 
 unmap_src:
-	vunmap(dst);
-unpin_src:
-	i915_gem_object_unpin_pages(entry_obj->obj);
-
+	i915_gem_object_unpin_map(entry_obj->obj);
+put_obj:
+	i915_gem_object_put(entry_obj->obj);
+free_entry:
+	kfree(entry_obj);
 	return ret;
 }
 
@@ -2707,55 +2668,47 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	struct drm_device *dev = &wa_ctx->workload->vgpu->gvt->dev_priv->drm;
 	int ctx_size = wa_ctx->indirect_ctx.size;
 	unsigned long guest_gma = wa_ctx->indirect_ctx.guest_gma;
+	struct drm_i915_gem_object *obj;
 	int ret = 0;
-	void *dest = NULL;
+	void *map;
 
-	wa_ctx->indirect_ctx.obj = i915_gem_object_create(dev,
-			round_up(ctx_size + CACHELINE_BYTES, PAGE_SIZE));
-	if (wa_ctx->indirect_ctx.obj == NULL)
-		return -ENOMEM;
-
-	ret = i915_gem_object_get_pages(wa_ctx->indirect_ctx.obj);
-	if (ret)
-		return ret;
-
-	i915_gem_object_pin_pages(wa_ctx->indirect_ctx.obj);
+	obj = i915_gem_object_create(dev,
+				     roundup(ctx_size + CACHELINE_BYTES,
+					     PAGE_SIZE));
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
 
 	/* get the va of the shadow batch buffer */
-	dest = (void *)vmap_batch(wa_ctx->indirect_ctx.obj, 0,
-			ctx_size + CACHELINE_BYTES);
-	if (!dest) {
+	map = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	if (IS_ERR(map)) {
 		gvt_err("failed to vmap shadow indirect ctx\n");
-		ret = -ENOMEM;
-		goto unpin_src;
+		ret = PTR_ERR(map);
+		goto put_obj;
 	}
 
-	ret = i915_gem_object_set_to_cpu_domain(wa_ctx->indirect_ctx.obj,
-			false);
+	ret = i915_gem_object_set_to_cpu_domain(obj, false);
 	if (ret) {
 		gvt_err("failed to set shadow indirect ctx to CPU\n");
 		goto unmap_src;
 	}
 
-	wa_ctx->indirect_ctx.shadow_va = dest;
-
-	memset(dest, 0, round_up(ctx_size + CACHELINE_BYTES, PAGE_SIZE));
-
 	ret = copy_gma_to_hva(wa_ctx->workload->vgpu,
 				wa_ctx->workload->vgpu->gtt.ggtt_mm,
-				guest_gma, guest_gma + ctx_size, dest);
+				guest_gma, guest_gma + ctx_size,
+				map);
 	if (ret) {
 		gvt_err("fail to copy guest indirect ctx\n");
-		return ret;
+		goto unmap_src;
 	}
 
+	wa_ctx->indirect_ctx.obj = obj;
+	wa_ctx->indirect_ctx.shadow_va = map;
 	return 0;
 
 unmap_src:
-	vunmap(dest);
-unpin_src:
-	i915_gem_object_unpin_pages(wa_ctx->indirect_ctx.obj);
-
+	i915_gem_object_unpin_map(obj);
+put_obj:
+	i915_gem_object_put(wa_ctx->indirect_ctx.obj);
 	return ret;
 }
 

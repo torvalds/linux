@@ -33,14 +33,16 @@
  *
  */
 
-#include "i915_drv.h"
-
 #include <linux/kthread.h>
+
+#include "i915_drv.h"
+#include "gvt.h"
 
 #define RING_CTX_OFF(x) \
 	offsetof(struct execlist_ring_context, x)
 
-void set_context_pdp_root_pointer(struct execlist_ring_context *ring_context,
+static void set_context_pdp_root_pointer(
+		struct execlist_ring_context *ring_context,
 		u32 pdp[8])
 {
 	struct execlist_mmio_pair *pdp_pair = &ring_context->pdp3_UDW;
@@ -163,6 +165,7 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 	int ring_id = workload->ring_id;
 	struct i915_gem_context *shadow_ctx = workload->vgpu->shadow_ctx;
 	struct drm_i915_private *dev_priv = workload->vgpu->gvt->dev_priv;
+	struct drm_i915_gem_request *rq;
 	int ret;
 
 	gvt_dbg_sched("ring id %d prepare to dispatch workload %p\n",
@@ -171,17 +174,16 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 	shadow_ctx->desc_template = workload->ctx_desc.addressing_mode <<
 				    GEN8_CTX_ADDRESSING_MODE_SHIFT;
 
-	workload->req = i915_gem_request_alloc(dev_priv->engine[ring_id],
-					       shadow_ctx);
-	if (IS_ERR_OR_NULL(workload->req)) {
+	rq = i915_gem_request_alloc(dev_priv->engine[ring_id], shadow_ctx);
+	if (IS_ERR(rq)) {
 		gvt_err("fail to allocate gem request\n");
-		workload->status = PTR_ERR(workload->req);
-		workload->req = NULL;
+		workload->status = PTR_ERR(rq);
 		return workload->status;
 	}
 
-	gvt_dbg_sched("ring id %d get i915 gem request %p\n",
-			ring_id, workload->req);
+	gvt_dbg_sched("ring id %d get i915 gem request %p\n", ring_id, rq);
+
+	workload->req = i915_gem_request_get(rq);
 
 	mutex_lock(&gvt->lock);
 
@@ -208,16 +210,15 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 	gvt_dbg_sched("ring id %d submit workload to i915 %p\n",
 			ring_id, workload->req);
 
-	i915_add_request_no_flush(workload->req);
-
+	i915_add_request_no_flush(rq);
 	workload->dispatched = true;
 	return 0;
 err:
 	workload->status = ret;
-	if (workload->req)
-		workload->req = NULL;
 
 	mutex_unlock(&gvt->lock);
+
+	i915_add_request_no_flush(rq);
 	return ret;
 }
 
@@ -390,6 +391,8 @@ struct workload_thread_param {
 	int ring_id;
 };
 
+static DEFINE_MUTEX(scheduler_mutex);
+
 static int workload_thread(void *priv)
 {
 	struct workload_thread_param *p = (struct workload_thread_param *)priv;
@@ -414,21 +417,13 @@ static int workload_thread(void *priv)
 		if (kthread_should_stop())
 			break;
 
+		mutex_lock(&scheduler_mutex);
+
 		gvt_dbg_sched("ring id %d next workload %p vgpu %d\n",
 				workload->ring_id, workload,
 				workload->vgpu->id);
 
 		intel_runtime_pm_get(gvt->dev_priv);
-
-		/*
-		 * Always take i915 big lock first
-		 */
-		ret = i915_mutex_lock_interruptible(&gvt->dev_priv->drm);
-		if (ret < 0) {
-			gvt_err("i915 submission is not available, retry\n");
-			schedule_timeout(1);
-			continue;
-		}
 
 		gvt_dbg_sched("ring id %d will dispatch workload %p\n",
 				workload->ring_id, workload);
@@ -437,7 +432,10 @@ static int workload_thread(void *priv)
 			intel_uncore_forcewake_get(gvt->dev_priv,
 					FORCEWAKE_ALL);
 
+		mutex_lock(&gvt->dev_priv->drm.struct_mutex);
 		ret = dispatch_workload(workload);
+		mutex_unlock(&gvt->dev_priv->drm.struct_mutex);
+
 		if (ret) {
 			gvt_err("fail to dispatch workload, skip\n");
 			goto complete;
@@ -447,8 +445,7 @@ static int workload_thread(void *priv)
 				workload->ring_id, workload);
 
 		workload->status = i915_wait_request(workload->req,
-						     I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
-						     NULL, NULL);
+						     0, NULL, NULL);
 		if (workload->status != 0)
 			gvt_err("fail to wait workload, skip\n");
 
@@ -456,15 +453,20 @@ complete:
 		gvt_dbg_sched("will complete workload %p\n, status: %d\n",
 				workload, workload->status);
 
+		mutex_lock(&gvt->dev_priv->drm.struct_mutex);
 		complete_current_workload(gvt, ring_id);
+		mutex_unlock(&gvt->dev_priv->drm.struct_mutex);
+
+		i915_gem_request_put(fetch_and_zero(&workload->req));
 
 		if (need_force_wake)
 			intel_uncore_forcewake_put(gvt->dev_priv,
 					FORCEWAKE_ALL);
 
-		mutex_unlock(&gvt->dev_priv->drm.struct_mutex);
-
 		intel_runtime_pm_put(gvt->dev_priv);
+
+		mutex_unlock(&scheduler_mutex);
+
 	}
 	return 0;
 }
@@ -509,6 +511,10 @@ int intel_gvt_init_workload_scheduler(struct intel_gvt *gvt)
 	init_waitqueue_head(&scheduler->workload_complete_wq);
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
+		/* check ring mask at init time */
+		if (!HAS_ENGINE(gvt->dev_priv, i))
+			continue;
+
 		init_waitqueue_head(&scheduler->waitq[i]);
 
 		param = kzalloc(sizeof(*param), GFP_KERNEL);

@@ -34,6 +34,7 @@
  */
 
 #include "i915_drv.h"
+#include "gvt.h"
 
 struct render_mmio {
 	int ring_id;

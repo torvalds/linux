@@ -32,13 +32,15 @@
  */
 
 #include "i915_drv.h"
+#include "gvt.h"
 
 static bool vgpu_has_pending_workload(struct intel_vgpu *vgpu)
 {
 	struct intel_vgpu_execlist *execlist;
-	int i;
+	enum intel_engine_id i;
+	struct intel_engine_cs *engine;
 
-	for (i = 0; i < I915_NUM_ENGINES; i++) {
+	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
 		execlist = &vgpu->execlist[i];
 		if (!list_empty(workload_q_head(vgpu, i)))
 			return true;
@@ -50,7 +52,8 @@ static bool vgpu_has_pending_workload(struct intel_vgpu *vgpu)
 static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 {
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
-	int i;
+	enum intel_engine_id i;
+	struct intel_engine_cs *engine;
 
 	/* no target to schedule */
 	if (!scheduler->next_vgpu)
@@ -66,7 +69,7 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 	scheduler->need_reschedule = true;
 
 	/* still have uncompleted workload? */
-	for (i = 0; i < I915_NUM_ENGINES; i++) {
+	for_each_engine(engine, gvt->dev_priv, i) {
 		if (scheduler->current_workload[i]) {
 			gvt_dbg_sched("still have running workload\n");
 			return;
@@ -83,7 +86,7 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 	scheduler->need_reschedule = false;
 
 	/* wake up workload dispatch thread */
-	for (i = 0; i < I915_NUM_ENGINES; i++)
+	for_each_engine(engine, gvt->dev_priv, i)
 		wake_up(&scheduler->waitq[i]);
 }
 
@@ -233,7 +236,7 @@ static void tbs_sched_stop_schedule(struct intel_vgpu *vgpu)
 	list_del_init(&vgpu_data->list);
 }
 
-struct intel_gvt_sched_policy_ops tbs_schedule_ops = {
+static struct intel_gvt_sched_policy_ops tbs_schedule_ops = {
 	.init = tbs_sched_init,
 	.clean = tbs_sched_clean,
 	.init_vgpu = tbs_sched_init_vgpu,

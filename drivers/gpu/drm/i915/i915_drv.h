@@ -1777,7 +1777,7 @@ struct drm_i915_private {
 
 	struct i915_virtual_gpu vgpu;
 
-	struct intel_gvt gvt;
+	struct intel_gvt *gvt;
 
 	struct intel_guc guc;
 
@@ -2993,7 +2993,7 @@ int intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
 
 static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
 {
-	return dev_priv->gvt.initialized;
+	return dev_priv->gvt;
 }
 
 static inline bool intel_vgpu_active(struct drm_i915_private *dev_priv)

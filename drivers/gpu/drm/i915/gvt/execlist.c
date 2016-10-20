@@ -33,6 +33,7 @@
  */
 
 #include "i915_drv.h"
+#include "gvt.h"
 
 #define _EL_OFFSET_STATUS       0x234
 #define _EL_OFFSET_STATUS_BUF   0x370
@@ -385,8 +386,6 @@ static int set_gma_to_bb_cmd(struct intel_shadow_bb_entry *entry_obj,
 static void prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 {
 	int gmadr_bytes = workload->vgpu->gvt->device_info.gmadr_bytes_in_cmd;
-	struct i915_vma *vma;
-	unsigned long gma;
 
 	/* pin the gem object to ggtt */
 	if (!list_empty(&workload->shadow_bb)) {
@@ -398,18 +397,24 @@ static void prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 
 		list_for_each_entry_safe(entry_obj, temp, &workload->shadow_bb,
 				list) {
+			struct i915_vma *vma;
+
 			vma = i915_gem_object_ggtt_pin(entry_obj->obj, NULL, 0,
-					0, 0);
+						       4, 0);
 			if (IS_ERR(vma)) {
 				gvt_err("Cannot pin\n");
 				return;
 			}
-			i915_gem_object_unpin_pages(entry_obj->obj);
+
+			/* FIXME: we are not tracking our pinned VMA leaving it
+			 * up to the core to fix up the stray pin_count upon
+			 * free.
+			 */
 
 			/* update the relocate gma with shadow batch buffer*/
-			gma = i915_gem_object_ggtt_offset(entry_obj->obj, NULL);
-			WARN_ON(!IS_ALIGNED(gma, 4));
-			set_gma_to_bb_cmd(entry_obj, gma, gmadr_bytes);
+			set_gma_to_bb_cmd(entry_obj,
+					  i915_ggtt_offset(vma),
+					  gmadr_bytes);
 		}
 	}
 }
@@ -441,7 +446,6 @@ static int update_wa_ctx_2_shadow_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 static void prepare_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 {
 	struct i915_vma *vma;
-	unsigned long gma;
 	unsigned char *per_ctx_va =
 		(unsigned char *)wa_ctx->indirect_ctx.shadow_va +
 		wa_ctx->indirect_ctx.size;
@@ -449,16 +453,19 @@ static void prepare_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	if (wa_ctx->indirect_ctx.size == 0)
 		return;
 
-	vma = i915_gem_object_ggtt_pin(wa_ctx->indirect_ctx.obj, NULL, 0, 0, 0);
+	vma = i915_gem_object_ggtt_pin(wa_ctx->indirect_ctx.obj, NULL,
+				       0, CACHELINE_BYTES, 0);
 	if (IS_ERR(vma)) {
 		gvt_err("Cannot pin indirect ctx obj\n");
 		return;
 	}
-	i915_gem_object_unpin_pages(wa_ctx->indirect_ctx.obj);
 
-	gma = i915_gem_object_ggtt_offset(wa_ctx->indirect_ctx.obj, NULL);
-	WARN_ON(!IS_ALIGNED(gma, CACHELINE_BYTES));
-	wa_ctx->indirect_ctx.shadow_gma = gma;
+	/* FIXME: we are not tracking our pinned VMA leaving it
+	 * up to the core to fix up the stray pin_count upon
+	 * free.
+	 */
+
+	wa_ctx->indirect_ctx.shadow_gma = i915_ggtt_offset(vma);
 
 	wa_ctx->per_ctx.shadow_gma = *((unsigned int *)per_ctx_va + 1);
 	memset(per_ctx_va, 0, CACHELINE_BYTES);
@@ -498,8 +505,8 @@ static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 
 		list_for_each_entry_safe(entry_obj, temp, &workload->shadow_bb,
 					 list) {
-			drm_gem_object_unreference(&(entry_obj->obj->base));
-			kvfree(entry_obj->va);
+			i915_gem_object_unpin_map(entry_obj->obj);
+			i915_gem_object_put(entry_obj->obj);
 			list_del(&entry_obj->list);
 			kfree(entry_obj);
 		}
@@ -511,8 +518,8 @@ static void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	if (wa_ctx->indirect_ctx.size == 0)
 		return;
 
-	drm_gem_object_unreference(&(wa_ctx->indirect_ctx.obj->base));
-	kvfree(wa_ctx->indirect_ctx.shadow_va);
+	i915_gem_object_unpin_map(wa_ctx->indirect_ctx.obj);
+	i915_gem_object_put(wa_ctx->indirect_ctx.obj);
 }
 
 static int complete_execlist_workload(struct intel_vgpu_workload *workload)
@@ -616,7 +623,7 @@ static int prepare_mm(struct intel_vgpu_workload *workload)
 	(list_empty(q) ? NULL : container_of(q->prev, \
 	struct intel_vgpu_workload, list))
 
-bool submit_context(struct intel_vgpu *vgpu, int ring_id,
+static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 		struct execlist_ctx_descriptor_format *desc,
 		bool emulate_schedule_in)
 {
@@ -810,10 +817,11 @@ void intel_vgpu_clean_execlist(struct intel_vgpu *vgpu)
 
 int intel_vgpu_init_execlist(struct intel_vgpu *vgpu)
 {
-	int i;
+	enum intel_engine_id i;
+	struct intel_engine_cs *engine;
 
 	/* each ring has a virtual execlist engine */
-	for (i = 0; i < I915_NUM_ENGINES; i++) {
+	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
 		init_vgpu_execlist(vgpu, i);
 		INIT_LIST_HEAD(&vgpu->workload_q_head[i]);
 	}

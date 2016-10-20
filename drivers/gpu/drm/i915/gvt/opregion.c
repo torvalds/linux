@@ -23,10 +23,11 @@
 
 #include <linux/acpi.h>
 #include "i915_drv.h"
+#include "gvt.h"
 
 static int init_vgpu_opregion(struct intel_vgpu *vgpu, u32 gpa)
 {
-	void *host_va = vgpu->gvt->opregion.opregion_va;
+	void __iomem *host_va = vgpu->gvt->opregion.opregion_va;
 	u8 *buf;
 	int i;
 

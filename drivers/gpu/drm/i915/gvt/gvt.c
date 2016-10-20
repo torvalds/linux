@@ -35,6 +35,7 @@
 #include <linux/kthread.h>
 
 #include "i915_drv.h"
+#include "gvt.h"
 
 struct intel_gvt_host intel_gvt_host;
 
@@ -173,9 +174,9 @@ static int init_service_thread(struct intel_gvt *gvt)
  */
 void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 {
-	struct intel_gvt *gvt = &dev_priv->gvt;
+	struct intel_gvt *gvt = to_gvt(dev_priv);
 
-	if (WARN_ON(!gvt->initialized))
+	if (WARN_ON(!gvt))
 		return;
 
 	clean_service_thread(gvt);
@@ -188,7 +189,8 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 	intel_gvt_clean_mmio_info(gvt);
 	intel_gvt_free_firmware(gvt);
 
-	gvt->initialized = false;
+	kfree(dev_priv->gvt);
+	dev_priv->gvt = NULL;
 }
 
 /**
@@ -204,7 +206,7 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
  */
 int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 {
-	struct intel_gvt *gvt = &dev_priv->gvt;
+	struct intel_gvt *gvt;
 	int ret;
 
 	/*
@@ -214,8 +216,12 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	if (WARN_ON(!intel_gvt_host.initialized))
 		return -EINVAL;
 
-	if (WARN_ON(gvt->initialized))
+	if (WARN_ON(dev_priv->gvt))
 		return -EEXIST;
+
+	gvt = kzalloc(sizeof(struct intel_gvt), GFP_KERNEL);
+	if (!gvt)
+		return -ENOMEM;
 
 	gvt_dbg_core("init gvt device\n");
 
@@ -261,7 +267,7 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 		goto out_clean_cmd_parser;
 
 	gvt_dbg_core("gvt device creation is done\n");
-	gvt->initialized = true;
+	dev_priv->gvt = gvt;
 	return 0;
 
 out_clean_cmd_parser:
@@ -280,5 +286,6 @@ out_free_firmware:
 	intel_gvt_free_firmware(gvt);
 out_clean_mmio_info:
 	intel_gvt_clean_mmio_info(gvt);
+	kfree(gvt);
 	return ret;
 }
