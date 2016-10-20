@@ -1443,6 +1443,7 @@ static int wacom_equivalent_usage(int usage)
 
 		if (subpage == WACOM_HID_SP_DIGITIZER ||
 		    subpage == WACOM_HID_SP_DIGITIZERINFO ||
+		    usage == WACOM_HID_WD_SENSE ||
 		    usage == WACOM_HID_WD_DISTANCE) {
 			return usage;
 		}
@@ -1493,6 +1494,7 @@ static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+	struct wacom_features *features = &wacom_wac->features;
 	struct input_dev *input = wacom_wac->pen_input;
 	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 
@@ -1539,6 +1541,10 @@ static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
 	case HID_DG_TOOLSERIALNUMBER:
 		wacom_map_usage(input, usage, field, EV_MSC, MSC_SERIAL, 0);
 		break;
+	case WACOM_HID_WD_SENSE:
+		features->quirks |= WACOM_QUIRK_SENSE;
+		wacom_map_usage(input, usage, field, EV_KEY, BTN_TOOL_PEN, 0);
+		break;
 	case WACOM_HID_WD_FINGERWHEEL:
 		wacom_map_usage(input, usage, field, EV_ABS, ABS_WHEEL, 0);
 		break;
@@ -1550,6 +1556,7 @@ static int wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field,
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+	struct wacom_features *features = &wacom_wac->features;
 	struct input_dev *input = wacom_wac->pen_input;
 	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 
@@ -1564,6 +1571,8 @@ static int wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field,
 		break;
 	case HID_DG_INRANGE:
 		wacom_wac->hid_data.inrange_state = value;
+		if (!(features->quirks & WACOM_QUIRK_SENSE))
+			wacom_wac->hid_data.sense_state = value;
 		return 0;
 	case HID_DG_INVERT:
 		wacom_wac->hid_data.invert_state = value;
@@ -1572,12 +1581,19 @@ static int wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field,
 	case HID_DG_TIPSWITCH:
 		wacom_wac->hid_data.tipswitch |= value;
 		return 0;
+	case WACOM_HID_WD_SENSE:
+		wacom_wac->hid_data.sense_state = value;
+		return 0;
 	}
 
 	/* send pen events only when touch is up or forced out
 	 * or touch arbitration is off
 	 */
 	if (!usage->type || delay_pen_events(wacom_wac))
+		return 0;
+
+	/* send pen events only when the pen is in/entering/leaving proximity */
+	if (!wacom_wac->hid_data.inrange_state && !wacom_wac->tool[0])
 		return 0;
 
 	input_event(input, usage->type, usage->code, value);
@@ -1598,16 +1614,17 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct input_dev *input = wacom_wac->pen_input;
 	bool prox = wacom_wac->hid_data.inrange_state;
+	bool range = wacom_wac->hid_data.sense_state;
 
-	if (!wacom_wac->shared->stylus_in_proximity) /* first in prox */
+	if (!wacom_wac->tool[0] && prox) /* first in prox */
 		/* Going into proximity select tool */
 		wacom_wac->tool[0] = wacom_wac->hid_data.invert_state ?
 						BTN_TOOL_RUBBER : BTN_TOOL_PEN;
 
 	/* keep pen state for touch events */
-	wacom_wac->shared->stylus_in_proximity = prox;
+	wacom_wac->shared->stylus_in_proximity = range;
 
-	if (!delay_pen_events(wacom_wac)) {
+	if (!delay_pen_events(wacom_wac) && wacom_wac->tool[0]) {
 		input_report_key(input, BTN_TOUCH,
 				wacom_wac->hid_data.tipswitch);
 		input_report_key(input, wacom_wac->tool[0], prox);
@@ -1616,6 +1633,9 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 
 		input_sync(input);
 	}
+
+	if (!prox)
+		wacom_wac->tool[0] = 0;
 }
 
 static void wacom_wac_finger_usage_mapping(struct hid_device *hdev,
