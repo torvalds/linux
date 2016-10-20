@@ -430,6 +430,9 @@ cmd_export_list = $(OBJDUMP) -h $< | \
 
 $(obj)/lib-ksyms.o: $(lib-target) FORCE
 	$(call if_changed,export_list)
+
+targets += $(obj)/lib-ksyms.o
+
 endif
 
 #
