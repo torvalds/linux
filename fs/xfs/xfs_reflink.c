@@ -633,25 +633,26 @@ xfs_reflink_end_cow(
 	xfs_off_t			offset,
 	xfs_off_t			count)
 {
-	struct xfs_bmbt_irec		irec;
-	struct xfs_bmbt_irec		uirec;
+	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+	struct xfs_bmbt_irec		got, prev, del;
 	struct xfs_trans		*tp;
 	xfs_fileoff_t			offset_fsb;
 	xfs_fileoff_t			end_fsb;
-	xfs_filblks_t			count_fsb;
 	xfs_fsblock_t			firstfsb;
 	struct xfs_defer_ops		dfops;
-	int				error;
+	int				error, eof = 0;
 	unsigned int			resblks;
-	xfs_filblks_t			ilen;
 	xfs_filblks_t			rlen;
-	int				nimaps;
+	xfs_extnum_t			idx;
 
 	trace_xfs_reflink_end_cow(ip, offset, count);
 
+	/* No COW extents?  That's easy! */
+	if (ifp->if_bytes == 0)
+		return 0;
+
 	offset_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
 	end_fsb = XFS_B_TO_FSB(ip->i_mount, offset + count);
-	count_fsb = (xfs_filblks_t)(end_fsb - offset_fsb);
 
 	/* Start a rolling transaction to switch the mappings */
 	resblks = XFS_EXTENTADD_SPACE_RES(ip->i_mount, XFS_DATA_FORK);
@@ -663,72 +664,65 @@ xfs_reflink_end_cow(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	/* Go find the old extent in the CoW fork. */
-	while (offset_fsb < end_fsb) {
-		/* Read extent from the source file */
-		nimaps = 1;
-		count_fsb = (xfs_filblks_t)(end_fsb - offset_fsb);
-		error = xfs_bmapi_read(ip, offset_fsb, count_fsb, &irec,
-				&nimaps, XFS_BMAPI_COWFORK);
-		if (error)
-			goto out_cancel;
-		ASSERT(nimaps == 1);
+	xfs_bmap_search_extents(ip, end_fsb - 1, XFS_COW_FORK, &eof, &idx,
+			&got, &prev);
 
-		ASSERT(irec.br_startblock != DELAYSTARTBLOCK);
-		trace_xfs_reflink_cow_remap(ip, &irec);
+	/* If there is a hole at end_fsb - 1 go to the previous extent */
+	if (eof || got.br_startoff > end_fsb) {
+		ASSERT(idx > 0);
+		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, --idx), &got);
+	}
 
-		/*
-		 * We can have a hole in the CoW fork if part of a directio
-		 * write is CoW but part of it isn't.
-		 */
-		rlen = ilen = irec.br_blockcount;
-		if (irec.br_startblock == HOLESTARTBLOCK)
+	/* Walk backwards until we're out of the I/O range... */
+	while (got.br_startoff + got.br_blockcount > offset_fsb) {
+		del = got;
+		xfs_trim_extent(&del, offset_fsb, end_fsb - offset_fsb);
+
+		/* Extent delete may have bumped idx forward */
+		if (!del.br_blockcount) {
+			idx--;
 			goto next_extent;
-
-		/* Unmap the old blocks in the data fork. */
-		while (rlen) {
-			xfs_defer_init(&dfops, &firstfsb);
-			error = __xfs_bunmapi(tp, ip, irec.br_startoff,
-					&rlen, 0, 1, &firstfsb, &dfops);
-			if (error)
-				goto out_defer;
-
-			/*
-			 * Trim the extent to whatever got unmapped.
-			 * Remember, bunmapi works backwards.
-			 */
-			uirec.br_startblock = irec.br_startblock + rlen;
-			uirec.br_startoff = irec.br_startoff + rlen;
-			uirec.br_blockcount = irec.br_blockcount - rlen;
-			irec.br_blockcount = rlen;
-			trace_xfs_reflink_cow_remap_piece(ip, &uirec);
-
-			/* Free the CoW orphan record. */
-			error = xfs_refcount_free_cow_extent(tp->t_mountp,
-					&dfops, uirec.br_startblock,
-					uirec.br_blockcount);
-			if (error)
-				goto out_defer;
-
-			/* Map the new blocks into the data fork. */
-			error = xfs_bmap_map_extent(tp->t_mountp, &dfops,
-					ip, &uirec);
-			if (error)
-				goto out_defer;
-
-			/* Remove the mapping from the CoW fork. */
-			error = xfs_bunmapi_cow(ip, &uirec);
-			if (error)
-				goto out_defer;
-
-			error = xfs_defer_finish(&tp, &dfops, ip);
-			if (error)
-				goto out_defer;
 		}
 
+		ASSERT(!isnullstartblock(got.br_startblock));
+
+		/* Unmap the old blocks in the data fork. */
+		xfs_defer_init(&dfops, &firstfsb);
+		rlen = del.br_blockcount;
+		error = __xfs_bunmapi(tp, ip, del.br_startoff, &rlen, 0, 1,
+				&firstfsb, &dfops);
+		if (error)
+			goto out_defer;
+
+		/* Trim the extent to whatever got unmapped. */
+		if (rlen) {
+			xfs_trim_extent(&del, del.br_startoff + rlen,
+				del.br_blockcount - rlen);
+		}
+		trace_xfs_reflink_cow_remap(ip, &del);
+
+		/* Free the CoW orphan record. */
+		error = xfs_refcount_free_cow_extent(tp->t_mountp, &dfops,
+				del.br_startblock, del.br_blockcount);
+		if (error)
+			goto out_defer;
+
+		/* Map the new blocks into the data fork. */
+		error = xfs_bmap_map_extent(tp->t_mountp, &dfops, ip, &del);
+		if (error)
+			goto out_defer;
+
+		/* Remove the mapping from the CoW fork. */
+		xfs_bmap_del_extent_cow(ip, &idx, &got, &del);
+
+		error = xfs_defer_finish(&tp, &dfops, ip);
+		if (error)
+			goto out_defer;
+
 next_extent:
-		/* Roll on... */
-		offset_fsb = irec.br_startoff + ilen;
+		if (idx < 0)
+			break;
+		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx), &got);
 	}
 
 	error = xfs_trans_commit(tp);
@@ -739,7 +733,6 @@ next_extent:
 
 out_defer:
 	xfs_defer_cancel(&dfops);
-out_cancel:
 	xfs_trans_cancel(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 out:
