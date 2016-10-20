@@ -456,7 +456,7 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	if (rq->bio)
 		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, &sg);
 
-	if (unlikely(rq->cmd_flags & REQ_COPY_USER) &&
+	if (unlikely(rq->rq_flags & RQF_COPY_USER) &&
 	    (blk_rq_bytes(rq) & q->dma_pad_mask)) {
 		unsigned int pad_len =
 			(q->dma_pad_mask & ~blk_rq_bytes(rq)) + 1;
@@ -634,7 +634,7 @@ void blk_rq_set_mixed_merge(struct request *rq)
 	unsigned int ff = rq->cmd_flags & REQ_FAILFAST_MASK;
 	struct bio *bio;
 
-	if (rq->cmd_flags & REQ_MIXED_MERGE)
+	if (rq->rq_flags & RQF_MIXED_MERGE)
 		return;
 
 	/*
@@ -647,7 +647,7 @@ void blk_rq_set_mixed_merge(struct request *rq)
 			     (bio->bi_opf & REQ_FAILFAST_MASK) != ff);
 		bio->bi_opf |= ff;
 	}
-	rq->cmd_flags |= REQ_MIXED_MERGE;
+	rq->rq_flags |= RQF_MIXED_MERGE;
 }
 
 static void blk_account_io_merge(struct request *req)
@@ -709,7 +709,7 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	 * makes sure that all involved bios have mixable attributes
 	 * set properly.
 	 */
-	if ((req->cmd_flags | next->cmd_flags) & REQ_MIXED_MERGE ||
+	if (((req->rq_flags | next->rq_flags) & RQF_MIXED_MERGE) ||
 	    (req->cmd_flags & REQ_FAILFAST_MASK) !=
 	    (next->cmd_flags & REQ_FAILFAST_MASK)) {
 		blk_rq_set_mixed_merge(req);

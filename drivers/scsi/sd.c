@@ -1520,7 +1520,7 @@ static int sd_sync_cache(struct scsi_disk *sdkp)
 		 */
 		res = scsi_execute_req_flags(sdp, cmd, DMA_NONE, NULL, 0,
 					     &sshdr, timeout, SD_MAX_RETRIES,
-					     NULL, REQ_PM);
+					     NULL, 0, RQF_PM);
 		if (res == 0)
 			break;
 	}
@@ -1879,7 +1879,7 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 
 					good_bytes = 0;
 					req->__data_len = blk_rq_bytes(req);
-					req->cmd_flags |= REQ_QUIET;
+					req->rq_flags |= RQF_QUIET;
 				}
 			}
 		}
@@ -3278,7 +3278,7 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 		return -ENODEV;
 
 	res = scsi_execute_req_flags(sdp, cmd, DMA_NONE, NULL, 0, &sshdr,
-			       SD_TIMEOUT, SD_MAX_RETRIES, NULL, REQ_PM);
+			       SD_TIMEOUT, SD_MAX_RETRIES, NULL, 0, RQF_PM);
 	if (res) {
 		sd_print_result(sdkp, "Start/Stop Unit failed", res);
 		if (driver_byte(res) & DRIVER_SENSE)

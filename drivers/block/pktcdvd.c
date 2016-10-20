@@ -721,7 +721,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 
 	rq->timeout = 60*HZ;
 	if (cgc->quiet)
-		rq->cmd_flags |= REQ_QUIET;
+		rq->rq_flags |= RQF_QUIET;
 
 	blk_execute_rq(rq->q, pd->bdev->bd_disk, rq, 0);
 	if (rq->errors)

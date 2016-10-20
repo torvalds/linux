@@ -44,7 +44,7 @@ static int mmc_prep_request(struct request_queue *q, struct request *req)
 	if (mq && (mmc_card_removed(mq->card) || mmc_access_rpmb(mq)))
 		return BLKPREP_KILL;
 
-	req->cmd_flags |= REQ_DONTPREP;
+	req->rq_flags |= RQF_DONTPREP;
 
 	return BLKPREP_OK;
 }
@@ -120,7 +120,7 @@ static void mmc_request_fn(struct request_queue *q)
 
 	if (!mq) {
 		while ((req = blk_fetch_request(q)) != NULL) {
-			req->cmd_flags |= REQ_QUIET;
+			req->rq_flags |= RQF_QUIET;
 			__blk_end_request_all(req, -EIO);
 		}
 		return;

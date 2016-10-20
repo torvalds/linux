@@ -348,7 +348,7 @@ void sd_zbc_complete(struct scsi_cmnd *cmd,
 			 * this case, so be quiet about the error.
 			 */
 			if (req_op(rq) == REQ_OP_ZONE_RESET)
-				rq->cmd_flags |= REQ_QUIET;
+				rq->rq_flags |= RQF_QUIET;
 			break;
 		case 0x21:
 			/*

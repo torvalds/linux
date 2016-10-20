@@ -135,7 +135,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 	} while (iov_iter_count(&i));
 
 	if (!bio_flagged(bio, BIO_USER_MAPPED))
-		rq->cmd_flags |= REQ_COPY_USER;
+		rq->rq_flags |= RQF_COPY_USER;
 	return 0;
 
 unmap_rq:
@@ -232,7 +232,7 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 	if (do_copy)
-		rq->cmd_flags |= REQ_COPY_USER;
+		rq->rq_flags |= RQF_COPY_USER;
 
 	ret = blk_rq_append_bio(rq, bio);
 	if (unlikely(ret)) {

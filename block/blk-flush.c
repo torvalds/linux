@@ -56,7 +56,7 @@
  * Once while executing DATA and again after the whole sequence is
  * complete.  The first completion updates the contained bio but doesn't
  * finish it so that the bio submitter is notified only after the whole
- * sequence is complete.  This is implemented by testing REQ_FLUSH_SEQ in
+ * sequence is complete.  This is implemented by testing RQF_FLUSH_SEQ in
  * req_bio_endio().
  *
  * The above peculiarity requires that each FLUSH/FUA request has only one
@@ -127,7 +127,7 @@ static void blk_flush_restore_request(struct request *rq)
 	rq->bio = rq->biotail;
 
 	/* make @rq a normal request */
-	rq->cmd_flags &= ~REQ_FLUSH_SEQ;
+	rq->rq_flags &= ~RQF_FLUSH_SEQ;
 	rq->end_io = rq->flush.saved_end_io;
 }
 
@@ -330,7 +330,8 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 	}
 
 	flush_rq->cmd_type = REQ_TYPE_FS;
-	req_set_op_attrs(flush_rq, REQ_OP_FLUSH, WRITE_FLUSH | REQ_FLUSH_SEQ);
+	req_set_op_attrs(flush_rq, REQ_OP_FLUSH, WRITE_FLUSH);
+	flush_rq->rq_flags |= RQF_FLUSH_SEQ;
 	flush_rq->rq_disk = first_rq->rq_disk;
 	flush_rq->end_io = flush_end_io;
 
@@ -433,7 +434,7 @@ void blk_insert_flush(struct request *rq)
 	 */
 	memset(&rq->flush, 0, sizeof(rq->flush));
 	INIT_LIST_HEAD(&rq->flush.list);
-	rq->cmd_flags |= REQ_FLUSH_SEQ;
+	rq->rq_flags |= RQF_FLUSH_SEQ;
 	rq->flush.saved_end_io = rq->end_io; /* Usually NULL */
 	if (q->mq_ops) {
 		rq->end_io = mq_flush_data_end_io;

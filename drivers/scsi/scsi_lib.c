@@ -163,26 +163,11 @@ void scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 {
 	__scsi_queue_insert(cmd, reason, 1);
 }
-/**
- * scsi_execute - insert request and wait for the result
- * @sdev:	scsi device
- * @cmd:	scsi command
- * @data_direction: data direction
- * @buffer:	data buffer
- * @bufflen:	len of buffer
- * @sense:	optional sense buffer
- * @timeout:	request timeout in seconds
- * @retries:	number of times to retry request
- * @flags:	or into request flags;
- * @resid:	optional residual length
- *
- * returns the req->errors value which is the scsi_cmnd result
- * field.
- */
-int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
+
+static int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 int data_direction, void *buffer, unsigned bufflen,
 		 unsigned char *sense, int timeout, int retries, u64 flags,
-		 int *resid)
+		 req_flags_t rq_flags, int *resid)
 {
 	struct request *req;
 	int write = (data_direction == DMA_TO_DEVICE);
@@ -203,7 +188,8 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	req->sense_len = 0;
 	req->retries = retries;
 	req->timeout = timeout;
-	req->cmd_flags |= flags | REQ_QUIET | REQ_PREEMPT;
+	req->cmd_flags |= flags;
+	req->rq_flags |= rq_flags | RQF_QUIET | RQF_PREEMPT;
 
 	/*
 	 * head injection *required* here otherwise quiesce won't work
@@ -227,12 +213,37 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 
 	return ret;
 }
+
+/**
+ * scsi_execute - insert request and wait for the result
+ * @sdev:	scsi device
+ * @cmd:	scsi command
+ * @data_direction: data direction
+ * @buffer:	data buffer
+ * @bufflen:	len of buffer
+ * @sense:	optional sense buffer
+ * @timeout:	request timeout in seconds
+ * @retries:	number of times to retry request
+ * @flags:	or into request flags;
+ * @resid:	optional residual length
+ *
+ * returns the req->errors value which is the scsi_cmnd result
+ * field.
+ */
+int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
+		 int data_direction, void *buffer, unsigned bufflen,
+		 unsigned char *sense, int timeout, int retries, u64 flags,
+		 int *resid)
+{
+	return __scsi_execute(sdev, cmd, data_direction, buffer, bufflen, sense,
+			timeout, retries, flags, 0, resid);
+}
 EXPORT_SYMBOL(scsi_execute);
 
 int scsi_execute_req_flags(struct scsi_device *sdev, const unsigned char *cmd,
 		     int data_direction, void *buffer, unsigned bufflen,
 		     struct scsi_sense_hdr *sshdr, int timeout, int retries,
-		     int *resid, u64 flags)
+		     int *resid, u64 flags, req_flags_t rq_flags)
 {
 	char *sense = NULL;
 	int result;
@@ -242,8 +253,8 @@ int scsi_execute_req_flags(struct scsi_device *sdev, const unsigned char *cmd,
 		if (!sense)
 			return DRIVER_ERROR << 24;
 	}
-	result = scsi_execute(sdev, cmd, data_direction, buffer, bufflen,
-			      sense, timeout, retries, flags, resid);
+	result = __scsi_execute(sdev, cmd, data_direction, buffer, bufflen,
+			      sense, timeout, retries, flags, rq_flags, resid);
 	if (sshdr)
 		scsi_normalize_sense(sense, SCSI_SENSE_BUFFERSIZE, sshdr);
 
@@ -813,7 +824,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		 */
 		if ((sshdr.asc == 0x0) && (sshdr.ascq == 0x1d))
 			;
-		else if (!(req->cmd_flags & REQ_QUIET))
+		else if (!(req->rq_flags & RQF_QUIET))
 			scsi_print_sense(cmd);
 		result = 0;
 		/* BLOCK_PC may have set error */
@@ -943,7 +954,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	switch (action) {
 	case ACTION_FAIL:
 		/* Give up and fail the remainder of the request */
-		if (!(req->cmd_flags & REQ_QUIET)) {
+		if (!(req->rq_flags & RQF_QUIET)) {
 			static DEFINE_RATELIMIT_STATE(_rs,
 					DEFAULT_RATELIMIT_INTERVAL,
 					DEFAULT_RATELIMIT_BURST);
@@ -972,7 +983,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		 * A new command will be prepared and issued.
 		 */
 		if (q->mq_ops) {
-			cmd->request->cmd_flags &= ~REQ_DONTPREP;
+			cmd->request->rq_flags &= ~RQF_DONTPREP;
 			scsi_mq_uninit_cmd(cmd);
 			scsi_mq_requeue_cmd(cmd);
 		} else {
@@ -1234,7 +1245,7 @@ scsi_prep_state_check(struct scsi_device *sdev, struct request *req)
 			/*
 			 * If the devices is blocked we defer normal commands.
 			 */
-			if (!(req->cmd_flags & REQ_PREEMPT))
+			if (!(req->rq_flags & RQF_PREEMPT))
 				ret = BLKPREP_DEFER;
 			break;
 		default:
@@ -1243,7 +1254,7 @@ scsi_prep_state_check(struct scsi_device *sdev, struct request *req)
 			 * special commands.  In particular any user initiated
 			 * command is not allowed.
 			 */
-			if (!(req->cmd_flags & REQ_PREEMPT))
+			if (!(req->rq_flags & RQF_PREEMPT))
 				ret = BLKPREP_KILL;
 			break;
 		}
@@ -1279,7 +1290,7 @@ scsi_prep_return(struct request_queue *q, struct request *req, int ret)
 			blk_delay_queue(q, SCSI_QUEUE_DELAY);
 		break;
 	default:
-		req->cmd_flags |= REQ_DONTPREP;
+		req->rq_flags |= RQF_DONTPREP;
 	}
 
 	return ret;
@@ -1736,7 +1747,7 @@ static void scsi_request_fn(struct request_queue *q)
 		 * we add the dev to the starved list so it eventually gets
 		 * a run when a tag is freed.
 		 */
-		if (blk_queue_tagged(q) && !(req->cmd_flags & REQ_QUEUED)) {
+		if (blk_queue_tagged(q) && !(req->rq_flags & RQF_QUEUED)) {
 			spin_lock_irq(shost->host_lock);
 			if (list_empty(&sdev->starved_entry))
 				list_add_tail(&sdev->starved_entry,
@@ -1903,11 +1914,11 @@ static int scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		goto out_dec_target_busy;
 
 
-	if (!(req->cmd_flags & REQ_DONTPREP)) {
+	if (!(req->rq_flags & RQF_DONTPREP)) {
 		ret = prep_to_mq(scsi_mq_prep_fn(req));
 		if (ret)
 			goto out_dec_host_busy;
-		req->cmd_flags |= REQ_DONTPREP;
+		req->rq_flags |= RQF_DONTPREP;
 	} else {
 		blk_mq_start_request(req);
 	}
@@ -1952,7 +1963,7 @@ out:
 		 * we hit an error, as we will never see this command
 		 * again.
 		 */
-		if (req->cmd_flags & REQ_DONTPREP)
+		if (req->rq_flags & RQF_DONTPREP)
 			scsi_mq_uninit_cmd(cmd);
 		break;
 	default:
