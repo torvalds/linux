@@ -236,6 +236,10 @@ int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 	}
 	notifyid = ret;
 
+	/* Potentially bump max_notifyid */
+	if (notifyid > rproc->max_notifyid)
+		rproc->max_notifyid = notifyid;
+
 	dev_dbg(dev, "vring%d: va %p dma %pad size 0x%x idr %d\n",
 		i, va, &dma, size, notifyid);
 
@@ -719,15 +723,6 @@ free_carv:
 	return ret;
 }
 
-static int rproc_count_vrings(struct rproc *rproc, struct fw_rsc_vdev *rsc,
-			      int offset, int avail)
-{
-	/* Summarize the number of notification IDs */
-	rproc->max_notifyid += rsc->num_of_vrings;
-
-	return 0;
-}
-
 /*
  * A lookup table for resource handlers. The indices are defined in
  * enum fw_resource_type.
@@ -736,7 +731,7 @@ static rproc_handle_resource_t rproc_loading_handlers[RSC_LAST] = {
 	[RSC_CARVEOUT] = (rproc_handle_resource_t)rproc_handle_carveout,
 	[RSC_DEVMEM] = (rproc_handle_resource_t)rproc_handle_devmem,
 	[RSC_TRACE] = (rproc_handle_resource_t)rproc_handle_trace,
-	[RSC_VDEV] = (rproc_handle_resource_t)rproc_count_vrings,
+	[RSC_VDEV] = NULL,
 };
 
 static rproc_handle_resource_t rproc_vdev_handler[RSC_LAST] = {
