@@ -608,9 +608,7 @@ static bool
 vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
 {
 	uint32_t max_branch_target = 0;
-	bool found_shader_end = false;
 	int ip;
-	int shader_end_ip = 0;
 	int last_branch = -2;
 
 	for (ip = 0; ip < validation_state->max_ip; ip++) {
@@ -621,8 +619,13 @@ vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
 		uint32_t branch_target_ip;
 
 		if (sig == QPU_SIG_PROG_END) {
-			shader_end_ip = ip;
-			found_shader_end = true;
+			/* There are two delay slots after program end is
+			 * signaled that are still executed, then we're
+			 * finished.  validation_state->max_ip is the
+			 * instruction after the last valid instruction in the
+			 * program.
+			 */
+			validation_state->max_ip = ip + 3;
 			continue;
 		}
 
@@ -676,15 +679,9 @@ vc4_validate_branches(struct vc4_shader_validation_state *validation_state)
 		}
 		set_bit(after_delay_ip, validation_state->branch_targets);
 		max_branch_target = max(max_branch_target, after_delay_ip);
-
-		/* There are two delay slots after program end is signaled
-		 * that are still executed, then we're finished.
-		 */
-		if (found_shader_end && ip == shader_end_ip + 2)
-			break;
 	}
 
-	if (max_branch_target > shader_end_ip) {
+	if (max_branch_target > validation_state->max_ip - 3) {
 		DRM_ERROR("Branch landed after QPU_SIG_PROG_END");
 		return false;
 	}
