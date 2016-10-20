@@ -1038,6 +1038,15 @@ static void qgroup_dirty(struct btrfs_fs_info *fs_info,
 		list_add(&qgroup->dirty, &fs_info->dirty_qgroups);
 }
 
+static void report_reserved_underflow(struct btrfs_fs_info *fs_info,
+				      struct btrfs_qgroup *qgroup,
+				      u64 num_bytes)
+{
+	btrfs_warn(fs_info,
+		"qgroup %llu reserved space underflow, have: %llu, to free: %llu",
+		qgroup->qgroupid, qgroup->reserved, num_bytes);
+	qgroup->reserved = 0;
+}
 /*
  * The easy accounting, if we are adding/removing the only ref for an extent
  * then this qgroup and all of the parent qgroups get their reference and
@@ -1065,8 +1074,12 @@ static int __qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 	WARN_ON(sign < 0 && qgroup->excl < num_bytes);
 	qgroup->excl += sign * num_bytes;
 	qgroup->excl_cmpr += sign * num_bytes;
-	if (sign > 0)
-		qgroup->reserved -= num_bytes;
+	if (sign > 0) {
+		if (WARN_ON(qgroup->reserved < num_bytes))
+			report_reserved_underflow(fs_info, qgroup, num_bytes);
+		else
+			qgroup->reserved -= num_bytes;
+	}
 
 	qgroup_dirty(fs_info, qgroup);
 
@@ -1086,8 +1099,13 @@ static int __qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 		qgroup->rfer_cmpr += sign * num_bytes;
 		WARN_ON(sign < 0 && qgroup->excl < num_bytes);
 		qgroup->excl += sign * num_bytes;
-		if (sign > 0)
-			qgroup->reserved -= num_bytes;
+		if (sign > 0) {
+			if (WARN_ON(qgroup->reserved < num_bytes))
+				report_reserved_underflow(fs_info, qgroup,
+							  num_bytes);
+			else
+				qgroup->reserved -= num_bytes;
+		}
 		qgroup->excl_cmpr += sign * num_bytes;
 		qgroup_dirty(fs_info, qgroup);
 
@@ -2424,7 +2442,10 @@ void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 
 		qg = unode_aux_to_qgroup(unode);
 
-		qg->reserved -= num_bytes;
+		if (WARN_ON(qg->reserved < num_bytes))
+			report_reserved_underflow(fs_info, qg, num_bytes);
+		else
+			qg->reserved -= num_bytes;
 
 		list_for_each_entry(glist, &qg->groups, next_group) {
 			ret = ulist_add(fs_info->qgroup_ulist,
