@@ -424,7 +424,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	st->oversampling = 1;
 	INIT_WORK(&st->poll_work, &ad7606_poll_bh_to_ring);
 
-	st->reg = devm_regulator_get(dev, "vcc");
+	st->reg = devm_regulator_get(dev, "avcc");
 	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
