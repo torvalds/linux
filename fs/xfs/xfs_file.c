@@ -965,7 +965,7 @@ xfs_file_share_range(
 	    IS_SWAPFILE(inode_out))
 		return -ETXTBSY;
 
-	same_inode = (inode_in->i_ino == inode_out->i_ino);
+	same_inode = (inode_in == inode_out);
 
 	/* Don't reflink dirs, pipes, sockets... */
 	if (S_ISDIR(inode_in->i_mode) || S_ISDIR(inode_out->i_mode))
