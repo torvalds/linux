@@ -29,8 +29,6 @@
 #define EM28XX_VERSION "0.2.2"
 #define DRIVER_DESC    "Empia em28xx device driver"
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
@@ -612,7 +610,6 @@ struct em28xx {
 	struct em28xx_IR *ir;
 
 	/* generic device properties */
-	char name[30];		/* name (including minor) of the device */
 	int model;		/* index in the device_data struct */
 	int devno;		/* marks the number of this device */
 	enum em28xx_chip_id chip_id;
