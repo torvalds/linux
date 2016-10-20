@@ -848,11 +848,12 @@ dump_trans_data:
 				     sg_nents(sg_dump_data),
 				     fw_error_dump->op_mode_ptr,
 				     fw_error_dump->op_mode_len, 0);
-		sg_pcopy_from_buffer(sg_dump_data,
-				     sg_nents(sg_dump_data),
-				     fw_error_dump->trans_ptr->data,
-				     fw_error_dump->trans_ptr->len,
-				     fw_error_dump->op_mode_len);
+		if (fw_error_dump->trans_ptr)
+			sg_pcopy_from_buffer(sg_dump_data,
+					     sg_nents(sg_dump_data),
+					     fw_error_dump->trans_ptr->data,
+					     fw_error_dump->trans_ptr->len,
+					     fw_error_dump->op_mode_len);
 		dev_coredumpsg(mvm->trans->dev, sg_dump_data, file_len,
 			       GFP_KERNEL);
 	}
