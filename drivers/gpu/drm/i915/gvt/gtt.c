@@ -1921,7 +1921,7 @@ int intel_vgpu_emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	return ret;
 }
 
-static bool create_scratch_page(struct intel_vgpu *vgpu)
+static int create_scratch_page(struct intel_vgpu *vgpu)
 {
 	struct intel_vgpu_gtt *gtt = &vgpu->gtt;
 	void *p;

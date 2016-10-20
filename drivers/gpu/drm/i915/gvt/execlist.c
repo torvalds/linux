@@ -623,7 +623,7 @@ static int prepare_mm(struct intel_vgpu_workload *workload)
 	(list_empty(q) ? NULL : container_of(q->prev, \
 	struct intel_vgpu_workload, list))
 
-static bool submit_context(struct intel_vgpu *vgpu, int ring_id,
+static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 		struct execlist_ctx_descriptor_format *desc,
 		bool emulate_schedule_in)
 {
