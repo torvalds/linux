@@ -186,7 +186,7 @@ struct intel_gvt_firmware {
 };
 
 struct intel_gvt_opregion {
-	void *opregion_va;
+	void __iomem *opregion_va;
 	u32 opregion_pa;
 };
 

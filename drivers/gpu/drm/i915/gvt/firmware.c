@@ -51,7 +51,7 @@ struct gvt_firmware_header {
 #define RD(offset) (readl(mmio + offset.reg))
 #define WR(v, offset) (writel(v, mmio + offset.reg))
 
-static void bdw_forcewake_get(void *mmio)
+static void bdw_forcewake_get(void __iomem *mmio)
 {
 	WR(_MASKED_BIT_DISABLE(0xffff), FORCEWAKE_MT);
 
@@ -91,7 +91,8 @@ static struct bin_attribute firmware_attr = {
 	.mmap = NULL,
 };
 
-static int expose_firmware_sysfs(struct intel_gvt *gvt, void *mmio)
+static int expose_firmware_sysfs(struct intel_gvt *gvt,
+					void __iomem *mmio)
 {
 	struct intel_gvt_device_info *info = &gvt->device_info;
 	struct pci_dev *pdev = gvt->dev_priv->drm.pdev;
@@ -234,7 +235,8 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt)
 	struct gvt_firmware_header *h;
 	const struct firmware *fw;
 	char *path;
-	void *mmio, *mem;
+	void __iomem *mmio;
+	void *mem;
 	int ret;
 
 	path = kmalloc(PATH_MAX, GFP_KERNEL);
