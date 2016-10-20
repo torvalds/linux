@@ -924,7 +924,11 @@ int f2fs_sync_inode_meta(struct f2fs_sb_info *sbi)
 		inode = igrab(&fi->vfs_inode);
 		spin_unlock(&sbi->inode_lock[DIRTY_META]);
 		if (inode) {
-			update_inode_page(inode);
+			sync_inode_metadata(inode, 0);
+
+			/* it's on eviction */
+			if (is_inode_flag_set(inode, FI_DIRTY_INODE))
+				update_inode_page(inode);
 			iput(inode);
 		}
 	};
