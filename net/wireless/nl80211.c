@@ -10528,7 +10528,7 @@ static int nl80211_start_p2p_device(struct sk_buff *skb, struct genl_info *info)
 	if (wdev->iftype != NL80211_IFTYPE_P2P_DEVICE)
 		return -EOPNOTSUPP;
 
-	if (wdev->p2p_started)
+	if (wdev_running(wdev))
 		return 0;
 
 	if (rfkill_blocked(rdev->rfkill))
@@ -10538,7 +10538,7 @@ static int nl80211_start_p2p_device(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
-	wdev->p2p_started = true;
+	wdev->is_running = true;
 	rdev->opencount++;
 
 	return 0;
@@ -10570,7 +10570,7 @@ static int nl80211_start_nan(struct sk_buff *skb, struct genl_info *info)
 	if (wdev->iftype != NL80211_IFTYPE_NAN)
 		return -EOPNOTSUPP;
 
-	if (wdev->nan_started)
+	if (!wdev_running(wdev))
 		return -EEXIST;
 
 	if (rfkill_blocked(rdev->rfkill))
@@ -10593,7 +10593,7 @@ static int nl80211_start_nan(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
-	wdev->nan_started = true;
+	wdev->is_running = true;
 	rdev->opencount++;
 
 	return 0;
@@ -10678,7 +10678,7 @@ static int nl80211_nan_add_func(struct sk_buff *skb,
 	if (wdev->iftype != NL80211_IFTYPE_NAN)
 		return -EOPNOTSUPP;
 
-	if (!wdev->nan_started)
+	if (!wdev_running(wdev))
 		return -ENOTCONN;
 
 	if (!info->attrs[NL80211_ATTR_NAN_FUNC])
@@ -10915,7 +10915,7 @@ static int nl80211_nan_del_func(struct sk_buff *skb,
 	if (wdev->iftype != NL80211_IFTYPE_NAN)
 		return -EOPNOTSUPP;
 
-	if (!wdev->nan_started)
+	if (!wdev_running(wdev))
 		return -ENOTCONN;
 
 	if (!info->attrs[NL80211_ATTR_COOKIE])
@@ -10943,7 +10943,7 @@ static int nl80211_nan_change_config(struct sk_buff *skb,
 	if (wdev->iftype != NL80211_IFTYPE_NAN)
 		return -EOPNOTSUPP;
 
-	if (!wdev->nan_started)
+	if (!wdev_running(wdev))
 		return -ENOTCONN;
 
 	if (info->attrs[NL80211_ATTR_NAN_MASTER_PREF]) {
@@ -11255,11 +11255,7 @@ static int nl80211_vendor_cmd(struct sk_buff *skb, struct genl_info *info)
 				return -EINVAL;
 
 			if (vcmd->flags & WIPHY_VENDOR_CMD_NEED_RUNNING) {
-				if (wdev->netdev &&
-				    !netif_running(wdev->netdev))
-					return -ENETDOWN;
-				if (!wdev->netdev && !wdev->p2p_started &&
-				    !wdev->nan_started)
+				if (!wdev_running(wdev))
 					return -ENETDOWN;
 			}
 
@@ -11422,10 +11418,7 @@ static int nl80211_vendor_cmd_dump(struct sk_buff *skb,
 			return -EINVAL;
 
 		if (vcmd->flags & WIPHY_VENDOR_CMD_NEED_RUNNING) {
-			if (wdev->netdev &&
-			    !netif_running(wdev->netdev))
-				return -ENETDOWN;
-			if (!wdev->netdev && !wdev->p2p_started)
+			if (!wdev_running(wdev))
 				return -ENETDOWN;
 		}
 	}
@@ -11796,29 +11789,15 @@ static int nl80211_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 			info->user_ptr[1] = wdev;
 		}
 
-		if (dev) {
-			if (ops->internal_flags & NL80211_FLAG_CHECK_NETDEV_UP &&
-			    !netif_running(dev)) {
-				if (rtnl)
-					rtnl_unlock();
-				return -ENETDOWN;
-			}
-
-			dev_hold(dev);
-		} else if (ops->internal_flags & NL80211_FLAG_CHECK_NETDEV_UP) {
-			if (wdev->iftype == NL80211_IFTYPE_P2P_DEVICE &&
-			    !wdev->p2p_started) {
-				if (rtnl)
-					rtnl_unlock();
-				return -ENETDOWN;
-			}
-			if (wdev->iftype == NL80211_IFTYPE_NAN &&
-			    !wdev->nan_started) {
-				if (rtnl)
-					rtnl_unlock();
-				return -ENETDOWN;
-			}
+		if (ops->internal_flags & NL80211_FLAG_CHECK_NETDEV_UP &&
+		    !wdev_running(wdev)) {
+			if (rtnl)
+				rtnl_unlock();
+			return -ENETDOWN;
 		}
+
+		if (dev)
+			dev_hold(dev);
 
 		info->user_ptr[0] = rdev;
 	}

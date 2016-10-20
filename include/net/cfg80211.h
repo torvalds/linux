@@ -3781,8 +3781,8 @@ struct cfg80211_cached_keys;
  * @beacon_interval: beacon interval used on this device for transmitting
  *	beacons, 0 when not valid
  * @address: The address for this device, valid only if @netdev is %NULL
- * @p2p_started: true if this is a P2P Device that has been started
- * @nan_started: true if this is a NAN interface that has been started
+ * @is_running: true if this is a non-netdev device that has been started, e.g.
+ *	the P2P Device.
  * @cac_started: true if DFS channel availability check has been started
  * @cac_start_time: timestamp (jiffies) when the dfs state was entered.
  * @cac_time_ms: CAC time in ms
@@ -3814,7 +3814,7 @@ struct wireless_dev {
 
 	struct mutex mtx;
 
-	bool use_4addr, p2p_started, nan_started;
+	bool use_4addr, is_running;
 
 	u8 address[ETH_ALEN] __aligned(sizeof(u16));
 
@@ -3869,6 +3869,13 @@ static inline u8 *wdev_address(struct wireless_dev *wdev)
 	if (wdev->netdev)
 		return wdev->netdev->dev_addr;
 	return wdev->address;
+}
+
+static inline bool wdev_running(struct wireless_dev *wdev)
+{
+	if (wdev->netdev)
+		return netif_running(wdev->netdev);
+	return wdev->is_running;
 }
 
 /**

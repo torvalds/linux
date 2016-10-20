@@ -210,11 +210,11 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_P2P_DEVICE))
 		return;
 
-	if (!wdev->p2p_started)
+	if (!wdev_running(wdev))
 		return;
 
 	rdev_stop_p2p_device(rdev, wdev);
-	wdev->p2p_started = false;
+	wdev->is_running = false;
 
 	rdev->opencount--;
 
@@ -233,11 +233,11 @@ void cfg80211_stop_nan(struct cfg80211_registered_device *rdev,
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_NAN))
 		return;
 
-	if (!wdev->nan_started)
+	if (!wdev_running(wdev))
 		return;
 
 	rdev_stop_nan(rdev, wdev);
-	wdev->nan_started = false;
+	wdev->is_running = false;
 
 	rdev->opencount--;
 }
