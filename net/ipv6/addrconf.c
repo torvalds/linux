@@ -1185,6 +1185,7 @@ static int ipv6_create_tempaddr(struct inet6_ifaddr *ifp, struct inet6_ifaddr *i
 	u32 addr_flags;
 	unsigned long now = jiffies;
 	long max_desync_factor;
+	s32 cnf_temp_preferred_lft;
 
 	write_lock_bh(&idev->lock);
 	if (ift) {
@@ -1228,9 +1229,10 @@ retry:
 	/* recalculate max_desync_factor each time and update
 	 * idev->desync_factor if it's larger
 	 */
+	cnf_temp_preferred_lft = READ_ONCE(idev->cnf.temp_prefered_lft);
 	max_desync_factor = min_t(__u32,
 				  idev->cnf.max_desync_factor,
-				  idev->cnf.temp_prefered_lft - regen_advance);
+				  cnf_temp_preferred_lft - regen_advance);
 
 	if (unlikely(idev->desync_factor > max_desync_factor)) {
 		if (max_desync_factor > 0) {
@@ -1245,11 +1247,8 @@ retry:
 	tmp_valid_lft = min_t(__u32,
 			      ifp->valid_lft,
 			      idev->cnf.temp_valid_lft + age);
-	tmp_prefered_lft = idev->cnf.temp_prefered_lft + age -
+	tmp_prefered_lft = cnf_temp_preferred_lft + age -
 			    idev->desync_factor;
-	/* guard against underflow in case of concurrent updates to cnf */
-	if (unlikely(tmp_prefered_lft < 0))
-		tmp_prefered_lft = 0;
 	tmp_prefered_lft = min_t(__u32, ifp->prefered_lft, tmp_prefered_lft);
 	tmp_plen = ifp->prefix_len;
 	tmp_tstamp = ifp->tstamp;
