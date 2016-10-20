@@ -731,10 +731,6 @@ static rproc_handle_resource_t rproc_loading_handlers[RSC_LAST] = {
 	[RSC_CARVEOUT] = (rproc_handle_resource_t)rproc_handle_carveout,
 	[RSC_DEVMEM] = (rproc_handle_resource_t)rproc_handle_devmem,
 	[RSC_TRACE] = (rproc_handle_resource_t)rproc_handle_trace,
-	[RSC_VDEV] = NULL,
-};
-
-static rproc_handle_resource_t rproc_vdev_handler[RSC_LAST] = {
 	[RSC_VDEV] = (rproc_handle_resource_t)rproc_handle_vdev,
 };
 
@@ -904,13 +900,6 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 
 	/* reset max_notifyid */
 	rproc->max_notifyid = -1;
-
-	/* look for virtio devices and register them */
-	ret = rproc_handle_resources(rproc, tablesz, rproc_vdev_handler);
-	if (ret) {
-		dev_err(dev, "Failed to handle vdev resources: %d\n", ret);
-		goto clean_up;
-	}
 
 	/* handle fw resources which are required to boot rproc */
 	ret = rproc_handle_resources(rproc, tablesz, rproc_loading_handlers);
