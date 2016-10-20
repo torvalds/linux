@@ -166,6 +166,11 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 		}
 		break;
 
+	case WACOM_HID_WD_DATAMODE:
+		wacom->wacom_wac.mode_report = field->report->id;
+		wacom->wacom_wac.mode_value = 2;
+		break;
+
 	case WACOM_HID_UP_G9:
 	case WACOM_HID_UP_G11:
 		if (field->report->id == 0x03 &&

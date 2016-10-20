@@ -1435,14 +1435,35 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 	return 0;
 }
 
+static int wacom_equivalent_usage(int usage)
+{
+	if ((usage & HID_USAGE_PAGE) == WACOM_HID_UP_WACOMDIGITIZER) {
+		int subpage = (usage & 0xFF00) << 8;
+		int subusage = (usage & 0xFF);
+
+		if (subpage == WACOM_HID_SP_DIGITIZER ||
+		    subpage == WACOM_HID_SP_DIGITIZERINFO) {
+			return usage;
+		}
+
+		if (subpage == HID_UP_UNDEFINED)
+			subpage = HID_UP_DIGITIZER;
+
+		return subpage | subusage;
+	}
+
+	return usage;
+}
+
 static void wacom_map_usage(struct input_dev *input, struct hid_usage *usage,
 		struct hid_field *field, __u8 type, __u16 code, int fuzz)
 {
 	int fmin = field->logical_minimum;
 	int fmax = field->logical_maximum;
+	unsigned int equivalent_usage = wacom_equivalent_usage(usage->hid);
 	int resolution_code = code;
 
-	if (usage->hid == HID_DG_TWIST) {
+	if (equivalent_usage == HID_DG_TWIST) {
 		resolution_code = ABS_RZ;
 	}
 
@@ -1472,8 +1493,9 @@ static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct input_dev *input = wacom_wac->pen_input;
+	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 
-	switch (usage->hid) {
+	switch (equivalent_usage) {
 	case HID_GD_X:
 		wacom_map_usage(input, usage, field, EV_ABS, ABS_X, 4);
 		break;
@@ -1524,8 +1546,9 @@ static int wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field,
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct input_dev *input = wacom_wac->pen_input;
+	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 
-	switch (usage->hid) {
+	switch (equivalent_usage) {
 	case HID_GD_Z:
 		/*
 		 * HID_GD_Z "should increase as the control's position is
@@ -1597,8 +1620,9 @@ static void wacom_wac_finger_usage_mapping(struct hid_device *hdev,
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct input_dev *input = wacom_wac->touch_input;
 	unsigned touch_max = wacom_wac->features.touch_max;
+	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 
-	switch (usage->hid) {
+	switch (equivalent_usage) {
 	case HID_GD_X:
 		if (touch_max == 1)
 			wacom_map_usage(input, usage, field, EV_ABS, ABS_X, 4);
@@ -1673,8 +1697,9 @@ static int wacom_wac_finger_event(struct hid_device *hdev,
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 
-	switch (usage->hid) {
+	switch (equivalent_usage) {
 	case HID_GD_X:
 		wacom_wac->hid_data.x = value;
 		break;
@@ -1697,7 +1722,7 @@ static int wacom_wac_finger_event(struct hid_device *hdev,
 
 
 	if (usage->usage_index + 1 == field->report_count) {
-		if (usage->hid == wacom_wac->hid_data.last_slot_field)
+		if (equivalent_usage == wacom_wac->hid_data.last_slot_field)
 			wacom_wac_finger_slot(wacom_wac, wacom_wac->touch_input);
 	}
 
