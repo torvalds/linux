@@ -1457,6 +1457,8 @@ static int wacom_equivalent_usage(int usage)
 		    usage == WACOM_HID_WD_SERIALHI ||
 		    usage == WACOM_HID_WD_TOOLTYPE ||
 		    usage == WACOM_HID_WD_DISTANCE ||
+		    usage == WACOM_HID_WD_TOUCHSTRIP ||
+		    usage == WACOM_HID_WD_TOUCHSTRIP2 ||
 		    usage == WACOM_HID_WD_TOUCHRING ||
 		    usage == WACOM_HID_WD_TOUCHRINGSTATUS) {
 			return usage;
@@ -1512,6 +1514,9 @@ static void wacom_map_usage(struct input_dev *input, struct hid_usage *usage,
 	case EV_MSC:
 		input_set_capability(input, EV_MSC, code);
 		break;
+	case EV_SW:
+		input_set_capability(input, EV_SW, code);
+		break;
 	}
 }
 
@@ -1546,10 +1551,20 @@ static void wacom_wac_pad_usage_mapping(struct hid_device *hdev,
 	case WACOM_HID_WD_BUTTONDOWN:
 	case WACOM_HID_WD_BUTTONLEFT:
 	case WACOM_HID_WD_BUTTONRIGHT:
+	case WACOM_HID_WD_BUTTONCENTER:
 		wacom_map_usage(input, usage, field, EV_KEY,
 				wacom_numbered_button_to_key(features->numbered_buttons),
 				0);
 		features->numbered_buttons++;
+		break;
+	case WACOM_HID_WD_TOUCHONOFF:
+		wacom_map_usage(input, usage, field, EV_SW, SW_MUTE_DEVICE, 0);
+		break;
+	case WACOM_HID_WD_TOUCHSTRIP:
+		wacom_map_usage(input, usage, field, EV_ABS, ABS_RX, 0);
+		break;
+	case WACOM_HID_WD_TOUCHSTRIP2:
+		wacom_map_usage(input, usage, field, EV_ABS, ABS_RY, 0);
 		break;
 	case WACOM_HID_WD_TOUCHRING:
 		wacom_map_usage(input, usage, field, EV_ABS, ABS_WHEEL, 0);
