@@ -190,6 +190,8 @@ void	xfs_bmap_trace_exlist(struct xfs_inode *ip, xfs_extnum_t cnt,
 #define	XFS_BMAP_TRACE_EXLIST(ip,c,w)
 #endif
 
+void	xfs_trim_extent(struct xfs_bmbt_irec *irec, xfs_fileoff_t bno,
+		xfs_filblks_t len);
 int	xfs_bmap_add_attrfork(struct xfs_inode *ip, int size, int rsvd);
 void	xfs_bmap_local_to_extents_empty(struct xfs_inode *ip, int whichfork);
 void	xfs_bmap_add_free(struct xfs_mount *mp, struct xfs_defer_ops *dfops,
