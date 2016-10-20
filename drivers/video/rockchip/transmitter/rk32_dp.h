@@ -556,6 +556,7 @@ struct rk32_edp {
 	void __iomem		*regs;
 	struct regmap		*grf;
 	unsigned int		irq;
+	struct clk		*grf_clk;
 	struct clk		*pd;
 	struct clk		*clk_edp;  /*clk for edp controller*/
 	struct clk		*clk_24m;  /*clk for edp phy*/

@@ -144,7 +144,9 @@ static int rk32_edp_init_edp(struct rk32_edp *edp)
 			val = EDP_SEL_VOP_LIT | (EDP_SEL_VOP_LIT << 16);
 		else
 			val = EDP_SEL_VOP_LIT << 16;
+		clk_prepare_enable(edp->grf_clk);
 		regmap_write(edp->grf, RK3399_GRF_SOC_CON20, val);
+		clk_disable_unprepare(edp->grf_clk);
 	}
 
 	rk32_edp_reset(edp);
@@ -1776,6 +1778,14 @@ static int rk32_edp_probe(struct platform_device *pdev)
 	if (IS_ERR(edp->grf) && !cpu_is_rk3288()) {
 		dev_err(&pdev->dev, "can't find rockchip,grf property\n");
 		return PTR_ERR(edp->grf);
+	}
+
+	if (edp->soctype == SOC_RK3399) {
+		edp->grf_clk = devm_clk_get(&pdev->dev, "clk_grf");
+		if (IS_ERR(edp->grf_clk)) {
+			dev_err(&pdev->dev, "cannot get grf clk\n");
+			return PTR_ERR(edp->grf_clk);
+		}
 	}
 
 	edp->pd = devm_clk_get(&pdev->dev, "pd_edp");

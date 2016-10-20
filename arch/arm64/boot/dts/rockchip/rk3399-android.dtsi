@@ -498,8 +498,8 @@
 		reg = <0x0 0xff970000 0x0 0x8000>;
 		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH 0>;
-		clocks = <&cru PCLK_EDP>, <&cru PCLK_EDP_CTRL>;
-		clock-names = "clk_edp", "pclk_edp";
+		clocks = <&cru PCLK_EDP>, <&cru PCLK_EDP_CTRL>, <&cru PCLK_VIO_GRF>;
+		clock-names = "clk_edp", "pclk_edp", "clk_grf";
 		resets = <&cru SRST_P_EDP_CTRL>;
 		reset-names = "edp_apb";
 		status = "disabled";
