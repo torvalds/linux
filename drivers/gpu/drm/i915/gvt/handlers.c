@@ -132,12 +132,13 @@ static int new_mmio_info(struct intel_gvt *gvt,
 
 static int render_mmio_to_ring_id(struct intel_gvt *gvt, unsigned int reg)
 {
-	int i;
+	enum intel_engine_id id;
+	struct intel_engine_cs *engine;
 
 	reg &= ~GENMASK(11, 0);
-	for (i = 0; i < I915_NUM_ENGINES; i++) {
-		if (gvt->dev_priv->engine[i]->mmio_base == reg)
-			return i;
+	for_each_engine(engine, gvt->dev_priv, id) {
+		if (engine->mmio_base == reg)
+			return id;
 	}
 	return -1;
 }
@@ -1306,7 +1307,7 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	u32 data = *(u32 *)p_data;
 	int ret;
 
-	if (WARN_ON(ring_id < 0))
+	if (WARN_ON(ring_id < 0 || ring_id > I915_NUM_ENGINES - 1))
 		return -EINVAL;
 
 	execlist = &vgpu->execlist[ring_id];

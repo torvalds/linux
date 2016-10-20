@@ -510,6 +510,10 @@ int intel_gvt_init_workload_scheduler(struct intel_gvt *gvt)
 	init_waitqueue_head(&scheduler->workload_complete_wq);
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
+		/* check ring mask at init time */
+		if (!HAS_ENGINE(gvt->dev_priv, i))
+			continue;
+
 		init_waitqueue_head(&scheduler->waitq[i]);
 
 		param = kzalloc(sizeof(*param), GFP_KERNEL);
