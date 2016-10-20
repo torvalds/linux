@@ -23,6 +23,7 @@
 #include <asm/ppc-opcode.h>
 #include <asm/pnv-pci.h>
 #include <asm/opal.h>
+#include <asm/smp.h>
 
 #include "book3s_xics.h"
 
