@@ -36,6 +36,8 @@
 #include <linux/list.h>
 #include <linux/idr.h>
 #include <linux/input/mt.h>
+#include <linux/crc32.h>
+#include <asm/unaligned.h>
 
 #include "hid-ids.h"
 
@@ -403,14 +405,14 @@ static u8 dualshock4_usb_rdesc[] = {
 	0x19, 0x40,         /*      Usage Minimum (40h),            */
 	0x29, 0x42,         /*      Usage Maximum (42h),            */
 	0x16, 0x00, 0x80,   /*      Logical Minimum (-32768),       */
-	0x26, 0x00, 0x7F,   /*      Logical Maximum (32767),        */
+	0x26, 0xFF, 0x7F,   /*      Logical Maximum (32767),        */
 	0x75, 0x10,         /*      Report Size (16),               */
 	0x95, 0x03,         /*      Report Count (3),               */
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x19, 0x43,         /*      Usage Minimum (43h),            */
 	0x29, 0x45,         /*      Usage Maximum (45h),            */
-	0x16, 0x00, 0xE0,   /*      Logical Minimum (-8192),        */
-	0x26, 0xFF, 0x1F,   /*      Logical Maximum (8191),         */
+	0x16, 0x00, 0x80,   /*      Logical Minimum (-32768),       */
+	0x26, 0xFF, 0x7F,   /*      Logical Maximum (32767),        */
 	0x95, 0x03,         /*      Report Count (3),               */
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x06, 0x00, 0xFF,   /*      Usage Page (FF00h),             */
@@ -712,14 +714,14 @@ static u8 dualshock4_bt_rdesc[] = {
 	0x19, 0x40,         /*      Usage Minimum (40h),            */
 	0x29, 0x42,         /*      Usage Maximum (42h),            */
 	0x16, 0x00, 0x80,   /*      Logical Minimum (-32768),       */
-	0x26, 0x00, 0x7F,   /*      Logical Maximum (32767),        */
+	0x26, 0xFF, 0x7F,   /*      Logical Maximum (32767),        */
 	0x75, 0x10,         /*      Report Size (16),               */
 	0x95, 0x03,         /*      Report Count (3),               */
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x19, 0x43,         /*      Usage Minimum (43h),            */
 	0x29, 0x45,         /*      Usage Maximum (45h),            */
-	0x16, 0x00, 0xE0,   /*      Logical Minimum (-8192),        */
-	0x26, 0xFF, 0x1F,   /*      Logical Maximum (8191),         */
+	0x16, 0x00, 0x80,   /*      Logical Minimum (-32768),       */
+	0x26, 0xFF, 0x7F,   /*      Logical Maximum (32767),        */
 	0x95, 0x03,         /*      Report Count (3),               */
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x06, 0x00, 0xFF,   /*      Usage Page (FF00h),             */
@@ -1019,13 +1021,20 @@ struct motion_output_report_02 {
 	u8 rumble;
 };
 
-#define DS4_REPORT_0x02_SIZE 37
-#define DS4_REPORT_0x05_SIZE 32
-#define DS4_REPORT_0x11_SIZE 78
-#define DS4_REPORT_0x81_SIZE 7
+#define DS4_FEATURE_REPORT_0x02_SIZE 37
+#define DS4_FEATURE_REPORT_0x81_SIZE 7
+#define DS4_INPUT_REPORT_0x11_SIZE 78
+#define DS4_OUTPUT_REPORT_0x05_SIZE 32
+#define DS4_OUTPUT_REPORT_0x11_SIZE 78
 #define SIXAXIS_REPORT_0xF2_SIZE 17
 #define SIXAXIS_REPORT_0xF5_SIZE 8
 #define MOTION_REPORT_0x02_SIZE 49
+
+/* Offsets relative to USB input report (0x1). Bluetooth (0x11) requires an
+ * additional +2.
+ */
+#define DS4_INPUT_REPORT_BATTERY_OFFSET  30
+#define DS4_INPUT_REPORT_TOUCHPAD_OFFSET 33
 
 static DEFINE_SPINLOCK(sony_dev_list_lock);
 static LIST_HEAD(sony_device_list);
@@ -1223,19 +1232,17 @@ static void dualshock4_parse_report(struct sony_sc *sc, u8 *rd, int size)
 						struct hid_input, list);
 	struct input_dev *input_dev = hidinput->input;
 	unsigned long flags;
-	int n, offset;
+	int n, m, offset, num_touch_data, max_touch_data;
 	u8 cable_state, battery_capacity, battery_charging;
 
-	/*
-	 * Battery and touchpad data starts at byte 30 in the USB report and
-	 * 32 in Bluetooth report.
-	 */
-	offset = (sc->quirks & DUALSHOCK4_CONTROLLER_USB) ? 30 : 32;
+	/* When using Bluetooth the header is 2 bytes longer, so skip these. */
+	int data_offset = (sc->quirks & DUALSHOCK4_CONTROLLER_USB) ? 0 : 2;
 
 	/*
-	 * The lower 4 bits of byte 30 contain the battery level
+	 * The lower 4 bits of byte 30 (or 32 for BT) contain the battery level
 	 * and the 5th bit contains the USB cable state.
 	 */
+	offset = data_offset + DS4_INPUT_REPORT_BATTERY_OFFSET;
 	cable_state = (rd[offset] >> 4) & 0x01;
 	battery_capacity = rd[offset] & 0x0F;
 
@@ -1262,30 +1269,52 @@ static void dualshock4_parse_report(struct sony_sc *sc, u8 *rd, int size)
 	sc->battery_charging = battery_charging;
 	spin_unlock_irqrestore(&sc->lock, flags);
 
-	offset += 5;
-
 	/*
-	 * The Dualshock 4 multi-touch trackpad data starts at offset 35 on USB
-	 * and 37 on Bluetooth.
-	 * The first 7 bits of the first byte is a counter and bit 8 is a touch
-	 * indicator that is 0 when pressed and 1 when not pressed.
-	 * The next 3 bytes are two 12 bit touch coordinates, X and Y.
-	 * The data for the second touch is in the same format and immediatly
-	 * follows the data for the first.
+	 * The Dualshock 4 multi-touch trackpad data starts at offset 33 on USB
+	 * and 35 on Bluetooth.
+	 * The first byte indicates the number of touch data in the report.
+	 * Trackpad data starts 2 bytes later (e.g. 35 for USB).
 	 */
-	for (n = 0; n < 2; n++) {
-		u16 x, y;
+	offset = data_offset + DS4_INPUT_REPORT_TOUCHPAD_OFFSET;
+	max_touch_data = (sc->quirks & DUALSHOCK4_CONTROLLER_USB) ? 3 : 4;
+	if (rd[offset] > 0 && rd[offset] <= max_touch_data)
+		num_touch_data = rd[offset];
+	else
+		num_touch_data = 1;
+	offset += 1;
 
-		x = rd[offset+1] | ((rd[offset+2] & 0xF) << 8);
-		y = ((rd[offset+2] & 0xF0) >> 4) | (rd[offset+3] << 4);
+	for (m = 0; m < num_touch_data; m++) {
+		/* Skip past timestamp */
+		offset += 1;
 
-		input_mt_slot(input_dev, n);
-		input_mt_report_slot_state(input_dev, MT_TOOL_FINGER,
-					!(rd[offset] >> 7));
-		input_report_abs(input_dev, ABS_MT_POSITION_X, x);
-		input_report_abs(input_dev, ABS_MT_POSITION_Y, y);
+		/*
+		 * The first 7 bits of the first byte is a counter and bit 8 is
+		 * a touch indicator that is 0 when pressed and 1 when not
+		 * pressed.
+		 * The next 3 bytes are two 12 bit touch coordinates, X and Y.
+		 * The data for the second touch is in the same format and
+		 * immediately follows the data for the first.
+		 */
+		for (n = 0; n < 2; n++) {
+			u16 x, y;
+			bool active;
 
-		offset += 4;
+			x = rd[offset+1] | ((rd[offset+2] & 0xF) << 8);
+			y = ((rd[offset+2] & 0xF0) >> 4) | (rd[offset+3] << 4);
+
+			active = !(rd[offset] >> 7);
+			input_mt_slot(input_dev, n);
+			input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, active);
+
+			if (active) {
+				input_report_abs(input_dev, ABS_MT_POSITION_X, x);
+				input_report_abs(input_dev, ABS_MT_POSITION_Y, y);
+			}
+
+			offset += 4;
+		}
+		input_mt_sync_frame(input_dev);
+		input_sync(input_dev);
 	}
 }
 
@@ -1324,6 +1353,21 @@ static int sony_raw_event(struct hid_device *hdev, struct hid_report *report,
 	} else if (((sc->quirks & DUALSHOCK4_CONTROLLER_USB) && rd[0] == 0x01 &&
 			size == 64) || ((sc->quirks & DUALSHOCK4_CONTROLLER_BT)
 			&& rd[0] == 0x11 && size == 78)) {
+		if (sc->quirks & DUALSHOCK4_CONTROLLER_BT) {
+			/* CRC check */
+			u8 bthdr = 0xA1;
+			u32 crc;
+			u32 report_crc;
+
+			crc = crc32_le(0xFFFFFFFF, &bthdr, 1);
+			crc = ~crc32_le(crc, rd, DS4_INPUT_REPORT_0x11_SIZE-4);
+			report_crc = get_unaligned_le32(&rd[DS4_INPUT_REPORT_0x11_SIZE-4]);
+			if (crc != report_crc) {
+				hid_dbg(sc->hdev, "DualShock 4 input report's CRC check failed, received crc 0x%0x != 0x%0x\n",
+					report_crc, crc);
+				return -EILSEQ;
+			}
+		}
 		dualshock4_parse_report(sc, rd, size);
 	}
 
@@ -1387,28 +1431,6 @@ static int sony_register_touchpad(struct hid_input *hi, int touch_count,
 	return 0;
 }
 
-static int sony_input_configured(struct hid_device *hdev,
-					struct hid_input *hidinput)
-{
-	struct sony_sc *sc = hid_get_drvdata(hdev);
-	int ret;
-
-	/*
-	 * The Dualshock 4 touchpad supports 2 touches and has a
-	 * resolution of 1920x942 (44.86 dots/mm).
-	 */
-	if (sc->quirks & DUALSHOCK4_CONTROLLER) {
-		ret = sony_register_touchpad(hidinput, 2, 1920, 942);
-		if (ret) {
-			hid_err(sc->hdev,
-				"Unable to initialize multi-touch slots: %d\n",
-				ret);
-			return ret;
-		}
-	}
-
-	return 0;
-}
 
 /*
  * Sending HID_REQ_GET_REPORT changes the operation mode of the ps3 controller
@@ -1483,11 +1505,11 @@ static int dualshock4_set_operational_bt(struct hid_device *hdev)
 	u8 *buf;
 	int ret;
 
-	buf = kmalloc(DS4_REPORT_0x02_SIZE, GFP_KERNEL);
+	buf = kmalloc(DS4_FEATURE_REPORT_0x02_SIZE, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	ret = hid_hw_raw_request(hdev, 0x02, buf, DS4_REPORT_0x02_SIZE,
+	ret = hid_hw_raw_request(hdev, 0x02, buf, DS4_FEATURE_REPORT_0x02_SIZE,
 				HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
 
 	kfree(buf);
@@ -1892,14 +1914,14 @@ static void dualshock4_send_output_report(struct sony_sc *sc)
 	 * 0xD0 - 66hz
 	 */
 	if (sc->quirks & DUALSHOCK4_CONTROLLER_USB) {
-		memset(buf, 0, DS4_REPORT_0x05_SIZE);
+		memset(buf, 0, DS4_OUTPUT_REPORT_0x05_SIZE);
 		buf[0] = 0x05;
 		buf[1] = 0xFF;
 		offset = 4;
 	} else {
-		memset(buf, 0, DS4_REPORT_0x11_SIZE);
+		memset(buf, 0, DS4_OUTPUT_REPORT_0x11_SIZE);
 		buf[0] = 0x11;
-		buf[1] = 0x80;
+		buf[1] = 0xC0; /* HID + CRC */
 		buf[3] = 0x0F;
 		offset = 6;
 	}
@@ -1925,10 +1947,17 @@ static void dualshock4_send_output_report(struct sony_sc *sc)
 	buf[offset++] = sc->led_delay_off[3];
 
 	if (sc->quirks & DUALSHOCK4_CONTROLLER_USB)
-		hid_hw_output_report(hdev, buf, DS4_REPORT_0x05_SIZE);
-	else
-		hid_hw_raw_request(hdev, 0x11, buf, DS4_REPORT_0x11_SIZE,
-				HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
+		hid_hw_output_report(hdev, buf, DS4_OUTPUT_REPORT_0x05_SIZE);
+	else {
+		/* CRC generation */
+		u8 bthdr = 0xA2;
+		u32 crc;
+
+		crc = crc32_le(0xFFFFFFFF, &bthdr, 1);
+		crc = ~crc32_le(crc, buf, DS4_OUTPUT_REPORT_0x11_SIZE-4);
+		put_unaligned_le32(crc, &buf[74]);
+		hid_hw_output_report(hdev, buf, DS4_OUTPUT_REPORT_0x11_SIZE);
+	}
 }
 
 static void motion_send_output_report(struct sony_sc *sc)
@@ -1972,10 +2001,10 @@ static int sony_allocate_output_report(struct sony_sc *sc)
 			kmalloc(sizeof(union sixaxis_output_report_01),
 				GFP_KERNEL);
 	else if (sc->quirks & DUALSHOCK4_CONTROLLER_BT)
-		sc->output_report_dmabuf = kmalloc(DS4_REPORT_0x11_SIZE,
+		sc->output_report_dmabuf = kmalloc(DS4_OUTPUT_REPORT_0x11_SIZE,
 						GFP_KERNEL);
 	else if (sc->quirks & DUALSHOCK4_CONTROLLER_USB)
-		sc->output_report_dmabuf = kmalloc(DS4_REPORT_0x05_SIZE,
+		sc->output_report_dmabuf = kmalloc(DS4_OUTPUT_REPORT_0x05_SIZE,
 						GFP_KERNEL);
 	else if (sc->quirks & MOTION_CONTROLLER)
 		sc->output_report_dmabuf = kmalloc(MOTION_REPORT_0x02_SIZE,
@@ -2220,7 +2249,7 @@ static int sony_check_add(struct sony_sc *sc)
 			return 0;
 		}
 	} else if (sc->quirks & DUALSHOCK4_CONTROLLER_USB) {
-		buf = kmalloc(DS4_REPORT_0x81_SIZE, GFP_KERNEL);
+		buf = kmalloc(DS4_FEATURE_REPORT_0x81_SIZE, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
 
@@ -2230,10 +2259,10 @@ static int sony_check_add(struct sony_sc *sc)
 		 * offset 1.
 		 */
 		ret = hid_hw_raw_request(sc->hdev, 0x81, buf,
-				DS4_REPORT_0x81_SIZE, HID_FEATURE_REPORT,
+				DS4_FEATURE_REPORT_0x81_SIZE, HID_FEATURE_REPORT,
 				HID_REQ_GET_REPORT);
 
-		if (ret != DS4_REPORT_0x81_SIZE) {
+		if (ret != DS4_FEATURE_REPORT_0x81_SIZE) {
 			hid_err(sc->hdev, "failed to retrieve feature report 0x81 with the DualShock 4 MAC address\n");
 			ret = ret < 0 ? ret : -EINVAL;
 			goto out_free;
@@ -2329,45 +2358,12 @@ static inline void sony_cancel_work_sync(struct sony_sc *sc)
 		cancel_work_sync(&sc->state_worker);
 }
 
-static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
+static int sony_input_configured(struct hid_device *hdev,
+					struct hid_input *hidinput)
 {
-	int ret;
+	struct sony_sc *sc = hid_get_drvdata(hdev);
 	int append_dev_id;
-	unsigned long quirks = id->driver_data;
-	struct sony_sc *sc;
-	unsigned int connect_mask = HID_CONNECT_DEFAULT;
-
-	if (!strcmp(hdev->name, "FutureMax Dance Mat"))
-		quirks |= FUTUREMAX_DANCE_MAT;
-
-	sc = devm_kzalloc(&hdev->dev, sizeof(*sc), GFP_KERNEL);
-	if (sc == NULL) {
-		hid_err(hdev, "can't alloc sony descriptor\n");
-		return -ENOMEM;
-	}
-
-	spin_lock_init(&sc->lock);
-
-	sc->quirks = quirks;
-	hid_set_drvdata(hdev, sc);
-	sc->hdev = hdev;
-
-	ret = hid_parse(hdev);
-	if (ret) {
-		hid_err(hdev, "parse failed\n");
-		return ret;
-	}
-
-	if (sc->quirks & VAIO_RDESC_CONSTANT)
-		connect_mask |= HID_CONNECT_HIDDEV_FORCE;
-	else if (sc->quirks & SIXAXIS_CONTROLLER)
-		connect_mask |= HID_CONNECT_HIDDEV_FORCE;
-
-	ret = hid_hw_start(hdev, connect_mask);
-	if (ret) {
-		hid_err(hdev, "hw start failed\n");
-		return ret;
-	}
+	int ret;
 
 	ret = sony_set_device_id(sc);
 	if (ret < 0) {
@@ -2415,16 +2411,23 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		sony_init_output_report(sc, sixaxis_send_output_report);
 	} else if (sc->quirks & DUALSHOCK4_CONTROLLER) {
 		if (sc->quirks & DUALSHOCK4_CONTROLLER_BT) {
-			/*
-			 * The DualShock 4 wants output reports sent on the ctrl
-			 * endpoint when connected via Bluetooth.
-			 */
-			hdev->quirks |= HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP;
 			ret = dualshock4_set_operational_bt(hdev);
 			if (ret < 0) {
 				hid_err(hdev, "failed to set the Dualshock 4 operational mode\n");
 				goto err_stop;
 			}
+		}
+
+		/*
+		 * The Dualshock 4 touchpad supports 2 touches and has a
+		 * resolution of 1920x942 (44.86 dots/mm).
+		 */
+		ret = sony_register_touchpad(hidinput, 2, 1920, 942);
+		if (ret) {
+			hid_err(sc->hdev,
+			"Unable to initialize multi-touch slots: %d\n",
+			ret);
+			return ret;
 		}
 
 		sony_init_output_report(sc, dualshock4_send_output_report);
@@ -2479,6 +2482,48 @@ err_stop:
 	sony_remove_dev_list(sc);
 	sony_release_device_id(sc);
 	hid_hw_stop(hdev);
+	return ret;
+}
+
+static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
+{
+	int ret;
+	unsigned long quirks = id->driver_data;
+	struct sony_sc *sc;
+	unsigned int connect_mask = HID_CONNECT_DEFAULT;
+
+	if (!strcmp(hdev->name, "FutureMax Dance Mat"))
+		quirks |= FUTUREMAX_DANCE_MAT;
+
+	sc = devm_kzalloc(&hdev->dev, sizeof(*sc), GFP_KERNEL);
+	if (sc == NULL) {
+		hid_err(hdev, "can't alloc sony descriptor\n");
+		return -ENOMEM;
+	}
+
+	spin_lock_init(&sc->lock);
+
+	sc->quirks = quirks;
+	hid_set_drvdata(hdev, sc);
+	sc->hdev = hdev;
+
+	ret = hid_parse(hdev);
+	if (ret) {
+		hid_err(hdev, "parse failed\n");
+		return ret;
+	}
+
+	if (sc->quirks & VAIO_RDESC_CONSTANT)
+		connect_mask |= HID_CONNECT_HIDDEV_FORCE;
+	else if (sc->quirks & SIXAXIS_CONTROLLER)
+		connect_mask |= HID_CONNECT_HIDDEV_FORCE;
+
+	ret = hid_hw_start(hdev, connect_mask);
+	if (ret) {
+		hid_err(hdev, "hw start failed\n");
+		return ret;
+	}
+
 	return ret;
 }
 
@@ -2595,6 +2640,10 @@ static const struct hid_device_id sony_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER),
 		.driver_data = DUALSHOCK4_CONTROLLER_USB },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER),
+		.driver_data = DUALSHOCK4_CONTROLLER_BT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER_2),
+		.driver_data = DUALSHOCK4_CONTROLLER_USB },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER_2),
 		.driver_data = DUALSHOCK4_CONTROLLER_BT },
 	/* Nyko Core Controller for PS3 */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SINO_LITE, USB_DEVICE_ID_SINO_LITE_CONTROLLER),
