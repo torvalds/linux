@@ -179,15 +179,6 @@ config MTD_NAND_S3C2410_DEBUG
 	help
 	  Enable debugging of the S3C NAND driver
 
-config MTD_NAND_S3C2410_HWECC
-	bool "Samsung S3C NAND Hardware ECC"
-	depends on MTD_NAND_S3C2410
-	help
-	  Enable the use of the controller's internal ECC generator when
-	  using NAND. Early versions of the chips have had problems with
-	  incorrect ECC generation, and if using these, the default of
-	  software ECC is preferable.
-
 config MTD_NAND_NDFC
 	tristate "NDFC NanD Flash Controller"
 	depends on 4xx

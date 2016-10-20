@@ -497,7 +497,6 @@ static int s3c2412_nand_devready(struct mtd_info *mtd)
 
 /* ECC handling functions */
 
-#ifdef CONFIG_MTD_NAND_S3C2410_HWECC
 static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 				     u_char *read_ecc, u_char *calc_ecc)
 {
@@ -649,7 +648,6 @@ static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
 
 	return 0;
 }
-#endif
 
 /* over-ride the standard functions for a little more speed. We can
  * use read/write block to move the data buffers to/from the controller
@@ -858,50 +856,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 	nmtd->info	   = info;
 	nmtd->set	   = set;
 
-#ifdef CONFIG_MTD_NAND_S3C2410_HWECC
-	chip->ecc.calculate = s3c2410_nand_calculate_ecc;
-	chip->ecc.correct   = s3c2410_nand_correct_data;
-	chip->ecc.mode	    = NAND_ECC_HW;
-	chip->ecc.strength  = 1;
-
-	switch (info->cpu_type) {
-	case TYPE_S3C2410:
-		chip->ecc.hwctl	    = s3c2410_nand_enable_hwecc;
-		chip->ecc.calculate = s3c2410_nand_calculate_ecc;
-		break;
-
-	case TYPE_S3C2412:
-		chip->ecc.hwctl     = s3c2412_nand_enable_hwecc;
-		chip->ecc.calculate = s3c2412_nand_calculate_ecc;
-		break;
-
-	case TYPE_S3C2440:
-		chip->ecc.hwctl     = s3c2440_nand_enable_hwecc;
-		chip->ecc.calculate = s3c2440_nand_calculate_ecc;
-		break;
-	}
-#else
-	chip->ecc.mode	    = NAND_ECC_SOFT;
-	chip->ecc.algo	= NAND_ECC_HAMMING;
-#endif
-
-	if (set->disable_ecc)
-		chip->ecc.mode	= NAND_ECC_NONE;
-
-	switch (chip->ecc.mode) {
-	case NAND_ECC_NONE:
-		dev_info(info->device, "NAND ECC disabled\n");
-		break;
-	case NAND_ECC_SOFT:
-		dev_info(info->device, "NAND soft ECC\n");
-		break;
-	case NAND_ECC_HW:
-		dev_info(info->device, "NAND hardware ECC\n");
-		break;
-	default:
-		dev_info(info->device, "NAND ECC UNKNOWN\n");
-		break;
-	}
+	chip->ecc.mode = info->platform->ecc_mode;
 
 	/* If you use u-boot BBT creation code, specifying this flag will
 	 * let the kernel fish out the BBT from the NAND, and also skip the
@@ -923,28 +878,74 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
  *
  * The internal state is currently limited to the ECC state information.
 */
-static void s3c2410_nand_update_chip(struct s3c2410_nand_info *info,
-				     struct s3c2410_nand_mtd *nmtd)
+static int s3c2410_nand_update_chip(struct s3c2410_nand_info *info,
+				    struct s3c2410_nand_mtd *nmtd)
 {
 	struct nand_chip *chip = &nmtd->chip;
 
-	dev_dbg(info->device, "chip %p => page shift %d\n",
-		chip, chip->page_shift);
+	switch (chip->ecc.mode) {
 
-	if (chip->ecc.mode != NAND_ECC_HW)
-		return;
+	case NAND_ECC_NONE:
+		dev_info(info->device, "ECC disabled\n");
+		break;
+
+	case NAND_ECC_SOFT:
+		/*
+		 * This driver expects Hamming based ECC when ecc_mode is set
+		 * to NAND_ECC_SOFT. Force ecc.algo to NAND_ECC_HAMMING to
+		 * avoid adding an extra ecc_algo field to
+		 * s3c2410_platform_nand.
+		 */
+		chip->ecc.algo = NAND_ECC_HAMMING;
+		dev_info(info->device, "soft ECC\n");
+		break;
+
+	case NAND_ECC_HW:
+		chip->ecc.calculate = s3c2410_nand_calculate_ecc;
+		chip->ecc.correct   = s3c2410_nand_correct_data;
+		chip->ecc.strength  = 1;
+
+		switch (info->cpu_type) {
+		case TYPE_S3C2410:
+			chip->ecc.hwctl	    = s3c2410_nand_enable_hwecc;
+			chip->ecc.calculate = s3c2410_nand_calculate_ecc;
+			break;
+
+		case TYPE_S3C2412:
+			chip->ecc.hwctl     = s3c2412_nand_enable_hwecc;
+			chip->ecc.calculate = s3c2412_nand_calculate_ecc;
+			break;
+
+		case TYPE_S3C2440:
+			chip->ecc.hwctl     = s3c2440_nand_enable_hwecc;
+			chip->ecc.calculate = s3c2440_nand_calculate_ecc;
+			break;
+		}
+
+		dev_dbg(info->device, "chip %p => page shift %d\n",
+			chip, chip->page_shift);
 
 		/* change the behaviour depending on whether we are using
 		 * the large or small page nand device */
+		if (chip->page_shift > 10) {
+			chip->ecc.size	    = 256;
+			chip->ecc.bytes	    = 3;
+		} else {
+			chip->ecc.size	    = 512;
+			chip->ecc.bytes	    = 3;
+			mtd_set_ooblayout(nand_to_mtd(chip),
+					  &s3c2410_ooblayout_ops);
+		}
 
-	if (chip->page_shift > 10) {
-		chip->ecc.size	    = 256;
-		chip->ecc.bytes	    = 3;
-	} else {
-		chip->ecc.size	    = 512;
-		chip->ecc.bytes	    = 3;
-		mtd_set_ooblayout(nand_to_mtd(chip), &s3c2410_ooblayout_ops);
+		dev_info(info->device, "hardware ECC\n");
+		break;
+
+	default:
+		dev_err(info->device, "invalid ECC mode!\n");
+		return -EINVAL;
 	}
+
+	return 0;
 }
 
 /* s3c24xx_nand_probe
@@ -1046,7 +1047,9 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 						 NULL);
 
 		if (nmtd->scan_res == 0) {
-			s3c2410_nand_update_chip(info, nmtd);
+			err = s3c2410_nand_update_chip(info, nmtd);
+			if (err < 0)
+				goto exit_error;
 			nand_scan_tail(mtd);
 			s3c2410_nand_add_partition(info, nmtd, sets);
 		}
