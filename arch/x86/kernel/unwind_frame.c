@@ -14,12 +14,29 @@ unsigned long unwind_get_return_address(struct unwind_state *state)
 	if (unwind_done(state))
 		return 0;
 
+	if (state->regs && user_mode(state->regs))
+		return 0;
+
 	addr = ftrace_graph_ret_addr(state->task, &state->graph_idx, *addr_p,
 				     addr_p);
 
 	return __kernel_text_address(addr) ? addr : 0;
 }
 EXPORT_SYMBOL_GPL(unwind_get_return_address);
+
+/*
+ * This determines if the frame pointer actually contains an encoded pointer to
+ * pt_regs on the stack.  See ENCODE_FRAME_POINTER.
+ */
+static struct pt_regs *decode_frame_pointer(unsigned long *bp)
+{
+	unsigned long regs = (unsigned long)bp;
+
+	if (!(regs & 0x1))
+		return NULL;
+
+	return (struct pt_regs *)(regs & ~0x1);
+}
 
 static bool update_stack_state(struct unwind_state *state, void *addr,
 			       size_t len)
@@ -43,26 +60,59 @@ static bool update_stack_state(struct unwind_state *state, void *addr,
 
 bool unwind_next_frame(struct unwind_state *state)
 {
-	unsigned long *next_bp;
+	struct pt_regs *regs;
+	unsigned long *next_bp, *next_frame;
+	size_t next_len;
 
 	if (unwind_done(state))
 		return false;
 
-	next_bp = (unsigned long *)*state->bp;
+	/* have we reached the end? */
+	if (state->regs && user_mode(state->regs))
+		goto the_end;
+
+	/* get the next frame pointer */
+	if (state->regs)
+		next_bp = (unsigned long *)state->regs->bp;
+	else
+		next_bp = (unsigned long *)*state->bp;
+
+	/* is the next frame pointer an encoded pointer to pt_regs? */
+	regs = decode_frame_pointer(next_bp);
+	if (regs) {
+		next_frame = (unsigned long *)regs;
+		next_len = sizeof(*regs);
+	} else {
+		next_frame = next_bp;
+		next_len = FRAME_HEADER_SIZE;
+	}
 
 	/* make sure the next frame's data is accessible */
-	if (!update_stack_state(state, next_bp, FRAME_HEADER_SIZE))
+	if (!update_stack_state(state, next_frame, next_len))
 		return false;
-
 	/* move to the next frame */
-	state->bp = next_bp;
+	if (regs) {
+		state->regs = regs;
+		state->bp = NULL;
+	} else {
+		state->bp = next_bp;
+		state->regs = NULL;
+	}
+
 	return true;
+
+the_end:
+	state->stack_info.type = STACK_TYPE_UNKNOWN;
+	return false;
 }
 EXPORT_SYMBOL_GPL(unwind_next_frame);
 
 void __unwind_start(struct unwind_state *state, struct task_struct *task,
 		    struct pt_regs *regs, unsigned long *first_frame)
 {
+	unsigned long *bp, *frame;
+	size_t len;
+
 	memset(state, 0, sizeof(*state));
 	state->task = task;
 
@@ -73,12 +123,22 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	}
 
 	/* set up the starting stack frame */
-	state->bp = get_frame_pointer(task, regs);
+	bp = get_frame_pointer(task, regs);
+	regs = decode_frame_pointer(bp);
+	if (regs) {
+		state->regs = regs;
+		frame = (unsigned long *)regs;
+		len = sizeof(*regs);
+	} else {
+		state->bp = bp;
+		frame = bp;
+		len = FRAME_HEADER_SIZE;
+	}
 
 	/* initialize stack info and make sure the frame data is accessible */
-	get_stack_info(state->bp, state->task, &state->stack_info,
+	get_stack_info(frame, state->task, &state->stack_info,
 		       &state->stack_mask);
-	update_stack_state(state, state->bp, FRAME_HEADER_SIZE);
+	update_stack_state(state, frame, len);
 
 	/*
 	 * The caller can provide the address of the first frame directly
