@@ -1940,6 +1940,19 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 				/* shift everything including the terminator */
 				memmove(gap, gap+1, strlen(gap));
 			}
+
+			/* strip off excessive prefixing */
+			if (strstr(name, "Wacom Co.,Ltd. Wacom ") == name) {
+				int n = strlen(name);
+				int x = strlen("Wacom Co.,Ltd. ");
+				memmove(name, name+x, n-x+1);
+			}
+			if (strstr(name, "Wacom Co., Ltd. Wacom ") == name) {
+				int n = strlen(name);
+				int x = strlen("Wacom Co., Ltd. ");
+				memmove(name, name+x, n-x+1);
+			}
+
 			/* get rid of trailing whitespace */
 			if (name[strlen(name)-1] == ' ')
 				name[strlen(name)-1] = '\0';
