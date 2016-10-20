@@ -98,10 +98,14 @@
 				 ((f)->physical == HID_DG_PEN) || \
 				 ((f)->application == HID_DG_PEN) || \
 				 ((f)->application == HID_DG_DIGITIZER) || \
-				 ((f)->application == WACOM_HID_WD_DIGITIZER))
+				 ((f)->application == WACOM_HID_WD_DIGITIZER) || \
+				 ((f)->application == WACOM_HID_G9_PEN) || \
+				 ((f)->application == WACOM_HID_G11_PEN))
 #define WACOM_FINGER_FIELD(f)	(((f)->logical == HID_DG_FINGER) || \
 				 ((f)->physical == HID_DG_FINGER) || \
-				 ((f)->application == HID_DG_TOUCHSCREEN))
+				 ((f)->application == HID_DG_TOUCHSCREEN) || \
+				 ((f)->application == WACOM_HID_G9_TOUCHSCREEN) || \
+				 ((f)->application == WACOM_HID_G11_TOUCHSCREEN))
 
 enum {
 	PENPARTNER = 0,
