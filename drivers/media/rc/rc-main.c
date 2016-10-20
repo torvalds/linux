@@ -12,6 +12,8 @@
  *  GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <media/rc-core.h>
 #include <linux/atomic.h>
 #include <linux/spinlock.h>
@@ -66,7 +68,7 @@ struct rc_map *rc_map_get(const char *name)
 	if (!map) {
 		int rc = request_module("%s", name);
 		if (rc < 0) {
-			printk(KERN_ERR "Couldn't load IR keymap %s\n", name);
+			pr_err("Couldn't load IR keymap %s\n", name);
 			return NULL;
 		}
 		msleep(20);	/* Give some time for IR to register */
@@ -75,7 +77,7 @@ struct rc_map *rc_map_get(const char *name)
 	}
 #endif
 	if (!map) {
-		printk(KERN_ERR "IR keymap %s not found\n", name);
+		pr_err("IR keymap %s not found\n", name);
 		return NULL;
 	}
 
@@ -1620,7 +1622,7 @@ static int __init rc_core_init(void)
 {
 	int rc = class_register(&rc_class);
 	if (rc) {
-		printk(KERN_ERR "rc_core: unable to register rc class\n");
+		pr_err("rc_core: unable to register rc class\n");
 		return rc;
 	}
 
