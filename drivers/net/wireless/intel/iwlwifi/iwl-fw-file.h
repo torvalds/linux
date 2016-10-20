@@ -489,9 +489,22 @@ enum iwl_fw_dbg_monitor_mode {
 };
 
 /**
+ * enum iwl_fw_mem_seg_type - memory segment type
+ * @FW_DBG_MEM_TYPE_MASK: mask for the type indication
+ * @FW_DBG_MEM_TYPE_REGULAR: regular memory
+ * @FW_DBG_MEM_TYPE_PRPH: periphery memory (requires special reading)
+ */
+enum iwl_fw_mem_seg_type {
+	FW_DBG_MEM_TYPE_MASK	= 0xff000000,
+	FW_DBG_MEM_TYPE_REGULAR	= 0x00000000,
+	FW_DBG_MEM_TYPE_PRPH	= 0x01000000,
+};
+
+/**
  * struct iwl_fw_dbg_mem_seg_tlv - configures the debug data memory segments
  *
- * @data_type: the memory segment type to record
+ * @data_type: the memory segment type to record, see &enum iwl_fw_mem_seg_type
+ *	for what we care about
  * @ofs: the memory segment offset
  * @len: the memory segment length, in bytes
  *

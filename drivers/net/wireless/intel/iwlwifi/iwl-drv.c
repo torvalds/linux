@@ -1020,6 +1020,18 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			IWL_DEBUG_INFO(drv, "Found debug memory segment: %u\n",
 				       dbg_mem->data_type);
 
+			switch (type & FW_DBG_MEM_TYPE_MASK) {
+			case FW_DBG_MEM_TYPE_REGULAR:
+			case FW_DBG_MEM_TYPE_PRPH:
+				/* we know how to handle these */
+				break;
+			default:
+				IWL_ERR(drv,
+					"Found debug memory segment with invalid type: 0x%x\n",
+					type);
+				return -EINVAL;
+			}
+
 			size = sizeof(*pieces->dbg_mem_tlv) *
 			       (pieces->n_dbg_mem_tlv + 1);
 			n = krealloc(pieces->dbg_mem_tlv, size, GFP_KERNEL);
