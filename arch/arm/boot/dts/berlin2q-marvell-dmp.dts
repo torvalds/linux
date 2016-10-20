@@ -48,7 +48,7 @@
 		reg = <0x00000000 0x80000000>;
 	};
 
-	choosen {
+	chosen {
 		bootargs = "earlyprintk";
 		stdout-path = "serial0:115200n8";
 	};
