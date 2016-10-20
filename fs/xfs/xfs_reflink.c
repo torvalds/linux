@@ -182,7 +182,8 @@ xfs_reflink_trim_around_shared(
 	if (!xfs_is_reflink_inode(ip) ||
 	    ISUNWRITTEN(irec) ||
 	    irec->br_startblock == HOLESTARTBLOCK ||
-	    irec->br_startblock == DELAYSTARTBLOCK) {
+	    irec->br_startblock == DELAYSTARTBLOCK ||
+	    isnullstartblock(irec->br_startblock)) {
 		*shared = false;
 		return 0;
 	}
