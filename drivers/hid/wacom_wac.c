@@ -1468,6 +1468,9 @@ static int wacom_equivalent_usage(int usage)
 static void wacom_map_usage(struct input_dev *input, struct hid_usage *usage,
 		struct hid_field *field, __u8 type, __u16 code, int fuzz)
 {
+	struct wacom *wacom = input_get_drvdata(input);
+	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+	struct wacom_features *features = &wacom_wac->features;
 	int fmin = field->logical_minimum;
 	int fmax = field->logical_maximum;
 	unsigned int equivalent_usage = wacom_equivalent_usage(usage->hid);
@@ -1475,6 +1478,15 @@ static void wacom_map_usage(struct input_dev *input, struct hid_usage *usage,
 
 	if (equivalent_usage == HID_DG_TWIST) {
 		resolution_code = ABS_RZ;
+	}
+
+	if (equivalent_usage == HID_GD_X) {
+		fmin += features->offset_left;
+		fmax -= features->offset_right;
+	}
+	if (equivalent_usage == HID_GD_Y) {
+		fmin += features->offset_top;
+		fmax -= features->offset_bottom;
 	}
 
 	usage->type = type;
@@ -1628,6 +1640,34 @@ static int wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field,
 		 * up over time :(
 		 */
 		wacom_wac->id[0] |= value;
+		return 0;
+	case WACOM_HID_WD_OFFSETLEFT:
+		if (features->offset_left && value != features->offset_left)
+			hid_warn(hdev, "%s: overriding exising left offset "
+				 "%d -> %d\n", __func__, value,
+				 features->offset_left);
+		features->offset_left = value;
+		return 0;
+	case WACOM_HID_WD_OFFSETRIGHT:
+		if (features->offset_right && value != features->offset_right)
+			hid_warn(hdev, "%s: overriding exising right offset "
+				 "%d -> %d\n", __func__, value,
+				 features->offset_right);
+		features->offset_right = value;
+		return 0;
+	case WACOM_HID_WD_OFFSETTOP:
+		if (features->offset_top && value != features->offset_top)
+			hid_warn(hdev, "%s: overriding exising top offset "
+				 "%d -> %d\n", __func__, value,
+				 features->offset_top);
+		features->offset_top = value;
+		return 0;
+	case WACOM_HID_WD_OFFSETBOTTOM:
+		if (features->offset_bottom && value != features->offset_bottom)
+			hid_warn(hdev, "%s: overriding exising bottom offset "
+				 "%d -> %d\n", __func__, value,
+				 features->offset_bottom);
+		features->offset_bottom = value;
 		return 0;
 	}
 

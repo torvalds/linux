@@ -122,6 +122,7 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 	struct hid_data *hid_data = &wacom->wacom_wac.hid_data;
 	u8 *data;
 	int ret;
+	int n;
 
 	switch (usage->hid) {
 	case HID_DG_CONTACTMAX:
@@ -179,6 +180,27 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 			wacom->wacom_wac.mode_report = field->report->id;
 			wacom->wacom_wac.mode_value = 0;
 		}
+		break;
+	case WACOM_HID_WD_OFFSETLEFT:
+	case WACOM_HID_WD_OFFSETTOP:
+	case WACOM_HID_WD_OFFSETRIGHT:
+	case WACOM_HID_WD_OFFSETBOTTOM:
+		/* read manually */
+		n = hid_report_len(field->report);
+		data = hid_alloc_report_buf(field->report, GFP_KERNEL);
+		if (!data)
+			break;
+		data[0] = field->report->id;
+		ret = wacom_get_report(hdev, HID_FEATURE_REPORT,
+					data, n, WAC_CMD_RETRIES);
+		if (ret == n) {
+			ret = hid_report_raw_event(hdev, HID_FEATURE_REPORT,
+						   data, n, 0);
+		} else {
+			hid_warn(hdev, "%s: could not retrieve sensor offsets\n",
+				 __func__);
+		}
+		kfree(data);
 		break;
 	}
 }
@@ -717,11 +739,6 @@ static int wacom_add_shared_data(struct hid_device *hdev)
 		wacom_remove_shared_data(wacom);
 		return retval;
 	}
-
-	if (wacom_wac->features.device_type & WACOM_DEVICETYPE_TOUCH)
-		wacom_wac->shared->touch = hdev;
-	else if (wacom_wac->features.device_type & WACOM_DEVICETYPE_PEN)
-		wacom_wac->shared->pen = hdev;
 
 out:
 	mutex_unlock(&wacom_udev_list_lock);
@@ -2019,6 +2036,10 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 	if (error)
 		goto fail;
 
+	error = wacom_add_shared_data(hdev);
+	if (error)
+		goto fail;
+
 	/*
 	 * Bamboo Pad has a generic hid handling for the Pen, and we switch it
 	 * into debug mode for the touch part.
@@ -2059,9 +2080,10 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 
 	wacom_update_name(wacom, wireless ? " (WL)" : "");
 
-	error = wacom_add_shared_data(hdev);
-	if (error)
-		goto fail;
+	if (wacom_wac->features.device_type & WACOM_DEVICETYPE_TOUCH)
+		wacom_wac->shared->touch = hdev;
+	else if (wacom_wac->features.device_type & WACOM_DEVICETYPE_PEN)
+		wacom_wac->shared->pen = hdev;
 
 	if (!(features->device_type & WACOM_DEVICETYPE_WL_MONITOR) &&
 	     (features->quirks & WACOM_QUIRK_BATTERY)) {
