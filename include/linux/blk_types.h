@@ -131,20 +131,37 @@ struct bio {
 /*
  * Operations and flags common to the bio and request structures.
  * We use 8 bits for encoding the operation, and the remaining 24 for flags.
+ *
+ * The least significant bit of the operation number indicates the data
+ * transfer direction:
+ *
+ *   - if the least significant bit is set transfers are TO the device
+ *   - if the least significant bit is not set transfers are FROM the device
+ *
+ * If a operation does not transfer data the least significant bit has no
+ * meaning.
  */
 #define REQ_OP_BITS	8
 #define REQ_OP_MASK	((1 << REQ_OP_BITS) - 1)
 #define REQ_FLAG_BITS	24
 
 enum req_opf {
-	REQ_OP_READ,
-	REQ_OP_WRITE,
-	REQ_OP_DISCARD,		/* request to discard sectors */
-	REQ_OP_SECURE_ERASE,	/* request to securely erase sectors */
-	REQ_OP_WRITE_SAME,	/* write same block many times */
-	REQ_OP_FLUSH,		/* request for cache flush */
-	REQ_OP_ZONE_REPORT,	/* Get zone information */
-	REQ_OP_ZONE_RESET,	/* Reset a zone write pointer */
+	/* read sectors from the device */
+	REQ_OP_READ		= 0,
+	/* write sectors to the device */
+	REQ_OP_WRITE		= 1,
+	/* flush the volatile write cache */
+	REQ_OP_FLUSH		= 2,
+	/* discard sectors */
+	REQ_OP_DISCARD		= 3,
+	/* get zone information */
+	REQ_OP_ZONE_REPORT	= 4,
+	/* securely erase sectors */
+	REQ_OP_SECURE_ERASE	= 5,
+	/* seset a zone write pointer */
+	REQ_OP_ZONE_RESET	= 6,
+	/* write the same sector many times */
+	REQ_OP_WRITE_SAME	= 7,
 
 	REQ_OP_LAST,
 };
@@ -193,6 +210,11 @@ enum req_flag_bits {
 /* obsolete, don't use in new code */
 #define bio_set_op_attrs(bio, op, op_flags) \
 	((bio)->bi_opf |= (op | op_flags))
+
+static inline bool op_is_write(unsigned int op)
+{
+	return (op & 1);
+}
 
 static inline bool op_is_sync(unsigned int op)
 {
