@@ -3034,6 +3034,28 @@ static struct gdsc mdss_gdsc = {
 	.pwrsts = PWRSTS_OFF_ON,
 };
 
+static struct gdsc gpu_gdsc = {
+	.gdscr = 0x4034,
+	.gds_hw_ctrl = 0x4038,
+	.pd = {
+		.name = "gpu",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc gpu_gx_gdsc = {
+	.gdscr = 0x4024,
+	.clamp_io_ctrl = 0x4300,
+	.cxcs = (unsigned int []){ 0x4028 },
+	.cxc_count = 1,
+	.pd = {
+		.name = "gpu_gx",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = CLAMP_IO,
+};
+
 static struct clk_regmap *mmcc_msm8996_clocks[] = {
 	[MMPLL0_EARLY] = &mmpll0_early.clkr,
 	[MMPLL0_PLL] = &mmpll0.clkr,
@@ -3223,6 +3245,8 @@ static struct gdsc *mmcc_msm8996_gdscs[] = {
 	[CPP_GDSC] = &cpp_gdsc,
 	[FD_GDSC] = &fd_gdsc,
 	[MDSS_GDSC] = &mdss_gdsc,
+	[GPU_GDSC] = &gpu_gdsc,
+	[GPU_GX_GDSC] = &gpu_gx_gdsc,
 };
 
 static const struct qcom_reset_map mmcc_msm8996_resets[] = {
