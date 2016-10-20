@@ -276,7 +276,7 @@ static u64 read_pte64(struct drm_i915_private *dev_priv, unsigned long index)
 	pte = readq(addr);
 #else
 	pte = ioread32(addr);
-	pte |= ioread32(addr + 4) << 32;
+	pte |= (u64)ioread32(addr + 4) << 32;
 #endif
 	return pte;
 }
