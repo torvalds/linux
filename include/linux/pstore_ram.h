@@ -86,6 +86,8 @@ ssize_t persistent_ram_ecc_string(struct persistent_ram_zone *prz,
  * @mem_address	physical memory address to contain ramoops
  */
 
+#define RAMOOPS_FLAG_FTRACE_PER_CPU	BIT(0)
+
 struct ramoops_platform_data {
 	unsigned long	mem_size;
 	phys_addr_t	mem_address;
@@ -95,6 +97,7 @@ struct ramoops_platform_data {
 	unsigned long	ftrace_size;
 	unsigned long	pmsg_size;
 	int		dump_oops;
+	u32		flags;
 	struct persistent_ram_ecc_info ecc_info;
 };
 
