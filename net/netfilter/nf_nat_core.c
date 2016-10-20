@@ -690,6 +690,10 @@ int nf_nat_l3proto_register(const struct nf_nat_l3proto *l3proto)
 	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_SCTP],
 			 &nf_nat_l4proto_sctp);
 #endif
+#ifdef CONFIG_NF_NAT_PROTO_UDPLITE
+	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_UDPLITE],
+			 &nf_nat_l4proto_udplite);
+#endif
 	mutex_unlock(&nf_nat_proto_mutex);
 
 	RCU_INIT_POINTER(nf_nat_l3protos[l3proto->l3proto], l3proto);
