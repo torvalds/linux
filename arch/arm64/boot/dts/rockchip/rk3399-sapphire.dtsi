@@ -158,7 +158,6 @@
 	vcc5v0_host: vcc5v0-host-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio4 25 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_vbus_drv>;
 		regulator-name = "vcc5v0_host";
@@ -483,6 +482,7 @@
 		reg = <0x22>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&fusb0_int>;
+		vbus-5v-gpios = <&gpio4 25 GPIO_ACTIVE_HIGH>;
 		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
