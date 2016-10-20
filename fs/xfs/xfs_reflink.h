@@ -26,8 +26,8 @@ extern int xfs_reflink_find_shared(struct xfs_mount *mp, xfs_agnumber_t agno,
 extern int xfs_reflink_trim_around_shared(struct xfs_inode *ip,
 		struct xfs_bmbt_irec *irec, bool *shared, bool *trimmed);
 
-extern int xfs_reflink_reserve_cow_range(struct xfs_inode *ip,
-		xfs_off_t offset, xfs_off_t count);
+extern int xfs_reflink_reserve_cow(struct xfs_inode *ip,
+		struct xfs_bmbt_irec *imap, bool *shared);
 extern int xfs_reflink_allocate_cow_range(struct xfs_inode *ip,
 		xfs_off_t offset, xfs_off_t count);
 extern bool xfs_reflink_find_cow_mapping(struct xfs_inode *ip, xfs_off_t offset,
