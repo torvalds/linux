@@ -2448,7 +2448,7 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 	/*
 	 * Raw Wacom-mode pen and touch events both come from interface
 	 * 0, whose HID descriptor has an application usage of 0xFF0D
-	 * (i.e., WACOM_VENDORDEFINED_PEN). We route pen packets back
+	 * (i.e., WACOM_HID_WD_DIGITIZER). We route pen packets back
 	 * out through the HID_GENERIC device created for interface 1,
 	 * so rewrite this one to be of type WACOM_DEVICETYPE_TOUCH.
 	 */

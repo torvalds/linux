@@ -84,20 +84,21 @@
 #define WACOM_DEVICETYPE_WL_MONITOR     0x0008
 #define WACOM_DEVICETYPE_DIRECT         0x0010
 
-#define WACOM_VENDORDEFINED_PEN		0xff0d0001
-#define WACOM_G9_PAGE			0xff090000
-#define WACOM_G9_DIGITIZER		(WACOM_G9_PAGE | 0x02)
-#define WACOM_G9_TOUCHSCREEN		(WACOM_G9_PAGE | 0x11)
-#define WACOM_G11_PAGE			0xff110000
-#define WACOM_G11_DIGITIZER		(WACOM_G11_PAGE | 0x02)
-#define WACOM_G11_TOUCHSCREEN		(WACOM_G11_PAGE | 0x11)
+#define WACOM_HID_UP_WACOMDIGITIZER     0xff0d0000
+#define WACOM_HID_WD_DIGITIZER          (WACOM_HID_UP_WACOMDIGITIZER | 0x01)
+#define WACOM_HID_UP_G9                 0xff090000
+#define WACOM_HID_G9_PEN                (WACOM_HID_UP_G9 | 0x02)
+#define WACOM_HID_G9_TOUCHSCREEN        (WACOM_HID_UP_G9 | 0x11)
+#define WACOM_HID_UP_G11                0xff110000
+#define WACOM_HID_G11_PEN               (WACOM_HID_UP_G11 | 0x02)
+#define WACOM_HID_G11_TOUCHSCREEN       (WACOM_HID_UP_G11 | 0x11)
 
 #define WACOM_PEN_FIELD(f)	(((f)->logical == HID_DG_STYLUS) || \
 				 ((f)->physical == HID_DG_STYLUS) || \
 				 ((f)->physical == HID_DG_PEN) || \
 				 ((f)->application == HID_DG_PEN) || \
 				 ((f)->application == HID_DG_DIGITIZER) || \
-				 ((f)->application == WACOM_VENDORDEFINED_PEN))
+				 ((f)->application == WACOM_HID_WD_DIGITIZER))
 #define WACOM_FINGER_FIELD(f)	(((f)->logical == HID_DG_FINGER) || \
 				 ((f)->physical == HID_DG_FINGER) || \
 				 ((f)->application == HID_DG_TOUCHSCREEN))

@@ -159,18 +159,18 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 
 	case HID_UP_DIGITIZER:
 		if (field->report->id == 0x0B &&
-		    (field->application == WACOM_G9_DIGITIZER ||
-		     field->application == WACOM_G11_DIGITIZER)) {
+		    (field->application == WACOM_HID_G9_PEN ||
+		     field->application == WACOM_HID_G11_PEN)) {
 			wacom->wacom_wac.mode_report = field->report->id;
 			wacom->wacom_wac.mode_value = 0;
 		}
 		break;
 
-	case WACOM_G9_PAGE:
-	case WACOM_G11_PAGE:
+	case WACOM_HID_UP_G9:
+	case WACOM_HID_UP_G11:
 		if (field->report->id == 0x03 &&
-		    (field->application == WACOM_G9_TOUCHSCREEN ||
-		     field->application == WACOM_G11_TOUCHSCREEN)) {
+		    (field->application == WACOM_HID_G9_TOUCHSCREEN ||
+		     field->application == WACOM_HID_G11_TOUCHSCREEN)) {
 			wacom->wacom_wac.mode_report = field->report->id;
 			wacom->wacom_wac.mode_value = 0;
 		}
