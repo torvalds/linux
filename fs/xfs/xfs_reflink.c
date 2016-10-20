@@ -324,7 +324,7 @@ xfs_reflink_reserve_cow_range(
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fileoff_t		offset_fsb, end_fsb;
 	bool			skipped = false;
-	int			error;
+	int			error = 0;
 
 	trace_xfs_reflink_reserve_cow_range(ip, offset, count);
 
