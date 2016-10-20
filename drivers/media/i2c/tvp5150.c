@@ -102,20 +102,22 @@ static int tvp5150_write(struct v4l2_subdev *sd, unsigned char addr,
 static void dump_reg_range(struct v4l2_subdev *sd, char *s, u8 init,
 				const u8 end, int max_line)
 {
-	int i = 0;
+	u8 buf[16];
+	int i = 0, j, len;
 
-	while (init != (u8)(end + 1)) {
-		if ((i % max_line) == 0) {
-			if (i > 0)
-				printk("\n");
-			printk("tvp5150: %s reg 0x%02x = ", s, init);
-		}
-		printk("%02x ", tvp5150_read(sd, init));
-
-		init++;
-		i++;
+	if (max_line > 16) {
+		dprintk0(sd->dev, "too much data to dump\n");
+		return;
 	}
-	printk("\n");
+
+	for (i = init; i < end; i += max_line) {
+		len = (end - i > max_line) ? max_line : end - i;
+
+		for (j = 0; j < len; j++)
+			buf[j] = tvp5150_read(sd, i + j);
+
+		dprintk0(sd->dev, "%s reg %02x = %*ph\n", s, i, len, buf);
+	}
 }
 
 static int tvp5150_log_status(struct v4l2_subdev *sd)
