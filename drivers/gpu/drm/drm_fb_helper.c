@@ -644,7 +644,9 @@ static void drm_fb_helper_dirty_work(struct work_struct *work)
 	clip->x2 = clip->y2 = 0;
 	spin_unlock_irqrestore(&helper->dirty_lock, flags);
 
-	helper->fb->funcs->dirty(helper->fb, NULL, 0, 0, &clip_copy, 1);
+	/* call dirty callback only when it has been really touched */
+	if (clip_copy.x1 < clip_copy.x2 && clip_copy.y1 < clip_copy.y2)
+		helper->fb->funcs->dirty(helper->fb, NULL, 0, 0, &clip_copy, 1);
 }
 
 /**
