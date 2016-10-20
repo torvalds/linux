@@ -812,30 +812,11 @@ vti6_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return err;
 }
 
-/**
- * vti6_tnl_change_mtu - change mtu manually for tunnel device
- *   @dev: virtual device associated with tunnel
- *   @new_mtu: the new mtu
- *
- * Return:
- *   0 on success,
- *   %-EINVAL if mtu too small
- **/
-static int vti6_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if (new_mtu < IPV6_MIN_MTU)
-		return -EINVAL;
-
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static const struct net_device_ops vti6_netdev_ops = {
 	.ndo_init	= vti6_dev_init,
 	.ndo_uninit	= vti6_dev_uninit,
 	.ndo_start_xmit = vti6_tnl_xmit,
 	.ndo_do_ioctl	= vti6_ioctl,
-	.ndo_change_mtu = vti6_change_mtu,
 	.ndo_get_stats64 = ip_tunnel_get_stats64,
 	.ndo_get_iflink = ip6_tnl_get_iflink,
 };
@@ -855,6 +836,8 @@ static void vti6_dev_setup(struct net_device *dev)
 	dev->type = ARPHRD_TUNNEL6;
 	dev->hard_header_len = LL_MAX_HEADER + sizeof(struct ipv6hdr);
 	dev->mtu = ETH_DATA_LEN;
+	dev->min_mtu = IPV6_MIN_MTU;
+	dev->max_mtu = IP_MAX_MTU;
 	dev->flags |= IFF_NOARP;
 	dev->addr_len = sizeof(struct in6_addr);
 	netif_keep_dst(dev);

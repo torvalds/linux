@@ -358,6 +358,7 @@ static struct ip_tunnel *ip_tunnel_create(struct net *net,
 {
 	struct ip_tunnel *nt;
 	struct net_device *dev;
+	int t_hlen;
 
 	BUG_ON(!itn->fb_tunnel_dev);
 	dev = __ip_tunnel_create(net, itn->fb_tunnel_dev->rtnl_link_ops, parms);
@@ -367,6 +368,9 @@ static struct ip_tunnel *ip_tunnel_create(struct net *net,
 	dev->mtu = ip_tunnel_bind_dev(dev);
 
 	nt = netdev_priv(dev);
+	t_hlen = nt->hlen + sizeof(struct iphdr);
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = 0xFFF8 - dev->hard_header_len - t_hlen;
 	ip_tunnel_add(itn, nt);
 	return nt;
 }
@@ -929,7 +933,7 @@ int __ip_tunnel_change_mtu(struct net_device *dev, int new_mtu, bool strict)
 	int t_hlen = tunnel->hlen + sizeof(struct iphdr);
 	int max_mtu = 0xFFF8 - dev->hard_header_len - t_hlen;
 
-	if (new_mtu < 68)
+	if (new_mtu < ETH_MIN_MTU)
 		return -EINVAL;
 
 	if (new_mtu > max_mtu) {
