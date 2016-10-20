@@ -909,32 +909,6 @@ out_unlock:
 	return error;
 }
 
-/*
- * Flush all file writes out to disk.
- */
-static int
-xfs_file_wait_for_io(
-	struct inode	*inode,
-	loff_t		offset,
-	size_t		len)
-{
-	loff_t		rounding;
-	loff_t		ioffset;
-	loff_t		iendoffset;
-	loff_t		bs;
-	int		ret;
-
-	bs = inode->i_sb->s_blocksize;
-	inode_dio_wait(inode);
-
-	rounding = max_t(xfs_off_t, bs, PAGE_SIZE);
-	ioffset = round_down(offset, rounding);
-	iendoffset = round_up(offset + len, rounding) - 1;
-	ret = filemap_write_and_wait_range(inode->i_mapping, ioffset,
-					   iendoffset);
-	return ret;
-}
-
 /* Hook up to the VFS reflink function */
 STATIC int
 xfs_file_share_range(
@@ -1031,11 +1005,18 @@ xfs_file_share_range(
 	if (same_inode && pos_out + blen > pos_in && pos_out < pos_in + blen)
 		goto out_unlock;
 
-	/* Wait for the completion of any pending IOs on srcfile */
-	ret = xfs_file_wait_for_io(inode_in, pos_in, len);
+	/* Wait for the completion of any pending IOs on both files */
+	inode_dio_wait(inode_in);
+	if (!same_inode)
+		inode_dio_wait(inode_out);
+
+	ret = filemap_write_and_wait_range(inode_in->i_mapping,
+			pos_in, pos_in + len - 1);
 	if (ret)
 		goto out_unlock;
-	ret = xfs_file_wait_for_io(inode_out, pos_out, len);
+
+	ret = filemap_write_and_wait_range(inode_out->i_mapping,
+			pos_out, pos_out + len - 1);
 	if (ret)
 		goto out_unlock;
 
