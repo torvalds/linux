@@ -1693,6 +1693,8 @@ static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
 			if (reg_win_data->reg_area_data[i].smem_start > 0) {
 				win->area[i].format =
 					reg_win_data->reg_area_data[i].data_format;
+				win->area[i].data_space =
+					reg_win_data->reg_area_data[i].data_space;
 				win->area[i].ion_hdl =
 					reg_win_data->reg_area_data[i].ion_handle;
 				win->area[i].smem_start =
@@ -2336,6 +2338,8 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		data_format &= ~CSC_MASK;
 		fb_data_fmt = rk_fb_data_fmt(data_format, 0);
 		reg_win_data->reg_area_data[i].data_format = fb_data_fmt;
+		reg_win_data->reg_area_data[i].data_space =
+					win_par->area_par[i].data_space;
 		if (IS_FBDC_FMT(fb_data_fmt)) {
 			reg_win_data->reg_area_data[i].fbdc_en = 1;
 			reg_win_data->reg_area_data[i].fbdc_cor_en = 1;

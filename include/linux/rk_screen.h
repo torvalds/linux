@@ -66,6 +66,7 @@ struct rk_screen {
 	u16 lvds_format;
 	u16 face;
 	u16 color_mode;
+	u8 data_space;
 	u8 lcdc_id;
 	u8 screen_id;
 	struct fb_videomode mode;
