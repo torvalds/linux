@@ -1450,6 +1450,8 @@ static int wacom_equivalent_usage(int usage)
 		if (subpage == WACOM_HID_SP_DIGITIZER ||
 		    subpage == WACOM_HID_SP_DIGITIZERINFO ||
 		    usage == WACOM_HID_WD_SENSE ||
+		    usage == WACOM_HID_WD_SERIALHI ||
+		    usage == WACOM_HID_WD_TOOLTYPE ||
 		    usage == WACOM_HID_WD_DISTANCE) {
 			return usage;
 		}
@@ -1551,6 +1553,17 @@ static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
 		features->quirks |= WACOM_QUIRK_SENSE;
 		wacom_map_usage(input, usage, field, EV_KEY, BTN_TOOL_PEN, 0);
 		break;
+	case WACOM_HID_WD_SERIALHI:
+		wacom_map_usage(input, usage, field, EV_ABS, ABS_MISC, 0);
+		set_bit(EV_KEY, input->evbit);
+		input_set_capability(input, EV_KEY, BTN_TOOL_PEN);
+		input_set_capability(input, EV_KEY, BTN_TOOL_RUBBER);
+		input_set_capability(input, EV_KEY, BTN_TOOL_BRUSH);
+		input_set_capability(input, EV_KEY, BTN_TOOL_PENCIL);
+		input_set_capability(input, EV_KEY, BTN_TOOL_AIRBRUSH);
+		input_set_capability(input, EV_KEY, BTN_TOOL_MOUSE);
+		input_set_capability(input, EV_KEY, BTN_TOOL_LENS);
+		break;
 	case WACOM_HID_WD_FINGERWHEEL:
 		wacom_map_usage(input, usage, field, EV_ABS, ABS_WHEEL, 0);
 		break;
@@ -1587,8 +1600,34 @@ static int wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field,
 	case HID_DG_TIPSWITCH:
 		wacom_wac->hid_data.tipswitch |= value;
 		return 0;
+	case HID_DG_TOOLSERIALNUMBER:
+		wacom_wac->serial[0] = (wacom_wac->serial[0] & ~0xFFFFFFFF);
+		wacom_wac->serial[0] |= value;
+		return 0;
 	case WACOM_HID_WD_SENSE:
 		wacom_wac->hid_data.sense_state = value;
+		return 0;
+	case WACOM_HID_WD_SERIALHI:
+		wacom_wac->serial[0] = (wacom_wac->serial[0] & 0xFFFFFFFF);
+		wacom_wac->serial[0] |= ((__u64)value) << 32;
+		/*
+		 * Non-USI EMR devices may contain additional tool type
+		 * information here. See WACOM_HID_WD_TOOLTYPE case for
+		 * more details.
+		 */
+		if (value >> 20 == 1) {
+			wacom_wac->id[0] |= value & 0xFFFFF;
+		}
+		return 0;
+	case WACOM_HID_WD_TOOLTYPE:
+		/*
+		 * Some devices (MobileStudio Pro, and possibly later
+		 * devices as well) do not return the complete tool
+		 * type in their WACOM_HID_WD_TOOLTYPE usage. Use a
+		 * bitwise OR so the complete value can be built
+		 * up over time :(
+		 */
+		wacom_wac->id[0] |= value;
 		return 0;
 	}
 
@@ -1622,26 +1661,51 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 	bool prox = wacom_wac->hid_data.inrange_state;
 	bool range = wacom_wac->hid_data.sense_state;
 
-	if (!wacom_wac->tool[0] && prox) /* first in prox */
+	if (!wacom_wac->tool[0] && prox) { /* first in prox */
 		/* Going into proximity select tool */
-		wacom_wac->tool[0] = wacom_wac->hid_data.invert_state ?
-						BTN_TOOL_RUBBER : BTN_TOOL_PEN;
+		if (wacom_wac->hid_data.invert_state)
+			wacom_wac->tool[0] = BTN_TOOL_RUBBER;
+		else if (wacom_wac->id[0])
+			wacom_wac->tool[0] = wacom_intuos_get_tool_type(wacom_wac->id[0]);
+		else
+			wacom_wac->tool[0] = BTN_TOOL_PEN;
+	}
 
 	/* keep pen state for touch events */
 	wacom_wac->shared->stylus_in_proximity = range;
 
 	if (!delay_pen_events(wacom_wac) && wacom_wac->tool[0]) {
+		int id = wacom_wac->id[0];
+
+		/*
+		 * Non-USI EMR tools should have their IDs mangled to
+		 * match the legacy behavior of wacom_intuos_general
+		 */
+		if (wacom_wac->serial[0] >> 52 == 1)
+			id = wacom_intuos_id_mangle(id);
+
+		/*
+		 * To ensure compatibility with xf86-input-wacom, we should
+		 * report the BTN_TOOL_* event prior to the ABS_MISC or
+		 * MSC_SERIAL events.
+		 */
 		input_report_key(input, BTN_TOUCH,
 				wacom_wac->hid_data.tipswitch);
 		input_report_key(input, wacom_wac->tool[0], prox);
+		if (wacom_wac->serial[0]) {
+			input_event(input, EV_MSC, MSC_SERIAL, wacom_wac->serial[0]);
+			input_report_abs(input, ABS_MISC, id);
+		}
 
 		wacom_wac->hid_data.tipswitch = false;
 
 		input_sync(input);
 	}
 
-	if (!prox)
+	if (!prox) {
 		wacom_wac->tool[0] = 0;
+		wacom_wac->id[0] = 0;
+	}
 }
 
 static void wacom_wac_finger_usage_mapping(struct hid_device *hdev,
