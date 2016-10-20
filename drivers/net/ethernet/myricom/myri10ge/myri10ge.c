@@ -289,7 +289,7 @@ static char *myri10ge_fw_names[MYRI10GE_MAX_BOARDS] =
     {[0 ... (MYRI10GE_MAX_BOARDS - 1)] = NULL };
 module_param_array_named(myri10ge_fw_names, myri10ge_fw_names, charp, NULL,
 			 0444);
-MODULE_PARM_DESC(myri10ge_fw_name, "Firmware image names per board");
+MODULE_PARM_DESC(myri10ge_fw_names, "Firmware image names per board");
 
 static int myri10ge_ecrc_enable = 1;
 module_param(myri10ge_ecrc_enable, int, S_IRUGO);
