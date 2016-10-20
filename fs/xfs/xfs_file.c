@@ -965,9 +965,6 @@ xfs_file_share_range(
 	    IS_SWAPFILE(inode_out))
 		return -ETXTBSY;
 
-	/* Reflink only works within this filesystem. */
-	if (inode_in->i_sb != inode_out->i_sb)
-		return -EXDEV;
 	same_inode = (inode_in->i_ino == inode_out->i_ino);
 
 	/* Don't reflink dirs, pipes, sockets... */
