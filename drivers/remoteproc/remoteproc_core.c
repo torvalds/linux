@@ -889,14 +889,12 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	/*
 	 * Create a copy of the resource table. When a virtio device starts
 	 * and calls vring_new_virtqueue() the address of the allocated vring
-	 * will be stored in the cached_table. Before the device is started,
-	 * cached_table will be copied into device memory.
+	 * will be stored in the table_ptr. Before the device is started,
+	 * table_ptr will be copied into device memory.
 	 */
-	rproc->cached_table = kmemdup(table, tablesz, GFP_KERNEL);
-	if (!rproc->cached_table)
+	rproc->table_ptr = kmemdup(table, tablesz, GFP_KERNEL);
+	if (!rproc->table_ptr)
 		goto clean_up;
-
-	rproc->table_ptr = rproc->cached_table;
 
 	/* reset max_notifyid */
 	rproc->max_notifyid = -1;
@@ -916,18 +914,16 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	}
 
 	/*
-	 * The starting device has been given the rproc->cached_table as the
+	 * The starting device has been given the rproc->table_ptr as the
 	 * resource table. The address of the vring along with the other
-	 * allocated resources (carveouts etc) is stored in cached_table.
+	 * allocated resources (carveouts etc) is stored in table_ptr.
 	 * In order to pass this information to the remote device we must copy
 	 * this information to device memory. We also update the table_ptr so
 	 * that any subsequent changes will be applied to the loaded version.
 	 */
 	loaded_table = rproc_find_loaded_rsc_table(rproc, fw);
-	if (loaded_table) {
-		memcpy(loaded_table, rproc->cached_table, tablesz);
-		rproc->table_ptr = loaded_table;
-	}
+	if (loaded_table)
+		memcpy(loaded_table, rproc->table_ptr, tablesz);
 
 	/* power up the remote processor */
 	ret = rproc->ops->start(rproc);
@@ -955,8 +951,7 @@ stop_rproc:
 clean_up_resources:
 	rproc_resource_cleanup(rproc);
 clean_up:
-	kfree(rproc->cached_table);
-	rproc->cached_table = NULL;
+	kfree(rproc->table_ptr);
 	rproc->table_ptr = NULL;
 
 	rproc_disable_iommu(rproc);
@@ -1206,8 +1201,7 @@ void rproc_shutdown(struct rproc *rproc)
 	rproc_disable_iommu(rproc);
 
 	/* Free the copy of the resource table */
-	kfree(rproc->cached_table);
-	rproc->cached_table = NULL;
+	kfree(rproc->table_ptr);
 	rproc->table_ptr = NULL;
 
 	/* if in crash state, unlock crash handler */

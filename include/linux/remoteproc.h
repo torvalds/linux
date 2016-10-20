@@ -408,8 +408,7 @@ enum rproc_crash_type {
  * @crash_comp: completion used to sync crash handler and the rproc reload
  * @recovery_disabled: flag that state if recovery was disabled
  * @max_notifyid: largest allocated notify id.
- * @table_ptr: pointer to the resource table in effect
- * @cached_table: copy of the resource table
+ * @table_ptr: our copy of the resource table
  * @has_iommu: flag to indicate if remote processor is behind an MMU
  */
 struct rproc {
@@ -441,7 +440,6 @@ struct rproc {
 	bool recovery_disabled;
 	int max_notifyid;
 	struct resource_table *table_ptr;
-	struct resource_table *cached_table;
 	bool has_iommu;
 	bool auto_boot;
 };
