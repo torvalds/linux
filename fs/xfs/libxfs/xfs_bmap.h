@@ -224,6 +224,11 @@ int	xfs_bunmapi(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_extnum_t nexts, xfs_fsblock_t *firstblock,
 		struct xfs_defer_ops *dfops, int *done);
 int	xfs_bunmapi_cow(struct xfs_inode *ip, struct xfs_bmbt_irec *del);
+int	xfs_bmap_del_extent_delay(struct xfs_inode *ip, int whichfork,
+		xfs_extnum_t *idx, struct xfs_bmbt_irec *got,
+		struct xfs_bmbt_irec *del);
+void	xfs_bmap_del_extent_cow(struct xfs_inode *ip, xfs_extnum_t *idx,
+		struct xfs_bmbt_irec *got, struct xfs_bmbt_irec *del);
 int	xfs_check_nostate_extents(struct xfs_ifork *ifp, xfs_extnum_t idx,
 		xfs_extnum_t num);
 uint	xfs_default_attroffset(struct xfs_inode *ip);

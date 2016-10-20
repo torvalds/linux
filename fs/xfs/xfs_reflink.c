@@ -534,11 +534,6 @@ xfs_reflink_cancel_cow_blocks(
 		trace_xfs_reflink_cancel_cow(ip, &irec);
 
 		if (irec.br_startblock == DELAYSTARTBLOCK) {
-			/* Free a delayed allocation. */
-			xfs_mod_fdblocks(ip->i_mount, irec.br_blockcount,
-					false);
-			ip->i_delayed_blks -= irec.br_blockcount;
-
 			/* Remove the mapping from the CoW fork. */
 			error = xfs_bunmapi_cow(ip, &irec);
 			if (error)
