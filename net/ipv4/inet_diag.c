@@ -863,7 +863,7 @@ void inet_diag_dump_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *skb,
 	s_num = num = cb->args[2];
 
 	if (cb->args[0] == 0) {
-		if (!(idiag_states & TCPF_LISTEN))
+		if (!(idiag_states & TCPF_LISTEN) || r->id.idiag_dport)
 			goto skip_listen_ht;
 
 		for (i = s_i; i < INET_LHTABLE_SIZE; i++) {
@@ -872,7 +872,7 @@ void inet_diag_dump_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *skb,
 
 			num = 0;
 			ilb = &hashinfo->listening_hash[i];
-			spin_lock_bh(&ilb->lock);
+			spin_lock(&ilb->lock);
 			sk_for_each(sk, &ilb->head) {
 				struct inet_sock *inet = inet_sk(sk);
 
@@ -892,26 +892,18 @@ void inet_diag_dump_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *skb,
 				    r->id.idiag_sport)
 					goto next_listen;
 
-				if (r->id.idiag_dport ||
-				    cb->args[3] > 0)
-					goto next_listen;
-
 				if (inet_csk_diag_dump(sk, skb, cb, r,
 						       bc, net_admin) < 0) {
-					spin_unlock_bh(&ilb->lock);
+					spin_unlock(&ilb->lock);
 					goto done;
 				}
 
 next_listen:
-				cb->args[3] = 0;
-				cb->args[4] = 0;
 				++num;
 			}
-			spin_unlock_bh(&ilb->lock);
+			spin_unlock(&ilb->lock);
 
 			s_num = 0;
-			cb->args[3] = 0;
-			cb->args[4] = 0;
 		}
 skip_listen_ht:
 		cb->args[0] = 1;
