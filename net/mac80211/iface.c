@@ -6,6 +6,7 @@
  * Copyright (c) 2006 Jiri Benc <jbenc@suse.cz>
  * Copyright 2008, Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright (c) 2016        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1307,6 +1308,26 @@ static void ieee80211_iface_work(struct work_struct *work)
 		} else if (ieee80211_is_action(mgmt->frame_control) &&
 			   mgmt->u.action.category == WLAN_CATEGORY_VHT) {
 			switch (mgmt->u.action.u.vht_group_notif.action_code) {
+			case WLAN_VHT_ACTION_OPMODE_NOTIF: {
+				struct ieee80211_rx_status *status;
+				enum nl80211_band band;
+				u8 opmode;
+
+				status = IEEE80211_SKB_RXCB(skb);
+				band = status->band;
+				opmode = mgmt->u.action.u.vht_opmode_notif.operating_mode;
+
+				mutex_lock(&local->sta_mtx);
+				sta = sta_info_get_bss(sdata, mgmt->sa);
+
+				if (sta)
+					ieee80211_vht_handle_opmode(sdata, sta,
+								    opmode,
+								    band);
+
+				mutex_unlock(&local->sta_mtx);
+				break;
+			}
 			case WLAN_VHT_ACTION_GROUPID_MGMT:
 				ieee80211_process_mu_groups(sdata, mgmt);
 				break;

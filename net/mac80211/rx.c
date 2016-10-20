@@ -2923,17 +2923,10 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 		switch (mgmt->u.action.u.vht_opmode_notif.action_code) {
 		case WLAN_VHT_ACTION_OPMODE_NOTIF: {
-			u8 opmode;
-
 			/* verify opmode is present */
 			if (len < IEEE80211_MIN_ACTION_SIZE + 2)
 				goto invalid;
-
-			opmode = mgmt->u.action.u.vht_opmode_notif.operating_mode;
-
-			ieee80211_vht_handle_opmode(rx->sdata, rx->sta,
-						    opmode, status->band);
-			goto handled;
+			goto queue;
 		}
 		case WLAN_VHT_ACTION_GROUPID_MGMT: {
 			if (len < IEEE80211_MIN_ACTION_SIZE + 25)
