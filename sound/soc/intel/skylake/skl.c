@@ -785,8 +785,7 @@ static void skl_remove(struct pci_dev *pci)
 
 	release_firmware(skl->tplg);
 
-	if (pci_dev_run_wake(pci))
-		pm_runtime_get_noresume(&pci->dev);
+	pm_runtime_get_noresume(&pci->dev);
 
 	/* codec removal, invoke bus_device_remove */
 	snd_hdac_ext_bus_device_remove(ebus);
