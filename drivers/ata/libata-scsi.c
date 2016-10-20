@@ -323,10 +323,16 @@ static ssize_t ata_ncq_prio_enable_store(struct device *device,
 		goto unlock;
 	}
 
-	if (input)
+	if (input) {
+		if (!(dev->flags & ATA_DFLAG_NCQ_PRIO)) {
+			rc = -EOPNOTSUPP;
+			goto unlock;
+		}
+
 		dev->flags |= ATA_DFLAG_NCQ_PRIO_ENABLE;
-	else
+	} else {
 		dev->flags &= ~ATA_DFLAG_NCQ_PRIO_ENABLE;
+	}
 
 unlock:
 	spin_unlock_irqrestore(ap->lock, flags);
