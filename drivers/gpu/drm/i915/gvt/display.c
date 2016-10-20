@@ -120,7 +120,7 @@ static unsigned char virtual_dp_monitor_edid[] = {
 
 #define DPCD_HEADER_SIZE        0xb
 
-u8 dpcd_fix_data[DPCD_HEADER_SIZE] = {
+static u8 dpcd_fix_data[DPCD_HEADER_SIZE] = {
 	0x11, 0x0a, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 

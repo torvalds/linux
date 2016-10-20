@@ -236,7 +236,7 @@ static void tbs_sched_stop_schedule(struct intel_vgpu *vgpu)
 	list_del_init(&vgpu_data->list);
 }
 
-struct intel_gvt_sched_policy_ops tbs_schedule_ops = {
+static struct intel_gvt_sched_policy_ops tbs_schedule_ops = {
 	.init = tbs_sched_init,
 	.clean = tbs_sched_clean,
 	.init_vgpu = tbs_sched_init_vgpu,

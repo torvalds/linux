@@ -41,7 +41,8 @@
 #define RING_CTX_OFF(x) \
 	offsetof(struct execlist_ring_context, x)
 
-void set_context_pdp_root_pointer(struct execlist_ring_context *ring_context,
+static void set_context_pdp_root_pointer(
+		struct execlist_ring_context *ring_context,
 		u32 pdp[8])
 {
 	struct execlist_mmio_pair *pdp_pair = &ring_context->pdp3_UDW;

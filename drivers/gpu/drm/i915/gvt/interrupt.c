@@ -50,7 +50,7 @@
 static void update_upstream_irq(struct intel_vgpu *vgpu,
 		struct intel_gvt_irq_info *info);
 
-const char * const irq_name[INTEL_GVT_EVENT_MAX] = {
+static const char * const irq_name[INTEL_GVT_EVENT_MAX] = {
 	[RCS_MI_USER_INTERRUPT] = "Render CS MI USER INTERRUPT",
 	[RCS_DEBUG] = "Render EU debug from SVG",
 	[RCS_MMIO_SYNC_FLUSH] = "Render MMIO sync flush status",

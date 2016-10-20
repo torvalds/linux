@@ -480,8 +480,8 @@ struct parser_exec_state {
 #define gmadr_dw_number(s)	\
 	(s->vgpu->gvt->device_info.gmadr_bytes_in_cmd >> 2)
 
-unsigned long bypass_scan_mask = 0;
-bool bypass_batch_buffer_scan = true;
+static unsigned long bypass_scan_mask = 0;
+static bool bypass_batch_buffer_scan = true;
 
 /* ring ALL, type = 0 */
 static struct sub_op_bits sub_op_mi[] = {
@@ -960,7 +960,7 @@ struct cmd_interrupt_event {
 	int mi_user_interrupt;
 };
 
-struct cmd_interrupt_event cmd_interrupt_events[] = {
+static struct cmd_interrupt_event cmd_interrupt_events[] = {
 	[RCS] = {
 		.pipe_control_notify = RCS_PIPE_CONTROL,
 		.mi_flush_dw = INTEL_GVT_EVENT_RESERVED,
