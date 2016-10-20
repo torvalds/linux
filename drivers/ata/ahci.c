@@ -1436,14 +1436,14 @@ static int ahci_init_msi(struct pci_dev *pdev, unsigned int n_ports,
 				"ahci: MRSM is on, fallback to single MSI\n");
 			pci_free_irq_vectors(pdev);
 		}
-	}
 
-	/*
-	 * -ENOSPC indicated we don't have enough vectors.  Don't bother trying
-	 * a single vectors for any other error:
-	 */
-	if (nvec < 0 && nvec != -ENOSPC)
-		return nvec;
+		/*
+		 * -ENOSPC indicated we don't have enough vectors.  Don't bother
+		 * trying a single vectors for any other error:
+		 */
+		if (nvec < 0 && nvec != -ENOSPC)
+			return nvec;
+	}
 
 	/*
 	 * If the host is not capable of supporting per-port vectors, fall
