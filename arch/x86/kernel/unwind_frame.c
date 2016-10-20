@@ -24,6 +24,14 @@ unsigned long unwind_get_return_address(struct unwind_state *state)
 }
 EXPORT_SYMBOL_GPL(unwind_get_return_address);
 
+static bool is_last_task_frame(struct unwind_state *state)
+{
+	unsigned long bp = (unsigned long)state->bp;
+	unsigned long regs = (unsigned long)task_pt_regs(state->task);
+
+	return bp == regs - FRAME_HEADER_SIZE;
+}
+
 /*
  * This determines if the frame pointer actually contains an encoded pointer to
  * pt_regs on the stack.  See ENCODE_FRAME_POINTER.
@@ -70,6 +78,33 @@ bool unwind_next_frame(struct unwind_state *state)
 	/* have we reached the end? */
 	if (state->regs && user_mode(state->regs))
 		goto the_end;
+
+	if (is_last_task_frame(state)) {
+		regs = task_pt_regs(state->task);
+
+		/*
+		 * kthreads (other than the boot CPU's idle thread) have some
+		 * partial regs at the end of their stack which were placed
+		 * there by copy_thread_tls().  But the regs don't have any
+		 * useful information, so we can skip them.
+		 *
+		 * This user_mode() check is slightly broader than a PF_KTHREAD
+		 * check because it also catches the awkward situation where a
+		 * newly forked kthread transitions into a user task by calling
+		 * do_execve(), which eventually clears PF_KTHREAD.
+		 */
+		if (!user_mode(regs))
+			goto the_end;
+
+		/*
+		 * We're almost at the end, but not quite: there's still the
+		 * syscall regs frame.  Entry code doesn't encode the regs
+		 * pointer for syscalls, so we have to set it manually.
+		 */
+		state->regs = regs;
+		state->bp = NULL;
+		return true;
+	}
 
 	/* get the next frame pointer */
 	if (state->regs)
