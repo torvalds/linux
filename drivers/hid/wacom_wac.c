@@ -2674,10 +2674,12 @@ int wacom_setup_pen_input_capabilities(struct input_dev *input_dev,
 	__set_bit(BTN_TOUCH, input_dev->keybit);
 	__set_bit(ABS_MISC, input_dev->absbit);
 
-	input_set_abs_params(input_dev, ABS_X, features->x_min,
-			     features->x_max, features->x_fuzz, 0);
-	input_set_abs_params(input_dev, ABS_Y, features->y_min,
-			     features->y_max, features->y_fuzz, 0);
+	input_set_abs_params(input_dev, ABS_X, 0 + features->offset_left,
+			     features->x_max - features->offset_right,
+			     features->x_fuzz, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0 + features->offset_top,
+			     features->y_max - features->offset_bottom,
+			     features->y_fuzz, 0);
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0,
 		features->pressure_max, features->pressure_fuzz, 0);
 
@@ -3389,12 +3391,14 @@ static const struct wacom_features wacom_features_0x317 =
 	  INTUOSPL, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9, .touch_max = 16,
 	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0xF4 =
-	{ "Wacom Cintiq 24HD", 104080, 65200, 2047, 63,
+	{ "Wacom Cintiq 24HD", 104480, 65600, 2047, 63,
 	  WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 16,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
 static const struct wacom_features wacom_features_0xF8 =
-	{ "Wacom Cintiq 24HD touch", 104080, 65200, 2047, 63, /* Pen */
+	{ "Wacom Cintiq 24HD touch", 104480, 65600, 2047, 63, /* Pen */
 	  WACOM_24HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 16,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf6 };
 static const struct wacom_features wacom_features_0xF6 =
@@ -3402,12 +3406,14 @@ static const struct wacom_features wacom_features_0xF6 =
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0xf8, .touch_max = 10,
 	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x32A =
-	{ "Wacom Cintiq 27QHD", 119740, 67520, 2047, 63,
+	{ "Wacom Cintiq 27QHD", 120140, 67920, 2047, 63,
 	  WACOM_27QHD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
 static const struct wacom_features wacom_features_0x32B =
-	{ "Wacom Cintiq 27QHD touch", 119740, 67520, 2047, 63,
+	{ "Wacom Cintiq 27QHD touch", 120140, 67920, 2047, 63,
 	  WACOM_27QHD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 0,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x32C };
 static const struct wacom_features wacom_features_0x32C =
@@ -3423,12 +3429,14 @@ static const struct wacom_features wacom_features_0xC6 =
 	{ "Wacom Cintiq 12WX", 53020, 33440, 1023, 63,
 	  WACOM_BEE, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 10 };
 static const struct wacom_features wacom_features_0x304 =
-	{ "Wacom Cintiq 13HD", 59152, 33448, 1023, 63,
+	{ "Wacom Cintiq 13HD", 59552, 33848, 1023, 63,
 	  WACOM_13HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
 static const struct wacom_features wacom_features_0x333 =
-	{ "Wacom Cintiq 13HD touch", 59152, 33448, 2047, 63,
+	{ "Wacom Cintiq 13HD touch", 59552, 33848, 2047, 63,
 	  WACOM_13HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x335 };
 static const struct wacom_features wacom_features_0x335 =
@@ -3446,24 +3454,29 @@ static const struct wacom_features wacom_features_0xF0 =
 	{ "Wacom DTU1631", 34623, 19553, 511, 0,
 	  DTU, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xFB =
-	{ "Wacom DTU1031", 21896, 13760, 511, 0,
+	{ "Wacom DTU1031", 22096, 13960, 511, 0,
 	  DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x32F =
-	{ "Wacom DTU1031X", 22472, 12728, 511, 0,
+	{ "Wacom DTU1031X", 22672, 12928, 511, 0,
 	  DTUSX, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 0,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x336 =
-	{ "Wacom DTU1141", 23472, 13203, 1023, 0,
+	{ "Wacom DTU1141", 23672, 13403, 1023, 0,
 	  DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 static const struct wacom_features wacom_features_0x57 =
-	{ "Wacom DTK2241", 95640, 54060, 2047, 63,
+	{ "Wacom DTK2241", 95840, 54260, 2047, 63,
 	  DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 6,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
 static const struct wacom_features wacom_features_0x59 = /* Pen */
-	{ "Wacom DTH2242", 95640, 54060, 2047, 63,
+	{ "Wacom DTH2242", 95840, 54260, 2047, 63,
 	  DTK, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 6,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5D };
 static const struct wacom_features wacom_features_0x5D = /* Touch */
@@ -3471,16 +3484,19 @@ static const struct wacom_features wacom_features_0x5D = /* Touch */
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x59, .touch_max = 10,
 	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0xCC =
-	{ "Wacom Cintiq 21UX2", 86800, 65200, 2047, 63,
+	{ "Wacom Cintiq 21UX2", 87200, 65600, 2047, 63,
 	  WACOM_21UX2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 18,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
 static const struct wacom_features wacom_features_0xFA =
-	{ "Wacom Cintiq 22HD", 95440, 53860, 2047, 63,
+	{ "Wacom Cintiq 22HD", 95840, 54260, 2047, 63,
 	  WACOM_22HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 18,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET };
 static const struct wacom_features wacom_features_0x5B =
-	{ "Wacom Cintiq 22HDT", 95440, 53860, 2047, 63,
+	{ "Wacom Cintiq 22HDT", 95840, 54260, 2047, 63,
 	  WACOM_22HD, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 18,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x5e };
 static const struct wacom_features wacom_features_0x5E =
@@ -3625,8 +3641,9 @@ static const struct wacom_features wacom_features_0x6004 =
 	{ "ISD-V4", 12800, 8000, 255, 0,
 	  TABLETPC, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0x307 =
-	{ "Wacom ISDv5 307", 59152, 33448, 2047, 63,
+	{ "Wacom ISDv5 307", 59552, 33848, 2047, 63,
 	  CINTIQ_HYBRID, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x309 };
 static const struct wacom_features wacom_features_0x309 =
@@ -3634,8 +3651,9 @@ static const struct wacom_features wacom_features_0x309 =
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x0307, .touch_max = 10,
 	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x30A =
-	{ "Wacom ISDv5 30A", 59152, 33448, 2047, 63,
+	{ "Wacom ISDv5 30A", 59552, 33848, 2047, 63,
 	  CINTIQ_HYBRID, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x30C };
 static const struct wacom_features wacom_features_0x30C =
@@ -3651,6 +3669,7 @@ static const struct wacom_features wacom_features_0x319 =
 static const struct wacom_features wacom_features_0x325 =
 	{ "Wacom ISDv5 325", 59552, 33848, 2047, 63,
 	  CINTIQ_COMPANION_2, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 11,
+	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  WACOM_CINTIQ_OFFSET, WACOM_CINTIQ_OFFSET,
 	  .oVid = USB_VENDOR_ID_WACOM, .oPid = 0x326 };
 static const struct wacom_features wacom_features_0x326 = /* Touch */
@@ -3681,8 +3700,9 @@ static const struct wacom_features wacom_features_0x33E =
 	  INTUOSHT2, WACOM_INTUOS_RES, WACOM_INTUOS_RES, .touch_max = 16,
 	  .check_for_hid_type = true, .hid_type = HID_TYPE_USBNONE };
 static const struct wacom_features wacom_features_0x343 =
-	{ "Wacom DTK1651", 34616, 19559, 1023, 0,
+	{ "Wacom DTK1651", 34816, 19759, 1023, 0,
 	  DTUS, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4,
+	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET,
 	  WACOM_DTU_OFFSET, WACOM_DTU_OFFSET };
 
 static const struct wacom_features wacom_features_HID_ANY_ID =

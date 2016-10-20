@@ -181,8 +181,10 @@ struct wacom_features {
 	int x_resolution;
 	int y_resolution;
 	int numbered_buttons;
-	int x_min;
-	int y_min;
+	int offset_left;
+	int offset_right;
+	int offset_top;
+	int offset_bottom;
 	int device_type;
 	int x_phy;
 	int y_phy;
