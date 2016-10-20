@@ -240,6 +240,30 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 			features->touch_max = 1;
 	}
 
+	/*
+	 * ISDv4 devices which predate HID's adoption of the
+	 * HID_DG_BARELSWITCH2 usage use 0x000D0000 in its
+	 * position instead. We can accurately detect if a
+	 * usage with that value should be HID_DG_BARRELSWITCH2
+	 * based on the surrounding usages, which have remained
+	 * constant across generations.
+	 */
+	if (features->type == HID_GENERIC &&
+	    usage->hid == 0x000D0000 &&
+	    field->application == HID_DG_PEN &&
+	    field->physical == HID_DG_STYLUS) {
+		int i = usage->usage_index;
+
+		if (i-4 >= 0 && i+1 < field->maxusage &&
+		    field->usage[i-4].hid == HID_DG_TIPSWITCH &&
+		    field->usage[i-3].hid == HID_DG_BARRELSWITCH &&
+		    field->usage[i-2].hid == HID_DG_ERASER &&
+		    field->usage[i-1].hid == HID_DG_INVERT &&
+		    field->usage[i+1].hid == HID_DG_INRANGE) {
+			usage->hid = HID_DG_BARRELSWITCH2;
+		}
+	}
+
 	switch (usage->hid) {
 	case HID_GD_X:
 		features->x_max = field->logical_maximum;
