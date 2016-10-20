@@ -296,6 +296,20 @@ void rproc_free_vring(struct rproc_vring *rvring)
 	rsc->vring[idx].notifyid = -1;
 }
 
+static int rproc_vdev_do_probe(struct rproc_subdev *subdev)
+{
+	struct rproc_vdev *rvdev = container_of(subdev, struct rproc_vdev, subdev);
+
+	return rproc_add_virtio_dev(rvdev, rvdev->id);
+}
+
+static void rproc_vdev_do_remove(struct rproc_subdev *subdev)
+{
+	struct rproc_vdev *rvdev = container_of(subdev, struct rproc_vdev, subdev);
+
+	rproc_remove_virtio_dev(rvdev);
+}
+
 /**
  * rproc_handle_vdev() - handle a vdev fw resource
  * @rproc: the remote processor
@@ -358,6 +372,7 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 
 	kref_init(&rvdev->refcount);
 
+	rvdev->id = rsc->id;
 	rvdev->rproc = rproc;
 
 	/* parse the vrings */
@@ -382,18 +397,14 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 
 	list_add_tail(&rvdev->node, &rproc->rvdevs);
 
-	/* it is now safe to add the virtio device */
-	ret = rproc_add_virtio_dev(rvdev, rsc->id);
-	if (ret)
-		goto remove_rvdev;
+	rproc_add_subdev(rproc, &rvdev->subdev,
+			 rproc_vdev_do_probe, rproc_vdev_do_remove);
 
 	return 0;
 
 unwind_vring_allocations:
 	for (i--; i >= 0; i--)
 		rproc_free_vring(&rvdev->vring[i]);
-remove_rvdev:
-	list_del(&rvdev->node);
 free_rvdev:
 	kfree(rvdev);
 	return ret;
@@ -403,6 +414,7 @@ void rproc_vdev_release(struct kref *ref)
 {
 	struct rproc_vdev *rvdev = container_of(ref, struct rproc_vdev, refcount);
 	struct rproc_vring *rvring;
+	struct rproc *rproc = rvdev->rproc;
 	int id;
 
 	for (id = 0; id < ARRAY_SIZE(rvdev->vring); id++) {
@@ -413,6 +425,7 @@ void rproc_vdev_release(struct kref *ref)
 		rproc_free_vring(rvring);
 	}
 
+	rproc_remove_subdev(rproc, &rvdev->subdev);
 	list_del(&rvdev->node);
 	kfree(rvdev);
 }
@@ -842,10 +855,8 @@ static void rproc_resource_cleanup(struct rproc *rproc)
 	}
 
 	/* clean up remote vdev entries */
-	list_for_each_entry_safe(rvdev, rvtmp, &rproc->rvdevs, node) {
-		rproc_remove_virtio_dev(rvdev);
+	list_for_each_entry_safe(rvdev, rvtmp, &rproc->rvdevs, node)
 		kref_put(&rvdev->refcount, rproc_vdev_release);
-	}
 }
 
 /*
@@ -1507,8 +1518,6 @@ EXPORT_SYMBOL(rproc_put);
  */
 int rproc_del(struct rproc *rproc)
 {
-	struct rproc_vdev *rvdev, *tmp;
-
 	if (!rproc)
 		return -EINVAL;
 
@@ -1519,10 +1528,6 @@ int rproc_del(struct rproc *rproc)
 	/* TODO: make sure this works with rproc->power > 1 */
 	if (rproc->auto_boot)
 		rproc_shutdown(rproc);
-
-	/* clean up remote vdev entries */
-	list_for_each_entry_safe(rvdev, tmp, &rproc->rvdevs, node)
-		rproc_remove_virtio_dev(rvdev);
 
 	/* the rproc is downref'ed as soon as it's removed from the klist */
 	mutex_lock(&rproc_list_mutex);
