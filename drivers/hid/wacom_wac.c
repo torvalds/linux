@@ -1525,6 +1525,10 @@ static void wacom_wac_pad_usage_mapping(struct hid_device *hdev,
 	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 
 	switch (equivalent_usage) {
+	case WACOM_HID_WD_BATTERY_LEVEL:
+	case WACOM_HID_WD_BATTERY_CHARGING:
+		features->quirks |= WACOM_QUIRK_BATTERY;
+		break;
 	case WACOM_HID_WD_ACCELEROMETER_X:
 		__set_bit(INPUT_PROP_ACCELEROMETER, input->propbit);
 		wacom_map_usage(input, usage, field, EV_ABS, ABS_X, 0);
@@ -1574,8 +1578,25 @@ static int wacom_wac_pad_event(struct hid_device *hdev, struct hid_field *field,
 		wacom_wac->hid_data.inrange_state |= value;
 	}
 
-	if (equivalent_usage != WACOM_HID_WD_TOUCHRINGSTATUS)
+	switch (equivalent_usage) {
+	case WACOM_HID_WD_BATTERY_LEVEL:
+		wacom_wac->hid_data.battery_capacity = value;
+		wacom_wac->hid_data.bat_connected = 1;
+		return 0;
+
+	case WACOM_HID_WD_BATTERY_CHARGING:
+		wacom_wac->hid_data.bat_charging = value;
+		wacom_wac->hid_data.ps_connected = value;
+		wacom_wac->hid_data.bat_connected = 1;
+		return 0;
+
+	case WACOM_HID_WD_TOUCHRINGSTATUS:
+		return 0;
+
+	default:
 		input_event(input, usage->type, usage->code, value);
+		break;
+	}
 
 	return 0;
 }
@@ -1594,6 +1615,7 @@ static void wacom_wac_pad_report(struct hid_device *hdev,
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+	struct wacom_features *features = &wacom_wac->features;
 	struct input_dev *input = wacom_wac->pad_input;
 	bool active = wacom_wac->hid_data.inrange_state != 0;
 
@@ -1603,6 +1625,16 @@ static void wacom_wac_pad_report(struct hid_device *hdev,
 	 */
 	if (wacom_equivalent_usage(report->field[0]->physical) == HID_DG_TABLETFUNCTIONKEY)
 		input_event(input, EV_ABS, ABS_MISC, active ? PAD_DEVICE_ID : 0);
+
+	if (features->quirks & WACOM_QUIRK_BATTERY) {
+		int capacity = wacom_wac->hid_data.battery_capacity;
+		bool charging = wacom_wac->hid_data.bat_charging;
+		bool connected = wacom_wac->hid_data.bat_connected;
+		bool powered = wacom_wac->hid_data.ps_connected;
+
+		wacom_notify_battery(wacom_wac, capacity, charging,
+				     connected, powered);
+	}
 
 	input_sync(input);
 }
@@ -1632,6 +1664,9 @@ static void wacom_wac_pen_usage_mapping(struct hid_device *hdev,
 		break;
 	case HID_DG_INRANGE:
 		wacom_map_usage(input, usage, field, EV_KEY, BTN_TOOL_PEN, 0);
+		break;
+	case HID_DG_BATTERYSTRENGTH:
+		features->quirks |= WACOM_QUIRK_BATTERY;
 		break;
 	case HID_DG_INVERT:
 		wacom_map_usage(input, usage, field, EV_KEY,
@@ -1703,6 +1738,10 @@ static int wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field,
 		if (!(features->quirks & WACOM_QUIRK_SENSE))
 			wacom_wac->hid_data.sense_state = value;
 		return 0;
+	case HID_DG_BATTERYSTRENGTH:
+		wacom_wac->hid_data.battery_capacity = value;
+		wacom_wac->hid_data.bat_connected = 1;
+		break;
 	case HID_DG_INVERT:
 		wacom_wac->hid_data.invert_state = value;
 		return 0;
