@@ -670,6 +670,13 @@ static const struct v4l2_subdev_ops msp_ops = {
 
 /* ----------------------------------------------------------------------- */
 
+
+static const char * const opmode_str[] = {
+	[OPMODE_MANUAL] = "manual",
+	[OPMODE_AUTODETECT] = "autodetect",
+	[OPMODE_AUTOSELECT] = "autodetect and autoselect",
+};
+
 static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct msp_state *state;
@@ -791,7 +798,8 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		msp_family == 3 && msp_revision == 'G' && msp_prod_hi == 3;
 
 	state->opmode = opmode;
-	if (state->opmode == OPMODE_AUTO) {
+	if (state->opmode < OPMODE_MANUAL
+	    || state->opmode > OPMODE_AUTOSELECT) {
 		/* MSP revision G and up have both autodetect and autoselect */
 		if (msp_revision >= 'G')
 			state->opmode = OPMODE_AUTOSELECT;
@@ -829,36 +837,28 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	v4l2_ctrl_cluster(2, &state->volume);
 	v4l2_ctrl_handler_setup(hdl);
 
-	/* hello world :-) */
-	v4l_info(client, "MSP%d4%02d%c-%c%d found @ 0x%x (%s)\n",
-			msp_family, msp_product,
-			msp_revision, msp_hard, msp_rom,
-			client->addr << 1, client->adapter->name);
-	v4l_info(client, "%s ", client->name);
-	if (state->has_nicam && state->has_radio)
-		printk(KERN_CONT "supports nicam and radio, ");
-	else if (state->has_nicam)
-		printk(KERN_CONT "supports nicam, ");
-	else if (state->has_radio)
-		printk(KERN_CONT "supports radio, ");
-	printk(KERN_CONT "mode is ");
+	dev_info(&client->dev,
+		 "MSP%d4%02d%c-%c%d found on %s: supports %s%s%s, mode is %s\n",
+		 msp_family, msp_product,
+		 msp_revision, msp_hard, msp_rom,
+		 client->adapter->name,
+		 (state->has_nicam) ? "nicam" : "",
+		 (state->has_nicam && state->has_radio) ? " and " : "",
+		 (state->has_radio) ? "radio" : "",
+		 opmode_str[state->opmode]);
 
 	/* version-specific initialization */
 	switch (state->opmode) {
 	case OPMODE_MANUAL:
-		printk(KERN_CONT "manual");
 		thread_func = msp3400c_thread;
 		break;
 	case OPMODE_AUTODETECT:
-		printk(KERN_CONT "autodetect");
 		thread_func = msp3410d_thread;
 		break;
 	case OPMODE_AUTOSELECT:
-		printk(KERN_CONT "autodetect and autoselect");
 		thread_func = msp34xxg_thread;
 		break;
 	}
-	printk(KERN_CONT "\n");
 
 	/* startup control thread if needed */
 	if (thread_func) {
