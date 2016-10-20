@@ -357,6 +357,7 @@ static const struct of_device_id mbox_test_match[] = {
 	{ .compatible = "mailbox-test" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mbox_test_match);
 
 static struct platform_driver mbox_test_driver = {
 	.driver = {
