@@ -79,7 +79,7 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 	struct rproc_vring *rvring;
 	struct virtqueue *vq;
 	void *addr;
-	int len, size, ret;
+	int len, size;
 
 	/* we're temporarily limited to two virtqueues per rvdev */
 	if (id >= ARRAY_SIZE(rvdev->vring))
@@ -87,10 +87,6 @@ static struct virtqueue *rp_find_vq(struct virtio_device *vdev,
 
 	if (!name)
 		return NULL;
-
-	ret = rproc_alloc_vring(rvdev, id);
-	if (ret)
-		return ERR_PTR(ret);
 
 	rvring = &rvdev->vring[id];
 	addr = rvring->va;
@@ -130,7 +126,6 @@ static void __rproc_virtio_del_vqs(struct virtio_device *vdev)
 		rvring = vq->priv;
 		rvring->vq = NULL;
 		vring_del_virtqueue(vq);
-		rproc_free_vring(rvring);
 	}
 }
 
