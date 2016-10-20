@@ -348,7 +348,7 @@ int main(int argc, char **argv)
 	int noevents = 0;
 	int notrigger = 0;
 	char *dummy;
-	int force = 0;
+	bool force_autochannels = false;
 
 	struct iio_channel_info *channels = NULL;
 
@@ -362,7 +362,7 @@ int main(int argc, char **argv)
 			break;
 		case 'A':
 			autochannels = AUTOCHANNELS_ENABLED;
-			force = 1;
+			force_autochannels = true;
 			break;	
 		case 'c':
 			errno = 0;
@@ -526,14 +526,15 @@ int main(int argc, char **argv)
 			"diag %s\n", dev_dir_name);
 		goto error;
 	}
-	if ((num_channels && autochannels == AUTOCHANNELS_ENABLED) && !force) {
+	if ((num_channels && autochannels == AUTOCHANNELS_ENABLED) &&
+	    !force_autochannels) {
 		fprintf(stderr, "Auto-channels selected but some channels "
 			"are already activated in sysfs\n");
 		fprintf(stderr, "Proceeding without activating any channels\n");
 	}
 
 	if ((!num_channels && autochannels == AUTOCHANNELS_ENABLED) ||
-	    ((autochannels == AUTOCHANNELS_ENABLED) && force)) {
+	    ((autochannels == AUTOCHANNELS_ENABLED) && force_autochannels)) {
 		fprintf(stderr, "Enabling all channels\n");
 
 		ret = enable_disable_all_channels(dev_dir_name, 1);
