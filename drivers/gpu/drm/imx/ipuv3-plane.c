@@ -366,9 +366,13 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	struct drm_plane_state *state = plane->state;
 	struct drm_crtc_state *crtc_state = state->crtc->state;
 	struct drm_framebuffer *fb = state->fb;
+	struct drm_rect *dst = &state->dst;
 	unsigned long eba, ubo, vbo;
 	enum ipu_color_space ics;
 	int active;
+
+	if (ipu_plane->dp_flow == IPU_DP_FLOW_SYNC_FG)
+		ipu_dp_set_window_pos(ipu_plane->dp, dst->x1, dst->y1);
 
 	eba = drm_plane_state_to_eba(state);
 
@@ -390,8 +394,6 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		ics = ipu_drm_fourcc_to_colorspace(state->fb->format->format);
 		ipu_dp_setup_channel(ipu_plane->dp, ics,
 					IPUV3_COLORSPACE_UNKNOWN);
-		ipu_dp_set_window_pos(ipu_plane->dp,
-				      state->dst.x1, state->dst.y1);
 		/* Enable local alpha on partial plane */
 		switch (state->fb->format->format) {
 		case DRM_FORMAT_ARGB1555:
@@ -411,7 +413,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 		}
 	}
 
-	ipu_dmfc_config_wait4eot(ipu_plane->dmfc, drm_rect_width(&state->dst));
+	ipu_dmfc_config_wait4eot(ipu_plane->dmfc, drm_rect_width(dst));
 
 	ipu_cpmem_zero(ipu_plane->ipu_ch);
 	ipu_cpmem_set_resolution(ipu_plane->ipu_ch,
