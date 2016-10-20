@@ -220,17 +220,6 @@ static void deinit_irq(struct net_device *dev)
 	}
 }
 
-int wilc_lock_timeout(struct wilc *nic, void *vp, u32 timeout)
-{
-	/* FIXME: replace with mutex_lock or wait_for_completion */
-	int error = -1;
-
-	if (vp)
-		error = down_timeout(vp,
-				     msecs_to_jiffies(timeout));
-	return error;
-}
-
 void wilc_mac_indicate(struct wilc *wilc, int flag)
 {
 	int status;
