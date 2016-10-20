@@ -45,7 +45,6 @@ Required CPU/CODEC subnodes properties:
 
 -link-name		: Name of the dai link.
 -sound-dai		: phandle and port of CPU/CODEC
--capture-dai		: phandle and port of CPU/CODEC
 
 Example:
 
