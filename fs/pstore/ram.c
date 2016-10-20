@@ -182,16 +182,69 @@ static bool prz_ok(struct persistent_ram_zone *prz)
 			   persistent_ram_ecc_string(prz, NULL, 0));
 }
 
+static ssize_t ftrace_log_combine(struct persistent_ram_zone *dest,
+				  struct persistent_ram_zone *src)
+{
+	size_t dest_size, src_size, total, dest_off, src_off;
+	size_t dest_idx = 0, src_idx = 0, merged_idx = 0;
+	void *merged_buf;
+	struct pstore_ftrace_record *drec, *srec, *mrec;
+	size_t record_size = sizeof(struct pstore_ftrace_record);
+
+	dest_off = dest->old_log_size % record_size;
+	dest_size = dest->old_log_size - dest_off;
+
+	src_off = src->old_log_size % record_size;
+	src_size = src->old_log_size - src_off;
+
+	total = dest_size + src_size;
+	merged_buf = kmalloc(total, GFP_KERNEL);
+	if (!merged_buf)
+		return -ENOMEM;
+
+	drec = (struct pstore_ftrace_record *)(dest->old_log + dest_off);
+	srec = (struct pstore_ftrace_record *)(src->old_log + src_off);
+	mrec = (struct pstore_ftrace_record *)(merged_buf);
+
+	while (dest_size > 0 && src_size > 0) {
+		if (pstore_ftrace_read_timestamp(&drec[dest_idx]) <
+		    pstore_ftrace_read_timestamp(&srec[src_idx])) {
+			mrec[merged_idx++] = drec[dest_idx++];
+			dest_size -= record_size;
+		} else {
+			mrec[merged_idx++] = srec[src_idx++];
+			src_size -= record_size;
+		}
+	}
+
+	while (dest_size > 0) {
+		mrec[merged_idx++] = drec[dest_idx++];
+		dest_size -= record_size;
+	}
+
+	while (src_size > 0) {
+		mrec[merged_idx++] = srec[src_idx++];
+		src_size -= record_size;
+	}
+
+	kfree(dest->old_log);
+	dest->old_log = merged_buf;
+	dest->old_log_size = total;
+
+	return 0;
+}
+
 static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 				   int *count, struct timespec *time,
 				   char **buf, bool *compressed,
 				   ssize_t *ecc_notice_size,
 				   struct pstore_info *psi)
 {
-	ssize_t size;
+	ssize_t size = 0;
 	struct ramoops_context *cxt = psi->data;
 	struct persistent_ram_zone *prz = NULL;
 	int header_length = 0;
+	bool free_prz = false;
 
 	/* Ramoops headers provide time stamps for PSTORE_TYPE_DMESG, but
 	 * PSTORE_TYPE_CONSOLE and PSTORE_TYPE_FTRACE don't currently have
@@ -221,22 +274,56 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 	if (!prz_ok(prz))
 		prz = ramoops_get_next_prz(&cxt->cprz, &cxt->console_read_cnt,
 					   1, id, type, PSTORE_TYPE_CONSOLE, 0);
-	if (!prz_ok(prz)) {
-		while (cxt->ftrace_read_cnt < cxt->max_ftrace_cnt && !prz) {
-			prz = ramoops_get_next_prz(cxt->fprzs,
-					&cxt->ftrace_read_cnt,
-					cxt->max_ftrace_cnt, id, type,
-					PSTORE_TYPE_FTRACE, 0);
-			if (!prz_ok(prz))
-				continue;
-		}
-	}
 
 	if (!prz_ok(prz))
 		prz = ramoops_get_next_prz(&cxt->mprz, &cxt->pmsg_read_cnt,
 					   1, id, type, PSTORE_TYPE_PMSG, 0);
-	if (!prz_ok(prz))
-		return 0;
+
+	/* ftrace is last since it may want to dynamically allocate memory. */
+	if (!prz_ok(prz)) {
+		if (!(cxt->flags & RAMOOPS_FLAG_FTRACE_PER_CPU)) {
+			prz = ramoops_get_next_prz(cxt->fprzs,
+					&cxt->ftrace_read_cnt, 1, id, type,
+					PSTORE_TYPE_FTRACE, 0);
+		} else {
+			/*
+			 * Build a new dummy record which combines all the
+			 * per-cpu records including metadata and ecc info.
+			 */
+			struct persistent_ram_zone *tmp_prz, *prz_next;
+
+			tmp_prz = kzalloc(sizeof(struct persistent_ram_zone),
+					  GFP_KERNEL);
+			if (!tmp_prz)
+				return -ENOMEM;
+			free_prz = true;
+
+			while (cxt->ftrace_read_cnt < cxt->max_ftrace_cnt) {
+				prz_next = ramoops_get_next_prz(cxt->fprzs,
+						&cxt->ftrace_read_cnt,
+						cxt->max_ftrace_cnt, id,
+						type, PSTORE_TYPE_FTRACE, 0);
+
+				if (!prz_ok(prz_next))
+					continue;
+
+				tmp_prz->ecc_info = prz_next->ecc_info;
+				tmp_prz->corrected_bytes +=
+						prz_next->corrected_bytes;
+				tmp_prz->bad_blocks += prz_next->bad_blocks;
+				size = ftrace_log_combine(tmp_prz, prz_next);
+				if (size)
+					goto out;
+			}
+			*id = 0;
+			prz = tmp_prz;
+		}
+	}
+
+	if (!prz_ok(prz)) {
+		size = 0;
+		goto out;
+	}
 
 	size = persistent_ram_old_size(prz) - header_length;
 
@@ -244,11 +331,20 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 	*ecc_notice_size = persistent_ram_ecc_string(prz, NULL, 0);
 
 	*buf = kmalloc(size + *ecc_notice_size + 1, GFP_KERNEL);
-	if (*buf == NULL)
-		return -ENOMEM;
+	if (*buf == NULL) {
+		size = -ENOMEM;
+		goto out;
+	}
 
 	memcpy(*buf, (char *)persistent_ram_old(prz) + header_length, size);
+
 	persistent_ram_ecc_string(prz, *buf + size, *ecc_notice_size + 1);
+
+out:
+	if (free_prz) {
+		kfree(prz->old_log);
+		kfree(prz);
+	}
 
 	return size;
 }
