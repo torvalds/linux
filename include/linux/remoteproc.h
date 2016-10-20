@@ -400,6 +400,7 @@ enum rproc_crash_type {
  * @firmware_loading_complete: marks e/o asynchronous firmware loading
  * @bootaddr: address of first instruction to boot rproc with (optional)
  * @rvdevs: list of remote virtio devices
+ * @subdevs: list of subdevices, to following the running state
  * @notifyids: idr for dynamically assigning rproc-wide unique notify ids
  * @index: index of this rproc device
  * @crash_handler: workqueue for handling a crash
@@ -431,6 +432,7 @@ struct rproc {
 	struct completion firmware_loading_complete;
 	u32 bootaddr;
 	struct list_head rvdevs;
+	struct list_head subdevs;
 	struct idr notifyids;
 	int index;
 	struct work_struct crash_handler;
@@ -442,6 +444,19 @@ struct rproc {
 	struct resource_table *cached_table;
 	bool has_iommu;
 	bool auto_boot;
+};
+
+/**
+ * struct rproc_subdev - subdevice tied to a remoteproc
+ * @node: list node related to the rproc subdevs list
+ * @probe: probe function, called as the rproc is started
+ * @remove: remove function, called as the rproc is stopped
+ */
+struct rproc_subdev {
+	struct list_head node;
+
+	int (*probe)(struct rproc_subdev *subdev);
+	void (*remove)(struct rproc_subdev *subdev);
 };
 
 /* we currently support only two vrings per rvdev */
@@ -510,5 +525,12 @@ static inline struct rproc *vdev_to_rproc(struct virtio_device *vdev)
 
 	return rvdev->rproc;
 }
+
+void rproc_add_subdev(struct rproc *rproc,
+		      struct rproc_subdev *subdev,
+		      int (*probe)(struct rproc_subdev *subdev),
+		      void (*remove)(struct rproc_subdev *subdev));
+
+void rproc_remove_subdev(struct rproc *rproc, struct rproc_subdev *subdev);
 
 #endif /* REMOTEPROC_H */
