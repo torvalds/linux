@@ -864,6 +864,8 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	}
 	sdata->needed_rx_chains = sdata->local->rx_chains;
 
+	sdata->vif.bss_conf.beacon_int = params->beacon_interval;
+
 	mutex_lock(&local->mtx);
 	err = ieee80211_vif_use_channel(sdata, &params->chandef,
 					IEEE80211_CHANCTX_SHARED);
@@ -894,7 +896,6 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 					      vlan->vif.type);
 	}
 
-	sdata->vif.bss_conf.beacon_int = params->beacon_interval;
 	sdata->vif.bss_conf.dtim_period = params->dtim_period;
 	sdata->vif.bss_conf.enable_beacon = true;
 	sdata->vif.bss_conf.allow_p2p_go_ps = sdata->vif.p2p;

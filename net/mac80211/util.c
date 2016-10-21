@@ -3326,6 +3326,16 @@ int ieee80211_check_combinations(struct ieee80211_sub_if_data *sdata,
 	if (WARN_ON(iftype >= NUM_NL80211_IFTYPES))
 		return -EINVAL;
 
+	if (sdata->vif.type == NL80211_IFTYPE_AP ||
+	    sdata->vif.type == NL80211_IFTYPE_MESH_POINT) {
+		/*
+		 * always passing this is harmless, since it'll be the
+		 * same value that cfg80211 finds if it finds the same
+		 * interface ... and that's always allowed
+		 */
+		params.new_beacon_int = sdata->vif.bss_conf.beacon_int;
+	}
+
 	/* Always allow software iftypes */
 	if (local->hw.wiphy->software_iftypes & BIT(iftype)) {
 		if (radar_detect)
