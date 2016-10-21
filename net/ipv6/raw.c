@@ -65,11 +65,12 @@
 
 #define	ICMPV6_HDRLEN	4	/* ICMPv6 header, RFC 4443 Section 2.1 */
 
-static struct raw_hashinfo raw_v6_hashinfo = {
+struct raw_hashinfo raw_v6_hashinfo = {
 	.lock = __RW_LOCK_UNLOCKED(raw_v6_hashinfo.lock),
 };
+EXPORT_SYMBOL_GPL(raw_v6_hashinfo);
 
-static struct sock *__raw_v6_lookup(struct net *net, struct sock *sk,
+struct sock *__raw_v6_lookup(struct net *net, struct sock *sk,
 		unsigned short num, const struct in6_addr *loc_addr,
 		const struct in6_addr *rmt_addr, int dif)
 {
@@ -102,6 +103,7 @@ static struct sock *__raw_v6_lookup(struct net *net, struct sock *sk,
 found:
 	return sk;
 }
+EXPORT_SYMBOL_GPL(__raw_v6_lookup);
 
 /*
  *	0 - deliver
@@ -1259,6 +1261,7 @@ struct proto rawv6_prot = {
 	.compat_getsockopt = compat_rawv6_getsockopt,
 	.compat_ioctl	   = compat_rawv6_ioctl,
 #endif
+	.diag_destroy	   = raw_abort,
 };
 
 #ifdef CONFIG_PROC_FS

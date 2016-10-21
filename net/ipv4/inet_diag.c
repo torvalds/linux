@@ -200,6 +200,15 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		if (sock_diag_put_meminfo(sk, skb, INET_DIAG_SKMEMINFO))
 			goto errout;
 
+	/*
+	 * RAW sockets might have user-defined protocols assigned,
+	 * so report the one supplied on socket creation.
+	 */
+	if (sk->sk_type == SOCK_RAW) {
+		if (nla_put_u8(skb, INET_DIAG_PROTOCOL, sk->sk_protocol))
+			goto errout;
+	}
+
 	if (!icsk) {
 		handler->idiag_get_info(sk, r, NULL);
 		goto out;
