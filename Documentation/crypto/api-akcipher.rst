@@ -25,21 +25,6 @@ Asymmetric Cipher API
 .. kernel-doc:: include/crypto/akcipher.h
    :functions: crypto_akcipher_set_priv_key
 
-Asymmetric Cipher Request Handle
---------------------------------
-
-.. kernel-doc:: include/crypto/akcipher.h
-   :functions: akcipher_request_alloc
-
-.. kernel-doc:: include/crypto/akcipher.h
-   :functions: akcipher_request_free
-
-.. kernel-doc:: include/crypto/akcipher.h
-   :functions: akcipher_request_set_callback
-
-.. kernel-doc:: include/crypto/akcipher.h
-   :functions: akcipher_request_set_crypt
-
 .. kernel-doc:: include/crypto/akcipher.h
    :functions: crypto_akcipher_maxsize
 
@@ -54,3 +39,18 @@ Asymmetric Cipher Request Handle
 
 .. kernel-doc:: include/crypto/akcipher.h
    :functions: crypto_akcipher_verify
+
+Asymmetric Cipher Request Handle
+--------------------------------
+
+.. kernel-doc:: include/crypto/akcipher.h
+   :functions: akcipher_request_alloc
+
+.. kernel-doc:: include/crypto/akcipher.h
+   :functions: akcipher_request_free
+
+.. kernel-doc:: include/crypto/akcipher.h
+   :functions: akcipher_request_set_callback
+
+.. kernel-doc:: include/crypto/akcipher.h
+   :functions: akcipher_request_set_crypt
