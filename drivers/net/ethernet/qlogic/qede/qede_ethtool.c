@@ -756,6 +756,8 @@ static void qede_get_channels(struct net_device *dev,
 	struct qede_dev *edev = netdev_priv(dev);
 
 	channels->max_combined = QEDE_MAX_RSS_CNT(edev);
+	channels->max_rx = QEDE_MAX_RSS_CNT(edev);
+	channels->max_tx = QEDE_MAX_RSS_CNT(edev);
 	channels->combined_count = QEDE_QUEUE_CNT(edev) - edev->fp_num_tx -
 					edev->fp_num_rx;
 	channels->tx_count = edev->fp_num_tx;
