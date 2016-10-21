@@ -379,7 +379,14 @@ struct net *copy_net_ns(unsigned long flags,
 
 	get_user_ns(user_ns);
 
-	mutex_lock(&net_mutex);
+	rv = mutex_lock_killable(&net_mutex);
+	if (rv < 0) {
+		net_free(net);
+		dec_net_namespaces(ucounts);
+		put_user_ns(user_ns);
+		return ERR_PTR(rv);
+	}
+
 	net->ucounts = ucounts;
 	rv = setup_net(net, user_ns);
 	if (rv == 0) {
