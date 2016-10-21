@@ -418,12 +418,24 @@ static int hidma_ll_reset(struct hidma_lldev *lldev)
  * requests traditionally to the destination, this concept does not apply
  * here for this HW.
  */
-irqreturn_t hidma_ll_inthandler(int chirq, void *arg)
+static void hidma_ll_int_handler_internal(struct hidma_lldev *lldev, int cause)
 {
-	struct hidma_lldev *lldev = arg;
-	u32 status;
-	u32 enable;
-	u32 cause;
+	if (cause & HIDMA_ERR_INT_MASK) {
+		dev_err(lldev->dev, "error 0x%x, disabling...\n",
+				cause);
+
+		/* Clear out pending interrupts */
+		writel(cause, lldev->evca + HIDMA_EVCA_IRQ_CLR_REG);
+
+		/* No further submissions. */
+		hidma_ll_disable(lldev);
+
+		/* Driver completes the txn and intimates the client.*/
+		hidma_cleanup_pending_tre(lldev, 0xFF,
+					  HIDMA_EVRE_STATUS_ERROR);
+
+		return;
+	}
 
 	/*
 	 * Fine tuned for this HW...
@@ -432,35 +444,28 @@ irqreturn_t hidma_ll_inthandler(int chirq, void *arg)
 	 * read and write accessors are used for performance reasons due to
 	 * interrupt delivery guarantees. Do not copy this code blindly and
 	 * expect that to work.
+	 *
+	 * Try to consume as many EVREs as possible.
 	 */
+	hidma_handle_tre_completion(lldev);
+
+	/* We consumed TREs or there are pending TREs or EVREs. */
+	writel_relaxed(cause, lldev->evca + HIDMA_EVCA_IRQ_CLR_REG);
+}
+
+irqreturn_t hidma_ll_inthandler(int chirq, void *arg)
+{
+	struct hidma_lldev *lldev = arg;
+	u32 status;
+	u32 enable;
+	u32 cause;
+
 	status = readl_relaxed(lldev->evca + HIDMA_EVCA_IRQ_STAT_REG);
 	enable = readl_relaxed(lldev->evca + HIDMA_EVCA_IRQ_EN_REG);
 	cause = status & enable;
 
 	while (cause) {
-		if (cause & HIDMA_ERR_INT_MASK) {
-			dev_err(lldev->dev, "error 0x%x, disabling...\n",
-					cause);
-
-			/* Clear out pending interrupts */
-			writel(cause, lldev->evca + HIDMA_EVCA_IRQ_CLR_REG);
-
-			/* No further submissions. */
-			hidma_ll_disable(lldev);
-
-			/* Driver completes the txn and intimates the client.*/
-			hidma_cleanup_pending_tre(lldev, 0xFF,
-						  HIDMA_EVRE_STATUS_ERROR);
-			goto out;
-		}
-
-		/*
-		 * Try to consume as many EVREs as possible.
-		 */
-		hidma_handle_tre_completion(lldev);
-
-		/* We consumed TREs or there are pending TREs or EVREs. */
-		writel_relaxed(cause, lldev->evca + HIDMA_EVCA_IRQ_CLR_REG);
+		hidma_ll_int_handler_internal(lldev, cause);
 
 		/*
 		 * Another interrupt might have arrived while we are
@@ -471,7 +476,6 @@ irqreturn_t hidma_ll_inthandler(int chirq, void *arg)
 		cause = status & enable;
 	}
 
-out:
 	return IRQ_HANDLED;
 }
 
