@@ -1683,11 +1683,13 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		seq_printf(m, "FBC disabled: %s\n",
 			   dev_priv->fbc.no_fbc_reason);
 
-	if (intel_fbc_is_active(dev_priv) &&
-	    INTEL_GEN(dev_priv) >= 7)
+	if (intel_fbc_is_active(dev_priv) && INTEL_GEN(dev_priv) >= 7) {
+		uint32_t mask = INTEL_GEN(dev_priv) >= 8 ?
+				BDW_FBC_COMPRESSION_MASK :
+				IVB_FBC_COMPRESSION_MASK;
 		seq_printf(m, "Compressing: %s\n",
-			   yesno(I915_READ(FBC_STATUS2) &
-				 FBC_COMPRESSION_MASK));
+			   yesno(I915_READ(FBC_STATUS2) & mask));
+	}
 
 	mutex_unlock(&dev_priv->fbc.lock);
 	intel_runtime_pm_put(dev_priv);

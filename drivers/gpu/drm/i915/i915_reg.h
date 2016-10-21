@@ -2188,8 +2188,9 @@ enum skl_disp_power_wells {
 #define FBC_FENCE_OFF		_MMIO(0x3218) /* BSpec typo has 321Bh */
 #define FBC_TAG(i)		_MMIO(0x3300 + (i) * 4)
 
-#define FBC_STATUS2		_MMIO(0x43214)
-#define  FBC_COMPRESSION_MASK	0x7ff
+#define FBC_STATUS2			_MMIO(0x43214)
+#define  IVB_FBC_COMPRESSION_MASK	0x7ff
+#define  BDW_FBC_COMPRESSION_MASK	0xfff
 
 #define FBC_LL_SIZE		(1536)
 
