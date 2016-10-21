@@ -1233,6 +1233,46 @@ static int arizona_set_opclk(struct snd_soc_codec *codec, unsigned int clk,
 	return -EINVAL;
 }
 
+int arizona_clk_ev(struct snd_soc_dapm_widget *w,
+		   struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	unsigned int val;
+	int clk_idx;
+	int ret;
+
+	ret = regmap_read(arizona->regmap, w->reg, &val);
+	if (ret) {
+		dev_err(codec->dev, "Failed to check clock source: %d\n", ret);
+		return ret;
+	}
+
+	val = (val & ARIZONA_SYSCLK_SRC_MASK) >> ARIZONA_SYSCLK_SRC_SHIFT;
+
+	switch (val) {
+	case ARIZONA_CLK_SRC_MCLK1:
+		clk_idx = ARIZONA_MCLK1;
+		break;
+	case ARIZONA_CLK_SRC_MCLK2:
+		clk_idx = ARIZONA_MCLK2;
+		break;
+	default:
+		return 0;
+	}
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		return clk_prepare_enable(arizona->mclk[clk_idx]);
+	case SND_SOC_DAPM_POST_PMD:
+		clk_disable_unprepare(arizona->mclk[clk_idx]);
+		return 0;
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL_GPL(arizona_clk_ev);
+
 int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		       int source, unsigned int freq, int dir)
 {
