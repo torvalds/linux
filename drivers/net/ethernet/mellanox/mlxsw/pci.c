@@ -1155,7 +1155,6 @@ mlxsw_pci_config_profile_swid_config(struct mlxsw_pci *mlxsw_pci,
 	mlxsw_cmd_mbox_config_profile_swid_config_mask_set(mbox, index, mask);
 }
 
-#define MLXSW_RESOURCES_TABLE_END_ID 0xffff
 #define MLXSW_MAX_SPAN_ID 0x2420
 #define MLXSW_MAX_LAG_ID 0x2520
 #define MLXSW_MAX_PORTS_IN_LAG_ID 0x2521
@@ -1167,8 +1166,6 @@ mlxsw_pci_config_profile_swid_config(struct mlxsw_pci *mlxsw_pci,
 #define MLXSW_MAX_VLAN_GROUPS_ID 0x2906
 #define MLXSW_MAX_REGIONS_ID 0x2901
 #define MLXSW_MAX_RIF_ID 0x2C02
-#define MLXSW_RESOURCES_QUERY_MAX_QUERIES 100
-#define MLXSW_RESOURCES_PER_QUERY 32
 
 static void mlxsw_pci_resources_query_parse(int id, u64 val,
 					    struct mlxsw_resources *resources)
@@ -1238,16 +1235,17 @@ static int mlxsw_pci_resources_query(struct mlxsw_pci *mlxsw_pci, char *mbox,
 
 	mlxsw_cmd_mbox_zero(mbox);
 
-	for (index = 0; index < MLXSW_RESOURCES_QUERY_MAX_QUERIES; index++) {
+	for (index = 0; index < MLXSW_CMD_QUERY_RESOURCES_MAX_QUERIES;
+	     index++) {
 		err = mlxsw_cmd_query_resources(mlxsw_pci->core, mbox, index);
 		if (err)
 			return err;
 
-		for (i = 0; i < MLXSW_RESOURCES_PER_QUERY; i++) {
+		for (i = 0; i < MLXSW_CMD_QUERY_RESOURCES_PER_QUERY; i++) {
 			id = mlxsw_cmd_mbox_query_resource_id_get(mbox, i);
 			data = mlxsw_cmd_mbox_query_resource_data_get(mbox, i);
 
-			if (id == MLXSW_RESOURCES_TABLE_END_ID)
+			if (id == MLXSW_CMD_QUERY_RESOURCES_TABLE_END_ID)
 				return 0;
 
 			mlxsw_pci_resources_query_parse(id, data, resources);
