@@ -130,6 +130,7 @@ static const struct regulator_desc arizona_ldo1_hc = {
 	.uV_step = 50000,
 	.n_voltages = 8,
 	.enable_time = 1500,
+	.ramp_delay = 24000,
 
 	.owner = THIS_MODULE,
 };
@@ -153,6 +154,7 @@ static const struct regulator_desc arizona_ldo1 = {
 	.uV_step = 25000,
 	.n_voltages = 13,
 	.enable_time = 500,
+	.ramp_delay = 24000,
 
 	.owner = THIS_MODULE,
 };
