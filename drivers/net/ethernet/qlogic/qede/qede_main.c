@@ -943,8 +943,7 @@ static inline int qede_realloc_rx_buffer(struct qede_dev *edev,
 	return 0;
 }
 
-static inline void qede_update_rx_prod(struct qede_dev *edev,
-				       struct qede_rx_queue *rxq)
+void qede_update_rx_prod(struct qede_dev *edev, struct qede_rx_queue *rxq)
 {
 	u16 bd_prod = qed_chain_get_prod_idx(&rxq->rx_bd_ring);
 	u16 cqe_prod = qed_chain_get_prod_idx(&rxq->rx_comp_ring);

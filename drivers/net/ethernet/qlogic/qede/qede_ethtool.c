@@ -1207,8 +1207,8 @@ static int qede_selftest_receive_traffic(struct qede_dev *edev)
 	struct qede_rx_queue *rxq = NULL;
 	struct sw_rx_data *sw_rx_data;
 	union eth_rx_cqe *cqe;
+	int i, rc = 0;
 	u8 *data_ptr;
-	int i;
 
 	for_each_queue(i) {
 		if (edev->fp_array[i].type & QEDE_FASTPATH_RX) {
@@ -1227,46 +1227,60 @@ static int qede_selftest_receive_traffic(struct qede_dev *edev)
 	 * queue and that the loopback traffic is not IP.
 	 */
 	for (i = 0; i < QEDE_SELFTEST_POLL_COUNT; i++) {
-		if (qede_has_rx_work(rxq))
+		if (!qede_has_rx_work(rxq)) {
+			usleep_range(100, 200);
+			continue;
+		}
+
+		hw_comp_cons = le16_to_cpu(*rxq->hw_cons_ptr);
+		sw_comp_cons = qed_chain_get_cons_idx(&rxq->rx_comp_ring);
+
+		/* Memory barrier to prevent the CPU from doing speculative
+		 * reads of CQE/BD before reading hw_comp_cons. If the CQE is
+		 * read before it is written by FW, then FW writes CQE and SB,
+		 * and then the CPU reads the hw_comp_cons, it will use an old
+		 * CQE.
+		 */
+		rmb();
+
+		/* Get the CQE from the completion ring */
+		cqe = (union eth_rx_cqe *)qed_chain_consume(&rxq->rx_comp_ring);
+
+		/* Get the data from the SW ring */
+		sw_rx_index = rxq->sw_rx_cons & NUM_RX_BDS_MAX;
+		sw_rx_data = &rxq->sw_rx_ring[sw_rx_index];
+		fp_cqe = &cqe->fast_path_regular;
+		len =  le16_to_cpu(fp_cqe->len_on_first_bd);
+		data_ptr = (u8 *)(page_address(sw_rx_data->data) +
+				  fp_cqe->placement_offset +
+				  sw_rx_data->page_offset);
+		if (ether_addr_equal(data_ptr,  edev->ndev->dev_addr) &&
+		    ether_addr_equal(data_ptr + ETH_ALEN,
+				     edev->ndev->dev_addr)) {
+			for (i = ETH_HLEN; i < len; i++)
+				if (data_ptr[i] != (unsigned char)(i & 0xff)) {
+					rc = -1;
+					break;
+				}
+
+			qede_recycle_rx_bd_ring(rxq, edev, 1);
+			qed_chain_recycle_consumed(&rxq->rx_comp_ring);
 			break;
-		usleep_range(100, 200);
+		}
+
+		DP_INFO(edev, "Not the transmitted packet\n");
+		qede_recycle_rx_bd_ring(rxq, edev, 1);
+		qed_chain_recycle_consumed(&rxq->rx_comp_ring);
 	}
 
-	if (!qede_has_rx_work(rxq)) {
+	if (i == QEDE_SELFTEST_POLL_COUNT) {
 		DP_NOTICE(edev, "Failed to receive the traffic\n");
 		return -1;
 	}
 
-	hw_comp_cons = le16_to_cpu(*rxq->hw_cons_ptr);
-	sw_comp_cons = qed_chain_get_cons_idx(&rxq->rx_comp_ring);
+	qede_update_rx_prod(edev, rxq);
 
-	/* Memory barrier to prevent the CPU from doing speculative reads of CQE
-	 * / BD before reading hw_comp_cons. If the CQE is read before it is
-	 * written by FW, then FW writes CQE and SB, and then the CPU reads the
-	 * hw_comp_cons, it will use an old CQE.
-	 */
-	rmb();
-
-	/* Get the CQE from the completion ring */
-	cqe = (union eth_rx_cqe *)qed_chain_consume(&rxq->rx_comp_ring);
-
-	/* Get the data from the SW ring */
-	sw_rx_index = rxq->sw_rx_cons & NUM_RX_BDS_MAX;
-	sw_rx_data = &rxq->sw_rx_ring[sw_rx_index];
-	fp_cqe = &cqe->fast_path_regular;
-	len =  le16_to_cpu(fp_cqe->len_on_first_bd);
-	data_ptr = (u8 *)(page_address(sw_rx_data->data) +
-		     fp_cqe->placement_offset + sw_rx_data->page_offset);
-	for (i = ETH_HLEN; i < len; i++)
-		if (data_ptr[i] != (unsigned char)(i & 0xff)) {
-			DP_NOTICE(edev, "Loopback test failed\n");
-			qede_recycle_rx_bd_ring(rxq, edev, 1);
-			return -1;
-		}
-
-	qede_recycle_rx_bd_ring(rxq, edev, 1);
-
-	return 0;
+	return rc;
 }
 
 static int qede_selftest_run_loopback(struct qede_dev *edev, u32 loopback_mode)
