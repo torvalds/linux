@@ -68,9 +68,9 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	struct amdgpu_flip_work *work =
 		container_of(delayed_work, struct amdgpu_flip_work, flip_work);
 	struct amdgpu_device *adev = work->adev;
-	struct amdgpu_crtc *amdgpuCrtc = adev->mode_info.crtcs[work->crtc_id];
+	struct amdgpu_crtc *amdgpu_crtc = adev->mode_info.crtcs[work->crtc_id];
 
-	struct drm_crtc *crtc = &amdgpuCrtc->base;
+	struct drm_crtc *crtc = &amdgpu_crtc->base;
 	unsigned long flags;
 	unsigned i;
 	int vpos, hpos;
@@ -85,14 +85,14 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	/* Wait until we're out of the vertical blank period before the one
 	 * targeted by the flip
 	 */
-	if (amdgpuCrtc->enabled &&
+	if (amdgpu_crtc->enabled &&
 	    (amdgpu_get_crtc_scanoutpos(adev->ddev, work->crtc_id, 0,
 					&vpos, &hpos, NULL, NULL,
 					&crtc->hwmode)
 	     & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK)) ==
 	    (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK) &&
 	    (int)(work->target_vblank -
-		  amdgpu_get_vblank_counter_kms(adev->ddev, amdgpuCrtc->crtc_id)) > 0) {
+		  amdgpu_get_vblank_counter_kms(adev->ddev, amdgpu_crtc->crtc_id)) > 0) {
 		schedule_delayed_work(&work->flip_work, usecs_to_jiffies(1000));
 		return;
 	}
@@ -104,12 +104,12 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base, work->async);
 
 	/* Set the flip status */
-	amdgpuCrtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
+	amdgpu_crtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
 
 	DRM_DEBUG_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_SUBMITTED, work: %p,\n",
-					 amdgpuCrtc->crtc_id, amdgpuCrtc, work);
+					 amdgpu_crtc->crtc_id, amdgpu_crtc, work);
 
 }
 
