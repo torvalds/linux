@@ -104,8 +104,10 @@ static int intel_fbc_calculate_cfb_size(struct drm_i915_private *dev_priv,
 	int lines;
 
 	intel_fbc_get_plane_source_size(cache, NULL, &lines);
-	if (INTEL_INFO(dev_priv)->gen >= 7)
+	if (INTEL_GEN(dev_priv) == 7)
 		lines = min(lines, 2048);
+	else if (INTEL_GEN(dev_priv) >= 8)
+		lines = min(lines, 2560);
 
 	/* Hardware needs the full buffer stride, not just the active area. */
 	return lines * cache->fb.stride;
