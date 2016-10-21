@@ -113,6 +113,7 @@ config ARCH_MVEBU
 
 config ARCH_QCOM
 	bool "Qualcomm Platforms"
+	select GPIOLIB
 	select PINCTRL
 	help
 	  This enables support for the ARMv8 based Qualcomm chipsets.
