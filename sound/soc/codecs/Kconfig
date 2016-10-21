@@ -1054,6 +1054,7 @@ config SND_SOC_WM9090
 
 config SND_SOC_WM9705
 	tristate
+	select REGMAP_AC97
 
 config SND_SOC_WM9712
 	tristate
