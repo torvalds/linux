@@ -7836,12 +7836,12 @@ S:	Maintained
 F:	drivers/net/wireless/mediatek/mt7601u/
 
 MEGARAID SCSI/SAS DRIVERS
-M:	Kashyap Desai <kashyap.desai@avagotech.com>
-M:	Sumit Saxena <sumit.saxena@avagotech.com>
-M:	Uday Lingala <uday.lingala@avagotech.com>
-L:	megaraidlinux.pdl@avagotech.com
+M:	Kashyap Desai <kashyap.desai@broadcom.com>
+M:	Sumit Saxena <sumit.saxena@broadcom.com>
+M:	Shivasharan S <shivasharan.srikanteshwara@broadcom.com>
+L:	megaraidlinux.pdl@broadcom.com
 L:	linux-scsi@vger.kernel.org
-W:	http://www.lsi.com
+W:	http://www.avagotech.com/support/
 S:	Maintained
 F:	Documentation/scsi/megaraid.txt
 F:	drivers/scsi/megaraid.*
