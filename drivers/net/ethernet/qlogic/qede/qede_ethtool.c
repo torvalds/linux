@@ -1199,8 +1199,8 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	}
 
 	first_bd = (struct eth_tx_1st_bd *)qed_chain_consume(&txq->tx_pbl);
-	dma_unmap_page(&edev->pdev->dev, BD_UNMAP_ADDR(first_bd),
-		       BD_UNMAP_LEN(first_bd), DMA_TO_DEVICE);
+	dma_unmap_single(&edev->pdev->dev, BD_UNMAP_ADDR(first_bd),
+			 BD_UNMAP_LEN(first_bd), DMA_TO_DEVICE);
 	txq->sw_tx_cons++;
 	txq->sw_tx_ring[idx].skb = NULL;
 
