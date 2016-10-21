@@ -184,11 +184,11 @@
 };
 
 &mio_clk {
-	compatible = "socionext,uniphier-pro5-mio-clock";
+	compatible = "socionext,uniphier-pro5-sd-clock";
 };
 
 &mio_rst {
-	compatible = "socionext,uniphier-pro5-mio-reset";
+	compatible = "socionext,uniphier-pro5-sd-reset";
 };
 
 &peri_clk {
