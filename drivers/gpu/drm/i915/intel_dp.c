@@ -4463,20 +4463,10 @@ static enum drm_connector_status
 intel_dp_detect(struct drm_connector *connector, bool force)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct intel_encoder *intel_encoder = &intel_dig_port->base;
 	enum drm_connector_status status = connector->status;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
-
-	if (intel_dp->is_mst) {
-		/* MST devices are disconnected from a monitor POV */
-		intel_dp_unset_edid(intel_dp);
-		if (intel_encoder->type != INTEL_OUTPUT_EDP)
-			intel_encoder->type = INTEL_OUTPUT_DP;
-		return connector_status_disconnected;
-	}
 
 	/* If full detect is not performed yet, do a full detect */
 	if (!intel_dp->detect_done)
