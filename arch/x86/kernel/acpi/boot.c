@@ -76,6 +76,7 @@ int acpi_fix_pin2_polarity __initdata;
 static u64 acpi_lapic_addr __initdata = APIC_DEFAULT_PHYS_BASE;
 #endif
 
+#ifdef CONFIG_X86_IO_APIC
 /*
  * Locks related to IOAPIC hotplug
  * Hotplug side:
@@ -88,6 +89,7 @@ static u64 acpi_lapic_addr __initdata = APIC_DEFAULT_PHYS_BASE;
  *			->ioapic_lock
  */
 static DEFINE_MUTEX(acpi_ioapic_lock);
+#endif
 
 /* --------------------------------------------------------------------------
                               Boot-time Configuration
