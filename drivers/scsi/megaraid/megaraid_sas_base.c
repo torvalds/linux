@@ -6245,6 +6245,34 @@ fail_reenable_msix:
 #define megasas_resume	NULL
 #endif
 
+static inline int
+megasas_wait_for_adapter_operational(struct megasas_instance *instance)
+{
+	int wait_time = MEGASAS_RESET_WAIT_TIME * 2;
+	int i;
+
+	if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR)
+		return 1;
+
+	for (i = 0; i < wait_time; i++) {
+		if (atomic_read(&instance->adprecovery)	== MEGASAS_HBA_OPERATIONAL)
+			break;
+
+		if (!(i % MEGASAS_RESET_NOTICE_INTERVAL))
+			dev_notice(&instance->pdev->dev, "waiting for controller reset to finish\n");
+
+		msleep(1000);
+	}
+
+	if (atomic_read(&instance->adprecovery) != MEGASAS_HBA_OPERATIONAL) {
+		dev_info(&instance->pdev->dev, "%s timed out while waiting for HBA to recover.\n",
+			__func__);
+		return 1;
+	}
+
+	return 0;
+}
+
 /**
  * megasas_detach_one -	PCI hot"un"plug entry point
  * @pdev:		PCI device structure
@@ -6269,9 +6297,14 @@ static void megasas_detach_one(struct pci_dev *pdev)
 	if (instance->fw_crash_state != UNAVAILABLE)
 		megasas_free_host_crash_buffer(instance);
 	scsi_remove_host(instance->host);
+
+	if (megasas_wait_for_adapter_operational(instance))
+		goto skip_firing_dcmds;
+
 	megasas_flush_cache(instance);
 	megasas_shutdown_controller(instance, MR_DCMD_CTRL_SHUTDOWN);
 
+skip_firing_dcmds:
 	/* cancel the delayed work if this work still in queue*/
 	if (instance->ev != NULL) {
 		struct megasas_aen_event *ev = instance->ev;
@@ -6385,8 +6418,14 @@ static void megasas_shutdown(struct pci_dev *pdev)
 	struct megasas_instance *instance = pci_get_drvdata(pdev);
 
 	instance->unload = 1;
+
+	if (megasas_wait_for_adapter_operational(instance))
+		goto skip_firing_dcmds;
+
 	megasas_flush_cache(instance);
 	megasas_shutdown_controller(instance, MR_DCMD_CTRL_SHUTDOWN);
+
+skip_firing_dcmds:
 	instance->instancet->disable_intr(instance);
 	megasas_destroy_irqs(instance);
 
