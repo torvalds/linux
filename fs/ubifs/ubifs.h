@@ -1805,11 +1805,16 @@ extern struct fscrypt_operations ubifs_crypt_operations;
 #define fscrypt_fname_usr_to_disk       fscrypt_notsupp_fname_usr_to_disk
 #endif
 
-static inline bool ubifs_crypt_is_encrypted(struct inode *inode)
+static inline bool __ubifs_crypt_is_encrypted(struct inode *inode)
 {
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
 	return ui->flags & UBIFS_CRYPT_FL;
+}
+
+static inline bool ubifs_crypt_is_encrypted(const struct inode *inode)
+{
+	return __ubifs_crypt_is_encrypted((struct inode *)inode);
 }
 
 /* Normal UBIFS messages */
