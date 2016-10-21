@@ -2528,7 +2528,8 @@ state_show(struct md_rdev *rdev, char *page)
 	unsigned long flags = ACCESS_ONCE(rdev->flags);
 
 	if (test_bit(Faulty, &flags) ||
-	    rdev->badblocks.unacked_exist)
+	    (!test_bit(ExternalBbl, &flags) &&
+	    rdev->badblocks.unacked_exist))
 		len += sprintf(page+len, "faulty%s", sep);
 	if (test_bit(In_sync, &flags))
 		len += sprintf(page+len, "in_sync%s", sep);
@@ -2613,6 +2614,7 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 		err = 0;
 	} else if (cmd_match(buf, "-blocked")) {
 		if (!test_bit(Faulty, &rdev->flags) &&
+		    !test_bit(ExternalBbl, &rdev->flags) &&
 		    rdev->badblocks.unacked_exist) {
 			/* metadata handler doesn't understand badblocks,
 			 * so we need to fail the device
