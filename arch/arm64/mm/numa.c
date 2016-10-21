@@ -147,7 +147,7 @@ static int __init early_cpu_to_node(int cpu)
 
 static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 {
-	return node_distance(from, to);
+	return node_distance(early_cpu_to_node(from), early_cpu_to_node(to));
 }
 
 static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size,
