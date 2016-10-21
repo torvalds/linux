@@ -878,6 +878,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 		}
 	}
 
+	cdev->rx_coalesce_usecs = QED_DEFAULT_RX_USECS;
 	rc = qed_nic_setup(cdev);
 	if (rc)
 		goto err;
