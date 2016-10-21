@@ -822,6 +822,13 @@ static int qede_set_channels(struct net_device *dev,
 	edev->req_queues = count;
 	edev->req_num_tx = channels->tx_count;
 	edev->req_num_rx = channels->rx_count;
+	/* Reset the indirection table if rx queue count is updated */
+	if ((edev->req_queues - edev->req_num_tx) != QEDE_RSS_COUNT(edev)) {
+		edev->rss_params_inited &= ~QEDE_RSS_INDIR_INITED;
+		memset(&edev->rss_params.rss_ind_table, 0,
+		       sizeof(edev->rss_params.rss_ind_table));
+	}
+
 	if (netif_running(dev))
 		qede_reload(edev, NULL, NULL);
 
