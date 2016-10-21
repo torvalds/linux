@@ -143,7 +143,7 @@ static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
 static void alloc_init_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 				  phys_addr_t phys, pgprot_t prot,
 				  phys_addr_t (*pgtable_alloc)(void),
-				  bool allow_block_mappings)
+				  bool page_mappings_only)
 {
 	pmd_t *pmd;
 	unsigned long next;
@@ -170,7 +170,7 @@ static void alloc_init_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 
 		/* try section mapping first */
 		if (((addr | next | phys) & ~SECTION_MASK) == 0 &&
-		      allow_block_mappings) {
+		      !page_mappings_only) {
 			pmd_set_huge(pmd, phys, prot);
 
 			/*
@@ -207,7 +207,7 @@ static inline bool use_1G_block(unsigned long addr, unsigned long next,
 static void alloc_init_pud(pgd_t *pgd, unsigned long addr, unsigned long end,
 				  phys_addr_t phys, pgprot_t prot,
 				  phys_addr_t (*pgtable_alloc)(void),
-				  bool allow_block_mappings)
+				  bool page_mappings_only)
 {
 	pud_t *pud;
 	unsigned long next;
@@ -229,7 +229,7 @@ static void alloc_init_pud(pgd_t *pgd, unsigned long addr, unsigned long end,
 		/*
 		 * For 4K granule only, attempt to put down a 1GB block
 		 */
-		if (use_1G_block(addr, next, phys) && allow_block_mappings) {
+		if (use_1G_block(addr, next, phys) && !page_mappings_only) {
 			pud_set_huge(pud, phys, prot);
 
 			/*
@@ -240,7 +240,7 @@ static void alloc_init_pud(pgd_t *pgd, unsigned long addr, unsigned long end,
 						      pud_val(*pud)));
 		} else {
 			alloc_init_pmd(pud, addr, next, phys, prot,
-				       pgtable_alloc, allow_block_mappings);
+				       pgtable_alloc, page_mappings_only);
 
 			BUG_ON(pud_val(old_pud) != 0 &&
 			       pud_val(old_pud) != pud_val(*pud));
@@ -255,7 +255,7 @@ static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
 				 unsigned long virt, phys_addr_t size,
 				 pgprot_t prot,
 				 phys_addr_t (*pgtable_alloc)(void),
-				 bool allow_block_mappings)
+				 bool page_mappings_only)
 {
 	unsigned long addr, length, end, next;
 	pgd_t *pgd = pgd_offset_raw(pgdir, virt);
@@ -275,7 +275,7 @@ static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
 	do {
 		next = pgd_addr_end(addr, end);
 		alloc_init_pud(pgd, addr, next, phys, prot, pgtable_alloc,
-			       allow_block_mappings);
+			       page_mappings_only);
 		phys += next - addr;
 	} while (pgd++, addr = next, addr != end);
 }
@@ -304,17 +304,17 @@ static void __init create_mapping_noalloc(phys_addr_t phys, unsigned long virt,
 			&phys, virt);
 		return;
 	}
-	__create_pgd_mapping(init_mm.pgd, phys, virt, size, prot, NULL, true);
+	__create_pgd_mapping(init_mm.pgd, phys, virt, size, prot, NULL, false);
 }
 
 void __init create_pgd_mapping(struct mm_struct *mm, phys_addr_t phys,
 			       unsigned long virt, phys_addr_t size,
-			       pgprot_t prot, bool allow_block_mappings)
+			       pgprot_t prot, bool page_mappings_only)
 {
 	BUG_ON(mm == &init_mm);
 
 	__create_pgd_mapping(mm->pgd, phys, virt, size, prot,
-			     pgd_pgtable_alloc, allow_block_mappings);
+			     pgd_pgtable_alloc, page_mappings_only);
 }
 
 static void create_mapping_late(phys_addr_t phys, unsigned long virt,
@@ -327,7 +327,7 @@ static void create_mapping_late(phys_addr_t phys, unsigned long virt,
 	}
 
 	__create_pgd_mapping(init_mm.pgd, phys, virt, size, prot,
-			     NULL, !debug_pagealloc_enabled());
+			     NULL, debug_pagealloc_enabled());
 }
 
 static void __init __map_memblock(pgd_t *pgd, phys_addr_t start, phys_addr_t end)
@@ -345,7 +345,7 @@ static void __init __map_memblock(pgd_t *pgd, phys_addr_t start, phys_addr_t end
 		__create_pgd_mapping(pgd, start, __phys_to_virt(start),
 				     end - start, PAGE_KERNEL,
 				     early_pgtable_alloc,
-				     !debug_pagealloc_enabled());
+				     debug_pagealloc_enabled());
 		return;
 	}
 
@@ -358,13 +358,13 @@ static void __init __map_memblock(pgd_t *pgd, phys_addr_t start, phys_addr_t end
 				     __phys_to_virt(start),
 				     kernel_start - start, PAGE_KERNEL,
 				     early_pgtable_alloc,
-				     !debug_pagealloc_enabled());
+				     debug_pagealloc_enabled());
 	if (kernel_end < end)
 		__create_pgd_mapping(pgd, kernel_end,
 				     __phys_to_virt(kernel_end),
 				     end - kernel_end, PAGE_KERNEL,
 				     early_pgtable_alloc,
-				     !debug_pagealloc_enabled());
+				     debug_pagealloc_enabled());
 
 	/*
 	 * Map the linear alias of the [_text, __init_begin) interval as
@@ -374,7 +374,7 @@ static void __init __map_memblock(pgd_t *pgd, phys_addr_t start, phys_addr_t end
 	 */
 	__create_pgd_mapping(pgd, kernel_start, __phys_to_virt(kernel_start),
 			     kernel_end - kernel_start, PAGE_KERNEL_RO,
-			     early_pgtable_alloc, !debug_pagealloc_enabled());
+			     early_pgtable_alloc, debug_pagealloc_enabled());
 }
 
 static void __init map_mem(pgd_t *pgd)
@@ -424,7 +424,7 @@ static void __init map_kernel_segment(pgd_t *pgd, void *va_start, void *va_end,
 	BUG_ON(!PAGE_ALIGNED(size));
 
 	__create_pgd_mapping(pgd, pa_start, (unsigned long)va_start, size, prot,
-			     early_pgtable_alloc, !debug_pagealloc_enabled());
+			     early_pgtable_alloc, debug_pagealloc_enabled());
 
 	vma->addr	= va_start;
 	vma->phys_addr	= pa_start;
