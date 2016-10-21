@@ -250,7 +250,7 @@ extern int mtk_mdp_dbg_level;
 
 #else
 
-#define mtk_mdp_dbg(level, fmt, args...)
+#define mtk_mdp_dbg(level, fmt, args...) {}
 #define mtk_mdp_err(fmt, args...)
 #define mtk_mdp_dbg_enter()
 #define mtk_mdp_dbg_leave()
