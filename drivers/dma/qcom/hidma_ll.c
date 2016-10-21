@@ -457,6 +457,14 @@ irqreturn_t hidma_ll_inthandler(int chirq, void *arg)
 	return IRQ_HANDLED;
 }
 
+irqreturn_t hidma_ll_inthandler_msi(int chirq, void *arg, int cause)
+{
+	struct hidma_lldev *lldev = arg;
+
+	hidma_ll_int_handler_internal(lldev, cause);
+	return IRQ_HANDLED;
+}
+
 int hidma_ll_enable(struct hidma_lldev *lldev)
 {
 	u32 val;
