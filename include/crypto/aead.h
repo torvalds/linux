@@ -55,14 +55,14 @@
  * The scatter list pointing to the input data must contain:
  *
  * * for RFC4106 ciphers, the concatenation of
- * associated authentication data || IV || plaintext or ciphertext. Note, the
- * same IV (buffer) is also set with the aead_request_set_crypt call. Note,
- * the API call of aead_request_set_ad must provide the length of the AAD and
- * the IV. The API call of aead_request_set_crypt only points to the size of
- * the input plaintext or ciphertext.
+ *   associated authentication data || IV || plaintext or ciphertext. Note, the
+ *   same IV (buffer) is also set with the aead_request_set_crypt call. Note,
+ *   the API call of aead_request_set_ad must provide the length of the AAD and
+ *   the IV. The API call of aead_request_set_crypt only points to the size of
+ *   the input plaintext or ciphertext.
  *
  * * for "normal" AEAD ciphers, the concatenation of
- * associated authentication data || plaintext or ciphertext.
+ *   associated authentication data || plaintext or ciphertext.
  *
  * It is important to note that if multiple scatter gather list entries form
  * the input data mentioned above, the first entry must not point to a NULL
@@ -452,7 +452,7 @@ static inline void aead_request_free(struct aead_request *req)
  * completes
  *
  * The callback function is registered with the aead_request handle and
- * must comply with the following template
+ * must comply with the following template::
  *
  *	void callback_function(struct crypto_async_request *req, int error)
  */
