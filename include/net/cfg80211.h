@@ -784,19 +784,15 @@ struct cfg80211_csa_settings {
  * @iftype_num: array with the number of interfaces of each interface
  *	type.  The index is the interface type as specified in &enum
  *	nl80211_iftype.
- * @beacon_int_gcd: a value specifying GCD of all beaconing interfaces,
- *	the GCD of a single value is considered the value itself, so for
- *	a single interface this should be set to that interface's beacon
- *	interval
- * @beacon_int_different: a flag indicating whether or not all beacon
- *	intervals (of beaconing interfaces) are different or not.
+ * @new_beacon_int: set this to the beacon interval of a new interface
+ *	that's not operating yet, if such is to be checked as part of
+ *	the verification
  */
 struct iface_combination_params {
 	int num_different_channels;
 	u8 radar_detect;
 	int iftype_num[NUM_NL80211_IFTYPES];
-	u32 beacon_int_gcd;
-	bool beacon_int_different;
+	u32 new_beacon_int;
 };
 
 /**
