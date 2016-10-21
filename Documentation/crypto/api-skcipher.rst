@@ -107,9 +107,6 @@ Asynchronous Block Cipher API - Deprecated
    :doc: Asynchronous Block Cipher API
 
 .. kernel-doc:: include/linux/crypto.h
-   :functions: crypto_alloc_ablkcipher
-
-.. kernel-doc:: include/linux/crypto.h
    :functions: crypto_free_ablkcipher
 
 .. kernel-doc:: include/linux/crypto.h
