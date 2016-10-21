@@ -37,6 +37,11 @@ struct cxusb_state {
 	struct i2c_client *i2c_client_tuner;
 
 	unsigned char data[MAX_XFER_SIZE];
+
+	struct mutex stream_mutex;
+	u8 last_lock;
+	int (*fe_read_status)(struct dvb_frontend *fe,
+		enum fe_status *status);
 };
 
 #endif
