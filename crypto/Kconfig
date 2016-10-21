@@ -102,6 +102,15 @@ config CRYPTO_KPP
 	select CRYPTO_ALGAPI
 	select CRYPTO_KPP2
 
+config CRYPTO_ACOMP2
+	tristate
+	select CRYPTO_ALGAPI2
+
+config CRYPTO_ACOMP
+	tristate
+	select CRYPTO_ALGAPI
+	select CRYPTO_ACOMP2
+
 config CRYPTO_RSA
 	tristate "RSA algorithm"
 	select CRYPTO_AKCIPHER
@@ -138,6 +147,7 @@ config CRYPTO_MANAGER2
 	select CRYPTO_BLKCIPHER2
 	select CRYPTO_AKCIPHER2
 	select CRYPTO_KPP2
+	select CRYPTO_ACOMP2
 
 config CRYPTO_USER
 	tristate "Userspace cryptographic algorithm configuration"
