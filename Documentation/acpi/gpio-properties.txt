@@ -98,6 +98,18 @@ Example:
       }
   })
 
+- gpio-line-names
+
+Example:
+
+  Package () {
+      "gpio-line-names",
+      Package () {
+          "SPI0_CS_N", "EXP2_INT", "MUX6_IO", "UART0_RXD", "MUX7_IO",
+          "LVL_C_A1", "MUX0_IO", "SPI1_MISO"
+      }
+  }
+
 See Documentation/devicetree/bindings/gpio/gpio.txt for more information
 about these properties.
 
