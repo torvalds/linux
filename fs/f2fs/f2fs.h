@@ -872,7 +872,7 @@ struct f2fs_sb_info {
 	atomic_t nr_wb_bios;			/* # of writeback bios */
 
 	/* # of pages, see count_type */
-	struct percpu_counter nr_pages[NR_COUNT_TYPE];
+	atomic_t nr_pages[NR_COUNT_TYPE];
 	/* # of allocated blocks */
 	struct percpu_counter alloc_valid_block_count;
 
@@ -1286,7 +1286,7 @@ static inline void dec_valid_block_count(struct f2fs_sb_info *sbi,
 
 static inline void inc_page_count(struct f2fs_sb_info *sbi, int count_type)
 {
-	percpu_counter_inc(&sbi->nr_pages[count_type]);
+	atomic_inc(&sbi->nr_pages[count_type]);
 
 	if (count_type == F2FS_DIRTY_DATA || count_type == F2FS_INMEM_PAGES)
 		return;
@@ -1303,7 +1303,7 @@ static inline void inode_inc_dirty_pages(struct inode *inode)
 
 static inline void dec_page_count(struct f2fs_sb_info *sbi, int count_type)
 {
-	percpu_counter_dec(&sbi->nr_pages[count_type]);
+	atomic_dec(&sbi->nr_pages[count_type]);
 }
 
 static inline void inode_dec_dirty_pages(struct inode *inode)
@@ -1319,7 +1319,7 @@ static inline void inode_dec_dirty_pages(struct inode *inode)
 
 static inline s64 get_pages(struct f2fs_sb_info *sbi, int count_type)
 {
-	return percpu_counter_sum_positive(&sbi->nr_pages[count_type]);
+	return atomic_read(&sbi->nr_pages[count_type]);
 }
 
 static inline s64 get_dirty_pages(struct inode *inode)
@@ -2239,8 +2239,8 @@ struct f2fs_stat_info {
 	unsigned long long hit_largest, hit_cached, hit_rbtree;
 	unsigned long long hit_total, total_ext;
 	int ext_tree, zombie_tree, ext_node;
-	s64 ndirty_node, ndirty_dent, ndirty_meta, ndirty_data, ndirty_imeta;
-	s64 inmem_pages;
+	int ndirty_node, ndirty_dent, ndirty_meta, ndirty_data, ndirty_imeta;
+	int inmem_pages;
 	unsigned int ndirty_dirs, ndirty_files, ndirty_all;
 	int nats, dirty_nats, sits, dirty_sits, free_nids, alloc_nids;
 	int total_count, utilization;
