@@ -1,8 +1,11 @@
 #include <linux/ftrace.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
+#include <asm/alternative.h>
 #include <asm/cacheflush.h>
+#include <asm/cpufeature.h>
 #include <asm/debug-monitors.h>
+#include <asm/exec.h>
 #include <asm/pgtable.h>
 #include <asm/memory.h>
 #include <asm/mmu_context.h>
@@ -48,6 +51,14 @@ void notrace __cpu_suspend_exit(void)
 	 * subsystem relying on it has a chance to run.
 	 */
 	set_my_cpu_offset(per_cpu_offset(cpu));
+
+	/*
+	 * PSTATE was not saved over suspend/resume, re-enable any detected
+	 * features that might not have been set correctly.
+	 */
+	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_HAS_PAN,
+			CONFIG_ARM64_PAN));
+	uao_thread_switch(current);
 
 	/*
 	 * Restore HW breakpoint registers to sane values

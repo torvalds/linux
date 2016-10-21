@@ -423,8 +423,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 		actual_pages = get_user_pages(task, task->mm,
 				          (unsigned long)buf & ~(PAGE_SIZE - 1),
 					  num_pages,
-					  (type == PAGELIST_READ) /*Write */ ,
-					  0 /*Force */ ,
+					  (type == PAGELIST_READ) ? FOLL_WRITE : 0,
 					  pages,
 					  NULL /*vmas */);
 		up_read(&task->mm->mmap_sem);
