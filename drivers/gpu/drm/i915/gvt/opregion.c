@@ -163,7 +163,7 @@ int intel_vgpu_init_opregion(struct intel_vgpu *vgpu, u32 gpa)
  */
 void intel_gvt_clean_opregion(struct intel_gvt *gvt)
 {
-	iounmap(gvt->opregion.opregion_va);
+	memunmap(gvt->opregion.opregion_va);
 	gvt->opregion.opregion_va = NULL;
 }
 
@@ -181,8 +181,8 @@ int intel_gvt_init_opregion(struct intel_gvt *gvt)
 	pci_read_config_dword(gvt->dev_priv->drm.pdev, INTEL_GVT_PCI_OPREGION,
 			&gvt->opregion.opregion_pa);
 
-	gvt->opregion.opregion_va = acpi_os_ioremap(gvt->opregion.opregion_pa,
-			INTEL_GVT_OPREGION_SIZE);
+	gvt->opregion.opregion_va = memremap(gvt->opregion.opregion_pa,
+					     INTEL_GVT_OPREGION_SIZE, MEMREMAP_WB);
 	if (!gvt->opregion.opregion_va) {
 		gvt_err("fail to map host opregion\n");
 		return -EFAULT;
