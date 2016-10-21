@@ -59,7 +59,7 @@ struct hidma_lldev {
 	void __iomem *evca;		/* Event Channel address          */
 	struct hidma_tre
 		**pending_tre_list;	/* Pointers to pending TREs	  */
-	s32 pending_tre_count;		/* Number of TREs pending	  */
+	atomic_t pending_tre_count;	/* Number of TREs pending	  */
 
 	void *tre_ring;			/* TRE ring			  */
 	dma_addr_t tre_dma;		/* TRE ring to be shared with HW  */

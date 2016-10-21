@@ -218,10 +218,9 @@ static int hidma_post_completed(struct hidma_lldev *lldev, int tre_iterator,
 	 * Keep track of pending TREs that SW is expecting to receive
 	 * from HW. We got one now. Decrement our counter.
 	 */
-	lldev->pending_tre_count--;
-	if (lldev->pending_tre_count < 0) {
+	if (atomic_dec_return(&lldev->pending_tre_count) < 0) {
 		dev_warn(lldev->dev, "tre count mismatch on completion");
-		lldev->pending_tre_count = 0;
+		atomic_set(&lldev->pending_tre_count, 0);
 	}
 
 	spin_unlock_irqrestore(&lldev->lock, flags);
@@ -328,7 +327,7 @@ void hidma_cleanup_pending_tre(struct hidma_lldev *lldev, u8 err_info,
 	u32 tre_read_off;
 
 	tre_iterator = lldev->tre_processed_off;
-	while (lldev->pending_tre_count) {
+	while (atomic_read(&lldev->pending_tre_count)) {
 		if (hidma_post_completed(lldev, tre_iterator, err_info,
 					 err_code))
 			break;
@@ -555,7 +554,7 @@ void hidma_ll_queue_request(struct hidma_lldev *lldev, u32 tre_ch)
 	tre->err_code = 0;
 	tre->err_info = 0;
 	tre->queued = 1;
-	lldev->pending_tre_count++;
+	atomic_inc(&lldev->pending_tre_count);
 	lldev->tre_write_offset = (lldev->tre_write_offset + HIDMA_TRE_SIZE)
 					% lldev->tre_ring_size;
 	spin_unlock_irqrestore(&lldev->lock, flags);
@@ -650,7 +649,7 @@ int hidma_ll_setup(struct hidma_lldev *lldev)
 	u32 val;
 	u32 nr_tres = lldev->nr_tres;
 
-	lldev->pending_tre_count = 0;
+	atomic_set(&lldev->pending_tre_count, 0);
 	lldev->tre_processed_off = 0;
 	lldev->evre_processed_off = 0;
 	lldev->tre_write_offset = 0;
@@ -831,7 +830,7 @@ int hidma_ll_uninit(struct hidma_lldev *lldev)
 	tasklet_kill(&lldev->task);
 	memset(lldev->trepool, 0, required_bytes);
 	lldev->trepool = NULL;
-	lldev->pending_tre_count = 0;
+	atomic_set(&lldev->pending_tre_count, 0);
 	lldev->tre_write_offset = 0;
 
 	rc = hidma_ll_reset(lldev);
