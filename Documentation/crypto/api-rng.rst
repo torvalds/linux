@@ -11,22 +11,4 @@ Crypto API Random Number API
    :doc: Random number generator API
 
 .. kernel-doc:: include/crypto/rng.h
-   :functions: crypto_alloc_rng
-
-.. kernel-doc:: include/crypto/rng.h
-   :functions: crypto_rng_alg
-
-.. kernel-doc:: include/crypto/rng.h
-   :functions: crypto_free_rng
-
-.. kernel-doc:: include/crypto/rng.h
-   :functions: crypto_rng_generate
-
-.. kernel-doc:: include/crypto/rng.h
-   :functions: crypto_rng_get_bytes
-
-.. kernel-doc:: include/crypto/rng.h
-   :functions: crypto_rng_reset
-
-.. kernel-doc:: include/crypto/rng.h
-   :functions: crypto_rng_seedsize
+   :functions: crypto_alloc_rng crypto_rng_alg crypto_free_rng crypto_rng_generate crypto_rng_get_bytes crypto_rng_reset crypto_rng_seedsize

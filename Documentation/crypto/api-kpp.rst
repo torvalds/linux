@@ -2,16 +2,7 @@ Key-agreement Protocol Primitives (KPP) Cipher Algorithm Definitions
 --------------------------------------------------------------------
 
 .. kernel-doc:: include/crypto/kpp.h
-   :functions: kpp_request
-
-.. kernel-doc:: include/crypto/kpp.h
-   :functions: crypto_kpp
-
-.. kernel-doc:: include/crypto/kpp.h
-   :functions: kpp_alg
-
-.. kernel-doc:: include/crypto/kpp.h
-   :functions: kpp_secret
+   :functions: kpp_request crypto_kpp kpp_alg kpp_secret
 
 Key-agreement Protocol Primitives (KPP) Cipher API
 --------------------------------------------------
@@ -20,40 +11,13 @@ Key-agreement Protocol Primitives (KPP) Cipher API
    :doc: Generic Key-agreement Protocol Primitives API
 
 .. kernel-doc:: include/crypto/kpp.h
-   :functions: crypto_alloc_kpp
-
-.. kernel-doc:: include/crypto/kpp.h
-   :functions: crypto_free_kpp
-
-.. kernel-doc:: include/crypto/kpp.h
-   :functions: crypto_kpp_set_secret
-
-.. kernel-doc:: include/crypto/kpp.h
-   :functions: crypto_kpp_generate_public_key
-
-.. kernel-doc:: include/crypto/kpp.h
-   :functions: crypto_kpp_compute_shared_secret
-
-.. kernel-doc:: include/crypto/kpp.h
-   :functions: crypto_kpp_maxsize
+   :functions: crypto_alloc_kpp crypto_free_kpp crypto_kpp_set_secret crypto_kpp_generate_public_key crypto_kpp_compute_shared_secret crypto_kpp_maxsize
 
 Key-agreement Protocol Primitives (KPP) Cipher Request Handle
 -------------------------------------------------------------
 
 .. kernel-doc:: include/crypto/kpp.h
-   :functions: kpp_request_alloc
-
-.. kernel-doc:: include/crypto/kpp.h
-   :functions: kpp_request_free
-
-.. kernel-doc:: include/crypto/kpp.h
-   :functions: kpp_request_set_callback
-
-.. kernel-doc:: include/crypto/kpp.h
-   :functions: kpp_request_set_input
-
-.. kernel-doc:: include/crypto/kpp.h
-   :functions: kpp_request_set_output
+   :functions: kpp_request_alloc kpp_request_free kpp_request_set_callback kpp_request_set_input kpp_request_set_output
 
 ECDH Helper Functions
 ---------------------
@@ -62,16 +26,7 @@ ECDH Helper Functions
    :doc: ECDH Helper Functions
 
 .. kernel-doc:: include/crypto/ecdh.h
-   :functions: ecdh
-
-.. kernel-doc:: include/crypto/ecdh.h
-   :functions: crypto_ecdh_key_len
-
-.. kernel-doc:: include/crypto/ecdh.h
-   :functions: crypto_ecdh_encode_key
-
-.. kernel-doc:: include/crypto/ecdh.h
-   :functions: crypto_ecdh_decode_key
+   :functions: ecdh crypto_ecdh_key_len crypto_ecdh_encode_key crypto_ecdh_decode_key
 
 DH Helper Functions
 -------------------
@@ -80,13 +35,4 @@ DH Helper Functions
    :doc: DH Helper Functions
 
 .. kernel-doc:: include/crypto/dh.h
-   :functions: dh
-
-.. kernel-doc:: include/crypto/dh.h
-   :functions: crypto_dh_key_len
-
-.. kernel-doc:: include/crypto/dh.h
-   :functions: crypto_dh_encode_key
-
-.. kernel-doc:: include/crypto/dh.h
-   :functions: crypto_dh_decode_key
+   :functions: dh crypto_dh_key_len crypto_dh_encode_key crypto_dh_decode_key

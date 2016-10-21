@@ -5,40 +5,13 @@ Authenticated Encryption With Associated Data (AEAD) Algorithm Definitions
    :doc: Authenticated Encryption With Associated Data (AEAD) Cipher API
 
 .. kernel-doc:: include/crypto/aead.h
-   :functions: aead_request
-
-.. kernel-doc:: include/crypto/aead.h
-   :functions: aead_alg
+   :functions: aead_request aead_alg
 
 Authenticated Encryption With Associated Data (AEAD) Cipher API
 ---------------------------------------------------------------
 
 .. kernel-doc:: include/crypto/aead.h
-   :functions: crypto_alloc_aead
-
-.. kernel-doc:: include/crypto/aead.h
-   :functions: crypto_free_aead
-
-.. kernel-doc:: include/crypto/aead.h
-   :functions: crypto_aead_ivsize
-
-.. kernel-doc:: include/crypto/aead.h
-   :functions: crypto_aead_authsize
-
-.. kernel-doc:: include/crypto/aead.h
-   :functions: crypto_aead_blocksize
-
-.. kernel-doc:: include/crypto/aead.h
-   :functions: crypto_aead_setkey
-
-.. kernel-doc:: include/crypto/aead.h
-   :functions: crypto_aead_setauthsize
-
-.. kernel-doc:: include/crypto/aead.h
-   :functions: crypto_aead_encrypt
-
-.. kernel-doc:: include/crypto/aead.h
-   :functions: crypto_aead_decrypt
+   :functions: crypto_alloc_aead crypto_free_aead crypto_aead_ivsize crypto_aead_authsize crypto_aead_blocksize crypto_aead_setkey crypto_aead_setauthsize crypto_aead_encrypt crypto_aead_decrypt
 
 Asynchronous AEAD Request Handle
 --------------------------------
@@ -47,22 +20,4 @@ Asynchronous AEAD Request Handle
    :doc: Asynchronous AEAD Request Handle
 
 .. kernel-doc:: include/crypto/aead.h
-   :functions: crypto_aead_reqsize
-
-.. kernel-doc:: include/crypto/aead.h
-   :functions: aead_request_set_tfm
-
-.. kernel-doc:: include/crypto/aead.h
-   :functions: aead_request_alloc
-
-.. kernel-doc:: include/crypto/aead.h
-   :functions: aead_request_free
-
-.. kernel-doc:: include/crypto/aead.h
-   :functions: aead_request_set_callback
-
-.. kernel-doc:: include/crypto/aead.h
-   :functions: aead_request_set_crypt
-
-.. kernel-doc:: include/crypto/aead.h
-   :functions: aead_request_set_ad
+   :functions: crypto_aead_reqsize aead_request_set_tfm aead_request_alloc aead_request_free aead_request_set_callback aead_request_set_crypt aead_request_set_ad
