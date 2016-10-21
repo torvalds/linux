@@ -1413,7 +1413,7 @@ err_port_pause_configure:
 
 struct mlxsw_sp_port_hw_stats {
 	char str[ETH_GSTRING_LEN];
-	u64 (*getter)(char *payload);
+	u64 (*getter)(const char *payload);
 };
 
 static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_stats[] = {
@@ -1534,7 +1534,7 @@ static struct mlxsw_sp_port_hw_stats mlxsw_sp_port_hw_prio_stats[] = {
 
 #define MLXSW_SP_PORT_HW_PRIO_STATS_LEN ARRAY_SIZE(mlxsw_sp_port_hw_prio_stats)
 
-static u64 mlxsw_reg_ppcnt_tc_transmit_queue_bytes_get(char *ppcnt_pl)
+static u64 mlxsw_reg_ppcnt_tc_transmit_queue_bytes_get(const char *ppcnt_pl)
 {
 	u64 transmit_queue = mlxsw_reg_ppcnt_tc_transmit_queue_get(ppcnt_pl);
 

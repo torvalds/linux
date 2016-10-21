@@ -238,8 +238,9 @@ static bool mlxsw_pci_elem_hw_owned(struct mlxsw_pci_queue *q, bool owner_bit)
 	return owner_bit != !!(q->consumer_counter & q->count);
 }
 
-static char *mlxsw_pci_queue_sw_elem_get(struct mlxsw_pci_queue *q,
-					 u32 (*get_elem_owner_func)(char *))
+static char *
+mlxsw_pci_queue_sw_elem_get(struct mlxsw_pci_queue *q,
+			    u32 (*get_elem_owner_func)(const char *))
 {
 	struct mlxsw_pci_queue_elem_info *elem_info;
 	char *elem;

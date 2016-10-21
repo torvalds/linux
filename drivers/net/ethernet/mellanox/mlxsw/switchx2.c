@@ -410,7 +410,7 @@ static void mlxsw_sx_port_get_drvinfo(struct net_device *dev,
 
 struct mlxsw_sx_port_hw_stats {
 	char str[ETH_GSTRING_LEN];
-	u64 (*getter)(char *payload);
+	u64 (*getter)(const char *payload);
 };
 
 static const struct mlxsw_sx_port_hw_stats mlxsw_sx_port_hw_stats[] = {
