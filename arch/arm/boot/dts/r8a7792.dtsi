@@ -118,6 +118,11 @@
 				      IRQ_TYPE_LEVEL_LOW)>;
 		};
 
+		rst: reset-controller@e6160000 {
+			compatible = "renesas,r8a7792-rst";
+			reg = <0 0xe6160000 0 0x0100>;
+		};
+
 		sysc: system-controller@e6180000 {
 			compatible = "renesas,r8a7792-sysc";
 			reg = <0 0xe6180000 0 0x0200>;
