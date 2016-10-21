@@ -161,6 +161,9 @@ applicable to a cipher, it is not displayed:
       entry below for the specification of the IV generator type used by
       the cipher implementation)
 
+   -  kpp for a Key-agreement Protocol Primitive (KPP) cipher such as
+      an ECDH or DH implementation
+
 -  blocksize: blocksize of cipher in bytes
 
 -  keysize: key size in bytes
@@ -218,6 +221,9 @@ the aforementioned cipher types:
 -  CRYPTO_ALG_TYPE_GIVCIPHER Asynchronous multi-block cipher packed
    together with an IV generator (see geniv field in the /proc/crypto
    listing for the known IV generators)
+
+-  CRYPTO_ALG_TYPE_KPP Key-agreement Protocol Primitive (KPP) such as
+   an ECDH or DH implementation
 
 -  CRYPTO_ALG_TYPE_DIGEST Raw message digest
 
