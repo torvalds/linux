@@ -638,6 +638,36 @@ eoi:
 }
 
 /**
+ * ish_disable_dma() - disable dma communication between host and ISHFW
+ * @dev: ishtp device pointer
+ *
+ * Clear the dma enable bit and wait for dma inactive.
+ *
+ * Return: 0 for success else error code.
+ */
+static int ish_disable_dma(struct ishtp_device *dev)
+{
+	unsigned int	dma_delay;
+
+	/* Clear the dma enable bit */
+	ish_reg_write(dev, IPC_REG_ISH_RMP2, 0);
+
+	/* wait for dma inactive */
+	for (dma_delay = 0; dma_delay < MAX_DMA_DELAY &&
+		_ish_read_fw_sts_reg(dev) & (IPC_ISH_IN_DMA);
+		dma_delay += 5)
+		mdelay(5);
+
+	if (dma_delay >= MAX_DMA_DELAY) {
+		dev_err(dev->devc,
+			"Wait for DMA inactive timeout\n");
+		return	-EBUSY;
+	}
+
+	return 0;
+}
+
+/**
  * ish_wakeup() - wakeup ishfw from waiting-for-host state
  * @dev: ishtp device pointer
  *
@@ -671,7 +701,6 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 {
 	struct pci_dev *pdev = dev->pdev;
 	int	rv;
-	unsigned int	dma_delay;
 	uint16_t csr;
 
 	if (!pdev)
@@ -686,15 +715,8 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 		return	-EINVAL;
 	}
 
-	/* Now trigger reset to FW */
-	ish_reg_write(dev, IPC_REG_ISH_RMP2, 0);
-
-	for (dma_delay = 0; dma_delay < MAX_DMA_DELAY &&
-		_ish_read_fw_sts_reg(dev) & (IPC_ISH_IN_DMA);
-		dma_delay += 5)
-		mdelay(5);
-
-	if (dma_delay >= MAX_DMA_DELAY) {
+	/* Disable dma communication between FW and host */
+	if (ish_disable_dma(dev)) {
 		dev_err(&pdev->dev,
 			"Can't reset - stuck with DMA in-progress\n");
 		return	-EBUSY;
