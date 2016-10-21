@@ -318,6 +318,7 @@ tsk	.req	x28		// current thread_info
 /*
  * Exception vectors.
  */
+	.pushsection ".entry.text", "ax"
 
 	.align	11
 ENTRY(vectors)
@@ -856,6 +857,8 @@ __ni_sys_trace:
 	mov	x0, sp
 	bl	do_ni_syscall
 	b	__sys_trace_return
+
+	.popsection				// .entry.text
 
 /*
  * Special system call wrappers.
