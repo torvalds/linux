@@ -247,7 +247,9 @@ int cxl_start_context(struct cxl_context *ctx, u64 wed,
 	cxl_ctx_get();
 
 	if ((rc = cxl_ops->attach_process(ctx, kernel, wed, 0))) {
+		put_pid(ctx->glpid);
 		put_pid(ctx->pid);
+		ctx->glpid = ctx->pid = NULL;
 		cxl_adapter_context_put(ctx->afu->adapter);
 		cxl_ctx_put();
 		goto out;
