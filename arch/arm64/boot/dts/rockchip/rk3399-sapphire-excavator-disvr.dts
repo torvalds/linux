@@ -116,13 +116,12 @@
 &vopb_rk_fb {
 	status = "okay";
 	rockchip,prop = <EXTEND>;
-	rockchip,dsp_mode = <ONE_VOP_DUAL_MIPI_HOR_SCAN>;
 };
 
 &disp_timings {
 	timing0 {
-		screen-width = <120>;
-		screen-hight = <68>;
+		screen-width = <68>;
+		screen-hight = <120>;
 	};
 };
 
