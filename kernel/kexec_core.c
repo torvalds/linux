@@ -59,7 +59,6 @@ size_t vmcoreinfo_max_size = sizeof(vmcoreinfo_data);
 
 /* Flag to indicate we are going to kexec a new kernel */
 bool kexec_in_progress = false;
-EXPORT_SYMBOL_GPL(kexec_in_progress);
 
 
 /* Location of the reserved area for the crash kernel */
