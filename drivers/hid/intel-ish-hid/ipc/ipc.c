@@ -905,6 +905,21 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
  */
 void	ish_device_disable(struct ishtp_device *dev)
 {
+	struct pci_dev *pdev = dev->pdev;
+
+	if (!pdev)
+		return;
+
+	/* Disable dma communication between FW and host */
+	if (ish_disable_dma(dev)) {
+		dev_err(&pdev->dev,
+			"Can't reset - stuck with DMA in-progress\n");
+		return;
+	}
+
+	/* Put ISH to D3hot state for power saving */
+	pci_set_power_state(pdev, PCI_D3hot);
+
 	dev->dev_state = ISHTP_DEV_DISABLED;
 	ish_clr_host_rdy(dev);
 }
