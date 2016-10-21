@@ -857,6 +857,76 @@ static void acpi_gpiochip_free_regions(struct acpi_gpio_chip *achip)
 	}
 }
 
+struct gpio_desc *acpi_gpiochip_parse_own_gpio(struct acpi_gpio_chip *achip,
+	struct fwnode_handle *fwnode, const char **name, unsigned int *lflags,
+	unsigned int *dflags)
+{
+	struct gpio_chip *chip = achip->chip;
+	struct gpio_desc *desc;
+	u32 gpios[2];
+	int ret;
+
+	ret = fwnode_property_read_u32_array(fwnode, "gpios", gpios,
+					     ARRAY_SIZE(gpios));
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	ret = acpi_gpiochip_pin_to_gpio_offset(chip->gpiodev, gpios[0]);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	desc = gpiochip_get_desc(chip, ret);
+	if (IS_ERR(desc))
+		return desc;
+
+	*lflags = 0;
+	*dflags = 0;
+	*name = NULL;
+
+	if (gpios[1])
+		*lflags |= GPIO_ACTIVE_LOW;
+
+	if (fwnode_property_present(fwnode, "input"))
+		*dflags |= GPIOD_IN;
+	else if (fwnode_property_present(fwnode, "output-low"))
+		*dflags |= GPIOD_OUT_LOW;
+	else if (fwnode_property_present(fwnode, "output-high"))
+		*dflags |= GPIOD_OUT_HIGH;
+	else
+		return ERR_PTR(-EINVAL);
+
+	fwnode_property_read_string(fwnode, "line-name", name);
+
+	return desc;
+}
+
+static void acpi_gpiochip_scan_gpios(struct acpi_gpio_chip *achip)
+{
+	struct gpio_chip *chip = achip->chip;
+	struct fwnode_handle *fwnode;
+
+	device_for_each_child_node(chip->parent, fwnode) {
+		unsigned int lflags, dflags;
+		struct gpio_desc *desc;
+		const char *name;
+		int ret;
+
+		if (!fwnode_property_present(fwnode, "gpio-hog"))
+			continue;
+
+		desc = acpi_gpiochip_parse_own_gpio(achip, fwnode, &name,
+						    &lflags, &dflags);
+		if (IS_ERR(desc))
+			continue;
+
+		ret = gpiod_hog(desc, name, lflags, dflags);
+		if (ret) {
+			dev_err(chip->parent, "Failed to hog GPIO\n");
+			return;
+		}
+	}
+}
+
 void acpi_gpiochip_add(struct gpio_chip *chip)
 {
 	struct acpi_gpio_chip *acpi_gpio;
@@ -888,6 +958,7 @@ void acpi_gpiochip_add(struct gpio_chip *chip)
 	}
 
 	acpi_gpiochip_request_regions(acpi_gpio);
+	acpi_gpiochip_scan_gpios(acpi_gpio);
 	acpi_walk_dep_device_list(handle);
 }
 

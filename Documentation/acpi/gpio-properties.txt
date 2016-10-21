@@ -66,6 +66,41 @@ native:
       }
   }
 
+Other supported properties
+--------------------------
+
+Following Device Tree compatible device properties are also supported by
+_DSD device properties for GPIO controllers:
+
+- gpio-hog
+- output-high
+- output-low
+- input
+- line-name
+
+Example:
+
+  Name (_DSD, Package () {
+      // _DSD Hierarchical Properties Extension UUID
+      ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
+      Package () {
+          Package () {"hog-gpio8", "G8PU"}
+      }
+  })
+
+  Name (G8PU, Package () {
+      ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+      Package () {
+          Package () {"gpio-hog", 1},
+          Package () {"gpios", Package () {8, 0}},
+          Package () {"output-high", 1},
+          Package () {"line-name", "gpio8-pullup"},
+      }
+  })
+
+See Documentation/devicetree/bindings/gpio/gpio.txt for more information
+about these properties.
+
 ACPI GPIO Mappings Provided by Drivers
 --------------------------------------
 
