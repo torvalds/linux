@@ -5,7 +5,7 @@
  */
 
 #include "dm-thin-metadata.h"
-#include "dm-bio-prison.h"
+#include "dm-bio-prison-v1.h"
 #include "dm.h"
 
 #include <linux/device-mapper.h>

@@ -5,7 +5,7 @@
  */
 
 #include "dm.h"
-#include "dm-bio-prison.h"
+#include "dm-bio-prison-v1.h"
 #include "dm-bio-record.h"
 #include "dm-cache-metadata.h"
 
