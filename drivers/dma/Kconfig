@@ -438,6 +438,7 @@ config STE_DMA40
 config ST_FDMA
 	tristate "ST FDMA dmaengine support"
 	depends on ARCH_STI
+	depends on REMOTEPROC
 	select ST_SLIM_REMOTEPROC
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
