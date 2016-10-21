@@ -303,7 +303,6 @@ static inline void nvme_setup_rw(struct nvme_ns *ns, struct request *req,
 
 	memset(cmnd, 0, sizeof(*cmnd));
 	cmnd->rw.opcode = (rq_data_dir(req) ? nvme_cmd_write : nvme_cmd_read);
-	cmnd->rw.command_id = req->tag;
 	cmnd->rw.nsid = cpu_to_le32(ns->ns_id);
 	cmnd->rw.slba = cpu_to_le64(nvme_block_nr(ns, blk_rq_pos(req)));
 	cmnd->rw.length = cpu_to_le16((blk_rq_bytes(req) >> ns->lba_shift) - 1);
@@ -344,6 +343,8 @@ int nvme_setup_cmd(struct nvme_ns *ns, struct request *req,
 		nvme_setup_write_zeroes(ns, req, cmd);
 	else
 		nvme_setup_rw(ns, req, cmd);
+
+	cmd->common.command_id = req->tag;
 
 	return ret;
 }

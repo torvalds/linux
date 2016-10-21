@@ -1399,7 +1399,6 @@ static int nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (ret != BLK_MQ_RQ_QUEUE_OK)
 		return ret;
 
-	c->common.command_id = rq->tag;
 	blk_mq_start_request(rq);
 
 	map_len = nvme_map_len(rq);
