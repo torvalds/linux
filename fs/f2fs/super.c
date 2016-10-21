@@ -696,10 +696,6 @@ static void f2fs_destroy_inode(struct inode *inode)
 
 static void destroy_percpu_info(struct f2fs_sb_info *sbi)
 {
-	int i;
-
-	for (i = 0; i < NR_COUNT_TYPE; i++)
-		percpu_counter_destroy(&sbi->nr_pages[i]);
 	percpu_counter_destroy(&sbi->alloc_valid_block_count);
 	percpu_counter_destroy(&sbi->total_valid_inode_count);
 }
@@ -1450,6 +1446,7 @@ int sanity_check_ckpt(struct f2fs_sb_info *sbi)
 static void init_sb_info(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_super_block *raw_super = sbi->raw_super;
+	int i;
 
 	sbi->log_sectors_per_block =
 		le32_to_cpu(raw_super->log_sectors_per_block);
@@ -1474,6 +1471,9 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
 	sbi->interval_time[REQ_TIME] = DEF_IDLE_INTERVAL;
 	clear_sbi_flag(sbi, SBI_NEED_FSCK);
 
+	for (i = 0; i < NR_COUNT_TYPE; i++)
+		atomic_set(&sbi->nr_pages[i], 0);
+
 	INIT_LIST_HEAD(&sbi->s_list);
 	mutex_init(&sbi->umount_mutex);
 	mutex_init(&sbi->wio_mutex[NODE]);
@@ -1489,13 +1489,7 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
 
 static int init_percpu_info(struct f2fs_sb_info *sbi)
 {
-	int i, err;
-
-	for (i = 0; i < NR_COUNT_TYPE; i++) {
-		err = percpu_counter_init(&sbi->nr_pages[i], 0, GFP_KERNEL);
-		if (err)
-			return err;
-	}
+	int err;
 
 	err = percpu_counter_init(&sbi->alloc_valid_block_count, 0, GFP_KERNEL);
 	if (err)
