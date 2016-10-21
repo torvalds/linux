@@ -7777,6 +7777,8 @@ static int si_dpm_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	flush_work(&adev->pm.dpm.thermal.work);
+
 	mutex_lock(&adev->pm.mutex);
 	amdgpu_pm_sysfs_fini(adev);
 	si_dpm_fini(adev);
