@@ -2091,24 +2091,18 @@ int sk_wait_data(struct sock *sk, long *timeo, const struct sk_buff *skb)
 EXPORT_SYMBOL(sk_wait_data);
 
 /**
- *	__sk_mem_schedule - increase sk_forward_alloc and memory_allocated
+ *	__sk_mem_raise_allocated - increase memory_allocated
  *	@sk: socket
  *	@size: memory size to allocate
+ *	@amt: pages to allocate
  *	@kind: allocation type
  *
- *	If kind is SK_MEM_SEND, it means wmem allocation. Otherwise it means
- *	rmem allocation. This function assumes that protocols which have
- *	memory_pressure use sk_wmem_queued as write buffer accounting.
+ *	Similar to __sk_mem_schedule(), but does not update sk_forward_alloc
  */
-int __sk_mem_schedule(struct sock *sk, int size, int kind)
+int __sk_mem_raise_allocated(struct sock *sk, int size, int amt, int kind)
 {
 	struct proto *prot = sk->sk_prot;
-	int amt = sk_mem_pages(size);
-	long allocated;
-
-	sk->sk_forward_alloc += amt * SK_MEM_QUANTUM;
-
-	allocated = sk_memory_allocated_add(sk, amt);
+	long allocated = sk_memory_allocated_add(sk, amt);
 
 	if (mem_cgroup_sockets_enabled && sk->sk_memcg &&
 	    !mem_cgroup_charge_skmem(sk->sk_memcg, amt))
@@ -2169,9 +2163,6 @@ suppress_allocation:
 
 	trace_sock_exceed_buf_limit(sk, prot, allocated);
 
-	/* Alas. Undo changes. */
-	sk->sk_forward_alloc -= amt * SK_MEM_QUANTUM;
-
 	sk_memory_allocated_sub(sk, amt);
 
 	if (mem_cgroup_sockets_enabled && sk->sk_memcg)
@@ -2179,18 +2170,40 @@ suppress_allocation:
 
 	return 0;
 }
+EXPORT_SYMBOL(__sk_mem_raise_allocated);
+
+/**
+ *	__sk_mem_schedule - increase sk_forward_alloc and memory_allocated
+ *	@sk: socket
+ *	@size: memory size to allocate
+ *	@kind: allocation type
+ *
+ *	If kind is SK_MEM_SEND, it means wmem allocation. Otherwise it means
+ *	rmem allocation. This function assumes that protocols which have
+ *	memory_pressure use sk_wmem_queued as write buffer accounting.
+ */
+int __sk_mem_schedule(struct sock *sk, int size, int kind)
+{
+	int ret, amt = sk_mem_pages(size);
+
+	sk->sk_forward_alloc += amt << SK_MEM_QUANTUM_SHIFT;
+	ret = __sk_mem_raise_allocated(sk, size, amt, kind);
+	if (!ret)
+		sk->sk_forward_alloc -= amt << SK_MEM_QUANTUM_SHIFT;
+	return ret;
+}
 EXPORT_SYMBOL(__sk_mem_schedule);
 
 /**
- *	__sk_mem_reclaim - reclaim memory_allocated
+ *	__sk_mem_reduce_allocated - reclaim memory_allocated
  *	@sk: socket
- *	@amount: number of bytes (rounded down to a SK_MEM_QUANTUM multiple)
+ *	@amount: number of quanta
+ *
+ *	Similar to __sk_mem_reclaim(), but does not update sk_forward_alloc
  */
-void __sk_mem_reclaim(struct sock *sk, int amount)
+void __sk_mem_reduce_allocated(struct sock *sk, int amount)
 {
-	amount >>= SK_MEM_QUANTUM_SHIFT;
 	sk_memory_allocated_sub(sk, amount);
-	sk->sk_forward_alloc -= amount << SK_MEM_QUANTUM_SHIFT;
 
 	if (mem_cgroup_sockets_enabled && sk->sk_memcg)
 		mem_cgroup_uncharge_skmem(sk->sk_memcg, amount);
@@ -2198,6 +2211,19 @@ void __sk_mem_reclaim(struct sock *sk, int amount)
 	if (sk_under_memory_pressure(sk) &&
 	    (sk_memory_allocated(sk) < sk_prot_mem_limits(sk, 0)))
 		sk_leave_memory_pressure(sk);
+}
+EXPORT_SYMBOL(__sk_mem_reduce_allocated);
+
+/**
+ *	__sk_mem_reclaim - reclaim sk_forward_alloc and memory_allocated
+ *	@sk: socket
+ *	@amount: number of bytes (rounded down to a SK_MEM_QUANTUM multiple)
+ */
+void __sk_mem_reclaim(struct sock *sk, int amount)
+{
+	amount >>= SK_MEM_QUANTUM_SHIFT;
+	sk->sk_forward_alloc -= amount << SK_MEM_QUANTUM_SHIFT;
+	__sk_mem_reduce_allocated(sk, amount);
 }
 EXPORT_SYMBOL(__sk_mem_reclaim);
 

@@ -323,6 +323,27 @@ void __skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb, int len)
 }
 EXPORT_SYMBOL(__skb_free_datagram_locked);
 
+int __sk_queue_drop_skb(struct sock *sk, struct sk_buff *skb,
+			unsigned int flags)
+{
+	int err = 0;
+
+	if (flags & MSG_PEEK) {
+		err = -ENOENT;
+		spin_lock_bh(&sk->sk_receive_queue.lock);
+		if (skb == skb_peek(&sk->sk_receive_queue)) {
+			__skb_unlink(skb, &sk->sk_receive_queue);
+			atomic_dec(&skb->users);
+			err = 0;
+		}
+		spin_unlock_bh(&sk->sk_receive_queue.lock);
+	}
+
+	atomic_inc(&sk->sk_drops);
+	return err;
+}
+EXPORT_SYMBOL(__sk_queue_drop_skb);
+
 /**
  *	skb_kill_datagram - Free a datagram skbuff forcibly
  *	@sk: socket
@@ -346,23 +367,10 @@ EXPORT_SYMBOL(__skb_free_datagram_locked);
 
 int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags)
 {
-	int err = 0;
-
-	if (flags & MSG_PEEK) {
-		err = -ENOENT;
-		spin_lock_bh(&sk->sk_receive_queue.lock);
-		if (skb == skb_peek(&sk->sk_receive_queue)) {
-			__skb_unlink(skb, &sk->sk_receive_queue);
-			atomic_dec(&skb->users);
-			err = 0;
-		}
-		spin_unlock_bh(&sk->sk_receive_queue.lock);
-	}
+	int err = __sk_queue_drop_skb(sk, skb, flags);
 
 	kfree_skb(skb);
-	atomic_inc(&sk->sk_drops);
 	sk_mem_reclaim_partial(sk);
-
 	return err;
 }
 EXPORT_SYMBOL(skb_kill_datagram);
