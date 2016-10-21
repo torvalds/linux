@@ -52,8 +52,6 @@ static inline bool drm_rotation_90_or_270(unsigned int rotation)
 	return rotation & (DRM_ROTATE_90 | DRM_ROTATE_270);
 }
 
-struct drm_property *drm_mode_create_rotation_property(struct drm_device *dev,
-						       unsigned int supported_rotations);
 int drm_plane_create_rotation_property(struct drm_plane *plane,
 				       unsigned int rotation,
 				       unsigned int supported_rotations);

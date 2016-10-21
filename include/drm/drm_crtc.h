@@ -1156,11 +1156,6 @@ struct drm_mode_config {
 	 */
 	struct drm_property *plane_type_property;
 	/**
-	 * @rotation_property: Optional property for planes or CRTCs to specifiy
-	 * rotation.
-	 */
-	struct drm_property *rotation_property;
-	/**
 	 * @prop_src_x: Default atomic plane property for the plane source
 	 * position in the connected &drm_framebuffer.
 	 */

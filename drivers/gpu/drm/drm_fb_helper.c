@@ -392,15 +392,10 @@ static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 		if (plane->type != DRM_PLANE_TYPE_PRIMARY)
 			drm_plane_force_disable(plane);
 
-		if (plane->rotation_property) {
+		if (plane->rotation_property)
 			drm_mode_plane_set_obj_prop(plane,
 						    plane->rotation_property,
 						    DRM_ROTATE_0);
-		} else if (dev->mode_config.rotation_property) {
-			drm_mode_plane_set_obj_prop(plane,
-						    dev->mode_config.rotation_property,
-						    DRM_ROTATE_0);
-		}
 	}
 
 	for (i = 0; i < fb_helper->crtc_count; i++) {
