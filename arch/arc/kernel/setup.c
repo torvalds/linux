@@ -138,6 +138,9 @@ static void read_arc_build_cfg_regs(void)
 	cpu->extn.swap = read_aux_reg(ARC_REG_SWAP_BCR) ? 1 : 0;        /* 1,3 */
 	cpu->extn.crc = read_aux_reg(ARC_REG_CRC_BCR) ? 1 : 0;
 	cpu->extn.minmax = read_aux_reg(ARC_REG_MIXMAX_BCR) > 1 ? 1 : 0; /* 2 */
+	cpu->extn.swape = (cpu->core.family >= 0x34) ? 1 :
+				IS_ENABLED(CONFIG_ARC_HAS_SWAPE);
+
 	READ_BCR(ARC_REG_XY_MEM_BCR, cpu->extn_xymem);
 
 	/* Read CCM BCRs for boot reporting even if not enabled in Kconfig */
@@ -250,7 +253,7 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 		       IS_AVAIL1(cpu->extn.swap, "swap "),
 		       IS_AVAIL1(cpu->extn.minmax, "minmax "),
 		       IS_AVAIL1(cpu->extn.crc, "crc "),
-		       IS_AVAIL2(1, "swape", CONFIG_ARC_HAS_SWAPE));
+		       IS_AVAIL2(cpu->extn.swape, "swape", CONFIG_ARC_HAS_SWAPE));
 
 	if (cpu->bpu.ver)
 		n += scnprintf(buf + n, len - n,
