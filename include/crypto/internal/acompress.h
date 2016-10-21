@@ -39,6 +39,21 @@ static inline const char *acomp_alg_name(struct crypto_acomp *tfm)
 	return crypto_acomp_tfm(tfm)->__crt_alg->cra_name;
 }
 
+static inline struct acomp_req *__acomp_request_alloc(struct crypto_acomp *tfm)
+{
+	struct acomp_req *req;
+
+	req = kzalloc(sizeof(*req) + crypto_acomp_reqsize(tfm), GFP_KERNEL);
+	if (likely(req))
+		acomp_request_set_tfm(req, tfm);
+	return req;
+}
+
+static inline void __acomp_request_free(struct acomp_req *req)
+{
+	kzfree(req);
+}
+
 /**
  * crypto_register_acomp() -- Register asynchronous compression algorithm
  *
