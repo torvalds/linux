@@ -248,11 +248,28 @@
 		method = "smc";
 	};
 
+	tcsr_mutex: hwlock {
+		compatible = "qcom,tcsr-mutex";
+		syscon = <&tcsr_mutex_regs 0 0x1000>;
+		#hwlock-cells = <1>;
+	};
+
+	smem {
+		compatible = "qcom,smem";
+		memory-region = <&smem_mem>;
+		hwlocks = <&tcsr_mutex 3>;
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0 0 0xffffffff>;
 		compatible = "simple-bus";
+
+		tcsr_mutex_regs: syscon@740000 {
+			compatible = "syscon";
+			reg = <0x740000 0x20000>;
+		};
 
 		intc: interrupt-controller@9bc0000 {
 			compatible = "arm,gic-v3";
