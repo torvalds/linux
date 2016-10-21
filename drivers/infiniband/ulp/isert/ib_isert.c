@@ -1851,6 +1851,8 @@ isert_put_response(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 		isert_cmd->pdu_buf_dma = ib_dma_map_single(ib_dev,
 				(void *)cmd->sense_buffer, pdu_len,
 				DMA_TO_DEVICE);
+		if (ib_dma_mapping_error(ib_dev, isert_cmd->pdu_buf_dma))
+			return -ENOMEM;
 
 		isert_cmd->pdu_buf_len = pdu_len;
 		tx_dsg->addr	= isert_cmd->pdu_buf_dma;
@@ -1978,6 +1980,8 @@ isert_put_reject(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 	isert_cmd->pdu_buf_dma = ib_dma_map_single(ib_dev,
 			(void *)cmd->buf_ptr, ISCSI_HDR_LEN,
 			DMA_TO_DEVICE);
+	if (ib_dma_mapping_error(ib_dev, isert_cmd->pdu_buf_dma))
+		return -ENOMEM;
 	isert_cmd->pdu_buf_len = ISCSI_HDR_LEN;
 	tx_dsg->addr	= isert_cmd->pdu_buf_dma;
 	tx_dsg->length	= ISCSI_HDR_LEN;
@@ -2018,6 +2022,8 @@ isert_put_text_rsp(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 
 		isert_cmd->pdu_buf_dma = ib_dma_map_single(ib_dev,
 				txt_rsp_buf, txt_rsp_len, DMA_TO_DEVICE);
+		if (ib_dma_mapping_error(ib_dev, isert_cmd->pdu_buf_dma))
+			return -ENOMEM;
 
 		isert_cmd->pdu_buf_len = txt_rsp_len;
 		tx_dsg->addr	= isert_cmd->pdu_buf_dma;
