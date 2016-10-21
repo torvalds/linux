@@ -1055,6 +1055,12 @@ static int qede_set_rxfh(struct net_device *dev, const u32 *indir,
 	struct qede_dev *edev = netdev_priv(dev);
 	int i;
 
+	if (edev->dev_info.common.num_hwfns > 1) {
+		DP_INFO(edev,
+			"RSS configuration is not supported for 100G devices\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
