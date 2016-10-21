@@ -5589,10 +5589,6 @@ static void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 50000);
 	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
 
-	ret = sandybridge_pcode_write(dev_priv, GEN6_PCODE_WRITE_MIN_FREQ_TABLE, 0);
-	if (ret)
-		DRM_DEBUG_DRIVER("Failed to set the min frequency\n");
-
 	reset_rps(dev_priv, gen6_set_rps);
 
 	rc6vids = 0;
