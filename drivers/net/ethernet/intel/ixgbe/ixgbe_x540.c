@@ -851,6 +851,7 @@ static const struct ixgbe_mac_operations mac_ops_X540 = {
 	.get_link_capabilities  = &ixgbe_get_copper_link_capabilities_generic,
 	.led_on                 = &ixgbe_led_on_generic,
 	.led_off                = &ixgbe_led_off_generic,
+	.init_led_link_act	= ixgbe_init_led_link_act_generic,
 	.blink_led_start        = &ixgbe_blink_led_start_X540,
 	.blink_led_stop         = &ixgbe_blink_led_stop_X540,
 	.set_rar                = &ixgbe_set_rar_generic,

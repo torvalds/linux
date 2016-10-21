@@ -390,6 +390,9 @@ s32 ixgbe_init_hw_generic(struct ixgbe_hw *hw)
 		status = hw->mac.ops.start_hw(hw);
 	}
 
+	/* Initialize the LED link active for LED blink support */
+	hw->mac.ops.init_led_link_act(hw);
+
 	return status;
 }
 
@@ -770,6 +773,49 @@ s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 	 * access and verify no pending requests
 	 */
 	return ixgbe_disable_pcie_master(hw);
+}
+
+/**
+ *  ixgbe_init_led_link_act_generic - Store the LED index link/activity.
+ *  @hw: pointer to hardware structure
+ *
+ *  Store the index for the link active LED. This will be used to support
+ *  blinking the LED.
+ **/
+s32 ixgbe_init_led_link_act_generic(struct ixgbe_hw *hw)
+{
+	struct ixgbe_mac_info *mac = &hw->mac;
+	u32 led_reg, led_mode;
+	u16 i;
+
+	led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
+
+	/* Get LED link active from the LEDCTL register */
+	for (i = 0; i < 4; i++) {
+		led_mode = led_reg >> IXGBE_LED_MODE_SHIFT(i);
+
+		if ((led_mode & IXGBE_LED_MODE_MASK_BASE) ==
+		    IXGBE_LED_LINK_ACTIVE) {
+			mac->led_link_act = i;
+			return 0;
+		}
+	}
+
+	/* If LEDCTL register does not have the LED link active set, then use
+	 * known MAC defaults.
+	 */
+	switch (hw->mac.type) {
+	case ixgbe_mac_x550em_a:
+		mac->led_link_act = 0;
+		break;
+	case ixgbe_mac_X550EM_x:
+		mac->led_link_act = 1;
+		break;
+	default:
+		mac->led_link_act = 2;
+	}
+
+	return 0;
 }
 
 /**
