@@ -1430,13 +1430,13 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 		skb_put(skb, pkt_len - 4);
 		data = skb->data;
 
+		if (!is_copybreak && need_swap)
+			swap_buffer(data, pkt_len);
+
 #if !defined(CONFIG_M5272)
 		if (fep->quirks & FEC_QUIRK_HAS_RACC)
 			data = skb_pull_inline(skb, 2);
 #endif
-
-		if (!is_copybreak && need_swap)
-			swap_buffer(data, pkt_len);
 
 		/* Extract the enhanced buffer descriptor */
 		ebdp = NULL;
