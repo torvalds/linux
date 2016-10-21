@@ -659,10 +659,12 @@ static void ks_sdio_interrupt(struct sdio_func *func)
 static int trx_device_init(struct ks_wlan_private *priv)
 {
 	/* initialize values (tx) */
-	priv->tx_dev.qtail = priv->tx_dev.qhead = 0;
+	priv->tx_dev.qhead = 0;
+	priv->tx_dev.qtail = 0;
 
 	/* initialize values (rx) */
-	priv->rx_dev.qtail = priv->rx_dev.qhead = 0;
+	priv->rx_dev.qhead = 0;
+	priv->rx_dev.qtail = 0;
 
 	/* initialize spinLock (tx,rx) */
 	spin_lock_init(&priv->tx_dev.tx_dev_lock);
