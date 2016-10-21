@@ -443,13 +443,9 @@ void amdgpu_doorbell_get_kfd_info(struct amdgpu_device *adev,
 static void amdgpu_wb_fini(struct amdgpu_device *adev)
 {
 	if (adev->wb.wb_obj) {
-		if (!amdgpu_bo_reserve(adev->wb.wb_obj, false)) {
-			amdgpu_bo_kunmap(adev->wb.wb_obj);
-			amdgpu_bo_unpin(adev->wb.wb_obj);
-			amdgpu_bo_unreserve(adev->wb.wb_obj);
-		}
-		amdgpu_bo_unref(&adev->wb.wb_obj);
-		adev->wb.wb = NULL;
+		amdgpu_bo_free_kernel(&adev->wb.wb_obj,
+				      &adev->wb.gpu_addr,
+				      (void **)&adev->wb.wb);
 		adev->wb.wb_obj = NULL;
 	}
 }
@@ -468,31 +464,12 @@ static int amdgpu_wb_init(struct amdgpu_device *adev)
 	int r;
 
 	if (adev->wb.wb_obj == NULL) {
-		r = amdgpu_bo_create(adev, AMDGPU_MAX_WB * 4, PAGE_SIZE, true,
-				     AMDGPU_GEM_DOMAIN_GTT, 0,  NULL, NULL,
-				     &adev->wb.wb_obj);
+		r = amdgpu_bo_create_kernel(adev, AMDGPU_MAX_WB * 4,
+					    PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
+					    &adev->wb.wb_obj, &adev->wb.gpu_addr,
+					    (void **)&adev->wb.wb);
 		if (r) {
 			dev_warn(adev->dev, "(%d) create WB bo failed\n", r);
-			return r;
-		}
-		r = amdgpu_bo_reserve(adev->wb.wb_obj, false);
-		if (unlikely(r != 0)) {
-			amdgpu_wb_fini(adev);
-			return r;
-		}
-		r = amdgpu_bo_pin(adev->wb.wb_obj, AMDGPU_GEM_DOMAIN_GTT,
-				&adev->wb.gpu_addr);
-		if (r) {
-			amdgpu_bo_unreserve(adev->wb.wb_obj);
-			dev_warn(adev->dev, "(%d) pin WB bo failed\n", r);
-			amdgpu_wb_fini(adev);
-			return r;
-		}
-		r = amdgpu_bo_kmap(adev->wb.wb_obj, (void **)&adev->wb.wb);
-		amdgpu_bo_unreserve(adev->wb.wb_obj);
-		if (r) {
-			dev_warn(adev->dev, "(%d) map WB bo failed\n", r);
-			amdgpu_wb_fini(adev);
 			return r;
 		}
 
