@@ -562,6 +562,21 @@ static int wiphy_verify_combinations(struct wiphy *wiphy)
 				    c->limits[j].max > 1))
 				return -EINVAL;
 
+			/*
+			 * This isn't well-defined right now. If you have an
+			 * IBSS interface, then its beacon interval may change
+			 * by joining other networks, and nothing prevents it
+			 * from doing that.
+			 * So technically we probably shouldn't even allow AP
+			 * and IBSS in the same interface, but it seems that
+			 * some drivers support that, possibly only with fixed
+			 * beacon intervals for IBSS.
+			 */
+			if (WARN_ON(types & BIT(NL80211_IFTYPE_ADHOC) &&
+				    c->beacon_int_min_gcd)) {
+				return -EINVAL;
+			}
+
 			cnt += c->limits[j].max;
 			/*
 			 * Don't advertise an unsupported type
