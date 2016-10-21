@@ -18,11 +18,47 @@
 		display0 = &hdmi0;
 	};
 
+	evm_12v0: fixedregulator-evm12v0 {
+		/* main supply */
+		compatible = "regulator-fixed";
+		regulator-name = "evm_12v0";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	evm_5v0: fixedregulator-evm5v0 {
+		/* Output 1 of TPS43351QDAPRQ1 */
+		compatible = "regulator-fixed";
+		regulator-name = "evm_5v0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&evm_12v0>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vsys_3v3: fixedregulator-vsys3v3 {
+		/* Output 2 of TPS43351QDAPRQ1 */
+		compatible = "regulator-fixed";
+		regulator-name = "vsys_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&evm_12v0>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	evm_3v3_sw: fixedregulator-evm_3v3 {
+		/* TPS22965DSG */
 		compatible = "regulator-fixed";
 		regulator-name = "evm_3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vsys_3v3>;
+		regulator-always-on;
+		regulator-boot-on;
 	};
 
 	aic_dvdd: fixedregulator-aic_dvdd {
@@ -39,6 +75,7 @@
 		regulator-name = "evm_3v3_sd";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		vin-supply = <&evm_3v3_sw>;
 		enable-active-high;
 		gpio = <&pcf_gpio_21 5 GPIO_ACTIVE_HIGH>;
 	};
@@ -189,6 +226,17 @@
 
 		tps65917_pmic {
 			compatible = "ti,tps65917-pmic";
+
+			smps1-in-supply = <&vsys_3v3>;
+			smps2-in-supply = <&vsys_3v3>;
+			smps3-in-supply = <&vsys_3v3>;
+			smps4-in-supply = <&vsys_3v3>;
+			smps5-in-supply = <&vsys_3v3>;
+			ldo1-in-supply = <&vsys_3v3>;
+			ldo2-in-supply = <&vsys_3v3>;
+			ldo3-in-supply = <&vsys_3v3>;
+			ldo4-in-supply = <&evm_5v0>;
+			ldo5-in-supply = <&vsys_3v3>;
 
 			tps65917_regulators: regulators {
 				smps1_reg: smps1 {
