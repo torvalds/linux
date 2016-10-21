@@ -90,8 +90,6 @@ struct __exynos_ppmu_events {
 	PPMU_EVENT(d1-cpu),
 	PPMU_EVENT(d1-general),
 	PPMU_EVENT(d1-rt),
-
-	{ /* sentinel */ },
 };
 
 static int exynos_ppmu_find_ppmu_id(struct devfreq_event_dev *edev)
