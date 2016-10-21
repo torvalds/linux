@@ -29,7 +29,8 @@
 	};
 
 	evm_5v0: fixedregulator-evm5v0 {
-		/* Output 1 of TPS43351QDAPRQ1 */
+		/* Output 1 of TPS43351QDAPRQ1 on dra72-evm */
+		/* Output 1 of LM5140QRWGTQ1 on dra71-evm */
 		compatible = "regulator-fixed";
 		regulator-name = "evm_5v0";
 		regulator-min-microvolt = <5000000>;
@@ -40,7 +41,8 @@
 	};
 
 	vsys_3v3: fixedregulator-vsys3v3 {
-		/* Output 2 of TPS43351QDAPRQ1 */
+		/* Output 2 of TPS43351QDAPRQ1 on dra72-evm */
+		/* Output 2 of LM5140QRWGTQ1 on dra71-evm */
 		compatible = "regulator-fixed";
 		regulator-name = "vsys_3v3";
 		regulator-min-microvolt = <3300000>;
