@@ -455,8 +455,10 @@ static int sd_zbc_check_zone_size(struct scsi_disk *sdkp)
 
 	/* Do a report zone to get the same field */
 	ret = sd_zbc_report_zones(sdkp, buf, SD_ZBC_BUF_SIZE, 0);
-	if (ret)
+	if (ret) {
+		zone_blocks = 0;
 		goto out;
+	}
 
 	same = buf[4] & 0x0f;
 	if (same > 0) {
