@@ -1429,6 +1429,8 @@ enum FW_BOOT_CONTEXT {
 #define MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT    14
 #define MR_MAX_MSIX_REG_ARRAY                   16
 #define MR_RDPQ_MODE_OFFSET			0X00800000
+#define MR_CAN_HANDLE_SYNC_CACHE_OFFSET		0X01000000
+
 /*
 * register set for both 1068 and 1078 controllers
 * structure extended for 1078 registers
@@ -2140,6 +2142,7 @@ struct megasas_instance {
 	u8 is_imr;
 	u8 is_rdpq;
 	bool dev_handle;
+	bool fw_sync_cache_support;
 };
 struct MR_LD_VF_MAP {
 	u32 size;

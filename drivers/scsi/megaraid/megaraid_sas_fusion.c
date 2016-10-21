@@ -748,6 +748,11 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		goto fail_fw_init;
 	}
 
+	instance->fw_sync_cache_support = (scratch_pad_2 &
+		MR_CAN_HANDLE_SYNC_CACHE_OFFSET) ? 1 : 0;
+	dev_info(&instance->pdev->dev, "FW supports sync cache\t: %s\n",
+		 instance->fw_sync_cache_support ? "Yes" : "No");
+
 	IOCInitMessage =
 	  dma_alloc_coherent(&instance->pdev->dev,
 			     sizeof(struct MPI2_IOC_INIT_REQUEST),
