@@ -239,6 +239,7 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	if (r) {
 		adev->irq.installed = false;
 		flush_work(&adev->hotplug_work);
+		cancel_work_sync(&adev->reset_work);
 		return r;
 	}
 
@@ -264,6 +265,7 @@ void amdgpu_irq_fini(struct amdgpu_device *adev)
 		if (adev->irq.msi_enabled)
 			pci_disable_msi(adev->pdev);
 		flush_work(&adev->hotplug_work);
+		cancel_work_sync(&adev->reset_work);
 	}
 
 	for (i = 0; i < AMDGPU_MAX_IRQ_SRC_ID; ++i) {
