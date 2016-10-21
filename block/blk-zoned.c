@@ -80,7 +80,7 @@ int blkdev_report_zones(struct block_device *bdev,
 	unsigned int i, n, nz;
 	unsigned int ofst;
 	void *addr;
-	int ret = 0;
+	int ret;
 
 	if (!q)
 		return -ENXIO;
@@ -179,13 +179,11 @@ int blkdev_report_zones(struct block_device *bdev,
 
 	}
 
+	*nr_zones = nz;
 out:
 	bio_for_each_segment_all(bv, bio, i)
 		__free_page(bv->bv_page);
 	bio_put(bio);
-
-	if (ret == 0)
-		*nr_zones = nz;
 
 	return ret;
 }
