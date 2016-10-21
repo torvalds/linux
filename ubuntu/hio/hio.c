@@ -4136,7 +4136,11 @@ static inline void ssd_end_request(struct ssd_cmd *cmd)
 
 	if (bio) {
 #if (defined SSD_TRIM && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0))
+		if (!(bio_op(bio) & REQ_OP_DISCARD)) {
+#else
 		if (!(bio->bi_rw & REQ_DISCARD)) {
+#endif
 			ssd_end_io_acct(cmd);
 			if (!cmd->flag) {
 				pci_unmap_sg(dev->pdev, cmd->sgl, cmd->nsegs, 
@@ -4555,7 +4559,11 @@ static int __ssd_submit_pbio(struct ssd_device *dev, struct bio *bio, int wait)
 	msg = (struct ssd_rw_msg *)cmd->msg;
 
 #if (defined SSD_TRIM && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0))
+	if (bio_op(bio) & REQ_OP_DISCARD) {
+#else
 	if (bio->bi_rw & REQ_DISCARD) {
+#endif
 		unsigned int length = bio_sectors(bio);
 
 		//printk(KERN_WARNING "%s: discard len %u, block %llu\n", dev->name, bio_sectors(bio), block);
@@ -4670,7 +4678,11 @@ static inline int ssd_submit_bio(struct ssd_device *dev, struct bio *bio, int wa
 	sgl = cmd->sgl;
 
 #if (defined SSD_TRIM && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0))
+	if (bio_op(bio) & REQ_OP_DISCARD) {
+#else
 	if (bio->bi_rw & REQ_DISCARD) {
+#endif
 		unsigned int length = bio_sectors(bio);
 
 		//printk(KERN_WARNING "%s: discard len %u, block %llu\n", dev->name, bio_sectors(bio), block);
@@ -8199,7 +8211,11 @@ void ssd_submit_pbio(struct request_queue *q, struct bio *bio)
 	}
 #else
 	//xx
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0))
+	if (unlikely(bio->bi_opf & REQ_FUA)) {
+#else
 	if (unlikely(bio->bi_rw & REQ_FUA)) {
+#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24))
 		bio_endio(bio, -EOPNOTSUPP);
 #else
@@ -8296,7 +8312,11 @@ static int ssd_make_request(struct request_queue *q, struct bio *bio)
 	}
 #else
 	//xx
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0))
+	if (unlikely(bio->bi_opf & REQ_FUA)) {
+#else
 	if (unlikely(bio->bi_rw & REQ_FUA)) {
+#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24))
 		bio_endio(bio, -EOPNOTSUPP);
 #else
@@ -8306,7 +8326,11 @@ static int ssd_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	/* writeback_cache_control.txt: REQ_FLUSH requests without data can be completed successfully without doing any work */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0))
+	if (unlikely((bio_op(bio) & REQ_OP_FLUSH) && !bio_sectors(bio))) {
+#else
 	if (unlikely((bio->bi_rw & REQ_FLUSH) && !bio_sectors(bio))) {
+#endif
 		bio_endio(bio, 0);
 		goto out;
 	}
@@ -10229,12 +10253,18 @@ static int ssd_init_blkdev(struct ssd_device *dev)
 	dev->gd->fops = &ssd_fops;
 	dev->gd->queue = dev->rq;
 	dev->gd->private_data = dev;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,8,0))
 	dev->gd->driverfs_dev = &dev->pdev->dev;
+#endif
 	snprintf (dev->gd->disk_name, sizeof(dev->gd->disk_name), "%s", dev->name);
 
 	set_capacity(dev->gd, dev->hw_info.size >> 9);
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,8,0))
 	add_disk(dev->gd);
+#else
+	device_add_disk(&dev->pdev->dev, dev->gd);
+#endif
 
 	return 0;
 
