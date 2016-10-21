@@ -1189,18 +1189,6 @@ static int cik_gpu_pci_config_reset(struct amdgpu_device *adev)
 	return r;
 }
 
-static void cik_set_bios_scratch_engine_hung(struct amdgpu_device *adev, bool hung)
-{
-	u32 tmp = RREG32(mmBIOS_SCRATCH_3);
-
-	if (hung)
-		tmp |= ATOM_S3_ASIC_GUI_ENGINE_HUNG;
-	else
-		tmp &= ~ATOM_S3_ASIC_GUI_ENGINE_HUNG;
-
-	WREG32(mmBIOS_SCRATCH_3, tmp);
-}
-
 /**
  * cik_asic_reset - soft reset GPU
  *
@@ -1213,11 +1201,12 @@ static void cik_set_bios_scratch_engine_hung(struct amdgpu_device *adev, bool hu
 static int cik_asic_reset(struct amdgpu_device *adev)
 {
 	int r;
-	cik_set_bios_scratch_engine_hung(adev, true);
+
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
 
 	r = cik_gpu_pci_config_reset(adev);
 
-	cik_set_bios_scratch_engine_hung(adev, false);
+	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
 
 	return r;
 }

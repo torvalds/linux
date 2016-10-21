@@ -206,6 +206,8 @@ void amdgpu_atombios_scratch_regs_lock(struct amdgpu_device *adev, bool lock);
 void amdgpu_atombios_scratch_regs_init(struct amdgpu_device *adev);
 void amdgpu_atombios_scratch_regs_save(struct amdgpu_device *adev);
 void amdgpu_atombios_scratch_regs_restore(struct amdgpu_device *adev);
+void amdgpu_atombios_scratch_regs_engine_hung(struct amdgpu_device *adev,
+					      bool hung);
 
 void amdgpu_atombios_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le);
 int amdgpu_atombios_get_max_vddc(struct amdgpu_device *adev, u8 voltage_type,
