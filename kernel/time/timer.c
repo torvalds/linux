@@ -1896,16 +1896,6 @@ unsigned long msleep_interruptible(unsigned int msecs)
 
 EXPORT_SYMBOL(msleep_interruptible);
 
-static void __sched do_usleep_range(unsigned long min, unsigned long max)
-{
-	ktime_t kmin;
-	u64 delta;
-
-	kmin = ktime_set(0, min * NSEC_PER_USEC);
-	delta = (u64)(max - min) * NSEC_PER_USEC;
-	schedule_hrtimeout_range(&kmin, delta, HRTIMER_MODE_REL);
-}
-
 /**
  * usleep_range - Sleep for an approximate time
  * @min: Minimum time in usecs to sleep
@@ -1919,7 +1909,14 @@ static void __sched do_usleep_range(unsigned long min, unsigned long max)
  */
 void __sched usleep_range(unsigned long min, unsigned long max)
 {
-	__set_current_state(TASK_UNINTERRUPTIBLE);
-	do_usleep_range(min, max);
+	ktime_t exp = ktime_add_us(ktime_get(), min);
+	u64 delta = (u64)(max - min) * NSEC_PER_USEC;
+
+	for (;;) {
+		__set_current_state(TASK_UNINTERRUPTIBLE);
+		/* Do not return before the requested sleep time has elapsed */
+		if (!schedule_hrtimeout_range(&exp, delta, HRTIMER_MODE_ABS))
+			break;
+	}
 }
 EXPORT_SYMBOL(usleep_range);
