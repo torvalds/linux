@@ -323,7 +323,7 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 
 static int modeset_init(struct mdp5_kms *mdp5_kms)
 {
-	static const enum mdp5_pipe crtcs[] = {
+	static const enum mdp5_pipe rgb_planes[] = {
 			SSPP_RGB0, SSPP_RGB1, SSPP_RGB2, SSPP_RGB3,
 	};
 	static const enum mdp5_pipe vig_planes[] = {
@@ -344,12 +344,12 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		struct drm_plane *plane;
 		struct drm_crtc *crtc;
 
-		plane = mdp5_plane_init(dev, crtcs[i], true,
+		plane = mdp5_plane_init(dev, rgb_planes[i], true,
 			hw_cfg->pipe_rgb.base[i], hw_cfg->pipe_rgb.caps);
 		if (IS_ERR(plane)) {
 			ret = PTR_ERR(plane);
 			dev_err(dev->dev, "failed to construct plane for %s (%d)\n",
-					pipe2name(crtcs[i]), ret);
+					pipe2name(rgb_planes[i]), ret);
 			goto fail;
 		}
 
@@ -357,7 +357,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		if (IS_ERR(crtc)) {
 			ret = PTR_ERR(crtc);
 			dev_err(dev->dev, "failed to construct crtc for %s (%d)\n",
-					pipe2name(crtcs[i]), ret);
+					pipe2name(rgb_planes[i]), ret);
 			goto fail;
 		}
 		priv->crtcs[priv->num_crtcs++] = crtc;
