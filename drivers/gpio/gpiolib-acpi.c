@@ -468,7 +468,8 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 	int ret;
 
 	memset(&args, 0, sizeof(args));
-	ret = acpi_node_get_property_reference(fwnode, propname, index, &args);
+	ret = __acpi_node_get_property_reference(fwnode, propname, index, 3,
+						 &args);
 	if (ret) {
 		struct acpi_device *adev = to_acpi_device_node(fwnode);
 
@@ -483,13 +484,13 @@ static int acpi_gpio_property_lookup(struct fwnode_handle *fwnode,
 	 * on returned args.
 	 */
 	lookup->adev = args.adev;
-	if (args.nargs >= 2) {
-		lookup->index = args.args[0];
-		lookup->pin_index = args.args[1];
-		/* 3rd argument, if present is used to specify active_low. */
-		if (args.nargs >= 3)
-			lookup->active_low = !!args.args[2];
-	}
+	if (args.nargs != 3)
+		return -EPROTO;
+
+	lookup->index = args.args[0];
+	lookup->pin_index = args.args[1];
+	lookup->active_low = !!args.args[2];
+
 	return 0;
 }
 
@@ -915,18 +916,27 @@ void acpi_gpiochip_remove(struct gpio_chip *chip)
 	kfree(acpi_gpio);
 }
 
-static unsigned int acpi_gpio_package_count(const union acpi_object *obj)
+static int acpi_gpio_package_count(const union acpi_object *obj)
 {
 	const union acpi_object *element = obj->package.elements;
 	const union acpi_object *end = element + obj->package.count;
 	unsigned int count = 0;
 
 	while (element < end) {
-		if (element->type == ACPI_TYPE_LOCAL_REFERENCE)
+		switch (element->type) {
+		case ACPI_TYPE_LOCAL_REFERENCE:
+			element += 3;
+			/* Fallthrough */
+		case ACPI_TYPE_INTEGER:
+			element++;
 			count++;
+			break;
 
-		element++;
+		default:
+			return -EPROTO;
+		}
 	}
+
 	return count;
 }
 
