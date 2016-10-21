@@ -4015,7 +4015,6 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l3_main_1__pciess2,
 	&dra7xx_l4_cfg__pciess2,
 	&dra7xx_l3_main_1__qspi,
-	&dra7xx_l4_per3__rtcss,
 	&dra7xx_l4_cfg__sata,
 	&dra7xx_l4_cfg__smartreflex_core,
 	&dra7xx_l4_cfg__smartreflex_mpu,
@@ -4077,6 +4076,11 @@ static struct omap_hwmod_ocp_if *dra72x_hwmod_ocp_ifs[] __initdata = {
 	NULL,
 };
 
+static struct omap_hwmod_ocp_if *dra74x_dra72x_hwmod_ocp_ifs[] __initdata = {
+	&dra7xx_l4_per3__rtcss,
+	NULL,
+};
+
 int __init dra7xx_hwmod_init(void)
 {
 	int ret;
@@ -4091,6 +4095,10 @@ int __init dra7xx_hwmod_init(void)
 
 	if (!ret && omap_type() == OMAP2_DEVICE_TYPE_GP)
 		ret = omap_hwmod_register_links(dra7xx_gp_hwmod_ocp_ifs);
+
+	/* now for the IPs *NOT* in dra71 */
+	if (!ret && !of_machine_is_compatible("ti,dra718"))
+		ret = omap_hwmod_register_links(dra74x_dra72x_hwmod_ocp_ifs);
 
 	return ret;
 }
