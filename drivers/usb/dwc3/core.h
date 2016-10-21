@@ -551,6 +551,7 @@ struct dwc3_ep {
 #define DWC3_EP_PENDING_REQUEST	(1 << 5)
 #define DWC3_EP_MISSED_ISOC	(1 << 6)
 #define DWC3_EP_END_TRANSFER_PENDING	(1 << 7)
+#define DWC3_EP_TRANSFER_STARTED (1 << 8)
 
 	/* This last one is specific to EP0 */
 #define DWC3_EP0_DIR_IN		(1 << 31)
