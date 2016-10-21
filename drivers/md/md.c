@@ -2523,51 +2523,38 @@ struct rdev_sysfs_entry {
 static ssize_t
 state_show(struct md_rdev *rdev, char *page)
 {
-	char *sep = "";
+	char *sep = ",";
 	size_t len = 0;
 	unsigned long flags = ACCESS_ONCE(rdev->flags);
 
 	if (test_bit(Faulty, &flags) ||
-	    rdev->badblocks.unacked_exist) {
-		len+= sprintf(page+len, "%sfaulty",sep);
-		sep = ",";
-	}
-	if (test_bit(In_sync, &flags)) {
-		len += sprintf(page+len, "%sin_sync",sep);
-		sep = ",";
-	}
-	if (test_bit(Journal, &flags)) {
-		len += sprintf(page+len, "%sjournal",sep);
-		sep = ",";
-	}
-	if (test_bit(WriteMostly, &flags)) {
-		len += sprintf(page+len, "%swrite_mostly",sep);
-		sep = ",";
-	}
+	    rdev->badblocks.unacked_exist)
+		len += sprintf(page+len, "faulty%s", sep);
+	if (test_bit(In_sync, &flags))
+		len += sprintf(page+len, "in_sync%s", sep);
+	if (test_bit(Journal, &flags))
+		len += sprintf(page+len, "journal%s", sep);
+	if (test_bit(WriteMostly, &flags))
+		len += sprintf(page+len, "write_mostly%s", sep);
 	if (test_bit(Blocked, &flags) ||
 	    (rdev->badblocks.unacked_exist
-	     && !test_bit(Faulty, &flags))) {
-		len += sprintf(page+len, "%sblocked", sep);
-		sep = ",";
-	}
+	     && !test_bit(Faulty, &flags)))
+		len += sprintf(page+len, "blocked%s", sep);
 	if (!test_bit(Faulty, &flags) &&
 	    !test_bit(Journal, &flags) &&
-	    !test_bit(In_sync, &flags)) {
-		len += sprintf(page+len, "%sspare", sep);
-		sep = ",";
-	}
-	if (test_bit(WriteErrorSeen, &flags)) {
-		len += sprintf(page+len, "%swrite_error", sep);
-		sep = ",";
-	}
-	if (test_bit(WantReplacement, &flags)) {
-		len += sprintf(page+len, "%swant_replacement", sep);
-		sep = ",";
-	}
-	if (test_bit(Replacement, &flags)) {
-		len += sprintf(page+len, "%sreplacement", sep);
-		sep = ",";
-	}
+	    !test_bit(In_sync, &flags))
+		len += sprintf(page+len, "spare%s", sep);
+	if (test_bit(WriteErrorSeen, &flags))
+		len += sprintf(page+len, "write_error%s", sep);
+	if (test_bit(WantReplacement, &flags))
+		len += sprintf(page+len, "want_replacement%s", sep);
+	if (test_bit(Replacement, &flags))
+		len += sprintf(page+len, "replacement%s", sep);
+	if (test_bit(ExternalBbl, &flags))
+		len += sprintf(page+len, "external_bbl%s", sep);
+
+	if (len)
+		len -= strlen(sep);
 
 	return len+sprintf(page+len, "\n");
 }
@@ -2708,6 +2695,13 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 			}
 		} else
 			err = -EBUSY;
+	} else if (cmd_match(buf, "external_bbl") && (rdev->mddev->external)) {
+		set_bit(ExternalBbl, &rdev->flags);
+		rdev->badblocks.shift = 0;
+		err = 0;
+	} else if (cmd_match(buf, "-external_bbl") && (rdev->mddev->external)) {
+		clear_bit(ExternalBbl, &rdev->flags);
+		err = 0;
 	}
 	if (!err)
 		sysfs_notify_dirent_safe(rdev->sysfs_state);
@@ -8614,6 +8608,9 @@ int rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 	rv = badblocks_set(&rdev->badblocks, s, sectors, 0);
 	if (rv == 0) {
 		/* Make sure they get written out promptly */
+		if (test_bit(ExternalBbl, &rdev->flags))
+			sysfs_notify(&rdev->kobj, NULL,
+				     "unacknowledged_bad_blocks");
 		sysfs_notify_dirent_safe(rdev->sysfs_state);
 		set_mask_bits(&mddev->flags, 0,
 			      BIT(MD_CHANGE_CLEAN) | BIT(MD_CHANGE_PENDING));
@@ -8627,12 +8624,15 @@ EXPORT_SYMBOL_GPL(rdev_set_badblocks);
 int rdev_clear_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 			 int is_new)
 {
+	int rv;
 	if (is_new)
 		s += rdev->new_data_offset;
 	else
 		s += rdev->data_offset;
-	return badblocks_clear(&rdev->badblocks,
-				  s, sectors);
+	rv = badblocks_clear(&rdev->badblocks, s, sectors);
+	if ((rv == 0) && test_bit(ExternalBbl, &rdev->flags))
+		sysfs_notify(&rdev->kobj, NULL, "bad_blocks");
+	return rv;
 }
 EXPORT_SYMBOL_GPL(rdev_clear_badblocks);
 

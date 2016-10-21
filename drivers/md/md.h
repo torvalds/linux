@@ -168,6 +168,9 @@ enum flag_bits {
 				 * so it is safe to remove without
 				 * another synchronize_rcu() call.
 				 */
+	ExternalBbl,            /* External metadata provides bad
+				 * block management for a disk
+				 */
 };
 
 static inline int is_badblock(struct md_rdev *rdev, sector_t s, int sectors,
