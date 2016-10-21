@@ -1115,49 +1115,6 @@ int amdgpu_atombios_get_memory_pll_dividers(struct amdgpu_device *adev,
 	return 0;
 }
 
-uint32_t amdgpu_atombios_get_engine_clock(struct amdgpu_device *adev)
-{
-	GET_ENGINE_CLOCK_PS_ALLOCATION args;
-	int index = GetIndexIntoMasterTable(COMMAND, GetEngineClock);
-
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
-	return le32_to_cpu(args.ulReturnEngineClock);
-}
-
-uint32_t amdgpu_atombios_get_memory_clock(struct amdgpu_device *adev)
-{
-	GET_MEMORY_CLOCK_PS_ALLOCATION args;
-	int index = GetIndexIntoMasterTable(COMMAND, GetMemoryClock);
-
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
-	return le32_to_cpu(args.ulReturnMemoryClock);
-}
-
-void amdgpu_atombios_set_engine_clock(struct amdgpu_device *adev,
-				      uint32_t eng_clock)
-{
-	SET_ENGINE_CLOCK_PS_ALLOCATION args;
-	int index = GetIndexIntoMasterTable(COMMAND, SetEngineClock);
-
-	args.ulTargetEngineClock = cpu_to_le32(eng_clock);	/* 10 khz */
-
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
-}
-
-void amdgpu_atombios_set_memory_clock(struct amdgpu_device *adev,
-				      uint32_t mem_clock)
-{
-	SET_MEMORY_CLOCK_PS_ALLOCATION args;
-	int index = GetIndexIntoMasterTable(COMMAND, SetMemoryClock);
-
-	if (adev->flags & AMD_IS_APU)
-		return;
-
-	args.ulTargetMemoryClock = cpu_to_le32(mem_clock);	/* 10 khz */
-
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
-}
-
 void amdgpu_atombios_set_engine_dram_timings(struct amdgpu_device *adev,
 					     u32 eng_clock, u32 mem_clock)
 {
@@ -1254,45 +1211,6 @@ int amdgpu_atombios_get_leakage_vddc_based_on_leakage_idx(struct amdgpu_device *
 						      u16 leakage_idx)
 {
 	return amdgpu_atombios_get_max_vddc(adev, VOLTAGE_TYPE_VDDC, leakage_idx, voltage);
-}
-
-void amdgpu_atombios_set_voltage(struct amdgpu_device *adev,
-				 u16 voltage_level,
-				 u8 voltage_type)
-{
-	union set_voltage args;
-	int index = GetIndexIntoMasterTable(COMMAND, SetVoltage);
-	u8 frev, crev, volt_index = voltage_level;
-
-	if (!amdgpu_atom_parse_cmd_header(adev->mode_info.atom_context, index, &frev, &crev))
-		return;
-
-	/* 0xff01 is a flag rather then an actual voltage */
-	if (voltage_level == 0xff01)
-		return;
-
-	switch (crev) {
-	case 1:
-		args.v1.ucVoltageType = voltage_type;
-		args.v1.ucVoltageMode = SET_ASIC_VOLTAGE_MODE_ALL_SOURCE;
-		args.v1.ucVoltageIndex = volt_index;
-		break;
-	case 2:
-		args.v2.ucVoltageType = voltage_type;
-		args.v2.ucVoltageMode = SET_ASIC_VOLTAGE_MODE_SET_VOLTAGE;
-		args.v2.usVoltageLevel = cpu_to_le16(voltage_level);
-		break;
-	case 3:
-		args.v3.ucVoltageType = voltage_type;
-		args.v3.ucVoltageMode = ATOM_SET_VOLTAGE;
-		args.v3.usVoltageLevel = cpu_to_le16(voltage_level);
-		break;
-	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
-		return;
-	}
-
-	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
 int amdgpu_atombios_get_leakage_id_from_vbios(struct amdgpu_device *adev,

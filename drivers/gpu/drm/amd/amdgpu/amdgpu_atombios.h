@@ -163,16 +163,6 @@ int amdgpu_atombios_get_memory_pll_dividers(struct amdgpu_device *adev,
 					    bool strobe_mode,
 					    struct atom_mpll_param *mpll_param);
 
-uint32_t amdgpu_atombios_get_engine_clock(struct amdgpu_device *adev);
-uint32_t amdgpu_atombios_get_memory_clock(struct amdgpu_device *adev);
-void amdgpu_atombios_set_engine_clock(struct amdgpu_device *adev,
-				      uint32_t eng_clock);
-void amdgpu_atombios_set_memory_clock(struct amdgpu_device *adev,
-				      uint32_t mem_clock);
-void amdgpu_atombios_set_voltage(struct amdgpu_device *adev,
-				 u16 voltage_level,
-				 u8 voltage_type);
-
 void amdgpu_atombios_set_engine_dram_timings(struct amdgpu_device *adev,
 					     u32 eng_clock, u32 mem_clock);
 
