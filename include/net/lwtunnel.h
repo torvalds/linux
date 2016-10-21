@@ -24,11 +24,10 @@ enum {
 struct lwtunnel_state {
 	__u16		type;
 	__u16		flags;
+	__u16		headroom;
 	atomic_t	refcnt;
 	int		(*orig_output)(struct net *net, struct sock *sk, struct sk_buff *skb);
 	int		(*orig_input)(struct sk_buff *);
-	int             len;
-	__u16		headroom;
 	struct		rcu_head rcu;
 	__u8            data[0];
 };

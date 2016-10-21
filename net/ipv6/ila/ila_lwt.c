@@ -122,7 +122,6 @@ static int ila_build_state(struct net_device *dev, struct nlattr *nla,
 	struct ila_lwt *ilwt;
 	struct ila_params *p;
 	struct nlattr *tb[ILA_ATTR_MAX + 1];
-	size_t encap_len = sizeof(*ilwt);
 	struct lwtunnel_state *newts;
 	const struct fib6_config *cfg6 = cfg;
 	struct ila_addr *iaddr;
@@ -155,7 +154,7 @@ static int ila_build_state(struct net_device *dev, struct nlattr *nla,
 	if (!tb[ILA_ATTR_LOCATOR])
 		return -EINVAL;
 
-	newts = lwtunnel_state_alloc(encap_len);
+	newts = lwtunnel_state_alloc(sizeof(*ilwt));
 	if (!newts)
 		return -ENOMEM;
 
@@ -166,7 +165,6 @@ static int ila_build_state(struct net_device *dev, struct nlattr *nla,
 		return ret;
 	}
 
-	newts->len = encap_len;
 	p = ila_params_lwtunnel(newts);
 
 	p->locator.v64 = (__force __be64)nla_get_u64(tb[ILA_ATTR_LOCATOR]);
