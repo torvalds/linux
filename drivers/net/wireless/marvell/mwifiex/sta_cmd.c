@@ -2245,19 +2245,13 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 				adapter->hs_cfg.gpio = data;
 			}
 
-			ret = mwifiex_dnld_dt_cfgdata(priv, adapter->dt_node,
-						      "marvell,caldata");
-			if (ret)
-				return -1;
+			mwifiex_dnld_dt_cfgdata(priv, adapter->dt_node,
+						"marvell,caldata");
 		}
 
-		if (adapter->cal_data) {
-			ret = mwifiex_send_cmd(priv, HostCmd_CMD_CFG_DATA,
-					       HostCmd_ACT_GEN_SET, 0, NULL,
-					       true);
-			if (ret)
-				return -1;
-		}
+		if (adapter->cal_data)
+			mwifiex_send_cmd(priv, HostCmd_CMD_CFG_DATA,
+					 HostCmd_ACT_GEN_SET, 0, NULL, true);
 
 		/* Read MAC address from HW */
 		ret = mwifiex_send_cmd(priv, HostCmd_CMD_GET_HW_SPEC,
