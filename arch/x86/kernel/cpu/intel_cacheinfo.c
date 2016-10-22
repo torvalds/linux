@@ -153,6 +153,7 @@ struct _cpuid4_info_regs {
 	union _cpuid4_leaf_eax eax;
 	union _cpuid4_leaf_ebx ebx;
 	union _cpuid4_leaf_ecx ecx;
+	unsigned int id;
 	unsigned long size;
 	struct amd_northbridge *nb;
 };
@@ -894,6 +895,8 @@ static void __cache_cpumap_setup(unsigned int cpu, int index,
 static void ci_leaf_init(struct cacheinfo *this_leaf,
 			 struct _cpuid4_info_regs *base)
 {
+	this_leaf->id = base->id;
+	this_leaf->attributes = CACHE_ID;
 	this_leaf->level = base->eax.split.level;
 	this_leaf->type = cache_type_map[base->eax.split.type];
 	this_leaf->coherency_line_size =
@@ -920,6 +923,22 @@ static int __init_cache_level(unsigned int cpu)
 	return 0;
 }
 
+/*
+ * The max shared threads number comes from CPUID.4:EAX[25-14] with input
+ * ECX as cache index. Then right shift apicid by the number's order to get
+ * cache id for this cache node.
+ */
+static void get_cache_id(int cpu, struct _cpuid4_info_regs *id4_regs)
+{
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
+	unsigned long num_threads_sharing;
+	int index_msb;
+
+	num_threads_sharing = 1 + id4_regs->eax.split.num_threads_sharing;
+	index_msb = get_count_order(num_threads_sharing);
+	id4_regs->id = c->apicid >> index_msb;
+}
+
 static int __populate_cache_leaves(unsigned int cpu)
 {
 	unsigned int idx, ret;
@@ -931,6 +950,7 @@ static int __populate_cache_leaves(unsigned int cpu)
 		ret = cpuid4_cache_lookup_regs(idx, &id4_regs);
 		if (ret)
 			return ret;
+		get_cache_id(cpu, &id4_regs);
 		ci_leaf_init(this_leaf++, &id4_regs);
 		__cache_cpumap_setup(cpu, idx, &id4_regs);
 	}
