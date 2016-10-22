@@ -840,8 +840,12 @@ static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 		goto remove_clks;
 	}
 
-	if (!IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS))
-		goto power_on_cleanup;
+	if (!IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS)) {
+		if (off)
+			WARN_ON(tegra_powergate_power_up(pg, true));
+
+		goto remove_resets;
+	}
 
 	/*
 	 * FIXME: If XHCI is enabled for Tegra, then power-up the XUSB
@@ -852,8 +856,12 @@ static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 	 * to be unused.
 	 */
 	if (IS_ENABLED(CONFIG_USB_XHCI_TEGRA) &&
-	    (id == TEGRA_POWERGATE_XUSBA || id == TEGRA_POWERGATE_XUSBC))
-		goto power_on_cleanup;
+	    (id == TEGRA_POWERGATE_XUSBA || id == TEGRA_POWERGATE_XUSBC)) {
+		if (off)
+			WARN_ON(tegra_powergate_power_up(pg, true));
+
+		goto remove_resets;
+	}
 
 	err = pm_genpd_init(&pg->genpd, NULL, off);
 	if (err < 0) {
@@ -866,16 +874,15 @@ static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 	if (err < 0) {
 		pr_err("failed to add genpd provider for %s: %d\n", np->name,
 		       err);
-		goto remove_resets;
+		goto remove_genpd;
 	}
 
 	pr_debug("added power domain %s\n", pg->genpd.name);
 
 	return;
 
-power_on_cleanup:
-	if (off)
-		WARN_ON(tegra_powergate_power_up(pg, true));
+remove_genpd:
+	pm_genpd_remove(&pg->genpd);
 
 remove_resets:
 	while (pg->num_resets--)
