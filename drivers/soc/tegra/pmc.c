@@ -934,7 +934,7 @@ tegra_io_pad_find(struct tegra_pmc *pmc, enum tegra_io_pad id)
 }
 
 static int tegra_io_pad_prepare(enum tegra_io_pad id, unsigned long *request,
-				unsigned long *status, unsigned int *bit)
+				unsigned long *status, u32 *mask)
 {
 	const struct tegra_io_pad_soc *pad;
 	unsigned long rate, value;
@@ -946,7 +946,7 @@ static int tegra_io_pad_prepare(enum tegra_io_pad id, unsigned long *request,
 	if (pad->dpd == UINT_MAX)
 		return -ENOTSUPP;
 
-	*bit = pad->dpd % 32;
+	*mask = BIT(pad->dpd % 32);
 
 	if (pad->dpd < 32) {
 		*status = IO_DPD_STATUS;
@@ -1002,20 +1002,20 @@ static void tegra_io_pad_unprepare(void)
 int tegra_io_pad_power_enable(enum tegra_io_pad id)
 {
 	unsigned long request, status;
-	unsigned int bit;
+	u32 mask;
 	int err;
 
 	mutex_lock(&pmc->powergates_lock);
 
-	err = tegra_io_pad_prepare(id, &request, &status, &bit);
+	err = tegra_io_pad_prepare(id, &request, &status, &mask);
 	if (err < 0) {
 		dev_err(pmc->dev, "tegra_io_pad_prepare() failed: %d\n", err);
 		goto unlock;
 	}
 
-	tegra_pmc_writel(IO_DPD_REQ_CODE_OFF | BIT(bit), request);
+	tegra_pmc_writel(IO_DPD_REQ_CODE_OFF | mask, request);
 
-	err = tegra_io_pad_poll(status, BIT(bit), 0, 250);
+	err = tegra_io_pad_poll(status, mask, 0, 250);
 	if (err < 0) {
 		dev_err(pmc->dev, "tegra_io_pad_poll() failed: %d\n", err);
 		goto unlock;
@@ -1038,20 +1038,20 @@ EXPORT_SYMBOL(tegra_io_pad_power_enable);
 int tegra_io_pad_power_disable(enum tegra_io_pad id)
 {
 	unsigned long request, status;
-	unsigned int bit;
+	u32 mask;
 	int err;
 
 	mutex_lock(&pmc->powergates_lock);
 
-	err = tegra_io_pad_prepare(id, &request, &status, &bit);
+	err = tegra_io_pad_prepare(id, &request, &status, &mask);
 	if (err < 0) {
 		dev_err(pmc->dev, "tegra_io_pad_prepare() failed: %d\n", err);
 		goto unlock;
 	}
 
-	tegra_pmc_writel(IO_DPD_REQ_CODE_ON | BIT(bit), request);
+	tegra_pmc_writel(IO_DPD_REQ_CODE_ON | mask, request);
 
-	err = tegra_io_pad_poll(status, BIT(bit), BIT(bit), 250);
+	err = tegra_io_pad_poll(status, mask, mask, 250);
 	if (err < 0) {
 		dev_err(pmc->dev, "tegra_io_pad_poll() failed: %d\n", err);
 		goto unlock;
