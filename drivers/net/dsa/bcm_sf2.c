@@ -30,7 +30,6 @@
 #include <linux/etherdevice.h>
 #include <net/switchdev.h>
 #include <linux/platform_data/b53.h>
-#include <linux/kexec.h>
 
 #include "bcm_sf2.h"
 #include "bcm_sf2_regs.h"
@@ -1141,9 +1140,11 @@ static void bcm_sf2_sw_shutdown(struct platform_device *pdev)
 	/* For a kernel about to be kexec'd we want to keep the GPHY on for a
 	 * successful MDIO bus scan to occur. If we did turn off the GPHY
 	 * before (e.g: port_disable), this will also power it back on.
+	 *
+	 * Do not rely on kexec_in_progress, just power the PHY on.
 	 */
 	if (priv->hw_params.num_gphy == 1)
-		bcm_sf2_gphy_enable_set(priv->dev->ds, kexec_in_progress);
+		bcm_sf2_gphy_enable_set(priv->dev->ds, true);
 }
 
 #ifdef CONFIG_PM_SLEEP
