@@ -1,0 +1,282 @@
+perf-c2c(1)
+===========
+
+NAME
+----
+perf-c2c - Shared Data C2C/HITM Analyzer.
+
+SYNOPSIS
+--------
+[verse]
+'perf c2c record' [<options>] <command>
+'perf c2c record' [<options>] -- [<record command options>] <command>
+'perf c2c report' [<options>]
+
+DESCRIPTION
+-----------
+C2C stands for Cache To Cache.
+
+The perf c2c tool provides means for Shared Data C2C/HITM analysis. It allows
+you to track down the cacheline contentions.
+
+The tool is based on x86's load latency and precise store facility events
+provided by Intel CPUs. These events provide:
+  - memory address of the access
+  - type of the access (load and store details)
+  - latency (in cycles) of the load access
+
+The c2c tool provide means to record this data and report back access details
+for cachelines with highest contention - highest number of HITM accesses.
+
+The basic workflow with this tool follows the standard record/report phase.
+User uses the record command to record events data and report command to
+display it.
+
+
+RECORD OPTIONS
+--------------
+-e::
+--event=::
+	Select the PMU event. Use 'perf mem record -e list'
+	to list available events.
+
+-v::
+--verbose::
+	Be more verbose (show counter open errors, etc).
+
+-l::
+--ldlat::
+	Configure mem-loads latency.
+
+-k::
+--all-kernel::
+	Configure all used events to run in kernel space.
+
+-u::
+--all-user::
+	Configure all used events to run in user space.
+
+REPORT OPTIONS
+--------------
+-k::
+--vmlinux=<file>::
+	vmlinux pathname
+
+-v::
+--verbose::
+	Be more verbose (show counter open errors, etc).
+
+-i::
+--input::
+	Specify the input file to process.
+
+-N::
+--node-info::
+	Show extra node info in report (see NODE INFO section)
+
+-c::
+--coalesce::
+	Specify sorintg fields for single cacheline display.
+	Following fields are available: tid,pid,iaddr,dso
+	(see COALESCE)
+
+-g::
+--call-graph::
+	Setup callchains parameters.
+	Please refer to perf-report man page for details.
+
+--stdio::
+	Force the stdio output (see STDIO OUTPUT)
+
+--stats::
+	Display only statistic tables and force stdio mode.
+
+--full-symbols::
+	Display full length of symbols.
+
+--no-source::
+	Do not display Source:Line column.
+
+--show-all::
+	Show all captured HITM lines, with no regard to HITM % 0.0005 limit.
+
+C2C RECORD
+----------
+The perf c2c record command setup options related to HITM cacheline analysis
+and calls standard perf record command.
+
+Following perf record options are configured by default:
+(check perf record man page for details)
+
+  -W,-d,--sample-cpu
+
+Unless specified otherwise with '-e' option, following events are monitored by
+default:
+
+  cpu/mem-loads,ldlat=30/P
+  cpu/mem-stores/P
+
+User can pass any 'perf record' option behind '--' mark, like (to enable
+callchains and system wide monitoring):
+
+  $ perf c2c record -- -g -a
+
+Please check RECORD OPTIONS section for specific c2c record options.
+
+C2C REPORT
+----------
+The perf c2c report command displays shared data analysis.  It comes in two
+display modes: stdio and tui (default).
+
+The report command workflow is following:
+  - sort all the data based on the cacheline address
+  - store access details for each cacheline
+  - sort all cachelines based on user settings
+  - display data
+
+In general perf report output consist of 2 basic views:
+  1) most expensive cachelines list
+  2) offsets details for each cacheline
+
+For each cacheline in the 1) list we display following data:
+(Both stdio and TUI modes follow the same fields output)
+
+  Index
+  - zero based index to identify the cacheline
+
+  Cacheline
+  - cacheline address (hex number)
+
+  Total records
+  - sum of all cachelines accesses
+
+  Rmt/Lcl Hitm
+  - cacheline percentage of all Remote/Local HITM accesses
+
+  LLC Load Hitm - Total, Lcl, Rmt
+  - count of Total/Local/Remote load HITMs
+
+  Store Reference - Total, L1Hit, L1Miss
+    Total - all store accesses
+    L1Hit - store accesses that hit L1
+    L1Hit - store accesses that missed L1
+
+  Load Dram
+  - count of local and remote DRAM accesses
+
+  LLC Ld Miss
+  - count of all accesses that missed LLC
+
+  Total Loads
+  - sum of all load accesses
+
+  Core Load Hit - FB, L1, L2
+  - count of load hits in FB (Fill Buffer), L1 and L2 cache
+
+  LLC Load Hit - Llc, Rmt
+  - count of LLC and Remote load hits
+
+For each offset in the 2) list we display following data:
+
+  HITM - Rmt, Lcl
+  - % of Remote/Local HITM accesses for given offset within cacheline
+
+  Store Refs - L1 Hit, L1 Miss
+  - % of store accesses that hit/missed L1 for given offset within cacheline
+
+  Data address - Offset
+  - offset address
+
+  Pid
+  - pid of the process responsible for the accesses
+
+  Tid
+  - tid of the process responsible for the accesses
+
+  Code address
+  - code address responsible for the accesses
+
+  cycles - rmt hitm, lcl hitm, load
+    - sum of cycles for given accesses - Remote/Local HITM and generic load
+
+  cpu cnt
+    - number of cpus that participated on the access
+
+  Symbol
+    - code symbol related to the 'Code address' value
+
+  Shared Object
+    - shared object name related to the 'Code address' value
+
+  Source:Line
+    - source information related to the 'Code address' value
+
+  Node
+    - nodes participating on the access (see NODE INFO section)
+
+NODE INFO
+---------
+The 'Node' field displays nodes that accesses given cacheline
+offset. Its output comes in 3 flavors:
+  - node IDs separated by ','
+  - node IDs with stats for each ID, in following format:
+      Node{cpus %hitms %stores}
+  - node IDs with list of affected CPUs in following format:
+      Node{cpu list}
+
+User can switch between above flavors with -N option or
+use 'n' key to interactively switch in TUI mode.
+
+COALESCE
+--------
+User can specify how to sort offsets for cacheline.
+
+Following fields are available and governs the final
+output fields set for caheline offsets output:
+
+  tid   - coalesced by process TIDs
+  pid   - coalesced by process PIDs
+  iaddr - coalesced by code address, following fields are displayed:
+             Code address, Code symbol, Shared Object, Source line
+  dso   - coalesced by shared object
+
+By default the coalescing is setup with 'pid,tid,iaddr'.
+
+STDIO OUTPUT
+------------
+The stdio output displays data on standard output.
+
+Following tables are displayed:
+  Trace Event Information
+  - overall statistics of memory accesses
+
+  Global Shared Cache Line Event Information
+  - overall statistics on shared cachelines
+
+  Shared Data Cache Line Table
+  - list of most expensive cachelines
+
+  Shared Cache Line Distribution Pareto
+  - list of all accessed offsets for each cacheline
+
+TUI OUTPUT
+----------
+The TUI output provides interactive interface to navigate
+through cachelines list and to display offset details.
+
+For details please refer to the help window by pressing '?' key.
+
+CREDITS
+-------
+Although Don Zickus, Dick Fowles and Joe Mario worked together
+to get this implemented, we got lots of early help from Arnaldo
+Carvalho de Melo, Stephane Eranian, Jiri Olsa and Andi Kleen.
+
+C2C BLOG
+--------
+Check Joe's blog on c2c tool for detailed use case explanation:
+  https://joemario.github.io/blog/2016/09/01/c2c-blog/
+
+SEE ALSO
+--------
+linkperf:perf-record[1], linkperf:perf-mem[1]

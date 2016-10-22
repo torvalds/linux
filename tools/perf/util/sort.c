@@ -315,7 +315,7 @@ struct sort_entry sort_sym = {
 
 /* --sort srcline */
 
-static char *hist_entry__get_srcline(struct hist_entry *he)
+char *hist_entry__get_srcline(struct hist_entry *he)
 {
 	struct map *map = he->ms.map;
 
