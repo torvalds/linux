@@ -354,10 +354,7 @@ static int ad7606_request_gpios(struct ad7606_state *st)
 
 	st->gpio_os = devm_gpiod_get_array_optional(dev, "oversampling-ratio",
 			GPIOD_OUT_LOW);
-	if (IS_ERR(st->gpio_os))
-		return PTR_ERR(st->gpio_os);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(st->gpio_os);
 }
 
 /**
