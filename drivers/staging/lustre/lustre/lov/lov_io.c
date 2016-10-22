@@ -606,6 +606,8 @@ static int lov_io_read_ahead(const struct lu_env *env,
 		return -EIO;
 
 	sub = lov_sub_get(env, lio, stripe);
+	if (IS_ERR(sub))
+		return PTR_ERR(sub);
 
 	lov_stripe_offset(loo->lo_lsm, cl_offset(obj, start), stripe, &suboff);
 	rc = cl_io_read_ahead(sub->sub_env, sub->sub_io,
