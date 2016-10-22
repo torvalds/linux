@@ -879,7 +879,8 @@ static int sctp_accept_from_sock(struct connection *con)
 	}
 
 	make_sockaddr(&prim.ssp_addr, 0, &addr_len);
-	if (addr_to_nodeid(&prim.ssp_addr, &nodeid)) {
+	ret = addr_to_nodeid(&prim.ssp_addr, &nodeid);
+	if (ret) {
 		unsigned char *b = (unsigned char *)&prim.ssp_addr;
 
 		log_print("reject connect from unknown addr");
