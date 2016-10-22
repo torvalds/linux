@@ -72,6 +72,13 @@ extern int misc_register(struct miscdevice *misc);
 extern void misc_deregister(struct miscdevice *misc);
 
 /*
+ * Helper macro for drivers that don't do anything special in the initcall.
+ * This helps in eleminating of boilerplate code.
+ */
+#define builtin_misc_device(__misc_device) \
+	builtin_driver(__misc_device, misc_register)
+
+/*
  * Helper macro for drivers that don't do anything special in module init / exit
  * call. This helps in eleminating of boilerplate code.
  */
