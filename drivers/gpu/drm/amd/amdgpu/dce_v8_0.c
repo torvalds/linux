@@ -31,6 +31,7 @@
 #include "atombios_encoders.h"
 #include "amdgpu_pll.h"
 #include "amdgpu_connectors.h"
+#include "dce_v8_0.h"
 
 #include "dce/dce_8_0_d.h"
 #include "dce/dce_8_0_sh_mask.h"
