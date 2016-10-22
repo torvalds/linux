@@ -3452,14 +3452,15 @@ void *nft_set_elem_init(const struct nft_set *set,
 	return elem;
 }
 
-void nft_set_elem_destroy(const struct nft_set *set, void *elem)
+void nft_set_elem_destroy(const struct nft_set *set, void *elem,
+			  bool destroy_expr)
 {
 	struct nft_set_ext *ext = nft_set_elem_ext(set, elem);
 
 	nft_data_uninit(nft_set_ext_key(ext), NFT_DATA_VALUE);
 	if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA))
 		nft_data_uninit(nft_set_ext_data(ext), set->dtype);
-	if (nft_set_ext_exists(ext, NFT_SET_EXT_EXPR))
+	if (destroy_expr && nft_set_ext_exists(ext, NFT_SET_EXT_EXPR))
 		nf_tables_expr_destroy(NULL, nft_set_ext_expr(ext));
 
 	kfree(elem);
@@ -3812,7 +3813,7 @@ void nft_set_gc_batch_release(struct rcu_head *rcu)
 
 	gcb = container_of(rcu, struct nft_set_gc_batch, head.rcu);
 	for (i = 0; i < gcb->head.cnt; i++)
-		nft_set_elem_destroy(gcb->head.set, gcb->elems[i]);
+		nft_set_elem_destroy(gcb->head.set, gcb->elems[i], true);
 	kfree(gcb);
 }
 EXPORT_SYMBOL_GPL(nft_set_gc_batch_release);
@@ -4030,7 +4031,7 @@ static void nf_tables_commit_release(struct nft_trans *trans)
 		break;
 	case NFT_MSG_DELSETELEM:
 		nft_set_elem_destroy(nft_trans_elem_set(trans),
-				     nft_trans_elem(trans).priv);
+				     nft_trans_elem(trans).priv, true);
 		break;
 	}
 	kfree(trans);
@@ -4171,7 +4172,7 @@ static void nf_tables_abort_release(struct nft_trans *trans)
 		break;
 	case NFT_MSG_NEWSETELEM:
 		nft_set_elem_destroy(nft_trans_elem_set(trans),
-				     nft_trans_elem(trans).priv);
+				     nft_trans_elem(trans).priv, true);
 		break;
 	}
 	kfree(trans);

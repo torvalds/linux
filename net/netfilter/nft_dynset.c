@@ -44,18 +44,22 @@ static void *nft_dynset_new(struct nft_set *set, const struct nft_expr *expr,
 				 &regs->data[priv->sreg_key],
 				 &regs->data[priv->sreg_data],
 				 timeout, GFP_ATOMIC);
-	if (elem == NULL) {
-		if (set->size)
-			atomic_dec(&set->nelems);
-		return NULL;
-	}
+	if (elem == NULL)
+		goto err1;
 
 	ext = nft_set_elem_ext(set, elem);
 	if (priv->expr != NULL &&
 	    nft_expr_clone(nft_set_ext_expr(ext), priv->expr) < 0)
-		return NULL;
+		goto err2;
 
 	return elem;
+
+err2:
+	nft_set_elem_destroy(set, elem, false);
+err1:
+	if (set->size)
+		atomic_dec(&set->nelems);
+	return NULL;
 }
 
 static void nft_dynset_eval(const struct nft_expr *expr,

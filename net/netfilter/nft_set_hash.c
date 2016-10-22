@@ -120,7 +120,7 @@ out:
 	return true;
 
 err2:
-	nft_set_elem_destroy(set, he);
+	nft_set_elem_destroy(set, he, true);
 err1:
 	return false;
 }
@@ -332,7 +332,7 @@ static int nft_hash_init(const struct nft_set *set,
 
 static void nft_hash_elem_destroy(void *ptr, void *arg)
 {
-	nft_set_elem_destroy((const struct nft_set *)arg, ptr);
+	nft_set_elem_destroy((const struct nft_set *)arg, ptr, true);
 }
 
 static void nft_hash_destroy(const struct nft_set *set)
