@@ -4094,12 +4094,8 @@ int qla4_8xxx_get_sys_info(struct scsi_qla_host *ha)
 	ha->phy_port_num = sys_info->port_num;
 	ha->iscsi_pci_func_cnt = sys_info->iscsi_pci_func_cnt;
 
-	DEBUG2(printk("scsi%ld: %s: "
-	    "mac %02x:%02x:%02x:%02x:%02x:%02x "
-	    "serial %s\n", ha->host_no, __func__,
-	    ha->my_mac[0], ha->my_mac[1], ha->my_mac[2],
-	    ha->my_mac[3], ha->my_mac[4], ha->my_mac[5],
-	    ha->serial_number));
+	DEBUG2(printk("scsi%ld: %s: mac %pM serial %s\n",
+	    ha->host_no, __func__, ha->my_mac, ha->serial_number));
 
 	status = QLA_SUCCESS;
 
