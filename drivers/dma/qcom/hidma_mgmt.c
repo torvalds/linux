@@ -402,7 +402,6 @@ static int __init hidma_mgmt_init(void)
 	for_each_matching_node(child, hidma_mgmt_match) {
 		/* device tree based firmware here */
 		hidma_mgmt_of_populate_channels(child);
-		of_node_put(child);
 	}
 #endif
 	platform_driver_register(&hidma_mgmt_driver);
