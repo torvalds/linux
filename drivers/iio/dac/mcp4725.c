@@ -449,7 +449,7 @@ static int mcp4725_probe(struct i2c_client *client,
 	if (pdata->use_vref) {
 		data->vref_reg = devm_regulator_get(&client->dev, "vref");
 		if (IS_ERR(data->vref_reg)) {
-			err = PTR_ERR(data->vdd_reg);
+			err = PTR_ERR(data->vref_reg);
 			goto err_disable_vdd_reg;
 		}
 
