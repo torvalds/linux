@@ -878,7 +878,7 @@ static inline struct timer_base *get_timer_base(u32 tflags)
 
 #ifdef CONFIG_NO_HZ_COMMON
 static inline struct timer_base *
-__get_target_base(struct timer_base *base, unsigned tflags)
+get_target_base(struct timer_base *base, unsigned tflags)
 {
 #ifdef CONFIG_SMP
 	if ((tflags & TIMER_PINNED) || !base->migration_enabled)
@@ -891,25 +891,27 @@ __get_target_base(struct timer_base *base, unsigned tflags)
 
 static inline void forward_timer_base(struct timer_base *base)
 {
+	unsigned long jnow = READ_ONCE(jiffies);
+
 	/*
 	 * We only forward the base when it's idle and we have a delta between
 	 * base clock and jiffies.
 	 */
-	if (!base->is_idle || (long) (jiffies - base->clk) < 2)
+	if (!base->is_idle || (long) (jnow - base->clk) < 2)
 		return;
 
 	/*
 	 * If the next expiry value is > jiffies, then we fast forward to
 	 * jiffies otherwise we forward to the next expiry value.
 	 */
-	if (time_after(base->next_expiry, jiffies))
-		base->clk = jiffies;
+	if (time_after(base->next_expiry, jnow))
+		base->clk = jnow;
 	else
 		base->clk = base->next_expiry;
 }
 #else
 static inline struct timer_base *
-__get_target_base(struct timer_base *base, unsigned tflags)
+get_target_base(struct timer_base *base, unsigned tflags)
 {
 	return get_timer_this_cpu_base(tflags);
 }
@@ -917,14 +919,6 @@ __get_target_base(struct timer_base *base, unsigned tflags)
 static inline void forward_timer_base(struct timer_base *base) { }
 #endif
 
-static inline struct timer_base *
-get_target_base(struct timer_base *base, unsigned tflags)
-{
-	struct timer_base *target = __get_target_base(base, tflags);
-
-	forward_timer_base(target);
-	return target;
-}
 
 /*
  * We are using hashed locking: Holding per_cpu(timer_bases[x]).lock means
@@ -1036,6 +1030,9 @@ __mod_timer(struct timer_list *timer, unsigned long expires, bool pending_only)
 				   (timer->flags & ~TIMER_BASEMASK) | base->cpu);
 		}
 	}
+
+	/* Try to forward a stale timer base clock */
+	forward_timer_base(base);
 
 	timer->expires = expires;
 	/*
