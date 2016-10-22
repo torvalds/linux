@@ -139,6 +139,9 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 			return PTR_ERR(set);
 	}
 
+	if (set->ops->update == NULL)
+		return -EOPNOTSUPP;
+
 	if (set->flags & NFT_SET_CONSTANT)
 		return -EBUSY;
 
