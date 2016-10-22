@@ -855,7 +855,12 @@ static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 	    (id == TEGRA_POWERGATE_XUSBA || id == TEGRA_POWERGATE_XUSBC))
 		goto power_on_cleanup;
 
-	pm_genpd_init(&pg->genpd, NULL, off);
+	err = pm_genpd_init(&pg->genpd, NULL, off);
+	if (err < 0) {
+		pr_err("failed to initialise power domain %s: %d\n", np->name,
+		       err);
+		goto remove_resets;
+	}
 
 	err = of_genpd_add_provider_simple(np, &pg->genpd);
 	if (err < 0) {
