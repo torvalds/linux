@@ -2058,7 +2058,6 @@ static void netcp_delete_interface(struct netcp_device *netcp_device,
 		if (module->release)
 			module->release(intf_modpriv->module_priv);
 		list_del(&intf_modpriv->intf_list);
-		kfree(intf_modpriv);
 	}
 	WARN(!list_empty(&netcp->module_head), "%s interface module list is not empty!\n",
 	     ndev->name);
@@ -2153,7 +2152,6 @@ static int netcp_remove(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "Removing module \"%s\"\n", module->name);
 		module->remove(netcp_device, inst_modpriv->module_priv);
 		list_del(&inst_modpriv->inst_list);
-		kfree(inst_modpriv);
 	}
 
 	/* now that all modules are removed, clean up the interfaces */
