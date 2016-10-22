@@ -158,6 +158,17 @@ static int batadv_interface_set_mac_addr(struct net_device *dev, void *p)
 	return 0;
 }
 
+static int batadv_interface_change_mtu(struct net_device *dev, int new_mtu)
+{
+	/* check ranges */
+	if ((new_mtu < 68) || (new_mtu > batadv_hardif_min_mtu(dev)))
+		return -EINVAL;
+
+	dev->mtu = new_mtu;
+
+	return 0;
+}
+
 /**
  * batadv_interface_set_rx_mode - set the rx mode of a device
  * @dev: registered network device to modify
@@ -909,6 +920,7 @@ static const struct net_device_ops batadv_netdev_ops = {
 	.ndo_vlan_rx_add_vid = batadv_interface_add_vid,
 	.ndo_vlan_rx_kill_vid = batadv_interface_kill_vid,
 	.ndo_set_mac_address = batadv_interface_set_mac_addr,
+	.ndo_change_mtu = batadv_interface_change_mtu,
 	.ndo_set_rx_mode = batadv_interface_set_rx_mode,
 	.ndo_start_xmit = batadv_interface_tx,
 	.ndo_validate_addr = eth_validate_addr,
@@ -975,7 +987,6 @@ struct net_device *batadv_softif_create(struct net *net, const char *name)
 	dev_net_set(soft_iface, net);
 
 	soft_iface->rtnl_link_ops = &batadv_link_ops;
-	soft_iface->max_mtu = batadv_hardif_min_mtu(soft_iface);
 
 	ret = register_netdevice(soft_iface);
 	if (ret < 0) {
