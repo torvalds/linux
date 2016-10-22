@@ -639,9 +639,8 @@ static void mv88e6xxx_ppu_state_init(struct mv88e6xxx_chip *chip)
 {
 	mutex_init(&chip->ppu_mutex);
 	INIT_WORK(&chip->ppu_work, mv88e6xxx_ppu_reenable_work);
-	init_timer(&chip->ppu_timer);
-	chip->ppu_timer.data = (unsigned long)chip;
-	chip->ppu_timer.function = mv88e6xxx_ppu_reenable_timer;
+	setup_timer(&chip->ppu_timer, mv88e6xxx_ppu_reenable_timer,
+		    (unsigned long)chip);
 }
 
 static void mv88e6xxx_ppu_state_destroy(struct mv88e6xxx_chip *chip)
