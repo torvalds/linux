@@ -919,7 +919,7 @@ netdev_mangle_me_harder_failed:
 				ndev->stats.rx_dropped++;
 			}
 		} else {
-			kfree_skb(skb);
+			dev_kfree_skb_irq(skb);
 		}
 
 		nr++;
