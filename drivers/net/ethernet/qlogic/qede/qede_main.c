@@ -313,8 +313,8 @@ static int qede_free_tx_pkt(struct qede_dev *edev,
 		split_bd_len = BD_UNMAP_LEN(split);
 		bds_consumed++;
 	}
-	dma_unmap_page(&edev->pdev->dev, BD_UNMAP_ADDR(first_bd),
-		       BD_UNMAP_LEN(first_bd) + split_bd_len, DMA_TO_DEVICE);
+	dma_unmap_single(&edev->pdev->dev, BD_UNMAP_ADDR(first_bd),
+			 BD_UNMAP_LEN(first_bd) + split_bd_len, DMA_TO_DEVICE);
 
 	/* Unmap the data of the skb frags */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++, bds_consumed++) {
@@ -359,8 +359,8 @@ static void qede_free_failed_tx_pkt(struct qede_dev *edev,
 		nbd--;
 	}
 
-	dma_unmap_page(&edev->pdev->dev, BD_UNMAP_ADDR(first_bd),
-		       BD_UNMAP_LEN(first_bd) + split_bd_len, DMA_TO_DEVICE);
+	dma_unmap_single(&edev->pdev->dev, BD_UNMAP_ADDR(first_bd),
+			 BD_UNMAP_LEN(first_bd) + split_bd_len, DMA_TO_DEVICE);
 
 	/* Unmap the data of the skb frags */
 	for (i = 0; i < nbd; i++) {
@@ -943,8 +943,7 @@ static inline int qede_realloc_rx_buffer(struct qede_dev *edev,
 	return 0;
 }
 
-static inline void qede_update_rx_prod(struct qede_dev *edev,
-				       struct qede_rx_queue *rxq)
+void qede_update_rx_prod(struct qede_dev *edev, struct qede_rx_queue *rxq)
 {
 	u16 bd_prod = qed_chain_get_prod_idx(&rxq->rx_bd_ring);
 	u16 cqe_prod = qed_chain_get_prod_idx(&rxq->rx_comp_ring);
