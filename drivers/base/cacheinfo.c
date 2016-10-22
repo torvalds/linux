@@ -233,6 +233,7 @@ static ssize_t file_name##_show(struct device *dev,		\
 	return sprintf(buf, "%u\n", this_leaf->object);		\
 }
 
+show_one(id, id);
 show_one(level, level);
 show_one(coherency_line_size, coherency_line_size);
 show_one(number_of_sets, number_of_sets);
@@ -314,6 +315,7 @@ static ssize_t write_policy_show(struct device *dev,
 	return n;
 }
 
+static DEVICE_ATTR_RO(id);
 static DEVICE_ATTR_RO(level);
 static DEVICE_ATTR_RO(type);
 static DEVICE_ATTR_RO(coherency_line_size);
@@ -327,6 +329,7 @@ static DEVICE_ATTR_RO(shared_cpu_list);
 static DEVICE_ATTR_RO(physical_line_partition);
 
 static struct attribute *cache_default_attrs[] = {
+	&dev_attr_id.attr,
 	&dev_attr_type.attr,
 	&dev_attr_level.attr,
 	&dev_attr_shared_cpu_map.attr,
@@ -350,6 +353,8 @@ cache_default_attrs_is_visible(struct kobject *kobj,
 	const struct cpumask *mask = &this_leaf->shared_cpu_map;
 	umode_t mode = attr->mode;
 
+	if ((attr == &dev_attr_id.attr) && (this_leaf->attributes & CACHE_ID))
+		return mode;
 	if ((attr == &dev_attr_type.attr) && this_leaf->type)
 		return mode;
 	if ((attr == &dev_attr_level.attr) && this_leaf->level)
