@@ -2136,12 +2136,8 @@ static void skd_send_fitmsg(struct skd_device *skdev,
 		u8 *bp = (u8 *)skmsg->msg_buf;
 		int i;
 		for (i = 0; i < skmsg->length; i += 8) {
-			pr_debug("%s:%s:%d msg[%2d] %02x %02x %02x %02x "
-				 "%02x %02x %02x %02x\n",
-				 skdev->name, __func__, __LINE__,
-				 i, bp[i + 0], bp[i + 1], bp[i + 2],
-				 bp[i + 3], bp[i + 4], bp[i + 5],
-				 bp[i + 6], bp[i + 7]);
+			pr_debug("%s:%s:%d msg[%2d] %8ph\n",
+				 skdev->name, __func__, __LINE__, i, &bp[i]);
 			if (i == 0)
 				i = 64 - 8;
 		}
@@ -2162,7 +2158,6 @@ static void skd_send_fitmsg(struct skd_device *skdev,
 		qcmd |= FIT_QCMD_MSGSIZE_64;
 
 	SKD_WRITEQ(skdev, qcmd, FIT_Q_COMMAND);
-
 }
 
 static void skd_send_special_fitmsg(struct skd_device *skdev,
@@ -2175,11 +2170,8 @@ static void skd_send_special_fitmsg(struct skd_device *skdev,
 		int i;
 
 		for (i = 0; i < SKD_N_SPECIAL_FITMSG_BYTES; i += 8) {
-			pr_debug("%s:%s:%d  spcl[%2d] %02x %02x %02x %02x  "
-				 "%02x %02x %02x %02x\n",
-				 skdev->name, __func__, __LINE__, i,
-				 bp[i + 0], bp[i + 1], bp[i + 2], bp[i + 3],
-				 bp[i + 4], bp[i + 5], bp[i + 6], bp[i + 7]);
+			pr_debug("%s:%s:%d  spcl[%2d] %8ph\n",
+				 skdev->name, __func__, __LINE__, i, &bp[i]);
 			if (i == 0)
 				i = 64 - 8;
 		}
