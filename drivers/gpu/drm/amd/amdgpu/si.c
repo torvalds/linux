@@ -906,7 +906,7 @@ static void si_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
 }
 
-u32 si_pciep_rreg(struct amdgpu_device *adev, u32 reg)
+static u32 si_pciep_rreg(struct amdgpu_device *adev, u32 reg)
 {
 	unsigned long flags;
 	u32 r;
@@ -919,7 +919,7 @@ u32 si_pciep_rreg(struct amdgpu_device *adev, u32 reg)
 	return r;
 }
 
-void si_pciep_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
+static void si_pciep_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 {
 	unsigned long flags;
 
