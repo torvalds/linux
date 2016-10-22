@@ -177,6 +177,7 @@ static void load_mocs(struct intel_vgpu *vgpu, int ring_id)
 	if (!IS_SKYLAKE(dev_priv))
 		return;
 
+	offset.reg = regs[ring_id];
 	for (i = 0; i < 64; i++) {
 		gen9_render_mocs[ring_id][i] = I915_READ(offset);
 		I915_WRITE(offset, vgpu_vreg(vgpu, offset));
@@ -214,6 +215,7 @@ static void restore_mocs(struct intel_vgpu *vgpu, int ring_id)
 	if (!IS_SKYLAKE(dev_priv))
 		return;
 
+	offset.reg = regs[ring_id];
 	for (i = 0; i < 64; i++) {
 		vgpu_vreg(vgpu, offset) = I915_READ(offset);
 		I915_WRITE(offset, gen9_render_mocs[ring_id][i]);
