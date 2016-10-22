@@ -167,11 +167,6 @@ int rk_mipi_screen(void)
 			dsi_enable_hs_clk(1, 1);
 		}
 
-		dsi_enable_video_mode(0, 0);
-		if (rk_dsi_num == 2) {
-			dsi_enable_video_mode(1, 0);
-		}
-
 		dsi_enable_command_mode(0, 1);
 		if (rk_dsi_num == 2) {
 			dsi_enable_command_mode(1, 1);
@@ -194,16 +189,6 @@ int rk_mipi_screen(void)
 			dsi_send_packet(1, dcs, 3);
 
 		msleep(20);
-
-		dsi_enable_command_mode(0, 0);
-		if (rk_dsi_num == 2) {
-			dsi_enable_command_mode(1, 0);
-		}
-
-		dsi_enable_video_mode(0, 1);
-		if (rk_dsi_num == 2) {
-			dsi_enable_video_mode(1, 1);
-		}
 	} else {
 		rk_mipi_screen_pwr_enable(gmipi_screen);
 
@@ -212,27 +197,12 @@ int rk_mipi_screen(void)
 			dsi_enable_hs_clk(1, 1);
 		}
 
-		dsi_enable_video_mode(0, 0);
-		if (rk_dsi_num == 2) {
-			dsi_enable_video_mode(1, 0);
-		}
-
 		dsi_enable_command_mode(0, 1);
 		if (rk_dsi_num == 2) {
 			dsi_enable_command_mode(1, 1);
 		}
 
 		rk_mipi_screen_cmd_init(gmipi_screen);
-
-		dsi_enable_command_mode(0, 0);
-		if (rk_dsi_num == 2) {
-			dsi_enable_command_mode(1, 0);
-		}
-
-		dsi_enable_video_mode(0, 1);
-		if (rk_dsi_num == 2) {
-			dsi_enable_video_mode(1, 1);
-		}
 	}
 
 	MIPI_SCREEN_DBG("++++++++++++++++%s:%d\n", __func__, __LINE__);
@@ -525,6 +495,7 @@ int rk_mipi_get_dsi_num(void)
 #ifdef CONFIG_LCD_MIPI
 EXPORT_SYMBOL(rk_mipi_get_dsi_num);
 #endif
+
 int rk_mipi_get_dsi_lane(void)
 {
 	return gmipi_screen->dsi_lane;

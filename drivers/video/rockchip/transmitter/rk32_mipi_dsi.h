@@ -81,6 +81,7 @@ drivers/video/rockchip/transmitter/rk32_mipi_dsi.h
 #define vid_vbp_lines 				DSI_HOST_BITS(0x058, 10, 0)
 #define vid_vfp_lines 				DSI_HOST_BITS(0x05c, 10, 0)
 #define vid_active_lines 			DSI_HOST_BITS(0x060, 14, 0)
+#define edpi_cmd_size				DSI_HOST_BITS(0x064, 16, 0)
 #define max_rd_pkt_size 			DSI_HOST_BITS(0x068, 1, 24)
 #define dcs_lw_tx 					DSI_HOST_BITS(0x068, 1, 19)
 #define dcs_sr_0p_tx 				DSI_HOST_BITS(0x068, 1, 18)

@@ -974,6 +974,11 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 	rk32_dsi_set_bits(dsi, 1, phy_enableclk);
 	rk32_dsi_set_bits(dsi, 0, phy_tx_triggers);
 
+	if (screen->refresh_mode == COMMAND_MODE) {
+		rk32_dsi_set_bits(dsi, screen->x_res, edpi_cmd_size);
+		rk32_dsi_set_bits(dsi, 1, tear_fx_en);
+	}
+
 	/* enable non-continued function */
 	/* rk32_dsi_set_bits(dsi, 1, auto_clklane_ctrl); */
 	/*
@@ -1596,12 +1601,14 @@ static int dwc_phy_test_rd(struct dsi *dsi, unsigned char test_code)
 #endif
 static int rk32_dsi_enable(void)
 {
+	u16 opt_mode = 0;
 	MIPI_DBG("rk32_dsi_enable-------\n");
 	if (!dsi0->clk_on) {
 		dsi0->clk_on = 1;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
 		pm_runtime_get_sync(&dsi0->pdev->dev);
 #endif
+		opt_mode = dsi0->screen.refresh_mode;
 		rk_fb_get_prmry_screen(dsi0->screen.screen);
 		dsi0->screen.lcdc_id = dsi0->screen.screen->lcdc_id;
 		rk32_init_phy_mode(dsi0->screen.lcdc_id);
@@ -1620,15 +1627,76 @@ static int rk32_dsi_enable(void)
 		if (rk_mipi_get_dsi_num() == 2)
 			dsi_is_enable(1, 0);
 
-		dsi_enable_video_mode(0, 1);
-		if (rk_mipi_get_dsi_num() == 2)
-			dsi_enable_video_mode(1, 1);
-
+		if (opt_mode != COMMAND_MODE) {
+			dsi_enable_video_mode(0, 1);
+			if (rk_mipi_get_dsi_num() == 2)
+				dsi_enable_video_mode(1, 1);
+		}
 		dsi_is_enable(0, 1);
 		if (rk_mipi_get_dsi_num() == 2)
 			dsi_is_enable(1, 1);
 	}
 	return 0;
+}
+
+static void rockchip_mipi_cmd_mode_refresh(unsigned int xpos,
+					   unsigned int ypos,
+					   unsigned int xsize,
+					   unsigned int ysize)
+{
+	u32 x0 = xpos;
+	u32 y0 = ypos;
+	u32 x1 = x0 + xsize - 1;
+	u32 y1 = y0 + ysize - 1;
+
+	unsigned char x0_MSB = ((x0 >> 8) & 0xff);
+	unsigned char x0_LSB = (x0 & 0xff);
+	unsigned char x1_MSB = ((x1 >> 8) & 0xff);
+	unsigned char x1_LSB = (x1 & 0xff);
+	unsigned char y0_MSB = ((y0 >> 8) & 0xff);
+	unsigned char y0_LSB = (y0 & 0xff);
+	unsigned char y1_MSB = ((y1 >> 8) & 0xff);
+	unsigned char y1_LSB = (y1 & 0xff);
+
+	unsigned char set_col_cmd[7] = {0};
+	unsigned char set_page_cmd[7] = {0};
+	unsigned char wms[3] = {0};
+	u32 len;
+
+	set_col_cmd[0] = HSDT;
+	set_col_cmd[1] = 0x39;
+	set_col_cmd[2] = 0x2a;
+	set_col_cmd[3] = x0_MSB;
+	set_col_cmd[4] = x0_LSB;
+	set_col_cmd[5] = x1_MSB;
+	set_col_cmd[6] = x1_LSB;
+
+	len = ARRAY_SIZE(set_col_cmd);
+	rk32_mipi_dsi_send_packet(dsi0, set_col_cmd, len);
+	if (rk_mipi_get_dsi_num() == 2)
+		rk32_mipi_dsi_send_packet(dsi1, set_col_cmd, len);
+
+	set_page_cmd[0] = HSDT;
+	set_page_cmd[1] = 0x39;
+	set_page_cmd[2] = 0x2b;
+	set_page_cmd[3] = y0_MSB;
+	set_page_cmd[4] = y0_LSB;
+	set_page_cmd[5] = y1_MSB;
+	set_page_cmd[6] = y1_LSB;
+
+	len = ARRAY_SIZE(set_page_cmd);
+	rk32_mipi_dsi_send_packet(dsi0, set_page_cmd, len);
+	if (rk_mipi_get_dsi_num() == 2)
+		rk32_mipi_dsi_send_packet(dsi1, set_page_cmd, len);
+
+	wms[0] = HSDT;
+	wms[1] = 0x39;
+	wms[2] = 0x2C;
+
+	len = ARRAY_SIZE(wms);
+	rk32_mipi_dsi_send_packet(dsi0, wms, len);
+	if (rk_mipi_get_dsi_num() == 2)
+		rk32_mipi_dsi_send_packet(dsi1, wms, len);
 }
 
 #ifdef CONFIG_MIPI_DSI_LINUX
@@ -1653,6 +1721,7 @@ static struct rk_fb_trsm_ops trsm_dsi_ops = {
 	.disable = rk32_dsi_disable,
 	.dsp_pwr_on = rk32_mipi_power_up_DDR,
 	.dsp_pwr_off = rk32_mipi_power_down_DDR,
+	.refresh = rockchip_mipi_cmd_mode_refresh,
 };
 #endif
 
@@ -1966,10 +2035,10 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 	dsi_screen->pin_den = screen->pin_den;
 	dsi_screen->pin_dclk = screen->pin_dclk;
 	dsi_screen->dsi_lane = rk_mipi_get_dsi_lane();
-	/* dsi_screen->dsi_video_mode = screen->dsi_video_mode; */
 	dsi_screen->dsi_lane = rk_mipi_get_dsi_lane();
 	dsi_screen->hs_tx_clk = rk_mipi_get_dsi_clk();
 	/* dsi_screen->lcdc_id = 1; */
+	dsi_screen->refresh_mode = screen->refresh_mode;
 
 	dsi->dsi_id = id++;
 
