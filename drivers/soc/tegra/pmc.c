@@ -957,6 +957,8 @@ static int tegra_io_pad_prepare(enum tegra_io_pad id, unsigned long *request,
 	}
 
 	rate = clk_get_rate(pmc->clk);
+	if (!rate)
+		return -ENODEV;
 
 	tegra_pmc_writel(DPD_SAMPLE_ENABLE, DPD_SAMPLE);
 
