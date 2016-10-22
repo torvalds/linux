@@ -261,6 +261,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		ehci->need_io_watchdog = 0;
 		break;
 	case PCI_VENDOR_ID_INTEL:
+	case PCI_VENDOR_ID_AMD:
 		ehci->need_io_watchdog = 0;
 		break;
 	case PCI_VENDOR_ID_NVIDIA:
