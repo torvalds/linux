@@ -58,7 +58,8 @@ static void malidp_de_plane_destroy(struct drm_plane *plane)
 	devm_kfree(plane->dev->dev, mp);
 }
 
-struct drm_plane_state *malidp_duplicate_plane_state(struct drm_plane *plane)
+static struct
+drm_plane_state *malidp_duplicate_plane_state(struct drm_plane *plane)
 {
 	struct malidp_plane_state *state, *m_state;
 
@@ -77,8 +78,8 @@ struct drm_plane_state *malidp_duplicate_plane_state(struct drm_plane *plane)
 	return &state->base;
 }
 
-void malidp_destroy_plane_state(struct drm_plane *plane,
-				struct drm_plane_state *state)
+static void malidp_destroy_plane_state(struct drm_plane *plane,
+				       struct drm_plane_state *state)
 {
 	struct malidp_plane_state *m_state = to_malidp_plane_state(state);
 
