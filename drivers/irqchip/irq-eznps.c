@@ -135,7 +135,7 @@ static const struct irq_domain_ops nps400_irq_ops = {
 static int __init nps400_of_init(struct device_node *node,
 				 struct device_node *parent)
 {
-	static struct irq_domain *nps400_root_domain;
+	struct irq_domain *nps400_root_domain;
 
 	if (parent) {
 		pr_err("DeviceTree incore ic not a root irq controller\n");
