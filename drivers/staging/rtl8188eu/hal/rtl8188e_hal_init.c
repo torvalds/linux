@@ -488,8 +488,8 @@ void Hal_ReadTxPowerInfo88E(struct adapter *padapter, u8 *PROMContent, bool Auto
 		}
 		if (bIn24G) {
 			DBG_88E("======= Path %d, Channel %d =======\n", 0, ch);
-			DBG_88E("Index24G_CCK_Base[%d][%d] = 0x%x\n", 0, ch , pHalData->Index24G_CCK_Base[0][ch]);
-			DBG_88E("Index24G_BW40_Base[%d][%d] = 0x%x\n", 0, ch , pHalData->Index24G_BW40_Base[0][ch]);
+			DBG_88E("Index24G_CCK_Base[%d][%d] = 0x%x\n", 0, ch, pHalData->Index24G_CCK_Base[0][ch]);
+			DBG_88E("Index24G_BW40_Base[%d][%d] = 0x%x\n", 0, ch, pHalData->Index24G_BW40_Base[0][ch]);
 		}
 	}
 	for (TxCount = 0; TxCount < MAX_TX_COUNT; TxCount++) {
