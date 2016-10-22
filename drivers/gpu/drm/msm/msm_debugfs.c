@@ -18,6 +18,7 @@
 #ifdef CONFIG_DEBUG_FS
 #include "msm_drv.h"
 #include "msm_gpu.h"
+#include "msm_debugfs.h"
 
 static int msm_gpu_show(struct drm_device *dev, struct seq_file *m)
 {
