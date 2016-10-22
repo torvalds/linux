@@ -7,9 +7,9 @@
 #include <linux/perf_event.h>
 #include <linux/slab.h>
 #include <asm/cpu_device_id.h>
+#include <asm/intel_rdt_common.h>
 #include "../perf_event.h"
 
-#define MSR_IA32_PQR_ASSOC	0x0c8f
 #define MSR_IA32_QM_CTR		0x0c8e
 #define MSR_IA32_QM_EVTSEL	0x0c8d
 

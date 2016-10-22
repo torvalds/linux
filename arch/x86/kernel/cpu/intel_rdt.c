@@ -27,16 +27,57 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 
+#include <asm/intel_rdt_common.h>
+#include <asm/intel-family.h>
+#include <asm/intel_rdt.h>
+
+/*
+ * cache_alloc_hsw_probe() - Have to probe for Intel haswell server CPUs
+ * as they do not have CPUID enumeration support for Cache allocation.
+ * The check for Vendor/Family/Model is not enough to guarantee that
+ * the MSRs won't #GP fault because only the following SKUs support
+ * CAT:
+ *	Intel(R) Xeon(R)  CPU E5-2658  v3  @  2.20GHz
+ *	Intel(R) Xeon(R)  CPU E5-2648L v3  @  1.80GHz
+ *	Intel(R) Xeon(R)  CPU E5-2628L v3  @  2.00GHz
+ *	Intel(R) Xeon(R)  CPU E5-2618L v3  @  2.30GHz
+ *	Intel(R) Xeon(R)  CPU E5-2608L v3  @  2.00GHz
+ *	Intel(R) Xeon(R)  CPU E5-2658A v3  @  2.20GHz
+ *
+ * Probe by trying to write the first of the L3 cach mask registers
+ * and checking that the bits stick. Max CLOSids is always 4 and max cbm length
+ * is always 20 on hsw server parts. The minimum cache bitmask length
+ * allowed for HSW server is always 2 bits. Hardcode all of them.
+ */
+static inline bool cache_alloc_hsw_probe(void)
+{
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
+	    boot_cpu_data.x86 == 6 &&
+	    boot_cpu_data.x86_model == INTEL_FAM6_HASWELL_X) {
+		u32 l, h, max_cbm = BIT_MASK(20) - 1;
+
+		if (wrmsr_safe(IA32_L3_CBM_BASE, max_cbm, 0))
+			return false;
+		rdmsr(IA32_L3_CBM_BASE, l, h);
+
+		/* If all the bits were set in MSR, return success */
+		return l == max_cbm;
+	}
+
+	return false;
+}
+
 static inline bool get_rdt_resources(void)
 {
-	bool ret = false;
+	if (cache_alloc_hsw_probe())
+		return true;
 
 	if (!boot_cpu_has(X86_FEATURE_RDT_A))
 		return false;
-	if (boot_cpu_has(X86_FEATURE_CAT_L3))
-		ret = true;
+	if (!boot_cpu_has(X86_FEATURE_CAT_L3))
+		return false;
 
-	return ret;
+	return true;
 }
 
 static int __init intel_rdt_late_init(void)

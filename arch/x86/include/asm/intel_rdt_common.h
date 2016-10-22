@@ -1,0 +1,6 @@
+#ifndef _ASM_X86_INTEL_RDT_COMMON_H
+#define _ASM_X86_INTEL_RDT_COMMON_H
+
+#define MSR_IA32_PQR_ASSOC	0x0c8f
+
+#endif /* _ASM_X86_INTEL_RDT_COMMON_H */
