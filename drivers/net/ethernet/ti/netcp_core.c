@@ -2120,6 +2120,8 @@ static int netcp_probe(struct platform_device *pdev)
 		}
 	}
 
+	of_node_put(interfaces);
+
 	/* Add the device instance to the list */
 	list_add_tail(&netcp_device->device_list, &netcp_devices);
 
@@ -2131,6 +2133,8 @@ probe_quit_interface:
 				 interface_list) {
 		netcp_delete_interface(netcp_device, netcp_intf->ndev);
 	}
+
+	of_node_put(interfaces);
 
 probe_quit:
 	pm_runtime_put_sync(&pdev->dev);
