@@ -450,7 +450,8 @@ static void vvp_io_advance(const struct lu_env *env,
 	struct vvp_io	 *vio = cl2vvp_io(env, ios);
 	CLOBINVRNT(env, obj, vvp_object_invariant(obj));
 
-	iov_iter_reexpand(vio->vui_iter, vio->vui_tot_count  -= nob);
+	vio->vui_tot_count -= nob;
+	iov_iter_reexpand(vio->vui_iter, vio->vui_tot_count);
 }
 
 static void vvp_io_update_iov(const struct lu_env *env,
