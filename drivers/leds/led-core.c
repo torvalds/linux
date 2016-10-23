@@ -66,17 +66,17 @@ static void led_timer_function(unsigned long data)
 	brightness = led_get_brightness(led_cdev);
 	if (!brightness) {
 		/* Time to switch the LED on. */
-		brightness = led_cdev->blink_brightness;
+		if (test_and_clear_bit(LED_BLINK_BRIGHTNESS_CHANGE,
+					&led_cdev->work_flags))
+			brightness = led_cdev->new_blink_brightness;
+		else
+			brightness = led_cdev->blink_brightness;
 		delay = led_cdev->blink_delay_on;
 	} else {
 		/* Store the current brightness value to be able
 		 * to restore it when the delay_off period is over.
-		 * Do it only if there is no pending blink brightness
-		 * change, to avoid overwriting the new value.
 		 */
-		if (!test_and_clear_bit(LED_BLINK_BRIGHTNESS_CHANGE,
-					&led_cdev->work_flags))
-			led_cdev->blink_brightness = brightness;
+		led_cdev->blink_brightness = brightness;
 		brightness = LED_OFF;
 		delay = led_cdev->blink_delay_off;
 	}
@@ -245,7 +245,7 @@ void led_set_brightness(struct led_classdev *led_cdev,
 		} else {
 			set_bit(LED_BLINK_BRIGHTNESS_CHANGE,
 				&led_cdev->work_flags);
-			led_cdev->blink_brightness = brightness;
+			led_cdev->new_blink_brightness = brightness;
 		}
 		return;
 	}
