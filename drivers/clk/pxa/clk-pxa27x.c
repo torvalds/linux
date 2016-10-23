@@ -270,9 +270,10 @@ RATE_RO_OPS(clk_pxa27x_run, "run");
 
 static void __init pxa27x_register_core(void)
 {
-	clk_register_clk_pxa27x_cpll();
-	clk_register_clk_pxa27x_run();
-
+	clkdev_pxa_register(CLK_NONE, "cpll", NULL,
+			    clk_register_clk_pxa27x_cpll());
+	clkdev_pxa_register(CLK_NONE, "run", NULL,
+			    clk_register_clk_pxa27x_run());
 	clkdev_pxa_register(CLK_CORE, "core", NULL,
 			    clk_register_clk_pxa27x_core());
 }
@@ -382,8 +383,10 @@ static void __init pxa27x_base_clocks_init(void)
 {
 	pxa27x_register_plls();
 	pxa27x_register_core();
-	clk_register_clk_pxa27x_system_bus();
-	clk_register_clk_pxa27x_memory();
+	clkdev_pxa_register(CLK_NONE, "system_bus", NULL,
+			    clk_register_clk_pxa27x_system_bus());
+	clkdev_pxa_register(CLK_NONE, "memory", NULL,
+			    clk_register_clk_pxa27x_memory());
 	clk_register_clk_pxa27x_lcd_base();
 }
 

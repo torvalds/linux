@@ -189,8 +189,10 @@ RATE_RO_OPS(clk_pxa25x_cpll, "cpll");
 
 static void __init pxa25x_register_core(void)
 {
-	clk_register_clk_pxa25x_cpll();
-	clk_register_clk_pxa25x_run();
+	clkdev_pxa_register(CLK_NONE, "cpll", NULL,
+			    clk_register_clk_pxa25x_cpll());
+	clkdev_pxa_register(CLK_NONE, "run", NULL,
+			    clk_register_clk_pxa25x_run());
 	clkdev_pxa_register(CLK_CORE, "core", NULL,
 			    clk_register_clk_pxa25x_core());
 }
@@ -212,7 +214,8 @@ static void __init pxa25x_base_clocks_init(void)
 {
 	pxa25x_register_plls();
 	pxa25x_register_core();
-	clk_register_clk_pxa25x_memory();
+	clkdev_pxa_register(CLK_NONE, "system_bus", NULL,
+			    clk_register_clk_pxa25x_memory());
 }
 
 #define DUMMY_CLK(_con_id, _dev_id, _parent) \
