@@ -53,6 +53,7 @@ extern const struct fence_ops fence_array_ops;
 
 /**
  * fence_is_array - check if a fence is from the array subsclass
+ * @fence: fence to test
  *
  * Return true if it is a fence_array and false otherwise.
  */
