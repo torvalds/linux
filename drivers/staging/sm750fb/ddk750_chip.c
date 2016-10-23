@@ -62,17 +62,18 @@ static void set_chip_clock(unsigned int frequency)
 
 	if (frequency) {
 		/*
-		* Set up PLL, a structure to hold the value to be set in clocks.
-		*/
+		 * Set up PLL structure to hold the value to be set in clocks.
+		 */
 		pll.inputFreq = DEFAULT_INPUT_CLOCK; /* Defined in CLOCK.H */
 		pll.clockType = MXCLK_PLL;
 
 		/*
-		* Call calc_pll_value() to fill the other fields of PLL structure.
-		* Sometime, the chip cannot set up the exact clock
-		* required by the User.
-		* Return value of calc_pll_value gives the actual possible clock.
-		*/
+		 * Call calc_pll_value() to fill the other fields of the PLL
+		 * structure. Sometimes, the chip cannot set up the exact
+		 * clock required by the User.
+		 * Return value of calc_pll_value gives the actual possible
+		 * clock.
+		 */
 		ulActualMxClk = calc_pll_value(frequency, &pll);
 
 		/* Master Clock Control: MXCLK_PLL */
@@ -84,7 +85,8 @@ static void set_memory_clock(unsigned int frequency)
 {
 	unsigned int reg, divisor;
 
-	/* Cheok_0509: For SM750LE, the memory clock is fixed.
+	/*
+	 * Cheok_0509: For SM750LE, the memory clock is fixed.
 	 * Nothing to set.
 	 */
 	if (sm750_get_chip_type() == SM750LE)
@@ -135,14 +137,16 @@ static void set_master_clock(unsigned int frequency)
 {
 	unsigned int reg, divisor;
 
-	/* Cheok_0509: For SM750LE, the memory clock is fixed.
+	/*
+	 * Cheok_0509: For SM750LE, the memory clock is fixed.
 	 * Nothing to set.
 	 */
 	if (sm750_get_chip_type() == SM750LE)
 		return;
 
 	if (frequency) {
-		/* Set the frequency to the maximum frequency
+		/*
+		 * Set the frequency to the maximum frequency
 		 * that the SM750 engine can run, which is about 190 MHz.
 		 */
 		if (frequency > MHz(190))
@@ -241,7 +245,8 @@ int ddk750_init_hw(struct initchip_param *pInitParam)
 	set_master_clock(MHz(pInitParam->masterClock));
 
 
-	/* Reset the memory controller.
+	/*
+	 * Reset the memory controller.
 	 * If the memory controller is not reset in SM750,
 	 * the system might hang when sw accesses the memory.
 	 * The memory should be resetted after changing the MXCLK.
@@ -306,7 +311,8 @@ int ddk750_init_hw(struct initchip_param *pInitParam)
  */
 unsigned int calc_pll_value(unsigned int request_orig, struct pll_value *pll)
 {
-	/* as sm750 register definition,
+	/*
+	 * as sm750 register definition,
 	 * N located in 2,15 and M located in 1,255
 	 */
 	int N, M, X, d;
@@ -318,7 +324,8 @@ unsigned int calc_pll_value(unsigned int request_orig, struct pll_value *pll)
 	int max_d = 6;
 
 	if (sm750_get_chip_type() == SM750LE) {
-		/* SM750LE don't have
+		/*
+		 * SM750LE don't have
 		 * programmable PLL and M/N values to work on.
 		 * Just return the requested clock.
 		 */
@@ -330,14 +337,16 @@ unsigned int calc_pll_value(unsigned int request_orig, struct pll_value *pll)
 	request = request_orig / 1000;
 	input = pll->inputFreq / 1000;
 
-	/* for MXCLK register,
+	/*
+	 * for MXCLK register,
 	 * no POD provided, so need be treated differently
 	 */
 	if (pll->clockType == MXCLK_PLL)
 		max_d = 3;
 
 	for (N = 15; N > 1; N--) {
-		/* RN will not exceed maximum long
+		/*
+		 * RN will not exceed maximum long
 		 * if @request <= 285 MHZ (for 32bit cpu)
 		 */
 		RN = N * request;

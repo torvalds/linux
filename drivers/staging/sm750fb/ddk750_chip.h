@@ -46,31 +46,42 @@ struct pll_value {
 
 /* input struct to initChipParam() function */
 struct initchip_param {
-	unsigned short powerMode;    /* Use power mode 0 or 1 */
-	unsigned short chipClock;    /**
-				      * Speed of main chip clock in MHz unit
-				      * 0 = keep the current clock setting
-				      * Others = the new main chip clock
-				      */
-	unsigned short memClock;     /**
-				      * Speed of memory clock in MHz unit
-				      * 0 = keep the current clock setting
-				      * Others = the new memory clock
-				      */
-	unsigned short masterClock;  /**
-				      * Speed of master clock in MHz unit
-				      * 0 = keep the current clock setting
-				      * Others = the new master clock
-				      */
-	unsigned short setAllEngOff; /**
-				      * 0 = leave all engine state untouched.
-				      * 1 = make sure they are off: 2D, Overlay,
-				      * video alpha, alpha, hardware cursors
-				      */
-	unsigned char resetMemory;   /**
-				      * 0 = Do not reset the memory controller
-				      * 1 = Reset the memory controller
-				      */
+	/* Use power mode 0 or 1 */
+	unsigned short powerMode;
+
+	/*
+	 * Speed of main chip clock in MHz unit
+	 * 0 = keep the current clock setting
+	 * Others = the new main chip clock
+	 */
+	unsigned short chipClock;
+
+	/*
+	 * Speed of memory clock in MHz unit
+	 * 0 = keep the current clock setting
+	 * Others = the new memory clock
+	 */
+	unsigned short memClock;
+
+	/*
+	 * Speed of master clock in MHz unit
+	 * 0 = keep the current clock setting
+	 * Others = the new master clock
+	 */
+	unsigned short masterClock;
+
+	/*
+	 * 0 = leave all engine state untouched.
+	 * 1 = make sure they are off: 2D, Overlay,
+	 * video alpha, alpha, hardware cursors
+	 */
+	unsigned short setAllEngOff;
+
+	/*
+	 * 0 = Do not reset the memory controller
+	 * 1 = Reset the memory controller
+	 */
+	unsigned char resetMemory;
 
 	/* More initialization parameter can be added if needed */
 };

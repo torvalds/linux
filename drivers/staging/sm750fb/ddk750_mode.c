@@ -3,7 +3,8 @@
 #include "ddk750_mode.h"
 #include "ddk750_chip.h"
 
-/* SM750LE only:
+/*
+ * SM750LE only:
  * This function takes care extra registers and bit fields required to set
  * up a mode in SM750LE
  *
@@ -18,7 +19,8 @@ static unsigned long displayControlAdjust_SM750LE(mode_parameter_t *pModeParam, 
 	x = pModeParam->horizontal_display_end;
 	y = pModeParam->vertical_display_end;
 
-	/* SM750LE has to set up the top-left and bottom-right
+	/*
+	 * SM750LE has to set up the top-left and bottom-right
 	 * registers as well.
 	 * Note that normal SM750/SM718 only use those two register for
 	 * auto-centering mode.
@@ -30,7 +32,8 @@ static unsigned long displayControlAdjust_SM750LE(mode_parameter_t *pModeParam, 
 			CRT_AUTO_CENTERING_BR_BOTTOM_MASK) |
 		((x - 1) & CRT_AUTO_CENTERING_BR_RIGHT_MASK));
 
-	/* Assume common fields in dispControl have been properly set before
+	/*
+	 * Assume common fields in dispControl have been properly set before
 	 * calling this function.
 	 * This function only sets the extra fields in dispControl.
 	 */
@@ -176,14 +179,14 @@ static int programModeRegisters(mode_parameter_t *pModeParam,
 			  DISPLAY_CTRL_HSYNC_PHASE | DISPLAY_CTRL_TIMING |
 			  DISPLAY_CTRL_PLANE);
 
-		/* May a hardware bug or just my test chip (not confirmed).
-		* PANEL_DISPLAY_CTRL register seems requiring few writes
-		* before a value can be successfully written in.
-		* Added some masks to mask out the reserved bits.
-		* Note: This problem happens by design. The hardware will wait for the
-		*       next vertical sync to turn on/off the plane.
-		*/
-
+		/*
+		 * May a hardware bug or just my test chip (not confirmed).
+		 * PANEL_DISPLAY_CTRL register seems requiring few writes
+		 * before a value can be successfully written in.
+		 * Added some masks to mask out the reserved bits.
+		 * Note: This problem happens by design. The hardware will wait
+		 *       for the next vertical sync to turn on/off the plane.
+		 */
 		POKE32(PANEL_DISPLAY_CTRL, tmp | reg);
 
 		while ((PEEK32(PANEL_DISPLAY_CTRL) & ~reserved) !=

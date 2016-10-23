@@ -20,7 +20,8 @@ unsigned char bus_speed_mode
 	value |= (GPIO_MUX_30 | GPIO_MUX_31);
 	POKE32(GPIO_MUX, value);
 
-	/* Enable Hardware I2C power.
+	/*
+	 * Enable Hardware I2C power.
 	 * TODO: Check if we need to enable GPIO power?
 	 */
 	enableI2C(1);
@@ -92,7 +93,8 @@ static unsigned int hw_i2c_write_data(
 	/* Set the Device Address */
 	POKE32(I2C_SLAVE_ADDRESS, addr & ~0x01);
 
-	/* Write data.
+	/*
+	 * Write data.
 	 * Note:
 	 *      Only 16 byte can be accessed per i2c start instruction.
 	 */
@@ -158,7 +160,8 @@ static unsigned int hw_i2c_read_data(
 	/* Set the Device Address */
 	POKE32(I2C_SLAVE_ADDRESS, addr | 0x01);
 
-	/* Read data and save them to the buffer.
+	/*
+	 * Read data and save them to the buffer.
 	 * Note:
 	 *      Only 16 byte can be accessed per i2c start instruction.
 	 */
