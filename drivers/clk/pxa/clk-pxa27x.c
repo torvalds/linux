@@ -291,9 +291,9 @@ static unsigned long clk_pxa27x_system_bus_get_rate(struct clk_hw *hw,
 	if (osc_forced)
 		return parent_rate;
 	if (b)
-		return parent_rate / 2;
-	else
 		return parent_rate;
+	else
+		return parent_rate / 2;
 }
 
 static u8 clk_pxa27x_system_bus_get_parent(struct clk_hw *hw)
