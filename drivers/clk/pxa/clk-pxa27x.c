@@ -162,7 +162,7 @@ static unsigned long clk_pxa27x_cpll_get_rate(struct clk_hw *hw,
 	L  = l * parent_rate;
 	N  = (L * n2) / 2;
 
-	return t ? N : L;
+	return N;
 }
 PARENTS(clk_pxa27x_cpll) = { "osc_13mhz" };
 RATE_RO_OPS(clk_pxa27x_cpll, "cpll");

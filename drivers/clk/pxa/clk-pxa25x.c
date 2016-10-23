@@ -182,9 +182,7 @@ static unsigned long clk_pxa25x_cpll_get_rate(struct clk_hw *hw,
 	m = M_clk_mult[(cccr >> 5) & 0x03];
 	n2 = N2_clk_mult[(cccr >> 7) & 0x07];
 
-	if (t)
-		return m * l * n2 * parent_rate / 2;
-	return m * l * parent_rate;
+	return m * l * n2 * parent_rate / 2;
 }
 PARENTS(clk_pxa25x_cpll) = { "osc_3_6864mhz" };
 RATE_RO_OPS(clk_pxa25x_cpll, "cpll");
