@@ -1074,13 +1074,12 @@ tda998x_encoder_mode_set(struct drm_encoder *encoder,
 
 		tda998x_write_avi(priv, adjusted_mode);
 
-		if (priv->audio_params.format != AFMT_UNUSED) {
-			mutex_lock(&priv->audio_mutex);
+		mutex_lock(&priv->audio_mutex);
+		if (priv->audio_params.format != AFMT_UNUSED)
 			tda998x_configure_audio(priv,
 						&priv->audio_params,
 						adjusted_mode->clock);
-			mutex_unlock(&priv->audio_mutex);
-		}
+		mutex_unlock(&priv->audio_mutex);
 	}
 }
 
