@@ -48,8 +48,8 @@
 
 #include "trap.h"
 #include "reg.h"
-
 #include "cmd.h"
+#include "resources.h"
 
 #define MLXSW_MODULE_ALIAS_PREFIX "mlxsw-driver-"
 #define MODULE_MLXSW_DRIVER_ALIAS(kind)	\
@@ -266,45 +266,23 @@ struct mlxsw_driver {
 	const struct mlxsw_config_profile *profile;
 };
 
-struct mlxsw_resources {
-	u32	max_span_valid:1,
-		max_lag_valid:1,
-		max_ports_in_lag_valid:1,
-		kvd_size_valid:1,
-		kvd_single_min_size_valid:1,
-		kvd_double_min_size_valid:1,
-		max_virtual_routers_valid:1,
-		max_system_ports_valid:1,
-		max_vlan_groups_valid:1,
-		max_regions_valid:1,
-		max_rif_valid:1;
-	u8      max_span;
-	u8	max_lag;
-	u8	max_ports_in_lag;
-	u32	kvd_size;
-	u32	kvd_single_min_size;
-	u32	kvd_double_min_size;
-	u16     max_virtual_routers;
-	u16	max_system_ports;
-	u16	max_vlan_groups;
-	u16	max_regions;
-	u16	max_rif;
+bool mlxsw_core_res_valid(struct mlxsw_core *mlxsw_core,
+			  enum mlxsw_res_id res_id);
 
-	/* Internal resources.
-	 * Determined by the SW, not queried from the HW.
-	 */
-	u32	kvd_single_size;
-	u32	kvd_double_size;
-	u32	kvd_linear_size;
-};
+#define MLXSW_CORE_RES_VALID(res, short_res_id)			\
+	mlxsw_core_res_valid(res, MLXSW_RES_ID_##short_res_id)
 
-struct mlxsw_resources *mlxsw_core_resources_get(struct mlxsw_core *mlxsw_core);
+u64 mlxsw_core_res_get(struct mlxsw_core *mlxsw_core,
+		       enum mlxsw_res_id res_id);
+
+#define MLXSW_CORE_RES_GET(res, short_res_id)			\
+	mlxsw_core_res_get(res, MLXSW_RES_ID_##short_res_id)
 
 struct mlxsw_bus {
 	const char *kind;
 	int (*init)(void *bus_priv, struct mlxsw_core *mlxsw_core,
 		    const struct mlxsw_config_profile *profile,
-		    struct mlxsw_resources *resources);
+		    struct mlxsw_res *res);
 	void (*fini)(void *bus_priv);
 	bool (*skb_transmit_busy)(void *bus_priv,
 				  const struct mlxsw_tx_info *tx_info);

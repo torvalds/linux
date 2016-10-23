@@ -67,6 +67,7 @@
 #include "trap.h"
 #include "emad.h"
 #include "reg.h"
+#include "resources.h"
 
 static LIST_HEAD(mlxsw_core_driver_list);
 static DEFINE_SPINLOCK(mlxsw_core_driver_list_lock);
@@ -111,7 +112,7 @@ struct mlxsw_core {
 	struct {
 		u8 *mapping; /* lag_id+port_index to local_port mapping */
 	} lag;
-	struct mlxsw_resources resources;
+	struct mlxsw_res res;
 	struct mlxsw_hwmon *hwmon;
 	unsigned long driver_priv[0];
 	/* driver_priv has to be always the last item */
@@ -1101,14 +1102,15 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	}
 
 	err = mlxsw_bus->init(bus_priv, mlxsw_core, mlxsw_driver->profile,
-			      &mlxsw_core->resources);
+			      &mlxsw_core->res);
 	if (err)
 		goto err_bus_init;
 
-	if (mlxsw_core->resources.max_lag_valid &&
-	    mlxsw_core->resources.max_ports_in_lag_valid) {
-		alloc_size = sizeof(u8) * mlxsw_core->resources.max_lag *
-			mlxsw_core->resources.max_ports_in_lag;
+	if (MLXSW_CORE_RES_VALID(mlxsw_core, MAX_LAG) &&
+	    MLXSW_CORE_RES_VALID(mlxsw_core, MAX_LAG_MEMBERS)) {
+		alloc_size = sizeof(u8) *
+			MLXSW_CORE_RES_GET(mlxsw_core, MAX_LAG) *
+			MLXSW_CORE_RES_GET(mlxsw_core, MAX_LAG_MEMBERS);
 		mlxsw_core->lag.mapping = kzalloc(alloc_size, GFP_KERNEL);
 		if (!mlxsw_core->lag.mapping) {
 			err = -ENOMEM;
@@ -1615,7 +1617,7 @@ EXPORT_SYMBOL(mlxsw_core_skb_receive);
 static int mlxsw_core_lag_mapping_index(struct mlxsw_core *mlxsw_core,
 					u16 lag_id, u8 port_index)
 {
-	return mlxsw_core->resources.max_ports_in_lag * lag_id +
+	return MLXSW_CORE_RES_GET(mlxsw_core, MAX_LAG_MEMBERS) * lag_id +
 	       port_index;
 }
 
@@ -1644,7 +1646,7 @@ void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
 {
 	int i;
 
-	for (i = 0; i < mlxsw_core->resources.max_ports_in_lag; i++) {
+	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_core, MAX_LAG_MEMBERS); i++) {
 		int index = mlxsw_core_lag_mapping_index(mlxsw_core,
 							 lag_id, i);
 
@@ -1654,11 +1656,19 @@ void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
 }
 EXPORT_SYMBOL(mlxsw_core_lag_mapping_clear);
 
-struct mlxsw_resources *mlxsw_core_resources_get(struct mlxsw_core *mlxsw_core)
+bool mlxsw_core_res_valid(struct mlxsw_core *mlxsw_core,
+			  enum mlxsw_res_id res_id)
 {
-	return &mlxsw_core->resources;
+	return mlxsw_res_valid(&mlxsw_core->res, res_id);
 }
-EXPORT_SYMBOL(mlxsw_core_resources_get);
+EXPORT_SYMBOL(mlxsw_core_res_valid);
+
+u64 mlxsw_core_res_get(struct mlxsw_core *mlxsw_core,
+		       enum mlxsw_res_id res_id)
+{
+	return mlxsw_res_get(&mlxsw_core->res, res_id);
+}
+EXPORT_SYMBOL(mlxsw_core_res_get);
 
 int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core,
 			 struct mlxsw_core_port *mlxsw_core_port, u8 local_port,
