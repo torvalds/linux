@@ -221,14 +221,12 @@ static unsigned long clk_pxa27x_core_get_rate(struct clk_hw *hw,
 					      unsigned long parent_rate)
 {
 	unsigned long clkcfg;
-	unsigned int t, ht, b, osc_forced;
+	unsigned int ht, osc_forced;
 	unsigned long ccsr = readl(CCSR);
 
 	osc_forced = ccsr & (1 << CCCR_CPDIS_BIT);
 	asm("mrc\tp14, 0, %0, c6, c0, 0" : "=r" (clkcfg));
-	t  = clkcfg & (1 << 0);
 	ht = clkcfg & (1 << 2);
-	b  = clkcfg & (1 << 3);
 
 	if (osc_forced)
 		return parent_rate;
@@ -241,7 +239,7 @@ static unsigned long clk_pxa27x_core_get_rate(struct clk_hw *hw,
 static u8 clk_pxa27x_core_get_parent(struct clk_hw *hw)
 {
 	unsigned long clkcfg;
-	unsigned int t, ht, b, osc_forced;
+	unsigned int t, ht, osc_forced;
 	unsigned long ccsr = readl(CCSR);
 
 	osc_forced = ccsr & (1 << CCCR_CPDIS_BIT);
@@ -251,7 +249,6 @@ static u8 clk_pxa27x_core_get_parent(struct clk_hw *hw)
 	asm("mrc\tp14, 0, %0, c6, c0, 0" : "=r" (clkcfg));
 	t  = clkcfg & (1 << 0);
 	ht = clkcfg & (1 << 2);
-	b  = clkcfg & (1 << 3);
 
 	if (ht || t)
 		return PXA_CORE_TURBO;
