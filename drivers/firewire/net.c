@@ -1467,10 +1467,11 @@ static int fwnet_probe(struct fw_unit *unit,
 	 * Use the RFC 2734 default 1500 octets or the maximum payload
 	 * as initial MTU
 	 */
-	net->max_mtu = (1 << (card->max_receive + 1))
-		       - sizeof(struct rfc2734_header) - IEEE1394_GASP_HDR_SIZE;
-	net->mtu = min(1500U, net->max_mtu);
+	net->mtu = min(1500U,
+		       (1U << (card->max_receive + 1))
+		       - RFC2374_FRAG_HDR_SIZE - IEEE1394_GASP_HDR_SIZE);
 	net->min_mtu = ETH_MIN_MTU;
+	net->max_mtu = ETH_MAX_MTU;
 
 	/* Set our hardware address while we're at it */
 	ha = (union fwnet_hwaddr *)net->dev_addr;
