@@ -43,7 +43,7 @@ struct tda998x_priv {
 	u16 rev;
 	u8 current_page;
 	int dpms;
-	bool is_hdmi_sink;
+	bool supports_infoframes;
 	u8 vip_cntrl_0;
 	u8 vip_cntrl_1;
 	u8 vip_cntrl_2;
@@ -1068,8 +1068,20 @@ tda998x_encoder_mode_set(struct drm_encoder *encoder,
 
 	priv->tmds_clock = adjusted_mode->clock;
 
-	/* Only setup the info frames if the sink is HDMI */
-	if (priv->is_hdmi_sink) {
+	/* CEA-861B section 6 says that:
+	 * CEA version 1 (CEA-861) has no support for infoframes.
+	 * CEA version 2 (CEA-861A) supports version 1 AVI infoframes,
+	 * and optional basic audio.
+	 * CEA version 3 (CEA-861B) supports version 1 and 2 AVI infoframes,
+	 * and optional digital audio, with audio infoframes.
+	 *
+	 * Since we only support generation of version 2 AVI infoframes,
+	 * ignore CEA version 2 and below (iow, behave as if we're a
+	 * CEA-861 source.)
+	 */
+	priv->supports_infoframes = priv->connector.display_info.cea_rev >= 3;
+
+	if (priv->supports_infoframes) {
 		/* We need to turn HDMI HDCP stuff on to get audio through */
 		reg &= ~TBG_CNTRL_1_DWIN_DIS;
 		reg_write(priv, REG_TBG_CNTRL_1, reg);
@@ -1180,7 +1192,6 @@ static int tda998x_connector_get_modes(struct drm_connector *connector)
 
 	drm_mode_connector_update_edid_property(connector, edid);
 	n = drm_add_edid_modes(connector, edid);
-	priv->is_hdmi_sink = drm_detect_hdmi_monitor(edid);
 	drm_edid_to_eld(connector, edid);
 
 	kfree(edid);
@@ -1263,7 +1274,10 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 	}
 
 	mutex_lock(&priv->audio_mutex);
-	ret = tda998x_configure_audio(priv, &audio);
+	if (priv->supports_infoframes)
+		ret = tda998x_configure_audio(priv, &audio);
+	else
+		ret = 0;
 
 	if (ret == 0)
 		priv->audio_params = audio;
