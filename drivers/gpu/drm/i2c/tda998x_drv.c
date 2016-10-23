@@ -581,9 +581,9 @@ tda998x_reset(struct tda998x_priv *priv)
  * HPD assertion: it needs a delay of 100ms to avoid timing out while
  * trying to read EDID data.
  *
- * However, tda998x_encoder_get_modes() may be called at any moment
+ * However, tda998x_connector_get_modes() may be called at any moment
  * after tda998x_connector_detect() indicates that we are connected, so
- * we need to delay probing modes in tda998x_encoder_get_modes() after
+ * we need to delay probing modes in tda998x_connector_get_modes() after
  * we have seen a HPD inactive->active transition.  This code implements
  * that delay.
  */
