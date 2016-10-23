@@ -439,7 +439,7 @@ static unsigned int vfs_dent_type(uint8_t type)
  */
 static int ubifs_readdir(struct file *file, struct dir_context *ctx)
 {
-	int err;
+	int err = 0;
 	struct qstr nm;
 	union ubifs_key key;
 	struct ubifs_dent_node *dent;
@@ -541,14 +541,12 @@ out:
 	kfree(file->private_data);
 	file->private_data = NULL;
 
-	if (err != -ENOENT) {
+	if (err != -ENOENT)
 		ubifs_err(c, "cannot find next direntry, error %d", err);
-		return err;
-	}
 
 	/* 2 is a special value indicating that there are no more direntries */
 	ctx->pos = 2;
-	return 0;
+	return err;
 }
 
 /* Free saved readdir() state when the directory is closed */
@@ -1060,9 +1058,9 @@ static void unlock_4_inodes(struct inode *inode1, struct inode *inode2,
 	mutex_unlock(&ubifs_inode(inode1)->ui_mutex);
 }
 
-static int ubifs_rename(struct inode *old_dir, struct dentry *old_dentry,
-			struct inode *new_dir, struct dentry *new_dentry,
-			unsigned int flags)
+static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
+		     struct inode *new_dir, struct dentry *new_dentry,
+		     unsigned int flags)
 {
 	struct ubifs_info *c = old_dir->i_sb->s_fs_info;
 	struct inode *old_inode = d_inode(old_dentry);
@@ -1323,7 +1321,7 @@ static int ubifs_xrename(struct inode *old_dir, struct dentry *old_dentry,
 	return err;
 }
 
-static int ubifs_rename2(struct inode *old_dir, struct dentry *old_dentry,
+static int ubifs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry,
 			unsigned int flags)
 {
@@ -1336,7 +1334,7 @@ static int ubifs_rename2(struct inode *old_dir, struct dentry *old_dentry,
 	if (flags & RENAME_EXCHANGE)
 		return ubifs_xrename(old_dir, old_dentry, new_dir, new_dentry);
 
-	return ubifs_rename(old_dir, old_dentry, new_dir, new_dentry, flags);
+	return do_rename(old_dir, old_dentry, new_dir, new_dentry, flags);
 }
 
 int ubifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
@@ -1387,7 +1385,7 @@ const struct inode_operations ubifs_dir_inode_operations = {
 	.mkdir       = ubifs_mkdir,
 	.rmdir       = ubifs_rmdir,
 	.mknod       = ubifs_mknod,
-	.rename      = ubifs_rename2,
+	.rename      = ubifs_rename,
 	.setattr     = ubifs_setattr,
 	.getattr     = ubifs_getattr,
 	.listxattr   = ubifs_listxattr,
