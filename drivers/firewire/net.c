@@ -1463,13 +1463,7 @@ static int fwnet_probe(struct fw_unit *unit,
 		goto out;
 	dev->local_fifo = dev->handler.offset;
 
-	/*
-	 * Use the RFC 2734 default 1500 octets or the maximum payload
-	 * as initial MTU
-	 */
-	net->mtu = min(1500U,
-		       (1U << (card->max_receive + 1))
-		       - RFC2374_FRAG_HDR_SIZE - IEEE1394_GASP_HDR_SIZE);
+	net->mtu = 1500U;
 	net->min_mtu = ETH_MIN_MTU;
 	net->max_mtu = ETH_MAX_MTU;
 
