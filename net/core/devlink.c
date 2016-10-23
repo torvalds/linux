@@ -608,6 +608,8 @@ static int devlink_port_type_set(struct devlink *devlink,
 	if (devlink->ops && devlink->ops->port_type_set) {
 		if (port_type == DEVLINK_PORT_TYPE_NOTSET)
 			return -EINVAL;
+		if (port_type == devlink_port->type)
+			return 0;
 		err = devlink->ops->port_type_set(devlink_port, port_type);
 		if (err)
 			return err;
