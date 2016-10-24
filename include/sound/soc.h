@@ -1025,12 +1025,12 @@ struct snd_soc_dai_link {
 	const struct snd_soc_ops *ops;
 	const struct snd_soc_compr_ops *compr_ops;
 
-	/* For unidirectional dai links */
-	bool playback_only;
-	bool capture_only;
-
 	/* Mark this pcm with non atomic ops */
 	bool nonatomic;
+
+	/* For unidirectional dai links */
+	unsigned int playback_only:1;
+	unsigned int capture_only:1;
 
 	/* Keep DAI active over suspend */
 	unsigned int ignore_suspend:1;
