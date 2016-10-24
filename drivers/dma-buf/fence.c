@@ -68,6 +68,8 @@ int fence_signal_locked(struct fence *fence)
 	struct fence_cb *cur, *tmp;
 	int ret = 0;
 
+	lockdep_assert_held(fence->lock);
+
 	if (WARN_ON(!fence))
 		return -EINVAL;
 
