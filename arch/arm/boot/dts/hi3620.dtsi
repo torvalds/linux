@@ -11,10 +11,12 @@
  * publishhed by the Free Software Foundation.
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/clock/hi3620-clock.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	aliases {
 		serial0 = &uart0;
 		serial1 = &uart1;
