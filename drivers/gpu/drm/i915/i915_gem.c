@@ -1952,10 +1952,10 @@ out:
 	intel_runtime_pm_put(i915);
 }
 
-void
-i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv)
+void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv)
 {
 	struct drm_i915_gem_object *obj, *on;
+	int i;
 
 	/*
 	 * Only called during RPM suspend. All users of the userfault_list
@@ -1969,6 +1969,23 @@ i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv)
 		list_del_init(&obj->userfault_link);
 		drm_vma_node_unmap(&obj->base.vma_node,
 				   obj->base.dev->anon_inode->i_mapping);
+	}
+
+	/* The fence will be lost when the device powers down. If any were
+	 * in use by hardware (i.e. they are pinned), we should not be powering
+	 * down! All other fences will be reacquired by the user upon waking.
+	 */
+	for (i = 0; i < dev_priv->num_fence_regs; i++) {
+		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
+
+		if (WARN_ON(reg->pin_count))
+			continue;
+
+		if (!reg->vma)
+			continue;
+
+		GEM_BUG_ON(!list_empty(&reg->vma->obj->userfault_link));
+		reg->dirty = true;
 	}
 }
 

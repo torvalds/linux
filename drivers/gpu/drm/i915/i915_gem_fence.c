@@ -343,6 +343,9 @@ i915_vma_get_fence(struct i915_vma *vma)
 	struct drm_i915_fence_reg *fence;
 	struct i915_vma *set = i915_gem_object_is_tiled(vma->obj) ? vma : NULL;
 
+	/* Note that we revoke fences on runtime suspend. Therefore the user
+	 * must keep the device awake whilst using the fence.
+	 */
 	assert_rpm_wakelock_held(to_i915(vma->vm->dev));
 
 	/* Just update our place in the LRU if our fence is getting reused. */
@@ -368,18 +371,13 @@ i915_vma_get_fence(struct i915_vma *vma)
  * @dev: DRM device
  *
  * Restore the hw fence state to match the software tracking again, to be called
- * after a gpu reset and on resume.
+ * after a gpu reset and on resume. Note that on runtime suspend we only cancel
+ * the fences, to be reacquired by the user later.
  */
 void i915_gem_restore_fences(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int i;
-
-	/* Note that this may be called outside of struct_mutex, by
-	 * runtime suspend/resume. The barrier we require is enforced by
-	 * rpm itself - all access to fences/GTT are only within an rpm
-	 * wakeref, and to acquire that wakeref you must pass through here.
-	 */
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];

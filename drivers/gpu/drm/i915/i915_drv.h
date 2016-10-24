@@ -3130,8 +3130,9 @@ void i915_vma_destroy(struct i915_vma *vma);
 
 int i915_gem_object_unbind(struct drm_i915_gem_object *obj);
 int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
-void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
+
+void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv);
 
 int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 

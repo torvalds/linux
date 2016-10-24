@@ -2278,10 +2278,8 @@ static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 
 	vlv_check_no_gt_access(dev_priv);
 
-	if (rpm_resume) {
+	if (rpm_resume)
 		intel_init_clock_gating(dev);
-		i915_gem_restore_fences(dev);
-	}
 
 	return ret;
 }
@@ -2307,7 +2305,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	 * We are safe here against re-faults, since the fault handler takes
 	 * an RPM reference.
 	 */
-	i915_gem_release_all_mmaps(dev_priv);
+	i915_gem_runtime_suspend(dev_priv);
 
 	intel_guc_suspend(dev);
 
