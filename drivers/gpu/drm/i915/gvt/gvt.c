@@ -103,19 +103,20 @@ int intel_gvt_init_host(void)
 static void init_device_info(struct intel_gvt *gvt)
 {
 	struct intel_gvt_device_info *info = &gvt->device_info;
+	struct pci_dev *pdev = gvt->dev_priv->drm.pdev;
 
 	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)) {
 		info->max_support_vgpus = 8;
 		info->cfg_space_size = 256;
 		info->mmio_size = 2 * 1024 * 1024;
 		info->mmio_bar = 0;
-		info->msi_cap_offset = IS_SKYLAKE(gvt->dev_priv) ? 0xac : 0x90;
 		info->gtt_start_offset = 8 * 1024 * 1024;
 		info->gtt_entry_size = 8;
 		info->gtt_entry_size_shift = 3;
 		info->gmadr_bytes_in_cmd = 8;
 		info->max_surface_size = 36 * 1024 * 1024;
 	}
+	info->msi_cap_offset = pdev->msi_cap;
 }
 
 static int gvt_service_thread(void *data)
