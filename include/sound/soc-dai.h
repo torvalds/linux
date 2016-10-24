@@ -268,8 +268,9 @@ struct snd_soc_dai {
 	unsigned int symmetric_rates:1;
 	unsigned int symmetric_channels:1;
 	unsigned int symmetric_samplebits:1;
+	unsigned int probed:1;
+
 	unsigned int active;
-	unsigned char probed:1;
 
 	struct snd_soc_dapm_widget *playback_widget;
 	struct snd_soc_dapm_widget *capture_widget;
