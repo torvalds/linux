@@ -3243,6 +3243,18 @@ static int kv_dpm_set_powergating_state(void *handle,
 	return 0;
 }
 
+static int kv_check_state_equal(struct amdgpu_device *adev,
+				struct amdgpu_ps *cps,
+				struct amdgpu_ps *rps,
+				bool *equal)
+{
+	if (equal == NULL)
+		return -EINVAL;
+
+	*equal = false;
+	return 0;
+}
+
 const struct amd_ip_funcs kv_dpm_ip_funcs = {
 	.name = "kv_dpm",
 	.early_init = kv_dpm_early_init,
@@ -3274,6 +3286,7 @@ static const struct amdgpu_dpm_funcs kv_dpm_funcs = {
 	.powergate_uvd = &kv_dpm_powergate_uvd,
 	.enable_bapm = &kv_dpm_enable_bapm,
 	.get_vce_clock_state = amdgpu_get_vce_clock_state,
+	.check_state_equal = kv_check_state_equal,
 };
 
 static void kv_dpm_set_dpm_funcs(struct amdgpu_device *adev)
