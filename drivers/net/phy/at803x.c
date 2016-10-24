@@ -52,9 +52,6 @@
 #define AT803X_DEBUG_REG_5			0x05
 #define AT803X_DEBUG_TX_CLK_DLY_EN		BIT(8)
 
-#define AT803X_REG_CHIP_CONFIG			0x1f
-#define AT803X_BT_BX_REG_SEL			0x8000
-
 #define ATH8030_PHY_ID 0x004dd076
 #define ATH8031_PHY_ID 0x004dd074
 #define ATH8035_PHY_ID 0x004dd072
@@ -209,7 +206,6 @@ static int at803x_suspend(struct phy_device *phydev)
 {
 	int value;
 	int wol_enabled;
-	int ccr;
 
 	mutex_lock(&phydev->lock);
 
@@ -225,16 +221,6 @@ static int at803x_suspend(struct phy_device *phydev)
 
 	phy_write(phydev, MII_BMCR, value);
 
-	if (phydev->interface != PHY_INTERFACE_MODE_SGMII)
-		goto done;
-
-	/* also power-down SGMII interface */
-	ccr = phy_read(phydev, AT803X_REG_CHIP_CONFIG);
-	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr & ~AT803X_BT_BX_REG_SEL);
-	phy_write(phydev, MII_BMCR, phy_read(phydev, MII_BMCR) | BMCR_PDOWN);
-	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr | AT803X_BT_BX_REG_SEL);
-
-done:
 	mutex_unlock(&phydev->lock);
 
 	return 0;
@@ -243,7 +229,6 @@ done:
 static int at803x_resume(struct phy_device *phydev)
 {
 	int value;
-	int ccr;
 
 	mutex_lock(&phydev->lock);
 
@@ -251,17 +236,6 @@ static int at803x_resume(struct phy_device *phydev)
 	value &= ~(BMCR_PDOWN | BMCR_ISOLATE);
 	phy_write(phydev, MII_BMCR, value);
 
-	if (phydev->interface != PHY_INTERFACE_MODE_SGMII)
-		goto done;
-
-	/* also power-up SGMII interface */
-	ccr = phy_read(phydev, AT803X_REG_CHIP_CONFIG);
-	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr & ~AT803X_BT_BX_REG_SEL);
-	value = phy_read(phydev, MII_BMCR) & ~(BMCR_PDOWN | BMCR_ISOLATE);
-	phy_write(phydev, MII_BMCR, value);
-	phy_write(phydev, AT803X_REG_CHIP_CONFIG, ccr | AT803X_BT_BX_REG_SEL);
-
-done:
 	mutex_unlock(&phydev->lock);
 
 	return 0;
