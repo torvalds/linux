@@ -1459,8 +1459,7 @@ static void intel_dp_print_hw_revision(struct intel_dp *intel_dp)
 	if ((drm_debug & DRM_UT_KMS) == 0)
 		return;
 
-	if (!(intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
-	      DP_DWN_STRM_PORT_PRESENT))
+	if (!drm_dp_is_branch(intel_dp->dpcd))
 		return;
 
 	len = drm_dp_dpcd_read(&intel_dp->aux, DP_BRANCH_HW_REV, &rev, 1);
@@ -1478,8 +1477,7 @@ static void intel_dp_print_sw_revision(struct intel_dp *intel_dp)
 	if ((drm_debug & DRM_UT_KMS) == 0)
 		return;
 
-	if (!(intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
-	      DP_DWN_STRM_PORT_PRESENT))
+	if (!drm_dp_is_branch(intel_dp->dpcd))
 		return;
 
 	len = drm_dp_dpcd_read(&intel_dp->aux, DP_BRANCH_SW_REV, &rev, 2);
@@ -3615,8 +3613,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	if (!is_edp(intel_dp) && !intel_dp->sink_count)
 		return false;
 
-	if (!(intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
-	      DP_DWN_STRM_PORT_PRESENT))
+	if (!drm_dp_is_branch(intel_dp->dpcd))
 		return true; /* native DP sink */
 
 	if (intel_dp->dpcd[DP_DPCD_REV] == 0x10)
@@ -4134,7 +4131,7 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 		return connector_status_connected;
 
 	/* if there's no downstream port, we're done */
-	if (!(dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT))
+	if (!drm_dp_is_branch(dpcd))
 		return connector_status_connected;
 
 	/* If we're HPD-aware, SINK_COUNT changes dynamically */
