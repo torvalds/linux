@@ -943,7 +943,14 @@ static struct timer_base *lock_timer_base(struct timer_list *timer,
 {
 	for (;;) {
 		struct timer_base *base;
-		u32 tf = timer->flags;
+		u32 tf;
+
+		/*
+		 * We need to use READ_ONCE() here, otherwise the compiler
+		 * might re-read @tf between the check for TIMER_MIGRATING
+		 * and spin_lock().
+		 */
+		tf = READ_ONCE(timer->flags);
 
 		if (!(tf & TIMER_MIGRATING)) {
 			base = get_timer_base(tf);
