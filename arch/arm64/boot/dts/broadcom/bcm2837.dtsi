@@ -1,7 +1,7 @@
 #include "bcm283x.dtsi"
 
 / {
-	compatible = "brcm,bcm2836";
+	compatible = "brcm,bcm2837";
 
 	soc {
 		ranges = <0x7e000000 0x3f000000 0x1000000>,
