@@ -99,7 +99,7 @@ static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 	case UART_LCR:
 		valshift = UNIPHIER_UART_LCR_SHIFT;
 		/* Divisor latch access bit does not exist. */
-		value &= ~(UART_LCR_DLAB << valshift);
+		value &= ~UART_LCR_DLAB;
 		/* fall through */
 	case UART_MCR:
 		offset = UNIPHIER_UART_LCR_MCR;
