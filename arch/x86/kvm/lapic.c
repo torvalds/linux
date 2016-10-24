@@ -1347,6 +1347,50 @@ static void start_sw_tscdeadline(struct kvm_lapic *apic)
 	local_irq_restore(flags);
 }
 
+static void start_sw_period(struct kvm_lapic *apic)
+{
+	ktime_t now;
+
+	/* lapic timer in oneshot or periodic mode */
+	now = apic->lapic_timer.timer.base->get_time();
+	apic->lapic_timer.period = (u64)kvm_lapic_get_reg(apic, APIC_TMICT)
+		    * APIC_BUS_CYCLE_NS * apic->divide_count;
+
+	if (!apic->lapic_timer.period)
+		return;
+	/*
+	 * Do not allow the guest to program periodic timers with small
+	 * interval, since the hrtimers are not throttled by the host
+	 * scheduler.
+	 */
+	if (apic_lvtt_period(apic)) {
+		s64 min_period = min_timer_period_us * 1000LL;
+
+		if (apic->lapic_timer.period < min_period) {
+			pr_info_ratelimited(
+			    "kvm: vcpu %i: requested %lld ns "
+			    "lapic timer period limited to %lld ns\n",
+			    apic->vcpu->vcpu_id,
+			    apic->lapic_timer.period, min_period);
+			apic->lapic_timer.period = min_period;
+		}
+	}
+
+	hrtimer_start(&apic->lapic_timer.timer,
+		      ktime_add_ns(now, apic->lapic_timer.period),
+		      HRTIMER_MODE_ABS_PINNED);
+
+	apic_debug("%s: bus cycle is %" PRId64 "ns, now 0x%016"
+		   PRIx64 ", "
+		   "timer initial count 0x%x, period %lldns, "
+		   "expire @ 0x%016" PRIx64 ".\n", __func__,
+		   APIC_BUS_CYCLE_NS, ktime_to_ns(now),
+		   kvm_lapic_get_reg(apic, APIC_TMICT),
+		   apic->lapic_timer.period,
+		   ktime_to_ns(ktime_add_ns(now,
+				apic->lapic_timer.period)));
+}
+
 bool kvm_lapic_hv_timer_in_use(struct kvm_vcpu *vcpu)
 {
 	if (!lapic_in_kernel(vcpu))
@@ -1424,50 +1468,11 @@ EXPORT_SYMBOL_GPL(kvm_lapic_switch_to_sw_timer);
 
 static void start_apic_timer(struct kvm_lapic *apic)
 {
-	ktime_t now;
-
 	atomic_set(&apic->lapic_timer.pending, 0);
 
-	if (apic_lvtt_period(apic) || apic_lvtt_oneshot(apic)) {
-		/* lapic timer in oneshot or periodic mode */
-		now = apic->lapic_timer.timer.base->get_time();
-		apic->lapic_timer.period = (u64)kvm_lapic_get_reg(apic, APIC_TMICT)
-			    * APIC_BUS_CYCLE_NS * apic->divide_count;
-
-		if (!apic->lapic_timer.period)
-			return;
-		/*
-		 * Do not allow the guest to program periodic timers with small
-		 * interval, since the hrtimers are not throttled by the host
-		 * scheduler.
-		 */
-		if (apic_lvtt_period(apic)) {
-			s64 min_period = min_timer_period_us * 1000LL;
-
-			if (apic->lapic_timer.period < min_period) {
-				pr_info_ratelimited(
-				    "kvm: vcpu %i: requested %lld ns "
-				    "lapic timer period limited to %lld ns\n",
-				    apic->vcpu->vcpu_id,
-				    apic->lapic_timer.period, min_period);
-				apic->lapic_timer.period = min_period;
-			}
-		}
-
-		hrtimer_start(&apic->lapic_timer.timer,
-			      ktime_add_ns(now, apic->lapic_timer.period),
-			      HRTIMER_MODE_ABS_PINNED);
-
-		apic_debug("%s: bus cycle is %" PRId64 "ns, now 0x%016"
-			   PRIx64 ", "
-			   "timer initial count 0x%x, period %lldns, "
-			   "expire @ 0x%016" PRIx64 ".\n", __func__,
-			   APIC_BUS_CYCLE_NS, ktime_to_ns(now),
-			   kvm_lapic_get_reg(apic, APIC_TMICT),
-			   apic->lapic_timer.period,
-			   ktime_to_ns(ktime_add_ns(now,
-					apic->lapic_timer.period)));
-	} else if (apic_lvtt_tscdeadline(apic)) {
+	if (apic_lvtt_period(apic) || apic_lvtt_oneshot(apic))
+		start_sw_period(apic);
+	else if (apic_lvtt_tscdeadline(apic)) {
 		if (!(kvm_x86_ops->set_hv_timer && start_hv_tscdeadline(apic)))
 			start_sw_tscdeadline(apic);
 	}
