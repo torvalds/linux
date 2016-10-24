@@ -1201,20 +1201,19 @@ static int gen8_update_plane_mmio_from_mi_display_flip(
 	struct drm_i915_private *dev_priv = s->vgpu->gvt->dev_priv;
 	struct intel_vgpu *vgpu = s->vgpu;
 
-#define write_bits(reg, e, s, v) do { \
-	vgpu_vreg(vgpu, reg) &= ~GENMASK(e, s); \
-	vgpu_vreg(vgpu, reg) |= (v << s); \
-} while (0)
-
-	write_bits(info->surf_reg, 31, 12, info->surf_val);
-	if (IS_SKYLAKE(dev_priv))
-		write_bits(info->stride_reg, 9, 0, info->stride_val);
-	else
-		write_bits(info->stride_reg, 15, 6, info->stride_val);
-	write_bits(info->ctrl_reg, IS_SKYLAKE(dev_priv) ? 12 : 10,
-		   10, info->tile_val);
-
-#undef write_bits
+	set_mask_bits(&vgpu_vreg(vgpu, info->surf_reg), GENMASK(31, 12),
+		      info->surf_val << 12);
+	if (IS_SKYLAKE(dev_priv)) {
+		set_mask_bits(&vgpu_vreg(vgpu, info->stride_reg), GENMASK(9, 0),
+			      info->stride_val);
+		set_mask_bits(&vgpu_vreg(vgpu, info->ctrl_reg), GENMASK(12, 10),
+			      info->tile_val << 10);
+	} else {
+		set_mask_bits(&vgpu_vreg(vgpu, info->stride_reg), GENMASK(15, 6),
+			      info->stride_val << 6);
+		set_mask_bits(&vgpu_vreg(vgpu, info->ctrl_reg), GENMASK(10, 10),
+			      info->tile_val << 10);
+	}
 
 	vgpu_vreg(vgpu, PIPE_FRMCOUNT_G4X(info->pipe))++;
 	intel_vgpu_trigger_virtual_event(vgpu, info->event);
