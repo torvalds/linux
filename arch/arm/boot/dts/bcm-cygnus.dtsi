@@ -91,6 +91,13 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
+		otp: otp@0301c800 {
+			compatible = "brcm,ocotp";
+			reg = <0x0301c800 0x2c>;
+			brcm,ocotp-size = <2048>;
+			status = "disabled";
+		};
+
 		pcie_phy: phy@0301d0a0 {
 			compatible = "brcm,cygnus-pcie-phy";
 			reg = <0x0301d0a0 0x14>;
