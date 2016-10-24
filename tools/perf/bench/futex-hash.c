@@ -39,12 +39,15 @@ static unsigned int threads_starting;
 static struct stats throughput_stats;
 static pthread_cond_t thread_parent, thread_worker;
 
+#define SMP_CACHE_BYTES 256
+#define __cacheline_aligned __attribute__ ((aligned (SMP_CACHE_BYTES)))
+
 struct worker {
 	int tid;
 	u_int32_t *futex;
 	pthread_t thread;
 	unsigned long ops;
-};
+} __cacheline_aligned;
 
 static const struct option options[] = {
 	OPT_UINTEGER('t', "threads", &nthreads, "Specify amount of threads"),

@@ -241,7 +241,7 @@ parse_prog_config_kvpair(const char *config_str, struct perf_probe_event *pev)
 	int err = 0;
 
 	if (!text) {
-		pr_debug("No enough memory: dup config_str failed\n");
+		pr_debug("Not enough memory: dup config_str failed\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -531,7 +531,7 @@ static int map_prologue(struct perf_probe_event *pev, int *mapping,
 
 	ptevs = malloc(array_sz);
 	if (!ptevs) {
-		pr_debug("No enough memory: alloc ptevs failed\n");
+		pr_debug("Not enough memory: alloc ptevs failed\n");
 		return -ENOMEM;
 	}
 
@@ -604,13 +604,13 @@ static int hook_load_preprocessor(struct bpf_program *prog)
 	priv->need_prologue = true;
 	priv->insns_buf = malloc(sizeof(struct bpf_insn) * BPF_MAXINSNS);
 	if (!priv->insns_buf) {
-		pr_debug("No enough memory: alloc insns_buf failed\n");
+		pr_debug("Not enough memory: alloc insns_buf failed\n");
 		return -ENOMEM;
 	}
 
 	priv->type_mapping = malloc(sizeof(int) * pev->ntevs);
 	if (!priv->type_mapping) {
-		pr_debug("No enough memory: alloc type_mapping failed\n");
+		pr_debug("Not enough memory: alloc type_mapping failed\n");
 		return -ENOMEM;
 	}
 	memset(priv->type_mapping, -1,
@@ -864,7 +864,7 @@ bpf_map_op_setkey(struct bpf_map_op *op, struct parse_events_term *term)
 
 		op->k.array.ranges = memdup(term->array.ranges, memsz);
 		if (!op->k.array.ranges) {
-			pr_debug("No enough memory to alloc indices for map\n");
+			pr_debug("Not enough memory to alloc indices for map\n");
 			return -ENOMEM;
 		}
 		op->key_type = BPF_MAP_KEY_RANGES;
@@ -929,7 +929,7 @@ bpf_map_priv__clone(struct bpf_map_priv *priv)
 
 	newpriv = zalloc(sizeof(*newpriv));
 	if (!newpriv) {
-		pr_debug("No enough memory to alloc map private\n");
+		pr_debug("Not enough memory to alloc map private\n");
 		return NULL;
 	}
 	INIT_LIST_HEAD(&newpriv->ops_list);
@@ -960,7 +960,7 @@ bpf_map__add_op(struct bpf_map *map, struct bpf_map_op *op)
 	if (!priv) {
 		priv = zalloc(sizeof(*priv));
 		if (!priv) {
-			pr_debug("No enough memory to alloc map private\n");
+			pr_debug("Not enough memory to alloc map private\n");
 			return -ENOMEM;
 		}
 		INIT_LIST_HEAD(&priv->ops_list);

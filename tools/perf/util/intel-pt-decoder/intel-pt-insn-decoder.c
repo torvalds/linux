@@ -27,6 +27,10 @@
 
 #include "intel-pt-insn-decoder.h"
 
+#if INTEL_PT_INSN_BUF_SZ < MAX_INSN_SIZE || INTEL_PT_INSN_BUF_SZ > MAX_INSN
+#error Instruction buffer size too small
+#endif
+
 /* Based on branch_type() from perf_event_intel_lbr.c */
 static void intel_pt_insn_decoder(struct insn *insn,
 				  struct intel_pt_insn *intel_pt_insn)
@@ -166,10 +170,10 @@ int intel_pt_get_insn(const unsigned char *buf, size_t len, int x86_64,
 	if (!insn_complete(&insn) || insn.length > len)
 		return -1;
 	intel_pt_insn_decoder(&insn, intel_pt_insn);
-	if (insn.length < INTEL_PT_INSN_DBG_BUF_SZ)
+	if (insn.length < INTEL_PT_INSN_BUF_SZ)
 		memcpy(intel_pt_insn->buf, buf, insn.length);
 	else
-		memcpy(intel_pt_insn->buf, buf, INTEL_PT_INSN_DBG_BUF_SZ);
+		memcpy(intel_pt_insn->buf, buf, INTEL_PT_INSN_BUF_SZ);
 	return 0;
 }
 
@@ -209,11 +213,6 @@ int intel_pt_insn_desc(const struct intel_pt_insn *intel_pt_insn, char *buf,
 		break;
 	}
 	return 0;
-}
-
-size_t intel_pt_insn_max_size(void)
-{
-	return MAX_INSN_SIZE;
 }
 
 int intel_pt_insn_type(enum intel_pt_insn_op op)

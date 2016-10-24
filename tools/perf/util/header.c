@@ -2250,11 +2250,28 @@ int perf_header__fprintf_info(struct perf_session *session, FILE *fp, bool full)
 	struct header_print_data hd;
 	struct perf_header *header = &session->header;
 	int fd = perf_data_file__fd(session->file);
+	struct stat st;
+	int ret, bit;
+
 	hd.fp = fp;
 	hd.full = full;
 
+	ret = fstat(fd, &st);
+	if (ret == -1)
+		return -1;
+
+	fprintf(fp, "# captured on: %s", ctime(&st.st_ctime));
+
 	perf_header__process_sections(header, fd, &hd,
 				      perf_file_section__fprintf_info);
+
+	fprintf(fp, "# missing features: ");
+	for_each_clear_bit(bit, header->adds_features, HEADER_LAST_FEATURE) {
+		if (bit)
+			fprintf(fp, "%s ", feat_ops[bit].name);
+	}
+
+	fprintf(fp, "\n");
 	return 0;
 }
 
@@ -2273,7 +2290,7 @@ static int do_write_feat(int fd, struct perf_header *h, int type,
 
 		err = feat_ops[type].write(fd, h, evlist);
 		if (err < 0) {
-			pr_debug("failed to write feature %d\n", type);
+			pr_debug("failed to write feature %s\n", feat_ops[type].name);
 
 			/* undo anything written */
 			lseek(fd, (*p)->offset, SEEK_SET);

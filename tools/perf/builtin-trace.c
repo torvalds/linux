@@ -843,7 +843,6 @@ static size_t fprintf_duration(unsigned long t, FILE *fp)
  */
 struct thread_trace {
 	u64		  entry_time;
-	u64		  exit_time;
 	bool		  entry_pending;
 	unsigned long	  nr_events;
 	unsigned long	  pfmaj, pfmin;
@@ -1452,7 +1451,7 @@ static int trace__printf_interrupted_entry(struct trace *trace, struct perf_samp
 
 	duration = sample->time - ttrace->entry_time;
 
-	printed  = trace__fprintf_entry_head(trace, trace->current, duration, sample->time, trace->output);
+	printed  = trace__fprintf_entry_head(trace, trace->current, duration, ttrace->entry_time, trace->output);
 	printed += fprintf(trace->output, "%-70s) ...\n", ttrace->entry_str);
 	ttrace->entry_pending = false;
 
@@ -1499,7 +1498,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 
 	if (sc->is_exit) {
 		if (!(trace->duration_filter || trace->summary_only || trace->min_stack)) {
-			trace__fprintf_entry_head(trace, thread, 1, sample->time, trace->output);
+			trace__fprintf_entry_head(trace, thread, 1, ttrace->entry_time, trace->output);
 			fprintf(trace->output, "%-70s)\n", ttrace->entry_str);
 		}
 	} else {
@@ -1571,8 +1570,6 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 		++trace->stats.vfs_getname;
 	}
 
-	ttrace->exit_time = sample->time;
-
 	if (ttrace->entry_time) {
 		duration = sample->time - ttrace->entry_time;
 		if (trace__filter_duration(trace, duration))
@@ -1592,7 +1589,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	if (trace->summary_only)
 		goto out;
 
-	trace__fprintf_entry_head(trace, thread, duration, sample->time, trace->output);
+	trace__fprintf_entry_head(trace, thread, duration, ttrace->entry_time, trace->output);
 
 	if (ttrace->entry_pending) {
 		fprintf(trace->output, "%-70s", ttrace->entry_str);
@@ -2310,11 +2307,16 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_mmap;
 
-	if (!target__none(&trace->opts.target))
+	if (!target__none(&trace->opts.target) && !trace->opts.initial_delay)
 		perf_evlist__enable(evlist);
 
 	if (forks)
 		perf_evlist__start_workload(evlist);
+
+	if (trace->opts.initial_delay) {
+		usleep(trace->opts.initial_delay * 1000);
+		perf_evlist__enable(evlist);
+	}
 
 	trace->multiple_threads = thread_map__pid(evlist->threads, 0) == -1 ||
 				  evlist->threads->nr > 1 ||
@@ -2816,6 +2818,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_UINTEGER(0, "proc-map-timeout", &trace.opts.proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
+	OPT_UINTEGER('D', "delay", &trace.opts.initial_delay,
+		     "ms to wait before starting measurement after program "
+		     "start"),
 	OPT_END()
 	};
 	bool __maybe_unused max_stack_user_set = true;
