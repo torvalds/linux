@@ -1096,6 +1096,25 @@ problem:
 
 subsys_initcall(genl_init);
 
+/**
+ * genl_family_attrbuf - return family's attrbuf
+ * @family: the family
+ *
+ * Return the family's attrbuf, while validating that it's
+ * actually valid to access it.
+ *
+ * You cannot use this function with a family that has parallel_ops
+ * and you can only use it within (pre/post) doit/dumpit callbacks.
+ */
+struct nlattr **genl_family_attrbuf(struct genl_family *family)
+{
+	if (!WARN_ON(family->parallel_ops))
+		lockdep_assert_held(&genl_mutex);
+
+	return family->attrbuf;
+}
+EXPORT_SYMBOL(genl_family_attrbuf);
+
 static int genlmsg_mcast(struct sk_buff *skb, u32 portid, unsigned long group,
 			 gfp_t flags)
 {

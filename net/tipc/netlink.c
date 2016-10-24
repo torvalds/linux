@@ -262,7 +262,7 @@ int tipc_nlmsg_parse(const struct nlmsghdr *nlh, struct nlattr ***attr)
 {
 	u32 maxattr = tipc_genl_family.maxattr;
 
-	*attr = tipc_genl_family.attrbuf;
+	*attr = genl_family_attrbuf(&tipc_genl_family);
 	if (!*attr)
 		return -EOPNOTSUPP;
 

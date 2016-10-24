@@ -263,13 +263,14 @@ nl802154_prepare_wpan_dev_dump(struct sk_buff *skb,
 
 	if (!cb->args[0]) {
 		err = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl802154_fam.hdrsize,
-				  nl802154_fam.attrbuf, nl802154_fam.maxattr,
+				  genl_family_attrbuf(&nl802154_fam),
+				  nl802154_fam.maxattr,
 				  nl802154_policy);
 		if (err)
 			goto out_unlock;
 
 		*wpan_dev = __cfg802154_wpan_dev_from_attrs(sock_net(skb->sk),
-							    nl802154_fam.attrbuf);
+							    genl_family_attrbuf(&nl802154_fam));
 		if (IS_ERR(*wpan_dev)) {
 			err = PTR_ERR(*wpan_dev);
 			goto out_unlock;
@@ -575,7 +576,7 @@ static int nl802154_dump_wpan_phy_parse(struct sk_buff *skb,
 					struct netlink_callback *cb,
 					struct nl802154_dump_wpan_phy_state *state)
 {
-	struct nlattr **tb = nl802154_fam.attrbuf;
+	struct nlattr **tb = genl_family_attrbuf(&nl802154_fam);
 	int ret = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl802154_fam.hdrsize,
 			      tb, nl802154_fam.maxattr, nl802154_policy);
 
