@@ -3824,12 +3824,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	shapers=	[NET]
 			Maximal number of shapers.
 
-	show_msr=	[x86] show boot-time MSR settings
-			Format: { <integer> }
-			Show boot-time (BIOS-initialized) MSR settings.
-			The parameter means the number of CPUs to show,
-			for example 1 means boot CPU only.
-
 	simeth=		[IA-64]
 	simscsi=
 
