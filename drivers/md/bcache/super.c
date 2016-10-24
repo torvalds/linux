@@ -58,6 +58,7 @@ static wait_queue_head_t unregister_wait;
 struct workqueue_struct *bcache_wq;
 
 #define BTREE_MAX_PAGES		(256 * 1024 / PAGE_SIZE)
+#define BCACHE_MINORS		16 /* partition support */
 
 /* Superblock */
 
@@ -783,8 +784,10 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 	if (minor < 0)
 		return minor;
 
+	minor *= BCACHE_MINORS;
+
 	if (!(d->bio_split = bioset_create(4, offsetof(struct bbio, bio))) ||
-	    !(d->disk = alloc_disk(1))) {
+	    !(d->disk = alloc_disk(BCACHE_MINORS))) {
 		ida_simple_remove(&bcache_minor, minor);
 		return -ENOMEM;
 	}
