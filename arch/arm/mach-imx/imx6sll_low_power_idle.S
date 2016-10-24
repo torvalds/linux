@@ -210,12 +210,6 @@
 	bic	r7, r7, #0x1
 	str	r7, [r10, #0x110]
 
-	/* check whether ARM LDO is bypassed */
-	ldr	r7, [r10, #0x140]
-	and	r7, r7, #0x1f
-	cmp	r7, #0x1f
-	bne	10f
-
 	/* low power band gap enable */
 	ldr	r7, [r10, #0x270]
 	orr	r7, r7, #0x20
@@ -301,12 +295,6 @@
 	ldr	r7, [r10, #0x110]
 	ands	r7, r7, #0x40000
 	beq	11f
-
-	/* check whether ARM LDO is bypassed */
-	ldr	r7, [r10, #0x140]
-	and	r7, r7, #0x1f
-	cmp	r7, #0x1f
-	bne	12f
 
 	/* turn on regular bandgap and wait for stable */
 	ldr	r7, [r10, #0x150]
