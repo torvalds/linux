@@ -89,6 +89,7 @@ void malidp_destroy_plane_state(struct drm_plane *plane,
 static const struct drm_plane_funcs malidp_de_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
+	.set_property = drm_atomic_helper_plane_set_property,
 	.destroy = malidp_de_plane_destroy,
 	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = malidp_duplicate_plane_state,
