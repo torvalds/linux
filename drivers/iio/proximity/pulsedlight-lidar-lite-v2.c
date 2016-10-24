@@ -301,8 +301,6 @@ static int lidar_probe(struct i2c_client *client,
 	if (ret)
 		goto error_unreg_buffer;
 	pm_runtime_enable(&client->dev);
-
-	pm_runtime_mark_last_busy(&client->dev);
 	pm_runtime_idle(&client->dev);
 
 	return 0;

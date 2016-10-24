@@ -62,16 +62,6 @@
 #define ISL29035_BOUT_SHIFT		0x07
 #define ISL29035_BOUT_MASK		(0x01 << ISL29035_BOUT_SHIFT)
 
-#define ISL29018_INT_TIME_AVAIL		"0.090000 0.005630 0.000351 0.000021"
-#define ISL29023_INT_TIME_AVAIL		"0.090000 0.005600 0.000352 0.000022"
-#define ISL29035_INT_TIME_AVAIL		"0.105000 0.006500 0.000410 0.000025"
-
-static const char * const int_time_avail[] = {
-	ISL29018_INT_TIME_AVAIL,
-	ISL29023_INT_TIME_AVAIL,
-	ISL29035_INT_TIME_AVAIL,
-};
-
 enum isl29018_int_time {
 	ISL29018_INT_TIME_16,
 	ISL29018_INT_TIME_12,
@@ -110,7 +100,8 @@ struct isl29018_chip {
 static int isl29018_set_integration_time(struct isl29018_chip *chip,
 					 unsigned int utime)
 {
-	int i, ret;
+	unsigned int i;
+	int ret;
 	unsigned int int_time, new_int_time;
 
 	for (i = 0; i < ARRAY_SIZE(isl29018_int_utimes[chip->type]); ++i) {
@@ -145,7 +136,8 @@ static int isl29018_set_integration_time(struct isl29018_chip *chip,
 
 static int isl29018_set_scale(struct isl29018_chip *chip, int scale, int uscale)
 {
-	int i, ret;
+	unsigned int i;
+	int ret;
 	struct isl29018_scale new_scale;
 
 	for (i = 0; i < ARRAY_SIZE(isl29018_scales[chip->int_time]); ++i) {
@@ -276,29 +268,35 @@ static int isl29018_read_proximity_ir(struct isl29018_chip *chip, int scheme,
 	return 0;
 }
 
-static ssize_t isl29018_show_scale_available(struct device *dev,
-				    struct device_attribute *attr, char *buf)
+static ssize_t in_illuminance_scale_available_show
+			(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
-	int i, len = 0;
+	unsigned int i;
+	int len = 0;
 
+	mutex_lock(&chip->lock);
 	for (i = 0; i < ARRAY_SIZE(isl29018_scales[chip->int_time]); ++i)
 		len += sprintf(buf + len, "%d.%06d ",
 			       isl29018_scales[chip->int_time][i].scale,
 			       isl29018_scales[chip->int_time][i].uscale);
+	mutex_unlock(&chip->lock);
 
 	buf[len - 1] = '\n';
 
 	return len;
 }
 
-static ssize_t isl29018_show_int_time_available(struct device *dev,
-				       struct device_attribute *attr, char *buf)
+static ssize_t in_illuminance_integration_time_available_show
+			(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
-	int i, len = 0;
+	unsigned int i;
+	int len = 0;
 
 	for (i = 0; i < ARRAY_SIZE(isl29018_int_utimes[chip->type]); ++i)
 		len += sprintf(buf + len, "0.%06d ",
@@ -309,9 +307,27 @@ static ssize_t isl29018_show_int_time_available(struct device *dev,
 	return len;
 }
 
-static ssize_t isl29018_show_prox_infrared_suppression(struct device *dev,
-					      struct device_attribute *attr,
-					      char *buf)
+/*
+ * From ISL29018 Data Sheet (FN6619.4, Oct 8, 2012) regarding the
+ * infrared suppression:
+ *
+ *   Proximity Sensing Scheme: Bit 7. This bit programs the function
+ * of the proximity detection. Logic 0 of this bit, Scheme 0, makes
+ * full n (4, 8, 12, 16) bits (unsigned) proximity detection. The range
+ * of Scheme 0 proximity count is from 0 to 2^n. Logic 1 of this bit,
+ * Scheme 1, makes n-1 (3, 7, 11, 15) bits (2's complementary)
+ * proximity_less_ambient detection. The range of Scheme 1
+ * proximity count is from -2^(n-1) to 2^(n-1) . The sign bit is extended
+ * for resolutions less than 16. While Scheme 0 has wider dynamic
+ * range, Scheme 1 proximity detection is less affected by the
+ * ambient IR noise variation.
+ *
+ * 0 Sensing IR from LED and ambient
+ * 1 Sensing IR from LED with ambient IR rejection
+ */
+static ssize_t proximity_on_chip_ambient_infrared_suppression_show
+			(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
@@ -323,9 +339,9 @@ static ssize_t isl29018_show_prox_infrared_suppression(struct device *dev,
 	return sprintf(buf, "%d\n", chip->prox_scheme);
 }
 
-static ssize_t isl29018_store_prox_infrared_suppression(struct device *dev,
-					       struct device_attribute *attr,
-					       const char *buf, size_t count)
+static ssize_t proximity_on_chip_ambient_infrared_suppression_store
+			(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct isl29018_chip *chip = iio_priv(indio_dev);
@@ -357,6 +373,10 @@ static int isl29018_write_raw(struct iio_dev *indio_dev,
 	int ret = -EINVAL;
 
 	mutex_lock(&chip->lock);
+	if (chip->suspended) {
+		ret = -EBUSY;
+		goto write_done;
+	}
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBSCALE:
 		if (chan->type == IIO_LIGHT) {
@@ -366,13 +386,8 @@ static int isl29018_write_raw(struct iio_dev *indio_dev,
 		}
 		break;
 	case IIO_CHAN_INFO_INT_TIME:
-		if (chan->type == IIO_LIGHT) {
-			if (val) {
-				mutex_unlock(&chip->lock);
-				return -EINVAL;
-			}
+		if (chan->type == IIO_LIGHT && !val)
 			ret = isl29018_set_integration_time(chip, val2);
-		}
 		break;
 	case IIO_CHAN_INFO_SCALE:
 		if (chan->type == IIO_LIGHT)
@@ -381,6 +396,8 @@ static int isl29018_write_raw(struct iio_dev *indio_dev,
 	default:
 		break;
 	}
+
+write_done:
 	mutex_unlock(&chip->lock);
 
 	return ret;
@@ -397,8 +414,8 @@ static int isl29018_read_raw(struct iio_dev *indio_dev,
 
 	mutex_lock(&chip->lock);
 	if (chip->suspended) {
-		mutex_unlock(&chip->lock);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto read_done;
 	}
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -445,7 +462,10 @@ static int isl29018_read_raw(struct iio_dev *indio_dev,
 	default:
 		break;
 	}
+
+read_done:
 	mutex_unlock(&chip->lock);
+
 	return ret;
 }
 
@@ -482,14 +502,9 @@ static const struct iio_chan_spec isl29023_channels[] = {
 	ISL29018_IR_CHANNEL,
 };
 
-static IIO_DEVICE_ATTR(in_illuminance_integration_time_available, S_IRUGO,
-		       isl29018_show_int_time_available, NULL, 0);
-static IIO_DEVICE_ATTR(in_illuminance_scale_available, S_IRUGO,
-		      isl29018_show_scale_available, NULL, 0);
-static IIO_DEVICE_ATTR(proximity_on_chip_ambient_infrared_suppression,
-					S_IRUGO | S_IWUSR,
-					isl29018_show_prox_infrared_suppression,
-					isl29018_store_prox_infrared_suppression, 0);
+static IIO_DEVICE_ATTR_RO(in_illuminance_integration_time_available, 0);
+static IIO_DEVICE_ATTR_RO(in_illuminance_scale_available, 0);
+static IIO_DEVICE_ATTR_RW(proximity_on_chip_ambient_infrared_suppression, 0);
 
 #define ISL29018_DEV_ATTR(name) (&iio_dev_attr_##name.dev_attr.attr)
 
@@ -514,30 +529,6 @@ static const struct attribute_group isl29023_group = {
 	.attrs = isl29023_attributes,
 };
 
-static int isl29035_detect(struct isl29018_chip *chip)
-{
-	int status;
-	unsigned int id;
-	struct device *dev = regmap_get_device(chip->regmap);
-
-	status = regmap_read(chip->regmap, ISL29035_REG_DEVICE_ID, &id);
-	if (status < 0) {
-		dev_err(dev,
-			"Error reading ID register with error %d\n",
-			status);
-		return status;
-	}
-
-	id = (id & ISL29035_DEVICE_ID_MASK) >> ISL29035_DEVICE_ID_SHIFT;
-
-	if (id != ISL29035_DEVICE_ID)
-		return -ENODEV;
-
-	/* Clear brownout bit */
-	return regmap_update_bits(chip->regmap, ISL29035_REG_DEVICE_ID,
-				  ISL29035_BOUT_MASK, 0);
-}
-
 enum {
 	isl29018,
 	isl29023,
@@ -550,12 +541,31 @@ static int isl29018_chip_init(struct isl29018_chip *chip)
 	struct device *dev = regmap_get_device(chip->regmap);
 
 	if (chip->type == isl29035) {
-		status = isl29035_detect(chip);
+		unsigned int id;
+
+		status = regmap_read(chip->regmap, ISL29035_REG_DEVICE_ID, &id);
+		if (status < 0) {
+			dev_err(dev,
+				"Error reading ID register with error %d\n",
+				status);
+			return status;
+		}
+
+		id = (id & ISL29035_DEVICE_ID_MASK) >> ISL29035_DEVICE_ID_SHIFT;
+
+		if (id != ISL29035_DEVICE_ID)
+			return -ENODEV;
+
+		/* Clear brownout bit */
+		status = regmap_update_bits(chip->regmap,
+					    ISL29035_REG_DEVICE_ID,
+					    ISL29035_BOUT_MASK, 0);
 		if (status < 0)
 			return status;
 	}
 
-	/* Code added per Intersil Application Note 1534:
+	/*
+	 * Code added per Intersil Application Note 1534:
 	 *     When VDD sinks to approximately 1.8V or below, some of
 	 * the part's registers may change their state. When VDD
 	 * recovers to 2.25V (or greater), the part may thus be in an
@@ -582,7 +592,8 @@ static int isl29018_chip_init(struct isl29018_chip *chip)
 		return status;
 	}
 
-	/* See Intersil AN1534 comments above.
+	/*
+	 * See Intersil AN1534 comments above.
 	 * "Operating Mode" (COMMAND1) register is reprogrammed when
 	 * data is read from the device.
 	 */
@@ -605,12 +616,10 @@ static int isl29018_chip_init(struct isl29018_chip *chip)
 
 	status = isl29018_set_integration_time(chip,
 			isl29018_int_utimes[chip->type][chip->int_time]);
-	if (status < 0) {
+	if (status < 0)
 		dev_err(dev, "Init of isl29018 fails\n");
-		return status;
-	}
 
-	return 0;
+	return status;
 }
 
 static const struct iio_info isl29018_info = {
@@ -713,6 +722,7 @@ static int isl29018_probe(struct i2c_client *client,
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
 		return -ENOMEM;
+
 	chip = iio_priv(indio_dev);
 
 	i2c_set_clientdata(client, indio_dev);
@@ -752,6 +762,7 @@ static int isl29018_probe(struct i2c_client *client,
 	indio_dev->name = name;
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
+
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
@@ -762,13 +773,15 @@ static int isl29018_suspend(struct device *dev)
 
 	mutex_lock(&chip->lock);
 
-	/* Since this driver uses only polling commands, we are by default in
+	/*
+	 * Since this driver uses only polling commands, we are by default in
 	 * auto shutdown (ie, power-down) mode.
 	 * So we do not have much to do here.
 	 */
 	chip->suspended = true;
 
 	mutex_unlock(&chip->lock);
+
 	return 0;
 }
 
@@ -784,6 +797,7 @@ static int isl29018_resume(struct device *dev)
 		chip->suspended = false;
 
 	mutex_unlock(&chip->lock);
+
 	return err;
 }
 
@@ -807,7 +821,6 @@ static const struct i2c_device_id isl29018_id[] = {
 	{"isl29035", isl29035},
 	{}
 };
-
 MODULE_DEVICE_TABLE(i2c, isl29018_id);
 
 static const struct of_device_id isl29018_of_match[] = {

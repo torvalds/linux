@@ -51,14 +51,4 @@ config ADIS16240
 	  To compile this driver as a module, say M here: the module will be
 	  called adis16240.
 
-config SCA3000
-	depends on IIO_BUFFER
-	depends on SPI
-	tristate "VTI SCA3000 series accelerometers"
-	help
-	  Say Y here to build support for the VTI SCA3000 series of SPI
-	  accelerometers. These devices use a hardware ring buffer.
-
-	  To compile this driver as a module, say M here: the module will be
-	  called sca3000.
 endmenu

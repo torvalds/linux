@@ -147,12 +147,8 @@ struct zpa2326_private {
 #define zpa2326_warn(_idev, _format, _arg...) \
 	dev_warn(_idev->dev.parent, _format, ##_arg)
 
-#ifdef DEBUG
 #define zpa2326_dbg(_idev, _format, _arg...) \
 	dev_dbg(_idev->dev.parent, _format, ##_arg)
-#else
-#define zpa2326_dbg(_idev, _format, _arg...)
-#endif
 
 bool zpa2326_isreg_writeable(struct device *dev, unsigned int reg)
 {

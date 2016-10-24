@@ -236,6 +236,19 @@ int iio_get_channel_type(struct iio_channel *channel,
 			 enum iio_chan_type *type);
 
 /**
+ * iio_read_channel_offset() - read the offset value for a channel
+ * @chan:		The channel being queried.
+ * @val:		First part of value read back.
+ * @val2:		Second part of value read back.
+ *
+ * Note returns a description of what is in val and val2, such
+ * as IIO_VAL_INT_PLUS_MICRO telling us we have a value of val
+ * + val2/1e6
+ */
+int iio_read_channel_offset(struct iio_channel *chan, int *val,
+			   int *val2);
+
+/**
  * iio_read_channel_scale() - read the scale value for a channel
  * @chan:		The channel being queried.
  * @val:		First part of value read back.
