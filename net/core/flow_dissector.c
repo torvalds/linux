@@ -246,13 +246,13 @@ ipv6:
 	case htons(ETH_P_8021AD):
 	case htons(ETH_P_8021Q): {
 		const struct vlan_hdr *vlan;
+		struct vlan_hdr _vlan;
+		bool vlan_tag_present = skb && skb_vlan_tag_present(skb);
 
-		if (skb && skb_vlan_tag_present(skb))
+		if (vlan_tag_present)
 			proto = skb->protocol;
 
-		if (eth_type_vlan(proto)) {
-			struct vlan_hdr _vlan;
-
+		if (!vlan_tag_present || eth_type_vlan(skb->protocol)) {
 			vlan = __skb_header_pointer(skb, nhoff, sizeof(_vlan),
 						    data, hlen, &_vlan);
 			if (!vlan)
@@ -270,7 +270,7 @@ ipv6:
 							     FLOW_DISSECTOR_KEY_VLAN,
 							     target_container);
 
-			if (skb_vlan_tag_present(skb)) {
+			if (vlan_tag_present) {
 				key_vlan->vlan_id = skb_vlan_tag_get_id(skb);
 				key_vlan->vlan_priority =
 					(skb_vlan_tag_get_prio(skb) >> VLAN_PRIO_SHIFT);
