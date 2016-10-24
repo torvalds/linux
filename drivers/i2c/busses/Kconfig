@@ -79,12 +79,12 @@ config I2C_AMD8111
 
 config I2C_HIX5HD2
 	tristate "Hix5hd2 high-speed I2C driver"
-	depends on ARCH_HIX5HD2 || COMPILE_TEST
+	depends on ARCH_HISI || ARCH_HIX5HD2 || COMPILE_TEST
 	help
-	  Say Y here to include support for high-speed I2C controller in the
-	  Hisilicon based hix5hd2 SoCs.
+	  Say Y here to include support for the high-speed I2C controller
+	  used in HiSilicon hix5hd2 SoCs.
 
-	  This driver can also be built as a module.  If so, the module
+	  This driver can also be built as a module. If so, the module
 	  will be called i2c-hix5hd2.
 
 config I2C_I801
