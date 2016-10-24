@@ -15,6 +15,7 @@
 struct kvm_timer {
 	struct hrtimer timer;
 	s64 period; 				/* unit: ns */
+	ktime_t target_expiration;
 	u32 timer_mode;
 	u32 timer_mode_mask;
 	u64 tscdeadline;
