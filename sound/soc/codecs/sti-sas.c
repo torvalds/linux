@@ -124,7 +124,7 @@ static int  sti_sas_init_sas_registers(struct snd_soc_codec *codec,
 		ret = snd_soc_update_bits(codec, STIH407_AUDIO_GLUE_CTRL,
 					  SPDIF_BIPHASE_IDLE_MASK, 0);
 	if (ret < 0) {
-		dev_err(codec->dev, "Failed to update SPDIF registers");
+		dev_err(codec->dev, "Failed to update SPDIF registers\n");
 		return ret;
 	}
 
@@ -144,7 +144,7 @@ static int  sti_sas_init_sas_registers(struct snd_soc_codec *codec,
 					  STIH407_DAC_SOFTMUTE_MASK);
 
 	if (ret < 0) {
-		dev_err(codec->dev, "Failed to update DAC registers");
+		dev_err(codec->dev, "Failed to update DAC registers\n");
 		return ret;
 	}
 
@@ -292,13 +292,13 @@ static int sti_sas_prepare(struct snd_pcm_substream *substream,
 	switch (dai->id) {
 	case STI_SAS_DAI_SPDIF_OUT:
 		if ((drvdata->spdif.mclk / runtime->rate) != 128) {
-			dev_err(codec->dev, "unexpected mclk-fs ratio");
+			dev_err(codec->dev, "unexpected mclk-fs ratio\n");
 			return -EINVAL;
 		}
 		break;
 	case STI_SAS_DAI_ANALOG_OUT:
 		if ((drvdata->dac.mclk / runtime->rate) != 256) {
-			dev_err(codec->dev, "unexpected mclk-fs ratio");
+			dev_err(codec->dev, "unexpected mclk-fs ratio\n");
 			return -EINVAL;
 		}
 		break;
@@ -423,7 +423,7 @@ static int sti_sas_driver_probe(struct platform_device *pdev)
 	/* Populate data structure depending on compatibility */
 	of_id = of_match_node(sti_sas_dev_match, pnode);
 	if (!of_id->data) {
-		dev_err(&pdev->dev, "data associated to device is missing");
+		dev_err(&pdev->dev, "data associated to device is missing\n");
 		return -EINVAL;
 	}
 
