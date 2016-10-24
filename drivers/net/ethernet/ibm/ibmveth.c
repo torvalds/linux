@@ -1549,7 +1549,7 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	}
 
 	netdev->min_mtu = IBMVETH_MIN_MTU;
-	netdev->min_mtu = ETH_MAX_MTU;
+	netdev->max_mtu = ETH_MAX_MTU;
 
 	memcpy(netdev->dev_addr, mac_addr_p, ETH_ALEN);
 

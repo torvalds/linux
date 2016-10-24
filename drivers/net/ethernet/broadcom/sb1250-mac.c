@@ -2219,7 +2219,7 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 
 	dev->netdev_ops = &sbmac_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	dev->max_mtu = 0;
+	dev->min_mtu = 0;
 	dev->max_mtu = ENET_PACKET_SIZE;
 
 	netif_napi_add(dev, &sc->napi, sbmac_poll, 16);
