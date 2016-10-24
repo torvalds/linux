@@ -2746,8 +2746,6 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	uport->cons = drv->cons;
 	uport->minor = drv->tty_driver->minor_start + uport->line;
 
-	port->console = uart_console(uport);
-
 	/*
 	 * If this port is a console, then the spinlock is already
 	 * initialised.
