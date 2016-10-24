@@ -101,10 +101,7 @@
 
 #define SMB2_HEADER_STRUCTURE_SIZE cpu_to_le16(64)
 
-struct smb2_hdr {
-	__be32 smb2_buf_length;	/* big endian on wire */
-				/* length is only two or three bytes - with
-				 one or two byte type preceding it that MBZ */
+struct smb2_sync_hdr {
 	__le32 ProtocolId;	/* 0xFE 'S' 'M' 'B' */
 	__le16 StructureSize;	/* 64 */
 	__le16 CreditCharge;	/* MBZ */
@@ -118,6 +115,13 @@ struct smb2_hdr {
 	__u32  TreeId;		/* opaque - so do not make little endian */
 	__u64  SessionId;	/* opaque - so do not make little endian */
 	__u8   Signature[16];
+} __packed;
+
+struct smb2_hdr {
+	__be32 smb2_buf_length;	/* big endian on wire */
+				/* length is only two or three bytes - with */
+				/* one or two byte type preceding it that MBZ */
+	struct smb2_sync_hdr sync_hdr;
 } __packed;
 
 struct smb2_pdu {
