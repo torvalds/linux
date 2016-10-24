@@ -1842,10 +1842,8 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 
 	/* Mark as being mmapped into userspace for later revocation */
 	assert_rpm_wakelock_held(dev_priv);
-	spin_lock(&dev_priv->mm.userfault_lock);
 	if (list_empty(&obj->userfault_link))
 		list_add(&obj->userfault_link, &dev_priv->mm.userfault_list);
-	spin_unlock(&dev_priv->mm.userfault_lock);
 
 	/* Finally, remap it using the new GTT offset */
 	ret = remap_io_mapping(area,
@@ -1922,7 +1920,6 @@ void
 i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	bool zap = false;
 
 	/* Serialisation between user GTT access and our code depends upon
 	 * revoking the CPU's PTE whilst the mutex is held. The next user
@@ -1935,15 +1932,10 @@ i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 	lockdep_assert_held(&i915->drm.struct_mutex);
 	intel_runtime_pm_get(i915);
 
-	spin_lock(&i915->mm.userfault_lock);
-	if (!list_empty(&obj->userfault_link)) {
-		list_del_init(&obj->userfault_link);
-		zap = true;
-	}
-	spin_unlock(&i915->mm.userfault_lock);
-	if (!zap)
+	if (list_empty(&obj->userfault_link))
 		goto out;
 
+	list_del_init(&obj->userfault_link);
 	drm_vma_node_unmap(&obj->base.vma_node,
 			   obj->base.dev->anon_inode->i_mapping);
 
@@ -1963,21 +1955,21 @@ out:
 void
 i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_gem_object *obj;
+	struct drm_i915_gem_object *obj, *on;
 
-	spin_lock(&dev_priv->mm.userfault_lock);
-	while ((obj = list_first_entry_or_null(&dev_priv->mm.userfault_list,
-					       struct drm_i915_gem_object,
-					       userfault_link))) {
+	/*
+	 * Only called during RPM suspend. All users of the userfault_list
+	 * must be holding an RPM wakeref to ensure that this can not
+	 * run concurrently with themselves (and use the struct_mutex for
+	 * protection between themselves).
+	 */
+
+	list_for_each_entry_safe(obj, on,
+				 &dev_priv->mm.userfault_list, userfault_link) {
 		list_del_init(&obj->userfault_link);
-		spin_unlock(&dev_priv->mm.userfault_lock);
-
 		drm_vma_node_unmap(&obj->base.vma_node,
 				   obj->base.dev->anon_inode->i_mapping);
-
-		spin_lock(&dev_priv->mm.userfault_lock);
 	}
-	spin_unlock(&dev_priv->mm.userfault_lock);
 }
 
 /**
@@ -4547,7 +4539,6 @@ int i915_gem_init(struct drm_device *dev)
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
-	spin_lock_init(&dev_priv->mm.userfault_lock);
 
 	if (!i915.enable_execlists) {
 		dev_priv->gt.resume = intel_legacy_submission_resume;

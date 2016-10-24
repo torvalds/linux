@@ -1361,9 +1361,6 @@ struct i915_gem_mm {
 	 */
 	struct list_head unbound_list;
 
-	/** Protects access to the userfault_list */
-	spinlock_t userfault_lock;
-
 	/** List of all objects in gtt_space, currently mmaped by userspace.
 	 * All objects within this list must also be on bound_list.
 	 */
