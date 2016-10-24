@@ -1384,7 +1384,7 @@ gf100_gr_intr(struct nvkm_gr *base)
 	nvkm_fifo_chan_put(device->fifo, flags, &chan);
 }
 
-void
+static void
 gf100_gr_init_fw(struct gf100_gr *gr, u32 fuc_base,
 		 struct gf100_gr_fuc *code, struct gf100_gr_fuc *data)
 {
@@ -1701,7 +1701,7 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 	return 0;
 }
 
-int
+static int
 gf100_gr_init_(struct nvkm_gr *base)
 {
 	struct gf100_gr *gr = gf100_gr(base);

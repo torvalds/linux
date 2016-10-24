@@ -66,7 +66,7 @@ nv50_disp_root_scanoutpos(NV50_DISP_MTHD_V0)
 	return 0;
 }
 
-int
+static int
 nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	union {

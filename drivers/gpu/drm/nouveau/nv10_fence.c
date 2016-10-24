@@ -66,7 +66,7 @@ nv10_fence_context_del(struct nouveau_channel *chan)
 	nouveau_fence_context_free(&fctx->base);
 }
 
-int
+static int
 nv10_fence_context_new(struct nouveau_channel *chan)
 {
 	struct nv10_fence_chan *fctx;

@@ -92,7 +92,7 @@ calc(int blanks, int blanke, int total, int line)
 	return line;
 }
 
-int
+static int
 nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 				ktime_t *stime, ktime_t *etime)
 {
