@@ -658,7 +658,8 @@ static struct rt6_info *find_match(struct rt6_info *rt, int oif, int strict,
 	struct net_device *dev = rt->dst.dev;
 
 	if (dev && !netif_carrier_ok(dev) &&
-	    idev->cnf.ignore_routes_with_linkdown)
+	    idev->cnf.ignore_routes_with_linkdown &&
+	    !(strict & RT6_LOOKUP_F_IGNORE_LINKSTATE))
 		goto out;
 
 	if (rt6_check_expired(rt))
@@ -1052,6 +1053,7 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 	int strict = 0;
 
 	strict |= flags & RT6_LOOKUP_F_IFACE;
+	strict |= flags & RT6_LOOKUP_F_IGNORE_LINKSTATE;
 	if (net->ipv6.devconf_all->forwarding == 0)
 		strict |= RT6_LOOKUP_F_REACHABLE;
 
@@ -1791,7 +1793,7 @@ static struct rt6_info *ip6_nh_lookup_table(struct net *net,
 	};
 	struct fib6_table *table;
 	struct rt6_info *rt;
-	int flags = RT6_LOOKUP_F_IFACE;
+	int flags = RT6_LOOKUP_F_IFACE | RT6_LOOKUP_F_IGNORE_LINKSTATE;
 
 	table = fib6_get_table(net, cfg->fc_table);
 	if (!table)
