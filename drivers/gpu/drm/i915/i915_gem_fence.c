@@ -391,7 +391,7 @@ void i915_gem_restore_fences(struct drm_device *dev)
 		 */
 		if (vma && !i915_gem_object_is_tiled(vma->obj)) {
 			GEM_BUG_ON(!reg->dirty);
-			GEM_BUG_ON(vma->obj->fault_mappable);
+			GEM_BUG_ON(!list_empty(&vma->obj->userfault_link));
 
 			list_move(&reg->link, &dev_priv->mm.fence_list);
 			vma->fence = NULL;

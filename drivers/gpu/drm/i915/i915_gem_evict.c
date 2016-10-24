@@ -56,7 +56,7 @@ mark_free(struct i915_vma *vma, unsigned int flags, struct list_head *unwind)
 	if (WARN_ON(!list_empty(&vma->exec_list)))
 		return false;
 
-	if (flags & PIN_NONFAULT && vma->obj->fault_mappable)
+	if (flags & PIN_NONFAULT && !list_empty(&vma->obj->userfault_link))
 		return false;
 
 	list_add(&vma->exec_list, unwind);
