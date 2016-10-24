@@ -3887,10 +3887,10 @@ array_state_show(struct mddev *mddev, char *page)
 			st = read_auto;
 			break;
 		case 0:
-			if (mddev->in_sync)
-				st = clean;
-			else if (test_bit(MD_CHANGE_PENDING, &mddev->flags))
+			if (test_bit(MD_CHANGE_PENDING, &mddev->flags))
 				st = write_pending;
+			else if (mddev->in_sync)
+				st = clean;
 			else if (mddev->safemode)
 				st = active_idle;
 			else
