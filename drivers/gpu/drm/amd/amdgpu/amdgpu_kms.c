@@ -505,6 +505,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.ids_flags = 0;
 		if (adev->flags & AMD_IS_APU)
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_FUSION;
+		if (amdgpu_sriov_vf(adev))
+			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_PREEMPTION;
 		dev_info.virtual_address_offset = AMDGPU_VA_RESERVED_SIZE;
 		dev_info.virtual_address_max = (uint64_t)adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
 		dev_info.virtual_address_alignment = max((int)PAGE_SIZE, AMDGPU_GPU_PAGE_SIZE);
