@@ -441,7 +441,6 @@ static void print_sample_start(struct perf_sample *sample,
 {
 	struct perf_event_attr *attr = &evsel->attr;
 	unsigned long secs;
-	unsigned long usecs;
 	unsigned long long nsecs;
 
 	if (PRINT_FIELD(COMM)) {
@@ -471,11 +470,14 @@ static void print_sample_start(struct perf_sample *sample,
 		nsecs = sample->time;
 		secs = nsecs / NSEC_PER_SEC;
 		nsecs -= secs * NSEC_PER_SEC;
-		usecs = nsecs / NSEC_PER_USEC;
+
 		if (nanosecs)
 			printf("%5lu.%09llu: ", secs, nsecs);
-		else
-			printf("%5lu.%06lu: ", secs, usecs);
+		else {
+			char sample_time[32];
+			timestamp__scnprintf_usec(sample->time, sample_time, sizeof(sample_time));
+			printf("%12s: ", sample_time);
+		}
 	}
 }
 
