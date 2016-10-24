@@ -2311,7 +2311,7 @@ aes_dd_err:
 
 static int atmel_aes_remove(struct platform_device *pdev)
 {
-	static struct atmel_aes_dev *aes_dd;
+	struct atmel_aes_dev *aes_dd;
 
 	aes_dd = platform_get_drvdata(pdev);
 	if (!aes_dd)
