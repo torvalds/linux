@@ -1203,14 +1203,11 @@ struct snd_soc_pcm_runtime {
 	enum snd_soc_pcm_subclass pcm_subclass;
 	struct snd_pcm_ops ops;
 
-	unsigned int dev_registered:1;
-
 	/* Dynamic PCM BE runtime data */
 	struct snd_soc_dpcm_runtime dpcm[2];
 	int fe_compr;
 
 	long pmdown_time;
-	unsigned char pop_wait:1;
 
 	/* runtime devices */
 	struct snd_pcm *pcm;
@@ -1232,6 +1229,10 @@ struct snd_soc_pcm_runtime {
 
 	unsigned int num; /* 0-based and monotonic increasing */
 	struct list_head list; /* rtd list of the soc card */
+
+	/* bit field */
+	unsigned int dev_registered:1;
+	unsigned int pop_wait:1;
 };
 
 /* mixer control */
