@@ -12,26 +12,24 @@ static int
 security_get(const struct xattr_handler *handler, struct dentry *dentry,
 	     const char *name, void *buffer, size_t size)
 {
-	if (strlen(name) < sizeof(XATTR_SECURITY_PREFIX))
-		return -EINVAL;
-
 	if (IS_PRIVATE(d_inode(dentry)))
 		return -EPERM;
 
-	return reiserfs_xattr_get(d_inode(dentry), name, buffer, size);
+	return reiserfs_xattr_get(d_inode(dentry),
+				  xattr_full_name(handler, name),
+				  buffer, size);
 }
 
 static int
 security_set(const struct xattr_handler *handler, struct dentry *dentry,
 	     const char *name, const void *buffer, size_t size, int flags)
 {
-	if (strlen(name) < sizeof(XATTR_SECURITY_PREFIX))
-		return -EINVAL;
-
 	if (IS_PRIVATE(d_inode(dentry)))
 		return -EPERM;
 
-	return reiserfs_xattr_set(d_inode(dentry), name, buffer, size, flags);
+	return reiserfs_xattr_set(d_inode(dentry),
+				  xattr_full_name(handler, name),
+				  buffer, size, flags);
 }
 
 static size_t security_list(const struct xattr_handler *handler,
