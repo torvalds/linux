@@ -219,7 +219,7 @@ struct cp210x_serial_private {
 	struct gpio_chip	gc;
 	u8			config;
 	u8			gpio_mode;
-	u8			gpio_registered;
+	bool			gpio_registered;
 #endif
 	u8			partnum;
 };
@@ -1407,7 +1407,7 @@ static int cp2105_shared_gpio_init(struct usb_serial *serial)
 
 	result = gpiochip_add_data(&priv->gc, serial);
 	if (!result)
-		priv->gpio_registered = 1;
+		priv->gpio_registered = true;
 
 	return result;
 }
@@ -1418,7 +1418,7 @@ static void cp210x_gpio_remove(struct usb_serial *serial)
 
 	if (priv->gpio_registered) {
 		gpiochip_remove(&priv->gc);
-		priv->gpio_registered = 0;
+		priv->gpio_registered = false;
 	}
 }
 
