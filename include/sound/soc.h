@@ -1219,7 +1219,6 @@ struct snd_soc_pcm_runtime {
 	struct snd_soc_platform *platform;
 	struct snd_soc_dai *codec_dai;
 	struct snd_soc_dai *cpu_dai;
-	struct snd_soc_component *component; /* Only valid for AUX dev rtds */
 
 	struct snd_soc_dai **codec_dais;
 	unsigned int num_codecs;
