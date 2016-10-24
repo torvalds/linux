@@ -39,14 +39,25 @@
 #define PCI_DEVICE_ID_INTEL_APL			0x5aaa
 #define PCI_DEVICE_ID_INTEL_KBP			0xa2b0
 
+#define PCI_INTEL_BXT_DSM_UUID		"732b85d5-b7a7-4a1b-9ba0-4bbd00ffd511"
+#define PCI_INTEL_BXT_FUNC_PMU_PWR	4
+#define PCI_INTEL_BXT_STATE_D0		0
+#define PCI_INTEL_BXT_STATE_D3		3
+
 /**
  * struct dwc3_pci - Driver private structure
  * @dwc3: child dwc3 platform_device
  * @pci: our link to PCI bus
+ * @uuid: _DSM UUID
+ * @has_dsm_for_pm: true for devices which need to run _DSM on runtime PM
  */
 struct dwc3_pci {
 	struct platform_device *dwc3;
 	struct pci_dev *pci;
+
+	u8 uuid[16];
+
+	unsigned int has_dsm_for_pm:1;
 };
 
 static const struct acpi_gpio_params reset_gpios = { 0, 0, false };
@@ -102,6 +113,12 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 		if (ret < 0)
 			return ret;
 
+		if (pdev->device == PCI_DEVICE_ID_INTEL_BXT ||
+				pdev->device == PCI_DEVICE_ID_INTEL_BXT_M) {
+			acpi_str_to_uuid(PCI_INTEL_BXT_DSM_UUID, dwc->uuid);
+			dwc->has_dsm_for_pm = true;
+		}
+
 		if (pdev->device == PCI_DEVICE_ID_INTEL_BYT) {
 			struct gpio_desc *gpio;
 
@@ -145,6 +162,30 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 
 		return platform_device_add_properties(dwc3, properties);
 	}
+
+	return 0;
+}
+
+static int dwc3_pci_dsm(struct dwc3_pci *dwc, int param)
+{
+	union acpi_object *obj;
+	union acpi_object tmp;
+	union acpi_object argv4 = ACPI_INIT_DSM_ARGV4(1, &tmp);
+
+	if (!dwc->has_dsm_for_pm)
+		return 0;
+
+	tmp.type = ACPI_TYPE_INTEGER;
+	tmp.integer.value = param;
+
+	obj = acpi_evaluate_dsm(ACPI_HANDLE(&dwc->pci->dev), dwc->uuid,
+			1, PCI_INTEL_BXT_FUNC_PMU_PWR, &argv4);
+	if (!obj) {
+		dev_err(&dwc->pci->dev, "failed to evaluate _DSM\n");
+		return -EIO;
+	}
+
+	ACPI_FREE(obj);
 
 	return 0;
 }
@@ -255,8 +296,10 @@ MODULE_DEVICE_TABLE(pci, dwc3_pci_id_table);
 #ifdef CONFIG_PM
 static int dwc3_pci_runtime_suspend(struct device *dev)
 {
+	struct dwc3_pci		*dwc = dev_get_drvdata(dev);
+
 	if (device_run_wake(dev))
-		return 0;
+		return dwc3_pci_dsm(dwc, PCI_INTEL_BXT_STATE_D3);
 
 	return -EBUSY;
 }
@@ -265,28 +308,34 @@ static int dwc3_pci_runtime_resume(struct device *dev)
 {
 	struct dwc3_pci		*dwc = dev_get_drvdata(dev);
 	struct platform_device	*dwc3 = dwc->dwc3;
+	int			ret;
+
+	ret = dwc3_pci_dsm(dwc, PCI_INTEL_BXT_STATE_D0);
+	if (ret)
+		return ret;
 
 	return pm_runtime_get(&dwc3->dev);
 }
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_PM_SLEEP
-static int dwc3_pci_pm_dummy(struct device *dev)
+static int dwc3_pci_suspend(struct device *dev)
 {
-	/*
-	 * There's nothing to do here. No, seriously. Everything is either taken
-	 * care either by PCI subsystem or dwc3/core.c, so we have nothing
-	 * missing here.
-	 *
-	 * So you'd think we didn't need this at all, but PCI subsystem will
-	 * bail out if we don't have a valid callback :-s
-	 */
-	return 0;
+	struct dwc3_pci		*dwc = dev_get_drvdata(dev);
+
+	return dwc3_pci_dsm(dwc, PCI_INTEL_BXT_STATE_D3);
+}
+
+static int dwc3_pci_resume(struct device *dev)
+{
+	struct dwc3_pci		*dwc = dev_get_drvdata(dev);
+
+	return dwc3_pci_dsm(dwc, PCI_INTEL_BXT_STATE_D0);
 }
 #endif /* CONFIG_PM_SLEEP */
 
 static struct dev_pm_ops dwc3_pci_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(dwc3_pci_pm_dummy, dwc3_pci_pm_dummy)
+	SET_SYSTEM_SLEEP_PM_OPS(dwc3_pci_suspend, dwc3_pci_resume)
 	SET_RUNTIME_PM_OPS(dwc3_pci_runtime_suspend, dwc3_pci_runtime_resume,
 		NULL)
 };
