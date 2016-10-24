@@ -1456,9 +1456,6 @@ static void intel_dp_print_hw_revision(struct intel_dp *intel_dp)
 	uint8_t rev;
 	int len;
 
-	if ((drm_debug & DRM_UT_KMS) == 0)
-		return;
-
 	if (!drm_dp_is_branch(intel_dp->dpcd))
 		return;
 
@@ -1473,9 +1470,6 @@ static void intel_dp_print_sw_revision(struct intel_dp *intel_dp)
 {
 	uint8_t rev[2];
 	int len;
-
-	if ((drm_debug & DRM_UT_KMS) == 0)
-		return;
 
 	if (!drm_dp_is_branch(intel_dp->dpcd))
 		return;
