@@ -130,6 +130,8 @@ int bench_futex_hash(int argc, const char **argv,
 	}
 
 	ncpus = sysconf(_SC_NPROCESSORS_ONLN);
+	nsecs = futexbench_sanitize_numeric(nsecs);
+	nfutexes = futexbench_sanitize_numeric(nfutexes);
 
 	sigfillset(&act.sa_mask);
 	act.sa_sigaction = toggle_done;
@@ -137,6 +139,8 @@ int bench_futex_hash(int argc, const char **argv,
 
 	if (!nthreads) /* default to the number of CPUs */
 		nthreads = ncpus;
+	else
+		nthreads = futexbench_sanitize_numeric(nthreads);
 
 	worker = calloc(nthreads, sizeof(*worker));
 	if (!worker)
