@@ -561,28 +561,12 @@ static int tcphy_phy_init(struct rockchip_typec_phy *tcphy, u8 mode)
 	tcphy_cfg_24m(tcphy);
 
 	if (mode == MODE_DFP_DP) {
-		/*
-		 * Config usb work in USB2.0 only mode, we need to ensure
-		 * usb3 pd is enabled before access these regiters.
-		 */
-		property_enable(tcphy, &cfg->usb3tousb2_en, 1);
-		property_enable(tcphy, &cfg->usb3host_disable, 1);
-		property_enable(tcphy, &cfg->usb3host_port, 0);
-
 		tcphy_cfg_dp_pll(tcphy);
 		for (i = 0; i < 4; i++)
 			tcphy_dp_cfg_lane(tcphy, i);
 
 		writel(PIN_ASSIGN_C_E, tcphy->base + PMA_LANE_CFG);
 	} else {
-		/*
-		 * Enable usb work in usb3.0, we need to ensure usb3
-		 * pd is enabled before access these registers.
-		 */
-		property_enable(tcphy, &cfg->usb3tousb2_en, 0);
-		property_enable(tcphy, &cfg->usb3host_disable, 0);
-		property_enable(tcphy, &cfg->usb3host_port, 1);
-
 		tcphy_cfg_usb3_pll(tcphy);
 		tcphy_cfg_dp_pll(tcphy);
 		if (tcphy->flip) {
@@ -688,6 +672,18 @@ static int tcphy_get_mode(struct rockchip_typec_phy *tcphy)
 	return mode;
 }
 
+static int tcphy_cfg_usb3_to_usb2_only(struct rockchip_typec_phy *tcphy,
+				       bool value)
+{
+	struct rockchip_usb3phy_port_cfg *cfg = &tcphy->port_cfgs;
+
+	property_enable(tcphy, &cfg->usb3tousb2_en, value);
+	property_enable(tcphy, &cfg->usb3host_disable, value);
+	property_enable(tcphy, &cfg->usb3host_port, !value);
+
+	return 0;
+}
+
 static int rockchip_usb3_phy_power_on(struct phy *phy)
 {
 	struct rockchip_typec_phy *tcphy = phy_get_drvdata(phy);
@@ -705,8 +701,10 @@ static int rockchip_usb3_phy_power_on(struct phy *phy)
 	}
 
 	/* DP-only mode; fall back to USB2 */
-	if (!(new_mode & (MODE_DFP_USB | MODE_UFP_USB)))
+	if (!(new_mode & (MODE_DFP_USB | MODE_UFP_USB))) {
+		tcphy_cfg_usb3_to_usb2_only(tcphy, true);
 		goto unlock_ret;
+	}
 
 	if (tcphy->mode == new_mode)
 		goto unlock_ret;
@@ -739,6 +737,9 @@ static int rockchip_usb3_phy_power_off(struct phy *phy)
 	struct rockchip_typec_phy *tcphy = phy_get_drvdata(phy);
 
 	mutex_lock(&tcphy->lock);
+
+	if (!(tcphy->mode & (MODE_UFP_USB | MODE_DFP_USB)))
+		tcphy_cfg_usb3_to_usb2_only(tcphy, false);
 
 	if (tcphy->mode == MODE_DISCONNECT)
 		goto unlock;
