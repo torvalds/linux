@@ -131,6 +131,11 @@ bool lspcon_init(struct intel_digital_port *intel_dig_port)
 		}
 	}
 
+	if (!intel_dp_read_dpcd(dp)) {
+		DRM_ERROR("LSPCON DPCD read failed\n");
+		return false;
+	}
+
 	DRM_DEBUG_KMS("Success: LSPCON init\n");
 	return true;
 }

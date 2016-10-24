@@ -3497,7 +3497,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	intel_dp->DP = DP;
 }
 
-static bool
+bool
 intel_dp_read_dpcd(struct intel_dp *intel_dp)
 {
 	if (drm_dp_dpcd_read(&intel_dp->aux, 0x000, intel_dp->dpcd,
