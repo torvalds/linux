@@ -39,15 +39,12 @@ static unsigned int threads_starting;
 static struct stats throughput_stats;
 static pthread_cond_t thread_parent, thread_worker;
 
-#define SMP_CACHE_BYTES 256
-#define __cacheline_aligned __attribute__ ((aligned (SMP_CACHE_BYTES)))
-
 struct worker {
 	int tid;
 	u_int32_t *futex;
 	pthread_t thread;
 	unsigned long ops;
-} __cacheline_aligned;
+};
 
 static const struct option options[] = {
 	OPT_UINTEGER('t', "threads", &nthreads, "Specify amount of threads"),
@@ -66,8 +63,9 @@ static const char * const bench_futex_hash_usage[] = {
 static void *workerfn(void *arg)
 {
 	int ret;
-	unsigned int i;
 	struct worker *w = (struct worker *) arg;
+	unsigned int i;
+	unsigned long ops = w->ops; /* avoid cacheline bouncing */
 
 	pthread_mutex_lock(&thread_lock);
 	threads_starting--;
@@ -77,7 +75,7 @@ static void *workerfn(void *arg)
 	pthread_mutex_unlock(&thread_lock);
 
 	do {
-		for (i = 0; i < nfutexes; i++, w->ops++) {
+		for (i = 0; i < nfutexes; i++, ops++) {
 			/*
 			 * We want the futex calls to fail in order to stress
 			 * the hashing of uaddr and not measure other steps,
@@ -91,6 +89,7 @@ static void *workerfn(void *arg)
 		}
 	}  while (!done);
 
+	w->ops = ops;
 	return NULL;
 }
 
