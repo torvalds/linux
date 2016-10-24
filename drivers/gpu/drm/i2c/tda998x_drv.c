@@ -1369,7 +1369,6 @@ const struct drm_connector_helper_funcs tda998x_connector_helper_funcs = {
 
 static void tda998x_connector_destroy(struct drm_connector *connector)
 {
-	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
 
@@ -1441,16 +1440,10 @@ static int tda998x_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		goto err_connector;
 
-	ret = drm_connector_register(&priv->connector);
-	if (ret)
-		goto err_sysfs;
-
 	drm_mode_connector_attach_encoder(&priv->connector, &priv->encoder);
 
 	return 0;
 
-err_sysfs:
-	drm_connector_cleanup(&priv->connector);
 err_connector:
 	drm_encoder_cleanup(&priv->encoder);
 err_encoder:
@@ -1463,7 +1456,6 @@ static void tda998x_unbind(struct device *dev, struct device *master,
 {
 	struct tda998x_priv *priv = dev_get_drvdata(dev);
 
-	drm_connector_unregister(&priv->connector);
 	drm_connector_cleanup(&priv->connector);
 	drm_encoder_cleanup(&priv->encoder);
 	tda998x_destroy(priv);
