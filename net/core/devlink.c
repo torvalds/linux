@@ -1612,7 +1612,7 @@ static const struct genl_ops devlink_nl_ops[] = {
 	},
 };
 
-static struct genl_family devlink_nl_family = {
+static struct genl_family devlink_nl_family __ro_after_init = {
 	.name		= DEVLINK_GENL_NAME,
 	.version	= DEVLINK_GENL_VERSION,
 	.maxattr	= DEVLINK_ATTR_MAX,

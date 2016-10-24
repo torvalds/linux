@@ -553,7 +553,7 @@ static const struct genl_ops ila_nl_ops[] = {
 	},
 };
 
-static struct genl_family ila_nl_family = {
+static struct genl_family ila_nl_family __ro_after_init = {
 	.hdrsize	= 0,
 	.name		= ILA_GENL_NAME,
 	.version	= ILA_GENL_VERSION,
@@ -627,7 +627,7 @@ static int ila_xlat_addr(struct sk_buff *skb, bool set_csum_neutral)
 	return 0;
 }
 
-int ila_xlat_init(void)
+int __init ila_xlat_init(void)
 {
 	int ret;
 

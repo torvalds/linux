@@ -131,7 +131,7 @@ static const struct genl_multicast_group ieee802154_mcgrps[] = {
 	[IEEE802154_BEACON_MCGRP] = { .name = IEEE802154_MCAST_BEACON_NAME, },
 };
 
-struct genl_family nl802154_family = {
+struct genl_family nl802154_family __ro_after_init = {
 	.hdrsize	= 0,
 	.name		= IEEE802154_NL_NAME,
 	.version	= 1,

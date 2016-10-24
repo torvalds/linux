@@ -760,7 +760,7 @@ static const struct genl_ops netlbl_cipsov4_ops[] = {
 	},
 };
 
-static struct genl_family netlbl_cipsov4_gnl_family = {
+static struct genl_family netlbl_cipsov4_gnl_family __ro_after_init = {
 	.hdrsize = 0,
 	.name = NETLBL_NLTYPE_CIPSOV4_NAME,
 	.version = NETLBL_PROTO_VERSION,

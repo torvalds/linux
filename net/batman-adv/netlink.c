@@ -603,7 +603,7 @@ static struct genl_ops batadv_netlink_ops[] = {
 
 };
 
-struct genl_family batadv_netlink_family = {
+struct genl_family batadv_netlink_family __ro_after_init = {
 	.hdrsize = 0,
 	.name = BATADV_NL_NAME,
 	.version = 1,

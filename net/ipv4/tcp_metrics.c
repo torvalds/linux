@@ -1109,7 +1109,7 @@ static const struct genl_ops tcp_metrics_nl_ops[] = {
 	},
 };
 
-static struct genl_family tcp_metrics_nl_family = {
+static struct genl_family tcp_metrics_nl_family __ro_after_init = {
 	.hdrsize	= 0,
 	.name		= TCP_METRICS_GENL_NAME,
 	.version	= TCP_METRICS_GENL_VERSION,

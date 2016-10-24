@@ -461,7 +461,7 @@ static const struct genl_ops hsr_ops[] = {
 	},
 };
 
-static struct genl_family hsr_genl_family = {
+static struct genl_family hsr_genl_family __ro_after_init = {
 	.hdrsize = 0,
 	.name = "HSR",
 	.version = 1,

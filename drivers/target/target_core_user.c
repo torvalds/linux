@@ -147,7 +147,7 @@ static const struct genl_multicast_group tcmu_mcgrps[] = {
 };
 
 /* Our generic netlink family */
-static struct genl_family tcmu_genl_family = {
+static struct genl_family tcmu_genl_family __ro_after_init = {
 	.module = THIS_MODULE,
 	.hdrsize = 0,
 	.name = "TCM-USER",

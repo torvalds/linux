@@ -12,7 +12,7 @@ static const struct genl_multicast_group quota_mcgrps[] = {
 };
 
 /* Netlink family structure for quota */
-static struct genl_family quota_genl_family = {
+static struct genl_family quota_genl_family __ro_after_init = {
 	.module = THIS_MODULE,
 	.hdrsize = 0,
 	.name = "VFS_DQUOT",

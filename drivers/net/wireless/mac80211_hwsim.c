@@ -3228,7 +3228,7 @@ static const struct genl_ops hwsim_ops[] = {
 	},
 };
 
-static struct genl_family hwsim_genl_family = {
+static struct genl_family hwsim_genl_family __ro_after_init = {
 	.name = "MAC80211_HWSIM",
 	.version = 1,
 	.maxattr = HWSIM_ATTR_MAX,
@@ -3287,7 +3287,7 @@ static struct notifier_block hwsim_netlink_notifier = {
 	.notifier_call = mac80211_hwsim_netlink_notify,
 };
 
-static int hwsim_init_netlink(void)
+static int __init hwsim_init_netlink(void)
 {
 	int rc;
 

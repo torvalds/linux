@@ -2740,7 +2740,7 @@ static const struct genl_multicast_group team_nl_mcgrps[] = {
 	{ .name = TEAM_GENL_CHANGE_EVENT_MC_GRP_NAME, },
 };
 
-static struct genl_family team_nl_family = {
+static struct genl_family team_nl_family __ro_after_init = {
 	.name		= TEAM_GENL_NAME,
 	.version	= TEAM_GENL_VERSION,
 	.maxattr	= TEAM_ATTR_MAX,
@@ -2773,7 +2773,7 @@ static int team_nl_send_event_port_get(struct team *team,
 					  port);
 }
 
-static int team_nl_init(void)
+static int __init team_nl_init(void)
 {
 	return genl_register_family(&team_nl_family);
 }

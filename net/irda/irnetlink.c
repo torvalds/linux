@@ -141,7 +141,7 @@ static const struct genl_ops irda_nl_ops[] = {
 
 };
 
-static struct genl_family irda_nl_family = {
+static struct genl_family irda_nl_family __ro_after_init = {
 	.name = IRDA_NL_NAME,
 	.hdrsize = 0,
 	.version = IRDA_NL_VERSION,
@@ -151,7 +151,7 @@ static struct genl_family irda_nl_family = {
 	.n_ops = ARRAY_SIZE(irda_nl_ops),
 };
 
-int irda_nl_register(void)
+int __init irda_nl_register(void)
 {
 	return genl_register_family(&irda_nl_family);
 }

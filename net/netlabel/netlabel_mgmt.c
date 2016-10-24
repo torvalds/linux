@@ -828,7 +828,7 @@ static const struct genl_ops netlbl_mgmt_genl_ops[] = {
 	},
 };
 
-static struct genl_family netlbl_mgmt_gnl_family = {
+static struct genl_family netlbl_mgmt_gnl_family __ro_after_init = {
 	.hdrsize = 0,
 	.name = NETLBL_NLTYPE_MGMT_NAME,
 	.version = NETLBL_PROTO_VERSION,

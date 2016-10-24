@@ -936,7 +936,7 @@ static const struct genl_multicast_group genl_ctrl_groups[] = {
 	{ .name = "notify", },
 };
 
-static struct genl_family genl_ctrl = {
+static struct genl_family genl_ctrl __ro_after_init = {
 	.module = THIS_MODULE,
 	.ops = genl_ctrl_ops,
 	.n_ops = ARRAY_SIZE(genl_ctrl_ops),

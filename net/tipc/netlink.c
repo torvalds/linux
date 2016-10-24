@@ -249,7 +249,7 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 #endif
 };
 
-struct genl_family tipc_genl_family = {
+struct genl_family tipc_genl_family __ro_after_init = {
 	.name		= TIPC_GENL_V2_NAME,
 	.version	= TIPC_GENL_V2_VERSION,
 	.hdrsize	= 0,
@@ -271,7 +271,7 @@ int tipc_nlmsg_parse(const struct nlmsghdr *nlh, struct nlattr ***attr)
 	return nlmsg_parse(nlh, GENL_HDRLEN, *attr, maxattr, tipc_nl_policy);
 }
 
-int tipc_netlink_start(void)
+int __init tipc_netlink_start(void)
 {
 	int res;
 

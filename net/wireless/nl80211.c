@@ -12586,7 +12586,7 @@ static const struct genl_ops nl80211_ops[] = {
 	},
 };
 
-static struct genl_family nl80211_fam = {
+static struct genl_family nl80211_fam __ro_after_init = {
 	.name = NL80211_GENL_NAME,	/* have users key off the name instead */
 	.hdrsize = 0,			/* no private header */
 	.version = 1,			/* no particular meaning now */
@@ -14563,7 +14563,7 @@ void nl80211_send_ap_stopped(struct wireless_dev *wdev)
 
 /* initialisation/exit functions */
 
-int nl80211_init(void)
+int __init nl80211_init(void)
 {
 	int err;
 

@@ -72,7 +72,7 @@ static struct genl_ops dlm_nl_ops[] = {
 	},
 };
 
-static struct genl_family family = {
+static struct genl_family family __ro_after_init = {
 	.name		= DLM_GENL_NAME,
 	.version	= DLM_GENL_VERSION,
 	.ops		= dlm_nl_ops,

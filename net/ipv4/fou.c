@@ -824,7 +824,7 @@ static const struct genl_ops fou_nl_ops[] = {
 	},
 };
 
-static struct genl_family fou_nl_family = {
+static struct genl_family fou_nl_family __ro_after_init = {
 	.hdrsize	= 0,
 	.name		= FOU_GENL_NAME,
 	.version	= FOU_GENL_VERSION,

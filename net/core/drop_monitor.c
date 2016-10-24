@@ -346,7 +346,7 @@ static const struct genl_ops dropmon_ops[] = {
 	},
 };
 
-static struct genl_family net_drop_monitor_family = {
+static struct genl_family net_drop_monitor_family __ro_after_init = {
 	.hdrsize        = 0,
 	.name           = "NET_DM",
 	.version        = 2,

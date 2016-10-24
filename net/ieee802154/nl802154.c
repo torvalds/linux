@@ -2462,7 +2462,7 @@ static const struct genl_ops nl802154_ops[] = {
 #endif /* CONFIG_IEEE802154_NL802154_EXPERIMENTAL */
 };
 
-static struct genl_family nl802154_fam = {
+static struct genl_family nl802154_fam __ro_after_init = {
 	.name = NL802154_GENL_NAME,	/* have users key off the name instead */
 	.hdrsize = 0,			/* no private header */
 	.version = 1,			/* no particular meaning now */
@@ -2478,7 +2478,7 @@ static struct genl_family nl802154_fam = {
 };
 
 /* initialisation/exit functions */
-int nl802154_init(void)
+int __init nl802154_init(void)
 {
 	return genl_register_family(&nl802154_fam);
 }

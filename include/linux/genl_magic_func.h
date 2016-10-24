@@ -293,7 +293,7 @@ static int CONCAT_(GENL_MAGIC_FAMILY, _genl_multicast_ ## group)(	\
 #undef GENL_mc_group
 #define GENL_mc_group(group)
 
-static struct genl_family ZZZ_genl_family __read_mostly = {
+static struct genl_family ZZZ_genl_family __ro_after_init = {
 	.name = __stringify(GENL_MAGIC_FAMILY),
 	.version = GENL_MAGIC_VERSION,
 #ifdef GENL_MAGIC_FAMILY_HDRSZ

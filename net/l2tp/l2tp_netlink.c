@@ -970,7 +970,7 @@ static const struct genl_ops l2tp_nl_ops[] = {
 	},
 };
 
-static struct genl_family l2tp_nl_family = {
+static struct genl_family l2tp_nl_family __ro_after_init = {
 	.name		= L2TP_GENL_NAME,
 	.version	= L2TP_GENL_VERSION,
 	.hdrsize	= 0,
@@ -1016,7 +1016,7 @@ void l2tp_nl_unregister_ops(enum l2tp_pwtype pw_type)
 }
 EXPORT_SYMBOL_GPL(l2tp_nl_unregister_ops);
 
-static int l2tp_nl_init(void)
+static int __init l2tp_nl_init(void)
 {
 	pr_info("L2TP netlink interface\n");
 	return genl_register_family(&l2tp_nl_family);

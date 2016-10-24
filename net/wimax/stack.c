@@ -576,7 +576,7 @@ static const struct genl_multicast_group wimax_gnl_mcgrps[] = {
 	{ .name = "msg", },
 };
 
-struct genl_family wimax_gnl_family = {
+struct genl_family wimax_gnl_family __ro_after_init = {
 	.name = "WiMAX",
 	.version = WIMAX_GNL_VERSION,
 	.hdrsize = 0,

@@ -349,7 +349,7 @@ static const struct genl_ops netlbl_calipso_ops[] = {
 	},
 };
 
-static struct genl_family netlbl_calipso_gnl_family = {
+static struct genl_family netlbl_calipso_gnl_family __ro_after_init = {
 	.hdrsize = 0,
 	.name = NETLBL_NLTYPE_CALIPSO_NAME,
 	.version = NETLBL_PROTO_VERSION,
