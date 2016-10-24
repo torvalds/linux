@@ -179,6 +179,7 @@ struct _pid {
 /**
  * struct cpudata -	Per CPU instance data storage
  * @cpu:		CPU number for this instance data
+ * @policy:		CPUFreq policy value
  * @update_util:	CPUFreq utility callback information
  * @update_util_set:	CPUFreq utility callback is set
  * @iowait_boost:	iowait-related boost fraction
@@ -201,6 +202,7 @@ struct _pid {
 struct cpudata {
 	int cpu;
 
+	unsigned int policy;
 	struct update_util_data update_util;
 	bool   update_util_set;
 
@@ -1337,7 +1339,8 @@ static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
 
 	from = cpu->pstate.current_pstate;
 
-	target_pstate = pstate_funcs.get_target_pstate(cpu);
+	target_pstate = cpu->policy == CPUFREQ_POLICY_PERFORMANCE ?
+		cpu->pstate.turbo_pstate : pstate_funcs.get_target_pstate(cpu);
 
 	intel_pstate_update_pstate(cpu, target_pstate);
 
@@ -1504,6 +1507,8 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 		 policy->cpuinfo.max_freq, policy->max);
 
 	cpu = all_cpu_data[policy->cpu];
+	cpu->policy = policy->policy;
+
 	if (cpu->pstate.max_pstate_physical > cpu->pstate.max_pstate &&
 	    policy->max < policy->cpuinfo.max_freq &&
 	    policy->max > cpu->pstate.max_pstate * cpu->pstate.scaling) {
@@ -1511,7 +1516,7 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 		policy->max = policy->cpuinfo.max_freq;
 	}
 
-	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE) {
+	if (cpu->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		limits = &performance_limits;
 		if (policy->max >= policy->cpuinfo.max_freq) {
 			pr_debug("set performance\n");
@@ -1547,7 +1552,7 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	limits->max_perf = round_up(limits->max_perf, FRAC_BITS);
 
  out:
-	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE) {
+	if (cpu->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		/*
 		 * NOHZ_FULL CPUs need this as the governor callback may not
 		 * be invoked on them.
