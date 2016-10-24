@@ -11,12 +11,12 @@
 
 /* MichelMIC routine define */
 struct michel_mic_t {
-	uint32_t K0;	// Key 
-	uint32_t K1;	// Key 
-	uint32_t L;	// Current state 
-	uint32_t R;	// Current state 
-	uint8_t M[4];	// Message accumulator (single word) 
-	int nBytesInM;	// # bytes in M 
+	uint32_t K0;	// Key
+	uint32_t K1;	// Key
+	uint32_t L;	// Current state
+	uint32_t R;	// Current state
+	uint8_t M[4];	// Message accumulator (single word)
+	int nBytesInM;	// # bytes in M
 	uint8_t Result[8];
 };
 
