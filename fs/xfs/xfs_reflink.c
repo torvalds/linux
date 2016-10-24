@@ -567,9 +567,13 @@ xfs_reflink_cancel_cow_blocks(
 		}
 
 		if (++idx >= ifp->if_bytes / sizeof(struct xfs_bmbt_rec))
-			return 0;
+			break;
 		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx), &got);
 	}
+
+	/* clear tag if cow fork is emptied */
+	if (!ifp->if_bytes)
+		xfs_inode_clear_cowblocks_tag(ip);
 
 	return error;
 }
