@@ -97,8 +97,43 @@ static bool lspcon_probe(struct intel_lspcon *lspcon)
 	return true;
 }
 
+static void lspcon_resume_in_pcon_wa(struct intel_lspcon *lspcon)
+{
+	struct intel_dp *intel_dp = lspcon_to_intel_dp(lspcon);
+	unsigned long start = jiffies;
+
+	if (!lspcon->desc_valid)
+		return;
+
+	while (1) {
+		struct intel_dp_desc desc;
+
+		/*
+		 * The w/a only applies in PCON mode and we don't expect any
+		 * AUX errors.
+		 */
+		if (!__intel_dp_read_desc(intel_dp, &desc))
+			return;
+
+		if (!memcmp(&intel_dp->desc, &desc, sizeof(desc))) {
+			DRM_DEBUG_KMS("LSPCON recovering in PCON mode after %u ms\n",
+				      jiffies_to_msecs(jiffies - start));
+			return;
+		}
+
+		if (time_after(jiffies, start + msecs_to_jiffies(1000)))
+			break;
+
+		usleep_range(10000, 15000);
+	}
+
+	DRM_DEBUG_KMS("LSPCON DP descriptor mismatch after resume\n");
+}
+
 void lspcon_resume(struct intel_lspcon *lspcon)
 {
+	lspcon_resume_in_pcon_wa(lspcon);
+
 	if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON, true))
 		DRM_ERROR("LSPCON resume failed\n");
 	else
@@ -143,7 +178,7 @@ bool lspcon_init(struct intel_digital_port *intel_dig_port)
 		return false;
 	}
 
-	intel_dp_read_desc(dp);
+	lspcon->desc_valid = intel_dp_read_desc(dp);
 
 	DRM_DEBUG_KMS("Success: LSPCON init\n");
 	return true;

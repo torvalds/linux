@@ -1451,7 +1451,7 @@ static void intel_dp_print_rates(struct intel_dp *intel_dp)
 	DRM_DEBUG_KMS("common rates: %s\n", str);
 }
 
-static bool
+bool
 __intel_dp_read_desc(struct intel_dp *intel_dp, struct intel_dp_desc *desc)
 {
 	u32 base = drm_dp_is_branch(intel_dp->dpcd) ? DP_BRANCH_OUI :
