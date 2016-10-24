@@ -675,13 +675,11 @@ EXPORT_SYMBOL_GPL(v4l2_flash_init);
 void v4l2_flash_release(struct v4l2_flash *v4l2_flash)
 {
 	struct v4l2_subdev *sd;
-	struct led_classdev *led_cdev;
 
 	if (IS_ERR_OR_NULL(v4l2_flash))
 		return;
 
 	sd = &v4l2_flash->sd;
-	led_cdev = &v4l2_flash->fled_cdev->led_cdev;
 
 	v4l2_async_unregister_subdev(sd);
 
