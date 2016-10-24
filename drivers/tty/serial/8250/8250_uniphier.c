@@ -101,7 +101,7 @@ static unsigned int uniphier_serial_in(struct uart_port *p, int offset)
 static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 {
 	unsigned int valshift = 0;
-	bool normal = false;
+	bool normal = true;
 
 	switch (offset) {
 	case UART_FCR:
@@ -114,9 +114,9 @@ static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 		/* fall through */
 	case UART_MCR:
 		offset = UNIPHIER_UART_LCR_MCR;
+		normal = false;
 		break;
 	default:
-		normal = true;
 		offset <<= UNIPHIER_UART_REGSHIFT;
 		break;
 	}
