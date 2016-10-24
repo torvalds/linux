@@ -229,6 +229,14 @@ int cxl_start_context(struct cxl_context *ctx, u64 wed,
 	if (ctx->status == STARTED)
 		goto out; /* already started */
 
+	/*
+	 * Increment the mapped context count for adapter. This also checks
+	 * if adapter_context_lock is taken.
+	 */
+	rc = cxl_adapter_context_get(ctx->afu->adapter);
+	if (rc)
+		goto out;
+
 	if (task) {
 		ctx->pid = get_task_pid(task, PIDTYPE_PID);
 		ctx->glpid = get_task_pid(task->group_leader, PIDTYPE_PID);
@@ -240,6 +248,7 @@ int cxl_start_context(struct cxl_context *ctx, u64 wed,
 
 	if ((rc = cxl_ops->attach_process(ctx, kernel, wed, 0))) {
 		put_pid(ctx->pid);
+		cxl_adapter_context_put(ctx->afu->adapter);
 		cxl_ctx_put();
 		goto out;
 	}

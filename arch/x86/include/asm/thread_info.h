@@ -52,6 +52,15 @@ struct task_struct;
 #include <asm/cpufeature.h>
 #include <linux/atomic.h>
 
+struct thread_info {
+	unsigned long		flags;		/* low level flags */
+};
+
+#define INIT_THREAD_INFO(tsk)			\
+{						\
+	.flags		= 0,			\
+}
+
 #define init_stack		(init_thread_union.stack)
 
 #else /* !__ASSEMBLY__ */

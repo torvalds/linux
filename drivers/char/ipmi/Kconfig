@@ -76,3 +76,11 @@ config IPMI_POWEROFF
 	 the IPMI management controller is capable of this.
 
 endif # IPMI_HANDLER
+
+config ASPEED_BT_IPMI_BMC
+	depends on ARCH_ASPEED
+	tristate "BT IPMI bmc driver"
+	help
+	  Provides a driver for the BT (Block Transfer) IPMI interface
+	  found on Aspeed SOCs (AST2400 and AST2500). The driver
+	  implements the BMC side of the BT interface.
