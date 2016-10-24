@@ -1664,23 +1664,6 @@ assert_rpm_wakelock_held(struct drm_i915_private *dev_priv)
 		DRM_DEBUG_DRIVER("RPM wakelock ref not held during HW access");
 }
 
-static inline int
-assert_rpm_atomic_begin(struct drm_i915_private *dev_priv)
-{
-	int seq = atomic_read(&dev_priv->pm.atomic_seq);
-
-	assert_rpm_wakelock_held(dev_priv);
-
-	return seq;
-}
-
-static inline void
-assert_rpm_atomic_end(struct drm_i915_private *dev_priv, int begin_seq)
-{
-	WARN_ONCE(atomic_read(&dev_priv->pm.atomic_seq) != begin_seq,
-		  "HW access outside of RPM atomic section\n");
-}
-
 /**
  * disable_rpm_wakeref_asserts - disable the RPM assert checks
  * @dev_priv: i915 device instance

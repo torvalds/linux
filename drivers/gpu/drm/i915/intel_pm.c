@@ -8043,5 +8043,4 @@ void intel_pm_setup(struct drm_device *dev)
 
 	dev_priv->pm.suspended = false;
 	atomic_set(&dev_priv->pm.wakeref_count, 0);
-	atomic_set(&dev_priv->pm.atomic_seq, 0);
 }
