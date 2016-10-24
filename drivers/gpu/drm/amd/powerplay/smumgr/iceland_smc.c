@@ -2140,7 +2140,7 @@ uint32_t iceland_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU71_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
 	}
-	printk("cant't get the offset of type %x member %x \n", type, member);
+	printk(KERN_WARNING "can't get the offset of type %x member %x\n", type, member);
 	return 0;
 }
 
@@ -2163,7 +2163,7 @@ uint32_t iceland_get_mac_definition(uint32_t value)
 		return SMU71_MAX_LEVELS_MVDD;
 	}
 
-	printk("cant't get the mac of %x \n", value);
+	printk(KERN_WARNING "can't get the mac of %x\n", value);
 	return 0;
 }
 
