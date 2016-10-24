@@ -34,7 +34,6 @@ static void nl802154_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
 
 /* the netlink family */
 static struct genl_family nl802154_fam = {
-	.id = GENL_ID_GENERATE,		/* don't bother with a hardcoded ID */
 	.name = NL802154_GENL_NAME,	/* have users key off the name instead */
 	.hdrsize = 0,			/* no private header */
 	.version = 1,			/* no particular meaning now */

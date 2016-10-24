@@ -60,7 +60,6 @@ struct netlbl_domhsh_walk_arg {
 
 /* NetLabel Generic NETLINK CIPSOv4 family */
 static struct genl_family netlbl_cipsov4_gnl_family = {
-	.id = GENL_ID_GENERATE,
 	.hdrsize = 0,
 	.name = NETLBL_NLTYPE_CIPSOV4_NAME,
 	.version = NETLBL_PROTO_VERSION,

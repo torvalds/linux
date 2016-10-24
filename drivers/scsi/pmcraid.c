@@ -1369,12 +1369,6 @@ static struct genl_multicast_group pmcraid_mcgrps[] = {
 };
 
 static struct genl_family pmcraid_event_family = {
-	/*
-	 * Due to prior multicast group abuse (the code having assumed that
-	 * the family ID can be used as a multicast group ID) we need to
-	 * statically allocate a family (and thus group) ID.
-	 */
-	.id = GENL_ID_PMCRAID,
 	.name = "pmcraid",
 	.version = 1,
 	.maxattr = PMCRAID_AEN_ATTR_MAX,

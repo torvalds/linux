@@ -2841,7 +2841,6 @@ static struct nf_sockopt_ops ip_vs_sockopts = {
 
 /* IPVS genetlink family */
 static struct genl_family ip_vs_genl_family = {
-	.id		= GENL_ID_GENERATE,
 	.hdrsize	= 0,
 	.name		= IPVS_GENL_NAME,
 	.version	= IPVS_GENL_VERSION,

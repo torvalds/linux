@@ -29,7 +29,6 @@ static unsigned int ieee802154_seq_num;
 static DEFINE_SPINLOCK(ieee802154_seq_lock);
 
 struct genl_family nl802154_family = {
-	.id		= GENL_ID_GENERATE,
 	.hdrsize	= 0,
 	.name		= IEEE802154_NL_NAME,
 	.version	= 1,

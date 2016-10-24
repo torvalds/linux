@@ -743,7 +743,6 @@ void tcp_fastopen_cache_set(struct sock *sk, u16 mss,
 }
 
 static struct genl_family tcp_metrics_nl_family = {
-	.id		= GENL_ID_GENERATE,
 	.hdrsize	= 0,
 	.name		= TCP_METRICS_GENL_NAME,
 	.version	= TCP_METRICS_GENL_VERSION,

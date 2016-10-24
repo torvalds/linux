@@ -60,7 +60,6 @@ struct dm_hw_stat_delta {
 };
 
 static struct genl_family net_drop_monitor_family = {
-	.id             = GENL_ID_GENERATE,
 	.hdrsize        = 0,
 	.name           = "NET_DM",
 	.version        = 2,

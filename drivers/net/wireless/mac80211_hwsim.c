@@ -589,7 +589,6 @@ struct hwsim_radiotap_ack_hdr {
 
 /* MAC80211_HWSIM netlinf family */
 static struct genl_family hwsim_genl_family = {
-	.id = GENL_ID_GENERATE,
 	.hdrsize = 0,
 	.name = "MAC80211_HWSIM",
 	.version = 1,

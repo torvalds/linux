@@ -623,7 +623,6 @@ static int fou_destroy(struct net *net, struct fou_cfg *cfg)
 }
 
 static struct genl_family fou_nl_family = {
-	.id		= GENL_ID_GENERATE,
 	.hdrsize	= 0,
 	.name		= FOU_GENL_NAME,
 	.version	= FOU_GENL_VERSION,

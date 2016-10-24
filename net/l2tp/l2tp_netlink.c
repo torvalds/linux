@@ -32,7 +32,6 @@
 
 
 static struct genl_family l2tp_nl_family = {
-	.id		= GENL_ID_GENERATE,
 	.name		= L2TP_GENL_NAME,
 	.version	= L2TP_GENL_VERSION,
 	.hdrsize	= 0,

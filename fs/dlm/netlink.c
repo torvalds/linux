@@ -17,7 +17,6 @@ static uint32_t dlm_nl_seqnum;
 static uint32_t listener_nlportid;
 
 static struct genl_family family = {
-	.id		= GENL_ID_GENERATE,
 	.name		= DLM_GENL_NAME,
 	.version	= DLM_GENL_VERSION,
 };

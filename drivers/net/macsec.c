@@ -1422,7 +1422,6 @@ static void clear_tx_sa(struct macsec_tx_sa *tx_sa)
 }
 
 static struct genl_family macsec_fam = {
-	.id		= GENL_ID_GENERATE,
 	.name		= MACSEC_GENL_NAME,
 	.hdrsize	= 0,
 	.version	= MACSEC_GENL_VERSION,

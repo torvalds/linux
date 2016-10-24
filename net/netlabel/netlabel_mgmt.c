@@ -61,7 +61,6 @@ struct netlbl_domhsh_walk_arg {
 
 /* NetLabel Generic NETLINK CIPSOv4 family */
 static struct genl_family netlbl_mgmt_gnl_family = {
-	.id = GENL_ID_GENERATE,
 	.hdrsize = 0,
 	.name = NETLBL_NLTYPE_MGMT_NAME,
 	.version = NETLBL_PROTO_VERSION,

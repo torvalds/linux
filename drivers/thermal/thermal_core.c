@@ -2164,7 +2164,6 @@ static const struct genl_multicast_group thermal_event_mcgrps[] = {
 };
 
 static struct genl_family thermal_event_genl_family = {
-	.id = GENL_ID_GENERATE,
 	.name = THERMAL_GENL_FAMILY_NAME,
 	.version = THERMAL_GENL_VERSION,
 	.maxattr = THERMAL_GENL_ATTR_MAX,

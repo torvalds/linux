@@ -1095,7 +1095,6 @@ static int gtp_genl_del_pdp(struct sk_buff *skb, struct genl_info *info)
 }
 
 static struct genl_family gtp_genl_family = {
-	.id		= GENL_ID_GENERATE,
 	.name		= "gtp",
 	.version	= 0,
 	.hdrsize	= 0,

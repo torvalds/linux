@@ -573,7 +573,6 @@ size_t D_LEVEL_SIZE = ARRAY_SIZE(D_LEVEL);
 
 
 struct genl_family wimax_gnl_family = {
-	.id = GENL_ID_GENERATE,
 	.name = "WiMAX",
 	.version = WIMAX_GNL_VERSION,
 	.hdrsize = 0,

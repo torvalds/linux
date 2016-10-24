@@ -148,7 +148,6 @@ static const struct genl_multicast_group tcmu_mcgrps[] = {
 
 /* Our generic netlink family */
 static struct genl_family tcmu_genl_family = {
-	.id = GENL_ID_GENERATE,
 	.hdrsize = 0,
 	.name = "TCM-USER",
 	.version = 1,

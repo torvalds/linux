@@ -42,7 +42,6 @@ static int family_registered;
 struct kmem_cache *taskstats_cache;
 
 static struct genl_family family = {
-	.id		= GENL_ID_GENERATE,
 	.name		= TASKSTATS_GENL_NAME,
 	.version	= TASKSTATS_GENL_VERSION,
 	.maxattr	= TASKSTATS_CMD_ATTR_MAX,

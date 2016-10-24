@@ -20,7 +20,7 @@ struct genl_info;
 
 /**
  * struct genl_family - generic netlink family
- * @id: protocol family idenfitier
+ * @id: protocol family identifier (private)
  * @hdrsize: length of user specific header in bytes
  * @name: name of family
  * @version: protocol version
@@ -48,7 +48,7 @@ struct genl_info;
  * @n_ops: number of operations supported by this family (private)
  */
 struct genl_family {
-	unsigned int		id;
+	unsigned int		id;		/* private */
 	unsigned int		hdrsize;
 	char			name[GENL_NAMSIZ];
 	unsigned int		version;
@@ -148,9 +148,6 @@ static inline int genl_register_family(struct genl_family *family)
  *
  * Registers the specified family and operations from the specified table.
  * Only one family may be registered with the same family name or identifier.
- *
- * The family id may equal GENL_ID_GENERATE causing an unique id to
- * be automatically generated and assigned.
  *
  * Either a doit or dumpit callback must be specified for every registered
  * operation or the function will fail. Only one operation structure per

@@ -260,7 +260,6 @@ static struct genl_ops ZZZ_genl_ops[] __read_mostly = {
  */
 #define ZZZ_genl_family		CONCAT_(GENL_MAGIC_FAMILY, _genl_family)
 static struct genl_family ZZZ_genl_family __read_mostly = {
-	.id = GENL_ID_GENERATE,
 	.name = __stringify(GENL_MAGIC_FAMILY),
 	.version = GENL_MAGIC_VERSION,
 #ifdef GENL_MAGIC_FAMILY_HDRSZ

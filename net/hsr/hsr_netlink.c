@@ -132,7 +132,6 @@ static const struct nla_policy hsr_genl_policy[HSR_A_MAX + 1] = {
 };
 
 static struct genl_family hsr_genl_family = {
-	.id = GENL_ID_GENERATE,
 	.hdrsize = 0,
 	.name = "HSR",
 	.version = 1,

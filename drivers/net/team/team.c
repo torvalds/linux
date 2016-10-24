@@ -2151,7 +2151,6 @@ static struct rtnl_link_ops team_link_ops __read_mostly = {
  ***********************************/
 
 static struct genl_family team_nl_family = {
-	.id		= GENL_ID_GENERATE,
 	.name		= TEAM_GENL_NAME,
 	.version	= TEAM_GENL_VERSION,
 	.maxattr	= TEAM_ATTR_MAX,
