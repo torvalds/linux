@@ -279,17 +279,15 @@ int sst_prepare_and_post_msg(struct intel_sst_drv *sst,
 
 	if (response) {
 		ret = sst_wait_timeout(sst, block);
-		if (ret < 0) {
+		if (ret < 0)
 			goto out;
-		} else if(block->data) {
-			if (!data)
-				goto out;
-			*data = kzalloc(block->size, GFP_KERNEL);
-			if (!(*data)) {
+
+		if (data && block->data) {
+			*data = kmemdup(block->data, block->size, GFP_KERNEL);
+			if (!*data) {
 				ret = -ENOMEM;
 				goto out;
-			} else
-				memcpy(data, (void *) block->data, block->size);
+			}
 		}
 	}
 out:
