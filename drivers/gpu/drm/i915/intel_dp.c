@@ -3624,17 +3624,17 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 static void
 intel_dp_probe_oui(struct intel_dp *intel_dp)
 {
+	bool is_branch = drm_dp_is_branch(intel_dp->dpcd);
 	u8 buf[3];
 
 	if (!(intel_dp->dpcd[DP_DOWN_STREAM_PORT_COUNT] & DP_OUI_SUPPORT))
 		return;
 
-	if (drm_dp_dpcd_read(&intel_dp->aux, DP_SINK_OUI, buf, 3) == 3)
-		DRM_DEBUG_KMS("Sink OUI: %02hx%02hx%02hx\n",
-			      buf[0], buf[1], buf[2]);
-
-	if (drm_dp_dpcd_read(&intel_dp->aux, DP_BRANCH_OUI, buf, 3) == 3)
-		DRM_DEBUG_KMS("Branch OUI: %02hx%02hx%02hx\n",
+	if (drm_dp_dpcd_read(&intel_dp->aux,
+			     is_branch ? DP_BRANCH_OUI : DP_SINK_OUI,
+			     buf, 3) == 3)
+		DRM_DEBUG_KMS("%s OUI: %02hx%02hx%02hx\n",
+			      is_branch ? "Branch" : "Sink",
 			      buf[0], buf[1], buf[2]);
 }
 
