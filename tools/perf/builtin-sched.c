@@ -1479,7 +1479,7 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 			cpu_color = COLOR_CPUS;
 
 		if (cpu != this_cpu)
-			color_fprintf(stdout, cpu_color, " ");
+			color_fprintf(stdout, color, " ");
 		else
 			color_fprintf(stdout, cpu_color, "*");
 
