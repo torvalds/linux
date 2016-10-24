@@ -164,6 +164,20 @@ config PINCTRL_SIRF
 	select GENERIC_PINCONF
 	select GPIOLIB_IRQCHIP
 
+config PINCTRL_SX150X
+	bool "Semtech SX150x I2C GPIO expander pinctrl driver"
+	depends on GPIOLIB && I2C=y
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to provide support for Semtech SX150x-series I2C
+	  GPIO expanders as pinctrl module.
+	  Compatible models include:
+	  - 8 bits:  sx1508q, sx1502q
+	  - 16 bits: sx1509q, sx1506q
+
 config PINCTRL_PISTACHIO
 	def_bool y if MACH_PISTACHIO
 	depends on GPIOLIB
