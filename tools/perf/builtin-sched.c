@@ -1493,7 +1493,7 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 		goto out;
 
 	color_fprintf(stdout, color, "  %12.6f secs ", (double)timestamp / NSEC_PER_SEC);
-	if (new_shortname) {
+	if (new_shortname || (verbose && sched_in->tid)) {
 		const char *pid_color = color;
 
 		if (thread__has_color(sched_in))
