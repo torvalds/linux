@@ -122,6 +122,9 @@
 			interrupts = <39>;
 			clocks = <&rcc 0 146>;
 			status = "disabled";
+			dmas = <&dma1 1 4 0x400 0x0>,
+			       <&dma1 3 4 0x400 0x0>;
+			dma-names = "rx", "tx";
 		};
 
 		usart4: serial@40004c00 {
