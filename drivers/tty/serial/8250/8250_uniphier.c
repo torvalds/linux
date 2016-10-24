@@ -199,7 +199,7 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
-		dev_err(dev, "failed to get memory resource");
+		dev_err(dev, "failed to get memory resource\n");
 		return -EINVAL;
 	}
 
