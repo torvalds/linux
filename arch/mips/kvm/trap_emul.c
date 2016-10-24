@@ -586,6 +586,18 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static void kvm_trap_emul_flush_shadow_all(struct kvm *kvm)
+{
+	/* Flush GVA page tables and invalidate GVA ASIDs on all VCPUs */
+	kvm_flush_remote_tlbs(kvm);
+}
+
+static void kvm_trap_emul_flush_shadow_memslot(struct kvm *kvm,
+					const struct kvm_memory_slot *slot)
+{
+	kvm_trap_emul_flush_shadow_all(kvm);
+}
+
 static unsigned long kvm_trap_emul_num_regs(struct kvm_vcpu *vcpu)
 {
 	return 0;
@@ -963,6 +975,8 @@ static struct kvm_mips_callbacks kvm_trap_emul_callbacks = {
 	.vcpu_init = kvm_trap_emul_vcpu_init,
 	.vcpu_uninit = kvm_trap_emul_vcpu_uninit,
 	.vcpu_setup = kvm_trap_emul_vcpu_setup,
+	.flush_shadow_all = kvm_trap_emul_flush_shadow_all,
+	.flush_shadow_memslot = kvm_trap_emul_flush_shadow_memslot,
 	.gva_to_gpa = kvm_trap_emul_gva_to_gpa_cb,
 	.queue_timer_int = kvm_mips_queue_timer_int_cb,
 	.dequeue_timer_int = kvm_mips_dequeue_timer_int_cb,

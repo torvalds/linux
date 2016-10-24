@@ -157,6 +157,32 @@ int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
 	return 0;
 }
 
+void kvm_arch_flush_shadow_all(struct kvm *kvm)
+{
+	/* Flush whole GPA */
+	kvm_mips_flush_gpa_pt(kvm, 0, ~0);
+
+	/* Let implementation do the rest */
+	kvm_mips_callbacks->flush_shadow_all(kvm);
+}
+
+void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
+				   struct kvm_memory_slot *slot)
+{
+	/*
+	 * The slot has been made invalid (ready for moving or deletion), so we
+	 * need to ensure that it can no longer be accessed by any guest VCPUs.
+	 */
+
+	spin_lock(&kvm->mmu_lock);
+	/* Flush slot from GPA */
+	kvm_mips_flush_gpa_pt(kvm, slot->base_gfn,
+			      slot->base_gfn + slot->npages - 1);
+	/* Let implementation do the rest */
+	kvm_mips_callbacks->flush_shadow_memslot(kvm, slot);
+	spin_unlock(&kvm->mmu_lock);
+}
+
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				   struct kvm_memory_slot *memslot,
 				   const struct kvm_userspace_memory_region *mem,

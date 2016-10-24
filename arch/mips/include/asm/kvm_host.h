@@ -531,6 +531,14 @@ struct kvm_mips_callbacks {
 	int (*vcpu_init)(struct kvm_vcpu *vcpu);
 	void (*vcpu_uninit)(struct kvm_vcpu *vcpu);
 	int (*vcpu_setup)(struct kvm_vcpu *vcpu);
+	void (*flush_shadow_all)(struct kvm *kvm);
+	/*
+	 * Must take care of flushing any cached GPA PTEs (e.g. guest entries in
+	 * VZ root TLB, or T&E GVA page tables and corresponding root TLB
+	 * mappings).
+	 */
+	void (*flush_shadow_memslot)(struct kvm *kvm,
+				     const struct kvm_memory_slot *slot);
 	gpa_t (*gva_to_gpa)(gva_t gva);
 	void (*queue_timer_int)(struct kvm_vcpu *vcpu);
 	void (*dequeue_timer_int)(struct kvm_vcpu *vcpu);
@@ -827,9 +835,6 @@ static inline void kvm_arch_sync_events(struct kvm *kvm) {}
 static inline void kvm_arch_free_memslot(struct kvm *kvm,
 		struct kvm_memory_slot *free, struct kvm_memory_slot *dont) {}
 static inline void kvm_arch_memslots_updated(struct kvm *kvm, struct kvm_memslots *slots) {}
-static inline void kvm_arch_flush_shadow_all(struct kvm *kvm) {}
-static inline void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
-		struct kvm_memory_slot *slot) {}
 static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
