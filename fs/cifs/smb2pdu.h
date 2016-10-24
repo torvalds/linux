@@ -117,6 +117,11 @@ struct smb2_sync_hdr {
 	__u8   Signature[16];
 } __packed;
 
+struct smb2_sync_pdu {
+	struct smb2_sync_hdr sync_hdr;
+	__le16 StructureSize2; /* size of wct area (varies, request specific) */
+} __packed;
+
 struct smb2_hdr {
 	__be32 smb2_buf_length;	/* big endian on wire */
 				/* length is only two or three bytes - with */
