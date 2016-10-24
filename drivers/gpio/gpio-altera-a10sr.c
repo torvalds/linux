@@ -110,15 +110,6 @@ static int altr_a10sr_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int altr_a10sr_gpio_remove(struct platform_device *pdev)
-{
-	struct altr_a10sr_gpio *gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&gpio->gp);
-
-	return 0;
-}
-
 static const struct of_device_id altr_a10sr_gpio_of_match[] = {
 	{ .compatible = "altr,a10sr-gpio" },
 	{ },
@@ -127,7 +118,6 @@ MODULE_DEVICE_TABLE(of, altr_a10sr_gpio_of_match);
 
 static struct platform_driver altr_a10sr_gpio_driver = {
 	.probe = altr_a10sr_gpio_probe,
-	.remove = altr_a10sr_gpio_remove,
 	.driver = {
 		.name	= "altr_a10sr_gpio",
 		.of_match_table = of_match_ptr(altr_a10sr_gpio_of_match),
