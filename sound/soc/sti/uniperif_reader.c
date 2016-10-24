@@ -5,9 +5,6 @@
  * License terms:  GNU General Public License (GPL), version 2
  */
 
-#include <linux/clk.h>
-#include <linux/io.h>
-
 #include <sound/soc.h>
 
 #include "uniperif.h"

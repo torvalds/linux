@@ -6,7 +6,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/io.h>
 #include <linux/mfd/syscon.h>
 
 #include <sound/asoundef.h>
