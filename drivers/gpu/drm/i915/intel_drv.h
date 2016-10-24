@@ -1468,6 +1468,7 @@ static inline unsigned int intel_dp_unused_lane_mask(int lane_count)
 }
 
 bool intel_dp_read_dpcd(struct intel_dp *intel_dp);
+bool intel_dp_read_desc(struct intel_dp *intel_dp);
 
 /* intel_dp_aux_backlight.c */
 int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector);

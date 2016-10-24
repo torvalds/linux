@@ -1461,7 +1461,7 @@ __intel_dp_read_desc(struct intel_dp *intel_dp, struct intel_dp_desc *desc)
 	       sizeof(*desc);
 }
 
-static bool intel_dp_read_desc(struct intel_dp *intel_dp)
+bool intel_dp_read_desc(struct intel_dp *intel_dp)
 {
 	struct intel_dp_desc *desc = &intel_dp->desc;
 	bool oui_sup = intel_dp->dpcd[DP_DOWN_STREAM_PORT_COUNT] &
@@ -3520,6 +3520,8 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 
 	if (!intel_dp_read_dpcd(intel_dp))
 		return false;
+
+	intel_dp_read_desc(intel_dp);
 
 	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11)
 		dev_priv->no_aux_handshake = intel_dp->dpcd[DP_MAX_DOWNSPREAD] &
