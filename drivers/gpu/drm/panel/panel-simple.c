@@ -120,7 +120,7 @@ static int panel_simple_get_fixed_modes(struct panel_simple *panel)
 
 		mode->type |= DRM_MODE_TYPE_DRIVER;
 
-		if (panel->desc->num_modes == 1)
+		if (panel->desc->num_timings == 1)
 			mode->type |= DRM_MODE_TYPE_PREFERRED;
 
 		drm_mode_probed_add(connector, mode);
