@@ -32,21 +32,8 @@ static int nl80211_crypto_settings(struct cfg80211_registered_device *rdev,
 				   struct cfg80211_crypto_settings *settings,
 				   int cipher_limit);
 
-static int nl80211_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
-			    struct genl_info *info);
-static void nl80211_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
-			      struct genl_info *info);
-
 /* the netlink family */
-static struct genl_family nl80211_fam = {
-	.name = NL80211_GENL_NAME,	/* have users key off the name instead */
-	.hdrsize = 0,			/* no private header */
-	.version = 1,			/* no particular meaning now */
-	.maxattr = NL80211_ATTR_MAX,
-	.netnsok = true,
-	.pre_doit = nl80211_pre_doit,
-	.post_doit = nl80211_post_doit,
-};
+static struct genl_family nl80211_fam;
 
 /* multicast groups */
 enum nl80211_multicast_groups {
@@ -12599,6 +12586,21 @@ static const struct genl_ops nl80211_ops[] = {
 	},
 };
 
+static struct genl_family nl80211_fam = {
+	.name = NL80211_GENL_NAME,	/* have users key off the name instead */
+	.hdrsize = 0,			/* no private header */
+	.version = 1,			/* no particular meaning now */
+	.maxattr = NL80211_ATTR_MAX,
+	.netnsok = true,
+	.pre_doit = nl80211_pre_doit,
+	.post_doit = nl80211_post_doit,
+	.module = THIS_MODULE,
+	.ops = nl80211_ops,
+	.n_ops = ARRAY_SIZE(nl80211_ops),
+	.mcgrps = nl80211_mcgrps,
+	.n_mcgrps = ARRAY_SIZE(nl80211_mcgrps),
+};
+
 /* notification functions */
 
 void nl80211_notify_wiphy(struct cfg80211_registered_device *rdev,
@@ -14565,8 +14567,7 @@ int nl80211_init(void)
 {
 	int err;
 
-	err = genl_register_family_with_ops_groups(&nl80211_fam, nl80211_ops,
-						   nl80211_mcgrps);
+	err = genl_register_family(&nl80211_fam);
 	if (err)
 		return err;
 

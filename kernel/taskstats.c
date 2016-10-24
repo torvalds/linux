@@ -41,11 +41,7 @@ static DEFINE_PER_CPU(__u32, taskstats_seqnum);
 static int family_registered;
 struct kmem_cache *taskstats_cache;
 
-static struct genl_family family = {
-	.name		= TASKSTATS_GENL_NAME,
-	.version	= TASKSTATS_GENL_VERSION,
-	.maxattr	= TASKSTATS_CMD_ATTR_MAX,
-};
+static struct genl_family family;
 
 static const struct nla_policy taskstats_cmd_get_policy[TASKSTATS_CMD_ATTR_MAX+1] = {
 	[TASKSTATS_CMD_ATTR_PID]  = { .type = NLA_U32 },
@@ -650,6 +646,15 @@ static const struct genl_ops taskstats_ops[] = {
 	},
 };
 
+static struct genl_family family = {
+	.name		= TASKSTATS_GENL_NAME,
+	.version	= TASKSTATS_GENL_VERSION,
+	.maxattr	= TASKSTATS_CMD_ATTR_MAX,
+	.module		= THIS_MODULE,
+	.ops		= taskstats_ops,
+	.n_ops		= ARRAY_SIZE(taskstats_ops),
+};
+
 /* Needed early in initialization */
 void __init taskstats_init_early(void)
 {
@@ -666,7 +671,7 @@ static int __init taskstats_init(void)
 {
 	int rc;
 
-	rc = genl_register_family_with_ops(&family, taskstats_ops);
+	rc = genl_register_family(&family);
 	if (rc)
 		return rc;
 

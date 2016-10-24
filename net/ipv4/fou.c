@@ -622,13 +622,7 @@ static int fou_destroy(struct net *net, struct fou_cfg *cfg)
 	return err;
 }
 
-static struct genl_family fou_nl_family = {
-	.hdrsize	= 0,
-	.name		= FOU_GENL_NAME,
-	.version	= FOU_GENL_VERSION,
-	.maxattr	= FOU_ATTR_MAX,
-	.netnsok	= true,
-};
+static struct genl_family fou_nl_family;
 
 static const struct nla_policy fou_nl_policy[FOU_ATTR_MAX + 1] = {
 	[FOU_ATTR_PORT] = { .type = NLA_U16, },
@@ -828,6 +822,17 @@ static const struct genl_ops fou_nl_ops[] = {
 		.dumpit = fou_nl_dump,
 		.policy = fou_nl_policy,
 	},
+};
+
+static struct genl_family fou_nl_family = {
+	.hdrsize	= 0,
+	.name		= FOU_GENL_NAME,
+	.version	= FOU_GENL_VERSION,
+	.maxattr	= FOU_ATTR_MAX,
+	.netnsok	= true,
+	.module		= THIS_MODULE,
+	.ops		= fou_nl_ops,
+	.n_ops		= ARRAY_SIZE(fou_nl_ops),
 };
 
 size_t fou_encap_hlen(struct ip_tunnel_encap *e)
@@ -1085,8 +1090,7 @@ static int __init fou_init(void)
 	if (ret)
 		goto exit;
 
-	ret = genl_register_family_with_ops(&fou_nl_family,
-					    fou_nl_ops);
+	ret = genl_register_family(&fou_nl_family);
 	if (ret < 0)
 		goto unregister;
 

@@ -83,6 +83,7 @@ static const struct genl_multicast_group acpi_event_mcgrps[] = {
 };
 
 static struct genl_family acpi_event_genl_family = {
+	.module = THIS_MODULE,
 	.name = ACPI_GENL_FAMILY_NAME,
 	.version = ACPI_GENL_VERSION,
 	.maxattr = ACPI_GENL_ATTR_MAX,

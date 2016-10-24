@@ -344,18 +344,18 @@ static int genl_validate_ops(const struct genl_family *family)
 }
 
 /**
- * __genl_register_family - register a generic netlink family
+ * genl_register_family - register a generic netlink family
  * @family: generic netlink family
  *
  * Registers the specified family after validating it first. Only one
  * family may be registered with the same family name or identifier.
  *
- * The family's ops array must already be assigned, you can use the
- * genl_register_family_with_ops() helper function.
+ * The family's ops, multicast groups and module pointer must already
+ * be assigned.
  *
  * Return 0 on success or a negative error code.
  */
-int __genl_register_family(struct genl_family *family)
+int genl_register_family(struct genl_family *family)
 {
 	int err, i;
 
@@ -429,7 +429,7 @@ errout_locked:
 	genl_unlock_all();
 	return err;
 }
-EXPORT_SYMBOL(__genl_register_family);
+EXPORT_SYMBOL(genl_register_family);
 
 /**
  * genl_unregister_family - unregister generic netlink family
@@ -452,7 +452,6 @@ int genl_unregister_family(struct genl_family *family)
 		genl_unregister_mc_groups(family);
 
 		list_del(&rc->family_list);
-		family->n_ops = 0;
 		up_write(&cb_lock);
 		wait_event(genl_sk_destructing_waitq,
 			   atomic_read(&genl_sk_destructing_cnt) == 0);
@@ -681,13 +680,7 @@ static void genl_rcv(struct sk_buff *skb)
  * Controller
  **************************************************************************/
 
-static struct genl_family genl_ctrl = {
-	.id = GENL_ID_CTRL,
-	.name = "nlctrl",
-	.version = 0x2,
-	.maxattr = CTRL_ATTR_MAX,
-	.netnsok = true,
-};
+static struct genl_family genl_ctrl;
 
 static int ctrl_fill_info(struct genl_family *family, u32 portid, u32 seq,
 			  u32 flags, struct sk_buff *skb, u8 cmd)
@@ -997,6 +990,19 @@ static const struct genl_multicast_group genl_ctrl_groups[] = {
 	{ .name = "notify", },
 };
 
+static struct genl_family genl_ctrl = {
+	.module = THIS_MODULE,
+	.ops = genl_ctrl_ops,
+	.n_ops = ARRAY_SIZE(genl_ctrl_ops),
+	.mcgrps = genl_ctrl_groups,
+	.n_mcgrps = ARRAY_SIZE(genl_ctrl_groups),
+	.id = GENL_ID_CTRL,
+	.name = "nlctrl",
+	.version = 0x2,
+	.maxattr = CTRL_ATTR_MAX,
+	.netnsok = true,
+};
+
 static int genl_bind(struct net *net, int group)
 {
 	int i, err = -ENOENT;
@@ -1086,8 +1092,7 @@ static int __init genl_init(void)
 	for (i = 0; i < GENL_FAM_TAB_SIZE; i++)
 		INIT_LIST_HEAD(&family_ht[i]);
 
-	err = genl_register_family_with_ops_groups(&genl_ctrl, genl_ctrl_ops,
-						   genl_ctrl_groups);
+	err = genl_register_family(&genl_ctrl);
 	if (err < 0)
 		goto problem;
 

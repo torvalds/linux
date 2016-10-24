@@ -1369,6 +1369,7 @@ static struct genl_multicast_group pmcraid_mcgrps[] = {
 };
 
 static struct genl_family pmcraid_event_family = {
+	.module = THIS_MODULE,
 	.name = "pmcraid",
 	.version = 1,
 	.maxattr = PMCRAID_AEN_ATTR_MAX,

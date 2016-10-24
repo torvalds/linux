@@ -48,13 +48,7 @@
 #include "tp_meter.h"
 #include "translation-table.h"
 
-struct genl_family batadv_netlink_family = {
-	.hdrsize = 0,
-	.name = BATADV_NL_NAME,
-	.version = 1,
-	.maxattr = BATADV_ATTR_MAX,
-	.netnsok = true,
-};
+struct genl_family batadv_netlink_family;
 
 /* multicast groups */
 enum batadv_netlink_multicast_groups {
@@ -609,6 +603,19 @@ static struct genl_ops batadv_netlink_ops[] = {
 
 };
 
+struct genl_family batadv_netlink_family = {
+	.hdrsize = 0,
+	.name = BATADV_NL_NAME,
+	.version = 1,
+	.maxattr = BATADV_ATTR_MAX,
+	.netnsok = true,
+	.module = THIS_MODULE,
+	.ops = batadv_netlink_ops,
+	.n_ops = ARRAY_SIZE(batadv_netlink_ops),
+	.mcgrps = batadv_netlink_mcgrps,
+	.n_mcgrps = ARRAY_SIZE(batadv_netlink_mcgrps),
+};
+
 /**
  * batadv_netlink_register - register batadv genl netlink family
  */
@@ -616,9 +623,7 @@ void __init batadv_netlink_register(void)
 {
 	int ret;
 
-	ret = genl_register_family_with_ops_groups(&batadv_netlink_family,
-						   batadv_netlink_ops,
-						   batadv_netlink_mcgrps);
+	ret = genl_register_family(&batadv_netlink_family);
 	if (ret)
 		pr_warn("unable to register netlink family");
 }

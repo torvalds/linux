@@ -39,13 +39,14 @@ struct genl_info;
  *	Note that unbind() will not be called symmetrically if the
  *	generic netlink family is removed while there are still open
  *	sockets.
- * @attrbuf: buffer to store parsed attributes
- * @family_list: family list
- * @mcgrps: multicast groups used by this family (private)
- * @n_mcgrps: number of multicast groups (private)
+ * @attrbuf: buffer to store parsed attributes (private)
+ * @family_list: family list (private)
+ * @mcgrps: multicast groups used by this family
+ * @n_mcgrps: number of multicast groups
  * @mcgrp_offset: starting number of multicast group IDs in this family
- * @ops: the operations supported by this family (private)
- * @n_ops: number of operations supported by this family (private)
+ *	(private)
+ * @ops: the operations supported by this family
+ * @n_ops: number of operations supported by this family
  */
 struct genl_family {
 	unsigned int		id;		/* private */
@@ -64,10 +65,10 @@ struct genl_family {
 	int			(*mcast_bind)(struct net *net, int group);
 	void			(*mcast_unbind)(struct net *net, int group);
 	struct nlattr **	attrbuf;	/* private */
-	const struct genl_ops *	ops;		/* private */
-	const struct genl_multicast_group *mcgrps; /* private */
-	unsigned int		n_ops;		/* private */
-	unsigned int		n_mcgrps;	/* private */
+	const struct genl_ops *	ops;
+	const struct genl_multicast_group *mcgrps;
+	unsigned int		n_ops;
+	unsigned int		n_mcgrps;
 	unsigned int		mcgrp_offset;	/* private */
 	struct list_head	family_list;	/* private */
 	struct module		*module;
@@ -132,55 +133,7 @@ struct genl_ops {
 	u8			flags;
 };
 
-int __genl_register_family(struct genl_family *family);
-
-static inline int genl_register_family(struct genl_family *family)
-{
-	family->module = THIS_MODULE;
-	return __genl_register_family(family);
-}
-
-/**
- * genl_register_family_with_ops - register a generic netlink family with ops
- * @family: generic netlink family
- * @ops: operations to be registered
- * @n_ops: number of elements to register
- *
- * Registers the specified family and operations from the specified table.
- * Only one family may be registered with the same family name or identifier.
- *
- * Either a doit or dumpit callback must be specified for every registered
- * operation or the function will fail. Only one operation structure per
- * command identifier may be registered.
- *
- * See include/net/genetlink.h for more documenation on the operations
- * structure.
- *
- * Return 0 on success or a negative error code.
- */
-static inline int
-_genl_register_family_with_ops_grps(struct genl_family *family,
-				    const struct genl_ops *ops, size_t n_ops,
-				    const struct genl_multicast_group *mcgrps,
-				    size_t n_mcgrps)
-{
-	family->module = THIS_MODULE;
-	family->ops = ops;
-	family->n_ops = n_ops;
-	family->mcgrps = mcgrps;
-	family->n_mcgrps = n_mcgrps;
-	return __genl_register_family(family);
-}
-
-#define genl_register_family_with_ops(family, ops)			\
-	_genl_register_family_with_ops_grps((family),			\
-					    (ops), ARRAY_SIZE(ops),	\
-					    NULL, 0)
-#define genl_register_family_with_ops_groups(family, ops, grps)	\
-	_genl_register_family_with_ops_grps((family),			\
-					    (ops), ARRAY_SIZE(ops),	\
-					    (grps), ARRAY_SIZE(grps))
-
+int genl_register_family(struct genl_family *family);
 int genl_unregister_family(struct genl_family *family);
 void genl_notify(struct genl_family *family, struct sk_buff *skb,
 		 struct genl_info *info, u32 group, gfp_t flags);

@@ -59,11 +59,7 @@ struct dm_hw_stat_delta {
 	unsigned long last_drop_val;
 };
 
-static struct genl_family net_drop_monitor_family = {
-	.hdrsize        = 0,
-	.name           = "NET_DM",
-	.version        = 2,
-};
+static struct genl_family net_drop_monitor_family;
 
 static DEFINE_PER_CPU(struct per_cpu_dm_data, dm_cpu_data);
 
@@ -350,6 +346,17 @@ static const struct genl_ops dropmon_ops[] = {
 	},
 };
 
+static struct genl_family net_drop_monitor_family = {
+	.hdrsize        = 0,
+	.name           = "NET_DM",
+	.version        = 2,
+	.module		= THIS_MODULE,
+	.ops		= dropmon_ops,
+	.n_ops		= ARRAY_SIZE(dropmon_ops),
+	.mcgrps		= dropmon_mcgrps,
+	.n_mcgrps	= ARRAY_SIZE(dropmon_mcgrps),
+};
+
 static struct notifier_block dropmon_net_notifier = {
 	.notifier_call = dropmon_net_event
 };
@@ -366,8 +373,7 @@ static int __init init_net_drop_monitor(void)
 		return -ENOSPC;
 	}
 
-	rc = genl_register_family_with_ops_groups(&net_drop_monitor_family,
-						  dropmon_ops, dropmon_mcgrps);
+	rc = genl_register_family(&net_drop_monitor_family);
 	if (rc) {
 		pr_err("Could not create drop monitor netlink family\n");
 		return rc;
