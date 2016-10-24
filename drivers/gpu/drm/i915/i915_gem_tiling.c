@@ -205,8 +205,6 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	intel_runtime_pm_get(dev_priv);
-
 	mutex_lock(&dev->struct_mutex);
 	if (obj->pin_display || obj->framebuffer_references) {
 		err = -EBUSY;
@@ -301,8 +299,6 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 err:
 	i915_gem_object_put(obj);
 	mutex_unlock(&dev->struct_mutex);
-
-	intel_runtime_pm_put(dev_priv);
 
 	return err;
 }

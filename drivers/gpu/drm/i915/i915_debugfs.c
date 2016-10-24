@@ -743,17 +743,32 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 			   I915_READ(VLV_IIR_RW));
 		seq_printf(m, "Display IMR:\t%08x\n",
 			   I915_READ(VLV_IMR));
-		for_each_pipe(dev_priv, pipe)
+		for_each_pipe(dev_priv, pipe) {
+			enum intel_display_power_domain power_domain;
+
+			power_domain = POWER_DOMAIN_PIPE(pipe);
+			if (!intel_display_power_get_if_enabled(dev_priv,
+								power_domain)) {
+				seq_printf(m, "Pipe %c power disabled\n",
+					   pipe_name(pipe));
+				continue;
+			}
+
 			seq_printf(m, "Pipe %c stat:\t%08x\n",
 				   pipe_name(pipe),
 				   I915_READ(PIPESTAT(pipe)));
 
+			intel_display_power_put(dev_priv, power_domain);
+		}
+
+		intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 		seq_printf(m, "Port hotplug:\t%08x\n",
 			   I915_READ(PORT_HOTPLUG_EN));
 		seq_printf(m, "DPFLIPSTAT:\t%08x\n",
 			   I915_READ(VLV_DPFLIPSTAT));
 		seq_printf(m, "DPINVGTT:\t%08x\n",
 			   I915_READ(DPINVGTT));
+		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
 		for (i = 0; i < 4; i++) {
 			seq_printf(m, "GT Interrupt IMR %d:\t%08x\n",
@@ -1396,14 +1411,9 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 static int ironlake_drpc_info(struct seq_file *m)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
 	u32 rgvmodectl, rstdbyctl;
 	u16 crstandvid;
-	int ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 	intel_runtime_pm_get(dev_priv);
 
 	rgvmodectl = I915_READ(MEMMODECTL);
@@ -1411,7 +1421,6 @@ static int ironlake_drpc_info(struct seq_file *m)
 	crstandvid = I915_READ16(CRSTANDVID);
 
 	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
 
 	seq_printf(m, "HD boost: %s\n", yesno(rgvmodectl & MEMMODE_BOOST_EN));
 	seq_printf(m, "Boost freq: %d\n",
@@ -1757,6 +1766,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	bool sr_enabled = false;
 
 	intel_runtime_pm_get(dev_priv);
+	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 
 	if (HAS_PCH_SPLIT(dev_priv))
 		sr_enabled = I915_READ(WM1_LP_ILK) & WM1_LP_SR_EN;
@@ -1770,6 +1780,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		sr_enabled = I915_READ(FW_BLC_SELF_VLV) & FW_CSPWRDWNEN;
 
+	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 	intel_runtime_pm_put(dev_priv);
 
 	seq_printf(m, "self-refresh: %s\n",
@@ -2091,12 +2102,7 @@ static const char *swizzle_string(unsigned swizzle)
 static int i915_swizzle_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	int ret;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 	intel_runtime_pm_get(dev_priv);
 
 	seq_printf(m, "bit6 swizzle for X-tiling = %s\n",
@@ -2136,7 +2142,6 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 		seq_puts(m, "L-shaped memory detected\n");
 
 	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -2542,11 +2547,22 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		enabled = I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE;
 	else {
 		for_each_pipe(dev_priv, pipe) {
+			enum transcoder cpu_transcoder =
+				intel_pipe_to_cpu_transcoder(dev_priv, pipe);
+			enum intel_display_power_domain power_domain;
+
+			power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
+			if (!intel_display_power_get_if_enabled(dev_priv,
+								power_domain))
+				continue;
+
 			stat[pipe] = I915_READ(VLV_PSRSTAT(pipe)) &
 				VLV_EDP_PSR_CURR_STATE_MASK;
 			if ((stat[pipe] == VLV_EDP_PSR_ACTIVE_NORFB_UP) ||
 			    (stat[pipe] == VLV_EDP_PSR_ACTIVE_SF_UPDATE))
 				enabled = true;
+
+			intel_display_power_put(dev_priv, power_domain);
 		}
 	}
 
@@ -3094,6 +3110,8 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
+	intel_runtime_pm_get(dev_priv);
+
 	for_each_engine(engine, dev_priv, id) {
 		struct intel_breadcrumbs *b = &engine->breadcrumbs;
 		struct drm_i915_gem_request *rq;
@@ -3212,6 +3230,8 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 
 		seq_puts(m, "\n");
 	}
+
+	intel_runtime_pm_put(dev_priv);
 
 	return 0;
 }
@@ -4799,12 +4819,8 @@ i915_wedged_set(void *data, u64 val)
 	if (i915_reset_in_progress(&dev_priv->gpu_error))
 		return -EAGAIN;
 
-	intel_runtime_pm_get(dev_priv);
-
 	i915_handle_error(dev_priv, val,
 			  "Manually setting wedged to %llu", val);
-
-	intel_runtime_pm_put(dev_priv);
 
 	return 0;
 }
@@ -5040,22 +5056,16 @@ static int
 i915_cache_sharing_get(void *data, u64 *val)
 {
 	struct drm_i915_private *dev_priv = data;
-	struct drm_device *dev = &dev_priv->drm;
 	u32 snpcr;
-	int ret;
 
 	if (!(IS_GEN6(dev_priv) || IS_GEN7(dev_priv)))
 		return -ENODEV;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 	intel_runtime_pm_get(dev_priv);
 
 	snpcr = I915_READ(GEN6_MBCUNIT_SNPCR);
 
 	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
 
 	*val = (snpcr & GEN6_MBC_SNPCR_MASK) >> GEN6_MBC_SNPCR_SHIFT;
 

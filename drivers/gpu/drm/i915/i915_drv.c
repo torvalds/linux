@@ -2301,24 +2301,6 @@ static int intel_runtime_suspend(struct device *kdev)
 
 	DRM_DEBUG_KMS("Suspending device\n");
 
-	/*
-	 * We could deadlock here in case another thread holding struct_mutex
-	 * calls RPM suspend concurrently, since the RPM suspend will wait
-	 * first for this RPM suspend to finish. In this case the concurrent
-	 * RPM resume will be followed by its RPM suspend counterpart. Still
-	 * for consistency return -EAGAIN, which will reschedule this suspend.
-	 */
-	if (!mutex_trylock(&dev->struct_mutex)) {
-		DRM_DEBUG_KMS("device lock contention, deffering suspend\n");
-		/*
-		 * Bump the expiration timestamp, otherwise the suspend won't
-		 * be rescheduled.
-		 */
-		pm_runtime_mark_last_busy(kdev);
-
-		return -EAGAIN;
-	}
-
 	disable_rpm_wakeref_asserts(dev_priv);
 
 	/*
@@ -2326,7 +2308,6 @@ static int intel_runtime_suspend(struct device *kdev)
 	 * an RPM reference.
 	 */
 	i915_gem_release_all_mmaps(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
 
 	intel_guc_suspend(dev);
 

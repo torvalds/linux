@@ -2667,6 +2667,7 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 			 enum i915_cache_level cache_level,
 			 u32 flags)
 {
+	struct drm_i915_private *i915 = to_i915(vma->vm->dev);
 	struct drm_i915_gem_object *obj = vma->obj;
 	u32 pte_flags = 0;
 	int ret;
@@ -2679,8 +2680,10 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	if (obj->gt_ro)
 		pte_flags |= PTE_READ_ONLY;
 
+	intel_runtime_pm_get(i915);
 	vma->vm->insert_entries(vma->vm, vma->pages, vma->node.start,
 				cache_level, pte_flags);
+	intel_runtime_pm_put(i915);
 
 	/*
 	 * Without aliasing PPGTT there's no difference between
@@ -2696,6 +2699,7 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 				 enum i915_cache_level cache_level,
 				 u32 flags)
 {
+	struct drm_i915_private *i915 = to_i915(vma->vm->dev);
 	u32 pte_flags;
 	int ret;
 
@@ -2710,14 +2714,15 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 
 
 	if (flags & I915_VMA_GLOBAL_BIND) {
+		intel_runtime_pm_get(i915);
 		vma->vm->insert_entries(vma->vm,
 					vma->pages, vma->node.start,
 					cache_level, pte_flags);
+		intel_runtime_pm_put(i915);
 	}
 
 	if (flags & I915_VMA_LOCAL_BIND) {
-		struct i915_hw_ppgtt *appgtt =
-			to_i915(vma->vm->dev)->mm.aliasing_ppgtt;
+		struct i915_hw_ppgtt *appgtt = i915->mm.aliasing_ppgtt;
 		appgtt->base.insert_entries(&appgtt->base,
 					    vma->pages, vma->node.start,
 					    cache_level, pte_flags);
@@ -2728,12 +2733,16 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 
 static void ggtt_unbind_vma(struct i915_vma *vma)
 {
-	struct i915_hw_ppgtt *appgtt = to_i915(vma->vm->dev)->mm.aliasing_ppgtt;
+	struct drm_i915_private *i915 = to_i915(vma->vm->dev);
+	struct i915_hw_ppgtt *appgtt = i915->mm.aliasing_ppgtt;
 	const u64 size = min(vma->size, vma->node.size);
 
-	if (vma->flags & I915_VMA_GLOBAL_BIND)
+	if (vma->flags & I915_VMA_GLOBAL_BIND) {
+		intel_runtime_pm_get(i915);
 		vma->vm->clear_range(vma->vm,
 				     vma->node.start, size);
+		intel_runtime_pm_put(i915);
+	}
 
 	if (vma->flags & I915_VMA_LOCAL_BIND && appgtt)
 		appgtt->base.clear_range(&appgtt->base,
