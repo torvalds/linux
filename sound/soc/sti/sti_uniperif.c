@@ -7,6 +7,7 @@
 
 #include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/delay.h>
 
 #include "uniperif.h"
 
@@ -96,6 +97,28 @@ static const struct of_device_id snd_soc_sti_match[] = {
 	},
 	{},
 };
+
+int  sti_uniperiph_reset(struct uniperif *uni)
+{
+	int count = 10;
+
+	/* Reset uniperipheral uni */
+	SET_UNIPERIF_SOFT_RST_SOFT_RST(uni);
+
+	if (uni->ver < SND_ST_UNIPERIF_VERSION_UNI_PLR_TOP_1_0) {
+		while (GET_UNIPERIF_SOFT_RST_SOFT_RST(uni) && count) {
+			udelay(5);
+			count--;
+		}
+	}
+
+	if (!count) {
+		dev_err(uni->dev, "Failed to reset uniperif\n");
+		return -EIO;
+	}
+
+	return 0;
+}
 
 int sti_uniperiph_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 			       unsigned int rx_mask, int slots,

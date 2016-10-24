@@ -6,7 +6,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/delay.h>
 #include <linux/io.h>
 
 #include <sound/soc.h>
@@ -186,7 +185,6 @@ static int uni_reader_prepare(struct snd_pcm_substream *substream,
 	struct uniperif *reader = priv->dai_data.uni;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int transfer_size, trigger_limit, ret;
-	int count = 10;
 
 	/* The reader should be stopped */
 	if (reader->state != UNIPERIF_STATE_STOPPED) {
@@ -288,18 +286,7 @@ static int uni_reader_prepare(struct snd_pcm_substream *substream,
 	}
 
 	/* Reset uniperipheral reader */
-	SET_UNIPERIF_SOFT_RST_SOFT_RST(reader);
-
-	while (GET_UNIPERIF_SOFT_RST_SOFT_RST(reader)) {
-		udelay(5);
-		count--;
-	}
-	if (!count) {
-		dev_err(reader->dev, "Failed to reset uniperif\n");
-		return -EIO;
-	}
-
-	return 0;
+	return sti_uniperiph_reset(reader);
 }
 
 static int uni_reader_start(struct uniperif *reader)

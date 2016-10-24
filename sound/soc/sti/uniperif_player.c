@@ -6,7 +6,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
 
@@ -54,25 +53,6 @@ static const struct snd_pcm_hardware uni_player_pcm_hw = {
 	.period_bytes_max = 64 * PAGE_SIZE,
 	.buffer_bytes_max = 256 * PAGE_SIZE
 };
-
-static inline int reset_player(struct uniperif *player)
-{
-	int count = 10;
-
-	if (player->ver < SND_ST_UNIPERIF_VERSION_UNI_PLR_TOP_1_0) {
-		while (GET_UNIPERIF_SOFT_RST_SOFT_RST(player) && count) {
-			udelay(5);
-			count--;
-		}
-	}
-
-	if (!count) {
-		dev_err(player->dev, "Failed to reset uniperif\n");
-		return -EIO;
-	}
-
-	return 0;
-}
 
 /*
  * uni_player_irq_handler
@@ -858,10 +838,8 @@ static int uni_player_prepare(struct snd_pcm_substream *substream,
 
 	SET_UNIPERIF_I2S_FMT_NO_OF_SAMPLES_TO_READ(player, 0);
 
-	/* Reset uniperipheral player */
-	SET_UNIPERIF_SOFT_RST_SOFT_RST(player);
 
-	return reset_player(player);
+	return sti_uniperiph_reset(player);
 }
 
 static int uni_player_start(struct uniperif *player)
@@ -893,10 +871,7 @@ static int uni_player_start(struct uniperif *player)
 		SET_UNIPERIF_ITM_BSET_UNDERFLOW_REC_FAILED(player);
 	}
 
-	/* Reset uniperipheral player */
-	SET_UNIPERIF_SOFT_RST_SOFT_RST(player);
-
-	ret = reset_player(player);
+	ret = sti_uniperiph_reset(player);
 	if (ret < 0) {
 		clk_disable_unprepare(player->clk);
 		return ret;
@@ -945,10 +920,7 @@ static int uni_player_stop(struct uniperif *player)
 	/* Turn the player off */
 	SET_UNIPERIF_CTRL_OPERATION_OFF(player);
 
-	/* Soft reset the player */
-	SET_UNIPERIF_SOFT_RST_SOFT_RST(player);
-
-	ret = reset_player(player);
+	ret = sti_uniperiph_reset(player);
 	if (ret < 0)
 		return ret;
 
