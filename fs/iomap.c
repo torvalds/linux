@@ -433,8 +433,7 @@ iomap_page_mkwrite_actor(struct inode *inode, loff_t pos, loff_t length,
 	struct page *page = data;
 	int ret;
 
-	ret = __block_write_begin_int(page, pos & ~PAGE_MASK, length,
-			NULL, iomap);
+	ret = __block_write_begin_int(page, pos, length, NULL, iomap);
 	if (ret)
 		return ret;
 
