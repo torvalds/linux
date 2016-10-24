@@ -1156,6 +1156,7 @@ create:
 	if (create_super) {
 		log->last_cp_seq = prandom_u32();
 		cp = 0;
+		r5l_log_write_empty_meta_block(log, cp, log->last_cp_seq);
 		/*
 		 * Make sure super points to correct address. Log might have
 		 * data very soon. If super hasn't correct log tail address,
