@@ -67,7 +67,7 @@ static inline int reset_player(struct uniperif *player)
 	}
 
 	if (!count) {
-		dev_err(player->dev, "Failed to reset uniperif");
+		dev_err(player->dev, "Failed to reset uniperif\n");
 		return -EIO;
 	}
 
@@ -97,7 +97,7 @@ static irqreturn_t uni_player_irq_handler(int irq, void *dev_id)
 
 	/* Check for fifo error (underrun) */
 	if (unlikely(status & UNIPERIF_ITS_FIFO_ERROR_MASK(player))) {
-		dev_err(player->dev, "FIFO underflow error detected");
+		dev_err(player->dev, "FIFO underflow error detected\n");
 
 		/* Interrupt is just for information when underflow recovery */
 		if (player->underflow_enabled) {
@@ -119,7 +119,7 @@ static irqreturn_t uni_player_irq_handler(int irq, void *dev_id)
 
 	/* Check for dma error (overrun) */
 	if (unlikely(status & UNIPERIF_ITS_DMA_ERROR_MASK(player))) {
-		dev_err(player->dev, "DMA error detected");
+		dev_err(player->dev, "DMA error detected\n");
 
 		/* Disable interrupt so doesn't continually fire */
 		SET_UNIPERIF_ITM_BCLR_DMA_ERROR(player);
@@ -135,11 +135,14 @@ static irqreturn_t uni_player_irq_handler(int irq, void *dev_id)
 	/* Check for underflow recovery done */
 	if (unlikely(status & UNIPERIF_ITM_UNDERFLOW_REC_DONE_MASK(player))) {
 		if (!player->underflow_enabled) {
-			dev_err(player->dev, "unexpected Underflow recovering");
+			dev_err(player->dev,
+				"unexpected Underflow recovering\n");
 			return -EPERM;
 		}
 		/* Read the underflow recovery duration */
 		tmp = GET_UNIPERIF_STATUS_1_UNDERFLOW_DURATION(player);
+		dev_dbg(player->dev, "Underflow recovered (%d LR clocks max)\n",
+			tmp);
 
 		/* Clear the underflow recovery duration */
 		SET_UNIPERIF_BIT_CONTROL_CLR_UNDERFLOW_DURATION(player);
@@ -153,7 +156,7 @@ static irqreturn_t uni_player_irq_handler(int irq, void *dev_id)
 	/* Check if underflow recovery failed */
 	if (unlikely(status &
 		     UNIPERIF_ITM_UNDERFLOW_REC_FAILED_MASK(player))) {
-		dev_err(player->dev, "Underflow recovery failed");
+		dev_err(player->dev, "Underflow recovery failed\n");
 
 		/* Stop the player */
 		snd_pcm_stream_lock(player->substream);
@@ -336,7 +339,7 @@ static int uni_player_prepare_iec958(struct uniperif *player,
 
 	/* Oversampling must be multiple of 128 as iec958 frame is 32-bits */
 	if ((clk_div % 128) || (clk_div <= 0)) {
-		dev_err(player->dev, "%s: invalid clk_div %d",
+		dev_err(player->dev, "%s: invalid clk_div %d\n",
 			__func__, clk_div);
 		return -EINVAL;
 	}
@@ -359,7 +362,7 @@ static int uni_player_prepare_iec958(struct uniperif *player,
 		SET_UNIPERIF_I2S_FMT_DATA_SIZE_24(player);
 		break;
 	default:
-		dev_err(player->dev, "format not supported");
+		dev_err(player->dev, "format not supported\n");
 		return -EINVAL;
 	}
 
@@ -448,12 +451,12 @@ static int uni_player_prepare_pcm(struct uniperif *player,
 	 * for 16 bits must be a multiple of 64
 	 */
 	if ((slot_width == 32) && (clk_div % 128)) {
-		dev_err(player->dev, "%s: invalid clk_div", __func__);
+		dev_err(player->dev, "%s: invalid clk_div\n", __func__);
 		return -EINVAL;
 	}
 
 	if ((slot_width == 16) && (clk_div % 64)) {
-		dev_err(player->dev, "%s: invalid clk_div", __func__);
+		dev_err(player->dev, "%s: invalid clk_div\n", __func__);
 		return -EINVAL;
 	}
 
@@ -471,7 +474,7 @@ static int uni_player_prepare_pcm(struct uniperif *player,
 		SET_UNIPERIF_I2S_FMT_DATA_SIZE_16(player);
 		break;
 	default:
-		dev_err(player->dev, "subframe format not supported");
+		dev_err(player->dev, "subframe format not supported\n");
 		return -EINVAL;
 	}
 
@@ -491,7 +494,7 @@ static int uni_player_prepare_pcm(struct uniperif *player,
 		break;
 
 	default:
-		dev_err(player->dev, "format not supported");
+		dev_err(player->dev, "format not supported\n");
 		return -EINVAL;
 	}
 
@@ -504,7 +507,7 @@ static int uni_player_prepare_pcm(struct uniperif *player,
 	/* Number of channelsmust be even*/
 	if ((runtime->channels % 2) || (runtime->channels < 2) ||
 	    (runtime->channels > 10)) {
-		dev_err(player->dev, "%s: invalid nb of channels", __func__);
+		dev_err(player->dev, "%s: invalid nb of channels\n", __func__);
 		return -EINVAL;
 	}
 
@@ -758,7 +761,7 @@ static int uni_player_prepare(struct snd_pcm_substream *substream,
 
 	/* The player should be stopped */
 	if (player->state != UNIPERIF_STATE_STOPPED) {
-		dev_err(player->dev, "%s: invalid player state %d", __func__,
+		dev_err(player->dev, "%s: invalid player state %d\n", __func__,
 			player->state);
 		return -EINVAL;
 	}
@@ -787,7 +790,8 @@ static int uni_player_prepare(struct snd_pcm_substream *substream,
 	/* Trigger limit must be an even number */
 	if ((!trigger_limit % 2) || (trigger_limit != 1 && transfer_size % 2) ||
 	    (trigger_limit > UNIPERIF_CONFIG_DMA_TRIG_LIMIT_MASK(player))) {
-		dev_err(player->dev, "invalid trigger limit %d", trigger_limit);
+		dev_err(player->dev, "invalid trigger limit %d\n",
+			trigger_limit);
 		return -EINVAL;
 	}
 
@@ -808,7 +812,7 @@ static int uni_player_prepare(struct snd_pcm_substream *substream,
 		ret = uni_player_prepare_tdm(player, runtime);
 		break;
 	default:
-		dev_err(player->dev, "invalid player type");
+		dev_err(player->dev, "invalid player type\n");
 		return -EINVAL;
 	}
 
@@ -848,7 +852,7 @@ static int uni_player_prepare(struct snd_pcm_substream *substream,
 		SET_UNIPERIF_I2S_FMT_PADDING_SONY_MODE(player);
 		break;
 	default:
-		dev_err(player->dev, "format not supported");
+		dev_err(player->dev, "format not supported\n");
 		return -EINVAL;
 	}
 
@@ -866,13 +870,13 @@ static int uni_player_start(struct uniperif *player)
 
 	/* The player should be stopped */
 	if (player->state != UNIPERIF_STATE_STOPPED) {
-		dev_err(player->dev, "%s: invalid player state", __func__);
+		dev_err(player->dev, "%s: invalid player state\n", __func__);
 		return -EINVAL;
 	}
 
 	ret = clk_prepare_enable(player->clk);
 	if (ret) {
-		dev_err(player->dev, "%s: Failed to enable clock", __func__);
+		dev_err(player->dev, "%s: Failed to enable clock\n", __func__);
 		return ret;
 	}
 
@@ -934,7 +938,7 @@ static int uni_player_stop(struct uniperif *player)
 
 	/* The player should not be in stopped state */
 	if (player->state == UNIPERIF_STATE_STOPPED) {
-		dev_err(player->dev, "%s: invalid player state", __func__);
+		dev_err(player->dev, "%s: invalid player state\n", __func__);
 		return -EINVAL;
 	}
 
@@ -969,7 +973,7 @@ int uni_player_resume(struct uniperif *player)
 		ret = regmap_field_write(player->clk_sel, 1);
 		if (ret) {
 			dev_err(player->dev,
-				"%s: Failed to select freq synth clock",
+				"%s: Failed to select freq synth clock\n",
 				__func__);
 			return ret;
 		}
@@ -1066,7 +1070,7 @@ int uni_player_init(struct platform_device *pdev,
 	ret = uni_player_parse_dt_audio_glue(pdev, player);
 
 	if (ret < 0) {
-		dev_err(player->dev, "Failed to parse DeviceTree");
+		dev_err(player->dev, "Failed to parse DeviceTree\n");
 		return ret;
 	}
 
@@ -1081,15 +1085,17 @@ int uni_player_init(struct platform_device *pdev,
 
 	/* Get uniperif resource */
 	player->clk = of_clk_get(pdev->dev.of_node, 0);
-	if (IS_ERR(player->clk))
+	if (IS_ERR(player->clk)) {
+		dev_err(player->dev, "Failed to get clock\n");
 		ret = PTR_ERR(player->clk);
+	}
 
 	/* Select the frequency synthesizer clock */
 	if (player->clk_sel) {
 		ret = regmap_field_write(player->clk_sel, 1);
 		if (ret) {
 			dev_err(player->dev,
-				"%s: Failed to select freq synth clock",
+				"%s: Failed to select freq synth clock\n",
 				__func__);
 			return ret;
 		}
@@ -1101,7 +1107,7 @@ int uni_player_init(struct platform_device *pdev,
 		ret = regmap_field_write(player->valid_sel, player->id);
 		if (ret) {
 			dev_err(player->dev,
-				"%s: unable to connect to tdm bus", __func__);
+				"%s: unable to connect to tdm bus\n", __func__);
 			return ret;
 		}
 	}
@@ -1109,8 +1115,10 @@ int uni_player_init(struct platform_device *pdev,
 	ret = devm_request_irq(&pdev->dev, player->irq,
 			       uni_player_irq_handler, IRQF_SHARED,
 			       dev_name(&pdev->dev), player);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(player->dev, "unable to request IRQ %d\n", player->irq);
 		return ret;
+	}
 
 	mutex_init(&player->ctrl_lock);
 

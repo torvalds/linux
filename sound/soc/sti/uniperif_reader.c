@@ -52,7 +52,7 @@ static irqreturn_t uni_reader_irq_handler(int irq, void *dev_id)
 
 	if (reader->state == UNIPERIF_STATE_STOPPED) {
 		/* Unexpected IRQ: do nothing */
-		dev_warn(reader->dev, "unexpected IRQ ");
+		dev_warn(reader->dev, "unexpected IRQ\n");
 		return IRQ_HANDLED;
 	}
 
@@ -62,7 +62,7 @@ static irqreturn_t uni_reader_irq_handler(int irq, void *dev_id)
 
 	/* Check for fifo overflow error */
 	if (unlikely(status & UNIPERIF_ITS_FIFO_ERROR_MASK(reader))) {
-		dev_err(reader->dev, "FIFO error detected");
+		dev_err(reader->dev, "FIFO error detected\n");
 
 		snd_pcm_stream_lock(reader->substream);
 		snd_pcm_stop(reader->substream, SNDRV_PCM_STATE_XRUN);
@@ -105,7 +105,7 @@ static int uni_reader_prepare_pcm(struct snd_pcm_runtime *runtime,
 		SET_UNIPERIF_I2S_FMT_DATA_SIZE_16(reader);
 		break;
 	default:
-		dev_err(reader->dev, "subframe format not supported");
+		dev_err(reader->dev, "subframe format not supported\n");
 		return -EINVAL;
 	}
 
@@ -125,14 +125,14 @@ static int uni_reader_prepare_pcm(struct snd_pcm_runtime *runtime,
 		break;
 
 	default:
-		dev_err(reader->dev, "format not supported");
+		dev_err(reader->dev, "format not supported\n");
 		return -EINVAL;
 	}
 
 	/* Number of channels must be even */
 	if ((runtime->channels % 2) || (runtime->channels < 2) ||
 	    (runtime->channels > 10)) {
-		dev_err(reader->dev, "%s: invalid nb of channels", __func__);
+		dev_err(reader->dev, "%s: invalid nb of channels\n", __func__);
 		return -EINVAL;
 	}
 
@@ -190,7 +190,7 @@ static int uni_reader_prepare(struct snd_pcm_substream *substream,
 
 	/* The reader should be stopped */
 	if (reader->state != UNIPERIF_STATE_STOPPED) {
-		dev_err(reader->dev, "%s: invalid reader state %d", __func__,
+		dev_err(reader->dev, "%s: invalid reader state %d\n", __func__,
 			reader->state);
 		return -EINVAL;
 	}
@@ -219,7 +219,8 @@ static int uni_reader_prepare(struct snd_pcm_substream *substream,
 	if ((!trigger_limit % 2) ||
 	    (trigger_limit != 1 && transfer_size % 2) ||
 	    (trigger_limit > UNIPERIF_CONFIG_DMA_TRIG_LIMIT_MASK(reader))) {
-		dev_err(reader->dev, "invalid trigger limit %d", trigger_limit);
+		dev_err(reader->dev, "invalid trigger limit %d\n",
+			trigger_limit);
 		return -EINVAL;
 	}
 
@@ -246,7 +247,7 @@ static int uni_reader_prepare(struct snd_pcm_substream *substream,
 		SET_UNIPERIF_I2S_FMT_PADDING_SONY_MODE(reader);
 		break;
 	default:
-		dev_err(reader->dev, "format not supported");
+		dev_err(reader->dev, "format not supported\n");
 		return -EINVAL;
 	}
 
@@ -294,7 +295,7 @@ static int uni_reader_prepare(struct snd_pcm_substream *substream,
 		count--;
 	}
 	if (!count) {
-		dev_err(reader->dev, "Failed to reset uniperif");
+		dev_err(reader->dev, "Failed to reset uniperif\n");
 		return -EIO;
 	}
 
@@ -305,7 +306,7 @@ static int uni_reader_start(struct uniperif *reader)
 {
 	/* The reader should be stopped */
 	if (reader->state != UNIPERIF_STATE_STOPPED) {
-		dev_err(reader->dev, "%s: invalid reader state", __func__);
+		dev_err(reader->dev, "%s: invalid reader state\n", __func__);
 		return -EINVAL;
 	}
 
@@ -325,7 +326,7 @@ static int uni_reader_stop(struct uniperif *reader)
 {
 	/* The reader should not be in stopped state */
 	if (reader->state == UNIPERIF_STATE_STOPPED) {
-		dev_err(reader->dev, "%s: invalid reader state", __func__);
+		dev_err(reader->dev, "%s: invalid reader state\n", __func__);
 		return -EINVAL;
 	}
 
@@ -423,7 +424,7 @@ int uni_reader_init(struct platform_device *pdev,
 			       uni_reader_irq_handler, IRQF_SHARED,
 			       dev_name(&pdev->dev), reader);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to request IRQ");
+		dev_err(&pdev->dev, "Failed to request IRQ\n");
 		return -EBUSY;
 	}
 

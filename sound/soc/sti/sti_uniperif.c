@@ -293,7 +293,7 @@ static int sti_uniperiph_dai_suspend(struct snd_soc_dai *dai)
 
 	/* The uniperipheral should be in stopped state */
 	if (uni->state != UNIPERIF_STATE_STOPPED) {
-		dev_err(uni->dev, "%s: invalid uni state( %d)",
+		dev_err(uni->dev, "%s: invalid uni state( %d)\n",
 			__func__, (int)uni->state);
 		return -EBUSY;
 	}
@@ -301,7 +301,7 @@ static int sti_uniperiph_dai_suspend(struct snd_soc_dai *dai)
 	/* Pinctrl: switch pinstate to sleep */
 	ret = pinctrl_pm_select_sleep_state(uni->dev);
 	if (ret)
-		dev_err(uni->dev, "%s: failed to select pinctrl state",
+		dev_err(uni->dev, "%s: failed to select pinctrl state\n",
 			__func__);
 
 	return ret;
@@ -322,7 +322,7 @@ static int sti_uniperiph_dai_resume(struct snd_soc_dai *dai)
 	/* pinctrl: switch pinstate to default */
 	ret = pinctrl_pm_select_default_state(uni->dev);
 	if (ret)
-		dev_err(uni->dev, "%s: failed to select pinctrl state",
+		dev_err(uni->dev, "%s: failed to select pinctrl state\n",
 			__func__);
 
 	return ret;
@@ -366,11 +366,12 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 	const struct of_device_id *of_id;
 	const struct sti_uniperiph_dev_data *dev_data;
 	const char *mode;
+	int ret;
 
 	/* Populate data structure depending on compatibility */
 	of_id = of_match_node(snd_soc_sti_match, node);
 	if (!of_id->data) {
-		dev_err(dev, "data associated to device is missing");
+		dev_err(dev, "data associated to device is missing\n");
 		return -EINVAL;
 	}
 	dev_data = (struct sti_uniperiph_dev_data *)of_id->data;
@@ -389,7 +390,7 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 	uni->mem_region = platform_get_resource(priv->pdev, IORESOURCE_MEM, 0);
 
 	if (!uni->mem_region) {
-		dev_err(dev, "Failed to get memory resource");
+		dev_err(dev, "Failed to get memory resource\n");
 		return -ENODEV;
 	}
 
@@ -403,7 +404,7 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 
 	uni->irq = platform_get_irq(priv->pdev, 0);
 	if (uni->irq < 0) {
-		dev_err(dev, "Failed to get IRQ resource");
+		dev_err(dev, "Failed to get IRQ resource\n");
 		return -ENXIO;
 	}
 
@@ -421,12 +422,15 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 	dai_data->stream = dev_data->stream;
 
 	if (priv->dai_data.stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		uni_player_init(priv->pdev, uni);
+		ret = uni_player_init(priv->pdev, uni);
 		stream = &dai->playback;
 	} else {
-		uni_reader_init(priv->pdev, uni);
+		ret = uni_reader_init(priv->pdev, uni);
 		stream = &dai->capture;
 	}
+	if (ret < 0)
+		return ret;
+
 	dai->ops = uni->dai_ops;
 
 	stream->stream_name = dai->name;
