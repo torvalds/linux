@@ -143,19 +143,17 @@ static int rsnd_dmaen_start(struct rsnd_mod *mod,
 struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
 					  struct rsnd_mod *mod, char *name)
 {
-	struct dma_chan *chan;
+	struct dma_chan *chan = NULL;
 	struct device_node *np;
 	int i = 0;
 
 	for_each_child_of_node(of_node, np) {
-		if (i == rsnd_mod_id(mod))
-			break;
+		if (i == rsnd_mod_id(mod) && (!chan))
+			chan = of_dma_request_slave_channel(np, name);
 		i++;
 	}
 
-	chan = of_dma_request_slave_channel(np, name);
-
-	of_node_put(np);
+	/* It should call of_node_put(), since, it is rsnd_xxx_of_node() */
 	of_node_put(of_node);
 
 	return chan;
