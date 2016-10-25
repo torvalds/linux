@@ -3922,6 +3922,7 @@ array_state_store(struct mddev *mddev, const char *buf, size_t len)
 		if (st == active) {
 			restart_array(mddev);
 			clear_bit(MD_CHANGE_PENDING, &mddev->flags);
+			md_wakeup_thread(mddev->thread);
 			wake_up(&mddev->sb_wait);
 			err = 0;
 		} else /* st == clean */ {
