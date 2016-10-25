@@ -765,6 +765,7 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 	sc->hw_context = hw_context;
 	cr_group_addresses(sc, &dma);
 	sc->credits = sci->credits;
+	sc->size = sc->credits * PIO_BLOCK_SIZE;
 
 /* PIO Send Memory Address details */
 #define PIO_ADDR_CONTEXT_MASK 0xfful
@@ -1470,9 +1471,7 @@ retry:
 
 	/* finish filling in the buffer outside the lock */
 	pbuf->start = sc->base_addr + fill_wrap * PIO_BLOCK_SIZE;
-	pbuf->size = sc->credits * PIO_BLOCK_SIZE;
-	pbuf->end = sc->base_addr + pbuf->size;
-	pbuf->block_count = blocks;
+	pbuf->end = sc->base_addr + sc->size;
 	pbuf->qw_written = 0;
 	pbuf->carry_bytes = 0;
 	pbuf->carry.val64 = 0;
