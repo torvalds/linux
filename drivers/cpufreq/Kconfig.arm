@@ -60,14 +60,6 @@ config ARM_IMX6Q_CPUFREQ
 
 	  If in doubt, say N.
 
-config ARM_INTEGRATOR
-	tristate "CPUfreq driver for ARM Integrator CPUs"
-	depends on ARCH_INTEGRATOR
-	default y
-	help
-	  This enables the CPUfreq driver for ARM Integrator CPUs.
-	  If in doubt, say Y.
-
 config ARM_KIRKWOOD_CPUFREQ
 	def_bool MACH_KIRKWOOD
 	help
