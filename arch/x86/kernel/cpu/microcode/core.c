@@ -460,10 +460,10 @@ static void microcode_fini_cpu(int cpu)
 
 static enum ucode_state microcode_resume_cpu(int cpu)
 {
-	pr_debug("CPU%d updated upon resume\n", cpu);
-
 	if (apply_microcode_on_target(cpu))
 		return UCODE_ERROR;
+
+	pr_debug("CPU%d updated upon resume\n", cpu);
 
 	return UCODE_OK;
 }
