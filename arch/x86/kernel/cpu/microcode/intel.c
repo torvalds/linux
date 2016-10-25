@@ -962,7 +962,6 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 	u8 *ucode_ptr = data, *new_mc = NULL, *mc = NULL;
 	int new_rev = uci->cpu_sig.rev;
 	unsigned int leftover = size;
-	enum ucode_state state = UCODE_OK;
 	unsigned int curr_mc_size = 0;
 	unsigned int csig, cpf;
 
@@ -1015,14 +1014,11 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 
 	if (leftover) {
 		vfree(new_mc);
-		state = UCODE_ERROR;
-		goto out;
+		return UCODE_ERROR;
 	}
 
-	if (!new_mc) {
-		state = UCODE_NFOUND;
-		goto out;
-	}
+	if (!new_mc)
+		return UCODE_NFOUND;
 
 	vfree(uci->mc);
 	uci->mc = (struct microcode_intel *)new_mc;
@@ -1036,8 +1032,8 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 
 	pr_debug("CPU%d found a matching microcode update with version 0x%x (current=0x%x)\n",
 		 cpu, new_rev, uci->cpu_sig.rev);
-out:
-	return state;
+
+	return UCODE_OK;
 }
 
 static int get_ucode_fw(void *to, const void *from, size_t n)
