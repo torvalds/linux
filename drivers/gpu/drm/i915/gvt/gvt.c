@@ -65,6 +65,8 @@ struct intel_gvt_io_emulation_ops intel_gvt_io_emulation_ops = {
  */
 int intel_gvt_init_host(void)
 {
+	int ret;
+
 	if (intel_gvt_host.initialized)
 		return 0;
 
@@ -90,7 +92,8 @@ int intel_gvt_init_host(void)
 		return -EINVAL;
 
 	/* Try to detect if we're running in host instead of VM. */
-	if (!intel_gvt_hypervisor_detect_host())
+	ret = intel_gvt_hypervisor_detect_host();
+	if (ret)
 		return -ENODEV;
 
 	gvt_dbg_core("Running with hypervisor %s in host mode\n",
