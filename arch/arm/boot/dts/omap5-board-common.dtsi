@@ -415,7 +415,7 @@
 			ti,backup-battery-charge-high-current;
 		};
 
-		gpadc {
+		gpadc: gpadc {
 			compatible = "ti,palmas-gpadc";
 			interrupts = <18 0
 				      16 0
