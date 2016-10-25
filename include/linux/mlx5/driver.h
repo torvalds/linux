@@ -423,6 +423,7 @@ struct mlx5_core_health {
 	struct workqueue_struct	       *wq;
 	unsigned long			flags;
 	struct work_struct		work;
+	struct delayed_work		recover_work;
 };
 
 struct mlx5_cq_table {

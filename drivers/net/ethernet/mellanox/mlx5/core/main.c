@@ -1313,6 +1313,7 @@ static pci_ers_result_t mlx5_pci_err_detected(struct pci_dev *pdev,
 	struct mlx5_priv *priv = &dev->priv;
 
 	dev_info(&pdev->dev, "%s was called\n", __func__);
+
 	mlx5_enter_error_state(dev);
 	mlx5_unload_one(dev, priv, false);
 	/* In case of kernel call save the pci state and drain health wq */
@@ -1378,11 +1379,6 @@ static pci_ers_result_t mlx5_pci_slot_reset(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
-void mlx5_disable_device(struct mlx5_core_dev *dev)
-{
-	mlx5_pci_err_detected(dev->pdev, 0);
-}
-
 static void mlx5_pci_resume(struct pci_dev *pdev)
 {
 	struct mlx5_core_dev *dev = pci_get_drvdata(pdev);
@@ -1431,6 +1427,18 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, mlx5_core_pci_table);
+
+void mlx5_disable_device(struct mlx5_core_dev *dev)
+{
+	mlx5_pci_err_detected(dev->pdev, 0);
+}
+
+void mlx5_recover_device(struct mlx5_core_dev *dev)
+{
+	mlx5_pci_disable_device(dev);
+	if (mlx5_pci_slot_reset(dev->pdev) == PCI_ERS_RESULT_RECOVERED)
+		mlx5_pci_resume(dev->pdev);
+}
 
 static struct pci_driver mlx5_core_driver = {
 	.name           = DRIVER_NAME,

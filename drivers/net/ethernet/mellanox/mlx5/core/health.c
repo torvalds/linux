@@ -61,14 +61,15 @@ enum {
 enum {
 	MLX5_NIC_IFC_FULL		= 0,
 	MLX5_NIC_IFC_DISABLED		= 1,
-	MLX5_NIC_IFC_NO_DRAM_NIC	= 2
+	MLX5_NIC_IFC_NO_DRAM_NIC	= 2,
+	MLX5_NIC_IFC_INVALID		= 3
 };
 
 enum {
 	MLX5_DROP_NEW_HEALTH_WORK,
 };
 
-static u8 get_nic_interface(struct mlx5_core_dev *dev)
+static u8 get_nic_state(struct mlx5_core_dev *dev)
 {
 	return (ioread32be(&dev->iseg->cmdq_addr_l_sz) >> 8) & 3;
 }
@@ -101,7 +102,7 @@ static int in_fatal(struct mlx5_core_dev *dev)
 	struct mlx5_core_health *health = &dev->priv.health;
 	struct health_buffer __iomem *h = health->health;
 
-	if (get_nic_interface(dev) == MLX5_NIC_IFC_DISABLED)
+	if (get_nic_state(dev) == MLX5_NIC_IFC_DISABLED)
 		return 1;
 
 	if (ioread32be(&h->fw_ver) == 0xffffffff)
@@ -131,7 +132,7 @@ unlock:
 
 static void mlx5_handle_bad_state(struct mlx5_core_dev *dev)
 {
-	u8 nic_interface = get_nic_interface(dev);
+	u8 nic_interface = get_nic_state(dev);
 
 	switch (nic_interface) {
 	case MLX5_NIC_IFC_FULL:
@@ -153,8 +154,34 @@ static void mlx5_handle_bad_state(struct mlx5_core_dev *dev)
 	mlx5_disable_device(dev);
 }
 
+static void health_recover(struct work_struct *work)
+{
+	struct mlx5_core_health *health;
+	struct delayed_work *dwork;
+	struct mlx5_core_dev *dev;
+	struct mlx5_priv *priv;
+	u8 nic_state;
+
+	dwork = container_of(work, struct delayed_work, work);
+	health = container_of(dwork, struct mlx5_core_health, recover_work);
+	priv = container_of(health, struct mlx5_priv, health);
+	dev = container_of(priv, struct mlx5_core_dev, priv);
+
+	nic_state = get_nic_state(dev);
+	if (nic_state == MLX5_NIC_IFC_INVALID) {
+		dev_err(&dev->pdev->dev, "health recovery flow aborted since the nic state is invalid\n");
+		return;
+	}
+
+	dev_err(&dev->pdev->dev, "starting health recovery flow\n");
+	mlx5_recover_device(dev);
+}
+
+/* How much time to wait until health resetting the driver (in msecs) */
+#define MLX5_RECOVERY_DELAY_MSECS 60000
 static void health_care(struct work_struct *work)
 {
+	unsigned long recover_delay = msecs_to_jiffies(MLX5_RECOVERY_DELAY_MSECS);
 	struct mlx5_core_health *health;
 	struct mlx5_core_dev *dev;
 	struct mlx5_priv *priv;
@@ -164,6 +191,14 @@ static void health_care(struct work_struct *work)
 	dev = container_of(priv, struct mlx5_core_dev, priv);
 	mlx5_core_warn(dev, "handling bad device here\n");
 	mlx5_handle_bad_state(dev);
+
+	spin_lock(&health->wq_lock);
+	if (!test_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags))
+		schedule_delayed_work(&health->recover_work, recover_delay);
+	else
+		dev_err(&dev->pdev->dev,
+			"new health works are not permitted at this stage\n");
+	spin_unlock(&health->wq_lock);
 }
 
 static const char *hsynd_str(u8 synd)
@@ -316,6 +351,7 @@ void mlx5_drain_health_wq(struct mlx5_core_dev *dev)
 	spin_lock(&health->wq_lock);
 	set_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
 	spin_unlock(&health->wq_lock);
+	cancel_delayed_work_sync(&health->recover_work);
 	cancel_work_sync(&health->work);
 }
 
@@ -344,6 +380,7 @@ int mlx5_health_init(struct mlx5_core_dev *dev)
 		return -ENOMEM;
 	spin_lock_init(&health->wq_lock);
 	INIT_WORK(&health->work, health_care);
+	INIT_DELAYED_WORK(&health->recover_work, health_recover);
 
 	return 0;
 }
