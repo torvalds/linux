@@ -264,13 +264,15 @@ EXPORT_SYMBOL_GPL(inet6_hash_connect);
 
 int inet6_hash(struct sock *sk)
 {
+	int err = 0;
+
 	if (sk->sk_state != TCP_CLOSE) {
 		local_bh_disable();
-		__inet_hash(sk, NULL, ipv6_rcv_saddr_equal);
+		err = __inet_hash(sk, NULL, ipv6_rcv_saddr_equal);
 		local_bh_enable();
 	}
 
-	return 0;
+	return err;
 }
 EXPORT_SYMBOL_GPL(inet6_hash);
 
