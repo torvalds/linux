@@ -27,7 +27,6 @@ static inline void rep_nop(void)
 
 #define cpu_relax()		rep_nop()
 #define cpu_relax_yield()	cpu_relax()
-#define cpu_relax_lowlatency()	cpu_relax()
 
 #define task_pt_regs(t) (&(t)->thread.regs)
 

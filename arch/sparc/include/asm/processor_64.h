@@ -217,7 +217,6 @@ unsigned long get_wchan(struct task_struct *task);
 				     ".previous"			\
 				     ::: "memory")
 #define cpu_relax_yield() cpu_relax()
-#define cpu_relax_lowlatency() cpu_relax()
 
 /* Prefetch support.  This is tuned for UltraSPARC-III and later.
  * UltraSPARC-I will treat these as nops, and UltraSPARC-II has

@@ -89,7 +89,6 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define cpu_relax()	barrier()
 #define cpu_relax_yield() cpu_relax()
-#define cpu_relax_lowlatency()  cpu_relax()
 
 #endif /* __ASSEMBLY__ */
 

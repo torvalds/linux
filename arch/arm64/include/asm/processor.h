@@ -150,7 +150,6 @@ static inline void cpu_relax(void)
 }
 
 #define cpu_relax_yield()                     cpu_relax()
-#define cpu_relax_lowlatency()                cpu_relax()
 
 /* Thread switching */
 extern struct task_struct *cpu_switch_to(struct task_struct *prev,

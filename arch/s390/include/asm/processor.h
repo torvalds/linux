@@ -237,7 +237,6 @@ static inline unsigned short stap(void)
 void cpu_relax_yield(void);
 
 #define cpu_relax() barrier()
-#define cpu_relax_lowlatency()  barrier()
 
 #define ECAG_CACHE_ATTRIBUTE	0
 #define ECAG_CPU_ATTRIBUTE	1

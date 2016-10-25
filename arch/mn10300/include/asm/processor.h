@@ -70,7 +70,6 @@ extern void dodgy_tsc(void);
 
 #define cpu_relax() barrier()
 #define cpu_relax_yield() cpu_relax()
-#define cpu_relax_lowlatency() cpu_relax()
 
 /*
  * User space process size: 1.75GB (default).

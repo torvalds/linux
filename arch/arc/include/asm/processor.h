@@ -61,7 +61,6 @@ struct task_struct;
 
 #define cpu_relax()		barrier()
 #define cpu_relax_yield()	cpu_relax()
-#define cpu_relax_lowlatency()	cpu_relax()
 
 #else
 
@@ -69,7 +68,6 @@ struct task_struct;
 	__asm__ __volatile__ (".word %0" : : "i"(CTOP_INST_SCHD_RW) : "memory")
 
 #define cpu_relax_yield()	cpu_relax()
-#define cpu_relax_lowlatency()	barrier()
 
 #endif
 

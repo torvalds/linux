@@ -93,7 +93,6 @@ extern struct avr32_cpuinfo boot_cpu_data;
 
 #define cpu_relax()		barrier()
 #define cpu_relax_yield()	cpu_relax()
-#define cpu_relax_lowlatency()        cpu_relax()
 #define cpu_sync_pipeline()	asm volatile("sub pc, -2" : : : "memory")
 
 struct cpu_context {

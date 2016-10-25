@@ -265,7 +265,6 @@ static inline void cpu_relax(void)
 }
 
 #define cpu_relax_yield() cpu_relax()
-#define cpu_relax_lowlatency() cpu_relax()
 
 /* Info on this processor (see fs/proc/cpuinfo.c) */
 struct seq_operations;
