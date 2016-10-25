@@ -1020,6 +1020,24 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 	if (!dwc3_calc_trbs_left(dep))
 		return;
 
+	/*
+	 * We can get in a situation where there's a request in the started list
+	 * but there weren't enough TRBs to fully kick it in the first time
+	 * around, so it has been waiting for more TRBs to be freed up.
+	 *
+	 * In that case, we should check if we have a request with pending_sgs
+	 * in the started list and prepare TRBs for that request first,
+	 * otherwise we will prepare TRBs completely out of order and that will
+	 * break things.
+	 */
+	list_for_each_entry(req, &dep->started_list, list) {
+		if (req->num_pending_sgs > 0)
+			dwc3_prepare_one_trb_sg(dep, req);
+
+		if (!dwc3_calc_trbs_left(dep))
+			return;
+	}
+
 	list_for_each_entry_safe(req, n, &dep->pending_list, list) {
 		if (req->num_pending_sgs > 0)
 			dwc3_prepare_one_trb_sg(dep, req);
