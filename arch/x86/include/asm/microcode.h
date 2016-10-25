@@ -20,6 +20,15 @@ do {							\
 			 (u32)((u64)(val)),		\
 			 (u32)((u64)(val) >> 32))
 
+struct ucode_patch {
+	struct list_head plist;
+	void *data;		/* Intel uses only this one */
+	u32 patch_id;
+	u16 equiv_cpu;
+};
+
+extern struct list_head microcode_cache;
+
 struct cpu_signature {
 	unsigned int sig;
 	unsigned int pf;

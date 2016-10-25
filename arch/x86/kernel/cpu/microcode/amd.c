@@ -39,15 +39,6 @@
 
 static struct equiv_cpu_entry *equiv_cpu_table;
 
-struct ucode_patch {
-	struct list_head plist;
-	void *data;
-	u32 patch_id;
-	u16 equiv_cpu;
-};
-
-static LIST_HEAD(pcache);
-
 /*
  * This points to the current valid container of microcode patches which we will
  * save from the initrd before jettisoning its contents.
@@ -312,9 +303,9 @@ void __init load_ucode_amd_bsp(unsigned int family)
 #ifdef CONFIG_X86_32
 /*
  * On 32-bit, since AP's early load occurs before paging is turned on, we
- * cannot traverse cpu_equiv_table and pcache in kernel heap memory. So during
- * cold boot, AP will apply_ucode_in_initrd() just like the BSP. During
- * save_microcode_in_initrd_amd() BSP's patch is copied to amd_ucode_patch,
+ * cannot traverse cpu_equiv_table and microcode_cache in kernel heap memory.
+ * So during cold boot, AP will apply_ucode_in_initrd() just like the BSP.
+ * In save_microcode_in_initrd_amd() BSP's patch is copied to amd_ucode_patch,
  * which is used upon resume from suspend.
  */
 void load_ucode_amd_ap(void)
@@ -508,7 +499,7 @@ static struct ucode_patch *cache_find_patch(u16 equiv_cpu)
 {
 	struct ucode_patch *p;
 
-	list_for_each_entry(p, &pcache, plist)
+	list_for_each_entry(p, &microcode_cache, plist)
 		if (p->equiv_cpu == equiv_cpu)
 			return p;
 	return NULL;
@@ -518,7 +509,7 @@ static void update_cache(struct ucode_patch *new_patch)
 {
 	struct ucode_patch *p;
 
-	list_for_each_entry(p, &pcache, plist) {
+	list_for_each_entry(p, &microcode_cache, plist) {
 		if (p->equiv_cpu == new_patch->equiv_cpu) {
 			if (p->patch_id >= new_patch->patch_id)
 				/* we already have the latest patch */
@@ -531,14 +522,14 @@ static void update_cache(struct ucode_patch *new_patch)
 		}
 	}
 	/* no patch found, add it */
-	list_add_tail(&new_patch->plist, &pcache);
+	list_add_tail(&new_patch->plist, &microcode_cache);
 }
 
 static void free_cache(void)
 {
 	struct ucode_patch *p, *tmp;
 
-	list_for_each_entry_safe(p, tmp, &pcache, plist) {
+	list_for_each_entry_safe(p, tmp, &microcode_cache, plist) {
 		__list_del(p->plist.prev, p->plist.next);
 		kfree(p->data);
 		kfree(p);

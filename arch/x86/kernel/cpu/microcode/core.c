@@ -45,6 +45,8 @@
 static struct microcode_ops	*microcode_ops;
 static bool dis_ucode_ldr;
 
+LIST_HEAD(microcode_cache);
+
 /*
  * Synchronization.
  *
