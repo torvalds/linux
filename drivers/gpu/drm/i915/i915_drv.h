@@ -3844,11 +3844,30 @@ __raw_write(64, q)
 #undef __raw_write
 
 /* These are untraced mmio-accessors that are only valid to be used inside
- * critical sections inside IRQ handlers where forcewake is explicitly
+ * critical sections, such as inside IRQ handlers, where forcewake is explicitly
  * controlled.
+ *
  * Think twice, and think again, before using these.
- * Note: Should only be used between intel_uncore_forcewake_irqlock() and
- * intel_uncore_forcewake_irqunlock().
+ *
+ * As an example, these accessors can possibly be used between:
+ *
+ * spin_lock_irq(&dev_priv->uncore.lock);
+ * intel_uncore_forcewake_get__locked();
+ *
+ * and
+ *
+ * intel_uncore_forcewake_put__locked();
+ * spin_unlock_irq(&dev_priv->uncore.lock);
+ *
+ *
+ * Note: some registers may not need forcewake held, so
+ * intel_uncore_forcewake_{get,put} can be omitted, see
+ * intel_uncore_forcewake_for_reg().
+ *
+ * Certain architectures will die if the same cacheline is concurrently accessed
+ * by different clients (e.g. on Ivybridge). Access to registers should
+ * therefore generally be serialised, by either the dev_priv->uncore.lock or
+ * a more localised lock guarding all access to that bank of registers.
  */
 #define I915_READ_FW(reg__) __raw_i915_read32(dev_priv, (reg__))
 #define I915_WRITE_FW(reg__, val__) __raw_i915_write32(dev_priv, (reg__), (val__))
