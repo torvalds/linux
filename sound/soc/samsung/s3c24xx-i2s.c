@@ -54,8 +54,6 @@ static void s3c24xx_snd_txctrl(int on)
 	u32 iiscon;
 	u32 iismod;
 
-	pr_debug("Entered %s\n", __func__);
-
 	iisfcon = readl(s3c24xx_i2s.regs + S3C2410_IISFCON);
 	iiscon  = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
 	iismod  = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
@@ -98,8 +96,6 @@ static void s3c24xx_snd_rxctrl(int on)
 	u32 iisfcon;
 	u32 iiscon;
 	u32 iismod;
-
-	pr_debug("Entered %s\n", __func__);
 
 	iisfcon = readl(s3c24xx_i2s.regs + S3C2410_IISFCON);
 	iiscon  = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
@@ -147,8 +143,6 @@ static int s3c24xx_snd_lrsync(void)
 	u32 iiscon;
 	int timeout = 50; /* 5ms */
 
-	pr_debug("Entered %s\n", __func__);
-
 	while (1) {
 		iiscon = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
 		if (iiscon & S3C2410_IISCON_LRINDEX)
@@ -167,8 +161,6 @@ static int s3c24xx_snd_lrsync(void)
  */
 static inline int s3c24xx_snd_is_clkmaster(void)
 {
-	pr_debug("Entered %s\n", __func__);
-
 	return (readl(s3c24xx_i2s.regs + S3C2410_IISMOD) & S3C2410_IISMOD_SLAVE) ? 0:1;
 }
 
@@ -179,8 +171,6 @@ static int s3c24xx_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		unsigned int fmt)
 {
 	u32 iismod;
-
-	pr_debug("Entered %s\n", __func__);
 
 	iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
 	pr_debug("hw_params r: IISMOD: %x \n", iismod);
@@ -209,6 +199,7 @@ static int s3c24xx_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 
 	writel(iismod, s3c24xx_i2s.regs + S3C2410_IISMOD);
 	pr_debug("hw_params w: IISMOD: %x \n", iismod);
+
 	return 0;
 }
 
@@ -218,8 +209,6 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	u32 iismod;
-
-	pr_debug("Entered %s\n", __func__);
 
 	dma_data = snd_soc_dai_get_dma_data(dai, substream);
 
@@ -242,6 +231,7 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	writel(iismod, s3c24xx_i2s.regs + S3C2410_IISMOD);
 	pr_debug("hw_params w: IISMOD: %x\n", iismod);
+
 	return 0;
 }
 
@@ -249,8 +239,6 @@ static int s3c24xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			       struct snd_soc_dai *dai)
 {
 	int ret = 0;
-
-	pr_debug("Entered %s\n", __func__);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -293,8 +281,6 @@ static int s3c24xx_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 {
 	u32 iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
 
-	pr_debug("Entered %s\n", __func__);
-
 	iismod &= ~S3C2440_IISMOD_MPLL;
 
 	switch (clk_id) {
@@ -318,8 +304,6 @@ static int s3c24xx_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 	int div_id, int div)
 {
 	u32 reg;
-
-	pr_debug("Entered %s\n", __func__);
 
 	switch (div_id) {
 	case S3C24XX_DIV_BCLK:
@@ -354,8 +338,6 @@ EXPORT_SYMBOL_GPL(s3c24xx_i2s_get_clockrate);
 
 static int s3c24xx_i2s_probe(struct snd_soc_dai *dai)
 {
-	pr_debug("Entered %s\n", __func__);
-
 	snd_soc_dai_init_dma_data(dai, &s3c24xx_i2s_pcm_stereo_out,
 					&s3c24xx_i2s_pcm_stereo_in);
 
@@ -381,8 +363,6 @@ static int s3c24xx_i2s_probe(struct snd_soc_dai *dai)
 #ifdef CONFIG_PM
 static int s3c24xx_i2s_suspend(struct snd_soc_dai *cpu_dai)
 {
-	pr_debug("Entered %s\n", __func__);
-
 	s3c24xx_i2s.iiscon = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
 	s3c24xx_i2s.iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
 	s3c24xx_i2s.iisfcon = readl(s3c24xx_i2s.regs + S3C2410_IISFCON);
@@ -395,7 +375,6 @@ static int s3c24xx_i2s_suspend(struct snd_soc_dai *cpu_dai)
 
 static int s3c24xx_i2s_resume(struct snd_soc_dai *cpu_dai)
 {
-	pr_debug("Entered %s\n", __func__);
 	clk_prepare_enable(s3c24xx_i2s.iis_clk);
 
 	writel(s3c24xx_i2s.iiscon, s3c24xx_i2s.regs + S3C2410_IISCON);
@@ -409,7 +388,6 @@ static int s3c24xx_i2s_resume(struct snd_soc_dai *cpu_dai)
 #define s3c24xx_i2s_suspend NULL
 #define s3c24xx_i2s_resume NULL
 #endif
-
 
 #define S3C24XX_I2S_RATES \
 	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_16000 | \
@@ -465,14 +443,14 @@ static int s3c24xx_iis_dev_probe(struct platform_device *pdev)
 	ret = devm_snd_soc_register_component(&pdev->dev,
 			&s3c24xx_i2s_component, &s3c24xx_i2s_dai, 1);
 	if (ret) {
-		pr_err("failed to register the dai\n");
+		dev_err(&pdev->dev, "Failed to register the DAI\n");
 		return ret;
 	}
 
 	ret = samsung_asoc_dma_platform_register(&pdev->dev, NULL,
 						 NULL, NULL);
 	if (ret)
-		pr_err("failed to register the dma: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to register the DMA: %d\n", ret);
 
 	return ret;
 }
