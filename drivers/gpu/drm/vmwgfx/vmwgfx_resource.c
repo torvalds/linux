@@ -575,7 +575,7 @@ static int vmw_user_dmabuf_synccpu_grab(struct vmw_user_dma_buffer *user_bo,
 		long lret;
 
 		lret = reservation_object_wait_timeout_rcu(bo->resv, true, true,
-					nonblock ? 0 : MAX_SCHEDULE_TIMEOUT);
+							   nonblock ? 0 : MAX_SCHEDULE_TIMEOUT);
 		if (!lret)
 			return -EBUSY;
 		else if (lret < 0)

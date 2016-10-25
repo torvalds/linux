@@ -79,7 +79,7 @@ struct sync_file *sync_file_create(struct fence *fence)
 	if (!sync_file)
 		return NULL;
 
-	sync_file->fence = fence;
+	sync_file->fence = fence_get(fence);
 
 	snprintf(sync_file->name, sizeof(sync_file->name), "%s-%s%llu-%d",
 		 fence->ops->get_driver_name(fence),

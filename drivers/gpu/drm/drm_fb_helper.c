@@ -367,9 +367,7 @@ fail:
 	if (ret == -EDEADLK)
 		goto backoff;
 
-	if (ret != 0)
-		drm_atomic_state_free(state);
-
+	drm_atomic_state_put(state);
 	return ret;
 
 backoff:
@@ -394,7 +392,11 @@ static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 		if (plane->type != DRM_PLANE_TYPE_PRIMARY)
 			drm_plane_force_disable(plane);
 
-		if (dev->mode_config.rotation_property) {
+		if (plane->rotation_property) {
+			drm_mode_plane_set_obj_prop(plane,
+						    plane->rotation_property,
+						    DRM_ROTATE_0);
+		} else if (dev->mode_config.rotation_property) {
 			drm_mode_plane_set_obj_prop(plane,
 						    dev->mode_config.rotation_property,
 						    DRM_ROTATE_0);
@@ -1211,11 +1213,14 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	if (var->pixclock != 0 || in_dbg_master())
 		return -EINVAL;
 
-	/* Need to resize the fb object !!! */
-	if (var->bits_per_pixel > fb->bits_per_pixel ||
-	    var->xres > fb->width || var->yres > fb->height ||
-	    var->xres_virtual > fb->width || var->yres_virtual > fb->height) {
-		DRM_DEBUG("fb userspace requested width/height/bpp is greater than current fb "
+	/*
+	 * Changes struct fb_var_screeninfo are currently not pushed back
+	 * to KMS, hence fail if different settings are requested.
+	 */
+	if (var->bits_per_pixel != fb->bits_per_pixel ||
+	    var->xres != fb->width || var->yres != fb->height ||
+	    var->xres_virtual != fb->width || var->yres_virtual != fb->height) {
+		DRM_DEBUG("fb userspace requested width/height/bpp different than current fb "
 			  "request %dx%d-%d (virtual %dx%d) > %dx%d-%d\n",
 			  var->xres, var->yres, var->bits_per_pixel,
 			  var->xres_virtual, var->yres_virtual,
@@ -1361,16 +1366,13 @@ retry:
 	info->var.xoffset = var->xoffset;
 	info->var.yoffset = var->yoffset;
 
-
 fail:
 	drm_atomic_clean_old_fb(dev, plane_mask, ret);
 
 	if (ret == -EDEADLK)
 		goto backoff;
 
-	if (ret != 0)
-		drm_atomic_state_free(state);
-
+	drm_atomic_state_put(state);
 	return ret;
 
 backoff:

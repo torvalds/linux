@@ -952,8 +952,10 @@ static u32 drm_vblank_count_and_time(struct drm_device *dev, unsigned int pipe,
 	u32 vblank_count;
 	unsigned int seq;
 
-	if (WARN_ON(pipe >= dev->num_crtcs))
+	if (WARN_ON(pipe >= dev->num_crtcs)) {
+		*vblanktime = (struct timeval) { 0 };
 		return 0;
+	}
 
 	do {
 		seq = read_seqbegin(&vblank->seqlock);

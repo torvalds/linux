@@ -415,5 +415,37 @@ void drm_debugfs_connector_remove(struct drm_connector *connector)
 	connector->debugfs_entry = NULL;
 }
 
-#endif /* CONFIG_DEBUG_FS */
+int drm_debugfs_crtc_add(struct drm_crtc *crtc)
+{
+	struct drm_minor *minor = crtc->dev->primary;
+	struct dentry *root;
+	char *name;
 
+	name = kasprintf(GFP_KERNEL, "crtc-%d", crtc->index);
+	if (!name)
+		return -ENOMEM;
+
+	root = debugfs_create_dir(name, minor->debugfs_root);
+	kfree(name);
+	if (!root)
+		return -ENOMEM;
+
+	crtc->debugfs_entry = root;
+
+	if (drm_debugfs_crtc_crc_add(crtc))
+		goto error;
+
+	return 0;
+
+error:
+	drm_debugfs_crtc_remove(crtc);
+	return -ENOMEM;
+}
+
+void drm_debugfs_crtc_remove(struct drm_crtc *crtc)
+{
+	debugfs_remove_recursive(crtc->debugfs_entry);
+	crtc->debugfs_entry = NULL;
+}
+
+#endif /* CONFIG_DEBUG_FS */

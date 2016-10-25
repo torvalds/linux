@@ -264,7 +264,7 @@ static void rcar_du_atomic_complete(struct rcar_du_commit *commit)
 
 	drm_atomic_helper_cleanup_planes(dev, old_state);
 
-	drm_atomic_state_free(old_state);
+	drm_atomic_state_put(old_state);
 
 	/* Complete the commit, wake up any waiter. */
 	spin_lock(&rcdu->commit.wait.lock);
@@ -330,6 +330,7 @@ static int rcar_du_atomic_commit(struct drm_device *dev,
 	/* Swap the state, this is the point of no return. */
 	drm_atomic_helper_swap_state(state, true);
 
+	drm_atomic_state_get(state);
 	if (nonblock)
 		schedule_work(&commit->work);
 	else
