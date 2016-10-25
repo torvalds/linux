@@ -2104,6 +2104,9 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 			for_each_sg(sg, s, pending, i) {
 				trb = &dep->trb_pool[dep->trb_dequeue];
 
+				if (trb->ctrl & DWC3_TRB_CTRL_HWO)
+					break;
+
 				req->sg = sg_next(s);
 				req->num_pending_sgs--;
 
