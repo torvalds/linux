@@ -415,7 +415,7 @@ void lkl_register_dbg_handler();
 /**
  * lkl_add_neighbor - add a permanent arp entry
  * @ifindex - the ifindex of the interface
- * @af - adress family of the ip address. Must be LKL_AF_INET or LKL_AF_INET6
+ * @af - address family of the ip address. Must be LKL_AF_INET or LKL_AF_INET6
  * @ip - ip address of the entry in network byte order
  * @mac - mac address of the entry
  */
@@ -427,6 +427,33 @@ int lkl_add_neighbor(int ifindex, int af, void* addr, void* mac);
  * @returns - 0 on success. 1 if it's already mounted. negative on failure.
  */
 int lkl_mount_fs(char *fstype);
+
+/**
+ * lkl_if_add_ip - add an ip address
+ * @ifindex - the ifindex of the interface
+ * @af - address family of the ip address. Must be LKL_AF_INET or LKL_AF_INET6
+ * @addr - ip address of the entry in network byte order
+ * @netprefix_len - prefix length of the @addr
+ */
+int lkl_if_add_ip(int ifindex, int af, void *addr, unsigned int netprefix_len);
+
+/**
+ * lkl_if_del_ip - add an ip address
+ * @ifindex - the ifindex of the interface
+ * @af - address family of the ip address. Must be LKL_AF_INET or LKL_AF_INET6
+ * @addr - ip address of the entry in network byte order
+ * @netprefix_len - prefix length of the @addr
+ */
+int lkl_if_del_ip(int ifindex, int af, void *addr, unsigned int netprefix_len);
+
+/**
+ * lkl_if_wait_ipv6_dad - wait for DAD to be done for a ipv6 address
+ * must be called after interface is up
+ *
+ * @ifindex - the ifindex of the interface
+ * @addr - ip address of the entry in network byte order
+ */
+int lkl_if_wait_ipv6_dad(int ifindex, void *addr);
 
 #ifdef __cplusplus
 }

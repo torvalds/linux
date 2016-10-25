@@ -87,41 +87,7 @@ int lkl_if_set_mtu(int ifindex, int mtu)
 
 int lkl_if_set_ipv4(int ifindex, unsigned int addr, unsigned int netmask_len)
 {
-	struct lkl_ifreq ifr;
-	struct lkl_sockaddr_in *sin;
-	int err, sock;
-
-
-	sock = lkl_sys_socket(LKL_AF_INET, LKL_SOCK_DGRAM, 0);
-	if (sock < 0)
-		return sock;
-
-	err = ifindex_to_name(sock, &ifr, ifindex);
-	if (err < 0)
-		return err;
-
-	if (netmask_len >= 31)
-		return -LKL_EINVAL;
-
-	sin = (struct lkl_sockaddr_in *)&ifr.lkl_ifr_addr;
-	set_sockaddr(sin, addr, 0);
-
-	err = lkl_sys_ioctl(sock, LKL_SIOCSIFADDR, (long)&ifr);
-	if (!err) {
-		int netmask = (((1<<netmask_len)-1))<<(32-netmask_len);
-
-		sin = (struct lkl_sockaddr_in *)&ifr.lkl_ifr_netmask;
-		set_sockaddr(sin, htonl(netmask), 0);
-		err = lkl_sys_ioctl(sock, LKL_SIOCSIFNETMASK, (long)&ifr);
-		if (!err) {
-			set_sockaddr(sin, htonl(ntohl(addr)|~netmask), 0);
-			err = lkl_sys_ioctl(sock, LKL_SIOCSIFBRDADDR, (long)&ifr);
-		}
-	}
-
-	lkl_sys_close(sock);
-
-	return err;
+	return lkl_if_add_ip(ifindex, LKL_AF_INET, &addr, netmask_len);
 }
 
 int lkl_set_ipv4_gateway(unsigned int addr)
@@ -208,7 +174,7 @@ static int parse_rtattr(struct lkl_rtattr *tb[], int max,
 		rta = LKL_RTA_NEXT(rta, len);
 	}
 	if (len)
-		lkl_printf( "!!!Deficit %d, rta_len=%d\n", len,
+		lkl_printf("!!!Deficit %d, rta_len=%d\n", len,
 			rta->rta_len);
 	return 0;
 }
@@ -244,7 +210,7 @@ static int check_ipv6_dad(struct lkl_sockaddr_nl *nladdr,
 
 	len -= LKL_NLMSG_LENGTH(sizeof(*ifa));
 	if (len < 0) {
-		lkl_printf( "BUG: wrong nlmsg len %d\n", len);
+		lkl_printf("BUG: wrong nlmsg len %d\n", len);
 		return -1;
 	}
 
@@ -267,7 +233,7 @@ static int check_ipv6_dad(struct lkl_sockaddr_nl *nladdr,
 		return 1;
 	}
 	if (ifa_flags & LKL_IFA_F_DADFAILED) {
-		lkl_printf( "IPV6 DAD failed.\n");
+		lkl_printf("IPV6 DAD failed.\n");
 		return -1;
 	}
 	if (!(ifa_flags & LKL_IFA_F_TENTATIVE))
@@ -300,18 +266,18 @@ static int rtnl_listen(int fd, int (*handler)(struct lkl_sockaddr_nl *nladdr,
 		if (status < 0) {
 			if (status == -LKL_EINTR || status == -LKL_EAGAIN)
 				continue;
-			lkl_printf( "netlink receive error %s (%d)\n",
+			lkl_printf("netlink receive error %s (%d)\n",
 				lkl_strerror(status), status);
 			if (status == -LKL_ENOBUFS)
 				continue;
 			return status;
 		}
 		if (status == 0) {
-			lkl_printf( "EOF on netlink\n");
+			lkl_printf("EOF on netlink\n");
 			return -1;
 		}
 		if (msg.msg_namelen != sizeof(nladdr)) {
-			lkl_printf( "Sender address length == %d\n",
+			lkl_printf("Sender address length == %d\n",
 				msg.msg_namelen);
 			return -1;
 		}
@@ -324,10 +290,10 @@ static int rtnl_listen(int fd, int (*handler)(struct lkl_sockaddr_nl *nladdr,
 
 			if (l < 0 || len > status) {
 				if (msg.msg_flags & LKL_MSG_TRUNC) {
-					lkl_printf( "Truncated message\n");
+					lkl_printf("Truncated message\n");
 					return -1;
 				}
-				lkl_printf( "!!!malformed message: len=%d\n",
+				lkl_printf("!!!malformed message: len=%d\n",
 					len);
 				return -1;
 			}
@@ -341,17 +307,17 @@ static int rtnl_listen(int fd, int (*handler)(struct lkl_sockaddr_nl *nladdr,
 						    LKL_NLMSG_ALIGN(len));
 		}
 		if (msg.msg_flags & LKL_MSG_TRUNC) {
-			lkl_printf( "Message truncated\n");
+			lkl_printf("Message truncated\n");
 			continue;
 		}
 		if (status) {
-			lkl_printf( "!!!Remnant of size %d\n", status);
+			lkl_printf("!!!Remnant of size %d\n", status);
 			return -1;
 		}
 	}
 }
 
-static int wait_ipv6(int ifindex, void *addr)
+int lkl_if_wait_ipv6_dad(int ifindex, void *addr)
 {
 	struct addr_filter filter = {.ifindex = ifindex, .addr = addr};
 	int fd, ret;
@@ -383,32 +349,15 @@ static int wait_ipv6(int ifindex, void *addr)
 
 int lkl_if_set_ipv6(int ifindex, void *addr, unsigned int netprefix_len)
 {
-	struct lkl_in6_ifreq ifr6;
-	int err, sock;
-
-	if (netprefix_len >= 128)
-		return -LKL_EINVAL;
-
-	sock = lkl_sys_socket(LKL_AF_INET6, LKL_SOCK_DGRAM, 0);
-	if (sock < 0)
-		return sock;
-
-	memcpy(&ifr6.ifr6_addr.lkl_s6_addr, addr, sizeof(struct lkl_in6_addr));
-	ifr6.ifr6_ifindex = ifindex;
-	ifr6.ifr6_prefixlen = netprefix_len;
-
-	err = lkl_sys_ioctl(sock, LKL_SIOCSIFADDR, (long)&ifr6);
-	lkl_sys_close(sock);
+	int err = lkl_if_add_ip(ifindex, LKL_AF_INET6, addr, netprefix_len);
 	if (err)
 		return err;
-
-	err = wait_ipv6(ifindex, addr);
-	return err;
+	return lkl_if_wait_ipv6_dad(ifindex, addr);
 }
 
 /* returns:
  * 0 - succeed.
- * -1 - error.
+ * < 0 - error number.
  * 1 - should wait for new msg.
  */
 static int check_error(struct lkl_sockaddr_nl *nladdr, struct lkl_nlmsghdr *n,
@@ -427,15 +376,15 @@ static int check_error(struct lkl_sockaddr_nl *nladdr, struct lkl_nlmsghdr *n,
 		int l = n->nlmsg_len - sizeof(*n);
 
 		if (l < (int)sizeof(struct lkl_nlmsgerr))
-			lkl_printf( "ERROR truncated\n");
+			lkl_printf("ERROR truncated\n");
 		else if (!err->error)
 			return 0;
 
-		lkl_printf( "RTNETLINK answers: %s\n",
+		lkl_printf("RTNETLINK answers: %s\n",
 			strerror(-err->error));
-		return -1;
+		return err->error;
 	}
-	lkl_printf( "Unexpected reply!!!\n");
+	lkl_printf("Unexpected reply!!!\n");
 	return -1;
 }
 
@@ -466,16 +415,43 @@ static int rtnl_talk(int fd, struct lkl_nlmsghdr *n)
 	return status;
 }
 
+static int addattr_l(struct lkl_nlmsghdr *n, unsigned int maxlen,
+		     int type, const void *data, int alen)
+{
+	int len = LKL_RTA_LENGTH(alen);
+	struct lkl_rtattr *rta;
+
+	if (LKL_NLMSG_ALIGN(n->nlmsg_len) + LKL_RTA_ALIGN(len) > maxlen) {
+		lkl_printf("addattr_l ERROR: message exceeded bound of %d\n",
+			   maxlen);
+		return -1;
+	}
+	rta = ((struct lkl_rtattr *) (((void *) (n)) +
+				      LKL_NLMSG_ALIGN(n->nlmsg_len)));
+	rta->rta_type = type;
+	rta->rta_len = len;
+	memcpy(LKL_RTA_DATA(rta), data, alen);
+	n->nlmsg_len = LKL_NLMSG_ALIGN(n->nlmsg_len) + LKL_RTA_ALIGN(len);
+	return 0;
+}
+
 int lkl_add_neighbor(int ifindex, int af, void* ip, void* mac)
 {
 	struct {
 		struct lkl_nlmsghdr n;
 		struct lkl_ndmsg r;
 		char buf[1024];
-	} req2;
+	} req = {
+		.n.nlmsg_len = LKL_NLMSG_LENGTH(sizeof(struct lkl_ndmsg)),
+		.n.nlmsg_type = LKL_RTM_NEWNEIGH,
+		.n.nlmsg_flags = LKL_NLM_F_REQUEST |
+				 LKL_NLM_F_CREATE | LKL_NLM_F_REPLACE,
+		.r.ndm_family = af,
+		.r.ndm_ifindex = ifindex,
+		.r.ndm_state = LKL_NUD_PERMANENT,
+
+	};
 	int err, addr_sz;
-	int ndmsglen = LKL_NLMSG_LENGTH(sizeof(struct lkl_ndmsg));
-	struct lkl_rtattr *dstattr;
 	int fd;
 
 	if (af == LKL_AF_INET)
@@ -483,7 +459,7 @@ int lkl_add_neighbor(int ifindex, int af, void* ip, void* mac)
 	else if (af == LKL_AF_INET6)
 		addr_sz = 16;
 	else {
-		lkl_printf( "Bad address family: %d\n", af);
+		lkl_printf("Bad address family: %d\n", af);
 		return -1;
 	}
 
@@ -491,35 +467,65 @@ int lkl_add_neighbor(int ifindex, int af, void* ip, void* mac)
 	if (fd < 0)
 		return fd;
 
-	memset(&req2, 0, sizeof(req2));
-
 	// create the IP attribute
-	dstattr = (struct lkl_rtattr *)req2.buf;
-	dstattr->rta_type = LKL_NDA_DST;
-	dstattr->rta_len = sizeof(struct lkl_rtattr) + addr_sz;
-	memcpy(((char *)dstattr) + sizeof(struct lkl_rtattr), ip, addr_sz);
-	ndmsglen += dstattr->rta_len;
+	addattr_l(&req.n, sizeof(req), LKL_NDA_DST, ip, addr_sz);
 
 	// create the MAC attribute
-	dstattr = (struct lkl_rtattr *)(req2.buf + dstattr->rta_len);
-	dstattr->rta_type = LKL_NDA_LLADDR;
-	dstattr->rta_len = sizeof(struct lkl_rtattr) + 6;
-	memcpy(((char *)dstattr) + sizeof(struct lkl_rtattr), mac, 6);
-	ndmsglen += dstattr->rta_len;
+	addattr_l(&req.n, sizeof(req), LKL_NDA_LLADDR, mac, 6);
 
-	// fill in the netlink message header
-	req2.n.nlmsg_len = ndmsglen;
-	req2.n.nlmsg_type = LKL_RTM_NEWNEIGH;
-	req2.n.nlmsg_flags =
-		LKL_NLM_F_REQUEST | LKL_NLM_F_CREATE | LKL_NLM_F_REPLACE;
+	err = rtnl_talk(fd, &req.n);
+	lkl_sys_close(fd);
+	return err;
+}
 
-	// fill in the netlink message NEWNEIGH
-	req2.r.ndm_family = af;
-	req2.r.ndm_ifindex = ifindex;
-	req2.r.ndm_state = LKL_NUD_PERMANENT;
+static int ipaddr_modify(int cmd, int flags, int ifindex, int af, void *addr,
+			 unsigned int netprefix_len)
+{
+	struct {
+		struct lkl_nlmsghdr n;
+		struct lkl_ifaddrmsg ifa;
+		char buf[256];
+	} req = {
+		.n.nlmsg_len = LKL_NLMSG_LENGTH(sizeof(struct lkl_ifaddrmsg)),
+		.n.nlmsg_flags = LKL_NLM_F_REQUEST | flags,
+		.n.nlmsg_type = cmd,
+		.ifa.ifa_family = af,
+		.ifa.ifa_prefixlen = netprefix_len,
+		.ifa.ifa_index = ifindex,
+	};
+	int err, addr_sz;
+	int fd;
 
-	err = rtnl_talk(fd, &req2.n);
+	if (af == LKL_AF_INET)
+		addr_sz = 4;
+	else if (af == LKL_AF_INET6)
+		addr_sz = 16;
+	else {
+		lkl_printf("Bad address family: %d\n", af);
+		return -1;
+	}
+
+	fd = netlink_sock(0);
+	if (fd < 0)
+		return fd;
+
+	// create the IP attribute
+	addattr_l(&req.n, sizeof(req), LKL_IFA_LOCAL, addr, addr_sz);
+
+	err = rtnl_talk(fd, &req.n);
 
 	lkl_sys_close(fd);
 	return err;
+}
+
+int lkl_if_add_ip(int ifindex, int af, void *addr, unsigned int netprefix_len)
+{
+	return ipaddr_modify(LKL_RTM_NEWADDR, LKL_NLM_F_CREATE | LKL_NLM_F_EXCL,
+			     ifindex, af, addr, netprefix_len);
+}
+
+int lkl_if_del_ip(int ifindex, int af, void *addr, unsigned int netprefix_len)
+{
+	return ipaddr_modify(LKL_RTM_DELADDR, 0, ifindex, af,
+			     addr, netprefix_len);
 }
