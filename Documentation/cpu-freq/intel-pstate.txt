@@ -48,7 +48,7 @@ In addition to the frequency-controlling interfaces provided by the cpufreq
 core, the driver provides its own sysfs files to control the P-State selection.
 These files have been added to /sys/devices/system/cpu/intel_pstate/.
 Any changes made to these files are applicable to all CPUs (even in a
-multi-package system).
+multi-package system, Refer to later section on placing "Per-CPU limits").
 
       max_perf_pct: Limits the maximum P-State that will be requested by
       the driver. It states it as a percentage of the available performance. The
@@ -119,6 +119,25 @@ performance levels.  The idea that frequency can be set to a single
 frequency is fictional for Intel Core processors. Even if the scaling
 driver selects a single P-State, the actual frequency the processor
 will run at is selected by the processor itself.
+
+Per-CPU limits
+
+The kernel command line option "intel_pstate=per_cpu_perf_limits" forces
+the intel_pstate driver to use per-CPU performance limits.  When it is set,
+the sysfs control interface described above is subject to limitations.
+- The following controls are not available for both read and write
+	/sys/devices/system/cpu/intel_pstate/max_perf_pct
+	/sys/devices/system/cpu/intel_pstate/min_perf_pct
+- The following controls can be used to set performance limits, as far as the
+architecture of the processor permits:
+	/sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq
+	/sys/devices/system/cpu/cpu*/cpufreq/scaling_min_freq
+	/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+- User can still observe turbo percent and number of P-States from
+	/sys/devices/system/cpu/intel_pstate/turbo_pct
+	/sys/devices/system/cpu/intel_pstate/num_pstates
+- User can read write system wide turbo status
+	/sys/devices/system/cpu/no_turbo
 
 Tuning Intel P-State driver
 
