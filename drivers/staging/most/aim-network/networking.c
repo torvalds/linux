@@ -181,7 +181,7 @@ static int most_nd_set_mac_address(struct net_device *dev, void *p)
 static int most_nd_open(struct net_device *dev)
 {
 	struct net_dev_context *nd = dev->ml_priv;
-	long wait_res;
+	long ret;
 
 	netdev_info(dev, "open net device\n");
 
@@ -203,26 +203,30 @@ static int most_nd_open(struct net_device *dev)
 		return -EBUSY;
 	}
 
+	if (!is_valid_ether_addr(dev->dev_addr)) {
+		nd->iface->request_netinfo(nd->iface, nd->tx.ch_id);
+		ret = wait_for_completion_interruptible_timeout(
+			      &nd->mac_compl, msecs_to_jiffies(5000));
+		if (!ret) {
+			netdev_err(dev, "mac timeout\n");
+			ret = -EBUSY;
+			goto err;
+		}
+
+		if (ret < 0) {
+			netdev_warn(dev, "mac waiting interrupted\n");
+			goto err;
+		}
+	}
+
 	nd->channels_opened = true;
 	netif_wake_queue(dev);
-
-	if (is_valid_ether_addr(dev->dev_addr))
-		return 0;
-
-	nd->iface->request_netinfo(nd->iface, nd->tx.ch_id);
-	wait_res = wait_for_completion_interruptible_timeout(
-			   &nd->mac_compl, msecs_to_jiffies(5000));
-	if (!wait_res) {
-		netdev_err(dev, "mac timeout\n");
-		return -EBUSY;
-	}
-
-	if (wait_res < 0) {
-		netdev_warn(dev, "mac waiting interrupted\n");
-		return wait_res;
-	}
-
 	return 0;
+
+err:
+	most_stop_channel(nd->iface, nd->tx.ch_id, &aim);
+	most_stop_channel(nd->iface, nd->rx.ch_id, &aim);
+	return ret;
 }
 
 static int most_nd_stop(struct net_device *dev)
