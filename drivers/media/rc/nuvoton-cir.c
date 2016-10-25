@@ -840,11 +840,10 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 {
 	struct nvt_dev *nvt = data;
 	u8 status, iren;
-	unsigned long flags;
 
 	nvt_dbg_verbose("%s firing", __func__);
 
-	spin_lock_irqsave(&nvt->lock, flags);
+	spin_lock(&nvt->lock);
 
 	/*
 	 * Get IR Status register contents. Write 1 to ack/clear
@@ -866,7 +865,7 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	 * logical device is being disabled.
 	 */
 	if (status == 0xff && iren == 0xff) {
-		spin_unlock_irqrestore(&nvt->lock, flags);
+		spin_unlock(&nvt->lock);
 		nvt_dbg_verbose("Spurious interrupt detected");
 		return IRQ_HANDLED;
 	}
@@ -875,7 +874,7 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	 * status bit whether the related interrupt source is enabled
 	 */
 	if (!(status & iren)) {
-		spin_unlock_irqrestore(&nvt->lock, flags);
+		spin_unlock(&nvt->lock);
 		nvt_dbg_verbose("%s exiting, IRSTS 0x0", __func__);
 		return IRQ_NONE;
 	}
@@ -923,7 +922,7 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 		}
 	}
 
-	spin_unlock_irqrestore(&nvt->lock, flags);
+	spin_unlock(&nvt->lock);
 
 	nvt_dbg_verbose("%s done", __func__);
 	return IRQ_HANDLED;
