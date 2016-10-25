@@ -87,7 +87,6 @@ struct nvt_dev {
 	unsigned int pkts;
 
 	struct {
-		spinlock_t lock;
 		u8 buf[TX_BUF_LEN];
 		unsigned int buf_count;
 		unsigned int cur_buf_num;

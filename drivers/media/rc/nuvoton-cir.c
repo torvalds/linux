@@ -688,7 +688,7 @@ static int nvt_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned n)
 	u8 iren;
 	int ret;
 
-	spin_lock_irqsave(&nvt->tx.lock, flags);
+	spin_lock_irqsave(&nvt->nvt_lock, flags);
 
 	ret = min((unsigned)(TX_BUF_LEN / sizeof(unsigned)), n);
 	nvt->tx.buf_count = (ret * sizeof(unsigned));
@@ -712,13 +712,13 @@ static int nvt_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned n)
 	for (i = 0; i < 9; i++)
 		nvt_cir_reg_write(nvt, 0x01, CIR_STXFIFO);
 
-	spin_unlock_irqrestore(&nvt->tx.lock, flags);
+	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
 
 	wait_event(nvt->tx.queue, nvt->tx.tx_state == ST_TX_REQUEST);
 
-	spin_lock_irqsave(&nvt->tx.lock, flags);
+	spin_lock_irqsave(&nvt->nvt_lock, flags);
 	nvt->tx.tx_state = ST_TX_NONE;
-	spin_unlock_irqrestore(&nvt->tx.lock, flags);
+	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
 
 	/* restore enabled interrupts to prior state */
 	nvt_cir_reg_write(nvt, iren, CIR_IREN);
@@ -832,14 +832,7 @@ static void nvt_cir_log_irqs(u8 status, u8 iren)
 
 static bool nvt_cir_tx_inactive(struct nvt_dev *nvt)
 {
-	unsigned long flags;
-	u8 tx_state;
-
-	spin_lock_irqsave(&nvt->tx.lock, flags);
-	tx_state = nvt->tx.tx_state;
-	spin_unlock_irqrestore(&nvt->tx.lock, flags);
-
-	return tx_state == ST_TX_NONE;
+	return nvt->tx.tx_state == ST_TX_NONE;
 }
 
 /* interrupt service routine for incoming and outgoing CIR data */
@@ -902,16 +895,12 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 			nvt_get_rx_ir_data(nvt);
 	}
 
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
-
 	if (status & CIR_IRSTS_TE)
 		nvt_clear_tx_fifo(nvt);
 
 	if (status & CIR_IRSTS_TTR) {
 		unsigned int pos, count;
 		u8 tmp;
-
-		spin_lock_irqsave(&nvt->tx.lock, flags);
 
 		pos = nvt->tx.cur_buf_num;
 		count = nvt->tx.buf_count;
@@ -925,19 +914,16 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 			tmp = nvt_cir_reg_read(nvt, CIR_IREN);
 			nvt_cir_reg_write(nvt, tmp & ~CIR_IREN_TTR, CIR_IREN);
 		}
-
-		spin_unlock_irqrestore(&nvt->tx.lock, flags);
-
 	}
 
 	if (status & CIR_IRSTS_TFU) {
-		spin_lock_irqsave(&nvt->tx.lock, flags);
 		if (nvt->tx.tx_state == ST_TX_REPLY) {
 			nvt->tx.tx_state = ST_TX_REQUEST;
 			wake_up(&nvt->tx.queue);
 		}
-		spin_unlock_irqrestore(&nvt->tx.lock, flags);
 	}
+
+	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
 
 	nvt_dbg_verbose("%s done", __func__);
 	return IRQ_HANDLED;
@@ -1052,7 +1038,6 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	nvt->cr_efdr = CR_EFDR;
 
 	spin_lock_init(&nvt->nvt_lock);
-	spin_lock_init(&nvt->tx.lock);
 
 	pnp_set_drvdata(pdev, nvt);
 
@@ -1152,11 +1137,9 @@ static int nvt_suspend(struct pnp_dev *pdev, pm_message_t state)
 
 	nvt_dbg("%s called", __func__);
 
-	spin_lock_irqsave(&nvt->tx.lock, flags);
-	nvt->tx.tx_state = ST_TX_NONE;
-	spin_unlock_irqrestore(&nvt->tx.lock, flags);
-
 	spin_lock_irqsave(&nvt->nvt_lock, flags);
+
+	nvt->tx.tx_state = ST_TX_NONE;
 
 	/* disable all CIR interrupts */
 	nvt_cir_reg_write(nvt, 0, CIR_IREN);
