@@ -40,7 +40,6 @@ show up in /proc/sys/kernel:
 - hung_task_warnings
 - kexec_load_disabled
 - kptr_restrict
-- kstack_depth_to_print       [ X86 only ]
 - l2cr                        [ PPC only ]
 - modprobe                    ==> Documentation/debugging-modules.txt
 - modules_disabled
@@ -392,13 +391,6 @@ values to unprivileged users is a concern.
 
 When kptr_restrict is set to (2), kernel pointers printed using
 %pK will be replaced with 0's regardless of privileges.
-
-==============================================================
-
-kstack_depth_to_print: (X86 only)
-
-Controls the number of words to print when dumping the raw
-kernel stack.
 
 ==============================================================
 

@@ -43,8 +43,6 @@ static inline bool on_stack(struct stack_info *info, void *addr, size_t len)
 		addr + len > begin && addr + len <= end);
 }
 
-extern int kstack_depth_to_print;
-
 #ifdef CONFIG_X86_32
 #define STACKSLOTS_PER_LINE 8
 #else
@@ -85,9 +83,6 @@ get_stack_pointer(struct task_struct *task, struct pt_regs *regs)
 
 void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			unsigned long *stack, char *log_lvl);
-
-void show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
-			unsigned long *sp, char *log_lvl);
 
 extern unsigned int code_bytes;
 
