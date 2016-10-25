@@ -4048,7 +4048,6 @@ void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, struct mlx5e_priv *priv)
 	const struct mlx5e_profile *profile = priv->profile;
 	struct net_device *netdev = priv->netdev;
 
-	unregister_netdev(netdev);
 	destroy_workqueue(priv->wq);
 	if (profile->cleanup)
 		profile->cleanup(priv);
@@ -4065,6 +4064,7 @@ static void mlx5e_remove(struct mlx5_core_dev *mdev, void *vpriv)
 	for (vport = 1; vport < total_vfs; vport++)
 		mlx5_eswitch_unregister_vport_rep(esw, vport);
 
+	unregister_netdev(priv->netdev);
 	mlx5e_detach(mdev, vpriv);
 	mlx5e_destroy_netdev(mdev, priv);
 }
