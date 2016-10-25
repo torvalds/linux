@@ -1249,6 +1249,7 @@ int sc_enable(struct send_context *sc)
 	sc->free = 0;
 	sc->alloc_free = 0;
 	sc->fill = 0;
+	sc->fill_wrap = 0;
 	sc->sr_head = 0;
 	sc->sr_tail = 0;
 	sc->flags = 0;
@@ -1392,7 +1393,7 @@ struct pio_buf *sc_buffer_alloc(struct send_context *sc, u32 dw_len,
 	unsigned long flags;
 	unsigned long avail;
 	unsigned long blocks = dwords_to_blocks(dw_len);
-	unsigned long start_fill;
+	u32 fill_wrap;
 	int trycount = 0;
 	u32 head, next;
 
@@ -1435,8 +1436,11 @@ retry:
 	head = sc->sr_head;
 
 	/* "allocate" the buffer */
-	start_fill = sc->fill;
 	sc->fill += blocks;
+	fill_wrap = sc->fill_wrap;
+	sc->fill_wrap += blocks;
+	if (sc->fill_wrap >= sc->credits)
+		sc->fill_wrap = sc->fill_wrap - sc->credits;
 
 	/*
 	 * Fill the parts that the releaser looks at before moving the head.
@@ -1465,8 +1469,7 @@ retry:
 	spin_unlock_irqrestore(&sc->alloc_lock, flags);
 
 	/* finish filling in the buffer outside the lock */
-	pbuf->start = sc->base_addr + ((start_fill % sc->credits)
-							* PIO_BLOCK_SIZE);
+	pbuf->start = sc->base_addr + fill_wrap * PIO_BLOCK_SIZE;
 	pbuf->size = sc->credits * PIO_BLOCK_SIZE;
 	pbuf->end = sc->base_addr + pbuf->size;
 	pbuf->block_count = blocks;

@@ -119,6 +119,7 @@ struct send_context {
 	unsigned long fill;		/* official alloc count */
 	unsigned long alloc_free;	/* copy of free (less cache thrash) */
 	u32 __percpu *buffers_allocated;/* count of buffers allocated */
+	u32 fill_wrap;			/* tracks fill within ring */
 	/* releaser fields */
 	spinlock_t release_lock ____cacheline_aligned_in_smp;
 	u32 sr_tail;			/* shadow ring tail */
