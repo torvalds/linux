@@ -1174,6 +1174,10 @@ struct hfi1_devdata {
 	spinlock_t aspm_lock;
 	/* Number of verbs contexts which have disabled ASPM */
 	atomic_t aspm_disabled_cnt;
+	/* Keeps track of user space clients */
+	atomic_t user_refcount;
+	/* Used to wait for outstanding user space clients before dev removal */
+	struct completion user_comp;
 
 	struct hfi1_affinity *affinity;
 	struct rhashtable sdma_rht;
