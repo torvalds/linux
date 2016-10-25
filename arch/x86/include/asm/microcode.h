@@ -56,12 +56,6 @@ struct ucode_cpu_info {
 };
 extern struct ucode_cpu_info ucode_cpu_info[];
 
-#ifdef CONFIG_MICROCODE
-int __init microcode_init(void);
-#else
-static inline int __init microcode_init(void)	{ return 0; };
-#endif
-
 #ifdef CONFIG_MICROCODE_INTEL
 extern struct microcode_ops * __init init_intel_microcode(void);
 #else
@@ -131,11 +125,13 @@ static inline unsigned int x86_cpuid_family(void)
 }
 
 #ifdef CONFIG_MICROCODE
+int __init microcode_init(void);
 extern void __init load_ucode_bsp(void);
 extern void load_ucode_ap(void);
 void reload_early_microcode(void);
 extern bool get_builtin_firmware(struct cpio_data *cd, const char *name);
 #else
+static inline int __init microcode_init(void)			{ return 0; };
 static inline void __init load_ucode_bsp(void)			{ }
 static inline void load_ucode_ap(void)				{ }
 static inline void reload_early_microcode(void)			{ }
