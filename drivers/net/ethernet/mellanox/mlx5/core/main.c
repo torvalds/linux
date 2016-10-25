@@ -844,12 +844,6 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	struct pci_dev *pdev = dev->pdev;
 	int err;
 
-	err = mlx5_query_hca_caps(dev);
-	if (err) {
-		dev_err(&pdev->dev, "query hca failed\n");
-		goto out;
-	}
-
 	err = mlx5_query_board_id(dev);
 	if (err) {
 		dev_err(&pdev->dev, "query board id failed\n");
@@ -1022,6 +1016,12 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	}
 
 	mlx5_start_health_poll(dev);
+
+	err = mlx5_query_hca_caps(dev);
+	if (err) {
+		dev_err(&pdev->dev, "query hca failed\n");
+		goto err_stop_poll;
+	}
 
 	if (boot && mlx5_init_once(dev, priv)) {
 		dev_err(&pdev->dev, "sw objs init failed\n");
