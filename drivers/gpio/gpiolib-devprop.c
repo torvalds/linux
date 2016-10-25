@@ -31,6 +31,11 @@ void devprop_gpiochip_set_names(struct gpio_chip *chip)
 	const char **names;
 	int ret, i;
 
+	if (!chip->parent) {
+		dev_warn(&gdev->dev, "GPIO chip parent is NULL\n");
+		return;
+	}
+
 	ret = device_property_read_string_array(chip->parent, "gpio-line-names",
 						NULL, 0);
 	if (ret < 0)
