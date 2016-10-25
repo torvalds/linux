@@ -5524,17 +5524,45 @@ void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
 	}
 }
 
-/*
- * The extent buffer bitmap operations are done with byte granularity because
- * bitmap items are not guaranteed to be aligned to a word and therefore a
- * single word in a bitmap may straddle two pages in the extent buffer.
- */
-#define BIT_BYTE(nr) ((nr) / BITS_PER_BYTE)
-#define BYTE_MASK ((1 << BITS_PER_BYTE) - 1)
-#define BITMAP_FIRST_BYTE_MASK(start) \
-	((BYTE_MASK << ((start) & (BITS_PER_BYTE - 1))) & BYTE_MASK)
-#define BITMAP_LAST_BYTE_MASK(nbits) \
-	(BYTE_MASK >> (-(nbits) & (BITS_PER_BYTE - 1)))
+void le_bitmap_set(u8 *map, unsigned int start, int len)
+{
+	u8 *p = map + BIT_BYTE(start);
+	const unsigned int size = start + len;
+	int bits_to_set = BITS_PER_BYTE - (start % BITS_PER_BYTE);
+	u8 mask_to_set = BITMAP_FIRST_BYTE_MASK(start);
+
+	while (len - bits_to_set >= 0) {
+		*p |= mask_to_set;
+		len -= bits_to_set;
+		bits_to_set = BITS_PER_BYTE;
+		mask_to_set = ~(u8)0;
+		p++;
+	}
+	if (len) {
+		mask_to_set &= BITMAP_LAST_BYTE_MASK(size);
+		*p |= mask_to_set;
+	}
+}
+
+void le_bitmap_clear(u8 *map, unsigned int start, int len)
+{
+	u8 *p = map + BIT_BYTE(start);
+	const unsigned int size = start + len;
+	int bits_to_clear = BITS_PER_BYTE - (start % BITS_PER_BYTE);
+	u8 mask_to_clear = BITMAP_FIRST_BYTE_MASK(start);
+
+	while (len - bits_to_clear >= 0) {
+		*p &= ~mask_to_clear;
+		len -= bits_to_clear;
+		bits_to_clear = BITS_PER_BYTE;
+		mask_to_clear = ~(u8)0;
+		p++;
+	}
+	if (len) {
+		mask_to_clear &= BITMAP_LAST_BYTE_MASK(size);
+		*p &= ~mask_to_clear;
+	}
+}
 
 /*
  * eb_bitmap_offset() - calculate the page and offset of the byte containing the
@@ -5578,7 +5606,7 @@ static inline void eb_bitmap_offset(struct extent_buffer *eb,
 int extent_buffer_test_bit(struct extent_buffer *eb, unsigned long start,
 			   unsigned long nr)
 {
-	char *kaddr;
+	u8 *kaddr;
 	struct page *page;
 	unsigned long i;
 	size_t offset;
@@ -5600,13 +5628,13 @@ int extent_buffer_test_bit(struct extent_buffer *eb, unsigned long start,
 void extent_buffer_bitmap_set(struct extent_buffer *eb, unsigned long start,
 			      unsigned long pos, unsigned long len)
 {
-	char *kaddr;
+	u8 *kaddr;
 	struct page *page;
 	unsigned long i;
 	size_t offset;
 	const unsigned int size = pos + len;
 	int bits_to_set = BITS_PER_BYTE - (pos % BITS_PER_BYTE);
-	unsigned int mask_to_set = BITMAP_FIRST_BYTE_MASK(pos);
+	u8 mask_to_set = BITMAP_FIRST_BYTE_MASK(pos);
 
 	eb_bitmap_offset(eb, start, pos, &i, &offset);
 	page = eb->pages[i];
@@ -5617,7 +5645,7 @@ void extent_buffer_bitmap_set(struct extent_buffer *eb, unsigned long start,
 		kaddr[offset] |= mask_to_set;
 		len -= bits_to_set;
 		bits_to_set = BITS_PER_BYTE;
-		mask_to_set = ~0U;
+		mask_to_set = ~(u8)0;
 		if (++offset >= PAGE_SIZE && len > 0) {
 			offset = 0;
 			page = eb->pages[++i];
@@ -5642,13 +5670,13 @@ void extent_buffer_bitmap_set(struct extent_buffer *eb, unsigned long start,
 void extent_buffer_bitmap_clear(struct extent_buffer *eb, unsigned long start,
 				unsigned long pos, unsigned long len)
 {
-	char *kaddr;
+	u8 *kaddr;
 	struct page *page;
 	unsigned long i;
 	size_t offset;
 	const unsigned int size = pos + len;
 	int bits_to_clear = BITS_PER_BYTE - (pos % BITS_PER_BYTE);
-	unsigned int mask_to_clear = BITMAP_FIRST_BYTE_MASK(pos);
+	u8 mask_to_clear = BITMAP_FIRST_BYTE_MASK(pos);
 
 	eb_bitmap_offset(eb, start, pos, &i, &offset);
 	page = eb->pages[i];
@@ -5659,7 +5687,7 @@ void extent_buffer_bitmap_clear(struct extent_buffer *eb, unsigned long start,
 		kaddr[offset] &= ~mask_to_clear;
 		len -= bits_to_clear;
 		bits_to_clear = BITS_PER_BYTE;
-		mask_to_clear = ~0U;
+		mask_to_clear = ~(u8)0;
 		if (++offset >= PAGE_SIZE && len > 0) {
 			offset = 0;
 			page = eb->pages[++i];

@@ -160,7 +160,8 @@ extern char *cachefiles_cook_key(const u8 *raw, int keylen, uint8_t type);
  * namei.c
  */
 extern void cachefiles_mark_object_inactive(struct cachefiles_cache *cache,
-					    struct cachefiles_object *object);
+					    struct cachefiles_object *object,
+					    blkcnt_t i_blocks);
 extern int cachefiles_delete_object(struct cachefiles_cache *cache,
 				    struct cachefiles_object *object);
 extern int cachefiles_walk_to_object(struct cachefiles_object *parent,

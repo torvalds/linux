@@ -280,9 +280,9 @@ bool __radix_tree_delete_node(struct radix_tree_root *root,
 			      struct radix_tree_node *node);
 void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
 void *radix_tree_delete(struct radix_tree_root *, unsigned long);
-struct radix_tree_node *radix_tree_replace_clear_tags(
-				struct radix_tree_root *root,
-				unsigned long index, void *entry);
+void radix_tree_clear_tags(struct radix_tree_root *root,
+			   struct radix_tree_node *node,
+			   void **slot);
 unsigned int radix_tree_gang_lookup(struct radix_tree_root *root,
 			void **results, unsigned long first_index,
 			unsigned int max_items);

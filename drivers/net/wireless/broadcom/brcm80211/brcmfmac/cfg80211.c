@@ -2533,7 +2533,7 @@ static void brcmf_fill_bss_param(struct brcmf_if *ifp, struct station_info *si)
 				     WL_BSS_INFO_MAX);
 	if (err) {
 		brcmf_err("Failed to get bss info (%d)\n", err);
-		return;
+		goto out_kfree;
 	}
 	si->filled |= BIT(NL80211_STA_INFO_BSS_PARAM);
 	si->bss_param.beacon_interval = le16_to_cpu(buf->bss_le.beacon_period);
@@ -2545,6 +2545,9 @@ static void brcmf_fill_bss_param(struct brcmf_if *ifp, struct station_info *si)
 		si->bss_param.flags |= BSS_PARAM_FLAGS_SHORT_PREAMBLE;
 	if (capability & WLAN_CAPABILITY_SHORT_SLOT_TIME)
 		si->bss_param.flags |= BSS_PARAM_FLAGS_SHORT_SLOT_TIME;
+
+out_kfree:
+	kfree(buf);
 }
 
 static s32
@@ -3884,11 +3887,11 @@ brcmf_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *ndev,
 	if (!check_vif_up(ifp->vif))
 		return -EIO;
 
-	brcmf_dbg(CONN, "del_pmksa - PMK bssid = %pM\n", &pmksa->bssid);
+	brcmf_dbg(CONN, "del_pmksa - PMK bssid = %pM\n", pmksa->bssid);
 
 	npmk = le32_to_cpu(cfg->pmk_list.npmk);
 	for (i = 0; i < npmk; i++)
-		if (!memcmp(&pmksa->bssid, &pmk[i].bssid, ETH_ALEN))
+		if (!memcmp(pmksa->bssid, pmk[i].bssid, ETH_ALEN))
 			break;
 
 	if ((npmk > 0) && (i < npmk)) {

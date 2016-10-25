@@ -67,8 +67,12 @@ int mei_amthif_host_init(struct mei_device *dev, struct mei_me_client *me_cl)
 	struct mei_cl *cl = &dev->iamthif_cl;
 	int ret;
 
-	if (mei_cl_is_connected(cl))
-		return 0;
+	mutex_lock(&dev->device_lock);
+
+	if (mei_cl_is_connected(cl)) {
+		ret = 0;
+		goto out;
+	}
 
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 
@@ -77,11 +81,13 @@ int mei_amthif_host_init(struct mei_device *dev, struct mei_me_client *me_cl)
 	ret = mei_cl_link(cl);
 	if (ret < 0) {
 		dev_err(dev->dev, "amthif: failed cl_link %d\n", ret);
-		return ret;
+		goto out;
 	}
 
 	ret = mei_cl_connect(cl, me_cl, NULL);
 
+out:
+	mutex_unlock(&dev->device_lock);
 	return ret;
 }
 

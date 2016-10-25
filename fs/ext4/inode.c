@@ -647,11 +647,19 @@ found:
 		/*
 		 * We have to zeroout blocks before inserting them into extent
 		 * status tree. Otherwise someone could look them up there and
-		 * use them before they are really zeroed.
+		 * use them before they are really zeroed. We also have to
+		 * unmap metadata before zeroing as otherwise writeback can
+		 * overwrite zeros with stale data from block device.
 		 */
 		if (flags & EXT4_GET_BLOCKS_ZERO &&
 		    map->m_flags & EXT4_MAP_MAPPED &&
 		    map->m_flags & EXT4_MAP_NEW) {
+			ext4_lblk_t i;
+
+			for (i = 0; i < map->m_len; i++) {
+				unmap_underlying_metadata(inode->i_sb->s_bdev,
+							  map->m_pblk + i);
+			}
 			ret = ext4_issue_zeroout(inode, map->m_lblk,
 						 map->m_pblk, map->m_len);
 			if (ret) {
@@ -1649,6 +1657,8 @@ static void mpage_release_unused_pages(struct mpage_da_data *mpd,
 			BUG_ON(!PageLocked(page));
 			BUG_ON(PageWriteback(page));
 			if (invalidate) {
+				if (page_mapped(page))
+					clear_page_dirty_for_io(page);
 				block_invalidatepage(page, 0, PAGE_SIZE);
 				ClearPageUptodate(page);
 			}
@@ -3890,7 +3900,7 @@ int ext4_update_disksize_before_punch(struct inode *inode, loff_t offset,
 }
 
 /*
- * ext4_punch_hole: punches a hole in a file by releaseing the blocks
+ * ext4_punch_hole: punches a hole in a file by releasing the blocks
  * associated with the given offset and length
  *
  * @inode:  File inode
@@ -3919,7 +3929,7 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 	 * Write out all dirty pages to avoid race conditions
 	 * Then release them.
 	 */
-	if (mapping->nrpages && mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
+	if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
 		ret = filemap_write_and_wait_range(mapping, offset,
 						   offset + length - 1);
 		if (ret)
@@ -4814,14 +4824,14 @@ static int ext4_do_update_inode(handle_t *handle,
  * Fix up interoperability with old kernels. Otherwise, old inodes get
  * re-used with the upper 16 bits of the uid/gid intact
  */
-		if (!ei->i_dtime) {
+		if (ei->i_dtime && list_empty(&ei->i_orphan)) {
+			raw_inode->i_uid_high = 0;
+			raw_inode->i_gid_high = 0;
+		} else {
 			raw_inode->i_uid_high =
 				cpu_to_le16(high_16_bits(i_uid));
 			raw_inode->i_gid_high =
 				cpu_to_le16(high_16_bits(i_gid));
-		} else {
-			raw_inode->i_uid_high = 0;
-			raw_inode->i_gid_high = 0;
 		}
 	} else {
 		raw_inode->i_uid_low = cpu_to_le16(fs_high2lowuid(i_uid));

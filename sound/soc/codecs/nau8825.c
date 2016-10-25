@@ -1907,7 +1907,7 @@ static int nau8825_calc_fll_param(unsigned int fll_in, unsigned int fs,
 	/* Calculate the FLL 10-bit integer input and the FLL 16-bit fractional
 	 * input based on FDCO, FREF and FLL ratio.
 	 */
-	fvco = div_u64(fvco << 16, fref * fll_param->ratio);
+	fvco = div_u64(fvco_max << 16, fref * fll_param->ratio);
 	fll_param->fll_int = (fvco >> 16) & 0x3FF;
 	fll_param->fll_frac = fvco & 0xFFFF;
 	return 0;
