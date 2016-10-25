@@ -3,19 +3,19 @@
  * Copyright (C) 2012 David S. Miller (davem@davemloft.net)
  */
 
-#define EX_ST(x)		\
+#define EX_ST(x,y)		\
 98:	x;			\
 	.section __ex_table,"a";\
 	.align 4;		\
-	.word 98b, __retl_mone_asi;\
+	.word 98b, y;		\
 	.text;			\
 	.align 4;
 
-#define EX_ST_FP(x)		\
+#define EX_ST_FP(x,y)		\
 98:	x;			\
 	.section __ex_table,"a";\
 	.align 4;		\
-	.word 98b, __retl_mone_asi_fp;\
+	.word 98b, y##_fp;	\
 	.text;			\
 	.align 4;
 
