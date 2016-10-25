@@ -198,22 +198,13 @@ static bool ff_layout_mirror_valid(struct pnfs_layout_segment *lseg,
 	return true;
 }
 
-static u64
-end_offset(u64 start, u64 len)
-{
-	u64 end;
-
-	end = start + len;
-	return end >= start ? end : NFS4_MAX_UINT64;
-}
-
 static void extend_ds_error(struct nfs4_ff_layout_ds_err *err,
 			    u64 offset, u64 length)
 {
 	u64 end;
 
-	end = max_t(u64, end_offset(err->offset, err->length),
-		    end_offset(offset, length));
+	end = max_t(u64, pnfs_end_offset(err->offset, err->length),
+		    pnfs_end_offset(offset, length));
 	err->offset = min_t(u64, err->offset, offset);
 	err->length = end - err->offset;
 }
@@ -235,9 +226,9 @@ ff_ds_error_match(const struct nfs4_ff_layout_ds_err *e1,
 	ret = memcmp(&e1->deviceid, &e2->deviceid, sizeof(e1->deviceid));
 	if (ret != 0)
 		return ret;
-	if (end_offset(e1->offset, e1->length) < e2->offset)
+	if (pnfs_end_offset(e1->offset, e1->length) < e2->offset)
 		return -1;
-	if (e1->offset > end_offset(e2->offset, e2->length))
+	if (e1->offset > pnfs_end_offset(e2->offset, e2->length))
 		return 1;
 	/* If ranges overlap or are contiguous, they are the same */
 	return 0;
@@ -457,16 +448,6 @@ nfs4_ff_find_or_create_ds_client(struct pnfs_layout_segment *lseg, u32 ds_idx,
 	}
 }
 
-static bool is_range_intersecting(u64 offset1, u64 length1,
-				  u64 offset2, u64 length2)
-{
-	u64 end1 = end_offset(offset1, length1);
-	u64 end2 = end_offset(offset2, length2);
-
-	return (end1 == NFS4_MAX_UINT64 || end1 > offset2) &&
-	       (end2 == NFS4_MAX_UINT64 || end2 > offset1);
-}
-
 /* called with inode i_lock held */
 int ff_layout_encode_ds_ioerr(struct nfs4_flexfile_layout *flo,
 			      struct xdr_stream *xdr, int *count,
@@ -476,8 +457,10 @@ int ff_layout_encode_ds_ioerr(struct nfs4_flexfile_layout *flo,
 	__be32 *p;
 
 	list_for_each_entry_safe(err, n, &flo->error_list, list) {
-		if (!is_range_intersecting(err->offset, err->length,
-					   range->offset, range->length))
+		if (!pnfs_is_range_intersecting(err->offset,
+				pnfs_end_offset(err->offset, err->length),
+				range->offset,
+				pnfs_end_offset(range->offset, range->length)))
 			continue;
 		/* offset(8) + length(8) + stateid(NFS4_STATEID_SIZE)
 		 * + array length + deviceid(NFS4_DEVICEID4_SIZE)

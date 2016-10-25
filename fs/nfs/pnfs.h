@@ -560,6 +560,38 @@ pnfs_copy_range(struct pnfs_layout_range *dst,
 	memcpy(dst, src, sizeof(*dst));
 }
 
+static inline u64
+pnfs_end_offset(u64 start, u64 len)
+{
+	if (NFS4_MAX_UINT64 - start <= len)
+		return NFS4_MAX_UINT64;
+	return start + len;
+}
+
+/*
+ * Are 2 ranges intersecting?
+ *   start1                             end1
+ *   [----------------------------------)
+ *                                start2           end2
+ *                                [----------------)
+ */
+static inline bool
+pnfs_is_range_intersecting(u64 start1, u64 end1, u64 start2, u64 end2)
+{
+	return (end1 == NFS4_MAX_UINT64 || start2 < end1) &&
+		(end2 == NFS4_MAX_UINT64 || start1 < end2);
+}
+
+static inline bool
+pnfs_lseg_range_intersecting(const struct pnfs_layout_range *l1,
+		const struct pnfs_layout_range *l2)
+{
+	u64 end1 = pnfs_end_offset(l1->offset, l1->length);
+	u64 end2 = pnfs_end_offset(l2->offset, l2->length);
+
+	return pnfs_is_range_intersecting(l1->offset, end1, l2->offset, end2);
+}
+
 extern unsigned int layoutstats_timer;
 
 #ifdef NFS_DEBUG
