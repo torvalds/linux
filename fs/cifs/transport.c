@@ -547,12 +547,13 @@ SendReceiveNoRsp(const unsigned int xid, struct cifs_ses *ses,
 {
 	int rc;
 	struct kvec iov[1];
+	struct kvec rsp_iov;
 	int resp_buf_type;
 
 	iov[0].iov_base = in_buf;
 	iov[0].iov_len = get_rfc1002_length(in_buf) + 4;
 	flags |= CIFS_NO_RESP;
-	rc = SendReceive2(xid, ses, iov, 1, &resp_buf_type, flags);
+	rc = SendReceive2(xid, ses, iov, 1, &resp_buf_type, flags, &rsp_iov);
 	cifs_dbg(NOISY, "SendRcvNoRsp flags %d rc %d\n", flags, rc);
 
 	return rc;
@@ -651,7 +652,7 @@ cifs_setup_request(struct cifs_ses *ses, struct smb_rqst *rqst)
 int
 SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	     struct kvec *iov, int n_vec, int *resp_buf_type /* ret */,
-	     const int flags)
+	     const int flags, struct kvec *resp_iov)
 {
 	int rc = 0;
 	int timeout, optype;
@@ -667,15 +668,12 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	*resp_buf_type = CIFS_NO_BUFFER;  /* no response buf yet */
 
 	if ((ses == NULL) || (ses->server == NULL)) {
-		cifs_small_buf_release(buf);
 		cifs_dbg(VFS, "Null session\n");
 		return -EIO;
 	}
 
-	if (ses->server->tcpStatus == CifsExiting) {
-		cifs_small_buf_release(buf);
+	if (ses->server->tcpStatus == CifsExiting)
 		return -ENOENT;
-	}
 
 	/*
 	 * Ensure that we do not send more than 50 overlapping requests
@@ -684,10 +682,8 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	 */
 
 	rc = wait_for_free_request(ses->server, timeout, optype);
-	if (rc) {
-		cifs_small_buf_release(buf);
+	if (rc)
 		return rc;
-	}
 
 	/*
 	 * Make sure that we sign in the same order that we send on this socket
@@ -700,7 +696,6 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	midQ = ses->server->ops->setup_request(ses, &rqst);
 	if (IS_ERR(midQ)) {
 		mutex_unlock(&ses->server->srv_mutex);
-		cifs_small_buf_release(buf);
 		/* Update # of requests on wire to server */
 		add_credits(ses->server, 1, optype);
 		return PTR_ERR(midQ);
@@ -716,15 +711,11 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 		ses->server->sequence_number -= 2;
 	mutex_unlock(&ses->server->srv_mutex);
 
-	if (rc < 0) {
-		cifs_small_buf_release(buf);
+	if (rc < 0)
 		goto out;
-	}
 
-	if (timeout == CIFS_ASYNC_OP) {
-		cifs_small_buf_release(buf);
+	if (timeout == CIFS_ASYNC_OP)
 		goto out;
-	}
 
 	rc = wait_for_response(ses->server, midQ);
 	if (rc != 0) {
@@ -733,14 +724,11 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 		if (midQ->mid_state == MID_REQUEST_SUBMITTED) {
 			midQ->callback = DeleteMidQEntry;
 			spin_unlock(&GlobalMid_Lock);
-			cifs_small_buf_release(buf);
 			add_credits(ses->server, 1, optype);
 			return rc;
 		}
 		spin_unlock(&GlobalMid_Lock);
 	}
-
-	cifs_small_buf_release(buf);
 
 	rc = cifs_sync_mid_result(midQ, ses->server);
 	if (rc != 0) {
@@ -755,8 +743,8 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	}
 
 	buf = (char *)midQ->resp_buf;
-	iov[0].iov_base = buf;
-	iov[0].iov_len = get_rfc1002_length(buf) + 4;
+	resp_iov->iov_base = buf;
+	resp_iov->iov_len = get_rfc1002_length(buf) + 4;
 	if (midQ->large_buf)
 		*resp_buf_type = CIFS_LARGE_BUFFER;
 	else
