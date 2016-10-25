@@ -1462,11 +1462,8 @@ void cpu_init(void)
 	 */
 	cr4_init_shadow();
 
-	/*
-	 * Load microcode on this cpu if a valid microcode is available.
-	 * This is early microcode loading procedure.
-	 */
-	load_ucode_ap();
+	if (cpu)
+		load_ucode_ap();
 
 	t = &per_cpu(cpu_tss, cpu);
 	oist = &per_cpu(orig_ist, cpu);

@@ -357,16 +357,11 @@ static void __init get_bsp_sig(void)
 #else
 void load_ucode_amd_ap(void)
 {
-	unsigned int cpu = smp_processor_id();
 	struct equiv_cpu_entry *eq;
 	struct microcode_amd *mc;
 	u8 *cont = container;
 	u32 rev, eax;
 	u16 eq_id;
-
-	/* Exit if called on the BSP. */
-	if (!cpu)
-		return;
 
 	if (!container)
 		return;
