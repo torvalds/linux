@@ -746,6 +746,8 @@ struct intel_display_error_state;
 struct drm_i915_error_state {
 	struct kref ref;
 	struct timeval time;
+	struct timeval boottime;
+	struct timeval uptime;
 
 	struct drm_i915_private *i915;
 
@@ -2099,6 +2101,8 @@ struct drm_i915_private {
 		 * off the idle_work.
 		 */
 		struct delayed_work idle_work;
+
+		ktime_t last_init_time;
 	} gt;
 
 	/* perform PHY state sanity checks? */

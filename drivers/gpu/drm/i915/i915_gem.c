@@ -4470,6 +4470,8 @@ i915_gem_init_hw(struct drm_device *dev)
 	enum intel_engine_id id;
 	int ret;
 
+	dev_priv->gt.last_init_time = ktime_get();
+
 	/* Double layer security blanket, see i915_gem_init() */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 

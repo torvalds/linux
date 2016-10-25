@@ -546,9 +546,13 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	}
 
 	err_printf(m, "%s\n", error->error_msg);
-	err_printf(m, "Time: %ld s %ld us\n", error->time.tv_sec,
-		   error->time.tv_usec);
 	err_printf(m, "Kernel: " UTS_RELEASE "\n");
+	err_printf(m, "Time: %ld s %ld us\n",
+		   error->time.tv_sec, error->time.tv_usec);
+	err_printf(m, "Boottime: %ld s %ld us\n",
+		   error->boottime.tv_sec, error->boottime.tv_usec);
+	err_printf(m, "Uptime: %ld s %ld us\n",
+		   error->uptime.tv_sec, error->uptime.tv_usec);
 	err_print_capabilities(m, &error->device_info);
 	max_hangcheck_score = 0;
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
@@ -1549,6 +1553,10 @@ static int capture(void *data)
 	i915_gem_capture_guc_log_buffer(error->i915, error);
 
 	do_gettimeofday(&error->time);
+	error->boottime = ktime_to_timeval(ktime_get_boottime());
+	error->uptime =
+		ktime_to_timeval(ktime_sub(ktime_get(),
+					   error->i915->gt.last_init_time));
 
 	error->overlay = intel_overlay_capture_error_state(error->i915);
 	error->display = intel_display_capture_error_state(error->i915);
