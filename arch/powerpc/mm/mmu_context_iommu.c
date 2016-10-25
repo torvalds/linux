@@ -192,7 +192,6 @@ long mm_iommu_put(struct mm_struct *mm, struct mm_iommu_table_group_mem_t *mem)
 {
 	long ret = 0;
 
-
 	mutex_lock(&mem_list_mutex);
 
 	if (mem->used == 0) {
