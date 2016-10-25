@@ -15,6 +15,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -47,6 +48,8 @@ struct qcom_adsp {
 
 	struct qcom_smem_state *state;
 	unsigned stop_bit;
+
+	struct clk *xo;
 
 	struct regulator *cx_supply;
 
@@ -102,9 +105,13 @@ static int adsp_start(struct rproc *rproc)
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
 	int ret;
 
-	ret = regulator_enable(adsp->cx_supply);
+	ret = clk_prepare_enable(adsp->xo);
 	if (ret)
 		return ret;
+
+	ret = regulator_enable(adsp->cx_supply);
+	if (ret)
+		goto disable_clocks;
 
 	ret = qcom_scm_pas_auth_and_reset(ADSP_PAS_ID);
 	if (ret) {
@@ -126,6 +133,8 @@ static int adsp_start(struct rproc *rproc)
 
 disable_regulators:
 	regulator_disable(adsp->cx_supply);
+disable_clocks:
+	clk_disable_unprepare(adsp->xo);
 
 	return ret;
 }
@@ -223,6 +232,21 @@ static irqreturn_t adsp_stop_ack_interrupt(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static int adsp_init_clock(struct qcom_adsp *adsp)
+{
+	int ret;
+
+	adsp->xo = devm_clk_get(adsp->dev, "xo");
+	if (IS_ERR(adsp->xo)) {
+		ret = PTR_ERR(adsp->xo);
+		if (ret != -EPROBE_DEFER)
+			dev_err(adsp->dev, "failed to get xo clock");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int adsp_init_regulator(struct qcom_adsp *adsp)
 {
 	adsp->cx_supply = devm_regulator_get(adsp->dev, "cx");
@@ -317,6 +341,10 @@ static int adsp_probe(struct platform_device *pdev)
 	init_completion(&adsp->stop_done);
 
 	ret = adsp_alloc_memory_region(adsp);
+	if (ret)
+		goto free_rproc;
+
+	ret = adsp_init_clock(adsp);
 	if (ret)
 		goto free_rproc;
 
