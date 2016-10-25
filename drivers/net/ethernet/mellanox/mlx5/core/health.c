@@ -281,6 +281,7 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 	struct mlx5_core_health *health = &dev->priv.health;
 
 	init_timer(&health->timer);
+	health->sick = 0;
 	health->health = &dev->iseg->health;
 	health->health_counter = &dev->iseg->health_counter;
 
