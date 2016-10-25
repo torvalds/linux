@@ -2666,7 +2666,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			uint loopback = 0;
 			/* Let go of locks when accessing user space,
 			 * could sleep
-			*/
+			 */
 			spin_unlock_irqrestore(&ch->ch_lock, flags);
 			rc = get_user(loopback, (unsigned int __user *)arg);
 			if (rc)
