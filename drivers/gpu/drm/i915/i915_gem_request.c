@@ -723,7 +723,7 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
 		if (busywait_stop(timeout_us, cpu))
 			break;
 
-		cpu_relax_lowlatency();
+		cpu_relax();
 	} while (!need_resched());
 
 	return false;

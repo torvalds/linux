@@ -75,7 +75,7 @@ osq_wait_next(struct optimistic_spin_queue *lock,
 				break;
 		}
 
-		cpu_relax_lowlatency();
+		cpu_relax();
 	}
 
 	return next;
@@ -122,7 +122,7 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 		if (need_resched())
 			goto unqueue;
 
-		cpu_relax_lowlatency();
+		cpu_relax();
 	}
 	return true;
 
@@ -148,7 +148,7 @@ unqueue:
 		if (smp_load_acquire(&node->locked))
 			return true;
 
-		cpu_relax_lowlatency();
+		cpu_relax();
 
 		/*
 		 * Or we race against a concurrent unqueue()'s step-B, in which
