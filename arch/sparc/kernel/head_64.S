@@ -927,36 +927,6 @@ ENTRY(__retl_efault)
 	 mov	-EFAULT, %o0
 ENDPROC(__retl_efault)
 
-ENTRY(__retl_mone)
-	retl
-	 mov	-1, %o0
-ENDPROC(__retl_mone)
-
-ENTRY(__retl_mone_fp)
-	VISExitHalf
-	retl
-	 mov	1, %o0
-ENDPROC(__retl_mone_fp)
-
-ENTRY(__ret_mone_asi)
-	wr	%g0, ASI_AIUS, %asi
-	ret
-	 restore %g0, 1, %o0
-ENDPROC(__ret_mone_asi)
-
-ENTRY(__retl_mone_asi)
-	wr	%g0, ASI_AIUS, %asi
-	retl
-	 mov	1, %o0
-ENDPROC(__retl_mone_asi)
-
-ENTRY(__retl_mone_asi_fp)
-	wr	%g0, ASI_AIUS, %asi
-	VISExitHalf
-	retl
-	 mov	1, %o0
-ENDPROC(__retl_mone_asi_fp)
-
 ENTRY(__retl_o1)
 	retl
 	 mov	%o1, %o0
