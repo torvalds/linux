@@ -669,7 +669,6 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 			      struct rsnd_priv *priv)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	int dma_id = 0; /* not needed */
 	int ret;
 
 	/*
@@ -684,7 +683,7 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 		return ret;
 
 	/* SSI probe might be called many times in MUX multi path */
-	ret = rsnd_dma_attach(io, mod, &ssi->dma, dma_id);
+	ret = rsnd_dma_attach(io, mod, &ssi->dma);
 
 	return ret;
 }

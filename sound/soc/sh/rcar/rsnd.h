@@ -199,7 +199,7 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io);
  *	R-Car DMA
  */
 int rsnd_dma_attach(struct rsnd_dai_stream *io,
-		    struct rsnd_mod *mod, struct rsnd_mod **dma_mod, int id);
+		    struct rsnd_mod *mod, struct rsnd_mod **dma_mod);
 void rsnd_dma_detach(struct rsnd_mod *mod, struct rsnd_mod **dma_mod);
 int rsnd_dma_probe(struct rsnd_priv *priv);
 struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,

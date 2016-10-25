@@ -191,7 +191,7 @@ static int rsnd_dmaen_remove(struct rsnd_mod *mod,
 }
 
 static int rsnd_dmaen_attach(struct rsnd_dai_stream *io,
-			   struct rsnd_dma *dma, int id,
+			   struct rsnd_dma *dma,
 			   struct rsnd_mod *mod_from, struct rsnd_mod *mod_to)
 {
 	struct rsnd_mod *mod = rsnd_mod_get(dma);
@@ -208,17 +208,8 @@ static int rsnd_dmaen_attach(struct rsnd_dai_stream *io,
 		return -EIO;
 	}
 
-	if (dev->of_node) {
-		dmaen->chan = rsnd_dmaen_request_channel(io, mod_from, mod_to);
-	} else {
-		dma_cap_mask_t mask;
+	dmaen->chan = rsnd_dmaen_request_channel(io, mod_from, mod_to);
 
-		dma_cap_zero(mask);
-		dma_cap_set(DMA_SLAVE, mask);
-
-		dmaen->chan = dma_request_channel(mask, shdma_chan_filter,
-						  (void *)(uintptr_t)id);
-	}
 	if (IS_ERR_OR_NULL(dmaen->chan)) {
 		dmaen->chan = NULL;
 		dev_err(dev, "can't get dma channel\n");
@@ -394,7 +385,7 @@ static int rsnd_dmapp_start(struct rsnd_mod *mod,
 }
 
 static int rsnd_dmapp_attach(struct rsnd_dai_stream *io,
-			     struct rsnd_dma *dma, int id,
+			     struct rsnd_dma *dma,
 			     struct rsnd_mod *mod_from, struct rsnd_mod *mod_to)
 {
 	struct rsnd_dmapp *dmapp = rsnd_dma_to_dmapp(dma);
@@ -627,7 +618,7 @@ static void rsnd_dma_of_path(struct rsnd_mod *this,
 }
 
 int rsnd_dma_attach(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
-		    struct rsnd_mod **dma_mod, int id)
+		    struct rsnd_mod **dma_mod)
 {
 	struct rsnd_mod *mod_from = NULL;
 	struct rsnd_mod *mod_to = NULL;
@@ -636,7 +627,7 @@ int rsnd_dma_attach(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_mod_ops *ops;
 	enum rsnd_mod_type type;
-	int (*attach)(struct rsnd_dai_stream *io, struct rsnd_dma *dma, int id,
+	int (*attach)(struct rsnd_dai_stream *io, struct rsnd_dma *dma,
 		      struct rsnd_mod *mod_from, struct rsnd_mod *mod_to);
 	int is_play = rsnd_io_is_play(io);
 	int ret, dma_id;
@@ -695,7 +686,7 @@ int rsnd_dma_attach(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
 			rsnd_mod_name(mod_from), rsnd_mod_id(mod_from),
 			rsnd_mod_name(mod_to),   rsnd_mod_id(mod_to));
 
-		ret = attach(io, dma, id, mod_from, mod_to);
+		ret = attach(io, dma, mod_from, mod_to);
 		if (ret < 0)
 			return ret;
 	}
