@@ -64,6 +64,7 @@ static
 void MichaelAppend(struct michel_mic_t *Mic, uint8_t *src, int nBytes)
 {
 	int addlen;
+
 	if (Mic->nBytesInM) {
 		addlen = 4 - Mic->nBytesInM;
 		if (addlen > nBytes)
@@ -98,6 +99,7 @@ static
 void MichaelGetMIC(struct michel_mic_t *Mic, uint8_t *dst)
 {
 	uint8_t *data = Mic->M;
+
 	switch (Mic->nBytesInM) {
 	case 0:
 		Mic->L ^= 0x5a;
