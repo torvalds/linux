@@ -12098,7 +12098,7 @@ static void update_synth_timer(unsigned long opaque)
 	mod_timer(&dd->synth_stats_timer, jiffies + HZ * SYNTH_CNT_TIME);
 }
 
-#define C_MAX_NAME 13 /* 12 chars + one for /0 */
+#define C_MAX_NAME 16 /* 15 chars + one for /0 */
 static int init_cntrs(struct hfi1_devdata *dd)
 {
 	int i, rcv_ctxts, j;
