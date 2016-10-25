@@ -698,17 +698,6 @@ int rsnd_dma_attach(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
 	return 0;
 }
 
-void rsnd_dma_detach(struct rsnd_mod *mod, struct rsnd_mod **dma_mod)
-{
-	if (*dma_mod) {
-		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-		struct device *dev = rsnd_priv_to_dev(priv);
-
-		devm_kfree(dev, *dma_mod);
-		*dma_mod = NULL;
-	}
-}
-
 int rsnd_dma_probe(struct rsnd_priv *priv)
 {
 	struct platform_device *pdev = rsnd_priv_to_pdev(priv);

@@ -701,8 +701,6 @@ static int rsnd_ssi_dma_remove(struct rsnd_mod *mod,
 	/* PIO will request IRQ again */
 	free_irq(ssi->irq, mod);
 
-	rsnd_dma_detach(mod, &ssi->dma);
-
 	return 0;
 }
 
