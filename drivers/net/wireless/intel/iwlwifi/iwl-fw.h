@@ -132,7 +132,8 @@ struct fw_desc {
 };
 
 struct fw_img {
-	struct fw_desc sec[IWL_UCODE_SECTION_MAX];
+	struct fw_desc *sec;
+	int num_sec;
 	bool is_dual_cpus;
 	u32 paging_mem_size;
 };

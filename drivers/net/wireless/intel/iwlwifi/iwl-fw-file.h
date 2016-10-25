@@ -379,7 +379,6 @@ enum iwl_ucode_tlv_capa {
  * For 16.0 uCode and above, there is no differentiation between sections,
  * just an offset to the HW address.
  */
-#define IWL_UCODE_SECTION_MAX 16
 #define CPU1_CPU2_SEPARATOR_SECTION	0xFFFFCCCC
 #define PAGING_SEPARATOR_SECTION	0xAAAABBBB
 

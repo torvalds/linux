@@ -805,7 +805,7 @@ static int iwl_pcie_load_cpu_sections_8000(struct iwl_trans *trans,
 		(*first_ucode_section)++;
 	}
 
-	for (i = *first_ucode_section; i < IWL_UCODE_SECTION_MAX; i++) {
+	for (i = *first_ucode_section; i < image->num_sec; i++) {
 		last_read_idx = i;
 
 		/*
@@ -880,7 +880,7 @@ static int iwl_pcie_load_cpu_sections(struct iwl_trans *trans,
 		(*first_ucode_section)++;
 	}
 
-	for (i = *first_ucode_section; i < IWL_UCODE_SECTION_MAX; i++) {
+	for (i = *first_ucode_section; i < image->num_sec; i++) {
 		last_read_idx = i;
 
 		/*

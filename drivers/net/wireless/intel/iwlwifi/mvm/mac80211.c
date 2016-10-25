@@ -677,7 +677,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->wiphy->wowlan = &mvm->wowlan;
 	}
 
-	if (mvm->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
+	if (mvm->fw->img[IWL_UCODE_WOWLAN].num_sec &&
 	    mvm->trans->ops->d3_suspend &&
 	    mvm->trans->ops->d3_resume &&
 	    device_can_wakeup(mvm->trans->dev)) {
