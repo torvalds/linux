@@ -3550,8 +3550,6 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 
 	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
 
-	WARN_ON(obj->pin_display > i915_vma_pin_count(vma));
-
 	i915_gem_object_flush_cpu_write_domain(obj);
 
 	old_write_domain = obj->base.write_domain;
@@ -3588,7 +3586,6 @@ i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 		list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
 
 	i915_vma_unpin(vma);
-	WARN_ON(vma->obj->pin_display > i915_vma_pin_count(vma));
 }
 
 /**
