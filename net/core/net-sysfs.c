@@ -950,10 +950,13 @@ net_rx_queue_update_kobjects(struct net_device *dev, int old_num, int new_num)
 	}
 
 	while (--i >= new_num) {
+		struct kobject *kobj = &dev->_rx[i].kobj;
+
+		if (!list_empty(&dev_net(dev)->exit_list))
+			kobj->uevent_suppress = 1;
 		if (dev->sysfs_rx_queue_group)
-			sysfs_remove_group(&dev->_rx[i].kobj,
-					   dev->sysfs_rx_queue_group);
-		kobject_put(&dev->_rx[i].kobj);
+			sysfs_remove_group(kobj, dev->sysfs_rx_queue_group);
+		kobject_put(kobj);
 	}
 
 	return error;
@@ -1340,6 +1343,8 @@ netdev_queue_update_kobjects(struct net_device *dev, int old_num, int new_num)
 	while (--i >= new_num) {
 		struct netdev_queue *queue = dev->_tx + i;
 
+		if (!list_empty(&dev_net(dev)->exit_list))
+			queue->kobj.uevent_suppress = 1;
 #ifdef CONFIG_BQL
 		sysfs_remove_group(&queue->kobj, &dql_group);
 #endif
@@ -1524,6 +1529,9 @@ EXPORT_SYMBOL(of_find_net_device_by_node);
 void netdev_unregister_kobject(struct net_device *ndev)
 {
 	struct device *dev = &(ndev->dev);
+
+	if (!list_empty(&dev_net(ndev)->exit_list))
+		dev_set_uevent_suppress(dev, 1);
 
 	kobject_get(&dev->kobj);
 
