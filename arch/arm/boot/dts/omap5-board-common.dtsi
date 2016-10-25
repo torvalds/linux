@@ -124,6 +124,7 @@
 		compatible = "ti,abe-twl6040";
 		ti,model = "omap5-uevm";
 
+		ti,jack-detection;
 		ti,mclk-freq = <19200000>;
 
 		ti,mcpdm = <&mcpdm>;
