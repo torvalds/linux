@@ -8100,6 +8100,7 @@ S:	Maintained
 F:	drivers/media/dvb-frontends/mn88473*
 
 MODULE SUPPORT
+M:	Jessica Yu <jeyu@redhat.com>
 M:	Rusty Russell <rusty@rustcorp.com.au>
 S:	Maintained
 F:	include/linux/module.h
