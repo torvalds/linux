@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2000-2006 Tigran Aivazian <tigran@aivazian.fsnet.co.uk>
  *	      2006	Shaohua Li <shaohua.li@intel.com>
- *	      2013-2015	Borislav Petkov <bp@alien8.de>
+ *	      2013-2016	Borislav Petkov <bp@alien8.de>
  *
  * X86 CPU microcode early update for Linux:
  *
@@ -41,7 +41,7 @@
 #include <asm/cmdline.h>
 #include <asm/setup.h>
 
-#define MICROCODE_VERSION	"2.01"
+#define DRIVER_VERSION	"2.2"
 
 static struct microcode_ops	*microcode_ops;
 static bool dis_ucode_ldr;
@@ -703,7 +703,7 @@ int __init microcode_init(void)
 	cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "x86/microcode:online",
 				  mc_cpu_online, mc_cpu_down_prep);
 
-	pr_info("Microcode Update Driver: v%s.", MICROCODE_VERSION);
+	pr_info("Microcode Update Driver: v%s.", DRIVER_VERSION);
 
 	return 0;
 
