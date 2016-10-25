@@ -879,7 +879,7 @@ static struct mlx5_flow_group *create_flow_group_common(struct mlx5_flow_table *
 	tree_init_node(&fg->node, !is_auto_fg, del_flow_group);
 	tree_add_node(&fg->node, &ft->node);
 	/* Add node to group list */
-	list_add(&fg->node.list, ft->node.children.prev);
+	list_add(&fg->node.list, prev_fg);
 
 	return fg;
 }
@@ -893,7 +893,7 @@ struct mlx5_flow_group *mlx5_create_flow_group(struct mlx5_flow_table *ft,
 		return ERR_PTR(-EPERM);
 
 	lock_ref_node(&ft->node);
-	fg = create_flow_group_common(ft, fg_in, &ft->node.children, false);
+	fg = create_flow_group_common(ft, fg_in, ft->node.children.prev, false);
 	unlock_ref_node(&ft->node);
 
 	return fg;
@@ -1012,7 +1012,7 @@ static struct mlx5_flow_group *create_autogroup(struct mlx5_flow_table *ft,
 						u32 *match_criteria)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
-	struct list_head *prev = &ft->node.children;
+	struct list_head *prev = ft->node.children.prev;
 	unsigned int candidate_index = 0;
 	struct mlx5_flow_group *fg;
 	void *match_criteria_addr;
