@@ -448,7 +448,7 @@ static void setup_pci_atmu(struct pci_controller *hose)
 #endif
 		/* adjusting outbound windows could reclaim space in mem map */
 		if (paddr_hi < 0xffffffffull)
-			pr_warning("%pOF: WARNING: Outbound window cfg leaves "
+			pr_warn("%pOF: WARNING: Outbound window cfg leaves "
 				"gaps in memory map. Adjusting the memory map "
 				"could reduce unnecessary bounce buffering.\n",
 				hose->dn);
@@ -531,7 +531,7 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 	dev = pdev->dev.of_node;
 
 	if (!of_device_is_available(dev)) {
-		pr_warning("%pOF: disabled\n", dev);
+		pr_warn("%pOF: disabled\n", dev);
 		return -ENODEV;
 	}
 
@@ -808,8 +808,8 @@ int __init mpc83xx_add_bridge(struct device_node *dev)
 	is_mpc83xx_pci = 1;
 
 	if (!of_device_is_available(dev)) {
-		pr_warning("%pOF: disabled by the firmware.\n",
-			   dev);
+		pr_warn("%pOF: disabled by the firmware.\n",
+			dev);
 		return -ENODEV;
 	}
 	pr_debug("Adding PCI host bridge %pOF\n", dev);

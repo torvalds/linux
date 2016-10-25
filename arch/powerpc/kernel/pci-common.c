@@ -1276,8 +1276,8 @@ static void pcibios_allocate_bus_resources(struct pci_bus *bus)
 						i + PCI_BRIDGE_RESOURCES) == 0)
 				continue;
 		}
-		pr_warning("PCI: Cannot allocate resource region "
-			   "%d of PCI bridge %d, will remap\n", i, bus->number);
+		pr_warn("PCI: Cannot allocate resource region %d of PCI bridge %d, will remap\n",
+			i, bus->number);
 	clear_resource:
 		/* The resource might be figured out when doing
 		 * reassignment based on the resources required

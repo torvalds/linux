@@ -101,7 +101,7 @@ static int __init mpc86xx_hpcn_probe(void)
 
 	/* Be nice and don't give silent boot death.  Delete this in 2.6.27 */
 	if (of_machine_is_compatible("mpc86xx")) {
-		pr_warning("WARNING: your dts/dtb is old. You must update before the next kernel release\n");
+		pr_warn("WARNING: your dts/dtb is old. You must update before the next kernel release.\n");
 		return 1;
 	}
 

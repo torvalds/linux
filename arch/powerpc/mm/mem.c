@@ -138,8 +138,7 @@ int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
 	start = (unsigned long)__va(start);
 	rc = create_section_mapping(start, start + size);
 	if (rc) {
-		pr_warning(
-			"Unable to create mapping for hot added memory 0x%llx..0x%llx: %d\n",
+		pr_warn("Unable to create mapping for hot added memory 0x%llx..0x%llx: %d\n",
 			start, start + size, rc);
 		return -EFAULT;
 	}

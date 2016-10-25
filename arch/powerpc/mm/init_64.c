@@ -214,9 +214,8 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 
 		rc = vmemmap_create_mapping(start, page_size, __pa(p));
 		if (rc < 0) {
-			pr_warning(
-				"vmemmap_populate: Unable to create vmemmap mapping: %d\n",
-				rc);
+			pr_warn("%s: Unable to create vmemmap mapping: %d\n",
+				__func__, rc);
 			return -EFAULT;
 		}
 	}

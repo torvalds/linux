@@ -1059,8 +1059,8 @@ static struct pnv_ioda_pe *pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 
 	pe = pnv_ioda_alloc_pe(phb);
 	if (!pe) {
-		pr_warning("%s: Not enough PE# available, disabling device\n",
-			   pci_name(dev));
+		pr_warn("%s: Not enough PE# available, disabling device\n",
+			pci_name(dev));
 		return NULL;
 	}
 
@@ -1164,7 +1164,7 @@ static struct pnv_ioda_pe *pnv_ioda_setup_bus_PE(struct pci_bus *bus, bool all)
 		pe = pnv_ioda_alloc_pe(phb);
 
 	if (!pe) {
-		pr_warning("%s: Not enough PE# available for PCI bus %04x:%02x\n",
+		pr_warn("%s: Not enough PE# available for PCI bus %04x:%02x\n",
 			__func__, pci_domain_nr(bus), bus->number);
 		return NULL;
 	}
@@ -3293,7 +3293,7 @@ static void pnv_pci_ioda_create_dbgfs(void)
 		sprintf(name, "PCI%04x", hose->global_number);
 		phb->dbgfs = debugfs_create_dir(name, powerpc_debugfs_root);
 		if (!phb->dbgfs) {
-			pr_warning("%s: Error on creating debugfs on PHB#%x\n",
+			pr_warn("%s: Error on creating debugfs on PHB#%x\n",
 				__func__, hose->global_number);
 			continue;
 		}
@@ -4026,7 +4026,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	/* Reset IODA tables to a clean state */
 	rc = opal_pci_reset(phb_id, OPAL_RESET_PCI_IODA_TABLE, OPAL_ASSERT_RESET);
 	if (rc)
-		pr_warning("  OPAL Error %ld performing IODA table reset !\n", rc);
+		pr_warn("  OPAL Error %ld performing IODA table reset !\n", rc);
 
 	/*
 	 * If we're running in kdump kernel, the previous kernel never

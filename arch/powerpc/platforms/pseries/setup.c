@@ -371,8 +371,8 @@ void pseries_disable_reloc_on_exc(void)
 		mdelay(get_longbusy_msecs(rc));
 	}
 	if (rc != H_SUCCESS)
-		pr_warning("Warning: Failed to disable relocation on "
-			   "exceptions: %ld\n", rc);
+		pr_warn("Warning: Failed to disable relocation on exceptions: %ld\n",
+			rc);
 }
 EXPORT_SYMBOL(pseries_disable_reloc_on_exc);
 
