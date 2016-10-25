@@ -1477,9 +1477,10 @@ void efx_farch_irq_disable_master(struct efx_nic *efx)
  * Interrupt must already have been enabled, otherwise nasty things
  * may happen.
  */
-void efx_farch_irq_test_generate(struct efx_nic *efx)
+int efx_farch_irq_test_generate(struct efx_nic *efx)
 {
 	efx_farch_interrupts(efx, true, true);
+	return 0;
 }
 
 /* Process a fatal interrupt

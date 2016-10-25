@@ -240,9 +240,7 @@ struct fm10k_iov_data {
 	struct fm10k_vf_info	vf_info[0];
 };
 
-#define fm10k_vxlan_port_for_each(vp, intfc) \
-	list_for_each_entry(vp, &(intfc)->vxlan_port, list)
-struct fm10k_vxlan_port {
+struct fm10k_udp_port {
 	struct list_head	list;
 	sa_family_t		sa_family;
 	__be16			port;
@@ -335,8 +333,9 @@ struct fm10k_intfc {
 	u32 reta[FM10K_RETA_SIZE];
 	u32 rssrk[FM10K_RSSRK_SIZE];
 
-	/* VXLAN port tracking information */
+	/* UDP encapsulation port tracking information */
 	struct list_head vxlan_port;
+	struct list_head geneve_port;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dbg_intfc;
@@ -458,7 +457,7 @@ __be16 fm10k_tx_encap_offload(struct sk_buff *skb);
 netdev_tx_t fm10k_xmit_frame_ring(struct sk_buff *skb,
 				  struct fm10k_ring *tx_ring);
 void fm10k_tx_timeout_reset(struct fm10k_intfc *interface);
-u64 fm10k_get_tx_pending(struct fm10k_ring *ring);
+u64 fm10k_get_tx_pending(struct fm10k_ring *ring, bool in_sw);
 bool fm10k_check_tx_hang(struct fm10k_ring *tx_ring);
 void fm10k_alloc_rx_buffers(struct fm10k_ring *rx_ring, u16 cleaned_count);
 
@@ -496,7 +495,6 @@ int fm10k_close(struct net_device *netdev);
 
 /* Ethtool */
 void fm10k_set_ethtool_ops(struct net_device *dev);
-u32 fm10k_get_reta_size(struct net_device *netdev);
 void fm10k_write_reta(struct fm10k_intfc *interface, const u32 *indir);
 
 /* IOV */
@@ -509,7 +507,7 @@ int fm10k_iov_configure(struct pci_dev *pdev, int num_vfs);
 s32 fm10k_iov_update_pvid(struct fm10k_intfc *interface, u16 glort, u16 pvid);
 int fm10k_ndo_set_vf_mac(struct net_device *netdev, int vf_idx, u8 *mac);
 int fm10k_ndo_set_vf_vlan(struct net_device *netdev,
-			  int vf_idx, u16 vid, u8 qos);
+			  int vf_idx, u16 vid, u8 qos, __be16 vlan_proto);
 int fm10k_ndo_set_vf_bw(struct net_device *netdev, int vf_idx, int rate,
 			int unused);
 int fm10k_ndo_get_vf_config(struct net_device *netdev,

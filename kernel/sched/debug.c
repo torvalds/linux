@@ -369,8 +369,12 @@ static void print_cfs_group_stats(struct seq_file *m, int cpu, struct task_group
 
 #define P(F) \
 	SEQ_printf(m, "  .%-30s: %lld\n", #F, (long long)F)
+#define P_SCHEDSTAT(F) \
+	SEQ_printf(m, "  .%-30s: %lld\n", #F, (long long)schedstat_val(F))
 #define PN(F) \
 	SEQ_printf(m, "  .%-30s: %lld.%06ld\n", #F, SPLIT_NS((long long)F))
+#define PN_SCHEDSTAT(F) \
+	SEQ_printf(m, "  .%-30s: %lld.%06ld\n", #F, SPLIT_NS((long long)schedstat_val(F)))
 
 	if (!se)
 		return;
@@ -378,26 +382,27 @@ static void print_cfs_group_stats(struct seq_file *m, int cpu, struct task_group
 	PN(se->exec_start);
 	PN(se->vruntime);
 	PN(se->sum_exec_runtime);
-#ifdef CONFIG_SCHEDSTATS
 	if (schedstat_enabled()) {
-		PN(se->statistics.wait_start);
-		PN(se->statistics.sleep_start);
-		PN(se->statistics.block_start);
-		PN(se->statistics.sleep_max);
-		PN(se->statistics.block_max);
-		PN(se->statistics.exec_max);
-		PN(se->statistics.slice_max);
-		PN(se->statistics.wait_max);
-		PN(se->statistics.wait_sum);
-		P(se->statistics.wait_count);
+		PN_SCHEDSTAT(se->statistics.wait_start);
+		PN_SCHEDSTAT(se->statistics.sleep_start);
+		PN_SCHEDSTAT(se->statistics.block_start);
+		PN_SCHEDSTAT(se->statistics.sleep_max);
+		PN_SCHEDSTAT(se->statistics.block_max);
+		PN_SCHEDSTAT(se->statistics.exec_max);
+		PN_SCHEDSTAT(se->statistics.slice_max);
+		PN_SCHEDSTAT(se->statistics.wait_max);
+		PN_SCHEDSTAT(se->statistics.wait_sum);
+		P_SCHEDSTAT(se->statistics.wait_count);
 	}
-#endif
 	P(se->load.weight);
 #ifdef CONFIG_SMP
 	P(se->avg.load_avg);
 	P(se->avg.util_avg);
 #endif
+
+#undef PN_SCHEDSTAT
 #undef PN
+#undef P_SCHEDSTAT
 #undef P
 }
 #endif
@@ -410,7 +415,8 @@ static char *task_group_path(struct task_group *tg)
 	if (autogroup_path(tg, group_path, PATH_MAX))
 		return group_path;
 
-	return cgroup_path(tg->css.cgroup, group_path, PATH_MAX);
+	cgroup_path(tg->css.cgroup, group_path, PATH_MAX);
+	return group_path;
 }
 #endif
 
@@ -429,9 +435,9 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 		p->prio);
 
 	SEQ_printf(m, "%9Ld.%06ld %9Ld.%06ld %9Ld.%06ld",
-		SPLIT_NS(schedstat_val(p, se.statistics.wait_sum)),
+		SPLIT_NS(schedstat_val_or_zero(p->se.statistics.wait_sum)),
 		SPLIT_NS(p->se.sum_exec_runtime),
-		SPLIT_NS(schedstat_val(p, se.statistics.sum_sleep_runtime)));
+		SPLIT_NS(schedstat_val_or_zero(p->se.statistics.sum_sleep_runtime)));
 
 #ifdef CONFIG_NUMA_BALANCING
 	SEQ_printf(m, " %d %d", task_node(p), task_numa_group_id(p));
@@ -626,9 +632,7 @@ do {									\
 #undef P64
 #endif
 
-#ifdef CONFIG_SCHEDSTATS
-#define P(n) SEQ_printf(m, "  .%-30s: %d\n", #n, rq->n);
-
+#define P(n) SEQ_printf(m, "  .%-30s: %d\n", #n, schedstat_val(rq->n));
 	if (schedstat_enabled()) {
 		P(yld_count);
 		P(sched_count);
@@ -636,9 +640,8 @@ do {									\
 		P(ttwu_count);
 		P(ttwu_local);
 	}
-
 #undef P
-#endif
+
 	spin_lock_irqsave(&sched_debug_lock, flags);
 	print_cfs_stats(m, cpu);
 	print_rt_stats(m, cpu);
@@ -868,10 +871,14 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	SEQ_printf(m, "%-45s:%21Ld\n", #F, (long long)F)
 #define P(F) \
 	SEQ_printf(m, "%-45s:%21Ld\n", #F, (long long)p->F)
+#define P_SCHEDSTAT(F) \
+	SEQ_printf(m, "%-45s:%21Ld\n", #F, (long long)schedstat_val(p->F))
 #define __PN(F) \
 	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)F))
 #define PN(F) \
 	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)p->F))
+#define PN_SCHEDSTAT(F) \
+	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)schedstat_val(p->F)))
 
 	PN(se.exec_start);
 	PN(se.vruntime);
@@ -881,37 +888,36 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 
 	P(se.nr_migrations);
 
-#ifdef CONFIG_SCHEDSTATS
 	if (schedstat_enabled()) {
 		u64 avg_atom, avg_per_cpu;
 
-		PN(se.statistics.sum_sleep_runtime);
-		PN(se.statistics.wait_start);
-		PN(se.statistics.sleep_start);
-		PN(se.statistics.block_start);
-		PN(se.statistics.sleep_max);
-		PN(se.statistics.block_max);
-		PN(se.statistics.exec_max);
-		PN(se.statistics.slice_max);
-		PN(se.statistics.wait_max);
-		PN(se.statistics.wait_sum);
-		P(se.statistics.wait_count);
-		PN(se.statistics.iowait_sum);
-		P(se.statistics.iowait_count);
-		P(se.statistics.nr_migrations_cold);
-		P(se.statistics.nr_failed_migrations_affine);
-		P(se.statistics.nr_failed_migrations_running);
-		P(se.statistics.nr_failed_migrations_hot);
-		P(se.statistics.nr_forced_migrations);
-		P(se.statistics.nr_wakeups);
-		P(se.statistics.nr_wakeups_sync);
-		P(se.statistics.nr_wakeups_migrate);
-		P(se.statistics.nr_wakeups_local);
-		P(se.statistics.nr_wakeups_remote);
-		P(se.statistics.nr_wakeups_affine);
-		P(se.statistics.nr_wakeups_affine_attempts);
-		P(se.statistics.nr_wakeups_passive);
-		P(se.statistics.nr_wakeups_idle);
+		PN_SCHEDSTAT(se.statistics.sum_sleep_runtime);
+		PN_SCHEDSTAT(se.statistics.wait_start);
+		PN_SCHEDSTAT(se.statistics.sleep_start);
+		PN_SCHEDSTAT(se.statistics.block_start);
+		PN_SCHEDSTAT(se.statistics.sleep_max);
+		PN_SCHEDSTAT(se.statistics.block_max);
+		PN_SCHEDSTAT(se.statistics.exec_max);
+		PN_SCHEDSTAT(se.statistics.slice_max);
+		PN_SCHEDSTAT(se.statistics.wait_max);
+		PN_SCHEDSTAT(se.statistics.wait_sum);
+		P_SCHEDSTAT(se.statistics.wait_count);
+		PN_SCHEDSTAT(se.statistics.iowait_sum);
+		P_SCHEDSTAT(se.statistics.iowait_count);
+		P_SCHEDSTAT(se.statistics.nr_migrations_cold);
+		P_SCHEDSTAT(se.statistics.nr_failed_migrations_affine);
+		P_SCHEDSTAT(se.statistics.nr_failed_migrations_running);
+		P_SCHEDSTAT(se.statistics.nr_failed_migrations_hot);
+		P_SCHEDSTAT(se.statistics.nr_forced_migrations);
+		P_SCHEDSTAT(se.statistics.nr_wakeups);
+		P_SCHEDSTAT(se.statistics.nr_wakeups_sync);
+		P_SCHEDSTAT(se.statistics.nr_wakeups_migrate);
+		P_SCHEDSTAT(se.statistics.nr_wakeups_local);
+		P_SCHEDSTAT(se.statistics.nr_wakeups_remote);
+		P_SCHEDSTAT(se.statistics.nr_wakeups_affine);
+		P_SCHEDSTAT(se.statistics.nr_wakeups_affine_attempts);
+		P_SCHEDSTAT(se.statistics.nr_wakeups_passive);
+		P_SCHEDSTAT(se.statistics.nr_wakeups_idle);
 
 		avg_atom = p->se.sum_exec_runtime;
 		if (nr_switches)
@@ -930,7 +936,7 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 		__PN(avg_atom);
 		__PN(avg_per_cpu);
 	}
-#endif
+
 	__P(nr_switches);
 	SEQ_printf(m, "%-45s:%21Ld\n",
 		   "nr_voluntary_switches", (long long)p->nvcsw);
@@ -947,8 +953,10 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 #endif
 	P(policy);
 	P(prio);
+#undef PN_SCHEDSTAT
 #undef PN
 #undef __PN
+#undef P_SCHEDSTAT
 #undef P
 #undef __P
 

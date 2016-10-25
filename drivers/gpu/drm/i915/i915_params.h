@@ -59,6 +59,7 @@ struct i915_params {
 	bool load_detect_test;
 	bool force_reset_modeset_test;
 	bool reset;
+	bool error_capture;
 	bool disable_display;
 	bool verbose_state_checks;
 	bool nuclear_pageflip;

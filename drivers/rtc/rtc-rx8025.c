@@ -403,7 +403,7 @@ static int rx8025_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static struct rtc_class_ops rx8025_rtc_ops = {
+static const struct rtc_class_ops rx8025_rtc_ops = {
 	.read_time = rx8025_get_time,
 	.set_time = rx8025_set_time,
 	.read_alarm = rx8025_read_alarm,

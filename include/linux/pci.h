@@ -187,8 +187,9 @@ enum pci_irq_reroute_variant {
 
 typedef unsigned short __bitwise pci_bus_flags_t;
 enum pci_bus_flags {
-	PCI_BUS_FLAGS_NO_MSI   = (__force pci_bus_flags_t) 1,
-	PCI_BUS_FLAGS_NO_MMRBC = (__force pci_bus_flags_t) 2,
+	PCI_BUS_FLAGS_NO_MSI	= (__force pci_bus_flags_t) 1,
+	PCI_BUS_FLAGS_NO_MMRBC	= (__force pci_bus_flags_t) 2,
+	PCI_BUS_FLAGS_NO_AERSID	= (__force pci_bus_flags_t) 4,
 };
 
 /* These values come from the PCI Express Spec */
@@ -268,6 +269,9 @@ struct pci_dev {
 	unsigned int	class;		/* 3 bytes: (base,sub,prog-if) */
 	u8		revision;	/* PCI revision, low byte of class word */
 	u8		hdr_type;	/* PCI header type (`multi' flag masked out) */
+#ifdef CONFIG_PCIEAER
+	u16		aer_cap;	/* AER capability offset */
+#endif
 	u8		pcie_cap;	/* PCIe capability offset */
 	u8		msi_cap;	/* MSI capability offset */
 	u8		msix_cap;	/* MSI-X capability offset */
@@ -308,6 +312,9 @@ struct pci_dev {
 						   powered on/off by the
 						   corresponding bridge */
 	unsigned int	ignore_hotplug:1;	/* Ignore hotplug events */
+	unsigned int	hotplug_user_indicators:1; /* SlotCtl indicators
+						      controlled exclusively by
+						      user sysfs */
 	unsigned int	d3_delay;	/* D3->D0 transition time in ms */
 	unsigned int	d3cold_delay;	/* D3cold->D0 transition time in ms */
 
@@ -367,6 +374,12 @@ struct pci_dev {
 	int rom_attr_enabled;		/* has display of the rom attribute been enabled? */
 	struct bin_attribute *res_attr[DEVICE_COUNT_RESOURCE]; /* sysfs file for resources */
 	struct bin_attribute *res_attr_wc[DEVICE_COUNT_RESOURCE]; /* sysfs file for WC mapping of resources */
+
+#ifdef CONFIG_PCIE_PTM
+	unsigned int	ptm_root:1;
+	unsigned int	ptm_enabled:1;
+	u8		ptm_granularity;
+#endif
 #ifdef CONFIG_PCI_MSI
 	const struct attribute_group **msi_irq_groups;
 #endif
@@ -1126,6 +1139,7 @@ void pdev_enable_device(struct pci_dev *);
 int pci_enable_resources(struct pci_dev *, int mask);
 void pci_fixup_irqs(u8 (*)(struct pci_dev *, u8 *),
 		    int (*)(const struct pci_dev *, u8, u8));
+struct resource *pci_find_resource(struct pci_dev *dev, struct resource *res);
 #define HAVE_PCI_REQ_REGIONS	2
 int __must_check pci_request_regions(struct pci_dev *, const char *);
 int __must_check pci_request_regions_exclusive(struct pci_dev *, const char *);
@@ -1300,6 +1314,7 @@ int pci_alloc_irq_vectors(struct pci_dev *dev, unsigned int min_vecs,
 		unsigned int max_vecs, unsigned int flags);
 void pci_free_irq_vectors(struct pci_dev *dev);
 int pci_irq_vector(struct pci_dev *dev, unsigned int nr);
+const struct cpumask *pci_irq_get_affinity(struct pci_dev *pdev, int vec);
 
 #else
 static inline int pci_msi_vec_count(struct pci_dev *dev) { return -ENOSYS; }
@@ -1342,6 +1357,11 @@ static inline int pci_irq_vector(struct pci_dev *dev, unsigned int nr)
 		return -EINVAL;
 	return dev->irq;
 }
+static inline const struct cpumask *pci_irq_get_affinity(struct pci_dev *pdev,
+		int vec)
+{
+	return cpu_possible_mask;
+}
 #endif
 
 #ifdef CONFIG_PCIEPORTBUS
@@ -1361,9 +1381,11 @@ static inline bool pcie_aspm_support_enabled(void) { return false; }
 #ifdef CONFIG_PCIEAER
 void pci_no_aer(void);
 bool pci_aer_available(void);
+int pci_aer_init(struct pci_dev *dev);
 #else
 static inline void pci_no_aer(void) { }
 static inline bool pci_aer_available(void) { return false; }
+static inline int pci_aer_init(struct pci_dev *d) { return -ENODEV; }
 #endif
 
 #ifdef CONFIG_PCIE_ECRC
@@ -1393,6 +1415,13 @@ static inline void pci_ats_init(struct pci_dev *d) { }
 static inline int pci_enable_ats(struct pci_dev *d, int ps) { return -ENODEV; }
 static inline void pci_disable_ats(struct pci_dev *d) { }
 static inline int pci_ats_queue_depth(struct pci_dev *d) { return -ENODEV; }
+#endif
+
+#ifdef CONFIG_PCIE_PTM
+int pci_enable_ptm(struct pci_dev *dev, u8 *granularity);
+#else
+static inline int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
+{ return -EINVAL; }
 #endif
 
 void pci_cfg_access_lock(struct pci_dev *dev);
@@ -1542,6 +1571,9 @@ static inline int pci_enable_wake(struct pci_dev *dev, pci_power_t state,
 				  int enable)
 { return 0; }
 
+static inline struct resource *pci_find_resource(struct pci_dev *dev,
+						 struct resource *res)
+{ return NULL; }
 static inline int pci_request_regions(struct pci_dev *dev, const char *res_name)
 { return -EIO; }
 static inline void pci_release_regions(struct pci_dev *dev) { }

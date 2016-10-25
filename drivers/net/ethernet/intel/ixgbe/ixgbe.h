@@ -45,10 +45,10 @@
 #include "ixgbe_type.h"
 #include "ixgbe_common.h"
 #include "ixgbe_dcb.h"
-#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+#if IS_ENABLED(CONFIG_FCOE)
 #define IXGBE_FCOE
 #include "ixgbe_fcoe.h"
-#endif /* CONFIG_FCOE or CONFIG_FCOE_MODULE */
+#endif /* IS_ENABLED(CONFIG_FCOE) */
 #ifdef CONFIG_IXGBE_DCA
 #include <linux/dca.h>
 #endif
@@ -645,6 +645,7 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_RX_HWTSTAMP_ENABLED		BIT(25)
 #define IXGBE_FLAG_RX_HWTSTAMP_IN_REGISTER	BIT(26)
 #define IXGBE_FLAG_DCB_CAPABLE			BIT(27)
+#define IXGBE_FLAG_GENEVE_OFFLOAD_CAPABLE	BIT(28)
 
 	u32 flags2;
 #define IXGBE_FLAG2_RSC_CAPABLE			BIT(0)
@@ -653,13 +654,12 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_TEMP_SENSOR_EVENT		BIT(3)
 #define IXGBE_FLAG2_SEARCH_FOR_SFP		BIT(4)
 #define IXGBE_FLAG2_SFP_NEEDS_RESET		BIT(5)
-#define IXGBE_FLAG2_RESET_REQUESTED		BIT(6)
 #define IXGBE_FLAG2_FDIR_REQUIRES_REINIT	BIT(7)
 #define IXGBE_FLAG2_RSS_FIELD_IPV4_UDP		BIT(8)
 #define IXGBE_FLAG2_RSS_FIELD_IPV6_UDP		BIT(9)
 #define IXGBE_FLAG2_PTP_PPS_ENABLED		BIT(10)
 #define IXGBE_FLAG2_PHY_INTERRUPT		BIT(11)
-#define IXGBE_FLAG2_VXLAN_REREG_NEEDED		BIT(12)
+#define IXGBE_FLAG2_UDP_TUN_REREG_NEEDED	BIT(12)
 #define IXGBE_FLAG2_VLAN_PROMISC		BIT(13)
 
 	/* Tx fast path data */
@@ -673,6 +673,7 @@ struct ixgbe_adapter {
 
 	/* Port number used to identify VXLAN traffic */
 	__be16 vxlan_port;
+	__be16 geneve_port;
 
 	/* TX */
 	struct ixgbe_ring *tx_ring[MAX_TX_QUEUES] ____cacheline_aligned_in_smp;
@@ -840,6 +841,7 @@ enum ixgbe_state_t {
 	__IXGBE_IN_SFP_INIT,
 	__IXGBE_PTP_RUNNING,
 	__IXGBE_PTP_TX_IN_PROGRESS,
+	__IXGBE_RESET_REQUESTED,
 };
 
 struct ixgbe_cb {

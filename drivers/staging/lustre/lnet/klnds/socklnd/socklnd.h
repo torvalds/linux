@@ -86,8 +86,6 @@ struct ksock_sched {				/* per scheduler state */
 	int                     kss_nconns;     /* # connections assigned to
 						 * this scheduler */
 	struct ksock_sched_info *kss_info;	/* owner of it */
-	struct page             *kss_rx_scratch_pgs[LNET_MAX_IOV];
-	struct kvec             kss_scratch_iov[LNET_MAX_IOV];
 };
 
 struct ksock_sched_info {
@@ -616,9 +614,7 @@ void ksocknal_shutdown(lnet_ni_t *ni);
 int ksocknal_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg);
 int ksocknal_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg);
 int ksocknal_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg,
-		  int delayed, unsigned int niov,
-		  struct kvec *iov, lnet_kiov_t *kiov,
-		  unsigned int offset, unsigned int mlen, unsigned int rlen);
+		  int delayed, struct iov_iter *to, unsigned int rlen);
 int ksocknal_accept(lnet_ni_t *ni, struct socket *sock);
 
 int ksocknal_add_peer(lnet_ni_t *ni, lnet_process_id_t id, __u32 ip, int port);
@@ -635,7 +631,7 @@ int  ksocknal_close_peer_conns_locked(struct ksock_peer *peer,
 int ksocknal_close_conn_and_siblings(struct ksock_conn *conn, int why);
 int ksocknal_close_matching_conns(lnet_process_id_t id, __u32 ipaddr);
 struct ksock_conn *ksocknal_find_conn_locked(struct ksock_peer *peer,
-					struct ksock_tx *tx, int nonblk);
+					     struct ksock_tx *tx, int nonblk);
 
 int  ksocknal_launch_packet(lnet_ni_t *ni, struct ksock_tx *tx,
 			    lnet_process_id_t id);

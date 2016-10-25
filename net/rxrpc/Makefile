@@ -22,6 +22,7 @@ af-rxrpc-y := \
 	peer_object.o \
 	recvmsg.o \
 	security.o \
+	sendmsg.o \
 	skbuff.o \
 	utils.o
 

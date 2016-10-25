@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/kdebug.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/bootmem.h>
@@ -137,6 +138,16 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		on_each_cpu(kvm_mips_init_vm_percpu, kvm, 1);
 	}
 
+	return 0;
+}
+
+bool kvm_arch_has_vcpu_debugfs(void)
+{
+	return false;
+}
+
+int kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
+{
 	return 0;
 }
 
@@ -411,6 +422,31 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	return -ENOIOCTLCMD;
 }
 
+/* Must be called with preemption disabled, just before entering guest */
+static void kvm_mips_check_asids(struct kvm_vcpu *vcpu)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	int cpu = smp_processor_id();
+	unsigned int gasid;
+
+	/*
+	 * Lazy host ASID regeneration for guest user mode.
+	 * If the guest ASID has changed since the last guest usermode
+	 * execution, regenerate the host ASID so as to invalidate stale TLB
+	 * entries.
+	 */
+	if (!KVM_GUEST_KERNEL_MODE(vcpu)) {
+		gasid = kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID;
+		if (gasid != vcpu->arch.last_user_gasid) {
+			kvm_get_new_mmu_context(&vcpu->arch.guest_user_mm, cpu,
+						vcpu);
+			vcpu->arch.guest_user_asid[cpu] =
+				vcpu->arch.guest_user_mm.context.asid[cpu];
+			vcpu->arch.last_user_gasid = gasid;
+		}
+	}
+}
+
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	int r = 0;
@@ -438,6 +474,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	htw_stop();
 
 	trace_kvm_enter(vcpu);
+
+	kvm_mips_check_asids(vcpu);
+
 	r = vcpu->arch.vcpu_run(run, vcpu);
 	trace_kvm_out(vcpu);
 
@@ -1550,6 +1589,8 @@ skip_emul:
 
 	if (ret == RESUME_GUEST) {
 		trace_kvm_reenter(vcpu);
+
+		kvm_mips_check_asids(vcpu);
 
 		/*
 		 * If FPU / MSA are enabled (i.e. the guest's FPU / MSA context

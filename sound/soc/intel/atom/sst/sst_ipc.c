@@ -267,6 +267,9 @@ static void process_fw_async_msg(struct intel_sst_drv *sst_drv_ctx,
 				"Period elapsed rcvd for pipe id 0x%x\n",
 				pipe_id);
 			stream = &sst_drv_ctx->streams[str_id];
+			/* If stream is dropped, skip processing this message*/
+			if (stream->status == STREAM_INIT)
+				break;
 			if (stream->period_elapsed)
 				stream->period_elapsed(stream->pcm_substream);
 			if (stream->compr_cb)

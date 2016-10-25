@@ -182,7 +182,8 @@ static ssize_t pcf2123_show(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t pcf2123_store(struct device *dev, struct device_attribute *attr,
-			     const char *buffer, size_t count) {
+			     const char *buffer, size_t count)
+{
 	struct pcf2123_sysfs_reg *r;
 	unsigned long reg;
 	unsigned long val;
@@ -199,7 +200,7 @@ static ssize_t pcf2123_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	pcf2123_write_reg(dev, reg, val);
+	ret = pcf2123_write_reg(dev, reg, val);
 	if (ret < 0)
 		return -EIO;
 	return count;

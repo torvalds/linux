@@ -71,8 +71,7 @@ iop_adma_run_tx_complete_actions(struct iop_adma_desc_slot *desc,
 		/* call the callback (must not sleep or submit new
 		 * operations to this channel)
 		 */
-		if (tx->callback)
-			tx->callback(tx->callback_param);
+		dmaengine_desc_get_callback_invoke(tx, NULL);
 
 		dma_descriptor_unmap(tx);
 		if (desc->group_head)

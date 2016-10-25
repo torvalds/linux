@@ -37,6 +37,7 @@
  *	L	- lower subcluster; L0 - subcluster L0; L1 - subcluster L1
  */
 
+#include <asm/export.h>
 /* Allow an exception for an insn; exit if we get one.  */
 #define EXI(x,y...)			\
 	99: x,##y;			\
@@ -227,33 +228,12 @@ $dirtyentry:
 	bgt $0,$onebyteloop	# U  .. .. ..	: U L U L
 
 $zerolength:
+$exitin:
 $exitout:			# Destination for exception recovery(?)
 	nop			# .. .. .. E
 	nop			# .. .. E  ..
 	nop			# .. E  .. ..
 	ret $31,($28),1		# L0 .. .. ..	: L U L U
 
-$exitin:
-
-	/* A stupid byte-by-byte zeroing of the rest of the output
-	   buffer.  This cures security holes by never leaving 
-	   random kernel data around to be copied elsewhere.  */
-
-	nop
-	nop
-	nop
-	mov	$0,$1
-
-$101:
-	EXO ( stb $31,0($6) )	# L
-	subq $1,1,$1		# E
-	addq $6,1,$6		# E
-	bgt $1,$101		# U
-
-	nop
-	nop
-	nop
-	ret $31,($28),1		# L0
-
 	.end __copy_user
-
+	EXPORT_SYMBOL(__copy_user)

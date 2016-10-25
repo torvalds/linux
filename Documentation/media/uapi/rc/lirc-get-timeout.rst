@@ -16,16 +16,17 @@ range for IR receive.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u32 *timeout)
+.. c:function:: int ioctl( int fd, LIRC_GET_MIN_TIMEOUT, __u32 *timeout)
+    :name: LIRC_GET_MIN_TIMEOUT
+
+.. c:function:: int ioctl( int fd, LIRC_GET_MAX_TIMEOUT, __u32 *timeout)
+    :name: LIRC_GET_MAX_TIMEOUT
 
 Arguments
 =========
 
 ``fd``
     File descriptor returned by open().
-
-``request``
-    LIRC_GET_MIN_TIMEOUT or LIRC_GET_MAX_TIMEOUT
 
 ``timeout``
     Timeout, in microseconds.

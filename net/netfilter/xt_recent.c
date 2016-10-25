@@ -110,7 +110,6 @@ static const struct file_operations recent_old_fops, recent_mt_fops;
 #endif
 
 static u_int32_t hash_rnd __read_mostly;
-static bool hash_rnd_inited __read_mostly;
 
 static inline unsigned int recent_entry_hash4(const union nf_inet_addr *addr)
 {
@@ -340,10 +339,8 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 	int ret = -EINVAL;
 	size_t sz;
 
-	if (unlikely(!hash_rnd_inited)) {
-		get_random_bytes(&hash_rnd, sizeof(hash_rnd));
-		hash_rnd_inited = true;
-	}
+	net_get_random_once(&hash_rnd, sizeof(hash_rnd));
+
 	if (info->check_set & ~XT_RECENT_VALID_FLAGS) {
 		pr_info("Unsupported user space flags (%08x)\n",
 			info->check_set);

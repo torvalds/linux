@@ -586,8 +586,8 @@ static u32 *parent_process(const char *clocks[],
 	}
 
 	/* There is at least one parent, so allocate a selector array */
-
-	parent_sel = kmalloc(parent_count * sizeof(*parent_sel), GFP_KERNEL);
+	parent_sel = kmalloc_array(parent_count, sizeof(*parent_sel),
+				   GFP_KERNEL);
 	if (!parent_sel) {
 		pr_err("%s: error allocating %u parent selectors\n", __func__,
 				parent_count);
@@ -696,77 +696,69 @@ static void bcm_clk_teardown(struct kona_clk *bcm_clk)
 	bcm_clk->type = bcm_clk_none;
 }
 
-static void kona_clk_teardown(struct clk *clk)
+static void kona_clk_teardown(struct clk_hw *hw)
 {
-	struct clk_hw *hw;
 	struct kona_clk *bcm_clk;
 
-	if (!clk)
+	if (!hw)
 		return;
 
-	hw = __clk_get_hw(clk);
-	if (!hw) {
-		pr_err("%s: clk %p has null hw pointer\n", __func__, clk);
-		return;
-	}
-	clk_unregister(clk);
+	clk_hw_unregister(hw);
 
 	bcm_clk = to_kona_clk(hw);
 	bcm_clk_teardown(bcm_clk);
 }
 
-struct clk *kona_clk_setup(struct kona_clk *bcm_clk)
+static int kona_clk_setup(struct kona_clk *bcm_clk)
 {
+	int ret;
 	struct clk_init_data *init_data = &bcm_clk->init_data;
-	struct clk *clk = NULL;
 
 	switch (bcm_clk->type) {
 	case bcm_clk_peri:
-		if (peri_clk_setup(bcm_clk->u.data, init_data))
-			return NULL;
+		ret = peri_clk_setup(bcm_clk->u.data, init_data);
+		if (ret)
+			return ret;
 		break;
 	default:
 		pr_err("%s: clock type %d invalid for %s\n", __func__,
 			(int)bcm_clk->type, init_data->name);
-		return NULL;
+		return -EINVAL;
 	}
 
 	/* Make sure everything makes sense before we set it up */
 	if (!kona_clk_valid(bcm_clk)) {
 		pr_err("%s: clock data invalid for %s\n", __func__,
 			init_data->name);
+		ret = -EINVAL;
 		goto out_teardown;
 	}
 
 	bcm_clk->hw.init = init_data;
-	clk = clk_register(NULL, &bcm_clk->hw);
-	if (IS_ERR(clk)) {
-		pr_err("%s: error registering clock %s (%ld)\n", __func__,
-			init_data->name, PTR_ERR(clk));
+	ret = clk_hw_register(NULL, &bcm_clk->hw);
+	if (ret) {
+		pr_err("%s: error registering clock %s (%d)\n", __func__,
+			init_data->name, ret);
 		goto out_teardown;
 	}
-	BUG_ON(!clk);
 
-	return clk;
+	return 0;
 out_teardown:
 	bcm_clk_teardown(bcm_clk);
 
-	return NULL;
+	return ret;
 }
 
 static void ccu_clks_teardown(struct ccu_data *ccu)
 {
 	u32 i;
 
-	for (i = 0; i < ccu->clk_data.clk_num; i++)
-		kona_clk_teardown(ccu->clk_data.clks[i]);
-	kfree(ccu->clk_data.clks);
+	for (i = 0; i < ccu->clk_num; i++)
+		kona_clk_teardown(&ccu->kona_clks[i].hw);
 }
 
 static void kona_ccu_teardown(struct ccu_data *ccu)
 {
-	kfree(ccu->clk_data.clks);
-	ccu->clk_data.clks = NULL;
 	if (!ccu->base)
 		return;
 
@@ -793,6 +785,20 @@ static bool ccu_data_valid(struct ccu_data *ccu)
 	return true;
 }
 
+static struct clk_hw *
+of_clk_kona_onecell_get(struct of_phandle_args *clkspec, void *data)
+{
+	struct ccu_data *ccu = data;
+	unsigned int idx = clkspec->args[0];
+
+	if (idx >= ccu->clk_num) {
+		pr_err("%s: invalid index %u\n", __func__, idx);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return &ccu->kona_clks[idx].hw;
+}
+
 /*
  * Set up a CCU.  Call the provided ccu_clks_setup callback to
  * initialize the array of clocks provided by the CCU.
@@ -804,18 +810,6 @@ void __init kona_dt_ccu_setup(struct ccu_data *ccu,
 	resource_size_t range;
 	unsigned int i;
 	int ret;
-
-	if (ccu->clk_data.clk_num) {
-		size_t size;
-
-		size = ccu->clk_data.clk_num * sizeof(*ccu->clk_data.clks);
-		ccu->clk_data.clks = kzalloc(size, GFP_KERNEL);
-		if (!ccu->clk_data.clks) {
-			pr_err("%s: unable to allocate %u clocks for %s\n",
-				__func__, ccu->clk_data.clk_num, node->name);
-			return;
-		}
-	}
 
 	ret = of_address_to_resource(node, 0, &res);
 	if (ret) {
@@ -851,13 +845,13 @@ void __init kona_dt_ccu_setup(struct ccu_data *ccu,
 	 * the clock framework clock array (in ccu->data).  Then
 	 * register as a provider for these clocks.
 	 */
-	for (i = 0; i < ccu->clk_data.clk_num; i++) {
+	for (i = 0; i < ccu->clk_num; i++) {
 		if (!ccu->kona_clks[i].ccu)
 			continue;
-		ccu->clk_data.clks[i] = kona_clk_setup(&ccu->kona_clks[i]);
+		kona_clk_setup(&ccu->kona_clks[i]);
 	}
 
-	ret = of_clk_add_provider(node, of_clk_src_onecell_get, &ccu->clk_data);
+	ret = of_clk_add_hw_provider(node, of_clk_kona_onecell_get, ccu);
 	if (ret) {
 		pr_err("%s: error adding ccu %s as provider (%d)\n", __func__,
 				node->name, ret);

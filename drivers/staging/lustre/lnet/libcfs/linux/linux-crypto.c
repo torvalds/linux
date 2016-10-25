@@ -95,8 +95,8 @@ static int cfs_crypto_hash_alloc(enum cfs_crypto_hash_alg hash_alg,
 		err = crypto_ahash_setkey(tfm, key, key_len);
 	else if ((*type)->cht_key != 0)
 		err = crypto_ahash_setkey(tfm,
-					 (unsigned char *)&((*type)->cht_key),
-					 (*type)->cht_size);
+					  (unsigned char *)&((*type)->cht_key),
+					  (*type)->cht_size);
 
 	if (err != 0) {
 		ahash_request_free(*req);

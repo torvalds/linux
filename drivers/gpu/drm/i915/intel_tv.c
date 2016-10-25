@@ -86,7 +86,8 @@ struct intel_tv {
 };
 
 struct video_levels {
-	int blank, black, burst;
+	u16 blank, black;
+	u8 burst;
 };
 
 struct color_conversion {
@@ -339,34 +340,43 @@ static const struct video_levels component_levels = {
 
 struct tv_mode {
 	const char *name;
-	int clock;
-	int refresh; /* in millihertz (for precision) */
+
+	u32 clock;
+	u16 refresh; /* in millihertz (for precision) */
 	u32 oversample;
-	int hsync_end, hblank_start, hblank_end, htotal;
-	bool progressive, trilevel_sync, component_only;
-	int vsync_start_f1, vsync_start_f2, vsync_len;
-	bool veq_ena;
-	int veq_start_f1, veq_start_f2, veq_len;
-	int vi_end_f1, vi_end_f2, nbr_end;
-	bool burst_ena;
-	int hburst_start, hburst_len;
-	int vburst_start_f1, vburst_end_f1;
-	int vburst_start_f2, vburst_end_f2;
-	int vburst_start_f3, vburst_end_f3;
-	int vburst_start_f4, vburst_end_f4;
+	u8 hsync_end;
+	u16 hblank_start, hblank_end, htotal;
+	bool progressive : 1, trilevel_sync : 1, component_only : 1;
+	u8 vsync_start_f1, vsync_start_f2, vsync_len;
+	bool veq_ena : 1;
+	u8 veq_start_f1, veq_start_f2, veq_len;
+	u8 vi_end_f1, vi_end_f2;
+	u16 nbr_end;
+	bool burst_ena : 1;
+	u8 hburst_start, hburst_len;
+	u8 vburst_start_f1;
+	u16 vburst_end_f1;
+	u8 vburst_start_f2;
+	u16 vburst_end_f2;
+	u8 vburst_start_f3;
+	u16 vburst_end_f3;
+	u8 vburst_start_f4;
+	u16 vburst_end_f4;
 	/*
 	 * subcarrier programming
 	 */
-	int dda2_size, dda3_size, dda1_inc, dda2_inc, dda3_inc;
+	u16 dda2_size, dda3_size;
+	u8 dda1_inc;
+	u16 dda2_inc, dda3_inc;
 	u32 sc_reset;
-	bool pal_burst;
+	bool pal_burst : 1;
 	/*
 	 * blank/black levels
 	 */
 	const struct video_levels *composite_levels, *svideo_levels;
 	const struct color_conversion *composite_color, *svideo_color;
 	const u32 *filter_table;
-	int max_srcw;
+	u16 max_srcw;
 };
 
 
@@ -1095,7 +1105,7 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder,
 		tv_mode->dda3_inc << TV_SCDDA3_INC_SHIFT;
 
 	/* Enable two fixes for the chips that need them. */
-	if (IS_I915GM(dev))
+	if (IS_I915GM(dev_priv))
 		tv_ctl |= TV_ENC_C0_FIX | TV_ENC_SDP_FIX;
 
 	set_tv_mode_timings(dev_priv, tv_mode, burst_ena);
@@ -1220,7 +1230,7 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 	 * The TV sense state should be cleared to zero on cantiga platform. Otherwise
 	 * the TV is misdetected. This is hardware requirement.
 	 */
-	if (IS_GM45(dev))
+	if (IS_GM45(dev_priv))
 		tv_dac &= ~(TVDAC_STATE_CHG_EN | TVDAC_A_SENSE_CTL |
 			    TVDAC_B_SENSE_CTL | TVDAC_C_SENSE_CTL);
 
@@ -1610,7 +1620,9 @@ intel_tv_init(struct drm_device *dev)
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
+
 	intel_encoder->type = INTEL_OUTPUT_TVOUT;
+	intel_encoder->port = PORT_NONE;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 	intel_encoder->cloneable = 0;
 	intel_encoder->base.possible_crtcs = ((1 << 0) | (1 << 1));

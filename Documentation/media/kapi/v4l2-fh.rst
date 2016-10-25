@@ -21,8 +21,8 @@ function by the driver.
 In many cases the struct :c:type:`v4l2_fh` will be embedded in a larger
 structure. In that case you should call:
 
-#) :c:func:`v4l2_fh_init` and :cpp:func:`v4l2_fh_add` in ``open()``
-#) :c:func:`v4l2_fh_del` and :cpp:func:`v4l2_fh_exit` in ``release()``
+#) :c:func:`v4l2_fh_init` and :c:func:`v4l2_fh_add` in ``open()``
+#) :c:func:`v4l2_fh_del` and :c:func:`v4l2_fh_exit` in ``release()``
 
 Drivers can extract their own file handle structure by using the container_of
 macro.

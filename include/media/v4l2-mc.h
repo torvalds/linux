@@ -53,7 +53,7 @@ enum tuner_pad_index {
 };
 
 /**
- * enum if_vid_dec_index - video IF-PLL pad index for
+ * enum if_vid_dec_pad_index - video IF-PLL pad index for
  *			   MEDIA_ENT_F_IF_VID_DECODER
  *
  * @IF_VID_DEC_PAD_IF_INPUT:	video Intermediate Frequency (IF) sink pad
@@ -68,7 +68,7 @@ enum if_vid_dec_pad_index {
 };
 
 /**
- * enum if_aud_dec_index - audio/sound IF-PLL pad index for
+ * enum if_aud_dec_pad_index - audio/sound IF-PLL pad index for
  *			   MEDIA_ENT_F_IF_AUD_DECODER
  *
  * @IF_AUD_DEC_PAD_IF_INPUT:	audio Intermediate Frequency (IF) sink pad

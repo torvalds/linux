@@ -17,7 +17,6 @@
  * published by the Free Software Foundation.
  */
 
-#include "skeleton.dtsi"
 #include "exynos4-cpu-thermal.dtsi"
 #include "exynos-syscon-restart.dtsi"
 #include <dt-bindings/clock/exynos3250.h>
@@ -25,6 +24,8 @@
 / {
 	compatible = "samsung,exynos3250";
 	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	aliases {
 		pinctrl0 = &pinctrl_0;

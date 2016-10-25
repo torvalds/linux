@@ -614,7 +614,7 @@ static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
 			(!pin->eld.eld_valid)) {
 
 		dev_warn(&hdac->hdac.dev,
-			"Failed: montior present? %d ELD valid?: %d for pin: %d\n",
+			"Failed: monitor present? %d ELD valid?: %d for pin: %d\n",
 			pin->eld.monitor_present, pin->eld.eld_valid, pin->nid);
 
 		return 0;
@@ -1368,7 +1368,7 @@ static int hdac_hdmi_parse_and_map_nid(struct hdac_ext_device *edev,
 	return hdac_hdmi_init_dai_map(edev);
 }
 
-static void hdac_hdmi_eld_notify_cb(void *aptr, int port)
+static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
 {
 	struct hdac_ext_device *edev = aptr;
 	struct hdac_hdmi_priv *hdmi = edev->private_data;

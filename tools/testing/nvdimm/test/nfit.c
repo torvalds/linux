@@ -132,6 +132,8 @@ static u32 handle[NUM_DCR] = {
 	[4] = NFIT_DIMM_HANDLE(0, 1, 0, 0, 0),
 };
 
+static unsigned long dimm_fail_cmd_flags[NUM_DCR];
+
 struct nfit_test {
 	struct acpi_nfit_desc acpi_desc;
 	struct platform_device pdev;
@@ -154,11 +156,14 @@ struct nfit_test {
 	int (*alloc)(struct nfit_test *t);
 	void (*setup)(struct nfit_test *t);
 	int setup_hotplug;
+	union acpi_object **_fit;
+	dma_addr_t _fit_dma;
 	struct ars_state {
 		struct nd_cmd_ars_status *ars_status;
 		unsigned long deadline;
 		spinlock_t lock;
 	} ars_state;
+	struct device *dimm_dev[NUM_DCR];
 };
 
 static struct nfit_test *to_nfit_test(struct device *dev)
@@ -411,6 +416,9 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		if (i >= ARRAY_SIZE(handle))
 			return -ENXIO;
 
+		if ((1 << func) & dimm_fail_cmd_flags[i])
+			return -EIO;
+
 		switch (func) {
 		case ND_CMD_GET_CONFIG_SIZE:
 			rc = nfit_test_cmd_get_config_size(buf, buf_len);
@@ -428,6 +436,9 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 			break;
 		case ND_CMD_SMART_THRESHOLD:
 			rc = nfit_test_cmd_smart_threshold(buf, buf_len);
+			device_lock(&t->pdev.dev);
+			__acpi_nvdimm_notify(t->dimm_dev[i], 0x81);
+			device_unlock(&t->pdev.dev);
 			break;
 		default:
 			return -ENOTTY;
@@ -467,14 +478,12 @@ static struct nfit_test *instances[NUM_NFITS];
 static void release_nfit_res(void *data)
 {
 	struct nfit_test_resource *nfit_res = data;
-	struct resource *res = nfit_res->res;
 
 	spin_lock(&nfit_test_lock);
 	list_del(&nfit_res->list);
 	spin_unlock(&nfit_test_lock);
 
 	vfree(nfit_res->buf);
-	kfree(res);
 	kfree(nfit_res);
 }
 
@@ -482,12 +491,11 @@ static void *__test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma,
 		void *buf)
 {
 	struct device *dev = &t->pdev.dev;
-	struct resource *res = kzalloc(sizeof(*res) * 2, GFP_KERNEL);
 	struct nfit_test_resource *nfit_res = kzalloc(sizeof(*nfit_res),
 			GFP_KERNEL);
 	int rc;
 
-	if (!res || !buf || !nfit_res)
+	if (!buf || !nfit_res)
 		goto err;
 	rc = devm_add_action(dev, release_nfit_res, nfit_res);
 	if (rc)
@@ -496,10 +504,11 @@ static void *__test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma,
 	memset(buf, 0, size);
 	nfit_res->dev = dev;
 	nfit_res->buf = buf;
-	nfit_res->res = res;
-	res->start = *dma;
-	res->end = *dma + size - 1;
-	res->name = "NFIT";
+	nfit_res->res.start = *dma;
+	nfit_res->res.end = *dma + size - 1;
+	nfit_res->res.name = "NFIT";
+	spin_lock_init(&nfit_res->lock);
+	INIT_LIST_HEAD(&nfit_res->requests);
 	spin_lock(&nfit_test_lock);
 	list_add(&nfit_res->list, &t->resources);
 	spin_unlock(&nfit_test_lock);
@@ -508,7 +517,6 @@ static void *__test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma,
  err:
 	if (buf)
 		vfree(buf);
-	kfree(res);
 	kfree(nfit_res);
 	return NULL;
 }
@@ -533,13 +541,13 @@ static struct nfit_test_resource *nfit_test_lookup(resource_size_t addr)
 			continue;
 		spin_lock(&nfit_test_lock);
 		list_for_each_entry(n, &t->resources, list) {
-			if (addr >= n->res->start && (addr < n->res->start
-						+ resource_size(n->res))) {
+			if (addr >= n->res.start && (addr < n->res.start
+						+ resource_size(&n->res))) {
 				nfit_res = n;
 				break;
 			} else if (addr >= (unsigned long) n->buf
 					&& (addr < (unsigned long) n->buf
-						+ resource_size(n->res))) {
+						+ resource_size(&n->res))) {
 				nfit_res = n;
 				break;
 			}
@@ -563,6 +571,86 @@ static int ars_state_init(struct device *dev, struct ars_state *ars_state)
 	spin_lock_init(&ars_state->lock);
 	return 0;
 }
+
+static void put_dimms(void *data)
+{
+	struct device **dimm_dev = data;
+	int i;
+
+	for (i = 0; i < NUM_DCR; i++)
+		if (dimm_dev[i])
+			device_unregister(dimm_dev[i]);
+}
+
+static struct class *nfit_test_dimm;
+
+static int dimm_name_to_id(struct device *dev)
+{
+	int dimm;
+
+	if (sscanf(dev_name(dev), "test_dimm%d", &dimm) != 1
+			|| dimm >= NUM_DCR || dimm < 0)
+		return -ENXIO;
+	return dimm;
+}
+
+
+static ssize_t handle_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	int dimm = dimm_name_to_id(dev);
+
+	if (dimm < 0)
+		return dimm;
+
+	return sprintf(buf, "%#x", handle[dimm]);
+}
+DEVICE_ATTR_RO(handle);
+
+static ssize_t fail_cmd_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	int dimm = dimm_name_to_id(dev);
+
+	if (dimm < 0)
+		return dimm;
+
+	return sprintf(buf, "%#lx\n", dimm_fail_cmd_flags[dimm]);
+}
+
+static ssize_t fail_cmd_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t size)
+{
+	int dimm = dimm_name_to_id(dev);
+	unsigned long val;
+	ssize_t rc;
+
+	if (dimm < 0)
+		return dimm;
+
+	rc = kstrtol(buf, 0, &val);
+	if (rc)
+		return rc;
+
+	dimm_fail_cmd_flags[dimm] = val;
+	return size;
+}
+static DEVICE_ATTR_RW(fail_cmd);
+
+static struct attribute *nfit_test_dimm_attributes[] = {
+	&dev_attr_fail_cmd.attr,
+	&dev_attr_handle.attr,
+	NULL,
+};
+
+static struct attribute_group nfit_test_dimm_attribute_group = {
+	.attrs = nfit_test_dimm_attributes,
+};
+
+static const struct attribute_group *nfit_test_dimm_attribute_groups[] = {
+	&nfit_test_dimm_attribute_group,
+	NULL,
+};
 
 static int nfit_test0_alloc(struct nfit_test *t)
 {
@@ -603,7 +691,8 @@ static int nfit_test0_alloc(struct nfit_test *t)
 			return -ENOMEM;
 		sprintf(t->label[i], "label%d", i);
 
-		t->flush[i] = test_alloc(t, sizeof(u64) * NUM_HINTS,
+		t->flush[i] = test_alloc(t, max(PAGE_SIZE,
+					sizeof(u64) * NUM_HINTS),
 				&t->flush_dma[i]);
 		if (!t->flush[i])
 			return -ENOMEM;
@@ -612,6 +701,21 @@ static int nfit_test0_alloc(struct nfit_test *t)
 	for (i = 0; i < NUM_DCR; i++) {
 		t->dcr[i] = test_alloc(t, LABEL_SIZE, &t->dcr_dma[i]);
 		if (!t->dcr[i])
+			return -ENOMEM;
+	}
+
+	t->_fit = test_alloc(t, sizeof(union acpi_object **), &t->_fit_dma);
+	if (!t->_fit)
+		return -ENOMEM;
+
+	if (devm_add_action_or_reset(&t->pdev.dev, put_dimms, t->dimm_dev))
+		return -ENOMEM;
+	for (i = 0; i < NUM_DCR; i++) {
+		t->dimm_dev[i] = device_create_with_groups(nfit_test_dimm,
+				&t->pdev.dev, 0, NULL,
+				nfit_test_dimm_attribute_groups,
+				"test_dimm%d", i);
+		if (!t->dimm_dev[i])
 			return -ENOMEM;
 	}
 
@@ -1408,6 +1512,8 @@ static int nfit_test_probe(struct platform_device *pdev)
 	struct acpi_nfit_desc *acpi_desc;
 	struct device *dev = &pdev->dev;
 	struct nfit_test *nfit_test;
+	struct nfit_mem *nfit_mem;
+	union acpi_object *obj;
 	int rc;
 
 	nfit_test = to_nfit_test(&pdev->dev);
@@ -1475,14 +1581,30 @@ static int nfit_test_probe(struct platform_device *pdev)
 	if (nfit_test->setup != nfit_test0_setup)
 		return 0;
 
-	flush_work(&acpi_desc->work);
 	nfit_test->setup_hotplug = 1;
 	nfit_test->setup(nfit_test);
 
-	rc = acpi_nfit_init(acpi_desc, nfit_test->nfit_buf,
-			nfit_test->nfit_size);
-	if (rc)
-		return rc;
+	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	if (!obj)
+		return -ENOMEM;
+	obj->type = ACPI_TYPE_BUFFER;
+	obj->buffer.length = nfit_test->nfit_size;
+	obj->buffer.pointer = nfit_test->nfit_buf;
+	*(nfit_test->_fit) = obj;
+	__acpi_nfit_notify(&pdev->dev, nfit_test, 0x80);
+
+	/* associate dimm devices with nfit_mem data for notification testing */
+	mutex_lock(&acpi_desc->init_mutex);
+	list_for_each_entry(nfit_mem, &acpi_desc->dimms, list) {
+		u32 nfit_handle = __to_nfit_memdev(nfit_mem)->device_handle;
+		int i;
+
+		for (i = 0; i < NUM_DCR; i++)
+			if (nfit_handle == handle[i])
+				dev_set_drvdata(nfit_test->dimm_dev[i],
+						nfit_mem);
+	}
+	mutex_unlock(&acpi_desc->init_mutex);
 
 	return 0;
 }
@@ -1516,6 +1638,10 @@ static struct platform_driver nfit_test_driver = {
 static __init int nfit_test_init(void)
 {
 	int rc, i;
+
+	nfit_test_dimm = class_create(THIS_MODULE, "nfit_test_dimm");
+	if (IS_ERR(nfit_test_dimm))
+		return PTR_ERR(nfit_test_dimm);
 
 	nfit_test_setup(nfit_test_lookup);
 
@@ -1583,6 +1709,7 @@ static __exit void nfit_test_exit(void)
 	for (i = 0; i < NUM_NFITS; i++)
 		platform_device_unregister(&instances[i]->pdev);
 	nfit_test_teardown();
+	class_destroy(nfit_test_dimm);
 }
 
 module_init(nfit_test_init);

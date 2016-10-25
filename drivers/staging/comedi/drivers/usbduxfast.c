@@ -946,10 +946,8 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	}
 
 	devpriv->urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!devpriv->urb) {
-		dev_err(dev->class_dev, "Could not alloc. urb\n");
+	if (!devpriv->urb)
 		return -ENOMEM;
-	}
 
 	devpriv->inbuf = kmalloc(SIZEINBUF, GFP_KERNEL);
 	if (!devpriv->inbuf)

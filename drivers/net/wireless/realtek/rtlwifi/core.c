@@ -765,7 +765,8 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 					mac->bw_40 = false;
 					mac->bw_80 = false;
 					RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-						 "switch case not processed\n");
+						 "switch case %#x not processed\n",
+						 channel_type);
 					break;
 			}
 		}
@@ -1135,7 +1136,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 					mac->mode = WIRELESS_MODE_AC_24G;
 			}
 
-			if (vif->type == NL80211_IFTYPE_STATION && sta)
+			if (vif->type == NL80211_IFTYPE_STATION)
 				rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0);
 			rcu_read_unlock();
 

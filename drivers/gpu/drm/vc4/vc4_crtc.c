@@ -229,7 +229,7 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 	 * and need to make things up in a approximative but consistent way.
 	 */
 	ret |= DRM_SCANOUTPOS_IN_VBLANK;
-	vblank_lines = mode->crtc_vtotal - mode->crtc_vdisplay;
+	vblank_lines = mode->vtotal - mode->vdisplay;
 
 	if (flags & DRM_CALLED_FROM_VBLIRQ) {
 		/*
@@ -378,7 +378,7 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	struct drm_crtc_state *state = crtc->state;
 	struct drm_display_mode *mode = &state->adjusted_mode;
 	bool interlace = mode->flags & DRM_MODE_FLAG_INTERLACE;
-	u32 vactive = (mode->vdisplay >> (interlace ? 1 : 0));
+	u32 pixel_rep = (mode->flags & DRM_MODE_FLAG_DBLCLK) ? 2 : 1;
 	u32 format = PV_CONTROL_FORMAT_24;
 	bool debug_dump_regs = false;
 	int clock_select = vc4_get_clock_select(crtc);
@@ -394,47 +394,65 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	CRTC_WRITE(PV_CONTROL, 0);
 
 	CRTC_WRITE(PV_HORZA,
-		   VC4_SET_FIELD(mode->htotal - mode->hsync_end,
+		   VC4_SET_FIELD((mode->htotal -
+				  mode->hsync_end) * pixel_rep,
 				 PV_HORZA_HBP) |
-		   VC4_SET_FIELD(mode->hsync_end - mode->hsync_start,
+		   VC4_SET_FIELD((mode->hsync_end -
+				  mode->hsync_start) * pixel_rep,
 				 PV_HORZA_HSYNC));
 	CRTC_WRITE(PV_HORZB,
-		   VC4_SET_FIELD(mode->hsync_start - mode->hdisplay,
+		   VC4_SET_FIELD((mode->hsync_start -
+				  mode->hdisplay) * pixel_rep,
 				 PV_HORZB_HFP) |
-		   VC4_SET_FIELD(mode->hdisplay, PV_HORZB_HACTIVE));
+		   VC4_SET_FIELD(mode->hdisplay * pixel_rep, PV_HORZB_HACTIVE));
 
 	CRTC_WRITE(PV_VERTA,
-		   VC4_SET_FIELD(mode->vtotal - mode->vsync_end,
+		   VC4_SET_FIELD(mode->crtc_vtotal - mode->crtc_vsync_end,
 				 PV_VERTA_VBP) |
-		   VC4_SET_FIELD(mode->vsync_end - mode->vsync_start,
+		   VC4_SET_FIELD(mode->crtc_vsync_end - mode->crtc_vsync_start,
 				 PV_VERTA_VSYNC));
 	CRTC_WRITE(PV_VERTB,
-		   VC4_SET_FIELD(mode->vsync_start - mode->vdisplay,
+		   VC4_SET_FIELD(mode->crtc_vsync_start - mode->crtc_vdisplay,
 				 PV_VERTB_VFP) |
-		   VC4_SET_FIELD(vactive, PV_VERTB_VACTIVE));
+		   VC4_SET_FIELD(mode->crtc_vdisplay, PV_VERTB_VACTIVE));
 
 	if (interlace) {
 		CRTC_WRITE(PV_VERTA_EVEN,
-			   VC4_SET_FIELD(mode->vtotal - mode->vsync_end - 1,
+			   VC4_SET_FIELD(mode->crtc_vtotal -
+					 mode->crtc_vsync_end - 1,
 					 PV_VERTA_VBP) |
-			   VC4_SET_FIELD(mode->vsync_end - mode->vsync_start,
+			   VC4_SET_FIELD(mode->crtc_vsync_end -
+					 mode->crtc_vsync_start,
 					 PV_VERTA_VSYNC));
 		CRTC_WRITE(PV_VERTB_EVEN,
-			   VC4_SET_FIELD(mode->vsync_start - mode->vdisplay,
+			   VC4_SET_FIELD(mode->crtc_vsync_start -
+					 mode->crtc_vdisplay,
 					 PV_VERTB_VFP) |
-			   VC4_SET_FIELD(vactive, PV_VERTB_VACTIVE));
+			   VC4_SET_FIELD(mode->crtc_vdisplay, PV_VERTB_VACTIVE));
+
+		/* We set up first field even mode for HDMI.  VEC's
+		 * NTSC mode would want first field odd instead, once
+		 * we support it (to do so, set ODD_FIRST and put the
+		 * delay in VSYNCD_EVEN instead).
+		 */
+		CRTC_WRITE(PV_V_CONTROL,
+			   PV_VCONTROL_CONTINUOUS |
+			   PV_VCONTROL_INTERLACE |
+			   VC4_SET_FIELD(mode->htotal * pixel_rep / 2,
+					 PV_VCONTROL_ODD_DELAY));
+		CRTC_WRITE(PV_VSYNCD_EVEN, 0);
+	} else {
+		CRTC_WRITE(PV_V_CONTROL, PV_VCONTROL_CONTINUOUS);
 	}
 
-	CRTC_WRITE(PV_HACT_ACT, mode->hdisplay);
+	CRTC_WRITE(PV_HACT_ACT, mode->hdisplay * pixel_rep);
 
-	CRTC_WRITE(PV_V_CONTROL,
-		   PV_VCONTROL_CONTINUOUS |
-		   (interlace ? PV_VCONTROL_INTERLACE : 0));
 
 	CRTC_WRITE(PV_CONTROL,
 		   VC4_SET_FIELD(format, PV_CONTROL_FORMAT) |
 		   VC4_SET_FIELD(vc4_get_fifo_full_level(format),
 				 PV_CONTROL_FIFO_LEVEL) |
+		   VC4_SET_FIELD(pixel_rep - 1, PV_CONTROL_PIXEL_REP) |
 		   PV_CONTROL_CLR_AT_START |
 		   PV_CONTROL_TRIGGER_UNDERFLOW |
 		   PV_CONTROL_WAIT_HSTART |
@@ -543,16 +561,6 @@ static bool vc4_crtc_mode_fixup(struct drm_crtc *crtc,
 			      crtc->base.id);
 		return false;
 	}
-
-	/*
-	 * Interlaced video modes got CRTC_INTERLACE_HALVE_V applied when
-	 * coming from user space. We don't want this, as it screws up
-	 * vblank timestamping, so fix it up.
-	 */
-	drm_mode_set_crtcinfo(adjusted_mode, 0);
-
-	DRM_DEBUG_KMS("[CRTC:%d] adjusted_mode :\n", crtc->base.id);
-	drm_mode_debug_printmodeline(adjusted_mode);
 
 	return true;
 }

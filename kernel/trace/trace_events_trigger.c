@@ -1028,6 +1028,7 @@ static struct event_command trigger_traceon_cmd = {
 static struct event_command trigger_traceoff_cmd = {
 	.name			= "traceoff",
 	.trigger_type		= ETT_TRACE_ONOFF,
+	.flags			= EVENT_CMD_FL_POST_TRIGGER,
 	.func			= event_trigger_callback,
 	.reg			= register_trigger,
 	.unreg			= unregister_trigger,

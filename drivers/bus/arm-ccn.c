@@ -167,7 +167,7 @@ struct arm_ccn_dt {
 	struct hrtimer hrtimer;
 
 	cpumask_t cpu;
-	struct list_head entry;
+	struct hlist_node node;
 
 	struct pmu pmu;
 };
@@ -189,9 +189,6 @@ struct arm_ccn {
 	struct arm_ccn_dt dt;
 	int mn_id;
 };
-
-static DEFINE_MUTEX(arm_ccn_mutex);
-static LIST_HEAD(arm_ccn_list);
 
 static int arm_ccn_node_to_xp(int node)
 {
@@ -1214,29 +1211,23 @@ static enum hrtimer_restart arm_ccn_pmu_timer_handler(struct hrtimer *hrtimer)
 }
 
 
-static int arm_ccn_pmu_offline_cpu(unsigned int cpu)
+static int arm_ccn_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 {
-	struct arm_ccn_dt *dt;
+	struct arm_ccn_dt *dt = hlist_entry_safe(node, struct arm_ccn_dt, node);
+	struct arm_ccn *ccn = container_of(dt, struct arm_ccn, dt);
 	unsigned int target;
 
-	mutex_lock(&arm_ccn_mutex);
-	list_for_each_entry(dt, &arm_ccn_list, entry) {
-		struct arm_ccn *ccn = container_of(dt, struct arm_ccn, dt);
-
-		if (!cpumask_test_and_clear_cpu(cpu, &dt->cpu))
-			continue;
-		target = cpumask_any_but(cpu_online_mask, cpu);
-		if (target >= nr_cpu_ids)
-			continue;
-		perf_pmu_migrate_context(&dt->pmu, cpu, target);
-		cpumask_set_cpu(target, &dt->cpu);
-		if (ccn->irq)
-			WARN_ON(irq_set_affinity_hint(ccn->irq, &dt->cpu) != 0);
-	}
-	mutex_unlock(&arm_ccn_mutex);
+	if (!cpumask_test_and_clear_cpu(cpu, &dt->cpu))
+		return 0;
+	target = cpumask_any_but(cpu_online_mask, cpu);
+	if (target >= nr_cpu_ids)
+		return 0;
+	perf_pmu_migrate_context(&dt->pmu, cpu, target);
+	cpumask_set_cpu(target, &dt->cpu);
+	if (ccn->irq)
+		WARN_ON(irq_set_affinity_hint(ccn->irq, &dt->cpu) != 0);
 	return 0;
 }
-
 
 static DEFINE_IDA(arm_ccn_pmu_ida);
 
@@ -1321,9 +1312,8 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 	if (err)
 		goto error_pmu_register;
 
-	mutex_lock(&arm_ccn_mutex);
-	list_add(&ccn->dt.entry, &arm_ccn_list);
-	mutex_unlock(&arm_ccn_mutex);
+	cpuhp_state_add_instance_nocalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
+					 &ccn->dt.node);
 	return 0;
 
 error_pmu_register:
@@ -1339,10 +1329,8 @@ static void arm_ccn_pmu_cleanup(struct arm_ccn *ccn)
 {
 	int i;
 
-	mutex_lock(&arm_ccn_mutex);
-	list_del(&ccn->dt.entry);
-	mutex_unlock(&arm_ccn_mutex);
-
+	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
+					    &ccn->dt.node);
 	if (ccn->irq)
 		irq_set_affinity_hint(ccn->irq, NULL);
 	for (i = 0; i < ccn->num_xps; i++)
@@ -1573,9 +1561,9 @@ static int __init arm_ccn_init(void)
 {
 	int i, ret;
 
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
-					"AP_PERF_ARM_CCN_ONLINE", NULL,
-					arm_ccn_pmu_offline_cpu);
+	ret = cpuhp_setup_state_multi(CPUHP_AP_PERF_ARM_CCN_ONLINE,
+				      "AP_PERF_ARM_CCN_ONLINE", NULL,
+				      arm_ccn_pmu_offline_cpu);
 	if (ret)
 		return ret;
 
@@ -1587,7 +1575,7 @@ static int __init arm_ccn_init(void)
 
 static void __exit arm_ccn_exit(void)
 {
-	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_ARM_CCN_ONLINE);
+	cpuhp_remove_multi_state(CPUHP_AP_PERF_ARM_CCN_ONLINE);
 	platform_driver_unregister(&arm_ccn_driver);
 }
 

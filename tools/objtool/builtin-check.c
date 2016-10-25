@@ -97,6 +97,19 @@ static struct instruction *next_insn_same_sec(struct objtool_file *file,
 	return next;
 }
 
+static bool gcov_enabled(struct objtool_file *file)
+{
+	struct section *sec;
+	struct symbol *sym;
+
+	list_for_each_entry(sec, &file->elf->sections, list)
+		list_for_each_entry(sym, &sec->symbol_list, list)
+			if (!strncmp(sym->name, "__gcov_.", 8))
+				return true;
+
+	return false;
+}
+
 #define for_each_insn(file, insn)					\
 	list_for_each_entry(insn, &file->insn_list, list)
 
@@ -175,6 +188,7 @@ static int __dead_end_function(struct objtool_file *file, struct symbol *func,
 		"__stack_chk_fail",
 		"panic",
 		"do_exit",
+		"do_task_dead",
 		"__module_put_and_exit",
 		"complete_and_exit",
 		"kvm_spurious_fault",
@@ -712,6 +726,7 @@ static struct rela *find_switch_table(struct objtool_file *file,
 				      struct instruction *insn)
 {
 	struct rela *text_rela, *rodata_rela;
+	struct instruction *orig_insn = insn;
 
 	text_rela = find_rela_by_dest_range(insn->sec, insn->offset, insn->len);
 	if (text_rela && text_rela->sym == file->rodata->sym) {
@@ -732,9 +747,15 @@ static struct rela *find_switch_table(struct objtool_file *file,
 
 	/* case 3 */
 	func_for_each_insn_continue_reverse(file, func, insn) {
-		if (insn->type == INSN_JUMP_UNCONDITIONAL ||
-		    insn->type == INSN_JUMP_DYNAMIC)
+		if (insn->type == INSN_JUMP_DYNAMIC)
 			break;
+
+		/* allow small jumps within the range */
+		if (insn->type == INSN_JUMP_UNCONDITIONAL &&
+		    insn->jump_dest &&
+		    (insn->jump_dest->offset <= insn->offset ||
+		     insn->jump_dest->offset >= orig_insn->offset))
+		    break;
 
 		text_rela = find_rela_by_dest_range(insn->sec, insn->offset,
 						    insn->len);
@@ -1033,34 +1054,6 @@ static int validate_branch(struct objtool_file *file,
 	return 0;
 }
 
-static bool is_gcov_insn(struct instruction *insn)
-{
-	struct rela *rela;
-	struct section *sec;
-	struct symbol *sym;
-	unsigned long offset;
-
-	rela = find_rela_by_dest_range(insn->sec, insn->offset, insn->len);
-	if (!rela)
-		return false;
-
-	if (rela->sym->type != STT_SECTION)
-		return false;
-
-	sec = rela->sym->sec;
-	offset = rela->addend + insn->offset + insn->len - rela->offset;
-
-	list_for_each_entry(sym, &sec->symbol_list, list) {
-		if (sym->type != STT_OBJECT)
-			continue;
-
-		if (offset >= sym->offset && offset < sym->offset + sym->len)
-			return (!memcmp(sym->name, "__gcov0.", 8));
-	}
-
-	return false;
-}
-
 static bool is_kasan_insn(struct instruction *insn)
 {
 	return (insn->type == INSN_CALL &&
@@ -1080,9 +1073,6 @@ static bool ignore_unreachable_insn(struct symbol *func,
 	int i;
 
 	if (insn->type == INSN_NOP)
-		return true;
-
-	if (is_gcov_insn(insn))
 		return true;
 
 	/*
@@ -1144,6 +1134,19 @@ static int validate_functions(struct objtool_file *file)
 				if (file->ignore_unreachables || warnings ||
 				    ignore_unreachable_insn(func, insn))
 					continue;
+
+				/*
+				 * gcov produces a lot of unreachable
+				 * instructions.  If we get an unreachable
+				 * warning and the file has gcov enabled, just
+				 * ignore it, and all other such warnings for
+				 * the file.
+				 */
+				if (!file->ignore_unreachables &&
+				    gcov_enabled(file)) {
+					file->ignore_unreachables = true;
+					continue;
+				}
 
 				WARN_FUNC("function has unreachable instruction", insn->sec, insn->offset);
 				warnings++;

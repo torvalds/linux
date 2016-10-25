@@ -25,7 +25,7 @@
 #include <linux/types.h>
 
 /**
- * cintlog2 - computes log2 of a value; the result is shifted left by 24 bits
+ * intlog2 - computes log2 of a value; the result is shifted left by 24 bits
  *
  * @value: The value (must be != 0)
  *

@@ -1,5 +1,6 @@
 config FUSE_FS
 	tristate "FUSE (Filesystem in Userspace) support"
+	select FS_POSIX_ACL
 	help
 	  With FUSE it is possible to implement a fully functional filesystem
 	  in a userspace program.

@@ -498,7 +498,6 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
  * vic_init_cascaded() - initialise a cascaded vectored interrupt controller
  * @base: iomem base address
  * @parent_irq: the parent IRQ we're cascaded off
- * @irq_start: starting interrupt number, must be muliple of 32
  * @vic_sources: bitmask of interrupt sources to allow
  * @resume_sources: bitmask of interrupt sources to allow for resume
  *

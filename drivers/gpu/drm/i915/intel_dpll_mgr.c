@@ -1694,21 +1694,32 @@ bool bxt_ddi_dp_set_dpll_hw_state(int clock,
 	return bxt_ddi_set_dpll_hw_state(clock, &clk_div, dpll_hw_state);
 }
 
+static bool
+bxt_ddi_hdmi_set_dpll_hw_state(struct intel_crtc *intel_crtc,
+			       struct intel_crtc_state *crtc_state, int clock,
+			       struct intel_dpll_hw_state *dpll_hw_state)
+{
+	struct bxt_clk_div clk_div = { };
+
+	bxt_ddi_hdmi_pll_dividers(intel_crtc, crtc_state, clock, &clk_div);
+
+	return bxt_ddi_set_dpll_hw_state(clock, &clk_div, dpll_hw_state);
+}
+
 static struct intel_shared_dpll *
 bxt_get_dpll(struct intel_crtc *crtc,
 		struct intel_crtc_state *crtc_state,
 		struct intel_encoder *encoder)
 {
-	struct bxt_clk_div clk_div = {0};
-	struct intel_dpll_hw_state dpll_hw_state = {0};
+	struct intel_dpll_hw_state dpll_hw_state = { };
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_digital_port *intel_dig_port;
 	struct intel_shared_dpll *pll;
 	int i, clock = crtc_state->port_clock;
 
-	if (encoder->type == INTEL_OUTPUT_HDMI
-	    && !bxt_ddi_hdmi_pll_dividers(crtc, crtc_state,
-					  clock, &clk_div))
+	if (encoder->type == INTEL_OUTPUT_HDMI &&
+	    !bxt_ddi_hdmi_set_dpll_hw_state(crtc, crtc_state, clock,
+					    &dpll_hw_state))
 		return NULL;
 
 	if ((encoder->type == INTEL_OUTPUT_DP ||
@@ -1840,13 +1851,13 @@ void intel_shared_dpll_init(struct drm_device *dev)
 	const struct dpll_info *dpll_info;
 	int i;
 
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		dpll_mgr = &skl_pll_mgr;
-	else if (IS_BROXTON(dev))
+	else if (IS_BROXTON(dev_priv))
 		dpll_mgr = &bxt_pll_mgr;
-	else if (HAS_DDI(dev))
+	else if (HAS_DDI(dev_priv))
 		dpll_mgr = &hsw_pll_mgr;
-	else if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
+	else if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv))
 		dpll_mgr = &pch_pll_mgr;
 
 	if (!dpll_mgr) {
@@ -1872,7 +1883,7 @@ void intel_shared_dpll_init(struct drm_device *dev)
 	BUG_ON(dev_priv->num_shared_dpll > I915_NUM_PLLS);
 
 	/* FIXME: Move this to a more suitable place */
-	if (HAS_DDI(dev))
+	if (HAS_DDI(dev_priv))
 		intel_ddi_pll_init(dev);
 }
 

@@ -19,7 +19,7 @@ static inline bool arc_uncached_addr_space(phys_addr_t paddr)
 	if (is_isa_arcompact()) {
 		if (paddr >= ARC_UNCACHED_ADDR_SPACE)
 			return true;
-	} else if (paddr >= perip_base && paddr <= 0xFFFFFFFF) {
+	} else if (paddr >= perip_base && paddr <= perip_end) {
 		return true;
 	}
 

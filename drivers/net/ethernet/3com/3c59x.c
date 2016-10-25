@@ -3089,7 +3089,7 @@ static void set_rx_mode(struct net_device *dev)
 	iowrite16(new_mode, ioaddr + EL3_CMD);
 }
 
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
 /* Setup the card so that it can receive frames with an 802.1q VLAN tag.
    Note that this must be done after each RxReset due to some backwards
    compatibility logic in the Cyclone and Tornado ASICs */

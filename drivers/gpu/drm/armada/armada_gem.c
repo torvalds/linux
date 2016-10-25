@@ -387,7 +387,7 @@ int armada_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	if (!access_ok(VERIFY_READ, ptr, args->size))
 		return -EFAULT;
 
-	ret = fault_in_multipages_readable(ptr, args->size);
+	ret = fault_in_pages_readable(ptr, args->size);
 	if (ret)
 		return ret;
 

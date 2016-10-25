@@ -21,13 +21,6 @@
 
 #include "hid-ids.h"
 
-/*
- * See WPXXXXU model descriptions, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=UC-Logic_Tablet_WP4030U
- * http://sf.net/apps/mediawiki/digimend/?title=UC-Logic_Tablet_WP5540U
- * http://sf.net/apps/mediawiki/digimend/?title=UC-Logic_Tablet_WP8060U
- */
-
 /* Size of the original descriptor of WPXXXXU tablets */
 #define WPXXXXU_RDESC_ORIG_SIZE	212
 
@@ -221,11 +214,6 @@ static __u8 wp8060u_rdesc_fixed[] = {
 	0xC0                /*  End Collection                      */
 };
 
-/*
- * See WP1062 description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=UC-Logic_Tablet_WP1062
- */
-
 /* Size of the original descriptor of WP1062 tablet */
 #define WP1062_RDESC_ORIG_SIZE	254
 
@@ -273,11 +261,6 @@ static __u8 wp1062_rdesc_fixed[] = {
 	0xC0,               /*      End Collection,                 */
 	0xC0                /*  End Collection                      */
 };
-
-/*
- * See PF1209 description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=UC-Logic_Tablet_PF1209
- */
 
 /* Size of the original descriptor of PF1209 tablet */
 #define PF1209_RDESC_ORIG_SIZE	234
@@ -355,11 +338,6 @@ static __u8 pf1209_rdesc_fixed[] = {
 	0xC0,               /*      End Collection,                 */
 	0xC0                /*  End Collection                      */
 };
-
-/*
- * See TWHL850 description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=UC-Logic_Wireless_Tablet_TWHL850
- */
 
 /* Size of the original descriptors of TWHL850 tablet */
 #define TWHL850_RDESC_ORIG_SIZE0	182
@@ -468,11 +446,6 @@ static __u8 twhl850_rdesc_fixed2[] = {
 	0x80,               /*      Input,                          */
 	0xC0                /*  End Collection                      */
 };
-
-/*
- * See TWHA60 description, device and HID report descriptors at
- * http://sf.net/apps/mediawiki/digimend/?title=UC-Logic_Tablet_TWHA60
- */
 
 /* Size of the original descriptors of TWHA60 tablet */
 #define TWHA60_RDESC_ORIG_SIZE0 254
@@ -613,6 +586,27 @@ static const __u8 uclogic_tablet_rdesc_template[] = {
 	0xC0                    /*  End Collection                          */
 };
 
+/* Fixed virtual pad report descriptor */
+static const __u8 uclogic_buttonpad_rdesc[] = {
+	0x05, 0x01,             /*  Usage Page (Desktop),                   */
+	0x09, 0x07,             /*  Usage (Keypad),                         */
+	0xA1, 0x01,             /*  Collection (Application),               */
+	0x85, 0xF7,             /*      Report ID (247),                    */
+	0x05, 0x0D,             /*      Usage Page (Digitizers),            */
+	0x09, 0x39,             /*      Usage (Tablet Function Keys),       */
+	0xA0,                   /*      Collection (Physical),              */
+	0x05, 0x09,             /*          Usage Page (Button),            */
+	0x75, 0x01,             /*          Report Size (1),                */
+	0x95, 0x18,             /*          Report Count (24),              */
+	0x81, 0x03,             /*          Input (Constant, Variable),     */
+	0x19, 0x01,             /*          Usage Minimum (01h),            */
+	0x29, 0x08,             /*          Usage Maximum (08h),            */
+	0x95, 0x08,             /*          Report Count (8),               */
+	0x81, 0x02,             /*          Input (Variable),               */
+	0xC0,                   /*      End Collection                      */
+	0xC0                    /*  End Collection                          */
+};
+
 /* Parameter indices */
 enum uclogic_prm {
 	UCLOGIC_PRM_X_LM	= 1,
@@ -628,6 +622,7 @@ struct uclogic_drvdata {
 	unsigned int rsize;
 	bool invert_pen_inrange;
 	bool ignore_pen_usage;
+	bool has_virtual_pad_interface;
 };
 
 static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
@@ -636,6 +631,12 @@ static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	struct usb_interface *iface = to_usb_interface(hdev->dev.parent);
 	__u8 iface_num = iface->cur_altsetting->desc.bInterfaceNumber;
 	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
+
+	if (drvdata->rdesc != NULL) {
+		rdesc = drvdata->rdesc;
+		*rsize = drvdata->rsize;
+		return rdesc;
+	}
 
 	switch (hdev->product) {
 	case USB_DEVICE_ID_UCLOGIC_TABLET_PF1209:
@@ -706,11 +707,6 @@ static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 			break;
 		}
 		break;
-	default:
-		if (drvdata->rdesc != NULL) {
-			rdesc = drvdata->rdesc;
-			*rsize = drvdata->rsize;
-		}
 	}
 
 	return rdesc;
@@ -804,7 +800,6 @@ static int uclogic_tablet_enable(struct hid_device *hdev)
 	len = UCLOGIC_PRM_NUM * sizeof(*buf);
 	buf = kmalloc(len, GFP_KERNEL);
 	if (buf == NULL) {
-		hid_err(hdev, "failed to allocate parameter buffer\n");
 		rc = -ENOMEM;
 		goto cleanup;
 	}
@@ -848,7 +843,6 @@ static int uclogic_tablet_enable(struct hid_device *hdev)
 				sizeof(uclogic_tablet_rdesc_template),
 				GFP_KERNEL);
 	if (drvdata->rdesc == NULL) {
-		hid_err(hdev, "failed to allocate fixed rdesc\n");
 		rc = -ENOMEM;
 		goto cleanup;
 	}
@@ -876,11 +870,75 @@ cleanup:
 	return rc;
 }
 
+/**
+ * Enable actual button mode.
+ *
+ * @hdev:	HID device
+ */
+static int uclogic_button_enable(struct hid_device *hdev)
+{
+	int rc;
+	struct usb_device *usb_dev = hid_to_usb_dev(hdev);
+	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
+	char *str_buf;
+	size_t str_len = 16;
+	unsigned char *rdesc;
+	size_t rdesc_len;
+
+	str_buf = kzalloc(str_len, GFP_KERNEL);
+	if (str_buf == NULL) {
+		rc = -ENOMEM;
+		goto cleanup;
+	}
+
+	/* Enable abstract keyboard mode */
+	rc = usb_string(usb_dev, 0x7b, str_buf, str_len);
+	if (rc == -EPIPE) {
+		hid_info(hdev, "button mode setting not found\n");
+		rc = 0;
+		goto cleanup;
+	} else if (rc < 0) {
+		hid_err(hdev, "failed to enable abstract keyboard\n");
+		goto cleanup;
+	} else if (strncmp(str_buf, "HK On", rc)) {
+		hid_info(hdev, "invalid answer when requesting buttons: '%s'\n",
+			str_buf);
+		rc = -EINVAL;
+		goto cleanup;
+	}
+
+	/* Re-allocate fixed report descriptor */
+	rdesc_len = drvdata->rsize + sizeof(uclogic_buttonpad_rdesc);
+	rdesc = devm_kzalloc(&hdev->dev, rdesc_len, GFP_KERNEL);
+	if (!rdesc) {
+		rc = -ENOMEM;
+		goto cleanup;
+	}
+
+	memcpy(rdesc, drvdata->rdesc, drvdata->rsize);
+
+	/* Append the buttonpad descriptor */
+	memcpy(rdesc + drvdata->rsize, uclogic_buttonpad_rdesc,
+	       sizeof(uclogic_buttonpad_rdesc));
+
+	/* clean up old rdesc and use the new one */
+	drvdata->rsize = rdesc_len;
+	devm_kfree(&hdev->dev, drvdata->rdesc);
+	drvdata->rdesc = rdesc;
+
+	rc = 0;
+
+cleanup:
+	kfree(str_buf);
+	return rc;
+}
+
 static int uclogic_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
 	int rc;
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
+	struct usb_device *udev = hid_to_usb_dev(hdev);
 	struct uclogic_drvdata *drvdata;
 
 	/*
@@ -899,6 +957,10 @@ static int uclogic_probe(struct hid_device *hdev,
 
 	switch (id->product) {
 	case USB_DEVICE_ID_HUION_TABLET:
+	case USB_DEVICE_ID_YIYNOVA_TABLET:
+	case USB_DEVICE_ID_UGEE_TABLET_81:
+	case USB_DEVICE_ID_UCLOGIC_DRAWIMAGE_G3:
+	case USB_DEVICE_ID_UGEE_TABLET_45:
 		/* If this is the pen interface */
 		if (intf->cur_altsetting->desc.bInterfaceNumber == 0) {
 			rc = uclogic_tablet_enable(hdev);
@@ -907,8 +969,46 @@ static int uclogic_probe(struct hid_device *hdev,
 				return rc;
 			}
 			drvdata->invert_pen_inrange = true;
+
+			rc = uclogic_button_enable(hdev);
+			drvdata->has_virtual_pad_interface = !rc;
 		} else {
 			drvdata->ignore_pen_usage = true;
+		}
+		break;
+	case USB_DEVICE_ID_UGTIZER_TABLET_GP0610:
+		/* If this is the pen interface */
+		if (intf->cur_altsetting->desc.bInterfaceNumber == 1) {
+			rc = uclogic_tablet_enable(hdev);
+			if (rc) {
+				hid_err(hdev, "tablet enabling failed\n");
+				return rc;
+			}
+			drvdata->invert_pen_inrange = true;
+		} else {
+			drvdata->ignore_pen_usage = true;
+		}
+		break;
+	case USB_DEVICE_ID_UCLOGIC_TABLET_TWHA60:
+		/*
+		 * If it is the three-interface version, which is known to
+		 * respond to initialization.
+		 */
+		if (udev->config->desc.bNumInterfaces == 3) {
+			/* If it is the pen interface */
+			if (intf->cur_altsetting->desc.bInterfaceNumber == 0) {
+				rc = uclogic_tablet_enable(hdev);
+				if (rc) {
+					hid_err(hdev, "tablet enabling failed\n");
+					return rc;
+				}
+				drvdata->invert_pen_inrange = true;
+
+				rc = uclogic_button_enable(hdev);
+				drvdata->has_virtual_pad_interface = !rc;
+			} else {
+				drvdata->ignore_pen_usage = true;
+			}
 		}
 		break;
 	}
@@ -933,12 +1033,16 @@ static int uclogic_raw_event(struct hid_device *hdev, struct hid_report *report,
 {
 	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
 
-	if ((drvdata->invert_pen_inrange) &&
-	    (report->type == HID_INPUT_REPORT) &&
+	if ((report->type == HID_INPUT_REPORT) &&
 	    (report->id == UCLOGIC_PEN_REPORT_ID) &&
-	    (size >= 2))
-		/* Invert the in-range bit */
-		data[1] ^= 0x40;
+	    (size >= 2)) {
+		if (drvdata->has_virtual_pad_interface && (data[1] & 0x20))
+			/* Change to virtual frame button report ID */
+			data[0] = 0xf7;
+		else if (drvdata->invert_pen_inrange)
+			/* Invert the in-range bit */
+			data[1] ^= 0x40;
+	}
 
 	return 0;
 }
@@ -960,6 +1064,11 @@ static const struct hid_device_id uclogic_devices[] = {
 				USB_DEVICE_ID_UCLOGIC_TABLET_TWHA60) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_HUION, USB_DEVICE_ID_HUION_TABLET) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_UCLOGIC, USB_DEVICE_ID_HUION_TABLET) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_UCLOGIC, USB_DEVICE_ID_YIYNOVA_TABLET) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_UCLOGIC, USB_DEVICE_ID_UGEE_TABLET_81) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_UCLOGIC, USB_DEVICE_ID_UGEE_TABLET_45) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_UCLOGIC, USB_DEVICE_ID_UCLOGIC_DRAWIMAGE_G3) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_UGTIZER, USB_DEVICE_ID_UGTIZER_TABLET_GP0610) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, uclogic_devices);

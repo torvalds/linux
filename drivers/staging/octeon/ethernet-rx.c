@@ -43,21 +43,27 @@
 
 #include <asm/octeon/cvmx-gmxx-defs.h>
 
-static struct napi_struct cvm_oct_napi;
+static atomic_t oct_rx_ready = ATOMIC_INIT(0);
+
+static struct oct_rx_group {
+	int irq;
+	int group;
+	struct napi_struct napi;
+} oct_rx_group[16];
 
 /**
  * cvm_oct_do_interrupt - interrupt handler.
- * @cpl: Interrupt number. Unused
- * @dev_id: Cookie to identify the device. Unused
+ * @irq: Interrupt number.
+ * @napi_id: Cookie to identify the NAPI instance.
  *
  * The interrupt occurs whenever the POW has packets in our group.
  *
  */
-static irqreturn_t cvm_oct_do_interrupt(int cpl, void *dev_id)
+static irqreturn_t cvm_oct_do_interrupt(int irq, void *napi_id)
 {
 	/* Disable the IRQ and start napi_poll. */
-	disable_irq_nosync(OCTEON_IRQ_WORKQ0 + pow_receive_group);
-	napi_schedule(&cvm_oct_napi);
+	disable_irq_nosync(irq);
+	napi_schedule(napi_id);
 
 	return IRQ_HANDLED;
 }
@@ -143,14 +149,7 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 	return 0;
 }
 
-/**
- * cvm_oct_napi_poll - the NAPI poll function.
- * @napi: The NAPI instance, or null if called from cvm_oct_poll_controller
- * @budget: Maximum number of packets to receive.
- *
- * Returns the number of packets processed.
- */
-static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
+static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 {
 	const int	coreid = cvmx_get_core_num();
 	u64	old_group_mask;
@@ -172,13 +171,13 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 	if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
 		old_group_mask = cvmx_read_csr(CVMX_SSO_PPX_GRP_MSK(coreid));
 		cvmx_write_csr(CVMX_SSO_PPX_GRP_MSK(coreid),
-			       1ull << pow_receive_group);
+			       BIT(rx_group->group));
 		cvmx_read_csr(CVMX_SSO_PPX_GRP_MSK(coreid)); /* Flush */
 	} else {
 		old_group_mask = cvmx_read_csr(CVMX_POW_PP_GRP_MSKX(coreid));
 		cvmx_write_csr(CVMX_POW_PP_GRP_MSKX(coreid),
 			       (old_group_mask & ~0xFFFFull) |
-			       1 << pow_receive_group);
+			       BIT(rx_group->group));
 	}
 
 	if (USE_ASYNC_IOBDMA) {
@@ -203,15 +202,15 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 		if (!work) {
 			if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
 				cvmx_write_csr(CVMX_SSO_WQ_IQ_DIS,
-					       1ull << pow_receive_group);
+					       BIT(rx_group->group));
 				cvmx_write_csr(CVMX_SSO_WQ_INT,
-					       1ull << pow_receive_group);
+					       BIT(rx_group->group));
 			} else {
 				union cvmx_pow_wq_int wq_int;
 
 				wq_int.u64 = 0;
-				wq_int.s.iq_dis = 1 << pow_receive_group;
-				wq_int.s.wq_int = 1 << pow_receive_group;
+				wq_int.s.iq_dis = BIT(rx_group->group);
+				wq_int.s.wq_int = BIT(rx_group->group);
 				cvmx_write_csr(CVMX_POW_WQ_INT, wq_int.u64);
 			}
 			break;
@@ -410,10 +409,28 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 	}
 	cvm_oct_rx_refill_pool(0);
 
-	if (rx_count < budget && napi) {
+	return rx_count;
+}
+
+/**
+ * cvm_oct_napi_poll - the NAPI poll function.
+ * @napi: The NAPI instance.
+ * @budget: Maximum number of packets to receive.
+ *
+ * Returns the number of packets processed.
+ */
+static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
+{
+	struct oct_rx_group *rx_group = container_of(napi, struct oct_rx_group,
+						     napi);
+	int rx_count;
+
+	rx_count = cvm_oct_poll(rx_group, budget);
+
+	if (rx_count < budget) {
 		/* No more work */
 		napi_complete(napi);
-		enable_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group);
+		enable_irq(rx_group->irq);
 	}
 	return rx_count;
 }
@@ -427,7 +444,17 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
  */
 void cvm_oct_poll_controller(struct net_device *dev)
 {
-	cvm_oct_napi_poll(NULL, 16);
+	int i;
+
+	if (!atomic_read(&oct_rx_ready))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(oct_rx_group); i++) {
+		if (!(pow_receive_groups & BIT(i)))
+			continue;
+
+		cvm_oct_poll(&oct_rx_group[i], 16);
+	}
 }
 #endif
 
@@ -446,54 +473,80 @@ void cvm_oct_rx_initialize(void)
 	if (!dev_for_napi)
 		panic("No net_devices were allocated.");
 
-	netif_napi_add(dev_for_napi, &cvm_oct_napi, cvm_oct_napi_poll,
-		       rx_napi_weight);
-	napi_enable(&cvm_oct_napi);
+	for (i = 0; i < ARRAY_SIZE(oct_rx_group); i++) {
+		int ret;
 
-	/* Register an IRQ handler to receive POW interrupts */
-	i = request_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group,
-			cvm_oct_do_interrupt, 0, "Ethernet", cvm_oct_device);
+		if (!(pow_receive_groups & BIT(i)))
+			continue;
 
-	if (i)
-		panic("Could not acquire Ethernet IRQ %d\n",
-		      OCTEON_IRQ_WORKQ0 + pow_receive_group);
+		netif_napi_add(dev_for_napi, &oct_rx_group[i].napi,
+			       cvm_oct_napi_poll, rx_napi_weight);
+		napi_enable(&oct_rx_group[i].napi);
 
-	disable_irq_nosync(OCTEON_IRQ_WORKQ0 + pow_receive_group);
+		oct_rx_group[i].irq = OCTEON_IRQ_WORKQ0 + i;
+		oct_rx_group[i].group = i;
 
-	/* Enable POW interrupt when our port has at least one packet */
-	if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
-		union cvmx_sso_wq_int_thrx int_thr;
-		union cvmx_pow_wq_int_pc int_pc;
+		/* Register an IRQ handler to receive POW interrupts */
+		ret = request_irq(oct_rx_group[i].irq, cvm_oct_do_interrupt, 0,
+				  "Ethernet", &oct_rx_group[i].napi);
+		if (ret)
+			panic("Could not acquire Ethernet IRQ %d\n",
+			      oct_rx_group[i].irq);
 
-		int_thr.u64 = 0;
-		int_thr.s.tc_en = 1;
-		int_thr.s.tc_thr = 1;
-		cvmx_write_csr(CVMX_SSO_WQ_INT_THRX(pow_receive_group),
-			       int_thr.u64);
+		disable_irq_nosync(oct_rx_group[i].irq);
 
-		int_pc.u64 = 0;
-		int_pc.s.pc_thr = 5;
-		cvmx_write_csr(CVMX_SSO_WQ_INT_PC, int_pc.u64);
-	} else {
-		union cvmx_pow_wq_int_thrx int_thr;
-		union cvmx_pow_wq_int_pc int_pc;
+		/* Enable POW interrupt when our port has at least one packet */
+		if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
+			union cvmx_sso_wq_int_thrx int_thr;
+			union cvmx_pow_wq_int_pc int_pc;
 
-		int_thr.u64 = 0;
-		int_thr.s.tc_en = 1;
-		int_thr.s.tc_thr = 1;
-		cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group),
-			       int_thr.u64);
+			int_thr.u64 = 0;
+			int_thr.s.tc_en = 1;
+			int_thr.s.tc_thr = 1;
+			cvmx_write_csr(CVMX_SSO_WQ_INT_THRX(i), int_thr.u64);
 
-		int_pc.u64 = 0;
-		int_pc.s.pc_thr = 5;
-		cvmx_write_csr(CVMX_POW_WQ_INT_PC, int_pc.u64);
+			int_pc.u64 = 0;
+			int_pc.s.pc_thr = 5;
+			cvmx_write_csr(CVMX_SSO_WQ_INT_PC, int_pc.u64);
+		} else {
+			union cvmx_pow_wq_int_thrx int_thr;
+			union cvmx_pow_wq_int_pc int_pc;
+
+			int_thr.u64 = 0;
+			int_thr.s.tc_en = 1;
+			int_thr.s.tc_thr = 1;
+			cvmx_write_csr(CVMX_POW_WQ_INT_THRX(i), int_thr.u64);
+
+			int_pc.u64 = 0;
+			int_pc.s.pc_thr = 5;
+			cvmx_write_csr(CVMX_POW_WQ_INT_PC, int_pc.u64);
+		}
+
+		/* Schedule NAPI now. This will indirectly enable the
+		 * interrupt.
+		 */
+		napi_schedule(&oct_rx_group[i].napi);
 	}
-
-	/* Schedule NAPI now. This will indirectly enable the interrupt. */
-	napi_schedule(&cvm_oct_napi);
+	atomic_inc(&oct_rx_ready);
 }
 
 void cvm_oct_rx_shutdown(void)
 {
-	netif_napi_del(&cvm_oct_napi);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(oct_rx_group); i++) {
+		if (!(pow_receive_groups & BIT(i)))
+			continue;
+
+		/* Disable POW interrupt */
+		if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+			cvmx_write_csr(CVMX_SSO_WQ_INT_THRX(i), 0);
+		else
+			cvmx_write_csr(CVMX_POW_WQ_INT_THRX(i), 0);
+
+		/* Free the interrupt handler */
+		free_irq(oct_rx_group[i].irq, cvm_oct_device);
+
+		netif_napi_del(&oct_rx_group[i].napi);
+	}
 }

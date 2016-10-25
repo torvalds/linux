@@ -96,6 +96,12 @@ config EXTCON_PALMAS
 	  Say Y here to enable support for USB peripheral and USB host
 	  detection by palmas usb.
 
+config EXTCON_QCOM_SPMI_MISC
+	tristate "Qualcomm USB extcon support"
+	help
+	  Say Y here to enable SPMI PMIC based USB cable detection
+	  support on Qualcomm PMICs such as PM8941.
+
 config EXTCON_RT8973A
 	tristate "Richtek RT8973A EXTCON support"
 	depends on I2C

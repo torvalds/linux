@@ -321,16 +321,30 @@ void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id)
 	update_pending = radeon_page_flip_pending(rdev, crtc_id);
 
 	/* Has the pageflip already completed in crtc, or is it certain
-	 * to complete in this vblank?
+	 * to complete in this vblank? GET_DISTANCE_TO_VBLANKSTART provides
+	 * distance to start of "fudged earlier" vblank in vpos, distance to
+	 * start of real vblank in hpos. vpos >= 0 && hpos < 0 means we are in
+	 * the last few scanlines before start of real vblank, where the vblank
+	 * irq can fire, so we have sampled update_pending a bit too early and
+	 * know the flip will complete at leading edge of the upcoming real
+	 * vblank. On pre-AVIVO hardware, flips also complete inside the real
+	 * vblank, not only at leading edge, so if update_pending for hpos >= 0
+	 *  == inside real vblank, the flip will complete almost immediately.
+	 * Note that this method of completion handling is still not 100% race
+	 * free, as we could execute before the radeon_flip_work_func managed
+	 * to run and set the RADEON_FLIP_SUBMITTED status, thereby we no-op,
+	 * but the flip still gets programmed into hw and completed during
+	 * vblank, leading to a delayed emission of the flip completion event.
+	 * This applies at least to pre-AVIVO hardware, where flips are always
+	 * completing inside vblank, not only at leading edge of vblank.
 	 */
 	if (update_pending &&
-	    (DRM_SCANOUTPOS_VALID & radeon_get_crtc_scanoutpos(rdev->ddev,
-							       crtc_id,
-							       USE_REAL_VBLANKSTART,
-							       &vpos, &hpos, NULL, NULL,
-							       &rdev->mode_info.crtcs[crtc_id]->base.hwmode)) &&
-	    ((vpos >= (99 * rdev->mode_info.crtcs[crtc_id]->base.hwmode.crtc_vdisplay)/100) ||
-	     (vpos < 0 && !ASIC_IS_AVIVO(rdev)))) {
+	    (DRM_SCANOUTPOS_VALID &
+	     radeon_get_crtc_scanoutpos(rdev->ddev, crtc_id,
+					GET_DISTANCE_TO_VBLANKSTART,
+					&vpos, &hpos, NULL, NULL,
+					&rdev->mode_info.crtcs[crtc_id]->base.hwmode)) &&
+	    ((vpos >= 0 && hpos < 0) || (hpos >= 0 && !ASIC_IS_AVIVO(rdev)))) {
 		/* crtc didn't flip in this target vblank interval,
 		 * but flip is pending in crtc. Based on the current
 		 * scanout position we know that the current frame is
@@ -438,16 +452,19 @@ static void radeon_flip_work_func(struct work_struct *__work)
 	}
 
 	/* Wait until we're out of the vertical blank period before the one
-	 * targeted by the flip
+	 * targeted by the flip. Always wait on pre DCE4 to avoid races with
+	 * flip completion handling from vblank irq, as these old asics don't
+	 * have reliable pageflip completion interrupts.
 	 */
 	while (radeon_crtc->enabled &&
-	       (radeon_get_crtc_scanoutpos(dev, work->crtc_id, 0,
-					   &vpos, &hpos, NULL, NULL,
-					   &crtc->hwmode)
+		(radeon_get_crtc_scanoutpos(dev, work->crtc_id, 0,
+					    &vpos, &hpos, NULL, NULL,
+					    &crtc->hwmode)
 		& (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK)) ==
-	       (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK) &&
-	       (int)(work->target_vblank -
-		     dev->driver->get_vblank_counter(dev, work->crtc_id)) > 0)
+		(DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK) &&
+		(!ASIC_IS_AVIVO(rdev) ||
+		((int) (work->target_vblank -
+		dev->driver->get_vblank_counter(dev, work->crtc_id)) > 0)))
 		usleep_range(1000, 2000);
 
 	/* We borrow the event spin lock for protecting flip_status */
@@ -1658,20 +1675,20 @@ int radeon_modeset_init(struct radeon_device *rdev)
 
 void radeon_modeset_fini(struct radeon_device *rdev)
 {
-	radeon_fbdev_fini(rdev);
+	if (rdev->mode_info.mode_config_initialized) {
+		drm_kms_helper_poll_fini(rdev->ddev);
+		radeon_hpd_fini(rdev);
+		drm_crtc_force_disable_all(rdev->ddev);
+		radeon_fbdev_fini(rdev);
+		radeon_afmt_fini(rdev);
+		drm_mode_config_cleanup(rdev->ddev);
+		rdev->mode_info.mode_config_initialized = false;
+	}
+
 	kfree(rdev->mode_info.bios_hardcoded_edid);
 
 	/* free i2c buses */
 	radeon_i2c_fini(rdev);
-
-	if (rdev->mode_info.mode_config_initialized) {
-		radeon_afmt_fini(rdev);
-		drm_kms_helper_poll_fini(rdev->ddev);
-		radeon_hpd_fini(rdev);
-		drm_crtc_force_disable_all(rdev->ddev);
-		drm_mode_config_cleanup(rdev->ddev);
-		rdev->mode_info.mode_config_initialized = false;
-	}
 }
 
 static bool is_hdtv_mode(const struct drm_display_mode *mode)

@@ -359,6 +359,11 @@ struct led_platform_data {
 	struct led_info	*leds;
 };
 
+struct gpio_desc;
+typedef int (*gpio_blink_set_t)(struct gpio_desc *desc, int state,
+				unsigned long *delay_on,
+				unsigned long *delay_off);
+
 /* For the leds-gpio driver */
 struct gpio_led {
 	const char *name;
@@ -382,9 +387,7 @@ struct gpio_led_platform_data {
 #define GPIO_LED_NO_BLINK_LOW	0	/* No blink GPIO state low */
 #define GPIO_LED_NO_BLINK_HIGH	1	/* No blink GPIO state high */
 #define GPIO_LED_BLINK		2	/* Please, blink */
-	int		(*gpio_blink_set)(struct gpio_desc *desc, int state,
-					unsigned long *delay_on,
-					unsigned long *delay_off);
+	gpio_blink_set_t	gpio_blink_set;
 };
 
 #ifdef CONFIG_NEW_LEDS

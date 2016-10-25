@@ -233,7 +233,7 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 static struct drm_i915_gem_request *alloc_request(struct intel_overlay *overlay)
 {
 	struct drm_i915_private *dev_priv = overlay->i915;
-	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
+	struct intel_engine_cs *engine = dev_priv->engine[RCS];
 
 	return i915_gem_request_alloc(engine, dev_priv->kernel_context);
 }
@@ -1470,6 +1470,8 @@ void intel_cleanup_overlay(struct drm_i915_private *dev_priv)
 	kfree(dev_priv->overlay);
 }
 
+#if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
+
 struct intel_overlay_error_state {
 	struct overlay_registers regs;
 	unsigned long base;
@@ -1587,3 +1589,5 @@ intel_overlay_print_error_state(struct drm_i915_error_state_buf *m,
 	P(UVSCALEV);
 #undef P
 }
+
+#endif

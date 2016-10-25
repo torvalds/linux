@@ -114,6 +114,13 @@ xfs_fs_map_blocks(
 		return -ENXIO;
 
 	/*
+	 * The pNFS block layout spec actually supports reflink like
+	 * functionality, but the Linux pNFS server doesn't implement it yet.
+	 */
+	if (xfs_is_reflink_inode(ip))
+		return -ENXIO;
+
+	/*
 	 * Lock out any other I/O before we flush and invalidate the pagecache,
 	 * and then hand out a layout to the remote system.  This is very
 	 * similar to direct I/O, except that the synchronization is much more

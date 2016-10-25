@@ -135,6 +135,65 @@ int reboot_mode_unregister(struct reboot_mode_driver *reboot)
 }
 EXPORT_SYMBOL_GPL(reboot_mode_unregister);
 
+static void devm_reboot_mode_release(struct device *dev, void *res)
+{
+	reboot_mode_unregister(*(struct reboot_mode_driver **)res);
+}
+
+/**
+ * devm_reboot_mode_register() - resource managed reboot_mode_register()
+ * @dev: device to associate this resource with
+ * @reboot: reboot mode driver
+ *
+ * Returns: 0 on success or a negative error code on failure.
+ */
+int devm_reboot_mode_register(struct device *dev,
+			      struct reboot_mode_driver *reboot)
+{
+	struct reboot_mode_driver **dr;
+	int rc;
+
+	dr = devres_alloc(devm_reboot_mode_release, sizeof(*dr), GFP_KERNEL);
+	if (!dr)
+		return -ENOMEM;
+
+	rc = reboot_mode_register(reboot);
+	if (rc) {
+		devres_free(dr);
+		return rc;
+	}
+
+	*dr = reboot;
+	devres_add(dev, dr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_reboot_mode_register);
+
+static int devm_reboot_mode_match(struct device *dev, void *res, void *data)
+{
+	struct reboot_mode_driver **p = res;
+
+	if (WARN_ON(!p || !*p))
+		return 0;
+
+	return *p == data;
+}
+
+/**
+ * devm_reboot_mode_unregister() - resource managed reboot_mode_unregister()
+ * @dev: device to associate this resource with
+ * @reboot: reboot mode driver
+ */
+void devm_reboot_mode_unregister(struct device *dev,
+				 struct reboot_mode_driver *reboot)
+{
+	WARN_ON(devres_release(dev,
+			       devm_reboot_mode_release,
+			       devm_reboot_mode_match, reboot));
+}
+EXPORT_SYMBOL_GPL(devm_reboot_mode_unregister);
+
 MODULE_AUTHOR("Andy Yan <andy.yan@rock-chips.com");
 MODULE_DESCRIPTION("System reboot mode core library");
 MODULE_LICENSE("GPL v2");

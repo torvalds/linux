@@ -699,6 +699,20 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 		case 0x05000009: /* clock table */
 			break;
 
+		case 0x0500000c: /* hw config */
+			switch (p->adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_CIK
+			case CHIP_KAVERI:
+			case CHIP_MULLINS:
+#endif
+			case CHIP_CARRIZO:
+				break;
+			default:
+				r = -EINVAL;
+				goto out;
+			}
+			break;
+
 		case 0x03000001: /* encode */
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 10, idx + 9,
 						*size, 0);

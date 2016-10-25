@@ -22,7 +22,6 @@
 #ifndef __XC5000_H__
 #define __XC5000_H__
 
-#include <linux/kconfig.h>
 #include <linux/firmware.h>
 
 struct dvb_frontend;

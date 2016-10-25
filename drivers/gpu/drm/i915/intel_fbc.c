@@ -774,6 +774,14 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	struct intel_fbc_state_cache *cache = &fbc->state_cache;
 
+	/* We don't need to use a state cache here since this information is
+	 * global for all CRTC.
+	 */
+	if (fbc->underrun_detected) {
+		fbc->no_fbc_reason = "underrun detected";
+		return false;
+	}
+
 	if (!cache->plane.visible) {
 		fbc->no_fbc_reason = "primary plane not visible";
 		return false;
@@ -856,6 +864,11 @@ static bool intel_fbc_can_choose(struct intel_crtc *crtc)
 
 	if (!i915.enable_fbc) {
 		fbc->no_fbc_reason = "disabled per module param or by default";
+		return false;
+	}
+
+	if (fbc->underrun_detected) {
+		fbc->no_fbc_reason = "underrun detected";
 		return false;
 	}
 
@@ -1221,6 +1234,59 @@ void intel_fbc_global_disable(struct drm_i915_private *dev_priv)
 	cancel_work_sync(&fbc->work.work);
 }
 
+static void intel_fbc_underrun_work_fn(struct work_struct *work)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(work, struct drm_i915_private, fbc.underrun_work);
+	struct intel_fbc *fbc = &dev_priv->fbc;
+
+	mutex_lock(&fbc->lock);
+
+	/* Maybe we were scheduled twice. */
+	if (fbc->underrun_detected)
+		goto out;
+
+	DRM_DEBUG_KMS("Disabling FBC due to FIFO underrun.\n");
+	fbc->underrun_detected = true;
+
+	intel_fbc_deactivate(dev_priv);
+out:
+	mutex_unlock(&fbc->lock);
+}
+
+/**
+ * intel_fbc_handle_fifo_underrun_irq - disable FBC when we get a FIFO underrun
+ * @dev_priv: i915 device instance
+ *
+ * Without FBC, most underruns are harmless and don't really cause too many
+ * problems, except for an annoying message on dmesg. With FBC, underruns can
+ * become black screens or even worse, especially when paired with bad
+ * watermarks. So in order for us to be on the safe side, completely disable FBC
+ * in case we ever detect a FIFO underrun on any pipe. An underrun on any pipe
+ * already suggests that watermarks may be bad, so try to be as safe as
+ * possible.
+ *
+ * This function is called from the IRQ handler.
+ */
+void intel_fbc_handle_fifo_underrun_irq(struct drm_i915_private *dev_priv)
+{
+	struct intel_fbc *fbc = &dev_priv->fbc;
+
+	if (!fbc_supported(dev_priv))
+		return;
+
+	/* There's no guarantee that underrun_detected won't be set to true
+	 * right after this check and before the work is scheduled, but that's
+	 * not a problem since we'll check it again under the work function
+	 * while FBC is locked. This check here is just to prevent us from
+	 * unnecessarily scheduling the work, and it relies on the fact that we
+	 * never switch underrun_detect back to false after it's true. */
+	if (READ_ONCE(fbc->underrun_detected))
+		return;
+
+	schedule_work(&fbc->underrun_work);
+}
+
 /**
  * intel_fbc_init_pipe_state - initialize FBC's CRTC visibility tracking
  * @dev_priv: i915 device instance
@@ -1292,6 +1358,7 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 	enum pipe pipe;
 
 	INIT_WORK(&fbc->work.work, intel_fbc_work_fn);
+	INIT_WORK(&fbc->underrun_work, intel_fbc_underrun_work_fn);
 	mutex_init(&fbc->lock);
 	fbc->enabled = false;
 	fbc->active = false;

@@ -2005,7 +2005,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	if (S_ISLNK(inode->i_mode))
 		inode->i_flags &= ~(S_IMMUTABLE | S_APPEND);
 
-	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 	inode->i_size = i_size;
 	inode->i_blocks = 0;
 	inode->i_bytes = 0;
@@ -3312,7 +3312,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 	unsigned int ia_valid;
 	int error;
 
-	error = inode_change_ok(inode, attr);
+	error = setattr_prepare(dentry, attr);
 	if (error)
 		return error;
 

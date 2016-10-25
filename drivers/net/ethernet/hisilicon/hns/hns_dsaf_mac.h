@@ -461,5 +461,7 @@ void hns_set_led_opt(struct hns_mac_cb *mac_cb);
 int hns_cpld_led_set_id(struct hns_mac_cb *mac_cb,
 			enum hnae_led_state status);
 void hns_mac_set_promisc(struct hns_mac_cb *mac_cb, u8 en);
+int hns_mac_get_inner_port_num(struct hns_mac_cb *mac_cb,
+			       u8 vmid, u8 *port_num);
 
 #endif /* _HNS_DSAF_MAC_H */

@@ -32,6 +32,7 @@
 #include <linux/file.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/xattr.h>
 #include <asm/unaligned.h>
 #include "ecryptfs_kernel.h"
 
@@ -422,7 +423,7 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
 	struct inode *lower_inode = d_inode(lower_dentry);
 	int rc;
 
-	if (!lower_inode->i_op->getxattr || !lower_inode->i_op->setxattr) {
+	if (!(lower_inode->i_opflags & IOP_XATTR)) {
 		printk(KERN_WARNING
 		       "No support for setting xattr in lower filesystem\n");
 		rc = -ENOSYS;
@@ -436,15 +437,13 @@ static int ecryptfs_write_inode_size_to_xattr(struct inode *ecryptfs_inode)
 		goto out;
 	}
 	inode_lock(lower_inode);
-	size = lower_inode->i_op->getxattr(lower_dentry, lower_inode,
-					   ECRYPTFS_XATTR_NAME,
-					   xattr_virt, PAGE_SIZE);
+	size = __vfs_getxattr(lower_dentry, lower_inode, ECRYPTFS_XATTR_NAME,
+			      xattr_virt, PAGE_SIZE);
 	if (size < 0)
 		size = 8;
 	put_unaligned_be64(i_size_read(ecryptfs_inode), xattr_virt);
-	rc = lower_inode->i_op->setxattr(lower_dentry, lower_inode,
-					 ECRYPTFS_XATTR_NAME,
-					 xattr_virt, size, 0);
+	rc = __vfs_setxattr(lower_dentry, lower_inode, ECRYPTFS_XATTR_NAME,
+			    xattr_virt, size, 0);
 	inode_unlock(lower_inode);
 	if (rc)
 		printk(KERN_ERR "Error whilst attempting to write inode size "

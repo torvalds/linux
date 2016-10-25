@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/kconfig.h>
 #include <linux/list.h>
 #include <linux/pm.h>
 #include <linux/rmi.h>
@@ -311,6 +310,9 @@ static struct rmi_function_handler *fn_handlers[] = {
 #endif
 #ifdef CONFIG_RMI4_F30
 	&rmi_f30_handler,
+#endif
+#ifdef CONFIG_RMI4_F54
+	&rmi_f54_handler,
 #endif
 };
 

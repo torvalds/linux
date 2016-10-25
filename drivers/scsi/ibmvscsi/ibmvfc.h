@@ -54,6 +54,7 @@
 #define IBMVFC_DEV_LOSS_TMO		(5 * 60)
 #define IBMVFC_DEFAULT_LOG_LEVEL	2
 #define IBMVFC_MAX_CDB_LEN		16
+#define IBMVFC_CLS3_ERROR		0
 
 /*
  * Ensure we have resources for ERP and initialization:

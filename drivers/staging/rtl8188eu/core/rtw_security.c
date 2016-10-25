@@ -233,7 +233,6 @@ void rtw_wep_decrypt(struct adapter  *padapter, u8 *precvframe)
 				 &crc, &payload[length-4]));
 		}
 	}
-	return;
 }
 
 /* 3		===== TKIP related ===== */

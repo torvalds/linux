@@ -572,7 +572,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 
 		acpi_get_event_status(ACPI_EVENT_POWER_BUTTON, &pwr_btn_status);
 
-		if (pwr_btn_status & ACPI_EVENT_FLAG_SET) {
+		if (pwr_btn_status & ACPI_EVENT_FLAG_STATUS_SET) {
 			acpi_clear_event(ACPI_EVENT_POWER_BUTTON);
 			/* Flag for later */
 			pwr_btn_event_pending = true;
@@ -586,7 +586,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	 */
 	acpi_disable_all_gpes();
 	/* Allow EC transactions to happen. */
-	acpi_ec_unblock_transactions_early();
+	acpi_ec_unblock_transactions();
 
 	suspend_nvs_restore();
 
@@ -784,7 +784,7 @@ static void acpi_hibernation_leave(void)
 	/* Restore the NVS memory area */
 	suspend_nvs_restore();
 	/* Allow EC transactions to happen. */
-	acpi_ec_unblock_transactions_early();
+	acpi_ec_unblock_transactions();
 }
 
 static void acpi_pm_thaw(void)

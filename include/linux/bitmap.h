@@ -339,6 +339,24 @@ static inline int bitmap_parse(const char *buf, unsigned int buflen,
 	return __bitmap_parse(buf, buflen, 0, maskp, nmaskbits);
 }
 
+/*
+ * bitmap_from_u64 - Check and swap words within u64.
+ *  @mask: source bitmap
+ *  @dst:  destination bitmap
+ *
+ * In 32-bit Big Endian kernel, when using (u32 *)(&val)[*]
+ * to read u64 mask, we will get the wrong word.
+ * That is "(u32 *)(&val)[0]" gets the upper 32 bits,
+ * but we expect the lower 32-bits of u64.
+ */
+static inline void bitmap_from_u64(unsigned long *dst, u64 mask)
+{
+	dst[0] = mask & ULONG_MAX;
+
+	if (sizeof(mask) > sizeof(unsigned long))
+		dst[1] = mask >> 32;
+}
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __LINUX_BITMAP_H */

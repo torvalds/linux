@@ -105,10 +105,12 @@ module_param_named(
 /**
  * struct channel_space - central management entity for extended ports
  * @base:		memory mapped base address where channels start.
+ * @phys:		physical base address of channel region.
  * @guaraneed:		is the channel delivery guaranteed.
  */
 struct channel_space {
 	void __iomem		*base;
+	phys_addr_t		phys;
 	unsigned long		*guaranteed;
 };
 
@@ -196,7 +198,7 @@ static void stm_enable_hw(struct stm_drvdata *drvdata)
 }
 
 static int stm_enable(struct coresight_device *csdev,
-		      struct perf_event_attr *attr, u32 mode)
+		      struct perf_event *event, u32 mode)
 {
 	u32 val;
 	struct stm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
@@ -258,7 +260,8 @@ static void stm_disable_hw(struct stm_drvdata *drvdata)
 		stm_hwevent_disable_hw(drvdata);
 }
 
-static void stm_disable(struct coresight_device *csdev)
+static void stm_disable(struct coresight_device *csdev,
+			struct perf_event *event)
 {
 	struct stm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
@@ -353,7 +356,24 @@ static void stm_generic_unlink(struct stm_data *stm_data,
 	if (!drvdata || !drvdata->csdev)
 		return;
 
-	stm_disable(drvdata->csdev);
+	stm_disable(drvdata->csdev, NULL);
+}
+
+static phys_addr_t
+stm_mmio_addr(struct stm_data *stm_data, unsigned int master,
+	      unsigned int channel, unsigned int nr_chans)
+{
+	struct stm_drvdata *drvdata = container_of(stm_data,
+						   struct stm_drvdata, stm);
+	phys_addr_t addr;
+
+	addr = drvdata->chs.phys + channel * BYTES_PER_CHANNEL;
+
+	if (offset_in_page(addr) ||
+	    offset_in_page(nr_chans * BYTES_PER_CHANNEL))
+		return 0;
+
+	return addr;
 }
 
 static long stm_generic_set_options(struct stm_data *stm_data,
@@ -616,7 +636,7 @@ static ssize_t traceid_store(struct device *dev,
 static DEVICE_ATTR_RW(traceid);
 
 #define coresight_stm_simple_func(name, offset)	\
-	coresight_simple_func(struct stm_drvdata, name, offset)
+	coresight_simple_func(struct stm_drvdata, NULL, name, offset)
 
 coresight_stm_simple_func(tcsr, STMTCSR);
 coresight_stm_simple_func(tsfreqr, STMTSFREQR);
@@ -761,7 +781,9 @@ static void stm_init_generic_data(struct stm_drvdata *drvdata)
 	drvdata->stm.sw_end = 1;
 	drvdata->stm.hw_override = true;
 	drvdata->stm.sw_nchannels = drvdata->numsp;
+	drvdata->stm.sw_mmiosz = BYTES_PER_CHANNEL;
 	drvdata->stm.packet = stm_generic_packet;
+	drvdata->stm.mmio_addr = stm_mmio_addr;
 	drvdata->stm.link = stm_generic_link;
 	drvdata->stm.unlink = stm_generic_unlink;
 	drvdata->stm.set_options = stm_generic_set_options;
@@ -778,7 +800,7 @@ static int stm_probe(struct amba_device *adev, const struct amba_id *id)
 	struct resource *res = &adev->res;
 	struct resource ch_res;
 	size_t res_size, bitmap_size;
-	struct coresight_desc *desc;
+	struct coresight_desc desc = { 0 };
 	struct device_node *np = adev->dev.of_node;
 
 	if (np) {
@@ -808,6 +830,7 @@ static int stm_probe(struct amba_device *adev, const struct amba_id *id)
 	ret = stm_get_resource_byname(np, "stm-stimulus-base", &ch_res);
 	if (ret)
 		return ret;
+	drvdata->chs.phys = ch_res.start;
 
 	base = devm_ioremap_resource(dev, &ch_res);
 	if (IS_ERR(base))
@@ -843,19 +866,13 @@ static int stm_probe(struct amba_device *adev, const struct amba_id *id)
 		return -EPROBE_DEFER;
 	}
 
-	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
-	if (!desc) {
-		ret = -ENOMEM;
-		goto stm_unregister;
-	}
-
-	desc->type = CORESIGHT_DEV_TYPE_SOURCE;
-	desc->subtype.source_subtype = CORESIGHT_DEV_SUBTYPE_SOURCE_SOFTWARE;
-	desc->ops = &stm_cs_ops;
-	desc->pdata = pdata;
-	desc->dev = dev;
-	desc->groups = coresight_stm_groups;
-	drvdata->csdev = coresight_register(desc);
+	desc.type = CORESIGHT_DEV_TYPE_SOURCE;
+	desc.subtype.source_subtype = CORESIGHT_DEV_SUBTYPE_SOURCE_SOFTWARE;
+	desc.ops = &stm_cs_ops;
+	desc.pdata = pdata;
+	desc.dev = dev;
+	desc.groups = coresight_stm_groups;
+	drvdata->csdev = coresight_register(&desc);
 	if (IS_ERR(drvdata->csdev)) {
 		ret = PTR_ERR(drvdata->csdev);
 		goto stm_unregister;

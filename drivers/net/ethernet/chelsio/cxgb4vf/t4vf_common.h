@@ -354,6 +354,7 @@ int t4vf_bar2_sge_qregs(struct adapter *adapter,
 			u64 *pbar2_qoffset,
 			unsigned int *pbar2_qid);
 
+unsigned int t4vf_get_pf_from_vf(struct adapter *);
 int t4vf_get_sge_params(struct adapter *);
 int t4vf_get_vpd_params(struct adapter *);
 int t4vf_get_dev_params(struct adapter *);
@@ -388,5 +389,7 @@ int t4vf_eth_eq_free(struct adapter *, unsigned int);
 
 int t4vf_handle_fw_rpl(struct adapter *, const __be64 *);
 int t4vf_prep_adapter(struct adapter *);
+int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int pf,
+			unsigned int *naddr, u8 *addr);
 
 #endif /* __T4VF_COMMON_H__ */

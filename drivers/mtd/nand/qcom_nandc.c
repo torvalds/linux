@@ -1957,8 +1957,7 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 	INIT_LIST_HEAD(&nandc->desc_list);
 	INIT_LIST_HEAD(&nandc->host_list);
 
-	spin_lock_init(&nandc->controller.lock);
-	init_waitqueue_head(&nandc->controller.wq);
+	nand_hw_control_init(&nandc->controller);
 
 	return 0;
 }

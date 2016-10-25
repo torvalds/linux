@@ -99,15 +99,15 @@ static void dce_virtual_stop_mc_access(struct amdgpu_device *adev,
 			      struct amdgpu_mode_mc_save *save)
 {
 	switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_BONAIRE:
 	case CHIP_HAWAII:
 	case CHIP_KAVERI:
 	case CHIP_KABINI:
 	case CHIP_MULLINS:
-#ifdef CONFIG_DRM_AMDGPU_CIK
 		dce_v8_0_disable_dce(adev);
-#endif
 		break;
+#endif
 	case CHIP_FIJI:
 	case CHIP_TONGA:
 		dce_v10_0_disable_dce(adev);

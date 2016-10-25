@@ -828,7 +828,7 @@ void start_rx_proc(struct phy_dev *phy_dev)
 				rx_complete, phy_dev, USB_COMPLETE);
 }
 
-static struct net_device_ops gdm_netdev_ops = {
+static const struct net_device_ops gdm_netdev_ops = {
 	.ndo_open			= gdm_lte_open,
 	.ndo_stop			= gdm_lte_close,
 	.ndo_set_config			= gdm_lte_set_config,

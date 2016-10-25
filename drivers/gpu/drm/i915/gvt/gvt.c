@@ -19,18 +19,36 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * Authors:
+ *    Kevin Tian <kevin.tian@intel.com>
+ *    Eddie Dong <eddie.dong@intel.com>
+ *
+ * Contributors:
+ *    Niu Bing <bing.niu@intel.com>
+ *    Zhi Wang <zhi.a.wang@intel.com>
+ *
  */
 
 #include <linux/types.h>
 #include <xen/xen.h>
+#include <linux/kthread.h>
 
 #include "i915_drv.h"
+#include "gvt.h"
 
 struct intel_gvt_host intel_gvt_host;
 
 static const char * const supported_hypervisors[] = {
 	[INTEL_GVT_HYPERVISOR_XEN] = "XEN",
 	[INTEL_GVT_HYPERVISOR_KVM] = "KVM",
+};
+
+struct intel_gvt_io_emulation_ops intel_gvt_io_emulation_ops = {
+	.emulate_cfg_read = intel_vgpu_emulate_cfg_read,
+	.emulate_cfg_write = intel_vgpu_emulate_cfg_write,
+	.emulate_mmio_read = intel_vgpu_emulate_mmio_read,
+	.emulate_mmio_write = intel_vgpu_emulate_mmio_write,
 };
 
 /**
@@ -84,9 +102,66 @@ int intel_gvt_init_host(void)
 
 static void init_device_info(struct intel_gvt *gvt)
 {
-	if (IS_BROADWELL(gvt->dev_priv))
-		gvt->device_info.max_support_vgpus = 8;
-	/* This function will grow large in GVT device model patches. */
+	struct intel_gvt_device_info *info = &gvt->device_info;
+
+	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)) {
+		info->max_support_vgpus = 8;
+		info->cfg_space_size = 256;
+		info->mmio_size = 2 * 1024 * 1024;
+		info->mmio_bar = 0;
+		info->msi_cap_offset = IS_SKYLAKE(gvt->dev_priv) ? 0xac : 0x90;
+		info->gtt_start_offset = 8 * 1024 * 1024;
+		info->gtt_entry_size = 8;
+		info->gtt_entry_size_shift = 3;
+		info->gmadr_bytes_in_cmd = 8;
+		info->max_surface_size = 36 * 1024 * 1024;
+	}
+}
+
+static int gvt_service_thread(void *data)
+{
+	struct intel_gvt *gvt = (struct intel_gvt *)data;
+	int ret;
+
+	gvt_dbg_core("service thread start\n");
+
+	while (!kthread_should_stop()) {
+		ret = wait_event_interruptible(gvt->service_thread_wq,
+				kthread_should_stop() || gvt->service_request);
+
+		if (kthread_should_stop())
+			break;
+
+		if (WARN_ONCE(ret, "service thread is waken up by signal.\n"))
+			continue;
+
+		if (test_and_clear_bit(INTEL_GVT_REQUEST_EMULATE_VBLANK,
+					(void *)&gvt->service_request)) {
+			mutex_lock(&gvt->lock);
+			intel_gvt_emulate_vblank(gvt);
+			mutex_unlock(&gvt->lock);
+		}
+	}
+
+	return 0;
+}
+
+static void clean_service_thread(struct intel_gvt *gvt)
+{
+	kthread_stop(gvt->service_thread);
+}
+
+static int init_service_thread(struct intel_gvt *gvt)
+{
+	init_waitqueue_head(&gvt->service_thread_wq);
+
+	gvt->service_thread = kthread_run(gvt_service_thread,
+			gvt, "gvt_service_thread");
+	if (IS_ERR(gvt->service_thread)) {
+		gvt_err("fail to start service thread.\n");
+		return PTR_ERR(gvt->service_thread);
+	}
+	return 0;
 }
 
 /**
@@ -99,14 +174,23 @@ static void init_device_info(struct intel_gvt *gvt)
  */
 void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 {
-	struct intel_gvt *gvt = &dev_priv->gvt;
+	struct intel_gvt *gvt = to_gvt(dev_priv);
 
-	if (WARN_ON(!gvt->initialized))
+	if (WARN_ON(!gvt))
 		return;
 
-	/* Other de-initialization of GVT components will be introduced. */
+	clean_service_thread(gvt);
+	intel_gvt_clean_cmd_parser(gvt);
+	intel_gvt_clean_sched_policy(gvt);
+	intel_gvt_clean_workload_scheduler(gvt);
+	intel_gvt_clean_opregion(gvt);
+	intel_gvt_clean_gtt(gvt);
+	intel_gvt_clean_irq(gvt);
+	intel_gvt_clean_mmio_info(gvt);
+	intel_gvt_free_firmware(gvt);
 
-	gvt->initialized = false;
+	kfree(dev_priv->gvt);
+	dev_priv->gvt = NULL;
 }
 
 /**
@@ -122,7 +206,9 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
  */
 int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 {
-	struct intel_gvt *gvt = &dev_priv->gvt;
+	struct intel_gvt *gvt;
+	int ret;
+
 	/*
 	 * Cannot initialize GVT device without intel_gvt_host gets
 	 * initialized first.
@@ -130,16 +216,76 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	if (WARN_ON(!intel_gvt_host.initialized))
 		return -EINVAL;
 
-	if (WARN_ON(gvt->initialized))
+	if (WARN_ON(dev_priv->gvt))
 		return -EEXIST;
+
+	gvt = kzalloc(sizeof(struct intel_gvt), GFP_KERNEL);
+	if (!gvt)
+		return -ENOMEM;
 
 	gvt_dbg_core("init gvt device\n");
 
+	mutex_init(&gvt->lock);
+	gvt->dev_priv = dev_priv;
+
 	init_device_info(gvt);
-	/*
-	 * Other initialization of GVT components will be introduce here.
-	 */
+
+	ret = intel_gvt_setup_mmio_info(gvt);
+	if (ret)
+		return ret;
+
+	ret = intel_gvt_load_firmware(gvt);
+	if (ret)
+		goto out_clean_mmio_info;
+
+	ret = intel_gvt_init_irq(gvt);
+	if (ret)
+		goto out_free_firmware;
+
+	ret = intel_gvt_init_gtt(gvt);
+	if (ret)
+		goto out_clean_irq;
+
+	ret = intel_gvt_init_opregion(gvt);
+	if (ret)
+		goto out_clean_gtt;
+
+	ret = intel_gvt_init_workload_scheduler(gvt);
+	if (ret)
+		goto out_clean_opregion;
+
+	ret = intel_gvt_init_sched_policy(gvt);
+	if (ret)
+		goto out_clean_workload_scheduler;
+
+	ret = intel_gvt_init_cmd_parser(gvt);
+	if (ret)
+		goto out_clean_sched_policy;
+
+	ret = init_service_thread(gvt);
+	if (ret)
+		goto out_clean_cmd_parser;
+
 	gvt_dbg_core("gvt device creation is done\n");
-	gvt->initialized = true;
+	dev_priv->gvt = gvt;
 	return 0;
+
+out_clean_cmd_parser:
+	intel_gvt_clean_cmd_parser(gvt);
+out_clean_sched_policy:
+	intel_gvt_clean_sched_policy(gvt);
+out_clean_workload_scheduler:
+	intel_gvt_clean_workload_scheduler(gvt);
+out_clean_opregion:
+	intel_gvt_clean_opregion(gvt);
+out_clean_gtt:
+	intel_gvt_clean_gtt(gvt);
+out_clean_irq:
+	intel_gvt_clean_irq(gvt);
+out_free_firmware:
+	intel_gvt_free_firmware(gvt);
+out_clean_mmio_info:
+	intel_gvt_clean_mmio_info(gvt);
+	kfree(gvt);
+	return ret;
 }

@@ -60,6 +60,7 @@ enum {
 	BCM53018_DEVICE_ID = 0x53018,
 	BCM53019_DEVICE_ID = 0x53019,
 	BCM58XX_DEVICE_ID = 0x5800,
+	BCM7445_DEVICE_ID = 0x7445,
 };
 
 #define B53_N_PORTS	9
@@ -174,6 +175,12 @@ static inline int is5301x(struct b53_device *dev)
 		dev->chip_id == BCM53019_DEVICE_ID;
 }
 
+static inline int is58xx(struct b53_device *dev)
+{
+	return dev->chip_id == BCM58XX_DEVICE_ID ||
+		dev->chip_id == BCM7445_DEVICE_ID;
+}
+
 #define B53_CPU_PORT_25	5
 #define B53_CPU_PORT	8
 
@@ -182,7 +189,8 @@ static inline int is_cpu_port(struct b53_device *dev, int port)
 	return dev->cpu_port;
 }
 
-struct b53_device *b53_switch_alloc(struct device *base, struct b53_io_ops *ops,
+struct b53_device *b53_switch_alloc(struct device *base,
+				    const struct b53_io_ops *ops,
 				    void *priv);
 
 int b53_switch_detect(struct b53_device *dev);
@@ -364,7 +372,6 @@ static inline void b53_arl_from_entry(u64 *mac_vid, u32 *fwd_entry,
 
 #ifdef CONFIG_BCM47XX
 
-#include <linux/version.h>
 #include <linux/bcm47xx_nvram.h>
 #include <bcm47xx_board.h>
 static inline int b53_switch_get_reset_gpio(struct b53_device *dev)

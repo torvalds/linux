@@ -1,5 +1,6 @@
 #include <linux/types.h>
-#include <sys/mman.h>
+#include <uapi/linux/mman.h> /* To get things like MAP_HUGETLB even on older libc headers */
+#include <api/fs/fs.h>
 #include "event.h"
 #include "debug.h"
 #include "hist.h"
@@ -248,6 +249,8 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 	bool truncation = false;
 	unsigned long long timeout = proc_map_timeout * 1000000ULL;
 	int rc = 0;
+	const char *hugetlbfs_mnt = hugetlbfs__mountpoint();
+	int hugetlbfs_mnt_len = hugetlbfs_mnt ? strlen(hugetlbfs_mnt) : 0;
 
 	if (machine__is_default_guest(machine))
 		return 0;
@@ -342,6 +345,12 @@ out:
 
 		if (!strcmp(execname, ""))
 			strcpy(execname, anonstr);
+
+		if (hugetlbfs_mnt_len &&
+		    !strncmp(execname, hugetlbfs_mnt, hugetlbfs_mnt_len)) {
+			strcpy(execname, anonstr);
+			event->mmap2.flags |= MAP_HUGETLB;
+		}
 
 		size = strlen(execname) + 1;
 		memcpy(event->mmap2.filename, execname, size);
@@ -1286,7 +1295,7 @@ try_again:
 		 * must be done prior to using kernel maps.
 		 */
 		if (load_map)
-			map__load(al->map, machine->symbol_filter);
+			map__load(al->map);
 		al->addr = al->map->map_ip(al->map, al->addr);
 	}
 }
@@ -1297,8 +1306,7 @@ void thread__find_addr_location(struct thread *thread,
 {
 	thread__find_addr_map(thread, cpumode, type, addr, al);
 	if (al->map != NULL)
-		al->sym = map__find_symbol(al->map, al->addr,
-					   thread->mg->machine->symbol_filter);
+		al->sym = map__find_symbol(al->map, al->addr);
 	else
 		al->sym = NULL;
 }
@@ -1359,8 +1367,7 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 			al->filtered |= (1 << HIST_FILTER__DSO);
 		}
 
-		al->sym = map__find_symbol(al->map, al->addr,
-					   machine->symbol_filter);
+		al->sym = map__find_symbol(al->map, al->addr);
 	}
 
 	if (symbol_conf.sym_list &&
@@ -1416,5 +1423,5 @@ void thread__resolve(struct thread *thread, struct addr_location *al,
 	al->sym = NULL;
 
 	if (al->map)
-		al->sym = map__find_symbol(al->map, al->addr, NULL);
+		al->sym = map__find_symbol(al->map, al->addr);
 }

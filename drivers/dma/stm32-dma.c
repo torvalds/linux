@@ -954,7 +954,7 @@ static void stm32_dma_desc_free(struct virt_dma_desc *vdesc)
 	kfree(container_of(vdesc, struct stm32_dma_desc, vdesc));
 }
 
-void stm32_dma_set_config(struct stm32_dma_chan *chan,
+static void stm32_dma_set_config(struct stm32_dma_chan *chan,
 			  struct stm32_dma_cfg *cfg)
 {
 	stm32_dma_clear_reg(&chan->chan_reg);

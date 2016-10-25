@@ -11,10 +11,10 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"1.3.0"
+#define DRV_MODULE_VERSION	"1.5.0"
 
 #define DRV_VER_MAJ	1
-#define DRV_VER_MIN	3
+#define DRV_VER_MIN	5
 #define DRV_VER_UPD	0
 
 struct tx_bd {
@@ -106,11 +106,11 @@ struct tx_cmp {
 	 #define CMP_TYPE_REMOTE_DRIVER_REQ			 34
 	 #define CMP_TYPE_REMOTE_DRIVER_RESP			 36
 	 #define CMP_TYPE_ERROR_STATUS				 48
-	 #define CMPL_BASE_TYPE_STAT_EJECT			 (0x1aUL << 0)
-	 #define CMPL_BASE_TYPE_HWRM_DONE			 (0x20UL << 0)
-	 #define CMPL_BASE_TYPE_HWRM_FWD_REQ			 (0x22UL << 0)
-	 #define CMPL_BASE_TYPE_HWRM_FWD_RESP			 (0x24UL << 0)
-	 #define CMPL_BASE_TYPE_HWRM_ASYNC_EVENT		 (0x2eUL << 0)
+	 #define CMPL_BASE_TYPE_STAT_EJECT			 0x1aUL
+	 #define CMPL_BASE_TYPE_HWRM_DONE			 0x20UL
+	 #define CMPL_BASE_TYPE_HWRM_FWD_REQ			 0x22UL
+	 #define CMPL_BASE_TYPE_HWRM_FWD_RESP			 0x24UL
+	 #define CMPL_BASE_TYPE_HWRM_ASYNC_EVENT		 0x2eUL
 
 	#define TX_CMP_FLAGS_ERROR				(1 << 6)
 	#define TX_CMP_FLAGS_PUSH				(1 << 7)
@@ -389,11 +389,6 @@ struct rx_tpa_end_cmp_ext {
 
 #define INVALID_HW_RING_ID	((u16)-1)
 
-#define BNXT_RSS_HASH_TYPE_FLAG_IPV4		0x01
-#define BNXT_RSS_HASH_TYPE_FLAG_TCP_IPV4	0x02
-#define BNXT_RSS_HASH_TYPE_FLAG_IPV6		0x04
-#define BNXT_RSS_HASH_TYPE_FLAG_TCP_IPV6	0x08
-
 /* The hardware supports certain page sizes.  Use the supported page sizes
  * to allocate the rings.
  */
@@ -418,7 +413,7 @@ struct rx_tpa_end_cmp_ext {
 
 #define BNXT_RX_PAGE_SIZE (1 << BNXT_RX_PAGE_SHIFT)
 
-#define BNXT_MIN_PKT_SIZE	45
+#define BNXT_MIN_PKT_SIZE	52
 
 #define BNXT_NUM_TESTS(bp)	0
 
@@ -1225,6 +1220,7 @@ int bnxt_hwrm_set_coal(struct bnxt *);
 int bnxt_hwrm_func_qcaps(struct bnxt *);
 int bnxt_hwrm_set_pause(struct bnxt *);
 int bnxt_hwrm_set_link_setting(struct bnxt *, bool, bool);
+int bnxt_hwrm_fw_set_time(struct bnxt *);
 int bnxt_open_nic(struct bnxt *, bool, bool);
 int bnxt_close_nic(struct bnxt *, bool, bool);
 int bnxt_get_max_rings(struct bnxt *, int *, int *, bool);

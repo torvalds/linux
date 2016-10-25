@@ -242,13 +242,9 @@ __reiserfs_set_acl(struct reiserfs_transaction_handle *th, struct inode *inode,
 	case ACL_TYPE_ACCESS:
 		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		if (acl) {
-			error = posix_acl_equiv_mode(acl, &inode->i_mode);
-			if (error < 0)
+			error = posix_acl_update_mode(inode, &inode->i_mode, &acl);
+			if (error)
 				return error;
-			else {
-				if (error == 0)
-					acl = NULL;
-			}
 		}
 		break;
 	case ACL_TYPE_DEFAULT:
@@ -277,7 +273,7 @@ __reiserfs_set_acl(struct reiserfs_transaction_handle *th, struct inode *inode,
 	if (error == -ENODATA) {
 		error = 0;
 		if (type == ACL_TYPE_ACCESS) {
-			inode->i_ctime = CURRENT_TIME_SEC;
+			inode->i_ctime = current_time(inode);
 			mark_inode_dirty(inode);
 		}
 	}

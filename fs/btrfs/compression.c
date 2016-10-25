@@ -698,7 +698,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 
 			ret = btrfs_map_bio(root, comp_bio, mirror_num, 0);
 			if (ret) {
-				bio->bi_error = ret;
+				comp_bio->bi_error = ret;
 				bio_endio(comp_bio);
 			}
 
@@ -728,7 +728,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 
 	ret = btrfs_map_bio(root, comp_bio, mirror_num, 0);
 	if (ret) {
-		bio->bi_error = ret;
+		comp_bio->bi_error = ret;
 		bio_endio(comp_bio);
 	}
 
@@ -783,8 +783,7 @@ void __init btrfs_init_compress(void)
 		 */
 		workspace = btrfs_compress_op[i]->alloc_workspace();
 		if (IS_ERR(workspace)) {
-			printk(KERN_WARNING
-	"BTRFS: cannot preallocate compression workspace, will try later");
+			pr_warn("BTRFS: cannot preallocate compression workspace, will try later\n");
 		} else {
 			atomic_set(&btrfs_comp_ws[i].total_ws, 1);
 			btrfs_comp_ws[i].free_ws = 1;
@@ -854,8 +853,7 @@ again:
 					/* no burst */ 1);
 
 			if (__ratelimit(&_rs)) {
-				printk(KERN_WARNING
-			    "no compression workspaces, low memory, retrying");
+				pr_warn("BTRFS: no compression workspaces, low memory, retrying\n");
 			}
 		}
 		goto again;

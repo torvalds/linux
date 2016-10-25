@@ -273,7 +273,7 @@ static void i9xx_load_luts_internal(struct drm_crtc *crtc,
 	enum pipe pipe = intel_crtc->pipe;
 	int i;
 
-	if (HAS_GMCH_DISPLAY(dev)) {
+	if (HAS_GMCH_DISPLAY(dev_priv)) {
 		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
 			assert_dsi_pll_enabled(dev_priv);
 		else
@@ -288,7 +288,7 @@ static void i9xx_load_luts_internal(struct drm_crtc *crtc,
 				(drm_color_lut_extract(lut[i].green, 8) << 8) |
 				drm_color_lut_extract(lut[i].blue, 8);
 
-			if (HAS_GMCH_DISPLAY(dev))
+			if (HAS_GMCH_DISPLAY(dev_priv))
 				I915_WRITE(PALETTE(pipe, i), word);
 			else
 				I915_WRITE(LGC_PALETTE(pipe, i), word);
@@ -297,7 +297,7 @@ static void i9xx_load_luts_internal(struct drm_crtc *crtc,
 		for (i = 0; i < 256; i++) {
 			uint32_t word = (i << 16) | (i << 8) | i;
 
-			if (HAS_GMCH_DISPLAY(dev))
+			if (HAS_GMCH_DISPLAY(dev_priv))
 				I915_WRITE(PALETTE(pipe, i), word);
 			else
 				I915_WRITE(LGC_PALETTE(pipe, i), word);
@@ -326,7 +326,7 @@ static void haswell_load_luts(struct drm_crtc_state *crtc_state)
 	 * Workaround : Do not read or write the pipe palette/gamma data while
 	 * GAMMA_MODE is configured for split gamma and IPS_CTL has IPS enabled.
 	 */
-	if (IS_HASWELL(dev) && intel_crtc_state->ips_enabled &&
+	if (IS_HASWELL(dev_priv) && intel_crtc_state->ips_enabled &&
 	    (intel_crtc_state->gamma_mode == GAMMA_MODE_MODE_SPLIT)) {
 		hsw_disable_ips(intel_crtc);
 		reenable_ips = true;
@@ -534,14 +534,14 @@ void intel_color_init(struct drm_crtc *crtc)
 
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
-	if (IS_CHERRYVIEW(dev)) {
+	if (IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->display.load_csc_matrix = cherryview_load_csc_matrix;
 		dev_priv->display.load_luts = cherryview_load_luts;
-	} else if (IS_HASWELL(dev)) {
+	} else if (IS_HASWELL(dev_priv)) {
 		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
 		dev_priv->display.load_luts = haswell_load_luts;
-	} else if (IS_BROADWELL(dev) || IS_SKYLAKE(dev) ||
-		   IS_BROXTON(dev) || IS_KABYLAKE(dev)) {
+	} else if (IS_BROADWELL(dev_priv) || IS_SKYLAKE(dev_priv) ||
+		   IS_BROXTON(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
 		dev_priv->display.load_luts = broadwell_load_luts;
 	} else {

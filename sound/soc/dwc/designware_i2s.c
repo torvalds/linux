@@ -577,7 +577,6 @@ static int dw_configure_dai_by_dt(struct dw_i2s_dev *dev,
 		dev->capability |= DWC_I2S_PLAY;
 		dev->play_dma_data.dt.addr = res->start + I2S_TXDMA;
 		dev->play_dma_data.dt.addr_width = bus_widths[idx];
-		dev->play_dma_data.dt.chan_name = "TX";
 		dev->play_dma_data.dt.fifo_size = fifo_depth *
 			(fifo_width[idx2]) >> 8;
 		dev->play_dma_data.dt.maxburst = 16;
@@ -588,7 +587,6 @@ static int dw_configure_dai_by_dt(struct dw_i2s_dev *dev,
 		dev->capability |= DWC_I2S_RECORD;
 		dev->capture_dma_data.dt.addr = res->start + I2S_RXDMA;
 		dev->capture_dma_data.dt.addr_width = bus_widths[idx];
-		dev->capture_dma_data.dt.chan_name = "RX";
 		dev->capture_dma_data.dt.fifo_size = fifo_depth *
 			(fifo_width[idx2] >> 8);
 		dev->capture_dma_data.dt.maxburst = 16;

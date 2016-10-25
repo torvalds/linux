@@ -330,7 +330,7 @@ static int build_alloc_func_list(void)
 	}
 
 	kernel_map = machine__kernel_map(machine);
-	if (map__load(kernel_map, NULL) < 0) {
+	if (map__load(kernel_map) < 0) {
 		pr_err("cannot load kernel map\n");
 		return -ENOENT;
 	}
@@ -979,7 +979,7 @@ static void __print_slab_result(struct rb_root *root,
 		if (is_caller) {
 			addr = data->call_site;
 			if (!raw_ip)
-				sym = machine__find_kernel_function(machine, addr, &map, NULL);
+				sym = machine__find_kernel_function(machine, addr, &map);
 		} else
 			addr = data->ptr;
 
@@ -1043,8 +1043,7 @@ static void __print_page_alloc_result(struct perf_session *session, int n_lines)
 		char *caller = buf;
 
 		data = rb_entry(next, struct page_stat, node);
-		sym = machine__find_kernel_function(machine, data->callsite,
-						    &map, NULL);
+		sym = machine__find_kernel_function(machine, data->callsite, &map);
 		if (sym && sym->name)
 			caller = sym->name;
 		else
@@ -1086,8 +1085,7 @@ static void __print_page_caller_result(struct perf_session *session, int n_lines
 		char *caller = buf;
 
 		data = rb_entry(next, struct page_stat, node);
-		sym = machine__find_kernel_function(machine, data->callsite,
-						    &map, NULL);
+		sym = machine__find_kernel_function(machine, data->callsite, &map);
 		if (sym && sym->name)
 			caller = sym->name;
 		else

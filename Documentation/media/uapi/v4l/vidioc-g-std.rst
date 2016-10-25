@@ -15,9 +15,11 @@ VIDIOC_G_STD - VIDIOC_S_STD - Query or select the video standard of the current 
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, v4l2_std_id *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_STD, v4l2_std_id *argp )
+    :name: VIDIOC_G_STD
 
-.. cpp:function:: int ioctl( int fd, int request, const v4l2_std_id *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_S_STD, const v4l2_std_id *argp )
+    :name: VIDIOC_S_STD
 
 
 Arguments
@@ -25,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_STD, VIDIOC_S_STD
 
 ``argp``
 
@@ -39,9 +38,9 @@ To query and select the current video standard applications use the
 :ref:`VIDIOC_G_STD <VIDIOC_G_STD>` and :ref:`VIDIOC_S_STD <VIDIOC_G_STD>` ioctls which take a pointer to a
 :ref:`v4l2_std_id <v4l2-std-id>` type as argument. :ref:`VIDIOC_G_STD <VIDIOC_G_STD>`
 can return a single flag or a set of flags as in struct
-:ref:`v4l2_standard <v4l2-standard>` field ``id``. The flags must be
+:c:type:`v4l2_standard` field ``id``. The flags must be
 unambiguous such that they appear in only one enumerated
-:ref:`struct v4l2_standard <v4l2-standard>` structure.
+struct :c:type:`v4l2_standard` structure.
 
 :ref:`VIDIOC_S_STD <VIDIOC_G_STD>` accepts one or more flags, being a write-only ioctl it
 does not return the actual new standard as :ref:`VIDIOC_G_STD <VIDIOC_G_STD>` does. When

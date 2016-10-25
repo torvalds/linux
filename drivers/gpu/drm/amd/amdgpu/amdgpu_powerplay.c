@@ -42,7 +42,6 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 	amd_pp = &(adev->powerplay);
 
 	if (adev->pp_enabled) {
-#ifdef CONFIG_DRM_AMD_POWERPLAY
 		struct amd_pp_init *pp_init;
 
 		pp_init = kzalloc(sizeof(struct amd_pp_init), GFP_KERNEL);
@@ -55,7 +54,6 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 		pp_init->device = amdgpu_cgs_create_device(adev);
 		ret = amd_powerplay_init(pp_init, amd_pp);
 		kfree(pp_init);
-#endif
 	} else {
 		amd_pp->pp_handle = (void *)adev;
 
@@ -97,7 +95,6 @@ static int amdgpu_pp_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret = 0;
 
-#ifdef CONFIG_DRM_AMD_POWERPLAY
 	switch (adev->asic_type) {
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
@@ -120,9 +117,6 @@ static int amdgpu_pp_early_init(void *handle)
 		adev->pp_enabled = false;
 		break;
 	}
-#else
-	adev->pp_enabled = false;
-#endif
 
 	ret = amdgpu_powerplay_init(adev);
 	if (ret)
@@ -144,12 +138,11 @@ static int amdgpu_pp_late_init(void *handle)
 		ret = adev->powerplay.ip_funcs->late_init(
 					adev->powerplay.pp_handle);
 
-#ifdef CONFIG_DRM_AMD_POWERPLAY
 	if (adev->pp_enabled && adev->pm.dpm_enabled) {
 		amdgpu_pm_sysfs_init(adev);
 		amdgpu_dpm_dispatch_task(adev, AMD_PP_EVENT_COMPLETE_INIT, NULL, NULL);
 	}
-#endif
+
 	return ret;
 }
 
@@ -162,10 +155,8 @@ static int amdgpu_pp_sw_init(void *handle)
 		ret = adev->powerplay.ip_funcs->sw_init(
 					adev->powerplay.pp_handle);
 
-#ifdef CONFIG_DRM_AMD_POWERPLAY
 	if (adev->pp_enabled)
 		adev->pm.dpm_enabled = true;
-#endif
 
 	return ret;
 }
@@ -216,7 +207,6 @@ static int amdgpu_pp_hw_fini(void *handle)
 
 static void amdgpu_pp_late_fini(void *handle)
 {
-#ifdef CONFIG_DRM_AMD_POWERPLAY
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->pp_enabled) {
@@ -227,7 +217,6 @@ static void amdgpu_pp_late_fini(void *handle)
 	if (adev->powerplay.ip_funcs->late_fini)
 		adev->powerplay.ip_funcs->late_fini(
 			  adev->powerplay.pp_handle);
-#endif
 }
 
 static int amdgpu_pp_suspend(void *handle)

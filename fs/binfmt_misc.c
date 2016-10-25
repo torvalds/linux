@@ -584,7 +584,7 @@ static struct inode *bm_get_inode(struct super_block *sb, int mode)
 		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_atime = inode->i_mtime = inode->i_ctime =
-			current_fs_time(inode->i_sb);
+			current_time(inode);
 	}
 	return inode;
 }

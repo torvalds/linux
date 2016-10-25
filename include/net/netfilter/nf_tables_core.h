@@ -28,6 +28,9 @@ extern const struct nft_expr_ops nft_cmp_fast_ops;
 int nft_cmp_module_init(void);
 void nft_cmp_module_exit(void);
 
+int nft_range_module_init(void);
+void nft_range_module_exit(void);
+
 int nft_lookup_module_init(void);
 void nft_lookup_module_exit(void);
 

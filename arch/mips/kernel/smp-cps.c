@@ -513,7 +513,7 @@ static void cps_cpu_die(unsigned int cpu)
 		 * in which case the CPC will refuse to power down the core.
 		 */
 		do {
-			mips_cm_lock_other(core, vpe_id);
+			mips_cm_lock_other(core, 0);
 			mips_cpc_lock_other(core);
 			stat = read_cpc_co_stat_conf();
 			stat &= CPC_Cx_STAT_CONF_SEQSTATE_MSK;

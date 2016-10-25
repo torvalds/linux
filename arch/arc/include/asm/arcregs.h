@@ -95,7 +95,7 @@
 /* Auxiliary registers */
 #define AUX_IDENTITY		4
 #define AUX_INTR_VEC_BASE	0x25
-#define AUX_NON_VOL		0x5e
+#define AUX_VOL			0x5e
 
 /*
  * Floating Pt Registers
@@ -237,14 +237,6 @@ struct bcr_extn_xymem {
 	unsigned int ram_org:2, num_banks:4, bank_sz:4, ver:8;
 #else
 	unsigned int ver:8, bank_sz:4, num_banks:4, ram_org:2;
-#endif
-};
-
-struct bcr_perip {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int start:8, pad2:8, sz:8, ver:8;
-#else
-	unsigned int ver:8, sz:8, pad2:8, start:8;
 #endif
 };
 

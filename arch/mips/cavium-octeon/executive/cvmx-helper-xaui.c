@@ -234,8 +234,6 @@ int __cvmx_helper_xaui_enable(int interface)
 	cvmx_write_csr(CVMX_GMXX_TX_INT_EN(interface), gmx_tx_int_en.u64);
 	cvmx_write_csr(CVMX_PCSXX_INT_EN_REG(interface), pcsx_int_en_reg.u64);
 
-	cvmx_helper_link_autoconf(cvmx_helper_get_ipd_port(interface, 0));
-
 	/* (8) Enable packet reception */
 	xauiMiscCtl.s.gmxeno = 0;
 	cvmx_write_csr(CVMX_PCSXX_MISC_CTL_REG(interface), xauiMiscCtl.u64);

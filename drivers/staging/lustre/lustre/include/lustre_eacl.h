@@ -46,6 +46,7 @@
 
 #ifdef CONFIG_FS_POSIX_ACL
 
+#include <linux/fs.h>
 #include <linux/posix_acl_xattr.h>
 
 typedef struct {

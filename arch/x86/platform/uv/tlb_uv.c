@@ -24,6 +24,29 @@
 #include <asm/irq_vectors.h>
 #include <asm/timer.h>
 
+static struct bau_operations ops;
+
+static struct bau_operations uv123_bau_ops = {
+	.bau_gpa_to_offset       = uv_gpa_to_offset,
+	.read_l_sw_ack           = read_mmr_sw_ack,
+	.read_g_sw_ack           = read_gmmr_sw_ack,
+	.write_l_sw_ack          = write_mmr_sw_ack,
+	.write_g_sw_ack          = write_gmmr_sw_ack,
+	.write_payload_first     = write_mmr_payload_first,
+	.write_payload_last      = write_mmr_payload_last,
+};
+
+static struct bau_operations uv4_bau_ops = {
+	.bau_gpa_to_offset       = uv_gpa_to_soc_phys_ram,
+	.read_l_sw_ack           = read_mmr_proc_sw_ack,
+	.read_g_sw_ack           = read_gmmr_proc_sw_ack,
+	.write_l_sw_ack          = write_mmr_proc_sw_ack,
+	.write_g_sw_ack          = write_gmmr_proc_sw_ack,
+	.write_payload_first     = write_mmr_proc_payload_first,
+	.write_payload_last      = write_mmr_proc_payload_last,
+};
+
+
 /* timeouts in nanoseconds (indexed by UVH_AGING_PRESCALE_SEL urgency7 30:28) */
 static int timeout_base_ns[] = {
 		20,
@@ -55,16 +78,16 @@ static int congested_reps	= CONGESTED_REPS;
 static int disabled_period	= DISABLED_PERIOD;
 
 static struct tunables tunables[] = {
-	{&max_concurr, MAX_BAU_CONCURRENT}, /* must be [0] */
-	{&plugged_delay, PLUGGED_DELAY},
-	{&plugsb4reset, PLUGSB4RESET},
-	{&timeoutsb4reset, TIMEOUTSB4RESET},
-	{&ipi_reset_limit, IPI_RESET_LIMIT},
-	{&complete_threshold, COMPLETE_THRESHOLD},
-	{&congested_respns_us, CONGESTED_RESPONSE_US},
-	{&congested_reps, CONGESTED_REPS},
-	{&disabled_period, DISABLED_PERIOD},
-	{&giveup_limit, GIVEUP_LIMIT}
+	{&max_concurr,           MAX_BAU_CONCURRENT}, /* must be [0] */
+	{&plugged_delay,         PLUGGED_DELAY},
+	{&plugsb4reset,          PLUGSB4RESET},
+	{&timeoutsb4reset,       TIMEOUTSB4RESET},
+	{&ipi_reset_limit,       IPI_RESET_LIMIT},
+	{&complete_threshold,    COMPLETE_THRESHOLD},
+	{&congested_respns_us,   CONGESTED_RESPONSE_US},
+	{&congested_reps,        CONGESTED_REPS},
+	{&disabled_period,       DISABLED_PERIOD},
+	{&giveup_limit,          GIVEUP_LIMIT}
 };
 
 static struct dentry *tunables_dir;
@@ -216,7 +239,7 @@ static void reply_to_message(struct msg_desc *mdp, struct bau_control *bcp,
 	msg = mdp->msg;
 	if (!msg->canceled && do_acknowledge) {
 		dw = (msg->swack_vec << UV_SW_ACK_NPENDING) | msg->swack_vec;
-		write_mmr_sw_ack(dw);
+		ops.write_l_sw_ack(dw);
 	}
 	msg->replied_to = 1;
 	msg->swack_vec = 0;
@@ -252,7 +275,7 @@ static void bau_process_retry_msg(struct msg_desc *mdp,
 			msg->swack_vec) == 0) &&
 		    (msg2->sending_cpu == msg->sending_cpu) &&
 		    (msg2->msg_type != MSG_NOOP)) {
-			mmr = read_mmr_sw_ack();
+			mmr = ops.read_l_sw_ack();
 			msg_res = msg2->swack_vec;
 			/*
 			 * This is a message retry; clear the resources held
@@ -270,7 +293,7 @@ static void bau_process_retry_msg(struct msg_desc *mdp,
 				stat->d_canceled++;
 				cancel_count++;
 				mr = (msg_res << UV_SW_ACK_NPENDING) | msg_res;
-				write_mmr_sw_ack(mr);
+				ops.write_l_sw_ack(mr);
 			}
 		}
 	}
@@ -403,12 +426,12 @@ static void do_reset(void *ptr)
 			/*
 			 * only reset the resource if it is still pending
 			 */
-			mmr = read_mmr_sw_ack();
+			mmr = ops.read_l_sw_ack();
 			msg_res = msg->swack_vec;
 			mr = (msg_res << UV_SW_ACK_NPENDING) | msg_res;
 			if (mmr & msg_res) {
 				stat->d_rcanceled++;
-				write_mmr_sw_ack(mr);
+				ops.write_l_sw_ack(mr);
 			}
 		}
 	}
@@ -580,11 +603,7 @@ static int uv1_wait_completion(struct bau_desc *bau_desc,
  */
 static unsigned long uv2_3_read_status(unsigned long offset, int rshft, int desc)
 {
-	unsigned long descriptor_status;
-
-	descriptor_status =
-		((read_lmmr(offset) >> rshft) & UV_ACT_STATUS_MASK) << 1;
-	return descriptor_status;
+	return ((read_lmmr(offset) >> rshft) & UV_ACT_STATUS_MASK) << 1;
 }
 
 /*
@@ -1202,7 +1221,7 @@ void process_uv2_message(struct msg_desc *mdp, struct bau_control *bcp)
 	struct bau_pq_entry *msg = mdp->msg;
 	struct bau_pq_entry *other_msg;
 
-	mmr_image = read_mmr_sw_ack();
+	mmr_image = ops.read_l_sw_ack();
 	swack_vec = msg->swack_vec;
 
 	if ((swack_vec & mmr_image) == 0) {
@@ -1431,7 +1450,7 @@ static int ptc_seq_show(struct seq_file *file, void *data)
 		/* destination side statistics */
 		seq_printf(file,
 			"%lx %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld %ld\n",
-			   read_gmmr_sw_ack(uv_cpu_to_pnode(cpu)),
+			   ops.read_g_sw_ack(uv_cpu_to_pnode(cpu)),
 			   stat->d_requestee, cycles_2_us(stat->d_time),
 			   stat->d_alltlb, stat->d_onetlb, stat->d_multmsg,
 			   stat->d_nomsg, stat->d_retries, stat->d_canceled,
@@ -1497,16 +1516,16 @@ static ssize_t ptc_proc_write(struct file *file, const char __user *user,
 	}
 
 	if (kstrtol(optstr, 10, &input_arg) < 0) {
-		printk(KERN_DEBUG "%s is invalid\n", optstr);
+		pr_debug("%s is invalid\n", optstr);
 		return -EINVAL;
 	}
 
 	if (input_arg == 0) {
 		elements = ARRAY_SIZE(stat_description);
-		printk(KERN_DEBUG "# cpu:      cpu number\n");
-		printk(KERN_DEBUG "Sender statistics:\n");
+		pr_debug("# cpu:      cpu number\n");
+		pr_debug("Sender statistics:\n");
 		for (i = 0; i < elements; i++)
-			printk(KERN_DEBUG "%s\n", stat_description[i]);
+			pr_debug("%s\n", stat_description[i]);
 	} else if (input_arg == -1) {
 		for_each_present_cpu(cpu) {
 			stat = &per_cpu(ptcstats, cpu);
@@ -1554,7 +1573,7 @@ static int parse_tunables_write(struct bau_control *bcp, char *instr,
 			break;
 	}
 	if (cnt != e) {
-		printk(KERN_INFO "bau tunable error: should be %d values\n", e);
+		pr_info("bau tunable error: should be %d values\n", e);
 		return -EINVAL;
 	}
 
@@ -1571,7 +1590,7 @@ static int parse_tunables_write(struct bau_control *bcp, char *instr,
 				continue;
 			}
 			if (val < 1 || val > bcp->cpus_in_uvhub) {
-				printk(KERN_DEBUG
+				pr_debug(
 				"Error: BAU max concurrent %d is invalid\n",
 				val);
 				return -EINVAL;
@@ -1619,17 +1638,17 @@ static ssize_t tunables_write(struct file *file, const char __user *user,
 
 	for_each_present_cpu(cpu) {
 		bcp = &per_cpu(bau_control, cpu);
-		bcp->max_concurr =		max_concurr;
-		bcp->max_concurr_const =	max_concurr;
-		bcp->plugged_delay =		plugged_delay;
-		bcp->plugsb4reset =		plugsb4reset;
-		bcp->timeoutsb4reset =		timeoutsb4reset;
-		bcp->ipi_reset_limit =		ipi_reset_limit;
-		bcp->complete_threshold =	complete_threshold;
-		bcp->cong_response_us =		congested_respns_us;
-		bcp->cong_reps =		congested_reps;
-		bcp->disabled_period =		sec_2_cycles(disabled_period);
-		bcp->giveup_limit =		giveup_limit;
+		bcp->max_concurr         = max_concurr;
+		bcp->max_concurr_const   = max_concurr;
+		bcp->plugged_delay       = plugged_delay;
+		bcp->plugsb4reset        = plugsb4reset;
+		bcp->timeoutsb4reset     = timeoutsb4reset;
+		bcp->ipi_reset_limit     = ipi_reset_limit;
+		bcp->complete_threshold  = complete_threshold;
+		bcp->cong_response_us    = congested_respns_us;
+		bcp->cong_reps           = congested_reps;
+		bcp->disabled_period     = sec_2_cycles(disabled_period);
+		bcp->giveup_limit        = giveup_limit;
 	}
 	return count;
 }
@@ -1676,21 +1695,21 @@ static int __init uv_ptc_init(void)
 	proc_uv_ptc = proc_create(UV_PTC_BASENAME, 0444, NULL,
 				  &proc_uv_ptc_operations);
 	if (!proc_uv_ptc) {
-		printk(KERN_ERR "unable to create %s proc entry\n",
+		pr_err("unable to create %s proc entry\n",
 		       UV_PTC_BASENAME);
 		return -EINVAL;
 	}
 
 	tunables_dir = debugfs_create_dir(UV_BAU_TUNABLES_DIR, NULL);
 	if (!tunables_dir) {
-		printk(KERN_ERR "unable to create debugfs directory %s\n",
+		pr_err("unable to create debugfs directory %s\n",
 		       UV_BAU_TUNABLES_DIR);
 		return -EINVAL;
 	}
 	tunables_file = debugfs_create_file(UV_BAU_TUNABLES_FILE, 0600,
 					tunables_dir, NULL, &tunables_fops);
 	if (!tunables_file) {
-		printk(KERN_ERR "unable to create debugfs file %s\n",
+		pr_err("unable to create debugfs file %s\n",
 		       UV_BAU_TUNABLES_FILE);
 		return -EINVAL;
 	}
@@ -1725,7 +1744,7 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 
 	gpa = uv_gpa(bau_desc);
 	n = uv_gpa_to_gnode(gpa);
-	m = uv_gpa_to_offset(gpa);
+	m = ops.bau_gpa_to_offset(gpa);
 	if (is_uv1_hub())
 		uv1 = 1;
 
@@ -1740,7 +1759,7 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 		memset(bd2, 0, sizeof(struct bau_desc));
 		if (uv1) {
 			uv1_hdr = &bd2->header.uv1_hdr;
-			uv1_hdr->swack_flag =	1;
+			uv1_hdr->swack_flag = 1;
 			/*
 			 * The base_dest_nasid set in the message header
 			 * is the nasid of the first uvhub in the partition.
@@ -1749,10 +1768,10 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 			 * if nasid striding is being used.
 			 */
 			uv1_hdr->base_dest_nasid =
-						UV_PNODE_TO_NASID(base_pnode);
-			uv1_hdr->dest_subnodeid =	UV_LB_SUBNODEID;
-			uv1_hdr->command =		UV_NET_ENDPOINT_INTD;
-			uv1_hdr->int_both =		1;
+			                          UV_PNODE_TO_NASID(base_pnode);
+			uv1_hdr->dest_subnodeid  = UV_LB_SUBNODEID;
+			uv1_hdr->command         = UV_NET_ENDPOINT_INTD;
+			uv1_hdr->int_both        = 1;
 			/*
 			 * all others need to be set to zero:
 			 *   fairness chaining multilevel count replied_to
@@ -1763,11 +1782,11 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 			 * uses native mode for selective broadcasts.
 			 */
 			uv2_3_hdr = &bd2->header.uv2_3_hdr;
-			uv2_3_hdr->swack_flag =	1;
+			uv2_3_hdr->swack_flag      = 1;
 			uv2_3_hdr->base_dest_nasid =
-						UV_PNODE_TO_NASID(base_pnode);
-			uv2_3_hdr->dest_subnodeid =	UV_LB_SUBNODEID;
-			uv2_3_hdr->command =		UV_NET_ENDPOINT_INTD;
+			                          UV_PNODE_TO_NASID(base_pnode);
+			uv2_3_hdr->dest_subnodeid  = UV_LB_SUBNODEID;
+			uv2_3_hdr->command         = UV_NET_ENDPOINT_INTD;
 		}
 	}
 	for_each_present_cpu(cpu) {
@@ -1790,10 +1809,7 @@ static void pq_init(int node, int pnode)
 	size_t plsize;
 	char *cp;
 	void *vp;
-	unsigned long pn;
-	unsigned long first;
-	unsigned long pn_first;
-	unsigned long last;
+	unsigned long gnode, first, last, tail;
 	struct bau_pq_entry *pqp;
 	struct bau_control *bcp;
 
@@ -1814,17 +1830,25 @@ static void pq_init(int node, int pnode)
 		bcp->bau_msg_head	= pqp;
 		bcp->queue_last		= pqp + (DEST_Q_SIZE - 1);
 	}
+
+	first = ops.bau_gpa_to_offset(uv_gpa(pqp));
+	last = ops.bau_gpa_to_offset(uv_gpa(pqp + (DEST_Q_SIZE - 1)));
+
 	/*
-	 * need the gnode of where the memory was really allocated
+	 * Pre UV4, the gnode is required to locate the payload queue
+	 * and the payload queue tail must be maintained by the kernel.
 	 */
-	pn = uv_gpa_to_gnode(uv_gpa(pqp));
-	first = uv_physnodeaddr(pqp);
-	pn_first = ((unsigned long)pn << UV_PAYLOADQ_PNODE_SHIFT) | first;
-	last = uv_physnodeaddr(pqp + (DEST_Q_SIZE - 1));
-	write_mmr_payload_first(pnode, pn_first);
-	write_mmr_payload_tail(pnode, first);
-	write_mmr_payload_last(pnode, last);
-	write_gmmr_sw_ack(pnode, 0xffffUL);
+	bcp = &per_cpu(bau_control, smp_processor_id());
+	if (bcp->uvhub_version <= 3) {
+		tail = first;
+		gnode = uv_gpa_to_gnode(uv_gpa(pqp));
+		first = (gnode << UV_PAYLOADQ_GNODE_SHIFT) | tail;
+		write_mmr_payload_tail(pnode, tail);
+	}
+
+	ops.write_payload_first(pnode, first);
+	ops.write_payload_last(pnode, last);
+	ops.write_g_sw_ack(pnode, 0xffffUL);
 
 	/* in effect, all msg_type's are set to MSG_NOOP */
 	memset(pqp, 0, sizeof(struct bau_pq_entry) * DEST_Q_SIZE);
@@ -1914,8 +1938,8 @@ static void __init init_per_cpu_tunables(void)
 		bcp->complete_threshold		= complete_threshold;
 		bcp->cong_response_us		= congested_respns_us;
 		bcp->cong_reps			= congested_reps;
-		bcp->disabled_period =		sec_2_cycles(disabled_period);
-		bcp->giveup_limit =		giveup_limit;
+		bcp->disabled_period		= sec_2_cycles(disabled_period);
+		bcp->giveup_limit		= giveup_limit;
 		spin_lock_init(&bcp->queue_lock);
 		spin_lock_init(&bcp->uvhub_lock);
 		spin_lock_init(&bcp->disable_lock);
@@ -1944,7 +1968,7 @@ static int __init get_cpu_topology(int base_pnode,
 
 		pnode = uv_cpu_hub_info(cpu)->pnode;
 		if ((pnode - base_pnode) >= UV_DISTRIBUTION_SIZE) {
-			printk(KERN_EMERG
+			pr_emerg(
 				"cpu %d pnode %d-%d beyond %d; BAU disabled\n",
 				cpu, pnode, base_pnode, UV_DISTRIBUTION_SIZE);
 			return 1;
@@ -1969,7 +1993,7 @@ static int __init get_cpu_topology(int base_pnode,
 		sdp->cpu_number[sdp->num_cpus] = cpu;
 		sdp->num_cpus++;
 		if (sdp->num_cpus > MAX_CPUS_PER_SOCKET) {
-			printk(KERN_EMERG "%d cpus per socket invalid\n",
+			pr_emerg("%d cpus per socket invalid\n",
 				sdp->num_cpus);
 			return 1;
 		}
@@ -2035,15 +2059,17 @@ static int scan_sock(struct socket_desc *sdp, struct uvhub_desc *bdp,
 			bcp->uvhub_version = 2;
 		else if (is_uv3_hub())
 			bcp->uvhub_version = 3;
+		else if (is_uv4_hub())
+			bcp->uvhub_version = 4;
 		else {
-			printk(KERN_EMERG "uvhub version not 1, 2 or 3\n");
+			pr_emerg("uvhub version not 1, 2, 3, or 4\n");
 			return 1;
 		}
 		bcp->uvhub_master = *hmasterp;
 		bcp->uvhub_cpu = uv_cpu_blade_processor_id(cpu);
 
 		if (bcp->uvhub_cpu >= MAX_CPUS_PER_UVHUB) {
-			printk(KERN_EMERG "%d cpus per uvhub invalid\n",
+			pr_emerg("%d cpus per uvhub invalid\n",
 				bcp->uvhub_cpu);
 			return 1;
 		}
@@ -2098,7 +2124,8 @@ static int __init init_per_cpu(int nuvhubs, int base_part_pnode)
 	void *vp;
 	struct uvhub_desc *uvhub_descs;
 
-	timeout_us = calculate_destination_timeout();
+	if (is_uv3_hub() || is_uv2_hub() || is_uv1_hub())
+		timeout_us = calculate_destination_timeout();
 
 	vp = kmalloc(nuvhubs * sizeof(struct uvhub_desc), GFP_KERNEL);
 	uvhub_descs = (struct uvhub_desc *)vp;
@@ -2138,6 +2165,15 @@ static int __init uv_bau_init(void)
 	if (!is_uv_system())
 		return 0;
 
+	if (is_uv4_hub())
+		ops = uv4_bau_ops;
+	else if (is_uv3_hub())
+		ops = uv123_bau_ops;
+	else if (is_uv2_hub())
+		ops = uv123_bau_ops;
+	else if (is_uv1_hub())
+		ops = uv123_bau_ops;
+
 	for_each_possible_cpu(cur_cpu) {
 		mask = &per_cpu(uv_flush_tlb_mask, cur_cpu);
 		zalloc_cpumask_var_node(mask, GFP_KERNEL, cpu_to_node(cur_cpu));
@@ -2153,7 +2189,9 @@ static int __init uv_bau_init(void)
 			uv_base_pnode = uv_blade_to_pnode(uvhub);
 	}
 
-	enable_timeouts();
+	/* software timeouts are not supported on UV4 */
+	if (is_uv3_hub() || is_uv2_hub() || is_uv1_hub())
+		enable_timeouts();
 
 	if (init_per_cpu(nuvhubs, uv_base_pnode)) {
 		set_bau_off();

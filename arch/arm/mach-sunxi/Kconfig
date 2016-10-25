@@ -32,6 +32,7 @@ config MACH_SUN7I
 	default ARCH_SUNXI
 	select ARM_GIC
 	select ARM_PSCI
+	select ARCH_SUPPORTS_BIG_ENDIAN
 	select HAVE_ARM_ARCH_TIMER
 	select SUN5I_HSTIMER
 

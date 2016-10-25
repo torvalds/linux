@@ -126,7 +126,7 @@ extern int overcommit_kbytes_handler(struct ctl_table *, int, void __user *,
 #define PAGE_ALIGN(addr) ALIGN(addr, PAGE_SIZE)
 
 /* test whether an address (unsigned long or pointer) is aligned to PAGE_SIZE */
-#define PAGE_ALIGNED(addr)	IS_ALIGNED((unsigned long)addr, PAGE_SIZE)
+#define PAGE_ALIGNED(addr)	IS_ALIGNED((unsigned long)(addr), PAGE_SIZE)
 
 /*
  * Linux kernel virtual memory manager primitives.
@@ -1048,28 +1048,16 @@ struct address_space *page_file_mapping(struct page *page)
 	return page->mapping;
 }
 
+extern pgoff_t __page_file_index(struct page *page);
+
 /*
  * Return the pagecache index of the passed page.  Regular pagecache pages
- * use ->index whereas swapcache pages use ->private
+ * use ->index whereas swapcache pages use swp_offset(->private)
  */
 static inline pgoff_t page_index(struct page *page)
 {
 	if (unlikely(PageSwapCache(page)))
-		return page_private(page);
-	return page->index;
-}
-
-extern pgoff_t __page_file_index(struct page *page);
-
-/*
- * Return the file index of the page. Regular pagecache pages use ->index
- * whereas swapcache pages use swp_offset(->private)
- */
-static inline pgoff_t page_file_index(struct page *page)
-{
-	if (unlikely(PageSwapCache(page)))
 		return __page_file_index(page);
-
 	return page->index;
 }
 
@@ -1197,10 +1185,10 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
  * @pte_hole: if set, called for each hole at all levels
  * @hugetlb_entry: if set, called for each hugetlb entry
  * @test_walk: caller specific callback function to determine whether
- *             we walk over the current vma or not. A positive returned
+ *             we walk over the current vma or not. Returning 0
  *             value means "do page table walk over the current vma,"
  *             and a negative one means "abort current page table walk
- *             right now." 0 means "skip the current vma."
+ *             right now." 1 means "skip the current vma."
  * @mm:        mm_struct representing the target process of page table walk
  * @vma:       vma currently walked (NULL if walking outside vmas)
  * @private:   private data for callbacks' usage
@@ -1278,9 +1266,10 @@ static inline int fixup_user_fault(struct task_struct *tsk,
 }
 #endif
 
-extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, int len, int write);
+extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, int len,
+		unsigned int gup_flags);
 extern int access_remote_vm(struct mm_struct *mm, unsigned long addr,
-		void *buf, int len, int write);
+		void *buf, int len, unsigned int gup_flags);
 
 long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		      unsigned long start, unsigned long nr_pages,
@@ -1288,19 +1277,18 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		      struct vm_area_struct **vmas, int *nonblocking);
 long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 			    unsigned long start, unsigned long nr_pages,
-			    int write, int force, struct page **pages,
+			    unsigned int gup_flags, struct page **pages,
 			    struct vm_area_struct **vmas);
 long get_user_pages(unsigned long start, unsigned long nr_pages,
-			    int write, int force, struct page **pages,
+			    unsigned int gup_flags, struct page **pages,
 			    struct vm_area_struct **vmas);
 long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
-		    int write, int force, struct page **pages, int *locked);
+		    unsigned int gup_flags, struct page **pages, int *locked);
 long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
 			       unsigned long start, unsigned long nr_pages,
-			       int write, int force, struct page **pages,
-			       unsigned int gup_flags);
+			       struct page **pages, unsigned int gup_flags);
 long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
-		    int write, int force, struct page **pages);
+		    struct page **pages, unsigned int gup_flags);
 int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 			struct page **pages);
 
@@ -1318,7 +1306,7 @@ struct frame_vector {
 struct frame_vector *frame_vector_create(unsigned int nr_frames);
 void frame_vector_destroy(struct frame_vector *vec);
 int get_vaddr_frames(unsigned long start, unsigned int nr_pfns,
-		     bool write, bool force, struct frame_vector *vec);
+		     unsigned int gup_flags, struct frame_vector *vec);
 void put_vaddr_frames(struct frame_vector *vec);
 int frame_vector_to_pages(struct frame_vector *vec);
 void frame_vector_to_pfns(struct frame_vector *vec);
@@ -1403,7 +1391,7 @@ static inline int stack_guard_page_end(struct vm_area_struct *vma,
 		!vma_growsup(vma->vm_next, addr);
 }
 
-int vma_is_stack_for_task(struct vm_area_struct *vma, struct task_struct *t);
+int vma_is_stack_for_current(struct vm_area_struct *vma);
 
 extern unsigned long move_page_tables(struct vm_area_struct *vma,
 		unsigned long old_addr, struct vm_area_struct *new_vma,
@@ -1529,7 +1517,7 @@ static inline int pte_devmap(pte_t pte)
 }
 #endif
 
-int vma_wants_writenotify(struct vm_area_struct *vma);
+int vma_wants_writenotify(struct vm_area_struct *vma, pgprot_t vm_page_prot);
 
 extern pte_t *__get_locked_pte(struct mm_struct *mm, unsigned long addr,
 			       spinlock_t **ptl);
@@ -1924,10 +1912,12 @@ extern void show_mem(unsigned int flags);
 extern long si_mem_available(void);
 extern void si_meminfo(struct sysinfo * val);
 extern void si_meminfo_node(struct sysinfo *val, int nid);
+#ifdef __HAVE_ARCH_RESERVED_KERNEL_PAGES
+extern unsigned long arch_reserved_kernel_pages(void);
+#endif
 
-extern __printf(3, 4)
-void warn_alloc_failed(gfp_t gfp_mask, unsigned int order,
-		const char *fmt, ...);
+extern __printf(2, 3)
+void warn_alloc(gfp_t gfp_mask, const char *fmt, ...);
 
 extern void setup_per_cpu_pageset(void);
 
@@ -1977,8 +1967,14 @@ void anon_vma_interval_tree_verify(struct anon_vma_chain *node);
 
 /* mmap.c */
 extern int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin);
-extern int vma_adjust(struct vm_area_struct *vma, unsigned long start,
-	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert);
+extern int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
+	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert,
+	struct vm_area_struct *expand);
+static inline int vma_adjust(struct vm_area_struct *vma, unsigned long start,
+	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert)
+{
+	return __vma_adjust(vma, start, end, pgoff, insert, NULL);
+}
 extern struct vm_area_struct *vma_merge(struct mm_struct *,
 	struct vm_area_struct *prev, unsigned long addr, unsigned long end,
 	unsigned long vm_flags, struct anon_vma *, struct file *, pgoff_t,
@@ -2019,6 +2015,8 @@ extern struct file *get_task_exe_file(struct task_struct *task);
 extern bool may_expand_vm(struct mm_struct *, vm_flags_t, unsigned long npages);
 extern void vm_stat_account(struct mm_struct *, vm_flags_t, long npages);
 
+extern bool vma_is_special_mapping(const struct vm_area_struct *vma,
+				   const struct vm_special_mapping *sm);
 extern struct vm_area_struct *_install_special_mapping(struct mm_struct *mm,
 				   unsigned long addr, unsigned long len,
 				   unsigned long flags,
@@ -2234,6 +2232,7 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
 #define FOLL_TRIED	0x800	/* a retry, previous pass started an IO */
 #define FOLL_MLOCK	0x1000	/* lock present pages */
 #define FOLL_REMOTE	0x2000	/* we are working on non-current tsk/mm */
+#define FOLL_COW	0x4000	/* internal GUP flag */
 
 typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
 			void *data);

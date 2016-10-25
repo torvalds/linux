@@ -256,10 +256,11 @@ static int i915_gem_check_wedge(struct drm_i915_private *dev_priv)
 static int i915_gem_init_seqno(struct drm_i915_private *dev_priv, u32 seqno)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	int ret;
 
 	/* Carefully retire all requests without writing to the rings */
-	for_each_engine(engine, dev_priv) {
+	for_each_engine(engine, dev_priv, id) {
 		ret = intel_engine_idle(engine,
 					I915_WAIT_INTERRUPTIBLE |
 					I915_WAIT_LOCKED);
@@ -276,7 +277,7 @@ static int i915_gem_init_seqno(struct drm_i915_private *dev_priv, u32 seqno)
 	}
 
 	/* Finally reset hw state */
-	for_each_engine(engine, dev_priv)
+	for_each_engine(engine, dev_priv, id)
 		intel_engine_init_seqno(engine, seqno);
 
 	return 0;
@@ -328,6 +329,7 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 
 	switch (state) {
 	case FENCE_COMPLETE:
+		request->engine->last_submitted_seqno = request->fence.seqno;
 		request->engine->submit_request(request);
 		break;
 
@@ -641,8 +643,8 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 					     &request->submitq);
 
 	request->emitted_jiffies = jiffies;
-	request->previous_seqno = engine->last_submitted_seqno;
-	engine->last_submitted_seqno = request->fence.seqno;
+	request->previous_seqno = engine->last_pending_seqno;
+	engine->last_pending_seqno = request->fence.seqno;
 	i915_gem_active_set(&engine->last_request, request);
 	list_add_tail(&request->link, &engine->request_list);
 	list_add_tail(&request->ring_link, &ring->request_list);

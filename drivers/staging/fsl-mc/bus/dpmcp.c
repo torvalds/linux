@@ -31,6 +31,7 @@
  */
 #include "../include/mc-sys.h"
 #include "../include/mc-cmd.h"
+
 #include "dpmcp.h"
 #include "dpmcp-cmd.h"
 
@@ -367,7 +368,6 @@ int dpmcp_set_irq_mask(struct fsl_mc_io *mc_io,
 {
 	struct mc_command cmd = { 0 };
 	struct dpmcp_cmd_set_irq_mask *cmd_params;
-
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_SET_IRQ_MASK,

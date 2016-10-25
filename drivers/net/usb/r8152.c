@@ -1076,8 +1076,7 @@ static int vendor_mac_passthru_addr_read(struct r8152 *tp, struct sockaddr *sa)
 		return -ENODEV;
 	if (obj->type != ACPI_TYPE_BUFFER || obj->string.length != 0x17) {
 		netif_warn(tp, probe, tp->netdev,
-			   "Invalid buffer when reading pass-thru MAC addr: "
-			   "(%d, %d)\n",
+			   "Invalid buffer for pass-thru MAC addr: (%d, %d)\n",
 			   obj->type, obj->string.length);
 		goto amacout;
 	}
@@ -1090,8 +1089,8 @@ static int vendor_mac_passthru_addr_read(struct r8152 *tp, struct sockaddr *sa)
 	ret = hex2bin(buf, obj->string.pointer + 9, 6);
 	if (!(ret == 0 && is_valid_ether_addr(buf))) {
 		netif_warn(tp, probe, tp->netdev,
-			   "Invalid MAC when reading pass-thru MAC addr: "
-			   "%d, %pM\n", ret, buf);
+			   "Invalid MAC for pass-thru MAC addr: %d, %pM\n",
+			   ret, buf);
 		ret = -EINVAL;
 		goto amacout;
 	}
@@ -1111,9 +1110,9 @@ static int set_ethernet_addr(struct r8152 *tp)
 	struct sockaddr sa;
 	int ret;
 
-	if (tp->version == RTL_VER_01)
+	if (tp->version == RTL_VER_01) {
 		ret = pla_ocp_read(tp, PLA_IDR, 8, sa.sa_data);
-	else {
+	} else {
 		/* if this is not an RTL8153-AD, no eFuse mac pass thru set,
 		 * or system doesn't provide valid _SB.AMAC this will be
 		 * be expected to non-zero
@@ -4043,7 +4042,7 @@ static int rtl8152_set_coalesce(struct net_device *netdev,
 	return ret;
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_drvinfo = rtl8152_get_drvinfo,
 	.get_settings = rtl8152_get_settings,
 	.set_settings = rtl8152_set_settings,

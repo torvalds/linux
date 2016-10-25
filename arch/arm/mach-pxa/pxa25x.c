@@ -25,6 +25,7 @@
 #include <linux/suspend.h>
 #include <linux/syscore_ops.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 
 #include <asm/mach/map.h>
 #include <asm/suspend.h>
@@ -151,6 +152,16 @@ void __init pxa26x_init_irq(void)
 }
 #endif
 
+static int __init __init
+pxa25x_dt_init_irq(struct device_node *node, struct device_node *parent)
+{
+	pxa_dt_irq_init(pxa25x_set_wake);
+	set_handle_irq(ichp_handle_irq);
+
+	return 0;
+}
+IRQCHIP_DECLARE(pxa25x_intc, "marvell,pxa-intc", pxa25x_dt_init_irq);
+
 static struct map_desc pxa25x_io_desc[] __initdata = {
 	{	/* Mem Ctl */
 		.virtual	= (unsigned long)SMEMC_VIRT,
@@ -198,20 +209,17 @@ static int __init pxa25x_init(void)
 
 		reset_status = RCSR;
 
-		if ((ret = pxa_init_dma(IRQ_DMA, 16)))
-			return ret;
-
 		pxa25x_init_pm();
 
 		register_syscore_ops(&pxa_irq_syscore_ops);
 		register_syscore_ops(&pxa2xx_mfp_syscore_ops);
 
-		pxa2xx_set_dmac_info(16, 40);
-		pxa_register_device(&pxa25x_device_gpio, &pxa25x_gpio_info);
-		ret = platform_add_devices(pxa25x_devices,
-					   ARRAY_SIZE(pxa25x_devices));
-		if (ret)
-			return ret;
+		if (!of_have_populated_dt()) {
+			pxa2xx_set_dmac_info(16, 40);
+			pxa_register_device(&pxa25x_device_gpio, &pxa25x_gpio_info);
+			ret = platform_add_devices(pxa25x_devices,
+						   ARRAY_SIZE(pxa25x_devices));
+		}
 	}
 
 	return ret;

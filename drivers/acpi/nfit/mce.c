@@ -14,6 +14,7 @@
  */
 #include <linux/notifier.h>
 #include <linux/acpi.h>
+#include <linux/nd.h>
 #include <asm/mce.h>
 #include "nfit.h"
 
@@ -62,12 +63,25 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 		}
 		mutex_unlock(&acpi_desc->init_mutex);
 
-		/*
-		 * We can ignore an -EBUSY here because if an ARS is already
-		 * in progress, just let that be the last authoritative one
-		 */
-		if (found_match)
+		if (!found_match)
+			continue;
+
+		/* If this fails due to an -ENOMEM, there is little we can do */
+		nvdimm_bus_add_poison(acpi_desc->nvdimm_bus,
+				ALIGN(mce->addr, L1_CACHE_BYTES),
+				L1_CACHE_BYTES);
+		nvdimm_region_notify(nfit_spa->nd_region,
+				NVDIMM_REVALIDATE_POISON);
+
+		if (acpi_desc->scrub_mode == HW_ERROR_SCRUB_ON) {
+			/*
+			 * We can ignore an -EBUSY here because if an ARS is
+			 * already in progress, just let that be the last
+			 * authoritative one
+			 */
 			acpi_nfit_ars_rescan(acpi_desc);
+		}
+		break;
 	}
 
 	mutex_unlock(&acpi_desc_lock);

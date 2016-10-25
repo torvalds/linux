@@ -263,7 +263,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 	 * Converting addresses for use by objdump requires more information.
 	 * map__load() does that.  See map__rip_2objdump() for details.
 	 */
-	if (map__load(al.map, NULL))
+	if (map__load(al.map))
 		return -1;
 
 	/* objdump struggles with kcore - try each map only once */
@@ -511,7 +511,7 @@ static int do_test_code_reading(bool try_kcore)
 
 	/* Load kernel map */
 	map = machine__kernel_map(machine);
-	ret = map__load(map, NULL);
+	ret = map__load(map);
 	if (ret < 0) {
 		pr_debug("map__load failed\n");
 		goto out_err;

@@ -578,6 +578,36 @@ int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine)
 	return 0;
 }
 
+static void cancel_fake_irq(struct intel_engine_cs *engine)
+{
+	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+
+	del_timer_sync(&b->hangcheck);
+	del_timer_sync(&b->fake_irq);
+	clear_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
+}
+
+void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine)
+{
+	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+
+	cancel_fake_irq(engine);
+	spin_lock(&b->lock);
+
+	__intel_breadcrumbs_disable_irq(b);
+	if (intel_engine_has_waiter(engine)) {
+		b->timeout = wait_timeout();
+		__intel_breadcrumbs_enable_irq(b);
+		if (READ_ONCE(b->irq_posted))
+			wake_up_process(b->first_wait->tsk);
+	} else {
+		/* sanitize the IMR and unmask any auxiliary interrupts */
+		irq_disable(engine);
+	}
+
+	spin_unlock(&b->lock);
+}
+
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
@@ -585,13 +615,13 @@ void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)
 	if (!IS_ERR_OR_NULL(b->signaler))
 		kthread_stop(b->signaler);
 
-	del_timer_sync(&b->hangcheck);
-	del_timer_sync(&b->fake_irq);
+	cancel_fake_irq(engine);
 }
 
 unsigned int intel_kick_waiters(struct drm_i915_private *i915)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	unsigned int mask = 0;
 
 	/* To avoid the task_struct disappearing beneath us as we wake up
@@ -599,7 +629,7 @@ unsigned int intel_kick_waiters(struct drm_i915_private *i915)
 	 * RCU lock, i.e. as we call wake_up_process() we must be holding the
 	 * rcu_read_lock().
 	 */
-	for_each_engine(engine, i915)
+	for_each_engine(engine, i915, id)
 		if (unlikely(intel_engine_wakeup(engine)))
 			mask |= intel_engine_flag(engine);
 
@@ -609,9 +639,10 @@ unsigned int intel_kick_waiters(struct drm_i915_private *i915)
 unsigned int intel_kick_signalers(struct drm_i915_private *i915)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	unsigned int mask = 0;
 
-	for_each_engine(engine, i915) {
+	for_each_engine(engine, i915, id) {
 		if (unlikely(READ_ONCE(engine->breadcrumbs.first_signal))) {
 			wake_up_process(engine->breadcrumbs.signaler);
 			mask |= intel_engine_flag(engine);

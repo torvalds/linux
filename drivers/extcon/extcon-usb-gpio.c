@@ -63,16 +63,16 @@ static void usb_extcon_detect_cable(struct work_struct *work)
 		 * As we don't have event for USB peripheral cable attached,
 		 * we simulate USB peripheral attach here.
 		 */
-		extcon_set_cable_state_(info->edev, EXTCON_USB_HOST, false);
-		extcon_set_cable_state_(info->edev, EXTCON_USB, true);
+		extcon_set_state_sync(info->edev, EXTCON_USB_HOST, false);
+		extcon_set_state_sync(info->edev, EXTCON_USB, true);
 	} else {
 		/*
 		 * ID = 0 means USB HOST cable attached.
 		 * As we don't have event for USB peripheral cable detached,
 		 * we simulate USB peripheral detach here.
 		 */
-		extcon_set_cable_state_(info->edev, EXTCON_USB, false);
-		extcon_set_cable_state_(info->edev, EXTCON_USB_HOST, true);
+		extcon_set_state_sync(info->edev, EXTCON_USB, false);
+		extcon_set_state_sync(info->edev, EXTCON_USB_HOST, true);
 	}
 }
 

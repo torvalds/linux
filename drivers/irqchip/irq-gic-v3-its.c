@@ -15,10 +15,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/acpi.h>
 #include <linux/bitmap.h>
 #include <linux/cpu.h>
 #include <linux/delay.h>
+#include <linux/dma-iommu.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
+#include <linux/acpi_iort.h>
 #include <linux/log2.h>
 #include <linux/mm.h>
 #include <linux/msi.h>
@@ -75,7 +79,7 @@ struct its_node {
 	raw_spinlock_t		lock;
 	struct list_head	entry;
 	void __iomem		*base;
-	unsigned long		phys_base;
+	phys_addr_t		phys_base;
 	struct its_cmd_block	*cmd_base;
 	struct its_cmd_block	*cmd_write;
 	struct its_baser	tables[GITS_BASER_NR_REGS];
@@ -115,6 +119,7 @@ struct its_device {
 static LIST_HEAD(its_nodes);
 static DEFINE_SPINLOCK(its_lock);
 static struct rdists *gic_rdists;
+static struct irq_domain *its_parent;
 
 #define gic_data_rdist()		(raw_cpu_ptr(gic_rdists->rdist))
 #define gic_data_rdist_rd_base()	(gic_data_rdist()->rd_base)
@@ -655,6 +660,8 @@ static void its_irq_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
 	msg->address_lo		= addr & ((1UL << 32) - 1);
 	msg->address_hi		= addr >> 32;
 	msg->data		= its_get_event_id(d);
+
+	iommu_dma_map_msi_msg(d->irq, msg);
 }
 
 static struct irq_chip its_irq_chip = {
@@ -1016,7 +1023,7 @@ static void its_free_tables(struct its_node *its)
 
 static int its_alloc_tables(struct its_node *its)
 {
-	u64 typer = readq_relaxed(its->base + GITS_TYPER);
+	u64 typer = gic_read_typer(its->base + GITS_TYPER);
 	u32 ids = GITS_TYPER_DEVBITS(typer);
 	u64 shr = GITS_BASER_InnerShareable;
 	u64 cache = GITS_BASER_WaWb;
@@ -1191,7 +1198,7 @@ static void its_cpu_init_collection(void)
 		 * We now have to bind each collection to its target
 		 * redistributor.
 		 */
-		if (readq_relaxed(its->base + GITS_TYPER) & GITS_TYPER_PTA) {
+		if (gic_read_typer(its->base + GITS_TYPER) & GITS_TYPER_PTA) {
 			/*
 			 * This ITS wants the physical address of the
 			 * redistributor.
@@ -1201,7 +1208,7 @@ static void its_cpu_init_collection(void)
 			/*
 			 * This ITS wants a linear CPU number.
 			 */
-			target = readq_relaxed(gic_data_rdist_rd_base() + GICR_TYPER);
+			target = gic_read_typer(gic_data_rdist_rd_base() + GICR_TYPER);
 			target = GICR_TYPER_CPU_NUMBER(target) << 16;
 		}
 
@@ -1437,6 +1444,11 @@ static int its_irq_gic_domain_alloc(struct irq_domain *domain,
 		fwspec.param[0] = GIC_IRQ_TYPE_LPI;
 		fwspec.param[1] = hwirq;
 		fwspec.param[2] = IRQ_TYPE_EDGE_RISING;
+	} else if (is_fwnode_irqchip(domain->parent->fwnode)) {
+		fwspec.fwnode = domain->parent->fwnode;
+		fwspec.param_count = 2;
+		fwspec.param[0] = hwirq;
+		fwspec.param[1] = IRQ_TYPE_EDGE_RISING;
 	} else {
 		return -EINVAL;
 	}
@@ -1614,44 +1626,59 @@ static void its_enable_quirks(struct its_node *its)
 	gic_enable_quirks(iidr, its_quirks, its);
 }
 
-static int __init its_probe(struct device_node *node,
-			    struct irq_domain *parent)
+static int its_init_domain(struct fwnode_handle *handle, struct its_node *its)
 {
-	struct resource res;
+	struct irq_domain *inner_domain;
+	struct msi_domain_info *info;
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	inner_domain = irq_domain_create_tree(handle, &its_domain_ops, its);
+	if (!inner_domain) {
+		kfree(info);
+		return -ENOMEM;
+	}
+
+	inner_domain->parent = its_parent;
+	inner_domain->bus_token = DOMAIN_BUS_NEXUS;
+	info->ops = &its_msi_domain_ops;
+	info->data = its;
+	inner_domain->host_data = info;
+
+	return 0;
+}
+
+static int __init its_probe_one(struct resource *res,
+				struct fwnode_handle *handle, int numa_node)
+{
 	struct its_node *its;
 	void __iomem *its_base;
-	struct irq_domain *inner_domain;
 	u32 val;
 	u64 baser, tmp;
 	int err;
 
-	err = of_address_to_resource(node, 0, &res);
-	if (err) {
-		pr_warn("%s: no regs?\n", node->full_name);
-		return -ENXIO;
-	}
-
-	its_base = ioremap(res.start, resource_size(&res));
+	its_base = ioremap(res->start, resource_size(res));
 	if (!its_base) {
-		pr_warn("%s: unable to map registers\n", node->full_name);
+		pr_warn("ITS@%pa: Unable to map ITS registers\n", &res->start);
 		return -ENOMEM;
 	}
 
 	val = readl_relaxed(its_base + GITS_PIDR2) & GIC_PIDR2_ARCH_MASK;
 	if (val != 0x30 && val != 0x40) {
-		pr_warn("%s: no ITS detected, giving up\n", node->full_name);
+		pr_warn("ITS@%pa: No ITS detected, giving up\n", &res->start);
 		err = -ENODEV;
 		goto out_unmap;
 	}
 
 	err = its_force_quiescent(its_base);
 	if (err) {
-		pr_warn("%s: failed to quiesce, giving up\n",
-			node->full_name);
+		pr_warn("ITS@%pa: Failed to quiesce, giving up\n", &res->start);
 		goto out_unmap;
 	}
 
-	pr_info("ITS: %s\n", node->full_name);
+	pr_info("ITS %pR\n", res);
 
 	its = kzalloc(sizeof(*its), GFP_KERNEL);
 	if (!its) {
@@ -1663,9 +1690,9 @@ static int __init its_probe(struct device_node *node,
 	INIT_LIST_HEAD(&its->entry);
 	INIT_LIST_HEAD(&its->its_device_list);
 	its->base = its_base;
-	its->phys_base = res.start;
-	its->ite_size = ((readl_relaxed(its_base + GITS_TYPER) >> 4) & 0xf) + 1;
-	its->numa_node = of_node_to_nid(node);
+	its->phys_base = res->start;
+	its->ite_size = ((gic_read_typer(its_base + GITS_TYPER) >> 4) & 0xf) + 1;
+	its->numa_node = numa_node;
 
 	its->cmd_base = kzalloc(ITS_CMD_QUEUE_SZ, GFP_KERNEL);
 	if (!its->cmd_base) {
@@ -1712,28 +1739,9 @@ static int __init its_probe(struct device_node *node,
 	writeq_relaxed(0, its->base + GITS_CWRITER);
 	writel_relaxed(GITS_CTLR_ENABLE, its->base + GITS_CTLR);
 
-	if (of_property_read_bool(node, "msi-controller")) {
-		struct msi_domain_info *info;
-
-		info = kzalloc(sizeof(*info), GFP_KERNEL);
-		if (!info) {
-			err = -ENOMEM;
-			goto out_free_tables;
-		}
-
-		inner_domain = irq_domain_add_tree(node, &its_domain_ops, its);
-		if (!inner_domain) {
-			err = -ENOMEM;
-			kfree(info);
-			goto out_free_tables;
-		}
-
-		inner_domain->parent = parent;
-		inner_domain->bus_token = DOMAIN_BUS_NEXUS;
-		info->ops = &its_msi_domain_ops;
-		info->data = its;
-		inner_domain->host_data = info;
-	}
+	err = its_init_domain(handle, its);
+	if (err)
+		goto out_free_tables;
 
 	spin_lock(&its_lock);
 	list_add(&its->entry, &its_nodes);
@@ -1749,13 +1757,13 @@ out_free_its:
 	kfree(its);
 out_unmap:
 	iounmap(its_base);
-	pr_err("ITS: failed probing %s (%d)\n", node->full_name, err);
+	pr_err("ITS@%pa: failed probing (%d)\n", &res->start, err);
 	return err;
 }
 
 static bool gic_rdists_supports_plpis(void)
 {
-	return !!(readl_relaxed(gic_data_rdist_rd_base() + GICR_TYPER) & GICR_TYPER_PLPIS);
+	return !!(gic_read_typer(gic_data_rdist_rd_base() + GICR_TYPER) & GICR_TYPER_PLPIS);
 }
 
 int its_cpu_init(void)
@@ -1777,15 +1785,91 @@ static struct of_device_id its_device_id[] = {
 	{},
 };
 
-int __init its_init(struct device_node *node, struct rdists *rdists,
-	     struct irq_domain *parent_domain)
+static int __init its_of_probe(struct device_node *node)
 {
 	struct device_node *np;
+	struct resource res;
 
 	for (np = of_find_matching_node(node, its_device_id); np;
 	     np = of_find_matching_node(np, its_device_id)) {
-		its_probe(np, parent_domain);
+		if (!of_property_read_bool(np, "msi-controller")) {
+			pr_warn("%s: no msi-controller property, ITS ignored\n",
+				np->full_name);
+			continue;
+		}
+
+		if (of_address_to_resource(np, 0, &res)) {
+			pr_warn("%s: no regs?\n", np->full_name);
+			continue;
+		}
+
+		its_probe_one(&res, &np->fwnode, of_node_to_nid(np));
 	}
+	return 0;
+}
+
+#ifdef CONFIG_ACPI
+
+#define ACPI_GICV3_ITS_MEM_SIZE (SZ_128K)
+
+static int __init gic_acpi_parse_madt_its(struct acpi_subtable_header *header,
+					  const unsigned long end)
+{
+	struct acpi_madt_generic_translator *its_entry;
+	struct fwnode_handle *dom_handle;
+	struct resource res;
+	int err;
+
+	its_entry = (struct acpi_madt_generic_translator *)header;
+	memset(&res, 0, sizeof(res));
+	res.start = its_entry->base_address;
+	res.end = its_entry->base_address + ACPI_GICV3_ITS_MEM_SIZE - 1;
+	res.flags = IORESOURCE_MEM;
+
+	dom_handle = irq_domain_alloc_fwnode((void *)its_entry->base_address);
+	if (!dom_handle) {
+		pr_err("ITS@%pa: Unable to allocate GICv3 ITS domain token\n",
+		       &res.start);
+		return -ENOMEM;
+	}
+
+	err = iort_register_domain_token(its_entry->translation_id, dom_handle);
+	if (err) {
+		pr_err("ITS@%pa: Unable to register GICv3 ITS domain token (ITS ID %d) to IORT\n",
+		       &res.start, its_entry->translation_id);
+		goto dom_err;
+	}
+
+	err = its_probe_one(&res, dom_handle, NUMA_NO_NODE);
+	if (!err)
+		return 0;
+
+	iort_deregister_domain_token(its_entry->translation_id);
+dom_err:
+	irq_domain_free_fwnode(dom_handle);
+	return err;
+}
+
+static void __init its_acpi_probe(void)
+{
+	acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_TRANSLATOR,
+			      gic_acpi_parse_madt_its, 0);
+}
+#else
+static void __init its_acpi_probe(void) { }
+#endif
+
+int __init its_init(struct fwnode_handle *handle, struct rdists *rdists,
+		    struct irq_domain *parent_domain)
+{
+	struct device_node *of_node;
+
+	its_parent = parent_domain;
+	of_node = to_of_node(handle);
+	if (of_node)
+		its_of_probe(of_node);
+	else
+		its_acpi_probe();
 
 	if (list_empty(&its_nodes)) {
 		pr_warn("ITS: No ITS available, not enabling LPIs\n");

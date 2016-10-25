@@ -19,10 +19,28 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * Authors:
+ *    Eddie Dong <eddie.dong@intel.com>
+ *    Dexuan Cui
+ *    Jike Song <jike.song@intel.com>
+ *
+ * Contributors:
+ *    Zhi Wang <zhi.a.wang@intel.com>
+ *
  */
 
 #ifndef _GVT_HYPERCALL_H_
 #define _GVT_HYPERCALL_H_
+
+struct intel_gvt_io_emulation_ops {
+	int (*emulate_cfg_read)(void *, unsigned int, void *, unsigned int);
+	int (*emulate_cfg_write)(void *, unsigned int, void *, unsigned int);
+	int (*emulate_mmio_read)(void *, u64, void *, unsigned int);
+	int (*emulate_mmio_write)(void *, u64, void *, unsigned int);
+};
+
+extern struct intel_gvt_io_emulation_ops intel_gvt_io_emulation_ops;
 
 /*
  * Specific GVT-g MPT modules function collections. Currently GVT-g supports
@@ -30,6 +48,22 @@
  */
 struct intel_gvt_mpt {
 	int (*detect_host)(void);
+	int (*attach_vgpu)(void *vgpu, unsigned long *handle);
+	void (*detach_vgpu)(unsigned long handle);
+	int (*inject_msi)(unsigned long handle, u32 addr, u16 data);
+	unsigned long (*from_virt_to_mfn)(void *p);
+	int (*set_wp_page)(unsigned long handle, u64 gfn);
+	int (*unset_wp_page)(unsigned long handle, u64 gfn);
+	int (*read_gpa)(unsigned long handle, unsigned long gpa, void *buf,
+			unsigned long len);
+	int (*write_gpa)(unsigned long handle, unsigned long gpa, void *buf,
+			 unsigned long len);
+	unsigned long (*gfn_to_mfn)(unsigned long handle, unsigned long gfn);
+	int (*map_gfn_to_mfn)(unsigned long handle, unsigned long gfn,
+			      unsigned long mfn, unsigned int nr, bool map,
+			      int type);
+	int (*set_trap_area)(unsigned long handle, u64 start, u64 end,
+			     bool map);
 };
 
 extern struct intel_gvt_mpt xengt_mpt;

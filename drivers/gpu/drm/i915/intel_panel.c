@@ -841,13 +841,29 @@ static void lpt_enable_backlight(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
-	u32 pch_ctl1, pch_ctl2;
+	u32 pch_ctl1, pch_ctl2, schicken;
 
 	pch_ctl1 = I915_READ(BLC_PWM_PCH_CTL1);
 	if (pch_ctl1 & BLM_PCH_PWM_ENABLE) {
 		DRM_DEBUG_KMS("pch backlight already enabled\n");
 		pch_ctl1 &= ~BLM_PCH_PWM_ENABLE;
 		I915_WRITE(BLC_PWM_PCH_CTL1, pch_ctl1);
+	}
+
+	if (HAS_PCH_LPT(dev_priv)) {
+		schicken = I915_READ(SOUTH_CHICKEN2);
+		if (panel->backlight.alternate_pwm_increment)
+			schicken |= LPT_PWM_GRANULARITY;
+		else
+			schicken &= ~LPT_PWM_GRANULARITY;
+		I915_WRITE(SOUTH_CHICKEN2, schicken);
+	} else {
+		schicken = I915_READ(SOUTH_CHICKEN1);
+		if (panel->backlight.alternate_pwm_increment)
+			schicken |= SPT_PWM_GRANULARITY;
+		else
+			schicken &= ~SPT_PWM_GRANULARITY;
+		I915_WRITE(SOUTH_CHICKEN1, schicken);
 	}
 
 	pch_ctl2 = panel->backlight.max << 16;
@@ -1242,10 +1258,10 @@ static u32 bxt_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
  */
 static u32 spt_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 {
-	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_panel *panel = &connector->panel;
 	u32 mul;
 
-	if (I915_READ(SOUTH_CHICKEN1) & SPT_PWM_GRANULARITY)
+	if (panel->backlight.alternate_pwm_increment)
 		mul = 128;
 	else
 		mul = 16;
@@ -1261,9 +1277,10 @@ static u32 spt_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 static u32 lpt_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_panel *panel = &connector->panel;
 	u32 mul, clock;
 
-	if (I915_READ(SOUTH_CHICKEN2) & LPT_PWM_GRANULARITY)
+	if (panel->backlight.alternate_pwm_increment)
 		mul = 16;
 	else
 		mul = 128;
@@ -1414,6 +1431,13 @@ static int lpt_setup_backlight(struct intel_connector *connector, enum pipe unus
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
 	u32 pch_ctl1, pch_ctl2, val;
+	bool alt;
+
+	if (HAS_PCH_LPT(dev_priv))
+		alt = I915_READ(SOUTH_CHICKEN2) & LPT_PWM_GRANULARITY;
+	else
+		alt = I915_READ(SOUTH_CHICKEN1) & SPT_PWM_GRANULARITY;
+	panel->backlight.alternate_pwm_increment = alt;
 
 	pch_ctl1 = I915_READ(BLC_PWM_PCH_CTL1);
 	panel->backlight.active_low_pwm = pch_ctl1 & BLM_PCH_POLARITY;

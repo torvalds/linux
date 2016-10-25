@@ -195,6 +195,8 @@ superio_exit(int ioreg)
 
 #define NUM_FAN		6
 
+#define TEMP_SOURCE_VIRTUAL	0x1f
+
 /* Common and NCT6775 specific data */
 
 /* Voltage min/max registers for nr=7..14 are in bank 5 */
@@ -3940,7 +3942,7 @@ static int nct6775_probe(struct platform_device *pdev)
 			continue;
 
 		src = nct6775_read_value(data, data->REG_TEMP_SEL[i]) & 0x1f;
-		if (!src || (mask & (1 << src)))
+		if (!src)
 			continue;
 
 		if (src >= data->temp_label_num ||
@@ -3952,7 +3954,16 @@ static int nct6775_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		mask |= 1 << src;
+		/*
+		 * For virtual temperature sources, the 'virtual' temperature
+		 * for each fan reflects a different temperature, and there
+		 * are no duplicates.
+		 */
+		if (src != TEMP_SOURCE_VIRTUAL) {
+			if (mask & (1 << src))
+				continue;
+			mask |= 1 << src;
+		}
 
 		/* Use fixed index for SYSTIN(1), CPUTIN(2), AUXTIN(3) */
 		if (src <= data->temp_fixed_num) {
@@ -4232,11 +4243,11 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 	if (err)
 		return err;
 
-	if (force_id)
+	val = (superio_inb(sioaddr, SIO_REG_DEVID) << 8) |
+		superio_inb(sioaddr, SIO_REG_DEVID + 1);
+	if (force_id && val != 0xffff)
 		val = force_id;
-	else
-		val = (superio_inb(sioaddr, SIO_REG_DEVID) << 8)
-		    | superio_inb(sioaddr, SIO_REG_DEVID + 1);
+
 	switch (val & SIO_ID_MASK) {
 	case SIO_NCT6106_ID:
 		sio_data->kind = nct6106;

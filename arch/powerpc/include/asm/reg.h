@@ -475,6 +475,9 @@
 #define HID0_POWER8_1TO4LPAR	__MASK(51)
 #define HID0_POWER8_DYNLPARDIS	__MASK(48)
 
+/* POWER9 HID0 bits */
+#define HID0_POWER9_RADIX	__MASK(63 - 8)
+
 #define SPRN_HID1	0x3F1		/* Hardware Implementation Register 1 */
 #ifdef CONFIG_6xx
 #define HID1_EMCP	(1<<31)		/* 7450 Machine Check Pin Enable */
@@ -737,6 +740,7 @@
 #define   MMCR0_FCHV	0x00000001UL /* freeze conditions in hypervisor mode */
 #define SPRN_MMCR1	798
 #define SPRN_MMCR2	785
+#define SPRN_UMMCR2	769
 #define SPRN_MMCRA	0x312
 #define   MMCRA_SDSYNC	0x80000000UL /* SDAR synced with SIAR */
 #define   MMCRA_SDAR_DCACHE_MISS 0x40000000UL
@@ -1246,8 +1250,10 @@ static inline void mtmsr_isync(unsigned long val)
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
 #endif
+#define wrtspr(rn)	asm volatile("mtspr " __stringify(rn) ",0" : \
+				     : : "memory")
 
-extern void msr_check_and_set(unsigned long bits);
+extern unsigned long msr_check_and_set(unsigned long bits);
 extern bool strict_msr_control;
 extern void __msr_check_and_clear(unsigned long bits);
 static inline void msr_check_and_clear(unsigned long bits)

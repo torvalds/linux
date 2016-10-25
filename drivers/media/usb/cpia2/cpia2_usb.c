@@ -662,7 +662,6 @@ static int submit_urbs(struct camera_data *cam)
 		}
 		urb = usb_alloc_urb(FRAMES_PER_DESC, GFP_KERNEL);
 		if (!urb) {
-			ERR("%s: usb_alloc_urb error!\n", __func__);
 			for (j = 0; j < i; j++)
 				usb_free_urb(cam->sbuf[j].urb);
 			return -ENOMEM;

@@ -251,7 +251,7 @@ static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 		 * HW workaround, need to write this twice for issue
 		 * that may result in first write getting masked.
 		 */
-		if (HAS_PCH_IBX(dev)) {
+		if (HAS_PCH_IBX(dev_priv)) {
 			I915_WRITE(intel_sdvo->sdvo_reg, val);
 			POSTING_READ(intel_sdvo->sdvo_reg);
 		}
@@ -307,7 +307,7 @@ static bool intel_sdvo_read_byte(struct intel_sdvo *intel_sdvo, u8 addr, u8 *ch)
 static const struct _sdvo_cmd_name {
 	u8 cmd;
 	const char *name;
-} sdvo_cmd_names[] = {
+} __attribute__ ((packed)) sdvo_cmd_names[] = {
 	SDVO_CMD_NAME_ENTRY(SDVO_CMD_RESET),
 	SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_DEVICE_CAPS),
 	SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_FIRMWARE_REV),
@@ -1133,7 +1133,7 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	DRM_DEBUG_KMS("forcing bpc to 8 for SDVO\n");
 	pipe_config->pipe_bpp = 8*3;
 
-	if (HAS_PCH_SPLIT(encoder->base.dev))
+	if (HAS_PCH_SPLIT(to_i915(encoder->base.dev)))
 		pipe_config->has_pch_encoder = true;
 
 	/* We need to construct preferred input timings based on our
@@ -1273,7 +1273,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 		/* The real mode polarity is set by the SDVO commands, using
 		 * struct intel_sdvo_dtd. */
 		sdvox = SDVO_VSYNC_ACTIVE_HIGH | SDVO_HSYNC_ACTIVE_HIGH;
-		if (!HAS_PCH_SPLIT(dev) && crtc_state->limited_color_range)
+		if (!HAS_PCH_SPLIT(dev_priv) && crtc_state->limited_color_range)
 			sdvox |= HDMI_COLOR_RANGE_16_235;
 		if (INTEL_INFO(dev)->gen < 5)
 			sdvox |= SDVO_BORDER_ENABLE;
@@ -1286,7 +1286,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 		sdvox |= (9 << 19) | SDVO_BORDER_ENABLE;
 	}
 
-	if (INTEL_PCH_TYPE(dev) >= PCH_CPT)
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_CPT)
 		sdvox |= SDVO_PIPE_SEL_CPT(crtc->pipe);
 	else
 		sdvox |= SDVO_PIPE_SEL(crtc->pipe);
@@ -1296,7 +1296,8 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 
 	if (INTEL_INFO(dev)->gen >= 4) {
 		/* done in crtc_mode_set as the dpll_md reg must be written early */
-	} else if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev)) {
+	} else if (IS_I945G(dev_priv) || IS_I945GM(dev_priv) ||
+		   IS_G33(dev_priv)) {
 		/* done in crtc_mode_set as it lives inside the dpll register */
 	} else {
 		sdvox |= (crtc_state->pixel_multiplier - 1)
@@ -1339,7 +1340,7 @@ static bool intel_sdvo_get_hw_state(struct intel_encoder *encoder,
 	if (!(tmp & SDVO_ENABLE) && (active_outputs == 0))
 		return false;
 
-	if (HAS_PCH_CPT(dev))
+	if (HAS_PCH_CPT(dev_priv))
 		*pipe = PORT_TO_PIPE_CPT(tmp);
 	else
 		*pipe = PORT_TO_PIPE(tmp);
@@ -1389,7 +1390,7 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	 * encoder->get_config we so already have a valid pixel multplier on all
 	 * other platfroms.
 	 */
-	if (IS_I915G(dev) || IS_I915GM(dev)) {
+	if (IS_I915G(dev_priv) || IS_I915GM(dev_priv)) {
 		pipe_config->pixel_multiplier =
 			((sdvox & SDVO_PORT_MULTIPLY_MASK)
 			 >> SDVO_PORT_MULTIPLY_SHIFT) + 1;
@@ -1595,15 +1596,15 @@ static bool intel_sdvo_get_capabilities(struct intel_sdvo *intel_sdvo, struct in
 
 static uint16_t intel_sdvo_get_hotplug_support(struct intel_sdvo *intel_sdvo)
 {
-	struct drm_device *dev = intel_sdvo->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(intel_sdvo->base.base.dev);
 	uint16_t hotplug;
 
-	if (!I915_HAS_HOTPLUG(dev))
+	if (!I915_HAS_HOTPLUG(dev_priv))
 		return 0;
 
 	/* HW Erratum: SDVO Hotplug is broken on all i945G chips, there's noise
 	 * on the line. */
-	if (IS_I945G(dev) || IS_I945GM(dev))
+	if (IS_I945G(dev_priv) || IS_I945GM(dev_priv))
 		return 0;
 
 	if (!intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_HOT_PLUG_SUPPORT,
@@ -2981,6 +2982,7 @@ bool intel_sdvo_init(struct drm_device *dev,
 	/* encoder type will be decided later */
 	intel_encoder = &intel_sdvo->base;
 	intel_encoder->type = INTEL_OUTPUT_SDVO;
+	intel_encoder->port = port;
 	drm_encoder_init(dev, &intel_encoder->base, &intel_sdvo_enc_funcs, 0,
 			 "SDVO %c", port_name(port));
 
@@ -2996,7 +2998,7 @@ bool intel_sdvo_init(struct drm_device *dev,
 	}
 
 	intel_encoder->compute_config = intel_sdvo_compute_config;
-	if (HAS_PCH_SPLIT(dev)) {
+	if (HAS_PCH_SPLIT(dev_priv)) {
 		intel_encoder->disable = pch_disable_sdvo;
 		intel_encoder->post_disable = pch_post_disable_sdvo;
 	} else {

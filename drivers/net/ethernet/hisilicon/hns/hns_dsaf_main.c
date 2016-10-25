@@ -18,6 +18,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/vmalloc.h>
 
@@ -115,10 +116,8 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 
 			dsaf_dev->sc_base = devm_ioremap_resource(&pdev->dev,
 								  res);
-			if (IS_ERR(dsaf_dev->sc_base)) {
-				dev_err(dsaf_dev->dev, "subctrl can not map!\n");
+			if (IS_ERR(dsaf_dev->sc_base))
 				return PTR_ERR(dsaf_dev->sc_base);
-			}
 
 			res = platform_get_resource(pdev, IORESOURCE_MEM,
 						    res_idx++);
@@ -129,10 +128,8 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 
 			dsaf_dev->sds_base = devm_ioremap_resource(&pdev->dev,
 								   res);
-			if (IS_ERR(dsaf_dev->sds_base)) {
-				dev_err(dsaf_dev->dev, "serdes-ctrl can not map!\n");
+			if (IS_ERR(dsaf_dev->sds_base))
 				return PTR_ERR(dsaf_dev->sds_base);
-			}
 		} else {
 			dsaf_dev->sub_ctrl = syscon;
 		}
@@ -147,10 +144,8 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 		}
 	}
 	dsaf_dev->ppe_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(dsaf_dev->ppe_base)) {
-		dev_err(dsaf_dev->dev, "ppe-base resource can not map!\n");
+	if (IS_ERR(dsaf_dev->ppe_base))
 		return PTR_ERR(dsaf_dev->ppe_base);
-	}
 	dsaf_dev->ppe_paddr = res->start;
 
 	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
@@ -166,10 +161,8 @@ int hns_dsaf_get_cfg(struct dsaf_device *dsaf_dev)
 			}
 		}
 		dsaf_dev->io_base = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(dsaf_dev->io_base)) {
-			dev_err(dsaf_dev->dev, "dsaf-base resource can not map!\n");
+		if (IS_ERR(dsaf_dev->io_base))
 			return PTR_ERR(dsaf_dev->io_base);
-		}
 	}
 
 	ret = device_property_read_u32(dsaf_dev->dev, "desc-num", &desc_num);
@@ -765,16 +758,6 @@ void hns_dsaf_set_promisc_mode(struct dsaf_device *dsaf_dev, u32 en)
 	if (!HNS_DSAF_IS_DEBUG(dsaf_dev))
 		dsaf_set_dev_bit(dsaf_dev, DSAF_CFG_0_REG,
 				 DSAF_CFG_MIX_MODE_S, !!en);
-}
-
-void hns_dsaf_set_inner_lb(struct dsaf_device *dsaf_dev, u32 mac_id, u32 en)
-{
-	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
-	    dsaf_dev->mac_cb[mac_id]->mac_type == HNAE_PORT_DEBUG)
-		return;
-
-	dsaf_set_dev_bit(dsaf_dev, DSAFV2_SERDES_LBK_0_REG + 4 * mac_id,
-			 DSAFV2_SERDES_LBK_EN_B, !!en);
 }
 
 /**
@@ -2780,6 +2763,110 @@ static struct platform_driver g_dsaf_driver = {
 };
 
 module_platform_driver(g_dsaf_driver);
+
+/**
+ * hns_dsaf_roce_reset - reset dsaf and roce
+ * @dsaf_fwnode: Pointer to framework node for the dasf
+ * @enable: false - request reset , true - drop reset
+ * retuen 0 - success , negative -fail
+ */
+int hns_dsaf_roce_reset(struct fwnode_handle *dsaf_fwnode, bool dereset)
+{
+	struct dsaf_device *dsaf_dev;
+	struct platform_device *pdev;
+	u32 mp;
+	u32 sl;
+	u32 credit;
+	int i;
+	const u32 port_map[DSAF_ROCE_CREDIT_CHN][DSAF_ROCE_CHAN_MODE_NUM] = {
+		{DSAF_ROCE_PORT_0, DSAF_ROCE_PORT_0, DSAF_ROCE_PORT_0},
+		{DSAF_ROCE_PORT_1, DSAF_ROCE_PORT_0, DSAF_ROCE_PORT_0},
+		{DSAF_ROCE_PORT_2, DSAF_ROCE_PORT_1, DSAF_ROCE_PORT_0},
+		{DSAF_ROCE_PORT_3, DSAF_ROCE_PORT_1, DSAF_ROCE_PORT_0},
+		{DSAF_ROCE_PORT_4, DSAF_ROCE_PORT_2, DSAF_ROCE_PORT_1},
+		{DSAF_ROCE_PORT_4, DSAF_ROCE_PORT_2, DSAF_ROCE_PORT_1},
+		{DSAF_ROCE_PORT_5, DSAF_ROCE_PORT_3, DSAF_ROCE_PORT_1},
+		{DSAF_ROCE_PORT_5, DSAF_ROCE_PORT_3, DSAF_ROCE_PORT_1},
+	};
+	const u32 sl_map[DSAF_ROCE_CREDIT_CHN][DSAF_ROCE_CHAN_MODE_NUM] = {
+		{DSAF_ROCE_SL_0, DSAF_ROCE_SL_0, DSAF_ROCE_SL_0},
+		{DSAF_ROCE_SL_0, DSAF_ROCE_SL_1, DSAF_ROCE_SL_1},
+		{DSAF_ROCE_SL_0, DSAF_ROCE_SL_0, DSAF_ROCE_SL_2},
+		{DSAF_ROCE_SL_0, DSAF_ROCE_SL_1, DSAF_ROCE_SL_3},
+		{DSAF_ROCE_SL_0, DSAF_ROCE_SL_0, DSAF_ROCE_SL_0},
+		{DSAF_ROCE_SL_1, DSAF_ROCE_SL_1, DSAF_ROCE_SL_1},
+		{DSAF_ROCE_SL_0, DSAF_ROCE_SL_0, DSAF_ROCE_SL_2},
+		{DSAF_ROCE_SL_1, DSAF_ROCE_SL_1, DSAF_ROCE_SL_3},
+	};
+
+	/* find the platform device corresponding to fwnode */
+	if (is_of_node(dsaf_fwnode)) {
+		pdev = of_find_device_by_node(to_of_node(dsaf_fwnode));
+	} else if (is_acpi_device_node(dsaf_fwnode)) {
+		pdev = hns_dsaf_find_platform_device(dsaf_fwnode);
+	} else {
+		pr_err("fwnode is neither OF or ACPI type\n");
+		return -EINVAL;
+	}
+
+	/* check if we were a success in fetching pdev */
+	if (!pdev) {
+		pr_err("couldn't find platform device for node\n");
+		return -ENODEV;
+	}
+
+	/* retrieve the dsaf_device from the driver data */
+	dsaf_dev = dev_get_drvdata(&pdev->dev);
+	if (!dsaf_dev) {
+		dev_err(&pdev->dev, "dsaf_dev is NULL\n");
+		return -ENODEV;
+	}
+
+	/* now, make sure we are running on compatible SoC */
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver)) {
+		dev_err(dsaf_dev->dev, "%s v1 chip doesn't support RoCE!\n",
+			dsaf_dev->ae_dev.name);
+		return -ENODEV;
+	}
+
+	/* do reset or de-reset according to the flag */
+	if (!dereset) {
+		/* reset rocee-channels in dsaf and rocee */
+		dsaf_dev->misc_op->hns_dsaf_srst_chns(dsaf_dev, DSAF_CHNS_MASK,
+						      false);
+		dsaf_dev->misc_op->hns_dsaf_roce_srst(dsaf_dev, false);
+	} else {
+		/* configure dsaf tx roce correspond to port map and sl map */
+		mp = dsaf_read_dev(dsaf_dev, DSAF_ROCE_PORT_MAP_REG);
+		for (i = 0; i < DSAF_ROCE_CREDIT_CHN; i++)
+			dsaf_set_field(mp, 7 << i * 3, i * 3,
+				       port_map[i][DSAF_ROCE_6PORT_MODE]);
+		dsaf_set_field(mp, 3 << i * 3, i * 3, 0);
+		dsaf_write_dev(dsaf_dev, DSAF_ROCE_PORT_MAP_REG, mp);
+
+		sl = dsaf_read_dev(dsaf_dev, DSAF_ROCE_SL_MAP_REG);
+		for (i = 0; i < DSAF_ROCE_CREDIT_CHN; i++)
+			dsaf_set_field(sl, 3 << i * 2, i * 2,
+				       sl_map[i][DSAF_ROCE_6PORT_MODE]);
+		dsaf_write_dev(dsaf_dev, DSAF_ROCE_SL_MAP_REG, sl);
+
+		/* de-reset rocee-channels in dsaf and rocee */
+		dsaf_dev->misc_op->hns_dsaf_srst_chns(dsaf_dev, DSAF_CHNS_MASK,
+						      true);
+		msleep(SRST_TIME_INTERVAL);
+		dsaf_dev->misc_op->hns_dsaf_roce_srst(dsaf_dev, true);
+
+		/* enable dsaf channel rocee credit */
+		credit = dsaf_read_dev(dsaf_dev, DSAF_SBM_ROCEE_CFG_REG_REG);
+		dsaf_set_bit(credit, DSAF_SBM_ROCEE_CFG_CRD_EN_B, 0);
+		dsaf_write_dev(dsaf_dev, DSAF_SBM_ROCEE_CFG_REG_REG, credit);
+
+		dsaf_set_bit(credit, DSAF_SBM_ROCEE_CFG_CRD_EN_B, 1);
+		dsaf_write_dev(dsaf_dev, DSAF_SBM_ROCEE_CFG_REG_REG, credit);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(hns_dsaf_roce_reset);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Huawei Tech. Co., Ltd.");

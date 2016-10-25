@@ -452,10 +452,8 @@ static int stk_prepare_iso(struct stk_camera *dev)
 			STK_ERROR("isobuf data already allocated\n");
 		if (dev->isobufs[i].urb == NULL) {
 			urb = usb_alloc_urb(ISO_FRAMES_PER_DESC, GFP_KERNEL);
-			if (urb == NULL) {
-				STK_ERROR("Failed to allocate URB %d\n", i);
+			if (urb == NULL)
 				goto isobufs_out;
-			}
 			dev->isobufs[i].urb = urb;
 		} else {
 			STK_ERROR("Killing URB\n");

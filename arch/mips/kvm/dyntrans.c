@@ -13,7 +13,6 @@
 #include <linux/err.h>
 #include <linux/highmem.h>
 #include <linux/kvm_host.h>
-#include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/bootmem.h>
@@ -45,8 +44,8 @@ static int kvm_mips_trans_replace(struct kvm_vcpu *vcpu, u32 *opc,
 	} else if (KVM_GUEST_KSEGX((unsigned long) opc) == KVM_GUEST_KSEG23) {
 		local_irq_save(flags);
 		memcpy((void *)opc, (void *)&replace, sizeof(u32));
-		local_flush_icache_range((unsigned long)opc,
-					 (unsigned long)opc + 32);
+		__local_flush_icache_user_range((unsigned long)opc,
+						(unsigned long)opc + 32);
 		local_irq_restore(flags);
 	} else {
 		kvm_err("%s: Invalid address: %p\n", __func__, opc);
