@@ -1360,12 +1360,25 @@ int process_receive_ib(struct hfi1_packet *packet)
 
 int process_receive_bypass(struct hfi1_packet *packet)
 {
+	struct hfi1_devdata *dd = packet->rcd->dd;
+
 	if (unlikely(rhf_err_flags(packet->rhf)))
 		handle_eflags(packet);
 
-	dd_dev_err(packet->rcd->dd,
+	dd_dev_err(dd,
 		   "Bypass packets are not supported in normal operation. Dropping\n");
-	incr_cntr64(&packet->rcd->dd->sw_rcv_bypass_packet_errors);
+	incr_cntr64(&dd->sw_rcv_bypass_packet_errors);
+	if (!(dd->err_info_rcvport.status_and_code & OPA_EI_STATUS_SMASK)) {
+		u64 *flits = packet->ebuf;
+
+		if (flits && !(packet->rhf & RHF_LEN_ERR)) {
+			dd->err_info_rcvport.packet_flit1 = flits[0];
+			dd->err_info_rcvport.packet_flit2 =
+				packet->tlen > sizeof(flits[0]) ? flits[1] : 0;
+		}
+		dd->err_info_rcvport.status_and_code |=
+			(OPA_EI_STATUS_SMASK | BAD_L2_ERR);
+	}
 	return RHF_RCV_CONTINUE;
 }
 
