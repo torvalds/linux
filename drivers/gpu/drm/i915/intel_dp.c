@@ -1451,34 +1451,35 @@ static void intel_dp_print_rates(struct intel_dp *intel_dp)
 	DRM_DEBUG_KMS("common rates: %s\n", str);
 }
 
-static void intel_dp_print_hw_revision(struct intel_dp *intel_dp)
+static bool
+__intel_dp_read_desc(struct intel_dp *intel_dp, struct intel_dp_desc *desc)
 {
-	uint8_t rev;
-	int len;
+	u32 base = drm_dp_is_branch(intel_dp->dpcd) ? DP_BRANCH_OUI :
+						      DP_SINK_OUI;
 
-	if (!drm_dp_is_branch(intel_dp->dpcd))
-		return;
-
-	len = drm_dp_dpcd_read(&intel_dp->aux, DP_BRANCH_HW_REV, &rev, 1);
-	if (len < 0)
-		return;
-
-	DRM_DEBUG_KMS("sink hw revision: %d.%d\n", (rev & 0xf0) >> 4, rev & 0xf);
+	return drm_dp_dpcd_read(&intel_dp->aux, base, desc, sizeof(*desc)) ==
+	       sizeof(*desc);
 }
 
-static void intel_dp_print_sw_revision(struct intel_dp *intel_dp)
+static bool intel_dp_read_desc(struct intel_dp *intel_dp)
 {
-	uint8_t rev[2];
-	int len;
+	struct intel_dp_desc *desc = &intel_dp->desc;
+	bool oui_sup = intel_dp->dpcd[DP_DOWN_STREAM_PORT_COUNT] &
+		       DP_OUI_SUPPORT;
+	int dev_id_len;
 
-	if (!drm_dp_is_branch(intel_dp->dpcd))
-		return;
+	if (!__intel_dp_read_desc(intel_dp, desc))
+		return false;
 
-	len = drm_dp_dpcd_read(&intel_dp->aux, DP_BRANCH_SW_REV, &rev, 2);
-	if (len < 0)
-		return;
+	dev_id_len = strnlen(desc->device_id, sizeof(desc->device_id));
+	DRM_DEBUG_KMS("DP %s: OUI %*phD%s dev-ID %*pE HW-rev %d.%d SW-rev %d.%d\n",
+		      drm_dp_is_branch(intel_dp->dpcd) ? "branch" : "sink",
+		      (int)sizeof(desc->oui), desc->oui, oui_sup ? "" : "(NS)",
+		      dev_id_len, desc->device_id,
+		      desc->hw_rev >> 4, desc->hw_rev & 0xf,
+		      desc->sw_major_rev, desc->sw_minor_rev);
 
-	DRM_DEBUG_KMS("sink sw revision: %d.%d\n", rev[0], rev[1]);
+	return true;
 }
 
 static int rate_to_index(int find, const int *rates)
@@ -3621,23 +3622,6 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	return true;
 }
 
-static void
-intel_dp_probe_oui(struct intel_dp *intel_dp)
-{
-	bool is_branch = drm_dp_is_branch(intel_dp->dpcd);
-	u8 buf[3];
-
-	if (!(intel_dp->dpcd[DP_DOWN_STREAM_PORT_COUNT] & DP_OUI_SUPPORT))
-		return;
-
-	if (drm_dp_dpcd_read(&intel_dp->aux,
-			     is_branch ? DP_BRANCH_OUI : DP_SINK_OUI,
-			     buf, 3) == 3)
-		DRM_DEBUG_KMS("%s OUI: %02hx%02hx%02hx\n",
-			      is_branch ? "Branch" : "Sink",
-			      buf[0], buf[1], buf[2]);
-}
-
 static bool
 intel_dp_can_mst(struct intel_dp *intel_dp)
 {
@@ -4416,10 +4400,7 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 
 	intel_dp_print_rates(intel_dp);
 
-	intel_dp_probe_oui(intel_dp);
-
-	intel_dp_print_hw_revision(intel_dp);
-	intel_dp_print_sw_revision(intel_dp);
+	intel_dp_read_desc(intel_dp);
 
 	intel_dp_configure_mst(intel_dp);
 
