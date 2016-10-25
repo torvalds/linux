@@ -2113,7 +2113,7 @@ int of_genpd_parse_idle_states(struct device_node *dn,
 	struct of_phandle_iterator it;
 
 	count = of_count_phandle_with_args(dn, "domain-idle-states", NULL);
-	if (!count)
+	if (count <= 0)
 		return -EINVAL;
 
 	st = kcalloc(count, sizeof(*st), GFP_KERNEL);
