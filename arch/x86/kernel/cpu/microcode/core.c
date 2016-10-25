@@ -169,7 +169,7 @@ void load_ucode_ap(void)
 		break;
 	case X86_VENDOR_AMD:
 		if (family >= 0x10)
-			load_ucode_amd_ap();
+			load_ucode_amd_ap(family);
 		break;
 	default:
 		break;
@@ -187,7 +187,7 @@ static int __init save_microcode_in_initrd(void)
 		break;
 	case X86_VENDOR_AMD:
 		if (c->x86 >= 0x10)
-			return save_microcode_in_initrd_amd();
+			return save_microcode_in_initrd_amd(c->x86);
 		break;
 	default:
 		break;

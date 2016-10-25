@@ -65,13 +65,14 @@ extern enum ucode_state load_microcode_amd(int cpu, u8 family, const u8 *data, s
 
 #ifdef CONFIG_MICROCODE_AMD
 extern void __init load_ucode_amd_bsp(unsigned int family);
-extern void load_ucode_amd_ap(void);
-extern int __init save_microcode_in_initrd_amd(void);
+extern void load_ucode_amd_ap(unsigned int family);
+extern int __init save_microcode_in_initrd_amd(unsigned int family);
 void reload_ucode_amd(void);
 #else
 static inline void __init load_ucode_amd_bsp(unsigned int family) {}
-static inline void load_ucode_amd_ap(void) {}
-static inline int __init save_microcode_in_initrd_amd(void) { return -EINVAL; }
+static inline void load_ucode_amd_ap(unsigned int family) {}
+static inline int __init
+save_microcode_in_initrd_amd(unsigned int family) { return -EINVAL; }
 void reload_ucode_amd(void) {}
 #endif
 
