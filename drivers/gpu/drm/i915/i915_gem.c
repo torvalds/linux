@@ -3745,7 +3745,12 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 	mappable = (vma->node.start + fence_size <=
 		    dev_priv->ggtt.mappable_end);
 
-	if (mappable && fenceable)
+	/*
+	 * Explicitly disable for rotated VMA since the display does not
+	 * need the fence and the VMA is not accessible to other users.
+	 */
+	if (mappable && fenceable &&
+	    vma->ggtt_view.type != I915_GGTT_VIEW_ROTATED)
 		vma->flags |= I915_VMA_CAN_FENCE;
 	else
 		vma->flags &= ~I915_VMA_CAN_FENCE;
