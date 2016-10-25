@@ -106,6 +106,7 @@ void kvm_slot_page_track_add_page(struct kvm *kvm,
 		if (kvm_mmu_slot_gfn_write_protect(kvm, slot, gfn))
 			kvm_flush_remote_tlbs(kvm);
 }
+EXPORT_SYMBOL_GPL(kvm_slot_page_track_add_page);
 
 /*
  * remove the guest page from the tracking pool which stops the interception
@@ -135,6 +136,7 @@ void kvm_slot_page_track_remove_page(struct kvm *kvm,
 	 */
 	kvm_mmu_gfn_allow_lpage(slot, gfn);
 }
+EXPORT_SYMBOL_GPL(kvm_slot_page_track_remove_page);
 
 /*
  * check if the corresponding access on the specified guest page is tracked.
@@ -181,6 +183,7 @@ kvm_page_track_register_notifier(struct kvm *kvm,
 	hlist_add_head_rcu(&n->node, &head->track_notifier_list);
 	spin_unlock(&kvm->mmu_lock);
 }
+EXPORT_SYMBOL_GPL(kvm_page_track_register_notifier);
 
 /*
  * stop receiving the event interception. It is the opposed operation of
@@ -199,6 +202,7 @@ kvm_page_track_unregister_notifier(struct kvm *kvm,
 	spin_unlock(&kvm->mmu_lock);
 	synchronize_srcu(&head->track_srcu);
 }
+EXPORT_SYMBOL_GPL(kvm_page_track_unregister_notifier);
 
 /*
  * Notify the node that write access is intercepted and write emulation is
