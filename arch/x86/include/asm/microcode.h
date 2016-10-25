@@ -64,6 +64,7 @@ struct ucode_cpu_info {
 	void			*mc;
 };
 extern struct ucode_cpu_info ucode_cpu_info[];
+struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa);
 
 #ifdef CONFIG_MICROCODE_INTEL
 extern struct microcode_ops * __init init_intel_microcode(void);

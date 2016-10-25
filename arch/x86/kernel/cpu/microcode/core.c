@@ -39,6 +39,7 @@
 #include <asm/microcode.h>
 #include <asm/processor.h>
 #include <asm/cmdline.h>
+#include <asm/setup.h>
 
 #define MICROCODE_VERSION	"2.01"
 
@@ -194,6 +195,58 @@ static int __init save_microcode_in_initrd(void)
 	}
 
 	return -EINVAL;
+}
+
+struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa)
+{
+#ifdef CONFIG_BLK_DEV_INITRD
+	unsigned long start = 0;
+	size_t size;
+
+#ifdef CONFIG_X86_32
+	struct boot_params *params;
+
+	if (use_pa)
+		params = (struct boot_params *)__pa_nodebug(&boot_params);
+	else
+		params = &boot_params;
+
+	size = params->hdr.ramdisk_size;
+
+	/*
+	 * Set start only if we have an initrd image. We cannot use initrd_start
+	 * because it is not set that early yet.
+	 */
+	if (size)
+		start = params->hdr.ramdisk_image;
+
+# else /* CONFIG_X86_64 */
+	size  = (unsigned long)boot_params.ext_ramdisk_size << 32;
+	size |= boot_params.hdr.ramdisk_size;
+
+	if (size) {
+		start  = (unsigned long)boot_params.ext_ramdisk_image << 32;
+		start |= boot_params.hdr.ramdisk_image;
+
+		start += PAGE_OFFSET;
+	}
+# endif
+
+	/*
+	 * Did we relocate the ramdisk?
+	 *
+	 * So we possibly relocate the ramdisk *after* applying microcode on the
+	 * BSP so we rely on use_pa (use physical addresses) - even if it is not
+	 * absolutely correct - to determine whether we've done the ramdisk
+	 * relocation already.
+	 */
+	if (!use_pa && relocated_ramdisk)
+		start = initrd_start;
+
+	return find_cpio_data(path, (void *)start, size, NULL);
+#else /* !CONFIG_BLK_DEV_INITRD */
+	return (struct cpio_data){ NULL, 0, "" };
+#endif
 }
 
 void reload_early_microcode(void)
@@ -455,7 +508,8 @@ static struct attribute_group mc_attr_group = {
 
 static void microcode_fini_cpu(int cpu)
 {
-	microcode_ops->microcode_fini_cpu(cpu);
+	if (microcode_ops->microcode_fini_cpu)
+		microcode_ops->microcode_fini_cpu(cpu);
 }
 
 static enum ucode_state microcode_resume_cpu(int cpu)
@@ -584,12 +638,7 @@ static int mc_cpu_down_prep(unsigned int cpu)
 	/* Suspend is in progress, only remove the interface */
 	sysfs_remove_group(&dev->kobj, &mc_attr_group);
 	pr_debug("CPU%d removed\n", cpu);
-	/*
-	 * When a CPU goes offline, don't free up or invalidate the copy of
-	 * the microcode in kernel memory, so that we can reuse it when the
-	 * CPU comes back online without unnecessarily requesting the userspace
-	 * for it again.
-	 */
+
 	return 0;
 }
 
