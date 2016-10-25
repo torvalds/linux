@@ -182,6 +182,7 @@ xprt_rdma_bc_allocate(struct rpc_task *task)
 		return -ENOMEM;
 
 	rqst->rq_buffer = page_address(page);
+	rqst->rq_rbuffer = (char *)rqst->rq_buffer + rqst->rq_callsize;
 	return 0;
 }
 

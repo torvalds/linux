@@ -2563,6 +2563,7 @@ static int bc_malloc(struct rpc_task *task)
 	buf->len = PAGE_SIZE;
 
 	rqst->rq_buffer = buf->data;
+	rqst->rq_rbuffer = (char *)rqst->rq_buffer + rqst->rq_callsize;
 	return 0;
 }
 
