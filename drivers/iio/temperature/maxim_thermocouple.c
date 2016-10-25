@@ -137,6 +137,8 @@ static int maxim_thermocouple_read(struct maxim_thermocouple_data *data,
 	case 4:
 		*val = be32_to_cpu(buf);
 		break;
+	default:
+		ret = -EINVAL;
 	}
 
 	/* check to be sure this is a valid reading */
