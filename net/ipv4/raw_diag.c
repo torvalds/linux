@@ -3,6 +3,7 @@
 #include <linux/inet_diag.h>
 #include <linux/sock_diag.h>
 
+#include <net/inet_sock.h>
 #include <net/raw.h>
 #include <net/rawv6.h>
 
