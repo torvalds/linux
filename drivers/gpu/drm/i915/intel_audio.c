@@ -254,16 +254,15 @@ hsw_hdmi_audio_config_update(struct intel_crtc *intel_crtc, enum port port,
 	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
 	tmp |= audio_config_hdmi_pixel_clock(adjusted_mode);
 
-	if (adjusted_mode->crtc_clock == TMDS_296M ||
-	    adjusted_mode->crtc_clock == TMDS_297M) {
-		n = audio_config_hdmi_get_n(adjusted_mode, rate);
-		if (n != 0) {
-			tmp &= ~AUD_CONFIG_N_MASK;
-			tmp |= AUD_CONFIG_N(n);
-			tmp |= AUD_CONFIG_N_PROG_ENABLE;
-		} else {
-			DRM_DEBUG_KMS("no suitable N value is found\n");
-		}
+	n = audio_config_hdmi_get_n(adjusted_mode, rate);
+	if (n != 0) {
+		DRM_DEBUG_KMS("using N %d\n", n);
+
+		tmp &= ~AUD_CONFIG_N_MASK;
+		tmp |= AUD_CONFIG_N(n);
+		tmp |= AUD_CONFIG_N_PROG_ENABLE;
+	} else {
+		DRM_DEBUG_KMS("using automatic N\n");
 	}
 
 	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
