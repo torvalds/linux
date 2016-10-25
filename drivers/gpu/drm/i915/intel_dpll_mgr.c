@@ -1851,13 +1851,13 @@ void intel_shared_dpll_init(struct drm_device *dev)
 	const struct dpll_info *dpll_info;
 	int i;
 
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		dpll_mgr = &skl_pll_mgr;
-	else if (IS_BROXTON(dev))
+	else if (IS_BROXTON(dev_priv))
 		dpll_mgr = &bxt_pll_mgr;
-	else if (HAS_DDI(dev))
+	else if (HAS_DDI(dev_priv))
 		dpll_mgr = &hsw_pll_mgr;
-	else if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
+	else if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv))
 		dpll_mgr = &pch_pll_mgr;
 
 	if (!dpll_mgr) {
@@ -1883,7 +1883,7 @@ void intel_shared_dpll_init(struct drm_device *dev)
 	BUG_ON(dev_priv->num_shared_dpll > I915_NUM_PLLS);
 
 	/* FIXME: Move this to a more suitable place */
-	if (HAS_DDI(dev))
+	if (HAS_DDI(dev_priv))
 		intel_ddi_pll_init(dev);
 }
 

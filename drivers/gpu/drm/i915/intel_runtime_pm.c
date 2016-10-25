@@ -288,7 +288,6 @@ void intel_display_set_init_power(struct drm_i915_private *dev_priv,
 static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
-	struct drm_device *dev = &dev_priv->drm;
 
 	/*
 	 * After we re-enable the power well, if we touch VGA register 0x3d5
@@ -304,7 +303,7 @@ static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 	outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
 	vga_put(pdev, VGA_RSRC_LEGACY_IO);
 
-	if (IS_BROADWELL(dev))
+	if (IS_BROADWELL(dev_priv))
 		gen8_irq_power_well_post_enable(dev_priv,
 						1 << PIPE_C | 1 << PIPE_B);
 }
@@ -2590,20 +2589,19 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
  */
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 
 	power_domains->initializing = true;
 
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		skl_display_core_init(dev_priv, resume);
-	} else if (IS_BROXTON(dev)) {
+	} else if (IS_BROXTON(dev_priv)) {
 		bxt_display_core_init(dev_priv, resume);
-	} else if (IS_CHERRYVIEW(dev)) {
+	} else if (IS_CHERRYVIEW(dev_priv)) {
 		mutex_lock(&power_domains->lock);
 		chv_phy_control_init(dev_priv);
 		mutex_unlock(&power_domains->lock);
-	} else if (IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev_priv)) {
 		mutex_lock(&power_domains->lock);
 		vlv_cmnlane_wa(dev_priv);
 		mutex_unlock(&power_domains->lock);
@@ -2758,7 +2756,6 @@ void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
 void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
-	struct drm_device *dev = &dev_priv->drm;
 	struct device *kdev = &pdev->dev;
 
 	pm_runtime_set_autosuspend_delay(kdev, 10000); /* 10s */
@@ -2770,7 +2767,7 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 	 * so the driver's own RPM reference tracking asserts also work on
 	 * platforms without RPM support.
 	 */
-	if (!HAS_RUNTIME_PM(dev)) {
+	if (!HAS_RUNTIME_PM(dev_priv)) {
 		pm_runtime_dont_use_autosuspend(kdev);
 		pm_runtime_get_sync(kdev);
 	} else {

@@ -275,8 +275,7 @@ logical_ring_init_platform_invariants(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 
 	engine->disable_lite_restore_wa =
-		(IS_SKL_REVID(dev_priv, 0, SKL_REVID_B0) ||
-		 IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1)) &&
+		IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1) &&
 		(engine->id == VCS || engine->id == VCS2);
 
 	engine->ctx_desc_template = GEN8_CTX_VALID;
@@ -853,13 +852,12 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine,
 	uint32_t l3sqc4_flush = (0x40400000 | GEN8_LQSC_FLUSH_COHERENT_LINES);
 
 	/*
-	 * WaDisableLSQCROPERFforOCL:skl,kbl
+	 * WaDisableLSQCROPERFforOCL:kbl
 	 * This WA is implemented in skl_init_clock_gating() but since
 	 * this batch updates GEN8_L3SQCREG4 with default value we need to
 	 * set this bit here to retain the WA during flush.
 	 */
-	if (IS_SKL_REVID(dev_priv, 0, SKL_REVID_E0) ||
-	    IS_KBL_REVID(dev_priv, 0, KBL_REVID_E0))
+	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_E0))
 		l3sqc4_flush |= GEN8_LQSC_RO_PERF_DIS;
 
 	wa_ctx_emit(batch, index, (MI_STORE_REGISTER_MEM_GEN8 |
@@ -1002,9 +1000,8 @@ static int gen9_init_indirectctx_bb(struct intel_engine_cs *engine,
 	struct drm_i915_private *dev_priv = engine->i915;
 	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
 
-	/* WaDisableCtxRestoreArbitration:skl,bxt */
-	if (IS_SKL_REVID(dev_priv, 0, SKL_REVID_D0) ||
-	    IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
+	/* WaDisableCtxRestoreArbitration:bxt */
+	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
 		wa_ctx_emit(batch, index, MI_ARB_ON_OFF | MI_ARB_DISABLE);
 
 	/* WaFlushCoherentL3CacheLinesAtContextSwitch:skl,bxt */
@@ -1075,9 +1072,8 @@ static int gen9_init_perctx_bb(struct intel_engine_cs *engine,
 {
 	uint32_t index = wa_ctx_start(wa_ctx, *offset, CACHELINE_DWORDS);
 
-	/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:skl,bxt */
-	if (IS_SKL_REVID(engine->i915, 0, SKL_REVID_B0) ||
-	    IS_BXT_REVID(engine->i915, 0, BXT_REVID_A1)) {
+	/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:bxt */
+	if (IS_BXT_REVID(engine->i915, 0, BXT_REVID_A1)) {
 		wa_ctx_emit(batch, index, MI_LOAD_REGISTER_IMM(1));
 		wa_ctx_emit_reg(batch, index, GEN9_SLICE_COMMON_ECO_CHICKEN0);
 		wa_ctx_emit(batch, index,
@@ -1104,9 +1100,8 @@ static int gen9_init_perctx_bb(struct intel_engine_cs *engine,
 		wa_ctx_emit(batch, index, MI_NOOP);
 	}
 
-	/* WaDisableCtxRestoreArbitration:skl,bxt */
-	if (IS_SKL_REVID(engine->i915, 0, SKL_REVID_D0) ||
-	    IS_BXT_REVID(engine->i915, 0, BXT_REVID_A1))
+	/* WaDisableCtxRestoreArbitration:bxt */
+	if (IS_BXT_REVID(engine->i915, 0, BXT_REVID_A1))
 		wa_ctx_emit(batch, index, MI_ARB_ON_OFF | MI_ARB_ENABLE);
 
 	wa_ctx_emit(batch, index, MI_BATCH_BUFFER_END);
@@ -1250,8 +1245,12 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 
 	intel_engine_init_hangcheck(engine);
 
-	if (!execlists_elsp_idle(engine))
+	/* After a GPU reset, we may have requests to replay */
+	if (!execlists_elsp_idle(engine)) {
+		engine->execlist_port[0].count = 0;
+		engine->execlist_port[1].count = 0;
 		execlists_submit_ports(engine);
+	}
 
 	return 0;
 }
@@ -1326,10 +1325,7 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 		memset(&port[1], 0, sizeof(port[1]));
 	}
 
-	/* CS is stopped, and we will resubmit both ports on resume */
 	GEM_BUG_ON(request->ctx != port[0].request->ctx);
-	port[0].count = 0;
-	port[1].count = 0;
 
 	/* Reset WaIdleLiteRestore:bdw,skl as well */
 	request->tail = request->wa_tail - WA_TAIL_DWORDS * sizeof(u32);
@@ -1652,9 +1648,6 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv;
 
-	if (!intel_engine_initialized(engine))
-		return;
-
 	/*
 	 * Tasklet cannot be active at this point due intel_mark_active/idle
 	 * so this is just for documentation.
@@ -1681,13 +1674,16 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 
 	lrc_destroy_wa_ctx_obj(engine);
 	engine->i915 = NULL;
+	dev_priv->engine[engine->id] = NULL;
+	kfree(engine);
 }
 
 void intel_execlists_enable_submission(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 
-	for_each_engine(engine, dev_priv)
+	for_each_engine(engine, dev_priv, id)
 		engine->submit_request = execlists_submit_request;
 }
 
@@ -1945,7 +1941,7 @@ static void execlists_init_reg_state(u32 *reg_state,
 		       RING_START(engine->mmio_base), 0);
 	ASSIGN_CTX_REG(reg_state, CTX_RING_BUFFER_CONTROL,
 		       RING_CTL(engine->mmio_base),
-		       ((ring->size - PAGE_SIZE) & RING_NR_PAGES) | RING_VALID);
+		       RING_CTL_SIZE(ring->size) | RING_VALID);
 	ASSIGN_CTX_REG(reg_state, CTX_BB_HEAD_U,
 		       RING_BBADDR_UDW(engine->mmio_base), 0);
 	ASSIGN_CTX_REG(reg_state, CTX_BB_HEAD_L,
@@ -2153,30 +2149,43 @@ error_deref_obj:
 
 void intel_lr_context_resume(struct drm_i915_private *dev_priv)
 {
-	struct i915_gem_context *ctx = dev_priv->kernel_context;
 	struct intel_engine_cs *engine;
+	struct i915_gem_context *ctx;
+	enum intel_engine_id id;
 
-	for_each_engine(engine, dev_priv) {
-		struct intel_context *ce = &ctx->engine[engine->id];
-		void *vaddr;
-		uint32_t *reg_state;
+	/* Because we emit WA_TAIL_DWORDS there may be a disparity
+	 * between our bookkeeping in ce->ring->head and ce->ring->tail and
+	 * that stored in context. As we only write new commands from
+	 * ce->ring->tail onwards, everything before that is junk. If the GPU
+	 * starts reading from its RING_HEAD from the context, it may try to
+	 * execute that junk and die.
+	 *
+	 * So to avoid that we reset the context images upon resume. For
+	 * simplicity, we just zero everything out.
+	 */
+	list_for_each_entry(ctx, &dev_priv->context_list, link) {
+		for_each_engine(engine, dev_priv, id) {
+			struct intel_context *ce = &ctx->engine[engine->id];
+			u32 *reg;
 
-		if (!ce->state)
-			continue;
+			if (!ce->state)
+				continue;
 
-		vaddr = i915_gem_object_pin_map(ce->state->obj, I915_MAP_WB);
-		if (WARN_ON(IS_ERR(vaddr)))
-			continue;
+			reg = i915_gem_object_pin_map(ce->state->obj,
+						      I915_MAP_WB);
+			if (WARN_ON(IS_ERR(reg)))
+				continue;
 
-		reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
+			reg += LRC_STATE_PN * PAGE_SIZE / sizeof(*reg);
+			reg[CTX_RING_HEAD+1] = 0;
+			reg[CTX_RING_TAIL+1] = 0;
 
-		reg_state[CTX_RING_HEAD+1] = 0;
-		reg_state[CTX_RING_TAIL+1] = 0;
+			ce->state->obj->dirty = true;
+			i915_gem_object_unpin_map(ce->state->obj);
 
-		ce->state->obj->dirty = true;
-		i915_gem_object_unpin_map(ce->state->obj);
-
-		ce->ring->head = 0;
-		ce->ring->tail = 0;
+			ce->ring->head = ce->ring->tail = 0;
+			ce->ring->last_retired_head = -1;
+			intel_ring_update_space(ce->ring);
+		}
 	}
 }

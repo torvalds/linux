@@ -192,7 +192,7 @@ i915_gem_alloc_context_obj(struct drm_device *dev, size_t size)
 	 * This is only applicable for Ivy Bridge devices since
 	 * later platforms don't have L3 control bits in the PTE.
 	 */
-	if (IS_IVYBRIDGE(dev)) {
+	if (IS_IVYBRIDGE(to_i915(dev))) {
 		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_L3_LLC);
 		/* Failure shouldn't ever happen this early */
 		if (WARN_ON(ret)) {
@@ -474,10 +474,11 @@ int i915_gem_context_init(struct drm_device *dev)
 void i915_gem_context_lost(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
-	for_each_engine(engine, dev_priv) {
+	for_each_engine(engine, dev_priv, id) {
 		if (engine->last_context) {
 			i915_gem_context_unpin(engine->last_context, engine);
 			engine->last_context = NULL;
@@ -492,13 +493,13 @@ void i915_gem_context_lost(struct drm_i915_private *dev_priv)
 			if (!i915_gem_context_is_default(ctx))
 				continue;
 
-			for_each_engine(engine, dev_priv)
+			for_each_engine(engine, dev_priv, id)
 				ctx->engine[engine->id].initialised = false;
 
 			ctx->remap_slice = ALL_L3_SLICES(dev_priv);
 		}
 
-		for_each_engine(engine, dev_priv) {
+		for_each_engine(engine, dev_priv, id) {
 			struct intel_context *kce =
 				&dev_priv->kernel_context->engine[engine->id];
 
@@ -563,6 +564,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 	struct drm_i915_private *dev_priv = req->i915;
 	struct intel_ring *ring = req->ring;
 	struct intel_engine_cs *engine = req->engine;
+	enum intel_engine_id id;
 	u32 flags = hw_flags | MI_MM_SPACE_GTT;
 	const int num_rings =
 		/* Use an extended w/a on ivb+ if signalling from other rings */
@@ -605,7 +607,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 
 			intel_ring_emit(ring,
 					MI_LOAD_REGISTER_IMM(num_rings));
-			for_each_engine(signaller, dev_priv) {
+			for_each_engine(signaller, dev_priv, id) {
 				if (signaller == engine)
 					continue;
 
@@ -634,7 +636,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 
 			intel_ring_emit(ring,
 					MI_LOAD_REGISTER_IMM(num_rings));
-			for_each_engine(signaller, dev_priv) {
+			for_each_engine(signaller, dev_priv, id) {
 				if (signaller == engine)
 					continue;
 
@@ -929,8 +931,9 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 
-	for_each_engine(engine, dev_priv) {
+	for_each_engine(engine, dev_priv, id) {
 		struct drm_i915_gem_request *req;
 		int ret;
 

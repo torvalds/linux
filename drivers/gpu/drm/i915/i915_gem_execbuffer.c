@@ -370,8 +370,7 @@ static void reloc_cache_fini(struct reloc_cache *cache)
 
 			ggtt->base.clear_range(&ggtt->base,
 					       cache->node.start,
-					       cache->node.size,
-					       true);
+					       cache->node.size);
 			drm_mm_remove_node(&cache->node);
 		} else {
 			i915_vma_unpin((struct i915_vma *)cache->node.mm);
@@ -429,7 +428,7 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 	}
 
 	if (cache->vaddr) {
-		io_mapping_unmap_atomic(unmask_page(cache->vaddr));
+		io_mapping_unmap_atomic((void __force __iomem *) unmask_page(cache->vaddr));
 	} else {
 		struct i915_vma *vma;
 		int ret;
@@ -474,7 +473,7 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 		offset += page << PAGE_SHIFT;
 	}
 
-	vaddr = io_mapping_map_atomic_wc(&cache->i915->ggtt.mappable, offset);
+	vaddr = (void __force *) io_mapping_map_atomic_wc(&cache->i915->ggtt.mappable, offset);
 	cache->page = page;
 	cache->vaddr = (unsigned long)vaddr;
 
@@ -552,27 +551,13 @@ repeat:
 	return 0;
 }
 
-static bool object_is_idle(struct drm_i915_gem_object *obj)
-{
-	unsigned long active = i915_gem_object_get_active(obj);
-	int idx;
-
-	for_each_active(active, idx) {
-		if (!i915_gem_active_is_idle(&obj->last_read[idx],
-					     &obj->base.dev->struct_mutex))
-			return false;
-	}
-
-	return true;
-}
-
 static int
 i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 				   struct eb_vmas *eb,
 				   struct drm_i915_gem_relocation_entry *reloc,
 				   struct reloc_cache *cache)
 {
-	struct drm_device *dev = obj->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct drm_gem_object *target_obj;
 	struct drm_i915_gem_object *target_i915_obj;
 	struct i915_vma *target_vma;
@@ -591,7 +576,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	/* Sandybridge PPGTT errata: We need a global gtt mapping for MI and
 	 * pipe_control writes because the gpu doesn't properly redirect them
 	 * through the ppgtt for non_secure batchbuffers. */
-	if (unlikely(IS_GEN6(dev) &&
+	if (unlikely(IS_GEN6(dev_priv) &&
 	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION)) {
 		ret = i915_vma_bind(target_vma, target_i915_obj->cache_level,
 				    PIN_GLOBAL);
@@ -649,10 +634,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		return -EINVAL;
 	}
 
-	/* We can't wait for rendering with pagefaults disabled */
-	if (pagefault_disabled() && !object_is_idle(obj))
-		return -EFAULT;
-
 	ret = relocate_entry(obj, reloc, cache, target_offset);
 	if (ret)
 		return ret;
@@ -679,12 +660,23 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 	remain = entry->relocation_count;
 	while (remain) {
 		struct drm_i915_gem_relocation_entry *r = stack_reloc;
-		int count = remain;
-		if (count > ARRAY_SIZE(stack_reloc))
-			count = ARRAY_SIZE(stack_reloc);
+		unsigned long unwritten;
+		unsigned int count;
+
+		count = min_t(unsigned int, remain, ARRAY_SIZE(stack_reloc));
 		remain -= count;
 
-		if (__copy_from_user_inatomic(r, user_relocs, count*sizeof(r[0]))) {
+		/* This is the fast path and we cannot handle a pagefault
+		 * whilst holding the struct mutex lest the user pass in the
+		 * relocations contained within a mmaped bo. For in such a case
+		 * we, the page fault handler would call i915_gem_fault() and
+		 * we would try to acquire the struct mutex again. Obviously
+		 * this is bad and so lockdep complains vehemently.
+		 */
+		pagefault_disable();
+		unwritten = __copy_from_user_inatomic(r, user_relocs, count*sizeof(r[0]));
+		pagefault_enable();
+		if (unlikely(unwritten)) {
 			ret = -EFAULT;
 			goto out;
 		}
@@ -696,11 +688,26 @@ i915_gem_execbuffer_relocate_vma(struct i915_vma *vma,
 			if (ret)
 				goto out;
 
-			if (r->presumed_offset != offset &&
-			    __put_user(r->presumed_offset,
-				       &user_relocs->presumed_offset)) {
-				ret = -EFAULT;
-				goto out;
+			if (r->presumed_offset != offset) {
+				pagefault_disable();
+				unwritten = __put_user(r->presumed_offset,
+						       &user_relocs->presumed_offset);
+				pagefault_enable();
+				if (unlikely(unwritten)) {
+					/* Note that reporting an error now
+					 * leaves everything in an inconsistent
+					 * state as we have *already* changed
+					 * the relocation value inside the
+					 * object. As we have not changed the
+					 * reloc.presumed_offset or will not
+					 * change the execobject.offset, on the
+					 * call we may not rewrite the value
+					 * inside the object, leaving it
+					 * dangling and causing a GPU hang.
+					 */
+					ret = -EFAULT;
+					goto out;
+				}
 			}
 
 			user_relocs++;
@@ -740,20 +747,11 @@ i915_gem_execbuffer_relocate(struct eb_vmas *eb)
 	struct i915_vma *vma;
 	int ret = 0;
 
-	/* This is the fast path and we cannot handle a pagefault whilst
-	 * holding the struct mutex lest the user pass in the relocations
-	 * contained within a mmaped bo. For in such a case we, the page
-	 * fault handler would call i915_gem_fault() and we would try to
-	 * acquire the struct mutex again. Obviously this is bad and so
-	 * lockdep complains vehemently.
-	 */
-	pagefault_disable();
 	list_for_each_entry(vma, &eb->vmas, exec_list) {
 		ret = i915_gem_execbuffer_relocate_vma(vma, eb);
 		if (ret)
 			break;
 	}
-	pagefault_enable();
 
 	return ret;
 }
@@ -1599,12 +1597,12 @@ eb_select_engine(struct drm_i915_private *dev_priv,
 			return NULL;
 		}
 
-		engine = &dev_priv->engine[_VCS(bsd_idx)];
+		engine = dev_priv->engine[_VCS(bsd_idx)];
 	} else {
-		engine = &dev_priv->engine[user_ring_map[user_ring_id]];
+		engine = dev_priv->engine[user_ring_map[user_ring_id]];
 	}
 
-	if (!intel_engine_initialized(engine)) {
+	if (!engine) {
 		DRM_DEBUG("execbuf with invalid ring: %u\n", user_ring_id);
 		return NULL;
 	}

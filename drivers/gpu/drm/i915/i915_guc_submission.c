@@ -917,6 +917,7 @@ static void guc_addon_create(struct intel_guc *guc)
 	struct guc_policies *policies;
 	struct guc_mmio_reg_state *reg_state;
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	struct page *page;
 	u32 size;
 
@@ -944,10 +945,10 @@ static void guc_addon_create(struct intel_guc *guc)
 	 * so its address won't change after we've told the GuC where
 	 * to find it.
 	 */
-	engine = &dev_priv->engine[RCS];
+	engine = dev_priv->engine[RCS];
 	ads->golden_context_lrca = engine->status_page.ggtt_offset;
 
-	for_each_engine(engine, dev_priv)
+	for_each_engine(engine, dev_priv, id)
 		ads->eng_state_size[engine->guc_id] = intel_lr_context_size(engine);
 
 	/* GuC scheduling policies */
@@ -960,7 +961,7 @@ static void guc_addon_create(struct intel_guc *guc)
 	/* MMIO reg state */
 	reg_state = (void *)policies + sizeof(struct guc_policies);
 
-	for_each_engine(engine, dev_priv) {
+	for_each_engine(engine, dev_priv, id) {
 		reg_state->mmio_white_list[engine->guc_id].mmio_start =
 			engine->mmio_base + GUC_MMIO_WHITE_LIST_START;
 
@@ -1014,9 +1015,10 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
+	struct drm_i915_gem_request *request;
 	struct i915_guc_client *client;
 	struct intel_engine_cs *engine;
-	struct drm_i915_gem_request *request;
+	enum intel_engine_id id;
 
 	/* client for execbuf submission */
 	client = guc_client_alloc(dev_priv,
@@ -1033,7 +1035,7 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 	guc_init_doorbell_hw(guc);
 
 	/* Take over from manual control of ELSP (execlists) */
-	for_each_engine(engine, dev_priv) {
+	for_each_engine(engine, dev_priv, id) {
 		engine->submit_request = i915_guc_submit;
 
 		/* Replay the current set of previously submitted requests */

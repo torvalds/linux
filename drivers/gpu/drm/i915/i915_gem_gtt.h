@@ -395,7 +395,7 @@ struct i915_address_space {
 	/* FIXME: Need a more generic return type */
 	gen6_pte_t (*pte_encode)(dma_addr_t addr,
 				 enum i915_cache_level level,
-				 bool valid, u32 flags); /* Create a valid PTE */
+				 u32 flags); /* Create a valid PTE */
 	/* flags for pte_encode */
 #define PTE_READ_ONLY	(1<<0)
 	int (*allocate_va_range)(struct i915_address_space *vm,
@@ -403,8 +403,7 @@ struct i915_address_space {
 				 uint64_t length);
 	void (*clear_range)(struct i915_address_space *vm,
 			    uint64_t start,
-			    uint64_t length,
-			    bool use_scratch);
+			    uint64_t length);
 	void (*insert_page)(struct i915_address_space *vm,
 			    dma_addr_t addr,
 			    uint64_t offset,
@@ -450,6 +449,8 @@ struct i915_ggtt {
 	bool do_idle_maps;
 
 	int mtrr;
+
+	struct drm_mm_node error_capture;
 };
 
 struct i915_hw_ppgtt {

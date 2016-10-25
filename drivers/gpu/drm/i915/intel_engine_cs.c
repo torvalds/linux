@@ -82,12 +82,17 @@ static const struct engine_info {
 	},
 };
 
-static struct intel_engine_cs *
+static int
 intel_engine_setup(struct drm_i915_private *dev_priv,
 		   enum intel_engine_id id)
 {
 	const struct engine_info *info = &intel_engines[id];
-	struct intel_engine_cs *engine = &dev_priv->engine[id];
+	struct intel_engine_cs *engine;
+
+	GEM_BUG_ON(dev_priv->engine[id]);
+	engine = kzalloc(sizeof(*engine), GFP_KERNEL);
+	if (!engine)
+		return -ENOMEM;
 
 	engine->id = id;
 	engine->i915 = dev_priv;
@@ -97,7 +102,8 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	engine->mmio_base = info->mmio_base;
 	engine->irq_shift = info->irq_shift;
 
-	return engine;
+	dev_priv->engine[id] = engine;
+	return 0;
 }
 
 /**
@@ -110,13 +116,16 @@ int intel_engines_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_device_info *device_info = mkwrite_device_info(dev_priv);
+	unsigned int ring_mask = INTEL_INFO(dev_priv)->ring_mask;
 	unsigned int mask = 0;
 	int (*init)(struct intel_engine_cs *engine);
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	unsigned int i;
 	int ret;
 
-	WARN_ON(INTEL_INFO(dev_priv)->ring_mask == 0);
-	WARN_ON(INTEL_INFO(dev_priv)->ring_mask &
+	WARN_ON(ring_mask == 0);
+	WARN_ON(ring_mask &
 		GENMASK(sizeof(mask) * BITS_PER_BYTE - 1, I915_NUM_ENGINES));
 
 	for (i = 0; i < ARRAY_SIZE(intel_engines); i++) {
@@ -131,7 +140,11 @@ int intel_engines_init(struct drm_device *dev)
 		if (!init)
 			continue;
 
-		ret = init(intel_engine_setup(dev_priv, i));
+		ret = intel_engine_setup(dev_priv, i);
+		if (ret)
+			goto cleanup;
+
+		ret = init(dev_priv->engine[i]);
 		if (ret)
 			goto cleanup;
 
@@ -143,7 +156,7 @@ int intel_engines_init(struct drm_device *dev)
 	 * are added to the driver by a warning and disabling the forgotten
 	 * engines.
 	 */
-	if (WARN_ON(mask != INTEL_INFO(dev_priv)->ring_mask))
+	if (WARN_ON(mask != ring_mask))
 		device_info->ring_mask = mask;
 
 	device_info->num_rings = hweight32(mask);
@@ -151,11 +164,11 @@ int intel_engines_init(struct drm_device *dev)
 	return 0;
 
 cleanup:
-	for (i = 0; i < I915_NUM_ENGINES; i++) {
+	for_each_engine(engine, dev_priv, id) {
 		if (i915.enable_execlists)
-			intel_logical_ring_cleanup(&dev_priv->engine[i]);
+			intel_logical_ring_cleanup(engine);
 		else
-			intel_engine_cleanup(&dev_priv->engine[i]);
+			intel_engine_cleanup(engine);
 	}
 
 	return ret;
@@ -318,4 +331,138 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	intel_engine_fini_breadcrumbs(engine);
 	intel_engine_cleanup_cmd_parser(engine);
 	i915_gem_batch_pool_fini(&engine->batch_pool);
+}
+
+u64 intel_engine_get_active_head(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	u64 acthd;
+
+	if (INTEL_GEN(dev_priv) >= 8)
+		acthd = I915_READ64_2x32(RING_ACTHD(engine->mmio_base),
+					 RING_ACTHD_UDW(engine->mmio_base));
+	else if (INTEL_GEN(dev_priv) >= 4)
+		acthd = I915_READ(RING_ACTHD(engine->mmio_base));
+	else
+		acthd = I915_READ(ACTHD);
+
+	return acthd;
+}
+
+u64 intel_engine_get_last_batch_head(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	u64 bbaddr;
+
+	if (INTEL_GEN(dev_priv) >= 8)
+		bbaddr = I915_READ64_2x32(RING_BBADDR(engine->mmio_base),
+					  RING_BBADDR_UDW(engine->mmio_base));
+	else
+		bbaddr = I915_READ(RING_BBADDR(engine->mmio_base));
+
+	return bbaddr;
+}
+
+const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
+{
+	switch (type) {
+	case I915_CACHE_NONE: return " uncached";
+	case I915_CACHE_LLC: return HAS_LLC(i915) ? " LLC" : " snooped";
+	case I915_CACHE_L3_LLC: return " L3+LLC";
+	case I915_CACHE_WT: return " WT";
+	default: return "";
+	}
+}
+
+static inline uint32_t
+read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
+		  int subslice, i915_reg_t reg)
+{
+	uint32_t mcr;
+	uint32_t ret;
+	enum forcewake_domains fw_domains;
+
+	fw_domains = intel_uncore_forcewake_for_reg(dev_priv, reg,
+						    FW_REG_READ);
+	fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
+						     GEN8_MCR_SELECTOR,
+						     FW_REG_READ | FW_REG_WRITE);
+
+	spin_lock_irq(&dev_priv->uncore.lock);
+	intel_uncore_forcewake_get__locked(dev_priv, fw_domains);
+
+	mcr = I915_READ_FW(GEN8_MCR_SELECTOR);
+	/*
+	 * The HW expects the slice and sublice selectors to be reset to 0
+	 * after reading out the registers.
+	 */
+	WARN_ON_ONCE(mcr & (GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK));
+	mcr &= ~(GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK);
+	mcr |= GEN8_MCR_SLICE(slice) | GEN8_MCR_SUBSLICE(subslice);
+	I915_WRITE_FW(GEN8_MCR_SELECTOR, mcr);
+
+	ret = I915_READ_FW(reg);
+
+	mcr &= ~(GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK);
+	I915_WRITE_FW(GEN8_MCR_SELECTOR, mcr);
+
+	intel_uncore_forcewake_put__locked(dev_priv, fw_domains);
+	spin_unlock_irq(&dev_priv->uncore.lock);
+
+	return ret;
+}
+
+/* NB: please notice the memset */
+void intel_engine_get_instdone(struct intel_engine_cs *engine,
+			       struct intel_instdone *instdone)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	u32 mmio_base = engine->mmio_base;
+	int slice;
+	int subslice;
+
+	memset(instdone, 0, sizeof(*instdone));
+
+	switch (INTEL_GEN(dev_priv)) {
+	default:
+		instdone->instdone = I915_READ(RING_INSTDONE(mmio_base));
+
+		if (engine->id != RCS)
+			break;
+
+		instdone->slice_common = I915_READ(GEN7_SC_INSTDONE);
+		for_each_instdone_slice_subslice(dev_priv, slice, subslice) {
+			instdone->sampler[slice][subslice] =
+				read_subslice_reg(dev_priv, slice, subslice,
+						  GEN7_SAMPLER_INSTDONE);
+			instdone->row[slice][subslice] =
+				read_subslice_reg(dev_priv, slice, subslice,
+						  GEN7_ROW_INSTDONE);
+		}
+		break;
+	case 7:
+		instdone->instdone = I915_READ(RING_INSTDONE(mmio_base));
+
+		if (engine->id != RCS)
+			break;
+
+		instdone->slice_common = I915_READ(GEN7_SC_INSTDONE);
+		instdone->sampler[0][0] = I915_READ(GEN7_SAMPLER_INSTDONE);
+		instdone->row[0][0] = I915_READ(GEN7_ROW_INSTDONE);
+
+		break;
+	case 6:
+	case 5:
+	case 4:
+		instdone->instdone = I915_READ(RING_INSTDONE(mmio_base));
+
+		if (engine->id == RCS)
+			/* HACK: Using the wrong struct member */
+			instdone->slice_common = I915_READ(GEN4_INSTDONE1);
+		break;
+	case 3:
+	case 2:
+		instdone->instdone = I915_READ(GEN2_INSTDONE);
+		break;
+	}
 }

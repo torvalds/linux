@@ -4064,6 +4064,16 @@ F:	include/drm/i915*
 F:	include/uapi/drm/i915_drm.h
 F:	Documentation/gpu/i915.rst
 
+INTEL GVT-g DRIVERS (Intel GPU Virtualization)
+M:      Zhenyu Wang <zhenyuw@linux.intel.com>
+M:      Zhi Wang <zhi.a.wang@intel.com>
+L:      igvt-g-dev@lists.01.org
+L:      intel-gfx@lists.freedesktop.org
+W:      https://01.org/igvt-g
+T:      git https://github.com/01org/gvt-linux.git
+S:      Supported
+F:      drivers/gpu/drm/i915/gvt/
+
 DRM DRIVERS FOR ATMEL HLCDC
 M:	Boris Brezillon <boris.brezillon@free-electrons.com>
 L:	dri-devel@lists.freedesktop.org

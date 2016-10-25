@@ -290,6 +290,8 @@ i915_vma_put_fence(struct i915_vma *vma)
 {
 	struct drm_i915_fence_reg *fence = vma->fence;
 
+	assert_rpm_wakelock_held(to_i915(vma->vm->dev));
+
 	if (!fence)
 		return 0;
 
@@ -341,6 +343,8 @@ i915_vma_get_fence(struct i915_vma *vma)
 	struct drm_i915_fence_reg *fence;
 	struct i915_vma *set = i915_gem_object_is_tiled(vma->obj) ? vma : NULL;
 
+	assert_rpm_wakelock_held(to_i915(vma->vm->dev));
+
 	/* Just update our place in the LRU if our fence is getting reused. */
 	if (vma->fence) {
 		fence = vma->fence;
@@ -371,6 +375,12 @@ void i915_gem_restore_fences(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int i;
 
+	/* Note that this may be called outside of struct_mutex, by
+	 * runtime suspend/resume. The barrier we require is enforced by
+	 * rpm itself - all access to fences/GTT are only within an rpm
+	 * wakeref, and to acquire that wakeref you must pass through here.
+	 */
+
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
 		struct i915_vma *vma = reg->vma;
@@ -379,10 +389,17 @@ void i915_gem_restore_fences(struct drm_device *dev)
 		 * Commit delayed tiling changes if we have an object still
 		 * attached to the fence, otherwise just clear the fence.
 		 */
-		if (vma && !i915_gem_object_is_tiled(vma->obj))
-			vma = NULL;
+		if (vma && !i915_gem_object_is_tiled(vma->obj)) {
+			GEM_BUG_ON(!reg->dirty);
+			GEM_BUG_ON(vma->obj->fault_mappable);
 
-		fence_update(reg, vma);
+			list_move(&reg->link, &dev_priv->mm.fence_list);
+			vma->fence = NULL;
+			vma = NULL;
+		}
+
+		fence_write(reg, vma);
+		reg->vma = vma;
 	}
 }
 
@@ -448,7 +465,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 	uint32_t swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 
-	if (INTEL_INFO(dev)->gen >= 8 || IS_VALLEYVIEW(dev)) {
+	if (INTEL_GEN(dev_priv) >= 8 || IS_VALLEYVIEW(dev_priv)) {
 		/*
 		 * On BDW+, swizzling is not used. We leave the CPU memory
 		 * controller in charge of optimizing memory accesses without
@@ -487,19 +504,20 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 				swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 			}
 		}
-	} else if (IS_GEN5(dev)) {
+	} else if (IS_GEN5(dev_priv)) {
 		/* On Ironlake whatever DRAM config, GPU always do
 		 * same swizzling setup.
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 		swizzle_y = I915_BIT_6_SWIZZLE_9;
-	} else if (IS_GEN2(dev)) {
+	} else if (IS_GEN2(dev_priv)) {
 		/* As far as we know, the 865 doesn't have these bit 6
 		 * swizzling issues.
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
-	} else if (IS_MOBILE(dev) || (IS_GEN3(dev) && !IS_G33(dev))) {
+	} else if (IS_MOBILE(dev_priv) || (IS_GEN3(dev_priv) &&
+		   !IS_G33(dev_priv))) {
 		uint32_t dcc;
 
 		/* On 9xx chipsets, channel interleave by the CPU is
@@ -537,7 +555,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 		}
 
 		/* check for L-shaped memory aka modified enhanced addressing */
-		if (IS_GEN4(dev) &&
+		if (IS_GEN4(dev_priv) &&
 		    !(I915_READ(DCC2) & DCC2_MODIFIED_ENHANCED_DISABLE)) {
 			swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 			swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;

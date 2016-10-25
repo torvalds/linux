@@ -167,8 +167,47 @@ static const struct ddi_buf_trans skl_y_ddi_translations_dp[] = {
 	{ 0x80005012, 0x000000C0, 0x3 },
 };
 
+/* Kabylake H and S */
+static const struct ddi_buf_trans kbl_ddi_translations_dp[] = {
+	{ 0x00002016, 0x000000A0, 0x0 },
+	{ 0x00005012, 0x0000009B, 0x0 },
+	{ 0x00007011, 0x00000088, 0x0 },
+	{ 0x80009010, 0x000000C0, 0x1 },
+	{ 0x00002016, 0x0000009B, 0x0 },
+	{ 0x00005012, 0x00000088, 0x0 },
+	{ 0x80007011, 0x000000C0, 0x1 },
+	{ 0x00002016, 0x00000097, 0x0 },
+	{ 0x80005012, 0x000000C0, 0x1 },
+};
+
+/* Kabylake U */
+static const struct ddi_buf_trans kbl_u_ddi_translations_dp[] = {
+	{ 0x0000201B, 0x000000A1, 0x0 },
+	{ 0x00005012, 0x00000088, 0x0 },
+	{ 0x80007011, 0x000000CD, 0x3 },
+	{ 0x80009010, 0x000000C0, 0x3 },
+	{ 0x0000201B, 0x0000009D, 0x0 },
+	{ 0x80005012, 0x000000C0, 0x3 },
+	{ 0x80007011, 0x000000C0, 0x3 },
+	{ 0x00002016, 0x0000004F, 0x0 },
+	{ 0x80005012, 0x000000C0, 0x3 },
+};
+
+/* Kabylake Y */
+static const struct ddi_buf_trans kbl_y_ddi_translations_dp[] = {
+	{ 0x00001017, 0x000000A1, 0x0 },
+	{ 0x00005012, 0x00000088, 0x0 },
+	{ 0x80007011, 0x000000CD, 0x3 },
+	{ 0x8000800F, 0x000000C0, 0x3 },
+	{ 0x00001017, 0x0000009D, 0x0 },
+	{ 0x80005012, 0x000000C0, 0x3 },
+	{ 0x80007011, 0x000000C0, 0x3 },
+	{ 0x00001017, 0x0000004C, 0x0 },
+	{ 0x80005012, 0x000000C0, 0x3 },
+};
+
 /*
- * Skylake H and S
+ * Skylake/Kabylake H and S
  * eDP 1.4 low vswing translation parameters
  */
 static const struct ddi_buf_trans skl_ddi_translations_edp[] = {
@@ -185,7 +224,7 @@ static const struct ddi_buf_trans skl_ddi_translations_edp[] = {
 };
 
 /*
- * Skylake U
+ * Skylake/Kabylake U
  * eDP 1.4 low vswing translation parameters
  */
 static const struct ddi_buf_trans skl_u_ddi_translations_edp[] = {
@@ -202,7 +241,7 @@ static const struct ddi_buf_trans skl_u_ddi_translations_edp[] = {
 };
 
 /*
- * Skylake Y
+ * Skylake/Kabylake Y
  * eDP 1.4 low vswing translation parameters
  */
 static const struct ddi_buf_trans skl_y_ddi_translations_edp[] = {
@@ -218,7 +257,7 @@ static const struct ddi_buf_trans skl_y_ddi_translations_edp[] = {
 	{ 0x00000018, 0x0000008A, 0x0 },
 };
 
-/* Skylake U, H and S */
+/* Skylake/Kabylake U, H and S */
 static const struct ddi_buf_trans skl_ddi_translations_hdmi[] = {
 	{ 0x00000018, 0x000000AC, 0x0 },
 	{ 0x00005012, 0x0000009D, 0x0 },
@@ -233,7 +272,7 @@ static const struct ddi_buf_trans skl_ddi_translations_hdmi[] = {
 	{ 0x80000018, 0x000000C0, 0x1 },
 };
 
-/* Skylake Y */
+/* Skylake/Kabylake Y */
 static const struct ddi_buf_trans skl_y_ddi_translations_hdmi[] = {
 	{ 0x00000018, 0x000000A1, 0x0 },
 	{ 0x00005012, 0x000000DF, 0x0 },
@@ -334,15 +373,30 @@ bdw_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 static const struct ddi_buf_trans *
 skl_get_buf_trans_dp(struct drm_i915_private *dev_priv, int *n_entries)
 {
-	if (IS_SKL_ULX(dev_priv) || IS_KBL_ULX(dev_priv)) {
+	if (IS_SKL_ULX(dev_priv)) {
 		*n_entries = ARRAY_SIZE(skl_y_ddi_translations_dp);
 		return skl_y_ddi_translations_dp;
-	} else if (IS_SKL_ULT(dev_priv) || IS_KBL_ULT(dev_priv)) {
+	} else if (IS_SKL_ULT(dev_priv)) {
 		*n_entries = ARRAY_SIZE(skl_u_ddi_translations_dp);
 		return skl_u_ddi_translations_dp;
 	} else {
 		*n_entries = ARRAY_SIZE(skl_ddi_translations_dp);
 		return skl_ddi_translations_dp;
+	}
+}
+
+static const struct ddi_buf_trans *
+kbl_get_buf_trans_dp(struct drm_i915_private *dev_priv, int *n_entries)
+{
+	if (IS_KBL_ULX(dev_priv)) {
+		*n_entries = ARRAY_SIZE(kbl_y_ddi_translations_dp);
+		return kbl_y_ddi_translations_dp;
+	} else if (IS_KBL_ULT(dev_priv)) {
+		*n_entries = ARRAY_SIZE(kbl_u_ddi_translations_dp);
+		return kbl_u_ddi_translations_dp;
+	} else {
+		*n_entries = ARRAY_SIZE(kbl_ddi_translations_dp);
+		return kbl_ddi_translations_dp;
 	}
 }
 
@@ -362,7 +416,10 @@ skl_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 		}
 	}
 
-	return skl_get_buf_trans_dp(dev_priv, n_entries);
+	if (IS_KABYLAKE(dev_priv))
+		return kbl_get_buf_trans_dp(dev_priv, n_entries);
+	else
+		return skl_get_buf_trans_dp(dev_priv, n_entries);
 }
 
 static const struct ddi_buf_trans *
@@ -430,21 +487,18 @@ void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder)
 	if (IS_BROXTON(dev_priv))
 		return;
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	if (IS_KABYLAKE(dev_priv)) {
+		ddi_translations_fdi = NULL;
+		ddi_translations_dp =
+				kbl_get_buf_trans_dp(dev_priv, &n_dp_entries);
+		ddi_translations_edp =
+				skl_get_buf_trans_edp(dev_priv, &n_edp_entries);
+	} else if (IS_SKYLAKE(dev_priv)) {
 		ddi_translations_fdi = NULL;
 		ddi_translations_dp =
 				skl_get_buf_trans_dp(dev_priv, &n_dp_entries);
 		ddi_translations_edp =
 				skl_get_buf_trans_edp(dev_priv, &n_edp_entries);
-
-		/* If we're boosting the current, set bit 31 of trans1 */
-		if (dev_priv->vbt.ddi_port_info[port].dp_boost_level)
-			iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
-
-		if (WARN_ON(encoder->type == INTEL_OUTPUT_EDP &&
-			    port != PORT_A && port != PORT_E &&
-			    n_edp_entries > 9))
-			n_edp_entries = 9;
 	} else if (IS_BROADWELL(dev_priv)) {
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
@@ -462,6 +516,17 @@ void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder)
 		ddi_translations_dp = bdw_ddi_translations_dp;
 		n_edp_entries = ARRAY_SIZE(bdw_ddi_translations_edp);
 		n_dp_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
+	}
+
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+		/* If we're boosting the current, set bit 31 of trans1 */
+		if (dev_priv->vbt.ddi_port_info[port].dp_boost_level)
+			iboost_bit = DDI_BUF_BALANCE_LEG_ENABLE;
+
+		if (WARN_ON(encoder->type == INTEL_OUTPUT_EDP &&
+			    port != PORT_A && port != PORT_E &&
+			    n_edp_entries > 9))
+			n_edp_entries = 9;
 	}
 
 	switch (encoder->type) {
@@ -1020,13 +1085,13 @@ static void bxt_ddi_clock_get(struct intel_encoder *encoder,
 void intel_ddi_clock_get(struct intel_encoder *encoder,
 			 struct intel_crtc_state *pipe_config)
 {
-	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (INTEL_INFO(dev)->gen <= 8)
+	if (INTEL_GEN(dev_priv) <= 8)
 		hsw_ddi_clock_get(encoder, pipe_config);
-	else if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
+	else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		skl_ddi_clock_get(encoder, pipe_config);
-	else if (IS_BROXTON(dev))
+	else if (IS_BROXTON(dev_priv))
 		bxt_ddi_clock_get(encoder, pipe_config);
 }
 
@@ -1081,14 +1146,14 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 bool intel_ddi_pll_select(struct intel_crtc *intel_crtc,
 			  struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
 	struct intel_encoder *intel_encoder =
 		intel_ddi_get_crtc_new_encoder(crtc_state);
 
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		return skl_ddi_pll_select(intel_crtc, crtc_state,
 					  intel_encoder);
-	else if (IS_BROXTON(dev))
+	else if (IS_BROXTON(dev_priv))
 		return bxt_ddi_pll_select(intel_crtc, crtc_state,
 					  intel_encoder);
 	else
@@ -1189,7 +1254,7 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 			 * eDP when not using the panel fitter, and when not
 			 * using motion blur mitigation (which we don't
 			 * support). */
-			if (IS_HASWELL(dev) &&
+			if (IS_HASWELL(dev_priv) &&
 			    (intel_crtc->config->pch_pfit.enabled ||
 			     intel_crtc->config->pch_pfit.force_thru))
 				temp |= TRANS_DDI_EDP_INPUT_A_ONOFF;
@@ -1434,7 +1499,12 @@ static void skl_ddi_set_iboost(struct intel_encoder *encoder, u32 level)
 		if (dp_iboost) {
 			iboost = dp_iboost;
 		} else {
-			ddi_translations = skl_get_buf_trans_dp(dev_priv, &n_entries);
+			if (IS_KABYLAKE(dev_priv))
+				ddi_translations = kbl_get_buf_trans_dp(dev_priv,
+									&n_entries);
+			else
+				ddi_translations = skl_get_buf_trans_dp(dev_priv,
+									&n_entries);
 			iboost = ddi_translations[level].i_boost;
 		}
 	} else if (type == INTEL_OUTPUT_EDP) {
@@ -1742,7 +1812,7 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
 		intel_edp_panel_off(intel_dp);
 	}
 
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		I915_WRITE(DPLL_CTRL2, (I915_READ(DPLL_CTRL2) |
 					DPLL_CTRL2_DDI_CLK_OFF(port)));
 	else if (INTEL_INFO(dev)->gen < 9)
@@ -2438,7 +2508,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	struct intel_digital_port *intel_dig_port;
 	struct intel_encoder *intel_encoder;
 	struct drm_encoder *encoder;
-	bool init_hdmi, init_dp;
+	bool init_hdmi, init_dp, init_lspcon = false;
 	int max_lanes;
 
 	if (I915_READ(DDI_BUF_CTL(PORT_A)) & DDI_A_4_LANES) {
@@ -2470,6 +2540,19 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	init_hdmi = (dev_priv->vbt.ddi_port_info[port].supports_dvi ||
 		     dev_priv->vbt.ddi_port_info[port].supports_hdmi);
 	init_dp = dev_priv->vbt.ddi_port_info[port].supports_dp;
+
+	if (intel_bios_is_lspcon_present(dev_priv, port)) {
+		/*
+		 * Lspcon device needs to be driven with DP connector
+		 * with special detection sequence. So make sure DP
+		 * is initialized before lspcon.
+		 */
+		init_dp = true;
+		init_lspcon = true;
+		init_hdmi = false;
+		DRM_DEBUG_KMS("VBT says port %c has lspcon\n", port_name(port));
+	}
+
 	if (!init_dp && !init_hdmi) {
 		DRM_DEBUG_KMS("VBT says port %c is not DVI/HDMI/DP compatible, respect it\n",
 			      port_name(port));
@@ -2509,7 +2592,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	 * configuration so that we use the proper lane count for our
 	 * calculations.
 	 */
-	if (IS_BROXTON(dev) && port == PORT_A) {
+	if (IS_BROXTON(dev_priv) && port == PORT_A) {
 		if (!(intel_dig_port->saved_port_bits & DDI_A_4_LANES)) {
 			DRM_DEBUG_KMS("BXT BIOS forgot to set DDI_A_4_LANES for port A; fixing\n");
 			intel_dig_port->saved_port_bits |= DDI_A_4_LANES;
@@ -2520,6 +2603,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_dig_port->max_lanes = max_lanes;
 
 	intel_encoder->type = INTEL_OUTPUT_UNKNOWN;
+	intel_encoder->port = port;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 	intel_encoder->cloneable = 0;
 
@@ -2532,7 +2616,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 		 * On BXT A0/A1, sw needs to activate DDIA HPD logic and
 		 * interrupts to check the external panel connection.
 		 */
-		if (IS_BXT_REVID(dev, 0, BXT_REVID_A1) && port == PORT_B)
+		if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1) && port == PORT_B)
 			dev_priv->hotplug.irq_port[PORT_A] = intel_dig_port;
 		else
 			dev_priv->hotplug.irq_port[port] = intel_dig_port;
@@ -2543,6 +2627,20 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	if (intel_encoder->type != INTEL_OUTPUT_EDP && init_hdmi) {
 		if (!intel_ddi_init_hdmi_connector(intel_dig_port))
 			goto err;
+	}
+
+	if (init_lspcon) {
+		if (lspcon_init(intel_dig_port))
+			/* TODO: handle hdmi info frame part */
+			DRM_DEBUG_KMS("LSPCON init success on port %c\n",
+				port_name(port));
+		else
+			/*
+			 * LSPCON init faied, but DP init was success, so
+			 * lets try to drive as DP++ port.
+			 */
+			DRM_ERROR("LSPCON init failed on port %c\n",
+				port_name(port));
 	}
 
 	return;

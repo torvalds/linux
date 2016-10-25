@@ -412,16 +412,14 @@ intel_dvo_get_current_mode(struct drm_connector *connector)
 	return mode;
 }
 
-static char intel_dvo_port_name(i915_reg_t dvo_reg)
+static enum port intel_dvo_port(i915_reg_t dvo_reg)
 {
 	if (i915_mmio_reg_equal(dvo_reg, DVOA))
-		return 'A';
+		return PORT_A;
 	else if (i915_mmio_reg_equal(dvo_reg, DVOB))
-		return 'B';
-	else if (i915_mmio_reg_equal(dvo_reg, DVOC))
-		return 'C';
+		return PORT_B;
 	else
-		return '?';
+		return PORT_C;
 }
 
 void intel_dvo_init(struct drm_device *dev)
@@ -464,6 +462,7 @@ void intel_dvo_init(struct drm_device *dev)
 		bool dvoinit;
 		enum pipe pipe;
 		uint32_t dpll[I915_MAX_PIPES];
+		enum port port;
 
 		/* Allow the I2C driver info to specify the GPIO to be used in
 		 * special cases, but otherwise default to what's defined
@@ -511,12 +510,15 @@ void intel_dvo_init(struct drm_device *dev)
 		if (!dvoinit)
 			continue;
 
+		port = intel_dvo_port(dvo->dvo_reg);
 		drm_encoder_init(dev, &intel_encoder->base,
 				 &intel_dvo_enc_funcs, encoder_type,
-				 "DVO %c", intel_dvo_port_name(dvo->dvo_reg));
+				 "DVO %c", port_name(port));
 
 		intel_encoder->type = INTEL_OUTPUT_DVO;
+		intel_encoder->port = port;
 		intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
+
 		switch (dvo->type) {
 		case INTEL_DVO_CHIP_TMDS:
 			intel_encoder->cloneable = (1 << INTEL_OUTPUT_ANALOG) |

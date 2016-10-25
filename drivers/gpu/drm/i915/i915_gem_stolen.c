@@ -115,7 +115,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		pci_read_config_dword(pdev, INTEL_BSM, &bsm);
 
 		base = bsm & INTEL_BSM_MASK;
-	} else if (IS_I865G(dev)) {
+	} else if (IS_I865G(dev_priv)) {
 		u32 tseg_size = 0;
 		u16 toud = 0;
 		u8 tmp;
@@ -154,7 +154,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		tom = tmp * MB(32);
 
 		base = tom - tseg_size - ggtt->stolen_size;
-	} else if (IS_845G(dev)) {
+	} else if (IS_845G(dev_priv)) {
 		u32 tseg_size = 0;
 		u32 tom;
 		u8 tmp;
@@ -178,7 +178,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		tom = tmp * MB(32);
 
 		base = tom - tseg_size - ggtt->stolen_size;
-	} else if (IS_I830(dev)) {
+	} else if (IS_I830(dev_priv)) {
 		u32 tseg_size = 0;
 		u32 tom;
 		u8 tmp;
@@ -204,7 +204,8 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		return 0;
 
 	/* make sure we don't clobber the GTT if it's within stolen memory */
-	if (INTEL_INFO(dev)->gen <= 4 && !IS_G33(dev) && !IS_G4X(dev)) {
+	if (INTEL_GEN(dev_priv) <= 4 && !IS_G33(dev_priv) &&
+	    !IS_G4X(dev_priv)) {
 		struct {
 			u32 start, end;
 		} stolen[2] = {
@@ -214,7 +215,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		u64 ggtt_start, ggtt_end;
 
 		ggtt_start = I915_READ(PGTBL_CTL);
-		if (IS_GEN4(dev))
+		if (IS_GEN4(dev_priv))
 			ggtt_start = (ggtt_start & PGTBL_ADDRESS_LO_MASK) |
 				     (ggtt_start & PGTBL_ADDRESS_HI_MASK) << 28;
 		else
@@ -270,7 +271,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		 * GEN3 firmware likes to smash pci bridges into the stolen
 		 * range. Apparently this works.
 		 */
-		if (r == NULL && !IS_GEN3(dev)) {
+		if (r == NULL && !IS_GEN3(dev_priv)) {
 			DRM_ERROR("conflict detected with stolen region: [0x%08x - 0x%08x]\n",
 				  base, base + (uint32_t)ggtt->stolen_size);
 			base = 0;
@@ -437,7 +438,7 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	case 3:
 		break;
 	case 4:
-		if (IS_G4X(dev))
+		if (IS_G4X(dev_priv))
 			g4x_get_stolen_reserved(dev_priv, &reserved_base,
 						&reserved_size);
 		break;
@@ -456,7 +457,7 @@ int i915_gem_init_stolen(struct drm_device *dev)
 		break;
 	default:
 		if (IS_BROADWELL(dev_priv) ||
-		    IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev))
+		    IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 			bdw_get_stolen_reserved(dev_priv, &reserved_base,
 						&reserved_size);
 		else

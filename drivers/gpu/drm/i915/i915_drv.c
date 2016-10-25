@@ -114,7 +114,7 @@ static bool i915_error_injected(struct drm_i915_private *dev_priv)
 		      fmt, ##__VA_ARGS__)
 
 
-static enum intel_pch intel_virt_detect_pch(struct drm_device *dev)
+static enum intel_pch intel_virt_detect_pch(struct drm_i915_private *dev_priv)
 {
 	enum intel_pch ret = PCH_NOP;
 
@@ -125,16 +125,16 @@ static enum intel_pch intel_virt_detect_pch(struct drm_device *dev)
 	 * make an educated guess as to which PCH is really there.
 	 */
 
-	if (IS_GEN5(dev)) {
+	if (IS_GEN5(dev_priv)) {
 		ret = PCH_IBX;
 		DRM_DEBUG_KMS("Assuming Ibex Peak PCH\n");
-	} else if (IS_GEN6(dev) || IS_IVYBRIDGE(dev)) {
+	} else if (IS_GEN6(dev_priv) || IS_IVYBRIDGE(dev_priv)) {
 		ret = PCH_CPT;
 		DRM_DEBUG_KMS("Assuming CouarPoint PCH\n");
-	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		ret = PCH_LPT;
 		DRM_DEBUG_KMS("Assuming LynxPoint PCH\n");
-	} else if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
+	} else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		ret = PCH_SPT;
 		DRM_DEBUG_KMS("Assuming SunrisePoint PCH\n");
 	}
@@ -174,40 +174,46 @@ static void intel_detect_pch(struct drm_device *dev)
 			if (id == INTEL_PCH_IBX_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_IBX;
 				DRM_DEBUG_KMS("Found Ibex Peak PCH\n");
-				WARN_ON(!IS_GEN5(dev));
+				WARN_ON(!IS_GEN5(dev_priv));
 			} else if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_CPT;
 				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
-				WARN_ON(!(IS_GEN6(dev) || IS_IVYBRIDGE(dev)));
+				WARN_ON(!(IS_GEN6(dev_priv) ||
+					IS_IVYBRIDGE(dev_priv)));
 			} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
 				/* PantherPoint is CPT compatible */
 				dev_priv->pch_type = PCH_CPT;
 				DRM_DEBUG_KMS("Found PantherPoint PCH\n");
-				WARN_ON(!(IS_GEN6(dev) || IS_IVYBRIDGE(dev)));
+				WARN_ON(!(IS_GEN6(dev_priv) ||
+					IS_IVYBRIDGE(dev_priv)));
 			} else if (id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_LPT;
 				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
-				WARN_ON(!IS_HASWELL(dev) && !IS_BROADWELL(dev));
-				WARN_ON(IS_HSW_ULT(dev) || IS_BDW_ULT(dev));
+				WARN_ON(!IS_HASWELL(dev_priv) &&
+					!IS_BROADWELL(dev_priv));
+				WARN_ON(IS_HSW_ULT(dev_priv) ||
+					IS_BDW_ULT(dev_priv));
 			} else if (id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_LPT;
 				DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
-				WARN_ON(!IS_HASWELL(dev) && !IS_BROADWELL(dev));
-				WARN_ON(!IS_HSW_ULT(dev) && !IS_BDW_ULT(dev));
+				WARN_ON(!IS_HASWELL(dev_priv) &&
+					!IS_BROADWELL(dev_priv));
+				WARN_ON(!IS_HSW_ULT(dev_priv) &&
+					!IS_BDW_ULT(dev_priv));
 			} else if (id == INTEL_PCH_SPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_SPT;
 				DRM_DEBUG_KMS("Found SunrisePoint PCH\n");
-				WARN_ON(!IS_SKYLAKE(dev) &&
-					!IS_KABYLAKE(dev));
+				WARN_ON(!IS_SKYLAKE(dev_priv) &&
+					!IS_KABYLAKE(dev_priv));
 			} else if (id == INTEL_PCH_SPT_LP_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_SPT;
 				DRM_DEBUG_KMS("Found SunrisePoint LP PCH\n");
-				WARN_ON(!IS_SKYLAKE(dev) &&
-					!IS_KABYLAKE(dev));
+				WARN_ON(!IS_SKYLAKE(dev_priv) &&
+					!IS_KABYLAKE(dev_priv));
 			} else if (id == INTEL_PCH_KBP_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_KBP;
 				DRM_DEBUG_KMS("Found KabyPoint PCH\n");
-				WARN_ON(!IS_KABYLAKE(dev));
+				WARN_ON(!IS_KABYLAKE(dev_priv));
 			} else if ((id == INTEL_PCH_P2X_DEVICE_ID_TYPE) ||
 				   (id == INTEL_PCH_P3X_DEVICE_ID_TYPE) ||
 				   ((id == INTEL_PCH_QEMU_DEVICE_ID_TYPE) &&
@@ -215,7 +221,8 @@ static void intel_detect_pch(struct drm_device *dev)
 					    PCI_SUBVENDOR_ID_REDHAT_QUMRANET &&
 				    pch->subsystem_device ==
 					    PCI_SUBDEVICE_ID_QEMU)) {
-				dev_priv->pch_type = intel_virt_detect_pch(dev);
+				dev_priv->pch_type =
+					intel_virt_detect_pch(dev_priv);
 			} else
 				continue;
 
@@ -255,16 +262,16 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = dev_priv->overlay ? 1 : 0;
 		break;
 	case I915_PARAM_HAS_BSD:
-		value = intel_engine_initialized(&dev_priv->engine[VCS]);
+		value = !!dev_priv->engine[VCS];
 		break;
 	case I915_PARAM_HAS_BLT:
-		value = intel_engine_initialized(&dev_priv->engine[BCS]);
+		value = !!dev_priv->engine[BCS];
 		break;
 	case I915_PARAM_HAS_VEBOX:
-		value = intel_engine_initialized(&dev_priv->engine[VECS]);
+		value = !!dev_priv->engine[VECS];
 		break;
 	case I915_PARAM_HAS_BSD2:
-		value = intel_engine_initialized(&dev_priv->engine[VCS2]);
+		value = !!dev_priv->engine[VCS2];
 		break;
 	case I915_PARAM_HAS_EXEC_CONSTANTS:
 		value = INTEL_GEN(dev_priv) >= 4;
@@ -417,12 +424,12 @@ intel_setup_mchbar(struct drm_device *dev)
 	u32 temp;
 	bool enabled;
 
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		return;
 
 	dev_priv->mchbar_need_disable = false;
 
-	if (IS_I915G(dev) || IS_I915GM(dev)) {
+	if (IS_I915G(dev_priv) || IS_I915GM(dev_priv)) {
 		pci_read_config_dword(dev_priv->bridge_dev, DEVEN, &temp);
 		enabled = !!(temp & DEVEN_MCHBAR_EN);
 	} else {
@@ -440,7 +447,7 @@ intel_setup_mchbar(struct drm_device *dev)
 	dev_priv->mchbar_need_disable = true;
 
 	/* Space is allocated or reserved, so enable it. */
-	if (IS_I915G(dev) || IS_I915GM(dev)) {
+	if (IS_I915G(dev_priv) || IS_I915GM(dev_priv)) {
 		pci_write_config_dword(dev_priv->bridge_dev, DEVEN,
 				       temp | DEVEN_MCHBAR_EN);
 	} else {
@@ -456,7 +463,7 @@ intel_teardown_mchbar(struct drm_device *dev)
 	int mchbar_reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 
 	if (dev_priv->mchbar_need_disable) {
-		if (IS_I915G(dev) || IS_I915GM(dev)) {
+		if (IS_I915G(dev_priv) || IS_I915GM(dev_priv)) {
 			u32 deven_val;
 
 			pci_read_config_dword(dev_priv->bridge_dev, DEVEN,
@@ -532,32 +539,6 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 
 static void i915_gem_fini(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	/*
-	 * Neither the BIOS, ourselves or any other kernel
-	 * expects the system to be in execlists mode on startup,
-	 * so we need to reset the GPU back to legacy mode. And the only
-	 * known way to disable logical contexts is through a GPU reset.
-	 *
-	 * So in order to leave the system in a known default configuration,
-	 * always reset the GPU upon unload. Afterwards we then clean up the
-	 * GEM state tracking, flushing off the requests and leaving the
-	 * system in a known idle state.
-	 *
-	 * Note that is of the upmost importance that the GPU is idle and
-	 * all stray writes are flushed *before* we dismantle the backing
-	 * storage for the pinned objects.
-	 *
-	 * However, since we are uncertain that reseting the GPU on older
-	 * machines is a good idea, we don't - just in case it leaves the
-	 * machine in an unusable condition.
-	 */
-	if (HAS_HW_CONTEXTS(dev)) {
-		int reset = intel_gpu_reset(dev_priv, ALL_ENGINES);
-		WARN_ON(reset && reset != -ENODEV);
-	}
-
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_engines(dev);
 	i915_gem_context_fini(dev);
@@ -636,6 +617,8 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	return 0;
 
 cleanup_gem:
+	if (i915_gem_suspend(dev))
+		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
 	i915_gem_fini(dev);
 cleanup_irq:
 	intel_guc_fini(dev);
@@ -771,6 +754,19 @@ static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
 	destroy_workqueue(dev_priv->wq);
 }
 
+/*
+ * We don't keep the workarounds for pre-production hardware, so we expect our
+ * driver to fail on these machines in one way or another. A little warning on
+ * dmesg may help both the user and the bug triagers.
+ */
+static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
+{
+	if (IS_HSW_EARLY_SDV(dev_priv) ||
+	    IS_SKL_REVID(dev_priv, 0, SKL_REVID_F0))
+		DRM_ERROR("This is a pre-production stepping. "
+			  "It may not be fully functional.\n");
+}
+
 /**
  * i915_driver_init_early - setup state not requiring device access
  * @dev_priv: device private
@@ -838,13 +834,7 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 	intel_device_info_dump(dev_priv);
 
-	/* Not all pre-production machines fall into this category, only the
-	 * very first ones. Almost everything should work, except for maybe
-	 * suspend/resume. And we don't implement workarounds that affect only
-	 * pre-production machines. */
-	if (IS_HSW_EARLY_SDV(dev_priv))
-		DRM_INFO("This is an early pre-production Haswell machine. "
-			 "It may not be fully functional.\n");
+	intel_detect_preproduction_hw(dev_priv);
 
 	return 0;
 
@@ -870,7 +860,7 @@ static int i915_mmio_setup(struct drm_device *dev)
 	int mmio_bar;
 	int mmio_size;
 
-	mmio_bar = IS_GEN2(dev) ? 1 : 0;
+	mmio_bar = IS_GEN2(dev_priv) ? 1 : 0;
 	/*
 	 * Before gen4, the registers and the GTT are behind different BARs.
 	 * However, from gen4 onwards, the registers and the GTT are shared
@@ -1023,7 +1013,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	pci_set_master(pdev);
 
 	/* overlay on gen2 is broken and can't address above 1G */
-	if (IS_GEN2(dev)) {
+	if (IS_GEN2(dev_priv)) {
 		ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(30));
 		if (ret) {
 			DRM_ERROR("failed to set DMA mask\n");
@@ -1070,7 +1060,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	 * be lost or delayed, but we use them anyways to avoid
 	 * stuck interrupts on some machines.
 	 */
-	if (!IS_I945G(dev) && !IS_I945GM(dev)) {
+	if (!IS_I945G(dev_priv) && !IS_I945GM(dev_priv)) {
 		if (pci_enable_msi(pdev) < 0)
 			DRM_DEBUG_DRIVER("can't enable MSI");
 	}
@@ -1242,6 +1232,10 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
 		 driver.name, driver.major, driver.minor, driver.patchlevel,
 		 driver.date, pci_name(pdev), dev_priv->drm.primary->index);
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG))
+		DRM_INFO("DRM_I915_DEBUG enabled\n");
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		DRM_INFO("DRM_I915_DEBUG_GEM enabled\n");
 
 	intel_runtime_pm_put(dev_priv);
 
@@ -1447,8 +1441,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	dev_priv->suspend_count++;
 
-	intel_display_set_init_power(dev_priv, false);
-
 	intel_csr_ucode_suspend(dev_priv);
 
 out:
@@ -1465,6 +1457,8 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	int ret;
 
 	disable_rpm_wakeref_asserts(dev_priv);
+
+	intel_display_set_init_power(dev_priv, false);
 
 	fw_csr = !IS_BROXTON(dev_priv) &&
 		suspend_to_idle(dev_priv) && dev_priv->csr.dmc_payload;
@@ -1721,6 +1715,22 @@ int i915_resume_switcheroo(struct drm_device *dev)
 	return i915_drm_resume(dev);
 }
 
+static void disable_engines_irq(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	/* Ensure irq handler finishes, and not run again. */
+	disable_irq(dev_priv->drm.irq);
+	for_each_engine(engine, dev_priv, id)
+		tasklet_kill(&engine->irq_tasklet);
+}
+
+static void enable_engines_irq(struct drm_i915_private *dev_priv)
+{
+	enable_irq(dev_priv->drm.irq);
+}
+
 /**
  * i915_reset - reset chip after a hang
  * @dev: drm device to reset
@@ -1754,7 +1764,11 @@ void i915_reset(struct drm_i915_private *dev_priv)
 	error->reset_count++;
 
 	pr_notice("drm/i915: Resetting chip after gpu hang\n");
+
+	disable_engines_irq(dev_priv);
 	ret = intel_gpu_reset(dev_priv, ALL_ENGINES);
+	enable_engines_irq(dev_priv);
+
 	if (ret) {
 		if (ret != -ENODEV)
 			DRM_ERROR("Failed to reset chip: %i\n", ret);
@@ -2282,7 +2296,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	if (WARN_ON_ONCE(!(dev_priv->rps.enabled && intel_enable_rc6())))
 		return -ENODEV;
 
-	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev)))
+	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev_priv)))
 		return -ENODEV;
 
 	DRM_DEBUG_KMS("Suspending device\n");
@@ -2386,7 +2400,7 @@ static int intel_runtime_resume(struct device *kdev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret = 0;
 
-	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev)))
+	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev_priv)))
 		return -ENODEV;
 
 	DRM_DEBUG_KMS("Resuming device\n");
@@ -2404,7 +2418,7 @@ static int intel_runtime_resume(struct device *kdev)
 	if (IS_GEN6(dev_priv))
 		intel_init_pch_refclk(dev);
 
-	if (IS_BROXTON(dev)) {
+	if (IS_BROXTON(dev_priv)) {
 		bxt_disable_dc9(dev_priv);
 		bxt_display_core_init(dev_priv, true);
 		if (dev_priv->csr.dmc_payload &&

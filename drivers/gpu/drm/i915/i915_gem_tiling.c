@@ -62,6 +62,7 @@
 static bool
 i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int tile_width;
 
 	/* Linear is always fine */
@@ -71,8 +72,8 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	if (tiling_mode > I915_TILING_LAST)
 		return false;
 
-	if (IS_GEN2(dev) ||
-	    (tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev)))
+	if (IS_GEN2(dev_priv) ||
+	    (tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev_priv)))
 		tile_width = 128;
 	else
 		tile_width = 512;
@@ -90,7 +91,7 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 		if (stride > 8192)
 			return false;
 
-		if (IS_GEN3(dev)) {
+		if (IS_GEN3(dev_priv)) {
 			if (size > I830_FENCE_MAX_SIZE_VAL << 20)
 				return false;
 		} else {

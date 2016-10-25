@@ -73,13 +73,40 @@ enum intel_engine_hangcheck_action {
 
 #define HANGCHECK_SCORE_RING_HUNG 31
 
+#define I915_MAX_SLICES	3
+#define I915_MAX_SUBSLICES 3
+
+#define instdone_slice_mask(dev_priv__) \
+	(INTEL_GEN(dev_priv__) == 7 ? \
+	 1 : INTEL_INFO(dev_priv__)->sseu.slice_mask)
+
+#define instdone_subslice_mask(dev_priv__) \
+	(INTEL_GEN(dev_priv__) == 7 ? \
+	 1 : INTEL_INFO(dev_priv__)->sseu.subslice_mask)
+
+#define for_each_instdone_slice_subslice(dev_priv__, slice__, subslice__) \
+	for ((slice__) = 0, (subslice__) = 0; \
+	     (slice__) < I915_MAX_SLICES; \
+	     (subslice__) = ((subslice__) + 1) < I915_MAX_SUBSLICES ? (subslice__) + 1 : 0, \
+	       (slice__) += ((subslice__) == 0)) \
+		for_each_if((BIT(slice__) & instdone_slice_mask(dev_priv__)) && \
+			    (BIT(subslice__) & instdone_subslice_mask(dev_priv__)))
+
+struct intel_instdone {
+	u32 instdone;
+	/* The following exist only in the RCS engine */
+	u32 slice_common;
+	u32 sampler[I915_MAX_SLICES][I915_MAX_SUBSLICES];
+	u32 row[I915_MAX_SLICES][I915_MAX_SUBSLICES];
+};
+
 struct intel_engine_hangcheck {
 	u64 acthd;
 	u32 seqno;
 	int score;
 	enum intel_engine_hangcheck_action action;
 	int deadlock;
-	u32 instdone[I915_NUM_INSTDONE_REG];
+	struct intel_instdone instdone;
 };
 
 struct intel_ring {
@@ -368,12 +395,6 @@ struct intel_engine_cs {
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 };
 
-static inline bool
-intel_engine_initialized(const struct intel_engine_cs *engine)
-{
-	return engine->i915 != NULL;
-}
-
 static inline unsigned
 intel_engine_flag(const struct intel_engine_cs *engine)
 {
@@ -394,7 +415,7 @@ intel_engine_sync_index(struct intel_engine_cs *engine,
 	 * vcs2 -> 0 = rcs, 1 = vcs, 2 = bcs, 3 = vecs;
 	 */
 
-	idx = (other - engine) - 1;
+	idx = (other->id - engine->id) - 1;
 	if (idx < 0)
 		idx += I915_NUM_ENGINES;
 
@@ -514,12 +535,17 @@ int intel_init_blt_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine);
 
 u64 intel_engine_get_active_head(struct intel_engine_cs *engine);
+u64 intel_engine_get_last_batch_head(struct intel_engine_cs *engine);
+
 static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine)
 {
 	return intel_read_status_page(engine, I915_GEM_HWS_INDEX);
 }
 
 int init_workarounds_ring(struct intel_engine_cs *engine);
+
+void intel_engine_get_instdone(struct intel_engine_cs *engine,
+			       struct intel_instdone *instdone);
 
 /*
  * Arbitrary size for largest possible 'add request' sequence. The code paths

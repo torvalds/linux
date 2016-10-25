@@ -256,10 +256,11 @@ static int i915_gem_check_wedge(struct drm_i915_private *dev_priv)
 static int i915_gem_init_seqno(struct drm_i915_private *dev_priv, u32 seqno)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	int ret;
 
 	/* Carefully retire all requests without writing to the rings */
-	for_each_engine(engine, dev_priv) {
+	for_each_engine(engine, dev_priv, id) {
 		ret = intel_engine_idle(engine,
 					I915_WAIT_INTERRUPTIBLE |
 					I915_WAIT_LOCKED);
@@ -276,7 +277,7 @@ static int i915_gem_init_seqno(struct drm_i915_private *dev_priv, u32 seqno)
 	}
 
 	/* Finally reset hw state */
-	for_each_engine(engine, dev_priv)
+	for_each_engine(engine, dev_priv, id)
 		intel_engine_init_seqno(engine, seqno);
 
 	return 0;
