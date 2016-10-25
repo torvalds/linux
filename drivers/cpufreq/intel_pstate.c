@@ -1543,11 +1543,17 @@ static void intel_pstate_set_performance_limits(struct perf_limits *limits)
 static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
 					    struct perf_limits *limits)
 {
-	limits->min_policy_pct = (policy->min * 100) / policy->cpuinfo.max_freq;
-	limits->min_policy_pct = clamp_t(int, limits->min_policy_pct, 0, 100);
 	limits->max_policy_pct = DIV_ROUND_UP(policy->max * 100,
 					      policy->cpuinfo.max_freq);
 	limits->max_policy_pct = clamp_t(int, limits->max_policy_pct, 0, 100);
+	if (policy->max == policy->min) {
+		limits->min_policy_pct = limits->max_policy_pct;
+	} else {
+		limits->min_policy_pct = (policy->min * 100) /
+						policy->cpuinfo.max_freq;
+		limits->min_policy_pct = clamp_t(int, limits->min_policy_pct,
+						 0, 100);
+	}
 
 	/* Normalize user input to [min_policy_pct, max_policy_pct] */
 	limits->min_perf_pct = max(limits->min_policy_pct,
