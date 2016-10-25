@@ -187,7 +187,7 @@ static ssize_t wakeup_data_show(struct device *dev,
 	ssize_t buf_len = 0;
 	int i;
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 
 	fifo_len = nvt_cir_wake_reg_read(nvt, CIR_WAKE_FIFO_COUNT);
 	fifo_len = min(fifo_len, WAKEUP_MAX_SIZE);
@@ -204,7 +204,7 @@ static ssize_t wakeup_data_show(struct device *dev,
 	}
 	buf_len += snprintf(buf + buf_len, PAGE_SIZE - buf_len, "\n");
 
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 
 	return buf_len;
 }
@@ -248,7 +248,7 @@ static ssize_t wakeup_data_store(struct device *dev,
 	/* hardcode the tolerance to 10% */
 	tolerance = DIV_ROUND_UP(count, 10);
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 
 	nvt_clear_cir_wake_fifo(nvt);
 	nvt_cir_wake_reg_write(nvt, count, CIR_WAKE_FIFO_CMP_DEEP);
@@ -265,7 +265,7 @@ static ssize_t wakeup_data_store(struct device *dev,
 
 	nvt_cir_wake_reg_write(nvt, config, CIR_WAKE_IRCON);
 
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 
 	ret = len;
 out:
@@ -590,7 +590,7 @@ static void nvt_enable_wake(struct nvt_dev *nvt)
 
 	nvt_efm_disable(nvt);
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 
 	nvt_cir_wake_reg_write(nvt, CIR_WAKE_IRCON_MODE0 | CIR_WAKE_IRCON_RXEN |
 			       CIR_WAKE_IRCON_R | CIR_WAKE_IRCON_RXINV |
@@ -599,11 +599,11 @@ static void nvt_enable_wake(struct nvt_dev *nvt)
 	nvt_cir_wake_reg_write(nvt, 0xff, CIR_WAKE_IRSTS);
 	nvt_cir_wake_reg_write(nvt, 0, CIR_WAKE_IREN);
 
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 }
 
 #if 0 /* Currently unused */
-/* rx carrier detect only works in learning mode, must be called w/nvt_lock */
+/* rx carrier detect only works in learning mode, must be called w/lock */
 static u32 nvt_rx_carrier_detect(struct nvt_dev *nvt)
 {
 	u32 count, carrier, duration = 0;
@@ -688,7 +688,7 @@ static int nvt_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned n)
 	u8 iren;
 	int ret;
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 
 	ret = min((unsigned)(TX_BUF_LEN / sizeof(unsigned)), n);
 	nvt->tx.buf_count = (ret * sizeof(unsigned));
@@ -712,13 +712,13 @@ static int nvt_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned n)
 	for (i = 0; i < 9; i++)
 		nvt_cir_reg_write(nvt, 0x01, CIR_STXFIFO);
 
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 
 	wait_event(nvt->tx.queue, nvt->tx.tx_state == ST_TX_REQUEST);
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 	nvt->tx.tx_state = ST_TX_NONE;
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 
 	/* restore enabled interrupts to prior state */
 	nvt_cir_reg_write(nvt, iren, CIR_IREN);
@@ -844,7 +844,7 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 
 	nvt_dbg_verbose("%s firing", __func__);
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 
 	/*
 	 * Get IR Status register contents. Write 1 to ack/clear
@@ -866,7 +866,7 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	 * logical device is being disabled.
 	 */
 	if (status == 0xff && iren == 0xff) {
-		spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+		spin_unlock_irqrestore(&nvt->lock, flags);
 		nvt_dbg_verbose("Spurious interrupt detected");
 		return IRQ_HANDLED;
 	}
@@ -875,7 +875,7 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 	 * status bit whether the related interrupt source is enabled
 	 */
 	if (!(status & iren)) {
-		spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+		spin_unlock_irqrestore(&nvt->lock, flags);
 		nvt_dbg_verbose("%s exiting, IRSTS 0x0", __func__);
 		return IRQ_NONE;
 	}
@@ -923,7 +923,7 @@ static irqreturn_t nvt_cir_isr(int irq, void *data)
 		}
 	}
 
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 
 	nvt_dbg_verbose("%s done", __func__);
 	return IRQ_HANDLED;
@@ -933,7 +933,7 @@ static void nvt_disable_cir(struct nvt_dev *nvt)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 
 	/* disable CIR interrupts */
 	nvt_cir_reg_write(nvt, 0, CIR_IREN);
@@ -948,7 +948,7 @@ static void nvt_disable_cir(struct nvt_dev *nvt)
 	nvt_clear_cir_fifo(nvt);
 	nvt_clear_tx_fifo(nvt);
 
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 
 	/* disable the CIR logical device */
 	nvt_disable_logical_dev(nvt, LOGICAL_DEV_CIR);
@@ -959,7 +959,7 @@ static int nvt_open(struct rc_dev *dev)
 	struct nvt_dev *nvt = dev->priv;
 	unsigned long flags;
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 
 	/* set function enable flags */
 	nvt_cir_reg_write(nvt, CIR_IRCON_TXEN | CIR_IRCON_RXEN |
@@ -972,7 +972,7 @@ static int nvt_open(struct rc_dev *dev)
 	/* enable interrupts */
 	nvt_set_cir_iren(nvt);
 
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 
 	/* enable the CIR logical device */
 	nvt_enable_logical_dev(nvt, LOGICAL_DEV_CIR);
@@ -1037,7 +1037,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	nvt->cr_efir = CR_EFIR;
 	nvt->cr_efdr = CR_EFDR;
 
-	spin_lock_init(&nvt->nvt_lock);
+	spin_lock_init(&nvt->lock);
 
 	pnp_set_drvdata(pdev, nvt);
 
@@ -1137,14 +1137,14 @@ static int nvt_suspend(struct pnp_dev *pdev, pm_message_t state)
 
 	nvt_dbg("%s called", __func__);
 
-	spin_lock_irqsave(&nvt->nvt_lock, flags);
+	spin_lock_irqsave(&nvt->lock, flags);
 
 	nvt->tx.tx_state = ST_TX_NONE;
 
 	/* disable all CIR interrupts */
 	nvt_cir_reg_write(nvt, 0, CIR_IREN);
 
-	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
+	spin_unlock_irqrestore(&nvt->lock, flags);
 
 	/* disable cir logical dev */
 	nvt_disable_logical_dev(nvt, LOGICAL_DEV_CIR);

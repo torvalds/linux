@@ -80,7 +80,7 @@ struct nvt_chip {
 struct nvt_dev {
 	struct rc_dev *rdev;
 
-	spinlock_t nvt_lock;
+	spinlock_t lock;
 
 	/* for rx */
 	u8 buf[RX_BUF_LEN];
