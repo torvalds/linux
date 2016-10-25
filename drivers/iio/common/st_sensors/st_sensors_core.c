@@ -612,7 +612,7 @@ EXPORT_SYMBOL(st_sensors_sysfs_sampling_frequency_avail);
 ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	int i, len = 0;
+	int i, len = 0, q, r;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
@@ -621,8 +621,10 @@ ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 		if (sdata->sensor_settings->fs.fs_avl[i].num == 0)
 			break;
 
-		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06u ",
-				sdata->sensor_settings->fs.fs_avl[i].gain);
+		q = sdata->sensor_settings->fs.fs_avl[i].gain / 1000000;
+		r = sdata->sensor_settings->fs.fs_avl[i].gain % 1000000;
+
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%u.%06u ", q, r);
 	}
 	mutex_unlock(&indio_dev->mlock);
 	buf[len - 1] = '\n';
