@@ -137,7 +137,7 @@ static void dbg_dump_sg(const char *level, const char *prefix_str,
 		}
 
 		buf = it_page + it->offset;
-		len = min(tlen, it->length);
+		len = min_t(size_t, tlen, it->length);
 		print_hex_dump(level, prefix_str, prefix_type, rowsize,
 			       groupsize, buf, len, ascii);
 		tlen -= len;
