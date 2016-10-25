@@ -626,23 +626,12 @@ struct mlx5_db {
 };
 
 enum {
-	MLX5_DB_PER_PAGE = PAGE_SIZE / L1_CACHE_BYTES,
-};
-
-enum {
 	MLX5_COMP_EQ_SIZE = 1024,
 };
 
 enum {
 	MLX5_PTYS_IB = 1 << 0,
 	MLX5_PTYS_EN = 1 << 2,
-};
-
-struct mlx5_db_pgdir {
-	struct list_head	list;
-	DECLARE_BITMAP(bitmap, MLX5_DB_PER_PAGE);
-	__be32		       *db_page;
-	dma_addr_t		db_dma;
 };
 
 typedef void (*mlx5_cmd_cbk_t)(int status, void *context);
