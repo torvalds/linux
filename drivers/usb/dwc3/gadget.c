@@ -2123,8 +2123,7 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 
 		req->request.actual = length - req->remaining;
 
-		if (ret && chain && (req->request.actual < length)
-				&& req->num_pending_sgs)
+		if ((req->request.actual < length) && req->num_pending_sgs)
 			return __dwc3_gadget_kick_transfer(dep, 0);
 
 		dwc3_gadget_giveback(dep, req, status);
