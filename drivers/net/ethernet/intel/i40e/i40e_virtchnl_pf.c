@@ -1536,7 +1536,7 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 				vf->vf_id,
 				i40e_stat_str(&pf->hw, aq_ret),
 				i40e_aq_str(&pf->hw, aq_err));
-			goto error_param_int;
+			goto error_param;
 		}
 	}
 
@@ -1581,15 +1581,16 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf,
 							     allmulti, NULL,
 							     true);
 		aq_err = pf->hw.aq.asq_last_status;
-		if (aq_ret)
+		if (aq_ret) {
 			dev_err(&pf->pdev->dev,
 				"VF %d failed to set unicast promiscuous mode %8.8x err %s aq_err %s\n",
 				vf->vf_id, info->flags,
 				i40e_stat_str(&pf->hw, aq_ret),
 				i40e_aq_str(&pf->hw, aq_err));
+			goto error_param;
+		}
 	}
 
-error_param_int:
 	if (!aq_ret) {
 		dev_info(&pf->pdev->dev,
 			 "VF %d successfully set unicast promiscuous mode\n",
