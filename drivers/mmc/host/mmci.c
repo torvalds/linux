@@ -137,7 +137,7 @@ static struct variant_data variant_u300 = {
 	.clkreg_enable		= MCI_ST_U300_HWFCEN,
 	.clkreg_8bit_bus_enable = MCI_ST_8BIT_BUS,
 	.datalength_bits	= 16,
-	.datactrl_mask_sdio	= MCI_ST_DPSM_SDIOEN,
+	.datactrl_mask_sdio	= MCI_DPSM_ST_SDIOEN,
 	.st_sdio			= true,
 	.pwrreg_powerup		= MCI_PWR_ON,
 	.f_max			= 100000000,
@@ -152,7 +152,7 @@ static struct variant_data variant_nomadik = {
 	.clkreg			= MCI_CLK_ENABLE,
 	.clkreg_8bit_bus_enable = MCI_ST_8BIT_BUS,
 	.datalength_bits	= 24,
-	.datactrl_mask_sdio	= MCI_ST_DPSM_SDIOEN,
+	.datactrl_mask_sdio	= MCI_DPSM_ST_SDIOEN,
 	.st_sdio		= true,
 	.st_clkdiv		= true,
 	.pwrreg_powerup		= MCI_PWR_ON,
@@ -170,7 +170,7 @@ static struct variant_data variant_ux500 = {
 	.clkreg_8bit_bus_enable = MCI_ST_8BIT_BUS,
 	.clkreg_neg_edge_enable	= MCI_ST_UX500_NEG_EDGE,
 	.datalength_bits	= 24,
-	.datactrl_mask_sdio	= MCI_ST_DPSM_SDIOEN,
+	.datactrl_mask_sdio	= MCI_DPSM_ST_SDIOEN,
 	.st_sdio		= true,
 	.st_clkdiv		= true,
 	.pwrreg_powerup		= MCI_PWR_ON,
@@ -188,9 +188,9 @@ static struct variant_data variant_ux500v2 = {
 	.clkreg_enable		= MCI_ST_UX500_HWFCEN,
 	.clkreg_8bit_bus_enable = MCI_ST_8BIT_BUS,
 	.clkreg_neg_edge_enable	= MCI_ST_UX500_NEG_EDGE,
-	.datactrl_mask_ddrmode	= MCI_ST_DPSM_DDRMODE,
+	.datactrl_mask_ddrmode	= MCI_DPSM_ST_DDRMODE,
 	.datalength_bits	= 24,
-	.datactrl_mask_sdio	= MCI_ST_DPSM_SDIOEN,
+	.datactrl_mask_sdio	= MCI_DPSM_ST_SDIOEN,
 	.st_sdio		= true,
 	.st_clkdiv		= true,
 	.blksz_datactrl16	= true,
@@ -210,7 +210,7 @@ static struct variant_data variant_qcom = {
 				  MCI_QCOM_CLK_SELECT_IN_FBCLK,
 	.clkreg_8bit_bus_enable = MCI_QCOM_CLK_WIDEBUS_8,
 	.datactrl_mask_ddrmode	= MCI_QCOM_CLK_SELECT_IN_DDR_MODE,
-	.data_cmd_enable	= MCI_QCOM_CSPM_DATCMD,
+	.data_cmd_enable	= MCI_CPSM_QCOM_DATCMD,
 	.blksz_datactrl4	= true,
 	.datalength_bits	= 24,
 	.pwrreg_powerup		= MCI_PWR_UP,
@@ -295,7 +295,7 @@ static void mmci_write_pwrreg(struct mmci_host *host, u32 pwr)
 static void mmci_write_datactrlreg(struct mmci_host *host, u32 datactrl)
 {
 	/* Keep ST Micro busy mode if enabled */
-	datactrl |= host->datactrl_reg & MCI_ST_DPSM_BUSYMODE;
+	datactrl |= host->datactrl_reg & MCI_DPSM_ST_BUSYMODE;
 
 	if (host->datactrl_reg != datactrl) {
 		host->datactrl_reg = datactrl;
@@ -1614,7 +1614,7 @@ static int mmci_probe(struct amba_device *dev,
 
 	if (variant->busy_detect) {
 		mmci_ops.card_busy = mmci_card_busy;
-		mmci_write_datactrlreg(host, MCI_ST_DPSM_BUSYMODE);
+		mmci_write_datactrlreg(host, MCI_DPSM_ST_BUSYMODE);
 		mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY;
 		mmc->max_busy_timeout = 0;
 	}
