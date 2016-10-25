@@ -1780,6 +1780,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Description Table, specifies preferred power management
 			profile as "Enterprise Server" or "Performance Server",
 			then this feature is turned on by default.
+		per_cpu_perf_limits
+			Allow per-logical-CPU P-State performance control limits using
+			cpufreq sysfs interface
 
 	intremap=	[X86-64, Intel-IOMMU]
 			on	enable Interrupt Remapping (default)
