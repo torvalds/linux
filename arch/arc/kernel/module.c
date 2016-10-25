@@ -30,17 +30,9 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 			      char *secstr, struct module *mod)
 {
 #ifdef CONFIG_ARC_DW2_UNWIND
-	int i;
-
 	mod->arch.unw_sec_idx = 0;
 	mod->arch.unw_info = NULL;
-
-	for (i = 1; i < hdr->e_shnum; i++) {
-		if (strcmp(secstr+sechdrs[i].sh_name, ".eh_frame") == 0) {
-			mod->arch.unw_sec_idx = i;
-			break;
-		}
-	}
+	mod->arch.secstr = secstr;
 #endif
 	return 0;
 }
@@ -66,8 +58,10 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 	Elf32_Addr location;
 	Elf32_Addr sec_to_patch;
 	int relo_type;
+	unsigned int tgtsec;
 
-	sec_to_patch = sechdrs[sechdrs[relsec].sh_info].sh_addr;
+	tgtsec = sechdrs[relsec].sh_info;
+	sec_to_patch = sechdrs[tgtsec].sh_addr;
 	sym_sec = (Elf32_Sym *) sechdrs[symindex].sh_addr;
 	n = sechdrs[relsec].sh_size / sizeof(*rel_entry);
 
@@ -111,6 +105,10 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			goto relo_err;
 
 	}
+
+	if (strcmp(module->arch.secstr+sechdrs[tgtsec].sh_name, ".eh_frame") == 0)
+		module->arch.unw_sec_idx = tgtsec;
+
 	return 0;
 
 relo_err:
