@@ -4,6 +4,7 @@
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
  */
+#define KBUILD_MODNAME "foo"
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/in.h>
