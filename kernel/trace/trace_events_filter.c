@@ -145,34 +145,50 @@ struct pred_stack {
 
 /* If not of not match is equal to not of not, then it is a match */
 #define DEFINE_COMPARISON_PRED(type)					\
-static int filter_pred_##type(struct filter_pred *pred, void *event)	\
+static int filter_pred_LT_##type(struct filter_pred *pred, void *event)	\
 {									\
 	type *addr = (type *)(event + pred->offset);			\
 	type val = (type)pred->val;					\
-	int match = 0;							\
-									\
-	switch (pred->op) {						\
-	case OP_LT:							\
-		match = (*addr < val);					\
-		break;							\
-	case OP_LE:							\
-		match = (*addr <= val);					\
-		break;							\
-	case OP_GT:							\
-		match = (*addr > val);					\
-		break;							\
-	case OP_GE:							\
-		match = (*addr >= val);					\
-		break;							\
-	case OP_BAND:							\
-		match = (*addr & val);					\
-		break;							\
-	default:							\
-		break;							\
-	}								\
-									\
+	int match = (*addr < val);					\
 	return !!match == !pred->not;					\
-}
+}									\
+static int filter_pred_LE_##type(struct filter_pred *pred, void *event)	\
+{									\
+	type *addr = (type *)(event + pred->offset);			\
+	type val = (type)pred->val;					\
+	int match = (*addr <= val);					\
+	return !!match == !pred->not;					\
+}									\
+static int filter_pred_GT_##type(struct filter_pred *pred, void *event)	\
+{									\
+	type *addr = (type *)(event + pred->offset);			\
+	type val = (type)pred->val;					\
+	int match = (*addr > val);					\
+	return !!match == !pred->not;					\
+}									\
+static int filter_pred_GE_##type(struct filter_pred *pred, void *event)	\
+{									\
+	type *addr = (type *)(event + pred->offset);			\
+	type val = (type)pred->val;					\
+	int match = (*addr >= val);					\
+	return !!match == !pred->not;					\
+}									\
+static int filter_pred_BAND_##type(struct filter_pred *pred, void *event) \
+{									\
+	type *addr = (type *)(event + pred->offset);			\
+	type val = (type)pred->val;					\
+	int match = !!(*addr & val);					\
+	return match == !pred->not;					\
+}									\
+static const filter_pred_fn_t pred_funcs_##type[] = {			\
+	filter_pred_LT_##type,						\
+	filter_pred_LE_##type,						\
+	filter_pred_GT_##type,						\
+	filter_pred_GE_##type,						\
+	filter_pred_BAND_##type,					\
+};
+
+#define PRED_FUNC_START			OP_LT
 
 #define DEFINE_EQUALITY_PRED(size)					\
 static int filter_pred_##size(struct filter_pred *pred, void *event)	\
@@ -982,33 +998,33 @@ static filter_pred_fn_t select_comparison_fn(int op, int field_size,
 		if (op == OP_EQ || op == OP_NE)
 			fn = filter_pred_64;
 		else if (field_is_signed)
-			fn = filter_pred_s64;
+			fn = pred_funcs_s64[op - PRED_FUNC_START];
 		else
-			fn = filter_pred_u64;
+			fn = pred_funcs_u64[op - PRED_FUNC_START];
 		break;
 	case 4:
 		if (op == OP_EQ || op == OP_NE)
 			fn = filter_pred_32;
 		else if (field_is_signed)
-			fn = filter_pred_s32;
+			fn = pred_funcs_s32[op - PRED_FUNC_START];
 		else
-			fn = filter_pred_u32;
+			fn = pred_funcs_u32[op - PRED_FUNC_START];
 		break;
 	case 2:
 		if (op == OP_EQ || op == OP_NE)
 			fn = filter_pred_16;
 		else if (field_is_signed)
-			fn = filter_pred_s16;
+			fn = pred_funcs_s16[op - PRED_FUNC_START];
 		else
-			fn = filter_pred_u16;
+			fn = pred_funcs_u16[op - PRED_FUNC_START];
 		break;
 	case 1:
 		if (op == OP_EQ || op == OP_NE)
 			fn = filter_pred_8;
 		else if (field_is_signed)
-			fn = filter_pred_s8;
+			fn = pred_funcs_s8[op - PRED_FUNC_START];
 		else
-			fn = filter_pred_u8;
+			fn = pred_funcs_u8[op - PRED_FUNC_START];
 		break;
 	}
 
