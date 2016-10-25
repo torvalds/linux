@@ -15241,7 +15241,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	struct intel_crtc_state *crtc_state = NULL;
 	struct drm_plane *primary = NULL;
 	struct drm_plane *cursor = NULL;
-	int ret;
+	int sprite, ret;
 
 	intel_crtc = kzalloc(sizeof(*intel_crtc), GFP_KERNEL);
 	if (intel_crtc == NULL)
@@ -15267,6 +15267,13 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	primary = intel_primary_plane_create(dev, pipe);
 	if (!primary)
 		goto fail;
+
+	for_each_sprite(dev_priv, pipe, sprite) {
+		ret = intel_plane_init(dev, pipe, sprite);
+		if (ret)
+			DRM_DEBUG_KMS("pipe %c sprite %c init failed: %d\n",
+				      pipe_name(pipe), sprite_name(pipe, sprite), ret);
+	}
 
 	cursor = intel_cursor_plane_create(dev, pipe);
 	if (!cursor)
@@ -16392,7 +16399,6 @@ void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	int sprite, ret;
 	enum pipe pipe;
 	struct intel_crtc *crtc;
 
@@ -16463,12 +16469,6 @@ void intel_modeset_init(struct drm_device *dev)
 
 	for_each_pipe(dev_priv, pipe) {
 		intel_crtc_init(dev, pipe);
-		for_each_sprite(dev_priv, pipe, sprite) {
-			ret = intel_plane_init(dev, pipe, sprite);
-			if (ret)
-				DRM_DEBUG_KMS("pipe %c sprite %c init failed: %d\n",
-					      pipe_name(pipe), sprite_name(pipe, sprite), ret);
-		}
 	}
 
 	intel_update_czclk(dev_priv);
