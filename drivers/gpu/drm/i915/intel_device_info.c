@@ -282,12 +282,13 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		info->num_sprites[PIPE_A] = 2;
 		info->num_sprites[PIPE_B] = 2;
 		info->num_sprites[PIPE_C] = 1;
-	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 2;
-	else
+	} else if (INTEL_GEN(dev_priv) >= 5) {
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 1;
+	}
 
 	if (i915.disable_display) {
 		DRM_INFO("Display disabled (module parameter)\n");

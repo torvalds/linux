@@ -1054,9 +1054,6 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 	int num_plane_formats;
 	int ret;
 
-	if (INTEL_INFO(dev)->gen < 5)
-		return -ENODEV;
-
 	intel_plane = kzalloc(sizeof(*intel_plane), GFP_KERNEL);
 	if (!intel_plane) {
 		ret = -ENOMEM;
