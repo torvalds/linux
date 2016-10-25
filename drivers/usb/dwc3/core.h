@@ -715,6 +715,7 @@ struct dwc3_hwparams {
  * @dep: struct dwc3_ep owning this request
  * @sg: pointer to first incomplete sg
  * @num_pending_sgs: counter to pending sgs
+ * @remaining: amount of data remaining
  * @epnum: endpoint number to which this request refers
  * @trb: pointer to struct dwc3_trb
  * @trb_dma: DMA address of @trb
@@ -729,6 +730,7 @@ struct dwc3_request {
 	struct scatterlist	*sg;
 
 	unsigned		num_pending_sgs;
+	unsigned		remaining;
 	u8			epnum;
 	struct dwc3_trb		*trb;
 	dma_addr_t		trb_dma;
