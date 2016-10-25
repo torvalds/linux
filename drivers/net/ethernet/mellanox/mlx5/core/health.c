@@ -64,6 +64,10 @@ enum {
 	MLX5_NIC_IFC_NO_DRAM_NIC	= 2
 };
 
+enum {
+	MLX5_DROP_NEW_HEALTH_WORK,
+};
+
 static u8 get_nic_interface(struct mlx5_core_dev *dev)
 {
 	return (ioread32be(&dev->iseg->cmdq_addr_l_sz) >> 8) & 3;
@@ -272,7 +276,13 @@ static void poll_health(unsigned long data)
 	if (in_fatal(dev) && !health->sick) {
 		health->sick = true;
 		print_health_info(dev);
-		schedule_work(&health->work);
+		spin_lock(&health->wq_lock);
+		if (!test_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags))
+			queue_work(health->wq, &health->work);
+		else
+			dev_err(&dev->pdev->dev,
+				"new health works are not permitted at this stage\n");
+		spin_unlock(&health->wq_lock);
 	}
 }
 
@@ -282,6 +292,7 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 
 	init_timer(&health->timer);
 	health->sick = 0;
+	clear_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
 	health->health = &dev->iseg->health;
 	health->health_counter = &dev->iseg->health_counter;
 
@@ -298,11 +309,21 @@ void mlx5_stop_health_poll(struct mlx5_core_dev *dev)
 	del_timer_sync(&health->timer);
 }
 
+void mlx5_drain_health_wq(struct mlx5_core_dev *dev)
+{
+	struct mlx5_core_health *health = &dev->priv.health;
+
+	spin_lock(&health->wq_lock);
+	set_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
+	spin_unlock(&health->wq_lock);
+	cancel_work_sync(&health->work);
+}
+
 void mlx5_health_cleanup(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 
-	flush_work(&health->work);
+	destroy_workqueue(health->wq);
 }
 
 int mlx5_health_init(struct mlx5_core_dev *dev)
@@ -317,8 +338,11 @@ int mlx5_health_init(struct mlx5_core_dev *dev)
 
 	strcpy(name, "mlx5_health");
 	strcat(name, dev_name(&dev->pdev->dev));
+	health->wq = create_singlethread_workqueue(name);
 	kfree(name);
-
+	if (!health->wq)
+		return -ENOMEM;
+	spin_lock_init(&health->wq_lock);
 	INIT_WORK(&health->work, health_care);
 
 	return 0;

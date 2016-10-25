@@ -1315,8 +1315,13 @@ static pci_ers_result_t mlx5_pci_err_detected(struct pci_dev *pdev,
 	dev_info(&pdev->dev, "%s was called\n", __func__);
 	mlx5_enter_error_state(dev);
 	mlx5_unload_one(dev, priv, false);
-	pci_save_state(pdev);
-	mlx5_pci_disable_device(dev);
+	/* In case of kernel call save the pci state and drain health wq */
+	if (state) {
+		pci_save_state(pdev);
+		mlx5_drain_health_wq(dev);
+		mlx5_pci_disable_device(dev);
+	}
+
 	return state == pci_channel_io_perm_failure ?
 		PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_NEED_RESET;
 }

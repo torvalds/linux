@@ -418,7 +418,10 @@ struct mlx5_core_health {
 	u32				prev;
 	int				miss_counter;
 	bool				sick;
+	/* wq spinlock to synchronize draining */
+	spinlock_t			wq_lock;
 	struct workqueue_struct	       *wq;
+	unsigned long			flags;
 	struct work_struct		work;
 };
 
@@ -778,6 +781,7 @@ void mlx5_health_cleanup(struct mlx5_core_dev *dev);
 int mlx5_health_init(struct mlx5_core_dev *dev);
 void mlx5_start_health_poll(struct mlx5_core_dev *dev);
 void mlx5_stop_health_poll(struct mlx5_core_dev *dev);
+void mlx5_drain_health_wq(struct mlx5_core_dev *dev);
 int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
 			struct mlx5_buf *buf, int node);
 int mlx5_buf_alloc(struct mlx5_core_dev *dev, int size, struct mlx5_buf *buf);
