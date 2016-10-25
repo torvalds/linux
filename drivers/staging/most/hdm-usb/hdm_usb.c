@@ -182,6 +182,11 @@ static inline int drci_wr_reg(struct usb_device *dev, u16 reg, u16 data)
 			       5 * HZ);
 }
 
+static inline int start_sync_ep(struct usb_device *usb_dev, u16 ep)
+{
+	return drci_wr_reg(usb_dev, DRCI_REG_BASE + DRCI_COMMAND + ep * 16, 1);
+}
+
 /**
  * get_stream_frame_size - calculate frame size of current configuration
  * @cfg: channel configuration
@@ -697,11 +702,8 @@ exit:
 	mdev->conf[channel] = *conf;
 	if (conf->data_type == MOST_CH_ASYNC) {
 		u16 ep = mdev->ep_address[channel];
-		int err = drci_wr_reg(mdev->usb_device,
-				      DRCI_REG_BASE + DRCI_COMMAND + ep * 16,
-				      1);
 
-		if (err < 0)
+		if (start_sync_ep(mdev->usb_device, ep) < 0)
 			dev_warn(dev, "sync for ep%02x failed", ep);
 	}
 	return 0;
@@ -987,6 +989,7 @@ static ssize_t store_value(struct most_dci_obj *dci_obj,
 	u16 val;
 	u16 reg_addr;
 	const char *name = attr->attr.name;
+	struct usb_device *usb_dev = dci_obj->usb_device;
 	int err = kstrtou16(buf, 16, &val);
 
 	if (err)
@@ -997,18 +1000,15 @@ static ssize_t store_value(struct most_dci_obj *dci_obj,
 		return count;
 	}
 
-	if (!strcmp(name, "arb_value")) {
-		reg_addr = dci_obj->reg_addr;
-	} else if (!strcmp(name, "sync_ep")) {
-		u16 ep = val;
-
-		reg_addr = DRCI_REG_BASE + DRCI_COMMAND + ep * 16;
-		val = 1;
-	} else if (get_static_reg_addr(ro_regs, name, &reg_addr)) {
+	if (!strcmp(name, "arb_value"))
+		err = drci_wr_reg(usb_dev, dci_obj->reg_addr, val);
+	else if (!strcmp(name, "sync_ep"))
+		err = start_sync_ep(usb_dev, val);
+	else if (!get_static_reg_addr(ro_regs, name, &reg_addr))
+		err = drci_wr_reg(usb_dev, reg_addr, val);
+	else
 		return -EFAULT;
-	}
 
-	err = drci_wr_reg(dci_obj->usb_device, reg_addr, val);
 	if (err < 0)
 		return err;
 
