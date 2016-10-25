@@ -395,44 +395,9 @@ static long brd_direct_access(struct block_device *bdev, sector_t sector,
 #define brd_direct_access NULL
 #endif
 
-static int brd_ioctl(struct block_device *bdev, fmode_t mode,
-			unsigned int cmd, unsigned long arg)
-{
-	int error;
-	struct brd_device *brd = bdev->bd_disk->private_data;
-
-	if (cmd != BLKFLSBUF)
-		return -ENOTTY;
-
-	/*
-	 * ram device BLKFLSBUF has special semantics, we want to actually
-	 * release and destroy the ramdisk data.
-	 */
-	mutex_lock(&brd_mutex);
-	mutex_lock(&bdev->bd_mutex);
-	error = -EBUSY;
-	if (bdev->bd_openers <= 1) {
-		/*
-		 * Kill the cache first, so it isn't written back to the
-		 * device.
-		 *
-		 * Another thread might instantiate more buffercache here,
-		 * but there is not much we can do to close that race.
-		 */
-		kill_bdev(bdev);
-		brd_free_pages(brd);
-		error = 0;
-	}
-	mutex_unlock(&bdev->bd_mutex);
-	mutex_unlock(&brd_mutex);
-
-	return error;
-}
-
 static const struct block_device_operations brd_fops = {
 	.owner =		THIS_MODULE,
 	.rw_page =		brd_rw_page,
-	.ioctl =		brd_ioctl,
 	.direct_access =	brd_direct_access,
 };
 
