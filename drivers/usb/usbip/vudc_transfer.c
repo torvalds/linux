@@ -73,8 +73,8 @@ static int handle_control_request(struct vudc *udc, struct urb *urb,
 {
 	struct vep	*ep2;
 	int		ret_val = 1;
-	unsigned	w_index;
-	unsigned	w_value;
+	unsigned int	w_index;
+	unsigned int	w_value;
 
 	w_index = le16_to_cpu(setup->wIndex);
 	w_value = le16_to_cpu(setup->wValue);
@@ -200,7 +200,7 @@ static int transfer(struct vudc *udc,
 top:
 	/* if there's no request queued, the device is NAKing; return */
 	list_for_each_entry(req, &ep->req_queue, req_entry) {
-		unsigned	host_len, dev_len, len;
+		unsigned int	host_len, dev_len, len;
 		void		*ubuf_pos, *rbuf_pos;
 		int		is_short, to_host;
 		int		rescan = 0;
