@@ -1067,11 +1067,42 @@ intel_sprite_plane_create(struct drm_device *dev, enum pipe pipe, int plane)
 	}
 	intel_plane->base.state = &state->base;
 
-	switch (INTEL_INFO(dev)->gen) {
-	case 5:
-	case 6:
+	if (INTEL_GEN(dev_priv) >= 9) {
+		intel_plane->can_scale = true;
+		state->scaler_id = -1;
+
+		intel_plane->update_plane = skl_update_plane;
+		intel_plane->disable_plane = skl_disable_plane;
+
+		plane_formats = skl_plane_formats;
+		num_plane_formats = ARRAY_SIZE(skl_plane_formats);
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		intel_plane->can_scale = false;
+		intel_plane->max_downscale = 1;
+
+		intel_plane->update_plane = vlv_update_plane;
+		intel_plane->disable_plane = vlv_disable_plane;
+
+		plane_formats = vlv_plane_formats;
+		num_plane_formats = ARRAY_SIZE(vlv_plane_formats);
+	} else if (INTEL_GEN(dev_priv) >= 7) {
+		if (IS_IVYBRIDGE(dev_priv)) {
+			intel_plane->can_scale = true;
+			intel_plane->max_downscale = 2;
+		} else {
+			intel_plane->can_scale = false;
+			intel_plane->max_downscale = 1;
+		}
+
+		intel_plane->update_plane = ivb_update_plane;
+		intel_plane->disable_plane = ivb_disable_plane;
+
+		plane_formats = snb_plane_formats;
+		num_plane_formats = ARRAY_SIZE(snb_plane_formats);
+	} else {
 		intel_plane->can_scale = true;
 		intel_plane->max_downscale = 16;
+
 		intel_plane->update_plane = ilk_update_plane;
 		intel_plane->disable_plane = ilk_disable_plane;
 
@@ -1082,45 +1113,6 @@ intel_sprite_plane_create(struct drm_device *dev, enum pipe pipe, int plane)
 			plane_formats = ilk_plane_formats;
 			num_plane_formats = ARRAY_SIZE(ilk_plane_formats);
 		}
-		break;
-
-	case 7:
-	case 8:
-		if (IS_IVYBRIDGE(dev_priv)) {
-			intel_plane->can_scale = true;
-			intel_plane->max_downscale = 2;
-		} else {
-			intel_plane->can_scale = false;
-			intel_plane->max_downscale = 1;
-		}
-
-		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-			intel_plane->update_plane = vlv_update_plane;
-			intel_plane->disable_plane = vlv_disable_plane;
-
-			plane_formats = vlv_plane_formats;
-			num_plane_formats = ARRAY_SIZE(vlv_plane_formats);
-		} else {
-			intel_plane->update_plane = ivb_update_plane;
-			intel_plane->disable_plane = ivb_disable_plane;
-
-			plane_formats = snb_plane_formats;
-			num_plane_formats = ARRAY_SIZE(snb_plane_formats);
-		}
-		break;
-	case 9:
-		intel_plane->can_scale = true;
-		intel_plane->update_plane = skl_update_plane;
-		intel_plane->disable_plane = skl_disable_plane;
-		state->scaler_id = -1;
-
-		plane_formats = skl_plane_formats;
-		num_plane_formats = ARRAY_SIZE(skl_plane_formats);
-		break;
-	default:
-		MISSING_CASE(INTEL_INFO(dev)->gen);
-		ret = -ENODEV;
-		goto fail;
 	}
 
 	if (INTEL_GEN(dev_priv) >= 9) {
@@ -1139,7 +1131,7 @@ intel_sprite_plane_create(struct drm_device *dev, enum pipe pipe, int plane)
 
 	possible_crtcs = (1 << pipe);
 
-	if (INTEL_INFO(dev)->gen >= 9)
+	if (INTEL_GEN(dev_priv) >= 9)
 		ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
 					       &intel_plane_funcs,
 					       plane_formats, num_plane_formats,
