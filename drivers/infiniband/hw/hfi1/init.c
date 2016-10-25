@@ -262,13 +262,6 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
 		}
 		rcd->eager_base = base * dd->rcv_entries.group_size;
 
-		/* Validate and initialize Rcv Hdr Q variables */
-		if (rcvhdrcnt % HDRQ_INCREMENT) {
-			dd_dev_err(dd,
-				   "ctxt%u: header queue count %d must be divisible by %lu\n",
-				   rcd->ctxt, rcvhdrcnt, HDRQ_INCREMENT);
-			goto bail;
-		}
 		rcd->rcvhdrq_cnt = rcvhdrcnt;
 		rcd->rcvhdrqentsize = hfi1_hdrq_entsize;
 		/*
@@ -1399,6 +1392,29 @@ static void postinit_cleanup(struct hfi1_devdata *dd)
 	hfi1_free_devdata(dd);
 }
 
+static int init_validate_rcvhdrcnt(struct device *dev, uint thecnt)
+{
+	if (thecnt <= HFI1_MIN_HDRQ_EGRBUF_CNT) {
+		hfi1_early_err(dev, "Receive header queue count too small\n");
+		return -EINVAL;
+	}
+
+	if (thecnt > HFI1_MAX_HDRQ_EGRBUF_CNT) {
+		hfi1_early_err(dev,
+			       "Receive header queue count cannot be greater than %u\n",
+			       HFI1_MAX_HDRQ_EGRBUF_CNT);
+		return -EINVAL;
+	}
+
+	if (thecnt % HDRQ_INCREMENT) {
+		hfi1_early_err(dev, "Receive header queue count %d must be divisible by %lu\n",
+			       thecnt, HDRQ_INCREMENT);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int ret = 0, j, pidx, initfail;
@@ -1409,18 +1425,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	HFI1_CAP_LOCK();
 
 	/* Validate some global module parameters */
-	if (rcvhdrcnt <= HFI1_MIN_HDRQ_EGRBUF_CNT) {
-		hfi1_early_err(&pdev->dev, "Header queue  count too small\n");
-		ret = -EINVAL;
+	ret = init_validate_rcvhdrcnt(&pdev->dev, rcvhdrcnt);
+	if (ret)
 		goto bail;
-	}
-	if (rcvhdrcnt > HFI1_MAX_HDRQ_EGRBUF_CNT) {
-		hfi1_early_err(&pdev->dev,
-			       "Receive header queue count cannot be greater than %u\n",
-			       HFI1_MAX_HDRQ_EGRBUF_CNT);
-		ret = -EINVAL;
-		goto bail;
-	}
+
 	/* use the encoding function as a sanitization check */
 	if (!encode_rcv_header_entry_size(hfi1_hdrq_entsize)) {
 		hfi1_early_err(&pdev->dev, "Invalid HdrQ Entry size %u\n",
