@@ -540,14 +540,6 @@ config ARC_DBG_TLB_PARANOIA
 	bool "Paranoia Checks in Low Level TLB Handlers"
 	default n
 
-config ARC_DBG_TLB_MISS_COUNT
-	bool "Profile TLB Misses"
-	default n
-	select DEBUG_FS
-	help
-	  Counts number of I and D TLB Misses and exports them via Debugfs
-	  The counters can be cleared via Debugfs as well
-
 endif
 
 config ARC_UBOOT_SUPPORT
