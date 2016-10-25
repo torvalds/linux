@@ -6496,6 +6496,13 @@ S:	Maintained
 F:	arch/x86/include/asm/pmc_core.h
 F:	drivers/platform/x86/intel_pmc_core*
 
+INVENSENSE MPU-3050 GYROSCOPE DRIVER
+M:	Linus Walleij <linus.walleij@linaro.org>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	drivers/iio/gyro/mpu3050*
+F:	Documentation/devicetree/bindings/iio/gyroscope/inv,mpu3050.txt
+
 IOC3 ETHERNET DRIVER
 M:	Ralf Baechle <ralf@linux-mips.org>
 L:	linux-mips@linux-mips.org
