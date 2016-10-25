@@ -145,7 +145,6 @@ static bool cs35l34_volatile_register(struct device *dev, unsigned int reg)
 static bool cs35l34_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case	CS35L34_CHIP_ID:
 	case	CS35L34_DEVID_AB:
 	case	CS35L34_DEVID_CD:
 	case	CS35L34_DEVID_E:
