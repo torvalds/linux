@@ -4422,7 +4422,7 @@ static int nf_tables_check_loops(const struct nft_ctx *ctx,
  *	Otherwise a 0 is returned and the attribute value is stored in the
  *	destination variable.
  */
-unsigned int nft_parse_u32_check(const struct nlattr *attr, int max, u32 *dest)
+int nft_parse_u32_check(const struct nlattr *attr, int max, u32 *dest)
 {
 	u32 val;
 
