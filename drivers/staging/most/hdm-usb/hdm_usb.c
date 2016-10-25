@@ -695,6 +695,15 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 			  - conf->buffer_size;
 exit:
 	mdev->conf[channel] = *conf;
+	if (conf->data_type == MOST_CH_ASYNC) {
+		u16 ep = mdev->ep_address[channel];
+		int err = drci_wr_reg(mdev->usb_device,
+				      DRCI_REG_BASE + DRCI_COMMAND + ep * 16,
+				      1);
+
+		if (err < 0)
+			dev_warn(dev, "sync for ep%02x failed", ep);
+	}
 	return 0;
 }
 
@@ -1111,7 +1120,6 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	struct most_channel_capability *tmp_cap;
 	struct usb_endpoint_descriptor *ep_desc;
 	int ret = 0;
-	int err;
 
 	if (!mdev)
 		goto exit_ENOMEM;
@@ -1187,13 +1195,6 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		tmp_cap++;
 		init_usb_anchor(&mdev->busy_urbs[i]);
 		spin_lock_init(&mdev->channel_lock[i]);
-		err = drci_wr_reg(usb_dev,
-				  DRCI_REG_BASE + DRCI_COMMAND +
-				  ep_desc->bEndpointAddress * 16,
-				  1);
-		if (err < 0)
-			dev_warn(dev, "DCI Sync for EP %02x failed",
-				 ep_desc->bEndpointAddress);
 	}
 	dev_notice(dev, "claimed gadget: Vendor=%4.4x ProdID=%4.4x Bus=%02x Device=%02x\n",
 		   le16_to_cpu(usb_dev->descriptor.idVendor),
