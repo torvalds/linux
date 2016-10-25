@@ -1904,6 +1904,14 @@ static struct nvme_ctrl *nvme_rdma_create_ctrl(struct device *dev,
 		opts->queue_size = ctrl->ctrl.maxcmd;
 	}
 
+	if (opts->queue_size > ctrl->ctrl.sqsize + 1) {
+		/* warn if sqsize is lower than queue_size */
+		dev_warn(ctrl->ctrl.device,
+			"queue_size %zu > ctrl sqsize %u, clamping down\n",
+			opts->queue_size, ctrl->ctrl.sqsize + 1);
+		opts->queue_size = ctrl->ctrl.sqsize + 1;
+	}
+
 	if (opts->nr_io_queues) {
 		ret = nvme_rdma_create_io_queues(ctrl);
 		if (ret)
