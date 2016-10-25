@@ -716,7 +716,33 @@ static int rsnd_soc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static int rsnd_soc_dai_startup(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
+
+	/*
+	 * call rsnd_dai_call without spinlock
+	 */
+	return rsnd_dai_call(nolock_start, io, priv);
+}
+
+static void rsnd_soc_dai_shutdown(struct snd_pcm_substream *substream,
+				  struct snd_soc_dai *dai)
+{
+	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
+
+	/*
+	 * call rsnd_dai_call without spinlock
+	 */
+	rsnd_dai_call(nolock_stop, io, priv);
+}
+
 static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
+	.startup	= rsnd_soc_dai_startup,
+	.shutdown	= rsnd_soc_dai_shutdown,
 	.trigger	= rsnd_soc_dai_trigger,
 	.set_fmt	= rsnd_soc_dai_set_fmt,
 	.set_tdm_slot	= rsnd_soc_set_dai_tdm_slot,
