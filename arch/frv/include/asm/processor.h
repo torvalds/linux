@@ -107,6 +107,7 @@ unsigned long get_wchan(struct task_struct *p);
 #define	KSTK_ESP(tsk)	((tsk)->thread.frame0->sp)
 
 #define cpu_relax() barrier()
+#define cpu_relax_yield() cpu_relax()
 #define cpu_relax_lowlatency() cpu_relax()
 
 /* data cache prefetch */

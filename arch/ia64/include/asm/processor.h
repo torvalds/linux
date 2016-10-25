@@ -547,6 +547,7 @@ ia64_eoi (void)
 }
 
 #define cpu_relax()	ia64_hint(ia64_hint_pause)
+#define cpu_relax_yield() cpu_relax()
 #define cpu_relax_lowlatency() cpu_relax()
 
 static inline int

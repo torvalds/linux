@@ -149,6 +149,7 @@ static inline void cpu_relax(void)
 	asm volatile("yield" ::: "memory");
 }
 
+#define cpu_relax_yield()                     cpu_relax()
 #define cpu_relax_lowlatency()                cpu_relax()
 
 /* Thread switching */

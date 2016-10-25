@@ -63,6 +63,7 @@ static inline void release_thread(struct task_struct *dead_task)
 #define init_stack      (init_thread_union.stack)
 
 #define cpu_relax()     barrier()
+#define cpu_relax_yield() cpu_relax()
 #define cpu_relax_lowlatency() cpu_relax()
 
 void default_idle(void);

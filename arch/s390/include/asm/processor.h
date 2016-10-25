@@ -234,8 +234,9 @@ static inline unsigned short stap(void)
 /*
  * Give up the time slice of the virtual PU.
  */
-void cpu_relax(void);
+void cpu_relax_yield(void);
 
+#define cpu_relax() cpu_relax_yield()
 #define cpu_relax_lowlatency()  barrier()
 
 #define ECAG_CACHE_ATTRIBUTE	0
