@@ -357,6 +357,8 @@
 			num-cs = <6>;
 			ti,davinci-spi-intr-line = <1>;
 			interrupts = <20>;
+			dmas = <&edma0 14 0>, <&edma0 15 0>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 		spi1: spi@30e000 {
