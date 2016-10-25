@@ -498,6 +498,9 @@ static enum ucode_state microcode_update_cpu(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
+	/* Refresh CPU microcode revision after resume. */
+	collect_cpu_info(cpu);
+
 	if (uci->valid)
 		return microcode_resume_cpu(cpu);
 
