@@ -1101,7 +1101,7 @@ static u32 apic_get_tmcct(struct kvm_lapic *apic)
 		apic->lapic_timer.period == 0)
 		return 0;
 
-	now = apic->lapic_timer.timer.base->get_time();
+	now = ktime_get();
 	remaining = ktime_sub(apic->lapic_timer.target_expiration, now);
 	if (ktime_to_ns(remaining) < 0)
 		remaining = ktime_set(0, 0);
@@ -1333,7 +1333,7 @@ static void start_sw_tscdeadline(struct kvm_lapic *apic)
 
 	local_irq_save(flags);
 
-	now = apic->lapic_timer.timer.base->get_time();
+	now = ktime_get();
 	guest_tsc = kvm_read_l1_tsc(vcpu, rdtsc());
 	if (likely(tscdeadline > guest_tsc)) {
 		ns = (tscdeadline - guest_tsc) * 1000000ULL;
@@ -1354,7 +1354,7 @@ static void start_sw_period(struct kvm_lapic *apic)
 		return;
 
 	if (apic_lvtt_oneshot(apic) &&
-	    ktime_after(apic->lapic_timer.timer.base->get_time(),
+	    ktime_after(ktime_get(),
 			apic->lapic_timer.target_expiration)) {
 		apic_timer_expired(apic);
 		return;
@@ -1370,7 +1370,7 @@ static bool set_target_expiration(struct kvm_lapic *apic)
 	ktime_t now;
 	u64 tscl = rdtsc();
 
-	now = apic->lapic_timer.timer.base->get_time();
+	now = ktime_get();
 	apic->lapic_timer.period = (u64)kvm_lapic_get_reg(apic, APIC_TMICT)
 		* APIC_BUS_CYCLE_NS * apic->divide_count;
 
