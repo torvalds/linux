@@ -45,7 +45,7 @@ static struct dentry *rproc_dbg;
  * as it provides very early tracing with little to no dependencies at all.
  */
 static ssize_t rproc_trace_read(struct file *filp, char __user *userbuf,
-						size_t count, loff_t *ppos)
+				size_t count, loff_t *ppos)
 {
 	struct rproc_mem_entry *trace = filp->private_data;
 	int len = strnlen(trace->va, trace->len);
@@ -73,7 +73,7 @@ static const char * const rproc_state_string[] = {
 
 /* expose the state of the remote processor via debugfs */
 static ssize_t rproc_state_read(struct file *filp, char __user *userbuf,
-						size_t count, loff_t *ppos)
+				size_t count, loff_t *ppos)
 {
 	struct rproc *rproc = filp->private_data;
 	unsigned int state;
@@ -83,7 +83,7 @@ static ssize_t rproc_state_read(struct file *filp, char __user *userbuf,
 	state = rproc->state > RPROC_LAST ? RPROC_LAST : rproc->state;
 
 	i = scnprintf(buf, 30, "%.28s (%d)\n", rproc_state_string[state],
-							rproc->state);
+		      rproc->state);
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, i);
 }
@@ -130,7 +130,7 @@ static const struct file_operations rproc_state_ops = {
 
 /* expose the name of the remote processor via debugfs */
 static ssize_t rproc_name_read(struct file *filp, char __user *userbuf,
-						size_t count, loff_t *ppos)
+			       size_t count, loff_t *ppos)
 {
 	struct rproc *rproc = filp->private_data;
 	/* need room for the name, a newline and a terminating null */
@@ -230,12 +230,12 @@ void rproc_remove_trace_file(struct dentry *tfile)
 }
 
 struct dentry *rproc_create_trace_file(const char *name, struct rproc *rproc,
-					struct rproc_mem_entry *trace)
+				       struct rproc_mem_entry *trace)
 {
 	struct dentry *tfile;
 
-	tfile = debugfs_create_file(name, 0400, rproc->dbg_dir,
-						trace, &trace_rproc_ops);
+	tfile = debugfs_create_file(name, 0400, rproc->dbg_dir, trace,
+				    &trace_rproc_ops);
 	if (!tfile) {
 		dev_err(&rproc->dev, "failed to create debugfs trace entry\n");
 		return NULL;
@@ -264,11 +264,11 @@ void rproc_create_debug_dir(struct rproc *rproc)
 		return;
 
 	debugfs_create_file("name", 0400, rproc->dbg_dir,
-					rproc, &rproc_name_ops);
+			    rproc, &rproc_name_ops);
 	debugfs_create_file("state", 0400, rproc->dbg_dir,
-					rproc, &rproc_state_ops);
+			    rproc, &rproc_state_ops);
 	debugfs_create_file("recovery", 0400, rproc->dbg_dir,
-					rproc, &rproc_recovery_ops);
+			    rproc, &rproc_recovery_ops);
 }
 
 void __init rproc_init_debugfs(void)

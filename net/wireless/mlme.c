@@ -222,7 +222,7 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 	ASSERT_WDEV_LOCK(wdev);
 
 	if (auth_type == NL80211_AUTHTYPE_SHARED_KEY)
-		if (!key || !key_len || key_idx < 0 || key_idx > 4)
+		if (!key || !key_len || key_idx < 0 || key_idx > 3)
 			return -EINVAL;
 
 	if (wdev->current_bss &&
@@ -634,6 +634,7 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			 * fall through, P2P device only supports
 			 * public action frames
 			 */
+		case NL80211_IFTYPE_NAN:
 		default:
 			err = -EOPNOTSUPP;
 			break;

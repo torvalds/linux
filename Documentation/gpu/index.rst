@@ -13,3 +13,10 @@ Linux GPU Driver Developer's Guide
    i915
    vga-switcheroo
    vgaarbiter
+
+.. only::  subproject
+
+   Indices
+   =======
+
+   * :ref:`genindex`

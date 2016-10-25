@@ -25,8 +25,6 @@
 #include <asm/cachetype.h>
 #include <asm/tlbflush.h>
 
-#include "mm.h"
-
 void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
 		       unsigned long end)
 {

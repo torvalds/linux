@@ -1302,15 +1302,6 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 unsigned int intel_tile_height(const struct drm_i915_private *dev_priv,
 			       uint64_t fb_modifier, unsigned int cpp);
 
-static inline bool
-intel_rotation_90_or_270(unsigned int rotation)
-{
-	return rotation & (DRM_ROTATE_90 | DRM_ROTATE_270);
-}
-
-void intel_create_rotation_property(struct drm_device *dev,
-					struct intel_plane *plane);
-
 void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 				    enum pipe pipe);
 

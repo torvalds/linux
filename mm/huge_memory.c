@@ -59,7 +59,7 @@ static struct shrinker deferred_split_shrinker;
 static atomic_t huge_zero_refcount;
 struct page *huge_zero_page __read_mostly;
 
-struct page *get_huge_zero_page(void)
+static struct page *get_huge_zero_page(void)
 {
 	struct page *zero_page;
 retry:
@@ -86,13 +86,33 @@ retry:
 	return READ_ONCE(huge_zero_page);
 }
 
-void put_huge_zero_page(void)
+static void put_huge_zero_page(void)
 {
 	/*
 	 * Counter should never go to zero here. Only shrinker can put
 	 * last reference.
 	 */
 	BUG_ON(atomic_dec_and_test(&huge_zero_refcount));
+}
+
+struct page *mm_get_huge_zero_page(struct mm_struct *mm)
+{
+	if (test_bit(MMF_HUGE_ZERO_PAGE, &mm->flags))
+		return READ_ONCE(huge_zero_page);
+
+	if (!get_huge_zero_page())
+		return NULL;
+
+	if (test_and_set_bit(MMF_HUGE_ZERO_PAGE, &mm->flags))
+		put_huge_zero_page();
+
+	return READ_ONCE(huge_zero_page);
+}
+
+void mm_put_huge_zero_page(struct mm_struct *mm)
+{
+	if (test_bit(MMF_HUGE_ZERO_PAGE, &mm->flags))
+		put_huge_zero_page();
 }
 
 static unsigned long shrink_huge_zero_page_count(struct shrinker *shrink,
@@ -469,6 +489,49 @@ void prep_transhuge_page(struct page *page)
 	set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
 }
 
+unsigned long __thp_get_unmapped_area(struct file *filp, unsigned long len,
+		loff_t off, unsigned long flags, unsigned long size)
+{
+	unsigned long addr;
+	loff_t off_end = off + len;
+	loff_t off_align = round_up(off, size);
+	unsigned long len_pad;
+
+	if (off_end <= off_align || (off_end - off_align) < size)
+		return 0;
+
+	len_pad = len + size;
+	if (len_pad < len || (off + len_pad) < off)
+		return 0;
+
+	addr = current->mm->get_unmapped_area(filp, 0, len_pad,
+					      off >> PAGE_SHIFT, flags);
+	if (IS_ERR_VALUE(addr))
+		return 0;
+
+	addr += (off - addr) & (size - 1);
+	return addr;
+}
+
+unsigned long thp_get_unmapped_area(struct file *filp, unsigned long addr,
+		unsigned long len, unsigned long pgoff, unsigned long flags)
+{
+	loff_t off = (loff_t)pgoff << PAGE_SHIFT;
+
+	if (addr)
+		goto out;
+	if (!IS_DAX(filp->f_mapping->host) || !IS_ENABLED(CONFIG_FS_DAX_PMD))
+		goto out;
+
+	addr = __thp_get_unmapped_area(filp, len, off, flags, PMD_SIZE);
+	if (addr)
+		return addr;
+
+ out:
+	return current->mm->get_unmapped_area(filp, addr, len, pgoff, flags);
+}
+EXPORT_SYMBOL_GPL(thp_get_unmapped_area);
+
 static int __do_huge_pmd_anonymous_page(struct fault_env *fe, struct page *page,
 		gfp_t gfp)
 {
@@ -601,7 +664,7 @@ int do_huge_pmd_anonymous_page(struct fault_env *fe)
 		pgtable = pte_alloc_one(vma->vm_mm, haddr);
 		if (unlikely(!pgtable))
 			return VM_FAULT_OOM;
-		zero_page = get_huge_zero_page();
+		zero_page = mm_get_huge_zero_page(vma->vm_mm);
 		if (unlikely(!zero_page)) {
 			pte_free(vma->vm_mm, pgtable);
 			count_vm_event(THP_FAULT_FALLBACK);
@@ -623,10 +686,8 @@ int do_huge_pmd_anonymous_page(struct fault_env *fe)
 			}
 		} else
 			spin_unlock(fe->ptl);
-		if (!set) {
+		if (!set)
 			pte_free(vma->vm_mm, pgtable);
-			put_huge_zero_page();
-		}
 		return ret;
 	}
 	gfp = alloc_hugepage_direct_gfpmask(vma);
@@ -780,7 +841,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		 * since we already have a zero page to copy. It just takes a
 		 * reference.
 		 */
-		zero_page = get_huge_zero_page();
+		zero_page = mm_get_huge_zero_page(dst_mm);
 		set_huge_zero_page(pgtable, dst_mm, vma, addr, dst_pmd,
 				zero_page);
 		ret = 0;
@@ -1038,7 +1099,6 @@ alloc:
 		update_mmu_cache_pmd(vma, fe->address, fe->pmd);
 		if (!page) {
 			add_mm_counter(vma->vm_mm, MM_ANONPAGES, HPAGE_PMD_NR);
-			put_huge_zero_page();
 		} else {
 			VM_BUG_ON_PAGE(!PageHead(page), page);
 			page_remove_rmap(page, true);
@@ -1165,7 +1225,7 @@ int do_huge_pmd_numa_page(struct fault_env *fe, pmd_t pmd)
 	}
 
 	/* See similar comment in do_numa_page for explanation */
-	if (!(vma->vm_flags & VM_WRITE))
+	if (!pmd_write(pmd))
 		flags |= TNF_NO_GROUP;
 
 	/*
@@ -1499,7 +1559,6 @@ static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
 	}
 	smp_wmb(); /* make pte visible before pmd */
 	pmd_populate(mm, pmd, pgtable);
-	put_huge_zero_page();
 }
 
 static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
@@ -1522,8 +1581,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 
 	if (!vma_is_anonymous(vma)) {
 		_pmd = pmdp_huge_clear_flush_notify(vma, haddr, pmd);
-		if (is_huge_zero_pmd(_pmd))
-			put_huge_zero_page();
 		if (vma_is_dax(vma))
 			return;
 		page = pmd_page(_pmd);
@@ -1563,7 +1620,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 			if (soft_dirty)
 				entry = pte_swp_mksoft_dirty(entry);
 		} else {
-			entry = mk_pte(page + i, vma->vm_page_prot);
+			entry = mk_pte(page + i, READ_ONCE(vma->vm_page_prot));
 			entry = maybe_mkwrite(entry, vma);
 			if (!write)
 				entry = pte_wrprotect(entry);

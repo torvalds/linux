@@ -194,7 +194,7 @@ retry:
 	}
 
 	/* Check info buffer */
-	info = (void *)&msg[1];
+	info = (void *)&bcdc->buf[0];
 
 	/* Copy info buffer */
 	if (buf) {

@@ -1266,9 +1266,12 @@ static void ufshcd_prepare_utp_query_req_upiu(struct ufs_hba *hba,
 	ucd_req_ptr->header.dword_1 = UPIU_HEADER_DWORD(
 			0, query->request.query_func, 0, 0);
 
-	/* Data segment length */
-	ucd_req_ptr->header.dword_2 = UPIU_HEADER_DWORD(
-			0, 0, len >> 8, (u8)len);
+	/* Data segment length only need for WRITE_DESC */
+	if (query->request.upiu_req.opcode == UPIU_QUERY_OPCODE_WRITE_DESC)
+		ucd_req_ptr->header.dword_2 =
+			UPIU_HEADER_DWORD(0, 0, (len >> 8), (u8)len);
+	else
+		ucd_req_ptr->header.dword_2 = 0;
 
 	/* Copy the Query Request buffer as is */
 	memcpy(&ucd_req_ptr->qr, &query->request.upiu_req,
@@ -2568,7 +2571,7 @@ static int ufshcd_uic_pwr_ctrl(struct ufs_hba *hba, struct uic_command *cmd)
 	status = ufshcd_get_upmcrs(hba);
 	if (status != PWR_LOCAL) {
 		dev_err(hba->dev,
-			"pwr ctrl cmd 0x%0x failed, host umpcrs:0x%x\n",
+			"pwr ctrl cmd 0x%0x failed, host upmcrs:0x%x\n",
 			cmd->command, status);
 		ret = (status != PWR_OK) ? status : -1;
 	}
@@ -3364,8 +3367,8 @@ static int ufshcd_task_req_compl(struct ufs_hba *hba, u32 index, u8 *resp)
 	if (ocs_value == OCS_SUCCESS) {
 		task_rsp_upiup = (struct utp_upiu_task_rsp *)
 				task_req_descp[index].task_rsp_upiu;
-		task_result = be32_to_cpu(task_rsp_upiup->header.dword_1);
-		task_result = ((task_result & MASK_TASK_RESPONSE) >> 8);
+		task_result = be32_to_cpu(task_rsp_upiup->output_param1);
+		task_result = task_result & MASK_TM_SERVICE_RESP;
 		if (resp)
 			*resp = (u8)task_result;
 	} else {
@@ -6500,6 +6503,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 		if (IS_ERR(hba->devfreq)) {
 			dev_err(hba->dev, "Unable to register with devfreq %ld\n",
 					PTR_ERR(hba->devfreq));
+			err = PTR_ERR(hba->devfreq);
 			goto out_remove_scsi_host;
 		}
 		/* Suspend devfreq until the UFS device is detected */

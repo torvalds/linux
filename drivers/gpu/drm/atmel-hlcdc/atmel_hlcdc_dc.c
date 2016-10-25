@@ -464,7 +464,7 @@ atmel_hlcdc_dc_atomic_complete(struct atmel_hlcdc_dc_commit *commit)
 
 	drm_atomic_helper_cleanup_planes(dev, old_state);
 
-	drm_atomic_state_free(old_state);
+	drm_atomic_state_put(old_state);
 
 	/* Complete the commit, wake up any waiter. */
 	spin_lock(&dc->commit.wait.lock);
@@ -521,6 +521,7 @@ static int atmel_hlcdc_dc_atomic_commit(struct drm_device *dev,
 	/* Swap the state, this is the point of no return. */
 	drm_atomic_helper_swap_state(state, true);
 
+	drm_atomic_state_get(state);
 	if (async)
 		queue_work(dc->wq, &commit->work);
 	else

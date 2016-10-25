@@ -245,7 +245,7 @@ static int bucket_straw_choose(struct crush_bucket_straw *bucket,
 /* compute 2^44*log2(input+1) */
 static __u64 crush_ln(unsigned int xin)
 {
-	unsigned int x = xin, x1;
+	unsigned int x = xin;
 	int iexpon, index1, index2;
 	__u64 RH, LH, LL, xl64, result;
 
@@ -253,9 +253,15 @@ static __u64 crush_ln(unsigned int xin)
 
 	/* normalize input */
 	iexpon = 15;
-	while (!(x & 0x18000)) {
-		x <<= 1;
-		iexpon--;
+
+	/*
+	 * figure out number of bits we need to shift and
+	 * do it in one step instead of iteratively
+	 */
+	if (!(x & 0x18000)) {
+		int bits = __builtin_clz(x & 0x1FFFF) - 16;
+		x <<= bits;
+		iexpon = 15 - bits;
 	}
 
 	index1 = (x >> 8) << 1;
@@ -267,12 +273,11 @@ static __u64 crush_ln(unsigned int xin)
 	/* RH*x ~ 2^48 * (2^15 + xf), xf<2^8 */
 	xl64 = (__s64)x * RH;
 	xl64 >>= 48;
-	x1 = xl64;
 
 	result = iexpon;
 	result <<= (12 + 32);
 
-	index2 = x1 & 0xff;
+	index2 = xl64 & 0xff;
 	/* LL ~ 2^48*log2(1.0+index2/2^15) */
 	LL = __LL_tbl[index2];
 

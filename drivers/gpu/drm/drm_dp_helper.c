@@ -975,6 +975,12 @@ static void unlock_bus(struct i2c_adapter *i2c, unsigned int flags)
 	mutex_unlock(&i2c_to_aux(i2c)->hw_mutex);
 }
 
+static const struct i2c_lock_operations drm_dp_i2c_lock_ops = {
+	.lock_bus = lock_bus,
+	.trylock_bus = trylock_bus,
+	.unlock_bus = unlock_bus,
+};
+
 /**
  * drm_dp_aux_init() - minimally initialise an aux channel
  * @aux: DisplayPort AUX channel
@@ -992,9 +998,7 @@ void drm_dp_aux_init(struct drm_dp_aux *aux)
 	aux->ddc.algo_data = aux;
 	aux->ddc.retries = 3;
 
-	aux->ddc.lock_bus = lock_bus;
-	aux->ddc.trylock_bus = trylock_bus;
-	aux->ddc.unlock_bus = unlock_bus;
+	aux->ddc.lock_ops = &drm_dp_i2c_lock_ops;
 }
 EXPORT_SYMBOL(drm_dp_aux_init);
 

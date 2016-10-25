@@ -1251,7 +1251,7 @@ validate_exec_list(struct drm_device *dev,
 			return -EFAULT;
 
 		if (likely(!i915.prefault_disable)) {
-			if (fault_in_multipages_readable(ptr, length))
+			if (fault_in_pages_readable(ptr, length))
 				return -EFAULT;
 		}
 	}

@@ -2146,7 +2146,7 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view,
 			const struct drm_framebuffer *fb,
 			unsigned int rotation)
 {
-	if (intel_rotation_90_or_270(rotation)) {
+	if (drm_rotation_90_or_270(rotation)) {
 		*view = i915_ggtt_view_rotated;
 		view->params.rotated = to_intel_framebuffer(fb)->rot_info;
 	} else {
@@ -2267,7 +2267,7 @@ void intel_unpin_fb_obj(struct drm_framebuffer *fb, unsigned int rotation)
 static int intel_fb_pitch(const struct drm_framebuffer *fb, int plane,
 			  unsigned int rotation)
 {
-	if (intel_rotation_90_or_270(rotation))
+	if (drm_rotation_90_or_270(rotation))
 		return to_intel_framebuffer(fb)->rotated[plane].pitch;
 	else
 		return fb->pitches[plane];
@@ -2303,7 +2303,7 @@ void intel_add_fb_offsets(int *x, int *y,
 	const struct intel_framebuffer *intel_fb = to_intel_framebuffer(state->base.fb);
 	unsigned int rotation = state->base.rotation;
 
-	if (intel_rotation_90_or_270(rotation)) {
+	if (drm_rotation_90_or_270(rotation)) {
 		*x += intel_fb->rotated[plane].x;
 		*y += intel_fb->rotated[plane].y;
 	} else {
@@ -2367,7 +2367,7 @@ static u32 intel_adjust_tile_offset(int *x, int *y,
 		intel_tile_dims(dev_priv, &tile_width, &tile_height,
 				fb->modifier[plane], cpp);
 
-		if (intel_rotation_90_or_270(rotation)) {
+		if (drm_rotation_90_or_270(rotation)) {
 			pitch_tiles = pitch / tile_height;
 			swap(tile_width, tile_height);
 		} else {
@@ -2423,7 +2423,7 @@ static u32 _intel_compute_tile_offset(const struct drm_i915_private *dev_priv,
 		intel_tile_dims(dev_priv, &tile_width, &tile_height,
 				fb_modifier, cpp);
 
-		if (intel_rotation_90_or_270(rotation)) {
+		if (drm_rotation_90_or_270(rotation)) {
 			pitch_tiles = pitch / tile_height;
 			swap(tile_width, tile_height);
 		} else {
@@ -2983,7 +2983,7 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	int ret;
 
 	/* Rotate src coordinates to match rotated GTT view */
-	if (intel_rotation_90_or_270(rotation))
+	if (drm_rotation_90_or_270(rotation))
 		drm_rect_rotate(&plane_state->base.src,
 				fb->width, fb->height, DRM_ROTATE_270);
 
@@ -3283,7 +3283,7 @@ u32 skl_plane_stride(const struct drm_framebuffer *fb, int plane,
 	 * The stride is either expressed as a multiple of 64 bytes chunks for
 	 * linear buffers or in number of tiles for tiled buffers.
 	 */
-	if (intel_rotation_90_or_270(rotation)) {
+	if (drm_rotation_90_or_270(rotation)) {
 		int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
 
 		stride /= intel_tile_height(dev_priv, fb->modifier[0], cpp);
@@ -3596,7 +3596,7 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv)
 	return;
 
 err:
-	drm_atomic_state_free(state);
+	drm_atomic_state_put(state);
 }
 
 void intel_finish_reset(struct drm_i915_private *dev_priv)
@@ -3656,6 +3656,8 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 		intel_hpd_init(dev_priv);
 	}
 
+	if (state)
+		drm_atomic_state_put(state);
 	drm_modeset_drop_locks(ctx);
 	drm_modeset_acquire_fini(ctx);
 	mutex_unlock(&dev->mode_config.mutex);
@@ -4678,7 +4680,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 		to_intel_crtc(crtc_state->base.crtc);
 	int need_scaling;
 
-	need_scaling = intel_rotation_90_or_270(rotation) ?
+	need_scaling = drm_rotation_90_or_270(rotation) ?
 		(src_h != dst_w || src_w != dst_h):
 		(src_w != dst_w || src_h != dst_h);
 
@@ -6896,7 +6898,7 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 
 	dev_priv->display.crtc_disable(crtc_state, state);
 
-	drm_atomic_state_free(state);
+	drm_atomic_state_put(state);
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s] hw state adjusted, was enabled, now disabled\n",
 		      crtc->base.id, crtc->name);
@@ -11289,9 +11291,14 @@ found:
 	return true;
 
 fail:
-	drm_atomic_state_free(state);
-	drm_atomic_state_free(restore_state);
-	restore_state = state = NULL;
+	if (state) {
+		drm_atomic_state_put(state);
+		state = NULL;
+	}
+	if (restore_state) {
+		drm_atomic_state_put(restore_state);
+		restore_state = NULL;
+	}
 
 	if (ret == -EDEADLK) {
 		drm_modeset_backoff(ctx);
@@ -11319,10 +11326,9 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 		return;
 
 	ret = drm_atomic_commit(state);
-	if (ret) {
+	if (ret)
 		DRM_DEBUG_KMS("Couldn't release load detect pipe: %i\n", ret);
-		drm_atomic_state_free(state);
-	}
+	drm_atomic_state_put(state);
 }
 
 static int i9xx_pll_refclk(struct drm_device *dev,
@@ -12391,8 +12397,7 @@ retry:
 			goto retry;
 		}
 
-		if (ret)
-			drm_atomic_state_free(state);
+		drm_atomic_state_put(state);
 
 		if (ret == 0 && event) {
 			spin_lock_irq(&dev->event_lock);
@@ -14548,7 +14553,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_cleanup_done(state);
 
-	drm_atomic_state_free(state);
+	drm_atomic_state_put(state);
 
 	/* As one of the primary mmio accessors, KMS has a high likelihood
 	 * of triggering bugs in unclaimed access. After we finish
@@ -14631,6 +14636,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 	intel_shared_dpll_commit(state);
 	intel_atomic_track_fbs(state);
 
+	drm_atomic_state_get(state);
 	if (nonblock)
 		queue_work(system_unbound_wq, &state->commit_work);
 	else
@@ -14672,9 +14678,8 @@ retry:
 		goto retry;
 	}
 
-	if (ret)
 out:
-		drm_atomic_state_free(state);
+	drm_atomic_state_put(state);
 }
 
 /*
@@ -14996,6 +15001,7 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	struct intel_plane *primary = NULL;
 	struct intel_plane_state *state = NULL;
 	const uint32_t *intel_primary_formats;
+	unsigned int supported_rotations;
 	unsigned int num_formats;
 	int ret;
 
@@ -15068,8 +15074,21 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	if (INTEL_INFO(dev)->gen >= 4)
-		intel_create_rotation_property(dev, primary);
+	if (INTEL_GEN(dev_priv) >= 9) {
+		supported_rotations =
+			DRM_ROTATE_0 | DRM_ROTATE_90 |
+			DRM_ROTATE_180 | DRM_ROTATE_270;
+	} else if (INTEL_GEN(dev_priv) >= 4) {
+		supported_rotations =
+			DRM_ROTATE_0 | DRM_ROTATE_180;
+	} else {
+		supported_rotations = DRM_ROTATE_0;
+	}
+
+	if (INTEL_GEN(dev_priv) >= 4)
+		drm_plane_create_rotation_property(&primary->base,
+						   DRM_ROTATE_0,
+						   supported_rotations);
 
 	drm_plane_helper_add(&primary->base, &intel_plane_helper_funcs);
 
@@ -15080,24 +15099,6 @@ fail:
 	kfree(primary);
 
 	return NULL;
-}
-
-void intel_create_rotation_property(struct drm_device *dev, struct intel_plane *plane)
-{
-	if (!dev->mode_config.rotation_property) {
-		unsigned long flags = DRM_ROTATE_0 |
-			DRM_ROTATE_180;
-
-		if (INTEL_INFO(dev)->gen >= 9)
-			flags |= DRM_ROTATE_90 | DRM_ROTATE_270;
-
-		dev->mode_config.rotation_property =
-			drm_mode_create_rotation_property(dev, flags);
-	}
-	if (dev->mode_config.rotation_property)
-		drm_object_attach_property(&plane->base.base,
-				dev->mode_config.rotation_property,
-				plane->base.state->rotation);
 }
 
 static int
@@ -15196,6 +15197,7 @@ intel_update_cursor_plane(struct drm_plane *plane,
 static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 						   int pipe)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *cursor = NULL;
 	struct intel_plane_state *state = NULL;
 	int ret;
@@ -15227,17 +15229,11 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	if (INTEL_INFO(dev)->gen >= 4) {
-		if (!dev->mode_config.rotation_property)
-			dev->mode_config.rotation_property =
-				drm_mode_create_rotation_property(dev,
-							DRM_ROTATE_0 |
-							DRM_ROTATE_180);
-		if (dev->mode_config.rotation_property)
-			drm_object_attach_property(&cursor->base.base,
-				dev->mode_config.rotation_property,
-				state->base.rotation);
-	}
+	if (INTEL_GEN(dev_priv) >= 4)
+		drm_plane_create_rotation_property(&cursor->base,
+						   DRM_ROTATE_0,
+						   DRM_ROTATE_0 |
+						   DRM_ROTATE_180);
 
 	if (INTEL_INFO(dev)->gen >=9)
 		state->scaler_id = -1;
@@ -16405,7 +16401,7 @@ retry:
 		 * BIOS-programmed watermarks untouched and hope for the best.
 		 */
 		WARN(true, "Could not determine valid watermarks for inherited state\n");
-		goto fail;
+		goto put_state;
 	}
 
 	/* Write calculated watermark values back */
@@ -16416,7 +16412,8 @@ retry:
 		dev_priv->display.optimize_watermarks(cs);
 	}
 
-	drm_atomic_state_free(state);
+put_state:
+	drm_atomic_state_put(state);
 fail:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
@@ -17054,10 +17051,9 @@ void intel_display_resume(struct drm_device *dev)
 	drm_modeset_acquire_fini(&ctx);
 	mutex_unlock(&dev->mode_config.mutex);
 
-	if (ret) {
+	if (ret)
 		DRM_ERROR("Restoring old state failed with %i\n", ret);
-		drm_atomic_state_free(state);
-	}
+	drm_atomic_state_put(state);
 }
 
 void intel_modeset_gem_init(struct drm_device *dev)

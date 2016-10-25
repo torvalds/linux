@@ -631,7 +631,7 @@ static struct genl_family fou_nl_family = {
 	.netnsok	= true,
 };
 
-static struct nla_policy fou_nl_policy[FOU_ATTR_MAX + 1] = {
+static const struct nla_policy fou_nl_policy[FOU_ATTR_MAX + 1] = {
 	[FOU_ATTR_PORT] = { .type = NLA_U16, },
 	[FOU_ATTR_AF] = { .type = NLA_U8, },
 	[FOU_ATTR_IPPROTO] = { .type = NLA_U8, },

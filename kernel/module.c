@@ -1149,6 +1149,8 @@ static size_t module_flags_taint(struct module *mod, char *buf)
 		buf[l++] = 'C';
 	if (mod->taints & (1 << TAINT_UNSIGNED_MODULE))
 		buf[l++] = 'E';
+	if (mod->taints & (1 << TAINT_LIVEPATCH))
+		buf[l++] = 'K';
 	/*
 	 * TAINT_FORCED_RMMOD: could be added.
 	 * TAINT_CPU_OUT_OF_SPEC, TAINT_MACHINE_CHECK, TAINT_BAD_PAGE don't
@@ -2792,14 +2794,17 @@ static int copy_chunked_from_user(void *dst, const void __user *usrc, unsigned l
 }
 
 #ifdef CONFIG_LIVEPATCH
-static int find_livepatch_modinfo(struct module *mod, struct load_info *info)
+static int check_modinfo_livepatch(struct module *mod, struct load_info *info)
 {
-	mod->klp = get_modinfo(info, "livepatch") ? true : false;
+	if (get_modinfo(info, "livepatch")) {
+		mod->klp = true;
+		add_taint_module(mod, TAINT_LIVEPATCH, LOCKDEP_STILL_OK);
+	}
 
 	return 0;
 }
 #else /* !CONFIG_LIVEPATCH */
-static int find_livepatch_modinfo(struct module *mod, struct load_info *info)
+static int check_modinfo_livepatch(struct module *mod, struct load_info *info)
 {
 	if (get_modinfo(info, "livepatch")) {
 		pr_err("%s: module is marked as livepatch module, but livepatch support is disabled",
@@ -2969,7 +2974,7 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 			"is unknown, you have been warned.\n", mod->name);
 	}
 
-	err = find_livepatch_modinfo(mod, info);
+	err = check_modinfo_livepatch(mod, info);
 	if (err)
 		return err;
 

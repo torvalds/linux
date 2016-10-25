@@ -56,6 +56,7 @@
 #include <net/checksum.h>
 #include <linux/mroute6.h>
 #include <net/l3mdev.h>
+#include <net/lwtunnel.h>
 
 static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
@@ -102,6 +103,13 @@ static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *
 			kfree_skb(skb);
 			return 0;
 		}
+	}
+
+	if (lwtunnel_xmit_redirect(dst->lwtstate)) {
+		int res = lwtunnel_xmit(skb);
+
+		if (res < 0 || res == LWTUNNEL_XMIT_DONE)
+			return res;
 	}
 
 	rcu_read_lock_bh();
@@ -228,6 +236,14 @@ int ip6_xmit(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 	if ((skb->len <= mtu) || skb->ignore_df || skb_is_gso(skb)) {
 		IP6_UPD_PO_STATS(net, ip6_dst_idev(skb_dst(skb)),
 			      IPSTATS_MIB_OUT, skb->len);
+
+		/* if egress device is enslaved to an L3 master device pass the
+		 * skb to its handler for processing
+		 */
+		skb = l3mdev_ip6_out((struct sock *)sk, skb);
+		if (unlikely(!skb))
+			return 0;
+
 		/* hooks should never assume socket lock is held.
 		 * we promote our socket to non const
 		 */
@@ -910,13 +926,6 @@ static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
 	int err;
 	int flags = 0;
 
-	if (ipv6_addr_any(&fl6->saddr) && fl6->flowi6_oif &&
-	    (!*dst || !(*dst)->error)) {
-		err = l3mdev_get_saddr6(net, sk, fl6);
-		if (err)
-			goto out_err;
-	}
-
 	/* The correct way to handle this would be to do
 	 * ip6_route_get_saddr, and then ip6_route_output; however,
 	 * the route-specific preferred source forces the
@@ -1008,7 +1017,7 @@ static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
 out_err_release:
 	dst_release(*dst);
 	*dst = NULL;
-out_err:
+
 	if (err == -ENETUNREACH)
 		IP6_INC_STATS(net, NULL, IPSTATS_MIB_OUTNOROUTES);
 	return err;
@@ -1054,8 +1063,6 @@ struct dst_entry *ip6_dst_lookup_flow(const struct sock *sk, struct flowi6 *fl6,
 		return ERR_PTR(err);
 	if (final_dst)
 		fl6->daddr = *final_dst;
-	if (!fl6->flowi6_oif)
-		fl6->flowi6_oif = l3mdev_fib_oif(dst->dev);
 
 	return xfrm_lookup_route(sock_net(sk), dst, flowi6_to_flowi(fl6), sk, 0);
 }

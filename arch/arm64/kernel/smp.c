@@ -233,7 +233,7 @@ asmlinkage void secondary_start_kernel(void)
 	 * this CPU ticks all of those. If it doesn't, the CPU will
 	 * fail to come online.
 	 */
-	verify_local_cpu_capabilities();
+	check_local_cpu_capabilities();
 
 	if (cpu_ops[cpu]->cpu_postboot)
 		cpu_ops[cpu]->cpu_postboot();
@@ -431,8 +431,19 @@ void __init smp_cpus_done(unsigned int max_cpus)
 void __init smp_prepare_boot_cpu(void)
 {
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
+	/*
+	 * Initialise the static keys early as they may be enabled by the
+	 * cpufeature code.
+	 */
+	jump_label_init();
 	cpuinfo_store_boot_cpu();
 	save_boot_cpu_run_el();
+	/*
+	 * Run the errata work around checks on the boot CPU, once we have
+	 * initialised the cpu feature infrastructure from
+	 * cpuinfo_store_boot_cpu() above.
+	 */
+	update_cpu_errata_workarounds();
 }
 
 static u64 __init of_get_cpu_mpidr(struct device_node *dn)
@@ -533,6 +544,7 @@ acpi_map_gic_cpu_interface(struct acpi_madt_generic_interrupt *processor)
 			return;
 		}
 		bootcpu_valid = true;
+		early_map_cpu_to_node(0, acpi_numa_get_nid(0, hwid));
 		return;
 	}
 
@@ -613,6 +625,7 @@ static void __init of_parse_and_init_cpus(void)
 			}
 
 			bootcpu_valid = true;
+			early_map_cpu_to_node(0, of_node_to_nid(dn));
 
 			/*
 			 * cpu_logical_map has already been

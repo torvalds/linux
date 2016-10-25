@@ -1466,12 +1466,14 @@ static struct snd_soc_codec_driver adau1373_codec_driver = {
 
 	.set_pll = adau1373_set_pll,
 
-	.controls = adau1373_controls,
-	.num_controls = ARRAY_SIZE(adau1373_controls),
-	.dapm_widgets = adau1373_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(adau1373_dapm_widgets),
-	.dapm_routes = adau1373_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(adau1373_dapm_routes),
+	.component_driver = {
+		.controls		= adau1373_controls,
+		.num_controls		= ARRAY_SIZE(adau1373_controls),
+		.dapm_widgets		= adau1373_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(adau1373_dapm_widgets),
+		.dapm_routes		= adau1373_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(adau1373_dapm_routes),
+	},
 };
 
 static int adau1373_i2c_probe(struct i2c_client *client,

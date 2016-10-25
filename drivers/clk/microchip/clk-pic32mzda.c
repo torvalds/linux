@@ -118,6 +118,7 @@ static const struct pic32_sec_osc_data sosc_clk = {
 	.status_reg = 0x1d0,
 	.enable_mask = BIT(1),
 	.status_mask = BIT(4),
+	.fixed_rate = 32768,
 	.init_data = {
 		.name = "sosc_clk",
 		.parent_names = NULL,

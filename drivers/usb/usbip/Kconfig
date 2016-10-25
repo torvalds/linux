@@ -1,6 +1,7 @@
 config USBIP_CORE
 	tristate "USB/IP support"
-	depends on USB_COMMON && NET
+	depends on NET
+	select USB_COMMON
 	---help---
 	  This enables pushing USB packets over IP to allow remote
 	  machines direct access to USB devices. It provides the
@@ -23,6 +24,27 @@ config USBIP_VHCI_HCD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vhci-hcd.
+
+config USBIP_VHCI_HC_PORTS
+	int "Number of ports per USB/IP virtual host controller"
+	range 1 31
+	default 8
+	depends on USBIP_VHCI_HCD
+	---help---
+	  To increase number of ports available for USB/IP virtual
+	  host controller driver, this defines number of ports per
+	  USB/IP virtual host controller.
+
+config USBIP_VHCI_NR_HCS
+	int "Number of USB/IP virtual host controllers"
+	range 1 128
+	default 1
+	depends on USBIP_VHCI_HCD
+	---help---
+	  To increase number of ports available for USB/IP virtual
+	  host controller driver, this defines number of USB/IP
+	  virtual host controllers as if adding physical host
+	  controllers.
 
 config USBIP_HOST
 	tristate "Host driver"

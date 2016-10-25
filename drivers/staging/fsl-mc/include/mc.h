@@ -13,7 +13,6 @@
 
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
-#include <linux/list.h>
 #include <linux/interrupt.h>
 #include "../include/dprc.h"
 
@@ -21,7 +20,6 @@
 
 struct fsl_mc_device;
 struct fsl_mc_io;
-struct fsl_mc_bus;
 
 /**
  * struct fsl_mc_driver - MC object device driver object
@@ -112,11 +110,6 @@ struct fsl_mc_device_irq {
 #define FSL_MC_IS_DPRC	0x0001
 
 /**
- * Default DMA mask for devices on a fsl-mc bus
- */
-#define FSL_MC_DEFAULT_DMA_MASK	(~0ULL)
-
-/**
  * struct fsl_mc_device - MC object device object
  * @dev: Linux driver model device object
  * @dma_mask: Default DMA mask
@@ -187,8 +180,6 @@ int __must_check __fsl_mc_driver_register(struct fsl_mc_driver *fsl_mc_driver,
 
 void fsl_mc_driver_unregister(struct fsl_mc_driver *driver);
 
-bool fsl_mc_bus_exists(void);
-
 int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 					u16 mc_io_flags,
 					struct fsl_mc_io **new_mc_io);
@@ -206,9 +197,5 @@ void fsl_mc_object_free(struct fsl_mc_device *mc_adev);
 int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev);
 
 void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev);
-
-bool fsl_mc_is_root_dprc(struct device *dev);
-
-extern struct bus_type fsl_mc_bus_type;
 
 #endif /* _FSL_MC_H_ */

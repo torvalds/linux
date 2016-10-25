@@ -53,6 +53,12 @@
 	panel: panel {
 		compatible = "edt,et057090dhu";
 		backlight = <&bl>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&dcu_out>;
+			};
+		};
 	};
 
 	reg_3v3: regulator-3v3 {
@@ -91,8 +97,13 @@
 &dcu0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_dcu0_1>;
-	fsl,panel = <&panel>;
 	status = "okay";
+
+	port {
+		dcu_out: endpoint {
+			remote-endpoint = <&panel_in>;
+		};
+	};
 };
 
 &dspi1 {

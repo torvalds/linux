@@ -7,6 +7,8 @@ Required properties:
 - reg			: Physical base address and size
 
 Optional properties:
+- clocks		: Input clock specifier. Refer to common clock
+			  bindings.
 - clock-frequency	: Frequency of clock in Hz
 - xlnx,wdt-enable-once	: 0 - Watchdog can be restarted
 			  1 - Watchdog can be enabled just once
@@ -17,6 +19,7 @@ Example:
 axi-timebase-wdt@40100000 {
 	clock-frequency = <50000000>;
 	compatible = "xlnx,xps-timebase-wdt-1.00.a";
+	clocks = <&clkc 15>;
 	reg = <0x40100000 0x10000>;
 	xlnx,wdt-enable-once = <0x0>;
 	xlnx,wdt-interval = <0x1b>;

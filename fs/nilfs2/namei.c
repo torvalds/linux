@@ -194,7 +194,7 @@ static int nilfs_link(struct dentry *old_dentry, struct inode *dir,
 	if (err)
 		return err;
 
-	inode->i_ctime = CURRENT_TIME;
+	inode->i_ctime = current_time(inode);
 	inode_inc_link_count(inode);
 	ihold(inode);
 
@@ -350,7 +350,8 @@ static int nilfs_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-			struct inode *new_dir,	struct dentry *new_dentry)
+			struct inode *new_dir,	struct dentry *new_dentry,
+			unsigned int flags)
 {
 	struct inode *old_inode = d_inode(old_dentry);
 	struct inode *new_inode = d_inode(new_dentry);
@@ -360,6 +361,9 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct nilfs_dir_entry *old_de;
 	struct nilfs_transaction_info ti;
 	int err;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	err = nilfs_transaction_begin(old_dir->i_sb, &ti, 1);
 	if (unlikely(err))
@@ -391,7 +395,7 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out_dir;
 		nilfs_set_link(new_dir, new_de, new_page, old_inode);
 		nilfs_mark_inode_dirty(new_dir);
-		new_inode->i_ctime = CURRENT_TIME;
+		new_inode->i_ctime = current_time(new_inode);
 		if (dir_de)
 			drop_nlink(new_inode);
 		drop_nlink(new_inode);
@@ -410,7 +414,7 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * Like most other Unix systems, set the ctime for inodes on a
 	 * rename.
 	 */
-	old_inode->i_ctime = CURRENT_TIME;
+	old_inode->i_ctime = current_time(old_inode);
 
 	nilfs_delete_entry(old_de, old_page);
 

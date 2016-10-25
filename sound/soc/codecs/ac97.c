@@ -117,10 +117,12 @@ static struct snd_soc_codec_driver soc_codec_dev_ac97 = {
 	.suspend =	ac97_soc_suspend,
 	.resume =	ac97_soc_resume,
 
-	.dapm_widgets = ac97_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ac97_widgets),
-	.dapm_routes = ac97_routes,
-	.num_dapm_routes = ARRAY_SIZE(ac97_routes),
+	.component_driver = {
+		.dapm_widgets		= ac97_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ac97_widgets),
+		.dapm_routes		= ac97_routes,
+		.num_dapm_routes	= ARRAY_SIZE(ac97_routes),
+	},
 };
 
 static int ac97_probe(struct platform_device *pdev)

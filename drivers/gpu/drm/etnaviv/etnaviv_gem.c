@@ -409,20 +409,16 @@ int etnaviv_gem_cpu_prep(struct drm_gem_object *obj, u32 op,
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 	struct drm_device *dev = obj->dev;
 	bool write = !!(op & ETNA_PREP_WRITE);
-	int ret;
+	unsigned long remain =
+		op & ETNA_PREP_NOSYNC ? 0 : etnaviv_timeout_to_jiffies(timeout);
+	long lret;
 
-	if (op & ETNA_PREP_NOSYNC) {
-		if (!reservation_object_test_signaled_rcu(etnaviv_obj->resv,
-							  write))
-			return -EBUSY;
-	} else {
-		unsigned long remain = etnaviv_timeout_to_jiffies(timeout);
-
-		ret = reservation_object_wait_timeout_rcu(etnaviv_obj->resv,
-							  write, true, remain);
-		if (ret <= 0)
-			return ret == 0 ? -ETIMEDOUT : ret;
-	}
+	lret = reservation_object_wait_timeout_rcu(etnaviv_obj->resv,
+						   write, true, remain);
+	if (lret < 0)
+		return lret;
+	else if (lret == 0)
+		return remain == 0 ? -EBUSY : -ETIMEDOUT;
 
 	if (etnaviv_obj->flags & ETNA_BO_CACHED) {
 		if (!etnaviv_obj->sgt) {
@@ -748,10 +744,14 @@ static struct page **etnaviv_gem_userptr_do_get_pages(
 	int ret = 0, pinned, npages = etnaviv_obj->base.size >> PAGE_SHIFT;
 	struct page **pvec;
 	uintptr_t ptr;
+	unsigned int flags = 0;
 
 	pvec = drm_malloc_ab(npages, sizeof(struct page *));
 	if (!pvec)
 		return ERR_PTR(-ENOMEM);
+
+	if (!etnaviv_obj->userptr.ro)
+		flags |= FOLL_WRITE;
 
 	pinned = 0;
 	ptr = etnaviv_obj->userptr.ptr;
@@ -759,8 +759,7 @@ static struct page **etnaviv_gem_userptr_do_get_pages(
 	down_read(&mm->mmap_sem);
 	while (pinned < npages) {
 		ret = get_user_pages_remote(task, mm, ptr, npages - pinned,
-					    !etnaviv_obj->userptr.ro, 0,
-					    pvec + pinned, NULL);
+					    flags, pvec + pinned, NULL);
 		if (ret < 0)
 			break;
 

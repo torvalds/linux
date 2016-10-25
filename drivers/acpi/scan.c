@@ -2002,6 +2002,7 @@ int __init acpi_scan_init(void)
 	acpi_pnp_init();
 	acpi_int340x_thermal_init();
 	acpi_amba_init();
+	acpi_watchdog_init();
 
 	acpi_scan_add_handler(&generic_device_handler);
 
@@ -2044,6 +2045,7 @@ int __init acpi_scan_init(void)
 	}
 
 	acpi_update_all_gpes();
+	acpi_ec_ecdt_start();
 
 	acpi_scan_initialized = true;
 

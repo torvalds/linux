@@ -50,14 +50,14 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
-#define HASH_SIZE_SHIFT  5
-#define HASH_SIZE (1 << HASH_SIZE_SHIFT)
+#define IP6_VTI_HASH_SIZE_SHIFT  5
+#define IP6_VTI_HASH_SIZE (1 << IP6_VTI_HASH_SIZE_SHIFT)
 
 static u32 HASH(const struct in6_addr *addr1, const struct in6_addr *addr2)
 {
 	u32 hash = ipv6_addr_hash(addr1) ^ ipv6_addr_hash(addr2);
 
-	return hash_32(hash, HASH_SIZE_SHIFT);
+	return hash_32(hash, IP6_VTI_HASH_SIZE_SHIFT);
 }
 
 static int vti6_dev_init(struct net_device *dev);
@@ -69,7 +69,7 @@ struct vti6_net {
 	/* the vti6 tunnel fallback device */
 	struct net_device *fb_tnl_dev;
 	/* lists for storing tunnels in use */
-	struct ip6_tnl __rcu *tnls_r_l[HASH_SIZE];
+	struct ip6_tnl __rcu *tnls_r_l[IP6_VTI_HASH_SIZE];
 	struct ip6_tnl __rcu *tnls_wc[1];
 	struct ip6_tnl __rcu **tnls[2];
 };
@@ -1051,7 +1051,7 @@ static void __net_exit vti6_destroy_tunnels(struct vti6_net *ip6n)
 	struct ip6_tnl *t;
 	LIST_HEAD(list);
 
-	for (h = 0; h < HASH_SIZE; h++) {
+	for (h = 0; h < IP6_VTI_HASH_SIZE; h++) {
 		t = rtnl_dereference(ip6n->tnls_r_l[h]);
 		while (t) {
 			unregister_netdevice_queue(t->dev, &list);

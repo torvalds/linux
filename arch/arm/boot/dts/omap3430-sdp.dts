@@ -13,7 +13,7 @@
 	model = "TI OMAP3430 SDP";
 	compatible = "ti,omap3430-sdp", "ti,omap3";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};

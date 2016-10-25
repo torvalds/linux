@@ -124,7 +124,7 @@ static int psbfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	unsigned long phys_addr = (unsigned long)dev_priv->stolen_base +
 				  psbfb->gtt->offset;
 
-	page_num = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	page_num = vma_pages(vma);
 	address = (unsigned long)vmf->virtual_address - (vmf->pgoff << PAGE_SHIFT);
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
@@ -236,22 +236,20 @@ static int psb_framebuffer_init(struct drm_device *dev,
 					const struct drm_mode_fb_cmd2 *mode_cmd,
 					struct gtt_range *gt)
 {
-	u32 bpp, depth;
+	const struct drm_format_info *info;
 	int ret;
 
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
+	/*
+	 * Reject unknown formats, YUV formats, and formats with more than
+	 * 4 bytes per pixel.
+	 */
+	info = drm_format_info(mode_cmd->pixel_format);
+	if (!info || !info->depth || info->cpp[0] > 4)
+		return -EINVAL;
 
 	if (mode_cmd->pitches[0] & 63)
 		return -EINVAL;
-	switch (bpp) {
-	case 8:
-	case 16:
-	case 24:
-	case 32:
-		break;
-	default:
-		return -EINVAL;
-	}
+
 	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
 	fb->gtt = gt;
 	ret = drm_framebuffer_init(dev, &fb->base, &psb_fb_funcs);
@@ -298,7 +296,6 @@ static struct drm_framebuffer *psb_framebuffer_create
  *	psbfb_alloc		-	allocate frame buffer memory
  *	@dev: the DRM device
  *	@aligned_size: space needed
- *	@force: fall back to GEM buffers if need be
  *
  *	Allocate the frame buffer. In the usual case we get a GTT range that
  *	is stolen memory backed and life is simple. If there isn't sufficient

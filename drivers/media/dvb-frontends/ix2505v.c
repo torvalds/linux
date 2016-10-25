@@ -258,7 +258,7 @@ static int ix2505v_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static struct dvb_tuner_ops ix2505v_tuner_ops = {
+static const struct dvb_tuner_ops ix2505v_tuner_ops = {
 	.info = {
 		.name = "Sharp IX2505V (B0017)",
 		.frequency_min = 950000,

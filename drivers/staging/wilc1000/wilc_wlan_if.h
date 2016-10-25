@@ -10,7 +10,6 @@
 #ifndef WILC_WLAN_IF_H
 #define WILC_WLAN_IF_H
 
-#include <linux/semaphore.h>
 #include <linux/netdevice.h>
 
 /********************************************

@@ -50,9 +50,11 @@ int ife_tlv_meta_encode(void *skbdata, u16 attrtype, u16 dlen,
 int ife_alloc_meta_u32(struct tcf_meta_info *mi, void *metaval, gfp_t gfp);
 int ife_alloc_meta_u16(struct tcf_meta_info *mi, void *metaval, gfp_t gfp);
 int ife_check_meta_u32(u32 metaval, struct tcf_meta_info *mi);
+int ife_check_meta_u16(u16 metaval, struct tcf_meta_info *mi);
 int ife_encode_meta_u32(u32 metaval, void *skbdata, struct tcf_meta_info *mi);
 int ife_validate_meta_u32(void *val, int len);
 int ife_validate_meta_u16(void *val, int len);
+int ife_encode_meta_u16(u16 metaval, void *skbdata, struct tcf_meta_info *mi);
 void ife_release_meta_gen(struct tcf_meta_info *mi);
 int register_ife_op(struct tcf_meta_ops *mops);
 int unregister_ife_op(struct tcf_meta_ops *mops);

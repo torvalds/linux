@@ -97,9 +97,6 @@ EXPORT_SYMBOL_GPL(debugfs_use_file_finish);
 
 #define F_DENTRY(filp) ((filp)->f_path.dentry)
 
-#define REAL_FOPS_DEREF(dentry)					\
-	((const struct file_operations *)(dentry)->d_fsdata)
-
 static int open_proxy_open(struct inode *inode, struct file *filp)
 {
 	const struct dentry *dentry = F_DENTRY(filp);
@@ -112,7 +109,7 @@ static int open_proxy_open(struct inode *inode, struct file *filp)
 		goto out;
 	}
 
-	real_fops = REAL_FOPS_DEREF(dentry);
+	real_fops = debugfs_real_fops(filp);
 	real_fops = fops_get(real_fops);
 	if (!real_fops) {
 		/* Huh? Module did not clean up after itself at exit? */
@@ -143,7 +140,7 @@ static ret_type full_proxy_ ## name(proto)				\
 {									\
 	const struct dentry *dentry = F_DENTRY(filp);			\
 	const struct file_operations *real_fops =			\
-		REAL_FOPS_DEREF(dentry);				\
+		debugfs_real_fops(filp);				\
 	int srcu_idx;							\
 	ret_type r;							\
 									\
@@ -176,7 +173,7 @@ static unsigned int full_proxy_poll(struct file *filp,
 				struct poll_table_struct *wait)
 {
 	const struct dentry *dentry = F_DENTRY(filp);
-	const struct file_operations *real_fops = REAL_FOPS_DEREF(dentry);
+	const struct file_operations *real_fops = debugfs_real_fops(filp);
 	int srcu_idx;
 	unsigned int r = 0;
 
@@ -193,7 +190,7 @@ static unsigned int full_proxy_poll(struct file *filp,
 static int full_proxy_release(struct inode *inode, struct file *filp)
 {
 	const struct dentry *dentry = F_DENTRY(filp);
-	const struct file_operations *real_fops = REAL_FOPS_DEREF(dentry);
+	const struct file_operations *real_fops = debugfs_real_fops(filp);
 	const struct file_operations *proxy_fops = filp->f_op;
 	int r = 0;
 
@@ -209,7 +206,7 @@ static int full_proxy_release(struct inode *inode, struct file *filp)
 	replace_fops(filp, d_inode(dentry)->i_fop);
 	kfree((void *)proxy_fops);
 	fops_put(real_fops);
-	return 0;
+	return r;
 }
 
 static void __full_proxy_fops_init(struct file_operations *proxy_fops,
@@ -241,7 +238,7 @@ static int full_proxy_open(struct inode *inode, struct file *filp)
 		goto out;
 	}
 
-	real_fops = REAL_FOPS_DEREF(dentry);
+	real_fops = debugfs_real_fops(filp);
 	real_fops = fops_get(real_fops);
 	if (!real_fops) {
 		/* Huh? Module did not cleanup after itself at exit? */

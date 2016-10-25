@@ -488,7 +488,8 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 		goto err_free;
 	}
 
-	ret = get_vaddr_frames(start, npages, true, true, g2d_userptr->vec);
+	ret = get_vaddr_frames(start, npages, FOLL_FORCE | FOLL_WRITE,
+		g2d_userptr->vec);
 	if (ret != npages) {
 		DRM_ERROR("failed to get user pages from userptr.\n");
 		if (ret < 0)

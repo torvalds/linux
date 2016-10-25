@@ -480,6 +480,30 @@ struct resource *pci_find_parent_resource(const struct pci_dev *dev,
 EXPORT_SYMBOL(pci_find_parent_resource);
 
 /**
+ * pci_find_resource - Return matching PCI device resource
+ * @dev: PCI device to query
+ * @res: Resource to look for
+ *
+ * Goes over standard PCI resources (BARs) and checks if the given resource
+ * is partially or fully contained in any of them. In that case the
+ * matching resource is returned, %NULL otherwise.
+ */
+struct resource *pci_find_resource(struct pci_dev *dev, struct resource *res)
+{
+	int i;
+
+	for (i = 0; i < PCI_ROM_RESOURCE; i++) {
+		struct resource *r = &dev->resource[i];
+
+		if (r->start && resource_contains(r, res))
+			return r;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(pci_find_resource);
+
+/**
  * pci_find_pcie_root_port - return PCIe Root Port
  * @dev: PCI device to query
  *
@@ -552,8 +576,9 @@ static const struct pci_platform_pm_ops *pci_platform_pm;
 
 int pci_set_platform_pm(const struct pci_platform_pm_ops *ops)
 {
-	if (!ops->is_manageable || !ops->set_state || !ops->choose_state ||
-	    !ops->sleep_wake || !ops->run_wake || !ops->need_resume)
+	if (!ops->is_manageable || !ops->set_state  || !ops->get_state ||
+	    !ops->choose_state  || !ops->sleep_wake || !ops->run_wake  ||
+	    !ops->need_resume)
 		return -EINVAL;
 	pci_platform_pm = ops;
 	return 0;
@@ -568,6 +593,11 @@ static inline int platform_pci_set_power_state(struct pci_dev *dev,
 					       pci_power_t t)
 {
 	return pci_platform_pm ? pci_platform_pm->set_state(dev, t) : -ENOSYS;
+}
+
+static inline pci_power_t platform_pci_get_power_state(struct pci_dev *dev)
+{
+	return pci_platform_pm ? pci_platform_pm->get_state(dev) : PCI_UNKNOWN;
 }
 
 static inline pci_power_t platform_pci_choose_state(struct pci_dev *dev)
@@ -701,26 +731,25 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 }
 
 /**
- * pci_update_current_state - Read PCI power state of given device from its
- *                            PCI PM registers and cache it
+ * pci_update_current_state - Read power state of given device and cache it
  * @dev: PCI device to handle.
  * @state: State to cache in case the device doesn't have the PM capability
+ *
+ * The power state is read from the PMCSR register, which however is
+ * inaccessible in D3cold.  The platform firmware is therefore queried first
+ * to detect accessibility of the register.  In case the platform firmware
+ * reports an incorrect state or the device isn't power manageable by the
+ * platform at all, we try to detect D3cold by testing accessibility of the
+ * vendor ID in config space.
  */
 void pci_update_current_state(struct pci_dev *dev, pci_power_t state)
 {
-	if (dev->pm_cap) {
+	if (platform_pci_get_power_state(dev) == PCI_D3cold ||
+	    !pci_device_is_present(dev)) {
+		dev->current_state = PCI_D3cold;
+	} else if (dev->pm_cap) {
 		u16 pmcsr;
 
-		/*
-		 * Configuration space is not accessible for device in
-		 * D3cold, so just keep or set D3cold for safety
-		 */
-		if (dev->current_state == PCI_D3cold)
-			return;
-		if (state == PCI_D3cold) {
-			dev->current_state = PCI_D3cold;
-			return;
-		}
 		pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
 		dev->current_state = (pmcsr & PCI_PM_CTRL_STATE_MASK);
 	} else {
@@ -1959,9 +1988,22 @@ static pci_power_t pci_target_state(struct pci_dev *dev)
 		default:
 			target_state = state;
 		}
-	} else if (!dev->pm_cap) {
+
+		return target_state;
+	}
+
+	if (!dev->pm_cap)
 		target_state = PCI_D0;
-	} else if (device_may_wakeup(&dev->dev)) {
+
+	/*
+	 * If the device is in D3cold even though it's not power-manageable by
+	 * the platform, it may have been powered down by non-standard means.
+	 * Best to let it slumber.
+	 */
+	if (dev->current_state == PCI_D3cold)
+		target_state = PCI_D3cold;
+
+	if (device_may_wakeup(&dev->dev)) {
 		/*
 		 * Find the deepest state from which the device can generate
 		 * wake-up events, make it the target state and enable device
@@ -4959,6 +5001,13 @@ static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
 
 	spin_lock(&resource_alignment_lock);
 	p = resource_alignment_param;
+	if (!*p)
+		goto out;
+	if (pci_has_flag(PCI_PROBE_ONLY)) {
+		pr_info_once("PCI: Ignoring requested alignments (PCI_PROBE_ONLY)\n");
+		goto out;
+	}
+
 	while (*p) {
 		count = 0;
 		if (sscanf(p, "%d%n", &align_order, &count) == 1 &&
@@ -5023,6 +5072,7 @@ static resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
 		}
 		p++;
 	}
+out:
 	spin_unlock(&resource_alignment_lock);
 	return align;
 }
@@ -5040,6 +5090,15 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 	struct resource *r;
 	resource_size_t align, size;
 	u16 command;
+
+	/*
+	 * VF BARs are read-only zero according to SR-IOV spec r1.1, sec
+	 * 3.4.1.11.  Their resources are allocated from the space
+	 * described by the VF BARx register in the PF's SR-IOV capability.
+	 * We can't influence their alignment here.
+	 */
+	if (dev->is_virtfn)
+		return;
 
 	/* check if specified PCI is target device to reassign */
 	align = pci_specified_resource_alignment(dev);
@@ -5063,6 +5122,12 @@ void pci_reassigndev_resource_alignment(struct pci_dev *dev)
 		r = &dev->resource[i];
 		if (!(r->flags & IORESOURCE_MEM))
 			continue;
+		if (r->flags & IORESOURCE_PCI_FIXED) {
+			dev_info(&dev->dev, "Ignoring requested alignment for BAR%d: %pR\n",
+				i, r);
+			continue;
+		}
+
 		size = resource_size(r);
 		if (size < align) {
 			size = align;

@@ -2196,7 +2196,8 @@ static int __init ipoib_init_module(void)
 	 * its private workqueue, and we only queue up flush events
 	 * on our global flush workqueue.  This avoids the deadlocks.
 	 */
-	ipoib_workqueue = create_singlethread_workqueue("ipoib_flush");
+	ipoib_workqueue = alloc_ordered_workqueue("ipoib_flush",
+						  WQ_MEM_RECLAIM);
 	if (!ipoib_workqueue) {
 		ret = -ENOMEM;
 		goto err_fs;

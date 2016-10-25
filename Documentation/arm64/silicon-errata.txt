@@ -61,3 +61,5 @@ stable kernels.
 | Cavium         | ThunderX GICv3  | #23154          | CAVIUM_ERRATUM_23154    |
 | Cavium         | ThunderX Core   | #27456          | CAVIUM_ERRATUM_27456    |
 | Cavium         | ThunderX SMMUv2 | #27704          | N/A		       |
+|                |                 |                 |                         |
+| Freescale/NXP  | LS2080A/LS1043A | A-008585        | FSL_ERRATUM_A008585     |

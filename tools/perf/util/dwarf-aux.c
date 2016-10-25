@@ -130,6 +130,22 @@ int cu_walk_functions_at(Dwarf_Die *cu_die, Dwarf_Addr addr,
 }
 
 /**
+ * die_get_linkage_name - Get the linkage name of the object
+ * @dw_die: A DIE of the object
+ *
+ * Get the linkage name attiribute of given @dw_die.
+ * For C++ binary, the linkage name will be the mangled symbol.
+ */
+const char *die_get_linkage_name(Dwarf_Die *dw_die)
+{
+	Dwarf_Attribute attr;
+
+	if (dwarf_attr_integrate(dw_die, DW_AT_linkage_name, &attr) == NULL)
+		return NULL;
+	return dwarf_formstring(&attr);
+}
+
+/**
  * die_compare_name - Compare diename and tname
  * @dw_die: a DIE
  * @tname: a string of target name
@@ -145,18 +161,26 @@ bool die_compare_name(Dwarf_Die *dw_die, const char *tname)
 }
 
 /**
- * die_match_name - Match diename and glob
+ * die_match_name - Match diename/linkage name and glob
  * @dw_die: a DIE
  * @glob: a string of target glob pattern
  *
  * Glob matching the name of @dw_die and @glob. Return false if matching fail.
+ * This also match linkage name.
  */
 bool die_match_name(Dwarf_Die *dw_die, const char *glob)
 {
 	const char *name;
 
 	name = dwarf_diename(dw_die);
-	return name ? strglobmatch(name, glob) : false;
+	if (name && strglobmatch(name, glob))
+		return true;
+	/* fall back to check linkage name */
+	name = die_get_linkage_name(dw_die);
+	if (name && strglobmatch(name, glob))
+		return true;
+
+	return false;
 }
 
 /**
@@ -1085,3 +1109,182 @@ int die_get_var_range(Dwarf_Die *sp_die __maybe_unused,
 	return -ENOTSUP;
 }
 #endif
+
+/*
+ * die_has_loclist - Check if DW_AT_location of @vr_die is a location list
+ * @vr_die: a variable DIE
+ */
+static bool die_has_loclist(Dwarf_Die *vr_die)
+{
+	Dwarf_Attribute loc;
+	int tag = dwarf_tag(vr_die);
+
+	if (tag != DW_TAG_formal_parameter &&
+	    tag != DW_TAG_variable)
+		return false;
+
+	return (dwarf_attr_integrate(vr_die, DW_AT_location, &loc) &&
+		dwarf_whatform(&loc) == DW_FORM_sec_offset);
+}
+
+/*
+ * die_is_optimized_target - Check if target program is compiled with
+ * optimization
+ * @cu_die: a CU DIE
+ *
+ * For any object in given CU whose DW_AT_location is a location list,
+ * target program is compiled with optimization. This is applicable to
+ * clang as well.
+ */
+bool die_is_optimized_target(Dwarf_Die *cu_die)
+{
+	Dwarf_Die tmp_die;
+
+	if (die_has_loclist(cu_die))
+		return true;
+
+	if (!dwarf_child(cu_die, &tmp_die) &&
+	    die_is_optimized_target(&tmp_die))
+		return true;
+
+	if (!dwarf_siblingof(cu_die, &tmp_die) &&
+	    die_is_optimized_target(&tmp_die))
+		return true;
+
+	return false;
+}
+
+/*
+ * die_search_idx - Search index of given line address
+ * @lines: Line records of single CU
+ * @nr_lines: Number of @lines
+ * @addr: address we are looking for
+ * @idx: index to be set by this function (return value)
+ *
+ * Search for @addr by looping over every lines of CU. If address
+ * matches, set index of that line in @idx. Note that single source
+ * line can have multiple line records. i.e. single source line can
+ * have multiple index.
+ */
+static bool die_search_idx(Dwarf_Lines *lines, unsigned long nr_lines,
+			   Dwarf_Addr addr, unsigned long *idx)
+{
+	unsigned long i;
+	Dwarf_Addr tmp;
+
+	for (i = 0; i < nr_lines; i++) {
+		if (dwarf_lineaddr(dwarf_onesrcline(lines, i), &tmp))
+			return false;
+
+		if (tmp == addr) {
+			*idx = i;
+			return true;
+		}
+	}
+	return false;
+}
+
+/*
+ * die_get_postprologue_addr - Search next address after function prologue
+ * @entrypc_idx: entrypc index
+ * @lines: Line records of single CU
+ * @nr_lines: Number of @lines
+ * @hignpc: high PC address of function
+ * @postprologue_addr: Next address after function prologue (return value)
+ *
+ * Look for prologue-end marker. If there is no explicit marker, return
+ * address of next line record or next source line.
+ */
+static bool die_get_postprologue_addr(unsigned long entrypc_idx,
+				      Dwarf_Lines *lines,
+				      unsigned long nr_lines,
+				      Dwarf_Addr highpc,
+				      Dwarf_Addr *postprologue_addr)
+{
+	unsigned long i;
+	int entrypc_lno, lno;
+	Dwarf_Line *line;
+	Dwarf_Addr addr;
+	bool p_end;
+
+	/* entrypc_lno is actual source line number */
+	line = dwarf_onesrcline(lines, entrypc_idx);
+	if (dwarf_lineno(line, &entrypc_lno))
+		return false;
+
+	for (i = entrypc_idx; i < nr_lines; i++) {
+		line = dwarf_onesrcline(lines, i);
+
+		if (dwarf_lineaddr(line, &addr) ||
+		    dwarf_lineno(line, &lno)    ||
+		    dwarf_lineprologueend(line, &p_end))
+			return false;
+
+		/* highpc is exclusive. [entrypc,highpc) */
+		if (addr >= highpc)
+			break;
+
+		/* clang supports prologue-end marker */
+		if (p_end)
+			break;
+
+		/* Actual next line in source */
+		if (lno != entrypc_lno)
+			break;
+
+		/*
+		 * Single source line can have multiple line records.
+		 * For Example,
+		 *     void foo() { printf("hello\n"); }
+		 * contains two line records. One points to declaration and
+		 * other points to printf() line. Variable 'lno' won't get
+		 * incremented in this case but 'i' will.
+		 */
+		if (i != entrypc_idx)
+			break;
+	}
+
+	dwarf_lineaddr(line, postprologue_addr);
+	if (*postprologue_addr >= highpc)
+		dwarf_lineaddr(dwarf_onesrcline(lines, i - 1),
+			       postprologue_addr);
+
+	return true;
+}
+
+/*
+ * die_skip_prologue - Use next address after prologue as probe location
+ * @sp_die: a subprogram DIE
+ * @cu_die: a CU DIE
+ * @entrypc: entrypc of the function
+ *
+ * Function prologue prepares stack and registers before executing function
+ * logic. When target program is compiled without optimization, function
+ * parameter information is only valid after prologue. When we probe entrypc
+ * of the function, and try to record function parameter, it contains
+ * garbage value.
+ */
+void die_skip_prologue(Dwarf_Die *sp_die, Dwarf_Die *cu_die,
+		       Dwarf_Addr *entrypc)
+{
+	size_t nr_lines = 0;
+	unsigned long entrypc_idx = 0;
+	Dwarf_Lines *lines = NULL;
+	Dwarf_Addr postprologue_addr;
+	Dwarf_Addr highpc;
+
+	if (dwarf_highpc(sp_die, &highpc))
+		return;
+
+	if (dwarf_getsrclines(cu_die, &lines, &nr_lines))
+		return;
+
+	if (!die_search_idx(lines, nr_lines, *entrypc, &entrypc_idx))
+		return;
+
+	if (!die_get_postprologue_addr(entrypc_idx, lines, nr_lines,
+				       highpc, &postprologue_addr))
+		return;
+
+	*entrypc = postprologue_addr;
+}

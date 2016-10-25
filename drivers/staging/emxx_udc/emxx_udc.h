@@ -586,7 +586,7 @@ struct nbu2ss_udc {
 	unsigned		remote_wakeup:1;
 	unsigned		udc_enabled:1;
 
-	unsigned		mA;
+	unsigned int		mA;
 
 	u32		curr_config;	/* Current Configuration Number */
 

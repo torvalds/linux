@@ -609,7 +609,7 @@ A data-dependency barrier must also order against dependent writes:
 The data-dependency barrier must order the read into Q with the store
 into *Q.  This prohibits this outcome:
 
-	(Q == B) && (B == 4)
+	(Q == &B) && (B == 4)
 
 Please note that this pattern should be rare.  After all, the whole point
 of dependency ordering is to -prevent- writes to the data structure, along
@@ -1928,6 +1928,7 @@ There are some more advanced barrier functions:
 
      See Documentation/DMA-API.txt for more information on consistent memory.
 
+
 MMIO WRITE BARRIER
 ------------------
 
@@ -2075,7 +2076,7 @@ systems, and so cannot be counted on in such a situation to actually achieve
 anything at all - especially with respect to I/O accesses - unless combined
 with interrupt disabling operations.
 
-See also the section on "Inter-CPU locking barrier effects".
+See also the section on "Inter-CPU acquiring barrier effects".
 
 
 As an example, consider the following:

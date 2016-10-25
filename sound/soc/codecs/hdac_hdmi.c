@@ -614,7 +614,7 @@ static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
 			(!pin->eld.eld_valid)) {
 
 		dev_warn(&hdac->hdac.dev,
-			"Failed: montior present? %d ELD valid?: %d for pin: %d\n",
+			"Failed: monitor present? %d ELD valid?: %d for pin: %d\n",
 			pin->eld.monitor_present, pin->eld.eld_valid, pin->nid);
 
 		return 0;

@@ -457,7 +457,7 @@ static void ghes_do_proc(struct ghes *ghes,
 
 				devfn = PCI_DEVFN(pcie_err->device_id.device,
 						  pcie_err->device_id.function);
-				aer_severity = cper_severity_to_aer(sev);
+				aer_severity = cper_severity_to_aer(gdata->error_severity);
 
 				/*
 				 * If firmware reset the component to contain

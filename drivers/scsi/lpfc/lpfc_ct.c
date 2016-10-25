@@ -1535,7 +1535,7 @@ lpfc_fdmi_num_disc_check(struct lpfc_vport *vport)
 }
 
 /* Routines for all individual HBA attributes */
-int
+static int
 lpfc_fdmi_hba_attr_wwnn(struct lpfc_vport *vport, struct lpfc_fdmi_attr_def *ad)
 {
 	struct lpfc_fdmi_attr_entry *ae;
@@ -1551,7 +1551,7 @@ lpfc_fdmi_hba_attr_wwnn(struct lpfc_vport *vport, struct lpfc_fdmi_attr_def *ad)
 	ad->AttrType = cpu_to_be16(RHBA_NODENAME);
 	return size;
 }
-int
+static int
 lpfc_fdmi_hba_attr_manufacturer(struct lpfc_vport *vport,
 				struct lpfc_fdmi_attr_def *ad)
 {
@@ -1573,7 +1573,7 @@ lpfc_fdmi_hba_attr_manufacturer(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_sn(struct lpfc_vport *vport, struct lpfc_fdmi_attr_def *ad)
 {
 	struct lpfc_hba *phba = vport->phba;
@@ -1594,7 +1594,7 @@ lpfc_fdmi_hba_attr_sn(struct lpfc_vport *vport, struct lpfc_fdmi_attr_def *ad)
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_model(struct lpfc_vport *vport,
 			 struct lpfc_fdmi_attr_def *ad)
 {
@@ -1615,7 +1615,7 @@ lpfc_fdmi_hba_attr_model(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_description(struct lpfc_vport *vport,
 			       struct lpfc_fdmi_attr_def *ad)
 {
@@ -1637,7 +1637,7 @@ lpfc_fdmi_hba_attr_description(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_hdw_ver(struct lpfc_vport *vport,
 			   struct lpfc_fdmi_attr_def *ad)
 {
@@ -1669,7 +1669,7 @@ lpfc_fdmi_hba_attr_hdw_ver(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_drvr_ver(struct lpfc_vport *vport,
 			    struct lpfc_fdmi_attr_def *ad)
 {
@@ -1690,7 +1690,7 @@ lpfc_fdmi_hba_attr_drvr_ver(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_rom_ver(struct lpfc_vport *vport,
 			   struct lpfc_fdmi_attr_def *ad)
 {
@@ -1715,7 +1715,7 @@ lpfc_fdmi_hba_attr_rom_ver(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_fmw_ver(struct lpfc_vport *vport,
 			   struct lpfc_fdmi_attr_def *ad)
 {
@@ -1736,7 +1736,7 @@ lpfc_fdmi_hba_attr_fmw_ver(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_os_ver(struct lpfc_vport *vport,
 			  struct lpfc_fdmi_attr_def *ad)
 {
@@ -1759,7 +1759,7 @@ lpfc_fdmi_hba_attr_os_ver(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_ct_len(struct lpfc_vport *vport,
 			  struct lpfc_fdmi_attr_def *ad)
 {
@@ -1775,7 +1775,7 @@ lpfc_fdmi_hba_attr_ct_len(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_symbolic_name(struct lpfc_vport *vport,
 				 struct lpfc_fdmi_attr_def *ad)
 {
@@ -1794,7 +1794,7 @@ lpfc_fdmi_hba_attr_symbolic_name(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_vendor_info(struct lpfc_vport *vport,
 			       struct lpfc_fdmi_attr_def *ad)
 {
@@ -1811,7 +1811,7 @@ lpfc_fdmi_hba_attr_vendor_info(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_num_ports(struct lpfc_vport *vport,
 			     struct lpfc_fdmi_attr_def *ad)
 {
@@ -1828,7 +1828,7 @@ lpfc_fdmi_hba_attr_num_ports(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_fabric_wwnn(struct lpfc_vport *vport,
 			       struct lpfc_fdmi_attr_def *ad)
 {
@@ -1846,7 +1846,7 @@ lpfc_fdmi_hba_attr_fabric_wwnn(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_bios_ver(struct lpfc_vport *vport,
 			    struct lpfc_fdmi_attr_def *ad)
 {
@@ -1867,7 +1867,7 @@ lpfc_fdmi_hba_attr_bios_ver(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_bios_state(struct lpfc_vport *vport,
 			      struct lpfc_fdmi_attr_def *ad)
 {
@@ -1884,7 +1884,7 @@ lpfc_fdmi_hba_attr_bios_state(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_hba_attr_vendor_id(struct lpfc_vport *vport,
 			     struct lpfc_fdmi_attr_def *ad)
 {
@@ -1906,7 +1906,7 @@ lpfc_fdmi_hba_attr_vendor_id(struct lpfc_vport *vport,
 }
 
 /* Routines for all individual PORT attributes */
-int
+static int
 lpfc_fdmi_port_attr_fc4type(struct lpfc_vport *vport,
 			    struct lpfc_fdmi_attr_def *ad)
 {
@@ -1925,7 +1925,7 @@ lpfc_fdmi_port_attr_fc4type(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_port_attr_support_speed(struct lpfc_vport *vport,
 				  struct lpfc_fdmi_attr_def *ad)
 {
@@ -1975,7 +1975,7 @@ lpfc_fdmi_port_attr_support_speed(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_port_attr_speed(struct lpfc_vport *vport,
 			  struct lpfc_fdmi_attr_def *ad)
 {
@@ -2039,7 +2039,7 @@ lpfc_fdmi_port_attr_speed(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_port_attr_max_frame(struct lpfc_vport *vport,
 			      struct lpfc_fdmi_attr_def *ad)
 {
@@ -2059,7 +2059,7 @@ lpfc_fdmi_port_attr_max_frame(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_port_attr_os_devname(struct lpfc_vport *vport,
 			       struct lpfc_fdmi_attr_def *ad)
 {
@@ -2081,7 +2081,7 @@ lpfc_fdmi_port_attr_os_devname(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_port_attr_host_name(struct lpfc_vport *vport,
 			      struct lpfc_fdmi_attr_def *ad)
 {
@@ -2102,7 +2102,7 @@ lpfc_fdmi_port_attr_host_name(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_port_attr_wwnn(struct lpfc_vport *vport,
 			 struct lpfc_fdmi_attr_def *ad)
 {
@@ -2120,7 +2120,7 @@ lpfc_fdmi_port_attr_wwnn(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_port_attr_wwpn(struct lpfc_vport *vport,
 			 struct lpfc_fdmi_attr_def *ad)
 {
@@ -2138,7 +2138,7 @@ lpfc_fdmi_port_attr_wwpn(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_port_attr_symbolic_name(struct lpfc_vport *vport,
 				  struct lpfc_fdmi_attr_def *ad)
 {
@@ -2156,7 +2156,7 @@ lpfc_fdmi_port_attr_symbolic_name(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_port_attr_port_type(struct lpfc_vport *vport,
 			      struct lpfc_fdmi_attr_def *ad)
 {
@@ -2175,7 +2175,7 @@ lpfc_fdmi_port_attr_port_type(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_port_attr_class(struct lpfc_vport *vport,
 			  struct lpfc_fdmi_attr_def *ad)
 {
@@ -2190,7 +2190,7 @@ lpfc_fdmi_port_attr_class(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_port_attr_fabric_wwpn(struct lpfc_vport *vport,
 				struct lpfc_fdmi_attr_def *ad)
 {
@@ -2208,7 +2208,7 @@ lpfc_fdmi_port_attr_fabric_wwpn(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_port_attr_active_fc4type(struct lpfc_vport *vport,
 				   struct lpfc_fdmi_attr_def *ad)
 {
@@ -2227,7 +2227,7 @@ lpfc_fdmi_port_attr_active_fc4type(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_port_attr_port_state(struct lpfc_vport *vport,
 			       struct lpfc_fdmi_attr_def *ad)
 {
@@ -2243,7 +2243,7 @@ lpfc_fdmi_port_attr_port_state(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_port_attr_num_disc(struct lpfc_vport *vport,
 			     struct lpfc_fdmi_attr_def *ad)
 {
@@ -2259,7 +2259,7 @@ lpfc_fdmi_port_attr_num_disc(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_port_attr_nportid(struct lpfc_vport *vport,
 			    struct lpfc_fdmi_attr_def *ad)
 {
@@ -2274,7 +2274,7 @@ lpfc_fdmi_port_attr_nportid(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_smart_attr_service(struct lpfc_vport *vport,
 			     struct lpfc_fdmi_attr_def *ad)
 {
@@ -2295,7 +2295,7 @@ lpfc_fdmi_smart_attr_service(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_smart_attr_guid(struct lpfc_vport *vport,
 			  struct lpfc_fdmi_attr_def *ad)
 {
@@ -2316,7 +2316,7 @@ lpfc_fdmi_smart_attr_guid(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_smart_attr_version(struct lpfc_vport *vport,
 			     struct lpfc_fdmi_attr_def *ad)
 {
@@ -2337,7 +2337,7 @@ lpfc_fdmi_smart_attr_version(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_smart_attr_model(struct lpfc_vport *vport,
 			   struct lpfc_fdmi_attr_def *ad)
 {
@@ -2358,7 +2358,7 @@ lpfc_fdmi_smart_attr_model(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_smart_attr_port_info(struct lpfc_vport *vport,
 			       struct lpfc_fdmi_attr_def *ad)
 {
@@ -2378,7 +2378,7 @@ lpfc_fdmi_smart_attr_port_info(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_smart_attr_qos(struct lpfc_vport *vport,
 			 struct lpfc_fdmi_attr_def *ad)
 {
@@ -2393,7 +2393,7 @@ lpfc_fdmi_smart_attr_qos(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_smart_attr_security(struct lpfc_vport *vport,
 			      struct lpfc_fdmi_attr_def *ad)
 {

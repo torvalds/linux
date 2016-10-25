@@ -161,8 +161,11 @@ static void cobalt_enable_output(struct cobalt_stream *s)
 	struct v4l2_subdev_format sd_fmt = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
+	u64 clk = bt->pixelclock;
 
-	if (!cobalt_cpld_set_freq(cobalt, bt->pixelclock)) {
+	if (bt->flags & V4L2_DV_FL_REDUCED_FPS)
+		clk = div_u64(clk * 1000ULL, 1001);
+	if (!cobalt_cpld_set_freq(cobalt, clk)) {
 		cobalt_err("pixelclock out of range\n");
 		return;
 	}
@@ -644,7 +647,7 @@ static int cobalt_s_dv_timings(struct file *file, void *priv_fh,
 		return 0;
 	}
 
-	if (v4l2_match_dv_timings(timings, &s->timings, 0, false))
+	if (v4l2_match_dv_timings(timings, &s->timings, 0, true))
 		return 0;
 
 	if (vb2_is_busy(&s->q))

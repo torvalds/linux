@@ -162,6 +162,41 @@ struct drm_property *drm_mode_create_rotation_property(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_mode_create_rotation_property);
 
+int drm_plane_create_rotation_property(struct drm_plane *plane,
+				       unsigned int rotation,
+				       unsigned int supported_rotations)
+{
+	static const struct drm_prop_enum_list props[] = {
+		{ __builtin_ffs(DRM_ROTATE_0) - 1,   "rotate-0" },
+		{ __builtin_ffs(DRM_ROTATE_90) - 1,  "rotate-90" },
+		{ __builtin_ffs(DRM_ROTATE_180) - 1, "rotate-180" },
+		{ __builtin_ffs(DRM_ROTATE_270) - 1, "rotate-270" },
+		{ __builtin_ffs(DRM_REFLECT_X) - 1,  "reflect-x" },
+		{ __builtin_ffs(DRM_REFLECT_Y) - 1,  "reflect-y" },
+	};
+	struct drm_property *prop;
+
+	WARN_ON((supported_rotations & DRM_ROTATE_MASK) == 0);
+	WARN_ON(!is_power_of_2(rotation & DRM_ROTATE_MASK));
+	WARN_ON(rotation & ~supported_rotations);
+
+	prop = drm_property_create_bitmask(plane->dev, 0, "rotation",
+					   props, ARRAY_SIZE(props),
+					   supported_rotations);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop, rotation);
+
+	if (plane->state)
+		plane->state->rotation = rotation;
+
+	plane->rotation_property = prop;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_plane_create_rotation_property);
+
 /**
  * drm_rotation_simplify() - Try to simplify the rotation
  * @rotation: Rotation to be simplified

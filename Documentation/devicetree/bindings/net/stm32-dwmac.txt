@@ -1,0 +1,32 @@
+STMicroelectronics STM32 / MCU DWMAC glue layer controller
+
+This file documents platform glue layer for stmmac.
+Please see stmmac.txt for the other unchanged properties.
+
+The device node has following properties.
+
+Required properties:
+- compatible:  Should be "st,stm32-dwmac" to select glue, and
+	       "snps,dwmac-3.50a" to select IP version.
+- clocks: Must contain a phandle for each entry in clock-names.
+- clock-names: Should be "stmmaceth" for the host clock.
+	       Should be "mac-clk-tx" for the MAC TX clock.
+	       Should be "mac-clk-rx" for the MAC RX clock.
+- st,syscon : Should be phandle/offset pair. The phandle to the syscon node which
+	      encompases the glue register, and the offset of the control register.
+Example:
+
+	ethernet@40028000 {
+		compatible = "st,stm32-dwmac", "snps,dwmac-3.50a";
+		status = "disabled";
+		reg = <0x40028000 0x8000>;
+		reg-names = "stmmaceth";
+		interrupts = <0 61 0>, <0 62 0>;
+		interrupt-names = "macirq", "eth_wake_irq";
+		clock-names = "stmmaceth", "mac-clk-tx", "mac-clk-rx";
+		clocks = <&rcc 0 25>, <&rcc 0 26>, <&rcc 0 27>;
+		st,syscon = <&syscfg 0x4>;
+		snps,pbl = <8>;
+		snps,mixed-burst;
+		dma-ranges;
+	};

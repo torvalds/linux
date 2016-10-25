@@ -29,16 +29,56 @@
 	 * Reserve below regions from memory node:
 	 *
 	 *  0x05e0,0000 - 0x05ef,ffff: MCU firmware runtime using
+	 *  0x05f0,1000 - 0x05f0,1fff: Reboot reason
 	 *  0x06df,f000 - 0x06df,ffff: Mailbox message data
 	 *  0x0740,f000 - 0x0740,ffff: MCU firmware section
+	 *  0x21f0,0000 - 0x21ff,ffff: pstore/ramoops buffer
 	 *  0x3e00,0000 - 0x3fff,ffff: OP-TEE
 	 */
 	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x00000000 0x00000000 0x05e00000>,
-		      <0x00000000 0x05f00000 0x00000000 0x00eff000>,
+		      <0x00000000 0x05f00000 0x00000000 0x00001000>,
+		      <0x00000000 0x05f02000 0x00000000 0x00efd000>,
 		      <0x00000000 0x06e00000 0x00000000 0x0060f000>,
-		      <0x00000000 0x07410000 0x00000000 0x36bf0000>;
+		      <0x00000000 0x07410000 0x00000000 0x1aaf0000>,
+		      <0x00000000 0x22000000 0x00000000 0x1c000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		ramoops@0x21f00000 {
+			compatible = "ramoops";
+			reg = <0x0 0x21f00000 0x0 0x00100000>;
+			record-size	= <0x00020000>;
+			console-size	= <0x00020000>;
+			ftrace-size	= <0x00020000>;
+		};
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x00000000 0x08000000>;
+			linux,cma-default;
+		};
+	};
+
+	reboot-mode-syscon@5f01000 {
+		compatible = "syscon", "simple-mfd";
+		reg = <0x0 0x05f01000 0x0 0x00001000>;
+
+		reboot-mode {
+			compatible = "syscon-reboot-mode";
+			offset = <0x0>;
+
+			mode-normal	= <0x77665501>;
+			mode-bootloader	= <0x77665500>;
+			mode-recovery	= <0x77665502>;
+		};
 	};
 
 	soc {
@@ -55,6 +95,8 @@
 		};
 
 		uart1: uart@f7111000 {
+			assigned-clocks = <&sys_ctrl HI6220_UART1_SRC>;
+			assigned-clock-rates = <150000000>;
 			status = "ok";
 		};
 
@@ -371,4 +413,44 @@
 };
 &uart3 {
 	label = "LS-UART1";
+};
+
+&ade {
+	status = "ok";
+};
+
+&dsi {
+	status = "ok";
+
+	ports {
+		/* 1 for output port */
+		port@1 {
+			reg = <1>;
+
+			dsi_out0: endpoint@0 {
+				remote-endpoint = <&adv7533_in>;
+			};
+		};
+	};
+};
+
+&i2c2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "ok";
+
+	adv7533: adv7533@39 {
+		compatible = "adi,adv7533";
+		reg = <0x39>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <1 2>;
+		pd-gpio = <&gpio0 4 0>;
+		adi,dsi-lanes = <4>;
+
+		port {
+			adv7533_in: endpoint {
+				remote-endpoint = <&dsi_out0>;
+			};
+		};
+	};
 };

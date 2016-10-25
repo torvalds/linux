@@ -11,11 +11,13 @@ Name
 
 VIDEO_SLOWMOTION
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_SLOWMOTION, int nFrames)
+.. c:function:: int ioctl(fd, VIDEO_SLOWMOTION, int nFrames)
+    :name: VIDEO_SLOWMOTION
 
 
 Arguments

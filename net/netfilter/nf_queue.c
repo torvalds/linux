@@ -96,14 +96,14 @@ void nf_queue_entry_get_refs(struct nf_queue_entry *entry)
 }
 EXPORT_SYMBOL_GPL(nf_queue_entry_get_refs);
 
-void nf_queue_nf_hook_drop(struct net *net, struct nf_hook_ops *ops)
+void nf_queue_nf_hook_drop(struct net *net, const struct nf_hook_entry *entry)
 {
 	const struct nf_queue_handler *qh;
 
 	rcu_read_lock();
 	qh = rcu_dereference(net->nf.queue_handler);
 	if (qh)
-		qh->nf_hook_drop(net, ops);
+		qh->nf_hook_drop(net, entry);
 	rcu_read_unlock();
 }
 
@@ -112,7 +112,6 @@ void nf_queue_nf_hook_drop(struct net *net, struct nf_hook_ops *ops)
  * through nf_reinject().
  */
 int nf_queue(struct sk_buff *skb,
-	     struct nf_hook_ops *elem,
 	     struct nf_hook_state *state,
 	     unsigned int queuenum)
 {
@@ -141,7 +140,6 @@ int nf_queue(struct sk_buff *skb,
 
 	*entry = (struct nf_queue_entry) {
 		.skb	= skb,
-		.elem	= elem,
 		.state	= *state,
 		.size	= sizeof(*entry) + afinfo->route_key_size,
 	};
@@ -165,10 +163,14 @@ err:
 
 void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 {
+	struct nf_hook_entry *hook_entry;
 	struct sk_buff *skb = entry->skb;
-	struct nf_hook_ops *elem = entry->elem;
 	const struct nf_afinfo *afinfo;
+	struct nf_hook_ops *elem;
 	int err;
+
+	hook_entry = rcu_dereference(entry->state.hook_entries);
+	elem = &hook_entry->ops;
 
 	nf_queue_entry_release_refs(entry);
 
@@ -186,8 +188,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 
 	if (verdict == NF_ACCEPT) {
 	next_hook:
-		verdict = nf_iterate(entry->state.hook_list,
-				     skb, &entry->state, &elem);
+		verdict = nf_iterate(skb, &entry->state, &hook_entry);
 	}
 
 	switch (verdict & NF_VERDICT_MASK) {
@@ -198,7 +199,8 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 		local_bh_enable();
 		break;
 	case NF_QUEUE:
-		err = nf_queue(skb, elem, &entry->state,
+		RCU_INIT_POINTER(entry->state.hook_entries, hook_entry);
+		err = nf_queue(skb, &entry->state,
 			       verdict >> NF_VERDICT_QBITS);
 		if (err < 0) {
 			if (err == -ESRCH &&

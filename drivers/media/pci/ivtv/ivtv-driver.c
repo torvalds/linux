@@ -750,7 +750,7 @@ static int ivtv_init_struct1(struct ivtv *itv)
 	spin_lock_init(&itv->lock);
 	spin_lock_init(&itv->dma_reg_lock);
 
-	init_kthread_worker(&itv->irq_worker);
+	kthread_init_worker(&itv->irq_worker);
 	itv->irq_worker_task = kthread_run(kthread_worker_fn, &itv->irq_worker,
 					   "%s", itv->v4l2_dev.name);
 	if (IS_ERR(itv->irq_worker_task)) {
@@ -760,7 +760,7 @@ static int ivtv_init_struct1(struct ivtv *itv)
 	/* must use the FIFO scheduler as it is realtime sensitive */
 	sched_setscheduler(itv->irq_worker_task, SCHED_FIFO, &param);
 
-	init_kthread_work(&itv->irq_work, ivtv_irq_work_handler);
+	kthread_init_work(&itv->irq_work, ivtv_irq_work_handler);
 
 	/* Initial settings */
 	itv->cxhdl.port = CX2341X_PORT_MEMORY;
@@ -1441,7 +1441,7 @@ static void ivtv_remove(struct pci_dev *pdev)
 	del_timer_sync(&itv->dma_timer);
 
 	/* Kill irq worker */
-	flush_kthread_worker(&itv->irq_worker);
+	kthread_flush_worker(&itv->irq_worker);
 	kthread_stop(itv->irq_worker_task);
 
 	ivtv_streams_cleanup(itv);

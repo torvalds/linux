@@ -47,6 +47,7 @@
 #include <drm/drm_plane.h>
 #include <drm/drm_blend.h>
 #include <drm/drm_color_mgmt.h>
+#include <drm/drm_debugfs_crc.h>
 
 struct drm_device;
 struct drm_mode_set;
@@ -116,6 +117,11 @@ struct drm_plane_helper_funcs;
  * never return in a failure from the ->atomic_check callback. Userspace assumes
  * that a DPMS On will always succeed. In other words: @enable controls resource
  * assignment, @active controls the actual hardware state.
+ *
+ * The three booleans active_changed, connectors_changed and mode_changed are
+ * intended to indicate whether a full modeset is needed, rather than strictly
+ * describing what has changed in a commit.
+ * See also: drm_atomic_crtc_needs_modeset()
  */
 struct drm_crtc_state {
 	struct drm_crtc *crtc;
@@ -564,6 +570,30 @@ struct drm_crtc_funcs {
 	 * before data structures are torndown.
 	 */
 	void (*early_unregister)(struct drm_crtc *crtc);
+
+	/**
+	 * @set_crc_source:
+	 *
+	 * Changes the source of CRC checksums of frames at the request of
+	 * userspace, typically for testing purposes. The sources available are
+	 * specific of each driver and a %NULL value indicates that CRC
+	 * generation is to be switched off.
+	 *
+	 * When CRC generation is enabled, the driver should call
+	 * drm_crtc_add_crc_entry() at each frame, providing any information
+	 * that characterizes the frame contents in the crcN arguments, as
+	 * provided from the configured source. Drivers must accept a "auto"
+	 * source name that will select a default source for this CRTC.
+	 *
+	 * This callback is optional if the driver does not support any CRC
+	 * generation functionality.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
+	int (*set_crc_source)(struct drm_crtc *crtc, const char *source,
+			      size_t *values_cnt);
 };
 
 /**
@@ -680,6 +710,22 @@ struct drm_crtc {
 	 * context.
 	 */
 	struct drm_modeset_acquire_ctx *acquire_ctx;
+
+#ifdef CONFIG_DEBUG_FS
+	/**
+	 * @debugfs_entry:
+	 *
+	 * Debugfs directory for this CRTC.
+	 */
+	struct dentry *debugfs_entry;
+
+	/**
+	 * @crc:
+	 *
+	 * Configuration settings of CRC capture.
+	 */
+	struct drm_crtc_crc crc;
+#endif
 };
 
 /**
@@ -1354,7 +1400,7 @@ static inline unsigned int drm_crtc_index(const struct drm_crtc *crtc)
  * Given a registered CRTC, return the mask bit of that CRTC for an
  * encoder's possible_crtcs field.
  */
-static inline uint32_t drm_crtc_mask(struct drm_crtc *crtc)
+static inline uint32_t drm_crtc_mask(const struct drm_crtc *crtc)
 {
 	return 1 << drm_crtc_index(crtc);
 }

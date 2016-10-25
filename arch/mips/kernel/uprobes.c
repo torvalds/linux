@@ -8,71 +8,12 @@
 #include <asm/branch.h>
 #include <asm/cpu-features.h>
 #include <asm/ptrace.h>
-#include <asm/inst.h>
+
+#include "probes-common.h"
 
 static inline int insn_has_delay_slot(const union mips_instruction insn)
 {
-	switch (insn.i_format.opcode) {
-	/*
-	 * jr and jalr are in r_format format.
-	 */
-	case spec_op:
-		switch (insn.r_format.func) {
-		case jalr_op:
-		case jr_op:
-			return 1;
-		}
-		break;
-
-	/*
-	 * This group contains:
-	 * bltz_op, bgez_op, bltzl_op, bgezl_op,
-	 * bltzal_op, bgezal_op, bltzall_op, bgezall_op.
-	 */
-	case bcond_op:
-		switch (insn.i_format.rt) {
-		case bltz_op:
-		case bltzl_op:
-		case bgez_op:
-		case bgezl_op:
-		case bltzal_op:
-		case bltzall_op:
-		case bgezal_op:
-		case bgezall_op:
-		case bposge32_op:
-			return 1;
-		}
-		break;
-
-	/*
-	 * These are unconditional and in j_format.
-	 */
-	case jal_op:
-	case j_op:
-	case beq_op:
-	case beql_op:
-	case bne_op:
-	case bnel_op:
-	case blez_op: /* not really i_format */
-	case blezl_op:
-	case bgtz_op:
-	case bgtzl_op:
-		return 1;
-
-	/*
-	 * And now the FPA/cp1 branch instructions.
-	 */
-	case cop1_op:
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
-	case lwc2_op: /* This is bbit0 on Octeon */
-	case ldc2_op: /* This is bbit032 on Octeon */
-	case swc2_op: /* This is bbit1 on Octeon */
-	case sdc2_op: /* This is bbit132 on Octeon */
-#endif
-		return 1;
-	}
-
-	return 0;
+	return __insn_has_delay_slot(insn);
 }
 
 /**
@@ -95,6 +36,12 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *aup,
 		return -EINVAL;
 
 	inst.word = aup->insn[0];
+
+	if (__insn_is_compact_branch(inst)) {
+		pr_notice("Uprobes for compact branches are not supported\n");
+		return -EINVAL;
+	}
+
 	aup->ixol[0] = aup->insn[insn_has_delay_slot(inst)];
 	aup->ixol[1] = UPROBE_BRK_UPROBE_XOL;		/* NOP  */
 
@@ -157,7 +104,6 @@ bool is_trap_insn(uprobe_opcode_t *insn)
 int arch_uprobe_pre_xol(struct arch_uprobe *aup, struct pt_regs *regs)
 {
 	struct uprobe_task *utask = current->utask;
-	union mips_instruction insn;
 
 	/*
 	 * Now find the EPC where to resume after the breakpoint has been
@@ -168,10 +114,10 @@ int arch_uprobe_pre_xol(struct arch_uprobe *aup, struct pt_regs *regs)
 		unsigned long epc;
 
 		epc = regs->cp0_epc;
-		__compute_return_epc_for_insn(regs, insn);
+		__compute_return_epc_for_insn(regs,
+			(union mips_instruction) aup->insn[0]);
 		aup->resume_epc = regs->cp0_epc;
 	}
-
 	utask->autask.saved_trap_nr = current->thread.trap_nr;
 	current->thread.trap_nr = UPROBE_TRAP_NR;
 	regs->cp0_epc = current->utask->xol_vaddr;
@@ -257,7 +203,7 @@ unsigned long arch_uretprobe_hijack_return_addr(
 	ra = regs->regs[31];
 
 	/* Replace the return address with the trampoline address */
-	regs->regs[31] = ra;
+	regs->regs[31] = trampoline_vaddr;
 
 	return ra;
 }
@@ -280,40 +226,17 @@ int __weak set_swbp(struct arch_uprobe *auprobe, struct mm_struct *mm,
 	return uprobe_write_opcode(mm, vaddr, UPROBE_SWBP_INSN);
 }
 
-/**
- * set_orig_insn - Restore the original instruction.
- * @mm: the probed process address space.
- * @auprobe: arch specific probepoint information.
- * @vaddr: the virtual address to insert the opcode.
- *
- * For mm @mm, restore the original opcode (opcode) at @vaddr.
- * Return 0 (success) or a negative errno.
- *
- * This overrides the weak version in kernel/events/uprobes.c.
- */
-int set_orig_insn(struct arch_uprobe *auprobe, struct mm_struct *mm,
-		 unsigned long vaddr)
-{
-	return uprobe_write_opcode(mm, vaddr,
-			*(uprobe_opcode_t *)&auprobe->orig_inst[0].word);
-}
-
 void __weak arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
 				  void *src, unsigned long len)
 {
-	void *kaddr;
+	unsigned long kaddr, kstart;
 
 	/* Initialize the slot */
-	kaddr = kmap_atomic(page);
-	memcpy(kaddr + (vaddr & ~PAGE_MASK), src, len);
-	kunmap_atomic(kaddr);
-
-	/*
-	 * The MIPS version of flush_icache_range will operate safely on
-	 * user space addresses and more importantly, it doesn't require a
-	 * VMA argument.
-	 */
-	flush_icache_range(vaddr, vaddr + len);
+	kaddr = (unsigned long)kmap_atomic(page);
+	kstart = kaddr + (vaddr & ~PAGE_MASK);
+	memcpy((void *)kstart, src, len);
+	flush_icache_range(kstart, kstart + len);
+	kunmap_atomic((void *)kaddr);
 }
 
 /**

@@ -281,6 +281,27 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
  * NAPI guarantees serialisation of polls of the same device, which
  * provides the guarantee required by efx_process_channel().
  */
+static void efx_update_irq_mod(struct efx_nic *efx, struct efx_channel *channel)
+{
+	int step = efx->irq_mod_step_us;
+
+	if (channel->irq_mod_score < irq_adapt_low_thresh) {
+		if (channel->irq_moderation_us > step) {
+			channel->irq_moderation_us -= step;
+			efx->type->push_irq_moderation(channel);
+		}
+	} else if (channel->irq_mod_score > irq_adapt_high_thresh) {
+		if (channel->irq_moderation_us <
+		    efx->irq_rx_moderation_us) {
+			channel->irq_moderation_us += step;
+			efx->type->push_irq_moderation(channel);
+		}
+	}
+
+	channel->irq_count = 0;
+	channel->irq_mod_score = 0;
+}
+
 static int efx_poll(struct napi_struct *napi, int budget)
 {
 	struct efx_channel *channel =
@@ -301,22 +322,7 @@ static int efx_poll(struct napi_struct *napi, int budget)
 		if (efx_channel_has_rx_queue(channel) &&
 		    efx->irq_rx_adaptive &&
 		    unlikely(++channel->irq_count == 1000)) {
-			if (unlikely(channel->irq_mod_score <
-				     irq_adapt_low_thresh)) {
-				if (channel->irq_moderation > 1) {
-					channel->irq_moderation -= 1;
-					efx->type->push_irq_moderation(channel);
-				}
-			} else if (unlikely(channel->irq_mod_score >
-					    irq_adapt_high_thresh)) {
-				if (channel->irq_moderation <
-				    efx->irq_rx_moderation) {
-					channel->irq_moderation += 1;
-					efx->type->push_irq_moderation(channel);
-				}
-			}
-			channel->irq_count = 0;
-			channel->irq_mod_score = 0;
+			efx_update_irq_mod(efx, channel);
 		}
 
 		efx_filter_rfs_expire(channel);
@@ -1703,6 +1709,7 @@ static int efx_probe_nic(struct efx_nic *efx)
 	netif_set_real_num_rx_queues(efx->net_dev, efx->n_rx_channels);
 
 	/* Initialise the interrupt moderation settings */
+	efx->irq_mod_step_us = DIV_ROUND_UP(efx->timer_quantum_ns, 1000);
 	efx_init_irq_moderation(efx, tx_irq_mod_usec, rx_irq_mod_usec, true,
 				true);
 
@@ -1949,14 +1956,21 @@ static void efx_remove_all(struct efx_nic *efx)
  * Interrupt moderation
  *
  **************************************************************************/
-
-static unsigned int irq_mod_ticks(unsigned int usecs, unsigned int quantum_ns)
+unsigned int efx_usecs_to_ticks(struct efx_nic *efx, unsigned int usecs)
 {
 	if (usecs == 0)
 		return 0;
-	if (usecs * 1000 < quantum_ns)
+	if (usecs * 1000 < efx->timer_quantum_ns)
 		return 1; /* never round down to 0 */
-	return usecs * 1000 / quantum_ns;
+	return usecs * 1000 / efx->timer_quantum_ns;
+}
+
+unsigned int efx_ticks_to_usecs(struct efx_nic *efx, unsigned int ticks)
+{
+	/* We must round up when converting ticks to microseconds
+	 * because we round down when converting the other way.
+	 */
+	return DIV_ROUND_UP(ticks * efx->timer_quantum_ns, 1000);
 }
 
 /* Set interrupt moderation parameters */
@@ -1965,21 +1979,16 @@ int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 			    bool rx_may_override_tx)
 {
 	struct efx_channel *channel;
-	unsigned int irq_mod_max = DIV_ROUND_UP(efx->type->timer_period_max *
-						efx->timer_quantum_ns,
-						1000);
-	unsigned int tx_ticks;
-	unsigned int rx_ticks;
+	unsigned int timer_max_us;
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
-	if (tx_usecs > irq_mod_max || rx_usecs > irq_mod_max)
+	timer_max_us = efx->timer_max_ns / 1000;
+
+	if (tx_usecs > timer_max_us || rx_usecs > timer_max_us)
 		return -EINVAL;
 
-	tx_ticks = irq_mod_ticks(tx_usecs, efx->timer_quantum_ns);
-	rx_ticks = irq_mod_ticks(rx_usecs, efx->timer_quantum_ns);
-
-	if (tx_ticks != rx_ticks && efx->tx_channel_offset == 0 &&
+	if (tx_usecs != rx_usecs && efx->tx_channel_offset == 0 &&
 	    !rx_may_override_tx) {
 		netif_err(efx, drv, efx->net_dev, "Channels are shared. "
 			  "RX and TX IRQ moderation must be equal\n");
@@ -1987,12 +1996,12 @@ int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 	}
 
 	efx->irq_rx_adaptive = rx_adaptive;
-	efx->irq_rx_moderation = rx_ticks;
+	efx->irq_rx_moderation_us = rx_usecs;
 	efx_for_each_channel(channel, efx) {
 		if (efx_channel_has_rx_queue(channel))
-			channel->irq_moderation = rx_ticks;
+			channel->irq_moderation_us = rx_usecs;
 		else if (efx_channel_has_tx_queues(channel))
-			channel->irq_moderation = tx_ticks;
+			channel->irq_moderation_us = tx_usecs;
 	}
 
 	return 0;
@@ -2001,26 +2010,21 @@ int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 void efx_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
 			    unsigned int *rx_usecs, bool *rx_adaptive)
 {
-	/* We must round up when converting ticks to microseconds
-	 * because we round down when converting the other way.
-	 */
-
 	*rx_adaptive = efx->irq_rx_adaptive;
-	*rx_usecs = DIV_ROUND_UP(efx->irq_rx_moderation *
-				 efx->timer_quantum_ns,
-				 1000);
+	*rx_usecs = efx->irq_rx_moderation_us;
 
 	/* If channels are shared between RX and TX, so is IRQ
 	 * moderation.  Otherwise, IRQ moderation is the same for all
 	 * TX channels and is not adaptive.
 	 */
-	if (efx->tx_channel_offset == 0)
+	if (efx->tx_channel_offset == 0) {
 		*tx_usecs = *rx_usecs;
-	else
-		*tx_usecs = DIV_ROUND_UP(
-			efx->channel[efx->tx_channel_offset]->irq_moderation *
-			efx->timer_quantum_ns,
-			1000);
+	} else {
+		struct efx_channel *tx_channel;
+
+		tx_channel = efx->channel[efx->tx_channel_offset];
+		*tx_usecs = tx_channel->irq_moderation_us;
+	}
 }
 
 /**************************************************************************
@@ -2259,8 +2263,18 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 	rc = efx_check_disabled(efx);
 	if (rc)
 		return rc;
-	if (new_mtu > EFX_MAX_MTU)
+	if (new_mtu > EFX_MAX_MTU) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Requested MTU of %d too big (max: %d)\n",
+			  new_mtu, EFX_MAX_MTU);
 		return -EINVAL;
+	}
+	if (new_mtu < EFX_MIN_MTU) {
+		netif_err(efx, drv, efx->net_dev,
+			  "Requested MTU of %d too small (min: %d)\n",
+			  new_mtu, EFX_MIN_MTU);
+		return -EINVAL;
+	}
 
 	netif_dbg(efx, drv, efx->net_dev, "changing MTU to %d\n", new_mtu);
 

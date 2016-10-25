@@ -32,6 +32,14 @@ wants to support one of the below features, it should adapt the bindings below.
 - clock-frequency
 	frequency of bus clock in Hz.
 
+- i2c-bus
+	For I2C adapters that have child nodes that are a mixture of both I2C
+	devices and non-I2C devices, the 'i2c-bus' subnode can be used for
+	populating I2C devices. If the 'i2c-bus' subnode is present, only
+	subnodes of this will be considered as I2C slaves. The properties,
+	'#address-cells' and '#size-cells' must be defined under this subnode
+	if present.
+
 - i2c-scl-falling-time-ns
 	Number of nanoseconds the SCL signal takes to fall; t(f) in the I2C
 	specification.

@@ -42,73 +42,28 @@ enum {
 	NUM_LOW_LAT_UUARS	= 4,
 };
 
-
-struct mlx5_alloc_uar_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
-struct mlx5_alloc_uar_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	__be32			uarn;
-	u8			rsvd[4];
-};
-
-struct mlx5_free_uar_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			uarn;
-	u8			rsvd[4];
-};
-
-struct mlx5_free_uar_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvd[8];
-};
-
 int mlx5_cmd_alloc_uar(struct mlx5_core_dev *dev, u32 *uarn)
 {
-	struct mlx5_alloc_uar_mbox_in	in;
-	struct mlx5_alloc_uar_mbox_out	out;
+	u32 out[MLX5_ST_SZ_DW(alloc_uar_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(alloc_uar_in)]   = {0};
 	int err;
 
-	memset(&in, 0, sizeof(in));
-	memset(&out, 0, sizeof(out));
-	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_ALLOC_UAR);
-	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
-	if (err)
-		goto ex;
-
-	if (out.hdr.status) {
-		err = mlx5_cmd_status_to_err(&out.hdr);
-		goto ex;
-	}
-
-	*uarn = be32_to_cpu(out.uarn) & 0xffffff;
-
-ex:
+	MLX5_SET(alloc_uar_in, in, opcode, MLX5_CMD_OP_ALLOC_UAR);
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	if (!err)
+		*uarn = MLX5_GET(alloc_uar_out, out, uar);
 	return err;
 }
 EXPORT_SYMBOL(mlx5_cmd_alloc_uar);
 
 int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn)
 {
-	struct mlx5_free_uar_mbox_in	in;
-	struct mlx5_free_uar_mbox_out	out;
-	int err;
+	u32 out[MLX5_ST_SZ_DW(dealloc_uar_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(dealloc_uar_in)]   = {0};
 
-	memset(&in, 0, sizeof(in));
-	memset(&out, 0, sizeof(out));
-	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_DEALLOC_UAR);
-	in.uarn = cpu_to_be32(uarn);
-	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
-	if (err)
-		goto ex;
-
-	if (out.hdr.status)
-		err = mlx5_cmd_status_to_err(&out.hdr);
-
-ex:
-	return err;
+	MLX5_SET(dealloc_uar_in, in, opcode, MLX5_CMD_OP_DEALLOC_UAR);
+	MLX5_SET(dealloc_uar_in, in, uar, uarn);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL(mlx5_cmd_free_uar);
 

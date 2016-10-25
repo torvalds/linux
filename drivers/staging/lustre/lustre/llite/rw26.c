@@ -51,9 +51,7 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/lustre_lite.h"
 #include "llite_internal.h"
-#include "../include/linux/lustre_compat25.h"
 
 /**
  * Implements Linux VM address_space::invalidatepage() method. This method is
@@ -161,7 +159,7 @@ static int ll_releasepage(struct page *vmpage, gfp_t gfp_mask)
 	return result;
 }
 
-#define MAX_DIRECTIO_SIZE (2*1024*1024*1024UL)
+#define MAX_DIRECTIO_SIZE (2 * 1024 * 1024 * 1024UL)
 
 static inline int ll_get_user_pages(int rw, unsigned long user_addr,
 				    size_t size, struct page ***pages,
@@ -214,10 +212,10 @@ ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 	int i;
 	ssize_t rc = 0;
 	loff_t file_offset  = pv->ldp_start_offset;
-	long size	   = pv->ldp_size;
+	size_t size = pv->ldp_size;
 	int page_count      = pv->ldp_nr;
 	struct page **pages = pv->ldp_pages;
-	long page_size      = cl_page_size(obj);
+	size_t page_size = cl_page_size(obj);
 	bool do_io;
 	int  io_pages       = 0;
 
@@ -346,7 +344,6 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter)
 	struct cl_io *io;
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
-	struct vvp_object *obj = cl_inode2vvp(inode);
 	loff_t file_offset = iocb->ki_pos;
 	ssize_t count = iov_iter_count(iter);
 	ssize_t tot_bytes = 0, result = 0;
@@ -375,14 +372,6 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter)
 	io = vvp_env_io(env)->vui_cl.cis_io;
 	LASSERT(io);
 
-	/* 0. Need locking between buffered and direct access. and race with
-	 *    size changing by concurrent truncates and writes.
-	 * 1. Need inode mutex to operate transient pages.
-	 */
-	if (iov_iter_rw(iter) == READ)
-		inode_lock(inode);
-
-	LASSERT(obj->vob_transient_pages == 0);
 	while (iov_iter_count(iter)) {
 		struct page **pages;
 		size_t offs;
@@ -430,10 +419,6 @@ static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter)
 		file_offset += result;
 	}
 out:
-	LASSERT(obj->vob_transient_pages == 0);
-	if (iov_iter_rw(iter) == READ)
-		inode_unlock(inode);
-
 	if (tot_bytes > 0) {
 		struct vvp_io *vio = vvp_env_io(env);
 
@@ -615,6 +600,13 @@ static int ll_write_end(struct file *file, struct address_space *mapping,
 		else
 			LASSERT(from == 0);
 		vio->u.write.vui_to = from + copied;
+
+		/*
+		 * To address the deadlock in balance_dirty_pages() where
+		 * this dirty page may be written back in the same thread.
+		 */
+		if (PageDirty(vmpage))
+			unplug = true;
 
 		/* We may have one full RPC, commit it soon */
 		if (plist->pl_nr >= PTLRPC_MAX_BRW_PAGES)

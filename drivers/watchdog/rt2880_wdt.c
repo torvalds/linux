@@ -158,7 +158,6 @@ static int rt288x_wdt_probe(struct platform_device *pdev)
 
 	rt288x_wdt_freq = clk_get_rate(rt288x_wdt_clk) / RALINK_WDT_PRESCALE;
 
-	rt288x_wdt_dev.dev = &pdev->dev;
 	rt288x_wdt_dev.bootstatus = rt288x_wdt_bootcause();
 	rt288x_wdt_dev.max_timeout = (0xfffful / rt288x_wdt_freq);
 	rt288x_wdt_dev.parent = &pdev->dev;

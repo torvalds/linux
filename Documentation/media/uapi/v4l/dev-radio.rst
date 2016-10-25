@@ -20,7 +20,7 @@ Querying Capabilities
 Devices supporting the radio interface set the ``V4L2_CAP_RADIO`` and
 ``V4L2_CAP_TUNER`` or ``V4L2_CAP_MODULATOR`` flag in the
 ``capabilities`` field of struct
-:ref:`v4l2_capability <v4l2-capability>` returned by the
+:c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl. Other combinations of
 capability flags are reserved for future extensions.
 

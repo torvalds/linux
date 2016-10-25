@@ -54,8 +54,6 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 2);
 		if (excess_cached_nats(sbi))
 			res = false;
-		if (nm_i->nat_cnt > DEF_NAT_CACHE_THRESHOLD)
-			res = false;
 	} else if (type == DIRTY_DENTS) {
 		if (sbi->sb->s_bdi->wb.dirty_exceeded)
 			return false;
@@ -1314,6 +1312,7 @@ int fsync_node_pages(struct f2fs_sb_info *sbi, struct inode *inode,
 	struct page *last_page = NULL;
 	bool marked = false;
 	nid_t ino = inode->i_ino;
+	int nwritten = 0;
 
 	if (atomic) {
 		last_page = last_fsync_dnode(sbi, ino);
@@ -1387,7 +1386,10 @@ continue_unlock:
 				unlock_page(page);
 				f2fs_put_page(last_page, 0);
 				break;
+			} else {
+				nwritten++;
 			}
+
 			if (page == last_page) {
 				f2fs_put_page(page, 0);
 				marked = true;
@@ -1409,6 +1411,9 @@ continue_unlock:
 		unlock_page(last_page);
 		goto retry;
 	}
+
+	if (nwritten)
+		f2fs_submit_merged_bio_cond(sbi, NULL, NULL, ino, NODE, WRITE);
 	return ret ? -EIO: 0;
 }
 
@@ -1418,6 +1423,7 @@ int sync_node_pages(struct f2fs_sb_info *sbi, struct writeback_control *wbc)
 	struct pagevec pvec;
 	int step = 0;
 	int nwritten = 0;
+	int ret = 0;
 
 	pagevec_init(&pvec, 0);
 
@@ -1438,7 +1444,8 @@ next_step:
 
 			if (unlikely(f2fs_cp_error(sbi))) {
 				pagevec_release(&pvec);
-				return -EIO;
+				ret = -EIO;
+				goto out;
 			}
 
 			/*
@@ -1489,6 +1496,8 @@ continue_unlock:
 
 			if (NODE_MAPPING(sbi)->a_ops->writepage(page, wbc))
 				unlock_page(page);
+			else
+				nwritten++;
 
 			if (--wbc->nr_to_write == 0)
 				break;
@@ -1506,14 +1515,17 @@ continue_unlock:
 		step++;
 		goto next_step;
 	}
-	return nwritten;
+out:
+	if (nwritten)
+		f2fs_submit_merged_bio(sbi, NODE, WRITE);
+	return ret;
 }
 
 int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino)
 {
 	pgoff_t index = 0, end = ULONG_MAX;
 	struct pagevec pvec;
-	int ret2 = 0, ret = 0;
+	int ret2, ret = 0;
 
 	pagevec_init(&pvec, 0);
 
@@ -1542,10 +1554,7 @@ int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino)
 		cond_resched();
 	}
 
-	if (unlikely(test_and_clear_bit(AS_ENOSPC, &NODE_MAPPING(sbi)->flags)))
-		ret2 = -ENOSPC;
-	if (unlikely(test_and_clear_bit(AS_EIO, &NODE_MAPPING(sbi)->flags)))
-		ret2 = -EIO;
+	ret2 = filemap_check_errors(NODE_MAPPING(sbi));
 	if (!ret)
 		ret = ret2;
 	return ret;
@@ -1672,6 +1681,9 @@ const struct address_space_operations f2fs_node_aops = {
 	.set_page_dirty	= f2fs_set_node_page_dirty,
 	.invalidatepage	= f2fs_invalidate_page,
 	.releasepage	= f2fs_release_page,
+#ifdef CONFIG_MIGRATION
+	.migratepage    = f2fs_migrate_page,
+#endif
 };
 
 static struct free_nid *__lookup_free_nid_list(struct f2fs_nm_info *nm_i,
@@ -1838,7 +1850,7 @@ bool alloc_nid(struct f2fs_sb_info *sbi, nid_t *nid)
 	struct free_nid *i = NULL;
 retry:
 #ifdef CONFIG_F2FS_FAULT_INJECTION
-	if (time_to_inject(FAULT_ALLOC_NID))
+	if (time_to_inject(sbi, FAULT_ALLOC_NID))
 		return false;
 #endif
 	if (unlikely(sbi->total_valid_node_count + 1 > nm_i->available_nids))
@@ -2015,10 +2027,12 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 
 	if (unlikely(old_ni.blk_addr != NULL_ADDR))
 		return -EINVAL;
-
+retry:
 	ipage = f2fs_grab_cache_page(NODE_MAPPING(sbi), ino, false);
-	if (!ipage)
-		return -ENOMEM;
+	if (!ipage) {
+		congestion_wait(BLK_RW_ASYNC, HZ/50);
+		goto retry;
+	}
 
 	/* Should not use this inode from free nid list */
 	remove_free_nid(NM_I(sbi), ino);

@@ -262,6 +262,15 @@ config PWM_LPSS_PLATFORM
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-lpss-platform.
 
+config PWM_MESON
+	tristate "Amlogic Meson PWM driver"
+	depends on ARCH_MESON
+	help
+	  The platform driver for Amlogic Meson PWM controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-meson.
+
 config PWM_MTK_DISP
 	tristate "MediaTek display PWM driver"
 	depends on ARCH_MEDIATEK || COMPILE_TEST

@@ -18,6 +18,7 @@
 
 #include <asm/cputype.h>
 #include <asm/cpufeature.h>
+#include <asm/sysreg.h>
 #include <asm/virt.h>
 
 #ifdef __KERNEL__
@@ -98,18 +99,18 @@ static inline void decode_ctrl_reg(u32 reg,
 #define AARCH64_DBG_REG_WCR	(AARCH64_DBG_REG_WVR + ARM_MAX_WRP)
 
 /* Debug register names. */
-#define AARCH64_DBG_REG_NAME_BVR	"bvr"
-#define AARCH64_DBG_REG_NAME_BCR	"bcr"
-#define AARCH64_DBG_REG_NAME_WVR	"wvr"
-#define AARCH64_DBG_REG_NAME_WCR	"wcr"
+#define AARCH64_DBG_REG_NAME_BVR	bvr
+#define AARCH64_DBG_REG_NAME_BCR	bcr
+#define AARCH64_DBG_REG_NAME_WVR	wvr
+#define AARCH64_DBG_REG_NAME_WCR	wcr
 
 /* Accessor macros for the debug registers. */
 #define AARCH64_DBG_READ(N, REG, VAL) do {\
-	asm volatile("mrs %0, dbg" REG #N "_el1" : "=r" (VAL));\
+	VAL = read_sysreg(dbg##REG##N##_el1);\
 } while (0)
 
 #define AARCH64_DBG_WRITE(N, REG, VAL) do {\
-	asm volatile("msr dbg" REG #N "_el1, %0" :: "r" (VAL));\
+	write_sysreg(VAL, dbg##REG##N##_el1);\
 } while (0)
 
 struct task_struct;
@@ -140,8 +141,6 @@ static inline void ptrace_hw_copy_thread(struct task_struct *task)
 {
 }
 #endif
-
-extern struct pmu perf_ops_bp;
 
 /* Determine number of BRP registers available. */
 static inline int get_num_brps(void)

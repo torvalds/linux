@@ -153,14 +153,14 @@ static struct hwreg_cfg hwreg_cfg = {
 
 #define AB8500_NAME_STRING "ab8500"
 #define AB8500_ADC_NAME_STRING "gpadc"
-#define AB8500_NUM_BANKS 24
+#define AB8500_NUM_BANKS AB8500_DEBUG_FIELD_LAST
 
 #define AB8500_REV_REG 0x80
 
 static struct ab8500_prcmu_ranges *debug_ranges;
 
 static struct ab8500_prcmu_ranges ab8500_debug_ranges[AB8500_NUM_BANKS] = {
-	[0x0] = {
+	[AB8500_M_FSM_RANK] = {
 		.num_ranges = 0,
 		.range = NULL,
 	},
@@ -315,7 +315,7 @@ static struct ab8500_prcmu_ranges ab8500_debug_ranges[AB8500_NUM_BANKS] = {
 			},
 		},
 	},
-	[0x9] = {
+	[AB8500_RESERVED] = {
 		.num_ranges = 0,
 		.range = NULL,
 	},
@@ -386,24 +386,6 @@ static struct ab8500_prcmu_ranges ab8500_debug_ranges[AB8500_NUM_BANKS] = {
 			},
 		},
 	},
-	[AB8500_DEVELOPMENT] = {
-		.num_ranges = 1,
-		.range = (struct ab8500_reg_range[]) {
-			{
-				.first = 0x00,
-				.last = 0x00,
-			},
-		},
-	},
-	[AB8500_DEBUG] = {
-		.num_ranges = 1,
-		.range = (struct ab8500_reg_range[]) {
-			{
-				.first = 0x05,
-				.last = 0x07,
-			},
-		},
-	},
 	[AB8500_AUDIO] = {
 		.num_ranges = 1,
 		.range = (struct ab8500_reg_range[]) {
@@ -463,19 +445,29 @@ static struct ab8500_prcmu_ranges ab8500_debug_ranges[AB8500_NUM_BANKS] = {
 			},
 		},
 	},
-	[0x11] = {
+	[AB8500_DEVELOPMENT] = {
+		.num_ranges = 1,
+		.range = (struct ab8500_reg_range[]) {
+			{
+				.first = 0x00,
+				.last = 0x00,
+			},
+		},
+	},
+	[AB8500_DEBUG] = {
+		.num_ranges = 1,
+		.range = (struct ab8500_reg_range[]) {
+			{
+				.first = 0x05,
+				.last = 0x07,
+			},
+		},
+	},
+	[AB8500_PROD_TEST] = {
 		.num_ranges = 0,
 		.range = NULL,
 	},
-	[0x12] = {
-		.num_ranges = 0,
-		.range = NULL,
-	},
-	[0x13] = {
-		.num_ranges = 0,
-		.range = NULL,
-	},
-	[0x14] = {
+	[AB8500_STE_TEST] = {
 		.num_ranges = 0,
 		.range = NULL,
 	},
@@ -1382,60 +1374,6 @@ void ab8500_dump_all_banks(struct device *dev)
 	}
 }
 
-/* Space for 500 registers. */
-#define DUMP_MAX_REGS 700
-static struct ab8500_register_dump
-{
-	u8 bank;
-	u8 reg;
-	u8 value;
-} ab8500_complete_register_dump[DUMP_MAX_REGS];
-
-/* This shall only be called upon kernel panic! */
-void ab8500_dump_all_banks_to_mem(void)
-{
-	int i, r = 0;
-	u8 bank;
-	int err = 0;
-
-	pr_info("Saving all ABB registers for crash analysis.\n");
-
-	for (bank = 0; bank < AB8500_NUM_BANKS; bank++) {
-		for (i = 0; i < debug_ranges[bank].num_ranges; i++) {
-			u8 reg;
-
-			for (reg = debug_ranges[bank].range[i].first;
-			     reg <= debug_ranges[bank].range[i].last;
-			     reg++) {
-				u8 value;
-
-				err = prcmu_abb_read(bank, reg, &value, 1);
-
-				if (err < 0)
-					goto out;
-
-				ab8500_complete_register_dump[r].bank = bank;
-				ab8500_complete_register_dump[r].reg = reg;
-				ab8500_complete_register_dump[r].value = value;
-
-				r++;
-
-				if (r >= DUMP_MAX_REGS) {
-					pr_err("%s: too many register to dump!\n",
-						__func__);
-					err = -EINVAL;
-					goto out;
-				}
-			}
-		}
-	}
-out:
-	if (err >= 0)
-		pr_info("Saved all ABB registers.\n");
-	else
-		pr_info("Failed to save all ABB registers.\n");
-}
-
 static int ab8500_all_banks_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *s;
@@ -1584,18 +1522,10 @@ static u32 num_interrupts[AB8500_MAX_NR_IRQS];
 static u32 num_wake_interrupts[AB8500_MAX_NR_IRQS];
 static int num_interrupt_lines;
 
-bool __attribute__((weak)) suspend_test_wake_cause_interrupt_is_mine(u32 my_int)
-{
-	return false;
-}
-
 void ab8500_debug_register_interrupt(int line)
 {
-	if (line < num_interrupt_lines) {
+	if (line < num_interrupt_lines)
 		num_interrupts[line]++;
-		if (suspend_test_wake_cause_interrupt_is_mine(irq_ab8500))
-			num_wake_interrupts[line]++;
-	}
 }
 
 static int ab8500_interrupts_print(struct seq_file *s, void *p)

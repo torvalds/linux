@@ -391,7 +391,8 @@ void intel_soc_dts_iosf_interrupt_handler(struct intel_soc_dts_sensors *sensors)
 
 		for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
 			pr_debug("TZD update for zone %d\n", i);
-			thermal_zone_device_update(sensors->soc_dts[i].tzone);
+			thermal_zone_device_update(sensors->soc_dts[i].tzone,
+						   THERMAL_EVENT_UNSPECIFIED);
 		}
 	} else
 		spin_unlock_irqrestore(&sensors->intr_notify_lock, flags);

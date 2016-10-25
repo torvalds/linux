@@ -1,0 +1,46 @@
+Bindings for the Broadcom's brcm,bcm6345-gpio memory-mapped GPIO controllers.
+
+These bindings can be used on any BCM63xx SoC. However, BCM6338 and BCM6345
+are the only ones which don't need a pinctrl driver.
+BCM6338 have 8-bit data and dirout registers, where GPIO state can be read
+and/or written, and the direction changed from input to output.
+BCM6345 have 16-bit data and dirout registers, where GPIO state can be read
+and/or written, and the direction changed from input to output.
+
+Required properties:
+	- compatible: should be "brcm,bcm6345-gpio"
+	- reg-names: must contain
+		"dat" - data register
+		"dirout" - direction (output) register
+	- reg: address + size pairs describing the GPIO register sets;
+		order must correspond with the order of entries in reg-names
+	- #gpio-cells: must be set to 2. The first cell is the pin number and
+			the second cell is used to specify the gpio polarity:
+			0 = active high
+			1 = active low
+	- gpio-controller: Marks the device node as a gpio controller.
+
+Optional properties:
+	- native-endian: use native endian memory.
+
+Examples:
+	- BCM6338:
+	gpio: gpio-controller@fffe0407 {
+		compatible = "brcm,bcm6345-gpio";
+		reg-names = "dirout", "dat";
+		reg = <0xfffe0407 1>, <0xfffe040f 1>;
+
+		#gpio-cells = <2>;
+		gpio-controller;
+	};
+
+	- BCM6345:
+	gpio: gpio-controller@fffe0406 {
+		compatible = "brcm,bcm6345-gpio";
+		reg-names = "dirout", "dat";
+		reg = <0xfffe0406 2>, <0xfffe040a 2>;
+		native-endian;
+
+		#gpio-cells = <2>;
+		gpio-controller;
+	};

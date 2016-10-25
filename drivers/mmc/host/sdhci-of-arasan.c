@@ -26,6 +26,7 @@
 #include <linux/phy/phy.h>
 #include <linux/regmap.h>
 #include "sdhci-pltfm.h"
+#include <linux/of.h>
 
 #define SDHCI_ARASAN_CLK_CTRL_OFFSET	0x2c
 #define SDHCI_ARASAN_VENDOR_REGISTER	0x78
@@ -34,6 +35,8 @@
 #define CLK_CTRL_TIMEOUT_SHIFT		16
 #define CLK_CTRL_TIMEOUT_MASK		(0xf << CLK_CTRL_TIMEOUT_SHIFT)
 #define CLK_CTRL_TIMEOUT_MIN_EXP	13
+
+#define PHY_CLK_TOO_SLOW_HZ		400000
 
 /*
  * On some SoCs the syscon area has a feature where the upper 16-bits of
@@ -65,10 +68,12 @@ struct sdhci_arasan_soc_ctl_field {
  * accessible via the syscon API.
  *
  * @baseclkfreq:	Where to find corecfg_baseclkfreq
+ * @clockmultiplier:	Where to find corecfg_clockmultiplier
  * @hiword_update:	If true, use HIWORD_UPDATE to access the syscon
  */
 struct sdhci_arasan_soc_ctl_map {
 	struct sdhci_arasan_soc_ctl_field	baseclkfreq;
+	struct sdhci_arasan_soc_ctl_field	clockmultiplier;
 	bool					hiword_update;
 };
 
@@ -77,6 +82,7 @@ struct sdhci_arasan_soc_ctl_map {
  * @host:		Pointer to the main SDHCI host structure.
  * @clk_ahb:		Pointer to the AHB clock
  * @phy:		Pointer to the generic phy
+ * @is_phy_on:		True if the PHY is on; false if not.
  * @sdcardclk_hw:	Struct for the clock we might provide to a PHY.
  * @sdcardclk:		Pointer to normal 'struct clock' for sdcardclk_hw.
  * @soc_ctl_base:	Pointer to regmap for syscon for soc_ctl registers.
@@ -86,16 +92,22 @@ struct sdhci_arasan_data {
 	struct sdhci_host *host;
 	struct clk	*clk_ahb;
 	struct phy	*phy;
+	bool		is_phy_on;
 
 	struct clk_hw	sdcardclk_hw;
 	struct clk      *sdcardclk;
 
 	struct regmap	*soc_ctl_base;
 	const struct sdhci_arasan_soc_ctl_map *soc_ctl_map;
+	unsigned int	quirks; /* Arasan deviations from spec */
+
+/* Controller does not have CD wired and will not function normally without */
+#define SDHCI_ARASAN_QUIRK_FORCE_CDTEST	BIT(0)
 };
 
 static const struct sdhci_arasan_soc_ctl_map rk3399_soc_ctl_map = {
 	.baseclkfreq = { .reg = 0xf000, .width = 8, .shift = 8 },
+	.clockmultiplier = { .reg = 0xf02c, .width = 8, .shift = 0},
 	.hiword_update = true,
 };
 
@@ -170,13 +182,47 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
 	bool ctrl_phy = false;
 
-	if (clock > MMC_HIGH_52_MAX_DTR && (!IS_ERR(sdhci_arasan->phy)))
-		ctrl_phy = true;
+	if (!IS_ERR(sdhci_arasan->phy)) {
+		if (!sdhci_arasan->is_phy_on && clock <= PHY_CLK_TOO_SLOW_HZ) {
+			/*
+			 * If PHY off, set clock to max speed and power PHY on.
+			 *
+			 * Although PHY docs apparently suggest power cycling
+			 * when changing the clock the PHY doesn't like to be
+			 * powered on while at low speeds like those used in ID
+			 * mode.  Even worse is powering the PHY on while the
+			 * clock is off.
+			 *
+			 * To workaround the PHY limitations, the best we can
+			 * do is to power it on at a faster speed and then slam
+			 * through low speeds without power cycling.
+			 */
+			sdhci_set_clock(host, host->max_clk);
+			spin_unlock_irq(&host->lock);
+			phy_power_on(sdhci_arasan->phy);
+			spin_lock_irq(&host->lock);
+			sdhci_arasan->is_phy_on = true;
 
-	if (ctrl_phy) {
+			/*
+			 * We'll now fall through to the below case with
+			 * ctrl_phy = false (so we won't turn off/on).  The
+			 * sdhci_set_clock() will set the real clock.
+			 */
+		} else if (clock > PHY_CLK_TOO_SLOW_HZ) {
+			/*
+			 * At higher clock speeds the PHY is fine being power
+			 * cycled and docs say you _should_ power cycle when
+			 * changing clock speeds.
+			 */
+			ctrl_phy = true;
+		}
+	}
+
+	if (ctrl_phy && sdhci_arasan->is_phy_on) {
 		spin_unlock_irq(&host->lock);
 		phy_power_off(sdhci_arasan->phy);
 		spin_lock_irq(&host->lock);
+		sdhci_arasan->is_phy_on = false;
 	}
 
 	sdhci_set_clock(host, clock);
@@ -185,6 +231,7 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 		spin_unlock_irq(&host->lock);
 		phy_power_on(sdhci_arasan->phy);
 		spin_lock_irq(&host->lock);
+		sdhci_arasan->is_phy_on = true;
 	}
 }
 
@@ -203,12 +250,49 @@ static void sdhci_arasan_hs400_enhanced_strobe(struct mmc_host *mmc,
 	writel(vendor, host->ioaddr + SDHCI_ARASAN_VENDOR_REGISTER);
 }
 
+static void sdhci_arasan_reset(struct sdhci_host *host, u8 mask)
+{
+	u8 ctrl;
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
+
+	sdhci_reset(host, mask);
+
+	if (sdhci_arasan->quirks & SDHCI_ARASAN_QUIRK_FORCE_CDTEST) {
+		ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
+		ctrl |= SDHCI_CTRL_CDTEST_INS | SDHCI_CTRL_CDTEST_EN;
+		sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
+	}
+}
+
+static int sdhci_arasan_voltage_switch(struct mmc_host *mmc,
+				       struct mmc_ios *ios)
+{
+	switch (ios->signal_voltage) {
+	case MMC_SIGNAL_VOLTAGE_180:
+		/*
+		 * Plese don't switch to 1V8 as arasan,5.1 doesn't
+		 * actually refer to this setting to indicate the
+		 * signal voltage and the state machine will be broken
+		 * actually if we force to enable 1V8. That's something
+		 * like broken quirk but we could work around here.
+		 */
+		return 0;
+	case MMC_SIGNAL_VOLTAGE_330:
+	case MMC_SIGNAL_VOLTAGE_120:
+		/* We don't support 3V3 and 1V2 */
+		break;
+	}
+
+	return -EINVAL;
+}
+
 static struct sdhci_ops sdhci_arasan_ops = {
 	.set_clock = sdhci_arasan_set_clock,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.get_timeout_clock = sdhci_arasan_get_timeout_clock,
 	.set_bus_width = sdhci_set_bus_width,
-	.reset = sdhci_reset,
+	.reset = sdhci_arasan_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
@@ -239,13 +323,14 @@ static int sdhci_arasan_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	if (!IS_ERR(sdhci_arasan->phy)) {
+	if (!IS_ERR(sdhci_arasan->phy) && sdhci_arasan->is_phy_on) {
 		ret = phy_power_off(sdhci_arasan->phy);
 		if (ret) {
 			dev_err(dev, "Cannot power off phy.\n");
 			sdhci_resume_host(host);
 			return ret;
 		}
+		sdhci_arasan->is_phy_on = false;
 	}
 
 	clk_disable(pltfm_host->clk);
@@ -281,12 +366,13 @@ static int sdhci_arasan_resume(struct device *dev)
 		return ret;
 	}
 
-	if (!IS_ERR(sdhci_arasan->phy)) {
+	if (!IS_ERR(sdhci_arasan->phy) && host->mmc->actual_clock) {
 		ret = phy_power_on(sdhci_arasan->phy);
 		if (ret) {
 			dev_err(dev, "Cannot power on phy.\n");
 			return ret;
 		}
+		sdhci_arasan->is_phy_on = true;
 	}
 
 	return sdhci_resume_host(host);
@@ -336,6 +422,45 @@ static unsigned long sdhci_arasan_sdcardclk_recalc_rate(struct clk_hw *hw,
 static const struct clk_ops arasan_sdcardclk_ops = {
 	.recalc_rate = sdhci_arasan_sdcardclk_recalc_rate,
 };
+
+/**
+ * sdhci_arasan_update_clockmultiplier - Set corecfg_clockmultiplier
+ *
+ * The corecfg_clockmultiplier is supposed to contain clock multiplier
+ * value of programmable clock generator.
+ *
+ * NOTES:
+ * - Many existing devices don't seem to do this and work fine.  To keep
+ *   compatibility for old hardware where the device tree doesn't provide a
+ *   register map, this function is a noop if a soc_ctl_map hasn't been provided
+ *   for this platform.
+ * - The value of corecfg_clockmultiplier should sync with that of corresponding
+ *   value reading from sdhci_capability_register. So this function is called
+ *   once at probe time and never called again.
+ *
+ * @host:		The sdhci_host
+ */
+static void sdhci_arasan_update_clockmultiplier(struct sdhci_host *host,
+						u32 value)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
+	const struct sdhci_arasan_soc_ctl_map *soc_ctl_map =
+		sdhci_arasan->soc_ctl_map;
+
+	/* Having a map is optional */
+	if (!soc_ctl_map)
+		return;
+
+	/* If we have a map, we expect to have a syscon */
+	if (!sdhci_arasan->soc_ctl_base) {
+		pr_warn("%s: Have regmap, but no soc-ctl-syscon\n",
+			mmc_hostname(host->mmc));
+		return;
+	}
+
+	sdhci_arasan_syscon_write(host, &soc_ctl_map->clockmultiplier, value);
+}
 
 /**
  * sdhci_arasan_update_baseclkfreq - Set corecfg_baseclkfreq
@@ -462,6 +587,7 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	struct sdhci_host *host;
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_arasan_data *sdhci_arasan;
+	struct device_node *np = pdev->dev.of_node;
 
 	host = sdhci_pltfm_init(pdev, &sdhci_arasan_pdata,
 				sizeof(*sdhci_arasan));
@@ -516,7 +642,15 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	}
 
 	sdhci_get_of_property(pdev);
+
+	if (of_property_read_bool(np, "xlnx,fails-without-test-cd"))
+		sdhci_arasan->quirks |= SDHCI_ARASAN_QUIRK_FORCE_CDTEST;
+
 	pltfm_host->clk = clk_xin;
+
+	if (of_device_is_compatible(pdev->dev.of_node,
+				    "rockchip,rk3399-sdhci-5.1"))
+		sdhci_arasan_update_clockmultiplier(host, 0x0);
 
 	sdhci_arasan_update_baseclkfreq(host);
 
@@ -547,14 +681,10 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 			goto unreg_clk;
 		}
 
-		ret = phy_power_on(sdhci_arasan->phy);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "phy_power_on err.\n");
-			goto err_phy_power;
-		}
-
 		host->mmc_host_ops.hs400_enhanced_strobe =
 					sdhci_arasan_hs400_enhanced_strobe;
+		host->mmc_host_ops.start_signal_voltage_switch =
+					sdhci_arasan_voltage_switch;
 	}
 
 	ret = sdhci_add_host(host);
@@ -564,9 +694,6 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_host:
-	if (!IS_ERR(sdhci_arasan->phy))
-		phy_power_off(sdhci_arasan->phy);
-err_phy_power:
 	if (!IS_ERR(sdhci_arasan->phy))
 		phy_exit(sdhci_arasan->phy);
 unreg_clk:
@@ -589,7 +716,8 @@ static int sdhci_arasan_remove(struct platform_device *pdev)
 	struct clk *clk_ahb = sdhci_arasan->clk_ahb;
 
 	if (!IS_ERR(sdhci_arasan->phy)) {
-		phy_power_off(sdhci_arasan->phy);
+		if (sdhci_arasan->is_phy_on)
+			phy_power_off(sdhci_arasan->phy);
 		phy_exit(sdhci_arasan->phy);
 	}
 

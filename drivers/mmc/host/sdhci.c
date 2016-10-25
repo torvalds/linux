@@ -687,7 +687,7 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_command *cmd)
 			 * host->clock is in Hz.  target_timeout is in us.
 			 * Hence, us = 1000000 * cycles / Hz.  Round up.
 			 */
-			val = 1000000 * data->timeout_clks;
+			val = 1000000ULL * data->timeout_clks;
 			if (do_div(val, host->clock))
 				target_timeout++;
 			target_timeout += val;
@@ -888,7 +888,8 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_command *cmd)
 static inline bool sdhci_auto_cmd12(struct sdhci_host *host,
 				    struct mmc_request *mrq)
 {
-	return !mrq->sbc && (host->flags & SDHCI_AUTO_CMD12);
+	return !mrq->sbc && (host->flags & SDHCI_AUTO_CMD12) &&
+	       !mrq->cap_cmd_during_tfr;
 }
 
 static void sdhci_set_transfer_mode(struct sdhci_host *host,
@@ -1031,9 +1032,18 @@ static void sdhci_finish_data(struct sdhci_host *host)
 			sdhci_do_reset(host, SDHCI_RESET_DATA);
 		}
 
-		/* Avoid triggering warning in sdhci_send_command() */
-		host->cmd = NULL;
-		sdhci_send_command(host, data->stop);
+		/*
+		 * 'cap_cmd_during_tfr' request must not use the command line
+		 * after mmc_command_done() has been called. It is upper layer's
+		 * responsibility to send the stop command if required.
+		 */
+		if (data->mrq->cap_cmd_during_tfr) {
+			sdhci_finish_mrq(host, data->mrq);
+		} else {
+			/* Avoid triggering warning in sdhci_send_command() */
+			host->cmd = NULL;
+			sdhci_send_command(host, data->stop);
+		}
 	} else {
 		sdhci_finish_mrq(host, data->mrq);
 	}
@@ -1066,6 +1076,10 @@ void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 
 	/* Initially, a command has no error */
 	cmd->error = 0;
+
+	if ((host->quirks2 & SDHCI_QUIRK2_STOP_WITH_TC) &&
+	    cmd->opcode == MMC_STOP_TRANSMISSION)
+		cmd->flags |= MMC_RSP_BUSY;
 
 	/* Wait max 10 ms */
 	timeout = 10;
@@ -1164,6 +1178,9 @@ static void sdhci_finish_command(struct sdhci_host *host)
 			cmd->resp[0] = sdhci_readl(host, SDHCI_RESPONSE);
 		}
 	}
+
+	if (cmd->mrq->cap_cmd_during_tfr && cmd == cmd->mrq->cmd)
+		mmc_command_done(host->mmc, cmd->mrq);
 
 	/*
 	 * The host can send and interrupt when the busy state has
@@ -1377,8 +1394,8 @@ static void sdhci_set_power_reg(struct sdhci_host *host, unsigned char mode,
 		sdhci_writeb(host, 0, SDHCI_POWER_CONTROL);
 }
 
-void sdhci_set_power(struct sdhci_host *host, unsigned char mode,
-		     unsigned short vdd)
+void sdhci_set_power_noreg(struct sdhci_host *host, unsigned char mode,
+			   unsigned short vdd)
 {
 	u8 pwr = 0;
 
@@ -1442,20 +1459,17 @@ void sdhci_set_power(struct sdhci_host *host, unsigned char mode,
 			mdelay(10);
 	}
 }
-EXPORT_SYMBOL_GPL(sdhci_set_power);
+EXPORT_SYMBOL_GPL(sdhci_set_power_noreg);
 
-static void __sdhci_set_power(struct sdhci_host *host, unsigned char mode,
-			      unsigned short vdd)
+void sdhci_set_power(struct sdhci_host *host, unsigned char mode,
+		     unsigned short vdd)
 {
-	struct mmc_host *mmc = host->mmc;
-
-	if (host->ops->set_power)
-		host->ops->set_power(host, mode, vdd);
-	else if (!IS_ERR(mmc->supply.vmmc))
-		sdhci_set_power_reg(host, mode, vdd);
+	if (IS_ERR(host->mmc->supply.vmmc))
+		sdhci_set_power_noreg(host, mode, vdd);
 	else
-		sdhci_set_power(host, mode, vdd);
+		sdhci_set_power_reg(host, mode, vdd);
 }
+EXPORT_SYMBOL_GPL(sdhci_set_power);
 
 /*****************************************************************************\
  *                                                                           *
@@ -1596,7 +1610,10 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		}
 	}
 
-	__sdhci_set_power(host, ios->power_mode, ios->vdd);
+	if (host->ops->set_power)
+		host->ops->set_power(host, ios->power_mode, ios->vdd);
+	else
+		sdhci_set_power(host, ios->power_mode, ios->vdd);
 
 	if (host->ops->platform_send_init_74_clocks)
 		host->ops->platform_send_init_74_clocks(host, ios->power_mode);
@@ -2062,7 +2079,7 @@ static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 		spin_unlock_irqrestore(&host->lock, flags);
 		/* Wait for Buffer Read Ready interrupt */
-		wait_event_interruptible_timeout(host->buf_ready_int,
+		wait_event_timeout(host->buf_ready_int,
 					(host->tuning_done == 1),
 					msecs_to_jiffies(50));
 		spin_lock_irqsave(&host->lock, flags);
@@ -2396,7 +2413,7 @@ static void sdhci_timeout_data_timer(unsigned long data)
  *                                                                           *
 \*****************************************************************************/
 
-static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask, u32 *mask)
+static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask)
 {
 	if (!host->cmd) {
 		/*
@@ -2439,11 +2456,6 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask, u32 *mask)
 		sdhci_finish_mrq(host, host->cmd->mrq);
 		return;
 	}
-
-	if ((host->quirks2 & SDHCI_QUIRK2_STOP_WITH_TC) &&
-	    !(host->cmd->flags & MMC_RSP_BUSY) && !host->data &&
-	    host->cmd->opcode == MMC_STOP_TRANSMISSION)
-		*mask &= ~SDHCI_INT_DATA_END;
 
 	if (intmask & SDHCI_INT_RESPONSE)
 		sdhci_finish_command(host);
@@ -2667,8 +2679,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 		}
 
 		if (intmask & SDHCI_INT_CMD_MASK)
-			sdhci_cmd_irq(host, intmask & SDHCI_INT_CMD_MASK,
-				      &intmask);
+			sdhci_cmd_irq(host, intmask & SDHCI_INT_CMD_MASK);
 
 		if (intmask & SDHCI_INT_DATA_MASK)
 			sdhci_data_irq(host, intmask & SDHCI_INT_DATA_MASK);

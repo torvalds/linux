@@ -1062,14 +1062,12 @@ static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* this should always be supported */
 	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err) {
-		dev_err(&pdev->dev, "32-bit PCI DMA addresses"
-				"not supported by the card\n");
+		dev_err(&pdev->dev, "32-bit PCI DMA addresses not supported by the card\n");
 		goto err_out_disable_dev;
 	}
 	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err) {
-		dev_err(&pdev->dev, "32-bit PCI DMA addresses"
-				"not supported by the card\n");
+		dev_err(&pdev->dev, "32-bit PCI DMA addresses not supported by the card\n");
 		goto err_out_disable_dev;
 	}
 

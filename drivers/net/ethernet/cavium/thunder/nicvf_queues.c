@@ -479,6 +479,16 @@ void nicvf_config_vlan_stripping(struct nicvf *nic, netdev_features_t features)
 					      NIC_QSET_RQ_GEN_CFG, 0, rq_cfg);
 }
 
+static void nicvf_reset_rcv_queue_stats(struct nicvf *nic)
+{
+	union nic_mbx mbx = {};
+
+	/* Reset all RXQ's stats */
+	mbx.reset_stat.msg = NIC_MBOX_MSG_RESET_STAT_COUNTER;
+	mbx.reset_stat.rq_stat_mask = 0xFFFF;
+	nicvf_send_msg_to_pf(nic, &mbx);
+}
+
 /* Configures receive queue */
 static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 				   int qidx, bool enable)
@@ -762,10 +772,10 @@ int nicvf_set_qset_resources(struct nicvf *nic)
 	nic->qs = qs;
 
 	/* Set count of each queue */
-	qs->rbdr_cnt = RBDR_CNT;
-	qs->rq_cnt = RCV_QUEUE_CNT;
-	qs->sq_cnt = SND_QUEUE_CNT;
-	qs->cq_cnt = CMP_QUEUE_CNT;
+	qs->rbdr_cnt = DEFAULT_RBDR_CNT;
+	qs->rq_cnt = min_t(u8, MAX_RCV_QUEUES_PER_QS, num_online_cpus());
+	qs->sq_cnt = min_t(u8, MAX_SND_QUEUES_PER_QS, num_online_cpus());
+	qs->cq_cnt = max_t(u8, qs->rq_cnt, qs->sq_cnt);
 
 	/* Set queue lengths */
 	qs->rbdr_len = RCV_BUF_COUNT;
@@ -811,6 +821,11 @@ int nicvf_config_data_transfer(struct nicvf *nic, bool enable)
 
 		nicvf_free_resources(nic);
 	}
+
+	/* Reset RXQ's stats.
+	 * SQ's stats will get reset automatically once SQ is reset.
+	 */
+	nicvf_reset_rcv_queue_stats(nic);
 
 	return 0;
 }
@@ -1067,6 +1082,24 @@ static inline void nicvf_sq_add_cqe_subdesc(struct snd_queue *sq, int qentry,
 	imm->len = 1;
 }
 
+static inline void nicvf_sq_doorbell(struct nicvf *nic, struct sk_buff *skb,
+				     int sq_num, int desc_cnt)
+{
+	struct netdev_queue *txq;
+
+	txq = netdev_get_tx_queue(nic->pnicvf->netdev,
+				  skb_get_queue_mapping(skb));
+
+	netdev_tx_sent_queue(txq, skb->len);
+
+	/* make sure all memory stores are done before ringing doorbell */
+	smp_wmb();
+
+	/* Inform HW to xmit all TSO segments */
+	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_DOOR,
+			      sq_num, desc_cnt);
+}
+
 /* Segment a TSO packet into 'gso_size' segments and append
  * them to SQ for transfer
  */
@@ -1126,12 +1159,8 @@ static int nicvf_sq_append_tso(struct nicvf *nic, struct snd_queue *sq,
 	/* Save SKB in the last segment for freeing */
 	sq->skbuff[hdr_qentry] = (u64)skb;
 
-	/* make sure all memory stores are done before ringing doorbell */
-	smp_wmb();
+	nicvf_sq_doorbell(nic, skb, sq_num, desc_cnt);
 
-	/* Inform HW to xmit all TSO segments */
-	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_DOOR,
-			      sq_num, desc_cnt);
 	nic->drv_stats.tx_tso++;
 	return 1;
 }
@@ -1204,12 +1233,8 @@ doorbell:
 		nicvf_sq_add_cqe_subdesc(sq, qentry, tso_sqe, skb);
 	}
 
-	/* make sure all memory stores are done before ringing doorbell */
-	smp_wmb();
+	nicvf_sq_doorbell(nic, skb, sq_num, subdesc_cnt);
 
-	/* Inform HW to xmit new packet */
-	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_DOOR,
-			      sq_num, subdesc_cnt);
 	return 1;
 
 append_fail:
@@ -1234,13 +1259,23 @@ struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 	int frag;
 	int payload_len = 0;
 	struct sk_buff *skb = NULL;
-	struct sk_buff *skb_frag = NULL;
-	struct sk_buff *prev_frag = NULL;
+	struct page *page;
+	int offset;
 	u16 *rb_lens = NULL;
 	u64 *rb_ptrs = NULL;
 
 	rb_lens = (void *)cqe_rx + (3 * sizeof(u64));
-	rb_ptrs = (void *)cqe_rx + (6 * sizeof(u64));
+	/* Except 88xx pass1 on all other chips CQE_RX2_S is added to
+	 * CQE_RX at word6, hence buffer pointers move by word
+	 *
+	 * Use existing 'hw_tso' flag which will be set for all chips
+	 * except 88xx pass1 instead of a additional cache line
+	 * access (or miss) by using pci dev's revision.
+	 */
+	if (!nic->hw_tso)
+		rb_ptrs = (void *)cqe_rx + (6 * sizeof(u64));
+	else
+		rb_ptrs = (void *)cqe_rx + (7 * sizeof(u64));
 
 	netdev_dbg(nic->netdev, "%s rb_cnt %d rb0_ptr %llx rb0_sz %d\n",
 		   __func__, cqe_rx->rb_cnt, cqe_rx->rb0_ptr, cqe_rx->rb0_sz);
@@ -1258,22 +1293,10 @@ struct sk_buff *nicvf_get_rcv_skb(struct nicvf *nic, struct cqe_rx_t *cqe_rx)
 			skb_put(skb, payload_len);
 		} else {
 			/* Add fragments */
-			skb_frag = nicvf_rb_ptr_to_skb(nic, *rb_ptrs,
-						       payload_len);
-			if (!skb_frag) {
-				dev_kfree_skb(skb);
-				return NULL;
-			}
-
-			if (!skb_shinfo(skb)->frag_list)
-				skb_shinfo(skb)->frag_list = skb_frag;
-			else
-				prev_frag->next = skb_frag;
-
-			prev_frag = skb_frag;
-			skb->len += payload_len;
-			skb->data_len += payload_len;
-			skb_frag->len = payload_len;
+			page = virt_to_page(phys_to_virt(*rb_ptrs));
+			offset = phys_to_virt(*rb_ptrs) - page_address(page);
+			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
+					offset, payload_len, RCV_FRAG_LEN);
 		}
 		/* Next buffer pointer */
 		rb_ptrs++;

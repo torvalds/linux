@@ -47,7 +47,6 @@ endif
 
 upto_gcc44    :=  $(call cc-ifversion, -le, 0404, y)
 atleast_gcc44 :=  $(call cc-ifversion, -ge, 0404, y)
-atleast_gcc48 :=  $(call cc-ifversion, -ge, 0408, y)
 
 cflags-$(atleast_gcc44)			+= -fsection-anchors
 
@@ -66,10 +65,8 @@ endif
 
 endif
 
-# By default gcc 4.8 generates dwarf4 which kernel unwinder can't grok
-ifeq ($(atleast_gcc48),y)
-cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -gdwarf-2
-endif
+cfi := $(call as-instr,.cfi_startproc\n.cfi_endproc,-DARC_DW2_UNWIND_AS_CFI)
+cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -fasynchronous-unwind-tables $(cfi)
 
 ifndef CONFIG_CC_OPTIMIZE_FOR_SIZE
 # Generic build system uses -O2, we want -O3

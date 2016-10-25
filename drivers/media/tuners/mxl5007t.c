@@ -794,7 +794,7 @@ static int mxl5007t_release(struct dvb_frontend *fe)
 
 /* ------------------------------------------------------------------------- */
 
-static struct dvb_tuner_ops mxl5007t_tuner_ops = {
+static const struct dvb_tuner_ops mxl5007t_tuner_ops = {
 	.info = {
 		.name = "MaxLinear MxL5007T",
 	},

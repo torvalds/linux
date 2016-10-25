@@ -76,7 +76,7 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 		sd_iattr->ia_uid = GLOBAL_ROOT_UID;
 		sd_iattr->ia_gid = GLOBAL_ROOT_GID;
 		sd_iattr->ia_atime = sd_iattr->ia_mtime =
-			sd_iattr->ia_ctime = current_fs_time(inode->i_sb);
+			sd_iattr->ia_ctime = current_time(inode);
 		sd->s_iattr = sd_iattr;
 	}
 	/* attributes were changed atleast once in past */
@@ -113,7 +113,7 @@ static inline void set_default_inode_attr(struct inode * inode, umode_t mode)
 {
 	inode->i_mode = mode;
 	inode->i_atime = inode->i_mtime =
-		inode->i_ctime = current_fs_time(inode->i_sb);
+		inode->i_ctime = current_time(inode);
 }
 
 static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
@@ -197,7 +197,7 @@ int configfs_create(struct dentry * dentry, umode_t mode, void (*init)(struct in
 		return -ENOMEM;
 
 	p_inode = d_inode(dentry->d_parent);
-	p_inode->i_mtime = p_inode->i_ctime = current_fs_time(p_inode->i_sb);
+	p_inode->i_mtime = p_inode->i_ctime = current_time(p_inode);
 	configfs_set_inode_lock_class(sd, inode);
 
 	init(inode);

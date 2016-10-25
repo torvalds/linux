@@ -1408,16 +1408,6 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_block_status[i].valid)
 			continue;
-		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_UVD ||
-			adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_VCE)
-			continue;
-		/* enable clockgating to save power */
-		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
-								    AMD_CG_STATE_GATE);
-		if (r) {
-			DRM_ERROR("set_clockgating_state(gate) of IP block <%s> failed %d\n", adev->ip_blocks[i].funcs->name, r);
-			return r;
-		}
 		if (adev->ip_blocks[i].funcs->late_init) {
 			r = adev->ip_blocks[i].funcs->late_init((void *)adev);
 			if (r) {
@@ -1425,6 +1415,18 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 				return r;
 			}
 			adev->ip_block_status[i].late_initialized = true;
+		}
+		/* skip CG for VCE/UVD, it's handled specially */
+		if (adev->ip_blocks[i].type != AMD_IP_BLOCK_TYPE_UVD &&
+		    adev->ip_blocks[i].type != AMD_IP_BLOCK_TYPE_VCE) {
+			/* enable clockgating to save power */
+			r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
+									    AMD_CG_STATE_GATE);
+			if (r) {
+				DRM_ERROR("set_clockgating_state(gate) of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].funcs->name, r);
+				return r;
+			}
 		}
 	}
 
@@ -1434,6 +1436,30 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 static int amdgpu_fini(struct amdgpu_device *adev)
 {
 	int i, r;
+
+	/* need to disable SMC first */
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_block_status[i].hw)
+			continue;
+		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_SMC) {
+			/* ungate blocks before hw fini so that we can shutdown the blocks safely */
+			r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
+									    AMD_CG_STATE_UNGATE);
+			if (r) {
+				DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].funcs->name, r);
+				return r;
+			}
+			r = adev->ip_blocks[i].funcs->hw_fini((void *)adev);
+			/* XXX handle errors */
+			if (r) {
+				DRM_DEBUG("hw_fini of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].funcs->name, r);
+			}
+			adev->ip_block_status[i].hw = false;
+			break;
+		}
+	}
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_block_status[i].hw)
@@ -1826,11 +1852,11 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 
 	DRM_INFO("amdgpu: finishing device.\n");
 	adev->shutdown = true;
+	drm_crtc_force_disable_all(adev->ddev);
 	/* evict vram memory */
 	amdgpu_bo_evict_vram(adev);
 	amdgpu_ib_pool_fini(adev);
 	amdgpu_fence_driver_fini(adev);
-	drm_crtc_force_disable_all(adev->ddev);
 	amdgpu_fbdev_fini(adev);
 	r = amdgpu_fini(adev);
 	kfree(adev->ip_block_status);
@@ -2073,7 +2099,8 @@ static bool amdgpu_check_soft_reset(struct amdgpu_device *adev)
 		if (!adev->ip_block_status[i].valid)
 			continue;
 		if (adev->ip_blocks[i].funcs->check_soft_reset)
-			adev->ip_blocks[i].funcs->check_soft_reset(adev);
+			adev->ip_block_status[i].hang =
+				adev->ip_blocks[i].funcs->check_soft_reset(adev);
 		if (adev->ip_block_status[i].hang) {
 			DRM_INFO("IP block:%d is hang!\n", i);
 			asic_hang = true;
@@ -2102,12 +2129,20 @@ static int amdgpu_pre_soft_reset(struct amdgpu_device *adev)
 
 static bool amdgpu_need_full_reset(struct amdgpu_device *adev)
 {
-	if (adev->ip_block_status[AMD_IP_BLOCK_TYPE_GMC].hang ||
-	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_SMC].hang ||
-	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_ACP].hang ||
-	    adev->ip_block_status[AMD_IP_BLOCK_TYPE_DCE].hang) {
-		DRM_INFO("Some block need full reset!\n");
-		return true;
+	int i;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_block_status[i].valid)
+			continue;
+		if ((adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_GMC) ||
+		    (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_SMC) ||
+		    (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_ACP) ||
+		    (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_DCE)) {
+			if (adev->ip_block_status[i].hang) {
+				DRM_INFO("Some block need full reset!\n");
+				return true;
+			}
+		}
 	}
 	return false;
 }

@@ -89,5 +89,4 @@ struct hci_connect_ind {
 	u32 connect;
 } __packed;
 
-
 #endif /* _HCI_PACKET_H_ */

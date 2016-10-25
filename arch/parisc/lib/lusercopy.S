@@ -67,7 +67,7 @@
 	 * otherwise, returns number of bytes not transferred.
 	 */
 
-ENTRY(lclear_user)
+ENTRY_CFI(lclear_user)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -81,7 +81,7 @@ $lclu_done:
 	bv          %r0(%r2)
 	copy        %r25,%r28
 	.exit
-ENDPROC(lclear_user)
+ENDPROC_CFI(lclear_user)
 
 	.section .fixup,"ax"
 2:      fixup_branch $lclu_done
@@ -100,7 +100,7 @@ ENDPROC(lclear_user)
 	 *         else strlen + 1 (i.e. includes zero byte).
 	 */
 
-ENTRY(lstrnlen_user)
+ENTRY_CFI(lstrnlen_user)
 	.proc
 	.callinfo NO_CALLS
 	.entry
@@ -120,7 +120,7 @@ $lslen_done:
 $lslen_nzero:
 	b           $lslen_done
 	ldo         1(%r26),%r26 /* special case for N == 0 */
-ENDPROC(lstrnlen_user)
+ENDPROC_CFI(lstrnlen_user)
 
 	.section .fixup,"ax"
 3:      fixup_branch $lslen_done

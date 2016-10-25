@@ -100,6 +100,7 @@ struct hidled_device {
 	const struct hidled_config *config;
 	struct hid_device       *hdev;
 	struct hidled_rgb	*rgb;
+	u8			*buf;
 	struct mutex		lock;
 };
 
@@ -118,13 +119,19 @@ static int hidled_send(struct hidled_device *ldev, __u8 *buf)
 
 	mutex_lock(&ldev->lock);
 
+	/*
+	 * buffer provided to hid_hw_raw_request must not be on the stack
+	 * and must not be part of a data structure
+	 */
+	memcpy(ldev->buf, buf, ldev->config->report_size);
+
 	if (ldev->config->report_type == RAW_REQUEST)
-		ret = hid_hw_raw_request(ldev->hdev, buf[0], buf,
+		ret = hid_hw_raw_request(ldev->hdev, buf[0], ldev->buf,
 					 ldev->config->report_size,
 					 HID_FEATURE_REPORT,
 					 HID_REQ_SET_REPORT);
 	else if (ldev->config->report_type == OUTPUT_REPORT)
-		ret = hid_hw_output_report(ldev->hdev, buf,
+		ret = hid_hw_output_report(ldev->hdev, ldev->buf,
 					   ldev->config->report_size);
 	else
 		ret = -EINVAL;
@@ -147,17 +154,21 @@ static int hidled_recv(struct hidled_device *ldev, __u8 *buf)
 
 	mutex_lock(&ldev->lock);
 
-	ret = hid_hw_raw_request(ldev->hdev, buf[0], buf,
+	memcpy(ldev->buf, buf, ldev->config->report_size);
+
+	ret = hid_hw_raw_request(ldev->hdev, buf[0], ldev->buf,
 				 ldev->config->report_size,
 				 HID_FEATURE_REPORT,
 				 HID_REQ_SET_REPORT);
 	if (ret < 0)
 		goto err;
 
-	ret = hid_hw_raw_request(ldev->hdev, buf[0], buf,
+	ret = hid_hw_raw_request(ldev->hdev, buf[0], ldev->buf,
 				 ldev->config->report_size,
 				 HID_FEATURE_REPORT,
 				 HID_REQ_GET_REPORT);
+
+	memcpy(buf, ldev->buf, ldev->config->report_size);
 err:
 	mutex_unlock(&ldev->lock);
 
@@ -445,6 +456,10 @@ static int hidled_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ldev = devm_kzalloc(&hdev->dev, sizeof(*ldev), GFP_KERNEL);
 	if (!ldev)
+		return -ENOMEM;
+
+	ldev->buf = devm_kmalloc(&hdev->dev, MAX_REPORT_SIZE, GFP_KERNEL);
+	if (!ldev->buf)
 		return -ENOMEM;
 
 	ret = hid_parse(hdev);

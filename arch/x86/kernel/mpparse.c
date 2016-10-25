@@ -499,6 +499,9 @@ void __init default_get_smp_config(unsigned int early)
 {
 	struct mpf_intel *mpf = mpf_found;
 
+	if (!smp_found_config)
+		return;
+
 	if (!mpf)
 		return;
 

@@ -30,7 +30,7 @@
 #include <linux/stmmac.h>
 #include <linux/phy.h>
 #include <linux/module.h>
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
 #define STMMAC_VLAN_TAG_USED
 #include <linux/if_vlan.h>
 #endif

@@ -41,14 +41,6 @@
 
 #include "qib.h"
 
-/*
- * mask field which was present in now deleted qib_qpn_table
- * is not present in rvt_qpn_table. Defining the same field
- * as qpt_mask here instead of adding the mask field to
- * rvt_qpn_table.
- */
-u16 qpt_mask;
-
 static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
 			      struct rvt_qpn_map *map, unsigned off)
 {
@@ -57,7 +49,7 @@ static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
 
 static inline unsigned find_next_offset(struct rvt_qpn_table *qpt,
 					struct rvt_qpn_map *map, unsigned off,
-					unsigned n)
+					unsigned n, u16 qpt_mask)
 {
 	if (qpt_mask) {
 		off++;
@@ -179,6 +171,7 @@ int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 	struct qib_ibdev *verbs_dev = container_of(rdi, struct qib_ibdev, rdi);
 	struct qib_devdata *dd = container_of(verbs_dev, struct qib_devdata,
 					      verbs_dev);
+	u16 qpt_mask = dd->qpn_mask;
 
 	if (type == IB_QPT_SMI || type == IB_QPT_GSI) {
 		unsigned n;
@@ -215,7 +208,7 @@ int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 				goto bail;
 			}
 			offset = find_next_offset(qpt, map, offset,
-				dd->n_krcv_queues);
+				dd->n_krcv_queues, qpt_mask);
 			qpn = mk_qpn(qpt, map, offset);
 			/*
 			 * This test differs from alloc_pidmap().

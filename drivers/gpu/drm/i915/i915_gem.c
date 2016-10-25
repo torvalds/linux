@@ -861,7 +861,7 @@ i915_gem_gtt_pread(struct drm_device *dev,
 
 	mutex_unlock(&dev->struct_mutex);
 	if (likely(!i915.prefault_disable)) {
-		ret = fault_in_multipages_writeable(user_data, remain);
+		ret = fault_in_pages_writeable(user_data, remain);
 		if (ret) {
 			mutex_lock(&dev->struct_mutex);
 			goto out_unpin;
@@ -984,7 +984,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		mutex_unlock(&dev->struct_mutex);
 
 		if (likely(!i915.prefault_disable) && !prefaulted) {
-			ret = fault_in_multipages_writeable(user_data, remain);
+			ret = fault_in_pages_writeable(user_data, remain);
 			/* Userspace is tricking us, but we've already clobbered
 			 * its pages with the prefault and promised to write the
 			 * data up to the first fault. Hence ignore any errors
@@ -1430,7 +1430,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		return -EFAULT;
 
 	if (likely(!i915.prefault_disable)) {
-		ret = fault_in_multipages_readable(u64_to_user_ptr(args->data_ptr),
+		ret = fault_in_pages_readable(u64_to_user_ptr(args->data_ptr),
 						   args->size);
 		if (ret)
 			return -EFAULT;

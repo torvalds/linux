@@ -16,6 +16,7 @@ static inline int printk_get_level(const char *buffer)
 		switch (buffer[1]) {
 		case '0' ... '7':
 		case 'd':	/* KERN_DEFAULT */
+		case 'c':	/* KERN_CONT */
 			return buffer[1];
 		}
 	}

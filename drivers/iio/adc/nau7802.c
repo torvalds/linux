@@ -197,7 +197,7 @@ static irqreturn_t nau7802_eoc_trigger(int irq, void *private)
 	if (st->conversion_count < NAU7802_MIN_CONVERSIONS)
 		st->conversion_count++;
 	if (st->conversion_count >= NAU7802_MIN_CONVERSIONS)
-		complete_all(&st->value_ok);
+		complete(&st->value_ok);
 
 	return IRQ_HANDLED;
 }

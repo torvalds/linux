@@ -3355,16 +3355,6 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 	else
 		skb_dst_force(skb);
 
-#ifdef CONFIG_NET_SWITCHDEV
-	/* Don't forward if offload device already forwarded */
-	if (skb->offload_fwd_mark &&
-	    skb->offload_fwd_mark == dev->offload_fwd_mark) {
-		consume_skb(skb);
-		rc = NET_XMIT_SUCCESS;
-		goto out;
-	}
-#endif
-
 	txq = netdev_pick_tx(dev, skb, accel_priv);
 	q = rcu_dereference_bh(txq->qdisc);
 
@@ -3855,7 +3845,7 @@ int netif_rx_ni(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(netif_rx_ni);
 
-static void net_tx_action(struct softirq_action *h)
+static __latent_entropy void net_tx_action(struct softirq_action *h)
 {
 	struct softnet_data *sd = this_cpu_ptr(&softnet_data);
 
@@ -3914,8 +3904,7 @@ static void net_tx_action(struct softirq_action *h)
 	}
 }
 
-#if (defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)) && \
-    (defined(CONFIG_ATM_LANE) || defined(CONFIG_ATM_LANE_MODULE))
+#if IS_ENABLED(CONFIG_BRIDGE) && IS_ENABLED(CONFIG_ATM_LANE)
 /* This hook is defined here for ATM LANE */
 int (*br_fdb_test_addr_hook)(struct net_device *dev,
 			     unsigned char *addr) __read_mostly;
@@ -4066,12 +4055,17 @@ static inline int nf_ingress(struct sk_buff *skb, struct packet_type **pt_prev,
 {
 #ifdef CONFIG_NETFILTER_INGRESS
 	if (nf_hook_ingress_active(skb)) {
+		int ingress_retval;
+
 		if (*pt_prev) {
 			*ret = deliver_skb(skb, *pt_prev, orig_dev);
 			*pt_prev = NULL;
 		}
 
-		return nf_hook_ingress(skb);
+		rcu_read_lock();
+		ingress_retval = nf_hook_ingress(skb);
+		rcu_read_unlock();
+		return ingress_retval;
 	}
 #endif /* CONFIG_NETFILTER_INGRESS */
 	return 0;
@@ -4308,32 +4302,53 @@ int netif_receive_skb(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(netif_receive_skb);
 
-/* Network device is going away, flush any packets still pending
- * Called with irqs disabled.
- */
-static void flush_backlog(void *arg)
-{
-	struct net_device *dev = arg;
-	struct softnet_data *sd = this_cpu_ptr(&softnet_data);
-	struct sk_buff *skb, *tmp;
+DEFINE_PER_CPU(struct work_struct, flush_works);
 
+/* Network device is going away, flush any packets still pending */
+static void flush_backlog(struct work_struct *work)
+{
+	struct sk_buff *skb, *tmp;
+	struct softnet_data *sd;
+
+	local_bh_disable();
+	sd = this_cpu_ptr(&softnet_data);
+
+	local_irq_disable();
 	rps_lock(sd);
 	skb_queue_walk_safe(&sd->input_pkt_queue, skb, tmp) {
-		if (skb->dev == dev) {
+		if (skb->dev->reg_state == NETREG_UNREGISTERING) {
 			__skb_unlink(skb, &sd->input_pkt_queue);
 			kfree_skb(skb);
 			input_queue_head_incr(sd);
 		}
 	}
 	rps_unlock(sd);
+	local_irq_enable();
 
 	skb_queue_walk_safe(&sd->process_queue, skb, tmp) {
-		if (skb->dev == dev) {
+		if (skb->dev->reg_state == NETREG_UNREGISTERING) {
 			__skb_unlink(skb, &sd->process_queue);
 			kfree_skb(skb);
 			input_queue_head_incr(sd);
 		}
 	}
+	local_bh_enable();
+}
+
+static void flush_all_backlogs(void)
+{
+	unsigned int cpu;
+
+	get_online_cpus();
+
+	for_each_online_cpu(cpu)
+		queue_work_on(cpu, system_highpri_wq,
+			      per_cpu_ptr(&flush_works, cpu));
+
+	for_each_online_cpu(cpu)
+		flush_work(per_cpu_ptr(&flush_works, cpu));
+
+	put_online_cpus();
 }
 
 static int napi_gro_complete(struct sk_buff *skb)
@@ -4821,8 +4836,9 @@ static bool sd_has_rps_ipi_waiting(struct softnet_data *sd)
 
 static int process_backlog(struct napi_struct *napi, int quota)
 {
-	int work = 0;
 	struct softnet_data *sd = container_of(napi, struct softnet_data, backlog);
+	bool again = true;
+	int work = 0;
 
 	/* Check if we have pending ipi, its better to send them now,
 	 * not waiting net_rx_action() end.
@@ -4833,23 +4849,20 @@ static int process_backlog(struct napi_struct *napi, int quota)
 	}
 
 	napi->weight = weight_p;
-	local_irq_disable();
-	while (1) {
+	while (again) {
 		struct sk_buff *skb;
 
 		while ((skb = __skb_dequeue(&sd->process_queue))) {
 			rcu_read_lock();
-			local_irq_enable();
 			__netif_receive_skb(skb);
 			rcu_read_unlock();
-			local_irq_disable();
 			input_queue_head_incr(sd);
-			if (++work >= quota) {
-				local_irq_enable();
+			if (++work >= quota)
 				return work;
-			}
+
 		}
 
+		local_irq_disable();
 		rps_lock(sd);
 		if (skb_queue_empty(&sd->input_pkt_queue)) {
 			/*
@@ -4861,16 +4874,14 @@ static int process_backlog(struct napi_struct *napi, int quota)
 			 * and we dont need an smp_mb() memory barrier.
 			 */
 			napi->state = 0;
-			rps_unlock(sd);
-
-			break;
+			again = false;
+		} else {
+			skb_queue_splice_tail_init(&sd->input_pkt_queue,
+						   &sd->process_queue);
 		}
-
-		skb_queue_splice_tail_init(&sd->input_pkt_queue,
-					   &sd->process_queue);
 		rps_unlock(sd);
+		local_irq_enable();
 	}
-	local_irq_enable();
 
 	return work;
 }
@@ -5187,7 +5198,7 @@ out_unlock:
 	return work;
 }
 
-static void net_rx_action(struct softirq_action *h)
+static __latent_entropy void net_rx_action(struct softirq_action *h)
 {
 	struct softnet_data *sd = this_cpu_ptr(&softnet_data);
 	unsigned long time_limit = jiffies + 2;
@@ -5578,6 +5589,7 @@ static inline bool netdev_adjacent_is_neigh_list(struct net_device *dev,
 
 static int __netdev_adjacent_dev_insert(struct net_device *dev,
 					struct net_device *adj_dev,
+					u16 ref_nr,
 					struct list_head *dev_list,
 					void *private, bool master)
 {
@@ -5587,7 +5599,7 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 	adj = __netdev_find_adj(adj_dev, dev_list);
 
 	if (adj) {
-		adj->ref_nr++;
+		adj->ref_nr += ref_nr;
 		return 0;
 	}
 
@@ -5597,7 +5609,7 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 
 	adj->dev = adj_dev;
 	adj->master = master;
-	adj->ref_nr = 1;
+	adj->ref_nr = ref_nr;
 	adj->private = private;
 	dev_hold(adj_dev);
 
@@ -5636,6 +5648,7 @@ free_adj:
 
 static void __netdev_adjacent_dev_remove(struct net_device *dev,
 					 struct net_device *adj_dev,
+					 u16 ref_nr,
 					 struct list_head *dev_list)
 {
 	struct netdev_adjacent *adj;
@@ -5648,10 +5661,10 @@ static void __netdev_adjacent_dev_remove(struct net_device *dev,
 		BUG();
 	}
 
-	if (adj->ref_nr > 1) {
-		pr_debug("%s to %s ref_nr-- = %d\n", dev->name, adj_dev->name,
-			 adj->ref_nr-1);
-		adj->ref_nr--;
+	if (adj->ref_nr > ref_nr) {
+		pr_debug("%s to %s ref_nr-%d = %d\n", dev->name, adj_dev->name,
+			 ref_nr, adj->ref_nr-ref_nr);
+		adj->ref_nr -= ref_nr;
 		return;
 	}
 
@@ -5670,21 +5683,22 @@ static void __netdev_adjacent_dev_remove(struct net_device *dev,
 
 static int __netdev_adjacent_dev_link_lists(struct net_device *dev,
 					    struct net_device *upper_dev,
+					    u16 ref_nr,
 					    struct list_head *up_list,
 					    struct list_head *down_list,
 					    void *private, bool master)
 {
 	int ret;
 
-	ret = __netdev_adjacent_dev_insert(dev, upper_dev, up_list, private,
-					   master);
+	ret = __netdev_adjacent_dev_insert(dev, upper_dev, ref_nr, up_list,
+					   private, master);
 	if (ret)
 		return ret;
 
-	ret = __netdev_adjacent_dev_insert(upper_dev, dev, down_list, private,
-					   false);
+	ret = __netdev_adjacent_dev_insert(upper_dev, dev, ref_nr, down_list,
+					   private, false);
 	if (ret) {
-		__netdev_adjacent_dev_remove(dev, upper_dev, up_list);
+		__netdev_adjacent_dev_remove(dev, upper_dev, ref_nr, up_list);
 		return ret;
 	}
 
@@ -5692,9 +5706,10 @@ static int __netdev_adjacent_dev_link_lists(struct net_device *dev,
 }
 
 static int __netdev_adjacent_dev_link(struct net_device *dev,
-				      struct net_device *upper_dev)
+				      struct net_device *upper_dev,
+				      u16 ref_nr)
 {
-	return __netdev_adjacent_dev_link_lists(dev, upper_dev,
+	return __netdev_adjacent_dev_link_lists(dev, upper_dev, ref_nr,
 						&dev->all_adj_list.upper,
 						&upper_dev->all_adj_list.lower,
 						NULL, false);
@@ -5702,17 +5717,19 @@ static int __netdev_adjacent_dev_link(struct net_device *dev,
 
 static void __netdev_adjacent_dev_unlink_lists(struct net_device *dev,
 					       struct net_device *upper_dev,
+					       u16 ref_nr,
 					       struct list_head *up_list,
 					       struct list_head *down_list)
 {
-	__netdev_adjacent_dev_remove(dev, upper_dev, up_list);
-	__netdev_adjacent_dev_remove(upper_dev, dev, down_list);
+	__netdev_adjacent_dev_remove(dev, upper_dev, ref_nr, up_list);
+	__netdev_adjacent_dev_remove(upper_dev, dev, ref_nr, down_list);
 }
 
 static void __netdev_adjacent_dev_unlink(struct net_device *dev,
-					 struct net_device *upper_dev)
+					 struct net_device *upper_dev,
+					 u16 ref_nr)
 {
-	__netdev_adjacent_dev_unlink_lists(dev, upper_dev,
+	__netdev_adjacent_dev_unlink_lists(dev, upper_dev, ref_nr,
 					   &dev->all_adj_list.upper,
 					   &upper_dev->all_adj_list.lower);
 }
@@ -5721,17 +5738,17 @@ static int __netdev_adjacent_dev_link_neighbour(struct net_device *dev,
 						struct net_device *upper_dev,
 						void *private, bool master)
 {
-	int ret = __netdev_adjacent_dev_link(dev, upper_dev);
+	int ret = __netdev_adjacent_dev_link(dev, upper_dev, 1);
 
 	if (ret)
 		return ret;
 
-	ret = __netdev_adjacent_dev_link_lists(dev, upper_dev,
+	ret = __netdev_adjacent_dev_link_lists(dev, upper_dev, 1,
 					       &dev->adj_list.upper,
 					       &upper_dev->adj_list.lower,
 					       private, master);
 	if (ret) {
-		__netdev_adjacent_dev_unlink(dev, upper_dev);
+		__netdev_adjacent_dev_unlink(dev, upper_dev, 1);
 		return ret;
 	}
 
@@ -5741,8 +5758,8 @@ static int __netdev_adjacent_dev_link_neighbour(struct net_device *dev,
 static void __netdev_adjacent_dev_unlink_neighbour(struct net_device *dev,
 						   struct net_device *upper_dev)
 {
-	__netdev_adjacent_dev_unlink(dev, upper_dev);
-	__netdev_adjacent_dev_unlink_lists(dev, upper_dev,
+	__netdev_adjacent_dev_unlink(dev, upper_dev, 1);
+	__netdev_adjacent_dev_unlink_lists(dev, upper_dev, 1,
 					   &dev->adj_list.upper,
 					   &upper_dev->adj_list.lower);
 }
@@ -5795,7 +5812,7 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 		list_for_each_entry(j, &upper_dev->all_adj_list.upper, list) {
 			pr_debug("Interlinking %s with %s, non-neighbour\n",
 				 i->dev->name, j->dev->name);
-			ret = __netdev_adjacent_dev_link(i->dev, j->dev);
+			ret = __netdev_adjacent_dev_link(i->dev, j->dev, i->ref_nr);
 			if (ret)
 				goto rollback_mesh;
 		}
@@ -5805,7 +5822,7 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 	list_for_each_entry(i, &upper_dev->all_adj_list.upper, list) {
 		pr_debug("linking %s's upper device %s with %s\n",
 			 upper_dev->name, i->dev->name, dev->name);
-		ret = __netdev_adjacent_dev_link(dev, i->dev);
+		ret = __netdev_adjacent_dev_link(dev, i->dev, i->ref_nr);
 		if (ret)
 			goto rollback_upper_mesh;
 	}
@@ -5814,7 +5831,7 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 	list_for_each_entry(i, &dev->all_adj_list.lower, list) {
 		pr_debug("linking %s's lower device %s with %s\n", dev->name,
 			 i->dev->name, upper_dev->name);
-		ret = __netdev_adjacent_dev_link(i->dev, upper_dev);
+		ret = __netdev_adjacent_dev_link(i->dev, upper_dev, i->ref_nr);
 		if (ret)
 			goto rollback_lower_mesh;
 	}
@@ -5832,7 +5849,7 @@ rollback_lower_mesh:
 	list_for_each_entry(i, &dev->all_adj_list.lower, list) {
 		if (i == to_i)
 			break;
-		__netdev_adjacent_dev_unlink(i->dev, upper_dev);
+		__netdev_adjacent_dev_unlink(i->dev, upper_dev, i->ref_nr);
 	}
 
 	i = NULL;
@@ -5842,7 +5859,7 @@ rollback_upper_mesh:
 	list_for_each_entry(i, &upper_dev->all_adj_list.upper, list) {
 		if (i == to_i)
 			break;
-		__netdev_adjacent_dev_unlink(dev, i->dev);
+		__netdev_adjacent_dev_unlink(dev, i->dev, i->ref_nr);
 	}
 
 	i = j = NULL;
@@ -5854,7 +5871,7 @@ rollback_mesh:
 		list_for_each_entry(j, &upper_dev->all_adj_list.upper, list) {
 			if (i == to_i && j == to_j)
 				break;
-			__netdev_adjacent_dev_unlink(i->dev, j->dev);
+			__netdev_adjacent_dev_unlink(i->dev, j->dev, i->ref_nr);
 		}
 		if (i == to_i)
 			break;
@@ -5934,16 +5951,16 @@ void netdev_upper_dev_unlink(struct net_device *dev,
 	 */
 	list_for_each_entry(i, &dev->all_adj_list.lower, list)
 		list_for_each_entry(j, &upper_dev->all_adj_list.upper, list)
-			__netdev_adjacent_dev_unlink(i->dev, j->dev);
+			__netdev_adjacent_dev_unlink(i->dev, j->dev, i->ref_nr);
 
 	/* remove also the devices itself from lower/upper device
 	 * list
 	 */
 	list_for_each_entry(i, &dev->all_adj_list.lower, list)
-		__netdev_adjacent_dev_unlink(i->dev, upper_dev);
+		__netdev_adjacent_dev_unlink(i->dev, upper_dev, i->ref_nr);
 
 	list_for_each_entry(i, &upper_dev->all_adj_list.upper, list)
-		__netdev_adjacent_dev_unlink(dev, i->dev);
+		__netdev_adjacent_dev_unlink(dev, i->dev, i->ref_nr);
 
 	call_netdevice_notifiers_info(NETDEV_CHANGEUPPER, dev,
 				      &changeupper_info.info);
@@ -6723,8 +6740,8 @@ static void rollback_registered_many(struct list_head *head)
 		unlist_netdevice(dev);
 
 		dev->reg_state = NETREG_UNREGISTERING;
-		on_each_cpu(flush_backlog, dev, 1);
 	}
+	flush_all_backlogs();
 
 	synchronize_net();
 
@@ -7641,6 +7658,9 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	INIT_LIST_HEAD(&dev->all_adj_list.lower);
 	INIT_LIST_HEAD(&dev->ptype_all);
 	INIT_LIST_HEAD(&dev->ptype_specific);
+#ifdef CONFIG_NET_SCHED
+	hash_init(dev->qdisc_hash);
+#endif
 	dev->priv_flags = IFF_XMIT_DST_RELEASE | IFF_XMIT_DST_RELEASE_PERM;
 	setup(dev);
 
@@ -8286,7 +8306,10 @@ static int __init net_dev_init(void)
 	 */
 
 	for_each_possible_cpu(i) {
+		struct work_struct *flush = per_cpu_ptr(&flush_works, i);
 		struct softnet_data *sd = &per_cpu(softnet_data, i);
+
+		INIT_WORK(flush, flush_backlog);
 
 		skb_queue_head_init(&sd->input_pkt_queue);
 		skb_queue_head_init(&sd->process_queue);

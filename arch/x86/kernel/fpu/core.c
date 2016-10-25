@@ -12,6 +12,7 @@
 #include <asm/traps.h>
 
 #include <linux/hardirq.h>
+#include <linux/pkeys.h>
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/fpu.h>
@@ -505,6 +506,9 @@ static inline void copy_init_fpstate_to_fpregs(void)
 		copy_kernel_to_fxregs(&init_fpstate.fxsave);
 	else
 		copy_kernel_to_fregs(&init_fpstate.fsave);
+
+	if (boot_cpu_has(X86_FEATURE_OSPKE))
+		copy_init_pkru_to_fpregs();
 }
 
 /*

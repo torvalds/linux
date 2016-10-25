@@ -552,7 +552,7 @@ static void scif_munmap(struct vm_area_struct *vma)
 {
 	struct scif_endpt *ep;
 	struct vma_pvt *vmapvt = vma->vm_private_data;
-	int nr_pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	int nr_pages = vma_pages(vma);
 	s64 offset;
 	struct scif_rma_req req;
 	struct scif_window *window = NULL;
@@ -614,7 +614,7 @@ int scif_mmap(struct vm_area_struct *vma, scif_epd_t epd)
 	struct scif_window *window = NULL;
 	struct scif_endpt *ep = (struct scif_endpt *)epd;
 	s64 start_offset = vma->vm_pgoff << PAGE_SHIFT;
-	int nr_pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	int nr_pages = vma_pages(vma);
 	int err;
 	struct vma_pvt *vmapvt;
 

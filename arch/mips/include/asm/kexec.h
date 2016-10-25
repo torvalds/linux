@@ -45,6 +45,7 @@ extern const unsigned char kexec_smp_wait[];
 extern unsigned long secondary_kexec_args[4];
 extern void (*relocated_kexec_smp_wait) (void *);
 extern atomic_t kexec_ready_to_reboot;
+extern void (*_crash_smp_send_stop)(void);
 #endif
 #endif
 

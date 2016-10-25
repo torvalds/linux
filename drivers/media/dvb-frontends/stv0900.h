@@ -26,7 +26,6 @@
 #ifndef STV0900_H
 #define STV0900_H
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
 

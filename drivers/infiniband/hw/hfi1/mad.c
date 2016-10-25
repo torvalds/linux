@@ -1013,7 +1013,6 @@ static int set_port_states(struct hfi1_pportdata *ppd, struct opa_smp *smp,
 			 * offline.
 			 */
 			set_link_state(ppd, HLS_DN_OFFLINE);
-			tune_serdes(ppd);
 			start_link(ppd);
 		} else {
 			set_link_state(ppd, link_state);
@@ -1405,12 +1404,6 @@ static int set_pkeys(struct hfi1_devdata *dd, u8 port, u16 *pkeys)
 		u16 okey = ppd->pkeys[i];
 
 		if (key == okey)
-			continue;
-		/*
-		 * Don't update pkeys[2], if an HFI port without MgmtAllowed
-		 * by neighbor is a switch.
-		 */
-		if (i == 2 && !ppd->mgmt_allowed && ppd->neighbor_type == 1)
 			continue;
 		/*
 		 * The SM gives us the complete PKey table. We have

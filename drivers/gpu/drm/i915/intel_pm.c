@@ -3204,7 +3204,7 @@ skl_plane_downscale_amount(const struct intel_plane_state *pstate)
 	src_h = drm_rect_height(&pstate->base.src);
 	dst_w = drm_rect_width(&pstate->base.dst);
 	dst_h = drm_rect_height(&pstate->base.dst);
-	if (intel_rotation_90_or_270(pstate->base.rotation))
+	if (drm_rotation_90_or_270(pstate->base.rotation))
 		swap(dst_w, dst_h);
 
 	downscale_h = max(src_h / dst_h, (uint32_t)DRM_PLANE_HELPER_NO_SCALING);
@@ -3235,7 +3235,7 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 	width = drm_rect_width(&intel_pstate->base.src) >> 16;
 	height = drm_rect_height(&intel_pstate->base.src) >> 16;
 
-	if (intel_rotation_90_or_270(pstate->rotation))
+	if (drm_rotation_90_or_270(pstate->rotation))
 		swap(width, height);
 
 	/* for planar format */
@@ -3335,7 +3335,7 @@ skl_ddb_min_alloc(const struct drm_plane_state *pstate,
 	src_w = drm_rect_width(&intel_pstate->base.src) >> 16;
 	src_h = drm_rect_height(&intel_pstate->base.src) >> 16;
 
-	if (intel_rotation_90_or_270(pstate->rotation))
+	if (drm_rotation_90_or_270(pstate->rotation))
 		swap(src_w, src_h);
 
 	/* Halve UV plane width and height for NV12 */
@@ -3349,7 +3349,7 @@ skl_ddb_min_alloc(const struct drm_plane_state *pstate,
 	else
 		plane_bpp = drm_format_plane_cpp(fb->pixel_format, 0);
 
-	if (intel_rotation_90_or_270(pstate->rotation)) {
+	if (drm_rotation_90_or_270(pstate->rotation)) {
 		switch (plane_bpp) {
 		case 1:
 			min_scanlines = 32;
@@ -3595,13 +3595,13 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	width = drm_rect_width(&intel_pstate->base.src) >> 16;
 	height = drm_rect_height(&intel_pstate->base.src) >> 16;
 
-	if (intel_rotation_90_or_270(pstate->rotation))
+	if (drm_rotation_90_or_270(pstate->rotation))
 		swap(width, height);
 
 	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	plane_pixel_rate = skl_adjusted_plane_pixel_rate(cstate, intel_pstate);
 
-	if (intel_rotation_90_or_270(pstate->rotation)) {
+	if (drm_rotation_90_or_270(pstate->rotation)) {
 		int cpp = (fb->pixel_format == DRM_FORMAT_NV12) ?
 			drm_format_plane_cpp(fb->pixel_format, 1) :
 			drm_format_plane_cpp(fb->pixel_format, 0);

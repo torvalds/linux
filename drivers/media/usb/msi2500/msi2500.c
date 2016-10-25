@@ -509,7 +509,6 @@ static int msi2500_isoc_init(struct msi2500_dev *dev)
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		urb = usb_alloc_urb(ISO_FRAMES_PER_DESC, GFP_KERNEL);
 		if (urb == NULL) {
-			dev_err(dev->dev, "Failed to allocate urb %d\n", i);
 			msi2500_isoc_cleanup(dev);
 			return -ENOMEM;
 		}
@@ -898,7 +897,7 @@ static void msi2500_stop_streaming(struct vb2_queue *vq)
 	mutex_unlock(&dev->v4l2_lock);
 }
 
-static struct vb2_ops msi2500_vb2_ops = {
+static const struct vb2_ops msi2500_vb2_ops = {
 	.queue_setup            = msi2500_queue_setup,
 	.buf_queue              = msi2500_buf_queue,
 	.start_streaming        = msi2500_start_streaming,

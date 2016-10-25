@@ -56,7 +56,7 @@ int proc_setup_self(struct super_block *s)
 		struct inode *inode = new_inode_pseudo(s);
 		if (inode) {
 			inode->i_ino = self_inum;
-			inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+			inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 			inode->i_mode = S_IFLNK | S_IRWXUGO;
 			inode->i_uid = GLOBAL_ROOT_UID;
 			inode->i_gid = GLOBAL_ROOT_GID;

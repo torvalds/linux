@@ -4,7 +4,7 @@
 
 #include "../edid.h"
 
-static struct fb_var_screeninfo radeonfb_default_var = {
+static const struct fb_var_screeninfo radeonfb_default_var = {
 	.xres		= 640,
 	.yres		= 480,
 	.xres_virtual	= 640,

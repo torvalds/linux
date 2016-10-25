@@ -62,18 +62,21 @@ static int dtt200u_rc_query(struct dvb_usb_device *d)
 
 	dvb_usb_generic_rw(d,&cmd,1,key,5,0);
 	if (key[0] == 1) {
+		enum rc_type proto = RC_TYPE_NEC;
+
 		scancode = key[1];
 		if ((u8) ~key[1] != key[2]) {
 			/* Extended NEC */
 			scancode = scancode << 8;
 			scancode |= key[2];
+			proto = RC_TYPE_NECX;
 		}
 		scancode = scancode << 8;
 		scancode |= key[3];
 
 		/* Check command checksum is ok */
 		if ((u8) ~key[3] == key[4])
-			rc_keydown(d->rc_dev, RC_TYPE_NEC, scancode, 0);
+			rc_keydown(d->rc_dev, proto, scancode, 0);
 		else
 			rc_keyup(d->rc_dev);
 	} else if (key[0] == 2) {

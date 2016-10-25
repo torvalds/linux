@@ -106,7 +106,7 @@ static void skl_set_pcm_constrains(struct hdac_ext_bus *ebus,
 
 static enum hdac_ext_stream_type skl_get_host_stream_type(struct hdac_ext_bus *ebus)
 {
-	if (ebus->ppcap)
+	if ((ebus_to_hbus(ebus))->ppcap)
 		return HDAC_EXT_STREAM_TYPE_HOST;
 	else
 		return HDAC_EXT_STREAM_TYPE_COUPLED;
@@ -188,7 +188,7 @@ static int skl_get_format(struct snd_pcm_substream *substream,
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
 	int format_val = 0;
 
-	if (ebus->ppcap) {
+	if ((ebus_to_hbus(ebus))->ppcap) {
 		struct snd_pcm_runtime *runtime = substream->runtime;
 
 		format_val = snd_hdac_calc_stream_format(runtime->rate,
@@ -648,7 +648,8 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 		.channels_min = HDA_MONO,
 		.channels_max = HDA_STEREO,
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_8000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE |
+			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE,
 	},
 	.capture = {
 		.stream_name = "System Capture",
@@ -1020,7 +1021,7 @@ static int skl_platform_pcm_trigger(struct snd_pcm_substream *substream,
 {
 	struct hdac_ext_bus *ebus = get_bus_ctx(substream);
 
-	if (!ebus->ppcap)
+	if (!(ebus_to_hbus(ebus))->ppcap)
 		return skl_coupled_trigger(substream, cmd);
 
 	return 0;
@@ -1093,7 +1094,7 @@ static int skl_get_time_info(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_pcm_ops skl_platform_ops = {
+static const struct snd_pcm_ops skl_platform_ops = {
 	.open = skl_platform_open,
 	.ioctl = snd_pcm_lib_ioctl,
 	.trigger = skl_platform_pcm_trigger,
@@ -1138,20 +1139,67 @@ static int skl_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return retval;
 }
 
+static int skl_populate_modules(struct skl *skl)
+{
+	struct skl_pipeline *p;
+	struct skl_pipe_module *m;
+	struct snd_soc_dapm_widget *w;
+	struct skl_module_cfg *mconfig;
+	int ret;
+
+	list_for_each_entry(p, &skl->ppl_list, node) {
+		list_for_each_entry(m, &p->pipe->w_list, node) {
+
+			w = m->w;
+			mconfig = w->priv;
+
+			ret = snd_skl_get_module_info(skl->skl_sst, mconfig);
+			if (ret < 0) {
+				dev_err(skl->skl_sst->dev,
+					"query module info failed:%d\n", ret);
+				goto err;
+			}
+		}
+	}
+err:
+	return ret;
+}
+
 static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 {
 	struct hdac_ext_bus *ebus = dev_get_drvdata(platform->dev);
 	struct skl *skl = ebus_to_skl(ebus);
+	const struct skl_dsp_ops *ops;
 	int ret;
 
-	if (ebus->ppcap) {
+	pm_runtime_get_sync(platform->dev);
+	if ((ebus_to_hbus(ebus))->ppcap) {
 		ret = skl_tplg_init(platform, ebus);
 		if (ret < 0) {
 			dev_err(platform->dev, "Failed to init topology!\n");
 			return ret;
 		}
 		skl->platform = platform;
+
+		/* load the firmwares, since all is set */
+		ops = skl_get_dsp_ops(skl->pci->device);
+		if (!ops)
+			return -EIO;
+
+		if (skl->skl_sst->is_first_boot == false) {
+			dev_err(platform->dev, "DSP reports first boot done!!!\n");
+			return -EIO;
+		}
+
+		ret = ops->init_fw(platform->dev, skl->skl_sst);
+		if (ret < 0) {
+			dev_err(platform->dev, "Failed to boot first fw: %d\n", ret);
+			return ret;
+		}
+		skl_populate_modules(skl);
 	}
+	pm_runtime_mark_last_busy(platform->dev);
+	pm_runtime_put_autosuspend(platform->dev);
 
 	return 0;
 }

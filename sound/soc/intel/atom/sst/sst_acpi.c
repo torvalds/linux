@@ -39,6 +39,8 @@
 #include <acpi/platform/aclinux.h>
 #include <acpi/actypes.h>
 #include <acpi/acpi_bus.h>
+#include <asm/cpu_device_id.h>
+#include <asm/iosf_mbi.h>
 #include "../sst-mfld-platform.h"
 #include "../../common/sst-dsp.h"
 #include "../../common/sst-acpi.h"
@@ -113,6 +115,28 @@ static const struct sst_res_info byt_rvp_res_info = {
 	.acpi_ipc_irq_index = 5,
 };
 
+/* BYTCR has different BIOS from BYT */
+static const struct sst_res_info bytcr_res_info = {
+	.shim_offset = 0x140000,
+	.shim_size = 0x000100,
+	.shim_phy_addr = SST_BYT_SHIM_PHY_ADDR,
+	.ssp0_offset = 0xa0000,
+	.ssp0_size = 0x1000,
+	.dma0_offset = 0x98000,
+	.dma0_size = 0x4000,
+	.dma1_offset = 0x9c000,
+	.dma1_size = 0x4000,
+	.iram_offset = 0x0c0000,
+	.iram_size = 0x14000,
+	.dram_offset = 0x100000,
+	.dram_size = 0x28000,
+	.mbox_offset = 0x144000,
+	.mbox_size = 0x1000,
+	.acpi_lpe_res_index = 0,
+	.acpi_ddr_index = 2,
+	.acpi_ipc_irq_index = 0
+};
+
 static struct sst_platform_info byt_rvp_platform_data = {
 	.probe_data = &byt_fwparse_info,
 	.ipc_info = &byt_ipc_info,
@@ -142,7 +166,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	rsrc = platform_get_resource(pdev, IORESOURCE_MEM,
 					ctx->pdata->res_info->acpi_lpe_res_index);
 	if (!rsrc) {
-		dev_err(ctx->dev, "Invalid SHIM base from IFWI");
+		dev_err(ctx->dev, "Invalid SHIM base from IFWI\n");
 		return -EIO;
 	}
 	dev_info(ctx->dev, "LPE base: %#x size:%#x", (unsigned int) rsrc->start,
@@ -154,7 +178,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->iram = devm_ioremap_nocache(ctx->dev, ctx->iram_base,
 					 ctx->pdata->res_info->iram_size);
 	if (!ctx->iram) {
-		dev_err(ctx->dev, "unable to map IRAM");
+		dev_err(ctx->dev, "unable to map IRAM\n");
 		return -EIO;
 	}
 
@@ -164,7 +188,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->dram = devm_ioremap_nocache(ctx->dev, ctx->dram_base,
 					 ctx->pdata->res_info->dram_size);
 	if (!ctx->dram) {
-		dev_err(ctx->dev, "unable to map DRAM");
+		dev_err(ctx->dev, "unable to map DRAM\n");
 		return -EIO;
 	}
 
@@ -173,7 +197,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->shim = devm_ioremap_nocache(ctx->dev, ctx->shim_phy_add,
 					ctx->pdata->res_info->shim_size);
 	if (!ctx->shim) {
-		dev_err(ctx->dev, "unable to map SHIM");
+		dev_err(ctx->dev, "unable to map SHIM\n");
 		return -EIO;
 	}
 
@@ -186,7 +210,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->mailbox = devm_ioremap_nocache(ctx->dev, ctx->mailbox_add,
 					    ctx->pdata->res_info->mbox_size);
 	if (!ctx->mailbox) {
-		dev_err(ctx->dev, "unable to map mailbox");
+		dev_err(ctx->dev, "unable to map mailbox\n");
 		return -EIO;
 	}
 
@@ -196,7 +220,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	rsrc = platform_get_resource(pdev, IORESOURCE_MEM,
 					ctx->pdata->res_info->acpi_ddr_index);
 	if (!rsrc) {
-		dev_err(ctx->dev, "Invalid DDR base from IFWI");
+		dev_err(ctx->dev, "Invalid DDR base from IFWI\n");
 		return -EIO;
 	}
 	ctx->ddr_base = rsrc->start;
@@ -205,7 +229,7 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 	ctx->ddr = devm_ioremap_nocache(ctx->dev, ctx->ddr_base,
 					resource_size(rsrc));
 	if (!ctx->ddr) {
-		dev_err(ctx->dev, "unable to map DDR");
+		dev_err(ctx->dev, "unable to map DDR\n");
 		return -EIO;
 	}
 
@@ -214,6 +238,46 @@ static int sst_platform_get_resources(struct intel_sst_drv *ctx)
 				ctx->pdata->res_info->acpi_ipc_irq_index);
 	return 0;
 }
+
+
+static int is_byt_cr(struct device *dev, bool *bytcr)
+{
+	int status = 0;
+
+	if (IS_ENABLED(CONFIG_IOSF_MBI)) {
+		static const struct x86_cpu_id cpu_ids[] = {
+			{ X86_VENDOR_INTEL, 6, 55 }, /* Valleyview, Bay Trail */
+			{}
+		};
+		u32 bios_status;
+
+		if (!x86_match_cpu(cpu_ids) || !iosf_mbi_available()) {
+			/* bail silently */
+			return status;
+		}
+
+		status = iosf_mbi_read(BT_MBI_UNIT_PMC, /* 0x04 PUNIT */
+				       MBI_REG_READ, /* 0x10 */
+				       0x006, /* BIOS_CONFIG */
+				       &bios_status);
+
+		if (status) {
+			dev_err(dev, "could not read PUNIT BIOS_CONFIG\n");
+		} else {
+			/* bits 26:27 mirror PMIC options */
+			bios_status = (bios_status >> 26) & 3;
+
+			if ((bios_status == 1) || (bios_status == 3))
+				*bytcr = true;
+			else
+				dev_info(dev, "BYT-CR not detected\n");
+		}
+	} else {
+		dev_info(dev, "IOSF_MBI not enabled, no BYT-CR detection\n");
+	}
+	return status;
+}
+
 
 static int sst_acpi_probe(struct platform_device *pdev)
 {
@@ -226,11 +290,12 @@ static int sst_acpi_probe(struct platform_device *pdev)
 	struct platform_device *plat_dev;
 	struct sst_platform_info *pdata;
 	unsigned int dev_id;
+	bool bytcr = false;
 
 	id = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!id)
 		return -ENODEV;
-	dev_dbg(dev, "for %s", id->id);
+	dev_dbg(dev, "for %s\n", id->id);
 
 	mach = (struct sst_acpi_mach *)id->driver_data;
 	mach = sst_acpi_find_machine(mach);
@@ -251,6 +316,18 @@ static int sst_acpi_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "ACPI device id: %x\n", dev_id);
 
+	ret = sst_alloc_drv_context(&ctx, dev, dev_id);
+	if (ret < 0)
+		return ret;
+
+	ret = is_byt_cr(dev, &bytcr);
+	if (!((ret < 0) || (bytcr == false))) {
+		dev_info(dev, "Detected Baytrail-CR platform\n");
+
+		/* override resource info */
+		byt_rvp_platform_data.res_info = &bytcr_res_info;
+	}
+
 	plat_dev = platform_device_register_data(dev, pdata->platform, -1,
 						NULL, 0);
 	if (IS_ERR(plat_dev)) {
@@ -270,10 +347,6 @@ static int sst_acpi_probe(struct platform_device *pdev)
 			mach->drv_name);
 		return PTR_ERR(mdev);
 	}
-
-	ret = sst_alloc_drv_context(&ctx, dev, dev_id);
-	if (ret < 0)
-		return ret;
 
 	/* Fill sst platform data */
 	ctx->pdata = pdata;

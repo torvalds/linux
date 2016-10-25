@@ -20,6 +20,7 @@
 #include <sound/memalloc.h>
 #include "skl-sst-cldma.h"
 #include "skl-tplg-interface.h"
+#include "skl-topology.h"
 
 struct sst_dsp;
 struct skl_sst;
@@ -133,6 +134,8 @@ enum skl_dsp_states {
 struct skl_dsp_fw_ops {
 	int (*load_fw)(struct sst_dsp  *ctx);
 	/* FW module parser/loader */
+	int (*load_library)(struct sst_dsp *ctx,
+		struct skl_dfw_manifest *minfo);
 	int (*parse_fw)(struct sst_dsp *ctx);
 	int (*set_state_D0)(struct sst_dsp *ctx, unsigned int core_id);
 	int (*set_state_D3)(struct sst_dsp *ctx, unsigned int core_id);
@@ -203,12 +206,21 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 		const char *fw_name, struct skl_dsp_loader_ops dsp_ops,
 		struct skl_sst **dsp);
+int skl_sst_init_fw(struct device *dev, struct skl_sst *ctx);
+int bxt_sst_init_fw(struct device *dev, struct skl_sst *ctx);
 void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 void bxt_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 
-int snd_skl_get_module_info(struct skl_sst *ctx, u8 *uuid,
-		struct skl_dfw_module *dfw_config);
-int snd_skl_parse_uuids(struct sst_dsp *ctx, unsigned int offset);
+int snd_skl_get_module_info(struct skl_sst *ctx,
+				struct skl_module_cfg *mconfig);
+int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
+				unsigned int offset, int index);
+int skl_get_pvt_id(struct skl_sst *ctx,
+				struct skl_module_cfg *mconfig);
+int skl_put_pvt_id(struct skl_sst *ctx,
+				struct skl_module_cfg *mconfig);
+int skl_get_pvt_instance_id_map(struct skl_sst *ctx,
+				int module_id, int instance_id);
 void skl_freeup_uuid_list(struct skl_sst *ctx);
 
 int skl_dsp_strip_extended_manifest(struct firmware *fw);

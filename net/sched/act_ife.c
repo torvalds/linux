@@ -53,7 +53,7 @@ int ife_tlv_meta_encode(void *skbdata, u16 attrtype, u16 dlen, const void *dval)
 	u32 *tlv = (u32 *)(skbdata);
 	u16 totlen = nla_total_size(dlen);	/*alignment + hdr */
 	char *dptr = (char *)tlv + NLA_HDRLEN;
-	u32 htlv = attrtype << 16 | dlen;
+	u32 htlv = attrtype << 16 | (dlen + NLA_HDRLEN);
 
 	*tlv = htonl(htlv);
 	memset(dptr, 0, totlen - NLA_HDRLEN);
@@ -62,6 +62,23 @@ int ife_tlv_meta_encode(void *skbdata, u16 attrtype, u16 dlen, const void *dval)
 	return totlen;
 }
 EXPORT_SYMBOL_GPL(ife_tlv_meta_encode);
+
+int ife_encode_meta_u16(u16 metaval, void *skbdata, struct tcf_meta_info *mi)
+{
+	u16 edata = 0;
+
+	if (mi->metaval)
+		edata = *(u16 *)mi->metaval;
+	else if (metaval)
+		edata = metaval;
+
+	if (!edata) /* will not encode */
+		return 0;
+
+	edata = htons(edata);
+	return ife_tlv_meta_encode(skbdata, mi->metaid, 2, &edata);
+}
+EXPORT_SYMBOL_GPL(ife_encode_meta_u16);
 
 int ife_get_meta_u32(struct sk_buff *skb, struct tcf_meta_info *mi)
 {
@@ -80,6 +97,15 @@ int ife_check_meta_u32(u32 metaval, struct tcf_meta_info *mi)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ife_check_meta_u32);
+
+int ife_check_meta_u16(u16 metaval, struct tcf_meta_info *mi)
+{
+	if (metaval || mi->metaval)
+		return 8; /* T+L+(V) == 2+2+(2+2bytepad) */
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ife_check_meta_u16);
 
 int ife_encode_meta_u32(u32 metaval, void *skbdata, struct tcf_meta_info *mi)
 {
@@ -627,7 +653,7 @@ static int tcf_ife_decode(struct sk_buff *skb, const struct tc_action *a,
 	struct tcf_ife_info *ife = to_ife(a);
 	int action = ife->tcf_action;
 	struct ifeheadr *ifehdr = (struct ifeheadr *)skb->data;
-	u16 ifehdrln = ifehdr->metalen;
+	int ifehdrln = (int)ifehdr->metalen;
 	struct meta_tlvhdr *tlv = (struct meta_tlvhdr *)(ifehdr->tlv_data);
 
 	spin_lock(&ife->tcf_lock);
@@ -740,8 +766,6 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 		return TC_ACT_SHOT;
 	}
 
-	iethh = eth_hdr(skb);
-
 	err = skb_cow_head(skb, hdrm);
 	if (unlikely(err)) {
 		ife->tcf_qstats.drops++;
@@ -752,6 +776,7 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 	if (!(at & AT_EGRESS))
 		skb_push(skb, skb->dev->hard_header_len);
 
+	iethh = (struct ethhdr *)skb->data;
 	__skb_push(skb, hdrm);
 	memcpy(skb->data, iethh, skb->mac_len);
 	skb_reset_mac_header(skb);

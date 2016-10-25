@@ -63,11 +63,13 @@ static int llog_cat_id2handle(const struct lu_env *env,
 			      struct llog_logid *logid)
 {
 	struct llog_handle	*loghandle;
+	enum llog_flag fmt;
 	int			 rc = 0;
 
 	if (!cathandle)
 		return -EBADF;
 
+	fmt = cathandle->lgh_hdr->llh_flags & LLOG_F_EXT_MASK;
 	down_write(&cathandle->lgh_lock);
 	list_for_each_entry(loghandle, &cathandle->u.chd.chd_head,
 			    u.phd.phd_entry) {
@@ -99,7 +101,7 @@ static int llog_cat_id2handle(const struct lu_env *env,
 		return rc;
 	}
 
-	rc = llog_init_handle(env, loghandle, LLOG_F_IS_PLAIN, NULL);
+	rc = llog_init_handle(env, loghandle, fmt | LLOG_F_IS_PLAIN, NULL);
 	if (rc < 0) {
 		llog_close(env, loghandle);
 		loghandle = NULL;
@@ -107,7 +109,7 @@ static int llog_cat_id2handle(const struct lu_env *env,
 	}
 
 	down_write(&cathandle->lgh_lock);
-	list_add(&loghandle->u.phd.phd_entry, &cathandle->u.chd.chd_head);
+	list_add_tail(&loghandle->u.phd.phd_entry, &cathandle->u.chd.chd_head);
 	up_write(&cathandle->lgh_lock);
 
 	loghandle->u.phd.phd_cat_handle = cathandle;
@@ -123,7 +125,6 @@ out:
 int llog_cat_close(const struct lu_env *env, struct llog_handle *cathandle)
 {
 	struct llog_handle	*loghandle, *n;
-	int			 rc;
 
 	list_for_each_entry_safe(loghandle, n, &cathandle->u.chd.chd_head,
 				 u.phd.phd_entry) {
@@ -134,8 +135,7 @@ int llog_cat_close(const struct lu_env *env, struct llog_handle *cathandle)
 	/* if handle was stored in ctxt, remove it too */
 	if (cathandle->lgh_ctxt->loc_handle == cathandle)
 		cathandle->lgh_ctxt->loc_handle = NULL;
-	rc = llog_close(env, cathandle);
-	return rc;
+	return llog_close(env, cathandle);
 }
 EXPORT_SYMBOL(llog_cat_close);
 

@@ -74,6 +74,8 @@ EXPORT_SYMBOL(drm_atomic_state_default_release);
 int
 drm_atomic_state_init(struct drm_device *dev, struct drm_atomic_state *state)
 {
+	kref_init(&state->ref);
+
 	/* TODO legacy paths should maybe do a better job about
 	 * setting this appropriately?
 	 */
@@ -215,22 +217,16 @@ void drm_atomic_state_clear(struct drm_atomic_state *state)
 EXPORT_SYMBOL(drm_atomic_state_clear);
 
 /**
- * drm_atomic_state_free - free all memory for an atomic state
- * @state: atomic state to deallocate
+ * __drm_atomic_state_free - free all memory for an atomic state
+ * @ref: This atomic state to deallocate
  *
  * This frees all memory associated with an atomic state, including all the
  * per-object state for planes, crtcs and connectors.
  */
-void drm_atomic_state_free(struct drm_atomic_state *state)
+void __drm_atomic_state_free(struct kref *ref)
 {
-	struct drm_device *dev;
-	struct drm_mode_config *config;
-
-	if (!state)
-		return;
-
-	dev = state->dev;
-	config = &dev->mode_config;
+	struct drm_atomic_state *state = container_of(ref, typeof(*state), ref);
+	struct drm_mode_config *config = &state->dev->mode_config;
 
 	drm_atomic_state_clear(state);
 
@@ -243,7 +239,7 @@ void drm_atomic_state_free(struct drm_atomic_state *state)
 		kfree(state);
 	}
 }
-EXPORT_SYMBOL(drm_atomic_state_free);
+EXPORT_SYMBOL(__drm_atomic_state_free);
 
 /**
  * drm_atomic_get_crtc_state - get crtc state
@@ -709,7 +705,10 @@ int drm_atomic_plane_set_property(struct drm_plane *plane,
 		state->src_w = val;
 	} else if (property == config->prop_src_h) {
 		state->src_h = val;
-	} else if (property == config->rotation_property) {
+	} else if (property == config->rotation_property ||
+		   property == plane->rotation_property) {
+		if (!is_power_of_2(val & DRM_ROTATE_MASK))
+			return -EINVAL;
 		state->rotation = val;
 	} else if (property == plane->zpos_property) {
 		state->zpos = val;
@@ -767,7 +766,8 @@ drm_atomic_plane_get_property(struct drm_plane *plane,
 		*val = state->src_w;
 	} else if (property == config->prop_src_h) {
 		*val = state->src_h;
-	} else if (property == config->rotation_property) {
+	} else if (property == config->rotation_property ||
+		   property == plane->rotation_property) {
 		*val = state->rotation;
 	} else if (property == plane->zpos_property) {
 		*val = state->zpos;
@@ -1742,7 +1742,7 @@ retry:
 	if (arg->flags & DRM_MODE_ATOMIC_TEST_ONLY) {
 		/*
 		 * Unlike commit, check_only does not clean up state.
-		 * Below we call drm_atomic_state_free for it.
+		 * Below we call drm_atomic_state_put for it.
 		 */
 		ret = drm_atomic_check_only(state);
 	} else if (arg->flags & DRM_MODE_ATOMIC_NONBLOCK) {
@@ -1775,8 +1775,7 @@ out:
 		goto retry;
 	}
 
-	if (ret || arg->flags & DRM_MODE_ATOMIC_TEST_ONLY)
-		drm_atomic_state_free(state);
+	drm_atomic_state_put(state);
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);

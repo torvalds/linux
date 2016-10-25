@@ -284,9 +284,12 @@ int ip_cmsg_send(struct sock *sk, struct msghdr *msg, struct ipcm_cookie *ipc,
 			ipc->ttl = val;
 			break;
 		case IP_TOS:
-			if (cmsg->cmsg_len != CMSG_LEN(sizeof(int)))
+			if (cmsg->cmsg_len == CMSG_LEN(sizeof(int)))
+				val = *(int *)CMSG_DATA(cmsg);
+			else if (cmsg->cmsg_len == CMSG_LEN(sizeof(u8)))
+				val = *(u8 *)CMSG_DATA(cmsg);
+			else
 				return -EINVAL;
-			val = *(int *)CMSG_DATA(cmsg);
 			if (val < 0 || val > 255)
 				return -EINVAL;
 			ipc->tos = val;
