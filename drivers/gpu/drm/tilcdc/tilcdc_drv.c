@@ -197,7 +197,7 @@ static void tilcdc_fini(struct drm_device *dev)
 	struct tilcdc_drm_private *priv = dev->dev_private;
 
 	if (priv->crtc)
-		tilcdc_crtc_off(priv->crtc);
+		tilcdc_crtc_shutdown(priv->crtc);
 
 	if (priv->is_registered)
 		drm_dev_unregister(dev);

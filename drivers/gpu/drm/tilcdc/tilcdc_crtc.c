@@ -33,7 +33,9 @@ struct tilcdc_crtc {
 	struct drm_plane primary;
 	const struct tilcdc_panel_info *info;
 	struct drm_pending_vblank_event *event;
+	struct mutex enable_lock;
 	bool enabled;
+	bool shutdown;
 	wait_queue_head_t frame_done_wq;
 	bool frame_done;
 	spinlock_t irq_lock;
@@ -158,9 +160,11 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 
 	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
-
-	if (tilcdc_crtc->enabled)
+	mutex_lock(&tilcdc_crtc->enable_lock);
+	if (tilcdc_crtc->enabled || tilcdc_crtc->shutdown) {
+		mutex_unlock(&tilcdc_crtc->enable_lock);
 		return;
+	}
 
 	pm_runtime_get_sync(dev->dev);
 
@@ -175,17 +179,22 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 	drm_crtc_vblank_on(crtc);
 
 	tilcdc_crtc->enabled = true;
+	mutex_unlock(&tilcdc_crtc->enable_lock);
 }
 
-void tilcdc_crtc_off(struct drm_crtc *crtc)
+static void tilcdc_crtc_off(struct drm_crtc *crtc, bool shutdown)
 {
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_drm_private *priv = dev->dev_private;
 
-	if (!tilcdc_crtc->enabled)
+	mutex_lock(&tilcdc_crtc->enable_lock);
+	if (shutdown)
+		tilcdc_crtc->shutdown = true;
+	if (!tilcdc_crtc->enabled) {
+		mutex_unlock(&tilcdc_crtc->enable_lock);
 		return;
-
+	}
 	tilcdc_crtc->frame_done = false;
 	tilcdc_clear(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ENABLE);
 
@@ -224,12 +233,18 @@ void tilcdc_crtc_off(struct drm_crtc *crtc)
 	tilcdc_crtc->last_vblank = ktime_set(0, 0);
 
 	tilcdc_crtc->enabled = false;
+	mutex_unlock(&tilcdc_crtc->enable_lock);
 }
 
 static void tilcdc_crtc_disable(struct drm_crtc *crtc)
 {
 	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
-	tilcdc_crtc_off(crtc);
+	tilcdc_crtc_off(crtc, false);
+}
+
+void tilcdc_crtc_shutdown(struct drm_crtc *crtc)
+{
+	tilcdc_crtc_off(crtc, true);
 }
 
 static bool tilcdc_crtc_is_on(struct drm_crtc *crtc)
@@ -856,6 +871,8 @@ struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
 	ret = tilcdc_plane_init(dev, &tilcdc_crtc->primary);
 	if (ret < 0)
 		goto fail;
+
+	mutex_init(&tilcdc_crtc->enable_lock);
 
 	init_waitqueue_head(&tilcdc_crtc->frame_done_wq);
 
