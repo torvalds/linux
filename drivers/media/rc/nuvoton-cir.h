@@ -78,7 +78,6 @@ struct nvt_chip {
 };
 
 struct nvt_dev {
-	struct pnp_dev *pdev;
 	struct rc_dev *rdev;
 
 	spinlock_t nvt_lock;
