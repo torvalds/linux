@@ -228,19 +228,8 @@ static const char i40e_gstrings_test[][ETH_GSTRING_LEN] = {
 
 #define I40E_TEST_LEN (sizeof(i40e_gstrings_test) / ETH_GSTRING_LEN)
 
-static const char i40e_priv_flags_strings_gl[][ETH_GSTRING_LEN] = {
-	"MFP",
-	"LinkPolling",
-	"flow-director-atr",
-	"veb-stats",
-	"hw-atr-eviction",
-	"vf-true-promisc-support",
-};
-
-#define I40E_PRIV_FLAGS_GL_STR_LEN ARRAY_SIZE(i40e_priv_flags_strings_gl)
-
 static const char i40e_priv_flags_strings[][ETH_GSTRING_LEN] = {
-	"NPAR",
+	"MFP",
 	"LinkPolling",
 	"flow-director-atr",
 	"veb-stats",
@@ -248,6 +237,13 @@ static const char i40e_priv_flags_strings[][ETH_GSTRING_LEN] = {
 };
 
 #define I40E_PRIV_FLAGS_STR_LEN ARRAY_SIZE(i40e_priv_flags_strings)
+
+/* Private flags with a global effect, restricted to PF 0 */
+static const char i40e_gl_priv_flags_strings[][ETH_GSTRING_LEN] = {
+	"vf-true-promisc-support",
+};
+
+#define I40E_GL_PRIV_FLAGS_STR_LEN ARRAY_SIZE(i40e_gl_priv_flags_strings)
 
 /**
  * i40e_partition_setting_complaint - generic complaint for MFP restriction
@@ -1194,10 +1190,9 @@ static void i40e_get_drvinfo(struct net_device *netdev,
 		sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(pf->pdev),
 		sizeof(drvinfo->bus_info));
+	drvinfo->n_priv_flags = I40E_PRIV_FLAGS_STR_LEN;
 	if (pf->hw.pf_id == 0)
-		drvinfo->n_priv_flags = I40E_PRIV_FLAGS_GL_STR_LEN;
-	else
-		drvinfo->n_priv_flags = I40E_PRIV_FLAGS_STR_LEN;
+		drvinfo->n_priv_flags += I40E_GL_PRIV_FLAGS_STR_LEN;
 }
 
 static void i40e_get_ringparam(struct net_device *netdev,
@@ -1425,10 +1420,8 @@ static int i40e_get_sset_count(struct net_device *netdev, int sset)
 			return I40E_VSI_STATS_LEN(netdev);
 		}
 	case ETH_SS_PRIV_FLAGS:
-		if (pf->hw.pf_id == 0)
-			return I40E_PRIV_FLAGS_GL_STR_LEN;
-		else
-			return I40E_PRIV_FLAGS_STR_LEN;
+		return I40E_PRIV_FLAGS_STR_LEN +
+			(pf->hw.pf_id == 0 ? I40E_GL_PRIV_FLAGS_STR_LEN : 0);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1626,15 +1619,14 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 		/* BUG_ON(p - data != I40E_STATS_LEN * ETH_GSTRING_LEN); */
 		break;
 	case ETH_SS_PRIV_FLAGS:
+		for (i = 0; i < I40E_PRIV_FLAGS_STR_LEN; i++) {
+			memcpy(data, i40e_priv_flags_strings[i],
+			       ETH_GSTRING_LEN);
+			data += ETH_GSTRING_LEN;
+		}
 		if (pf->hw.pf_id == 0) {
-			for (i = 0; i < I40E_PRIV_FLAGS_GL_STR_LEN; i++) {
-				memcpy(data, i40e_priv_flags_strings_gl[i],
-				       ETH_GSTRING_LEN);
-				data += ETH_GSTRING_LEN;
-			}
-		} else {
-			for (i = 0; i < I40E_PRIV_FLAGS_STR_LEN; i++) {
-				memcpy(data, i40e_priv_flags_strings[i],
+			for (i = 0; i < I40E_GL_PRIV_FLAGS_STR_LEN; i++) {
+				memcpy(data, i40e_gl_priv_flags_strings[i],
 				       ETH_GSTRING_LEN);
 				data += ETH_GSTRING_LEN;
 			}
