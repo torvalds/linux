@@ -270,7 +270,6 @@ int intel_mid_pci_set_power_state(struct pci_dev *pdev, pci_power_t state)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(intel_mid_pci_set_power_state);
 
 void intel_mid_pwr_power_off(void)
 {
