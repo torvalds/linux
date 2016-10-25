@@ -1042,8 +1042,8 @@ static uint32_t skl_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
-int
-intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
+struct intel_plane *
+intel_sprite_plane_create(struct drm_device *dev, enum pipe pipe, int plane)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *intel_plane = NULL;
@@ -1160,11 +1160,11 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 
 	drm_plane_helper_add(&intel_plane->base, &intel_plane_helper_funcs);
 
-	return 0;
+	return intel_plane;
 
 fail:
 	kfree(state);
 	kfree(intel_plane);
 
-	return ret;
+	return ERR_PTR(ret);
 }

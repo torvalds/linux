@@ -595,7 +595,9 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	/* Important: The output setup functions called by modeset_init need
 	 * working irqs for e.g. gmbus and dp aux transfers. */
-	intel_modeset_init(dev);
+	ret = intel_modeset_init(dev);
+	if (ret)
+		goto cleanup_irq;
 
 	intel_guc_init(dev);
 

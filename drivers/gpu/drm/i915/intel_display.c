@@ -14944,9 +14944,6 @@ static void intel_finish_crtc_commit(struct drm_crtc *crtc,
  */
 void intel_plane_destroy(struct drm_plane *plane)
 {
-	if (!plane)
-		return;
-
 	drm_plane_cleanup(plane);
 	kfree(to_intel_plane(plane));
 }
@@ -14960,11 +14957,10 @@ const struct drm_plane_funcs intel_plane_funcs = {
 	.atomic_set_property = intel_plane_atomic_set_property,
 	.atomic_duplicate_state = intel_plane_duplicate_state,
 	.atomic_destroy_state = intel_plane_destroy_state,
-
 };
 
-static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
-						    int pipe)
+static struct intel_plane *
+intel_primary_plane_create(struct drm_device *dev, enum pipe pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *primary = NULL;
@@ -14975,12 +14971,17 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	int ret;
 
 	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
-	if (!primary)
+	if (!primary) {
+		ret = -ENOMEM;
 		goto fail;
+	}
 
 	state = intel_create_plane_state(&primary->base);
-	if (!state)
+	if (!state) {
+		ret = -ENOMEM;
 		goto fail;
+	}
+
 	primary->base.state = &state->base;
 
 	primary->can_scale = false;
@@ -15061,13 +15062,13 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 
 	drm_plane_helper_add(&primary->base, &intel_plane_helper_funcs);
 
-	return &primary->base;
+	return primary;
 
 fail:
 	kfree(state);
 	kfree(primary);
 
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 static int
@@ -15163,8 +15164,8 @@ intel_update_cursor_plane(struct drm_plane *plane,
 	intel_crtc_update_cursor(crtc, state);
 }
 
-static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
-						   int pipe)
+static struct intel_plane *
+intel_cursor_plane_create(struct drm_device *dev, enum pipe pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *cursor = NULL;
@@ -15172,12 +15173,17 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 	int ret;
 
 	cursor = kzalloc(sizeof(*cursor), GFP_KERNEL);
-	if (!cursor)
+	if (!cursor) {
+		ret = -ENOMEM;
 		goto fail;
+	}
 
 	state = intel_create_plane_state(&cursor->base);
-	if (!state)
+	if (!state) {
+		ret = -ENOMEM;
 		goto fail;
+	}
+
 	cursor->base.state = &state->base;
 
 	cursor->can_scale = false;
@@ -15209,13 +15215,13 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 
 	drm_plane_helper_add(&cursor->base, &intel_plane_helper_funcs);
 
-	return &cursor->base;
+	return cursor;
 
 fail:
 	kfree(state);
 	kfree(cursor);
 
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_crtc,
@@ -15234,22 +15240,24 @@ static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_cr
 	scaler_state->scaler_id = -1;
 }
 
-static void intel_crtc_init(struct drm_device *dev, int pipe)
+static int intel_crtc_init(struct drm_device *dev, enum pipe pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc;
 	struct intel_crtc_state *crtc_state = NULL;
-	struct drm_plane *primary = NULL;
-	struct drm_plane *cursor = NULL;
+	struct intel_plane *primary = NULL;
+	struct intel_plane *cursor = NULL;
 	int sprite, ret;
 
 	intel_crtc = kzalloc(sizeof(*intel_crtc), GFP_KERNEL);
-	if (intel_crtc == NULL)
-		return;
+	if (!intel_crtc)
+		return -ENOMEM;
 
 	crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
-	if (!crtc_state)
+	if (!crtc_state) {
+		ret = -ENOMEM;
 		goto fail;
+	}
 	intel_crtc->config = crtc_state;
 	intel_crtc->base.state = &crtc_state->base;
 	crtc_state->base.crtc = &intel_crtc->base;
@@ -15265,22 +15273,30 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	}
 
 	primary = intel_primary_plane_create(dev, pipe);
-	if (!primary)
+	if (IS_ERR(primary)) {
+		ret = PTR_ERR(primary);
 		goto fail;
+	}
 
 	for_each_sprite(dev_priv, pipe, sprite) {
-		ret = intel_plane_init(dev, pipe, sprite);
-		if (ret)
-			DRM_DEBUG_KMS("pipe %c sprite %c init failed: %d\n",
-				      pipe_name(pipe), sprite_name(pipe, sprite), ret);
+		struct intel_plane *plane;
+
+		plane = intel_sprite_plane_create(dev, pipe, sprite);
+		if (!plane) {
+			ret = PTR_ERR(plane);
+			goto fail;
+		}
 	}
 
 	cursor = intel_cursor_plane_create(dev, pipe);
-	if (!cursor)
+	if (!cursor) {
+		ret = PTR_ERR(cursor);
 		goto fail;
+	}
 
-	ret = drm_crtc_init_with_planes(dev, &intel_crtc->base, primary,
-					cursor, &intel_crtc_funcs,
+	ret = drm_crtc_init_with_planes(dev, &intel_crtc->base,
+					&primary->base, &cursor->base,
+					&intel_crtc_funcs,
 					"pipe %c", pipe_name(pipe));
 	if (ret)
 		goto fail;
@@ -15290,7 +15306,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	 * is hooked to pipe B. Hence we want plane A feeding pipe B.
 	 */
 	intel_crtc->pipe = pipe;
-	intel_crtc->plane = pipe;
+	intel_crtc->plane = (enum plane) pipe;
 	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen < 4) {
 		DRM_DEBUG_KMS("swapping pipes & planes for FBC\n");
 		intel_crtc->plane = !pipe;
@@ -15312,13 +15328,18 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	intel_color_init(&intel_crtc->base);
 
 	WARN_ON(drm_crtc_index(&intel_crtc->base) != intel_crtc->pipe);
-	return;
+
+	return 0;
 
 fail:
-	intel_plane_destroy(primary);
-	intel_plane_destroy(cursor);
+	/*
+	 * drm_mode_config_cleanup() will free up any
+	 * crtcs/planes already initialized.
+	 */
 	kfree(crtc_state);
 	kfree(intel_crtc);
+
+	return ret;
 }
 
 enum pipe intel_get_pipe_from_connector(struct intel_connector *connector)
@@ -16395,7 +16416,7 @@ fail:
 	drm_modeset_acquire_fini(&ctx);
 }
 
-void intel_modeset_init(struct drm_device *dev)
+int intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
@@ -16419,7 +16440,7 @@ void intel_modeset_init(struct drm_device *dev)
 	intel_init_pm(dev);
 
 	if (INTEL_INFO(dev)->num_pipes == 0)
-		return;
+		return 0;
 
 	/*
 	 * There may be no VBT; and if the BIOS enabled SSC we can
@@ -16468,7 +16489,13 @@ void intel_modeset_init(struct drm_device *dev)
 		      INTEL_INFO(dev)->num_pipes > 1 ? "s" : "");
 
 	for_each_pipe(dev_priv, pipe) {
-		intel_crtc_init(dev, pipe);
+		int ret;
+
+		ret = intel_crtc_init(dev, pipe);
+		if (ret) {
+			drm_mode_config_cleanup(dev);
+			return ret;
+		}
 	}
 
 	intel_update_czclk(dev_priv);
@@ -16516,6 +16543,8 @@ void intel_modeset_init(struct drm_device *dev)
 	 * since the watermark calculation done here will use pstate->fb.
 	 */
 	sanitize_watermarks(dev);
+
+	return 0;
 }
 
 static void intel_enable_pipe_a(struct drm_device *dev)
