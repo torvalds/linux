@@ -320,6 +320,8 @@ mlxsw_sp_lpm_tree_create(struct mlxsw_sp *mlxsw_sp,
 						lpm_tree);
 	if (err)
 		goto err_left_struct_set;
+	memcpy(&lpm_tree->prefix_usage, prefix_usage,
+	       sizeof(lpm_tree->prefix_usage));
 	return lpm_tree;
 
 err_left_struct_set:
