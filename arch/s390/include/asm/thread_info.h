@@ -34,7 +34,6 @@ struct thread_info {
 	unsigned long		flags;		/* low level flags */
 	unsigned long		sys_call_table;	/* System call table address */
 	unsigned int		cpu;		/* current CPU */
-	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
 	unsigned int		system_call;
 	__u64			user_timer;
 	__u64			system_timer;
@@ -49,7 +48,6 @@ struct thread_info {
 	.task		= &tsk,			\
 	.flags		= 0,			\
 	.cpu		= 0,			\
-	.preempt_count	= INIT_PREEMPT_COUNT,	\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)

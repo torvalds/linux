@@ -626,7 +626,7 @@ ENTRY(io_int_handler)
 	jo	.Lio_work_user		# yes -> do resched & signal
 #ifdef CONFIG_PREEMPT
 	# check for preemptive scheduling
-	icm	%r0,15,__TI_precount(%r12)
+	icm	%r0,15,__LC_PREEMPT_COUNT
 	jnz	.Lio_restore		# preemption is disabled
 	TSTMSK	__TI_flags(%r12),_TIF_NEED_RESCHED
 	jno	.Lio_restore

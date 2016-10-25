@@ -43,7 +43,6 @@ int main(void)
 	OFFSET(__TI_flags, thread_info, flags);
 	OFFSET(__TI_sysc_table, thread_info, sys_call_table);
 	OFFSET(__TI_cpu, thread_info, cpu);
-	OFFSET(__TI_precount, thread_info, preempt_count);
 	OFFSET(__TI_user_timer, thread_info, user_timer);
 	OFFSET(__TI_system_timer, thread_info, system_timer);
 	OFFSET(__TI_last_break, thread_info, last_break);
@@ -175,6 +174,7 @@ int main(void)
 	OFFSET(__LC_PERCPU_OFFSET, lowcore, percpu_offset);
 	OFFSET(__LC_VDSO_PER_CPU, lowcore, vdso_per_cpu_data);
 	OFFSET(__LC_MACHINE_FLAGS, lowcore, machine_flags);
+	OFFSET(__LC_PREEMPT_COUNT, lowcore, preempt_count);
 	OFFSET(__LC_GMAP, lowcore, gmap);
 	OFFSET(__LC_PASTE, lowcore, paste);
 	/* software defined ABI-relevant lowcore locations 0xe00 - 0xe20 */
