@@ -642,6 +642,7 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		case IIO_VOLTAGE:
 			*val = ad7746_vt_filter_rate_table[
 					(chip->config >> 6) & 0x3][0];
+			ret = IIO_VAL_INT;
 			break;
 		default:
 			ret = -EINVAL;
