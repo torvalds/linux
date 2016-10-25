@@ -1145,7 +1145,7 @@ static int skl_decode_mi_display_flip(struct parser_exec_state *s,
 		info->event = PRIMARY_B_FLIP_DONE;
 		break;
 	case MI_DISPLAY_FLIP_SKL_PLANE_1_C:
-		info->pipe = PIPE_B;
+		info->pipe = PIPE_C;
 		info->event = PRIMARY_C_FLIP_DONE;
 		break;
 	default:
