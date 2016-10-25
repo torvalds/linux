@@ -880,6 +880,32 @@ int amdgpu_vm_update_directories(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_vm_find_pt - find the page table for an address
+ *
+ * @p: see amdgpu_pte_update_params definition
+ * @addr: virtual address in question
+ *
+ * Find the page table BO for a virtual address, return NULL when none found.
+ */
+static struct amdgpu_bo *amdgpu_vm_get_pt(struct amdgpu_pte_update_params *p,
+					  uint64_t addr)
+{
+	struct amdgpu_vm_pt *entry = &p->vm->root;
+	unsigned idx, level = p->adev->vm_manager.num_level;
+
+	while (entry->entries) {
+		idx = addr >> (amdgpu_vm_block_size * level--);
+		idx %= amdgpu_bo_size(entry->bo) / 8;
+		entry = &entry->entries[idx];
+	}
+
+	if (level)
+		return NULL;
+
+	return entry->bo;
+}
+
+/**
  * amdgpu_vm_update_ptes - make sure that page tables are valid
  *
  * @params: see amdgpu_pte_update_params definition
@@ -899,15 +925,16 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 
 	uint64_t cur_pe_start, cur_nptes, cur_dst;
 	uint64_t addr; /* next GPU address to be updated */
-	uint64_t pt_idx;
 	struct amdgpu_bo *pt;
 	unsigned nptes; /* next number of ptes to be updated */
 	uint64_t next_pe_start;
 
 	/* initialize the variables */
 	addr = start;
-	pt_idx = addr >> amdgpu_vm_block_size;
-	pt = params->vm->root.entries[pt_idx].bo;
+	pt = amdgpu_vm_get_pt(params, addr);
+	if (!pt)
+		return;
+
 	if (params->shadow) {
 		if (!pt->shadow)
 			return;
@@ -929,8 +956,10 @@ static void amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 
 	/* walk over the address space and update the page tables */
 	while (addr < end) {
-		pt_idx = addr >> amdgpu_vm_block_size;
-		pt = params->vm->root.entries[pt_idx].bo;
+		pt = amdgpu_vm_get_pt(params, addr);
+		if (!pt)
+			return;
+
 		if (params->shadow) {
 			if (!pt->shadow)
 				return;
