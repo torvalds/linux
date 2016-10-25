@@ -1472,15 +1472,6 @@ static void pcs_free_resources(struct pcs_device *pcs)
 	pcs_free_pingroups(pcs);
 }
 
-#define PCS_GET_PROP_U32(name, reg, err)				\
-	do {								\
-		ret = of_property_read_u32(np, name, reg);		\
-		if (ret) {						\
-			dev_err(pcs->dev, err);				\
-			return ret;					\
-		}							\
-	} while (0);
-
 static const struct of_device_id pcs_of_match[];
 
 static int pcs_add_gpio_func(struct device_node *node, struct pcs_device *pcs)
@@ -1825,8 +1816,13 @@ static int pcs_probe(struct platform_device *pdev)
 	pcs->flags = soc->flags;
 	memcpy(&pcs->socdata, soc, sizeof(*soc));
 
-	PCS_GET_PROP_U32("pinctrl-single,register-width", &pcs->width,
-			 "register width not specified\n");
+	ret = of_property_read_u32(np, "pinctrl-single,register-width",
+				   &pcs->width);
+	if (ret) {
+		dev_err(pcs->dev, "register width not specified\n");
+
+		return ret;
+	}
 
 	ret = of_property_read_u32(np, "pinctrl-single,function-mask",
 				   &pcs->fmask);
