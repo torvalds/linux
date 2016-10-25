@@ -156,19 +156,19 @@ int amdgpu_bo_get_metadata(struct amdgpu_bo *bo, void *buffer,
 void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 				  struct ttm_mem_reg *new_mem);
 int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
-void amdgpu_bo_fence(struct amdgpu_bo *bo, struct fence *fence,
+void amdgpu_bo_fence(struct amdgpu_bo *bo, struct dma_fence *fence,
 		     bool shared);
 u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo);
 int amdgpu_bo_backup_to_shadow(struct amdgpu_device *adev,
 			       struct amdgpu_ring *ring,
 			       struct amdgpu_bo *bo,
 			       struct reservation_object *resv,
-			       struct fence **fence, bool direct);
+			       struct dma_fence **fence, bool direct);
 int amdgpu_bo_restore_from_shadow(struct amdgpu_device *adev,
 				  struct amdgpu_ring *ring,
 				  struct amdgpu_bo *bo,
 				  struct reservation_object *resv,
-				  struct fence **fence,
+				  struct dma_fence **fence,
 				  bool direct);
 
 
@@ -200,7 +200,7 @@ int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
 		     unsigned size, unsigned align);
 void amdgpu_sa_bo_free(struct amdgpu_device *adev,
 			      struct amdgpu_sa_bo **sa_bo,
-			      struct fence *fence);
+			      struct dma_fence *fence);
 #if defined(CONFIG_DEBUG_FS)
 void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 					 struct seq_file *m);

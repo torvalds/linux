@@ -89,7 +89,7 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
  * Free an IB (all asics).
  */
 void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib,
-		    struct fence *f)
+		    struct dma_fence *f)
 {
 	amdgpu_sa_bo_free(adev, &ib->sa_bo, f);
 }
@@ -116,8 +116,8 @@ void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib,
  * to SI there was just a DE IB.
  */
 int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
-		       struct amdgpu_ib *ibs, struct fence *last_vm_update,
-		       struct amdgpu_job *job, struct fence **f)
+		       struct amdgpu_ib *ibs, struct dma_fence *last_vm_update,
+		       struct amdgpu_job *job, struct dma_fence **f)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib *ib = &ibs[0];

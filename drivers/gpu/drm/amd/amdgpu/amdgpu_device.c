@@ -1599,7 +1599,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->vm_manager.vm_pte_funcs = NULL;
 	adev->vm_manager.vm_pte_num_rings = 0;
 	adev->gart.gart_funcs = NULL;
-	adev->fence_context = fence_context_alloc(AMDGPU_MAX_RINGS);
+	adev->fence_context = dma_fence_context_alloc(AMDGPU_MAX_RINGS);
 
 	adev->smc_rreg = &amdgpu_invalid_rreg;
 	adev->smc_wreg = &amdgpu_invalid_wreg;
@@ -2193,7 +2193,7 @@ bool amdgpu_need_backup(struct amdgpu_device *adev)
 static int amdgpu_recover_vram_from_shadow(struct amdgpu_device *adev,
 					   struct amdgpu_ring *ring,
 					   struct amdgpu_bo *bo,
-					   struct fence **fence)
+					   struct dma_fence **fence)
 {
 	uint32_t domain;
 	int r;
@@ -2312,30 +2312,30 @@ retry:
 		if (need_full_reset && amdgpu_need_backup(adev)) {
 			struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 			struct amdgpu_bo *bo, *tmp;
-			struct fence *fence = NULL, *next = NULL;
+			struct dma_fence *fence = NULL, *next = NULL;
 
 			DRM_INFO("recover vram bo from shadow\n");
 			mutex_lock(&adev->shadow_list_lock);
 			list_for_each_entry_safe(bo, tmp, &adev->shadow_list, shadow_list) {
 				amdgpu_recover_vram_from_shadow(adev, ring, bo, &next);
 				if (fence) {
-					r = fence_wait(fence, false);
+					r = dma_fence_wait(fence, false);
 					if (r) {
 						WARN(r, "recovery from shadow isn't comleted\n");
 						break;
 					}
 				}
 
-				fence_put(fence);
+				dma_fence_put(fence);
 				fence = next;
 			}
 			mutex_unlock(&adev->shadow_list_lock);
 			if (fence) {
-				r = fence_wait(fence, false);
+				r = dma_fence_wait(fence, false);
 				if (r)
 					WARN(r, "recovery from shadow isn't comleted\n");
 			}
-			fence_put(fence);
+			dma_fence_put(fence);
 		}
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = adev->rings[i];

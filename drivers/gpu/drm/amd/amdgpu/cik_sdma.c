@@ -622,7 +622,7 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib ib;
-	struct fence *f = NULL;
+	struct dma_fence *f = NULL;
 	unsigned index;
 	u32 tmp = 0;
 	u64 gpu_addr;
@@ -655,7 +655,7 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	if (r)
 		goto err1;
 
-	r = fence_wait_timeout(f, false, timeout);
+	r = dma_fence_wait_timeout(f, false, timeout);
 	if (r == 0) {
 		DRM_ERROR("amdgpu: IB test timed out\n");
 		r = -ETIMEDOUT;
@@ -675,7 +675,7 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 
 err1:
 	amdgpu_ib_free(adev, &ib, NULL);
-	fence_put(f);
+	dma_fence_put(f);
 err0:
 	amdgpu_wb_free(adev, index);
 	return r;

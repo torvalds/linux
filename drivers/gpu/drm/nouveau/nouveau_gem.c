@@ -119,7 +119,7 @@ nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nvkm_vma *vma)
 	const bool mapped = nvbo->bo.mem.mem_type != TTM_PL_SYSTEM;
 	struct reservation_object *resv = nvbo->bo.resv;
 	struct reservation_object_list *fobj;
-	struct fence *fence = NULL;
+	struct dma_fence *fence = NULL;
 
 	fobj = reservation_object_get_list(resv);
 

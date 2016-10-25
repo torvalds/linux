@@ -395,12 +395,12 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
  * Open up a stream for HW test
  */
 int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
-			      struct fence **fence)
+			      struct dma_fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
-	struct fence *f = NULL;
+	struct dma_fence *f = NULL;
 	uint64_t dummy;
 	int i, r;
 
@@ -450,14 +450,14 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 		ib->ptr[i] = 0x0;
 
 	r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
-	job->fence = fence_get(f);
+	job->fence = dma_fence_get(f);
 	if (r)
 		goto err;
 
 	amdgpu_job_free(job);
 	if (fence)
-		*fence = fence_get(f);
-	fence_put(f);
+		*fence = dma_fence_get(f);
+	dma_fence_put(f);
 	return 0;
 
 err:
@@ -476,12 +476,12 @@ err:
  * Close up a stream for HW test or if userspace failed to do so
  */
 int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-			       bool direct, struct fence **fence)
+			       bool direct, struct dma_fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
-	struct fence *f = NULL;
+	struct dma_fence *f = NULL;
 	int i, r;
 
 	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
@@ -513,7 +513,7 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 
 	if (direct) {
 		r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
-		job->fence = fence_get(f);
+		job->fence = dma_fence_get(f);
 		if (r)
 			goto err;
 
@@ -526,8 +526,8 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 	}
 
 	if (fence)
-		*fence = fence_get(f);
-	fence_put(f);
+		*fence = dma_fence_get(f);
+	dma_fence_put(f);
 	return 0;
 
 err:
@@ -883,7 +883,7 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
  */
 int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
-	struct fence *fence = NULL;
+	struct dma_fence *fence = NULL;
 	long r;
 
 	/* skip vce ring1/2 ib test for now, since it's not reliable */
@@ -902,7 +902,7 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 		goto error;
 	}
 
-	r = fence_wait_timeout(fence, false, timeout);
+	r = dma_fence_wait_timeout(fence, false, timeout);
 	if (r == 0) {
 		DRM_ERROR("amdgpu: IB test timed out.\n");
 		r = -ETIMEDOUT;
@@ -913,6 +913,6 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 		r = 0;
 	}
 error:
-	fence_put(fence);
+	dma_fence_put(fence);
 	return r;
 }

@@ -719,7 +719,7 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 		ttm_eu_backoff_reservation(&parser->ticket,
 					   &parser->validated);
 	}
-	fence_put(parser->fence);
+	dma_fence_put(parser->fence);
 
 	if (parser->ctx)
 		amdgpu_ctx_put(parser->ctx);
@@ -756,7 +756,7 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
 
 	if (p->bo_list) {
 		for (i = 0; i < p->bo_list->num_entries; i++) {
-			struct fence *f;
+			struct dma_fence *f;
 
 			/* ignore duplicates */
 			bo = p->bo_list->array[i].robj;
@@ -956,7 +956,7 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 		for (j = 0; j < num_deps; ++j) {
 			struct amdgpu_ring *ring;
 			struct amdgpu_ctx *ctx;
-			struct fence *fence;
+			struct dma_fence *fence;
 
 			r = amdgpu_cs_get_ring(adev, deps[j].ip_type,
 					       deps[j].ip_instance,
@@ -978,7 +978,7 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 			} else if (fence) {
 				r = amdgpu_sync_fence(adev, &p->job->sync,
 						      fence);
-				fence_put(fence);
+				dma_fence_put(fence);
 				amdgpu_ctx_put(ctx);
 				if (r)
 					return r;
@@ -1008,7 +1008,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 
 	job->owner = p->filp;
 	job->fence_ctx = entity->fence_context;
-	p->fence = fence_get(&job->base.s_fence->finished);
+	p->fence = dma_fence_get(&job->base.s_fence->finished);
 	cs->out.handle = amdgpu_ctx_add_fence(p->ctx, ring, p->fence);
 	job->uf_sequence = cs->out.handle;
 	amdgpu_job_free_resources(job);
@@ -1091,7 +1091,7 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 	unsigned long timeout = amdgpu_gem_timeout(wait->in.timeout);
 	struct amdgpu_ring *ring = NULL;
 	struct amdgpu_ctx *ctx;
-	struct fence *fence;
+	struct dma_fence *fence;
 	long r;
 
 	r = amdgpu_cs_get_ring(adev, wait->in.ip_type, wait->in.ip_instance,
@@ -1107,8 +1107,8 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 	if (IS_ERR(fence))
 		r = PTR_ERR(fence);
 	else if (fence) {
-		r = fence_wait_timeout(fence, true, timeout);
-		fence_put(fence);
+		r = dma_fence_wait_timeout(fence, true, timeout);
+		dma_fence_put(fence);
 	} else
 		r = 1;
 

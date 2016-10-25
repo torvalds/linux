@@ -152,7 +152,7 @@ static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
 		if (!ret) {
 			reservation_object_add_excl_fence(bo->tbo.resv,
 							  &fence->f);
-			fence_put(&fence->f);
+			dma_fence_put(&fence->f);
 			fence = NULL;
 			virtio_gpu_object_unreserve(bo);
 			virtio_gpu_object_wait(bo, false);

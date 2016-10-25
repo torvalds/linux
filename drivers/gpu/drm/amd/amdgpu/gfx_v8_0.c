@@ -798,7 +798,7 @@ static int gfx_v8_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ib ib;
-	struct fence *f = NULL;
+	struct dma_fence *f = NULL;
 	uint32_t scratch;
 	uint32_t tmp = 0;
 	long r;
@@ -824,7 +824,7 @@ static int gfx_v8_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	if (r)
 		goto err2;
 
-	r = fence_wait_timeout(f, false, timeout);
+	r = dma_fence_wait_timeout(f, false, timeout);
 	if (r == 0) {
 		DRM_ERROR("amdgpu: IB test timed out.\n");
 		r = -ETIMEDOUT;
@@ -844,7 +844,7 @@ static int gfx_v8_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	}
 err2:
 	amdgpu_ib_free(adev, &ib, NULL);
-	fence_put(f);
+	dma_fence_put(f);
 err1:
 	amdgpu_gfx_scratch_free(adev, scratch);
 	return r;
@@ -1575,7 +1575,7 @@ static int gfx_v8_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring = &adev->gfx.compute_ring[0];
 	struct amdgpu_ib ib;
-	struct fence *f = NULL;
+	struct dma_fence *f = NULL;
 	int r, i;
 	u32 tmp;
 	unsigned total_size, vgpr_offset, sgpr_offset;
@@ -1708,7 +1708,7 @@ static int gfx_v8_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 	}
 
 	/* wait for the GPU to finish processing the IB */
-	r = fence_wait(f, false);
+	r = dma_fence_wait(f, false);
 	if (r) {
 		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
 		goto fail;
@@ -1729,7 +1729,7 @@ static int gfx_v8_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 
 fail:
 	amdgpu_ib_free(adev, &ib, NULL);
-	fence_put(f);
+	dma_fence_put(f);
 
 	return r;
 }

@@ -476,7 +476,7 @@ static void retire_submits(struct msm_gpu *gpu)
 		submit = list_first_entry(&gpu->submit_list,
 				struct msm_gem_submit, node);
 
-		if (fence_is_signaled(submit->fence)) {
+		if (dma_fence_is_signaled(submit->fence)) {
 			retire_submit(gpu, submit);
 		} else {
 			break;

@@ -54,7 +54,7 @@ struct drm_mode_set;
 struct drm_file;
 struct drm_clip_rect;
 struct device_node;
-struct fence;
+struct dma_fence;
 struct edid;
 
 static inline int64_t U642I64(uint64_t val)

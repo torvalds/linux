@@ -1454,7 +1454,7 @@ void vmw_fence_single_bo(struct ttm_buffer_object *bo,
 	if (fence == NULL) {
 		vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
 		reservation_object_add_excl_fence(bo->resv, &fence->base);
-		fence_put(&fence->base);
+		dma_fence_put(&fence->base);
 	} else
 		reservation_object_add_excl_fence(bo->resv, &fence->base);
 }

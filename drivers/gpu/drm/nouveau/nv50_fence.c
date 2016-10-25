@@ -97,7 +97,7 @@ nv50_fence_create(struct nouveau_drm *drm)
 	priv->base.context_new = nv50_fence_context_new;
 	priv->base.context_del = nv10_fence_context_del;
 	priv->base.contexts = 127;
-	priv->base.context_base = fence_context_alloc(priv->base.contexts);
+	priv->base.context_base = dma_fence_context_alloc(priv->base.contexts);
 	spin_lock_init(&priv->lock);
 
 	ret = nouveau_bo_new(drm->dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,

@@ -1463,7 +1463,7 @@ EXPORT_SYMBOL(drm_atomic_nonblocking_commit);
 
 static struct drm_pending_vblank_event *create_vblank_event(
 		struct drm_device *dev, struct drm_file *file_priv,
-		struct fence *fence, uint64_t user_data)
+		struct dma_fence *fence, uint64_t user_data)
 {
 	struct drm_pending_vblank_event *e = NULL;
 	int ret;
