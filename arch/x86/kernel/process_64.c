@@ -61,10 +61,10 @@ void __show_regs(struct pt_regs *regs, int all)
 	unsigned int fsindex, gsindex;
 	unsigned int ds, cs, es;
 
-	printk(KERN_DEFAULT "RIP: %04lx:[<%016lx>] %pS\n", regs->cs & 0xffff,
-			regs->ip, (void *)regs->ip);
+	printk(KERN_DEFAULT "RIP: %04lx:%pS\n", regs->cs & 0xffff,
+		(void *)regs->ip);
 	printk(KERN_DEFAULT "RSP: %04lx:%016lx EFLAGS: %08lx", regs->ss,
-			regs->sp, regs->flags);
+		regs->sp, regs->flags);
 	if (regs->orig_ax != -1)
 		pr_cont(" ORIG_RAX: %016lx\n", regs->orig_ax);
 	else

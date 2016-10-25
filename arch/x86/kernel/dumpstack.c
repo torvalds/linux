@@ -46,14 +46,7 @@ static void printk_stack_address(unsigned long address, int reliable,
 				 char *log_lvl)
 {
 	touch_nmi_watchdog();
-	printk("%s [<%p>] %s%pB\n",
-		log_lvl, (void *)address, reliable ? "" : "? ",
-		(void *)address);
-}
-
-void printk_address(unsigned long address)
-{
-	pr_cont(" [<%p>] %pS\n", (void *)address, (void *)address);
+	printk("%s %s%pB\n", log_lvl, reliable ? "" : "? ", (void *)address);
 }
 
 void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
@@ -275,14 +268,11 @@ int __die(const char *str, struct pt_regs *regs, long err)
 		sp = kernel_stack_pointer(regs);
 		savesegment(ss, ss);
 	}
-	printk(KERN_EMERG "EIP: [<%08lx>] ", regs->ip);
-	print_symbol("%s", regs->ip);
-	printk(" SS:ESP %04x:%08lx\n", ss, sp);
+	printk(KERN_EMERG "EIP: %pS SS:ESP: %04x:%08lx\n",
+	       (void *)regs->ip, ss, sp);
 #else
 	/* Executive summary in case the oops scrolled away */
-	printk(KERN_ALERT "RIP ");
-	printk_address(regs->ip);
-	printk(" RSP <%016lx>\n", regs->sp);
+	printk(KERN_ALERT "RIP: %pS RSP: %016lx\n", (void *)regs->ip, regs->sp);
 #endif
 	return 0;
 }
