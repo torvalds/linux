@@ -13458,7 +13458,7 @@ static void verify_wm_state(struct drm_crtc *crtc,
 		return;
 
 	skl_pipe_wm_get_hw_state(crtc, &hw_wm);
-	sw_wm = &intel_crtc->wm.active.skl;
+	sw_wm = &to_intel_crtc_state(new_state)->wm.skl.optimal;
 
 	skl_ddb_get_hw_state(dev_priv, &hw_ddb);
 	sw_ddb = &dev_priv->wm.skl_hw.ddb;

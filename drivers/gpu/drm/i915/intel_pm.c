@@ -3930,11 +3930,11 @@ bool skl_ddb_allocation_overlaps(struct drm_atomic_state *state,
 }
 
 static int skl_update_pipe_wm(struct drm_crtc_state *cstate,
-			      struct skl_ddb_allocation *ddb, /* out */
+			      const struct skl_pipe_wm *old_pipe_wm,
 			      struct skl_pipe_wm *pipe_wm, /* out */
+			      struct skl_ddb_allocation *ddb, /* out */
 			      bool *changed /* out */)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(cstate->crtc);
 	struct intel_crtc_state *intel_cstate = to_intel_crtc_state(cstate);
 	int ret;
 
@@ -3942,7 +3942,7 @@ static int skl_update_pipe_wm(struct drm_crtc_state *cstate,
 	if (ret)
 		return ret;
 
-	if (!memcmp(&intel_crtc->wm.active.skl, pipe_wm, sizeof(*pipe_wm)))
+	if (!memcmp(old_pipe_wm, pipe_wm, sizeof(*pipe_wm)))
 		*changed = false;
 	else
 		*changed = true;
@@ -4169,10 +4169,12 @@ skl_compute_wm(struct drm_atomic_state *state)
 	for_each_crtc_in_state(state, crtc, cstate, i) {
 		struct intel_crtc_state *intel_cstate =
 			to_intel_crtc_state(cstate);
+		const struct skl_pipe_wm *old_pipe_wm =
+			&to_intel_crtc_state(crtc->state)->wm.skl.optimal;
 
 		pipe_wm = &intel_cstate->wm.skl.optimal;
-		ret = skl_update_pipe_wm(cstate, &results->ddb, pipe_wm,
-					 &changed);
+		ret = skl_update_pipe_wm(cstate, old_pipe_wm, pipe_wm,
+					 &results->ddb, &changed);
 		if (ret)
 			return ret;
 
@@ -4204,8 +4206,6 @@ static void skl_update_wm(struct drm_crtc *crtc)
 
 	if ((results->dirty_pipes & drm_crtc_mask(crtc)) == 0)
 		return;
-
-	intel_crtc->wm.active.skl = *pipe_wm;
 
 	mutex_lock(&dev_priv->wm.wm_mutex);
 
@@ -4374,10 +4374,8 @@ void skl_wm_get_hw_state(struct drm_device *dev)
 
 		skl_pipe_wm_get_hw_state(crtc, &cstate->wm.skl.optimal);
 
-		if (intel_crtc->active) {
+		if (intel_crtc->active)
 			hw->dirty_pipes |= drm_crtc_mask(crtc);
-			intel_crtc->wm.active.skl = cstate->wm.skl.optimal;
-		}
 	}
 
 	if (dev_priv->active_crtcs) {

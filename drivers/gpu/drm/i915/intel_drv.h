@@ -722,7 +722,6 @@ struct intel_crtc {
 		/* watermarks currently being used  */
 		union {
 			struct intel_pipe_wm ilk;
-			struct skl_pipe_wm skl;
 		} active;
 
 		/* allow CxSR on this pipe */
