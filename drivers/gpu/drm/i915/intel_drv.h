@@ -500,10 +500,6 @@ struct intel_crtc_wm_state {
 			/* gen9+ only needs 1-step wm programming */
 			struct skl_pipe_wm optimal;
 			struct skl_ddb_entry ddb;
-
-			/* minimum block allocation */
-			uint16_t minimum_blocks[I915_MAX_PLANES];
-			uint16_t minimum_y_blocks[I915_MAX_PLANES];
 		} skl;
 	};
 

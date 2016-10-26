@@ -3378,8 +3378,8 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	enum pipe pipe = intel_crtc->pipe;
 	struct skl_ddb_entry *alloc = &cstate->wm.skl.ddb;
 	uint16_t alloc_size, start, cursor_blocks;
-	uint16_t *minimum = cstate->wm.skl.minimum_blocks;
-	uint16_t *y_minimum = cstate->wm.skl.minimum_y_blocks;
+	uint16_t minimum[I915_MAX_PLANES] = {};
+	uint16_t y_minimum[I915_MAX_PLANES] = {};
 	unsigned int total_data_rate;
 	int num_active;
 	int id, i;
@@ -3416,16 +3416,11 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		intel_plane = to_intel_plane(plane);
 		id = skl_wm_plane_id(intel_plane);
 
-		if (!pstate->visible) {
-			minimum[id] = 0;
-			y_minimum[id] = 0;
+		if (!pstate->visible)
 			continue;
-		}
-		if (plane->type == DRM_PLANE_TYPE_CURSOR) {
-			minimum[id] = 0;
-			y_minimum[id] = 0;
+
+		if (plane->type == DRM_PLANE_TYPE_CURSOR)
 			continue;
-		}
 
 		minimum[id] = skl_ddb_min_alloc(pstate, 0);
 		y_minimum[id] = skl_ddb_min_alloc(pstate, 1);
