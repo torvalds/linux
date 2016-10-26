@@ -3989,6 +3989,9 @@ _scsih_setup_eedp(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 
 	mpi_request_3v->EEDPBlockSize =
 	    cpu_to_le16(scmd->device->sector_size);
+
+	if (ioc->is_gen35_ioc)
+		eedp_flags |= MPI25_SCSIIO_EEDPFLAGS_APPTAG_DISABLE_MODE;
 	mpi_request->EEDPFlags = cpu_to_le16(eedp_flags);
 }
 
