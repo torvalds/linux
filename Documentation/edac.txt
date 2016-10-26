@@ -741,13 +741,25 @@ The ``test_device_edac`` sample driver is located at the
 http://bluesmoke.sourceforge.net project site for EDAC.
 
 
-Nehalem Usage of EDAC APIs
---------------------------
+Usage of EDAC APIs on Nehalem and newer Intel CPUs
+--------------------------------------------------
 
-Due to the way Nehalem exports Memory Controller data, some adjustments
-were done at i7core_edac driver. This chapter will cover those differences
+On older Intel architectures, the memory controller was part of the North
+Bridge chipset. Nehalem, Sandy Bridge, Ivy Bridge, Haswell, Sky Lake and
+newer Intel architectures integrated an enhanced version of the memory
+controller (MC) inside the CPUs.
 
-1) On Nehalem, there is one Memory Controller per Quick Patch Interconnect
+This chapter will cover the differences of the enhanced memory controllers
+found on newer Intel CPUs, such as ``i7core_edac``, ``sb_edac`` and
+``sbx_edac`` drivers.
+
+.. note::
+
+   The Xeon E7 processor families use a separate chip for the memory
+   controller, called Intel Scalable Memory Buffer. This section doesn't
+   apply for such families.
+
+1) There is one Memory Controller per Quick Patch Interconnect
    (QPI). At the driver, the term "socket" means one QPI. This is
    associated with a physical CPU socket.
 
@@ -757,7 +769,7 @@ were done at i7core_edac driver. This chapter will cover those differences
 
    The minimum known unity is DIMMs. There are no information about csrows.
    As EDAC API maps the minimum unity is csrows, the driver sequentially
-   maps channel/dimm into different csrows.
+   maps channel/DIMM into different csrows.
 
    For example, supposing the following layout::
 
@@ -780,8 +792,8 @@ were done at i7core_edac driver. This chapter will cover those differences
 
    Each QPI is exported as a different memory controller.
 
-2) Nehalem MC has the ability to generate errors. The driver implements this
-   functionality via some error injection nodes:
+2) The MC has the ability to inject errors to test drivers. The drivers
+   implement this functionality via some error injection nodes:
 
    For injecting a memory error, there are some sysfs nodes, under
    ``/sys/devices/system/edac/mc/mc?/``:
@@ -855,13 +867,14 @@ were done at i7core_edac driver. This chapter will cover those differences
 
 	EDAC MC0: UE row 0, channel-a= 0 channel-b= 0 labels "-": NON_FATAL (addr = 0x0075b980, socket=0, Dimm=0, Channel=2, syndrome=0x00000040, count=1, Err=8c0000400001009f:4000080482 (read error: read ECC error))
 
-3) Nehalem specific Corrected Error memory counters
+3) Corrected Error memory register counters
 
-   Nehalem have some registers to count memory errors. The driver uses those
-   registers to report Corrected Errors on devices with Registered Dimms.
+   Those newer MCs have some registers to count memory errors. The driver
+   uses those registers to report Corrected Errors on devices with Registered
+   DIMMs.
 
-   However, those counters don't work with Unregistered Dimms. As the chipset
-   offers some counters that also work with UDIMMS (but with a worse level of
+   However, those counters don't work with Unregistered DIMM. As the chipset
+   offers some counters that also work with UDIMMs (but with a worse level of
    granularity than the default ones), the driver exposes those registers for
    UDIMM memories.
 
@@ -896,8 +909,8 @@ were done at i7core_edac driver. This chapter will cover those differences
 4) Standard error counters
 
    The standard error counters are generated when an mcelog error is received
-   by the driver. Since, with udimm, this is counted by software, it is
-   possible that some errors could be lost. With rdimm's, they display the
+   by the driver. Since, with UDIMM, this is counted by software, it is
+   possible that some errors could be lost. With RDIMM's, they display the
    contents of the registers
 
 Reference documents used on ``amd64_edac``
@@ -958,6 +971,7 @@ Credits
 * |copy| Mauro Carvalho Chehab
 
   - 05 Aug 2009	Nehalem interface
+  - 26 Oct 2016 Converted to ReST and cleanups at the Nehalem section
 
 * EDAC authors/maintainers:
 
