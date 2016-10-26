@@ -162,6 +162,7 @@ struct mip4_ts {
 	char product_name[16];
 	u16 product_id;
 	char ic_name[4];
+	char fw_name[32];
 
 	unsigned int max_x;
 	unsigned int max_y;
@@ -279,6 +280,11 @@ static int mip4_query_device(struct mip4_ts *ts)
 		ts->product_id = get_unaligned_le16(&buf[0]);
 		dev_dbg(&ts->client->dev, "product id: %04X\n", ts->product_id);
 	}
+
+	/* Firmware name */
+	snprintf(ts->fw_name, sizeof(ts->fw_name),
+		"melfas_mip4_%04X.fw", ts->product_id);
+	dev_dbg(&ts->client->dev, "firmware name: %s\n", ts->fw_name);
 
 	/* IC name */
 	cmd[0] = MIP4_R0_INFO;
@@ -1285,11 +1291,11 @@ static ssize_t mip4_sysfs_fw_update(struct device *dev,
 	const struct firmware *fw;
 	int error;
 
-	error = request_firmware(&fw, MIP4_FW_NAME, dev);
+	error = request_firmware(&fw, ts->fw_name, dev);
 	if (error) {
 		dev_err(&ts->client->dev,
 			"Failed to retrieve firmware %s: %d\n",
-			MIP4_FW_NAME, error);
+			ts->fw_name, error);
 		return error;
 	}
 
@@ -1608,6 +1614,6 @@ static struct i2c_driver mip4_driver = {
 module_i2c_driver(mip4_driver);
 
 MODULE_DESCRIPTION("MELFAS MIP4 Touchscreen");
-MODULE_VERSION("2016.10.20");
+MODULE_VERSION("2016.10.24");
 MODULE_AUTHOR("Sangwon Jee <jeesw@melfas.com>");
 MODULE_LICENSE("GPL");
