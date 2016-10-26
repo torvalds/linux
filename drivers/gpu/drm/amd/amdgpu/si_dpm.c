@@ -3477,6 +3477,49 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 	int i;
 	struct si_dpm_quirk *p = si_dpm_quirk_list;
 
+	/* limit all SI kickers */
+	if (adev->asic_type == CHIP_PITCAIRN) {
+		if ((adev->pdev->revision == 0x81) ||
+		    (adev->pdev->device == 0x6810) ||
+		    (adev->pdev->device == 0x6811) ||
+		    (adev->pdev->device == 0x6816) ||
+		    (adev->pdev->device == 0x6817) ||
+		    (adev->pdev->device == 0x6806))
+			max_mclk = 120000;
+	} else if (adev->asic_type == CHIP_VERDE) {
+		if ((adev->pdev->revision == 0x81) ||
+		    (adev->pdev->revision == 0x83) ||
+		    (adev->pdev->revision == 0x87) ||
+		    (adev->pdev->device == 0x6820) ||
+		    (adev->pdev->device == 0x6821) ||
+		    (adev->pdev->device == 0x6822) ||
+		    (adev->pdev->device == 0x6823) ||
+		    (adev->pdev->device == 0x682A) ||
+		    (adev->pdev->device == 0x682B)) {
+			max_sclk = 75000;
+			max_mclk = 80000;
+		}
+	} else if (adev->asic_type == CHIP_OLAND) {
+		if ((adev->pdev->revision == 0xC7) ||
+		    (adev->pdev->revision == 0x80) ||
+		    (adev->pdev->revision == 0x81) ||
+		    (adev->pdev->revision == 0x83) ||
+		    (adev->pdev->device == 0x6604) ||
+		    (adev->pdev->device == 0x6605)) {
+			max_sclk = 75000;
+			max_mclk = 80000;
+		}
+	} else if (adev->asic_type == CHIP_HAINAN) {
+		if ((adev->pdev->revision == 0x81) ||
+		    (adev->pdev->revision == 0x83) ||
+		    (adev->pdev->revision == 0xC3) ||
+		    (adev->pdev->device == 0x6664) ||
+		    (adev->pdev->device == 0x6665) ||
+		    (adev->pdev->device == 0x6667)) {
+			max_sclk = 75000;
+			max_mclk = 80000;
+		}
+	}
 	/* Apply dpm quirks */
 	while (p && p->chip_device != 0) {
 		if (adev->pdev->vendor == p->chip_vendor &&
@@ -3488,22 +3531,6 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 			break;
 		}
 		++p;
-	}
-	/* limit mclk on all R7 370 parts for stability */
-	if (adev->pdev->device == 0x6811 &&
-	    adev->pdev->revision == 0x81)
-		max_mclk = 120000;
-	/* limit sclk/mclk on Jet parts for stability */
-	if (adev->pdev->device == 0x6665 &&
-	    adev->pdev->revision == 0xc3) {
-		max_sclk = 75000;
-		max_mclk = 80000;
-	}
-	/* Limit clocks for some HD8600 parts */
-	if (adev->pdev->device == 0x6660 &&
-	    adev->pdev->revision == 0x83) {
-		max_sclk = 75000;
-		max_mclk = 80000;
 	}
 
 	if (rps->vce_active) {
