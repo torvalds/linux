@@ -31,6 +31,7 @@
 #include "intel_drv.h"
 #include "../../../platform/x86/intel_ips.h"
 #include <linux/module.h>
+#include <drm/drm_atomic_helper.h>
 
 /**
  * DOC: RC6
@@ -3269,23 +3270,19 @@ skl_get_total_relative_data_rate(struct intel_crtc_state *intel_cstate)
 	struct drm_crtc *crtc = cstate->crtc;
 	struct drm_device *dev = crtc->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	const struct drm_plane *plane;
+	struct drm_plane *plane;
 	const struct intel_plane *intel_plane;
-	struct drm_plane_state *pstate;
+	const struct drm_plane_state *pstate;
 	unsigned int rate, total_data_rate = 0;
 	int id;
-	int i;
 
 	if (WARN_ON(!state))
 		return 0;
 
 	/* Calculate and cache data rate for each plane */
-	for_each_plane_in_state(state, plane, pstate, i) {
+	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, cstate) {
 		id = skl_wm_plane_id(to_intel_plane(plane));
 		intel_plane = to_intel_plane(plane);
-
-		if (intel_plane->pipe != intel_crtc->pipe)
-			continue;
 
 		/* packed/uv */
 		rate = skl_plane_relative_data_rate(intel_cstate,
@@ -3383,7 +3380,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_plane *intel_plane;
 	struct drm_plane *plane;
-	struct drm_plane_state *pstate;
+	const struct drm_plane_state *pstate;
 	enum pipe pipe = intel_crtc->pipe;
 	struct skl_ddb_entry *alloc = &cstate->wm.skl.ddb;
 	uint16_t alloc_size, start, cursor_blocks;
@@ -3419,14 +3416,11 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	alloc_size -= cursor_blocks;
 
 	/* 1. Allocate the mininum required blocks for each active plane */
-	for_each_plane_in_state(state, plane, pstate, i) {
+	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, &cstate->base) {
 		intel_plane = to_intel_plane(plane);
 		id = skl_wm_plane_id(intel_plane);
 
-		if (intel_plane->pipe != pipe)
-			continue;
-
-		if (!to_intel_plane_state(pstate)->base.visible) {
+		if (!pstate->visible) {
 			minimum[id] = 0;
 			y_minimum[id] = 0;
 			continue;
