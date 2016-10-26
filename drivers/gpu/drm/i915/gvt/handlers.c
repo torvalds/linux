@@ -251,6 +251,16 @@ static int handle_device_reset(struct intel_vgpu *vgpu, unsigned int offset,
 
 	intel_vgpu_reset_execlist(vgpu, bitmap);
 
+	/* full GPU reset */
+	if (bitmap == 0xff) {
+		mutex_unlock(&vgpu->gvt->lock);
+		intel_vgpu_clean_gtt(vgpu);
+		mutex_lock(&vgpu->gvt->lock);
+		setup_vgpu_mmio(vgpu);
+		populate_pvinfo_page(vgpu);
+		intel_vgpu_init_gtt(vgpu);
+	}
+
 	vgpu->resetting = false;
 
 	return 0;
