@@ -1,7 +1,7 @@
 /*
  * fsl-mc object allocator driver
  *
- * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2016 Freescale Semiconductor, Inc.
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any

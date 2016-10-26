@@ -1,7 +1,7 @@
 /*
  * Freescale Management Complex (MC) bus driver
  *
- * Copyright (C) 2014 Freescale Semiconductor, Inc.
+ * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
  * Author: German Rivera <German.Rivera@freescale.com>
  *
  * This file is licensed under the terms of the GNU General Public
