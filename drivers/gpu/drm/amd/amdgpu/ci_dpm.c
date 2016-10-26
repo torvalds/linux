@@ -887,9 +887,6 @@ static void ci_dpm_powergate_uvd(struct amdgpu_device *adev, bool gate)
 {
 	struct ci_power_info *pi = ci_get_pi(adev);
 
-	if (pi->uvd_power_gated == gate)
-		return;
-
 	pi->uvd_power_gated = gate;
 
 	ci_update_uvd_dpm(adev, gate);
@@ -4201,8 +4198,15 @@ static int ci_update_uvd_dpm(struct amdgpu_device *adev, bool gate)
 {
 	struct ci_power_info *pi = ci_get_pi(adev);
 	u32 tmp;
+	int ret = 0;
 
 	if (!gate) {
+		/* turn the clocks on when decoding */
+		ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+						    AMD_CG_STATE_UNGATE);
+		if (ret)
+			return ret;
+
 		if (pi->caps_uvd_dpm ||
 		    (adev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.count <= 0))
 			pi->smc_state_table.UvdBootLevel = 0;
@@ -4214,9 +4218,17 @@ static int ci_update_uvd_dpm(struct amdgpu_device *adev, bool gate)
 		tmp &= ~DPM_TABLE_475__UvdBootLevel_MASK;
 		tmp |= (pi->smc_state_table.UvdBootLevel << DPM_TABLE_475__UvdBootLevel__SHIFT);
 		WREG32_SMC(ixDPM_TABLE_475, tmp);
+		ret = ci_enable_uvd_dpm(adev, true);
+	} else {
+		ret = ci_enable_uvd_dpm(adev, false);
+		if (ret)
+			return ret;
+
+		ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+						    AMD_CG_STATE_GATE);
 	}
 
-	return ci_enable_uvd_dpm(adev, !gate);
+	return ret;
 }
 
 static u8 ci_get_vce_boot_level(struct amdgpu_device *adev)
