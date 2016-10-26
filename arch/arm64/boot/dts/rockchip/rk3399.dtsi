@@ -448,6 +448,7 @@
 			phy_type = "utmi_wide";
 			snps,dis_enblslpm_quirk;
 			snps,dis-u2-freeclk-exists-quirk;
+			snps,dis_u2_susphy_quirk;
 			snps,dis-del-phy-power-chg-quirk;
 			snps,xhci-slow-suspend-quirk;
 			status = "disabled";
@@ -477,6 +478,7 @@
 			phy_type = "utmi_wide";
 			snps,dis_enblslpm_quirk;
 			snps,dis-u2-freeclk-exists-quirk;
+			snps,dis_u2_susphy_quirk;
 			snps,dis-del-phy-power-chg-quirk;
 			snps,xhci-slow-suspend-quirk;
 			status = "disabled";
