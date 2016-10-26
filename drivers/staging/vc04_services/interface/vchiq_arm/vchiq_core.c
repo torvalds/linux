@@ -3827,26 +3827,26 @@ VCHIQ_STATUS_T vchiq_send_remote_use_active(VCHIQ_STATE_T *state)
 	return status;
 }
 
-void vchiq_log_dump_mem(const char *label, uint32_t addr, const void *voidMem,
-	size_t numBytes)
+void vchiq_log_dump_mem(const char *label, uint32_t addr, const void *void_mem,
+	size_t num_bytes)
 {
-	const uint8_t  *mem = (const uint8_t *)voidMem;
+	const uint8_t  *mem = (const uint8_t *)void_mem;
 	size_t          offset;
-	char            lineBuf[100];
+	char            line_buf[100];
 	char           *s;
 
-	while (numBytes > 0) {
-		s = lineBuf;
+	while (num_bytes > 0) {
+		s = line_buf;
 
 		for (offset = 0; offset < 16; offset++) {
-			if (offset < numBytes)
+			if (offset < num_bytes)
 				s += snprintf(s, 4, "%02x ", mem[offset]);
 			else
 				s += snprintf(s, 4, "   ");
 		}
 
 		for (offset = 0; offset < 16; offset++) {
-			if (offset < numBytes) {
+			if (offset < num_bytes) {
 				uint8_t ch = mem[offset];
 
 				if ((ch < ' ') || (ch > '~'))
@@ -3858,16 +3858,16 @@ void vchiq_log_dump_mem(const char *label, uint32_t addr, const void *voidMem,
 
 		if ((label != NULL) && (*label != '\0'))
 			vchiq_log_trace(VCHIQ_LOG_TRACE,
-				"%s: %08x: %s", label, addr, lineBuf);
+				"%s: %08x: %s", label, addr, line_buf);
 		else
 			vchiq_log_trace(VCHIQ_LOG_TRACE,
-				"%08x: %s", addr, lineBuf);
+				"%08x: %s", addr, line_buf);
 
 		addr += 16;
 		mem += 16;
-		if (numBytes > 16)
-			numBytes -= 16;
+		if (num_bytes > 16)
+			num_bytes -= 16;
 		else
-			numBytes = 0;
+			num_bytes = 0;
 	}
 }
