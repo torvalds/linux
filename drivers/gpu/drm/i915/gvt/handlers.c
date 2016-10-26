@@ -239,7 +239,11 @@ static int handle_device_reset(struct intel_vgpu *vgpu, unsigned int offset,
 	vgpu->resetting = true;
 
 	intel_vgpu_stop_schedule(vgpu);
-	if (scheduler->current_vgpu == vgpu) {
+	/*
+	 * The current_vgpu will set to NULL after stopping the
+	 * scheduler when the reset is triggered by current vgpu.
+	 */
+	if (scheduler->current_vgpu == NULL) {
 		mutex_unlock(&vgpu->gvt->lock);
 		intel_gvt_wait_vgpu_idle(vgpu);
 		mutex_lock(&vgpu->gvt->lock);
