@@ -501,6 +501,9 @@ int tpm_get_timeouts(struct tpm_chip *chip)
 	unsigned long old_timeout[4];
 	ssize_t rc;
 
+	if (chip->flags & TPM_CHIP_FLAG_HAVE_TIMEOUTS)
+		return 0;
+
 	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
 		/* Fixed timeouts for TPM2 */
 		chip->timeout_a = msecs_to_jiffies(TPM2_TIMEOUT_A);
@@ -513,6 +516,8 @@ int tpm_get_timeouts(struct tpm_chip *chip)
 		    msecs_to_jiffies(TPM2_DURATION_MEDIUM);
 		chip->duration[TPM_LONG] =
 		    msecs_to_jiffies(TPM2_DURATION_LONG);
+
+		chip->flags |= TPM_CHIP_FLAG_HAVE_TIMEOUTS;
 		return 0;
 	}
 
@@ -596,6 +601,8 @@ int tpm_get_timeouts(struct tpm_chip *chip)
 		chip->duration_adjusted = true;
 		dev_info(&chip->dev, "Adjusting TPM timeout parameters.");
 	}
+
+	chip->flags |= TPM_CHIP_FLAG_HAVE_TIMEOUTS;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tpm_get_timeouts);
