@@ -455,8 +455,8 @@ static void fsl_espi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
 
 		mspi->len -= rx_nr_bytes;
 
-		if (mspi->rx) {
-			*(u32 *)mspi->rx = rx_data;
+		if (rx_nr_bytes && mspi->rx) {
+			mspi->get_rx(rx_data, mspi);
 			mspi->rx += 4;
 		}
 	}
