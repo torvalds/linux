@@ -555,6 +555,8 @@ void __init smp_init(void)
 	idle_threads_init();
 	cpuhp_threads_init();
 
+	pr_info("Bringing up secondary CPUs ...\n");
+
 	/* FIXME: This should be done in userspace --RR */
 	for_each_present_cpu(cpu) {
 		if (num_online_cpus() >= setup_max_cpus)
