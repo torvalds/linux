@@ -3913,8 +3913,10 @@ R:	Gustavo Padovan <gustavo@padovan.org>
 S:	Maintained
 L:	linux-media@vger.kernel.org
 L:	dri-devel@lists.freedesktop.org
-F:	drivers/dma-buf/sync_file.c
+F:	drivers/dma-buf/sync_*
+F:	drivers/dma-buf/sw_sync.c
 F:	include/linux/sync_file.h
+F:	include/uapi/linux/sync_file.h
 F:	Documentation/sync_file.txt
 T:	git git://git.linaro.org/people/sumitsemwal/linux-dma-buf.git
 
