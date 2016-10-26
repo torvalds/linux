@@ -2837,7 +2837,7 @@ _scsih_internal_device_block(struct scsi_device *sdev,
 	if (r == -EINVAL)
 		sdev_printk(KERN_WARNING, sdev,
 		    "device_block failed with return(%d) for handle(0x%04x)\n",
-		    sas_device_priv_data->sas_target->handle, r);
+		    r, sas_device_priv_data->sas_target->handle);
 }
 
 /**
@@ -2867,20 +2867,20 @@ _scsih_internal_device_unblock(struct scsi_device *sdev,
 		sdev_printk(KERN_WARNING, sdev,
 		    "device_unblock failed with return(%d) for handle(0x%04x) "
 		    "performing a block followed by an unblock\n",
-		    sas_device_priv_data->sas_target->handle, r);
+		    r, sas_device_priv_data->sas_target->handle);
 		sas_device_priv_data->block = 1;
 		r = scsi_internal_device_block(sdev);
 		if (r)
 			sdev_printk(KERN_WARNING, sdev, "retried device_block "
 			    "failed with return(%d) for handle(0x%04x)\n",
-			    sas_device_priv_data->sas_target->handle, r);
+			    r, sas_device_priv_data->sas_target->handle);
 
 		sas_device_priv_data->block = 0;
 		r = scsi_internal_device_unblock(sdev, SDEV_RUNNING);
 		if (r)
 			sdev_printk(KERN_WARNING, sdev, "retried device_unblock"
 			    " failed with return(%d) for handle(0x%04x)\n",
-			    sas_device_priv_data->sas_target->handle, r);
+			    r, sas_device_priv_data->sas_target->handle);
 	}
 }
 
