@@ -9,7 +9,7 @@ Linux 802.11 Driver Developer's Guide
    mac80211
    mac80211-advanced
 
-.. only::  subproject
+.. only::  subproject and html
 
    Indices
    =======

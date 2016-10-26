@@ -30,3 +30,11 @@ Contents:
    volatile-considered-harmful
 
    development-process
+
+
+.. only::  subproject and html
+
+   Indices
+   =======
+
+   * :ref:`genindex`

@@ -32,3 +32,11 @@ Contents:
    java
    bad-memory
    basic-profiling
+
+.. only::  subproject and html
+
+   Indices
+   =======
+
+   * :ref:`genindex`
+
