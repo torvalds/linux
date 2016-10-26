@@ -3975,7 +3975,7 @@ skl_ddb_add_affected_planes(struct intel_crtc_state *cstate)
 
 	WARN_ON(!drm_atomic_get_existing_crtc_state(state, crtc));
 
-	drm_for_each_plane_mask(plane, dev, crtc->state->plane_mask) {
+	drm_for_each_plane_mask(plane, dev, cstate->base.plane_mask) {
 		id = skl_wm_plane_id(to_intel_plane(plane));
 
 		if (skl_ddb_entry_equal(&cur_ddb->plane[pipe][id],
