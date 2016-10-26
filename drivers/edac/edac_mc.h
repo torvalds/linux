@@ -152,8 +152,6 @@ extern void edac_mc_free(struct mem_ctl_info *mci);
  *
  * If found, return a pointer to the structure.
  * Else return NULL.
- *
- * Caller must hold mem_ctls_mutex.
  */
 extern struct mem_ctl_info *edac_mc_find(int idx);
 
