@@ -2794,12 +2794,11 @@ static int vchiq_probe(struct platform_device *pdev)
 	void *ptr_err;
 
 	fw_node = of_parse_phandle(pdev->dev.of_node, "firmware", 0);
-/* Remove comment when booting without Device Tree is no longer supported
 	if (!fw_node) {
 		dev_err(&pdev->dev, "Missing firmware node\n");
 		return -ENOENT;
 	}
-*/
+
 	fw = rpi_firmware_get(fw_node);
 	if (!fw)
 		return -EPROBE_DEFER;
