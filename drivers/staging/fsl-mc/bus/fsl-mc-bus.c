@@ -9,6 +9,8 @@
  * warranty of any kind, whether express or implied.
  */
 
+#define pr_fmt(fmt) "fsl-mc: " fmt
+
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
@@ -875,11 +877,11 @@ static int __init fsl_mc_bus_driver_init(void)
 
 	error = bus_register(&fsl_mc_bus_type);
 	if (error < 0) {
-		pr_err("fsl-mc bus type registration failed: %d\n", error);
+		pr_err("bus type registration failed: %d\n", error);
 		goto error_cleanup_cache;
 	}
 
-	pr_info("fsl-mc bus type registered\n");
+	pr_info("bus type registered\n");
 
 	error = platform_driver_register(&fsl_mc_bus_driver);
 	if (error < 0) {
