@@ -153,21 +153,119 @@ static inline void pci_write_bits32(struct pci_dev *pdev, int offset,
 
 #endif				/* CONFIG_PCI */
 
+/*
+ * edac_pci APIs
+ */
+
+/**
+ * edac_pci_alloc_ctl_info:
+ *	The alloc() function for the 'edac_pci' control info
+ *	structure.
+ *
+ * @sz_pvt: size of the private info at struct &edac_pci_ctl_info
+ * @edac_pci_name: name of the PCI device
+ *
+ * The chip driver will allocate one of these for each
+ * edac_pci it is going to control/register with the EDAC CORE.
+ *
+ * Returns: a pointer to struct &edac_pci_ctl_info on success; %NULL otherwise.
+ */
 extern struct edac_pci_ctl_info *edac_pci_alloc_ctl_info(unsigned int sz_pvt,
 				const char *edac_pci_name);
 
+/**
+ * edac_pci_free_ctl_info():
+ *	Last action on the pci control structure.
+ *
+ * @pci: pointer to struct &edac_pci_ctl_info
+ *
+ * Calls the remove sysfs information, which will unregister
+ * this control struct's kobj. When that kobj's ref count
+ * goes to zero, its release function will be call and then
+ * kfree() the memory.
+ */
 extern void edac_pci_free_ctl_info(struct edac_pci_ctl_info *pci);
 
+/**
+ * edac_pci_alloc_index: Allocate a unique PCI index number
+ *
+ * Returns:
+ *      allocated index number
+ *
+ */
 extern int edac_pci_alloc_index(void);
+
+/**
+ * edac_pci_add_device(): Insert the 'edac_dev' structure into the
+ *	edac_pci global list and create sysfs entries associated with
+ *	edac_pci structure.
+ *
+ * @pci: pointer to the edac_device structure to be added to the list
+ * @edac_idx: A unique numeric identifier to be assigned to the
+ *	'edac_pci' structure.
+ *
+ * Returns:
+ *	0 on Success, or an error code on failure
+ */
 extern int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx);
+
+/**
+ * edac_pci_del_device()
+ *	Remove sysfs entries for specified edac_pci structure and
+ *	then remove edac_pci structure from global list
+ *
+ * @dev:
+ *	Pointer to 'struct device' representing edac_pci structure
+ *	to remove
+ *
+ * Returns:
+ *	Pointer to removed edac_pci structure,
+ *	or %NULL if device not found
+ */
 extern struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev);
 
+/**
+ * edac_pci_create_generic_ctl()
+ *	A generic constructor for a PCI parity polling device
+ *	Some systems have more than one domain of PCI busses.
+ *	For systems with one domain, then this API will
+ *	provide for a generic poller.
+ *
+ * @dev: pointer to struct &device;
+ * @mod_name: name of the PCI device
+ *
+ * This routine calls the edac_pci_alloc_ctl_info() for
+ * the generic device, with default values
+ *
+ * Returns: Pointer to struct &edac_pci_ctl_info on success, %NULL on
+ *	failure.
+ */
 extern struct edac_pci_ctl_info *edac_pci_create_generic_ctl(
 				struct device *dev,
 				const char *mod_name);
 
+/**
+ * edac_pci_release_generic_ctl
+ *	The release function of a generic EDAC PCI polling device
+ *
+ * @pci: pointer to struct &edac_pci_ctl_info
+ */
 extern void edac_pci_release_generic_ctl(struct edac_pci_ctl_info *pci);
+
+/**
+ * edac_pci_create_sysfs
+ *	Create the controls/attributes for the specified EDAC PCI device
+ *
+ * @pci: pointer to struct &edac_pci_ctl_info
+ */
 extern int edac_pci_create_sysfs(struct edac_pci_ctl_info *pci);
+
+/**
+ * edac_pci_remove_sysfs()
+ *	remove the controls and attributes for this EDAC PCI device
+ *
+ * @pci: pointer to struct &edac_pci_ctl_info
+ */
 extern void edac_pci_remove_sysfs(struct edac_pci_ctl_info *pci);
 
 #endif
