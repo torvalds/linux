@@ -380,7 +380,6 @@ struct edac_pci_ctl_info {
 	 * device this structure controls
 	 */
 	struct kobject kobj;
-	struct completion kobj_complete;
 };
 
 #define to_edac_pci_ctl_work(w) \
