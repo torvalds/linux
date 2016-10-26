@@ -4258,13 +4258,12 @@ static int ci_update_vce_dpm(struct amdgpu_device *adev,
 
 			ret = ci_enable_vce_dpm(adev, true);
 		} else {
+			ret = ci_enable_vce_dpm(adev, false);
+			if (ret)
+				return ret;
 			/* turn the clocks off when not encoding */
 			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
 							    AMD_CG_STATE_GATE);
-			if (ret)
-				return ret;
-
-			ret = ci_enable_vce_dpm(adev, false);
 		}
 	}
 	return ret;
