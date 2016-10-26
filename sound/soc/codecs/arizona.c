@@ -191,6 +191,14 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 		break;
 	}
 
+	return 0;
+}
+EXPORT_SYMBOL_GPL(arizona_init_spk);
+
+int arizona_init_spk_irqs(struct arizona *arizona)
+{
+	int ret;
+
 	ret = arizona_request_irq(arizona, ARIZONA_IRQ_SPK_OVERHEAT_WARN,
 				  "Thermal warning", arizona_thermal_warn,
 				  arizona);
@@ -209,19 +217,16 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(arizona_init_spk);
+EXPORT_SYMBOL_GPL(arizona_init_spk_irqs);
 
-int arizona_free_spk(struct snd_soc_codec *codec)
+int arizona_free_spk_irqs(struct arizona *arizona)
 {
-	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct arizona *arizona = priv->arizona;
-
 	arizona_free_irq(arizona, ARIZONA_IRQ_SPK_OVERHEAT_WARN, arizona);
 	arizona_free_irq(arizona, ARIZONA_IRQ_SPK_OVERHEAT, arizona);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(arizona_free_spk);
+EXPORT_SYMBOL_GPL(arizona_free_spk_irqs);
 
 static const struct snd_soc_dapm_route arizona_mono_routes[] = {
 	{ "OUT1R", NULL, "OUT1L" },

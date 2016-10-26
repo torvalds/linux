@@ -1978,8 +1978,6 @@ static int wm5102_codec_remove(struct snd_soc_codec *codec)
 
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
 
-	arizona_free_spk(codec);
-
 	return 0;
 }
 
@@ -2097,18 +2095,29 @@ static int wm5102_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
+	ret = arizona_init_spk_irqs(arizona);
+	if (ret < 0)
+		return ret;
+
 	ret = snd_soc_register_platform(&pdev->dev, &wm5102_compr_platform);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register platform: %d\n", ret);
-		return ret;
+		goto err_spk_irqs;
 	}
 
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm5102,
 				      wm5102_dai, ARRAY_SIZE(wm5102_dai));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
-		snd_soc_unregister_platform(&pdev->dev);
+		goto err_platform;
 	}
+
+	return ret;
+
+err_platform:
+	snd_soc_unregister_platform(&pdev->dev);
+err_spk_irqs:
+	arizona_free_spk_irqs(arizona);
 
 	return ret;
 }
@@ -2116,12 +2125,15 @@ static int wm5102_probe(struct platform_device *pdev)
 static int wm5102_remove(struct platform_device *pdev)
 {
 	struct wm5102_priv *wm5102 = platform_get_drvdata(pdev);
+	struct arizona *arizona = wm5102->core.arizona;
 
 	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	wm_adsp2_remove(&wm5102->core.adsp[0]);
+
+	arizona_free_spk_irqs(arizona);
 
 	return 0;
 }

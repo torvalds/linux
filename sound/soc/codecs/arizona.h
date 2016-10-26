@@ -317,7 +317,8 @@ extern int arizona_init_gpio(struct snd_soc_codec *codec);
 extern int arizona_init_mono(struct snd_soc_codec *codec);
 extern int arizona_init_notifiers(struct snd_soc_codec *codec);
 
-extern int arizona_free_spk(struct snd_soc_codec *codec);
+extern int arizona_init_spk_irqs(struct arizona *arizona);
+extern int arizona_free_spk_irqs(struct arizona *arizona);
 
 extern int arizona_init_dai(struct arizona_priv *priv, int dai);
 

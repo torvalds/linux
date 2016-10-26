@@ -1077,8 +1077,6 @@ static int wm8997_codec_remove(struct snd_soc_codec *codec)
 
 	priv->core.arizona->dapm = NULL;
 
-	arizona_free_spk(codec);
-
 	return 0;
 }
 
@@ -1124,7 +1122,7 @@ static int wm8997_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct wm8997_priv *wm8997;
-	int i;
+	int i, ret;
 
 	wm8997 = devm_kzalloc(&pdev->dev, sizeof(struct wm8997_priv),
 			      GFP_KERNEL);
@@ -1164,14 +1162,32 @@ static int wm8997_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8997,
-				      wm8997_dai, ARRAY_SIZE(wm8997_dai));
+	ret = arizona_init_spk_irqs(arizona);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8997,
+				     wm8997_dai, ARRAY_SIZE(wm8997_dai));
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
+		goto err_spk_irqs;
+	}
+
+err_spk_irqs:
+	arizona_free_spk_irqs(arizona);
+
+	return ret;
 }
 
 static int wm8997_remove(struct platform_device *pdev)
 {
+	struct wm8997_priv *wm8997 = platform_get_drvdata(pdev);
+	struct arizona *arizona = wm8997->core.arizona;
+
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	arizona_free_spk_irqs(arizona);
 
 	return 0;
 }
