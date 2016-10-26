@@ -19,14 +19,17 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
 
+#include <linux/arm-smccc.h>
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/crc16.h>
 #include <linux/extcon.h>
 #include <linux/firmware.h>
 #include <linux/hdmi-notifier.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/mfd/syscon.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/phy/phy.h>
 #include <uapi/linux/videodev2.h>
 
@@ -35,6 +38,11 @@
 #include "cdn-dp-core.h"
 #include "cdn-dp-reg.h"
 #include "rockchip_drm_vop.h"
+
+#define HDCP_KEY_DATA_START_TRANSFER	0
+#define HDCP_KEY_DATA_START_DECRYPT	1
+
+#define RK_SIP_HDCP_CONTROL		0x82000009
 
 #define connector_to_dp(c) \
 		container_of(c, struct cdn_dp_device, connector)
@@ -1199,6 +1207,67 @@ static const struct component_ops cdn_dp_component_ops = {
 	.unbind = cdn_dp_unbind,
 };
 
+static ssize_t hdcp_key_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct nvmem_cell *cell;
+	struct cdn_dp_device *dp = dev_get_drvdata(dev);
+	u8 *cpu_id;
+	int ret;
+	size_t len;
+
+	/*
+	 * The HDCP Key format should look like this: "12345678...",
+	 * every two characters stand for a byte, so the total key size
+	 * would be (308 * 2) byte.
+	 */
+	if (count != (CDN_DP_HDCP_KEY_LEN * 2)) {
+		dev_err(dev, "mis-match hdcp cipher length\n");
+		return -EINVAL;
+	}
+
+	cell = nvmem_cell_get(dev, "cpu-id");
+	if (IS_ERR(cell)) {
+		dev_err(dev, "missing cpu-id nvmen cell property\n");
+		return -ENODEV;
+	}
+
+	cpu_id = (u8 *)nvmem_cell_read(cell, &len);
+	nvmem_cell_put(cell);
+
+	if (IS_ERR(cpu_id))
+		return PTR_ERR(cpu_id);
+
+	if (len != CDN_DP_HDCP_UID_LEN) {
+		dev_err(dev, "mismatch cpu-id size\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	/*
+	 * The format of input HDCP Key should be "12345678...".
+	 * there is no standard format for HDCP keys, so it is
+	 * just made up for this driver.
+	 *
+	 * The "ksv & device_key & sha" should parsed from input data
+	 * buffer, and the "seed" would take the crc16 of cpu uid.
+	 */
+	ret = hex2bin((u8 *)&dp->key, buf, CDN_DP_HDCP_KEY_LEN);
+	if (ret) {
+		dev_err(dev, "failed to decode the input HDCP key format\n");
+		goto err;
+	}
+
+	memcpy(dp->key.uid, cpu_id, CDN_DP_HDCP_UID_LEN);
+	dp->key.seed = crc16(0xffff, cpu_id, 16);
+	ret = count;
+err:
+	kfree(cpu_id);
+	return ret;
+}
+static DEVICE_ATTR(hdcp_key, S_IWUSR, NULL, hdcp_key_store);
+
 static int cdn_dp_suspend(struct device *dev)
 {
 	struct cdn_dp_device *dp = dev_get_drvdata(dev);
@@ -1274,6 +1343,8 @@ static int cdn_dp_probe(struct platform_device *pdev)
 
 	mutex_init(&dp->lock);
 	dev_set_drvdata(dev, dp);
+
+	device_create_file(dev, &dev_attr_hdcp_key);
 
 	return component_add(dev, &cdn_dp_component_ops);
 }

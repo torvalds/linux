@@ -72,6 +72,23 @@ struct cdn_dp_port {
 	u8 id;
 };
 
+enum {
+	CDN_DP_HDCP_KSV_LEN = 8,
+	CDN_DP_HDCP_UID_LEN = 16,
+	CDN_DP_HDCP_SHA_LEN = 20,
+	CDN_DP_HDCP_DPK_LEN = 280,
+	CDN_DP_HDCP_KEY_LEN = 308,
+};
+
+struct cdn_dp_hdcp_key_1x {
+	u8 ksv[CDN_DP_HDCP_KSV_LEN];
+	u8 device_key[CDN_DP_HDCP_DPK_LEN];
+	u8 sha1[CDN_DP_HDCP_SHA_LEN];
+	u8 uid[CDN_DP_HDCP_UID_LEN];
+	u16 seed;
+	u8 reserved[10];
+};
+
 struct cdn_dp_device {
 	struct device *dev;
 	struct drm_device *drm_dev;
@@ -114,5 +131,6 @@ struct cdn_dp_device {
 #ifdef CONFIG_SWITCH
 	struct switch_dev switchdev;
 #endif
+	struct cdn_dp_hdcp_key_1x key;
 };
 #endif  /* _CDN_DP_CORE_H */
