@@ -968,7 +968,7 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 	if (flags & SB_KERNMOUNT)
 		mnt->mnt.mnt_flags = MNT_INTERNAL;
 
-	root = mount_fs(type, flags, name, data);
+	root = mount_fs(type, flags, name, &mnt->mnt, data);
 	if (IS_ERR(root)) {
 		mnt_free_id(mnt);
 		free_vfsmnt(mnt);
@@ -2305,7 +2305,7 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
 	else if (!ns_capable(sb->s_user_ns, CAP_SYS_ADMIN))
 		err = -EPERM;
 	else {
-		err = do_remount_sb(sb, sb_flags, data, 0);
+		err = do_remount_sb2(path->mnt, sb, sb_flags, data, 0);
 		namespace_lock();
 		lock_mount_hash();
 		propagate_remount(mnt);
