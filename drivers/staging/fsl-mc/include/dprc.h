@@ -139,7 +139,7 @@ int dprc_reset_container(struct fsl_mc_io *mc_io,
 #define DPRC_IRQ_INDEX          0
 
 /* Number of dprc's IRQs */
-#define DPRC_NUM_OF_IRQS		1
+#define DPRC_NUM_OF_IRQS	1
 
 /* DPRC IRQ events */
 
@@ -274,20 +274,20 @@ int dprc_get_res_quota(struct fsl_mc_io	*mc_io,
  * are explicit and sequential (in case of resources).
  * The base ID is given at res_req at base_align field
  */
-#define DPRC_RES_REQ_OPT_EXPLICIT		0x00000001
+#define DPRC_RES_REQ_OPT_EXPLICIT	0x00000001
 
 /* Aligned resources request - Relevant only for resources
  * request (and not objects). Indicates that resources base ID should be
  * sequential and aligned to the value given at dprc_res_req base_align field
  */
-#define DPRC_RES_REQ_OPT_ALIGNED		0x00000002
+#define DPRC_RES_REQ_OPT_ALIGNED	0x00000002
 
 /* Plugged Flag - Relevant only for object assignment request.
  * Indicates that after all objects assigned. An interrupt will be invoked at
  * the relevant GPP. The assigned object will be marked as plugged.
  * plugged objects can't be assigned from their container
  */
-#define DPRC_RES_REQ_OPT_PLUGGED		0x00000004
+#define DPRC_RES_REQ_OPT_PLUGGED	0x00000004
 
 /**
  * struct dprc_res_req - Resource request descriptor, to be used in assignment
@@ -353,7 +353,7 @@ int dprc_get_obj_count(struct fsl_mc_io *mc_io,
  * masters;
  * user is responsible for proper memory handling through IOMMU configuration.
  */
-#define DPRC_OBJ_FLAG_NO_MEM_SHAREABILITY		0x0001
+#define DPRC_OBJ_FLAG_NO_MEM_SHAREABILITY	0x0001
 
 /**
  * struct dprc_obj_desc - Object descriptor, returned from dprc_get_obj()
