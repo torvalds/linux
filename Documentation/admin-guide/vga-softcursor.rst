@@ -50,8 +50,8 @@ third parameter
 
 .. [#f1] see ``#define TRIDENT_GLITCH`` in ``drivers/video/vgacon.c``.
 
-Examples:
-=========
+Examples
+--------
 
 To get normal blinking underline, use::
 

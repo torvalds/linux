@@ -1,5 +1,5 @@
-Kernel Parameters
-~~~~~~~~~~~~~~~~~
+The kernel's command-line parameters
+====================================
 
 The following is a consolidated list of the kernel parameters as
 implemented by the __setup(), core_param() and module_param() macros
