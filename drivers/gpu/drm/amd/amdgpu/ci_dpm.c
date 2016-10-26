@@ -2207,6 +2207,11 @@ static int ci_upload_firmware(struct amdgpu_device *adev)
 	struct ci_power_info *pi = ci_get_pi(adev);
 	int i, ret;
 
+	if (amdgpu_ci_is_smc_running(adev)) {
+		DRM_INFO("smc is running, no need to load smc firmware\n");
+		return 0;
+	}
+
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (RREG32_SMC(ixRCU_UC_EVENTS) & RCU_UC_EVENTS__boot_seq_done_MASK)
 			break;
@@ -5275,8 +5280,6 @@ static int ci_dpm_enable(struct amdgpu_device *adev)
 	struct amdgpu_ps *boot_ps = adev->pm.dpm.boot_ps;
 	int ret;
 
-	if (amdgpu_ci_is_smc_running(adev))
-		return -EINVAL;
 	if (pi->voltage_control != CISLANDS_VOLTAGE_CONTROL_NONE) {
 		ci_enable_voltage_control(adev);
 		ret = ci_construct_voltage_tables(adev);
