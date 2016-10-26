@@ -87,6 +87,7 @@ static const struct of_device_id da9063_compatible_reg_id_table[] = {
 	{ .compatible = "dlg,da9062-onkey", .data = &da9062_regs },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, da9063_compatible_reg_id_table);
 
 static void da9063_poll_on(struct work_struct *work)
 {
