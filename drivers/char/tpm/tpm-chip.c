@@ -375,8 +375,6 @@ int tpm_chip_register(struct tpm_chip *chip)
 		return rc;
 	}
 
-	chip->flags |= TPM_CHIP_FLAG_REGISTERED;
-
 	rc = tpm_add_legacy_sysfs(chip);
 	if (rc) {
 		tpm_chip_unregister(chip);
@@ -402,9 +400,6 @@ EXPORT_SYMBOL_GPL(tpm_chip_register);
  */
 void tpm_chip_unregister(struct tpm_chip *chip)
 {
-	if (!(chip->flags & TPM_CHIP_FLAG_REGISTERED))
-		return;
-
 	tpm_del_legacy_sysfs(chip);
 
 	tpm1_chip_unregister(chip);

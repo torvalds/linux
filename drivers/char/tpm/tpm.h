@@ -139,7 +139,6 @@ enum tpm2_startup_types {
 #define TPM_PPI_VERSION_LEN		3
 
 enum tpm_chip_flags {
-	TPM_CHIP_FLAG_REGISTERED	= BIT(0),
 	TPM_CHIP_FLAG_TPM2		= BIT(1),
 	TPM_CHIP_FLAG_IRQ		= BIT(2),
 	TPM_CHIP_FLAG_VIRTUAL		= BIT(3),
