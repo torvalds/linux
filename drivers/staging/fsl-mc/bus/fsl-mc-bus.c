@@ -36,7 +36,7 @@ static struct kmem_cache *mc_dev_cache;
 
 /**
  * struct fsl_mc - Private data of a "fsl,qoriq-mc" platform device
- * @root_mc_bus_dev: MC object device representing the root DPRC
+ * @root_mc_bus_dev: fsl-mc device representing the root DPRC
  * @num_translation_ranges: number of entries in addr_translation_ranges
  * @translation_ranges: array of bus to system address translation ranges
  */
@@ -64,8 +64,8 @@ struct fsl_mc_addr_translation_range {
 
 /**
  * fsl_mc_bus_match - device to driver matching callback
- * @dev: the MC object device structure to match against
- * @drv: the device driver to search for matching MC object device id
+ * @dev: the fsl-mc device to match against
+ * @drv: the device driver to search for matching fsl-mc object type
  * structures
  *
  * Returns 1 on success, 0 otherwise.
@@ -93,7 +93,7 @@ static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 
 	/*
 	 * Traverse the match_id table of the given driver, trying to find
-	 * a matching for the given MC object device.
+	 * a matching for the given device.
 	 */
 	for (id = mc_drv->match_id_table; id->vendor != 0x0; id++) {
 		if (id->vendor == mc_dev->obj_desc.vendor &&
@@ -450,7 +450,7 @@ bool fsl_mc_is_root_dprc(struct device *dev)
 }
 
 /**
- * Add a newly discovered MC object device to be visible in Linux
+ * Add a newly discovered fsl-mc device to be visible in Linux
  */
 int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 		      struct fsl_mc_io *mc_io,
@@ -531,8 +531,8 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 			goto error_cleanup_dev;
 	} else {
 		/*
-		 * A non-DPRC MC object device has to be a child of another
-		 * MC object (specifically a DPRC object)
+		 * A non-DPRC object has to be a child of a DPRC, use the
+		 * parent's ICID and interrupt domain.
 		 */
 		mc_dev->icid = parent_mc_dev->icid;
 		mc_dev->dma_mask = FSL_MC_DEFAULT_DMA_MASK;
@@ -587,10 +587,10 @@ error_cleanup_dev:
 EXPORT_SYMBOL_GPL(fsl_mc_device_add);
 
 /**
- * fsl_mc_device_remove - Remove a MC object device from being visible to
+ * fsl_mc_device_remove - Remove an fsl-mc device from being visible to
  * Linux
  *
- * @mc_dev: Pointer to a MC object device object
+ * @mc_dev: Pointer to an fsl-mc device
  */
 void fsl_mc_device_remove(struct fsl_mc_device *mc_dev)
 {
