@@ -3,6 +3,9 @@
  *
  * (C) Jens Axboe <jens.axboe@oracle.com> 2008
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/irq_work.h>
 #include <linux/rcupdate.h>
 #include <linux/rculist.h>
