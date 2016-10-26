@@ -239,22 +239,12 @@ int dprc_clear_irq_status(struct fsl_mc_io *mc_io,
  * @icid: Container's ICID
  * @portal_id: Container's portal ID
  * @options: Container's options as set at container's creation
- * @version: DPRC version
  */
 struct dprc_attributes {
 	int container_id;
 	u16 icid;
 	int portal_id;
 	u64 options;
-	/**
-	 * struct version - DPRC version
-	 * @major: DPRC major version
-	 * @minor: DPRC minor version
-	 */
-	struct {
-		u16 major;
-		u16 minor;
-	} version;
 };
 
 int dprc_get_attributes(struct fsl_mc_io *mc_io,
@@ -550,6 +540,15 @@ int dprc_get_connection(struct fsl_mc_io *mc_io,
 			const struct dprc_endpoint *endpoint1,
 			struct dprc_endpoint *endpoint2,
 			int *state);
+
+int dprc_get_api_version(struct fsl_mc_io *mc_io,
+			 u32 cmd_flags,
+			 u16 *major_ver,
+			 u16 *minor_ver);
+
+int dprc_get_container_id(struct fsl_mc_io *mc_io,
+			  u32 cmd_flags,
+			  int *container_id);
 
 #endif /* _FSL_DPRC_H */
 

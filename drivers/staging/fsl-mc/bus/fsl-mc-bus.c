@@ -313,21 +313,6 @@ static int get_dprc_icid(struct fsl_mc_io *mc_io,
 	return error;
 }
 
-static int get_dprc_version(struct fsl_mc_io *mc_io,
-			    int container_id, u16 *major, u16 *minor)
-{
-	struct dprc_attributes attr;
-	int error;
-
-	error = get_dprc_attr(mc_io, container_id, &attr);
-	if (error == 0) {
-		*major = attr.version.major;
-		*minor = attr.version.minor;
-	}
-
-	return error;
-}
-
 static int translate_mc_addr(struct fsl_mc_device *mc_dev,
 			     enum dprc_region_type mc_region_type,
 			     u64 mc_offset, phys_addr_t *phys_addr)
@@ -789,7 +774,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	if (error < 0)
 		goto error_cleanup_mc_io;
 
-	error = dpmng_get_container_id(mc_io, 0, &container_id);
+	error = dprc_get_container_id(mc_io, 0, &container_id);
 	if (error < 0) {
 		dev_err(&pdev->dev,
 			"dpmng_get_container_id() failed: %d\n", error);
@@ -797,8 +782,9 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	}
 
 	memset(&obj_desc, 0, sizeof(struct dprc_obj_desc));
-	error = get_dprc_version(mc_io, container_id,
-				 &obj_desc.ver_major, &obj_desc.ver_minor);
+	error = dprc_get_api_version(mc_io, 0,
+				     &obj_desc.ver_major,
+				     &obj_desc.ver_minor);
 	if (error < 0)
 		goto error_cleanup_mc_io;
 

@@ -597,6 +597,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_dev);
 	bool mc_io_created = false;
 	bool msi_domain_set = false;
+	u16 major_ver, minor_ver;
 
 	if (WARN_ON(strcmp(mc_dev->obj_desc.type, "dprc") != 0))
 		return -EINVAL;
@@ -669,13 +670,21 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		goto error_cleanup_open;
 	}
 
-	if (mc_bus->dprc_attr.version.major < DPRC_MIN_VER_MAJOR ||
-	   (mc_bus->dprc_attr.version.major == DPRC_MIN_VER_MAJOR &&
-	    mc_bus->dprc_attr.version.minor < DPRC_MIN_VER_MINOR)) {
+	error = dprc_get_api_version(mc_dev->mc_io, 0,
+				     &major_ver,
+				     &minor_ver);
+	if (error < 0) {
+		dev_err(&mc_dev->dev, "dprc_get_api_version() failed: %d\n",
+			error);
+		goto error_cleanup_open;
+	}
+
+	if (major_ver < DPRC_MIN_VER_MAJOR ||
+	   (major_ver == DPRC_MIN_VER_MAJOR &&
+	    minor_ver < DPRC_MIN_VER_MINOR)) {
 		dev_err(&mc_dev->dev,
 			"ERROR: DPRC version %d.%d not supported\n",
-			mc_bus->dprc_attr.version.major,
-			mc_bus->dprc_attr.version.minor);
+			major_ver, minor_ver);
 		error = -ENOTSUPP;
 		goto error_cleanup_open;
 	}

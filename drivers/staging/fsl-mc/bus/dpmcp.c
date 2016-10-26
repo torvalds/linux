@@ -106,28 +106,29 @@ int dpmcp_close(struct fsl_mc_io *mc_io,
 /**
  * dpmcp_create() - Create the DPMCP object.
  * @mc_io:	Pointer to MC portal's I/O object
+ * @dprc_token:	Parent container token; '0' for default container
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @cfg:	Configuration structure
- * @token:	Returned token; use in subsequent API calls
+ * @obj_id:	Returned object id; use in subsequent API calls
  *
  * Create the DPMCP object, allocate required resources and
  * perform required initialization.
  *
  * The object can be created either by declaring it in the
  * DPL file, or by calling this function.
- * This function returns a unique authentication token,
- * associated with the specific object ID and the specific MC
- * portal; this token must be used in all subsequent calls to
- * this specific object. For objects that are created using the
- * DPL file, call dpmcp_open function to get an authentication
- * token first.
+
+ * This function accepts an authentication token of a parent
+ * container that this object should be assigned to and returns
+ * an object id. This object_id will be used in all subsequent calls to
+ * this specific object.
  *
  * Return:	'0' on Success; Error code otherwise.
  */
 int dpmcp_create(struct fsl_mc_io *mc_io,
+		 u16 dprc_token,
 		 u32 cmd_flags,
 		 const struct dpmcp_cfg *cfg,
-		 u16 *token)
+		 u32 *obj_id)
 {
 	struct mc_command cmd = { 0 };
 	struct dpmcp_cmd_create *cmd_params;
@@ -136,7 +137,7 @@ int dpmcp_create(struct fsl_mc_io *mc_io,
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_CREATE,
-					  cmd_flags, 0);
+					  cmd_flags, dprc_token);
 	cmd_params = (struct dpmcp_cmd_create *)cmd.params;
 	cmd_params->portal_id = cpu_to_le32(cfg->portal_id);
 
@@ -146,7 +147,7 @@ int dpmcp_create(struct fsl_mc_io *mc_io,
 		return err;
 
 	/* retrieve response parameters */
-	*token = mc_cmd_hdr_read_token(&cmd);
+	*obj_id = mc_cmd_read_object_id(&cmd);
 
 	return 0;
 }
@@ -154,20 +155,25 @@ int dpmcp_create(struct fsl_mc_io *mc_io,
 /**
  * dpmcp_destroy() - Destroy the DPMCP object and release all its resources.
  * @mc_io:	Pointer to MC portal's I/O object
+ * @dprc_token:	Parent container token; '0' for default container
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPMCP object
+ * @obj_id:	ID of DPMCP object
  *
  * Return:	'0' on Success; error code otherwise.
  */
 int dpmcp_destroy(struct fsl_mc_io *mc_io,
+		  u16 dprc_token,
 		  u32 cmd_flags,
-		  u16 token)
+		  u32 obj_id)
 {
 	struct mc_command cmd = { 0 };
+	struct dpmcp_cmd_destroy *cmd_params;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_DESTROY,
-					  cmd_flags, token);
+					  cmd_flags, dprc_token);
+	cmd_params = (struct dpmcp_cmd_destroy *)cmd.params;
+	cmd_params->object_id = cpu_to_le32(obj_id);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -497,8 +503,38 @@ int dpmcp_get_attributes(struct fsl_mc_io *mc_io,
 	/* retrieve response parameters */
 	rsp_params = (struct dpmcp_rsp_get_attributes *)cmd.params;
 	attr->id = le32_to_cpu(rsp_params->id);
-	attr->version.major = le16_to_cpu(rsp_params->version_major);
-	attr->version.minor = le16_to_cpu(rsp_params->version_minor);
+
+	return 0;
+}
+
+/**
+ * dpmcp_get_api_version - Get Data Path Management Command Portal API version
+ * @mc_io:	Pointer to Mc portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @major_ver:	Major version of Data Path Management Command Portal API
+ * @minor_ver:	Minor version of Data Path Management Command Portal API
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpmcp_get_api_version(struct fsl_mc_io *mc_io,
+			  u32 cmd_flags,
+			  u16 *major_ver,
+			  u16 *minor_ver)
+{
+	struct mc_command cmd = { 0 };
+	int err;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPMCP_CMDID_GET_API_VERSION,
+					  cmd_flags, 0);
+
+	/* send command to mc */
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	/* retrieve response parameters */
+	mc_cmd_read_api_version(&cmd, major_ver, minor_ver);
 
 	return 0;
 }
