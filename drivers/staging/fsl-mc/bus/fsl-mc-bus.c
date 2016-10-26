@@ -166,8 +166,7 @@ static int fsl_mc_driver_probe(struct device *dev)
 
 	error = mc_drv->probe(mc_dev);
 	if (error < 0) {
-		dev_err(dev, "MC object device probe callback failed: %d\n",
-			error);
+		dev_err(dev, "%s failed: %d\n", __func__, error);
 		return error;
 	}
 
@@ -185,9 +184,7 @@ static int fsl_mc_driver_remove(struct device *dev)
 
 	error = mc_drv->remove(mc_dev);
 	if (error < 0) {
-		dev_err(dev,
-			"MC object device remove callback failed: %d\n",
-			error);
+		dev_err(dev, "%s failed: %d\n", __func__, error);
 		return error;
 	}
 
