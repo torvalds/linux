@@ -3463,7 +3463,7 @@ static int i915_ddb_info(struct seq_file *m, void *unused)
 	for_each_pipe(dev_priv, pipe) {
 		seq_printf(m, "Pipe %c\n", pipe_name(pipe));
 
-		for_each_plane(dev_priv, pipe, plane) {
+		for_each_universal_plane(dev_priv, pipe, plane) {
 			entry = &ddb->plane[pipe][plane];
 			seq_printf(m, "  Plane%-8d%8u%8u%8u\n", plane + 1,
 				   entry->start, entry->end,

@@ -3160,7 +3160,7 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 		if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 			continue;
 
-		for_each_plane(dev_priv, pipe, plane) {
+		for_each_universal_plane(dev_priv, pipe, plane) {
 			val = I915_READ(PLANE_BUF_CFG(pipe, plane));
 			skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane],
 						   val);

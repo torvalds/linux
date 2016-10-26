@@ -13485,7 +13485,7 @@ static void verify_wm_state(struct drm_crtc *crtc,
 	sw_ddb = &dev_priv->wm.skl_hw.ddb;
 
 	/* planes */
-	for_each_plane(dev_priv, pipe, plane) {
+	for_each_universal_plane(dev_priv, pipe, plane) {
 		hw_plane_wm = &hw_wm.planes[plane];
 		sw_plane_wm = &sw_wm->planes[plane];
 

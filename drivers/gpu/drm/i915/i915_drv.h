@@ -312,7 +312,7 @@ struct i915_hotplug {
 #define for_each_pipe_masked(__dev_priv, __p, __mask) \
 	for ((__p) = 0; (__p) < INTEL_INFO(__dev_priv)->num_pipes; (__p)++) \
 		for_each_if ((__mask) & (1 << (__p)))
-#define for_each_plane(__dev_priv, __pipe, __p)				\
+#define for_each_universal_plane(__dev_priv, __pipe, __p)		\
 	for ((__p) = 0;							\
 	     (__p) < INTEL_INFO(__dev_priv)->num_sprites[(__pipe)] + 1;	\
 	     (__p)++)
