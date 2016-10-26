@@ -1908,7 +1908,7 @@ static struct snd_soc_dai_driver wm5102_dai[] = {
 static int wm5102_open(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct wm5102_priv *priv = snd_soc_codec_get_drvdata(rtd->codec);
+	struct wm5102_priv *priv = snd_soc_platform_get_drvdata(rtd->platform);
 
 	return wm_adsp_compr_open(&priv->core.adsp[0], stream);
 }

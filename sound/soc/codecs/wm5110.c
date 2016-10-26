@@ -2224,7 +2224,7 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 static int wm5110_open(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct wm5110_priv *priv = snd_soc_codec_get_drvdata(rtd->codec);
+	struct wm5110_priv *priv = snd_soc_platform_get_drvdata(rtd->platform);
 	struct arizona *arizona = priv->core.arizona;
 	int n_adsp;
 

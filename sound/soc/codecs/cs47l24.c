@@ -1066,7 +1066,7 @@ static struct snd_soc_dai_driver cs47l24_dai[] = {
 static int cs47l24_open(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct cs47l24_priv *priv = snd_soc_codec_get_drvdata(rtd->codec);
+	struct cs47l24_priv *priv = snd_soc_platform_get_drvdata(rtd->platform);
 	struct arizona *arizona = priv->core.arizona;
 	int n_adsp;
 
