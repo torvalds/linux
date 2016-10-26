@@ -654,6 +654,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	size_t data_in_sz = 0;
 	long ret;
 	u16 wait_state_count;
+	u16 device_handle = MPT3SAS_INVALID_DEVICE_HANDLE;
 
 	issue_reset = 0;
 
@@ -738,10 +739,13 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	data_in_sz = karg.data_in_size;
 
 	if (mpi_request->Function == MPI2_FUNCTION_SCSI_IO_REQUEST ||
-	    mpi_request->Function == MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH) {
-		if (!le16_to_cpu(mpi_request->FunctionDependent1) ||
-		    le16_to_cpu(mpi_request->FunctionDependent1) >
-		    ioc->facts.MaxDevHandle) {
+	    mpi_request->Function == MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH ||
+	    mpi_request->Function == MPI2_FUNCTION_SCSI_TASK_MGMT ||
+	    mpi_request->Function == MPI2_FUNCTION_SATA_PASSTHROUGH) {
+
+		device_handle = le16_to_cpu(mpi_request->FunctionDependent1);
+		if (!device_handle || (device_handle >
+		    ioc->facts.MaxDevHandle)) {
 			ret = -EINVAL;
 			mpt3sas_base_free_smid(ioc, smid);
 			goto out;
@@ -797,12 +801,18 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		scsiio_request->SenseBufferLowAddress =
 		    mpt3sas_base_get_sense_buffer_dma(ioc, smid);
 		memset(ioc->ctl_cmds.sense, 0, SCSI_SENSE_BUFFERSIZE);
+		if (test_bit(device_handle, ioc->device_remove_in_progress)) {
+			dtmprintk(ioc, pr_info(MPT3SAS_FMT
+				"handle(0x%04x) :ioctl failed due to device removal in progress\n",
+				ioc->name, device_handle));
+			mpt3sas_base_free_smid(ioc, smid);
+			ret = -EINVAL;
+			goto out;
+		}
 		ioc->build_sg(ioc, psge, data_out_dma, data_out_sz,
 		    data_in_dma, data_in_sz);
-
 		if (mpi_request->Function == MPI2_FUNCTION_SCSI_IO_REQUEST)
-			mpt3sas_base_put_smid_scsi_io(ioc, smid,
-			    le16_to_cpu(mpi_request->FunctionDependent1));
+			mpt3sas_base_put_smid_scsi_io(ioc, smid, device_handle);
 		else
 			mpt3sas_base_put_smid_default(ioc, smid);
 		break;
@@ -827,6 +837,14 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 			}
 		}
 
+		if (test_bit(device_handle, ioc->device_remove_in_progress)) {
+			dtmprintk(ioc, pr_info(MPT3SAS_FMT
+				"handle(0x%04x) :ioctl failed due to device removal in progress\n",
+				ioc->name, device_handle));
+			mpt3sas_base_free_smid(ioc, smid);
+			ret = -EINVAL;
+			goto out;
+		}
 		mpt3sas_scsih_set_tm_flag(ioc, le16_to_cpu(
 		    tm_request->DevHandle));
 		ioc->build_sg_mpi(ioc, psge, data_out_dma, data_out_sz,
@@ -866,6 +884,20 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		break;
 	}
 	case MPI2_FUNCTION_SATA_PASSTHROUGH:
+	{
+		if (test_bit(device_handle, ioc->device_remove_in_progress)) {
+			dtmprintk(ioc, pr_info(MPT3SAS_FMT
+				"handle(0x%04x) :ioctl failed due to device removal in progress\n",
+				ioc->name, device_handle));
+			mpt3sas_base_free_smid(ioc, smid);
+			ret = -EINVAL;
+			goto out;
+		}
+		ioc->build_sg(ioc, psge, data_out_dma, data_out_sz, data_in_dma,
+		    data_in_sz);
+		mpt3sas_base_put_smid_default(ioc, smid);
+		break;
+	}
 	case MPI2_FUNCTION_FW_DOWNLOAD:
 	case MPI2_FUNCTION_FW_UPLOAD:
 	{

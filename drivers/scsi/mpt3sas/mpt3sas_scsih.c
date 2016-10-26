@@ -788,6 +788,11 @@ _scsih_sas_device_add(struct MPT3SAS_ADAPTER *ioc,
 	list_add_tail(&sas_device->list, &ioc->sas_device_list);
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
+	if (ioc->hide_drives) {
+		clear_bit(sas_device->handle, ioc->pend_os_device_add);
+		return;
+	}
+
 	if (!mpt3sas_transport_port_add(ioc, sas_device->handle,
 	     sas_device->sas_address_parent)) {
 		_scsih_sas_device_remove(ioc, sas_device);
@@ -803,7 +808,8 @@ _scsih_sas_device_add(struct MPT3SAS_ADAPTER *ioc,
 			    sas_device->sas_address_parent);
 			_scsih_sas_device_remove(ioc, sas_device);
 		}
-	}
+	} else
+		clear_bit(sas_device->handle, ioc->pend_os_device_add);
 }
 
 /**
@@ -3138,6 +3144,8 @@ _scsih_tm_tr_send(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	if (test_bit(handle, ioc->pd_handles))
 		return;
 
+	clear_bit(handle, ioc->pend_os_device_add);
+
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
 	sas_device = __mpt3sas_get_sdev_by_handle(ioc, handle);
 	if (sas_device && sas_device->starget &&
@@ -3192,6 +3200,7 @@ _scsih_tm_tr_send(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	mpi_request->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	mpi_request->DevHandle = cpu_to_le16(handle);
 	mpi_request->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
+	set_bit(handle, ioc->device_remove_in_progress);
 	mpt3sas_base_put_smid_hi_priority(ioc, smid, 0);
 	mpt3sas_trigger_master(ioc, MASTER_TRIGGER_DEVICE_REMOVAL);
 
@@ -3326,6 +3335,11 @@ _scsih_sas_control_complete(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 		ioc->name, le16_to_cpu(mpi_reply->DevHandle), smid,
 		le16_to_cpu(mpi_reply->IOCStatus),
 		le32_to_cpu(mpi_reply->IOCLogInfo)));
+		if (le16_to_cpu(mpi_reply->IOCStatus) ==
+		     MPI2_IOCSTATUS_SUCCESS) {
+			clear_bit(le16_to_cpu(mpi_reply->DevHandle),
+			    ioc->device_remove_in_progress);
+		}
 	} else {
 		pr_err(MPT3SAS_FMT "mpi_reply not valid at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
@@ -5449,6 +5463,7 @@ _scsih_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 phy_num,
 	device_info = le32_to_cpu(sas_device_pg0.DeviceInfo);
 	if (!(_scsih_is_end_device(device_info)))
 		return -1;
+	set_bit(handle, ioc->pend_os_device_add);
 	sas_address = le64_to_cpu(sas_device_pg0.SASAddress);
 
 	/* check if device is present */
@@ -5467,6 +5482,7 @@ _scsih_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 phy_num,
 	sas_device = mpt3sas_get_sdev_by_addr(ioc,
 					sas_address);
 	if (sas_device) {
+		clear_bit(handle, ioc->pend_os_device_add);
 		sas_device_put(sas_device);
 		return -1;
 	}
@@ -5789,6 +5805,9 @@ _scsih_sas_topology_change_event(struct MPT3SAS_ADAPTER *ioc,
 
 			_scsih_check_device(ioc, sas_address, handle,
 			    phy_number, link_rate);
+
+			if (!test_bit(handle, ioc->pend_os_device_add))
+				break;
 
 
 		case MPI2_EVENT_SAS_TOPO_RC_TARG_ADDED:
@@ -7707,6 +7726,9 @@ mpt3sas_scsih_reset_handler(struct MPT3SAS_ADAPTER *ioc, int reset_phase)
 			complete(&ioc->tm_cmds.done);
 		}
 
+		memset(ioc->pend_os_device_add, 0, ioc->pend_os_device_add_sz);
+		memset(ioc->device_remove_in_progress, 0,
+		       ioc->device_remove_in_progress_sz);
 		_scsih_fw_event_cleanup_queue(ioc);
 		_scsih_flush_running_cmds(ioc);
 		break;

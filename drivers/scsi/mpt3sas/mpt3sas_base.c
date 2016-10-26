@@ -5334,6 +5334,21 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 		goto out_free_resources;
 	}
 
+	/* allocate memory for pending OS device add list */
+	ioc->pend_os_device_add_sz = (ioc->facts.MaxDevHandle / 8);
+	if (ioc->facts.MaxDevHandle % 8)
+		ioc->pend_os_device_add_sz++;
+	ioc->pend_os_device_add = kzalloc(ioc->pend_os_device_add_sz,
+	    GFP_KERNEL);
+	if (!ioc->pend_os_device_add)
+		goto out_free_resources;
+
+	ioc->device_remove_in_progress_sz = ioc->pend_os_device_add_sz;
+	ioc->device_remove_in_progress =
+		kzalloc(ioc->device_remove_in_progress_sz, GFP_KERNEL);
+	if (!ioc->device_remove_in_progress)
+		goto out_free_resources;
+
 	ioc->fwfault_debug = mpt3sas_fwfault_debug;
 
 	/* base internal command bits */
@@ -5416,6 +5431,8 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 		kfree(ioc->reply_post_host_index);
 	kfree(ioc->pd_handles);
 	kfree(ioc->blocking_handles);
+	kfree(ioc->device_remove_in_progress);
+	kfree(ioc->pend_os_device_add);
 	kfree(ioc->tm_cmds.reply);
 	kfree(ioc->transport_cmds.reply);
 	kfree(ioc->scsih_cmds.reply);
@@ -5457,6 +5474,8 @@ mpt3sas_base_detach(struct MPT3SAS_ADAPTER *ioc)
 		kfree(ioc->reply_post_host_index);
 	kfree(ioc->pd_handles);
 	kfree(ioc->blocking_handles);
+	kfree(ioc->device_remove_in_progress);
+	kfree(ioc->pend_os_device_add);
 	kfree(ioc->pfacts);
 	kfree(ioc->ctl_cmds.reply);
 	kfree(ioc->ctl_cmds.sense);

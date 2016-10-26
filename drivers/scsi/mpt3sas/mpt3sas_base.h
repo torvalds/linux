@@ -1079,6 +1079,9 @@ struct MPT3SAS_ADAPTER {
 	void		*pd_handles;
 	u16		pd_handles_sz;
 
+	void		*pend_os_device_add;
+	u16		pend_os_device_add_sz;
+
 	/* config page */
 	u16		config_page_sz;
 	void		*config_page;
@@ -1187,6 +1190,8 @@ struct MPT3SAS_ADAPTER {
 	struct SL_WH_EVENT_TRIGGERS_T diag_trigger_event;
 	struct SL_WH_SCSI_TRIGGERS_T diag_trigger_scsi;
 	struct SL_WH_MPI_TRIGGERS_T diag_trigger_mpi;
+	void		*device_remove_in_progress;
+	u16		device_remove_in_progress_sz;
 };
 
 typedef u8 (*MPT_CALLBACK)(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
