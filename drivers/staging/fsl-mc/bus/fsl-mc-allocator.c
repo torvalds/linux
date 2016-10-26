@@ -605,7 +605,7 @@ static int fsl_mc_allocator_probe(struct fsl_mc_device *mc_dev)
 		return error;
 
 	dev_dbg(&mc_dev->dev,
-		"Allocatable MC object device bound to fsl_mc_allocator driver");
+		"Allocatable fsl-mc device bound to fsl_mc_allocator driver");
 	return 0;
 }
 
@@ -627,7 +627,7 @@ static int fsl_mc_allocator_remove(struct fsl_mc_device *mc_dev)
 	}
 
 	dev_dbg(&mc_dev->dev,
-		"Allocatable MC object device unbound from fsl_mc_allocator driver");
+		"Allocatable fsl-mc device unbound from fsl_mc_allocator driver");
 	return 0;
 }
 
