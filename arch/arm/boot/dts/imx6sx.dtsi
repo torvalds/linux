@@ -858,7 +858,7 @@
 				fsl,num-tx-queues=<3>;
 				fsl,num-rx-queues=<3>;
 				status = "disabled";
-                        };
+			};
 
 			mlb: mlb@0218c000 {
 				reg = <0x0218c000 0x4000>;
@@ -1181,7 +1181,7 @@
 				fsl,adck-max-frequency = <30000000>, <40000000>,
 							 <20000000>;
 				status = "disabled";
-                        };
+			};
 
 			adc2: adc@02284000 {
 				compatible = "fsl,imx6sx-adc", "fsl,vf610-adc";
@@ -1192,7 +1192,7 @@
 				fsl,adck-max-frequency = <30000000>, <40000000>,
 							 <20000000>;
 				status = "disabled";
-                        };
+			};
 
 			wdog3: wdog@02288000 {
 				compatible = "fsl,imx6sx-wdt", "fsl,imx21-wdt";

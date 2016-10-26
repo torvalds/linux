@@ -464,7 +464,7 @@
 				reg = <0x80038000 0x2000>;
 				status = "disabled";
 			};
-                };
+		};
 
 		apbx@80040000 {
 			compatible = "simple-bus";
