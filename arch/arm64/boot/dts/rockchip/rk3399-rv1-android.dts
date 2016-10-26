@@ -820,8 +820,7 @@
 
 &cdn_dp_fb {
 	status = "okay";
-	extcon = <&fusb1>;
-	phys = <&tcphy1_dp>;
+	extcon = <&fusb0>, <&fusb1>;
 	dp_vop_sel = <DISPLAY_SOURCE_LCDC0>;
 };
 
