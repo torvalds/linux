@@ -213,6 +213,81 @@ intel_dp_downstream_max_dotclock(struct intel_dp *intel_dp)
 	return max_dotclk;
 }
 
+static int
+intel_dp_sink_rates(struct intel_dp *intel_dp, const int **sink_rates)
+{
+	if (intel_dp->num_sink_rates) {
+		*sink_rates = intel_dp->sink_rates;
+		return intel_dp->num_sink_rates;
+	}
+
+	*sink_rates = default_rates;
+
+	return (intel_dp_max_link_bw(intel_dp) >> 3) + 1;
+}
+
+static int
+intel_dp_source_rates(struct intel_dp *intel_dp, const int **source_rates)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	int size;
+
+	if (IS_BROXTON(dev_priv)) {
+		*source_rates = bxt_rates;
+		size = ARRAY_SIZE(bxt_rates);
+	} else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+		*source_rates = skl_rates;
+		size = ARRAY_SIZE(skl_rates);
+	} else {
+		*source_rates = default_rates;
+		size = ARRAY_SIZE(default_rates);
+	}
+
+	/* This depends on the fact that 5.4 is last value in the array */
+	if (!intel_dp_source_supports_hbr2(intel_dp))
+		size--;
+
+	return size;
+}
+
+static int intersect_rates(const int *source_rates, int source_len,
+			   const int *sink_rates, int sink_len,
+			   int *common_rates)
+{
+	int i = 0, j = 0, k = 0;
+
+	while (i < source_len && j < sink_len) {
+		if (source_rates[i] == sink_rates[j]) {
+			if (WARN_ON(k >= DP_MAX_SUPPORTED_RATES))
+				return k;
+			common_rates[k] = source_rates[i];
+			++k;
+			++i;
+			++j;
+		} else if (source_rates[i] < sink_rates[j]) {
+			++i;
+		} else {
+			++j;
+		}
+	}
+	return k;
+}
+
+static int intel_dp_common_rates(struct intel_dp *intel_dp,
+				 int *common_rates)
+{
+	const int *source_rates, *sink_rates;
+	int source_len, sink_len;
+
+	sink_len = intel_dp_sink_rates(intel_dp, &sink_rates);
+	source_len = intel_dp_source_rates(intel_dp, &source_rates);
+
+	return intersect_rates(source_rates, source_len,
+			       sink_rates, sink_len,
+			       common_rates);
+}
+
 static enum drm_mode_status
 intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
@@ -1291,19 +1366,6 @@ intel_dp_aux_init(struct intel_dp *intel_dp)
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
 }
 
-static int
-intel_dp_sink_rates(struct intel_dp *intel_dp, const int **sink_rates)
-{
-	if (intel_dp->num_sink_rates) {
-		*sink_rates = intel_dp->sink_rates;
-		return intel_dp->num_sink_rates;
-	}
-
-	*sink_rates = default_rates;
-
-	return (intel_dp_max_link_bw(intel_dp) >> 3) + 1;
-}
-
 bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
@@ -1314,31 +1376,6 @@ bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp)
 		return true;
 	else
 		return false;
-}
-
-static int
-intel_dp_source_rates(struct intel_dp *intel_dp, const int **source_rates)
-{
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	int size;
-
-	if (IS_BROXTON(dev_priv)) {
-		*source_rates = bxt_rates;
-		size = ARRAY_SIZE(bxt_rates);
-	} else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
-		*source_rates = skl_rates;
-		size = ARRAY_SIZE(skl_rates);
-	} else {
-		*source_rates = default_rates;
-		size = ARRAY_SIZE(default_rates);
-	}
-
-	/* This depends on the fact that 5.4 is last value in the array */
-	if (!intel_dp_source_supports_hbr2(intel_dp))
-		size--;
-
-	return size;
 }
 
 static void
@@ -1373,43 +1410,6 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 			}
 		}
 	}
-}
-
-static int intersect_rates(const int *source_rates, int source_len,
-			   const int *sink_rates, int sink_len,
-			   int *common_rates)
-{
-	int i = 0, j = 0, k = 0;
-
-	while (i < source_len && j < sink_len) {
-		if (source_rates[i] == sink_rates[j]) {
-			if (WARN_ON(k >= DP_MAX_SUPPORTED_RATES))
-				return k;
-			common_rates[k] = source_rates[i];
-			++k;
-			++i;
-			++j;
-		} else if (source_rates[i] < sink_rates[j]) {
-			++i;
-		} else {
-			++j;
-		}
-	}
-	return k;
-}
-
-static int intel_dp_common_rates(struct intel_dp *intel_dp,
-				 int *common_rates)
-{
-	const int *source_rates, *sink_rates;
-	int source_len, sink_len;
-
-	sink_len = intel_dp_sink_rates(intel_dp, &sink_rates);
-	source_len = intel_dp_source_rates(intel_dp, &source_rates);
-
-	return intersect_rates(source_rates, source_len,
-			       sink_rates, sink_len,
-			       common_rates);
 }
 
 static void snprintf_int_array(char *str, size_t len,
