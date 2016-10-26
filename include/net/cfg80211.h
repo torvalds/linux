@@ -1840,6 +1840,12 @@ enum cfg80211_assoc_req_flags {
  * @ht_capa_mask:  The bits of ht_capa which are to be used.
  * @vht_capa: VHT capability override
  * @vht_capa_mask: VHT capability mask indicating which fields to use
+ * @fils_kek: FILS KEK for protecting (Re)Association Request/Response frame or
+ *	%NULL if FILS is not used.
+ * @fils_kek_len: Length of fils_kek in octets
+ * @fils_nonces: FILS nonces (part of AAD) for protecting (Re)Association
+ *	Request/Response frame or %NULL if FILS is not used. This field starts
+ *	with 16 octets of STA Nonce followed by 16 octets of AP Nonce.
  */
 struct cfg80211_assoc_request {
 	struct cfg80211_bss *bss;
@@ -1851,6 +1857,9 @@ struct cfg80211_assoc_request {
 	struct ieee80211_ht_cap ht_capa;
 	struct ieee80211_ht_cap ht_capa_mask;
 	struct ieee80211_vht_cap vht_capa, vht_capa_mask;
+	const u8 *fils_kek;
+	size_t fils_kek_len;
+	const u8 *fils_nonces;
 };
 
 /**

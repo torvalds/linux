@@ -1944,6 +1944,11 @@ enum nl80211_commands {
  *	attribute.
  * @NL80211_ATTR_NAN_MATCH: used to report a match. This is a nested attribute.
  *	See &enum nl80211_nan_match_attributes.
+ * @NL80211_ATTR_FILS_KEK: KEK for FILS (Re)Association Request/Response frame
+ *	protection.
+ * @NL80211_ATTR_FILS_NONCES: Nonces (part of AAD) for FILS (Re)Association
+ *	Request/Response frame protection. This attribute contains the 16 octet
+ *	STA Nonce followed by 16 octets of AP Nonce.
  *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
@@ -2343,6 +2348,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_NAN_DUAL,
 	NL80211_ATTR_NAN_FUNC,
 	NL80211_ATTR_NAN_MATCH,
+
+	NL80211_ATTR_FILS_KEK,
+	NL80211_ATTR_FILS_NONCES,
 
 	/* add attributes here, update the policy in nl80211.c */
 

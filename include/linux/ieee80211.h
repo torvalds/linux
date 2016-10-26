@@ -2096,6 +2096,9 @@ enum ieee80211_key_len {
 #define IEEE80211_GCMP_MIC_LEN		16
 #define IEEE80211_GCMP_PN_LEN		6
 
+#define FILS_NONCE_LEN			16
+#define FILS_MAX_KEK_LEN		64
+
 /* Public action codes */
 enum ieee80211_pub_actioncode {
 	WLAN_PUB_ACTION_EXT_CHANSW_ANN = 4,
