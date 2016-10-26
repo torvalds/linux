@@ -1959,7 +1959,7 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 {
 	struct msix_entry *entries, *a;
 	int r;
-	int i;
+	int i, local_max_msix_vectors;
 	u8 try_msix = 0;
 
 	if (msix_disable == -1 || msix_disable == 0)
@@ -1979,13 +1979,15 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 	  ioc->cpu_count, max_msix_vectors);
 
 	if (!ioc->rdpq_array_enable && max_msix_vectors == -1)
-		max_msix_vectors = 8;
+		local_max_msix_vectors = 8;
+	else
+		local_max_msix_vectors = max_msix_vectors;
 
-	if (max_msix_vectors > 0) {
-		ioc->reply_queue_count = min_t(int, max_msix_vectors,
+	if (local_max_msix_vectors > 0) {
+		ioc->reply_queue_count = min_t(int, local_max_msix_vectors,
 			ioc->reply_queue_count);
 		ioc->msix_vector_count = ioc->reply_queue_count;
-	} else if (max_msix_vectors == 0)
+	} else if (local_max_msix_vectors == 0)
 		goto try_ioapic;
 
 	if (ioc->msix_vector_count < ioc->cpu_count)
