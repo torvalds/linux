@@ -450,6 +450,9 @@
 		auxadc: auxadc@11001000 {
 			compatible = "mediatek,mt8173-auxadc";
 			reg = <0 0x11001000 0 0x1000>;
+			clocks = <&pericfg CLK_PERI_AUXADC>;
+			clock-names = "main";
+			#io-channel-cells = <1>;
 		};
 
 		uart0: serial@11002000 {
