@@ -4344,6 +4344,8 @@ static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 						 list) {
 			ref->in_tree = 0;
 			list_del(&ref->list);
+			if (!list_empty(&ref->add_list))
+				list_del(&ref->add_list);
 			atomic_dec(&delayed_refs->num_entries);
 			btrfs_put_delayed_ref(ref);
 		}

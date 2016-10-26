@@ -2454,13 +2454,14 @@ select_delayed_ref(struct btrfs_delayed_ref_head *head)
 	 * the extent item from the extent tree, when there still are references
 	 * to add, which would fail because they would not find the extent item.
 	 */
-	list_for_each_entry(ref, &head->ref_list, list) {
-		if (ref->action == BTRFS_ADD_DELAYED_REF)
-			return ref;
-	}
+	if (!list_empty(&head->ref_add_list))
+		return list_first_entry(&head->ref_add_list,
+				struct btrfs_delayed_ref_node, add_list);
 
-	return list_entry(head->ref_list.next, struct btrfs_delayed_ref_node,
-			  list);
+	ref = list_first_entry(&head->ref_list, struct btrfs_delayed_ref_node,
+			       list);
+	ASSERT(list_empty(&ref->add_list));
+	return ref;
 }
 
 /*
@@ -2620,6 +2621,8 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			actual_count++;
 			ref->in_tree = 0;
 			list_del(&ref->list);
+			if (!list_empty(&ref->add_list))
+				list_del(&ref->add_list);
 		}
 		atomic_dec(&delayed_refs->num_entries);
 
