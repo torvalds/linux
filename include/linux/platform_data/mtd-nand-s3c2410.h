@@ -40,6 +40,7 @@ struct s3c2410_nand_set {
 	char			*name;
 	int			*nr_map;
 	struct mtd_partition	*partitions;
+	struct device_node	*of_node;
 };
 
 struct s3c2410_platform_nand {
