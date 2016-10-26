@@ -258,6 +258,7 @@ static int gdrst_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	u32 data;
 	u64 bitmap = 0;
 
+	write_vreg(vgpu, offset, p_data, bytes);
 	data = vgpu_vreg(vgpu, offset);
 
 	if (data & GEN6_GRDOM_FULL) {
