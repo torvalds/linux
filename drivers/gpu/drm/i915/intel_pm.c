@@ -3263,13 +3263,12 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
  *   3 * 4096 * 8192  * 4 < 2^32
  */
 static unsigned int
-skl_get_total_relative_data_rate(struct intel_crtc_state *intel_cstate)
+skl_get_total_relative_data_rate(struct intel_crtc_state *intel_cstate,
+				 unsigned *plane_data_rate,
+				 unsigned *plane_y_data_rate)
 {
 	struct drm_crtc_state *cstate = &intel_cstate->base;
 	struct drm_atomic_state *state = cstate->state;
-	struct drm_crtc *crtc = cstate->crtc;
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_plane *plane;
 	const struct intel_plane *intel_plane;
 	const struct drm_plane_state *pstate;
@@ -3287,21 +3286,16 @@ skl_get_total_relative_data_rate(struct intel_crtc_state *intel_cstate)
 		/* packed/uv */
 		rate = skl_plane_relative_data_rate(intel_cstate,
 						    pstate, 0);
-		intel_cstate->wm.skl.plane_data_rate[id] = rate;
+		plane_data_rate[id] = rate;
+
+		total_data_rate += rate;
 
 		/* y-plane */
 		rate = skl_plane_relative_data_rate(intel_cstate,
 						    pstate, 1);
-		intel_cstate->wm.skl.plane_y_data_rate[id] = rate;
-	}
+		plane_y_data_rate[id] = rate;
 
-	/* Calculate CRTC's total data rate from cached values */
-	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
-		int id = skl_wm_plane_id(intel_plane);
-
-		/* packed/uv */
-		total_data_rate += intel_cstate->wm.skl.plane_data_rate[id];
-		total_data_rate += intel_cstate->wm.skl.plane_y_data_rate[id];
+		total_data_rate += rate;
 	}
 
 	return total_data_rate;
@@ -3389,6 +3383,8 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	unsigned int total_data_rate;
 	int num_active;
 	int id, i;
+	unsigned plane_data_rate[I915_MAX_PLANES] = {};
+	unsigned plane_y_data_rate[I915_MAX_PLANES] = {};
 
 	/* Clear the partitioning for disabled planes. */
 	memset(ddb->plane[pipe], 0, sizeof(ddb->plane[pipe]));
@@ -3446,17 +3442,18 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	 *
 	 * FIXME: we may not allocate every single block here.
 	 */
-	total_data_rate = skl_get_total_relative_data_rate(cstate);
+	total_data_rate = skl_get_total_relative_data_rate(cstate,
+							   plane_data_rate,
+							   plane_y_data_rate);
 	if (total_data_rate == 0)
 		return 0;
 
 	start = alloc->start;
-	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
+	for (id = 0; id < I915_MAX_PLANES; id++) {
 		unsigned int data_rate, y_data_rate;
 		uint16_t plane_blocks, y_plane_blocks = 0;
-		int id = skl_wm_plane_id(intel_plane);
 
-		data_rate = cstate->wm.skl.plane_data_rate[id];
+		data_rate = plane_data_rate[id];
 
 		/*
 		 * allocation for (packed formats) or (uv-plane part of planar format):
@@ -3478,7 +3475,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		/*
 		 * allocation for y_plane part of planar format:
 		 */
-		y_data_rate = cstate->wm.skl.plane_y_data_rate[id];
+		y_data_rate = plane_y_data_rate[id];
 
 		y_plane_blocks = y_minimum[id];
 		y_plane_blocks += div_u64((uint64_t)alloc_size * y_data_rate,
