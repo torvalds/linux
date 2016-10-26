@@ -1932,16 +1932,7 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct wm5102_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct arizona *arizona = priv->core.arizona;
 	int ret;
-
-	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
-				  "ADSP2 Compressed IRQ", wm5102_adsp2_irq,
-				  priv);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request DSP IRQ: %d\n", ret);
-		return ret;
-	}
 
 	ret = wm_adsp2_codec_probe(&priv->core.adsp[0], codec);
 	if (ret)
@@ -1970,13 +1961,10 @@ err_adsp2_codec_probe:
 static int wm5102_codec_remove(struct snd_soc_codec *codec)
 {
 	struct wm5102_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct arizona *arizona = priv->core.arizona;
 
 	wm_adsp2_codec_remove(&priv->core.adsp[0], codec);
 
 	priv->core.arizona->dapm = NULL;
-
-	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
 
 	return 0;
 }
@@ -2095,9 +2083,17 @@ static int wm5102_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
+	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
+				  "ADSP2 Compressed IRQ", wm5102_adsp2_irq,
+				  wm5102);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Failed to request DSP IRQ: %d\n", ret);
+		return ret;
+	}
+
 	ret = arizona_init_spk_irqs(arizona);
 	if (ret < 0)
-		return ret;
+		goto err_dsp_irq;
 
 	ret = snd_soc_register_platform(&pdev->dev, &wm5102_compr_platform);
 	if (ret < 0) {
@@ -2118,6 +2114,8 @@ err_platform:
 	snd_soc_unregister_platform(&pdev->dev);
 err_spk_irqs:
 	arizona_free_spk_irqs(arizona);
+err_dsp_irq:
+	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, wm5102);
 
 	return ret;
 }
@@ -2134,6 +2132,8 @@ static int wm5102_remove(struct platform_device *pdev)
 	wm_adsp2_remove(&wm5102->core.adsp[0]);
 
 	arizona_free_spk_irqs(arizona);
+
+	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, wm5102);
 
 	return 0;
 }

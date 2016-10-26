@@ -2274,7 +2274,6 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct wm5110_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct arizona *arizona = priv->core.arizona;
 	int i, ret;
 
 	priv->core.arizona->dapm = dapm;
@@ -2283,14 +2282,6 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 	arizona_init_gpio(codec);
 	arizona_init_mono(codec);
 	arizona_init_notifiers(codec);
-
-	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
-				  "ADSP2 Compressed IRQ", wm5110_adsp2_irq,
-				  priv);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request DSP IRQ: %d\n", ret);
-		return ret;
-	}
 
 	for (i = 0; i < WM5110_NUM_ADSP; ++i) {
 		ret = wm_adsp2_codec_probe(&priv->core.adsp[i], codec);
@@ -2312,23 +2303,18 @@ err_adsp2_codec_probe:
 	for (--i; i >= 0; --i)
 		wm_adsp2_codec_remove(&priv->core.adsp[i], codec);
 
-	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
-
 	return ret;
 }
 
 static int wm5110_codec_remove(struct snd_soc_codec *codec)
 {
 	struct wm5110_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct arizona *arizona = priv->core.arizona;
 	int i;
 
 	for (i = 0; i < WM5110_NUM_ADSP; ++i)
 		wm_adsp2_codec_remove(&priv->core.adsp[i], codec);
 
 	priv->core.arizona->dapm = NULL;
-
-	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
 
 	return 0;
 }
@@ -2451,9 +2437,17 @@ static int wm5110_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
+	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
+				  "ADSP2 Compressed IRQ", wm5110_adsp2_irq,
+				  wm5110);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Failed to request DSP IRQ: %d\n", ret);
+		return ret;
+	}
+
 	ret = arizona_init_spk_irqs(arizona);
 	if (ret < 0)
-		return ret;
+		goto err_dsp_irq;
 
 	ret = snd_soc_register_platform(&pdev->dev, &wm5110_compr_platform);
 	if (ret < 0) {
@@ -2474,6 +2468,8 @@ err_platform:
 	snd_soc_unregister_platform(&pdev->dev);
 err_spk_irqs:
 	arizona_free_spk_irqs(arizona);
+err_dsp_irq:
+	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, wm5110);
 
 	return ret;
 }
@@ -2492,6 +2488,8 @@ static int wm5110_remove(struct platform_device *pdev)
 		wm_adsp2_remove(&wm5110->core.adsp[i]);
 
 	arizona_free_spk_irqs(arizona);
+
+	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, wm5110);
 
 	return 0;
 }

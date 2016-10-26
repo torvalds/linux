@@ -1116,7 +1116,6 @@ static int cs47l24_codec_probe(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct cs47l24_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct arizona *arizona = priv->core.arizona;
 	int ret;
 
 	priv->core.arizona->dapm = dapm;
@@ -1125,14 +1124,6 @@ static int cs47l24_codec_probe(struct snd_soc_codec *codec)
 	arizona_init_gpio(codec);
 	arizona_init_mono(codec);
 	arizona_init_notifiers(codec);
-
-	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
-				  "ADSP2 Compressed IRQ", cs47l24_adsp2_irq,
-				  priv);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request DSP IRQ: %d\n", ret);
-		return ret;
-	}
 
 	ret = wm_adsp2_codec_probe(&priv->core.adsp[1], codec);
 	if (ret)
@@ -1161,14 +1152,11 @@ err_adsp2_codec_probe:
 static int cs47l24_codec_remove(struct snd_soc_codec *codec)
 {
 	struct cs47l24_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct arizona *arizona = priv->core.arizona;
 
 	wm_adsp2_codec_remove(&priv->core.adsp[1], codec);
 	wm_adsp2_codec_remove(&priv->core.adsp[2], codec);
 
 	priv->core.arizona->dapm = NULL;
-
-	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, priv);
 
 	return 0;
 }
@@ -1285,9 +1273,17 @@ static int cs47l24_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
+	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
+				  "ADSP2 Compressed IRQ", cs47l24_adsp2_irq,
+				  cs47l24);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Failed to request DSP IRQ: %d\n", ret);
+		return ret;
+	}
+
 	ret = arizona_init_spk_irqs(arizona);
 	if (ret < 0)
-		return ret;
+		goto err_dsp_irq;
 
 	ret = snd_soc_register_platform(&pdev->dev, &cs47l24_compr_platform);
 	if (ret < 0) {
@@ -1308,6 +1304,8 @@ err_platform:
 	snd_soc_unregister_platform(&pdev->dev);
 err_spk_irqs:
 	arizona_free_spk_irqs(arizona);
+err_dsp_irq:
+	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, cs47l24);
 
 	return ret;
 }
@@ -1324,6 +1322,8 @@ static int cs47l24_remove(struct platform_device *pdev)
 	wm_adsp2_remove(&cs47l24->core.adsp[2]);
 
 	arizona_free_spk_irqs(arizona);
+
+	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, cs47l24);
 
 	return 0;
 }
