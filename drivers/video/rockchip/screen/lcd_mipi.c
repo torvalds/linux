@@ -42,16 +42,20 @@
 #endif
 #ifdef CONFIG_RK_3288_DSI_UBOOT
 DECLARE_GLOBAL_DATA_PTR;
-#define msleep(a) udelay(a * 1000)
 #define	printk(x...)	/* printf(x) */
 #endif
 static struct mipi_screen *gmipi_screen;
+
+static inline void mipidelay(unsigned int msecs)
+{
+	usleep_range(msecs * 1000, msecs * 1000 + 200);
+}
 
 static void rk_mipi_screen_pwr_disable(struct mipi_screen *screen)
 {
 	if (screen->lcd_en_gpio != INVALID_GPIO) {
 		gpio_direction_output(screen->lcd_en_gpio, !screen->lcd_en_atv_val);
-		msleep(screen->lcd_en_delay);
+		mipidelay(screen->lcd_en_delay);
 	} else{
 		MIPI_SCREEN_DBG("lcd_en_gpio is null");
 	}
@@ -59,7 +63,7 @@ static void rk_mipi_screen_pwr_disable(struct mipi_screen *screen)
 	if (screen->lcd_rst_gpio != INVALID_GPIO) {
 
 		gpio_direction_output(screen->lcd_rst_gpio, !screen->lcd_rst_atv_val);
-		msleep(screen->lcd_rst_delay);
+		mipidelay(screen->lcd_rst_delay);
 	} else {
 		MIPI_SCREEN_DBG("lcd_rst_gpio is null");
 	}
@@ -69,17 +73,17 @@ static void rk_mipi_screen_pwr_enable(struct mipi_screen *screen)
 {
 	if (screen->lcd_en_gpio != INVALID_GPIO) {
 		gpio_direction_output(screen->lcd_en_gpio, !screen->lcd_en_atv_val);
-		msleep(screen->lcd_en_delay);
+		mipidelay(screen->lcd_en_delay);
 		gpio_direction_output(screen->lcd_en_gpio, screen->lcd_en_atv_val);
-		msleep(screen->lcd_en_delay);
+		mipidelay(screen->lcd_en_delay);
 	} else
 		MIPI_SCREEN_DBG("lcd_en_gpio is null\n");
 
 	if (screen->lcd_rst_gpio != INVALID_GPIO) {
 		gpio_direction_output(screen->lcd_rst_gpio, !screen->lcd_rst_atv_val);
-		msleep (screen->lcd_rst_delay);
+		mipidelay(screen->lcd_rst_delay);
 		gpio_direction_output(screen->lcd_rst_gpio, screen->lcd_rst_atv_val);
-		msleep(screen->lcd_rst_delay);
+		mipidelay(screen->lcd_rst_delay);
 	} else
 		MIPI_SCREEN_DBG("lcd_rst_gpio is null\n");
 }
@@ -127,7 +131,8 @@ static void rk_mipi_screen_cmd_init(struct mipi_screen *screen)
 			} else {
 				MIPI_SCREEN_DBG("dsi is err.\n");
 			}
-			msleep(dcs_cmd->dcs_cmd.delay);
+			if (dcs_cmd->dcs_cmd.delay)
+				mipidelay(dcs_cmd->dcs_cmd.delay);
 		} else if (dcs_cmd->dcs_cmd.type == HSDT) {
 			cmds[0] = HSDT;
 			if (dcs_cmd->dcs_cmd.dsi_id == 0) {
@@ -143,7 +148,8 @@ static void rk_mipi_screen_cmd_init(struct mipi_screen *screen)
 			} else {
 				MIPI_SCREEN_DBG("dsi is err.");
 			}
-			msleep(dcs_cmd->dcs_cmd.delay);
+			if (dcs_cmd->dcs_cmd.delay)
+				mipidelay(dcs_cmd->dcs_cmd.delay);
 		} else
 			MIPI_SCREEN_DBG("cmd type err.\n");
 	}
@@ -179,7 +185,7 @@ int rk_mipi_screen(void)
 		if (rk_dsi_num == 2)
 			dsi_send_packet(1, dcs, 3);
 
-		msleep(20);
+		mipidelay(20);
 
 		dcs[0] = LPDT;
 		dcs[1] = DTYPE_DCS_SWRITE_0P;
@@ -188,7 +194,7 @@ int rk_mipi_screen(void)
 		if (rk_dsi_num == 2)
 			dsi_send_packet(1, dcs, 3);
 
-		msleep(20);
+		mipidelay(20);
 	} else {
 		rk_mipi_screen_pwr_enable(gmipi_screen);
 
@@ -230,7 +236,7 @@ int rk_mipi_screen_standby(u8 enable)
 		if (rk_dsi_num == 2)
 			dsi_send_packet(1, dcs, 3);
 
-		msleep(30);
+		mipidelay(30);
 
 		dcs[0] = LPDT;
 		dcs[1] = DTYPE_DCS_SWRITE_0P;
@@ -239,7 +245,7 @@ int rk_mipi_screen_standby(u8 enable)
 		if (rk_dsi_num == 2)
 			dsi_send_packet(1, dcs, 3);
 
-		msleep(100);
+		mipidelay(100);
 		rk_mipi_screen_pwr_disable(gmipi_screen);
 		MIPI_SCREEN_DBG("++++enable++++++++++++%s:%d\n", __func__, __LINE__);
 	} else {
