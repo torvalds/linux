@@ -1154,10 +1154,6 @@ static bool ssif_dbg_probe;
 module_param_named(dbg_probe, ssif_dbg_probe, bool, 0);
 MODULE_PARM_DESC(dbg_probe, "Enable debugging of probing of adapters.");
 
-static int use_thread;
-module_param(use_thread, int, 0);
-MODULE_PARM_DESC(use_thread, "Use the thread interface.");
-
 static bool ssif_tryacpi = true;
 module_param_named(tryacpi, ssif_tryacpi, bool, 0);
 MODULE_PARM_DESC(tryacpi, "Setting this to zero will disable the default scan of the interfaces identified via ACPI");
