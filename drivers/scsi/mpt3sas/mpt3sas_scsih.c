@@ -5384,10 +5384,10 @@ _scsih_check_device(struct MPT3SAS_ADAPTER *ioc,
 			sas_device->handle, handle);
 		sas_target_priv_data->handle = handle;
 		sas_device->handle = handle;
-		if (sas_device_pg0.Flags &
+		if (le16_to_cpu(sas_device_pg0.Flags) &
 		     MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID) {
 			sas_device->enclosure_level =
-				le16_to_cpu(sas_device_pg0.EnclosureLevel);
+				sas_device_pg0.EnclosureLevel;
 			memcpy(sas_device->connector_name,
 				sas_device_pg0.ConnectorName, 4);
 			sas_device->connector_name[4] = '\0';
@@ -5516,9 +5516,10 @@ _scsih_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle, u8 phy_num,
 	sas_device->fast_path = (le16_to_cpu(sas_device_pg0.Flags) &
 	    MPI25_SAS_DEVICE0_FLAGS_FAST_PATH_CAPABLE) ? 1 : 0;
 
-	if (sas_device_pg0.Flags & MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID) {
+	if (le16_to_cpu(sas_device_pg0.Flags)
+		& MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID) {
 		sas_device->enclosure_level =
-			le16_to_cpu(sas_device_pg0.EnclosureLevel);
+			sas_device_pg0.EnclosureLevel;
 		memcpy(sas_device->connector_name,
 			sas_device_pg0.ConnectorName, 4);
 		sas_device->connector_name[4] = '\0';
@@ -7056,7 +7057,7 @@ Mpi2SasDevicePage0_t *sas_device_pg0)
 			if (sas_device_pg0->Flags &
 			      MPI2_SAS_DEVICE0_FLAGS_ENCL_LEVEL_VALID) {
 				sas_device->enclosure_level =
-				   le16_to_cpu(sas_device_pg0->EnclosureLevel);
+				   sas_device_pg0->EnclosureLevel;
 				memcpy(&sas_device->connector_name[0],
 					&sas_device_pg0->ConnectorName[0], 4);
 			} else {
@@ -7118,6 +7119,7 @@ _scsih_search_responding_sas_devices(struct MPT3SAS_ADAPTER *ioc)
 		sas_device_pg0.SASAddress =
 				le64_to_cpu(sas_device_pg0.SASAddress);
 		sas_device_pg0.Slot = le16_to_cpu(sas_device_pg0.Slot);
+		sas_device_pg0.Flags = le16_to_cpu(sas_device_pg0.Flags);
 		_scsih_mark_responding_sas_device(ioc, &sas_device_pg0);
 	}
 
