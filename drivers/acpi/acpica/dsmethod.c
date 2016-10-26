@@ -128,7 +128,7 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 	if (ACPI_FAILURE(status)) {
 		acpi_ds_delete_walk_state(walk_state);
 		acpi_ps_free_op(op);
-		return_ACPI_STATUS(status);
+		goto unlock;
 	}
 
 	walk_state->descending_callback = acpi_ds_detect_named_opcodes;
