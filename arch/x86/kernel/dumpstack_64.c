@@ -128,8 +128,10 @@ recursion_check:
 	 * just break out and report an unknown stack type.
 	 */
 	if (visit_mask) {
-		if (*visit_mask & (1UL << info->type))
+		if (*visit_mask & (1UL << info->type)) {
+			printk_deferred_once(KERN_WARNING "WARNING: stack recursion on stack type %d\n", info->type);
 			goto unknown;
+		}
 		*visit_mask |= 1UL << info->type;
 	}
 
