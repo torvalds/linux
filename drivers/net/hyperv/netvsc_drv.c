@@ -699,12 +699,8 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 static void netvsc_get_drvinfo(struct net_device *net,
 			       struct ethtool_drvinfo *info)
 {
-	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct hv_device *dev = net_device_ctx->device_ctx;
-
 	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
 	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
-	strlcpy(info->bus_info, vmbus_dev_name(dev), sizeof(info->bus_info));
 }
 
 static void netvsc_get_channels(struct net_device *net,
