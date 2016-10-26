@@ -30,10 +30,11 @@ static inline uint32_t drm_of_find_possible_crtcs(struct drm_device *dev,
 	return 0;
 }
 
-static void drm_of_component_match_add(struct device *master,
-				       struct component_match **matchptr,
-				       int (*compare)(struct device *, void *),
-				       struct device_node *node)
+static inline void
+drm_of_component_match_add(struct device *master,
+			   struct component_match **matchptr,
+			   int (*compare)(struct device *, void *),
+			   struct device_node *node)
 {
 }
 
