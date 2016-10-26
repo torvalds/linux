@@ -257,12 +257,63 @@ extern struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 
 extern void edac_device_free_ctl_info(struct edac_device_ctl_info *ctl_info);
 
+/**
+ * edac_device_add_device: Insert the 'edac_dev' structure into the
+ *	 edac_device global list and create sysfs entries associated with
+ *	 edac_device structure.
+ *
+ * @edac_dev: pointer to edac_device structure to be added to the list
+ *	'edac_device' structure.
+ *
+ * Returns:
+ *	0 on Success, or an error code on failure
+ */
 extern int edac_device_add_device(struct edac_device_ctl_info *edac_dev);
+
+/**
+ * edac_device_del_device:
+ *	Remove sysfs entries for specified edac_device structure and
+ *	then remove edac_device structure from global list
+ *
+ * @dev:
+ *	Pointer to struct &device representing the edac device
+ *	structure to remove.
+ *
+ * Returns:
+ *	Pointer to removed edac_device structure,
+ *	or %NULL if device not found.
+ */
 extern struct edac_device_ctl_info *edac_device_del_device(struct device *dev);
+
+/**
+ * edac_device_handle_ue():
+ *	perform a common output and handling of an 'edac_dev' UE event
+ *
+ * @edac_dev: pointer to struct &edac_device_ctl_info
+ * @inst_nr: number of the instance where the UE error happened
+ * @block_nr: number of the block where the UE error happened
+ * @msg: message to be printed
+ */
 extern void edac_device_handle_ue(struct edac_device_ctl_info *edac_dev,
 				int inst_nr, int block_nr, const char *msg);
+/**
+ * edac_device_handle_ce():
+ *	perform a common output and handling of an 'edac_dev' CE event
+ *
+ * @edac_dev: pointer to struct &edac_device_ctl_info
+ * @inst_nr: number of the instance where the CE error happened
+ * @block_nr: number of the block where the CE error happened
+ * @msg: message to be printed
+ */
 extern void edac_device_handle_ce(struct edac_device_ctl_info *edac_dev,
 				int inst_nr, int block_nr, const char *msg);
+
+/**
+ * edac_device_alloc_index: Allocate a unique device index number
+ *
+ * Returns:
+ *	allocated index number
+ */
 extern int edac_device_alloc_index(void);
 extern const char *edac_layer_name[];
 
