@@ -389,10 +389,10 @@ int dprc_get_obj(struct fsl_mc_io	*mc_io,
 
 int dprc_get_obj_desc(struct fsl_mc_io		*mc_io,
 		      u32		cmd_flags,
-			u16		token,
-			char			*obj_type,
-			int			obj_id,
-			struct dprc_obj_desc	*obj_desc);
+		      u16		token,
+		      char			*obj_type,
+		      int			obj_id,
+		      struct dprc_obj_desc	*obj_desc);
 
 int dprc_set_obj_irq(struct fsl_mc_io		*mc_io,
 		     u32			cmd_flags,
