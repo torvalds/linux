@@ -107,7 +107,7 @@ static int sun4i_gpadc_probe(struct platform_device *pdev)
 	if (!of_id)
 		return -EINVAL;
 
-	switch ((int)of_id->data) {
+	switch ((long)of_id->data) {
 	case ARCH_SUN4I_A10:
 		cells = sun4i_gpadc_cells;
 		size = ARRAY_SIZE(sun4i_gpadc_cells);
