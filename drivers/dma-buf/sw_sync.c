@@ -316,8 +316,8 @@ static long sw_sync_ioctl_create_fence(struct sync_timeline *obj,
 	}
 
 	sync_file = sync_file_create(&pt->base);
+	dma_fence_put(&pt->base);
 	if (!sync_file) {
-		dma_fence_put(&pt->base);
 		err = -ENOMEM;
 		goto err;
 	}
