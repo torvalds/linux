@@ -493,9 +493,6 @@ extern struct edac_pci_ctl_info *edac_pci_alloc_ctl_info(unsigned int sz_pvt,
 
 extern void edac_pci_free_ctl_info(struct edac_pci_ctl_info *pci);
 
-extern void edac_pci_reset_delay_period(struct edac_pci_ctl_info *pci,
-				unsigned long value);
-
 extern int edac_pci_alloc_index(void);
 extern int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx);
 extern struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev);
