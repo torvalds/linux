@@ -674,7 +674,16 @@ static int ovl_remove_upper(struct dentry *dentry, bool is_dir)
 	struct dentry *upperdir = ovl_dentry_upper(dentry->d_parent);
 	struct inode *dir = upperdir->d_inode;
 	struct dentry *upper;
+	struct dentry *opaquedir = NULL;
 	int err;
+
+	/* Redirect dir can be !ovl_lower_positive && OVL_TYPE_MERGE */
+	if (is_dir && ovl_dentry_get_redirect(dentry)) {
+		opaquedir = ovl_check_empty_and_clear(dentry);
+		err = PTR_ERR(opaquedir);
+		if (IS_ERR(opaquedir))
+			goto out;
+	}
 
 	inode_lock_nested(dir, I_MUTEX_PARENT);
 	upper = lookup_one_len(dentry->d_name.name, upperdir,
@@ -684,14 +693,15 @@ static int ovl_remove_upper(struct dentry *dentry, bool is_dir)
 		goto out_unlock;
 
 	err = -ESTALE;
-	if (upper == ovl_dentry_upper(dentry)) {
-		if (is_dir)
-			err = vfs_rmdir(dir, upper);
-		else
-			err = vfs_unlink(dir, upper, NULL);
-		ovl_dentry_version_inc(dentry->d_parent);
-	}
-	dput(upper);
+	if ((opaquedir && upper != opaquedir) ||
+	    (!opaquedir && upper != ovl_dentry_upper(dentry)))
+		goto out_dput_upper;
+
+	if (is_dir)
+		err = vfs_rmdir(dir, upper);
+	else
+		err = vfs_unlink(dir, upper, NULL);
+	ovl_dentry_version_inc(dentry->d_parent);
 
 	/*
 	 * Keeping this dentry hashed would mean having to release
@@ -701,9 +711,12 @@ static int ovl_remove_upper(struct dentry *dentry, bool is_dir)
 	 */
 	if (!err)
 		d_drop(dentry);
+out_dput_upper:
+	dput(upper);
 out_unlock:
 	inode_unlock(dir);
-
+	dput(opaquedir);
+out:
 	return err;
 }
 
