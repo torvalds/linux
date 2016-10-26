@@ -8748,8 +8748,15 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 		if ((ioc->hba_mpi_version_belonged == MPI25_VERSION &&
 			pdev->revision >= SAS3_PCI_DEVICE_C0_REVISION) ||
-			(ioc->hba_mpi_version_belonged == MPI26_VERSION))
-			ioc->msix96_vector = 1;
+			(ioc->hba_mpi_version_belonged == MPI26_VERSION)) {
+			ioc->combined_reply_queue = 1;
+			if (ioc->is_gen35_ioc)
+				ioc->combined_reply_index_count =
+				 MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT_G35;
+			else
+				ioc->combined_reply_index_count =
+				 MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT_G3;
+		}
 		break;
 	default:
 		return -ENODEV;

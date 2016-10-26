@@ -300,8 +300,9 @@
  * There are twelve Supplemental Reply Post Host Index Registers
  * and each register is at offset 0x10 bytes from the previous one.
  */
-#define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT 12
-#define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_OFFSET (0x10)
+#define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT_G3	12
+#define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT_G35	16
+#define MPT3_SUP_REPLY_POST_HOST_INDEX_REG_OFFSET	(0x10)
 
 /* OEM Identifiers */
 #define MFG10_OEM_ID_INVALID                   (0x00000000)
@@ -1158,7 +1159,8 @@ struct MPT3SAS_ADAPTER {
 	u8		reply_queue_count;
 	struct list_head reply_queue_list;
 
-	u8		msix96_vector;
+	u8		combined_reply_queue;
+	u8		combined_reply_index_count;
 	/* reply post register index */
 	resource_size_t	**replyPostRegisterIndex;
 

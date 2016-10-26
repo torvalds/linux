@@ -1078,7 +1078,7 @@ _base_interrupt(int irq, void *bus_id)
 	 * new reply host index value in ReplyPostIndex Field and msix_index
 	 * value in MSIxIndex field.
 	 */
-	if (ioc->msix96_vector)
+	if (ioc->combined_reply_queue)
 		writel(reply_q->reply_post_host_index | ((msix_index  & 7) <<
 			MPI2_RPHI_MSIX_INDEX_SHIFT),
 			ioc->replyPostRegisterIndex[msix_index/8]);
@@ -2052,7 +2052,7 @@ mpt3sas_base_unmap_resources(struct MPT3SAS_ADAPTER *ioc)
 	_base_free_irq(ioc);
 	_base_disable_msix(ioc);
 
-	if (ioc->msix96_vector) {
+	if (ioc->combined_reply_queue) {
 		kfree(ioc->replyPostRegisterIndex);
 		ioc->replyPostRegisterIndex = NULL;
 	}
@@ -2162,7 +2162,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 	/* Use the Combined reply queue feature only for SAS3 C0 & higher
 	 * revision HBAs and also only when reply queue count is greater than 8
 	 */
-	if (ioc->msix96_vector && ioc->reply_queue_count > 8) {
+	if (ioc->combined_reply_queue && ioc->reply_queue_count > 8) {
 		/* Determine the Supplemental Reply Post Host Index Registers
 		 * Addresse. Supplemental Reply Post Host Index Registers
 		 * starts at offset MPI25_SUP_REPLY_POST_HOST_INDEX_OFFSET and
@@ -2170,7 +2170,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 		 * MPT3_SUP_REPLY_POST_HOST_INDEX_REG_OFFSET from previous one.
 		 */
 		ioc->replyPostRegisterIndex = kcalloc(
-		     MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT,
+		     ioc->combined_reply_index_count,
 		     sizeof(resource_size_t *), GFP_KERNEL);
 		if (!ioc->replyPostRegisterIndex) {
 			dfailprintk(ioc, printk(MPT3SAS_FMT
@@ -2180,14 +2180,14 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 			goto out_fail;
 		}
 
-		for (i = 0; i < MPT3_SUP_REPLY_POST_HOST_INDEX_REG_COUNT; i++) {
+		for (i = 0; i < ioc->combined_reply_index_count; i++) {
 			ioc->replyPostRegisterIndex[i] = (resource_size_t *)
 			     ((u8 *)&ioc->chip->Doorbell +
 			     MPI25_SUP_REPLY_POST_HOST_INDEX_OFFSET +
 			     (i * MPT3_SUP_REPLY_POST_HOST_INDEX_REG_OFFSET));
 		}
 	} else
-		ioc->msix96_vector = 0;
+		ioc->combined_reply_queue = 0;
 
 	if (ioc->is_warpdrive) {
 		ioc->reply_post_host_index[0] = (resource_size_t __iomem *)
@@ -5140,7 +5140,7 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
 
 	/* initialize reply post host index */
 	list_for_each_entry(reply_q, &ioc->reply_queue_list, list) {
-		if (ioc->msix96_vector)
+		if (ioc->combined_reply_queue)
 			writel((reply_q->msix_index & 7)<<
 			   MPI2_RPHI_MSIX_INDEX_SHIFT,
 			   ioc->replyPostRegisterIndex[reply_q->msix_index/8]);
