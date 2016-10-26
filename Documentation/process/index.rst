@@ -4,29 +4,48 @@
 	\renewcommand\thesubsection*
 
 
-Linux Kernel Development Documentation
-======================================
+Working with the kernel development community
+=============================================
 
-Contents:
+So you want to be a Linux kernel developer?  Welcome!  While there is a lot
+to be learned about the kernel in a technical sense, it is also important
+to learn about how our community works.  Reading these documents will make
+it much easier for you to get your changes merged with a minimum of
+trouble.
+
+Below are the essential guides that every developer should read.
 
 .. toctree::
    :maxdepth: 2
 
    howto
-   changes
-   coding-style
+   code-of-conflict
+   development-process
    submitting-patches
+   coding-style
+   email-clients
+
+Other guides to the community that are of interest to most developers are: 
+
+.. toctree::
+   :maxdepth: 2
+
+   changes
    submitting-drivers
    stable-api-nonsense
    management-style
    stable-kernel-rules
-   kernel-docs
-   applying-patches
-   email-clients
    submit-checklist
-   code-of-conflict
+   kernel-docs
+
+These are some overall technical guides that have been put here for now for
+lack of a better place.
+
+.. toctree::
+   :maxdepth: 2
+
+   applying-patches
    adding-syscalls
    magic-number
    volatile-considered-harmful
 
-   development-process
