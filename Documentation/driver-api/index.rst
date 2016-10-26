@@ -25,3 +25,11 @@ available subsections can be seen below.
    hsi
    miscellaneous
    vme
+
+
+.. only::  subproject and html
+
+   Indices
+   =======
+
+   * :ref:`genindex`
