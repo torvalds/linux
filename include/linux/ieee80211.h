@@ -1576,6 +1576,9 @@ struct ieee80211_vht_operation {
 #define WLAN_AUTH_SHARED_KEY 1
 #define WLAN_AUTH_FT 2
 #define WLAN_AUTH_SAE 3
+#define WLAN_AUTH_FILS_SK 4
+#define WLAN_AUTH_FILS_SK_PFS 5
+#define WLAN_AUTH_FILS_PK 6
 #define WLAN_AUTH_LEAP 128
 
 #define WLAN_AUTH_CHALLENGE_LEN 128
