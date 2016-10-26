@@ -3578,7 +3578,7 @@ void ixgbe_set_rxpba_generic(struct ixgbe_hw *hw,
  *  Calculates the checksum for some buffer on a specified length.  The
  *  checksum calculated is returned.
  **/
-static u8 ixgbe_calculate_checksum(u8 *buffer, u32 length)
+u8 ixgbe_calculate_checksum(u8 *buffer, u32 length)
 {
 	u32 i;
 	u8 sum = 0;
@@ -3722,6 +3722,8 @@ rel_out:
  *  @min: driver version minor number
  *  @build: driver version build number
  *  @sub: driver version sub build number
+ *  @len: length of driver_ver string
+ *  @driver_ver: driver string
  *
  *  Sends driver version number to firmware through the manageability
  *  block.  On success return 0
@@ -3729,7 +3731,8 @@ rel_out:
  *  semaphore or IXGBE_ERR_HOST_INTERFACE_COMMAND when command fails.
  **/
 s32 ixgbe_set_fw_drv_ver_generic(struct ixgbe_hw *hw, u8 maj, u8 min,
-				 u8 build, u8 sub)
+				 u8 build, u8 sub, __always_unused u16 len,
+				 __always_unused const char *driver_ver)
 {
 	struct ixgbe_hic_drv_info fw_cmd;
 	int i;

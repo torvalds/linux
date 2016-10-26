@@ -2619,6 +2619,7 @@ enum ixgbe_fdir_pballoc_type {
 #define FW_CEM_UNUSED_VER		0x0
 #define FW_CEM_MAX_RETRIES		3
 #define FW_CEM_RESP_STATUS_SUCCESS	0x1
+#define FW_CEM_DRIVER_VERSION_SIZE	39 /* +9 would send 48 bytes to fw */
 #define FW_READ_SHADOW_RAM_CMD		0x31
 #define FW_READ_SHADOW_RAM_LEN		0x6
 #define FW_WRITE_SHADOW_RAM_CMD		0x33
@@ -2684,6 +2685,16 @@ struct ixgbe_hic_drv_info {
 	u8 ver_maj;
 	u8 pad; /* end spacing to ensure length is mult. of dword */
 	u16 pad2; /* end spacing to ensure length is mult. of dword2 */
+};
+
+struct ixgbe_hic_drv_info2 {
+	struct ixgbe_hic_hdr hdr;
+	u8 port_num;
+	u8 ver_sub;
+	u8 ver_build;
+	u8 ver_min;
+	u8 ver_maj;
+	char driver_string[FW_CEM_DRIVER_VERSION_SIZE];
 };
 
 /* These need to be dword aligned */
@@ -3362,7 +3373,8 @@ struct ixgbe_mac_operations {
 	void (*fc_autoneg)(struct ixgbe_hw *);
 
 	/* Manageability interface */
-	s32 (*set_fw_drv_ver)(struct ixgbe_hw *, u8, u8, u8, u8);
+	s32 (*set_fw_drv_ver)(struct ixgbe_hw *, u8, u8, u8, u8, u16,
+			      const char *);
 	s32 (*get_thermal_sensor_data)(struct ixgbe_hw *);
 	s32 (*init_thermal_sensor_thresh)(struct ixgbe_hw *hw);
 	void (*disable_rx)(struct ixgbe_hw *hw);

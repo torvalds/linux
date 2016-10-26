@@ -111,7 +111,8 @@ void ixgbe_set_mac_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf);
 void ixgbe_set_vlan_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf);
 s32 ixgbe_get_device_caps_generic(struct ixgbe_hw *hw, u16 *device_caps);
 s32 ixgbe_set_fw_drv_ver_generic(struct ixgbe_hw *hw, u8 maj, u8 min,
-				 u8 build, u8 ver);
+				 u8 build, u8 ver, u16 len, const char *str);
+u8 ixgbe_calculate_checksum(u8 *buffer, u32 length);
 s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, void *, u32 length,
 				 u32 timeout, bool return_data);
 void ixgbe_clear_tx_pending(struct ixgbe_hw *hw);

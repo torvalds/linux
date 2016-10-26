@@ -2354,6 +2354,62 @@ static s32 ixgbe_led_off_t_x550em(struct ixgbe_hw *hw, u32 led_idx)
 	return 0;
 }
 
+/**
+ *  ixgbe_set_fw_drv_ver_x550 - Sends driver version to firmware
+ *  @hw: pointer to the HW structure
+ *  @maj: driver version major number
+ *  @min: driver version minor number
+ *  @build: driver version build number
+ *  @sub: driver version sub build number
+ *  @len: length of driver_ver string
+ *  @driver_ver: driver string
+ *
+ *  Sends driver version number to firmware through the manageability
+ *  block.  On success return 0
+ *  else returns IXGBE_ERR_SWFW_SYNC when encountering an error acquiring
+ *  semaphore or IXGBE_ERR_HOST_INTERFACE_COMMAND when command fails.
+ **/
+static s32 ixgbe_set_fw_drv_ver_x550(struct ixgbe_hw *hw, u8 maj, u8 min,
+				     u8 build, u8 sub, u16 len,
+				     const char *driver_ver)
+{
+	struct ixgbe_hic_drv_info2 fw_cmd;
+	s32 ret_val;
+	int i;
+
+	if (!len || !driver_ver || (len > sizeof(fw_cmd.driver_string)))
+		return IXGBE_ERR_INVALID_ARGUMENT;
+
+	fw_cmd.hdr.cmd = FW_CEM_CMD_DRIVER_INFO;
+	fw_cmd.hdr.buf_len = FW_CEM_CMD_DRIVER_INFO_LEN + len;
+	fw_cmd.hdr.cmd_or_resp.cmd_resv = FW_CEM_CMD_RESERVED;
+	fw_cmd.port_num = (u8)hw->bus.func;
+	fw_cmd.ver_maj = maj;
+	fw_cmd.ver_min = min;
+	fw_cmd.ver_build = build;
+	fw_cmd.ver_sub = sub;
+	fw_cmd.hdr.checksum = 0;
+	memcpy(fw_cmd.driver_string, driver_ver, len);
+	fw_cmd.hdr.checksum = ixgbe_calculate_checksum((u8 *)&fw_cmd,
+			      (FW_CEM_HDR_LEN + fw_cmd.hdr.buf_len));
+
+	for (i = 0; i <= FW_CEM_MAX_RETRIES; i++) {
+		ret_val = ixgbe_host_interface_command(hw, (u32 *)&fw_cmd,
+						       sizeof(fw_cmd),
+						       IXGBE_HI_COMMAND_TIMEOUT,
+						       true);
+		if (ret_val)
+			continue;
+
+		if (fw_cmd.hdr.cmd_or_resp.ret_status !=
+		    FW_CEM_RESP_STATUS_SUCCESS)
+			return IXGBE_ERR_HOST_INTERFACE_COMMAND;
+		return 0;
+	}
+
+	return ret_val;
+}
+
 /** ixgbe_get_lcd_x550em - Determine lowest common denominator
  *  @hw: pointer to hardware structure
  *  @lcd_speed: pointer to lowest common link speed
@@ -3273,7 +3329,7 @@ static s32 ixgbe_write_phy_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,
 	.clear_vfta			= &ixgbe_clear_vfta_generic, \
 	.set_vfta			= &ixgbe_set_vfta_generic, \
 	.fc_enable			= &ixgbe_fc_enable_generic, \
-	.set_fw_drv_ver			= &ixgbe_set_fw_drv_ver_generic, \
+	.set_fw_drv_ver			= &ixgbe_set_fw_drv_ver_x550, \
 	.init_uta_tables		= &ixgbe_init_uta_tables_generic, \
 	.set_mac_anti_spoofing		= &ixgbe_set_mac_anti_spoofing, \
 	.set_vlan_anti_spoofing		= &ixgbe_set_vlan_anti_spoofing, \

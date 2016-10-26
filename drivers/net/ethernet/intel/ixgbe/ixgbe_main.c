@@ -9833,8 +9833,9 @@ skip_sriov:
 	 * since os does not support feature
 	 */
 	if (hw->mac.ops.set_fw_drv_ver)
-		hw->mac.ops.set_fw_drv_ver(hw, 0xFF, 0xFF, 0xFF,
-					   0xFF);
+		hw->mac.ops.set_fw_drv_ver(hw, 0xFF, 0xFF, 0xFF, 0xFF,
+					   sizeof(ixgbe_driver_version) - 1,
+					   ixgbe_driver_version);
 
 	/* add san mac addr to netdev */
 	ixgbe_add_sanmac_netdev(netdev);
