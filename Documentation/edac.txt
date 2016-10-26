@@ -744,10 +744,6 @@ http://bluesmoke.sourceforge.net project site for EDAC.
 Nehalem Usage of EDAC APIs
 --------------------------
 
-This chapter documents some EXPERIMENTAL mappings for EDAC API to handle
-Nehalem EDAC driver. They will likely be changed on future versions
-of the driver.
-
 Due to the way Nehalem exports Memory Controller data, some adjustments
 were done at i7core_edac driver. This chapter will cover those differences
 
