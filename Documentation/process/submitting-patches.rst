@@ -1,7 +1,7 @@
 .. _submittingpatches:
 
-How to Get Your Change Into the Linux Kernel or Care And Operation Of Your Linus Torvalds
-=========================================================================================
+Submitting patches: the essential guide to getting your code into the kernel
+============================================================================
 
 For a person or company who wishes to submit a change to the Linux
 kernel, the process can sometimes be daunting if you're not familiar
@@ -23,10 +23,6 @@ control system; if you use ``git`` to prepare your patches, you'll find much
 of the mechanical work done for you, though you'll still need to prepare
 and document a sensible set of patches.  In general, use of ``git`` will make
 your life as a kernel developer easier.
-
-Creating and Sending your Change
-********************************
-
 
 0) Obtain a current source tree
 -------------------------------
@@ -417,8 +413,8 @@ e-mail discussions.
 
 
 
-11) Sign your work
-------------------
+11) Sign your work — the Developer's Certificate of Origin
+----------------------------------------------------------
 
 To improve tracking of who did what, especially with patches that can
 percolate to their final resting place in the kernel through several
@@ -803,8 +799,8 @@ command like this will do the trick::
   git request-pull master git://my.public.tree/linux.git my-signed-tag
 
 
-REFERENCES
-**********
+References
+----------
 
 Andrew Morton, "The perfect patch" (tpp).
   <http://www.ozlabs.org/~akpm/stuff/tpp.txt>
