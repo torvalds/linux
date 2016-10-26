@@ -57,6 +57,54 @@ MODULE_AUTHOR("Sean Hefty");
 MODULE_DESCRIPTION("InfiniBand CM");
 MODULE_LICENSE("Dual BSD/GPL");
 
+static const char * const ibcm_rej_reason_strs[] = {
+	[IB_CM_REJ_NO_QP]			= "no QP",
+	[IB_CM_REJ_NO_EEC]			= "no EEC",
+	[IB_CM_REJ_NO_RESOURCES]		= "no resources",
+	[IB_CM_REJ_TIMEOUT]			= "timeout",
+	[IB_CM_REJ_UNSUPPORTED]			= "unsupported",
+	[IB_CM_REJ_INVALID_COMM_ID]		= "invalid comm ID",
+	[IB_CM_REJ_INVALID_COMM_INSTANCE]	= "invalid comm instance",
+	[IB_CM_REJ_INVALID_SERVICE_ID]		= "invalid service ID",
+	[IB_CM_REJ_INVALID_TRANSPORT_TYPE]	= "invalid transport type",
+	[IB_CM_REJ_STALE_CONN]			= "stale conn",
+	[IB_CM_REJ_RDC_NOT_EXIST]		= "RDC not exist",
+	[IB_CM_REJ_INVALID_GID]			= "invalid GID",
+	[IB_CM_REJ_INVALID_LID]			= "invalid LID",
+	[IB_CM_REJ_INVALID_SL]			= "invalid SL",
+	[IB_CM_REJ_INVALID_TRAFFIC_CLASS]	= "invalid traffic class",
+	[IB_CM_REJ_INVALID_HOP_LIMIT]		= "invalid hop limit",
+	[IB_CM_REJ_INVALID_PACKET_RATE]		= "invalid packet rate",
+	[IB_CM_REJ_INVALID_ALT_GID]		= "invalid alt GID",
+	[IB_CM_REJ_INVALID_ALT_LID]		= "invalid alt LID",
+	[IB_CM_REJ_INVALID_ALT_SL]		= "invalid alt SL",
+	[IB_CM_REJ_INVALID_ALT_TRAFFIC_CLASS]	= "invalid alt traffic class",
+	[IB_CM_REJ_INVALID_ALT_HOP_LIMIT]	= "invalid alt hop limit",
+	[IB_CM_REJ_INVALID_ALT_PACKET_RATE]	= "invalid alt packet rate",
+	[IB_CM_REJ_PORT_CM_REDIRECT]		= "port CM redirect",
+	[IB_CM_REJ_PORT_REDIRECT]		= "port redirect",
+	[IB_CM_REJ_INVALID_MTU]			= "invalid MTU",
+	[IB_CM_REJ_INSUFFICIENT_RESP_RESOURCES]	= "insufficient resp resources",
+	[IB_CM_REJ_CONSUMER_DEFINED]		= "consumer defined",
+	[IB_CM_REJ_INVALID_RNR_RETRY]		= "invalid RNR retry",
+	[IB_CM_REJ_DUPLICATE_LOCAL_COMM_ID]	= "duplicate local comm ID",
+	[IB_CM_REJ_INVALID_CLASS_VERSION]	= "invalid class version",
+	[IB_CM_REJ_INVALID_FLOW_LABEL]		= "invalid flow label",
+	[IB_CM_REJ_INVALID_ALT_FLOW_LABEL]	= "invalid alt flow label",
+};
+
+const char *__attribute_const__ ibcm_reject_msg(int reason)
+{
+	size_t index = reason;
+
+	if (index < ARRAY_SIZE(ibcm_rej_reason_strs) &&
+	    ibcm_rej_reason_strs[index])
+		return ibcm_rej_reason_strs[index];
+	else
+		return "unrecognized reason";
+}
+EXPORT_SYMBOL(ibcm_reject_msg);
+
 static void cm_add_one(struct ib_device *device);
 static void cm_remove_one(struct ib_device *device, void *client_data);
 

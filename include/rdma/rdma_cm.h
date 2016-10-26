@@ -388,4 +388,12 @@ int rdma_set_afonly(struct rdma_cm_id *id, int afonly);
  */
 __be64 rdma_get_service_id(struct rdma_cm_id *id, struct sockaddr *addr);
 
+/**
+ * rdma_reject_msg - return a pointer to a reject message string.
+ * @id: Communication identifier that received the REJECT event.
+ * @reason: Value returned in the REJECT event status field.
+ */
+const char *__attribute_const__ rdma_reject_msg(struct rdma_cm_id *id,
+						int reason);
+
 #endif /* RDMA_CM_H */
