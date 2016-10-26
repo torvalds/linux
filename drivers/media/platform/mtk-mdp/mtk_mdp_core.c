@@ -234,8 +234,7 @@ static int mtk_mdp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int mtk_mdp_pm_suspend(struct device *dev)
+static int __maybe_unused mtk_mdp_pm_suspend(struct device *dev)
 {
 	struct mtk_mdp_dev *mdp = dev_get_drvdata(dev);
 
@@ -244,7 +243,7 @@ static int mtk_mdp_pm_suspend(struct device *dev)
 	return 0;
 }
 
-static int mtk_mdp_pm_resume(struct device *dev)
+static int __maybe_unused mtk_mdp_pm_resume(struct device *dev)
 {
 	struct mtk_mdp_dev *mdp = dev_get_drvdata(dev);
 
@@ -252,10 +251,8 @@ static int mtk_mdp_pm_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM */
 
-#ifdef CONFIG_PM_SLEEP
-static int mtk_mdp_suspend(struct device *dev)
+static int __maybe_unused mtk_mdp_suspend(struct device *dev)
 {
 	if (pm_runtime_suspended(dev))
 		return 0;
@@ -263,14 +260,13 @@ static int mtk_mdp_suspend(struct device *dev)
 	return mtk_mdp_pm_suspend(dev);
 }
 
-static int mtk_mdp_resume(struct device *dev)
+static int __maybe_unused mtk_mdp_resume(struct device *dev)
 {
 	if (pm_runtime_suspended(dev))
 		return 0;
 
 	return mtk_mdp_pm_resume(dev);
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops mtk_mdp_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(mtk_mdp_suspend, mtk_mdp_resume)
