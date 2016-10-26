@@ -131,7 +131,12 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 	return 0;
 fail:
 	for (i = 0; i < fb_helper->connector_count; i++) {
-		kfree(fb_helper->connector_info[i]);
+		struct drm_fb_helper_connector *fb_helper_connector =
+			fb_helper->connector_info[i];
+
+		drm_connector_unreference(fb_helper_connector->connector);
+
+		kfree(fb_helper_connector);
 		fb_helper->connector_info[i] = NULL;
 	}
 	fb_helper->connector_count = 0;
