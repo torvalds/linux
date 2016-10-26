@@ -44,8 +44,8 @@ int dpbp_open(struct fsl_mc_io *mc_io,
 	      u16 *token);
 
 int dpbp_close(struct fsl_mc_io *mc_io,
-	       u32		cmd_flags,
-	       u16	token);
+	       u32 cmd_flags,
+	       u16 token);
 
 /**
  * struct dpbp_cfg - Structure representing DPBP configuration
@@ -55,10 +55,10 @@ struct dpbp_cfg {
 	u32 options;
 };
 
-int dpbp_create(struct fsl_mc_io	*mc_io,
-		u32		cmd_flags,
-		const struct dpbp_cfg	*cfg,
-		u16		*token);
+int dpbp_create(struct fsl_mc_io *mc_io,
+		u32 cmd_flags,
+		const struct dpbp_cfg *cfg,
+		u16 *token);
 
 int dpbp_destroy(struct fsl_mc_io *mc_io,
 		 u32 cmd_flags,
@@ -88,59 +88,59 @@ int dpbp_reset(struct fsl_mc_io *mc_io,
  * @irq_num: A user defined number associated with this IRQ
  */
 struct dpbp_irq_cfg {
-	     u64		addr;
-	     u32		val;
-	     int		irq_num;
+	     u64 addr;
+	     u32 val;
+	     int irq_num;
 };
 
-int dpbp_set_irq(struct fsl_mc_io	*mc_io,
-		 u32		cmd_flags,
-		 u16		token,
-		 u8		irq_index,
-		 struct dpbp_irq_cfg	*irq_cfg);
+int dpbp_set_irq(struct fsl_mc_io *mc_io,
+		 u32 cmd_flags,
+		 u16 token,
+		 u8 irq_index,
+		 struct dpbp_irq_cfg *irq_cfg);
 
-int dpbp_get_irq(struct fsl_mc_io	*mc_io,
-		 u32		cmd_flags,
-		 u16		token,
-		 u8		irq_index,
-		 int			*type,
-		 struct dpbp_irq_cfg	*irq_cfg);
+int dpbp_get_irq(struct fsl_mc_io *mc_io,
+		 u32 cmd_flags,
+		 u16 token,
+		 u8 irq_index,
+		 int *type,
+		 struct dpbp_irq_cfg *irq_cfg);
 
-int dpbp_set_irq_enable(struct fsl_mc_io	*mc_io,
-			u32		cmd_flags,
-			u16		token,
-			u8			irq_index,
-			u8			en);
+int dpbp_set_irq_enable(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			u8 irq_index,
+			u8 en);
 
-int dpbp_get_irq_enable(struct fsl_mc_io	*mc_io,
-			u32		cmd_flags,
-			u16		token,
-			u8			irq_index,
-			u8			*en);
+int dpbp_get_irq_enable(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			u8 irq_index,
+			u8 *en);
 
 int dpbp_set_irq_mask(struct fsl_mc_io	*mc_io,
-		      u32		cmd_flags,
-		      u16		token,
-		      u8		irq_index,
-		      u32		mask);
+		      u32 cmd_flags,
+		      u16 token,
+		      u8 irq_index,
+		      u32 mask);
 
 int dpbp_get_irq_mask(struct fsl_mc_io	*mc_io,
-		      u32		cmd_flags,
-		      u16		token,
-		      u8		irq_index,
-		      u32		*mask);
+		      u32 cmd_flags,
+		      u16 token,
+		      u8 irq_index,
+		      u32 *mask);
 
-int dpbp_get_irq_status(struct fsl_mc_io	*mc_io,
-			u32		cmd_flags,
-			u16		token,
-			u8			irq_index,
-			u32		*status);
+int dpbp_get_irq_status(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			u8 irq_index,
+			u32 *status);
 
-int dpbp_clear_irq_status(struct fsl_mc_io	*mc_io,
-			  u32		cmd_flags,
-			  u16		token,
-			  u8		irq_index,
-			  u32		status);
+int dpbp_clear_irq_status(struct fsl_mc_io *mc_io,
+			  u32 cmd_flags,
+			  u16 token,
+			  u8 irq_index,
+			  u32 status);
 
 /**
  * struct dpbp_attr - Structure representing DPBP attributes
@@ -163,10 +163,10 @@ struct dpbp_attr {
 	u16 bpid;
 };
 
-int dpbp_get_attributes(struct fsl_mc_io	*mc_io,
-			u32	cmd_flags,
-			u16		token,
-			struct dpbp_attr	*attr);
+int dpbp_get_attributes(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			struct dpbp_attr *attr);
 
 /**
  *  DPBP notifications options
@@ -196,24 +196,24 @@ int dpbp_get_attributes(struct fsl_mc_io	*mc_io,
  * @options: Mask of available options; use 'DPBP_NOTIF_OPT_<X>' values
  */
 struct dpbp_notification_cfg {
-	u32	depletion_entry;
-	u32	depletion_exit;
-	u32	surplus_entry;
-	u32	surplus_exit;
-	u64	message_iova;
-	u64	message_ctx;
-	u16	options;
+	u32 depletion_entry;
+	u32 depletion_exit;
+	u32 surplus_entry;
+	u32 surplus_exit;
+	u64 message_iova;
+	u64 message_ctx;
+	u16 options;
 };
 
-int dpbp_set_notifications(struct fsl_mc_io	*mc_io,
-			   u32		cmd_flags,
-			   u16		token,
-			   struct dpbp_notification_cfg	*cfg);
+int dpbp_set_notifications(struct fsl_mc_io *mc_io,
+			   u32 cmd_flags,
+			   u16 token,
+			   struct dpbp_notification_cfg *cfg);
 
-int dpbp_get_notifications(struct fsl_mc_io	*mc_io,
-			   u32		cmd_flags,
-			   u16		token,
-			   struct dpbp_notification_cfg	*cfg);
+int dpbp_get_notifications(struct fsl_mc_io *mc_io,
+			   u32 cmd_flags,
+			   u16 token,
+			   struct dpbp_notification_cfg *cfg);
 
 /** @} */
 
