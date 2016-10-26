@@ -601,3 +601,19 @@ int propagate_umount(struct list_head *list)
 
 	return 0;
 }
+
+void propagate_remount(struct mount *mnt)
+{
+	struct mount *parent = mnt->mnt_parent;
+	struct mount *p = mnt, *m;
+	struct super_block *sb = mnt->mnt.mnt_sb;
+
+	if (!sb->s_op->copy_mnt_data)
+		return;
+	for (p = propagation_next(parent, parent); p;
+				p = propagation_next(p, parent)) {
+		m = __lookup_mnt(&p->mnt, mnt->mnt_mountpoint);
+		if (m)
+			sb->s_op->copy_mnt_data(m->mnt.data, mnt->mnt.data);
+	}
+}
