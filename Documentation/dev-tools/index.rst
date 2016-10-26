@@ -23,3 +23,11 @@ whole; patches welcome!
    kmemleak
    kmemcheck
    gdb-kernel-debugging
+
+
+.. only::  subproject and html
+
+   Indices
+   =======
+
+   * :ref:`genindex`

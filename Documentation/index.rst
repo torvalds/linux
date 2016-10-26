@@ -14,7 +14,7 @@ Contents:
    admin-guide/index
    kernel-documentation
    process/index
-   dev-tools/tools
+   dev-tools/index
    driver-api/index
    media/index
    gpu/index
