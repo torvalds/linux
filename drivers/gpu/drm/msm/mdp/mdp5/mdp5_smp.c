@@ -292,6 +292,46 @@ void mdp5_smp_complete_commit(struct mdp5_smp *smp, struct mdp5_smp_state *state
 	state->released = 0;
 }
 
+void mdp5_smp_dump(struct mdp5_smp *smp, struct drm_printer *p)
+{
+	struct mdp5_kms *mdp5_kms = get_kms(smp);
+	struct mdp5_hw_pipe_state *hwpstate;
+	struct mdp5_smp_state *state;
+	int total = 0, i, j;
+
+	drm_printf(p, "name\tinuse\tplane\n");
+	drm_printf(p, "----\t-----\t-----\n");
+
+	drm_modeset_lock(&mdp5_kms->state_lock, NULL);
+
+	/* grab these *after* we hold the state_lock */
+	hwpstate = &mdp5_kms->state->hwpipe;
+	state = &mdp5_kms->state->smp;
+
+	for (i = 0; i < mdp5_kms->num_hwpipes; i++) {
+		struct mdp5_hw_pipe *hwpipe = mdp5_kms->hwpipes[i];
+		struct drm_plane *plane = hwpstate->hwpipe_to_plane[hwpipe->idx];
+		enum mdp5_pipe pipe = hwpipe->pipe;
+		for (j = 0; j < pipe2nclients(pipe); j++) {
+			u32 cid = pipe2client(pipe, j);
+			void *cs = state->client_state[cid];
+			int inuse = bitmap_weight(cs, smp->blk_cnt);
+
+			drm_printf(p, "%s:%d\t%d\t%s\n",
+				pipe2name(pipe), j, inuse,
+				plane ? plane->name : NULL);
+
+			total += inuse;
+		}
+	}
+
+	drm_printf(p, "TOTAL:\t%d\t(of %d)\n", total, smp->blk_cnt);
+	drm_printf(p, "AVAIL:\t%d\n", smp->blk_cnt -
+			bitmap_weight(state->state, smp->blk_cnt));
+
+	drm_modeset_unlock(&mdp5_kms->state_lock);
+}
+
 void mdp5_smp_destroy(struct mdp5_smp *smp)
 {
 	kfree(smp);

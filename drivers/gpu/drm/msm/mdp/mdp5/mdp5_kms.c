@@ -173,6 +173,53 @@ static void mdp5_kms_destroy(struct msm_kms *kms)
 	}
 }
 
+#ifdef CONFIG_DEBUG_FS
+static int smp_show(struct seq_file *m, void *arg)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(priv->kms));
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	if (!mdp5_kms->smp) {
+		drm_printf(&p, "no SMP pool\n");
+		return 0;
+	}
+
+	mdp5_smp_dump(mdp5_kms->smp, &p);
+
+	return 0;
+}
+
+static struct drm_info_list mdp5_debugfs_list[] = {
+		{"smp", smp_show },
+};
+
+static int mdp5_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
+{
+	struct drm_device *dev = minor->dev;
+	int ret;
+
+	ret = drm_debugfs_create_files(mdp5_debugfs_list,
+			ARRAY_SIZE(mdp5_debugfs_list),
+			minor->debugfs_root, minor);
+
+	if (ret) {
+		dev_err(dev->dev, "could not install mdp5_debugfs_list\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static void mdp5_kms_debugfs_cleanup(struct msm_kms *kms, struct drm_minor *minor)
+{
+	drm_debugfs_remove_files(mdp5_debugfs_list,
+			ARRAY_SIZE(mdp5_debugfs_list), minor);
+}
+#endif
+
 static const struct mdp_kms_funcs kms_funcs = {
 	.base = {
 		.hw_init         = mdp5_hw_init,
@@ -190,6 +237,10 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.round_pixclk    = mdp5_round_pixclk,
 		.set_split_display = mdp5_set_split_display,
 		.destroy         = mdp5_kms_destroy,
+#ifdef CONFIG_DEBUG_FS
+		.debugfs_init    = mdp5_kms_debugfs_init,
+		.debugfs_cleanup = mdp5_kms_debugfs_cleanup,
+#endif
 	},
 	.set_irqmask         = mdp5_set_irqmask,
 };
@@ -392,6 +443,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 			dev_err(dev->dev, "failed to construct plane %d (%d)\n", i, ret);
 			goto fail;
 		}
+		priv->planes[priv->num_planes++] = plane;
 
 		if (!primary)
 			continue;

@@ -18,6 +18,7 @@
 #ifdef CONFIG_DEBUG_FS
 #include "msm_drv.h"
 #include "msm_gpu.h"
+#include "msm_kms.h"
 #include "msm_debugfs.h"
 
 static int msm_gpu_show(struct drm_device *dev, struct seq_file *m)
@@ -142,6 +143,7 @@ int msm_debugfs_late_init(struct drm_device *dev)
 int msm_debugfs_init(struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 	int ret;
 
 	ret = drm_debugfs_create_files(msm_debugfs_list,
@@ -153,15 +155,25 @@ int msm_debugfs_init(struct drm_minor *minor)
 		return ret;
 	}
 
-	return 0;
+	if (priv->kms->funcs->debugfs_init)
+		ret = priv->kms->funcs->debugfs_init(priv->kms, minor);
+
+	return ret;
 }
 
 void msm_debugfs_cleanup(struct drm_minor *minor)
 {
+	struct drm_device *dev = minor->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+
 	drm_debugfs_remove_files(msm_debugfs_list,
 			ARRAY_SIZE(msm_debugfs_list), minor);
-	if (!minor->dev->dev_private)
+	if (!priv)
 		return;
+
+	if (priv->kms->funcs->debugfs_cleanup)
+		priv->kms->funcs->debugfs_cleanup(priv->kms, minor);
+
 	msm_rd_debugfs_cleanup(minor);
 	msm_perf_debugfs_cleanup(minor);
 }

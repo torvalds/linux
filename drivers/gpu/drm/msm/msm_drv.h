@@ -132,7 +132,7 @@ struct msm_drm_private {
 	struct msm_gem_address_space *aspace[NUM_DOMAINS];
 
 	unsigned int num_planes;
-	struct drm_plane *planes[8];
+	struct drm_plane *planes[16];
 
 	unsigned int num_crtcs;
 	struct drm_crtc *crtcs[8];
