@@ -108,12 +108,12 @@ static char *err_text[] = {
 };
 
 struct opstack_op {
-	int op;
+	enum filter_op_ids op;
 	struct list_head list;
 };
 
 struct postfix_elt {
-	int op;
+	enum filter_op_ids op;
 	char *operand;
 	struct list_head list;
 };
@@ -977,7 +977,7 @@ int filter_assign_type(const char *type)
 	return FILTER_OTHER;
 }
 
-static bool is_legal_op(struct ftrace_event_field *field, int op)
+static bool is_legal_op(struct ftrace_event_field *field, enum filter_op_ids op)
 {
 	if (is_string_field(field) &&
 	    (op != OP_EQ && op != OP_NE && op != OP_GLOB))
@@ -988,8 +988,8 @@ static bool is_legal_op(struct ftrace_event_field *field, int op)
 	return true;
 }
 
-static filter_pred_fn_t select_comparison_fn(int op, int field_size,
-					     int field_is_signed)
+static filter_pred_fn_t select_comparison_fn(enum filter_op_ids op,
+					    int field_size, int field_is_signed)
 {
 	filter_pred_fn_t fn = NULL;
 
@@ -1197,7 +1197,8 @@ static inline int append_operand_char(struct filter_parse_state *ps, char c)
 	return 0;
 }
 
-static int filter_opstack_push(struct filter_parse_state *ps, int op)
+static int filter_opstack_push(struct filter_parse_state *ps,
+			       enum filter_op_ids op)
 {
 	struct opstack_op *opstack_op;
 
@@ -1231,7 +1232,7 @@ static int filter_opstack_top(struct filter_parse_state *ps)
 static int filter_opstack_pop(struct filter_parse_state *ps)
 {
 	struct opstack_op *opstack_op;
-	int op;
+	enum filter_op_ids op;
 
 	if (filter_opstack_empty(ps))
 		return OP_NONE;
@@ -1276,7 +1277,7 @@ static int postfix_append_operand(struct filter_parse_state *ps, char *operand)
 	return 0;
 }
 
-static int postfix_append_op(struct filter_parse_state *ps, int op)
+static int postfix_append_op(struct filter_parse_state *ps, enum filter_op_ids op)
 {
 	struct postfix_elt *elt;
 
@@ -1306,8 +1307,8 @@ static void postfix_clear(struct filter_parse_state *ps)
 
 static int filter_parse(struct filter_parse_state *ps)
 {
+	enum filter_op_ids op, top_op;
 	int in_string = 0;
-	int op, top_op;
 	char ch;
 
 	while ((ch = infix_next(ps))) {
@@ -1398,7 +1399,8 @@ parse_operand:
 
 static struct filter_pred *create_pred(struct filter_parse_state *ps,
 				       struct trace_event_call *call,
-				       int op, char *operand1, char *operand2)
+				       enum filter_op_ids op,
+				       char *operand1, char *operand2)
 {
 	struct ftrace_event_field *field;
 	static struct filter_pred pred;
