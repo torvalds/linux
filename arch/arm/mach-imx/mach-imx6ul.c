@@ -50,10 +50,22 @@ static int ksz8081_phy_fixup(struct phy_device *dev)
 	return 0;
 }
 
-#define PHY_ID_KSZ8081	0x00221560
+/*
+ * i.MX6UL EVK board RevA, RevB, RevC all use KSZ8081
+ * Silicon revision 00, the PHY ID is 0x00221560, pass our
+ * test with the phy fixup.
+ */
+#define PHY_ID_KSZ8081_MNRN60	0x00221560
+/*
+ * i.MX6UL EVK board RevC1 board use KSZ8081
+ * Silicon revision 01, the PHY ID is 0x00221561.
+ * This silicon revision still need the phy fixup setting.
+ */
+#define PHY_ID_KSZ8081_MNRN61	0x00221561
 static void __init imx6ul_enet_phy_init(void)
 {
-	phy_register_fixup_for_uid(PHY_ID_KSZ8081, 0xffffffff,	ksz8081_phy_fixup);
+	phy_register_fixup(PHY_ANY_ID, PHY_ID_KSZ8081_MNRN60, 0xffffffff, ksz8081_phy_fixup);
+	phy_register_fixup(PHY_ANY_ID, PHY_ID_KSZ8081_MNRN61, 0xffffffff, ksz8081_phy_fixup);
 }
 
 #define OCOTP_CFG3			0x440
