@@ -921,7 +921,7 @@ They should normally not be deleted from the kernel command line even
 though not all of them are actually meaningful to the kernel.  Boot
 loader authors who need additional command line options for the boot
 loader itself should get them registered in
-Documentation/kernel-parameters.txt to make sure they will not
+Documentation/admin-guide/kernel-parameters.rst to make sure they will not
 conflict with actual kernel options now or in the future.
 
   vga=<mode>

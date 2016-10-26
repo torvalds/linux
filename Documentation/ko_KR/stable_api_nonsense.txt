@@ -1,5 +1,5 @@
 NOTE:
-This is a version of Documentation/stable_api_nonsense.txt translated
+This is a version of Documentation/process/stable-api-nonsense.rst translated
 into korean
 This document is maintained by Minchan Kim <minchan@kernel.org>
 If you find any difference between this document and the original file or
@@ -12,7 +12,7 @@ try to update the original English file first.
 
 ==================================
 이 문서는
-Documentation/stable_api_nonsense.txt
+Documentation/process/stable-api-nonsense.rst
 의 한글 번역입니다.
 
 역자： 김민찬 <minchan@kernel.org>

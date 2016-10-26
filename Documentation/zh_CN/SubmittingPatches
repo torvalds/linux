@@ -1,4 +1,4 @@
-Chinese translated version of Documentation/SubmittingPatches
+Chinese translated version of Documentation/process/submitting-patches.rst
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem
@@ -8,7 +8,7 @@ or if there is a problem with the translation.
 
 Chinese maintainer: TripleX Chung <triplex@zh-kernel.org>
 ---------------------------------------------------------------------
-Documentation/SubmittingPatches 的中文翻译
+Documentation/process/submitting-patches.rst 的中文翻译
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
@@ -30,9 +30,9 @@ Documentation/SubmittingPatches 的中文翻译
 对于想要将改动提交到 Linux 内核的个人或者公司来说，如果不熟悉“规矩”，
 提交的流程会让人畏惧。本文档收集了一系列建议，这些建议可以大大的提高你
 的改动被接受的机会。
-阅读 Documentation/SubmitChecklist 来获得在提交代码前需要检查的项目的列
+阅读 Documentation/process/submit-checklist.rst 来获得在提交代码前需要检查的项目的列
 表。如果你在提交一个驱动程序，那么同时阅读一下
-Documentation/SubmittingDrivers 。
+Documentation/process/submitting-drivers.rst 。
 
 
 --------------------------
@@ -338,7 +338,7 @@ e-mail 标题中的“一句话概述”扼要的描述 e-mail 中的补丁。�
 本节包含很多和提交到内核的代码有关的通常的"规则"。事情永远有例外...但是
 你必须真的有好的理由这样做。你可以把本节叫做Linus的计算机科学入门课。
 
-1) 读 Document/CodingStyle
+1) 读 Document/process/coding-style.rst
 
 Nuff 说过，如果你的代码和这个偏离太多，那么它有可能会被拒绝，没有更多的
 审查，没有更多的评价。
@@ -404,8 +404,8 @@ Greg Kroah-Hartman, "How to piss off a kernel subsystem maintainer".
 NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
   <https://lkml.org/lkml/2005/7/11/336>
 
-Kernel Documentation/CodingStyle:
-  <http://sosdg.org/~coywolf/lxr/source/Documentation/CodingStyle>
+Kernel Documentation/process/coding-style.rst:
+  <http://sosdg.org/~coywolf/lxr/source/Documentation/process/coding-style.rst>
 
 Linus Torvalds's mail on the canonical patch format:
   <http://lkml.org/lkml/2005/4/7/183>

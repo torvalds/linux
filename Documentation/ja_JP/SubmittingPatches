@@ -1,5 +1,5 @@
 NOTE:
-This is a version of Documentation/SubmittingPatches into Japanese.
+This is a version of Documentation/process/submitting-patches.rst into Japanese.
 This document is maintained by Keiichi KII <k-keiichi@bx.jp.nec.com>
 and the JF Project team <http://www.linux.or.jp/JF/>.
 If you find any difference between this document and the original file
@@ -15,7 +15,7 @@ Last Updated: 2011/06/09
 
 ==================================
 これは、
-linux-2.6.39/Documentation/SubmittingPatches の和訳
+linux-2.6.39/Documentation/process/submitting-patches.rst の和訳
 です。
 翻訳団体： JF プロジェクト < http://www.linux.or.jp/JF/ >
 翻訳日： 2011/06/09
@@ -34,9 +34,9 @@ Linux カーネルに変更を加えたいと思っている個人又は会社�
 おじけづかせることもあります。この文章はあなたの変更を大いに受け入れ
 てもらえやすくする提案を集めたものです。
 
-コードを投稿する前に、Documentation/SubmitChecklist の項目リストに目
+コードを投稿する前に、Documentation/process/submit-checklist.rst の項目リストに目
 を通してチェックしてください。もしあなたがドライバーを投稿しようとし
-ているなら、Documentation/SubmittingDrivers にも目を通してください。
+ているなら、Documentation/process/submitting-drivers.rst にも目を通してください。
 
 --------------------------------------------
 セクション1 パッチの作り方と送り方
@@ -148,7 +148,7 @@ http://savannah.nongnu.org/projects/quilt
 4) パッチのスタイルチェック
 
 あなたのパッチが基本的な( Linux カーネルの)コーディングスタイルに違反し
-ていないかをチェックして下さい。その詳細を Documentation/CodingStyle で
+ていないかをチェックして下さい。その詳細を Documentation/process/coding-style.rst で
 見つけることができます。コーディングスタイルの違反はレビューする人の
 時間を無駄にするだけなので、恐らくあなたのパッチは読まれることすらなく
 拒否されるでしょう。
@@ -246,7 +246,7 @@ MIME 形式の添付ファイルは Linus に手間を取らせることにな�
 あれば、誰かが MIME 形式のパッチを再送するよう求めるかもしれません。
 
 余計な変更を加えずにあなたのパッチを送信するための電子メールクライアントの設定
-のヒントについては Documentation/email-clients.txt を参照してください。
+のヒントについては Documentation/process/email-clients.rst を参照してください。
 
 8) 電子メールのサイズ
 
@@ -609,7 +609,7 @@ diffstat の結果を生成するために「 git diff -M --stat --summary 」�
 し例外を適用するには、本当に妥当な理由が不可欠です。あなたは恐らくこの
 セクションを Linus のコンピュータ・サイエンス101と呼ぶでしょう。
 
-1) Documentation/CodingStyleを参照
+1) Documentation/process/coding-style.rstを参照
 
 言うまでもなく、あなたのコードがこのコーディングスタイルからあまりに
 も逸脱していると、レビューやコメントなしに受け取ってもらえないかもし
@@ -704,8 +704,8 @@ Greg Kroah-Hartman, "How to piss off a kernel subsystem maintainer".
 NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
   <https://lkml.org/lkml/2005/7/11/336>
 
-Kernel Documentation/CodingStyle:
-  <http://users.sosdg.org/~qiyong/lxr/source/Documentation/CodingStyle>
+Kernel Documentation/process/coding-style.rst:
+  <http://users.sosdg.org/~qiyong/lxr/source/Documentation/process/coding-style.rst>
 
 Linus Torvalds's mail on the canonical patch format:
   <http://lkml.org/lkml/2005/4/7/183>

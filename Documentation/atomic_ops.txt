@@ -16,7 +16,7 @@ will fail.  Something like the following should suffice:
 	typedef struct { long counter; } atomic_long_t;
 
 Historically, counter has been declared volatile.  This is now discouraged.
-See Documentation/volatile-considered-harmful.txt for the complete rationale.
+See Documentation/process/volatile-considered-harmful.rst for the complete rationale.
 
 local_t is very similar to atomic_t. If the counter is per CPU and only
 updated by one CPU, local_t is probably more appropriate. Please see

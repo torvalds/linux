@@ -1,5 +1,5 @@
 NOTE:
-This is a version of Documentation/SubmitChecklist into Japanese.
+This is a version of Documentation/process/submit-checklist.rst into Japanese.
 This document is maintained by Takenori Nagano <t-nagano@ah.jp.nec.com>
 and the JF Project team <http://www.linux.or.jp/JF/>.
 If you find any difference between this document and the original file
@@ -14,7 +14,7 @@ to update the original English file first.
 Last Updated: 2008/07/14
 ==================================
 これは、
-linux-2.6.26/Documentation/SubmitChecklist の和訳です。
+linux-2.6.26/Documentation/process/submit-checklist.rst の和訳です。
 
 翻訳団体： JF プロジェクト < http://www.linux.or.jp/JF/ >
 翻訳日： 2008/07/14
@@ -27,7 +27,7 @@ Linux カーネルパッチ投稿者向けチェックリスト
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 本書では、パッチをより素早く取り込んでもらいたい開発者が実践すべき基本的な事柄
-をいくつか紹介します。ここにある全ての事柄は、Documentation/SubmittingPatches
+をいくつか紹介します。ここにある全ての事柄は、Documentation/process/submitting-patches.rst
 などのLinuxカーネルパッチ投稿に際しての心得を補足するものです。
 
  1: 妥当なCONFIGオプションや変更されたCONFIGオプション、つまり =y, =m, =n
@@ -84,7 +84,7 @@ Linux カーネルパッチ投稿者向けチェックリスト
     必ずドキュメントを追加してください。
 
 17: 新しいブートパラメータを追加した場合には、
-    必ずDocumentation/kernel-parameters.txt に説明を追加してください。
+    必ずDocumentation/admin-guide/kernel-parameters.rst に説明を追加してください。
 
 18: 新しくmoduleにパラメータを追加した場合には、MODULE_PARM_DESC()を
     利用して必ずその説明を記述してください。

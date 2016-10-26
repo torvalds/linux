@@ -1,5 +1,5 @@
 NOTE:
-This is a version of Documentation/HOWTO translated into korean
+This is a version of Documentation/process/howto.rst translated into korean
 This document is maintained by Minchan Kim <minchan@kernel.org>
 If you find any difference between this document and the original file or
 a problem with the translation, please contact the maintainer of this file.
@@ -11,7 +11,7 @@ try to update the original English file first.
 
 ==================================
 이 문서는
-Documentation/HOWTO
+Documentation/process/howto.rst
 의 한글 번역입니다.
 
 역자： 김민찬 <minchan@kernel.org>
@@ -98,18 +98,18 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     빌드하기 위해 필요한 것을 설명한다. 커널에 입문하는 사람들은 여기서
     시작해야 한다.
 
-  Documentation/Changes
+  Documentation/process/changes.rst
     이 파일은 커널을 성공적으로 빌드하고 실행시키기 위해 필요한 다양한
     소프트웨어 패키지들의 최소 버젼을 나열한다.
 
-  Documentation/CodingStyle
+  Documentation/process/coding-style.rst
     이 문서는 리눅스 커널 코딩 스타일과 그렇게 한 몇몇 이유를 설명한다.
     모든 새로운 코드는 이 문서에 가이드라인들을 따라야 한다. 대부분의
     메인테이너들은 이 규칙을 따르는 패치들만을 받아들일 것이고 많은 사람들이
     그 패치가 올바른 스타일일 경우만 코드를 검토할 것이다.
 
-  Documentation/SubmittingPatches
-  Documentation/SubmittingDrivers
+  Documentation/process/submitting-patches.rst
+  Documentation/process/submitting-drivers.rst
     이 파일들은 성공적으로 패치를 만들고 보내는 법을 다음의 내용들로
     굉장히 상세히 설명하고 있다(그러나 다음으로 한정되진 않는다).
        - Email 내용들
@@ -126,7 +126,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     "Linux kernel patch submission format"
         http://linux.yyz.us/patch-format.html
 
-   Documentation/stable_api_nonsense.txt
+   Documentation/process/stable-api-nonsense.rst
     이 문서는 의도적으로 커널이 불변하는 API를 갖지 않도록 결정한
     이유를 설명하며 다음과 같은 것들을 포함한다.
        - 서브시스템 shim-layer(호환성을 위해?)
@@ -136,12 +136,12 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     리눅스로 전향하는 사람들에게는 매우 중요하다.
 
 
-  Documentation/SecurityBugs
+  Documentation/admin-guide/security-bugs.rst
     여러분들이 리눅스 커널의 보안 문제를 발견했다고 생각한다면 이 문서에
     나온 단계에 따라서 커널 개발자들에게 알리고 그 문제를 해결할 수 있도록
     도와 달라.
 
-  Documentation/ManagementStyle
+  Documentation/process/management-style.rst
     이 문서는 리눅스 커널 메인테이너들이 그들의 방법론에 녹아 있는
     정신을 어떻게 공유하고 운영하는지를 설명한다. 이것은 커널 개발에 입문하는
     모든 사람들(또는 커널 개발에 작은 호기심이라도 있는 사람들)이
@@ -149,17 +149,17 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     독특한 행동에 관하여 흔히 있는 오해들과 혼란들을 해소하고 있기
     때문이다.
 
-  Documentation/stable_kernel_rules.txt
+  Documentation/process/stable-kernel-rules.rst
     이 문서는 안정적인 커널 배포가 이루어지는 규칙을 설명하고 있으며
     여러분들이 이러한 배포들 중 하나에 변경을 하길 원한다면
     무엇을 해야 하는지를 설명한다.
 
-  Documentation/kernel-docs.txt
+  Documentation/process/kernel-docs.rst
     커널 개발에 관계된 외부 문서의 리스트이다. 커널 내의 포함된 문서들
     중에 여러분이 찾고 싶은 문서를 발견하지 못할 경우 이 리스트를
     살펴보라.
 
-  Documentation/applying-patches.txt
+  Documentation/process/applying-patches.rst
     패치가 무엇이며 그것을 커널의 다른 개발 브랜치들에 어떻게
     적용하는지에 관하여 자세히 설명하고 있는 좋은 입문서이다.
 
@@ -276,7 +276,7 @@ Andrew Morton의 글이 있다.
 4.x.y는 "stable" 팀<stable@vger.kernel.org>에 의해 관리되며 거의 매번 격주로
 배포된다.
 
-커널 트리 문서들 내에 Documentation/stable_kernel_rules.txt 파일은 어떤
+커널 트리 문서들 내에 Documentation/process/stable-kernel-rules.rst 파일은 어떤
 종류의 변경들이 -stable 트리로 들어왔는지와 배포 프로세스가 어떻게
 진행되는지를 설명한다.
 
@@ -328,7 +328,7 @@ bugzilla.kernel.org는 리눅스 커널 개발자들이 커널의 버그를 추�
 kernel bugzilla를 사용하는 자세한 방법은 다음을 참조하라.
     http://test.kernel.org/bugzilla/faq.html
 
-메인 커널 소스 디렉토리에 있는 REPORTING-BUGS 파일은 커널 버그라고 생각되는
+메인 커널 소스 디렉토리에 있는 admin-guide/reporting-bugs.rst 파일은 커널 버그라고 생각되는
 것을 보고하는 방법에 관한 좋은 템플릿이며 문제를 추적하기 위해서 커널
 개발자들이 필요로 하는 정보가 무엇들인지를 상세히 설명하고 있다.
 
@@ -391,7 +391,7 @@ bugme-janitor 메일링 리스트(bugzilla에 모든 변화들이 여기서 메�
 "John 커널해커는 작성했다...."를 유지하며 여러분들의 의견을 그 메일의 윗부분에
 작성하지 말고 각 인용한 단락들 사이에 넣어라.
 
-여러분들이 패치들을 메일에 넣는다면 그것들은 Documentation/SubmittingPatches에
+여러분들이 패치들을 메일에 넣는다면 그것들은 Documentation/process/submitting-patches.rst에
 나와있는데로 명백히(plain) 읽을 수 있는 텍스트여야 한다. 커널 개발자들은
 첨부파일이나 압축된 패치들을 원하지 않는다. 그들은 여러분들의 패치의
 각 라인 단위로 코멘트를 하길 원하며 압축하거나 첨부하지 않고 보내는 것이

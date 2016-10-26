@@ -127,15 +127,15 @@ linux-api@ver.kernel.org に送ることを勧めます。
      小限のレベルで必要な数々のソフトウェアパッケージの一覧を示してい
      ます。
 
-  Documentation/CodingStyle
+  Documentation/process/coding-style.rst
     これは Linux カーネルのコーディングスタイルと背景にある理由を記述
     しています。全ての新しいコードはこのドキュメントにあるガイドライン
     に従っていることを期待されています。大部分のメンテナはこれらのルー
     ルに従っているものだけを受け付け、多くの人は正しいスタイルのコード
     だけをレビューします。
 
-  Documentation/SubmittingPatches
-  Documentation/SubmittingDrivers
+  Documentation/process/submitting-patches.rst
+  Documentation/process/submitting-drivers.rst
      これらのファイルには、どうやってうまくパッチを作って投稿するかに
      ついて非常に詳しく書かれており、以下を含みます(これだけに限らない
      けれども)
@@ -153,7 +153,7 @@ linux-api@ver.kernel.org に送ることを勧めます。
 	"Linux kernel patch submission format"
 		http://linux.yyz.us/patch-format.html
 
-  Documentation/stable_api_nonsense.txt
+  Documentation/process/stable-api-nonsense.rst
      このファイルはカーネルの中に不変のAPIを持たないことにした意識的な
      決断の背景にある理由について書かれています。以下のようなことを含
      んでいます-
@@ -164,29 +164,29 @@ linux-api@ver.kernel.org に送ることを勧めます。
      このドキュメントは Linux 開発の思想を理解するのに非常に重要です。
      そして、他のOSでの開発者が Linux に移る時にとても重要です。
 
-  Documentation/SecurityBugs
+  Documentation/admin-guide/security-bugs.rst
     もし Linux カーネルでセキュリティ問題を発見したように思ったら、こ
     のドキュメントのステップに従ってカーネル開発者に連絡し、問題解決を
     支援してください。
 
-  Documentation/ManagementStyle
+  Documentation/process/management-style.rst
     このドキュメントは Linux カーネルのメンテナ達がどう行動するか、
     彼らの手法の背景にある共有されている精神について記述しています。こ
     れはカーネル開発の初心者なら（もしくは、単に興味があるだけの人でも）
     重要です。なぜならこのドキュメントは、カーネルメンテナ達の独特な
     行動についての多くの誤解や混乱を解消するからです。
 
-  Documentation/stable_kernel_rules.txt
+  Documentation/process/stable-kernel-rules.rst
     このファイルはどのように stable カーネルのリリースが行われるかのルー
     ルが記述されています。そしてこれらのリリースの中のどこかで変更を取
     り入れてもらいたい場合に何をすれば良いかが示されています。
 
-  Documentation/kernel-docs.txt
+  Documentation/process/kernel-docs.rst
 　　カーネル開発に付随する外部ドキュメントのリストです。もしあなたが
     探しているものがカーネル内のドキュメントでみつからなかった場合、
     このリストをあたってみてください。
 
-  Documentation/applying-patches.txt
+  Documentation/process/applying-patches.rst
     パッチとはなにか、パッチをどうやって様々なカーネルの開発ブランチに
     適用するのかについて正確に記述した良い入門書です。
 
@@ -314,7 +314,7 @@ Andrew Morton が Linux-kernel メーリングリストにカーネルリリー�
 た問題がなければもう少し長くなることもあります。セキュリティ関連の問題
 の場合はこれに対してだいたいの場合、すぐにリリースがされます。
 
-カーネルツリーに入っている、Documentation/stable_kernel_rules.txt ファ
+カーネルツリーに入っている、Documentation/process/stable-kernel-rules.rst ファ
 イルにはどのような種類の変更が -stable ツリーに受け入れ可能か、またリ
 リースプロセスがどう動くかが記述されています。
 
@@ -372,7 +372,7 @@ bugzilla.kernel.org は Linux カーネル開発者がカーネルのバグを�
 場所です。ユーザは見つけたバグの全てをこのツールで報告すべきです。
 どう kernel bugzilla を使うかの詳細は、以下を参照してください-
 	http://bugzilla.kernel.org/page.cgi?id=faq.html
-メインカーネルソースディレクトリにあるファイル REPORTING-BUGS はカーネ
+メインカーネルソースディレクトリにあるファイル admin-guide/reporting-bugs.rst はカーネ
 ルバグらしいものについてどうレポートするかの良いテンプレートであり、問
 題の追跡を助けるためにカーネル開発者にとってどんな情報が必要なのかの詳
 細が書かれています。
@@ -438,7 +438,7 @@ MAINTAINERS ファイルにリストがありますので参照してくださ�
 メールの先頭でなく、各引用行の間にあなたの言いたいことを追加するべきで
 す。
 
-もしパッチをメールに付ける場合は、Documentation/SubmittingPatches に提
+もしパッチをメールに付ける場合は、Documentation/process/submitting-patches.rst に提
 示されているように、それは プレーンな可読テキストにすることを忘れない
 ようにしましょう。カーネル開発者は 添付や圧縮したパッチを扱いたがりま
 せん-

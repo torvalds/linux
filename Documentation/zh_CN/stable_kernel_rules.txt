@@ -1,4 +1,4 @@
-Chinese translated version of Documentation/stable_kernel_rules.txt
+Chinese translated version of Documentation/process/stable-kernel-rules.rst
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem
@@ -8,7 +8,7 @@ or if there is a problem with the translation.
 
 Chinese maintainer: TripleX Chung <triplex@zh-kernel.org>
 ---------------------------------------------------------------------
-Documentation/stable_kernel_rules.txt 的中文翻译
+Documentation/process/stable-kernel-rules.rst 的中文翻译
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
@@ -38,7 +38,7 @@ Documentation/stable_kernel_rules.txt 的中文翻译
   - 没有“理论上的竞争条件”，除非能给出竞争条件如何被利用的解释。
   - 不能存在任何的“琐碎的”修正（拼写修正，去掉多余空格之类的）。
   - 必须被相关子系统的维护者接受。
-  - 必须遵循Documentation/SubmittingPatches里的规则。
+  - 必须遵循Documentation/process/submitting-patches.rst里的规则。
 
 向稳定版代码树提交补丁的过程：
 

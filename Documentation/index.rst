@@ -11,8 +11,9 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   admin-guide/index
    kernel-documentation
-   development-process/index
+   process/index
    dev-tools/tools
    driver-api/index
    media/index

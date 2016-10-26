@@ -1,4 +1,4 @@
-Chinese translated version of Documentation/oops-tracing.txt
+Chinese translated version of Documentation/admin-guide/oops-tracing.rst
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem
@@ -8,7 +8,7 @@ or if there is a problem with the translation.
 
 Chinese maintainer: Dave Young <hidave.darkstar@gmail.com>
 ---------------------------------------------------------------------
-Documentation/oops-tracing.txt 的中文翻译
+Documentation/admin-guide/oops-tracing.rst 的中文翻译
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
@@ -50,7 +50,7 @@ cat /proc/kmsg > file， 然而你必须介入中止传输， kmsg是一个“�
 息滚动到了终端的上面，你会发现以高分辩率启动（比如，vga=791）会让你读到更多的文
 本。（注意：这需要vesafb，所以对‘早期’的oops没有帮助）
 
-（2）用串口终端启动（请参看Documentation/serial-console.txt），运行一个null
+（2）用串口终端启动（请参看Documentation/admin-guide/serial-console.rst），运行一个null
 modem到另一台机器并用你喜欢的通讯工具获取输出。Minicom工作地很好。
 
 （3）使用Kdump（请参看Documentation/kdump/kdump.txt），

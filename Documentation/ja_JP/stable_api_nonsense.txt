@@ -1,5 +1,5 @@
 NOTE:
-This is a version of Documentation/stable_api_nonsense.txt into Japanese.
+This is a version of Documentation/process/stable-api-nonsense.rst into Japanese.
 This document is maintained by IKEDA, Munehiro <m-ikeda@ds.jp.nec.com>
 and the JF Project team <http://www.linux.or.jp/JF/>.
 If you find any difference between this document and the original file
@@ -14,7 +14,7 @@ to update the original English file first.
 Last Updated: 2007/07/18
 ==================================
 これは、
-linux-2.6.22-rc4/Documentation/stable_api_nonsense.txt の和訳
+linux-2.6.22-rc4/Documentation/process/stable-api-nonsense.rst の和訳
 です。
 翻訳団体： JF プロジェクト < http://www.linux.or.jp/JF/ >
 翻訳日 ： 2007/06/11

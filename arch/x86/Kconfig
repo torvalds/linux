@@ -1525,7 +1525,7 @@ config X86_CHECK_BIOS_CORRUPTION
 	  line.  By default it scans the low 64k of memory every 60
 	  seconds; see the memory_corruption_check_size and
 	  memory_corruption_check_period parameters in
-	  Documentation/kernel-parameters.txt to adjust this.
+	  Documentation/admin-guide/kernel-parameters.rst to adjust this.
 
 	  When enabled with the default parameters, this option has
 	  almost no overhead, as it reserves a relatively small amount

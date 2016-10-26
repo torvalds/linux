@@ -1,5 +1,5 @@
 NOTE:
-This is Japanese translated version of "Documentation/stable_kernel_rules.txt".
+This is Japanese translated version of "Documentation/process/stable-kernel-rules.rst".
 This one is maintained by Tsugikazu Shibata <tshibata@ab.jp.nec.com>
 and JF Project team <www.linux.or.jp/JF>.
 If you find difference with original file or problem in translation,
@@ -12,7 +12,7 @@ file at first.
 
 ==================================
 これは、
-linux-2.6.29/Documentation/stable_kernel_rules.txt
+linux-2.6.29/Documentation/process/stable-kernel-rules.rst
 の和訳です。
 
 翻訳団体： JF プロジェクト < http://www.linux.or.jp/JF/ >
@@ -43,7 +43,7 @@ linux-2.6.29/Documentation/stable_kernel_rules.txt
    "理論的には競合状態になる"ようなものは不可。
  - いかなる些細な修正も含めることはできない。(スペルの修正、空白のクリー
    ンアップなど)
- - Documentation/SubmittingPatches の規則に従ったものでなければならない。
+ - Documentation/process/submitting-patches.rst の規則に従ったものでなければならない。
  - パッチ自体か同等の修正が Linus のツリーに既に存在しなければならない。
 　 Linus のツリーでのコミットID を -stable へのパッチ投稿の際に引用す
    ること。

@@ -342,7 +342,7 @@ config ACPI_DEBUG
 
 	  Use the acpi.debug_layer and acpi.debug_level kernel command-line
 	  parameters documented in Documentation/acpi/debug.txt and
-	  Documentation/kernel-parameters.txt to control the type and
+	  Documentation/admin-guide/kernel-parameters.rst to control the type and
 	  amount of debug output.
 
 config ACPI_PCI_SLOT

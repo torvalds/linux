@@ -68,7 +68,7 @@ RAM，或可能使用对这个设备已知的 RAM 信息，还可能使用任何
 作为替代方案，引导加载程序也可以通过标签列表传递相关的'console='
 选项给内核以指定某个串口，而串口数据格式的选项在以下文档中描述：
 
-       Documentation/kernel-parameters.txt。
+       Documentation/admin-guide/kernel-parameters.rst。
 
 
 3、检测机器类型

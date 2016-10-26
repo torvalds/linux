@@ -1,4 +1,4 @@
-Chinese translated version of Documentation/CodingStyle
+Chinese translated version of Documentation/process/coding-style.rst
 
 If you have any comment or update to the content, please post to LKML directly.
 However, if you have problem communicating in English you can also ask the
@@ -7,7 +7,7 @@ translation is outdated or there is problem with translation.
 
 Chinese maintainer: Zhang Le <r0bertz@gentoo.org>
 ---------------------------------------------------------------------
-Documentation/CodingStyle的中文翻译
+Documentation/process/coding-style.rst的中文翻译
 
 如果想评论或更新本文的内容，请直接发信到LKML。如果你使用英文交流有困难的话，也可
 以向中文版维护者求助。如果本翻译更新不及时或者翻译存在问题，请联系中文版维护者。
@@ -809,5 +809,5 @@ GNU 手册 - 遵循 K&R 标准和此文本 - cpp, gcc, gcc internals and indent,
 
 WG14是C语言的国际标准化工作组，URL: http://www.open-std.org/JTC1/SC22/WG14/
 
-Kernel CodingStyle，作者 greg@kroah.com 发表于OLS 2002：
+Kernel process/coding-style.rst，作者 greg@kroah.com 发表于OLS 2002：
 http://www.kroah.com/linux/talks/ols_2002_kernel_codingstyle_talk/html/
