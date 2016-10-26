@@ -189,7 +189,7 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 	pr_debug("info: vendor=0x%4.04X device=0x%4.04X rev=%d\n",
 		 pdev->vendor, pdev->device, pdev->revision);
 
-	card = kzalloc(sizeof(struct pcie_service_card), GFP_KERNEL);
+	card = devm_kzalloc(&pdev->dev, sizeof(*card), GFP_KERNEL);
 	if (!card)
 		return -ENOMEM;
 
@@ -2815,7 +2815,6 @@ err_req_region0:
 err_set_dma_mask:
 	pci_disable_device(pdev);
 err_enable_dev:
-	pci_set_drvdata(pdev, NULL);
 	return ret;
 }
 
@@ -2849,9 +2848,7 @@ static void mwifiex_pcie_cleanup(struct mwifiex_adapter *adapter)
 		pci_disable_device(pdev);
 		pci_release_region(pdev, 2);
 		pci_release_region(pdev, 0);
-		pci_set_drvdata(pdev, NULL);
 	}
-	kfree(card);
 }
 
 static int mwifiex_pcie_request_irq(struct mwifiex_adapter *adapter)
