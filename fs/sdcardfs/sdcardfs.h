@@ -476,7 +476,7 @@ static inline int prepare_dir(const char *path_s, uid_t uid, gid_t gid, mode_t m
 		goto out_unlock;
 	}
 
-	err = vfs_mkdir(d_inode(parent.dentry), dent, mode);
+	err = vfs_mkdir2(parent.mnt, d_inode(parent.dentry), dent, mode);
 	if (err) {
 		if (err == -EEXIST)
 			err = 0;
@@ -487,7 +487,7 @@ static inline int prepare_dir(const char *path_s, uid_t uid, gid_t gid, mode_t m
 	attrs.ia_gid = make_kgid(&init_user_ns, gid);
 	attrs.ia_valid = ATTR_UID | ATTR_GID;
 	mutex_lock(&d_inode(dent)->i_mutex);
-	notify_change(dent, &attrs, NULL);
+	notify_change2(parent.mnt, dent, &attrs, NULL);
 	mutex_unlock(&d_inode(dent)->i_mutex);
 
 out_dput:
