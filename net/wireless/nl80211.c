@@ -10625,8 +10625,7 @@ static int handle_nan_filter(struct nlattr *attr_filter,
 
 	i = 0;
 	nla_for_each_nested(attr, attr_filter, rem) {
-		filter[i].filter = kmemdup(nla_data(attr), nla_len(attr),
-					   GFP_KERNEL);
+		filter[i].filter = nla_memdup(attr, GFP_KERNEL);
 		filter[i].len = nla_len(attr);
 		i++;
 	}

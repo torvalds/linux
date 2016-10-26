@@ -226,9 +226,7 @@ static int tcf_bpf_init_from_efd(struct nlattr **tb, struct tcf_bpf_cfg *cfg)
 		return PTR_ERR(fp);
 
 	if (tb[TCA_ACT_BPF_NAME]) {
-		name = kmemdup(nla_data(tb[TCA_ACT_BPF_NAME]),
-			       nla_len(tb[TCA_ACT_BPF_NAME]),
-			       GFP_KERNEL);
+		name = nla_memdup(tb[TCA_ACT_BPF_NAME], GFP_KERNEL);
 		if (!name) {
 			bpf_prog_put(fp);
 			return -ENOMEM;
