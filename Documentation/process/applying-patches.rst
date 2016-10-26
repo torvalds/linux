@@ -9,6 +9,10 @@ Original by:
 Last update:
 	2016-09-14
 
+.. note::
+
+   This document is obsolete.  In most cases, rather than using ``patch``
+   manually, you'll almost certainly want to look at using Git instead.
 
 A frequently asked question on the Linux Kernel Mailing List is how to apply
 a patch to the kernel or, more specifically, what base kernel a patch for
