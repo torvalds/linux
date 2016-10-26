@@ -4232,7 +4232,7 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	if (crtc->state->active_changed) {
 		int plane;
 
-		for (plane = 0; plane < intel_num_planes(intel_crtc); plane++)
+		for_each_universal_plane(dev_priv, pipe, plane)
 			skl_write_plane_wm(intel_crtc, &pipe_wm->planes[plane],
 					   &results->ddb, plane);
 
