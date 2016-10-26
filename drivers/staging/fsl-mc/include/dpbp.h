@@ -1,4 +1,5 @@
-/* Copyright 2013-2015 Freescale Semiconductor Inc.
+/*
+ * Copyright 2013-2015 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,7 +33,8 @@
 #ifndef __FSL_DPBP_H
 #define __FSL_DPBP_H
 
-/* Data Path Buffer Pool API
+/*
+ * Data Path Buffer Pool API
  * Contains initialization APIs and runtime control APIs for DPBP
  */
 

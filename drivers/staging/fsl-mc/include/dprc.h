@@ -1,4 +1,5 @@
-/* Copyright 2013-2015 Freescale Semiconductor Inc.
+/*
+ * Copyright 2013-2015 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,7 +35,8 @@
 
 #include "mc-cmd.h"
 
-/* Data Path Resource Container API
+/*
+ * Data Path Resource Container API
  * Contains DPRC API for managing and querying DPAA resources
  */
 
@@ -70,12 +72,14 @@ int dprc_close(struct fsl_mc_io *mc_io,
  * and can be retrieved using dprc_get_attributes()
  */
 
-/* Spawn Policy Option allowed - Indicates that the new container is allowed
+/*
+ * Spawn Policy Option allowed - Indicates that the new container is allowed
  * to spawn and have its own child containers.
  */
 #define DPRC_CFG_OPT_SPAWN_ALLOWED		0x00000001
 
-/* General Container allocation policy - Indicates that the new container is
+/*
+ * General Container allocation policy - Indicates that the new container is
  * allowed to allocate requested resources from its parent container; if not
  * set, the container is only allowed to use resources in its own pools; Note
  * that this is a container's global policy, but the parent container may
@@ -83,12 +87,14 @@ int dprc_close(struct fsl_mc_io *mc_io,
  */
 #define DPRC_CFG_OPT_ALLOC_ALLOWED		0x00000002
 
-/* Object initialization allowed - software context associated with this
+/*
+ * Object initialization allowed - software context associated with this
  * container is allowed to invoke object initialization operations.
  */
 #define DPRC_CFG_OPT_OBJ_CREATE_ALLOWED	0x00000004
 
-/* Topology change allowed - software context associated with this
+/*
+ * Topology change allowed - software context associated with this
  * container is allowed to invoke topology operations, such as attach/detach
  * of network objects.
  */
@@ -151,12 +157,14 @@ int dprc_reset_container(struct fsl_mc_io *mc_io,
 #define DPRC_IRQ_EVENT_RES_ADDED		0x00000004
 /* IRQ event - Indicates that resources removed from the container */
 #define DPRC_IRQ_EVENT_RES_REMOVED		0x00000008
-/* IRQ event - Indicates that one of the descendant containers that opened by
+/*
+ * IRQ event - Indicates that one of the descendant containers that opened by
  * this container is destroyed
  */
 #define DPRC_IRQ_EVENT_CONTAINER_DESTROYED	0x00000010
 
-/* IRQ event - Indicates that on one of the container's opened object is
+/*
+ * IRQ event - Indicates that on one of the container's opened object is
  * destroyed
  */
 #define DPRC_IRQ_EVENT_OBJ_DESTROYED		0x00000020
@@ -270,19 +278,22 @@ int dprc_get_res_quota(struct fsl_mc_io	*mc_io,
 
 /* Resource request options */
 
-/* Explicit resource ID request - The requested objects/resources
+/*
+ * Explicit resource ID request - The requested objects/resources
  * are explicit and sequential (in case of resources).
  * The base ID is given at res_req at base_align field
  */
 #define DPRC_RES_REQ_OPT_EXPLICIT	0x00000001
 
-/* Aligned resources request - Relevant only for resources
+/*
+ * Aligned resources request - Relevant only for resources
  * request (and not objects). Indicates that resources base ID should be
  * sequential and aligned to the value given at dprc_res_req base_align field
  */
 #define DPRC_RES_REQ_OPT_ALIGNED	0x00000002
 
-/* Plugged Flag - Relevant only for object assignment request.
+/*
+ * Plugged Flag - Relevant only for object assignment request.
  * Indicates that after all objects assigned. An interrupt will be invoked at
  * the relevant GPP. The assigned object will be marked as plugged.
  * plugged objects can't be assigned from their container

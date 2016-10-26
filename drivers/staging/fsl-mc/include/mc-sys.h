@@ -1,4 +1,5 @@
-/* Copyright 2013-2014 Freescale Semiconductor Inc.
+/*
+ * Copyright 2013-2014 Freescale Semiconductor Inc.
  *
  * Interface of the I/O services to send MC commands to the MC hardware
  *
