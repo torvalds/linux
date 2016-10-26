@@ -979,7 +979,7 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 	if (flags & MS_KERNMOUNT)
 		mnt->mnt.mnt_flags = MNT_INTERNAL;
 
-	root = mount_fs(type, flags, name, data);
+	root = mount_fs(type, flags, name, &mnt->mnt, data);
 	if (IS_ERR(root)) {
 		kfree(mnt->mnt.data);
 		mnt_free_id(mnt);
@@ -2255,7 +2255,7 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 	else if (!capable(CAP_SYS_ADMIN))
 		err = -EPERM;
 	else {
-		err = do_remount_sb(sb, flags, data, 0);
+		err = do_remount_sb2(path->mnt, sb, flags, data, 0);
 		namespace_lock();
 		lock_mount_hash();
 		propagate_remount(mnt);
