@@ -3364,6 +3364,30 @@ skl_ddb_min_alloc(const struct drm_plane_state *pstate,
 	return DIV_ROUND_UP((4 * src_w * plane_bpp), 512) * min_scanlines/4 + 3;
 }
 
+static void
+skl_ddb_calc_min(const struct intel_crtc_state *cstate, int num_active,
+		 uint16_t *minimum, uint16_t *y_minimum)
+{
+	const struct drm_plane_state *pstate;
+	struct drm_plane *plane;
+
+	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, &cstate->base) {
+		struct intel_plane *intel_plane = to_intel_plane(plane);
+		int id = skl_wm_plane_id(intel_plane);
+
+		if (id == PLANE_CURSOR)
+			continue;
+
+		if (!pstate->visible)
+			continue;
+
+		minimum[id] = skl_ddb_min_alloc(pstate, 0);
+		y_minimum[id] = skl_ddb_min_alloc(pstate, 1);
+	}
+
+	minimum[PLANE_CURSOR] = skl_cursor_allocation(num_active);
+}
+
 static int
 skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		      struct skl_ddb_allocation *ddb /* out */)
@@ -3372,12 +3396,9 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	struct drm_crtc *crtc = cstate->base.crtc;
 	struct drm_device *dev = crtc->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_plane *intel_plane;
-	struct drm_plane *plane;
-	const struct drm_plane_state *pstate;
 	enum pipe pipe = intel_crtc->pipe;
 	struct skl_ddb_entry *alloc = &cstate->wm.skl.ddb;
-	uint16_t alloc_size, start, cursor_blocks;
+	uint16_t alloc_size, start;
 	uint16_t minimum[I915_MAX_PLANES] = {};
 	uint16_t y_minimum[I915_MAX_PLANES] = {};
 	unsigned int total_data_rate;
@@ -3405,31 +3426,21 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		return 0;
 	}
 
-	cursor_blocks = skl_cursor_allocation(num_active);
-	ddb->plane[pipe][PLANE_CURSOR].start = alloc->end - cursor_blocks;
-	ddb->plane[pipe][PLANE_CURSOR].end = alloc->end;
+	skl_ddb_calc_min(cstate, num_active, minimum, y_minimum);
 
-	alloc_size -= cursor_blocks;
+	/*
+	 * 1. Allocate the mininum required blocks for each active plane
+	 * and allocate the cursor, it doesn't require extra allocation
+	 * proportional to the data rate.
+	 */
 
-	/* 1. Allocate the mininum required blocks for each active plane */
-	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, &cstate->base) {
-		intel_plane = to_intel_plane(plane);
-		id = skl_wm_plane_id(intel_plane);
-
-		if (!pstate->visible)
-			continue;
-
-		if (plane->type == DRM_PLANE_TYPE_CURSOR)
-			continue;
-
-		minimum[id] = skl_ddb_min_alloc(pstate, 0);
-		y_minimum[id] = skl_ddb_min_alloc(pstate, 1);
-	}
-
-	for (i = 0; i < PLANE_CURSOR; i++) {
+	for (i = 0; i < I915_MAX_PLANES; i++) {
 		alloc_size -= minimum[i];
 		alloc_size -= y_minimum[i];
 	}
+
+	ddb->plane[pipe][PLANE_CURSOR].start = alloc->end - minimum[PLANE_CURSOR];
+	ddb->plane[pipe][PLANE_CURSOR].end = alloc->end;
 
 	/*
 	 * 2. Distribute the remaining space in proportion to the amount of
@@ -3447,6 +3458,9 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	for (id = 0; id < I915_MAX_PLANES; id++) {
 		unsigned int data_rate, y_data_rate;
 		uint16_t plane_blocks, y_plane_blocks = 0;
+
+		if (id == PLANE_CURSOR)
+			continue;
 
 		data_rate = plane_data_rate[id];
 
