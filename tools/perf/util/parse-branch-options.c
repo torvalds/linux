@@ -64,7 +64,7 @@ int parse_branch_str(const char *str, __u64 *mode)
 		}
 		if (!br->name) {
 			ret = -1;
-			ui__warning("unknown branch filter %s,"
+			pr_warning("unknown branch filter %s,"
 				    " check man page\n", s);
 			goto error;
 		}
