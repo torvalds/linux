@@ -123,8 +123,17 @@ bool unwind_next_frame(struct unwind_state *state)
 	}
 
 	/* make sure the next frame's data is accessible */
-	if (!update_stack_state(state, next_frame, next_len))
-		return false;
+	if (!update_stack_state(state, next_frame, next_len)) {
+		/*
+		 * Don't warn on bad regs->bp.  An interrupt in entry code
+		 * might cause a false positive warning.
+		 */
+		if (state->regs)
+			goto the_end;
+
+		goto bad_address;
+	}
+
 	/* move to the next frame */
 	if (regs) {
 		state->regs = regs;
@@ -136,6 +145,11 @@ bool unwind_next_frame(struct unwind_state *state)
 
 	return true;
 
+bad_address:
+	printk_deferred_once(KERN_WARNING
+		"WARNING: kernel stack frame pointer at %p in %s:%d has bad value %p\n",
+		state->bp, state->task->comm,
+		state->task->pid, next_bp);
 the_end:
 	state->stack_info.type = STACK_TYPE_UNKNOWN;
 	return false;
