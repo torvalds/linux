@@ -75,6 +75,12 @@ static const struct of_device_id machines[] __initconst = {
 
 	{ .compatible = "sigma,tango4" },
 
+	{ .compatible = "socionext,uniphier-pro5", },
+	{ .compatible = "socionext,uniphier-pxs2", },
+	{ .compatible = "socionext,uniphier-ld6b", },
+	{ .compatible = "socionext,uniphier-ld11", },
+	{ .compatible = "socionext,uniphier-ld20", },
+
 	{ .compatible = "ti,am33xx", },
 	{ .compatible = "ti,dra7", },
 	{ .compatible = "ti,omap2", },
