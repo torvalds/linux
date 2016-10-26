@@ -938,11 +938,6 @@ static void __iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 
 void arch_teardown_dma_ops(struct device *dev)
 {
-	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
-
-	if (WARN_ON(domain))
-		iommu_detach_device(domain, dev);
-
 	dev->archdata.dma_ops = NULL;
 }
 
