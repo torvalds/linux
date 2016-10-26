@@ -2618,6 +2618,9 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 	case WLAN_AUTH_LEAP:
 	case WLAN_AUTH_FT:
 	case WLAN_AUTH_SAE:
+	case WLAN_AUTH_FILS_SK:
+	case WLAN_AUTH_FILS_SK_PFS:
+	case WLAN_AUTH_FILS_PK:
 		break;
 	case WLAN_AUTH_SHARED_KEY:
 		if (ifmgd->auth_data->expected_transaction != 4) {
@@ -4478,6 +4481,15 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 		break;
 	case NL80211_AUTHTYPE_SAE:
 		auth_alg = WLAN_AUTH_SAE;
+		break;
+	case NL80211_AUTHTYPE_FILS_SK:
+		auth_alg = WLAN_AUTH_FILS_SK;
+		break;
+	case NL80211_AUTHTYPE_FILS_SK_PFS:
+		auth_alg = WLAN_AUTH_FILS_SK_PFS;
+		break;
+	case NL80211_AUTHTYPE_FILS_PK:
+		auth_alg = WLAN_AUTH_FILS_PK;
 		break;
 	default:
 		return -EOPNOTSUPP;
