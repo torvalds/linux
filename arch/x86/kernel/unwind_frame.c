@@ -20,7 +20,15 @@ unsigned long unwind_get_return_address(struct unwind_state *state)
 	addr = ftrace_graph_ret_addr(state->task, &state->graph_idx, *addr_p,
 				     addr_p);
 
-	return __kernel_text_address(addr) ? addr : 0;
+	if (!__kernel_text_address(addr)) {
+		printk_deferred_once(KERN_WARNING
+			"WARNING: unrecognized kernel stack return address %p at %p in %s:%d\n",
+			(void *)addr, addr_p, state->task->comm,
+			state->task->pid);
+		return 0;
+	}
+
+	return addr;
 }
 EXPORT_SYMBOL_GPL(unwind_get_return_address);
 
