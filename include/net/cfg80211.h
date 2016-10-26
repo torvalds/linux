@@ -4181,6 +4181,27 @@ static inline const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len)
 }
 
 /**
+ * cfg80211_find_ext_ie - find information element with EID Extension in data
+ *
+ * @ext_eid: element ID Extension
+ * @ies: data consisting of IEs
+ * @len: length of data
+ *
+ * Return: %NULL if the extended element ID could not be found or if
+ * the element is invalid (claims to be longer than the given
+ * data), or a pointer to the first byte of the requested
+ * element, that is the byte containing the element ID.
+ *
+ * Note: There are no checks on the element length other than
+ * having to fit into the given data.
+ */
+static inline const u8 *cfg80211_find_ext_ie(u8 ext_eid, const u8 *ies, int len)
+{
+	return cfg80211_find_ie_match(WLAN_EID_EXTENSION, ies, len,
+				      &ext_eid, 1, 2);
+}
+
+/**
  * cfg80211_find_vendor_ie - find vendor specific information element in data
  *
  * @oui: vendor OUI
