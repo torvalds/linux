@@ -16,7 +16,7 @@ trouble.
 Below are the essential guides that every developer should read.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    howto
    code-of-conflict
@@ -28,7 +28,7 @@ Below are the essential guides that every developer should read.
 Other guides to the community that are of interest to most developers are: 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    changes
    submitting-drivers
@@ -42,7 +42,7 @@ These are some overall technical guides that have been put here for now for
 lack of a better place.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    applying-patches
    adding-syscalls
