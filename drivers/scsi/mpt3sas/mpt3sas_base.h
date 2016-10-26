@@ -375,7 +375,6 @@ struct MPT3SAS_TARGET {
  * per device private data
  */
 #define MPT_DEVICE_FLAGS_INIT		0x01
-#define MPT_DEVICE_TLR_ON		0x02
 
 #define MFG_PAGE10_HIDE_SSDS_MASK	(0x00000003)
 #define MFG_PAGE10_HIDE_ALL_DISKS	(0x00)
