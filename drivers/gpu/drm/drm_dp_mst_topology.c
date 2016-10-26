@@ -914,6 +914,7 @@ static void drm_dp_destroy_port(struct kref *kref)
 		/* no need to clean up vcpi
 		 * as if we have no connector we never setup a vcpi */
 		drm_dp_port_teardown_pdt(port, port->pdt);
+		port->pdt = DP_PEER_DEVICE_NONE;
 	}
 	kfree(port);
 }
@@ -2919,6 +2920,7 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
 		mgr->cbs->destroy_connector(mgr, port->connector);
 
 		drm_dp_port_teardown_pdt(port, port->pdt);
+		port->pdt = DP_PEER_DEVICE_NONE;
 
 		if (!port->input && port->vcpi.vcpi > 0) {
 			drm_dp_mst_reset_vcpi_slots(mgr, port);
