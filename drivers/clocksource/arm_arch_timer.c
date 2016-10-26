@@ -971,8 +971,9 @@ static int __init arch_timer_mem_init(struct device_node *np)
 	}
 
 	ret= -ENXIO;
-	base = arch_counter_base = of_iomap(best_frame, 0);
-	if (!base) {
+	base = arch_counter_base = of_io_request_and_map(best_frame, 0,
+							 "arch_mem_timer");
+	if (IS_ERR(base)) {
 		pr_err("arch_timer: Can't map frame's registers\n");
 		goto out;
 	}
