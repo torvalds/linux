@@ -8660,6 +8660,12 @@ _scsih_determine_hba_mpi_version(struct pci_dev *pdev)
 	case MPI26_MFGPAGE_DEVID_SAS3324_2:
 	case MPI26_MFGPAGE_DEVID_SAS3324_3:
 	case MPI26_MFGPAGE_DEVID_SAS3324_4:
+	case MPI26_MFGPAGE_DEVID_SAS3508:
+	case MPI26_MFGPAGE_DEVID_SAS3508_1:
+	case MPI26_MFGPAGE_DEVID_SAS3408:
+	case MPI26_MFGPAGE_DEVID_SAS3516:
+	case MPI26_MFGPAGE_DEVID_SAS3516_1:
+	case MPI26_MFGPAGE_DEVID_SAS3416:
 		return MPI26_VERSION;
 	}
 	return 0;
@@ -8728,6 +8734,18 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioc->hba_mpi_version_belonged = hba_mpi_version;
 		ioc->id = mpt3_ids++;
 		sprintf(ioc->driver_name, "%s", MPT3SAS_DRIVER_NAME);
+		switch (pdev->device) {
+		case MPI26_MFGPAGE_DEVID_SAS3508:
+		case MPI26_MFGPAGE_DEVID_SAS3508_1:
+		case MPI26_MFGPAGE_DEVID_SAS3408:
+		case MPI26_MFGPAGE_DEVID_SAS3516:
+		case MPI26_MFGPAGE_DEVID_SAS3516_1:
+		case MPI26_MFGPAGE_DEVID_SAS3416:
+			ioc->is_gen35_ioc = 1;
+			break;
+		default:
+			ioc->is_gen35_ioc = 0;
+		}
 		if ((ioc->hba_mpi_version_belonged == MPI25_VERSION &&
 			pdev->revision >= SAS3_PCI_DEVICE_C0_REVISION) ||
 			(ioc->hba_mpi_version_belonged == MPI26_VERSION))
@@ -9133,6 +9151,19 @@ static const struct pci_device_id mpt3sas_pci_table[] = {
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3324_3,
 		PCI_ANY_ID, PCI_ANY_ID },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3324_4,
+		PCI_ANY_ID, PCI_ANY_ID },
+	/* Ventura, Crusader, Harpoon & Tomcat ~ 3516, 3416, 3508 & 3408*/
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3508,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3508_1,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3408,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3516,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3516_1,
+		PCI_ANY_ID, PCI_ANY_ID },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI26_MFGPAGE_DEVID_SAS3416,
 		PCI_ANY_ID, PCI_ANY_ID },
 	{0}     /* Terminating entry */
 };

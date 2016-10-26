@@ -1191,6 +1191,7 @@ struct MPT3SAS_ADAPTER {
 	struct SL_WH_MPI_TRIGGERS_T diag_trigger_mpi;
 	void		*device_remove_in_progress;
 	u16		device_remove_in_progress_sz;
+	u8		is_gen35_ioc;
 };
 
 typedef u8 (*MPT_CALLBACK)(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,

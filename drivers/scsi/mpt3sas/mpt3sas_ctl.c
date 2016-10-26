@@ -1096,7 +1096,10 @@ _ctl_getiocinfo(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 		break;
 	case MPI25_VERSION:
 	case MPI26_VERSION:
-		karg.adapter_type = MPT3_IOCTL_INTERFACE_SAS3;
+		if (ioc->is_gen35_ioc)
+			karg.adapter_type = MPT3_IOCTL_INTERFACE_SAS35;
+		else
+			karg.adapter_type = MPT3_IOCTL_INTERFACE_SAS3;
 		strcat(karg.driver_version, MPT3SAS_DRIVER_VERSION);
 		break;
 	}
