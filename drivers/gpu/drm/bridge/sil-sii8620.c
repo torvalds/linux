@@ -985,7 +985,7 @@ static void sii8620_set_mode(struct sii8620 *ctx, enum sii8620_mode mode)
 	default:
 		dev_err(ctx->dev, "%s mode %d not supported\n", __func__, mode);
 		break;
-	};
+	}
 
 	sii8620_set_auto_zone(ctx);
 
