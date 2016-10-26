@@ -36,6 +36,9 @@
 
 #include "bif/bif_4_1_d.h"
 
+#include "smu/smu_7_0_1_d.h"
+#include "smu/smu_7_0_1_sh_mask.h"
+
 static void uvd_v4_2_mc_resume(struct amdgpu_device *adev);
 static void uvd_v4_2_init_cg(struct amdgpu_device *adev);
 static void uvd_v4_2_set_ring_funcs(struct amdgpu_device *adev);
@@ -683,17 +686,33 @@ static int uvd_v4_2_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
+static void uvd_v5_0_set_bypass_mode(struct amdgpu_device *adev, bool enable)
+{
+	u32 tmp = RREG32_SMC(ixGCK_DFS_BYPASS_CNTL);
+
+	if (enable)
+		tmp |= (GCK_DFS_BYPASS_CNTL__BYPASSDCLK_MASK |
+			GCK_DFS_BYPASS_CNTL__BYPASSVCLK_MASK);
+	else
+		tmp &= ~(GCK_DFS_BYPASS_CNTL__BYPASSDCLK_MASK |
+			 GCK_DFS_BYPASS_CNTL__BYPASSVCLK_MASK);
+
+	WREG32_SMC(ixGCK_DFS_BYPASS_CNTL, tmp);
+}
+
 static int uvd_v4_2_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	bool gate = false;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
-		return 0;
-
 	if (state == AMD_CG_STATE_GATE)
 		gate = true;
+
+	uvd_v5_0_set_bypass_mode(adev, gate);
+
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
+		return 0;
 
 	uvd_v4_2_enable_mgcg(adev, gate);
 

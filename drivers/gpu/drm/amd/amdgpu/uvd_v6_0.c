@@ -935,7 +935,7 @@ static void uvd_v6_0_set_hw_clock_gating(struct amdgpu_device *adev)
 }
 #endif
 
-static void uvd_v6_set_bypass_mode(struct amdgpu_device *adev, bool enable)
+static void uvd_v6_0_set_bypass_mode(struct amdgpu_device *adev, bool enable)
 {
 	u32 tmp = RREG32_SMC(ixGCK_DFS_BYPASS_CNTL);
 
@@ -953,15 +953,14 @@ static int uvd_v6_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
 
-	if (adev->asic_type == CHIP_FIJI ||
-	    adev->asic_type == CHIP_POLARIS10)
-		uvd_v6_set_bypass_mode(adev, state == AMD_CG_STATE_GATE ? true : false);
+	uvd_v6_0_set_bypass_mode(adev, enable);
 
 	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
 		return 0;
 
-	if (state == AMD_CG_STATE_GATE) {
+	if (enable) {
 		/* disable HW gating and enable Sw gating */
 		uvd_v6_0_set_sw_clock_gating(adev);
 	} else {
