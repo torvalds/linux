@@ -78,6 +78,7 @@ hsf_load_header_app_size(const struct hsf_load_header *hdr, u32 app)
  * @generate_bl_desc: function called on a block of bl_desc_size to generate the
  *		      proper bootloader descriptor for this LS firmware
  * @bl_desc_size: size of the bootloader descriptor
+ * @post_run: hook called right after the ACR is executed
  * @lhdr_flags: LS flags
  */
 struct acr_r352_ls_func {
@@ -85,6 +86,7 @@ struct acr_r352_ls_func {
 	void (*generate_bl_desc)(const struct nvkm_acr *,
 				 const struct ls_ucode_img *, u64, void *);
 	u32 bl_desc_size;
+	void (*post_run)(const struct nvkm_acr *, const struct nvkm_secboot *);
 	u32 lhdr_flags;
 };
 

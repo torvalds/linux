@@ -852,6 +852,8 @@ acr_r352_shutdown(struct acr_r352 *acr, struct nvkm_secboot *sb)
 static int
 acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 {
+	unsigned long managed_falcons = acr->base.managed_falcons;
+	int falcon_id;
 	int ret;
 
 	if (sb->wpr_set)
@@ -871,6 +873,15 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 	nvkm_debug(&sb->subdev, "HS load blob completed\n");
 
 	sb->wpr_set = true;
+
+	/* Run LS firmwares post_run hooks */
+	for_each_set_bit(falcon_id, &managed_falcons, NVKM_SECBOOT_FALCON_END) {
+		const struct acr_r352_ls_func *func =
+						  acr->func->ls_func[falcon_id];
+
+		if (func->post_run)
+			func->post_run(&acr->base, sb);
+	}
 
 	return 0;
 }
