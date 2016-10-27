@@ -328,6 +328,22 @@
 #define GENERAL_BUS_SETTINGS            0x03
 #define GENERAL_TEST_ACCESS             0x04
 
+/* hdcp opcode */
+#define HDCP_TX_CONFIGURATION			0x00
+#define HDCP2_TX_SET_PUBLIC_KEY_PARAMS		0x01
+#define HDCP2_TX_SET_DEBUG_RANDOM_NUMBERS	0x02
+#define HDCP2_TX_RESPOND_KM			0x03
+#define HDCP1_TX_SEND_KEYS			0x04
+#define HDCP1_TX_SEND_RANDOM_AN			0x05
+#define HDCP_TX_STATUS_CHANGE			0x06
+#define HDCP2_TX_IS_KM_STORED			0x07
+#define HDCP2_TX_STORE_KM			0x08
+#define HDCP_TX_IS_RECEIVER_ID_VALID		0x09
+#define HDCP_TX_RESPOND_RECEIVER_ID_VALID	0x0a
+
+#define IS_HDCP_TX_RECEIVER_ID_VALID_RESP_SIZE_VALID(x)	\
+			(((((x) - 2) % 5) == 0) || ((((x) - 4) % 5) == 0))
+
 #define DPTX_SET_POWER_MNG			0x00
 #define DPTX_SET_HOST_CAPABILITIES		0x01
 #define DPTX_GET_EDID				0x02
@@ -394,6 +410,14 @@
 #define HDCP2_TX_STORE_KM_EVENT			BIT(6)
 #define HDCP_TX_IS_RECEIVER_ID_VALID_EVENT	BIT(7)
 
+#define HDCP_TX_ACTIVATE			BIT(2)
+
+#define HDCP_TX_STATUS_AUTHENTICATED		BIT(0)
+#define HDCP_TX_STATUS_RECEIVER_IS_REPEATER	BIT(1)
+#define HDCP_TX_STATUS_RX_HDCP1			(0x01 << 2)
+#define HDCP_TX_STATUS_RX_HDCP2			(0x02 << 2)
+#define HDCP_TX_STATUS_ERROR(x)			(((x) >> 5) & 0xf)
+
 #define TU_SIZE					30
 #define CDN_DP_MAX_LINK_RATE			DP_LINK_BW_5_4
 
@@ -459,6 +483,12 @@ enum vic_bt_type {
 	BT_709 = 0x1,
 };
 
+enum HDCP_TX_SUPPORT {
+	HDCP_TX_2,
+	HDCP_TX_1,
+	HDCP_TX_BOTH,
+};
+
 void cdn_dp_clock_reset(struct cdn_dp_device *dp);
 
 void cdn_dp_set_fw_clk(struct cdn_dp_device *dp, unsigned long clk);
@@ -479,4 +509,9 @@ int cdn_dp_config_video(struct cdn_dp_device *dp);
 int cdn_dp_audio_stop(struct cdn_dp_device *dp, struct audio_info *audio);
 int cdn_dp_audio_mute(struct cdn_dp_device *dp, bool enable);
 int cdn_dp_audio_config(struct cdn_dp_device *dp, struct audio_info *audio);
+int cdn_dp_hdcp_tx_configuration(struct cdn_dp_device *dp, int tx_mode,
+						 bool active);
+int cdn_dp_hdcp_tx_status_req(struct cdn_dp_device *dp, uint16_t *tx_status);
+int cdn_dp_hdcp_tx_is_receiver_id_valid_req(struct cdn_dp_device *dp);
+int cdn_dp_hdcp_tx_respond_id_valid(struct cdn_dp_device *dp, bool valid);
 #endif /* _CDN_DP_REG_H */

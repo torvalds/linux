@@ -132,5 +132,6 @@ struct cdn_dp_device {
 	struct switch_dev switchdev;
 #endif
 	struct cdn_dp_hdcp_key_1x key;
+	struct delayed_work hdcp_event_work;
 };
 #endif  /* _CDN_DP_CORE_H */
