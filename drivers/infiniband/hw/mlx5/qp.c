@@ -3068,7 +3068,7 @@ static void set_linv_umr_seg(struct mlx5_wqe_umr_ctrl_seg *umr)
 {
 	memset(umr, 0, sizeof(*umr));
 	umr->mkey_mask = cpu_to_be64(MLX5_MKEY_MASK_FREE);
-	umr->flags = 1 << 7;
+	umr->flags = MLX5_UMR_INLINE;
 }
 
 static __be64 get_umr_reg_mr_mask(void)
