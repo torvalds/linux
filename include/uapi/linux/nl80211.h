@@ -888,6 +888,12 @@
  *	This will contain a %NL80211_ATTR_NAN_MATCH nested attribute and
  *	%NL80211_ATTR_COOKIE.
  *
+ * @NL80211_CMD_UPDATE_CONNECT_PARAMS: Update one or more connect parameters
+ *	for subsequent roaming cases if the driver or firmware uses internal
+ *	BSS selection. This command can be issued only while connected and it
+ *	does not result in a change for the current association. Currently,
+ *	only the %NL80211_ATTR_IE data is used and updated with this command.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1084,6 +1090,8 @@ enum nl80211_commands {
 	NL80211_CMD_NAN_MATCH,
 
 	NL80211_CMD_SET_MULTICAST_TO_UNICAST,
+
+	NL80211_CMD_UPDATE_CONNECT_PARAMS,
 
 	/* add new commands above here */
 
