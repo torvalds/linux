@@ -172,8 +172,8 @@ dynamic-debug-howto.txt
 	- how to use the dynamic debug (dyndbg) feature.
 early-userspace/
 	- info about initramfs, klibc, and userspace early during boot.
-edac.txt
-	- information on EDAC - Error Detection And Correction
+admin-guide/ras.rst
+	- information on Reliability, Availability and Serviceability
 efi-stub.txt
 	- How to use the EFI boot stub to bypass GRUB or elilo on EFI systems.
 eisa.txt
