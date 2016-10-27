@@ -2493,6 +2493,9 @@ static int dce_v10_0_cursor_move_locked(struct drm_crtc *crtc,
 	struct amdgpu_device *adev = crtc->dev->dev_private;
 	int xorigin = 0, yorigin = 0;
 
+	amdgpu_crtc->cursor_x = x;
+	amdgpu_crtc->cursor_y = y;
+
 	/* avivo cursor are offset into the total surface */
 	x += crtc->x;
 	y += crtc->y;
@@ -2511,9 +2514,6 @@ static int dce_v10_0_cursor_move_locked(struct drm_crtc *crtc,
 	WREG32(mmCUR_HOT_SPOT + amdgpu_crtc->crtc_offset, (xorigin << 16) | yorigin);
 	WREG32(mmCUR_SIZE + amdgpu_crtc->crtc_offset,
 	       ((amdgpu_crtc->cursor_width - 1) << 16) | (amdgpu_crtc->cursor_height - 1));
-
-	amdgpu_crtc->cursor_x = x;
-	amdgpu_crtc->cursor_y = y;
 
 	return 0;
 }
