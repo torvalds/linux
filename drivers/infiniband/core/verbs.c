@@ -1734,8 +1734,10 @@ struct ib_flow *ib_create_flow(struct ib_qp *qp,
 		return ERR_PTR(-ENOSYS);
 
 	flow_id = qp->device->create_flow(qp, flow_attr, domain);
-	if (!IS_ERR(flow_id))
+	if (!IS_ERR(flow_id)) {
 		atomic_inc(&qp->usecnt);
+		flow_id->qp = qp;
+	}
 	return flow_id;
 }
 EXPORT_SYMBOL(ib_create_flow);
