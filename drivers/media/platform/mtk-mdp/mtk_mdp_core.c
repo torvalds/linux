@@ -50,7 +50,8 @@ static const struct of_device_id mtk_mdp_comp_dt_ids[] = {
 	}, {
 		.compatible = "mediatek,mt8173-mdp-wrot",
 		.data = (void *)MTK_MDP_WROT
-	}
+	},
+	{ },
 };
 
 static const struct of_device_id mtk_mdp_of_ids[] = {
