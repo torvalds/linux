@@ -267,7 +267,7 @@ struct cl_object_conf {
 		/**
 		 * Object layout. This is consumed by lov.
 		 */
-		struct lustre_md *coc_md;
+		struct lu_buf	  coc_layout;
 		/**
 		 * Description of particular stripe location in the
 		 * cluster. This is consumed by osc.

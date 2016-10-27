@@ -1406,7 +1406,6 @@ static struct obd_ops lov_obd_ops = {
 	.disconnect     = lov_disconnect,
 	.statfs         = lov_statfs,
 	.statfs_async   = lov_statfs_async,
-	.unpackmd       = lov_unpackmd,
 	.iocontrol      = lov_iocontrol,
 	.get_info       = lov_get_info,
 	.set_info_async = lov_set_info_async,

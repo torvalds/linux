@@ -76,18 +76,19 @@ static int lsm_lmm_verify_common(struct lov_mds_md *lmm, int lmm_bytes,
 	return 0;
 }
 
-struct lov_stripe_md *lsm_alloc_plain(__u16 stripe_count, int *size)
+struct lov_stripe_md *lsm_alloc_plain(u16 stripe_count)
 {
+	size_t oinfo_ptrs_size, lsm_size;
 	struct lov_stripe_md *lsm;
 	struct lov_oinfo     *loi;
-	int		   i, oinfo_ptrs_size;
+	unsigned int i;
 
 	LASSERT(stripe_count <= LOV_MAX_STRIPE_COUNT);
 
 	oinfo_ptrs_size = sizeof(struct lov_oinfo *) * stripe_count;
-	*size = sizeof(struct lov_stripe_md) + oinfo_ptrs_size;
+	lsm_size = sizeof(*lsm) + oinfo_ptrs_size;
 
-	lsm = libcfs_kvzalloc(*size, GFP_NOFS);
+	lsm = libcfs_kvzalloc(lsm_size, GFP_NOFS);
 	if (!lsm)
 		return NULL;
 

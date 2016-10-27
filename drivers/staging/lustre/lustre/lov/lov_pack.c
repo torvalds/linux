@@ -195,34 +195,34 @@ static int lov_verify_lmm(void *lmm, int lmm_bytes, __u16 *stripe_count)
 	return rc;
 }
 
-int lov_alloc_memmd(struct lov_stripe_md **lsmp, __u16 stripe_count,
-		    int pattern, int magic)
+struct lov_stripe_md *lov_lsm_alloc(u16 stripe_count, u32 pattern, u32 magic)
 {
-	int i, lsm_size;
+	struct lov_stripe_md *lsm;
+	unsigned int i;
 
-	CDEBUG(D_INFO, "alloc lsm, stripe_count %d\n", stripe_count);
+	CDEBUG(D_INFO, "alloc lsm, stripe_count %u\n", stripe_count);
 
-	*lsmp = lsm_alloc_plain(stripe_count, &lsm_size);
-	if (!*lsmp) {
-		CERROR("can't allocate lsmp stripe_count %d\n", stripe_count);
-		return -ENOMEM;
+	lsm = lsm_alloc_plain(stripe_count);
+	if (!lsm) {
+		CERROR("cannot allocate LSM stripe_count %u\n", stripe_count);
+		return ERR_PTR(-ENOMEM);
 	}
 
-	atomic_set(&(*lsmp)->lsm_refc, 1);
-	spin_lock_init(&(*lsmp)->lsm_lock);
-	(*lsmp)->lsm_magic = magic;
-	(*lsmp)->lsm_stripe_count = stripe_count;
-	(*lsmp)->lsm_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES * stripe_count;
-	(*lsmp)->lsm_pattern = pattern;
-	(*lsmp)->lsm_pool_name[0] = '\0';
-	(*lsmp)->lsm_layout_gen = 0;
+	atomic_set(&lsm->lsm_refc, 1);
+	spin_lock_init(&lsm->lsm_lock);
+	lsm->lsm_magic = magic;
+	lsm->lsm_stripe_count = stripe_count;
+	lsm->lsm_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES * stripe_count;
+	lsm->lsm_pattern = pattern;
+	lsm->lsm_pool_name[0] = '\0';
+	lsm->lsm_layout_gen = 0;
 	if (stripe_count > 0)
-		(*lsmp)->lsm_oinfo[0]->loi_ost_idx = ~0;
+		lsm->lsm_oinfo[0]->loi_ost_idx = ~0;
 
 	for (i = 0; i < stripe_count; i++)
-		loi_init((*lsmp)->lsm_oinfo[i]);
+		loi_init(lsm->lsm_oinfo[i]);
 
-	return lsm_size;
+	return lsm;
 }
 
 int lov_free_memmd(struct lov_stripe_md **lsmp)
@@ -242,56 +242,34 @@ int lov_free_memmd(struct lov_stripe_md **lsmp)
 /* Unpack LOV object metadata from disk storage.  It is packed in LE byte
  * order and is opaque to the networking layer.
  */
-int lov_unpackmd(struct obd_export *exp,  struct lov_stripe_md **lsmp,
-		 struct lov_mds_md *lmm, int lmm_bytes)
+struct lov_stripe_md *lov_unpackmd(struct lov_obd *lov, struct lov_mds_md *lmm,
+				   size_t lmm_size)
 {
-	struct obd_device *obd = class_exp2obd(exp);
-	struct lov_obd *lov = &obd->u.lov;
-	int rc = 0, lsm_size;
-	__u16 stripe_count;
-	__u32 magic;
-	__u32 pattern;
+	struct lov_stripe_md *lsm;
+	u16 stripe_count;
+	u32 pattern;
+	u32 magic;
+	int rc;
 
-	/* If passed an MDS struct use values from there, otherwise defaults */
-	if (lmm) {
-		rc = lov_verify_lmm(lmm, lmm_bytes, &stripe_count);
-		if (rc)
-			return rc;
-		magic = le32_to_cpu(lmm->lmm_magic);
-		pattern = le32_to_cpu(lmm->lmm_pattern);
-	} else {
-		magic = LOV_MAGIC;
-		stripe_count = lov_get_stripecnt(lov, magic, 0);
-		pattern = LOV_PATTERN_RAID0;
-	}
+	rc = lov_verify_lmm(lmm, lmm_size, &stripe_count);
+	if (rc)
+		return ERR_PTR(rc);
 
-	/* If we aren't passed an lsmp struct, we just want the size */
-	if (!lsmp) {
-		/* XXX LOV STACKING call into osc for sizes */
-		LBUG();
-		return lov_stripe_md_size(stripe_count);
-	}
-	/* If we are passed an allocated struct but nothing to unpack, free */
-	if (*lsmp && !lmm) {
-		lov_free_memmd(lsmp);
-		return 0;
-	}
+	magic = le32_to_cpu(lmm->lmm_magic);
+	pattern = le32_to_cpu(lmm->lmm_pattern);
 
-	lsm_size = lov_alloc_memmd(lsmp, stripe_count, pattern, magic);
-	if (lsm_size < 0)
-		return lsm_size;
+	lsm = lov_lsm_alloc(stripe_count, pattern, magic);
+	if (IS_ERR(lsm))
+		return lsm;
 
-	/* If we are passed a pointer but nothing to unpack, we only alloc */
-	if (!lmm)
-		return lsm_size;
-
-	rc = lsm_op_find(magic)->lsm_unpackmd(lov, *lsmp, lmm);
+	LASSERT(lsm_op_find(magic));
+	rc = lsm_op_find(magic)->lsm_unpackmd(lov, lsm, lmm);
 	if (rc) {
-		lov_free_memmd(lsmp);
-		return rc;
+		lov_free_memmd(&lsm);
+		return ERR_PTR(rc);
 	}
 
-	return lsm_size;
+	return lsm;
 }
 
 /* Retrieve object striping information.

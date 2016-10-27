@@ -39,6 +39,11 @@
 
 #include "lov_cl_internal.h"
 
+static inline struct lov_device *lov_object_dev(struct lov_object *obj)
+{
+	return lu2lov_dev(obj->lo_cl.co_lu.lo_dev);
+}
+
 /** \addtogroup lov
  *  @{
  */
@@ -51,7 +56,7 @@
 
 struct lov_layout_operations {
 	int (*llo_init)(const struct lu_env *env, struct lov_device *dev,
-			struct lov_object *lov,
+			struct lov_object *lov, struct lov_stripe_md *lsm,
 			const struct cl_object_conf *conf,
 			union lov_layout_state *state);
 	int (*llo_delete)(const struct lu_env *env, struct lov_object *lov,
@@ -96,17 +101,17 @@ static void lov_install_empty(const struct lu_env *env,
 	 */
 }
 
-static int lov_init_empty(const struct lu_env *env,
-			  struct lov_device *dev, struct lov_object *lov,
+static int lov_init_empty(const struct lu_env *env, struct lov_device *dev,
+			  struct lov_object *lov, struct lov_stripe_md *lsm,
 			  const struct cl_object_conf *conf,
-			  union  lov_layout_state *state)
+			  union lov_layout_state *state)
 {
 	return 0;
 }
 
 static void lov_install_raid0(const struct lu_env *env,
 			      struct lov_object *lov,
-			      union  lov_layout_state *state)
+			      union lov_layout_state *state)
 {
 }
 
@@ -211,8 +216,8 @@ static int lov_page_slice_fixup(struct lov_object *lov,
 	return cl_object_header(stripe)->coh_page_bufsize;
 }
 
-static int lov_init_raid0(const struct lu_env *env,
-			  struct lov_device *dev, struct lov_object *lov,
+static int lov_init_raid0(const struct lu_env *env, struct lov_device *dev,
+			  struct lov_object *lov, struct lov_stripe_md *lsm,
 			  const struct cl_object_conf *conf,
 			  union  lov_layout_state *state)
 {
@@ -222,7 +227,6 @@ static int lov_init_raid0(const struct lu_env *env,
 	struct cl_object	*stripe;
 	struct lov_thread_info  *lti     = lov_env_info(env);
 	struct cl_object_conf   *subconf = &lti->lti_stripe_conf;
-	struct lov_stripe_md    *lsm     = conf->u.coc_md->lsm;
 	struct lu_fid	   *ofid    = &lti->lti_fid;
 	struct lov_layout_raid0 *r0      = &state->raid0;
 
@@ -297,13 +301,11 @@ out:
 	return result;
 }
 
-static int lov_init_released(const struct lu_env *env,
-			     struct lov_device *dev, struct lov_object *lov,
+static int lov_init_released(const struct lu_env *env, struct lov_device *dev,
+			     struct lov_object *lov, struct lov_stripe_md *lsm,
 			     const struct cl_object_conf *conf,
 			     union  lov_layout_state *state)
 {
-	struct lov_stripe_md *lsm = conf->u.coc_md->lsm;
-
 	LASSERT(lsm);
 	LASSERT(lsm_is_released(lsm));
 	LASSERT(!lov->lo_lsm);
@@ -720,24 +722,19 @@ static int lov_layout_wait(const struct lu_env *env, struct lov_object *lov)
 }
 
 static int lov_layout_change(const struct lu_env *unused,
-			     struct lov_object *lov,
+			     struct lov_object *lov, struct lov_stripe_md *lsm,
 			     const struct cl_object_conf *conf)
 {
-	int result;
-	enum lov_layout_type llt = LLT_EMPTY;
+	enum lov_layout_type llt = lov_type(lsm);
 	union lov_layout_state *state = &lov->u;
 	const struct lov_layout_operations *old_ops;
 	const struct lov_layout_operations *new_ops;
-
 	void *cookie;
 	struct lu_env *env;
 	int refcheck;
+	int rc;
 
 	LASSERT(0 <= lov->lo_type && lov->lo_type < ARRAY_SIZE(lov_dispatch));
-
-	if (conf->u.coc_md)
-		llt = lov_type(conf->u.coc_md->lsm);
-	LASSERT(0 <= llt && llt < ARRAY_SIZE(lov_dispatch));
 
 	cookie = cl_env_reenter();
 	env = cl_env_get(&refcheck);
@@ -746,6 +743,8 @@ static int lov_layout_change(const struct lu_env *unused,
 		return PTR_ERR(env);
 	}
 
+	LASSERT(0 <= llt && llt < ARRAY_SIZE(lov_dispatch));
+
 	CDEBUG(D_INODE, DFID" from %s to %s\n",
 	       PFID(lu_object_fid(lov2lu(lov))),
 	       llt2str(lov->lo_type), llt2str(llt));
@@ -753,38 +752,38 @@ static int lov_layout_change(const struct lu_env *unused,
 	old_ops = &lov_dispatch[lov->lo_type];
 	new_ops = &lov_dispatch[llt];
 
-	result = cl_object_prune(env, &lov->lo_cl);
-	if (result != 0)
+	rc = cl_object_prune(env, &lov->lo_cl);
+	if (rc)
 		goto out;
 
-	result = old_ops->llo_delete(env, lov, &lov->u);
-	if (result == 0) {
-		old_ops->llo_fini(env, lov, &lov->u);
+	rc = old_ops->llo_delete(env, lov, &lov->u);
+	if (rc)
+		goto out;
 
-		LASSERT(atomic_read(&lov->lo_active_ios) == 0);
+	old_ops->llo_fini(env, lov, &lov->u);
 
-		lov->lo_type = LLT_EMPTY;
-		/* page bufsize fixup */
-		cl_object_header(&lov->lo_cl)->coh_page_bufsize -=
+	LASSERT(!atomic_read(&lov->lo_active_ios));
+
+	lov->lo_type = LLT_EMPTY;
+
+	/* page bufsize fixup */
+	cl_object_header(&lov->lo_cl)->coh_page_bufsize -=
 			lov_page_slice_fixup(lov, NULL);
 
-		result = new_ops->llo_init(env,
-					lu2lov_dev(lov->lo_cl.co_lu.lo_dev),
-					lov, conf, state);
-		if (result == 0) {
-			new_ops->llo_install(env, lov, state);
-			lov->lo_type = llt;
-		} else {
-			new_ops->llo_delete(env, lov, state);
-			new_ops->llo_fini(env, lov, state);
-			/* this file becomes an EMPTY file. */
-		}
+	rc = new_ops->llo_init(env, lov_object_dev(lov), lov, lsm, conf, state);
+	if (rc) {
+		new_ops->llo_delete(env, lov, state);
+		new_ops->llo_fini(env, lov, state);
+		/* this file becomes an EMPTY file. */
+		goto out;
 	}
 
+	new_ops->llo_install(env, lov, state);
+	lov->lo_type = llt;
 out:
 	cl_env_put(env, &refcheck);
 	cl_env_reexit(cookie);
-	return result;
+	return rc;
 }
 
 /*****************************************************************************
@@ -795,26 +794,37 @@ out:
 int lov_object_init(const struct lu_env *env, struct lu_object *obj,
 		    const struct lu_object_conf *conf)
 {
-	struct lov_device	    *dev   = lu2lov_dev(obj->lo_dev);
 	struct lov_object	    *lov   = lu2lov(obj);
+	struct lov_device *dev = lov_object_dev(lov);
 	const struct cl_object_conf  *cconf = lu2cl_conf(conf);
 	union  lov_layout_state      *set   = &lov->u;
 	const struct lov_layout_operations *ops;
-	int result;
+	struct lov_stripe_md *lsm = NULL;
+	int rc;
 
 	init_rwsem(&lov->lo_type_guard);
 	atomic_set(&lov->lo_active_ios, 0);
 	init_waitqueue_head(&lov->lo_waitq);
-
 	cl_object_page_init(lu2cl(obj), sizeof(struct lov_page));
 
+	if (cconf->u.coc_layout.lb_buf) {
+		lsm = lov_unpackmd(dev->ld_lov,
+				   cconf->u.coc_layout.lb_buf,
+				   cconf->u.coc_layout.lb_len);
+		if (IS_ERR(lsm))
+			return PTR_ERR(lsm);
+	}
+
 	/* no locking is necessary, as object is being created */
-	lov->lo_type = lov_type(cconf->u.coc_md->lsm);
+	lov->lo_type = lov_type(lsm);
 	ops = &lov_dispatch[lov->lo_type];
-	result = ops->llo_init(env, dev, lov, cconf, set);
-	if (result == 0)
+	rc = ops->llo_init(env, dev, lov, lsm, cconf, set);
+	if (!rc)
 		ops->llo_install(env, lov, set);
-	return result;
+
+	lov_lsm_put(lsm);
+
+	return rc;
 }
 
 static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
@@ -823,6 +833,15 @@ static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
 	struct lov_stripe_md	*lsm = NULL;
 	struct lov_object	*lov = cl2lov(obj);
 	int			 result = 0;
+
+	if (conf->coc_opc == OBJECT_CONF_SET &&
+	    conf->u.coc_layout.lb_buf) {
+		lsm = lov_unpackmd(lov_object_dev(lov)->ld_lov,
+				   conf->u.coc_layout.lb_buf,
+				   conf->u.coc_layout.lb_len);
+		if (IS_ERR(lsm))
+			return PTR_ERR(lsm);
+	}
 
 	lov_conf_lock(lov);
 	if (conf->coc_opc == OBJECT_CONF_INVALIDATE) {
@@ -843,8 +862,6 @@ static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
 
 	LASSERT(conf->coc_opc == OBJECT_CONF_SET);
 
-	if (conf->u.coc_md)
-		lsm = conf->u.coc_md->lsm;
 	if ((!lsm && !lov->lo_lsm) ||
 	    ((lsm && lov->lo_lsm) &&
 	     (lov->lo_lsm->lsm_layout_gen == lsm->lsm_layout_gen) &&
@@ -862,11 +879,12 @@ static int lov_conf_set(const struct lu_env *env, struct cl_object *obj,
 		goto out;
 	}
 
-	result = lov_layout_change(env, lov, conf);
+	result = lov_layout_change(env, lov, lsm, conf);
 	lov->lo_layout_invalid = result != 0;
 
 out:
 	lov_conf_unlock(lov);
+	lov_lsm_put(lsm);
 	CDEBUG(D_INODE, DFID" lo_layout_invalid=%d\n",
 	       PFID(lu_object_fid(lov2lu(lov))), lov->lo_layout_invalid);
 	return result;
