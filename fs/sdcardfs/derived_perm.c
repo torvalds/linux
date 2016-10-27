@@ -141,13 +141,23 @@ void fixup_perms_recursive(struct dentry *dentry, const char* name, size_t len) 
 	info = SDCARDFS_I(d_inode(dentry));
 
 	if (needs_fixup(info->perm)) {
+		/* We need permission to fix up these values.
+		 * Since permissions are based of of the mount, and
+		 * we are accessing without the mount point, we create
+		 * a fake mount with the permissions we will be using.
+		 */
+		struct vfsmount fakemnt;
+		struct sdcardfs_vfsmount_options opts;
+		fakemnt.data = &opts;
+		opts.gid = AID_SDCARD_RW;
+		opts.mask = 0;
 		mutex_lock(&d_inode(dentry)->i_mutex);
-		child = lookup_one_len(name, dentry, len);
+		child = lookup_one_len2(name, &fakemnt, dentry, len);
 		mutex_unlock(&d_inode(dentry)->i_mutex);
 		if (!IS_ERR(child)) {
-			if (child->d_inode) {
+			if (d_inode(child)) {
 				get_derived_permission(dentry, child);
-				fix_derived_permission(d_inode(child));
+				fixup_tmp_permissions(d_inode(child));
 			}
 			dput(child);
 		}
@@ -172,7 +182,7 @@ void fixup_top_recursive(struct dentry *parent) {
 		if (d_inode(dentry)) {
 			if (SDCARDFS_I(d_inode(parent))->top != SDCARDFS_I(d_inode(dentry))->top) {
 				get_derived_permission(parent, dentry);
-				fix_derived_permission(d_inode(dentry));
+				fixup_tmp_permissions(d_inode(dentry));
 				fixup_top_recursive(dentry);
 			}
 		}
@@ -202,7 +212,7 @@ inline void update_derived_permission_lock(struct dentry *dentry)
 			dput(parent);
 		}
 	}
-	fix_derived_permission(dentry->d_inode);
+	fixup_tmp_permissions(d_inode(dentry));
 }
 
 int need_graft_path(struct dentry *dentry)
