@@ -42,6 +42,8 @@
 #include <sound/info.h>
 #include <sound/initval.h>
 
+// I am just doing a pre
+
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("A loopback soundcard");
 MODULE_LICENSE("GPL");
