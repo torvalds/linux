@@ -583,8 +583,9 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 		goto err_probe;
 
 	if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE) {
-		mpc8xxx_spi->rx_shift = 16;
-		mpc8xxx_spi->tx_shift = 24;
+		dev_err(dev, "SPI_QE_CPU_MODE is not supported on ESPI!\n");
+		ret = -EINVAL;
+		goto err_probe;
 	}
 
 	/* SPI controller initializations */
