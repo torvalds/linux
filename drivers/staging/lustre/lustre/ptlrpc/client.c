@@ -2762,8 +2762,15 @@ static int ptlrpc_replay_interpret(const struct lu_env *env,
 
 	atomic_dec(&imp->imp_replay_inflight);
 
-	if (!ptlrpc_client_replied(req)) {
-		CERROR("request replay timed out, restarting recovery\n");
+	/*
+	 * Note: if it is bulk replay (MDS-MDS replay), then even if
+	 * server got the request, but bulk transfer timeout, let's
+	 * replay the bulk req again
+	 */
+	if (!ptlrpc_client_replied(req) ||
+	    (req->rq_bulk &&
+	     lustre_msg_get_status(req->rq_repmsg) == -ETIMEDOUT)) {
+		DEBUG_REQ(D_ERROR, req, "request replay timed out.\n");
 		rc = -ETIMEDOUT;
 		goto out;
 	}
