@@ -284,7 +284,7 @@ static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(spi->master);
 	int ret;
 
-	mpc8xxx_spi->len = t->len;
+	mpc8xxx_spi->rx_len = t->len;
 	mpc8xxx_spi->tx_len = t->len;
 
 	mpc8xxx_spi->tx = t->tx_buf;
@@ -445,28 +445,28 @@ static void fsl_espi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
 		int ret;
 
 		/* Spin until RX is done */
-		if (SPIE_RXCNT(events) < min(4, mspi->len)) {
+		if (SPIE_RXCNT(events) < min(4U, mspi->rx_len)) {
 			ret = spin_event_timeout(
 				!(SPIE_RXCNT(events =
 				fsl_espi_read_reg(mspi, ESPI_SPIE)) <
-						min(4, mspi->len)),
+						min(4U, mspi->rx_len)),
 						10000, 0); /* 10 msec */
 			if (!ret)
 				dev_err(mspi->dev,
 					 "tired waiting for SPIE_RXCNT\n");
 		}
 
-		if (mspi->len >= 4) {
+		if (mspi->rx_len >= 4) {
 			rx_data = fsl_espi_read_reg(mspi, ESPI_SPIRF);
-		} else if (mspi->len <= 0) {
+		} else if (!mspi->rx_len) {
 			dev_err(mspi->dev,
 				"unexpected RX(SPIE_RNE) interrupt occurred,\n"
 				"(local rxlen %d bytes, reg rxlen %d bytes)\n",
-				min(4, mspi->len), SPIE_RXCNT(events));
+				min(4U, mspi->rx_len), SPIE_RXCNT(events));
 			rx_nr_bytes = 0;
 		} else {
-			rx_nr_bytes = mspi->len;
-			tmp = mspi->len;
+			rx_nr_bytes = mspi->rx_len;
+			tmp = mspi->rx_len;
 			rx_data = 0;
 			while (tmp--) {
 				rx_data_8 = fsl_espi_read_reg8(mspi,
@@ -474,10 +474,10 @@ static void fsl_espi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
 				rx_data |= (rx_data_8 << (tmp * 8));
 			}
 
-			rx_data <<= (4 - mspi->len) * 8;
+			rx_data <<= (4 - mspi->rx_len) * 8;
 		}
 
-		mspi->len -= rx_nr_bytes;
+		mspi->rx_len -= rx_nr_bytes;
 
 		if (rx_nr_bytes && mspi->rx) {
 			*(u32 *)mspi->rx = rx_data;
@@ -488,7 +488,7 @@ static void fsl_espi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
 	if (mspi->tx_len)
 		fsl_espi_fill_tx_fifo(mspi, events);
 
-	if (!mspi->tx_len && !mspi->len)
+	if (!mspi->tx_len && !mspi->rx_len)
 		complete(&mspi->done);
 }
 
