@@ -770,7 +770,7 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	if (err)
 		goto err_umem;
 
-	mlx5_ib_cont_pages(cq->buf.umem, ucmd.buf_addr, &npages, &page_shift,
+	mlx5_ib_cont_pages(cq->buf.umem, ucmd.buf_addr, 0, &npages, &page_shift,
 			   &ncont, NULL);
 	mlx5_ib_dbg(dev, "addr 0x%llx, size %u, npages %d, page_shift %d, ncont %d\n",
 		    ucmd.buf_addr, entries * ucmd.cqe_size, npages, page_shift, ncont);
@@ -1125,7 +1125,7 @@ static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 		return err;
 	}
 
-	mlx5_ib_cont_pages(umem, ucmd.buf_addr, &npages, page_shift,
+	mlx5_ib_cont_pages(umem, ucmd.buf_addr, 0, &npages, page_shift,
 			   npas, NULL);
 
 	cq->resize_umem = umem;

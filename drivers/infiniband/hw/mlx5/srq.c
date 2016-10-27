@@ -118,7 +118,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 		return err;
 	}
 
-	mlx5_ib_cont_pages(srq->umem, ucmd.buf_addr, &npages,
+	mlx5_ib_cont_pages(srq->umem, ucmd.buf_addr, 0, &npages,
 			   &page_shift, &ncont, NULL);
 	err = mlx5_ib_get_buf_offset(ucmd.buf_addr, page_shift,
 				     &offset);

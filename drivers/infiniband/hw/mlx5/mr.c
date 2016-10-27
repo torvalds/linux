@@ -855,7 +855,8 @@ static struct ib_umem *mr_umem_get(struct ib_pd *pd, u64 start, u64 length,
 		return (void *)umem;
 	}
 
-	mlx5_ib_cont_pages(umem, start, npages, page_shift, ncont, order);
+	mlx5_ib_cont_pages(umem, start, MLX5_MKEY_PAGE_SHIFT_MASK, npages,
+			   page_shift, ncont, order);
 	if (!*npages) {
 		mlx5_ib_warn(dev, "avoid zero region\n");
 		ib_umem_release(umem);
