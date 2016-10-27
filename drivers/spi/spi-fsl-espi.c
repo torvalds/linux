@@ -55,9 +55,10 @@
 #define CSMODE_CG(x)		((x) << 3)
 
 #define FSL_ESPI_FIFO_SIZE	32
+#define FSL_ESPI_RXTHR		15
 
 /* Default mode/csmode for eSPI controller */
-#define SPMODE_INIT_VAL (SPMODE_TXTHR(4) | SPMODE_RXTHR(3))
+#define SPMODE_INIT_VAL (SPMODE_TXTHR(4) | SPMODE_RXTHR(FSL_ESPI_RXTHR))
 #define CSMODE_INIT_VAL (CSMODE_POL_1 | CSMODE_BEF(0) \
 		| CSMODE_AFT(0) | CSMODE_CG(1))
 
@@ -263,6 +264,7 @@ static void fsl_espi_setup_transfer(struct spi_device *spi,
 static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(spi->master);
+	u32 mask;
 	int ret;
 
 	mpc8xxx_spi->rx_len = t->len;
@@ -277,8 +279,11 @@ static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPCOM,
 		(SPCOM_CS(spi->chip_select) | SPCOM_TRANLEN(t->len - 1)));
 
-	/* enable rx ints */
-	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPIM, SPIM_RNE);
+	/* enable interrupts */
+	mask = SPIM_DON;
+	if (mpc8xxx_spi->rx_len > FSL_ESPI_FIFO_SIZE)
+		mask |= SPIM_RXT;
+	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPIM, mask);
 
 	/* Prevent filling the fifo from getting interrupted */
 	spin_lock_irq(&mpc8xxx_spi->lock);
