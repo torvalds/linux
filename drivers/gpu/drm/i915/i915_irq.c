@@ -2503,7 +2503,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			fault_errors &= GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
 
 		if (fault_errors)
-			DRM_ERROR("Fault errors on pipe %c\n: 0x%08x",
+			DRM_ERROR("Fault errors on pipe %c: 0x%08x\n",
 				  pipe_name(pipe),
 				  fault_errors);
 	}
