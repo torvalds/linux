@@ -669,6 +669,10 @@ void rockchip_hdmiv2_hdcp_init(struct hdmi *hdmi)
 	pr_info("%s", __func__);
 	if (!hdcp)
 		hdcp_init(hdmi);
-	else
-		hdcp_load_key(hdmi, hdcp->keys);
+	else {
+		if (hdcp->keys)
+			hdcp_load_key(hdmi, hdcp->keys);
+		else
+			pr_info("hdcpkeys is no load\n");
+	}
 }
