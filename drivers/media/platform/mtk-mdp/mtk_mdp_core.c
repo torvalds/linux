@@ -282,7 +282,6 @@ static struct platform_driver mtk_mdp_driver = {
 	.remove		= mtk_mdp_remove,
 	.driver = {
 		.name	= MTK_MDP_MODULE_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &mtk_mdp_pm_ops,
 		.of_match_table = mtk_mdp_of_ids,
 	}
