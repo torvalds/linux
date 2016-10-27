@@ -127,8 +127,7 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	LASSERT(desc->bd_md_max_brw <= PTLRPC_BULK_OPS_COUNT);
 	LASSERT(desc->bd_iov_count <= PTLRPC_MAX_BRW_PAGES);
 	LASSERT(desc->bd_req);
-	LASSERT(desc->bd_type == BULK_PUT_SINK ||
-		desc->bd_type == BULK_GET_SOURCE);
+	LASSERT(ptlrpc_is_bulk_op_passive(desc->bd_type));
 
 	/* cleanup the state of the bulk for it will be reused */
 	if (req->rq_resend || req->rq_send_state == LUSTRE_IMP_REPLAY)
@@ -168,7 +167,7 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 
 	for (posted_md = 0; posted_md < total_md; posted_md++, xid++) {
 		md.options = PTLRPC_MD_OPTIONS |
-			     ((desc->bd_type == BULK_GET_SOURCE) ?
+			     (ptlrpc_is_bulk_op_get(desc->bd_type) ?
 			      LNET_MD_OP_GET : LNET_MD_OP_PUT);
 		ptlrpc_fill_bulk_md(&md, desc, posted_md);
 
@@ -223,7 +222,7 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 
 	CDEBUG(D_NET, "Setup %u bulk %s buffers: %u pages %u bytes, xid x%#llx-%#llx, portal %u\n",
 	       desc->bd_md_count,
-	       desc->bd_type == BULK_GET_SOURCE ? "get-source" : "put-sink",
+	       ptlrpc_is_bulk_op_get(desc->bd_type) ? "get-source" : "put-sink",
 	       desc->bd_iov_count, desc->bd_nob,
 	       desc->bd_last_xid, req->rq_xid, desc->bd_portal);
 
