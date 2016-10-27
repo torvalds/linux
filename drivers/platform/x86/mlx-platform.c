@@ -215,7 +215,7 @@ static int __init mlxplat_init(void)
 	if (IS_ERR(priv->pdev_i2c)) {
 		err = PTR_ERR(priv->pdev_i2c);
 		goto fail_alloc;
-	};
+	}
 
 	for (i = 0; i < ARRAY_SIZE(mlxplat_mux_data); i++) {
 		priv->pdev_mux[i] = platform_device_register_resndata(
