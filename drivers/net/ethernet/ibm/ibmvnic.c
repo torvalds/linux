@@ -3232,6 +3232,27 @@ static void ibmvnic_free_inflight(struct ibmvnic_adapter *adapter)
 	spin_unlock_irqrestore(&adapter->inflight_lock, flags);
 }
 
+static void ibmvnic_xport_event(struct work_struct *work)
+{
+	struct ibmvnic_adapter *adapter = container_of(work,
+						       struct ibmvnic_adapter,
+						       ibmvnic_xport);
+	struct device *dev = &adapter->vdev->dev;
+	long rc;
+
+	ibmvnic_free_inflight(adapter);
+	release_sub_crqs(adapter);
+	if (adapter->migrated) {
+		rc = ibmvnic_reenable_crq_queue(adapter);
+		if (rc)
+			dev_err(dev, "Error after enable rc=%ld\n", rc);
+		adapter->migrated = false;
+		rc = ibmvnic_send_crq_init(adapter);
+		if (rc)
+			dev_err(dev, "Error sending init rc=%ld\n", rc);
+	}
+}
+
 static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 			       struct ibmvnic_adapter *adapter)
 {
@@ -3267,15 +3288,7 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 		if (gen_crq->cmd == IBMVNIC_PARTITION_MIGRATED) {
 			dev_info(dev, "Re-enabling adapter\n");
 			adapter->migrated = true;
-			ibmvnic_free_inflight(adapter);
-			release_sub_crqs(adapter);
-			rc = ibmvnic_reenable_crq_queue(adapter);
-			if (rc)
-				dev_err(dev, "Error after enable rc=%ld\n", rc);
-			adapter->migrated = false;
-			rc = ibmvnic_send_crq_init(adapter);
-			if (rc)
-				dev_err(dev, "Error sending init rc=%ld\n", rc);
+			schedule_work(&adapter->ibmvnic_xport);
 		} else if (gen_crq->cmd == IBMVNIC_DEVICE_FAILOVER) {
 			dev_info(dev, "Backing device failover detected\n");
 			netif_carrier_off(netdev);
@@ -3284,8 +3297,7 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 			/* The adapter lost the connection */
 			dev_err(dev, "Virtual Adapter failed (rc=%d)\n",
 				gen_crq->cmd);
-			ibmvnic_free_inflight(adapter);
-			release_sub_crqs(adapter);
+			schedule_work(&adapter->ibmvnic_xport);
 		}
 		return;
 	case IBMVNIC_CRQ_CMD_RSP:
@@ -3726,6 +3738,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	SET_NETDEV_DEV(netdev, &dev->dev);
 
 	INIT_WORK(&adapter->vnic_crq_init, handle_crq_init_rsp);
+	INIT_WORK(&adapter->ibmvnic_xport, ibmvnic_xport_event);
 
 	spin_lock_init(&adapter->stats_lock);
 
