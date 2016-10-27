@@ -837,10 +837,10 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 			 * when the file will not be modified for some tunable
 			 * time
 			 */
-			/* we do not notify caller */
 			hpk.hpk_flags &= ~HP_FLAG_RETRY;
+			rc = -EBUSY;
 			/* hpk_errval must be >= 0 */
-			hpk.hpk_errval = EBUSY;
+			hpk.hpk_errval = -rc;
 		}
 	}
 
