@@ -40,6 +40,7 @@
 #include <asm/tlb.h>
 #include <asm/memblock.h>
 #include <asm/mmu_context.h>
+#include <asm/ptdump.h>
 
 u64 idmap_t0sz = TCR_T0SZ(VA_BITS);
 
@@ -438,6 +439,8 @@ void mark_rodata_ro(void)
 
 	/* flush the TLBs after updating live kernel mappings */
 	flush_tlb_all();
+
+	debug_checkwx();
 }
 
 static void __init map_kernel_segment(pgd_t *pgd, void *va_start, void *va_end,

@@ -74,6 +74,9 @@ struct pg_state {
 	unsigned long start_address;
 	unsigned level;
 	u64 current_prot;
+	bool check_wx;
+	unsigned long wx_pages;
+	unsigned long uxn_pages;
 };
 
 struct prot_bits {
@@ -202,6 +205,35 @@ static void dump_prot(struct pg_state *st, const struct prot_bits *bits,
 	}
 }
 
+static void note_prot_uxn(struct pg_state *st, unsigned long addr)
+{
+	if (!st->check_wx)
+		return;
+
+	if ((st->current_prot & PTE_UXN) == PTE_UXN)
+		return;
+
+	WARN_ONCE(1, "arm64/mm: Found non-UXN mapping at address %p/%pS\n",
+		  (void *)st->start_address, (void *)st->start_address);
+
+	st->uxn_pages += (addr - st->start_address) / PAGE_SIZE;
+}
+
+static void note_prot_wx(struct pg_state *st, unsigned long addr)
+{
+	if (!st->check_wx)
+		return;
+	if ((st->current_prot & PTE_RDONLY) == PTE_RDONLY)
+		return;
+	if ((st->current_prot & PTE_PXN) == PTE_PXN)
+		return;
+
+	WARN_ONCE(1, "arm64/mm: Found insecure W+X mapping at address %p/%pS\n",
+		  (void *)st->start_address, (void *)st->start_address);
+
+	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
+}
+
 static void note_page(struct pg_state *st, unsigned long addr, unsigned level,
 				u64 val)
 {
@@ -219,6 +251,8 @@ static void note_page(struct pg_state *st, unsigned long addr, unsigned level,
 		unsigned long delta;
 
 		if (st->current_prot) {
+			note_prot_uxn(st, addr);
+			note_prot_wx(st, addr);
 			pt_dump_seq_printf(st->seq, "0x%016lx-0x%016lx   ",
 				   st->start_address, addr);
 
@@ -343,6 +377,26 @@ static struct ptdump_info kernel_ptdump_info = {
 	.markers	= address_markers,
 	.base_addr	= VA_START,
 };
+
+void ptdump_check_wx(void)
+{
+	struct pg_state st = {
+		.seq = NULL,
+		.marker = (struct addr_marker[]) {
+			{ 0, NULL},
+			{ -1, NULL},
+		},
+		.check_wx = true,
+	};
+
+	walk_pgd(&st, &init_mm, 0);
+	note_page(&st, 0, 0, 0);
+	if (st.wx_pages || st.uxn_pages)
+		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found, %lu non-UXN pages found\n",
+			st.wx_pages, st.uxn_pages);
+	else
+		pr_info("Checked W+X mappings: passed, no W+X pages found\n");
+}
 
 static int ptdump_init(void)
 {
