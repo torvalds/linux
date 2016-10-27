@@ -351,6 +351,29 @@ static int calc_send_wqe(struct ib_qp_init_attr *attr)
 		return ALIGN(max_t(int, inl_size, size), MLX5_SEND_WQE_BB);
 }
 
+static int get_send_sge(struct ib_qp_init_attr *attr, int wqe_size)
+{
+	int max_sge;
+
+	if (attr->qp_type == IB_QPT_RC)
+		max_sge = (min_t(int, wqe_size, 512) -
+			   sizeof(struct mlx5_wqe_ctrl_seg) -
+			   sizeof(struct mlx5_wqe_raddr_seg)) /
+			sizeof(struct mlx5_wqe_data_seg);
+	else if (attr->qp_type == IB_QPT_XRC_INI)
+		max_sge = (min_t(int, wqe_size, 512) -
+			   sizeof(struct mlx5_wqe_ctrl_seg) -
+			   sizeof(struct mlx5_wqe_xrc_seg) -
+			   sizeof(struct mlx5_wqe_raddr_seg)) /
+			sizeof(struct mlx5_wqe_data_seg);
+	else
+		max_sge = (wqe_size - sq_overhead(attr)) /
+			sizeof(struct mlx5_wqe_data_seg);
+
+	return min_t(int, max_sge, wqe_size - sq_overhead(attr) /
+		     sizeof(struct mlx5_wqe_data_seg));
+}
+
 static int calc_sq_size(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr,
 			struct mlx5_ib_qp *qp)
 {
@@ -387,7 +410,11 @@ static int calc_sq_size(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr,
 		return -ENOMEM;
 	}
 	qp->sq.wqe_shift = ilog2(MLX5_SEND_WQE_BB);
-	qp->sq.max_gs = attr->cap.max_send_sge;
+	qp->sq.max_gs = get_send_sge(attr, wqe_size);
+	if (qp->sq.max_gs < attr->cap.max_send_sge)
+		return -ENOMEM;
+
+	attr->cap.max_send_sge = qp->sq.max_gs;
 	qp->sq.max_post = wq_size / wqe_size;
 	attr->cap.max_send_wr = qp->sq.max_post;
 
