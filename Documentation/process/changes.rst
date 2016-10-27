@@ -1,6 +1,6 @@
 .. _changes:
 
-Minimal requerements to compile the Kernel
+Minimal requirements to compile the Kernel
 ++++++++++++++++++++++++++++++++++++++++++
 
 Intro

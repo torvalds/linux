@@ -1,5 +1,5 @@
-Rules on how to access information in the Linux kernel sysfs
-============================================================
+Rules on how to access information in sysfs
+===========================================
 
 The kernel-exported sysfs exports internal kernel implementation details
 and depends on internal kernel structures and layout. It is agreed upon

@@ -8,6 +8,14 @@ various kernel trees. Note that if you are interested in video card drivers
 you should probably talk to XFree86 (http://www.xfree86.org/) and/or X.Org
 (http://x.org/) instead.
 
+.. note::
+
+   This document is old and has seen little maintenance in recent years; it
+   should probably be updated or, perhaps better, just deleted.  Most of
+   what is here can be found in the other development documents anyway.
+
+   Oh, and we don't really recommend submitting changes to XFree86 :)
+
 Also read the Documentation/process/submitting-patches.rst document.
 
 

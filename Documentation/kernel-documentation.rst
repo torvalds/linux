@@ -1,6 +1,6 @@
-==========================
-Linux Kernel Documentation
-==========================
+=================================
+How to write kernel documentation
+=================================
 
 Introduction
 ============
