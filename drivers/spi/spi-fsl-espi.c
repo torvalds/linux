@@ -289,13 +289,13 @@ static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	ret = wait_for_completion_timeout(&mpc8xxx_spi->done, 2 * HZ);
 	if (ret == 0)
 		dev_err(mpc8xxx_spi->dev,
-			"Transaction hanging up (left %u bytes)\n",
-			mpc8xxx_spi->tx_len);
+			"Transaction hanging up (left %u tx bytes, %u rx bytes)\n",
+			mpc8xxx_spi->tx_len, mpc8xxx_spi->rx_len);
 
 	/* disable rx ints */
 	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPIM, 0);
 
-	return mpc8xxx_spi->tx_len > 0 ? -EMSGSIZE : 0;
+	return ret == 0 ? -ETIMEDOUT : 0;
 }
 
 static int fsl_espi_trans(struct spi_message *m, struct spi_transfer *trans)
@@ -469,8 +469,20 @@ static void fsl_espi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
 	if (mspi->tx_len)
 		fsl_espi_fill_tx_fifo(mspi, events);
 
-	if (!mspi->tx_len && !mspi->rx_len)
-		complete(&mspi->done);
+	if (mspi->tx_len || mspi->rx_len)
+		return;
+
+	/* we're done, but check for errors before returning */
+	events = fsl_espi_read_reg(mspi, ESPI_SPIE);
+
+	if (!(events & SPIE_DON))
+		dev_err(mspi->dev,
+			"Transfer done but SPIE_DON isn't set!\n");
+
+	if (SPIE_RXCNT(events) || SPIE_TXCNT(events) != FSL_ESPI_FIFO_SIZE)
+		dev_err(mspi->dev, "Transfer done but rx/tx fifo's aren't empty!\n");
+
+	complete(&mspi->done);
 }
 
 static irqreturn_t fsl_espi_irq(s32 irq, void *context_data)
