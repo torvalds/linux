@@ -51,13 +51,6 @@
 #include "cmd.h"
 #include "resources.h"
 
-#define MLXSW_MODULE_ALIAS_PREFIX "mlxsw-driver-"
-#define MODULE_MLXSW_DRIVER_ALIAS(kind)	\
-	MODULE_ALIAS(MLXSW_MODULE_ALIAS_PREFIX kind)
-
-#define MLXSW_DEVICE_KIND_SWITCHX2 "switchx2"
-#define MLXSW_DEVICE_KIND_SPECTRUM "spectrum"
-
 struct mlxsw_core;
 struct mlxsw_driver;
 struct mlxsw_bus;
@@ -221,7 +214,6 @@ struct mlxsw_config_profile {
 struct mlxsw_driver {
 	struct list_head list;
 	const char *kind;
-	struct module *owner;
 	size_t priv_size;
 	int (*init)(struct mlxsw_core *mlxsw_core,
 		    const struct mlxsw_bus_info *mlxsw_bus_info);

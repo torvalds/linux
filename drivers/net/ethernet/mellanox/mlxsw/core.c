@@ -823,17 +823,6 @@ static struct mlxsw_driver *mlxsw_core_driver_get(const char *kind)
 
 	spin_lock(&mlxsw_core_driver_list_lock);
 	mlxsw_driver = __driver_find(kind);
-	if (!mlxsw_driver) {
-		spin_unlock(&mlxsw_core_driver_list_lock);
-		request_module(MLXSW_MODULE_ALIAS_PREFIX "%s", kind);
-		spin_lock(&mlxsw_core_driver_list_lock);
-		mlxsw_driver = __driver_find(kind);
-	}
-	if (mlxsw_driver) {
-		if (!try_module_get(mlxsw_driver->owner))
-			mlxsw_driver = NULL;
-	}
-
 	spin_unlock(&mlxsw_core_driver_list_lock);
 	return mlxsw_driver;
 }
@@ -845,9 +834,6 @@ static void mlxsw_core_driver_put(const char *kind)
 	spin_lock(&mlxsw_core_driver_list_lock);
 	mlxsw_driver = __driver_find(kind);
 	spin_unlock(&mlxsw_core_driver_list_lock);
-	if (!mlxsw_driver)
-		return;
-	module_put(mlxsw_driver->owner);
 }
 
 static int mlxsw_core_debugfs_init(struct mlxsw_core *mlxsw_core)

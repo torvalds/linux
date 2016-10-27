@@ -37,6 +37,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -59,6 +60,7 @@
 #include <net/netevent.h>
 
 #include "spectrum.h"
+#include "pci.h"
 #include "core.h"
 #include "reg.h"
 #include "port.h"
@@ -3066,8 +3068,7 @@ static struct mlxsw_config_profile mlxsw_sp_config_profile = {
 };
 
 static struct mlxsw_driver mlxsw_sp_driver = {
-	.kind				= MLXSW_DEVICE_KIND_SPECTRUM,
-	.owner				= THIS_MODULE,
+	.kind				= mlxsw_sp_driver_name,
 	.priv_size			= sizeof(struct mlxsw_sp),
 	.init				= mlxsw_sp_init,
 	.fini				= mlxsw_sp_fini,
@@ -4662,6 +4663,16 @@ static struct notifier_block mlxsw_sp_router_netevent_nb __read_mostly = {
 	.notifier_call = mlxsw_sp_router_netevent_event,
 };
 
+static const struct pci_device_id mlxsw_sp_pci_id_table[] = {
+	{PCI_VDEVICE(MELLANOX, PCI_DEVICE_ID_MELLANOX_SPECTRUM), 0},
+	{0, },
+};
+
+static struct pci_driver mlxsw_sp_pci_driver = {
+	.name = mlxsw_sp_driver_name,
+	.id_table = mlxsw_sp_pci_id_table,
+};
+
 static int __init mlxsw_sp_module_init(void)
 {
 	int err;
@@ -4673,8 +4684,15 @@ static int __init mlxsw_sp_module_init(void)
 	err = mlxsw_core_driver_register(&mlxsw_sp_driver);
 	if (err)
 		goto err_core_driver_register;
+
+	err = mlxsw_pci_driver_register(&mlxsw_sp_pci_driver);
+	if (err)
+		goto err_pci_driver_register;
+
 	return 0;
 
+err_pci_driver_register:
+	mlxsw_core_driver_unregister(&mlxsw_sp_driver);
 err_core_driver_register:
 	unregister_netevent_notifier(&mlxsw_sp_router_netevent_nb);
 	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
@@ -4684,6 +4702,7 @@ err_core_driver_register:
 
 static void __exit mlxsw_sp_module_exit(void)
 {
+	mlxsw_pci_driver_unregister(&mlxsw_sp_pci_driver);
 	mlxsw_core_driver_unregister(&mlxsw_sp_driver);
 	unregister_netevent_notifier(&mlxsw_sp_router_netevent_nb);
 	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
@@ -4696,4 +4715,4 @@ module_exit(mlxsw_sp_module_exit);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Spectrum driver");
-MODULE_MLXSW_DRIVER_ALIAS(MLXSW_DEVICE_KIND_SPECTRUM);
+MODULE_DEVICE_TABLE(pci, mlxsw_sp_pci_id_table);
