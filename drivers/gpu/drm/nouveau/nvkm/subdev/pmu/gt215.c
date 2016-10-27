@@ -24,17 +24,8 @@
 #include "priv.h"
 #include "fuc/gt215.fuc3.h"
 
-static void
-gt215_pmu_reset(struct nvkm_pmu *pmu)
-{
-	struct nvkm_device *device = pmu->subdev.device;
-	nvkm_mask(device, 0x022210, 0x00000001, 0x00000000);
-	nvkm_mask(device, 0x022210, 0x00000001, 0x00000001);
-}
-
 static const struct nvkm_pmu_func
 gt215_pmu = {
-	.reset = gt215_pmu_reset,
 	.code.data = gt215_pmu_code,
 	.code.size = sizeof(gt215_pmu_code),
 	.data.data = gt215_pmu_data,
