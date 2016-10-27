@@ -1535,7 +1535,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 	if (unlikely(usr == LINK_PROTOCOL))
 		tipc_node_bc_sync_rcv(n, hdr, bearer_id, &xmitq);
 	else if (unlikely(tipc_link_acked(n->bc_entry.link) != bc_ack))
-		tipc_bcast_ack_rcv(net, n->bc_entry.link, bc_ack);
+		tipc_bcast_ack_rcv(net, n->bc_entry.link, hdr);
 
 	/* Receive packet directly if conditions permit */
 	tipc_node_read_lock(n);
