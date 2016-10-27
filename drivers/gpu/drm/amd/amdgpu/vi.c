@@ -80,6 +80,7 @@
 #include "dce_virtual.h"
 
 MODULE_FIRMWARE("amdgpu/topaz_smc.bin");
+MODULE_FIRMWARE("amdgpu/topaz_k_smc.bin");
 MODULE_FIRMWARE("amdgpu/tonga_smc.bin");
 MODULE_FIRMWARE("amdgpu/tonga_k_smc.bin");
 MODULE_FIRMWARE("amdgpu/fiji_smc.bin");
