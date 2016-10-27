@@ -3255,6 +3255,12 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 			else
 				seq_printf(m, "\t\tELSP[1] idle\n");
 			rcu_read_unlock();
+
+			spin_lock_irq(&engine->execlist_lock);
+			list_for_each_entry(rq, &engine->execlist_queue, execlist_link) {
+				print_request(m, rq, "\t\tQ ");
+			}
+			spin_unlock_irq(&engine->execlist_lock);
 		} else if (INTEL_GEN(dev_priv) > 6) {
 			seq_printf(m, "\tPP_DIR_BASE: 0x%08x\n",
 				   I915_READ(RING_PP_DIR_BASE(engine)));
