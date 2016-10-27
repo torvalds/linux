@@ -244,6 +244,7 @@ static struct dentry *__sdcardfs_lookup(struct dentry *dentry,
 	if (err == -ENOENT) {
 		struct dentry *child;
 		struct dentry *match = NULL;
+		mutex_lock(&d_inode(lower_dir_dentry)->i_mutex);
 		spin_lock(&lower_dir_dentry->d_lock);
 		list_for_each_entry(child, &lower_dir_dentry->d_subdirs, d_child) {
 			if (child && d_inode(child)) {
@@ -254,6 +255,7 @@ static struct dentry *__sdcardfs_lookup(struct dentry *dentry,
 			}
 		}
 		spin_unlock(&lower_dir_dentry->d_lock);
+		mutex_unlock(&d_inode(lower_dir_dentry)->i_mutex);
 		if (match) {
 			err = vfs_path_lookup(lower_dir_dentry,
 						lower_dir_mnt,
@@ -389,7 +391,7 @@ struct dentry *sdcardfs_lookup(struct inode *dir, struct dentry *dentry,
 					sdcardfs_lower_inode(dentry->d_inode));
 		/* get derived permission */
 		get_derived_permission(parent, dentry);
-		fix_derived_permission(dentry->d_inode);
+		fixup_tmp_permissions(d_inode(dentry));
 	}
 	/* update parent directory's atime */
 	fsstack_copy_attr_atime(parent->d_inode,
