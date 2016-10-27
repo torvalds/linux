@@ -505,6 +505,8 @@
 			interrupts = <75
 				      76>;
 			ti,hwmods = "rtc";
+			clocks = <&clkdiv32k_ick>;
+			clock-names = "int-clk";
 		};
 
 		spi0: spi@48030000 {
