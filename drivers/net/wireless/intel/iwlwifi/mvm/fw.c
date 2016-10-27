@@ -270,8 +270,8 @@ static int iwl_alloc_fw_paging_mem(struct iwl_mvm *mvm,
 	BUILD_BUG_ON(BIT(BLOCK_2_EXP_SIZE) != PAGING_BLOCK_SIZE);
 
 	num_of_pages = image->paging_mem_size / FW_PAGING_SIZE;
-	mvm->num_of_paging_blk = ((num_of_pages - 1) /
-				    NUM_OF_PAGE_PER_GROUP) + 1;
+	mvm->num_of_paging_blk =
+		DIV_ROUND_UP(num_of_pages, NUM_OF_PAGE_PER_GROUP);
 	mvm->num_of_pages_in_last_blk =
 		num_of_pages -
 		NUM_OF_PAGE_PER_GROUP * (mvm->num_of_paging_blk - 1);
