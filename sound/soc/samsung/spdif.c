@@ -416,6 +416,13 @@ static int spdif_probe(struct platform_device *pdev)
 		goto err3;
 	}
 
+	ret = samsung_asoc_dma_platform_register(&pdev->dev, filter,
+						 NULL, NULL);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register DMA: %d\n", ret);
+		goto err4;
+	}
+
 	dev_set_drvdata(&pdev->dev, spdif);
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
@@ -434,13 +441,6 @@ static int spdif_probe(struct platform_device *pdev)
 	}
 
 	spdif->dma_playback = &spdif_stereo_out;
-
-	ret = samsung_asoc_dma_platform_register(&pdev->dev, filter,
-						 NULL, NULL);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register DMA: %d\n", ret);
-		goto err4;
-	}
 
 	return 0;
 err4:
