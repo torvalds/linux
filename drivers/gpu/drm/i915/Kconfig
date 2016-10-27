@@ -87,6 +87,7 @@ config DRM_I915_USERPTR
 config DRM_I915_GVT
         bool "Enable Intel GVT-g graphics virtualization host support"
         depends on DRM_I915
+        depends on 64BIT
         default n
         help
 	  Choose this option if you want to enable Intel GVT-g graphics
