@@ -3020,7 +3020,14 @@ enum llog_flag {
 	LLOG_F_IS_CAT		= 0x2,
 	LLOG_F_IS_PLAIN		= 0x4,
 	LLOG_F_EXT_JOBID        = BIT(3),
+	LLOG_F_IS_FIXSIZE	= BIT(4),
 
+	/*
+	 * Note: Flags covered by LLOG_F_EXT_MASK will be inherited from
+	 * catlog to plain log, so do not add LLOG_F_IS_FIXSIZE here,
+	 * because the catlog record is usually fixed size, but its plain
+	 * log record can be variable
+	 */
 	LLOG_F_EXT_MASK = LLOG_F_EXT_JOBID,
 };
 

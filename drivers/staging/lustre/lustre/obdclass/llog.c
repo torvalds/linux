@@ -193,6 +193,7 @@ int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 		LASSERT(list_empty(&handle->u.chd.chd_head));
 		INIT_LIST_HEAD(&handle->u.chd.chd_head);
 		llh->llh_size = sizeof(struct llog_logid_rec);
+		llh->llh_flags |= LLOG_F_IS_FIXSIZE;
 	} else if (!(flags & LLOG_F_IS_PLAIN)) {
 		CERROR("%s: unknown flags: %#x (expected %#x or %#x)\n",
 		       handle->lgh_ctxt->loc_obd->obd_name,
