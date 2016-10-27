@@ -1729,7 +1729,7 @@ int ldlm_cli_cancel_unused(struct ldlm_namespace *ns,
 						       opaque);
 	} else {
 		cfs_hash_for_each_nolock(ns->ns_rs_hash,
-					 ldlm_cli_hash_cancel_unused, &arg);
+					 ldlm_cli_hash_cancel_unused, &arg, 0);
 		return ELDLM_OK;
 	}
 }
@@ -1802,7 +1802,7 @@ static void ldlm_namespace_foreach(struct ldlm_namespace *ns,
 	};
 
 	cfs_hash_for_each_nolock(ns->ns_rs_hash,
-				 ldlm_res_iter_helper, &helper);
+				 ldlm_res_iter_helper, &helper, 0);
 }
 
 /* non-blocking function to manipulate a lock whose cb_data is being put away.

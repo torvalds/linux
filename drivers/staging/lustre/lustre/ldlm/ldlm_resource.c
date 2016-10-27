@@ -855,8 +855,10 @@ int ldlm_namespace_cleanup(struct ldlm_namespace *ns, __u64 flags)
 		return ELDLM_OK;
 	}
 
-	cfs_hash_for_each_nolock(ns->ns_rs_hash, ldlm_resource_clean, &flags);
-	cfs_hash_for_each_nolock(ns->ns_rs_hash, ldlm_resource_complain, NULL);
+	cfs_hash_for_each_nolock(ns->ns_rs_hash, ldlm_resource_clean,
+				 &flags, 0);
+	cfs_hash_for_each_nolock(ns->ns_rs_hash, ldlm_resource_complain,
+				 NULL, 0);
 	return ELDLM_OK;
 }
 EXPORT_SYMBOL(ldlm_namespace_cleanup);
@@ -1352,7 +1354,7 @@ void ldlm_namespace_dump(int level, struct ldlm_namespace *ns)
 
 	cfs_hash_for_each_nolock(ns->ns_rs_hash,
 				 ldlm_res_hash_dump,
-				 (void *)(unsigned long)level);
+				 (void *)(unsigned long)level, 0);
 	spin_lock(&ns->ns_lock);
 	ns->ns_next_dump = cfs_time_shift(10);
 	spin_unlock(&ns->ns_lock);
