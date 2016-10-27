@@ -20,10 +20,17 @@
 #include <linux/tee_drv.h>
 #include "tee_private.h"
 
+/* extra references appended to shm object for registered shared memory */
+struct tee_shm_dmabuf_ref {
+     struct tee_shm shm;
+     struct dma_buf *dmabuf;
+     struct dma_buf_attachment *attach;
+     struct sg_table *sgt;
+};
+
 static void tee_shm_release(struct tee_shm *shm)
 {
 	struct tee_device *teedev = shm->teedev;
-	struct tee_shm_pool_mgr *poolm;
 
 	mutex_lock(&teedev->mutex);
 	idr_remove(&teedev->idr, shm->id);
@@ -31,14 +38,26 @@ static void tee_shm_release(struct tee_shm *shm)
 		list_del(&shm->link);
 	mutex_unlock(&teedev->mutex);
 
-	if (shm->flags & TEE_SHM_DMA_BUF)
-		poolm = &teedev->pool->dma_buf_mgr;
-	else
-		poolm = &teedev->pool->private_mgr;
+	if (shm->flags & TEE_SHM_EXT_DMA_BUF) {
+		struct tee_shm_dmabuf_ref *ref;
 
-	poolm->ops->free(poolm, shm);
+		ref = container_of(shm, struct tee_shm_dmabuf_ref, shm);
+		dma_buf_unmap_attachment(ref->attach, ref->sgt,
+					 DMA_BIDIRECTIONAL);
+		dma_buf_detach(shm->dmabuf, ref->attach);
+		dma_buf_put(ref->dmabuf);
+	} else {
+		struct tee_shm_pool_mgr *poolm;
+
+		if (shm->flags & TEE_SHM_DMA_BUF)
+			poolm = &teedev->pool->dma_buf_mgr;
+		else
+			poolm = &teedev->pool->private_mgr;
+
+		poolm->ops->free(poolm, shm);
+	}
+
 	kfree(shm);
-
 	tee_device_put(teedev);
 }
 
@@ -190,6 +209,100 @@ err_dev_put:
 }
 EXPORT_SYMBOL_GPL(tee_shm_alloc);
 
+struct tee_shm *tee_shm_register_fd(struct tee_context *ctx, int fd)
+{
+	struct tee_shm_dmabuf_ref *ref;
+	void *rc;
+	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
+
+	if (!tee_device_get(ctx->teedev))
+		return ERR_PTR(-EINVAL);
+
+	ref = kzalloc(sizeof(*ref), GFP_KERNEL);
+	if (!ref) {
+		rc = ERR_PTR(-ENOMEM);
+		goto err;
+	}
+
+	ref->shm.ctx = ctx;
+	ref->shm.teedev = ctx->teedev;
+	ref->shm.id = -1;
+
+	ref->dmabuf = dma_buf_get(fd);
+	if (!ref->dmabuf) {
+		rc = ERR_PTR(-EINVAL);
+		goto err;
+	}
+
+	ref->attach = dma_buf_attach(ref->dmabuf, &ref->shm.teedev->dev);
+	if (IS_ERR_OR_NULL(ref->attach)) {
+		rc = ERR_PTR(-EINVAL);
+		goto err;
+	}
+
+	ref->sgt = dma_buf_map_attachment(ref->attach, DMA_BIDIRECTIONAL);
+	if (IS_ERR_OR_NULL(ref->sgt)) {
+		rc = ERR_PTR(-EINVAL);
+		goto err;
+	}
+
+	if (sg_nents(ref->sgt->sgl) != 1) {
+		rc = ERR_PTR(-EINVAL);
+		goto err;
+	}
+
+	ref->shm.paddr = sg_dma_address(ref->sgt->sgl);
+	ref->shm.size = sg_dma_len(ref->sgt->sgl);
+	ref->shm.flags = TEE_SHM_DMA_BUF | TEE_SHM_EXT_DMA_BUF;
+
+	mutex_lock(&ref->shm.teedev->mutex);
+	ref->shm.id = idr_alloc(&ref->shm.teedev->idr, &ref->shm,
+				1, 0, GFP_KERNEL);
+	mutex_unlock(&ref->shm.teedev->mutex);
+	if (ref->shm.id < 0) {
+		rc = ERR_PTR(ref->shm.id);
+		goto err;
+	}
+
+	/* export a dmabuf to later get a userland ref */
+	exp_info.ops = &tee_shm_dma_buf_ops;
+	exp_info.size = ref->shm.size;
+	exp_info.flags = O_RDWR;
+	exp_info.priv = &ref->shm;
+
+	ref->shm.dmabuf = dma_buf_export(&exp_info);
+	if (IS_ERR(ref->shm.dmabuf)) {
+		rc = ERR_PTR(-EINVAL);
+		goto err;
+	}
+
+	mutex_lock(&ref->shm.teedev->mutex);
+	list_add_tail(&ref->shm.link, &ctx->list_shm);
+	mutex_unlock(&ref->shm.teedev->mutex);
+
+	return &ref->shm;
+
+err:
+	if (ref) {
+		if (ref->shm.id >= 0) {
+			mutex_lock(&ctx->teedev->mutex);
+			idr_remove(&ctx->teedev->idr, ref->shm.id);
+			mutex_unlock(&ctx->teedev->mutex);
+		}
+		if (ref->sgt)
+			dma_buf_unmap_attachment(ref->attach, ref->sgt,
+						 DMA_BIDIRECTIONAL);
+		if (ref->attach)
+			dma_buf_detach(ref->dmabuf, ref->attach);
+		if (ref->dmabuf)
+			dma_buf_put(ref->dmabuf);
+	}
+	kfree(ref);
+	tee_device_put(ctx->teedev);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tee_shm_register_fd);
+
 /**
  * tee_shm_get_fd() - Increase reference count and return file descriptor
  * @shm:	Shared memory handle
@@ -197,10 +310,9 @@ EXPORT_SYMBOL_GPL(tee_shm_alloc);
  */
 int tee_shm_get_fd(struct tee_shm *shm)
 {
-	u32 req_flags = TEE_SHM_MAPPED | TEE_SHM_DMA_BUF;
 	int fd;
 
-	if ((shm->flags & req_flags) != req_flags)
+	if (!(shm->flags & TEE_SHM_DMA_BUF))
 		return -EINVAL;
 
 	fd = dma_buf_fd(shm->dmabuf, O_CLOEXEC);
@@ -238,6 +350,8 @@ EXPORT_SYMBOL_GPL(tee_shm_free);
  */
 int tee_shm_va2pa(struct tee_shm *shm, void *va, phys_addr_t *pa)
 {
+	if (!(shm->flags & TEE_SHM_MAPPED))
+		return -EINVAL;
 	/* Check that we're in the range of the shm */
 	if ((char *)va < (char *)shm->kaddr)
 		return -EINVAL;
@@ -258,6 +372,8 @@ EXPORT_SYMBOL_GPL(tee_shm_va2pa);
  */
 int tee_shm_pa2va(struct tee_shm *shm, phys_addr_t pa, void **va)
 {
+	if (!(shm->flags & TEE_SHM_MAPPED))
+		return -EINVAL;
 	/* Check that we're in the range of the shm */
 	if (pa < shm->paddr)
 		return -EINVAL;
@@ -284,6 +400,8 @@ EXPORT_SYMBOL_GPL(tee_shm_pa2va);
  */
 void *tee_shm_get_va(struct tee_shm *shm, size_t offs)
 {
+	if (!(shm->flags & TEE_SHM_MAPPED))
+		return ERR_PTR(-EINVAL);
 	if (offs >= shm->size)
 		return ERR_PTR(-EINVAL);
 	return (char *)shm->kaddr + offs;
