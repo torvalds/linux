@@ -25,6 +25,12 @@ config NF_CONNTRACK_IPV6
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NF_SOCKET_IPV6
+	tristate "IPv6 socket lookup support"
+	help
+	  This option enables the IPv6 socket lookup infrastructure. This
+	  is used by the ip6tables socket match.
+
 if NF_TABLES
 
 config NF_TABLES_IPV6

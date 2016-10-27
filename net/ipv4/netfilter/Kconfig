@@ -25,6 +25,12 @@ config NF_CONNTRACK_IPV4
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NF_SOCKET_IPV4
+	tristate "IPv4 socket lookup support"
+	help
+	  This option enables the IPv4 socket lookup infrastructure. This is
+	  is required by the iptables socket match.
+
 if NF_TABLES
 
 config NF_TABLES_IPV4

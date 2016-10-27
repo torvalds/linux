@@ -24,6 +24,8 @@ obj-$(CONFIG_NF_NAT_MASQUERADE_IPV6) += nf_nat_masquerade_ipv6.o
 nf_defrag_ipv6-y := nf_defrag_ipv6_hooks.o nf_conntrack_reasm.o
 obj-$(CONFIG_NF_DEFRAG_IPV6) += nf_defrag_ipv6.o
 
+obj-$(CONFIG_NF_SOCKET_IPV6) += nf_socket_ipv6.o
+
 # logging
 obj-$(CONFIG_NF_LOG_IPV6) += nf_log_ipv6.o
 
