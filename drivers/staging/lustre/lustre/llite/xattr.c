@@ -126,6 +126,11 @@ ll_xattr_set_common(const struct xattr_handler *handler,
 	    strcmp(name, "selinux") == 0)
 		return -EOPNOTSUPP;
 
+	/*FIXME: enable IMA when the conditions are ready */
+	if (handler->flags == XATTR_SECURITY_T &&
+	    (!strcmp(name, "ima") || !strcmp(name, "evm")))
+		return -EOPNOTSUPP;
+
 	sprintf(fullname, "%s%s\n", handler->prefix, name);
 	rc = md_setxattr(sbi->ll_md_exp, ll_inode2fid(inode),
 			 valid, fullname, pv, size, 0, flags,
