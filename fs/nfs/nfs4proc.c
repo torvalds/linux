@@ -3156,8 +3156,15 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 		goto out_wait;
 	}
 
-	if (calldata->arg.fmode == 0)
+	if (calldata->arg.fmode == 0) {
 		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_CLOSE];
+
+		/* Close-to-open cache consistency revalidation */
+		if (!nfs4_have_delegation(inode, FMODE_READ))
+			calldata->arg.bitmask = NFS_SERVER(inode)->cache_consistency_bitmask;
+		else
+			calldata->arg.bitmask = NULL;
+	}
 	if (calldata->roc)
 		pnfs_roc_get_barrier(inode, &calldata->roc_barrier);
 
@@ -3240,7 +3247,6 @@ int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait)
 	if (IS_ERR(calldata->arg.seqid))
 		goto out_free_calldata;
 	calldata->arg.fmode = 0;
-	calldata->arg.bitmask = server->cache_consistency_bitmask;
 	calldata->res.fattr = &calldata->fattr;
 	calldata->res.seqid = calldata->arg.seqid;
 	calldata->res.server = server;
