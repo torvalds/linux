@@ -257,7 +257,7 @@ static long zcrypt_rsa_modexpo(struct ica_rsa_modexpo *mex)
 			continue;
 		for_each_zcrypt_queue(zq, zc) {
 			/* check if device is online and eligible */
-			if (!zq->online)
+			if (!zq->online || !zq->ops->rsa_modexpo)
 				continue;
 			if (zcrypt_queue_compare(zq, pref_zq,
 						 weight, pref_weight))
@@ -320,7 +320,7 @@ static long zcrypt_rsa_crt(struct ica_rsa_modexpo_crt *crt)
 			continue;
 		for_each_zcrypt_queue(zq, zc) {
 			/* check if device is online and eligible */
-			if (!zq->online)
+			if (!zq->online || !zq->ops->rsa_modexpo_crt)
 				continue;
 			if (zcrypt_queue_compare(zq, pref_zq,
 						 weight, pref_weight))
@@ -377,6 +377,7 @@ static long zcrypt_send_cprb(struct ica_xcRB *xcRB)
 		for_each_zcrypt_queue(zq, zc) {
 			/* check if device is online and eligible */
 			if (!zq->online ||
+			    !zq->ops->send_cprb ||
 			    ((*domain != (unsigned short) AUTOSELECT) &&
 			     (*domain != AP_QID_QUEUE(zq->queue->qid))))
 				continue;
@@ -480,6 +481,7 @@ static long zcrypt_send_ep11_cprb(struct ep11_urb *xcrb)
 		for_each_zcrypt_queue(zq, zc) {
 			/* check if device is online and eligible */
 			if (!zq->online ||
+			    !zq->ops->send_ep11_cprb ||
 			    (targets &&
 			     !is_desired_ep11_queue(zq->queue->qid,
 						    target_num, targets)))
@@ -538,7 +540,7 @@ static long zcrypt_rng(char *buffer)
 			continue;
 		for_each_zcrypt_queue(zq, zc) {
 			/* check if device is online and eligible */
-			if (!zq->online)
+			if (!zq->online || !zq->ops->rng)
 				continue;
 			if (zcrypt_queue_compare(zq, pref_zq,
 						 weight, pref_weight))

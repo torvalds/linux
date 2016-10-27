@@ -273,6 +273,23 @@ static int ap_query_queue(ap_qid_t qid, int *queue_depth, int *device_type,
 		nd = (info >> 16) & 0xff;
 		if ((info & (1UL << 57)) && nd > 0)
 			ap_max_domain_id = nd;
+		switch (*device_type) {
+			/* For CEX2 and CEX3 the available functions
+			 * are not refrected by the facilities bits.
+			 * Instead it is coded into the type. So here
+			 * modify the function bits based on the type.
+			 */
+		case AP_DEVICE_TYPE_CEX2A:
+		case AP_DEVICE_TYPE_CEX3A:
+			*facilities |= 0x08000000;
+			break;
+		case AP_DEVICE_TYPE_CEX2C:
+		case AP_DEVICE_TYPE_CEX3C:
+			*facilities |= 0x10000000;
+			break;
+		default:
+			break;
+		}
 		return 0;
 	case AP_RESPONSE_Q_NOT_AVAIL:
 	case AP_RESPONSE_DECONFIGURED:
