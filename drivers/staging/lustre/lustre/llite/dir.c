@@ -1195,6 +1195,7 @@ lmv_out_free:
 		struct lmv_user_md *tmp = NULL;
 		union lmv_mds_md *lmm = NULL;
 		u64 valid = 0;
+		int max_stripe_count;
 		int stripe_count;
 		int mdt_index;
 		int lum_size;
@@ -1206,6 +1207,7 @@ lmv_out_free:
 		if (copy_from_user(&lum, ulmv, sizeof(*ulmv)))
 			return -EFAULT;
 
+		max_stripe_count = lum.lum_stripe_count;
 		/*
 		 * lum_magic will indicate which stripe the ioctl will like
 		 * to get, LMV_MAGIC_V1 is for normal LMV stripe, LMV_USER_MAGIC
@@ -1240,6 +1242,16 @@ lmv_out_free:
 		}
 
 		stripe_count = lmv_mds_md_stripe_count_get(lmm);
+		if (max_stripe_count < stripe_count) {
+			lum.lum_stripe_count = stripe_count;
+			if (copy_to_user(ulmv, &lum, sizeof(lum))) {
+				rc = -EFAULT;
+				goto finish_req;
+			}
+			rc = -E2BIG;
+			goto finish_req;
+		}
+
 		lum_size = lmv_user_md_size(stripe_count, LMV_MAGIC_V1);
 		tmp = kzalloc(lum_size, GFP_NOFS);
 		if (!tmp) {
