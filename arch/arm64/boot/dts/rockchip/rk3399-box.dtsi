@@ -955,8 +955,11 @@
 	status = "okay";
 };
 
+&vopl_rk_fb {
+	status = "okay";
+};
+
 &fb {
-	rockchip,disp-mode = <NO_DUAL>;
 	rockchip,disp-policy = <DISPLAY_POLICY_BOX>;
 };
 
@@ -973,6 +976,7 @@
 	status = "okay";
 	extcon = <&fusb0>;
 	phys = <&tcphy0_dp>;
+	dp_vop_sel = <DISPLAY_SOURCE_LCDC1>;
 };
 
 &i2s2 {
