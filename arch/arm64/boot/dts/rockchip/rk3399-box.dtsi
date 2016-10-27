@@ -966,6 +966,10 @@
 &hdmi_rk_fb {
 	status = "okay";
 	rockchip,hdmi_video_source = <DISPLAY_SOURCE_LCDC0>;
+	rockchip,phy_table =
+		<165000000 0 0 17 18 18 18>,
+		<340000000 0 2 17 14 14 14>,
+		<594000000 0 2 17  9  9  9>;
 };
 
 &cdn_dp_sound {
