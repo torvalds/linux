@@ -41,7 +41,7 @@
 #define PP_CHECK_HW(hwmgr)						\
 	do {								\
 		if ((hwmgr) == NULL || (hwmgr)->hwmgr_func == NULL)	\
-			return -EINVAL;					\
+			return 0;					\
 	} while (0)
 
 static int pp_early_init(void *handle)
@@ -115,6 +115,7 @@ static int pp_hw_init(void *handle)
 	struct pp_instance *pp_handle;
 	struct pp_smumgr *smumgr;
 	struct pp_eventmgr *eventmgr;
+	struct pp_hwmgr  *hwmgr;
 	int ret = 0;
 
 	if (handle == NULL)
@@ -122,6 +123,7 @@ static int pp_hw_init(void *handle)
 
 	pp_handle = (struct pp_instance *)handle;
 	smumgr = pp_handle->smu_mgr;
+	hwmgr = pp_handle->hwmgr;
 
 	if (smumgr == NULL || smumgr->smumgr_funcs == NULL ||
 		smumgr->smumgr_funcs->smu_init == NULL ||
@@ -141,9 +143,11 @@ static int pp_hw_init(void *handle)
 		return ret;
 	}
 
-	hw_init_power_state_table(pp_handle->hwmgr);
-	eventmgr = pp_handle->eventmgr;
+	PP_CHECK_HW(hwmgr);
 
+	hw_init_power_state_table(hwmgr);
+
+	eventmgr = pp_handle->eventmgr;
 	if (eventmgr == NULL || eventmgr->pp_eventmgr_init == NULL)
 		return -EINVAL;
 
@@ -243,7 +247,9 @@ static int pp_suspend(void *handle)
 
 	pp_handle = (struct pp_instance *)handle;
 	eventmgr = pp_handle->eventmgr;
-	pem_handle_event(eventmgr, AMD_PP_EVENT_SUSPEND, &event_data);
+
+	if (eventmgr != NULL)
+		pem_handle_event(eventmgr, AMD_PP_EVENT_SUSPEND, &event_data);
 	return 0;
 }
 
@@ -273,7 +279,8 @@ static int pp_resume(void *handle)
 	}
 
 	eventmgr = pp_handle->eventmgr;
-	pem_handle_event(eventmgr, AMD_PP_EVENT_RESUME, &event_data);
+	if (eventmgr != NULL)
+		pem_handle_event(eventmgr, AMD_PP_EVENT_RESUME, &event_data);
 
 	return 0;
 }
@@ -340,8 +347,7 @@ static enum amd_dpm_forced_level pp_dpm_get_performance_level(
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
 
 	return (((struct pp_instance *)handle)->hwmgr->dpm_level);
 }
@@ -447,6 +453,9 @@ static int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id,
 
 	if (pp_handle == NULL)
 		return -EINVAL;
+
+	if (pp_handle->eventmgr == NULL)
+		return 0;
 
 	switch (event_id) {
 	case AMD_PP_EVENT_DISPLAY_CONFIG_CHANGE:
@@ -899,6 +908,12 @@ static int amd_pp_instance_init(struct amd_pp_init *pp_init,
 	if (ret)
 		goto fail_smum;
 
+
+	amd_pp->pp_handle = handle;
+
+	if (amdgpu_dpm == 0)
+		return 0;
+
 	ret = hwmgr_init(pp_init, handle);
 	if (ret)
 		goto fail_hwmgr;
@@ -907,7 +922,6 @@ static int amd_pp_instance_init(struct amd_pp_init *pp_init,
 	if (ret)
 		goto fail_eventmgr;
 
-	amd_pp->pp_handle = handle;
 	return 0;
 
 fail_eventmgr:
@@ -926,12 +940,12 @@ static int amd_pp_instance_fini(void *handle)
 	if (instance == NULL)
 		return -EINVAL;
 
-	eventmgr_fini(instance->eventmgr);
-
-	hwmgr_fini(instance->hwmgr);
+	if (amdgpu_dpm != 0) {
+		eventmgr_fini(instance->eventmgr);
+		hwmgr_fini(instance->hwmgr);
+	}
 
 	smum_fini(instance->smu_mgr);
-
 	kfree(handle);
 	return 0;
 }
@@ -990,6 +1004,9 @@ int amd_powerplay_reset(void *handle)
 
 	hw_init_power_state_table(instance->hwmgr);
 
+	if (amdgpu_dpm == 0)
+		return 0;
+
 	if (eventmgr == NULL || eventmgr->pp_eventmgr_init == NULL)
 		return -EINVAL;
 
@@ -1011,6 +1028,8 @@ int amd_powerplay_display_configuration_change(void *handle,
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
+	PP_CHECK_HW(hwmgr);
+
 	phm_store_dal_configuration_data(hwmgr, display_config);
 
 	return 0;
@@ -1028,6 +1047,8 @@ int amd_powerplay_get_display_power_level(void *handle,
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
+	PP_CHECK_HW(hwmgr);
+
 	return phm_get_dal_power_level(hwmgr, output);
 }
 
@@ -1044,6 +1065,8 @@ int amd_powerplay_get_current_clocks(void *handle,
 		return -EINVAL;
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	PP_CHECK_HW(hwmgr);
 
 	phm_get_dal_power_level(hwmgr, &simple_clocks);
 
@@ -1089,6 +1112,8 @@ int amd_powerplay_get_clock_by_type(void *handle, enum amd_pp_clock_type type, s
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
+	PP_CHECK_HW(hwmgr);
+
 	result = phm_get_clock_by_type(hwmgr, type, clocks);
 
 	return result;
@@ -1106,6 +1131,8 @@ int amd_powerplay_get_display_mode_validation_clocks(void *handle,
 		return -EINVAL;
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	PP_CHECK_HW(hwmgr);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DynamicPatchPowerState))
 		result = phm_get_max_high_clocks(hwmgr, clocks);

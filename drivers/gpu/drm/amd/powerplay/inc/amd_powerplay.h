@@ -29,6 +29,8 @@
 #include "amd_shared.h"
 #include "cgs_common.h"
 
+extern int amdgpu_dpm;
+
 enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_GFX_SCLK = 0,
 	AMDGPU_PP_SENSOR_VDDNB,
