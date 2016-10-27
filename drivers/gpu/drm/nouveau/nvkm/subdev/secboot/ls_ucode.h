@@ -27,6 +27,7 @@
 #include <core/subdev.h>
 #include <subdev/secboot.h>
 
+struct nvkm_acr;
 
 /**
  * struct ls_ucode_img_desc - descriptor of firmware image
@@ -148,6 +149,7 @@ struct fw_bl_desc {
 
 int acr_ls_ucode_load_fecs(const struct nvkm_subdev *, struct ls_ucode_img *);
 int acr_ls_ucode_load_gpccs(const struct nvkm_subdev *, struct ls_ucode_img *);
-
+int acr_ls_ucode_load_pmu(const struct nvkm_subdev *, struct ls_ucode_img *);
+void acr_ls_pmu_post_run(const struct nvkm_acr *, const struct nvkm_secboot *);
 
 #endif
