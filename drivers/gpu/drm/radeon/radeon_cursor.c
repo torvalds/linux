@@ -297,12 +297,11 @@ int radeon_crtc_cursor_set2(struct drm_crtc *crtc,
 		return ret;
 	}
 
-	radeon_crtc->cursor_width = width;
-	radeon_crtc->cursor_height = height;
-
 	radeon_lock_cursor(crtc, true);
 
-	if (hot_x != radeon_crtc->cursor_hot_x ||
+	if (width != radeon_crtc->cursor_width ||
+	    height != radeon_crtc->cursor_height ||
+	    hot_x != radeon_crtc->cursor_hot_x ||
 	    hot_y != radeon_crtc->cursor_hot_y) {
 		int x, y;
 
@@ -311,6 +310,8 @@ int radeon_crtc_cursor_set2(struct drm_crtc *crtc,
 
 		radeon_cursor_move_locked(crtc, x, y);
 
+		radeon_crtc->cursor_width = width;
+		radeon_crtc->cursor_height = height;
 		radeon_crtc->cursor_hot_x = hot_x;
 		radeon_crtc->cursor_hot_y = hot_y;
 	}
