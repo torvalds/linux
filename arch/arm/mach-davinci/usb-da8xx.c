@@ -3,6 +3,7 @@
  */
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_data/usb-davinci.h>
 #include <linux/platform_device.h>
 #include <linux/usb/musb.h>
@@ -14,6 +15,16 @@
 
 #define DA8XX_USB0_BASE		0x01e00000
 #define DA8XX_USB1_BASE		0x01e25000
+
+static struct platform_device da8xx_usb_phy = {
+	.name		= "da8xx-usb-phy",
+	.id		= -1,
+};
+
+int __init da8xx_register_usb_phy(void)
+{
+	return platform_device_register(&da8xx_usb_phy);
+}
 
 #if IS_ENABLED(CONFIG_USB_MUSB_HDRC)
 
