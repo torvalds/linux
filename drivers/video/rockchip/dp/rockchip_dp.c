@@ -238,12 +238,16 @@ int cdn_dp_fb_register(struct platform_device *pdev, void *dp)
 				SUPPORT_YCBCR_INPUT |
 				SUPPORT_1080I |
 				SUPPORT_480I_576I |
-				SUPPORT_4K |
-				SUPPORT_4K_4096 |
-				SUPPORT_YUV420 |
-				SUPPORT_YCBCR_INPUT |
-				SUPPORT_TMDS_600M |
 				SUPPORT_RK_DISCRETE_VR;
+
+	if (!rk_cdn_dp_prop->videosrc) {
+		rk_cdn_dp_prop->feature |=
+					SUPPORT_4K |
+					SUPPORT_4K_4096 |
+					SUPPORT_YUV420 |
+					SUPPORT_YCBCR_INPUT |
+					SUPPORT_TMDS_600M;
+	}
 
 	dp_dev->hdmi = rockchip_hdmi_register(rk_cdn_dp_prop,
 						rk_dp_ops);
