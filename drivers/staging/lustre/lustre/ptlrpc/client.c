@@ -1242,6 +1242,7 @@ static int after_reply(struct ptlrpc_request *req)
 	int rc;
 	struct timespec64 work_start;
 	long timediff;
+	u64 committed;
 
 	LASSERT(obd);
 	/* repbuf must be unlinked */
@@ -1400,10 +1401,9 @@ static int after_reply(struct ptlrpc_request *req)
 		}
 
 		/* Replay-enabled imports return commit-status information. */
-		if (lustre_msg_get_last_committed(req->rq_repmsg)) {
-			imp->imp_peer_committed_transno =
-				lustre_msg_get_last_committed(req->rq_repmsg);
-		}
+		committed = lustre_msg_get_last_committed(req->rq_repmsg);
+		if (likely(committed > imp->imp_peer_committed_transno))
+			imp->imp_peer_committed_transno = committed;
 
 		ptlrpc_free_committed(imp);
 
