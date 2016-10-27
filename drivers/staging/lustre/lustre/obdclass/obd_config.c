@@ -585,16 +585,21 @@ static int class_del_conn(struct obd_device *obd, struct lustre_cfg *lcfg)
 }
 
 static LIST_HEAD(lustre_profile_list);
+static DEFINE_SPINLOCK(lustre_profile_list_lock);
 
 struct lustre_profile *class_get_profile(const char *prof)
 {
 	struct lustre_profile *lprof;
 
+	spin_lock(&lustre_profile_list_lock);
 	list_for_each_entry(lprof, &lustre_profile_list, lp_list) {
 		if (!strcmp(lprof->lp_profile, prof)) {
+			lprof->lp_refs++;
+			spin_unlock(&lustre_profile_list_lock);
 			return lprof;
 		}
 	}
+	spin_unlock(&lustre_profile_list_lock);
 	return NULL;
 }
 EXPORT_SYMBOL(class_get_profile);
@@ -639,7 +644,11 @@ static int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 		}
 	}
 
+	spin_lock(&lustre_profile_list_lock);
+	lprof->lp_refs = 1;
+	lprof->lp_list_deleted = false;
 	list_add(&lprof->lp_list, &lustre_profile_list);
+	spin_unlock(&lustre_profile_list_lock);
 	return err;
 
 free_lp_dt:
@@ -659,27 +668,59 @@ void class_del_profile(const char *prof)
 
 	lprof = class_get_profile(prof);
 	if (lprof) {
+		spin_lock(&lustre_profile_list_lock);
+		/* because get profile increments the ref counter */
+		lprof->lp_refs--;
 		list_del(&lprof->lp_list);
-		kfree(lprof->lp_profile);
-		kfree(lprof->lp_dt);
-		kfree(lprof->lp_md);
-		kfree(lprof);
+		lprof->lp_list_deleted = true;
+		spin_unlock(&lustre_profile_list_lock);
+
+		class_put_profile(lprof);
 	}
 }
 EXPORT_SYMBOL(class_del_profile);
+
+void class_put_profile(struct lustre_profile *lprof)
+{
+	spin_lock(&lustre_profile_list_lock);
+	if (--lprof->lp_refs > 0) {
+		LASSERT(lprof->lp_refs > 0);
+		spin_unlock(&lustre_profile_list_lock);
+		return;
+	}
+	spin_unlock(&lustre_profile_list_lock);
+
+	/* confirm not a negative number */
+	LASSERT(!lprof->lp_refs);
+
+	/*
+	 * At least one class_del_profile/profiles must be called
+	 * on the target profile or lustre_profile_list will corrupt
+	 */
+	LASSERT(lprof->lp_list_deleted);
+	kfree(lprof->lp_profile);
+	kfree(lprof->lp_dt);
+	kfree(lprof->lp_md);
+	kfree(lprof);
+}
+EXPORT_SYMBOL(class_put_profile);
 
 /* COMPAT_146 */
 void class_del_profiles(void)
 {
 	struct lustre_profile *lprof, *n;
 
+	spin_lock(&lustre_profile_list_lock);
 	list_for_each_entry_safe(lprof, n, &lustre_profile_list, lp_list) {
 		list_del(&lprof->lp_list);
-		kfree(lprof->lp_profile);
-		kfree(lprof->lp_dt);
-		kfree(lprof->lp_md);
-		kfree(lprof);
+		lprof->lp_list_deleted = true;
+		spin_unlock(&lustre_profile_list_lock);
+
+		class_put_profile(lprof);
+
+		spin_lock(&lustre_profile_list_lock);
 	}
+	spin_unlock(&lustre_profile_list_lock);
 }
 EXPORT_SYMBOL(class_del_profiles);
 

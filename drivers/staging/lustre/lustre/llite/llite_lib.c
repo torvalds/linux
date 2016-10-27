@@ -929,6 +929,8 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 out_free:
 	kfree(md);
 	kfree(dt);
+	if (lprof)
+		class_put_profile(lprof);
 	if (err)
 		ll_put_super(sb);
 	else if (sbi->ll_flags & LL_SBI_VERBOSE)
