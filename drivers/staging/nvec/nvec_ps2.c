@@ -106,7 +106,6 @@ static int nvec_mouse_probe(struct platform_device *pdev)
 {
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 	struct serio *ser_dev;
-	char mouse_reset[] = { NVEC_PS2, SEND_COMMAND, PSMOUSE_RST, 3 };
 
 	ser_dev = devm_kzalloc(&pdev->dev, sizeof(struct serio), GFP_KERNEL);
 	if (!ser_dev)
@@ -126,9 +125,6 @@ static int nvec_mouse_probe(struct platform_device *pdev)
 	nvec_register_notifier(nvec, &ps2_dev.notifier, 0);
 
 	serio_register_port(ser_dev);
-
-	/* mouse reset */
-	nvec_write_async(nvec, mouse_reset, sizeof(mouse_reset));
 
 	return 0;
 }
