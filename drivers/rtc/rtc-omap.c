@@ -147,6 +147,7 @@ struct omap_rtc {
 	u8 interrupts_reg;
 	bool is_pmic_controller;
 	bool has_ext_clk;
+	bool is_suspending;
 	const struct omap_rtc_device_type *type;
 	struct pinctrl_dev *pctldev;
 };
@@ -900,8 +901,7 @@ static int omap_rtc_suspend(struct device *dev)
 		rtc_write(rtc, OMAP_RTC_INTERRUPTS_REG, 0);
 	rtc->type->lock(rtc);
 
-	/* Disable the clock/module */
-	pm_runtime_put_sync(dev);
+	rtc->is_suspending = true;
 
 	return 0;
 }
@@ -910,9 +910,6 @@ static int omap_rtc_resume(struct device *dev)
 {
 	struct omap_rtc *rtc = dev_get_drvdata(dev);
 
-	/* Enable the clock/module so that we can access the registers */
-	pm_runtime_get_sync(dev);
-
 	rtc->type->unlock(rtc);
 	if (device_may_wakeup(dev))
 		disable_irq_wake(rtc->irq_alarm);
@@ -920,11 +917,34 @@ static int omap_rtc_resume(struct device *dev)
 		rtc_write(rtc, OMAP_RTC_INTERRUPTS_REG, rtc->interrupts_reg);
 	rtc->type->lock(rtc);
 
+	rtc->is_suspending = false;
+
 	return 0;
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(omap_rtc_pm_ops, omap_rtc_suspend, omap_rtc_resume);
+#ifdef CONFIG_PM
+static int omap_rtc_runtime_suspend(struct device *dev)
+{
+	struct omap_rtc *rtc = dev_get_drvdata(dev);
+
+	if (rtc->is_suspending && !rtc->has_ext_clk)
+		return -EBUSY;
+
+	return 0;
+}
+
+static int omap_rtc_runtime_resume(struct device *dev)
+{
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops omap_rtc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(omap_rtc_suspend, omap_rtc_resume)
+	SET_RUNTIME_PM_OPS(omap_rtc_runtime_suspend,
+			   omap_rtc_runtime_resume, NULL)
+};
 
 static void omap_rtc_shutdown(struct platform_device *pdev)
 {
