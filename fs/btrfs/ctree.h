@@ -90,9 +90,6 @@ static const int btrfs_csum_sizes[] = { 4 };
 /* four bytes for CRC32 */
 #define BTRFS_EMPTY_DIR_SIZE 0
 
-/* specific to btrfs_map_block(), therefore not in include/linux/blk_types.h */
-#define REQ_GET_READ_MIRRORS	(1 << 30)
-
 /* ioprio of readahead is set to idle */
 #define BTRFS_IOPRIO_READA (IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0))
 

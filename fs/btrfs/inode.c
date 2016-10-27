@@ -1864,7 +1864,7 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 
 	length = bio->bi_iter.bi_size;
 	map_length = length;
-	ret = btrfs_map_block(root->fs_info, bio_op(bio), logical,
+	ret = btrfs_map_block(root->fs_info, btrfs_op(bio), logical,
 			      &map_length, NULL, 0);
 	if (ret < 0)
 		return ret;
@@ -8406,7 +8406,7 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip,
 	int i;
 
 	map_length = orig_bio->bi_iter.bi_size;
-	ret = btrfs_map_block(root->fs_info, bio_op(orig_bio),
+	ret = btrfs_map_block(root->fs_info, btrfs_op(orig_bio),
 			      start_sector << 9, &map_length, NULL, 0);
 	if (ret)
 		return -EIO;
@@ -8472,7 +8472,7 @@ next_block:
 			btrfs_io_bio(bio)->logical = file_offset;
 
 			map_length = orig_bio->bi_iter.bi_size;
-			ret = btrfs_map_block(root->fs_info, bio_op(orig_bio),
+			ret = btrfs_map_block(root->fs_info, btrfs_op(orig_bio),
 					      start_sector << 9,
 					      &map_length, NULL, 0);
 			if (ret) {

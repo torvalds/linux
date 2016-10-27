@@ -1539,7 +1539,7 @@ static int btrfsic_map_block(struct btrfsic_state *state, u64 bytenr, u32 len,
 	struct btrfs_device *device;
 
 	length = len;
-	ret = btrfs_map_block(state->root->fs_info, READ,
+	ret = btrfs_map_block(state->root->fs_info, BTRFS_MAP_READ,
 			      bytenr, &length, &multi, mirror_num);
 
 	if (ret) {

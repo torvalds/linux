@@ -354,8 +354,8 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	 * map block
 	 */
 	length = blocksize;
-	ret = btrfs_map_block(fs_info, REQ_GET_READ_MIRRORS, logical, &length,
-			      &bbio, 0);
+	ret = btrfs_map_block(fs_info, BTRFS_MAP_GET_READ_MIRRORS, logical,
+			&length, &bbio, 0);
 	if (ret || !bbio || length < blocksize)
 		goto error;
 

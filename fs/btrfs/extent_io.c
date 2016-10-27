@@ -2029,7 +2029,7 @@ int repair_io_failure(struct inode *inode, u64 start, u64 length, u64 logical,
 	 * read repair operation.
 	 */
 	btrfs_bio_counter_inc_blocked(fs_info);
-	ret = btrfs_map_block(fs_info, WRITE, logical,
+	ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, logical,
 			      &map_length, &bbio, mirror_num);
 	if (ret) {
 		btrfs_bio_counter_dec(fs_info);
