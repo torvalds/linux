@@ -2840,14 +2840,7 @@ static struct nf_sockopt_ops ip_vs_sockopts = {
  */
 
 /* IPVS genetlink family */
-static struct genl_family ip_vs_genl_family = {
-	.id		= GENL_ID_GENERATE,
-	.hdrsize	= 0,
-	.name		= IPVS_GENL_NAME,
-	.version	= IPVS_GENL_VERSION,
-	.maxattr	= IPVS_CMD_MAX,
-	.netnsok        = true,         /* Make ipvsadm to work on netns */
-};
+static struct genl_family ip_vs_genl_family;
 
 /* Policy used for first-level command attributes */
 static const struct nla_policy ip_vs_cmd_policy[IPVS_CMD_ATTR_MAX + 1] = {
@@ -3872,10 +3865,20 @@ static const struct genl_ops ip_vs_genl_ops[] = {
 	},
 };
 
+static struct genl_family ip_vs_genl_family __ro_after_init = {
+	.hdrsize	= 0,
+	.name		= IPVS_GENL_NAME,
+	.version	= IPVS_GENL_VERSION,
+	.maxattr	= IPVS_CMD_MAX,
+	.netnsok        = true,         /* Make ipvsadm to work on netns */
+	.module		= THIS_MODULE,
+	.ops		= ip_vs_genl_ops,
+	.n_ops		= ARRAY_SIZE(ip_vs_genl_ops),
+};
+
 static int __init ip_vs_genl_register(void)
 {
-	return genl_register_family_with_ops(&ip_vs_genl_family,
-					     ip_vs_genl_ops);
+	return genl_register_family(&ip_vs_genl_family);
 }
 
 static void ip_vs_genl_unregister(void)
