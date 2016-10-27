@@ -1370,6 +1370,8 @@ static int gvt_reg_tlb_control_handler(struct intel_vgpu *vgpu,
 	int rc = 0;
 	unsigned int id = 0;
 
+	write_vreg(vgpu, offset, p_data, bytes);
+
 	switch (offset) {
 	case 0x4260:
 		id = RCS;
