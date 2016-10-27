@@ -25,6 +25,9 @@
 #include <core/gpuobj.h>
 #include <core/firmware.h>
 #include <engine/falcon.h>
+#include <subdev/mc.h>
+#include <subdev/pmu.h>
+#include <core/msgqueue.h>
 
 /**
  * struct hsf_fw_header - HS firmware descriptor
@@ -852,6 +855,7 @@ acr_r352_shutdown(struct acr_r352 *acr, struct nvkm_secboot *sb)
 static int
 acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 {
+	const struct nvkm_subdev *subdev = &sb->subdev;
 	unsigned long managed_falcons = acr->base.managed_falcons;
 	int falcon_id;
 	int ret;
@@ -864,13 +868,13 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 	if (ret)
 		return ret;
 
-	nvkm_debug(&sb->subdev, "running HS load blob\n");
+	nvkm_debug(subdev, "running HS load blob\n");
 	ret = sb->func->run_blob(sb, acr->load_blob);
 	/* clear halt interrupt */
 	nvkm_falcon_clear_interrupt(sb->boot_falcon, 0x10);
 	if (ret)
 		return ret;
-	nvkm_debug(&sb->subdev, "HS load blob completed\n");
+	nvkm_debug(subdev, "HS load blob completed\n");
 
 	sb->wpr_set = true;
 
@@ -883,6 +887,50 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 			func->post_run(&acr->base, sb);
 	}
 
+	/* Re-start ourselves if we are managed */
+	if (!nvkm_secboot_is_managed(sb, acr->base.boot_falcon))
+		return 0;
+
+	/* Enable interrupts */
+	nvkm_falcon_wr32(sb->boot_falcon, 0x10, 0xff);
+	nvkm_mc_intr_mask(subdev->device, sb->boot_falcon->owner->index, true);
+
+	/* Start PMU */
+	nvkm_falcon_start(sb->boot_falcon);
+	nvkm_debug(subdev, "PMU started\n");
+
+	return 0;
+}
+
+/**
+ * acr_r352_reset_nopmu - dummy reset method when no PMU firmware is loaded
+ *
+ * Reset is done by re-executing secure boot from scratch, with lazy bootstrap
+ * disabled. This has the effect of making all managed falcons ready-to-run.
+ */
+static int
+acr_r352_reset_nopmu(struct acr_r352 *acr, struct nvkm_secboot *sb,
+		     enum nvkm_secboot_falcon falcon)
+{
+	int ret;
+
+	/*
+	 * Perform secure boot each time we are called on FECS. Since only FECS
+	 * and GPCCS are managed and started together, this ought to be safe.
+	 */
+	if (falcon != NVKM_SECBOOT_FALCON_FECS)
+		goto end;
+
+	ret = acr_r352_shutdown(acr, sb);
+	if (ret)
+		return ret;
+
+	ret = acr_r352_bootstrap(acr, sb);
+	if (ret)
+		return ret;
+
+end:
+	acr->falcon_state[falcon] = RESET;
 	return 0;
 }
 
@@ -898,29 +946,30 @@ acr_r352_reset(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
 	       enum nvkm_secboot_falcon falcon)
 {
 	struct acr_r352 *acr = acr_r352(_acr);
+	struct nvkm_pmu *pmu = sb->subdev.device->pmu;
+	const char *fname = nvkm_secboot_falcon_name[falcon];
 	int ret;
 
+	/* Not self-managed? Redo secure boot entirely */
+	if (!nvkm_secboot_is_managed(sb, _acr->boot_falcon))
+		return acr_r352_reset_nopmu(acr, sb, falcon);
+
 	/*
-	 * Dummy GM200 implementation: perform secure boot each time we are
-	 * called on FECS. Since only FECS and GPCCS are managed and started
-	 * together, this ought to be safe.
-	 *
-	 * Once we have proper PMU firmware and support, this will be changed
-	 * to a proper call to the PMU method.
+	 * Otherwise ensure secure boot is done, and command the PMU to reset
+	 * the desired falcon.
 	 */
-	if (falcon != NVKM_SECBOOT_FALCON_FECS)
-		goto end;
-
-	ret = acr_r352_shutdown(acr, sb);
+	ret = acr_r352_bootstrap(acr, sb);
 	if (ret)
 		return ret;
 
-	acr_r352_bootstrap(acr, sb);
-	if (ret)
+	nvkm_debug(&sb->subdev, "resetting %s falcon\n", fname);
+	ret = nvkm_msgqueue_acr_boot_falcon(pmu->queue, falcon);
+	if (ret) {
+		nvkm_error(&sb->subdev, "cannot boot %s falcon\n", fname);
 		return ret;
+	}
+	nvkm_debug(&sb->subdev, "falcon %s reset\n", fname);
 
-end:
-	acr->falcon_state[falcon] = RESET;
 	return 0;
 }
 
@@ -1006,6 +1055,23 @@ acr_r352_new_(const struct acr_r352_func *func,
 	acr->base.managed_falcons = managed_falcons;
 	acr->base.func = &acr_r352_base_func;
 	acr->func = func;
+
+	/*
+	 * If we have a PMU firmware, let it manage the bootstrap of other
+	 * falcons.
+	 */
+	if (func->ls_func[NVKM_SECBOOT_FALCON_PMU] &&
+	    (managed_falcons & BIT(NVKM_SECBOOT_FALCON_PMU))) {
+		int i;
+
+		for (i = 0; i < NVKM_SECBOOT_FALCON_END; i++) {
+			if (i == NVKM_SECBOOT_FALCON_PMU)
+				continue;
+
+			if (func->ls_func[i])
+				acr->lazy_bootstrap |= BIT(i);
+		}
+	}
 
 	return &acr->base;
 }
