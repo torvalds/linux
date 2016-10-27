@@ -60,11 +60,6 @@
 			reg = <0x0fd80000 0x180000>;
 			no-map;
 		};
-
-		unused@0ff00000 {
-			reg = <0x0ff00000 0x10100000>;
-			no-map;
-		};
 	};
 
 	cpus {
