@@ -36,12 +36,10 @@
 
 static bool vgpu_has_pending_workload(struct intel_vgpu *vgpu)
 {
-	struct intel_vgpu_execlist *execlist;
 	enum intel_engine_id i;
 	struct intel_engine_cs *engine;
 
 	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
-		execlist = &vgpu->execlist[i];
 		if (!list_empty(workload_q_head(vgpu, i)))
 			return true;
 	}
