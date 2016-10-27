@@ -49,7 +49,8 @@ static const match_table_t sdcardfs_tokens = {
 };
 
 static int parse_options(struct super_block *sb, char *options, int silent,
-				int *debug, struct sdcardfs_mount_options *opts)
+				int *debug, struct sdcardfs_vfsmount_options *vfsopts,
+				struct sdcardfs_mount_options *opts)
 {
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
@@ -58,9 +59,11 @@ static int parse_options(struct super_block *sb, char *options, int silent,
 	/* by default, we use AID_MEDIA_RW as uid, gid */
 	opts->fs_low_uid = AID_MEDIA_RW;
 	opts->fs_low_gid = AID_MEDIA_RW;
+	vfsopts->mask = 0;
 	opts->mask = 0;
 	opts->multiuser = false;
 	opts->fs_user_id = 0;
+	vfsopts->gid = 0;
 	opts->gid = 0;
 	/* by default, 0MB is reserved */
 	opts->reserved_mb = 0;
@@ -95,6 +98,7 @@ static int parse_options(struct super_block *sb, char *options, int silent,
 			if (match_int(&args[0], &option))
 				return 0;
 			opts->gid = option;
+			vfsopts->gid = option;
 			break;
 		case Opt_userid:
 			if (match_int(&args[0], &option))
@@ -105,6 +109,7 @@ static int parse_options(struct super_block *sb, char *options, int silent,
 			if (match_int(&args[0], &option))
 				return 0;
 			opts->mask = option;
+			vfsopts->mask = option;
 			break;
 		case Opt_multiuser:
 			opts->multiuser = true;
@@ -130,6 +135,65 @@ static int parse_options(struct super_block *sb, char *options, int silent,
 							opts->fs_low_uid);
 		printk( KERN_INFO "sdcardfs : options - gid:%d\n",
 							opts->fs_low_gid);
+	}
+
+	return 0;
+}
+
+int parse_options_remount(struct super_block *sb, char *options, int silent,
+				struct sdcardfs_vfsmount_options *vfsopts)
+{
+	char *p;
+	substring_t args[MAX_OPT_ARGS];
+	int option;
+	int debug;
+
+	if (!options)
+		return 0;
+
+	while ((p = strsep(&options, ",")) != NULL) {
+		int token;
+		if (!*p)
+			continue;
+
+		token = match_token(p, sdcardfs_tokens, args);
+
+		switch (token) {
+		case Opt_debug:
+			debug = 1;
+			break;
+		case Opt_gid:
+			if (match_int(&args[0], &option))
+				return 0;
+			vfsopts->gid = option;
+
+			break;
+		case Opt_mask:
+			if (match_int(&args[0], &option))
+				return 0;
+			vfsopts->mask = option;
+			break;
+		case Opt_multiuser:
+		case Opt_userid:
+		case Opt_fsuid:
+		case Opt_fsgid:
+		case Opt_reserved_mb:
+			printk( KERN_WARNING "Option \"%s\" can't be changed during remount\n", p);
+			break;
+		/* unknown option */
+		default:
+			if (!silent) {
+				printk( KERN_ERR "Unrecognized mount option \"%s\" "
+						"or missing value", p);
+			}
+			return -EINVAL;
+		}
+	}
+
+	if (debug) {
+		printk( KERN_INFO "sdcardfs : options - debug:%d\n", debug);
+		printk( KERN_INFO "sdcardfs : options - gid:%d\n", vfsopts->gid);
+		printk( KERN_INFO "sdcardfs : options - mask:%d\n", vfsopts->mask);
 	}
 
 	return 0;
@@ -172,14 +236,15 @@ EXPORT_SYMBOL_GPL(sdcardfs_super_list);
  * There is no need to lock the sdcardfs_super_info's rwsem as there is no
  * way anyone can have a reference to the superblock at this point in time.
  */
-static int sdcardfs_read_super(struct super_block *sb, const char *dev_name,
-						void *raw_data, int silent)
+static int sdcardfs_read_super(struct vfsmount *mnt, struct super_block *sb,
+		const char *dev_name, void *raw_data, int silent)
 {
 	int err = 0;
 	int debug;
 	struct super_block *lower_sb;
 	struct path lower_path;
 	struct sdcardfs_sb_info *sb_info;
+	struct sdcardfs_vfsmount_options *mnt_opt = mnt->data;
 	struct inode *inode;
 
 	printk(KERN_INFO "sdcardfs version 2.0\n");
@@ -212,7 +277,7 @@ static int sdcardfs_read_super(struct super_block *sb, const char *dev_name,
 
 	sb_info = sb->s_fs_info;
 	/* parse options */
-	err = parse_options(sb, raw_data, silent, &debug, &sb_info->options);
+	err = parse_options(sb, raw_data, silent, &debug, mnt_opt, &sb_info->options);
 	if (err) {
 		printk(KERN_ERR	"sdcardfs: invalid options\n");
 		goto out_freesbi;
@@ -306,9 +371,9 @@ out:
 }
 
 /* A feature which supports mount_nodev() with options */
-static struct dentry *mount_nodev_with_options(struct file_system_type *fs_type,
-        int flags, const char *dev_name, void *data,
-        int (*fill_super)(struct super_block *, const char *, void *, int))
+static struct dentry *mount_nodev_with_options(struct vfsmount *mnt,
+	struct file_system_type *fs_type, int flags, const char *dev_name, void *data,
+        int (*fill_super)(struct vfsmount *, struct super_block *, const char *, void *, int))
 
 {
 	int error;
@@ -319,7 +384,7 @@ static struct dentry *mount_nodev_with_options(struct file_system_type *fs_type,
 
 	s->s_flags = flags;
 
-	error = fill_super(s, dev_name, data, flags & MS_SILENT ? 1 : 0);
+	error = fill_super(mnt, s, dev_name, data, flags & MS_SILENT ? 1 : 0);
 	if (error) {
 		deactivate_locked_super(s);
 		return ERR_PTR(error);
@@ -328,15 +393,27 @@ static struct dentry *mount_nodev_with_options(struct file_system_type *fs_type,
 	return dget(s->s_root);
 }
 
-struct dentry *sdcardfs_mount(struct file_system_type *fs_type, int flags,
+static struct dentry *sdcardfs_mount(struct vfsmount *mnt,
+		struct file_system_type *fs_type, int flags,
 			    const char *dev_name, void *raw_data)
 {
 	/*
 	 * dev_name is a lower_path_name,
 	 * raw_data is a option string.
 	 */
-	return mount_nodev_with_options(fs_type, flags, dev_name,
-					raw_data, sdcardfs_read_super);
+	return mount_nodev_with_options(mnt, fs_type, flags, dev_name,
+						raw_data, sdcardfs_read_super);
+}
+
+static struct dentry *sdcardfs_mount_wrn(struct file_system_type *fs_type, int flags,
+		    const char *dev_name, void *raw_data)
+{
+	WARN(1, "sdcardfs does not support mount. Use mount2.\n");
+	return ERR_PTR(-EINVAL);
+}
+
+void *sdcardfs_alloc_mnt_data(void) {
+	return kmalloc(sizeof(struct sdcardfs_vfsmount_options), GFP_KERNEL);
 }
 
 void sdcardfs_kill_sb(struct super_block *sb) {
@@ -353,7 +430,9 @@ void sdcardfs_kill_sb(struct super_block *sb) {
 static struct file_system_type sdcardfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= SDCARDFS_NAME,
-	.mount		= sdcardfs_mount,
+	.mount		= sdcardfs_mount_wrn,
+	.mount2		= sdcardfs_mount,
+	.alloc_mnt_data = sdcardfs_alloc_mnt_data,
 	.kill_sb	= sdcardfs_kill_sb,
 	.fs_flags	= 0,
 };
