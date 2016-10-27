@@ -36,6 +36,42 @@
 #include "../include/lprocfs_status.h"
 #include "mdc_internal.h"
 
+static ssize_t active_show(struct kobject *kobj, struct attribute *attr,
+			   char *buf)
+{
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
+
+	return sprintf(buf, "%u\n", !dev->u.cli.cl_import->imp_deactive);
+}
+
+static ssize_t active_store(struct kobject *kobj, struct attribute *attr,
+			    const char *buffer, size_t count)
+{
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
+	unsigned long val;
+	int rc;
+
+	rc = kstrtoul(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	if (val < 0 || val > 1)
+		return -ERANGE;
+
+	/* opposite senses */
+	if (dev->u.cli.cl_import->imp_deactive == val) {
+		rc = ptlrpc_set_import_active(dev->u.cli.cl_import, val);
+		if (rc)
+			count = rc;
+	} else {
+		CDEBUG(D_CONFIG, "activate %lu: ignoring repeat request\n", val);
+	}
+	return count;
+}
+LUSTRE_RW_ATTR(active);
+
 static ssize_t max_rpcs_in_flight_show(struct kobject *kobj,
 				       struct attribute *attr,
 				       char *buf)
@@ -153,6 +189,7 @@ static struct lprocfs_vars lprocfs_mdc_obd_vars[] = {
 };
 
 static struct attribute *mdc_attrs[] = {
+	&lustre_attr_active.attr,
 	&lustre_attr_max_rpcs_in_flight.attr,
 	&lustre_attr_max_mod_rpcs_in_flight.attr,
 	&lustre_attr_max_pages_per_rpc.attr,

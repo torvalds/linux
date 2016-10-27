@@ -62,6 +62,7 @@ static void lmv_activate_target(struct lmv_obd *lmv,
 
 	tgt->ltd_active = activate;
 	lmv->desc.ld_active_tgt_count += (activate ? 1 : -1);
+	tgt->ltd_exp->exp_obd->obd_inactive = !activate;
 }
 
 /**
