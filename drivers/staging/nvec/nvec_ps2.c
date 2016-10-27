@@ -111,7 +111,7 @@ static int nvec_mouse_probe(struct platform_device *pdev)
 	if (!ser_dev)
 		return -ENOMEM;
 
-	ser_dev->id.type = SERIO_PS_PSTHRU;
+	ser_dev->id.type = SERIO_8042;
 	ser_dev->write = ps2_sendcommand;
 	ser_dev->start = ps2_startstreaming;
 	ser_dev->stop = ps2_stopstreaming;
