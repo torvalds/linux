@@ -1011,6 +1011,85 @@ acr_r352_ls_gpccs_func = {
 	.lhdr_flags = LSF_FLAG_FORCE_PRIV_LOAD,
 };
 
+
+
+/**
+ * struct acr_r352_pmu_bl_desc - PMU DMEM bootloader descriptor
+ * @dma_idx:		DMA context to be used by BL while loading code/data
+ * @code_dma_base:	256B-aligned Physical FB Address where code is located
+ * @total_code_size:	total size of the code part in the ucode
+ * @code_size_to_load:	size of the code part to load in PMU IMEM.
+ * @code_entry_point:	entry point in the code.
+ * @data_dma_base:	Physical FB address where data part of ucode is located
+ * @data_size:		Total size of the data portion.
+ * @overlay_dma_base:	Physical Fb address for resident code present in ucode
+ * @argc:		Total number of args
+ * @argv:		offset where args are copied into PMU's DMEM.
+ *
+ * Structure used by the PMU bootloader to load the rest of the code
+ */
+struct acr_r352_pmu_bl_desc {
+	u32 dma_idx;
+	u32 code_dma_base;
+	u32 code_size_total;
+	u32 code_size_to_load;
+	u32 code_entry_point;
+	u32 data_dma_base;
+	u32 data_size;
+	u32 overlay_dma_base;
+	u32 argc;
+	u32 argv;
+	u16 code_dma_base1;
+	u16 data_dma_base1;
+	u16 overlay_dma_base1;
+};
+
+/**
+ * acr_r352_generate_pmu_bl_desc() - populate a DMEM BL descriptor for PMU LS image
+ *
+ */
+static void
+acr_r352_generate_pmu_bl_desc(const struct nvkm_acr *acr,
+			      const struct ls_ucode_img *img, u64 wpr_addr,
+			      void *_desc)
+{
+	const struct ls_ucode_img_desc *pdesc = &img->ucode_desc;
+	const struct nvkm_pmu *pmu = acr->subdev->device->pmu;
+	struct acr_r352_pmu_bl_desc *desc = _desc;
+	u64 base;
+	u64 addr_code;
+	u64 addr_data;
+	u32 addr_args;
+
+	base = wpr_addr + img->ucode_off + pdesc->app_start_offset;
+	addr_code = (base + pdesc->app_resident_code_offset) >> 8;
+	addr_data = (base + pdesc->app_resident_data_offset) >> 8;
+	addr_args = pmu->falcon->data.limit;
+	addr_args -= NVKM_MSGQUEUE_CMDLINE_SIZE;
+
+	desc->dma_idx = FALCON_DMAIDX_UCODE;
+	desc->code_dma_base = lower_32_bits(addr_code);
+	desc->code_dma_base1 = upper_32_bits(addr_code);
+	desc->code_size_total = pdesc->app_size;
+	desc->code_size_to_load = pdesc->app_resident_code_size;
+	desc->code_entry_point = pdesc->app_imem_entry;
+	desc->data_dma_base = lower_32_bits(addr_data);
+	desc->data_dma_base1 = upper_32_bits(addr_data);
+	desc->data_size = pdesc->app_resident_data_size;
+	desc->overlay_dma_base = lower_32_bits(addr_code);
+	desc->overlay_dma_base1 = upper_32_bits(addr_code);
+	desc->argc = 1;
+	desc->argv = addr_args;
+}
+
+static const struct acr_r352_ls_func
+acr_r352_ls_pmu_func = {
+	.load = acr_ls_ucode_load_pmu,
+	.generate_bl_desc = acr_r352_generate_pmu_bl_desc,
+	.bl_desc_size = sizeof(struct acr_r352_pmu_bl_desc),
+	.post_run = acr_ls_pmu_post_run,
+};
+
 const struct acr_r352_func
 acr_r352_func = {
 	.fixup_hs_desc = acr_r352_fixup_hs_desc,
@@ -1022,6 +1101,7 @@ acr_r352_func = {
 	.ls_func = {
 		[NVKM_SECBOOT_FALCON_FECS] = &acr_r352_ls_fecs_func,
 		[NVKM_SECBOOT_FALCON_GPCCS] = &acr_r352_ls_gpccs_func,
+		[NVKM_SECBOOT_FALCON_PMU] = &acr_r352_ls_pmu_func,
 	},
 };
 
