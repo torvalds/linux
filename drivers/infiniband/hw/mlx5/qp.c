@@ -4815,6 +4815,14 @@ struct ib_rwq_ind_table *mlx5_ib_create_rwq_ind_table(struct ib_device *device,
 				 udata->inlen))
 		return ERR_PTR(-EOPNOTSUPP);
 
+	if (init_attr->log_ind_tbl_size >
+	    MLX5_CAP_GEN(dev->mdev, log_max_rqt_size)) {
+		mlx5_ib_dbg(dev, "log_ind_tbl_size = %d is bigger than supported = %d\n",
+			    init_attr->log_ind_tbl_size,
+			    MLX5_CAP_GEN(dev->mdev, log_max_rqt_size));
+		return ERR_PTR(-EINVAL);
+	}
+
 	min_resp_len = offsetof(typeof(resp), reserved) + sizeof(resp.reserved);
 	if (udata->outlen && udata->outlen < min_resp_len)
 		return ERR_PTR(-EINVAL);
