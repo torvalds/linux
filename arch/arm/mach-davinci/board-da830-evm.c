@@ -18,6 +18,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
 #include <linux/platform_data/at24.h>
+#include <linux/mfd/da8xx-cfgchip.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/spi/spi.h>
@@ -116,7 +117,7 @@ static __init void da830_evm_usb_init(void)
 	cfgchip2 = __raw_readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG));
 
 	/* USB2.0 PHY reference clock is 24 MHz */
-	cfgchip2 &= ~CFGCHIP2_REFFREQ;
+	cfgchip2 &= ~CFGCHIP2_REFFREQ_MASK;
 	cfgchip2 |=  CFGCHIP2_REFFREQ_24MHZ;
 
 	/*
@@ -133,7 +134,7 @@ static __init void da830_evm_usb_init(void)
 	 * controller won't be able to drive VBUS thinking that it's a B-device.
 	 * Otherwise, we want to use the OTG mode and enable VBUS comparators.
 	 */
-	cfgchip2 &= ~CFGCHIP2_OTGMODE;
+	cfgchip2 &= ~CFGCHIP2_OTGMODE_MASK;
 #ifdef	CONFIG_USB_MUSB_HOST
 	cfgchip2 |=  CFGCHIP2_FORCE_HOST;
 #else
