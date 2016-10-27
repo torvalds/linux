@@ -402,19 +402,24 @@ static int workload_thread(void *priv)
 	struct intel_vgpu_workload *workload = NULL;
 	int ret;
 	bool need_force_wake = IS_SKYLAKE(gvt->dev_priv);
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
 	kfree(p);
 
 	gvt_dbg_core("workload thread for ring %d started\n", ring_id);
 
 	while (!kthread_should_stop()) {
-		ret = wait_event_interruptible(scheduler->waitq[ring_id],
-				kthread_should_stop() ||
-				(workload = pick_next_workload(gvt, ring_id)));
+		add_wait_queue(&scheduler->waitq[ring_id], &wait);
+		do {
+			workload = pick_next_workload(gvt, ring_id);
+			if (workload)
+				break;
+			wait_woken(&wait, TASK_INTERRUPTIBLE,
+				   MAX_SCHEDULE_TIMEOUT);
+		} while (!kthread_should_stop());
+		remove_wait_queue(&scheduler->waitq[ring_id], &wait);
 
-		WARN_ON_ONCE(ret);
-
-		if (kthread_should_stop())
+		if (!workload)
 			break;
 
 		mutex_lock(&scheduler_mutex);
