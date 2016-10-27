@@ -419,6 +419,10 @@ static int ll_dir_setdirstripe(struct inode *parent, struct lmv_user_md *lump,
 	       PFID(ll_inode2fid(parent)), parent, dirname,
 	       (int)lump->lum_stripe_offset, lump->lum_stripe_count);
 
+	if (lump->lum_stripe_count > 1 &&
+	    !(exp_connect_flags(sbi->ll_md_exp) & OBD_CONNECT_DIR_STRIPE))
+		return -EINVAL;
+
 	if (lump->lum_magic != cpu_to_le32(LMV_USER_MAGIC))
 		lustre_swab_lmv_user_md(lump);
 
