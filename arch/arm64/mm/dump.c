@@ -304,9 +304,8 @@ static void walk_pgd(struct pg_state *st, struct mm_struct *mm,
 	}
 }
 
-static int ptdump_show(struct seq_file *m, void *v)
+void ptdump_walk_pgd(struct seq_file *m, struct ptdump_info *info)
 {
-	struct ptdump_info *info = m->private;
 	struct pg_state st = {
 		.seq = m,
 		.marker = info->markers,
@@ -315,33 +314,16 @@ static int ptdump_show(struct seq_file *m, void *v)
 	walk_pgd(&st, info->mm, info->base_addr);
 
 	note_page(&st, 0, 0, 0);
-	return 0;
 }
 
-static int ptdump_open(struct inode *inode, struct file *file)
+static void ptdump_initialize(void)
 {
-	return single_open(file, ptdump_show, inode->i_private);
-}
-
-static const struct file_operations ptdump_fops = {
-	.open		= ptdump_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-int ptdump_register(struct ptdump_info *info, const char *name)
-{
-	struct dentry *pe;
 	unsigned i, j;
 
 	for (i = 0; i < ARRAY_SIZE(pg_level); i++)
 		if (pg_level[i].bits)
 			for (j = 0; j < pg_level[i].num; j++)
 				pg_level[i].mask |= pg_level[i].bits[j].mask;
-
-	pe = debugfs_create_file(name, 0400, NULL, info, &ptdump_fops);
-	return pe ? 0 : -ENOMEM;
 }
 
 static struct ptdump_info kernel_ptdump_info = {
@@ -352,6 +334,8 @@ static struct ptdump_info kernel_ptdump_info = {
 
 static int ptdump_init(void)
 {
-	return ptdump_register(&kernel_ptdump_info, "kernel_page_tables");
+	ptdump_initialize();
+	return ptdump_debugfs_register(&kernel_ptdump_info,
+					"kernel_page_tables");
 }
 device_initcall(ptdump_init);
