@@ -1958,7 +1958,13 @@ void set_all_modules_text_ro(void)
 
 	mutex_lock(&module_mutex);
 	list_for_each_entry_rcu(mod, &modules, list) {
-		if (mod->state == MODULE_STATE_UNFORMED)
+		/*
+		 * Ignore going modules since it's possible that ro
+		 * protection has already been disabled, otherwise we'll
+		 * run into protection faults at module deallocation.
+		 */
+		if (mod->state == MODULE_STATE_UNFORMED ||
+			mod->state == MODULE_STATE_GOING)
 			continue;
 
 		frob_text(&mod->core_layout, set_memory_ro);
