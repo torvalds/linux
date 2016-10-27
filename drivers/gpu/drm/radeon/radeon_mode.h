@@ -330,6 +330,7 @@ struct radeon_crtc {
 	u16 lut_r[256], lut_g[256], lut_b[256];
 	bool enabled;
 	bool can_tile;
+	bool cursor_out_of_bounds;
 	uint32_t crtc_offset;
 	struct drm_gem_object *cursor_bo;
 	uint64_t cursor_addr;
