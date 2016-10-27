@@ -1461,14 +1461,16 @@ static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter)
 	return rc;
 
 req_rx_irq_failed:
-	for (j = 0; j < i; j++)
+	for (j = 0; j < i; j++) {
 		free_irq(adapter->rx_scrq[j]->irq, adapter->rx_scrq[j]);
 		irq_dispose_mapping(adapter->rx_scrq[j]->irq);
+	}
 	i = adapter->req_tx_queues;
 req_tx_irq_failed:
-	for (j = 0; j < i; j++)
+	for (j = 0; j < i; j++) {
 		free_irq(adapter->tx_scrq[j]->irq, adapter->tx_scrq[j]);
 		irq_dispose_mapping(adapter->rx_scrq[j]->irq);
+	}
 	release_sub_crqs_no_irqs(adapter);
 	return rc;
 }
