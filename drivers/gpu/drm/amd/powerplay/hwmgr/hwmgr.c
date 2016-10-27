@@ -692,13 +692,17 @@ int hwmgr_set_user_specify_caps(struct pp_hwmgr *hwmgr)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep);
 
-	if (amdgpu_powercontainment)
+	if (amdgpu_powercontainment) {
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			    PHM_PlatformCaps_PowerContainment);
-	else
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_CAC);
+	} else {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			    PHM_PlatformCaps_PowerContainment);
-
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_CAC);
+	}
 	hwmgr->feature_mask = amdgpu_pp_feature_mask;
 
 	return 0;
@@ -734,9 +738,6 @@ int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 						PHM_PlatformCaps_TCPRamping);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-							PHM_PlatformCaps_CAC);
-
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_RegulatorHot);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
@@ -765,8 +766,6 @@ int fiji_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_TablelessHardwareInterface);
 
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_CAC);
 	return 0;
 }
 
@@ -789,9 +788,6 @@ int tonga_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			 PHM_PlatformCaps_TablelessHardwareInterface);
 
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_CAC);
-
 	return 0;
 }
 
@@ -807,8 +803,6 @@ int topaz_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 			PHM_PlatformCaps_TCPRamping);
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			 PHM_PlatformCaps_TablelessHardwareInterface);
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_CAC);
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 		    PHM_PlatformCaps_EVV);
 	return 0;
