@@ -1087,7 +1087,7 @@ static int r5l_recovery_log(struct r5l_log *log)
 	 * 1's seq + 10 and let superblock points to meta2. The same recovery will
 	 * not think meta 3 is a valid meta, because its seq doesn't match
 	 */
-	if (ctx.seq > log->last_cp_seq + 1) {
+	if (ctx.seq > log->last_cp_seq) {
 		int ret;
 
 		ret = r5l_log_write_empty_meta_block(log, ctx.pos, ctx.seq + 10);
