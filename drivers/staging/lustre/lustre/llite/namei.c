@@ -790,7 +790,8 @@ static int ll_create_it(struct inode *dir, struct dentry *dentry,
 		return PTR_ERR(inode);
 
 	d_instantiate(dentry, inode);
-	return 0;
+
+	return ll_init_security(dentry, inode, dir);
 }
 
 void ll_update_times(struct ptlrpc_request *request, struct inode *inode)
@@ -885,6 +886,8 @@ again:
 		goto err_exit;
 
 	d_instantiate(dentry, inode);
+
+	err = ll_init_security(dentry, inode, dir);
 err_exit:
 	if (request)
 		ptlrpc_req_finished(request);

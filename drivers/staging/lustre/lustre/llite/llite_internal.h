@@ -261,6 +261,9 @@ int ll_xattr_cache_destroy(struct inode *inode);
 int ll_xattr_cache_get(struct inode *inode, const char *name,
 		       char *buffer, size_t size, __u64 valid);
 
+int ll_init_security(struct dentry *dentry, struct inode *inode,
+		     struct inode *dir);
+
 /*
  * Locking to guarantee consistency of non-atomic updates to long long i_size,
  * consistency between file size and KMS.
@@ -998,6 +1001,7 @@ extern const struct xattr_handler *ll_xattr_handlers[];
 ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size);
 int ll_xattr_list(struct inode *inode, const char *name, int type,
 		  void *buffer, size_t size, __u64 valid);
+const struct xattr_handler *get_xattr_type(const char *name);
 
 /**
  * Common IO arguments for various VFS I/O interfaces.

@@ -415,6 +415,10 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 			CDEBUG(D_CACHE, "not caching %s\n",
 			       XATTR_NAME_ACL_ACCESS);
 			rc = 0;
+		} else if (!strcmp(xdata, "security.selinux")) {
+			/* Filter out security.selinux, it is cached in slab */
+			CDEBUG(D_CACHE, "not caching security.selinux\n");
+			rc = 0;
 		} else {
 			rc = ll_xattr_cache_add(&lli->lli_xattrs, xdata, xval,
 						*xsizes);

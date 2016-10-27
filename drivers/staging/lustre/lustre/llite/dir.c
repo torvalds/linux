@@ -410,6 +410,8 @@ static int ll_dir_setdirstripe(struct inode *parent, struct lmv_user_md *lump,
 	struct ptlrpc_request *request = NULL;
 	struct md_op_data *op_data;
 	struct ll_sb_info *sbi = ll_i2sbi(parent);
+	struct inode *inode = NULL;
+	struct dentry dentry;
 	int err;
 
 	if (unlikely(lump->lum_magic != LMV_USER_MAGIC))
@@ -443,8 +445,17 @@ static int ll_dir_setdirstripe(struct inode *parent, struct lmv_user_md *lump,
 			from_kgid(&init_user_ns, current_fsgid()),
 			cfs_curproc_cap_pack(), 0, &request);
 	ll_finish_md_op_data(op_data);
+
+	err = ll_prep_inode(&inode, request, parent->i_sb, NULL);
 	if (err)
 		goto err_exit;
+
+	memset(&dentry, 0, sizeof(dentry));
+	dentry.d_inode = inode;
+
+	err = ll_init_security(&dentry, inode, parent);
+	iput(inode);
+
 err_exit:
 	ptlrpc_req_finished(request);
 	return err;

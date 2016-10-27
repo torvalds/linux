@@ -44,48 +44,39 @@
 
 #include "llite_internal.h"
 
-static
-int get_xattr_type(const char *name)
+const struct xattr_handler *get_xattr_type(const char *name)
 {
-	if (!strcmp(name, XATTR_NAME_POSIX_ACL_ACCESS))
-		return XATTR_ACL_ACCESS_T;
+	int i = 0;
 
-	if (!strcmp(name, XATTR_NAME_POSIX_ACL_DEFAULT))
-		return XATTR_ACL_DEFAULT_T;
+	while (ll_xattr_handlers[i]) {
+		size_t len = strlen(ll_xattr_handlers[i]->prefix);
 
-	if (!strncmp(name, XATTR_USER_PREFIX,
-		     sizeof(XATTR_USER_PREFIX) - 1))
-		return XATTR_USER_T;
-
-	if (!strncmp(name, XATTR_TRUSTED_PREFIX,
-		     sizeof(XATTR_TRUSTED_PREFIX) - 1))
-		return XATTR_TRUSTED_T;
-
-	if (!strncmp(name, XATTR_SECURITY_PREFIX,
-		     sizeof(XATTR_SECURITY_PREFIX) - 1))
-		return XATTR_SECURITY_T;
-
-	if (!strncmp(name, XATTR_LUSTRE_PREFIX,
-		     sizeof(XATTR_LUSTRE_PREFIX) - 1))
-		return XATTR_LUSTRE_T;
-
-	return XATTR_OTHER_T;
+		if (!strncmp(ll_xattr_handlers[i]->prefix, name, len))
+			return ll_xattr_handlers[i];
+		i++;
+	}
+	return NULL;
 }
 
-static
-int xattr_type_filter(struct ll_sb_info *sbi, int xattr_type)
+static int xattr_type_filter(struct ll_sb_info *sbi,
+			     const struct xattr_handler *handler)
 {
-	if ((xattr_type == XATTR_ACL_ACCESS_T ||
-	     xattr_type == XATTR_ACL_DEFAULT_T) &&
+	/* No handler means XATTR_OTHER_T */
+	if (!handler)
+		return -EOPNOTSUPP;
+
+	if ((handler->flags == XATTR_ACL_ACCESS_T ||
+	     handler->flags == XATTR_ACL_DEFAULT_T) &&
 	   !(sbi->ll_flags & LL_SBI_ACL))
 		return -EOPNOTSUPP;
 
-	if (xattr_type == XATTR_USER_T && !(sbi->ll_flags & LL_SBI_USER_XATTR))
+	if (handler->flags == XATTR_USER_T &&
+	    !(sbi->ll_flags & LL_SBI_USER_XATTR))
 		return -EOPNOTSUPP;
-	if (xattr_type == XATTR_TRUSTED_T && !capable(CFS_CAP_SYS_ADMIN))
+
+	if (handler->flags == XATTR_TRUSTED_T &&
+	    !capable(CFS_CAP_SYS_ADMIN))
 		return -EPERM;
-	if (xattr_type == XATTR_OTHER_T)
-		return -EOPNOTSUPP;
 
 	return 0;
 }
@@ -111,7 +102,7 @@ ll_xattr_set_common(const struct xattr_handler *handler,
 		valid = OBD_MD_FLXATTR;
 	}
 
-	rc = xattr_type_filter(sbi, handler->flags);
+	rc = xattr_type_filter(sbi, handler);
 	if (rc)
 		return rc;
 
@@ -225,7 +216,8 @@ ll_xattr_list(struct inode *inode, const char *name, int type, void *buffer,
 	void *xdata;
 	int rc;
 
-	if (sbi->ll_xattr_cache_enabled && type != XATTR_ACL_ACCESS_T) {
+	if (sbi->ll_xattr_cache_enabled && type != XATTR_ACL_ACCESS_T &&
+	    (type != XATTR_SECURITY_T || strcmp(name, "security.selinux"))) {
 		rc = ll_xattr_cache_get(inode, name, buffer, size, valid);
 		if (rc == -EAGAIN)
 			goto getxattr_nocache;
@@ -313,7 +305,7 @@ static int ll_xattr_get_common(const struct xattr_handler *handler,
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_GETXATTR, 1);
 
-	rc = xattr_type_filter(sbi, handler->flags);
+	rc = xattr_type_filter(sbi, handler);
 	if (rc)
 		return rc;
 
