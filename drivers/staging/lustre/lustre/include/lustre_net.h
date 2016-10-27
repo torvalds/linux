@@ -2069,6 +2069,7 @@ void lustre_msg_set_handle(struct lustre_msg *msg,
 			   struct lustre_handle *handle);
 void lustre_msg_set_type(struct lustre_msg *msg, __u32 type);
 void lustre_msg_set_opc(struct lustre_msg *msg, __u32 opc);
+void lustre_msg_set_last_xid(struct lustre_msg *msg, u64 last_xid);
 void lustre_msg_set_tag(struct lustre_msg *msg, __u16 tag);
 void lustre_msg_set_versions(struct lustre_msg *msg, __u64 *versions);
 void lustre_msg_set_transno(struct lustre_msg *msg, __u64 transno);

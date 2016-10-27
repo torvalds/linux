@@ -1255,6 +1255,21 @@ void lustre_msg_set_opc(struct lustre_msg *msg, __u32 opc)
 	}
 }
 
+void lustre_msg_set_last_xid(struct lustre_msg *msg, u64 last_xid)
+{
+	switch (msg->lm_magic) {
+	case LUSTRE_MSG_MAGIC_V2: {
+		struct ptlrpc_body *pb = lustre_msg_ptlrpc_body(msg);
+
+		LASSERTF(pb, "invalid msg %p: no ptlrpc body!\n", msg);
+		pb->pb_last_xid = last_xid;
+		return;
+	}
+	default:
+		LASSERTF(0, "incorrect message magic: %08x\n", msg->lm_magic);
+	}
+}
+
 void lustre_msg_set_tag(struct lustre_msg *msg, __u16 tag)
 {
 	switch (msg->lm_magic) {

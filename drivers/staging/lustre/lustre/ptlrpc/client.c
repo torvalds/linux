@@ -700,7 +700,6 @@ int ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 
 	ptlrpc_at_set_req_timeout(request);
 
-	request->rq_xid = ptlrpc_next_xid();
 	lustre_msg_set_opc(request->rq_reqmsg, opcode);
 
 	/* Let's setup deadline for req/reply/bulk unlink for opcode. */
@@ -1436,6 +1435,8 @@ static int after_reply(struct ptlrpc_request *req)
 static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 {
 	struct obd_import *imp = req->rq_import;
+	struct list_head *tmp;
+	u64 min_xid = ~0ULL;
 	int rc;
 
 	LASSERT(req->rq_phase == RQ_PHASE_NEW);
@@ -1447,6 +1448,18 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 	ptlrpc_rqphase_move(req, RQ_PHASE_RPC);
 
 	spin_lock(&imp->imp_lock);
+
+	/*
+	 * the very first time we assign XID. it's important to assign XID
+	 * and put it on the list atomically, so that the lowest assigned
+	 * XID is always known. this is vital for multislot last_rcvd
+	 */
+	if (req->rq_send_state == LUSTRE_IMP_REPLAY) {
+		LASSERT(req->rq_xid);
+	} else {
+		LASSERT(!req->rq_xid);
+		req->rq_xid = ptlrpc_next_xid();
+	}
 
 	if (!req->rq_generation_set)
 		req->rq_import_generation = imp->imp_generation;
@@ -1477,7 +1490,26 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 	LASSERT(list_empty(&req->rq_list));
 	list_add_tail(&req->rq_list, &imp->imp_sending_list);
 	atomic_inc(&req->rq_import->imp_inflight);
+
+	/* find the lowest unreplied XID */
+	list_for_each(tmp, &imp->imp_delayed_list) {
+		struct ptlrpc_request *r;
+
+		r = list_entry(tmp, struct ptlrpc_request, rq_list);
+		if (r->rq_xid < min_xid)
+			min_xid = r->rq_xid;
+	}
+	list_for_each(tmp, &imp->imp_sending_list) {
+		struct ptlrpc_request *r;
+
+		r = list_entry(tmp, struct ptlrpc_request, rq_list);
+		if (r->rq_xid < min_xid)
+			min_xid = r->rq_xid;
+	}
 	spin_unlock(&imp->imp_lock);
+
+	if (likely(min_xid != ~0ULL))
+		lustre_msg_set_last_xid(req->rq_reqmsg, min_xid - 1);
 
 	lustre_msg_set_status(req->rq_reqmsg, current_pid());
 
