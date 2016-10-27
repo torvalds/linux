@@ -1755,6 +1755,8 @@ static int xeon_setup_b2b_mw(struct intel_ntb_dev *ndev,
 					    XEON_B2B_MIN_SIZE);
 		if (!ndev->peer_mmio)
 			return -EIO;
+
+		ndev->peer_addr = pci_resource_start(pdev, b2b_bar);
 	}
 
 	return 0;
@@ -2019,6 +2021,7 @@ static int intel_ntb_init_pci(struct intel_ntb_dev *ndev, struct pci_dev *pdev)
 		goto err_mmio;
 	}
 	ndev->peer_mmio = ndev->self_mmio;
+	ndev->peer_addr = pci_resource_start(pdev, 0);
 
 	return 0;
 
