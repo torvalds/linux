@@ -27,10 +27,10 @@ The purpose of this document is twofold:
  (2) to provide a guide as to how to use the barriers that are available.
 
 Note that an architecture can provide more than the minimum requirement
-for any particular barrier, but if the architecure provides less than
+for any particular barrier, but if the architecture provides less than
 that, that architecture is incorrect.
 
-Note also that it is possible that a barrier may be a no-op for an
+Note, also, that it is possible that a barrier may be a no-op for an
 architecture because the way that arch works renders an explicit barrier
 unnecessary in that case.
 
@@ -84,7 +84,7 @@ CONTENTS
 
  (*) Assumed minimum execution ordering model.
 
- (*) The effects of the cpu cache.
+ (*) The effects of the CPU cache.
 
      - Cache coherency.
      - Cache coherency vs DMA.
@@ -224,7 +224,7 @@ GUARANTEES
 
 There are some minimal guarantees that may be expected of a CPU:
 
- (*) On any given CPU, dependent memory accesses will be issued in order, with
+ (*) On any given CPU, dependent memory accesses will be issued in-order, with
      respect to itself.  This means that for:
 
 	Q = READ_ONCE(P); smp_read_barrier_depends(); D = READ_ONCE(*Q);
@@ -256,8 +256,8 @@ There are some minimal guarantees that may be expected of a CPU:
 
 	STORE *X = c, d = LOAD *X
 
-     (Loads and stores overlap if they are targeted at overlapping pieces of
-     memory).
+     (N.B.: Loads and stores overlap if they are targeted at overlapping pieces
+     of memory.)
 
 And there are a number of things that _must_ or _must_not_ be assumed:
 
@@ -312,7 +312,7 @@ And there are anti-guarantees:
  (*) Even in cases where bitfields are protected by locks, all fields
      in a given bitfield must be protected by one lock.  If two fields
      in a given bitfield are protected by different locks, the compiler's
-     non-atomic read-modify-write sequences can cause an update to one
+     non-atomic read-modify-write sequences may cause an update to one
      field to corrupt the value of an adjacent field.
 
  (*) These guarantees apply only to properly aligned and sized scalar
@@ -361,7 +361,7 @@ ordering over the memory operations on either side of the barrier.
 
 Such enforcement is important because the CPUs and other devices in a system
 can use a variety of tricks to improve performance, including reordering,
-deferral and combination of memory operations; speculative loads; speculative
+deferral, and combination of memory operations; speculative loads; speculative
 branch prediction and various types of caching.  Memory barriers are used to
 override or suppress these tricks, allowing the code to sanely control the
 interaction of multiple CPUs and/or devices.
@@ -379,7 +379,7 @@ Memory barriers come in four basic varieties:
      operations specified after the barrier with respect to the other
      components of the system.
 
-     A write barrier is a partial ordering on stores only; it is not required
+     A write barrier is a partial-ordering on stores only; it is not required
      to have any effect on loads.
 
      A CPU can be viewed as committing a sequence of store operations to the
@@ -1706,7 +1706,7 @@ of optimizations:
      and WRITE_ONCE() are more selective:  With READ_ONCE() and
      WRITE_ONCE(), the compiler need only forget the contents of the
      indicated memory locations, while with barrier() the compiler must
-     discard the value of all memory locations that it has currented
+     discard the value of all memory locations that it has currently
      cached in any machine registers.  Of course, the compiler must also
      respect the order in which the READ_ONCE()s and WRITE_ONCE()s occur,
      though the CPU of course need not do so.
@@ -1948,7 +1948,7 @@ See the subsection "Acquires vs I/O accesses" for more information.
 IMPLICIT KERNEL MEMORY BARRIERS
 ===============================
 
-Some of the other functions in the linux kernel imply memory barriers, amongst
+Some of the other functions in the Linux kernel imply memory barriers, amongst
 which are locking and scheduling functions.
 
 This specification is a _minimum_ guarantee; any particular architecture may
@@ -2367,7 +2367,7 @@ is performed:
 					spin_unlock(Q);
 
 
-See Documentation/DocBook/deviceiobook.tmpl for more information.
+Confer Documentation/DocBook/deviceiobook.tmpl for more information.
 
 
 =================================
@@ -2578,7 +2578,7 @@ situations because on some CPUs the atomic instructions used imply full memory
 barriers, and so barrier instructions are superfluous in conjunction with them,
 and in such cases the special barrier primitives will be no-ops.
 
-See Documentation/atomic_ops.txt for more information.
+Confer Documentation/atomic_ops.txt for more information.
 
 
 ACCESSING DEVICES
@@ -2737,8 +2737,8 @@ ASSUMED MINIMUM EXECUTION ORDERING MODEL
 
 It has to be assumed that the conceptual CPU is weakly-ordered but that it will
 maintain the appearance of program causality with respect to itself.  Some CPUs
-(such as i386 or x86_64) are more constrained than others (such as powerpc or
-frv), and so the most relaxed case (namely DEC Alpha) must be assumed outside
+(such as i386 or x86_64) are more constrained than others (such as PowerPC or
+FR-V), and so the most relaxed case (namely DEC Alpha) must be assumed outside
 of arch-specific code.
 
 This means that it must be considered that the CPU will execute its instruction
@@ -3050,7 +3050,7 @@ is:
 
 However, it is guaranteed that a CPU will be self-consistent: it will see its
 _own_ accesses appear to be correctly ordered, without the need for a memory
-barrier.  For instance with the following code:
+barrier.  For instance, with the following code:
 
 	U = READ_ONCE(*A);
 	WRITE_ONCE(*A, V);
