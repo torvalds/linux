@@ -1428,7 +1428,7 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_ControlVDDCI);
 
-	if ((hwmgr->pp_table_version != PP_TABLE_V0)
+	if ((hwmgr->pp_table_version != PP_TABLE_V0) && (hwmgr->feature_mask & PP_CLOCK_STRETCH_MASK)
 		&& (table_info->cac_dtp_table->usClockStretchAmount != 0))
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_ClockStretcher);
