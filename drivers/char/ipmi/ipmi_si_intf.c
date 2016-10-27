@@ -789,7 +789,7 @@ static void handle_transaction_done(struct smi_info *smi_info)
 				smi_info->si_state = SI_NORMAL;
 				break;
 			}
-			start_getting_msg_queue(smi_info);
+			start_getting_events(smi_info);
 		} else {
 			smi_info->si_state = SI_NORMAL;
 		}
@@ -812,7 +812,7 @@ static void handle_transaction_done(struct smi_info *smi_info)
 				smi_info->si_state = SI_NORMAL;
 				break;
 			}
-			start_getting_msg_queue(smi_info);
+			start_getting_events(smi_info);
 		} else {
 			smi_info->si_state = SI_NORMAL;
 		}
