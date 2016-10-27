@@ -223,26 +223,6 @@ static void fsl_espi_fill_tx_fifo(struct mpc8xxx_spi *mspi, u32 events)
 		}
 }
 
-static void fsl_espi_change_mode(struct spi_device *spi)
-{
-	struct mpc8xxx_spi *mspi = spi_master_get_devdata(spi->master);
-	struct spi_mpc8xxx_cs *cs = spi->controller_state;
-	u32 tmp;
-	unsigned long flags;
-
-	/* Turn off IRQs locally to minimize time that SPI is disabled. */
-	local_irq_save(flags);
-
-	/* Turn off SPI unit prior changing mode */
-	tmp = fsl_espi_read_reg(mspi, ESPI_SPMODE);
-	fsl_espi_write_reg(mspi, ESPI_SPMODE, tmp & ~SPMODE_ENABLE);
-	fsl_espi_write_reg(mspi, ESPI_SPMODEx(spi->chip_select),
-			      cs->hw_mode);
-	fsl_espi_write_reg(mspi, ESPI_SPMODE, tmp);
-
-	local_irq_restore(flags);
-}
-
 static void fsl_espi_setup_transfer(struct spi_device *spi,
 					struct spi_transfer *t)
 {
@@ -276,7 +256,8 @@ static void fsl_espi_setup_transfer(struct spi_device *spi,
 
 	cs->hw_mode |= CSMODE_PM(pm);
 
-	fsl_espi_change_mode(spi);
+	fsl_espi_write_reg(mpc8xxx_spi, ESPI_SPMODEx(spi->chip_select),
+			   cs->hw_mode);
 }
 
 static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
