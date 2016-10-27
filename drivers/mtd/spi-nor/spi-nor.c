@@ -1625,16 +1625,16 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 			/* Dedicated 4-byte command set */
 			switch (nor->flash_read) {
 			case SPI_NOR_QUAD:
-				nor->read_opcode = SPINOR_OP_READ4_1_1_4;
+				nor->read_opcode = SPINOR_OP_READ_1_1_4_4B;
 				break;
 			case SPI_NOR_DUAL:
-				nor->read_opcode = SPINOR_OP_READ4_1_1_2;
+				nor->read_opcode = SPINOR_OP_READ_1_1_2_4B;
 				break;
 			case SPI_NOR_FAST:
-				nor->read_opcode = SPINOR_OP_READ4_FAST;
+				nor->read_opcode = SPINOR_OP_READ_FAST_4B;
 				break;
 			case SPI_NOR_NORMAL:
-				nor->read_opcode = SPINOR_OP_READ4;
+				nor->read_opcode = SPINOR_OP_READ_4B;
 				break;
 			}
 			nor->program_opcode = SPINOR_OP_PP_4B;
