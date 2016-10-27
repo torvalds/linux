@@ -244,6 +244,84 @@ void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
 	spin_unlock(&glob->lru_lock);
 }
 
+ /**
+ * amdgpu_vm_alloc_levels - allocate the PD/PT levels
+ *
+ * @adev: amdgpu_device pointer
+ * @vm: requested vm
+ * @saddr: start of the address range
+ * @eaddr: end of the address range
+ *
+ * Make sure the page directories and page tables are allocated
+ */
+static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
+				  struct amdgpu_vm *vm,
+				  struct amdgpu_vm_pt *parent,
+				  uint64_t saddr, uint64_t eaddr,
+				  unsigned level)
+{
+	unsigned shift = (adev->vm_manager.num_level - level) *
+		amdgpu_vm_block_size;
+	unsigned pt_idx, from, to;
+	int r;
+
+	if (!parent->entries) {
+		unsigned num_entries = amdgpu_vm_num_entries(adev, level);
+
+		parent->entries = drm_calloc_large(num_entries,
+						   sizeof(struct amdgpu_vm_pt));
+		if (!parent->entries)
+			return -ENOMEM;
+		memset(parent->entries, 0 , sizeof(struct amdgpu_vm_pt));
+	}
+
+	from = (saddr >> shift) % amdgpu_vm_num_entries(adev, level);
+	to = (eaddr >> shift) % amdgpu_vm_num_entries(adev, level);
+
+	if (to > parent->last_entry_used)
+		parent->last_entry_used = to;
+
+	++level;
+
+	/* walk over the address space and allocate the page tables */
+	for (pt_idx = from; pt_idx <= to; ++pt_idx) {
+		struct reservation_object *resv = vm->root.bo->tbo.resv;
+		struct amdgpu_vm_pt *entry = &parent->entries[pt_idx];
+		struct amdgpu_bo *pt;
+
+		if (!entry->bo) {
+			r = amdgpu_bo_create(adev,
+					     amdgpu_vm_bo_size(adev, level),
+					     AMDGPU_GPU_PAGE_SIZE, true,
+					     AMDGPU_GEM_DOMAIN_VRAM,
+					     AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
+					     AMDGPU_GEM_CREATE_SHADOW |
+					     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
+					     AMDGPU_GEM_CREATE_VRAM_CLEARED,
+					     NULL, resv, &pt);
+			if (r)
+				return r;
+
+			/* Keep a reference to the root directory to avoid
+			* freeing them up in the wrong order.
+			*/
+			pt->parent = amdgpu_bo_ref(vm->root.bo);
+
+			entry->bo = pt;
+			entry->addr = 0;
+		}
+
+		if (level < adev->vm_manager.num_level) {
+			r = amdgpu_vm_alloc_levels(adev, vm, entry, saddr,
+						   eaddr, level);
+			if (r)
+				return r;
+		}
+	}
+
+	return 0;
+}
+
 /**
  * amdgpu_vm_alloc_pts - Allocate page tables.
  *
@@ -258,9 +336,8 @@ int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 			struct amdgpu_vm *vm,
 			uint64_t saddr, uint64_t size)
 {
-	unsigned last_pfn, pt_idx;
+	unsigned last_pfn;
 	uint64_t eaddr;
-	int r;
 
 	/* validate the parameters */
 	if (saddr & AMDGPU_GPU_PAGE_MASK || size & AMDGPU_GPU_PAGE_MASK)
@@ -277,43 +354,7 @@ int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 	saddr /= AMDGPU_GPU_PAGE_SIZE;
 	eaddr /= AMDGPU_GPU_PAGE_SIZE;
 
-	saddr >>= amdgpu_vm_block_size;
-	eaddr >>= amdgpu_vm_block_size;
-
-	BUG_ON(eaddr >= amdgpu_vm_num_entries(adev, 0));
-
-	if (eaddr > vm->root.last_entry_used)
-		vm->root.last_entry_used = eaddr;
-
-	/* walk over the address space and allocate the page tables */
-	for (pt_idx = saddr; pt_idx <= eaddr; ++pt_idx) {
-		struct reservation_object *resv = vm->root.bo->tbo.resv;
-		struct amdgpu_bo *pt;
-
-		if (vm->root.entries[pt_idx].bo)
-			continue;
-
-		r = amdgpu_bo_create(adev, AMDGPU_VM_PTE_COUNT * 8,
-				     AMDGPU_GPU_PAGE_SIZE, true,
-				     AMDGPU_GEM_DOMAIN_VRAM,
-				     AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
-				     AMDGPU_GEM_CREATE_SHADOW |
-				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
-				     AMDGPU_GEM_CREATE_VRAM_CLEARED,
-				     NULL, resv, &pt);
-		if (r)
-			return r;
-
-		/* Keep a reference to the page table to avoid freeing
-		 * them up in the wrong order.
-		 */
-		pt->parent = amdgpu_bo_ref(vm->root.bo);
-
-		vm->root.entries[pt_idx].bo = pt;
-		vm->root.entries[pt_idx].addr = 0;
-	}
-
-	return 0;
+	return amdgpu_vm_alloc_levels(adev, vm, &vm->root, saddr, eaddr, 0);
 }
 
 static bool amdgpu_vm_is_gpu_reset(struct amdgpu_device *adev,
@@ -1993,7 +2034,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
 	const unsigned align = min(AMDGPU_VM_PTB_ALIGN_SIZE,
 		AMDGPU_VM_PTE_COUNT * 8);
-	unsigned pd_size, pd_entries;
 	unsigned ring_instance;
 	struct amdgpu_ring *ring;
 	struct amd_sched_rq *rq;
@@ -2008,16 +2048,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	INIT_LIST_HEAD(&vm->cleared);
 	INIT_LIST_HEAD(&vm->freed);
 
-	pd_size = amdgpu_vm_bo_size(adev, 0);
-	pd_entries = amdgpu_vm_num_entries(adev, 0);
-
-	/* allocate page table array */
-	vm->root.entries = drm_calloc_large(pd_entries, sizeof(struct amdgpu_vm_pt));
-	if (vm->root.entries == NULL) {
-		DRM_ERROR("Cannot allocate memory for page table array\n");
-		return -ENOMEM;
-	}
-
 	/* create scheduler entity for page table updates */
 
 	ring_instance = atomic_inc_return(&adev->vm_manager.vm_pte_next_ring);
@@ -2027,11 +2057,11 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	r = amd_sched_entity_init(&ring->sched, &vm->entity,
 				  rq, amdgpu_sched_jobs);
 	if (r)
-		goto err;
+		return r;
 
 	vm->last_dir_update = NULL;
 
-	r = amdgpu_bo_create(adev, pd_size, align, true,
+	r = amdgpu_bo_create(adev, amdgpu_vm_bo_size(adev, 0), align, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
 			     AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
 			     AMDGPU_GEM_CREATE_SHADOW |
@@ -2058,10 +2088,30 @@ error_free_root:
 error_free_sched_entity:
 	amd_sched_entity_fini(&ring->sched, &vm->entity);
 
-err:
-	drm_free_large(vm->root.entries);
-
 	return r;
+}
+
+/**
+ * amdgpu_vm_free_levels - free PD/PT levels
+ *
+ * @level: PD/PT starting level to free
+ *
+ * Free the page directory or page table level and all sub levels.
+ */
+static void amdgpu_vm_free_levels(struct amdgpu_vm_pt *level)
+{
+	unsigned i;
+
+	if (level->bo) {
+		amdgpu_bo_unref(&level->bo->shadow);
+		amdgpu_bo_unref(&level->bo);
+	}
+
+	if (level->entries)
+		for (i = 0; i <= level->last_entry_used; i++)
+			amdgpu_vm_free_levels(&level->entries[i]);
+
+	drm_free_large(level->entries);
 }
 
 /**
@@ -2077,7 +2127,6 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
 	struct amdgpu_bo_va_mapping *mapping, *tmp;
 	bool prt_fini_needed = !!adev->gart.gart_funcs->set_prt;
-	int i;
 
 	amd_sched_entity_fini(vm->entity.sched, &vm->entity);
 
@@ -2099,19 +2148,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		amdgpu_vm_free_mapping(adev, vm, mapping, NULL);
 	}
 
-	for (i = 0; i < amdgpu_vm_num_entries(adev, 0); i++) {
-		struct amdgpu_bo *pt = vm->root.entries[i].bo;
-
-		if (!pt)
-			continue;
-
-		amdgpu_bo_unref(&pt->shadow);
-		amdgpu_bo_unref(&pt);
-	}
-	drm_free_large(vm->root.entries);
-
-	amdgpu_bo_unref(&vm->root.bo->shadow);
-	amdgpu_bo_unref(&vm->root.bo);
+	amdgpu_vm_free_levels(&vm->root);
 	dma_fence_put(vm->last_dir_update);
 }
 
