@@ -80,8 +80,7 @@ static void llog_free_handle(struct llog_handle *loghandle)
 		LASSERT(list_empty(&loghandle->u.phd.phd_entry));
 	else if (loghandle->lgh_hdr->llh_flags & LLOG_F_IS_CAT)
 		LASSERT(list_empty(&loghandle->u.chd.chd_head));
-	LASSERT(sizeof(*loghandle->lgh_hdr) == LLOG_CHUNK_SIZE);
-	kfree(loghandle->lgh_hdr);
+	kvfree(loghandle->lgh_hdr);
 out:
 	kfree(loghandle);
 }
@@ -116,19 +115,21 @@ static int llog_read_header(const struct lu_env *env,
 	if (rc == LLOG_EEMPTY) {
 		struct llog_log_hdr *llh = handle->lgh_hdr;
 
+		/* lrh_len should be initialized in llog_init_handle */
 		handle->lgh_last_idx = 0; /* header is record with index 0 */
 		llh->llh_count = 1;	 /* for the header record */
 		llh->llh_hdr.lrh_type = LLOG_HDR_MAGIC;
-		llh->llh_hdr.lrh_len = LLOG_CHUNK_SIZE;
-		llh->llh_tail.lrt_len = LLOG_CHUNK_SIZE;
+		LASSERT(handle->lgh_ctxt->loc_chunk_size >= LLOG_MIN_CHUNK_SIZE);
+		llh->llh_hdr.lrh_len = handle->lgh_ctxt->loc_chunk_size;
 		llh->llh_hdr.lrh_index = 0;
-		llh->llh_tail.lrt_index = 0;
 		llh->llh_timestamp = ktime_get_real_seconds();
 		if (uuid)
 			memcpy(&llh->llh_tgtuuid, uuid,
 			       sizeof(llh->llh_tgtuuid));
 		llh->llh_bitmap_offset = offsetof(typeof(*llh), llh_bitmap);
-		ext2_set_bit(0, llh->llh_bitmap);
+		ext2_set_bit(0, LLOG_HDR_BITMAP(llh));
+		LLOG_HDR_TAIL(llh)->lrt_len = llh->llh_hdr.lrh_len;
+		LLOG_HDR_TAIL(llh)->lrt_index = llh->llh_hdr.lrh_index;
 		rc = 0;
 	}
 	return rc;
@@ -137,16 +138,19 @@ static int llog_read_header(const struct lu_env *env,
 int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 		     int flags, struct obd_uuid *uuid)
 {
+	int chunk_size = handle->lgh_ctxt->loc_chunk_size;
 	enum llog_flag fmt = flags & LLOG_F_EXT_MASK;
 	struct llog_log_hdr	*llh;
 	int			 rc;
 
 	LASSERT(!handle->lgh_hdr);
 
-	llh = kzalloc(sizeof(*llh), GFP_NOFS);
+	LASSERT(chunk_size >= LLOG_MIN_CHUNK_SIZE);
+	llh = libcfs_kvzalloc(sizeof(*llh), GFP_NOFS);
 	if (!llh)
 		return -ENOMEM;
 	handle->lgh_hdr = llh;
+	handle->lgh_hdr_size = chunk_size;
 	/* first assign flags to use llog_client_ops */
 	llh->llh_flags = flags;
 	rc = llog_read_header(env, handle, uuid);
@@ -198,7 +202,7 @@ int llog_init_handle(const struct lu_env *env, struct llog_handle *handle,
 	llh->llh_flags |= fmt;
 out:
 	if (rc) {
-		kfree(llh);
+		kvfree(llh);
 		handle->lgh_hdr = NULL;
 	}
 	return rc;
@@ -212,15 +216,20 @@ static int llog_process_thread(void *arg)
 	struct llog_log_hdr		*llh = loghandle->lgh_hdr;
 	struct llog_process_cat_data	*cd  = lpi->lpi_catdata;
 	char				*buf;
-	__u64				 cur_offset = LLOG_CHUNK_SIZE;
+	__u64				 cur_offset;
 	__u64				 last_offset;
+	int chunk_size;
 	int				 rc = 0, index = 1, last_index;
 	int				 saved_index = 0;
 	int				 last_called_index = 0;
 
-	LASSERT(llh);
+	if (!llh)
+		return -EINVAL;
 
-	buf = kzalloc(LLOG_CHUNK_SIZE, GFP_NOFS);
+	cur_offset = llh->llh_hdr.lrh_len;
+	chunk_size = llh->llh_hdr.lrh_len;
+
+	buf = libcfs_kvzalloc(chunk_size, GFP_NOFS);
 	if (!buf) {
 		lpi->lpi_rc = -ENOMEM;
 		return 0;
@@ -233,7 +242,7 @@ static int llog_process_thread(void *arg)
 	if (cd && cd->lpcd_last_idx)
 		last_index = cd->lpcd_last_idx;
 	else
-		last_index = LLOG_BITMAP_BYTES * 8 - 1;
+		last_index = LLOG_HDR_BITMAP_SIZE(llh) - 1;
 
 	/* Record is not in this buffer. */
 	if (index > last_index)
@@ -244,7 +253,7 @@ static int llog_process_thread(void *arg)
 
 		/* skip records not set in bitmap */
 		while (index <= last_index &&
-		       !ext2_test_bit(index, llh->llh_bitmap))
+		       !ext2_test_bit(index, LLOG_HDR_BITMAP(llh)))
 			++index;
 
 		LASSERT(index <= last_index + 1);
@@ -255,10 +264,10 @@ repeat:
 		       index, last_index);
 
 		/* get the buf with our target record; avoid old garbage */
-		memset(buf, 0, LLOG_CHUNK_SIZE);
+		memset(buf, 0, chunk_size);
 		last_offset = cur_offset;
 		rc = llog_next_block(lpi->lpi_env, loghandle, &saved_index,
-				     index, &cur_offset, buf, LLOG_CHUNK_SIZE);
+				     index, &cur_offset, buf, chunk_size);
 		if (rc)
 			goto out;
 
@@ -267,7 +276,7 @@ repeat:
 		 * swabbing is done at the beginning of the loop.
 		 */
 		for (rec = (struct llog_rec_hdr *)buf;
-		     (char *)rec < buf + LLOG_CHUNK_SIZE;
+		     (char *)rec < buf + chunk_size;
 		     rec = llog_rec_hdr_next(rec)) {
 			CDEBUG(D_OTHER, "processing rec 0x%p type %#x\n",
 			       rec, rec->lrh_type);
@@ -285,8 +294,7 @@ repeat:
 					goto repeat;
 				goto out; /* no more records */
 			}
-			if (rec->lrh_len == 0 ||
-			    rec->lrh_len > LLOG_CHUNK_SIZE) {
+			if (!rec->lrh_len || rec->lrh_len > chunk_size) {
 				CWARN("invalid length %d in llog record for index %d/%d\n",
 				      rec->lrh_len,
 				      rec->lrh_index, index);
@@ -303,14 +311,14 @@ repeat:
 			CDEBUG(D_OTHER,
 			       "lrh_index: %d lrh_len: %d (%d remains)\n",
 			       rec->lrh_index, rec->lrh_len,
-			       (int)(buf + LLOG_CHUNK_SIZE - (char *)rec));
+			       (int)(buf + chunk_size - (char *)rec));
 
 			loghandle->lgh_cur_idx = rec->lrh_index;
 			loghandle->lgh_cur_offset = (char *)rec - (char *)buf +
 						    last_offset;
 
 			/* if set, process the callback on this record */
-			if (ext2_test_bit(index, llh->llh_bitmap)) {
+			if (ext2_test_bit(index, LLOG_HDR_BITMAP(llh))) {
 				rc = lpi->lpi_cb(lpi->lpi_env, loghandle, rec,
 						 lpi->lpi_cbdata);
 				last_called_index = index;

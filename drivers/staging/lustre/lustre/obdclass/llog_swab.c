@@ -244,7 +244,7 @@ void lustre_swab_llog_rec(struct llog_rec_hdr *rec)
 		__swab32s(&llh->llh_flags);
 		__swab32s(&llh->llh_size);
 		__swab32s(&llh->llh_cat_idx);
-		tail = &llh->llh_tail;
+		tail = LLOG_HDR_TAIL(llh);
 		break;
 	}
 	case LLOG_LOGID_MAGIC:
@@ -290,8 +290,10 @@ static void print_llog_hdr(struct llog_log_hdr *h)
 	CDEBUG(D_OTHER, "\tllh_flags: %#x\n", h->llh_flags);
 	CDEBUG(D_OTHER, "\tllh_size: %#x\n", h->llh_size);
 	CDEBUG(D_OTHER, "\tllh_cat_idx: %#x\n", h->llh_cat_idx);
-	CDEBUG(D_OTHER, "\tllh_tail.lrt_index: %#x\n", h->llh_tail.lrt_index);
-	CDEBUG(D_OTHER, "\tllh_tail.lrt_len: %#x\n", h->llh_tail.lrt_len);
+	CDEBUG(D_OTHER, "\tllh_tail.lrt_index: %#x\n",
+	       LLOG_HDR_TAIL(h)->lrt_index);
+	CDEBUG(D_OTHER, "\tllh_tail.lrt_len: %#x\n",
+	       LLOG_HDR_TAIL(h)->lrt_len);
 }
 
 void lustre_swab_llog_hdr(struct llog_log_hdr *h)
