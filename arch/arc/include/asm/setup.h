@@ -27,11 +27,6 @@ struct id_to_str {
 	const char *str;
 };
 
-struct cpuinfo_data {
-	struct id_to_str info;
-	int up_range;
-};
-
 extern int root_mountflags, end_mem;
 
 void setup_processor(void);

@@ -40,18 +40,27 @@ struct task_struct *_current_task[NR_CPUS];	/* For stack switching */
 
 struct cpuinfo_arc cpuinfo_arc700[NR_CPUS];
 
-static const struct cpuinfo_data arc_cpu_tbl[] = {
+static const struct id_to_str arc_cpu_rel[] = {
 #ifdef CONFIG_ISA_ARCOMPACT
-	{ {0x20, "ARC 600"      }, 0x2F},
-	{ {0x30, "ARC 700"      }, 0x33},
-	{ {0x34, "ARC 700 R4.10"}, 0x34},
-	{ {0x35, "ARC 700 R4.11"}, 0x35},
+	{ 0x34, "R4.10"},
+	{ 0x35, "R4.11"},
 #else
-	{ {0x50, "ARC HS38 R2.0"}, 0x51},
-	{ {0x52, "ARC HS38 R2.1"}, 0x52},
-	{ {0x53, "ARC HS38 R3.0"}, 0x53},
+	{ 0x51, "R2.0" },
+	{ 0x52, "R2.1" },
+	{ 0x53, "R3.0" },
 #endif
-	{ {0x00, NULL		} }
+	{ 0x00, NULL   }
+};
+
+static const struct id_to_str arc_cpu_nm[] = {
+#ifdef CONFIG_ISA_ARCOMPACT
+	{ 0x20, "ARC 600"   },
+	{ 0x30, "ARC 770"   },  /* 750 identified seperately */
+#else
+	{ 0x40, "ARC EM"  },
+	{ 0x50, "ARC HS38"  },
+#endif
+	{ 0x00, "Unknown"   }
 };
 
 static void read_decode_ccm_bcr(struct cpuinfo_arc *cpu)
@@ -106,23 +115,25 @@ static void read_arc_build_cfg_regs(void)
 	struct bcr_timer timer;
 	struct bcr_generic bcr;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
-	const struct cpuinfo_data *tbl;
+	const struct id_to_str *tbl;
 
 	FIX_PTR(cpu);
 
 	READ_BCR(AUX_IDENTITY, cpu->core);
 	READ_BCR(ARC_REG_ISA_CFG_BCR, cpu->isa);
 
-	for (tbl = &arc_cpu_tbl[0]; tbl->info.id != 0; tbl++) {
-		if ((cpu->core.family >= tbl->info.id) &&
-		    (cpu->core.family <= tbl->up_range)) {
-			cpu->details = tbl->info.str;
+	for (tbl = &arc_cpu_rel[0]; tbl->id != 0; tbl++) {
+		if (cpu->core.family == tbl->id) {
+			cpu->details = tbl->str;
 			break;
 		}
 	}
 
-	if (tbl->info.id == 0)
-		cpu->details = "UNKNOWN";
+	for (tbl = &arc_cpu_nm[0]; tbl->id != 0; tbl++) {
+		if ((cpu->core.family & 0xF0) == tbl->id)
+			break;
+	}
+	cpu->name = tbl->str;
 
 	READ_BCR(ARC_REG_TIMERS_BCR, timer);
 	cpu->extn.timer0 = timer.t0;
@@ -199,6 +210,10 @@ static void read_arc_build_cfg_regs(void)
 			cpu->isa.atomic = cpu->isa.atomic1;
 
 		cpu->isa.be = IS_ENABLED(CONFIG_CPU_BIG_ENDIAN);
+
+		 /* there's no direct way to distinguish 750 vs. 770 */
+		if (unlikely(cpu->core.family < 0x34 || cpu->mmu.ver < 3))
+			cpu->name = "ARC750";
 	}
 }
 
@@ -214,8 +229,8 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 		       "\nIDENTITY\t: ARCVER [%#02x] ARCNUM [%#02x] CHIPID [%#4x]\n",
 		       core->family, core->cpu_id, core->chip_id);
 
-	n += scnprintf(buf + n, len - n, "processor [%d]\t: %s (%s ISA) %s\n",
-		       cpu_id, cpu->details,
+	n += scnprintf(buf + n, len - n, "processor [%d]\t: %s %s (%s ISA) %s\n",
+		       cpu_id, cpu->name, cpu->details,
 		       is_isa_arcompact() ? "ARCompact" : "ARCv2",
 		       IS_AVAIL1(cpu->isa.be, "[Big-Endian]"));
 
