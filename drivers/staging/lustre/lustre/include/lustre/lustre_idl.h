@@ -192,113 +192,6 @@ struct lu_seq_range_array {
 
 #define LU_SEQ_RANGE_MASK	0x3
 
-static inline unsigned fld_range_type(const struct lu_seq_range *range)
-{
-	return range->lsr_flags & LU_SEQ_RANGE_MASK;
-}
-
-static inline bool fld_range_is_ost(const struct lu_seq_range *range)
-{
-	return fld_range_type(range) == LU_SEQ_RANGE_OST;
-}
-
-static inline bool fld_range_is_mdt(const struct lu_seq_range *range)
-{
-	return fld_range_type(range) == LU_SEQ_RANGE_MDT;
-}
-
-/**
- * This all range is only being used when fld client sends fld query request,
- * but it does not know whether the seq is MDT or OST, so it will send req
- * with ALL type, which means either seq type gotten from lookup can be
- * expected.
- */
-static inline unsigned fld_range_is_any(const struct lu_seq_range *range)
-{
-	return fld_range_type(range) == LU_SEQ_RANGE_ANY;
-}
-
-static inline void fld_range_set_type(struct lu_seq_range *range,
-				      unsigned flags)
-{
-	range->lsr_flags |= flags;
-}
-
-static inline void fld_range_set_mdt(struct lu_seq_range *range)
-{
-	fld_range_set_type(range, LU_SEQ_RANGE_MDT);
-}
-
-static inline void fld_range_set_ost(struct lu_seq_range *range)
-{
-	fld_range_set_type(range, LU_SEQ_RANGE_OST);
-}
-
-static inline void fld_range_set_any(struct lu_seq_range *range)
-{
-	fld_range_set_type(range, LU_SEQ_RANGE_ANY);
-}
-
-/**
- * returns  width of given range \a r
- */
-
-static inline __u64 range_space(const struct lu_seq_range *range)
-{
-	return range->lsr_end - range->lsr_start;
-}
-
-/**
- * initialize range to zero
- */
-
-static inline void range_init(struct lu_seq_range *range)
-{
-	memset(range, 0, sizeof(*range));
-}
-
-/**
- * check if given seq id \a s is within given range \a r
- */
-
-static inline bool range_within(const struct lu_seq_range *range,
-				__u64 s)
-{
-	return s >= range->lsr_start && s < range->lsr_end;
-}
-
-static inline bool range_is_sane(const struct lu_seq_range *range)
-{
-	return (range->lsr_end >= range->lsr_start);
-}
-
-static inline bool range_is_zero(const struct lu_seq_range *range)
-{
-	return (range->lsr_start == 0 && range->lsr_end == 0);
-}
-
-static inline bool range_is_exhausted(const struct lu_seq_range *range)
-
-{
-	return range_space(range) == 0;
-}
-
-/* return 0 if two range have the same location */
-static inline int range_compare_loc(const struct lu_seq_range *r1,
-				    const struct lu_seq_range *r2)
-{
-	return r1->lsr_index != r2->lsr_index ||
-	       r1->lsr_flags != r2->lsr_flags;
-}
-
-#define DRANGE "[%#16.16Lx-%#16.16Lx):%x:%s"
-
-#define PRANGE(range)		\
-	(range)->lsr_start,	\
-	(range)->lsr_end,	\
-	(range)->lsr_index,	\
-	fld_range_is_mdt(range) ? "mdt" : "ost"
-
 /** \defgroup lu_fid lu_fid
  * @{
  */
@@ -848,7 +741,6 @@ static inline bool fid_is_sane(const struct lu_fid *fid)
 }
 
 void lustre_swab_lu_fid(struct lu_fid *fid);
-void lustre_swab_lu_seq_range(struct lu_seq_range *range);
 
 static inline bool lu_fid_eq(const struct lu_fid *f0, const struct lu_fid *f1)
 {

@@ -74,7 +74,7 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 
 	/* Zero out input range, this is not recovery yet. */
 	in = req_capsule_client_get(&req->rq_pill, &RMF_SEQ_RANGE);
-	range_init(in);
+	lu_seq_range_init(in);
 
 	ptlrpc_request_set_replen(req);
 
@@ -123,14 +123,14 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 	out = req_capsule_server_get(&req->rq_pill, &RMF_SEQ_RANGE);
 	*output = *out;
 
-	if (!range_is_sane(output)) {
+	if (!lu_seq_range_is_sane(output)) {
 		CERROR("%s: Invalid range received from server: "
 		       DRANGE "\n", seq->lcs_name, PRANGE(output));
 		rc = -EINVAL;
 		goto out_req;
 	}
 
-	if (range_is_exhausted(output)) {
+	if (lu_seq_range_is_exhausted(output)) {
 		CERROR("%s: Range received from server is exhausted: "
 		       DRANGE "]\n", seq->lcs_name, PRANGE(output));
 		rc = -EINVAL;
@@ -170,9 +170,9 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 {
 	int rc;
 
-	LASSERT(range_is_sane(&seq->lcs_space));
+	LASSERT(lu_seq_range_is_sane(&seq->lcs_space));
 
-	if (range_is_exhausted(&seq->lcs_space)) {
+	if (lu_seq_range_is_exhausted(&seq->lcs_space)) {
 		rc = seq_client_alloc_meta(env, seq);
 		if (rc) {
 			CERROR("%s: Can't allocate new meta-sequence, rc %d\n",
@@ -185,7 +185,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 		rc = 0;
 	}
 
-	LASSERT(!range_is_exhausted(&seq->lcs_space));
+	LASSERT(!lu_seq_range_is_exhausted(&seq->lcs_space));
 	*seqnr = seq->lcs_space.lsr_start;
 	seq->lcs_space.lsr_start += 1;
 
@@ -320,7 +320,7 @@ void seq_client_flush(struct lu_client_seq *seq)
 
 	seq->lcs_space.lsr_index = -1;
 
-	range_init(&seq->lcs_space);
+	lu_seq_range_init(&seq->lcs_space);
 	mutex_unlock(&seq->lcs_mutex);
 }
 EXPORT_SYMBOL(seq_client_flush);
