@@ -113,6 +113,7 @@ int __cfs_fail_check_set(__u32 id, __u32 value, int set)
 		break;
 	case CFS_FAIL_LOC_RESET:
 		cfs_fail_loc = value;
+		atomic_set(&cfs_fail_count, 0);
 		break;
 	default:
 		LASSERTF(0, "called with bad set %u\n", set);
