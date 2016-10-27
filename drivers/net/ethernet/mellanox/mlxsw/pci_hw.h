@@ -1,7 +1,7 @@
 /*
- * drivers/net/ethernet/mellanox/mlxsw/pci.h
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2015 Jiri Pirko <jiri@mellanox.com>
+ * drivers/net/ethernet/mellanox/mlxsw/pci_hw.h
+ * Copyright (c) 2015-2016 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2016 Jiri Pirko <jiri@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,8 +32,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _MLXSW_PCI_H
-#define _MLXSW_PCI_H
+#ifndef _MLXSW_PCI_HW_H
+#define _MLXSW_PCI_HW_H
 
 #include <linux/bitops.h>
 

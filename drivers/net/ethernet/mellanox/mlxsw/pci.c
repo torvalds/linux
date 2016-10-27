@@ -48,7 +48,7 @@
 #include <linux/seq_file.h>
 #include <linux/string.h>
 
-#include "pci.h"
+#include "pci_hw.h"
 #include "core.h"
 #include "cmd.h"
 #include "port.h"
