@@ -309,8 +309,20 @@
 	};
 
 	usb1_pins: usb1 {
-		groups = "usb1";
-		function = "usb1";
+		mux {
+			groups = "usb1";
+			function = "usb1";
+		};
+
+		ovc {
+			pins = "GP_6_27";
+			bias-pull-up;
+		};
+
+		pwen {
+			pins = "GP_6_26";
+			bias-pull-down;
+		};
 	};
 
 	usb2_pins: usb2 {
