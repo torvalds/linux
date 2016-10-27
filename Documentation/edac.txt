@@ -1,18 +1,218 @@
 .. include:: <isonum.txt>
 
-=====================================
+============================================
+Reliability, Availability and Serviceability
+============================================
+
+RAS concepts
+************
+
+Reliability, Availability and Serviceability (RAS) is a concept used on
+servers meant to measure their robusteness.
+
+Reliability
+  is the probability that a system will produce correct outputs.
+
+  * Generally measured as Mean Time Between Failures (MTBF)
+  * Enhanced by features that help to avoid, detect and repair hardware faults
+
+Availability
+  is the probability that a system is operational at a given time
+
+  * Generally measured as a percentage of downtime per a period of time
+  * Often uses mechanisms to detect and correct hardware faults in
+    runtime;
+
+Serviceability (or maintainability)
+  is the simplicity and speed with which a system can be repaired or
+  maintained
+
+  * Generally measured on Mean Time Between Repair (MTBR)
+
+Improving RAS
+-------------
+
+In order to reduce systems downtime, a system should be capable of detecting
+hardware errors, and, when possible correcting them in runtime. It should
+also provide mechanisms to detect hardware degradation, in order to warn
+the system administrator to take the action of replacing a component before
+it causes data loss or system downtime.
+
+Among the monitoring measures, the most usual ones include:
+
+* CPU – detect errors at instruction execution and at L1/L2/L3 caches;
+* Memory – add error correction logic (ECC) to detect and correct errors;
+* I/O – add CRC checksums for tranfered data;
+* Storage – RAID, journal file systems, checksums,
+  Self-Monitoring, Analysis and Reporting Technology (SMART).
+
+By monitoring the number of occurrences of error detections, it is possible
+to identify if the probability of hardware errors is increasing, and, on such
+case, do a preventive maintainance to replace a degrated component while
+those errors are correctable.
+
+Types of errors
+---------------
+
+Most mechanisms used on modern systems use use technologies like Hamming
+Codes that allow error correction when the number of errors on a bit packet
+is below a threshold. If the number of errors is above, those mechanisms
+can indicate with a high degree of confidence that an error happened, but
+they can't correct.
+
+Also, sometimes an error occur on a component that it is not used. For
+example, a part of the memory that it is not currently allocated.
+
+That defines some categories of errors:
+
+* **Correctable Error (CE)** - the error detection mechanism detected and
+  corrected the error. Such errors are usually not fatal, although some
+  Kernel mechanisms allow the system administrator to consider them as fatal.
+
+* **Uncorrected Error (UE)** - the amount of errors happened above the error
+  correction threshold, and the system was unable to auto-correct.
+
+* **Fatal Error** - when an UE error happens on a critical component of the
+  system (for example, a piece of the Kernel got corrupted by an UE), the
+  only reliable way to avoid data corruption is to hang or reboot the machine.
+
+* **Non-fatal Error** - when an UE error happens on an unused component,
+  like a CPU in power down state or an unused memory bank, the system may
+  still run, eventually replacing the affected hardware by a hot spare,
+  if available.
+
+  Also, when an error happens on an userspace process, it is also possible to
+  kill such process and let userspace restart it.
+
+The mechanism for handling non-fatal errors is usually complex and may
+require the help of some userspace application, in order to apply the
+policy desired by the system administrator.
+
+Identifying a bad hardware component
+------------------------------------
+
+Just detecting a hardware flaw is usually not enough, as the system needs
+to pinpoint to the minimal replaceable unit (MRU) that should be exchanged
+to make the hardware reliable again.
+
+So, it requires not only error logging facilities, but also mechanisms that
+will translate the error message to the silkscreen or component label for
+the MRU.
+
+Typically, it is very complex for memory, as modern CPUs interlace memory
+from different memory modules, in order to provide a better performance. The
+DMI BIOS usually have a list of memory module labels, with can be obtained
+using the ``dmidecode`` tool. For example, on a desktop machine, it shows::
+
+	Memory Device
+		Total Width: 64 bits
+		Data Width: 64 bits
+		Size: 16384 MB
+		Form Factor: SODIMM
+		Set: None
+		Locator: ChannelA-DIMM0
+		Bank Locator: BANK 0
+		Type: DDR4
+		Type Detail: Synchronous
+		Speed: 2133 MHz
+		Rank: 2
+		Configured Clock Speed: 2133 MHz
+
+On the above example, a DDR4 SO-DIMM memory module is located at the
+system's memory labeled as "BANK 0", as given by the *bank locator* field.
+Please notice that, on such system, the *total width* is equal to the
+*data witdh*. It means that such memory module doesn't have error
+detection/correction mechanisms.
+
+Unfortunately, not all systems use the same field to specify the memory
+bank. On this example, from an older server, ``dmidecode`` shows::
+
+	Memory Device
+		Array Handle: 0x1000
+		Error Information Handle: Not Provided
+		Total Width: 72 bits
+		Data Width: 64 bits
+		Size: 8192 MB
+		Form Factor: DIMM
+		Set: 1
+		Locator: DIMM_A1
+		Bank Locator: Not Specified
+		Type: DDR3
+		Type Detail: Synchronous Registered (Buffered)
+		Speed: 1600 MHz
+		Rank: 2
+		Configured Clock Speed: 1600 MHz
+
+There, the DDR3 RDIMM memory module is located at the system's memory labeled
+as "DIMM_A1", as given by the *locator* field. Please notice that this
+memory module has 64 bits of *data witdh* and 72 bits of *total width*. So,
+it has 8 extra bits to be used by error detection and correction mechanisms.
+Such kind of memory is called Error-correcting code memory (ECC memory).
+
+To make things even worse, it is not uncommon that systems with different
+labels on their system's board to use exactly the same BIOS, meaning that
+the labels provided by the BIOS won't match the real ones.
+
+ECC memory
+----------
+
+As mentioned on the previous section, ECC memory has extra bits to be
+used for error correction. So, on 64 bit systems, a memory module
+has 64 bits of *data width*, and 74 bits of *total width*. So, there are
+8 bits extra bits to be used for the error detection and correction
+mechanisms. Those extra bits are called *syndrome*\ [#f1]_\ [#f2]_.
+
+So, when the cpu requests the memory controller to write a word with
+*data width*, the memory controller calculates the *syndrome* in real time,
+using Hamming code, or some other error correction code, like SECDED+,
+producing a code with *total width* size. Such code is then written
+on the memory modules.
+
+At read, the *total width* bits code is converted back, using the same
+ECC code used on write, producing a word with *data width* and a *syndrome*.
+The word with *data width* is sent to the CPU, even when errors happen.
+
+The memory controller also looks at the *syndrome* in order to check if
+there was an error, and if the ECC code was able to fix such error.
+If the error was corrected, a Corrected Error (CE) happened. If not, an
+Uncorrected Error (UE) happened.
+
+The information about the CE/UE errors is stored on some special registers
+at the memory controller and can be accessed by reading such registers,
+either by BIOS, by some special CPUs or by Linux EDAC driver. On x86 64
+bit CPUs, such errors can also be retrieved via the Machine Check
+Architecture (MCA)\ [#f3]_.
+
+.. [#f1] Please notice that several memory controllers allow operation on a
+  mode called "Lock-Step", where it groups two memory modules together,
+  doing 128-bit reads/writes. That gives 16 bits for error correction, with
+  significatively improves the error correction mechanism, at the expense
+  that, when an error happens, there's no way to know what memory module is
+  to blame. So, it has to blame both memory modules.
+
+.. [#f2] Some memory controllers also allow using memory in mirror mode.
+  On such mode, the same data is written to two memory modules. At read,
+  the system checks both memory modules, in order to check if both provide
+  identical data. On such configuration, when an error happens, there's no
+  way to know what memory module is to blame. So, it has to blame both
+  memory modules (or 4 memory modules, if the system is also on Lock-step
+  mode).
+
+.. [#f3] For more details about the Machine Check Architecture (MCA),
+  please read Documentation/x86/x86_64/machinecheck at the Kernel tree.
+
 EDAC - Error Detection And Correction
-=====================================
+*************************************
 
 .. note::
 
-   "bluesmoke" was the name for this device driver when it
+   "bluesmoke" was the name for this device driver subsystem when it
    was "out-of-tree" and maintained at http://bluesmoke.sourceforge.net.
    That site is mostly archaic now and can be used only for historical
    purposes.
 
-   When the subsystem was pushed into 2.6.16 for the first time, it was
-   renamed to ``EDAC``.
+   When the subsystem was pushed upstream for the first time, on
+   Kernel 2.6.16, for the first time, it was renamed to ``EDAC``.
 
 Purpose
 -------
@@ -33,7 +233,7 @@ CE events only, the system can and will continue to operate as no data
 has been damaged yet.
 
 However, preventive maintenance and proactive part replacement of memory
-DIMMs exhibiting CEs can reduce the likelihood of the dreaded UE events
+modules exhibiting CEs can reduce the likelihood of the dreaded UE events
 and system panics.
 
 Other hardware elements
@@ -124,37 +324,47 @@ Within this directory there currently reside 2 components:
 Memory Controller (mc) Model
 ----------------------------
 
-Each ``mc`` device controls a set of DIMM memory modules. These modules
+Each ``mc`` device controls a set of memory modules [#f4]_. These modules
 are laid out in a Chip-Select Row (``csrowX``) and Channel table (``chX``).
 There can be multiple csrows and multiple channels.
 
+.. [#f4] Nowadays, the term DIMM (Dual In-line Memory Module) is widely
+  used to refer to a memory module, although there are other memory
+  packaging alternatives, like SO-DIMM, SIMM, etc. Along this document,
+  and inside the EDAC system, the term "dimm" is used for all memory
+  modules, even when they use a different kind of packaging.
+
 Memory controllers allow for several csrows, with 8 csrows being a
 typical value. Yet, the actual number of csrows depends on the layout of
-a given motherboard, memory controller and DIMM characteristics.
+a given motherboard, memory controller and memory module characteristics.
 
-Dual channels allows for 128 bit data transfers to/from the CPU from/to
-memory. Some newer chipsets allow for more than 2 channels, like Fully
-Buffered DIMMs (FB-DIMMs). The following example will assume 2 channels:
+Dual channels allow for dual data length (e. g. 128 bits, on 64 bit systems)
+data transfers to/from the CPU from/to memory. Some newer chipsets allow
+for more than 2 channels, like Fully Buffered DIMMs (FB-DIMMs) memory
+controllers. The following example will assume 2 channels:
 
-	+--------+-----------+-----------+
-	|        | Channel 0 | Channel 1 |
-	+========+===========+===========+
-	| csrow0 |  DIMM_A0  |  DIMM_B0  |
-	+--------+           |           |
-	| csrow1 |           |           |
-	+--------+-----------+-----------+
-	| csrow2 |  DIMM_A1  | DIMM_B1   |
-	+--------+           |           |
-	| csrow3 |           |           |
-	+--------+-----------+-----------+
+	+------------+-----------------------+
+	| Chip       |       Channels        |
+	| Select     +-----------+-----------+
+	| rows       |  ``ch0``  |  ``ch1``  |
+	+============+===========+===========+
+	| ``csrow0`` |  DIMM_A0  |  DIMM_B0  |
+	+------------+           |           |
+	| ``csrow1`` |           |           |
+	+------------+-----------+-----------+
+	| ``csrow2`` |  DIMM_A1  | DIMM_B1   |
+	+------------+           |           |
+	| ``csrow3`` |           |           |
+	+------------+-----------+-----------+
 
-In the above example table there are 4 physical slots on the motherboard
+In the above example, there are 4 physical slots on the motherboard
 for memory DIMMs:
 
-	- DIMM_A0
-	- DIMM_B0
-	- DIMM_A1
-	- DIMM_B1
+	+---------+---------+
+	| DIMM_A0 | DIMM_B0 |
+	+---------+---------+
+	| DIMM_A1 | DIMM_B1 |
+	+---------+---------+
 
 Labels for these slots are usually silk-screened on the motherboard.
 Slots labeled ``A`` are channel 0 in this example. Slots labeled ``B`` are
@@ -165,15 +375,16 @@ Channel, the csrows cross both DIMMs.
 
 Memory DIMMs come single or dual "ranked". A rank is a populated csrow.
 Thus, 2 single ranked DIMMs, placed in slots DIMM_A0 and DIMM_B0 above
-will have 1 csrow, csrow0. csrow1 will be empty. On the other hand,
-when 2 dual ranked DIMMs are similarly placed, then both csrow0 and
-csrow1 will be populated. The pattern repeats itself for csrow2 and
+will have just one csrow (csrow0). csrow1 will be empty. On the other
+hand, when 2 dual ranked DIMMs are similarly placed, then both csrow0
+and csrow1 will be populated. The pattern repeats itself for csrow2 and
 csrow3.
 
 The representation of the above is reflected in the directory
 tree in EDAC's sysfs interface. Starting in directory
-/sys/devices/system/edac/mc each memory controller will be represented
-by its own ``mcX`` directory, where ``X`` is the index of the MC::
+``/sys/devices/system/edac/mc``, each memory controller will be
+represented by its own ``mcX`` directory, where ``X`` is the
+index of the MC::
 
 	..../edac/mc/
 		   |
@@ -198,10 +409,8 @@ order to have dual-channel mode be operational. Since both csrow2 and
 csrow3 are populated, this indicates a dual ranked set of DIMMs for
 channels 0 and 1.
 
-
 Within each of the ``mcX`` and ``csrowX`` directories are several EDAC
 control and attribute files.
-
 
 ``mcX`` directories
 -------------------
@@ -338,10 +547,10 @@ this ``X`` memory module:
 ``csrowX`` directories
 ----------------------
 
-When CONFIG_EDAC_LEGACY_SYSFS is enabled, sysfs will contain the csrowX
+When CONFIG_EDAC_LEGACY_SYSFS is enabled, sysfs will contain the ``csrowX``
 directories. As this API doesn't work properly for Rambus, FB-DIMMs and
 modern Intel Memory Controllers, this is being deprecated in favor of
-dimmX directories.
+``dimmX`` directories.
 
 In the ``csrowX`` directories are EDAC control and attribute files for
 this ``X`` instance of csrow:
