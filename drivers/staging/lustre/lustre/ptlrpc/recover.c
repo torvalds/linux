@@ -111,7 +111,9 @@ int ptlrpc_replay_next(struct obd_import *imp, int *inflight)
 			 * all of it's requests being replayed, it's safe to
 			 * use a cursor to accelerate the search
 			 */
-			imp->imp_replay_cursor = imp->imp_replay_cursor->next;
+			if (!imp->imp_resend_replay ||
+			    imp->imp_replay_cursor == &imp->imp_committed_list)
+				imp->imp_replay_cursor = imp->imp_replay_cursor->next;
 
 			while (imp->imp_replay_cursor !=
 			       &imp->imp_committed_list) {
