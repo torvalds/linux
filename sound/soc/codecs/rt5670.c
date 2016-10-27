@@ -2618,7 +2618,7 @@ static int rt5670_set_bias_level(struct snd_soc_codec *codec,
 				RT5670_OSW_L_DIS | RT5670_OSW_R_DIS);
 			snd_soc_update_bits(codec, RT5670_DIG_MISC, 0x1, 0x1);
 			snd_soc_update_bits(codec, RT5670_PWR_ANLG1,
-				RT5670_LDO_SEL_MASK, 0x3);
+				RT5670_LDO_SEL_MASK, 0x5);
 		}
 		break;
 	case SND_SOC_BIAS_STANDBY:
@@ -2626,7 +2626,7 @@ static int rt5670_set_bias_level(struct snd_soc_codec *codec,
 				RT5670_PWR_VREF1 | RT5670_PWR_VREF2 |
 				RT5670_PWR_FV1 | RT5670_PWR_FV2, 0);
 		snd_soc_update_bits(codec, RT5670_PWR_ANLG1,
-				RT5670_LDO_SEL_MASK, 0x1);
+				RT5670_LDO_SEL_MASK, 0x3);
 		break;
 	case SND_SOC_BIAS_OFF:
 		if (rt5670->pdata.jd_mode)
