@@ -1158,7 +1158,10 @@ static int fpga_dbg_mmio_write(struct intel_vgpu *vgpu,
 static int dma_ctrl_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
-	u32 mode = *(u32 *)p_data;
+	u32 mode;
+
+	write_vreg(vgpu, offset, p_data, bytes);
+	mode = vgpu_vreg(vgpu, offset);
 
 	if (GFX_MODE_BIT_SET_IN_MASK(mode, START_DMA)) {
 		WARN_ONCE(1, "VM(%d): iGVT-g doesn't supporte GuC\n",
