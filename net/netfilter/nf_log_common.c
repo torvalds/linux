@@ -175,6 +175,33 @@ nf_log_dump_packet_common(struct nf_log_buf *m, u_int8_t pf,
 }
 EXPORT_SYMBOL_GPL(nf_log_dump_packet_common);
 
+/* bridge and netdev logging families share this code. */
+void nf_log_l2packet(struct net *net, u_int8_t pf,
+		     unsigned int hooknum,
+		     const struct sk_buff *skb,
+		     const struct net_device *in,
+		     const struct net_device *out,
+		     const struct nf_loginfo *loginfo,
+		     const char *prefix)
+{
+	switch (eth_hdr(skb)->h_proto) {
+	case htons(ETH_P_IP):
+		nf_log_packet(net, NFPROTO_IPV4, hooknum, skb, in, out,
+			      loginfo, "%s", prefix);
+		break;
+	case htons(ETH_P_IPV6):
+		nf_log_packet(net, NFPROTO_IPV6, hooknum, skb, in, out,
+			      loginfo, "%s", prefix);
+		break;
+	case htons(ETH_P_ARP):
+	case htons(ETH_P_RARP):
+		nf_log_packet(net, NFPROTO_ARP, hooknum, skb, in, out,
+			      loginfo, "%s", prefix);
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(nf_log_l2packet);
+
 static int __init nf_log_common_init(void)
 {
 	return 0;

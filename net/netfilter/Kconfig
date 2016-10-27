@@ -57,6 +57,10 @@ config NF_CONNTRACK
 config NF_LOG_COMMON
 	tristate
 
+config NF_LOG_NETDEV
+	tristate "Netdev packet logging"
+	select NF_LOG_COMMON
+
 if NF_CONNTRACK
 
 config NF_CONNTRACK_MARK
