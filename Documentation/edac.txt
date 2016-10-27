@@ -208,6 +208,126 @@ For a description of the sysfs API, please see:
 	Documentation/ABI/testing/sysfs-devices-edac
 
 
+``dimmX`` or ``rankX`` directories
+----------------------------------
+
+The recommended way to use the EDAC subsystem is to look at the information
+provided by the ``dimmX`` or ``rankX`` directories [#f5]_.
+
+A typical EDAC system has the following structure under
+``/sys/devices/system/edac/``\ [#f6]_::
+
+	/sys/devices/system/edac/
+	├── mc
+	│   ├── mc0
+	│   │   ├── ce_count
+	│   │   ├── ce_noinfo_count
+	│   │   ├── dimm0
+	│   │   │   ├── dimm_dev_type
+	│   │   │   ├── dimm_edac_mode
+	│   │   │   ├── dimm_label
+	│   │   │   ├── dimm_location
+	│   │   │   ├── dimm_mem_type
+	│   │   │   ├── size
+	│   │   │   └── uevent
+	│   │   ├── max_location
+	│   │   ├── mc_name
+	│   │   ├── reset_counters
+	│   │   ├── seconds_since_reset
+	│   │   ├── size_mb
+	│   │   ├── ue_count
+	│   │   ├── ue_noinfo_count
+	│   │   └── uevent
+	│   ├── mc1
+	│   │   ├── ce_count
+	│   │   ├── ce_noinfo_count
+	│   │   ├── dimm0
+	│   │   │   ├── dimm_dev_type
+	│   │   │   ├── dimm_edac_mode
+	│   │   │   ├── dimm_label
+	│   │   │   ├── dimm_location
+	│   │   │   ├── dimm_mem_type
+	│   │   │   ├── size
+	│   │   │   └── uevent
+	│   │   ├── max_location
+	│   │   ├── mc_name
+	│   │   ├── reset_counters
+	│   │   ├── seconds_since_reset
+	│   │   ├── size_mb
+	│   │   ├── ue_count
+	│   │   ├── ue_noinfo_count
+	│   │   └── uevent
+	│   └── uevent
+	└── uevent
+
+In the ``dimmX`` directories are EDAC control and attribute files for
+this ``X`` memory module:
+
+- ``size`` - Total memory managed by this csrow attribute file
+
+	This attribute file displays, in count of megabytes, the memory
+	that this csrow contains.
+
+- ``dimm_dev_type``  - Device type attribute file
+
+	This attribute file will display what type of DRAM device is
+	being utilized on this DIMM.
+	Examples:
+
+		- x1
+		- x2
+		- x4
+		- x8
+
+- ``dimm_edac_mode`` - EDAC Mode of operation attribute file
+
+	This attribute file will display what type of Error detection
+	and correction is being utilized.
+
+- ``dimm_label`` - memory module label control file
+
+	This control file allows this DIMM to have a label assigned
+	to it. With this label in the module, when errors occur
+	the output can provide the DIMM label in the system log.
+	This becomes vital for panic events to isolate the
+	cause of the UE event.
+
+	DIMM Labels must be assigned after booting, with information
+	that correctly identifies the physical slot with its
+	silk screen label. This information is currently very
+	motherboard specific and determination of this information
+	must occur in userland at this time.
+
+- ``dimm_location`` - location of the memory module
+
+	The location can have up to 3 levels, and describe how the
+	memory controller identifies the location of a memory module.
+	Depending on the type of memory and memory controller, it
+	can be:
+
+		- *csrow* and *channel* - used when the memory controller
+		  doesn't identify a single DIMM - e. g. in ``rankX`` dir;
+		- *branch*, *channel*, *slot* - typically used on FB-DIMM memory
+		  controllers;
+		- *channel*, *slot* - used on Nehalem and newer Intel drivers.
+
+- ``dimm_mem_type`` - Memory Type attribute file
+
+	This attribute file will display what type of memory is currently
+	on this csrow. Normally, either buffered or unbuffered memory.
+	Examples:
+
+		- Registered-DDR
+		- Unbuffered-DDR
+
+.. [#f5] On some systems, the memory controller doesn't have any logic
+  to identify the memory module. On such systems, the directory is called ``rankX`` and works on a similar way as the ``csrowX`` directories.
+  On modern Intel memory controllers, the memory controller identifies the
+  memory modules directly. On such systems, the directory is called ``dimmX``.
+
+.. [#f6] There are also some ``power`` directories and ``subsystem``
+  symlinks inside the sysfs mapping that are automatically created by
+  the sysfs subsystem. Currently, they serve no purpose.
 
 'csrowX' directories
 --------------------
