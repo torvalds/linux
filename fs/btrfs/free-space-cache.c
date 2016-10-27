@@ -476,7 +476,7 @@ static void io_ctl_set_crc(struct btrfs_io_ctl *io_ctl, int index)
 
 	crc = btrfs_csum_data(io_ctl->orig + offset, crc,
 			      PAGE_SIZE - offset);
-	btrfs_csum_final(crc, (char *)&crc);
+	btrfs_csum_final(crc, (u8 *)&crc);
 	io_ctl_unmap_page(io_ctl);
 	tmp = page_address(io_ctl->pages[0]);
 	tmp += index;
@@ -504,7 +504,7 @@ static int io_ctl_check_crc(struct btrfs_io_ctl *io_ctl, int index)
 	io_ctl_map_page(io_ctl, 0);
 	crc = btrfs_csum_data(io_ctl->orig + offset, crc,
 			      PAGE_SIZE - offset);
-	btrfs_csum_final(crc, (char *)&crc);
+	btrfs_csum_final(crc, (u8 *)&crc);
 	if (val != crc) {
 		btrfs_err_rl(io_ctl->root->fs_info,
 			"csum mismatch on free space cache");

@@ -271,7 +271,7 @@ u32 btrfs_csum_data(char *data, u32 seed, size_t len)
 	return btrfs_crc32c(seed, data, len);
 }
 
-void btrfs_csum_final(u32 crc, char *result)
+void btrfs_csum_final(u32 crc, u8 *result)
 {
 	put_unaligned_le32(~crc, result);
 }

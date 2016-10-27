@@ -3102,7 +3102,7 @@ static int __readpage_endio_check(struct inode *inode,
 
 	kaddr = kmap_atomic(page);
 	csum = btrfs_csum_data(kaddr + pgoff, csum,  len);
-	btrfs_csum_final(csum, (char *)&csum);
+	btrfs_csum_final(csum, (u8 *)&csum);
 	if (csum != csum_expected)
 		goto zeroit;
 
