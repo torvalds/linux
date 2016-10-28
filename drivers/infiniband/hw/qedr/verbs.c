@@ -1479,6 +1479,7 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 	struct qedr_ucontext *ctx = NULL;
 	struct qedr_create_qp_ureq ureq;
 	struct qedr_qp *qp;
+	struct ib_qp *ibqp;
 	int rc = 0;
 
 	DP_DEBUG(dev, QEDR_MSG_QP, "create qp: called from %s, pd=%p\n",
@@ -1488,12 +1489,12 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 	if (rc)
 		return ERR_PTR(rc);
 
+	if (attrs->srq)
+		return ERR_PTR(-EINVAL);
+
 	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
 	if (!qp)
 		return ERR_PTR(-ENOMEM);
-
-	if (attrs->srq)
-		return ERR_PTR(-EINVAL);
 
 	DP_DEBUG(dev, QEDR_MSG_QP,
 		 "create qp: sq_cq=%p, sq_icid=%d, rq_cq=%p, rq_icid=%d\n",
@@ -1510,7 +1511,10 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 			       "create qp: unexpected udata when creating GSI QP\n");
 			goto err0;
 		}
-		return qedr_create_gsi_qp(dev, attrs, qp);
+		ibqp = qedr_create_gsi_qp(dev, attrs, qp);
+		if (IS_ERR(ibqp))
+			kfree(qp);
+		return ibqp;
 	}
 
 	memset(&in_params, 0, sizeof(in_params));
