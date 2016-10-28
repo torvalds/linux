@@ -420,6 +420,7 @@ static int parse_options(struct super_block *sb, char *options)
 			break;
 		case Opt_nodiscard:
 			clear_opt(sbi, DISCARD);
+			break;
 		case Opt_noheap:
 			set_opt(sbi, NOHEAP);
 			break;
