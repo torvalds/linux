@@ -44,11 +44,11 @@
 #define DIGI_SETA	(('e' << 8) | 95)	/* Set params		*/
 #define DIGI_SETAW	(('e' << 8) | 96)	/* Drain & set params	*/
 #define DIGI_SETAF	(('e' << 8) | 97)	/* Drain, flush & set params */
-#define DIGI_GET_NI_INFO (('d' << 8) | 250) /* Non-intelligent state info */
-#define DIGI_LOOPBACK (('d' << 8) | 252) /*
-					* Enable/disable UART
-					* internal loopback
-					*/
+#define DIGI_GET_NI_INFO (('d' << 8) | 250)	/* Non-intelligent state info */
+#define DIGI_LOOPBACK (('d' << 8) | 252)	/*
+						 * Enable/disable UART
+						 * internal loopback
+						 */
 #define DIGI_FAST	0x0002		/* Fast baud rates		*/
 #define RTSPACE		0x0004		/* RTS input flow control	*/
 #define CTSPACE		0x0008		/* CTS output flow control	*/
