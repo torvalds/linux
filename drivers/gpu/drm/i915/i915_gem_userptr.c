@@ -546,7 +546,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	release_pages(pvec, pinned, 0);
 	drm_free_large(pvec);
 
-	i915_gem_object_put_unlocked(obj);
+	i915_gem_object_put(obj);
 	put_task_struct(work->task);
 	kfree(work);
 }
@@ -806,7 +806,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 		ret = drm_gem_handle_create(file, &obj->base, &handle);
 
 	/* drop reference from allocate - handle holds it now */
-	i915_gem_object_put_unlocked(obj);
+	i915_gem_object_put(obj);
 	if (ret)
 		return ret;
 

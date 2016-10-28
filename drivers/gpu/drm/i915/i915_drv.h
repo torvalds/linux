@@ -2404,18 +2404,11 @@ __attribute__((nonnull))
 static inline void
 i915_gem_object_put(struct drm_i915_gem_object *obj)
 {
-	drm_gem_object_unreference(&obj->base);
+	__drm_gem_object_unreference(&obj->base);
 }
 
 __deprecated
 extern void drm_gem_object_unreference(struct drm_gem_object *);
-
-__attribute__((nonnull))
-static inline void
-i915_gem_object_put_unlocked(struct drm_i915_gem_object *obj)
-{
-	drm_gem_object_unreference_unlocked(&obj->base);
-}
 
 __deprecated
 extern void drm_gem_object_unreference_unlocked(struct drm_gem_object *);
@@ -2511,7 +2504,6 @@ static inline struct i915_vma *i915_vma_get(struct i915_vma *vma)
 
 static inline void i915_vma_put(struct i915_vma *vma)
 {
-	lockdep_assert_held(&vma->vm->dev->struct_mutex);
 	i915_gem_object_put(vma->obj);
 }
 
