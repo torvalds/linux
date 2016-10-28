@@ -2748,6 +2748,27 @@ static inline void mlxsw_reg_ppcnt_pack(char *payload, u8 local_port,
 	mlxsw_reg_ppcnt_prio_tc_set(payload, prio_tc);
 }
 
+/* PLIB - Port Local to InfiniBand Port
+ * ------------------------------------
+ * The PLIB register performs mapping from Local Port into InfiniBand Port.
+ */
+#define MLXSW_REG_PLIB_ID 0x500A
+#define MLXSW_REG_PLIB_LEN 0x10
+
+MLXSW_REG_DEFINE(plib, MLXSW_REG_PLIB_ID, MLXSW_REG_PLIB_LEN);
+
+/* reg_plib_local_port
+ * Local port number.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, plib, local_port, 0x00, 16, 8);
+
+/* reg_plib_ib_port
+ * InfiniBand port remapping for local_port.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, plib, ib_port, 0x00, 0, 8);
+
 /* PPTB - Port Prio To Buffer Register
  * -----------------------------------
  * Configures the switch priority to buffer table.
@@ -5188,6 +5209,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(paos),
 	MLXSW_REG(pfcc),
 	MLXSW_REG(ppcnt),
+	MLXSW_REG(plib),
 	MLXSW_REG(pptb),
 	MLXSW_REG(pbmc),
 	MLXSW_REG(pspa),
