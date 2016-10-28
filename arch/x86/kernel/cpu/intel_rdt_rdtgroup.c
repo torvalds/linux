@@ -20,6 +20,7 @@
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
+#include <linux/cpu.h>
 #include <linux/fs.h>
 #include <linux/sysfs.h>
 #include <linux/kernfs.h>
@@ -170,6 +171,111 @@ static struct kernfs_ops rdtgroup_kf_single_ops = {
 	.atomic_write_len	= PAGE_SIZE,
 	.write			= rdtgroup_file_write,
 	.seq_show		= rdtgroup_seqfile_show,
+};
+
+static int rdtgroup_cpus_show(struct kernfs_open_file *of,
+			      struct seq_file *s, void *v)
+{
+	struct rdtgroup *rdtgrp;
+	int ret = 0;
+
+	rdtgrp = rdtgroup_kn_lock_live(of->kn);
+
+	if (rdtgrp)
+		seq_printf(s, "%*pb\n", cpumask_pr_args(&rdtgrp->cpu_mask));
+	else
+		ret = -ENOENT;
+	rdtgroup_kn_unlock(of->kn);
+
+	return ret;
+}
+
+static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
+				   char *buf, size_t nbytes, loff_t off)
+{
+	cpumask_var_t tmpmask, newmask;
+	struct rdtgroup *rdtgrp, *r;
+	int ret, cpu;
+
+	if (!buf)
+		return -EINVAL;
+
+	if (!zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
+		return -ENOMEM;
+	if (!zalloc_cpumask_var(&newmask, GFP_KERNEL)) {
+		free_cpumask_var(tmpmask);
+		return -ENOMEM;
+	}
+	rdtgrp = rdtgroup_kn_lock_live(of->kn);
+	if (!rdtgrp) {
+		ret = -ENOENT;
+		goto unlock;
+	}
+
+	ret = cpumask_parse(buf, newmask);
+	if (ret)
+		goto unlock;
+
+	get_online_cpus();
+	/* check that user didn't specify any offline cpus */
+	cpumask_andnot(tmpmask, newmask, cpu_online_mask);
+	if (cpumask_weight(tmpmask)) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	/* Check whether cpus are dropped from this group */
+	cpumask_andnot(tmpmask, &rdtgrp->cpu_mask, newmask);
+	if (cpumask_weight(tmpmask)) {
+		/* Can't drop from default group */
+		if (rdtgrp == &rdtgroup_default) {
+			ret = -EINVAL;
+			goto end;
+		}
+		/* Give any dropped cpus to rdtgroup_default */
+		cpumask_or(&rdtgroup_default.cpu_mask,
+			   &rdtgroup_default.cpu_mask, tmpmask);
+		for_each_cpu(cpu, tmpmask)
+			per_cpu(cpu_closid, cpu) = 0;
+	}
+
+	/*
+	 * If we added cpus, remove them from previous group that owned them
+	 * and update per-cpu closid
+	 */
+	cpumask_andnot(tmpmask, newmask, &rdtgrp->cpu_mask);
+	if (cpumask_weight(tmpmask)) {
+		list_for_each_entry(r, &rdt_all_groups, rdtgroup_list) {
+			if (r == rdtgrp)
+				continue;
+			cpumask_andnot(&r->cpu_mask, &r->cpu_mask, tmpmask);
+		}
+		for_each_cpu(cpu, tmpmask)
+			per_cpu(cpu_closid, cpu) = rdtgrp->closid;
+	}
+
+	/* Done pushing/pulling - update this group with new mask */
+	cpumask_copy(&rdtgrp->cpu_mask, newmask);
+
+end:
+	put_online_cpus();
+unlock:
+	rdtgroup_kn_unlock(of->kn);
+	free_cpumask_var(tmpmask);
+	free_cpumask_var(newmask);
+
+	return ret ?: nbytes;
+}
+
+/* Files in each rdtgroup */
+static struct rftype rdtgroup_base_files[] = {
+	{
+		.name		= "cpus",
+		.mode		= 0644,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.write		= rdtgroup_cpus_write,
+		.seq_show	= rdtgroup_cpus_show,
+	},
 };
 
 static int rdt_num_closids_show(struct kernfs_open_file *of,
@@ -582,6 +688,11 @@ static int rdtgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	if (ret)
 		goto out_destroy;
 
+	ret = rdtgroup_add_files(kn, rdtgroup_base_files,
+				 ARRAY_SIZE(rdtgroup_base_files));
+	if (ret)
+		goto out_destroy;
+
 	kernfs_activate(kn);
 
 	ret = 0;
@@ -602,13 +713,19 @@ out_unlock:
 static int rdtgroup_rmdir(struct kernfs_node *kn)
 {
 	struct rdtgroup *rdtgrp;
-	int ret = 0;
+	int cpu, ret = 0;
 
 	rdtgrp = rdtgroup_kn_lock_live(kn);
 	if (!rdtgrp) {
 		rdtgroup_kn_unlock(kn);
 		return -ENOENT;
 	}
+
+	/* Give any CPUs back to the default group */
+	cpumask_or(&rdtgroup_default.cpu_mask,
+		   &rdtgroup_default.cpu_mask, &rdtgrp->cpu_mask);
+	for_each_cpu(cpu, &rdtgrp->cpu_mask)
+		per_cpu(cpu_closid, cpu) = 0;
 
 	rdtgrp->flags = RDT_DELETED;
 	closid_free(rdtgrp->closid);
@@ -633,6 +750,8 @@ static struct kernfs_syscall_ops rdtgroup_kf_syscall_ops = {
 
 static int __init rdtgroup_setup_root(void)
 {
+	int ret;
+
 	rdt_root = kernfs_create_root(&rdtgroup_kf_syscall_ops,
 				      KERNFS_ROOT_CREATE_DEACTIVATED,
 				      &rdtgroup_default);
@@ -644,12 +763,20 @@ static int __init rdtgroup_setup_root(void)
 	rdtgroup_default.closid = 0;
 	list_add(&rdtgroup_default.rdtgroup_list, &rdt_all_groups);
 
+	ret = rdtgroup_add_files(rdt_root->kn, rdtgroup_base_files,
+				 ARRAY_SIZE(rdtgroup_base_files));
+	if (ret) {
+		kernfs_destroy_root(rdt_root);
+		goto out;
+	}
+
 	rdtgroup_default.kn = rdt_root->kn;
 	kernfs_activate(rdtgroup_default.kn);
 
+out:
 	mutex_unlock(&rdtgroup_mutex);
 
-	return 0;
+	return ret;
 }
 
 /*

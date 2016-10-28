@@ -14,13 +14,16 @@
  * @kn:				kernfs node
  * @rdtgroup_list:		linked list for all rdtgroups
  * @closid:			closid for this rdtgroup
+ * @cpu_mask:			CPUs assigned to this rdtgroup
  * @flags:			status bits
  * @waitcount:			how many cpus expect to find this
+ *				group when they acquire rdtgroup_mutex
  */
 struct rdtgroup {
 	struct kernfs_node	*kn;
 	struct list_head	rdtgroup_list;
 	int			closid;
+	struct cpumask		cpu_mask;
 	int			flags;
 	atomic_t		waitcount;
 };
@@ -161,6 +164,8 @@ union cpuid_0x10_1_edx {
 	} split;
 	unsigned int full;
 };
+
+DECLARE_PER_CPU_READ_MOSTLY(int, cpu_closid);
 
 void rdt_cbm_update(void *arg);
 struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn);
