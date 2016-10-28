@@ -14510,10 +14510,31 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 
 static void intel_atomic_commit_work(struct work_struct *work)
 {
-	struct drm_atomic_state *state = container_of(work,
-						      struct drm_atomic_state,
-						      commit_work);
+	struct drm_atomic_state *state =
+		container_of(work, struct drm_atomic_state, commit_work);
+
 	intel_atomic_commit_tail(state);
+}
+
+static int __i915_sw_fence_call
+intel_atomic_commit_ready(struct i915_sw_fence *fence,
+			  enum i915_sw_fence_notify notify)
+{
+	struct intel_atomic_state *state =
+		container_of(fence, struct intel_atomic_state, commit_ready);
+
+	switch (notify) {
+	case FENCE_COMPLETE:
+		if (state->base.commit_work.func)
+			queue_work(system_unbound_wq, &state->base.commit_work);
+		break;
+
+	case FENCE_FREE:
+		drm_atomic_state_put(&state->base);
+		break;
+	}
+
+	return NOTIFY_DONE;
 }
 
 static void intel_atomic_track_fbs(struct drm_atomic_state *state)
@@ -14561,11 +14582,14 @@ static int intel_atomic_commit(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	INIT_WORK(&state->commit_work, intel_atomic_commit_work);
+	drm_atomic_state_get(state);
+	i915_sw_fence_init(&intel_state->commit_ready,
+			   intel_atomic_commit_ready);
 
 	ret = intel_atomic_prepare_commit(dev, state);
 	if (ret) {
 		DRM_DEBUG_ATOMIC("Preparing state failed with %i\n", ret);
+		i915_sw_fence_commit(&intel_state->commit_ready);
 		return ret;
 	}
 
@@ -14576,10 +14600,14 @@ static int intel_atomic_commit(struct drm_device *dev,
 	intel_atomic_track_fbs(state);
 
 	drm_atomic_state_get(state);
-	if (nonblock)
-		queue_work(system_unbound_wq, &state->commit_work);
-	else
+	INIT_WORK(&state->commit_work,
+		  nonblock ? intel_atomic_commit_work : NULL);
+
+	i915_sw_fence_commit(&intel_state->commit_ready);
+	if (!nonblock) {
+		i915_sw_fence_wait(&intel_state->commit_ready);
 		intel_atomic_commit_tail(state);
+	}
 
 	return 0;
 }
@@ -14691,20 +14719,22 @@ int
 intel_prepare_plane_fb(struct drm_plane *plane,
 		       struct drm_plane_state *new_state)
 {
+	struct intel_atomic_state *intel_state =
+		to_intel_atomic_state(new_state->state);
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->state->fb);
-	long lret;
-	int ret = 0;
+	int ret;
 
 	if (!obj && !old_obj)
 		return 0;
 
 	if (old_obj) {
 		struct drm_crtc_state *crtc_state =
-			drm_atomic_get_existing_crtc_state(new_state->state, plane->state->crtc);
+			drm_atomic_get_existing_crtc_state(new_state->state,
+							   plane->state->crtc);
 
 		/* Big Hammer, we also need to ensure that any pending
 		 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
@@ -14717,31 +14747,36 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		 * This should only fail upon a hung GPU, in which case we
 		 * can safely continue.
 		 */
-		if (needs_modeset(crtc_state))
-			ret = i915_gem_object_wait(old_obj,
-						   I915_WAIT_INTERRUPTIBLE |
-						   I915_WAIT_LOCKED,
-						   MAX_SCHEDULE_TIMEOUT,
-						   NULL);
-		if (ret) {
-			/* GPU hangs should have been swallowed by the wait */
-			WARN_ON(ret == -EIO);
-			return ret;
+		if (needs_modeset(crtc_state)) {
+			ret = i915_sw_fence_await_reservation(&intel_state->commit_ready,
+							      old_obj->resv, NULL,
+							      false, 0,
+							      GFP_KERNEL);
+			if (ret < 0)
+				return ret;
 		}
+	}
+
+	if (new_state->fence) { /* explicit fencing */
+		ret = i915_sw_fence_await_dma_fence(&intel_state->commit_ready,
+						    new_state->fence,
+						    I915_FENCE_TIMEOUT,
+						    GFP_KERNEL);
+		if (ret < 0)
+			return ret;
 	}
 
 	if (!obj)
 		return 0;
 
-	/* For framebuffer backed by dmabuf, wait for fence */
-	lret = i915_gem_object_wait(obj,
-				    I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
-				    MAX_SCHEDULE_TIMEOUT,
-				    NULL);
-	if (lret == -ERESTARTSYS)
-		return lret;
-
-	WARN(lret < 0, "waiting returns %li\n", lret);
+	if (!new_state->fence) { /* implicit fencing */
+		ret = i915_sw_fence_await_reservation(&intel_state->commit_ready,
+						      obj->resv, NULL,
+						      false, I915_FENCE_TIMEOUT,
+						      GFP_KERNEL);
+		if (ret < 0)
+			return ret;
+	}
 
 	if (plane->type == DRM_PLANE_TYPE_CURSOR &&
 	    INTEL_INFO(dev)->cursor_needs_physical) {

@@ -365,6 +365,8 @@ struct intel_atomic_state {
 
 	/* Gen9+ only */
 	struct skl_wm_values wm_results;
+
+	struct i915_sw_fence commit_ready;
 };
 
 struct intel_plane_state {
