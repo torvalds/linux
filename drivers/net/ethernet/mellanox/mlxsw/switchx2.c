@@ -37,6 +37,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/slab.h>
@@ -46,6 +47,7 @@
 #include <net/switchdev.h>
 #include <generated/utsrelease.h>
 
+#include "pci.h"
 #include "core.h"
 #include "reg.h"
 #include "port.h"
@@ -966,6 +968,7 @@ static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 	dev = alloc_etherdev(sizeof(struct mlxsw_sx_port));
 	if (!dev)
 		return -ENOMEM;
+	SET_NETDEV_DEV(dev, mlxsw_sx->bus_info->dev);
 	mlxsw_sx_port = netdev_priv(dev);
 	mlxsw_sx_port->dev = dev;
 	mlxsw_sx_port->mlxsw_sx = mlxsw_sx;
@@ -1544,8 +1547,7 @@ static struct mlxsw_config_profile mlxsw_sx_config_profile = {
 };
 
 static struct mlxsw_driver mlxsw_sx_driver = {
-	.kind			= MLXSW_DEVICE_KIND_SWITCHX2,
-	.owner			= THIS_MODULE,
+	.kind			= mlxsw_sx_driver_name,
 	.priv_size		= sizeof(struct mlxsw_sx),
 	.init			= mlxsw_sx_init,
 	.fini			= mlxsw_sx_fini,
@@ -1554,13 +1556,38 @@ static struct mlxsw_driver mlxsw_sx_driver = {
 	.profile		= &mlxsw_sx_config_profile,
 };
 
+static const struct pci_device_id mlxsw_sx_pci_id_table[] = {
+	{PCI_VDEVICE(MELLANOX, PCI_DEVICE_ID_MELLANOX_SWITCHX2), 0},
+	{0, },
+};
+
+static struct pci_driver mlxsw_sx_pci_driver = {
+	.name = mlxsw_sx_driver_name,
+	.id_table = mlxsw_sx_pci_id_table,
+};
+
 static int __init mlxsw_sx_module_init(void)
 {
-	return mlxsw_core_driver_register(&mlxsw_sx_driver);
+	int err;
+
+	err = mlxsw_core_driver_register(&mlxsw_sx_driver);
+	if (err)
+		return err;
+
+	err = mlxsw_pci_driver_register(&mlxsw_sx_pci_driver);
+	if (err)
+		goto err_pci_driver_register;
+
+	return 0;
+
+err_pci_driver_register:
+	mlxsw_core_driver_unregister(&mlxsw_sx_driver);
+	return err;
 }
 
 static void __exit mlxsw_sx_module_exit(void)
 {
+	mlxsw_pci_driver_unregister(&mlxsw_sx_pci_driver);
 	mlxsw_core_driver_unregister(&mlxsw_sx_driver);
 }
 
@@ -1570,4 +1597,4 @@ module_exit(mlxsw_sx_module_exit);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox SwitchX-2 driver");
-MODULE_MLXSW_DRIVER_ALIAS(MLXSW_DEVICE_KIND_SWITCHX2);
+MODULE_DEVICE_TABLE(pci, mlxsw_sx_pci_id_table);
