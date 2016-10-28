@@ -73,10 +73,10 @@ static void cancel_userptr(struct work_struct *work)
 	/* Cancel any active worker and force us to re-evaluate gup */
 	obj->userptr.work = NULL;
 
-	if (obj->pages != NULL) {
+	if (obj->mm.pages) {
 		/* We are inside a kthread context and can't be interrupted */
 		WARN_ON(i915_gem_object_unbind(obj));
-		WARN_ON(i915_gem_object_put_pages(obj));
+		WARN_ON(__i915_gem_object_put_pages(obj));
 	}
 
 	i915_gem_object_put(obj);
@@ -432,15 +432,15 @@ __i915_gem_userptr_set_pages(struct drm_i915_gem_object *obj,
 {
 	int ret;
 
-	ret = st_set_pages(&obj->pages, pvec, num_pages);
+	ret = st_set_pages(&obj->mm.pages, pvec, num_pages);
 	if (ret)
 		return ret;
 
 	ret = i915_gem_gtt_prepare_object(obj);
 	if (ret) {
-		sg_free_table(obj->pages);
-		kfree(obj->pages);
-		obj->pages = NULL;
+		sg_free_table(obj->mm.pages);
+		kfree(obj->mm.pages);
+		obj->mm.pages = NULL;
 	}
 
 	return ret;
@@ -530,8 +530,8 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 			if (ret == 0) {
 				list_add_tail(&obj->global_list,
 					      &to_i915(dev)->mm.unbound_list);
-				obj->get_page.sg_pos = obj->pages->sgl;
-				obj->get_page.sg_idx = 0;
+				obj->mm.get_page.sg_pos = obj->mm.pages->sgl;
+				obj->mm.get_page.sg_idx = 0;
 				pinned = 0;
 			}
 		}
@@ -672,22 +672,22 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj)
 	BUG_ON(obj->userptr.work != NULL);
 	__i915_gem_userptr_set_active(obj, false);
 
-	if (obj->madv != I915_MADV_WILLNEED)
-		obj->dirty = 0;
+	if (obj->mm.madv != I915_MADV_WILLNEED)
+		obj->mm.dirty = false;
 
 	i915_gem_gtt_finish_object(obj);
 
-	for_each_sgt_page(page, sgt_iter, obj->pages) {
-		if (obj->dirty)
+	for_each_sgt_page(page, sgt_iter, obj->mm.pages) {
+		if (obj->mm.dirty)
 			set_page_dirty(page);
 
 		mark_page_accessed(page);
 		put_page(page);
 	}
-	obj->dirty = 0;
+	obj->mm.dirty = false;
 
-	sg_free_table(obj->pages);
-	kfree(obj->pages);
+	sg_free_table(obj->mm.pages);
+	kfree(obj->mm.pages);
 }
 
 static void

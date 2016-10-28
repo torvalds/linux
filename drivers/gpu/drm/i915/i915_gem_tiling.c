@@ -259,13 +259,13 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		if (!err) {
 			struct i915_vma *vma;
 
-			if (obj->pages &&
-			    obj->madv == I915_MADV_WILLNEED &&
+			if (obj->mm.pages &&
+			    obj->mm.madv == I915_MADV_WILLNEED &&
 			    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
 				if (args->tiling_mode == I915_TILING_NONE)
-					i915_gem_object_unpin_pages(obj);
+					__i915_gem_object_unpin_pages(obj);
 				if (!i915_gem_object_is_tiled(obj))
-					i915_gem_object_pin_pages(obj);
+					__i915_gem_object_pin_pages(obj);
 			}
 
 			list_for_each_entry(vma, &obj->vma_list, obj_link) {

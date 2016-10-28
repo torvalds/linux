@@ -2252,17 +2252,6 @@ struct drm_i915_gem_object {
 	 */
 #define I915_BO_ACTIVE_REF (I915_BO_ACTIVE_SHIFT + I915_NUM_ENGINES)
 
-	/**
-	 * This is set if the object has been written to since last bound
-	 * to the GTT
-	 */
-	unsigned int dirty:1;
-
-	/**
-	 * Advice: are the backing pages purgeable?
-	 */
-	unsigned int madv:2;
-
 	/*
 	 * Is the object to be mapped as read-only to the GPU
 	 * Only honoured if hardware has relevant pte bit
@@ -2284,16 +2273,31 @@ struct drm_i915_gem_object {
 	unsigned int bind_count;
 	unsigned int pin_display;
 
-	struct sg_table *pages;
-	int pages_pin_count;
-	struct i915_gem_object_page_iter {
-		struct scatterlist *sg_pos;
-		unsigned int sg_idx; /* in pages, but 32bit eek! */
+	struct {
+		unsigned int pages_pin_count;
 
-		struct radix_tree_root radix;
-		struct mutex lock; /* protects this cache */
-	} get_page;
-	void *mapping;
+		struct sg_table *pages;
+		void *mapping;
+
+		struct i915_gem_object_page_iter {
+			struct scatterlist *sg_pos;
+			unsigned int sg_idx; /* in pages, but 32bit eek! */
+
+			struct radix_tree_root radix;
+			struct mutex lock; /* protects this cache */
+		} get_page;
+
+		/**
+		 * Advice: are the backing pages purgeable?
+		 */
+		unsigned int madv:2;
+
+		/**
+		 * This is set if the object has been written to since the
+		 * pages were last acquired.
+		 */
+		bool dirty:1;
+	} mm;
 
 	/** Breadcrumb of last rendering to the buffer.
 	 * There can only be one writer, but we allow for multiple readers.
@@ -3182,14 +3186,11 @@ void i915_vma_close(struct i915_vma *vma);
 void i915_vma_destroy(struct i915_vma *vma);
 
 int i915_gem_object_unbind(struct drm_i915_gem_object *obj);
-int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 
 void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv);
 
-int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
-
-static inline int __sg_page_count(struct scatterlist *sg)
+static inline int __sg_page_count(const struct scatterlist *sg)
 {
 	return sg->length >> PAGE_SHIFT;
 }
@@ -3210,18 +3211,51 @@ dma_addr_t
 i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
 				unsigned long n);
 
-static inline void i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
+int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
+
+static inline int __must_check
+i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {
-	GEM_BUG_ON(obj->pages == NULL);
-	obj->pages_pin_count++;
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+
+	if (obj->mm.pages_pin_count++)
+		return 0;
+
+	return __i915_gem_object_get_pages(obj);
+}
+
+static inline void
+__i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
+{
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	GEM_BUG_ON(!obj->mm.pages);
+
+	obj->mm.pages_pin_count++;
+}
+
+static inline bool
+i915_gem_object_has_pinned_pages(struct drm_i915_gem_object *obj)
+{
+	return obj->mm.pages_pin_count;
+}
+
+static inline void
+__i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
+{
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
+	GEM_BUG_ON(!obj->mm.pages);
+
+	obj->mm.pages_pin_count--;
+	GEM_BUG_ON(obj->mm.pages_pin_count < obj->bind_count);
 }
 
 static inline void i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 {
-	GEM_BUG_ON(obj->pages_pin_count == 0);
-	obj->pages_pin_count--;
-	GEM_BUG_ON(obj->pages_pin_count < obj->bind_count);
+	__i915_gem_object_unpin_pages(obj);
 }
+
+int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
 
 enum i915_map_type {
 	I915_MAP_WB = 0,

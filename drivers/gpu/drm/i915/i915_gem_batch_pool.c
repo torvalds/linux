@@ -130,11 +130,10 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 			return obj;
 	}
 
-	ret = i915_gem_object_get_pages(obj);
+	ret = i915_gem_object_pin_pages(obj);
 	if (ret)
 		return ERR_PTR(ret);
 
 	list_move_tail(&obj->batch_pool_link, list);
-	i915_gem_object_pin_pages(obj);
 	return obj;
 }

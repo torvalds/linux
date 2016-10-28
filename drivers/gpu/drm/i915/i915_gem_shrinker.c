@@ -78,7 +78,7 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 	 * to the GPU, simply unbinding from the GPU is not going to succeed
 	 * in releasing our pin count on the pages themselves.
 	 */
-	if (obj->pages_pin_count > obj->bind_count)
+	if (obj->mm.pages_pin_count > obj->bind_count)
 		return false;
 
 	if (any_vma_pinned(obj))
@@ -88,7 +88,7 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 	 * discard the contents (because the user has marked them as being
 	 * purgeable) or if we can move their contents out to swap.
 	 */
-	return swap_available() || obj->madv == I915_MADV_DONTNEED;
+	return swap_available() || obj->mm.madv == I915_MADV_DONTNEED;
 }
 
 /**
@@ -175,11 +175,11 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 			list_move_tail(&obj->global_list, &still_in_list);
 
 			if (flags & I915_SHRINK_PURGEABLE &&
-			    obj->madv != I915_MADV_DONTNEED)
+			    obj->mm.madv != I915_MADV_DONTNEED)
 				continue;
 
 			if (flags & I915_SHRINK_VMAPS &&
-			    !is_vmalloc_addr(obj->mapping))
+			    !is_vmalloc_addr(obj->mm.mapping))
 				continue;
 
 			if (!(flags & I915_SHRINK_ACTIVE) &&
@@ -194,7 +194,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 
 			/* For the unbound phase, this should be a no-op! */
 			i915_gem_object_unbind(obj);
-			if (i915_gem_object_put_pages(obj) == 0)
+			if (__i915_gem_object_put_pages(obj) == 0)
 				count += obj->base.size >> PAGE_SHIFT;
 
 			i915_gem_object_put(obj);

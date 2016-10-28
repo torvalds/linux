@@ -896,8 +896,8 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->write_domain = obj->base.write_domain;
 	err->fence_reg = vma->fence ? vma->fence->id : -1;
 	err->tiling = i915_gem_object_get_tiling(obj);
-	err->dirty = obj->dirty;
-	err->purgeable = obj->madv != I915_MADV_WILLNEED;
+	err->dirty = obj->mm.dirty;
+	err->purgeable = obj->mm.madv != I915_MADV_WILLNEED;
 	err->userptr = obj->userptr.mm != NULL;
 	err->cache_level = obj->cache_level;
 }

@@ -102,10 +102,10 @@ static int i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
 
 		sg = __sg_next(sg);
 	} while (1);
-	obj->pages = st;
+	obj->mm.pages = st;
 
 	if (i915_gem_gtt_prepare_object(obj)) {
-		obj->pages = NULL;
+		obj->mm.pages = NULL;
 		goto err;
 	}
 
@@ -114,7 +114,7 @@ static int i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
 	 * and the caller is expected to repopulate - the contents of this
 	 * object are only valid whilst active and pinned.
 	 */
-	obj->madv = I915_MADV_DONTNEED;
+	obj->mm.madv = I915_MADV_DONTNEED;
 	return 0;
 
 err:
@@ -126,10 +126,10 @@ err:
 static void i915_gem_object_put_pages_internal(struct drm_i915_gem_object *obj)
 {
 	i915_gem_gtt_finish_object(obj);
-	internal_free_pages(obj->pages);
+	internal_free_pages(obj->mm.pages);
 
-	obj->dirty = 0;
-	obj->madv = I915_MADV_WILLNEED;
+	obj->mm.dirty = false;
+	obj->mm.madv = I915_MADV_WILLNEED;
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_object_internal_ops = {

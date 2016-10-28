@@ -112,7 +112,7 @@ static char get_global_flag(struct drm_i915_gem_object *obj)
 
 static char get_pin_mapped_flag(struct drm_i915_gem_object *obj)
 {
-	return obj->mapping ? 'M' : ' ';
+	return obj->mm.mapping ? 'M' : ' ';
 }
 
 static u64 i915_gem_obj_total_ggtt_size(struct drm_i915_gem_object *obj)
@@ -158,8 +158,8 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   i915_gem_active_get_seqno(&obj->last_write,
 					     &obj->base.dev->struct_mutex),
 		   i915_cache_level_str(dev_priv, obj->cache_level),
-		   obj->dirty ? " dirty" : "",
-		   obj->madv == I915_MADV_DONTNEED ? " purgeable" : "");
+		   obj->mm.dirty ? " dirty" : "",
+		   obj->mm.madv == I915_MADV_DONTNEED ? " purgeable" : "");
 	if (obj->base.name)
 		seq_printf(m, " (name: %d)", obj->base.name);
 	list_for_each_entry(vma, &obj->vma_list, obj_link) {
@@ -403,12 +403,12 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 		size += obj->base.size;
 		++count;
 
-		if (obj->madv == I915_MADV_DONTNEED) {
+		if (obj->mm.madv == I915_MADV_DONTNEED) {
 			purgeable_size += obj->base.size;
 			++purgeable_count;
 		}
 
-		if (obj->mapping) {
+		if (obj->mm.mapping) {
 			mapped_count++;
 			mapped_size += obj->base.size;
 		}
@@ -425,12 +425,12 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 			++dpy_count;
 		}
 
-		if (obj->madv == I915_MADV_DONTNEED) {
+		if (obj->mm.madv == I915_MADV_DONTNEED) {
 			purgeable_size += obj->base.size;
 			++purgeable_count;
 		}
 
-		if (obj->mapping) {
+		if (obj->mm.mapping) {
 			mapped_count++;
 			mapped_size += obj->base.size;
 		}
@@ -2028,7 +2028,7 @@ static void i915_dump_lrc_obj(struct seq_file *m,
 		seq_printf(m, "\tBound in GGTT at 0x%08x\n",
 			   i915_ggtt_offset(vma));
 
-	if (i915_gem_object_get_pages(vma->obj)) {
+	if (i915_gem_object_pin_pages(vma->obj)) {
 		seq_puts(m, "\tFailed to get pages for context object\n\n");
 		return;
 	}
@@ -2047,6 +2047,7 @@ static void i915_dump_lrc_obj(struct seq_file *m,
 		kunmap_atomic(reg_state);
 	}
 
+	i915_gem_object_unpin_pages(vma->obj);
 	seq_putc(m, '\n');
 }
 

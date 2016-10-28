@@ -555,15 +555,16 @@ static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
 static void i915_gem_object_put_pages_stolen(struct drm_i915_gem_object *obj)
 {
 	/* Should only be called during free */
-	sg_free_table(obj->pages);
-	kfree(obj->pages);
+	sg_free_table(obj->mm.pages);
+	kfree(obj->mm.pages);
 }
-
 
 static void
 i915_gem_object_release_stolen(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+
+	__i915_gem_object_unpin_pages(obj);
 
 	if (obj->stolen) {
 		i915_gem_stolen_remove_node(dev_priv, obj->stolen);
@@ -590,15 +591,16 @@ _i915_gem_object_create_stolen(struct drm_device *dev,
 	drm_gem_private_object_init(dev, &obj->base, stolen->size);
 	i915_gem_object_init(obj, &i915_gem_object_stolen_ops);
 
-	obj->pages = i915_pages_create_for_stolen(dev,
-						  stolen->start, stolen->size);
-	if (obj->pages == NULL)
+	obj->mm.pages = i915_pages_create_for_stolen(dev,
+						     stolen->start,
+						     stolen->size);
+	if (!obj->mm.pages)
 		goto cleanup;
 
-	obj->get_page.sg_pos = obj->pages->sgl;
-	obj->get_page.sg_idx = 0;
+	obj->mm.get_page.sg_pos = obj->mm.pages->sgl;
+	obj->mm.get_page.sg_idx = 0;
 
-	i915_gem_object_pin_pages(obj);
+	__i915_gem_object_pin_pages(obj);
 	obj->stolen = stolen;
 
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
@@ -718,14 +720,14 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 		goto err;
 	}
 
-	vma->pages = obj->pages;
+	vma->pages = obj->mm.pages;
 	vma->flags |= I915_VMA_GLOBAL_BIND;
 	__i915_vma_set_map_and_fenceable(vma);
 	list_move_tail(&vma->vm_link, &ggtt->base.inactive_list);
 	obj->bind_count++;
 
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
-	i915_gem_object_pin_pages(obj);
+	__i915_gem_object_pin_pages(obj);
 
 	return obj;
 

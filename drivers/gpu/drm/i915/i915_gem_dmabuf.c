@@ -48,11 +48,9 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachme
 	if (ret)
 		goto err;
 
-	ret = i915_gem_object_get_pages(obj);
+	ret = i915_gem_object_pin_pages(obj);
 	if (ret)
 		goto err_unlock;
-
-	i915_gem_object_pin_pages(obj);
 
 	/* Copy sg so that we make an independent mapping */
 	st = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
@@ -61,13 +59,13 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachme
 		goto err_unpin;
 	}
 
-	ret = sg_alloc_table(st, obj->pages->nents, GFP_KERNEL);
+	ret = sg_alloc_table(st, obj->mm.pages->nents, GFP_KERNEL);
 	if (ret)
 		goto err_free;
 
-	src = obj->pages->sgl;
+	src = obj->mm.pages->sgl;
 	dst = st->sgl;
-	for (i = 0; i < obj->pages->nents; i++) {
+	for (i = 0; i < obj->mm.pages->nents; i++) {
 		sg_set_page(dst, sg_page(src), src->length, 0);
 		dst = sg_next(dst);
 		src = sg_next(src);
@@ -299,14 +297,14 @@ static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
 	if (IS_ERR(sg))
 		return PTR_ERR(sg);
 
-	obj->pages = sg;
+	obj->mm.pages = sg;
 	return 0;
 }
 
 static void i915_gem_object_put_pages_dmabuf(struct drm_i915_gem_object *obj)
 {
 	dma_buf_unmap_attachment(obj->base.import_attach,
-				 obj->pages, DMA_BIDIRECTIONAL);
+				 obj->mm.pages, DMA_BIDIRECTIONAL);
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_object_dmabuf_ops = {

@@ -744,7 +744,7 @@ static int intel_lr_context_pin(struct i915_gem_context *ctx,
 	ce->lrc_reg_state[CTX_RING_BUFFER_START+1] =
 		i915_ggtt_offset(ce->ring->vma);
 
-	ce->state->obj->dirty = true;
+	ce->state->obj->mm.dirty = true;
 
 	/* Invalidate GuC TLB. */
 	if (i915.enable_guc_submission) {
@@ -2042,7 +2042,7 @@ populate_lr_context(struct i915_gem_context *ctx,
 		DRM_DEBUG_DRIVER("Could not map object pages! (%d)\n", ret);
 		return ret;
 	}
-	ctx_obj->dirty = true;
+	ctx_obj->mm.dirty = true;
 
 	/* The second page of the context object contains some fields which must
 	 * be set up prior to the first execution. */
@@ -2180,7 +2180,7 @@ void intel_lr_context_resume(struct drm_i915_private *dev_priv)
 			reg[CTX_RING_HEAD+1] = 0;
 			reg[CTX_RING_TAIL+1] = 0;
 
-			ce->state->obj->dirty = true;
+			ce->state->obj->mm.dirty = true;
 			i915_gem_object_unpin_map(ce->state->obj);
 
 			ce->ring->head = ce->ring->tail = 0;

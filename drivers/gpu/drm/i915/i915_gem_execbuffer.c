@@ -1281,7 +1281,7 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 
-	obj->dirty = 1; /* be paranoid  */
+	obj->mm.dirty = true; /* be paranoid  */
 
 	/* Add a reference if we're newly entering the active list.
 	 * The order in which we add operations to the retirement queue is
