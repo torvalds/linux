@@ -106,6 +106,9 @@ static int cache_shared_cpu_map_setup(unsigned int cpu)
 	unsigned int index;
 	int ret;
 
+	if (this_cpu_ci->cpu_map_populated)
+		return 0;
+
 	ret = cache_setup_of_node(cpu);
 	if (ret)
 		return ret;
