@@ -24,10 +24,15 @@
 #include <linux/dmi.h>
 #include <linux/init.h>
 #include <linux/export.h>
+#include <linux/clocksource.h>
 #include <asm/div64.h>
 #include <asm/x86_init.h>
 #include <asm/hypervisor.h>
 #include <asm/apic.h>
+#include <asm/timer.h>
+
+#undef pr_fmt
+#define pr_fmt(fmt)	"vmware: " fmt
 
 #define CPUID_VMWARE_INFO_LEAF	0x40000000
 #define VMWARE_HYPERVISOR_MAGIC	0x564D5868
@@ -62,10 +67,47 @@ static unsigned long vmware_get_tsc_khz(void)
 }
 
 #ifdef CONFIG_PARAVIRT
+static struct cyc2ns_data vmware_cyc2ns __ro_after_init;
+static int vmw_sched_clock __initdata = 1;
+
+static __init int setup_vmw_sched_clock(char *s)
+{
+	vmw_sched_clock = 0;
+	return 0;
+}
+early_param("no-vmw-sched-clock", setup_vmw_sched_clock);
+
+static unsigned long long vmware_sched_clock(void)
+{
+	unsigned long long ns;
+
+	ns = mul_u64_u32_shr(rdtsc(), vmware_cyc2ns.cyc2ns_mul,
+			     vmware_cyc2ns.cyc2ns_shift);
+	ns -= vmware_cyc2ns.cyc2ns_offset;
+	return ns;
+}
+
+static void __init vmware_sched_clock_setup(void)
+{
+	struct cyc2ns_data *d = &vmware_cyc2ns;
+	unsigned long long tsc_now = rdtsc();
+
+	clocks_calc_mult_shift(&d->cyc2ns_mul, &d->cyc2ns_shift,
+			       vmware_tsc_khz, NSEC_PER_MSEC, 0);
+	d->cyc2ns_offset = mul_u64_u32_shr(tsc_now, d->cyc2ns_mul,
+					   d->cyc2ns_shift);
+
+	pv_time_ops.sched_clock = vmware_sched_clock;
+	pr_info("using sched offset of %llu ns\n", d->cyc2ns_offset);
+}
+
 static void __init vmware_paravirt_ops_setup(void)
 {
 	pv_info.name = "VMware hypervisor";
 	pv_cpu_ops.io_delay = paravirt_nop;
+
+	if (vmware_tsc_khz && vmw_sched_clock)
+		vmware_sched_clock_setup();
 }
 #else
 #define vmware_paravirt_ops_setup() do {} while (0)
