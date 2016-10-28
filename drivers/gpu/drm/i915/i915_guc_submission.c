@@ -554,7 +554,7 @@ static void guc_wq_item_append(struct i915_guc_client *gc,
 	wqi->context_desc = (u32)intel_lr_context_descriptor(rq->ctx, engine);
 
 	wqi->ring_tail = tail << WQ_RING_TAIL_SHIFT;
-	wqi->fence_id = rq->fence.seqno;
+	wqi->fence_id = rq->global_seqno;
 
 	kunmap_atomic(base);
 }
@@ -655,7 +655,7 @@ static void i915_guc_submit(struct drm_i915_gem_request *rq)
 		client->b_fail += 1;
 
 	guc->submissions[engine_id] += 1;
-	guc->last_seqno[engine_id] = rq->fence.seqno;
+	guc->last_seqno[engine_id] = rq->global_seqno;
 	spin_unlock(&client->wq_lock);
 }
 

@@ -87,6 +87,8 @@ struct drm_i915_gem_request {
 	struct i915_sw_fence submit;
 	wait_queue_t submitq;
 
+	u32 global_seqno;
+
 	/** GEM sequence number associated with the previous request,
 	 * when the HWS breadcrumb is equal to this the GPU is processing
 	 * this request.
@@ -163,7 +165,7 @@ void i915_gem_request_retire_upto(struct drm_i915_gem_request *req);
 static inline u32
 i915_gem_request_get_seqno(struct drm_i915_gem_request *req)
 {
-	return req ? req->fence.seqno : 0;
+	return req ? req->global_seqno : 0;
 }
 
 static inline struct intel_engine_cs *
@@ -248,17 +250,37 @@ static inline bool i915_seqno_passed(u32 seq1, u32 seq2)
 }
 
 static inline bool
-i915_gem_request_started(const struct drm_i915_gem_request *req)
+__i915_gem_request_started(const struct drm_i915_gem_request *req)
 {
+	GEM_BUG_ON(!req->global_seqno);
 	return i915_seqno_passed(intel_engine_get_seqno(req->engine),
 				 req->previous_seqno);
 }
 
 static inline bool
+i915_gem_request_started(const struct drm_i915_gem_request *req)
+{
+	if (!req->global_seqno)
+		return false;
+
+	return __i915_gem_request_started(req);
+}
+
+static inline bool
+__i915_gem_request_completed(const struct drm_i915_gem_request *req)
+{
+	GEM_BUG_ON(!req->global_seqno);
+	return i915_seqno_passed(intel_engine_get_seqno(req->engine),
+				 req->global_seqno);
+}
+
+static inline bool
 i915_gem_request_completed(const struct drm_i915_gem_request *req)
 {
-	return i915_seqno_passed(intel_engine_get_seqno(req->engine),
-				 req->fence.seqno);
+	if (!req->global_seqno)
+		return false;
+
+	return __i915_gem_request_completed(req);
 }
 
 bool __i915_spin_request(const struct drm_i915_gem_request *request,
@@ -266,7 +288,7 @@ bool __i915_spin_request(const struct drm_i915_gem_request *request,
 static inline bool i915_spin_request(const struct drm_i915_gem_request *request,
 				     int state, unsigned long timeout_us)
 {
-	return (i915_gem_request_started(request) &&
+	return (__i915_gem_request_started(request) &&
 		__i915_spin_request(request, state, timeout_us));
 }
 

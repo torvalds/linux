@@ -1238,7 +1238,7 @@ static int gen8_rcs_signal(struct drm_i915_gem_request *req)
 				PIPE_CONTROL_CS_STALL);
 		intel_ring_emit(ring, lower_32_bits(gtt_offset));
 		intel_ring_emit(ring, upper_32_bits(gtt_offset));
-		intel_ring_emit(ring, req->fence.seqno);
+		intel_ring_emit(ring, req->global_seqno);
 		intel_ring_emit(ring, 0);
 		intel_ring_emit(ring,
 				MI_SEMAPHORE_SIGNAL |
@@ -1274,7 +1274,7 @@ static int gen8_xcs_signal(struct drm_i915_gem_request *req)
 				lower_32_bits(gtt_offset) |
 				MI_FLUSH_DW_USE_GTT);
 		intel_ring_emit(ring, upper_32_bits(gtt_offset));
-		intel_ring_emit(ring, req->fence.seqno);
+		intel_ring_emit(ring, req->global_seqno);
 		intel_ring_emit(ring,
 				MI_SEMAPHORE_SIGNAL |
 				MI_SEMAPHORE_TARGET(waiter->hw_id));
@@ -1308,7 +1308,7 @@ static int gen6_signal(struct drm_i915_gem_request *req)
 		if (i915_mmio_reg_valid(mbox_reg)) {
 			intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
 			intel_ring_emit_reg(ring, mbox_reg);
-			intel_ring_emit(ring, req->fence.seqno);
+			intel_ring_emit(ring, req->global_seqno);
 		}
 	}
 
@@ -1339,7 +1339,7 @@ static int i9xx_emit_request(struct drm_i915_gem_request *req)
 
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring, req->fence.seqno);
+	intel_ring_emit(ring, req->global_seqno);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	intel_ring_advance(ring);
 
@@ -1389,7 +1389,7 @@ static int gen8_render_emit_request(struct drm_i915_gem_request *req)
 			       PIPE_CONTROL_QW_WRITE));
 	intel_ring_emit(ring, intel_hws_seqno_address(engine));
 	intel_ring_emit(ring, 0);
-	intel_ring_emit(ring, i915_gem_request_get_seqno(req));
+	intel_ring_emit(ring, req->global_seqno);
 	/* We're thrashing one dword of HWS. */
 	intel_ring_emit(ring, 0);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
@@ -1427,7 +1427,7 @@ gen8_ring_sync_to(struct drm_i915_gem_request *req,
 			MI_SEMAPHORE_WAIT |
 			MI_SEMAPHORE_GLOBAL_GTT |
 			MI_SEMAPHORE_SAD_GTE_SDD);
-	intel_ring_emit(ring, signal->fence.seqno);
+	intel_ring_emit(ring, signal->global_seqno);
 	intel_ring_emit(ring, lower_32_bits(offset));
 	intel_ring_emit(ring, upper_32_bits(offset));
 	intel_ring_advance(ring);
@@ -1465,7 +1465,7 @@ gen6_ring_sync_to(struct drm_i915_gem_request *req,
 	 * seqno is >= the last seqno executed. However for hardware the
 	 * comparison is strictly greater than.
 	 */
-	intel_ring_emit(ring, signal->fence.seqno - 1);
+	intel_ring_emit(ring, signal->global_seqno - 1);
 	intel_ring_emit(ring, 0);
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);

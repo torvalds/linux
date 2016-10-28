@@ -376,7 +376,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	 * of being read by __i915_gem_active_get_rcu(). As such,
 	 * we have to be very careful when overwriting the contents. During
 	 * the RCU lookup, we change chase the request->engine pointer,
-	 * read the request->fence.seqno and increment the reference count.
+	 * read the request->global_seqno and increment the reference count.
 	 *
 	 * The reference count is incremented atomically. If it is zero,
 	 * the lookup knows the request is unallocated and complete. Otherwise,
@@ -418,6 +418,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	INIT_LIST_HEAD(&req->active_list);
 	req->i915 = dev_priv;
 	req->engine = engine;
+	req->global_seqno = seqno;
 	req->ctx = i915_gem_context_get(ctx);
 
 	/* No zalloc, must clear what we need by hand */
@@ -475,8 +476,15 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 		return ret < 0 ? ret : 0;
 	}
 
+	if (!from->global_seqno) {
+		ret = i915_sw_fence_await_dma_fence(&to->submit,
+						    &from->fence, 0,
+						    GFP_KERNEL);
+		return ret < 0 ? ret : 0;
+	}
+
 	idx = intel_engine_sync_index(from->engine, to->engine);
-	if (from->fence.seqno <= from->engine->semaphore.sync_seqno[idx])
+	if (from->global_seqno <= from->engine->semaphore.sync_seqno[idx])
 		return 0;
 
 	trace_i915_gem_ring_sync_to(to, from);
@@ -494,7 +502,7 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 			return ret;
 	}
 
-	from->engine->semaphore.sync_seqno[idx] = from->fence.seqno;
+	from->engine->semaphore.sync_seqno[idx] = from->global_seqno;
 	return 0;
 }
 
@@ -774,7 +782,7 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
 
 	timeout_us += local_clock_us(&cpu);
 	do {
-		if (i915_gem_request_completed(req))
+		if (__i915_gem_request_completed(req))
 			return true;
 
 		if (signal_pending_state(state, current))
@@ -883,6 +891,7 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 
 		GEM_BUG_ON(!i915_sw_fence_done(&req->submit));
 	}
+	GEM_BUG_ON(!req->global_seqno);
 
 	/* Optimistic short spin before touching IRQs */
 	if (i915_spin_request(req, state, 5))
@@ -892,7 +901,7 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 	if (flags & I915_WAIT_LOCKED)
 		add_wait_queue(&req->i915->gpu_error.wait_queue, &reset);
 
-	intel_wait_init(&wait, req->fence.seqno);
+	intel_wait_init(&wait, req->global_seqno);
 	if (intel_engine_add_wait(req->engine, &wait))
 		/* In order to check that we haven't missed the interrupt
 		 * as we enabled it, we need to kick ourselves to do a

@@ -1584,7 +1584,7 @@ static int gen8_emit_request(struct drm_i915_gem_request *request)
 			intel_hws_seqno_address(request->engine) |
 			MI_FLUSH_DW_USE_GTT);
 	intel_ring_emit(ring, 0);
-	intel_ring_emit(ring, request->fence.seqno);
+	intel_ring_emit(ring, request->global_seqno);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	intel_ring_emit(ring, MI_NOOP);
 	return intel_logical_ring_advance(request);
@@ -1613,7 +1613,7 @@ static int gen8_emit_request_render(struct drm_i915_gem_request *request)
 			 PIPE_CONTROL_QW_WRITE));
 	intel_ring_emit(ring, intel_hws_seqno_address(request->engine));
 	intel_ring_emit(ring, 0);
-	intel_ring_emit(ring, i915_gem_request_get_seqno(request));
+	intel_ring_emit(ring, request->global_seqno);
 	/* We're thrashing one dword of HWS. */
 	intel_ring_emit(ring, 0);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);

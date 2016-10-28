@@ -504,9 +504,11 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 
 	/* locked by dma_fence_enable_sw_signaling() */
 	assert_spin_locked(&request->lock);
+	if (!request->global_seqno)
+		return;
 
 	request->signaling.wait.tsk = b->signaler;
-	request->signaling.wait.seqno = request->fence.seqno;
+	request->signaling.wait.seqno = request->global_seqno;
 	i915_gem_request_get(request);
 
 	spin_lock(&b->lock);
@@ -530,8 +532,8 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	p = &b->signals.rb_node;
 	while (*p) {
 		parent = *p;
-		if (i915_seqno_passed(request->fence.seqno,
-				      to_signaler(parent)->fence.seqno)) {
+		if (i915_seqno_passed(request->global_seqno,
+				      to_signaler(parent)->global_seqno)) {
 			p = &parent->rb_right;
 			first = false;
 		} else {

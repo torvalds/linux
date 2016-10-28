@@ -2615,7 +2615,7 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 		return;
 
 	DRM_DEBUG_DRIVER("resetting %s to restart from tail of request 0x%x\n",
-			 engine->name, request->fence.seqno);
+			 engine->name, request->global_seqno);
 
 	/* Setup the CS to resume from the breadcrumb of the hung request */
 	engine->reset_hw(engine, request);
