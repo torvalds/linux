@@ -4224,7 +4224,7 @@ static void show_migration_types(unsigned char type)
 	}
 
 	*p = '\0';
-	printk("(%s) ", tmp);
+	printk(KERN_CONT "(%s) ", tmp);
 }
 
 /*
@@ -4335,7 +4335,8 @@ void show_free_areas(unsigned int filter)
 			free_pcp += per_cpu_ptr(zone->pageset, cpu)->pcp.count;
 
 		show_node(zone);
-		printk("%s"
+		printk(KERN_CONT
+			"%s"
 			" free:%lukB"
 			" min:%lukB"
 			" low:%lukB"
@@ -4382,8 +4383,8 @@ void show_free_areas(unsigned int filter)
 			K(zone_page_state(zone, NR_FREE_CMA_PAGES)));
 		printk("lowmem_reserve[]:");
 		for (i = 0; i < MAX_NR_ZONES; i++)
-			printk(" %ld", zone->lowmem_reserve[i]);
-		printk("\n");
+			printk(KERN_CONT " %ld", zone->lowmem_reserve[i]);
+		printk(KERN_CONT "\n");
 	}
 
 	for_each_populated_zone(zone) {
@@ -4394,7 +4395,7 @@ void show_free_areas(unsigned int filter)
 		if (skip_free_areas_node(filter, zone_to_nid(zone)))
 			continue;
 		show_node(zone);
-		printk("%s: ", zone->name);
+		printk(KERN_CONT "%s: ", zone->name);
 
 		spin_lock_irqsave(&zone->lock, flags);
 		for (order = 0; order < MAX_ORDER; order++) {
@@ -4412,11 +4413,12 @@ void show_free_areas(unsigned int filter)
 		}
 		spin_unlock_irqrestore(&zone->lock, flags);
 		for (order = 0; order < MAX_ORDER; order++) {
-			printk("%lu*%lukB ", nr[order], K(1UL) << order);
+			printk(KERN_CONT "%lu*%lukB ",
+			       nr[order], K(1UL) << order);
 			if (nr[order])
 				show_migration_types(types[order]);
 		}
-		printk("= %lukB\n", K(total));
+		printk(KERN_CONT "= %lukB\n", K(total));
 	}
 
 	hugetlb_show_meminfo();
