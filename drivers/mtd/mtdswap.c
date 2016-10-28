@@ -587,7 +587,7 @@ retry:
 	ret = wait_event_interruptible(wq, erase.state == MTD_ERASE_DONE ||
 					   erase.state == MTD_ERASE_FAILED);
 	if (ret) {
-		dev_err(d->dev, "Interrupted erase block %#llx erassure on %s",
+		dev_err(d->dev, "Interrupted erase block %#llx erasure on %s\n",
 			erase.addr, mtd->name);
 		return -EINTR;
 	}
