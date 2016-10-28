@@ -93,6 +93,7 @@ struct mlxsw_core_pcpu_stats {
 struct mlxsw_core_port {
 	struct devlink_port devlink_port;
 	void *port_driver_priv;
+	u8 local_port;
 };
 
 void *mlxsw_core_port_driver_priv(struct mlxsw_core_port *mlxsw_core_port)
@@ -937,6 +938,21 @@ static void *__dl_port(struct devlink_port *devlink_port)
 	return container_of(devlink_port, struct mlxsw_core_port, devlink_port);
 }
 
+static int mlxsw_devlink_port_type_set(struct devlink_port *devlink_port,
+				       enum devlink_port_type port_type)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink_port->devlink);
+	struct mlxsw_driver *mlxsw_driver = mlxsw_core->driver;
+	struct mlxsw_core_port *mlxsw_core_port = __dl_port(devlink_port);
+
+	if (!mlxsw_driver->port_type_set)
+		return -EOPNOTSUPP;
+
+	return mlxsw_driver->port_type_set(mlxsw_core,
+					   mlxsw_core_port->local_port,
+					   port_type);
+}
+
 static int mlxsw_devlink_sb_port_pool_get(struct devlink_port *devlink_port,
 					  unsigned int sb_index, u16 pool_index,
 					  u32 *p_threshold)
@@ -1060,6 +1076,7 @@ mlxsw_devlink_sb_occ_tc_port_bind_get(struct devlink_port *devlink_port,
 }
 
 static const struct devlink_ops mlxsw_devlink_ops = {
+	.port_type_set			= mlxsw_devlink_port_type_set,
 	.port_split			= mlxsw_devlink_port_split,
 	.port_unsplit			= mlxsw_devlink_port_unsplit,
 	.sb_pool_get			= mlxsw_devlink_sb_pool_get,
@@ -1687,6 +1704,7 @@ int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port)
 	struct devlink_port *devlink_port = &mlxsw_core_port->devlink_port;
 	int err;
 
+	mlxsw_core_port->local_port = local_port;
 	err = devlink_port_register(devlink, devlink_port, local_port);
 	if (err)
 		memset(mlxsw_core_port, 0, sizeof(*mlxsw_core_port));
@@ -1720,6 +1738,18 @@ void mlxsw_core_port_eth_set(struct mlxsw_core *mlxsw_core, u8 local_port,
 }
 EXPORT_SYMBOL(mlxsw_core_port_eth_set);
 
+void mlxsw_core_port_ib_set(struct mlxsw_core *mlxsw_core, u8 local_port,
+			    void *port_driver_priv)
+{
+	struct mlxsw_core_port *mlxsw_core_port =
+					&mlxsw_core->ports[local_port];
+	struct devlink_port *devlink_port = &mlxsw_core_port->devlink_port;
+
+	mlxsw_core_port->port_driver_priv = port_driver_priv;
+	devlink_port_type_ib_set(devlink_port, NULL);
+}
+EXPORT_SYMBOL(mlxsw_core_port_ib_set);
+
 void mlxsw_core_port_clear(struct mlxsw_core *mlxsw_core, u8 local_port,
 			   void *port_driver_priv)
 {
@@ -1731,6 +1761,17 @@ void mlxsw_core_port_clear(struct mlxsw_core *mlxsw_core, u8 local_port,
 	devlink_port_type_clear(devlink_port);
 }
 EXPORT_SYMBOL(mlxsw_core_port_clear);
+
+enum devlink_port_type mlxsw_core_port_type_get(struct mlxsw_core *mlxsw_core,
+						u8 local_port)
+{
+	struct mlxsw_core_port *mlxsw_core_port =
+					&mlxsw_core->ports[local_port];
+	struct devlink_port *devlink_port = &mlxsw_core_port->devlink_port;
+
+	return devlink_port->type;
+}
+EXPORT_SYMBOL(mlxsw_core_port_type_get);
 
 static void mlxsw_core_buf_dump_dbg(struct mlxsw_core *mlxsw_core,
 				    const char *buf, size_t size)
