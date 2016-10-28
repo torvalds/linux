@@ -27,6 +27,30 @@ extern struct list_head rdt_all_groups;
 int __init rdtgroup_init(void);
 
 /**
+ * struct rftype - describe each file in the resctrl file system
+ * @name: file name
+ * @mode: access mode
+ * @kf_ops: operations
+ * @seq_show: show content of the file
+ * @write: write to the file
+ */
+struct rftype {
+	char			*name;
+	umode_t			mode;
+	struct kernfs_ops	*kf_ops;
+
+	int (*seq_show)(struct kernfs_open_file *of,
+			struct seq_file *sf, void *v);
+	/*
+	 * write() is the generic write callback which maps directly to
+	 * kernfs write operation and overrides all other operations.
+	 * Maximum write size is determined by ->max_write_len.
+	 */
+	ssize_t (*write)(struct kernfs_open_file *of,
+			 char *buf, size_t nbytes, loff_t off);
+};
+
+/**
  * struct rdt_resource - attributes of an RDT resource
  * @enabled:			Is this feature enabled on this machine
  * @capable:			Is this feature available on this machine

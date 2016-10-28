@@ -23,6 +23,8 @@
 #include <linux/fs.h>
 #include <linux/sysfs.h>
 #include <linux/kernfs.h>
+#include <linux/seq_file.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 
 #include <uapi/linux/magic.h>
@@ -33,6 +35,176 @@ DEFINE_STATIC_KEY_FALSE(rdt_enable_key);
 struct kernfs_root *rdt_root;
 struct rdtgroup rdtgroup_default;
 LIST_HEAD(rdt_all_groups);
+
+/* Kernel fs node for "info" directory under root */
+static struct kernfs_node *kn_info;
+
+/* set uid and gid of rdtgroup dirs and files to that of the creator */
+static int rdtgroup_kn_set_ugid(struct kernfs_node *kn)
+{
+	struct iattr iattr = { .ia_valid = ATTR_UID | ATTR_GID,
+				.ia_uid = current_fsuid(),
+				.ia_gid = current_fsgid(), };
+
+	if (uid_eq(iattr.ia_uid, GLOBAL_ROOT_UID) &&
+	    gid_eq(iattr.ia_gid, GLOBAL_ROOT_GID))
+		return 0;
+
+	return kernfs_setattr(kn, &iattr);
+}
+
+static int rdtgroup_add_file(struct kernfs_node *parent_kn, struct rftype *rft)
+{
+	struct kernfs_node *kn;
+	int ret;
+
+	kn = __kernfs_create_file(parent_kn, rft->name, rft->mode,
+				  0, rft->kf_ops, rft, NULL, NULL);
+	if (IS_ERR(kn))
+		return PTR_ERR(kn);
+
+	ret = rdtgroup_kn_set_ugid(kn);
+	if (ret) {
+		kernfs_remove(kn);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int rdtgroup_add_files(struct kernfs_node *kn, struct rftype *rfts,
+			      int len)
+{
+	struct rftype *rft;
+	int ret;
+
+	lockdep_assert_held(&rdtgroup_mutex);
+
+	for (rft = rfts; rft < rfts + len; rft++) {
+		ret = rdtgroup_add_file(kn, rft);
+		if (ret)
+			goto error;
+	}
+
+	return 0;
+error:
+	pr_warn("Failed to add %s, err=%d\n", rft->name, ret);
+	while (--rft >= rfts)
+		kernfs_remove_by_name(kn, rft->name);
+	return ret;
+}
+
+static int rdtgroup_seqfile_show(struct seq_file *m, void *arg)
+{
+	struct kernfs_open_file *of = m->private;
+	struct rftype *rft = of->kn->priv;
+
+	if (rft->seq_show)
+		return rft->seq_show(of, m, arg);
+	return 0;
+}
+
+static ssize_t rdtgroup_file_write(struct kernfs_open_file *of, char *buf,
+				   size_t nbytes, loff_t off)
+{
+	struct rftype *rft = of->kn->priv;
+
+	if (rft->write)
+		return rft->write(of, buf, nbytes, off);
+
+	return -EINVAL;
+}
+
+static struct kernfs_ops rdtgroup_kf_single_ops = {
+	.atomic_write_len	= PAGE_SIZE,
+	.write			= rdtgroup_file_write,
+	.seq_show		= rdtgroup_seqfile_show,
+};
+
+static int rdt_num_closids_show(struct kernfs_open_file *of,
+				struct seq_file *seq, void *v)
+{
+	struct rdt_resource *r = of->kn->parent->priv;
+
+	seq_printf(seq, "%d\n", r->num_closid);
+
+	return 0;
+}
+
+static int rdt_cbm_mask_show(struct kernfs_open_file *of,
+			     struct seq_file *seq, void *v)
+{
+	struct rdt_resource *r = of->kn->parent->priv;
+
+	seq_printf(seq, "%x\n", r->max_cbm);
+
+	return 0;
+}
+
+/* rdtgroup information files for one cache resource. */
+static struct rftype res_info_files[] = {
+	{
+		.name		= "num_closids",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_num_closids_show,
+	},
+	{
+		.name		= "cbm_mask",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_cbm_mask_show,
+	},
+};
+
+static int rdtgroup_create_info_dir(struct kernfs_node *parent_kn)
+{
+	struct kernfs_node *kn_subdir;
+	struct rdt_resource *r;
+	int ret;
+
+	/* create the directory */
+	kn_info = kernfs_create_dir(parent_kn, "info", parent_kn->mode, NULL);
+	if (IS_ERR(kn_info))
+		return PTR_ERR(kn_info);
+	kernfs_get(kn_info);
+
+	for_each_enabled_rdt_resource(r) {
+		kn_subdir = kernfs_create_dir(kn_info, r->name,
+					      kn_info->mode, r);
+		if (IS_ERR(kn_subdir)) {
+			ret = PTR_ERR(kn_subdir);
+			goto out_destroy;
+		}
+		kernfs_get(kn_subdir);
+		ret = rdtgroup_kn_set_ugid(kn_subdir);
+		if (ret)
+			goto out_destroy;
+		ret = rdtgroup_add_files(kn_subdir, res_info_files,
+					 ARRAY_SIZE(res_info_files));
+		if (ret)
+			goto out_destroy;
+		kernfs_activate(kn_subdir);
+	}
+
+	/*
+	 * This extra ref will be put in kernfs_remove() and guarantees
+	 * that @rdtgrp->kn is always accessible.
+	 */
+	kernfs_get(kn_info);
+
+	ret = rdtgroup_kn_set_ugid(kn_info);
+	if (ret)
+		goto out_destroy;
+
+	kernfs_activate(kn_info);
+
+	return 0;
+
+out_destroy:
+	kernfs_remove(kn_info);
+	return ret;
+}
 
 static void l3_qos_cfg_update(void *arg)
 {
@@ -137,6 +309,10 @@ static struct dentry *rdt_mount(struct file_system_type *fs_type,
 		goto out_cdp;
 	}
 
+	ret = rdtgroup_create_info_dir(rdtgroup_default.kn);
+	if (ret)
+		goto out_cdp;
+
 	dentry = kernfs_mount(fs_type, flags, rdt_root,
 			      RDTGROUP_SUPER_MAGIC, NULL);
 	if (IS_ERR(dentry))
@@ -191,6 +367,14 @@ static int reset_all_cbms(struct rdt_resource *r)
 	return 0;
 }
 
+/*
+ * Forcibly remove all of subdirectories under root.
+ */
+static void rmdir_all_sub(void)
+{
+	kernfs_remove(kn_info);
+}
+
 static void rdt_kill_sb(struct super_block *sb)
 {
 	struct rdt_resource *r;
@@ -201,6 +385,7 @@ static void rdt_kill_sb(struct super_block *sb)
 	for_each_enabled_rdt_resource(r)
 		reset_all_cbms(r);
 	cdp_disable();
+	rmdir_all_sub();
 	static_branch_disable(&rdt_enable_key);
 	kernfs_kill_sb(sb);
 	mutex_unlock(&rdtgroup_mutex);
