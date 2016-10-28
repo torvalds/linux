@@ -21,6 +21,11 @@
 		status = "disabled";
 	};
 
+	pwrbutton {
+		compatible = "ti,tps65217-pwrbutton";
+		status = "disabled";
+	};
+
 	regulators {
 		#address-cells = <1>;
 		#size-cells = <0>;
