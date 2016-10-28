@@ -234,12 +234,11 @@ struct tps65217_bl_pdata {
 	int dft_brightness;
 };
 
-enum tps65217_irq_type {
-	TPS65217_IRQ_PB,
-	TPS65217_IRQ_AC,
-	TPS65217_IRQ_USB,
-	TPS65217_NUM_IRQ
-};
+/* Interrupt numbers */
+#define TPS65217_IRQ_USB		0
+#define TPS65217_IRQ_AC			1
+#define TPS65217_IRQ_PB			2
+#define TPS65217_NUM_IRQ		3
 
 /**
  * struct tps65217_board - packages regulator init data
