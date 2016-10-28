@@ -324,6 +324,11 @@
 		status = "okay";
 	};
 
+	pwrbutton {
+		interrupts = <TPS65217_IRQ_PB>;
+		status = "okay";
+	};
+
 	regulators {
 		dcdc1_reg: regulator@0 {
 			regulator-name = "vdds_dpr";
