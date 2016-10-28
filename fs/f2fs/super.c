@@ -412,7 +412,7 @@ static int parse_options(struct super_block *sb, char *options)
 			q = bdev_get_queue(sb->s_bdev);
 			if (blk_queue_discard(q)) {
 				set_opt(sbi, DISCARD);
-			} else {
+			} else if (!f2fs_sb_mounted_blkzoned(sb)) {
 				f2fs_msg(sb, KERN_WARNING,
 					"mounting with \"discard\" option, but "
 					"the device does not support discard");
