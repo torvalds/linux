@@ -158,7 +158,7 @@ static void mlxsw_sp_txhdr_construct(struct sk_buff *skb,
 
 static int mlxsw_sp_base_mac_get(struct mlxsw_sp *mlxsw_sp)
 {
-	char spad_pl[MLXSW_REG_SPAD_LEN];
+	char spad_pl[MLXSW_REG_SPAD_LEN] = {0};
 	int err;
 
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(spad), spad_pl);

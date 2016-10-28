@@ -890,7 +890,7 @@ static const struct switchdev_ops mlxsw_sx_port_switchdev_ops = {
 
 static int mlxsw_sx_hw_id_get(struct mlxsw_sx *mlxsw_sx)
 {
-	char spad_pl[MLXSW_REG_SPAD_LEN];
+	char spad_pl[MLXSW_REG_SPAD_LEN] = {0};
 	int err;
 
 	err = mlxsw_reg_query(mlxsw_sx->core, MLXSW_REG(spad), spad_pl);
