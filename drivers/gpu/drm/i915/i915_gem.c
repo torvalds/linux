@@ -169,7 +169,7 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static int
+static struct sg_table *
 i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 {
 	struct address_space *mapping = obj->base.filp->f_mapping;
@@ -179,7 +179,7 @@ i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 	int i;
 
 	if (WARN_ON(i915_gem_object_needs_bit17_swizzle(obj)))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	for (i = 0; i < obj->base.size / PAGE_SIZE; i++) {
 		struct page *page;
@@ -187,7 +187,7 @@ i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 
 		page = shmem_read_mapping_page(mapping, i);
 		if (IS_ERR(page))
-			return PTR_ERR(page);
+			return ERR_CAST(page);
 
 		src = kmap_atomic(page);
 		memcpy(vaddr, src, PAGE_SIZE);
@@ -202,11 +202,11 @@ i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (st == NULL)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	if (sg_alloc_table(st, 1, GFP_KERNEL)) {
 		kfree(st);
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	sg = st->sgl;
@@ -216,27 +216,29 @@ i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 	sg_dma_address(sg) = obj->phys_handle->busaddr;
 	sg_dma_len(sg) = obj->base.size;
 
-	obj->mm.pages = st;
-	return 0;
+	return st;
 }
 
 static void
-i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj)
+__i915_gem_object_release_shmem(struct drm_i915_gem_object *obj)
 {
-	int ret;
-
 	GEM_BUG_ON(obj->mm.madv == __I915_MADV_PURGED);
-
-	ret = i915_gem_object_set_to_cpu_domain(obj, true);
-	if (WARN_ON(ret)) {
-		/* In the event of a disaster, abandon all caches and
-		 * hope for the best.
-		 */
-		obj->base.read_domains = obj->base.write_domain = I915_GEM_DOMAIN_CPU;
-	}
 
 	if (obj->mm.madv == I915_MADV_DONTNEED)
 		obj->mm.dirty = false;
+
+	if ((obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0)
+		i915_gem_clflush_object(obj, false);
+
+	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
+}
+
+static void
+i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
+			       struct sg_table *pages)
+{
+	__i915_gem_object_release_shmem(obj);
 
 	if (obj->mm.dirty) {
 		struct address_space *mapping = obj->base.filp->f_mapping;
@@ -265,8 +267,8 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj)
 		obj->mm.dirty = false;
 	}
 
-	sg_free_table(obj->mm.pages);
-	kfree(obj->mm.pages);
+	sg_free_table(pages);
+	kfree(pages);
 }
 
 static void
@@ -518,9 +520,9 @@ i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	ret = __i915_gem_object_put_pages(obj);
-	if (ret)
-		return ret;
+	__i915_gem_object_put_pages(obj);
+	if (obj->mm.pages)
+		return -EBUSY;
 
 	/* create a new object */
 	phys = drm_pci_alloc(obj->base.dev, obj->base.size, align);
@@ -536,7 +538,7 @@ i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 static int
 i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 		     struct drm_i915_gem_pwrite *args,
-		     struct drm_file *file_priv)
+		     struct drm_file *file)
 {
 	struct drm_device *dev = obj->base.dev;
 	void *vaddr = obj->phys_handle->vaddr + args->offset;
@@ -552,7 +554,7 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 				   I915_WAIT_LOCKED |
 				   I915_WAIT_ALL,
 				   MAX_SCHEDULE_TIMEOUT,
-				   to_rps_client(file_priv));
+				   to_rps_client(file));
 	if (ret)
 		return ret;
 
@@ -2263,8 +2265,7 @@ i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 }
 
 /* Try to discard unwanted pages */
-static void
-i915_gem_object_invalidate(struct drm_i915_gem_object *obj)
+void __i915_gem_object_invalidate(struct drm_i915_gem_object *obj)
 {
 	struct address_space *mapping;
 
@@ -2283,32 +2284,20 @@ i915_gem_object_invalidate(struct drm_i915_gem_object *obj)
 }
 
 static void
-i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
+i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
+			      struct sg_table *pages)
 {
 	struct sgt_iter sgt_iter;
 	struct page *page;
-	int ret;
 
-	GEM_BUG_ON(obj->mm.madv == __I915_MADV_PURGED);
+	__i915_gem_object_release_shmem(obj);
 
-	ret = i915_gem_object_set_to_cpu_domain(obj, true);
-	if (WARN_ON(ret)) {
-		/* In the event of a disaster, abandon all caches and
-		 * hope for the best.
-		 */
-		i915_gem_clflush_object(obj, true);
-		obj->base.read_domains = obj->base.write_domain = I915_GEM_DOMAIN_CPU;
-	}
-
-	i915_gem_gtt_finish_object(obj);
+	i915_gem_gtt_finish_pages(obj, pages);
 
 	if (i915_gem_object_needs_bit17_swizzle(obj))
-		i915_gem_object_save_bit_17_swizzle(obj);
+		i915_gem_object_save_bit_17_swizzle(obj, pages);
 
-	if (obj->mm.madv == I915_MADV_DONTNEED)
-		obj->mm.dirty = false;
-
-	for_each_sgt_page(page, sgt_iter, obj->mm.pages) {
+	for_each_sgt_page(page, sgt_iter, pages) {
 		if (obj->mm.dirty)
 			set_page_dirty(page);
 
@@ -2319,8 +2308,8 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 	}
 	obj->mm.dirty = false;
 
-	sg_free_table(obj->mm.pages);
-	kfree(obj->mm.pages);
+	sg_free_table(pages);
+	kfree(pages);
 }
 
 static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
@@ -2332,24 +2321,22 @@ static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
 		radix_tree_delete(&obj->mm.get_page.radix, iter.index);
 }
 
-int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
+void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 {
-	const struct drm_i915_gem_object_ops *ops = obj->ops;
+	struct sg_table *pages;
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
-	if (!obj->mm.pages)
-		return 0;
-
 	if (i915_gem_object_has_pinned_pages(obj))
-		return -EBUSY;
+		return;
 
 	GEM_BUG_ON(obj->bind_count);
 
 	/* ->put_pages might need to allocate memory for the bit17 swizzle
 	 * array, hence protect them from being reaped by removing them from gtt
 	 * lists early. */
-	list_del(&obj->global_list);
+	pages = fetch_and_zero(&obj->mm.pages);
+	GEM_BUG_ON(!pages);
 
 	if (obj->mm.mapping) {
 		void *ptr;
@@ -2365,12 +2352,7 @@ int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 
 	__i915_gem_object_reset_page_iter(obj);
 
-	ops->put_pages(obj);
-	obj->mm.pages = NULL;
-
-	i915_gem_object_invalidate(obj);
-
-	return 0;
+	obj->ops->put_pages(obj, pages);
 }
 
 static unsigned int swiotlb_max_size(void)
@@ -2382,7 +2364,7 @@ static unsigned int swiotlb_max_size(void)
 #endif
 }
 
-static int
+static struct sg_table *
 i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
@@ -2401,8 +2383,8 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	 * wasn't in the GTT, there shouldn't be any way it could have been in
 	 * a GPU cache
 	 */
-	BUG_ON(obj->base.read_domains & I915_GEM_GPU_DOMAINS);
-	BUG_ON(obj->base.write_domain & I915_GEM_GPU_DOMAINS);
+	GEM_BUG_ON(obj->base.read_domains & I915_GEM_GPU_DOMAINS);
+	GEM_BUG_ON(obj->base.write_domain & I915_GEM_GPU_DOMAINS);
 
 	max_segment = swiotlb_max_size();
 	if (!max_segment)
@@ -2410,12 +2392,12 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (st == NULL)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	page_count = obj->base.size / PAGE_SIZE;
 	if (sg_alloc_table(st, page_count, GFP_KERNEL)) {
 		kfree(st);
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	/* Get the list of pages out of our struct file.  They'll be pinned
@@ -2466,20 +2448,19 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	}
 	if (sg) /* loop terminated early; short sg table */
 		sg_mark_end(sg);
-	obj->mm.pages = st;
 
-	ret = i915_gem_gtt_prepare_object(obj);
+	ret = i915_gem_gtt_prepare_pages(obj, st);
 	if (ret)
 		goto err_pages;
 
 	if (i915_gem_object_needs_bit17_swizzle(obj))
-		i915_gem_object_do_bit_17_swizzle(obj);
+		i915_gem_object_do_bit_17_swizzle(obj, st);
 
 	if (i915_gem_object_is_tiled(obj) &&
 	    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)
 		__i915_gem_object_pin_pages(obj);
 
-	return 0;
+	return st;
 
 err_pages:
 	sg_mark_end(sg);
@@ -2499,7 +2480,35 @@ err_pages:
 	if (ret == -ENOSPC)
 		ret = -ENOMEM;
 
-	return ret;
+	return ERR_PTR(ret);
+}
+
+void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
+				 struct sg_table *pages)
+{
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+
+	obj->mm.get_page.sg_pos = pages->sgl;
+	obj->mm.get_page.sg_idx = 0;
+
+	obj->mm.pages = pages;
+}
+
+static int ____i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
+{
+	struct sg_table *pages;
+
+	if (unlikely(obj->mm.madv != I915_MADV_WILLNEED)) {
+		DRM_DEBUG("Attempting to obtain a purgeable object\n");
+		return -EFAULT;
+	}
+
+	pages = obj->ops->get_pages(obj);
+	if (unlikely(IS_ERR(pages)))
+		return PTR_ERR(pages);
+
+	__i915_gem_object_set_pages(obj, pages);
+	return 0;
 }
 
 /* Ensure that the associated pages are gathered from the backing storage
@@ -2511,33 +2520,18 @@ err_pages:
  */
 int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	const struct drm_i915_gem_object_ops *ops = obj->ops;
-	int ret;
+	int err;
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
 	if (obj->mm.pages)
 		return 0;
 
-	if (obj->mm.madv != I915_MADV_WILLNEED) {
-		DRM_DEBUG("Attempting to obtain a purgeable object\n");
+	err = ____i915_gem_object_get_pages(obj);
+	if (err)
 		__i915_gem_object_unpin_pages(obj);
-		return -EFAULT;
-	}
 
-	ret = ops->get_pages(obj);
-	if (ret) {
-		__i915_gem_object_unpin_pages(obj);
-		return ret;
-	}
-
-	list_add_tail(&obj->global_list, &dev_priv->mm.unbound_list);
-
-	obj->mm.get_page.sg_pos = obj->mm.pages->sgl;
-	obj->mm.get_page.sg_idx = 0;
-
-	return 0;
+	return err;
 }
 
 /* The 'mapping' part of i915_gem_object_pin_map() below */

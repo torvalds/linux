@@ -2370,14 +2370,15 @@ void i915_gem_suspend_gtt_mappings(struct drm_device *dev)
 	i915_ggtt_flush(dev_priv);
 }
 
-int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
+int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
+			       struct sg_table *pages)
 {
-	if (!dma_map_sg(&obj->base.dev->pdev->dev,
-			obj->mm.pages->sgl, obj->mm.pages->nents,
-			PCI_DMA_BIDIRECTIONAL))
-		return -ENOSPC;
+	if (dma_map_sg(&obj->base.dev->pdev->dev,
+		       pages->sgl, pages->nents,
+		       PCI_DMA_BIDIRECTIONAL))
+		return 0;
 
-	return 0;
+	return -ENOSPC;
 }
 
 static void gen8_set_pte(void __iomem *addr, gen8_pte_t pte)
@@ -2696,7 +2697,8 @@ static void ggtt_unbind_vma(struct i915_vma *vma)
 					 vma->node.start, size);
 }
 
-void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
+void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
+			       struct sg_table *pages)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct device *kdev = &dev_priv->drm.pdev->dev;
@@ -2710,8 +2712,7 @@ void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
 		}
 	}
 
-	dma_unmap_sg(kdev, obj->mm.pages->sgl, obj->mm.pages->nents,
-		     PCI_DMA_BIDIRECTIONAL);
+	dma_unmap_sg(kdev, pages->sgl, pages->nents, PCI_DMA_BIDIRECTIONAL);
 }
 
 static void i915_gtt_color_adjust(struct drm_mm_node *node,

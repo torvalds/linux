@@ -546,17 +546,20 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	return st;
 }
 
-static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
+static struct sg_table *
+i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
 {
-	BUG();
-	return -EINVAL;
+	return i915_pages_create_for_stolen(obj->base.dev,
+					    obj->stolen->start,
+					    obj->stolen->size);
 }
 
-static void i915_gem_object_put_pages_stolen(struct drm_i915_gem_object *obj)
+static void i915_gem_object_put_pages_stolen(struct drm_i915_gem_object *obj,
+					     struct sg_table *pages)
 {
 	/* Should only be called during free */
-	sg_free_table(obj->mm.pages);
-	kfree(obj->mm.pages);
+	sg_free_table(pages);
+	kfree(pages);
 }
 
 static void
@@ -591,20 +594,12 @@ _i915_gem_object_create_stolen(struct drm_device *dev,
 	drm_gem_private_object_init(dev, &obj->base, stolen->size);
 	i915_gem_object_init(obj, &i915_gem_object_stolen_ops);
 
-	obj->mm.pages = i915_pages_create_for_stolen(dev,
-						     stolen->start,
-						     stolen->size);
-	if (!obj->mm.pages)
-		goto cleanup;
-
-	obj->mm.get_page.sg_pos = obj->mm.pages->sgl;
-	obj->mm.get_page.sg_idx = 0;
-
-	__i915_gem_object_pin_pages(obj);
 	obj->stolen = stolen;
-
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
 	obj->cache_level = HAS_LLC(dev) ? I915_CACHE_LLC : I915_CACHE_NONE;
+
+	if (i915_gem_object_pin_pages(obj))
+		goto cleanup;
 
 	return obj;
 
@@ -700,10 +695,14 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	if (gtt_offset == I915_GTT_OFFSET_NONE)
 		return obj;
 
+	ret = i915_gem_object_pin_pages(obj);
+	if (ret)
+		goto err;
+
 	vma = i915_gem_obj_lookup_or_create_vma(obj, &ggtt->base, NULL);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
-		goto err;
+		goto err_pages;
 	}
 
 	/* To simplify the initialisation sequence between KMS and GTT,
@@ -717,20 +716,20 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	ret = drm_mm_reserve_node(&ggtt->base.mm, &vma->node);
 	if (ret) {
 		DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
-		goto err;
+		goto err_pages;
 	}
 
 	vma->pages = obj->mm.pages;
 	vma->flags |= I915_VMA_GLOBAL_BIND;
 	__i915_vma_set_map_and_fenceable(vma);
 	list_move_tail(&vma->vm_link, &ggtt->base.inactive_list);
+	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	obj->bind_count++;
-
-	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
-	__i915_gem_object_pin_pages(obj);
 
 	return obj;
 
+err_pages:
+	i915_gem_object_unpin_pages(obj);
 err:
 	i915_gem_object_put(obj);
 	return NULL;

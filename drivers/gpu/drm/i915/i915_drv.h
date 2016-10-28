@@ -2185,8 +2185,8 @@ struct drm_i915_gem_object_ops {
 	 * being released or under memory pressure (where we attempt to
 	 * reap pages for the shrinker).
 	 */
-	int (*get_pages)(struct drm_i915_gem_object *);
-	void (*put_pages)(struct drm_i915_gem_object *);
+	struct sg_table *(*get_pages)(struct drm_i915_gem_object *);
+	void (*put_pages)(struct drm_i915_gem_object *, struct sg_table *);
 
 	int (*dmabuf_export)(struct drm_i915_gem_object *);
 	void (*release)(struct drm_i915_gem_object *);
@@ -2321,8 +2321,6 @@ struct drm_i915_gem_object {
 	struct i915_gem_userptr {
 		uintptr_t ptr;
 		unsigned read_only :1;
-		unsigned workers :4;
-#define I915_GEM_USERPTR_MAX_WORKERS 15
 
 		struct i915_mm_struct *mm;
 		struct i915_mmu_object *mmu_object;
@@ -2382,6 +2380,19 @@ i915_gem_object_put_unlocked(struct drm_i915_gem_object *obj)
 
 __deprecated
 extern void drm_gem_object_unreference_unlocked(struct drm_gem_object *);
+
+static inline bool
+i915_gem_object_is_dead(const struct drm_i915_gem_object *obj)
+{
+	return atomic_read(&obj->base.refcount.refcount) == 0;
+}
+
+#if IS_ENABLED(CONFIG_LOCKDEP)
+#define lockdep_assert_held_unless(lock, cond) \
+	GEM_BUG_ON(debug_locks && !lockdep_is_held(lock) && !(cond))
+#else
+#define lockdep_assert_held_unless(lock, cond)
+#endif
 
 static inline bool
 i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
@@ -3211,6 +3222,8 @@ dma_addr_t
 i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
 				unsigned long n);
 
+void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
+				 struct sg_table *pages);
 int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 
 static inline int __must_check
@@ -3227,7 +3240,8 @@ i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 static inline void
 __i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	lockdep_assert_held_unless(&obj->base.dev->struct_mutex,
+				   i915_gem_object_is_dead(obj));
 	GEM_BUG_ON(!obj->mm.pages);
 
 	obj->mm.pages_pin_count++;
@@ -3242,7 +3256,8 @@ i915_gem_object_has_pinned_pages(struct drm_i915_gem_object *obj)
 static inline void
 __i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 {
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	lockdep_assert_held_unless(&obj->base.dev->struct_mutex,
+				   i915_gem_object_is_dead(obj));
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
 	GEM_BUG_ON(!obj->mm.pages);
 
@@ -3255,7 +3270,8 @@ static inline void i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 	__i915_gem_object_unpin_pages(obj);
 }
 
-int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
+void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
+void __i915_gem_object_invalidate(struct drm_i915_gem_object *obj);
 
 enum i915_map_type {
 	I915_MAP_WB = 0,
@@ -3480,8 +3496,10 @@ i915_vma_unpin_fence(struct i915_vma *vma)
 void i915_gem_restore_fences(struct drm_device *dev);
 
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
-void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj);
-void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj);
+void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj,
+				       struct sg_table *pages);
+void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
+					 struct sg_table *pages);
 
 /* i915_gem_context.c */
 int __must_check i915_gem_context_init(struct drm_device *dev);

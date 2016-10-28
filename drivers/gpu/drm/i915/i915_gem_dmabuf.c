@@ -289,22 +289,18 @@ struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 	return dma_buf;
 }
 
-static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
+static struct sg_table *
+i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
 {
-	struct sg_table *sg;
-
-	sg = dma_buf_map_attachment(obj->base.import_attach, DMA_BIDIRECTIONAL);
-	if (IS_ERR(sg))
-		return PTR_ERR(sg);
-
-	obj->mm.pages = sg;
-	return 0;
+	return dma_buf_map_attachment(obj->base.import_attach,
+				      DMA_BIDIRECTIONAL);
 }
 
-static void i915_gem_object_put_pages_dmabuf(struct drm_i915_gem_object *obj)
+static void i915_gem_object_put_pages_dmabuf(struct drm_i915_gem_object *obj,
+					     struct sg_table *pages)
 {
-	dma_buf_unmap_attachment(obj->base.import_attach,
-				 obj->mm.pages, DMA_BIDIRECTIONAL);
+	dma_buf_unmap_attachment(obj->base.import_attach, pages,
+				 DMA_BIDIRECTIONAL);
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_object_dmabuf_ops = {

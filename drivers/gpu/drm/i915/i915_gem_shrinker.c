@@ -91,6 +91,13 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 	return swap_available() || obj->mm.madv == I915_MADV_DONTNEED;
 }
 
+static bool unsafe_drop_pages(struct drm_i915_gem_object *obj)
+{
+	if (i915_gem_object_unbind(obj) == 0)
+		__i915_gem_object_put_pages(obj);
+	return !obj->mm.pages;
+}
+
 /**
  * i915_gem_shrink - Shrink buffer object caches
  * @dev_priv: i915 device
@@ -192,9 +199,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 
 			i915_gem_object_get(obj);
 
-			/* For the unbound phase, this should be a no-op! */
-			i915_gem_object_unbind(obj);
-			if (__i915_gem_object_put_pages(obj) == 0)
+			if (unsafe_drop_pages(obj))
 				count += obj->base.size >> PAGE_SHIFT;
 
 			i915_gem_object_put(obj);

@@ -628,8 +628,10 @@ void i915_check_and_clear_faults(struct drm_i915_private *dev_priv);
 void i915_gem_suspend_gtt_mappings(struct drm_device *dev);
 void i915_gem_restore_gtt_mappings(struct drm_device *dev);
 
-int __must_check i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj);
-void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj);
+int __must_check i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
+					    struct sg_table *pages);
+void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
+			       struct sg_table *pages);
 
 /* Flags used by pin/bind&friends. */
 #define PIN_NONBLOCK		BIT(0)
