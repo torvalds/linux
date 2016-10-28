@@ -44,6 +44,9 @@ static struct vpci_version vpci_versions[] = {
 	{ .major = 1, .minor = 1 },
 };
 
+static unsigned long vatu_major = 1;
+static unsigned long vatu_minor = 1;
+
 #define PGLIST_NENTS	(PAGE_SIZE / sizeof(u64))
 
 struct iommu_batch {
@@ -581,6 +584,107 @@ static unsigned long probe_existing_entries(struct pci_pbm_info *pbm,
 	return cnt;
 }
 
+static int pci_sun4v_atu_alloc_iotsb(struct pci_pbm_info *pbm)
+{
+	struct atu *atu = pbm->iommu->atu;
+	struct atu_iotsb *iotsb;
+	void *table;
+	u64 table_size;
+	u64 iotsb_num;
+	unsigned long order;
+	unsigned long err;
+
+	iotsb = kzalloc(sizeof(*iotsb), GFP_KERNEL);
+	if (!iotsb) {
+		err = -ENOMEM;
+		goto out_err;
+	}
+	atu->iotsb = iotsb;
+
+	/* calculate size of IOTSB */
+	table_size = (atu->size / IO_PAGE_SIZE) * 8;
+	order = get_order(table_size);
+	table = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
+	if (!table) {
+		err = -ENOMEM;
+		goto table_failed;
+	}
+	iotsb->table = table;
+	iotsb->ra = __pa(table);
+	iotsb->dvma_size = atu->size;
+	iotsb->dvma_base = atu->base;
+	iotsb->table_size = table_size;
+	iotsb->page_size = IO_PAGE_SIZE;
+
+	/* configure and register IOTSB with HV */
+	err = pci_sun4v_iotsb_conf(pbm->devhandle,
+				   iotsb->ra,
+				   iotsb->table_size,
+				   iotsb->page_size,
+				   iotsb->dvma_base,
+				   &iotsb_num);
+	if (err) {
+		pr_err(PFX "pci_iotsb_conf failed error: %ld\n", err);
+		goto iotsb_conf_failed;
+	}
+	iotsb->iotsb_num = iotsb_num;
+
+	return 0;
+
+iotsb_conf_failed:
+	free_pages((unsigned long)table, order);
+table_failed:
+	kfree(iotsb);
+out_err:
+	return err;
+}
+
+static int pci_sun4v_atu_init(struct pci_pbm_info *pbm)
+{
+	struct atu *atu = pbm->iommu->atu;
+	unsigned long err;
+	const u64 *ranges;
+	const u32 *page_size;
+	int len;
+
+	ranges = of_get_property(pbm->op->dev.of_node, "iommu-address-ranges",
+				 &len);
+	if (!ranges) {
+		pr_err(PFX "No iommu-address-ranges\n");
+		return -EINVAL;
+	}
+
+	page_size = of_get_property(pbm->op->dev.of_node, "iommu-pagesizes",
+				    NULL);
+	if (!page_size) {
+		pr_err(PFX "No iommu-pagesizes\n");
+		return -EINVAL;
+	}
+
+	/* There are 4 iommu-address-ranges supported. Each range is pair of
+	 * {base, size}. The ranges[0] and ranges[1] are 32bit address space
+	 * while ranges[2] and ranges[3] are 64bit space.  We want to use 64bit
+	 * address ranges to support 64bit addressing. Because 'size' for
+	 * address ranges[2] and ranges[3] are same we can select either of
+	 * ranges[2] or ranges[3] for mapping. However due to 'size' is too
+	 * large for OS to allocate IOTSB we are using fix size 32G
+	 * (ATU_64_SPACE_SIZE) which is more than enough for all PCIe devices
+	 * to share.
+	 */
+	atu->ranges = (struct atu_ranges *)ranges;
+	atu->base = atu->ranges[3].base;
+	atu->size = ATU_64_SPACE_SIZE;
+
+	/* Create IOTSB */
+	err = pci_sun4v_atu_alloc_iotsb(pbm);
+	if (err) {
+		pr_err(PFX "Error creating ATU IOTSB\n");
+		return err;
+	}
+
+	return 0;
+}
+
 static int pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 {
 	static const u32 vdma_default[] = { 0x80000000, 0x80000000 };
@@ -918,6 +1022,18 @@ static int pci_sun4v_pbm_init(struct pci_pbm_info *pbm,
 
 	pci_sun4v_scan_bus(pbm, &op->dev);
 
+	/* if atu_init fails its not complete failure.
+	 * we can still continue using legacy iommu.
+	 */
+	if (pbm->iommu->atu) {
+		err = pci_sun4v_atu_init(pbm);
+		if (err) {
+			kfree(pbm->iommu->atu);
+			pbm->iommu->atu = NULL;
+			pr_err(PFX "ATU init failed, err=%d\n", err);
+		}
+	}
+
 	pbm->next = pci_pbm_root;
 	pci_pbm_root = pbm;
 
@@ -931,8 +1047,10 @@ static int pci_sun4v_probe(struct platform_device *op)
 	struct pci_pbm_info *pbm;
 	struct device_node *dp;
 	struct iommu *iommu;
+	struct atu *atu;
 	u32 devhandle;
 	int i, err = -ENODEV;
+	static bool hv_atu = true;
 
 	dp = op->dev.of_node;
 
@@ -953,6 +1071,19 @@ static int pci_sun4v_probe(struct platform_device *op)
 		}
 		pr_info(PFX "Registered hvapi major[%lu] minor[%lu]\n",
 			vpci_major, vpci_minor);
+
+		err = sun4v_hvapi_register(HV_GRP_ATU, vatu_major, &vatu_minor);
+		if (err) {
+			/* don't return an error if we fail to register the
+			 * ATU group, but ATU hcalls won't be available.
+			 */
+			hv_atu = false;
+			pr_err(PFX "Could not register hvapi ATU err=%d\n",
+			       err);
+		} else {
+			pr_info(PFX "Registered hvapi ATU major[%lu] minor[%lu]\n",
+				vatu_major, vatu_minor);
+		}
 
 		dma_ops = &sun4v_dma_ops;
 	}
@@ -991,6 +1122,14 @@ static int pci_sun4v_probe(struct platform_device *op)
 	}
 
 	pbm->iommu = iommu;
+	iommu->atu = NULL;
+	if (hv_atu) {
+		atu = kzalloc(sizeof(*atu), GFP_KERNEL);
+		if (!atu)
+			pr_err(PFX "Could not allocate atu\n");
+		else
+			iommu->atu = atu;
+	}
 
 	err = pci_sun4v_pbm_init(pbm, op, devhandle);
 	if (err)
@@ -1001,6 +1140,7 @@ static int pci_sun4v_probe(struct platform_device *op)
 	return 0;
 
 out_free_iommu:
+	kfree(iommu->atu);
 	kfree(pbm->iommu);
 
 out_free_controller:
