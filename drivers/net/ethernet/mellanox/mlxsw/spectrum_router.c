@@ -320,6 +320,8 @@ mlxsw_sp_lpm_tree_create(struct mlxsw_sp *mlxsw_sp,
 						lpm_tree);
 	if (err)
 		goto err_left_struct_set;
+	memcpy(&lpm_tree->prefix_usage, prefix_usage,
+	       sizeof(lpm_tree->prefix_usage));
 	return lpm_tree;
 
 err_left_struct_set:
@@ -343,7 +345,8 @@ mlxsw_sp_lpm_tree_get(struct mlxsw_sp *mlxsw_sp,
 
 	for (i = 0; i < MLXSW_SP_LPM_TREE_COUNT; i++) {
 		lpm_tree = &mlxsw_sp->router.lpm_trees[i];
-		if (lpm_tree->proto == proto &&
+		if (lpm_tree->ref_count != 0 &&
+		    lpm_tree->proto == proto &&
 		    mlxsw_sp_prefix_usage_eq(&lpm_tree->prefix_usage,
 					     prefix_usage))
 			goto inc_ref_count;
