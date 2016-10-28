@@ -5,8 +5,10 @@
  * (C) Copyright 2002,2004 IBM Corp.
  * (C) Copyright 2006 Novell Inc.
  *
- * Endpoint sysfs stuff
+ * Released under the GPLv2 only.
+ * SPDX-License-Identifier: GPL-2.0
  *
+ * Endpoint sysfs stuff
  */
 
 #include <linux/kernel.h>
