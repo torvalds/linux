@@ -63,13 +63,13 @@ static bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 }
 
 static int
-insert_mappable_node(struct drm_i915_private *i915,
+insert_mappable_node(struct i915_ggtt *ggtt,
                      struct drm_mm_node *node, u32 size)
 {
 	memset(node, 0, sizeof(*node));
-	return drm_mm_insert_node_in_range_generic(&i915->ggtt.base.mm, node,
-						   size, 0, 0, 0,
-						   i915->ggtt.mappable_end,
+	return drm_mm_insert_node_in_range_generic(&ggtt->base.mm, node,
+						   size, 0, -1,
+						   0, ggtt->mappable_end,
 						   DRM_MM_SEARCH_DEFAULT,
 						   DRM_MM_CREATE_DEFAULT);
 }
@@ -821,32 +821,6 @@ err_unpin:
 	return ret;
 }
 
-/* Per-page copy function for the shmem pread fastpath.
- * Flushes invalid cachelines before reading the target if
- * needs_clflush is set. */
-static int
-shmem_pread_fast(struct page *page, int shmem_page_offset, int page_length,
-		 char __user *user_data,
-		 bool page_do_bit17_swizzling, bool needs_clflush)
-{
-	char *vaddr;
-	int ret;
-
-	if (unlikely(page_do_bit17_swizzling))
-		return -EINVAL;
-
-	vaddr = kmap_atomic(page);
-	if (needs_clflush)
-		drm_clflush_virt_range(vaddr + shmem_page_offset,
-				       page_length);
-	ret = __copy_to_user_inatomic(user_data,
-				      vaddr + shmem_page_offset,
-				      page_length);
-	kunmap_atomic(vaddr);
-
-	return ret ? -EFAULT : 0;
-}
-
 static void
 shmem_clflush_swizzled_range(char *addr, unsigned long length,
 			     bool swizzled)
@@ -872,7 +846,7 @@ shmem_clflush_swizzled_range(char *addr, unsigned long length,
 /* Only difference to the fast-path function is that this can handle bit17
  * and uses non-atomic copy and kmap functions. */
 static int
-shmem_pread_slow(struct page *page, int shmem_page_offset, int page_length,
+shmem_pread_slow(struct page *page, int offset, int length,
 		 char __user *user_data,
 		 bool page_do_bit17_swizzling, bool needs_clflush)
 {
@@ -881,61 +855,130 @@ shmem_pread_slow(struct page *page, int shmem_page_offset, int page_length,
 
 	vaddr = kmap(page);
 	if (needs_clflush)
-		shmem_clflush_swizzled_range(vaddr + shmem_page_offset,
-					     page_length,
+		shmem_clflush_swizzled_range(vaddr + offset, length,
 					     page_do_bit17_swizzling);
 
 	if (page_do_bit17_swizzling)
-		ret = __copy_to_user_swizzled(user_data,
-					      vaddr, shmem_page_offset,
-					      page_length);
+		ret = __copy_to_user_swizzled(user_data, vaddr, offset, length);
 	else
-		ret = __copy_to_user(user_data,
-				     vaddr + shmem_page_offset,
-				     page_length);
+		ret = __copy_to_user(user_data, vaddr + offset, length);
 	kunmap(page);
 
 	return ret ? - EFAULT : 0;
 }
 
-static inline unsigned long
-slow_user_access(struct io_mapping *mapping,
-		 uint64_t page_base, int page_offset,
-		 char __user *user_data,
-		 unsigned long length, bool pwrite)
+static int
+shmem_pread(struct page *page, int offset, int length, char __user *user_data,
+	    bool page_do_bit17_swizzling, bool needs_clflush)
 {
-	void __iomem *ioaddr;
+	int ret;
+
+	ret = -ENODEV;
+	if (!page_do_bit17_swizzling) {
+		char *vaddr = kmap_atomic(page);
+
+		if (needs_clflush)
+			drm_clflush_virt_range(vaddr + offset, length);
+		ret = __copy_to_user_inatomic(user_data, vaddr + offset, length);
+		kunmap_atomic(vaddr);
+	}
+	if (ret == 0)
+		return 0;
+
+	return shmem_pread_slow(page, offset, length, user_data,
+				page_do_bit17_swizzling, needs_clflush);
+}
+
+static int
+i915_gem_shmem_pread(struct drm_i915_gem_object *obj,
+		     struct drm_i915_gem_pread *args)
+{
+	char __user *user_data;
+	u64 remain;
+	unsigned int obj_do_bit17_swizzling;
+	unsigned int needs_clflush;
+	unsigned int idx, offset;
+	int ret;
+
+	obj_do_bit17_swizzling = 0;
+	if (i915_gem_object_needs_bit17_swizzle(obj))
+		obj_do_bit17_swizzling = BIT(17);
+
+	ret = mutex_lock_interruptible(&obj->base.dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_obj_prepare_shmem_read(obj, &needs_clflush);
+	mutex_unlock(&obj->base.dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	remain = args->size;
+	user_data = u64_to_user_ptr(args->data_ptr);
+	offset = offset_in_page(args->offset);
+	for (idx = args->offset >> PAGE_SHIFT; remain; idx++) {
+		struct page *page = i915_gem_object_get_page(obj, idx);
+		int length;
+
+		length = remain;
+		if (offset + length > PAGE_SIZE)
+			length = PAGE_SIZE - offset;
+
+		ret = shmem_pread(page, offset, length, user_data,
+				  page_to_phys(page) & obj_do_bit17_swizzling,
+				  needs_clflush);
+		if (ret)
+			break;
+
+		remain -= length;
+		user_data += length;
+		offset = 0;
+	}
+
+	i915_gem_obj_finish_shmem_access(obj);
+	return ret;
+}
+
+static inline bool
+gtt_user_read(struct io_mapping *mapping,
+	      loff_t base, int offset,
+	      char __user *user_data, int length)
+{
 	void *vaddr;
-	uint64_t unwritten;
+	unsigned long unwritten;
 
-	ioaddr = io_mapping_map_wc(mapping, page_base, PAGE_SIZE);
 	/* We can use the cpu mem copy function because this is X86. */
-	vaddr = (void __force *)ioaddr + page_offset;
-	if (pwrite)
-		unwritten = __copy_from_user(vaddr, user_data, length);
-	else
-		unwritten = __copy_to_user(user_data, vaddr, length);
-
-	io_mapping_unmap(ioaddr);
+	vaddr = (void __force *)io_mapping_map_atomic_wc(mapping, base);
+	unwritten = __copy_to_user_inatomic(user_data, vaddr + offset, length);
+	io_mapping_unmap_atomic(vaddr);
+	if (unwritten) {
+		vaddr = (void __force *)
+			io_mapping_map_wc(mapping, base, PAGE_SIZE);
+		unwritten = copy_to_user(user_data, vaddr + offset, length);
+		io_mapping_unmap(vaddr);
+	}
 	return unwritten;
 }
 
 static int
-i915_gem_gtt_pread(struct drm_device *dev,
-		   struct drm_i915_gem_object *obj, uint64_t size,
-		   uint64_t data_offset, uint64_t data_ptr)
+i915_gem_gtt_pread(struct drm_i915_gem_object *obj,
+		   const struct drm_i915_gem_pread *args)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	struct i915_vma *vma;
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct i915_ggtt *ggtt = &i915->ggtt;
 	struct drm_mm_node node;
-	char __user *user_data;
-	uint64_t remain;
-	uint64_t offset;
+	struct i915_vma *vma;
+	void __user *user_data;
+	u64 remain, offset;
 	int ret;
 
-	intel_runtime_pm_get(to_i915(dev));
-	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, PIN_MAPPABLE);
+	ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
+	if (ret)
+		return ret;
+
+	intel_runtime_pm_get(i915);
+	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0,
+				       PIN_MAPPABLE | PIN_NONBLOCK);
 	if (!IS_ERR(vma)) {
 		node.start = i915_ggtt_offset(vma);
 		node.allocated = false;
@@ -946,33 +989,21 @@ i915_gem_gtt_pread(struct drm_device *dev,
 		}
 	}
 	if (IS_ERR(vma)) {
-		ret = insert_mappable_node(dev_priv, &node, PAGE_SIZE);
+		ret = insert_mappable_node(ggtt, &node, PAGE_SIZE);
 		if (ret)
-			goto out;
-
-		ret = i915_gem_object_pin_pages(obj);
-		if (ret) {
-			remove_mappable_node(&node);
-			goto out;
-		}
+			goto out_unlock;
+		GEM_BUG_ON(!node.allocated);
 	}
 
 	ret = i915_gem_object_set_to_gtt_domain(obj, false);
 	if (ret)
 		goto out_unpin;
 
-	user_data = u64_to_user_ptr(data_ptr);
-	remain = size;
-	offset = data_offset;
+	mutex_unlock(&i915->drm.struct_mutex);
 
-	mutex_unlock(&dev->struct_mutex);
-	if (likely(!i915.prefault_disable)) {
-		ret = fault_in_pages_writeable(user_data, remain);
-		if (ret) {
-			mutex_lock(&dev->struct_mutex);
-			goto out_unpin;
-		}
-	}
+	user_data = u64_to_user_ptr(args->data_ptr);
+	remain = args->size;
+	offset = args->offset;
 
 	while (remain > 0) {
 		/* Operation in this page
@@ -989,19 +1020,14 @@ i915_gem_gtt_pread(struct drm_device *dev,
 			wmb();
 			ggtt->base.insert_page(&ggtt->base,
 					       i915_gem_object_get_dma_address(obj, offset >> PAGE_SHIFT),
-					       node.start,
-					       I915_CACHE_NONE, 0);
+					       node.start, I915_CACHE_NONE, 0);
 			wmb();
 		} else {
 			page_base += offset & PAGE_MASK;
 		}
-		/* This is a slow read/write as it tries to read from
-		 * and write to user memory which may result into page
-		 * faults, and so we cannot perform this under struct_mutex.
-		 */
-		if (slow_user_access(&ggtt->mappable, page_base,
-				     page_offset, user_data,
-				     page_length, false)) {
+
+		if (gtt_user_read(&ggtt->mappable, page_base, page_offset,
+				  user_data, page_length)) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1011,111 +1037,19 @@ i915_gem_gtt_pread(struct drm_device *dev,
 		offset += page_length;
 	}
 
-	mutex_lock(&dev->struct_mutex);
-	if (ret == 0 && (obj->base.read_domains & I915_GEM_DOMAIN_GTT) == 0) {
-		/* The user has modified the object whilst we tried
-		 * reading from it, and we now have no idea what domain
-		 * the pages should be in. As we have just been touching
-		 * them directly, flush everything back to the GTT
-		 * domain.
-		 */
-		ret = i915_gem_object_set_to_gtt_domain(obj, false);
-	}
-
+	mutex_lock(&i915->drm.struct_mutex);
 out_unpin:
 	if (node.allocated) {
 		wmb();
 		ggtt->base.clear_range(&ggtt->base,
 				       node.start, node.size);
-		i915_gem_object_unpin_pages(obj);
 		remove_mappable_node(&node);
 	} else {
 		i915_vma_unpin(vma);
 	}
-out:
-	intel_runtime_pm_put(to_i915(dev));
-	return ret;
-}
-
-static int
-i915_gem_shmem_pread(struct drm_device *dev,
-		     struct drm_i915_gem_object *obj,
-		     struct drm_i915_gem_pread *args,
-		     struct drm_file *file)
-{
-	char __user *user_data;
-	ssize_t remain;
-	loff_t offset;
-	int shmem_page_offset, page_length, ret = 0;
-	int obj_do_bit17_swizzling, page_do_bit17_swizzling;
-	int prefaulted = 0;
-	int needs_clflush = 0;
-	struct sg_page_iter sg_iter;
-
-	ret = i915_gem_obj_prepare_shmem_read(obj, &needs_clflush);
-	if (ret)
-		return ret;
-
-	obj_do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
-	user_data = u64_to_user_ptr(args->data_ptr);
-	offset = args->offset;
-	remain = args->size;
-
-	for_each_sg_page(obj->mm.pages->sgl, &sg_iter, obj->mm.pages->nents,
-			 offset >> PAGE_SHIFT) {
-		struct page *page = sg_page_iter_page(&sg_iter);
-
-		if (remain <= 0)
-			break;
-
-		/* Operation in this page
-		 *
-		 * shmem_page_offset = offset within page in shmem file
-		 * page_length = bytes to copy for this page
-		 */
-		shmem_page_offset = offset_in_page(offset);
-		page_length = remain;
-		if ((shmem_page_offset + page_length) > PAGE_SIZE)
-			page_length = PAGE_SIZE - shmem_page_offset;
-
-		page_do_bit17_swizzling = obj_do_bit17_swizzling &&
-			(page_to_phys(page) & (1 << 17)) != 0;
-
-		ret = shmem_pread_fast(page, shmem_page_offset, page_length,
-				       user_data, page_do_bit17_swizzling,
-				       needs_clflush);
-		if (ret == 0)
-			goto next_page;
-
-		mutex_unlock(&dev->struct_mutex);
-
-		if (likely(!i915.prefault_disable) && !prefaulted) {
-			ret = fault_in_pages_writeable(user_data, remain);
-			/* Userspace is tricking us, but we've already clobbered
-			 * its pages with the prefault and promised to write the
-			 * data up to the first fault. Hence ignore any errors
-			 * and just continue. */
-			(void)ret;
-			prefaulted = 1;
-		}
-
-		ret = shmem_pread_slow(page, shmem_page_offset, page_length,
-				       user_data, page_do_bit17_swizzling,
-				       needs_clflush);
-
-		mutex_lock(&dev->struct_mutex);
-
-		if (ret)
-			goto out;
-
-next_page:
-		remain -= page_length;
-		user_data += page_length;
-		offset += page_length;
-	}
-
-out:
-	i915_gem_obj_finish_shmem_access(obj);
+out_unlock:
+	intel_runtime_pm_put(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
 
 	return ret;
 }
@@ -1134,7 +1068,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_pread *args = data;
 	struct drm_i915_gem_object *obj;
-	int ret = 0;
+	int ret;
 
 	if (args->size == 0)
 		return 0;
@@ -1152,7 +1086,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	if (args->offset > obj->base.size ||
 	    args->size > obj->base.size - args->offset) {
 		ret = -EINVAL;
-		goto err;
+		goto out;
 	}
 
 	trace_i915_gem_object_pread(obj, args->offset, args->size);
@@ -1162,25 +1096,18 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 				   MAX_SCHEDULE_TIMEOUT,
 				   to_rps_client(file));
 	if (ret)
-		goto err;
+		goto out;
 
-	ret = i915_mutex_lock_interruptible(dev);
+	ret = i915_gem_object_pin_pages(obj);
 	if (ret)
-		goto err;
+		goto out;
 
-	ret = i915_gem_shmem_pread(dev, obj, args, file);
-
-	/* pread for non shmem backed objects */
+	ret = i915_gem_shmem_pread(obj, args);
 	if (ret == -EFAULT || ret == -ENODEV)
-		ret = i915_gem_gtt_pread(dev, obj, args->size,
-					args->offset, args->data_ptr);
+		ret = i915_gem_gtt_pread(obj, args);
 
-	i915_gem_object_put(obj);
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
-
-err:
+	i915_gem_object_unpin_pages(obj);
+out:
 	i915_gem_object_put_unlocked(obj);
 	return ret;
 }
@@ -1205,6 +1132,28 @@ fast_user_write(struct io_mapping *mapping,
 	unwritten = __copy_from_user_inatomic_nocache(vaddr,
 						      user_data, length);
 	io_mapping_unmap_atomic(vaddr_atomic);
+	return unwritten;
+}
+
+static inline unsigned long
+slow_user_access(struct io_mapping *mapping,
+		 unsigned long page_base, int page_offset,
+		 char __user *user_data,
+		 unsigned long length, bool pwrite)
+{
+	void __iomem *ioaddr;
+	void *vaddr;
+	unsigned long unwritten;
+
+	ioaddr = io_mapping_map_wc(mapping, page_base, PAGE_SIZE);
+	/* We can use the cpu mem copy function because this is X86. */
+	vaddr = (void __force *)ioaddr + page_offset;
+	if (pwrite)
+		unwritten = __copy_from_user(vaddr, user_data, length);
+	else
+		unwritten = __copy_to_user(user_data, vaddr, length);
+
+	io_mapping_unmap(ioaddr);
 	return unwritten;
 }
 
@@ -1247,7 +1196,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_private *i915,
 		}
 	}
 	if (IS_ERR(vma)) {
-		ret = insert_mappable_node(i915, &node, PAGE_SIZE);
+		ret = insert_mappable_node(ggtt, &node, PAGE_SIZE);
 		if (ret)
 			goto out;
 
@@ -1276,8 +1225,8 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_private *i915,
 		 * page_length = bytes to copy for this page
 		 */
 		u32 page_base = node.start;
-		unsigned page_offset = offset_in_page(offset);
-		unsigned page_length = PAGE_SIZE - page_offset;
+		unsigned int page_offset = offset_in_page(offset);
+		unsigned int page_length = PAGE_SIZE - page_offset;
 		page_length = remain < page_length ? remain : page_length;
 		if (node.allocated) {
 			wmb(); /* flush the write before we modify the GGTT */
