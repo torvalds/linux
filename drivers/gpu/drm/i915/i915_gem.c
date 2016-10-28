@@ -104,6 +104,8 @@ i915_gem_wait_for_error(struct i915_gpu_error *error)
 {
 	int ret;
 
+	might_sleep();
+
 	if (!i915_reset_in_progress(error))
 		return 0;
 
@@ -2333,6 +2335,8 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 {
 	const struct drm_i915_gem_object_ops *ops = obj->ops;
 
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+
 	if (obj->pages == NULL)
 		return 0;
 
@@ -2508,6 +2512,8 @@ i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	const struct drm_i915_gem_object_ops *ops = obj->ops;
 	int ret;
+
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
 	if (obj->pages)
 		return 0;
@@ -2790,6 +2796,8 @@ void i915_gem_reset(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+
 	i915_gem_retire_requests(dev_priv);
 
 	for_each_engine(engine, dev_priv, id)
@@ -3030,6 +3038,8 @@ int i915_vma_unbind(struct i915_vma *vma)
 	struct drm_i915_gem_object *obj = vma->obj;
 	unsigned long active;
 	int ret;
+
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
 	/* First wait upon any activity as retiring the request may
 	 * have side-effects such as unpinning or even unbinding this vma.
@@ -3427,6 +3437,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	int ret;
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
+
 	ret = i915_gem_object_wait(obj,
 				   I915_WAIT_INTERRUPTIBLE |
 				   I915_WAIT_LOCKED |
@@ -3504,6 +3515,8 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 {
 	struct i915_vma *vma;
 	int ret = 0;
+
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
 	if (obj->cache_level == cache_level)
 		goto out;
@@ -3709,6 +3722,8 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	u32 old_read_domains, old_write_domain;
 	int ret;
 
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+
 	/* Mark the pin_display early so that we account for the
 	 * display coherency whilst setting up the cache domains.
 	 */
@@ -3774,6 +3789,8 @@ err_unpin_display:
 void
 i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 {
+	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+
 	if (WARN_ON(vma->obj->pin_display == 0))
 		return;
 
@@ -3802,6 +3819,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	int ret;
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
+
 	ret = i915_gem_object_wait(obj,
 				   I915_WAIT_INTERRUPTIBLE |
 				   I915_WAIT_LOCKED |
@@ -3962,6 +3980,7 @@ int __i915_vma_do_pin(struct i915_vma *vma,
 	unsigned int bound = vma->flags;
 	int ret;
 
+	lockdep_assert_held(&vma->vm->dev->struct_mutex);
 	GEM_BUG_ON((flags & (PIN_GLOBAL | PIN_USER)) == 0);
 	GEM_BUG_ON((flags & PIN_GLOBAL) && !i915_vma_is_ggtt(vma));
 
@@ -4002,6 +4021,8 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 	struct i915_address_space *vm = &dev_priv->ggtt.base;
 	struct i915_vma *vma;
 	int ret;
+
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
 	vma = i915_gem_obj_lookup_or_create_vma(obj, vm, view);
 	if (IS_ERR(vma))

@@ -103,6 +103,7 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	struct i915_vma *vma, *next;
 	int ret;
 
+	lockdep_assert_held(&vm->dev->struct_mutex);
 	trace_i915_gem_evict(vm, min_size, alignment, flags);
 
 	/*
@@ -213,6 +214,8 @@ i915_gem_evict_for_vma(struct i915_vma *target)
 {
 	struct drm_mm_node *node, *next;
 
+	lockdep_assert_held(&target->vm->dev->struct_mutex);
+
 	list_for_each_entry_safe(node, next,
 			&target->vm->mm.head_node.node_list,
 			node_list) {
@@ -266,7 +269,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 	struct i915_vma *vma, *next;
 	int ret;
 
-	WARN_ON(!mutex_is_locked(&vm->dev->struct_mutex));
+	lockdep_assert_held(&vm->dev->struct_mutex);
 	trace_i915_gem_evict_vm(vm);
 
 	if (do_idle) {

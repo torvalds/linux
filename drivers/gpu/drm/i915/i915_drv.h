@@ -3432,6 +3432,7 @@ int __must_check i915_vma_put_fence(struct i915_vma *vma);
 static inline bool
 i915_vma_pin_fence(struct i915_vma *vma)
 {
+	lockdep_assert_held(&vma->vm->dev->struct_mutex);
 	if (vma->fence) {
 		vma->fence->pin_count++;
 		return true;
@@ -3450,6 +3451,7 @@ i915_vma_pin_fence(struct i915_vma *vma)
 static inline void
 i915_vma_unpin_fence(struct i915_vma *vma)
 {
+	lockdep_assert_held(&vma->vm->dev->struct_mutex);
 	if (vma->fence) {
 		GEM_BUG_ON(vma->fence->pin_count <= 0);
 		vma->fence->pin_count--;

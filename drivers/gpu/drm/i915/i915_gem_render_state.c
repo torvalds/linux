@@ -223,6 +223,8 @@ int i915_gem_render_state_emit(struct drm_i915_gem_request *req)
 	struct intel_render_state *so;
 	int ret;
 
+	lockdep_assert_held(&req->i915->drm.struct_mutex);
+
 	so = req->engine->render_state;
 	if (!so)
 		return 0;
