@@ -155,7 +155,7 @@ void lkl_perror(char *msg, int err)
 	const char *err_msg = lkl_strerror(err);
 	/* We need to use 'real' printf because lkl_host_ops.print can
 	 * be turned off when debugging is off. */
-	fprintf(stderr, "%s: %s\n", msg, err_msg);
+	lkl_printf("%s: %s\n", msg, err_msg);
 }
 
 static int lkl_vprintf(const char *fmt, va_list args)
