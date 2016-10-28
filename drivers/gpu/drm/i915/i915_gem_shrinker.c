@@ -201,6 +201,10 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 						       typeof(*obj),
 						       global_list))) {
 			list_move_tail(&obj->global_list, &still_in_list);
+			if (!obj->mm.pages) {
+				list_del_init(&obj->global_list);
+				continue;
+			}
 
 			if (flags & I915_SHRINK_PURGEABLE &&
 			    obj->mm.madv != I915_MADV_DONTNEED)
@@ -218,8 +222,6 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 			if (!can_release_pages(obj))
 				continue;
 
-			i915_gem_object_get(obj);
-
 			if (unsafe_drop_pages(obj)) {
 				mutex_lock(&obj->mm.lock);
 				if (!obj->mm.pages) {
@@ -228,8 +230,6 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 				}
 				mutex_unlock(&obj->mm.lock);
 			}
-
-			i915_gem_object_put(obj);
 		}
 		list_splice(&still_in_list, phase->list);
 	}
@@ -396,12 +396,18 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	 */
 	unbound = bound = unevictable = 0;
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list) {
+		if (!obj->mm.pages)
+			continue;
+
 		if (!can_release_pages(obj))
 			unevictable += obj->base.size >> PAGE_SHIFT;
 		else
 			unbound += obj->base.size >> PAGE_SHIFT;
 	}
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		if (!obj->mm.pages)
+			continue;
+
 		if (!can_release_pages(obj))
 			unevictable += obj->base.size >> PAGE_SHIFT;
 		else

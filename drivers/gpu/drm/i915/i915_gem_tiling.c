@@ -325,12 +325,19 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	struct drm_i915_gem_get_tiling *args = data;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
+	int err = -ENOENT;
 
-	obj = i915_gem_object_lookup(file, args->handle);
-	if (!obj)
-		return -ENOENT;
+	rcu_read_lock();
+	obj = i915_gem_object_lookup_rcu(file, args->handle);
+	if (obj) {
+		args->tiling_mode =
+			READ_ONCE(obj->tiling_and_stride) & TILING_MASK;
+		err = 0;
+	}
+	rcu_read_unlock();
+	if (unlikely(err))
+		return err;
 
-	args->tiling_mode = READ_ONCE(obj->tiling_and_stride) & TILING_MASK;
 	switch (args->tiling_mode) {
 	case I915_TILING_X:
 		args->swizzle_mode = dev_priv->mm.bit_6_swizzle_x;
@@ -338,11 +345,10 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	case I915_TILING_Y:
 		args->swizzle_mode = dev_priv->mm.bit_6_swizzle_y;
 		break;
+	default:
 	case I915_TILING_NONE:
 		args->swizzle_mode = I915_BIT_6_SWIZZLE_NONE;
 		break;
-	default:
-		DRM_ERROR("unknown tiling mode\n");
 	}
 
 	/* Hide bit 17 from the user -- see comment in i915_gem_set_tiling */
@@ -355,6 +361,5 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	if (args->swizzle_mode == I915_BIT_6_SWIZZLE_9_10_17)
 		args->swizzle_mode = I915_BIT_6_SWIZZLE_9_10;
 
-	i915_gem_object_put_unlocked(obj);
 	return 0;
 }

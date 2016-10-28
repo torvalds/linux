@@ -42,6 +42,7 @@
 #include <linux/pci.h>
 #include <linux/dma-buf.h>
 
+static void i915_gem_flush_free_objects(struct drm_i915_private *i915);
 static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
 static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj);
 
@@ -647,6 +648,8 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file)
 {
 	struct drm_i915_gem_create *args = data;
+
+	i915_gem_flush_free_objects(to_i915(dev));
 
 	return i915_gem_create(file, dev,
 			       args->size, &args->handle);
@@ -3524,10 +3527,14 @@ int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_caching *args = data;
 	struct drm_i915_gem_object *obj;
+	int err = 0;
 
-	obj = i915_gem_object_lookup(file, args->handle);
-	if (!obj)
-		return -ENOENT;
+	rcu_read_lock();
+	obj = i915_gem_object_lookup_rcu(file, args->handle);
+	if (!obj) {
+		err = -ENOENT;
+		goto out;
+	}
 
 	switch (obj->cache_level) {
 	case I915_CACHE_LLC:
@@ -3543,9 +3550,9 @@ int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
 		args->caching = I915_CACHING_NONE;
 		break;
 	}
-
-	i915_gem_object_put_unlocked(obj);
-	return 0;
+out:
+	rcu_read_unlock();
+	return err;
 }
 
 int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
@@ -4089,10 +4096,14 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_busy *args = data;
 	struct drm_i915_gem_object *obj;
 	unsigned long active;
+	int err;
 
-	obj = i915_gem_object_lookup(file, args->handle);
-	if (!obj)
-		return -ENOENT;
+	rcu_read_lock();
+	obj = i915_gem_object_lookup_rcu(file, args->handle);
+	if (!obj) {
+		err = -ENOENT;
+		goto out;
+	}
 
 	args->busy = 0;
 	active = __I915_BO_ACTIVE(obj);
@@ -4122,7 +4133,6 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		 * are busy is not completely reliable - we only guarantee
 		 * that the object was busy.
 		 */
-		rcu_read_lock();
 
 		for_each_active(active, idx)
 			args->busy |= busy_check_reader(&obj->last_read[idx]);
@@ -4140,12 +4150,11 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		 * the result.
 		 */
 		args->busy |= busy_check_writer(&obj->last_write);
-
-		rcu_read_unlock();
 	}
 
-	i915_gem_object_put_unlocked(obj);
-	return 0;
+out:
+	rcu_read_unlock();
+	return err;
 }
 
 int
@@ -4308,7 +4317,6 @@ i915_gem_object_create(struct drm_device *dev, u64 size)
 
 fail:
 	i915_gem_object_free(obj);
-
 	return ERR_PTR(ret);
 }
 
@@ -4336,16 +4344,69 @@ static bool discard_backing_storage(struct drm_i915_gem_object *obj)
 	return atomic_long_read(&obj->base.filp->f_count) == 1;
 }
 
-void i915_gem_free_object(struct drm_gem_object *gem_obj)
+static void __i915_gem_free_objects(struct drm_i915_private *i915,
+				    struct llist_node *freed)
 {
-	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_vma *vma, *next;
+	struct drm_i915_gem_object *obj, *on;
 
-	intel_runtime_pm_get(dev_priv);
+	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
+	llist_for_each_entry(obj, freed, freed) {
+		struct i915_vma *vma, *vn;
 
-	trace_i915_gem_object_destroy(obj);
+		trace_i915_gem_object_destroy(obj);
+
+		GEM_BUG_ON(i915_gem_object_is_active(obj));
+		list_for_each_entry_safe(vma, vn,
+					 &obj->vma_list, obj_link) {
+			GEM_BUG_ON(!i915_vma_is_ggtt(vma));
+			GEM_BUG_ON(i915_vma_is_active(vma));
+			vma->flags &= ~I915_VMA_PIN_MASK;
+			i915_vma_close(vma);
+		}
+
+		list_del(&obj->global_list);
+	}
+	intel_runtime_pm_put(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	llist_for_each_entry_safe(obj, on, freed, freed) {
+		GEM_BUG_ON(obj->bind_count);
+		GEM_BUG_ON(atomic_read(&obj->frontbuffer_bits));
+
+		if (obj->ops->release)
+			obj->ops->release(obj);
+
+		if (WARN_ON(i915_gem_object_has_pinned_pages(obj)))
+			atomic_set(&obj->mm.pages_pin_count, 0);
+		__i915_gem_object_put_pages(obj);
+		GEM_BUG_ON(obj->mm.pages);
+
+		if (obj->base.import_attach)
+			drm_prime_gem_destroy(&obj->base, NULL);
+
+		drm_gem_object_release(&obj->base);
+		i915_gem_info_remove_obj(i915, obj->base.size);
+
+		kfree(obj->bit_17);
+		i915_gem_object_free(obj);
+	}
+}
+
+static void i915_gem_flush_free_objects(struct drm_i915_private *i915)
+{
+	struct llist_node *freed;
+
+	freed = llist_del_all(&i915->mm.free_list);
+	if (unlikely(freed))
+		__i915_gem_free_objects(i915, freed);
+}
+
+static void __i915_gem_free_work(struct work_struct *work)
+{
+	struct drm_i915_private *i915 =
+		container_of(work, struct drm_i915_private, mm.free_work);
+	struct llist_node *freed;
 
 	/* All file-owned VMA should have been released by this point through
 	 * i915_gem_close_object(), or earlier by i915_gem_context_close().
@@ -4354,42 +4415,44 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	 * the GTT either for the user or for scanout). Those VMA still need to
 	 * unbound now.
 	 */
-	list_for_each_entry_safe(vma, next, &obj->vma_list, obj_link) {
-		GEM_BUG_ON(!i915_vma_is_ggtt(vma));
-		GEM_BUG_ON(i915_vma_is_active(vma));
-		vma->flags &= ~I915_VMA_PIN_MASK;
-		i915_vma_close(vma);
-	}
-	GEM_BUG_ON(obj->bind_count);
 
-	WARN_ON(atomic_read(&obj->frontbuffer_bits));
+	while ((freed = llist_del_all(&i915->mm.free_list)))
+		__i915_gem_free_objects(i915, freed);
+}
+
+static void __i915_gem_free_object_rcu(struct rcu_head *head)
+{
+	struct drm_i915_gem_object *obj =
+		container_of(head, typeof(*obj), rcu);
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+
+	/* We can't simply use call_rcu() from i915_gem_free_object()
+	 * as we need to block whilst unbinding, and the call_rcu
+	 * task may be called from softirq context. So we take a
+	 * detour through a worker.
+	 */
+	if (llist_add(&obj->freed, &i915->mm.free_list))
+		schedule_work(&i915->mm.free_work);
+}
+
+void i915_gem_free_object(struct drm_gem_object *gem_obj)
+{
+	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
+
+	if (discard_backing_storage(obj))
+		obj->mm.madv = I915_MADV_DONTNEED;
 
 	if (obj->mm.pages && obj->mm.madv == I915_MADV_WILLNEED &&
-	    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES &&
+	    to_i915(obj->base.dev)->quirks & QUIRK_PIN_SWIZZLED_PAGES &&
 	    i915_gem_object_is_tiled(obj))
 		__i915_gem_object_unpin_pages(obj);
 
-	if (obj->ops->release)
-		obj->ops->release(obj);
-
-	if (WARN_ON(i915_gem_object_has_pinned_pages(obj)))
-		atomic_set(&obj->mm.pages_pin_count, 0);
-	if (discard_backing_storage(obj))
-		obj->mm.madv = I915_MADV_DONTNEED;
-	__i915_gem_object_put_pages(obj);
-
-	GEM_BUG_ON(obj->mm.pages);
-
-	if (obj->base.import_attach)
-		drm_prime_gem_destroy(&obj->base, NULL);
-
-	drm_gem_object_release(&obj->base);
-	i915_gem_info_remove_obj(dev_priv, obj->base.size);
-
-	kfree(obj->bit_17);
-	i915_gem_object_free(obj);
-
-	intel_runtime_pm_put(dev_priv);
+	/* Before we free the object, make sure any pure RCU-only
+	 * read-side critical sections are complete, e.g.
+	 * i915_gem_busy_ioctl(). For the corresponding synchronized
+	 * lookup see i915_gem_object_lookup_rcu().
+	 */
+	call_rcu(&obj->rcu, __i915_gem_free_object_rcu);
 }
 
 void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj)
@@ -4438,6 +4501,7 @@ int i915_gem_suspend(struct drm_device *dev)
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
 	cancel_delayed_work_sync(&dev_priv->gt.retire_work);
 	flush_delayed_work(&dev_priv->gt.idle_work);
+	flush_work(&dev_priv->mm.free_work);
 
 	/* Assert that we sucessfully flushed all the work and
 	 * reset the GPU back to its idle, low power state.
@@ -4753,6 +4817,8 @@ i915_gem_load_init(struct drm_device *dev)
 				  NULL);
 
 	INIT_LIST_HEAD(&dev_priv->context_list);
+	INIT_WORK(&dev_priv->mm.free_work, __i915_gem_free_work);
+	init_llist_head(&dev_priv->mm.free_list);
 	INIT_LIST_HEAD(&dev_priv->mm.unbound_list);
 	INIT_LIST_HEAD(&dev_priv->mm.bound_list);
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);

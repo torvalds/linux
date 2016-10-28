@@ -537,14 +537,17 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 	.can_switch = i915_switcheroo_can_switch,
 };
 
-static void i915_gem_fini(struct drm_device *dev)
+static void i915_gem_fini(struct drm_i915_private *dev_priv)
 {
-	mutex_lock(&dev->struct_mutex);
-	i915_gem_cleanup_engines(dev);
-	i915_gem_context_fini(dev);
-	mutex_unlock(&dev->struct_mutex);
+	mutex_lock(&dev_priv->drm.struct_mutex);
+	i915_gem_cleanup_engines(&dev_priv->drm);
+	i915_gem_context_fini(&dev_priv->drm);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 
-	WARN_ON(!list_empty(&to_i915(dev)->context_list));
+	synchronize_rcu();
+	flush_work(&dev_priv->mm.free_work);
+
+	WARN_ON(!list_empty(&dev_priv->context_list));
 }
 
 static int i915_load_modeset_init(struct drm_device *dev)
@@ -619,7 +622,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 cleanup_gem:
 	if (i915_gem_suspend(dev))
 		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
-	i915_gem_fini(dev);
+	i915_gem_fini(dev_priv);
 cleanup_irq:
 	intel_guc_fini(dev);
 	drm_irq_uninstall(dev);
@@ -1305,7 +1308,7 @@ void i915_driver_unload(struct drm_device *dev)
 	drain_workqueue(dev_priv->wq);
 
 	intel_guc_fini(dev);
-	i915_gem_fini(dev);
+	i915_gem_fini(dev_priv);
 	intel_fbc_cleanup_cfb(dev_priv);
 
 	intel_power_domains_fini(dev_priv);

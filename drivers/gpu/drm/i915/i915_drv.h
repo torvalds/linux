@@ -1365,8 +1365,8 @@ struct i915_gem_mm {
 	struct list_head bound_list;
 	/**
 	 * List of objects which are not bound to the GTT (thus
-	 * are idle and not used by the GPU) but still have
-	 * (presumably uncached) pages still attached.
+	 * are idle and not used by the GPU). These objects may or may
+	 * not actually have any pages attached.
 	 */
 	struct list_head unbound_list;
 
@@ -1374,6 +1374,12 @@ struct i915_gem_mm {
 	 * All objects within this list must also be on bound_list.
 	 */
 	struct list_head userfault_list;
+
+	/**
+	 * List of objects which are pending destruction.
+	 */
+	struct llist_head free_list;
+	struct work_struct free_work;
 
 	/** Usable portion of the GTT for GEM */
 	unsigned long stolen_base; /* limited to low memory (32-bit) */
@@ -2224,6 +2230,10 @@ struct drm_i915_gem_object {
 	/** Stolen memory for this object, instead of being backed by shmem. */
 	struct drm_mm_node *stolen;
 	struct list_head global_list;
+	union {
+		struct rcu_head rcu;
+		struct llist_node freed;
+	};
 
 	/**
 	 * Whether the object is currently in the GGTT mmap.
@@ -2341,10 +2351,38 @@ to_intel_bo(struct drm_gem_object *gem)
 	return container_of(gem, struct drm_i915_gem_object, base);
 }
 
+/**
+ * i915_gem_object_lookup_rcu - look up a temporary GEM object from its handle
+ * @filp: DRM file private date
+ * @handle: userspace handle
+ *
+ * Returns:
+ *
+ * A pointer to the object named by the handle if such exists on @filp, NULL
+ * otherwise. This object is only valid whilst under the RCU read lock, and
+ * note carefully the object may be in the process of being destroyed.
+ */
+static inline struct drm_i915_gem_object *
+i915_gem_object_lookup_rcu(struct drm_file *file, u32 handle)
+{
+#ifdef CONFIG_LOCKDEP
+	WARN_ON(debug_locks && !lock_is_held(&rcu_lock_map));
+#endif
+	return idr_find(&file->object_idr, handle);
+}
+
 static inline struct drm_i915_gem_object *
 i915_gem_object_lookup(struct drm_file *file, u32 handle)
 {
-	return to_intel_bo(drm_gem_object_lookup(file, handle));
+	struct drm_i915_gem_object *obj;
+
+	rcu_read_lock();
+	obj = i915_gem_object_lookup_rcu(file, handle);
+	if (obj && !kref_get_unless_zero(&obj->base.refcount))
+		obj = NULL;
+	rcu_read_unlock();
+
+	return obj;
 }
 
 __deprecated

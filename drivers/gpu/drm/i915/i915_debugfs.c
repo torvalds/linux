@@ -4957,10 +4957,12 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_ring_test_irq_fops,
 #define DROP_BOUND 0x2
 #define DROP_RETIRE 0x4
 #define DROP_ACTIVE 0x8
-#define DROP_ALL (DROP_UNBOUND | \
-		  DROP_BOUND | \
-		  DROP_RETIRE | \
-		  DROP_ACTIVE)
+#define DROP_FREED 0x10
+#define DROP_ALL (DROP_UNBOUND	| \
+		  DROP_BOUND	| \
+		  DROP_RETIRE	| \
+		  DROP_ACTIVE	| \
+		  DROP_FREED)
 static int
 i915_drop_caches_get(void *data, u64 *val)
 {
@@ -5003,6 +5005,11 @@ i915_drop_caches_set(void *data, u64 val)
 
 unlock:
 	mutex_unlock(&dev->struct_mutex);
+
+	if (val & DROP_FREED) {
+		synchronize_rcu();
+		flush_work(&dev_priv->mm.free_work);
+	}
 
 	return ret;
 }
