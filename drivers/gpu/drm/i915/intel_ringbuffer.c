@@ -648,7 +648,7 @@ static int intel_rcs_ctx_init(struct drm_i915_gem_request *req)
 	if (ret != 0)
 		return ret;
 
-	ret = i915_gem_render_state_init(req);
+	ret = i915_gem_render_state_emit(req);
 	if (ret)
 		return ret;
 

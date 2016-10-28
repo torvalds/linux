@@ -157,6 +157,7 @@ struct i915_ctx_workarounds {
 };
 
 struct drm_i915_gem_request;
+struct intel_render_state;
 
 struct intel_engine_cs {
 	struct drm_i915_private *i915;
@@ -183,6 +184,8 @@ struct intel_engine_cs {
 	u32		mmio_base;
 	unsigned int irq_shift;
 	struct intel_ring *buffer;
+
+	struct intel_render_state *render_state;
 
 	/* Rather than have every client wait upon all user interrupts,
 	 * with the herd waking after every interrupt and each doing the

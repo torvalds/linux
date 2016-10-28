@@ -314,6 +314,10 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
+	ret = i915_gem_render_state_init(engine);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -328,6 +332,7 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 {
 	intel_engine_cleanup_scratch(engine);
 
+	i915_gem_render_state_fini(engine);
 	intel_engine_fini_breadcrumbs(engine);
 	intel_engine_cleanup_cmd_parser(engine);
 	i915_gem_batch_pool_fini(&engine->batch_pool);
