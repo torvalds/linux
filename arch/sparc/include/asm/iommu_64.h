@@ -45,8 +45,10 @@ struct atu_ranges {
 struct atu {
 	struct	atu_ranges	*ranges;
 	struct	atu_iotsb	*iotsb;
+	struct	iommu_map_table	tbl;
 	u64			base;
 	u64			size;
+	u64			dma_addr_mask;
 };
 
 struct iommu {

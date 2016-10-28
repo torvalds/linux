@@ -644,6 +644,8 @@ static int pci_sun4v_atu_init(struct pci_pbm_info *pbm)
 	struct atu *atu = pbm->iommu->atu;
 	unsigned long err;
 	const u64 *ranges;
+	u64 map_size, num_iotte;
+	u64 dma_mask;
 	const u32 *page_size;
 	int len;
 
@@ -681,6 +683,23 @@ static int pci_sun4v_atu_init(struct pci_pbm_info *pbm)
 		pr_err(PFX "Error creating ATU IOTSB\n");
 		return err;
 	}
+
+	/* Create ATU iommu map.
+	 * One bit represents one iotte in IOTSB table.
+	 */
+	dma_mask = (roundup_pow_of_two(atu->size) - 1UL);
+	num_iotte = atu->size / IO_PAGE_SIZE;
+	map_size = num_iotte / 8;
+	atu->tbl.table_map_base = atu->base;
+	atu->dma_addr_mask = dma_mask;
+	atu->tbl.map = kzalloc(map_size, GFP_KERNEL);
+	if (!atu->tbl.map)
+		return -ENOMEM;
+
+	iommu_tbl_pool_init(&atu->tbl, num_iotte, IO_PAGE_SHIFT,
+			    NULL, false /* no large_pool */,
+			    0 /* default npools */,
+			    false /* want span boundary checking */);
 
 	return 0;
 }
