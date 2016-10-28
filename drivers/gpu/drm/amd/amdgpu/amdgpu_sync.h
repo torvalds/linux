@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2016 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,13 +19,38 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: Christian König
  */
+#ifndef __AMDGPU_SYNC_H__
+#define __AMDGPU_SYNC_H__
 
-#ifndef __VCE_V3_0_H__
-#define __VCE_V3_0_H__
+#include <linux/hashtable.h>
 
-extern const struct amdgpu_ip_block_version vce_v3_0_ip_block;
-extern const struct amdgpu_ip_block_version vce_v3_1_ip_block;
-extern const struct amdgpu_ip_block_version vce_v3_4_ip_block;
+struct fence;
+struct reservation_object;
+struct amdgpu_device;
+struct amdgpu_ring;
+
+/*
+ * Container for fences used to sync command submissions.
+ */
+struct amdgpu_sync {
+	DECLARE_HASHTABLE(fences, 4);
+	struct fence	*last_vm_update;
+};
+
+void amdgpu_sync_create(struct amdgpu_sync *sync);
+int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
+		      struct fence *f);
+int amdgpu_sync_resv(struct amdgpu_device *adev,
+		     struct amdgpu_sync *sync,
+		     struct reservation_object *resv,
+		     void *owner);
+struct fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
+				     struct amdgpu_ring *ring);
+struct fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync);
+void amdgpu_sync_free(struct amdgpu_sync *sync);
+int amdgpu_sync_init(void);
+void amdgpu_sync_fini(void);
 
 #endif

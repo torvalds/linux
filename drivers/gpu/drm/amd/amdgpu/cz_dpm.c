@@ -1250,7 +1250,8 @@ static void cz_update_current_ps(struct amdgpu_device *adev,
 
 	pi->current_ps = *ps;
 	pi->current_rps = *rps;
-	pi->current_rps.ps_priv = ps;
+	pi->current_rps.ps_priv = &pi->current_ps;
+	adev->pm.dpm.current_ps = &pi->current_rps;
 
 }
 
@@ -1262,7 +1263,8 @@ static void cz_update_requested_ps(struct amdgpu_device *adev,
 
 	pi->requested_ps = *ps;
 	pi->requested_rps = *rps;
-	pi->requested_rps.ps_priv = ps;
+	pi->requested_rps.ps_priv = &pi->requested_ps;
+	adev->pm.dpm.requested_ps = &pi->requested_rps;
 
 }
 
@@ -2257,6 +2259,18 @@ static void cz_dpm_powergate_vce(struct amdgpu_device *adev, bool gate)
 	}
 }
 
+static int cz_check_state_equal(struct amdgpu_device *adev,
+				struct amdgpu_ps *cps,
+				struct amdgpu_ps *rps,
+				bool *equal)
+{
+	if (equal == NULL)
+		return -EINVAL;
+
+	*equal = false;
+	return 0;
+}
+
 const struct amd_ip_funcs cz_dpm_ip_funcs = {
 	.name = "cz_dpm",
 	.early_init = cz_dpm_early_init,
@@ -2289,6 +2303,7 @@ static const struct amdgpu_dpm_funcs cz_dpm_funcs = {
 	.vblank_too_short = NULL,
 	.powergate_uvd = cz_dpm_powergate_uvd,
 	.powergate_vce = cz_dpm_powergate_vce,
+	.check_state_equal = cz_check_state_equal,
 };
 
 static void cz_dpm_set_funcs(struct amdgpu_device *adev)
@@ -2296,3 +2311,12 @@ static void cz_dpm_set_funcs(struct amdgpu_device *adev)
 	if (NULL == adev->pm.funcs)
 		adev->pm.funcs = &cz_dpm_funcs;
 }
+
+const struct amdgpu_ip_block_version cz_dpm_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SMC,
+	.major = 8,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &cz_dpm_ip_funcs,
+};

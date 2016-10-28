@@ -66,6 +66,7 @@ struct amdgpu_mman {
 };
 
 extern const struct ttm_mem_type_manager_func amdgpu_gtt_mgr_func;
+extern const struct ttm_mem_type_manager_func amdgpu_vram_mgr_func;
 
 int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *tbo,

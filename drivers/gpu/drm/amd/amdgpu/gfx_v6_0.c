@@ -1940,7 +1940,7 @@ static int gfx_v6_0_cp_resume(struct amdgpu_device *adev)
 
 static void gfx_v6_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 {
-	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
+	int usepfp = (ring->funcs->type == AMDGPU_RING_TYPE_GFX);
 	uint32_t seq = ring->fence_drv.sync_seq;
 	uint64_t addr = ring->fence_drv.gpu_addr;
 
@@ -1966,7 +1966,7 @@ static void gfx_v6_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 static void gfx_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vm_id, uint64_t pd_addr)
 {
-	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
+	int usepfp = (ring->funcs->type == AMDGPU_RING_TYPE_GFX);
 
 	/* write new base address */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
@@ -2814,33 +2814,6 @@ static void gfx_v6_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
 	amdgpu_ring_write(ring, 0);
 }
 
-static unsigned gfx_v6_0_ring_get_emit_ib_size(struct amdgpu_ring *ring)
-{
-	return
-		6; /* gfx_v6_0_ring_emit_ib */
-}
-
-static unsigned gfx_v6_0_ring_get_dma_frame_size_gfx(struct amdgpu_ring *ring)
-{
-	return
-		5 + /* gfx_v6_0_ring_emit_hdp_flush */
-		5 + /* gfx_v6_0_ring_emit_hdp_invalidate */
-		14 + 14 + 14 + /* gfx_v6_0_ring_emit_fence x3 for user fence, vm fence */
-		7 + 4 + /* gfx_v6_0_ring_emit_pipeline_sync */
-		17 + 6 + /* gfx_v6_0_ring_emit_vm_flush */
-		3; /* gfx_v6_ring_emit_cntxcntl */
-}
-
-static unsigned gfx_v6_0_ring_get_dma_frame_size_compute(struct amdgpu_ring *ring)
-{
-	return
-		5 + /* gfx_v6_0_ring_emit_hdp_flush */
-		5 + /* gfx_v6_0_ring_emit_hdp_invalidate */
-		7 + /* gfx_v6_0_ring_emit_pipeline_sync */
-		17 + /* gfx_v6_0_ring_emit_vm_flush */
-		14 + 14 + 14; /* gfx_v6_0_ring_emit_fence x3 for user fence, vm fence */
-}
-
 static const struct amdgpu_gfx_funcs gfx_v6_0_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v6_0_get_gpu_clock_counter,
 	.select_se_sh = &gfx_v6_0_select_se_sh,
@@ -2896,9 +2869,7 @@ static int gfx_v6_0_sw_init(void *handle)
 		ring->ring_obj = NULL;
 		sprintf(ring->name, "gfx");
 		r = amdgpu_ring_init(adev, ring, 1024,
-				     0x80000000, 0xf,
-				     &adev->gfx.eop_irq, AMDGPU_CP_IRQ_GFX_EOP,
-				     AMDGPU_RING_TYPE_GFX);
+				     &adev->gfx.eop_irq, AMDGPU_CP_IRQ_GFX_EOP);
 		if (r)
 			return r;
 	}
@@ -2920,9 +2891,7 @@ static int gfx_v6_0_sw_init(void *handle)
 		sprintf(ring->name, "comp %d.%d.%d", ring->me, ring->pipe, ring->queue);
 		irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP + ring->pipe;
 		r = amdgpu_ring_init(adev, ring, 1024,
-				     0x80000000, 0xf,
-				     &adev->gfx.eop_irq, irq_type,
-				     AMDGPU_RING_TYPE_COMPUTE);
+				     &adev->gfx.eop_irq, irq_type);
 		if (r)
 			return r;
 	}
@@ -3237,7 +3206,7 @@ static int gfx_v6_0_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs gfx_v6_0_ip_funcs = {
+static const struct amd_ip_funcs gfx_v6_0_ip_funcs = {
 	.name = "gfx_v6_0",
 	.early_init = gfx_v6_0_early_init,
 	.late_init = NULL,
@@ -3255,10 +3224,20 @@ const struct amd_ip_funcs gfx_v6_0_ip_funcs = {
 };
 
 static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
+	.type = AMDGPU_RING_TYPE_GFX,
+	.align_mask = 0xff,
+	.nop = 0x80000000,
 	.get_rptr = gfx_v6_0_ring_get_rptr,
 	.get_wptr = gfx_v6_0_ring_get_wptr,
 	.set_wptr = gfx_v6_0_ring_set_wptr_gfx,
-	.parse_cs = NULL,
+	.emit_frame_size =
+		5 + /* gfx_v6_0_ring_emit_hdp_flush */
+		5 + /* gfx_v6_0_ring_emit_hdp_invalidate */
+		14 + 14 + 14 + /* gfx_v6_0_ring_emit_fence x3 for user fence, vm fence */
+		7 + 4 + /* gfx_v6_0_ring_emit_pipeline_sync */
+		17 + 6 + /* gfx_v6_0_ring_emit_vm_flush */
+		3, /* gfx_v6_ring_emit_cntxcntl */
+	.emit_ib_size = 6, /* gfx_v6_0_ring_emit_ib */
 	.emit_ib = gfx_v6_0_ring_emit_ib,
 	.emit_fence = gfx_v6_0_ring_emit_fence,
 	.emit_pipeline_sync = gfx_v6_0_ring_emit_pipeline_sync,
@@ -3269,15 +3248,22 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 	.test_ib = gfx_v6_0_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.emit_cntxcntl = gfx_v6_ring_emit_cntxcntl,
-	.get_emit_ib_size = gfx_v6_0_ring_get_emit_ib_size,
-	.get_dma_frame_size = gfx_v6_0_ring_get_dma_frame_size_gfx,
 };
 
 static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_compute = {
+	.type = AMDGPU_RING_TYPE_COMPUTE,
+	.align_mask = 0xff,
+	.nop = 0x80000000,
 	.get_rptr = gfx_v6_0_ring_get_rptr,
 	.get_wptr = gfx_v6_0_ring_get_wptr,
 	.set_wptr = gfx_v6_0_ring_set_wptr_compute,
-	.parse_cs = NULL,
+	.emit_frame_size =
+		5 + /* gfx_v6_0_ring_emit_hdp_flush */
+		5 + /* gfx_v6_0_ring_emit_hdp_invalidate */
+		7 + /* gfx_v6_0_ring_emit_pipeline_sync */
+		17 + /* gfx_v6_0_ring_emit_vm_flush */
+		14 + 14 + 14, /* gfx_v6_0_ring_emit_fence x3 for user fence, vm fence */
+	.emit_ib_size = 6, /* gfx_v6_0_ring_emit_ib */
 	.emit_ib = gfx_v6_0_ring_emit_ib,
 	.emit_fence = gfx_v6_0_ring_emit_fence,
 	.emit_pipeline_sync = gfx_v6_0_ring_emit_pipeline_sync,
@@ -3287,8 +3273,6 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_compute = {
 	.test_ring = gfx_v6_0_ring_test_ring,
 	.test_ib = gfx_v6_0_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
-	.get_emit_ib_size = gfx_v6_0_ring_get_emit_ib_size,
-	.get_dma_frame_size = gfx_v6_0_ring_get_dma_frame_size_compute,
 };
 
 static void gfx_v6_0_set_ring_funcs(struct amdgpu_device *adev)
@@ -3360,3 +3344,12 @@ static void gfx_v6_0_get_cu_info(struct amdgpu_device *adev)
 	cu_info->number = active_cu_number;
 	cu_info->ao_cu_mask = ao_cu_mask;
 }
+
+const struct amdgpu_ip_block_version gfx_v6_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_GFX,
+	.major = 6,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &gfx_v6_0_ip_funcs,
+};

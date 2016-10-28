@@ -55,18 +55,18 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev, struct amdgpu_ctx *ctx)
 		r = amd_sched_entity_init(&ring->sched, &ctx->rings[i].entity,
 					  rq, amdgpu_sched_jobs);
 		if (r)
-			break;
+			goto failed;
 	}
 
-	if (i < adev->num_rings) {
-		for (j = 0; j < i; j++)
-			amd_sched_entity_fini(&adev->rings[j]->sched,
-					      &ctx->rings[j].entity);
-		kfree(ctx->fences);
-		ctx->fences = NULL;
-		return r;
-	}
 	return 0;
+
+failed:
+	for (j = 0; j < i; j++)
+		amd_sched_entity_fini(&adev->rings[j]->sched,
+				      &ctx->rings[j].entity);
+	kfree(ctx->fences);
+	ctx->fences = NULL;
+	return r;
 }
 
 static void amdgpu_ctx_fini(struct amdgpu_ctx *ctx)

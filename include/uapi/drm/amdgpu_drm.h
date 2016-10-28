@@ -81,6 +81,8 @@ extern "C" {
 #define AMDGPU_GEM_CREATE_VRAM_CLEARED		(1 << 3)
 /* Flag that create shadow bo(GTT) while allocating vram bo */
 #define AMDGPU_GEM_CREATE_SHADOW		(1 << 4)
+/* Flag that allocating the BO should use linear VRAM */
+#define AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS	(1 << 5)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */
@@ -436,6 +438,7 @@ struct drm_amdgpu_cs_chunk_data {
  *
  */
 #define AMDGPU_IDS_FLAGS_FUSION         0x1
+#define AMDGPU_IDS_FLAGS_PREEMPTION     0x2
 
 /* indicate if acceleration can be working */
 #define AMDGPU_INFO_ACCEL_WORKING		0x00
@@ -487,6 +490,10 @@ struct drm_amdgpu_cs_chunk_data {
 #define AMDGPU_INFO_VIS_VRAM_USAGE		0x17
 /* number of TTM buffer evictions */
 #define AMDGPU_INFO_NUM_EVICTIONS		0x18
+/* Query memory about VRAM and GTT domains */
+#define AMDGPU_INFO_MEMORY			0x19
+/* Query vce clock table */
+#define AMDGPU_INFO_VCE_CLOCK_TABLE		0x1A
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff
@@ -572,6 +579,34 @@ struct drm_amdgpu_info_vram_gtt {
 	__u64 gtt_size;
 };
 
+struct drm_amdgpu_heap_info {
+	/** max. physical memory */
+	__u64 total_heap_size;
+
+	/** Theoretical max. available memory in the given heap */
+	__u64 usable_heap_size;
+
+	/**
+	 * Number of bytes allocated in the heap. This includes all processes
+	 * and private allocations in the kernel. It changes when new buffers
+	 * are allocated, freed, and moved. It cannot be larger than
+	 * heap_size.
+	 */
+	__u64 heap_usage;
+
+	/**
+	 * Theoretical possible max. size of buffer which
+	 * could be allocated in the given heap
+	 */
+	__u64 max_allocation;
+};
+
+struct drm_amdgpu_memory_info {
+	struct drm_amdgpu_heap_info vram;
+	struct drm_amdgpu_heap_info cpu_accessible_vram;
+	struct drm_amdgpu_heap_info gtt;
+};
+
 struct drm_amdgpu_info_firmware {
 	__u32 ver;
 	__u32 feature;
@@ -643,6 +678,24 @@ struct drm_amdgpu_info_hw_ip {
 	/** Bitmask of available rings. Bit 0 means ring 0, etc. */
 	__u32  available_rings;
 	__u32  _pad;
+};
+
+#define AMDGPU_VCE_CLOCK_TABLE_ENTRIES		6
+
+struct drm_amdgpu_info_vce_clock_table_entry {
+	/** System clock */
+	__u32 sclk;
+	/** Memory clock */
+	__u32 mclk;
+	/** VCE clock */
+	__u32 eclk;
+	__u32 pad;
+};
+
+struct drm_amdgpu_info_vce_clock_table {
+	struct drm_amdgpu_info_vce_clock_table_entry entries[AMDGPU_VCE_CLOCK_TABLE_ENTRIES];
+	__u32 num_valid_entries;
+	__u32 pad;
 };
 
 /*

@@ -495,22 +495,6 @@ static void si_dma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, (0 << 28) | 0x20); /* func(always) | poll interval */
 }
 
-static unsigned si_dma_ring_get_emit_ib_size(struct amdgpu_ring *ring)
-{
-	return
-		7 + 3; /* si_dma_ring_emit_ib */
-}
-
-static unsigned si_dma_ring_get_dma_frame_size(struct amdgpu_ring *ring)
-{
-	return
-		3 + /* si_dma_ring_emit_hdp_flush */
-		3 + /* si_dma_ring_emit_hdp_invalidate */
-		6 + /* si_dma_ring_emit_pipeline_sync */
-		12 + /* si_dma_ring_emit_vm_flush */
-		9 + 9 + 9; /* si_dma_ring_emit_fence x3 for user fence, vm fence */
-}
-
 static int si_dma_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -547,11 +531,10 @@ static int si_dma_sw_init(void *handle)
 		ring->use_doorbell = false;
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024,
-				     DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0), 0xf,
 				     &adev->sdma.trap_irq,
 				     (i == 0) ?
-				     AMDGPU_SDMA_IRQ_TRAP0 : AMDGPU_SDMA_IRQ_TRAP1,
-				     AMDGPU_RING_TYPE_SDMA);
+				     AMDGPU_SDMA_IRQ_TRAP0 :
+				     AMDGPU_SDMA_IRQ_TRAP1);
 		if (r)
 			return r;
 	}
@@ -762,7 +745,7 @@ static int si_dma_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs si_dma_ip_funcs = {
+static const struct amd_ip_funcs si_dma_ip_funcs = {
 	.name = "si_dma",
 	.early_init = si_dma_early_init,
 	.late_init = NULL,
@@ -780,10 +763,19 @@ const struct amd_ip_funcs si_dma_ip_funcs = {
 };
 
 static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
+	.type = AMDGPU_RING_TYPE_SDMA,
+	.align_mask = 0xf,
+	.nop = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0),
 	.get_rptr = si_dma_ring_get_rptr,
 	.get_wptr = si_dma_ring_get_wptr,
 	.set_wptr = si_dma_ring_set_wptr,
-	.parse_cs = NULL,
+	.emit_frame_size =
+		3 + /* si_dma_ring_emit_hdp_flush */
+		3 + /* si_dma_ring_emit_hdp_invalidate */
+		6 + /* si_dma_ring_emit_pipeline_sync */
+		12 + /* si_dma_ring_emit_vm_flush */
+		9 + 9 + 9, /* si_dma_ring_emit_fence x3 for user fence, vm fence */
+	.emit_ib_size = 7 + 3, /* si_dma_ring_emit_ib */
 	.emit_ib = si_dma_ring_emit_ib,
 	.emit_fence = si_dma_ring_emit_fence,
 	.emit_pipeline_sync = si_dma_ring_emit_pipeline_sync,
@@ -794,8 +786,6 @@ static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
 	.test_ib = si_dma_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = si_dma_ring_pad_ib,
-	.get_emit_ib_size = si_dma_ring_get_emit_ib_size,
-	.get_dma_frame_size = si_dma_ring_get_dma_frame_size,
 };
 
 static void si_dma_set_ring_funcs(struct amdgpu_device *adev)
@@ -913,3 +903,12 @@ static void si_dma_set_vm_pte_funcs(struct amdgpu_device *adev)
 		adev->vm_manager.vm_pte_num_rings = adev->sdma.num_instances;
 	}
 }
+
+const struct amdgpu_ip_block_version si_dma_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SDMA,
+	.major = 1,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &si_dma_ip_funcs,
+};

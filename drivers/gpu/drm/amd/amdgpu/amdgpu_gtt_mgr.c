@@ -168,6 +168,7 @@ static int amdgpu_gtt_mgr_new(struct ttm_mem_type_manager *man,
 		return -ENOMEM;
 
 	node->start = AMDGPU_BO_INVALID_OFFSET;
+	node->size = mem->num_pages;
 	mem->mm_node = node;
 
 	if (place->fpfn || place->lpfn || place->flags & TTM_PL_FLAG_TOPDOWN) {

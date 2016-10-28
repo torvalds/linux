@@ -1651,7 +1651,10 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 
 	radeon_suspend(rdev);
 	radeon_hpd_fini(rdev);
-	/* evict remaining vram memory */
+	/* evict remaining vram memory
+	 * This second call to evict vram is to evict the gart page table
+	 * using the CPU.
+	 */
 	radeon_bo_evict_vram(rdev);
 
 	radeon_agp_suspend(rdev);

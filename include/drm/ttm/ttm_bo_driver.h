@@ -371,9 +371,21 @@ struct ttm_bo_driver {
 	 * submission as a consequence.
 	 */
 
-	int (*invalidate_caches) (struct ttm_bo_device *bdev, uint32_t flags);
-	int (*init_mem_type) (struct ttm_bo_device *bdev, uint32_t type,
-			      struct ttm_mem_type_manager *man);
+	int (*invalidate_caches)(struct ttm_bo_device *bdev, uint32_t flags);
+	int (*init_mem_type)(struct ttm_bo_device *bdev, uint32_t type,
+			     struct ttm_mem_type_manager *man);
+
+	/**
+	 * struct ttm_bo_driver member eviction_valuable
+	 *
+	 * @bo: the buffer object to be evicted
+	 * @place: placement we need room for
+	 *
+	 * Check with the driver if it is valuable to evict a BO to make room
+	 * for a certain placement.
+	 */
+	bool (*eviction_valuable)(struct ttm_buffer_object *bo,
+				  const struct ttm_place *place);
 	/**
 	 * struct ttm_bo_driver member evict_flags:
 	 *
@@ -384,8 +396,9 @@ struct ttm_bo_driver {
 	 * finished, they'll end up in bo->mem.flags
 	 */
 
-	 void(*evict_flags) (struct ttm_buffer_object *bo,
-				struct ttm_placement *placement);
+	void (*evict_flags)(struct ttm_buffer_object *bo,
+			    struct ttm_placement *placement);
+
 	/**
 	 * struct ttm_bo_driver member move:
 	 *
@@ -399,10 +412,9 @@ struct ttm_bo_driver {
 	 *
 	 * Move a buffer between two memory regions.
 	 */
-	int (*move) (struct ttm_buffer_object *bo,
-		     bool evict, bool interruptible,
-		     bool no_wait_gpu,
-		     struct ttm_mem_reg *new_mem);
+	int (*move)(struct ttm_buffer_object *bo, bool evict,
+		    bool interruptible, bool no_wait_gpu,
+		    struct ttm_mem_reg *new_mem);
 
 	/**
 	 * struct ttm_bo_driver_member verify_access
@@ -416,8 +428,8 @@ struct ttm_bo_driver {
 	 * access for all buffer objects.
 	 * This function should return 0 if access is granted, -EPERM otherwise.
 	 */
-	int (*verify_access) (struct ttm_buffer_object *bo,
-			      struct file *filp);
+	int (*verify_access)(struct ttm_buffer_object *bo,
+			     struct file *filp);
 
 	/* hook to notify driver about a driver move so it
 	 * can do tiling things */
@@ -430,7 +442,7 @@ struct ttm_bo_driver {
 	/**
 	 * notify the driver that we're about to swap out this bo
 	 */
-	void (*swap_notify) (struct ttm_buffer_object *bo);
+	void (*swap_notify)(struct ttm_buffer_object *bo);
 
 	/**
 	 * Driver callback on when mapping io memory (for bo_move_memcpy
@@ -438,8 +450,10 @@ struct ttm_bo_driver {
 	 * the mapping is not use anymore. io_mem_reserve & io_mem_free
 	 * are balanced.
 	 */
-	int (*io_mem_reserve)(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
-	void (*io_mem_free)(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem);
+	int (*io_mem_reserve)(struct ttm_bo_device *bdev,
+			      struct ttm_mem_reg *mem);
+	void (*io_mem_free)(struct ttm_bo_device *bdev,
+			    struct ttm_mem_reg *mem);
 
 	/**
 	 * Optional driver callback for when BO is removed from the LRU.

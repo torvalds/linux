@@ -1030,7 +1030,7 @@ static int gmc_v6_0_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs gmc_v6_0_ip_funcs = {
+static const struct amd_ip_funcs gmc_v6_0_ip_funcs = {
 	.name = "gmc_v6_0",
 	.early_init = gmc_v6_0_early_init,
 	.late_init = gmc_v6_0_late_init,
@@ -1069,3 +1069,11 @@ static void gmc_v6_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->mc.vm_fault.funcs = &gmc_v6_0_irq_funcs;
 }
 
+const struct amdgpu_ip_block_version gmc_v6_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_GMC,
+	.major = 6,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &gmc_v6_0_ip_funcs,
+};

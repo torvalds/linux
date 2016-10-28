@@ -47,6 +47,8 @@ struct drm_mm_node;
 
 struct ttm_placement;
 
+struct ttm_place;
+
 /**
  * struct ttm_bus_placement
  *
@@ -394,6 +396,17 @@ extern int ttm_bo_lock_delayed_workqueue(struct ttm_bo_device *bdev);
  */
 extern void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev,
 					    int resched);
+
+/**
+ * ttm_bo_eviction_valuable
+ *
+ * @bo: The buffer object to evict
+ * @place: the placement we need to make room for
+ *
+ * Check if it is valuable to evict the BO to make room for the given placement.
+ */
+bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
+			      const struct ttm_place *place);
 
 /**
  * ttm_bo_synccpu_write_grab

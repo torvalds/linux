@@ -425,6 +425,7 @@ static struct ttm_bo_driver virtio_gpu_bo_driver = {
 	.ttm_tt_unpopulate = &virtio_gpu_ttm_tt_unpopulate,
 	.invalidate_caches = &virtio_gpu_invalidate_caches,
 	.init_mem_type = &virtio_gpu_init_mem_type,
+	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = &virtio_gpu_evict_flags,
 	.move = &virtio_gpu_bo_move,
 	.verify_access = &virtio_gpu_verify_access,

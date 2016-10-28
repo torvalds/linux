@@ -24,6 +24,7 @@
  */
 #include <drm/drmP.h>
 #include "amdgpu.h"
+#include "amdgpu_gfx.h"
 
 /*
  * GPU scratch registers helpers function.

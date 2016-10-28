@@ -876,6 +876,9 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 	struct amdgpu_ib *ib = &parser->job->ibs[ib_idx];
 	int r;
 
+	parser->job->vm = NULL;
+	ib->gpu_addr = amdgpu_sa_bo_gpu_addr(ib->sa_bo);
+
 	if (ib->length_dw % 16) {
 		DRM_ERROR("UVD IB length (%d) not 16 dwords aligned!\n",
 			  ib->length_dw);
@@ -931,7 +934,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	if (r)
 		return r;
 
-	if (!bo->adev->uvd.address_64_bit) {
+	if (!ring->adev->uvd.address_64_bit) {
 		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_VRAM);
 		amdgpu_uvd_force_into_uvd_segment(bo);
 	}
@@ -1002,7 +1005,8 @@ int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 
 	r = amdgpu_bo_create(adev, 1024, PAGE_SIZE, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
-			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
 			     NULL, NULL, &bo);
 	if (r)
 		return r;
@@ -1051,7 +1055,8 @@ int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 
 	r = amdgpu_bo_create(adev, 1024, PAGE_SIZE, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
-			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
+			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
 			     NULL, NULL, &bo);
 	if (r)
 		return r;

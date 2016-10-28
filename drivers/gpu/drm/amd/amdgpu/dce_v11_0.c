@@ -31,6 +31,7 @@
 #include "atombios_encoders.h"
 #include "amdgpu_pll.h"
 #include "amdgpu_connectors.h"
+#include "dce_v11_0.h"
 
 #include "dce/dce_11_0_d.h"
 #include "dce/dce_11_0_sh_mask.h"
@@ -346,33 +347,12 @@ static int dce_v11_0_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 static bool dce_v11_0_hpd_sense(struct amdgpu_device *adev,
 			       enum amdgpu_hpd_id hpd)
 {
-	int idx;
 	bool connected = false;
 
-	switch (hpd) {
-	case AMDGPU_HPD_1:
-		idx = 0;
-		break;
-	case AMDGPU_HPD_2:
-		idx = 1;
-		break;
-	case AMDGPU_HPD_3:
-		idx = 2;
-		break;
-	case AMDGPU_HPD_4:
-		idx = 3;
-		break;
-	case AMDGPU_HPD_5:
-		idx = 4;
-		break;
-	case AMDGPU_HPD_6:
-		idx = 5;
-		break;
-	default:
+	if (hpd >= adev->mode_info.num_hpd)
 		return connected;
-	}
 
-	if (RREG32(mmDC_HPD_INT_STATUS + hpd_offsets[idx]) &
+	if (RREG32(mmDC_HPD_INT_STATUS + hpd_offsets[hpd]) &
 	    DC_HPD_INT_STATUS__DC_HPD_SENSE_MASK)
 		connected = true;
 
@@ -392,37 +372,16 @@ static void dce_v11_0_hpd_set_polarity(struct amdgpu_device *adev,
 {
 	u32 tmp;
 	bool connected = dce_v11_0_hpd_sense(adev, hpd);
-	int idx;
 
-	switch (hpd) {
-	case AMDGPU_HPD_1:
-		idx = 0;
-		break;
-	case AMDGPU_HPD_2:
-		idx = 1;
-		break;
-	case AMDGPU_HPD_3:
-		idx = 2;
-		break;
-	case AMDGPU_HPD_4:
-		idx = 3;
-		break;
-	case AMDGPU_HPD_5:
-		idx = 4;
-		break;
-	case AMDGPU_HPD_6:
-		idx = 5;
-		break;
-	default:
+	if (hpd >= adev->mode_info.num_hpd)
 		return;
-	}
 
-	tmp = RREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[idx]);
+	tmp = RREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[hpd]);
 	if (connected)
 		tmp = REG_SET_FIELD(tmp, DC_HPD_INT_CONTROL, DC_HPD_INT_POLARITY, 0);
 	else
 		tmp = REG_SET_FIELD(tmp, DC_HPD_INT_CONTROL, DC_HPD_INT_POLARITY, 1);
-	WREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[idx], tmp);
+	WREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[hpd], tmp);
 }
 
 /**
@@ -438,33 +397,12 @@ static void dce_v11_0_hpd_init(struct amdgpu_device *adev)
 	struct drm_device *dev = adev->ddev;
 	struct drm_connector *connector;
 	u32 tmp;
-	int idx;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
-		switch (amdgpu_connector->hpd.hpd) {
-		case AMDGPU_HPD_1:
-			idx = 0;
-			break;
-		case AMDGPU_HPD_2:
-			idx = 1;
-			break;
-		case AMDGPU_HPD_3:
-			idx = 2;
-			break;
-		case AMDGPU_HPD_4:
-			idx = 3;
-			break;
-		case AMDGPU_HPD_5:
-			idx = 4;
-			break;
-		case AMDGPU_HPD_6:
-			idx = 5;
-			break;
-		default:
+		if (amdgpu_connector->hpd.hpd >= adev->mode_info.num_hpd)
 			continue;
-		}
 
 		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
 		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
@@ -473,24 +411,24 @@ static void dce_v11_0_hpd_init(struct amdgpu_device *adev)
 			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
 			 * also avoid interrupt storms during dpms.
 			 */
-			tmp = RREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[idx]);
+			tmp = RREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd]);
 			tmp = REG_SET_FIELD(tmp, DC_HPD_INT_CONTROL, DC_HPD_INT_EN, 0);
-			WREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[idx], tmp);
+			WREG32(mmDC_HPD_INT_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd], tmp);
 			continue;
 		}
 
-		tmp = RREG32(mmDC_HPD_CONTROL + hpd_offsets[idx]);
+		tmp = RREG32(mmDC_HPD_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd]);
 		tmp = REG_SET_FIELD(tmp, DC_HPD_CONTROL, DC_HPD_EN, 1);
-		WREG32(mmDC_HPD_CONTROL + hpd_offsets[idx], tmp);
+		WREG32(mmDC_HPD_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd], tmp);
 
-		tmp = RREG32(mmDC_HPD_TOGGLE_FILT_CNTL + hpd_offsets[idx]);
+		tmp = RREG32(mmDC_HPD_TOGGLE_FILT_CNTL + hpd_offsets[amdgpu_connector->hpd.hpd]);
 		tmp = REG_SET_FIELD(tmp, DC_HPD_TOGGLE_FILT_CNTL,
 				    DC_HPD_CONNECT_INT_DELAY,
 				    AMDGPU_HPD_CONNECT_INT_DELAY_IN_MS);
 		tmp = REG_SET_FIELD(tmp, DC_HPD_TOGGLE_FILT_CNTL,
 				    DC_HPD_DISCONNECT_INT_DELAY,
 				    AMDGPU_HPD_DISCONNECT_INT_DELAY_IN_MS);
-		WREG32(mmDC_HPD_TOGGLE_FILT_CNTL + hpd_offsets[idx], tmp);
+		WREG32(mmDC_HPD_TOGGLE_FILT_CNTL + hpd_offsets[amdgpu_connector->hpd.hpd], tmp);
 
 		dce_v11_0_hpd_set_polarity(adev, amdgpu_connector->hpd.hpd);
 		amdgpu_irq_get(adev, &adev->hpd_irq, amdgpu_connector->hpd.hpd);
@@ -510,37 +448,16 @@ static void dce_v11_0_hpd_fini(struct amdgpu_device *adev)
 	struct drm_device *dev = adev->ddev;
 	struct drm_connector *connector;
 	u32 tmp;
-	int idx;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
-		switch (amdgpu_connector->hpd.hpd) {
-		case AMDGPU_HPD_1:
-			idx = 0;
-			break;
-		case AMDGPU_HPD_2:
-			idx = 1;
-			break;
-		case AMDGPU_HPD_3:
-			idx = 2;
-			break;
-		case AMDGPU_HPD_4:
-			idx = 3;
-			break;
-		case AMDGPU_HPD_5:
-			idx = 4;
-			break;
-		case AMDGPU_HPD_6:
-			idx = 5;
-			break;
-		default:
+		if (amdgpu_connector->hpd.hpd >= adev->mode_info.num_hpd)
 			continue;
-		}
 
-		tmp = RREG32(mmDC_HPD_CONTROL + hpd_offsets[idx]);
+		tmp = RREG32(mmDC_HPD_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd]);
 		tmp = REG_SET_FIELD(tmp, DC_HPD_CONTROL, DC_HPD_EN, 0);
-		WREG32(mmDC_HPD_CONTROL + hpd_offsets[idx], tmp);
+		WREG32(mmDC_HPD_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd], tmp);
 
 		amdgpu_irq_put(adev, &adev->hpd_irq, amdgpu_connector->hpd.hpd);
 	}
@@ -3611,7 +3528,7 @@ static int dce_v11_0_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs dce_v11_0_ip_funcs = {
+static const struct amd_ip_funcs dce_v11_0_ip_funcs = {
 	.name = "dce_v11_0",
 	.early_init = dce_v11_0_early_init,
 	.late_init = NULL,
@@ -3941,3 +3858,21 @@ static void dce_v11_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->hpd_irq.num_types = AMDGPU_HPD_LAST;
 	adev->hpd_irq.funcs = &dce_v11_0_hpd_irq_funcs;
 }
+
+const struct amdgpu_ip_block_version dce_v11_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_DCE,
+	.major = 11,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &dce_v11_0_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version dce_v11_2_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_DCE,
+	.major = 11,
+	.minor = 2,
+	.rev = 0,
+	.funcs = &dce_v11_0_ip_funcs,
+};
