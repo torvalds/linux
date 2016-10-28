@@ -13,6 +13,8 @@
 
 &tps {
 	compatible = "ti,tps65217";
+	interrupt-controller;
+	#interrupt-cells = <1>;
 
 	regulators {
 		#address-cells = <1>;
