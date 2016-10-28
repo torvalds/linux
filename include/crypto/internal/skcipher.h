@@ -91,12 +91,6 @@ static inline struct crypto_skcipher *crypto_spawn_skcipher(
 	return crypto_spawn_tfm2(&spawn->base);
 }
 
-static inline struct crypto_skcipher *crypto_spawn_skcipher2(
-	struct crypto_skcipher_spawn *spawn)
-{
-	return crypto_spawn_skcipher(spawn);
-}
-
 static inline void crypto_skcipher_set_reqsize(
 	struct crypto_skcipher *skcipher, unsigned int reqsize)
 {

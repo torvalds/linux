@@ -290,7 +290,7 @@ static int crypto_cts_init_tfm(struct crypto_skcipher *tfm)
 	unsigned bsize;
 	unsigned align;
 
-	cipher = crypto_spawn_skcipher2(spawn);
+	cipher = crypto_spawn_skcipher(spawn);
 	if (IS_ERR(cipher))
 		return PTR_ERR(cipher);
 

@@ -462,7 +462,7 @@ static int crypto_ccm_init_tfm(struct crypto_aead *tfm)
 	if (IS_ERR(cipher))
 		return PTR_ERR(cipher);
 
-	ctr = crypto_spawn_skcipher2(&ictx->ctr);
+	ctr = crypto_spawn_skcipher(&ictx->ctr);
 	err = PTR_ERR(ctr);
 	if (IS_ERR(ctr))
 		goto err_free_cipher;

@@ -575,7 +575,7 @@ static int crypto_gcm_init_tfm(struct crypto_aead *tfm)
 	if (IS_ERR(ghash))
 		return PTR_ERR(ghash);
 
-	ctr = crypto_spawn_skcipher2(&ictx->ctr);
+	ctr = crypto_spawn_skcipher(&ictx->ctr);
 	err = PTR_ERR(ctr);
 	if (IS_ERR(ctr))
 		goto err_free_hash;

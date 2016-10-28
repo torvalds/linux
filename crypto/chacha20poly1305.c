@@ -532,7 +532,7 @@ static int chachapoly_init(struct crypto_aead *tfm)
 	if (IS_ERR(poly))
 		return PTR_ERR(poly);
 
-	chacha = crypto_spawn_skcipher2(&ictx->chacha);
+	chacha = crypto_spawn_skcipher(&ictx->chacha);
 	if (IS_ERR(chacha)) {
 		crypto_free_ahash(poly);
 		return PTR_ERR(chacha);
