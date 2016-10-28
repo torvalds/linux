@@ -26,10 +26,12 @@
 #include <linux/seq_file.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/cpu.h>
 
 #include <uapi/linux/magic.h>
 
 #include <asm/intel_rdt.h>
+#include <asm/intel_rdt_common.h>
 
 DEFINE_STATIC_KEY_FALSE(rdt_enable_key);
 struct kernfs_root *rdt_root;
@@ -38,6 +40,55 @@ LIST_HEAD(rdt_all_groups);
 
 /* Kernel fs node for "info" directory under root */
 static struct kernfs_node *kn_info;
+
+/*
+ * Trivial allocator for CLOSIDs. Since h/w only supports a small number,
+ * we can keep a bitmap of free CLOSIDs in a single integer.
+ *
+ * Using a global CLOSID across all resources has some advantages and
+ * some drawbacks:
+ * + We can simply set "current->closid" to assign a task to a resource
+ *   group.
+ * + Context switch code can avoid extra memory references deciding which
+ *   CLOSID to load into the PQR_ASSOC MSR
+ * - We give up some options in configuring resource groups across multi-socket
+ *   systems.
+ * - Our choices on how to configure each resource become progressively more
+ *   limited as the number of resources grows.
+ */
+static int closid_free_map;
+
+static void closid_init(void)
+{
+	struct rdt_resource *r;
+	int rdt_min_closid = 32;
+
+	/* Compute rdt_min_closid across all resources */
+	for_each_enabled_rdt_resource(r)
+		rdt_min_closid = min(rdt_min_closid, r->num_closid);
+
+	closid_free_map = BIT_MASK(rdt_min_closid) - 1;
+
+	/* CLOSID 0 is always reserved for the default group */
+	closid_free_map &= ~1;
+}
+
+int closid_alloc(void)
+{
+	int closid = ffs(closid_free_map);
+
+	if (closid == 0)
+		return -ENOSPC;
+	closid--;
+	closid_free_map &= ~(1 << closid);
+
+	return closid;
+}
+
+static void closid_free(int closid)
+{
+	closid_free_map |= 1 << closid;
+}
 
 /* set uid and gid of rdtgroup dirs and files to that of the creator */
 static int rdtgroup_kn_set_ugid(struct kernfs_node *kn)
@@ -287,6 +338,54 @@ static int parse_rdtgroupfs_options(char *data)
 	return ret;
 }
 
+/*
+ * We don't allow rdtgroup directories to be created anywhere
+ * except the root directory. Thus when looking for the rdtgroup
+ * structure for a kernfs node we are either looking at a directory,
+ * in which case the rdtgroup structure is pointed at by the "priv"
+ * field, otherwise we have a file, and need only look to the parent
+ * to find the rdtgroup.
+ */
+static struct rdtgroup *kernfs_to_rdtgroup(struct kernfs_node *kn)
+{
+	if (kernfs_type(kn) == KERNFS_DIR)
+		return kn->priv;
+	else
+		return kn->parent->priv;
+}
+
+struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn)
+{
+	struct rdtgroup *rdtgrp = kernfs_to_rdtgroup(kn);
+
+	atomic_inc(&rdtgrp->waitcount);
+	kernfs_break_active_protection(kn);
+
+	mutex_lock(&rdtgroup_mutex);
+
+	/* Was this group deleted while we waited? */
+	if (rdtgrp->flags & RDT_DELETED)
+		return NULL;
+
+	return rdtgrp;
+}
+
+void rdtgroup_kn_unlock(struct kernfs_node *kn)
+{
+	struct rdtgroup *rdtgrp = kernfs_to_rdtgroup(kn);
+
+	mutex_unlock(&rdtgroup_mutex);
+
+	if (atomic_dec_and_test(&rdtgrp->waitcount) &&
+	    (rdtgrp->flags & RDT_DELETED)) {
+		kernfs_unbreak_active_protection(kn);
+		kernfs_put(kn);
+		kfree(rdtgrp);
+	} else {
+		kernfs_unbreak_active_protection(kn);
+	}
+}
+
 static struct dentry *rdt_mount(struct file_system_type *fs_type,
 				int flags, const char *unused_dev_name,
 				void *data)
@@ -308,6 +407,8 @@ static struct dentry *rdt_mount(struct file_system_type *fs_type,
 		dentry = ERR_PTR(ret);
 		goto out_cdp;
 	}
+
+	closid_init();
 
 	ret = rdtgroup_create_info_dir(rdtgroup_default.kn);
 	if (ret)
@@ -368,10 +469,39 @@ static int reset_all_cbms(struct rdt_resource *r)
 }
 
 /*
+ * MSR_IA32_PQR_ASSOC is scoped per logical CPU, so all updates
+ * are always in thread context.
+ */
+static void rdt_reset_pqr_assoc_closid(void *v)
+{
+	struct intel_pqr_state *state = this_cpu_ptr(&pqr_state);
+
+	state->closid = 0;
+	wrmsr(MSR_IA32_PQR_ASSOC, state->rmid, 0);
+}
+
+/*
  * Forcibly remove all of subdirectories under root.
  */
 static void rmdir_all_sub(void)
 {
+	struct rdtgroup *rdtgrp, *tmp;
+
+	get_cpu();
+	/* Reset PQR_ASSOC MSR on this cpu. */
+	rdt_reset_pqr_assoc_closid(NULL);
+	/* Reset PQR_ASSOC MSR on the rest of cpus. */
+	smp_call_function_many(cpu_online_mask, rdt_reset_pqr_assoc_closid,
+			       NULL, 1);
+	put_cpu();
+	list_for_each_entry_safe(rdtgrp, tmp, &rdt_all_groups, rdtgroup_list) {
+		/* Remove each rdtgroup other than root */
+		if (rdtgrp == &rdtgroup_default)
+			continue;
+		kernfs_remove(rdtgrp->kn);
+		list_del(&rdtgrp->rdtgroup_list);
+		kfree(rdtgrp);
+	}
 	kernfs_remove(kn_info);
 }
 
@@ -397,7 +527,108 @@ static struct file_system_type rdt_fs_type = {
 	.kill_sb = rdt_kill_sb,
 };
 
+static int rdtgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
+			  umode_t mode)
+{
+	struct rdtgroup *parent, *rdtgrp;
+	struct kernfs_node *kn;
+	int ret, closid;
+
+	/* Only allow mkdir in the root directory */
+	if (parent_kn != rdtgroup_default.kn)
+		return -EPERM;
+
+	/* Do not accept '\n' to avoid unparsable situation. */
+	if (strchr(name, '\n'))
+		return -EINVAL;
+
+	parent = rdtgroup_kn_lock_live(parent_kn);
+	if (!parent) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
+	ret = closid_alloc();
+	if (ret < 0)
+		goto out_unlock;
+	closid = ret;
+
+	/* allocate the rdtgroup. */
+	rdtgrp = kzalloc(sizeof(*rdtgrp), GFP_KERNEL);
+	if (!rdtgrp) {
+		ret = -ENOSPC;
+		goto out_closid_free;
+	}
+	rdtgrp->closid = closid;
+	list_add(&rdtgrp->rdtgroup_list, &rdt_all_groups);
+
+	/* kernfs creates the directory for rdtgrp */
+	kn = kernfs_create_dir(parent->kn, name, mode, rdtgrp);
+	if (IS_ERR(kn)) {
+		ret = PTR_ERR(kn);
+		goto out_cancel_ref;
+	}
+	rdtgrp->kn = kn;
+
+	/*
+	 * kernfs_remove() will drop the reference count on "kn" which
+	 * will free it. But we still need it to stick around for the
+	 * rdtgroup_kn_unlock(kn} call below. Take one extra reference
+	 * here, which will be dropped inside rdtgroup_kn_unlock().
+	 */
+	kernfs_get(kn);
+
+	ret = rdtgroup_kn_set_ugid(kn);
+	if (ret)
+		goto out_destroy;
+
+	kernfs_activate(kn);
+
+	ret = 0;
+	goto out_unlock;
+
+out_destroy:
+	kernfs_remove(rdtgrp->kn);
+out_cancel_ref:
+	list_del(&rdtgrp->rdtgroup_list);
+	kfree(rdtgrp);
+out_closid_free:
+	closid_free(closid);
+out_unlock:
+	rdtgroup_kn_unlock(parent_kn);
+	return ret;
+}
+
+static int rdtgroup_rmdir(struct kernfs_node *kn)
+{
+	struct rdtgroup *rdtgrp;
+	int ret = 0;
+
+	rdtgrp = rdtgroup_kn_lock_live(kn);
+	if (!rdtgrp) {
+		rdtgroup_kn_unlock(kn);
+		return -ENOENT;
+	}
+
+	rdtgrp->flags = RDT_DELETED;
+	closid_free(rdtgrp->closid);
+	list_del(&rdtgrp->rdtgroup_list);
+
+	/*
+	 * one extra hold on this, will drop when we kfree(rdtgrp)
+	 * in rdtgroup_kn_unlock()
+	 */
+	kernfs_get(kn);
+	kernfs_remove(rdtgrp->kn);
+
+	rdtgroup_kn_unlock(kn);
+
+	return ret;
+}
+
 static struct kernfs_syscall_ops rdtgroup_kf_syscall_ops = {
+	.mkdir	= rdtgroup_mkdir,
+	.rmdir	= rdtgroup_rmdir,
 };
 
 static int __init rdtgroup_setup_root(void)

@@ -14,12 +14,19 @@
  * @kn:				kernfs node
  * @rdtgroup_list:		linked list for all rdtgroups
  * @closid:			closid for this rdtgroup
+ * @flags:			status bits
+ * @waitcount:			how many cpus expect to find this
  */
 struct rdtgroup {
 	struct kernfs_node	*kn;
 	struct list_head	rdtgroup_list;
 	int			closid;
+	int			flags;
+	atomic_t		waitcount;
 };
+
+/* rdtgroup.flags */
+#define	RDT_DELETED		1
 
 /* List of all resource groups */
 extern struct list_head rdt_all_groups;
@@ -156,4 +163,6 @@ union cpuid_0x10_1_edx {
 };
 
 void rdt_cbm_update(void *arg);
+struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn);
+void rdtgroup_kn_unlock(struct kernfs_node *kn);
 #endif /* _ASM_X86_INTEL_RDT_H */
