@@ -1512,6 +1512,65 @@ static int init_percpu_info(struct f2fs_sb_info *sbi)
 								GFP_KERNEL);
 }
 
+#ifdef CONFIG_BLK_DEV_ZONED
+static int init_blkz_info(struct f2fs_sb_info *sbi)
+{
+	struct block_device *bdev = sbi->sb->s_bdev;
+	sector_t nr_sectors = bdev->bd_part->nr_sects;
+	sector_t sector = 0;
+	struct blk_zone *zones;
+	unsigned int i, nr_zones;
+	unsigned int n = 0;
+	int err = -EIO;
+
+	if (!f2fs_sb_mounted_blkzoned(sbi->sb))
+		return 0;
+
+	sbi->blocks_per_blkz = SECTOR_TO_BLOCK(bdev_zone_size(bdev));
+	sbi->log_blocks_per_blkz = __ilog2_u32(sbi->blocks_per_blkz);
+	sbi->nr_blkz = SECTOR_TO_BLOCK(nr_sectors) >>
+		sbi->log_blocks_per_blkz;
+	if (nr_sectors & (bdev_zone_size(bdev) - 1))
+		sbi->nr_blkz++;
+
+	sbi->blkz_type = kmalloc(sbi->nr_blkz, GFP_KERNEL);
+	if (!sbi->blkz_type)
+		return -ENOMEM;
+
+#define F2FS_REPORT_NR_ZONES   4096
+
+	zones = kcalloc(F2FS_REPORT_NR_ZONES, sizeof(struct blk_zone),
+			GFP_KERNEL);
+	if (!zones)
+		return -ENOMEM;
+
+	/* Get block zones type */
+	while (zones && sector < nr_sectors) {
+
+		nr_zones = F2FS_REPORT_NR_ZONES;
+		err = blkdev_report_zones(bdev, sector,
+					  zones, &nr_zones,
+					  GFP_KERNEL);
+		if (err)
+			break;
+		if (!nr_zones) {
+			err = -EIO;
+			break;
+		}
+
+		for (i = 0; i < nr_zones; i++) {
+			sbi->blkz_type[n] = zones[i].type;
+			sector += zones[i].len;
+			n++;
+		}
+	}
+
+	kfree(zones);
+
+	return err;
+}
+#endif
+
 /*
  * Read f2fs raw super block.
  * Because we have two copies of super block, so read both of them
@@ -1758,6 +1817,15 @@ try_onemore:
 
 	init_ino_entry_info(sbi);
 
+#ifdef CONFIG_BLK_DEV_ZONED
+	err = init_blkz_info(sbi);
+	if (err) {
+		f2fs_msg(sb, KERN_ERR,
+			"Failed to initialize F2FS blkzone information");
+		goto free_blkz;
+	}
+#endif
+
 	/* setup f2fs internal modules */
 	err = build_segment_manager(sbi);
 	if (err) {
@@ -1936,6 +2004,10 @@ free_nm:
 	destroy_node_manager(sbi);
 free_sm:
 	destroy_segment_manager(sbi);
+#ifdef CONFIG_BLK_DEV_ZONED
+free_blkz:
+	kfree(sbi->blkz_type);
+#endif
 	kfree(sbi->ckpt);
 free_meta_inode:
 	make_bad_inode(sbi->meta_inode);
