@@ -685,8 +685,8 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	request->postfix = ring->tail;
 
 	/* Not allowed to fail! */
-	ret = engine->emit_request(request);
-	WARN(ret, "(%s)->emit_request failed: %d!\n", engine->name, ret);
+	ret = engine->emit_breadcrumb(request);
+	WARN(ret, "(%s)->emit_breadcrumb failed: %d!\n", engine->name, ret);
 
 	/* Sanity check that the reserved size was large enough. */
 	ret = ring->tail - request_start;

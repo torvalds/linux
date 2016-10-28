@@ -1328,7 +1328,7 @@ static void i9xx_submit_request(struct drm_i915_gem_request *request)
 			intel_ring_offset(request->ring, request->tail));
 }
 
-static int i9xx_emit_request(struct drm_i915_gem_request *req)
+static int i9xx_emit_breadcrumb(struct drm_i915_gem_request *req)
 {
 	struct intel_ring *ring = req->ring;
 	int ret;
@@ -1349,14 +1349,14 @@ static int i9xx_emit_request(struct drm_i915_gem_request *req)
 }
 
 /**
- * gen6_sema_emit_request - Update the semaphore mailbox registers
+ * gen6_sema_emit_breadcrumb - Update the semaphore mailbox registers
  *
  * @request - request to write to the ring
  *
  * Update the mailbox registers in the *other* rings with the current seqno.
  * This acts like a signal in the canonical semaphore.
  */
-static int gen6_sema_emit_request(struct drm_i915_gem_request *req)
+static int gen6_sema_emit_breadcrumb(struct drm_i915_gem_request *req)
 {
 	int ret;
 
@@ -1364,10 +1364,10 @@ static int gen6_sema_emit_request(struct drm_i915_gem_request *req)
 	if (ret)
 		return ret;
 
-	return i9xx_emit_request(req);
+	return i9xx_emit_breadcrumb(req);
 }
 
-static int gen8_render_emit_request(struct drm_i915_gem_request *req)
+static int gen8_render_emit_breadcrumb(struct drm_i915_gem_request *req)
 {
 	struct intel_engine_cs *engine = req->engine;
 	struct intel_ring *ring = req->ring;
@@ -2637,9 +2637,9 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 	engine->init_hw = init_ring_common;
 	engine->reset_hw = reset_ring_common;
 
-	engine->emit_request = i9xx_emit_request;
+	engine->emit_breadcrumb = i9xx_emit_breadcrumb;
 	if (i915.semaphores)
-		engine->emit_request = gen6_sema_emit_request;
+		engine->emit_breadcrumb = gen6_sema_emit_breadcrumb;
 	engine->submit_request = i9xx_submit_request;
 
 	if (INTEL_GEN(dev_priv) >= 8)
@@ -2666,7 +2666,7 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 
 	if (INTEL_GEN(dev_priv) >= 8) {
 		engine->init_context = intel_rcs_ctx_init;
-		engine->emit_request = gen8_render_emit_request;
+		engine->emit_breadcrumb = gen8_render_emit_breadcrumb;
 		engine->emit_flush = gen8_render_ring_flush;
 		if (i915.semaphores)
 			engine->semaphore.signal = gen8_rcs_signal;
