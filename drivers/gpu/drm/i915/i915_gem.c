@@ -3705,10 +3705,6 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_gem_request *request, *target = NULL;
 	int ret;
 
-	ret = i915_gem_wait_for_error(&dev_priv->gpu_error);
-	if (ret)
-		return ret;
-
 	/* ABI: return -EIO if already wedged */
 	if (i915_terminally_wedged(&dev_priv->gpu_error))
 		return -EIO;
