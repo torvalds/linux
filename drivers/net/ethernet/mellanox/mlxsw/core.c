@@ -1705,9 +1705,9 @@ void mlxsw_core_port_fini(struct mlxsw_core *mlxsw_core, u8 local_port)
 }
 EXPORT_SYMBOL(mlxsw_core_port_fini);
 
-void mlxsw_core_port_set(struct mlxsw_core *mlxsw_core, u8 local_port,
-			 void *port_driver_priv, struct net_device *dev,
-			 bool split, u32 split_group)
+void mlxsw_core_port_eth_set(struct mlxsw_core *mlxsw_core, u8 local_port,
+			     void *port_driver_priv, struct net_device *dev,
+			     bool split, u32 split_group)
 {
 	struct mlxsw_core_port *mlxsw_core_port =
 					&mlxsw_core->ports[local_port];
@@ -1718,7 +1718,7 @@ void mlxsw_core_port_set(struct mlxsw_core *mlxsw_core, u8 local_port,
 		devlink_port_split_set(devlink_port, split_group);
 	devlink_port_type_eth_set(devlink_port, dev);
 }
-EXPORT_SYMBOL(mlxsw_core_port_set);
+EXPORT_SYMBOL(mlxsw_core_port_eth_set);
 
 void mlxsw_core_port_clear(struct mlxsw_core *mlxsw_core, u8 local_port,
 			   void *port_driver_priv)

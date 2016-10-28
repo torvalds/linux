@@ -2358,8 +2358,9 @@ static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_register_netdev;
 	}
 
-	mlxsw_core_port_set(mlxsw_sp->core, mlxsw_sp_port->local_port,
-			    mlxsw_sp_port, dev, mlxsw_sp_port->split, module);
+	mlxsw_core_port_eth_set(mlxsw_sp->core, mlxsw_sp_port->local_port,
+				mlxsw_sp_port, dev, mlxsw_sp_port->split,
+				module);
 	mlxsw_core_schedule_dw(&mlxsw_sp_port->hw_stats.update_dw, 0);
 	return 0;
 
