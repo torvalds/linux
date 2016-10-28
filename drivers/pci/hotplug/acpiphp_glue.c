@@ -225,14 +225,11 @@ static void acpiphp_post_dock_fixup(struct acpi_device *adev)
 /* Check whether the PCI device is managed by native PCIe hotplug driver */
 static bool device_is_managed_by_native_pciehp(struct pci_dev *pdev)
 {
-	u32 reg32;
 	acpi_handle tmp;
 	struct acpi_pci_root *root;
 
 	/* Check whether the PCIe port supports native PCIe hotplug */
-	if (pcie_capability_read_dword(pdev, PCI_EXP_SLTCAP, &reg32))
-		return false;
-	if (!(reg32 & PCI_EXP_SLTCAP_HPC))
+	if (!pdev->is_hotplug_bridge)
 		return false;
 
 	/*
