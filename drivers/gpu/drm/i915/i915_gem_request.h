@@ -554,22 +554,7 @@ i915_gem_active_isset(const struct i915_gem_active *active)
 }
 
 /**
- * i915_gem_active_is_idle - report whether the active tracker is idle
- * @active - the active tracker
- *
- * i915_gem_active_is_idle() returns true if the active tracker is currently
- * unassigned or if the request is complete (but not yet retired). Requires
- * the caller to hold struct_mutex (but that can be relaxed if desired).
- */
-static inline bool
-i915_gem_active_is_idle(const struct i915_gem_active *active,
-			struct mutex *mutex)
-{
-	return !i915_gem_active_peek(active, mutex);
-}
-
-/**
- * i915_gem_active_wait- waits until the request is completed
+ * i915_gem_active_wait - waits until the request is completed
  * @active - the active request on which to wait
  * @flags - how to wait
  * @timeout - how long to wait at most
@@ -637,24 +622,6 @@ i915_gem_active_retire(struct i915_gem_active *active,
 	active->retire(active, request);
 
 	return 0;
-}
-
-/* Convenience functions for peeking at state inside active's request whilst
- * guarded by the struct_mutex.
- */
-
-static inline uint32_t
-i915_gem_active_get_seqno(const struct i915_gem_active *active,
-			  struct mutex *mutex)
-{
-	return i915_gem_request_get_seqno(i915_gem_active_peek(active, mutex));
-}
-
-static inline struct intel_engine_cs *
-i915_gem_active_get_engine(const struct i915_gem_active *active,
-			   struct mutex *mutex)
-{
-	return i915_gem_request_get_engine(i915_gem_active_peek(active, mutex));
 }
 
 #define for_each_active(mask, idx) \

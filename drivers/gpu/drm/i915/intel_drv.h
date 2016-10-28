@@ -401,9 +401,6 @@ struct intel_plane_state {
 	int scaler_id;
 
 	struct drm_intel_sprite_colorkey ckey;
-
-	/* async flip related structures */
-	struct drm_i915_gem_request *wait_req;
 };
 
 struct intel_initial_plane_config {

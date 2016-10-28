@@ -211,60 +211,17 @@ static const struct dma_buf_ops i915_dmabuf_ops =  {
 	.end_cpu_access = i915_gem_end_cpu_access,
 };
 
-static void export_fences(struct drm_i915_gem_object *obj,
-			  struct dma_buf *dma_buf)
-{
-	struct reservation_object *resv = dma_buf->resv;
-	struct drm_i915_gem_request *req;
-	unsigned long active;
-	int idx;
-
-	active = __I915_BO_ACTIVE(obj);
-	if (!active)
-		return;
-
-	/* Serialise with execbuf to prevent concurrent fence-loops */
-	mutex_lock(&obj->base.dev->struct_mutex);
-
-	/* Mark the object for future fences before racily adding old fences */
-	obj->base.dma_buf = dma_buf;
-
-	ww_mutex_lock(&resv->lock, NULL);
-
-	for_each_active(active, idx) {
-		req = i915_gem_active_get(&obj->last_read[idx],
-					  &obj->base.dev->struct_mutex);
-		if (!req)
-			continue;
-
-		if (reservation_object_reserve_shared(resv) == 0)
-			reservation_object_add_shared_fence(resv, &req->fence);
-
-		i915_gem_request_put(req);
-	}
-
-	req = i915_gem_active_get(&obj->last_write,
-				  &obj->base.dev->struct_mutex);
-	if (req) {
-		reservation_object_add_excl_fence(resv, &req->fence);
-		i915_gem_request_put(req);
-	}
-
-	ww_mutex_unlock(&resv->lock);
-	mutex_unlock(&obj->base.dev->struct_mutex);
-}
-
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				      struct drm_gem_object *gem_obj, int flags)
 {
 	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
-	struct dma_buf *dma_buf;
 
 	exp_info.ops = &i915_dmabuf_ops;
 	exp_info.size = gem_obj->size;
 	exp_info.flags = flags;
 	exp_info.priv = gem_obj;
+	exp_info.resv = obj->resv;
 
 	if (obj->ops->dmabuf_export) {
 		int ret = obj->ops->dmabuf_export(obj);
@@ -272,12 +229,7 @@ struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 			return ERR_PTR(ret);
 	}
 
-	dma_buf = drm_gem_dmabuf_export(dev, &exp_info);
-	if (IS_ERR(dma_buf))
-		return dma_buf;
-
-	export_fences(obj, dma_buf);
-	return dma_buf;
+	return drm_gem_dmabuf_export(dev, &exp_info);
 }
 
 static struct sg_table *
@@ -335,6 +287,7 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 	drm_gem_private_object_init(dev, &obj->base, dma_buf->size);
 	i915_gem_object_init(obj, &i915_gem_object_dmabuf_ops);
 	obj->base.import_attach = attach;
+	obj->resv = dma_buf->resv;
 
 	/* We use GTT as shorthand for a coherent domain, one that is
 	 * neither in the GPU cache nor in the CPU cache, where all

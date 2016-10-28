@@ -31,6 +31,7 @@
 #include "i915_vgpu.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
+#include "intel_frontbuffer.h"
 
 #define I915_GFP_DMA (GFP_KERNEL | __GFP_HIGHMEM)
 
@@ -3343,6 +3344,7 @@ i915_vma_retire(struct i915_gem_active *active,
 	const unsigned int idx = rq->engine->id;
 	struct i915_vma *vma =
 		container_of(active, struct i915_vma, last_read[idx]);
+	struct drm_i915_gem_object *obj = vma->obj;
 
 	GEM_BUG_ON(!i915_vma_has_active_engine(vma, idx));
 
@@ -3353,6 +3355,34 @@ i915_vma_retire(struct i915_gem_active *active,
 	list_move_tail(&vma->vm_link, &vma->vm->inactive_list);
 	if (unlikely(i915_vma_is_closed(vma) && !i915_vma_is_pinned(vma)))
 		WARN_ON(i915_vma_unbind(vma));
+
+	GEM_BUG_ON(!i915_gem_object_is_active(obj));
+	if (--obj->active_count)
+		return;
+
+	/* Bump our place on the bound list to keep it roughly in LRU order
+	 * so that we don't steal from recently used but inactive objects
+	 * (unless we are forced to ofc!)
+	 */
+	if (obj->bind_count)
+		list_move_tail(&obj->global_list, &rq->i915->mm.bound_list);
+
+	obj->mm.dirty = true; /* be paranoid  */
+
+	if (i915_gem_object_has_active_reference(obj)) {
+		i915_gem_object_clear_active_reference(obj);
+		i915_gem_object_put(obj);
+	}
+}
+
+static void
+i915_ggtt_retire__write(struct i915_gem_active *active,
+			struct drm_i915_gem_request *request)
+{
+	struct i915_vma *vma =
+		container_of(active, struct i915_vma, last_write);
+
+	intel_fb_obj_flush(vma->obj, true, ORIGIN_CS);
 }
 
 void i915_vma_destroy(struct i915_vma *vma)
@@ -3396,6 +3426,8 @@ __i915_vma_create(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&vma->exec_list);
 	for (i = 0; i < ARRAY_SIZE(vma->last_read); i++)
 		init_request_active(&vma->last_read[i], i915_vma_retire);
+	init_request_active(&vma->last_write,
+			    i915_is_ggtt(vm) ? i915_ggtt_retire__write : NULL);
 	init_request_active(&vma->last_fence, NULL);
 	list_add(&vma->vm_link, &vm->unbound_list);
 	vma->vm = vm;

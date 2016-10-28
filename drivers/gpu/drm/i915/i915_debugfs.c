@@ -136,11 +136,10 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 	unsigned int frontbuffer_bits;
 	int pin_count = 0;
-	enum intel_engine_id id;
 
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
-	seq_printf(m, "%pK: %c%c%c%c%c %8zdKiB %02x %02x [ ",
+	seq_printf(m, "%pK: %c%c%c%c%c %8zdKiB %02x %02x %s%s%s",
 		   &obj->base,
 		   get_active_flag(obj),
 		   get_pin_flag(obj),
@@ -149,14 +148,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   get_pin_mapped_flag(obj),
 		   obj->base.size / 1024,
 		   obj->base.read_domains,
-		   obj->base.write_domain);
-	for_each_engine(engine, dev_priv, id)
-		seq_printf(m, "%x ",
-			   i915_gem_active_get_seqno(&obj->last_read[id],
-						     &obj->base.dev->struct_mutex));
-	seq_printf(m, "] %x %s%s%s",
-		   i915_gem_active_get_seqno(&obj->last_write,
-					     &obj->base.dev->struct_mutex),
+		   obj->base.write_domain,
 		   i915_cache_level_str(dev_priv, obj->cache_level),
 		   obj->mm.dirty ? " dirty" : "",
 		   obj->mm.madv == I915_MADV_DONTNEED ? " purgeable" : "");
@@ -187,8 +179,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	if (obj->stolen)
 		seq_printf(m, " (stolen: %08llx)", obj->stolen->start);
 
-	engine = i915_gem_active_get_engine(&obj->last_write,
-					    &dev_priv->drm.struct_mutex);
+	engine = i915_gem_object_last_write_engine(obj);
 	if (engine)
 		seq_printf(m, " (%s)", engine->name);
 

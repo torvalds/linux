@@ -211,6 +211,7 @@ struct i915_vma {
 
 	unsigned int active;
 	struct i915_gem_active last_read[I915_NUM_ENGINES];
+	struct i915_gem_active last_write;
 	struct i915_gem_active last_fence;
 
 	/**

@@ -196,6 +196,8 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	}
 
 	i915_gem_context_put(request->ctx);
+
+	dma_fence_signal(&request->fence);
 	i915_gem_request_put(request);
 }
 
@@ -553,33 +555,41 @@ i915_gem_request_await_object(struct drm_i915_gem_request *to,
 			      struct drm_i915_gem_object *obj,
 			      bool write)
 {
-	struct i915_gem_active *active;
-	unsigned long active_mask;
-	int idx;
+	struct dma_fence *excl;
+	int ret = 0;
 
 	if (write) {
-		active_mask = i915_gem_object_get_active(obj);
-		active = obj->last_read;
-	} else {
-		active_mask = 1;
-		active = &obj->last_write;
-	}
+		struct dma_fence **shared;
+		unsigned int count, i;
 
-	for_each_active(active_mask, idx) {
-		struct drm_i915_gem_request *request;
-		int ret;
-
-		request = i915_gem_active_peek(&active[idx],
-					       &obj->base.dev->struct_mutex);
-		if (!request)
-			continue;
-
-		ret = i915_gem_request_await_request(to, request);
+		ret = reservation_object_get_fences_rcu(obj->resv,
+							&excl, &count, &shared);
 		if (ret)
 			return ret;
+
+		for (i = 0; i < count; i++) {
+			ret = i915_gem_request_await_dma_fence(to, shared[i]);
+			if (ret)
+				break;
+
+			dma_fence_put(shared[i]);
+		}
+
+		for (; i < count; i++)
+			dma_fence_put(shared[i]);
+		kfree(shared);
+	} else {
+		excl = reservation_object_get_excl_rcu(obj->resv);
 	}
 
-	return 0;
+	if (excl) {
+		if (ret == 0)
+			ret = i915_gem_request_await_dma_fence(to, excl);
+
+		dma_fence_put(excl);
+	}
+
+	return ret;
 }
 
 static void i915_gem_mark_busy(const struct intel_engine_cs *engine)

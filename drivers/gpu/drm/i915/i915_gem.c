@@ -29,7 +29,6 @@
 #include <drm/drm_vma_manager.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
-#include "i915_gem_dmabuf.h"
 #include "i915_vgpu.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
@@ -447,11 +446,6 @@ i915_gem_object_wait(struct drm_i915_gem_object *obj,
 		     long timeout,
 		     struct intel_rps_client *rps)
 {
-	struct reservation_object *resv;
-	struct i915_gem_active *active;
-	unsigned long active_mask;
-	int idx;
-
 	might_sleep();
 #if IS_ENABLED(CONFIG_LOCKDEP)
 	GEM_BUG_ON(debug_locks &&
@@ -460,33 +454,9 @@ i915_gem_object_wait(struct drm_i915_gem_object *obj,
 #endif
 	GEM_BUG_ON(timeout < 0);
 
-	if (flags & I915_WAIT_ALL) {
-		active = obj->last_read;
-		active_mask = i915_gem_object_get_active(obj);
-	} else {
-		active_mask = 1;
-		active = &obj->last_write;
-	}
-
-	for_each_active(active_mask, idx) {
-		struct drm_i915_gem_request *request;
-
-		request = i915_gem_active_get_unlocked(&active[idx]);
-		if (request) {
-			timeout = i915_gem_object_wait_fence(&request->fence,
-							     flags, timeout,
-							     rps);
-			i915_gem_request_put(request);
-		}
-		if (timeout < 0)
-			return timeout;
-	}
-
-	resv = i915_gem_object_get_dmabuf_resv(obj);
-	if (resv)
-		timeout = i915_gem_object_wait_reservation(resv,
-							   flags, timeout,
-							   rps);
+	timeout = i915_gem_object_wait_reservation(obj->resv,
+						   flags, timeout,
+						   rps);
 	return timeout < 0 ? timeout : 0;
 }
 
@@ -2549,44 +2519,6 @@ err_unlock:
 	goto out_unlock;
 }
 
-static void
-i915_gem_object_retire__write(struct i915_gem_active *active,
-			      struct drm_i915_gem_request *request)
-{
-	struct drm_i915_gem_object *obj =
-		container_of(active, struct drm_i915_gem_object, last_write);
-
-	intel_fb_obj_flush(obj, true, ORIGIN_CS);
-}
-
-static void
-i915_gem_object_retire__read(struct i915_gem_active *active,
-			     struct drm_i915_gem_request *request)
-{
-	int idx = request->engine->id;
-	struct drm_i915_gem_object *obj =
-		container_of(active, struct drm_i915_gem_object, last_read[idx]);
-
-	GEM_BUG_ON(!i915_gem_object_has_active_engine(obj, idx));
-
-	i915_gem_object_clear_active(obj, idx);
-	if (i915_gem_object_is_active(obj))
-		return;
-
-	/* Bump our place on the bound list to keep it roughly in LRU order
-	 * so that we don't steal from recently used but inactive objects
-	 * (unless we are forced to ofc!)
-	 */
-	if (obj->bind_count)
-		list_move_tail(&obj->global_list,
-			       &request->i915->mm.bound_list);
-
-	if (i915_gem_object_has_active_reference(obj)) {
-		i915_gem_object_clear_active_reference(obj);
-		i915_gem_object_put(obj);
-	}
-}
-
 static bool i915_context_is_banned(const struct i915_gem_context *ctx)
 {
 	unsigned long elapsed;
@@ -2966,6 +2898,13 @@ int i915_vma_unbind(struct i915_vma *vma)
 		 * In order to prevent it from being recursively closed,
 		 * take a pin on the vma so that the second unbind is
 		 * aborted.
+		 *
+		 * Even more scary is that the retire callback may free
+		 * the object (last active vma). To prevent the explosion
+		 * we defer the actual object free to a worker that can
+		 * only proceed once it acquires the struct_mutex (which
+		 * we currently hold, therefore it cannot free this object
+		 * before we are finished).
 		 */
 		__i915_vma_pin(vma);
 
@@ -4010,83 +3949,42 @@ static __always_inline unsigned int __busy_write_id(unsigned int id)
 }
 
 static __always_inline unsigned int
-__busy_set_if_active(const struct i915_gem_active *active,
+__busy_set_if_active(const struct dma_fence *fence,
 		     unsigned int (*flag)(unsigned int id))
 {
-	struct drm_i915_gem_request *request;
+	struct drm_i915_gem_request *rq;
 
-	request = rcu_dereference(active->request);
-	if (!request || i915_gem_request_completed(request))
+	/* We have to check the current hw status of the fence as the uABI
+	 * guarantees forward progress. We could rely on the idle worker
+	 * to eventually flush us, but to minimise latency just ask the
+	 * hardware.
+	 *
+	 * Note we only report on the status of native fences.
+	 */
+	if (!dma_fence_is_i915(fence))
 		return 0;
 
-	/* This is racy. See __i915_gem_active_get_rcu() for an in detail
-	 * discussion of how to handle the race correctly, but for reporting
-	 * the busy state we err on the side of potentially reporting the
-	 * wrong engine as being busy (but we guarantee that the result
-	 * is at least self-consistent).
-	 *
-	 * As we use SLAB_DESTROY_BY_RCU, the request may be reallocated
-	 * whilst we are inspecting it, even under the RCU read lock as we are.
-	 * This means that there is a small window for the engine and/or the
-	 * seqno to have been overwritten. The seqno will always be in the
-	 * future compared to the intended, and so we know that if that
-	 * seqno is idle (on whatever engine) our request is idle and the
-	 * return 0 above is correct.
-	 *
-	 * The issue is that if the engine is switched, it is just as likely
-	 * to report that it is busy (but since the switch happened, we know
-	 * the request should be idle). So there is a small chance that a busy
-	 * result is actually the wrong engine.
-	 *
-	 * So why don't we care?
-	 *
-	 * For starters, the busy ioctl is a heuristic that is by definition
-	 * racy. Even with perfect serialisation in the driver, the hardware
-	 * state is constantly advancing - the state we report to the user
-	 * is stale.
-	 *
-	 * The critical information for the busy-ioctl is whether the object
-	 * is idle as userspace relies on that to detect whether its next
-	 * access will stall, or if it has missed submitting commands to
-	 * the hardware allowing the GPU to stall. We never generate a
-	 * false-positive for idleness, thus busy-ioctl is reliable at the
-	 * most fundamental level, and we maintain the guarantee that a
-	 * busy object left to itself will eventually become idle (and stay
-	 * idle!).
-	 *
-	 * We allow ourselves the leeway of potentially misreporting the busy
-	 * state because that is an optimisation heuristic that is constantly
-	 * in flux. Being quickly able to detect the busy/idle state is much
-	 * more important than accurate logging of exactly which engines were
-	 * busy.
-	 *
-	 * For accuracy in reporting the engine, we could use
-	 *
-	 *	result = 0;
-	 *	request = __i915_gem_active_get_rcu(active);
-	 *	if (request) {
-	 *		if (!i915_gem_request_completed(request))
-	 *			result = flag(request->engine->exec_id);
-	 *		i915_gem_request_put(request);
-	 *	}
-	 *
-	 * but that still remains susceptible to both hardware and userspace
-	 * races. So we accept making the result of that race slightly worse,
-	 * given the rarity of the race and its low impact on the result.
-	 */
-	return flag(READ_ONCE(request->engine->exec_id));
+	/* opencode to_request() in order to avoid const warnings */
+	rq = container_of(fence, struct drm_i915_gem_request, fence);
+	if (i915_gem_request_completed(rq))
+		return 0;
+
+	return flag(rq->engine->exec_id);
 }
 
 static __always_inline unsigned int
-busy_check_reader(const struct i915_gem_active *active)
+busy_check_reader(const struct dma_fence *fence)
 {
-	return __busy_set_if_active(active, __busy_read_flag);
+	return __busy_set_if_active(fence, __busy_read_flag);
 }
 
 static __always_inline unsigned int
-busy_check_writer(const struct i915_gem_active *active)
+busy_check_writer(const struct dma_fence *fence)
 {
-	return __busy_set_if_active(active, __busy_write_id);
+	if (!fence)
+		return 0;
+
+	return __busy_set_if_active(fence, __busy_write_id);
 }
 
 int
@@ -4095,63 +3993,55 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_busy *args = data;
 	struct drm_i915_gem_object *obj;
-	unsigned long active;
+	struct reservation_object_list *list;
+	unsigned int seq;
 	int err;
 
+	err = -ENOENT;
 	rcu_read_lock();
 	obj = i915_gem_object_lookup_rcu(file, args->handle);
-	if (!obj) {
-		err = -ENOENT;
+	if (!obj)
 		goto out;
+
+	/* A discrepancy here is that we do not report the status of
+	 * non-i915 fences, i.e. even though we may report the object as idle,
+	 * a call to set-domain may still stall waiting for foreign rendering.
+	 * This also means that wait-ioctl may report an object as busy,
+	 * where busy-ioctl considers it idle.
+	 *
+	 * We trade the ability to warn of foreign fences to report on which
+	 * i915 engines are active for the object.
+	 *
+	 * Alternatively, we can trade that extra information on read/write
+	 * activity with
+	 *	args->busy =
+	 *		!reservation_object_test_signaled_rcu(obj->resv, true);
+	 * to report the overall busyness. This is what the wait-ioctl does.
+	 *
+	 */
+retry:
+	seq = raw_read_seqcount(&obj->resv->seq);
+
+	/* Translate the exclusive fence to the READ *and* WRITE engine */
+	args->busy = busy_check_writer(rcu_dereference(obj->resv->fence_excl));
+
+	/* Translate shared fences to READ set of engines */
+	list = rcu_dereference(obj->resv->fence);
+	if (list) {
+		unsigned int shared_count = list->shared_count, i;
+
+		for (i = 0; i < shared_count; ++i) {
+			struct dma_fence *fence =
+				rcu_dereference(list->shared[i]);
+
+			args->busy |= busy_check_reader(fence);
+		}
 	}
 
-	args->busy = 0;
-	active = __I915_BO_ACTIVE(obj);
-	if (active) {
-		int idx;
+	if (args->busy && read_seqcount_retry(&obj->resv->seq, seq))
+		goto retry;
 
-		/* Yes, the lookups are intentionally racy.
-		 *
-		 * First, we cannot simply rely on __I915_BO_ACTIVE. We have
-		 * to regard the value as stale and as our ABI guarantees
-		 * forward progress, we confirm the status of each active
-		 * request with the hardware.
-		 *
-		 * Even though we guard the pointer lookup by RCU, that only
-		 * guarantees that the pointer and its contents remain
-		 * dereferencable and does *not* mean that the request we
-		 * have is the same as the one being tracked by the object.
-		 *
-		 * Consider that we lookup the request just as it is being
-		 * retired and freed. We take a local copy of the pointer,
-		 * but before we add its engine into the busy set, the other
-		 * thread reallocates it and assigns it to a task on another
-		 * engine with a fresh and incomplete seqno. Guarding against
-		 * that requires careful serialisation and reference counting,
-		 * i.e. using __i915_gem_active_get_request_rcu(). We don't,
-		 * instead we expect that if the result is busy, which engines
-		 * are busy is not completely reliable - we only guarantee
-		 * that the object was busy.
-		 */
-
-		for_each_active(active, idx)
-			args->busy |= busy_check_reader(&obj->last_read[idx]);
-
-		/* For ABI sanity, we only care that the write engine is in
-		 * the set of read engines. This should be ensured by the
-		 * ordering of setting last_read/last_write in
-		 * i915_vma_move_to_active(), and then in reverse in retire.
-		 * However, for good measure, we always report the last_write
-		 * request as a busy read as well as being a busy write.
-		 *
-		 * We don't care that the set of active read/write engines
-		 * may change during construction of the result, as it is
-		 * equally liable to change before userspace can inspect
-		 * the result.
-		 */
-		args->busy |= busy_check_writer(&obj->last_write);
-	}
-
+	err = 0;
 out:
 	rcu_read_unlock();
 	return err;
@@ -4216,22 +4106,18 @@ out:
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			  const struct drm_i915_gem_object_ops *ops)
 {
-	int i;
-
 	mutex_init(&obj->mm.lock);
 
 	INIT_LIST_HEAD(&obj->global_list);
 	INIT_LIST_HEAD(&obj->userfault_link);
-	for (i = 0; i < I915_NUM_ENGINES; i++)
-		init_request_active(&obj->last_read[i],
-				    i915_gem_object_retire__read);
-	init_request_active(&obj->last_write,
-			    i915_gem_object_retire__write);
 	INIT_LIST_HEAD(&obj->obj_exec_link);
 	INIT_LIST_HEAD(&obj->vma_list);
 	INIT_LIST_HEAD(&obj->batch_pool_link);
 
 	obj->ops = ops;
+
+	reservation_object_init(&obj->__builtin_resv);
+	obj->resv = &obj->__builtin_resv;
 
 	obj->frontbuffer_ggtt_origin = ORIGIN_GTT;
 
@@ -4385,6 +4271,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		if (obj->base.import_attach)
 			drm_prime_gem_destroy(&obj->base, NULL);
 
+		reservation_object_fini(&obj->__builtin_resv);
 		drm_gem_object_release(&obj->base);
 		i915_gem_info_remove_obj(i915, obj->base.size);
 

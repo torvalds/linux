@@ -34,7 +34,6 @@
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
-#include "i915_gem_dmabuf.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 #include "intel_frontbuffer.h"
@@ -1101,45 +1100,20 @@ err:
 	return ret;
 }
 
-static unsigned int eb_other_engines(struct drm_i915_gem_request *req)
-{
-	unsigned int mask;
-
-	mask = ~intel_engine_flag(req->engine) & I915_BO_ACTIVE_MASK;
-	mask <<= I915_BO_ACTIVE_SHIFT;
-
-	return mask;
-}
-
 static int
 i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 				struct list_head *vmas)
 {
-	const unsigned int other_rings = eb_other_engines(req);
 	struct i915_vma *vma;
 	int ret;
 
 	list_for_each_entry(vma, vmas, exec_list) {
 		struct drm_i915_gem_object *obj = vma->obj;
-		struct reservation_object *resv;
 
-		if (obj->flags & other_rings) {
-			ret = i915_gem_request_await_object
-				(req, obj, obj->base.pending_write_domain);
-			if (ret)
-				return ret;
-		}
-
-		resv = i915_gem_object_get_dmabuf_resv(obj);
-		if (resv) {
-			ret = i915_sw_fence_await_reservation
-				(&req->submit, resv, &i915_fence_ops,
-				 obj->base.pending_write_domain,
-				 I915_FENCE_TIMEOUT,
-				 GFP_KERNEL | __GFP_NOWARN);
-			if (ret < 0)
-				return ret;
-		}
+		ret = i915_gem_request_await_object
+			(req, obj, obj->base.pending_write_domain);
+		if (ret)
+			return ret;
 
 		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU)
 			i915_gem_clflush_object(obj, false);
@@ -1281,8 +1255,6 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 
-	obj->mm.dirty = true; /* be paranoid  */
-
 	/* Add a reference if we're newly entering the active list.
 	 * The order in which we add operations to the retirement queue is
 	 * vital here: mark_active adds to the start of the callback list,
@@ -1290,11 +1262,14 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	 * add the active reference first and queue for it to be dropped
 	 * *last*.
 	 */
-	i915_gem_object_set_active(obj, idx);
-	i915_gem_active_set(&obj->last_read[idx], req);
+	if (!i915_vma_is_active(vma))
+		obj->active_count++;
+	i915_vma_set_active(vma, idx);
+	i915_gem_active_set(&vma->last_read[idx], req);
+	list_move_tail(&vma->vm_link, &vma->vm->active_list);
 
 	if (flags & EXEC_OBJECT_WRITE) {
-		i915_gem_active_set(&obj->last_write, req);
+		i915_gem_active_set(&vma->last_write, req);
 
 		intel_fb_obj_invalidate(obj, ORIGIN_CS);
 
@@ -1304,21 +1279,13 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE)
 		i915_gem_active_set(&vma->last_fence, req);
-
-	i915_vma_set_active(vma, idx);
-	i915_gem_active_set(&vma->last_read[idx], req);
-	list_move_tail(&vma->vm_link, &vma->vm->active_list);
 }
 
 static void eb_export_fence(struct drm_i915_gem_object *obj,
 			    struct drm_i915_gem_request *req,
 			    unsigned int flags)
 {
-	struct reservation_object *resv;
-
-	resv = i915_gem_object_get_dmabuf_resv(obj);
-	if (!resv)
-		return;
+	struct reservation_object *resv = obj->resv;
 
 	/* Ignore errors from failing to allocate the new fence, we can't
 	 * handle an error right now. Worst case should be missed

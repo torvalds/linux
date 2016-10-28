@@ -37,7 +37,6 @@
 #include "intel_frontbuffer.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
-#include "i915_gem_dmabuf.h"
 #include "intel_dsi.h"
 #include "i915_trace.h"
 #include <drm/drm_atomic.h>
@@ -11967,8 +11966,6 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 static bool use_mmio_flip(struct intel_engine_cs *engine,
 			  struct drm_i915_gem_object *obj)
 {
-	struct reservation_object *resv;
-
 	/*
 	 * This is not being used for older platforms, because
 	 * non-availability of flip done interrupt forces us to use
@@ -11990,12 +11987,7 @@ static bool use_mmio_flip(struct intel_engine_cs *engine,
 	else if (i915.enable_execlists)
 		return true;
 
-	resv = i915_gem_object_get_dmabuf_resv(obj);
-	if (resv && !reservation_object_test_signaled_rcu(resv, false))
-		return true;
-
-	return engine != i915_gem_active_get_engine(&obj->last_write,
-						    &obj->base.dev->struct_mutex);
+	return engine != i915_gem_object_last_write_engine(obj);
 }
 
 static void skl_do_mmio_flip(struct intel_crtc *intel_crtc,
@@ -12068,17 +12060,8 @@ static void intel_mmio_flip_work_func(struct work_struct *w)
 	struct intel_framebuffer *intel_fb =
 		to_intel_framebuffer(crtc->base.primary->fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
-	struct reservation_object *resv;
 
-	if (work->flip_queued_req)
-		WARN_ON(i915_wait_request(work->flip_queued_req,
-					  0, MAX_SCHEDULE_TIMEOUT) < 0);
-
-	/* For framebuffer backed by dmabuf, wait for fence */
-	resv = i915_gem_object_get_dmabuf_resv(obj);
-	if (resv)
-		WARN_ON(reservation_object_wait_timeout_rcu(resv, false, false,
-							    MAX_SCHEDULE_TIMEOUT) < 0);
+	WARN_ON(i915_gem_object_wait(obj, 0, MAX_SCHEDULE_TIMEOUT, NULL) < 0);
 
 	intel_pipe_update_start(crtc);
 
@@ -12279,8 +12262,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	} else if (IS_IVYBRIDGE(dev_priv) || IS_HASWELL(dev_priv)) {
 		engine = dev_priv->engine[BCS];
 	} else if (INTEL_INFO(dev)->gen >= 7) {
-		engine = i915_gem_active_get_engine(&obj->last_write,
-						    &obj->base.dev->struct_mutex);
+		engine = i915_gem_object_last_write_engine(obj);
 		if (engine == NULL || engine->id != RCS)
 			engine = dev_priv->engine[BCS];
 	} else {
@@ -12312,9 +12294,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	if (mmio_flip) {
 		INIT_WORK(&work->mmio_work, intel_mmio_flip_work_func);
-
-		work->flip_queued_req = i915_gem_active_get(&obj->last_write,
-							    &obj->base.dev->struct_mutex);
 		queue_work(system_unbound_wq, &work->mmio_work);
 	} else {
 		request = i915_gem_request_alloc(engine, engine->last_context);
@@ -14154,13 +14133,10 @@ static int intel_atomic_check(struct drm_device *dev,
 }
 
 static int intel_atomic_prepare_commit(struct drm_device *dev,
-				       struct drm_atomic_state *state,
-				       bool nonblock)
+				       struct drm_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_plane_state *plane_state;
 	struct drm_crtc_state *crtc_state;
-	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	int i, ret;
 
@@ -14182,30 +14158,6 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
 	mutex_unlock(&dev->struct_mutex);
-
-	if (!ret && !nonblock) {
-		for_each_plane_in_state(state, plane, plane_state, i) {
-			struct intel_plane_state *intel_plane_state =
-				to_intel_plane_state(plane_state);
-			long timeout;
-
-			if (!intel_plane_state->wait_req)
-				continue;
-
-			timeout = i915_wait_request(intel_plane_state->wait_req,
-						    I915_WAIT_INTERRUPTIBLE,
-						    MAX_SCHEDULE_TIMEOUT);
-			if (timeout < 0) {
-				/* Any hang should be swallowed by the wait */
-				WARN_ON(timeout == -EIO);
-				mutex_lock(&dev->struct_mutex);
-				drm_atomic_helper_cleanup_planes(dev, state);
-				mutex_unlock(&dev->struct_mutex);
-				ret = timeout;
-				break;
-			}
-		}
-	}
 
 	return ret;
 }
@@ -14400,25 +14352,10 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	struct drm_crtc_state *old_crtc_state;
 	struct drm_crtc *crtc;
 	struct intel_crtc_state *intel_cstate;
-	struct drm_plane *plane;
-	struct drm_plane_state *plane_state;
 	bool hw_check = intel_state->modeset;
 	unsigned long put_domains[I915_MAX_PIPES] = {};
 	unsigned crtc_vblank_mask = 0;
 	int i;
-
-	for_each_plane_in_state(state, plane, plane_state, i) {
-		struct intel_plane_state *intel_plane_state =
-			to_intel_plane_state(plane->state);
-
-		if (!intel_plane_state->wait_req)
-			continue;
-
-		/* EIO should be eaten, and we can't get interrupted in the
-		 * worker, and blocking commits have waited already. */
-		WARN_ON(i915_wait_request(intel_plane_state->wait_req,
-					  0, MAX_SCHEDULE_TIMEOUT) < 0);
-	}
 
 	drm_atomic_helper_wait_for_dependencies(state);
 
@@ -14626,7 +14563,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 	INIT_WORK(&state->commit_work, intel_atomic_commit_work);
 
-	ret = intel_atomic_prepare_commit(dev, state, nonblock);
+	ret = intel_atomic_prepare_commit(dev, state);
 	if (ret) {
 		DRM_DEBUG_ATOMIC("Preparing state failed with %i\n", ret);
 		return ret;
@@ -14759,7 +14696,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->state->fb);
-	struct reservation_object *resv;
+	long lret;
 	int ret = 0;
 
 	if (!obj && !old_obj)
@@ -14797,39 +14734,34 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		return 0;
 
 	/* For framebuffer backed by dmabuf, wait for fence */
-	resv = i915_gem_object_get_dmabuf_resv(obj);
-	if (resv) {
-		long lret;
+	lret = i915_gem_object_wait(obj,
+				    I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
+				    MAX_SCHEDULE_TIMEOUT,
+				    NULL);
+	if (lret == -ERESTARTSYS)
+		return lret;
 
-		lret = reservation_object_wait_timeout_rcu(resv, false, true,
-							   MAX_SCHEDULE_TIMEOUT);
-		if (lret == -ERESTARTSYS)
-			return lret;
-
-		WARN(lret < 0, "waiting returns %li\n", lret);
-	}
+	WARN(lret < 0, "waiting returns %li\n", lret);
 
 	if (plane->type == DRM_PLANE_TYPE_CURSOR &&
 	    INTEL_INFO(dev)->cursor_needs_physical) {
 		int align = IS_I830(dev_priv) ? 16 * 1024 : 256;
 		ret = i915_gem_object_attach_phys(obj, align);
-		if (ret)
+		if (ret) {
 			DRM_DEBUG_KMS("failed to attach phys object\n");
+			return ret;
+		}
 	} else {
 		struct i915_vma *vma;
 
 		vma = intel_pin_and_fence_fb_obj(fb, new_state->rotation);
-		if (IS_ERR(vma))
-			ret = PTR_ERR(vma);
+		if (IS_ERR(vma)) {
+			DRM_DEBUG_KMS("failed to pin object\n");
+			return PTR_ERR(vma);
+		}
 	}
 
-	if (ret == 0) {
-		to_intel_plane_state(new_state)->wait_req =
-			i915_gem_active_get(&obj->last_write,
-					    &obj->base.dev->struct_mutex);
-	}
-
-	return ret;
+	return 0;
 }
 
 /**
@@ -14847,7 +14779,6 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 {
 	struct drm_device *dev = plane->dev;
 	struct intel_plane_state *old_intel_state;
-	struct intel_plane_state *intel_state = to_intel_plane_state(plane->state);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(old_state->fb);
 	struct drm_i915_gem_object *obj = intel_fb_obj(plane->state->fb);
 
@@ -14859,9 +14790,6 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 	if (old_obj && (plane->type != DRM_PLANE_TYPE_CURSOR ||
 	    !INTEL_INFO(dev)->cursor_needs_physical))
 		intel_unpin_fb_obj(old_state->fb, old_state->rotation);
-
-	i915_gem_request_assign(&intel_state->wait_req, NULL);
-	i915_gem_request_assign(&old_intel_state->wait_req, NULL);
 }
 
 int

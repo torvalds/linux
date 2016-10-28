@@ -114,11 +114,18 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 
 	list_for_each_entry(tmp, list, batch_pool_link) {
 		/* The batches are strictly LRU ordered */
-		if (!i915_gem_active_is_idle(&tmp->last_read[pool->engine->id],
-					     &tmp->base.dev->struct_mutex))
+		if (i915_gem_object_is_active(tmp))
 			break;
 
+		GEM_BUG_ON(!reservation_object_test_signaled_rcu(tmp->resv,
+								 true));
+
 		if (tmp->base.size >= size) {
+			/* Clear the set of shared fences early */
+			ww_mutex_lock(&tmp->resv->lock, NULL);
+			reservation_object_add_excl_fence(tmp->resv, NULL);
+			ww_mutex_unlock(&tmp->resv->lock);
+
 			obj = tmp;
 			break;
 		}
