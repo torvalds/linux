@@ -46,6 +46,9 @@ void i915_sw_fence_commit(struct i915_sw_fence *fence);
 int i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 				 struct i915_sw_fence *after,
 				 wait_queue_t *wq);
+int i915_sw_fence_await_sw_fence_gfp(struct i915_sw_fence *fence,
+				     struct i915_sw_fence *after,
+				     gfp_t gfp);
 int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 				  struct dma_fence *dma,
 				  unsigned long timeout,
@@ -60,6 +63,11 @@ int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 static inline bool i915_sw_fence_done(const struct i915_sw_fence *fence)
 {
 	return atomic_read(&fence->pending) < 0;
+}
+
+static inline void i915_sw_fence_wait(struct i915_sw_fence *fence)
+{
+	wait_event(fence->wait, i915_sw_fence_done(fence));
 }
 
 #endif /* _I915_SW_FENCE_H_ */
