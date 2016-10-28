@@ -223,7 +223,7 @@ config PINCTRL_COH901
 
 config PINCTRL_MAX77620
 	tristate "MAX77620/MAX20024 Pincontrol support"
-	depends on MFD_MAX77620
+	depends on MFD_MAX77620 && OF
 	select PINMUX
 	select GENERIC_PINCONF
 	help
