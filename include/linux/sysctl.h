@@ -117,7 +117,7 @@ struct ctl_table
 	struct ctl_table_poll *poll;
 	void *extra1;
 	void *extra2;
-};
+} __randomize_layout;
 
 struct ctl_node {
 	struct rb_node node;

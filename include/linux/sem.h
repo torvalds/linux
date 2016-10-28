@@ -21,7 +21,7 @@ struct sem_array {
 	int			sem_nsems;	/* no. of semaphores in array */
 	int			complex_count;	/* pending complex operations */
 	unsigned int		use_global_lock;/* >0: global lock required */
-};
+} __randomize_layout;
 
 #ifdef CONFIG_SYSVIPC
 

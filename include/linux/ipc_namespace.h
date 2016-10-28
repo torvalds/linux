@@ -61,7 +61,7 @@ struct ipc_namespace {
 	struct ucounts *ucounts;
 
 	struct ns_common ns;
-};
+} __randomize_layout;
 
 extern struct ipc_namespace init_ipc_ns;
 extern spinlock_t mq_lock;
