@@ -2330,6 +2330,15 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 	kfree(obj->pages);
 }
 
+static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
+{
+	struct radix_tree_iter iter;
+	void **slot;
+
+	radix_tree_for_each_slot(slot, &obj->get_page.radix, &iter, 0)
+		radix_tree_delete(&obj->get_page.radix, iter.index);
+}
+
 int
 i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 {
@@ -2361,6 +2370,8 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 
 		obj->mapping = NULL;
 	}
+
+	__i915_gem_object_reset_page_iter(obj);
 
 	ops->put_pages(obj);
 	obj->pages = NULL;
@@ -2531,8 +2542,8 @@ i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 
 	list_add_tail(&obj->global_list, &dev_priv->mm.unbound_list);
 
-	obj->get_page.sg = obj->pages->sgl;
-	obj->get_page.last = 0;
+	obj->get_page.sg_pos = obj->pages->sgl;
+	obj->get_page.sg_idx = 0;
 
 	return 0;
 }
@@ -4337,6 +4348,8 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 
 	obj->frontbuffer_ggtt_origin = ORIGIN_GTT;
 	obj->madv = I915_MADV_WILLNEED;
+	INIT_RADIX_TREE(&obj->get_page.radix, GFP_KERNEL | __GFP_NOWARN);
+	mutex_init(&obj->get_page.lock);
 
 	i915_gem_info_add_obj(to_i915(obj->base.dev), obj->base.size);
 }
@@ -5032,21 +5045,6 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 	}
 }
 
-/* Like i915_gem_object_get_page(), but mark the returned page dirty */
-struct page *
-i915_gem_object_get_dirty_page(struct drm_i915_gem_object *obj, int n)
-{
-	struct page *page;
-
-	/* Only default objects have per-page dirty tracking */
-	if (WARN_ON(!i915_gem_object_has_struct_page(obj)))
-		return NULL;
-
-	page = i915_gem_object_get_page(obj, n);
-	set_page_dirty(page);
-	return page;
-}
-
 /* Allocate a new GEM object and fill it with the supplied data */
 struct drm_i915_gem_object *
 i915_gem_object_create_from_data(struct drm_device *dev,
@@ -5086,4 +5084,157 @@ i915_gem_object_create_from_data(struct drm_device *dev,
 fail:
 	i915_gem_object_put(obj);
 	return ERR_PTR(ret);
+}
+
+struct scatterlist *
+i915_gem_object_get_sg(struct drm_i915_gem_object *obj,
+		       unsigned int n,
+		       unsigned int *offset)
+{
+	struct i915_gem_object_page_iter *iter = &obj->get_page;
+	struct scatterlist *sg;
+	unsigned int idx, count;
+
+	might_sleep();
+	GEM_BUG_ON(n >= obj->base.size >> PAGE_SHIFT);
+	GEM_BUG_ON(obj->pages_pin_count == 0);
+
+	/* As we iterate forward through the sg, we record each entry in a
+	 * radixtree for quick repeated (backwards) lookups. If we have seen
+	 * this index previously, we will have an entry for it.
+	 *
+	 * Initial lookup is O(N), but this is amortized to O(1) for
+	 * sequential page access (where each new request is consecutive
+	 * to the previous one). Repeated lookups are O(lg(obj->base.size)),
+	 * i.e. O(1) with a large constant!
+	 */
+	if (n < READ_ONCE(iter->sg_idx))
+		goto lookup;
+
+	mutex_lock(&iter->lock);
+
+	/* We prefer to reuse the last sg so that repeated lookup of this
+	 * (or the subsequent) sg are fast - comparing against the last
+	 * sg is faster than going through the radixtree.
+	 */
+
+	sg = iter->sg_pos;
+	idx = iter->sg_idx;
+	count = __sg_page_count(sg);
+
+	while (idx + count <= n) {
+		unsigned long exception, i;
+		int ret;
+
+		/* If we cannot allocate and insert this entry, or the
+		 * individual pages from this range, cancel updating the
+		 * sg_idx so that on this lookup we are forced to linearly
+		 * scan onwards, but on future lookups we will try the
+		 * insertion again (in which case we need to be careful of
+		 * the error return reporting that we have already inserted
+		 * this index).
+		 */
+		ret = radix_tree_insert(&iter->radix, idx, sg);
+		if (ret && ret != -EEXIST)
+			goto scan;
+
+		exception =
+			RADIX_TREE_EXCEPTIONAL_ENTRY |
+			idx << RADIX_TREE_EXCEPTIONAL_SHIFT;
+		for (i = 1; i < count; i++) {
+			ret = radix_tree_insert(&iter->radix, idx + i,
+						(void *)exception);
+			if (ret && ret != -EEXIST)
+				goto scan;
+		}
+
+		idx += count;
+		sg = ____sg_next(sg);
+		count = __sg_page_count(sg);
+	}
+
+scan:
+	iter->sg_pos = sg;
+	iter->sg_idx = idx;
+
+	mutex_unlock(&iter->lock);
+
+	if (unlikely(n < idx)) /* insertion completed by another thread */
+		goto lookup;
+
+	/* In case we failed to insert the entry into the radixtree, we need
+	 * to look beyond the current sg.
+	 */
+	while (idx + count <= n) {
+		idx += count;
+		sg = ____sg_next(sg);
+		count = __sg_page_count(sg);
+	}
+
+	*offset = n - idx;
+	return sg;
+
+lookup:
+	rcu_read_lock();
+
+	sg = radix_tree_lookup(&iter->radix, n);
+	GEM_BUG_ON(!sg);
+
+	/* If this index is in the middle of multi-page sg entry,
+	 * the radixtree will contain an exceptional entry that points
+	 * to the start of that range. We will return the pointer to
+	 * the base page and the offset of this page within the
+	 * sg entry's range.
+	 */
+	*offset = 0;
+	if (unlikely(radix_tree_exception(sg))) {
+		unsigned long base =
+			(unsigned long)sg >> RADIX_TREE_EXCEPTIONAL_SHIFT;
+
+		sg = radix_tree_lookup(&iter->radix, base);
+		GEM_BUG_ON(!sg);
+
+		*offset = n - base;
+	}
+
+	rcu_read_unlock();
+
+	return sg;
+}
+
+struct page *
+i915_gem_object_get_page(struct drm_i915_gem_object *obj, unsigned int n)
+{
+	struct scatterlist *sg;
+	unsigned int offset;
+
+	GEM_BUG_ON(!i915_gem_object_has_struct_page(obj));
+
+	sg = i915_gem_object_get_sg(obj, n, &offset);
+	return nth_page(sg_page(sg), offset);
+}
+
+/* Like i915_gem_object_get_page(), but mark the returned page dirty */
+struct page *
+i915_gem_object_get_dirty_page(struct drm_i915_gem_object *obj,
+			       unsigned int n)
+{
+	struct page *page;
+
+	page = i915_gem_object_get_page(obj, n);
+	if (!obj->dirty)
+		set_page_dirty(page);
+
+	return page;
+}
+
+dma_addr_t
+i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
+				unsigned long n)
+{
+	struct scatterlist *sg;
+	unsigned int offset;
+
+	sg = i915_gem_object_get_sg(obj, n, &offset);
+	return sg_dma_address(sg) + (offset << PAGE_SHIFT);
 }
