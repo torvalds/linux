@@ -31,6 +31,8 @@ SunXi family
         + User Manual
           http://dl.linux-sunxi.org/A13/A13%20User%20Manual%20-%20v1.2%20%282013-01-08%29.pdf
 
+      - Next Thing Co GR8 (sun5i)
+
     * Dual ARM Cortex-A7 based SoCs
       - Allwinner A20 (sun7i)
         + User Manual
@@ -73,4 +75,13 @@ SunXi family
     * Octa ARM Cortex-A7 based SoCs
       - Allwinner A83T
         + Datasheet
-          http://dl.linux-sunxi.org/A83T/A83T_datasheet_Revision_1.1.pdf
+          https://github.com/allwinner-zh/documents/raw/master/A83T/A83T_Datasheet_v1.3_20150510.pdf
+        + User Manual
+          https://github.com/allwinner-zh/documents/raw/master/A83T/A83T_User_Manual_v1.5.1_20150513.pdf
+
+    * Quad ARM Cortex-A53 based SoCs
+      - Allwinner A64
+        + Datasheet
+          http://dl.linux-sunxi.org/A64/A64_Datasheet_V1.1.pdf
+        + User Manual
+          http://dl.linux-sunxi.org/A64/Allwinner%20A64%20User%20Manual%20v1.0.pdf

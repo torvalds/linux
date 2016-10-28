@@ -25,8 +25,9 @@
 #include <osdep_intf.h>
 
 #include <usb_ops_linux.h>
-#include <usb_hal.h>
 #include <rtw_ioctl.h>
+
+#include "rtl8188e_hal.h"
 
 #define USB_VENDER_ID_REALTEK		0x0bda
 
@@ -79,9 +80,8 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 
 	pdvobjpriv->NumInterfaces = pconf_desc->bNumInterfaces;
 	pdvobjpriv->InterfaceNumber = piface_desc->bInterfaceNumber;
-	pdvobjpriv->nr_endpoint = piface_desc->bNumEndpoints;
 
-	for (i = 0; i < pdvobjpriv->nr_endpoint; i++) {
+	for (i = 0; i < piface_desc->bNumEndpoints; i++) {
 		int ep_num;
 		pendp_desc = &phost_iface->endpoint[i].desc;
 
@@ -98,7 +98,6 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 				ep_num;
 			pdvobjpriv->RtNumOutPipes++;
 		}
-		pdvobjpriv->ep_num[i] = ep_num;
 	}
 
 	if (pusbd->speed == USB_SPEED_HIGH)
@@ -107,13 +106,6 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 		pdvobjpriv->ishighspeed = false;
 
 	mutex_init(&pdvobjpriv->usb_vendor_req_mutex);
-	pdvobjpriv->usb_vendor_req_buf = kzalloc(MAX_USB_IO_CTL_SIZE, GFP_KERNEL);
-
-	if (!pdvobjpriv->usb_vendor_req_buf) {
-		usb_set_intfdata(usb_intf, NULL);
-		kfree(pdvobjpriv);
-		return NULL;
-	}
 	usb_get_dev(pusbd);
 
 	return pdvobjpriv;
@@ -141,7 +133,6 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 			}
 		}
 
-		kfree(dvobj->usb_vendor_req_buf);
 		mutex_destroy(&dvobj->usb_vendor_req_mutex);
 		kfree(dvobj);
 	}
@@ -238,7 +229,7 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	rtw_cancel_all_timer(padapter);
 	LeaveAllPowerSaveMode(padapter);
 
-	_enter_pwrlock(&pwrpriv->lock);
+	mutex_lock(&pwrpriv->mutex_lock);
 	/* s1. */
 	if (pnetdev) {
 		netif_carrier_off(pnetdev);
@@ -267,7 +258,7 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	rtw_free_network_queue(padapter, true);
 
 	rtw_dev_unload(padapter);
-	_exit_pwrlock(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->mutex_lock);
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY))
 		rtw_indicate_scan_done(padapter, 1);
@@ -298,18 +289,20 @@ static int rtw_resume_process(struct adapter *padapter)
 		goto exit;
 	}
 
-	_enter_pwrlock(&pwrpriv->lock);
+	mutex_lock(&pwrpriv->mutex_lock);
 	rtw_reset_drv_sw(padapter);
 	pwrpriv->bkeepfwalive = false;
 
 	pr_debug("bkeepfwalive(%x)\n", pwrpriv->bkeepfwalive);
-	if (pm_netdev_open(pnetdev, true) != 0)
+	if (pm_netdev_open(pnetdev, true) != 0) {
+		mutex_unlock(&pwrpriv->mutex_lock);
 		goto exit;
+	}
 
 	netif_device_attach(pnetdev);
 	netif_carrier_on(pnetdev);
 
-	_exit_pwrlock(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->mutex_lock);
 
 	rtw_roaming(padapter, NULL);
 
@@ -369,8 +362,9 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 		padapter->pmondev = pmondev;
 	}
 
-	/* step 2. hook HalFunc, allocate HalData */
-	hal_set_hal_ops(padapter);
+	padapter->HalData = kzalloc(sizeof(struct hal_data_8188e), GFP_KERNEL);
+	if (!padapter->HalData)
+		DBG_88E("cant not alloc memory for HAL DATA\n");
 
 	padapter->intf_start = &usb_intf_start;
 	padapter->intf_stop = &usb_intf_stop;
@@ -456,11 +450,9 @@ static void rtw_usb_if1_deinit(struct adapter *if1)
 	free_mlme_ap_info(if1);
 #endif
 
-	if (pnetdev) {
-		/* will call netdev_close() */
-		unregister_netdev(pnetdev);
-		rtw_proc_remove_one(pnetdev);
-	}
+	if (pnetdev)
+		unregister_netdev(pnetdev); /* will call netdev_close() */
+
 	rtl88eu_mon_deinit(if1->pmondev);
 	rtw_cancel_all_timer(if1);
 

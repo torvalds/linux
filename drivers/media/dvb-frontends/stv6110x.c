@@ -345,7 +345,7 @@ static int stv6110x_release(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct dvb_tuner_ops stv6110x_ops = {
+static const struct dvb_tuner_ops stv6110x_ops = {
 	.info = {
 		.name		= "STV6110(A) Silicon Tuner",
 		.frequency_min	=  950000,

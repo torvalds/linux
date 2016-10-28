@@ -428,10 +428,10 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 	if (!nop || !nop->fh_to_dentry)
 		return ERR_PTR(-ESTALE);
 	result = nop->fh_to_dentry(mnt->mnt_sb, fid, fh_len, fileid_type);
-	if (!result)
-		result = ERR_PTR(-ESTALE);
-	if (IS_ERR(result))
-		return result;
+	if (PTR_ERR(result) == -ENOMEM)
+		return ERR_CAST(result);
+	if (IS_ERR_OR_NULL(result))
+		return ERR_PTR(-ESTALE);
 
 	if (d_is_dir(result)) {
 		/*
@@ -541,6 +541,8 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 
  err_result:
 	dput(result);
+	if (err != -ENOMEM)
+		err = -ESTALE;
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(exportfs_decode_fh);

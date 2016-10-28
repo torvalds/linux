@@ -124,10 +124,30 @@ static inline bool pnv_pci_is_m64(struct pnv_phb *phb, struct resource *r)
 		r->start < (phb->ioda.m64_base + phb->ioda.m64_size));
 }
 
+static inline bool pnv_pci_is_m64_flags(unsigned long resource_flags)
+{
+	unsigned long flags = (IORESOURCE_MEM_64 | IORESOURCE_PREFETCH);
+
+	return (resource_flags & flags) == flags;
+}
+
 static struct pnv_ioda_pe *pnv_ioda_init_pe(struct pnv_phb *phb, int pe_no)
 {
+	s64 rc;
+
 	phb->ioda.pe_array[pe_no].phb = phb;
 	phb->ioda.pe_array[pe_no].pe_number = pe_no;
+
+	/*
+	 * Clear the PE frozen state as it might be put into frozen state
+	 * in the last PCI remove path. It's not harmful to do so when the
+	 * PE is already in unfrozen state.
+	 */
+	rc = opal_pci_eeh_freeze_clear(phb->opal_id, pe_no,
+				       OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+	if (rc != OPAL_SUCCESS)
+		pr_warn("%s: Error %lld unfreezing PHB#%d-PE#%d\n",
+			__func__, rc, phb->hose->global_number, pe_no);
 
 	return &phb->ioda.pe_array[pe_no];
 }
@@ -162,11 +182,12 @@ static struct pnv_ioda_pe *pnv_ioda_alloc_pe(struct pnv_phb *phb)
 static void pnv_ioda_free_pe(struct pnv_ioda_pe *pe)
 {
 	struct pnv_phb *phb = pe->phb;
+	unsigned int pe_num = pe->pe_number;
 
 	WARN_ON(pe->pdev);
 
 	memset(pe, 0, sizeof(struct pnv_ioda_pe));
-	clear_bit(pe->pe_number, phb->ioda.pe_alloc);
+	clear_bit(pe_num, phb->ioda.pe_alloc);
 }
 
 /* The default M64 BAR is shared by all PEs */
@@ -409,7 +430,7 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	struct device_node *dn = hose->dn;
 	struct resource *res;
 	u32 m64_range[2], i;
-	const u32 *r;
+	const __be32 *r;
 	u64 pci_addr;
 
 	if (phb->type != PNV_PHB_IODA1 && phb->type != PNV_PHB_IODA2) {
@@ -2216,7 +2237,7 @@ static long pnv_pci_ioda2_set_window(struct iommu_table_group *table_group,
 
 	pnv_pci_link_table_and_group(phb->hose->node, num,
 			tbl, &pe->table_group);
-	pnv_pci_phb3_tce_invalidate_pe(pe);
+	pnv_pci_ioda2_tce_invalidate_pe(pe);
 
 	return 0;
 }
@@ -2354,7 +2375,7 @@ static long pnv_pci_ioda2_unset_window(struct iommu_table_group *table_group,
 	if (ret)
 		pe_warn(pe, "Unmapping failed, ret = %ld\n", ret);
 	else
-		pnv_pci_phb3_tce_invalidate_pe(pe);
+		pnv_pci_ioda2_tce_invalidate_pe(pe);
 
 	pnv_pci_unlink_table_and_group(table_group->tables[num], table_group);
 
@@ -2710,15 +2731,21 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 }
 
 #ifdef CONFIG_PCI_MSI
-static void pnv_ioda2_msi_eoi(struct irq_data *d)
+int64_t pnv_opal_pci_msi_eoi(struct irq_chip *chip, unsigned int hw_irq)
 {
-	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
-	struct irq_chip *chip = irq_data_get_irq_chip(d);
 	struct pnv_phb *phb = container_of(chip, struct pnv_phb,
 					   ioda.irq_chip);
-	int64_t rc;
 
-	rc = opal_pci_msi_eoi(phb->opal_id, hw_irq);
+	return opal_pci_msi_eoi(phb->opal_id, hw_irq);
+}
+
+static void pnv_ioda2_msi_eoi(struct irq_data *d)
+{
+	int64_t rc;
+	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
+	struct irq_chip *chip = irq_data_get_irq_chip(d);
+
+	rc = pnv_opal_pci_msi_eoi(chip, hw_irq);
 	WARN_ON_ONCE(rc);
 
 	icp_native_eoi(d);
@@ -2747,6 +2774,16 @@ void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq)
 	}
 	irq_set_chip(virq, &phb->ioda.irq_chip);
 }
+
+/*
+ * Returns true iff chip is something that we could call
+ * pnv_opal_pci_msi_eoi for.
+ */
+bool is_pnv_opal_msi(struct irq_chip *chip)
+{
+	return chip->irq_eoi == pnv_ioda2_msi_eoi;
+}
+EXPORT_SYMBOL_GPL(is_pnv_opal_msi);
 
 static int pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
 				  unsigned int hwirq, unsigned int virq,
@@ -2870,7 +2907,7 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 		res = &pdev->resource[i + PCI_IOV_RESOURCES];
 		if (!res->flags || res->parent)
 			continue;
-		if (!pnv_pci_is_m64(phb, res)) {
+		if (!pnv_pci_is_m64_flags(res->flags)) {
 			dev_warn(&pdev->dev, "Don't support SR-IOV with"
 					" non M64 VF BAR%d: %pR. \n",
 				 i, res);
@@ -3025,6 +3062,38 @@ static void pnv_ioda_setup_pe_seg(struct pnv_ioda_pe *pe)
 	}
 }
 
+#ifdef CONFIG_DEBUG_FS
+static int pnv_pci_diag_data_set(void *data, u64 val)
+{
+	struct pci_controller *hose;
+	struct pnv_phb *phb;
+	s64 ret;
+
+	if (val != 1ULL)
+		return -EINVAL;
+
+	hose = (struct pci_controller *)data;
+	if (!hose || !hose->private_data)
+		return -ENODEV;
+
+	phb = hose->private_data;
+
+	/* Retrieve the diag data from firmware */
+	ret = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag.blob,
+					  PNV_PCI_DIAG_BUF_SIZE);
+	if (ret != OPAL_SUCCESS)
+		return -EIO;
+
+	/* Print the diag data to the kernel log */
+	pnv_pci_dump_phb_diag_data(phb->hose, phb->diag.blob);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(pnv_pci_diag_data_fops, NULL,
+			pnv_pci_diag_data_set, "%llu\n");
+
+#endif /* CONFIG_DEBUG_FS */
+
 static void pnv_pci_ioda_create_dbgfs(void)
 {
 #ifdef CONFIG_DEBUG_FS
@@ -3040,9 +3109,14 @@ static void pnv_pci_ioda_create_dbgfs(void)
 
 		sprintf(name, "PCI%04x", hose->global_number);
 		phb->dbgfs = debugfs_create_dir(name, powerpc_debugfs_root);
-		if (!phb->dbgfs)
+		if (!phb->dbgfs) {
 			pr_warning("%s: Error on creating debugfs on PHB#%x\n",
 				__func__, hose->global_number);
+			continue;
+		}
+
+		debugfs_create_file("dump_diag_regs", 0200, phb->dbgfs, hose,
+				    &pnv_pci_diag_data_fops);
 	}
 #endif /* CONFIG_DEBUG_FS */
 }
@@ -3095,7 +3169,7 @@ static resource_size_t pnv_pci_window_alignment(struct pci_bus *bus,
 	 * alignment for any 64-bit resource, PCIe doesn't care and
 	 * bridges only do 64-bit prefetchable anyway.
 	 */
-	if (phb->ioda.m64_segsize && (type & IORESOURCE_MEM_64))
+	if (phb->ioda.m64_segsize && pnv_pci_is_m64_flags(type))
 		return phb->ioda.m64_segsize;
 	if (type & IORESOURCE_MEM)
 		return phb->ioda.m32_segsize;
@@ -3402,12 +3476,6 @@ static void pnv_ioda_release_pe(struct pnv_ioda_pe *pe)
 	struct pnv_phb *phb = pe->phb;
 	struct pnv_ioda_pe *slave, *tmp;
 
-	/* Release slave PEs in compound PE */
-	if (pe->flags & PNV_IODA_PE_MASTER) {
-		list_for_each_entry_safe(slave, tmp, &pe->slaves, list)
-			pnv_ioda_release_pe(slave);
-	}
-
 	list_del(&pe->list);
 	switch (phb->type) {
 	case PNV_PHB_IODA1:
@@ -3422,7 +3490,26 @@ static void pnv_ioda_release_pe(struct pnv_ioda_pe *pe)
 
 	pnv_ioda_release_pe_seg(pe);
 	pnv_ioda_deconfigure_pe(pe->phb, pe);
-	pnv_ioda_free_pe(pe);
+
+	/* Release slave PEs in the compound PE */
+	if (pe->flags & PNV_IODA_PE_MASTER) {
+		list_for_each_entry_safe(slave, tmp, &pe->slaves, list) {
+			list_del(&slave->list);
+			pnv_ioda_free_pe(slave);
+		}
+	}
+
+	/*
+	 * The PE for root bus can be removed because of hotplug in EEH
+	 * recovery for fenced PHB error. We need to mark the PE dead so
+	 * that it can be populated again in PCI hot add path. The PE
+	 * shouldn't be destroyed as it's the global reserved resource.
+	 */
+	if (phb->ioda.root_pe_populated &&
+	    phb->ioda.root_pe_idx == pe->pe_number)
+		phb->ioda.root_pe_populated = false;
+	else
+		pnv_ioda_free_pe(pe);
 }
 
 static void pnv_pci_release_device(struct pci_dev *pdev)
@@ -3438,7 +3525,17 @@ static void pnv_pci_release_device(struct pci_dev *pdev)
 	if (!pdn || pdn->pe_number == IODA_INVALID_PE)
 		return;
 
+	/*
+	 * PCI hotplug can happen as part of EEH error recovery. The @pdn
+	 * isn't removed and added afterwards in this scenario. We should
+	 * set the PE number in @pdn to an invalid one. Otherwise, the PE's
+	 * device count is decreased on removing devices while failing to
+	 * be increased on adding devices. It leads to unbalanced PE's device
+	 * count and eventually make normal PCI hotplug path broken.
+	 */
 	pe = &phb->ioda.pe_array[pdn->pe_number];
+	pdn->pe_number = IODA_INVALID_PE;
+
 	WARN_ON(--pe->device_count < 0);
 	if (pe->device_count == 0)
 		pnv_ioda_release_pe(pe);
@@ -3732,10 +3829,11 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	if (rc)
 		pr_warning("  OPAL Error %ld performing IODA table reset !\n", rc);
 
-	/* If we're running in kdump kerenl, the previous kerenl never
+	/*
+	 * If we're running in kdump kernel, the previous kernel never
 	 * shutdown PCI devices correctly. We already got IODA table
 	 * cleaned out. So we have to issue PHB reset to stop all PCI
-	 * transactions from previous kerenl.
+	 * transactions from previous kernel.
 	 */
 	if (is_kdump_kernel()) {
 		pr_info("  Issue PHB reset ...\n");

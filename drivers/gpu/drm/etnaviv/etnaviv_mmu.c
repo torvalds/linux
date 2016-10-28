@@ -14,9 +14,11 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "common.xml.h"
 #include "etnaviv_drv.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_gpu.h"
+#include "etnaviv_iommu.h"
 #include "etnaviv_mmu.h"
 
 static int etnaviv_fault_handler(struct iommu_domain *iommu, struct device *dev,
@@ -101,40 +103,21 @@ static void etnaviv_iommu_remove_mapping(struct etnaviv_iommu *mmu,
 	drm_mm_remove_node(&mapping->vram_node);
 }
 
-int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
-	struct etnaviv_gem_object *etnaviv_obj, u32 memory_base,
-	struct etnaviv_vram_mapping *mapping)
+static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
+				   struct drm_mm_node *node, size_t size)
 {
 	struct etnaviv_vram_mapping *free = NULL;
-	struct sg_table *sgt = etnaviv_obj->sgt;
-	struct drm_mm_node *node;
 	int ret;
 
-	lockdep_assert_held(&etnaviv_obj->lock);
+	lockdep_assert_held(&mmu->lock);
 
-	mutex_lock(&mmu->lock);
-
-	/* v1 MMU can optimize single entry (contiguous) scatterlists */
-	if (sgt->nents == 1 && !(etnaviv_obj->flags & ETNA_BO_FORCE_MMU)) {
-		u32 iova;
-
-		iova = sg_dma_address(sgt->sgl) - memory_base;
-		if (iova < 0x80000000 - sg_dma_len(sgt->sgl)) {
-			mapping->iova = iova;
-			list_add_tail(&mapping->mmu_node, &mmu->mappings);
-			mutex_unlock(&mmu->lock);
-			return 0;
-		}
-	}
-
-	node = &mapping->vram_node;
 	while (1) {
 		struct etnaviv_vram_mapping *m, *n;
 		struct list_head list;
 		bool found;
 
 		ret = drm_mm_insert_node_in_range(&mmu->mm, node,
-			etnaviv_obj->base.size, 0, mmu->last_iova, ~0UL,
+			size, 0, mmu->last_iova, ~0UL,
 			DRM_MM_SEARCH_DEFAULT);
 
 		if (ret != -ENOSPC)
@@ -151,7 +134,7 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
 		}
 
 		/* Try to retire some entries */
-		drm_mm_init_scan(&mmu->mm, etnaviv_obj->base.size, 0, 0);
+		drm_mm_init_scan(&mmu->mm, size, 0, 0);
 
 		found = 0;
 		INIT_LIST_HEAD(&list);
@@ -212,6 +195,38 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
 		mmu->need_flush = true;
 	}
 
+	return ret;
+}
+
+int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
+	struct etnaviv_gem_object *etnaviv_obj, u32 memory_base,
+	struct etnaviv_vram_mapping *mapping)
+{
+	struct sg_table *sgt = etnaviv_obj->sgt;
+	struct drm_mm_node *node;
+	int ret;
+
+	lockdep_assert_held(&etnaviv_obj->lock);
+
+	mutex_lock(&mmu->lock);
+
+	/* v1 MMU can optimize single entry (contiguous) scatterlists */
+	if (mmu->version == ETNAVIV_IOMMU_V1 &&
+	    sgt->nents == 1 && !(etnaviv_obj->flags & ETNA_BO_FORCE_MMU)) {
+		u32 iova;
+
+		iova = sg_dma_address(sgt->sgl) - memory_base;
+		if (iova < 0x80000000 - sg_dma_len(sgt->sgl)) {
+			mapping->iova = iova;
+			list_add_tail(&mapping->mmu_node, &mmu->mappings);
+			mutex_unlock(&mmu->lock);
+			return 0;
+		}
+	}
+
+	node = &mapping->vram_node;
+
+	ret = etnaviv_iommu_find_iova(mmu, node, etnaviv_obj->base.size);
 	if (ret < 0) {
 		mutex_unlock(&mmu->lock);
 		return ret;
@@ -256,30 +271,103 @@ void etnaviv_iommu_destroy(struct etnaviv_iommu *mmu)
 	kfree(mmu);
 }
 
-struct etnaviv_iommu *etnaviv_iommu_new(struct etnaviv_gpu *gpu,
-	struct iommu_domain *domain, enum etnaviv_iommu_version version)
+struct etnaviv_iommu *etnaviv_iommu_new(struct etnaviv_gpu *gpu)
 {
+	enum etnaviv_iommu_version version;
 	struct etnaviv_iommu *mmu;
 
 	mmu = kzalloc(sizeof(*mmu), GFP_KERNEL);
 	if (!mmu)
 		return ERR_PTR(-ENOMEM);
 
-	mmu->domain = domain;
+	if (!(gpu->identity.minor_features1 & chipMinorFeatures1_MMU_VERSION)) {
+		mmu->domain = etnaviv_iommuv1_domain_alloc(gpu);
+		version = ETNAVIV_IOMMU_V1;
+	} else {
+		mmu->domain = etnaviv_iommuv2_domain_alloc(gpu);
+		version = ETNAVIV_IOMMU_V2;
+	}
+
+	if (!mmu->domain) {
+		dev_err(gpu->dev, "Failed to allocate GPU IOMMU domain\n");
+		kfree(mmu);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	mmu->gpu = gpu;
 	mmu->version = version;
 	mutex_init(&mmu->lock);
 	INIT_LIST_HEAD(&mmu->mappings);
 
-	drm_mm_init(&mmu->mm, domain->geometry.aperture_start,
-		    domain->geometry.aperture_end -
-		      domain->geometry.aperture_start + 1);
+	drm_mm_init(&mmu->mm, mmu->domain->geometry.aperture_start,
+		    mmu->domain->geometry.aperture_end -
+		    mmu->domain->geometry.aperture_start + 1);
 
-	iommu_set_fault_handler(domain, etnaviv_fault_handler, gpu->dev);
+	iommu_set_fault_handler(mmu->domain, etnaviv_fault_handler, gpu->dev);
 
 	return mmu;
 }
 
+void etnaviv_iommu_restore(struct etnaviv_gpu *gpu)
+{
+	if (gpu->mmu->version == ETNAVIV_IOMMU_V1)
+		etnaviv_iommuv1_restore(gpu);
+	else
+		etnaviv_iommuv2_restore(gpu);
+}
+
+u32 etnaviv_iommu_get_cmdbuf_va(struct etnaviv_gpu *gpu,
+				struct etnaviv_cmdbuf *buf)
+{
+	struct etnaviv_iommu *mmu = gpu->mmu;
+
+	if (mmu->version == ETNAVIV_IOMMU_V1) {
+		return buf->paddr - gpu->memory_base;
+	} else {
+		int ret;
+
+		if (buf->vram_node.allocated)
+			return (u32)buf->vram_node.start;
+
+		mutex_lock(&mmu->lock);
+		ret = etnaviv_iommu_find_iova(mmu, &buf->vram_node,
+					      buf->size + SZ_64K);
+		if (ret < 0) {
+			mutex_unlock(&mmu->lock);
+			return 0;
+		}
+		ret = iommu_map(mmu->domain, buf->vram_node.start, buf->paddr,
+				buf->size, IOMMU_READ);
+		if (ret < 0) {
+			drm_mm_remove_node(&buf->vram_node);
+			mutex_unlock(&mmu->lock);
+			return 0;
+		}
+		/*
+		 * At least on GC3000 the FE MMU doesn't properly flush old TLB
+		 * entries. Make sure to space the command buffers out in a way
+		 * that the FE MMU prefetch won't load invalid entries.
+		 */
+		mmu->last_iova = buf->vram_node.start + buf->size + SZ_64K;
+		gpu->mmu->need_flush = true;
+		mutex_unlock(&mmu->lock);
+
+		return (u32)buf->vram_node.start;
+	}
+}
+
+void etnaviv_iommu_put_cmdbuf_va(struct etnaviv_gpu *gpu,
+				 struct etnaviv_cmdbuf *buf)
+{
+	struct etnaviv_iommu *mmu = gpu->mmu;
+
+	if (mmu->version == ETNAVIV_IOMMU_V2 && buf->vram_node.allocated) {
+		mutex_lock(&mmu->lock);
+		iommu_unmap(mmu->domain, buf->vram_node.start, buf->size);
+		drm_mm_remove_node(&buf->vram_node);
+		mutex_unlock(&mmu->lock);
+	}
+}
 size_t etnaviv_iommu_dump_size(struct etnaviv_iommu *iommu)
 {
 	struct etnaviv_iommu_ops *ops;

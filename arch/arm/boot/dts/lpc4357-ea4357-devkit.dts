@@ -33,7 +33,7 @@
 		stdout-path = &uart0;
 	};
 
-	memory {
+	memory@28000000 {
 		device_type = "memory";
 		reg = <0x28000000 0x2000000>; /* 32 MB */
 	};

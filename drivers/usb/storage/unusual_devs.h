@@ -338,6 +338,13 @@ UNUSUAL_DEV(  0x046b, 0xff40, 0x0100, 0x0100,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_NO_WP_DETECT),
 
+/* Reported by Egbert Eich <eich@suse.com> */
+UNUSUAL_DEV(  0x0480, 0xd010, 0x0100, 0x9999,
+		"Toshiba",
+		"External USB 3.0",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_ALWAYS_SYNC),
+
 /* Patch submitted by Philipp Friedrich <philipp@void.at> */
 UNUSUAL_DEV(  0x0482, 0x0100, 0x0100, 0x0100,
 		"Kyocera",

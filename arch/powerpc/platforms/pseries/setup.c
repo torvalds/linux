@@ -41,7 +41,6 @@
 #include <linux/root_dev.h>
 #include <linux/of.h>
 #include <linux/of_pci.h>
-#include <linux/kexec.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -66,6 +65,7 @@
 #include <asm/eeh.h>
 #include <asm/reg.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/kexec.h>
 
 #include "pseries.h"
 
@@ -114,7 +114,7 @@ static void pseries_8259_cascade(struct irq_desc *desc)
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = i8259_irq();
 
-	if (cascade_irq != NO_IRQ)
+	if (cascade_irq)
 		generic_handle_irq(cascade_irq);
 
 	chip->irq_eoi(&desc->irq_data);
@@ -141,7 +141,7 @@ static void __init pseries_setup_i8259_cascade(void)
 	}
 
 	cascade = irq_of_parse_and_map(found, 0);
-	if (cascade == NO_IRQ) {
+	if (!cascade) {
 		printk(KERN_ERR "pic: failed to map cascade interrupt");
 		return;
 	}

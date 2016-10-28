@@ -128,7 +128,7 @@ static struct genl_family ila_nl_family = {
 	.parallel_ops	= true,
 };
 
-static struct nla_policy ila_nl_policy[ILA_ATTR_MAX + 1] = {
+static const struct nla_policy ila_nl_policy[ILA_ATTR_MAX + 1] = {
 	[ILA_ATTR_LOCATOR] = { .type = NLA_U64, },
 	[ILA_ATTR_LOCATOR_MATCH] = { .type = NLA_U64, },
 	[ILA_ATTR_IFINDEX] = { .type = NLA_U32, },

@@ -636,7 +636,7 @@ static int ipmmu_add_device(struct device *dev)
 	spin_unlock(&ipmmu_devices_lock);
 
 	if (ret < 0)
-		return -ENODEV;
+		goto error;
 
 	for (i = 0; i < num_utlbs; ++i) {
 		if (utlbs[i] >= mmu->num_utlbs) {

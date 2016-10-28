@@ -1,7 +1,7 @@
 config ARM
 	bool
 	default y
-	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+	select ARCH_CLOCKSOURCE_DATA
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
@@ -278,10 +278,9 @@ config PHYS_OFFSET
 			ARCH_INTEGRATOR || \
 			ARCH_IOP13XX || \
 			ARCH_KS8695 || \
-			(ARCH_REALVIEW && !REALVIEW_HIGH_PHYS_OFFSET)
+			ARCH_REALVIEW
 	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC
 	default 0x20000000 if ARCH_S5PV210
-	default 0x70000000 if REALVIEW_HIGH_PHYS_OFFSET
 	default 0xc0000000 if ARCH_SA1100
 	help
 	  Please provide the physical address corresponding to the
@@ -337,6 +336,7 @@ config ARCH_MULTIPLATFORM
 	select GENERIC_CLOCKEVENTS
 	select MIGHT_HAVE_PCI
 	select MULTI_IRQ_HANDLER
+	select PCI_DOMAINS if PCI
 	select SPARSE_IRQ
 	select USE_OF
 
@@ -878,6 +878,7 @@ config ARCH_STM32
 	select CLKSRC_STM32
 	select PINCTRL
 	select RESET_CONTROLLER
+	select STM32_EXTI
 	help
 	  Support for STMicroelectronics STM32 processors.
 

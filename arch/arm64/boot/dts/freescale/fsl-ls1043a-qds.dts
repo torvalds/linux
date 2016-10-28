@@ -56,12 +56,14 @@
 		gpio1 = &gpio2;
 		gpio2 = &gpio3;
 		gpio3 = &gpio4;
-		serial0 = &lpuart0;
-		serial1 = &lpuart1;
-		serial2 = &lpuart2;
-		serial3 = &lpuart3;
-		serial4 = &lpuart4;
-		serial5 = &lpuart5;
+		serial0 = &duart0;
+		serial1 = &duart1;
+		serial2 = &duart2;
+		serial3 = &duart3;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
 	};
 };
 

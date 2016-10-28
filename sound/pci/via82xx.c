@@ -1366,7 +1366,7 @@ static int snd_via8233_playback_close(struct snd_pcm_substream *substream)
 
 
 /* via686 playback callbacks */
-static struct snd_pcm_ops snd_via686_playback_ops = {
+static const struct snd_pcm_ops snd_via686_playback_ops = {
 	.open =		snd_via686_playback_open,
 	.close =	snd_via82xx_pcm_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1379,7 +1379,7 @@ static struct snd_pcm_ops snd_via686_playback_ops = {
 };
 
 /* via686 capture callbacks */
-static struct snd_pcm_ops snd_via686_capture_ops = {
+static const struct snd_pcm_ops snd_via686_capture_ops = {
 	.open =		snd_via82xx_capture_open,
 	.close =	snd_via82xx_pcm_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1392,7 +1392,7 @@ static struct snd_pcm_ops snd_via686_capture_ops = {
 };
 
 /* via823x DSX playback callbacks */
-static struct snd_pcm_ops snd_via8233_playback_ops = {
+static const struct snd_pcm_ops snd_via8233_playback_ops = {
 	.open =		snd_via8233_playback_open,
 	.close =	snd_via8233_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1405,7 +1405,7 @@ static struct snd_pcm_ops snd_via8233_playback_ops = {
 };
 
 /* via823x multi-channel playback callbacks */
-static struct snd_pcm_ops snd_via8233_multi_ops = {
+static const struct snd_pcm_ops snd_via8233_multi_ops = {
 	.open =		snd_via8233_multi_open,
 	.close =	snd_via82xx_pcm_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1418,7 +1418,7 @@ static struct snd_pcm_ops snd_via8233_multi_ops = {
 };
 
 /* via823x capture callbacks */
-static struct snd_pcm_ops snd_via8233_capture_ops = {
+static const struct snd_pcm_ops snd_via8233_capture_ops = {
 	.open =		snd_via82xx_capture_open,
 	.close =	snd_via82xx_pcm_close,
 	.ioctl =	snd_pcm_lib_ioctl,

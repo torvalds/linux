@@ -1641,7 +1641,7 @@ static void vmxnet3_rq_destroy(struct vmxnet3_rx_queue *rq,
 	}
 }
 
-void
+static void
 vmxnet3_rq_destroy_all_rxdataring(struct vmxnet3_adapter *adapter)
 {
 	int i;
@@ -3186,7 +3186,6 @@ vmxnet3_tx_timeout(struct net_device *netdev)
 
 	netdev_err(adapter->netdev, "tx hang\n");
 	schedule_work(&adapter->work);
-	netif_wake_queue(adapter->netdev);
 }
 
 
@@ -3213,6 +3212,7 @@ vmxnet3_reset_work(struct work_struct *data)
 	}
 	rtnl_unlock();
 
+	netif_wake_queue(adapter->netdev);
 	clear_bit(VMXNET3_STATE_BIT_RESETTING, &adapter->state);
 }
 

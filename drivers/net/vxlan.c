@@ -27,7 +27,6 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <net/vxlan.h>
-#include <net/protocol.h>
 
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ip6_tunnel.h>
@@ -288,7 +287,7 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 
 	if (!net_eq(dev_net(vxlan->dev), vxlan->net) &&
 	    nla_put_s32(skb, NDA_LINK_NETNSID,
-			peernet2id_alloc(dev_net(vxlan->dev), vxlan->net)))
+			peernet2id(dev_net(vxlan->dev), vxlan->net)))
 		goto nla_put_failure;
 
 	if (send_eth && nla_put(skb, NDA_LLADDR, ETH_ALEN, &fdb->eth_addr))
@@ -861,20 +860,20 @@ out:
 /* Dump forwarding table */
 static int vxlan_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			  struct net_device *dev,
-			  struct net_device *filter_dev, int idx)
+			  struct net_device *filter_dev, int *idx)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	unsigned int h;
+	int err = 0;
 
 	for (h = 0; h < FDB_HASH_SIZE; ++h) {
 		struct vxlan_fdb *f;
-		int err;
 
 		hlist_for_each_entry_rcu(f, &vxlan->fdb_head[h], hlist) {
 			struct vxlan_rdst *rd;
 
 			list_for_each_entry_rcu(rd, &f->remotes, list) {
-				if (idx < cb->args[0])
+				if (*idx < cb->args[2])
 					goto skip;
 
 				err = vxlan_fdb_info(skb, vxlan, f,
@@ -882,17 +881,15 @@ static int vxlan_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 						     cb->nlh->nlmsg_seq,
 						     RTM_NEWNEIGH,
 						     NLM_F_MULTI, rd);
-				if (err < 0) {
-					cb->args[1] = err;
+				if (err < 0)
 					goto out;
-				}
 skip:
-				++idx;
+				*idx += 1;
 			}
 		}
 	}
 out:
-	return idx;
+	return err;
 }
 
 /* Watch incoming packets to learn mapping between Ethernet address
@@ -1294,7 +1291,7 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 		struct metadata_dst *tun_dst;
 
 		tun_dst = udp_tun_rx_dst(skb, vxlan_get_sk_family(vs), TUNNEL_KEY,
-					 vxlan_vni_to_tun_id(vni), sizeof(*md));
+					 key32_to_tunnel_id(vni), sizeof(*md));
 
 		if (!tun_dst)
 			goto drop;
@@ -1948,7 +1945,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			goto drop;
 		}
 		dst_port = info->key.tp_dst ? : vxlan->cfg.dst_port;
-		vni = vxlan_tun_id_to_vni(info->key.tun_id);
+		vni = tunnel_id_to_key32(info->key.tun_id);
 		remote_ip.sa.sa_family = ip_tunnel_info_af(info);
 		if (remote_ip.sa.sa_family == AF_INET) {
 			remote_ip.sin.sin_addr.s_addr = info->key.u.ipv4.dst;
@@ -2106,6 +2103,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 				      vni, md, flags, udp_sum);
 		if (err < 0) {
 			dst_release(ndst);
+			dev->stats.tx_errors++;
 			return;
 		}
 		udp_tunnel6_xmit_skb(ndst, sk, skb, dev,
@@ -2782,14 +2780,15 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 	struct net_device *lowerdev = NULL;
 
 	if (conf->flags & VXLAN_F_GPE) {
-		if (conf->flags & ~VXLAN_F_ALLOWED_GPE)
-			return -EINVAL;
 		/* For now, allow GPE only together with COLLECT_METADATA.
 		 * This can be relaxed later; in such case, the other side
 		 * of the PtP link will have to be provided.
 		 */
-		if (!(conf->flags & VXLAN_F_COLLECT_METADATA))
+		if ((conf->flags & ~VXLAN_F_ALLOWED_GPE) ||
+		    !(conf->flags & VXLAN_F_COLLECT_METADATA)) {
+			pr_info("unsupported combination of extensions\n");
 			return -EINVAL;
+		}
 
 		vxlan_raw_setup(dev);
 	} else {
@@ -2842,6 +2841,9 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 			dev->mtu = lowerdev->mtu - (use_ipv6 ? VXLAN6_HEADROOM : VXLAN_HEADROOM);
 
 		needed_headroom = lowerdev->hard_header_len;
+	} else if (vxlan_addr_multicast(&dst->remote_ip)) {
+		pr_info("multicast destination requires interface to be specified\n");
+		return -EINVAL;
 	}
 
 	if (conf->mtu) {
@@ -2874,8 +2876,10 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 		     tmp->cfg.saddr.sa.sa_family == AF_INET6) == use_ipv6 &&
 		    tmp->cfg.dst_port == vxlan->cfg.dst_port &&
 		    (tmp->flags & VXLAN_F_RCV_FLAGS) ==
-		    (vxlan->flags & VXLAN_F_RCV_FLAGS))
-		return -EEXIST;
+		    (vxlan->flags & VXLAN_F_RCV_FLAGS)) {
+			pr_info("duplicate VNI %u\n", be32_to_cpu(conf->vni));
+			return -EEXIST;
+		}
 	}
 
 	dev->ethtool_ops = &vxlan_ethtool_ops;
@@ -2909,7 +2913,6 @@ static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[])
 {
 	struct vxlan_config conf;
-	int err;
 
 	memset(&conf, 0, sizeof(conf));
 
@@ -3018,26 +3021,7 @@ static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 	if (tb[IFLA_MTU])
 		conf.mtu = nla_get_u32(tb[IFLA_MTU]);
 
-	err = vxlan_dev_configure(src_net, dev, &conf);
-	switch (err) {
-	case -ENODEV:
-		pr_info("ifindex %d does not exist\n", conf.remote_ifindex);
-		break;
-
-	case -EPERM:
-		pr_info("IPv6 is disabled via sysctl\n");
-		break;
-
-	case -EEXIST:
-		pr_info("duplicate VNI %u\n", be32_to_cpu(conf.vni));
-		break;
-
-	case -EINVAL:
-		pr_info("unsupported combination of extensions\n");
-		break;
-	}
-
-	return err;
+	return vxlan_dev_configure(src_net, dev, &conf);
 }
 
 static void vxlan_dellink(struct net_device *dev, struct list_head *head)

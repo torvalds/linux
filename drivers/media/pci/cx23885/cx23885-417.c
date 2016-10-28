@@ -1223,7 +1223,7 @@ static void cx23885_stop_streaming(struct vb2_queue *q)
 	cx23885_cancel_buffers(&dev->ts1);
 }
 
-static struct vb2_ops cx23885_qops = {
+static const struct vb2_ops cx23885_qops = {
 	.queue_setup    = queue_setup,
 	.buf_prepare  = buffer_prepare,
 	.buf_finish = buffer_finish,
@@ -1552,6 +1552,7 @@ int cx23885_417_register(struct cx23885_dev *dev)
 	q->mem_ops = &vb2_dma_sg_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &dev->lock;
+	q->dev = &dev->pci->dev;
 
 	err = vb2_queue_init(q);
 	if (err < 0)

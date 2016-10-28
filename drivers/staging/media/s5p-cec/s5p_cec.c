@@ -173,7 +173,7 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	int ret;
 
 	cec = devm_kzalloc(&pdev->dev, sizeof(*cec), GFP_KERNEL);
-	if (!dev)
+	if (!cec)
 		return -ENOMEM;
 
 	cec->dev = dev;
@@ -250,22 +250,9 @@ static int s5p_cec_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused s5p_cec_suspend(struct device *dev)
-{
-	if (pm_runtime_suspended(dev))
-		return 0;
-	return s5p_cec_runtime_suspend(dev);
-}
-
-static int __maybe_unused s5p_cec_resume(struct device *dev)
-{
-	if (pm_runtime_suspended(dev))
-		return 0;
-	return s5p_cec_runtime_resume(dev);
-}
-
 static const struct dev_pm_ops s5p_cec_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(s5p_cec_suspend, s5p_cec_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(s5p_cec_runtime_suspend, s5p_cec_runtime_resume,
 			   NULL)
 };

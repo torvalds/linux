@@ -479,7 +479,7 @@ static int rsc_parse(struct cache_detail *cd,
 			kgid = make_kgid(&init_user_ns, id);
 			if (!gid_valid(kgid))
 				goto out;
-			GROUP_AT(rsci.cred.cr_group_info, i) = kgid;
+			rsci.cred.cr_group_info->gid[i] = kgid;
 		}
 
 		/* mech name */
@@ -569,9 +569,10 @@ gss_svc_searchbyctx(struct cache_detail *cd, struct xdr_netobj *handle)
 	struct rsc *found;
 
 	memset(&rsci, 0, sizeof(rsci));
-	rsci.handle.data = handle->data;
-	rsci.handle.len = handle->len;
+	if (dup_to_netobj(&rsci.handle, handle->data, handle->len))
+		return NULL;
 	found = rsc_lookup(cd, &rsci);
+	rsc_free(&rsci);
 	if (!found)
 		return NULL;
 	if (cache_check(cd, &found->h, NULL))

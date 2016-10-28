@@ -25,4 +25,4 @@ arch/x86/kernel/hpet.c.
 
 The driver provides a userspace API which resembles the API found in the
 RTC driver framework.  An example user space program is provided in
-file:Documentation/timers/hpet_example.c
+file:samples/timers/hpet_example.c

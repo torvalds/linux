@@ -335,7 +335,6 @@ static void __usbhsg_recip_send_status(struct usbhsg_gpriv *gpriv,
 	buf = kmalloc(sizeof(*buf), GFP_ATOMIC);
 	if (!buf) {
 		usb_ep_free_request(&dcp->ep, req);
-		dev_err(dev, "recip data allocation fail\n");
 		return;
 	}
 
@@ -1062,14 +1061,11 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	int ret;
 
 	gpriv = kzalloc(sizeof(struct usbhsg_gpriv), GFP_KERNEL);
-	if (!gpriv) {
-		dev_err(dev, "Could not allocate gadget priv\n");
+	if (!gpriv)
 		return -ENOMEM;
-	}
 
 	uep = kzalloc(sizeof(struct usbhsg_uep) * pipe_size, GFP_KERNEL);
 	if (!uep) {
-		dev_err(dev, "Could not allocate ep\n");
 		ret = -ENOMEM;
 		goto usbhs_mod_gadget_probe_err_gpriv;
 	}
@@ -1106,6 +1102,8 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	gpriv->gadget.name		= "renesas_usbhs_udc";
 	gpriv->gadget.ops		= &usbhsg_gadget_ops;
 	gpriv->gadget.max_speed		= USB_SPEED_HIGH;
+	gpriv->gadget.quirk_avoids_skb_reserve = usbhs_get_dparam(priv,
+								has_usb_dmac);
 
 	INIT_LIST_HEAD(&gpriv->gadget.ep_list);
 

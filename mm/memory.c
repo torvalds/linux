@@ -1649,10 +1649,14 @@ EXPORT_SYMBOL(vm_insert_pfn_prot);
 int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
 			pfn_t pfn)
 {
+	pgprot_t pgprot = vma->vm_page_prot;
+
 	BUG_ON(!(vma->vm_flags & VM_MIXEDMAP));
 
 	if (addr < vma->vm_start || addr >= vma->vm_end)
 		return -EFAULT;
+	if (track_pfn_insert(vma, &pgprot, pfn))
+		return -EINVAL;
 
 	/*
 	 * If we don't have pte special, then we have to use the pfn_valid()
@@ -1670,9 +1674,9 @@ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
 		 * result in pfn_t_has_page() == false.
 		 */
 		page = pfn_to_page(pfn_t_to_pfn(pfn));
-		return insert_page(vma, addr, page, vma->vm_page_prot);
+		return insert_page(vma, addr, page, pgprot);
 	}
-	return insert_pfn(vma, addr, pfn, vma->vm_page_prot);
+	return insert_pfn(vma, addr, pfn, pgprot);
 }
 EXPORT_SYMBOL(vm_insert_mixed);
 
@@ -3351,9 +3355,6 @@ static int do_numa_page(struct fault_env *fe, pte_t pte)
 	bool was_writable = pte_write(pte);
 	int flags = 0;
 
-	/* A PROT_NONE fault should not end up here */
-	BUG_ON(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)));
-
 	/*
 	* The "pte" at this point cannot be used safely without
 	* validation through pte_unmap_same(). It's of NUMA type but
@@ -3398,7 +3399,7 @@ static int do_numa_page(struct fault_env *fe, pte_t pte)
 	 * pte_dirty has unpredictable behaviour between PTE scan updates,
 	 * background writeback, dirty balancing and application behaviour.
 	 */
-	if (!(vma->vm_flags & VM_WRITE))
+	if (!pte_write(pte))
 		flags |= TNF_NO_GROUP;
 
 	/*
@@ -3456,6 +3457,11 @@ static int wp_huge_pmd(struct fault_env *fe, pmd_t orig_pmd)
 	split_huge_pmd(fe->vma, fe->pmd, fe->address);
 
 	return VM_FAULT_FALLBACK;
+}
+
+static inline bool vma_is_accessible(struct vm_area_struct *vma)
+{
+	return vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE);
 }
 
 /*
@@ -3524,7 +3530,7 @@ static int handle_pte_fault(struct fault_env *fe)
 	if (!pte_present(entry))
 		return do_swap_page(fe, entry);
 
-	if (pte_protnone(entry))
+	if (pte_protnone(entry) && vma_is_accessible(fe->vma))
 		return do_numa_page(fe, entry);
 
 	fe->ptl = pte_lockptr(fe->vma->vm_mm, fe->pmd);
@@ -3590,7 +3596,7 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 
 		barrier();
 		if (pmd_trans_huge(orig_pmd) || pmd_devmap(orig_pmd)) {
-			if (pmd_protnone(orig_pmd))
+			if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
 				return do_huge_pmd_numa_page(&fe, orig_pmd);
 
 			if ((fe.flags & FAULT_FLAG_WRITE) &&
@@ -3655,6 +3661,19 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
                 if (task_in_memcg_oom(current) && !(ret & VM_FAULT_OOM))
                         mem_cgroup_oom_synchronize(false);
 	}
+
+	/*
+	 * This mm has been already reaped by the oom reaper and so the
+	 * refault cannot be trusted in general. Anonymous refaults would
+	 * lose data and give a zero page instead e.g. This is especially
+	 * problem for use_mm() because regular tasks will just die and
+	 * the corrupted data will not be visible anywhere while kthread
+	 * will outlive the oom victim and potentially propagate the date
+	 * further.
+	 */
+	if (unlikely((current->flags & PF_KTHREAD) && !(ret & VM_FAULT_ERROR)
+				&& test_bit(MMF_UNSTABLE, &vma->vm_mm->flags)))
+		ret = VM_FAULT_SIGBUS;
 
 	return ret;
 }
@@ -3850,10 +3869,11 @@ EXPORT_SYMBOL_GPL(generic_access_phys);
  * given task for page fault accounting.
  */
 static int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
-		unsigned long addr, void *buf, int len, int write)
+		unsigned long addr, void *buf, int len, unsigned int gup_flags)
 {
 	struct vm_area_struct *vma;
 	void *old_buf = buf;
+	int write = gup_flags & FOLL_WRITE;
 
 	down_read(&mm->mmap_sem);
 	/* ignore errors, just check how much was successfully transferred */
@@ -3863,7 +3883,7 @@ static int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
 		struct page *page = NULL;
 
 		ret = get_user_pages_remote(tsk, mm, addr, 1,
-				write, 1, &page, &vma);
+				gup_flags, &page, &vma);
 		if (ret <= 0) {
 #ifndef CONFIG_HAVE_IOREMAP_PROT
 			break;
@@ -3915,14 +3935,14 @@ static int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
  * @addr:	start address to access
  * @buf:	source or destination buffer
  * @len:	number of bytes to transfer
- * @write:	whether the access is a write
+ * @gup_flags:	flags modifying lookup behaviour
  *
  * The caller must hold a reference on @mm.
  */
 int access_remote_vm(struct mm_struct *mm, unsigned long addr,
-		void *buf, int len, int write)
+		void *buf, int len, unsigned int gup_flags)
 {
-	return __access_remote_vm(NULL, mm, addr, buf, len, write);
+	return __access_remote_vm(NULL, mm, addr, buf, len, gup_flags);
 }
 
 /*
@@ -3931,7 +3951,7 @@ int access_remote_vm(struct mm_struct *mm, unsigned long addr,
  * Do not walk the page table directly, use get_user_pages
  */
 int access_process_vm(struct task_struct *tsk, unsigned long addr,
-		void *buf, int len, int write)
+		void *buf, int len, unsigned int gup_flags)
 {
 	struct mm_struct *mm;
 	int ret;
@@ -3940,7 +3960,8 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr,
 	if (!mm)
 		return 0;
 
-	ret = __access_remote_vm(tsk, mm, addr, buf, len, write);
+	ret = __access_remote_vm(tsk, mm, addr, buf, len, gup_flags);
+
 	mmput(mm);
 
 	return ret;

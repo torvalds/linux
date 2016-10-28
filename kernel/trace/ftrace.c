@@ -872,7 +872,13 @@ function_profile_call(unsigned long ip, unsigned long parent_ip,
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static int profile_graph_entry(struct ftrace_graph_ent *trace)
 {
+	int index = trace->depth;
+
 	function_profile_call(trace->func, 0, NULL, NULL);
+
+	if (index >= 0 && index < FTRACE_RETFUNC_DEPTH)
+		current->ret_stack[index].subtime = 0;
+
 	return 1;
 }
 

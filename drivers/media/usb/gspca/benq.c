@@ -95,10 +95,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 #define SD_NPKT 32
 	for (n = 0; n < 4; n++) {
 		urb = usb_alloc_urb(SD_NPKT, GFP_KERNEL);
-		if (!urb) {
-			pr_err("usb_alloc_urb failed\n");
+		if (!urb)
 			return -ENOMEM;
-		}
 		gspca_dev->urb[n] = urb;
 		urb->transfer_buffer = usb_alloc_coherent(gspca_dev->dev,
 						SD_PKT_SZ * SD_NPKT,

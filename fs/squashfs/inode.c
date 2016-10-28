@@ -425,7 +425,6 @@ failed_read:
 
 
 const struct inode_operations squashfs_inode_ops = {
-	.getxattr = generic_getxattr,
 	.listxattr = squashfs_listxattr
 };
 

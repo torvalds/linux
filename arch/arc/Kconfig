@@ -13,7 +13,7 @@ config ARC
 	select CLKSRC_OF
 	select CLONE_BACKWARDS
 	select COMMON_CLK
-	select GENERIC_ATOMIC64
+	select GENERIC_ATOMIC64 if !ISA_ARCV2 || !(ARC_HAS_LL64 && ARC_HAS_LLSC)
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_FIND_FIRST_BIT
 	# for now, we don't need GENERIC_IRQ_PROBE, CONFIG_GENERIC_IRQ_CHIP
@@ -353,8 +353,8 @@ endchoice
 
 config NODES_SHIFT
 	int "Maximum NUMA Nodes (as a power of 2)"
-	default "1" if !DISCONTIGMEM
-	default "2" if DISCONTIGMEM
+	default "0" if !DISCONTIGMEM
+	default "1" if DISCONTIGMEM
 	depends on NEED_MULTIPLE_NODES
 	---help---
 	  Accessing memory beyond 1GB (with or w/o PAE) requires 2 memory

@@ -18,12 +18,13 @@
  * Author: Will Deacon <will.deacon@arm.com>
  */
 
-#include <linux/kernel.h>
+#include <linux/cache.h>
 #include <linux/clocksource.h>
 #include <linux/elf.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/gfp.h>
+#include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
@@ -37,8 +38,7 @@
 #include <asm/vdso_datapage.h>
 
 extern char vdso_start, vdso_end;
-static unsigned long vdso_pages;
-static struct page **vdso_pagelist;
+static unsigned long vdso_pages __ro_after_init;
 
 /*
  * The vDSO data page.
@@ -53,9 +53,9 @@ struct vdso_data *vdso_data = &vdso_data_store.data;
 /*
  * Create and map the vectors page for AArch32 tasks.
  */
-static struct page *vectors_page[1];
+static struct page *vectors_page[1] __ro_after_init;
 
-static int alloc_vectors_page(void)
+static int __init alloc_vectors_page(void)
 {
 	extern char __kuser_helper_start[], __kuser_helper_end[];
 	extern char __aarch32_sigret_code_start[], __aarch32_sigret_code_end[];
@@ -88,7 +88,7 @@ int aarch32_setup_vectors_page(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long addr = AARCH32_VECTORS_BASE;
-	static struct vm_special_mapping spec = {
+	static const struct vm_special_mapping spec = {
 		.name	= "[vectors]",
 		.pages	= vectors_page,
 
@@ -110,11 +110,19 @@ int aarch32_setup_vectors_page(struct linux_binprm *bprm, int uses_interp)
 }
 #endif /* CONFIG_COMPAT */
 
-static struct vm_special_mapping vdso_spec[2];
+static struct vm_special_mapping vdso_spec[2] __ro_after_init = {
+	{
+		.name	= "[vvar]",
+	},
+	{
+		.name	= "[vdso]",
+	},
+};
 
 static int __init vdso_init(void)
 {
 	int i;
+	struct page **vdso_pagelist;
 
 	if (memcmp(&vdso_start, "\177ELF", 4)) {
 		pr_err("vDSO is not a valid ELF object!\n");
@@ -138,16 +146,8 @@ static int __init vdso_init(void)
 	for (i = 0; i < vdso_pages; i++)
 		vdso_pagelist[i + 1] = pfn_to_page(PHYS_PFN(__pa(&vdso_start)) + i);
 
-	/* Populate the special mapping structures */
-	vdso_spec[0] = (struct vm_special_mapping) {
-		.name	= "[vvar]",
-		.pages	= vdso_pagelist,
-	};
-
-	vdso_spec[1] = (struct vm_special_mapping) {
-		.name	= "[vdso]",
-		.pages	= &vdso_pagelist[1],
-	};
+	vdso_spec[0].pages = &vdso_pagelist[0];
+	vdso_spec[1].pages = &vdso_pagelist[1];
 
 	return 0;
 }
@@ -201,7 +201,7 @@ up_fail:
  */
 void update_vsyscall(struct timekeeper *tk)
 {
-	u32 use_syscall = strcmp(tk->tkr_mono.clock->name, "arch_sys_counter");
+	u32 use_syscall = !tk->tkr_mono.clock->archdata.vdso_direct;
 
 	++vdso_data->tb_seq_count;
 	smp_wmb();

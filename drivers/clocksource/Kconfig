@@ -305,6 +305,16 @@ config ARM_ARCH_TIMER_EVTSTREAM
 	  This must be disabled for hardware validation purposes to detect any
 	  hardware anomalies of missing events.
 
+config FSL_ERRATUM_A008585
+	bool "Workaround for Freescale/NXP Erratum A-008585"
+	default y
+	depends on ARM_ARCH_TIMER && ARM64
+	help
+	  This option enables a workaround for Freescale/NXP Erratum
+	  A-008585 ("ARM generic timer may contain an erroneous
+	  value").  The workaround will only be active if the
+	  fsl,erratum-a008585 property is found in the timer node.
+
 config ARM_GLOBAL_TIMER
 	bool "Support for the ARM global timer" if COMPILE_TEST
 	select CLKSRC_OF if OF
@@ -351,7 +361,7 @@ config CLKSRC_METAG_GENERIC
 
 config CLKSRC_EXYNOS_MCT
 	bool "Exynos multi core timer driver" if COMPILE_TEST
-	depends on ARM
+	depends on ARM || ARM64
 	help
 	  Support for Multi Core Timer controller on Exynos SoCs.
 
@@ -406,6 +416,16 @@ config SYS_SUPPORTS_SH_TMU
 
 config SYS_SUPPORTS_EM_STI
         bool
+
+config CLKSRC_JCORE_PIT
+	bool "J-Core PIT timer driver" if COMPILE_TEST
+	depends on OF
+	depends on GENERIC_CLOCKEVENTS
+	depends on HAS_IOMEM
+	select CLKSRC_MMIO
+	help
+	  This enables build of clocksource and clockevent driver for
+	  the integrated PIT in the J-Core synthesizable, open source SoC.
 
 config SH_TIMER_CMT
 	bool "Renesas CMT timer driver" if COMPILE_TEST

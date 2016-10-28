@@ -542,7 +542,6 @@ static int virtblk_init_request(void *data, struct request *rq,
 
 static struct blk_mq_ops virtio_mq_ops = {
 	.queue_rq	= virtio_queue_rq,
-	.map_queue	= blk_mq_map_queue,
 	.complete	= virtblk_request_done,
 	.init_request	= virtblk_init_request,
 };

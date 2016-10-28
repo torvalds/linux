@@ -74,7 +74,7 @@ void arc_init_IRQ(void)
 	tmp = read_aux_reg(0xa);
 	tmp |= STATUS_AD_MASK | (irq_prio << 1);
 	tmp &= ~STATUS_IE_MASK;
-	asm volatile("flag %0	\n"::"r"(tmp));
+	asm volatile("kflag %0	\n"::"r"(tmp));
 }
 
 static void arcv2_irq_mask(struct irq_data *data)

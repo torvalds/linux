@@ -37,7 +37,7 @@ static struct media_entity *vpfe_get_input_entity
 	struct media_pad *remote;
 
 	remote = media_entity_remote_pad(&vpfe_dev->vpfe_isif.pads[0]);
-	if (remote == NULL) {
+	if (!remote) {
 		pr_err("Invalid media connection to isif/ccdc\n");
 		return NULL;
 	}
@@ -54,7 +54,7 @@ static int vpfe_update_current_ext_subdev(struct vpfe_video_device *video)
 	int i;
 
 	remote = media_entity_remote_pad(&vpfe_dev->vpfe_isif.pads[0]);
-	if (remote == NULL) {
+	if (!remote) {
 		pr_err("Invalid media connection to isif/ccdc\n");
 		return -EINVAL;
 	}
@@ -107,7 +107,7 @@ __vpfe_video_get_format(struct vpfe_video_device *video,
 	int ret;
 
 	subdev = vpfe_video_remote_subdev(video, &pad);
-	if (subdev == NULL)
+	if (!subdev)
 		return -EINVAL;
 
 	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
@@ -236,7 +236,7 @@ static int vpfe_video_validate_pipeline(struct vpfe_pipeline *pipe)
 	 * format of the connected pad.
 	 */
 	subdev = vpfe_video_remote_subdev(pipe->outputs[0], NULL);
-	if (subdev == NULL)
+	if (!subdev)
 		return -EPIPE;
 
 	while (1) {
@@ -413,7 +413,7 @@ static int vpfe_open(struct file *file)
 	/* Allocate memory for the file handle object */
 	handle = kzalloc(sizeof(struct vpfe_fh), GFP_KERNEL);
 
-	if (handle == NULL)
+	if (!handle)
 		return -ENOMEM;
 
 	v4l2_fh_init(&handle->vfh, &video->video_dev);
@@ -683,14 +683,14 @@ static int vpfe_enum_fmt(struct file *file, void  *priv,
 	}
 	/* get the remote pad */
 	remote = media_entity_remote_pad(&video->pad);
-	if (remote == NULL) {
+	if (!remote) {
 		v4l2_err(&vpfe_dev->v4l2_dev,
 			 "invalid remote pad for video node\n");
 		return -EINVAL;
 	}
 	/* get the remote subdev */
 	subdev = vpfe_video_remote_subdev(video, NULL);
-	if (subdev == NULL) {
+	if (!subdev) {
 		v4l2_err(&vpfe_dev->v4l2_dev,
 			 "invalid remote subdev for video node\n");
 		return -EINVAL;

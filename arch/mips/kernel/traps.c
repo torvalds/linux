@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
@@ -48,6 +49,7 @@
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/idle.h>
+#include <asm/mips-cm.h>
 #include <asm/mips-r2-to-r6-emul.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
@@ -444,6 +446,8 @@ asmlinkage void do_be(struct pt_regs *regs)
 
 	if (board_be_handler)
 		action = board_be_handler(regs, fixup != NULL);
+	else
+		mips_cm_error_report();
 
 	switch (action) {
 	case MIPS_BE_DISCARD:
@@ -2091,6 +2095,14 @@ static void configure_exception_vector(void)
 {
 	if (cpu_has_veic || cpu_has_vint) {
 		unsigned long sr = set_c0_status(ST0_BEV);
+		/* If available, use WG to set top bits of EBASE */
+		if (cpu_has_ebase_wg) {
+#ifdef CONFIG_64BIT
+			write_c0_ebase_64(ebase | MIPS_EBASE_WG);
+#else
+			write_c0_ebase(ebase | MIPS_EBASE_WG);
+#endif
+		}
 		write_c0_ebase(ebase);
 		write_c0_status(sr);
 		/* Setting vector spacing enables EI/VI mode  */
@@ -2127,8 +2139,17 @@ void per_cpu_trap_init(bool is_boot_cpu)
 		 * We shouldn't trust a secondary core has a sane EBASE register
 		 * so use the one calculated by the boot CPU.
 		 */
-		if (!is_boot_cpu)
+		if (!is_boot_cpu) {
+			/* If available, use WG to set top bits of EBASE */
+			if (cpu_has_ebase_wg) {
+#ifdef CONFIG_64BIT
+				write_c0_ebase_64(ebase | MIPS_EBASE_WG);
+#else
+				write_c0_ebase(ebase | MIPS_EBASE_WG);
+#endif
+			}
 			write_c0_ebase(ebase);
+		}
 
 		cp0_compare_irq_shift = CAUSEB_TI - CAUSEB_IP;
 		cp0_compare_irq = (read_c0_intctl() >> INTCTLB_IPTI) & 7;
@@ -2209,13 +2230,39 @@ void __init trap_init(void)
 
 	if (cpu_has_veic || cpu_has_vint) {
 		unsigned long size = 0x200 + VECTORSPACING*64;
+		phys_addr_t ebase_pa;
+
 		ebase = (unsigned long)
 			__alloc_bootmem(size, 1 << fls(size), 0);
+
+		/*
+		 * Try to ensure ebase resides in KSeg0 if possible.
+		 *
+		 * It shouldn't generally be in XKPhys on MIPS64 to avoid
+		 * hitting a poorly defined exception base for Cache Errors.
+		 * The allocation is likely to be in the low 512MB of physical,
+		 * in which case we should be able to convert to KSeg0.
+		 *
+		 * EVA is special though as it allows segments to be rearranged
+		 * and to become uncached during cache error handling.
+		 */
+		ebase_pa = __pa(ebase);
+		if (!IS_ENABLED(CONFIG_EVA) && !WARN_ON(ebase_pa >= 0x20000000))
+			ebase = CKSEG0ADDR(ebase_pa);
 	} else {
 		ebase = CAC_BASE;
 
-		if (cpu_has_mips_r2_r6)
-			ebase += (read_c0_ebase() & 0x3ffff000);
+		if (cpu_has_mips_r2_r6) {
+			if (cpu_has_ebase_wg) {
+#ifdef CONFIG_64BIT
+				ebase = (read_c0_ebase_64() & ~0xfff);
+#else
+				ebase = (read_c0_ebase() & ~0xfff);
+#endif
+			} else {
+				ebase += (read_c0_ebase() & 0x3ffff000);
+			}
+		}
 	}
 
 	if (cpu_has_mmips) {

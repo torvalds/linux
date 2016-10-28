@@ -26,9 +26,25 @@ struct batadv_icmp_header;
 
 #define BATADV_ICMP_SOCKET "socket"
 
-void batadv_socket_init(void);
 int batadv_socket_setup(struct batadv_priv *bat_priv);
+
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+
+void batadv_socket_init(void);
 void batadv_socket_receive_packet(struct batadv_icmp_header *icmph,
 				  size_t icmp_len);
+
+#else
+
+static inline void batadv_socket_init(void)
+{
+}
+
+static inline void
+batadv_socket_receive_packet(struct batadv_icmp_header *icmph, size_t icmp_len)
+{
+}
+
+#endif
 
 #endif /* _NET_BATMAN_ADV_ICMP_SOCKET_H_ */

@@ -569,9 +569,16 @@ static void arch_dump_stack(void *info)
 	dump_stack();
 }
 
-void arch_trigger_all_cpu_backtrace(bool include_self)
+void arch_trigger_cpumask_backtrace(const cpumask_t *mask, bool exclude_self)
 {
-	smp_call_function(arch_dump_stack, NULL, 1);
+	long this_cpu = get_cpu();
+
+	if (cpumask_test_cpu(this_cpu, mask) && !exclude_self)
+		dump_stack();
+
+	smp_call_function_many(mask, arch_dump_stack, NULL, 1);
+
+	put_cpu();
 }
 
 int mips_get_process_fp_mode(struct task_struct *task)
@@ -605,14 +612,14 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 		return -EOPNOTSUPP;
 
 	/* Avoid inadvertently triggering emulation */
-	if ((value & PR_FP_MODE_FR) && cpu_has_fpu &&
-	    !(current_cpu_data.fpu_id & MIPS_FPIR_F64))
+	if ((value & PR_FP_MODE_FR) && raw_cpu_has_fpu &&
+	    !(raw_current_cpu_data.fpu_id & MIPS_FPIR_F64))
 		return -EOPNOTSUPP;
-	if ((value & PR_FP_MODE_FRE) && cpu_has_fpu && !cpu_has_fre)
+	if ((value & PR_FP_MODE_FRE) && raw_cpu_has_fpu && !cpu_has_fre)
 		return -EOPNOTSUPP;
 
 	/* FR = 0 not supported in MIPS R6 */
-	if (!(value & PR_FP_MODE_FR) && cpu_has_fpu && cpu_has_mips_r6)
+	if (!(value & PR_FP_MODE_FR) && raw_cpu_has_fpu && cpu_has_mips_r6)
 		return -EOPNOTSUPP;
 
 	/* Proceed with the mode switch */

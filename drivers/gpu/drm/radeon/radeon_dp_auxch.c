@@ -164,7 +164,6 @@ radeon_dp_aux_transfer_native(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg
 	}
 
 	if (tmp & AUX_SW_RX_TIMEOUT) {
-		DRM_DEBUG_KMS("dp_aux_ch timed out\n");
 		ret = -ETIMEDOUT;
 		goto done;
 	}

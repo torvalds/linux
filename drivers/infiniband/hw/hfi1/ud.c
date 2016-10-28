@@ -271,7 +271,7 @@ drop:
 int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
-	struct hfi1_other_headers *ohdr;
+	struct ib_other_headers *ohdr;
 	struct ib_ah_attr *ah_attr;
 	struct hfi1_pportdata *ppd;
 	struct hfi1_ibport *ibp;
@@ -510,8 +510,8 @@ void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
 	u32 bth0, plen, vl, hwords = 5;
 	u16 lrh0;
 	u8 sl = ibp->sc_to_sl[sc5];
-	struct hfi1_ib_header hdr;
-	struct hfi1_other_headers *ohdr;
+	struct ib_header hdr;
+	struct ib_other_headers *ohdr;
 	struct pio_buf *pbuf;
 	struct send_context *ctxt = qp_to_send_context(qp, sc5);
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
@@ -559,8 +559,8 @@ void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
 
 /*
  * opa_smp_check() - Do the regular pkey checking, and the additional
- * checks for SMPs specified in OPAv1 rev 0.90, section 9.10.26
- * ("SMA Packet Checks").
+ * checks for SMPs specified in OPAv1 rev 1.0, 9/19/2016 update, section
+ * 9.10.25 ("SMA Packet Checks").
  *
  * Note that:
  *   - Checks are done using the pkey directly from the packet's BTH,
@@ -603,23 +603,28 @@ static int opa_smp_check(struct hfi1_ibport *ibp, u16 pkey, u8 sc5,
 
 	/*
 	 * SMPs fall into one of four (disjoint) categories:
-	 * SMA request, SMA response, trap, or trap repress.
-	 * Our response depends, in part, on which type of
-	 * SMP we're processing.
+	 * SMA request, SMA response, SMA trap, or SMA trap repress.
+	 * Our response depends, in part, on which type of SMP we're
+	 * processing.
 	 *
-	 * If this is not an SMA request, or trap repress:
-	 *   - accept MAD if the port is running an SM
-	 *   - pkey == FULL_MGMT_P_KEY =>
-	 *       reply with unsupported method (i.e., just mark
-	 *       the smp's status field here, and let it be
-	 *       processed normally)
-	 *   - pkey != LIM_MGMT_P_KEY =>
-	 *       increment port recv constraint errors, drop MAD
-	 * If this is an SMA request or trap repress:
+	 * If this is an SMA response, skip the check here.
+	 *
+	 * If this is an SMA request or SMA trap repress:
 	 *   - pkey != FULL_MGMT_P_KEY =>
 	 *       increment port recv constraint errors, drop MAD
+	 *
+	 * Otherwise:
+	 *    - accept if the port is running an SM
+	 *    - drop MAD if it's an SMA trap
+	 *    - pkey == FULL_MGMT_P_KEY =>
+	 *        reply with unsupported method
+	 *    - pkey != FULL_MGMT_P_KEY =>
+	 *	  increment port recv constraint errors, drop MAD
 	 */
 	switch (smp->method) {
+	case IB_MGMT_METHOD_GET_RESP:
+	case IB_MGMT_METHOD_REPORT_RESP:
+		break;
 	case IB_MGMT_METHOD_GET:
 	case IB_MGMT_METHOD_SET:
 	case IB_MGMT_METHOD_REPORT:
@@ -629,23 +634,17 @@ static int opa_smp_check(struct hfi1_ibport *ibp, u16 pkey, u8 sc5,
 			return 1;
 		}
 		break;
-	case IB_MGMT_METHOD_SEND:
-	case IB_MGMT_METHOD_TRAP:
-	case IB_MGMT_METHOD_GET_RESP:
-	case IB_MGMT_METHOD_REPORT_RESP:
+	default:
 		if (ibp->rvp.port_cap_flags & IB_PORT_SM)
 			return 0;
+		if (smp->method == IB_MGMT_METHOD_TRAP)
+			return 1;
 		if (pkey == FULL_MGMT_P_KEY) {
 			smp->status |= IB_SMP_UNSUP_METHOD;
 			return 0;
 		}
-		if (pkey != LIM_MGMT_P_KEY) {
-			ingress_pkey_table_fail(ppd, pkey, slid);
-			return 1;
-		}
-		break;
-	default:
-		break;
+		ingress_pkey_table_fail(ppd, pkey, slid);
+		return 1;
 	}
 	return 0;
 }
@@ -665,7 +664,7 @@ static int opa_smp_check(struct hfi1_ibport *ibp, u16 pkey, u8 sc5,
  */
 void hfi1_ud_rcv(struct hfi1_packet *packet)
 {
-	struct hfi1_other_headers *ohdr = packet->ohdr;
+	struct ib_other_headers *ohdr = packet->ohdr;
 	int opcode;
 	u32 hdrsize = packet->hlen;
 	struct ib_wc wc;
@@ -675,13 +674,13 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	int mgmt_pkey_idx = -1;
 	struct hfi1_ibport *ibp = &packet->rcd->ppd->ibport_data;
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-	struct hfi1_ib_header *hdr = packet->hdr;
+	struct ib_header *hdr = packet->hdr;
 	u32 rcv_flags = packet->rcv_flags;
 	void *data = packet->ebuf;
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
 	bool has_grh = rcv_flags & HFI1_HAS_GRH;
-	u8 sc5 = hdr2sc((struct hfi1_message_header *)hdr, packet->rhf);
+	u8 sc5 = hdr2sc(hdr, packet->rhf);
 	u32 bth1;
 	u8 sl_from_sc, sl;
 	u16 slid;

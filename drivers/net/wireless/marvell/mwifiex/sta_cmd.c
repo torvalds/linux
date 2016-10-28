@@ -598,6 +598,11 @@ static int mwifiex_set_aes_key_v2(struct mwifiex_private *priv,
 		memcpy(km->key_param_set.key_params.cmac_aes.key,
 		       enc_key->key_material, enc_key->key_len);
 		len += sizeof(struct mwifiex_cmac_aes_param);
+	} else if (enc_key->is_igtk_def_key) {
+		mwifiex_dbg(adapter, INFO,
+			    "%s: Set CMAC default Key index\n", __func__);
+		km->key_param_set.key_type = KEY_TYPE_ID_AES_CMAC_DEF;
+		km->key_param_set.key_idx = enc_key->key_index & KEY_INDEX_MASK;
 	} else {
 		mwifiex_dbg(adapter, INFO,
 			    "%s: Set AES Key\n", __func__);
@@ -706,15 +711,10 @@ mwifiex_cmd_802_11_key_material_v2(struct mwifiex_private *priv,
 				    (priv->wep_key_curr_index & KEY_INDEX_MASK))
 					key_info |= KEY_DEFAULT;
 			} else {
-				if (mac) {
-					if (is_broadcast_ether_addr(mac))
-						key_info |= KEY_MCAST;
-					else
-						key_info |= KEY_UNICAST |
-							    KEY_DEFAULT;
-				} else {
+				if (is_broadcast_ether_addr(mac))
 					key_info |= KEY_MCAST;
-				}
+				else
+					key_info |= KEY_UNICAST | KEY_DEFAULT;
 			}
 		}
 		km->key_param_set.key_info = cpu_to_le16(key_info);
@@ -1244,20 +1244,23 @@ mwifiex_cmd_pcie_host_spec(struct mwifiex_private *priv,
 		return 0;
 
 	/* Send the ring base addresses and count to firmware */
-	host_spec->txbd_addr_lo = (u32)(card->txbd_ring_pbase);
-	host_spec->txbd_addr_hi = (u32)(((u64)card->txbd_ring_pbase)>>32);
-	host_spec->txbd_count = MWIFIEX_MAX_TXRX_BD;
-	host_spec->rxbd_addr_lo = (u32)(card->rxbd_ring_pbase);
-	host_spec->rxbd_addr_hi = (u32)(((u64)card->rxbd_ring_pbase)>>32);
-	host_spec->rxbd_count = MWIFIEX_MAX_TXRX_BD;
-	host_spec->evtbd_addr_lo = (u32)(card->evtbd_ring_pbase);
-	host_spec->evtbd_addr_hi = (u32)(((u64)card->evtbd_ring_pbase)>>32);
-	host_spec->evtbd_count = MWIFIEX_MAX_EVT_BD;
+	host_spec->txbd_addr_lo = cpu_to_le32((u32)(card->txbd_ring_pbase));
+	host_spec->txbd_addr_hi =
+			cpu_to_le32((u32)(((u64)card->txbd_ring_pbase) >> 32));
+	host_spec->txbd_count = cpu_to_le32(MWIFIEX_MAX_TXRX_BD);
+	host_spec->rxbd_addr_lo = cpu_to_le32((u32)(card->rxbd_ring_pbase));
+	host_spec->rxbd_addr_hi =
+			cpu_to_le32((u32)(((u64)card->rxbd_ring_pbase) >> 32));
+	host_spec->rxbd_count = cpu_to_le32(MWIFIEX_MAX_TXRX_BD);
+	host_spec->evtbd_addr_lo = cpu_to_le32((u32)(card->evtbd_ring_pbase));
+	host_spec->evtbd_addr_hi =
+			cpu_to_le32((u32)(((u64)card->evtbd_ring_pbase) >> 32));
+	host_spec->evtbd_count = cpu_to_le32(MWIFIEX_MAX_EVT_BD);
 	if (card->sleep_cookie_vbase) {
 		host_spec->sleep_cookie_addr_lo =
-						(u32)(card->sleep_cookie_pbase);
-		host_spec->sleep_cookie_addr_hi =
-				 (u32)(((u64)(card->sleep_cookie_pbase)) >> 32);
+				cpu_to_le32((u32)(card->sleep_cookie_pbase));
+		host_spec->sleep_cookie_addr_hi = cpu_to_le32((u32)(((u64)
+					(card->sleep_cookie_pbase)) >> 32));
 		mwifiex_dbg(priv->adapter, INFO,
 			    "sleep_cook_lo phy addr: 0x%x\n",
 			    host_spec->sleep_cookie_addr_lo);
@@ -1482,7 +1485,7 @@ int mwifiex_dnld_dt_cfgdata(struct mwifiex_private *priv,
 			continue;
 
 		/* property header is 6 bytes, data must fit in cmd buffer */
-		if (prop && prop->value && prop->length > 6 &&
+		if (prop->value && prop->length > 6 &&
 		    prop->length <= MWIFIEX_SIZE_OF_CMD_BUFFER - S_DS_GEN) {
 			ret = mwifiex_send_cmd(priv, HostCmd_CMD_CFG_DATA,
 					       HostCmd_ACT_GEN_SET, 0,
@@ -1592,6 +1595,21 @@ static int mwifiex_cmd_gtk_rekey_offload(struct mwifiex_private *priv,
 		rekey->replay_ctr_high =
 			cpu_to_le32((u32)((u64)rekey_ctr >> 32));
 	}
+
+	return 0;
+}
+
+static int mwifiex_cmd_chan_region_cfg(struct mwifiex_private *priv,
+				       struct host_cmd_ds_command *cmd,
+				       u16 cmd_action)
+{
+	struct host_cmd_ds_chan_region_cfg *reg = &cmd->params.reg_cfg;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_CHAN_REGION_CFG);
+	cmd->size = cpu_to_le16(sizeof(*reg) + S_DS_GEN);
+
+	if (cmd_action == HostCmd_ACT_GEN_GET)
+		reg->action = cpu_to_le16(cmd_action);
 
 	return 0;
 }
@@ -2136,6 +2154,9 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		ret = mwifiex_cmd_gtk_rekey_offload(priv, cmd_ptr, cmd_action,
 						    data_buf);
 		break;
+	case HostCmd_CMD_CHAN_REGION_CFG:
+		ret = mwifiex_cmd_chan_region_cfg(priv, cmd_ptr, cmd_action);
+		break;
 	default:
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "PREP_CMD: unknown cmd- %#x\n", cmd_no);
@@ -2273,6 +2294,9 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 			if (ret)
 				return -1;
 		}
+
+		mwifiex_send_cmd(priv, HostCmd_CMD_CHAN_REGION_CFG,
+				 HostCmd_ACT_GEN_GET, 0, NULL, true);
 	}
 
 	/* get tx rate */

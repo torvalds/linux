@@ -23,7 +23,7 @@ SECTIONS
 		*(.ResetVector.text)
 	}
 
-	.image KERNELOFFSET: AT (LOAD_MEMORY_ADDRESS)
+	.image KERNELOFFSET: AT (CONFIG_KERNEL_LOAD_ADDRESS)
 	{
 		_image_start = .;
 		*(image)

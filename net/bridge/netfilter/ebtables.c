@@ -146,7 +146,7 @@ ebt_basic_match(const struct ebt_entry *e, const struct sk_buff *skb,
 		return 1;
 	if (NF_INVF(e, EBT_IOUT, ebt_dev_check(e->out, out)))
 		return 1;
-	/* rcu_read_lock()ed by nf_hook_slow */
+	/* rcu_read_lock()ed by nf_hook_thresh */
 	if (in && (p = br_port_get_rcu(in)) != NULL &&
 	    NF_INVF(e, EBT_ILOGICALIN,
 		    ebt_dev_check(e->logical_in, p->br->dev)))
@@ -368,6 +368,8 @@ ebt_check_match(struct ebt_entry_match *m, struct xt_mtchk_param *par,
 
 	match = xt_find_match(NFPROTO_BRIDGE, m->u.name, 0);
 	if (IS_ERR(match) || match->family != NFPROTO_BRIDGE) {
+		if (!IS_ERR(match))
+			module_put(match->me);
 		request_module("ebt_%s", m->u.name);
 		match = xt_find_match(NFPROTO_BRIDGE, m->u.name, 0);
 	}

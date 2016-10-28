@@ -1160,7 +1160,6 @@ bool scsi_use_blk_mq = true;
 bool scsi_use_blk_mq = false;
 #endif
 module_param_named(use_blk_mq, scsi_use_blk_mq, bool, S_IWUSR | S_IRUGO);
-EXPORT_SYMBOL_GPL(scsi_use_blk_mq);
 
 static int __init init_scsi(void)
 {

@@ -8,6 +8,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <drm/drm_fb_helper.h>
 
 #include "bochs.h"
 
@@ -153,7 +154,7 @@ static int bochs_kick_out_firmware_fb(struct pci_dev *pdev)
 
 	ap->ranges[0].base = pci_resource_start(pdev, 0);
 	ap->ranges[0].size = pci_resource_len(pdev, 0);
-	remove_conflicting_framebuffers(ap, "bochsdrmfb", false);
+	drm_fb_helper_remove_conflicting_framebuffers(ap, "bochsdrmfb", false);
 	kfree(ap);
 
 	return 0;
@@ -162,7 +163,14 @@ static int bochs_kick_out_firmware_fb(struct pci_dev *pdev)
 static int bochs_pci_probe(struct pci_dev *pdev,
 			   const struct pci_device_id *ent)
 {
+	unsigned long fbsize;
 	int ret;
+
+	fbsize = pci_resource_len(pdev, 0);
+	if (fbsize < 4 * 1024 * 1024) {
+		DRM_ERROR("less than 4 MB video memory, ignoring device\n");
+		return -ENOMEM;
+	}
 
 	ret = bochs_kick_out_firmware_fb(pdev);
 	if (ret)

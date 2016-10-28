@@ -54,6 +54,7 @@ static LIST_HEAD(pcache);
  */
 static u8 *container;
 static size_t container_size;
+static bool ucode_builtin;
 
 static u32 ucode_new_rev;
 static u8 amd_ucode_patch[PATCH_MAX_SIZE];
@@ -281,18 +282,22 @@ static bool __init load_builtin_amd_microcode(struct cpio_data *cp,
 void __init load_ucode_amd_bsp(unsigned int family)
 {
 	struct cpio_data cp;
+	bool *builtin;
 	void **data;
 	size_t *size;
 
 #ifdef CONFIG_X86_32
 	data =  (void **)__pa_nodebug(&ucode_cpio.data);
 	size = (size_t *)__pa_nodebug(&ucode_cpio.size);
+	builtin = (bool *)__pa_nodebug(&ucode_builtin);
 #else
 	data = &ucode_cpio.data;
 	size = &ucode_cpio.size;
+	builtin = &ucode_builtin;
 #endif
 
-	if (!load_builtin_amd_microcode(&cp, family))
+	*builtin = load_builtin_amd_microcode(&cp, family);
+	if (!*builtin)
 		cp = find_ucode_in_initrd();
 
 	if (!(cp.data && cp.size))
@@ -373,7 +378,8 @@ void load_ucode_amd_ap(void)
 		return;
 
 	/* Add CONFIG_RANDOMIZE_MEMORY offset. */
-	cont += PAGE_OFFSET - __PAGE_OFFSET_BASE;
+	if (!ucode_builtin)
+		cont += PAGE_OFFSET - __PAGE_OFFSET_BASE;
 
 	eax = cpuid_eax(0x00000001);
 	eq  = (struct equiv_cpu_entry *)(cont + CONTAINER_HDR_SZ);
@@ -439,7 +445,8 @@ int __init save_microcode_in_initrd_amd(void)
 		container = cont_va;
 
 	/* Add CONFIG_RANDOMIZE_MEMORY offset. */
-	container += PAGE_OFFSET - __PAGE_OFFSET_BASE;
+	if (!ucode_builtin)
+		container += PAGE_OFFSET - __PAGE_OFFSET_BASE;
 
 	eax   = cpuid_eax(0x00000001);
 	eax   = ((eax >> 8) & 0xf) + ((eax >> 20) & 0xff);

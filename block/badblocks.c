@@ -354,7 +354,8 @@ int badblocks_clear(struct badblocks *bb, sector_t s, int sectors)
 		 * current range.  Earlier ranges could also overlap,
 		 * but only this one can overlap the end of the range.
 		 */
-		if (BB_OFFSET(p[lo]) + BB_LEN(p[lo]) > target) {
+		if ((BB_OFFSET(p[lo]) + BB_LEN(p[lo]) > target) &&
+		    (BB_OFFSET(p[lo]) < target)) {
 			/* Partial overlap, leave the tail of this range */
 			int ack = BB_ACK(p[lo]);
 			sector_t a = BB_OFFSET(p[lo]);
@@ -377,7 +378,8 @@ int badblocks_clear(struct badblocks *bb, sector_t s, int sectors)
 			lo--;
 		}
 		while (lo >= 0 &&
-		       BB_OFFSET(p[lo]) + BB_LEN(p[lo]) > s) {
+		       (BB_OFFSET(p[lo]) + BB_LEN(p[lo]) > s) &&
+		       (BB_OFFSET(p[lo]) < target)) {
 			/* This range does overlap */
 			if (BB_OFFSET(p[lo]) < s) {
 				/* Keep the early parts of this range. */

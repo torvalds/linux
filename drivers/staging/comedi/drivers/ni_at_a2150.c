@@ -1,62 +1,47 @@
 /*
-    comedi/drivers/ni_at_a2150.c
-    Driver for National Instruments AT-A2150 boards
-    Copyright (C) 2001, 2002 Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Comedi driver for National Instruments AT-A2150 boards
+ * Copyright (C) 2001, 2002 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: ni_at_a2150
-Description: National Instruments AT-A2150
-Author: Frank Mori Hess
-Status: works
-Devices: [National Instruments] AT-A2150C (at_a2150c), AT-2150S (at_a2150s)
-
-If you want to ac couple the board's inputs, use AREF_OTHER.
-
-Configuration options:
-  [0] - I/O port base address
-  [1] - IRQ (optional, required for timed conversions)
-  [2] - DMA (optional, required for timed conversions)
-
-*/
-/*
-Yet another driver for obsolete hardware brought to you by Frank Hess.
-Testing and debugging help provided by Dave Andruczyk.
-
-This driver supports the boards:
-
-AT-A2150C
-AT-A2150S
-
-The only difference is their master clock frequencies.
-
-Options:
-	[0] - base io address
-	[1] - irq
-	[2] - dma channel
-
-References (from ftp://ftp.natinst.com/support/manuals):
-
-	   320360.pdf  AT-A2150 User Manual
-
-TODO:
-
-analog level triggering
-TRIG_WAKE_EOS
-
-*/
+ * Driver: ni_at_a2150
+ * Description: National Instruments AT-A2150
+ * Author: Frank Mori Hess
+ * Status: works
+ * Devices: [National Instruments] AT-A2150C (at_a2150c), AT-2150S (at_a2150s)
+ *
+ * Configuration options:
+ *   [0] - I/O port base address
+ *   [1] - IRQ (optional, required for timed conversions)
+ *   [2] - DMA (optional, required for timed conversions)
+ *
+ * Yet another driver for obsolete hardware brought to you by Frank Hess.
+ * Testing and debugging help provided by Dave Andruczyk.
+ *
+ * If you want to ac couple the board's inputs, use AREF_OTHER.
+ *
+ * The only difference in the boards is their master clock frequencies.
+ *
+ * References (from ftp://ftp.natinst.com/support/manuals):
+ *   320360.pdf  AT-A2150 User Manual
+ *
+ * TODO:
+ * - analog level triggering
+ * - TRIG_WAKE_EOS
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -73,48 +58,52 @@ TRIG_WAKE_EOS
 
 /* Registers and bits */
 #define CONFIG_REG		0x0
-#define   CHANNEL_BITS(x)		((x) & 0x7)
+#define   CHANNEL_BITS(x)	((x) & 0x7)
 #define   CHANNEL_MASK		0x7
-#define   CLOCK_SELECT_BITS(x)		(((x) & 0x3) << 3)
-#define   CLOCK_DIVISOR_BITS(x)		(((x) & 0x3) << 5)
+#define   CLOCK_SELECT_BITS(x)	(((x) & 0x3) << 3)
+#define   CLOCK_DIVISOR_BITS(x)	(((x) & 0x3) << 5)
 #define   CLOCK_MASK		(0xf << 3)
-#define   ENABLE0_BIT		0x80	/*  enable (don't internally ground) channels 0 and 1 */
-#define   ENABLE1_BIT		0x100	/*  enable (don't internally ground) channels 2 and 3 */
-#define   AC0_BIT		0x200	/*  ac couple channels 0,1 */
-#define   AC1_BIT		0x400	/*  ac couple channels 2,3 */
-#define   APD_BIT		0x800	/*  analog power down */
-#define   DPD_BIT		0x1000	/*  digital power down */
-#define TRIGGER_REG		0x2	/*  trigger config register */
-#define   POST_TRIGGER_BITS		0x2
-#define   DELAY_TRIGGER_BITS		0x3
-#define   HW_TRIG_EN		0x10	/*  enable hardware trigger */
-#define FIFO_START_REG		0x6	/*  software start aquistion trigger */
-#define FIFO_RESET_REG		0x8	/*  clears fifo + fifo flags */
-#define FIFO_DATA_REG		0xa	/*  read data */
-#define DMA_TC_CLEAR_REG		0xe	/*  clear dma terminal count interrupt */
-#define STATUS_REG		0x12	/*  read only */
-#define   FNE_BIT		0x1	/*  fifo not empty */
-#define   OVFL_BIT		0x8	/*  fifo overflow */
-#define   EDAQ_BIT		0x10	/*  end of acquisition interrupt */
-#define   DCAL_BIT		0x20	/*  offset calibration in progress */
-#define   INTR_BIT		0x40	/*  interrupt has occurred */
-#define   DMA_TC_BIT		0x80	/*  dma terminal count interrupt has occurred */
-#define   ID_BITS(x)	(((x) >> 8) & 0x3)
-#define IRQ_DMA_CNTRL_REG		0x12	/*  write only */
-#define   DMA_CHAN_BITS(x)		((x) & 0x7)	/*  sets dma channel */
-#define   DMA_EN_BIT		0x8	/*  enables dma */
-#define   IRQ_LVL_BITS(x)		(((x) & 0xf) << 4)	/*  sets irq level */
-#define   FIFO_INTR_EN_BIT		0x100	/*  enable fifo interrupts */
-#define   FIFO_INTR_FHF_BIT		0x200	/*  interrupt fifo half full */
-#define   DMA_INTR_EN_BIT		0x800	/*  enable interrupt on dma terminal count */
-#define   DMA_DEM_EN_BIT	0x1000	/*  enables demand mode dma */
+/* enable (don't internally ground) channels 0 and 1 */
+#define   ENABLE0_BIT		0x80
+/* enable (don't internally ground) channels 2 and 3 */
+#define   ENABLE1_BIT		0x100
+#define   AC0_BIT		0x200	/* ac couple channels 0,1 */
+#define   AC1_BIT		0x400	/* ac couple channels 2,3 */
+#define   APD_BIT		0x800	/* analog power down */
+#define   DPD_BIT		0x1000	/* digital power down */
+#define TRIGGER_REG		0x2	/* trigger config register */
+#define   POST_TRIGGER_BITS	0x2
+#define   DELAY_TRIGGER_BITS	0x3
+#define   HW_TRIG_EN		0x10	/* enable hardware trigger */
+#define FIFO_START_REG		0x6	/* software start aquistion trigger */
+#define FIFO_RESET_REG		0x8	/* clears fifo + fifo flags */
+#define FIFO_DATA_REG		0xa	/* read data */
+#define DMA_TC_CLEAR_REG	0xe	/* clear dma terminal count interrupt */
+#define STATUS_REG		0x12	/* read only */
+#define   FNE_BIT		0x1	/* fifo not empty */
+#define   OVFL_BIT		0x8	/* fifo overflow */
+#define   EDAQ_BIT		0x10	/* end of acquisition interrupt */
+#define   DCAL_BIT		0x20	/* offset calibration in progress */
+#define   INTR_BIT		0x40	/* interrupt has occurred */
+/* dma terminal count interrupt has occurred */
+#define   DMA_TC_BIT		0x80
+#define   ID_BITS(x)		(((x) >> 8) & 0x3)
+#define IRQ_DMA_CNTRL_REG	0x12			/* write only */
+#define   DMA_CHAN_BITS(x)	((x) & 0x7)		/* sets dma channel */
+#define   DMA_EN_BIT		0x8			/* enables dma */
+#define   IRQ_LVL_BITS(x)	(((x) & 0xf) << 4)	/* sets irq level */
+#define   FIFO_INTR_EN_BIT	0x100	/* enable fifo interrupts */
+#define   FIFO_INTR_FHF_BIT	0x200	/* interrupt fifo half full */
+/* enable interrupt on dma terminal count */
+#define   DMA_INTR_EN_BIT	0x800
+#define   DMA_DEM_EN_BIT	0x1000	/* enables demand mode dma */
 #define I8253_BASE_REG		0x14
 
 struct a2150_board {
 	const char *name;
-	int clock[4];		/*  master clock periods, in nanoseconds */
-	int num_clocks;		/*  number of available master clock speeds */
-	int ai_speed;		/*  maximum conversion rate in nanoseconds */
+	int clock[4];		/* master clock periods, in nanoseconds */
+	int num_clocks;		/* number of available master clock speeds */
+	int ai_speed;		/* maximum conversion rate in nanoseconds */
 };
 
 /* analog input range */
@@ -144,8 +133,8 @@ static const struct a2150_board a2150_boards[] = {
 struct a2150_private {
 	struct comedi_isadma *dma;
 	unsigned int count;	/* number of data points left to be taken */
-	int irq_dma_bits;	/*  irq/dma register bits */
-	int config_bits;	/*  config register bits */
+	int irq_dma_bits;	/* irq/dma register bits */
+	int config_bits;	/* config register bits */
 };
 
 /* interrupt service routine */
@@ -189,13 +178,13 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	 */
 	residue = comedi_isadma_disable(desc->chan);
 
-	/*  figure out how many points to read */
+	/* figure out how many points to read */
 	max_points = comedi_bytes_to_samples(s, desc->size);
 	num_points = max_points - comedi_bytes_to_samples(s, residue);
 	if (devpriv->count < num_points && cmd->stop_src == TRIG_COUNT)
 		num_points = devpriv->count;
 
-	/*  figure out how many points will be stored next time */
+	/* figure out how many points will be stored next time */
 	leftover = 0;
 	if (cmd->stop_src == TRIG_NONE) {
 		leftover = comedi_bytes_to_samples(s, desc->size);
@@ -204,7 +193,8 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 		if (leftover > max_points)
 			leftover = max_points;
 	}
-	/* there should only be a residue if collection was stopped by having
+	/*
+	 * There should only be a residue if collection was stopped by having
 	 * the stop_src set to an external trigger, in which case there
 	 * will be no more data
 	 */
@@ -214,7 +204,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	for (i = 0; i < num_points; i++) {
 		/* write data point to comedi buffer */
 		dpnt = buf[i];
-		/*  convert from 2's complement to unsigned coding */
+		/* convert from 2's complement to unsigned coding */
 		dpnt ^= 0x8000;
 		comedi_buf_write_samples(s, &dpnt, 1);
 		if (cmd->stop_src == TRIG_COUNT) {
@@ -244,14 +234,14 @@ static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_isadma *dma = devpriv->dma;
 	struct comedi_isadma_desc *desc = &dma->desc[0];
 
-	/*  disable dma on card */
+	/* disable dma on card */
 	devpriv->irq_dma_bits &= ~DMA_INTR_EN_BIT & ~DMA_EN_BIT;
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
 
-	/*  disable computer's dma */
+	/* disable computer's dma */
 	comedi_isadma_disable(desc->chan);
 
-	/*  clear fifo and reset triggering circuitry */
+	/* clear fifo and reset triggering circuitry */
 	outw(0, dev->iobase + FIFO_RESET_REG);
 
 	return 0;
@@ -270,7 +260,7 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
 	int i, j;
 
-	/*  initialize greatest lower and least upper bounds */
+	/* initialize greatest lower and least upper bounds */
 	lub_divisor_shift = 3;
 	lub_index = 0;
 	lub = board->clock[lub_index] * (1 << lub_divisor_shift);
@@ -278,19 +268,19 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 	glb_index = board->num_clocks - 1;
 	glb = board->clock[glb_index] * (1 << glb_divisor_shift);
 
-	/*  make sure period is in available range */
+	/* make sure period is in available range */
 	if (*period < glb)
 		*period = glb;
 	if (*period > lub)
 		*period = lub;
 
-	/*  we can multiply period by 1, 2, 4, or 8, using (1 << i) */
+	/* we can multiply period by 1, 2, 4, or 8, using (1 << i) */
 	for (i = 0; i < 4; i++) {
-		/*  there are a maximum of 4 master clocks */
+		/* there are a maximum of 4 master clocks */
 		for (j = 0; j < board->num_clocks; j++) {
-			/*  temp is the period in nanosec we are evaluating */
+			/* temp is the period in nanosec we are evaluating */
 			temp = board->clock[j] * (1 << i);
-			/*  if it is the best match yet */
+			/* if it is the best match yet */
 			if (temp < lub && temp >= *period) {
 				lub_divisor_shift = i;
 				lub_index = j;
@@ -306,7 +296,7 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 	switch (flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_NEAREST:
 	default:
-		/*  if least upper bound is better approximation */
+		/* if least upper bound is better approximation */
 		if (lub - *period < *period - glb)
 			*period = lub;
 		else
@@ -320,7 +310,7 @@ static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 		break;
 	}
 
-	/*  set clock bits for config register appropriately */
+	/* set clock bits for config register appropriately */
 	devpriv->config_bits &= ~CLOCK_MASK;
 	if (*period == lub) {
 		devpriv->config_bits |=
@@ -495,7 +485,7 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			"dma incompatible with hard real-time interrupt (CMDF_PRIORITY), aborting\n");
 		return -1;
 	}
-	/*  clear fifo and reset triggering circuitry */
+	/* clear fifo and reset triggering circuitry */
 	outw(0, dev->iobase + FIFO_RESET_REG);
 
 	/* setup chanlist */
@@ -503,7 +493,7 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			       cmd->chanlist_len) < 0)
 		return -1;
 
-	/*  setup ac/dc coupling */
+	/* setup ac/dc coupling */
 	if (CR_AREF(cmd->chanlist[0]) == AREF_OTHER)
 		devpriv->config_bits |= AC0_BIT;
 	else
@@ -513,18 +503,18 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	else
 		devpriv->config_bits &= ~AC1_BIT;
 
-	/*  setup timing */
+	/* setup timing */
 	a2150_get_timing(dev, &cmd->scan_begin_arg, cmd->flags);
 
-	/*  send timing, channel, config bits */
+	/* send timing, channel, config bits */
 	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
 
-	/*  initialize number of samples remaining */
+	/* initialize number of samples remaining */
 	devpriv->count = cmd->stop_arg * cmd->chanlist_len;
 
 	comedi_isadma_disable(desc->chan);
 
-	/*  set size of transfer to fill in 1/3 second */
+	/* set size of transfer to fill in 1/3 second */
 #define ONE_THIRD_SECOND 333333333
 	desc->size = comedi_bytes_per_sample(s) * cmd->chanlist_len *
 		    ONE_THIRD_SECOND / cmd->scan_begin_arg;
@@ -536,40 +526,45 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	comedi_isadma_program(desc);
 
-	/* clear dma interrupt before enabling it, to try and get rid of that
-	 * one spurious interrupt that has been happening */
+	/*
+	 * Clear dma interrupt before enabling it, to try and get rid of
+	 * that one spurious interrupt that has been happening.
+	 */
 	outw(0x00, dev->iobase + DMA_TC_CLEAR_REG);
 
-	/*  enable dma on card */
+	/* enable dma on card */
 	devpriv->irq_dma_bits |= DMA_INTR_EN_BIT | DMA_EN_BIT;
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
 
-	/*  may need to wait 72 sampling periods if timing was changed */
+	/* may need to wait 72 sampling periods if timing was changed */
 	comedi_8254_load(dev->pacer, 2, 72, I8254_MODE0 | I8254_BINARY);
 
-	/*  setup start triggering */
+	/* setup start triggering */
 	trigger_bits = 0;
-	/*  decide if we need to wait 72 periods for valid data */
+	/* decide if we need to wait 72 periods for valid data */
 	if (cmd->start_src == TRIG_NOW &&
 	    (old_config_bits & CLOCK_MASK) !=
 	    (devpriv->config_bits & CLOCK_MASK)) {
-		/*  set trigger source to delay trigger */
+		/* set trigger source to delay trigger */
 		trigger_bits |= DELAY_TRIGGER_BITS;
 	} else {
-		/*  otherwise no delay */
+		/* otherwise no delay */
 		trigger_bits |= POST_TRIGGER_BITS;
 	}
-	/*  enable external hardware trigger */
+	/* enable external hardware trigger */
 	if (cmd->start_src == TRIG_EXT) {
 		trigger_bits |= HW_TRIG_EN;
 	} else if (cmd->start_src == TRIG_OTHER) {
-		/*  XXX add support for level/slope start trigger using TRIG_OTHER */
+		/*
+		 * XXX add support for level/slope start trigger
+		 * using TRIG_OTHER
+		 */
 		dev_err(dev->class_dev, "you shouldn't see this?\n");
 	}
-	/*  send trigger config bits */
+	/* send trigger config bits */
 	outw(trigger_bits, dev->iobase + TRIGGER_REG);
 
-	/*  start acquisition for soft trigger */
+	/* start acquisition for soft trigger */
 	if (cmd->start_src == TRIG_NOW)
 		outw(0, dev->iobase + FIFO_START_REG);
 
@@ -596,28 +591,28 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int n;
 	int ret;
 
-	/*  clear fifo and reset triggering circuitry */
+	/* clear fifo and reset triggering circuitry */
 	outw(0, dev->iobase + FIFO_RESET_REG);
 
 	/* setup chanlist */
 	if (a2150_set_chanlist(dev, CR_CHAN(insn->chanspec), 1) < 0)
 		return -1;
 
-	/*  set dc coupling */
+	/* set dc coupling */
 	devpriv->config_bits &= ~AC0_BIT;
 	devpriv->config_bits &= ~AC1_BIT;
 
-	/*  send timing, channel, config bits */
+	/* send timing, channel, config bits */
 	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
 
-	/*  disable dma on card */
+	/* disable dma on card */
 	devpriv->irq_dma_bits &= ~DMA_INTR_EN_BIT & ~DMA_EN_BIT;
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
 
-	/*  setup start triggering */
+	/* setup start triggering */
 	outw(0, dev->iobase + TRIGGER_REG);
 
-	/*  start acquisition for soft trigger */
+	/* start acquisition for soft trigger */
 	outw(0, dev->iobase + FIFO_START_REG);
 
 	/*
@@ -632,7 +627,7 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		inw(dev->iobase + FIFO_DATA_REG);
 	}
 
-	/*  read data */
+	/* read data */
 	for (n = 0; n < insn->n; n++) {
 		ret = comedi_timeout(dev, s, insn, a2150_ai_eoc, 0);
 		if (ret)
@@ -642,7 +637,7 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		data[n] ^= 0x8000;
 	}
 
-	/*  clear fifo and reset triggering circuitry */
+	/* clear fifo and reset triggering circuitry */
 	outw(0, dev->iobase + FIFO_RESET_REG);
 
 	return n;
@@ -749,16 +744,16 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->cancel = a2150_cancel;
 	}
 
-	/*  set card's irq and dma levels */
+	/* set card's irq and dma levels */
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
 
-	/*  reset and sync adc clock circuitry */
+	/* reset and sync adc clock circuitry */
 	outw_p(DPD_BIT | APD_BIT, dev->iobase + CONFIG_REG);
 	outw_p(DPD_BIT, dev->iobase + CONFIG_REG);
-	/*  initialize configuration register */
+	/* initialize configuration register */
 	devpriv->config_bits = 0;
 	outw(devpriv->config_bits, dev->iobase + CONFIG_REG);
-	/*  wait until offset calibration is done, then enable analog inputs */
+	/* wait until offset calibration is done, then enable analog inputs */
 	for (i = 0; i < timeout; i++) {
 		if ((DCAL_BIT & inw(dev->iobase + STATUS_REG)) == 0)
 			break;

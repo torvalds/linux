@@ -184,15 +184,15 @@ static SUNXI_CCU_MP_WITH_MUX(apb2_clk, "apb2", apb2_parents, 0x058,
 			     0);
 
 static const char * const ahb2_parents[] = { "ahb1" , "pll-periph0" };
+static const struct ccu_mux_fixed_prediv ahb2_fixed_predivs[] = {
+	{ .index = 1, .div = 2 },
+};
 static struct ccu_mux ahb2_clk = {
 	.mux		= {
 		.shift	= 0,
 		.width	= 1,
-
-		.fixed_prediv	= {
-			.index	= 1,
-			.div	= 2,
-		},
+		.fixed_predivs	= ahb2_fixed_predivs,
+		.n_predivs	= ARRAY_SIZE(ahb2_fixed_predivs),
 	},
 
 	.common		= {
@@ -783,14 +783,14 @@ static struct ccu_reset_map sun8i_h3_ccu_resets[] = {
 	[RST_BUS_I2S1]		=  { 0x2d0, BIT(13) },
 	[RST_BUS_I2S2]		=  { 0x2d0, BIT(14) },
 
-	[RST_BUS_I2C0]		=  { 0x2d4, BIT(0) },
-	[RST_BUS_I2C1]		=  { 0x2d4, BIT(1) },
-	[RST_BUS_I2C2]		=  { 0x2d4, BIT(2) },
-	[RST_BUS_UART0]		=  { 0x2d4, BIT(16) },
-	[RST_BUS_UART1]		=  { 0x2d4, BIT(17) },
-	[RST_BUS_UART2]		=  { 0x2d4, BIT(18) },
-	[RST_BUS_UART3]		=  { 0x2d4, BIT(19) },
-	[RST_BUS_SCR]		=  { 0x2d4, BIT(20) },
+	[RST_BUS_I2C0]		=  { 0x2d8, BIT(0) },
+	[RST_BUS_I2C1]		=  { 0x2d8, BIT(1) },
+	[RST_BUS_I2C2]		=  { 0x2d8, BIT(2) },
+	[RST_BUS_UART0]		=  { 0x2d8, BIT(16) },
+	[RST_BUS_UART1]		=  { 0x2d8, BIT(17) },
+	[RST_BUS_UART2]		=  { 0x2d8, BIT(18) },
+	[RST_BUS_UART3]		=  { 0x2d8, BIT(19) },
+	[RST_BUS_SCR]		=  { 0x2d8, BIT(20) },
 };
 
 static const struct sunxi_ccu_desc sun8i_h3_ccu_desc = {

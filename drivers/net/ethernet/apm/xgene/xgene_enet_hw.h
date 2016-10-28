@@ -124,6 +124,12 @@ enum xgene_enet_rm {
 #define MAC_READ_REG_OFFSET		0x0c
 #define MAC_COMMAND_DONE_REG_OFFSET	0x10
 
+#define PCS_ADDR_REG_OFFSET		0x00
+#define PCS_COMMAND_REG_OFFSET		0x04
+#define PCS_WRITE_REG_OFFSET		0x08
+#define PCS_READ_REG_OFFSET		0x0c
+#define PCS_COMMAND_DONE_REG_OFFSET	0x10
+
 #define MII_MGMT_CONFIG_ADDR		0x20
 #define MII_MGMT_COMMAND_ADDR		0x24
 #define MII_MGMT_ADDRESS_ADDR		0x28
@@ -231,6 +237,8 @@ enum xgene_enet_rm {
 #define TCPHDR_LEN			6
 #define IPHDR_POS			6
 #define IPHDR_LEN			6
+#define MSS_POS				20
+#define MSS_LEN				2
 #define EC_POS				22	/* Enable checksum */
 #define EC_LEN				1
 #define ET_POS				23	/* Enable TSO */
@@ -246,6 +254,11 @@ enum xgene_enet_rm {
 #define DATALEN_MASK			GENMASK(11, 0)
 
 #define LAST_BUFFER			(0x7800ULL << BUFDATALEN_POS)
+
+#define TSO_MSS0_POS			0
+#define TSO_MSS0_LEN			14
+#define TSO_MSS1_POS			16
+#define TSO_MSS1_LEN			14
 
 struct xgene_enet_raw_desc {
 	__le64 m0;

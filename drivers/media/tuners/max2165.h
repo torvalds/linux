@@ -22,8 +22,6 @@
 #ifndef __MAX2165_H__
 #define __MAX2165_H__
 
-#include <linux/kconfig.h>
-
 struct dvb_frontend;
 struct i2c_adapter;
 

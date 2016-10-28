@@ -1199,14 +1199,24 @@ retry:
 			inode_unlock((*ac)->ac_inode);
 
 			ret = ocfs2_try_to_free_truncate_log(osb, bits_wanted);
-			if (ret == 1)
+			if (ret == 1) {
+				iput((*ac)->ac_inode);
+				(*ac)->ac_inode = NULL;
 				goto retry;
+			}
 
 			if (ret < 0)
 				mlog_errno(ret);
 
 			inode_lock((*ac)->ac_inode);
-			ocfs2_inode_lock((*ac)->ac_inode, NULL, 1);
+			ret = ocfs2_inode_lock((*ac)->ac_inode, NULL, 1);
+			if (ret < 0) {
+				mlog_errno(ret);
+				inode_unlock((*ac)->ac_inode);
+				iput((*ac)->ac_inode);
+				(*ac)->ac_inode = NULL;
+				goto bail;
+			}
 		}
 		if (status < 0) {
 			if (status != -ENOSPC)

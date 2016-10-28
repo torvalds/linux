@@ -173,7 +173,8 @@ extern int	affs_link(struct dentry *olddentry, struct inode *dir,
 extern int	affs_symlink(struct inode *dir, struct dentry *dentry,
 			     const char *symname);
 extern int	affs_rename(struct inode *old_dir, struct dentry *old_dentry,
-			    struct inode *new_dir, struct dentry *new_dentry);
+			    struct inode *new_dir, struct dentry *new_dentry,
+			    unsigned int flags);
 
 /* inode.c */
 

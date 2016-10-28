@@ -138,6 +138,21 @@ static void rvt_unmap_sg(struct ib_device *dev,
 	/* This is a stub, nothing to be done here */
 }
 
+static int rvt_map_sg_attrs(struct ib_device *dev, struct scatterlist *sgl,
+			    int nents, enum dma_data_direction direction,
+			    unsigned long attrs)
+{
+	return rvt_map_sg(dev, sgl, nents, direction);
+}
+
+static void rvt_unmap_sg_attrs(struct ib_device *dev,
+			       struct scatterlist *sg, int nents,
+			       enum dma_data_direction direction,
+			       unsigned long attrs)
+{
+	return rvt_unmap_sg(dev, sg, nents, direction);
+}
+
 static void rvt_sync_single_for_cpu(struct ib_device *dev, u64 addr,
 				    size_t size, enum dma_data_direction dir)
 {
@@ -177,6 +192,8 @@ struct ib_dma_mapping_ops rvt_default_dma_mapping_ops = {
 	.unmap_page = rvt_dma_unmap_page,
 	.map_sg = rvt_map_sg,
 	.unmap_sg = rvt_unmap_sg,
+	.map_sg_attrs = rvt_map_sg_attrs,
+	.unmap_sg_attrs = rvt_unmap_sg_attrs,
 	.sync_single_for_cpu = rvt_sync_single_for_cpu,
 	.sync_single_for_device = rvt_sync_single_for_device,
 	.alloc_coherent = rvt_dma_alloc_coherent,

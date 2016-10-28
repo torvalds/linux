@@ -70,6 +70,11 @@ EXPORT_SYMBOL_GPL(__intel_mid_cpu_chip);
 
 static void intel_mid_power_off(void)
 {
+	/* Shut down South Complex via PWRMU */
+	intel_mid_pwr_power_off();
+
+	/* Only for Tangier, the rest will ignore this command */
+	intel_scu_ipc_simple_command(IPCMSG_COLD_OFF, 1);
 };
 
 static void intel_mid_reboot(void)

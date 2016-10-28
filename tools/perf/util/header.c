@@ -828,8 +828,7 @@ static int write_group_desc(int fd, struct perf_header *h __maybe_unused,
  * default get_cpuid(): nothing gets recorded
  * actual implementation must be in arch/$(ARCH)/util/header.c
  */
-int __attribute__ ((weak)) get_cpuid(char *buffer __maybe_unused,
-				     size_t sz __maybe_unused)
+int __weak get_cpuid(char *buffer __maybe_unused, size_t sz __maybe_unused)
 {
 	return -1;
 }
@@ -1896,7 +1895,6 @@ static int process_numa_topology(struct perf_file_section *section __maybe_unuse
 	if (ph->needs_swap)
 		nr = bswap_32(nr);
 
-	ph->env.nr_numa_nodes = nr;
 	nodes = zalloc(sizeof(*nodes) * nr);
 	if (!nodes)
 		return -ENOMEM;
@@ -1933,6 +1931,7 @@ static int process_numa_topology(struct perf_file_section *section __maybe_unuse
 
 		free(str);
 	}
+	ph->env.nr_numa_nodes = nr;
 	ph->env.numa_nodes = nodes;
 	return 0;
 

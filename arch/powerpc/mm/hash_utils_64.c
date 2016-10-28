@@ -93,6 +93,9 @@ static unsigned long _SDR1;
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 EXPORT_SYMBOL_GPL(mmu_psize_defs);
 
+u8 hpte_page_sizes[1 << LP_BITS];
+EXPORT_SYMBOL_GPL(hpte_page_sizes);
+
 struct hash_pte *htab_address;
 unsigned long htab_size_bytes;
 unsigned long htab_hash_mask;
@@ -526,7 +529,7 @@ static bool might_have_hea(void)
 	 */
 #ifdef CONFIG_IBMEBUS
 	return !cpu_has_feature(CPU_FTR_ARCH_207S) &&
-		!firmware_has_feature(FW_FEATURE_SPLPAR);
+		firmware_has_feature(FW_FEATURE_SPLPAR);
 #else
 	return false;
 #endif
@@ -564,8 +567,60 @@ static void __init htab_scan_page_sizes(void)
 #endif /* CONFIG_HUGETLB_PAGE */
 }
 
+/*
+ * Fill in the hpte_page_sizes[] array.
+ * We go through the mmu_psize_defs[] array looking for all the
+ * supported base/actual page size combinations.  Each combination
+ * has a unique pagesize encoding (penc) value in the low bits of
+ * the LP field of the HPTE.  For actual page sizes less than 1MB,
+ * some of the upper LP bits are used for RPN bits, meaning that
+ * we need to fill in several entries in hpte_page_sizes[].
+ *
+ * In diagrammatic form, with r = RPN bits and z = page size bits:
+ *        PTE LP     actual page size
+ *    rrrr rrrz		>=8KB
+ *    rrrr rrzz		>=16KB
+ *    rrrr rzzz		>=32KB
+ *    rrrr zzzz		>=64KB
+ *    ...
+ *
+ * The zzzz bits are implementation-specific but are chosen so that
+ * no encoding for a larger page size uses the same value in its
+ * low-order N bits as the encoding for the 2^(12+N) byte page size
+ * (if it exists).
+ */
+static void init_hpte_page_sizes(void)
+{
+	long int ap, bp;
+	long int shift, penc;
+
+	for (bp = 0; bp < MMU_PAGE_COUNT; ++bp) {
+		if (!mmu_psize_defs[bp].shift)
+			continue;	/* not a supported page size */
+		for (ap = bp; ap < MMU_PAGE_COUNT; ++ap) {
+			penc = mmu_psize_defs[bp].penc[ap];
+			if (penc == -1)
+				continue;
+			shift = mmu_psize_defs[ap].shift - LP_SHIFT;
+			if (shift <= 0)
+				continue;	/* should never happen */
+			/*
+			 * For page sizes less than 1MB, this loop
+			 * replicates the entry for all possible values
+			 * of the rrrr bits.
+			 */
+			while (penc < (1 << LP_BITS)) {
+				hpte_page_sizes[penc] = (ap << 4) | bp;
+				penc += 1 << shift;
+			}
+		}
+	}
+}
+
 static void __init htab_init_page_sizes(void)
 {
+	init_hpte_page_sizes();
+
 	if (!debug_pagealloc_enabled()) {
 		/*
 		 * Pick a size for the linear mapping. Currently, we only
@@ -711,6 +766,29 @@ int remove_section_mapping(unsigned long start, unsigned long end)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
+static void update_hid_for_hash(void)
+{
+	unsigned long hid0;
+	unsigned long rb = 3UL << PPC_BITLSHIFT(53); /* IS = 3 */
+
+	asm volatile("ptesync": : :"memory");
+	/* prs = 0, ric = 2, rs = 0, r = 1 is = 3 */
+	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
+		     : : "r"(rb), "i"(0), "i"(0), "i"(2), "r"(0) : "memory");
+	asm volatile("eieio; tlbsync; ptesync; isync; slbia": : :"memory");
+	/*
+	 * now switch the HID
+	 */
+	hid0  = mfspr(SPRN_HID0);
+	hid0 &= ~HID0_POWER9_RADIX;
+	mtspr(SPRN_HID0, hid0);
+	asm volatile("isync": : :"memory");
+
+	/* Wait for it to happen */
+	while ((mfspr(SPRN_HID0) & HID0_POWER9_RADIX))
+		cpu_relax();
+}
+
 static void __init hash_init_partition_table(phys_addr_t hash_table,
 					     unsigned long htab_size)
 {
@@ -737,6 +815,8 @@ static void __init hash_init_partition_table(phys_addr_t hash_table,
 	 */
 	partition_tb->patb1 = 0;
 	pr_info("Partition table %p\n", partition_tb);
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+		update_hid_for_hash();
 	/*
 	 * update partition table control register,
 	 * 64 K size.
@@ -1460,6 +1540,29 @@ out_exit:
 	local_irq_restore(flags);
 }
 
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+static inline void tm_flush_hash_page(int local)
+{
+	/*
+	 * Transactions are not aborted by tlbiel, only tlbie. Without, syncing a
+	 * page back to a block device w/PIO could pick up transactional data
+	 * (bad!) so we force an abort here. Before the sync the page will be
+	 * made read-only, which will flush_hash_page. BIG ISSUE here: if the
+	 * kernel uses a page from userspace without unmapping it first, it may
+	 * see the speculated version.
+	 */
+	if (local && cpu_has_feature(CPU_FTR_TM) && current->thread.regs &&
+	    MSR_TM_ACTIVE(current->thread.regs->msr)) {
+		tm_enable();
+		tm_abort(TM_CAUSE_TLBI);
+	}
+}
+#else
+static inline void tm_flush_hash_page(int local)
+{
+}
+#endif
+
 /* WARNING: This is called from hash_low_64.S, if you change this prototype,
  *          do not forget to update the assembly call site !
  */
@@ -1486,21 +1589,7 @@ void flush_hash_page(unsigned long vpn, real_pte_t pte, int psize, int ssize,
 					     ssize, local);
 	} pte_iterate_hashed_end();
 
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	/* Transactions are not aborted by tlbiel, only tlbie.
-	 * Without, syncing a page back to a block device w/ PIO could pick up
-	 * transactional data (bad!) so we force an abort here.  Before the
-	 * sync the page will be made read-only, which will flush_hash_page.
-	 * BIG ISSUE here: if the kernel uses a page from userspace without
-	 * unmapping it first, it may see the speculated version.
-	 */
-	if (local && cpu_has_feature(CPU_FTR_TM) &&
-	    current->thread.regs &&
-	    MSR_TM_ACTIVE(current->thread.regs->msr)) {
-		tm_enable();
-		tm_abort(TM_CAUSE_TLBI);
-	}
-#endif
+	tm_flush_hash_page(local);
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -1557,22 +1646,7 @@ void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
 					     MMU_PAGE_16M, ssize, local);
 	}
 tm_abort:
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	/* Transactions are not aborted by tlbiel, only tlbie.
-	 * Without, syncing a page back to a block device w/ PIO could pick up
-	 * transactional data (bad!) so we force an abort here.  Before the
-	 * sync the page will be made read-only, which will flush_hash_page.
-	 * BIG ISSUE here: if the kernel uses a page from userspace without
-	 * unmapping it first, it may see the speculated version.
-	 */
-	if (local && cpu_has_feature(CPU_FTR_TM) &&
-	    current->thread.regs &&
-	    MSR_TM_ACTIVE(current->thread.regs->msr)) {
-		tm_enable();
-		tm_abort(TM_CAUSE_TLBI);
-	}
-#endif
-	return;
+	tm_flush_hash_page(local);
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 

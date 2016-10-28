@@ -411,7 +411,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
  *
  * r13 - PACA
  * cr3 - gt if waking up with partial/complete hypervisor state loss
- * cr4 - eq if waking up from complete hypervisor state loss.
+ * cr4 - gt or eq if waking up from complete hypervisor state loss.
  */
 _GLOBAL(pnv_wakeup_tb_loss)
 	ld	r1,PACAR1(r13)
@@ -453,7 +453,7 @@ lwarx_loop2:
 	 * At this stage
 	 * cr2 - eq if first thread to wakeup in core
 	 * cr3-  gt if waking up with partial/complete hypervisor state loss
-	 * cr4 - eq if waking up from complete hypervisor state loss.
+	 * cr4 - gt or eq if waking up from complete hypervisor state loss.
 	 */
 
 	ori	r15,r15,PNV_CORE_IDLE_LOCK_BIT
@@ -481,7 +481,7 @@ first_thread_in_subcore:
 	 * If waking up from sleep, subcore state is not lost. Hence
 	 * skip subcore state restore
 	 */
-	bne	cr4,subcore_state_restored
+	blt	cr4,subcore_state_restored
 
 	/* Restore per-subcore state */
 	ld      r4,_SDR1(r1)
@@ -526,7 +526,7 @@ timebase_resync:
 	 * If waking up from sleep, per core state is not lost, skip to
 	 * clear_lock.
 	 */
-	bne	cr4,clear_lock
+	blt	cr4,clear_lock
 
 	/*
 	 * First thread in the core to wake up and its waking up with
@@ -557,7 +557,7 @@ common_exit:
 	 * If waking up from sleep, hypervisor state is not lost. Hence
 	 * skip hypervisor state restore.
 	 */
-	bne	cr4,hypervisor_state_restored
+	blt	cr4,hypervisor_state_restored
 
 	/* Waking up from winkle */
 

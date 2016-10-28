@@ -559,9 +559,11 @@ static void kvm_destroy_vm_debugfs(struct kvm *kvm)
 
 	debugfs_remove_recursive(kvm->debugfs_dentry);
 
-	for (i = 0; i < kvm_debugfs_num_entries; i++)
-		kfree(kvm->debugfs_stat_data[i]);
-	kfree(kvm->debugfs_stat_data);
+	if (kvm->debugfs_stat_data) {
+		for (i = 0; i < kvm_debugfs_num_entries; i++)
+			kfree(kvm->debugfs_stat_data[i]);
+		kfree(kvm->debugfs_stat_data);
+	}
 }
 
 static int kvm_create_vm_debugfs(struct kvm *kvm, int fd)
@@ -1414,10 +1416,15 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
 		down_read(&current->mm->mmap_sem);
 		npages = get_user_page_nowait(addr, write_fault, page);
 		up_read(&current->mm->mmap_sem);
-	} else
+	} else {
+		unsigned int flags = FOLL_TOUCH | FOLL_HWPOISON;
+
+		if (write_fault)
+			flags |= FOLL_WRITE;
+
 		npages = __get_user_pages_unlocked(current, current->mm, addr, 1,
-						   write_fault, 0, page,
-						   FOLL_TOUCH|FOLL_HWPOISON);
+						   page, flags);
+	}
 	if (npages != 1)
 		return npages;
 
@@ -2369,6 +2376,7 @@ static int kvm_vcpu_release(struct inode *inode, struct file *filp)
 {
 	struct kvm_vcpu *vcpu = filp->private_data;
 
+	debugfs_remove_recursive(vcpu->debugfs_dentry);
 	kvm_put_kvm(vcpu->kvm);
 	return 0;
 }
@@ -2389,6 +2397,32 @@ static struct file_operations kvm_vcpu_fops = {
 static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 {
 	return anon_inode_getfd("kvm-vcpu", &kvm_vcpu_fops, vcpu, O_RDWR | O_CLOEXEC);
+}
+
+static int kvm_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
+{
+	char dir_name[ITOA_MAX_LEN * 2];
+	int ret;
+
+	if (!kvm_arch_has_vcpu_debugfs())
+		return 0;
+
+	if (!debugfs_initialized())
+		return 0;
+
+	snprintf(dir_name, sizeof(dir_name), "vcpu%d", vcpu->vcpu_id);
+	vcpu->debugfs_dentry = debugfs_create_dir(dir_name,
+								vcpu->kvm->debugfs_dentry);
+	if (!vcpu->debugfs_dentry)
+		return -ENOMEM;
+
+	ret = kvm_arch_create_vcpu_debugfs(vcpu);
+	if (ret < 0) {
+		debugfs_remove_recursive(vcpu->debugfs_dentry);
+		return ret;
+	}
+
+	return 0;
 }
 
 /*
@@ -2423,6 +2457,10 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 	if (r)
 		goto vcpu_destroy;
 
+	r = kvm_create_vcpu_debugfs(vcpu);
+	if (r)
+		goto vcpu_destroy;
+
 	mutex_lock(&kvm->lock);
 	if (kvm_get_vcpu_by_id(kvm, id)) {
 		r = -EEXIST;
@@ -2454,6 +2492,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 
 unlock_vcpu_destroy:
 	mutex_unlock(&kvm->lock);
+	debugfs_remove_recursive(vcpu->debugfs_dentry);
 vcpu_destroy:
 	kvm_arch_vcpu_destroy(vcpu);
 vcpu_decrement:
@@ -3619,7 +3658,7 @@ static int vm_stat_get_per_vm(void *data, u64 *val)
 {
 	struct kvm_stat_data *stat_data = (struct kvm_stat_data *)data;
 
-	*val = *(u32 *)((void *)stat_data->kvm + stat_data->offset);
+	*val = *(ulong *)((void *)stat_data->kvm + stat_data->offset);
 
 	return 0;
 }
@@ -3649,7 +3688,7 @@ static int vcpu_stat_get_per_vm(void *data, u64 *val)
 	*val = 0;
 
 	kvm_for_each_vcpu(i, vcpu, stat_data->kvm)
-		*val += *(u32 *)((void *)vcpu + stat_data->offset);
+		*val += *(u64 *)((void *)vcpu + stat_data->offset);
 
 	return 0;
 }
@@ -3807,12 +3846,7 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 	 * kvm_arch_init makes sure there's at most one caller
 	 * for architectures that support multiple implementations,
 	 * like intel and amd on x86.
-	 * kvm_arch_init must be called before kvm_irqfd_init to avoid creating
-	 * conflicts in case kvm is already setup for another implementation.
 	 */
-	r = kvm_irqfd_init();
-	if (r)
-		goto out_irqfd;
 
 	if (!zalloc_cpumask_var(&cpus_hardware_enabled, GFP_KERNEL)) {
 		r = -ENOMEM;
@@ -3894,7 +3928,6 @@ out_free_0a:
 	free_cpumask_var(cpus_hardware_enabled);
 out_free_0:
 	kvm_irqfd_exit();
-out_irqfd:
 	kvm_arch_exit();
 out_fail:
 	return r;

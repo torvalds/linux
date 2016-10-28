@@ -10,11 +10,11 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/omap.h>
 
-#include "skeleton.dtsi"
-
 / {
 	compatible = "ti,omap4430", "ti,omap4";
 	interrupt-parent = <&wakeupgen>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	aliases {
 		i2c0 = &i2c1;

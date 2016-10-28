@@ -58,7 +58,7 @@ enum {
 #define REG_CON_LASTACK   BIT(5) /* 1: send NACK after last received byte */
 #define REG_CON_ACTACK    BIT(6) /* 1: stop if NACK is received */
 
-#define REG_CON_TUNING_MASK GENMASK(15, 8)
+#define REG_CON_TUNING_MASK GENMASK_ULL(15, 8)
 
 #define REG_CON_SDA_CFG(cfg) ((cfg) << 8)
 #define REG_CON_STA_CFG(cfg) ((cfg) << 12)
@@ -742,7 +742,7 @@ static int rk3x_i2c_v1_calc_timings(unsigned long clk_rate,
 				    struct i2c_timings *t,
 				    struct rk3x_i2c_calced_timings *t_calc)
 {
-	unsigned long min_low_ns, min_high_ns, min_total_ns;
+	unsigned long min_low_ns, min_high_ns;
 	unsigned long min_setup_start_ns, min_setup_data_ns;
 	unsigned long min_setup_stop_ns, max_hold_data_ns;
 
@@ -793,7 +793,6 @@ static int rk3x_i2c_v1_calc_timings(unsigned long clk_rate,
 
 	/* These are the min dividers needed for min hold times. */
 	min_div_for_hold = (min_low_div + min_high_div);
-	min_total_ns = min_low_ns + min_high_ns;
 
 	/*
 	 * This is the maximum divider so we don't go over the maximum.
@@ -918,7 +917,7 @@ static void rk3x_i2c_adapt_div(struct rk3x_i2c *i2c, unsigned long clk_rate)
  * Code adapted from i2c-cadence.c.
  *
  * Return:	NOTIFY_STOP if the rate change should be aborted, NOTIFY_OK
- *		to acknowedge the change, NOTIFY_DONE if the notification is
+ *		to acknowledge the change, NOTIFY_DONE if the notification is
  *		considered irrelevant.
  */
 static int rk3x_i2c_clk_notifier_cb(struct notifier_block *nb, unsigned long
@@ -1109,6 +1108,15 @@ static int rk3x_i2c_xfer(struct i2c_adapter *adap,
 	spin_unlock_irqrestore(&i2c->lock, flags);
 
 	return ret < 0 ? ret : num;
+}
+
+static __maybe_unused int rk3x_i2c_resume(struct device *dev)
+{
+	struct rk3x_i2c *i2c = dev_get_drvdata(dev);
+
+	rk3x_i2c_adapt_div(i2c, clk_get_rate(i2c->clk));
+
+	return 0;
 }
 
 static u32 rk3x_i2c_func(struct i2c_adapter *adap)
@@ -1303,10 +1311,8 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	rk3x_i2c_adapt_div(i2c, clk_rate);
 
 	ret = i2c_add_adapter(&i2c->adap);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register adapter\n");
+	if (ret < 0)
 		goto err_clk_notifier;
-	}
 
 	dev_info(&pdev->dev, "Initialized RK3xxx I2C bus at %p\n", i2c->regs);
 
@@ -1334,12 +1340,15 @@ static int rk3x_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(rk3x_i2c_pm_ops, NULL, rk3x_i2c_resume);
+
 static struct platform_driver rk3x_i2c_driver = {
 	.probe   = rk3x_i2c_probe,
 	.remove  = rk3x_i2c_remove,
 	.driver  = {
 		.name  = "rk3x-i2c",
 		.of_match_table = rk3x_i2c_match,
+		.pm = &rk3x_i2c_pm_ops,
 	},
 };
 

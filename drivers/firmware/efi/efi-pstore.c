@@ -125,16 +125,19 @@ static void efi_pstore_scan_sysfs_enter(struct efivar_entry *pos,
  * @entry: deleting entry
  * @turn_off_scanning: Check if a scanning flag should be turned off
  */
-static inline void __efi_pstore_scan_sysfs_exit(struct efivar_entry *entry,
+static inline int __efi_pstore_scan_sysfs_exit(struct efivar_entry *entry,
 						bool turn_off_scanning)
 {
 	if (entry->deleting) {
 		list_del(&entry->list);
 		efivar_entry_iter_end();
 		efivar_unregister(entry);
-		efivar_entry_iter_begin();
+		if (efivar_entry_iter_begin())
+			return -EINTR;
 	} else if (turn_off_scanning)
 		entry->scanning = false;
+
+	return 0;
 }
 
 /**
@@ -144,13 +147,18 @@ static inline void __efi_pstore_scan_sysfs_exit(struct efivar_entry *entry,
  * @head: list head
  * @stop: a flag checking if scanning will stop
  */
-static void efi_pstore_scan_sysfs_exit(struct efivar_entry *pos,
+static int efi_pstore_scan_sysfs_exit(struct efivar_entry *pos,
 				       struct efivar_entry *next,
 				       struct list_head *head, bool stop)
 {
-	__efi_pstore_scan_sysfs_exit(pos, true);
+	int ret = __efi_pstore_scan_sysfs_exit(pos, true);
+
+	if (ret)
+		return ret;
+
 	if (stop)
-		__efi_pstore_scan_sysfs_exit(next, &next->list != head);
+		ret = __efi_pstore_scan_sysfs_exit(next, &next->list != head);
+	return ret;
 }
 
 /**
@@ -172,13 +180,17 @@ static int efi_pstore_sysfs_entry_iter(void *data, struct efivar_entry **pos)
 	struct efivar_entry *entry, *n;
 	struct list_head *head = &efivar_sysfs_list;
 	int size = 0;
+	int ret;
 
 	if (!*pos) {
 		list_for_each_entry_safe(entry, n, head, list) {
 			efi_pstore_scan_sysfs_enter(entry, n, head);
 
 			size = efi_pstore_read_func(entry, data);
-			efi_pstore_scan_sysfs_exit(entry, n, head, size < 0);
+			ret = efi_pstore_scan_sysfs_exit(entry, n, head,
+							 size < 0);
+			if (ret)
+				return ret;
 			if (size)
 				break;
 		}
@@ -190,7 +202,9 @@ static int efi_pstore_sysfs_entry_iter(void *data, struct efivar_entry **pos)
 		efi_pstore_scan_sysfs_enter((*pos), n, head);
 
 		size = efi_pstore_read_func((*pos), data);
-		efi_pstore_scan_sysfs_exit((*pos), n, head, size < 0);
+		ret = efi_pstore_scan_sysfs_exit((*pos), n, head, size < 0);
+		if (ret)
+			return ret;
 		if (size)
 			break;
 	}
@@ -232,7 +246,10 @@ static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 	if (!*data.buf)
 		return -ENOMEM;
 
-	efivar_entry_iter_begin();
+	if (efivar_entry_iter_begin()) {
+		kfree(*data.buf);
+		return -EINTR;
+	}
 	size = efi_pstore_sysfs_entry_iter(&data,
 					   (struct efivar_entry **)&psi->data);
 	efivar_entry_iter_end();
@@ -347,7 +364,8 @@ static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
 	edata.time = time;
 	edata.name = efi_name;
 
-	efivar_entry_iter_begin();
+	if (efivar_entry_iter_begin())
+		return -EINTR;
 	found = __efivar_entry_iter(efi_pstore_erase_func, &efivar_sysfs_list, &edata, &entry);
 
 	if (found && !entry->scanning) {
@@ -362,7 +380,7 @@ static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
 static struct pstore_info efi_pstore_info = {
 	.owner		= THIS_MODULE,
 	.name		= "efi",
-	.flags		= PSTORE_FLAGS_FRAGILE,
+	.flags		= PSTORE_FLAGS_DMESG,
 	.open		= efi_pstore_open,
 	.close		= efi_pstore_close,
 	.read		= efi_pstore_read,

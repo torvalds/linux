@@ -88,11 +88,11 @@ config MTD_NAND_AMS_DELTA
 	  Support for NAND flash on Amstrad E3 (Delta).
 
 config MTD_NAND_OMAP2
-	tristate "NAND Flash device on OMAP2, OMAP3 and OMAP4"
-	depends on ARCH_OMAP2PLUS
+	tristate "NAND Flash device on OMAP2, OMAP3, OMAP4 and Keystone"
+	depends on (ARCH_OMAP2PLUS || ARCH_KEYSTONE)
 	help
-          Support for NAND flash on Texas Instruments OMAP2, OMAP3 and OMAP4
-	  platforms.
+          Support for NAND flash on Texas Instruments OMAP2, OMAP3, OMAP4
+	  and Keystone platforms.
 
 config MTD_NAND_OMAP_BCH
 	depends on MTD_NAND_OMAP2
@@ -428,7 +428,7 @@ config MTD_NAND_ORION
 
 config MTD_NAND_FSL_ELBC
 	tristate "NAND support for Freescale eLBC controllers"
-	depends on PPC
+	depends on FSL_SOC
 	select FSL_LBC
 	help
 	  Various Freescale chips, including the 8313, include a NAND Flash
@@ -438,7 +438,7 @@ config MTD_NAND_FSL_ELBC
 
 config MTD_NAND_FSL_IFC
 	tristate "NAND support for Freescale IFC controller"
-	depends on MTD_NAND && (FSL_SOC || ARCH_LAYERSCAPE)
+	depends on FSL_SOC || ARCH_LAYERSCAPE
 	select FSL_IFC
 	select MEMORY
 	help

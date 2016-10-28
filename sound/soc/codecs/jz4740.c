@@ -298,12 +298,14 @@ static struct snd_soc_codec_driver soc_codec_dev_jz4740_codec = {
 	.set_bias_level = jz4740_codec_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = jz4740_codec_controls,
-	.num_controls = ARRAY_SIZE(jz4740_codec_controls),
-	.dapm_widgets = jz4740_codec_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(jz4740_codec_dapm_widgets),
-	.dapm_routes = jz4740_codec_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(jz4740_codec_dapm_routes),
+	.component_driver = {
+		.controls		= jz4740_codec_controls,
+		.num_controls		= ARRAY_SIZE(jz4740_codec_controls),
+		.dapm_widgets		= jz4740_codec_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(jz4740_codec_dapm_widgets),
+		.dapm_routes		= jz4740_codec_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(jz4740_codec_dapm_routes),
+	},
 };
 
 static const struct regmap_config jz4740_codec_regmap_config = {

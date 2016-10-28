@@ -89,13 +89,8 @@ static int cz_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
 	if (result != 0)
 		return result;
 
-	result = SMUM_WAIT_FIELD_UNEQUAL(smumgr,
+	return SMUM_WAIT_FIELD_UNEQUAL(smumgr,
 					SMU_MP1_SRBM2P_RESP_0, CONTENT, 0);
-
-	if (result != 0)
-		return result;
-
-	return 0;
 }
 
 static int cz_set_smc_sram_address(struct pp_smumgr *smumgr,
@@ -106,12 +101,12 @@ static int cz_set_smc_sram_address(struct pp_smumgr *smumgr,
 
 	if (0 != (3 & smc_address)) {
 		printk(KERN_ERR "[ powerplay ] SMC address must be 4 byte aligned\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	if (limit <= (smc_address + 3)) {
 		printk(KERN_ERR "[ powerplay ] SMC address beyond the SMC RAM area\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	cgs_write_register(smumgr->device, mmMP0PUB_IND_INDEX_0,
@@ -129,9 +124,10 @@ static int cz_write_smc_sram_dword(struct pp_smumgr *smumgr,
 		return -EINVAL;
 
 	result = cz_set_smc_sram_address(smumgr, smc_address, limit);
-	cgs_write_register(smumgr->device, mmMP0PUB_IND_DATA_0, value);
+	if (!result)
+		cgs_write_register(smumgr->device, mmMP0PUB_IND_DATA_0, value);
 
-	return 0;
+	return result;
 }
 
 static int cz_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr,
@@ -148,7 +144,6 @@ static int cz_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr,
 static int cz_request_smu_load_fw(struct pp_smumgr *smumgr)
 {
 	struct cz_smumgr *cz_smu = (struct cz_smumgr *)(smumgr->backend);
-	int result = 0;
 	uint32_t smc_address;
 
 	if (!smumgr->reload_fw) {
@@ -177,11 +172,9 @@ static int cz_request_smu_load_fw(struct pp_smumgr *smumgr)
 	cz_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_ExecuteJob,
 				cz_smu->toc_entry_power_profiling_index);
 
-	result = cz_send_msg_to_smc_with_parameter(smumgr,
+	return cz_send_msg_to_smc_with_parameter(smumgr,
 					PPSMC_MSG_ExecuteJob,
 					cz_smu->toc_entry_initialize_index);
-
-	return result;
 }
 
 static int cz_check_fw_load_finish(struct pp_smumgr *smumgr,
@@ -194,9 +187,6 @@ static int cz_check_fw_load_finish(struct pp_smumgr *smumgr,
 
 	if (smumgr == NULL || smumgr->device == NULL)
 		return -EINVAL;
-
-	return cgs_read_register(smumgr->device,
-					mmSMU_MP1_SRBM2P_ARG_0);
 
 	cgs_write_register(smumgr->device, mmMP0PUB_IND_INDEX, index);
 
@@ -275,7 +265,10 @@ static int cz_start_smu(struct pp_smumgr *smumgr)
 	if (smumgr->chip_id == CHIP_STONEY)
 		fw_to_check &= ~(UCODE_ID_SDMA1_MASK | UCODE_ID_CP_MEC_JT2_MASK);
 
-	cz_request_smu_load_fw(smumgr);
+	ret = cz_request_smu_load_fw(smumgr);
+	if (ret)
+		printk(KERN_ERR "[ powerplay] SMU firmware load failed\n");
+
 	cz_check_fw_load_finish(smumgr, fw_to_check);
 
 	ret = cz_load_mec_firmware(smumgr);
@@ -566,10 +559,7 @@ static int cz_smu_construct_toc_for_bootup(struct pp_smumgr *smumgr)
 
 	cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_SDMA0, false);
-	if (smumgr->chip_id == CHIP_STONEY)
-		cz_smu_populate_single_ucode_load_task(smumgr,
-				CZ_SCRATCH_ENTRY_UCODE_ID_SDMA0, false);
-	else
+	if (smumgr->chip_id != CHIP_STONEY)
 		cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_SDMA1, false);
 	cz_smu_populate_single_ucode_load_task(smumgr,
@@ -580,10 +570,7 @@ static int cz_smu_construct_toc_for_bootup(struct pp_smumgr *smumgr)
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_ME, false);
 	cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT1, false);
-	if (smumgr->chip_id == CHIP_STONEY)
-		cz_smu_populate_single_ucode_load_task(smumgr,
-				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT1, false);
-	else
+	if (smumgr->chip_id != CHIP_STONEY)
 		cz_smu_populate_single_ucode_load_task(smumgr,
 				CZ_SCRATCH_ENTRY_UCODE_ID_CP_MEC_JT2, false);
 	cz_smu_populate_single_ucode_load_task(smumgr,
@@ -610,19 +597,12 @@ static int cz_smu_construct_toc(struct pp_smumgr *smumgr)
 	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
 
 	cz_smu->toc_entry_used_count = 0;
-
 	cz_smu_initialize_toc_empty_job_list(smumgr);
-
 	cz_smu_construct_toc_for_rlc_aram_save(smumgr);
-
 	cz_smu_construct_toc_for_vddgfx_enter(smumgr);
-
 	cz_smu_construct_toc_for_vddgfx_exit(smumgr);
-
 	cz_smu_construct_toc_for_power_profiling(smumgr);
-
 	cz_smu_construct_toc_for_bootup(smumgr);
-
 	cz_smu_construct_toc_for_clock_table(smumgr);
 
 	return 0;

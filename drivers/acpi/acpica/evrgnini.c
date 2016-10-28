@@ -553,7 +553,8 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 				 *
 				 * See acpi_ns_exec_module_code
 				 */
-				if (obj_desc->method.
+				if (!acpi_gbl_parse_table_as_term_list &&
+				    obj_desc->method.
 				    info_flags & ACPI_METHOD_MODULE_LEVEL) {
 					handler_obj =
 					    obj_desc->method.dispatch.handler;

@@ -78,7 +78,11 @@ int putreg(struct task_struct *child, int regno, unsigned long value)
 	case RSI:
 	case RDI:
 	case RBP:
+		break;
+
 	case ORIG_RAX:
+		/* Update the syscall number. */
+		UPT_SYSCALL_NR(&child->thread.regs.regs) = value;
 		break;
 
 	case FS:
@@ -208,7 +212,8 @@ int is_syscall(unsigned long addr)
 		 * slow, but that doesn't matter, since it will be called only
 		 * in case of singlestepping, if copy_from_user failed.
 		 */
-		n = access_process_vm(current, addr, &instr, sizeof(instr), 0);
+		n = access_process_vm(current, addr, &instr, sizeof(instr),
+				FOLL_FORCE);
 		if (n != sizeof(instr)) {
 			printk("is_syscall : failed to read instruction from "
 			       "0x%lx\n", addr);

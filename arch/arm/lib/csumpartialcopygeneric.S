@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 #include <asm/assembler.h>
+#include <asm/export.h>
 
 /*
  * unsigned int
@@ -331,3 +332,4 @@ FN_ENTRY
 		mov	r5, r4, get_byte_1
 		b	.Lexit
 FN_EXIT
+FN_EXPORT

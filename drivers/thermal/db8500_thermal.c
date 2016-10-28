@@ -306,7 +306,7 @@ static void db8500_thermal_work(struct work_struct *work)
 	if (cur_mode == THERMAL_DEVICE_DISABLED)
 		return;
 
-	thermal_zone_device_update(pzone->therm_dev);
+	thermal_zone_device_update(pzone->therm_dev, THERMAL_EVENT_UNSPECIFIED);
 	dev_dbg(&pzone->therm_dev->device, "thermal work finished.\n");
 }
 

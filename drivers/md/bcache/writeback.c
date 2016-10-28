@@ -128,11 +128,8 @@ static void write_dirty_finish(struct closure *cl)
 	struct dirty_io *io = container_of(cl, struct dirty_io, cl);
 	struct keybuf_key *w = io->bio.bi_private;
 	struct cached_dev *dc = io->dc;
-	struct bio_vec *bv;
-	int i;
 
-	bio_for_each_segment_all(bv, &io->bio, i)
-		__free_page(bv->bv_page);
+	bio_free_pages(&io->bio);
 
 	/* This is kind of a dumb way of signalling errors. */
 	if (KEY_DIRTY(&w->key)) {

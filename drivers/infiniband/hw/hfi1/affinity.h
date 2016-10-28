@@ -121,8 +121,7 @@ struct hfi1_affinity_node_list {
 	int num_core_siblings;
 	int num_online_nodes;
 	int num_online_cpus;
-	/* protect affinity node list */
-	spinlock_t lock;
+	struct mutex lock; /* protects affinity nodes */
 };
 
 int node_affinity_init(void);

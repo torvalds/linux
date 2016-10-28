@@ -49,6 +49,7 @@
 #define CIFS_MOUNT_USE_PREFIX_PATH 0x1000000 /* make subpath with unaccessible
 					      * root mountable
 					      */
+#define CIFS_MOUNT_UID_FROM_ACL 0x2000000 /* try to get UID via special SID */
 
 struct cifs_sb_info {
 	struct rb_root tlink_tree;

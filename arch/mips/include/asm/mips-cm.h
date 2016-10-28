@@ -359,6 +359,7 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 /* GCR_Cx_COHERENCE register fields */
 #define CM_GCR_Cx_COHERENCE_COHDOMAINEN_SHF	0
 #define CM_GCR_Cx_COHERENCE_COHDOMAINEN_MSK	(_ULCAST_(0xff) << 0)
+#define CM3_GCR_Cx_COHERENCE_COHEN_MSK		(_ULCAST_(0x1) << 0)
 
 /* GCR_Cx_CONFIG register fields */
 #define CM_GCR_Cx_CONFIG_IOCUTYPE_SHF		10
@@ -458,9 +459,20 @@ static inline int mips_cm_revision(void)
 static inline unsigned int mips_cm_max_vp_width(void)
 {
 	extern int smp_num_siblings;
+	uint32_t cfg;
 
 	if (mips_cm_revision() >= CM_REV_CM3)
 		return read_gcr_sys_config2() & CM_GCR_SYS_CONFIG2_MAXVPW_MSK;
+
+	if (mips_cm_present()) {
+		/*
+		 * We presume that all cores in the system will have the same
+		 * number of VP(E)s, and if that ever changes then this will
+		 * need revisiting.
+		 */
+		cfg = read_gcr_cl_config() & CM_GCR_Cx_CONFIG_PVPE_MSK;
+		return (cfg >> CM_GCR_Cx_CONFIG_PVPE_SHF) + 1;
+	}
 
 	if (IS_ENABLED(CONFIG_SMP))
 		return smp_num_siblings;

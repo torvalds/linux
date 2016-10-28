@@ -537,6 +537,7 @@ struct sctp_datamsg {
 struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *,
 					    struct sctp_sndrcvinfo *,
 					    struct iov_iter *);
+void sctp_datamsg_free(struct sctp_datamsg *);
 void sctp_datamsg_put(struct sctp_datamsg *);
 void sctp_chunk_fail(struct sctp_chunk *, int error);
 int sctp_chunk_abandoned(struct sctp_chunk *);
@@ -553,6 +554,9 @@ struct sctp_chunk {
 	struct list_head list;
 
 	atomic_t refcnt;
+
+	/* How many times this chunk have been sent, for prsctp RTX policy */
+	int sent_count;
 
 	/* This is our link to the per-transport transmitted list.  */
 	struct list_head transmitted_list;
@@ -602,16 +606,6 @@ struct sctp_chunk {
 
 	/* This needs to be recoverable for SCTP_SEND_FAILED events. */
 	struct sctp_sndrcvinfo sinfo;
-
-	/* We use this field to record param for prsctp policies,
-	 * for TTL policy, it is the time_to_drop of this chunk,
-	 * for RTX policy, it is the max_sent_count of this chunk,
-	 * for PRIO policy, it is the priority of this chunk.
-	 */
-	unsigned long prsctp_param;
-
-	/* How many times this chunk have been sent, for prsctp RTX policy */
-	int sent_count;
 
 	/* Which association does this belong to?  */
 	struct sctp_association *asoc;
@@ -1076,7 +1070,7 @@ struct sctp_outq {
 void sctp_outq_init(struct sctp_association *, struct sctp_outq *);
 void sctp_outq_teardown(struct sctp_outq *);
 void sctp_outq_free(struct sctp_outq*);
-int sctp_outq_tail(struct sctp_outq *, struct sctp_chunk *chunk, gfp_t);
+void sctp_outq_tail(struct sctp_outq *, struct sctp_chunk *chunk, gfp_t);
 int sctp_outq_sack(struct sctp_outq *, struct sctp_chunk *);
 int sctp_outq_is_empty(const struct sctp_outq *);
 void sctp_outq_restart(struct sctp_outq *);
@@ -1084,7 +1078,7 @@ void sctp_outq_restart(struct sctp_outq *);
 void sctp_retransmit(struct sctp_outq *, struct sctp_transport *,
 		     sctp_retransmit_reason_t);
 void sctp_retransmit_mark(struct sctp_outq *, struct sctp_transport *, __u8);
-int sctp_outq_uncork(struct sctp_outq *, gfp_t gfp);
+void sctp_outq_uncork(struct sctp_outq *, gfp_t gfp);
 void sctp_prsctp_prune(struct sctp_association *asoc,
 		       struct sctp_sndrcvinfo *sinfo, int msg_len);
 /* Uncork and flush an outqueue.  */

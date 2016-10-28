@@ -25,7 +25,7 @@
 static struct apic apic_physflat;
 static struct apic apic_flat;
 
-struct apic __read_mostly *apic = &apic_flat;
+struct apic *apic __ro_after_init = &apic_flat;
 EXPORT_SYMBOL_GPL(apic);
 
 static int flat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
@@ -116,27 +116,17 @@ static void flat_send_IPI_all(int vector)
 
 static unsigned int flat_get_apic_id(unsigned long x)
 {
-	unsigned int id;
-
-	id = (((x)>>24) & 0xFFu);
-
-	return id;
+	return (x >> 24) & 0xFF;
 }
 
 static unsigned long set_apic_id(unsigned int id)
 {
-	unsigned long x;
-
-	x = ((id & 0xFFu)<<24);
-	return x;
+	return (id & 0xFF) << 24;
 }
 
 static unsigned int read_xapic_id(void)
 {
-	unsigned int id;
-
-	id = flat_get_apic_id(apic_read(APIC_ID));
-	return id;
+	return flat_get_apic_id(apic_read(APIC_ID));
 }
 
 static int flat_apic_id_registered(void)
@@ -154,7 +144,7 @@ static int flat_probe(void)
 	return 1;
 }
 
-static struct apic apic_flat =  {
+static struct apic apic_flat __ro_after_init = {
 	.name				= "flat",
 	.probe				= flat_probe,
 	.acpi_madt_oem_check		= flat_acpi_madt_oem_check,
@@ -248,7 +238,7 @@ static int physflat_probe(void)
 	return 0;
 }
 
-static struct apic apic_physflat =  {
+static struct apic apic_physflat __ro_after_init = {
 
 	.name				= "physical flat",
 	.probe				= physflat_probe,

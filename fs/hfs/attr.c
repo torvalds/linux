@@ -13,9 +13,13 @@
 #include "hfs_fs.h"
 #include "btree.h"
 
-int hfs_setxattr(struct dentry *unused, struct inode *inode,
-		 const char *name, const void *value,
-		 size_t size, int flags)
+enum hfs_xattr_type {
+	HFS_TYPE,
+	HFS_CREATOR,
+};
+
+static int __hfs_setxattr(struct inode *inode, enum hfs_xattr_type type,
+			  const void *value, size_t size, int flags)
 {
 	struct hfs_find_data fd;
 	hfs_cat_rec rec;
@@ -36,18 +40,22 @@ int hfs_setxattr(struct dentry *unused, struct inode *inode,
 			sizeof(struct hfs_cat_file));
 	file = &rec.file;
 
-	if (!strcmp(name, "hfs.type")) {
+	switch (type) {
+	case HFS_TYPE:
 		if (size == 4)
 			memcpy(&file->UsrWds.fdType, value, 4);
 		else
 			res = -ERANGE;
-	} else if (!strcmp(name, "hfs.creator")) {
+		break;
+
+	case HFS_CREATOR:
 		if (size == 4)
 			memcpy(&file->UsrWds.fdCreator, value, 4);
 		else
 			res = -ERANGE;
-	} else
-		res = -EOPNOTSUPP;
+		break;
+	}
+
 	if (!res)
 		hfs_bnode_write(fd.bnode, &rec, fd.entryoffset,
 				sizeof(struct hfs_cat_file));
@@ -56,8 +64,8 @@ out:
 	return res;
 }
 
-ssize_t hfs_getxattr(struct dentry *unused, struct inode *inode,
-		     const char *name, void *value, size_t size)
+static ssize_t __hfs_getxattr(struct inode *inode, enum hfs_xattr_type type,
+			      void *value, size_t size)
 {
 	struct hfs_find_data fd;
 	hfs_cat_rec rec;
@@ -80,41 +88,64 @@ ssize_t hfs_getxattr(struct dentry *unused, struct inode *inode,
 	}
 	file = &rec.file;
 
-	if (!strcmp(name, "hfs.type")) {
+	switch (type) {
+	case HFS_TYPE:
 		if (size >= 4) {
 			memcpy(value, &file->UsrWds.fdType, 4);
 			res = 4;
 		} else
 			res = size ? -ERANGE : 4;
-	} else if (!strcmp(name, "hfs.creator")) {
+		break;
+
+	case HFS_CREATOR:
 		if (size >= 4) {
 			memcpy(value, &file->UsrWds.fdCreator, 4);
 			res = 4;
 		} else
 			res = size ? -ERANGE : 4;
-	} else
-		res = -ENODATA;
+		break;
+	}
+
 out:
 	if (size)
 		hfs_find_exit(&fd);
 	return res;
 }
 
-#define HFS_ATTRLIST_SIZE (sizeof("hfs.creator")+sizeof("hfs.type"))
-
-ssize_t hfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
+static int hfs_xattr_get(const struct xattr_handler *handler,
+			 struct dentry *unused, struct inode *inode,
+			 const char *name, void *value, size_t size)
 {
-	struct inode *inode = d_inode(dentry);
+	return __hfs_getxattr(inode, handler->flags, value, size);
+}
 
-	if (!S_ISREG(inode->i_mode) || HFS_IS_RSRC(inode))
+static int hfs_xattr_set(const struct xattr_handler *handler,
+			 struct dentry *unused, struct inode *inode,
+			 const char *name, const void *value, size_t size,
+			 int flags)
+{
+	if (!value)
 		return -EOPNOTSUPP;
 
-	if (!buffer || !size)
-		return HFS_ATTRLIST_SIZE;
-	if (size < HFS_ATTRLIST_SIZE)
-		return -ERANGE;
-	strcpy(buffer, "hfs.type");
-	strcpy(buffer + sizeof("hfs.type"), "hfs.creator");
-
-	return HFS_ATTRLIST_SIZE;
+	return __hfs_setxattr(inode, handler->flags, value, size, flags);
 }
+
+static const struct xattr_handler hfs_creator_handler = {
+	.name = "hfs.creator",
+	.flags = HFS_CREATOR,
+	.get = hfs_xattr_get,
+	.set = hfs_xattr_set,
+};
+
+static const struct xattr_handler hfs_type_handler = {
+	.name = "hfs.type",
+	.flags = HFS_TYPE,
+	.get = hfs_xattr_get,
+	.set = hfs_xattr_set,
+};
+
+const struct xattr_handler *hfs_xattr_handlers[] = {
+	&hfs_creator_handler,
+	&hfs_type_handler,
+	NULL
+};

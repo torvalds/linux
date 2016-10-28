@@ -114,6 +114,11 @@
 #define IPC_CORE_ID(x)			(((x) & IPC_CORE_ID_MASK) \
 					<< IPC_CORE_ID_SHIFT)
 
+#define IPC_DOMAIN_SHIFT                28
+#define IPC_DOMAIN_MASK                 0x1
+#define IPC_DOMAIN(x)                   (((x) & IPC_DOMAIN_MASK) \
+					<< IPC_DOMAIN_SHIFT)
+
 /* Bind/Unbind message extension register */
 #define IPC_DST_MOD_ID_SHIFT		0
 #define IPC_DST_MOD_ID(x)		(((x) & IPC_MOD_ID_MASK) \
@@ -190,6 +195,7 @@ enum skl_ipc_glb_type {
 	IPC_GLB_GET_PPL_CONTEXT_SIZE = 21,
 	IPC_GLB_SAVE_PPL = 22,
 	IPC_GLB_RESTORE_PPL = 23,
+	IPC_GLB_LOAD_LIBRARY = 24,
 	IPC_GLB_NOTIFY = 26,
 	IPC_GLB_MAX_IPC_MSG_NUMBER = 31 /* Maximum message number */
 };
@@ -338,7 +344,7 @@ static int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
 			break;
 
 		default:
-			dev_err(ipc->dev, "ipc: Unhandled error msg=%x",
+			dev_err(ipc->dev, "ipc: Unhandled error msg=%x\n",
 						header.primary);
 			break;
 		}
@@ -379,13 +385,13 @@ static void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 		break;
 
 	default:
-		dev_err(ipc->dev, "Unknown ipc reply: 0x%x", reply);
+		dev_err(ipc->dev, "Unknown ipc reply: 0x%x\n", reply);
 		msg->errno = -EINVAL;
 		break;
 	}
 
 	if (reply != IPC_GLB_REPLY_SUCCESS) {
-		dev_err(ipc->dev, "ipc FW reply: reply=%d", reply);
+		dev_err(ipc->dev, "ipc FW reply: reply=%d\n", reply);
 		dev_err(ipc->dev, "FW Error Code: %u\n",
 			ipc->dsp->fw_ops.get_fw_errcode(ipc->dsp));
 	}
@@ -434,9 +440,9 @@ irqreturn_t skl_dsp_irq_thread_handler(int irq, void *context)
 		hipcte = sst_dsp_shim_read_unlocked(dsp, SKL_ADSP_REG_HIPCTE);
 		header.primary = hipct;
 		header.extension = hipcte;
-		dev_dbg(dsp->dev, "IPC irq: Firmware respond primary:%x",
+		dev_dbg(dsp->dev, "IPC irq: Firmware respond primary:%x\n",
 						header.primary);
-		dev_dbg(dsp->dev, "IPC irq: Firmware respond extension:%x",
+		dev_dbg(dsp->dev, "IPC irq: Firmware respond extension:%x\n",
 						header.extension);
 
 		if (IPC_GLB_NOTIFY_RSP_TYPE(header.primary)) {
@@ -458,7 +464,7 @@ irqreturn_t skl_dsp_irq_thread_handler(int irq, void *context)
 	skl_ipc_int_enable(dsp);
 
 	/* continue to send any remaining messages... */
-	queue_kthread_work(&ipc->kworker, &ipc->kwork);
+	kthread_queue_work(&ipc->kworker, &ipc->kwork);
 
 	return IRQ_HANDLED;
 }
@@ -704,6 +710,7 @@ int skl_ipc_init_instance(struct sst_generic_ipc *ipc,
 	header.extension = IPC_CORE_ID(msg->core_id);
 	header.extension |= IPC_PPL_INSTANCE_ID(msg->ppl_instance_id);
 	header.extension |= IPC_PARAM_BLOCK_SIZE(param_block_size);
+	header.extension |= IPC_DOMAIN(msg->domain);
 
 	dev_dbg(ipc->dev, "In %s primary =%x ext=%x\n", __func__,
 			 header.primary, header.extension);
@@ -742,7 +749,7 @@ int skl_ipc_bind_unbind(struct sst_generic_ipc *ipc,
 			 header.extension);
 	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, NULL, 0, NULL, 0);
 	if (ret < 0) {
-		dev_err(ipc->dev, "ipc: bind/unbind faileden");
+		dev_err(ipc->dev, "ipc: bind/unbind failed\n");
 		return ret;
 	}
 
@@ -902,3 +909,25 @@ int skl_ipc_get_large_config(struct sst_generic_ipc *ipc,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(skl_ipc_get_large_config);
+
+int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
+				u8 dma_id, u8 table_id)
+{
+	struct skl_ipc_header header = {0};
+	u64 *ipc_header = (u64 *)(&header);
+	int ret = 0;
+
+	header.primary = IPC_MSG_TARGET(IPC_FW_GEN_MSG);
+	header.primary |= IPC_MSG_DIR(IPC_MSG_REQUEST);
+	header.primary |= IPC_GLB_TYPE(IPC_GLB_LOAD_LIBRARY);
+	header.primary |= IPC_MOD_INSTANCE_ID(table_id);
+	header.primary |= IPC_MOD_ID(dma_id);
+
+	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, NULL, 0, NULL, 0);
+
+	if (ret < 0)
+		dev_err(ipc->dev, "ipc: load lib failed\n");
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(skl_sst_ipc_load_library);

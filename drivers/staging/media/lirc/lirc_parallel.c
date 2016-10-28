@@ -163,12 +163,12 @@ static unsigned int init_lirc_timer(void)
 	if (count >= 1000 && timeelapsed > 0) {
 		if (default_timer == 0) {
 			/* autodetect timer */
-			newtimer = (1000000*count)/timeelapsed;
+			newtimer = (1000000 * count) / timeelapsed;
 			pr_info("%u Hz timer detected\n", newtimer);
 			return newtimer;
 		}
-		newtimer = (1000000*count)/timeelapsed;
-		if (abs(newtimer - default_timer) > default_timer/10) {
+		newtimer = (1000000 * count) / timeelapsed;
+		if (abs(newtimer - default_timer) > default_timer / 10) {
 			/* bad timer */
 			pr_notice("bad timer: %u Hz\n", newtimer);
 			pr_notice("using default timer: %u Hz\n",
@@ -650,7 +650,7 @@ static int __init lirc_parallel_init(void)
 	if (!pport) {
 		pr_notice("no port at %x found\n", io);
 		result = -ENXIO;
-		goto exit_device_put;
+		goto exit_device_del;
 	}
 	ppdevice = parport_register_device(pport, LIRC_DRIVER_NAME,
 					   pf, kf, lirc_lirc_irq_handler, 0,
@@ -659,7 +659,7 @@ static int __init lirc_parallel_init(void)
 	if (!ppdevice) {
 		pr_notice("parport_register_device() failed\n");
 		result = -ENXIO;
-		goto exit_device_put;
+		goto exit_device_del;
 	}
 	if (parport_claim(ppdevice) != 0)
 		goto skip_init;
@@ -678,7 +678,7 @@ static int __init lirc_parallel_init(void)
 		parport_release(pport);
 		parport_unregister_device(ppdevice);
 		result = -EIO;
-		goto exit_device_put;
+		goto exit_device_del;
 	}
 
 #endif
@@ -695,11 +695,13 @@ static int __init lirc_parallel_init(void)
 		pr_notice("register_chrdev() failed\n");
 		parport_unregister_device(ppdevice);
 		result = -EIO;
-		goto exit_device_put;
+		goto exit_device_del;
 	}
 	pr_info("installed using port 0x%04x irq %d\n", io, irq);
 	return 0;
 
+exit_device_del:
+	platform_device_del(lirc_parallel_dev);
 exit_device_put:
 	platform_device_put(lirc_parallel_dev);
 exit_driver_unregister:

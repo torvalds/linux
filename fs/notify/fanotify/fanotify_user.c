@@ -49,12 +49,12 @@ struct kmem_cache *fanotify_perm_event_cachep __read_mostly;
  * enough to fit in "count". Return an error pointer if the count
  * is not large enough.
  *
- * Called with the group->notification_mutex held.
+ * Called with the group->notification_lock held.
  */
 static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 					    size_t count)
 {
-	BUG_ON(!mutex_is_locked(&group->notification_mutex));
+	assert_spin_locked(&group->notification_lock);
 
 	pr_debug("%s: group=%p count=%zd\n", __func__, group, count);
 
@@ -64,7 +64,7 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 	if (FAN_EVENT_METADATA_LEN > count)
 		return ERR_PTR(-EINVAL);
 
-	/* held the notification_mutex the whole time, so this is the
+	/* held the notification_lock the whole time, so this is the
 	 * same event we peeked above */
 	return fsnotify_remove_first_event(group);
 }
@@ -147,7 +147,7 @@ static struct fanotify_perm_event_info *dequeue_event(
 {
 	struct fanotify_perm_event_info *event, *return_e = NULL;
 
-	spin_lock(&group->fanotify_data.access_lock);
+	spin_lock(&group->notification_lock);
 	list_for_each_entry(event, &group->fanotify_data.access_list,
 			    fae.fse.list) {
 		if (event->fd != fd)
@@ -157,7 +157,7 @@ static struct fanotify_perm_event_info *dequeue_event(
 		return_e = event;
 		break;
 	}
-	spin_unlock(&group->fanotify_data.access_lock);
+	spin_unlock(&group->notification_lock);
 
 	pr_debug("%s: found return_re=%p\n", __func__, return_e);
 
@@ -244,10 +244,10 @@ static unsigned int fanotify_poll(struct file *file, poll_table *wait)
 	int ret = 0;
 
 	poll_wait(file, &group->notification_waitq, wait);
-	mutex_lock(&group->notification_mutex);
+	spin_lock(&group->notification_lock);
 	if (!fsnotify_notify_queue_is_empty(group))
 		ret = POLLIN | POLLRDNORM;
-	mutex_unlock(&group->notification_mutex);
+	spin_unlock(&group->notification_lock);
 
 	return ret;
 }
@@ -268,9 +268,9 @@ static ssize_t fanotify_read(struct file *file, char __user *buf,
 
 	add_wait_queue(&group->notification_waitq, &wait);
 	while (1) {
-		mutex_lock(&group->notification_mutex);
+		spin_lock(&group->notification_lock);
 		kevent = get_one_event(group, count);
-		mutex_unlock(&group->notification_mutex);
+		spin_unlock(&group->notification_lock);
 
 		if (IS_ERR(kevent)) {
 			ret = PTR_ERR(kevent);
@@ -309,10 +309,10 @@ static ssize_t fanotify_read(struct file *file, char __user *buf,
 				wake_up(&group->fanotify_data.access_waitq);
 				break;
 			}
-			spin_lock(&group->fanotify_data.access_lock);
+			spin_lock(&group->notification_lock);
 			list_add_tail(&kevent->list,
 				      &group->fanotify_data.access_list);
-			spin_unlock(&group->fanotify_data.access_lock);
+			spin_unlock(&group->notification_lock);
 #endif
 		}
 		buf += ret;
@@ -358,16 +358,20 @@ static int fanotify_release(struct inode *ignored, struct file *file)
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 	struct fanotify_perm_event_info *event, *next;
+	struct fsnotify_event *fsn_event;
 
 	/*
-	 * There may be still new events arriving in the notification queue
-	 * but since userspace cannot use fanotify fd anymore, no event can
-	 * enter or leave access_list by now.
+	 * Stop new events from arriving in the notification queue. since
+	 * userspace cannot use fanotify fd anymore, no event can enter or
+	 * leave access_list by now either.
 	 */
-	spin_lock(&group->fanotify_data.access_lock);
+	fsnotify_group_stop_queueing(group);
 
-	atomic_inc(&group->fanotify_data.bypass_perm);
-
+	/*
+	 * Process all permission events on access_list and notification queue
+	 * and simulate reply from userspace.
+	 */
+	spin_lock(&group->notification_lock);
 	list_for_each_entry_safe(event, next, &group->fanotify_data.access_list,
 				 fae.fse.list) {
 		pr_debug("%s: found group=%p event=%p\n", __func__, group,
@@ -376,15 +380,24 @@ static int fanotify_release(struct inode *ignored, struct file *file)
 		list_del_init(&event->fae.fse.list);
 		event->response = FAN_ALLOW;
 	}
-	spin_unlock(&group->fanotify_data.access_lock);
 
 	/*
-	 * Since bypass_perm is set, newly queued events will not wait for
-	 * access response. Wake up the already sleeping ones now.
-	 * synchronize_srcu() in fsnotify_destroy_group() will wait for all
-	 * processes sleeping in fanotify_handle_event() waiting for access
-	 * response and thus also for all permission events to be freed.
+	 * Destroy all non-permission events. For permission events just
+	 * dequeue them and set the response. They will be freed once the
+	 * response is consumed and fanotify_get_response() returns.
 	 */
+	while (!fsnotify_notify_queue_is_empty(group)) {
+		fsn_event = fsnotify_remove_first_event(group);
+		if (!(fsn_event->mask & FAN_ALL_PERM_EVENTS)) {
+			spin_unlock(&group->notification_lock);
+			fsnotify_destroy_event(group, fsn_event);
+			spin_lock(&group->notification_lock);
+		} else
+			FANOTIFY_PE(fsn_event)->response = FAN_ALLOW;
+	}
+	spin_unlock(&group->notification_lock);
+
+	/* Response for all permission events it set, wakeup waiters */
 	wake_up(&group->fanotify_data.access_waitq);
 #endif
 
@@ -408,10 +421,10 @@ static long fanotify_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 
 	switch (cmd) {
 	case FIONREAD:
-		mutex_lock(&group->notification_mutex);
+		spin_lock(&group->notification_lock);
 		list_for_each_entry(fsn_event, &group->notification_list, list)
 			send_len += FAN_EVENT_METADATA_LEN;
-		mutex_unlock(&group->notification_mutex);
+		spin_unlock(&group->notification_lock);
 		ret = put_user(send_len, (int __user *) p);
 		break;
 	}
@@ -752,10 +765,8 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 		event_f_flags |= O_LARGEFILE;
 	group->fanotify_data.f_flags = event_f_flags;
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
-	spin_lock_init(&group->fanotify_data.access_lock);
 	init_waitqueue_head(&group->fanotify_data.access_waitq);
 	INIT_LIST_HEAD(&group->fanotify_data.access_list);
-	atomic_set(&group->fanotify_data.bypass_perm, 0);
 #endif
 	switch (flags & FAN_ALL_CLASS_BITS) {
 	case FAN_CLASS_NOTIF:

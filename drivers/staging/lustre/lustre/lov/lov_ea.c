@@ -66,7 +66,8 @@ static int lsm_lmm_verify_common(struct lov_mds_md *lmm, int lmm_bytes,
 	}
 
 	if (lmm->lmm_stripe_size == 0 ||
-	    (le32_to_cpu(lmm->lmm_stripe_size)&(LOV_MIN_STRIPE_SIZE-1)) != 0) {
+	    (le32_to_cpu(lmm->lmm_stripe_size) &
+	     (LOV_MIN_STRIPE_SIZE - 1)) != 0) {
 		CERROR("bad stripe size %u\n",
 		       le32_to_cpu(lmm->lmm_stripe_size));
 		lov_dump_lmm_common(D_WARNING, lmm);
@@ -146,21 +147,15 @@ lsm_stripe_by_offset_plain(struct lov_stripe_md *lsm, int *stripeno,
 		*swidth = (u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count;
 }
 
-static int lsm_destroy_plain(struct lov_stripe_md *lsm, struct obdo *oa,
-			     struct obd_export *md_exp)
-{
-	return 0;
-}
-
 /* Find minimum stripe maxbytes value.  For inactive or
- * reconnecting targets use LUSTRE_STRIPE_MAXBYTES.
+ * reconnecting targets use LUSTRE_EXT3_STRIPE_MAXBYTES.
  */
 static void lov_tgt_maxbytes(struct lov_tgt_desc *tgt, __u64 *stripe_maxbytes)
 {
 	struct obd_import *imp = tgt->ltd_obd->u.cli.cl_import;
 
 	if (!imp || !tgt->ltd_active) {
-		*stripe_maxbytes = LUSTRE_STRIPE_MAXBYTES;
+		*stripe_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES;
 		return;
 	}
 
@@ -171,7 +166,7 @@ static void lov_tgt_maxbytes(struct lov_tgt_desc *tgt, __u64 *stripe_maxbytes)
 		if (*stripe_maxbytes > imp->imp_connect_data.ocd_maxbytes)
 			*stripe_maxbytes = imp->imp_connect_data.ocd_maxbytes;
 	} else {
-		*stripe_maxbytes = LUSTRE_STRIPE_MAXBYTES;
+		*stripe_maxbytes = LUSTRE_EXT3_STRIPE_MAXBYTES;
 	}
 	spin_unlock(&imp->imp_lock);
 }
@@ -245,7 +240,6 @@ static int lsm_unpackmd_v1(struct lov_obd *lov, struct lov_stripe_md *lsm,
 
 const struct lsm_operations lsm_v1_ops = {
 	.lsm_free	    = lsm_free_plain,
-	.lsm_destroy	 = lsm_destroy_plain,
 	.lsm_stripe_by_index    = lsm_stripe_by_index_plain,
 	.lsm_stripe_by_offset   = lsm_stripe_by_offset_plain,
 	.lsm_lmm_verify	 = lsm_lmm_verify_v1,
@@ -335,7 +329,6 @@ static int lsm_unpackmd_v3(struct lov_obd *lov, struct lov_stripe_md *lsm,
 
 const struct lsm_operations lsm_v3_ops = {
 	.lsm_free	    = lsm_free_plain,
-	.lsm_destroy	 = lsm_destroy_plain,
 	.lsm_stripe_by_index    = lsm_stripe_by_index_plain,
 	.lsm_stripe_by_offset   = lsm_stripe_by_offset_plain,
 	.lsm_lmm_verify	 = lsm_lmm_verify_v3,

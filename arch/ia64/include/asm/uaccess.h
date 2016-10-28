@@ -241,8 +241,7 @@ extern unsigned long __must_check __copy_user (void __user *to, const void __use
 static inline unsigned long
 __copy_to_user (void __user *to, const void *from, unsigned long count)
 {
-	if (!__builtin_constant_p(count))
-		check_object_size(from, count, true);
+	check_object_size(from, count, true);
 
 	return __copy_user(to, (__force void __user *) from, count);
 }
@@ -250,8 +249,7 @@ __copy_to_user (void __user *to, const void *from, unsigned long count)
 static inline unsigned long
 __copy_from_user (void *to, const void __user *from, unsigned long count)
 {
-	if (!__builtin_constant_p(count))
-		check_object_size(to, count, false);
+	check_object_size(to, count, false);
 
 	return __copy_user((__force void __user *) to, from, count);
 }
@@ -265,27 +263,22 @@ __copy_from_user (void *to, const void __user *from, unsigned long count)
 	long __cu_len = (n);								\
 											\
 	if (__access_ok(__cu_to, __cu_len, get_fs())) {					\
-		if (!__builtin_constant_p(n))						\
-			check_object_size(__cu_from, __cu_len, true);			\
+		check_object_size(__cu_from, __cu_len, true);			\
 		__cu_len = __copy_user(__cu_to, (__force void __user *)  __cu_from, __cu_len);	\
 	}										\
 	__cu_len;									\
 })
 
-#define copy_from_user(to, from, n)							\
-({											\
-	void *__cu_to = (to);								\
-	const void __user *__cu_from = (from);						\
-	long __cu_len = (n);								\
-											\
-	__chk_user_ptr(__cu_from);							\
-	if (__access_ok(__cu_from, __cu_len, get_fs())) {				\
-		if (!__builtin_constant_p(n))						\
-			check_object_size(__cu_to, __cu_len, false);			\
-		__cu_len = __copy_user((__force void __user *) __cu_to, __cu_from, __cu_len);	\
-	}										\
-	__cu_len;									\
-})
+static inline unsigned long
+copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	check_object_size(to, n, false);
+	if (likely(__access_ok(from, n, get_fs())))
+		n = __copy_user((__force void __user *) to, from, n);
+	else
+		memset(to, 0, n);
+	return n;
+}
 
 #define __copy_in_user(to, from, size)	__copy_user((to), (from), (size))
 

@@ -867,7 +867,7 @@ out:
 	return skb->len;
 }
 
-static struct nla_policy l2tp_nl_policy[L2TP_ATTR_MAX + 1] = {
+static const struct nla_policy l2tp_nl_policy[L2TP_ATTR_MAX + 1] = {
 	[L2TP_ATTR_NONE]		= { .type = NLA_UNSPEC, },
 	[L2TP_ATTR_PW_TYPE]		= { .type = NLA_U16, },
 	[L2TP_ATTR_ENCAP_TYPE]		= { .type = NLA_U16, },

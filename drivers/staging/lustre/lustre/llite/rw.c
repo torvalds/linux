@@ -50,10 +50,8 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/lustre_lite.h"
 #include "../include/obd_cksum.h"
 #include "llite_internal.h"
-#include "../include/linux/lustre_compat25.h"
 
 static void ll_ra_stats_inc_sbi(struct ll_sb_info *sbi, enum ra_stat which);
 
@@ -413,7 +411,7 @@ static int ll_read_ahead_pages(const struct lu_env *env,
 			 * forward read-ahead, it will be fixed when backward
 			 * read-ahead is implemented
 			 */
-			LASSERTF(page_idx > ria->ria_stoff, "Invalid page_idx %lu rs %lu re %lu ro %lu rl %lu rp %lu\n",
+			LASSERTF(page_idx >= ria->ria_stoff, "Invalid page_idx %lu rs %lu re %lu ro %lu rl %lu rp %lu\n",
 				 page_idx,
 				 ria->ria_start, ria->ria_end, ria->ria_stoff,
 				 ria->ria_length, ria->ria_pages);
@@ -474,10 +472,22 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 	}
 
 	/* Reserve a part of the read-ahead window that we'll be issuing */
-	if (ras->ras_window_len) {
-		start = ras->ras_next_readahead;
+	if (ras->ras_window_len > 0) {
+		/*
+		 * Note: other thread might rollback the ras_next_readahead,
+		 * if it can not get the full size of prepared pages, see the
+		 * end of this function. For stride read ahead, it needs to
+		 * make sure the offset is no less than ras_stride_offset,
+		 * so that stride read ahead can work correctly.
+		 */
+		if (stride_io_mode(ras))
+			start = max(ras->ras_next_readahead,
+				    ras->ras_stride_offset);
+		else
+			start = ras->ras_next_readahead;
 		end = ras->ras_window_start + ras->ras_window_len - 1;
 	}
+
 	if (end != 0) {
 		unsigned long rpc_boundary;
 		/*
@@ -648,10 +658,11 @@ static void ras_update_stride_detector(struct ll_readahead_state *ras,
 {
 	unsigned long stride_gap = index - ras->ras_last_readpage - 1;
 
-	if (!stride_io_mode(ras) && (stride_gap != 0 ||
-	    ras->ras_consecutive_stride_requests == 0)) {
+	if ((stride_gap != 0 || ras->ras_consecutive_stride_requests == 0) &&
+	    !stride_io_mode(ras)) {
 		ras->ras_stride_pages = ras->ras_consecutive_pages;
-		ras->ras_stride_length = stride_gap+ras->ras_consecutive_pages;
+		ras->ras_stride_length = ras->ras_consecutive_pages +
+					 stride_gap;
 	}
 	LASSERT(ras->ras_request_index == 0);
 	LASSERT(ras->ras_consecutive_stride_requests == 0);
@@ -663,10 +674,9 @@ static void ras_update_stride_detector(struct ll_readahead_state *ras,
 	}
 
 	ras->ras_stride_pages = ras->ras_consecutive_pages;
-	ras->ras_stride_length = stride_gap+ras->ras_consecutive_pages;
+	ras->ras_stride_length = stride_gap + ras->ras_consecutive_pages;
 
 	RAS_CDEBUG(ras);
-	return;
 }
 
 /* Stride Read-ahead window will be increased inc_len according to
@@ -882,7 +892,6 @@ out_unlock:
 	RAS_CDEBUG(ras);
 	ras->ras_request_index++;
 	spin_unlock(&ras->ras_lock);
-	return;
 }
 
 int ll_writepage(struct page *vmpage, struct writeback_control *wbc)
@@ -1015,11 +1024,15 @@ int ll_writepages(struct address_space *mapping, struct writeback_control *wbc)
 		 * is called later on.
 		 */
 		ignore_layout = 1;
+
+	if (!ll_i2info(inode)->lli_clob)
+		return 0;
+
 	result = cl_sync_file_range(inode, start, end, mode, ignore_layout);
 	if (result > 0) {
 		wbc->nr_to_write -= result;
 		result = 0;
-	 }
+	}
 
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0)) {
 		if (end == OBD_OBJECT_EOF)

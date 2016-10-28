@@ -1013,7 +1013,6 @@ static int set_port_states(struct hfi1_pportdata *ppd, struct opa_smp *smp,
 			 * offline.
 			 */
 			set_link_state(ppd, HLS_DN_OFFLINE);
-			tune_serdes(ppd);
 			start_link(ppd);
 		} else {
 			set_link_state(ppd, link_state);
@@ -1405,12 +1404,6 @@ static int set_pkeys(struct hfi1_devdata *dd, u8 port, u16 *pkeys)
 		u16 okey = ppd->pkeys[i];
 
 		if (key == okey)
-			continue;
-		/*
-		 * Don't update pkeys[2], if an HFI port without MgmtAllowed
-		 * by neighbor is a switch.
-		 */
-		if (i == 2 && !ppd->mgmt_allowed && ppd->neighbor_type == 1)
 			continue;
 		/*
 		 * The SM gives us the complete PKey table. We have
@@ -2604,7 +2597,7 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 	u8 lq, num_vls;
 	u8 res_lli, res_ler;
 	u64 port_mask;
-	unsigned long port_num;
+	u8 port_num;
 	unsigned long vl;
 	u32 vl_select_mask;
 	int vfi;
@@ -2638,9 +2631,9 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 	 */
 	port_mask = be64_to_cpu(req->port_select_mask[3]);
 	port_num = find_first_bit((unsigned long *)&port_mask,
-				  sizeof(port_mask));
+				  sizeof(port_mask) * 8);
 
-	if ((u8)port_num != port) {
+	if (port_num != port) {
 		pmp->mad_hdr.status |= IB_SMP_INVALID_FIELD;
 		return reply((struct ib_mad_hdr *)pmp);
 	}
@@ -2842,7 +2835,7 @@ static int pma_get_opa_porterrors(struct opa_pma_mad *pmp,
 	 */
 	port_mask = be64_to_cpu(req->port_select_mask[3]);
 	port_num = find_first_bit((unsigned long *)&port_mask,
-				  sizeof(port_mask));
+				  sizeof(port_mask) * 8);
 
 	if (port_num != port) {
 		pmp->mad_hdr.status |= IB_SMP_INVALID_FIELD;
@@ -3015,7 +3008,7 @@ static int pma_get_opa_errorinfo(struct opa_pma_mad *pmp,
 	 */
 	port_mask = be64_to_cpu(req->port_select_mask[3]);
 	port_num = find_first_bit((unsigned long *)&port_mask,
-				  sizeof(port_mask));
+				  sizeof(port_mask) * 8);
 
 	if (port_num != port) {
 		pmp->mad_hdr.status |= IB_SMP_INVALID_FIELD;
@@ -3252,7 +3245,7 @@ static int pma_set_opa_errorinfo(struct opa_pma_mad *pmp,
 	 */
 	port_mask = be64_to_cpu(req->port_select_mask[3]);
 	port_num = find_first_bit((unsigned long *)&port_mask,
-				  sizeof(port_mask));
+				  sizeof(port_mask) * 8);
 
 	if (port_num != port) {
 		pmp->mad_hdr.status |= IB_SMP_INVALID_FIELD;

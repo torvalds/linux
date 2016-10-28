@@ -63,7 +63,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		return;
 	}
 
-	err = ftrace_push_return_trace(old, self_addr, &trace.depth, 0);
+	err = ftrace_push_return_trace(old, self_addr, &trace.depth, 0, NULL);
 	if (err == -EBUSY) {
 		*parent = old;
 		return;

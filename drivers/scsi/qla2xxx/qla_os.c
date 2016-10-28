@@ -899,12 +899,12 @@ qla2x00_wait_for_hba_ready(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
-	while (((qla2x00_reset_active(vha)) || ha->dpc_active ||
-	    ha->flags.mbox_busy) ||
-		test_bit(FX00_RESET_RECOVERY, &vha->dpc_flags) ||
-		test_bit(FX00_TARGET_SCAN, &vha->dpc_flags)) {
-			if (test_bit(UNLOADING, &base_vha->dpc_flags))
-				break;
+	while ((qla2x00_reset_active(vha) || ha->dpc_active ||
+		ha->flags.mbox_busy) ||
+	       test_bit(FX00_RESET_RECOVERY, &vha->dpc_flags) ||
+	       test_bit(FX00_TARGET_SCAN, &vha->dpc_flags)) {
+		if (test_bit(UNLOADING, &base_vha->dpc_flags))
+			break;
 		msleep(1000);
 	}
 }
@@ -4694,7 +4694,7 @@ retry_unlock:
 			qla83xx_wait_logic();
 			retry++;
 			ql_dbg(ql_dbg_p3p, base_vha, 0xb064,
-			    "Failed to release IDC lock, retyring=%d\n", retry);
+			    "Failed to release IDC lock, retrying=%d\n", retry);
 			goto retry_unlock;
 		}
 	} else if (retry < 10) {
@@ -4702,7 +4702,7 @@ retry_unlock:
 		qla83xx_wait_logic();
 		retry++;
 		ql_dbg(ql_dbg_p3p, base_vha, 0xb065,
-		    "Failed to read drv-lockid, retyring=%d\n", retry);
+		    "Failed to read drv-lockid, retrying=%d\n", retry);
 		goto retry_unlock;
 	}
 
@@ -4718,7 +4718,7 @@ retry_unlock2:
 			qla83xx_wait_logic();
 			retry++;
 			ql_dbg(ql_dbg_p3p, base_vha, 0xb066,
-			    "Failed to release IDC lock, retyring=%d\n", retry);
+			    "Failed to release IDC lock, retrying=%d\n", retry);
 			goto retry_unlock2;
 		}
 	}

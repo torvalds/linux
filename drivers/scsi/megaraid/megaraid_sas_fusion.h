@@ -991,5 +991,14 @@ union desc_value {
 	} u;
 };
 
+void megasas_free_cmds_fusion(struct megasas_instance *instance);
+int megasas_ioc_init_fusion(struct megasas_instance *instance);
+u8 megasas_get_map_info(struct megasas_instance *instance);
+int megasas_sync_map_info(struct megasas_instance *instance);
+void megasas_release_fusion(struct megasas_instance *instance);
+void megasas_reset_reply_desc(struct megasas_instance *instance);
+int megasas_check_mpio_paths(struct megasas_instance *instance,
+			      struct scsi_cmnd *scmd);
+void megasas_fusion_ocr_wq(struct work_struct *work);
 
 #endif /* _MEGARAID_SAS_FUSION_H_ */

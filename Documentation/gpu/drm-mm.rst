@@ -26,12 +26,12 @@ TTM, but has no video RAM management capabilities and is thus limited to
 UMA devices.
 
 The Translation Table Manager (TTM)
------------------------------------
+===================================
 
 TTM design background and information belongs here.
 
 TTM initialization
-~~~~~~~~~~~~~~~~~~
+------------------
 
     **Warning**
 
@@ -77,7 +77,7 @@ object, ttm_global_item_ref() is used to create an initial reference
 count for the TTM, which will call your initialization function.
 
 The Graphics Execution Manager (GEM)
-------------------------------------
+====================================
 
 The GEM design approach has resulted in a memory manager that doesn't
 provide full coverage of all (or even all common) use cases in its
@@ -114,7 +114,7 @@ read & write, mapping, and domain ownership transfers are left to
 driver-specific ioctls.
 
 GEM Initialization
-~~~~~~~~~~~~~~~~~~
+------------------
 
 Drivers that use GEM must set the DRIVER_GEM bit in the struct
 :c:type:`struct drm_driver <drm_driver>` driver_features
@@ -132,7 +132,7 @@ typically not managed by GEM, and must be initialized separately into
 its own DRM MM object.
 
 GEM Objects Creation
-~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 GEM splits creation of GEM objects and allocation of the memory that
 backs them in two distinct operations.
@@ -173,7 +173,7 @@ a call to :c:func:`drm_gem_private_object_init()` instead of
 must be managed by drivers.
 
 GEM Objects Lifetime
-~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 All GEM objects are reference-counted by the GEM core. References can be
 acquired and release by :c:func:`calling
@@ -196,7 +196,7 @@ resources created by the GEM core, which need to be released with
 :c:func:`drm_gem_object_release()`.
 
 GEM Objects Naming
-~~~~~~~~~~~~~~~~~~
+------------------
 
 Communication between userspace and the kernel refers to GEM objects
 using local handles, global names or, more recently, file descriptors.
@@ -245,7 +245,7 @@ Furthermore PRIME also allows cross-device buffer sharing since it is
 based on dma-bufs.
 
 GEM Objects Mapping
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 Because mapping operations are fairly heavyweight GEM favours
 read/write-like access to buffers, implemented through driver-specific
@@ -304,7 +304,7 @@ Drivers that want to map the GEM object upfront instead of handling page
 faults can implement their own mmap file operation handler.
 
 Memory Coherency
-~~~~~~~~~~~~~~~~
+----------------
 
 When mapped to the device or used in a command buffer, backing pages for
 an object are flushed to memory and marked write combined so as to be
@@ -320,7 +320,7 @@ blocks the client and waits for rendering to complete before performing
 any necessary flushing operations).
 
 Command Execution
-~~~~~~~~~~~~~~~~~
+-----------------
 
 Perhaps the most important GEM function for GPU devices is providing a
 command execution interface to clients. Client programs construct
@@ -348,8 +348,20 @@ GEM Function Reference
 .. kernel-doc:: include/drm/drm_gem.h
    :internal:
 
+GEM CMA Helper Functions Reference
+----------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
+   :doc: cma helpers
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
+   :export:
+
+.. kernel-doc:: include/drm/drm_gem_cma_helper.h
+   :internal:
+
 VMA Offset Manager
-------------------
+==================
 
 .. kernel-doc:: drivers/gpu/drm/drm_vma_manager.c
    :doc: vma offset manager
@@ -361,14 +373,14 @@ VMA Offset Manager
    :internal:
 
 PRIME Buffer Sharing
---------------------
+====================
 
 PRIME is the cross device buffer sharing framework in drm, originally
 created for the OPTIMUS range of multi-gpu platforms. To userspace PRIME
 buffers are dma-buf based file descriptors.
 
 Overview and Driver Interface
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
 Similar to GEM global names, PRIME file descriptors are also used to
 share buffer objects across processes. They offer additional security:
@@ -406,7 +418,7 @@ struct drm_gem_object \*obj, int flags); struct drm_gem_object \*
 support PRIME.
 
 PRIME Helper Functions
-~~~~~~~~~~~~~~~~~~~~~~
+----------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_prime.c
    :doc: PRIME Helpers
@@ -418,16 +430,16 @@ PRIME Function References
    :export:
 
 DRM MM Range Allocator
-----------------------
+======================
 
 Overview
-~~~~~~~~
+--------
 
 .. kernel-doc:: drivers/gpu/drm/drm_mm.c
    :doc: Overview
 
 LRU Scan/Eviction Support
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_mm.c
    :doc: lru scan roaster
@@ -439,16 +451,4 @@ DRM MM Range Allocator Function References
    :export:
 
 .. kernel-doc:: include/drm/drm_mm.h
-   :internal:
-
-CMA Helper Functions Reference
-------------------------------
-
-.. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
-   :doc: cma helpers
-
-.. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
-   :export:
-
-.. kernel-doc:: include/drm/drm_gem_cma_helper.h
    :internal:

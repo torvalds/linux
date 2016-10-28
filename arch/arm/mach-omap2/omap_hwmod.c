@@ -1053,6 +1053,10 @@ static int _omap4_wait_target_disable(struct omap_hwmod *oh)
 	if (oh->flags & HWMOD_NO_IDLEST)
 		return 0;
 
+	if (!oh->prcm.omap4.clkctrl_offs &&
+	    !(oh->prcm.omap4.flags & HWMOD_OMAP4_ZERO_CLKCTRL_OFFSET))
+		return 0;
+
 	return omap_cm_wait_module_idle(oh->clkdm->prcm_partition,
 					oh->clkdm->cm_inst,
 					oh->prcm.omap4.clkctrl_offs, 0);
@@ -2969,6 +2973,10 @@ static int _omap4_wait_target_ready(struct omap_hwmod *oh)
 		return 0;
 
 	if (!_find_mpu_rt_port(oh))
+		return 0;
+
+	if (!oh->prcm.omap4.clkctrl_offs &&
+	    !(oh->prcm.omap4.flags & HWMOD_OMAP4_ZERO_CLKCTRL_OFFSET))
 		return 0;
 
 	/* XXX check module SIDLEMODE, hardreset status */

@@ -108,7 +108,6 @@ struct pv_cpu_ops {
 	unsigned long (*read_cr0)(void);
 	void (*write_cr0)(unsigned long);
 
-	unsigned long (*read_cr4_safe)(void);
 	unsigned long (*read_cr4)(void);
 	void (*write_cr4)(unsigned long);
 
@@ -301,23 +300,16 @@ struct pv_mmu_ops {
 struct arch_spinlock;
 #ifdef CONFIG_SMP
 #include <asm/spinlock_types.h>
-#else
-typedef u16 __ticket_t;
 #endif
 
 struct qspinlock;
 
 struct pv_lock_ops {
-#ifdef CONFIG_QUEUED_SPINLOCKS
 	void (*queued_spin_lock_slowpath)(struct qspinlock *lock, u32 val);
 	struct paravirt_callee_save queued_spin_unlock;
 
 	void (*wait)(u8 *ptr, u8 val);
 	void (*kick)(int cpu);
-#else /* !CONFIG_QUEUED_SPINLOCKS */
-	struct paravirt_callee_save lock_spinning;
-	void (*unlock_kick)(struct arch_spinlock *lock, __ticket_t ticket);
-#endif /* !CONFIG_QUEUED_SPINLOCKS */
 };
 
 /* This contains all the paravirt structures: we get a convenient

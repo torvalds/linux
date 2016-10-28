@@ -11,6 +11,7 @@
 #include <asm/asm.h>
 #include <asm/page.h>
 #include <asm/smap.h>
+#include <asm/extable.h>
 
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1
@@ -89,37 +90,6 @@ static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, un
  */
 #define access_ok(type, addr, size) \
 	likely(!__range_not_ok(addr, size, user_addr_max()))
-
-/*
- * The exception table consists of triples of addresses relative to the
- * exception table entry itself. The first address is of an instruction
- * that is allowed to fault, the second is the target at which the program
- * should continue. The third is a handler function to deal with the fault
- * caused by the instruction in the first field.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry {
-	int insn, fixup, handler;
-};
-
-#define ARCH_HAS_RELATIVE_EXTABLE
-
-#define swap_ex_entry_fixup(a, b, tmp, delta)			\
-	do {							\
-		(a)->fixup = (b)->fixup + (delta);		\
-		(b)->fixup = (tmp).fixup - (delta);		\
-		(a)->handler = (b)->handler + (delta);		\
-		(b)->handler = (tmp).handler - (delta);		\
-	} while (0)
-
-extern int fixup_exception(struct pt_regs *regs, int trapnr);
-extern bool ex_has_fault_handler(unsigned long ip);
-extern void early_fixup_exception(struct pt_regs *regs, int trapnr);
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -433,7 +403,11 @@ do {									\
 #define __get_user_asm_ex(x, addr, itype, rtype, ltype)			\
 	asm volatile("1:	mov"itype" %1,%"rtype"0\n"		\
 		     "2:\n"						\
-		     _ASM_EXTABLE_EX(1b, 2b)				\
+		     ".section .fixup,\"ax\"\n"				\
+                     "3:xor"itype" %"rtype"0,%"rtype"0\n"		\
+		     "  jmp 2b\n"					\
+		     ".previous\n"					\
+		     _ASM_EXTABLE_EX(1b, 3b)				\
 		     : ltype(x) : "m" (__m(addr)))
 
 #define __put_user_nocheck(x, ptr, size)			\
@@ -705,7 +679,7 @@ static inline void copy_user_overflow(int size, unsigned long count)
 	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
 }
 
-static inline unsigned long __must_check
+static __always_inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	int sz = __compiletime_object_size(to);
@@ -725,7 +699,7 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 	return n;
 }
 
-static inline unsigned long __must_check
+static __always_inline unsigned long __must_check
 copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	int sz = __compiletime_object_size(from);

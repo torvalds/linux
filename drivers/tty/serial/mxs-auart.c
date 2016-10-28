@@ -1317,7 +1317,7 @@ static void mxs_auart_break_ctl(struct uart_port *u, int ctl)
 		mxs_clr(AUART_LINECTRL_BRK, s, REG_LINECTRL);
 }
 
-static struct uart_ops mxs_auart_ops = {
+static const struct uart_ops mxs_auart_ops = {
 	.tx_empty       = mxs_auart_tx_empty,
 	.start_tx       = mxs_auart_start_tx,
 	.stop_tx	= mxs_auart_stop_tx,
@@ -1510,10 +1510,7 @@ static int mxs_get_clks(struct mxs_auart_port *s,
 
 	if (!is_asm9260_auart(s)) {
 		s->clk = devm_clk_get(&pdev->dev, NULL);
-		if (IS_ERR(s->clk))
-			return PTR_ERR(s->clk);
-
-		return 0;
+		return PTR_ERR_OR_ZERO(s->clk);
 	}
 
 	s->clk = devm_clk_get(s->dev, "mod");
@@ -1537,16 +1534,20 @@ static int mxs_get_clks(struct mxs_auart_port *s,
 	err = clk_set_rate(s->clk, clk_get_rate(s->clk_ahb));
 	if (err) {
 		dev_err(s->dev, "Failed to set rate!\n");
-		return err;
+		goto disable_clk_ahb;
 	}
 
 	err = clk_prepare_enable(s->clk);
 	if (err) {
 		dev_err(s->dev, "Failed to enable clk!\n");
-		return err;
+		goto disable_clk_ahb;
 	}
 
 	return 0;
+
+disable_clk_ahb:
+	clk_disable_unprepare(s->clk_ahb);
+	return err;
 }
 
 /*

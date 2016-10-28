@@ -19,6 +19,7 @@
 #define CLK_FOUT_MPLL		4
 #define CLK_FOUT_BPLL		5
 #define CLK_FOUT_KPLL		6
+#define CLK_FOUT_EPLL		7
 
 /* gate for special clocks (sclk) */
 #define CLK_SCLK_UART0		128
@@ -55,6 +56,8 @@
 #define CLK_MMC0		351
 #define CLK_MMC1		352
 #define CLK_MMC2		353
+#define CLK_PDMA0		362
+#define CLK_PDMA1		363
 #define CLK_USBH20		365
 #define CLK_USBD300		366
 #define CLK_USBD301		367

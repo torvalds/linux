@@ -474,6 +474,7 @@
 			status		= "disabled";
 			#pwm-cells	= <2>;
 			reg		= <0xfed10000 0x68>;
+			interrupts      = <GIC_SPI 200 IRQ_TYPE_NONE>;
 
 			pinctrl-names	= "default";
 			pinctrl-0 = 	<&pinctrl_pwm0_chan0_default
@@ -481,9 +482,11 @@
 					&pinctrl_pwm0_chan2_default
 					&pinctrl_pwm0_chan3_default>;
 
-			clock-names	= "pwm";
-			clocks		= <&clk_sysin>;
+			clock-names	= "pwm", "capture";
+			clocks		= <&clk_sysin>, <&clk_s_a0_ls CLK_ICN_REG>;
+
 			st,pwm-num-chan = <4>;
+			st,capture-num-chan = <2>;
 		};
 
 		/* SBC PWM Module */
@@ -492,6 +495,7 @@
 			status		= "disabled";
 			#pwm-cells	= <2>;
 			reg		= <0xfe510000 0x68>;
+			interrupts      = <GIC_SPI 202 IRQ_TYPE_NONE>;
 
 			pinctrl-names	= "default";
 			pinctrl-0	= <&pinctrl_pwm1_chan0_default

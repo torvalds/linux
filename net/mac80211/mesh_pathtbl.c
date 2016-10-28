@@ -826,7 +826,7 @@ void mesh_path_fix_nexthop(struct mesh_path *mpath, struct sta_info *next_hop)
 	mpath->metric = 0;
 	mpath->hop_count = 0;
 	mpath->exp_time = 0;
-	mpath->flags |= MESH_PATH_FIXED;
+	mpath->flags = MESH_PATH_FIXED | MESH_PATH_SN_VALID;
 	mesh_path_activate(mpath);
 	spin_unlock_bh(&mpath->state_lock);
 	mesh_path_tx_pending(mpath);

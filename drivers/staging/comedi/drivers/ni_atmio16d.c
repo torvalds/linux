@@ -1,25 +1,41 @@
 /*
-   comedi/drivers/ni_atmio16d.c
-   Hardware driver for National Instruments AT-MIO16D board
-   Copyright (C) 2000 Chris R. Baugher <baugher@enteract.com>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+ * Comedi driver for National Instruments AT-MIO16D board
+ * Copyright (C) 2000 Chris R. Baugher <baugher@enteract.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
+
 /*
-Driver: ni_atmio16d
-Description: National Instruments AT-MIO-16D
-Author: Chris R. Baugher <baugher@enteract.com>
-Status: unknown
-Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
-*/
+ * Driver: ni_atmio16d
+ * Description: National Instruments AT-MIO-16D
+ * Author: Chris R. Baugher <baugher@enteract.com>
+ * Status: unknown
+ * Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
+ *
+ * Configuration options:
+ *   [0] - I/O port
+ *   [1] - MIO irq (0 == no irq; or 3,4,5,6,7,9,10,11,12,14,15)
+ *   [2] - DIO irq (0 == no irq; or 3,4,5,6,7,9)
+ *   [3] - DMA1 channel (0 == no DMA; or 5,6,7)
+ *   [4] - DMA2 channel (0 == no DMA; or 5,6,7)
+ *   [5] - a/d mux (0=differential; 1=single)
+ *   [6] - a/d range (0=bipolar10; 1=bipolar5; 2=unipolar10)
+ *   [7] - dac0 range (0=bipolar; 1=unipolar)
+ *   [8] - dac0 reference (0=internal; 1=external)
+ *   [9] - dac0 coding (0=2's comp; 1=straight binary)
+ *   [10] - dac1 range (same as dac0 options)
+ *   [11] - dac1 reference (same as dac0 options)
+ *   [12] - dac1 coding (same as dac0 options)
+ */
+
 /*
  * I must give credit here to Michal Dobes <dobes@tesnet.cz> who
  * wrote the driver for Advantec's pcl812 boards. I used the interrupt
@@ -295,8 +311,10 @@ static int atmio16d_ai_cmd(struct comedi_device *dev,
 	unsigned int sample_count, tmp, chan, gain;
 	int i;
 
-	/* This is slowly becoming a working command interface. *
-	 * It is still uber-experimental */
+	/*
+	 * This is slowly becoming a working command interface.
+	 * It is still uber-experimental
+	 */
 
 	reset_counters(dev);
 
@@ -322,9 +340,10 @@ static int atmio16d_ai_cmd(struct comedi_device *dev,
 		outw(tmp, dev->iobase + MUX_GAIN_REG);
 	}
 
-	/* Now program the sample interval timer */
-	/* Figure out which clock to use then get an
-	 * appropriate timer value */
+	/*
+	 * Now program the sample interval timer.
+	 * Figure out which clock to use then get an appropriate timer value.
+	 */
 	if (cmd->convert_arg < 65536000) {
 		base_clock = CLOCK_1_MHZ;
 		timer = cmd->convert_arg / 1000;
@@ -386,9 +405,10 @@ static int atmio16d_ai_cmd(struct comedi_device *dev,
 		outw(devpriv->com_reg_1_state, dev->iobase + COM_REG_1);
 	}
 
-	/* Program the scan interval timer ONLY IF SCANNING IS ENABLED */
-	/* Figure out which clock to use then get an
-	 * appropriate timer value */
+	/*
+	 * Program the scan interval timer ONLY IF SCANNING IS ENABLED.
+	 * Figure out which clock to use then get an appropriate timer value.
+	 */
 	if (cmd->chanlist_len > 1) {
 		if (cmd->scan_begin_arg < 65536000) {
 			base_clock = CLOCK_1_MHZ;
@@ -565,38 +585,6 @@ static int atmio16d_dio_insn_config(struct comedi_device *dev,
 
 	return insn->n;
 }
-
-/*
-   options[0] - I/O port
-   options[1] - MIO irq
-		0 == no irq
-		N == irq N {3,4,5,6,7,9,10,11,12,14,15}
-   options[2] - DIO irq
-		0 == no irq
-		N == irq N {3,4,5,6,7,9}
-   options[3] - DMA1 channel
-		0 == no DMA
-		N == DMA N {5,6,7}
-   options[4] - DMA2 channel
-		0 == no DMA
-		N == DMA N {5,6,7}
-
-   options[5] - a/d mux
-	0=differential, 1=single
-   options[6] - a/d range
-	0=bipolar10, 1=bipolar5, 2=unipolar10
-
-   options[7] - dac0 range
-	0=bipolar, 1=unipolar
-   options[8] - dac0 reference
-	0=internal, 1=external
-   options[9] - dac0 coding
-	0=2's comp, 1=straight binary
-
-   options[10] - dac1 range
-   options[11] - dac1 reference
-   options[12] - dac1 coding
- */
 
 static int atmio16d_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)

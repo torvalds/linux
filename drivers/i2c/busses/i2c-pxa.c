@@ -1292,10 +1292,8 @@ static int i2c_pxa_probe(struct platform_device *dev)
 #endif
 
 	ret = i2c_add_numbered_adapter(&i2c->adap);
-	if (ret < 0) {
-		dev_err(&dev->dev, "failed to add bus: %d\n", ret);
+	if (ret < 0)
 		goto ereqirq;
-	}
 
 	platform_set_drvdata(dev, i2c);
 

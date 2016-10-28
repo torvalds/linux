@@ -16,6 +16,7 @@
 
 #include <linux/timer.h>
 #include <linux/mutex.h>
+#include <linux/uaccess.h>
 
 #include "picvue.h"
 

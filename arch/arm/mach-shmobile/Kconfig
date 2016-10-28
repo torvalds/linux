@@ -22,7 +22,6 @@ config ARCH_RCAR_GEN2
 	select PM_GENERIC_DOMAINS
 	select RENESAS_IRQC
 	select SYS_SUPPORTS_SH_CMT
-	select PCI_DOMAINS if PCI
 
 config ARCH_RMOBILE
 	bool

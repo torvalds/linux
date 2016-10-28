@@ -114,6 +114,8 @@ MODULE_PARM_DESC(sdma_comp_size, "Size of User SDMA completion ring. Default: 12
 #define KDETH_HCRC_LOWER_SHIFT    24
 #define KDETH_HCRC_LOWER_MASK     0xff
 
+#define AHG_KDETH_INTR_SHIFT 12
+
 #define PBC2LRH(x) ((((x) & 0xfff) << 2) - 4)
 #define LRH2PBC(x) ((((x) >> 2) + 1) & 0xfff)
 
@@ -546,7 +548,7 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 	u8 opcode, sc, vl;
 	int req_queued = 0;
 	u16 dlid;
-	u8 selector;
+	u32 selector;
 
 	if (iovec[idx].iov_len < sizeof(info) + sizeof(req->hdr)) {
 		hfi1_cdbg(
@@ -751,12 +753,9 @@ int hfi1_user_sdma_process_request(struct file *fp, struct iovec *iovec,
 
 	dlid = be16_to_cpu(req->hdr.lrh[1]);
 	selector = dlid_to_selector(dlid);
+	selector += uctxt->ctxt + fd->subctxt;
+	req->sde = sdma_select_user_engine(dd, selector, vl);
 
-	/* Have to select the engine */
-	req->sde = sdma_select_engine_vl(dd,
-					 (u32)(uctxt->ctxt + fd->subctxt +
-					       selector),
-					 vl);
 	if (!req->sde || !sdma_running(req->sde)) {
 		ret = -ECOMM;
 		goto free_req;
@@ -892,7 +891,7 @@ static inline u32 get_lrh_len(struct hfi1_pkt_header hdr, u32 len)
 
 static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 {
-	int ret = 0;
+	int ret = 0, count;
 	unsigned npkts = 0;
 	struct user_sdma_txreq *tx = NULL;
 	struct hfi1_user_sdma_pkt_q *pq = NULL;
@@ -1088,23 +1087,18 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 		npkts++;
 	}
 dosend:
-	ret = sdma_send_txlist(req->sde, &pq->busy, &req->txps);
-	if (list_empty(&req->txps)) {
-		req->seqsubmitted = req->seqnum;
-		if (req->seqnum == req->info.npkts) {
-			set_bit(SDMA_REQ_SEND_DONE, &req->flags);
-			/*
-			 * The txreq has already been submitted to the HW queue
-			 * so we can free the AHG entry now. Corruption will not
-			 * happen due to the sequential manner in which
-			 * descriptors are processed.
-			 */
-			if (test_bit(SDMA_REQ_HAVE_AHG, &req->flags))
-				sdma_ahg_free(req->sde, req->ahg_idx);
-		}
-	} else if (ret > 0) {
-		req->seqsubmitted += ret;
-		ret = 0;
+	ret = sdma_send_txlist(req->sde, &pq->busy, &req->txps, &count);
+	req->seqsubmitted += count;
+	if (req->seqsubmitted == req->info.npkts) {
+		set_bit(SDMA_REQ_SEND_DONE, &req->flags);
+		/*
+		 * The txreq has already been submitted to the HW queue
+		 * so we can free the AHG entry now. Corruption will not
+		 * happen due to the sequential manner in which
+		 * descriptors are processed.
+		 */
+		if (test_bit(SDMA_REQ_HAVE_AHG, &req->flags))
+			sdma_ahg_free(req->sde, req->ahg_idx);
 	}
 	return ret;
 
@@ -1480,7 +1474,8 @@ static int set_txreq_header_ahg(struct user_sdma_request *req,
 		/* Clear KDETH.SH on last packet */
 		if (unlikely(tx->flags & TXREQ_FLAGS_REQ_LAST_PKT)) {
 			val |= cpu_to_le16(KDETH_GET(hdr->kdeth.ver_tid_offset,
-								INTR) >> 16);
+						     INTR) <<
+					   AHG_KDETH_INTR_SHIFT);
 			val &= cpu_to_le16(~(1U << 13));
 			AHG_HEADER_SET(req->ahg, diff, 7, 16, 14, val);
 		} else {

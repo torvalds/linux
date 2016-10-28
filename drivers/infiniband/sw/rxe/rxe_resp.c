@@ -383,7 +383,7 @@ static enum resp_states check_resource(struct rxe_qp *qp,
 		 * too many read/atomic ops, we just
 		 * recycle the responder resource queue
 		 */
-		if (likely(qp->attr.max_rd_atomic > 0))
+		if (likely(qp->attr.max_dest_rd_atomic > 0))
 			return RESPST_CHK_LENGTH;
 		else
 			return RESPST_ERR_TOO_MANY_RDMA_ATM_REQ;
@@ -749,6 +749,18 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	return state;
 }
 
+static void build_rdma_network_hdr(union rdma_network_hdr *hdr,
+				   struct rxe_pkt_info *pkt)
+{
+	struct sk_buff *skb = PKT_TO_SKB(pkt);
+
+	memset(hdr, 0, sizeof(*hdr));
+	if (skb->protocol == htons(ETH_P_IP))
+		memcpy(&hdr->roce4grh, ip_hdr(skb), sizeof(hdr->roce4grh));
+	else if (skb->protocol == htons(ETH_P_IPV6))
+		memcpy(&hdr->ibgrh, ipv6_hdr(skb), sizeof(hdr->ibgrh));
+}
+
 /* Executes a new request. A retried request never reach that function (send
  * and writes are discarded, and reads and atomics are retried elsewhere.
  */
@@ -761,13 +773,8 @@ static enum resp_states execute(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 		    qp_type(qp) == IB_QPT_SMI ||
 		    qp_type(qp) == IB_QPT_GSI) {
 			union rdma_network_hdr hdr;
-			struct sk_buff *skb = PKT_TO_SKB(pkt);
 
-			memset(&hdr, 0, sizeof(hdr));
-			if (skb->protocol == htons(ETH_P_IP))
-				memcpy(&hdr.roce4grh, ip_hdr(skb), sizeof(hdr.roce4grh));
-			else if (skb->protocol == htons(ETH_P_IPV6))
-				memcpy(&hdr.ibgrh, ipv6_hdr(skb), sizeof(hdr.ibgrh));
+			build_rdma_network_hdr(&hdr, pkt);
 
 			err = send_data_in(qp, &hdr, sizeof(hdr));
 			if (err)
@@ -881,7 +888,8 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 				rmr = rxe_pool_get_index(&rxe->mr_pool,
 							 wc->ex.invalidate_rkey >> 8);
 				if (unlikely(!rmr)) {
-					pr_err("Bad rkey %#x invalidation\n", wc->ex.invalidate_rkey);
+					pr_err("Bad rkey %#x invalidation\n",
+					       wc->ex.invalidate_rkey);
 					return RESPST_ERROR;
 				}
 				rmr->state = RXE_MEM_STATE_FREE;
@@ -972,11 +980,13 @@ static int send_atomic_ack(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 	free_rd_atomic_resource(qp, res);
 	rxe_advance_resp_resource(qp);
 
+	memcpy(SKB_TO_PKT(skb), &ack_pkt, sizeof(skb->cb));
+
 	res->type = RXE_ATOMIC_MASK;
 	res->atomic.skb = skb;
-	res->first_psn = qp->resp.psn;
-	res->last_psn = qp->resp.psn;
-	res->cur_psn = qp->resp.psn;
+	res->first_psn = ack_pkt.psn;
+	res->last_psn  = ack_pkt.psn;
+	res->cur_psn   = ack_pkt.psn;
 
 	rc = rxe_xmit_packet(rxe, qp, &ack_pkt, skb_copy);
 	if (rc) {
@@ -1116,8 +1126,7 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 				rc = RESPST_CLEANUP;
 				goto out;
 			}
-			bth_set_psn(SKB_TO_PKT(skb_copy),
-				    qp->resp.psn - 1);
+
 			/* Resend the result. */
 			rc = rxe_xmit_packet(to_rdev(qp->ibqp.device), qp,
 					     pkt, skb_copy);
@@ -1207,7 +1216,8 @@ int rxe_responder(void *arg)
 	}
 
 	while (1) {
-		pr_debug("state = %s\n", resp_state_name[state]);
+		pr_debug("qp#%d state = %s\n", qp_num(qp),
+			 resp_state_name[state]);
 		switch (state) {
 		case RESPST_GET_REQ:
 			state = get_req(qp, &pkt);

@@ -1178,12 +1178,16 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 		goto err;
 
 	drbg->Vbuf = kmalloc(drbg_statelen(drbg) + ret, GFP_KERNEL);
-	if (!drbg->Vbuf)
+	if (!drbg->Vbuf) {
+		ret = -ENOMEM;
 		goto fini;
+	}
 	drbg->V = PTR_ALIGN(drbg->Vbuf, ret + 1);
 	drbg->Cbuf = kmalloc(drbg_statelen(drbg) + ret, GFP_KERNEL);
-	if (!drbg->Cbuf)
+	if (!drbg->Cbuf) {
+		ret = -ENOMEM;
 		goto fini;
+	}
 	drbg->C = PTR_ALIGN(drbg->Cbuf, ret + 1);
 	/* scratchpad is only generated for CTR and Hash */
 	if (drbg->core->flags & DRBG_HMAC)
@@ -1199,8 +1203,10 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 
 	if (0 < sb_size) {
 		drbg->scratchpadbuf = kzalloc(sb_size + ret, GFP_KERNEL);
-		if (!drbg->scratchpadbuf)
+		if (!drbg->scratchpadbuf) {
+			ret = -ENOMEM;
 			goto fini;
+		}
 		drbg->scratchpad = PTR_ALIGN(drbg->scratchpadbuf, ret + 1);
 	}
 
@@ -1917,6 +1923,8 @@ static inline int __init drbg_healthcheck_sanity(void)
 		return -ENOMEM;
 
 	mutex_init(&drbg->drbg_mutex);
+	drbg->core = &drbg_cores[coreref];
+	drbg->reseed_threshold = drbg_max_requests(drbg);
 
 	/*
 	 * if the following tests fail, it is likely that there is a buffer
@@ -1926,12 +1934,6 @@ static inline int __init drbg_healthcheck_sanity(void)
 	 * grave bug.
 	 */
 
-	/* get a valid instance of DRBG for following tests */
-	ret = drbg_instantiate(drbg, NULL, coreref, pr);
-	if (ret) {
-		rc = ret;
-		goto outbuf;
-	}
 	max_addtllen = drbg_max_addtl(drbg);
 	max_request_bytes = drbg_max_request_bytes(drbg);
 	drbg_string_fill(&addtl, buf, max_addtllen + 1);
@@ -1941,10 +1943,9 @@ static inline int __init drbg_healthcheck_sanity(void)
 	/* overflow max_bits */
 	len = drbg_generate(drbg, buf, (max_request_bytes + 1), NULL);
 	BUG_ON(0 < len);
-	drbg_uninstantiate(drbg);
 
 	/* overflow max addtllen with personalization string */
-	ret = drbg_instantiate(drbg, &addtl, coreref, pr);
+	ret = drbg_seed(drbg, &addtl, false);
 	BUG_ON(0 == ret);
 	/* all tests passed */
 	rc = 0;
@@ -1952,9 +1953,7 @@ static inline int __init drbg_healthcheck_sanity(void)
 	pr_devel("DRBG: Sanity tests for failure code paths successfully "
 		 "completed\n");
 
-	drbg_uninstantiate(drbg);
-outbuf:
-	kzfree(drbg);
+	kfree(drbg);
 	return rc;
 }
 
@@ -2006,7 +2005,7 @@ static int __init drbg_init(void)
 {
 	unsigned int i = 0; /* pointer to drbg_algs */
 	unsigned int j = 0; /* pointer to drbg_cores */
-	int ret = -EFAULT;
+	int ret;
 
 	ret = drbg_healthcheck_sanity();
 	if (ret)
@@ -2016,7 +2015,7 @@ static int __init drbg_init(void)
 		pr_info("DRBG: Cannot register all DRBG types"
 			"(slots needed: %zu, slots available: %zu)\n",
 			ARRAY_SIZE(drbg_cores) * 2, ARRAY_SIZE(drbg_algs));
-		return ret;
+		return -EFAULT;
 	}
 
 	/*

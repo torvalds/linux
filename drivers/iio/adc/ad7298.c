@@ -239,16 +239,16 @@ static int ad7298_read_raw(struct iio_dev *indio_dev,
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
-		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
-			ret = -EBUSY;
-		} else {
-			if (chan->address == AD7298_CH_TEMP)
-				ret = ad7298_scan_temp(st, val);
-			else
-				ret = ad7298_scan_direct(st, chan->address);
-		}
-		mutex_unlock(&indio_dev->mlock);
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
+
+		if (chan->address == AD7298_CH_TEMP)
+			ret = ad7298_scan_temp(st, val);
+		else
+			ret = ad7298_scan_direct(st, chan->address);
+
+		iio_device_release_direct_mode(indio_dev);
 
 		if (ret < 0)
 			return ret;

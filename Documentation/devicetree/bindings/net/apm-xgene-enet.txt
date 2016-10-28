@@ -47,6 +47,9 @@ Optional properties:
 	    Valid values are between 0 to 7, that maps to
 	    273, 589, 899, 1222, 1480, 1806, 2147, 2464 ps
 	    Default value is 2, which corresponds to 899 ps
+- rxlos-gpios: Input gpio from SFP+ module to indicate availability of
+	       incoming signal.
+
 
 Example:
 	menetclk: menetclk {

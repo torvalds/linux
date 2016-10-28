@@ -180,6 +180,14 @@ static int tps65218_pmic_set_suspend_disable(struct regulator_dev *dev)
 	if (rid < TPS65218_DCDC_1 || rid > TPS65218_LDO_1)
 		return -EINVAL;
 
+	/*
+	 * Certain revisions of TPS65218 will need to have DCDC3 regulator
+	 * enabled always, otherwise an immediate system reboot will occur
+	 * during poweroff.
+	 */
+	if (rid == TPS65218_DCDC_3 && tps->rev == TPS65218_REV_2_1)
+		return 0;
+
 	if (!tps->info[rid]->strobe) {
 		if (rid == TPS65218_DCDC_3)
 			tps->info[rid]->strobe = 3;

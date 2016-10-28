@@ -74,6 +74,17 @@ struct cfs_cpt_data {
 
 static struct cfs_cpt_data	cpt_data;
 
+static void
+cfs_node_to_cpumask(int node, cpumask_t *mask)
+{
+	const cpumask_t *tmp = cpumask_of_node(node);
+
+	if (tmp)
+		cpumask_copy(mask, tmp);
+	else
+		cpumask_clear(mask);
+}
+
 void
 cfs_cpt_table_free(struct cfs_cpt_table *cptab)
 {
@@ -403,7 +414,7 @@ cfs_cpt_set_node(struct cfs_cpt_table *cptab, int cpt, int node)
 	mutex_lock(&cpt_data.cpt_mutex);
 
 	mask = cpt_data.cpt_cpumask;
-	cpumask_copy(mask, cpumask_of_node(node));
+	cfs_node_to_cpumask(node, mask);
 
 	rc = cfs_cpt_set_cpumask(cptab, cpt, mask);
 
@@ -427,7 +438,7 @@ cfs_cpt_unset_node(struct cfs_cpt_table *cptab, int cpt, int node)
 	mutex_lock(&cpt_data.cpt_mutex);
 
 	mask = cpt_data.cpt_cpumask;
-	cpumask_copy(mask, cpumask_of_node(node));
+	cfs_node_to_cpumask(node, mask);
 
 	cfs_cpt_unset_cpumask(cptab, cpt, mask);
 
@@ -749,7 +760,7 @@ cfs_cpt_table_create(int ncpt)
 	}
 
 	for_each_online_node(i) {
-		cpumask_copy(mask, cpumask_of_node(i));
+		cfs_node_to_cpumask(i, mask);
 
 		while (!cpumask_empty(mask)) {
 			struct cfs_cpu_partition *part;

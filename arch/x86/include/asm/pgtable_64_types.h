@@ -57,11 +57,13 @@ typedef struct { pteval_t pte; } pte_t;
 #define MAXMEM		_AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
 #define VMALLOC_SIZE_TB	_AC(32, UL)
 #define __VMALLOC_BASE	_AC(0xffffc90000000000, UL)
-#define VMEMMAP_START	_AC(0xffffea0000000000, UL)
+#define __VMEMMAP_BASE	_AC(0xffffea0000000000, UL)
 #ifdef CONFIG_RANDOMIZE_MEMORY
 #define VMALLOC_START	vmalloc_base
+#define VMEMMAP_START	vmemmap_base
 #else
 #define VMALLOC_START	__VMALLOC_BASE
+#define VMEMMAP_START	__VMEMMAP_BASE
 #endif /* CONFIG_RANDOMIZE_MEMORY */
 #define VMALLOC_END	(VMALLOC_START + _AC((VMALLOC_SIZE_TB << 40) - 1, UL))
 #define MODULES_VADDR    (__START_KERNEL_map + KERNEL_IMAGE_SIZE)

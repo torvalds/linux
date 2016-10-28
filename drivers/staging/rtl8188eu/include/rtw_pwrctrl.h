@@ -92,21 +92,6 @@ struct reportpwrstate_parm {
 	unsigned short rsvd;
 };
 
-static inline void _init_pwrlock(struct semaphore  *plock)
-{
-	sema_init(plock, 1);
-}
-
-static inline void _enter_pwrlock(struct semaphore  *plock)
-{
-	_rtw_down_sema(plock);
-}
-
-static inline void _exit_pwrlock(struct semaphore  *plock)
-{
-	up(plock);
-}
-
 #define LPS_DELAY_TIME	1*HZ /*  1 sec */
 
 #define EXE_PWR_NONE	0x01
@@ -157,7 +142,7 @@ enum { /*  for ips_mode */
 };
 
 struct pwrctrl_priv {
-	struct semaphore lock;
+	struct mutex mutex_lock;
 	volatile u8 rpwm; /*  requested power state for fw */
 	volatile u8 cpwm; /*  fw current power state. updated when
 			   * 1. read from HCPWM 2. driver lowers power level */

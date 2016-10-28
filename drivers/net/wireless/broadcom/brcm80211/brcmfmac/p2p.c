@@ -2297,7 +2297,7 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 	return err;
 }
 
-void brcmf_p2p_ifp_removed(struct brcmf_if *ifp)
+void brcmf_p2p_ifp_removed(struct brcmf_if *ifp, bool rtnl_locked)
 {
 	struct brcmf_cfg80211_info *cfg;
 	struct brcmf_cfg80211_vif *vif;
@@ -2306,9 +2306,11 @@ void brcmf_p2p_ifp_removed(struct brcmf_if *ifp)
 	vif = ifp->vif;
 	cfg = wdev_to_cfg(&vif->wdev);
 	cfg->p2p.bss_idx[P2PAPI_BSSCFG_DEVICE].vif = NULL;
-	rtnl_lock();
+	if (!rtnl_locked)
+		rtnl_lock();
 	cfg80211_unregister_wdev(&vif->wdev);
-	rtnl_unlock();
+	if (!rtnl_locked)
+		rtnl_unlock();
 	brcmf_free_vif(vif);
 }
 

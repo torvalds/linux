@@ -1841,24 +1841,19 @@ static int cm_chan_msg_send(void __user *arg)
 {
 	struct rio_cm_msg msg;
 	void *buf;
-	int ret = 0;
+	int ret;
 
 	if (copy_from_user(&msg, arg, sizeof(msg)))
 		return -EFAULT;
 	if (msg.size > RIO_MAX_MSG_SIZE)
 		return -EINVAL;
 
-	buf = kmalloc(msg.size, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	if (copy_from_user(buf, (void __user *)(uintptr_t)msg.msg, msg.size)) {
-		ret = -EFAULT;
-		goto out;
-	}
+	buf = memdup_user((void __user *)(uintptr_t)msg.msg, msg.size);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	ret = riocm_ch_send(msg.ch_num, buf, msg.size);
-out:
+
 	kfree(buf);
 	return ret;
 }
@@ -2247,16 +2242,29 @@ static int rio_cm_shutdown(struct notifier_block *nb, unsigned long code,
 {
 	struct rio_channel *ch;
 	unsigned int i;
+	LIST_HEAD(list);
 
 	riocm_debug(EXIT, ".");
 
+	/*
+	 * If there are any channels left in connected state send
+	 * close notification to the connection partner.
+	 * First build a list of channels that require a closing
+	 * notification because function riocm_send_close() should
+	 * be called outside of spinlock protected code.
+	 */
 	spin_lock_bh(&idr_lock);
 	idr_for_each_entry(&ch_idr, ch, i) {
-		riocm_debug(EXIT, "close ch %d", ch->id);
-		if (ch->state == RIO_CM_CONNECTED)
-			riocm_send_close(ch);
+		if (ch->state == RIO_CM_CONNECTED) {
+			riocm_debug(EXIT, "close ch %d", ch->id);
+			idr_remove(&ch_idr, ch->id);
+			list_add(&ch->ch_node, &list);
+		}
 	}
 	spin_unlock_bh(&idr_lock);
+
+	list_for_each_entry(ch, &list, ch_node)
+		riocm_send_close(ch);
 
 	return NOTIFY_DONE;
 }

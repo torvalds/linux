@@ -709,9 +709,10 @@ static int scpi_probe(struct platform_device *pdev)
 		struct mbox_client *cl = &pchan->cl;
 		struct device_node *shmem = of_parse_phandle(np, "shmem", idx);
 
-		if (of_address_to_resource(shmem, 0, &res)) {
+		ret = of_address_to_resource(shmem, 0, &res);
+		of_node_put(shmem);
+		if (ret) {
 			dev_err(dev, "failed to get SCPI payload mem resource\n");
-			ret = -EINVAL;
 			goto err;
 		}
 
