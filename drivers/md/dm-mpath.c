@@ -1002,6 +1002,8 @@ static int parse_hw_handler(struct dm_arg_set *as, struct multipath *m)
 	}
 
 	m->hw_handler_name = kstrdup(dm_shift_arg(as), GFP_KERNEL);
+	if (!m->hw_handler_name)
+		return -EINVAL;
 
 	if (hw_argc > 1) {
 		char *p;
