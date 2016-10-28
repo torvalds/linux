@@ -126,6 +126,8 @@ connector/
 	- docs on the netlink based userspace<->kernel space communication mod.
 console/
 	- documentation on Linux console drivers.
+core-api/
+	- documentation on kernel core components.
 cpu-freq/
 	- info on CPU frequency and voltage scaling.
 cpu-hotplug.txt
@@ -470,7 +472,7 @@ watchdog/
 	- how to auto-reboot Linux if it has "fallen and can't get up". ;-)
 wimax/
 	- directory with info about Intel Wireless Wimax Connections
-workqueue.txt
+core-api/workqueue.rst
 	- information on the Concurrency Managed Workqueue implementation
 x86/x86_64/
 	- directory with info on Linux support for AMD x86-64 (Hammer) machines.

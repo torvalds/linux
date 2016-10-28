@@ -53,6 +53,7 @@ needed).
    :maxdepth: 2
 
    driver-api/index
+   core-api/index
    media/index
    gpu/index
    80211/index
