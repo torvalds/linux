@@ -110,10 +110,8 @@ static int aes_siv_encrypt(const u8 *key, size_t key_len,
 	 * overwriting this during AES-CTR.
 	 */
 	tmp = kmemdup(plain, plain_len, GFP_KERNEL);
-	if (!tmp) {
-		res = -ENOMEM;
-		goto fail;
-	}
+	if (!tmp)
+		return -ENOMEM;
 
 	/* IV for CTR before encrypted data */
 	memcpy(out, v, AES_BLOCK_SIZE);
