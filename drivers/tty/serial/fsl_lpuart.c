@@ -473,8 +473,6 @@ static int lpuart_poll_init(struct uart_port *port)
 
 static void lpuart_poll_put_char(struct uart_port *port, unsigned char c)
 {
-	unsigned int status;
-
 	/* drain */
 	while (!(readb(port->membase + UARTSR1) & UARTSR1_TDRE))
 		barrier();
