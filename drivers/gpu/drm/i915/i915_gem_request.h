@@ -569,40 +569,13 @@ i915_gem_active_is_idle(const struct i915_gem_active *active,
 }
 
 /**
- * i915_gem_active_wait - waits until the request is completed
- * @active - the active request on which to wait
- *
- * i915_gem_active_wait() waits until the request is completed before
- * returning. Note that it does not guarantee that the request is
- * retired first, see i915_gem_active_retire().
- *
- * i915_gem_active_wait() returns immediately if the active
- * request is already complete.
- */
-static inline int __must_check
-i915_gem_active_wait(const struct i915_gem_active *active, struct mutex *mutex)
-{
-	struct drm_i915_gem_request *request;
-	long ret;
-
-	request = i915_gem_active_peek(active, mutex);
-	if (!request)
-		return 0;
-
-	ret = i915_wait_request(request,
-				I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
-				MAX_SCHEDULE_TIMEOUT);
-	return ret < 0 ? ret : 0;
-}
-
-/**
- * i915_gem_active_wait_unlocked - waits until the request is completed
+ * i915_gem_active_wait- waits until the request is completed
  * @active - the active request on which to wait
  * @flags - how to wait
  * @timeout - how long to wait at most
  * @rps - userspace client to charge for a waitboost
  *
- * i915_gem_active_wait_unlocked() waits until the request is completed before
+ * i915_gem_active_wait() waits until the request is completed before
  * returning, without requiring any locks to be held. Note that it does not
  * retire any requests before returning.
  *
@@ -618,8 +591,7 @@ i915_gem_active_wait(const struct i915_gem_active *active, struct mutex *mutex)
  * Returns 0 if successful, or a negative error code.
  */
 static inline int
-i915_gem_active_wait_unlocked(const struct i915_gem_active *active,
-			      unsigned int flags)
+i915_gem_active_wait(const struct i915_gem_active *active, unsigned int flags)
 {
 	struct drm_i915_gem_request *request;
 	long ret = 0;

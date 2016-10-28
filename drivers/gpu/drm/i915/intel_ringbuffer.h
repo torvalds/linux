@@ -524,7 +524,7 @@ static inline int intel_engine_idle(struct intel_engine_cs *engine,
 				    unsigned int flags)
 {
 	/* Wait upon the last request to be completed */
-	return i915_gem_active_wait_unlocked(&engine->last_request, flags);
+	return i915_gem_active_wait(&engine->last_request, flags);
 }
 
 int intel_init_render_ring_buffer(struct intel_engine_cs *engine);
