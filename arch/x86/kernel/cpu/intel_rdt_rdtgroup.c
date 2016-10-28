@@ -28,6 +28,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
+#include <linux/task_work.h>
 
 #include <uapi/linux/magic.h>
 
@@ -267,6 +268,162 @@ unlock:
 	return ret ?: nbytes;
 }
 
+struct task_move_callback {
+	struct callback_head	work;
+	struct rdtgroup		*rdtgrp;
+};
+
+static void move_myself(struct callback_head *head)
+{
+	struct task_move_callback *callback;
+	struct rdtgroup *rdtgrp;
+
+	callback = container_of(head, struct task_move_callback, work);
+	rdtgrp = callback->rdtgrp;
+
+	/*
+	 * If resource group was deleted before this task work callback
+	 * was invoked, then assign the task to root group and free the
+	 * resource group.
+	 */
+	if (atomic_dec_and_test(&rdtgrp->waitcount) &&
+	    (rdtgrp->flags & RDT_DELETED)) {
+		current->closid = 0;
+		kfree(rdtgrp);
+	}
+
+	kfree(callback);
+}
+
+static int __rdtgroup_move_task(struct task_struct *tsk,
+				struct rdtgroup *rdtgrp)
+{
+	struct task_move_callback *callback;
+	int ret;
+
+	callback = kzalloc(sizeof(*callback), GFP_KERNEL);
+	if (!callback)
+		return -ENOMEM;
+	callback->work.func = move_myself;
+	callback->rdtgrp = rdtgrp;
+
+	/*
+	 * Take a refcount, so rdtgrp cannot be freed before the
+	 * callback has been invoked.
+	 */
+	atomic_inc(&rdtgrp->waitcount);
+	ret = task_work_add(tsk, &callback->work, true);
+	if (ret) {
+		/*
+		 * Task is exiting. Drop the refcount and free the callback.
+		 * No need to check the refcount as the group cannot be
+		 * deleted before the write function unlocks rdtgroup_mutex.
+		 */
+		atomic_dec(&rdtgrp->waitcount);
+		kfree(callback);
+	} else {
+		tsk->closid = rdtgrp->closid;
+	}
+	return ret;
+}
+
+static int rdtgroup_task_write_permission(struct task_struct *task,
+					  struct kernfs_open_file *of)
+{
+	const struct cred *tcred = get_task_cred(task);
+	const struct cred *cred = current_cred();
+	int ret = 0;
+
+	/*
+	 * Even if we're attaching all tasks in the thread group, we only
+	 * need to check permissions on one of them.
+	 */
+	if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
+	    !uid_eq(cred->euid, tcred->uid) &&
+	    !uid_eq(cred->euid, tcred->suid))
+		ret = -EPERM;
+
+	put_cred(tcred);
+	return ret;
+}
+
+static int rdtgroup_move_task(pid_t pid, struct rdtgroup *rdtgrp,
+			      struct kernfs_open_file *of)
+{
+	struct task_struct *tsk;
+	int ret;
+
+	rcu_read_lock();
+	if (pid) {
+		tsk = find_task_by_vpid(pid);
+		if (!tsk) {
+			rcu_read_unlock();
+			return -ESRCH;
+		}
+	} else {
+		tsk = current;
+	}
+
+	get_task_struct(tsk);
+	rcu_read_unlock();
+
+	ret = rdtgroup_task_write_permission(tsk, of);
+	if (!ret)
+		ret = __rdtgroup_move_task(tsk, rdtgrp);
+
+	put_task_struct(tsk);
+	return ret;
+}
+
+static ssize_t rdtgroup_tasks_write(struct kernfs_open_file *of,
+				    char *buf, size_t nbytes, loff_t off)
+{
+	struct rdtgroup *rdtgrp;
+	int ret = 0;
+	pid_t pid;
+
+	if (kstrtoint(strstrip(buf), 0, &pid) || pid < 0)
+		return -EINVAL;
+	rdtgrp = rdtgroup_kn_lock_live(of->kn);
+
+	if (rdtgrp)
+		ret = rdtgroup_move_task(pid, rdtgrp, of);
+	else
+		ret = -ENOENT;
+
+	rdtgroup_kn_unlock(of->kn);
+
+	return ret ?: nbytes;
+}
+
+static void show_rdt_tasks(struct rdtgroup *r, struct seq_file *s)
+{
+	struct task_struct *p, *t;
+
+	rcu_read_lock();
+	for_each_process_thread(p, t) {
+		if (t->closid == r->closid)
+			seq_printf(s, "%d\n", t->pid);
+	}
+	rcu_read_unlock();
+}
+
+static int rdtgroup_tasks_show(struct kernfs_open_file *of,
+			       struct seq_file *s, void *v)
+{
+	struct rdtgroup *rdtgrp;
+	int ret = 0;
+
+	rdtgrp = rdtgroup_kn_lock_live(of->kn);
+	if (rdtgrp)
+		show_rdt_tasks(rdtgrp, s);
+	else
+		ret = -ENOENT;
+	rdtgroup_kn_unlock(of->kn);
+
+	return ret;
+}
+
 /* Files in each rdtgroup */
 static struct rftype rdtgroup_base_files[] = {
 	{
@@ -275,6 +432,13 @@ static struct rftype rdtgroup_base_files[] = {
 		.kf_ops		= &rdtgroup_kf_single_ops,
 		.write		= rdtgroup_cpus_write,
 		.seq_show	= rdtgroup_cpus_show,
+	},
+	{
+		.name		= "tasks",
+		.mode		= 0644,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.write		= rdtgroup_tasks_write,
+		.seq_show	= rdtgroup_tasks_show,
 	},
 };
 
@@ -592,6 +756,13 @@ static void rdt_reset_pqr_assoc_closid(void *v)
 static void rmdir_all_sub(void)
 {
 	struct rdtgroup *rdtgrp, *tmp;
+	struct task_struct *p, *t;
+
+	/* move all tasks to default resource group */
+	read_lock(&tasklist_lock);
+	for_each_process_thread(p, t)
+		t->closid = 0;
+	read_unlock(&tasklist_lock);
 
 	get_cpu();
 	/* Reset PQR_ASSOC MSR on this cpu. */
@@ -712,6 +883,7 @@ out_unlock:
 
 static int rdtgroup_rmdir(struct kernfs_node *kn)
 {
+	struct task_struct *p, *t;
 	struct rdtgroup *rdtgrp;
 	int cpu, ret = 0;
 
@@ -720,6 +892,14 @@ static int rdtgroup_rmdir(struct kernfs_node *kn)
 		rdtgroup_kn_unlock(kn);
 		return -ENOENT;
 	}
+
+	/* Give any tasks back to the default group */
+	read_lock(&tasklist_lock);
+	for_each_process_thread(p, t) {
+		if (t->closid == rdtgrp->closid)
+			t->closid = 0;
+	}
+	read_unlock(&tasklist_lock);
 
 	/* Give any CPUs back to the default group */
 	cpumask_or(&rdtgroup_default.cpu_mask,
