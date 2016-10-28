@@ -789,6 +789,49 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
 	return false;
 }
 
+static long
+__i915_request_wait_for_submit(struct drm_i915_gem_request *request,
+			       unsigned int flags,
+			       long timeout)
+{
+	const int state = flags & I915_WAIT_INTERRUPTIBLE ?
+		TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
+	wait_queue_head_t *q = &request->i915->gpu_error.wait_queue;
+	DEFINE_WAIT(reset);
+	DEFINE_WAIT(wait);
+
+	if (flags & I915_WAIT_LOCKED)
+		add_wait_queue(q, &reset);
+
+	do {
+		prepare_to_wait(&request->submit.wait, &wait, state);
+
+		if (i915_sw_fence_done(&request->submit))
+			break;
+
+		if (flags & I915_WAIT_LOCKED &&
+		    i915_reset_in_progress(&request->i915->gpu_error)) {
+			__set_current_state(TASK_RUNNING);
+			i915_reset(request->i915);
+			reset_wait_queue(q, &reset);
+			continue;
+		}
+
+		if (signal_pending_state(state, current)) {
+			timeout = -ERESTARTSYS;
+			break;
+		}
+
+		timeout = io_schedule_timeout(timeout);
+	} while (timeout);
+	finish_wait(&request->submit.wait, &wait);
+
+	if (flags & I915_WAIT_LOCKED)
+		remove_wait_queue(q, &reset);
+
+	return timeout;
+}
+
 /**
  * i915_wait_request - wait until execution of request has finished
  * @req: the request to wait upon
@@ -832,6 +875,14 @@ long i915_wait_request(struct drm_i915_gem_request *req,
 		return -ETIME;
 
 	trace_i915_gem_request_wait_begin(req);
+
+	if (!i915_sw_fence_done(&req->submit)) {
+		timeout = __i915_request_wait_for_submit(req, flags, timeout);
+		if (timeout < 0)
+			goto complete;
+
+		GEM_BUG_ON(!i915_sw_fence_done(&req->submit));
+	}
 
 	/* Optimistic short spin before touching IRQs */
 	if (i915_spin_request(req, state, 5))
