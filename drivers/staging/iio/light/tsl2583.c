@@ -171,7 +171,14 @@ taos_i2c_read(struct i2c_client *client, u8 reg, u8 *val, unsigned int len)
 			return ret;
 		}
 		/* read the data */
-		*val = i2c_smbus_read_byte(client);
+		ret = i2c_smbus_read_byte(client);
+		if (ret < 0) {
+			dev_err(&client->dev,
+				"%s failed to read byte after writing to register %x\n",
+				__func__, reg);
+			return ret;
+		}
+		*val = ret;
 		val++;
 		reg++;
 	}
@@ -355,6 +362,13 @@ static int taos_als_calibrate(struct iio_dev *indio_dev)
 	}
 
 	reg_val = i2c_smbus_read_byte(chip->client);
+	if (reg_val < 0) {
+		dev_err(&chip->client->dev,
+			"%s failed to read after writing to the CNTRL register\n",
+			__func__);
+		return ret;
+	}
+
 	if ((reg_val & (TSL258X_CNTL_ADC_ENBL | TSL258X_CNTL_PWR_ON))
 			!= (TSL258X_CNTL_ADC_ENBL | TSL258X_CNTL_PWR_ON)) {
 		dev_err(&chip->client->dev,
@@ -371,6 +385,12 @@ static int taos_als_calibrate(struct iio_dev *indio_dev)
 		return ret;
 	}
 	reg_val = i2c_smbus_read_byte(chip->client);
+	if (reg_val < 0) {
+		dev_err(&chip->client->dev,
+			"%s failed to read after writing to the STATUS register\n",
+			__func__);
+		return ret;
+	}
 
 	if ((reg_val & TSL258X_STA_ADC_VALID) != TSL258X_STA_ADC_VALID) {
 		dev_err(&chip->client->dev,
