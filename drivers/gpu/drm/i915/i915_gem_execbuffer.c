@@ -1290,8 +1290,6 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	 * add the active reference first and queue for it to be dropped
 	 * *last*.
 	 */
-	if (!i915_gem_object_is_active(obj))
-		i915_gem_object_get(obj);
 	i915_gem_object_set_active(obj, idx);
 	i915_gem_active_set(&obj->last_read[idx], req);
 

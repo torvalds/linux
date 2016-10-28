@@ -1762,14 +1762,19 @@ static void cleanup_phys_status_page(struct intel_engine_cs *engine)
 static void cleanup_status_page(struct intel_engine_cs *engine)
 {
 	struct i915_vma *vma;
+	struct drm_i915_gem_object *obj;
 
 	vma = fetch_and_zero(&engine->status_page.vma);
 	if (!vma)
 		return;
 
+	obj = vma->obj;
+
 	i915_vma_unpin(vma);
-	i915_gem_object_unpin_map(vma->obj);
-	i915_vma_put(vma);
+	i915_vma_close(vma);
+
+	i915_gem_object_unpin_map(obj);
+	__i915_gem_object_release_unless_active(obj);
 }
 
 static int init_status_page(struct intel_engine_cs *engine)
@@ -1967,7 +1972,11 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 void
 intel_ring_free(struct intel_ring *ring)
 {
-	i915_vma_put(ring->vma);
+	struct drm_i915_gem_object *obj = ring->vma->obj;
+
+	i915_vma_close(ring->vma);
+	__i915_gem_object_release_unless_active(obj);
+
 	kfree(ring);
 }
 

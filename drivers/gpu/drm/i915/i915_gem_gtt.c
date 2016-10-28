@@ -3734,11 +3734,16 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 void i915_vma_unpin_and_release(struct i915_vma **p_vma)
 {
 	struct i915_vma *vma;
+	struct drm_i915_gem_object *obj;
 
 	vma = fetch_and_zero(p_vma);
 	if (!vma)
 		return;
 
+	obj = vma->obj;
+
 	i915_vma_unpin(vma);
-	i915_vma_put(vma);
+	i915_vma_close(vma);
+
+	__i915_gem_object_release_unless_active(obj);
 }

@@ -2661,7 +2661,10 @@ i915_gem_object_retire__read(struct i915_gem_active *active,
 		list_move_tail(&obj->global_list,
 			       &request->i915->mm.bound_list);
 
-	i915_gem_object_put(obj);
+	if (i915_gem_object_has_active_reference(obj)) {
+		i915_gem_object_clear_active_reference(obj);
+		i915_gem_object_put(obj);
+	}
 }
 
 static bool i915_context_is_banned(const struct i915_gem_context *ctx)
@@ -2935,6 +2938,12 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 	list_for_each_entry_safe(vma, vn, &obj->vma_list, obj_link)
 		if (vma->vm->file == fpriv)
 			i915_vma_close(vma);
+
+	if (i915_gem_object_is_active(obj) &&
+	    !i915_gem_object_has_active_reference(obj)) {
+		i915_gem_object_set_active_reference(obj);
+		i915_gem_object_get(obj);
+	}
 	mutex_unlock(&obj->base.dev->struct_mutex);
 }
 
@@ -4473,6 +4482,17 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	i915_gem_object_free(obj);
 
 	intel_runtime_pm_put(dev_priv);
+}
+
+void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj)
+{
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+
+	GEM_BUG_ON(i915_gem_object_has_active_reference(obj));
+	if (i915_gem_object_is_active(obj))
+		i915_gem_object_set_active_reference(obj);
+	else
+		i915_gem_object_put(obj);
 }
 
 int i915_gem_suspend(struct drm_device *dev)

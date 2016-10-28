@@ -2247,6 +2247,12 @@ struct drm_i915_gem_object {
 	((READ_ONCE((bo)->flags) >> I915_BO_ACTIVE_SHIFT) & I915_BO_ACTIVE_MASK)
 
 	/**
+	 * Have we taken a reference for the object for incomplete GPU
+	 * activity?
+	 */
+#define I915_BO_ACTIVE_REF (I915_BO_ACTIVE_SHIFT + I915_NUM_ENGINES)
+
+	/**
 	 * This is set if the object has been written to since last bound
 	 * to the GTT
 	 */
@@ -2406,6 +2412,28 @@ i915_gem_object_has_active_engine(const struct drm_i915_gem_object *obj,
 {
 	return obj->flags & BIT(engine + I915_BO_ACTIVE_SHIFT);
 }
+
+static inline bool
+i915_gem_object_has_active_reference(const struct drm_i915_gem_object *obj)
+{
+	return test_bit(I915_BO_ACTIVE_REF, &obj->flags);
+}
+
+static inline void
+i915_gem_object_set_active_reference(struct drm_i915_gem_object *obj)
+{
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	__set_bit(I915_BO_ACTIVE_REF, &obj->flags);
+}
+
+static inline void
+i915_gem_object_clear_active_reference(struct drm_i915_gem_object *obj)
+{
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	__clear_bit(I915_BO_ACTIVE_REF, &obj->flags);
+}
+
+void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj);
 
 static inline unsigned int
 i915_gem_object_get_tiling(struct drm_i915_gem_object *obj)

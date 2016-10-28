@@ -155,7 +155,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 		if (ce->ring)
 			intel_ring_free(ce->ring);
 
-		i915_vma_put(ce->state);
+		__i915_gem_object_release_unless_active(ce->state->obj);
 	}
 
 	put_pid(ctx->pid);
