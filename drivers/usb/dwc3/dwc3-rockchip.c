@@ -33,6 +33,7 @@
 
 #include "core.h"
 #include "io.h"
+#include "../host/xhci.h"
 
 #define DWC3_ROCKCHIP_AUTOSUSPEND_DELAY  500 /* ms */
 
@@ -82,6 +83,7 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 	struct dwc3		*dwc = rockchip->dwc;
 	struct extcon_dev	*edev = rockchip->edev;
 	struct usb_hcd		*hcd;
+	struct xhci_hcd		*xhci;
 	unsigned long		flags;
 	int			ret;
 	u32			reg;
@@ -219,8 +221,10 @@ static void dwc3_rockchip_otg_extcon_evt_work(struct work_struct *work)
 		if (DWC3_GCTL_PRTCAP(reg) == DWC3_GCTL_PRTCAP_HOST ||
 		    DWC3_GCTL_PRTCAP(reg) == DWC3_GCTL_PRTCAP_OTG) {
 			hcd = dev_get_drvdata(&dwc->xhci->dev);
+			xhci = hcd_to_xhci(hcd);
 
 			if (hcd->state != HC_STATE_HALT) {
+				xhci->xhc_state |= XHCI_STATE_REMOVING;
 				usb_remove_hcd(hcd->shared_hcd);
 				usb_remove_hcd(hcd);
 			}
