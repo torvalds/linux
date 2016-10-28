@@ -4362,6 +4362,15 @@ void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj)
 		i915_gem_object_put(obj);
 }
 
+static void assert_kernel_context_is_current(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, dev_priv, id)
+		GEM_BUG_ON(engine->last_context != dev_priv->kernel_context);
+}
+
 int i915_gem_suspend(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -4391,6 +4400,7 @@ int i915_gem_suspend(struct drm_device *dev)
 
 	i915_gem_retire_requests(dev_priv);
 
+	assert_kernel_context_is_current(dev_priv);
 	i915_gem_context_lost(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
