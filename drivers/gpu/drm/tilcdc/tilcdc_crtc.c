@@ -71,6 +71,7 @@ static void set_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 {
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
+	struct tilcdc_drm_private *priv = dev->dev_private;
 	struct drm_gem_cma_object *gem;
 	dma_addr_t start, end;
 	u64 dma_base_and_ceiling;
@@ -88,7 +89,10 @@ static void set_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 	 * unlikely that LCDC would fetch the DMA addresses in the middle of
 	 * an update.
 	 */
-	dma_base_and_ceiling = (u64)(end - 1) << 32 | start;
+	if (priv->rev == 1)
+		end -= 1;
+
+	dma_base_and_ceiling = (u64)end << 32 | start;
 	tilcdc_write64(dev, LCDC_DMA_FB_BASE_ADDR_0_REG, dma_base_and_ceiling);
 
 	if (tilcdc_crtc->curr_fb)
