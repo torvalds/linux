@@ -663,9 +663,9 @@ static int crypto_gcm_create_common(struct crypto_template *tmpl,
 		goto err_drop_ghash;
 
 	crypto_set_skcipher_spawn(&ctx->ctr, aead_crypto_instance(inst));
-	err = crypto_grab_skcipher2(&ctx->ctr, ctr_name, 0,
-				    crypto_requires_sync(algt->type,
-							 algt->mask));
+	err = crypto_grab_skcipher(&ctx->ctr, ctr_name, 0,
+				   crypto_requires_sync(algt->type,
+							algt->mask));
 	if (err)
 		goto err_drop_ghash;
 

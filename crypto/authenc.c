@@ -420,9 +420,9 @@ static int crypto_authenc_create(struct crypto_template *tmpl,
 		goto err_free_inst;
 
 	crypto_set_skcipher_spawn(&ctx->enc, aead_crypto_instance(inst));
-	err = crypto_grab_skcipher2(&ctx->enc, enc_name, 0,
-				    crypto_requires_sync(algt->type,
-							 algt->mask));
+	err = crypto_grab_skcipher(&ctx->enc, enc_name, 0,
+				   crypto_requires_sync(algt->type,
+							algt->mask));
 	if (err)
 		goto err_drop_auth;
 
