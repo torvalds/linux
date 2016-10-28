@@ -318,17 +318,16 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 		container_of(fence, typeof(*request), submit);
 	struct intel_engine_cs *engine = request->engine;
 
+	if (state != FENCE_COMPLETE)
+		return NOTIFY_DONE;
+
 	/* Will be called from irq-context when using foreign DMA fences */
 
-	switch (state) {
-	case FENCE_COMPLETE:
-		engine->timeline->last_submitted_seqno = request->fence.seqno;
-		engine->submit_request(request);
-		break;
+	engine->timeline->last_submitted_seqno = request->fence.seqno;
 
-	case FENCE_FREE:
-		break;
-	}
+	engine->emit_breadcrumb(request,
+				request->ring->vaddr + request->postfix);
+	engine->submit_request(request);
 
 	return NOTIFY_DONE;
 }
@@ -648,9 +647,7 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	struct intel_ring *ring = request->ring;
 	struct intel_timeline *timeline = request->timeline;
 	struct drm_i915_gem_request *prev;
-	u32 request_start;
-	u32 reserved_tail;
-	int ret;
+	int err;
 
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
 	trace_i915_gem_request_add(request);
@@ -660,8 +657,6 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	 * should already have been reserved in the ring buffer. Let the ring
 	 * know that it is time to use that space up.
 	 */
-	request_start = ring->tail;
-	reserved_tail = request->reserved_space;
 	request->reserved_space = 0;
 
 	/*
@@ -672,10 +667,10 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	 * what.
 	 */
 	if (flush_caches) {
-		ret = engine->emit_flush(request, EMIT_FLUSH);
+		err = engine->emit_flush(request, EMIT_FLUSH);
 
 		/* Not allowed to fail! */
-		WARN(ret, "engine->emit_flush() failed: %d!\n", ret);
+		WARN(err, "engine->emit_flush() failed: %d!\n", err);
 	}
 
 	/* Record the position of the start of the breadcrumb so that
@@ -683,20 +678,10 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	 * GPU processing the request, we never over-estimate the
 	 * position of the ring's HEAD.
 	 */
+	err = intel_ring_begin(request, engine->emit_breadcrumb_sz);
+	GEM_BUG_ON(err);
 	request->postfix = ring->tail;
-
-	/* Not allowed to fail! */
-	ret = engine->emit_breadcrumb(request);
-	WARN(ret, "(%s)->emit_breadcrumb failed: %d!\n", engine->name, ret);
-
-	/* Sanity check that the reserved size was large enough. */
-	ret = ring->tail - request_start;
-	if (ret < 0)
-		ret += ring->size;
-	WARN_ONCE(ret > reserved_tail,
-		  "Not enough space reserved (%d bytes) "
-		  "for adding the request (%d bytes)\n",
-		  reserved_tail, ret);
+	ring->tail += engine->emit_breadcrumb_sz * sizeof(u32);
 
 	/* Seal the request and mark it as pending execution. Note that
 	 * we may inspect this state, without holding any locks, during

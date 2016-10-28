@@ -365,7 +365,7 @@ static u64 execlists_update_context(struct drm_i915_gem_request *rq)
 	struct i915_hw_ppgtt *ppgtt = rq->ctx->ppgtt;
 	u32 *reg_state = ce->lrc_reg_state;
 
-	reg_state[CTX_RING_TAIL+1] = intel_ring_offset(rq->ring, rq->tail);
+	reg_state[CTX_RING_TAIL+1] = rq->tail;
 
 	/* True 32b PPGTT with dynamic page allocation: update PDP
 	 * registers and point the unallocated PDPs to scratch page.
@@ -599,6 +599,15 @@ static void execlists_submit_request(struct drm_i915_gem_request *request)
 
 	spin_lock_irqsave(&engine->execlist_lock, flags);
 
+	/* We keep the previous context alive until we retire the following
+	 * request. This ensures that any the context object is still pinned
+	 * for any residual writes the HW makes into it on the context switch
+	 * into the next object following the breadcrumb. Otherwise, we may
+	 * retire the context too early.
+	 */
+	request->previous_context = engine->last_context;
+	engine->last_context = request->ctx;
+
 	list_add_tail(&request->execlist_link, &engine->execlist_queue);
 	if (execlists_elsp_idle(engine))
 		tasklet_hi_schedule(&engine->irq_tasklet);
@@ -669,46 +678,6 @@ err_unreserve:
 err_unpin:
 	intel_lr_context_unpin(request->ctx, engine);
 	return ret;
-}
-
-/*
- * intel_logical_ring_advance() - advance the tail and prepare for submission
- * @request: Request to advance the logical ringbuffer of.
- *
- * The tail is updated in our logical ringbuffer struct, not in the actual context. What
- * really happens during submission is that the context and current tail will be placed
- * on a queue waiting for the ELSP to be ready to accept a new context submission. At that
- * point, the tail *inside* the context is updated and the ELSP written to.
- */
-static int
-intel_logical_ring_advance(struct drm_i915_gem_request *request)
-{
-	struct intel_ring *ring = request->ring;
-	struct intel_engine_cs *engine = request->engine;
-
-	intel_ring_advance(ring);
-	request->tail = ring->tail;
-
-	/*
-	 * Here we add two extra NOOPs as padding to avoid
-	 * lite restore of a context with HEAD==TAIL.
-	 *
-	 * Caller must reserve WA_TAIL_DWORDS for us!
-	 */
-	intel_ring_emit(ring, MI_NOOP);
-	intel_ring_emit(ring, MI_NOOP);
-	intel_ring_advance(ring);
-	request->wa_tail = ring->tail;
-
-	/* We keep the previous context alive until we retire the following
-	 * request. This ensures that any the context object is still pinned
-	 * for any residual writes the HW makes into it on the context switch
-	 * into the next object following the breadcrumb. Otherwise, we may
-	 * retire the context too early.
-	 */
-	request->previous_context = engine->last_context;
-	engine->last_context = request->ctx;
-	return 0;
 }
 
 static int intel_lr_context_pin(struct i915_gem_context *ctx,
@@ -1566,41 +1535,35 @@ static void bxt_a_seqno_barrier(struct intel_engine_cs *engine)
  * used as a workaround for not being allowed to do lite
  * restore with HEAD==TAIL (WaIdleLiteRestore).
  */
-
-static int gen8_emit_breadcrumb(struct drm_i915_gem_request *request)
+static void gen8_emit_wa_tail(struct drm_i915_gem_request *request, u32 *out)
 {
-	struct intel_ring *ring = request->ring;
-	int ret;
+	*out++ = MI_NOOP;
+	*out++ = MI_NOOP;
+	request->wa_tail = intel_ring_offset(request->ring, out);
+}
 
-	ret = intel_ring_begin(request, 6 + WA_TAIL_DWORDS);
-	if (ret)
-		return ret;
-
+static void gen8_emit_breadcrumb(struct drm_i915_gem_request *request,
+				 u32 *out)
+{
 	/* w/a: bit 5 needs to be zero for MI_FLUSH_DW address. */
 	BUILD_BUG_ON(I915_GEM_HWS_INDEX_ADDR & (1 << 5));
 
-	intel_ring_emit(ring, (MI_FLUSH_DW + 1) | MI_FLUSH_DW_OP_STOREDW);
-	intel_ring_emit(ring,
-			intel_hws_seqno_address(request->engine) |
-			MI_FLUSH_DW_USE_GTT);
-	intel_ring_emit(ring, 0);
-	intel_ring_emit(ring, request->global_seqno);
-	intel_ring_emit(ring, MI_USER_INTERRUPT);
-	intel_ring_emit(ring, MI_NOOP);
-	return intel_logical_ring_advance(request);
+	*out++ = (MI_FLUSH_DW + 1) | MI_FLUSH_DW_OP_STOREDW;
+	*out++ = intel_hws_seqno_address(request->engine) | MI_FLUSH_DW_USE_GTT;
+	*out++ = 0;
+	*out++ = request->global_seqno;
+	*out++ = MI_USER_INTERRUPT;
+	*out++ = MI_NOOP;
+	request->tail = intel_ring_offset(request->ring, out);
+
+	gen8_emit_wa_tail(request, out);
 }
 
 static const int gen8_emit_breadcrumb_sz = 6 + WA_TAIL_DWORDS;
 
-static int gen8_emit_breadcrumb_render(struct drm_i915_gem_request *request)
+static void gen8_emit_breadcrumb_render(struct drm_i915_gem_request *request,
+					u32 *out)
 {
-	struct intel_ring *ring = request->ring;
-	int ret;
-
-	ret = intel_ring_begin(request, 8 + WA_TAIL_DWORDS);
-	if (ret)
-		return ret;
-
 	/* We're using qword write, seqno should be aligned to 8 bytes. */
 	BUILD_BUG_ON(I915_GEM_HWS_INDEX & 1);
 
@@ -1608,19 +1571,20 @@ static int gen8_emit_breadcrumb_render(struct drm_i915_gem_request *request)
 	 * need a prior CS_STALL, which is emitted by the flush
 	 * following the batch.
 	 */
-	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(6));
-	intel_ring_emit(ring,
-			(PIPE_CONTROL_GLOBAL_GTT_IVB |
-			 PIPE_CONTROL_CS_STALL |
-			 PIPE_CONTROL_QW_WRITE));
-	intel_ring_emit(ring, intel_hws_seqno_address(request->engine));
-	intel_ring_emit(ring, 0);
-	intel_ring_emit(ring, request->global_seqno);
+	*out++ = GFX_OP_PIPE_CONTROL(6);
+	*out++ = (PIPE_CONTROL_GLOBAL_GTT_IVB |
+		  PIPE_CONTROL_CS_STALL |
+		  PIPE_CONTROL_QW_WRITE);
+	*out++ = intel_hws_seqno_address(request->engine);
+	*out++ = 0;
+	*out++ = request->global_seqno;
 	/* We're thrashing one dword of HWS. */
-	intel_ring_emit(ring, 0);
-	intel_ring_emit(ring, MI_USER_INTERRUPT);
-	intel_ring_emit(ring, MI_NOOP);
-	return intel_logical_ring_advance(request);
+	*out++ = 0;
+	*out++ = MI_USER_INTERRUPT;
+	*out++ = MI_NOOP;
+	request->tail = intel_ring_offset(request->ring, out);
+
+	gen8_emit_wa_tail(request, out);
 }
 
 static const int gen8_emit_breadcrumb_render_sz = 8 + WA_TAIL_DWORDS;

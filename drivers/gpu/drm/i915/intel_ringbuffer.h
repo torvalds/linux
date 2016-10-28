@@ -255,7 +255,8 @@ struct intel_engine_cs {
 #define I915_DISPATCH_SECURE BIT(0)
 #define I915_DISPATCH_PINNED BIT(1)
 #define I915_DISPATCH_RS     BIT(2)
-	int		(*emit_breadcrumb)(struct drm_i915_gem_request *req);
+	void		(*emit_breadcrumb)(struct drm_i915_gem_request *req,
+					   u32 *out);
 	int		emit_breadcrumb_sz;
 
 	/* Pass the request to the hardware queue (e.g. directly into
@@ -331,7 +332,7 @@ struct intel_engine_cs {
 		/* AKA wait() */
 		int	(*sync_to)(struct drm_i915_gem_request *req,
 				   struct drm_i915_gem_request *signal);
-		int	(*signal)(struct drm_i915_gem_request *req);
+		u32	*(*signal)(struct drm_i915_gem_request *req, u32 *out);
 	} semaphore;
 
 	/* Execlists */
@@ -487,10 +488,11 @@ static inline void intel_ring_advance(struct intel_ring *ring)
 	 */
 }
 
-static inline u32 intel_ring_offset(struct intel_ring *ring, u32 value)
+static inline u32 intel_ring_offset(struct intel_ring *ring, void *addr)
 {
 	/* Don't write ring->size (equivalent to 0) as that hangs some GPUs. */
-	return value & (ring->size - 1);
+	u32 offset = addr - ring->vaddr;
+	return offset & (ring->size - 1);
 }
 
 int __intel_ring_space(int head, int tail, int size);
