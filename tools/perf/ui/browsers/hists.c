@@ -2076,8 +2076,21 @@ void hist_browser__init(struct hist_browser *browser,
 	browser->b.use_navkeypressed	= true;
 	browser->show_headers		= symbol_conf.show_hist_headers;
 
-	hists__for_each_format(hists, fmt)
+	if (symbol_conf.report_hierarchy) {
+		struct perf_hpp_list_node *fmt_node;
+
+		/* count overhead columns (in the first node) */
+		fmt_node = list_first_entry(&hists->hpp_formats,
+					    struct perf_hpp_list_node, list);
+		perf_hpp_list__for_each_format(&fmt_node->hpp, fmt)
+			++browser->b.columns;
+
+		/* add a single column for whole hierarchy sort keys*/
 		++browser->b.columns;
+	} else {
+		hists__for_each_format(hists, fmt)
+			++browser->b.columns;
+	}
 
 	hists__reset_column_width(hists);
 }

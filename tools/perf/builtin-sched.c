@@ -1191,6 +1191,7 @@ static void output_lat_thread(struct perf_sched *sched, struct work_atoms *work_
 	int i;
 	int ret;
 	u64 avg;
+	char max_lat_at[32];
 
 	if (!work_list->nb_atoms)
 		return;
@@ -1212,12 +1213,13 @@ static void output_lat_thread(struct perf_sched *sched, struct work_atoms *work_
 		printf(" ");
 
 	avg = work_list->total_lat / work_list->nb_atoms;
+	timestamp__scnprintf_usec(work_list->max_lat_at, max_lat_at, sizeof(max_lat_at));
 
-	printf("|%11.3f ms |%9" PRIu64 " | avg:%9.3f ms | max:%9.3f ms | max at: %13.6f s\n",
+	printf("|%11.3f ms |%9" PRIu64 " | avg:%9.3f ms | max:%9.3f ms | max at: %13s s\n",
 	      (double)work_list->total_runtime / NSEC_PER_MSEC,
 		 work_list->nb_atoms, (double)avg / NSEC_PER_MSEC,
 		 (double)work_list->max_lat / NSEC_PER_MSEC,
-		 (double)work_list->max_lat_at / NSEC_PER_SEC);
+		 max_lat_at);
 }
 
 static int pid_cmp(struct work_atoms *l, struct work_atoms *r)
@@ -1402,6 +1404,7 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 	int cpus_nr;
 	bool new_cpu = false;
 	const char *color = PERF_COLOR_NORMAL;
+	char stimestamp[32];
 
 	BUG_ON(this_cpu >= MAX_CPUS || this_cpu < 0);
 
@@ -1479,7 +1482,7 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 			cpu_color = COLOR_CPUS;
 
 		if (cpu != this_cpu)
-			color_fprintf(stdout, cpu_color, " ");
+			color_fprintf(stdout, color, " ");
 		else
 			color_fprintf(stdout, cpu_color, "*");
 
@@ -1492,8 +1495,9 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 	if (sched->map.cpus && !cpu_map__has(sched->map.cpus, this_cpu))
 		goto out;
 
-	color_fprintf(stdout, color, "  %12.6f secs ", (double)timestamp / NSEC_PER_SEC);
-	if (new_shortname) {
+	timestamp__scnprintf_usec(timestamp, stimestamp, sizeof(stimestamp));
+	color_fprintf(stdout, color, "  %12s secs ", stimestamp);
+	if (new_shortname || (verbose && sched_in->tid)) {
 		const char *pid_color = color;
 
 		if (thread__has_color(sched_in))
@@ -1954,6 +1958,15 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		.next_shortname2      = '0',
 		.skip_merge           = 0,
 	};
+	const struct option sched_options[] = {
+	OPT_STRING('i', "input", &input_name, "file",
+		    "input file name"),
+	OPT_INCR('v', "verbose", &verbose,
+		    "be more verbose (show symbol address, etc)"),
+	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
+		    "dump raw trace in ASCII"),
+	OPT_END()
+	};
 	const struct option latency_options[] = {
 	OPT_STRING('s', "sort", &sched.sort_order, "key[,key2...]",
 		   "sort by key(s): runtime, switch, avg, max"),
@@ -1965,7 +1978,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('p', "pids", &sched.skip_merge,
 		    "latency stats per pid instead of per comm"),
-	OPT_END()
+	OPT_PARENT(sched_options)
 	};
 	const struct option replay_options[] = {
 	OPT_UINTEGER('r', "repeat", &sched.replay_repeat,
@@ -1975,16 +1988,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('f', "force", &sched.force, "don't complain, do it"),
-	OPT_END()
-	};
-	const struct option sched_options[] = {
-	OPT_STRING('i', "input", &input_name, "file",
-		    "input file name"),
-	OPT_INCR('v', "verbose", &verbose,
-		    "be more verbose (show symbol address, etc)"),
-	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
-		    "dump raw trace in ASCII"),
-	OPT_END()
+	OPT_PARENT(sched_options)
 	};
 	const struct option map_options[] = {
 	OPT_BOOLEAN(0, "compact", &sched.map.comp,
@@ -1995,7 +1999,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
                     "highlight given CPUs in map"),
 	OPT_STRING(0, "cpus", &sched.map.cpus_str, "cpus",
                     "display given CPUs in map"),
-	OPT_END()
+	OPT_PARENT(sched_options)
 	};
 	const char * const latency_usage[] = {
 		"perf sched latency [<options>]",

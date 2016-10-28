@@ -381,10 +381,10 @@ $(PERF_IN): prepare FORCE
         (diff -B ../arch/x86/include/asm/cpufeatures.h ../../arch/x86/include/asm/cpufeatures.h >/dev/null) \
         || echo "Warning: tools/arch/x86/include/asm/cpufeatures.h differs from kernel" >&2 )) || true
 	@(test -f ../../arch/x86/lib/memcpy_64.S && ( \
-        (diff -B ../arch/x86/lib/memcpy_64.S ../../arch/x86/lib/memcpy_64.S >/dev/null) \
+        (diff -B -I "^EXPORT_SYMBOL" -I "^#include <asm/export.h>" ../arch/x86/lib/memcpy_64.S ../../arch/x86/lib/memcpy_64.S >/dev/null) \
         || echo "Warning: tools/arch/x86/lib/memcpy_64.S differs from kernel" >&2 )) || true
 	@(test -f ../../arch/x86/lib/memset_64.S && ( \
-        (diff -B ../arch/x86/lib/memset_64.S ../../arch/x86/lib/memset_64.S >/dev/null) \
+        (diff -B -I "^EXPORT_SYMBOL" -I "^#include <asm/export.h>" ../arch/x86/lib/memset_64.S ../../arch/x86/lib/memset_64.S >/dev/null) \
         || echo "Warning: tools/arch/x86/lib/memset_64.S differs from kernel" >&2 )) || true
 	@(test -f ../../arch/arm/include/uapi/asm/perf_regs.h && ( \
         (diff -B ../arch/arm/include/uapi/asm/perf_regs.h ../../arch/arm/include/uapi/asm/perf_regs.h >/dev/null) \
