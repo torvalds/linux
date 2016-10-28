@@ -683,14 +683,14 @@ static void i915_ring_seqno_info(struct seq_file *m,
 	seq_printf(m, "Current sequence (%s): %x\n",
 		   engine->name, intel_engine_get_seqno(engine));
 
-	spin_lock(&b->lock);
+	spin_lock_irq(&b->lock);
 	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
 		struct intel_wait *w = container_of(rb, typeof(*w), node);
 
 		seq_printf(m, "Waiting (%s): %s [%d] on %x\n",
 			   engine->name, w->tsk->comm, w->tsk->pid, w->seqno);
 	}
-	spin_unlock(&b->lock);
+	spin_unlock_irq(&b->lock);
 }
 
 static int i915_gem_seqno_info(struct seq_file *m, void *data)
@@ -1355,14 +1355,14 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 			   yesno(intel_engine_has_waiter(engine)),
 			   yesno(test_bit(engine->id,
 					  &dev_priv->gpu_error.missed_irq_rings)));
-		spin_lock(&b->lock);
+		spin_lock_irq(&b->lock);
 		for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
 			struct intel_wait *w = container_of(rb, typeof(*w), node);
 
 			seq_printf(m, "\t%s [%d] waiting for %x\n",
 				   w->tsk->comm, w->tsk->pid, w->seqno);
 		}
-		spin_unlock(&b->lock);
+		spin_unlock_irq(&b->lock);
 
 		seq_printf(m, "\tACTHD = 0x%08llx [current 0x%08llx]\n",
 			   (long long)engine->hangcheck.acthd,
@@ -3265,14 +3265,14 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 				   I915_READ(RING_PP_DIR_DCLV(engine)));
 		}
 
-		spin_lock(&b->lock);
+		spin_lock_irq(&b->lock);
 		for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
 			struct intel_wait *w = container_of(rb, typeof(*w), node);
 
 			seq_printf(m, "\t%s [%d] waiting for %x\n",
 				   w->tsk->comm, w->tsk->pid, w->seqno);
 		}
-		spin_unlock(&b->lock);
+		spin_unlock_irq(&b->lock);
 
 		seq_puts(m, "\n");
 	}

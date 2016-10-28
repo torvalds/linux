@@ -207,7 +207,7 @@ struct intel_engine_cs {
 		struct task_struct __rcu *irq_seqno_bh; /* bh for interrupts */
 		bool irq_posted;
 
-		spinlock_t lock; /* protects the lists of requests */
+		spinlock_t lock; /* protects the lists of requests; irqsafe */
 		struct rb_root waiters; /* sorted by retirement, priority */
 		struct rb_root signals; /* sorted by retirement */
 		struct intel_wait *first_wait; /* oldest waiter by retirement */
