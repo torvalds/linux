@@ -74,26 +74,10 @@ void set_power_mode(unsigned int powerMode)
 
 void set_current_gate(unsigned int gate)
 {
-	unsigned int gate_reg;
-	unsigned int mode;
-
-	/* Get current power mode. */
-	mode = getPowerMode();
-
-	switch (mode) {
-	case POWER_MODE_CTRL_MODE_MODE0:
-		gate_reg = MODE0_GATE;
-		break;
-
-	case POWER_MODE_CTRL_MODE_MODE1:
-		gate_reg = MODE1_GATE;
-		break;
-
-	default:
-		gate_reg = MODE0_GATE;
-		break;
-	}
-	POKE32(gate_reg, gate);
+	if (getPowerMode() == POWER_MODE_CTRL_MODE_MODE1)
+		POKE32(MODE1_GATE, gate);
+	else
+		POKE32(MODE0_GATE, gate);
 }
 
 
