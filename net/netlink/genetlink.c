@@ -399,7 +399,7 @@ int genl_unregister_family(const struct genl_family *family)
 {
 	genl_lock_all();
 
-	if (genl_family_find_byid(family->id)) {
+	if (!genl_family_find_byid(family->id)) {
 		genl_unlock_all();
 		return -ENOENT;
 	}
