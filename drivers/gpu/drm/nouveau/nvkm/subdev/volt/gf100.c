@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Red Hat Inc.
+ * Copyright 2016 Karol Herbst
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,12 +19,52 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Karol Herbst
  */
-#include "ram.h"
+#include "priv.h"
+
+#include <subdev/fuse.h>
+
+static int
+gf100_volt_speedo_read(struct nvkm_volt *volt)
+{
+	struct nvkm_device *device = volt->subdev.device;
+	struct nvkm_fuse *fuse = device->fuse;
+
+	if (!fuse)
+		return -EINVAL;
+
+	return nvkm_fuse_read(fuse, 0x1cc);
+}
 
 int
-gm107_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
+gf100_volt_oneinit(struct nvkm_volt *volt)
 {
-	return gk104_ram_ctor(fb, pram, 0x021c14);
+	struct nvkm_subdev *subdev = &volt->subdev;
+	if (volt->speedo <= 0)
+		nvkm_error(subdev, "couldn't find speedo value, volting not "
+			   "possible\n");
+	return 0;
+}
+
+static const struct nvkm_volt_func
+gf100_volt = {
+	.oneinit = gf100_volt_oneinit,
+	.vid_get = nvkm_voltgpio_get,
+	.vid_set = nvkm_voltgpio_set,
+	.speedo_read = gf100_volt_speedo_read,
+};
+
+int
+gf100_volt_new(struct nvkm_device *device, int index, struct nvkm_volt **pvolt)
+{
+	struct nvkm_volt *volt;
+	int ret;
+
+	ret = nvkm_volt_new_(&gf100_volt, device, index, &volt);
+	*pvolt = volt;
+	if (ret)
+		return ret;
+
+	return nvkm_voltgpio_init(volt);
 }

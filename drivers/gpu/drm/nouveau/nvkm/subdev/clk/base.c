@@ -27,6 +27,7 @@
 #include <subdev/bios/boost.h>
 #include <subdev/bios/cstep.h>
 #include <subdev/bios/perf.h>
+#include <subdev/bios/vpstate.h>
 #include <subdev/fb.h>
 #include <subdev/therm.h>
 #include <subdev/volt.h>
@@ -74,6 +75,88 @@ nvkm_clk_adjust(struct nvkm_clk *clk, bool adjust,
 /******************************************************************************
  * C-States
  *****************************************************************************/
+static bool
+nvkm_cstate_valid(struct nvkm_clk *clk, struct nvkm_cstate *cstate,
+		  u32 max_volt, int temp)
+{
+	const struct nvkm_domain *domain = clk->domains;
+	struct nvkm_volt *volt = clk->subdev.device->volt;
+	int voltage;
+
+	while (domain && domain->name != nv_clk_src_max) {
+		if (domain->flags & NVKM_CLK_DOM_FLAG_VPSTATE) {
+			u32 freq = cstate->domain[domain->name];
+			switch (clk->boost_mode) {
+			case NVKM_CLK_BOOST_NONE:
+				if (clk->base_khz && freq > clk->base_khz)
+					return false;
+			case NVKM_CLK_BOOST_BIOS:
+				if (clk->boost_khz && freq > clk->boost_khz)
+					return false;
+			}
+		}
+		domain++;
+	}
+
+	if (!volt)
+		return true;
+
+	voltage = nvkm_volt_map(volt, cstate->voltage, temp);
+	if (voltage < 0)
+		return false;
+	return voltage <= min(max_volt, volt->max_uv);
+}
+
+static struct nvkm_cstate *
+nvkm_cstate_find_best(struct nvkm_clk *clk, struct nvkm_pstate *pstate,
+		      struct nvkm_cstate *start)
+{
+	struct nvkm_device *device = clk->subdev.device;
+	struct nvkm_volt *volt = device->volt;
+	struct nvkm_cstate *cstate;
+	int max_volt;
+
+	if (!pstate || !start)
+		return NULL;
+
+	if (!volt)
+		return start;
+
+	max_volt = volt->max_uv;
+	if (volt->max0_id != 0xff)
+		max_volt = min(max_volt,
+			       nvkm_volt_map(volt, volt->max0_id, clk->temp));
+	if (volt->max1_id != 0xff)
+		max_volt = min(max_volt,
+			       nvkm_volt_map(volt, volt->max1_id, clk->temp));
+	if (volt->max2_id != 0xff)
+		max_volt = min(max_volt,
+			       nvkm_volt_map(volt, volt->max2_id, clk->temp));
+
+	for (cstate = start; &cstate->head != &pstate->list;
+	     cstate = list_entry(cstate->head.prev, typeof(*cstate), head)) {
+		if (nvkm_cstate_valid(clk, cstate, max_volt, clk->temp))
+			break;
+	}
+
+	return cstate;
+}
+
+static struct nvkm_cstate *
+nvkm_cstate_get(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
+{
+	struct nvkm_cstate *cstate;
+	if (cstatei == NVKM_CLK_CSTATE_HIGHEST)
+		return list_last_entry(&pstate->list, typeof(*cstate), head);
+	else {
+		list_for_each_entry(cstate, &pstate->list, head) {
+			if (cstate->id == cstatei)
+				return cstate;
+		}
+	}
+	return NULL;
+}
+
 static int
 nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 {
@@ -85,7 +168,8 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 	int ret;
 
 	if (!list_empty(&pstate->list)) {
-		cstate = list_entry(pstate->list.prev, typeof(*cstate), head);
+		cstate = nvkm_cstate_get(clk, pstate, cstatei);
+		cstate = nvkm_cstate_find_best(clk, pstate, cstate);
 	} else {
 		cstate = &pstate->base;
 	}
@@ -99,7 +183,8 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 	}
 
 	if (volt) {
-		ret = nvkm_volt_set_id(volt, cstate->voltage, +1);
+		ret = nvkm_volt_set_id(volt, cstate->voltage,
+				       pstate->base.voltage, clk->temp, +1);
 		if (ret && ret != -ENODEV) {
 			nvkm_error(subdev, "failed to raise voltage: %d\n", ret);
 			return ret;
@@ -113,7 +198,8 @@ nvkm_cstate_prog(struct nvkm_clk *clk, struct nvkm_pstate *pstate, int cstatei)
 	}
 
 	if (volt) {
-		ret = nvkm_volt_set_id(volt, cstate->voltage, -1);
+		ret = nvkm_volt_set_id(volt, cstate->voltage,
+				       pstate->base.voltage, clk->temp, -1);
 		if (ret && ret != -ENODEV)
 			nvkm_error(subdev, "failed to lower voltage: %d\n", ret);
 	}
@@ -138,6 +224,7 @@ static int
 nvkm_cstate_new(struct nvkm_clk *clk, int idx, struct nvkm_pstate *pstate)
 {
 	struct nvkm_bios *bios = clk->subdev.device->bios;
+	struct nvkm_volt *volt = clk->subdev.device->volt;
 	const struct nvkm_domain *domain = clk->domains;
 	struct nvkm_cstate *cstate = NULL;
 	struct nvbios_cstepX cstepX;
@@ -148,12 +235,16 @@ nvkm_cstate_new(struct nvkm_clk *clk, int idx, struct nvkm_pstate *pstate)
 	if (!data)
 		return -ENOENT;
 
+	if (volt && nvkm_volt_map_min(volt, cstepX.voltage) > volt->max_uv)
+		return -EINVAL;
+
 	cstate = kzalloc(sizeof(*cstate), GFP_KERNEL);
 	if (!cstate)
 		return -ENOMEM;
 
 	*cstate = pstate->base;
 	cstate->voltage = cstepX.voltage;
+	cstate->id = idx;
 
 	while (domain && domain->name != nv_clk_src_max) {
 		if (domain->flags & NVKM_CLK_DOM_FLAG_CORE) {
@@ -175,7 +266,7 @@ static int
 nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
 {
 	struct nvkm_subdev *subdev = &clk->subdev;
-	struct nvkm_ram *ram = subdev->device->fb->ram;
+	struct nvkm_fb *fb = subdev->device->fb;
 	struct nvkm_pci *pci = subdev->device->pci;
 	struct nvkm_pstate *pstate;
 	int ret, idx = 0;
@@ -190,7 +281,8 @@ nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
 
 	nvkm_pcie_set_link(pci, pstate->pcie_speed, pstate->pcie_width);
 
-	if (ram && ram->func->calc) {
+	if (fb && fb->ram && fb->ram->func->calc) {
+		struct nvkm_ram *ram = fb->ram;
 		int khz = pstate->base.domain[nv_clk_src_mem];
 		do {
 			ret = ram->func->calc(ram, khz);
@@ -200,7 +292,7 @@ nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
 		ram->func->tidy(ram);
 	}
 
-	return nvkm_cstate_prog(clk, pstate, 0);
+	return nvkm_cstate_prog(clk, pstate, NVKM_CLK_CSTATE_HIGHEST);
 }
 
 static void
@@ -214,14 +306,14 @@ nvkm_pstate_work(struct work_struct *work)
 		return;
 	clk->pwrsrc = power_supply_is_system_supplied();
 
-	nvkm_trace(subdev, "P %d PWR %d U(AC) %d U(DC) %d A %d T %d D %d\n",
+	nvkm_trace(subdev, "P %d PWR %d U(AC) %d U(DC) %d A %d T %d°C D %d\n",
 		   clk->pstate, clk->pwrsrc, clk->ustate_ac, clk->ustate_dc,
-		   clk->astate, clk->tstate, clk->dstate);
+		   clk->astate, clk->temp, clk->dstate);
 
 	pstate = clk->pwrsrc ? clk->ustate_ac : clk->ustate_dc;
 	if (clk->state_nr && pstate != -1) {
 		pstate = (pstate < 0) ? clk->astate : pstate;
-		pstate = min(pstate, clk->state_nr - 1 + clk->tstate);
+		pstate = min(pstate, clk->state_nr - 1);
 		pstate = max(pstate, clk->dstate);
 	} else {
 		pstate = clk->pstate = -1;
@@ -448,13 +540,12 @@ nvkm_clk_astate(struct nvkm_clk *clk, int req, int rel, bool wait)
 }
 
 int
-nvkm_clk_tstate(struct nvkm_clk *clk, int req, int rel)
+nvkm_clk_tstate(struct nvkm_clk *clk, u8 temp)
 {
-	if (!rel) clk->tstate  = req;
-	if ( rel) clk->tstate += rel;
-	clk->tstate = min(clk->tstate, 0);
-	clk->tstate = max(clk->tstate, -(clk->state_nr - 1));
-	return nvkm_pstate_calc(clk, true);
+	if (clk->temp == temp)
+		return 0;
+	clk->temp = temp;
+	return nvkm_pstate_calc(clk, false);
 }
 
 int
@@ -524,9 +615,9 @@ nvkm_clk_init(struct nvkm_subdev *subdev)
 		return clk->func->init(clk);
 
 	clk->astate = clk->state_nr - 1;
-	clk->tstate = 0;
 	clk->dstate = 0;
 	clk->pstate = -1;
+	clk->temp = 90; /* reasonable default value */
 	nvkm_pstate_calc(clk, true);
 	return 0;
 }
@@ -561,10 +652,22 @@ int
 nvkm_clk_ctor(const struct nvkm_clk_func *func, struct nvkm_device *device,
 	      int index, bool allow_reclock, struct nvkm_clk *clk)
 {
+	struct nvkm_subdev *subdev = &clk->subdev;
+	struct nvkm_bios *bios = device->bios;
 	int ret, idx, arglen;
 	const char *mode;
+	struct nvbios_vpstate_header h;
 
-	nvkm_subdev_ctor(&nvkm_clk, device, index, &clk->subdev);
+	nvkm_subdev_ctor(&nvkm_clk, device, index, subdev);
+
+	if (bios && !nvbios_vpstate_parse(bios, &h)) {
+		struct nvbios_vpstate_entry base, boost;
+		if (!nvbios_vpstate_entry(bios, &h, h.boost_id, &boost))
+			clk->boost_khz = boost.clock_mhz * 1000;
+		if (!nvbios_vpstate_entry(bios, &h, h.base_id, &base))
+			clk->base_khz = base.clock_mhz * 1000;
+	}
+
 	clk->func = func;
 	INIT_LIST_HEAD(&clk->states);
 	clk->domains = func->domains;
@@ -607,6 +710,8 @@ nvkm_clk_ctor(const struct nvkm_clk_func *func, struct nvkm_device *device,
 	if (mode)
 		clk->ustate_dc = nvkm_clk_nstate(clk, mode, arglen);
 
+	clk->boost_mode = nvkm_longopt(device->cfgopt, "NvBoost",
+				       NVKM_CLK_BOOST_NONE);
 	return 0;
 }
 

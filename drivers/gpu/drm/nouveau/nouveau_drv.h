@@ -166,6 +166,9 @@ struct nouveau_drm {
 	struct nouveau_hwmon *hwmon;
 	struct nouveau_debugfs *debugfs;
 
+	/* led management */
+	struct nouveau_led *led;
+
 	/* display power reference */
 	bool have_disp_power_ref;
 

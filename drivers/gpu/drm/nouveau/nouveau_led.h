@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Red Hat Inc.
+ * Copyright 2015 Martin Peres
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,12 +19,39 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Martin Peres <martin.peres@free.fr>
  */
-#include "ram.h"
 
-int
-gm107_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
+#ifndef __NOUVEAU_LED_H__
+#define __NOUVEAU_LED_H__
+
+#include "nouveau_drv.h"
+
+struct led_classdev;
+
+struct nouveau_led {
+	struct drm_device *dev;
+
+	struct led_classdev led;
+};
+
+static inline struct nouveau_led *
+nouveau_led(struct drm_device *dev)
 {
-	return gk104_ram_ctor(fb, pram, 0x021c14);
+	return nouveau_drm(dev)->led;
 }
+
+/* nouveau_led.c */
+#if IS_ENABLED(CONFIG_LEDS_CLASS)
+int  nouveau_led_init(struct drm_device *dev);
+void nouveau_led_suspend(struct drm_device *dev);
+void nouveau_led_resume(struct drm_device *dev);
+void nouveau_led_fini(struct drm_device *dev);
+#else
+static inline int  nouveau_led_init(struct drm_device *dev) { return 0; };
+static inline void nouveau_led_suspend(struct drm_device *dev) { };
+static inline void nouveau_led_resume(struct drm_device *dev) { };
+static inline void nouveau_led_fini(struct drm_device *dev) { };
+#endif
+
+#endif
