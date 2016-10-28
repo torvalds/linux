@@ -552,7 +552,7 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 				seq_printf(m, "Flip queued on %s at seqno %x, next seqno %x [current breadcrumb %x], completed? %d\n",
 					   engine->name,
 					   i915_gem_request_get_seqno(work->flip_queued_req),
-					   dev_priv->gt.global_timeline.next_seqno,
+					   atomic_read(&dev_priv->gt.global_timeline.next_seqno),
 					   intel_engine_get_seqno(engine),
 					   i915_gem_request_completed(work->flip_queued_req));
 			} else
@@ -1046,7 +1046,7 @@ i915_next_seqno_get(void *data, u64 *val)
 {
 	struct drm_i915_private *dev_priv = data;
 
-	*val = READ_ONCE(dev_priv->gt.global_timeline.next_seqno);
+	*val = atomic_read(&dev_priv->gt.global_timeline.next_seqno);
 	return 0;
 }
 
@@ -2277,8 +2277,8 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	struct drm_file *file;
 
 	seq_printf(m, "RPS enabled? %d\n", dev_priv->rps.enabled);
-	seq_printf(m, "GPU busy? %s [%x]\n",
-		   yesno(dev_priv->gt.awake), dev_priv->gt.active_engines);
+	seq_printf(m, "GPU busy? %s [%d requests]\n",
+		   yesno(dev_priv->gt.awake), dev_priv->gt.active_requests);
 	seq_printf(m, "CPU waiting? %d\n", count_irq_waiters(dev_priv));
 	seq_printf(m, "Frequency requested %d\n",
 		   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq));
@@ -2313,7 +2313,7 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 
 	if (INTEL_GEN(dev_priv) >= 6 &&
 	    dev_priv->rps.enabled &&
-	    dev_priv->gt.active_engines) {
+	    dev_priv->gt.active_requests) {
 		u32 rpup, rpupei;
 		u32 rpdown, rpdownei;
 
