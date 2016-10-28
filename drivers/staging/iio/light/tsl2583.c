@@ -511,33 +511,6 @@ static int taos_chip_off(struct iio_dev *indio_dev)
 
 /* Sysfs Interface Functions */
 
-static ssize_t taos_power_state_show(struct device *dev,
-				     struct device_attribute *attr, char *buf)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct tsl2583_chip *chip = iio_priv(indio_dev);
-
-	return sprintf(buf, "%d\n", chip->taos_chip_status);
-}
-
-static ssize_t taos_power_state_store(struct device *dev,
-				      struct device_attribute *attr,
-				      const char *buf, size_t len)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	int value;
-
-	if (kstrtoint(buf, 0, &value))
-		return -EINVAL;
-
-	if (!value)
-		taos_chip_off(indio_dev);
-	else
-		taos_chip_on(indio_dev);
-
-	return len;
-}
-
 static ssize_t taos_gain_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
@@ -785,9 +758,6 @@ static ssize_t taos_luxtable_store(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(power_state, S_IRUGO | S_IWUSR,
-		taos_power_state_show, taos_power_state_store);
-
 static DEVICE_ATTR(illuminance0_calibscale, S_IRUGO | S_IWUSR,
 		taos_gain_show, taos_gain_store);
 static DEVICE_ATTR(illuminance0_calibscale_available, S_IRUGO,
@@ -810,7 +780,6 @@ static DEVICE_ATTR(illuminance0_lux_table, S_IRUGO | S_IWUSR,
 		taos_luxtable_show, taos_luxtable_store);
 
 static struct attribute *sysfs_attrs_ctrl[] = {
-	&dev_attr_power_state.attr,
 	&dev_attr_illuminance0_calibscale.attr,			/* Gain  */
 	&dev_attr_illuminance0_calibscale_available.attr,
 	&dev_attr_illuminance0_integration_time.attr,	/* I time*/
