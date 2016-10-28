@@ -366,7 +366,7 @@ found_clock:
 		if (0 == (rate % 8000))
 			ckr = 0x80000000;
 
-		rsnd_mod_bset(adg_mod, SSICKR, 0x80000000, ckr);
+		rsnd_mod_bset(adg_mod, BRGCKR, 0x80000000, ckr);
 	}
 
 	dev_dbg(dev, "ADG: %s[%d] selects 0x%x for %d\n",
@@ -532,13 +532,13 @@ static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
 		}
 	}
 
-	rsnd_mod_bset(adg_mod, SSICKR, 0x80FF0000, ckr);
+	rsnd_mod_bset(adg_mod, BRGCKR, 0x80FF0000, ckr);
 	rsnd_mod_write(adg_mod, BRRA,  rbga);
 	rsnd_mod_write(adg_mod, BRRB,  rbgb);
 
 	for_each_rsnd_clkout(clk, adg, i)
 		dev_dbg(dev, "clkout %d : %p : %ld\n", i, clk, clk_get_rate(clk));
-	dev_dbg(dev, "SSICKR = 0x%08x, BRRA/BRRB = 0x%x/0x%x\n",
+	dev_dbg(dev, "BRGCKR = 0x%08x, BRRA/BRRB = 0x%x/0x%x\n",
 		ckr, rbga, rbgb);
 }
 

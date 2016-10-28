@@ -319,7 +319,7 @@ static int rsnd_gen2_probe(struct rsnd_priv *priv)
 	static const struct rsnd_regmap_field_conf conf_adg[] = {
 		RSND_GEN_S_REG(BRRA,		0x00),
 		RSND_GEN_S_REG(BRRB,		0x04),
-		RSND_GEN_S_REG(SSICKR,		0x08),
+		RSND_GEN_S_REG(BRGCKR,		0x08),
 		RSND_GEN_S_REG(AUDIO_CLK_SEL0,	0x0c),
 		RSND_GEN_S_REG(AUDIO_CLK_SEL1,	0x10),
 		RSND_GEN_S_REG(AUDIO_CLK_SEL2,	0x14),
@@ -370,7 +370,7 @@ static int rsnd_gen1_probe(struct rsnd_priv *priv)
 	static const struct rsnd_regmap_field_conf conf_adg[] = {
 		RSND_GEN_S_REG(BRRA,		0x00),
 		RSND_GEN_S_REG(BRRB,		0x04),
-		RSND_GEN_S_REG(SSICKR,		0x08),
+		RSND_GEN_S_REG(BRGCKR,		0x08),
 		RSND_GEN_S_REG(AUDIO_CLK_SEL0,	0x0c),
 		RSND_GEN_S_REG(AUDIO_CLK_SEL1,	0x10),
 	};
