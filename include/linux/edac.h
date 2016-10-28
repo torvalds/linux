@@ -132,6 +132,8 @@ enum dev_type {
  *				it for example, by re-trying the operation).
  * @HW_EVENT_ERR_FATAL:		Fatal Error - Uncorrected error that could not
  *				be recovered.
+ * @HW_EVENT_ERR_INFO:		Informational - The CPER spec defines a forth
+ *				type of error: informational logs.
  */
 enum hw_event_mc_err_type {
 	HW_EVENT_ERR_CORRECTED,
@@ -162,7 +164,7 @@ static inline char *mc_event_error_type(const unsigned int err_type)
  * enum mem_type - memory types. For a more detailed reference, please see
  *			http://en.wikipedia.org/wiki/DRAM
  *
- * @MEM_EMPTY		Empty csrow
+ * @MEM_EMPTY:		Empty csrow
  * @MEM_RESERVED:	Reserved csrow type
  * @MEM_UNKNOWN:	Unknown csrow type
  * @MEM_FPM:		FPM - Fast Page Mode, used on systems up to 1995.
@@ -286,7 +288,7 @@ enum edac_type {
 
 /**
  * enum scrub_type - scrubbing capabilities
- * @SCRUB_UNKNOWN		Unknown if scrubber is available
+ * @SCRUB_UNKNOWN:		Unknown if scrubber is available
  * @SCRUB_NONE:			No scrubber
  * @SCRUB_SW_PROG:		SW progressive (sequential) scrubbing
  * @SCRUB_SW_SRC:		Software scrub only errors
@@ -295,7 +297,7 @@ enum edac_type {
  * @SCRUB_HW_PROG:		HW progressive (sequential) scrubbing
  * @SCRUB_HW_SRC:		Hardware scrub only errors
  * @SCRUB_HW_PROG_SRC:		Progressive hardware scrub from an error
- * SCRUB_HW_TUNABLE:		Hardware scrub frequency is tunable
+ * @SCRUB_HW_TUNABLE:		Hardware scrub frequency is tunable
  */
 enum scrub_type {
 	SCRUB_UNKNOWN =	0,
@@ -460,7 +462,7 @@ enum edac_mc_layer_type {
 
 /**
  * struct edac_mc_layer - describes the memory controller hierarchy
- * @layer:		layer type
+ * @type:		layer type
  * @size:		number of components per layer. For example,
  *			if the channel layer has two channels, size = 2
  * @is_virt_csrow:	This layer is part of the "csrow" when old API
@@ -483,24 +485,28 @@ struct edac_mc_layer {
 #define EDAC_MAX_LAYERS		3
 
 /**
- * EDAC_DIMM_OFF - Macro responsible to get a pointer offset inside a pointer array
- *		   for the element given by [layer0,layer1,layer2] position
+ * EDAC_DIMM_OFF - Macro responsible to get a pointer offset inside a pointer
+ *		   array for the element given by [layer0,layer1,layer2]
+ *		   position
  *
  * @layers:	a struct edac_mc_layer array, describing how many elements
  *		were allocated for each layer
- * @n_layers:	Number of layers at the @layers array
+ * @nlayers:	Number of layers at the @layers array
  * @layer0:	layer0 position
  * @layer1:	layer1 position. Unused if n_layers < 2
  * @layer2:	layer2 position. Unused if n_layers < 3
  *
- * For 1 layer, this macro returns &var[layer0] - &var
+ * For 1 layer, this macro returns "var[layer0] - var";
+ *
  * For 2 layers, this macro is similar to allocate a bi-dimensional array
- *		and to return "&var[layer0][layer1] - &var"
+ * and to return "var[layer0][layer1] - var";
+ *
  * For 3 layers, this macro is similar to allocate a tri-dimensional array
- *		and to return "&var[layer0][layer1][layer2] - &var"
+ * and to return "var[layer0][layer1][layer2] - var".
  *
  * A loop could be used here to make it more generic, but, as we only have
  * 3 layers, this is a little faster.
+ *
  * By design, layers can never be 0 or more than 3. If that ever happens,
  * a NULL is returned, causing an OOPS during the memory allocation routine,
  * with would point to the developer that he's doing something wrong.
@@ -527,16 +533,18 @@ struct edac_mc_layer {
  *		were allocated for each layer
  * @var:	name of the var where we want to get the pointer
  *		(like mci->dimms)
- * @n_layers:	Number of layers at the @layers array
+ * @nlayers:	Number of layers at the @layers array
  * @layer0:	layer0 position
  * @layer1:	layer1 position. Unused if n_layers < 2
  * @layer2:	layer2 position. Unused if n_layers < 3
  *
- * For 1 layer, this macro returns &var[layer0]
+ * For 1 layer, this macro returns "var[layer0]";
+ *
  * For 2 layers, this macro is similar to allocate a bi-dimensional array
- *		and to return "&var[layer0][layer1]"
+ * and to return "var[layer0][layer1]";
+ *
  * For 3 layers, this macro is similar to allocate a tri-dimensional array
- *		and to return "&var[layer0][layer1][layer2]"
+ * and to return "var[layer0][layer1][layer2]";
  */
 #define EDAC_DIMM_PTR(layers, var, nlayers, layer0, layer1, layer2) ({	\
 	typeof(*var) __p;						\
@@ -622,7 +630,7 @@ struct errcount_attribute_data {
 };
 
 /**
- * edac_raw_error_desc - Raw error report structure
+ * struct edac_raw_error_desc - Raw error report structure
  * @grain:			minimum granularity for an error report, in bytes
  * @error_count:		number of errors of the same type
  * @top_layer:			top layer of the error (layer[0])
