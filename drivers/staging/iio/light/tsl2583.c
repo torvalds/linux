@@ -373,7 +373,7 @@ static int taos_als_calibrate(struct iio_dev *indio_dev)
 			!= (TSL258X_CNTL_ADC_ENBL | TSL258X_CNTL_PWR_ON)) {
 		dev_err(&chip->client->dev,
 			"taos_als_calibrate failed: device not powered on with ADC enabled\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	ret = i2c_smbus_write_byte(chip->client,
