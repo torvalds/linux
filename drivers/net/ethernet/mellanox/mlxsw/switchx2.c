@@ -662,6 +662,7 @@ static const struct mlxsw_sx_port_link_mode mlxsw_sx_port_link_mode[] = {
 };
 
 #define MLXSW_SX_PORT_LINK_MODE_LEN ARRAY_SIZE(mlxsw_sx_port_link_mode)
+#define MLXSW_SX_PORT_BASE_SPEED 10000 /* Mb/s */
 
 static u32 mlxsw_sx_from_ptys_supported_port(u32 ptys_eth_proto)
 {
@@ -804,6 +805,18 @@ static u32 mlxsw_sx_to_ptys_speed(u32 speed)
 
 	for (i = 0; i < MLXSW_SX_PORT_LINK_MODE_LEN; i++) {
 		if (speed == mlxsw_sx_port_link_mode[i].speed)
+			ptys_proto |= mlxsw_sx_port_link_mode[i].mask;
+	}
+	return ptys_proto;
+}
+
+static u32 mlxsw_sx_to_ptys_upper_speed(u32 upper_speed)
+{
+	u32 ptys_proto = 0;
+	int i;
+
+	for (i = 0; i < MLXSW_SX_PORT_LINK_MODE_LEN; i++) {
+		if (mlxsw_sx_port_link_mode[i].speed <= upper_speed)
 			ptys_proto |= mlxsw_sx_port_link_mode[i].mask;
 	}
 	return ptys_proto;
@@ -955,13 +968,17 @@ static int mlxsw_sx_port_stp_state_set(struct mlxsw_sx_port *mlxsw_sx_port,
 	return err;
 }
 
-static int mlxsw_sx_port_speed_set(struct mlxsw_sx_port *mlxsw_sx_port,
-				   u32 speed)
+static int
+mlxsw_sx_port_speed_by_width_set(struct mlxsw_sx_port *mlxsw_sx_port, u8 width)
 {
 	struct mlxsw_sx *mlxsw_sx = mlxsw_sx_port->mlxsw_sx;
+	u32 upper_speed = MLXSW_SX_PORT_BASE_SPEED * width;
 	char ptys_pl[MLXSW_REG_PTYS_LEN];
+	u32 eth_proto_admin;
 
-	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sx_port->local_port, speed);
+	eth_proto_admin = mlxsw_sx_to_ptys_upper_speed(upper_speed);
+	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sx_port->local_port,
+			    eth_proto_admin);
 	return mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(ptys), ptys_pl);
 }
 
@@ -977,7 +994,7 @@ mlxsw_sx_port_mac_learning_mode_set(struct mlxsw_sx_port *mlxsw_sx_port,
 }
 
 static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
-				u8 module)
+				u8 module, u8 width)
 {
 	struct mlxsw_sx_port *mlxsw_sx_port;
 	struct net_device *dev;
@@ -1038,8 +1055,7 @@ static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
 		goto err_port_swid_set;
 	}
 
-	err = mlxsw_sx_port_speed_set(mlxsw_sx_port,
-				      MLXSW_REG_PTYS_ETH_SPEED_40GBASE_CR4);
+	err = mlxsw_sx_port_speed_by_width_set(mlxsw_sx_port, width);
 	if (err) {
 		dev_err(mlxsw_sx->bus_info->dev, "Port %d: Failed to set speed\n",
 			mlxsw_sx_port->local_port);
@@ -1156,7 +1172,7 @@ static int mlxsw_sx_ports_create(struct mlxsw_sx *mlxsw_sx)
 			goto err_port_module_info_get;
 		if (!width)
 			continue;
-		err = mlxsw_sx_port_create(mlxsw_sx, i, module);
+		err = mlxsw_sx_port_create(mlxsw_sx, i, module, width);
 		if (err)
 			goto err_port_create;
 	}
