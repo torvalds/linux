@@ -5819,7 +5819,6 @@ static int ufshcd_vreg_set_hpm(struct ufs_hba *hba)
 	    !hba->dev_info.is_lu_power_on_wp) {
 		ret = ufshcd_setup_vreg(hba, true);
 	} else if (!ufshcd_is_ufs_dev_active(hba)) {
-		ret = ufshcd_toggle_vreg(hba->dev, hba->vreg_info.vcc, true);
 		if (!ret && !ufshcd_is_link_active(hba)) {
 			ret = ufshcd_config_vreg_hpm(hba, hba->vreg_info.vccq);
 			if (ret)
@@ -5828,6 +5827,7 @@ static int ufshcd_vreg_set_hpm(struct ufs_hba *hba)
 			if (ret)
 				goto vccq_lpm;
 		}
+		ret = ufshcd_toggle_vreg(hba->dev, hba->vreg_info.vcc, true);
 	}
 	goto out;
 
