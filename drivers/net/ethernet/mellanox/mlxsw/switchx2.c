@@ -1590,13 +1590,17 @@ static struct mlxsw_config_profile mlxsw_sx_config_profile = {
 	.used_flood_mode		= 1,
 	.flood_mode			= 3,
 	.used_max_ib_mc			= 1,
-	.max_ib_mc			= 0,
+	.max_ib_mc			= 6,
 	.used_max_pkey			= 1,
 	.max_pkey			= 0,
 	.swid_config			= {
 		{
 			.used_type	= 1,
 			.type		= MLXSW_PORT_SWID_TYPE_ETH,
+		},
+		{
+			.used_type	= 1,
+			.type		= MLXSW_PORT_SWID_TYPE_IB,
 		}
 	},
 	.resource_query_enable		= 0,
