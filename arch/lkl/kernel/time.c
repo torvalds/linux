@@ -29,6 +29,11 @@ void calibrate_delay(void)
 {
 }
 
+void read_persistent_clock(struct timespec *ts)
+{
+	*ts = ns_to_timespec(lkl_ops->time());
+}
+
 static cycle_t clock_read(struct clocksource *cs)
 {
 	return lkl_ops->time();
