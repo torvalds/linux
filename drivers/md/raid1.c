@@ -2297,17 +2297,23 @@ static void handle_read_error(struct r1conf *conf, struct r1bio *r1_bio)
 	 * This is all done synchronously while the array is
 	 * frozen
 	 */
+
+	bio = r1_bio->bios[r1_bio->read_disk];
+	bdevname(bio->bi_bdev, b);
+	bio_put(bio);
+	r1_bio->bios[r1_bio->read_disk] = NULL;
+
 	if (mddev->ro == 0) {
 		freeze_array(conf, 1);
 		fix_read_error(conf, r1_bio->read_disk,
 			       r1_bio->sector, r1_bio->sectors);
 		unfreeze_array(conf);
-	} else
-		md_error(mddev, conf->mirrors[r1_bio->read_disk].rdev);
+	} else {
+		r1_bio->bios[r1_bio->read_disk] = IO_BLOCKED;
+	}
+
 	rdev_dec_pending(conf->mirrors[r1_bio->read_disk].rdev, conf->mddev);
 
-	bio = r1_bio->bios[r1_bio->read_disk];
-	bdevname(bio->bi_bdev, b);
 read_more:
 	disk = read_balance(conf, r1_bio, &max_sectors);
 	if (disk == -1) {
@@ -2318,11 +2324,6 @@ read_more:
 	} else {
 		const unsigned long do_sync
 			= r1_bio->master_bio->bi_opf & REQ_SYNC;
-		if (bio) {
-			r1_bio->bios[r1_bio->read_disk] =
-				mddev->ro ? IO_BLOCKED : NULL;
-			bio_put(bio);
-		}
 		r1_bio->read_disk = disk;
 		bio = bio_clone_mddev(r1_bio->master_bio, GFP_NOIO, mddev);
 		bio_trim(bio, r1_bio->sector - bio->bi_iter.bi_sector,
