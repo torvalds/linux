@@ -22,7 +22,7 @@
 #include <sound/soc-dai.h>
 #include <sound/simple_card_utils.h>
 
-struct asoc_simple_card_priv {
+struct simple_card_data {
 	struct snd_soc_card snd_card;
 	struct snd_soc_codec_conf codec_conf;
 	struct asoc_simple_dai *dai_props;
@@ -42,7 +42,7 @@ struct asoc_simple_card_priv {
 static int asoc_simple_card_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct asoc_simple_card_priv *priv =	snd_soc_card_get_drvdata(rtd->card);
+	struct simple_card_data *priv =	snd_soc_card_get_drvdata(rtd->card);
 	struct asoc_simple_dai *dai_props =
 		simple_priv_to_props(priv, rtd->num);
 
@@ -52,7 +52,7 @@ static int asoc_simple_card_startup(struct snd_pcm_substream *substream)
 static void asoc_simple_card_shutdown(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct asoc_simple_card_priv *priv =	snd_soc_card_get_drvdata(rtd->card);
+	struct simple_card_data *priv =	snd_soc_card_get_drvdata(rtd->card);
 	struct asoc_simple_dai *dai_props =
 		simple_priv_to_props(priv, rtd->num);
 
@@ -66,7 +66,7 @@ static struct snd_soc_ops asoc_simple_card_ops = {
 
 static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct asoc_simple_card_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai;
 	struct snd_soc_dai_link *dai_link;
 	struct asoc_simple_dai *dai_props;
@@ -84,7 +84,7 @@ static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 static int asoc_simple_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					struct snd_pcm_hw_params *params)
 {
-	struct asoc_simple_card_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_interval *rate = hw_param_interval(params,
 						      SNDRV_PCM_HW_PARAM_RATE);
 	struct snd_interval *channels = hw_param_interval(params,
@@ -102,7 +102,7 @@ static int asoc_simple_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 }
 
 static int asoc_simple_card_dai_link_of(struct device_node *np,
-					struct asoc_simple_card_priv *priv,
+					struct simple_card_data *priv,
 					unsigned int daifmt,
 					int idx, bool is_fe)
 {
@@ -196,7 +196,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *np,
 }
 
 static int asoc_simple_card_parse_of(struct device_node *node,
-				     struct asoc_simple_card_priv *priv)
+				     struct simple_card_data *priv)
 
 {
 	struct device *dev = simple_priv_to_dev(priv);
@@ -253,7 +253,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 
 static int asoc_simple_card_probe(struct platform_device *pdev)
 {
-	struct asoc_simple_card_priv *priv;
+	struct simple_card_data *priv;
 	struct snd_soc_dai_link *links;
 	struct asoc_simple_dai *props;
 	struct device *dev = &pdev->dev;
