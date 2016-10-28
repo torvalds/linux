@@ -361,7 +361,7 @@ static int intel_rdt_offline_cpu(unsigned int cpu)
 static int __init intel_rdt_late_init(void)
 {
 	struct rdt_resource *r;
-	int state;
+	int state, ret;
 
 	if (!get_rdt_resources())
 		return -ENODEV;
@@ -371,6 +371,12 @@ static int __init intel_rdt_late_init(void)
 				  intel_rdt_online_cpu, intel_rdt_offline_cpu);
 	if (state < 0)
 		return state;
+
+	ret = rdtgroup_init();
+	if (ret) {
+		cpuhp_remove_state(state);
+		return ret;
+	}
 
 	for_each_capable_rdt_resource(r)
 		pr_info("Intel RDT %s allocation detected\n", r->name);

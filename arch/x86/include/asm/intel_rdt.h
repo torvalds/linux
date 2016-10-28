@@ -1,8 +1,30 @@
 #ifndef _ASM_X86_INTEL_RDT_H
 #define _ASM_X86_INTEL_RDT_H
 
+#include <linux/jump_label.h>
+
+#define IA32_L3_QOS_CFG		0xc81
 #define IA32_L3_CBM_BASE	0xc90
 #define IA32_L2_CBM_BASE	0xd10
+
+#define L3_QOS_CDP_ENABLE	0x01ULL
+
+/**
+ * struct rdtgroup - store rdtgroup's data in resctrl file system.
+ * @kn:				kernfs node
+ * @rdtgroup_list:		linked list for all rdtgroups
+ * @closid:			closid for this rdtgroup
+ */
+struct rdtgroup {
+	struct kernfs_node	*kn;
+	struct list_head	rdtgroup_list;
+	int			closid;
+};
+
+/* List of all resource groups */
+extern struct list_head rdt_all_groups;
+
+int __init rdtgroup_init(void);
 
 /**
  * struct rdt_resource - attributes of an RDT resource
@@ -68,6 +90,10 @@ struct msr_param {
 extern struct mutex rdtgroup_mutex;
 
 extern struct rdt_resource rdt_resources_all[];
+extern struct rdtgroup rdtgroup_default;
+DECLARE_STATIC_KEY_FALSE(rdt_enable_key);
+
+int __init rdtgroup_init(void);
 
 enum {
 	RDT_RESOURCE_L3,
