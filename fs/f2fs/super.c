@@ -419,6 +419,11 @@ static int parse_options(struct super_block *sb, char *options)
 			}
 			break;
 		case Opt_nodiscard:
+			if (f2fs_sb_mounted_blkzoned(sb)) {
+				f2fs_msg(sb, KERN_WARNING,
+					"discard is required for zoned block devices");
+				return -EINVAL;
+			}
 			clear_opt(sbi, DISCARD);
 			break;
 		case Opt_noheap:
