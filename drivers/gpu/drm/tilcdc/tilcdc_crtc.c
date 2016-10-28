@@ -803,7 +803,7 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 	}
 
 	if (stat & LCDC_FIFO_UNDERFLOW)
-		dev_err_ratelimited(dev->dev, "%s(0x%08x): FIFO underfow",
+		dev_err_ratelimited(dev->dev, "%s(0x%08x): FIFO underflow",
 				    __func__, stat);
 
 	/* For revision 2 only */
