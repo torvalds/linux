@@ -36,6 +36,8 @@
 struct metapath {
 	struct buffer_head *mp_bh[GFS2_MAX_META_HEIGHT];
 	__u16 mp_list[GFS2_MAX_META_HEIGHT];
+	int mp_fheight; /* find_metapath height */
+	int mp_aheight; /* actual height (lookup height) */
 };
 
 /**
@@ -235,9 +237,9 @@ static void find_metapath(const struct gfs2_sbd *sdp, u64 block,
 {
 	unsigned int i;
 
+	mp->mp_fheight = height;
 	for (i = height; i--;)
 		mp->mp_list[i] = do_div(block, sdp->sd_inptrs);
-
 }
 
 static inline unsigned int metapath_branch_start(const struct metapath *mp)
@@ -345,10 +347,13 @@ static int lookup_metapath(struct gfs2_inode *ip, struct metapath *mp)
 	for (x = 0; x < end_of_metadata; x++) {
 		ret = lookup_mp_height(ip, mp, x);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
-	return ip->i_height;
+	ret = ip->i_height;
+out:
+	mp->mp_aheight = ret;
+	return ret;
 }
 
 /**
@@ -480,10 +485,11 @@ static inline unsigned int hptrs(struct gfs2_sbd *sdp, const unsigned int hgt)
  * @inode: The GFS2 inode
  * @lblock: The logical starting block of the extent
  * @bh_map: This is used to return the mapping details
- * @mp: The metapath
- * @sheight: The starting height (i.e. whats already mapped)
- * @height: The height to build to
+ * @zero_new: True if newly allocated blocks should be zeroed
+ * @mp: The metapath, with proper height information calculated
  * @maxlen: The max number of data blocks to alloc
+ * @dblock: Pointer to return the resulting new block
+ * @dblks: Pointer to return the number of blocks allocated
  *
  * In this routine we may have to alloc:
  *   i) Indirect blocks to grow the metadata tree height
@@ -500,62 +506,63 @@ static inline unsigned int hptrs(struct gfs2_sbd *sdp, const unsigned int hgt)
  */
 
 static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
-			   struct buffer_head *bh_map, struct metapath *mp,
-			   const unsigned int sheight,
-			   const unsigned int height,
-			   const size_t maxlen)
+			   bool zero_new, struct metapath *mp,
+			   const size_t maxlen, sector_t *dblock,
+			   unsigned *dblks)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct super_block *sb = sdp->sd_vfs;
 	struct buffer_head *dibh = mp->mp_bh[0];
-	u64 bn, dblock = 0;
+	u64 bn;
 	unsigned n, i, blks, alloced = 0, iblks = 0, branch_start = 0;
-	unsigned dblks = 0;
 	unsigned ptrs_per_blk;
-	const unsigned end_of_metadata = height - 1;
+	const unsigned end_of_metadata = mp->mp_fheight - 1;
 	int ret;
 	int eob = 0;
 	enum alloc_state state;
 	__be64 *ptr;
 	__be64 zero_bn = 0;
 
-	BUG_ON(sheight < 1);
+	BUG_ON(mp->mp_aheight < 1);
 	BUG_ON(dibh == NULL);
 
+	*dblock = 0;
+	*dblks = 0;
 	gfs2_trans_add_meta(ip->i_gl, dibh);
 
-	if (height == sheight) {
+	if (mp->mp_fheight == mp->mp_aheight) {
 		struct buffer_head *bh;
 		/* Bottom indirect block exists, find unalloced extent size */
 		ptr = metapointer(end_of_metadata, mp);
 		bh = mp->mp_bh[end_of_metadata];
-		dblks = gfs2_extent_length(bh->b_data, bh->b_size, ptr, maxlen,
-					   &eob);
-		BUG_ON(dblks < 1);
+		*dblks = gfs2_extent_length(bh->b_data, bh->b_size, ptr,
+					    maxlen, &eob);
+		BUG_ON(*dblks < 1);
 		state = ALLOC_DATA;
 	} else {
 		/* Need to allocate indirect blocks */
-		ptrs_per_blk = height > 1 ? sdp->sd_inptrs : sdp->sd_diptrs;
-		dblks = min(maxlen, (size_t)(ptrs_per_blk -
-					     mp->mp_list[end_of_metadata]));
-		if (height == ip->i_height) {
+		ptrs_per_blk = mp->mp_fheight > 1 ? sdp->sd_inptrs :
+			sdp->sd_diptrs;
+		*dblks = min(maxlen, (size_t)(ptrs_per_blk -
+					      mp->mp_list[end_of_metadata]));
+		if (mp->mp_fheight == ip->i_height) {
 			/* Writing into existing tree, extend tree down */
-			iblks = height - sheight;
+			iblks = mp->mp_fheight - mp->mp_aheight;
 			state = ALLOC_GROW_DEPTH;
 		} else {
 			/* Building up tree height */
 			state = ALLOC_GROW_HEIGHT;
-			iblks = height - ip->i_height;
+			iblks = mp->mp_fheight - ip->i_height;
 			branch_start = metapath_branch_start(mp);
-			iblks += (height - branch_start);
+			iblks += (mp->mp_fheight - branch_start);
 		}
 	}
 
 	/* start of the second part of the function (state machine) */
 
-	blks = dblks + iblks;
-	i = sheight;
+	blks = *dblks + iblks;
+	i = mp->mp_aheight;
 	do {
 		int error;
 		n = blks - alloced;
@@ -573,9 +580,10 @@ static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
 						 sizeof(struct gfs2_dinode));
 				zero_bn = *ptr;
 			}
-			for (; i - 1 < height - ip->i_height && n > 0; i++, n--)
+			for (; i - 1 < mp->mp_fheight - ip->i_height && n > 0;
+			     i++, n--)
 				gfs2_indirect_init(mp, ip->i_gl, i, 0, bn++);
-			if (i - 1 == height - ip->i_height) {
+			if (i - 1 == mp->mp_fheight - ip->i_height) {
 				i--;
 				gfs2_buffer_copy_tail(mp->mp_bh[i],
 						sizeof(struct gfs2_meta_header),
@@ -587,7 +595,7 @@ static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
 					sizeof(struct gfs2_meta_header));
 				*ptr = zero_bn;
 				state = ALLOC_GROW_DEPTH;
-				for(i = branch_start; i < height; i++) {
+				for(i = branch_start; i < mp->mp_fheight; i++) {
 					if (mp->mp_bh[i] == NULL)
 						break;
 					brelse(mp->mp_bh[i]);
@@ -599,44 +607,40 @@ static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
 				break;
 		/* Branching from existing tree */
 		case ALLOC_GROW_DEPTH:
-			if (i > 1 && i < height)
+			if (i > 1 && i < mp->mp_fheight)
 				gfs2_trans_add_meta(ip->i_gl, mp->mp_bh[i-1]);
-			for (; i < height && n > 0; i++, n--)
+			for (; i < mp->mp_fheight && n > 0; i++, n--)
 				gfs2_indirect_init(mp, ip->i_gl, i,
 						   mp->mp_list[i-1], bn++);
-			if (i == height)
+			if (i == mp->mp_fheight)
 				state = ALLOC_DATA;
 			if (n == 0)
 				break;
 		/* Tree complete, adding data blocks */
 		case ALLOC_DATA:
-			BUG_ON(n > dblks);
+			BUG_ON(n > *dblks);
 			BUG_ON(mp->mp_bh[end_of_metadata] == NULL);
 			gfs2_trans_add_meta(ip->i_gl, mp->mp_bh[end_of_metadata]);
-			dblks = n;
+			*dblks = n;
 			ptr = metapointer(end_of_metadata, mp);
-			dblock = bn;
+			*dblock = bn;
 			while (n-- > 0)
 				*ptr++ = cpu_to_be64(bn++);
-			if (buffer_zeronew(bh_map)) {
-				ret = sb_issue_zeroout(sb, dblock, dblks,
+			if (zero_new) {
+				ret = sb_issue_zeroout(sb, *dblock, *dblks,
 						       GFP_NOFS);
 				if (ret) {
 					fs_err(sdp,
 					       "Failed to zero data buffers\n");
-					clear_buffer_zeronew(bh_map);
 				}
 			}
 			break;
 		}
-	} while ((state != ALLOC_DATA) || !dblock);
+	} while ((state != ALLOC_DATA) || !(*dblock));
 
-	ip->i_height = height;
+	ip->i_height = mp->mp_fheight;
 	gfs2_add_inode_blocks(&ip->i_inode, alloced);
 	gfs2_dinode_out(ip, mp->mp_bh[0]->b_data);
-	map_bh(bh_map, inode->i_sb, dblock);
-	bh_map->b_size = dblks << inode->i_blkbits;
-	set_buffer_new(bh_map);
 	return 0;
 }
 
@@ -670,6 +674,9 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	unsigned int len;
 	struct buffer_head *bh;
 	u8 height;
+	bool zero_new = false;
+	sector_t dblock = 0;
+	unsigned dblks;
 
 	BUG_ON(maxlen == 0);
 
@@ -699,13 +706,13 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	while (size > arr[height])
 		height++;
 	find_metapath(sdp, lblock, &mp, height);
-	ret = 1;
+	mp.mp_aheight = 1;
 	if (height > ip->i_height || gfs2_is_stuffed(ip))
 		goto do_alloc;
 	ret = lookup_metapath(ip, &mp);
 	if (ret < 0)
 		goto out;
-	if (ret != ip->i_height)
+	if (mp.mp_aheight != ip->i_height)
 		goto do_alloc;
 	ptr = metapointer(ip->i_height - 1, &mp);
 	if (*ptr == 0)
@@ -732,7 +739,15 @@ do_alloc:
 	}
 
 	/* At this point ret is the tree depth of already allocated blocks */
-	ret = gfs2_bmap_alloc(inode, lblock, bh_map, &mp, ret, height, maxlen);
+	if (buffer_zeronew(bh_map))
+		zero_new = true;
+	ret = gfs2_bmap_alloc(inode, lblock, zero_new, &mp, maxlen, &dblock,
+			      &dblks);
+	if (ret == 0) {
+		map_bh(bh_map, inode->i_sb, dblock);
+		bh_map->b_size = dblks << inode->i_blkbits;
+		set_buffer_new(bh_map);
+	}
 	goto out;
 }
 
