@@ -1364,6 +1364,9 @@ static void __ip6_rt_update_pmtu(struct dst_entry *dst, const struct sock *sk,
 	if (rt6->rt6i_flags & RTF_LOCAL)
 		return;
 
+	if (dst_metric_locked(dst, RTAX_MTU))
+		return;
+
 	dst_confirm(dst);
 	mtu = max_t(u32, mtu, IPV6_MIN_MTU);
 	if (mtu >= dst_mtu(dst))
