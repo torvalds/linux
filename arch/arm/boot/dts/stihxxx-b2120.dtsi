@@ -135,6 +135,10 @@
 			};
 		};
 
+		sti_uni_player0: sti-uni-player@8d80000 {
+			status = "okay";
+		};
+
 		sti_uni_player2: sti-uni-player@8d82000 {
 			status = "okay";
 		};
@@ -155,9 +159,22 @@
 			status = "okay";
 
 			simple-audio-card,dai-link@0 {
+				/* HDMI */
+				format = "i2s";
+				mclk-fs = <128>;
+				cpu {
+					sound-dai = <&sti_uni_player0>;
+				};
+
+				codec {
+					sound-dai = <&sti_hdmi>;
+				};
+			};
+			simple-audio-card,dai-link@1 {
 				/* DAC */
 				format = "i2s";
 				mclk-fs = <256>;
+				frame-inversion = <1>;
 				cpu {
 					sound-dai = <&sti_uni_player2>;
 				};
@@ -166,7 +183,7 @@
 					sound-dai = <&sti_sasg_codec 1>;
 				};
 			};
-			simple-audio-card,dai-link@1 {
+			simple-audio-card,dai-link@2 {
 				/* SPDIF */
 				format = "left_j";
 				mclk-fs = <128>;

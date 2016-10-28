@@ -712,11 +712,6 @@ dtb-$(CONFIG_ARCH_STI) += \
 	stih407-b2120.dtb \
 	stih410-b2120.dtb \
 	stih410-b2260.dtb \
-	stih415-b2000.dtb \
-	stih415-b2020.dtb \
-	stih416-b2000.dtb \
-	stih416-b2020.dtb \
-	stih416-b2020e.dtb \
 	stih418-b2199.dtb
 dtb-$(CONFIG_ARCH_STM32)+= \
 	stm32f429-disco.dtb \

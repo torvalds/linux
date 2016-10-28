@@ -174,12 +174,6 @@
 			status = "okay";
 		};
 
-		sti-display-subsystem {
-			sti_hdmi: sti-hdmi@8d04000 {
-				status = "okay";
-			};
-		};
-
 		miphy28lp_phy: miphy28lp@9b22000 {
 
 			phy_port1: port@9b2a000 {
