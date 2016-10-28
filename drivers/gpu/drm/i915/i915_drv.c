@@ -831,7 +831,9 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	intel_init_display_hooks(dev_priv);
 	intel_init_clock_gating_hooks(dev_priv);
 	intel_init_audio_hooks(dev_priv);
-	i915_gem_load_init(&dev_priv->drm);
+	ret = i915_gem_load_init(&dev_priv->drm);
+	if (ret < 0)
+		goto err_gvt;
 
 	intel_display_crc_init(dev_priv);
 
@@ -841,6 +843,8 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 	return 0;
 
+err_gvt:
+	intel_gvt_cleanup(dev_priv);
 err_workqueues:
 	i915_workqueues_cleanup(dev_priv);
 	return ret;

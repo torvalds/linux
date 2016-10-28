@@ -40,7 +40,7 @@ static const char *i915_fence_get_timeline_name(struct dma_fence *fence)
 	 * multiple execution contexts (fence contexts) as we allow
 	 * engines within a single timeline to execute in parallel.
 	 */
-	return "global";
+	return to_request(fence)->timeline->common->name;
 }
 
 static bool i915_fence_signaled(struct dma_fence *fence)
@@ -211,7 +211,7 @@ void i915_gem_request_retire_upto(struct drm_i915_gem_request *req)
 		return;
 
 	do {
-		tmp = list_first_entry(&engine->request_list,
+		tmp = list_first_entry(&engine->timeline->requests,
 				       typeof(*tmp), link);
 
 		i915_gem_request_retire(tmp);
@@ -238,37 +238,39 @@ static int i915_gem_check_wedge(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-static int i915_gem_init_seqno(struct drm_i915_private *dev_priv, u32 seqno)
+static int i915_gem_init_global_seqno(struct drm_i915_private *dev_priv,
+				      u32 seqno)
 {
+	struct i915_gem_timeline *timeline = &dev_priv->gt.global_timeline;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int ret;
 
 	/* Carefully retire all requests without writing to the rings */
-	for_each_engine(engine, dev_priv, id) {
-		ret = intel_engine_idle(engine,
-					I915_WAIT_INTERRUPTIBLE |
-					I915_WAIT_LOCKED);
-		if (ret)
-			return ret;
-	}
+	ret = i915_gem_wait_for_idle(dev_priv,
+				     I915_WAIT_INTERRUPTIBLE |
+				     I915_WAIT_LOCKED);
+	if (ret)
+		return ret;
+
 	i915_gem_retire_requests(dev_priv);
 
 	/* If the seqno wraps around, we need to clear the breadcrumb rbtree */
-	if (!i915_seqno_passed(seqno, dev_priv->next_seqno)) {
+	if (!i915_seqno_passed(seqno, timeline->next_seqno)) {
 		while (intel_kick_waiters(dev_priv) ||
 		       intel_kick_signalers(dev_priv))
 			yield();
+		yield();
 	}
 
 	/* Finally reset hw state */
 	for_each_engine(engine, dev_priv, id)
-		intel_engine_init_seqno(engine, seqno);
+		intel_engine_init_global_seqno(engine, seqno);
 
 	return 0;
 }
 
-int i915_gem_set_seqno(struct drm_device *dev, u32 seqno)
+int i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
@@ -281,28 +283,31 @@ int i915_gem_set_seqno(struct drm_device *dev, u32 seqno)
 	/* HWS page needs to be set less than what we
 	 * will inject to ring
 	 */
-	ret = i915_gem_init_seqno(dev_priv, seqno - 1);
+	ret = i915_gem_init_global_seqno(dev_priv, seqno - 1);
 	if (ret)
 		return ret;
 
-	dev_priv->next_seqno = seqno;
+	dev_priv->gt.global_timeline.next_seqno = seqno;
 	return 0;
 }
 
-static int i915_gem_get_seqno(struct drm_i915_private *dev_priv, u32 *seqno)
+static int i915_gem_get_global_seqno(struct drm_i915_private *dev_priv,
+				     u32 *seqno)
 {
+	struct i915_gem_timeline *tl = &dev_priv->gt.global_timeline;
+
 	/* reserve 0 for non-seqno */
-	if (unlikely(dev_priv->next_seqno == 0)) {
+	if (unlikely(tl->next_seqno == 0)) {
 		int ret;
 
-		ret = i915_gem_init_seqno(dev_priv, 0);
+		ret = i915_gem_init_global_seqno(dev_priv, 0);
 		if (ret)
 			return ret;
 
-		dev_priv->next_seqno = 1;
+		tl->next_seqno = 1;
 	}
 
-	*seqno = dev_priv->next_seqno++;
+	*seqno = tl->next_seqno++;
 	return 0;
 }
 
@@ -311,13 +316,14 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 {
 	struct drm_i915_gem_request *request =
 		container_of(fence, typeof(*request), submit);
+	struct intel_engine_cs *engine = request->engine;
 
 	/* Will be called from irq-context when using foreign DMA fences */
 
 	switch (state) {
 	case FENCE_COMPLETE:
-		request->engine->last_submitted_seqno = request->fence.seqno;
-		request->engine->submit_request(request);
+		engine->timeline->last_submitted_seqno = request->fence.seqno;
+		engine->submit_request(request);
 		break;
 
 	case FENCE_FREE:
@@ -357,7 +363,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		return ERR_PTR(ret);
 
 	/* Move the oldest request to the slab-cache (if not in use!) */
-	req = list_first_entry_or_null(&engine->request_list,
+	req = list_first_entry_or_null(&engine->timeline->requests,
 				       typeof(*req), link);
 	if (req && i915_gem_request_completed(req))
 		i915_gem_request_retire(req);
@@ -394,15 +400,17 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	if (!req)
 		return ERR_PTR(-ENOMEM);
 
-	ret = i915_gem_get_seqno(dev_priv, &seqno);
+	ret = i915_gem_get_global_seqno(dev_priv, &seqno);
 	if (ret)
 		goto err;
+
+	req->timeline = engine->timeline;
 
 	spin_lock_init(&req->lock);
 	dma_fence_init(&req->fence,
 		       &i915_fence_ops,
 		       &req->lock,
-		       engine->fence_context,
+		       req->timeline->fence_context,
 		       seqno);
 
 	i915_sw_fence_init(&req->submit, submit_notify);
@@ -457,8 +465,15 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 
 	GEM_BUG_ON(to == from);
 
-	if (to->engine == from->engine)
+	if (to->timeline == from->timeline)
 		return 0;
+
+	if (to->engine == from->engine) {
+		ret = i915_sw_fence_await_sw_fence_gfp(&to->submit,
+						       &from->submit,
+						       GFP_KERNEL);
+		return ret < 0 ? ret : 0;
+	}
 
 	idx = intel_engine_sync_index(from->engine, to->engine);
 	if (from->fence.seqno <= from->engine->semaphore.sync_seqno[idx])
@@ -622,6 +637,7 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 {
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_ring *ring = request->ring;
+	struct intel_timeline *timeline = request->timeline;
 	struct drm_i915_gem_request *prev;
 	u32 request_start;
 	u32 reserved_tail;
@@ -679,17 +695,17 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	 * see a more recent value in the hws than we are tracking.
 	 */
 
-	prev = i915_gem_active_raw(&engine->last_request,
+	prev = i915_gem_active_raw(&timeline->last_request,
 				   &request->i915->drm.struct_mutex);
 	if (prev)
 		i915_sw_fence_await_sw_fence(&request->submit, &prev->submit,
 					     &request->submitq);
 
 	request->emitted_jiffies = jiffies;
-	request->previous_seqno = engine->last_pending_seqno;
-	engine->last_pending_seqno = request->fence.seqno;
-	i915_gem_active_set(&engine->last_request, request);
-	list_add_tail(&request->link, &engine->request_list);
+	request->previous_seqno = timeline->last_pending_seqno;
+	timeline->last_pending_seqno = request->fence.seqno;
+	i915_gem_active_set(&timeline->last_request, request);
+	list_add_tail(&request->link, &timeline->requests);
 	list_add_tail(&request->ring_link, &ring->request_list);
 
 	i915_gem_mark_busy(engine);
@@ -899,7 +915,8 @@ static bool engine_retire_requests(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request, *next;
 
-	list_for_each_entry_safe(request, next, &engine->request_list, link) {
+	list_for_each_entry_safe(request, next,
+				 &engine->timeline->requests, link) {
 		if (!i915_gem_request_completed(request))
 			return false;
 

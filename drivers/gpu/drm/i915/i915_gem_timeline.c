@@ -22,15 +22,43 @@
  *
  */
 
-#ifndef __I915_GEM_H__
-#define __I915_GEM_H__
+#include "i915_drv.h"
 
-#ifdef CONFIG_DRM_I915_DEBUG_GEM
-#define GEM_BUG_ON(expr) BUG_ON(expr)
-#else
-#define GEM_BUG_ON(expr)
-#endif
+int i915_gem_timeline_init(struct drm_i915_private *i915,
+			   struct i915_gem_timeline *timeline,
+			   const char *name)
+{
+	unsigned int i;
+	u64 fences;
 
-#define I915_NUM_ENGINES 5
+	lockdep_assert_held(&i915->drm.struct_mutex);
 
-#endif /* __I915_GEM_H__ */
+	timeline->i915 = i915;
+	timeline->name = kstrdup(name ?: "[kernel]", GFP_KERNEL);
+	if (!timeline->name)
+		return -ENOMEM;
+
+	list_add(&timeline->link, &i915->gt.timelines);
+
+	/* Called during early_init before we know how many engines there are */
+	fences = dma_fence_context_alloc(ARRAY_SIZE(timeline->engine));
+	for (i = 0; i < ARRAY_SIZE(timeline->engine); i++) {
+		struct intel_timeline *tl = &timeline->engine[i];
+
+		tl->fence_context = fences++;
+		tl->common = timeline;
+
+		init_request_active(&tl->last_request, NULL);
+		INIT_LIST_HEAD(&tl->requests);
+	}
+
+	return 0;
+}
+
+void i915_gem_timeline_fini(struct i915_gem_timeline *tl)
+{
+	lockdep_assert_held(&tl->i915->drm.struct_mutex);
+
+	list_del(&tl->link);
+	kfree(tl->name);
+}

@@ -1522,7 +1522,8 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 		engine->submit_request = i915_guc_submit;
 
 		/* Replay the current set of previously submitted requests */
-		list_for_each_entry(request, &engine->request_list, link) {
+		list_for_each_entry(request,
+				    &engine->timeline->requests, link) {
 			client->wq_rsvd += sizeof(struct guc_wq_item);
 			if (i915_sw_fence_done(&request->submit))
 				i915_guc_submit(request);

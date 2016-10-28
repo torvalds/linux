@@ -4,6 +4,7 @@
 #include <linux/hashtable.h>
 #include "i915_gem_batch_pool.h"
 #include "i915_gem_request.h"
+#include "i915_gem_timeline.h"
 
 #define I915_CMD_HASH_ORDER 9
 
@@ -169,7 +170,6 @@ struct intel_engine_cs {
 		VCS2,	/* Keep instances of the same type engine together. */
 		VECS
 	} id;
-#define I915_NUM_ENGINES 5
 #define _VCS(n) (VCS + (n))
 	unsigned int exec_id;
 	enum intel_engine_hw_id {
@@ -180,10 +180,10 @@ struct intel_engine_cs {
 		VCS2_HW
 	} hw_id;
 	enum intel_engine_hw_id guc_id; /* XXX same as hw_id? */
-	u64 fence_context;
 	u32		mmio_base;
 	unsigned int irq_shift;
 	struct intel_ring *buffer;
+	struct intel_timeline *timeline;
 
 	struct intel_render_state *render_state;
 
@@ -346,27 +346,6 @@ struct intel_engine_cs {
 	bool preempt_wa;
 	u32 ctx_desc_template;
 
-	/**
-	 * List of breadcrumbs associated with GPU requests currently
-	 * outstanding.
-	 */
-	struct list_head request_list;
-
-	/**
-	 * Seqno of request most recently submitted to request_list.
-	 * Used exclusively by hang checker to avoid grabbing lock while
-	 * inspecting request list.
-	 */
-	u32 last_submitted_seqno;
-	u32 last_pending_seqno;
-
-	/* An RCU guarded pointer to the last request. No reference is
-	 * held to the request, users must carefully acquire a reference to
-	 * the request using i915_gem_active_get_rcu(), or hold the
-	 * struct_mutex.
-	 */
-	struct i915_gem_active last_request;
-
 	struct i915_gem_context *last_context;
 
 	struct intel_engine_hangcheck hangcheck;
@@ -516,19 +495,12 @@ static inline u32 intel_ring_offset(struct intel_ring *ring, u32 value)
 int __intel_ring_space(int head, int tail, int size);
 void intel_ring_update_space(struct intel_ring *ring);
 
-void intel_engine_init_seqno(struct intel_engine_cs *engine, u32 seqno);
+void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno);
 
 void intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);
 int intel_engine_create_scratch(struct intel_engine_cs *engine, int size);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
-
-static inline int intel_engine_idle(struct intel_engine_cs *engine,
-				    unsigned int flags)
-{
-	/* Wait upon the last request to be completed */
-	return i915_gem_active_wait(&engine->last_request, flags);
-}
 
 int intel_init_render_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine);
@@ -619,7 +591,7 @@ unsigned int intel_kick_signalers(struct drm_i915_private *i915);
 
 static inline bool intel_engine_is_active(struct intel_engine_cs *engine)
 {
-	return i915_gem_active_isset(&engine->last_request);
+	return i915_gem_active_isset(&engine->timeline->last_request);
 }
 
 #endif /* _INTEL_RINGBUFFER_H_ */

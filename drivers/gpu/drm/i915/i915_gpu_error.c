@@ -1110,7 +1110,7 @@ static void error_record_engine_registers(struct drm_i915_error_state *error,
 	ee->instpm = I915_READ(RING_INSTPM(engine->mmio_base));
 	ee->acthd = intel_engine_get_active_head(engine);
 	ee->seqno = intel_engine_get_seqno(engine);
-	ee->last_seqno = engine->last_submitted_seqno;
+	ee->last_seqno = engine->timeline->last_submitted_seqno;
 	ee->start = I915_READ_START(engine);
 	ee->head = I915_READ_HEAD(engine);
 	ee->tail = I915_READ_TAIL(engine);
@@ -1195,7 +1195,7 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 
 	count = 0;
 	request = first;
-	list_for_each_entry_from(request, &engine->request_list, link)
+	list_for_each_entry_from(request, &engine->timeline->requests, link)
 		count++;
 	if (!count)
 		return;
@@ -1208,7 +1208,7 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 
 	count = 0;
 	request = first;
-	list_for_each_entry_from(request, &engine->request_list, link) {
+	list_for_each_entry_from(request, &engine->timeline->requests, link) {
 		if (count >= ee->num_requests) {
 			/*
 			 * If the ring request list was changed in

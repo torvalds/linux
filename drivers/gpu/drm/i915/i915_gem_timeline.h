@@ -22,15 +22,49 @@
  *
  */
 
-#ifndef __I915_GEM_H__
-#define __I915_GEM_H__
+#ifndef I915_GEM_TIMELINE_H
+#define I915_GEM_TIMELINE_H
 
-#ifdef CONFIG_DRM_I915_DEBUG_GEM
-#define GEM_BUG_ON(expr) BUG_ON(expr)
-#else
-#define GEM_BUG_ON(expr)
+#include <linux/list.h>
+
+#include "i915_gem_request.h"
+
+struct i915_gem_timeline;
+
+struct intel_timeline {
+	u64 fence_context;
+	u32 last_submitted_seqno;
+	u32 last_pending_seqno;
+
+	/**
+	 * List of breadcrumbs associated with GPU requests currently
+	 * outstanding.
+	 */
+	struct list_head requests;
+
+	/* Contains an RCU guarded pointer to the last request. No reference is
+	 * held to the request, users must carefully acquire a reference to
+	 * the request using i915_gem_active_get_request_rcu(), or hold the
+	 * struct_mutex.
+	 */
+	struct i915_gem_active last_request;
+
+	struct i915_gem_timeline *common;
+};
+
+struct i915_gem_timeline {
+	struct list_head link;
+	u32 next_seqno;
+
+	struct drm_i915_private *i915;
+	const char *name;
+
+	struct intel_timeline engine[I915_NUM_ENGINES];
+};
+
+int i915_gem_timeline_init(struct drm_i915_private *i915,
+			   struct i915_gem_timeline *tl,
+			   const char *name);
+void i915_gem_timeline_fini(struct i915_gem_timeline *tl);
+
 #endif
-
-#define I915_NUM_ENGINES 5
-
-#endif /* __I915_GEM_H__ */

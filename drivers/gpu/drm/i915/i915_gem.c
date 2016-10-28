@@ -371,7 +371,7 @@ out:
 	if (flags & I915_WAIT_LOCKED && i915_gem_request_completed(rq))
 		i915_gem_request_retire_upto(rq);
 
-	if (rps && rq->fence.seqno == rq->engine->last_submitted_seqno) {
+	if (rps && rq->fence.seqno == rq->timeline->last_submitted_seqno) {
 		/* The GPU is now idle and this client has stalled.
 		 * Since no other client has submitted a request in the
 		 * meantime, assume that this client is the only one
@@ -2563,7 +2563,7 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 	 * extra delay for a recent interrupt is pointless. Hence, we do
 	 * not need an engine->irq_seqno_barrier() before the seqno reads.
 	 */
-	list_for_each_entry(request, &engine->request_list, link) {
+	list_for_each_entry(request, &engine->timeline->requests, link) {
 		if (i915_gem_request_completed(request))
 			continue;
 
@@ -2632,7 +2632,7 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	if (i915_gem_context_is_default(incomplete_ctx))
 		return;
 
-	list_for_each_entry_continue(request, &engine->request_list, link)
+	list_for_each_entry_continue(request, &engine->timeline->requests, link)
 		if (request->ctx == incomplete_ctx)
 			reset_request(request);
 }
@@ -2671,7 +2671,8 @@ static void i915_gem_cleanup_engine(struct intel_engine_cs *engine)
 	 * (lockless) lookup doesn't try and wait upon the request as we
 	 * reset it.
 	 */
-	intel_engine_init_seqno(engine, engine->last_submitted_seqno);
+	intel_engine_init_global_seqno(engine,
+				       engine->timeline->last_submitted_seqno);
 
 	/*
 	 * Clear the execlists queue up before freeing the requests, as those
@@ -2979,18 +2980,26 @@ destroy:
 	return 0;
 }
 
-int i915_gem_wait_for_idle(struct drm_i915_private *dev_priv,
-			   unsigned int flags)
+static int wait_for_timeline(struct i915_gem_timeline *tl, unsigned int flags)
 {
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
+	int ret, i;
+
+	for (i = 0; i < ARRAY_SIZE(tl->engine); i++) {
+		ret = i915_gem_active_wait(&tl->engine[i].last_request, flags);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
+{
+	struct i915_gem_timeline *tl;
 	int ret;
 
-	for_each_engine(engine, dev_priv, id) {
-		if (engine->last_context == NULL)
-			continue;
-
-		ret = intel_engine_idle(engine, flags);
+	list_for_each_entry(tl, &i915->gt.timelines, link) {
+		ret = wait_for_timeline(tl, flags);
 		if (ret)
 			return ret;
 	}
@@ -4680,21 +4689,32 @@ i915_gem_load_init_fences(struct drm_i915_private *dev_priv)
 	i915_gem_detect_bit_6_swizzle(dev);
 }
 
-void
+int
 i915_gem_load_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	int err;
 
 	dev_priv->objects =
 		kmem_cache_create("i915_gem_object",
 				  sizeof(struct drm_i915_gem_object), 0,
 				  SLAB_HWCACHE_ALIGN,
 				  NULL);
+	if (!dev_priv->objects) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+
 	dev_priv->vmas =
 		kmem_cache_create("i915_gem_vma",
 				  sizeof(struct i915_vma), 0,
 				  SLAB_HWCACHE_ALIGN,
 				  NULL);
+	if (!dev_priv->vmas) {
+		err = -ENOMEM;
+		goto err_objects;
+	}
+
 	dev_priv->requests =
 		kmem_cache_create("i915_gem_request",
 				  sizeof(struct drm_i915_gem_request), 0,
@@ -4702,6 +4722,19 @@ i915_gem_load_init(struct drm_device *dev)
 				  SLAB_RECLAIM_ACCOUNT |
 				  SLAB_DESTROY_BY_RCU,
 				  NULL);
+	if (!dev_priv->requests) {
+		err = -ENOMEM;
+		goto err_vmas;
+	}
+
+	mutex_lock(&dev_priv->drm.struct_mutex);
+	INIT_LIST_HEAD(&dev_priv->gt.timelines);
+	err = i915_gem_timeline_init(dev_priv,
+				     &dev_priv->gt.global_timeline,
+				     "[execution]");
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+	if (err)
+		goto err_requests;
 
 	INIT_LIST_HEAD(&dev_priv->context_list);
 	INIT_WORK(&dev_priv->mm.free_work, __i915_gem_free_work);
@@ -4726,6 +4759,17 @@ i915_gem_load_init(struct drm_device *dev)
 	atomic_set(&dev_priv->mm.bsd_engine_dispatch_index, 0);
 
 	spin_lock_init(&dev_priv->fb_tracking.lock);
+
+	return 0;
+
+err_requests:
+	kmem_cache_destroy(dev_priv->requests);
+err_vmas:
+	kmem_cache_destroy(dev_priv->vmas);
+err_objects:
+	kmem_cache_destroy(dev_priv->objects);
+err_out:
+	return err;
 }
 
 void i915_gem_load_cleanup(struct drm_device *dev)

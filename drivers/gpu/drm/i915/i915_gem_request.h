@@ -81,6 +81,7 @@ struct drm_i915_gem_request {
 	struct i915_gem_context *ctx;
 	struct intel_engine_cs *engine;
 	struct intel_ring *ring;
+	struct intel_timeline *timeline;
 	struct intel_signal_node signaling;
 
 	struct i915_sw_fence submit;
