@@ -525,11 +525,10 @@ static ssize_t in_illuminance_input_target_store(struct device *dev,
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
 	int value;
 
-	if (kstrtoint(buf, 0, &value))
+	if (kstrtoint(buf, 0, &value) || !value)
 		return -EINVAL;
 
-	if (value)
-		chip->taos_settings.als_cal_target = value;
+	chip->taos_settings.als_cal_target = value;
 
 	return len;
 }
@@ -541,11 +540,10 @@ static ssize_t in_illuminance_calibrate_store(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	int value;
 
-	if (kstrtoint(buf, 0, &value))
+	if (kstrtoint(buf, 0, &value) || value != 1)
 		return -EINVAL;
 
-	if (value == 1)
-		taos_als_calibrate(indio_dev);
+	taos_als_calibrate(indio_dev);
 
 	return len;
 }
