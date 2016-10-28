@@ -2212,8 +2212,8 @@ static int mlxsw_sp_port_pvid_vport_destroy(struct mlxsw_sp_port *mlxsw_sp_port)
 	return mlxsw_sp_port_kill_vid(mlxsw_sp_port->dev, 0, 1);
 }
 
-static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
-				bool split, u8 module, u8 width, u8 lane)
+static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+				  bool split, u8 module, u8 width, u8 lane)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct net_device *dev;
@@ -2358,20 +2358,11 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_register_netdev;
 	}
 
-	err = mlxsw_core_port_init(mlxsw_sp->core, &mlxsw_sp_port->core_port,
-				   mlxsw_sp_port->local_port, dev,
-				   mlxsw_sp_port->split, module);
-	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to init core port\n",
-			mlxsw_sp_port->local_port);
-		goto err_core_port_init;
-	}
-
+	mlxsw_core_port_set(mlxsw_sp->core, mlxsw_sp_port->local_port,
+			    mlxsw_sp_port, dev, mlxsw_sp_port->split, module);
 	mlxsw_core_schedule_dw(&mlxsw_sp_port->hw_stats.update_dw, 0);
 	return 0;
 
-err_core_port_init:
-	unregister_netdev(dev);
 err_register_netdev:
 	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
@@ -2400,12 +2391,34 @@ err_port_active_vlans_alloc:
 	return err;
 }
 
-static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
+static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+				bool split, u8 module, u8 width, u8 lane)
+{
+	int err;
+
+	err = mlxsw_core_port_init(mlxsw_sp->core, local_port);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to init core port\n",
+			local_port);
+		return err;
+	}
+	err = __mlxsw_sp_port_create(mlxsw_sp, local_port, false,
+				     module, width, lane);
+	if (err)
+		goto err_port_create;
+	return 0;
+
+err_port_create:
+	mlxsw_core_port_fini(mlxsw_sp->core, local_port);
+	return err;
+}
+
+static void __mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
 
 	cancel_delayed_work_sync(&mlxsw_sp_port->hw_stats.update_dw);
-	mlxsw_core_port_fini(&mlxsw_sp_port->core_port);
+	mlxsw_core_port_clear(mlxsw_sp->core, local_port, mlxsw_sp);
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
 	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
@@ -2419,6 +2432,12 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	kfree(mlxsw_sp_port->active_vlans);
 	WARN_ON_ONCE(!list_empty(&mlxsw_sp_port->vports_list));
 	free_netdev(mlxsw_sp_port->dev);
+}
+
+static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
+{
+	__mlxsw_sp_port_remove(mlxsw_sp, local_port);
+	mlxsw_core_port_fini(mlxsw_sp->core, local_port);
 }
 
 static bool mlxsw_sp_port_created(struct mlxsw_sp *mlxsw_sp, u8 local_port)
@@ -2456,8 +2475,8 @@ static int mlxsw_sp_ports_create(struct mlxsw_sp *mlxsw_sp)
 		if (!width)
 			continue;
 		mlxsw_sp->port_to_module[i] = module;
-		err = mlxsw_sp_port_create(mlxsw_sp, i, false, module, width,
-					   lane);
+		err = mlxsw_sp_port_create(mlxsw_sp, i, false,
+					   module, width, lane);
 		if (err)
 			goto err_port_create;
 	}

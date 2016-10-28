@@ -76,7 +76,6 @@ struct mlxsw_sx_port_pcpu_stats {
 };
 
 struct mlxsw_sx_port {
-	struct mlxsw_core_port core_port; /* must be first */
 	struct net_device *dev;
 	struct mlxsw_sx_port_pcpu_stats __percpu *pcpu_stats;
 	struct mlxsw_sx *mlxsw_sx;
@@ -995,8 +994,8 @@ mlxsw_sx_port_mac_learning_mode_set(struct mlxsw_sx_port *mlxsw_sx_port,
 	return mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(spmlr), spmlr_pl);
 }
 
-static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
-				u8 module, u8 width)
+static int __mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
+				  u8 module, u8 width)
 {
 	struct mlxsw_sx_port *mlxsw_sx_port;
 	struct net_device *dev;
@@ -1099,19 +1098,11 @@ static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
 		goto err_register_netdev;
 	}
 
-	err = mlxsw_core_port_init(mlxsw_sx->core, &mlxsw_sx_port->core_port,
-				   mlxsw_sx_port->local_port, dev, false, 0);
-	if (err) {
-		dev_err(mlxsw_sx->bus_info->dev, "Port %d: Failed to init core port\n",
-			mlxsw_sx_port->local_port);
-		goto err_core_port_init;
-	}
-
+	mlxsw_core_port_set(mlxsw_sx->core, mlxsw_sx_port->local_port,
+			    mlxsw_sx_port, dev, false, 0);
 	mlxsw_sx->ports[local_port] = mlxsw_sx_port;
 	return 0;
 
-err_core_port_init:
-	unregister_netdev(dev);
 err_register_netdev:
 err_port_mac_learning_mode_set:
 err_port_stp_state_set:
@@ -1128,16 +1119,44 @@ err_alloc_stats:
 	return err;
 }
 
-static void mlxsw_sx_port_remove(struct mlxsw_sx *mlxsw_sx, u8 local_port)
+static int mlxsw_sx_port_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
+				u8 module, u8 width)
+{
+	int err;
+
+	err = mlxsw_core_port_init(mlxsw_sx->core, local_port);
+	if (err) {
+		dev_err(mlxsw_sx->bus_info->dev, "Port %d: Failed to init core port\n",
+			local_port);
+		return err;
+	}
+	err = __mlxsw_sx_port_create(mlxsw_sx, local_port, module, width);
+	if (err)
+		goto err_port_create;
+
+	return 0;
+
+err_port_create:
+	mlxsw_core_port_fini(mlxsw_sx->core, local_port);
+	return err;
+}
+
+static void __mlxsw_sx_port_remove(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 {
 	struct mlxsw_sx_port *mlxsw_sx_port = mlxsw_sx->ports[local_port];
 
-	mlxsw_core_port_fini(&mlxsw_sx_port->core_port);
+	mlxsw_core_port_clear(mlxsw_sx->core, local_port, mlxsw_sx);
 	unregister_netdev(mlxsw_sx_port->dev); /* This calls ndo_stop */
 	mlxsw_sx->ports[local_port] = NULL;
 	mlxsw_sx_port_swid_set(mlxsw_sx_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	free_percpu(mlxsw_sx_port->pcpu_stats);
 	free_netdev(mlxsw_sx_port->dev);
+}
+
+static void mlxsw_sx_port_remove(struct mlxsw_sx *mlxsw_sx, u8 local_port)
+{
+	__mlxsw_sx_port_remove(mlxsw_sx, local_port);
+	mlxsw_core_port_fini(mlxsw_sx->core, local_port);
 }
 
 static bool mlxsw_sx_port_created(struct mlxsw_sx *mlxsw_sx, u8 local_port)
