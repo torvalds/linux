@@ -122,14 +122,9 @@ static inline u64 gic_read_iar_cavium_thunderx(void)
 {
 	u64 irqstat;
 
-	asm volatile(
-		"nop;nop;nop;nop\n\t"
-		"nop;nop;nop;nop");
-
+	nops(8);
 	irqstat = read_sysreg_s(ICC_IAR1_EL1);
-
-	asm volatile(
-		"nop;nop;nop;nop");
+	nops(4);
 	mb();
 
 	return irqstat;
