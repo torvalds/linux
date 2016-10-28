@@ -2377,6 +2377,12 @@ unsigned long sun4v_vintr_set_target(unsigned long dev_handle,
  *	iotsb_index	Zero-based IOTTE number within an IOTSB.
  */
 
+/* The index_count argument consists of two fields:
+ * bits 63:48 #iottes and bits 47:0 iotsb_index
+ */
+#define HV_PCI_IOTSB_INDEX_COUNT(__iottes, __iotsb_index) \
+	(((u64)(__iottes) << 48UL) | ((u64)(__iotsb_index)))
+
 /* pci_iotsb_conf()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_PCI_IOTSB_CONF

@@ -99,4 +99,15 @@ unsigned long pci_sun4v_iotsb_conf(unsigned long devhandle,
 unsigned long pci_sun4v_iotsb_bind(unsigned long devhandle,
 				   unsigned long iotsb_num,
 				   unsigned int pci_device);
+unsigned long pci_sun4v_iotsb_map(unsigned long devhandle,
+				  unsigned long iotsb_num,
+				  unsigned long iotsb_index_iottes,
+				  unsigned long io_attributes,
+				  unsigned long io_page_list_pa,
+				  long *mapped);
+unsigned long pci_sun4v_iotsb_demap(unsigned long devhandle,
+				    unsigned long iotsb_num,
+				    unsigned long iotsb_index,
+				    unsigned long iottes,
+				    unsigned long *demapped);
 #endif /* !(_PCI_SUN4V_H) */
