@@ -966,7 +966,7 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
 	 * guaranteed to be valid until irq is re-enabled, because it will be
 	 * freed after synchronize_sched().
 	 */
-	if (force_change)
+	if (old_shared && force_change)
 		synchronize_sched();
 
 fail:
