@@ -28,18 +28,20 @@
  ************************************************************************/
 
 struct neo_uart_struct {
-	u8 txrx;		/* WR  RHR/THR - Holding Reg */
+	u8 txrx;	/* WR  RHR/THR - Holding Reg */
 	u8 ier;		/* WR  IER - Interrupt Enable Reg */
-	u8 isr_fcr;		/* WR  ISR/FCR - Interrupt Status Reg/Fifo Control Reg */
+	u8 isr_fcr;	/* WR  ISR/FCR - Interrupt Status Reg/Fifo
+			 * Control Reg
+			 */
 	u8 lcr;		/* WR  LCR - Line Control Reg */
 	u8 mcr;		/* WR  MCR - Modem Control Reg */
 	u8 lsr;		/* WR  LSR - Line Status Reg */
 	u8 msr;		/* WR  MSR - Modem Status Reg */
 	u8 spr;		/* WR  SPR - Scratch Pad Reg */
-	u8 fctr;		/* WR  FCTR - Feature Control Reg */
+	u8 fctr;	/* WR  FCTR - Feature Control Reg */
 	u8 efr;		/* WR  EFR - Enhanced Function Reg */
-	u8 tfifo;		/* WR  TXCNT/TXTRG - Transmit FIFO Reg */
-	u8 rfifo;		/* WR  RXCNT/RXTRG - Receive  FIFO Reg */
+	u8 tfifo;	/* WR  TXCNT/TXTRG - Transmit FIFO Reg */
+	u8 rfifo;	/* WR  RXCNT/RXTRG - Receive  FIFO Reg */
 	u8 xoffchar1;	/* WR  XOFF 1 - XOff Character 1 Reg */
 	u8 xoffchar2;	/* WR  XOFF 2 - XOff Character 2 Reg */
 	u8 xonchar1;	/* WR  XON 1 - Xon Character 1 Reg */
@@ -108,7 +110,9 @@ struct neo_uart_struct {
 /* 17158 Extended IIR's */
 #define UART_17158_IIR_RDI_TIMEOUT	0x0C	/* Receiver data TIMEOUT */
 #define UART_17158_IIR_XONXOFF		0x10	/* Received an XON/XOFF char */
-#define UART_17158_IIR_HWFLOW_STATE_CHANGE 0x20	/* CTS/DSR or RTS/DTR state change */
+#define UART_17158_IIR_HWFLOW_STATE_CHANGE 0x20	/* CTS/DSR or RTS/DTR
+						 * state change
+						 */
 #define UART_17158_IIR_FIFO_ENABLED	0xC0	/* 16550 FIFOs are Enabled */
 
 /*
@@ -119,8 +123,12 @@ struct neo_uart_struct {
 #define UART_17158_RXRDY_TIMEOUT	0x2	/* RX Ready Timeout */
 #define UART_17158_TXRDY		0x3	/* TX Ready */
 #define UART_17158_MSR			0x4	/* Modem State Change */
-#define UART_17158_TX_AND_FIFO_CLR	0x40	/* Transmitter Holding Reg Empty */
-#define UART_17158_RX_FIFO_DATA_ERROR	0x80	/* UART detected an RX FIFO Data error */
+#define UART_17158_TX_AND_FIFO_CLR	0x40	/* Transmitter Holding
+						 * Reg Empty
+						 */
+#define UART_17158_RX_FIFO_DATA_ERROR	0x80	/* UART detected an RX FIFO
+						 * Data error
+						 */
 
 /*
  * These are the EXTENDED definitions for the 17C158's Interrupt
@@ -132,8 +140,12 @@ struct neo_uart_struct {
 #define UART_17158_EFR_RTSDTR	0x40	/* Auto RTS/DTR Flow Control Enable */
 #define UART_17158_EFR_CTSDSR	0x80	/* Auto CTS/DSR Flow COntrol Enable */
 
-#define UART_17158_XOFF_DETECT	0x1	/* Indicates whether chip saw an incoming XOFF char  */
-#define UART_17158_XON_DETECT	0x2	/* Indicates whether chip saw an incoming XON char */
+#define UART_17158_XOFF_DETECT	0x1	/* Indicates whether chip saw an
+					 * incoming XOFF char
+					 */
+#define UART_17158_XON_DETECT	0x2	/* Indicates whether chip saw an
+					 * incoming XON char
+					 */
 
 #define UART_17158_IER_RSVD1	0x10	/* Reserved by Exar */
 #define UART_17158_IER_XOFF	0x20	/* Xoff Interrupt Enable */
