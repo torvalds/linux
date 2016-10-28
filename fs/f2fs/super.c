@@ -518,6 +518,13 @@ static int parse_options(struct super_block *sb, char *options)
 				return -ENOMEM;
 			if (strlen(name) == 8 &&
 					!strncmp(name, "adaptive", 8)) {
+				if (f2fs_sb_mounted_blkzoned(sb)) {
+					f2fs_msg(sb, KERN_WARNING,
+						 "adaptive mode is not allowed with "
+						 "zoned block device feature");
+					kfree(name);
+					return -EINVAL;
+				}
 				set_opt_mode(sbi, F2FS_MOUNT_ADAPTIVE);
 			} else if (strlen(name) == 3 &&
 					!strncmp(name, "lfs", 3)) {
