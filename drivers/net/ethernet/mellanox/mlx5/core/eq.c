@@ -157,6 +157,8 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_PAGE_FAULT";
 	case MLX5_EVENT_TYPE_PPS_EVENT:
 		return "MLX5_EVENT_TYPE_PPS_EVENT";
+	case MLX5_EVENT_TYPE_NIC_VPORT_CHANGE:
+		return "MLX5_EVENT_TYPE_NIC_VPORT_CHANGE";
 	case MLX5_EVENT_TYPE_FPGA_ERROR:
 		return "MLX5_EVENT_TYPE_FPGA_ERROR";
 	default:
