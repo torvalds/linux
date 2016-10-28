@@ -1278,19 +1278,20 @@ static int skl_misc_ctl_write(struct intel_vgpu *vgpu, unsigned int offset,
 	switch (offset) {
 	case 0x4ddc:
 		vgpu_vreg(vgpu, offset) = 0x8000003c;
+		/* WaCompressedResourceSamplerPbeMediaNewHashMode:skl */
+		if (IS_SKL_REVID(dev_priv, SKL_REVID_C0, REVID_FOREVER))
+			I915_WRITE(reg, vgpu_vreg(vgpu, offset));
 		break;
 	case 0x42080:
 		vgpu_vreg(vgpu, offset) = 0x8000;
+		/* WaCompressedResourceDisplayNewHashMode:skl */
+		if (IS_SKL_REVID(dev_priv, SKL_REVID_E0, REVID_FOREVER))
+			I915_WRITE(reg, vgpu_vreg(vgpu, offset));
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	/**
-	 * TODO: need detect stepping info after gvt contain such information
-	 * 0x4ddc enabled after C0, 0x42080 enabled after E0.
-	 */
-	I915_WRITE(reg, vgpu_vreg(vgpu, offset));
 	return 0;
 }
 
