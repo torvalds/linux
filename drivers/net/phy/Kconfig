@@ -290,7 +290,7 @@ config MICROCHIP_PHY
 config MICROSEMI_PHY
 	tristate "Microsemi PHYs"
 	---help---
-	  Currently supports the VSC8531 and VSC8541 PHYs
+	  Currently supports VSC8530, VSC8531, VSC8540 and VSC8541 PHYs
 
 config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"
