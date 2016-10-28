@@ -2049,7 +2049,7 @@ int fiji_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int fiji_program_mem_timing_parameters(struct pp_hwmgr *hwmgr)
+static int fiji_program_mem_timing_parameters(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
@@ -2125,7 +2125,7 @@ uint32_t fiji_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU73_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
 	}
-	printk("cant't get the offset of type %x member %x \n", type, member);
+	printk(KERN_WARNING "can't get the offset of type %x member %x\n", type, member);
 	return 0;
 }
 
@@ -2150,7 +2150,7 @@ uint32_t fiji_get_mac_definition(uint32_t value)
 		return SMU73_MAX_LEVELS_MVDD;
 	}
 
-	printk("cant't get the mac of %x \n", value);
+	printk(KERN_WARNING "can't get the mac of %x\n", value);
 	return 0;
 }
 

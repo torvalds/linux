@@ -18,6 +18,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_of.h>
 
 #include "sun4i_crtc.h"
 #include "sun4i_drv.h"
@@ -239,7 +240,7 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 		/* Add current component */
 		DRM_DEBUG_DRIVER("Adding component %s\n",
 				 of_node_full_name(node));
-		component_match_add(dev, match, compare_of, node);
+		drm_of_component_match_add(dev, match, compare_of, node);
 		count++;
 	}
 

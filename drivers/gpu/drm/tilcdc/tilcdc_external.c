@@ -10,6 +10,7 @@
 
 #include <linux/component.h>
 #include <linux/of_graph.h>
+#include <drm/drm_of.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_external.h"
@@ -160,7 +161,8 @@ int tilcdc_get_external_components(struct device *dev,
 
 		dev_dbg(dev, "Subdevice node '%s' found\n", node->name);
 		if (match)
-			component_match_add(dev, match, dev_match_of, node);
+			drm_of_component_match_add(dev, match, dev_match_of,
+						   node);
 		of_node_put(node);
 		count++;
 	}

@@ -491,7 +491,7 @@ TRACE_EVENT(i915_gem_ring_dispatch,
 			   __entry->ring = req->engine->id;
 			   __entry->seqno = req->fence.seqno;
 			   __entry->flags = flags;
-			   fence_enable_sw_signaling(&req->fence);
+			   dma_fence_enable_sw_signaling(&req->fence);
 			   ),
 
 	    TP_printk("dev=%u, ring=%u, seqno=%u, flags=%x",

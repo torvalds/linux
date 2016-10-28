@@ -54,7 +54,7 @@ struct drm_mode_set;
 struct drm_file;
 struct drm_clip_rect;
 struct device_node;
-struct fence;
+struct dma_fence;
 struct edid;
 
 static inline int64_t U642I64(uint64_t val)
@@ -1155,11 +1155,6 @@ struct drm_mode_config {
 	 * CURSOR, PRIMARY and OVERLAY legacy uses of planes.
 	 */
 	struct drm_property *plane_type_property;
-	/**
-	 * @rotation_property: Optional property for planes or CRTCs to specifiy
-	 * rotation.
-	 */
-	struct drm_property *rotation_property;
 	/**
 	 * @prop_src_x: Default atomic plane property for the plane source
 	 * position in the connected &drm_framebuffer.

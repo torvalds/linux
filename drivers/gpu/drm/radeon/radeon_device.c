@@ -1320,7 +1320,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	for (i = 0; i < RADEON_NUM_RINGS; i++) {
 		rdev->ring[i].idx = i;
 	}
-	rdev->fence_context = fence_context_alloc(RADEON_NUM_RINGS);
+	rdev->fence_context = dma_fence_context_alloc(RADEON_NUM_RINGS);
 
 	DRM_INFO("initializing kernel modesetting (%s 0x%04X:0x%04X 0x%04X:0x%04X 0x%02X).\n",
 		 radeon_family_name[rdev->family], pdev->vendor, pdev->device,
@@ -1651,7 +1651,10 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 
 	radeon_suspend(rdev);
 	radeon_hpd_fini(rdev);
-	/* evict remaining vram memory */
+	/* evict remaining vram memory
+	 * This second call to evict vram is to evict the gart page table
+	 * using the CPU.
+	 */
 	radeon_bo_evict_vram(rdev);
 
 	radeon_agp_suspend(rdev);

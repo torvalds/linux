@@ -33,6 +33,8 @@
 #include "oss/oss_2_0_sh_mask.h"
 #include "bif/bif_5_0_d.h"
 #include "vi.h"
+#include "smu/smu_7_1_2_d.h"
+#include "smu/smu_7_1_2_sh_mask.h"
 
 static void uvd_v5_0_set_ring_funcs(struct amdgpu_device *adev);
 static void uvd_v5_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -112,8 +114,7 @@ static int uvd_v5_0_sw_init(void *handle)
 
 	ring = &adev->uvd.ring;
 	sprintf(ring->name, "uvd");
-	r = amdgpu_ring_init(adev, ring, 512, PACKET0(mmUVD_NO_OP, 0), 0xf,
-			     &adev->uvd.irq, 0, AMDGPU_RING_TYPE_UVD);
+	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.irq, 0);
 
 	return r;
 }
@@ -577,20 +578,6 @@ static void uvd_v5_0_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
-static unsigned uvd_v5_0_ring_get_emit_ib_size(struct amdgpu_ring *ring)
-{
-	return
-		6; /* uvd_v5_0_ring_emit_ib */
-}
-
-static unsigned uvd_v5_0_ring_get_dma_frame_size(struct amdgpu_ring *ring)
-{
-	return
-		2 + /* uvd_v5_0_ring_emit_hdp_flush */
-		2 + /* uvd_v5_0_ring_emit_hdp_invalidate */
-		14; /* uvd_v5_0_ring_emit_fence  x1 no user fence */
-}
-
 static bool uvd_v5_0_is_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -737,12 +724,28 @@ static void uvd_v5_0_set_hw_clock_gating(struct amdgpu_device *adev)
 }
 #endif
 
+static void uvd_v5_0_set_bypass_mode(struct amdgpu_device *adev, bool enable)
+{
+	u32 tmp = RREG32_SMC(ixGCK_DFS_BYPASS_CNTL);
+
+	if (enable)
+		tmp |= (GCK_DFS_BYPASS_CNTL__BYPASSDCLK_MASK |
+			GCK_DFS_BYPASS_CNTL__BYPASSVCLK_MASK);
+	else
+		tmp &= ~(GCK_DFS_BYPASS_CNTL__BYPASSDCLK_MASK |
+			 GCK_DFS_BYPASS_CNTL__BYPASSVCLK_MASK);
+
+	WREG32_SMC(ixGCK_DFS_BYPASS_CNTL, tmp);
+}
+
 static int uvd_v5_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
 	static int curstate = -1;
+
+	uvd_v5_0_set_bypass_mode(adev, enable);
 
 	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
 		return 0;
@@ -789,7 +792,7 @@ static int uvd_v5_0_set_powergating_state(void *handle,
 	}
 }
 
-const struct amd_ip_funcs uvd_v5_0_ip_funcs = {
+static const struct amd_ip_funcs uvd_v5_0_ip_funcs = {
 	.name = "uvd_v5_0",
 	.early_init = uvd_v5_0_early_init,
 	.late_init = NULL,
@@ -807,10 +810,18 @@ const struct amd_ip_funcs uvd_v5_0_ip_funcs = {
 };
 
 static const struct amdgpu_ring_funcs uvd_v5_0_ring_funcs = {
+	.type = AMDGPU_RING_TYPE_UVD,
+	.align_mask = 0xf,
+	.nop = PACKET0(mmUVD_NO_OP, 0),
 	.get_rptr = uvd_v5_0_ring_get_rptr,
 	.get_wptr = uvd_v5_0_ring_get_wptr,
 	.set_wptr = uvd_v5_0_ring_set_wptr,
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
+	.emit_frame_size =
+		2 + /* uvd_v5_0_ring_emit_hdp_flush */
+		2 + /* uvd_v5_0_ring_emit_hdp_invalidate */
+		14, /* uvd_v5_0_ring_emit_fence  x1 no user fence */
+	.emit_ib_size = 6, /* uvd_v5_0_ring_emit_ib */
 	.emit_ib = uvd_v5_0_ring_emit_ib,
 	.emit_fence = uvd_v5_0_ring_emit_fence,
 	.emit_hdp_flush = uvd_v5_0_ring_emit_hdp_flush,
@@ -821,8 +832,6 @@ static const struct amdgpu_ring_funcs uvd_v5_0_ring_funcs = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
-	.get_emit_ib_size = uvd_v5_0_ring_get_emit_ib_size,
-	.get_dma_frame_size = uvd_v5_0_ring_get_dma_frame_size,
 };
 
 static void uvd_v5_0_set_ring_funcs(struct amdgpu_device *adev)
@@ -840,3 +849,12 @@ static void uvd_v5_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->uvd.irq.num_types = 1;
 	adev->uvd.irq.funcs = &uvd_v5_0_irq_funcs;
 }
+
+const struct amdgpu_ip_block_version uvd_v5_0_ip_block =
+{
+		.type = AMD_IP_BLOCK_TYPE_UVD,
+		.major = 5,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &uvd_v5_0_ip_funcs,
+};

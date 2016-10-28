@@ -156,15 +156,6 @@ struct pp_power_state {
 	struct pp_hw_power_state  hardware;
 };
 
-
-/*Structure to hold a VCE state entry*/
-struct pp_vce_state {
-	uint32_t evclk;
-	uint32_t ecclk;
-	uint32_t sclk;
-	uint32_t mclk;
-};
-
 enum PP_MMProfilingState {
 	PP_MMProfilingState_NA = 0,
 	PP_MMProfilingState_Started,

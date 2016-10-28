@@ -58,9 +58,10 @@
  * - 3.6.0 - kmd involves use CONTEXT_CONTROL in ring buffer.
  * - 3.7.0 - Add support for VCE clock list packet
  * - 3.8.0 - Add support raster config init in the kernel
+ * - 3.9.0 - Add support for memory query info about VRAM and GTT.
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	8
+#define KMS_DRIVER_MINOR	9
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
@@ -85,6 +86,7 @@ int amdgpu_vm_size = 64;
 int amdgpu_vm_block_size = -1;
 int amdgpu_vm_fault_stop = 0;
 int amdgpu_vm_debug = 0;
+int amdgpu_vram_page_split = 1024;
 int amdgpu_exp_hw_support = 0;
 int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
@@ -165,6 +167,9 @@ module_param_named(vm_fault_stop, amdgpu_vm_fault_stop, int, 0444);
 MODULE_PARM_DESC(vm_debug, "Debug VM handling (0 = disabled (default), 1 = enabled)");
 module_param_named(vm_debug, amdgpu_vm_debug, int, 0644);
 
+MODULE_PARM_DESC(vram_page_split, "Number of pages after we split VRAM allocations (default 1024, -1 = disable)");
+module_param_named(vram_page_split, amdgpu_vram_page_split, int, 0444);
+
 MODULE_PARM_DESC(exp_hw_support, "experimental hw support (1 = enable, 0 = disable (default))");
 module_param_named(exp_hw_support, amdgpu_exp_hw_support, int, 0444);
 
@@ -201,7 +206,8 @@ module_param_named(pg_mask, amdgpu_pg_mask, uint, 0444);
 MODULE_PARM_DESC(disable_cu, "Disable CUs (se.sh.cu,...)");
 module_param_named(disable_cu, amdgpu_disable_cu, charp, 0444);
 
-MODULE_PARM_DESC(virtual_display, "Enable virtual display feature (the virtual_display will be set like xxxx:xx:xx.x;xxxx:xx:xx.x)");
+MODULE_PARM_DESC(virtual_display,
+		 "Enable virtual display feature (the virtual_display will be set like xxxx:xx:xx.x,x;xxxx:xx:xx.x,x)");
 module_param_named(virtual_display, amdgpu_virtual_display, charp, 0444);
 
 static const struct pci_device_id pciidlist[] = {
@@ -381,6 +387,7 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x6939, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TONGA},
 	/* fiji */
 	{0x1002, 0x7300, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_FIJI},
+	{0x1002, 0x730F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_FIJI},
 	/* carrizo */
 	{0x1002, 0x9870, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_CARRIZO|AMD_IS_APU},
 	{0x1002, 0x9874, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_CARRIZO|AMD_IS_APU},

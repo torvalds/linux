@@ -25,7 +25,7 @@
 #ifndef I915_GEM_REQUEST_H
 #define I915_GEM_REQUEST_H
 
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 
 #include "i915_gem.h"
 #include "i915_sw_fence.h"
@@ -62,7 +62,7 @@ struct intel_signal_node {
  * The requests are reference counted.
  */
 struct drm_i915_gem_request {
-	struct fence fence;
+	struct dma_fence fence;
 	spinlock_t lock;
 
 	/** On Which ring this request was generated */
@@ -145,9 +145,9 @@ struct drm_i915_gem_request {
 	struct list_head execlist_link;
 };
 
-extern const struct fence_ops i915_fence_ops;
+extern const struct dma_fence_ops i915_fence_ops;
 
-static inline bool fence_is_i915(struct fence *fence)
+static inline bool fence_is_i915(struct dma_fence *fence)
 {
 	return fence->ops == &i915_fence_ops;
 }
@@ -172,7 +172,7 @@ i915_gem_request_get_engine(struct drm_i915_gem_request *req)
 }
 
 static inline struct drm_i915_gem_request *
-to_request(struct fence *fence)
+to_request(struct dma_fence *fence)
 {
 	/* We assume that NULL fence/request are interoperable */
 	BUILD_BUG_ON(offsetof(struct drm_i915_gem_request, fence) != 0);
@@ -183,19 +183,19 @@ to_request(struct fence *fence)
 static inline struct drm_i915_gem_request *
 i915_gem_request_get(struct drm_i915_gem_request *req)
 {
-	return to_request(fence_get(&req->fence));
+	return to_request(dma_fence_get(&req->fence));
 }
 
 static inline struct drm_i915_gem_request *
 i915_gem_request_get_rcu(struct drm_i915_gem_request *req)
 {
-	return to_request(fence_get_rcu(&req->fence));
+	return to_request(dma_fence_get_rcu(&req->fence));
 }
 
 static inline void
 i915_gem_request_put(struct drm_i915_gem_request *req)
 {
-	fence_put(&req->fence);
+	dma_fence_put(&req->fence);
 }
 
 static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
@@ -497,7 +497,7 @@ __i915_gem_active_get_rcu(const struct i915_gem_active *active)
 		 * compiler.
 		 *
 		 * The atomic operation at the heart of
-		 * i915_gem_request_get_rcu(), see fence_get_rcu(), is
+		 * i915_gem_request_get_rcu(), see dma_fence_get_rcu(), is
 		 * atomic_inc_not_zero() which is only a full memory barrier
 		 * when successful. That is, if i915_gem_request_get_rcu()
 		 * returns the request (and so with the reference counted

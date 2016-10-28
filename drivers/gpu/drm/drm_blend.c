@@ -89,7 +89,7 @@
  * On top of this basic transformation additional properties can be exposed by
  * the driver:
  *
- * - Rotation is set up with drm_mode_create_rotation_property(). It adds a
+ * - Rotation is set up with drm_plane_create_rotation_property(). It adds a
  *   rotation and reflection step between the source and destination rectangles.
  *   Without this property the rectangle is only scaled, but not rotated or
  *   reflected.
@@ -105,18 +105,12 @@
  */
 
 /**
- * drm_mode_create_rotation_property - create a new rotation property
- * @dev: DRM device
+ * drm_plane_create_rotation_property - create a new rotation property
+ * @plane: drm plane
+ * @rotation: initial value of the rotation property
  * @supported_rotations: bitmask of supported rotations and reflections
  *
  * This creates a new property with the selected support for transformations.
- * The resulting property should be stored in @rotation_property in
- * &drm_mode_config. It then must be attached to each plane which supports
- * rotations using drm_object_attach_property().
- *
- * FIXME: Probably better if the rotation property is created on each plane,
- * like the zpos property. Otherwise it's not possible to allow different
- * rotation modes on different planes.
  *
  * Since a rotation by 180° degress is the same as reflecting both along the x
  * and the y axis the rotation property is somewhat redundant. Drivers can use
@@ -144,24 +138,6 @@
  * rotation. After reflection, the rotation is applied to the image sampled from
  * the source rectangle, before scaling it to fit the destination rectangle.
  */
-struct drm_property *drm_mode_create_rotation_property(struct drm_device *dev,
-						       unsigned int supported_rotations)
-{
-	static const struct drm_prop_enum_list props[] = {
-		{ __builtin_ffs(DRM_ROTATE_0) - 1,   "rotate-0" },
-		{ __builtin_ffs(DRM_ROTATE_90) - 1,  "rotate-90" },
-		{ __builtin_ffs(DRM_ROTATE_180) - 1, "rotate-180" },
-		{ __builtin_ffs(DRM_ROTATE_270) - 1, "rotate-270" },
-		{ __builtin_ffs(DRM_REFLECT_X) - 1,  "reflect-x" },
-		{ __builtin_ffs(DRM_REFLECT_Y) - 1,  "reflect-y" },
-	};
-
-	return drm_property_create_bitmask(dev, 0, "rotation",
-					   props, ARRAY_SIZE(props),
-					   supported_rotations);
-}
-EXPORT_SYMBOL(drm_mode_create_rotation_property);
-
 int drm_plane_create_rotation_property(struct drm_plane *plane,
 				       unsigned int rotation,
 				       unsigned int supported_rotations)

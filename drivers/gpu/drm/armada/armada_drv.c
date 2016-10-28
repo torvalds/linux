@@ -254,7 +254,7 @@ static void armada_add_endpoints(struct device *dev,
 			continue;
 		}
 
-		component_match_add(dev, match, compare_of, remote);
+		drm_of_component_match_add(dev, match, compare_of, remote);
 		of_node_put(remote);
 	}
 }

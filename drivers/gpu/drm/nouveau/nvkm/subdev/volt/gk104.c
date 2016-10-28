@@ -27,6 +27,7 @@
 #include <subdev/gpio.h>
 #include <subdev/bios.h>
 #include <subdev/bios/volt.h>
+#include <subdev/fuse.h>
 
 #define gk104_volt(p) container_of((p), struct gk104_volt, base)
 struct gk104_volt {
@@ -64,13 +65,33 @@ gk104_volt_set(struct nvkm_volt *base, u32 uv)
 	return 0;
 }
 
+static int
+gk104_volt_speedo_read(struct nvkm_volt *volt)
+{
+	struct nvkm_device *device = volt->subdev.device;
+	struct nvkm_fuse *fuse = device->fuse;
+	int ret;
+
+	if (!fuse)
+		return -EINVAL;
+
+	nvkm_wr32(device, 0x122634, 0x0);
+	ret = nvkm_fuse_read(fuse, 0x3a8);
+	nvkm_wr32(device, 0x122634, 0x41);
+	return ret;
+}
+
 static const struct nvkm_volt_func
 gk104_volt_pwm = {
+	.oneinit = gf100_volt_oneinit,
 	.volt_get = gk104_volt_get,
 	.volt_set = gk104_volt_set,
+	.speedo_read = gk104_volt_speedo_read,
 }, gk104_volt_gpio = {
+	.oneinit = gf100_volt_oneinit,
 	.vid_get = nvkm_voltgpio_get,
 	.vid_set = nvkm_voltgpio_set,
+	.speedo_read = gk104_volt_speedo_read,
 };
 
 int

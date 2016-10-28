@@ -7858,7 +7858,7 @@ static void si_program_aspm(struct radeon_device *rdev)
 	}
 }
 
-int si_vce_send_vcepll_ctlreq(struct radeon_device *rdev)
+static int si_vce_send_vcepll_ctlreq(struct radeon_device *rdev)
 {
 	unsigned i;
 

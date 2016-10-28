@@ -1,17 +1,17 @@
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM fence
+#define TRACE_SYSTEM dma_fence
 
 #if !defined(_TRACE_FENCE_H) || defined(TRACE_HEADER_MULTI_READ)
-#define _TRACE_FENCE_H
+#define _TRACE_DMA_FENCE_H
 
 #include <linux/tracepoint.h>
 
-struct fence;
+struct dma_fence;
 
-TRACE_EVENT(fence_annotate_wait_on,
+TRACE_EVENT(dma_fence_annotate_wait_on,
 
 	/* fence: the fence waiting on f1, f1: the fence to be waited on. */
-	TP_PROTO(struct fence *fence, struct fence *f1),
+	TP_PROTO(struct dma_fence *fence, struct dma_fence *f1),
 
 	TP_ARGS(fence, f1),
 
@@ -48,9 +48,9 @@ TRACE_EVENT(fence_annotate_wait_on,
 		  __entry->waiting_context, __entry->waiting_seqno)
 );
 
-DECLARE_EVENT_CLASS(fence,
+DECLARE_EVENT_CLASS(dma_fence,
 
-	TP_PROTO(struct fence *fence),
+	TP_PROTO(struct dma_fence *fence),
 
 	TP_ARGS(fence),
 
@@ -73,56 +73,56 @@ DECLARE_EVENT_CLASS(fence,
 		  __entry->seqno)
 );
 
-DEFINE_EVENT(fence, fence_emit,
+DEFINE_EVENT(dma_fence, dma_fence_emit,
 
-	TP_PROTO(struct fence *fence),
-
-	TP_ARGS(fence)
-);
-
-DEFINE_EVENT(fence, fence_init,
-
-	TP_PROTO(struct fence *fence),
+	TP_PROTO(struct dma_fence *fence),
 
 	TP_ARGS(fence)
 );
 
-DEFINE_EVENT(fence, fence_destroy,
+DEFINE_EVENT(dma_fence, dma_fence_init,
 
-	TP_PROTO(struct fence *fence),
-
-	TP_ARGS(fence)
-);
-
-DEFINE_EVENT(fence, fence_enable_signal,
-
-	TP_PROTO(struct fence *fence),
+	TP_PROTO(struct dma_fence *fence),
 
 	TP_ARGS(fence)
 );
 
-DEFINE_EVENT(fence, fence_signaled,
+DEFINE_EVENT(dma_fence, dma_fence_destroy,
 
-	TP_PROTO(struct fence *fence),
-
-	TP_ARGS(fence)
-);
-
-DEFINE_EVENT(fence, fence_wait_start,
-
-	TP_PROTO(struct fence *fence),
+	TP_PROTO(struct dma_fence *fence),
 
 	TP_ARGS(fence)
 );
 
-DEFINE_EVENT(fence, fence_wait_end,
+DEFINE_EVENT(dma_fence, dma_fence_enable_signal,
 
-	TP_PROTO(struct fence *fence),
+	TP_PROTO(struct dma_fence *fence),
 
 	TP_ARGS(fence)
 );
 
-#endif /*  _TRACE_FENCE_H */
+DEFINE_EVENT(dma_fence, dma_fence_signaled,
+
+	TP_PROTO(struct dma_fence *fence),
+
+	TP_ARGS(fence)
+);
+
+DEFINE_EVENT(dma_fence, dma_fence_wait_start,
+
+	TP_PROTO(struct dma_fence *fence),
+
+	TP_ARGS(fence)
+);
+
+DEFINE_EVENT(dma_fence, dma_fence_wait_end,
+
+	TP_PROTO(struct dma_fence *fence),
+
+	TP_ARGS(fence)
+);
+
+#endif /*  _TRACE_DMA_FENCE_H */
 
 /* This part must be outside protection */
 #include <trace/define_trace.h>

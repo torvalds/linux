@@ -436,7 +436,8 @@ static enum PP_StateUILabel power_state_convert(enum amd_pm_state_type  state)
 	}
 }
 
-int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id, void *input, void *output)
+static int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id,
+		void *input, void *output)
 {
 	int ret = 0;
 	struct pp_instance *pp_handle;
@@ -475,7 +476,7 @@ int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id, void *input,
 	return ret;
 }
 
-enum amd_pm_state_type pp_dpm_get_current_power_state(void *handle)
+static enum amd_pm_state_type pp_dpm_get_current_power_state(void *handle)
 {
 	struct pp_hwmgr *hwmgr;
 	struct pp_power_state *state;
@@ -820,6 +821,21 @@ static int pp_dpm_read_sensor(void *handle, int idx, int32_t *value)
 	return hwmgr->hwmgr_func->read_sensor(hwmgr, idx, value);
 }
 
+static struct amd_vce_state*
+pp_dpm_get_vce_clock_state(void *handle, unsigned idx)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (handle) {
+		hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+		if (hwmgr && idx < hwmgr->num_vce_state_tables)
+			return &hwmgr->vce_states[idx];
+	}
+
+	return NULL;
+}
+
 const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_temperature = pp_dpm_get_temperature,
 	.load_firmware = pp_dpm_load_fw,
@@ -846,6 +862,7 @@ const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_mclk_od = pp_dpm_get_mclk_od,
 	.set_mclk_od = pp_dpm_set_mclk_od,
 	.read_sensor = pp_dpm_read_sensor,
+	.get_vce_clock_state = pp_dpm_get_vce_clock_state,
 };
 
 static int amd_pp_instance_init(struct amd_pp_init *pp_init,

@@ -28,8 +28,6 @@
 #include <pp_endian.h>
 
 #define SMC_RAM_END 0x40000
-#define mmSMC_IND_INDEX_11                              0x01AC
-#define mmSMC_IND_DATA_11                               0x01AD
 
 struct smu7_buffer_entry {
 	uint32_t data_size;

@@ -116,10 +116,11 @@ void amdgpu_gem_force_release(struct amdgpu_device *adev)
  * Call from drm_gem_handle_create which appear in both new and open ioctl
  * case.
  */
-int amdgpu_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_priv)
+int amdgpu_gem_object_open(struct drm_gem_object *obj,
+			   struct drm_file *file_priv)
 {
 	struct amdgpu_bo *abo = gem_to_amdgpu_bo(obj);
-	struct amdgpu_device *adev = abo->adev;
+	struct amdgpu_device *adev = amdgpu_ttm_adev(abo->tbo.bdev);
 	struct amdgpu_fpriv *fpriv = file_priv->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo_va *bo_va;
@@ -142,7 +143,7 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 			     struct drm_file *file_priv)
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
-	struct amdgpu_device *adev = bo->adev;
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct amdgpu_fpriv *fpriv = file_priv->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
 
@@ -468,6 +469,16 @@ out:
 	return r;
 }
 
+static int amdgpu_gem_va_check(void *param, struct amdgpu_bo *bo)
+{
+	unsigned domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
+
+	/* if anything is swapped out don't swap it in here,
+	   just abort and wait for the next CS */
+
+	return domain == AMDGPU_GEM_DOMAIN_CPU ? -ERESTARTSYS : 0;
+}
+
 /**
  * amdgpu_gem_va_update_vm -update the bo_va in its VM
  *
@@ -478,7 +489,8 @@ out:
  * vital here, so they are not reported back to userspace.
  */
 static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
-				    struct amdgpu_bo_va *bo_va, uint32_t operation)
+				    struct amdgpu_bo_va *bo_va,
+				    uint32_t operation)
 {
 	struct ttm_validate_buffer tv, *entry;
 	struct amdgpu_bo_list_entry vm_pd;
@@ -501,7 +513,6 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 	if (r)
 		goto error_print;
 
-	amdgpu_vm_get_pt_bos(adev, bo_va->vm, &duplicates);
 	list_for_each_entry(entry, &list, head) {
 		domain = amdgpu_mem_type_to_domain(entry->bo->mem.mem_type);
 		/* if anything is swapped out don't swap it in here,
@@ -509,13 +520,10 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 		if (domain == AMDGPU_GEM_DOMAIN_CPU)
 			goto error_unreserve;
 	}
-	list_for_each_entry(entry, &duplicates, head) {
-		domain = amdgpu_mem_type_to_domain(entry->bo->mem.mem_type);
-		/* if anything is swapped out don't swap it in here,
-		   just abort and wait for the next CS */
-		if (domain == AMDGPU_GEM_DOMAIN_CPU)
-			goto error_unreserve;
-	}
+	r = amdgpu_vm_validate_pt_bos(adev, bo_va->vm, amdgpu_gem_va_check,
+				      NULL);
+	if (r)
+		goto error_unreserve;
 
 	r = amdgpu_vm_update_page_directory(adev, bo_va->vm);
 	if (r)
@@ -536,8 +544,6 @@ error_print:
 		DRM_ERROR("Couldn't update BO_VA (%d)\n", r);
 }
 
-
-
 int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp)
 {
@@ -547,7 +553,8 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	struct amdgpu_bo *abo;
 	struct amdgpu_bo_va *bo_va;
-	struct ttm_validate_buffer tv, tv_pd;
+	struct amdgpu_bo_list_entry vm_pd;
+	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
 	struct list_head list, duplicates;
 	uint32_t invalid_flags, va_flags = 0;
@@ -592,9 +599,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	tv.shared = true;
 	list_add(&tv.head, &list);
 
-	tv_pd.bo = &fpriv->vm.page_directory->tbo;
-	tv_pd.shared = true;
-	list_add(&tv_pd.head, &list);
+	amdgpu_vm_get_pd_bo(&fpriv->vm, &list, &vm_pd);
 
 	r = ttm_eu_reserve_buffers(&ticket, &list, true, &duplicates);
 	if (r) {

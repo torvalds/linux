@@ -15,6 +15,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <drm/drm_of.h>
+
 #include "msm_drv.h"
 #include "msm_debugfs.h"
 #include "msm_fence.h"
@@ -919,8 +921,8 @@ static int add_components_mdp(struct device *mdp_dev,
 			continue;
 		}
 
-		component_match_add(master_dev, matchptr, compare_of, intf);
-
+		drm_of_component_match_add(master_dev, matchptr, compare_of,
+					   intf);
 		of_node_put(intf);
 		of_node_put(ep_node);
 	}
@@ -962,8 +964,8 @@ static int add_display_components(struct device *dev,
 		put_device(mdp_dev);
 
 		/* add the MDP component itself */
-		component_match_add(dev, matchptr, compare_of,
-				    mdp_dev->of_node);
+		drm_of_component_match_add(dev, matchptr, compare_of,
+					   mdp_dev->of_node);
 	} else {
 		/* MDP4 */
 		mdp_dev = dev;
@@ -996,7 +998,7 @@ static int add_gpu_components(struct device *dev,
 	if (!np)
 		return 0;
 
-	component_match_add(dev, matchptr, compare_of, np);
+	drm_of_component_match_add(dev, matchptr, compare_of, np);
 
 	of_node_put(np);
 

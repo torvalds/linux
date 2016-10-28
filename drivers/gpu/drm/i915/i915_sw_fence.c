@@ -8,7 +8,7 @@
  */
 
 #include <linux/slab.h>
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 #include <linux/reservation.h>
 
 #include "i915_sw_fence.h"
@@ -226,49 +226,50 @@ int i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 	return pending;
 }
 
-struct dma_fence_cb {
-	struct fence_cb base;
+struct i915_sw_dma_fence_cb {
+	struct dma_fence_cb base;
 	struct i915_sw_fence *fence;
-	struct fence *dma;
+	struct dma_fence *dma;
 	struct timer_list timer;
 };
 
 static void timer_i915_sw_fence_wake(unsigned long data)
 {
-	struct dma_fence_cb *cb = (struct dma_fence_cb *)data;
+	struct i915_sw_dma_fence_cb *cb = (struct i915_sw_dma_fence_cb *)data;
 
 	printk(KERN_WARNING "asynchronous wait on fence %s:%s:%x timed out\n",
 	       cb->dma->ops->get_driver_name(cb->dma),
 	       cb->dma->ops->get_timeline_name(cb->dma),
 	       cb->dma->seqno);
-	fence_put(cb->dma);
+	dma_fence_put(cb->dma);
 	cb->dma = NULL;
 
 	i915_sw_fence_commit(cb->fence);
 	cb->timer.function = NULL;
 }
 
-static void dma_i915_sw_fence_wake(struct fence *dma, struct fence_cb *data)
+static void dma_i915_sw_fence_wake(struct dma_fence *dma,
+				   struct dma_fence_cb *data)
 {
-	struct dma_fence_cb *cb = container_of(data, typeof(*cb), base);
+	struct i915_sw_dma_fence_cb *cb = container_of(data, typeof(*cb), base);
 
 	del_timer_sync(&cb->timer);
 	if (cb->timer.function)
 		i915_sw_fence_commit(cb->fence);
-	fence_put(cb->dma);
+	dma_fence_put(cb->dma);
 
 	kfree(cb);
 }
 
 int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
-				  struct fence *dma,
+				  struct dma_fence *dma,
 				  unsigned long timeout,
 				  gfp_t gfp)
 {
-	struct dma_fence_cb *cb;
+	struct i915_sw_dma_fence_cb *cb;
 	int ret;
 
-	if (fence_is_signaled(dma))
+	if (dma_fence_is_signaled(dma))
 		return 0;
 
 	cb = kmalloc(sizeof(*cb), gfp);
@@ -276,7 +277,7 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 		if (!gfpflags_allow_blocking(gfp))
 			return -ENOMEM;
 
-		return fence_wait(dma, false);
+		return dma_fence_wait(dma, false);
 	}
 
 	cb->fence = i915_sw_fence_get(fence);
@@ -287,11 +288,11 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 		      timer_i915_sw_fence_wake, (unsigned long)cb,
 		      TIMER_IRQSAFE);
 	if (timeout) {
-		cb->dma = fence_get(dma);
+		cb->dma = dma_fence_get(dma);
 		mod_timer(&cb->timer, round_jiffies_up(jiffies + timeout));
 	}
 
-	ret = fence_add_callback(dma, &cb->base, dma_i915_sw_fence_wake);
+	ret = dma_fence_add_callback(dma, &cb->base, dma_i915_sw_fence_wake);
 	if (ret == 0) {
 		ret = 1;
 	} else {
@@ -305,16 +306,16 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 
 int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 				    struct reservation_object *resv,
-				    const struct fence_ops *exclude,
+				    const struct dma_fence_ops *exclude,
 				    bool write,
 				    unsigned long timeout,
 				    gfp_t gfp)
 {
-	struct fence *excl;
+	struct dma_fence *excl;
 	int ret = 0, pending;
 
 	if (write) {
-		struct fence **shared;
+		struct dma_fence **shared;
 		unsigned int count, i;
 
 		ret = reservation_object_get_fences_rcu(resv,
@@ -339,7 +340,7 @@ int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 		}
 
 		for (i = 0; i < count; i++)
-			fence_put(shared[i]);
+			dma_fence_put(shared[i]);
 		kfree(shared);
 	} else {
 		excl = reservation_object_get_excl_rcu(resv);
@@ -356,7 +357,7 @@ int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 			ret |= pending;
 	}
 
-	fence_put(excl);
+	dma_fence_put(excl);
 
 	return ret;
 }
