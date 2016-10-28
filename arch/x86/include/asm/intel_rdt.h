@@ -1,7 +1,11 @@
 #ifndef _ASM_X86_INTEL_RDT_H
 #define _ASM_X86_INTEL_RDT_H
 
+#ifdef CONFIG_INTEL_RDT_A
+
 #include <linux/jump_label.h>
+
+#include <asm/intel_rdt_common.h>
 
 #define IA32_L3_QOS_CFG		0xc81
 #define IA32_L3_CBM_BASE	0xc90
@@ -176,4 +180,42 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 				char *buf, size_t nbytes, loff_t off);
 int rdtgroup_schemata_show(struct kernfs_open_file *of,
 			   struct seq_file *s, void *v);
+
+/*
+ * intel_rdt_sched_in() - Writes the task's CLOSid to IA32_PQR_MSR
+ *
+ * Following considerations are made so that this has minimal impact
+ * on scheduler hot path:
+ * - This will stay as no-op unless we are running on an Intel SKU
+ *   which supports resource control and we enable by mounting the
+ *   resctrl file system.
+ * - Caches the per cpu CLOSid values and does the MSR write only
+ *   when a task with a different CLOSid is scheduled in.
+ */
+static inline void intel_rdt_sched_in(void)
+{
+	if (static_branch_likely(&rdt_enable_key)) {
+		struct intel_pqr_state *state = this_cpu_ptr(&pqr_state);
+		int closid;
+
+		/*
+		 * If this task has a closid assigned, use it.
+		 * Else use the closid assigned to this cpu.
+		 */
+		closid = current->closid;
+		if (closid == 0)
+			closid = this_cpu_read(cpu_closid);
+
+		if (closid != state->closid) {
+			state->closid = closid;
+			wrmsr(MSR_IA32_PQR_ASSOC, state->rmid, closid);
+		}
+	}
+}
+
+#else
+
+static inline void intel_rdt_sched_in(void) {}
+
+#endif /* CONFIG_INTEL_RDT_A */
 #endif /* _ASM_X86_INTEL_RDT_H */
