@@ -947,11 +947,24 @@ static struct i2c_device_id taos_idtable[] = {
 };
 MODULE_DEVICE_TABLE(i2c, taos_idtable);
 
+#ifdef CONFIG_OF
+static const struct of_device_id taos2583_of_match[] = {
+	{ .compatible = "amstaos,tsl2580", },
+	{ .compatible = "amstaos,tsl2581", },
+	{ .compatible = "amstaos,tsl2583", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, taos2583_of_match);
+#else
+#define taos2583_of_match NULL
+#endif
+
 /* Driver definition */
 static struct i2c_driver taos_driver = {
 	.driver = {
 		.name = "tsl2583",
 		.pm = TAOS_PM_OPS,
+		.of_match_table = taos2583_of_match,
 	},
 	.id_table = taos_idtable,
 	.probe = taos_probe,
