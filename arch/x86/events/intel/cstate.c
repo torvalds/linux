@@ -48,7 +48,8 @@
  *			       Scope: Core
  *	MSR_CORE_C6_RESIDENCY: CORE C6 Residency Counter
  *			       perf code: 0x02
- *			       Available model: SLM,AMT,NHM,WSM,SNB,IVB,HSW,BDW,SKL
+ *			       Available model: SLM,AMT,NHM,WSM,SNB,IVB,HSW,BDW
+ *						SKL,KNL
  *			       Scope: Core
  *	MSR_CORE_C7_RESIDENCY: CORE C7 Residency Counter
  *			       perf code: 0x03
@@ -56,15 +57,16 @@
  *			       Scope: Core
  *	MSR_PKG_C2_RESIDENCY:  Package C2 Residency Counter.
  *			       perf code: 0x00
- *			       Available model: SNB,IVB,HSW,BDW,SKL
+ *			       Available model: SNB,IVB,HSW,BDW,SKL,KNL
  *			       Scope: Package (physical package)
  *	MSR_PKG_C3_RESIDENCY:  Package C3 Residency Counter.
  *			       perf code: 0x01
- *			       Available model: NHM,WSM,SNB,IVB,HSW,BDW,SKL
+ *			       Available model: NHM,WSM,SNB,IVB,HSW,BDW,SKL,KNL
  *			       Scope: Package (physical package)
  *	MSR_PKG_C6_RESIDENCY:  Package C6 Residency Counter.
  *			       perf code: 0x02
- *			       Available model: SLM,AMT,NHM,WSM,SNB,IVB,HSW,BDW,SKL
+ *			       Available model: SLM,AMT,NHM,WSM,SNB,IVB,HSW,BDW
+ *						SKL,KNL
  *			       Scope: Package (physical package)
  *	MSR_PKG_C7_RESIDENCY:  Package C7 Residency Counter.
  *			       perf code: 0x03
@@ -118,6 +120,7 @@ struct cstate_model {
 
 /* Quirk flags */
 #define SLM_PKG_C6_USE_C7_MSR	(1UL << 0)
+#define KNL_CORE_C6_MSR		(1UL << 1)
 
 struct perf_cstate_msr {
 	u64	msr;
@@ -488,6 +491,18 @@ static const struct cstate_model slm_cstates __initconst = {
 	.quirks			= SLM_PKG_C6_USE_C7_MSR,
 };
 
+
+static const struct cstate_model knl_cstates __initconst = {
+	.core_events		= BIT(PERF_CSTATE_CORE_C6_RES),
+
+	.pkg_events		= BIT(PERF_CSTATE_PKG_C2_RES) |
+				  BIT(PERF_CSTATE_PKG_C3_RES) |
+				  BIT(PERF_CSTATE_PKG_C6_RES),
+	.quirks			= KNL_CORE_C6_MSR,
+};
+
+
+
 #define X86_CSTATES_MODEL(model, states)				\
 	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long) &(states) }
 
@@ -523,6 +538,8 @@ static const struct x86_cpu_id intel_cstates_match[] __initconst = {
 
 	X86_CSTATES_MODEL(INTEL_FAM6_SKYLAKE_MOBILE,  snb_cstates),
 	X86_CSTATES_MODEL(INTEL_FAM6_SKYLAKE_DESKTOP, snb_cstates),
+
+	X86_CSTATES_MODEL(INTEL_FAM6_XEON_PHI_KNL, knl_cstates),
 	{ },
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_cstates_match);
@@ -557,6 +574,11 @@ static int __init cstate_probe(const struct cstate_model *cm)
 	/* SLM has different MSR for PKG C6 */
 	if (cm->quirks & SLM_PKG_C6_USE_C7_MSR)
 		pkg_msr[PERF_CSTATE_PKG_C6_RES].msr = MSR_PKG_C7_RESIDENCY;
+
+	/* KNL has different MSR for CORE C6 */
+	if (cm->quirks & KNL_CORE_C6_MSR)
+		pkg_msr[PERF_CSTATE_CORE_C6_RES].msr = MSR_KNL_CORE_C6_RESIDENCY;
+
 
 	has_cstate_core = cstate_probe_msr(cm->core_events,
 					   PERF_CSTATE_CORE_EVENT_MAX,
