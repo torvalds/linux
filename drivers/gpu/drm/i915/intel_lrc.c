@@ -1590,6 +1590,8 @@ static int gen8_emit_breadcrumb(struct drm_i915_gem_request *request)
 	return intel_logical_ring_advance(request);
 }
 
+static const int gen8_emit_breadcrumb_sz = 6 + WA_TAIL_DWORDS;
+
 static int gen8_emit_breadcrumb_render(struct drm_i915_gem_request *request)
 {
 	struct intel_ring *ring = request->ring;
@@ -1620,6 +1622,8 @@ static int gen8_emit_breadcrumb_render(struct drm_i915_gem_request *request)
 	intel_ring_emit(ring, MI_NOOP);
 	return intel_logical_ring_advance(request);
 }
+
+static const int gen8_emit_breadcrumb_render_sz = 8 + WA_TAIL_DWORDS;
 
 static int gen8_init_rcs_context(struct drm_i915_gem_request *req)
 {
@@ -1695,6 +1699,7 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 	engine->reset_hw = reset_common_ring;
 	engine->emit_flush = gen8_emit_flush;
 	engine->emit_breadcrumb = gen8_emit_breadcrumb;
+	engine->emit_breadcrumb_sz = gen8_emit_breadcrumb_sz;
 	engine->submit_request = execlists_submit_request;
 
 	engine->irq_enable = gen8_logical_ring_enable_irq;
@@ -1817,6 +1822,7 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 	engine->init_context = gen8_init_rcs_context;
 	engine->emit_flush = gen8_emit_flush_render;
 	engine->emit_breadcrumb = gen8_emit_breadcrumb_render;
+	engine->emit_breadcrumb_sz = gen8_emit_breadcrumb_render_sz;
 
 	ret = intel_engine_create_scratch(engine, 4096);
 	if (ret)
