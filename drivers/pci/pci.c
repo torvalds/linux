@@ -2274,19 +2274,20 @@ bool pci_bridge_d3_possible(struct pci_dev *bridge)
 static int pci_dev_check_d3cold(struct pci_dev *dev, void *data)
 {
 	bool *d3cold_ok = data;
-	bool no_d3cold;
 
-	/*
-	 * The device needs to be allowed to go D3cold and if it is wake
-	 * capable to do so from D3cold.
-	 */
-	no_d3cold = dev->no_d3cold || !dev->d3cold_allowed ||
-		(device_may_wakeup(&dev->dev) && !pci_pme_capable(dev, PCI_D3cold)) ||
-		!pci_power_manageable(dev);
+	if (/* The device needs to be allowed to go D3cold ... */
+	    dev->no_d3cold || !dev->d3cold_allowed ||
 
-	*d3cold_ok = !no_d3cold;
+	    /* ... and if it is wakeup capable to do so from D3cold. */
+	    (device_may_wakeup(&dev->dev) &&
+	     !pci_pme_capable(dev, PCI_D3cold)) ||
 
-	return no_d3cold;
+	    /* If it is a bridge it must be allowed to go to D3. */
+	    !pci_power_manageable(dev))
+
+		*d3cold_ok = false;
+
+	return !*d3cold_ok;
 }
 
 /*
