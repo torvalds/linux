@@ -634,6 +634,15 @@ _error:
  * @iface: interface
  * @channel: channel ID
  * @conf: structure that holds the configuration information
+ *
+ * The attached network interface controller (NIC) supports a padding mode
+ * to avoid short packets on USB, hence increasing the performance due to a
+ * lower interrupt load. This mode is default for synchronous data and can
+ * be switched on for isochronous data. In case padding is active the
+ * driver needs to know the frame size of the payload in order to calculate
+ * the number of bytes it needs to pad when transmitting or to cut off when
+ * receiving data.
+ *
  */
 static int hdm_configure_channel(struct most_interface *iface, int channel,
 				 struct most_channel_config *conf)
@@ -667,6 +676,11 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	    !(conf->data_type == MOST_CH_ISOC &&
 	      conf->packets_per_xact != 0xFF)) {
 		mdev->padding_active[channel] = false;
+		/*
+		 * Since the NIC's padding mode is not going to be
+		 * used, we can skip the frame size calculations and
+		 * move directly on to exit.
+		 */
 		goto exit;
 	}
 
