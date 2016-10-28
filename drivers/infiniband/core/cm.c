@@ -1519,6 +1519,7 @@ static struct cm_id_private * cm_match_req(struct cm_work *work,
 	struct cm_id_private *listen_cm_id_priv, *cur_cm_id_priv;
 	struct cm_timewait_info *timewait_info;
 	struct cm_req_msg *req_msg;
+	struct ib_cm_id *cm_id;
 
 	req_msg = (struct cm_req_msg *)work->mad_recv_wc->recv_buf.mad;
 
@@ -1540,10 +1541,18 @@ static struct cm_id_private * cm_match_req(struct cm_work *work,
 	timewait_info = cm_insert_remote_qpn(cm_id_priv->timewait_info);
 	if (timewait_info) {
 		cm_cleanup_timewait(cm_id_priv->timewait_info);
+		cur_cm_id_priv = cm_get_id(timewait_info->work.local_id,
+					   timewait_info->work.remote_id);
+
 		spin_unlock_irq(&cm.lock);
 		cm_issue_rej(work->port, work->mad_recv_wc,
 			     IB_CM_REJ_STALE_CONN, CM_MSG_RESPONSE_REQ,
 			     NULL, 0);
+		if (cur_cm_id_priv) {
+			cm_id = &cur_cm_id_priv->id;
+			ib_send_cm_dreq(cm_id, NULL, 0);
+			cm_deref_id(cur_cm_id_priv);
+		}
 		return NULL;
 	}
 
@@ -1919,6 +1928,9 @@ static int cm_rep_handler(struct cm_work *work)
 	struct cm_id_private *cm_id_priv;
 	struct cm_rep_msg *rep_msg;
 	int ret;
+	struct cm_id_private *cur_cm_id_priv;
+	struct ib_cm_id *cm_id;
+	struct cm_timewait_info *timewait_info;
 
 	rep_msg = (struct cm_rep_msg *)work->mad_recv_wc->recv_buf.mad;
 	cm_id_priv = cm_acquire_id(rep_msg->remote_comm_id, 0);
@@ -1953,16 +1965,26 @@ static int cm_rep_handler(struct cm_work *work)
 		goto error;
 	}
 	/* Check for a stale connection. */
-	if (cm_insert_remote_qpn(cm_id_priv->timewait_info)) {
+	timewait_info = cm_insert_remote_qpn(cm_id_priv->timewait_info);
+	if (timewait_info) {
 		rb_erase(&cm_id_priv->timewait_info->remote_id_node,
 			 &cm.remote_id_table);
 		cm_id_priv->timewait_info->inserted_remote_id = 0;
+		cur_cm_id_priv = cm_get_id(timewait_info->work.local_id,
+					   timewait_info->work.remote_id);
+
 		spin_unlock(&cm.lock);
 		spin_unlock_irq(&cm_id_priv->lock);
 		cm_issue_rej(work->port, work->mad_recv_wc,
 			     IB_CM_REJ_STALE_CONN, CM_MSG_RESPONSE_REP,
 			     NULL, 0);
 		ret = -EINVAL;
+		if (cur_cm_id_priv) {
+			cm_id = &cur_cm_id_priv->id;
+			ib_send_cm_dreq(cm_id, NULL, 0);
+			cm_deref_id(cur_cm_id_priv);
+		}
+
 		goto error;
 	}
 	spin_unlock(&cm.lock);
