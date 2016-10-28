@@ -1134,7 +1134,8 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 		if (resv) {
 			ret = i915_sw_fence_await_reservation
 				(&req->submit, resv, &i915_fence_ops,
-				 obj->base.pending_write_domain, 10*HZ,
+				 obj->base.pending_write_domain,
+				 I915_FENCE_TIMEOUT,
 				 GFP_KERNEL | __GFP_NOWARN);
 			if (ret < 0)
 				return ret;

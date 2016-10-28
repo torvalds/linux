@@ -23,6 +23,7 @@
  */
 
 #include <linux/prefetch.h>
+#include <linux/dma-fence-array.h>
 
 #include "i915_drv.h"
 
@@ -493,6 +494,53 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 	}
 
 	from->engine->semaphore.sync_seqno[idx] = from->fence.seqno;
+	return 0;
+}
+
+int
+i915_gem_request_await_dma_fence(struct drm_i915_gem_request *req,
+				 struct dma_fence *fence)
+{
+	struct dma_fence_array *array;
+	int ret;
+	int i;
+
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+		return 0;
+
+	if (dma_fence_is_i915(fence))
+		return i915_gem_request_await_request(req, to_request(fence));
+
+	if (!dma_fence_is_array(fence)) {
+		ret = i915_sw_fence_await_dma_fence(&req->submit,
+						    fence, I915_FENCE_TIMEOUT,
+						    GFP_KERNEL);
+		return ret < 0 ? ret : 0;
+	}
+
+	/* Note that if the fence-array was created in signal-on-any mode,
+	 * we should *not* decompose it into its individual fences. However,
+	 * we don't currently store which mode the fence-array is operating
+	 * in. Fortunately, the only user of signal-on-any is private to
+	 * amdgpu and we should not see any incoming fence-array from
+	 * sync-file being in signal-on-any mode.
+	 */
+
+	array = to_dma_fence_array(fence);
+	for (i = 0; i < array->num_fences; i++) {
+		struct dma_fence *child = array->fences[i];
+
+		if (dma_fence_is_i915(child))
+			ret = i915_gem_request_await_request(req,
+							     to_request(child));
+		else
+			ret = i915_sw_fence_await_dma_fence(&req->submit,
+							    child, I915_FENCE_TIMEOUT,
+							    GFP_KERNEL);
+		if (ret < 0)
+			return ret;
+	}
+
 	return 0;
 }
 

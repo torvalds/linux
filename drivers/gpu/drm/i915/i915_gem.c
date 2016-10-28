@@ -114,7 +114,7 @@ i915_gem_wait_for_error(struct i915_gpu_error *error)
 	 */
 	ret = wait_event_interruptible_timeout(error->reset_queue,
 					       !i915_reset_in_progress(error),
-					       10*HZ);
+					       I915_RESET_TIMEOUT);
 	if (ret == 0) {
 		DRM_ERROR("Timed out waiting for the gpu reset to complete\n");
 		return -EIO;

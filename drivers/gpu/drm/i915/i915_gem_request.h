@@ -147,7 +147,7 @@ struct drm_i915_gem_request {
 
 extern const struct dma_fence_ops i915_fence_ops;
 
-static inline bool fence_is_i915(struct dma_fence *fence)
+static inline bool dma_fence_is_i915(const struct dma_fence *fence)
 {
 	return fence->ops == &i915_fence_ops;
 }
@@ -176,7 +176,7 @@ to_request(struct dma_fence *fence)
 {
 	/* We assume that NULL fence/request are interoperable */
 	BUILD_BUG_ON(offsetof(struct drm_i915_gem_request, fence) != 0);
-	GEM_BUG_ON(fence && !fence_is_i915(fence));
+	GEM_BUG_ON(fence && !dma_fence_is_i915(fence));
 	return container_of(fence, struct drm_i915_gem_request, fence);
 }
 
@@ -214,6 +214,8 @@ int
 i915_gem_request_await_object(struct drm_i915_gem_request *to,
 			      struct drm_i915_gem_object *obj,
 			      bool write);
+int i915_gem_request_await_dma_fence(struct drm_i915_gem_request *req,
+				     struct dma_fence *fence);
 
 void __i915_add_request(struct drm_i915_gem_request *req, bool flush_caches);
 #define i915_add_request(req) \
