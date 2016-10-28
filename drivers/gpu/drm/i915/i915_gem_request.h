@@ -228,13 +228,13 @@ struct intel_rps_client;
 #define IS_RPS_CLIENT(p) (!IS_ERR(p))
 #define IS_RPS_USER(p) (!IS_ERR_OR_NULL(p))
 
-int i915_wait_request(struct drm_i915_gem_request *req,
-		      unsigned int flags,
-		      s64 *timeout,
-		      struct intel_rps_client *rps)
+long i915_wait_request(struct drm_i915_gem_request *req,
+		       unsigned int flags,
+		       long timeout)
 	__attribute__((nonnull(1)));
 #define I915_WAIT_INTERRUPTIBLE	BIT(0)
 #define I915_WAIT_LOCKED	BIT(1) /* struct_mutex held, handle GPU reset */
+#define I915_WAIT_ALL		BIT(2) /* used by i915_gem_object_wait() */
 
 static inline u32 intel_engine_get_seqno(struct intel_engine_cs *engine);
 
@@ -583,14 +583,16 @@ static inline int __must_check
 i915_gem_active_wait(const struct i915_gem_active *active, struct mutex *mutex)
 {
 	struct drm_i915_gem_request *request;
+	long ret;
 
 	request = i915_gem_active_peek(active, mutex);
 	if (!request)
 		return 0;
 
-	return i915_wait_request(request,
-				 I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
-				 NULL, NULL);
+	ret = i915_wait_request(request,
+				I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
+				MAX_SCHEDULE_TIMEOUT);
+	return ret < 0 ? ret : 0;
 }
 
 /**
@@ -617,20 +619,18 @@ i915_gem_active_wait(const struct i915_gem_active *active, struct mutex *mutex)
  */
 static inline int
 i915_gem_active_wait_unlocked(const struct i915_gem_active *active,
-			      unsigned int flags,
-			      s64 *timeout,
-			      struct intel_rps_client *rps)
+			      unsigned int flags)
 {
 	struct drm_i915_gem_request *request;
-	int ret = 0;
+	long ret = 0;
 
 	request = i915_gem_active_get_unlocked(active);
 	if (request) {
-		ret = i915_wait_request(request, flags, timeout, rps);
+		ret = i915_wait_request(request, flags, MAX_SCHEDULE_TIMEOUT);
 		i915_gem_request_put(request);
 	}
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 /**
@@ -647,7 +647,7 @@ i915_gem_active_retire(struct i915_gem_active *active,
 		       struct mutex *mutex)
 {
 	struct drm_i915_gem_request *request;
-	int ret;
+	long ret;
 
 	request = i915_gem_active_raw(active, mutex);
 	if (!request)
@@ -655,8 +655,8 @@ i915_gem_active_retire(struct i915_gem_active *active,
 
 	ret = i915_wait_request(request,
 				I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
-				NULL, NULL);
-	if (ret)
+				MAX_SCHEDULE_TIMEOUT);
+	if (ret < 0)
 		return ret;
 
 	list_del_init(&active->link);

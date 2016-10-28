@@ -61,23 +61,13 @@ struct i915_mmu_object {
 	bool attached;
 };
 
-static void wait_rendering(struct drm_i915_gem_object *obj)
-{
-	unsigned long active = __I915_BO_ACTIVE(obj);
-	int idx;
-
-	for_each_active(active, idx)
-		i915_gem_active_wait_unlocked(&obj->last_read[idx],
-					      0, NULL, NULL);
-}
-
 static void cancel_userptr(struct work_struct *work)
 {
 	struct i915_mmu_object *mo = container_of(work, typeof(*mo), work);
 	struct drm_i915_gem_object *obj = mo->obj;
 	struct drm_device *dev = obj->base.dev;
 
-	wait_rendering(obj);
+	i915_gem_object_wait(obj, I915_WAIT_ALL, MAX_SCHEDULE_TIMEOUT, NULL);
 
 	mutex_lock(&dev->struct_mutex);
 	/* Cancel any active worker and force us to re-evaluate gup */

@@ -2155,7 +2155,9 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 {
 	struct intel_ring *ring = req->ring;
 	struct drm_i915_gem_request *target;
-	int ret;
+	long timeout;
+
+	lockdep_assert_held(&req->i915->drm.struct_mutex);
 
 	intel_ring_update_space(ring);
 	if (ring->space >= bytes)
@@ -2185,11 +2187,11 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 	if (WARN_ON(&target->ring_link == &ring->request_list))
 		return -ENOSPC;
 
-	ret = i915_wait_request(target,
-				I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
-				NULL, NO_WAITBOOST);
-	if (ret)
-		return ret;
+	timeout = i915_wait_request(target,
+				    I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
+				    MAX_SCHEDULE_TIMEOUT);
+	if (timeout < 0)
+		return timeout;
 
 	i915_gem_request_retire_upto(target);
 

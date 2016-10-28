@@ -59,31 +59,9 @@ static bool i915_fence_enable_signaling(struct dma_fence *fence)
 
 static signed long i915_fence_wait(struct dma_fence *fence,
 				   bool interruptible,
-				   signed long timeout_jiffies)
+				   signed long timeout)
 {
-	s64 timeout_ns, *timeout;
-	int ret;
-
-	if (timeout_jiffies != MAX_SCHEDULE_TIMEOUT) {
-		timeout_ns = jiffies_to_nsecs(timeout_jiffies);
-		timeout = &timeout_ns;
-	} else {
-		timeout = NULL;
-	}
-
-	ret = i915_wait_request(to_request(fence),
-				interruptible, timeout,
-				NO_WAITBOOST);
-	if (ret == -ETIME)
-		return 0;
-
-	if (ret < 0)
-		return ret;
-
-	if (timeout_jiffies != MAX_SCHEDULE_TIMEOUT)
-		timeout_jiffies = nsecs_to_jiffies(timeout_ns);
-
-	return timeout_jiffies;
+	return i915_wait_request(to_request(fence), interruptible, timeout);
 }
 
 static void i915_fence_value_str(struct dma_fence *fence, char *str, int size)
@@ -166,7 +144,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	struct i915_gem_active *active, *next;
 
 	trace_i915_gem_request_retire(request);
-	list_del(&request->link);
+	list_del_init(&request->link);
 
 	/* We know the GPU must have read the request to have
 	 * sent us the seqno + interrupt, so use the position
@@ -224,7 +202,8 @@ void i915_gem_request_retire_upto(struct drm_i915_gem_request *req)
 	struct drm_i915_gem_request *tmp;
 
 	lockdep_assert_held(&req->i915->drm.struct_mutex);
-	GEM_BUG_ON(list_empty(&req->link));
+	if (list_empty(&req->link))
+		return;
 
 	do {
 		tmp = list_first_entry(&engine->request_list,
@@ -780,74 +759,47 @@ bool __i915_spin_request(const struct drm_i915_gem_request *req,
 
 /**
  * i915_wait_request - wait until execution of request has finished
- * @req: duh!
+ * @req: the request to wait upon
  * @flags: how to wait
- * @timeout: in - how long to wait (NULL forever); out - how much time remaining
- * @rps: client to charge for RPS boosting
+ * @timeout: how long to wait in jiffies
  *
- * Note: It is of utmost importance that the passed in seqno and reset_counter
- * values have been read by the caller in an smp safe manner. Where read-side
- * locks are involved, it is sufficient to read the reset_counter before
- * unlocking the lock that protects the seqno. For lockless tricks, the
- * reset_counter _must_ be read before, and an appropriate smp_rmb must be
- * inserted.
+ * i915_wait_request() waits for the request to be completed, for a
+ * maximum of @timeout jiffies (with MAX_SCHEDULE_TIMEOUT implying an
+ * unbounded wait).
  *
- * Returns 0 if the request was found within the alloted time. Else returns the
- * errno with remaining time filled in timeout argument.
+ * If the caller holds the struct_mutex, the caller must pass I915_WAIT_LOCKED
+ * in via the flags, and vice versa if the struct_mutex is not held, the caller
+ * must not specify that the wait is locked.
+ *
+ * Returns the remaining time (in jiffies) if the request completed, which may
+ * be zero or -ETIME if the request is unfinished after the timeout expires.
+ * May return -EINTR is called with I915_WAIT_INTERRUPTIBLE and a signal is
+ * pending before the request completes.
  */
-int i915_wait_request(struct drm_i915_gem_request *req,
-		      unsigned int flags,
-		      s64 *timeout,
-		      struct intel_rps_client *rps)
+long i915_wait_request(struct drm_i915_gem_request *req,
+		       unsigned int flags,
+		       long timeout)
 {
 	const int state = flags & I915_WAIT_INTERRUPTIBLE ?
 		TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
 	DEFINE_WAIT(reset);
 	struct intel_wait wait;
-	unsigned long timeout_remain;
-	int ret = 0;
 
 	might_sleep();
 #if IS_ENABLED(CONFIG_LOCKDEP)
-	GEM_BUG_ON(!!lockdep_is_held(&req->i915->drm.struct_mutex) !=
+	GEM_BUG_ON(debug_locks &&
+		   !!lockdep_is_held(&req->i915->drm.struct_mutex) !=
 		   !!(flags & I915_WAIT_LOCKED));
 #endif
+	GEM_BUG_ON(timeout < 0);
 
 	if (i915_gem_request_completed(req))
-		return 0;
+		return timeout;
 
-	timeout_remain = MAX_SCHEDULE_TIMEOUT;
-	if (timeout) {
-		if (WARN_ON(*timeout < 0))
-			return -EINVAL;
-
-		if (*timeout == 0)
-			return -ETIME;
-
-		/* Record current time in case interrupted, or wedged */
-		timeout_remain = nsecs_to_jiffies_timeout(*timeout);
-		*timeout += ktime_get_raw_ns();
-	}
+	if (!timeout)
+		return -ETIME;
 
 	trace_i915_gem_request_wait_begin(req);
-
-	/* This client is about to stall waiting for the GPU. In many cases
-	 * this is undesirable and limits the throughput of the system, as
-	 * many clients cannot continue processing user input/output whilst
-	 * blocked. RPS autotuning may take tens of milliseconds to respond
-	 * to the GPU load and thus incurs additional latency for the client.
-	 * We can circumvent that by promoting the GPU frequency to maximum
-	 * before we wait. This makes the GPU throttle up much more quickly
-	 * (good for benchmarks and user experience, e.g. window animations),
-	 * but at a cost of spending more power processing the workload
-	 * (bad for battery). Not all clients even want their results
-	 * immediately and for them we should just let the GPU select its own
-	 * frequency to maximise efficiency. To prevent a single client from
-	 * forcing the clocks too high for the whole system, we only allow
-	 * each client to waitboost once in a busy period.
-	 */
-	if (IS_RPS_CLIENT(rps) && INTEL_GEN(req->i915) >= 6)
-		gen6_rps_boost(req->i915, rps, req->emitted_jiffies);
 
 	/* Optimistic short spin before touching IRQs */
 	if (i915_spin_request(req, state, 5))
@@ -867,15 +819,16 @@ int i915_wait_request(struct drm_i915_gem_request *req,
 
 	for (;;) {
 		if (signal_pending_state(state, current)) {
-			ret = -ERESTARTSYS;
+			timeout = -ERESTARTSYS;
 			break;
 		}
 
-		timeout_remain = io_schedule_timeout(timeout_remain);
-		if (timeout_remain == 0) {
-			ret = -ETIME;
+		if (!timeout) {
+			timeout = -ETIME;
 			break;
 		}
+
+		timeout = io_schedule_timeout(timeout);
 
 		if (intel_wait_complete(&wait))
 			break;
@@ -923,40 +876,7 @@ wakeup:
 complete:
 	trace_i915_gem_request_wait_end(req);
 
-	if (timeout) {
-		*timeout -= ktime_get_raw_ns();
-		if (*timeout < 0)
-			*timeout = 0;
-
-		/*
-		 * Apparently ktime isn't accurate enough and occasionally has a
-		 * bit of mismatch in the jiffies<->nsecs<->ktime loop. So patch
-		 * things up to make the test happy. We allow up to 1 jiffy.
-		 *
-		 * This is a regrssion from the timespec->ktime conversion.
-		 */
-		if (ret == -ETIME && *timeout < jiffies_to_usecs(1)*1000)
-			*timeout = 0;
-	}
-
-	if (IS_RPS_USER(rps) &&
-	    req->fence.seqno == req->engine->last_submitted_seqno) {
-		/* The GPU is now idle and this client has stalled.
-		 * Since no other client has submitted a request in the
-		 * meantime, assume that this client is the only one
-		 * supplying work to the GPU but is unable to keep that
-		 * work supplied because it is waiting. Since the GPU is
-		 * then never kept fully busy, RPS autoclocking will
-		 * keep the clocks relatively low, causing further delays.
-		 * Compensate by giving the synchronous client credit for
-		 * a waitboost next time.
-		 */
-		spin_lock(&req->i915->rps.client_lock);
-		list_del_init(&rps->link);
-		spin_unlock(&req->i915->rps.client_lock);
-	}
-
-	return ret;
+	return timeout;
 }
 
 static bool engine_retire_requests(struct intel_engine_cs *engine)

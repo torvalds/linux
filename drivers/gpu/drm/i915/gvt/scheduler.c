@@ -400,6 +400,7 @@ static int workload_thread(void *priv)
 	int ring_id = p->ring_id;
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	struct intel_vgpu_workload *workload = NULL;
+	long lret;
 	int ret;
 	bool need_force_wake = IS_SKYLAKE(gvt->dev_priv);
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
@@ -449,10 +450,12 @@ static int workload_thread(void *priv)
 		gvt_dbg_sched("ring id %d wait workload %p\n",
 				workload->ring_id, workload);
 
-		workload->status = i915_wait_request(workload->req,
-						     0, NULL, NULL);
-		if (workload->status != 0)
+		lret = i915_wait_request(workload->req,
+					 0, MAX_SCHEDULE_TIMEOUT);
+		if (lret < 0) {
+			workload->status = lret;
 			gvt_err("fail to wait workload, skip\n");
+		}
 
 complete:
 		gvt_dbg_sched("will complete workload %p\n, status: %d\n",

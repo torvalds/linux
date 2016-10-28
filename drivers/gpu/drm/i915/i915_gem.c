@@ -292,7 +292,12 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	 * must wait for all rendering to complete to the object (as unbinding
 	 * must anyway), and retire the requests.
 	 */
-	ret = i915_gem_object_wait_rendering(obj, false);
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE |
+				   I915_WAIT_LOCKED |
+				   I915_WAIT_ALL,
+				   MAX_SCHEDULE_TIMEOUT,
+				   NULL);
 	if (ret)
 		return ret;
 
@@ -311,24 +316,145 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	return ret;
 }
 
+static long
+i915_gem_object_wait_fence(struct dma_fence *fence,
+			   unsigned int flags,
+			   long timeout,
+			   struct intel_rps_client *rps)
+{
+	struct drm_i915_gem_request *rq;
+
+	BUILD_BUG_ON(I915_WAIT_INTERRUPTIBLE != 0x1);
+
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+		return timeout;
+
+	if (!dma_fence_is_i915(fence))
+		return dma_fence_wait_timeout(fence,
+					      flags & I915_WAIT_INTERRUPTIBLE,
+					      timeout);
+
+	rq = to_request(fence);
+	if (i915_gem_request_completed(rq))
+		goto out;
+
+	/* This client is about to stall waiting for the GPU. In many cases
+	 * this is undesirable and limits the throughput of the system, as
+	 * many clients cannot continue processing user input/output whilst
+	 * blocked. RPS autotuning may take tens of milliseconds to respond
+	 * to the GPU load and thus incurs additional latency for the client.
+	 * We can circumvent that by promoting the GPU frequency to maximum
+	 * before we wait. This makes the GPU throttle up much more quickly
+	 * (good for benchmarks and user experience, e.g. window animations),
+	 * but at a cost of spending more power processing the workload
+	 * (bad for battery). Not all clients even want their results
+	 * immediately and for them we should just let the GPU select its own
+	 * frequency to maximise efficiency. To prevent a single client from
+	 * forcing the clocks too high for the whole system, we only allow
+	 * each client to waitboost once in a busy period.
+	 */
+	if (rps) {
+		if (INTEL_GEN(rq->i915) >= 6)
+			gen6_rps_boost(rq->i915, rps, rq->emitted_jiffies);
+		else
+			rps = NULL;
+	}
+
+	timeout = i915_wait_request(rq, flags, timeout);
+
+out:
+	if (flags & I915_WAIT_LOCKED && i915_gem_request_completed(rq))
+		i915_gem_request_retire_upto(rq);
+
+	if (rps && rq->fence.seqno == rq->engine->last_submitted_seqno) {
+		/* The GPU is now idle and this client has stalled.
+		 * Since no other client has submitted a request in the
+		 * meantime, assume that this client is the only one
+		 * supplying work to the GPU but is unable to keep that
+		 * work supplied because it is waiting. Since the GPU is
+		 * then never kept fully busy, RPS autoclocking will
+		 * keep the clocks relatively low, causing further delays.
+		 * Compensate by giving the synchronous client credit for
+		 * a waitboost next time.
+		 */
+		spin_lock(&rq->i915->rps.client_lock);
+		list_del_init(&rps->link);
+		spin_unlock(&rq->i915->rps.client_lock);
+	}
+
+	return timeout;
+}
+
+static long
+i915_gem_object_wait_reservation(struct reservation_object *resv,
+				 unsigned int flags,
+				 long timeout,
+				 struct intel_rps_client *rps)
+{
+	struct dma_fence *excl;
+
+	if (flags & I915_WAIT_ALL) {
+		struct dma_fence **shared;
+		unsigned int count, i;
+		int ret;
+
+		ret = reservation_object_get_fences_rcu(resv,
+							&excl, &count, &shared);
+		if (ret)
+			return ret;
+
+		for (i = 0; i < count; i++) {
+			timeout = i915_gem_object_wait_fence(shared[i],
+							     flags, timeout,
+							     rps);
+			if (timeout <= 0)
+				break;
+
+			dma_fence_put(shared[i]);
+		}
+
+		for (; i < count; i++)
+			dma_fence_put(shared[i]);
+		kfree(shared);
+	} else {
+		excl = reservation_object_get_excl_rcu(resv);
+	}
+
+	if (excl && timeout > 0)
+		timeout = i915_gem_object_wait_fence(excl, flags, timeout, rps);
+
+	dma_fence_put(excl);
+
+	return timeout;
+}
+
 /**
- * Ensures that all rendering to the object has completed and the object is
- * safe to unbind from the GTT or access from the CPU.
+ * Waits for rendering to the object to be completed
  * @obj: i915 gem object
- * @readonly: waiting for just read access or read-write access
+ * @flags: how to wait (under a lock, for all rendering or just for writes etc)
+ * @timeout: how long to wait
+ * @rps: client (user process) to charge for any waitboosting
  */
 int
-i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
-			       bool readonly)
+i915_gem_object_wait(struct drm_i915_gem_object *obj,
+		     unsigned int flags,
+		     long timeout,
+		     struct intel_rps_client *rps)
 {
 	struct reservation_object *resv;
 	struct i915_gem_active *active;
 	unsigned long active_mask;
 	int idx;
 
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	might_sleep();
+#if IS_ENABLED(CONFIG_LOCKDEP)
+	GEM_BUG_ON(debug_locks &&
+		   !!lockdep_is_held(&obj->base.dev->struct_mutex) !=
+		   !!(flags & I915_WAIT_LOCKED));
+#endif
+	GEM_BUG_ON(timeout < 0);
 
-	if (!readonly) {
+	if (flags & I915_WAIT_ALL) {
 		active = obj->last_read;
 		active_mask = i915_gem_object_get_active(obj);
 	} else {
@@ -337,62 +463,25 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 	}
 
 	for_each_active(active_mask, idx) {
-		int ret;
+		struct drm_i915_gem_request *request;
 
-		ret = i915_gem_active_wait(&active[idx],
-					   &obj->base.dev->struct_mutex);
-		if (ret)
-			return ret;
+		request = i915_gem_active_get_unlocked(&active[idx]);
+		if (request) {
+			timeout = i915_gem_object_wait_fence(&request->fence,
+							     flags, timeout,
+							     rps);
+			i915_gem_request_put(request);
+		}
+		if (timeout < 0)
+			return timeout;
 	}
 
 	resv = i915_gem_object_get_dmabuf_resv(obj);
-	if (resv) {
-		long err;
-
-		err = reservation_object_wait_timeout_rcu(resv, !readonly, true,
-							  MAX_SCHEDULE_TIMEOUT);
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
-/* A nonblocking variant of the above wait. Must be called prior to
- * acquiring the mutex for the object, as the object state may change
- * during this call. A reference must be held by the caller for the object.
- */
-static __must_check int
-__unsafe_wait_rendering(struct drm_i915_gem_object *obj,
-			struct intel_rps_client *rps,
-			bool readonly)
-{
-	struct i915_gem_active *active;
-	unsigned long active_mask;
-	int idx;
-
-	active_mask = __I915_BO_ACTIVE(obj);
-	if (!active_mask)
-		return 0;
-
-	if (!readonly) {
-		active = obj->last_read;
-	} else {
-		active_mask = 1;
-		active = &obj->last_write;
-	}
-
-	for_each_active(active_mask, idx) {
-		int ret;
-
-		ret = i915_gem_active_wait_unlocked(&active[idx],
-						    I915_WAIT_INTERRUPTIBLE,
-						    NULL, rps);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	if (resv)
+		timeout = i915_gem_object_wait_reservation(resv,
+							   flags, timeout,
+							   rps);
+	return timeout < 0 ? timeout : 0;
 }
 
 static struct intel_rps_client *to_rps_client(struct drm_file *file)
@@ -449,12 +538,18 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 	struct drm_device *dev = obj->base.dev;
 	void *vaddr = obj->phys_handle->vaddr + args->offset;
 	char __user *user_data = u64_to_user_ptr(args->data_ptr);
-	int ret = 0;
+	int ret;
 
 	/* We manually control the domain here and pretend that it
 	 * remains coherent i.e. in the GTT domain, like shmem_pwrite.
 	 */
-	ret = i915_gem_object_wait_rendering(obj, false);
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE |
+				   I915_WAIT_LOCKED |
+				   I915_WAIT_ALL,
+				   MAX_SCHEDULE_TIMEOUT,
+				   to_rps_client(file_priv));
 	if (ret)
 		return ret;
 
@@ -614,12 +709,17 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 {
 	int ret;
 
-	*needs_clflush = 0;
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
+	*needs_clflush = 0;
 	if (!i915_gem_object_has_struct_page(obj))
 		return -ENODEV;
 
-	ret = i915_gem_object_wait_rendering(obj, true);
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE |
+				   I915_WAIT_LOCKED,
+				   MAX_SCHEDULE_TIMEOUT,
+				   NULL);
 	if (ret)
 		return ret;
 
@@ -661,11 +761,18 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 {
 	int ret;
 
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+
 	*needs_clflush = 0;
 	if (!i915_gem_object_has_struct_page(obj))
 		return -ENODEV;
 
-	ret = i915_gem_object_wait_rendering(obj, false);
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE |
+				   I915_WAIT_LOCKED |
+				   I915_WAIT_ALL,
+				   MAX_SCHEDULE_TIMEOUT,
+				   NULL);
 	if (ret)
 		return ret;
 
@@ -1051,7 +1158,10 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 
 	trace_i915_gem_object_pread(obj, args->offset, args->size);
 
-	ret = __unsafe_wait_rendering(obj, to_rps_client(file), true);
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE,
+				   MAX_SCHEDULE_TIMEOUT,
+				   to_rps_client(file));
 	if (ret)
 		goto err;
 
@@ -1449,7 +1559,11 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 
 	trace_i915_gem_object_pwrite(obj, args->offset, args->size);
 
-	ret = __unsafe_wait_rendering(obj, to_rps_client(file), false);
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE |
+				   I915_WAIT_ALL,
+				   MAX_SCHEDULE_TIMEOUT,
+				   to_rps_client(file));
 	if (ret)
 		goto err;
 
@@ -1536,7 +1650,11 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	 * We will repeat the flush holding the lock in the normal manner
 	 * to catch cases where we are gazumped.
 	 */
-	ret = __unsafe_wait_rendering(obj, to_rps_client(file), !write_domain);
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE |
+				   (write_domain ? I915_WAIT_ALL : 0),
+				   MAX_SCHEDULE_TIMEOUT,
+				   to_rps_client(file));
 	if (ret)
 		goto err;
 
@@ -1772,7 +1890,10 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 	 * repeat the flush holding the lock in the normal manner to catch cases
 	 * where we are gazumped.
 	 */
-	ret = __unsafe_wait_rendering(obj, NULL, !write);
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE,
+				   MAX_SCHEDULE_TIMEOUT,
+				   NULL);
 	if (ret)
 		goto err;
 
@@ -2817,6 +2938,17 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 	mutex_unlock(&obj->base.dev->struct_mutex);
 }
 
+static unsigned long to_wait_timeout(s64 timeout_ns)
+{
+	if (timeout_ns < 0)
+		return MAX_SCHEDULE_TIMEOUT;
+
+	if (timeout_ns == 0)
+		return 0;
+
+	return nsecs_to_jiffies_timeout(timeout_ns);
+}
+
 /**
  * i915_gem_wait_ioctl - implements DRM_IOCTL_I915_GEM_WAIT
  * @dev: drm device pointer
@@ -2845,10 +2977,9 @@ int
 i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
 	struct drm_i915_gem_wait *args = data;
-	struct intel_rps_client *rps = to_rps_client(file);
 	struct drm_i915_gem_object *obj;
-	unsigned long active;
-	int idx, ret = 0;
+	ktime_t start;
+	long ret;
 
 	if (args->flags != 0)
 		return -EINVAL;
@@ -2857,14 +2988,17 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	if (!obj)
 		return -ENOENT;
 
-	active = __I915_BO_ACTIVE(obj);
-	for_each_active(active, idx) {
-		s64 *timeout = args->timeout_ns >= 0 ? &args->timeout_ns : NULL;
-		ret = i915_gem_active_wait_unlocked(&obj->last_read[idx],
-						    I915_WAIT_INTERRUPTIBLE,
-						    timeout, rps);
-		if (ret)
-			break;
+	start = ktime_get();
+
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE | I915_WAIT_ALL,
+				   to_wait_timeout(args->timeout_ns),
+				   to_rps_client(file));
+
+	if (args->timeout_ns > 0) {
+		args->timeout_ns -= ktime_to_ns(ktime_sub(ktime_get(), start));
+		if (args->timeout_ns < 0)
+			args->timeout_ns = 0;
 	}
 
 	i915_gem_object_put_unlocked(obj);
@@ -3283,7 +3417,13 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	uint32_t old_write_domain, old_read_domains;
 	int ret;
 
-	ret = i915_gem_object_wait_rendering(obj, !write);
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE |
+				   I915_WAIT_LOCKED |
+				   (write ? I915_WAIT_ALL : 0),
+				   MAX_SCHEDULE_TIMEOUT,
+				   NULL);
 	if (ret)
 		return ret;
 
@@ -3400,7 +3540,12 @@ restart:
 		 * If we wait upon the object, we know that all the bound
 		 * VMA are no longer active.
 		 */
-		ret = i915_gem_object_wait_rendering(obj, false);
+		ret = i915_gem_object_wait(obj,
+					   I915_WAIT_INTERRUPTIBLE |
+					   I915_WAIT_LOCKED |
+					   I915_WAIT_ALL,
+					   MAX_SCHEDULE_TIMEOUT,
+					   NULL);
 		if (ret)
 			return ret;
 
@@ -3647,7 +3792,13 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	uint32_t old_write_domain, old_read_domains;
 	int ret;
 
-	ret = i915_gem_object_wait_rendering(obj, !write);
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	ret = i915_gem_object_wait(obj,
+				   I915_WAIT_INTERRUPTIBLE |
+				   I915_WAIT_LOCKED |
+				   (write ? I915_WAIT_ALL : 0),
+				   MAX_SCHEDULE_TIMEOUT,
+				   NULL);
 	if (ret)
 		return ret;
 
@@ -3703,7 +3854,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	unsigned long recent_enough = jiffies - DRM_I915_THROTTLE_JIFFIES;
 	struct drm_i915_gem_request *request, *target = NULL;
-	int ret;
+	long ret;
 
 	/* ABI: return -EIO if already wedged */
 	if (i915_terminally_wedged(&dev_priv->gpu_error))
@@ -3730,10 +3881,12 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	if (target == NULL)
 		return 0;
 
-	ret = i915_wait_request(target, I915_WAIT_INTERRUPTIBLE, NULL, NULL);
+	ret = i915_wait_request(target,
+				I915_WAIT_INTERRUPTIBLE,
+				MAX_SCHEDULE_TIMEOUT);
 	i915_gem_request_put(target);
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 static bool
