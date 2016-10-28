@@ -29,26 +29,26 @@ static unsigned int get_power_mode(void)
  * SM50x can operate in one of three modes: 0, 1 or Sleep.
  * On hardware reset, power mode 0 is default.
  */
-void set_power_mode(unsigned int powerMode)
+void set_power_mode(unsigned int mode)
 {
-	unsigned int control_value = 0;
+	unsigned int ctrl = 0;
 
-	control_value = PEEK32(POWER_MODE_CTRL) & ~POWER_MODE_CTRL_MODE_MASK;
+	ctrl = PEEK32(POWER_MODE_CTRL) & ~POWER_MODE_CTRL_MODE_MASK;
 
 	if (sm750_get_chip_type() == SM750LE)
 		return;
 
-	switch (powerMode) {
+	switch (mode) {
 	case POWER_MODE_CTRL_MODE_MODE0:
-		control_value |= POWER_MODE_CTRL_MODE_MODE0;
+		ctrl |= POWER_MODE_CTRL_MODE_MODE0;
 		break;
 
 	case POWER_MODE_CTRL_MODE_MODE1:
-		control_value |= POWER_MODE_CTRL_MODE_MODE1;
+		ctrl |= POWER_MODE_CTRL_MODE_MODE1;
 		break;
 
 	case POWER_MODE_CTRL_MODE_SLEEP:
-		control_value |= POWER_MODE_CTRL_MODE_SLEEP;
+		ctrl |= POWER_MODE_CTRL_MODE_SLEEP;
 		break;
 
 	default:
@@ -56,20 +56,20 @@ void set_power_mode(unsigned int powerMode)
 	}
 
 	/* Set up other fields in Power Control Register */
-	if (powerMode == POWER_MODE_CTRL_MODE_SLEEP) {
-		control_value &= ~POWER_MODE_CTRL_OSC_INPUT;
+	if (mode == POWER_MODE_CTRL_MODE_SLEEP) {
+		ctrl &= ~POWER_MODE_CTRL_OSC_INPUT;
 #ifdef VALIDATION_CHIP
-		control_value &= ~POWER_MODE_CTRL_336CLK;
+		ctrl &= ~POWER_MODE_CTRL_336CLK;
 #endif
 	} else {
-		control_value |= POWER_MODE_CTRL_OSC_INPUT;
+		ctrl |= POWER_MODE_CTRL_OSC_INPUT;
 #ifdef VALIDATION_CHIP
-		control_value |= POWER_MODE_CTRL_336CLK;
+		ctrl |= POWER_MODE_CTRL_336CLK;
 #endif
 	}
 
 	/* Program new power mode. */
-	POKE32(POWER_MODE_CTRL, control_value);
+	POKE32(POWER_MODE_CTRL, ctrl);
 }
 
 void set_current_gate(unsigned int gate)
