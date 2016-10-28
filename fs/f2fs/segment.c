@@ -16,6 +16,7 @@
 #include <linux/kthread.h>
 #include <linux/swap.h>
 #include <linux/timer.h>
+#include <linux/timer.h>
 
 #include "f2fs.h"
 #include "segment.h"
@@ -584,6 +585,45 @@ static void locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno)
 	mutex_unlock(&dirty_i->seglist_lock);
 }
 
+#ifdef CONFIG_BLK_DEV_ZONED
+static int f2fs_issue_discard_zone(struct f2fs_sb_info *sbi,
+					block_t blkstart, block_t blklen)
+{
+	sector_t sector = SECTOR_FROM_BLOCK(blkstart);
+	sector_t nr_sects = SECTOR_FROM_BLOCK(blklen);
+	struct block_device *bdev = sbi->sb->s_bdev;
+
+	if (nr_sects != bdev_zone_size(bdev)) {
+		f2fs_msg(sbi->sb, KERN_INFO,
+			 "Unaligned discard attempted (sector %llu + %llu)",
+			 (unsigned long long)sector,
+			 (unsigned long long)nr_sects);
+		return -EIO;
+	}
+
+	/*
+	 * We need to know the type of the zone: for conventional zones,
+	 * use regular discard if the drive supports it. For sequential
+	 * zones, reset the zone write pointer.
+	 */
+	switch (get_blkz_type(sbi, blkstart)) {
+
+	case BLK_ZONE_TYPE_CONVENTIONAL:
+		if (!blk_queue_discard(bdev_get_queue(bdev)))
+			return 0;
+		return blkdev_issue_discard(bdev, sector, nr_sects,
+						GFP_NOFS, 0);
+	case BLK_ZONE_TYPE_SEQWRITE_REQ:
+	case BLK_ZONE_TYPE_SEQWRITE_PREF:
+		return blkdev_reset_zones(bdev, sector,
+					  nr_sects, GFP_NOFS);
+	default:
+		/* Unknown zone type: broken device ? */
+		return -EIO;
+	}
+}
+#endif
+
 static int f2fs_issue_discard(struct f2fs_sb_info *sbi,
 				block_t blkstart, block_t blklen)
 {
@@ -601,6 +641,11 @@ static int f2fs_issue_discard(struct f2fs_sb_info *sbi,
 			sbi->discard_blks--;
 	}
 	trace_f2fs_issue_discard(sbi->sb, blkstart, blklen);
+
+#ifdef CONFIG_BLK_DEV_ZONED
+	if (f2fs_sb_mounted_blkzoned(sbi->sb))
+		return f2fs_issue_discard_zone(sbi, blkstart, blklen);
+#endif
 	return blkdev_issue_discard(sbi->sb->s_bdev, start, len, GFP_NOFS, 0);
 }
 
