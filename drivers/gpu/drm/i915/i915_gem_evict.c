@@ -33,14 +33,17 @@
 #include "intel_drv.h"
 #include "i915_trace.h"
 
-static bool
-gpu_is_idle(struct drm_i915_private *dev_priv)
+static bool ggtt_is_idle(struct drm_i915_private *dev_priv)
 {
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
 	for_each_engine(engine, dev_priv, id) {
-		if (intel_engine_is_active(engine))
+		struct intel_timeline *tl;
+
+		tl = &ggtt->base.timeline.engine[engine->id];
+		if (i915_gem_active_isset(&tl->last_request))
 			return false;
 	}
 
@@ -154,7 +157,7 @@ search_again:
 	if (!i915_is_ggtt(vm) || flags & PIN_NONBLOCK)
 		return -ENOSPC;
 
-	if (gpu_is_idle(dev_priv)) {
+	if (ggtt_is_idle(dev_priv)) {
 		/* If we still have pending pageflip completions, drop
 		 * back to userspace to give our workqueues time to
 		 * acquire our locks and unpin the old scanouts.

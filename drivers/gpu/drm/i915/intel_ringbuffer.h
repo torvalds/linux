@@ -569,9 +569,4 @@ void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
 unsigned int intel_kick_waiters(struct drm_i915_private *i915);
 unsigned int intel_kick_signalers(struct drm_i915_private *i915);
 
-static inline bool intel_engine_is_active(struct intel_engine_cs *engine)
-{
-	return i915_gem_active_isset(&engine->timeline->last_request);
-}
-
 #endif /* _INTEL_RINGBUFFER_H_ */

@@ -365,9 +365,9 @@ i915_gem_create_context(struct drm_device *dev,
 		return ctx;
 
 	if (USES_FULL_PPGTT(dev)) {
-		struct i915_hw_ppgtt *ppgtt =
-			i915_ppgtt_create(to_i915(dev), file_priv);
+		struct i915_hw_ppgtt *ppgtt;
 
+		ppgtt = i915_ppgtt_create(to_i915(dev), file_priv, ctx->name);
 		if (IS_ERR(ppgtt)) {
 			DRM_DEBUG_DRIVER("PPGTT setup failed (%ld)\n",
 					 PTR_ERR(ppgtt));

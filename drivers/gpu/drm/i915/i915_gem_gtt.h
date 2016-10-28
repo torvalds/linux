@@ -342,6 +342,7 @@ struct i915_pml4 {
 
 struct i915_address_space {
 	struct drm_mm mm;
+	struct i915_gem_timeline timeline;
 	struct drm_device *dev;
 	/* Every address space belongs to a struct file - except for the global
 	 * GTT that is owned by the driver (and so @file is set to NULL). In
@@ -613,7 +614,8 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv);
 int i915_ppgtt_init_hw(struct drm_device *dev);
 void i915_ppgtt_release(struct kref *kref);
 struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_i915_private *dev_priv,
-					struct drm_i915_file_private *fpriv);
+					struct drm_i915_file_private *fpriv,
+					const char *name);
 static inline void i915_ppgtt_get(struct i915_hw_ppgtt *ppgtt)
 {
 	if (ppgtt)

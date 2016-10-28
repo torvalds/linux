@@ -2185,8 +2185,10 @@ static int __hw_ppgtt_init(struct i915_hw_ppgtt *ppgtt,
 }
 
 static void i915_address_space_init(struct i915_address_space *vm,
-				    struct drm_i915_private *dev_priv)
+				    struct drm_i915_private *dev_priv,
+				    const char *name)
 {
+	i915_gem_timeline_init(dev_priv, &vm->timeline, name);
 	drm_mm_init(&vm->mm, vm->start, vm->total);
 	INIT_LIST_HEAD(&vm->active_list);
 	INIT_LIST_HEAD(&vm->inactive_list);
@@ -2215,14 +2217,15 @@ static void gtt_write_workarounds(struct drm_device *dev)
 
 static int i915_ppgtt_init(struct i915_hw_ppgtt *ppgtt,
 			   struct drm_i915_private *dev_priv,
-			   struct drm_i915_file_private *file_priv)
+			   struct drm_i915_file_private *file_priv,
+			   const char *name)
 {
 	int ret;
 
 	ret = __hw_ppgtt_init(ppgtt, dev_priv);
 	if (ret == 0) {
 		kref_init(&ppgtt->ref);
-		i915_address_space_init(&ppgtt->base, dev_priv);
+		i915_address_space_init(&ppgtt->base, dev_priv, name);
 		ppgtt->base.file = file_priv;
 	}
 
@@ -2258,7 +2261,8 @@ int i915_ppgtt_init_hw(struct drm_device *dev)
 
 struct i915_hw_ppgtt *
 i915_ppgtt_create(struct drm_i915_private *dev_priv,
-		  struct drm_i915_file_private *fpriv)
+		  struct drm_i915_file_private *fpriv,
+		  const char *name)
 {
 	struct i915_hw_ppgtt *ppgtt;
 	int ret;
@@ -2267,7 +2271,7 @@ i915_ppgtt_create(struct drm_i915_private *dev_priv,
 	if (!ppgtt)
 		return ERR_PTR(-ENOMEM);
 
-	ret = i915_ppgtt_init(ppgtt, dev_priv, fpriv);
+	ret = i915_ppgtt_init(ppgtt, dev_priv, fpriv, name);
 	if (ret) {
 		kfree(ppgtt);
 		return ERR_PTR(ret);
@@ -2290,6 +2294,7 @@ void  i915_ppgtt_release(struct kref *kref)
 	WARN_ON(!list_empty(&ppgtt->base.inactive_list));
 	WARN_ON(!list_empty(&ppgtt->base.unbound_list));
 
+	i915_gem_timeline_fini(&ppgtt->base.timeline);
 	list_del(&ppgtt->base.global_link);
 	drm_mm_takedown(&ppgtt->base.mm);
 
@@ -3232,11 +3237,13 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 	/* Subtract the guard page before address space initialization to
 	 * shrink the range used by drm_mm.
 	 */
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	ggtt->base.total -= PAGE_SIZE;
-	i915_address_space_init(&ggtt->base, dev_priv);
+	i915_address_space_init(&ggtt->base, dev_priv, "[global]");
 	ggtt->base.total += PAGE_SIZE;
 	if (!HAS_LLC(dev_priv))
 		ggtt->base.mm.color_adjust = i915_gtt_color_adjust;
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	if (!io_mapping_init_wc(&dev_priv->ggtt.mappable,
 				dev_priv->ggtt.mappable_base,

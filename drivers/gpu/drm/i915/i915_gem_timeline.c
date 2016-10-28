@@ -48,6 +48,7 @@ int i915_gem_timeline_init(struct drm_i915_private *i915,
 		tl->fence_context = fences++;
 		tl->common = timeline;
 
+		spin_lock_init(&tl->lock);
 		init_request_active(&tl->last_request, NULL);
 		INIT_LIST_HEAD(&tl->requests);
 	}
