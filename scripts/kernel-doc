@@ -204,6 +204,7 @@ EOF
 
 ## init lots of data
 
+
 my $errors = 0;
 my $warnings = 0;
 my $anon_struct_union = 0;
@@ -211,7 +212,7 @@ my $anon_struct_union = 0;
 # match expressions used to find embedded type information
 my $type_constant = '\%([-_\w]+)';
 my $type_func = '(\w+)\(\)';
-my $type_param = '\@(\w+)';
+my $type_param = '\@(\w+(\.\.\.)?)';
 my $type_fp_param = '\@(\w+)\(\)';  # Special RST handling for func ptr params
 my $type_struct = '\&((struct\s*)*[_\w]+)';
 my $type_struct_xml = '\\&amp;((struct\s*)*[_\w]+)';
@@ -2353,7 +2354,10 @@ sub push_parameter($$$) {
 
 	if ($type eq "" && $param =~ /\.\.\.$/)
 	{
-	    $param = "...";
+	    if (!$param =~ /\w\.\.\.$/) {
+	      # handles unnamed variable parameters
+	      $param = "...";
+	    }
 	    if (!defined $parameterdescs{$param} || $parameterdescs{$param} eq "") {
 		$parameterdescs{$param} = "variable arguments";
 	    }
