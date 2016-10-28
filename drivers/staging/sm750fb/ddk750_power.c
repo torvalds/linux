@@ -2,7 +2,7 @@
 #include "ddk750_reg.h"
 #include "ddk750_power.h"
 
-void ddk750_setDPMS(DPMS_t state)
+void ddk750_set_dpms(DPMS_t state)
 {
 	unsigned int value;
 
@@ -17,7 +17,7 @@ void ddk750_setDPMS(DPMS_t state)
 	}
 }
 
-static unsigned int getPowerMode(void)
+static unsigned int get_power_mode(void)
 {
 	if (sm750_get_chip_type() == SM750LE)
 		return 0;
@@ -74,7 +74,7 @@ void set_power_mode(unsigned int powerMode)
 
 void set_current_gate(unsigned int gate)
 {
-	if (getPowerMode() == POWER_MODE_CTRL_MODE_MODE1)
+	if (get_power_mode() == POWER_MODE_CTRL_MODE_MODE1)
 		POKE32(MODE1_GATE, gate);
 	else
 		POKE32(MODE0_GATE, gate);
@@ -85,7 +85,7 @@ void set_current_gate(unsigned int gate)
 /*
  * This function enable/disable the 2D engine.
  */
-void enable2DEngine(unsigned int enable)
+void enable_2d_engine(unsigned int enable)
 {
 	u32 gate;
 
@@ -98,7 +98,7 @@ void enable2DEngine(unsigned int enable)
 	set_current_gate(gate);
 }
 
-void enableDMA(unsigned int enable)
+void enable_dma(unsigned int enable)
 {
 	u32 gate;
 
@@ -115,7 +115,7 @@ void enableDMA(unsigned int enable)
 /*
  * This function enable/disable the GPIO Engine
  */
-void enableGPIO(unsigned int enable)
+void enable_gpio(unsigned int enable)
 {
 	u32 gate;
 
@@ -132,7 +132,7 @@ void enableGPIO(unsigned int enable)
 /*
  * This function enable/disable the I2C Engine
  */
-void enableI2C(unsigned int enable)
+void enable_i2c(unsigned int enable)
 {
 	u32 gate;
 

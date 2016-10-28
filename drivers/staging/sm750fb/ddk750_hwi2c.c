@@ -24,7 +24,7 @@ unsigned char bus_speed_mode
 	 * Enable Hardware I2C power.
 	 * TODO: Check if we need to enable GPIO power?
 	 */
-	enableI2C(1);
+	enable_i2c(1);
 
 	/* Enable the I2C Controller and set the bus speed mode */
 	value = PEEK32(I2C_CTRL) & ~(I2C_CTRL_MODE | I2C_CTRL_EN);
@@ -45,7 +45,7 @@ void sm750_hw_i2c_close(void)
 	POKE32(I2C_CTRL, value);
 
 	/* Disable I2C Power */
-	enableI2C(0);
+	enable_i2c(0);
 
 	/* Set GPIO 30 & 31 back as GPIO pins */
 	value = PEEK32(GPIO_MUX);

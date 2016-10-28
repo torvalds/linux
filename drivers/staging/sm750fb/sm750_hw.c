@@ -479,7 +479,7 @@ void hw_sm750_initAccel(struct sm750_dev *sm750_dev)
 {
 	u32 reg;
 
-	enable2DEngine(1);
+	enable_2d_engine(1);
 
 	if (sm750_get_chip_type() == SM750LE) {
 		reg = PEEK32(DE_STATE1);

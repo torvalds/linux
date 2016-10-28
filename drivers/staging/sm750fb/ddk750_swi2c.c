@@ -428,7 +428,7 @@ long sm750_sw_i2c_init(
 	       PEEK32(sw_i2c_data_gpio_mux_reg) & ~(1 << sw_i2c_data_gpio));
 
 	/* Enable GPIO power */
-	enableGPIO(1);
+	enable_gpio(1);
 
 	/* Clear the i2c lines. */
 	for (i = 0; i < 9; i++)

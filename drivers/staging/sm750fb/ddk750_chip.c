@@ -261,7 +261,7 @@ int ddk750_init_hw(struct initchip_param *pInitParam)
 	}
 
 	if (pInitParam->setAllEngOff == 1) {
-		enable2DEngine(0);
+		enable_2d_engine(0);
 
 		/* Disable Overlay, if a former application left it on */
 		reg = PEEK32(VIDEO_DISPLAY_CTRL);
@@ -284,7 +284,7 @@ int ddk750_init_hw(struct initchip_param *pInitParam)
 		POKE32(DMA_ABORT_INTERRUPT, reg);
 
 		/* Disable DMA Power, if a former application left it on */
-		enableDMA(0);
+		enable_dma(0);
 	}
 
 	/* We can add more initialization as needed. */

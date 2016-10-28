@@ -153,5 +153,5 @@ void ddk750_setLogicalDispOut(disp_output_t output)
 		setDAC((output & DAC_MASK) >> DAC_OFFSET);
 
 	if (output & DPMS_USAGE)
-		ddk750_setDPMS((output & DPMS_MASK) >> DPMS_OFFSET);
+		ddk750_set_dpms((output & DPMS_MASK) >> DPMS_OFFSET);
 }
