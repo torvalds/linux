@@ -1056,8 +1056,7 @@ static struct io_context *rq_ioc(struct bio *bio)
 /**
  * __get_request - get a free request
  * @rl: request list to allocate from
- * @op: REQ_OP_READ/REQ_OP_WRITE
- * @op_flags: rq_flag_bits
+ * @op: operation and flags
  * @bio: bio to allocate request for (can be %NULL)
  * @gfp_mask: allocation mask
  *
@@ -1068,23 +1067,22 @@ static struct io_context *rq_ioc(struct bio *bio)
  * Returns ERR_PTR on failure, with @q->queue_lock held.
  * Returns request pointer on success, with @q->queue_lock *not held*.
  */
-static struct request *__get_request(struct request_list *rl, int op,
-				     int op_flags, struct bio *bio,
-				     gfp_t gfp_mask)
+static struct request *__get_request(struct request_list *rl, unsigned int op,
+		struct bio *bio, gfp_t gfp_mask)
 {
 	struct request_queue *q = rl->q;
 	struct request *rq;
 	struct elevator_type *et = q->elevator->type;
 	struct io_context *ioc = rq_ioc(bio);
 	struct io_cq *icq = NULL;
-	const bool is_sync = rw_is_sync(op, op_flags) != 0;
+	const bool is_sync = op_is_sync(op);
 	int may_queue;
 	req_flags_t rq_flags = RQF_ALLOCED;
 
 	if (unlikely(blk_queue_dying(q)))
 		return ERR_PTR(-ENODEV);
 
-	may_queue = elv_may_queue(q, op, op_flags);
+	may_queue = elv_may_queue(q, op);
 	if (may_queue == ELV_MQUEUE_NO)
 		goto rq_starved;
 
@@ -1154,7 +1152,7 @@ static struct request *__get_request(struct request_list *rl, int op,
 
 	blk_rq_init(q, rq);
 	blk_rq_set_rl(rq, rl);
-	req_set_op_attrs(rq, op, op_flags);
+	rq->cmd_flags = op;
 	rq->rq_flags = rq_flags;
 
 	/* init elvpriv */
@@ -1232,8 +1230,7 @@ rq_starved:
 /**
  * get_request - get a free request
  * @q: request_queue to allocate request from
- * @op: REQ_OP_READ/REQ_OP_WRITE
- * @op_flags: rq_flag_bits
+ * @op: operation and flags
  * @bio: bio to allocate request for (can be %NULL)
  * @gfp_mask: allocation mask
  *
@@ -1244,18 +1241,17 @@ rq_starved:
  * Returns ERR_PTR on failure, with @q->queue_lock held.
  * Returns request pointer on success, with @q->queue_lock *not held*.
  */
-static struct request *get_request(struct request_queue *q, int op,
-				   int op_flags, struct bio *bio,
-				   gfp_t gfp_mask)
+static struct request *get_request(struct request_queue *q, unsigned int op,
+		struct bio *bio, gfp_t gfp_mask)
 {
-	const bool is_sync = rw_is_sync(op, op_flags) != 0;
+	const bool is_sync = op_is_sync(op);
 	DEFINE_WAIT(wait);
 	struct request_list *rl;
 	struct request *rq;
 
 	rl = blk_get_rl(q, bio);	/* transferred to @rq on success */
 retry:
-	rq = __get_request(rl, op, op_flags, bio, gfp_mask);
+	rq = __get_request(rl, op, bio, gfp_mask);
 	if (!IS_ERR(rq))
 		return rq;
 
@@ -1297,7 +1293,7 @@ static struct request *blk_old_get_request(struct request_queue *q, int rw,
 	create_io_context(gfp_mask, q->node);
 
 	spin_lock_irq(q->queue_lock);
-	rq = get_request(q, rw, 0, NULL, gfp_mask);
+	rq = get_request(q, rw, NULL, gfp_mask);
 	if (IS_ERR(rq)) {
 		spin_unlock_irq(q->queue_lock);
 		return rq;
@@ -1446,7 +1442,7 @@ void __blk_put_request(struct request_queue *q, struct request *req)
 	 */
 	if (rq_flags & RQF_ALLOCED) {
 		struct request_list *rl = blk_rq_rl(req);
-		bool sync = rw_is_sync(req_op(req), req->cmd_flags);
+		bool sync = op_is_sync(req->cmd_flags);
 
 		BUG_ON(!list_empty(&req->queuelist));
 		BUG_ON(ELV_ON_HASH(req));
@@ -1652,8 +1648,6 @@ out:
 void init_request_from_bio(struct request *req, struct bio *bio)
 {
 	req->cmd_type = REQ_TYPE_FS;
-
-	req->cmd_flags |= bio->bi_opf & REQ_COMMON_MASK;
 	if (bio->bi_opf & REQ_RAHEAD)
 		req->cmd_flags |= REQ_FAILFAST_MASK;
 
@@ -1665,9 +1659,8 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 
 static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 {
-	const bool sync = !!(bio->bi_opf & REQ_SYNC);
 	struct blk_plug *plug;
-	int el_ret, rw_flags = 0, where = ELEVATOR_INSERT_SORT;
+	int el_ret, where = ELEVATOR_INSERT_SORT;
 	struct request *req;
 	unsigned int request_count = 0;
 
@@ -1723,23 +1716,10 @@ static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 
 get_rq:
 	/*
-	 * This sync check and mask will be re-done in init_request_from_bio(),
-	 * but we need to set it earlier to expose the sync flag to the
-	 * rq allocator and io schedulers.
-	 */
-	if (sync)
-		rw_flags |= REQ_SYNC;
-
-	/*
-	 * Add in META/PRIO flags, if set, before we get to the IO scheduler
-	 */
-	rw_flags |= (bio->bi_opf & (REQ_META | REQ_PRIO));
-
-	/*
 	 * Grab a free request. This is might sleep but can not fail.
 	 * Returns with the queue unlocked.
 	 */
-	req = get_request(q, bio_data_dir(bio), rw_flags, bio, GFP_NOIO);
+	req = get_request(q, bio->bi_opf, bio, GFP_NOIO);
 	if (IS_ERR(req)) {
 		bio->bi_error = PTR_ERR(req);
 		bio_endio(bio);
@@ -2946,8 +2926,6 @@ EXPORT_SYMBOL_GPL(__blk_end_request_err);
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 		     struct bio *bio)
 {
-	req_set_op(rq, bio_op(bio));
-
 	if (bio_has_data(bio))
 		rq->nr_phys_segments = bio_phys_segments(q, bio);
 
@@ -3031,8 +3009,7 @@ EXPORT_SYMBOL_GPL(blk_rq_unprep_clone);
 static void __blk_rq_prep_clone(struct request *dst, struct request *src)
 {
 	dst->cpu = src->cpu;
-	req_set_op_attrs(dst, req_op(src),
-			 (src->cmd_flags & REQ_CLONE_MASK) | REQ_NOMERGE);
+	dst->cmd_flags = src->cmd_flags | REQ_NOMERGE;
 	dst->cmd_type = src->cmd_type;
 	dst->__sector = blk_rq_pos(src);
 	dst->__data_len = blk_rq_bytes(src);
@@ -3537,8 +3514,11 @@ EXPORT_SYMBOL(blk_set_runtime_active);
 
 int __init blk_dev_init(void)
 {
-	BUILD_BUG_ON(__REQ_NR_BITS > 8 *
+	BUILD_BUG_ON(REQ_OP_LAST >= (1 << REQ_OP_BITS));
+	BUILD_BUG_ON(REQ_OP_BITS + REQ_FLAG_BITS > 8 *
 			FIELD_SIZEOF(struct request, cmd_flags));
+	BUILD_BUG_ON(REQ_OP_BITS + REQ_FLAG_BITS > 8 *
+			FIELD_SIZEOF(struct bio, bi_opf));
 
 	/* used for unplugging and affects IO latency/throughput - HIGHPRI */
 	kblockd_workqueue = alloc_workqueue("kblockd",

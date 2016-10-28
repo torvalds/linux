@@ -714,12 +714,12 @@ void elv_put_request(struct request_queue *q, struct request *rq)
 		e->type->ops.elevator_put_req_fn(rq);
 }
 
-int elv_may_queue(struct request_queue *q, int op, int op_flags)
+int elv_may_queue(struct request_queue *q, unsigned int op)
 {
 	struct elevator_queue *e = q->elevator;
 
 	if (e->type->ops.elevator_may_queue_fn)
-		return e->type->ops.elevator_may_queue_fn(q, op, op_flags);
+		return e->type->ops.elevator_may_queue_fn(q, op);
 
 	return ELV_MQUEUE_MAY;
 }

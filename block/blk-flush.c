@@ -330,7 +330,7 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 	}
 
 	flush_rq->cmd_type = REQ_TYPE_FS;
-	req_set_op_attrs(flush_rq, REQ_OP_FLUSH, WRITE_FLUSH);
+	flush_rq->cmd_flags = REQ_OP_FLUSH | WRITE_FLUSH;
 	flush_rq->rq_flags |= RQF_FLUSH_SEQ;
 	flush_rq->rq_disk = first_rq->rq_disk;
 	flush_rq->end_io = flush_end_io;

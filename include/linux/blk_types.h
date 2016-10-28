@@ -88,24 +88,6 @@ struct bio {
 	struct bio_vec		bi_inline_vecs[0];
 };
 
-#define BIO_OP_SHIFT	(8 * FIELD_SIZEOF(struct bio, bi_opf) - REQ_OP_BITS)
-#define bio_flags(bio)	((bio)->bi_opf & ((1 << BIO_OP_SHIFT) - 1))
-#define bio_op(bio)	((bio)->bi_opf >> BIO_OP_SHIFT)
-
-#define bio_set_op_attrs(bio, op, op_flags) do {			\
-	if (__builtin_constant_p(op))					\
-		BUILD_BUG_ON((op) + 0U >= (1U << REQ_OP_BITS));		\
-	else								\
-		WARN_ON_ONCE((op) + 0U >= (1U << REQ_OP_BITS));		\
-	if (__builtin_constant_p(op_flags))				\
-		BUILD_BUG_ON((op_flags) + 0U >= (1U << BIO_OP_SHIFT));	\
-	else								\
-		WARN_ON_ONCE((op_flags) + 0U >= (1U << BIO_OP_SHIFT));	\
-	(bio)->bi_opf = bio_flags(bio);					\
-	(bio)->bi_opf |= (((op) + 0U) << BIO_OP_SHIFT);			\
-	(bio)->bi_opf |= (op_flags);					\
-} while (0)
-
 #define BIO_RESET_BYTES		offsetof(struct bio, bi_max_vecs)
 
 /*
@@ -147,26 +129,40 @@ struct bio {
 #endif /* CONFIG_BLOCK */
 
 /*
- * Request flags.  For use in the cmd_flags field of struct request, and in
- * bi_opf of struct bio.  Note that some flags are only valid in either one.
+ * Operations and flags common to the bio and request structures.
+ * We use 8 bits for encoding the operation, and the remaining 24 for flags.
  */
-enum rq_flag_bits {
-	/* common flags */
-	__REQ_FAILFAST_DEV,	/* no driver retries of device errors */
+#define REQ_OP_BITS	8
+#define REQ_OP_MASK	((1 << REQ_OP_BITS) - 1)
+#define REQ_FLAG_BITS	24
+
+enum req_opf {
+	REQ_OP_READ,
+	REQ_OP_WRITE,
+	REQ_OP_DISCARD,		/* request to discard sectors */
+	REQ_OP_SECURE_ERASE,	/* request to securely erase sectors */
+	REQ_OP_WRITE_SAME,	/* write same block many times */
+	REQ_OP_FLUSH,		/* request for cache flush */
+	REQ_OP_ZONE_REPORT,	/* Get zone information */
+	REQ_OP_ZONE_RESET,	/* Reset a zone write pointer */
+
+	REQ_OP_LAST,
+};
+
+enum req_flag_bits {
+	__REQ_FAILFAST_DEV =	/* no driver retries of device errors */
+		REQ_OP_BITS,
 	__REQ_FAILFAST_TRANSPORT, /* no driver retries of transport errors */
 	__REQ_FAILFAST_DRIVER,	/* no driver retries of driver errors */
-
 	__REQ_SYNC,		/* request is sync (sync write or read) */
 	__REQ_META,		/* metadata io request */
 	__REQ_PRIO,		/* boost priority in cfq */
-
 	__REQ_NOMERGE,		/* don't touch this for merging */
 	__REQ_NOIDLE,		/* don't anticipate more IO after this one */
 	__REQ_INTEGRITY,	/* I/O includes block integrity payload */
 	__REQ_FUA,		/* forced unit access */
 	__REQ_PREFLUSH,		/* request for cache flush */
 	__REQ_RAHEAD,		/* read ahead, can fail anytime */
-
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -176,37 +172,32 @@ enum rq_flag_bits {
 #define REQ_SYNC		(1ULL << __REQ_SYNC)
 #define REQ_META		(1ULL << __REQ_META)
 #define REQ_PRIO		(1ULL << __REQ_PRIO)
+#define REQ_NOMERGE		(1ULL << __REQ_NOMERGE)
 #define REQ_NOIDLE		(1ULL << __REQ_NOIDLE)
 #define REQ_INTEGRITY		(1ULL << __REQ_INTEGRITY)
+#define REQ_FUA			(1ULL << __REQ_FUA)
+#define REQ_PREFLUSH		(1ULL << __REQ_PREFLUSH)
+#define REQ_RAHEAD		(1ULL << __REQ_RAHEAD)
 
 #define REQ_FAILFAST_MASK \
 	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER)
-#define REQ_COMMON_MASK \
-	(REQ_FAILFAST_MASK | REQ_SYNC | REQ_META | REQ_PRIO | REQ_NOIDLE | \
-	 REQ_PREFLUSH | REQ_FUA | REQ_INTEGRITY | REQ_NOMERGE | REQ_RAHEAD)
-#define REQ_CLONE_MASK		REQ_COMMON_MASK
 
-/* This mask is used for both bio and request merge checking */
 #define REQ_NOMERGE_FLAGS \
 	(REQ_NOMERGE | REQ_PREFLUSH | REQ_FUA)
 
-#define REQ_RAHEAD		(1ULL << __REQ_RAHEAD)
-#define REQ_FUA			(1ULL << __REQ_FUA)
-#define REQ_NOMERGE		(1ULL << __REQ_NOMERGE)
-#define REQ_PREFLUSH		(1ULL << __REQ_PREFLUSH)
+#define bio_op(bio) \
+	((bio)->bi_opf & REQ_OP_MASK)
+#define req_op(req) \
+	((req)->cmd_flags & REQ_OP_MASK)
 
-enum req_op {
-	REQ_OP_READ,
-	REQ_OP_WRITE,
-	REQ_OP_DISCARD,		/* request to discard sectors */
-	REQ_OP_SECURE_ERASE,	/* request to securely erase sectors */
-	REQ_OP_WRITE_SAME,	/* write same block many times */
-	REQ_OP_FLUSH,		/* request for cache flush */
-	REQ_OP_ZONE_REPORT,	/* Get zone information */
-	REQ_OP_ZONE_RESET,	/* Reset a zone write pointer */
-};
+/* obsolete, don't use in new code */
+#define bio_set_op_attrs(bio, op, op_flags) \
+	((bio)->bi_opf |= (op | op_flags))
 
-#define REQ_OP_BITS 3
+static inline bool op_is_sync(unsigned int op)
+{
+	return (op & REQ_OP_MASK) == REQ_OP_READ || (op & REQ_SYNC);
+}
 
 typedef unsigned int blk_qc_t;
 #define BLK_QC_T_NONE	-1U

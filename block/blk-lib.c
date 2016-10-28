@@ -29,7 +29,7 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	struct request_queue *q = bdev_get_queue(bdev);
 	struct bio *bio = *biop;
 	unsigned int granularity;
-	enum req_op op;
+	unsigned int op;
 	int alignment;
 	sector_t bs_mask;
 

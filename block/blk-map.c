@@ -16,6 +16,8 @@
 int blk_rq_append_bio(struct request *rq, struct bio *bio)
 {
 	if (!rq->bio) {
+		rq->cmd_flags &= REQ_OP_MASK;
+		rq->cmd_flags |= (bio->bi_opf & REQ_OP_MASK);
 		blk_rq_bio_prep(rq->q, rq, bio);
 	} else {
 		if (!ll_back_merge_fn(rq->q, rq, bio))
