@@ -378,3 +378,17 @@ ENTRY(pci_sun4v_iotsb_conf)
 	retl
 	 stx	%o1, [%g1]
 ENDPROC(pci_sun4v_iotsb_conf)
+
+	/*
+	 * %o0:	devhandle
+	 * %o1:	iotsb_num/iotsb_handle
+	 * %o2:	pci_device
+	 *
+	 * returns %o0:	status
+	 */
+ENTRY(pci_sun4v_iotsb_bind)
+	mov	HV_FAST_PCI_IOTSB_BIND, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+ENDPROC(pci_sun4v_iotsb_bind)
