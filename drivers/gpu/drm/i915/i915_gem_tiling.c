@@ -259,6 +259,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		if (!err) {
 			struct i915_vma *vma;
 
+			mutex_lock(&obj->mm.lock);
 			if (obj->mm.pages &&
 			    obj->mm.madv == I915_MADV_WILLNEED &&
 			    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
@@ -267,6 +268,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 				if (!i915_gem_object_is_tiled(obj))
 					__i915_gem_object_pin_pages(obj);
 			}
+			mutex_unlock(&obj->mm.lock);
 
 			list_for_each_entry(vma, &obj->vma_list, obj_link) {
 				if (!vma->fence)

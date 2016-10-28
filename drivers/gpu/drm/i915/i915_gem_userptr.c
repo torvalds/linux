@@ -79,7 +79,7 @@ static void cancel_userptr(struct work_struct *work)
 	WARN_ONCE(obj->mm.pages,
 		  "Failed to release pages: bind_count=%d, pages_pin_count=%d, pin_display=%d\n",
 		  obj->bind_count,
-		  obj->mm.pages_pin_count,
+		  atomic_read(&obj->mm.pages_pin_count),
 		  obj->pin_display);
 
 	i915_gem_object_put(obj);
@@ -491,7 +491,6 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 {
 	struct get_pages_work *work = container_of(_work, typeof(*work), work);
 	struct drm_i915_gem_object *obj = work->obj;
-	struct drm_device *dev = obj->base.dev;
 	const int npages = obj->base.size >> PAGE_SHIFT;
 	struct page **pvec;
 	int pinned, ret;
@@ -527,7 +526,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 		}
 	}
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&obj->mm.lock);
 	if (obj->userptr.work == &work->work) {
 		struct sg_table *pages = ERR_PTR(ret);
 
@@ -542,13 +541,12 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 
 		obj->userptr.work = ERR_CAST(pages);
 	}
-
-	i915_gem_object_put(obj);
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&obj->mm.lock);
 
 	release_pages(pvec, pinned, 0);
 	drm_free_large(pvec);
 
+	i915_gem_object_put_unlocked(obj);
 	put_task_struct(work->task);
 	kfree(work);
 }

@@ -2274,7 +2274,8 @@ struct drm_i915_gem_object {
 	unsigned int pin_display;
 
 	struct {
-		unsigned int pages_pin_count;
+		struct mutex lock; /* protects the pages and their use */
+		atomic_t pages_pin_count;
 
 		struct sg_table *pages;
 		void *mapping;
@@ -2386,13 +2387,6 @@ i915_gem_object_is_dead(const struct drm_i915_gem_object *obj)
 {
 	return atomic_read(&obj->base.refcount.refcount) == 0;
 }
-
-#if IS_ENABLED(CONFIG_LOCKDEP)
-#define lockdep_assert_held_unless(lock, cond) \
-	GEM_BUG_ON(debug_locks && !lockdep_is_held(lock) && !(cond))
-#else
-#define lockdep_assert_held_unless(lock, cond)
-#endif
 
 static inline bool
 i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
@@ -3229,9 +3223,9 @@ int __i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 static inline int __must_check
 i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	might_lock(&obj->mm.lock);
 
-	if (obj->mm.pages_pin_count++)
+	if (atomic_inc_not_zero(&obj->mm.pages_pin_count))
 		return 0;
 
 	return __i915_gem_object_get_pages(obj);
@@ -3240,32 +3234,29 @@ i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 static inline void
 __i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {
-	lockdep_assert_held_unless(&obj->base.dev->struct_mutex,
-				   i915_gem_object_is_dead(obj));
 	GEM_BUG_ON(!obj->mm.pages);
 
-	obj->mm.pages_pin_count++;
+	atomic_inc(&obj->mm.pages_pin_count);
 }
 
 static inline bool
 i915_gem_object_has_pinned_pages(struct drm_i915_gem_object *obj)
 {
-	return obj->mm.pages_pin_count;
+	return atomic_read(&obj->mm.pages_pin_count);
 }
 
 static inline void
 __i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 {
-	lockdep_assert_held_unless(&obj->base.dev->struct_mutex,
-				   i915_gem_object_is_dead(obj));
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
 	GEM_BUG_ON(!obj->mm.pages);
 
-	obj->mm.pages_pin_count--;
-	GEM_BUG_ON(obj->mm.pages_pin_count < obj->bind_count);
+	atomic_dec(&obj->mm.pages_pin_count);
+	GEM_BUG_ON(atomic_read(&obj->mm.pages_pin_count) < obj->bind_count);
 }
 
-static inline void i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
+static inline void
+i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 {
 	__i915_gem_object_unpin_pages(obj);
 }
@@ -3288,8 +3279,8 @@ enum i915_map_type {
  * the kernel address space. Based on the @type of mapping, the PTE will be
  * set to either WriteBack or WriteCombine (via pgprot_t).
  *
- * The caller must hold the struct_mutex, and is responsible for calling
- * i915_gem_object_unpin_map() when the mapping is no longer required.
+ * The caller is responsible for calling i915_gem_object_unpin_map() when the
+ * mapping is no longer required.
  *
  * Returns the pointer through which to access the mapped object, or an
  * ERR_PTR() on error.
@@ -3305,12 +3296,9 @@ void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
  * with your access, call i915_gem_object_unpin_map() to release the pin
  * upon the mapping. Once the pin count reaches zero, that mapping may be
  * removed.
- *
- * The caller must hold the struct_mutex.
  */
 static inline void i915_gem_object_unpin_map(struct drm_i915_gem_object *obj)
 {
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
 	i915_gem_object_unpin_pages(obj);
 }
 
