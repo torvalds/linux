@@ -783,6 +783,20 @@ mutex_lock_interruptible_nested(struct mutex *lock, unsigned int subclass)
 }
 EXPORT_SYMBOL_GPL(mutex_lock_interruptible_nested);
 
+void __sched
+mutex_lock_io_nested(struct mutex *lock, unsigned int subclass)
+{
+	int token;
+
+	might_sleep();
+
+	token = io_schedule_prepare();
+	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE,
+			    subclass, NULL, _RET_IP_, NULL, 0);
+	io_schedule_finish(token);
+}
+EXPORT_SYMBOL_GPL(mutex_lock_io_nested);
+
 static inline int
 ww_mutex_deadlock_injection(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {
@@ -949,6 +963,16 @@ int __sched mutex_lock_killable(struct mutex *lock)
 	return __mutex_lock_killable_slowpath(lock);
 }
 EXPORT_SYMBOL(mutex_lock_killable);
+
+void __sched mutex_lock_io(struct mutex *lock)
+{
+	int token;
+
+	token = io_schedule_prepare();
+	mutex_lock(lock);
+	io_schedule_finish(token);
+}
+EXPORT_SYMBOL_GPL(mutex_lock_io);
 
 static noinline void __sched
 __mutex_lock_slowpath(struct mutex *lock)
