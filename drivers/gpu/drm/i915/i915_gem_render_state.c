@@ -187,7 +187,7 @@ int i915_gem_render_state_init(struct drm_i915_gem_request *req)
 	if (so.rodata->batch_items * 4 > 4096)
 		return -EINVAL;
 
-	obj = i915_gem_object_create(&req->i915->drm, 4096);
+	obj = i915_gem_object_create_internal(req->i915, 4096);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 

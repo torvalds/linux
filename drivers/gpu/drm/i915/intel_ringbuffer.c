@@ -1782,9 +1782,10 @@ static int init_status_page(struct intel_engine_cs *engine)
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	unsigned int flags;
+	void *vaddr;
 	int ret;
 
-	obj = i915_gem_object_create(&engine->i915->drm, 4096);
+	obj = i915_gem_object_create_internal(engine->i915, 4096);
 	if (IS_ERR(obj)) {
 		DRM_ERROR("Failed to allocate status page\n");
 		return PTR_ERR(obj);
@@ -1817,15 +1818,22 @@ static int init_status_page(struct intel_engine_cs *engine)
 	if (ret)
 		goto err;
 
+	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WB);
+	if (IS_ERR(vaddr)) {
+		ret = PTR_ERR(vaddr);
+		goto err_unpin;
+	}
+
 	engine->status_page.vma = vma;
 	engine->status_page.ggtt_offset = i915_ggtt_offset(vma);
-	engine->status_page.page_addr =
-		i915_gem_object_pin_map(obj, I915_MAP_WB);
+	engine->status_page.page_addr = memset(vaddr, 0, 4096);
 
 	DRM_DEBUG_DRIVER("%s hws offset: 0x%08x\n",
 			 engine->name, i915_ggtt_offset(vma));
 	return 0;
 
+err_unpin:
+	i915_vma_unpin(vma);
 err:
 	i915_gem_object_put(obj);
 	return ret;

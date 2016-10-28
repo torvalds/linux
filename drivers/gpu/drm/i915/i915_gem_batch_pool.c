@@ -97,9 +97,9 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 			size_t size)
 {
 	struct drm_i915_gem_object *obj = NULL;
-	struct drm_i915_gem_object *tmp, *next;
+	struct drm_i915_gem_object *tmp;
 	struct list_head *list;
-	int n;
+	int n, ret;
 
 	lockdep_assert_held(&pool->engine->i915->drm.struct_mutex);
 
@@ -112,18 +112,11 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 		n = ARRAY_SIZE(pool->cache_list) - 1;
 	list = &pool->cache_list[n];
 
-	list_for_each_entry_safe(tmp, next, list, batch_pool_link) {
+	list_for_each_entry(tmp, list, batch_pool_link) {
 		/* The batches are strictly LRU ordered */
 		if (!i915_gem_active_is_idle(&tmp->last_read[pool->engine->id],
 					     &tmp->base.dev->struct_mutex))
 			break;
-
-		/* While we're looping, do some clean up */
-		if (tmp->madv == __I915_MADV_PURGED) {
-			list_del(&tmp->batch_pool_link);
-			i915_gem_object_put(tmp);
-			continue;
-		}
 
 		if (tmp->base.size >= size) {
 			obj = tmp;
@@ -132,18 +125,14 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 	}
 
 	if (obj == NULL) {
-		int ret;
-
-		obj = i915_gem_object_create(&pool->engine->i915->drm, size);
+		obj = i915_gem_object_create_internal(pool->engine->i915, size);
 		if (IS_ERR(obj))
 			return obj;
-
-		ret = i915_gem_object_get_pages(obj);
-		if (ret)
-			return ERR_PTR(ret);
-
-		obj->madv = I915_MADV_DONTNEED;
 	}
+
+	ret = i915_gem_object_get_pages(obj);
+	if (ret)
+		return ERR_PTR(ret);
 
 	list_move_tail(&obj->batch_pool_link, list);
 	i915_gem_object_pin_pages(obj);
