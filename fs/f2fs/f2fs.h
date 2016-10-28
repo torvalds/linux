@@ -1159,13 +1159,6 @@ static inline void clear_ckpt_flags(struct f2fs_sb_info *sbi, unsigned int f)
 	spin_unlock(&sbi->cp_lock);
 }
 
-static inline bool f2fs_discard_en(struct f2fs_sb_info *sbi)
-{
-	struct request_queue *q = bdev_get_queue(sbi->sb->s_bdev);
-
-	return blk_queue_discard(q);
-}
-
 static inline void f2fs_lock_op(struct f2fs_sb_info *sbi)
 {
 	down_read(&sbi->cp_rwsem);
@@ -2473,6 +2466,13 @@ static inline int f2fs_sb_has_crypto(struct super_block *sb)
 static inline int f2fs_sb_mounted_blkzoned(struct super_block *sb)
 {
 	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_BLKZONED);
+}
+
+static inline bool f2fs_discard_en(struct f2fs_sb_info *sbi)
+{
+	struct request_queue *q = bdev_get_queue(sbi->sb->s_bdev);
+
+	return blk_queue_discard(q) || f2fs_sb_mounted_blkzoned(sbi->sb);
 }
 
 static inline void set_opt_mode(struct f2fs_sb_info *sbi, unsigned int mt)
