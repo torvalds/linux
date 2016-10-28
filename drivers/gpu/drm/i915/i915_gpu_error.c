@@ -415,17 +415,13 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	if (INTEL_GEN(m->i915) >= 6) {
 		err_printf(m, "  RC PSMI: 0x%08x\n", ee->rc_psmi);
 		err_printf(m, "  FAULT_REG: 0x%08x\n", ee->fault_reg);
-		err_printf(m, "  SYNC_0: 0x%08x [last synced 0x%08x]\n",
-			   ee->semaphore_mboxes[0],
-			   ee->semaphore_seqno[0]);
-		err_printf(m, "  SYNC_1: 0x%08x [last synced 0x%08x]\n",
-			   ee->semaphore_mboxes[1],
-			   ee->semaphore_seqno[1]);
-		if (HAS_VEBOX(m->i915)) {
-			err_printf(m, "  SYNC_2: 0x%08x [last synced 0x%08x]\n",
-				   ee->semaphore_mboxes[2],
-				   ee->semaphore_seqno[2]);
-		}
+		err_printf(m, "  SYNC_0: 0x%08x\n",
+			   ee->semaphore_mboxes[0]);
+		err_printf(m, "  SYNC_1: 0x%08x\n",
+			   ee->semaphore_mboxes[1]);
+		if (HAS_VEBOX(m->i915))
+			err_printf(m, "  SYNC_2: 0x%08x\n",
+				   ee->semaphore_mboxes[2]);
 	}
 	if (USES_PPGTT(m->i915)) {
 		err_printf(m, "  GFX_MODE: 0x%08x\n", ee->vm_info.gfx_mode);
@@ -972,6 +968,26 @@ static void i915_gem_record_fences(struct drm_i915_private *dev_priv,
 	}
 }
 
+static inline u32
+gen8_engine_sync_index(struct intel_engine_cs *engine,
+		       struct intel_engine_cs *other)
+{
+	int idx;
+
+	/*
+	 * rcs -> 0 = vcs, 1 = bcs, 2 = vecs, 3 = vcs2;
+	 * vcs -> 0 = bcs, 1 = vecs, 2 = vcs2, 3 = rcs;
+	 * bcs -> 0 = vecs, 1 = vcs2. 2 = rcs, 3 = vcs;
+	 * vecs -> 0 = vcs2, 1 = rcs, 2 = vcs, 3 = bcs;
+	 * vcs2 -> 0 = rcs, 1 = vcs, 2 = bcs, 3 = vecs;
+	 */
+
+	idx = (other - engine) - 1;
+	if (idx < 0)
+		idx += I915_NUM_ENGINES;
+
+	return idx;
+}
 
 static void gen8_record_semaphore_state(struct drm_i915_error_state *error,
 					struct intel_engine_cs *engine,
@@ -995,10 +1011,9 @@ static void gen8_record_semaphore_state(struct drm_i915_error_state *error,
 		signal_offset =
 			(GEN8_SIGNAL_OFFSET(engine, id) & (PAGE_SIZE - 1)) / 4;
 		tmp = error->semaphore->pages[0];
-		idx = intel_engine_sync_index(engine, to);
+		idx = gen8_engine_sync_index(engine, to);
 
 		ee->semaphore_mboxes[idx] = tmp[signal_offset];
-		ee->semaphore_seqno[idx] = engine->semaphore.sync_seqno[idx];
 	}
 }
 
@@ -1009,14 +1024,9 @@ static void gen6_record_semaphore_state(struct intel_engine_cs *engine,
 
 	ee->semaphore_mboxes[0] = I915_READ(RING_SYNC_0(engine->mmio_base));
 	ee->semaphore_mboxes[1] = I915_READ(RING_SYNC_1(engine->mmio_base));
-	ee->semaphore_seqno[0] = engine->semaphore.sync_seqno[0];
-	ee->semaphore_seqno[1] = engine->semaphore.sync_seqno[1];
-
-	if (HAS_VEBOX(dev_priv)) {
+	if (HAS_VEBOX(dev_priv))
 		ee->semaphore_mboxes[2] =
 			I915_READ(RING_SYNC_2(engine->mmio_base));
-		ee->semaphore_seqno[2] = engine->semaphore.sync_seqno[2];
-	}
 }
 
 static void error_record_engine_waiters(struct intel_engine_cs *engine,

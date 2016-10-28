@@ -802,7 +802,6 @@ struct drm_i915_error_state {
 		u32 cpu_ring_tail;
 
 		u32 last_seqno;
-		u32 semaphore_seqno[I915_NUM_ENGINES - 1];
 
 		/* Register state */
 		u32 start;

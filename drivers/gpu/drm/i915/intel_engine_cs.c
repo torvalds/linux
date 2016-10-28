@@ -204,8 +204,6 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 				       I915_NUM_ENGINES * gen8_semaphore_seqno_size);
 		kunmap(page);
 	}
-	memset(engine->semaphore.sync_seqno, 0,
-	       sizeof(engine->semaphore.sync_seqno));
 
 	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
 	if (engine->irq_seqno_barrier)

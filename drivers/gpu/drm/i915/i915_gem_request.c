@@ -238,34 +238,40 @@ static int i915_gem_check_wedge(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-static int i915_gem_init_global_seqno(struct drm_i915_private *dev_priv,
-				      u32 seqno)
+static int i915_gem_init_global_seqno(struct drm_i915_private *i915, u32 seqno)
 {
-	struct i915_gem_timeline *timeline = &dev_priv->gt.global_timeline;
+	struct i915_gem_timeline *timeline = &i915->gt.global_timeline;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int ret;
 
 	/* Carefully retire all requests without writing to the rings */
-	ret = i915_gem_wait_for_idle(dev_priv,
+	ret = i915_gem_wait_for_idle(i915,
 				     I915_WAIT_INTERRUPTIBLE |
 				     I915_WAIT_LOCKED);
 	if (ret)
 		return ret;
 
-	i915_gem_retire_requests(dev_priv);
+	i915_gem_retire_requests(i915);
 
 	/* If the seqno wraps around, we need to clear the breadcrumb rbtree */
 	if (!i915_seqno_passed(seqno, timeline->next_seqno)) {
-		while (intel_kick_waiters(dev_priv) ||
-		       intel_kick_signalers(dev_priv))
+		while (intel_kick_waiters(i915) || intel_kick_signalers(i915))
 			yield();
 		yield();
 	}
 
 	/* Finally reset hw state */
-	for_each_engine(engine, dev_priv, id)
+	for_each_engine(engine, i915, id)
 		intel_engine_init_global_seqno(engine, seqno);
+
+	list_for_each_entry(timeline, &i915->gt.timelines, link) {
+		for_each_engine(engine, i915, id) {
+			struct intel_timeline *tl = &timeline->engine[id];
+
+			memset(tl->sync_seqno, 0, sizeof(tl->sync_seqno));
+		}
+	}
 
 	return 0;
 }
@@ -462,7 +468,7 @@ static int
 i915_gem_request_await_request(struct drm_i915_gem_request *to,
 			       struct drm_i915_gem_request *from)
 {
-	int idx, ret;
+	int ret;
 
 	GEM_BUG_ON(to == from);
 
@@ -483,8 +489,7 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 		return ret < 0 ? ret : 0;
 	}
 
-	idx = intel_engine_sync_index(from->engine, to->engine);
-	if (from->global_seqno <= from->engine->semaphore.sync_seqno[idx])
+	if (from->global_seqno <= to->timeline->sync_seqno[from->engine->id])
 		return 0;
 
 	trace_i915_gem_ring_sync_to(to, from);
@@ -502,7 +507,7 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 			return ret;
 	}
 
-	from->engine->semaphore.sync_seqno[idx] = from->global_seqno;
+	to->timeline->sync_seqno[from->engine->id] = from->global_seqno;
 	return 0;
 }
 

@@ -48,6 +48,7 @@ struct intel_timeline {
 	 * struct_mutex.
 	 */
 	struct i915_gem_active last_request;
+	u32 sync_seqno[I915_NUM_ENGINES];
 
 	struct i915_gem_timeline *common;
 };

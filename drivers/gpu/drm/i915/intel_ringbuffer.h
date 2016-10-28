@@ -314,8 +314,6 @@ struct intel_engine_cs {
 	 *  ie. transpose of f(x, y)
 	 */
 	struct {
-		u32	sync_seqno[I915_NUM_ENGINES-1];
-
 		union {
 #define GEN6_SEMAPHORE_LAST	VECS_HW
 #define GEN6_NUM_SEMAPHORES	(GEN6_SEMAPHORE_LAST + 1)
@@ -383,27 +381,6 @@ static inline unsigned
 intel_engine_flag(const struct intel_engine_cs *engine)
 {
 	return 1 << engine->id;
-}
-
-static inline u32
-intel_engine_sync_index(struct intel_engine_cs *engine,
-			struct intel_engine_cs *other)
-{
-	int idx;
-
-	/*
-	 * rcs -> 0 = vcs, 1 = bcs, 2 = vecs, 3 = vcs2;
-	 * vcs -> 0 = bcs, 1 = vecs, 2 = vcs2, 3 = rcs;
-	 * bcs -> 0 = vecs, 1 = vcs2. 2 = rcs, 3 = vcs;
-	 * vecs -> 0 = vcs2, 1 = rcs, 2 = vcs, 3 = bcs;
-	 * vcs2 -> 0 = rcs, 1 = vcs, 2 = bcs, 3 = vecs;
-	 */
-
-	idx = (other->id - engine->id) - 1;
-	if (idx < 0)
-		idx += I915_NUM_ENGINES;
-
-	return idx;
 }
 
 static inline void

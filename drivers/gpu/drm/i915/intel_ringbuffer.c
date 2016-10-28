@@ -2003,9 +2003,6 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 
 	intel_engine_setup_common(engine);
 
-	memset(engine->semaphore.sync_seqno, 0,
-	       sizeof(engine->semaphore.sync_seqno));
-
 	ret = intel_engine_init_common(engine);
 	if (ret)
 		goto error;
