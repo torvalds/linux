@@ -3584,35 +3584,47 @@ intel_partial_pages(const struct i915_ggtt_view *view,
 		    struct drm_i915_gem_object *obj)
 {
 	struct sg_table *st;
-	struct scatterlist *sg;
-	struct sg_page_iter obj_sg_iter;
+	struct scatterlist *sg, *iter;
+	unsigned int count = view->params.partial.size;
+	unsigned int offset;
 	int ret = -ENOMEM;
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
 		goto err_st_alloc;
 
-	ret = sg_alloc_table(st, view->params.partial.size, GFP_KERNEL);
+	ret = sg_alloc_table(st, count, GFP_KERNEL);
 	if (ret)
 		goto err_sg_alloc;
 
+	iter = i915_gem_object_get_sg(obj,
+				      view->params.partial.offset,
+				      &offset);
+	GEM_BUG_ON(!iter);
+
 	sg = st->sgl;
 	st->nents = 0;
-	for_each_sg_page(obj->pages->sgl, &obj_sg_iter, obj->pages->nents,
-		view->params.partial.offset)
-	{
-		if (st->nents >= view->params.partial.size)
-			break;
+	do {
+		unsigned int len;
 
-		sg_set_page(sg, NULL, PAGE_SIZE, 0);
-		sg_dma_address(sg) = sg_page_iter_dma_address(&obj_sg_iter);
-		sg_dma_len(sg) = PAGE_SIZE;
+		len = min(iter->length - (offset << PAGE_SHIFT),
+			  count << PAGE_SHIFT);
+		sg_set_page(sg, NULL, len, 0);
+		sg_dma_address(sg) =
+			sg_dma_address(iter) + (offset << PAGE_SHIFT);
+		sg_dma_len(sg) = len;
 
-		sg = sg_next(sg);
 		st->nents++;
-	}
+		count -= len >> PAGE_SHIFT;
+		if (count == 0) {
+			sg_mark_end(sg);
+			return st;
+		}
 
-	return st;
+		sg = __sg_next(sg);
+		iter = __sg_next(iter);
+		offset = 0;
+	} while (1);
 
 err_sg_alloc:
 	kfree(st);
