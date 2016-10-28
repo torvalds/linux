@@ -39,6 +39,34 @@ struct rdt_resource {
 	int			cbm_idx_offset;
 };
 
+/**
+ * struct rdt_domain - group of cpus sharing an RDT resource
+ * @list:	all instances of this resource
+ * @id:		unique id for this instance
+ * @cpu_mask:	which cpus share this resource
+ * @cbm:	array of cache bit masks (indexed by CLOSID)
+ */
+struct rdt_domain {
+	struct list_head	list;
+	int			id;
+	struct cpumask		cpu_mask;
+	u32			*cbm;
+};
+
+/**
+ * struct msr_param - set a range of MSRs from a domain
+ * @res:       The resource to use
+ * @low:       Beginning index from base MSR
+ * @high:      End index
+ */
+struct msr_param {
+	struct rdt_resource	*res;
+	int			low;
+	int			high;
+};
+
+extern struct mutex rdtgroup_mutex;
+
 extern struct rdt_resource rdt_resources_all[];
 
 enum {
@@ -56,6 +84,11 @@ enum {
 	     r++) 							      \
 		if (r->capable)
 
+#define for_each_enabled_rdt_resource(r)				      \
+	for (r = rdt_resources_all; r < rdt_resources_all + RDT_NUM_RESOURCES;\
+	     r++)							      \
+		if (r->enabled)
+
 /* CPUID.(EAX=10H, ECX=ResID=1).EAX */
 union cpuid_0x10_1_eax {
 	struct {
@@ -71,4 +104,6 @@ union cpuid_0x10_1_edx {
 	} split;
 	unsigned int full;
 };
+
+void rdt_cbm_update(void *arg);
 #endif /* _ASM_X86_INTEL_RDT_H */
