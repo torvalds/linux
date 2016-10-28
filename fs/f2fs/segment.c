@@ -692,6 +692,7 @@ static int f2fs_issue_discard_zone(struct f2fs_sb_info *sbi,
 
 	case BLK_ZONE_TYPE_SEQWRITE_REQ:
 	case BLK_ZONE_TYPE_SEQWRITE_PREF:
+		trace_f2fs_issue_reset_zone(sbi->sb, blkstart);
 		return blkdev_reset_zones(bdev, sector,
 					  nr_sects, GFP_NOFS);
 	default:

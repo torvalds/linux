@@ -1113,6 +1113,27 @@ TRACE_EVENT(f2fs_issue_discard,
 		(unsigned long long)__entry->blklen)
 );
 
+TRACE_EVENT(f2fs_issue_reset_zone,
+
+	TP_PROTO(struct super_block *sb, block_t blkstart),
+
+	TP_ARGS(sb, blkstart),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(block_t, blkstart)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= sb->s_dev;
+		__entry->blkstart = blkstart;
+	),
+
+	TP_printk("dev = (%d,%d), reset zone at block = 0x%llx",
+		show_dev(__entry),
+		(unsigned long long)__entry->blkstart)
+);
+
 TRACE_EVENT(f2fs_issue_flush,
 
 	TP_PROTO(struct super_block *sb, unsigned int nobarrier,
