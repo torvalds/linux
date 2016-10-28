@@ -762,14 +762,14 @@ static int mlxsw_sx_port_get_settings(struct net_device *dev,
 	u32 eth_proto_oper;
 	int err;
 
-	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sx_port->local_port, 0);
+	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sx_port->local_port, 0);
 	err = mlxsw_reg_query(mlxsw_sx->core, MLXSW_REG(ptys), ptys_pl);
 	if (err) {
 		netdev_err(dev, "Failed to get proto");
 		return err;
 	}
-	mlxsw_reg_ptys_unpack(ptys_pl, &eth_proto_cap,
-			      &eth_proto_admin, &eth_proto_oper);
+	mlxsw_reg_ptys_eth_unpack(ptys_pl, &eth_proto_cap,
+				  &eth_proto_admin, &eth_proto_oper);
 
 	cmd->supported = mlxsw_sx_from_ptys_supported_port(eth_proto_cap) |
 			 mlxsw_sx_from_ptys_supported_link(eth_proto_cap) |
@@ -841,13 +841,14 @@ static int mlxsw_sx_port_set_settings(struct net_device *dev,
 		mlxsw_sx_to_ptys_advert_link(cmd->advertising) :
 		mlxsw_sx_to_ptys_speed(speed);
 
-	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sx_port->local_port, 0);
+	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sx_port->local_port, 0);
 	err = mlxsw_reg_query(mlxsw_sx->core, MLXSW_REG(ptys), ptys_pl);
 	if (err) {
 		netdev_err(dev, "Failed to get proto");
 		return err;
 	}
-	mlxsw_reg_ptys_unpack(ptys_pl, &eth_proto_cap, &eth_proto_admin, NULL);
+	mlxsw_reg_ptys_eth_unpack(ptys_pl, &eth_proto_cap, &eth_proto_admin,
+				  NULL);
 
 	eth_proto_new = eth_proto_new & eth_proto_cap;
 	if (!eth_proto_new) {
@@ -857,7 +858,8 @@ static int mlxsw_sx_port_set_settings(struct net_device *dev,
 	if (eth_proto_new == eth_proto_admin)
 		return 0;
 
-	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sx_port->local_port, eth_proto_new);
+	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sx_port->local_port,
+				eth_proto_new);
 	err = mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(ptys), ptys_pl);
 	if (err) {
 		netdev_err(dev, "Failed to set proto admin");
@@ -977,8 +979,8 @@ mlxsw_sx_port_speed_by_width_set(struct mlxsw_sx_port *mlxsw_sx_port, u8 width)
 	u32 eth_proto_admin;
 
 	eth_proto_admin = mlxsw_sx_to_ptys_upper_speed(upper_speed);
-	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sx_port->local_port,
-			    eth_proto_admin);
+	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sx_port->local_port,
+				eth_proto_admin);
 	return mlxsw_reg_write(mlxsw_sx->core, MLXSW_REG(ptys), ptys_pl);
 }
 

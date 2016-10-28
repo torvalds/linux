@@ -2131,8 +2131,8 @@ MLXSW_ITEM32(reg, ptys, eth_proto_oper, 0x24, 0, 32);
  */
 MLXSW_ITEM32(reg, ptys, eth_proto_lp_advertise, 0x30, 0, 32);
 
-static inline void mlxsw_reg_ptys_pack(char *payload, u8 local_port,
-				       u32 proto_admin)
+static inline void mlxsw_reg_ptys_eth_pack(char *payload, u8 local_port,
+					   u32 proto_admin)
 {
 	MLXSW_REG_ZERO(ptys, payload);
 	mlxsw_reg_ptys_local_port_set(payload, local_port);
@@ -2140,9 +2140,10 @@ static inline void mlxsw_reg_ptys_pack(char *payload, u8 local_port,
 	mlxsw_reg_ptys_eth_proto_admin_set(payload, proto_admin);
 }
 
-static inline void mlxsw_reg_ptys_unpack(char *payload, u32 *p_eth_proto_cap,
-					 u32 *p_eth_proto_adm,
-					 u32 *p_eth_proto_oper)
+static inline void mlxsw_reg_ptys_eth_unpack(char *payload,
+					     u32 *p_eth_proto_cap,
+					     u32 *p_eth_proto_adm,
+					     u32 *p_eth_proto_oper)
 {
 	if (p_eth_proto_cap)
 		*p_eth_proto_cap = mlxsw_reg_ptys_eth_proto_cap_get(payload);

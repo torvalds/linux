@@ -2003,12 +2003,12 @@ static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 	int err;
 
 	autoneg = mlxsw_sp_port->link.autoneg;
-	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sp_port->local_port, 0);
+	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sp_port->local_port, 0);
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
 	if (err)
 		return err;
-	mlxsw_reg_ptys_unpack(ptys_pl, &eth_proto_cap, &eth_proto_admin,
-			      &eth_proto_oper);
+	mlxsw_reg_ptys_eth_unpack(ptys_pl, &eth_proto_cap, &eth_proto_admin,
+				  &eth_proto_oper);
 
 	mlxsw_sp_port_get_link_supported(eth_proto_cap, cmd);
 
@@ -2037,11 +2037,11 @@ mlxsw_sp_port_set_link_ksettings(struct net_device *dev,
 	bool autoneg;
 	int err;
 
-	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sp_port->local_port, 0);
+	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sp_port->local_port, 0);
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
 	if (err)
 		return err;
-	mlxsw_reg_ptys_unpack(ptys_pl, &eth_proto_cap, NULL, NULL);
+	mlxsw_reg_ptys_eth_unpack(ptys_pl, &eth_proto_cap, NULL, NULL);
 
 	autoneg = cmd->base.autoneg == AUTONEG_ENABLE;
 	eth_proto_new = autoneg ?
@@ -2054,7 +2054,8 @@ mlxsw_sp_port_set_link_ksettings(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sp_port->local_port, eth_proto_new);
+	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sp_port->local_port,
+				eth_proto_new);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
 	if (err)
 		return err;
@@ -2092,8 +2093,8 @@ mlxsw_sp_port_speed_by_width_set(struct mlxsw_sp_port *mlxsw_sp_port, u8 width)
 	u32 eth_proto_admin;
 
 	eth_proto_admin = mlxsw_sp_to_ptys_upper_speed(upper_speed);
-	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sp_port->local_port,
-			    eth_proto_admin);
+	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sp_port->local_port,
+				eth_proto_admin);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
 }
 
