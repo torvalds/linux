@@ -934,6 +934,8 @@ static int __populate_cache_leaves(unsigned int cpu)
 		ci_leaf_init(this_leaf++, &id4_regs);
 		__cache_cpumap_setup(cpu, idx, &id4_regs);
 	}
+	this_cpu_ci->cpu_map_populated = true;
+
 	return 0;
 }
 
