@@ -453,6 +453,12 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 	pagelist->type = type;
 	pagelist->offset = offset;
 
+	/*
+	 * Initialize the scatterlist so that the magic cookie
+	 *  is filled if debugging is enabled
+	 */
+	sg_init_table(scatterlist, num_pages);
+	/* Now set the pages for each scatterlist */
 	for (i = 0; i < num_pages; i++)
 		sg_set_page(scatterlist + i, pages[i], PAGE_SIZE, 0);
 
