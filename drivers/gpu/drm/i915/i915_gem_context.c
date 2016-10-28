@@ -158,6 +158,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 		__i915_gem_object_release_unless_active(ce->state->obj);
 	}
 
+	kfree(ctx->name);
 	put_pid(ctx->pid);
 	list_del(&ctx->link);
 
@@ -303,19 +304,28 @@ __create_hw_context(struct drm_device *dev,
 	}
 
 	/* Default context will never have a file_priv */
-	if (file_priv != NULL) {
+	ret = DEFAULT_CONTEXT_HANDLE;
+	if (file_priv) {
 		ret = idr_alloc(&file_priv->context_idr, ctx,
 				DEFAULT_CONTEXT_HANDLE, 0, GFP_KERNEL);
 		if (ret < 0)
 			goto err_out;
-	} else
-		ret = DEFAULT_CONTEXT_HANDLE;
+	}
+	ctx->user_handle = ret;
 
 	ctx->file_priv = file_priv;
-	if (file_priv)
+	if (file_priv) {
 		ctx->pid = get_task_pid(current, PIDTYPE_PID);
+		ctx->name = kasprintf(GFP_KERNEL, "%s[%d]/%x",
+				      current->comm,
+				      pid_nr(ctx->pid),
+				      ctx->user_handle);
+		if (!ctx->name) {
+			ret = -ENOMEM;
+			goto err_pid;
+		}
+	}
 
-	ctx->user_handle = ret;
 	/* NB: Mark all slices as needing a remap so that when the context first
 	 * loads it will restore whatever remap state already exists. If there
 	 * is no remap info, it will be a NOP. */
@@ -329,6 +339,9 @@ __create_hw_context(struct drm_device *dev,
 
 	return ctx;
 
+err_pid:
+	put_pid(ctx->pid);
+	idr_remove(&file_priv->context_idr, ctx->user_handle);
 err_out:
 	context_close(ctx);
 	return ERR_PTR(ret);

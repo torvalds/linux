@@ -631,17 +631,10 @@ static void print_request(struct seq_file *m,
 			  struct drm_i915_gem_request *rq,
 			  const char *prefix)
 {
-	struct pid *pid = rq->ctx->pid;
-	struct task_struct *task;
-
-	rcu_read_lock();
-	task = pid ? pid_task(pid, PIDTYPE_PID) : NULL;
-	seq_printf(m, "%s%x [%x:%x] @ %d: %s [%d]\n", prefix,
+	seq_printf(m, "%s%x [%x:%x] @ %d: %s\n", prefix,
 		   rq->global_seqno, rq->ctx->hw_id, rq->fence.seqno,
 		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
-		   task ? task->comm : "<unknown>",
-		   task ? task->pid : -1);
-	rcu_read_unlock();
+		   rq->timeline->common->name);
 }
 
 static int i915_gem_request_info(struct seq_file *m, void *data)

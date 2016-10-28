@@ -937,6 +937,7 @@ struct i915_gem_context {
 	struct drm_i915_file_private *file_priv;
 	struct i915_hw_ppgtt *ppgtt;
 	struct pid *pid;
+	const char *name;
 
 	struct i915_ctx_hang_stats hang_stats;
 
