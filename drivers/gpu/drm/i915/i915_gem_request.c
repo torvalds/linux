@@ -324,14 +324,32 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 	struct drm_i915_gem_request *request =
 		container_of(fence, typeof(*request), submit);
 	struct intel_engine_cs *engine = request->engine;
+	struct intel_timeline *timeline;
+	u32 seqno;
 
 	if (state != FENCE_COMPLETE)
 		return NOTIFY_DONE;
 
 	/* Will be called from irq-context when using foreign DMA fences */
 
-	engine->timeline->last_submitted_seqno = request->fence.seqno;
+	timeline = request->timeline;
 
+	seqno = request->fence.seqno;
+	GEM_BUG_ON(!seqno);
+	GEM_BUG_ON(i915_seqno_passed(intel_engine_get_seqno(engine), seqno));
+
+	GEM_BUG_ON(i915_seqno_passed(timeline->last_submitted_seqno, seqno));
+	request->previous_seqno = timeline->last_submitted_seqno;
+	timeline->last_submitted_seqno = seqno;
+
+	/* We may be recursing from the signal callback of another i915 fence */
+	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
+	request->global_seqno = seqno;
+	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags))
+		intel_engine_enable_signaling(request);
+	spin_unlock(&request->lock);
+
+	GEM_BUG_ON(!request->global_seqno);
 	engine->emit_breadcrumb(request,
 				request->ring->vaddr + request->postfix);
 	engine->submit_request(request);
@@ -427,10 +445,10 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	INIT_LIST_HEAD(&req->active_list);
 	req->i915 = dev_priv;
 	req->engine = engine;
-	req->global_seqno = req->fence.seqno;
 	req->ctx = i915_gem_context_get(ctx);
 
 	/* No zalloc, must clear what we need by hand */
+	req->global_seqno = 0;
 	req->previous_context = NULL;
 	req->file_priv = NULL;
 	req->batch = NULL;
@@ -704,15 +722,13 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 		i915_sw_fence_await_sw_fence(&request->submit, &prev->submit,
 					     &request->submitq);
 
-	GEM_BUG_ON(i915_seqno_passed(timeline->last_submitted_seqno,
-				     request->fence.seqno));
+	list_add_tail(&request->link, &timeline->requests);
 
-	request->emitted_jiffies = jiffies;
-	request->previous_seqno = timeline->last_pending_seqno;
 	timeline->last_pending_seqno = request->fence.seqno;
 	i915_gem_active_set(&timeline->last_request, request);
-	list_add_tail(&request->link, &timeline->requests);
+
 	list_add_tail(&request->ring_link, &ring->request_list);
+	request->emitted_jiffies = jiffies;
 
 	i915_gem_mark_busy(engine);
 
