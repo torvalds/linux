@@ -1093,13 +1093,17 @@ static void mlxsw_sx_port_remove(struct mlxsw_sx *mlxsw_sx, u8 local_port)
 {
 	struct mlxsw_sx_port *mlxsw_sx_port = mlxsw_sx->ports[local_port];
 
-	if (!mlxsw_sx_port)
-		return;
 	mlxsw_core_port_fini(&mlxsw_sx_port->core_port);
 	unregister_netdev(mlxsw_sx_port->dev); /* This calls ndo_stop */
+	mlxsw_sx->ports[local_port] = NULL;
 	mlxsw_sx_port_swid_set(mlxsw_sx_port, MLXSW_PORT_SWID_DISABLED_PORT);
 	free_percpu(mlxsw_sx_port->pcpu_stats);
 	free_netdev(mlxsw_sx_port->dev);
+}
+
+static bool mlxsw_sx_port_created(struct mlxsw_sx *mlxsw_sx, u8 local_port)
+{
+	return mlxsw_sx->ports[local_port] != NULL;
 }
 
 static void mlxsw_sx_ports_remove(struct mlxsw_sx *mlxsw_sx)
@@ -1107,7 +1111,8 @@ static void mlxsw_sx_ports_remove(struct mlxsw_sx *mlxsw_sx)
 	int i;
 
 	for (i = 1; i < MLXSW_PORT_MAX_PORTS; i++)
-		mlxsw_sx_port_remove(mlxsw_sx, i);
+		if (mlxsw_sx_port_created(mlxsw_sx, i))
+			mlxsw_sx_port_remove(mlxsw_sx, i);
 	kfree(mlxsw_sx->ports);
 }
 
@@ -1138,7 +1143,8 @@ static int mlxsw_sx_ports_create(struct mlxsw_sx *mlxsw_sx)
 err_port_create:
 err_port_module_info_get:
 	for (i--; i >= 1; i--)
-		mlxsw_sx_port_remove(mlxsw_sx, i);
+		if (mlxsw_sx_port_created(mlxsw_sx, i))
+			mlxsw_sx_port_remove(mlxsw_sx, i);
 	kfree(mlxsw_sx->ports);
 	return err;
 }
