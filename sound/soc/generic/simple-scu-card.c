@@ -254,8 +254,8 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 static int asoc_simple_card_probe(struct platform_device *pdev)
 {
 	struct simple_card_data *priv;
-	struct snd_soc_dai_link *links;
-	struct asoc_simple_dai *props;
+	struct snd_soc_dai_link *dai_link;
+	struct asoc_simple_dai *dai_props;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
 	int num, ret;
@@ -267,13 +267,13 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 
 	num = of_get_child_count(np);
 
-	props = devm_kzalloc(dev, sizeof(*props) * num, GFP_KERNEL);
-	links = devm_kzalloc(dev, sizeof(*links) * num, GFP_KERNEL);
-	if (!props || !links)
+	dai_props = devm_kzalloc(dev, sizeof(*dai_props) * num, GFP_KERNEL);
+	dai_link  = devm_kzalloc(dev, sizeof(*dai_link)  * num, GFP_KERNEL);
+	if (!dai_props || !dai_link)
 		return -ENOMEM;
 
-	priv->dai_props				= props;
-	priv->dai_link				= links;
+	priv->dai_props				= dai_props;
+	priv->dai_link				= dai_link;
 
 	/* Init snd_soc_card */
 	priv->snd_card.owner			= THIS_MODULE;
