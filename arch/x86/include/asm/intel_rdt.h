@@ -73,6 +73,7 @@ struct rftype {
  * @num_domains:		Number of domains active
  * @msr_base:			Base MSR address for CBMs
  * @tmp_cbms:			Scratch space when updating schemata
+ * @num_tmp_cbms:		Number of CBMs in tmp_cbms
  * @cache_level:		Which cache level defines scope of this domain
  * @cbm_idx_multi:		Multiplier of CBM index
  * @cbm_idx_offset:		Offset of CBM index. CBM index is computed by:
@@ -90,6 +91,7 @@ struct rdt_resource {
 	int			num_domains;
 	int			msr_base;
 	u32			*tmp_cbms;
+	int			num_tmp_cbms;
 	int			cache_level;
 	int			cbm_idx_multi;
 	int			cbm_idx_offset;
@@ -170,4 +172,8 @@ DECLARE_PER_CPU_READ_MOSTLY(int, cpu_closid);
 void rdt_cbm_update(void *arg);
 struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn);
 void rdtgroup_kn_unlock(struct kernfs_node *kn);
+ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
+				char *buf, size_t nbytes, loff_t off);
+int rdtgroup_schemata_show(struct kernfs_open_file *of,
+			   struct seq_file *s, void *v);
 #endif /* _ASM_X86_INTEL_RDT_H */

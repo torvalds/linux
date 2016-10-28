@@ -440,6 +440,13 @@ static struct rftype rdtgroup_base_files[] = {
 		.write		= rdtgroup_tasks_write,
 		.seq_show	= rdtgroup_tasks_show,
 	},
+	{
+		.name		= "schemata",
+		.mode		= 0644,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.write		= rdtgroup_schemata_write,
+		.seq_show	= rdtgroup_schemata_show,
+	},
 };
 
 static int rdt_num_closids_show(struct kernfs_open_file *of,
