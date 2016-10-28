@@ -13101,7 +13101,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/wq.git
 S:	Maintained
 F:	include/linux/workqueue.h
 F:	kernel/workqueue.c
-F:	Documentation/workqueue.txt
+F:	Documentation/core-api/workqueue.rst
 
 X-POWERS MULTIFUNCTION PMIC DEVICE DRIVERS
 M:	Chen-Yu Tsai <wens@csie.org>
