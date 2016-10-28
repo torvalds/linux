@@ -142,6 +142,11 @@ static bool is_hdmi_adaptor(const char hdmi_id[DP_DUAL_MODE_HDMI_ID_LEN])
 		      sizeof(dp_dual_mode_hdmi_id)) == 0;
 }
 
+static bool is_type1_adaptor(uint8_t adaptor_id)
+{
+	return adaptor_id == 0 || adaptor_id == 0xff;
+}
+
 static bool is_type2_adaptor(uint8_t adaptor_id)
 {
 	return adaptor_id == (DP_DUAL_MODE_TYPE_TYPE2 |
@@ -193,6 +198,8 @@ enum drm_dp_dual_mode_type drm_dp_dual_mode_detect(struct i2c_adapter *adapter)
 	 */
 	ret = drm_dp_dual_mode_read(adapter, DP_DUAL_MODE_HDMI_ID,
 				    hdmi_id, sizeof(hdmi_id));
+	DRM_DEBUG_KMS("DP dual mode HDMI ID: %*pE (err %zd)\n",
+		      ret ? 0 : (int)sizeof(hdmi_id), hdmi_id, ret);
 	if (ret)
 		return DRM_DP_DUAL_MODE_UNKNOWN;
 
@@ -210,6 +217,8 @@ enum drm_dp_dual_mode_type drm_dp_dual_mode_detect(struct i2c_adapter *adapter)
 	 */
 	ret = drm_dp_dual_mode_read(adapter, DP_DUAL_MODE_ADAPTOR_ID,
 				    &adaptor_id, sizeof(adaptor_id));
+	DRM_DEBUG_KMS("DP dual mode adaptor ID: %02x (err %zd)\n",
+		      adaptor_id, ret);
 	if (ret == 0) {
 		if (is_lspcon_adaptor(hdmi_id, adaptor_id))
 			return DRM_DP_DUAL_MODE_LSPCON;
@@ -219,6 +228,15 @@ enum drm_dp_dual_mode_type drm_dp_dual_mode_detect(struct i2c_adapter *adapter)
 			else
 				return DRM_DP_DUAL_MODE_TYPE2_DVI;
 		}
+		/*
+		 * If neither a proper type 1 ID nor a broken type 1 adaptor
+		 * as described above, assume type 1, but let the user know
+		 * that we may have misdetected the type.
+		 */
+		if (!is_type1_adaptor(adaptor_id) && adaptor_id != hdmi_id[0])
+			DRM_ERROR("Unexpected DP dual mode adaptor ID %02x\n",
+				  adaptor_id);
+
 	}
 
 	if (is_hdmi_adaptor(hdmi_id))

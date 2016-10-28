@@ -17,7 +17,7 @@ TRACE_EVENT(amd_sched_job,
 	    TP_STRUCT__entry(
 			     __field(struct amd_sched_entity *, entity)
 			     __field(struct amd_sched_job *, sched_job)
-			     __field(struct fence *, fence)
+			     __field(struct dma_fence *, fence)
 			     __field(const char *, name)
 			     __field(u32, job_count)
 			     __field(int, hw_job_count)
@@ -42,7 +42,7 @@ TRACE_EVENT(amd_sched_process_job,
 	    TP_PROTO(struct amd_sched_fence *fence),
 	    TP_ARGS(fence),
 	    TP_STRUCT__entry(
-		    __field(struct fence *, fence)
+		    __field(struct dma_fence *, fence)
 		    ),
 
 	    TP_fast_assign(

@@ -25,9 +25,6 @@ bool hang_debug = false;
 MODULE_PARM_DESC(hang_debug, "Dump registers when hang is detected (can be slow!)");
 module_param_named(hang_debug, hang_debug, bool, 0600);
 
-struct msm_gpu *a3xx_gpu_init(struct drm_device *dev);
-struct msm_gpu *a4xx_gpu_init(struct drm_device *dev);
-
 static const struct adreno_info gpulist[] = {
 	{
 		.rev   = ADRENO_REV(3, 0, 5, ANY_ID),

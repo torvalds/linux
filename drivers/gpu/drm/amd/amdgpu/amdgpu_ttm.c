@@ -287,7 +287,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	struct drm_mm_node *old_mm, *new_mm;
 	uint64_t old_start, old_size, new_start, new_size;
 	unsigned long num_pages;
-	struct fence *fence = NULL;
+	struct dma_fence *fence = NULL;
 	int r;
 
 	BUILD_BUG_ON((PAGE_SIZE % AMDGPU_GPU_PAGE_SIZE) != 0);
@@ -313,7 +313,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	num_pages = new_mem->num_pages;
 	while (num_pages) {
 		unsigned long cur_pages = min(old_size, new_size);
-		struct fence *next;
+		struct dma_fence *next;
 
 		r = amdgpu_copy_buffer(ring, old_start, new_start,
 				       cur_pages * PAGE_SIZE,
@@ -321,7 +321,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 		if (r)
 			goto error;
 
-		fence_put(fence);
+		dma_fence_put(fence);
 		fence = next;
 
 		num_pages -= cur_pages;
@@ -353,13 +353,13 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	}
 
 	r = ttm_bo_pipeline_move(bo, fence, evict, new_mem);
-	fence_put(fence);
+	dma_fence_put(fence);
 	return r;
 
 error:
 	if (fence)
-		fence_wait(fence, false);
-	fence_put(fence);
+		dma_fence_wait(fence, false);
+	dma_fence_put(fence);
 	return r;
 }
 
@@ -1316,7 +1316,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 		       uint64_t dst_offset,
 		       uint32_t byte_count,
 		       struct reservation_object *resv,
-		       struct fence **fence, bool direct_submit)
+		       struct dma_fence **fence, bool direct_submit)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_job *job;
@@ -1363,7 +1363,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 	if (direct_submit) {
 		r = amdgpu_ib_schedule(ring, job->num_ibs, job->ibs,
 				       NULL, NULL, fence);
-		job->fence = fence_get(*fence);
+		job->fence = dma_fence_get(*fence);
 		if (r)
 			DRM_ERROR("Error scheduling IBs (%d)\n", r);
 		amdgpu_job_free(job);
@@ -1384,7 +1384,7 @@ error_free:
 int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 		uint32_t src_data,
 		struct reservation_object *resv,
-		struct fence **fence)
+		struct dma_fence **fence)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct amdgpu_job *job;

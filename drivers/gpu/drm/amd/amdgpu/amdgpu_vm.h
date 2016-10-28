@@ -94,7 +94,7 @@ struct amdgpu_vm {
 	/* contains the page directory */
 	struct amdgpu_bo	*page_directory;
 	unsigned		max_pde_used;
-	struct fence		*page_directory_fence;
+	struct dma_fence		*page_directory_fence;
 	uint64_t		last_eviction_counter;
 
 	/* array of page tables, one for each page directory entry */
@@ -115,14 +115,14 @@ struct amdgpu_vm {
 
 struct amdgpu_vm_id {
 	struct list_head	list;
-	struct fence		*first;
+	struct dma_fence		*first;
 	struct amdgpu_sync	active;
-	struct fence		*last_flush;
+	struct dma_fence		*last_flush;
 	atomic64_t		owner;
 
 	uint64_t		pd_gpu_addr;
 	/* last flushed PD/PT update */
-	struct fence		*flushed_updates;
+	struct dma_fence		*flushed_updates;
 
 	uint32_t                current_gpu_reset_count;
 
@@ -172,7 +172,7 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
 				  struct amdgpu_vm *vm);
 int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
-		      struct amdgpu_sync *sync, struct fence *fence,
+		      struct amdgpu_sync *sync, struct dma_fence *fence,
 		      struct amdgpu_job *job);
 int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job);
 void amdgpu_vm_reset_id(struct amdgpu_device *adev, unsigned vm_id);

@@ -26,12 +26,12 @@
 
 #include "i915_drv.h"
 
-static const char *i915_fence_get_driver_name(struct fence *fence)
+static const char *i915_fence_get_driver_name(struct dma_fence *fence)
 {
 	return "i915";
 }
 
-static const char *i915_fence_get_timeline_name(struct fence *fence)
+static const char *i915_fence_get_timeline_name(struct dma_fence *fence)
 {
 	/* Timelines are bound by eviction to a VM. However, since
 	 * we only have a global seqno at the moment, we only have
@@ -42,12 +42,12 @@ static const char *i915_fence_get_timeline_name(struct fence *fence)
 	return "global";
 }
 
-static bool i915_fence_signaled(struct fence *fence)
+static bool i915_fence_signaled(struct dma_fence *fence)
 {
 	return i915_gem_request_completed(to_request(fence));
 }
 
-static bool i915_fence_enable_signaling(struct fence *fence)
+static bool i915_fence_enable_signaling(struct dma_fence *fence)
 {
 	if (i915_fence_signaled(fence))
 		return false;
@@ -56,7 +56,7 @@ static bool i915_fence_enable_signaling(struct fence *fence)
 	return true;
 }
 
-static signed long i915_fence_wait(struct fence *fence,
+static signed long i915_fence_wait(struct dma_fence *fence,
 				   bool interruptible,
 				   signed long timeout_jiffies)
 {
@@ -85,26 +85,26 @@ static signed long i915_fence_wait(struct fence *fence,
 	return timeout_jiffies;
 }
 
-static void i915_fence_value_str(struct fence *fence, char *str, int size)
+static void i915_fence_value_str(struct dma_fence *fence, char *str, int size)
 {
 	snprintf(str, size, "%u", fence->seqno);
 }
 
-static void i915_fence_timeline_value_str(struct fence *fence, char *str,
+static void i915_fence_timeline_value_str(struct dma_fence *fence, char *str,
 					  int size)
 {
 	snprintf(str, size, "%u",
 		 intel_engine_get_seqno(to_request(fence)->engine));
 }
 
-static void i915_fence_release(struct fence *fence)
+static void i915_fence_release(struct dma_fence *fence)
 {
 	struct drm_i915_gem_request *req = to_request(fence);
 
 	kmem_cache_free(req->i915->requests, req);
 }
 
-const struct fence_ops i915_fence_ops = {
+const struct dma_fence_ops i915_fence_ops = {
 	.get_driver_name = i915_fence_get_driver_name,
 	.get_timeline_name = i915_fence_get_timeline_name,
 	.enable_signaling = i915_fence_enable_signaling,
@@ -388,8 +388,8 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	 * The reference count is incremented atomically. If it is zero,
 	 * the lookup knows the request is unallocated and complete. Otherwise,
 	 * it is either still in use, or has been reallocated and reset
-	 * with fence_init(). This increment is safe for release as we check
-	 * that the request we have a reference to and matches the active
+	 * with dma_fence_init(). This increment is safe for release as we
+	 * check that the request we have a reference to and matches the active
 	 * request.
 	 *
 	 * Before we increment the refcount, we chase the request->engine
@@ -412,11 +412,11 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		goto err;
 
 	spin_lock_init(&req->lock);
-	fence_init(&req->fence,
-		   &i915_fence_ops,
-		   &req->lock,
-		   engine->fence_context,
-		   seqno);
+	dma_fence_init(&req->fence,
+		       &i915_fence_ops,
+		       &req->lock,
+		       engine->fence_context,
+		       seqno);
 
 	i915_sw_fence_init(&req->submit, submit_notify);
 

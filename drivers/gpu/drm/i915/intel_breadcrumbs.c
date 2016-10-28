@@ -464,7 +464,7 @@ static int intel_breadcrumbs_signaler(void *arg)
 						 &request->signaling.wait);
 
 			local_bh_disable();
-			fence_signal(&request->fence);
+			dma_fence_signal(&request->fence);
 			local_bh_enable(); /* kick start the tasklets */
 
 			/* Find the next oldest signal. Note that as we have
@@ -502,7 +502,7 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	struct rb_node *parent, **p;
 	bool first, wakeup;
 
-	/* locked by fence_enable_sw_signaling() */
+	/* locked by dma_fence_enable_sw_signaling() */
 	assert_spin_locked(&request->lock);
 
 	request->signaling.wait.tsk = b->signaler;

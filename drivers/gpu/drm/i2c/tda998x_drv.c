@@ -1289,7 +1289,8 @@ static void tda998x_audio_shutdown(struct device *dev, void *data)
 	mutex_unlock(&priv->audio_mutex);
 }
 
-int tda998x_audio_digital_mute(struct device *dev, void *data, bool enable)
+static int
+tda998x_audio_digital_mute(struct device *dev, void *data, bool enable)
 {
 	struct tda998x_priv *priv = dev_get_drvdata(dev);
 

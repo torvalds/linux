@@ -391,7 +391,7 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 
 	if (flags & AMDGPU_GEM_CREATE_VRAM_CLEARED &&
 	    bo->tbo.mem.placement & TTM_PL_FLAG_VRAM) {
-		struct fence *fence;
+		struct dma_fence *fence;
 
 		if (adev->mman.buffer_funcs_ring == NULL ||
 		   !adev->mman.buffer_funcs_ring->ready) {
@@ -411,9 +411,9 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 		amdgpu_fill_buffer(bo, 0, bo->tbo.resv, &fence);
 		amdgpu_bo_fence(bo, fence, false);
 		amdgpu_bo_unreserve(bo);
-		fence_put(bo->tbo.moving);
-		bo->tbo.moving = fence_get(fence);
-		fence_put(fence);
+		dma_fence_put(bo->tbo.moving);
+		bo->tbo.moving = dma_fence_get(fence);
+		dma_fence_put(fence);
 	}
 	*bo_ptr = bo;
 
@@ -499,7 +499,7 @@ int amdgpu_bo_backup_to_shadow(struct amdgpu_device *adev,
 			       struct amdgpu_ring *ring,
 			       struct amdgpu_bo *bo,
 			       struct reservation_object *resv,
-			       struct fence **fence,
+			       struct dma_fence **fence,
 			       bool direct)
 
 {
@@ -531,7 +531,7 @@ int amdgpu_bo_restore_from_shadow(struct amdgpu_device *adev,
 				  struct amdgpu_ring *ring,
 				  struct amdgpu_bo *bo,
 				  struct reservation_object *resv,
-				  struct fence **fence,
+				  struct dma_fence **fence,
 				  bool direct)
 
 {
@@ -941,7 +941,7 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
  * @shared: true if fence should be added shared
  *
  */
-void amdgpu_bo_fence(struct amdgpu_bo *bo, struct fence *fence,
+void amdgpu_bo_fence(struct amdgpu_bo *bo, struct dma_fence *fence,
 		     bool shared)
 {
 	struct reservation_object *resv = bo->tbo.resv;

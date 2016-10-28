@@ -303,7 +303,7 @@ struct ttm_mem_type_manager {
 	/*
 	 * Protected by @move_lock.
 	 */
-	struct fence *move;
+	struct dma_fence *move;
 };
 
 /**
@@ -1039,7 +1039,7 @@ extern void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
  */
 
 extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
-				     struct fence *fence, bool evict,
+				     struct dma_fence *fence, bool evict,
 				     struct ttm_mem_reg *new_mem);
 
 /**
@@ -1054,7 +1054,7 @@ extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
  * immediately or hang it on a temporary buffer object.
  */
 int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
-			 struct fence *fence, bool evict,
+			 struct dma_fence *fence, bool evict,
 			 struct ttm_mem_reg *new_mem);
 
 /**

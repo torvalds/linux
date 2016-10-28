@@ -75,15 +75,12 @@ static void mdp5_plane_install_rotation_property(struct drm_device *dev,
 		!(mdp5_plane->caps & MDP_PIPE_CAP_VFLIP))
 		return;
 
-	if (!dev->mode_config.rotation_property)
-		dev->mode_config.rotation_property =
-			drm_mode_create_rotation_property(dev,
-				DRM_ROTATE_0 | DRM_REFLECT_X | DRM_REFLECT_Y);
-
-	if (dev->mode_config.rotation_property)
-		drm_object_attach_property(&plane->base,
-			dev->mode_config.rotation_property,
-			DRM_ROTATE_0);
+	drm_plane_create_rotation_property(plane,
+					   DRM_ROTATE_0,
+					   DRM_ROTATE_0 |
+					   DRM_ROTATE_180 |
+					   DRM_REFLECT_X |
+					   DRM_REFLECT_Y);
 }
 
 /* helper to install properties which are common to planes and crtcs */
@@ -289,6 +286,8 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 			plane_enabled(old_state), plane_enabled(state));
 
 	if (plane_enabled(state)) {
+		unsigned int rotation;
+
 		format = to_mdp_format(msm_framebuffer_format(state->fb));
 		if (MDP_FORMAT_IS_YUV(format) &&
 			!pipe_supports_yuv(mdp5_plane->caps)) {
@@ -309,8 +308,13 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 			return -EINVAL;
 		}
 
-		hflip = !!(state->rotation & DRM_REFLECT_X);
-		vflip = !!(state->rotation & DRM_REFLECT_Y);
+		rotation = drm_rotation_simplify(state->rotation,
+						 DRM_ROTATE_0 |
+						 DRM_REFLECT_X |
+						 DRM_REFLECT_Y);
+		hflip = !!(rotation & DRM_REFLECT_X);
+		vflip = !!(rotation & DRM_REFLECT_Y);
+
 		if ((vflip && !(mdp5_plane->caps & MDP_PIPE_CAP_VFLIP)) ||
 			(hflip && !(mdp5_plane->caps & MDP_PIPE_CAP_HFLIP))) {
 			dev_err(plane->dev->dev,
@@ -681,6 +685,7 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	int pe_top[COMP_MAX], pe_bottom[COMP_MAX];
 	uint32_t hdecm = 0, vdecm = 0;
 	uint32_t pix_format;
+	unsigned int rotation;
 	bool vflip, hflip;
 	unsigned long flags;
 	int ret;
@@ -743,8 +748,12 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	config |= get_scale_config(format, src_h, crtc_h, false);
 	DBG("scale config = %x", config);
 
-	hflip = !!(pstate->rotation & DRM_REFLECT_X);
-	vflip = !!(pstate->rotation & DRM_REFLECT_Y);
+	rotation = drm_rotation_simplify(pstate->rotation,
+					 DRM_ROTATE_0 |
+					 DRM_REFLECT_X |
+					 DRM_REFLECT_Y);
+	hflip = !!(rotation & DRM_REFLECT_X);
+	vflip = !!(rotation & DRM_REFLECT_Y);
 
 	spin_lock_irqsave(&mdp5_plane->pipe_lock, flags);
 

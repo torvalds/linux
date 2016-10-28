@@ -35,29 +35,29 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 
-static void amdgpu_flip_callback(struct fence *f, struct fence_cb *cb)
+static void amdgpu_flip_callback(struct dma_fence *f, struct dma_fence_cb *cb)
 {
 	struct amdgpu_flip_work *work =
 		container_of(cb, struct amdgpu_flip_work, cb);
 
-	fence_put(f);
+	dma_fence_put(f);
 	schedule_work(&work->flip_work.work);
 }
 
 static bool amdgpu_flip_handle_fence(struct amdgpu_flip_work *work,
-				     struct fence **f)
+				     struct dma_fence **f)
 {
-	struct fence *fence= *f;
+	struct dma_fence *fence= *f;
 
 	if (fence == NULL)
 		return false;
 
 	*f = NULL;
 
-	if (!fence_add_callback(fence, &work->cb, amdgpu_flip_callback))
+	if (!dma_fence_add_callback(fence, &work->cb, amdgpu_flip_callback))
 		return true;
 
-	fence_put(fence);
+	dma_fence_put(fence);
 	return false;
 }
 
@@ -244,9 +244,9 @@ unreserve:
 
 cleanup:
 	amdgpu_bo_unref(&work->old_abo);
-	fence_put(work->excl);
+	dma_fence_put(work->excl);
 	for (i = 0; i < work->shared_count; ++i)
-		fence_put(work->shared[i]);
+		dma_fence_put(work->shared[i]);
 	kfree(work->shared);
 	kfree(work);
 

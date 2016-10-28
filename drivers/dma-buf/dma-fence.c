@@ -21,13 +21,13 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/atomic.h>
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 
 #define CREATE_TRACE_POINTS
-#include <trace/events/fence.h>
+#include <trace/events/dma_fence.h>
 
-EXPORT_TRACEPOINT_SYMBOL(fence_annotate_wait_on);
-EXPORT_TRACEPOINT_SYMBOL(fence_emit);
+EXPORT_TRACEPOINT_SYMBOL(dma_fence_annotate_wait_on);
+EXPORT_TRACEPOINT_SYMBOL(dma_fence_emit);
 
 /*
  * fence context counter: each execution context should have its own
@@ -35,38 +35,40 @@ EXPORT_TRACEPOINT_SYMBOL(fence_emit);
  * context or not. One device can have multiple separate contexts,
  * and they're used if some engine can run independently of another.
  */
-static atomic64_t fence_context_counter = ATOMIC64_INIT(0);
+static atomic64_t dma_fence_context_counter = ATOMIC64_INIT(0);
 
 /**
- * fence_context_alloc - allocate an array of fence contexts
+ * dma_fence_context_alloc - allocate an array of fence contexts
  * @num:	[in]	amount of contexts to allocate
  *
  * This function will return the first index of the number of fences allocated.
  * The fence context is used for setting fence->context to a unique number.
  */
-u64 fence_context_alloc(unsigned num)
+u64 dma_fence_context_alloc(unsigned num)
 {
 	BUG_ON(!num);
-	return atomic64_add_return(num, &fence_context_counter) - num;
+	return atomic64_add_return(num, &dma_fence_context_counter) - num;
 }
-EXPORT_SYMBOL(fence_context_alloc);
+EXPORT_SYMBOL(dma_fence_context_alloc);
 
 /**
- * fence_signal_locked - signal completion of a fence
+ * dma_fence_signal_locked - signal completion of a fence
  * @fence: the fence to signal
  *
  * Signal completion for software callbacks on a fence, this will unblock
- * fence_wait() calls and run all the callbacks added with
- * fence_add_callback(). Can be called multiple times, but since a fence
+ * dma_fence_wait() calls and run all the callbacks added with
+ * dma_fence_add_callback(). Can be called multiple times, but since a fence
  * can only go from unsignaled to signaled state, it will only be effective
  * the first time.
  *
- * Unlike fence_signal, this function must be called with fence->lock held.
+ * Unlike dma_fence_signal, this function must be called with fence->lock held.
  */
-int fence_signal_locked(struct fence *fence)
+int dma_fence_signal_locked(struct dma_fence *fence)
 {
-	struct fence_cb *cur, *tmp;
+	struct dma_fence_cb *cur, *tmp;
 	int ret = 0;
+
+	lockdep_assert_held(fence->lock);
 
 	if (WARN_ON(!fence))
 		return -EINVAL;
@@ -76,15 +78,15 @@ int fence_signal_locked(struct fence *fence)
 		smp_mb__before_atomic();
 	}
 
-	if (test_and_set_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+	if (test_and_set_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
 		ret = -EINVAL;
 
 		/*
-		 * we might have raced with the unlocked fence_signal,
+		 * we might have raced with the unlocked dma_fence_signal,
 		 * still run through all callbacks
 		 */
 	} else
-		trace_fence_signaled(fence);
+		trace_dma_fence_signaled(fence);
 
 	list_for_each_entry_safe(cur, tmp, &fence->cb_list, node) {
 		list_del_init(&cur->node);
@@ -92,19 +94,19 @@ int fence_signal_locked(struct fence *fence)
 	}
 	return ret;
 }
-EXPORT_SYMBOL(fence_signal_locked);
+EXPORT_SYMBOL(dma_fence_signal_locked);
 
 /**
- * fence_signal - signal completion of a fence
+ * dma_fence_signal - signal completion of a fence
  * @fence: the fence to signal
  *
  * Signal completion for software callbacks on a fence, this will unblock
- * fence_wait() calls and run all the callbacks added with
- * fence_add_callback(). Can be called multiple times, but since a fence
+ * dma_fence_wait() calls and run all the callbacks added with
+ * dma_fence_add_callback(). Can be called multiple times, but since a fence
  * can only go from unsignaled to signaled state, it will only be effective
  * the first time.
  */
-int fence_signal(struct fence *fence)
+int dma_fence_signal(struct dma_fence *fence)
 {
 	unsigned long flags;
 
@@ -116,13 +118,13 @@ int fence_signal(struct fence *fence)
 		smp_mb__before_atomic();
 	}
 
-	if (test_and_set_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+	if (test_and_set_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		return -EINVAL;
 
-	trace_fence_signaled(fence);
+	trace_dma_fence_signaled(fence);
 
-	if (test_bit(FENCE_FLAG_ENABLE_SIGNAL_BIT, &fence->flags)) {
-		struct fence_cb *cur, *tmp;
+	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &fence->flags)) {
+		struct dma_fence_cb *cur, *tmp;
 
 		spin_lock_irqsave(fence->lock, flags);
 		list_for_each_entry_safe(cur, tmp, &fence->cb_list, node) {
@@ -133,10 +135,10 @@ int fence_signal(struct fence *fence)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(fence_signal);
+EXPORT_SYMBOL(dma_fence_signal);
 
 /**
- * fence_wait_timeout - sleep until the fence gets signaled
+ * dma_fence_wait_timeout - sleep until the fence gets signaled
  * or until timeout elapses
  * @fence:	[in]	the fence to wait on
  * @intr:	[in]	if true, do an interruptible wait
@@ -152,7 +154,7 @@ EXPORT_SYMBOL(fence_signal);
  * freed before return, resulting in undefined behavior.
  */
 signed long
-fence_wait_timeout(struct fence *fence, bool intr, signed long timeout)
+dma_fence_wait_timeout(struct dma_fence *fence, bool intr, signed long timeout)
 {
 	signed long ret;
 
@@ -160,70 +162,71 @@ fence_wait_timeout(struct fence *fence, bool intr, signed long timeout)
 		return -EINVAL;
 
 	if (timeout == 0)
-		return fence_is_signaled(fence);
+		return dma_fence_is_signaled(fence);
 
-	trace_fence_wait_start(fence);
+	trace_dma_fence_wait_start(fence);
 	ret = fence->ops->wait(fence, intr, timeout);
-	trace_fence_wait_end(fence);
+	trace_dma_fence_wait_end(fence);
 	return ret;
 }
-EXPORT_SYMBOL(fence_wait_timeout);
+EXPORT_SYMBOL(dma_fence_wait_timeout);
 
-void fence_release(struct kref *kref)
+void dma_fence_release(struct kref *kref)
 {
-	struct fence *fence =
-			container_of(kref, struct fence, refcount);
+	struct dma_fence *fence =
+		container_of(kref, struct dma_fence, refcount);
 
-	trace_fence_destroy(fence);
+	trace_dma_fence_destroy(fence);
 
 	BUG_ON(!list_empty(&fence->cb_list));
 
 	if (fence->ops->release)
 		fence->ops->release(fence);
 	else
-		fence_free(fence);
+		dma_fence_free(fence);
 }
-EXPORT_SYMBOL(fence_release);
+EXPORT_SYMBOL(dma_fence_release);
 
-void fence_free(struct fence *fence)
+void dma_fence_free(struct dma_fence *fence)
 {
 	kfree_rcu(fence, rcu);
 }
-EXPORT_SYMBOL(fence_free);
+EXPORT_SYMBOL(dma_fence_free);
 
 /**
- * fence_enable_sw_signaling - enable signaling on fence
+ * dma_fence_enable_sw_signaling - enable signaling on fence
  * @fence:	[in]	the fence to enable
  *
  * this will request for sw signaling to be enabled, to make the fence
  * complete as soon as possible
  */
-void fence_enable_sw_signaling(struct fence *fence)
+void dma_fence_enable_sw_signaling(struct dma_fence *fence)
 {
 	unsigned long flags;
 
-	if (!test_and_set_bit(FENCE_FLAG_ENABLE_SIGNAL_BIT, &fence->flags) &&
-	    !test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
-		trace_fence_enable_signal(fence);
+	if (!test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+			      &fence->flags) &&
+	    !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+		trace_dma_fence_enable_signal(fence);
 
 		spin_lock_irqsave(fence->lock, flags);
 
 		if (!fence->ops->enable_signaling(fence))
-			fence_signal_locked(fence);
+			dma_fence_signal_locked(fence);
 
 		spin_unlock_irqrestore(fence->lock, flags);
 	}
 }
-EXPORT_SYMBOL(fence_enable_sw_signaling);
+EXPORT_SYMBOL(dma_fence_enable_sw_signaling);
 
 /**
- * fence_add_callback - add a callback to be called when the fence
+ * dma_fence_add_callback - add a callback to be called when the fence
  * is signaled
  * @fence:	[in]	the fence to wait on
  * @cb:		[in]	the callback to register
  * @func:	[in]	the function to call
  *
- * cb will be initialized by fence_add_callback, no initialization
+ * cb will be initialized by dma_fence_add_callback, no initialization
  * by the caller is required. Any number of callbacks can be registered
  * to a fence, but a callback can only be registered to one fence at a time.
  *
@@ -232,15 +235,15 @@ EXPORT_SYMBOL(fence_enable_sw_signaling);
  * *not* call the callback)
  *
  * Add a software callback to the fence. Same restrictions apply to
- * refcount as it does to fence_wait, however the caller doesn't need to
+ * refcount as it does to dma_fence_wait, however the caller doesn't need to
  * keep a refcount to fence afterwards: when software access is enabled,
  * the creator of the fence is required to keep the fence alive until
- * after it signals with fence_signal. The callback itself can be called
+ * after it signals with dma_fence_signal. The callback itself can be called
  * from irq context.
  *
  */
-int fence_add_callback(struct fence *fence, struct fence_cb *cb,
-		       fence_func_t func)
+int dma_fence_add_callback(struct dma_fence *fence, struct dma_fence_cb *cb,
+			   dma_fence_func_t func)
 {
 	unsigned long flags;
 	int ret = 0;
@@ -249,22 +252,23 @@ int fence_add_callback(struct fence *fence, struct fence_cb *cb,
 	if (WARN_ON(!fence || !func))
 		return -EINVAL;
 
-	if (test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
 		INIT_LIST_HEAD(&cb->node);
 		return -ENOENT;
 	}
 
 	spin_lock_irqsave(fence->lock, flags);
 
-	was_set = test_and_set_bit(FENCE_FLAG_ENABLE_SIGNAL_BIT, &fence->flags);
+	was_set = test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+				   &fence->flags);
 
-	if (test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		ret = -ENOENT;
 	else if (!was_set) {
-		trace_fence_enable_signal(fence);
+		trace_dma_fence_enable_signal(fence);
 
 		if (!fence->ops->enable_signaling(fence)) {
-			fence_signal_locked(fence);
+			dma_fence_signal_locked(fence);
 			ret = -ENOENT;
 		}
 	}
@@ -278,10 +282,10 @@ int fence_add_callback(struct fence *fence, struct fence_cb *cb,
 
 	return ret;
 }
-EXPORT_SYMBOL(fence_add_callback);
+EXPORT_SYMBOL(dma_fence_add_callback);
 
 /**
- * fence_remove_callback - remove a callback from the signaling list
+ * dma_fence_remove_callback - remove a callback from the signaling list
  * @fence:	[in]	the fence to wait on
  * @cb:		[in]	the callback to remove
  *
@@ -296,7 +300,7 @@ EXPORT_SYMBOL(fence_add_callback);
  * with a reference held to the fence.
  */
 bool
-fence_remove_callback(struct fence *fence, struct fence_cb *cb)
+dma_fence_remove_callback(struct dma_fence *fence, struct dma_fence_cb *cb)
 {
 	unsigned long flags;
 	bool ret;
@@ -311,15 +315,15 @@ fence_remove_callback(struct fence *fence, struct fence_cb *cb)
 
 	return ret;
 }
-EXPORT_SYMBOL(fence_remove_callback);
+EXPORT_SYMBOL(dma_fence_remove_callback);
 
 struct default_wait_cb {
-	struct fence_cb base;
+	struct dma_fence_cb base;
 	struct task_struct *task;
 };
 
 static void
-fence_default_wait_cb(struct fence *fence, struct fence_cb *cb)
+dma_fence_default_wait_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
 {
 	struct default_wait_cb *wait =
 		container_of(cb, struct default_wait_cb, base);
@@ -328,7 +332,7 @@ fence_default_wait_cb(struct fence *fence, struct fence_cb *cb)
 }
 
 /**
- * fence_default_wait - default sleep until the fence gets signaled
+ * dma_fence_default_wait - default sleep until the fence gets signaled
  * or until timeout elapses
  * @fence:	[in]	the fence to wait on
  * @intr:	[in]	if true, do an interruptible wait
@@ -338,14 +342,14 @@ fence_default_wait_cb(struct fence *fence, struct fence_cb *cb)
  * remaining timeout in jiffies on success.
  */
 signed long
-fence_default_wait(struct fence *fence, bool intr, signed long timeout)
+dma_fence_default_wait(struct dma_fence *fence, bool intr, signed long timeout)
 {
 	struct default_wait_cb cb;
 	unsigned long flags;
 	signed long ret = timeout;
 	bool was_set;
 
-	if (test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		return timeout;
 
 	spin_lock_irqsave(fence->lock, flags);
@@ -355,25 +359,26 @@ fence_default_wait(struct fence *fence, bool intr, signed long timeout)
 		goto out;
 	}
 
-	was_set = test_and_set_bit(FENCE_FLAG_ENABLE_SIGNAL_BIT, &fence->flags);
+	was_set = test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+				   &fence->flags);
 
-	if (test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		goto out;
 
 	if (!was_set) {
-		trace_fence_enable_signal(fence);
+		trace_dma_fence_enable_signal(fence);
 
 		if (!fence->ops->enable_signaling(fence)) {
-			fence_signal_locked(fence);
+			dma_fence_signal_locked(fence);
 			goto out;
 		}
 	}
 
-	cb.base.func = fence_default_wait_cb;
+	cb.base.func = dma_fence_default_wait_cb;
 	cb.task = current;
 	list_add(&cb.base.node, &fence->cb_list);
 
-	while (!test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags) && ret > 0) {
+	while (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags) && ret > 0) {
 		if (intr)
 			__set_current_state(TASK_INTERRUPTIBLE);
 		else
@@ -395,23 +400,23 @@ out:
 	spin_unlock_irqrestore(fence->lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL(fence_default_wait);
+EXPORT_SYMBOL(dma_fence_default_wait);
 
 static bool
-fence_test_signaled_any(struct fence **fences, uint32_t count)
+dma_fence_test_signaled_any(struct dma_fence **fences, uint32_t count)
 {
 	int i;
 
 	for (i = 0; i < count; ++i) {
-		struct fence *fence = fences[i];
-		if (test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+		struct dma_fence *fence = fences[i];
+		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 			return true;
 	}
 	return false;
 }
 
 /**
- * fence_wait_any_timeout - sleep until any fence gets signaled
+ * dma_fence_wait_any_timeout - sleep until any fence gets signaled
  * or until timeout elapses
  * @fences:	[in]	array of fences to wait on
  * @count:	[in]	number of fences to wait on
@@ -427,8 +432,8 @@ fence_test_signaled_any(struct fence **fences, uint32_t count)
  * fence might be freed before return, resulting in undefined behavior.
  */
 signed long
-fence_wait_any_timeout(struct fence **fences, uint32_t count,
-		       bool intr, signed long timeout)
+dma_fence_wait_any_timeout(struct dma_fence **fences, uint32_t count,
+			   bool intr, signed long timeout)
 {
 	struct default_wait_cb *cb;
 	signed long ret = timeout;
@@ -439,7 +444,7 @@ fence_wait_any_timeout(struct fence **fences, uint32_t count,
 
 	if (timeout == 0) {
 		for (i = 0; i < count; ++i)
-			if (fence_is_signaled(fences[i]))
+			if (dma_fence_is_signaled(fences[i]))
 				return 1;
 
 		return 0;
@@ -452,16 +457,16 @@ fence_wait_any_timeout(struct fence **fences, uint32_t count,
 	}
 
 	for (i = 0; i < count; ++i) {
-		struct fence *fence = fences[i];
+		struct dma_fence *fence = fences[i];
 
-		if (fence->ops->wait != fence_default_wait) {
+		if (fence->ops->wait != dma_fence_default_wait) {
 			ret = -EINVAL;
 			goto fence_rm_cb;
 		}
 
 		cb[i].task = current;
-		if (fence_add_callback(fence, &cb[i].base,
-				       fence_default_wait_cb)) {
+		if (dma_fence_add_callback(fence, &cb[i].base,
+					   dma_fence_default_wait_cb)) {
 			/* This fence is already signaled */
 			goto fence_rm_cb;
 		}
@@ -473,7 +478,7 @@ fence_wait_any_timeout(struct fence **fences, uint32_t count,
 		else
 			set_current_state(TASK_UNINTERRUPTIBLE);
 
-		if (fence_test_signaled_any(fences, count))
+		if (dma_fence_test_signaled_any(fences, count))
 			break;
 
 		ret = schedule_timeout(ret);
@@ -486,34 +491,34 @@ fence_wait_any_timeout(struct fence **fences, uint32_t count,
 
 fence_rm_cb:
 	while (i-- > 0)
-		fence_remove_callback(fences[i], &cb[i].base);
+		dma_fence_remove_callback(fences[i], &cb[i].base);
 
 err_free_cb:
 	kfree(cb);
 
 	return ret;
 }
-EXPORT_SYMBOL(fence_wait_any_timeout);
+EXPORT_SYMBOL(dma_fence_wait_any_timeout);
 
 /**
- * fence_init - Initialize a custom fence.
+ * dma_fence_init - Initialize a custom fence.
  * @fence:	[in]	the fence to initialize
- * @ops:	[in]	the fence_ops for operations on this fence
+ * @ops:	[in]	the dma_fence_ops for operations on this fence
  * @lock:	[in]	the irqsafe spinlock to use for locking this fence
  * @context:	[in]	the execution context this fence is run on
  * @seqno:	[in]	a linear increasing sequence number for this context
  *
  * Initializes an allocated fence, the caller doesn't have to keep its
  * refcount after committing with this fence, but it will need to hold a
- * refcount again if fence_ops.enable_signaling gets called. This can
+ * refcount again if dma_fence_ops.enable_signaling gets called. This can
  * be used for other implementing other types of fence.
  *
  * context and seqno are used for easy comparison between fences, allowing
- * to check which fence is later by simply using fence_later.
+ * to check which fence is later by simply using dma_fence_later.
  */
 void
-fence_init(struct fence *fence, const struct fence_ops *ops,
-	     spinlock_t *lock, u64 context, unsigned seqno)
+dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
+	       spinlock_t *lock, u64 context, unsigned seqno)
 {
 	BUG_ON(!lock);
 	BUG_ON(!ops || !ops->wait || !ops->enable_signaling ||
@@ -527,6 +532,6 @@ fence_init(struct fence *fence, const struct fence_ops *ops,
 	fence->seqno = seqno;
 	fence->flags = 0UL;
 
-	trace_fence_init(fence);
+	trace_dma_fence_init(fence);
 }
-EXPORT_SYMBOL(fence_init);
+EXPORT_SYMBOL(dma_fence_init);

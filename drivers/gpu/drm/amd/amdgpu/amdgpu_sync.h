@@ -26,7 +26,7 @@
 
 #include <linux/hashtable.h>
 
-struct fence;
+struct dma_fence;
 struct reservation_object;
 struct amdgpu_device;
 struct amdgpu_ring;
@@ -36,19 +36,19 @@ struct amdgpu_ring;
  */
 struct amdgpu_sync {
 	DECLARE_HASHTABLE(fences, 4);
-	struct fence	*last_vm_update;
+	struct dma_fence	*last_vm_update;
 };
 
 void amdgpu_sync_create(struct amdgpu_sync *sync);
 int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
-		      struct fence *f);
+		      struct dma_fence *f);
 int amdgpu_sync_resv(struct amdgpu_device *adev,
 		     struct amdgpu_sync *sync,
 		     struct reservation_object *resv,
 		     void *owner);
-struct fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
+struct dma_fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
 				     struct amdgpu_ring *ring);
-struct fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync);
+struct dma_fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync);
 void amdgpu_sync_free(struct amdgpu_sync *sync);
 int amdgpu_sync_init(void);
 void amdgpu_sync_fini(void);

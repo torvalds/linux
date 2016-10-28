@@ -211,7 +211,7 @@ struct ttm_buffer_object {
 	 * Members protected by a bo reservation.
 	 */
 
-	struct fence *moving;
+	struct dma_fence *moving;
 
 	struct drm_vma_offset_node vma_node;
 

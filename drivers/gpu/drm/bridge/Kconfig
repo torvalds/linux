@@ -57,6 +57,13 @@ config DRM_PARADE_PS8622
 	---help---
 	  Parade eDP-LVDS bridge chip driver.
 
+config DRM_SIL_SII8620
+	tristate "Silicon Image SII8620 HDMI/MHL bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	help
+	  Silicon Image SII8620 HDMI/MHL bridge chip driver.
+
 config DRM_SII902X
 	tristate "Silicon Image sii902x RGB/HDMI bridge"
 	depends on OF

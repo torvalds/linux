@@ -521,7 +521,7 @@ int msm_gem_sync_object(struct drm_gem_object *obj,
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	struct reservation_object_list *fobj;
-	struct fence *fence;
+	struct dma_fence *fence;
 	int i, ret;
 
 	if (!exclusive) {
@@ -540,7 +540,7 @@ int msm_gem_sync_object(struct drm_gem_object *obj,
 		fence = reservation_object_get_excl(msm_obj->resv);
 		/* don't need to wait on our own fences, since ring is fifo */
 		if (fence && (fence->context != fctx->context)) {
-			ret = fence_wait(fence, true);
+			ret = dma_fence_wait(fence, true);
 			if (ret)
 				return ret;
 		}
@@ -553,7 +553,7 @@ int msm_gem_sync_object(struct drm_gem_object *obj,
 		fence = rcu_dereference_protected(fobj->shared[i],
 						reservation_object_held(msm_obj->resv));
 		if (fence->context != fctx->context) {
-			ret = fence_wait(fence, true);
+			ret = dma_fence_wait(fence, true);
 			if (ret)
 				return ret;
 		}
@@ -563,7 +563,7 @@ int msm_gem_sync_object(struct drm_gem_object *obj,
 }
 
 void msm_gem_move_to_active(struct drm_gem_object *obj,
-		struct msm_gpu *gpu, bool exclusive, struct fence *fence)
+		struct msm_gpu *gpu, bool exclusive, struct dma_fence *fence)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED);
@@ -616,10 +616,10 @@ int msm_gem_cpu_fini(struct drm_gem_object *obj)
 }
 
 #ifdef CONFIG_DEBUG_FS
-static void describe_fence(struct fence *fence, const char *type,
+static void describe_fence(struct dma_fence *fence, const char *type,
 		struct seq_file *m)
 {
-	if (!fence_is_signaled(fence))
+	if (!dma_fence_is_signaled(fence))
 		seq_printf(m, "\t%9s: %s %s seq %u\n", type,
 				fence->ops->get_driver_name(fence),
 				fence->ops->get_timeline_name(fence),
@@ -631,7 +631,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	struct reservation_object *robj = msm_obj->resv;
 	struct reservation_object_list *fobj;
-	struct fence *fence;
+	struct dma_fence *fence;
 	uint64_t off = drm_vma_node_start(&obj->vma_node);
 	const char *madv;
 

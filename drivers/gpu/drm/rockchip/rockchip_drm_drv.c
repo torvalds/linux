@@ -20,6 +20,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_of.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
@@ -388,7 +389,7 @@ static void rockchip_add_endpoints(struct device *dev,
 			continue;
 		}
 
-		component_match_add(dev, match, compare_of, remote);
+		drm_of_component_match_add(dev, match, compare_of, remote);
 		of_node_put(remote);
 	}
 }
@@ -437,7 +438,8 @@ static int rockchip_drm_platform_probe(struct platform_device *pdev)
 		}
 
 		of_node_put(iommu);
-		component_match_add(dev, &match, compare_of, port->parent);
+		drm_of_component_match_add(dev, &match, compare_of,
+					   port->parent);
 		of_node_put(port);
 	}
 

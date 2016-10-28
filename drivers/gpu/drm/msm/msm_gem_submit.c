@@ -60,7 +60,7 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 
 void msm_gem_submit_free(struct msm_gem_submit *submit)
 {
-	fence_put(submit->fence);
+	dma_fence_put(submit->fence);
 	list_del(&submit->node);
 	put_pid(submit->pid);
 	kfree(submit);
@@ -380,7 +380,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct msm_file_private *ctx = file->driver_priv;
 	struct msm_gem_submit *submit;
 	struct msm_gpu *gpu = priv->gpu;
-	struct fence *in_fence = NULL;
+	struct dma_fence *in_fence = NULL;
 	struct sync_file *sync_file = NULL;
 	int out_fence_fd = -1;
 	unsigned i;
@@ -439,7 +439,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		 */
 
 		if (in_fence->context != gpu->fctx->context) {
-			ret = fence_wait(in_fence, true);
+			ret = dma_fence_wait(in_fence, true);
 			if (ret)
 				goto out;
 		}
@@ -542,7 +542,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 out:
 	if (in_fence)
-		fence_put(in_fence);
+		dma_fence_put(in_fence);
 	submit_cleanup(submit);
 	if (ret)
 		msm_gem_submit_free(submit);

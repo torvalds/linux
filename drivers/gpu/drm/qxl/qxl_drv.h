@@ -31,7 +31,7 @@
  * Definitions taken from spice-protocol, plus kernel driver specific bits.
  */
 
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
@@ -190,7 +190,7 @@ enum {
  * spice-protocol/qxl_dev.h */
 #define QXL_MAX_RES 96
 struct qxl_release {
-	struct fence base;
+	struct dma_fence base;
 
 	int id;
 	int type;

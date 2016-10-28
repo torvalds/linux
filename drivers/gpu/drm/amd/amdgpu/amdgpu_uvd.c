@@ -333,7 +333,7 @@ void amdgpu_uvd_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 	for (i = 0; i < adev->uvd.max_handles; ++i) {
 		uint32_t handle = atomic_read(&adev->uvd.handles[i]);
 		if (handle != 0 && adev->uvd.filp[i] == filp) {
-			struct fence *fence;
+			struct dma_fence *fence;
 
 			r = amdgpu_uvd_get_destroy_msg(ring, handle,
 						       false, &fence);
@@ -342,8 +342,8 @@ void amdgpu_uvd_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 				continue;
 			}
 
-			fence_wait(fence, false);
-			fence_put(fence);
+			dma_fence_wait(fence, false);
+			dma_fence_put(fence);
 
 			adev->uvd.filp[i] = NULL;
 			atomic_set(&adev->uvd.handles[i], 0);
@@ -912,14 +912,14 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 }
 
 static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
-			       bool direct, struct fence **fence)
+			       bool direct, struct dma_fence **fence)
 {
 	struct ttm_validate_buffer tv;
 	struct ww_acquire_ctx ticket;
 	struct list_head head;
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
-	struct fence *f = NULL;
+	struct dma_fence *f = NULL;
 	struct amdgpu_device *adev = ring->adev;
 	uint64_t addr;
 	int i, r;
@@ -963,7 +963,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 
 	if (direct) {
 		r = amdgpu_ib_schedule(ring, 1, ib, NULL, NULL, &f);
-		job->fence = fence_get(f);
+		job->fence = dma_fence_get(f);
 		if (r)
 			goto err_free;
 
@@ -978,9 +978,9 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	ttm_eu_fence_buffer_objects(&ticket, &head, f);
 
 	if (fence)
-		*fence = fence_get(f);
+		*fence = dma_fence_get(f);
 	amdgpu_bo_unref(&bo);
-	fence_put(f);
+	dma_fence_put(f);
 
 	return 0;
 
@@ -996,7 +996,7 @@ err:
    crash the vcpu so just try to emmit a dummy create/destroy msg to
    avoid this */
 int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
-			      struct fence **fence)
+			      struct dma_fence **fence)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_bo *bo;
@@ -1046,7 +1046,7 @@ int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 }
 
 int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-			       bool direct, struct fence **fence)
+			       bool direct, struct dma_fence **fence)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_bo *bo;
@@ -1133,7 +1133,7 @@ void amdgpu_uvd_ring_end_use(struct amdgpu_ring *ring)
  */
 int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
-	struct fence *fence;
+	struct dma_fence *fence;
 	long r;
 
 	r = amdgpu_uvd_get_create_msg(ring, 1, NULL);
@@ -1148,7 +1148,7 @@ int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 		goto error;
 	}
 
-	r = fence_wait_timeout(fence, false, timeout);
+	r = dma_fence_wait_timeout(fence, false, timeout);
 	if (r == 0) {
 		DRM_ERROR("amdgpu: IB test timed out.\n");
 		r = -ETIMEDOUT;
@@ -1159,7 +1159,7 @@ int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 		r = 0;
 	}
 
-	fence_put(fence);
+	dma_fence_put(fence);
 
 error:
 	return r;
