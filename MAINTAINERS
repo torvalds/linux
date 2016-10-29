@@ -5287,6 +5287,12 @@ M:	Joe Perches <joe@perches.com>
 S:	Maintained
 F:	scripts/get_maintainer.pl
 
+GENWQE (IBM Generic Workqueue Card)
+M:	Frank Haverkamp <haver@linux.vnet.ibm.com>
+M:	Gabriel Krisman Bertazi <krisman@linux.vnet.ibm.com>
+S:	Supported
+F:	drivers/misc/genwqe/
+
 GFS2 FILE SYSTEM
 M:	Steven Whitehouse <swhiteho@redhat.com>
 M:	Bob Peterson <rpeterso@redhat.com>
