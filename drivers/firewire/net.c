@@ -578,6 +578,9 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 	int retval;
 	u16 ether_type;
 
+	if (len <= RFC2374_UNFRAG_HDR_SIZE)
+		return 0;
+
 	hdr.w0 = be32_to_cpu(buf[0]);
 	lf = fwnet_get_hdr_lf(&hdr);
 	if (lf == RFC2374_HDR_UNFRAG) {
@@ -602,7 +605,12 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 		return fwnet_finish_incoming_packet(net, skb, source_node_id,
 						    is_broadcast, ether_type);
 	}
+
 	/* A datagram fragment has been received, now the fun begins. */
+
+	if (len <= RFC2374_FRAG_HDR_SIZE)
+		return 0;
+
 	hdr.w1 = ntohl(buf[1]);
 	buf += 2;
 	len -= RFC2374_FRAG_HDR_SIZE;
@@ -615,6 +623,9 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 	}
 	datagram_label = fwnet_get_hdr_dgl(&hdr);
 	dg_size = fwnet_get_hdr_dg_size(&hdr); /* ??? + 1 */
+
+	if (fg_off + len > dg_size)
+		return 0;
 
 	spin_lock_irqsave(&dev->lock, flags);
 
@@ -722,6 +733,22 @@ static void fwnet_receive_packet(struct fw_card *card, struct fw_request *r,
 	fw_send_response(card, r, rcode);
 }
 
+static int gasp_source_id(__be32 *p)
+{
+	return be32_to_cpu(p[0]) >> 16;
+}
+
+static u32 gasp_specifier_id(__be32 *p)
+{
+	return (be32_to_cpu(p[0]) & 0xffff) << 8 |
+	       (be32_to_cpu(p[1]) & 0xff000000) >> 24;
+}
+
+static u32 gasp_version(__be32 *p)
+{
+	return be32_to_cpu(p[1]) & 0xffffff;
+}
+
 static void fwnet_receive_broadcast(struct fw_iso_context *context,
 		u32 cycle, size_t header_length, void *header, void *data)
 {
@@ -731,9 +758,6 @@ static void fwnet_receive_broadcast(struct fw_iso_context *context,
 	__be32 *buf_ptr;
 	int retval;
 	u32 length;
-	u16 source_node_id;
-	u32 specifier_id;
-	u32 ver;
 	unsigned long offset;
 	unsigned long flags;
 
@@ -750,22 +774,17 @@ static void fwnet_receive_broadcast(struct fw_iso_context *context,
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	specifier_id =    (be32_to_cpu(buf_ptr[0]) & 0xffff) << 8
-			| (be32_to_cpu(buf_ptr[1]) & 0xff000000) >> 24;
-	ver = be32_to_cpu(buf_ptr[1]) & 0xffffff;
-	source_node_id = be32_to_cpu(buf_ptr[0]) >> 16;
-
-	if (specifier_id == IANA_SPECIFIER_ID &&
-	    (ver == RFC2734_SW_VERSION
+	if (length > IEEE1394_GASP_HDR_SIZE &&
+	    gasp_specifier_id(buf_ptr) == IANA_SPECIFIER_ID &&
+	    (gasp_version(buf_ptr) == RFC2734_SW_VERSION
 #if IS_ENABLED(CONFIG_IPV6)
-	     || ver == RFC3146_SW_VERSION
+	     || gasp_version(buf_ptr) == RFC3146_SW_VERSION
 #endif
-	    )) {
-		buf_ptr += 2;
-		length -= IEEE1394_GASP_HDR_SIZE;
-		fwnet_incoming_packet(dev, buf_ptr, length, source_node_id,
+	    ))
+		fwnet_incoming_packet(dev, buf_ptr + 2,
+				      length - IEEE1394_GASP_HDR_SIZE,
+				      gasp_source_id(buf_ptr),
 				      context->card->generation, true);
-	}
 
 	packet.payload_length = dev->rcv_buffer_size;
 	packet.interrupt = 1;
