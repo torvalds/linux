@@ -857,9 +857,9 @@ static void acpi_gpiochip_free_regions(struct acpi_gpio_chip *achip)
 	}
 }
 
-struct gpio_desc *acpi_gpiochip_parse_own_gpio(struct acpi_gpio_chip *achip,
-	struct fwnode_handle *fwnode, const char **name, unsigned int *lflags,
-	unsigned int *dflags)
+static struct gpio_desc *acpi_gpiochip_parse_own_gpio(
+	struct acpi_gpio_chip *achip, struct fwnode_handle *fwnode,
+	const char **name, unsigned int *lflags, unsigned int *dflags)
 {
 	struct gpio_chip *chip = achip->chip;
 	struct gpio_desc *desc;
