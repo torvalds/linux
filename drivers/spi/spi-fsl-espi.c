@@ -247,8 +247,7 @@ static void fsl_espi_setup_transfer(struct spi_device *spi,
 {
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(spi->master);
 	int bits_per_word = t ? t->bits_per_word : spi->bits_per_word;
-	u32 hz = t ? t->speed_hz : spi->max_speed_hz;
-	u8 pm;
+	u32 pm, hz = t ? t->speed_hz : spi->max_speed_hz;
 	struct spi_mpc8xxx_cs *cs = spi->controller_state;
 
 	/* mask out bits we are going to set */
@@ -256,22 +255,19 @@ static void fsl_espi_setup_transfer(struct spi_device *spi,
 
 	cs->hw_mode |= CSMODE_LEN(bits_per_word - 1);
 
-	if ((mpc8xxx_spi->spibrg / hz) > 64) {
-		cs->hw_mode |= CSMODE_DIV16;
-		pm = DIV_ROUND_UP(mpc8xxx_spi->spibrg, hz * 16 * 4);
+	pm = DIV_ROUND_UP(mpc8xxx_spi->spibrg, hz * 4) - 1;
 
-		WARN_ONCE(pm > 33, "%s: Requested speed is too low: %d Hz. "
-			  "Will use %d Hz instead.\n", dev_name(&spi->dev),
-				hz, mpc8xxx_spi->spibrg / (4 * 16 * (32 + 1)));
-		if (pm > 33)
-			pm = 33;
-	} else {
-		pm = DIV_ROUND_UP(mpc8xxx_spi->spibrg, hz * 4);
+	if (pm > 15) {
+		cs->hw_mode |= CSMODE_DIV16;
+		pm = DIV_ROUND_UP(mpc8xxx_spi->spibrg, hz * 16 * 4) - 1;
+
+		WARN_ONCE(pm > 15,
+			  "%s: Requested speed is too low: %u Hz. Will use %u Hz instead.\n",
+			  dev_name(&spi->dev), hz,
+			  mpc8xxx_spi->spibrg / (4 * 16 * (15 + 1)));
+		if (pm > 15)
+			pm = 15;
 	}
-	if (pm)
-		pm--;
-	if (pm < 2)
-		pm = 2;
 
 	cs->hw_mode |= CSMODE_PM(pm);
 
