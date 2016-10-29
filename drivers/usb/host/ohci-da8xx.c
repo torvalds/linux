@@ -261,7 +261,6 @@ static int ohci_da8xx_probe(struct platform_device *pdev)
 	hcd->regs = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(hcd->regs)) {
 		error = PTR_ERR(hcd->regs);
-		dev_err(&pdev->dev, "failed to map ohci.\n");
 		goto err;
 	}
 	hcd->rsrc_start = mem->start;
