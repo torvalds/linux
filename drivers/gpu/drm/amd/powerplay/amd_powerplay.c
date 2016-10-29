@@ -582,6 +582,23 @@ static int pp_dpm_get_fan_speed_percent(void *handle, uint32_t *speed)
 	return hwmgr->hwmgr_func->get_fan_speed_percent(hwmgr, speed);
 }
 
+static int pp_dpm_get_fan_speed_rpm(void *handle, uint32_t *rpm)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_fan_speed_rpm == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_fan_speed_rpm(hwmgr, rpm);
+}
+
 static int pp_dpm_get_temperature(void *handle)
 {
 	struct pp_hwmgr  *hwmgr;
@@ -852,6 +869,7 @@ const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_fan_control_mode = pp_dpm_get_fan_control_mode,
 	.set_fan_speed_percent = pp_dpm_set_fan_speed_percent,
 	.get_fan_speed_percent = pp_dpm_get_fan_speed_percent,
+	.get_fan_speed_rpm = pp_dpm_get_fan_speed_rpm,
 	.get_pp_num_states = pp_dpm_get_pp_num_states,
 	.get_pp_table = pp_dpm_get_pp_table,
 	.set_pp_table = pp_dpm_set_pp_table,

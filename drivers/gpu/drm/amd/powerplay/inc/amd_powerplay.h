@@ -349,6 +349,7 @@ struct amd_powerplay_funcs {
 	int (*get_fan_control_mode)(void *handle);
 	int (*set_fan_speed_percent)(void *handle, uint32_t percent);
 	int (*get_fan_speed_percent)(void *handle, uint32_t *speed);
+	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);
 	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
 	int (*get_pp_table)(void *handle, char **table);
 	int (*set_pp_table)(void *handle, const char *buf, size_t size);
