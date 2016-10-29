@@ -15,7 +15,6 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
-#include <linux/interrupt.h>
 #include <linux/iio/events.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
