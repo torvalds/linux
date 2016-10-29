@@ -6086,6 +6086,7 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	ieee80211_hw_set(wl->hw, SUPPORTS_DYNAMIC_PS);
 	ieee80211_hw_set(wl->hw, SIGNAL_DBM);
 	ieee80211_hw_set(wl->hw, SUPPORTS_PS);
+	ieee80211_hw_set(wl->hw, SUPPORTS_TX_FRAG);
 
 	wl->hw->wiphy->cipher_suites = cipher_suites;
 	wl->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);

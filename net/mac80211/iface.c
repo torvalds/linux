@@ -1998,3 +1998,19 @@ void ieee80211_iface_exit(void)
 {
 	unregister_netdevice_notifier(&mac80211_netdev_notifier);
 }
+
+void ieee80211_vif_inc_num_mcast(struct ieee80211_sub_if_data *sdata)
+{
+	if (sdata->vif.type == NL80211_IFTYPE_AP)
+		atomic_inc(&sdata->u.ap.num_mcast_sta);
+	else if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+		atomic_inc(&sdata->u.vlan.num_mcast_sta);
+}
+
+void ieee80211_vif_dec_num_mcast(struct ieee80211_sub_if_data *sdata)
+{
+	if (sdata->vif.type == NL80211_IFTYPE_AP)
+		atomic_dec(&sdata->u.ap.num_mcast_sta);
+	else if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+		atomic_dec(&sdata->u.vlan.num_mcast_sta);
+}

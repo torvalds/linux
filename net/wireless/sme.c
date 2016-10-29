@@ -1088,7 +1088,7 @@ int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 		err = cfg80211_sme_disconnect(wdev, reason);
 	else if (!rdev->ops->disconnect)
 		cfg80211_mlme_down(rdev, dev);
-	else if (wdev->current_bss)
+	else if (wdev->ssid_len)
 		err = rdev_disconnect(rdev, dev, reason);
 
 	return err;
