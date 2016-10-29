@@ -473,7 +473,7 @@ static irqreturn_t fsl_espi_irq(s32 irq, void *context_data)
 	/* Get interrupt events(tx/rx) */
 	events = fsl_espi_read_reg(mspi, ESPI_SPIE);
 	if (!events) {
-		spin_unlock_irq(&mspi->lock);
+		spin_unlock(&mspi->lock);
 		return IRQ_NONE;
 	}
 
