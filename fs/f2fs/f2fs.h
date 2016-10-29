@@ -2014,7 +2014,7 @@ void set_de_type(struct f2fs_dir_entry *, umode_t);
 unsigned char get_de_type(struct f2fs_dir_entry *);
 struct f2fs_dir_entry *find_target_dentry(struct fscrypt_name *,
 			f2fs_hash_t, int *, struct f2fs_dentry_ptr *);
-bool f2fs_fill_dentries(struct dir_context *, struct f2fs_dentry_ptr *,
+int f2fs_fill_dentries(struct dir_context *, struct f2fs_dentry_ptr *,
 			unsigned int, struct fscrypt_str *);
 void do_make_empty_dir(struct inode *, struct inode *,
 			struct f2fs_dentry_ptr *);
