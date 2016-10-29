@@ -12,23 +12,20 @@
  * 19 Jan 2007
  */
 
-#include <linux/module.h>
-#include <linux/types.h>
-#include <linux/smp.h>
-#include <linux/init.h>
-#include <linux/sysctl.h>
-#include <linux/highmem.h>
-#include <linux/timer.h>
-#include <linux/slab.h>
-#include <linux/jiffies.h>
-#include <linux/spinlock.h>
-#include <linux/list.h>
-#include <linux/ctype.h>
-#include <linux/workqueue.h>
-#include <asm/uaccess.h>
 #include <asm/page.h>
+#include <asm/uaccess.h>
+#include <linux/ctype.h>
+#include <linux/highmem.h>
+#include <linux/init.h>
+#include <linux/jiffies.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/smp.h>
+#include <linux/spinlock.h>
+#include <linux/sysctl.h>
+#include <linux/timer.h>
 
-#include "edac_core.h"
+#include "edac_device.h"
 #include "edac_module.h"
 
 /* lock for the list: 'edac_device_list', manipulation of this list
