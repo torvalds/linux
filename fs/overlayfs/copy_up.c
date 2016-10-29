@@ -25,6 +25,7 @@ int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 	ssize_t list_size, size, value_size = 0;
 	char *buf, *name, *value = NULL;
 	int uninitialized_var(error);
+	size_t slen;
 
 	if (!old->d_inode->i_op->getxattr ||
 	    !new->d_inode->i_op->getxattr)
@@ -47,7 +48,16 @@ int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 		goto out;
 	}
 
-	for (name = buf; name < (buf + list_size); name += strlen(name) + 1) {
+	for (name = buf; list_size; name += slen) {
+		slen = strnlen(name, list_size) + 1;
+
+		/* underlying fs providing us with an broken xattr list? */
+		if (WARN_ON(slen > list_size)) {
+			error = -EIO;
+			break;
+		}
+		list_size -= slen;
+
 		if (ovl_is_private_xattr(name))
 			continue;
 retry:
