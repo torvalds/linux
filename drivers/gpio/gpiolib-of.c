@@ -247,8 +247,10 @@ static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 			continue;
 
 		ret = gpiod_hog(desc, name, lflags, dflags);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(np);
 			return ret;
+		}
 	}
 
 	return 0;
