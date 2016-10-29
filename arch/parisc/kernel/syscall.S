@@ -100,7 +100,7 @@ set_thread_pointer:
 	.endr
 
 /* This address must remain fixed at 0x100 for glibc's syscalls to work */
-	.align 256
+	.align LINUX_GATEWAY_ADDR
 linux_gateway_entry:
 	gate	.+8, %r0			/* become privileged */
 	mtsp	%r0,%sr4			/* get kernel space into sr4 */
