@@ -18,6 +18,8 @@
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 
+#define EDAC_DEVICE_NAME_LEN	31
+
 struct device;
 
 #define EDAC_OPSTATE_INVAL	-1

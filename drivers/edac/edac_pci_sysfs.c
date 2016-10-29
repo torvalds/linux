@@ -11,7 +11,7 @@
 #include <linux/slab.h>
 #include <linux/ctype.h>
 
-#include "edac_core.h"
+#include "edac_pci.h"
 #include "edac_module.h"
 
 #define EDAC_PCI_SYMLINK	"device"
