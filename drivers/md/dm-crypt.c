@@ -994,7 +994,6 @@ static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned size)
 	gfp_t gfp_mask = GFP_NOWAIT | __GFP_HIGHMEM;
 	unsigned i, len, remaining_size;
 	struct page *page;
-	struct bio_vec *bvec;
 
 retry:
 	if (unlikely(gfp_mask & __GFP_DIRECT_RECLAIM))
@@ -1019,12 +1018,7 @@ retry:
 
 		len = (remaining_size > PAGE_SIZE) ? PAGE_SIZE : remaining_size;
 
-		bvec = &clone->bi_io_vec[clone->bi_vcnt++];
-		bvec->bv_page = page;
-		bvec->bv_len = len;
-		bvec->bv_offset = 0;
-
-		clone->bi_iter.bi_size += len;
+		bio_add_page(clone, page, len, 0);
 
 		remaining_size -= len;
 	}
