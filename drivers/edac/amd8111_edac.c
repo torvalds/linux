@@ -29,7 +29,6 @@
 #include <linux/pci_ids.h>
 #include <asm/io.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 #include "amd8111_edac.h"
 

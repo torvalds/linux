@@ -27,7 +27,7 @@
 #include <asm/processor.h>
 #include <asm/mce.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 /* Static vars */
 static LIST_HEAD(sbridge_edac_list);

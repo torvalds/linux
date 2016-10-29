@@ -26,7 +26,7 @@
 #include <linux/edac.h>
 #include <linux/mmzone.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 /*
  * Alter this version for the I7300 module when modifications are made

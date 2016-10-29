@@ -14,7 +14,7 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/edac.h>
-#include "edac_core.h"
+#include "edac_module.h"
 
 #define I82975X_REVISION	" Ver: 1.0.0"
 #define EDAC_MOD_STR		"i82975x_edac"

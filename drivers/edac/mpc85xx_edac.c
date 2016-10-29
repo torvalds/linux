@@ -25,7 +25,6 @@
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include "edac_module.h"
-#include "edac_core.h"
 #include "mpc85xx_edac.h"
 #include "fsl_ddr_edac.h"
 
