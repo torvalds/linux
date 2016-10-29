@@ -287,7 +287,7 @@ static int adjust_local_phandle_references(struct device_node *local_fixups,
 int of_resolve_phandles(struct device_node *overlay)
 {
 	struct device_node *child, *local_fixups, *refnode;
-	struct device_node *tree_symbols, *overlay_symbols, *overlay_fixups;
+	struct device_node *tree_symbols, *overlay_fixups;
 	struct property *prop;
 	const char *refpath;
 	phandle phandle, phandle_delta;
@@ -317,12 +317,9 @@ int of_resolve_phandles(struct device_node *overlay)
 	if (err)
 		goto err_out;
 
-	overlay_symbols = NULL;
 	overlay_fixups = NULL;
 
 	for_each_child_of_node(overlay, child) {
-		if (!of_node_cmp(child->name, "__symbols__"))
-			overlay_symbols = child;
 		if (!of_node_cmp(child->name, "__fixups__"))
 			overlay_fixups = child;
 	}
