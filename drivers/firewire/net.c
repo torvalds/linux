@@ -1465,7 +1465,7 @@ static int fwnet_probe(struct fw_unit *unit,
 
 	net->mtu = 1500U;
 	net->min_mtu = ETH_MIN_MTU;
-	net->max_mtu = ETH_MAX_MTU;
+	net->max_mtu = 0xfff;
 
 	/* Set our hardware address while we're at it */
 	ha = (union fwnet_hwaddr *)net->dev_addr;
