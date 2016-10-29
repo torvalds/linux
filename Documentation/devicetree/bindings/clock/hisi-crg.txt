@@ -1,7 +1,7 @@
-* Hisilicon Hi3519 Clock and Reset Generator(CRG)
+* HiSilicon Clock and Reset Generator(CRG)
 
-The Hi3519 CRG module provides clock and reset signals to various
-controllers within the SoC.
+The CRG module provides clock and reset signals to various
+modules within the SoC.
 
 This binding uses the following bindings:
     Documentation/devicetree/bindings/clock/clock-bindings.txt
@@ -10,7 +10,11 @@ This binding uses the following bindings:
 Required Properties:
 
 - compatible: should be one of the following.
-  - "hisilicon,hi3519-crg" - controller compatible with Hi3519 SoC.
+  - "hisilicon,hi3516cv300-crg"
+  - "hisilicon,hi3516cv300-sysctrl"
+  - "hisilicon,hi3519-crg"
+  - "hisilicon,hi3798cv200-crg"
+  - "hisilicon,hi3798cv200-sysctrl"
 
 - reg: physical base address of the controller and length of memory mapped
   region.
