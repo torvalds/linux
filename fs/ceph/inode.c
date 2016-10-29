@@ -1203,12 +1203,7 @@ retry_lookup:
 					err = -ENOMEM;
 					goto done;
 				}
-				err = ceph_init_dentry(dn);
-				if (err < 0) {
-					dput(dn);
-					dput(parent);
-					goto done;
-				}
+				err = 0;
 			} else if (d_really_is_positive(dn) &&
 				   (ceph_ino(d_inode(dn)) != vino.ino ||
 				    ceph_snap(d_inode(dn)) != vino.snap)) {
@@ -1559,12 +1554,6 @@ retry_lookup:
 			if (dn == NULL) {
 				dout("d_alloc badness\n");
 				err = -ENOMEM;
-				goto out;
-			}
-			ret = ceph_init_dentry(dn);
-			if (ret < 0) {
-				dput(dn);
-				err = ret;
 				goto out;
 			}
 		} else if (d_really_is_positive(dn) &&
