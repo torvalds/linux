@@ -252,7 +252,7 @@ static int usbctrl_vendorreq(struct adapter *adapt, u8 request, u16 value, u16 i
 	/*  Acquire IO memory for vendorreq */
 	pIo_buf = kmalloc(MAX_USB_IO_CTL_SIZE, GFP_ATOMIC);
 
-	if (pIo_buf == NULL) {
+	if (!pIo_buf) {
 		DBG_88E("[%s] pIo_buf == NULL\n", __func__);
 		status = -ENOMEM;
 		goto release_mutex;
