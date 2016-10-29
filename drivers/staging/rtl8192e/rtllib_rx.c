@@ -130,7 +130,7 @@ rtllib_frag_cache_get(struct rtllib_device *ieee,
 				    ETH_ALEN /* WDS */ +
 				    /* QOS Control */
 				    (RTLLIB_QOS_HAS_SEQ(fc) ? 2 : 0));
-		if (skb == NULL)
+		if (!skb)
 			return NULL;
 
 		entry = &ieee->frag_cache[tid][ieee->frag_next_idx[tid]];
@@ -1430,7 +1430,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* skb: hdr + (possible reassembled) full plaintext payload */
 	payload = skb->data + hdrlen;
 	rxb = kmalloc(sizeof(struct rtllib_rxb), GFP_ATOMIC);
-	if (rxb == NULL)
+	if (!rxb)
 		goto rx_dropped;
 
 	/* to parse amsdu packets */
