@@ -100,23 +100,17 @@ EXPORT_SYMBOL(fsl_get_sys_freq);
 
 #if defined(CONFIG_CPM2) || defined(CONFIG_QUICC_ENGINE) || defined(CONFIG_8xx)
 
-static u32 brgfreq = -1;
-
 u32 get_brgfreq(void)
 {
+	static u32 brgfreq = -1;
 	struct device_node *node;
-	const unsigned int *prop;
-	int size;
 
 	if (brgfreq != -1)
 		return brgfreq;
 
 	node = of_find_compatible_node(NULL, NULL, "fsl,cpm-brg");
 	if (node) {
-		prop = of_get_property(node, "clock-frequency", &size);
-		if (prop && size == 4)
-			brgfreq = *prop;
-
+		of_property_read_u32(node, "clock-frequency", &brgfreq);
 		of_node_put(node);
 		return brgfreq;
 	}
@@ -129,15 +123,11 @@ u32 get_brgfreq(void)
 		node = of_find_node_by_type(NULL, "qe");
 
 	if (node) {
-		prop = of_get_property(node, "brg-frequency", &size);
-		if (prop && size == 4)
-			brgfreq = *prop;
-
-		if (brgfreq == -1 || brgfreq == 0) {
-			prop = of_get_property(node, "bus-frequency", &size);
-			if (prop && size == 4)
-				brgfreq = *prop / 2;
-		}
+		of_property_read_u32(node, "brg-frequency", &brgfreq);
+		if (brgfreq == -1 || !brgfreq)
+			if (!of_property_read_u32(node, "bus-frequency",
+						  &brgfreq))
+				brgfreq /= 2;
 		of_node_put(node);
 	}
 
