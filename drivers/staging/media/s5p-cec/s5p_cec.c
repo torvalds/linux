@@ -22,7 +22,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/timer.h>
-#include <linux/version.h>
 #include <linux/workqueue.h>
 #include <media/cec.h>
 
