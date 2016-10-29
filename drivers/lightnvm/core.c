@@ -22,7 +22,7 @@
 #include <linux/types.h>
 #include <linux/sem.h>
 #include <linux/bitmap.h>
-#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/miscdevice.h>
 #include <linux/lightnvm.h>
 #include <linux/sched/sysctl.h>
@@ -889,6 +889,10 @@ static const struct kernel_param_ops nvm_configure_by_str_event_param_ops = {
 	.get	= nvm_configure_get,
 };
 
+/*
+ * Not available as modular, but easiest way to remain compatible with
+ * existing boot arg behaviour is to continue using module param here.
+ */
 #undef MODULE_PARAM_PREFIX
 #define MODULE_PARAM_PREFIX	"lnvm."
 
@@ -1162,10 +1166,4 @@ static struct miscdevice _nvm_misc = {
 	.nodename	= "lightnvm/control",
 	.fops		= &_ctl_fops,
 };
-module_misc_device(_nvm_misc);
-
-MODULE_ALIAS_MISCDEV(MISC_DYNAMIC_MINOR);
-
-MODULE_AUTHOR("Matias Bjorling <m@bjorling.me>");
-MODULE_LICENSE("GPL v2");
-MODULE_VERSION("0.1");
+builtin_misc_device(_nvm_misc);
