@@ -492,12 +492,12 @@ static void __blk_mq_requeue_request(struct request *rq)
 	}
 }
 
-void blk_mq_requeue_request(struct request *rq)
+void blk_mq_requeue_request(struct request *rq, bool kick_requeue_list)
 {
 	__blk_mq_requeue_request(rq);
 
 	BUG_ON(blk_queued_rq(rq));
-	blk_mq_add_to_requeue_list(rq, true);
+	blk_mq_add_to_requeue_list(rq, true, kick_requeue_list);
 }
 EXPORT_SYMBOL(blk_mq_requeue_request);
 
@@ -531,7 +531,8 @@ static void blk_mq_requeue_work(struct work_struct *work)
 	blk_mq_run_hw_queues(q, false);
 }
 
-void blk_mq_add_to_requeue_list(struct request *rq, bool at_head)
+void blk_mq_add_to_requeue_list(struct request *rq, bool at_head,
+				bool kick_requeue_list)
 {
 	struct request_queue *q = rq->q;
 	unsigned long flags;
@@ -550,6 +551,9 @@ void blk_mq_add_to_requeue_list(struct request *rq, bool at_head)
 		list_add_tail(&rq->queuelist, &q->requeue_list);
 	}
 	spin_unlock_irqrestore(&q->requeue_lock, flags);
+
+	if (kick_requeue_list)
+		blk_mq_kick_requeue_list(q);
 }
 EXPORT_SYMBOL(blk_mq_add_to_requeue_list);
 

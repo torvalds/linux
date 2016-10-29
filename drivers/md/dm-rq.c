@@ -347,7 +347,7 @@ EXPORT_SYMBOL(dm_mq_kick_requeue_list);
 
 static void dm_mq_delay_requeue_request(struct request *rq, unsigned long msecs)
 {
-	blk_mq_requeue_request(rq);
+	blk_mq_requeue_request(rq, false);
 	__dm_mq_kick_requeue_list(rq->q, msecs);
 }
 

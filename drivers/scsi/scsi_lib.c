@@ -86,10 +86,8 @@ scsi_set_blocked(struct scsi_cmnd *cmd, int reason)
 static void scsi_mq_requeue_cmd(struct scsi_cmnd *cmd)
 {
 	struct scsi_device *sdev = cmd->device;
-	struct request_queue *q = cmd->request->q;
 
-	blk_mq_requeue_request(cmd->request);
-	blk_mq_kick_requeue_list(q);
+	blk_mq_requeue_request(cmd->request, true);
 	put_device(&sdev->sdev_gendev);
 }
 

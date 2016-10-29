@@ -203,7 +203,7 @@ void nvme_requeue_req(struct request *req)
 {
 	unsigned long flags;
 
-	blk_mq_requeue_request(req);
+	blk_mq_requeue_request(req, false);
 	spin_lock_irqsave(req->q->queue_lock, flags);
 	if (!blk_queue_stopped(req->q))
 		blk_mq_kick_requeue_list(req->q);
