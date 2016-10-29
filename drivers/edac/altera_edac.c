@@ -35,7 +35,6 @@
 #include <linux/uaccess.h>
 
 #include "altera_edac.h"
-#include "edac_core.h"
 #include "edac_module.h"
 
 #define EDAC_MOD_STR		"altera_edac"

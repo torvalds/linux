@@ -1,5 +1,5 @@
 /*
- * Defines, structures, APIs for edac_core module
+ * Defines, structures, APIs for edac_mc module
  *
  * (C) 2007 Linux Networx (http://lnxi.com)
  * This file may be distributed under the terms of the
@@ -17,8 +17,8 @@
  *
  */
 
-#ifndef _EDAC_CORE_H_
-#define _EDAC_CORE_H_
+#ifndef _EDAC_MC_H_
+#define _EDAC_MC_H_
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -34,9 +34,6 @@
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
 #include <linux/edac.h>
-
-#include "edac_pci.h"
-#include "edac_device.h"
 
 #if PAGE_SHIFT < 20
 #define PAGES_TO_MiB(pages)	((pages) >> (20 - PAGE_SHIFT))
@@ -131,4 +128,4 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
  */
 extern char *edac_op_state_to_string(int op_state);
 
-#endif				/* _EDAC_CORE_H_ */
+#endif				/* _EDAC_MC_H_ */

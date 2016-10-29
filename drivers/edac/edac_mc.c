@@ -30,7 +30,7 @@
 #include <linux/bitops.h>
 #include <asm/uaccess.h>
 #include <asm/page.h>
-#include "edac_core.h"
+#include "edac_mc.h"
 #include "edac_module.h"
 #include <ras/ras_event.h>
 
