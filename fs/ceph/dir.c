@@ -50,13 +50,6 @@ int ceph_init_dentry(struct dentry *dentry)
 		goto out_unlock;
 	}
 
-	if (ceph_snap(d_inode(dentry->d_parent)) == CEPH_NOSNAP)
-		d_set_d_op(dentry, &ceph_dentry_ops);
-	else if (ceph_snap(d_inode(dentry->d_parent)) == CEPH_SNAPDIR)
-		d_set_d_op(dentry, &ceph_snapdir_dentry_ops);
-	else
-		d_set_d_op(dentry, &ceph_snap_dentry_ops);
-
 	di->dentry = dentry;
 	di->lease_session = NULL;
 	di->time = jiffies;
@@ -1319,16 +1312,6 @@ static void ceph_d_release(struct dentry *dentry)
 	kmem_cache_free(ceph_dentry_cachep, di);
 }
 
-static int ceph_snapdir_d_revalidate(struct dentry *dentry,
-					  unsigned int flags)
-{
-	/*
-	 * Eventually, we'll want to revalidate snapped metadata
-	 * too... probably...
-	 */
-	return 1;
-}
-
 /*
  * When the VFS prunes a dentry from the cache, we need to clear the
  * complete flag on the parent directory.
@@ -1345,6 +1328,9 @@ static void ceph_d_prune(struct dentry *dentry)
 
 	/* if we are not hashed, we don't affect dir's completeness */
 	if (d_unhashed(dentry))
+		return;
+
+	if (ceph_snap(d_inode(dentry->d_parent)) == CEPH_SNAPDIR)
 		return;
 
 	/*
@@ -1515,16 +1501,6 @@ const struct inode_operations ceph_snapdir_iops = {
 
 const struct dentry_operations ceph_dentry_ops = {
 	.d_revalidate = ceph_d_revalidate,
-	.d_release = ceph_d_release,
-	.d_prune = ceph_d_prune,
-};
-
-const struct dentry_operations ceph_snapdir_dentry_ops = {
-	.d_revalidate = ceph_snapdir_d_revalidate,
-	.d_release = ceph_d_release,
-};
-
-const struct dentry_operations ceph_snap_dentry_ops = {
 	.d_release = ceph_d_release,
 	.d_prune = ceph_d_prune,
 };

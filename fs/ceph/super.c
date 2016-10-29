@@ -877,6 +877,7 @@ static int ceph_set_super(struct super_block *s, void *data)
 	fsc->sb = s;
 
 	s->s_op = &ceph_super_ops;
+	s->s_d_op = &ceph_dentry_ops;
 	s->s_export_op = &ceph_export_ops;
 
 	s->s_time_gran = 1000;  /* 1000 ns == 1 us */
