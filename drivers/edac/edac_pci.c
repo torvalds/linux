@@ -9,22 +9,19 @@
  * or implied.
  *
  */
-#include <linux/module.h>
-#include <linux/types.h>
-#include <linux/smp.h>
-#include <linux/init.h>
-#include <linux/sysctl.h>
-#include <linux/highmem.h>
-#include <linux/timer.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/list.h>
-#include <linux/ctype.h>
-#include <linux/workqueue.h>
-#include <asm/uaccess.h>
 #include <asm/page.h>
+#include <asm/uaccess.h>
+#include <linux/ctype.h>
+#include <linux/highmem.h>
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/smp.h>
+#include <linux/spinlock.h>
+#include <linux/sysctl.h>
+#include <linux/timer.h>
 
-#include "edac_core.h"
+#include "edac_pci.h"
 #include "edac_module.h"
 
 static DEFINE_MUTEX(edac_pci_ctls_mutex);
