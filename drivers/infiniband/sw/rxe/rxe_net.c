@@ -46,7 +46,7 @@
 #include "rxe_loc.h"
 
 static LIST_HEAD(rxe_dev_list);
-static spinlock_t dev_list_lock; /* spinlock for device list */
+static DEFINE_SPINLOCK(dev_list_lock); /* spinlock for device list */
 
 struct rxe_dev *net_to_rxe(struct net_device *ndev)
 {
@@ -663,8 +663,6 @@ struct notifier_block rxe_net_notifier = {
 
 int rxe_net_ipv4_init(void)
 {
-	spin_lock_init(&dev_list_lock);
-
 	recv_sockets.sk4 = rxe_setup_udp_tunnel(&init_net,
 				htons(ROCE_V2_UDP_DPORT), false);
 	if (IS_ERR(recv_sockets.sk4)) {
@@ -679,8 +677,6 @@ int rxe_net_ipv4_init(void)
 int rxe_net_ipv6_init(void)
 {
 #if IS_ENABLED(CONFIG_IPV6)
-
-	spin_lock_init(&dev_list_lock);
 
 	recv_sockets.sk6 = rxe_setup_udp_tunnel(&init_net,
 						htons(ROCE_V2_UDP_DPORT), true);
