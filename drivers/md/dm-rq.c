@@ -102,7 +102,7 @@ static void dm_mq_stop_queue(struct request_queue *q)
 	if (blk_mq_queue_stopped(q))
 		return;
 
-	blk_mq_stop_hw_queues(q);
+	blk_mq_quiesce_queue(q);
 }
 
 void dm_stop_queue(struct request_queue *q)
@@ -879,17 +879,6 @@ static int dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 		ti = dm_table_find_target(map, 0);
 		dm_put_live_table(md, srcu_idx);
 	}
-
-	/*
-	 * On suspend dm_stop_queue() handles stopping the blk-mq
-	 * request_queue BUT: even though the hw_queues are marked
-	 * BLK_MQ_S_STOPPED at that point there is still a race that
-	 * is allowing block/blk-mq.c to call ->queue_rq against a
-	 * hctx that it really shouldn't.  The following check guards
-	 * against this rarity (albeit _not_ race-free).
-	 */
-	if (unlikely(test_bit(BLK_MQ_S_STOPPED, &hctx->state)))
-		return BLK_MQ_RQ_QUEUE_BUSY;
 
 	if (ti->type->busy && ti->type->busy(ti))
 		return BLK_MQ_RQ_QUEUE_BUSY;
