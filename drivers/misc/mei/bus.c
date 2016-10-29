@@ -481,7 +481,7 @@ int mei_cldev_disable(struct mei_cl_device *cldev)
 	mutex_lock(&bus->device_lock);
 
 	if (!mei_cl_is_connected(cl)) {
-		dev_err(bus->dev, "Already disconnected");
+		dev_dbg(bus->dev, "Already disconnected");
 		err = 0;
 		goto out;
 	}
