@@ -184,7 +184,7 @@ struct batadv_orig_ifinfo {
 
 /**
  * struct batadv_frag_table_entry - head in the fragment buffer table
- * @head: head of list with fragments
+ * @fragment_list: head of list with fragments
  * @lock: lock to protect the list of fragments
  * @timestamp: time (jiffie) of last received fragment
  * @seqno: sequence number of the fragments in the list
@@ -192,8 +192,8 @@ struct batadv_orig_ifinfo {
  * @total_size: expected size of the assembled packet
  */
 struct batadv_frag_table_entry {
-	struct hlist_head head;
-	spinlock_t lock; /* protects head */
+	struct hlist_head fragment_list;
+	spinlock_t lock; /* protects fragment_list */
 	unsigned long timestamp;
 	u16 seqno;
 	u16 size;
@@ -706,8 +706,8 @@ struct batadv_priv_debug_log {
 
 /**
  * struct batadv_priv_gw - per mesh interface gateway data
- * @list: list of available gateway nodes
- * @list_lock: lock protecting gw_list & curr_gw
+ * @gateway_list: list of available gateway nodes
+ * @list_lock: lock protecting gateway_list & curr_gw
  * @curr_gw: pointer to currently selected gateway node
  * @mode: gateway operation: off, client or server (see batadv_gw_modes)
  * @sel_class: gateway selection class (applies if gw_mode client)
@@ -716,8 +716,8 @@ struct batadv_priv_debug_log {
  * @reselect: bool indicating a gateway re-selection is in progress
  */
 struct batadv_priv_gw {
-	struct hlist_head list;
-	spinlock_t list_lock; /* protects gw_list & curr_gw */
+	struct hlist_head gateway_list;
+	spinlock_t list_lock; /* protects gateway_list & curr_gw */
 	struct batadv_gw_node __rcu *curr_gw;  /* rcu protected pointer */
 	atomic_t mode;
 	atomic_t sel_class;
@@ -1363,7 +1363,7 @@ struct batadv_skb_cb {
 
 /**
  * struct batadv_forw_packet - structure for bcast packets to be sent/forwarded
- * @list: list node for batadv_socket_client::queue_list
+ * @list: list node for batadv_priv::forw_{bat,bcast}_list
  * @send_time: execution time for delayed_work (packet sending)
  * @own: bool for locally generated packets (local OGMs are re-scheduled after
  *  sending)

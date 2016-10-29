@@ -24,7 +24,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2016.4"
+#define BATADV_SOURCE_VERSION "2016.5"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -185,7 +185,6 @@ enum batadv_uev_type {
 
 #include <linux/bitops.h> /* for packet.h */
 #include <linux/compiler.h>
-#include <linux/cpumask.h>
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h> /* for packet.h */
 #include <linux/if_vlan.h>
@@ -200,8 +199,8 @@ struct packet_type;
 struct seq_file;
 struct sk_buff;
 
-#define BATADV_PRINT_VID(vid) ((vid & BATADV_VLAN_HAS_TAG) ? \
-			       (int)(vid & VLAN_VID_MASK) : -1)
+#define BATADV_PRINT_VID(vid) (((vid) & BATADV_VLAN_HAS_TAG) ? \
+			       (int)((vid) & VLAN_VID_MASK) : -1)
 
 extern struct list_head batadv_hardif_list;
 
@@ -283,26 +282,6 @@ static inline void batadv_add_counter(struct batadv_priv *bat_priv, size_t idx,
 }
 
 #define batadv_inc_counter(b, i) batadv_add_counter(b, i, 1)
-
-/**
- * batadv_sum_counter - Sum the cpu-local counters for index 'idx'
- * @bat_priv: the bat priv with all the soft interface information
- * @idx: index of counter to sum up
- *
- * Return: sum of all cpu-local counters
- */
-static inline u64 batadv_sum_counter(struct batadv_priv *bat_priv,  size_t idx)
-{
-	u64 *counters, sum = 0;
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		counters = per_cpu_ptr(bat_priv->bat_counters, cpu);
-		sum += counters[idx];
-	}
-
-	return sum;
-}
 
 /* Define a macro to reach the control buffer of the skb. The members of the
  * control buffer are defined in struct batadv_skb_cb in types.h.
