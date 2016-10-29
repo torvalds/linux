@@ -2419,8 +2419,7 @@ static void handle_completed_mrs(struct qedr_dev *dev, struct mr_info *info)
 		 */
 		pbl = list_first_entry(&info->inuse_pbl_list,
 				       struct qedr_pbl, list_entry);
-		list_del(&pbl->list_entry);
-		list_add_tail(&pbl->list_entry, &info->free_pbl_list);
+		list_move_tail(&pbl->list_entry, &info->free_pbl_list);
 		info->completed_handled++;
 	}
 }
