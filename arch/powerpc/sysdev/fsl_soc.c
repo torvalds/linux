@@ -77,13 +77,10 @@ phys_addr_t get_immrbase(void)
 
 EXPORT_SYMBOL(get_immrbase);
 
-static u32 sysfreq = -1;
-
 u32 fsl_get_sys_freq(void)
 {
+	static u32 sysfreq = -1;
 	struct device_node *soc;
-	const u32 *prop;
-	int size;
 
 	if (sysfreq != -1)
 		return sysfreq;
@@ -92,12 +89,9 @@ u32 fsl_get_sys_freq(void)
 	if (!soc)
 		return -1;
 
-	prop = of_get_property(soc, "clock-frequency", &size);
-	if (!prop || size != sizeof(*prop) || *prop == 0)
-		prop = of_get_property(soc, "bus-frequency", &size);
-
-	if (prop && size == sizeof(*prop))
-		sysfreq = *prop;
+	of_property_read_u32(soc, "clock-frequency", &sysfreq);
+	if (sysfreq == -1 || !sysfreq)
+		of_property_read_u32(soc, "bus-frequency", &sysfreq);
 
 	of_node_put(soc);
 	return sysfreq;
