@@ -1210,24 +1210,6 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			dev_info(&pf->pdev->dev,
 				 "dump debug fwdata <cluster_id> <table_id> <index>\n");
 		}
-
-	} else if (strncmp(cmd_buf, "msg_enable", 10) == 0) {
-		u32 level;
-		cnt = sscanf(&cmd_buf[10], "%i", &level);
-		if (cnt) {
-			if (I40E_DEBUG_USER & level) {
-				pf->hw.debug_mask = level;
-				dev_info(&pf->pdev->dev,
-					 "set hw.debug_mask = 0x%08x\n",
-					 pf->hw.debug_mask);
-			}
-			pf->msg_enable = level;
-			dev_info(&pf->pdev->dev, "set msg_enable = 0x%08x\n",
-				 pf->msg_enable);
-		} else {
-			dev_info(&pf->pdev->dev, "msg_enable = 0x%08x\n",
-				 pf->msg_enable);
-		}
 	} else if (strncmp(cmd_buf, "pfr", 3) == 0) {
 		dev_info(&pf->pdev->dev, "debugfs: forcing PFR\n");
 		i40e_do_reset_safe(pf, BIT(__I40E_PF_RESET_REQUESTED));
@@ -1644,7 +1626,6 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		dev_info(&pf->pdev->dev, "  dump desc aq\n");
 		dev_info(&pf->pdev->dev, "  dump reset stats\n");
 		dev_info(&pf->pdev->dev, "  dump debug fwdata <cluster_id> <table_id> <index>\n");
-		dev_info(&pf->pdev->dev, "  msg_enable [level]\n");
 		dev_info(&pf->pdev->dev, "  read <reg>\n");
 		dev_info(&pf->pdev->dev, "  write <reg> <value>\n");
 		dev_info(&pf->pdev->dev, "  clear_stats vsi [seid]\n");

@@ -41,7 +41,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 6
-#define DRV_VERSION_BUILD 16
+#define DRV_VERSION_BUILD 21
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -93,8 +93,8 @@ MODULE_DEVICE_TABLE(pci, i40e_pci_tbl);
 
 #define I40E_MAX_VF_COUNT 128
 static int debug = -1;
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+module_param(debug, uint, 0);
+MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all), Debug mask (0x8XXXXXXX)");
 
 MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Ethernet Connection XL710 Network Driver");
@@ -1284,39 +1284,6 @@ int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, u8 *macaddr,
 		return 0;
 	}
 	return -ENOENT;
-}
-
-/**
- * i40e_rm_default_mac_filter - Remove the default MAC filter set by NVM
- * @vsi: the PF Main VSI - inappropriate for any other VSI
- * @macaddr: the MAC address
- *
- * Remove whatever filter the firmware set up so the driver can manage
- * its own filtering intelligently.
- **/
-static void i40e_rm_default_mac_filter(struct i40e_vsi *vsi, u8 *macaddr)
-{
-	struct i40e_aqc_remove_macvlan_element_data element;
-	struct i40e_pf *pf = vsi->back;
-
-	/* Only appropriate for the PF main VSI */
-	if (vsi->type != I40E_VSI_MAIN)
-		return;
-
-	memset(&element, 0, sizeof(element));
-	ether_addr_copy(element.mac_addr, macaddr);
-	element.vlan_tag = 0;
-	/* Ignore error returns, some firmware does it this way... */
-	element.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH;
-	i40e_aq_remove_macvlan(&pf->hw, vsi->seid, &element, 1, NULL);
-
-	memset(&element, 0, sizeof(element));
-	ether_addr_copy(element.mac_addr, macaddr);
-	element.vlan_tag = 0;
-	/* ...and some firmware does it this way. */
-	element.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH |
-			I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
-	i40e_aq_remove_macvlan(&pf->hw, vsi->seid, &element, 1, NULL);
 }
 
 /**
@@ -3317,6 +3284,33 @@ static irqreturn_t i40e_msix_clean_rings(int irq, void *data)
 }
 
 /**
+ * i40e_irq_affinity_notify - Callback for affinity changes
+ * @notify: context as to what irq was changed
+ * @mask: the new affinity mask
+ *
+ * This is a callback function used by the irq_set_affinity_notifier function
+ * so that we may register to receive changes to the irq affinity masks.
+ **/
+static void i40e_irq_affinity_notify(struct irq_affinity_notify *notify,
+				     const cpumask_t *mask)
+{
+	struct i40e_q_vector *q_vector =
+		container_of(notify, struct i40e_q_vector, affinity_notify);
+
+	q_vector->affinity_mask = *mask;
+}
+
+/**
+ * i40e_irq_affinity_release - Callback for affinity notifier release
+ * @ref: internal core kernel usage
+ *
+ * This is a callback function used by the irq_set_affinity_notifier function
+ * to inform the current notification subscriber that they will no longer
+ * receive notifications.
+ **/
+static void i40e_irq_affinity_release(struct kref *ref) {}
+
+/**
  * i40e_vsi_request_irq_msix - Initialize MSI-X interrupts
  * @vsi: the VSI being configured
  * @basename: name for the vector
@@ -3331,9 +3325,12 @@ static int i40e_vsi_request_irq_msix(struct i40e_vsi *vsi, char *basename)
 	int rx_int_idx = 0;
 	int tx_int_idx = 0;
 	int vector, err;
+	int irq_num;
 
 	for (vector = 0; vector < q_vectors; vector++) {
 		struct i40e_q_vector *q_vector = vsi->q_vectors[vector];
+
+		irq_num = pf->msix_entries[base + vector].vector;
 
 		if (q_vector->tx.ring && q_vector->rx.ring) {
 			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
@@ -3349,7 +3346,7 @@ static int i40e_vsi_request_irq_msix(struct i40e_vsi *vsi, char *basename)
 			/* skip this unused q_vector */
 			continue;
 		}
-		err = request_irq(pf->msix_entries[base + vector].vector,
+		err = request_irq(irq_num,
 				  vsi->irq_handler,
 				  0,
 				  q_vector->name,
@@ -3359,9 +3356,13 @@ static int i40e_vsi_request_irq_msix(struct i40e_vsi *vsi, char *basename)
 				 "MSIX request_irq failed, error: %d\n", err);
 			goto free_queue_irqs;
 		}
+
+		/* register for affinity change notifications */
+		q_vector->affinity_notify.notify = i40e_irq_affinity_notify;
+		q_vector->affinity_notify.release = i40e_irq_affinity_release;
+		irq_set_affinity_notifier(irq_num, &q_vector->affinity_notify);
 		/* assign the mask for this irq */
-		irq_set_affinity_hint(pf->msix_entries[base + vector].vector,
-				      &q_vector->affinity_mask);
+		irq_set_affinity_hint(irq_num, &q_vector->affinity_mask);
 	}
 
 	vsi->irqs_ready = true;
@@ -3370,10 +3371,10 @@ static int i40e_vsi_request_irq_msix(struct i40e_vsi *vsi, char *basename)
 free_queue_irqs:
 	while (vector) {
 		vector--;
-		irq_set_affinity_hint(pf->msix_entries[base + vector].vector,
-				      NULL);
-		free_irq(pf->msix_entries[base + vector].vector,
-			 &(vsi->q_vectors[vector]));
+		irq_num = pf->msix_entries[base + vector].vector;
+		irq_set_affinity_notifier(irq_num, NULL);
+		irq_set_affinity_hint(irq_num, NULL);
+		free_irq(irq_num, &vsi->q_vectors[vector]);
 	}
 	return err;
 }
@@ -4012,19 +4013,23 @@ static void i40e_vsi_free_irq(struct i40e_vsi *vsi)
 
 		vsi->irqs_ready = false;
 		for (i = 0; i < vsi->num_q_vectors; i++) {
-			u16 vector = i + base;
+			int irq_num;
+			u16 vector;
+
+			vector = i + base;
+			irq_num = pf->msix_entries[vector].vector;
 
 			/* free only the irqs that were actually requested */
 			if (!vsi->q_vectors[i] ||
 			    !vsi->q_vectors[i]->num_ringpairs)
 				continue;
 
+			/* clear the affinity notifier in the IRQ descriptor */
+			irq_set_affinity_notifier(irq_num, NULL);
 			/* clear the affinity_mask in the IRQ descriptor */
-			irq_set_affinity_hint(pf->msix_entries[vector].vector,
-					      NULL);
-			synchronize_irq(pf->msix_entries[vector].vector);
-			free_irq(pf->msix_entries[vector].vector,
-				 vsi->q_vectors[i]);
+			irq_set_affinity_hint(irq_num, NULL);
+			synchronize_irq(irq_num);
+			free_irq(irq_num, vsi->q_vectors[i]);
 
 			/* Tear down the interrupt queue link list
 			 *
@@ -8362,8 +8367,8 @@ int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
 
 		i40e_pf_config_rss(pf);
 	}
-	dev_info(&pf->pdev->dev, "RSS count/HW max RSS count:  %d/%d\n",
-		 pf->alloc_rss_size, pf->rss_size_max);
+	dev_info(&pf->pdev->dev, "User requested queue count/HW max RSS count:  %d/%d\n",
+		 vsi->req_queue_pairs, pf->rss_size_max);
 	return pf->alloc_rss_size;
 }
 
@@ -8505,15 +8510,6 @@ static int i40e_sw_init(struct i40e_pf *pf)
 {
 	int err = 0;
 	int size;
-
-	pf->msg_enable = netif_msg_init(I40E_DEFAULT_MSG_ENABLE,
-				(NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK));
-	if (debug != -1 && debug != I40E_DEFAULT_MSG_ENABLE) {
-		if (I40E_DEBUG_USER & debug)
-			pf->hw.debug_mask = debug;
-		pf->msg_enable = netif_msg_init((debug & ~I40E_DEBUG_USER),
-						I40E_DEFAULT_MSG_ENABLE);
-	}
 
 	/* Set default capability flags */
 	pf->flags = I40E_FLAG_RX_CSUM_ENABLED |
@@ -9180,12 +9176,6 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	if (vsi->type == I40E_VSI_MAIN) {
 		SET_NETDEV_DEV(netdev, &pf->pdev->dev);
 		ether_addr_copy(mac_addr, hw->mac.perm_addr);
-		/* The following steps are necessary to prevent reception
-		 * of tagged packets - some older NVM configurations load a
-		 * default a MAC-VLAN filter that accepts any tagged packet
-		 * which must be replaced by a normal filter.
-		 */
-		i40e_rm_default_mac_filter(vsi, mac_addr);
 		spin_lock_bh(&vsi->mac_filter_list_lock);
 		i40e_add_filter(vsi, mac_addr, I40E_VLAN_ANY, false, true);
 		spin_unlock_bh(&vsi->mac_filter_list_lock);
@@ -9703,8 +9693,6 @@ static struct i40e_vsi *i40e_vsi_reinit_setup(struct i40e_vsi *vsi)
 	pf->vsi[pf->lan_vsi]->tc_config.enabled_tc = 0;
 	pf->vsi[pf->lan_vsi]->seid = pf->main_vsi_seid;
 	i40e_vsi_config_tc(pf->vsi[pf->lan_vsi], enabled_tc);
-	if (vsi->type == I40E_VSI_MAIN)
-		i40e_rm_default_mac_filter(vsi, pf->hw.mac.perm_addr);
 
 	/* assign it some queues */
 	ret = i40e_alloc_rings(vsi);
@@ -10828,10 +10816,12 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mutex_init(&hw->aq.asq_mutex);
 	mutex_init(&hw->aq.arq_mutex);
 
-	if (debug != -1) {
-		pf->msg_enable = pf->hw.debug_mask;
-		pf->msg_enable = debug;
-	}
+	pf->msg_enable = netif_msg_init(debug,
+					NETIF_MSG_DRV |
+					NETIF_MSG_PROBE |
+					NETIF_MSG_LINK);
+	if (debug < -1)
+		pf->hw.debug_mask = debug;
 
 	/* do a special CORER for clearing PXE mode once at init */
 	if (hw->revision_id == 0 &&
@@ -10973,7 +10963,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = i40e_init_pf_dcb(pf);
 	if (err) {
 		dev_info(&pdev->dev, "DCB init failed %d, disabled\n", err);
-		pf->flags &= ~(I40E_FLAG_DCB_CAPABLE & I40E_FLAG_DCB_ENABLED);
+		pf->flags &= ~(I40E_FLAG_DCB_CAPABLE | I40E_FLAG_DCB_ENABLED);
 		/* Continue without DCB enabled */
 	}
 #endif /* CONFIG_I40E_DCB */

@@ -122,7 +122,6 @@ static int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data,
 	struct device *dev;
 	dma_addr_t dma;
 	u32 td_cmd = 0;
-	u16 delay = 0;
 	u16 i;
 
 	/* find existing FDIR VSI */
@@ -137,15 +136,11 @@ static int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data,
 	dev = tx_ring->dev;
 
 	/* we need two descriptors to add/del a filter and we can wait */
-	do {
-		if (I40E_DESC_UNUSED(tx_ring) > 1)
-			break;
+	for (i = I40E_FD_CLEAN_DELAY; I40E_DESC_UNUSED(tx_ring) < 2; i--) {
+		if (!i)
+			return -EAGAIN;
 		msleep_interruptible(1);
-		delay++;
-	} while (delay < I40E_FD_CLEAN_DELAY);
-
-	if (!(I40E_DESC_UNUSED(tx_ring) > 1))
-		return -EAGAIN;
+	}
 
 	dma = dma_map_single(dev, raw_packet,
 			     I40E_FDIR_MAX_RAW_PACKET_SIZE, DMA_TO_DEVICE);
@@ -335,22 +330,6 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 	return err ? -EOPNOTSUPP : 0;
 }
 
-/**
- * i40e_add_del_fdir_sctpv4 - Add/Remove SCTPv4 Flow Director filters for
- * a specific flow spec
- * @vsi: pointer to the targeted VSI
- * @fd_data: the flow director data required for the FDir descriptor
- * @add: true adds a filter, false removes it
- *
- * Returns 0 if the filters were successfully added or removed
- **/
-static int i40e_add_del_fdir_sctpv4(struct i40e_vsi *vsi,
-				    struct i40e_fdir_filter *fd_data,
-				    bool add)
-{
-	return -EOPNOTSUPP;
-}
-
 #define I40E_IP_DUMMY_PACKET_LEN 34
 /**
  * i40e_add_del_fdir_ipv4 - Add/Remove IPv4 Flow Director filters for
@@ -433,12 +412,6 @@ int i40e_add_del_fdir(struct i40e_vsi *vsi,
 	case UDP_V4_FLOW:
 		ret = i40e_add_del_fdir_udpv4(vsi, input, add);
 		break;
-	case SCTP_V4_FLOW:
-		ret = i40e_add_del_fdir_sctpv4(vsi, input, add);
-		break;
-	case IPV4_FLOW:
-		ret = i40e_add_del_fdir_ipv4(vsi, input, add);
-		break;
 	case IP_USER_FLOW:
 		switch (input->ip4_proto) {
 		case IPPROTO_TCP:
@@ -447,15 +420,16 @@ int i40e_add_del_fdir(struct i40e_vsi *vsi,
 		case IPPROTO_UDP:
 			ret = i40e_add_del_fdir_udpv4(vsi, input, add);
 			break;
-		case IPPROTO_SCTP:
-			ret = i40e_add_del_fdir_sctpv4(vsi, input, add);
-			break;
-		default:
+		case IPPROTO_IP:
 			ret = i40e_add_del_fdir_ipv4(vsi, input, add);
 			break;
+		default:
+			/* We cannot support masking based on protocol */
+			goto unsupported_flow;
 		}
 		break;
 	default:
+unsupported_flow:
 		dev_info(&pf->pdev->dev, "Could not specify spec type %d\n",
 			 input->flow_type);
 		ret = -EINVAL;
@@ -1246,7 +1220,6 @@ bool i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 		 * because each write-back erases this info.
 		 */
 		rx_desc->read.pkt_addr = cpu_to_le64(bi->dma + bi->page_offset);
-		rx_desc->read.hdr_addr = 0;
 
 		rx_desc++;
 		bi++;
@@ -1767,7 +1740,6 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 	while (likely(total_rx_packets < budget)) {
 		union i40e_rx_desc *rx_desc;
 		struct sk_buff *skb;
-		u32 rx_status;
 		u16 vlan_tag;
 		u8 rx_ptype;
 		u64 qword;
@@ -1781,21 +1753,13 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 
 		rx_desc = I40E_RX_DESC(rx_ring, rx_ring->next_to_clean);
 
-		qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-		rx_ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >>
-			   I40E_RXD_QW1_PTYPE_SHIFT;
-		rx_status = (qword & I40E_RXD_QW1_STATUS_MASK) >>
-			    I40E_RXD_QW1_STATUS_SHIFT;
-
-		if (!(rx_status & BIT(I40E_RX_DESC_STATUS_DD_SHIFT)))
-			break;
-
 		/* status_error_len will always be zero for unused descriptors
 		 * because it's cleared in cleanup, and overlaps with hdr_addr
 		 * which is always zero because packet split isn't used, if the
 		 * hardware wrote DD then it will be non-zero
 		 */
-		if (!rx_desc->wb.qword1.status_error_len)
+		if (!i40e_test_staterr(rx_desc,
+				       BIT(I40E_RX_DESC_STATUS_DD_SHIFT)))
 			break;
 
 		/* This memory barrier is needed to keep us from reading
@@ -1828,6 +1792,10 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 
 		/* probably a little skewed due to removing CRC */
 		total_rx_bytes += skb->len;
+
+		qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
+		rx_ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >>
+			   I40E_RXD_QW1_PTYPE_SHIFT;
 
 		/* populate checksum, VLAN, and protocol */
 		i40e_process_skb_fields(rx_ring, rx_desc, skb, rx_ptype);
@@ -2025,12 +1993,25 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 
 	/* If work not completed, return budget and polling will return */
 	if (!clean_complete) {
+		const cpumask_t *aff_mask = &q_vector->affinity_mask;
+		int cpu_id = smp_processor_id();
+
+		/* It is possible that the interrupt affinity has changed but,
+		 * if the cpu is pegged at 100%, polling will never exit while
+		 * traffic continues and the interrupt will be stuck on this
+		 * cpu.  We check to make sure affinity is correct before we
+		 * continue to poll, otherwise we must stop polling so the
+		 * interrupt can move to the correct cpu.
+		 */
+		if (likely(cpumask_test_cpu(cpu_id, aff_mask) ||
+			   !(vsi->back->flags & I40E_FLAG_MSIX_ENABLED))) {
 tx_only:
-		if (arm_wb) {
-			q_vector->tx.ring[0].tx_stats.tx_force_wb++;
-			i40e_enable_wb_on_itr(vsi, q_vector);
+			if (arm_wb) {
+				q_vector->tx.ring[0].tx_stats.tx_force_wb++;
+				i40e_enable_wb_on_itr(vsi, q_vector);
+			}
+			return budget;
 		}
-		return budget;
 	}
 
 	if (vsi->back->flags & I40E_TXR_FLAGS_WB_ON_ITR)
@@ -2038,11 +2019,18 @@ tx_only:
 
 	/* Work is done so exit the polling mode and re-enable the interrupt */
 	napi_complete_done(napi, work_done);
-	if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
-		i40e_update_enable_itr(vsi, q_vector);
-	} else { /* Legacy mode */
+
+	/* If we're prematurely stopping polling to fix the interrupt
+	 * affinity we want to make sure polling starts back up so we
+	 * issue a call to i40e_force_wb which triggers a SW interrupt.
+	 */
+	if (!clean_complete)
+		i40e_force_wb(vsi, q_vector);
+	else if (!(vsi->back->flags & I40E_FLAG_MSIX_ENABLED))
 		i40e_irq_dynamic_enable_icr0(vsi->back, false);
-	}
+	else
+		i40e_update_enable_itr(vsi, q_vector);
+
 	return 0;
 }
 
