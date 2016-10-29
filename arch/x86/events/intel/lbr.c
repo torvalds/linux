@@ -458,8 +458,8 @@ void intel_pmu_lbr_del(struct perf_event *event)
 	if (!x86_pmu.lbr_nr)
 		return;
 
-	if (branch_user_callstack(cpuc->br_sel) && event->ctx &&
-					event->ctx->task_ctx_data) {
+	if (branch_user_callstack(cpuc->br_sel) &&
+	    event->ctx->task_ctx_data) {
 		task_ctx = event->ctx->task_ctx_data;
 		task_ctx->lbr_callstack_users--;
 	}

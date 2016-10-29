@@ -1396,8 +1396,7 @@ retry:
 		pinned_pages->nr_pages = get_user_pages(
 				(u64)addr,
 				nr_pages,
-				!!(prot & SCIF_PROT_WRITE),
-				0,
+				(prot & SCIF_PROT_WRITE) ? FOLL_WRITE : 0,
 				pinned_pages->pages,
 				NULL);
 		up_write(&mm->mmap_sem);

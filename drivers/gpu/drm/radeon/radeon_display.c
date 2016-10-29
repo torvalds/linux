@@ -1675,20 +1675,20 @@ int radeon_modeset_init(struct radeon_device *rdev)
 
 void radeon_modeset_fini(struct radeon_device *rdev)
 {
-	radeon_fbdev_fini(rdev);
+	if (rdev->mode_info.mode_config_initialized) {
+		drm_kms_helper_poll_fini(rdev->ddev);
+		radeon_hpd_fini(rdev);
+		drm_crtc_force_disable_all(rdev->ddev);
+		radeon_fbdev_fini(rdev);
+		radeon_afmt_fini(rdev);
+		drm_mode_config_cleanup(rdev->ddev);
+		rdev->mode_info.mode_config_initialized = false;
+	}
+
 	kfree(rdev->mode_info.bios_hardcoded_edid);
 
 	/* free i2c buses */
 	radeon_i2c_fini(rdev);
-
-	if (rdev->mode_info.mode_config_initialized) {
-		radeon_afmt_fini(rdev);
-		drm_kms_helper_poll_fini(rdev->ddev);
-		radeon_hpd_fini(rdev);
-		drm_crtc_force_disable_all(rdev->ddev);
-		drm_mode_config_cleanup(rdev->ddev);
-		rdev->mode_info.mode_config_initialized = false;
-	}
 }
 
 static bool is_hdtv_mode(const struct drm_display_mode *mode)

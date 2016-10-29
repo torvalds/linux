@@ -287,7 +287,7 @@ static int update_vol(struct ubi_device *ubi, struct ubi_attach_info *ai,
 
 		/* new_aeb is newer */
 		if (cmp_res & 1) {
-			victim = ubi_alloc_aeb(ai, aeb->ec, aeb->pnum);
+			victim = ubi_alloc_aeb(ai, aeb->pnum, aeb->ec);
 			if (!victim)
 				return -ENOMEM;
 
