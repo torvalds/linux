@@ -985,11 +985,11 @@ static const struct regmap_config wm8580_regmap = {
 	.volatile_reg = wm8580_volatile,
 };
 
-const struct wm8580_driver_data wm8580_data = {
+static const struct wm8580_driver_data wm8580_data = {
 	.num_dacs = 3,
 };
 
-const struct wm8580_driver_data wm8581_data = {
+static const struct wm8580_driver_data wm8581_data = {
 	.num_dacs = 4,
 };
 
