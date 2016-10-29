@@ -64,7 +64,7 @@ name_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct thermal_hwmon_device *hwmon = dev_get_drvdata(dev);
 	return sprintf(buf, "%s\n", hwmon->type);
 }
-static DEVICE_ATTR(name, 0444, name_show, NULL);
+static DEVICE_ATTR_RO(name);
 
 static ssize_t
 temp_input_show(struct device *dev, struct device_attribute *attr, char *buf)
