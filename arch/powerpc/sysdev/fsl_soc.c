@@ -136,10 +136,9 @@ u32 get_brgfreq(void)
 
 EXPORT_SYMBOL(get_brgfreq);
 
-static u32 fs_baudrate = -1;
-
 u32 get_baudrate(void)
 {
+	static u32 fs_baudrate = -1;
 	struct device_node *node;
 
 	if (fs_baudrate != -1)
@@ -147,12 +146,7 @@ u32 get_baudrate(void)
 
 	node = of_find_node_by_type(NULL, "serial");
 	if (node) {
-		int size;
-		const unsigned int *prop = of_get_property(node,
-				"current-speed", &size);
-
-		if (prop)
-			fs_baudrate = *prop;
+		of_property_read_u32(node, "current-speed", &fs_baudrate);
 		of_node_put(node);
 	}
 
