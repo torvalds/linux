@@ -1371,7 +1371,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	i8042.nopnp	[HW] Don't use ACPIPnP / PnPBIOS to discover KBD/AUX
 			     controllers
 	i8042.notimeout	[HW] Ignore timeout condition signalled by controller
-	i8042.reset	[HW] Reset the controller during init and cleanup
+	i8042.reset	[HW] Reset the controller during init, cleanup and
+			     suspend-to-ram transitions, only during s2r
+			     transitions, or never reset
+			Format: { 1 | Y | y | 0 | N | n }
+			1, Y, y: always reset controller
+			0, N, n: don't ever reset controller
+			Default: only on s2r transitions on x86; most other
+			architectures force reset to be always executed
 	i8042.unlock	[HW] Unlock (ignore) the keylock
 	i8042.kbdreset  [HW] Reset device connected to KBD port
 

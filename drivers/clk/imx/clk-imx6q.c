@@ -550,6 +550,24 @@ static void __init imx6q_clocks_init(struct device_node *ccm_node)
 	if (IS_ENABLED(CONFIG_PCI_IMX6))
 		clk_set_parent(clk[IMX6QDL_CLK_LVDS1_SEL], clk[IMX6QDL_CLK_SATA_REF_100M]);
 
+	/*
+	 * Initialize the GPU clock muxes, so that the maximum specified clock
+	 * rates for the respective SoC are not exceeded.
+	 */
+	if (clk_on_imx6dl()) {
+		clk_set_parent(clk[IMX6QDL_CLK_GPU3D_CORE_SEL],
+			       clk[IMX6QDL_CLK_PLL2_PFD1_594M]);
+		clk_set_parent(clk[IMX6QDL_CLK_GPU2D_CORE_SEL],
+			       clk[IMX6QDL_CLK_PLL2_PFD1_594M]);
+	} else if (clk_on_imx6q()) {
+		clk_set_parent(clk[IMX6QDL_CLK_GPU3D_CORE_SEL],
+			       clk[IMX6QDL_CLK_MMDC_CH0_AXI]);
+		clk_set_parent(clk[IMX6QDL_CLK_GPU3D_SHADER_SEL],
+			       clk[IMX6QDL_CLK_PLL2_PFD1_594M]);
+		clk_set_parent(clk[IMX6QDL_CLK_GPU2D_CORE_SEL],
+			       clk[IMX6QDL_CLK_PLL3_USB_OTG]);
+	}
+
 	imx_register_uart_clocks(uart_clks);
 }
 CLK_OF_DECLARE(imx6q, "fsl,imx6q-ccm", imx6q_clocks_init);

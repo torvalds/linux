@@ -218,7 +218,7 @@
 #define GITS_BASER_TYPE_SHIFT		(56)
 #define GITS_BASER_TYPE(r)		(((r) >> GITS_BASER_TYPE_SHIFT) & 7)
 #define GITS_BASER_ENTRY_SIZE_SHIFT	(48)
-#define GITS_BASER_ENTRY_SIZE(r)	((((r) >> GITS_BASER_ENTRY_SIZE_SHIFT) & 0xff) + 1)
+#define GITS_BASER_ENTRY_SIZE(r)	((((r) >> GITS_BASER_ENTRY_SIZE_SHIFT) & 0x1f) + 1)
 #define GITS_BASER_NonShareable		(0UL << 10)
 #define GITS_BASER_InnerShareable	(1UL << 10)
 #define GITS_BASER_OuterShareable	(2UL << 10)
