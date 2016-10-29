@@ -1320,7 +1320,7 @@ static ssize_t card_type_show(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "%d\n", dc->card_type);
 }
-static DEVICE_ATTR(card_type, S_IRUGO, card_type_show, NULL);
+static DEVICE_ATTR_RO(card_type);
 
 static ssize_t open_ttys_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
@@ -1329,7 +1329,7 @@ static ssize_t open_ttys_show(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "%u\n", dc->open_ttys);
 }
-static DEVICE_ATTR(open_ttys, S_IRUGO, open_ttys_show, NULL);
+static DEVICE_ATTR_RO(open_ttys);
 
 static void make_sysfs_files(struct nozomi *dc)
 {
