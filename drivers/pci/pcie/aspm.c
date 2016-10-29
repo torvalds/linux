@@ -886,8 +886,8 @@ static ssize_t clk_ctl_store(struct device *dev,
 	return n;
 }
 
-static DEVICE_ATTR(link_state, 0644, link_state_show, link_state_store);
-static DEVICE_ATTR(clk_ctl, 0644, clk_ctl_show, clk_ctl_store);
+static DEVICE_ATTR_RW(link_state);
+static DEVICE_ATTR_RW(clk_ctl);
 
 static char power_group[] = "power";
 void pcie_aspm_create_sysfs_dev_files(struct pci_dev *pdev)
