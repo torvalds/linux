@@ -2081,7 +2081,7 @@ void nvme_stop_queues(struct nvme_ctrl *ctrl)
 		queue_flag_set(QUEUE_FLAG_STOPPED, ns->queue);
 		spin_unlock_irq(ns->queue->queue_lock);
 
-		blk_mq_stop_hw_queues(ns->queue);
+		blk_mq_quiesce_queue(ns->queue);
 	}
 	mutex_unlock(&ctrl->namespaces_mutex);
 }
