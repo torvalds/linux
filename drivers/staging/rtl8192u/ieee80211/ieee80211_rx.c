@@ -129,7 +129,7 @@ ieee80211_frag_cache_get(struct ieee80211_device *ieee,
 				    8 /* WEP */ +
 				    ETH_ALEN /* WDS */ +
 				    (IEEE80211_QOS_HAS_SEQ(fc)?2:0) /* QOS Control */);
-		if (skb == NULL)
+		if (!skb)
 			return NULL;
 
 		entry = &ieee->frag_cache[tid][ieee->frag_next_idx[tid]];
