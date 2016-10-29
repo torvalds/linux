@@ -843,7 +843,7 @@ Module parameters
 EDAC device type
 ----------------
 
-In the header file, edac_core.h, there is a series of edac_device structures
+In the header file, edac_pci.h, there is a series of edac_device structures
 and APIs for the EDAC_DEVICE.
 
 User space access to an edac_device is through the sysfs interface.
