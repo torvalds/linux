@@ -2940,7 +2940,7 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 	txq->num_tx_buffers = edev->q_num_tx_buffers;
 
 	/* Allocate the parallel driver ring for Tx buffers */
-	size = sizeof(*txq->sw_tx_ring) * NUM_TX_BDS_MAX;
+	size = sizeof(*txq->sw_tx_ring) * TX_RING_SIZE;
 	txq->sw_tx_ring = kzalloc(size, GFP_KERNEL);
 	if (!txq->sw_tx_ring) {
 		DP_NOTICE(edev, "Tx buffers ring allocation failed\n");
@@ -2951,7 +2951,7 @@ static int qede_alloc_mem_txq(struct qede_dev *edev, struct qede_tx_queue *txq)
 					    QED_CHAIN_USE_TO_CONSUME_PRODUCE,
 					    QED_CHAIN_MODE_PBL,
 					    QED_CHAIN_CNT_TYPE_U16,
-					    NUM_TX_BDS_MAX,
+					    TX_RING_SIZE,
 					    sizeof(*p_virt), &txq->tx_pbl);
 	if (rc)
 		goto err;
