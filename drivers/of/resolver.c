@@ -320,8 +320,6 @@ int of_resolve_phandles(struct device_node *overlay)
 	overlay_symbols = NULL;
 	overlay_fixups = NULL;
 
-	tree_symbols = of_find_node_by_path("/__symbols__");
-
 	for_each_child_of_node(overlay, child) {
 		if (!of_node_cmp(child->name, "__symbols__"))
 			overlay_symbols = child;
@@ -334,6 +332,7 @@ int of_resolve_phandles(struct device_node *overlay)
 		goto out;
 	}
 
+	tree_symbols = of_find_node_by_path("/__symbols__");
 	if (!tree_symbols) {
 		pr_err("no symbols in root of device tree.\n");
 		err = -EINVAL;
