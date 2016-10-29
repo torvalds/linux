@@ -653,7 +653,7 @@ static int mei_fasync(int fd, struct file *file, int band)
 }
 
 /**
- * fw_status_show - mei device attribute show method
+ * fw_status_show - mei device fw_status attribute show method
  *
  * @device: device pointer
  * @attr: attribute pointer
@@ -684,8 +684,49 @@ static ssize_t fw_status_show(struct device *device,
 }
 static DEVICE_ATTR_RO(fw_status);
 
+/**
+ * hbm_ver_show - display HBM protocol version negotiated with FW
+ *
+ * @device: device pointer
+ * @attr: attribute pointer
+ * @buf:  char out buffer
+ *
+ * Return: number of the bytes printed into buf or error
+ */
+static ssize_t hbm_ver_show(struct device *device,
+			    struct device_attribute *attr, char *buf)
+{
+	struct mei_device *dev = dev_get_drvdata(device);
+	struct hbm_version ver;
+
+	mutex_lock(&dev->device_lock);
+	ver = dev->version;
+	mutex_unlock(&dev->device_lock);
+
+	return sprintf(buf, "%u.%u\n", ver.major_version, ver.minor_version);
+}
+static DEVICE_ATTR_RO(hbm_ver);
+
+/**
+ * hbm_ver_drv_show - display HBM protocol version advertised by driver
+ *
+ * @device: device pointer
+ * @attr: attribute pointer
+ * @buf:  char out buffer
+ *
+ * Return: number of the bytes printed into buf or error
+ */
+static ssize_t hbm_ver_drv_show(struct device *device,
+				struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u.%u\n", HBM_MAJOR_VERSION, HBM_MINOR_VERSION);
+}
+static DEVICE_ATTR_RO(hbm_ver_drv);
+
 static struct attribute *mei_attrs[] = {
 	&dev_attr_fw_status.attr,
+	&dev_attr_hbm_ver.attr,
+	&dev_attr_hbm_ver_drv.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(mei);
