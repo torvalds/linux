@@ -73,13 +73,13 @@ struct rfc2734_header {
 
 #define fwnet_get_hdr_lf(h)		(((h)->w0 & 0xc0000000) >> 30)
 #define fwnet_get_hdr_ether_type(h)	(((h)->w0 & 0x0000ffff))
-#define fwnet_get_hdr_dg_size(h)	(((h)->w0 & 0x0fff0000) >> 16)
+#define fwnet_get_hdr_dg_size(h)	((((h)->w0 & 0x0fff0000) >> 16) + 1)
 #define fwnet_get_hdr_fg_off(h)		(((h)->w0 & 0x00000fff))
 #define fwnet_get_hdr_dgl(h)		(((h)->w1 & 0xffff0000) >> 16)
 
-#define fwnet_set_hdr_lf(lf)		((lf)  << 30)
+#define fwnet_set_hdr_lf(lf)		((lf) << 30)
 #define fwnet_set_hdr_ether_type(et)	(et)
-#define fwnet_set_hdr_dg_size(dgs)	((dgs) << 16)
+#define fwnet_set_hdr_dg_size(dgs)	(((dgs) - 1) << 16)
 #define fwnet_set_hdr_fg_off(fgo)	(fgo)
 
 #define fwnet_set_hdr_dgl(dgl)		((dgl) << 16)
@@ -622,7 +622,7 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 		fg_off = fwnet_get_hdr_fg_off(&hdr);
 	}
 	datagram_label = fwnet_get_hdr_dgl(&hdr);
-	dg_size = fwnet_get_hdr_dg_size(&hdr); /* ??? + 1 */
+	dg_size = fwnet_get_hdr_dg_size(&hdr);
 
 	if (fg_off + len > dg_size)
 		return 0;
