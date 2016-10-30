@@ -606,7 +606,7 @@ static int nvme_fill_device_id_eui64(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	eui = id_ns->eui64;
 	len = sizeof(id_ns->eui64);
 
-	if (ns->ctrl->vs >= NVME_VS(1, 2)) {
+	if (ns->ctrl->vs >= NVME_VS(1, 2, 0)) {
 		if (bitmap_empty(eui, len * 8)) {
 			eui = id_ns->nguid;
 			len = sizeof(id_ns->nguid);
@@ -679,7 +679,7 @@ static int nvme_trans_device_id_page(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 {
 	int res;
 
-	if (ns->ctrl->vs >= NVME_VS(1, 1)) {
+	if (ns->ctrl->vs >= NVME_VS(1, 1, 0)) {
 		res = nvme_fill_device_id_eui64(ns, hdr, resp, alloc_len);
 		if (res != -EOPNOTSUPP)
 			return res;

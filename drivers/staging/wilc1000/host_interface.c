@@ -3384,7 +3384,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	clients_count++;
 
-	destroy_workqueue(hif_workqueue);
 _fail_:
 	return result;
 }

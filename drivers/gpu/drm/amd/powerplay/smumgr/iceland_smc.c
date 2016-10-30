@@ -2458,7 +2458,7 @@ static int iceland_set_mc_special_registers(struct pp_hwmgr *hwmgr,
 			PP_ASSERT_WITH_CODE((j <= SMU71_DISCRETE_MC_REGISTER_ARRAY_SIZE),
 				"Invalid VramInfo table.", return -EINVAL);
 
-			if (!data->is_memory_gddr5) {
+			if (!data->is_memory_gddr5 && j < SMU71_DISCRETE_MC_REGISTER_ARRAY_SIZE) {
 				table->mc_reg_address[j].s1 = mmMC_PMG_AUTO_CMD;
 				table->mc_reg_address[j].s0 = mmMC_PMG_AUTO_CMD;
 				for (k = 0; k < table->num_entries; k++) {

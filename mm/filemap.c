@@ -790,9 +790,7 @@ EXPORT_SYMBOL(__page_cache_alloc);
  */
 wait_queue_head_t *page_waitqueue(struct page *page)
 {
-	const struct zone *zone = page_zone(page);
-
-	return &zone->wait_table[hash_ptr(page, zone->wait_table_bits)];
+	return bit_waitqueue(page, 0);
 }
 EXPORT_SYMBOL(page_waitqueue);
 

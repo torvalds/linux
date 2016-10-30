@@ -88,11 +88,15 @@ static int process_vm_rw_single_vec(unsigned long addr,
 	ssize_t rc = 0;
 	unsigned long max_pages_per_loop = PVM_MAX_KMALLOC_PAGES
 		/ sizeof(struct pages *);
+	unsigned int flags = FOLL_REMOTE;
 
 	/* Work out address and page range required */
 	if (len == 0)
 		return 0;
 	nr_pages = (addr + len - 1) / PAGE_SIZE - addr / PAGE_SIZE + 1;
+
+	if (vm_write)
+		flags |= FOLL_WRITE;
 
 	while (!rc && nr_pages && iov_iter_count(iter)) {
 		int pages = min(nr_pages, max_pages_per_loop);
@@ -104,8 +108,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
 		 * current/current->mm
 		 */
 		pages = __get_user_pages_unlocked(task, mm, pa, pages,
-						  vm_write, 0, process_pages,
-						  FOLL_REMOTE);
+						  process_pages, flags);
 		if (pages <= 0)
 			return -EFAULT;
 
