@@ -730,9 +730,13 @@ enum device_link_state {
  *
  * STATELESS: The core won't track the presence of supplier/consumer drivers.
  * AUTOREMOVE: Remove this link automatically on consumer driver unbind.
+ * PM_RUNTIME: If set, the runtime PM framework will use this link.
+ * RPM_ACTIVE: Run pm_runtime_get_sync() on the supplier during link creation.
  */
 #define DL_FLAG_STATELESS	BIT(0)
 #define DL_FLAG_AUTOREMOVE	BIT(1)
+#define DL_FLAG_PM_RUNTIME	BIT(2)
+#define DL_FLAG_RPM_ACTIVE	BIT(3)
 
 /**
  * struct device_link - Device link representation.
@@ -742,6 +746,7 @@ enum device_link_state {
  * @c_node: Hook to the consumer device's list of links to suppliers.
  * @status: The state of the link (with respect to the presence of drivers).
  * @flags: Link flags.
+ * @rpm_active: Whether or not the consumer device is runtime-PM-active.
  * @rcu_head: An RCU head to use for deferred execution of SRCU callbacks.
  */
 struct device_link {
@@ -751,6 +756,7 @@ struct device_link {
 	struct list_head c_node;
 	enum device_link_state status;
 	u32 flags;
+	bool rpm_active;
 #ifdef CONFIG_SRCU
 	struct rcu_head rcu_head;
 #endif

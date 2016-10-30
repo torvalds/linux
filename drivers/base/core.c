@@ -152,6 +152,14 @@ static int device_reorder_to_tail(struct device *dev, void *not_used)
  * @supplier: Supplier end of the link.
  * @flags: Link flags.
  *
+ * The caller is responsible for the proper synchronization of the link creation
+ * with runtime PM.  First, setting the DL_FLAG_PM_RUNTIME flag will cause the
+ * runtime PM framework to take the link into account.  Second, if the
+ * DL_FLAG_RPM_ACTIVE flag is set in addition to it, the supplier devices will
+ * be forced into the active metastate and reference-counted upon the creation
+ * of the link.  If DL_FLAG_PM_RUNTIME is not set, DL_FLAG_RPM_ACTIVE will be
+ * ignored.
+ *
  * If the DL_FLAG_AUTOREMOVE is set, the link will be removed automatically
  * when the consumer device driver unbinds from it.  The combination of both
  * DL_FLAG_AUTOREMOVE and DL_FLAG_STATELESS set is invalid and will cause NULL
@@ -193,10 +201,19 @@ struct device_link *device_link_add(struct device *consumer,
 		if (link->consumer == consumer)
 			goto out;
 
-	link = kmalloc(sizeof(*link), GFP_KERNEL);
+	link = kzalloc(sizeof(*link), GFP_KERNEL);
 	if (!link)
 		goto out;
 
+	if ((flags & DL_FLAG_PM_RUNTIME) && (flags & DL_FLAG_RPM_ACTIVE)) {
+		if (pm_runtime_get_sync(supplier) < 0) {
+			pm_runtime_put_noidle(supplier);
+			kfree(link);
+			link = NULL;
+			goto out;
+		}
+		link->rpm_active = true;
+	}
 	get_device(supplier);
 	link->supplier = supplier;
 	INIT_LIST_HEAD(&link->s_node);
@@ -213,6 +230,14 @@ struct device_link *device_link_add(struct device *consumer,
 		case DL_DEV_DRIVER_BOUND:
 			switch (consumer->links.status) {
 			case DL_DEV_PROBING:
+				/*
+				 * Balance the decrementation of the supplier's
+				 * runtime PM usage counter after consumer probe
+				 * in driver_probe_device().
+				 */
+				if (flags & DL_FLAG_PM_RUNTIME)
+					pm_runtime_get_sync(supplier);
+
 				link->status = DL_STATE_CONSUMER_PROBE;
 				break;
 			case DL_DEV_DRIVER_BOUND:
