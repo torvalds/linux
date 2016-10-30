@@ -538,7 +538,7 @@ int _cxl_cx4_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 
 		if (remaining > 0) {
 			new_ctx = cxl_dev_context_init(pdev);
-			if (!new_ctx) {
+			if (IS_ERR(new_ctx)) {
 				pr_warn("%s: Failed to allocate enough contexts for MSIs\n", pci_name(pdev));
 				return -ENOSPC;
 			}
