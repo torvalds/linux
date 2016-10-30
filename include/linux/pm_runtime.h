@@ -58,6 +58,8 @@ extern void pm_runtime_set_memalloc_noio(struct device *dev, bool enable);
 extern void pm_runtime_clean_up_links(struct device *dev);
 extern void pm_runtime_get_suppliers(struct device *dev);
 extern void pm_runtime_put_suppliers(struct device *dev);
+extern void pm_runtime_new_link(struct device *dev);
+extern void pm_runtime_drop_link(struct device *dev);
 
 static inline void pm_suspend_ignore_children(struct device *dev, bool enable)
 {
@@ -192,6 +194,8 @@ static inline void pm_runtime_set_memalloc_noio(struct device *dev,
 static inline void pm_runtime_clean_up_links(struct device *dev) {}
 static inline void pm_runtime_get_suppliers(struct device *dev) {}
 static inline void pm_runtime_put_suppliers(struct device *dev) {}
+static inline void pm_runtime_new_link(struct device *dev) {}
+static inline void pm_runtime_drop_link(struct device *dev) {}
 
 #endif /* !CONFIG_PM */
 
