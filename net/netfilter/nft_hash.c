@@ -44,6 +44,7 @@ static const struct nla_policy nft_hash_policy[NFTA_HASH_MAX + 1] = {
 	[NFTA_HASH_LEN]		= { .type = NLA_U32 },
 	[NFTA_HASH_MODULUS]	= { .type = NLA_U32 },
 	[NFTA_HASH_SEED]	= { .type = NLA_U32 },
+	[NFTA_HASH_OFFSET]	= { .type = NLA_U32 },
 };
 
 static int nft_hash_init(const struct nft_ctx *ctx,
