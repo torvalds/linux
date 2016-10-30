@@ -820,9 +820,9 @@ enum station_parameters_apply_mask {
  *	(or NULL for no change)
  * @supported_rates_len: number of supported rates
  * @sta_flags_mask: station flags that changed
- *	(bitmask of BIT(NL80211_STA_FLAG_...))
+ *	(bitmask of BIT(%NL80211_STA_FLAG_...))
  * @sta_flags_set: station flags values
- *	(bitmask of BIT(NL80211_STA_FLAG_...))
+ *	(bitmask of BIT(%NL80211_STA_FLAG_...))
  * @listen_interval: listen interval or -1 for no change
  * @aid: AID or zero for no change
  * @peer_aid: mesh peer AID or zero for no change
@@ -3160,47 +3160,54 @@ struct ieee80211_iface_limit {
  *
  * 1. Allow #STA <= 1, #AP <= 1, matching BI, channels = 1, 2 total:
  *
- *  struct ieee80211_iface_limit limits1[] = {
- *	{ .max = 1, .types = BIT(NL80211_IFTYPE_STATION), },
- *	{ .max = 1, .types = BIT(NL80211_IFTYPE_AP}, },
- *  };
- *  struct ieee80211_iface_combination combination1 = {
- *	.limits = limits1,
- *	.n_limits = ARRAY_SIZE(limits1),
- *	.max_interfaces = 2,
- *	.beacon_int_infra_match = true,
- *  };
+ *    .. code-block:: c
+ *
+ *	struct ieee80211_iface_limit limits1[] = {
+ *		{ .max = 1, .types = BIT(NL80211_IFTYPE_STATION), },
+ *		{ .max = 1, .types = BIT(NL80211_IFTYPE_AP}, },
+ *	};
+ *	struct ieee80211_iface_combination combination1 = {
+ *		.limits = limits1,
+ *		.n_limits = ARRAY_SIZE(limits1),
+ *		.max_interfaces = 2,
+ *		.beacon_int_infra_match = true,
+ *	};
  *
  *
  * 2. Allow #{AP, P2P-GO} <= 8, channels = 1, 8 total:
  *
- *  struct ieee80211_iface_limit limits2[] = {
- *	{ .max = 8, .types = BIT(NL80211_IFTYPE_AP) |
- *			     BIT(NL80211_IFTYPE_P2P_GO), },
- *  };
- *  struct ieee80211_iface_combination combination2 = {
- *	.limits = limits2,
- *	.n_limits = ARRAY_SIZE(limits2),
- *	.max_interfaces = 8,
- *	.num_different_channels = 1,
- *  };
+ *    .. code-block:: c
+ *
+ *	struct ieee80211_iface_limit limits2[] = {
+ *		{ .max = 8, .types = BIT(NL80211_IFTYPE_AP) |
+ *				     BIT(NL80211_IFTYPE_P2P_GO), },
+ *	};
+ *	struct ieee80211_iface_combination combination2 = {
+ *		.limits = limits2,
+ *		.n_limits = ARRAY_SIZE(limits2),
+ *		.max_interfaces = 8,
+ *		.num_different_channels = 1,
+ *	};
  *
  *
  * 3. Allow #STA <= 1, #{P2P-client,P2P-GO} <= 3 on two channels, 4 total.
  *
- * This allows for an infrastructure connection and three P2P connections.
+ *    This allows for an infrastructure connection and three P2P connections.
  *
- *  struct ieee80211_iface_limit limits3[] = {
- *	{ .max = 1, .types = BIT(NL80211_IFTYPE_STATION), },
- *	{ .max = 3, .types = BIT(NL80211_IFTYPE_P2P_GO) |
- *			     BIT(NL80211_IFTYPE_P2P_CLIENT), },
- *  };
- *  struct ieee80211_iface_combination combination3 = {
- *	.limits = limits3,
- *	.n_limits = ARRAY_SIZE(limits3),
- *	.max_interfaces = 4,
- *	.num_different_channels = 2,
- *  };
+ *    .. code-block:: c
+ *
+ *	struct ieee80211_iface_limit limits3[] = {
+ *		{ .max = 1, .types = BIT(NL80211_IFTYPE_STATION), },
+ *		{ .max = 3, .types = BIT(NL80211_IFTYPE_P2P_GO) |
+ *				     BIT(NL80211_IFTYPE_P2P_CLIENT), },
+ *	};
+ *	struct ieee80211_iface_combination combination3 = {
+ *		.limits = limits3,
+ *		.n_limits = ARRAY_SIZE(limits3),
+ *		.max_interfaces = 4,
+ *		.num_different_channels = 2,
+ *	};
+ *
  */
 struct ieee80211_iface_combination {
 	const struct ieee80211_iface_limit *limits;
@@ -4120,14 +4127,29 @@ unsigned int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr);
  */
 
 /**
+ * ieee80211_data_to_8023_exthdr - convert an 802.11 data frame to 802.3
+ * @skb: the 802.11 data frame
+ * @ehdr: pointer to a &struct ethhdr that will get the header, instead
+ *	of it being pushed into the SKB
+ * @addr: the device MAC address
+ * @iftype: the virtual interface type
+ * Return: 0 on success. Non-zero on error.
+ */
+int ieee80211_data_to_8023_exthdr(struct sk_buff *skb, struct ethhdr *ehdr,
+				  const u8 *addr, enum nl80211_iftype iftype);
+
+/**
  * ieee80211_data_to_8023 - convert an 802.11 data frame to 802.3
  * @skb: the 802.11 data frame
  * @addr: the device MAC address
  * @iftype: the virtual interface type
  * Return: 0 on success. Non-zero on error.
  */
-int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
-			   enum nl80211_iftype iftype);
+static inline int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
+					 enum nl80211_iftype iftype)
+{
+	return ieee80211_data_to_8023_exthdr(skb, NULL, addr, iftype);
+}
 
 /**
  * ieee80211_data_from_8023 - convert an 802.3 frame to 802.11
@@ -4145,22 +4167,23 @@ int ieee80211_data_from_8023(struct sk_buff *skb, const u8 *addr,
 /**
  * ieee80211_amsdu_to_8023s - decode an IEEE 802.11n A-MSDU frame
  *
- * Decode an IEEE 802.11n A-MSDU frame and convert it to a list of
- * 802.3 frames. The @list will be empty if the decode fails. The
- * @skb is consumed after the function returns.
+ * Decode an IEEE 802.11 A-MSDU and convert it to a list of 802.3 frames.
+ * The @list will be empty if the decode fails. The @skb must be fully
+ * header-less before being passed in here; it is freed in this function.
  *
- * @skb: The input IEEE 802.11n A-MSDU frame.
+ * @skb: The input A-MSDU frame without any headers.
  * @list: The output list of 802.3 frames. It must be allocated and
  *	initialized by by the caller.
  * @addr: The device MAC address.
  * @iftype: The device interface type.
  * @extra_headroom: The hardware extra headroom for SKBs in the @list.
- * @has_80211_header: Set it true if SKB is with IEEE 802.11 header.
+ * @check_da: DA to check in the inner ethernet header, or NULL
+ * @check_sa: SA to check in the inner ethernet header, or NULL
  */
 void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 			      const u8 *addr, enum nl80211_iftype iftype,
 			      const unsigned int extra_headroom,
-			      bool has_80211_header);
+			      const u8 *check_da, const u8 *check_sa);
 
 /**
  * cfg80211_classify8021d - determine the 802.1p/1d tag for a data frame

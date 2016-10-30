@@ -34,6 +34,7 @@
 #include <asm/ptrace.h>
 #include <asm/bug.h>
 #include <asm/kvm_book3s_asm.h>
+#include <asm/export.h>
 
 /* 601 only have IBAT; cr0.eq is set on 601 when using this macro */
 #define LOAD_BAT(n, reg, RA, RB)	\
@@ -738,6 +739,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 
 	.globl mol_trampoline
 	.set mol_trampoline, i0x2f00
+	EXPORT_SYMBOL(mol_trampoline)
 
 	. = 0x3000
 
@@ -1045,6 +1047,7 @@ _ENTRY(switch_mmu_context)
 4:	trap
 	EMIT_BUG_ENTRY 4b,__FILE__,__LINE__,0
 	blr
+EXPORT_SYMBOL(switch_mmu_context)
 
 /*
  * An undocumented "feature" of 604e requires that the v bit
@@ -1272,6 +1275,7 @@ sdata:
 	.globl	empty_zero_page
 empty_zero_page:
 	.space	4096
+EXPORT_SYMBOL(empty_zero_page)
 
 	.globl	swapper_pg_dir
 swapper_pg_dir:
@@ -1285,6 +1289,7 @@ intercept_table:
 	.long 0, 0, 0, 0, 0, 0, 0, 0
 	.long 0, 0, 0, 0, 0, 0, 0, 0
 	.long 0, 0, 0, 0, 0, 0, 0, 0
+EXPORT_SYMBOL(intercept_table)
 
 /* Room for two PTE pointers, usually the kernel and current user pointers
  * to their respective root page table.

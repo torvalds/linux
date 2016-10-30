@@ -2981,6 +2981,22 @@ static void set_params(struct mv643xx_eth_private *mp,
 	mp->txq_count = pd->tx_queue_count ? : 1;
 }
 
+static int get_phy_mode(struct mv643xx_eth_private *mp)
+{
+	struct device *dev = mp->dev->dev.parent;
+	int iface = -1;
+
+	if (dev->of_node)
+		iface = of_get_phy_mode(dev->of_node);
+
+	/* Historical default if unspecified. We could also read/write
+	 * the interface state in the PSC1
+	 */
+	if (iface < 0)
+		iface = PHY_INTERFACE_MODE_GMII;
+	return iface;
+}
+
 static struct phy_device *phy_scan(struct mv643xx_eth_private *mp,
 				   int phy_addr)
 {
@@ -3007,7 +3023,7 @@ static struct phy_device *phy_scan(struct mv643xx_eth_private *mp,
 				"orion-mdio-mii", addr);
 
 		phydev = phy_connect(mp->dev, phy_id, mv643xx_eth_adjust_link,
-				PHY_INTERFACE_MODE_GMII);
+				     get_phy_mode(mp));
 		if (!IS_ERR(phydev)) {
 			phy_addr_set(mp, addr);
 			break;
@@ -3106,6 +3122,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
+	SET_NETDEV_DEV(dev, &pdev->dev);
 	mp = netdev_priv(dev);
 	platform_set_drvdata(pdev, mp);
 
@@ -3145,7 +3162,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	if (pd->phy_node) {
 		phydev = of_phy_connect(mp->dev, pd->phy_node,
 					mv643xx_eth_adjust_link, 0,
-					PHY_INTERFACE_MODE_GMII);
+					get_phy_mode(mp));
 		if (!phydev)
 			err = -ENODEV;
 		else
@@ -3203,12 +3220,15 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->priv_flags |= IFF_UNICAST_FLT;
 	dev->gso_max_segs = MV643XX_MAX_TSO_SEGS;
 
+<<<<<<< HEAD
 	/* MTU range: 64 - 9500 */
 	dev->min_mtu = 64;
 	dev->max_mtu = 9500;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
+=======
+>>>>>>> 2a26d99b251b8625d27aed14e97fc10707a3a81f
 	if (mp->shared->win_protect)
 		wrl(mp, WINDOW_PROTECT(mp->port_num), mp->shared->win_protect);
 

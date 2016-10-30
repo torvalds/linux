@@ -64,15 +64,15 @@ unsigned int global_secflags = CIFSSEC_DEF;
 unsigned int sign_CIFS_PDUs = 1;
 static const struct super_operations cifs_super_ops;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
-module_param(CIFSMaxBufSize, uint, 0);
+module_param(CIFSMaxBufSize, uint, 0444);
 MODULE_PARM_DESC(CIFSMaxBufSize, "Network buffer size (not including header). "
 				 "Default: 16384 Range: 8192 to 130048");
 unsigned int cifs_min_rcv = CIFS_MIN_RCV_POOL;
-module_param(cifs_min_rcv, uint, 0);
+module_param(cifs_min_rcv, uint, 0444);
 MODULE_PARM_DESC(cifs_min_rcv, "Network buffers in pool. Default: 4 Range: "
 				"1 to 64");
 unsigned int cifs_min_small = 30;
-module_param(cifs_min_small, uint, 0);
+module_param(cifs_min_small, uint, 0444);
 MODULE_PARM_DESC(cifs_min_small, "Small network buffers in pool. Default: 30 "
 				 "Range: 2 to 256");
 unsigned int cifs_max_pending = CIFS_MAX_REQ;
@@ -271,7 +271,7 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->createtime = 0;
 	cifs_inode->epoch = 0;
 #ifdef CONFIG_CIFS_SMB2
-	get_random_bytes(cifs_inode->lease_key, SMB2_LEASE_KEY_SIZE);
+	generate_random_uuid(cifs_inode->lease_key);
 #endif
 	/*
 	 * Can not set i_flags here - they get immediately overwritten to zero
@@ -469,6 +469,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_puts(s, ",posixpaths");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID)
 		seq_puts(s, ",setuids");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UID_FROM_ACL)
+		seq_puts(s, ",idsfromsid");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)
 		seq_puts(s, ",serverino");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
@@ -1262,7 +1264,6 @@ init_cifs(void)
 	GlobalTotalActiveXid = 0;
 	GlobalMaxActiveXid = 0;
 	spin_lock_init(&cifs_tcp_ses_lock);
-	spin_lock_init(&cifs_file_list_lock);
 	spin_lock_init(&GlobalMid_Lock);
 
 	get_random_bytes(&cifs_lock_secret, sizeof(cifs_lock_secret));

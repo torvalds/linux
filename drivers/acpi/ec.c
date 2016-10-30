@@ -526,6 +526,7 @@ static void acpi_ec_enable_event(struct acpi_ec *ec)
 		acpi_ec_clear(ec);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static bool acpi_ec_query_flushed(struct acpi_ec *ec)
 {
 	bool flushed;
@@ -557,6 +558,7 @@ static void acpi_ec_disable_event(struct acpi_ec *ec)
 	spin_unlock_irqrestore(&ec->lock, flags);
 	__acpi_ec_flush_event(ec);
 }
+#endif /* CONFIG_PM_SLEEP */
 
 static bool acpi_ec_guard_event(struct acpi_ec *ec)
 {

@@ -163,18 +163,29 @@ static inline int bad_user_access_length(void)
 		: "a" (__ptr(ptr)));		\
 })
 
-#define __copy_from_user(to, from, n) copy_from_user(to, from, n)
-#define __copy_to_user(to, from, n) copy_to_user(to, from, n)
 #define __copy_to_user_inatomic __copy_to_user
 #define __copy_from_user_inatomic __copy_from_user
 
 static inline unsigned long __must_check
+__copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	memcpy(to, (const void __force *)from, n);
+	return 0;
+}
+
+static inline unsigned long __must_check
+__copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	memcpy((void __force *)to, from, n);
+	SSYNC();
+	return 0;
+}
+
+static inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	if (likely(access_ok(VERIFY_READ, from, n))) {
-		memcpy(to, (const void __force *)from, n);
-		return 0;
-	}
+	if (likely(access_ok(VERIFY_READ, from, n)))
+		return __copy_from_user(to, from, n);
 	memset(to, 0, n);
 	return n;
 }
@@ -182,12 +193,9 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 static inline unsigned long __must_check
 copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (access_ok(VERIFY_WRITE, to, n))
-		memcpy((void __force *)to, from, n);
-	else
-		return n;
-	SSYNC();
-	return 0;
+	if (likely(access_ok(VERIFY_WRITE, to, n)))
+		return __copy_to_user(to, from, n);
+	return n;
 }
 
 /*

@@ -7,6 +7,7 @@
 #ifdef __KERNEL__
 #include <asm/visasm.h>
 #include <asm/asi.h>
+#include <asm/export.h>
 #define GLOBAL_SPARE	g7
 #else
 #define GLOBAL_SPARE	g5
@@ -567,3 +568,4 @@ FUNC_NAME:		/* %o0=dst, %o1=src, %o2=len */
 	 mov		EX_RETVAL(%o4), %o0
 
 	.size		FUNC_NAME, .-FUNC_NAME
+EXPORT_SYMBOL(FUNC_NAME)

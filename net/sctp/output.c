@@ -418,6 +418,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 	__u8 has_data = 0;
 	int gso = 0;
 	int pktcount = 0;
+	int auth_len = 0;
 	struct dst_entry *dst;
 	unsigned char *auth = NULL;	/* pointer to auth in skb data */
 
@@ -510,7 +511,12 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 			list_for_each_entry(chunk, &packet->chunk_list, list) {
 				int padded = SCTP_PAD4(chunk->skb->len);
 
-				if (pkt_size + padded > tp->pathmtu)
+				if (chunk == packet->auth)
+					auth_len = padded;
+				else if (auth_len + padded + packet->overhead >
+					 tp->pathmtu)
+					goto nomem;
+				else if (pkt_size + padded > tp->pathmtu)
 					break;
 				pkt_size += padded;
 			}

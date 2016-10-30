@@ -22,8 +22,8 @@
 #include <asm/setup.h>
 
 static int l2_line_sz;
-int ioc_exists;
-volatile int slc_enable = 1, ioc_enable = 1;
+static int ioc_exists;
+int slc_enable = 1, ioc_enable = 1;
 unsigned long perip_base = ARC_UNCACHED_ADDR_SPACE; /* legacy value for boot */
 unsigned long perip_end = 0xFFFFFFFF; /* legacy value */
 
@@ -53,18 +53,15 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
 	PR_CACHE(&cpuinfo_arc700[c].icache, CONFIG_ARC_HAS_ICACHE, "I-Cache");
 	PR_CACHE(&cpuinfo_arc700[c].dcache, CONFIG_ARC_HAS_DCACHE, "D-Cache");
 
-	if (!is_isa_arcv2())
-                return buf;
-
 	p = &cpuinfo_arc700[c].slc;
 	if (p->ver)
 		n += scnprintf(buf + n, len - n,
 			       "SLC\t\t: %uK, %uB Line%s\n",
 			       p->sz_k, p->line_len, IS_USED_RUN(slc_enable));
 
-	if (ioc_exists)
-		n += scnprintf(buf + n, len - n, "IOC\t\t:%s\n",
-				IS_DISABLED_RUN(ioc_enable));
+	n += scnprintf(buf + n, len - n, "Peripherals\t: %#lx%s%s\n",
+		       perip_base,
+		       IS_AVAIL3(ioc_exists, ioc_enable, ", IO-Coherency "));
 
 	return buf;
 }
@@ -113,8 +110,10 @@ static void read_decode_cache_bcr_arcv2(int cpu)
 	}
 
 	READ_BCR(ARC_REG_CLUSTER_BCR, cbcr);
-	if (cbcr.c && ioc_enable)
+	if (cbcr.c)
 		ioc_exists = 1;
+	else
+		ioc_enable = 0;
 
 	/* HS 2.0 didn't have AUX_VOL */
 	if (cpuinfo_arc700[cpu].core.family > 0x51) {
@@ -1002,7 +1001,7 @@ void arc_cache_init(void)
 			read_aux_reg(ARC_REG_SLC_CTRL) | SLC_CTRL_DISABLE);
 	}
 
-	if (is_isa_arcv2() && ioc_exists) {
+	if (is_isa_arcv2() && ioc_enable) {
 		/* IO coherency base - 0x8z */
 		write_aux_reg(ARC_REG_IO_COH_AP0_BASE, 0x80000);
 		/* IO coherency aperture size - 512Mb: 0x8z-0xAz */

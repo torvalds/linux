@@ -1023,7 +1023,7 @@ static void its_free_tables(struct its_node *its)
 
 static int its_alloc_tables(struct its_node *its)
 {
-	u64 typer = readq_relaxed(its->base + GITS_TYPER);
+	u64 typer = gic_read_typer(its->base + GITS_TYPER);
 	u32 ids = GITS_TYPER_DEVBITS(typer);
 	u64 shr = GITS_BASER_InnerShareable;
 	u64 cache = GITS_BASER_WaWb;
@@ -1198,7 +1198,7 @@ static void its_cpu_init_collection(void)
 		 * We now have to bind each collection to its target
 		 * redistributor.
 		 */
-		if (readq_relaxed(its->base + GITS_TYPER) & GITS_TYPER_PTA) {
+		if (gic_read_typer(its->base + GITS_TYPER) & GITS_TYPER_PTA) {
 			/*
 			 * This ITS wants the physical address of the
 			 * redistributor.
@@ -1208,7 +1208,7 @@ static void its_cpu_init_collection(void)
 			/*
 			 * This ITS wants a linear CPU number.
 			 */
-			target = readq_relaxed(gic_data_rdist_rd_base() + GICR_TYPER);
+			target = gic_read_typer(gic_data_rdist_rd_base() + GICR_TYPER);
 			target = GICR_TYPER_CPU_NUMBER(target) << 16;
 		}
 
@@ -1691,7 +1691,7 @@ static int __init its_probe_one(struct resource *res,
 	INIT_LIST_HEAD(&its->its_device_list);
 	its->base = its_base;
 	its->phys_base = res->start;
-	its->ite_size = ((readl_relaxed(its_base + GITS_TYPER) >> 4) & 0xf) + 1;
+	its->ite_size = ((gic_read_typer(its_base + GITS_TYPER) >> 4) & 0xf) + 1;
 	its->numa_node = numa_node;
 
 	its->cmd_base = kzalloc(ITS_CMD_QUEUE_SZ, GFP_KERNEL);
@@ -1763,7 +1763,7 @@ out_unmap:
 
 static bool gic_rdists_supports_plpis(void)
 {
-	return !!(readl_relaxed(gic_data_rdist_rd_base() + GICR_TYPER) & GICR_TYPER_PLPIS);
+	return !!(gic_read_typer(gic_data_rdist_rd_base() + GICR_TYPER) & GICR_TYPER_PLPIS);
 }
 
 int its_cpu_init(void)

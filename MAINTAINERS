@@ -316,6 +316,14 @@ W:	https://01.org/linux-acpi
 S:	Supported
 F:	drivers/acpi/fan.c
 
+ACPI FOR ARM64 (ACPI/arm64)
+M:	Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
+M:	Hanjun Guo <hanjun.guo@linaro.org>
+M:	Sudeep Holla <sudeep.holla@arm.com>
+L:	linux-acpi@vger.kernel.org
+S:	Maintained
+F:	drivers/acpi/arm64
+
 ACPI THERMAL DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
@@ -1434,6 +1442,7 @@ F:	drivers/cpufreq/mvebu-cpufreq.c
 F:	arch/arm/configs/mvebu_*_defconfig
 
 ARM/Marvell Berlin SoC support
+M:	Jisheng Zhang <jszhang@marvell.com>
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -2545,15 +2554,18 @@ S:	Supported
 F:	drivers/net/ethernet/broadcom/genet/
 
 BROADCOM BNX2 GIGABIT ETHERNET DRIVER
-M:	Sony Chacko <sony.chacko@qlogic.com>
-M:	Dept-HSGLinuxNICDev@qlogic.com
+M:	Rasesh Mody <rasesh.mody@cavium.com>
+M:	Harish Patil <harish.patil@cavium.com>
+M:	Dept-GELinuxNICDev@cavium.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/broadcom/bnx2.*
 F:	drivers/net/ethernet/broadcom/bnx2_*
 
 BROADCOM BNX2X 10 GIGABIT ETHERNET DRIVER
-M:	Ariel Elior <ariel.elior@qlogic.com>
+M:	Yuval Mintz <Yuval.Mintz@cavium.com>
+M:	Ariel Elior <ariel.elior@cavium.com>
+M:	everest-linux-l2@cavium.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/broadcom/bnx2x/
@@ -2760,7 +2772,9 @@ S:	Supported
 F:	drivers/scsi/bfa/
 
 BROCADE BNA 10 GIGABIT ETHERNET DRIVER
-M:	Rasesh Mody <rasesh.mody@qlogic.com>
+M:	Rasesh Mody <rasesh.mody@cavium.com>
+M:	Sudarsana Kalluru <sudarsana.kalluru@cavium.com>
+M:	Dept-GELinuxNICDev@cavium.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/brocade/bna/
@@ -4614,8 +4628,9 @@ F:	sound/usb/misc/ua101.c
 
 EXTENSIBLE FIRMWARE INTERFACE (EFI)
 M:	Matt Fleming <matt@codeblueprint.co.uk>
+M:	Ard Biesheuvel <ard.biesheuvel@linaro.org>
 L:	linux-efi@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfleming/efi.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/efi/efi.git
 S:	Maintained
 F:	Documentation/efi-stub.txt
 F:	arch/ia64/kernel/efi.c
@@ -5279,6 +5294,12 @@ GET_MAINTAINER SCRIPT
 M:	Joe Perches <joe@perches.com>
 S:	Maintained
 F:	scripts/get_maintainer.pl
+
+GENWQE (IBM Generic Workqueue Card)
+M:	Frank Haverkamp <haver@linux.vnet.ibm.com>
+M:	Gabriel Krisman Bertazi <krisman@linux.vnet.ibm.com>
+S:	Supported
+F:	drivers/misc/genwqe/
 
 GFS2 FILE SYSTEM
 M:	Steven Whitehouse <swhiteho@redhat.com>
@@ -6125,6 +6146,12 @@ M:	Stanislaw Gruszka <stf_xl@wp.pl>
 S:	Maintained
 F:	drivers/usb/atm/ueagle-atm.c
 
+IMGTEC ASCII LCD DRIVER
+M:	Paul Burton <paul.burton@imgtec.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/auxdisplay/img-ascii-lcd.txt
+F:	drivers/auxdisplay/img-ascii-lcd.c
+
 INA209 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
@@ -6436,6 +6463,7 @@ F:	include/linux/mei_cl_bus.h
 F:	drivers/misc/mei/*
 F:	drivers/watchdog/mei_wdt.c
 F:	Documentation/misc-devices/mei/*
+F:	samples/mei/*
 
 INTEL MIC DRIVERS (mic)
 M:	Sudeep Dutt <sudeep.dutt@intel.com>
@@ -6622,10 +6650,10 @@ S:	Maintained
 F:	drivers/firmware/iscsi_ibft*
 
 ISCSI
-M:	Mike Christie <michaelc@cs.wisc.edu>
+M:	Lee Duncan <lduncan@suse.com>
+M:	Chris Leech <cleech@redhat.com>
 L:	open-iscsi@googlegroups.com
-W:	www.open-iscsi.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mnc/linux-2.6-iscsi.git
+W:	www.open-iscsi.com
 S:	Maintained
 F:	drivers/scsi/*iscsi*
 F:	include/scsi/*iscsi*
@@ -7203,17 +7231,11 @@ F:	drivers/lightnvm/
 F:	include/linux/lightnvm.h
 F:	include/uapi/linux/lightnvm.h
 
-LINUX FOR IBM pSERIES (RS/6000)
-M:	Paul Mackerras <paulus@au.ibm.com>
-W:	http://www.ibm.com/linux/ltc/projects/ppc
-S:	Supported
-F:	arch/powerpc/boot/rs6000.h
-
 LINUX FOR POWERPC (32-BIT AND 64-BIT)
 M:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
 M:	Paul Mackerras <paulus@samba.org>
 M:	Michael Ellerman <mpe@ellerman.id.au>
-W:	http://www.penguinppc.org/
+W:	https://github.com/linuxppc/linux/wiki
 L:	linuxppc-dev@lists.ozlabs.org
 Q:	http://patchwork.ozlabs.org/project/linuxppc-dev/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git
@@ -7228,6 +7250,7 @@ F:	drivers/net/ethernet/ibm/ibmvnic.*
 F:	drivers/pci/hotplug/pnv_php.c
 F:	drivers/pci/hotplug/rpa*
 F:	drivers/scsi/ibmvscsi/
+F:	tools/testing/selftests/powerpc
 N:	opal
 N:	/pmac
 N:	powermac
@@ -7284,9 +7307,8 @@ F:	arch/powerpc/platforms/83xx/
 F:	arch/powerpc/platforms/85xx/
 
 LINUX FOR POWERPC PA SEMI PWRFICIENT
-M:	Olof Johansson <olof@lixom.net>
 L:	linuxppc-dev@lists.ozlabs.org
-S:	Maintained
+S:	Orphan
 F:	arch/powerpc/platforms/pasemi/
 F:	drivers/*/*pasemi*
 F:	drivers/*/*/*pasemi*
@@ -7829,6 +7851,13 @@ F:	Documentation/scsi/megaraid.txt
 F:	drivers/scsi/megaraid.*
 F:	drivers/scsi/megaraid/
 
+MELFAS MIP4 TOUCHSCREEN DRIVER
+M:	Sangwon Jee <jeesw@melfas.com>
+W:	http://www.melfas.com
+S:	Supported
+F:	drivers/input/touchscreen/melfas_mip4.c
+F:	Documentation/devicetree/bindings/input/touchscreen/melfas_mip4.txt
+
 MELLANOX ETHERNET DRIVER (mlx4_en)
 M:	Tariq Toukan <tariqt@mellanox.com>
 L:	netdev@vger.kernel.org
@@ -8085,6 +8114,7 @@ S:	Maintained
 F:	drivers/media/dvb-frontends/mn88473*
 
 MODULE SUPPORT
+M:	Jessica Yu <jeyu@redhat.com>
 M:	Rusty Russell <rusty@rustcorp.com.au>
 S:	Maintained
 F:	include/linux/module.h
@@ -8198,7 +8228,7 @@ F:	include/linux/mfd/
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
 M:	Ulf Hansson <ulf.hansson@linaro.org>
 L:	linux-mmc@vger.kernel.org
-T:	git git://git.linaro.org/people/ulf.hansson/mmc.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ulfh/mmc.git
 S:	Maintained
 F:	Documentation/devicetree/bindings/mmc/
 F:	drivers/mmc/
@@ -8493,11 +8523,10 @@ F:	Documentation/devicetree/bindings/net/wireless/
 F:	drivers/net/wireless/
 
 NETXEN (1/10) GbE SUPPORT
-M:	Manish Chopra <manish.chopra@qlogic.com>
-M:	Sony Chacko <sony.chacko@qlogic.com>
-M:	Rajesh Borundia <rajesh.borundia@qlogic.com>
+M:	Manish Chopra <manish.chopra@cavium.com>
+M:	Rahul Verma <rahul.verma@cavium.com>
+M:	Dept-GELinuxNICDev@cavium.com
 L:	netdev@vger.kernel.org
-W:	http://www.qlogic.com
 S:	Supported
 F:	drivers/net/ethernet/qlogic/netxen/
 
@@ -9020,15 +9049,13 @@ S:	Maintained
 F:	drivers/net/wireless/intersil/p54/
 
 PA SEMI ETHERNET DRIVER
-M:	Olof Johansson <olof@lixom.net>
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/net/ethernet/pasemi/*
 
 PA SEMI SMBUS DRIVER
-M:	Olof Johansson <olof@lixom.net>
 L:	linux-i2c@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/i2c/busses/i2c-pasemi.c
 
 PADATA PARALLEL EXECUTION MECHANISM
@@ -9286,7 +9313,7 @@ S:	Maintained
 F:	drivers/pci/host/*designware*
 
 PCI DRIVER FOR SYNOPSYS PROTOTYPING DEVICE
-M:	Joao Pinto <jpinto@synopsys.com>
+M:	Jose Abreu <Jose.Abreu@synopsys.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pci/designware-pcie.txt
@@ -9377,6 +9404,7 @@ W:	http://lists.infradead.org/mailman/listinfo/linux-pcmcia
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/brodo/pcmcia.git
 S:	Maintained
 F:	Documentation/pcmcia/
+F:	tools/pcmcia/
 F:	drivers/pcmcia/
 F:	include/pcmcia/
 
@@ -9874,33 +9902,32 @@ F:	Documentation/scsi/LICENSE.qla4xxx
 F:	drivers/scsi/qla4xxx/
 
 QLOGIC QLA3XXX NETWORK DRIVER
-M:	Jitendra Kalsaria <jitendra.kalsaria@qlogic.com>
-M:	Ron Mercer <ron.mercer@qlogic.com>
-M:	linux-driver@qlogic.com
+M:	Dept-GELinuxNICDev@cavium.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/LICENSE.qla3xxx
 F:	drivers/net/ethernet/qlogic/qla3xxx.*
 
 QLOGIC QLCNIC (1/10)Gb ETHERNET DRIVER
-M:	Dept-GELinuxNICDev@qlogic.com
+M:	Harish Patil <harish.patil@cavium.com>
+M:	Manish Chopra <manish.chopra@cavium.com>
+M:	Dept-GELinuxNICDev@cavium.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/qlogic/qlcnic/
 
 QLOGIC QLGE 10Gb ETHERNET DRIVER
-M:	Harish Patil <harish.patil@qlogic.com>
-M:	Sudarsana Kalluru <sudarsana.kalluru@qlogic.com>
-M:	Dept-GELinuxNICDev@qlogic.com
-M:	linux-driver@qlogic.com
+M:	Harish Patil <harish.patil@cavium.com>
+M:	Manish Chopra <manish.chopra@cavium.com>
+M:	Dept-GELinuxNICDev@cavium.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/qlogic/qlge/
 
 QLOGIC QL4xxx ETHERNET DRIVER
-M:	Yuval Mintz <Yuval.Mintz@qlogic.com>
-M:	Ariel Elior <Ariel.Elior@qlogic.com>
-M:	everest-linux-l2@qlogic.com
+M:	Yuval Mintz <Yuval.Mintz@cavium.com>
+M:	Ariel Elior <Ariel.Elior@cavium.com>
+M:	everest-linux-l2@cavium.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/qlogic/qed/

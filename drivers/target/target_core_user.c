@@ -96,7 +96,7 @@ struct tcmu_dev {
 	size_t dev_size;
 	u32 cmdr_size;
 	u32 cmdr_last_cleaned;
-	/* Offset of data ring from start of mb */
+	/* Offset of data area from start of mb */
 	/* Must add data_off and mb_addr to get the address */
 	size_t data_off;
 	size_t data_size;
@@ -349,7 +349,7 @@ static inline size_t spc_bitmap_free(unsigned long *bitmap)
 
 /*
  * We can't queue a command until we have space available on the cmd ring *and*
- * space available on the data ring.
+ * space available on the data area.
  *
  * Called with ring lock held.
  */
@@ -389,7 +389,8 @@ static bool is_ring_space_avail(struct tcmu_dev *udev, size_t cmd_size, size_t d
 	return true;
 }
 
-static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
+static sense_reason_t
+tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 {
 	struct tcmu_dev *udev = tcmu_cmd->tcmu_dev;
 	struct se_cmd *se_cmd = tcmu_cmd->se_cmd;
@@ -405,7 +406,7 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	DECLARE_BITMAP(old_bitmap, DATA_BLOCK_BITS);
 
 	if (test_bit(TCMU_DEV_BIT_BROKEN, &udev->flags))
-		return -EINVAL;
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	/*
 	 * Must be a certain minimum size for response sense info, but
@@ -432,11 +433,14 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 		BUG_ON(!(se_cmd->t_bidi_data_sg && se_cmd->t_bidi_data_nents));
 		data_length += se_cmd->t_bidi_data_sg->length;
 	}
-	if ((command_size > (udev->cmdr_size / 2))
-	    || data_length > udev->data_size)
-		pr_warn("TCMU: Request of size %zu/%zu may be too big for %u/%zu "
-			"cmd/data ring buffers\n", command_size, data_length,
+	if ((command_size > (udev->cmdr_size / 2)) ||
+	    data_length > udev->data_size) {
+		pr_warn("TCMU: Request of size %zu/%zu is too big for %u/%zu "
+			"cmd ring/data area\n", command_size, data_length,
 			udev->cmdr_size, udev->data_size);
+		spin_unlock_irq(&udev->cmdr_lock);
+		return TCM_INVALID_CDB_FIELD;
+	}
 
 	while (!is_ring_space_avail(udev, command_size, data_length)) {
 		int ret;
@@ -450,7 +454,7 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 		finish_wait(&udev->wait_cmdr, &__wait);
 		if (!ret) {
 			pr_warn("tcmu: command timed out\n");
-			return -ETIMEDOUT;
+			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		}
 
 		spin_lock_irq(&udev->cmdr_lock);
@@ -487,9 +491,7 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 
 	bitmap_copy(old_bitmap, udev->data_bitmap, DATA_BLOCK_BITS);
 
-	/*
-	 * Fix up iovecs, and handle if allocation in data ring wrapped.
-	 */
+	/* Handle allocating space from the data area */
 	iov = &entry->req.iov[0];
 	iov_cnt = 0;
 	copy_to_data_area = (se_cmd->data_direction == DMA_TO_DEVICE
@@ -526,10 +528,11 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	mod_timer(&udev->timeout,
 		round_jiffies_up(jiffies + msecs_to_jiffies(TCMU_TIME_OUT)));
 
-	return 0;
+	return TCM_NO_SENSE;
 }
 
-static int tcmu_queue_cmd(struct se_cmd *se_cmd)
+static sense_reason_t
+tcmu_queue_cmd(struct se_cmd *se_cmd)
 {
 	struct se_device *se_dev = se_cmd->se_dev;
 	struct tcmu_dev *udev = TCMU_DEV(se_dev);
@@ -538,10 +541,10 @@ static int tcmu_queue_cmd(struct se_cmd *se_cmd)
 
 	tcmu_cmd = tcmu_alloc_cmd(se_cmd);
 	if (!tcmu_cmd)
-		return -ENOMEM;
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	ret = tcmu_queue_cmd_ring(tcmu_cmd);
-	if (ret < 0) {
+	if (ret != TCM_NO_SENSE) {
 		pr_err("TCMU: Could not queue command\n");
 		spin_lock_irq(&udev->commands_lock);
 		idr_remove(&udev->commands, tcmu_cmd->cmd_id);
@@ -561,7 +564,7 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 	if (test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags)) {
 		/*
 		 * cmd has been completed already from timeout, just reclaim
-		 * data ring space and free cmd
+		 * data area space and free cmd
 		 */
 		free_data_area(udev, cmd);
 
@@ -1129,20 +1132,9 @@ static sector_t tcmu_get_blocks(struct se_device *dev)
 }
 
 static sense_reason_t
-tcmu_pass_op(struct se_cmd *se_cmd)
-{
-	int ret = tcmu_queue_cmd(se_cmd);
-
-	if (ret != 0)
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-	else
-		return TCM_NO_SENSE;
-}
-
-static sense_reason_t
 tcmu_parse_cdb(struct se_cmd *cmd)
 {
-	return passthrough_parse_cdb(cmd, tcmu_pass_op);
+	return passthrough_parse_cdb(cmd, tcmu_queue_cmd);
 }
 
 static const struct target_backend_ops tcmu_ops = {

@@ -198,6 +198,7 @@ config FRAME_WARN
 	int "Warn for stack frames larger than (needs gcc 4.4)"
 	range 0 8192
 	default 0 if KASAN
+	default 2048 if GCC_PLUGIN_LATENT_ENTROPY
 	default 1024 if !64BIT
 	default 2048 if 64BIT
 	help
@@ -1856,15 +1857,6 @@ config PROVIDE_OHCI1394_DMA_INIT
 	  in charge of the OHCI-1394 controllers should be used instead.
 
 	  See Documentation/debugging-via-ohci1394.txt for more information.
-
-config BUILD_DOCSRC
-	bool "Build targets in Documentation/ tree"
-	depends on HEADERS_CHECK
-	help
-	  This option attempts to build objects from the source files in the
-	  kernel Documentation/ tree.
-
-	  Say N if you are unsure.
 
 config DMA_API_DEBUG
 	bool "Enable debugging of DMA-API usage"

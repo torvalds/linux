@@ -564,11 +564,14 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (mr->umem->page_size != HNS_ROCE_HEM_PAGE_SIZE) {
 		dev_err(dev, "Just support 4K page size but is 0x%x now!\n",
 			mr->umem->page_size);
+		ret = -EINVAL;
+		goto err_umem;
 	}
 
 	if (n > HNS_ROCE_MAX_MTPT_PBL_NUM) {
 		dev_err(dev, " MR len %lld err. MR is limited to 4G at most!\n",
 			length);
+		ret = -EINVAL;
 		goto err_umem;
 	}
 

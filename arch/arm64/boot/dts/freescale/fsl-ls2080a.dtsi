@@ -195,6 +195,7 @@
 			     <1 14 4>, /* Physical Non-Secure PPI, active-low */
 			     <1 11 4>, /* Virtual PPI, active-low */
 			     <1 10 4>; /* Hypervisor PPI, active-low */
+		fsl,erratum-a008585;
 	};
 
 	pmu {
@@ -683,6 +684,7 @@
 			reg = <0x0 0x3200000 0x0 0x10000>;
 			interrupts = <0 133 0x4>; /* Level high type */
 			clocks = <&clockgen 4 3>;
+			dma-coherent;
 		};
 
 		sata1: sata@3210000 {
@@ -691,6 +693,7 @@
 			reg = <0x0 0x3210000 0x0 0x10000>;
 			interrupts = <0 136 0x4>; /* Level high type */
 			clocks = <&clockgen 4 3>;
+			dma-coherent;
 		};
 
 		usb0: usb3@3100000 {

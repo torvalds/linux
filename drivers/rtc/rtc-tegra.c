@@ -291,7 +291,7 @@ static irqreturn_t tegra_rtc_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct rtc_class_ops tegra_rtc_ops = {
+static const struct rtc_class_ops tegra_rtc_ops = {
 	.read_time	= tegra_rtc_read_time,
 	.set_time	= tegra_rtc_set_time,
 	.read_alarm	= tegra_rtc_read_alarm,

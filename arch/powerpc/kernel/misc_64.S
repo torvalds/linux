@@ -27,6 +27,7 @@
 #include <asm/kexec.h>
 #include <asm/ptrace.h>
 #include <asm/mmu.h>
+#include <asm/export.h>
 
 	.text
 
@@ -110,6 +111,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	isync
 	blr
 _ASM_NOKPROBE_SYMBOL(flush_icache_range)
+EXPORT_SYMBOL(flush_icache_range)
 
 /*
  * Like above, but only do the D-cache.
@@ -140,6 +142,7 @@ _GLOBAL(flush_dcache_range)
 	bdnz	0b
 	sync
 	blr
+EXPORT_SYMBOL(flush_dcache_range)
 
 /*
  * Like above, but works on non-mapped physical addresses.
@@ -243,6 +246,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	blr
 
 _GLOBAL(__bswapdi2)
+EXPORT_SYMBOL(__bswapdi2)
 	srdi	r8,r3,32
 	rlwinm	r7,r3,8,0xffffffff
 	rlwimi	r7,r3,24,0,7

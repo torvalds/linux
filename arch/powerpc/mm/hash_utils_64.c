@@ -529,7 +529,7 @@ static bool might_have_hea(void)
 	 */
 #ifdef CONFIG_IBMEBUS
 	return !cpu_has_feature(CPU_FTR_ARCH_207S) &&
-		!firmware_has_feature(FW_FEATURE_SPLPAR);
+		firmware_has_feature(FW_FEATURE_SPLPAR);
 #else
 	return false;
 #endif

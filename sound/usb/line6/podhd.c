@@ -317,7 +317,8 @@ static int podhd_init(struct usb_line6 *line6,
 	if (pod->line6.properties->capabilities & LINE6_CAP_PCM) {
 		/* initialize PCM subsystem: */
 		err = line6_init_pcm(line6,
-			(id->driver_info == LINE6_PODX3) ? &podx3_pcm_properties :
+			(id->driver_info == LINE6_PODX3 ||
+			id->driver_info == LINE6_PODX3LIVE) ? &podx3_pcm_properties :
 			&podhd_pcm_properties);
 		if (err < 0)
 			return err;

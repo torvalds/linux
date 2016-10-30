@@ -14,6 +14,11 @@ CFLAGS_prom_init.o      += -fPIC
 CFLAGS_btext.o		+= -fPIC
 endif
 
+CFLAGS_cputable.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
+CFLAGS_init.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
+CFLAGS_btext.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
+CFLAGS_prom.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
+
 ifdef CONFIG_FUNCTION_TRACER
 # Do not trace early boot code
 CFLAGS_REMOVE_cputable.o = -mno-sched-epilog $(CC_FLAGS_FTRACE)
@@ -90,10 +95,6 @@ obj-$(CONFIG_RELOCATABLE)	+= reloc_$(BITS).o
 obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o
 obj-$(CONFIG_PPC64)		+= dma-iommu.o iommu.o
 obj-$(CONFIG_KGDB)		+= kgdb.o
-obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
-ifeq ($(CONFIG_PPC32),y)
-obj-$(CONFIG_MODULES)		+= ppc_ksyms_32.o
-endif
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o

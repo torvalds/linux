@@ -330,7 +330,8 @@ u32 etnaviv_iommu_get_cmdbuf_va(struct etnaviv_gpu *gpu,
 			return (u32)buf->vram_node.start;
 
 		mutex_lock(&mmu->lock);
-		ret = etnaviv_iommu_find_iova(mmu, &buf->vram_node, buf->size);
+		ret = etnaviv_iommu_find_iova(mmu, &buf->vram_node,
+					      buf->size + SZ_64K);
 		if (ret < 0) {
 			mutex_unlock(&mmu->lock);
 			return 0;

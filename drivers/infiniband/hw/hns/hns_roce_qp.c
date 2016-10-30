@@ -32,14 +32,14 @@
  */
 
 #include <linux/platform_device.h>
+#include <rdma/ib_addr.h>
 #include <rdma/ib_umem.h>
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
 #include "hns_roce_hem.h"
 #include "hns_roce_user.h"
 
-#define DB_REG_OFFSET			0x1000
-#define SQP_NUM				12
+#define SQP_NUM				(2 * HNS_ROCE_MAX_PORTS)
 
 void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 {
@@ -113,16 +113,8 @@ static int hns_roce_reserve_range_qp(struct hns_roce_dev *hr_dev, int cnt,
 				     int align, unsigned long *base)
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
-	int ret = 0;
-	unsigned long qpn;
 
-	ret = hns_roce_bitmap_alloc_range(&qp_table->bitmap, cnt, align, &qpn);
-	if (ret == -1)
-		return -ENOMEM;
-
-	*base = qpn;
-
-	return 0;
+	return hns_roce_bitmap_alloc_range(&qp_table->bitmap, cnt, align, base);
 }
 
 enum hns_roce_qp_state to_hns_roce_state(enum ib_qp_state state)
@@ -255,7 +247,7 @@ void hns_roce_release_range_qp(struct hns_roce_dev *hr_dev, int base_qpn,
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
 
-	if (base_qpn < (hr_dev->caps.sqp_start + 2 * hr_dev->caps.num_ports))
+	if (base_qpn < SQP_NUM)
 		return;
 
 	hns_roce_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt);
@@ -345,12 +337,10 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 
 static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 				       struct ib_qp_cap *cap,
-				       enum ib_qp_type type,
 				       struct hns_roce_qp *hr_qp)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	u32 max_cnt;
-	(void)type;
 
 	if (cap->max_send_wr  > hr_dev->caps.max_wqes  ||
 	    cap->max_send_sge > hr_dev->caps.max_sq_sg ||
@@ -476,7 +466,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 
 		/* Set SQ size */
 		ret = hns_roce_set_kernel_sq_size(hr_dev, &init_attr->cap,
-						  init_attr->qp_type, hr_qp);
+						  hr_qp);
 		if (ret) {
 			dev_err(dev, "hns_roce_set_kernel_sq_size error!\n");
 			goto err_out;
@@ -617,21 +607,19 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 			return ERR_PTR(-ENOMEM);
 
 		hr_qp = &hr_sqp->hr_qp;
+		hr_qp->port = init_attr->port_num - 1;
+		hr_qp->phy_port = hr_dev->iboe.phy_port[hr_qp->port];
+		hr_qp->ibqp.qp_num = HNS_ROCE_MAX_PORTS +
+				     hr_dev->iboe.phy_port[hr_qp->port];
 
 		ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata,
-						hr_dev->caps.sqp_start +
-						hr_dev->caps.num_ports +
-						init_attr->port_num - 1, hr_qp);
+						hr_qp->ibqp.qp_num, hr_qp);
 		if (ret) {
 			dev_err(dev, "Create GSI QP failed!\n");
 			kfree(hr_sqp);
 			return ERR_PTR(ret);
 		}
 
-		hr_qp->port = (init_attr->port_num - 1);
-		hr_qp->ibqp.qp_num = hr_dev->caps.sqp_start +
-				     hr_dev->caps.num_ports +
-				     init_attr->port_num - 1;
 		break;
 	}
 	default:{
@@ -670,6 +658,7 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct device *dev = &hr_dev->pdev->dev;
 	int ret = -EINVAL;
 	int p;
+	enum ib_mtu active_mtu;
 
 	mutex_lock(&hr_qp->mutex);
 
@@ -696,6 +685,19 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		if (attr->pkey_index >= hr_dev->caps.pkey_table_len[p]) {
 			dev_err(dev, "attr pkey_index invalid.attr->pkey_index=%d\n",
 				attr->pkey_index);
+			goto out;
+		}
+	}
+
+	if (attr_mask & IB_QP_PATH_MTU) {
+		p = attr_mask & IB_QP_PORT ? (attr->port_num - 1) : hr_qp->port;
+		active_mtu = iboe_get_mtu(hr_dev->iboe.netdevs[p]->mtu);
+
+		if (attr->path_mtu > IB_MTU_2048 ||
+		    attr->path_mtu < IB_MTU_256 ||
+		    attr->path_mtu > active_mtu) {
+			dev_err(dev, "attr path_mtu(%d)invalid while modify qp",
+				attr->path_mtu);
 			goto out;
 		}
 	}
@@ -782,29 +784,11 @@ static void *get_wqe(struct hns_roce_qp *hr_qp, int offset)
 
 void *get_recv_wqe(struct hns_roce_qp *hr_qp, int n)
 {
-	struct ib_qp *ibqp = &hr_qp->ibqp;
-	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
-
-	if ((n < 0) || (n > hr_qp->rq.wqe_cnt)) {
-		dev_err(&hr_dev->pdev->dev, "rq wqe index:%d,rq wqe cnt:%d\r\n",
-			n, hr_qp->rq.wqe_cnt);
-		return NULL;
-	}
-
 	return get_wqe(hr_qp, hr_qp->rq.offset + (n << hr_qp->rq.wqe_shift));
 }
 
 void *get_send_wqe(struct hns_roce_qp *hr_qp, int n)
 {
-	struct ib_qp *ibqp = &hr_qp->ibqp;
-	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
-
-	if ((n < 0) || (n > hr_qp->sq.wqe_cnt)) {
-		dev_err(&hr_dev->pdev->dev, "sq wqe index:%d,sq wqe cnt:%d\r\n",
-			n, hr_qp->sq.wqe_cnt);
-		return NULL;
-	}
-
 	return get_wqe(hr_qp, hr_qp->sq.offset + (n << hr_qp->sq.wqe_shift));
 }
 
@@ -837,8 +821,7 @@ int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 
 	/* A port include two SQP, six port total 12 */
 	ret = hns_roce_bitmap_init(&qp_table->bitmap, hr_dev->caps.num_qps,
-				   hr_dev->caps.num_qps - 1,
-				   hr_dev->caps.sqp_start + SQP_NUM,
+				   hr_dev->caps.num_qps - 1, SQP_NUM,
 				   reserved_from_top);
 	if (ret) {
 		dev_err(&hr_dev->pdev->dev, "qp bitmap init failed!error=%d\n",
