@@ -502,7 +502,11 @@ static long bcm2835_pll_rate_from_divisors(unsigned long parent_rate,
 static long bcm2835_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 				   unsigned long *parent_rate)
 {
+	struct bcm2835_pll *pll = container_of(hw, struct bcm2835_pll, hw);
+	const struct bcm2835_pll_data *data = pll->data;
 	u32 ndiv, fdiv;
+
+	rate = clamp(rate, data->min_rate, data->max_rate);
 
 	bcm2835_pll_choose_ndiv_and_fdiv(rate, *parent_rate, &ndiv, &fdiv);
 
@@ -607,13 +611,6 @@ static int bcm2835_pll_set_rate(struct clk_hw *hw,
 	u32 ndiv, fdiv, a2w_ctl;
 	u32 ana[4];
 	int i;
-
-	if (rate < data->min_rate || rate > data->max_rate) {
-		dev_err(cprman->dev, "%s: rate out of spec: %lu vs (%lu, %lu)\n",
-			clk_hw_get_name(hw), rate,
-			data->min_rate, data->max_rate);
-		return -EINVAL;
-	}
 
 	if (rate > data->max_fb_rate) {
 		use_fb_prediv = true;

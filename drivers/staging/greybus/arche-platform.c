@@ -128,6 +128,7 @@ int arche_platform_change_state(enum arche_platform_state state,
 	pdev = of_find_device_by_node(np);
 	if (!pdev) {
 		pr_err("arche-platform device not found\n");
+		of_node_put(np);
 		return -ENODEV;
 	}
 

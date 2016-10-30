@@ -754,15 +754,7 @@ EXPORT_SYMBOL(target_complete_cmd);
 
 void target_complete_cmd_with_length(struct se_cmd *cmd, u8 scsi_status, int length)
 {
-	if (scsi_status != SAM_STAT_GOOD) {
-		return;
-	}
-
-	/*
-	 * Calculate new residual count based upon length of SCSI data
-	 * transferred.
-	 */
-	if (length < cmd->data_length) {
+	if (scsi_status == SAM_STAT_GOOD && length < cmd->data_length) {
 		if (cmd->se_cmd_flags & SCF_UNDERFLOW_BIT) {
 			cmd->residual_count += cmd->data_length - length;
 		} else {
@@ -771,12 +763,6 @@ void target_complete_cmd_with_length(struct se_cmd *cmd, u8 scsi_status, int len
 		}
 
 		cmd->data_length = length;
-	} else if (length > cmd->data_length) {
-		cmd->se_cmd_flags |= SCF_OVERFLOW_BIT;
-		cmd->residual_count = length - cmd->data_length;
-	} else {
-		cmd->se_cmd_flags &= ~(SCF_OVERFLOW_BIT | SCF_UNDERFLOW_BIT);
-		cmd->residual_count = 0;
 	}
 
 	target_complete_cmd(cmd, scsi_status);
@@ -1706,6 +1692,7 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	case TCM_LOGICAL_BLOCK_GUARD_CHECK_FAILED:
 	case TCM_LOGICAL_BLOCK_APP_TAG_CHECK_FAILED:
 	case TCM_LOGICAL_BLOCK_REF_TAG_CHECK_FAILED:
+	case TCM_COPY_TARGET_DEVICE_NOT_REACHABLE:
 		break;
 	case TCM_OUT_OF_RESOURCES:
 		sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -2547,8 +2534,12 @@ int target_get_sess_cmd(struct se_cmd *se_cmd, bool ack_kref)
 	 * fabric acknowledgement that requires two target_put_sess_cmd()
 	 * invocations before se_cmd descriptor release.
 	 */
-	if (ack_kref)
-		kref_get(&se_cmd->cmd_kref);
+	if (ack_kref) {
+		if (!kref_get_unless_zero(&se_cmd->cmd_kref))
+			return -EINVAL;
+
+		se_cmd->se_cmd_flags |= SCF_ACK_KREF;
+	}
 
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
 	if (se_sess->sess_tearing_down) {
@@ -2627,7 +2618,7 @@ EXPORT_SYMBOL(target_put_sess_cmd);
  */
 void target_sess_cmd_list_set_waiting(struct se_session *se_sess)
 {
-	struct se_cmd *se_cmd;
+	struct se_cmd *se_cmd, *tmp_cmd;
 	unsigned long flags;
 	int rc;
 
@@ -2639,14 +2630,16 @@ void target_sess_cmd_list_set_waiting(struct se_session *se_sess)
 	se_sess->sess_tearing_down = 1;
 	list_splice_init(&se_sess->sess_cmd_list, &se_sess->sess_wait_list);
 
-	list_for_each_entry(se_cmd, &se_sess->sess_wait_list, se_cmd_list) {
+	list_for_each_entry_safe(se_cmd, tmp_cmd,
+				 &se_sess->sess_wait_list, se_cmd_list) {
 		rc = kref_get_unless_zero(&se_cmd->cmd_kref);
 		if (rc) {
 			se_cmd->cmd_wait_set = 1;
 			spin_lock(&se_cmd->t_state_lock);
 			se_cmd->transport_state |= CMD_T_FABRIC_STOP;
 			spin_unlock(&se_cmd->t_state_lock);
-		}
+		} else
+			list_del_init(&se_cmd->se_cmd_list);
 	}
 
 	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
@@ -2870,6 +2863,12 @@ static const struct sense_info sense_info_table[] = {
 		.asc = 0x10,
 		.ascq = 0x03, /* LOGICAL BLOCK REFERENCE TAG CHECK FAILED */
 		.add_sector_info = true,
+	},
+	[TCM_COPY_TARGET_DEVICE_NOT_REACHABLE] = {
+		.key = COPY_ABORTED,
+		.asc = 0x0d,
+		.ascq = 0x02, /* COPY TARGET DEVICE NOT REACHABLE */
+
 	},
 	[TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE] = {
 		/*

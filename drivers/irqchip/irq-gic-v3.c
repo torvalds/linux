@@ -153,7 +153,7 @@ static void gic_enable_redist(bool enable)
 			return;	/* No PM support in this redistributor */
 	}
 
-	while (count--) {
+	while (--count) {
 		val = readl_relaxed(rbase + GICR_WAKER);
 		if (enable ^ (bool)(val & GICR_WAKER_ChildrenAsleep))
 			break;
