@@ -318,11 +318,6 @@ static struct tegra_bo *tegra_bo_import(struct drm_device *drm,
 	get_dma_buf(buf);
 
 	bo->sgt = dma_buf_map_attachment(attach, DMA_TO_DEVICE);
-	if (!bo->sgt) {
-		err = -ENOMEM;
-		goto detach;
-	}
-
 	if (IS_ERR(bo->sgt)) {
 		err = PTR_ERR(bo->sgt);
 		goto detach;
