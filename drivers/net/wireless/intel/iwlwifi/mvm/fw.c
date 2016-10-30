@@ -850,14 +850,6 @@ int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		goto error;
 	}
 
-	/* TODO: remove when integrating context info */
-	ret = iwl_mvm_init_paging(mvm);
-	if (ret) {
-		IWL_ERR(mvm, "Failed to init paging: %d\n",
-			ret);
-		goto error;
-	}
-
 	/* Read the NVM only at driver load time, no need to do this twice */
 	if (read_nvm) {
 		/* Read nvm */
