@@ -14,8 +14,7 @@ config IIO_CROS_EC_SENSORS_CORE
 
 config IIO_CROS_EC_SENSORS
 	tristate "ChromeOS EC Contiguous Sensors"
-	select IIO_CROS_EC_SENSORS_CORE
-	select MFD_CROSS_EC
+	depends on IIO_CROS_EC_SENSORS_CORE
 	help
 	  Module to handle 3d contiguous sensors like
 	  Accelerometers, Gyroscope and Magnetometer that are
