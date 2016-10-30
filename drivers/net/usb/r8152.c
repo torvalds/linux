@@ -1730,7 +1730,7 @@ static u8 r8152_rx_csum(struct r8152 *tp, struct rx_desc *rx_desc)
 	u8 checksum = CHECKSUM_NONE;
 	u32 opts2, opts3;
 
-	if (tp->version == RTL_VER_01)
+	if (tp->version == RTL_VER_01 || tp->version == RTL_VER_02)
 		goto return_result;
 
 	opts2 = le32_to_cpu(rx_desc->opts2);
@@ -1745,7 +1745,7 @@ static u8 r8152_rx_csum(struct r8152 *tp, struct rx_desc *rx_desc)
 			checksum = CHECKSUM_NONE;
 		else
 			checksum = CHECKSUM_UNNECESSARY;
-	} else if (RD_IPV6_CS) {
+	} else if (opts2 & RD_IPV6_CS) {
 		if ((opts2 & RD_UDP_CS) && !(opts3 & UDPF))
 			checksum = CHECKSUM_UNNECESSARY;
 		else if ((opts2 & RD_TCP_CS) && !(opts3 & TCPF))
