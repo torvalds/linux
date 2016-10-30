@@ -67,11 +67,13 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	int i;
 
 	/*
-	 * Initialise the present map, which describes the set of CPUs
-	 * actually populated at the present time.
+	 * if platform didn't set the present map already, do it now
+	 * boot cpu is set to present already by init/main.c
 	 */
-	for (i = 0; i < max_cpus; i++)
-		set_cpu_present(i, true);
+	if (num_present_cpus() <= 1) {
+		for (i = 0; i < max_cpus; i++)
+			set_cpu_present(i, true);
+	}
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
