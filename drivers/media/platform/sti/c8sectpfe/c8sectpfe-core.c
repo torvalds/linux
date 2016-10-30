@@ -813,6 +813,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		i2c_bus = of_parse_phandle(child, "i2c-bus", 0);
 		if (!i2c_bus) {
 			dev_err(&pdev->dev, "No i2c-bus found\n");
+			ret = -ENODEV;
 			goto err_clk_disable;
 		}
 		tsin->i2c_adapter =
@@ -820,6 +821,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		if (!tsin->i2c_adapter) {
 			dev_err(&pdev->dev, "No i2c adapter found\n");
 			of_node_put(i2c_bus);
+			ret = -ENODEV;
 			goto err_clk_disable;
 		}
 		of_node_put(i2c_bus);
