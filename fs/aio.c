@@ -1472,20 +1472,6 @@ rw_common:
 		kfree(iovec);
 		break;
 
-	case IOCB_CMD_FDSYNC:
-		if (!file->f_op->aio_fsync)
-			return -EINVAL;
-
-		ret = file->f_op->aio_fsync(req, 1);
-		break;
-
-	case IOCB_CMD_FSYNC:
-		if (!file->f_op->aio_fsync)
-			return -EINVAL;
-
-		ret = file->f_op->aio_fsync(req, 0);
-		break;
-
 	default:
 		pr_debug("EINVAL: no operation provided\n");
 		return -EINVAL;

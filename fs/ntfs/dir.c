@@ -1544,8 +1544,6 @@ const struct file_operations ntfs_dir_ops = {
 	.iterate	= ntfs_readdir,		/* Read directory contents. */
 #ifdef NTFS_RW
 	.fsync		= ntfs_dir_fsync,	/* Sync a directory to disk. */
-	/*.aio_fsync	= ,*/			/* Sync all outstanding async
-						   i/o operations on a kiocb. */
 #endif /* NTFS_RW */
 	/*.ioctl	= ,*/			/* Perform function on the
 						   mounted filesystem. */
