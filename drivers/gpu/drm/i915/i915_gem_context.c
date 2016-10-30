@@ -764,12 +764,36 @@ needs_pd_load_post(struct i915_hw_ppgtt *ppgtt,
 	return false;
 }
 
+struct i915_vma *
+i915_gem_context_pin_legacy(struct i915_gem_context *ctx,
+			    unsigned int flags)
+{
+	struct i915_vma *vma = ctx->engine[RCS].state;
+	int ret;
+
+	/* Clear this page out of any CPU caches for coherent swap-in/out.
+	 * We only want to do this on the first bind so that we do not stall
+	 * on an active context (which by nature is already on the GPU).
+	 */
+	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
+		ret = i915_gem_object_set_to_gtt_domain(vma->obj, false);
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
+	ret = i915_vma_pin(vma, 0, ctx->ggtt_alignment, PIN_GLOBAL | flags);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return vma;
+}
+
 static int do_rcs_switch(struct drm_i915_gem_request *req)
 {
 	struct i915_gem_context *to = req->ctx;
 	struct intel_engine_cs *engine = req->engine;
 	struct i915_hw_ppgtt *ppgtt = to->ppgtt ?: req->i915->mm.aliasing_ppgtt;
-	struct i915_vma *vma = to->engine[RCS].state;
+	struct i915_vma *vma;
 	struct i915_gem_context *from;
 	u32 hw_flags;
 	int ret, i;
@@ -777,17 +801,10 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 	if (skip_rcs_switch(ppgtt, engine, to))
 		return 0;
 
-	/* Clear this page out of any CPU caches for coherent swap-in/out. */
-	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
-		ret = i915_gem_object_set_to_gtt_domain(vma->obj, false);
-		if (ret)
-			return ret;
-	}
-
 	/* Trying to pin first makes error handling easier. */
-	ret = i915_vma_pin(vma, 0, to->ggtt_alignment, PIN_GLOBAL);
-	if (ret)
-		return ret;
+	vma = i915_gem_context_pin_legacy(to, 0);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
 
 	/*
 	 * Pin can switch back to the default context if we end up calling into

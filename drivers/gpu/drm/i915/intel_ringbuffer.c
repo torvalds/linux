@@ -1949,14 +1949,13 @@ static int intel_ring_context_pin(struct i915_gem_context *ctx,
 		return 0;
 
 	if (ce->state) {
-		ret = i915_gem_object_set_to_gtt_domain(ce->state->obj, false);
-		if (ret)
-			goto error;
+		struct i915_vma *vma;
 
-		ret = i915_vma_pin(ce->state, 0, ctx->ggtt_alignment,
-				   PIN_GLOBAL | PIN_HIGH);
-		if (ret)
+		vma = i915_gem_context_pin_legacy(ctx, PIN_HIGH);
+		if (IS_ERR(vma)) {
+			ret = PTR_ERR(vma);
 			goto error;
+		}
 	}
 
 	/* The kernel context is only used as a placeholder for flushing the
