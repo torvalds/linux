@@ -220,17 +220,6 @@ remote_event_signal(REMOTE_EVENT_T *event)
 		writel(0, g_regs + BELL2); /* trigger vc interrupt */
 }
 
-int
-vchiq_copy_from_user(void *dst, const void *src, int size)
-{
-	if ((uint32_t)src < TASK_SIZE) {
-		return copy_from_user(dst, src, size);
-	} else {
-		memcpy(dst, src, size);
-		return 0;
-	}
-}
-
 VCHIQ_STATUS_T
 vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, VCHI_MEM_HANDLE_T memhandle,
 	void *offset, int size, int dir)

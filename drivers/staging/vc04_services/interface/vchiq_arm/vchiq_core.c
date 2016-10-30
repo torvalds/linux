@@ -463,8 +463,8 @@ remote_event_pollall(VCHIQ_STATE_T *state)
 ** enough for a header. This relies on header size being a power of two, which
 ** has been verified earlier by a static assertion. */
 
-static inline unsigned int
-calc_stride(unsigned int size)
+static inline size_t
+calc_stride(size_t size)
 {
 	/* Allow room for the header */
 	size += sizeof(VCHIQ_HEADER_T);
@@ -543,7 +543,7 @@ request_poll(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service, int poll_type)
 /* Called from queue_message, by the slot handler and application threads,
 ** with slot_mutex held */
 static VCHIQ_HEADER_T *
-reserve_space(VCHIQ_STATE_T *state, int space, int is_blocking)
+reserve_space(VCHIQ_STATE_T *state, size_t space, int is_blocking)
 {
 	VCHIQ_SHARED_STATE_T *local = state->local;
 	int tx_pos = state->local_tx_pos;
@@ -725,18 +725,66 @@ process_free_queue(VCHIQ_STATE_T *state)
 	}
 }
 
+static ssize_t
+memcpy_copy_callback(
+	void *context, void *dest,
+	size_t offset, size_t maxsize)
+{
+	void *src = context;
+
+	memcpy(dest + offset, src + offset, maxsize);
+	return maxsize;
+}
+
+static ssize_t
+copy_message_data(
+	ssize_t (*copy_callback)(void *context, void *dest,
+				 size_t offset, size_t maxsize),
+	void *context,
+	void *dest,
+	size_t size)
+{
+	size_t pos = 0;
+
+	while (pos < size) {
+		ssize_t callback_result;
+		size_t max_bytes = size - pos;
+
+		callback_result =
+			copy_callback(context, dest + pos,
+				      pos, max_bytes);
+
+		if (callback_result < 0)
+			return callback_result;
+
+		if (!callback_result)
+			return -EIO;
+
+		if (callback_result > max_bytes)
+			return -EIO;
+
+		pos += callback_result;
+	}
+
+	return size;
+}
+
 /* Called by the slot handler and application threads */
 static VCHIQ_STATUS_T
 queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
-	int msgid, const VCHIQ_ELEMENT_T *elements,
-	int count, int size, int flags)
+	int msgid,
+	ssize_t (*copy_callback)(void *context, void *dest,
+				 size_t offset, size_t maxsize),
+	void *context,
+	size_t size,
+	int flags)
 {
 	VCHIQ_SHARED_STATE_T *local;
 	VCHIQ_SERVICE_QUOTA_T *service_quota = NULL;
 	VCHIQ_HEADER_T *header;
 	int type = VCHIQ_MSG_TYPE(msgid);
 
-	unsigned int stride;
+	size_t stride;
 
 	local = state->local;
 
@@ -842,7 +890,7 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 	}
 
 	if (type == VCHIQ_MSG_DATA) {
-		int i, pos;
+		ssize_t callback_result;
 		int tx_end_index;
 		int slot_use_count;
 
@@ -856,27 +904,23 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 		BUG_ON((flags & (QMFLAGS_NO_MUTEX_LOCK |
 				 QMFLAGS_NO_MUTEX_UNLOCK)) != 0);
 
-		for (i = 0, pos = 0; i < (unsigned int)count;
-			pos += elements[i++].size)
-			if (elements[i].size) {
-				if (vchiq_copy_from_user
-					(header->data + pos, elements[i].data,
-					(size_t) elements[i].size) !=
-					VCHIQ_SUCCESS) {
-					mutex_unlock(&state->slot_mutex);
-					VCHIQ_SERVICE_STATS_INC(service,
+		callback_result =
+			copy_message_data(copy_callback, context,
+					  header->data, size);
+
+		if (callback_result < 0) {
+			mutex_unlock(&state->slot_mutex);
+			VCHIQ_SERVICE_STATS_INC(service,
 						error_count);
-					return VCHIQ_ERROR;
-				}
-				if (i == 0) {
-					if (SRVTRACE_ENABLED(service,
-							VCHIQ_LOG_INFO))
-						vchiq_log_dump_mem("Sent", 0,
-							header->data + pos,
-							min(64u,
-							elements[0].size));
-				}
-			}
+			return VCHIQ_ERROR;
+		}
+
+		if (SRVTRACE_ENABLED(service,
+				     VCHIQ_LOG_INFO))
+			vchiq_log_dump_mem("Sent", 0,
+					   header->data,
+					   min((size_t)64,
+					       (size_t)callback_result));
 
 		spin_lock(&quota_spinlock);
 		service_quota->message_use_count++;
@@ -918,9 +962,17 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 			header, size, VCHIQ_MSG_SRCPORT(msgid),
 			VCHIQ_MSG_DSTPORT(msgid));
 		if (size != 0) {
-			WARN_ON(!((count == 1) && (size == elements[0].size)));
-			memcpy(header->data, elements[0].data,
-				elements[0].size);
+			/* It is assumed for now that this code path
+			 * only happens from calls inside this file.
+			 *
+			 * External callers are through the vchiq_queue_message
+			 * path which always sets the type to be VCHIQ_MSG_DATA
+			 *
+			 * At first glance this appears to be correct but
+			 * more review is needed.
+			 */
+			copy_message_data(copy_callback, context,
+					  header->data, size);
 		}
 		VCHIQ_STATS_INC(state, ctrl_tx_count);
 	}
@@ -966,11 +1018,16 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 /* Called by the slot handler and application threads */
 static VCHIQ_STATUS_T
 queue_message_sync(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
-	int msgid, const VCHIQ_ELEMENT_T *elements,
-	int count, int size, int is_blocking)
+	int msgid,
+	ssize_t (*copy_callback)(void *context, void *dest,
+				 size_t offset, size_t maxsize),
+	void *context,
+	int size,
+	int is_blocking)
 {
 	VCHIQ_SHARED_STATE_T *local;
 	VCHIQ_HEADER_T *header;
+	ssize_t callback_result;
 
 	local = state->local;
 
@@ -993,50 +1050,34 @@ queue_message_sync(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 				state->id, oldmsgid);
 	}
 
+	vchiq_log_info(vchiq_sync_log_level,
+		       "%d: qms %s@%pK,%x (%d->%d)", state->id,
+		       msg_type_str(VCHIQ_MSG_TYPE(msgid)),
+		       header, size, VCHIQ_MSG_SRCPORT(msgid),
+		       VCHIQ_MSG_DSTPORT(msgid));
+
+	callback_result =
+		copy_message_data(copy_callback, context,
+				  header->data, size);
+
+	if (callback_result < 0) {
+		mutex_unlock(&state->slot_mutex);
+		VCHIQ_SERVICE_STATS_INC(service,
+					error_count);
+		return VCHIQ_ERROR;
+	}
+
 	if (service) {
-		int i, pos;
-
-		vchiq_log_info(vchiq_sync_log_level,
-			"%d: qms %s@%pK,%x (%d->%d)", state->id,
-			msg_type_str(VCHIQ_MSG_TYPE(msgid)),
-			header, size, VCHIQ_MSG_SRCPORT(msgid),
-			VCHIQ_MSG_DSTPORT(msgid));
-
-		for (i = 0, pos = 0; i < (unsigned int)count;
-			pos += elements[i++].size)
-			if (elements[i].size) {
-				if (vchiq_copy_from_user
-					(header->data + pos, elements[i].data,
-					(size_t) elements[i].size) !=
-					VCHIQ_SUCCESS) {
-					mutex_unlock(&state->sync_mutex);
-					VCHIQ_SERVICE_STATS_INC(service,
-						error_count);
-					return VCHIQ_ERROR;
-				}
-				if (i == 0) {
-					if (vchiq_sync_log_level >=
-						VCHIQ_LOG_TRACE)
-						vchiq_log_dump_mem("Sent Sync",
-							0, header->data + pos,
-							min(64u,
-							elements[0].size));
-				}
-			}
+		if (SRVTRACE_ENABLED(service,
+				     VCHIQ_LOG_INFO))
+			vchiq_log_dump_mem("Sent", 0,
+					   header->data,
+					   min((size_t)64,
+					       (size_t)callback_result));
 
 		VCHIQ_SERVICE_STATS_INC(service, ctrl_tx_count);
 		VCHIQ_SERVICE_STATS_ADD(service, ctrl_tx_bytes, size);
 	} else {
-		vchiq_log_info(vchiq_sync_log_level,
-			"%d: qms %s@%pK,%x (%d->%d)", state->id,
-			msg_type_str(VCHIQ_MSG_TYPE(msgid)),
-			header, size, VCHIQ_MSG_SRCPORT(msgid),
-			VCHIQ_MSG_DSTPORT(msgid));
-		if (size != 0) {
-			WARN_ON(!((count == 1) && (size == elements[0].size)));
-			memcpy(header->data, elements[0].data,
-				elements[0].size);
-		}
 		VCHIQ_STATS_INC(state, ctrl_tx_count);
 	}
 
@@ -1149,11 +1190,16 @@ notify_bulks(VCHIQ_SERVICE_T *service, VCHIQ_BULK_QUEUE_T *queue,
 				VCHIQ_MSG_BULK_RX_DONE : VCHIQ_MSG_BULK_TX_DONE;
 			int msgid = VCHIQ_MAKE_MSG(msgtype, service->localport,
 				service->remoteport);
-			VCHIQ_ELEMENT_T element = { &bulk->actual, 4 };
 			/* Only reply to non-dummy bulk requests */
 			if (bulk->remote_data) {
-				status = queue_message(service->state, NULL,
-					msgid, &element, 1, 4, 0);
+				status = queue_message(
+						service->state,
+						NULL,
+						msgid,
+						memcpy_copy_callback,
+						&bulk->actual,
+						4,
+						0);
 				if (status != VCHIQ_SUCCESS)
 					break;
 			}
@@ -1513,10 +1559,6 @@ parse_open(VCHIQ_STATE_T *state, VCHIQ_HEADER_T *header)
 				struct vchiq_openack_payload ack_payload = {
 					service->version
 				};
-				VCHIQ_ELEMENT_T body = {
-					&ack_payload,
-					sizeof(ack_payload)
-				};
 
 				if (state->version_common <
 				    VCHIQ_VERSION_SYNCHRONOUS_MODE)
@@ -1526,21 +1568,28 @@ parse_open(VCHIQ_STATE_T *state, VCHIQ_HEADER_T *header)
 				if (service->sync &&
 				    (state->version_common >=
 				     VCHIQ_VERSION_SYNCHRONOUS_MODE)) {
-					if (queue_message_sync(state, NULL,
+					if (queue_message_sync(
+						state,
+						NULL,
 						VCHIQ_MAKE_MSG(
 							VCHIQ_MSG_OPENACK,
 							service->localport,
 							remoteport),
-						&body, 1, sizeof(ack_payload),
+						memcpy_copy_callback,
+						&ack_payload,
+						sizeof(ack_payload),
 						0) == VCHIQ_RETRY)
 						goto bail_not_ready;
 				} else {
-					if (queue_message(state, NULL,
-						VCHIQ_MAKE_MSG(
+					if (queue_message(state,
+							NULL,
+							VCHIQ_MAKE_MSG(
 							VCHIQ_MSG_OPENACK,
 							service->localport,
 							remoteport),
-						&body, 1, sizeof(ack_payload),
+						memcpy_copy_callback,
+						&ack_payload,
+						sizeof(ack_payload),
 						0) == VCHIQ_RETRY)
 						goto bail_not_ready;
 				}
@@ -2630,14 +2679,19 @@ vchiq_open_service_internal(VCHIQ_SERVICE_T *service, int client_id)
 		service->version,
 		service->version_min
 	};
-	VCHIQ_ELEMENT_T body = { &payload, sizeof(payload) };
 	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
 
 	service->client_id = client_id;
 	vchiq_use_service_internal(service);
-	status = queue_message(service->state, NULL,
-		VCHIQ_MAKE_MSG(VCHIQ_MSG_OPEN, service->localport, 0),
-		&body, 1, sizeof(payload), QMFLAGS_IS_BLOCKING);
+	status = queue_message(service->state,
+			       NULL,
+			       VCHIQ_MAKE_MSG(VCHIQ_MSG_OPEN,
+					      service->localport,
+					      0),
+			       memcpy_copy_callback,
+			       &payload,
+			       sizeof(payload),
+			       QMFLAGS_IS_BLOCKING);
 	if (status == VCHIQ_SUCCESS) {
 		/* Wait for the ACK/NAK */
 		if (down_interruptible(&service->remove_event) != 0) {
@@ -3305,15 +3359,18 @@ vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
 				VCHIQ_POLL_TXNOTIFY : VCHIQ_POLL_RXNOTIFY);
 	} else {
 		int payload[2] = { (int)(long)bulk->data, bulk->size };
-		VCHIQ_ELEMENT_T element = { payload, sizeof(payload) };
 
-		status = queue_message(state, NULL,
-			VCHIQ_MAKE_MSG(dir_msgtype,
-				service->localport, service->remoteport),
-			&element, 1, sizeof(payload),
-			QMFLAGS_IS_BLOCKING |
-			QMFLAGS_NO_MUTEX_LOCK |
-			QMFLAGS_NO_MUTEX_UNLOCK);
+		status = queue_message(state,
+				       NULL,
+				       VCHIQ_MAKE_MSG(dir_msgtype,
+						      service->localport,
+						      service->remoteport),
+				       memcpy_copy_callback,
+				       &payload,
+				       sizeof(payload),
+				       QMFLAGS_IS_BLOCKING |
+				       QMFLAGS_NO_MUTEX_LOCK |
+				       QMFLAGS_NO_MUTEX_UNLOCK);
 		if (status != VCHIQ_SUCCESS) {
 			goto unlock_both_error_exit;
 		}
@@ -3359,26 +3416,22 @@ error_exit:
 
 VCHIQ_STATUS_T
 vchiq_queue_message(VCHIQ_SERVICE_HANDLE_T handle,
-	const VCHIQ_ELEMENT_T *elements, unsigned int count)
+		    ssize_t (*copy_callback)(void *context, void *dest,
+					     size_t offset, size_t maxsize),
+		    void *context,
+		    size_t size)
 {
 	VCHIQ_SERVICE_T *service = find_service_by_handle(handle);
 	VCHIQ_STATUS_T status = VCHIQ_ERROR;
-
-	unsigned int size = 0;
-	unsigned int i;
 
 	if (!service ||
 		(vchiq_check_service(service) != VCHIQ_SUCCESS))
 		goto error_exit;
 
-	for (i = 0; i < (unsigned int)count; i++) {
-		if (elements[i].size) {
-			if (elements[i].data == NULL) {
-				VCHIQ_SERVICE_STATS_INC(service, error_count);
-				goto error_exit;
-			}
-			size += elements[i].size;
-		}
+	if (!size) {
+		VCHIQ_SERVICE_STATS_INC(service, error_count);
+		goto error_exit;
+
 	}
 
 	if (size > VCHIQ_MAX_MSG_SIZE) {
@@ -3392,14 +3445,14 @@ vchiq_queue_message(VCHIQ_SERVICE_HANDLE_T handle,
 				VCHIQ_MAKE_MSG(VCHIQ_MSG_DATA,
 					service->localport,
 					service->remoteport),
-				elements, count, size, 1);
+				copy_callback, context, size, 1);
 		break;
 	case VCHIQ_SRVSTATE_OPENSYNC:
 		status = queue_message_sync(service->state, service,
 				VCHIQ_MAKE_MSG(VCHIQ_MSG_DATA,
 					service->localport,
 					service->remoteport),
-				elements, count, size, 1);
+				copy_callback, context, size, 1);
 		break;
 	default:
 		status = VCHIQ_ERROR;

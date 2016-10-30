@@ -634,9 +634,6 @@ vchiq_transfer_bulk(VCHIQ_BULK_T *bulk);
 extern void
 vchiq_complete_bulk(VCHIQ_BULK_T *bulk);
 
-extern VCHIQ_STATUS_T
-vchiq_copy_from_user(void *dst, const void *src, int size);
-
 extern void
 remote_event_signal(REMOTE_EVENT_T *event);
 

@@ -148,10 +148,10 @@ EXPORT_SYMBOL(vchi_msg_remove);
  * Name: vchi_msg_queue
  *
  * Arguments:  VCHI_SERVICE_HANDLE_T handle,
- *             const void *data,
- *             uint32_t data_size,
- *             VCHI_FLAGS_T flags,
- *             void *msg_handle,
+ *             ssize_t (*copy_callback)(void *context, void *dest,
+ *				        size_t offset, size_t maxsize),
+ *	       void *context,
+ *             uint32_t data_size
  *
  * Description: Thin wrapper to queue a message onto a connection
  *
@@ -159,21 +159,19 @@ EXPORT_SYMBOL(vchi_msg_remove);
  *
  ***********************************************************/
 int32_t vchi_msg_queue(VCHI_SERVICE_HANDLE_T handle,
-	const void *data,
-	uint32_t data_size,
-	VCHI_FLAGS_T flags,
-	void *msg_handle)
+	ssize_t (*copy_callback)(void *context, void *dest,
+				 size_t offset, size_t maxsize),
+	void *context,
+	uint32_t data_size)
 {
 	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
-	VCHIQ_ELEMENT_T element = {data, data_size};
 	VCHIQ_STATUS_T status;
 
-	(void)msg_handle;
-
-	WARN_ON(flags != VCHI_FLAGS_BLOCK_UNTIL_QUEUED);
-
 	while (1) {
-		status = vchiq_queue_message(service->handle, &element, 1);
+		status = vchiq_queue_message(service->handle,
+					     copy_callback,
+					     context,
+					     data_size);
 
 		/*
 		 * vchiq_queue_message() may return VCHIQ_RETRY, so we need to
@@ -354,44 +352,6 @@ int32_t vchi_msg_dequeue(VCHI_SERVICE_HANDLE_T handle,
 	return 0;
 }
 EXPORT_SYMBOL(vchi_msg_dequeue);
-
-/***********************************************************
- * Name: vchi_msg_queuev
- *
- * Arguments:  VCHI_SERVICE_HANDLE_T handle,
- *             VCHI_MSG_VECTOR_T *vector,
- *             uint32_t count,
- *             VCHI_FLAGS_T flags,
- *             void *msg_handle
- *
- * Description: Thin wrapper to queue a message onto a connection
- *
- * Returns: int32_t - success == 0
- *
- ***********************************************************/
-
-vchiq_static_assert(sizeof(VCHI_MSG_VECTOR_T) == sizeof(VCHIQ_ELEMENT_T));
-vchiq_static_assert(offsetof(VCHI_MSG_VECTOR_T, vec_base) ==
-	offsetof(VCHIQ_ELEMENT_T, data));
-vchiq_static_assert(offsetof(VCHI_MSG_VECTOR_T, vec_len) ==
-	offsetof(VCHIQ_ELEMENT_T, size));
-
-int32_t vchi_msg_queuev(VCHI_SERVICE_HANDLE_T handle,
-	VCHI_MSG_VECTOR_T *vector,
-	uint32_t count,
-	VCHI_FLAGS_T flags,
-	void *msg_handle)
-{
-	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
-
-	(void)msg_handle;
-
-	WARN_ON(flags != VCHI_FLAGS_BLOCK_UNTIL_QUEUED);
-
-	return vchiq_status_to_vchi(vchiq_queue_message(service->handle,
-		(const VCHIQ_ELEMENT_T *)vector, count));
-}
-EXPORT_SYMBOL(vchi_msg_queuev);
 
 /***********************************************************
  * Name: vchi_held_msg_release
