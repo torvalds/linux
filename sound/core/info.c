@@ -325,6 +325,8 @@ static ssize_t snd_info_text_entry_write(struct file *file,
 	size_t next;
 	int err = 0;
 
+	if (!entry->c.text.write)
+		return -EIO;
 	pos = *offset;
 	if (!valid_pos(pos, count))
 		return -EIO;
@@ -366,7 +368,9 @@ static int snd_info_seq_show(struct seq_file *seq, void *p)
 	struct snd_info_private_data *data = seq->private;
 	struct snd_info_entry *entry = data->entry;
 
-	if (entry->c.text.read) {
+	if (!entry->c.text.read) {
+		return -EIO;
+	} else {
 		data->rbuffer->buffer = (char *)seq; /* XXX hack! */
 		entry->c.text.read(entry, data->rbuffer);
 	}
