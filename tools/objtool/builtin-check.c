@@ -754,7 +754,7 @@ static struct rela *find_switch_table(struct objtool_file *file,
 		if (insn->type == INSN_JUMP_UNCONDITIONAL &&
 		    insn->jump_dest &&
 		    (insn->jump_dest->offset <= insn->offset ||
-		     insn->jump_dest->offset >= orig_insn->offset))
+		     insn->jump_dest->offset > orig_insn->offset))
 		    break;
 
 		text_rela = find_rela_by_dest_range(insn->sec, insn->offset,

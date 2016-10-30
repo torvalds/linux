@@ -1625,6 +1625,7 @@ config SERIAL_SPRD_CONSOLE
 config SERIAL_STM32
 	tristate "STMicroelectronics STM32 serial port support"
 	select SERIAL_CORE
+	depends on HAS_DMA
 	depends on ARM || COMPILE_TEST
 	help
 	  This driver is for the on-chip Serial Controller on
