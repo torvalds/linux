@@ -271,7 +271,7 @@ static ssize_t nvmet_ns_device_path_store(struct config_item *item,
 
 	mutex_lock(&subsys->lock);
 	ret = -EBUSY;
-	if (nvmet_ns_enabled(ns))
+	if (ns->enabled)
 		goto out_unlock;
 
 	kfree(ns->device_path);
@@ -307,7 +307,7 @@ static ssize_t nvmet_ns_device_nguid_store(struct config_item *item,
 	int ret = 0;
 
 	mutex_lock(&subsys->lock);
-	if (nvmet_ns_enabled(ns)) {
+	if (ns->enabled) {
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -339,7 +339,7 @@ CONFIGFS_ATTR(nvmet_ns_, device_nguid);
 
 static ssize_t nvmet_ns_enable_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%d\n", nvmet_ns_enabled(to_nvmet_ns(item)));
+	return sprintf(page, "%d\n", to_nvmet_ns(item)->enabled);
 }
 
 static ssize_t nvmet_ns_enable_store(struct config_item *item,
