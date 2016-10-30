@@ -194,12 +194,13 @@ struct cpu_hw_events {
 	 */
 	struct debug_store	*ds;
 	u64			pebs_enabled;
+	int			n_pebs;
+	int			n_large_pebs;
 
 	/*
 	 * Intel LBR bits
 	 */
 	int				lbr_users;
-	void				*lbr_context;
 	struct perf_branch_stack	lbr_stack;
 	struct perf_branch_entry	lbr_entries[MAX_LBR_ENTRIES];
 	struct er_account		*lbr_sel;
@@ -508,6 +509,8 @@ struct x86_pmu {
 	void		(*enable_all)(int added);
 	void		(*enable)(struct perf_event *);
 	void		(*disable)(struct perf_event *);
+	void		(*add)(struct perf_event *);
+	void		(*del)(struct perf_event *);
 	int		(*hw_config)(struct perf_event *event);
 	int		(*schedule_events)(struct cpu_hw_events *cpuc, int n, int *assign);
 	unsigned	eventsel;
@@ -888,6 +891,10 @@ extern struct event_constraint intel_skl_pebs_event_constraints[];
 
 struct event_constraint *intel_pebs_constraints(struct perf_event *event);
 
+void intel_pmu_pebs_add(struct perf_event *event);
+
+void intel_pmu_pebs_del(struct perf_event *event);
+
 void intel_pmu_pebs_enable(struct perf_event *event);
 
 void intel_pmu_pebs_disable(struct perf_event *event);
@@ -906,9 +913,9 @@ u64 lbr_from_signext_quirk_wr(u64 val);
 
 void intel_pmu_lbr_reset(void);
 
-void intel_pmu_lbr_enable(struct perf_event *event);
+void intel_pmu_lbr_add(struct perf_event *event);
 
-void intel_pmu_lbr_disable(struct perf_event *event);
+void intel_pmu_lbr_del(struct perf_event *event);
 
 void intel_pmu_lbr_enable_all(bool pmi);
 

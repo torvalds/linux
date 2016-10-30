@@ -156,8 +156,7 @@ static const struct iio_chan_spec ad5933_channels[] = {
 	},
 };
 
-static int ad5933_i2c_write(struct i2c_client *client,
-			      u8 reg, u8 len, u8 *data)
+static int ad5933_i2c_write(struct i2c_client *client, u8 reg, u8 len, u8 *data)
 {
 	int ret;
 
@@ -171,8 +170,7 @@ static int ad5933_i2c_write(struct i2c_client *client,
 	return 0;
 }
 
-static int ad5933_i2c_read(struct i2c_client *client,
-			      u8 reg, u8 len, u8 *data)
+static int ad5933_i2c_read(struct i2c_client *client, u8 reg, u8 len, u8 *data)
 {
 	int ret;
 
@@ -269,7 +267,8 @@ static int ad5933_setup(struct ad5933_state *st)
 	dat = cpu_to_be16(st->settling_cycles);
 
 	ret = ad5933_i2c_write(st->client,
-			AD5933_REG_SETTLING_CYCLES, 2, (u8 *)&dat);
+			       AD5933_REG_SETTLING_CYCLES,
+			       2, (u8 *)&dat);
 	if (ret < 0)
 		return ret;
 
@@ -294,8 +293,8 @@ static void ad5933_calc_out_ranges(struct ad5933_state *st)
  */
 
 static ssize_t ad5933_show_frequency(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+				     struct device_attribute *attr,
+				     char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5933_state *st = iio_priv(indio_dev);
@@ -322,9 +321,9 @@ static ssize_t ad5933_show_frequency(struct device *dev,
 }
 
 static ssize_t ad5933_store_frequency(struct device *dev,
-					 struct device_attribute *attr,
-					 const char *buf,
-					 size_t len)
+				      struct device_attribute *attr,
+				      const char *buf,
+				      size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5933_state *st = iio_priv(indio_dev);
@@ -357,8 +356,8 @@ static IIO_DEVICE_ATTR(out_voltage0_freq_increment, S_IRUGO | S_IWUSR,
 			AD5933_REG_FREQ_INC);
 
 static ssize_t ad5933_show(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+			   struct device_attribute *attr,
+			   char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5933_state *st = iio_priv(indio_dev);
@@ -399,9 +398,9 @@ static ssize_t ad5933_show(struct device *dev,
 }
 
 static ssize_t ad5933_store(struct device *dev,
-					 struct device_attribute *attr,
-					 const char *buf,
-					 size_t len)
+			    struct device_attribute *attr,
+			    const char *buf,
+			    size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5933_state *st = iio_priv(indio_dev);
@@ -451,7 +450,8 @@ static ssize_t ad5933_store(struct device *dev,
 
 		dat = cpu_to_be16(val);
 		ret = ad5933_i2c_write(st->client,
-				AD5933_REG_SETTLING_CYCLES, 2, (u8 *)&dat);
+				       AD5933_REG_SETTLING_CYCLES,
+				       2, (u8 *)&dat);
 		break;
 	case AD5933_FREQ_POINTS:
 		val = clamp(val, (u16)0, (u16)511);
@@ -545,8 +545,8 @@ static int ad5933_read_raw(struct iio_dev *indio_dev,
 			goto out;
 
 		ret = ad5933_i2c_read(st->client,
-				AD5933_REG_TEMP_DATA, 2,
-				(u8 *)&dat);
+				      AD5933_REG_TEMP_DATA,
+				      2, (u8 *)&dat);
 		if (ret < 0)
 			goto out;
 		mutex_unlock(&indio_dev->mlock);
@@ -705,7 +705,7 @@ static void ad5933_work(struct work_struct *work)
 }
 
 static int ad5933_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+			const struct i2c_device_id *id)
 {
 	int ret, voltage_uv = 0;
 	struct ad5933_platform_data *pdata = dev_get_platdata(&client->dev);

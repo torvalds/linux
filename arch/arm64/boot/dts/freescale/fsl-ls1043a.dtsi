@@ -119,10 +119,10 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <1 13 0x1>, /* Physical Secure PPI */
-			     <1 14 0x1>, /* Physical Non-Secure PPI */
-			     <1 11 0x1>, /* Virtual PPI */
-			     <1 10 0x1>; /* Hypervisor PPI */
+		interrupts = <1 13 0xf08>, /* Physical Secure PPI */
+			     <1 14 0xf08>, /* Physical Non-Secure PPI */
+			     <1 11 0xf08>, /* Virtual PPI */
+			     <1 10 0xf08>; /* Hypervisor PPI */
 	};
 
 	pmu {
@@ -245,6 +245,13 @@
 			sdhci,auto-cmd12;
 			big-endian;
 			bus-width = <4>;
+		};
+
+		ddr: memory-controller@1080000 {
+			compatible = "fsl,qoriq-memory-controller";
+			reg = <0x0 0x1080000 0x0 0x1000>;
+			interrupts = <0 144 0x4>;
+			big-endian;
 		};
 
 		dspi0: dspi@2100000 {
@@ -495,10 +502,11 @@
 		};
 
 		sata: sata@3200000 {
-			compatible = "fsl,ls1043a-ahci", "fsl,ls1021a-ahci";
+			compatible = "fsl,ls1043a-ahci";
 			reg = <0x0 0x3200000 0x0 0x10000>;
 			interrupts = <0 69 0x4>;
 			clocks = <&clockgen 4 0>;
+			dma-coherent;
 		};
 
 		msi1: msi-controller1@1571000 {

@@ -28,8 +28,8 @@ index, like the ASL example below shows:
           ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
           Package ()
 	  {
-              Package () {"reset-gpio", Package() {^BTH, 1, 1, 0 }},
-              Package () {"shutdown-gpio", Package() {^BTH, 0, 0, 0 }},
+              Package () {"reset-gpios", Package() {^BTH, 1, 1, 0 }},
+              Package () {"shutdown-gpios", Package() {^BTH, 0, 0, 0 }},
           }
       })
   }
@@ -48,7 +48,7 @@ Since ACPI GpioIo() resource does not have a field saying whether it is
 active low or high, the "active_low" argument can be used here.  Setting
 it to 1 marks the GPIO as active low.
 
-In our Bluetooth example the "reset-gpio" refers to the second GpioIo()
+In our Bluetooth example the "reset-gpios" refers to the second GpioIo()
 resource, second pin in that resource with the GPIO number of 31.
 
 ACPI GPIO Mappings Provided by Drivers
@@ -83,8 +83,8 @@ static const struct acpi_gpio_params reset_gpio = { 1, 1, false };
 static const struct acpi_gpio_params shutdown_gpio = { 0, 0, false };
 
 static const struct acpi_gpio_mapping bluetooth_acpi_gpios[] = {
-  { "reset-gpio", &reset_gpio, 1 },
-  { "shutdown-gpio", &shutdown_gpio, 1 },
+  { "reset-gpios", &reset_gpio, 1 },
+  { "shutdown-gpios", &shutdown_gpio, 1 },
   { },
 };
 

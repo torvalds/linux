@@ -312,7 +312,7 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 		 * make a copy of the skb to post to the next qp
 		 */
 		skb_copy = (mce->qp_list.next != &mcg->qp_list) ?
-				skb_clone(skb, GFP_KERNEL) : NULL;
+				skb_clone(skb, GFP_ATOMIC) : NULL;
 
 		pkt->qp = qp;
 		rxe_add_ref(qp);
@@ -387,7 +387,8 @@ int rxe_rcv(struct sk_buff *skb)
 	pack_icrc = be32_to_cpu(*icrcp);
 
 	calc_icrc = rxe_icrc_hdr(pkt, skb);
-	calc_icrc = crc32_le(calc_icrc, (u8 *)payload_addr(pkt), payload_size(pkt));
+	calc_icrc = crc32_le(calc_icrc, (u8 *)payload_addr(pkt),
+			     payload_size(pkt));
 	calc_icrc = cpu_to_be32(~calc_icrc);
 	if (unlikely(calc_icrc != pack_icrc)) {
 		char saddr[sizeof(struct in6_addr)];

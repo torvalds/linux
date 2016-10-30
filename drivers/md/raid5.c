@@ -2423,10 +2423,10 @@ static void raid5_end_read_request(struct bio * bi)
 		}
 	}
 	rdev_dec_pending(rdev, conf->mddev);
+	bio_reset(bi);
 	clear_bit(R5_LOCKED, &sh->dev[i].flags);
 	set_bit(STRIPE_HANDLE, &sh->state);
 	raid5_release_stripe(sh);
-	bio_reset(bi);
 }
 
 static void raid5_end_write_request(struct bio *bi)
@@ -2498,6 +2498,7 @@ static void raid5_end_write_request(struct bio *bi)
 	if (sh->batch_head && bi->bi_error && !replacement)
 		set_bit(STRIPE_BATCH_ERR, &sh->batch_head->state);
 
+	bio_reset(bi);
 	if (!test_and_clear_bit(R5_DOUBLE_LOCKED, &sh->dev[i].flags))
 		clear_bit(R5_LOCKED, &sh->dev[i].flags);
 	set_bit(STRIPE_HANDLE, &sh->state);
@@ -2505,7 +2506,6 @@ static void raid5_end_write_request(struct bio *bi)
 
 	if (sh->batch_head && sh != sh->batch_head)
 		raid5_release_stripe(sh->batch_head);
-	bio_reset(bi);
 }
 
 static void raid5_build_block(struct stripe_head *sh, int i, int previous)
@@ -6349,22 +6349,20 @@ static int alloc_scratch_buffer(struct r5conf *conf, struct raid5_percpu *percpu
 	return 0;
 }
 
+static int raid456_cpu_dead(unsigned int cpu, struct hlist_node *node)
+{
+	struct r5conf *conf = hlist_entry_safe(node, struct r5conf, node);
+
+	free_scratch_buffer(conf, per_cpu_ptr(conf->percpu, cpu));
+	return 0;
+}
+
 static void raid5_free_percpu(struct r5conf *conf)
 {
-	unsigned long cpu;
-
 	if (!conf->percpu)
 		return;
 
-#ifdef CONFIG_HOTPLUG_CPU
-	unregister_cpu_notifier(&conf->cpu_notify);
-#endif
-
-	get_online_cpus();
-	for_each_possible_cpu(cpu)
-		free_scratch_buffer(conf, per_cpu_ptr(conf->percpu, cpu));
-	put_online_cpus();
-
+	cpuhp_state_remove_instance(CPUHP_MD_RAID5_PREPARE, &conf->node);
 	free_percpu(conf->percpu);
 }
 
@@ -6372,7 +6370,7 @@ static void free_conf(struct r5conf *conf)
 {
 	if (conf->log)
 		r5l_exit_log(conf->log);
-	if (conf->shrinker.seeks)
+	if (conf->shrinker.nr_deferred)
 		unregister_shrinker(&conf->shrinker);
 
 	free_thread_groups(conf);
@@ -6383,64 +6381,28 @@ static void free_conf(struct r5conf *conf)
 	kfree(conf);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-static int raid456_cpu_notify(struct notifier_block *nfb, unsigned long action,
-			      void *hcpu)
+static int raid456_cpu_up_prepare(unsigned int cpu, struct hlist_node *node)
 {
-	struct r5conf *conf = container_of(nfb, struct r5conf, cpu_notify);
-	long cpu = (long)hcpu;
+	struct r5conf *conf = hlist_entry_safe(node, struct r5conf, node);
 	struct raid5_percpu *percpu = per_cpu_ptr(conf->percpu, cpu);
 
-	switch (action) {
-	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
-		if (alloc_scratch_buffer(conf, percpu)) {
-			pr_err("%s: failed memory allocation for cpu%ld\n",
-			       __func__, cpu);
-			return notifier_from_errno(-ENOMEM);
-		}
-		break;
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
-		free_scratch_buffer(conf, per_cpu_ptr(conf->percpu, cpu));
-		break;
-	default:
-		break;
+	if (alloc_scratch_buffer(conf, percpu)) {
+		pr_err("%s: failed memory allocation for cpu%u\n",
+		       __func__, cpu);
+		return -ENOMEM;
 	}
-	return NOTIFY_OK;
+	return 0;
 }
-#endif
 
 static int raid5_alloc_percpu(struct r5conf *conf)
 {
-	unsigned long cpu;
 	int err = 0;
 
 	conf->percpu = alloc_percpu(struct raid5_percpu);
 	if (!conf->percpu)
 		return -ENOMEM;
 
-#ifdef CONFIG_HOTPLUG_CPU
-	conf->cpu_notify.notifier_call = raid456_cpu_notify;
-	conf->cpu_notify.priority = 0;
-	err = register_cpu_notifier(&conf->cpu_notify);
-	if (err)
-		return err;
-#endif
-
-	get_online_cpus();
-	for_each_present_cpu(cpu) {
-		err = alloc_scratch_buffer(conf, per_cpu_ptr(conf->percpu, cpu));
-		if (err) {
-			pr_err("%s: failed memory allocation for cpu%ld\n",
-			       __func__, cpu);
-			break;
-		}
-	}
-	put_online_cpus();
-
+	err = cpuhp_state_add_instance(CPUHP_MD_RAID5_PREPARE, &conf->node);
 	if (!err) {
 		conf->scribble_disks = max(conf->raid_disks,
 			conf->previous_raid_disks);
@@ -6639,6 +6601,16 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	}
 
 	conf->min_nr_stripes = NR_STRIPES;
+	if (mddev->reshape_position != MaxSector) {
+		int stripes = max_t(int,
+			((mddev->chunk_sectors << 9) / STRIPE_SIZE) * 4,
+			((mddev->new_chunk_sectors << 9) / STRIPE_SIZE) * 4);
+		conf->min_nr_stripes = max(NR_STRIPES, stripes);
+		if (conf->min_nr_stripes != NR_STRIPES)
+			printk(KERN_INFO
+				"md/raid:%s: force stripe size %d for reshape\n",
+				mdname(mddev), conf->min_nr_stripes);
+	}
 	memory = conf->min_nr_stripes * (sizeof(struct stripe_head) +
 		 max_disks * ((sizeof(struct bio) + PAGE_SIZE))) / 1024;
 	atomic_set(&conf->empty_inactive_list_nr, NR_STRIPE_HASH_LOCKS);
@@ -6660,7 +6632,12 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	conf->shrinker.count_objects = raid5_cache_count;
 	conf->shrinker.batch = 128;
 	conf->shrinker.flags = 0;
-	register_shrinker(&conf->shrinker);
+	if (register_shrinker(&conf->shrinker)) {
+		printk(KERN_ERR
+		       "md/raid:%s: couldn't register shrinker.\n",
+		       mdname(mddev));
+		goto abort;
+	}
 
 	sprintf(pers_name, "raid%d", mddev->new_level);
 	conf->thread = md_register_thread(raid5d, mddev, pers_name);
@@ -7056,6 +7033,8 @@ static int raid5_run(struct mddev *mddev)
 		else
 			queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD,
 						mddev->queue);
+
+		blk_queue_max_hw_sectors(mddev->queue, UINT_MAX);
 	}
 
 	if (journal_dev) {
@@ -7975,10 +7954,21 @@ static struct md_personality raid4_personality =
 
 static int __init raid5_init(void)
 {
+	int ret;
+
 	raid5_wq = alloc_workqueue("raid5wq",
 		WQ_UNBOUND|WQ_MEM_RECLAIM|WQ_CPU_INTENSIVE|WQ_SYSFS, 0);
 	if (!raid5_wq)
 		return -ENOMEM;
+
+	ret = cpuhp_setup_state_multi(CPUHP_MD_RAID5_PREPARE,
+				      "md/raid5:prepare",
+				      raid456_cpu_up_prepare,
+				      raid456_cpu_dead);
+	if (ret) {
+		destroy_workqueue(raid5_wq);
+		return ret;
+	}
 	register_md_personality(&raid6_personality);
 	register_md_personality(&raid5_personality);
 	register_md_personality(&raid4_personality);
@@ -7990,6 +7980,7 @@ static void raid5_exit(void)
 	unregister_md_personality(&raid6_personality);
 	unregister_md_personality(&raid5_personality);
 	unregister_md_personality(&raid4_personality);
+	cpuhp_remove_multi_state(CPUHP_MD_RAID5_PREPARE);
 	destroy_workqueue(raid5_wq);
 }
 

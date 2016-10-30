@@ -66,13 +66,32 @@ static void pmem_clear_poison(struct pmem_device *pmem, phys_addr_t offset,
 	invalidate_pmem(pmem->virt_addr + offset, len);
 }
 
+static void write_pmem(void *pmem_addr, struct page *page,
+		unsigned int off, unsigned int len)
+{
+	void *mem = kmap_atomic(page);
+
+	memcpy_to_pmem(pmem_addr, mem + off, len);
+	kunmap_atomic(mem);
+}
+
+static int read_pmem(struct page *page, unsigned int off,
+		void *pmem_addr, unsigned int len)
+{
+	int rc;
+	void *mem = kmap_atomic(page);
+
+	rc = memcpy_from_pmem(mem + off, pmem_addr, len);
+	kunmap_atomic(mem);
+	return rc;
+}
+
 static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 			unsigned int len, unsigned int off, bool is_write,
 			sector_t sector)
 {
 	int rc = 0;
 	bool bad_pmem = false;
-	void *mem = kmap_atomic(page);
 	phys_addr_t pmem_off = sector * 512 + pmem->data_offset;
 	void *pmem_addr = pmem->virt_addr + pmem_off;
 
@@ -83,7 +102,7 @@ static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 		if (unlikely(bad_pmem))
 			rc = -EIO;
 		else {
-			rc = memcpy_from_pmem(mem + off, pmem_addr, len);
+			rc = read_pmem(page, off, pmem_addr, len);
 			flush_dcache_page(page);
 		}
 	} else {
@@ -102,14 +121,13 @@ static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 		 * after clear poison.
 		 */
 		flush_dcache_page(page);
-		memcpy_to_pmem(pmem_addr, mem + off, len);
+		write_pmem(pmem_addr, page, off, len);
 		if (unlikely(bad_pmem)) {
 			pmem_clear_poison(pmem, pmem_off, len);
-			memcpy_to_pmem(pmem_addr, mem + off, len);
+			write_pmem(pmem_addr, page, off, len);
 		}
 	}
 
-	kunmap_atomic(mem);
 	return rc;
 }
 

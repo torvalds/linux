@@ -858,11 +858,11 @@ x494] <- /root/a.out[+0x4a8] <- /lib/libc-2.7.so[+0x1e1a6]
 	       When enabled, it will account time the task has been
 	       scheduled out as part of the function call.
 
-  graph-time - When running function graph tracer, to include the
-  	       time to call nested functions. When this is not set,
-	       the time reported for the function will only include
-	       the time the function itself executed for, not the time
-	       for functions that it called.
+  graph-time - When running function profiler with function graph tracer,
+	       to include the time to call nested functions. When this is
+	       not set, the time reported for the function will only
+	       include the time the function itself executed for, not the
+	       time for functions that it called.
 
   record-cmd - When any event or tracer is enabled, a hook is enabled
   	       in the sched_switch trace point to fill comm cache

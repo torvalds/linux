@@ -16,6 +16,7 @@ CONTENTS
    4.1 System-wide settings
    4.2 Task interface
    4.3 Default behavior
+   4.4 Behavior of sched_yield()
  5. Tasks CPU affinity
    5.1 SCHED_DEADLINE and cpusets HOWTO
  6. Future plans
@@ -425,6 +426,23 @@ CONTENTS
 
  Finally, notice that in order not to jeopardize the admission control a
  -deadline task cannot fork.
+
+
+4.4 Behavior of sched_yield()
+-----------------------------
+
+ When a SCHED_DEADLINE task calls sched_yield(), it gives up its
+ remaining runtime and is immediately throttled, until the next
+ period, when its runtime will be replenished (a special flag
+ dl_yielded is set and used to handle correctly throttling and runtime
+ replenishment after a call to sched_yield()).
+
+ This behavior of sched_yield() allows the task to wake-up exactly at
+ the beginning of the next period. Also, this may be useful in the
+ future with bandwidth reclaiming mechanisms, where sched_yield() will
+ make the leftoever runtime available for reclamation by other
+ SCHED_DEADLINE tasks.
+
 
 5. Tasks CPU affinity
 =====================

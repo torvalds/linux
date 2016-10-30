@@ -25,7 +25,7 @@
 
 #define QEDE_MAJOR_VERSION		8
 #define QEDE_MINOR_VERSION		10
-#define QEDE_REVISION_VERSION		1
+#define QEDE_REVISION_VERSION		9
 #define QEDE_ENGINEERING_VERSION	20
 #define DRV_MODULE_VERSION __stringify(QEDE_MAJOR_VERSION) "."	\
 		__stringify(QEDE_MINOR_VERSION) "."		\
@@ -36,6 +36,8 @@
 
 struct qede_stats {
 	u64 no_buff_discards;
+	u64 packet_too_big_discard;
+	u64 ttl0_discard;
 	u64 rx_ucast_bytes;
 	u64 rx_mcast_bytes;
 	u64 rx_bcast_bytes;
@@ -104,6 +106,13 @@ struct qede_vlan {
 	bool configured;
 };
 
+struct qede_rdma_dev {
+	struct qedr_dev *qedr_dev;
+	struct list_head entry;
+	struct list_head roce_event_list;
+	struct workqueue_struct *roce_wq;
+};
+
 struct qede_dev {
 	struct qed_dev			*cdev;
 	struct net_device		*ndev;
@@ -124,16 +133,22 @@ struct qede_dev {
 				 (edev)->dev_info.num_tc)
 
 	struct qede_fastpath		*fp_array;
-	u16				req_rss;
-	u16				num_rss;
+	u8				req_num_tx;
+	u8				fp_num_tx;
+	u8				req_num_rx;
+	u8				fp_num_rx;
+	u16				req_queues;
+	u16				num_queues;
 	u8				num_tc;
-#define QEDE_RSS_CNT(edev)		((edev)->num_rss)
-#define QEDE_TSS_CNT(edev)		((edev)->num_rss *	\
-					 (edev)->num_tc)
-#define QEDE_TSS_IDX(edev, txqidx)	((txqidx) % (edev)->num_rss)
-#define QEDE_TC_IDX(edev, txqidx)	((txqidx) / (edev)->num_rss)
+#define QEDE_QUEUE_CNT(edev)	((edev)->num_queues)
+#define QEDE_RSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_tx)
+#define QEDE_TSS_COUNT(edev)	(((edev)->num_queues - (edev)->fp_num_rx) * \
+				 (edev)->num_tc)
+#define QEDE_TX_IDX(edev, txqidx)	((edev)->fp_num_rx + (txqidx) % \
+					 QEDE_TSS_COUNT(edev))
+#define QEDE_TC_IDX(edev, txqidx)	((txqidx) / QEDE_TSS_COUNT(edev))
 #define QEDE_TX_QUEUE(edev, txqidx)	\
-	(&(edev)->fp_array[QEDE_TSS_IDX((edev), (txqidx))].txqs[QEDE_TC_IDX( \
+	(&(edev)->fp_array[QEDE_TX_IDX((edev), (txqidx))].txqs[QEDE_TC_IDX(\
 							(edev), (txqidx))])
 
 	struct qed_int_info		int_info;
@@ -177,6 +192,8 @@ struct qede_dev {
 	unsigned long			sp_flags;
 	u16				vxlan_dst_port;
 	u16				geneve_dst_port;
+
+	struct qede_rdma_dev		rdma_info;
 };
 
 enum QEDE_STATE {
@@ -235,6 +252,7 @@ struct qede_rx_queue {
 	u16			num_rx_buffers;
 	u16			rxq_id;
 
+	u64			rcv_pkts;
 	u64			rx_hw_errors;
 	u64			rx_alloc_errors;
 	u64			rx_ip_frags;
@@ -263,6 +281,10 @@ struct qede_tx_queue {
 	union db_prod		tx_db;
 
 	u16			num_tx_buffers;
+	u64			xmit_pkts;
+	u64			stopped_cnt;
+
+	bool			is_legacy;
 };
 
 #define BD_UNMAP_ADDR(bd)		HILO_U64(le32_to_cpu((bd)->addr.hi), \
@@ -277,7 +299,11 @@ struct qede_tx_queue {
 
 struct qede_fastpath {
 	struct qede_dev	*edev;
-	u8			rss_id;
+#define QEDE_FASTPATH_TX	BIT(0)
+#define QEDE_FASTPATH_RX	BIT(1)
+#define QEDE_FASTPATH_COMBINED	(QEDE_FASTPATH_TX | QEDE_FASTPATH_RX)
+	u8			type;
+	u8			id;
 	struct napi_struct	napi;
 	struct qed_sb_info	*sb_info;
 	struct qede_rx_queue	*rxq;
@@ -337,6 +363,6 @@ void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, struct qede_dev *edev,
 
 #define QEDE_MIN_PKT_LEN	64
 #define QEDE_RX_HDR_SIZE	256
-#define	for_each_rss(i) for (i = 0; i < edev->num_rss; i++)
+#define	for_each_queue(i) for (i = 0; i < edev->num_queues; i++)
 
 #endif /* _QEDE_H_ */

@@ -51,7 +51,8 @@ static int dump_channels(const char *dev_dir_name)
 
 	while (ent = readdir(dp), ent)
 		if (check_prefix(ent->d_name, "in_") &&
-		    check_postfix(ent->d_name, "_raw"))
+		   (check_postfix(ent->d_name, "_raw") ||
+		    check_postfix(ent->d_name, "_input")))
 			printf("   %-10s\n", ent->d_name);
 
 	return (closedir(dp) == -1) ? -errno : 0;

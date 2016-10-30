@@ -19,7 +19,6 @@
 #include <recv_osdep.h>
 #include <xmit_osdep.h>
 
-
 struct ch_freq {
 	u32 channel;
 	u32 frequency;

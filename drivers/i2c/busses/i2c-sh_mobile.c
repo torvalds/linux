@@ -610,7 +610,7 @@ static void sh_mobile_i2c_xfer_dma(struct sh_mobile_i2c_data *pd)
 		return;
 
 	dma_addr = dma_map_single(chan->device->dev, pd->msg->buf, pd->msg->len, dir);
-	if (dma_mapping_error(pd->dev, dma_addr)) {
+	if (dma_mapping_error(chan->device->dev, dma_addr)) {
 		dev_dbg(pd->dev, "dma map failed, using PIO\n");
 		return;
 	}
@@ -981,7 +981,6 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	ret = i2c_add_numbered_adapter(adap);
 	if (ret < 0) {
 		sh_mobile_i2c_release_dma(pd);
-		dev_err(&dev->dev, "cannot add numbered adapter\n");
 		return ret;
 	}
 

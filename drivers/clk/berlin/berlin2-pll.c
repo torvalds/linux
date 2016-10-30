@@ -84,7 +84,7 @@ static const struct clk_ops berlin2_pll_ops = {
 	.recalc_rate	= berlin2_pll_recalc_rate,
 };
 
-struct clk * __init
+int __init
 berlin2_pll_register(const struct berlin2_pll_map *map,
 		     void __iomem *base, const char *name,
 		     const char *parent_name, unsigned long flags)
@@ -94,7 +94,7 @@ berlin2_pll_register(const struct berlin2_pll_map *map,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	/* copy pll_map to allow __initconst */
 	memcpy(&pll->map, map, sizeof(*map));
@@ -106,5 +106,5 @@ berlin2_pll_register(const struct berlin2_pll_map *map,
 	init.num_parents = 1;
 	init.flags = flags;
 
-	return clk_register(NULL, &pll->hw);
+	return clk_hw_register(NULL, &pll->hw);
 }

@@ -99,14 +99,10 @@
 .macro kern_hyp_va	reg
 alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
 	and     \reg, \reg, #HYP_PAGE_OFFSET_HIGH_MASK
-alternative_else
-	nop
-alternative_endif
-alternative_if_not ARM64_HYP_OFFSET_LOW
-	nop
-alternative_else
+alternative_else_nop_endif
+alternative_if ARM64_HYP_OFFSET_LOW
 	and     \reg, \reg, #HYP_PAGE_OFFSET_LOW_MASK
-alternative_endif
+alternative_else_nop_endif
 .endm
 
 #else
@@ -165,12 +161,6 @@ void kvm_clear_hyp_idmap(void);
 
 #define	kvm_set_pte(ptep, pte)		set_pte(ptep, pte)
 #define	kvm_set_pmd(pmdp, pmd)		set_pmd(pmdp, pmd)
-
-static inline void kvm_clean_pgd(pgd_t *pgd) {}
-static inline void kvm_clean_pmd(pmd_t *pmd) {}
-static inline void kvm_clean_pmd_entry(pmd_t *pmd) {}
-static inline void kvm_clean_pte(pte_t *pte) {}
-static inline void kvm_clean_pte_entry(pte_t *pte) {}
 
 static inline pte_t kvm_s2pte_mkwrite(pte_t pte)
 {

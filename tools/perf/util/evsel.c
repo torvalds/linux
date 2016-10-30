@@ -985,14 +985,13 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 
 static int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
-	int cpu, thread;
-
 	if (evsel->system_wide)
 		nthreads = 1;
 
 	evsel->fd = xyarray__new(ncpus, nthreads, sizeof(int));
 
 	if (evsel->fd) {
+		int cpu, thread;
 		for (cpu = 0; cpu < ncpus; cpu++) {
 			for (thread = 0; thread < nthreads; thread++) {
 				FD(evsel, cpu, thread) = -1;
@@ -1045,21 +1044,31 @@ int perf_evsel__set_filter(struct perf_evsel *evsel, const char *filter)
 	return -1;
 }
 
-int perf_evsel__append_filter(struct perf_evsel *evsel,
-			      const char *op, const char *filter)
+static int perf_evsel__append_filter(struct perf_evsel *evsel,
+				     const char *fmt, const char *filter)
 {
 	char *new_filter;
 
 	if (evsel->filter == NULL)
 		return perf_evsel__set_filter(evsel, filter);
 
-	if (asprintf(&new_filter,"(%s) %s (%s)", evsel->filter, op, filter) > 0) {
+	if (asprintf(&new_filter, fmt, evsel->filter, filter) > 0) {
 		free(evsel->filter);
 		evsel->filter = new_filter;
 		return 0;
 	}
 
 	return -1;
+}
+
+int perf_evsel__append_tp_filter(struct perf_evsel *evsel, const char *filter)
+{
+	return perf_evsel__append_filter(evsel, "(%s) && (%s)", filter);
+}
+
+int perf_evsel__append_addr_filter(struct perf_evsel *evsel, const char *filter)
+{
+	return perf_evsel__append_filter(evsel, "%s,%s", filter);
 }
 
 int perf_evsel__enable(struct perf_evsel *evsel)
@@ -1728,7 +1737,6 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 	data->cpu = data->pid = data->tid = -1;
 	data->stream_id = data->id = data->time = -1ULL;
 	data->period = evsel->attr.sample_period;
-	data->weight = 0;
 	data->cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
 	if (event->header.type != PERF_RECORD_SAMPLE) {
@@ -1935,7 +1943,6 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 		}
 	}
 
-	data->weight = 0;
 	if (type & PERF_SAMPLE_WEIGHT) {
 		OVERFLOW_CHECK_u64(array);
 		data->weight = *array;

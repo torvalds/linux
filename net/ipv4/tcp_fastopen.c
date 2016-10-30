@@ -150,6 +150,7 @@ void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb)
 	tp->segs_in = 0;
 	tcp_segs_in(tp, skb);
 	__skb_pull(skb, tcp_hdrlen(skb));
+	sk_forced_mem_schedule(sk, skb->truesize);
 	skb_set_owner_r(skb, sk);
 
 	TCP_SKB_CB(skb)->seq++;
@@ -226,6 +227,7 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	tcp_fastopen_add_skb(child, skb);
 
 	tcp_rsk(req)->rcv_nxt = tp->rcv_nxt;
+	tp->rcv_wup = tp->rcv_nxt;
 	/* tcp_conn_request() is sending the SYNACK,
 	 * and queues the child into listener accept queue.
 	 */

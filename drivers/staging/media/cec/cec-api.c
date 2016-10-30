@@ -162,7 +162,7 @@ static long cec_adap_s_log_addrs(struct cec_adapter *adap, struct cec_fh *fh,
 		return -ENOTTY;
 	if (copy_from_user(&log_addrs, parg, sizeof(log_addrs)))
 		return -EFAULT;
-	log_addrs.flags = 0;
+	log_addrs.flags &= CEC_LOG_ADDRS_FL_ALLOW_UNREG_FALLBACK;
 	mutex_lock(&adap->lock);
 	if (!adap->is_configuring &&
 	    (!log_addrs.num_log_addrs || !adap->is_configured) &&
@@ -435,7 +435,7 @@ static long cec_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	void __user *parg = (void __user *)arg;
 
 	if (!devnode->registered)
-		return -EIO;
+		return -ENODEV;
 
 	switch (cmd) {
 	case CEC_ADAP_G_CAPS:
@@ -508,14 +508,14 @@ static int cec_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = fh;
 
-	mutex_lock(&devnode->fhs_lock);
+	mutex_lock(&devnode->lock);
 	/* Queue up initial state events */
 	ev_state.state_change.phys_addr = adap->phys_addr;
 	ev_state.state_change.log_addr_mask = adap->log_addrs.log_addr_mask;
 	cec_queue_event_fh(fh, &ev_state, 0);
 
 	list_add(&fh->list, &devnode->fhs);
-	mutex_unlock(&devnode->fhs_lock);
+	mutex_unlock(&devnode->lock);
 
 	return 0;
 }
@@ -540,9 +540,9 @@ static int cec_release(struct inode *inode, struct file *filp)
 		cec_monitor_all_cnt_dec(adap);
 	mutex_unlock(&adap->lock);
 
-	mutex_lock(&devnode->fhs_lock);
+	mutex_lock(&devnode->lock);
 	list_del(&fh->list);
-	mutex_unlock(&devnode->fhs_lock);
+	mutex_unlock(&devnode->lock);
 
 	/* Unhook pending transmits from this filehandle. */
 	mutex_lock(&adap->lock);

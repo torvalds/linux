@@ -71,8 +71,18 @@ static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
 	u32 version;
 	int ret;
 
-	if (!opp_table->supported_hw)
-		return true;
+	if (!opp_table->supported_hw) {
+		/*
+		 * In the case that no supported_hw has been set by the
+		 * platform but there is an opp-supported-hw value set for
+		 * an OPP then the OPP should not be enabled as there is
+		 * no way to see if the hardware supports it.
+		 */
+		if (of_find_property(np, "opp-supported-hw", NULL))
+			return false;
+		else
+			return true;
+	}
 
 	while (count--) {
 		ret = of_property_read_u32_index(np, "opp-supported-hw", count,

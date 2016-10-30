@@ -81,8 +81,7 @@ __init board_nor_init(struct mtd_partition *nor_parts, u8 nr_parts, u8 cs)
 		pr_err("Unable to register NOR device\n");
 }
 
-#if defined(CONFIG_MTD_ONENAND_OMAP2) || \
-		defined(CONFIG_MTD_ONENAND_OMAP2_MODULE)
+#if IS_ENABLED(CONFIG_MTD_ONENAND_OMAP2)
 static struct omap_onenand_platform_data board_onenand_data = {
 	.dma_channel	= -1,   /* disable DMA in OMAP OneNAND driver */
 };
@@ -97,10 +96,9 @@ __init board_onenand_init(struct mtd_partition *onenand_parts,
 
 	gpmc_onenand_init(&board_onenand_data);
 }
-#endif /* CONFIG_MTD_ONENAND_OMAP2 || CONFIG_MTD_ONENAND_OMAP2_MODULE */
+#endif /* IS_ENABLED(CONFIG_MTD_ONENAND_OMAP2) */
 
-#if defined(CONFIG_MTD_NAND_OMAP2) || \
-		defined(CONFIG_MTD_NAND_OMAP2_MODULE)
+#if IS_ENABLED(CONFIG_MTD_NAND_OMAP2)
 
 /* Note that all values in this struct are in nanoseconds */
 struct gpmc_timings nand_default_timings[1] = {
@@ -144,7 +142,7 @@ __init board_nand_init(struct mtd_partition *nand_parts, u8 nr_parts, u8 cs,
 	board_nand_data.ecc_opt = OMAP_ECC_HAM1_CODE_SW;
 	gpmc_nand_init(&board_nand_data, gpmc_t);
 }
-#endif /* CONFIG_MTD_NAND_OMAP2 || CONFIG_MTD_NAND_OMAP2_MODULE */
+#endif /* IS_ENABLED(CONFIG_MTD_NAND_OMAP2) */
 
 /**
  * get_gpmc0_type - Reads the FPGA DIP_SWITCH_INPUT_REGISTER2 to get

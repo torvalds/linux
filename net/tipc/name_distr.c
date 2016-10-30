@@ -62,6 +62,8 @@ static void publ_to_item(struct distr_item *i, struct publication *p)
 
 /**
  * named_prepare_buf - allocate & initialize a publication message
+ *
+ * The buffer returned is of size INT_H_SIZE + payload size
  */
 static struct sk_buff *named_prepare_buf(struct net *net, u32 type, u32 size,
 					 u32 dest)
@@ -141,9 +143,9 @@ static void named_distribute(struct net *net, struct sk_buff_head *list,
 	struct publication *publ;
 	struct sk_buff *skb = NULL;
 	struct distr_item *item = NULL;
-	uint msg_dsz = (tipc_node_get_mtu(net, dnode, 0) / ITEM_SIZE) *
-			ITEM_SIZE;
-	uint msg_rem = msg_dsz;
+	u32 msg_dsz = ((tipc_node_get_mtu(net, dnode, 0) - INT_H_SIZE) /
+			ITEM_SIZE) * ITEM_SIZE;
+	u32 msg_rem = msg_dsz;
 
 	list_for_each_entry(publ, pls, local_list) {
 		/* Prepare next buffer: */

@@ -154,7 +154,7 @@ static inline bool __down_write_trylock(struct rw_semaphore *sem)
 		     : "+m" (sem->count), "=&a" (tmp0), "=&r" (tmp1),
 		       CC_OUT(e) (result)
 		     : "er" (RWSEM_ACTIVE_WRITE_BIAS)
-		     : "memory", "cc");
+		     : "memory");
 	return result;
 }
 

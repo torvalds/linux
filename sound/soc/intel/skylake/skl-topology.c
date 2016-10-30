@@ -21,6 +21,7 @@
 #include <linux/firmware.h>
 #include <sound/soc.h>
 #include <sound/soc-topology.h>
+#include <uapi/sound/snd_sst_tokens.h>
 #include "skl-sst-dsp.h"
 #include "skl-sst-ipc.h"
 #include "skl-topology.h"
@@ -32,6 +33,8 @@
 #define SKL_CH_FIXUP_MASK		(1 << 0)
 #define SKL_RATE_FIXUP_MASK		(1 << 1)
 #define SKL_FMT_FIXUP_MASK		(1 << 2)
+#define SKL_IN_DIR_BIT_MASK		BIT(0)
+#define SKL_PIN_COUNT_MASK		GENMASK(7, 4)
 
 /*
  * SKL DSP driver modelling uses only few DAPM widgets so for rest we will
@@ -473,6 +476,14 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		w = w_module->w;
 		mconfig = w->priv;
 
+		/* check if module ids are populated */
+		if (mconfig->id.module_id < 0) {
+			dev_err(skl->skl_sst->dev,
+					"module %pUL id not populated\n",
+					(uuid_le *)mconfig->guid);
+			return -EIO;
+		}
+
 		/* check resource available */
 		if (!skl_is_pipe_mcps_avail(skl, mconfig))
 			return -ENOMEM;
@@ -494,12 +505,15 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		 * FE/BE params
 		 */
 		skl_tplg_update_module_params(w, ctx);
-
+		mconfig->id.pvt_id = skl_get_pvt_id(ctx, mconfig);
+		if (mconfig->id.pvt_id < 0)
+			return ret;
 		skl_tplg_set_module_init_data(w);
 		ret = skl_init_module(ctx, mconfig);
-		if (ret < 0)
+		if (ret < 0) {
+			skl_put_pvt_id(ctx, mconfig);
 			return ret;
-
+		}
 		skl_tplg_alloc_pipe_mcps(skl, mconfig);
 		ret = skl_tplg_set_module_params(w, ctx);
 		if (ret < 0)
@@ -512,6 +526,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 	 struct skl_pipe *pipe)
 {
+	int ret;
 	struct skl_pipe_module *w_module = NULL;
 	struct skl_module_cfg *mconfig = NULL;
 
@@ -519,9 +534,13 @@ static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 		mconfig  = w_module->w->priv;
 
 		if (mconfig->is_loadable && ctx->dsp->fw_ops.unload_mod &&
-			mconfig->m_state > SKL_MODULE_UNINIT)
-			return ctx->dsp->fw_ops.unload_mod(ctx->dsp,
+			mconfig->m_state > SKL_MODULE_UNINIT) {
+			ret = ctx->dsp->fw_ops.unload_mod(ctx->dsp,
 						mconfig->id.module_id);
+			if (ret < 0)
+				return -EIO;
+		}
+		skl_put_pvt_id(ctx, mconfig);
 	}
 
 	/* no modules to unload in this path, so return */
@@ -588,6 +607,26 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int skl_fill_sink_instance_id(struct skl_sst *ctx,
+				struct skl_algo_data *alg_data)
+{
+	struct skl_kpb_params *params = (struct skl_kpb_params *)alg_data->params;
+	struct skl_mod_inst_map *inst;
+	int i, pvt_id;
+
+	inst = params->map;
+
+	for (i = 0; i < params->num_modules; i++) {
+		pvt_id = skl_get_pvt_instance_id_map(ctx,
+					inst->mod_id, inst->inst_id);
+		if (pvt_id < 0)
+			return -EINVAL;
+		inst->inst_id = pvt_id;
+		inst++;
+	}
+	return 0;
+}
+
 /*
  * Some modules require params to be set after the module is bound to
  * all pins connected.
@@ -636,6 +675,8 @@ static int skl_tplg_set_module_bind_params(struct snd_soc_dapm_widget *w,
 			bc = (struct skl_algo_data *)sb->dobj.private;
 
 			if (bc->set_params == SKL_PARAM_BIND) {
+				if (mconfig->m_type == SKL_MODULE_TYPE_KPB)
+					skl_fill_sink_instance_id(ctx, bc);
 				ret = skl_set_module_params(ctx,
 						(u32 *)bc->params, bc->max,
 						bc->param_id, mconfig);
@@ -1460,85 +1501,570 @@ static const struct snd_soc_tplg_bytes_ext_ops skl_tlv_ops[] = {
 					skl_tplg_tlv_control_set},
 };
 
-/*
- * The topology binary passes the pin info for a module so initialize the pin
- * info passed into module instance
- */
-static void skl_fill_module_pin_info(struct skl_dfw_module_pin *dfw_pin,
-						struct skl_module_pin *m_pin,
-						bool is_dynamic, int max_pin)
+static int skl_tplg_fill_pipe_tkn(struct device *dev,
+			struct skl_pipe *pipe, u32 tkn,
+			u32 tkn_val)
 {
-	int i;
 
-	for (i = 0; i < max_pin; i++) {
-		m_pin[i].id.module_id = dfw_pin[i].module_id;
-		m_pin[i].id.instance_id = dfw_pin[i].instance_id;
-		m_pin[i].in_use = false;
-		m_pin[i].is_dynamic = is_dynamic;
-		m_pin[i].pin_state = SKL_PIN_UNBIND;
+	switch (tkn) {
+	case SKL_TKN_U32_PIPE_CONN_TYPE:
+		pipe->conn_type = tkn_val;
+		break;
+
+	case SKL_TKN_U32_PIPE_PRIORITY:
+		pipe->pipe_priority = tkn_val;
+		break;
+
+	case SKL_TKN_U32_PIPE_MEM_PGS:
+		pipe->memory_pages = tkn_val;
+		break;
+
+	default:
+		dev_err(dev, "Token not handled %d\n", tkn);
+		return -EINVAL;
 	}
+
+	return 0;
 }
 
 /*
- * Add pipeline from topology binary into driver pipeline list
- *
- * If already added we return that instance
- * Otherwise we create a new instance and add into driver list
+ * Add pipeline by parsing the relevant tokens
+ * Return an existing pipe if the pipe already exists.
  */
-static struct skl_pipe *skl_tplg_add_pipe(struct device *dev,
-			struct skl *skl, struct skl_dfw_pipe *dfw_pipe)
+static int skl_tplg_add_pipe(struct device *dev,
+		struct skl_module_cfg *mconfig, struct skl *skl,
+		struct snd_soc_tplg_vendor_value_elem *tkn_elem)
 {
 	struct skl_pipeline *ppl;
 	struct skl_pipe *pipe;
 	struct skl_pipe_params *params;
 
 	list_for_each_entry(ppl, &skl->ppl_list, node) {
-		if (ppl->pipe->ppl_id == dfw_pipe->pipe_id)
-			return ppl->pipe;
+		if (ppl->pipe->ppl_id == tkn_elem->value) {
+			mconfig->pipe = ppl->pipe;
+			return EEXIST;
+		}
 	}
 
 	ppl = devm_kzalloc(dev, sizeof(*ppl), GFP_KERNEL);
 	if (!ppl)
-		return NULL;
+		return -ENOMEM;
 
 	pipe = devm_kzalloc(dev, sizeof(*pipe), GFP_KERNEL);
 	if (!pipe)
-		return NULL;
+		return -ENOMEM;
 
 	params = devm_kzalloc(dev, sizeof(*params), GFP_KERNEL);
 	if (!params)
-		return NULL;
+		return -ENOMEM;
 
-	pipe->ppl_id = dfw_pipe->pipe_id;
-	pipe->memory_pages = dfw_pipe->memory_pages;
-	pipe->pipe_priority = dfw_pipe->pipe_priority;
-	pipe->conn_type = dfw_pipe->conn_type;
-	pipe->state = SKL_PIPE_INVALID;
 	pipe->p_params = params;
+	pipe->ppl_id = tkn_elem->value;
 	INIT_LIST_HEAD(&pipe->w_list);
 
 	ppl->pipe = pipe;
 	list_add(&ppl->node, &skl->ppl_list);
 
-	return ppl->pipe;
+	mconfig->pipe = pipe;
+	mconfig->pipe->state = SKL_PIPE_INVALID;
+
+	return 0;
 }
 
-static void skl_tplg_fill_fmt(struct skl_module_fmt *dst_fmt,
-				struct skl_dfw_module_fmt *src_fmt,
-				int pins)
+static int skl_tplg_fill_pin(struct device *dev, u32 tkn,
+			struct skl_module_pin *m_pin,
+			int pin_index, u32 value)
+{
+	switch (tkn) {
+	case SKL_TKN_U32_PIN_MOD_ID:
+		m_pin[pin_index].id.module_id = value;
+		break;
+
+	case SKL_TKN_U32_PIN_INST_ID:
+		m_pin[pin_index].id.instance_id = value;
+		break;
+
+	default:
+		dev_err(dev, "%d Not a pin token\n", value);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
+ * Parse for pin config specific tokens to fill up the
+ * module private data
+ */
+static int skl_tplg_fill_pins_info(struct device *dev,
+		struct skl_module_cfg *mconfig,
+		struct snd_soc_tplg_vendor_value_elem *tkn_elem,
+		int dir, int pin_count)
+{
+	int ret;
+	struct skl_module_pin *m_pin;
+
+	switch (dir) {
+	case SKL_DIR_IN:
+		m_pin = mconfig->m_in_pin;
+		break;
+
+	case SKL_DIR_OUT:
+		m_pin = mconfig->m_out_pin;
+		break;
+
+	default:
+		dev_err(dev, "Invalid direction value\n");
+		return -EINVAL;
+	}
+
+	ret = skl_tplg_fill_pin(dev, tkn_elem->token,
+			m_pin, pin_count, tkn_elem->value);
+
+	if (ret < 0)
+		return ret;
+
+	m_pin[pin_count].in_use = false;
+	m_pin[pin_count].pin_state = SKL_PIN_UNBIND;
+
+	return 0;
+}
+
+/*
+ * Fill up input/output module config format based
+ * on the direction
+ */
+static int skl_tplg_fill_fmt(struct device *dev,
+		struct skl_module_cfg *mconfig,	u32 tkn,
+		u32 value, u32 dir, u32 pin_count)
+{
+	struct skl_module_fmt *dst_fmt;
+
+	switch (dir) {
+	case SKL_DIR_IN:
+		dst_fmt = mconfig->in_fmt;
+		dst_fmt += pin_count;
+		break;
+
+	case SKL_DIR_OUT:
+		dst_fmt = mconfig->out_fmt;
+		dst_fmt += pin_count;
+		break;
+
+	default:
+		dev_err(dev, "Invalid direction value\n");
+		return -EINVAL;
+	}
+
+	switch (tkn) {
+	case SKL_TKN_U32_FMT_CH:
+		dst_fmt->channels  = value;
+		break;
+
+	case SKL_TKN_U32_FMT_FREQ:
+		dst_fmt->s_freq = value;
+		break;
+
+	case SKL_TKN_U32_FMT_BIT_DEPTH:
+		dst_fmt->bit_depth = value;
+		break;
+
+	case SKL_TKN_U32_FMT_SAMPLE_SIZE:
+		dst_fmt->valid_bit_depth = value;
+		break;
+
+	case SKL_TKN_U32_FMT_CH_CONFIG:
+		dst_fmt->ch_cfg = value;
+		break;
+
+	case SKL_TKN_U32_FMT_INTERLEAVE:
+		dst_fmt->interleaving_style = value;
+		break;
+
+	case SKL_TKN_U32_FMT_SAMPLE_TYPE:
+		dst_fmt->sample_type = value;
+		break;
+
+	case SKL_TKN_U32_FMT_CH_MAP:
+		dst_fmt->ch_map = value;
+		break;
+
+	default:
+		dev_err(dev, "Invalid token %d\n", tkn);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int skl_tplg_get_uuid(struct device *dev, struct skl_module_cfg *mconfig,
+	      struct snd_soc_tplg_vendor_uuid_elem *uuid_tkn)
+{
+	if (uuid_tkn->token == SKL_TKN_UUID)
+		memcpy(&mconfig->guid, &uuid_tkn->uuid, 16);
+	else {
+		dev_err(dev, "Not an UUID token tkn %d\n", uuid_tkn->token);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void skl_tplg_fill_pin_dynamic_val(
+		struct skl_module_pin *mpin, u32 pin_count, u32 value)
 {
 	int i;
 
-	for (i = 0; i < pins; i++) {
-		dst_fmt[i].channels  = src_fmt[i].channels;
-		dst_fmt[i].s_freq = src_fmt[i].freq;
-		dst_fmt[i].bit_depth = src_fmt[i].bit_depth;
-		dst_fmt[i].valid_bit_depth = src_fmt[i].valid_bit_depth;
-		dst_fmt[i].ch_cfg = src_fmt[i].ch_cfg;
-		dst_fmt[i].ch_map = src_fmt[i].ch_map;
-		dst_fmt[i].interleaving_style = src_fmt[i].interleaving_style;
-		dst_fmt[i].sample_type = src_fmt[i].sample_type;
+	for (i = 0; i < pin_count; i++)
+		mpin[i].is_dynamic = value;
+}
+
+/*
+ * Parse tokens to fill up the module private data
+ */
+static int skl_tplg_get_token(struct device *dev,
+		struct snd_soc_tplg_vendor_value_elem *tkn_elem,
+		struct skl *skl, struct skl_module_cfg *mconfig)
+{
+	int tkn_count = 0;
+	int ret;
+	static int is_pipe_exists;
+	static int pin_index, dir;
+
+	if (tkn_elem->token > SKL_TKN_MAX)
+		return -EINVAL;
+
+	switch (tkn_elem->token) {
+	case SKL_TKN_U8_IN_QUEUE_COUNT:
+		mconfig->max_in_queue = tkn_elem->value;
+		mconfig->m_in_pin = devm_kzalloc(dev, mconfig->max_in_queue *
+					sizeof(*mconfig->m_in_pin),
+					GFP_KERNEL);
+		if (!mconfig->m_in_pin)
+			return -ENOMEM;
+
+		break;
+
+	case SKL_TKN_U8_OUT_QUEUE_COUNT:
+		mconfig->max_out_queue = tkn_elem->value;
+		mconfig->m_out_pin = devm_kzalloc(dev, mconfig->max_out_queue *
+					sizeof(*mconfig->m_out_pin),
+					GFP_KERNEL);
+
+		if (!mconfig->m_out_pin)
+			return -ENOMEM;
+
+		break;
+
+	case SKL_TKN_U8_DYN_IN_PIN:
+		if (!mconfig->m_in_pin)
+			return -ENOMEM;
+
+		skl_tplg_fill_pin_dynamic_val(mconfig->m_in_pin,
+			mconfig->max_in_queue, tkn_elem->value);
+
+		break;
+
+	case SKL_TKN_U8_DYN_OUT_PIN:
+		if (!mconfig->m_out_pin)
+			return -ENOMEM;
+
+		skl_tplg_fill_pin_dynamic_val(mconfig->m_out_pin,
+			mconfig->max_out_queue, tkn_elem->value);
+
+		break;
+
+	case SKL_TKN_U8_TIME_SLOT:
+		mconfig->time_slot = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U8_CORE_ID:
+		mconfig->core_id = tkn_elem->value;
+
+	case SKL_TKN_U8_MOD_TYPE:
+		mconfig->m_type = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U8_DEV_TYPE:
+		mconfig->dev_type = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U8_HW_CONN_TYPE:
+		mconfig->hw_conn_type = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U16_MOD_INST_ID:
+		mconfig->id.instance_id =
+		tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_MEM_PAGES:
+		mconfig->mem_pages = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_MAX_MCPS:
+		mconfig->mcps = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_OBS:
+		mconfig->obs = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_IBS:
+		mconfig->ibs = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_VBUS_ID:
+		mconfig->vbus_id = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_PARAMS_FIXUP:
+		mconfig->params_fixup = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_CONVERTER:
+		mconfig->converter = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_PIPE_ID:
+		ret = skl_tplg_add_pipe(dev,
+				mconfig, skl, tkn_elem);
+
+		if (ret < 0)
+			return is_pipe_exists;
+
+		if (ret == EEXIST)
+			is_pipe_exists = 1;
+
+		break;
+
+	case SKL_TKN_U32_PIPE_CONN_TYPE:
+	case SKL_TKN_U32_PIPE_PRIORITY:
+	case SKL_TKN_U32_PIPE_MEM_PGS:
+		if (is_pipe_exists) {
+			ret = skl_tplg_fill_pipe_tkn(dev, mconfig->pipe,
+					tkn_elem->token, tkn_elem->value);
+			if (ret < 0)
+				return ret;
+		}
+
+		break;
+
+	/*
+	 * SKL_TKN_U32_DIR_PIN_COUNT token has the value for both
+	 * direction and the pin count. The first four bits represent
+	 * direction and next four the pin count.
+	 */
+	case SKL_TKN_U32_DIR_PIN_COUNT:
+		dir = tkn_elem->value & SKL_IN_DIR_BIT_MASK;
+		pin_index = (tkn_elem->value &
+			SKL_PIN_COUNT_MASK) >> 4;
+
+		break;
+
+	case SKL_TKN_U32_FMT_CH:
+	case SKL_TKN_U32_FMT_FREQ:
+	case SKL_TKN_U32_FMT_BIT_DEPTH:
+	case SKL_TKN_U32_FMT_SAMPLE_SIZE:
+	case SKL_TKN_U32_FMT_CH_CONFIG:
+	case SKL_TKN_U32_FMT_INTERLEAVE:
+	case SKL_TKN_U32_FMT_SAMPLE_TYPE:
+	case SKL_TKN_U32_FMT_CH_MAP:
+		ret = skl_tplg_fill_fmt(dev, mconfig, tkn_elem->token,
+				tkn_elem->value, dir, pin_index);
+
+		if (ret < 0)
+			return ret;
+
+		break;
+
+	case SKL_TKN_U32_PIN_MOD_ID:
+	case SKL_TKN_U32_PIN_INST_ID:
+		ret = skl_tplg_fill_pins_info(dev,
+				mconfig, tkn_elem, dir,
+				pin_index);
+		if (ret < 0)
+			return ret;
+
+		break;
+
+	case SKL_TKN_U32_CAPS_SIZE:
+		mconfig->formats_config.caps_size =
+			tkn_elem->value;
+
+		break;
+
+	case SKL_TKN_U32_PROC_DOMAIN:
+		mconfig->domain =
+			tkn_elem->value;
+
+		break;
+
+	case SKL_TKN_U8_IN_PIN_TYPE:
+	case SKL_TKN_U8_OUT_PIN_TYPE:
+	case SKL_TKN_U8_CONN_TYPE:
+		break;
+
+	default:
+		dev_err(dev, "Token %d not handled\n",
+				tkn_elem->token);
+		return -EINVAL;
 	}
+
+	tkn_count++;
+
+	return tkn_count;
+}
+
+/*
+ * Parse the vendor array for specific tokens to construct
+ * module private data
+ */
+static int skl_tplg_get_tokens(struct device *dev,
+		char *pvt_data,	struct skl *skl,
+		struct skl_module_cfg *mconfig, int block_size)
+{
+	struct snd_soc_tplg_vendor_array *array;
+	struct snd_soc_tplg_vendor_value_elem *tkn_elem;
+	int tkn_count = 0, ret;
+	int off = 0, tuple_size = 0;
+
+	if (block_size <= 0)
+		return -EINVAL;
+
+	while (tuple_size < block_size) {
+		array = (struct snd_soc_tplg_vendor_array *)(pvt_data + off);
+
+		off += array->size;
+
+		switch (array->type) {
+		case SND_SOC_TPLG_TUPLE_TYPE_STRING:
+			dev_warn(dev, "no string tokens expected for skl tplg\n");
+			continue;
+
+		case SND_SOC_TPLG_TUPLE_TYPE_UUID:
+			ret = skl_tplg_get_uuid(dev, mconfig, array->uuid);
+			if (ret < 0)
+				return ret;
+
+			tuple_size += sizeof(*array->uuid);
+
+			continue;
+
+		default:
+			tkn_elem = array->value;
+			tkn_count = 0;
+			break;
+		}
+
+		while (tkn_count <= (array->num_elems - 1)) {
+			ret = skl_tplg_get_token(dev, tkn_elem,
+					skl, mconfig);
+
+			if (ret < 0)
+				return ret;
+
+			tkn_count = tkn_count + ret;
+			tkn_elem++;
+		}
+
+		tuple_size += tkn_count * sizeof(*tkn_elem);
+	}
+
+	return 0;
+}
+
+/*
+ * Every data block is preceded by a descriptor to read the number
+ * of data blocks, they type of the block and it's size
+ */
+static int skl_tplg_get_desc_blocks(struct device *dev,
+		struct snd_soc_tplg_vendor_array *array)
+{
+	struct snd_soc_tplg_vendor_value_elem *tkn_elem;
+
+	tkn_elem = array->value;
+
+	switch (tkn_elem->token) {
+	case SKL_TKN_U8_NUM_BLOCKS:
+	case SKL_TKN_U8_BLOCK_TYPE:
+	case SKL_TKN_U16_BLOCK_SIZE:
+		return tkn_elem->value;
+
+	default:
+		dev_err(dev, "Invalid descriptor token %d\n", tkn_elem->token);
+		break;
+	}
+
+	return -EINVAL;
+}
+
+/*
+ * Parse the private data for the token and corresponding value.
+ * The private data can have multiple data blocks. So, a data block
+ * is preceded by a descriptor for number of blocks and a descriptor
+ * for the type and size of the suceeding data block.
+ */
+static int skl_tplg_get_pvt_data(struct snd_soc_tplg_dapm_widget *tplg_w,
+				struct skl *skl, struct device *dev,
+				struct skl_module_cfg *mconfig)
+{
+	struct snd_soc_tplg_vendor_array *array;
+	int num_blocks, block_size = 0, block_type, off = 0;
+	char *data;
+	int ret;
+
+	/* Read the NUM_DATA_BLOCKS descriptor */
+	array = (struct snd_soc_tplg_vendor_array *)tplg_w->priv.data;
+	ret = skl_tplg_get_desc_blocks(dev, array);
+	if (ret < 0)
+		return ret;
+	num_blocks = ret;
+
+	off += array->size;
+	array = (struct snd_soc_tplg_vendor_array *)(tplg_w->priv.data + off);
+
+	/* Read the BLOCK_TYPE and BLOCK_SIZE descriptor */
+	while (num_blocks > 0) {
+		ret = skl_tplg_get_desc_blocks(dev, array);
+
+		if (ret < 0)
+			return ret;
+		block_type = ret;
+		off += array->size;
+
+		array = (struct snd_soc_tplg_vendor_array *)
+			(tplg_w->priv.data + off);
+
+		ret = skl_tplg_get_desc_blocks(dev, array);
+
+		if (ret < 0)
+			return ret;
+		block_size = ret;
+		off += array->size;
+
+		array = (struct snd_soc_tplg_vendor_array *)
+			(tplg_w->priv.data + off);
+
+		data = (tplg_w->priv.data + off);
+
+		if (block_type == SKL_TYPE_TUPLE) {
+			ret = skl_tplg_get_tokens(dev, data,
+					skl, mconfig, block_size);
+
+			if (ret < 0)
+				return ret;
+
+			--num_blocks;
+		} else {
+			if (mconfig->formats_config.caps_size > 0)
+				memcpy(mconfig->formats_config.caps, data,
+					mconfig->formats_config.caps_size);
+			--num_blocks;
+		}
+	}
+
+	return 0;
 }
 
 static void skl_clear_pin_config(struct snd_soc_platform *platform,
@@ -1606,9 +2132,6 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	struct skl *skl = ebus_to_skl(ebus);
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	struct skl_module_cfg *mconfig;
-	struct skl_pipe *pipe;
-	struct skl_dfw_module *dfw_config =
-				(struct skl_dfw_module *)tplg_w->priv.data;
 
 	if (!tplg_w->priv.size)
 		goto bind_event;
@@ -1619,76 +2142,17 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 		return -ENOMEM;
 
 	w->priv = mconfig;
-	memcpy(&mconfig->guid, &dfw_config->uuid, 16);
 
-	ret = snd_skl_get_module_info(skl->skl_sst, mconfig->guid, dfw_config);
+	/*
+	 * module binary can be loaded later, so set it to query when
+	 * module is load for a use case
+	 */
+	mconfig->id.module_id = -1;
+
+	/* Parse private data for tuples */
+	ret = skl_tplg_get_pvt_data(tplg_w, skl, bus->dev, mconfig);
 	if (ret < 0)
 		return ret;
-
-	mconfig->id.module_id = dfw_config->module_id;
-	mconfig->id.instance_id = dfw_config->instance_id;
-	mconfig->mcps = dfw_config->max_mcps;
-	mconfig->ibs = dfw_config->ibs;
-	mconfig->obs = dfw_config->obs;
-	mconfig->core_id = dfw_config->core_id;
-	mconfig->max_in_queue = dfw_config->max_in_queue;
-	mconfig->max_out_queue = dfw_config->max_out_queue;
-	mconfig->is_loadable = dfw_config->is_loadable;
-	skl_tplg_fill_fmt(mconfig->in_fmt, dfw_config->in_fmt,
-						MODULE_MAX_IN_PINS);
-	skl_tplg_fill_fmt(mconfig->out_fmt, dfw_config->out_fmt,
-						MODULE_MAX_OUT_PINS);
-
-	mconfig->params_fixup = dfw_config->params_fixup;
-	mconfig->converter = dfw_config->converter;
-	mconfig->m_type = dfw_config->module_type;
-	mconfig->vbus_id = dfw_config->vbus_id;
-	mconfig->mem_pages = dfw_config->mem_pages;
-
-	pipe = skl_tplg_add_pipe(bus->dev, skl, &dfw_config->pipe);
-	if (pipe)
-		mconfig->pipe = pipe;
-
-	mconfig->dev_type = dfw_config->dev_type;
-	mconfig->hw_conn_type = dfw_config->hw_conn_type;
-	mconfig->time_slot = dfw_config->time_slot;
-	mconfig->formats_config.caps_size = dfw_config->caps.caps_size;
-
-	mconfig->m_in_pin = devm_kzalloc(bus->dev, (mconfig->max_in_queue) *
-						sizeof(*mconfig->m_in_pin),
-						GFP_KERNEL);
-	if (!mconfig->m_in_pin)
-		return -ENOMEM;
-
-	mconfig->m_out_pin = devm_kzalloc(bus->dev, (mconfig->max_out_queue) *
-						sizeof(*mconfig->m_out_pin),
-						GFP_KERNEL);
-	if (!mconfig->m_out_pin)
-		return -ENOMEM;
-
-	skl_fill_module_pin_info(dfw_config->in_pin, mconfig->m_in_pin,
-						dfw_config->is_dynamic_in_pin,
-						mconfig->max_in_queue);
-
-	skl_fill_module_pin_info(dfw_config->out_pin, mconfig->m_out_pin,
-						 dfw_config->is_dynamic_out_pin,
-							mconfig->max_out_queue);
-
-
-	if (mconfig->formats_config.caps_size == 0)
-		goto bind_event;
-
-	mconfig->formats_config.caps = (u32 *)devm_kzalloc(bus->dev,
-			mconfig->formats_config.caps_size, GFP_KERNEL);
-
-	if (mconfig->formats_config.caps == NULL)
-		return -ENOMEM;
-
-	memcpy(mconfig->formats_config.caps, dfw_config->caps.caps,
-						 dfw_config->caps.caps_size);
-	mconfig->formats_config.param_id = dfw_config->caps.param_id;
-	mconfig->formats_config.set_params = dfw_config->caps.set_params;
-
 bind_event:
 	if (tplg_w->event_type == 0) {
 		dev_dbg(bus->dev, "ASoC: No event handler required\n");
@@ -1767,11 +2231,229 @@ static int skl_tplg_control_load(struct snd_soc_component *cmpnt,
 	return 0;
 }
 
+static int skl_tplg_fill_str_mfest_tkn(struct device *dev,
+		struct snd_soc_tplg_vendor_string_elem *str_elem,
+		struct skl_dfw_manifest *minfo)
+{
+	int tkn_count = 0;
+	static int ref_count;
+
+	switch (str_elem->token) {
+	case SKL_TKN_STR_LIB_NAME:
+		if (ref_count > minfo->lib_count - 1) {
+			ref_count = 0;
+			return -EINVAL;
+		}
+
+		strncpy(minfo->lib[ref_count].name, str_elem->string,
+				ARRAY_SIZE(minfo->lib[ref_count].name));
+		ref_count++;
+		tkn_count++;
+		break;
+
+	default:
+		dev_err(dev, "Not a string token %d\n", str_elem->token);
+		break;
+	}
+
+	return tkn_count;
+}
+
+static int skl_tplg_get_str_tkn(struct device *dev,
+		struct snd_soc_tplg_vendor_array *array,
+		struct skl_dfw_manifest *minfo)
+{
+	int tkn_count = 0, ret;
+	struct snd_soc_tplg_vendor_string_elem *str_elem;
+
+	str_elem = (struct snd_soc_tplg_vendor_string_elem *)array->value;
+	while (tkn_count < array->num_elems) {
+		ret = skl_tplg_fill_str_mfest_tkn(dev, str_elem, minfo);
+		str_elem++;
+
+		if (ret < 0)
+			return ret;
+
+		tkn_count = tkn_count + ret;
+	}
+
+	return tkn_count;
+}
+
+static int skl_tplg_get_int_tkn(struct device *dev,
+		struct snd_soc_tplg_vendor_value_elem *tkn_elem,
+		struct skl_dfw_manifest *minfo)
+{
+	int tkn_count = 0;
+
+	switch (tkn_elem->token) {
+	case SKL_TKN_U32_LIB_COUNT:
+		minfo->lib_count = tkn_elem->value;
+		tkn_count++;
+		break;
+
+	default:
+		dev_err(dev, "Not a manifest token %d\n", tkn_elem->token);
+		return -EINVAL;
+	}
+
+	return tkn_count;
+}
+
+/*
+ * Fill the manifest structure by parsing the tokens based on the
+ * type.
+ */
+static int skl_tplg_get_manifest_tkn(struct device *dev,
+		char *pvt_data, struct skl_dfw_manifest *minfo,
+		int block_size)
+{
+	int tkn_count = 0, ret;
+	int off = 0, tuple_size = 0;
+	struct snd_soc_tplg_vendor_array *array;
+	struct snd_soc_tplg_vendor_value_elem *tkn_elem;
+
+	if (block_size <= 0)
+		return -EINVAL;
+
+	while (tuple_size < block_size) {
+		array = (struct snd_soc_tplg_vendor_array *)(pvt_data + off);
+		off += array->size;
+		switch (array->type) {
+		case SND_SOC_TPLG_TUPLE_TYPE_STRING:
+			ret = skl_tplg_get_str_tkn(dev, array, minfo);
+
+			if (ret < 0)
+				return ret;
+			tkn_count += ret;
+
+			tuple_size += tkn_count *
+				sizeof(struct snd_soc_tplg_vendor_string_elem);
+			continue;
+
+		case SND_SOC_TPLG_TUPLE_TYPE_UUID:
+			dev_warn(dev, "no uuid tokens for skl tplf manifest\n");
+			continue;
+
+		default:
+			tkn_elem = array->value;
+			tkn_count = 0;
+			break;
+		}
+
+		while (tkn_count <= array->num_elems - 1) {
+			ret = skl_tplg_get_int_tkn(dev,
+					tkn_elem, minfo);
+			if (ret < 0)
+				return ret;
+
+			tkn_count = tkn_count + ret;
+			tkn_elem++;
+			tuple_size += tkn_count *
+				sizeof(struct snd_soc_tplg_vendor_value_elem);
+			break;
+		}
+		tkn_count = 0;
+	}
+
+	return 0;
+}
+
+/*
+ * Parse manifest private data for tokens. The private data block is
+ * preceded by descriptors for type and size of data block.
+ */
+static int skl_tplg_get_manifest_data(struct snd_soc_tplg_manifest *manifest,
+			struct device *dev, struct skl_dfw_manifest *minfo)
+{
+	struct snd_soc_tplg_vendor_array *array;
+	int num_blocks, block_size = 0, block_type, off = 0;
+	char *data;
+	int ret;
+
+	/* Read the NUM_DATA_BLOCKS descriptor */
+	array = (struct snd_soc_tplg_vendor_array *)manifest->priv.data;
+	ret = skl_tplg_get_desc_blocks(dev, array);
+	if (ret < 0)
+		return ret;
+	num_blocks = ret;
+
+	off += array->size;
+	array = (struct snd_soc_tplg_vendor_array *)
+			(manifest->priv.data + off);
+
+	/* Read the BLOCK_TYPE and BLOCK_SIZE descriptor */
+	while (num_blocks > 0) {
+		ret = skl_tplg_get_desc_blocks(dev, array);
+
+		if (ret < 0)
+			return ret;
+		block_type = ret;
+		off += array->size;
+
+		array = (struct snd_soc_tplg_vendor_array *)
+			(manifest->priv.data + off);
+
+		ret = skl_tplg_get_desc_blocks(dev, array);
+
+		if (ret < 0)
+			return ret;
+		block_size = ret;
+		off += array->size;
+
+		array = (struct snd_soc_tplg_vendor_array *)
+			(manifest->priv.data + off);
+
+		data = (manifest->priv.data + off);
+
+		if (block_type == SKL_TYPE_TUPLE) {
+			ret = skl_tplg_get_manifest_tkn(dev, data, minfo,
+					block_size);
+
+			if (ret < 0)
+				return ret;
+
+			--num_blocks;
+		} else {
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int skl_manifest_load(struct snd_soc_component *cmpnt,
+				struct snd_soc_tplg_manifest *manifest)
+{
+	struct skl_dfw_manifest *minfo;
+	struct hdac_ext_bus *ebus = snd_soc_component_get_drvdata(cmpnt);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct skl *skl = ebus_to_skl(ebus);
+	int ret = 0;
+
+	/* proceed only if we have private data defined */
+	if (manifest->priv.size == 0)
+		return 0;
+
+	minfo = &skl->skl_sst->manifest;
+
+	skl_tplg_get_manifest_data(manifest, bus->dev, minfo);
+
+	if (minfo->lib_count > HDA_MAX_LIB) {
+		dev_err(bus->dev, "Exceeding max Library count. Got:%d\n",
+					minfo->lib_count);
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static struct snd_soc_tplg_ops skl_tplg_ops  = {
 	.widget_load = skl_tplg_widget_load,
 	.control_load = skl_tplg_control_load,
 	.bytes_ext_ops = skl_tlv_ops,
 	.bytes_ext_ops_count = ARRAY_SIZE(skl_tlv_ops),
+	.manifest = skl_manifest_load,
 };
 
 /*

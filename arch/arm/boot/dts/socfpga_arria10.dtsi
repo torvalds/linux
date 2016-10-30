@@ -639,6 +639,22 @@
 				interrupts = <5 IRQ_TYPE_LEVEL_HIGH>,
 					     <37 IRQ_TYPE_LEVEL_HIGH>;
 			};
+
+			dma-ecc@ff8c8000 {
+				compatible = "altr,socfpga-dma-ecc";
+				reg = <0xff8c8000 0x400>;
+				altr,ecc-parent = <&pdma>;
+				interrupts = <10 IRQ_TYPE_LEVEL_HIGH>,
+					     <42 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			usb0-ecc@ff8c8800 {
+				compatible = "altr,socfpga-usb-ecc";
+				reg = <0xff8c8800 0x400>;
+				altr,ecc-parent = <&usb0>;
+				interrupts = <2 IRQ_TYPE_LEVEL_HIGH>,
+					     <34 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 
 		rst: rstmgr@ffd05000 {

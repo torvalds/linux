@@ -88,13 +88,13 @@
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_RAW(0xff) |
-			      IRQ_TYPE_EDGE_RISING)>,
+			      IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 14 (GIC_CPU_MASK_RAW(0xff) |
-			      IRQ_TYPE_EDGE_RISING)>,
+			      IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 11 (GIC_CPU_MASK_RAW(0xff) |
-			      IRQ_TYPE_EDGE_RISING)>,
+			      IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_RAW(0xff) |
-			      IRQ_TYPE_EDGE_RISING)>;
+			      IRQ_TYPE_LEVEL_LOW)>;
 	};
 
 	pmu {
@@ -297,6 +297,14 @@
 					     <GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 349 IRQ_TYPE_LEVEL_HIGH>;
 			};
+		};
+
+		pwm: pwm@66010000 {
+			compatible = "brcm,iproc-pwm";
+			reg = <0x66010000 0x28>;
+			clocks = <&osc>;
+			#pwm-cells = <3>;
+			status = "disabled";
 		};
 
 		mdio_mux_iproc: mdio-mux@6602023c {

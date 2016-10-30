@@ -298,7 +298,7 @@ void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev)
 	if (IS_ERR(mdev->ptp_clock)) {
 		mdev->ptp_clock = NULL;
 		mlx4_err(mdev, "ptp_clock_register failed\n");
-	} else {
+	} else if (mdev->ptp_clock) {
 		mlx4_info(mdev, "registered PHC clock\n");
 	}
 

@@ -99,10 +99,16 @@ EXPORT_SYMBOL_GPL(rcar_fcp_put);
  */
 int rcar_fcp_enable(struct rcar_fcp_device *fcp)
 {
+	int ret;
+
 	if (!fcp)
 		return 0;
 
-	return pm_runtime_get_sync(fcp->dev);
+	ret = pm_runtime_get_sync(fcp->dev);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(rcar_fcp_enable);
 
@@ -159,6 +165,7 @@ static int rcar_fcp_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id rcar_fcp_of_match[] = {
+	{ .compatible = "renesas,fcpf" },
 	{ .compatible = "renesas,fcpv" },
 	{ },
 };

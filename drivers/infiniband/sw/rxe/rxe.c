@@ -358,18 +358,15 @@ static int __init rxe_module_init(void)
 	/* initialize slab caches for managed objects */
 	err = rxe_cache_init();
 	if (err) {
-		pr_err("rxe: unable to init object pools\n");
+		pr_err("unable to init object pools\n");
 		return err;
 	}
 
 	err = rxe_net_init();
-	if (err) {
-		pr_err("rxe: unable to init\n");
-		rxe_cache_exit();
+	if (err)
 		return err;
-	}
-	pr_info("rxe: loaded\n");
 
+	pr_info("loaded\n");
 	return 0;
 }
 
@@ -379,8 +376,8 @@ static void __exit rxe_module_exit(void)
 	rxe_net_exit();
 	rxe_cache_exit();
 
-	pr_info("rxe: unloaded\n");
+	pr_info("unloaded\n");
 }
 
-module_init(rxe_module_init);
+late_initcall(rxe_module_init);
 module_exit(rxe_module_exit);

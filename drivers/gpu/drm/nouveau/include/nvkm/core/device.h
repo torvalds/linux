@@ -175,6 +175,7 @@ struct nvkm_device_func {
 	void (*fini)(struct nvkm_device *, bool suspend);
 	resource_size_t (*resource_addr)(struct nvkm_device *, unsigned bar);
 	resource_size_t (*resource_size)(struct nvkm_device *, unsigned bar);
+	bool cpu_coherent;
 };
 
 struct nvkm_device_quirk {

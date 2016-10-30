@@ -26,8 +26,6 @@
 
 #ifndef __OCTEON_NETWORK_H__
 #define __OCTEON_NETWORK_H__
-#include <linux/version.h>
-#include <linux/dma-mapping.h>
 #include <linux/ptp_clock_kernel.h>
 
 #define LIO_MAX_MTU_SIZE (OCTNET_MAX_FRM_SIZE - OCTNET_FRM_HEADER_SIZE)
@@ -124,10 +122,20 @@ struct lio {
 
 	/* work queue for  txq status */
 	struct cavium_wq	txq_status_wq;
+
+	/* work queue for  link status */
+	struct cavium_wq	link_status_wq;
+
 };
 
 #define LIO_SIZE         (sizeof(struct lio))
 #define GET_LIO(netdev)  ((struct lio *)netdev_priv(netdev))
+
+#define CIU3_WDOG(c)                 (0x1010000020000ULL + (c << 3))
+#define CIU3_WDOG_MASK               12ULL
+#define LIO_MONITOR_WDOG_EXPIRE      1
+#define LIO_MONITOR_CORE_STUCK_MSGD  2
+#define LIO_MAX_CORES                12
 
 /**
  * \brief Enable or disable feature

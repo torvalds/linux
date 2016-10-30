@@ -212,16 +212,6 @@ static int dasd_state_known_to_new(struct dasd_device *device)
 {
 	/* Disable extended error reporting for this device. */
 	dasd_eer_disable(device);
-	/* Forget the discipline information. */
-	if (device->discipline) {
-		if (device->discipline->uncheck_device)
-			device->discipline->uncheck_device(device);
-		module_put(device->discipline->owner);
-	}
-	device->discipline = NULL;
-	if (device->base_discipline)
-		module_put(device->base_discipline->owner);
-	device->base_discipline = NULL;
 	device->state = DASD_STATE_NEW;
 
 	if (device->block)
@@ -336,6 +326,7 @@ static int dasd_state_basic_to_ready(struct dasd_device *device)
 {
 	int rc;
 	struct dasd_block *block;
+	struct gendisk *disk;
 
 	rc = 0;
 	block = device->block;
@@ -346,6 +337,9 @@ static int dasd_state_basic_to_ready(struct dasd_device *device)
 		if (rc) {
 			if (rc != -EAGAIN) {
 				device->state = DASD_STATE_UNFMT;
+				disk = device->block->gdp;
+				kobject_uevent(&disk_to_dev(disk)->kobj,
+					       KOBJ_CHANGE);
 				goto out;
 			}
 			return rc;
@@ -2274,6 +2268,15 @@ static int _dasd_sleep_on(struct dasd_ccw_req *maincqr, int interruptible)
 			continue;
 		}
 		/*
+		 * Don't try to start requests if device is in
+		 * offline processing, it might wait forever
+		 */
+		if (test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+			cqr->status = DASD_CQR_FAILED;
+			cqr->intrc = -ENODEV;
+			continue;
+		}
+		/*
 		 * Don't try to start requests if device is stopped
 		 * except path verification requests
 		 */
@@ -3363,6 +3366,22 @@ int dasd_generic_probe(struct ccw_device *cdev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dasd_generic_probe);
+
+void dasd_generic_free_discipline(struct dasd_device *device)
+{
+	/* Forget the discipline information. */
+	if (device->discipline) {
+		if (device->discipline->uncheck_device)
+			device->discipline->uncheck_device(device);
+		module_put(device->discipline->owner);
+		device->discipline = NULL;
+	}
+	if (device->base_discipline) {
+		module_put(device->base_discipline->owner);
+		device->base_discipline = NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(dasd_generic_free_discipline);
 
 /*
  * This will one day be called from a global not_oper handler.

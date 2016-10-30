@@ -15,40 +15,23 @@ DMX_GET_PES_PIDS
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = DMX_GET_PES_PIDS, __u16[5])
-
+.. c:function:: int ioctl(fd, DMX_GET_PES_PIDS, __u16 pids[5])
+    :name: DMX_GET_PES_PIDS
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+``fd``
+    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
 
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals DMX_GET_PES_PIDS for this command.
-
-    -  .. row 3
-
-       -  __u16[5]
-
-       -  Undocumented.
+``pids``
+    Undocumented.
 
 
 Description
 -----------
 
-This ioctl is undocumented. Documentation is welcome.
+.. note:: This ioctl is undocumented. Documentation is welcome.
 
 
 Return Value

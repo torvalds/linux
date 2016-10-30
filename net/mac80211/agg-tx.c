@@ -584,6 +584,9 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	    ieee80211_hw_check(&local->hw, TX_AMPDU_SETUP_IN_HW))
 		return -EINVAL;
 
+	if (WARN_ON(tid >= IEEE80211_FIRST_TSPEC_TSID))
+		return -EINVAL;
+
 	ht_dbg(sdata, "Open BA session requested for %pM tid %u\n",
 	       pubsta->addr, tid);
 

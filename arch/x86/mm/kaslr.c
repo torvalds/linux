@@ -40,17 +40,26 @@
  * You need to add an if/def entry if you introduce a new memory region
  * compatible with KASLR. Your entry must be in logical order with memory
  * layout. For example, ESPFIX is before EFI because its virtual address is
- * before. You also need to add a BUILD_BUG_ON in kernel_randomize_memory to
+ * before. You also need to add a BUILD_BUG_ON() in kernel_randomize_memory() to
  * ensure that this order is correct and won't be changed.
  */
 static const unsigned long vaddr_start = __PAGE_OFFSET_BASE;
-static const unsigned long vaddr_end = VMEMMAP_START;
+
+#if defined(CONFIG_X86_ESPFIX64)
+static const unsigned long vaddr_end = ESPFIX_BASE_ADDR;
+#elif defined(CONFIG_EFI)
+static const unsigned long vaddr_end = EFI_VA_START;
+#else
+static const unsigned long vaddr_end = __START_KERNEL_map;
+#endif
 
 /* Default values */
 unsigned long page_offset_base = __PAGE_OFFSET_BASE;
 EXPORT_SYMBOL(page_offset_base);
 unsigned long vmalloc_base = __VMALLOC_BASE;
 EXPORT_SYMBOL(vmalloc_base);
+unsigned long vmemmap_base = __VMEMMAP_BASE;
+EXPORT_SYMBOL(vmemmap_base);
 
 /*
  * Memory regions randomized by KASLR (except modules that use a separate logic
@@ -63,6 +72,7 @@ static __initdata struct kaslr_memory_region {
 } kaslr_regions[] = {
 	{ &page_offset_base, 64/* Maximum */ },
 	{ &vmalloc_base, VMALLOC_SIZE_TB },
+	{ &vmemmap_base, 1 },
 };
 
 /* Get size in bytes used by the memory region */
@@ -88,6 +98,18 @@ void __init kernel_randomize_memory(void)
 	unsigned long rand, memory_tb;
 	struct rnd_state rand_state;
 	unsigned long remain_entropy;
+
+	/*
+	 * All these BUILD_BUG_ON checks ensures the memory layout is
+	 * consistent with the vaddr_start/vaddr_end variables.
+	 */
+	BUILD_BUG_ON(vaddr_start >= vaddr_end);
+	BUILD_BUG_ON(config_enabled(CONFIG_X86_ESPFIX64) &&
+		     vaddr_end >= EFI_VA_START);
+	BUILD_BUG_ON((config_enabled(CONFIG_X86_ESPFIX64) ||
+		      config_enabled(CONFIG_EFI)) &&
+		     vaddr_end >= __START_KERNEL_map);
+	BUILD_BUG_ON(vaddr_end > __START_KERNEL_map);
 
 	if (!kaslr_memory_enabled())
 		return;

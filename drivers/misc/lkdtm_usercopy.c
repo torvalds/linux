@@ -9,7 +9,15 @@
 #include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 
-static size_t cache_size = 1024;
+/*
+ * Many of the tests here end up using const sizes, but those would
+ * normally be ignored by hardened usercopy, so force the compiler
+ * into choosing the non-const path to make sure we trigger the
+ * hardened usercopy checks by added "unconst" to all the const copies,
+ * and making sure "cache_size" isn't optimized into a const.
+ */
+static volatile size_t unconst = 0;
+static volatile size_t cache_size = 1024;
 static struct kmem_cache *bad_cache;
 
 static const unsigned char test_text[] = "This is a test.\n";
@@ -67,14 +75,14 @@ static noinline void do_usercopy_stack(bool to_user, bool bad_frame)
 	if (to_user) {
 		pr_info("attempting good copy_to_user of local stack\n");
 		if (copy_to_user((void __user *)user_addr, good_stack,
-				 sizeof(good_stack))) {
+				 unconst + sizeof(good_stack))) {
 			pr_warn("copy_to_user failed unexpectedly?!\n");
 			goto free_user;
 		}
 
 		pr_info("attempting bad copy_to_user of distant stack\n");
 		if (copy_to_user((void __user *)user_addr, bad_stack,
-				 sizeof(good_stack))) {
+				 unconst + sizeof(good_stack))) {
 			pr_warn("copy_to_user failed, but lacked Oops\n");
 			goto free_user;
 		}
@@ -88,14 +96,14 @@ static noinline void do_usercopy_stack(bool to_user, bool bad_frame)
 
 		pr_info("attempting good copy_from_user of local stack\n");
 		if (copy_from_user(good_stack, (void __user *)user_addr,
-				   sizeof(good_stack))) {
+				   unconst + sizeof(good_stack))) {
 			pr_warn("copy_from_user failed unexpectedly?!\n");
 			goto free_user;
 		}
 
 		pr_info("attempting bad copy_from_user of distant stack\n");
 		if (copy_from_user(bad_stack, (void __user *)user_addr,
-				   sizeof(good_stack))) {
+				   unconst + sizeof(good_stack))) {
 			pr_warn("copy_from_user failed, but lacked Oops\n");
 			goto free_user;
 		}
@@ -109,7 +117,7 @@ static void do_usercopy_heap_size(bool to_user)
 {
 	unsigned long user_addr;
 	unsigned char *one, *two;
-	const size_t size = 1024;
+	size_t size = unconst + 1024;
 
 	one = kmalloc(size, GFP_KERNEL);
 	two = kmalloc(size, GFP_KERNEL);
@@ -285,13 +293,14 @@ void lkdtm_USERCOPY_KERNEL(void)
 
 	pr_info("attempting good copy_to_user from kernel rodata\n");
 	if (copy_to_user((void __user *)user_addr, test_text,
-			 sizeof(test_text))) {
+			 unconst + sizeof(test_text))) {
 		pr_warn("copy_to_user failed unexpectedly?!\n");
 		goto free_user;
 	}
 
 	pr_info("attempting bad copy_to_user from kernel text\n");
-	if (copy_to_user((void __user *)user_addr, vm_mmap, PAGE_SIZE)) {
+	if (copy_to_user((void __user *)user_addr, vm_mmap,
+			 unconst + PAGE_SIZE)) {
 		pr_warn("copy_to_user failed, but lacked Oops\n");
 		goto free_user;
 	}

@@ -31,6 +31,7 @@
 #include "sdhci-pltfm.h"
 #include "sdhci-esdhc.h"
 
+#define ESDHC_SYS_CTRL_DTOCV_MASK	0x0f
 #define	ESDHC_CTRL_D3CD			0x08
 #define ESDHC_BURST_LEN_EN_INCR		(1 << 27)
 /* VENDOR SPEC register */
@@ -928,7 +929,8 @@ static unsigned int esdhc_get_max_timeout_count(struct sdhci_host *host)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct pltfm_imx_data *imx_data = sdhci_pltfm_priv(pltfm_host);
 
-	return esdhc_is_usdhc(imx_data) ? 1 << 28 : 1 << 27;
+	/* Doc Errata: the uSDHC actual maximum timeout count is 1 << 29 */
+	return esdhc_is_usdhc(imx_data) ? 1 << 29 : 1 << 27;
 }
 
 static void esdhc_set_timeout(struct sdhci_host *host, struct mmc_command *cmd)
@@ -937,7 +939,8 @@ static void esdhc_set_timeout(struct sdhci_host *host, struct mmc_command *cmd)
 	struct pltfm_imx_data *imx_data = sdhci_pltfm_priv(pltfm_host);
 
 	/* use maximum timeout counter */
-	sdhci_writeb(host, esdhc_is_usdhc(imx_data) ? 0xF : 0xE,
+	esdhc_clrset_le(host, ESDHC_SYS_CTRL_DTOCV_MASK,
+			esdhc_is_usdhc(imx_data) ? 0xF : 0xE,
 			SDHCI_TIMEOUT_CONTROL);
 }
 

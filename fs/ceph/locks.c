@@ -210,8 +210,8 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 	if (!(fl->fl_flags & FL_FLOCK))
 		return -ENOLCK;
 	/* No mandatory locks */
-	if (__mandatory_lock(file->f_mapping->host) && fl->fl_type != F_UNLCK)
-		return -ENOLCK;
+	if (fl->fl_type & LOCK_MAND)
+		return -EOPNOTSUPP;
 
 	dout("ceph_flock, fl_file: %p", fl->fl_file);
 

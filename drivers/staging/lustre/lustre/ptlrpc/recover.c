@@ -201,7 +201,6 @@ int ptlrpc_resend(struct obd_import *imp)
 
 	return 0;
 }
-EXPORT_SYMBOL(ptlrpc_resend);
 
 /**
  * Go through all requests in delayed list and wake their threads
@@ -221,7 +220,6 @@ void ptlrpc_wake_delayed(struct obd_import *imp)
 	}
 	spin_unlock(&imp->imp_lock);
 }
-EXPORT_SYMBOL(ptlrpc_wake_delayed);
 
 void ptlrpc_request_handle_notconn(struct ptlrpc_request *failed_req)
 {

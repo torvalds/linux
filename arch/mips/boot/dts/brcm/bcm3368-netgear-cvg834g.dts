@@ -1,0 +1,22 @@
+/dts-v1/;
+
+/include/ "bcm3368.dtsi"
+
+/ {
+	compatible = "netgear,cvg834g", "brcm,bcm3368";
+	model = "NETGEAR CVG834G";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x02000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+		stdout-path = &uart0;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};

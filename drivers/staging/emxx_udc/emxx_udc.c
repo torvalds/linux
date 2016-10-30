@@ -131,7 +131,6 @@ static void _nbu2ss_dump_register(struct nbu2ss_udc *udc)
 		reg_data =  _nbu2ss_readl(
 			(u32 *)IO_ADDRESS(USB_BASE_ADDRESS + i + 12));
 		dev_dbg(&udc->dev, " %08x\n", (int)reg_data);
-
 	}
 
 	spin_lock(&udc->lock);
@@ -478,9 +477,9 @@ static void _nbu2ss_dma_map_single(
 )
 {
 	if (req->req.dma == DMA_ADDR_INVALID) {
-		if (req->unaligned)
+		if (req->unaligned) {
 			req->req.dma = ep->phys_buf;
-		else {
+		} else {
 			req->req.dma = dma_map_single(
 				udc->gadget.dev.parent,
 				req->req.buf,
@@ -1236,9 +1235,9 @@ static int _nbu2ss_start_transfer(
 	req->dma_flag = FALSE;
 	req->div_len = 0;
 
-	if (req->req.length == 0)
+	if (req->req.length == 0) {
 		req->zero = false;
-	else {
+	} else {
 		if ((req->req.length % ep->ep.maxpacket) == 0)
 			req->zero = req->req.zero;
 		else
@@ -1941,9 +1940,9 @@ static void _nbu2ss_ep_done(
 	if (likely(req->req.status == -EINPROGRESS))
 		req->req.status = status;
 
-	if (ep->stalled)
+	if (ep->stalled) {
 		_nbu2ss_epn_set_stall(udc, ep);
-	else {
+	} else {
 		if (!list_empty(&ep->queue))
 			_nbu2ss_restert_transfer(ep);
 	}
@@ -2264,9 +2263,7 @@ static int _nbu2ss_enable_controller(struct nbu2ss_udc *udc)
 	if (udc->udc_enabled)
 		return 0;
 
-	/*
-		Reset
-	*/
+	/* Reset */
 	_nbu2ss_bitset(&udc->p_regs->EPCTR, (DIRPD | EPC_RST));
 	udelay(EPC_RST_DISABLE_TIME);	/* 1us wait */
 
@@ -2476,8 +2473,9 @@ static irqreturn_t _nbu2ss_udc_irq(int irq, void *_udc)
 			_nbu2ss_writel(&preg->USB_INT_STA, ~USB_INT_STA_RW);
 			_nbu2ss_writel(&preg->USB_INT_ENA, 0);
 			status = 0;
-		} else
+		} else {
 			status = _nbu2ss_readl(&preg->USB_INT_STA);
+		}
 
 		if (status == 0)
 			break;

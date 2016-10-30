@@ -1057,12 +1057,14 @@ static const struct snd_soc_codec_driver sta350_codec = {
 	.remove =		sta350_remove,
 	.set_bias_level =	sta350_set_bias_level,
 	.suspend_bias_off =	true,
-	.controls =		sta350_snd_controls,
-	.num_controls =		ARRAY_SIZE(sta350_snd_controls),
-	.dapm_widgets =		sta350_dapm_widgets,
-	.num_dapm_widgets =	ARRAY_SIZE(sta350_dapm_widgets),
-	.dapm_routes =		sta350_dapm_routes,
-	.num_dapm_routes =	ARRAY_SIZE(sta350_dapm_routes),
+	.component_driver = {
+		.controls =		sta350_snd_controls,
+		.num_controls =		ARRAY_SIZE(sta350_snd_controls),
+		.dapm_widgets =		sta350_dapm_widgets,
+		.num_dapm_widgets =	ARRAY_SIZE(sta350_dapm_widgets),
+		.dapm_routes =		sta350_dapm_routes,
+		.num_dapm_routes =	ARRAY_SIZE(sta350_dapm_routes),
+	},
 };
 
 static const struct regmap_config sta350_regmap = {

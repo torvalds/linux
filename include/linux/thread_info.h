@@ -13,6 +13,21 @@
 struct timespec;
 struct compat_timespec;
 
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+struct thread_info {
+	unsigned long		flags;		/* low level flags */
+};
+
+#define INIT_THREAD_INFO(tsk)			\
+{						\
+	.flags		= 0,			\
+}
+#endif
+
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+#define current_thread_info() ((struct thread_info *)current)
+#endif
+
 /*
  * System call restart block.
  */
@@ -118,10 +133,11 @@ static inline int arch_within_stack_frames(const void * const stack,
 extern void __check_object_size(const void *ptr, unsigned long n,
 					bool to_user);
 
-static inline void check_object_size(const void *ptr, unsigned long n,
-				     bool to_user)
+static __always_inline void check_object_size(const void *ptr, unsigned long n,
+					      bool to_user)
 {
-	__check_object_size(ptr, n, to_user);
+	if (!__builtin_constant_p(n))
+		__check_object_size(ptr, n, to_user);
 }
 #else
 static inline void check_object_size(const void *ptr, unsigned long n,

@@ -61,13 +61,13 @@ config DWMAC_LPC18XX
 config DWMAC_MESON
 	tristate "Amlogic Meson dwmac support"
 	default ARCH_MESON
-	depends on OF && (ARCH_MESON || COMPILE_TEST)
+	depends on OF && COMMON_CLK && (ARCH_MESON || COMPILE_TEST)
 	help
 	  Support for Ethernet controller on Amlogic Meson SoCs.
 
 	  This selects the Amlogic Meson SoC glue layer support for
-	  the stmmac device driver. This driver is used for Meson6 and
-	  Meson8 SoCs.
+	  the stmmac device driver. This driver is used for Meson6,
+	  Meson8, Meson8b and GXBB SoCs.
 
 config DWMAC_ROCKCHIP
 	tristate "Rockchip dwmac support"
@@ -102,6 +102,18 @@ config DWMAC_STI
 
 	  This selects STi SoC glue layer support for the stmmac
 	  device driver. This driver is used on for the STi series
+	  SOCs GMAC ethernet controller.
+
+config DWMAC_STM32
+	tristate "STM32 DWMAC support"
+	default ARCH_STM32
+	depends on OF && HAS_IOMEM
+	select MFD_SYSCON
+	---help---
+	  Support for ethernet controller on STM32 SOCs.
+
+	  This selects STM32 SoC glue layer support for the stmmac
+	  device driver. This driver is used on for the STM32 series
 	  SOCs GMAC ethernet controller.
 
 config DWMAC_SUNXI

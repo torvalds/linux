@@ -319,7 +319,7 @@ void __init uic_init_tree(void)
 	}
 }
 
-/* Return an interrupt vector or NO_IRQ if no interrupt is pending. */
+/* Return an interrupt vector or 0 if no interrupt is pending. */
 unsigned int uic_get_irq(void)
 {
 	u32 msr;

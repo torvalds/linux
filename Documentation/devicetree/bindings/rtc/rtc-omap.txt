@@ -18,6 +18,18 @@ Optional properties:
   through pmic_power_en
 - clocks: Any internal or external clocks feeding in to rtc
 - clock-names: Corresponding names of the clocks
+- pinctrl-0: a phandle pointing to the pin settings for the device
+- pinctrl-names: should be "default"
+
+Optional subnodes:
+- generic pinctrl node
+
+Required pinctrl subnodes properties:
+- pins - Names of ext_wakeup pins to configure
+
+Optional pinctrl subnodes properties:
+- input-enable - Enables ext_wakeup
+- ti,active-high - Set input active high (by default active low)
 
 Example:
 
@@ -30,4 +42,13 @@ rtc@1c23000 {
 	system-power-controller;
 	clocks = <&clk_32k_rtc>, <&clk_32768_ck>;
 	clock-names = "ext-clk", "int-clk";
+
+	pinctrl-0 = <&ext_wakeup>;
+	pinctrl-names = "default";
+
+	ext_wakeup: ext-wakeup {
+		pins = "ext_wakeup0";
+		input-enable;
+		ti,active-high;
+	};
 };

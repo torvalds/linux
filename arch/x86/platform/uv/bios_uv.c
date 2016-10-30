@@ -149,11 +149,8 @@ EXPORT_SYMBOL_GPL(uv_bios_change_memprotect);
 s64
 uv_bios_reserved_page_pa(u64 buf, u64 *cookie, u64 *addr, u64 *len)
 {
-	s64 ret;
-
-	ret = uv_bios_call_irqsave(UV_BIOS_GET_PARTITION_ADDR, (u64)cookie,
-					(u64)addr, buf, (u64)len, 0);
-	return ret;
+	return uv_bios_call_irqsave(UV_BIOS_GET_PARTITION_ADDR, (u64)cookie,
+				    (u64)addr, buf, (u64)len, 0);
 }
 EXPORT_SYMBOL_GPL(uv_bios_reserved_page_pa);
 

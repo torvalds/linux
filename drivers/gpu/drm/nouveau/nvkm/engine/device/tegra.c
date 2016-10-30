@@ -245,6 +245,7 @@ nvkm_device_tegra_func = {
 	.fini = nvkm_device_tegra_fini,
 	.resource_addr = nvkm_device_tegra_resource_addr,
 	.resource_size = nvkm_device_tegra_resource_size,
+	.cpu_coherent = false,
 };
 
 int

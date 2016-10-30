@@ -91,7 +91,7 @@ ebt_log_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
 	if (loginfo->type == NF_LOG_TYPE_LOG)
 		bitmask = loginfo->u.log.logflags;
 	else
-		bitmask = NF_LOG_MASK;
+		bitmask = NF_LOG_DEFAULT_MASK;
 
 	if ((bitmask & EBT_LOG_IP) && eth_hdr(skb)->h_proto ==
 	   htons(ETH_P_IP)) {

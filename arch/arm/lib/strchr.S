@@ -11,6 +11,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/export.h>
 
 		.text
 		.align	5
@@ -25,3 +26,4 @@ ENTRY(strchr)
 		subeq	r0, r0, #1
 		ret	lr
 ENDPROC(strchr)
+EXPORT_SYMBOL(strchr)

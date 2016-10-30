@@ -39,7 +39,7 @@
  */
 static u8 rxe_get_key(void)
 {
-	static unsigned key = 1;
+	static u32 key = 1;
 
 	key = key << 1;
 

@@ -390,8 +390,6 @@ void ath10k_htt_tx_free(struct ath10k_htt *htt)
 {
 	int size;
 
-	tasklet_kill(&htt->txrx_compl_task);
-
 	idr_for_each(&htt->pending_tx, ath10k_htt_tx_clean_up_pending, htt->ar);
 	idr_destroy(&htt->pending_tx);
 

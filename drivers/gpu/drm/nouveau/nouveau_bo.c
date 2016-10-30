@@ -209,7 +209,8 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	nvbo->tile_flags = tile_flags;
 	nvbo->bo.bdev = &drm->ttm.bdev;
 
-	nvbo->force_coherent = flags & TTM_PL_FLAG_UNCACHED;
+	if (!nvxx_device(&drm->device)->func->cpu_coherent)
+		nvbo->force_coherent = flags & TTM_PL_FLAG_UNCACHED;
 
 	nvbo->page_shift = 12;
 	if (drm->client.vm) {
@@ -1151,7 +1152,7 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		goto out;
 
-	ret = ttm_bo_move_ttm(bo, true, intr, no_wait_gpu, new_mem);
+	ret = ttm_bo_move_ttm(bo, intr, no_wait_gpu, new_mem);
 out:
 	ttm_bo_mem_put(bo, &tmp_mem);
 	return ret;
@@ -1179,7 +1180,7 @@ nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		return ret;
 
-	ret = ttm_bo_move_ttm(bo, true, intr, no_wait_gpu, &tmp_mem);
+	ret = ttm_bo_move_ttm(bo, intr, no_wait_gpu, &tmp_mem);
 	if (ret)
 		goto out;
 
@@ -1297,7 +1298,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	/* Fallback to software copy. */
 	ret = ttm_bo_wait(bo, intr, no_wait_gpu);
 	if (ret == 0)
-		ret = ttm_bo_move_memcpy(bo, evict, intr, no_wait_gpu, new_mem);
+		ret = ttm_bo_move_memcpy(bo, intr, no_wait_gpu, new_mem);
 
 out:
 	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
@@ -1315,7 +1316,8 @@ nouveau_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 
-	return drm_vma_node_verify_access(&nvbo->gem.vma_node, filp);
+	return drm_vma_node_verify_access(&nvbo->gem.vma_node,
+					  filp->private_data);
 }
 
 static int

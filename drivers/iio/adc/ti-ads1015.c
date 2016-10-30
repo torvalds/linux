@@ -522,6 +522,7 @@ static int ads1015_get_channels_config_of(struct i2c_client *client)
 			if (pga > 6) {
 				dev_err(&client->dev, "invalid gain on %s\n",
 					node->full_name);
+				of_node_put(node);
 				return -EINVAL;
 			}
 		}
@@ -532,6 +533,7 @@ static int ads1015_get_channels_config_of(struct i2c_client *client)
 				dev_err(&client->dev,
 					"invalid data_rate on %s\n",
 					node->full_name);
+				of_node_put(node);
 				return -EINVAL;
 			}
 		}

@@ -34,7 +34,7 @@ static ssize_t speakup_file_write(struct file *fp, const char __user *buffer,
 		synth_write(buf, bytes);
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	}
-	return (ssize_t) nbytes;
+	return (ssize_t)nbytes;
 }
 
 static ssize_t speakup_file_read(struct file *fp, char __user *buf,

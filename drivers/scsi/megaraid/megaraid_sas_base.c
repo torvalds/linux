@@ -189,25 +189,12 @@ u32
 megasas_build_and_issue_cmd(struct megasas_instance *instance,
 			    struct scsi_cmnd *scmd);
 static void megasas_complete_cmd_dpc(unsigned long instance_addr);
-void
-megasas_release_fusion(struct megasas_instance *instance);
-int
-megasas_ioc_init_fusion(struct megasas_instance *instance);
-void
-megasas_free_cmds_fusion(struct megasas_instance *instance);
-u8
-megasas_get_map_info(struct megasas_instance *instance);
-int
-megasas_sync_map_info(struct megasas_instance *instance);
 int
 wait_and_poll(struct megasas_instance *instance, struct megasas_cmd *cmd,
 	int seconds);
-void megasas_reset_reply_desc(struct megasas_instance *instance);
 void megasas_fusion_ocr_wq(struct work_struct *work);
 static int megasas_get_ld_vf_affiliation(struct megasas_instance *instance,
 					 int initial);
-int megasas_check_mpio_paths(struct megasas_instance *instance,
-			     struct scsi_cmnd *scmd);
 
 int
 megasas_issue_dcmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
@@ -5036,7 +5023,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	/* Find first memory bar */
 	bar_list = pci_select_bars(instance->pdev, IORESOURCE_MEM);
-	instance->bar = find_first_bit(&bar_list, sizeof(unsigned long));
+	instance->bar = find_first_bit(&bar_list, BITS_PER_LONG);
 	if (pci_request_selected_regions(instance->pdev, 1<<instance->bar,
 					 "megasas: LSI")) {
 		dev_printk(KERN_DEBUG, &instance->pdev->dev, "IO memory region busy!\n");
@@ -5782,7 +5769,7 @@ static int megasas_probe_one(struct pci_dev *pdev,
 					     &instance->consumer_h);
 
 		if (!instance->producer || !instance->consumer) {
-			dev_printk(KERN_DEBUG, &pdev->dev, "Failed to allocate"
+			dev_printk(KERN_DEBUG, &pdev->dev, "Failed to allocate "
 			       "memory for producer, consumer\n");
 			goto fail_alloc_dma_buf;
 		}
@@ -6711,14 +6698,9 @@ static int megasas_mgmt_ioctl_fw(struct file *file, unsigned long arg)
 	unsigned long flags;
 	u32 wait_time = MEGASAS_RESET_WAIT_TIME;
 
-	ioc = kmalloc(sizeof(*ioc), GFP_KERNEL);
-	if (!ioc)
-		return -ENOMEM;
-
-	if (copy_from_user(ioc, user_ioc, sizeof(*ioc))) {
-		error = -EFAULT;
-		goto out_kfree_ioc;
-	}
+	ioc = memdup_user(user_ioc, sizeof(*ioc));
+	if (IS_ERR(ioc))
+		return PTR_ERR(ioc);
 
 	instance = megasas_lookup_instance(ioc->host_no);
 	if (!instance) {

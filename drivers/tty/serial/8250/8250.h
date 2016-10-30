@@ -31,6 +31,11 @@ struct uart_8250_dma {
 	struct dma_chan		*rxchan;
 	struct dma_chan		*txchan;
 
+	/* Device address base for DMA operations */
+	phys_addr_t		rx_dma_addr;
+	phys_addr_t		tx_dma_addr;
+
+	/* DMA address of the buffer in memory */
 	dma_addr_t		rx_addr;
 	dma_addr_t		tx_addr;
 

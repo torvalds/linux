@@ -37,8 +37,6 @@ struct i2c_demux_pinctrl_priv {
 	struct i2c_demux_pinctrl_chan chan[];
 };
 
-static struct property status_okay = { .name = "status", .length = 3, .value = "ok" };
-
 static int i2c_demux_master_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 {
 	struct i2c_demux_pinctrl_priv *priv = adap->algo_data;
@@ -107,6 +105,7 @@ static int i2c_demux_activate_master(struct i2c_demux_pinctrl_priv *priv, u32 ne
 	of_changeset_revert(&priv->chan[new_chan].chgset);
  err:
 	dev_err(priv->dev, "failed to setup demux-adapter %d (%d)\n", new_chan, ret);
+	priv->cur_chan = -EINVAL;
 	return ret;
 }
 
@@ -192,6 +191,7 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct i2c_demux_pinctrl_priv *priv;
+	struct property *props;
 	int num_chan, i, j, err;
 
 	num_chan = of_count_phandle_with_args(np, "i2c-parent", NULL);
@@ -202,7 +202,10 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv)
 			   + num_chan * sizeof(struct i2c_demux_pinctrl_chan), GFP_KERNEL);
-	if (!priv)
+
+	props = devm_kcalloc(&pdev->dev, num_chan, sizeof(*props), GFP_KERNEL);
+
+	if (!priv || !props)
 		return -ENOMEM;
 
 	err = of_property_read_string(np, "i2c-bus-name", &priv->bus_name);
@@ -220,8 +223,12 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 		}
 		priv->chan[i].parent_np = adap_np;
 
+		props[i].name = devm_kstrdup(&pdev->dev, "status", GFP_KERNEL);
+		props[i].value = devm_kstrdup(&pdev->dev, "ok", GFP_KERNEL);
+		props[i].length = 3;
+
 		of_changeset_init(&priv->chan[i].chgset);
-		of_changeset_update_property(&priv->chan[i].chgset, adap_np, &status_okay);
+		of_changeset_update_property(&priv->chan[i].chgset, adap_np, &props[i]);
 	}
 
 	priv->num_chan = num_chan;

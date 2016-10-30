@@ -1885,9 +1885,9 @@ static int open_tx(struct atm_vcc *vcc)
                 if ((ret = ia_cbr_setup (iadev, vcc)) < 0) {     
                     return ret;
                 }
-       } 
-	else  
-           printk("iadev:  Non UBR, ABR and CBR traffic not supportedn"); 
+	} else {
+		printk("iadev:  Non UBR, ABR and CBR traffic not supported\n");
+	}
         
         iadev->testTable[vcc->vci]->vc_status |= VC_ACTIVE;
 	IF_EVENT(printk("ia open_tx returning \n");)  
@@ -1975,7 +1975,9 @@ static int tx_init(struct atm_dev *dev)
 		buf_desc_ptr++;		  
 		tx_pkt_start += iadev->tx_buf_sz;  
 	}  
-        iadev->tx_buf = kmalloc(iadev->num_tx_desc*sizeof(struct cpcs_trailer_desc), GFP_KERNEL);
+	iadev->tx_buf = kmalloc_array(iadev->num_tx_desc,
+				      sizeof(*iadev->tx_buf),
+				      GFP_KERNEL);
         if (!iadev->tx_buf) {
             printk(KERN_ERR DEV_LABEL " couldn't get mem\n");
 	    goto err_free_dle;
@@ -1995,8 +1997,9 @@ static int tx_init(struct atm_dev *dev)
 						       sizeof(*cpcs),
 						       DMA_TO_DEVICE);
         }
-        iadev->desc_tbl = kmalloc(iadev->num_tx_desc *
-                                   sizeof(struct desc_tbl_t), GFP_KERNEL);
+	iadev->desc_tbl = kmalloc_array(iadev->num_tx_desc,
+					sizeof(*iadev->desc_tbl),
+					GFP_KERNEL);
 	if (!iadev->desc_tbl) {
 		printk(KERN_ERR DEV_LABEL " couldn't get mem\n");
 		goto err_free_all_tx_bufs;
@@ -2124,7 +2127,9 @@ static int tx_init(struct atm_dev *dev)
 	memset((caddr_t)(iadev->seg_ram+i),  0, iadev->num_vc*4);
 	vc = (struct main_vc *)iadev->MAIN_VC_TABLE_ADDR;  
 	evc = (struct ext_vc *)iadev->EXT_VC_TABLE_ADDR;  
-        iadev->testTable = kmalloc(sizeof(long)*iadev->num_vc, GFP_KERNEL); 
+	iadev->testTable = kmalloc_array(iadev->num_vc,
+					 sizeof(*iadev->testTable),
+					 GFP_KERNEL);
         if (!iadev->testTable) {
            printk("Get freepage  failed\n");
 	   goto err_free_desc_tbl;

@@ -374,10 +374,8 @@ int wusb_dev_4way_handshake(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 	struct wusb_keydvt_out keydvt_out;
 
 	hs = kcalloc(3, sizeof(hs[0]), GFP_KERNEL);
-	if (hs == NULL) {
-		dev_err(dev, "can't allocate handshake data\n");
+	if (!hs)
 		goto error_kzalloc;
-	}
 
 	/* We need to turn encryption before beginning the 4way
 	 * hshake (WUSB1.0[.3.2.2]) */

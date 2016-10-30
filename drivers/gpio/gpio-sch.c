@@ -138,7 +138,7 @@ static int sch_gpio_direction_out(struct gpio_chip *gc, unsigned gpio_num,
 	return 0;
 }
 
-static struct gpio_chip sch_gpio_chip = {
+static const struct gpio_chip sch_gpio_chip = {
 	.label			= "sch_gpio",
 	.owner			= THIS_MODULE,
 	.direction_input	= sch_gpio_direction_in,

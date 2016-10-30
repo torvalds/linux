@@ -40,3 +40,15 @@ config SECURITY_SMACK_NETFILTER
 	  This enables security marking of network packets using
 	  Smack labels.
 	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_SMACK_APPEND_SIGNALS
+	bool "Treat delivering signals as an append operation"
+	depends on SECURITY_SMACK
+	default n
+	help
+	  Sending a signal has been treated as a write operation to the
+	  receiving process. If this option is selected, the delivery
+	  will be an append operation instead. This makes it possible
+	  to differentiate between delivering a network packet and
+	  delivering a signal in the Smack rules.
+	  If you are unsure how to answer this question, answer N.

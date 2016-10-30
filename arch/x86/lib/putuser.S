@@ -15,6 +15,7 @@
 #include <asm/errno.h>
 #include <asm/asm.h>
 #include <asm/smap.h>
+#include <asm/export.h>
 
 
 /*
@@ -43,6 +44,7 @@ ENTRY(__put_user_1)
 	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_1)
+EXPORT_SYMBOL(__put_user_1)
 
 ENTRY(__put_user_2)
 	ENTER
@@ -55,6 +57,7 @@ ENTRY(__put_user_2)
 	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_2)
+EXPORT_SYMBOL(__put_user_2)
 
 ENTRY(__put_user_4)
 	ENTER
@@ -67,6 +70,7 @@ ENTRY(__put_user_4)
 	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_4)
+EXPORT_SYMBOL(__put_user_4)
 
 ENTRY(__put_user_8)
 	ENTER
@@ -82,6 +86,7 @@ ENTRY(__put_user_8)
 	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_8)
+EXPORT_SYMBOL(__put_user_8)
 
 bad_put_user:
 	movl $-EFAULT,%eax

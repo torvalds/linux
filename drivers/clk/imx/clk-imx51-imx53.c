@@ -126,6 +126,7 @@ static const char *spdif0_com_sel[] = { "spdif0_podf", "ssi1_root_gate", };
 static const char *mx51_spdif1_com_sel[] = { "spdif1_podf", "ssi2_root_gate", };
 static const char *step_sels[] = { "lp_apm", };
 static const char *cpu_podf_sels[] = { "pll1_sw", "step_sel" };
+static const char *ieee1588_sels[] = { "pll3_sw", "pll4_sw", "dummy" /* usbphy2_clk */, "dummy" /* fec_phy_clk */ };
 
 static struct clk *clk[IMX5_CLK_END];
 static struct clk_onecell_data clk_data;
@@ -542,6 +543,25 @@ static void __init mx53_clocks_init(struct device_node *np)
 	clk[IMX5_CLK_CAN2_IPG_GATE]	= imx_clk_gate2("can2_ipg_gate", "ipg", MXC_CCM_CCGR4, 6);
 	clk[IMX5_CLK_I2C3_GATE]		= imx_clk_gate2("i2c3_gate", "per_root", MXC_CCM_CCGR1, 22);
 	clk[IMX5_CLK_SATA_GATE]		= imx_clk_gate2("sata_gate", "ipg", MXC_CCM_CCGR4, 2);
+
+	clk[IMX5_CLK_FIRI_SEL]		= imx_clk_mux("firi_sel", MXC_CCM_CSCMR2, 12, 2,
+						standard_pll_sel, ARRAY_SIZE(standard_pll_sel));
+	clk[IMX5_CLK_FIRI_PRED]		= imx_clk_divider("firi_pred", "firi_sel", MXC_CCM_CSCDR3, 6, 3);
+	clk[IMX5_CLK_FIRI_PODF]		= imx_clk_divider("firi_podf", "firi_pred", MXC_CCM_CSCDR3, 0, 6);
+	clk[IMX5_CLK_FIRI_SERIAL_GATE]	= imx_clk_gate2("firi_serial_gate", "firi_podf", MXC_CCM_CCGR1, 28);
+	clk[IMX5_CLK_FIRI_IPG_GATE]	= imx_clk_gate2("firi_ipg_gate", "ipg", MXC_CCM_CCGR1, 26);
+
+	clk[IMX5_CLK_CSI0_MCLK1_SEL]	= imx_clk_mux("csi0_mclk1_sel", MXC_CCM_CSCMR2, 22, 2,
+						standard_pll_sel, ARRAY_SIZE(standard_pll_sel));
+	clk[IMX5_CLK_CSI0_MCLK1_PRED]	= imx_clk_divider("csi0_mclk1_pred", "csi0_mclk1_sel", MXC_CCM_CSCDR4, 6, 3);
+	clk[IMX5_CLK_CSI0_MCLK1_PODF]	= imx_clk_divider("csi0_mclk1_podf", "csi0_mclk1_pred", MXC_CCM_CSCDR4, 0, 6);
+	clk[IMX5_CLK_CSI0_MCLK1_GATE]	= imx_clk_gate2("csi0_mclk1_serial_gate", "csi0_mclk1_podf", MXC_CCM_CCGR6, 4);
+
+	clk[IMX5_CLK_IEEE1588_SEL]	= imx_clk_mux("ieee1588_sel", MXC_CCM_CSCMR2, 14, 2,
+						ieee1588_sels, ARRAY_SIZE(ieee1588_sels));
+	clk[IMX5_CLK_IEEE1588_PRED]	= imx_clk_divider("ieee1588_pred", "ieee1588_sel", MXC_CCM_CSCDR2, 6, 3);
+	clk[IMX5_CLK_IEEE1588_PODF]	= imx_clk_divider("ieee1588_podf", "ieee1588_pred", MXC_CCM_CSCDR2, 0, 6);
+	clk[IMX5_CLK_IEEE1588_GATE]	= imx_clk_gate2("ieee1588_serial_gate", "ieee1588_podf", MXC_CCM_CCGR7, 6);
 
 	clk[IMX5_CLK_CKO1_SEL]		= imx_clk_mux("cko1_sel", MXC_CCM_CCOSR, 0, 4,
 						mx53_cko1_sel, ARRAY_SIZE(mx53_cko1_sel));

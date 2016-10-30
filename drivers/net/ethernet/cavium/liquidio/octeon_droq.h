@@ -261,6 +261,8 @@ struct octeon_droq {
 
 	u32 q_no;
 
+	u32 pkt_count;
+
 	struct octeon_droq_ops ops;
 
 	struct octeon_device *oct_dev;

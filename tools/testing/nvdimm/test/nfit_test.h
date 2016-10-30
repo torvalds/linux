@@ -13,11 +13,21 @@
 #ifndef __NFIT_TEST_H__
 #define __NFIT_TEST_H__
 #include <linux/list.h>
+#include <linux/ioport.h>
+#include <linux/spinlock_types.h>
+
+struct nfit_test_request {
+	struct list_head list;
+	struct resource res;
+};
 
 struct nfit_test_resource {
+	struct list_head requests;
 	struct list_head list;
-	struct resource *res;
+	struct resource res;
 	struct device *dev;
+	spinlock_t lock;
+	int req_count;
 	void *buf;
 };
 

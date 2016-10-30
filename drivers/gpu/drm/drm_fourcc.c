@@ -36,19 +36,60 @@ static char printable_char(int c)
 }
 
 /**
+ * drm_mode_legacy_fb_format - compute drm fourcc code from legacy description
+ * @bpp: bits per pixels
+ * @depth: bit depth per pixel
+ *
+ * Computes a drm fourcc pixel format code for the given @bpp/@depth values.
+ * Useful in fbdev emulation code, since that deals in those values.
+ */
+uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth)
+{
+	uint32_t fmt;
+
+	switch (bpp) {
+	case 8:
+		fmt = DRM_FORMAT_C8;
+		break;
+	case 16:
+		if (depth == 15)
+			fmt = DRM_FORMAT_XRGB1555;
+		else
+			fmt = DRM_FORMAT_RGB565;
+		break;
+	case 24:
+		fmt = DRM_FORMAT_RGB888;
+		break;
+	case 32:
+		if (depth == 24)
+			fmt = DRM_FORMAT_XRGB8888;
+		else if (depth == 30)
+			fmt = DRM_FORMAT_XRGB2101010;
+		else
+			fmt = DRM_FORMAT_ARGB8888;
+		break;
+	default:
+		DRM_ERROR("bad bpp, assuming x8r8g8b8 pixel format\n");
+		fmt = DRM_FORMAT_XRGB8888;
+		break;
+	}
+
+	return fmt;
+}
+EXPORT_SYMBOL(drm_mode_legacy_fb_format);
+
+/**
  * drm_get_format_name - return a string for drm fourcc format
  * @format: format to compute name of
  *
- * Note that the buffer used by this function is globally shared and owned by
- * the function itself.
- *
- * FIXME: This isn't really multithreading safe.
+ * Note that the buffer returned by this function is owned by the caller
+ * and will need to be freed using kfree().
  */
-const char *drm_get_format_name(uint32_t format)
+char *drm_get_format_name(uint32_t format)
 {
-	static char buf[32];
+	char *buf = kmalloc(32, GFP_KERNEL);
 
-	snprintf(buf, sizeof(buf),
+	snprintf(buf, 32,
 		 "%c%c%c%c %s-endian (0x%08x)",
 		 printable_char(format & 0xff),
 		 printable_char((format >> 8) & 0xff),
@@ -73,6 +114,8 @@ EXPORT_SYMBOL(drm_get_format_name);
 void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
 			  int *bpp)
 {
+	char *format_name;
+
 	switch (format) {
 	case DRM_FORMAT_C8:
 	case DRM_FORMAT_RGB332:
@@ -127,8 +170,9 @@ void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
 		*bpp = 32;
 		break;
 	default:
-		DRM_DEBUG_KMS("unsupported pixel format %s\n",
-			      drm_get_format_name(format));
+		format_name = drm_get_format_name(format);
+		DRM_DEBUG_KMS("unsupported pixel format %s\n", format_name);
+		kfree(format_name);
 		*depth = 0;
 		*bpp = 0;
 		break;

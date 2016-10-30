@@ -13,6 +13,7 @@
 #include <asm/asi.h>
 #include <asm/spitfire.h>
 #include <asm-generic/uaccess-unaligned.h>
+#include <asm/extable_64.h>
 #endif
 
 #ifndef __ASSEMBLY__
@@ -80,23 +81,6 @@ static inline int access_ok(int type, const void __user * addr, unsigned long si
 {
 	return 1;
 }
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry {
-        unsigned int insn, fixup;
-};
 
 void __ret_efault(void);
 void __retl_efault(void);
@@ -212,8 +196,7 @@ copy_from_user(void *to, const void __user *from, unsigned long size)
 {
 	unsigned long ret;
 
-	if (!__builtin_constant_p(size))
-		check_object_size(to, size, false);
+	check_object_size(to, size, false);
 
 	ret = ___copy_from_user(to, from, size);
 	if (unlikely(ret))
@@ -233,8 +216,8 @@ copy_to_user(void __user *to, const void *from, unsigned long size)
 {
 	unsigned long ret;
 
-	if (!__builtin_constant_p(size))
-		check_object_size(from, size, true);
+	check_object_size(from, size, true);
+
 	ret = ___copy_to_user(to, from, size);
 	if (unlikely(ret))
 		ret = copy_to_user_fixup(to, from, size);

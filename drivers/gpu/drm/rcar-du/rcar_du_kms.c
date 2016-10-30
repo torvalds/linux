@@ -257,7 +257,8 @@ static void rcar_du_atomic_complete(struct rcar_du_commit *commit)
 	/* Apply the atomic update. */
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
-	drm_atomic_helper_commit_planes(dev, old_state, true);
+	drm_atomic_helper_commit_planes(dev, old_state,
+					DRM_PLANE_COMMIT_ACTIVE_ONLY);
 
 	drm_atomic_helper_wait_for_vblanks(dev, old_state);
 

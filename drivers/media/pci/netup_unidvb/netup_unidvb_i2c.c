@@ -327,11 +327,8 @@ static int netup_i2c_init(struct netup_unidvb_dev *ndev, int bus_num)
 	i2c->adap.dev.parent = &ndev->pci_dev->dev;
 	i2c_set_adapdata(&i2c->adap, i2c);
 	ret = i2c_add_adapter(&i2c->adap);
-	if (ret) {
-		dev_err(&ndev->pci_dev->dev,
-			"%s(): failed to add I2C adapter\n", __func__);
+	if (ret)
 		return ret;
-	}
 	dev_info(&ndev->pci_dev->dev,
 		"%s(): registered I2C bus %d at 0x%x\n",
 		__func__,

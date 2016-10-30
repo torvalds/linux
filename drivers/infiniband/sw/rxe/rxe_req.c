@@ -38,7 +38,7 @@
 #include "rxe_queue.h"
 
 static int next_opcode(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
-		       unsigned opcode);
+		       u32 opcode);
 
 static inline void retry_first_write_send(struct rxe_qp *qp,
 					  struct rxe_send_wqe *wqe,
@@ -121,7 +121,7 @@ void rnr_nak_timer(unsigned long data)
 {
 	struct rxe_qp *qp = (struct rxe_qp *)data;
 
-	pr_debug("rnr nak timer fired\n");
+	pr_debug("qp#%d rnr nak timer fired\n", qp_num(qp));
 	rxe_run_task(&qp->req.task, 1);
 }
 
@@ -187,7 +187,7 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 	return wqe;
 }
 
-static int next_opcode_rc(struct rxe_qp *qp, unsigned opcode, int fits)
+static int next_opcode_rc(struct rxe_qp *qp, u32 opcode, int fits)
 {
 	switch (opcode) {
 	case IB_WR_RDMA_WRITE:
@@ -259,7 +259,7 @@ static int next_opcode_rc(struct rxe_qp *qp, unsigned opcode, int fits)
 	return -EINVAL;
 }
 
-static int next_opcode_uc(struct rxe_qp *qp, unsigned opcode, int fits)
+static int next_opcode_uc(struct rxe_qp *qp, u32 opcode, int fits)
 {
 	switch (opcode) {
 	case IB_WR_RDMA_WRITE:
@@ -311,7 +311,7 @@ static int next_opcode_uc(struct rxe_qp *qp, unsigned opcode, int fits)
 }
 
 static int next_opcode(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
-		       unsigned opcode)
+		       u32 opcode)
 {
 	int fits = (wqe->dma.resid <= qp->mtu);
 
@@ -511,24 +511,21 @@ static int fill_packet(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 }
 
 static void update_wqe_state(struct rxe_qp *qp,
-			     struct rxe_send_wqe *wqe,
-			     struct rxe_pkt_info *pkt,
-			     enum wqe_state *prev_state)
+		struct rxe_send_wqe *wqe,
+		struct rxe_pkt_info *pkt)
 {
-	enum wqe_state prev_state_ = wqe->state;
-
 	if (pkt->mask & RXE_END_MASK) {
 		if (qp_type(qp) == IB_QPT_RC)
 			wqe->state = wqe_state_pending;
 	} else {
 		wqe->state = wqe_state_processing;
 	}
-
-	*prev_state = prev_state_;
 }
 
-static void update_state(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
-			 struct rxe_pkt_info *pkt, int payload)
+static void update_wqe_psn(struct rxe_qp *qp,
+			   struct rxe_send_wqe *wqe,
+			   struct rxe_pkt_info *pkt,
+			   int payload)
 {
 	/* number of packets left to send including current one */
 	int num_pkt = (wqe->dma.resid + payload + qp->mtu - 1) / qp->mtu;
@@ -546,9 +543,34 @@ static void update_state(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 		qp->req.psn = (wqe->first_psn + num_pkt) & BTH_PSN_MASK;
 	else
 		qp->req.psn = (qp->req.psn + 1) & BTH_PSN_MASK;
+}
 
+static void save_state(struct rxe_send_wqe *wqe,
+		       struct rxe_qp *qp,
+		       struct rxe_send_wqe *rollback_wqe,
+		       struct rxe_qp *rollback_qp)
+{
+	rollback_wqe->state     = wqe->state;
+	rollback_wqe->first_psn = wqe->first_psn;
+	rollback_wqe->last_psn  = wqe->last_psn;
+	rollback_qp->req.psn    = qp->req.psn;
+}
+
+static void rollback_state(struct rxe_send_wqe *wqe,
+			   struct rxe_qp *qp,
+			   struct rxe_send_wqe *rollback_wqe,
+			   struct rxe_qp *rollback_qp)
+{
+	wqe->state     = rollback_wqe->state;
+	wqe->first_psn = rollback_wqe->first_psn;
+	wqe->last_psn  = rollback_wqe->last_psn;
+	qp->req.psn    = rollback_qp->req.psn;
+}
+
+static void update_state(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
+			 struct rxe_pkt_info *pkt, int payload)
+{
 	qp->req.opcode = pkt->opcode;
-
 
 	if (pkt->mask & RXE_END_MASK)
 		qp->req.wqe_index = next_index(qp->sq.queue, qp->req.wqe_index);
@@ -566,12 +588,13 @@ int rxe_requester(void *arg)
 	struct rxe_pkt_info pkt;
 	struct sk_buff *skb;
 	struct rxe_send_wqe *wqe;
-	unsigned mask;
+	enum rxe_hdr_mask mask;
 	int payload;
 	int mtu;
 	int opcode;
 	int ret;
-	enum wqe_state prev_state;
+	struct rxe_qp rollback_qp;
+	struct rxe_send_wqe rollback_wqe;
 
 next_wqe:
 	if (unlikely(!qp->valid || qp->req.state == QP_STATE_ERROR))
@@ -603,7 +626,8 @@ next_wqe:
 			rmr = rxe_pool_get_index(&rxe->mr_pool,
 						 wqe->wr.ex.invalidate_rkey >> 8);
 			if (!rmr) {
-				pr_err("No mr for key %#x\n", wqe->wr.ex.invalidate_rkey);
+				pr_err("No mr for key %#x\n",
+				       wqe->wr.ex.invalidate_rkey);
 				wqe->state = wqe_state_error;
 				wqe->status = IB_WC_MW_BIND_ERR;
 				goto exit;
@@ -679,22 +703,30 @@ next_wqe:
 
 	skb = init_req_packet(qp, wqe, opcode, payload, &pkt);
 	if (unlikely(!skb)) {
-		pr_err("Failed allocating skb\n");
+		pr_err("qp#%d Failed allocating skb\n", qp_num(qp));
 		goto err;
 	}
 
 	if (fill_packet(qp, wqe, &pkt, skb, payload)) {
-		pr_debug("Error during fill packet\n");
+		pr_debug("qp#%d Error during fill packet\n", qp_num(qp));
 		goto err;
 	}
 
-	update_wqe_state(qp, wqe, &pkt, &prev_state);
+	/*
+	 * To prevent a race on wqe access between requester and completer,
+	 * wqe members state and psn need to be set before calling
+	 * rxe_xmit_packet().
+	 * Otherwise, completer might initiate an unjustified retry flow.
+	 */
+	save_state(wqe, qp, &rollback_wqe, &rollback_qp);
+	update_wqe_state(qp, wqe, &pkt);
+	update_wqe_psn(qp, wqe, &pkt, payload);
 	ret = rxe_xmit_packet(to_rdev(qp->ibqp.device), qp, &pkt, skb);
 	if (ret) {
 		qp->need_req_skb = 1;
 		kfree_skb(skb);
 
-		wqe->state = prev_state;
+		rollback_state(wqe, qp, &rollback_wqe, &rollback_qp);
 
 		if (ret == -EAGAIN) {
 			rxe_run_task(&qp->req.task, 1);

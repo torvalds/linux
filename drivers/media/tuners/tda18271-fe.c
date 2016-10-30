@@ -18,10 +18,11 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include <linux/delay.h>
-#include <linux/videodev2.h>
 #include "tda18271-priv.h"
 #include "tda8290.h"
+
+#include <linux/delay.h>
+#include <linux/videodev2.h>
 
 int tda18271_debug;
 module_param_named(debug, tda18271_debug, int, 0644);
@@ -646,7 +647,7 @@ static int tda18271_calc_rf_filter_curve(struct dvb_frontend *fe)
 	unsigned int i;
 	int ret;
 
-	tda_info("tda18271: performing RF tracking filter calibration\n");
+	tda_info("performing RF tracking filter calibration\n");
 
 	/* wait for die temperature stabilization */
 	msleep(200);
@@ -692,12 +693,12 @@ static int tda18271c2_rf_cal_init(struct dvb_frontend *fe)
 	if (tda_fail(ret))
 		goto fail;
 
-	tda_info("tda18271: RF tracking filter calibration complete\n");
+	tda_info("RF tracking filter calibration complete\n");
 
 	priv->cal_initialized = true;
 	goto end;
 fail:
-	tda_info("tda18271: RF tracking filter calibration failed!\n");
+	tda_info("RF tracking filter calibration failed!\n");
 end:
 	return ret;
 }

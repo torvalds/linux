@@ -204,8 +204,9 @@ extern unsigned long __must_check __copy_user_zeroing(void *to,
 static inline unsigned long
 copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	if (access_ok(VERIFY_READ, from, n))
+	if (likely(access_ok(VERIFY_READ, from, n)))
 		return __copy_user_zeroing(to, from, n);
+	memset(to, 0, n);
 	return n;
 }
 

@@ -9,7 +9,6 @@ config ARCH_VERSATILE
 	select CPU_ARM926T
 	select ICST
 	select MFD_SYSCON
-	select MIGHT_HAVE_PCI
 	select PLAT_VERSATILE
 	select POWER_RESET
 	select POWER_RESET_VERSATILE

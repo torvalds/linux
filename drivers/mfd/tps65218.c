@@ -219,6 +219,7 @@ static int tps65218_probe(struct i2c_client *client,
 	struct tps65218 *tps;
 	const struct of_device_id *match;
 	int ret;
+	unsigned int chipid;
 
 	match = of_match_device(of_tps65218_match_table, &client->dev);
 	if (!match) {
@@ -249,6 +250,14 @@ static int tps65218_probe(struct i2c_client *client,
 			&tps->irq_data);
 	if (ret < 0)
 		return ret;
+
+	ret = tps65218_reg_read(tps, TPS65218_REG_CHIPID, &chipid);
+	if (ret) {
+		dev_err(tps->dev, "Failed to read chipid: %d\n", ret);
+		return ret;
+	}
+
+	tps->rev = chipid & TPS65218_CHIPID_REV_MASK;
 
 	ret = of_platform_populate(client->dev.of_node, NULL, NULL,
 				   &client->dev);

@@ -15,6 +15,12 @@ static inline struct nf_bridge_info *nf_bridge_alloc(struct sk_buff *skb)
 
 void nf_bridge_update_protocol(struct sk_buff *skb);
 
+int br_nf_hook_thresh(unsigned int hook, struct net *net, struct sock *sk,
+		      struct sk_buff *skb, struct net_device *indev,
+		      struct net_device *outdev,
+		      int (*okfn)(struct net *, struct sock *,
+				  struct sk_buff *));
+
 static inline struct nf_bridge_info *
 nf_bridge_info_get(const struct sk_buff *skb)
 {

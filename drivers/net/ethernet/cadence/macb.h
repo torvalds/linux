@@ -66,6 +66,8 @@
 #define MACB_USRIO		0x00c0
 #define MACB_WOL		0x00c4
 #define MACB_MID		0x00fc
+#define MACB_TBQPH		0x04C8
+#define MACB_RBQPH		0x04D4
 
 /* GEM register offsets. */
 #define GEM_NCFGR		0x0004 /* Network Config */
@@ -139,6 +141,7 @@
 
 #define GEM_ISR(hw_q)		(0x0400 + ((hw_q) << 2))
 #define GEM_TBQP(hw_q)		(0x0440 + ((hw_q) << 2))
+#define GEM_TBQPH(hw_q)		(0x04C8)
 #define GEM_RBQP(hw_q)		(0x0480 + ((hw_q) << 2))
 #define GEM_IER(hw_q)		(0x0600 + ((hw_q) << 2))
 #define GEM_IDR(hw_q)		(0x0620 + ((hw_q) << 2))
@@ -249,6 +252,8 @@
 #define GEM_RXBS_SIZE		8
 #define GEM_DDRP_OFFSET		24 /* disc_when_no_ahb */
 #define GEM_DDRP_SIZE		1
+#define GEM_ADDR64_OFFSET	30 /* Address bus width - 64b or 32b */
+#define GEM_ADDR64_SIZE		1
 
 
 /* Bitfields in NSR */
@@ -474,6 +479,10 @@
 struct macb_dma_desc {
 	u32	addr;
 	u32	ctrl;
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	u32     addrh;
+	u32     resvd;
+#endif
 };
 
 /* DMA descriptor bitfields */
@@ -763,7 +772,8 @@ struct macb_config {
 	u32			caps;
 	unsigned int		dma_burst_length;
 	int	(*clk_init)(struct platform_device *pdev, struct clk **pclk,
-			    struct clk **hclk, struct clk **tx_clk);
+			    struct clk **hclk, struct clk **tx_clk,
+			    struct clk **rx_clk);
 	int	(*init)(struct platform_device *pdev);
 	int	jumbo_max_len;
 };
@@ -777,6 +787,7 @@ struct macb_queue {
 	unsigned int		IDR;
 	unsigned int		IMR;
 	unsigned int		TBQP;
+	unsigned int		TBQPH;
 
 	unsigned int		tx_head, tx_tail;
 	struct macb_dma_desc	*tx_ring;
@@ -809,6 +820,7 @@ struct macb {
 	struct clk		*pclk;
 	struct clk		*hclk;
 	struct clk		*tx_clk;
+	struct clk		*rx_clk;
 	struct net_device	*dev;
 	struct napi_struct	napi;
 	struct net_device_stats	stats;

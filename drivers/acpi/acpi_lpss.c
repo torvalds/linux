@@ -75,6 +75,7 @@ struct lpss_device_desc {
 	const char *clk_con_id;
 	unsigned int prv_offset;
 	size_t prv_size_override;
+	struct property_entry *properties;
 	void (*setup)(struct lpss_private_data *pdata);
 };
 
@@ -163,11 +164,19 @@ static const struct lpss_device_desc lpt_i2c_dev_desc = {
 	.prv_offset = 0x800,
 };
 
+static struct property_entry uart_properties[] = {
+	PROPERTY_ENTRY_U32("reg-io-width", 4),
+	PROPERTY_ENTRY_U32("reg-shift", 2),
+	PROPERTY_ENTRY_BOOL("snps,uart-16550-compatible"),
+	{ },
+};
+
 static const struct lpss_device_desc lpt_uart_dev_desc = {
 	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_LTR,
 	.clk_con_id = "baudclk",
 	.prv_offset = 0x800,
 	.setup = lpss_uart_setup,
+	.properties = uart_properties,
 };
 
 static const struct lpss_device_desc lpt_sdio_dev_desc = {
@@ -189,6 +198,7 @@ static const struct lpss_device_desc byt_uart_dev_desc = {
 	.clk_con_id = "baudclk",
 	.prv_offset = 0x800,
 	.setup = lpss_uart_setup,
+	.properties = uart_properties,
 };
 
 static const struct lpss_device_desc bsw_uart_dev_desc = {
@@ -197,6 +207,7 @@ static const struct lpss_device_desc bsw_uart_dev_desc = {
 	.clk_con_id = "baudclk",
 	.prv_offset = 0x800,
 	.setup = lpss_uart_setup,
+	.properties = uart_properties,
 };
 
 static const struct lpss_device_desc byt_spi_dev_desc = {
@@ -438,6 +449,12 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 		/* Skip the device, but continue the namespace scan. */
 		ret = 0;
 		goto err_out;
+	}
+
+	if (dev_desc->properties) {
+		ret = device_add_properties(&adev->dev, dev_desc->properties);
+		if (ret)
+			goto err_out;
 	}
 
 	adev->driver_data = pdata;

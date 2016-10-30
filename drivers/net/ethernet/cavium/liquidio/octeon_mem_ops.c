@@ -19,7 +19,6 @@
  * This file may also be available under a different license from Cavium.
  * Contact Cavium, Inc. for more information
  **********************************************************************/
-#include <linux/pci.h>
 #include <linux/netdevice.h>
 #include "liquidio_common.h"
 #include "octeon_droq.h"

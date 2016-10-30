@@ -164,9 +164,11 @@ void rtl92de_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HW_VAR_INT_AC:
 		*((bool *)(val)) = rtlpriv->dm.disable_tx_int;
 		break;
+	case HAL_DEF_WOWLAN:
+		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case not processed\n");
+			 "switch case %#x not processed\n", variable);
 		break;
 	}
 }
@@ -361,7 +363,8 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				break;
 			default:
 				RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-					 "switch case not processed\n");
+					 "switch case %#x not processed\n",
+					 e_aci);
 				break;
 			}
 		}
@@ -502,7 +505,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	}
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case not processed\n");
+			 "switch case %#x not processed\n", variable);
 		break;
 	}
 }
@@ -1757,7 +1760,7 @@ static void _rtl92de_read_adapter_info(struct ieee80211_hw *hw)
 		return;
 
 	if (rtl_get_hwinfo(hw, rtlpriv, HWSET_MAX_SIZE, hwinfo, params))
-		return;
+		goto exit;
 
 	_rtl92de_efuse_update_chip_version(hw);
 	_rtl92de_read_macphymode_and_bandtype(hw, hwinfo);
@@ -1790,6 +1793,7 @@ static void _rtl92de_read_adapter_info(struct ieee80211_hw *hw)
 		break;
 	}
 	rtlefuse->txpwr_fromeprom = true;
+exit:
 	kfree(hwinfo);
 }
 
@@ -2170,7 +2174,7 @@ void rtl92de_set_key(struct ieee80211_hw *hw, u32 key_index,
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "switch case not processed\n");
+				 "switch case %#x not processed\n", enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
 		}

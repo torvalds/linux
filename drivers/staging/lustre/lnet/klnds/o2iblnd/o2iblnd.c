@@ -128,6 +128,7 @@ static int kiblnd_msgtype2size(int type)
 static int kiblnd_unpack_rd(struct kib_msg *msg, int flip)
 {
 	struct kib_rdma_desc *rd;
+	int msg_size;
 	int nob;
 	int n;
 	int i;
@@ -146,18 +147,19 @@ static int kiblnd_unpack_rd(struct kib_msg *msg, int flip)
 
 	n = rd->rd_nfrags;
 
-	if (n <= 0 || n > IBLND_MAX_RDMA_FRAGS) {
-		CERROR("Bad nfrags: %d, should be 0 < n <= %d\n",
-		       n, IBLND_MAX_RDMA_FRAGS);
-		return 1;
-	}
-
 	nob = offsetof(struct kib_msg, ibm_u) +
 	      kiblnd_rd_msg_size(rd, msg->ibm_type, n);
 
 	if (msg->ibm_nob < nob) {
 		CERROR("Short %s: %d(%d)\n",
 		       kiblnd_msgtype2str(msg->ibm_type), msg->ibm_nob, nob);
+		return 1;
+	}
+
+	msg_size = kiblnd_rd_size(rd);
+	if (msg_size <= 0 || msg_size > LNET_MAX_PAYLOAD) {
+		CERROR("Bad msg_size: %d, should be 0 < n <= %d\n",
+		       msg_size, LNET_MAX_PAYLOAD);
 		return 1;
 	}
 
@@ -618,7 +620,7 @@ static int kiblnd_get_completion_vector(struct kib_conn *conn, int cpt)
 }
 
 struct kib_conn *kiblnd_create_conn(struct kib_peer *peer, struct rdma_cm_id *cmid,
-			       int state, int version)
+				    int state, int version)
 {
 	/*
 	 * CAVEAT EMPTOR:
@@ -2465,7 +2467,7 @@ int kiblnd_dev_failover(struct kib_dev *dev)
 	hdev->ibh_cmid  = cmid;
 	hdev->ibh_ibdev = cmid->device;
 
-	pd = ib_alloc_pd(cmid->device);
+	pd = ib_alloc_pd(cmid->device, 0);
 	if (IS_ERR(pd)) {
 		rc = PTR_ERR(pd);
 		CERROR("Can't allocate PD: %d\n", rc);

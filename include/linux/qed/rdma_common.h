@@ -28,6 +28,7 @@
 #define RDMA_MAX_PDS                            (64 * 1024)
 
 #define RDMA_NUM_STATISTIC_COUNTERS                     MAX_NUM_VPORTS
+#define RDMA_NUM_STATISTIC_COUNTERS_BB			MAX_NUM_VPORTS_BB
 
 #define RDMA_TASK_TYPE (PROTOCOLID_ROCE)
 

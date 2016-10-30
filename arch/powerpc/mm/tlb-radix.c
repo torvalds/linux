@@ -400,3 +400,27 @@ void radix__flush_pmd_tlb_range(struct vm_area_struct *vma,
 	radix__flush_tlb_range_psize(vma->vm_mm, start, end, MMU_PAGE_2M);
 }
 EXPORT_SYMBOL(radix__flush_pmd_tlb_range);
+
+void radix__flush_tlb_all(void)
+{
+	unsigned long rb,prs,r,rs;
+	unsigned long ric = RIC_FLUSH_ALL;
+
+	rb = 0x3 << PPC_BITLSHIFT(53); /* IS = 3 */
+	prs = 0; /* partition scoped */
+	r = 1;   /* raidx format */
+	rs = 1 & ((1UL << 32) - 1); /* any LPID value to flush guest mappings */
+
+	asm volatile("ptesync": : :"memory");
+	/*
+	 * now flush guest entries by passing PRS = 1 and LPID != 0
+	 */
+	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
+		     : : "r"(rb), "i"(r), "i"(1), "i"(ric), "r"(rs) : "memory");
+	/*
+	 * now flush host entires by passing PRS = 0 and LPID == 0
+	 */
+	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
+		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(0) : "memory");
+	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+}

@@ -82,6 +82,12 @@ static void batadv_recv_handler_init(void);
 
 static int __init batadv_init(void)
 {
+	int ret;
+
+	ret = batadv_tt_cache_init();
+	if (ret < 0)
+		return ret;
+
 	INIT_LIST_HEAD(&batadv_hardif_list);
 	batadv_algo_init();
 
@@ -93,9 +99,8 @@ static int __init batadv_init(void)
 	batadv_tp_meter_init();
 
 	batadv_event_workqueue = create_singlethread_workqueue("bat_events");
-
 	if (!batadv_event_workqueue)
-		return -ENOMEM;
+		goto err_create_wq;
 
 	batadv_socket_init();
 	batadv_debugfs_init();
@@ -108,6 +113,11 @@ static int __init batadv_init(void)
 		BATADV_SOURCE_VERSION, BATADV_COMPAT_VERSION);
 
 	return 0;
+
+err_create_wq:
+	batadv_tt_cache_destroy();
+
+	return -ENOMEM;
 }
 
 static void __exit batadv_exit(void)
@@ -123,6 +133,8 @@ static void __exit batadv_exit(void)
 	batadv_event_workqueue = NULL;
 
 	rcu_barrier();
+
+	batadv_tt_cache_destroy();
 }
 
 int batadv_mesh_init(struct net_device *soft_iface)
@@ -270,6 +282,7 @@ bool batadv_is_my_mac(struct batadv_priv *bat_priv, const u8 *addr)
 	return is_my_mac;
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
  * batadv_seq_print_text_primary_if_get - called from debugfs table printing
  *  function that requires the primary interface
@@ -305,6 +318,7 @@ batadv_seq_print_text_primary_if_get(struct seq_file *seq)
 out:
 	return primary_if;
 }
+#endif
 
 /**
  * batadv_max_header_len - calculate maximum encapsulation overhead for a
@@ -638,3 +652,4 @@ MODULE_AUTHOR(BATADV_DRIVER_AUTHOR);
 MODULE_DESCRIPTION(BATADV_DRIVER_DESC);
 MODULE_SUPPORTED_DEVICE(BATADV_DRIVER_DEVICE);
 MODULE_VERSION(BATADV_SOURCE_VERSION);
+MODULE_ALIAS_RTNL_LINK("batadv");

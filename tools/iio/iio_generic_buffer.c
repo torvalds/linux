@@ -456,7 +456,7 @@ int main(int argc, char **argv)
 
 	if (notrigger) {
 		printf("trigger-less mode selected\n");
-	} if (trig_num >= 0) {
+	} else if (trig_num >= 0) {
 		char *trig_dev_name;
 		ret = asprintf(&trig_dev_name, "%strigger%d", iio_dir, trig_num);
 		if (ret < 0) {

@@ -249,7 +249,9 @@ static int dwc3_pci_runtime_resume(struct device *dev)
 
 	return pm_runtime_get(&dwc3->dev);
 }
+#endif /* CONFIG_PM */
 
+#ifdef CONFIG_PM_SLEEP
 static int dwc3_pci_pm_dummy(struct device *dev)
 {
 	/*
@@ -262,7 +264,7 @@ static int dwc3_pci_pm_dummy(struct device *dev)
 	 */
 	return 0;
 }
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static struct dev_pm_ops dwc3_pci_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(dwc3_pci_pm_dummy, dwc3_pci_pm_dummy)

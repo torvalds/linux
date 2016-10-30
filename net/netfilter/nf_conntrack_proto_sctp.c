@@ -161,8 +161,8 @@ static bool sctp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
 	const struct sctphdr *hp;
 	struct sctphdr _hdr;
 
-	/* Actually only need first 8 bytes. */
-	hp = skb_header_pointer(skb, dataoff, 8, &_hdr);
+	/* Actually only need first 4 bytes to get ports. */
+	hp = skb_header_pointer(skb, dataoff, 4, &_hdr);
 	if (hp == NULL)
 		return false;
 
@@ -705,54 +705,6 @@ static struct ctl_table sctp_sysctl_table[] = {
 	},
 	{ }
 };
-
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-static struct ctl_table sctp_compat_sysctl_table[] = {
-	{
-		.procname	= "ip_conntrack_sctp_timeout_closed",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "ip_conntrack_sctp_timeout_cookie_wait",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "ip_conntrack_sctp_timeout_cookie_echoed",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "ip_conntrack_sctp_timeout_established",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "ip_conntrack_sctp_timeout_shutdown_sent",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "ip_conntrack_sctp_timeout_shutdown_recd",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "ip_conntrack_sctp_timeout_shutdown_ack_sent",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{ }
-};
-#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif
 
 static int sctp_kmemdup_sysctl_table(struct nf_proto_net *pn,
@@ -781,32 +733,8 @@ static int sctp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 	return 0;
 }
 
-static int sctp_kmemdup_compat_sysctl_table(struct nf_proto_net *pn,
-					    struct sctp_net *sn)
-{
-#ifdef CONFIG_SYSCTL
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-	pn->ctl_compat_table = kmemdup(sctp_compat_sysctl_table,
-				       sizeof(sctp_compat_sysctl_table),
-				       GFP_KERNEL);
-	if (!pn->ctl_compat_table)
-		return -ENOMEM;
-
-	pn->ctl_compat_table[0].data = &sn->timeouts[SCTP_CONNTRACK_CLOSED];
-	pn->ctl_compat_table[1].data = &sn->timeouts[SCTP_CONNTRACK_COOKIE_WAIT];
-	pn->ctl_compat_table[2].data = &sn->timeouts[SCTP_CONNTRACK_COOKIE_ECHOED];
-	pn->ctl_compat_table[3].data = &sn->timeouts[SCTP_CONNTRACK_ESTABLISHED];
-	pn->ctl_compat_table[4].data = &sn->timeouts[SCTP_CONNTRACK_SHUTDOWN_SENT];
-	pn->ctl_compat_table[5].data = &sn->timeouts[SCTP_CONNTRACK_SHUTDOWN_RECD];
-	pn->ctl_compat_table[6].data = &sn->timeouts[SCTP_CONNTRACK_SHUTDOWN_ACK_SENT];
-#endif
-#endif
-	return 0;
-}
-
 static int sctp_init_net(struct net *net, u_int16_t proto)
 {
-	int ret;
 	struct sctp_net *sn = sctp_pernet(net);
 	struct nf_proto_net *pn = &sn->pn;
 
@@ -817,18 +745,7 @@ static int sctp_init_net(struct net *net, u_int16_t proto)
 			sn->timeouts[i] = sctp_timeouts[i];
 	}
 
-	if (proto == AF_INET) {
-		ret = sctp_kmemdup_compat_sysctl_table(pn, sn);
-		if (ret < 0)
-			return ret;
-
-		ret = sctp_kmemdup_sysctl_table(pn, sn);
-		if (ret < 0)
-			nf_ct_kfree_compat_sysctl_table(pn);
-	} else
-		ret = sctp_kmemdup_sysctl_table(pn, sn);
-
-	return ret;
+	return sctp_kmemdup_sysctl_table(pn, sn);
 }
 
 static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {

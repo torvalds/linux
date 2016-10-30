@@ -34,6 +34,7 @@ fan3_input	ro	"
 fan4_input	ro	"
 fan1_target	rw	desired fan speed in RPM (closed loop mode only)
 pwm1_enable	rw	regulator mode, 0=full on, 1=open loop, 2=closed loop
+			3=off
 pwm1		rw	relative speed (0-255), 255=max. speed.
 			Used in open loop mode only.
 fan1_div	rw	sets the speed range the inputs can handle. Legal

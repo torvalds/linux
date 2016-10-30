@@ -25,7 +25,7 @@
  *
  */
 
-#include <linux/module.h>
+#include <linux/module.h>	/* try_module_get & module_put */
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -537,17 +537,11 @@ static int __init pci_hotplug_init(void)
 	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 	return result;
 }
+device_initcall(pci_hotplug_init);
 
-static void __exit pci_hotplug_exit(void)
-{
-	cpci_hotplug_exit();
-}
-
-module_init(pci_hotplug_init);
-module_exit(pci_hotplug_exit);
-
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
+/*
+ * not really modular, but the easiest way to keep compat with existing
+ * bootargs behaviour is to continue using module_param here.
+ */
 module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "Debugging mode enabled or not");

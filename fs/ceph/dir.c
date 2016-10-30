@@ -597,7 +597,7 @@ static bool need_reset_readdir(struct ceph_file_info *fi, loff_t new_pos)
 	if (is_hash_order(new_pos)) {
 		/* no need to reset last_name for a forward seek when
 		 * dentries are sotred in hash order */
-	} else if (fi->frag |= fpos_frag(new_pos)) {
+	} else if (fi->frag != fpos_frag(new_pos)) {
 		return true;
 	}
 	rinfo = fi->last_readdir ? &fi->last_readdir->r_reply_info : NULL;
@@ -1061,13 +1061,17 @@ out:
 }
 
 static int ceph_rename(struct inode *old_dir, struct dentry *old_dentry,
-		       struct inode *new_dir, struct dentry *new_dentry)
+		       struct inode *new_dir, struct dentry *new_dentry,
+		       unsigned int flags)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(old_dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
 	int op = CEPH_MDS_OP_RENAME;
 	int err;
+
+	if (flags)
+		return -EINVAL;
 
 	if (ceph_snap(old_dir) != ceph_snap(new_dir))
 		return -EXDEV;
@@ -1486,10 +1490,7 @@ const struct inode_operations ceph_dir_iops = {
 	.permission = ceph_permission,
 	.getattr = ceph_getattr,
 	.setattr = ceph_setattr,
-	.setxattr = generic_setxattr,
-	.getxattr = generic_getxattr,
 	.listxattr = ceph_listxattr,
-	.removexattr = generic_removexattr,
 	.get_acl = ceph_get_acl,
 	.set_acl = ceph_set_acl,
 	.mknod = ceph_mknod,
