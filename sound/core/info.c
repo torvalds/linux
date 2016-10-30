@@ -331,6 +331,9 @@ static ssize_t snd_info_text_entry_write(struct file *file,
 	if (!valid_pos(pos, count))
 		return -EIO;
 	next = pos + count;
+	/* don't handle too large text inputs */
+	if (next > 16 * 1024)
+		return -EIO;
 	mutex_lock(&entry->access);
 	buf = data->wbuffer;
 	if (!buf) {
