@@ -41,6 +41,8 @@ config ARC
 	select PERF_USE_VMALLOC
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_GENERIC_DMA_COHERENT
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZMA
 
 config MIGHT_HAVE_PCI
 	bool
@@ -186,14 +188,6 @@ if SMP
 config ARC_HAS_COH_CACHES
 	def_bool n
 
-config ARC_MCIP
-	bool "ARConnect Multicore IP (MCIP) Support "
-	depends on ISA_ARCV2
-	help
-	  This IP block enables SMP in ARC-HS38 cores.
-	  It provides for cross-core interrupts, multi-core debug
-	  hardware semaphores, shared memory,....
-
 config NR_CPUS
 	int "Maximum number of CPUs (2-4096)"
 	range 2 4096
@@ -210,6 +204,15 @@ config ARC_SMP_HALT_ON_RESET
 	  entry point and spin wait for Master's signal.
 
 endif	#SMP
+
+config ARC_MCIP
+	bool "ARConnect Multicore IP (MCIP) Support "
+	depends on ISA_ARCV2
+	default y if SMP
+	help
+	  This IP block enables SMP in ARC-HS38 cores.
+	  It provides for cross-core interrupts, multi-core debug
+	  hardware semaphores, shared memory,....
 
 menuconfig ARC_CACHE
 	bool "Enable Cache Support"
@@ -536,14 +539,6 @@ config ARC_DW2_UNWIND
 config ARC_DBG_TLB_PARANOIA
 	bool "Paranoia Checks in Low Level TLB Handlers"
 	default n
-
-config ARC_DBG_TLB_MISS_COUNT
-	bool "Profile TLB Misses"
-	default n
-	select DEBUG_FS
-	help
-	  Counts number of I and D TLB Misses and exports them via Debugfs
-	  The counters can be cleared via Debugfs as well
 
 endif
 

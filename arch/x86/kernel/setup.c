@@ -1221,11 +1221,16 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	get_smp_config();
 
+	/*
+	 * Systems w/o ACPI and mptables might not have it mapped the local
+	 * APIC yet, but prefill_possible_map() might need to access it.
+	 */
+	init_apic_mappings();
+
 	prefill_possible_map();
 
 	init_cpu_to_node();
 
-	init_apic_mappings();
 	io_apic_init_mappings();
 
 	kvm_guest_init();

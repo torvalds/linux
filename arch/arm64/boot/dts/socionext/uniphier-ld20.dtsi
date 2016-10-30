@@ -257,18 +257,18 @@
 			reg = <0x59801000 0x400>;
 		};
 
-		mioctrl@59810000 {
-			compatible = "socionext,uniphier-mioctrl",
+		sdctrl@59810000 {
+			compatible = "socionext,uniphier-ld20-sdctrl",
 				     "simple-mfd", "syscon";
 			reg = <0x59810000 0x800>;
 
-			mio_clk: clock {
-				compatible = "socionext,uniphier-ld20-mio-clock";
+			sd_clk: clock {
+				compatible = "socionext,uniphier-ld20-sd-clock";
 				#clock-cells = <1>;
 			};
 
-			mio_rst: reset {
-				compatible = "socionext,uniphier-ld20-mio-reset";
+			sd_rst: reset {
+				compatible = "socionext,uniphier-ld20-sd-reset";
 				#reset-cells = <1>;
 			};
 		};
