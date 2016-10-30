@@ -30,10 +30,8 @@ struct cxl_context *cxl_dev_context_init(struct pci_dev *dev)
 		return ERR_CAST(afu);
 
 	ctx = cxl_context_alloc();
-	if (IS_ERR(ctx)) {
-		rc = PTR_ERR(ctx);
-		goto err_dev;
-	}
+	if (!ctx)
+		return ERR_PTR(-ENOMEM);
 
 	ctx->kernelapi = true;
 
@@ -61,7 +59,6 @@ err_mapping:
 	kfree(mapping);
 err_ctx:
 	kfree(ctx);
-err_dev:
 	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL_GPL(cxl_dev_context_init);
