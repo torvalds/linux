@@ -23,9 +23,10 @@ tmp=`mktemp -d`
 
 for c in `git log --no-merges --pretty=format:%h HEAD ^$origin_master ^$tag`; do
     git format-patch -1 -o $tmp $c
-    ./scripts/checkpatch.pl --ignore FILE_PATH_CHANGES $tmp/*.patch
-    rm $tmp/*.patch
 done
+
+./scripts/checkpatch.pl --ignore FILE_PATH_CHANGES $tmp/*.patch
+rm $tmp/*.patch
 
 # checkpatch.pl does not know how to deal with 3 way diffs which would
 # be useful to check the conflict resolutions during merges...

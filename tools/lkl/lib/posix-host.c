@@ -16,6 +16,7 @@
 #include <poll.h>
 #include <lkl_host.h>
 #include "iomem.h"
+#include "jmp_buf.h"
 
 /* Let's see if the host has semaphore.h */
 #include <unistd.h>
@@ -132,7 +133,7 @@ static void sem_down(struct lkl_sem *sem)
 #endif /* _POSIX_SEMAPHORES */
 }
 
-static struct lkl_mutex *mutex_alloc(void)
+static struct lkl_mutex *mutex_alloc(int recursive)
 {
 	struct lkl_mutex *_mutex = malloc(sizeof(struct lkl_mutex));
 	pthread_mutex_t *mutex = NULL;
@@ -148,8 +149,12 @@ static struct lkl_mutex *mutex_alloc(void)
 	 * but has some overhead, so we provide an option to turn it
 	 * off. */
 #ifdef DEBUG
-	WARN_PTHREAD(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK));
+	if (!recursive)
+		WARN_PTHREAD(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK));
 #endif /* DEBUG */
+
+	if (recursive)
+		WARN_PTHREAD(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE));
 
 	WARN_PTHREAD(pthread_mutex_init(mutex, &attr));
 
@@ -199,6 +204,16 @@ static int thread_join(lkl_thread_t tid)
 		return -1;
 	else
 		return 0;
+}
+
+static lkl_thread_t thread_self(void)
+{
+	return (lkl_thread_t)pthread_self();
+}
+
+static int thread_equal(lkl_thread_t a, lkl_thread_t b)
+{
+	return pthread_equal(a, b);
 }
 
 static int tls_alloc(unsigned int *key, void (*destructor)(void *))
@@ -289,6 +304,8 @@ struct lkl_host_operations lkl_host_ops = {
 	.thread_detach = thread_detach,
 	.thread_exit = thread_exit,
 	.thread_join = thread_join,
+	.thread_self = thread_self,
+	.thread_equal = thread_equal,
 	.sem_alloc = sem_alloc,
 	.sem_free = sem_free,
 	.sem_up = sem_up,
@@ -312,6 +329,8 @@ struct lkl_host_operations lkl_host_ops = {
 	.iomem_access = lkl_iomem_access,
 	.virtio_devices = lkl_virtio_devs,
 	.gettid = _gettid,
+	.jmp_buf_set = jmp_buf_set,
+	.jmp_buf_longjmp = jmp_buf_longjmp,
 };
 
 static int fd_get_capacity(struct lkl_disk disk, unsigned long long *res)

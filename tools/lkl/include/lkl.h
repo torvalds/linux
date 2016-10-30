@@ -341,24 +341,6 @@ void lkl_netdev_free(struct lkl_netdev *nd);
 int lkl_netdev_get_ifindex(int id);
 
 /**
- * lkl_create_syscall_thread - create an additional system call thread
- *
- * Create a new system call thread. All subsequent system calls issued from this
- * host thread are queued to the newly created system call thread.
- *
- * System call threads must be stopped up by calling @lkl_stop_syscall_thread
- * before @lkl_halt is called.
- */
-int lkl_create_syscall_thread(void);
-
-/**
- * lkl_stop_syscall_thread - stop the associated system call thread
- *
- * Stop the system call thread associated with this host thread, if any.
- */
-int lkl_stop_syscall_thread(void);
-
-/**
  * lkl_netdev_tap_create - create TAP net_device for the virtio net backend
  *
  * @ifname - interface name for the TAP device. need to be configured

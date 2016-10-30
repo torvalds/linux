@@ -678,8 +678,17 @@ static int test_mutex(char *str, int len)
 	 * warn us on CI if we've made bad memory accesses.
 	 */
 
-	struct lkl_mutex *mutex = lkl_host_ops.mutex_alloc();
+	struct lkl_mutex *mutex;
+
+	mutex = lkl_host_ops.mutex_alloc(0);
 	lkl_host_ops.mutex_lock(mutex);
+	lkl_host_ops.mutex_unlock(mutex);
+	lkl_host_ops.mutex_free(mutex);
+
+	mutex = lkl_host_ops.mutex_alloc(1);
+	lkl_host_ops.mutex_lock(mutex);
+	lkl_host_ops.mutex_lock(mutex);
+	lkl_host_ops.mutex_unlock(mutex);
 	lkl_host_ops.mutex_unlock(mutex);
 	lkl_host_ops.mutex_free(mutex);
 

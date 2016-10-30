@@ -3,21 +3,19 @@
 #include <linux/init_task.h>
 #include <linux/personality.h>
 #include <linux/reboot.h>
-#include <linux/tick.h>
 #include <linux/fs.h>
 #include <linux/start_kernel.h>
 #include <linux/syscalls.h>
+#include <linux/tick.h>
 #include <asm/host_ops.h>
 #include <asm/irq.h>
 #include <asm/unistd.h>
 #include <asm/syscalls.h>
+#include <asm/cpu.h>
 
 struct lkl_host_operations *lkl_ops;
 static char cmd_line[COMMAND_LINE_SIZE];
-static void *idle_sem;
 static void *init_sem;
-static void *halt_sem;
-static bool halt;
 static int is_running;
 void (*pm_power_off)(void) = NULL;
 static unsigned long mem_size;
@@ -37,9 +35,8 @@ void __init setup_arch(char **cl)
 
 static void __init lkl_run_kernel(void *arg)
 {
-	/* Nobody will ever join us */
-	lkl_ops->thread_detach();
-
+	threads_init();
+	lkl_cpu_get();
 	start_kernel();
 }
 
@@ -63,33 +60,28 @@ int __init lkl_start_kernel(struct lkl_host_operations *ops,
 
 	memcpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);
 
-	ret = threads_init();
-	if (ret)
-		return ret;
-
 	init_sem = lkl_ops->sem_alloc(0);
 	if (!init_sem)
 		return -ENOMEM;
 
-	idle_sem = lkl_ops->sem_alloc(0);
-	if (!idle_sem) {
-		ret = -ENOMEM;
+	ret = lkl_cpu_init();
+	if (ret)
 		goto out_free_init_sem;
-	}
 
 	ret = lkl_ops->thread_create(lkl_run_kernel, NULL);
 	if (!ret) {
 		ret = -ENOMEM;
-		goto out_free_idle_sem;
+		goto out_free_init_sem;
 	}
 
 	lkl_ops->sem_down(init_sem);
+	current_thread_info()->tid = lkl_ops->thread_self();
+	lkl_cpu_change_owner(current_thread_info()->tid);
 
+	lkl_cpu_put();
 	is_running = 1;
-	return 0;
 
-out_free_idle_sem:
-	lkl_ops->sem_free(idle_sem);
+	return 0;
 
 out_free_init_sem:
 	lkl_ops->sem_free(init_sem);
@@ -104,7 +96,7 @@ int lkl_is_running(void)
 
 void machine_halt(void)
 {
-	halt = true;
+	lkl_cpu_shutdown();
 }
 
 void machine_power_off(void)
@@ -122,52 +114,23 @@ long lkl_sys_halt(void)
 	long err;
 	long params[6] = { 0, };
 
-	halt_sem = lkl_ops->sem_alloc(0);
-	if (!halt_sem)
-		return -ENOMEM;
-
 	err = lkl_syscall(__NR_reboot, params);
-	if (err < 0) {
-		lkl_ops->sem_free(halt_sem);
+	if (err < 0)
 		return err;
-	}
 
-	lkl_ops->sem_down(halt_sem);
+	is_running = false;
 
-	lkl_ops->sem_free(halt_sem);
-	lkl_ops->sem_free(idle_sem);
-	lkl_ops->sem_free(init_sem);
+	lkl_cpu_wait_shutdown();
 
-	free_initial_syscall_thread();
-
+	syscalls_cleanup();
+	threads_cleanup();
+	/* Shutdown the clockevents source. */
+	tick_suspend_local();
 	free_mem();
 
 	return 0;
 }
 
-void arch_cpu_idle(void)
-{
-	if (halt) {
-		threads_cleanup();
-
-		/* Shutdown the clockevents source. */
-		tick_suspend_local();
-
-		is_running = false;
-		lkl_ops->sem_up(halt_sem);
-		lkl_ops->thread_exit();
-	}
-
-	lkl_ops->sem_down(idle_sem);
-
-	local_irq_enable();
-}
-
-void wakeup_cpu(void)
-{
-        if (!halt)
-                lkl_ops->sem_up(idle_sem);
-}
 
 static int lkl_run_init(struct linux_binprm *bprm);
 
@@ -192,9 +155,12 @@ static int lkl_run_init(struct linux_binprm *bprm)
 
 	set_binfmt(&lkl_run_init_binfmt);
 
-	initial_syscall_thread(init_sem);
+	init_pid_ns.child_reaper = 0;
 
-	kernel_halt();
+	syscalls_init();
+
+	lkl_ops->sem_up(init_sem);
+	lkl_ops->thread_exit();
 
 	return 0;
 }

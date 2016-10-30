@@ -1,8 +1,8 @@
 #ifndef _ASM_LKL_SYSCALLS_H
 #define _ASM_LKL_SYSCALLS_H
 
-int initial_syscall_thread(void *);
-void free_initial_syscall_thread(void);
+int syscalls_init(void);
+void syscalls_cleanup(void);
 long lkl_syscall(long no, long *params);
 
 #define sys_mmap sys_mmap_pgoff
