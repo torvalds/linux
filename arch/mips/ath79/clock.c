@@ -45,7 +45,7 @@ static struct clk *__init ath79_add_sys_clkdev(
 	int err;
 
 	clk = clk_register_fixed_rate(NULL, id, NULL, 0, rate);
-	if (!clk)
+	if (IS_ERR(clk))
 		panic("failed to allocate %s clock structure", id);
 
 	err = clk_register_clkdev(clk, id, NULL);
