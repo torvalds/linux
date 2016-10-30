@@ -36,25 +36,31 @@ static int rga_mmu_buf_get(struct rga_mmu_buf_t *t, uint32_t size)
 
 static int rga_mmu_buf_get_try(struct rga_mmu_buf_t *t, uint32_t size)
 {
-    mutex_lock(&rga_service.lock);
-    if((t->back - t->front) > t->size) {
-        if(t->front + size > t->back - t->size)
-            return -1;
-    }
-    else {
-        if((t->front + size) > t->back)
-            return -1;
+	int ret = 0;
 
-        if(t->front + size > t->size) {
-            if (size > (t->back - t->size)) {
-                return -1;
-            }
-            t->front = 0;
-        }
-    }
-    mutex_unlock(&rga_service.lock);
+	mutex_lock(&rga_service.lock);
+	if ((t->back - t->front) > t->size) {
+		if(t->front + size > t->back - t->size) {
+			ret = -ENOMEM;
+			goto out;
+		}
+	} else {
+		if ((t->front + size) > t->back) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		if (t->front + size > t->size) {
+			if (size > (t->back - t->size)) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			t->front = 0;
+		}
+	}
 
-    return 0;
+out:
+	mutex_unlock(&rga_service.lock);
+	return ret;
 }
 
 static int rga_mem_size_cal(unsigned long Mem, uint32_t MemSize, unsigned long *StartAddr)
