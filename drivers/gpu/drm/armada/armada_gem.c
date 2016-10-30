@@ -594,11 +594,7 @@ int armada_gem_map_import(struct armada_gem_object *dobj)
 	int ret;
 
 	dobj->sgt = dma_buf_map_attachment(dobj->obj.import_attach,
-					  DMA_TO_DEVICE);
-	if (!dobj->sgt) {
-		DRM_ERROR("dma_buf_map_attachment() returned NULL\n");
-		return -EINVAL;
-	}
+					   DMA_TO_DEVICE);
 	if (IS_ERR(dobj->sgt)) {
 		ret = PTR_ERR(dobj->sgt);
 		dobj->sgt = NULL;
