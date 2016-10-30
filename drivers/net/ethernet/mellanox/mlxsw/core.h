@@ -52,6 +52,7 @@
 #include "resources.h"
 
 struct mlxsw_core;
+struct mlxsw_core_port;
 struct mlxsw_driver;
 struct mlxsw_bus;
 struct mlxsw_bus_info;
@@ -141,23 +142,18 @@ u8 mlxsw_core_lag_mapping_get(struct mlxsw_core *mlxsw_core,
 void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
 				  u16 lag_id, u8 local_port);
 
-struct mlxsw_core_port {
-	struct devlink_port devlink_port;
-};
-
-static inline void *
-mlxsw_core_port_driver_priv(struct mlxsw_core_port *mlxsw_core_port)
-{
-	/* mlxsw_core_port is ensured to always be the first field in driver
-	 * port structure.
-	 */
-	return mlxsw_core_port;
-}
-
-int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core,
-			 struct mlxsw_core_port *mlxsw_core_port, u8 local_port,
-			 struct net_device *dev, bool split, u32 split_group);
-void mlxsw_core_port_fini(struct mlxsw_core_port *mlxsw_core_port);
+void *mlxsw_core_port_driver_priv(struct mlxsw_core_port *mlxsw_core_port);
+int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port);
+void mlxsw_core_port_fini(struct mlxsw_core *mlxsw_core, u8 local_port);
+void mlxsw_core_port_eth_set(struct mlxsw_core *mlxsw_core, u8 local_port,
+			     void *port_driver_priv, struct net_device *dev,
+			     bool split, u32 split_group);
+void mlxsw_core_port_ib_set(struct mlxsw_core *mlxsw_core, u8 local_port,
+			    void *port_driver_priv);
+void mlxsw_core_port_clear(struct mlxsw_core *mlxsw_core, u8 local_port,
+			   void *port_driver_priv);
+enum devlink_port_type mlxsw_core_port_type_get(struct mlxsw_core *mlxsw_core,
+						u8 local_port);
 
 int mlxsw_core_schedule_dw(struct delayed_work *dwork, unsigned long delay);
 
@@ -218,6 +214,8 @@ struct mlxsw_driver {
 	int (*init)(struct mlxsw_core *mlxsw_core,
 		    const struct mlxsw_bus_info *mlxsw_bus_info);
 	void (*fini)(struct mlxsw_core *mlxsw_core);
+	int (*port_type_set)(struct mlxsw_core *mlxsw_core, u8 local_port,
+			     enum devlink_port_type new_type);
 	int (*port_split)(struct mlxsw_core *mlxsw_core, u8 local_port,
 			  unsigned int count);
 	int (*port_unsplit)(struct mlxsw_core *mlxsw_core, u8 local_port);

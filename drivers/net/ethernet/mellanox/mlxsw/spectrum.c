@@ -158,7 +158,7 @@ static void mlxsw_sp_txhdr_construct(struct sk_buff *skb,
 
 static int mlxsw_sp_base_mac_get(struct mlxsw_sp *mlxsw_sp)
 {
-	char spad_pl[MLXSW_REG_SPAD_LEN];
+	char spad_pl[MLXSW_REG_SPAD_LEN] = {0};
 	int err;
 
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(spad), spad_pl);
@@ -2003,12 +2003,12 @@ static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 	int err;
 
 	autoneg = mlxsw_sp_port->link.autoneg;
-	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sp_port->local_port, 0);
+	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sp_port->local_port, 0);
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
 	if (err)
 		return err;
-	mlxsw_reg_ptys_unpack(ptys_pl, &eth_proto_cap, &eth_proto_admin,
-			      &eth_proto_oper);
+	mlxsw_reg_ptys_eth_unpack(ptys_pl, &eth_proto_cap, &eth_proto_admin,
+				  &eth_proto_oper);
 
 	mlxsw_sp_port_get_link_supported(eth_proto_cap, cmd);
 
@@ -2037,11 +2037,11 @@ mlxsw_sp_port_set_link_ksettings(struct net_device *dev,
 	bool autoneg;
 	int err;
 
-	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sp_port->local_port, 0);
+	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sp_port->local_port, 0);
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
 	if (err)
 		return err;
-	mlxsw_reg_ptys_unpack(ptys_pl, &eth_proto_cap, NULL, NULL);
+	mlxsw_reg_ptys_eth_unpack(ptys_pl, &eth_proto_cap, NULL, NULL);
 
 	autoneg = cmd->base.autoneg == AUTONEG_ENABLE;
 	eth_proto_new = autoneg ?
@@ -2054,7 +2054,8 @@ mlxsw_sp_port_set_link_ksettings(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sp_port->local_port, eth_proto_new);
+	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sp_port->local_port,
+				eth_proto_new);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
 	if (err)
 		return err;
@@ -2092,8 +2093,8 @@ mlxsw_sp_port_speed_by_width_set(struct mlxsw_sp_port *mlxsw_sp_port, u8 width)
 	u32 eth_proto_admin;
 
 	eth_proto_admin = mlxsw_sp_to_ptys_upper_speed(upper_speed);
-	mlxsw_reg_ptys_pack(ptys_pl, mlxsw_sp_port->local_port,
-			    eth_proto_admin);
+	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sp_port->local_port,
+				eth_proto_admin);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
 }
 
@@ -2211,8 +2212,8 @@ static int mlxsw_sp_port_pvid_vport_destroy(struct mlxsw_sp_port *mlxsw_sp_port)
 	return mlxsw_sp_port_kill_vid(mlxsw_sp_port->dev, 0, 1);
 }
 
-static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
-				bool split, u8 module, u8 width, u8 lane)
+static int __mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+				  bool split, u8 module, u8 width, u8 lane)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct net_device *dev;
@@ -2357,20 +2358,12 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_register_netdev;
 	}
 
-	err = mlxsw_core_port_init(mlxsw_sp->core, &mlxsw_sp_port->core_port,
-				   mlxsw_sp_port->local_port, dev,
-				   mlxsw_sp_port->split, module);
-	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to init core port\n",
-			mlxsw_sp_port->local_port);
-		goto err_core_port_init;
-	}
-
+	mlxsw_core_port_eth_set(mlxsw_sp->core, mlxsw_sp_port->local_port,
+				mlxsw_sp_port, dev, mlxsw_sp_port->split,
+				module);
 	mlxsw_core_schedule_dw(&mlxsw_sp_port->hw_stats.update_dw, 0);
 	return 0;
 
-err_core_port_init:
-	unregister_netdev(dev);
 err_register_netdev:
 	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
@@ -2399,14 +2392,34 @@ err_port_active_vlans_alloc:
 	return err;
 }
 
-static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
+static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+				bool split, u8 module, u8 width, u8 lane)
+{
+	int err;
+
+	err = mlxsw_core_port_init(mlxsw_sp->core, local_port);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to init core port\n",
+			local_port);
+		return err;
+	}
+	err = __mlxsw_sp_port_create(mlxsw_sp, local_port, false,
+				     module, width, lane);
+	if (err)
+		goto err_port_create;
+	return 0;
+
+err_port_create:
+	mlxsw_core_port_fini(mlxsw_sp->core, local_port);
+	return err;
+}
+
+static void __mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
 
-	if (!mlxsw_sp_port)
-		return;
 	cancel_delayed_work_sync(&mlxsw_sp_port->hw_stats.update_dw);
-	mlxsw_core_port_fini(&mlxsw_sp_port->core_port);
+	mlxsw_core_port_clear(mlxsw_sp->core, local_port, mlxsw_sp);
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
 	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
@@ -2422,12 +2435,24 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	free_netdev(mlxsw_sp_port->dev);
 }
 
+static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
+{
+	__mlxsw_sp_port_remove(mlxsw_sp, local_port);
+	mlxsw_core_port_fini(mlxsw_sp->core, local_port);
+}
+
+static bool mlxsw_sp_port_created(struct mlxsw_sp *mlxsw_sp, u8 local_port)
+{
+	return mlxsw_sp->ports[local_port] != NULL;
+}
+
 static void mlxsw_sp_ports_remove(struct mlxsw_sp *mlxsw_sp)
 {
 	int i;
 
 	for (i = 1; i < MLXSW_PORT_MAX_PORTS; i++)
-		mlxsw_sp_port_remove(mlxsw_sp, i);
+		if (mlxsw_sp_port_created(mlxsw_sp, i))
+			mlxsw_sp_port_remove(mlxsw_sp, i);
 	kfree(mlxsw_sp->ports);
 }
 
@@ -2451,8 +2476,8 @@ static int mlxsw_sp_ports_create(struct mlxsw_sp *mlxsw_sp)
 		if (!width)
 			continue;
 		mlxsw_sp->port_to_module[i] = module;
-		err = mlxsw_sp_port_create(mlxsw_sp, i, false, module, width,
-					   lane);
+		err = mlxsw_sp_port_create(mlxsw_sp, i, false,
+					   module, width, lane);
 		if (err)
 			goto err_port_create;
 	}
@@ -2461,7 +2486,8 @@ static int mlxsw_sp_ports_create(struct mlxsw_sp *mlxsw_sp)
 err_port_create:
 err_port_module_info_get:
 	for (i--; i >= 1; i--)
-		mlxsw_sp_port_remove(mlxsw_sp, i);
+		if (mlxsw_sp_port_created(mlxsw_sp, i))
+			mlxsw_sp_port_remove(mlxsw_sp, i);
 	kfree(mlxsw_sp->ports);
 	return err;
 }
@@ -2503,7 +2529,8 @@ static int mlxsw_sp_port_split_create(struct mlxsw_sp *mlxsw_sp, u8 base_port,
 
 err_port_create:
 	for (i--; i >= 0; i--)
-		mlxsw_sp_port_remove(mlxsw_sp, base_port + i);
+		if (mlxsw_sp_port_created(mlxsw_sp, base_port + i))
+			mlxsw_sp_port_remove(mlxsw_sp, base_port + i);
 	i = count;
 err_port_swid_set:
 	for (i--; i >= 0; i--)
@@ -2593,7 +2620,8 @@ static int mlxsw_sp_port_split(struct mlxsw_core *mlxsw_core, u8 local_port,
 	}
 
 	for (i = 0; i < count; i++)
-		mlxsw_sp_port_remove(mlxsw_sp, base_port + i);
+		if (mlxsw_sp_port_created(mlxsw_sp, base_port + i))
+			mlxsw_sp_port_remove(mlxsw_sp, base_port + i);
 
 	err = mlxsw_sp_port_split_create(mlxsw_sp, base_port, module, count);
 	if (err) {
@@ -2638,7 +2666,8 @@ static int mlxsw_sp_port_unsplit(struct mlxsw_core *mlxsw_core, u8 local_port)
 		base_port = base_port + 2;
 
 	for (i = 0; i < count; i++)
-		mlxsw_sp_port_remove(mlxsw_sp, base_port + i);
+		if (mlxsw_sp_port_created(mlxsw_sp, base_port + i))
+			mlxsw_sp_port_remove(mlxsw_sp, base_port + i);
 
 	mlxsw_sp_port_unsplit_create(mlxsw_sp, base_port, count);
 
