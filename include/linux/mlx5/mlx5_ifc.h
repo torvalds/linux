@@ -145,6 +145,12 @@ enum {
 	MLX5_CMD_OP_QUERY_Q_COUNTER               = 0x773,
 	MLX5_CMD_OP_SET_RATE_LIMIT                = 0x780,
 	MLX5_CMD_OP_QUERY_RATE_LIMIT              = 0x781,
+	MLX5_CMD_OP_CREATE_SCHEDULING_ELEMENT      = 0x782,
+	MLX5_CMD_OP_DESTROY_SCHEDULING_ELEMENT     = 0x783,
+	MLX5_CMD_OP_QUERY_SCHEDULING_ELEMENT       = 0x784,
+	MLX5_CMD_OP_MODIFY_SCHEDULING_ELEMENT      = 0x785,
+	MLX5_CMD_OP_CREATE_QOS_PARA_VPORT         = 0x786,
+	MLX5_CMD_OP_DESTROY_QOS_PARA_VPORT        = 0x787,
 	MLX5_CMD_OP_ALLOC_PD                      = 0x800,
 	MLX5_CMD_OP_DEALLOC_PD                    = 0x801,
 	MLX5_CMD_OP_ALLOC_UAR                     = 0x802,
@@ -537,13 +543,27 @@ struct mlx5_ifc_e_switch_cap_bits {
 
 struct mlx5_ifc_qos_cap_bits {
 	u8         packet_pacing[0x1];
-	u8         reserved_0[0x1f];
-	u8         reserved_1[0x20];
+	u8         esw_scheduling[0x1];
+	u8         reserved_at_2[0x1e];
+
+	u8         reserved_at_20[0x20];
+
 	u8         packet_pacing_max_rate[0x20];
+
 	u8         packet_pacing_min_rate[0x20];
-	u8         reserved_2[0x10];
+
+	u8         reserved_at_80[0x10];
 	u8         packet_pacing_rate_table_size[0x10];
-	u8         reserved_3[0x760];
+
+	u8         esw_element_type[0x10];
+	u8         esw_tsar_type[0x10];
+
+	u8         reserved_at_c0[0x10];
+	u8         max_qos_para_vport[0x10];
+
+	u8         max_tsar_bw_share[0x20];
+
+	u8         reserved_at_100[0x700];
 };
 
 struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
@@ -2333,6 +2353,30 @@ struct mlx5_ifc_sqc_bits {
 	struct mlx5_ifc_wq_bits wq;
 };
 
+enum {
+	SCHEDULING_CONTEXT_ELEMENT_TYPE_TSAR = 0x0,
+	SCHEDULING_CONTEXT_ELEMENT_TYPE_VPORT = 0x1,
+	SCHEDULING_CONTEXT_ELEMENT_TYPE_VPORT_TC = 0x2,
+	SCHEDULING_CONTEXT_ELEMENT_TYPE_PARA_VPORT_TC = 0x3,
+};
+
+struct mlx5_ifc_scheduling_context_bits {
+	u8         element_type[0x8];
+	u8         reserved_at_8[0x18];
+
+	u8         element_attributes[0x20];
+
+	u8         parent_element_id[0x20];
+
+	u8         reserved_at_60[0x40];
+
+	u8         bw_share[0x20];
+
+	u8         max_average_bw[0x20];
+
+	u8         reserved_at_e0[0x120];
+};
+
 struct mlx5_ifc_rqtc_bits {
 	u8         reserved_at_0[0xa0];
 
@@ -2844,7 +2888,7 @@ struct mlx5_ifc_xrqc_bits {
 
 	struct mlx5_ifc_tag_matching_topology_context_bits tag_matching_topology_context;
 
-	u8         reserved_at_180[0x200];
+	u8         reserved_at_180[0x880];
 
 	struct mlx5_ifc_wq_bits wq;
 };
@@ -2918,6 +2962,29 @@ struct mlx5_ifc_register_loopback_control_bits {
 	u8         reserved_at_10[0x10];
 
 	u8         reserved_at_20[0x60];
+};
+
+struct mlx5_ifc_vport_tc_element_bits {
+	u8         traffic_class[0x4];
+	u8         reserved_at_4[0xc];
+	u8         vport_number[0x10];
+};
+
+struct mlx5_ifc_vport_element_bits {
+	u8         reserved_at_0[0x10];
+	u8         vport_number[0x10];
+};
+
+enum {
+	TSAR_ELEMENT_TSAR_TYPE_DWRR = 0x0,
+	TSAR_ELEMENT_TSAR_TYPE_ROUND_ROBIN = 0x1,
+	TSAR_ELEMENT_TSAR_TYPE_ETS = 0x2,
+};
+
+struct mlx5_ifc_tsar_element_bits {
+	u8         reserved_at_0[0x8];
+	u8         tsar_type[0x8];
+	u8         reserved_at_10[0x10];
 };
 
 struct mlx5_ifc_teardown_hca_out_bits {
@@ -3538,6 +3605,39 @@ struct mlx5_ifc_query_special_contexts_in_bits {
 	u8         op_mod[0x10];
 
 	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_query_scheduling_element_out_bits {
+	u8         opcode[0x10];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         reserved_at_40[0xc0];
+
+	struct mlx5_ifc_scheduling_context_bits scheduling_context;
+
+	u8         reserved_at_300[0x100];
+};
+
+enum {
+	SCHEDULING_HIERARCHY_E_SWITCH = 0x2,
+};
+
+struct mlx5_ifc_query_scheduling_element_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         scheduling_hierarchy[0x8];
+	u8         reserved_at_48[0x18];
+
+	u8         scheduling_element_id[0x20];
+
+	u8         reserved_at_80[0x180];
 };
 
 struct mlx5_ifc_query_rqt_out_bits {
@@ -4725,6 +4825,43 @@ struct mlx5_ifc_modify_sq_in_bits {
 	struct mlx5_ifc_sqc_bits ctx;
 };
 
+struct mlx5_ifc_modify_scheduling_element_out_bits {
+	u8         status[0x8];
+	u8         reserved_at_8[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_at_40[0x1c0];
+};
+
+enum {
+	MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_BW_SHARE = 0x1,
+	MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_MAX_AVERAGE_BW = 0x2,
+};
+
+struct mlx5_ifc_modify_scheduling_element_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         scheduling_hierarchy[0x8];
+	u8         reserved_at_48[0x18];
+
+	u8         scheduling_element_id[0x20];
+
+	u8         reserved_at_80[0x20];
+
+	u8         modify_bitmask[0x20];
+
+	u8         reserved_at_c0[0x40];
+
+	struct mlx5_ifc_scheduling_context_bits scheduling_context;
+
+	u8         reserved_at_300[0x100];
+};
+
 struct mlx5_ifc_modify_rqt_out_bits {
 	u8         status[0x8];
 	u8         reserved_at_8[0x18];
@@ -5390,6 +5527,30 @@ struct mlx5_ifc_destroy_sq_in_bits {
 	u8         reserved_at_60[0x20];
 };
 
+struct mlx5_ifc_destroy_scheduling_element_out_bits {
+	u8         status[0x8];
+	u8         reserved_at_8[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_at_40[0x1c0];
+};
+
+struct mlx5_ifc_destroy_scheduling_element_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         scheduling_hierarchy[0x8];
+	u8         reserved_at_48[0x18];
+
+	u8         scheduling_element_id[0x20];
+
+	u8         reserved_at_80[0x180];
+};
+
 struct mlx5_ifc_destroy_rqt_out_bits {
 	u8         status[0x8];
 	u8         reserved_at_8[0x18];
@@ -6015,6 +6176,36 @@ struct mlx5_ifc_create_sq_in_bits {
 	u8         reserved_at_40[0xc0];
 
 	struct mlx5_ifc_sqc_bits ctx;
+};
+
+struct mlx5_ifc_create_scheduling_element_out_bits {
+	u8         status[0x8];
+	u8         reserved_at_8[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_at_40[0x40];
+
+	u8         scheduling_element_id[0x20];
+
+	u8         reserved_at_a0[0x160];
+};
+
+struct mlx5_ifc_create_scheduling_element_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         scheduling_hierarchy[0x8];
+	u8         reserved_at_48[0x18];
+
+	u8         reserved_at_60[0xa0];
+
+	struct mlx5_ifc_scheduling_context_bits scheduling_context;
+
+	u8         reserved_at_300[0x100];
 };
 
 struct mlx5_ifc_create_rqt_out_bits {

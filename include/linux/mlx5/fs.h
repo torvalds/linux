@@ -69,8 +69,8 @@ enum mlx5_flow_namespace_type {
 
 struct mlx5_flow_table;
 struct mlx5_flow_group;
-struct mlx5_flow_rule;
 struct mlx5_flow_namespace;
+struct mlx5_flow_handle;
 
 struct mlx5_flow_spec {
 	u8   match_criteria_enable;
@@ -127,18 +127,20 @@ void mlx5_destroy_flow_group(struct mlx5_flow_group *fg);
 /* Single destination per rule.
  * Group ID is implied by the match criteria.
  */
-struct mlx5_flow_rule *
-mlx5_add_flow_rule(struct mlx5_flow_table *ft,
-		   struct mlx5_flow_spec *spec,
-		   u32 action,
-		   u32 flow_tag,
-		   struct mlx5_flow_destination *dest);
-void mlx5_del_flow_rule(struct mlx5_flow_rule *fr);
+struct mlx5_flow_handle *
+mlx5_add_flow_rules(struct mlx5_flow_table *ft,
+		    struct mlx5_flow_spec *spec,
+		    u32 action,
+		    u32 flow_tag,
+		    struct mlx5_flow_destination *dest,
+		    int dest_num);
+void mlx5_del_flow_rules(struct mlx5_flow_handle *fr);
 
-int mlx5_modify_rule_destination(struct mlx5_flow_rule *rule,
-				 struct mlx5_flow_destination *dest);
+int mlx5_modify_rule_destination(struct mlx5_flow_handle *handler,
+				 struct mlx5_flow_destination *new_dest,
+				 struct mlx5_flow_destination *old_dest);
 
-struct mlx5_fc *mlx5_flow_rule_counter(struct mlx5_flow_rule *rule);
+struct mlx5_fc *mlx5_flow_rule_counter(struct mlx5_flow_handle *handler);
 struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging);
 void mlx5_fc_destroy(struct mlx5_core_dev *dev, struct mlx5_fc *counter);
 void mlx5_fc_query_cached(struct mlx5_fc *counter,

@@ -1771,13 +1771,13 @@ static int mlx5_ib_destroy_flow(struct ib_flow *flow_id)
 	mutex_lock(&dev->flow_db.lock);
 
 	list_for_each_entry_safe(iter, tmp, &handler->list, list) {
-		mlx5_del_flow_rule(iter->rule);
+		mlx5_del_flow_rules(iter->rule);
 		put_flow_table(dev, iter->prio, true);
 		list_del(&iter->list);
 		kfree(iter);
 	}
 
-	mlx5_del_flow_rule(handler->rule);
+	mlx5_del_flow_rules(handler->rule);
 	put_flow_table(dev, handler->prio, true);
 	mutex_unlock(&dev->flow_db.lock);
 
@@ -1907,10 +1907,10 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 	spec->match_criteria_enable = get_match_criteria_enable(spec->match_criteria);
 	action = dst ? MLX5_FLOW_CONTEXT_ACTION_FWD_DEST :
 		MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO;
-	handler->rule = mlx5_add_flow_rule(ft, spec,
+	handler->rule = mlx5_add_flow_rules(ft, spec,
 					   action,
 					   MLX5_FS_DEFAULT_FLOW_TAG,
-					   dst);
+					   dst, 1);
 
 	if (IS_ERR(handler->rule)) {
 		err = PTR_ERR(handler->rule);
@@ -1941,7 +1941,7 @@ static struct mlx5_ib_flow_handler *create_dont_trap_rule(struct mlx5_ib_dev *de
 		handler_dst = create_flow_rule(dev, ft_prio,
 					       flow_attr, dst);
 		if (IS_ERR(handler_dst)) {
-			mlx5_del_flow_rule(handler->rule);
+			mlx5_del_flow_rules(handler->rule);
 			ft_prio->refcount--;
 			kfree(handler);
 			handler = handler_dst;
@@ -2004,7 +2004,7 @@ static struct mlx5_ib_flow_handler *create_leftovers_rule(struct mlx5_ib_dev *de
 						 &leftovers_specs[LEFTOVERS_UC].flow_attr,
 						 dst);
 		if (IS_ERR(handler_ucast)) {
-			mlx5_del_flow_rule(handler->rule);
+			mlx5_del_flow_rules(handler->rule);
 			ft_prio->refcount--;
 			kfree(handler);
 			handler = handler_ucast;
@@ -2046,7 +2046,7 @@ static struct mlx5_ib_flow_handler *create_sniffer_rule(struct mlx5_ib_dev *dev,
 	return handler_rx;
 
 err_tx:
-	mlx5_del_flow_rule(handler_rx->rule);
+	mlx5_del_flow_rules(handler_rx->rule);
 	ft_rx->refcount--;
 	kfree(handler_rx);
 err:
@@ -2358,6 +2358,8 @@ static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
 		ibev.event = IB_EVENT_CLIENT_REREGISTER;
 		port = (u8)param;
 		break;
+	default:
+		return;
 	}
 
 	ibev.device	      = &ibdev->ib_dev;
