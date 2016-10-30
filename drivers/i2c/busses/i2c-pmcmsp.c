@@ -329,10 +329,8 @@ static int pmcmsptwi_probe(struct platform_device *pldev)
 	i2c_set_adapdata(&pmcmsptwi_adapter, &pmcmsptwi_data);
 
 	rc = i2c_add_adapter(&pmcmsptwi_adapter);
-	if (rc) {
-		dev_err(&pldev->dev, "Unable to register I2C adapter\n");
+	if (rc)
 		goto ret_unmap;
-	}
 
 	return 0;
 

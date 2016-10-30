@@ -176,4 +176,39 @@ int dm_btree_walk(struct dm_btree_info *info, dm_block_t root,
 		  int (*fn)(void *context, uint64_t *keys, void *leaf),
 		  void *context);
 
+
+/*----------------------------------------------------------------*/
+
+/*
+ * Cursor API.  This does not follow the rolling lock convention.  Since we
+ * know the order that values are required we can issue prefetches to speed
+ * up iteration.  Use on a single level btree only.
+ */
+#define DM_BTREE_CURSOR_MAX_DEPTH 16
+
+struct cursor_node {
+	struct dm_block *b;
+	unsigned index;
+};
+
+struct dm_btree_cursor {
+	struct dm_btree_info *info;
+	dm_block_t root;
+
+	bool prefetch_leaves;
+	unsigned depth;
+	struct cursor_node nodes[DM_BTREE_CURSOR_MAX_DEPTH];
+};
+
+/*
+ * Creates a fresh cursor.  If prefetch_leaves is set then it is assumed
+ * the btree contains block indexes that will be prefetched.  The cursor is
+ * quite large, so you probably don't want to put it on the stack.
+ */
+int dm_btree_cursor_begin(struct dm_btree_info *info, dm_block_t root,
+			  bool prefetch_leaves, struct dm_btree_cursor *c);
+void dm_btree_cursor_end(struct dm_btree_cursor *c);
+int dm_btree_cursor_next(struct dm_btree_cursor *c);
+int dm_btree_cursor_get_value(struct dm_btree_cursor *c, uint64_t *key, void *value_le);
+
 #endif	/* _LINUX_DM_BTREE_H */

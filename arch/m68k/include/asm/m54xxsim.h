@@ -8,6 +8,10 @@
 #define	CPU_NAME		"COLDFIRE(m54xx)"
 #define	CPU_INSTR_PER_JIFFY	2
 #define	MCF_BUSCLK		(MCF_CLK / 2)
+#define	MACHINE			MACH_M54XX
+#define	FPUTYPE			FPU_COLDFIRE
+#define	IOMEMBASE		MCF_MBAR
+#define	IOMEMSIZE		0x01000000
 
 #include <asm/m54xxacr.h>
 

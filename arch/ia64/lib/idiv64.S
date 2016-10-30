@@ -15,6 +15,7 @@
  */
 
 #include <asm/asmmacro.h>
+#include <asm/export.h>
 
 #ifdef MODULO
 # define OP	mod
@@ -78,3 +79,4 @@ GLOBAL_ENTRY(NAME)
 	getf.sig r8 = f11		// transfer result to result register
 	br.ret.sptk.many rp
 END(NAME)
+EXPORT_SYMBOL(NAME)

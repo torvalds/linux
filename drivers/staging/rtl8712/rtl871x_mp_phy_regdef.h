@@ -82,7 +82,8 @@
  * 3. Page8(0x800)
  */
 #define	rFPGA0_RFMOD			0x800	/*RF mode & CCK TxSC RF
-						 * BW Setting?? */
+						 * BW Setting??
+						 */
 #define	rFPGA0_TxInfo			0x804	/* Status report?? */
 #define	rFPGA0_PSDFunction		0x808
 #define	rFPGA0_TxGainStage		0x80c	/* Set TX PWR init gain? */
@@ -119,7 +120,8 @@
 
 #define	rFPGA0_AnalogParameter1		0x880	/* Crystal cap setting
 						 * RF-R/W protection
-						 * for parameter4?? */
+						 * for parameter4??
+						 */
 #define	rFPGA0_AnalogParameter2		0x884
 #define	rFPGA0_AnalogParameter3		0x888	/* Useless now */
 #define	rFPGA0_AnalogParameter4		0x88c
@@ -146,7 +148,8 @@
  * 5. PageA(0xA00)
  *
  * Set Control channel to upper or lower.
- * These settings are required only for 40MHz */
+ * These settings are required only for 40MHz
+ */
 #define	rCCK0_System			0xa00
 
 #define	rCCK0_AFESetting		0xa04	/* Disable init gain now */
@@ -155,20 +158,23 @@
 #define	rCCK0_RxAGC1			0xa0c
 /* AGC default value, saturation level
  * Antenna Diversity, RX AGC, LNA Threshold, RX LNA Threshold useless now.
- * Not the same as 90 series */
+ * Not the same as 90 series
+ */
 #define	rCCK0_RxAGC2			0xa10	/* AGC & DAGC */
 
 #define	rCCK0_RxHP			0xa14
 
 #define	rCCK0_DSPParameter1		0xa18	/* Timing recovery & Channel
-						 * estimation threshold */
+						 * estimation threshold
+						 */
 #define	rCCK0_DSPParameter2		0xa1c	/* SQ threshold */
 
 #define	rCCK0_TxFilter1			0xa20
 #define	rCCK0_TxFilter2			0xa24
 #define	rCCK0_DebugPort			0xa28	/* debug port and Tx filter3 */
 #define	rCCK0_FalseAlarmReport		0xa2c	/* 0xa2d useless now 0xa30-a4f
-						 * channel report */
+						 * channel report
+						 */
 #define	rCCK0_TRSSIReport		0xa50
 #define	rCCK0_RxReport			0xa54   /* 0xa57 */
 #define	rCCK0_FACounterLower		0xa5c   /* 0xa5b */
@@ -193,11 +199,13 @@
 #define	rOFDM0_XDRxIQImbalance		0xc2c
 
 #define	rOFDM0_RxDetector1		0xc30  /* PD,BW & SBD DM tune
-						* init gain */
+						* init gain
+						*/
 #define	rOFDM0_RxDetector2		0xc34  /* SBD & Fame Sync. */
 #define	rOFDM0_RxDetector3		0xc38  /* Frame Sync. */
 #define	rOFDM0_RxDetector4		0xc3c  /* PD, SBD, Frame Sync &
-						* Short-GI */
+						* Short-GI
+						*/
 
 #define	rOFDM0_RxDSP			0xc40  /* Rx Sync Path */
 #define	rOFDM0_CFOandDAGC		0xc44  /* CFO & DAGC */
@@ -283,7 +291,8 @@
 #define	rTxAGC_Mcs15_Mcs12		0xe1c
 
 /* Analog- control in RX_WAIT_CCA : REG: EE0
- * [Analog- Power & Control Register] */
+ * [Analog- Power & Control Register]
+ */
 #define		rRx_Wait_CCCA		0xe70
 #define	rAnapar_Ctrl_BB			0xee0
 
@@ -371,7 +380,8 @@
 /*
  * Bit Mask
  *
- * 1. Page1(0x100) */
+ * 1. Page1(0x100)
+ */
 #define	bBBResetB			0x100	/* Useless now? */
 #define	bGlobalResetB			0x200
 #define	bOFDMTxStart			0x4
@@ -918,7 +928,8 @@
 #define	bPesudoNoiseState_D      0xffff0000
 
 /* 7. RF Register
- * Zebra1 */
+ * Zebra1
+ */
 #define	bZebra1_HSSIEnable        0x8		/* Useless */
 #define	bZebra1_TRxControl        0xc00
 #define	bZebra1_TRxGainSetting    0x07f

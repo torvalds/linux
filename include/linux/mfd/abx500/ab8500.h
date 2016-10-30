@@ -63,6 +63,8 @@ enum ab8500_version {
 #define AB8500_STE_TEST		0x14
 #define AB8500_OTP_EMUL		0x15
 
+#define AB8500_DEBUG_FIELD_LAST	0x16
+
 /*
  * Interrupts
  * Values used to index into array ab8500_irq_regoffset[] defined in

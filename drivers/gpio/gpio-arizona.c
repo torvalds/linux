@@ -79,7 +79,7 @@ static void arizona_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 			   ARIZONA_GPN_LVL, value);
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "arizona",
 	.owner			= THIS_MODULE,
 	.direction_input	= arizona_gpio_direction_in,

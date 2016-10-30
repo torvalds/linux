@@ -431,7 +431,7 @@ static void htable_put(struct xt_hashlimit_htable *hinfo)
    CREDITS_PER_JIFFY*HZ*60*60*24 < 2^32 ie.
 */
 #define MAX_CPJ_v1 (0xFFFFFFFF / (HZ*60*60*24))
-#define MAX_CPJ (0xFFFFFFFFFFFFFFFF / (HZ*60*60*24))
+#define MAX_CPJ (0xFFFFFFFFFFFFFFFFULL / (HZ*60*60*24))
 
 /* Repeated shift and or gives us all 1s, final shift and add 1 gives
  * us the power of 2 below the theoretical max, so GCC simply does a
@@ -467,17 +467,18 @@ static u64 user2credits(u64 user, int revision)
 		/* If multiplying would overflow... */
 		if (user > 0xFFFFFFFF / (HZ*CREDITS_PER_JIFFY_v1))
 			/* Divide first. */
-			return (user / XT_HASHLIMIT_SCALE) *\
-						HZ * CREDITS_PER_JIFFY_v1;
+			return div64_u64(user, XT_HASHLIMIT_SCALE)
+				* HZ * CREDITS_PER_JIFFY_v1;
 
-		return (user * HZ * CREDITS_PER_JIFFY_v1) \
-						/ XT_HASHLIMIT_SCALE;
+		return div64_u64(user * HZ * CREDITS_PER_JIFFY_v1,
+				 XT_HASHLIMIT_SCALE);
 	} else {
-		if (user > 0xFFFFFFFFFFFFFFFF / (HZ*CREDITS_PER_JIFFY))
-			return (user / XT_HASHLIMIT_SCALE_v2) *\
-						HZ * CREDITS_PER_JIFFY;
+		if (user > 0xFFFFFFFFFFFFFFFFULL / (HZ*CREDITS_PER_JIFFY))
+			return div64_u64(user, XT_HASHLIMIT_SCALE_v2)
+				* HZ * CREDITS_PER_JIFFY;
 
-		return (user * HZ * CREDITS_PER_JIFFY) / XT_HASHLIMIT_SCALE_v2;
+		return div64_u64(user * HZ * CREDITS_PER_JIFFY,
+				 XT_HASHLIMIT_SCALE_v2);
 	}
 }
 

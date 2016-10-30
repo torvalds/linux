@@ -1769,7 +1769,7 @@ static int ps3_gelic_driver_probe(struct ps3_system_bus_device *dev)
 	gelic_ether_setup_netdev_ops(netdev, &card->napi);
 	result = gelic_net_setup_netdev(netdev, card);
 	if (result) {
-		dev_dbg(&dev->core, "%s: setup_netdev failed %d",
+		dev_dbg(&dev->core, "%s: setup_netdev failed %d\n",
 			__func__, result);
 		goto fail_setup_netdev;
 	}

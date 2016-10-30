@@ -746,7 +746,7 @@ struct ieee80211_rx_stats {
 	bool		  bisrxaggrsubframe;
 	bool		  bPacketBeacon;	//cosa add for rssi
 	bool		  bToSelfBA;		//cosa add for rssi
-	char	  cck_adc_pwdb[4];	//cosa add for rx path selection
+	s8		  cck_adc_pwdb[4];	//cosa add for rx path selection
 	u16		  Seq_Num;
 
 };
@@ -1814,7 +1814,7 @@ struct ieee80211_device {
 	u32 wpax_type_notify; //{added by David, 2006.9.26}
 
 	/* QoS related flag */
-	char init_wmmparam_flag;
+	s8  init_wmmparam_flag;
 	/* set on initialization */
 	u8  qos_support;
 

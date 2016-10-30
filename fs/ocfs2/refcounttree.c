@@ -3778,7 +3778,7 @@ static int ocfs2_change_ctime(struct inode *inode,
 		goto out_commit;
 	}
 
-	inode->i_ctime = CURRENT_TIME;
+	inode->i_ctime = current_time(inode);
 	di->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
 	di->i_ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
 
@@ -4094,7 +4094,7 @@ static int ocfs2_complete_reflink(struct inode *s_inode,
 		 * we want mtime to appear identical to the source and
 		 * update ctime.
 		 */
-		t_inode->i_ctime = CURRENT_TIME;
+		t_inode->i_ctime = current_time(t_inode);
 
 		di->i_ctime = cpu_to_le64(t_inode->i_ctime.tv_sec);
 		di->i_ctime_nsec = cpu_to_le32(t_inode->i_ctime.tv_nsec);

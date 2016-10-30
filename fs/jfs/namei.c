@@ -162,7 +162,7 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, umode_t mode,
 
 	mark_inode_dirty(ip);
 
-	dip->i_ctime = dip->i_mtime = CURRENT_TIME;
+	dip->i_ctime = dip->i_mtime = current_time(dip);
 
 	mark_inode_dirty(dip);
 
@@ -298,7 +298,7 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, umode_t mode)
 
 	/* update parent directory inode */
 	inc_nlink(dip);		/* for '..' from child directory */
-	dip->i_ctime = dip->i_mtime = CURRENT_TIME;
+	dip->i_ctime = dip->i_mtime = current_time(dip);
 	mark_inode_dirty(dip);
 
 	rc = txCommit(tid, 2, &iplist[0], 0);
@@ -406,7 +406,7 @@ static int jfs_rmdir(struct inode *dip, struct dentry *dentry)
 	/* update parent directory's link count corresponding
 	 * to ".." entry of the target directory deleted
 	 */
-	dip->i_ctime = dip->i_mtime = CURRENT_TIME;
+	dip->i_ctime = dip->i_mtime = current_time(dip);
 	inode_dec_link_count(dip);
 
 	/*
@@ -528,7 +528,7 @@ static int jfs_unlink(struct inode *dip, struct dentry *dentry)
 
 	ASSERT(ip->i_nlink);
 
-	ip->i_ctime = dip->i_ctime = dip->i_mtime = CURRENT_TIME;
+	ip->i_ctime = dip->i_ctime = dip->i_mtime = current_time(ip);
 	mark_inode_dirty(dip);
 
 	/* update target's inode */
@@ -838,8 +838,8 @@ static int jfs_link(struct dentry *old_dentry,
 
 	/* update object inode */
 	inc_nlink(ip);		/* for new link */
-	ip->i_ctime = CURRENT_TIME;
-	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+	ip->i_ctime = current_time(ip);
+	dir->i_ctime = dir->i_mtime = current_time(dir);
 	mark_inode_dirty(dir);
 	ihold(ip);
 
@@ -1039,7 +1039,7 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 
 	mark_inode_dirty(ip);
 
-	dip->i_ctime = dip->i_mtime = CURRENT_TIME;
+	dip->i_ctime = dip->i_mtime = current_time(dip);
 	mark_inode_dirty(dip);
 	/*
 	 * commit update of parent directory and link object
@@ -1078,7 +1078,8 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
  * FUNCTION:	rename a file or directory
  */
 static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-	       struct inode *new_dir, struct dentry *new_dentry)
+		      struct inode *new_dir, struct dentry *new_dentry,
+		      unsigned int flags)
 {
 	struct btstack btstack;
 	ino_t ino;
@@ -1097,6 +1098,8 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	s64 new_size = 0;
 	int commit_flag;
 
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	jfs_info("jfs_rename: %pd %pd", old_dentry, new_dentry);
 
@@ -1215,7 +1218,7 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			tblk->xflag |= COMMIT_DELETE;
 			tblk->u.ip = new_ip;
 		} else {
-			new_ip->i_ctime = CURRENT_TIME;
+			new_ip->i_ctime = current_time(new_ip);
 			mark_inode_dirty(new_ip);
 		}
 	} else {
@@ -1278,10 +1281,10 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	/*
 	 * Update ctime on changed/moved inodes & mark dirty
 	 */
-	old_ip->i_ctime = CURRENT_TIME;
+	old_ip->i_ctime = current_time(old_ip);
 	mark_inode_dirty(old_ip);
 
-	new_dir->i_ctime = new_dir->i_mtime = current_fs_time(new_dir->i_sb);
+	new_dir->i_ctime = new_dir->i_mtime = current_time(new_dir);
 	mark_inode_dirty(new_dir);
 
 	/* Build list of inodes modified by this transaction */
@@ -1293,7 +1296,7 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	if (old_dir != new_dir) {
 		iplist[ipcount++] = new_dir;
-		old_dir->i_ctime = old_dir->i_mtime = CURRENT_TIME;
+		old_dir->i_ctime = old_dir->i_mtime = current_time(old_dir);
 		mark_inode_dirty(old_dir);
 	}
 
@@ -1426,7 +1429,7 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 
 	mark_inode_dirty(ip);
 
-	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
+	dir->i_ctime = dir->i_mtime = current_time(dir);
 
 	mark_inode_dirty(dir);
 
@@ -1537,10 +1540,7 @@ const struct inode_operations jfs_dir_inode_operations = {
 	.rmdir		= jfs_rmdir,
 	.mknod		= jfs_mknod,
 	.rename		= jfs_rename,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
 	.listxattr	= jfs_listxattr,
-	.removexattr	= generic_removexattr,
 	.setattr	= jfs_setattr,
 #ifdef CONFIG_JFS_POSIX_ACL
 	.get_acl	= jfs_get_acl,

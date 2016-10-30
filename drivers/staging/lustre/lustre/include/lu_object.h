@@ -327,7 +327,7 @@ struct lu_device_type {
 	/**
 	 * Number of existing device type instances.
 	 */
-	unsigned				ldt_device_nr;
+	atomic_t				ldt_device_nr;
 	/**
 	 * Linkage into a global list of all device types.
 	 *
@@ -602,7 +602,7 @@ struct lu_site {
 	/**
 	 * index of bucket on hash table while purging
 	 */
-	int		       ls_purge_start;
+	unsigned int		ls_purge_start;
 	/**
 	 * Top-level device for this stack.
 	 */
@@ -621,6 +621,11 @@ struct lu_site {
 	 **/
 	struct list_head		ls_ld_linkage;
 	spinlock_t		ls_ld_lock;
+
+	/**
+	 * Lock to serialize site purge.
+	 */
+	struct mutex		ls_purge_mutex;
 
 	/**
 	 * lu_site stats
@@ -673,7 +678,6 @@ void lu_object_add(struct lu_object *before, struct lu_object *o);
 
 int  lu_device_type_init(struct lu_device_type *ldt);
 void lu_device_type_fini(struct lu_device_type *ldt);
-void lu_types_stop(void);
 
 /** @} ctors */
 
@@ -1025,7 +1029,8 @@ enum lu_context_tag {
 	/**
 	 * Contexts usable in cache shrinker thread.
 	 */
-	LCT_SHRINKER  = LCT_MD_THREAD|LCT_DT_THREAD|LCT_CL_THREAD|LCT_NOREF
+	LCT_SHRINKER  = LCT_MD_THREAD | LCT_DT_THREAD | LCT_CL_THREAD |
+			LCT_NOREF
 };
 
 /**
@@ -1264,12 +1269,28 @@ struct lu_name {
 };
 
 /**
+ * Validate names (path components)
+ *
+ * To be valid \a name must be non-empty, '\0' terminated of length \a
+ * name_len, and not contain '/'. The maximum length of a name (before
+ * say -ENAMETOOLONG will be returned) is really controlled by llite
+ * and the server. We only check for something insane coming from bad
+ * integer handling here.
+ */
+static inline bool lu_name_is_valid_2(const char *name, size_t name_len)
+{
+	return name && name_len > 0 && name_len < INT_MAX &&
+	       name[name_len] == '\0' && strlen(name) == name_len &&
+	       !memchr(name, '/', name_len);
+}
+
+/**
  * Common buffer structure to be passed around for various xattr_{s,g}et()
  * methods.
  */
 struct lu_buf {
 	void   *lb_buf;
-	ssize_t lb_len;
+	size_t	lb_len;
 };
 
 #define DLUBUF "(%p %zu)"
@@ -1297,6 +1318,13 @@ struct lu_kmem_descr {
 
 int  lu_kmem_init(struct lu_kmem_descr *caches);
 void lu_kmem_fini(struct lu_kmem_descr *caches);
+
+void lu_buf_free(struct lu_buf *buf);
+void lu_buf_alloc(struct lu_buf *buf, size_t size);
+void lu_buf_realloc(struct lu_buf *buf, size_t size);
+
+int lu_buf_check_and_grow(struct lu_buf *buf, size_t len);
+struct lu_buf *lu_buf_check_and_alloc(struct lu_buf *buf, size_t len);
 
 /** @} lu */
 #endif /* __LUSTRE_LU_OBJECT_H */

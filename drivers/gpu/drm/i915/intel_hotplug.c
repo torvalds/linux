@@ -477,7 +477,8 @@ void intel_hpd_init(struct drm_i915_private *dev_priv)
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
-void i915_hpd_poll_init_work(struct work_struct *work) {
+static void i915_hpd_poll_init_work(struct work_struct *work)
+{
 	struct drm_i915_private *dev_priv =
 		container_of(work, struct drm_i915_private,
 			     hotplug.poll_init_work);
@@ -525,7 +526,6 @@ void i915_hpd_poll_init_work(struct work_struct *work) {
 /**
  * intel_hpd_poll_init - enables/disables polling for connectors with hpd
  * @dev_priv: i915 device instance
- * @enabled: Whether to enable or disable polling
  *
  * This function enables polling for all connectors, regardless of whether or
  * not they support hotplug detection. Under certain conditions HPD may not be

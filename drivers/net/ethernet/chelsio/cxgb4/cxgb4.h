@@ -350,6 +350,7 @@ struct adapter_params {
 	unsigned int nsched_cls;          /* number of traffic classes */
 	unsigned int max_ordird_qp;       /* Max read depth per RDMA QP */
 	unsigned int max_ird_adapter;     /* Max read depth per adapter */
+	bool fr_nsmr_tpte_wr_support;	  /* FW support for FR_NSMR_TPTE_WR */
 };
 
 /* State needed to monitor the forward progress of SGE Ingress DMA activities

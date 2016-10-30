@@ -172,6 +172,7 @@
 #define DA7213_PLL_32K_MODE					(0x1 << 5)
 #define DA7213_PLL_SRM_EN					(0x1 << 6)
 #define DA7213_PLL_EN						(0x1 << 7)
+#define DA7213_PLL_MODE_MASK					(0x7 << 5)
 
 /* DA7213_DAI_CLK_MODE = 0x28 */
 #define DA7213_DAI_BCLKS_PER_WCLK_32				(0x0 << 0)
@@ -499,8 +500,6 @@
 #define DA7213_ALC_AVG_ITERATIONS	5
 
 /* PLL related */
-#define DA7213_SYSCLK_MCLK			0
-#define DA7213_SYSCLK_PLL			1
 #define DA7213_PLL_FREQ_OUT_90316800		90316800
 #define DA7213_PLL_FREQ_OUT_98304000		98304000
 #define DA7213_PLL_FREQ_OUT_94310400		94310400
@@ -515,6 +514,13 @@ enum da7213_clk_src {
 	DA7213_CLKSRC_MCLK_SQR,
 };
 
+enum da7213_sys_clk {
+	DA7213_SYSCLK_MCLK = 0,
+	DA7213_SYSCLK_PLL,
+	DA7213_SYSCLK_PLL_SRM,
+	DA7213_SYSCLK_PLL_32KHZ
+};
+
 /* Codec private data */
 struct da7213_priv {
 	struct regmap *regmap;
@@ -522,8 +528,6 @@ struct da7213_priv {
 	unsigned int mclk_rate;
 	int clk_src;
 	bool master;
-	bool mclk_squarer_en;
-	bool srm_en;
 	bool alc_calib_auto;
 	bool alc_en;
 	struct da7213_platform_data *pdata;

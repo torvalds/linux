@@ -101,9 +101,6 @@ static inline struct nd_namespace_index *to_next_namespace_index(
 		(unsigned long long) (res ? resource_size(res) : 0), \
 		(unsigned long long) (res ? res->start : 0), ##arg)
 
-#define for_each_label(l, label, labels) \
-	for (l = 0; (label = labels ? labels[l] : NULL); l++)
-
 #define for_each_dpa_resource(ndd, res) \
 	for (res = (ndd)->dpa.child; res; res = res->sibling)
 
@@ -114,6 +111,31 @@ static inline struct nd_namespace_index *to_next_namespace_index(
 struct nd_percpu_lane {
 	int count;
 	spinlock_t lock;
+};
+
+struct nd_label_ent {
+	struct list_head list;
+	struct nd_namespace_label *label;
+};
+
+enum nd_mapping_lock_class {
+	ND_MAPPING_CLASS0,
+	ND_MAPPING_UUID_SCAN,
+};
+
+struct nd_mapping {
+	struct nvdimm *nvdimm;
+	u64 start;
+	u64 size;
+	struct list_head labels;
+	struct mutex lock;
+	/*
+	 * @ndd is for private use at region enable / disable time for
+	 * get_ndd() + put_ndd(), all other nd_mapping to ndd
+	 * conversions use to_ndd() which respects enabled state of the
+	 * nvdimm.
+	 */
+	struct nvdimm_drvdata *ndd;
 };
 
 struct nd_region {
@@ -209,6 +231,7 @@ void nvdimm_exit(void);
 void nd_region_exit(void);
 struct nvdimm;
 struct nvdimm_drvdata *to_ndd(struct nd_mapping *nd_mapping);
+int nvdimm_check_config_data(struct device *dev);
 int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd);
 int nvdimm_init_config_data(struct nvdimm_drvdata *ndd);
 int nvdimm_set_config_data(struct nvdimm_drvdata *ndd, size_t offset,

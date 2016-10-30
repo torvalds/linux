@@ -225,8 +225,12 @@ static void dw_mci_exynos_config_hs400(struct dw_mci *host, u32 timing)
 	 * Not supported to configure register
 	 * related to HS400
 	 */
-	if (priv->ctrl_type < DW_MCI_TYPE_EXYNOS5420)
+	if (priv->ctrl_type < DW_MCI_TYPE_EXYNOS5420) {
+		if (timing == MMC_TIMING_MMC_HS400)
+			dev_warn(host->dev,
+				 "cannot configure HS400, unsupported chipset\n");
 		return;
+	}
 
 	dqs = priv->saved_dqs_en;
 	strobe = priv->saved_strobe_ctrl;

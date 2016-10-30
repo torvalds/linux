@@ -45,6 +45,10 @@
 	status = "okay";
 };
 
+&pwma {
+	status = "okay";
+};
+
 &enet0 {
 	status = "okay";
 };
@@ -62,5 +66,9 @@
 };
 
 &sata_phy {
+	status = "okay";
+};
+
+&sdhci0 {
 	status = "okay";
 };

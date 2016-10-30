@@ -50,7 +50,7 @@ config MFD_AS3711
 	  Support for the AS3711 PMIC from AMS
 
 config MFD_AS3722
-	bool "ams AS3722 Power Management IC"
+	tristate "ams AS3722 Power Management IC"
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -111,6 +111,16 @@ config MFD_BCM590XX
 	depends on I2C
 	help
 	  Support for the BCM590xx PMUs from Broadcom
+
+config MFD_AC100
+	tristate "X-Powers AC100"
+	select MFD_CORE
+	depends on SUNXI_RSB
+	help
+	  If you say Y here you get support for the X-Powers AC100 audio codec
+	  IC.
+	  This driver include only the core APIs. You have to select individual
+	  components like codecs or RTC under the corresponding menus.
 
 config MFD_AXP20X
 	tristate
@@ -281,6 +291,14 @@ config MFD_DLN2
 	  etc. must be enabled in order to use the functionality of
 	  the device.
 
+config MFD_EXYNOS_LPASS
+	tristate "Samsung Exynos SoC Low Power Audio Subsystem"
+	select MFD_CORE
+	select REGMAP_MMIO
+	help
+	  Select this option to enable support for Samsung Exynos Low Power
+	  Audio Subsystem.
+
 config MFD_MC13XXX
 	tristate
 	depends on (SPI_MASTER || I2C)
@@ -339,14 +357,6 @@ config MFD_HI655X_PMIC
 	select REGMAP_IRQ
 	help
 	  Select this option to enable Hisilicon hi655x series pmic driver.
-
-config HTC_EGPIO
-	bool "HTC EGPIO support"
-	depends on GPIOLIB && ARM
-	help
-	    This driver supports the CPLD egpio chip present on
-	    several HTC phones.  It provides basic support for input
-	    pins, output pins, and irqs.
 
 config HTC_PASIC3
 	tristate "HTC PASIC3 LED/DS1WM chip support"
@@ -852,13 +862,13 @@ config MFD_RC5T583
 	  different functionality of the device.
 
 config MFD_RK808
-	tristate "Rockchip RK808 Power Management chip"
+	tristate "Rockchip RK808/RK818 Power Management Chip"
 	depends on I2C && OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	help
-	  If you say yes here you get support for the RK808
+	  If you say yes here you get support for the RK808 and RK818
 	  Power Management chips.
 	  This driver provides common support for accessing the device
 	  through I2C interface. The device supports multiple sub-devices
@@ -1214,6 +1224,7 @@ config MFD_TPS65217
 	depends on I2C
 	select MFD_CORE
 	select REGMAP_I2C
+	select IRQ_DOMAIN
 	help
 	  If you say yes here you get support for the TPS65217 series of
 	  Power Management / White LED chips.
@@ -1223,6 +1234,20 @@ config MFD_TPS65217
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps65217.
+
+config MFD_TI_LP873X
+	tristate "TI LP873X Power Management IC"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  If you say yes here then you get support for the LP873X series of
+	  Power Management Integrated Circuits (PMIC).
+	  These include voltage regulators, thermal protection, configurable
+	  General Purpose Outputs (GPO) that are used in portable devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lp873x.
 
 config MFD_TPS65218
 	tristate "TI TPS65218 Power Management chips"
@@ -1549,6 +1574,7 @@ config MFD_WM8350
 config MFD_WM8350_I2C
 	bool "Wolfson Microelectronics WM8350 with I2C"
 	select MFD_WM8350
+	select REGMAP_I2C
 	depends on I2C=y
 	help
 	  The WM8350 is an integrated audio and power management

@@ -227,7 +227,7 @@ int ibmebus_request_irq(u32 ist, irq_handler_t handler,
 {
 	unsigned int irq = irq_create_mapping(NULL, ist);
 
-	if (irq == NO_IRQ)
+	if (!irq)
 		return -EINVAL;
 
 	return request_irq(irq, handler, irq_flags, devname, dev_id);

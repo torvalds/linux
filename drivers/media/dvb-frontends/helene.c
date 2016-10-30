@@ -842,7 +842,7 @@ static int helene_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static struct dvb_tuner_ops helene_tuner_ops = {
+static const struct dvb_tuner_ops helene_tuner_ops = {
 	.info = {
 		.name = "Sony HELENE Ter tuner",
 		.frequency_min = 1000000,
@@ -856,7 +856,7 @@ static struct dvb_tuner_ops helene_tuner_ops = {
 	.get_frequency = helene_get_frequency,
 };
 
-static struct dvb_tuner_ops helene_tuner_ops_s = {
+static const struct dvb_tuner_ops helene_tuner_ops_s = {
 	.info = {
 		.name = "Sony HELENE Sat tuner",
 		.frequency_min = 500000,
@@ -987,8 +987,10 @@ struct dvb_frontend *helene_attach_s(struct dvb_frontend *fe,
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
-	if (helene_x_pon(priv) != 0)
+	if (helene_x_pon(priv) != 0) {
+		kfree(priv);
 		return NULL;
+	}
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
@@ -1021,8 +1023,10 @@ struct dvb_frontend *helene_attach(struct dvb_frontend *fe,
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
-	if (helene_x_pon(priv) != 0)
+	if (helene_x_pon(priv) != 0) {
+		kfree(priv);
 		return NULL;
+	}
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);

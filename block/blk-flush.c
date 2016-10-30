@@ -232,7 +232,7 @@ static void flush_end_io(struct request *flush_rq, int error)
 
 		/* release the tag's ownership to the req cloned from */
 		spin_lock_irqsave(&fq->mq_flush_lock, flags);
-		hctx = q->mq_ops->map_queue(q, flush_rq->mq_ctx->cpu);
+		hctx = blk_mq_map_queue(q, flush_rq->mq_ctx->cpu);
 		blk_mq_tag_set_rq(hctx, flush_rq->tag, fq->orig_rq);
 		flush_rq->tag = -1;
 	}
@@ -325,7 +325,7 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 		flush_rq->tag = first_rq->tag;
 		fq->orig_rq = first_rq;
 
-		hctx = q->mq_ops->map_queue(q, first_rq->mq_ctx->cpu);
+		hctx = blk_mq_map_queue(q, first_rq->mq_ctx->cpu);
 		blk_mq_tag_set_rq(hctx, first_rq->tag, flush_rq);
 	}
 
@@ -343,6 +343,34 @@ static void flush_data_end_io(struct request *rq, int error)
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, NULL);
 
 	/*
+	 * Updating q->in_flight[] here for making this tag usable
+	 * early. Because in blk_queue_start_tag(),
+	 * q->in_flight[BLK_RW_ASYNC] is used to limit async I/O and
+	 * reserve tags for sync I/O.
+	 *
+	 * More importantly this way can avoid the following I/O
+	 * deadlock:
+	 *
+	 * - suppose there are 40 fua requests comming to flush queue
+	 *   and queue depth is 31
+	 * - 30 rqs are scheduled then blk_queue_start_tag() can't alloc
+	 *   tag for async I/O any more
+	 * - all the 30 rqs are completed before FLUSH_PENDING_TIMEOUT
+	 *   and flush_data_end_io() is called
+	 * - the other rqs still can't go ahead if not updating
+	 *   q->in_flight[BLK_RW_ASYNC] here, meantime these rqs
+	 *   are held in flush data queue and make no progress of
+	 *   handling post flush rq
+	 * - only after the post flush rq is handled, all these rqs
+	 *   can be completed
+	 */
+
+	elv_completed_request(q, rq);
+
+	/* for avoiding double accounting */
+	rq->cmd_flags &= ~REQ_STARTED;
+
+	/*
 	 * After populating an empty queue, kick it to avoid stall.  Read
 	 * the comment in flush_end_io().
 	 */
@@ -358,7 +386,7 @@ static void mq_flush_data_end_io(struct request *rq, int error)
 	unsigned long flags;
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, ctx);
 
-	hctx = q->mq_ops->map_queue(q, ctx->cpu);
+	hctx = blk_mq_map_queue(q, ctx->cpu);
 
 	/*
 	 * After populating an empty queue, kick it to avoid stall.  Read

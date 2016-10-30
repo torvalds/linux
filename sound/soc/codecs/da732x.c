@@ -1501,12 +1501,14 @@ static int da732x_set_bias_level(struct snd_soc_codec *codec,
 
 static struct snd_soc_codec_driver soc_codec_dev_da732x = {
 	.set_bias_level		= da732x_set_bias_level,
-	.controls		= da732x_snd_controls,
-	.num_controls		= ARRAY_SIZE(da732x_snd_controls),
-	.dapm_widgets		= da732x_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(da732x_dapm_widgets),
-	.dapm_routes		= da732x_dapm_routes,
-	.num_dapm_routes	= ARRAY_SIZE(da732x_dapm_routes),
+	.component_driver = {
+		.controls		= da732x_snd_controls,
+		.num_controls		= ARRAY_SIZE(da732x_snd_controls),
+		.dapm_widgets		= da732x_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(da732x_dapm_widgets),
+		.dapm_routes		= da732x_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(da732x_dapm_routes),
+	},
 	.set_pll		= da732x_set_dai_pll,
 };
 

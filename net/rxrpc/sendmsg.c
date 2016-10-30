@@ -130,6 +130,11 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 			break;
 		case RXRPC_CALL_SERVER_ACK_REQUEST:
 			call->state = RXRPC_CALL_SERVER_SEND_REPLY;
+			call->ack_at = call->expire_at;
+			if (call->ackr_reason == RXRPC_ACK_DELAY)
+				call->ackr_reason = 0;
+			__rxrpc_set_timer(call, rxrpc_timer_init_for_send_reply,
+					  ktime_get_real());
 			if (!last)
 				break;
 		case RXRPC_CALL_SERVER_SEND_REPLY:
@@ -197,7 +202,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 	do {
 		/* Check to see if there's a ping ACK to reply to. */
 		if (call->ackr_reason == RXRPC_ACK_PING_RESPONSE)
-			rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ACK);
+			rxrpc_send_ack_packet(call, false);
 
 		if (!skb) {
 			size_t size, chunk, max, space;
@@ -514,8 +519,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	} else if (cmd == RXRPC_CMD_SEND_ABORT) {
 		ret = 0;
 		if (rxrpc_abort_call("CMD", call, 0, abort_code, ECONNABORTED))
-			ret = rxrpc_send_call_packet(call,
-						     RXRPC_PACKET_TYPE_ABORT);
+			ret = rxrpc_send_abort_packet(call);
 	} else if (cmd != RXRPC_CMD_SEND_DATA) {
 		ret = -EINVAL;
 	} else if (rxrpc_is_client_call(call) &&
@@ -597,7 +601,7 @@ void rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
 	lock_sock(sock->sk);
 
 	if (rxrpc_abort_call(why, call, 0, abort_code, error))
-		rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ABORT);
+		rxrpc_send_abort_packet(call);
 
 	release_sock(sock->sk);
 	_leave("");

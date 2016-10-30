@@ -766,7 +766,7 @@ ENTRY(end_fault_vector)
 	 * copy_thread moved args into task save area.
 	 */
 
-ENTRY(ret_from_kernel_thread)
+ENTRY_CFI(ret_from_kernel_thread)
 
 	/* Call schedule_tail first though */
 	BL	schedule_tail, %r2
@@ -782,7 +782,7 @@ ENTRY(ret_from_kernel_thread)
 	copy	%r31, %r2
 	b	finish_child_return
 	nop
-ENDPROC(ret_from_kernel_thread)
+ENDPROC_CFI(ret_from_kernel_thread)
 
 
 	/*
@@ -790,7 +790,7 @@ ENDPROC(ret_from_kernel_thread)
 	 *	struct task_struct *next)
 	 *
 	 * switch kernel stacks and return prev */
-ENTRY(_switch_to)
+ENTRY_CFI(_switch_to)
 	STREG	 %r2, -RP_OFFSET(%r30)
 
 	callee_save_float
@@ -815,7 +815,7 @@ _switch_to_ret:
 	LDREG	-RP_OFFSET(%r30), %r2
 	bv	%r0(%r2)
 	copy	%r26, %r28
-ENDPROC(_switch_to)
+ENDPROC_CFI(_switch_to)
 
 	/*
 	 * Common rfi return path for interruptions, kernel execve, and
@@ -833,7 +833,7 @@ ENDPROC(_switch_to)
 
 	.align	PAGE_SIZE
 
-ENTRY(syscall_exit_rfi)
+ENTRY_CFI(syscall_exit_rfi)
 	mfctl   %cr30,%r16
 	LDREG	TI_TASK(%r16), %r16	/* thread_info -> task_struct */
 	ldo	TASK_REGS(%r16),%r16
@@ -1037,12 +1037,12 @@ intr_extint:
 
 	b	do_cpu_irq_mask
 	ldo	R%intr_return(%r2), %r2	/* return to intr_return, not here */
-ENDPROC(syscall_exit_rfi)
+ENDPROC_CFI(syscall_exit_rfi)
 
 
 	/* Generic interruptions (illegal insn, unaligned, page fault, etc) */
 
-ENTRY(intr_save)		/* for os_hpmc */
+ENTRY_CFI(intr_save)		/* for os_hpmc */
 	mfsp    %sr7,%r16
 	cmpib,COND(=),n 0,%r16,1f
 	get_stack_use_cr30
@@ -1117,7 +1117,7 @@ skip_save_ior:
 
 	b		handle_interruption
 	ldo		R%intr_check_sig(%r2), %r2
-ENDPROC(intr_save)
+ENDPROC_CFI(intr_save)
 
 
 	/*
@@ -1720,7 +1720,7 @@ dtlb_fault:
 	.endm
 
 	.macro	fork_like name
-ENTRY(sys_\name\()_wrapper)
+ENTRY_CFI(sys_\name\()_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30), %r1
 	ldo	TASK_REGS(%r1),%r1
 	reg_save %r1
@@ -1728,7 +1728,7 @@ ENTRY(sys_\name\()_wrapper)
 	ldil	L%sys_\name, %r31
 	be	R%sys_\name(%sr4,%r31)
 	STREG	%r28, PT_CR27(%r1)
-ENDPROC(sys_\name\()_wrapper)
+ENDPROC_CFI(sys_\name\()_wrapper)
 	.endm
 
 fork_like clone
@@ -1736,7 +1736,7 @@ fork_like fork
 fork_like vfork
 
 	/* Set the return value for the child */
-ENTRY(child_return)
+ENTRY_CFI(child_return)
 	BL	schedule_tail, %r2
 	nop
 finish_child_return:
@@ -1748,9 +1748,9 @@ finish_child_return:
 	reg_restore %r1
 	b	syscall_exit
 	copy	%r0,%r28
-ENDPROC(child_return)
+ENDPROC_CFI(child_return)
 
-ENTRY(sys_rt_sigreturn_wrapper)
+ENTRY_CFI(sys_rt_sigreturn_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r26
 	ldo	TASK_REGS(%r26),%r26	/* get pt regs */
 	/* Don't save regs, we are going to restore them from sigcontext. */
@@ -1778,9 +1778,9 @@ ENTRY(sys_rt_sigreturn_wrapper)
 	 */
 	bv	%r0(%r2)
 	LDREG	PT_GR28(%r1),%r28  /* reload original r28 for syscall_exit */
-ENDPROC(sys_rt_sigreturn_wrapper)
+ENDPROC_CFI(sys_rt_sigreturn_wrapper)
 
-ENTRY(syscall_exit)
+ENTRY_CFI(syscall_exit)
 	/* NOTE: Not all syscalls exit this way.  rt_sigreturn will exit
 	 * via syscall_exit_rfi if the signal was received while the process
 	 * was running.
@@ -1979,7 +1979,7 @@ syscall_do_resched:
 #else
 	nop
 #endif
-ENDPROC(syscall_exit)
+ENDPROC_CFI(syscall_exit)
 
 
 #ifdef CONFIG_FUNCTION_TRACER
@@ -2023,7 +2023,7 @@ ENDPROC(mcount)
 	.align 8
 	.globl return_to_handler
 	.type  return_to_handler, @function
-ENTRY(return_to_handler)
+ENTRY_CFI(return_to_handler)
 	.proc
 	.callinfo caller,frame=FRAME_SIZE
 	.entry
@@ -2067,7 +2067,7 @@ parisc_return_to_handler:
 	LDREGM -FRAME_SIZE(%sp),%r3
 	.exit
 	.procend
-ENDPROC(return_to_handler)
+ENDPROC_CFI(return_to_handler)
 
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
@@ -2076,7 +2076,7 @@ ENDPROC(return_to_handler)
 #ifdef CONFIG_IRQSTACKS
 /* void call_on_stack(unsigned long param1, void *func,
 		      unsigned long new_stack) */
-ENTRY(call_on_stack)
+ENTRY_CFI(call_on_stack)
 	copy	%sp, %r1
 
 	/* Regarding the HPPA calling conventions for function pointers,
@@ -2112,10 +2112,10 @@ ENTRY(call_on_stack)
 	bv	(%rp)
 	LDREG	-68(%sp), %sp
 # endif /* CONFIG_64BIT */
-ENDPROC(call_on_stack)
+ENDPROC_CFI(call_on_stack)
 #endif /* CONFIG_IRQSTACKS */
 
-get_register:
+ENTRY_CFI(get_register)
 	/*
 	 * get_register is used by the non access tlb miss handlers to
 	 * copy the value of the general register specified in r8 into
@@ -2192,9 +2192,10 @@ get_register:
 	copy    %r30,%r1
 	bv      %r0(%r25)    /* r31 */
 	copy    %r31,%r1
+ENDPROC_CFI(get_register)
 
 
-set_register:
+ENTRY_CFI(set_register)
 	/*
 	 * set_register is used by the non access tlb miss handlers to
 	 * copy the value of r1 into the general register specified in
@@ -2266,4 +2267,5 @@ set_register:
 	copy    %r1,%r30
 	bv      %r0(%r25)    /* r31 */
 	copy    %r1,%r31
+ENDPROC_CFI(set_register)
 

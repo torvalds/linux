@@ -23,7 +23,6 @@
 #ifndef __DVB_STB6000_H__
 #define __DVB_STB6000_H__
 
-#include <linux/kconfig.h>
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 

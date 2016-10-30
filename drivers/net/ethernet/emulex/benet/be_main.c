@@ -724,14 +724,24 @@ void be_link_status_update(struct be_adapter *adapter, u8 link_status)
 	netdev_info(netdev, "Link is %s\n", link_status ? "Up" : "Down");
 }
 
+static int be_gso_hdr_len(struct sk_buff *skb)
+{
+	if (skb->encapsulation)
+		return skb_inner_transport_offset(skb) +
+		       inner_tcp_hdrlen(skb);
+	return skb_transport_offset(skb) + tcp_hdrlen(skb);
+}
+
 static void be_tx_stats_update(struct be_tx_obj *txo, struct sk_buff *skb)
 {
 	struct be_tx_stats *stats = tx_stats(txo);
-	u64 tx_pkts = skb_shinfo(skb)->gso_segs ? : 1;
+	u32 tx_pkts = skb_shinfo(skb)->gso_segs ? : 1;
+	/* Account for headers which get duplicated in TSO pkt */
+	u32 dup_hdr_len = tx_pkts > 1 ? be_gso_hdr_len(skb) * (tx_pkts - 1) : 0;
 
 	u64_stats_update_begin(&stats->sync);
 	stats->tx_reqs++;
-	stats->tx_bytes += skb->len;
+	stats->tx_bytes += skb->len + dup_hdr_len;
 	stats->tx_pkts += tx_pkts;
 	if (skb->encapsulation && skb->ip_summed == CHECKSUM_PARTIAL)
 		stats->tx_vxlan_offload_pkts += tx_pkts;

@@ -169,6 +169,7 @@ befs_dump_super_block(const struct super_block *sb, befs_super_block * sup)
 
 	befs_debug(sb, "  num_blocks %llu", fs64_to_cpu(sb, sup->num_blocks));
 	befs_debug(sb, "  used_blocks %llu", fs64_to_cpu(sb, sup->used_blocks));
+	befs_debug(sb, "  inode_size %u", fs32_to_cpu(sb, sup->inode_size));
 
 	befs_debug(sb, "  magic2 %08x", fs32_to_cpu(sb, sup->magic2));
 	befs_debug(sb, "  blocks_per_ag %u",

@@ -385,7 +385,7 @@ static int __init cbe_init_pm_irq(void)
 	for_each_online_node(node) {
 		irq = irq_create_mapping(NULL, IIC_IRQ_IOEX_PMI |
 					       (node << IIC_IRQ_NODE_SHIFT));
-		if (irq == NO_IRQ) {
+		if (!irq) {
 			printk("ERROR: Unable to allocate irq for node %d\n",
 			       node);
 			return -EINVAL;
@@ -412,7 +412,7 @@ void cbe_sync_irq(int node)
 			       IIC_IRQ_IOEX_PMI
 			       | (node << IIC_IRQ_NODE_SHIFT));
 
-	if (irq == NO_IRQ) {
+	if (!irq) {
 		printk(KERN_WARNING "ERROR, unable to get existing irq %d " \
 		"for node %d\n", irq, node);
 		return;

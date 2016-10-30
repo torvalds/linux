@@ -78,6 +78,8 @@ static int ext4_feature_set_ok(struct super_block *sb, int readonly);
 static void ext4_destroy_lazyinit_thread(void);
 static void ext4_unregister_li_request(struct super_block *sb);
 static void ext4_clear_request_list(void);
+static struct inode *ext4_get_journal_inode(struct super_block *sb,
+					    unsigned int journal_inum);
 
 /*
  * Lock ordering
@@ -595,14 +597,15 @@ void __ext4_std_error(struct super_block *sb, const char *function,
 void __ext4_abort(struct super_block *sb, const char *function,
 		unsigned int line, const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	save_error_info(sb, function, line);
 	va_start(args, fmt);
-	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: ", sb->s_id,
-	       function, line);
-	vprintk(fmt, args);
-	printk("\n");
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: %pV\n",
+	       sb->s_id, function, line, &vaf);
 	va_end(args);
 
 	if ((sb->s_flags & MS_RDONLY) == 0) {
@@ -1267,7 +1270,7 @@ enum {
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_jqfmt_vfsv1, Opt_quota,
 	Opt_noquota, Opt_barrier, Opt_nobarrier, Opt_err,
-	Opt_usrquota, Opt_grpquota, Opt_i_version, Opt_dax,
+	Opt_usrquota, Opt_grpquota, Opt_prjquota, Opt_i_version, Opt_dax,
 	Opt_stripe, Opt_delalloc, Opt_nodelalloc, Opt_mblk_io_submit,
 	Opt_lazytime, Opt_nolazytime,
 	Opt_nomblk_io_submit, Opt_block_validity, Opt_noblock_validity,
@@ -1327,6 +1330,7 @@ static const match_table_t tokens = {
 	{Opt_noquota, "noquota"},
 	{Opt_quota, "quota"},
 	{Opt_usrquota, "usrquota"},
+	{Opt_prjquota, "prjquota"},
 	{Opt_barrier, "barrier=%u"},
 	{Opt_barrier, "barrier"},
 	{Opt_nobarrier, "nobarrier"},
@@ -1546,8 +1550,11 @@ static const struct mount_opts {
 							MOPT_SET | MOPT_Q},
 	{Opt_grpquota, EXT4_MOUNT_QUOTA | EXT4_MOUNT_GRPQUOTA,
 							MOPT_SET | MOPT_Q},
+	{Opt_prjquota, EXT4_MOUNT_QUOTA | EXT4_MOUNT_PRJQUOTA,
+							MOPT_SET | MOPT_Q},
 	{Opt_noquota, (EXT4_MOUNT_QUOTA | EXT4_MOUNT_USRQUOTA |
-		       EXT4_MOUNT_GRPQUOTA), MOPT_CLEAR | MOPT_Q},
+		       EXT4_MOUNT_GRPQUOTA | EXT4_MOUNT_PRJQUOTA),
+							MOPT_CLEAR | MOPT_Q},
 	{Opt_usrjquota, 0, MOPT_Q},
 	{Opt_grpjquota, 0, MOPT_Q},
 	{Opt_offusrjquota, 0, MOPT_Q},
@@ -1836,13 +1843,17 @@ static int parse_options(char *options, struct super_block *sb,
 			return 0;
 	}
 #ifdef CONFIG_QUOTA
-	if (ext4_has_feature_quota(sb) &&
-	    (test_opt(sb, USRQUOTA) || test_opt(sb, GRPQUOTA))) {
-		ext4_msg(sb, KERN_INFO, "Quota feature enabled, usrquota and grpquota "
-			 "mount options ignored.");
-		clear_opt(sb, USRQUOTA);
-		clear_opt(sb, GRPQUOTA);
-	} else if (sbi->s_qf_names[USRQUOTA] || sbi->s_qf_names[GRPQUOTA]) {
+	/*
+	 * We do the test below only for project quotas. 'usrquota' and
+	 * 'grpquota' mount options are allowed even without quota feature
+	 * to support legacy quotas in quota files.
+	 */
+	if (test_opt(sb, PRJQUOTA) && !ext4_has_feature_project(sb)) {
+		ext4_msg(sb, KERN_ERR, "Project quota feature not enabled. "
+			 "Cannot enable project quota enforcement.");
+		return 0;
+	}
+	if (sbi->s_qf_names[USRQUOTA] || sbi->s_qf_names[GRPQUOTA]) {
 		if (test_opt(sb, USRQUOTA) && sbi->s_qf_names[USRQUOTA])
 			clear_opt(sb, USRQUOTA);
 
@@ -2705,12 +2716,12 @@ static void print_daily_error_info(unsigned long arg)
 		       es->s_first_error_func,
 		       le32_to_cpu(es->s_first_error_line));
 		if (es->s_first_error_ino)
-			printk(": inode %u",
+			printk(KERN_CONT ": inode %u",
 			       le32_to_cpu(es->s_first_error_ino));
 		if (es->s_first_error_block)
-			printk(": block %llu", (unsigned long long)
+			printk(KERN_CONT ": block %llu", (unsigned long long)
 			       le64_to_cpu(es->s_first_error_block));
-		printk("\n");
+		printk(KERN_CONT "\n");
 	}
 	if (es->s_last_error_time) {
 		printk(KERN_NOTICE "EXT4-fs (%s): last error at time %u: %.*s:%d",
@@ -2719,12 +2730,12 @@ static void print_daily_error_info(unsigned long arg)
 		       es->s_last_error_func,
 		       le32_to_cpu(es->s_last_error_line));
 		if (es->s_last_error_ino)
-			printk(": inode %u",
+			printk(KERN_CONT ": inode %u",
 			       le32_to_cpu(es->s_last_error_ino));
 		if (es->s_last_error_block)
-			printk(": block %llu", (unsigned long long)
+			printk(KERN_CONT ": block %llu", (unsigned long long)
 			       le64_to_cpu(es->s_last_error_block));
-		printk("\n");
+		printk(KERN_CONT "\n");
 	}
 	mod_timer(&sbi->s_err_report, jiffies + 24*60*60*HZ);  /* Once a day */
 }
@@ -2741,7 +2752,6 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
 	sb = elr->lr_super;
 	ngroups = EXT4_SB(sb)->s_groups_count;
 
-	sb_start_write(sb);
 	for (group = elr->lr_next_group; group < ngroups; group++) {
 		gdp = ext4_get_group_desc(sb, group, NULL);
 		if (!gdp) {
@@ -2768,8 +2778,6 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
 		elr->lr_next_sched = jiffies + elr->lr_timeout;
 		elr->lr_next_group = group + 1;
 	}
-	sb_end_write(sb);
-
 	return ret;
 }
 
@@ -2834,19 +2842,43 @@ cont_thread:
 			mutex_unlock(&eli->li_list_mtx);
 			goto exit_thread;
 		}
-
 		list_for_each_safe(pos, n, &eli->li_request_list) {
+			int err = 0;
+			int progress = 0;
 			elr = list_entry(pos, struct ext4_li_request,
 					 lr_request);
 
-			if (time_after_eq(jiffies, elr->lr_next_sched)) {
-				if (ext4_run_li_request(elr) != 0) {
-					/* error, remove the lazy_init job */
-					ext4_remove_li_request(elr);
-					continue;
-				}
+			if (time_before(jiffies, elr->lr_next_sched)) {
+				if (time_before(elr->lr_next_sched, next_wakeup))
+					next_wakeup = elr->lr_next_sched;
+				continue;
 			}
-
+			if (down_read_trylock(&elr->lr_super->s_umount)) {
+				if (sb_start_write_trylock(elr->lr_super)) {
+					progress = 1;
+					/*
+					 * We hold sb->s_umount, sb can not
+					 * be removed from the list, it is
+					 * now safe to drop li_list_mtx
+					 */
+					mutex_unlock(&eli->li_list_mtx);
+					err = ext4_run_li_request(elr);
+					sb_end_write(elr->lr_super);
+					mutex_lock(&eli->li_list_mtx);
+					n = pos->next;
+				}
+				up_read((&elr->lr_super->s_umount));
+			}
+			/* error, remove the lazy_init job */
+			if (err) {
+				ext4_remove_li_request(elr);
+				continue;
+			}
+			if (!progress) {
+				elr->lr_next_sched = jiffies +
+					(prandom_u32()
+					 % (EXT4_DEF_LI_MAX_START_DELAY * HZ));
+			}
 			if (time_before(elr->lr_next_sched, next_wakeup))
 				next_wakeup = elr->lr_next_sched;
 		}
@@ -3179,6 +3211,8 @@ int ext4_calculate_overhead(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
+	struct inode *j_inode;
+	unsigned int j_blocks, j_inum = le32_to_cpu(es->s_journal_inum);
 	ext4_group_t i, ngroups = ext4_get_groups_count(sb);
 	ext4_fsblk_t overhead = 0;
 	char *buf = (char *) get_zeroed_page(GFP_NOFS);
@@ -3209,10 +3243,23 @@ int ext4_calculate_overhead(struct super_block *sb)
 			memset(buf, 0, PAGE_SIZE);
 		cond_resched();
 	}
-	/* Add the internal journal blocks as well */
+
+	/*
+	 * Add the internal journal blocks whether the journal has been
+	 * loaded or not
+	 */
 	if (sbi->s_journal && !sbi->journal_bdev)
 		overhead += EXT4_NUM_B2C(sbi, sbi->s_journal->j_maxlen);
-
+	else if (ext4_has_feature_journal(sb) && !sbi->s_journal) {
+		j_inode = ext4_get_journal_inode(sb, j_inum);
+		if (j_inode) {
+			j_blocks = j_inode->i_size >> sb->s_blocksize_bits;
+			overhead += EXT4_NUM_B2C(sbi, j_blocks);
+			iput(j_inode);
+		} else {
+			ext4_msg(sb, KERN_ERR, "can't get journal size");
+		}
+	}
 	sbi->s_overhead = overhead;
 	smp_wmb();
 	free_page((unsigned long) buf);
@@ -4208,18 +4255,16 @@ static void ext4_init_journal_params(struct super_block *sb, journal_t *journal)
 	write_unlock(&journal->j_state_lock);
 }
 
-static journal_t *ext4_get_journal(struct super_block *sb,
-				   unsigned int journal_inum)
+static struct inode *ext4_get_journal_inode(struct super_block *sb,
+					     unsigned int journal_inum)
 {
 	struct inode *journal_inode;
-	journal_t *journal;
 
-	BUG_ON(!ext4_has_feature_journal(sb));
-
-	/* First, test for the existence of a valid inode on disk.  Bad
-	 * things happen if we iget() an unused inode, as the subsequent
-	 * iput() will try to delete it. */
-
+	/*
+	 * Test for the existence of a valid inode on disk.  Bad things
+	 * happen if we iget() an unused inode, as the subsequent iput()
+	 * will try to delete it.
+	 */
 	journal_inode = ext4_iget(sb, journal_inum);
 	if (IS_ERR(journal_inode)) {
 		ext4_msg(sb, KERN_ERR, "no journal found");
@@ -4239,6 +4284,20 @@ static journal_t *ext4_get_journal(struct super_block *sb,
 		iput(journal_inode);
 		return NULL;
 	}
+	return journal_inode;
+}
+
+static journal_t *ext4_get_journal(struct super_block *sb,
+				   unsigned int journal_inum)
+{
+	struct inode *journal_inode;
+	journal_t *journal;
+
+	BUG_ON(!ext4_has_feature_journal(sb));
+
+	journal_inode = ext4_get_journal_inode(sb, journal_inum);
+	if (!journal_inode)
+		return NULL;
 
 	journal = jbd2_journal_init_inode(journal_inode);
 	if (!journal) {
@@ -5250,12 +5309,18 @@ static int ext4_enable_quotas(struct super_block *sb)
 		le32_to_cpu(EXT4_SB(sb)->s_es->s_grp_quota_inum),
 		le32_to_cpu(EXT4_SB(sb)->s_es->s_prj_quota_inum)
 	};
+	bool quota_mopt[EXT4_MAXQUOTAS] = {
+		test_opt(sb, USRQUOTA),
+		test_opt(sb, GRPQUOTA),
+		test_opt(sb, PRJQUOTA),
+	};
 
 	sb_dqopt(sb)->flags |= DQUOT_QUOTA_SYS_FILE;
 	for (type = 0; type < EXT4_MAXQUOTAS; type++) {
 		if (qf_inums[type]) {
 			err = ext4_quota_enable(sb, type, QFMT_VFS_V1,
-						DQUOT_USAGE_ENABLED);
+				DQUOT_USAGE_ENABLED |
+				(quota_mopt[type] ? DQUOT_LIMITS_ENABLED : 0));
 			if (err) {
 				ext4_warning(sb,
 					"Failed to enable quota tracking "

@@ -157,17 +157,10 @@ static struct i2c_adapter mb862xx_i2c_adapter = {
 
 int mb862xx_i2c_init(struct mb862xxfb_par *par)
 {
-	int ret;
-
 	mb862xx_i2c_adapter.algo_data = par;
 	par->adap = &mb862xx_i2c_adapter;
 
-	ret = i2c_add_adapter(par->adap);
-	if (ret < 0) {
-		dev_err(par->dev, "failed to add %s\n",
-			mb862xx_i2c_adapter.name);
-	}
-	return ret;
+	return i2c_add_adapter(par->adap);
 }
 
 void mb862xx_i2c_exit(struct mb862xxfb_par *par)

@@ -322,10 +322,11 @@ int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info,
 		elem = list_first_entry(&fs_info->tree_mod_seq_list,
 					struct seq_list, list);
 		if (seq >= elem->seq) {
-			pr_debug("holding back delayed_ref %#x.%x, lowest is %#x.%x (%p)\n",
-				 (u32)(seq >> 32), (u32)seq,
-				 (u32)(elem->seq >> 32), (u32)elem->seq,
-				 delayed_refs);
+			btrfs_debug(fs_info,
+				"holding back delayed_ref %#x.%x, lowest is %#x.%x (%p)",
+				(u32)(seq >> 32), (u32)seq,
+				(u32)(elem->seq >> 32), (u32)elem->seq,
+				delayed_refs);
 			ret = 1;
 		}
 	}
@@ -770,7 +771,8 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	if (!head_ref)
 		goto free_ref;
 
-	if (fs_info->quota_enabled && is_fstree(ref_root)) {
+	if (test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) &&
+	    is_fstree(ref_root)) {
 		record = kmalloc(sizeof(*record), GFP_NOFS);
 		if (!record)
 			goto free_head_ref;
@@ -828,7 +830,8 @@ int btrfs_add_delayed_data_ref(struct btrfs_fs_info *fs_info,
 		return -ENOMEM;
 	}
 
-	if (fs_info->quota_enabled && is_fstree(ref_root)) {
+	if (test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) &&
+	    is_fstree(ref_root)) {
 		record = kmalloc(sizeof(*record), GFP_NOFS);
 		if (!record) {
 			kmem_cache_free(btrfs_delayed_data_ref_cachep, ref);

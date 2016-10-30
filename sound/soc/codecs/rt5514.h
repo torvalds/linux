@@ -196,8 +196,8 @@
 #define RT5514_AD_AD_MIX_BIT			10
 #define RT5514_AD_AD_MUTE			(0x1 << 7)
 #define RT5514_AD_AD_MUTE_BIT			7
-#define RT5514_AD_GAIN_MASK			(0x7f << 0)
-#define RT5514_AD_GAIN_SFT			0
+#define RT5514_AD_GAIN_MASK			(0x3f << 1)
+#define RT5514_AD_GAIN_SFT			1
 
 /*  RT5514_ANA_CTRL_MICBST (0x2220) */
 #define RT5514_SEL_BSTL_MASK			(0xf << 4)

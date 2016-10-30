@@ -920,11 +920,8 @@ static int stu300_probe(struct platform_device *pdev)
 
 	/* i2c device drivers may be active on return from add_adapter() */
 	ret = i2c_add_numbered_adapter(adap);
-	if (ret) {
-		dev_err(&pdev->dev, "failure adding ST Micro DDC "
-		       "I2C adapter\n");
+	if (ret)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, dev);
 	dev_info(&pdev->dev, "ST DDC I2C @ %p, irq %d\n",

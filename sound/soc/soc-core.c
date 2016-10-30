@@ -3332,19 +3332,6 @@ int snd_soc_register_codec(struct device *dev,
 	if (ret)
 		goto err_free;
 
-	if (codec_drv->controls) {
-		codec->component.controls = codec_drv->controls;
-		codec->component.num_controls = codec_drv->num_controls;
-	}
-	if (codec_drv->dapm_widgets) {
-		codec->component.dapm_widgets = codec_drv->dapm_widgets;
-		codec->component.num_dapm_widgets = codec_drv->num_dapm_widgets;
-	}
-	if (codec_drv->dapm_routes) {
-		codec->component.dapm_routes = codec_drv->dapm_routes;
-		codec->component.num_dapm_routes = codec_drv->num_dapm_routes;
-	}
-
 	if (codec_drv->probe)
 		codec->component.probe = snd_soc_codec_drv_probe;
 	if (codec_drv->remove)
@@ -3732,7 +3719,7 @@ unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 	 * SND_SOC_DAIFMT_CLOCK_MASK area
 	 */
 	snprintf(prop, sizeof(prop), "%scontinuous-clock", prefix);
-	if (of_get_property(np, prop, NULL))
+	if (of_property_read_bool(np, prop))
 		format |= SND_SOC_DAIFMT_CONT;
 	else
 		format |= SND_SOC_DAIFMT_GATED;

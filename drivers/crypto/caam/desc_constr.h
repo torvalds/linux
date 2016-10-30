@@ -325,6 +325,23 @@ static inline void append_##cmd##_imm_##type(u32 *desc, type immediate, \
 APPEND_CMD_RAW_IMM(load, LOAD, u32);
 
 /*
+ * ee - endianness
+ * size - size of immediate type in bytes
+ */
+#define APPEND_CMD_RAW_IMM2(cmd, op, ee, size) \
+static inline void append_##cmd##_imm_##ee##size(u32 *desc, \
+						   u##size immediate, \
+						   u32 options) \
+{ \
+	__##ee##size data = cpu_to_##ee##size(immediate); \
+	PRINT_POS; \
+	append_cmd(desc, CMD_##op | IMMEDIATE | options | sizeof(data)); \
+	append_data(desc, &data, sizeof(data)); \
+}
+
+APPEND_CMD_RAW_IMM2(load, LOAD, be, 32);
+
+/*
  * Append math command. Only the last part of destination and source need to
  * be specified
  */

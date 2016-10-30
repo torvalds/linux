@@ -4,7 +4,9 @@ Please refer to marvell,mvebu-pinctrl.txt in this directory for common binding
 part and usage.
 
 Required properties:
-- compatible: "marvell,88f5181l-pinctrl", "marvell,88f5182-pinctrl",
+- compatible: "marvell,88f5181-pinctrl",
+              "marvell,88f5181l-pinctrl",
+              "marvell,88f5182-pinctrl",
               "marvell,88f5281-pinctrl"
 
 - reg: two register areas, the first one describing the first two

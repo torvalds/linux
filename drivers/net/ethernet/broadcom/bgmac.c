@@ -1046,7 +1046,7 @@ static void bgmac_enable(struct bgmac *bgmac)
 
 	mode = (bgmac_read(bgmac, BGMAC_DEV_STATUS) & BGMAC_DS_MM_MASK) >>
 		BGMAC_DS_MM_SHIFT;
-	if (bgmac->feature_flags & BGMAC_FEAT_CLKCTLST || mode != 0)
+	if (!(bgmac->feature_flags & BGMAC_FEAT_CLKCTLST) || mode != 0)
 		bgmac_set(bgmac, BCMA_CLKCTLST, BCMA_CLKCTLST_FORCEHT);
 	if (bgmac->feature_flags & BGMAC_FEAT_CLKCTLST && mode == 2)
 		bgmac_cco_ctl_maskset(bgmac, 1, ~0,
@@ -1449,7 +1449,7 @@ static int bgmac_phy_connect(struct bgmac *bgmac)
 	phy_dev = phy_connect(bgmac->net_dev, bus_id, &bgmac_adjust_link,
 			      PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(phy_dev)) {
-		dev_err(bgmac->dev, "PHY connecton failed\n");
+		dev_err(bgmac->dev, "PHY connection failed\n");
 		return PTR_ERR(phy_dev);
 	}
 

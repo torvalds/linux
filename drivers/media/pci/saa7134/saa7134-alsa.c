@@ -877,7 +877,7 @@ static struct page *snd_card_saa7134_page(struct snd_pcm_substream *substream,
  * ALSA capture callbacks definition
  */
 
-static struct snd_pcm_ops snd_card_saa7134_capture_ops = {
+static const struct snd_pcm_ops snd_card_saa7134_capture_ops = {
 	.open =			snd_card_saa7134_capture_open,
 	.close =		snd_card_saa7134_capture_close,
 	.ioctl =		snd_pcm_lib_ioctl,

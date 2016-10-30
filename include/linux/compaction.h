@@ -6,8 +6,10 @@
  * Lower value means higher priority, analogically to reclaim priority.
  */
 enum compact_priority {
+	COMPACT_PRIO_SYNC_FULL,
+	MIN_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_FULL,
 	COMPACT_PRIO_SYNC_LIGHT,
-	MIN_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_LIGHT,
+	MIN_COMPACT_COSTLY_PRIORITY = COMPACT_PRIO_SYNC_LIGHT,
 	DEF_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_LIGHT,
 	COMPACT_PRIO_ASYNC,
 	INIT_COMPACT_PRIORITY = COMPACT_PRIO_ASYNC
@@ -49,13 +51,36 @@ enum compact_result {
 	COMPACT_CONTENDED,
 
 	/*
-	 * direct compaction partially compacted a zone and there might be
-	 * suitable pages
+	 * direct compaction terminated after concluding that the allocation
+	 * should now succeed
 	 */
-	COMPACT_PARTIAL,
+	COMPACT_SUCCESS,
 };
 
 struct alloc_context; /* in mm/internal.h */
+
+/*
+ * Number of free order-0 pages that should be available above given watermark
+ * to make sure compaction has reasonable chance of not running out of free
+ * pages that it needs to isolate as migration target during its work.
+ */
+static inline unsigned long compact_gap(unsigned int order)
+{
+	/*
+	 * Although all the isolations for migration are temporary, compaction
+	 * free scanner may have up to 1 << order pages on its list and then
+	 * try to split an (order - 1) free page. At that point, a gap of
+	 * 1 << order might not be enough, so it's safer to require twice that
+	 * amount. Note that the number of pages on the list is also
+	 * effectively limited by COMPACT_CLUSTER_MAX, as that's the maximum
+	 * that the migrate scanner can have isolated on migrate list, and free
+	 * scanner is only invoked when the number of isolated free pages is
+	 * lower than that. But it's not worth to complicate the formula here
+	 * as a bigger gap for higher orders than strictly necessary can also
+	 * improve chances of compaction success.
+	 */
+	return 2UL << order;
+}
 
 #ifdef CONFIG_COMPACTION
 extern int sysctl_compact_memory;
@@ -70,7 +95,6 @@ extern int fragmentation_index(struct zone *zone, unsigned int order);
 extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
 		unsigned int order, unsigned int alloc_flags,
 		const struct alloc_context *ac, enum compact_priority prio);
-extern void compact_pgdat(pg_data_t *pgdat, int order);
 extern void reset_isolation_suitable(pg_data_t *pgdat);
 extern enum compact_result compaction_suitable(struct zone *zone, int order,
 		unsigned int alloc_flags, int classzone_idx);
@@ -89,7 +113,7 @@ static inline bool compaction_made_progress(enum compact_result result)
 	 * that the compaction successfully isolated and migrated some
 	 * pageblocks.
 	 */
-	if (result == COMPACT_PARTIAL)
+	if (result == COMPACT_SUCCESS)
 		return true;
 
 	return false;
@@ -154,10 +178,6 @@ extern void kcompactd_stop(int nid);
 extern void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx);
 
 #else
-static inline void compact_pgdat(pg_data_t *pgdat, int order)
-{
-}
-
 static inline void reset_isolation_suitable(pg_data_t *pgdat)
 {
 }

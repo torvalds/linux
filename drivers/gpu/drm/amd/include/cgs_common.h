@@ -119,6 +119,8 @@ enum cgs_system_info_id {
 	CGS_SYSTEM_INFO_PG_FLAGS,
 	CGS_SYSTEM_INFO_GFX_CU_INFO,
 	CGS_SYSTEM_INFO_GFX_SE_INFO,
+	CGS_SYSTEM_INFO_PCIE_SUB_SYS_ID,
+	CGS_SYSTEM_INFO_PCIE_SUB_SYS_VENDOR_ID,
 	CGS_SYSTEM_INFO_ID_MAXIMUM,
 };
 
@@ -159,6 +161,7 @@ struct cgs_clock_limits {
  */
 struct cgs_firmware_info {
 	uint16_t		version;
+	uint16_t		fw_version;
 	uint16_t		feature_version;
 	uint32_t		image_size;
 	uint64_t		mc_addr;

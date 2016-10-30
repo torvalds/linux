@@ -823,11 +823,11 @@ static struct dma_async_tx_descriptor *s3c24xx_dma_prep_memcpy(
 	struct s3c24xx_sg *dsg;
 	int src_mod, dest_mod;
 
-	dev_dbg(&s3cdma->pdev->dev, "prepare memcpy of %d bytes from %s\n",
+	dev_dbg(&s3cdma->pdev->dev, "prepare memcpy of %zu bytes from %s\n",
 			len, s3cchan->name);
 
 	if ((len & S3C24XX_DCON_TC_MASK) != len) {
-		dev_err(&s3cdma->pdev->dev, "memcpy size %d to large\n", len);
+		dev_err(&s3cdma->pdev->dev, "memcpy size %zu to large\n", len);
 		return NULL;
 	}
 
@@ -1301,6 +1301,9 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 	s3cdma->slave.device_prep_dma_cyclic = s3c24xx_dma_prep_dma_cyclic;
 	s3cdma->slave.device_config = s3c24xx_dma_set_runtime_config;
 	s3cdma->slave.device_terminate_all = s3c24xx_dma_terminate_all;
+	s3cdma->slave.filter.map = pdata->slave_map;
+	s3cdma->slave.filter.mapcnt = pdata->slavecnt;
+	s3cdma->slave.filter.fn = s3c24xx_dma_filter;
 
 	/* Register as many memcpy channels as there are physical channels */
 	ret = s3c24xx_dma_init_virtual_channels(s3cdma, &s3cdma->memcpy,
@@ -1418,7 +1421,7 @@ bool s3c24xx_dma_filter(struct dma_chan *chan, void *param)
 
 	s3cchan = to_s3c24xx_dma_chan(chan);
 
-	return s3cchan->id == (int)param;
+	return s3cchan->id == (uintptr_t)param;
 }
 EXPORT_SYMBOL(s3c24xx_dma_filter);
 

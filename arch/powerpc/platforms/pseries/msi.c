@@ -119,7 +119,7 @@ static void rtas_teardown_msi_irqs(struct pci_dev *pdev)
 	struct msi_desc *entry;
 
 	for_each_pci_msi_entry(entry, pdev) {
-		if (entry->irq == NO_IRQ)
+		if (!entry->irq)
 			continue;
 
 		irq_set_msi_desc(entry->irq, NULL);
@@ -471,7 +471,7 @@ again:
 
 		virq = irq_create_mapping(NULL, hwirq);
 
-		if (virq == NO_IRQ) {
+		if (!virq) {
 			pr_debug("rtas_msi: Failed mapping hwirq %d\n", hwirq);
 			return -ENOSPC;
 		}
@@ -490,7 +490,7 @@ again:
 static void rtas_msi_pci_irq_fixup(struct pci_dev *pdev)
 {
 	/* No LSI -> leave MSIs (if any) configured */
-	if (pdev->irq == NO_IRQ) {
+	if (!pdev->irq) {
 		dev_dbg(&pdev->dev, "rtas_msi: no LSI, nothing to do.\n");
 		return;
 	}

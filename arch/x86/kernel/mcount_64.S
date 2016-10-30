@@ -7,6 +7,7 @@
 #include <linux/linkage.h>
 #include <asm/ptrace.h>
 #include <asm/ftrace.h>
+#include <asm/export.h>
 
 
 	.code64
@@ -17,8 +18,10 @@
 
 #ifdef CC_USING_FENTRY
 # define function_hook	__fentry__
+EXPORT_SYMBOL(__fentry__)
 #else
 # define function_hook	mcount
+EXPORT_SYMBOL(mcount)
 #endif
 
 /* All cases save the original rbp (8 bytes) */

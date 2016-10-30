@@ -23,6 +23,7 @@
 #include <asm/vx-insn.h>
 #include <asm/setup.h>
 #include <asm/nmi.h>
+#include <asm/export.h>
 
 __PT_R0      =	__PT_GPRS
 __PT_R1      =	__PT_GPRS + 8
@@ -259,6 +260,8 @@ sie_exit:
 
 	EX_TABLE(.Lrewind_pad,.Lsie_fault)
 	EX_TABLE(sie_exit,.Lsie_fault)
+EXPORT_SYMBOL(sie64a)
+EXPORT_SYMBOL(sie_exit)
 #endif
 
 /*
@@ -825,6 +828,9 @@ ENTRY(save_fpu_regs)
 	oi	__LC_CPU_FLAGS+7,_CIF_FPU
 	br	%r14
 .Lsave_fpu_regs_end:
+#if IS_ENABLED(CONFIG_KVM)
+EXPORT_SYMBOL(save_fpu_regs)
+#endif
 
 /*
  * Load floating-point controls and floating-point or vector registers.

@@ -214,8 +214,7 @@ static struct f7188x_gpio_bank f81866_gpio_bank[] = {
 static int f7188x_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
 	int err;
-	struct f7188x_gpio_bank *bank =
-		container_of(chip, struct f7188x_gpio_bank, chip);
+	struct f7188x_gpio_bank *bank = gpiochip_get_data(chip);
 	struct f7188x_sio *sio = bank->data->sio;
 	u8 dir;
 

@@ -506,7 +506,7 @@ static struct page *snd_cx23885_page(struct snd_pcm_substream *substream,
 /*
  * operators
  */
-static struct snd_pcm_ops snd_cx23885_pcm_ops = {
+static const struct snd_pcm_ops snd_cx23885_pcm_ops = {
 	.open = snd_cx23885_pcm_open,
 	.close = snd_cx23885_close,
 	.ioctl = snd_pcm_lib_ioctl,

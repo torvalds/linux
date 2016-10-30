@@ -836,7 +836,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	gfs2_quota_change(ip, -(s64)btotal, ip->i_inode.i_uid,
 			  ip->i_inode.i_gid);
 
-	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
+	ip->i_inode.i_mtime = ip->i_inode.i_ctime = current_time(&ip->i_inode);
 
 	gfs2_dinode_out(ip, dibh->b_data);
 
@@ -1063,7 +1063,7 @@ static int trunc_start(struct inode *inode, u64 oldsize, u64 newsize)
 	}
 
 	i_size_write(inode, newsize);
-	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
+	ip->i_inode.i_mtime = ip->i_inode.i_ctime = current_time(&ip->i_inode);
 	gfs2_dinode_out(ip, dibh->b_data);
 
 	if (journaled)
@@ -1142,7 +1142,7 @@ static int trunc_end(struct gfs2_inode *ip)
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 		gfs2_ordered_del_inode(ip);
 	}
-	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
+	ip->i_inode.i_mtime = ip->i_inode.i_ctime = current_time(&ip->i_inode);
 	ip->i_diskflags &= ~GFS2_DIF_TRUNC_IN_PROG;
 
 	gfs2_trans_add_meta(ip->i_gl, dibh);
@@ -1252,7 +1252,7 @@ static int do_grow(struct inode *inode, u64 size)
 		goto do_end_trans;
 
 	i_size_write(inode, size);
-	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
+	ip->i_inode.i_mtime = ip->i_inode.i_ctime = current_time(&ip->i_inode);
 	gfs2_trans_add_meta(ip->i_gl, dibh);
 	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);

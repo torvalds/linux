@@ -870,9 +870,14 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	if (new_cols == vc->vc_cols && new_rows == vc->vc_rows)
 		return 0;
 
+	if (new_screen_size > (4 << 20))
+		return -EINVAL;
 	newscreen = kmalloc(new_screen_size, GFP_USER);
 	if (!newscreen)
 		return -ENOMEM;
+
+	if (vc == sel_cons)
+		clear_selection();
 
 	old_rows = vc->vc_rows;
 	old_row_size = vc->vc_size_row;
@@ -1176,7 +1181,7 @@ static void csi_J(struct vc_data *vc, int vpar)
 			break;
 		case 3: /* erase scroll-back buffer (and whole display) */
 			scr_memsetw(vc->vc_screenbuf, vc->vc_video_erase_char,
-				    vc->vc_screenbuf_size >> 1);
+				    vc->vc_screenbuf_size);
 			set_origin(vc);
 			if (con_is_visible(vc))
 				update_screen(vc);
@@ -3187,11 +3192,11 @@ static int do_bind_con_driver(const struct consw *csw, int first, int last,
 
 	pr_info("Console: switching ");
 	if (!deflt)
-		printk("consoles %d-%d ", first+1, last+1);
+		printk(KERN_CONT "consoles %d-%d ", first+1, last+1);
 	if (j >= 0) {
 		struct vc_data *vc = vc_cons[j].d;
 
-		printk("to %s %s %dx%d\n",
+		printk(KERN_CONT "to %s %s %dx%d\n",
 		       vc->vc_can_do_color ? "colour" : "mono",
 		       desc, vc->vc_cols, vc->vc_rows);
 
@@ -3200,7 +3205,7 @@ static int do_bind_con_driver(const struct consw *csw, int first, int last,
 			update_screen(vc);
 		}
 	} else
-		printk("to %s\n", desc);
+		printk(KERN_CONT "to %s\n", desc);
 
 	retval = 0;
 err:

@@ -205,6 +205,7 @@ static void rxrpc_start_call_timer(struct rxrpc_call *call)
 	expire_at = ktime_add_ms(now, rxrpc_max_call_lifetime);
 	call->expire_at = expire_at;
 	call->ack_at = expire_at;
+	call->ping_at = expire_at;
 	call->resend_at = expire_at;
 	call->timer.expires = jiffies + LONG_MAX / 2;
 	rxrpc_set_timer(call, rxrpc_timer_begin, now);
@@ -275,7 +276,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 		goto error;
 
 	trace_rxrpc_call(call, rxrpc_call_connected, atomic_read(&call->usage),
-			 here, ERR_PTR(ret));
+			 here, NULL);
 
 	spin_lock_bh(&call->conn->params.peer->lock);
 	hlist_add_head(&call->error_link,
@@ -498,7 +499,7 @@ void rxrpc_release_calls_on_socket(struct rxrpc_sock *rx)
 				  struct rxrpc_call, sock_link);
 		rxrpc_get_call(call, rxrpc_call_got);
 		rxrpc_abort_call("SKT", call, 0, RX_CALL_DEAD, ECONNRESET);
-		rxrpc_send_call_packet(call, RXRPC_PACKET_TYPE_ABORT);
+		rxrpc_send_abort_packet(call);
 		rxrpc_release_call(rx, call);
 		rxrpc_put_call(call, rxrpc_call_put);
 	}

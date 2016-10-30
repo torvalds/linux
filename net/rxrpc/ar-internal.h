@@ -398,6 +398,7 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_EXPOSED,		/* The call was exposed to the world */
 	RXRPC_CALL_RX_LAST,		/* Received the last packet (at rxtx_top) */
 	RXRPC_CALL_TX_LAST,		/* Last packet in Tx buffer (at rxtx_top) */
+	RXRPC_CALL_SEND_PING,		/* A ping will need to be sent */
 	RXRPC_CALL_PINGING,		/* Ping in process */
 	RXRPC_CALL_RETRANS_TIMEOUT,	/* Retransmission due to timeout occurred */
 };
@@ -410,6 +411,7 @@ enum rxrpc_call_event {
 	RXRPC_CALL_EV_ABORT,		/* need to generate abort */
 	RXRPC_CALL_EV_TIMER,		/* Timer expired */
 	RXRPC_CALL_EV_RESEND,		/* Tx resend required */
+	RXRPC_CALL_EV_PING,		/* Ping send required */
 };
 
 /*
@@ -466,6 +468,7 @@ struct rxrpc_call {
 	struct rxrpc_sock __rcu	*socket;	/* socket responsible */
 	ktime_t			ack_at;		/* When deferred ACK needs to happen */
 	ktime_t			resend_at;	/* When next resend needs to happen */
+	ktime_t			ping_at;	/* When next to send a ping */
 	ktime_t			expire_at;	/* When the call times out */
 	struct timer_list	timer;		/* Combined event timer */
 	struct work_struct	processor;	/* Event processor */
@@ -558,8 +561,10 @@ struct rxrpc_call {
 	rxrpc_seq_t		ackr_prev_seq;	/* previous sequence number received */
 	rxrpc_seq_t		ackr_consumed;	/* Highest packet shown consumed */
 	rxrpc_seq_t		ackr_seen;	/* Highest packet shown seen */
-	rxrpc_serial_t		ackr_ping;	/* Last ping sent */
-	ktime_t			ackr_ping_time;	/* Time last ping sent */
+
+	/* ping management */
+	rxrpc_serial_t		ping_serial;	/* Last ping sent */
+	ktime_t			ping_time;	/* Time last ping sent */
 
 	/* transmission-phase ACK management */
 	ktime_t			acks_latest_ts;	/* Timestamp of latest ACK received */
@@ -728,8 +733,10 @@ extern const char rxrpc_rtt_rx_traces[rxrpc_rtt_rx__nr_trace][5];
 enum rxrpc_timer_trace {
 	rxrpc_timer_begin,
 	rxrpc_timer_init_for_reply,
+	rxrpc_timer_init_for_send_reply,
 	rxrpc_timer_expired,
 	rxrpc_timer_set_for_ack,
+	rxrpc_timer_set_for_ping,
 	rxrpc_timer_set_for_resend,
 	rxrpc_timer_set_for_send,
 	rxrpc_timer__nr_trace
@@ -743,6 +750,7 @@ enum rxrpc_propose_ack_trace {
 	rxrpc_propose_ack_ping_for_lost_ack,
 	rxrpc_propose_ack_ping_for_lost_reply,
 	rxrpc_propose_ack_ping_for_params,
+	rxrpc_propose_ack_processing_op,
 	rxrpc_propose_ack_respond_to_ack,
 	rxrpc_propose_ack_respond_to_ping,
 	rxrpc_propose_ack_retry_tx,
@@ -777,7 +785,7 @@ extern const char rxrpc_congest_modes[NR__RXRPC_CONGEST_MODES][10];
 extern const char rxrpc_congest_changes[rxrpc_congest__nr_change][9];
 
 extern const char *const rxrpc_pkts[];
-extern const char const rxrpc_ack_names[RXRPC_ACK__INVALID + 1][4];
+extern const char rxrpc_ack_names[RXRPC_ACK__INVALID + 1][4];
 
 #include <trace/events/rxrpc.h>
 
@@ -805,6 +813,7 @@ int rxrpc_reject_call(struct rxrpc_sock *);
 /*
  * call_event.c
  */
+void __rxrpc_set_timer(struct rxrpc_call *, enum rxrpc_timer_trace, ktime_t);
 void rxrpc_set_timer(struct rxrpc_call *, enum rxrpc_timer_trace, ktime_t);
 void rxrpc_propose_ACK(struct rxrpc_call *, u8, u16, u32, bool, bool,
 		       enum rxrpc_propose_ack_trace);
@@ -1068,7 +1077,8 @@ extern const s8 rxrpc_ack_priority[];
 /*
  * output.c
  */
-int rxrpc_send_call_packet(struct rxrpc_call *, u8);
+int rxrpc_send_ack_packet(struct rxrpc_call *, bool);
+int rxrpc_send_abort_packet(struct rxrpc_call *);
 int rxrpc_send_data_packet(struct rxrpc_call *, struct sk_buff *, bool);
 void rxrpc_reject_packets(struct rxrpc_local *);
 

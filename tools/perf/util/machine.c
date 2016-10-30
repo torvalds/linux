@@ -1745,9 +1745,8 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 					int max_stack)
 {
 	struct ip_callchain *chain = sample->callchain;
-	int chain_nr = min(max_stack, (int)chain->nr);
+	int chain_nr = min(max_stack, (int)chain->nr), i;
 	u8 cpumode = PERF_RECORD_MISC_USER;
-	int i, j, err;
 	u64 ip;
 
 	for (i = 0; i < chain_nr; i++) {
@@ -1758,7 +1757,7 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 	/* LBR only affects the user callchain */
 	if (i != chain_nr) {
 		struct branch_stack *lbr_stack = sample->branch_stack;
-		int lbr_nr = lbr_stack->nr;
+		int lbr_nr = lbr_stack->nr, j;
 		/*
 		 * LBR callstack can only get user call chain.
 		 * The mix_chain_nr is kernel call chain
@@ -1772,6 +1771,7 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 		int mix_chain_nr = i + 1 + lbr_nr + 1;
 
 		for (j = 0; j < mix_chain_nr; j++) {
+			int err;
 			if (callchain_param.order == ORDER_CALLEE) {
 				if (j < i + 1)
 					ip = chain->ips[j];

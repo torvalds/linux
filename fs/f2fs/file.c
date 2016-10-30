@@ -135,7 +135,7 @@ static inline bool need_do_checkpoint(struct inode *inode)
 
 	if (!S_ISREG(inode->i_mode) || inode->i_nlink != 1)
 		need_cp = true;
-	else if (file_enc_name(inode) && need_dentry_mark(sbi, inode->i_ino))
+	else if (is_sbi_flag_set(sbi, SBI_NEED_CP))
 		need_cp = true;
 	else if (file_wrong_pino(inode))
 		need_cp = true;
@@ -523,7 +523,7 @@ static int truncate_partial_data_page(struct inode *inode, u64 from,
 		return 0;
 
 	if (cache_only) {
-		page = f2fs_grab_cache_page(mapping, index, false);
+		page = find_lock_page(mapping, index);
 		if (page && PageUptodate(page))
 			goto truncate_out;
 		f2fs_put_page(page, 1);
@@ -631,7 +631,7 @@ int f2fs_truncate(struct inode *inode)
 	if (err)
 		return err;
 
-	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_mtime = inode->i_ctime = current_time(inode);
 	f2fs_mark_inode_dirty_sync(inode);
 	return 0;
 }
@@ -680,7 +680,7 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 	struct inode *inode = d_inode(dentry);
 	int err;
 
-	err = inode_change_ok(inode, attr);
+	err = setattr_prepare(dentry, attr);
 	if (err)
 		return err;
 
@@ -708,7 +708,7 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 				if (err)
 					return err;
 			}
-			inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+			inode->i_mtime = inode->i_ctime = current_time(inode);
 		}
 	}
 
@@ -732,10 +732,7 @@ const struct inode_operations f2fs_file_inode_operations = {
 	.get_acl	= f2fs_get_acl,
 	.set_acl	= f2fs_set_acl,
 #ifdef CONFIG_F2FS_FS_XATTR
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
 	.listxattr	= f2fs_listxattr,
-	.removexattr	= generic_removexattr,
 #endif
 	.fiemap		= f2fs_fiemap,
 };
@@ -1395,7 +1392,7 @@ static long f2fs_fallocate(struct file *file, int mode,
 	}
 
 	if (!ret) {
-		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		inode->i_mtime = inode->i_ctime = current_time(inode);
 		f2fs_mark_inode_dirty_sync(inode);
 		f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 	}
@@ -1454,7 +1451,7 @@ static int f2fs_ioc_setflags(struct file *filp, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
-	unsigned int flags = fi->i_flags & FS_FL_USER_VISIBLE;
+	unsigned int flags;
 	unsigned int oldflags;
 	int ret;
 
@@ -1487,7 +1484,7 @@ static int f2fs_ioc_setflags(struct file *filp, unsigned long arg)
 	fi->i_flags = flags;
 	inode_unlock(inode);
 
-	inode->i_ctime = CURRENT_TIME;
+	inode->i_ctime = current_time(inode);
 	f2fs_set_inode_flags(inode);
 out:
 	mnt_drop_write_file(filp);
@@ -1954,7 +1951,7 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 	 * avoid defragment running in SSR mode when free section are allocated
 	 * intensively
 	 */
-	if (has_not_enough_free_secs(sbi, sec_num)) {
+	if (has_not_enough_free_secs(sbi, 0, sec_num)) {
 		err = -EAGAIN;
 		goto out;
 	}
@@ -2085,6 +2082,13 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
 	if (f2fs_encrypted_inode(src) || f2fs_encrypted_inode(dst))
 		return -EOPNOTSUPP;
 
+	if (src == dst) {
+		if (pos_in == pos_out)
+			return 0;
+		if (pos_out > pos_in && pos_out < pos_in + len)
+			return -EINVAL;
+	}
+
 	inode_lock(src);
 	if (src != dst) {
 		if (!inode_trylock(dst)) {
@@ -2136,8 +2140,9 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
 
 	f2fs_balance_fs(sbi, true);
 	f2fs_lock_op(sbi);
-	ret = __exchange_data_block(src, dst, pos_in,
-				pos_out, len >> F2FS_BLKSIZE_BITS, false);
+	ret = __exchange_data_block(src, dst, pos_in >> F2FS_BLKSIZE_BITS,
+				pos_out >> F2FS_BLKSIZE_BITS,
+				len >> F2FS_BLKSIZE_BITS, false);
 
 	if (!ret) {
 		if (dst_max_i_size)

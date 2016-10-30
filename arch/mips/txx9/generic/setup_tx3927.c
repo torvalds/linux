@@ -92,7 +92,6 @@ void __init tx3927_setup(void)
 	/* PIO */
 	__raw_writel(0, &tx3927_pioptr->maskcpu);
 	__raw_writel(0, &tx3927_pioptr->maskext);
-	txx9_gpio_init(TX3927_PIO_REG, 0, 16);
 
 	conf = read_c0_conf();
 	if (conf & TX39_CONF_DCE) {

@@ -109,6 +109,10 @@ struct cros_ec_command {
  *     should check msg.result for the EC's result code.
  * @pkt_xfer: send packet to EC and get response
  * @lock: one transaction at a time
+ * @mkbp_event_supported: true if this EC supports the MKBP event protocol.
+ * @event_notifier: interrupt event notifier for transport devices.
+ * @event_data: raw payload transferred with the MKBP event.
+ * @event_size: size in bytes of the event data.
  */
 struct cros_ec_device {
 
@@ -137,6 +141,11 @@ struct cros_ec_device {
 	int (*pkt_xfer)(struct cros_ec_device *ec,
 			struct cros_ec_command *msg);
 	struct mutex lock;
+	bool mkbp_event_supported;
+	struct blocking_notifier_head event_notifier;
+
+	struct ec_response_get_next_event event_data;
+	int event_size;
 };
 
 /* struct cros_ec_platform - ChromeOS EC platform information
@@ -268,6 +277,15 @@ int cros_ec_register(struct cros_ec_device *ec_dev);
  * @return 0 if ok, -ve on error
  */
 int cros_ec_query_all(struct cros_ec_device *ec_dev);
+
+/**
+ * cros_ec_get_next_event -  Fetch next event from the ChromeOS EC
+ *
+ * @ec_dev: Device to fetch event from
+ *
+ * Returns: 0 on success, Linux error number on failure
+ */
+int cros_ec_get_next_event(struct cros_ec_device *ec_dev);
 
 /* sysfs stuff */
 extern struct attribute_group cros_ec_attr_group;

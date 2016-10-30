@@ -26,6 +26,7 @@ config QCA7000
 
 config QCOM_EMAC
 	tristate "Qualcomm Technologies, Inc. EMAC Gigabit Ethernet support"
+	depends on HAS_DMA && HAS_IOMEM
 	select CRC32
 	select PHYLIB
 	---help---

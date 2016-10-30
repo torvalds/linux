@@ -29,6 +29,7 @@
 #include <asm/cacheflush.h>
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
+#include <asm/uaccess.h>
 
 unsigned long exception_handlers[32];
 

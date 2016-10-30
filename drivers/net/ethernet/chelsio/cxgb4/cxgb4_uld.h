@@ -308,6 +308,7 @@ struct cxgb4_lld_info {
 	unsigned int iscsi_llimit;	     /* chip's iscsi region llimit */
 	void **iscsi_ppm;		     /* iscsi page pod manager */
 	int nodeid;			     /* device numa node id */
+	bool fr_nsmr_tpte_wr_support;	     /* FW supports FR_NSMR_TPTE_WR */
 };
 
 struct cxgb4_uld_info {

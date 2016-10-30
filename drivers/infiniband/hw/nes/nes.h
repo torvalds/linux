@@ -165,7 +165,7 @@ do { \
 #include "nes_hw.h"
 #include "nes_verbs.h"
 #include "nes_context.h"
-#include "nes_user.h"
+#include <rdma/nes-abi.h>
 #include "nes_cm.h"
 #include "nes_mgt.h"
 

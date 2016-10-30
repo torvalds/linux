@@ -15,9 +15,11 @@ VIDIOC_G_PRIORITY - VIDIOC_S_PRIORITY - Query or request the access priority ass
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, enum v4l2_priority *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_PRIORITY, enum v4l2_priority *argp )
+    :name: VIDIOC_G_PRIORITY
 
-.. cpp:function:: int ioctl( int fd, int request, const enum v4l2_priority *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_S_PRIORITY, const enum v4l2_priority *argp )
+    :name: VIDIOC_S_PRIORITY
 
 
 Arguments
@@ -25,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_PRIORITY, VIDIOC_S_PRIORITY
 
 ``argp``
     Pointer to an enum v4l2_priority type.
@@ -45,62 +44,39 @@ an enum v4l2_priority variable and call :ref:`VIDIOC_S_PRIORITY <VIDIOC_G_PRIORI
 with a pointer to this variable.
 
 
-.. _v4l2-priority:
+.. c:type:: v4l2_priority
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: enum v4l2_priority
     :header-rows:  0
     :stub-columns: 0
     :widths:       3 1 4
 
-
-    -  .. row 1
-
-       -  ``V4L2_PRIORITY_UNSET``
-
-       -  0
-
-       -
-
-    -  .. row 2
-
-       -  ``V4L2_PRIORITY_BACKGROUND``
-
-       -  1
-
-       -  Lowest priority, usually applications running in background, for
-	  example monitoring VBI transmissions. A proxy application running
-	  in user space will be necessary if multiple applications want to
-	  read from a device at this priority.
-
-    -  .. row 3
-
-       -  ``V4L2_PRIORITY_INTERACTIVE``
-
-       -  2
-
-       -
-
-    -  .. row 4
-
-       -  ``V4L2_PRIORITY_DEFAULT``
-
-       -  2
-
-       -  Medium priority, usually applications started and interactively
-	  controlled by the user. For example TV viewers, Teletext browsers,
-	  or just "panel" applications to change the channel or video
-	  controls. This is the default priority unless an application
-	  requests another.
-
-    -  .. row 5
-
-       -  ``V4L2_PRIORITY_RECORD``
-
-       -  3
-
-       -  Highest priority. Only one file descriptor can have this priority,
-	  it blocks any other fd from changing device properties. Usually
-	  applications which must not be interrupted, like video recording.
+    * - ``V4L2_PRIORITY_UNSET``
+      - 0
+      -
+    * - ``V4L2_PRIORITY_BACKGROUND``
+      - 1
+      - Lowest priority, usually applications running in background, for
+	example monitoring VBI transmissions. A proxy application running
+	in user space will be necessary if multiple applications want to
+	read from a device at this priority.
+    * - ``V4L2_PRIORITY_INTERACTIVE``
+      - 2
+      -
+    * - ``V4L2_PRIORITY_DEFAULT``
+      - 2
+      - Medium priority, usually applications started and interactively
+	controlled by the user. For example TV viewers, Teletext browsers,
+	or just "panel" applications to change the channel or video
+	controls. This is the default priority unless an application
+	requests another.
+    * - ``V4L2_PRIORITY_RECORD``
+      - 3
+      - Highest priority. Only one file descriptor can have this priority,
+	it blocks any other fd from changing device properties. Usually
+	applications which must not be interrupted, like video recording.
 
 
 Return Value

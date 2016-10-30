@@ -326,6 +326,7 @@ struct pci_dev;
 int acpi_pci_irq_enable (struct pci_dev *dev);
 void acpi_penalize_isa_irq(int irq, int active);
 bool acpi_isa_irq_available(int irq);
+void acpi_penalize_sci_irq(int irq, int trigger, int polarity);
 void acpi_pci_irq_disable (struct pci_dev *dev);
 
 extern int ec_read(u8 addr, u8 *val);
@@ -946,9 +947,17 @@ struct acpi_reference_args {
 #ifdef CONFIG_ACPI
 int acpi_dev_get_property(struct acpi_device *adev, const char *name,
 			  acpi_object_type type, const union acpi_object **obj);
-int acpi_node_get_property_reference(struct fwnode_handle *fwnode,
-				     const char *name, size_t index,
-				     struct acpi_reference_args *args);
+int __acpi_node_get_property_reference(struct fwnode_handle *fwnode,
+				const char *name, size_t index, size_t num_args,
+				struct acpi_reference_args *args);
+
+static inline int acpi_node_get_property_reference(struct fwnode_handle *fwnode,
+				const char *name, size_t index,
+				struct acpi_reference_args *args)
+{
+	return __acpi_node_get_property_reference(fwnode, name, index,
+		MAX_ACPI_REFERENCE_ARGS, args);
+}
 
 int acpi_node_prop_get(struct fwnode_handle *fwnode, const char *propname,
 		       void **valptr);
@@ -1020,6 +1029,14 @@ int __acpi_probe_device_table(struct acpi_probe_entry *start, int nr);
 static inline int acpi_dev_get_property(struct acpi_device *adev,
 					const char *name, acpi_object_type type,
 					const union acpi_object **obj)
+{
+	return -ENXIO;
+}
+
+static inline int
+__acpi_node_get_property_reference(struct fwnode_handle *fwnode,
+				const char *name, size_t index, size_t num_args,
+				struct acpi_reference_args *args)
 {
 	return -ENXIO;
 }

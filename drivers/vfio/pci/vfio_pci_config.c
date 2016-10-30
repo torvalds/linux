@@ -70,7 +70,7 @@ static const u8 pci_cap_length[PCI_CAP_ID_MAX + 1] = {
 
 /*
  * Lengths of PCIe/PCI-X Extended Config Capabilities
- *   0: Removed or masked from the user visible capabilty list
+ *   0: Removed or masked from the user visible capability list
  *   FF: Variable length
  */
 static const u16 pci_ext_cap_length[PCI_EXT_CAP_ID_MAX + 1] = {
@@ -355,7 +355,7 @@ static int alloc_perm_bits(struct perm_bits *perm, int size)
 	 * ignore whether a read/write exceeds the defined capability
 	 * structure.  We can do this because:
 	 *  - Standard config space is already dword aligned
-	 *  - Capabilities are all dword alinged (bits 0:1 of next reserved)
+	 *  - Capabilities are all dword aligned (bits 0:1 of next reserved)
 	 *  - Express capabilities defined as dword aligned
 	 */
 	size = round_up(size, 4);
@@ -804,6 +804,40 @@ static int __init init_pci_cap_pcix_perm(struct perm_bits *perm)
 	return 0;
 }
 
+static int vfio_exp_config_write(struct vfio_pci_device *vdev, int pos,
+				 int count, struct perm_bits *perm,
+				 int offset, __le32 val)
+{
+	__le16 *ctrl = (__le16 *)(vdev->vconfig + pos -
+				  offset + PCI_EXP_DEVCTL);
+
+	count = vfio_default_config_write(vdev, pos, count, perm, offset, val);
+	if (count < 0)
+		return count;
+
+	/*
+	 * The FLR bit is virtualized, if set and the device supports PCIe
+	 * FLR, issue a reset_function.  Regardless, clear the bit, the spec
+	 * requires it to be always read as zero.  NB, reset_function might
+	 * not use a PCIe FLR, we don't have that level of granularity.
+	 */
+	if (*ctrl & cpu_to_le16(PCI_EXP_DEVCTL_BCR_FLR)) {
+		u32 cap;
+		int ret;
+
+		*ctrl &= ~cpu_to_le16(PCI_EXP_DEVCTL_BCR_FLR);
+
+		ret = pci_user_read_config_dword(vdev->pdev,
+						 pos - offset + PCI_EXP_DEVCAP,
+						 &cap);
+
+		if (!ret && (cap & PCI_EXP_DEVCAP_FLR))
+			pci_try_reset_function(vdev->pdev);
+	}
+
+	return count;
+}
+
 /* Permissions for PCI Express capability */
 static int __init init_pci_cap_exp_perm(struct perm_bits *perm)
 {
@@ -811,16 +845,52 @@ static int __init init_pci_cap_exp_perm(struct perm_bits *perm)
 	if (alloc_perm_bits(perm, PCI_CAP_EXP_ENDPOINT_SIZEOF_V2))
 		return -ENOMEM;
 
+	perm->writefn = vfio_exp_config_write;
+
 	p_setb(perm, PCI_CAP_LIST_NEXT, (u8)ALL_VIRT, NO_WRITE);
 
 	/*
-	 * Allow writes to device control fields (includes FLR!)
-	 * but not to devctl_phantom which could confuse IOMMU
-	 * or to the ARI bit in devctl2 which is set at probe time
+	 * Allow writes to device control fields, except devctl_phantom,
+	 * which could confuse IOMMU, and the ARI bit in devctl2, which
+	 * is set at probe time.  FLR gets virtualized via our writefn.
 	 */
-	p_setw(perm, PCI_EXP_DEVCTL, NO_VIRT, ~PCI_EXP_DEVCTL_PHANTOM);
+	p_setw(perm, PCI_EXP_DEVCTL,
+	       PCI_EXP_DEVCTL_BCR_FLR, ~PCI_EXP_DEVCTL_PHANTOM);
 	p_setw(perm, PCI_EXP_DEVCTL2, NO_VIRT, ~PCI_EXP_DEVCTL2_ARI);
 	return 0;
+}
+
+static int vfio_af_config_write(struct vfio_pci_device *vdev, int pos,
+				int count, struct perm_bits *perm,
+				int offset, __le32 val)
+{
+	u8 *ctrl = vdev->vconfig + pos - offset + PCI_AF_CTRL;
+
+	count = vfio_default_config_write(vdev, pos, count, perm, offset, val);
+	if (count < 0)
+		return count;
+
+	/*
+	 * The FLR bit is virtualized, if set and the device supports AF
+	 * FLR, issue a reset_function.  Regardless, clear the bit, the spec
+	 * requires it to be always read as zero.  NB, reset_function might
+	 * not use an AF FLR, we don't have that level of granularity.
+	 */
+	if (*ctrl & PCI_AF_CTRL_FLR) {
+		u8 cap;
+		int ret;
+
+		*ctrl &= ~PCI_AF_CTRL_FLR;
+
+		ret = pci_user_read_config_byte(vdev->pdev,
+						pos - offset + PCI_AF_CAP,
+						&cap);
+
+		if (!ret && (cap & PCI_AF_CAP_FLR) && (cap & PCI_AF_CAP_TP))
+			pci_try_reset_function(vdev->pdev);
+	}
+
+	return count;
 }
 
 /* Permissions for Advanced Function capability */
@@ -829,8 +899,10 @@ static int __init init_pci_cap_af_perm(struct perm_bits *perm)
 	if (alloc_perm_bits(perm, pci_cap_length[PCI_CAP_ID_AF]))
 		return -ENOMEM;
 
+	perm->writefn = vfio_af_config_write;
+
 	p_setb(perm, PCI_CAP_LIST_NEXT, (u8)ALL_VIRT, NO_WRITE);
-	p_setb(perm, PCI_AF_CTRL, NO_VIRT, PCI_AF_CTRL_FLR);
+	p_setb(perm, PCI_AF_CTRL, PCI_AF_CTRL_FLR, PCI_AF_CTRL_FLR);
 	return 0;
 }
 
@@ -1516,10 +1588,10 @@ static int vfio_ecap_init(struct vfio_pci_device *vdev)
  * space which tracks reads and writes to bits that we emulate for
  * the user.  Initial values filled from device.
  *
- * Using shared stuct perm_bits between all vfio-pci devices saves
+ * Using shared struct perm_bits between all vfio-pci devices saves
  * us from allocating cfg_size buffers for virt and write for every
  * device.  We could remove vconfig and allocate individual buffers
- * for each area requring emulated bits, but the array of pointers
+ * for each area requiring emulated bits, but the array of pointers
  * would be comparable in size (at least for standard config space).
  */
 int vfio_config_init(struct vfio_pci_device *vdev)

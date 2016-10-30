@@ -17,6 +17,7 @@ config DEVFREQ_EVENT_EXYNOS_NOCP
 	tristate "EXYNOS NoC (Network On Chip) Probe DEVFREQ event Driver"
 	depends on ARCH_EXYNOS || COMPILE_TEST
 	select PM_OPP
+	select REGMAP_MMIO
 	help
 	  This add the devfreq-event driver for Exynos SoC. It provides NoC
 	  (Network on Chip) Probe counters to measure the bandwidth of AXI bus.

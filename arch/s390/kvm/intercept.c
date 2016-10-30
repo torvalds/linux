@@ -29,6 +29,7 @@ static const intercept_handler_t instruction_handlers[256] = {
 	[0x01] = kvm_s390_handle_01,
 	[0x82] = kvm_s390_handle_lpsw,
 	[0x83] = kvm_s390_handle_diag,
+	[0xaa] = kvm_s390_handle_aa,
 	[0xae] = kvm_s390_handle_sigp,
 	[0xb2] = kvm_s390_handle_b2,
 	[0xb6] = kvm_s390_handle_stctl,
@@ -118,8 +119,13 @@ static int handle_validity(struct kvm_vcpu *vcpu)
 
 	vcpu->stat.exit_validity++;
 	trace_kvm_s390_intercept_validity(vcpu, viwhy);
-	WARN_ONCE(true, "kvm: unhandled validity intercept 0x%x\n", viwhy);
-	return -EOPNOTSUPP;
+	KVM_EVENT(3, "validity intercept 0x%x for pid %u (kvm 0x%pK)", viwhy,
+		  current->pid, vcpu->kvm);
+
+	/* do not warn on invalid runtime instrumentation mode */
+	WARN_ONCE(viwhy != 0x44, "kvm: unhandled validity intercept 0x%x\n",
+		  viwhy);
+	return -EINVAL;
 }
 
 static int handle_instruction(struct kvm_vcpu *vcpu)

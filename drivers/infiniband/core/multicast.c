@@ -873,7 +873,7 @@ int mcast_init(void)
 {
 	int ret;
 
-	mcast_wq = create_singlethread_workqueue("ib_mcast");
+	mcast_wq = alloc_ordered_workqueue("ib_mcast", WQ_MEM_RECLAIM);
 	if (!mcast_wq)
 		return -ENOMEM;
 

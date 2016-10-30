@@ -82,8 +82,6 @@ static int dvb_usbv2_i2c_init(struct dvb_usb_device *d)
 	ret = i2c_add_adapter(&d->i2c_adap);
 	if (ret < 0) {
 		d->i2c_adap.algo = NULL;
-		dev_err(&d->udev->dev, "%s: i2c_add_adapter() failed=%d\n",
-				KBUILD_MODNAME, ret);
 		goto err;
 	}
 

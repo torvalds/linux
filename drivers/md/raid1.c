@@ -145,12 +145,8 @@ static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
 	return r1_bio;
 
 out_free_pages:
-	while (--j >= 0) {
-		struct bio_vec *bv;
-
-		bio_for_each_segment_all(bv, r1_bio->bios[j], i)
-			__free_page(bv->bv_page);
-	}
+	while (--j >= 0)
+		bio_free_pages(r1_bio->bios[j]);
 
 out_free_bio:
 	while (++j < pi->raid_disks)

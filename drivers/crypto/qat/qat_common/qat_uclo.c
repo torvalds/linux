@@ -967,10 +967,6 @@ static int qat_uclo_parse_uof_obj(struct icp_qat_fw_loader_handle *handle)
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
 	unsigned int ae;
 
-	obj_handle->uword_buf = kcalloc(UWORD_CPYBUF_SIZE, sizeof(uint64_t),
-					GFP_KERNEL);
-	if (!obj_handle->uword_buf)
-		return -ENOMEM;
 	obj_handle->encap_uof_obj.beg_uof = obj_handle->obj_hdr->file_buff;
 	obj_handle->encap_uof_obj.obj_hdr = (struct icp_qat_uof_objhdr *)
 					     obj_handle->obj_hdr->file_buff;
@@ -982,6 +978,10 @@ static int qat_uclo_parse_uof_obj(struct icp_qat_fw_loader_handle *handle)
 		pr_err("QAT: UOF incompatible\n");
 		return -EINVAL;
 	}
+	obj_handle->uword_buf = kcalloc(UWORD_CPYBUF_SIZE, sizeof(uint64_t),
+					GFP_KERNEL);
+	if (!obj_handle->uword_buf)
+		return -ENOMEM;
 	obj_handle->ustore_phy_size = ICP_QAT_UCLO_MAX_USTORE;
 	if (!obj_handle->obj_hdr->file_buff ||
 	    !qat_uclo_map_str_table(obj_handle->obj_hdr, ICP_QAT_UOF_STRT,

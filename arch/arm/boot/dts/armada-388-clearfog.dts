@@ -315,30 +315,6 @@
 				status = "okay";
 			};
 
-			spi@10680 {
-				/*
-				 * We don't seem to have the W25Q32 on the
-				 * A1 Rev 2.0 boards, so disable SPI.
-				 * CS0: W25Q32 (doesn't appear to be present)
-				 * CS1:
-				 * CS2: mikrobus
-				 */
-				pinctrl-0 = <&spi1_pins
-					     &clearfog_spi1_cs_pins
-					     &mikro_spi_pins>;
-				pinctrl-names = "default";
-				status = "okay";
-
-				spi-flash@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					compatible = "w25q32", "jedec,spi-nor";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <3000000>;
-					status = "disabled";
-				};
-			};
-
 			usb@58000 {
 				/* CON3, nearest  power. */
 				status = "okay";
@@ -442,5 +418,29 @@
 			linux,can-disable;
 			linux,code = <BTN_0>;
 		};
+	};
+};
+
+&spi1 {
+	/*
+	 * We don't seem to have the W25Q32 on the
+	 * A1 Rev 2.0 boards, so disable SPI.
+	 * CS0: W25Q32 (doesn't appear to be present)
+	 * CS1:
+	 * CS2: mikrobus
+	 */
+	pinctrl-0 = <&spi1_pins
+		     &clearfog_spi1_cs_pins
+		     &mikro_spi_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "w25q32", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <3000000>;
+		status = "disabled";
 	};
 };

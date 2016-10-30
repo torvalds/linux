@@ -1205,7 +1205,7 @@ static int verify_fcx_max_data(struct dasd_device *device, __u8 lpm)
 				 mdc, lpm);
 			return mdc;
 		}
-		fcx_max_data = mdc * FCX_MAX_DATA_FACTOR;
+		fcx_max_data = (u32)mdc * FCX_MAX_DATA_FACTOR;
 		if (fcx_max_data < private->fcx_max_data) {
 			dev_warn(&device->cdev->dev,
 				 "The maximum data size for zHPF requests %u "
@@ -1675,7 +1675,7 @@ static u32 get_fcx_max_data(struct dasd_device *device)
 			 " data size for zHPF requests failed\n");
 		return 0;
 	} else
-		return mdc * FCX_MAX_DATA_FACTOR;
+		return (u32)mdc * FCX_MAX_DATA_FACTOR;
 }
 
 /*

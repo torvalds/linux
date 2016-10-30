@@ -340,7 +340,6 @@ void ptlrpc_pinger_sending_on_import(struct obd_import *imp)
 {
 	ptlrpc_update_next_ping(imp, 0);
 }
-EXPORT_SYMBOL(ptlrpc_pinger_sending_on_import);
 
 void ptlrpc_pinger_commit_expected(struct obd_import *imp)
 {

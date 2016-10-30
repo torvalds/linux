@@ -107,35 +107,49 @@
 #define KVM_INVALID_INST		0xdeadbeef
 #define KVM_INVALID_ADDR		0xdeadbeef
 
+/*
+ * EVA has overlapping user & kernel address spaces, so user VAs may be >
+ * PAGE_OFFSET. For this reason we can't use the default KVM_HVA_ERR_BAD of
+ * PAGE_OFFSET.
+ */
+
+#define KVM_HVA_ERR_BAD			(-1UL)
+#define KVM_HVA_ERR_RO_BAD		(-2UL)
+
+static inline bool kvm_is_error_hva(unsigned long addr)
+{
+	return IS_ERR_VALUE(addr);
+}
+
 extern atomic_t kvm_mips_instance;
 
 struct kvm_vm_stat {
-	u32 remote_tlb_flush;
+	ulong remote_tlb_flush;
 };
 
 struct kvm_vcpu_stat {
-	u32 wait_exits;
-	u32 cache_exits;
-	u32 signal_exits;
-	u32 int_exits;
-	u32 cop_unusable_exits;
-	u32 tlbmod_exits;
-	u32 tlbmiss_ld_exits;
-	u32 tlbmiss_st_exits;
-	u32 addrerr_st_exits;
-	u32 addrerr_ld_exits;
-	u32 syscall_exits;
-	u32 resvd_inst_exits;
-	u32 break_inst_exits;
-	u32 trap_inst_exits;
-	u32 msa_fpe_exits;
-	u32 fpe_exits;
-	u32 msa_disabled_exits;
-	u32 flush_dcache_exits;
-	u32 halt_successful_poll;
-	u32 halt_attempted_poll;
-	u32 halt_poll_invalid;
-	u32 halt_wakeup;
+	u64 wait_exits;
+	u64 cache_exits;
+	u64 signal_exits;
+	u64 int_exits;
+	u64 cop_unusable_exits;
+	u64 tlbmod_exits;
+	u64 tlbmiss_ld_exits;
+	u64 tlbmiss_st_exits;
+	u64 addrerr_st_exits;
+	u64 addrerr_ld_exits;
+	u64 syscall_exits;
+	u64 resvd_inst_exits;
+	u64 break_inst_exits;
+	u64 trap_inst_exits;
+	u64 msa_fpe_exits;
+	u64 fpe_exits;
+	u64 msa_disabled_exits;
+	u64 flush_dcache_exits;
+	u64 halt_successful_poll;
+	u64 halt_attempted_poll;
+	u64 halt_poll_invalid;
+	u64 halt_wakeup;
 };
 
 struct kvm_arch_memory_slot {
@@ -313,6 +327,9 @@ struct kvm_vcpu_arch {
 	u32 guest_user_asid[NR_CPUS];
 	u32 guest_kernel_asid[NR_CPUS];
 	struct mm_struct guest_kernel_mm, guest_user_mm;
+
+	/* Guest ASID of last user mode execution */
+	unsigned int last_user_gasid;
 
 	int last_sched_cpu;
 

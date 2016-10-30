@@ -56,6 +56,10 @@
 		serial0 = &serial0;
 		serial1 = &serial1;
 	};
+
+	chosen {
+		stdout-path = "serial1:115200n8";
+	};
 };
 
 &esdhc {

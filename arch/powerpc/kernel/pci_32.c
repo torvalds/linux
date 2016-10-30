@@ -32,6 +32,8 @@
 unsigned long isa_io_base     = 0;
 unsigned long pci_dram_offset = 0;
 int pcibios_assign_bus_offset = 1;
+EXPORT_SYMBOL(isa_io_base);
+EXPORT_SYMBOL(pci_dram_offset);
 
 void pcibios_make_OF_bus_map(void);
 

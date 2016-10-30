@@ -233,7 +233,7 @@ static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
 	PPC_ATOMIC_ENTRY_BARRIER
 "1:	lwarx	%0,0,%1		# __atomic_add_unless\n\
 	cmpw	0,%0,%3 \n\
-	beq-	2f \n\
+	beq	2f \n\
 	add	%0,%2,%0 \n"
 	PPC405_ERR77(0,%2)
 "	stwcx.	%0,0,%1 \n\
@@ -539,7 +539,7 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
 	PPC_ATOMIC_ENTRY_BARRIER
 "1:	ldarx	%0,0,%1		# __atomic_add_unless\n\
 	cmpd	0,%0,%3 \n\
-	beq-	2f \n\
+	beq	2f \n\
 	add	%0,%2,%0 \n"
 "	stdcx.	%0,0,%1 \n\
 	bne-	1b \n"

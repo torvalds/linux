@@ -85,7 +85,7 @@ EXPORT_SYMBOL_GPL(imx6q_cpuidle_fec_irqs_unused);
 int __init imx6q_cpuidle_init(void)
 {
 	/* Set INT_MEM_CLK_LPM bit to get a reliable WAIT mode support */
-	imx6q_set_int_mem_clk_lpm(true);
+	imx6_set_int_mem_clk_lpm(true);
 
 	return cpuidle_register(&imx6q_cpuidle_driver, NULL);
 }
