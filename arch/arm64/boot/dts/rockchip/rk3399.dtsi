@@ -1023,6 +1023,9 @@
 		clock-names = "pclk_efuse";
 
 		/* Data cells */
+		cpu_id: cpu-id@7 {
+			reg = <0x07 0x10>;
+		};
 		cpub_leakage: cpu-leakage@17 {
 			reg = <0x17 0x1>;
 		};
