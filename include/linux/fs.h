@@ -321,6 +321,7 @@ struct writeback_control;
 #define IOCB_HIPRI		(1 << 3)
 #define IOCB_DSYNC		(1 << 4)
 #define IOCB_SYNC		(1 << 5)
+#define IOCB_WRITE		(1 << 6)
 
 struct kiocb {
 	struct file		*ki_filp;
