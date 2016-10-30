@@ -1130,9 +1130,13 @@ static int sc16is7xx_gpio_direction_output(struct gpio_chip *chip,
 {
 	struct sc16is7xx_port *s = gpiochip_get_data(chip);
 	struct uart_port *port = &s->p[0].port;
+	u8 state = sc16is7xx_port_read(port, SC16IS7XX_IOSTATE_REG);
 
-	sc16is7xx_port_update(port, SC16IS7XX_IOSTATE_REG, BIT(offset),
-			      val ? BIT(offset) : 0);
+	if (val)
+		state |= BIT(offset);
+	else
+		state &= ~BIT(offset);
+	sc16is7xx_port_write(port, SC16IS7XX_IOSTATE_REG, state);
 	sc16is7xx_port_update(port, SC16IS7XX_IODIR_REG, BIT(offset),
 			      BIT(offset));
 

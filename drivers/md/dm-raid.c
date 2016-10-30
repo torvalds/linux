@@ -266,7 +266,7 @@ static struct raid_type {
 	{"raid10_offset", "raid10 offset (striped mirrors)",	    0, 2, 10, ALGORITHM_RAID10_OFFSET},
 	{"raid10_near",	  "raid10 near (striped mirrors)",	    0, 2, 10, ALGORITHM_RAID10_NEAR},
 	{"raid10",	  "raid10 (striped mirrors)",		    0, 2, 10, ALGORITHM_RAID10_DEFAULT},
-	{"raid4",	  "raid4 (dedicated last parity disk)",	    1, 2, 4,  ALGORITHM_PARITY_N}, /* raid4 layout = raid5_n */
+	{"raid4",	  "raid4 (dedicated first parity disk)",    1, 2, 5,  ALGORITHM_PARITY_0}, /* raid4 layout = raid5_0 */
 	{"raid5_n",	  "raid5 (dedicated last parity disk)",	    1, 2, 5,  ALGORITHM_PARITY_N},
 	{"raid5_ls",	  "raid5 (left symmetric)",		    1, 2, 5,  ALGORITHM_LEFT_SYMMETRIC},
 	{"raid5_rs",	  "raid5 (right symmetric)",		    1, 2, 5,  ALGORITHM_RIGHT_SYMMETRIC},
@@ -2087,11 +2087,11 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 		/*
 		 * No takeover/reshaping, because we don't have the extended v1.9.0 metadata
 		 */
-		if (le32_to_cpu(sb->level) != mddev->level) {
+		if (le32_to_cpu(sb->level) != mddev->new_level) {
 			DMERR("Reshaping/takeover raid sets not yet supported. (raid level/stripes/size change)");
 			return -EINVAL;
 		}
-		if (le32_to_cpu(sb->layout) != mddev->layout) {
+		if (le32_to_cpu(sb->layout) != mddev->new_layout) {
 			DMERR("Reshaping raid sets not yet supported. (raid layout change)");
 			DMERR("	 0x%X vs 0x%X", le32_to_cpu(sb->layout), mddev->layout);
 			DMERR("	 Old layout: %s w/ %d copies",
@@ -2102,7 +2102,7 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 			      raid10_md_layout_to_copies(mddev->layout));
 			return -EINVAL;
 		}
-		if (le32_to_cpu(sb->stripe_sectors) != mddev->chunk_sectors) {
+		if (le32_to_cpu(sb->stripe_sectors) != mddev->new_chunk_sectors) {
 			DMERR("Reshaping raid sets not yet supported. (stripe sectors change)");
 			return -EINVAL;
 		}
@@ -2114,6 +2114,8 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 			      sb->num_devices, mddev->raid_disks);
 			return -EINVAL;
 		}
+
+		DMINFO("Discovered old metadata format; upgrading to extended metadata format");
 
 		/* Table line is checked vs. authoritative superblock */
 		rs_set_new(rs);
@@ -2258,7 +2260,8 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 	if (!mddev->events && super_init_validation(rs, rdev))
 		return -EINVAL;
 
-	if (le32_to_cpu(sb->compat_features) != FEATURE_FLAG_SUPPORTS_V190) {
+	if (le32_to_cpu(sb->compat_features) &&
+	    le32_to_cpu(sb->compat_features) != FEATURE_FLAG_SUPPORTS_V190) {
 		rs->ti->error = "Unable to assemble array: Unknown flag(s) in compatible feature flags";
 		return -EINVAL;
 	}
@@ -3646,7 +3649,7 @@ static void raid_resume(struct dm_target *ti)
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 9, 0},
+	.version = {1, 9, 1},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,
