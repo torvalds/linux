@@ -681,7 +681,6 @@ ssize_t lirc_dev_fop_read(struct file *file,
 	 * between while condition checking and scheduling)
 	 */
 	add_wait_queue(&ir->buf->wait_poll, &wait);
-	set_current_state(TASK_INTERRUPTIBLE);
 
 	/*
 	 * while we didn't provide 'length' bytes, device is opened in blocking
@@ -706,13 +705,13 @@ ssize_t lirc_dev_fop_read(struct file *file,
 			}
 
 			mutex_unlock(&ir->irctl_lock);
-			schedule();
 			set_current_state(TASK_INTERRUPTIBLE);
+			schedule();
+			set_current_state(TASK_RUNNING);
 
 			if (mutex_lock_interruptible(&ir->irctl_lock)) {
 				ret = -ERESTARTSYS;
 				remove_wait_queue(&ir->buf->wait_poll, &wait);
-				set_current_state(TASK_RUNNING);
 				goto out_unlocked;
 			}
 
@@ -732,7 +731,6 @@ ssize_t lirc_dev_fop_read(struct file *file,
 	}
 
 	remove_wait_queue(&ir->buf->wait_poll, &wait);
-	set_current_state(TASK_RUNNING);
 
 out_locked:
 	mutex_unlock(&ir->irctl_lock);
