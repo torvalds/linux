@@ -7677,10 +7677,8 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 }
 
 /* Set up chip specific power management-related functions */
-void intel_init_pm(struct drm_device *dev)
+void intel_init_pm(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	intel_fbc_init(dev_priv);
 
 	/* For cxsr */
@@ -7690,7 +7688,7 @@ void intel_init_pm(struct drm_device *dev)
 		i915_ironlake_get_mem_freq(dev_priv);
 
 	/* For FIFO watermark updates */
-	if (INTEL_INFO(dev)->gen >= 9) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		skl_setup_wm_latency(dev_priv);
 		dev_priv->display.update_wm = skl_update_wm;
 		dev_priv->display.compute_global_watermarks = skl_compute_wm;
@@ -7741,7 +7739,7 @@ void intel_init_pm(struct drm_device *dev)
 		dev_priv->display.update_wm = i9xx_update_wm;
 		dev_priv->display.get_fifo_size = i9xx_get_fifo_size;
 	} else if (IS_GEN2(dev_priv)) {
-		if (INTEL_INFO(dev)->num_pipes == 1) {
+		if (INTEL_INFO(dev_priv)->num_pipes == 1) {
 			dev_priv->display.update_wm = i845_update_wm;
 			dev_priv->display.get_fifo_size = i845_get_fifo_size;
 		} else {

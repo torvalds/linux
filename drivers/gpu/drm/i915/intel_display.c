@@ -16419,7 +16419,7 @@ int intel_modeset_init(struct drm_device *dev)
 
 	intel_init_quirks(dev);
 
-	intel_init_pm(dev);
+	intel_init_pm(dev_priv);
 
 	if (INTEL_INFO(dev)->num_pipes == 0)
 		return 0;
