@@ -57,4 +57,10 @@ static inline u8 pim_hdr_type(const struct pimhdr *pimhdr)
 {
 	return pimhdr->type & 0xf;
 }
+
+/* check if the address is 224.0.0.13, RFC7761 sec 4.3.1 */
+static inline bool pim_ipv4_all_pim_routers(__be32 addr)
+{
+	return addr == htonl(0xE000000D);
+}
 #endif
