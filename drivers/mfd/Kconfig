@@ -44,6 +44,7 @@ config MFD_SUN4I_GPADC
 	tristate "Allwinner sunxi platforms' GPADC MFD driver"
 	select MFD_CORE
 	select REGMAP_MMIO
+	select REGMAP_IRQ
 	depends on ARCH_SUNXI || COMPILE_TEST
 	help
 	  Select this to get support for Allwinner SoCs (A10, A13 and A31) ADC.
