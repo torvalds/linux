@@ -223,7 +223,9 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 				continue;
 
 			if (unsafe_drop_pages(obj)) {
-				mutex_lock(&obj->mm.lock);
+				/* May arrive from get_pages on another bo */
+				mutex_lock_nested(&obj->mm.lock,
+						  SINGLE_DEPTH_NESTING);
 				if (!obj->mm.pages) {
 					__i915_gem_object_invalidate(obj);
 					count += obj->base.size >> PAGE_SHIFT;
