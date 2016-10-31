@@ -1212,7 +1212,6 @@ static ssize_t subbuf_splice_actor(struct file *in,
 		.nr_pages = 0,
 		.nr_pages_max = PIPE_DEF_BUFFERS,
 		.partial = partial,
-		.flags = flags,
 		.ops = &relay_pipe_buf_ops,
 		.spd_release = relay_page_release,
 	};

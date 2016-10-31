@@ -5536,7 +5536,6 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 		.partial	= partial_def,
 		.nr_pages	= 0, /* This gets updated below. */
 		.nr_pages_max	= PIPE_DEF_BUFFERS,
-		.flags		= flags,
 		.ops		= &tracing_pipe_buf_ops,
 		.spd_release	= tracing_spd_release_pipe,
 	};
@@ -6434,7 +6433,6 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		.pages		= pages_def,
 		.partial	= partial_def,
 		.nr_pages_max	= PIPE_DEF_BUFFERS,
-		.flags		= flags,
 		.ops		= &buffer_pipe_buf_ops,
 		.spd_release	= buffer_spd_release,
 	};
