@@ -503,7 +503,7 @@ struct drm_i915_display_funcs {
 	void (*initial_watermarks)(struct intel_crtc_state *cstate);
 	void (*optimize_watermarks)(struct intel_crtc_state *cstate);
 	int (*compute_global_watermarks)(struct drm_atomic_state *state);
-	void (*update_wm)(struct drm_crtc *crtc);
+	void (*update_wm)(struct intel_crtc *crtc);
 	int (*modeset_calc_cdclk)(struct drm_atomic_state *state);
 	void (*modeset_commit_cdclk)(struct drm_atomic_state *state);
 	/* Returns the active state of the crtc, and if the crtc is active,

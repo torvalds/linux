@@ -640,9 +640,9 @@ static struct drm_crtc *single_enabled_crtc(struct drm_device *dev)
 	return enabled;
 }
 
-static void pineview_update_wm(struct drm_crtc *unused_crtc)
+static void pineview_update_wm(struct intel_crtc *unused_crtc)
 {
-	struct drm_device *dev = unused_crtc->dev;
+	struct drm_device *dev = unused_crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *crtc;
 	const struct cxsr_latency *latency;
@@ -1330,20 +1330,19 @@ static void vlv_merge_wm(struct drm_device *dev,
 	}
 }
 
-static void vlv_update_wm(struct drm_crtc *crtc)
+static void vlv_update_wm(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	enum pipe pipe = crtc->pipe;
 	struct vlv_wm_values wm = {};
 
-	vlv_compute_wm(intel_crtc);
+	vlv_compute_wm(crtc);
 	vlv_merge_wm(dev, &wm);
 
 	if (memcmp(&dev_priv->wm.vlv, &wm, sizeof(wm)) == 0) {
 		/* FIXME should be part of crtc atomic commit */
-		vlv_pipe_set_fifo_size(intel_crtc);
+		vlv_pipe_set_fifo_size(crtc);
 		return;
 	}
 
@@ -1359,9 +1358,9 @@ static void vlv_update_wm(struct drm_crtc *crtc)
 		intel_set_memory_cxsr(dev_priv, false);
 
 	/* FIXME should be part of crtc atomic commit */
-	vlv_pipe_set_fifo_size(intel_crtc);
+	vlv_pipe_set_fifo_size(crtc);
 
-	vlv_write_wm_values(intel_crtc, &wm);
+	vlv_write_wm_values(crtc, &wm);
 
 	DRM_DEBUG_KMS("Setting FIFO watermarks - %c: plane=%d, cursor=%d, "
 		      "sprite0=%d, sprite1=%d, SR: plane=%d, cursor=%d level=%d cxsr=%d\n",
@@ -1385,9 +1384,9 @@ static void vlv_update_wm(struct drm_crtc *crtc)
 
 #define single_plane_enabled(mask) is_power_of_2(mask)
 
-static void g4x_update_wm(struct drm_crtc *crtc)
+static void g4x_update_wm(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = crtc->base.dev;
 	static const int sr_latency_ns = 12000;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
@@ -1443,9 +1442,9 @@ static void g4x_update_wm(struct drm_crtc *crtc)
 		intel_set_memory_cxsr(dev_priv, true);
 }
 
-static void i965_update_wm(struct drm_crtc *unused_crtc)
+static void i965_update_wm(struct intel_crtc *unused_crtc)
 {
-	struct drm_device *dev = unused_crtc->dev;
+	struct drm_device *dev = unused_crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *crtc;
 	int srwm = 1;
@@ -1517,9 +1516,9 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 
 #undef FW_WM
 
-static void i9xx_update_wm(struct drm_crtc *unused_crtc)
+static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 {
-	struct drm_device *dev = unused_crtc->dev;
+	struct drm_device *dev = unused_crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	const struct intel_watermark_params *wm_info;
 	uint32_t fwater_lo;
@@ -1650,9 +1649,9 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 		intel_set_memory_cxsr(dev_priv, true);
 }
 
-static void i845_update_wm(struct drm_crtc *unused_crtc)
+static void i845_update_wm(struct intel_crtc *unused_crtc)
 {
-	struct drm_device *dev = unused_crtc->dev;
+	struct drm_device *dev = unused_crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *crtc;
 	const struct drm_display_mode *adjusted_mode;
@@ -4193,18 +4192,17 @@ skl_compute_wm(struct drm_atomic_state *state)
 	return 0;
 }
 
-static void skl_update_wm(struct drm_crtc *crtc)
+static void skl_update_wm(struct intel_crtc *intel_crtc)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct skl_wm_values *results = &dev_priv->wm.skl_results;
 	struct skl_wm_values *hw_vals = &dev_priv->wm.skl_hw;
-	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
+	struct intel_crtc_state *cstate = to_intel_crtc_state(intel_crtc->base.state);
 	struct skl_pipe_wm *pipe_wm = &cstate->wm.skl.optimal;
 	enum pipe pipe = intel_crtc->pipe;
 
-	if ((results->dirty_pipes & drm_crtc_mask(crtc)) == 0)
+	if ((results->dirty_pipes & drm_crtc_mask(&intel_crtc->base)) == 0)
 		return;
 
 	mutex_lock(&dev_priv->wm.wm_mutex);
@@ -4215,7 +4213,7 @@ static void skl_update_wm(struct drm_crtc *crtc)
 	 * the pipe's shut off, just do so here. Already active pipes will have
 	 * their watermarks updated once we update their planes.
 	 */
-	if (crtc->state->active_changed) {
+	if (intel_crtc->base.state->active_changed) {
 		int plane;
 
 		for_each_universal_plane(dev_priv, pipe, plane)
@@ -4654,9 +4652,9 @@ void ilk_wm_get_hw_state(struct drm_device *dev)
  * We don't use the sprite, so we can ignore that.  And on Crestline we have
  * to set the non-SR watermarks to 8.
  */
-void intel_update_watermarks(struct drm_crtc *crtc)
+void intel_update_watermarks(struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	if (dev_priv->display.update_wm)
 		dev_priv->display.update_wm(crtc);

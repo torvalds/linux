@@ -5073,7 +5073,7 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 	crtc->wm.cxsr_allowed = true;
 
 	if (pipe_config->update_wm_post && pipe_config->base.active)
-		intel_update_watermarks(&crtc->base);
+		intel_update_watermarks(crtc);
 
 	if (old_pri_state) {
 		struct intel_plane_state *primary_state =
@@ -5171,7 +5171,7 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 	if (dev_priv->display.initial_watermarks != NULL)
 		dev_priv->display.initial_watermarks(pipe_config);
 	else if (pipe_config->update_wm_pre)
-		intel_update_watermarks(&crtc->base);
+		intel_update_watermarks(crtc);
 }
 
 static void intel_crtc_disable_planes(struct drm_crtc *crtc, unsigned plane_mask)
@@ -5491,7 +5491,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (dev_priv->display.initial_watermarks != NULL)
 		dev_priv->display.initial_watermarks(pipe_config);
 	else
-		intel_update_watermarks(crtc);
+		intel_update_watermarks(intel_crtc);
 
 	/* XXX: Do the pipe assertions at the right place for BXT DSI. */
 	if (!transcoder_is_dsi(cpu_transcoder))
@@ -6744,7 +6744,7 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_color_load_luts(&pipe_config->base);
 
-	intel_update_watermarks(crtc);
+	intel_update_watermarks(intel_crtc);
 	intel_enable_pipe(intel_crtc);
 
 	assert_vblank_disabled(crtc);
@@ -6797,7 +6797,7 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_color_load_luts(&pipe_config->base);
 
-	intel_update_watermarks(crtc);
+	intel_update_watermarks(intel_crtc);
 	intel_enable_pipe(intel_crtc);
 
 	assert_vblank_disabled(crtc);
@@ -6913,7 +6913,7 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 		encoder->base.crtc = NULL;
 
 	intel_fbc_disable(intel_crtc);
-	intel_update_watermarks(crtc);
+	intel_update_watermarks(intel_crtc);
 	intel_disable_shared_dpll(intel_crtc);
 
 	domains = intel_crtc->enabled_power_domains;
@@ -14397,7 +14397,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 			intel_check_pch_fifo_underruns(dev_priv);
 
 			if (!crtc->state->active)
-				intel_update_watermarks(crtc);
+				intel_update_watermarks(intel_crtc);
 		}
 	}
 
