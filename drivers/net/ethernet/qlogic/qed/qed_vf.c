@@ -1171,6 +1171,13 @@ void qed_vf_get_num_vlan_filters(struct qed_hwfn *p_hwfn, u8 *num_vlan_filters)
 	*num_vlan_filters = p_vf->acquire_resp.resc.num_vlan_filters;
 }
 
+void qed_vf_get_num_mac_filters(struct qed_hwfn *p_hwfn, u8 *num_mac_filters)
+{
+	struct qed_vf_iov *p_vf = p_hwfn->vf_iov_info;
+
+	*num_mac_filters = p_vf->acquire_resp.resc.num_mac_filters;
+}
+
 bool qed_vf_check_mac(struct qed_hwfn *p_hwfn, u8 *mac)
 {
 	struct qed_bulletin_content *bulletin;
