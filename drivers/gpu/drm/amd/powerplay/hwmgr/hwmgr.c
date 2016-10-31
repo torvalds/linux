@@ -716,7 +716,7 @@ int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 			*voltage = 1150;
 	} else {
 		ret = atomctrl_get_voltage_evv_on_sclk_ai(hwmgr, voltage_type, sclk, id, &vol);
-		*voltage = (uint16_t)vol/100;
+		*voltage = (uint16_t)(vol/100);
 	}
 	return ret;
 }
