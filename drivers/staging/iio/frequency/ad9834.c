@@ -329,7 +329,7 @@ static int ad9834_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	reg = devm_regulator_get(&spi->dev, "vcc");
+	reg = devm_regulator_get(&spi->dev, "avdd");
 	if (!IS_ERR(reg)) {
 		ret = regulator_enable(reg);
 		if (ret)

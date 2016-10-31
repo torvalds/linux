@@ -723,7 +723,7 @@ static int ad5933_probe(struct i2c_client *client,
 	if (!pdata)
 		pdata = &ad5933_default_pdata;
 
-	st->reg = devm_regulator_get(&client->dev, "vcc");
+	st->reg = devm_regulator_get(&client->dev, "vdd");
 	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
