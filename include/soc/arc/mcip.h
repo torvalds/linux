@@ -8,10 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __ASM_MCIP_H
-#define __ASM_MCIP_H
-
-#ifdef CONFIG_ISA_ARCV2
+#ifndef __SOC_ARC_MCIP_H
+#define __SOC_ARC_MCIP_H
 
 #include <soc/arc/aux.h>
 
@@ -101,7 +99,5 @@ static inline void __mcip_cmd_data(unsigned int cmd, unsigned int param,
 
 	__mcip_cmd(cmd, param);
 }
-
-#endif
 
 #endif

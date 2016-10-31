@@ -40,7 +40,7 @@
 #include <asm/irq.h>
 #include <asm/arcregs.h>
 
-#include <asm/mcip.h>
+#include <soc/arc/mcip.h>
 
 /* Timer related Aux registers */
 #define ARC_REG_TIMER0_LIMIT	0x23	/* timer 0 limit */
