@@ -8103,10 +8103,10 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
  * in cases where we need the PLL enabled even when @pipe is not going to
  * be enabled.
  */
-int vlv_force_pll_on(struct drm_device *dev, enum pipe pipe,
+int vlv_force_pll_on(struct drm_i915_private *dev_priv, enum pipe pipe,
 		     const struct dpll *dpll)
 {
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev, pipe);
+	struct intel_crtc *crtc = intel_get_crtc_for_pipe(&dev_priv->drm, pipe);
 	struct intel_crtc_state *pipe_config;
 
 	pipe_config = kzalloc(sizeof(*pipe_config), GFP_KERNEL);
@@ -8117,7 +8117,7 @@ int vlv_force_pll_on(struct drm_device *dev, enum pipe pipe,
 	pipe_config->pixel_multiplier = 1;
 	pipe_config->dpll = *dpll;
 
-	if (IS_CHERRYVIEW(to_i915(dev))) {
+	if (IS_CHERRYVIEW(dev_priv)) {
 		chv_compute_dpll(crtc, pipe_config);
 		chv_prepare_pll(crtc, pipe_config);
 		chv_enable_pll(crtc, pipe_config);
@@ -8140,12 +8140,12 @@ int vlv_force_pll_on(struct drm_device *dev, enum pipe pipe,
  * Disable the PLL for @pipe. To be used in cases where we need
  * the PLL enabled even when @pipe is not going to be enabled.
  */
-void vlv_force_pll_off(struct drm_device *dev, enum pipe pipe)
+void vlv_force_pll_off(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	if (IS_CHERRYVIEW(to_i915(dev)))
-		chv_disable_pll(to_i915(dev), pipe);
+	if (IS_CHERRYVIEW(dev_priv))
+		chv_disable_pll(dev_priv, pipe);
 	else
-		vlv_disable_pll(to_i915(dev), pipe);
+		vlv_disable_pll(dev_priv, pipe);
 }
 
 static void i9xx_compute_dpll(struct intel_crtc *crtc,

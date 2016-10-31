@@ -395,8 +395,7 @@ static void
 vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = intel_dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
 	enum pipe pipe = intel_dp->pps_pipe;
 	bool pll_enabled, release_cl_override = false;
 	enum dpio_phy phy = DPIO_PHY(pipe);
@@ -434,7 +433,7 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 		release_cl_override = IS_CHERRYVIEW(dev_priv) &&
 			!chv_phy_powergate_ch(dev_priv, phy, ch, true);
 
-		if (vlv_force_pll_on(dev, pipe, IS_CHERRYVIEW(dev_priv) ?
+		if (vlv_force_pll_on(dev_priv, pipe, IS_CHERRYVIEW(dev_priv) ?
 				     &chv_dpll[0].dpll : &vlv_dpll[0].dpll)) {
 			DRM_ERROR("Failed to force on pll for pipe %c!\n",
 				  pipe_name(pipe));
@@ -458,7 +457,7 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 	POSTING_READ(intel_dp->output_reg);
 
 	if (!pll_enabled) {
-		vlv_force_pll_off(dev, pipe);
+		vlv_force_pll_off(dev_priv, pipe);
 
 		if (release_cl_override)
 			chv_phy_powergate_ch(dev_priv, phy, ch, false);
