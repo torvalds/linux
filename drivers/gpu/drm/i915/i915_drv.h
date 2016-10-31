@@ -525,7 +525,7 @@ struct drm_i915_display_funcs {
 				   const struct drm_display_mode *adjusted_mode);
 	void (*audio_codec_disable)(struct intel_encoder *encoder);
 	void (*fdi_link_train)(struct drm_crtc *crtc);
-	void (*init_clock_gating)(struct drm_device *dev);
+	void (*init_clock_gating)(struct drm_i915_private *dev_priv);
 	int (*queue_flip)(struct drm_device *dev, struct drm_crtc *crtc,
 			  struct drm_framebuffer *fb,
 			  struct drm_i915_gem_object *obj,

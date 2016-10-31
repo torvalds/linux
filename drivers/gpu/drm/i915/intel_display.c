@@ -16314,7 +16314,7 @@ void intel_modeset_init_hw(struct drm_device *dev)
 
 	dev_priv->atomic_cdclk_freq = dev_priv->cdclk_freq;
 
-	intel_init_clock_gating(dev);
+	intel_init_clock_gating(dev_priv);
 }
 
 /*
