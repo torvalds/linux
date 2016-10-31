@@ -980,17 +980,19 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 		goto no_endpoints;
 
 	rr3->dev = &intf->dev;
+	rr3->ep_in = ep_in;
+	rr3->ep_out = ep_out;
+	rr3->udev = udev;
 
 	/* set up bulk-in endpoint */
 	rr3->read_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!rr3->read_urb)
-		goto error;
+		goto redrat_free;
 
-	rr3->ep_in = ep_in;
 	rr3->bulk_in_buf = usb_alloc_coherent(udev,
 		le16_to_cpu(ep_in->wMaxPacketSize), GFP_KERNEL, &rr3->dma_in);
 	if (!rr3->bulk_in_buf)
-		goto error;
+		goto redrat_free;
 
 	pipe = usb_rcvbulkpipe(udev, ep_in->bEndpointAddress);
 	usb_fill_bulk_urb(rr3->read_urb, udev, pipe, rr3->bulk_in_buf,
@@ -998,34 +1000,16 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 	rr3->read_urb->transfer_dma = rr3->dma_in;
 	rr3->read_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	rr3->ep_out = ep_out;
-	rr3->udev = udev;
-
 	redrat3_reset(rr3);
 	redrat3_get_firmware_rev(rr3);
-
-	/* might be all we need to do? */
-	retval = redrat3_enable_detector(rr3);
-	if (retval < 0)
-		goto error;
 
 	/* default.. will get overridden by any sends with a freq defined */
 	rr3->carrier = 38000;
 
-	/* led control */
-	rr3->led.name = "redrat3:red:feedback";
-	rr3->led.default_trigger = "rc-feedback";
-	rr3->led.brightness_set = redrat3_brightness_set;
-	retval = led_classdev_register(&intf->dev, &rr3->led);
-	if (retval)
-		goto error;
-
 	atomic_set(&rr3->flash, 0);
 	rr3->flash_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!rr3->flash_urb) {
-		retval = -ENOMEM;
-		goto led_free_error;
-	}
+	if (!rr3->flash_urb)
+		goto redrat_free;
 
 	/* setup packet is 'c0 b9 0000 0000 0001' */
 	rr3->flash_control.bRequestType = 0xc0;
@@ -1037,20 +1021,33 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 			&rr3->flash_in_buf, sizeof(rr3->flash_in_buf),
 			redrat3_led_complete, rr3);
 
+	/* led control */
+	rr3->led.name = "redrat3:red:feedback";
+	rr3->led.default_trigger = "rc-feedback";
+	rr3->led.brightness_set = redrat3_brightness_set;
+	retval = led_classdev_register(&intf->dev, &rr3->led);
+	if (retval)
+		goto redrat_free;
+
 	rr3->rc = redrat3_init_rc_dev(rr3);
 	if (!rr3->rc) {
 		retval = -ENOMEM;
-		goto led_free_error;
+		goto led_free;
 	}
+
+	/* might be all we need to do? */
+	retval = redrat3_enable_detector(rr3);
+	if (retval < 0)
+		goto led_free;
 
 	/* we can register the device now, as it is ready */
 	usb_set_intfdata(intf, rr3);
 
 	return 0;
 
-led_free_error:
+led_free:
 	led_classdev_unregister(&rr3->led);
-error:
+redrat_free:
 	redrat3_delete(rr3, rr3->udev);
 
 no_endpoints:
