@@ -618,11 +618,11 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 	return wm_size;
 }
 
-static struct intel_crtc *single_enabled_crtc(struct drm_device *dev)
+static struct intel_crtc *single_enabled_crtc(struct drm_i915_private *dev_priv)
 {
 	struct intel_crtc *crtc, *enabled = NULL;
 
-	for_each_intel_crtc(dev, crtc) {
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		if (intel_crtc_active(crtc)) {
 			if (enabled)
 				return NULL;
@@ -635,8 +635,7 @@ static struct intel_crtc *single_enabled_crtc(struct drm_device *dev)
 
 static void pineview_update_wm(struct intel_crtc *unused_crtc)
 {
-	struct drm_device *dev = unused_crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(unused_crtc->base.dev);
 	struct intel_crtc *crtc;
 	const struct cxsr_latency *latency;
 	u32 reg;
@@ -652,7 +651,7 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
 		return;
 	}
 
-	crtc = single_enabled_crtc(dev);
+	crtc = single_enabled_crtc(dev_priv);
 	if (crtc) {
 		const struct drm_display_mode *adjusted_mode =
 			&crtc->config->base.adjusted_mode;
@@ -1443,15 +1442,14 @@ static void g4x_update_wm(struct intel_crtc *crtc)
 
 static void i965_update_wm(struct intel_crtc *unused_crtc)
 {
-	struct drm_device *dev = unused_crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(unused_crtc->base.dev);
 	struct intel_crtc *crtc;
 	int srwm = 1;
 	int cursor_sr = 16;
 	bool cxsr_enabled;
 
 	/* Calc sr entries for one plane configs */
-	crtc = single_enabled_crtc(dev);
+	crtc = single_enabled_crtc(dev_priv);
 	if (crtc) {
 		/* self-refresh has much higher latency */
 		static const int sr_latency_ns = 12000;
@@ -1520,8 +1518,7 @@ static void i965_update_wm(struct intel_crtc *unused_crtc)
 
 static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 {
-	struct drm_device *dev = unused_crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(unused_crtc->base.dev);
 	const struct intel_watermark_params *wm_info;
 	uint32_t fwater_lo;
 	uint32_t fwater_hi;
@@ -1668,14 +1665,13 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 
 static void i845_update_wm(struct intel_crtc *unused_crtc)
 {
-	struct drm_device *dev = unused_crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(unused_crtc->base.dev);
 	struct intel_crtc *crtc;
 	const struct drm_display_mode *adjusted_mode;
 	uint32_t fwater_lo;
 	int planea_wm;
 
-	crtc = single_enabled_crtc(dev);
+	crtc = single_enabled_crtc(dev_priv);
 	if (crtc == NULL)
 		return;
 
