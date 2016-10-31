@@ -31,7 +31,6 @@
 
 struct mdp5_crtc {
 	struct drm_crtc base;
-	char name[8];
 	int id;
 	bool enabled;
 
@@ -102,7 +101,7 @@ static u32 crtc_flush(struct drm_crtc *crtc, u32 flush_mask)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 
-	DBG("%s: flush=%08x", mdp5_crtc->name, flush_mask);
+	DBG("%s: flush=%08x", crtc->name, flush_mask);
 	return mdp5_ctl_commit(mdp5_crtc->ctl, flush_mask);
 }
 
@@ -148,7 +147,7 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 		 */
 		if (!file || (event->base.file_priv == file)) {
 			mdp5_crtc->event = NULL;
-			DBG("%s: send event: %p", mdp5_crtc->name, event);
+			DBG("%s: send event: %p", crtc->name, event);
 			drm_crtc_send_vblank_event(crtc, event);
 		}
 	}
@@ -295,7 +294,7 @@ static void mdp5_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	mode = &crtc->state->adjusted_mode;
 
 	DBG("%s: set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
-			mdp5_crtc->name, mode->base.id, mode->name,
+			crtc->name, mode->base.id, mode->name,
 			mode->vrefresh, mode->clock,
 			mode->hdisplay, mode->hsync_start,
 			mode->hsync_end, mode->htotal,
@@ -315,7 +314,7 @@ static void mdp5_crtc_disable(struct drm_crtc *crtc)
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 
-	DBG("%s", mdp5_crtc->name);
+	DBG("%s", crtc->name);
 
 	if (WARN_ON(!mdp5_crtc->enabled))
 		return;
@@ -334,7 +333,7 @@ static void mdp5_crtc_enable(struct drm_crtc *crtc)
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 
-	DBG("%s", mdp5_crtc->name);
+	DBG("%s", crtc->name);
 
 	if (WARN_ON(mdp5_crtc->enabled))
 		return;
@@ -372,7 +371,6 @@ static bool is_fullscreen(struct drm_crtc_state *cstate,
 static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 		struct drm_crtc_state *state)
 {
-	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	struct drm_plane *plane;
 	struct drm_device *dev = crtc->dev;
@@ -381,7 +379,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	const struct drm_plane_state *pstate;
 	int cnt = 0, base = 0, i;
 
-	DBG("%s: check", mdp5_crtc->name);
+	DBG("%s: check", crtc->name);
 
 	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, state) {
 		pstates[cnt].plane = plane;
@@ -405,13 +403,13 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 
 	if ((cnt + base) >= hw_cfg->lm.nb_stages) {
-		dev_err(dev->dev, "too many planes!\n");
+		dev_err(dev->dev, "too many planes! cnt=%d, base=%d\n", cnt, base);
 		return -EINVAL;
 	}
 
 	for (i = 0; i < cnt; i++) {
 		pstates[i].state->stage = STAGE_BASE + i + base;
-		DBG("%s: assign pipe %s on stage=%d", mdp5_crtc->name,
+		DBG("%s: assign pipe %s on stage=%d", crtc->name,
 				pipe2name(mdp5_plane_pipe(pstates[i].plane)),
 				pstates[i].state->stage);
 	}
@@ -422,8 +420,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 static void mdp5_crtc_atomic_begin(struct drm_crtc *crtc,
 				   struct drm_crtc_state *old_crtc_state)
 {
-	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
-	DBG("%s: begin", mdp5_crtc->name);
+	DBG("%s: begin", crtc->name);
 }
 
 static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc,
@@ -433,7 +430,7 @@ static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	unsigned long flags;
 
-	DBG("%s: event: %p", mdp5_crtc->name, crtc->state->event);
+	DBG("%s: event: %p", crtc->name, crtc->state->event);
 
 	WARN_ON(mdp5_crtc->event);
 
@@ -653,7 +650,7 @@ static void mdp5_crtc_err_irq(struct mdp_irq *irq, uint32_t irqstatus)
 {
 	struct mdp5_crtc *mdp5_crtc = container_of(irq, struct mdp5_crtc, err);
 
-	DBG("%s: error: %08x", mdp5_crtc->name, irqstatus);
+	DBG("%s: error: %08x", mdp5_crtc->base.name, irqstatus);
 }
 
 static void mdp5_crtc_pp_done_irq(struct mdp_irq *irq, uint32_t irqstatus)
@@ -774,9 +771,6 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 
 	mdp5_crtc->vblank.irq = mdp5_crtc_vblank_irq;
 	mdp5_crtc->err.irq = mdp5_crtc_err_irq;
-
-	snprintf(mdp5_crtc->name, sizeof(mdp5_crtc->name), "%s:%d",
-			pipe2name(mdp5_plane_pipe(plane)), id);
 
 	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp5_crtc_funcs,
 				  NULL);
