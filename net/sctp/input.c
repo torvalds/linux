@@ -1021,7 +1021,6 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct net *net,
 	struct sctphdr *sh = sctp_hdr(skb);
 	union sctp_params params;
 	sctp_init_chunk_t *init;
-	struct sctp_transport *transport;
 	struct sctp_af *af;
 
 	/*
@@ -1052,7 +1051,7 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct net *net,
 
 		af->from_addr_param(paddr, params.addr, sh->source, 0);
 
-		asoc = __sctp_lookup_association(net, laddr, paddr, &transport);
+		asoc = __sctp_lookup_association(net, laddr, paddr, transportp);
 		if (asoc)
 			return asoc;
 	}
