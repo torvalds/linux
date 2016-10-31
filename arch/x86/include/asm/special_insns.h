@@ -216,8 +216,6 @@ static inline void clts(void)
 
 #endif/* CONFIG_PARAVIRT */
 
-#define stts() write_cr0(read_cr0() | X86_CR0_TS)
-
 static inline void clflush(volatile void *__p)
 {
 	asm volatile("clflush %0" : "+m" (*(volatile char __force *)__p));
