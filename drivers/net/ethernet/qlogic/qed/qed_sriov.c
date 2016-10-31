@@ -3470,7 +3470,6 @@ int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled)
 
 static int qed_sriov_enable(struct qed_dev *cdev, int num)
 {
-	struct qed_sb_cnt_info sb_cnt_info;
 	int i, j, rc;
 
 	if (num >= RESC_NUM(&cdev->hwfns[0], QED_VPORT)) {
@@ -3483,7 +3482,11 @@ static int qed_sriov_enable(struct qed_dev *cdev, int num)
 	for_each_hwfn(cdev, j) {
 		struct qed_hwfn *hwfn = &cdev->hwfns[j];
 		struct qed_ptt *ptt = qed_ptt_acquire(hwfn);
-		int num_sbs = 0, limit = 16;
+		int num_queues;
+
+		/* Make sure not to use more than 16 queues per VF */
+		num_queues = min_t(int,
+				   FEAT_NUM(hwfn, QED_VF_L2_QUE) / num, 16);
 
 		if (!ptt) {
 			DP_ERR(hwfn, "Failed to acquire ptt\n");
@@ -3491,19 +3494,11 @@ static int qed_sriov_enable(struct qed_dev *cdev, int num)
 			goto err;
 		}
 
-		if (IS_MF_DEFAULT(hwfn))
-			limit = MAX_NUM_VFS_BB / hwfn->num_funcs_on_engine;
-
-		memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
-		qed_int_get_num_sbs(hwfn, &sb_cnt_info);
-		num_sbs = min_t(int, sb_cnt_info.sb_free_blk, limit);
-
 		for (i = 0; i < num; i++) {
 			if (!qed_iov_is_valid_vfid(hwfn, i, false, true))
 				continue;
 
-			rc = qed_iov_init_hw_for_vf(hwfn,
-						    ptt, i, num_sbs / num);
+			rc = qed_iov_init_hw_for_vf(hwfn, ptt, i, num_queues);
 			if (rc) {
 				DP_ERR(cdev, "Failed to enable VF[%d]\n", i);
 				qed_ptt_release(hwfn, ptt);

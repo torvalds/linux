@@ -1476,6 +1476,7 @@ static void get_function_id(struct qed_hwfn *p_hwfn)
 static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 {
 	u32 *feat_num = p_hwfn->hw_info.feat_num;
+	struct qed_sb_cnt_info sb_cnt_info;
 	int num_features = 1;
 
 	if (IS_ENABLED(CONFIG_QED_RDMA) &&
@@ -1494,10 +1495,21 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 	feat_num[QED_PF_L2_QUE] = min_t(u32, RESC_NUM(p_hwfn, QED_SB) /
 						num_features,
 					RESC_NUM(p_hwfn, QED_L2_QUEUE));
-	DP_VERBOSE(p_hwfn, NETIF_MSG_PROBE,
-		   "#PF_L2_QUEUES=%d #SBS=%d num_features=%d\n",
-		   feat_num[QED_PF_L2_QUE], RESC_NUM(p_hwfn, QED_SB),
-		   num_features);
+
+	memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
+	qed_int_get_num_sbs(p_hwfn, &sb_cnt_info);
+	feat_num[QED_VF_L2_QUE] =
+	    min_t(u32,
+		  RESC_NUM(p_hwfn, QED_L2_QUEUE) -
+		  FEAT_NUM(p_hwfn, QED_PF_L2_QUE), sb_cnt_info.sb_iov_cnt);
+
+	DP_VERBOSE(p_hwfn,
+		   NETIF_MSG_PROBE,
+		   "#PF_L2_QUEUES=%d VF_L2_QUEUES=%d #ROCE_CNQ=%d #SBS=%d num_features=%d\n",
+		   (int)FEAT_NUM(p_hwfn, QED_PF_L2_QUE),
+		   (int)FEAT_NUM(p_hwfn, QED_VF_L2_QUE),
+		   (int)FEAT_NUM(p_hwfn, QED_RDMA_CNQ),
+		   RESC_NUM(p_hwfn, QED_SB), num_features);
 }
 
 static int qed_hw_get_resc(struct qed_hwfn *p_hwfn)
