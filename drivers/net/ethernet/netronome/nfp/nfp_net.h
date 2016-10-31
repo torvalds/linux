@@ -87,6 +87,9 @@
 /* Queue/Ring definitions */
 #define NFP_NET_MAX_TX_RINGS	64	/* Max. # of Tx rings per device */
 #define NFP_NET_MAX_RX_RINGS	64	/* Max. # of Rx rings per device */
+#define NFP_NET_MAX_R_VECS	(NFP_NET_MAX_TX_RINGS > NFP_NET_MAX_RX_RINGS ? \
+				 NFP_NET_MAX_TX_RINGS : NFP_NET_MAX_RX_RINGS)
+#define NFP_NET_MAX_IRQS	(NFP_NET_NON_Q_VECTORS + NFP_NET_MAX_R_VECS)
 
 #define NFP_NET_MIN_TX_DESCS	256	/* Min. # of Tx descs per ring */
 #define NFP_NET_MIN_RX_DESCS	256	/* Min. # of Rx descs per ring */
@@ -539,9 +542,8 @@ struct nfp_net {
 
 	u8 num_irqs;
 	u8 num_r_vecs;
-	struct nfp_net_r_vector r_vecs[NFP_NET_MAX_TX_RINGS];
-	struct msix_entry irq_entries[NFP_NET_NON_Q_VECTORS +
-				      NFP_NET_MAX_TX_RINGS];
+	struct nfp_net_r_vector r_vecs[NFP_NET_MAX_R_VECS];
+	struct msix_entry irq_entries[NFP_NET_MAX_IRQS];
 
 	irq_handler_t lsc_handler;
 	char lsc_name[IFNAMSIZ + 8];
