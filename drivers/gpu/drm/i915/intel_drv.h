@@ -1704,7 +1704,7 @@ bool chv_phy_powergate_ch(struct drm_i915_private *dev_priv, enum dpio_phy phy,
 
 /* intel_pm.c */
 void intel_init_clock_gating(struct drm_i915_private *dev_priv);
-void intel_suspend_hw(struct drm_device *dev);
+void intel_suspend_hw(struct drm_i915_private *dev_priv);
 int ilk_wm_max_level(const struct drm_i915_private *dev_priv);
 void intel_update_watermarks(struct intel_crtc *crtc);
 void intel_init_pm(struct drm_device *dev);

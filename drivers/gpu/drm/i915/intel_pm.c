@@ -7139,10 +7139,8 @@ static void lpt_init_clock_gating(struct drm_i915_private *dev_priv)
 		   TRANS_CHICKEN1_DP0UNIT_GC_DISABLE);
 }
 
-static void lpt_suspend_hw(struct drm_device *dev)
+static void lpt_suspend_hw(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	if (HAS_PCH_LPT_LP(dev_priv)) {
 		uint32_t val = I915_READ(SOUTH_DSPCLK_GATE_D);
 
@@ -7626,10 +7624,10 @@ void intel_init_clock_gating(struct drm_i915_private *dev_priv)
 	dev_priv->display.init_clock_gating(dev_priv);
 }
 
-void intel_suspend_hw(struct drm_device *dev)
+void intel_suspend_hw(struct drm_i915_private *dev_priv)
 {
-	if (HAS_PCH_LPT(to_i915(dev)))
-		lpt_suspend_hw(dev);
+	if (HAS_PCH_LPT(dev_priv))
+		lpt_suspend_hw(dev_priv);
 }
 
 static void nop_init_clock_gating(struct drm_i915_private *dev_priv)
