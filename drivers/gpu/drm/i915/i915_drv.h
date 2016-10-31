@@ -2893,7 +2893,7 @@ struct drm_i915_cmd_table {
 #define SUPPORTS_TV(dev)		(INTEL_INFO(dev)->supports_tv)
 #define I915_HAS_HOTPLUG(dev)		 (INTEL_INFO(dev)->has_hotplug)
 
-#define HAS_FW_BLC(dev) (INTEL_INFO(dev)->gen > 2)
+#define HAS_FW_BLC(dev_priv) (INTEL_GEN(dev_priv) > 2)
 #define HAS_PIPE_CXSR(dev) (INTEL_INFO(dev)->has_pipe_cxsr)
 #define HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
 
