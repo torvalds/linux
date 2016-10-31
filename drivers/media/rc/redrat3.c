@@ -363,11 +363,6 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 	unsigned int i, sig_size, single_len, offset, val;
 	u32 mod_freq;
 
-	if (!rr3) {
-		pr_err("%s called with no context!\n", __func__);
-		return;
-	}
-
 	dev = rr3->dev;
 
 	mod_freq = redrat3_val_to_mod_freq(&rr3->irdata);
@@ -693,18 +688,8 @@ out:
 /* callback function from USB when async USB request has completed */
 static void redrat3_handle_async(struct urb *urb)
 {
-	struct redrat3_dev *rr3;
+	struct redrat3_dev *rr3 = urb->context;
 	int ret;
-
-	if (!urb)
-		return;
-
-	rr3 = urb->context;
-	if (!rr3) {
-		pr_err("%s called with invalid context!\n", __func__);
-		usb_unlink_urb(urb);
-		return;
-	}
 
 	switch (urb->status) {
 	case 0:
@@ -1069,8 +1054,6 @@ error:
 	redrat3_delete(rr3, rr3->udev);
 
 no_endpoints:
-	dev_err(dev, "%s: retval = %x", __func__, retval);
-
 	return retval;
 }
 
@@ -1078,9 +1061,6 @@ static void redrat3_dev_disconnect(struct usb_interface *intf)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct redrat3_dev *rr3 = usb_get_intfdata(intf);
-
-	if (!rr3)
-		return;
 
 	usb_set_intfdata(intf, NULL);
 	rc_unregister_device(rr3->rc);
