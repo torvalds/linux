@@ -630,7 +630,7 @@ static struct drm_crtc *single_enabled_crtc(struct drm_device *dev)
 	struct drm_crtc *crtc, *enabled = NULL;
 
 	for_each_crtc(dev, crtc) {
-		if (intel_crtc_active(crtc)) {
+		if (intel_crtc_active(to_intel_crtc(crtc))) {
 			if (enabled)
 				return NULL;
 			enabled = crtc;
@@ -725,7 +725,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	int entries, tlb_miss;
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
-	if (!intel_crtc_active(crtc)) {
+	if (!intel_crtc_active(to_intel_crtc(crtc))) {
 		*cursor_wm = cursor->guard_size;
 		*plane_wm = display->guard_size;
 		return false;
@@ -1538,7 +1538,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 
 	fifo_size = dev_priv->display.get_fifo_size(dev, 0);
 	crtc = intel_get_crtc_for_plane(dev, 0);
-	if (intel_crtc_active(crtc)) {
+	if (intel_crtc_active(to_intel_crtc(crtc))) {
 		const struct drm_display_mode *adjusted_mode;
 		int cpp = drm_format_plane_cpp(crtc->primary->state->fb->pixel_format, 0);
 		if (IS_GEN2(dev_priv))
@@ -1560,7 +1560,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 
 	fifo_size = dev_priv->display.get_fifo_size(dev, 1);
 	crtc = intel_get_crtc_for_plane(dev, 1);
-	if (intel_crtc_active(crtc)) {
+	if (intel_crtc_active(to_intel_crtc(crtc))) {
 		const struct drm_display_mode *adjusted_mode;
 		int cpp = drm_format_plane_cpp(crtc->primary->state->fb->pixel_format, 0);
 		if (IS_GEN2(dev_priv))

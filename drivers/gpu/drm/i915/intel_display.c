@@ -1008,10 +1008,8 @@ bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state, int target_clock,
 				  target_clock, refclk, NULL, best_clock);
 }
 
-bool intel_crtc_active(struct drm_crtc *crtc)
+bool intel_crtc_active(struct intel_crtc *crtc)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
 	/* Be paranoid as we can arrive here with only partial
 	 * state retrieved from the hardware during setup.
 	 *
@@ -1025,8 +1023,8 @@ bool intel_crtc_active(struct drm_crtc *crtc)
 	 * crtc->state->active once we have proper CRTC states wired up
 	 * for atomic.
 	 */
-	return intel_crtc->active && crtc->primary->state->fb &&
-		intel_crtc->config->base.adjusted_mode.crtc_clock;
+	return crtc->active && crtc->base.primary->state->fb &&
+		crtc->config->base.adjusted_mode.crtc_clock;
 }
 
 enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
