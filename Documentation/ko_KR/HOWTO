@@ -325,7 +325,7 @@ http://patchwork.ozlabs.org/ 에 나열되어 있다.
 bugzilla.kernel.org는 리눅스 커널 개발자들이 커널의 버그를 추적하는 곳이다.
 사용자들은 발견한 모든 버그들을 보고하기 위하여 이 툴을 사용할 것을 권장한다.
 kernel bugzilla를 사용하는 자세한 방법은 다음을 참조하라.
-    http://test.kernel.org/bugzilla/faq.html
+    http://bugzilla.kernel.org/page.cgi?id=faq.html
 
 메인 커널 소스 디렉토리에 있는 admin-guide/reporting-bugs.rst 파일은 커널 버그라고 생각되는
 것을 보고하는 방법에 관한 좋은 템플릿이며 문제를 추적하기 위해서 커널
