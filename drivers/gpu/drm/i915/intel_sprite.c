@@ -1043,9 +1043,9 @@ static uint32_t skl_plane_formats[] = {
 };
 
 struct intel_plane *
-intel_sprite_plane_create(struct drm_device *dev, enum pipe pipe, int plane)
+intel_sprite_plane_create(struct drm_i915_private *dev_priv,
+			  enum pipe pipe, int plane)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *intel_plane = NULL;
 	struct intel_plane_state *state = NULL;
 	unsigned long possible_crtcs;
@@ -1132,14 +1132,14 @@ intel_sprite_plane_create(struct drm_device *dev, enum pipe pipe, int plane)
 	possible_crtcs = (1 << pipe);
 
 	if (INTEL_GEN(dev_priv) >= 9)
-		ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
-					       &intel_plane_funcs,
+		ret = drm_universal_plane_init(&dev_priv->drm, &intel_plane->base,
+					       possible_crtcs, &intel_plane_funcs,
 					       plane_formats, num_plane_formats,
 					       DRM_PLANE_TYPE_OVERLAY,
 					       "plane %d%c", plane + 2, pipe_name(pipe));
 	else
-		ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
-					       &intel_plane_funcs,
+		ret = drm_universal_plane_init(&dev_priv->drm, &intel_plane->base,
+					       possible_crtcs, &intel_plane_funcs,
 					       plane_formats, num_plane_formats,
 					       DRM_PLANE_TYPE_OVERLAY,
 					       "sprite %c", sprite_name(pipe, plane));

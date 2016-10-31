@@ -14960,9 +14960,8 @@ const struct drm_plane_funcs intel_plane_funcs = {
 };
 
 static struct intel_plane *
-intel_primary_plane_create(struct drm_device *dev, enum pipe pipe)
+intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *primary = NULL;
 	struct intel_plane_state *state = NULL;
 	const uint32_t *intel_primary_formats;
@@ -14986,7 +14985,7 @@ intel_primary_plane_create(struct drm_device *dev, enum pipe pipe)
 
 	primary->can_scale = false;
 	primary->max_downscale = 1;
-	if (INTEL_INFO(dev)->gen >= 9) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		primary->can_scale = true;
 		state->scaler_id = -1;
 	}
@@ -14994,10 +14993,10 @@ intel_primary_plane_create(struct drm_device *dev, enum pipe pipe)
 	primary->plane = pipe;
 	primary->frontbuffer_bit = INTEL_FRONTBUFFER_PRIMARY(pipe);
 	primary->check_plane = intel_check_primary_plane;
-	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen < 4)
+	if (HAS_FBC(dev_priv) && INTEL_GEN(dev_priv) < 4)
 		primary->plane = !pipe;
 
-	if (INTEL_INFO(dev)->gen >= 9) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		intel_primary_formats = skl_primary_formats;
 		num_formats = ARRAY_SIZE(skl_primary_formats);
 
@@ -15009,7 +15008,7 @@ intel_primary_plane_create(struct drm_device *dev, enum pipe pipe)
 
 		primary->update_plane = ironlake_update_primary_plane;
 		primary->disable_plane = i9xx_disable_primary_plane;
-	} else if (INTEL_INFO(dev)->gen >= 4) {
+	} else if (INTEL_GEN(dev_priv) >= 4) {
 		intel_primary_formats = i965_primary_formats;
 		num_formats = ARRAY_SIZE(i965_primary_formats);
 
@@ -15023,21 +15022,21 @@ intel_primary_plane_create(struct drm_device *dev, enum pipe pipe)
 		primary->disable_plane = i9xx_disable_primary_plane;
 	}
 
-	if (INTEL_INFO(dev)->gen >= 9)
-		ret = drm_universal_plane_init(dev, &primary->base, 0,
-					       &intel_plane_funcs,
+	if (INTEL_GEN(dev_priv) >= 9)
+		ret = drm_universal_plane_init(&dev_priv->drm, &primary->base,
+					       0, &intel_plane_funcs,
 					       intel_primary_formats, num_formats,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "plane 1%c", pipe_name(pipe));
 	else if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
-		ret = drm_universal_plane_init(dev, &primary->base, 0,
-					       &intel_plane_funcs,
+		ret = drm_universal_plane_init(&dev_priv->drm, &primary->base,
+					       0, &intel_plane_funcs,
 					       intel_primary_formats, num_formats,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "primary %c", pipe_name(pipe));
 	else
-		ret = drm_universal_plane_init(dev, &primary->base, 0,
-					       &intel_plane_funcs,
+		ret = drm_universal_plane_init(&dev_priv->drm, &primary->base,
+					       0, &intel_plane_funcs,
 					       intel_primary_formats, num_formats,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "plane %c", plane_name(primary->plane));
@@ -15165,9 +15164,8 @@ intel_update_cursor_plane(struct drm_plane *plane,
 }
 
 static struct intel_plane *
-intel_cursor_plane_create(struct drm_device *dev, enum pipe pipe)
+intel_cursor_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *cursor = NULL;
 	struct intel_plane_state *state = NULL;
 	int ret;
@@ -15195,8 +15193,8 @@ intel_cursor_plane_create(struct drm_device *dev, enum pipe pipe)
 	cursor->update_plane = intel_update_cursor_plane;
 	cursor->disable_plane = intel_disable_cursor_plane;
 
-	ret = drm_universal_plane_init(dev, &cursor->base, 0,
-				       &intel_plane_funcs,
+	ret = drm_universal_plane_init(&dev_priv->drm, &cursor->base,
+				       0, &intel_plane_funcs,
 				       intel_cursor_formats,
 				       ARRAY_SIZE(intel_cursor_formats),
 				       DRM_PLANE_TYPE_CURSOR,
@@ -15210,7 +15208,7 @@ intel_cursor_plane_create(struct drm_device *dev, enum pipe pipe)
 						   DRM_ROTATE_0 |
 						   DRM_ROTATE_180);
 
-	if (INTEL_INFO(dev)->gen >=9)
+	if (INTEL_GEN(dev_priv) >= 9)
 		state->scaler_id = -1;
 
 	drm_plane_helper_add(&cursor->base, &intel_plane_helper_funcs);
@@ -15272,7 +15270,7 @@ static int intel_crtc_init(struct drm_device *dev, enum pipe pipe)
 		skl_init_scalers(dev, intel_crtc, crtc_state);
 	}
 
-	primary = intel_primary_plane_create(dev, pipe);
+	primary = intel_primary_plane_create(dev_priv, pipe);
 	if (IS_ERR(primary)) {
 		ret = PTR_ERR(primary);
 		goto fail;
@@ -15281,14 +15279,14 @@ static int intel_crtc_init(struct drm_device *dev, enum pipe pipe)
 	for_each_sprite(dev_priv, pipe, sprite) {
 		struct intel_plane *plane;
 
-		plane = intel_sprite_plane_create(dev, pipe, sprite);
+		plane = intel_sprite_plane_create(dev_priv, pipe, sprite);
 		if (!plane) {
 			ret = PTR_ERR(plane);
 			goto fail;
 		}
 	}
 
-	cursor = intel_cursor_plane_create(dev, pipe);
+	cursor = intel_cursor_plane_create(dev_priv, pipe);
 	if (!cursor) {
 		ret = PTR_ERR(cursor);
 		goto fail;
