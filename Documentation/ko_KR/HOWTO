@@ -180,26 +180,20 @@ API에 대한 모든 설명, 그리고 락킹을 올바르게 처리하는 법�
 있다.
 
 모든 그런 문서들은 커널 소스 디렉토리에서 다음 커맨드를 실행하는 것을 통해 PDF
-나 HTML 의 형태로 만들어질 수 있다.
-
-::
+나 HTML 의 형태로 만들어질 수 있다::
 
          make pdfdocs
          make htmldocs
 
 ReST 마크업을 사용하는 문서들은 Documentation/output 에 생성된다.  해당
-문서들은 다음의 커맨드를 사용하면 LaTeX 이나 ePub 로도 만들어질 수 있다:
-
-::
+문서들은 다음의 커맨드를 사용하면 LaTeX 이나 ePub 로도 만들어질 수 있다::
 
          make latexdocs
          make epubdocs
 
 현재, ReST 로의 변환이 진행중인, DocBook 으로 쓰인 문서들이 존재한다. 그런
 문서들은 Documentation/DocBook/ 디렉토리 안에 생성될 것이고 다음 커맨드를 통해
-Postscript 나 man page 로도 만들어질 수 있다:
-
-::
+Postscript 나 man page 로도 만들어질 수 있다::
 
          make psdocs
          make mandocs
