@@ -34,11 +34,6 @@
 
 #define BESCR_PMEO     0x1     /* PMU Event-based exception Occurred */
 #define BESCR_PME      (0x1ul << 32) /* PMU Event-based exception Enable */
-#define BESCR_LME      (0x1ul << 34) /* Load Monitor Enable */
-#define BESCR_LMEO     (0x1ul << 2)  /* Load Monitor Exception Occurred */
-
-#define SPRN_LMRR      813     /* Load Monitor Region Register */
-#define SPRN_LMSER     814     /* Load Monitor Section Enable Register */
 
 #define SPRN_PMC1      771
 #define SPRN_PMC2      772
