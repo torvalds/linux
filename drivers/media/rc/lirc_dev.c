@@ -161,15 +161,15 @@ static int lirc_cdev_add(struct irctl *ir)
 	struct lirc_driver *d = &ir->d;
 	struct cdev *cdev;
 
-	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
+	cdev = cdev_alloc();
 	if (!cdev)
 		goto err_out;
 
 	if (d->fops) {
-		cdev_init(cdev, d->fops);
+		cdev->ops = d->fops;
 		cdev->owner = d->owner;
 	} else {
-		cdev_init(cdev, &lirc_dev_fops);
+		cdev->ops = &lirc_dev_fops;
 		cdev->owner = THIS_MODULE;
 	}
 	retval = kobject_set_name(&cdev->kobj, "lirc%d", d->minor);
@@ -187,7 +187,7 @@ static int lirc_cdev_add(struct irctl *ir)
 	return 0;
 
 err_out:
-	kfree(cdev);
+	cdev_del(cdev);
 	return retval;
 }
 
@@ -417,7 +417,6 @@ int lirc_unregister_driver(int minor)
 	} else {
 		lirc_irctl_cleanup(ir);
 		cdev_del(cdev);
-		kfree(cdev);
 		kfree(ir);
 		irctls[minor] = NULL;
 	}
@@ -518,7 +517,6 @@ int lirc_dev_fop_close(struct inode *inode, struct file *file)
 		lirc_irctl_cleanup(ir);
 		cdev_del(cdev);
 		irctls[ir->d.minor] = NULL;
-		kfree(cdev);
 		kfree(ir);
 	}
 
