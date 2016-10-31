@@ -2754,7 +2754,7 @@ static int _regulator_set_voltage_time(struct regulator_dev *rdev,
 		ramp_delay = rdev->desc->ramp_delay;
 
 	if (ramp_delay == 0) {
-		rdev_warn(rdev, "ramp_delay not set\n");
+		rdev_dbg(rdev, "ramp_delay not set\n");
 		return 0;
 	}
 
