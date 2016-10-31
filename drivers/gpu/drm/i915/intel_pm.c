@@ -108,9 +108,8 @@ static void bxt_init_clock_gating(struct drm_device *dev)
 			   PWM1_GATING_DIS | PWM2_GATING_DIS);
 }
 
-static void i915_pineview_get_mem_freq(struct drm_device *dev)
+static void i915_pineview_get_mem_freq(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 tmp;
 
 	tmp = I915_READ(CLKCFG);
@@ -147,9 +146,8 @@ static void i915_pineview_get_mem_freq(struct drm_device *dev)
 	dev_priv->is_ddr3 = (tmp & CSHRDDR3CTL_DDR3) ? 1 : 0;
 }
 
-static void i915_ironlake_get_mem_freq(struct drm_device *dev)
+static void i915_ironlake_get_mem_freq(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	u16 ddrpll, csipll;
 
 	ddrpll = I915_READ16(DDRMPLL1);
@@ -7744,9 +7742,9 @@ void intel_init_pm(struct drm_device *dev)
 
 	/* For cxsr */
 	if (IS_PINEVIEW(dev_priv))
-		i915_pineview_get_mem_freq(dev);
+		i915_pineview_get_mem_freq(dev_priv);
 	else if (IS_GEN5(dev_priv))
-		i915_ironlake_get_mem_freq(dev);
+		i915_ironlake_get_mem_freq(dev_priv);
 
 	/* For FIFO watermark updates */
 	if (INTEL_INFO(dev)->gen >= 9) {
