@@ -5,7 +5,7 @@ obj-$(CONFIG_ADF)		  += adf/
 obj-$(CONFIG_VT)		  += console/
 obj-$(CONFIG_LOGO)		  += logo/
 obj-y				  += backlight/
-obj-$(CONFIG_FB_ROCKCHIP)	  += rockchip/
+obj-y				  += rockchip/
 
 obj-y				  += fbdev/
 
