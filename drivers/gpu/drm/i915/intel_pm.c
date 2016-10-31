@@ -1530,7 +1530,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 	int planea_wm, planeb_wm;
 	struct intel_crtc *crtc, *enabled = NULL;
 
-	if (IS_I945GM(dev))
+	if (IS_I945GM(dev_priv))
 		wm_info = &i945_wm_info;
 	else if (!IS_GEN2(dev_priv))
 		wm_info = &i915_wm_info;
