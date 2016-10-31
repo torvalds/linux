@@ -2979,9 +2979,7 @@ static int nbu2ss_gad_get_frame(struct usb_gadget *pgadget)
 	if (data == 0)
 		return -EINVAL;
 
-	data = _nbu2ss_readl(&udc->p_regs->USB_ADDRESS) & FRAME;
-
-	return data;
+	return _nbu2ss_readl(&udc->p_regs->USB_ADDRESS) & FRAME;
 }
 
 /*-------------------------------------------------------------------------*/
