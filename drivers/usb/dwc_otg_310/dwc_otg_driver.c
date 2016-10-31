@@ -386,6 +386,7 @@ void dwc_otg_force_device(dwc_otg_core_if_t *core_if)
 	local_irq_save(flags);
 
 	if (core_if->op_state == B_PERIPHERAL) {
+		local_irq_restore(flags);
 		printk
 		    ("dwc_otg_force_device,already in B_PERIPHERAL,everest\n");
 		return;
