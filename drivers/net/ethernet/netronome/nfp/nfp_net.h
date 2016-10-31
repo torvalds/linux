@@ -101,6 +101,10 @@
 /* Offload definitions */
 #define NFP_NET_N_VXLAN_PORTS	(NFP_NET_CFG_VXLAN_SZ / sizeof(__be16))
 
+#define NFP_NET_RX_BUF_HEADROOM	(NET_SKB_PAD + NET_IP_ALIGN)
+#define NFP_NET_RX_BUF_NON_DATA	(NFP_NET_RX_BUF_HEADROOM +		\
+				 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+
 /* Forward declarations */
 struct nfp_net;
 struct nfp_net_r_vector;
@@ -277,11 +281,11 @@ struct nfp_net_rx_hash {
 
 /**
  * struct nfp_net_rx_buf - software RX buffer descriptor
- * @skb:	sk_buff associated with this buffer
+ * @frag:	page fragment buffer
  * @dma_addr:	DMA mapping address of the buffer
  */
 struct nfp_net_rx_buf {
-	struct sk_buff *skb;
+	void *frag;
 	dma_addr_t dma_addr;
 };
 
