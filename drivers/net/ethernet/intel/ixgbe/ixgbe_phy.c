@@ -452,10 +452,27 @@ s32 ixgbe_reset_phy_generic(struct ixgbe_hw *hw)
 	 */
 	for (i = 0; i < 30; i++) {
 		msleep(100);
-		hw->phy.ops.read_reg(hw, MDIO_CTRL1, MDIO_MMD_PHYXS, &ctrl);
-		if (!(ctrl & MDIO_CTRL1_RESET)) {
-			udelay(2);
-			break;
+		if (hw->phy.type == ixgbe_phy_x550em_ext_t) {
+			status = hw->phy.ops.read_reg(hw,
+						  IXGBE_MDIO_TX_VENDOR_ALARMS_3,
+						  MDIO_MMD_PMAPMD, &ctrl);
+			if (status)
+				return status;
+
+			if (ctrl & IXGBE_MDIO_TX_VENDOR_ALARMS_3_RST_MASK) {
+				udelay(2);
+				break;
+			}
+		} else {
+			status = hw->phy.ops.read_reg(hw, MDIO_CTRL1,
+						      MDIO_MMD_PHYXS, &ctrl);
+			if (status)
+				return status;
+
+			if (!(ctrl & MDIO_CTRL1_RESET)) {
+				udelay(2);
+				break;
+			}
 		}
 	}
 
