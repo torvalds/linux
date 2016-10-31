@@ -10,15 +10,6 @@
 #include <linux/init.h>
 
 /*
- * Initialize the TS bit in CR0 according to the style of context-switches
- * we are using:
- */
-static void fpu__init_cpu_ctx_switch(void)
-{
-	clts();
-}
-
-/*
  * Initialize the registers found in all CPUs, CR0 and CR4:
  */
 static void fpu__init_cpu_generic(void)
@@ -55,7 +46,6 @@ void fpu__init_cpu(void)
 {
 	fpu__init_cpu_generic();
 	fpu__init_cpu_xstate();
-	fpu__init_cpu_ctx_switch();
 }
 
 /*
@@ -289,14 +279,6 @@ void __init fpu__init_system(struct cpuinfo_x86 *c)
 	 * later FPU init activities:
 	 */
 	fpu__init_cpu();
-
-	/*
-	 * But don't leave CR0::TS set yet, as some of the FPU setup
-	 * methods depend on being able to execute FPU instructions
-	 * that will fault on a set TS, such as the FXSAVE in
-	 * fpu__init_system_mxcsr().
-	 */
-	clts();
 
 	fpu__init_system_generic();
 	fpu__init_system_xstate_size_legacy();
