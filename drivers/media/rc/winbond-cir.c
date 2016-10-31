@@ -1185,7 +1185,7 @@ static const struct pnp_device_id wbcir_ids[] = {
 MODULE_DEVICE_TABLE(pnp, wbcir_ids);
 
 static struct pnp_driver wbcir_driver = {
-	.name     = WBCIR_NAME,
+	.name     = DRVNAME,
 	.id_table = wbcir_ids,
 	.probe    = wbcir_probe,
 	.remove   = wbcir_remove,
