@@ -193,6 +193,8 @@ struct qede_dev {
 	u16				vxlan_dst_port;
 	u16				geneve_dst_port;
 
+	bool wol_enabled;
+
 	struct qede_rdma_dev		rdma_info;
 };
 

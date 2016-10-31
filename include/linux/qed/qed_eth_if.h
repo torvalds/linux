@@ -22,7 +22,7 @@ struct qed_dev_eth_info {
 	u8	num_tc;
 
 	u8	port_mac[ETH_ALEN];
-	u8	num_vlan_filters;
+	u16	num_vlan_filters;
 	u16	num_mac_filters;
 
 	/* Legacy VF - this affects the datapath, so qede has to know */
