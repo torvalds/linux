@@ -439,9 +439,10 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct intel_device_info *intel_info =
 		(struct intel_device_info *) ent->driver_data;
 
-	if (IS_PRELIMINARY_HW(intel_info) && !i915.preliminary_hw_support) {
-		DRM_INFO("This hardware requires preliminary hardware support.\n"
-			 "See CONFIG_DRM_I915_PRELIMINARY_HW_SUPPORT, and/or modparam preliminary_hw_support\n");
+	if (IS_ALPHA_SUPPORT(intel_info) && !i915.alpha_support) {
+		DRM_INFO("The driver support for your hardware in this kernel version is alpha quality\n"
+			 "See CONFIG_DRM_I915_ALPHA_SUPPORT or i915.alpha_support module parameter\n"
+			 "to enable support in this kernel version, or check for kernel updates.\n");
 		return -ENODEV;
 	}
 

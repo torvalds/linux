@@ -36,15 +36,20 @@ config DRM_I915
 
 	  If "M" is selected, the module will be called i915.
 
-config DRM_I915_PRELIMINARY_HW_SUPPORT
-	bool "Enable preliminary support for prerelease Intel hardware by default"
+config DRM_I915_ALPHA_SUPPORT
+	bool "Enable alpha quality support for new Intel hardware by default"
 	depends on DRM_I915
 	default n
 	help
-	  Choose this option if you have prerelease Intel hardware and want the
-	  i915 driver to support it by default.  You can enable such support at
-	  runtime with the module option i915.preliminary_hw_support=1; this
-	  option changes the default for that module option.
+	  Choose this option if you have new Intel hardware and want to enable
+	  the alpha quality i915 driver support for the hardware in this kernel
+	  version. You can also enable the support at runtime using the module
+	  parameter i915.alpha_support=1; this option changes the default for
+	  that module parameter.
+
+	  It is recommended to upgrade to a kernel version with proper support
+	  as soon as it is available. Generally fixes for platforms with alpha
+	  support are not backported to older kernels.
 
 	  If in doubt, say "N".
 
