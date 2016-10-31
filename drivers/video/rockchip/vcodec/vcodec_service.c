@@ -39,7 +39,6 @@
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
 
-#include <linux/rockchip/cpu.h>
 #include <linux/rockchip/cru.h>
 #include <linux/rockchip/pmu.h>
 #include <linux/rockchip/grf.h>
@@ -828,7 +827,7 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 	pr_info("%s: power on\n", dev_name(pservice->dev));
 
 #define BIT_VCODEC_CLK_SEL	(1<<10)
-	if (cpu_is_rk312x())
+	if (of_machine_is_compatible("rockchip,rk3126"))
 		writel_relaxed(readl_relaxed(RK_GRF_VIRT + RK312X_GRF_SOC_CON1)
 			| BIT_VCODEC_CLK_SEL | (BIT_VCODEC_CLK_SEL << 16),
 			RK_GRF_VIRT + RK312X_GRF_SOC_CON1);
@@ -1180,7 +1179,7 @@ static int vcodec_reg_address_translate(struct vpu_subdev_data *data,
 static void get_reg_freq(struct vpu_subdev_data *data, struct vpu_reg *reg)
 {
 
-	if (!soc_is_rk2928g()) {
+	if (!of_machine_is_compatible("rockchip,rk2928g")) {
 		if (reg->type == VPU_DEC || reg->type == VPU_DEC_PP) {
 			if (reg_check_fmt(reg) == VPU_DEC_FMT_H264) {
 				if (reg_probe_width(reg) > 3200) {
@@ -1438,7 +1437,7 @@ static void vpu_service_set_freq(struct vpu_service_info *pservice,
 	default: {
 		unsigned long rate = 300*MHZ;
 
-		if (soc_is_rk2928g())
+		if (of_machine_is_compatible("rockchip,rk2928g"))
 			rate = 400*MHZ;
 
 		clk_set_rate(pservice->aclk_vcodec, rate);
@@ -2373,7 +2372,7 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 	}
 
 	data->child_dev = device_create(data->cls, dev,
-		data->dev_t, NULL, name);
+		data->dev_t, "%s", name);
 
 	platform_set_drvdata(pdev, data);
 
@@ -2646,9 +2645,11 @@ static void get_hw_info(struct vpu_subdev_data *data)
 	struct vpu_dec_config *dec = &pservice->dec_config;
 	struct vpu_enc_config *enc = &pservice->enc_config;
 
-	if (cpu_is_rk2928() || cpu_is_rk3036() ||
-	    cpu_is_rk30xx() || cpu_is_rk312x() ||
-	    cpu_is_rk3188())
+	if (of_machine_is_compatible("rockchip,rk2928") ||
+			of_machine_is_compatible("rockchip,rk3036") ||
+			of_machine_is_compatible("rockchip,rk3066") ||
+			of_machine_is_compatible("rockchip,rk3126") ||
+			of_machine_is_compatible("rockchip,rk3188"))
 		dec->max_dec_pic_width = 1920;
 	else
 		dec->max_dec_pic_width = 4096;
@@ -2671,7 +2672,7 @@ static void get_hw_info(struct vpu_subdev_data *data)
 		dec->reserve = 0;
 		dec->mvc_support = 1;
 
-		if (!cpu_is_rk3036()) {
+		if (!of_machine_is_compatible("rockchip,rk3036")) {
 			u32 config_reg = readl_relaxed(data->enc_dev.regs + 63);
 
 			enc->max_encoded_width = config_reg & ((1 << 11) - 1);
@@ -2689,7 +2690,8 @@ static void get_hw_info(struct vpu_subdev_data *data)
 		vpu_debug(DEBUG_EXTRA_INFO, "vpu_service set to auto frequency mode\n");
 		atomic_set(&pservice->freq_status, VPU_FREQ_BUT);
 
-		pservice->bug_dec_addr = cpu_is_rk30xx();
+		pservice->bug_dec_addr = of_machine_is_compatible
+			("rockchip,rk30xx");
 	} else if (data->mode == VCODEC_RUNNING_MODE_RKVDEC) {
 		pservice->auto_freq = true;
 		atomic_set(&pservice->freq_status, VPU_FREQ_BUT);
