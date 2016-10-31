@@ -456,7 +456,7 @@ struct nfp_stat_pair {
  * @rxd_cnt:            Size of the RX ring in number of descriptors
  * @tx_rings:           Array of pre-allocated TX ring structures
  * @rx_rings:           Array of pre-allocated RX ring structures
- * @num_irqs:	        Number of allocated interrupt vectors
+ * @max_r_vecs:	        Number of allocated interrupt vectors for RX/TX
  * @num_r_vecs:         Number of used ring vectors
  * @r_vecs:             Pre-allocated array of ring vectors
  * @irq_entries:        Pre-allocated array of MSI-X entries
@@ -540,7 +540,7 @@ struct nfp_net {
 	int txd_cnt;
 	int rxd_cnt;
 
-	unsigned int num_irqs;
+	unsigned int max_r_vecs;
 	unsigned int num_r_vecs;
 	struct nfp_net_r_vector r_vecs[NFP_NET_MAX_R_VECS];
 	struct msix_entry irq_entries[NFP_NET_MAX_IRQS];
