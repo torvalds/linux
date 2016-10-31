@@ -2251,7 +2251,6 @@ struct unix_stream_read_state {
 	struct pipe_inode_info *pipe;
 	size_t size;
 	int flags;
-	unsigned int splice_flags;
 };
 
 static int unix_stream_read_generic(struct unix_stream_read_state *state,
@@ -2486,7 +2485,7 @@ static int unix_stream_splice_actor(struct sk_buff *skb,
 {
 	return skb_splice_bits(skb, state->socket->sk,
 			       UNIXCB(skb).consumed + skip,
-			       state->pipe, chunk, state->splice_flags);
+			       state->pipe, chunk);
 }
 
 static ssize_t unix_stream_splice_read(struct socket *sock,  loff_t *ppos,
@@ -2498,7 +2497,6 @@ static ssize_t unix_stream_splice_read(struct socket *sock,  loff_t *ppos,
 		.socket = sock,
 		.pipe = pipe,
 		.size = size,
-		.splice_flags = flags,
 	};
 
 	if (unlikely(*ppos))

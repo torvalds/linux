@@ -1189,7 +1189,7 @@ static ssize_t kcm_splice_read(struct socket *sock, loff_t *ppos,
 	if (len > rxm->full_len)
 		len = rxm->full_len;
 
-	copied = skb_splice_bits(skb, sk, rxm->offset, pipe, len, flags);
+	copied = skb_splice_bits(skb, sk, rxm->offset, pipe, len);
 	if (copied < 0) {
 		err = copied;
 		goto err_out;
