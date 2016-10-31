@@ -965,15 +965,16 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 			      struct timeval *vblank_time,
 			      unsigned flags)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *crtc;
 
-	if (pipe >= INTEL_INFO(dev)->num_pipes) {
+	if (pipe >= INTEL_INFO(dev_priv)->num_pipes) {
 		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return -EINVAL;
 	}
 
 	/* Get drm_crtc to timestamp: */
-	crtc = intel_get_crtc_for_pipe(dev, pipe);
+	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 	if (crtc == NULL) {
 		DRM_ERROR("Invalid crtc %u\n", pipe);
 		return -EINVAL;

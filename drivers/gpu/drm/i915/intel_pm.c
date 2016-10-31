@@ -728,7 +728,7 @@ static bool g4x_compute_wm0(struct drm_i915_private *dev_priv,
 	int line_time_us, line_count;
 	int entries, tlb_miss;
 
-	crtc = intel_get_crtc_for_plane(&dev_priv->drm, plane);
+	crtc = intel_get_crtc_for_plane(dev_priv, plane);
 	if (!intel_crtc_active(crtc)) {
 		*cursor_wm = cursor->guard_size;
 		*plane_wm = display->guard_size;
@@ -823,7 +823,7 @@ static bool g4x_compute_srwm(struct drm_i915_private *dev_priv,
 		return false;
 	}
 
-	crtc = intel_get_crtc_for_plane(&dev_priv->drm, plane);
+	crtc = intel_get_crtc_for_plane(dev_priv, plane);
 	adjusted_mode = &crtc->config->base.adjusted_mode;
 	fb = crtc->base.primary->state->fb;
 	clock = adjusted_mode->crtc_clock;
@@ -1393,9 +1393,8 @@ static void vlv_update_wm(struct intel_crtc *crtc)
 
 static void g4x_update_wm(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	static const int sr_latency_ns = 12000;
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
 	int plane_sr, cursor_sr;
 	unsigned int enabled = 0;
@@ -1546,7 +1545,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 		wm_info = &i830_a_wm_info;
 
 	fifo_size = dev_priv->display.get_fifo_size(dev, 0);
-	crtc = intel_get_crtc_for_plane(dev, 0);
+	crtc = intel_get_crtc_for_plane(dev_priv, 0);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode =
 			&crtc->config->base.adjusted_mode;
@@ -1573,7 +1572,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 		wm_info = &i830_bc_wm_info;
 
 	fifo_size = dev_priv->display.get_fifo_size(dev, 1);
-	crtc = intel_get_crtc_for_plane(dev, 1);
+	crtc = intel_get_crtc_for_plane(dev_priv, 1);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode =
 			&crtc->config->base.adjusted_mode;

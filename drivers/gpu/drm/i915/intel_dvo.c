@@ -396,7 +396,7 @@ intel_dvo_get_current_mode(struct drm_connector *connector)
 		struct intel_crtc *crtc;
 		int pipe = (dvo_val & DVO_PIPE_B_SELECT) ? 1 : 0;
 
-		crtc = intel_get_crtc_for_pipe(dev, pipe);
+		crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 		if (crtc) {
 			mode = intel_crtc_mode_get(dev, &crtc->base);
 			if (mode) {

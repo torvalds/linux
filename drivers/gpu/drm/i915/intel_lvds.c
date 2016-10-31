@@ -1163,7 +1163,7 @@ void intel_lvds_init(struct drm_device *dev)
 		goto failed;
 
 	pipe = (lvds & LVDS_PIPEB_SELECT) ? 1 : 0;
-	crtc = intel_get_crtc_for_pipe(dev, pipe);
+	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 
 	if (crtc && (lvds & LVDS_PORT_EN)) {
 		fixed_mode = intel_crtc_mode_get(dev, &crtc->base);
