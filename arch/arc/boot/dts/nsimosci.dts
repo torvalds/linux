@@ -83,5 +83,9 @@
 			reg = <0xf0003000 0x44>;
 			interrupts = <7>;
 		};
+
+		arcpct0: pct {
+			compatible = "snps,arc700-pct";
+		};
 	};
 };
