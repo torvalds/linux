@@ -21,11 +21,15 @@
 #include <drm/drm_flip_work.h>
 #include <drm/drm_plane_helper.h>
 #include <linux/workqueue.h>
+#include <linux/completion.h>
+#include <linux/dma-mapping.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
 
-#define TILCDC_VBLANK_SAFETY_THRESHOLD_US 1000
+#define TILCDC_VBLANK_SAFETY_THRESHOLD_US	1000
+#define TILCDC_REV1_PALETTE_SIZE		32
+#define TILCDC_REV1_PALETTE_FIRST_ENTRY		0x4000
 
 struct tilcdc_crtc {
 	struct drm_crtc base;
@@ -56,6 +60,10 @@ struct tilcdc_crtc {
 	int sync_lost_count;
 	bool frame_intact;
 	struct work_struct recover_work;
+
+	dma_addr_t palette_dma_handle;
+	void *palette_base;
+	struct completion palette_loaded;
 };
 #define to_tilcdc_crtc(x) container_of(x, struct tilcdc_crtc, base)
 
@@ -103,6 +111,55 @@ static void set_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 			tilcdc_crtc->curr_fb);
 
 	tilcdc_crtc->curr_fb = fb;
+}
+
+/*
+ * The driver currently only supports the RGB565 format for revision 1. For
+ * 16 bits-per-pixel the palette block is bypassed, but the first 32 bytes of
+ * the framebuffer are still considered palette. The first 16-bit entry must
+ * be 0x4000 while all other entries must be zeroed.
+ */
+static void tilcdc_crtc_load_palette(struct drm_crtc *crtc)
+{
+	u32 dma_fb_base, dma_fb_ceiling, raster_ctl;
+	struct tilcdc_crtc *tilcdc_crtc;
+	struct drm_device *dev;
+	u16 *first_entry;
+
+	dev = crtc->dev;
+	tilcdc_crtc = to_tilcdc_crtc(crtc);
+	first_entry = tilcdc_crtc->palette_base;
+
+	*first_entry = TILCDC_REV1_PALETTE_FIRST_ENTRY;
+
+	dma_fb_base = tilcdc_read(dev, LCDC_DMA_FB_BASE_ADDR_0_REG);
+	dma_fb_ceiling = tilcdc_read(dev, LCDC_DMA_FB_CEILING_ADDR_0_REG);
+	raster_ctl = tilcdc_read(dev, LCDC_RASTER_CTRL_REG);
+
+	/* Tell the LCDC where the palette is located. */
+	tilcdc_write(dev, LCDC_DMA_FB_BASE_ADDR_0_REG,
+		     tilcdc_crtc->palette_dma_handle);
+	tilcdc_write(dev, LCDC_DMA_FB_CEILING_ADDR_0_REG,
+		     (u32)tilcdc_crtc->palette_dma_handle
+				+ TILCDC_REV1_PALETTE_SIZE - 1);
+
+	/* Load it. */
+	tilcdc_clear(dev, LCDC_RASTER_CTRL_REG,
+		     LCDC_PALETTE_LOAD_MODE(DATA_ONLY));
+	tilcdc_set(dev, LCDC_RASTER_CTRL_REG,
+		   LCDC_PALETTE_LOAD_MODE(PALETTE_ONLY));
+
+	/* Enable the LCDC and wait for palette to be loaded. */
+	tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_V1_PL_INT_ENA);
+	tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ENABLE);
+
+	wait_for_completion(&tilcdc_crtc->palette_loaded);
+
+	/* Restore the registers. */
+	tilcdc_clear(dev, LCDC_RASTER_CTRL_REG, LCDC_RASTER_ENABLE);
+	tilcdc_write(dev, LCDC_DMA_FB_BASE_ADDR_0_REG, dma_fb_base);
+	tilcdc_write(dev, LCDC_DMA_FB_CEILING_ADDR_0_REG, dma_fb_ceiling);
+	tilcdc_write(dev, LCDC_RASTER_CTRL_REG, raster_ctl);
 }
 
 static void tilcdc_crtc_enable_irqs(struct drm_device *dev)
@@ -161,6 +218,7 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
+	struct tilcdc_drm_private *priv = dev->dev_private;
 
 	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 	mutex_lock(&tilcdc_crtc->enable_lock);
@@ -172,6 +230,9 @@ static void tilcdc_crtc_enable(struct drm_crtc *crtc)
 	pm_runtime_get_sync(dev->dev);
 
 	reset(crtc);
+
+	if (priv->rev == 1 && !completion_done(&tilcdc_crtc->palette_loaded))
+		tilcdc_crtc_load_palette(crtc);
 
 	tilcdc_crtc_enable_irqs(dev);
 
@@ -213,6 +274,13 @@ static void tilcdc_crtc_off(struct drm_crtc *crtc, bool shutdown)
 			dev_err(dev->dev, "%s: timeout waiting for framedone\n",
 				__func__);
 	}
+
+	/*
+	 * LCDC will not retain the palette when reset. Make sure it gets
+	 * reloaded on tilcdc_crtc_enable().
+	 */
+	if (priv->rev == 1)
+		reinit_completion(&tilcdc_crtc->palette_loaded);
 
 	drm_crtc_vblank_off(crtc);
 
@@ -847,6 +915,14 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 		dev_err_ratelimited(dev->dev, "%s(0x%08x): FIFO underflow",
 				    __func__, stat);
 
+	if (priv->rev == 1) {
+		if (stat & LCDC_PL_LOAD_DONE) {
+			complete(&tilcdc_crtc->palette_loaded);
+			tilcdc_clear(dev,
+				     LCDC_RASTER_CTRL_REG, LCDC_V1_PL_INT_ENA);
+		}
+	}
+
 	if (stat & LCDC_SYNC_LOST) {
 		dev_err_ratelimited(dev->dev, "%s(0x%08x): Sync lost",
 				    __func__, stat);
@@ -892,6 +968,16 @@ struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
 	if (!tilcdc_crtc) {
 		dev_err(dev->dev, "allocation failed\n");
 		return NULL;
+	}
+
+	if (priv->rev == 1) {
+		init_completion(&tilcdc_crtc->palette_loaded);
+		tilcdc_crtc->palette_base = dmam_alloc_coherent(dev->dev,
+					TILCDC_REV1_PALETTE_SIZE,
+					&tilcdc_crtc->palette_dma_handle,
+					GFP_KERNEL | __GFP_ZERO);
+		if (!tilcdc_crtc->palette_base)
+			return ERR_PTR(-ENOMEM);
 	}
 
 	crtc = &tilcdc_crtc->base;
