@@ -518,17 +518,6 @@ static unsigned long lguest_read_cr0(void)
 }
 
 /*
- * Intel provided a special instruction to clear the TS bit for people too cool
- * to use write_cr0() to do it.  This "clts" instruction is faster, because all
- * the vowels have been optimized out.
- */
-static void lguest_clts(void)
-{
-	lazy_hcall1(LHCALL_TS, 0);
-	current_cr0 &= ~X86_CR0_TS;
-}
-
-/*
  * cr2 is the virtual address of the last page fault, which the Guest only ever
  * reads.  The Host kindly writes this into our "struct lguest_data", so we
  * just read it out of there.
@@ -1429,7 +1418,6 @@ __init void lguest_init(void)
 	pv_cpu_ops.load_tls = lguest_load_tls;
 	pv_cpu_ops.get_debugreg = lguest_get_debugreg;
 	pv_cpu_ops.set_debugreg = lguest_set_debugreg;
-	pv_cpu_ops.clts = lguest_clts;
 	pv_cpu_ops.read_cr0 = lguest_read_cr0;
 	pv_cpu_ops.write_cr0 = lguest_write_cr0;
 	pv_cpu_ops.read_cr4 = lguest_read_cr4;

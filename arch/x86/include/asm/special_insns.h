@@ -6,11 +6,6 @@
 
 #include <asm/nops.h>
 
-static inline void native_clts(void)
-{
-	asm volatile("clts");
-}
-
 /*
  * Volatile isn't enough to prevent the compiler from reordering the
  * read/write functions for the control registers and messing everything up.
@@ -207,12 +202,6 @@ static inline void load_gs_index(unsigned selector)
 }
 
 #endif
-
-/* Clear the 'TS' bit */
-static inline void clts(void)
-{
-	native_clts();
-}
 
 #endif/* CONFIG_PARAVIRT */
 
