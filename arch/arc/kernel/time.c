@@ -38,22 +38,10 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <asm/irq.h>
-#include <asm/arcregs.h>
 
+#include <soc/arc/timers.h>
 #include <soc/arc/mcip.h>
 
-/* Timer related Aux registers */
-#define ARC_REG_TIMER0_LIMIT	0x23	/* timer 0 limit */
-#define ARC_REG_TIMER0_CTRL	0x22	/* timer 0 control */
-#define ARC_REG_TIMER0_CNT	0x21	/* timer 0 count */
-#define ARC_REG_TIMER1_LIMIT	0x102	/* timer 1 limit */
-#define ARC_REG_TIMER1_CTRL	0x101	/* timer 1 control */
-#define ARC_REG_TIMER1_CNT	0x100	/* timer 1 count */
-
-#define TIMER_CTRL_IE	(1 << 0) /* Interrupt when Count reaches limit */
-#define TIMER_CTRL_NH	(1 << 1) /* Count only when CPU NOT halted */
-
-#define ARC_TIMER_MAX	0xFFFFFFFF
 
 static unsigned long arc_timer_freq;
 
@@ -218,7 +206,7 @@ static int __init arc_cs_setup_timer1(struct device_node *node)
 	if (ret)
 		return ret;
 
-	write_aux_reg(ARC_REG_TIMER1_LIMIT, ARC_TIMER_MAX);
+	write_aux_reg(ARC_REG_TIMER1_LIMIT, ARC_TIMERN_MAX);
 	write_aux_reg(ARC_REG_TIMER1_CNT, 0);
 	write_aux_reg(ARC_REG_TIMER1_CTRL, TIMER_CTRL_NH);
 
@@ -296,7 +284,7 @@ static int arc_timer_starting_cpu(unsigned int cpu)
 
 	evt->cpumask = cpumask_of(smp_processor_id());
 
-	clockevents_config_and_register(evt, arc_timer_freq, 0, ARC_TIMER_MAX);
+	clockevents_config_and_register(evt, arc_timer_freq, 0, ARC_TIMERN_MAX);
 	enable_percpu_irq(arc_timer_irq, 0);
 	return 0;
 }
