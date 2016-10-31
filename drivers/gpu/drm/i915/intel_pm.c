@@ -712,7 +712,7 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
 	}
 }
 
-static bool g4x_compute_wm0(struct drm_device *dev,
+static bool g4x_compute_wm0(struct drm_i915_private *dev_priv,
 			    int plane,
 			    const struct intel_watermark_params *display,
 			    int display_latency_ns,
@@ -728,7 +728,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	int line_time_us, line_count;
 	int entries, tlb_miss;
 
-	crtc = intel_get_crtc_for_plane(dev, plane);
+	crtc = intel_get_crtc_for_plane(&dev_priv->drm, plane);
 	if (!intel_crtc_active(crtc)) {
 		*cursor_wm = cursor->guard_size;
 		*plane_wm = display->guard_size;
@@ -774,7 +774,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
  * can be programmed into the associated watermark register, that watermark
  * must be disabled.
  */
-static bool g4x_check_srwm(struct drm_device *dev,
+static bool g4x_check_srwm(struct drm_i915_private *dev_priv,
 			   int display_wm, int cursor_wm,
 			   const struct intel_watermark_params *display,
 			   const struct intel_watermark_params *cursor)
@@ -802,7 +802,7 @@ static bool g4x_check_srwm(struct drm_device *dev,
 	return true;
 }
 
-static bool g4x_compute_srwm(struct drm_device *dev,
+static bool g4x_compute_srwm(struct drm_i915_private *dev_priv,
 			     int plane,
 			     int latency_ns,
 			     const struct intel_watermark_params *display,
@@ -823,7 +823,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 		return false;
 	}
 
-	crtc = intel_get_crtc_for_plane(dev, plane);
+	crtc = intel_get_crtc_for_plane(&dev_priv->drm, plane);
 	adjusted_mode = &crtc->config->base.adjusted_mode;
 	fb = crtc->base.primary->state->fb;
 	clock = adjusted_mode->crtc_clock;
@@ -847,7 +847,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
 	*cursor_wm = entries + cursor->guard_size;
 
-	return g4x_check_srwm(dev,
+	return g4x_check_srwm(dev_priv,
 			      *display_wm, *cursor_wm,
 			      display, cursor);
 }
@@ -1401,20 +1401,20 @@ static void g4x_update_wm(struct intel_crtc *crtc)
 	unsigned int enabled = 0;
 	bool cxsr_enabled;
 
-	if (g4x_compute_wm0(dev, PIPE_A,
+	if (g4x_compute_wm0(dev_priv, PIPE_A,
 			    &g4x_wm_info, pessimal_latency_ns,
 			    &g4x_cursor_wm_info, pessimal_latency_ns,
 			    &planea_wm, &cursora_wm))
 		enabled |= 1 << PIPE_A;
 
-	if (g4x_compute_wm0(dev, PIPE_B,
+	if (g4x_compute_wm0(dev_priv, PIPE_B,
 			    &g4x_wm_info, pessimal_latency_ns,
 			    &g4x_cursor_wm_info, pessimal_latency_ns,
 			    &planeb_wm, &cursorb_wm))
 		enabled |= 1 << PIPE_B;
 
 	if (single_plane_enabled(enabled) &&
-	    g4x_compute_srwm(dev, ffs(enabled) - 1,
+	    g4x_compute_srwm(dev_priv, ffs(enabled) - 1,
 			     sr_latency_ns,
 			     &g4x_wm_info,
 			     &g4x_cursor_wm_info,
