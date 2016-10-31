@@ -128,8 +128,11 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 	_init_queue(&pxmitpriv->pending_xmitbuf_queue);
 	pxmitpriv->pallocated_xmitbuf = kmalloc(NR_XMITBUFF * sizeof(struct xmit_buf) + 4,
 						GFP_ATOMIC);
-	if (!pxmitpriv->pallocated_xmitbuf)
+	if (!pxmitpriv->pallocated_xmitbuf) {
+		kfree(pxmitpriv->pallocated_frame_buf);
+		pxmitpriv->pallocated_frame_buf = NULL;
 		return _FAIL;
+	}
 	pxmitpriv->pxmitbuf = pxmitpriv->pallocated_xmitbuf + 4 -
 			      ((addr_t)(pxmitpriv->pallocated_xmitbuf) & 3);
 	pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmitbuf;
