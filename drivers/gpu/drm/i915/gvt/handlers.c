@@ -1320,7 +1320,7 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	int ring_id = render_mmio_to_ring_id(vgpu->gvt, offset);
 	struct intel_vgpu_execlist *execlist;
 	u32 data = *(u32 *)p_data;
-	int ret;
+	int ret = 0;
 
 	if (WARN_ON(ring_id < 0 || ring_id > I915_NUM_ENGINES - 1))
 		return -EINVAL;
@@ -1328,12 +1328,15 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	execlist = &vgpu->execlist[ring_id];
 
 	execlist->elsp_dwords.data[execlist->elsp_dwords.index] = data;
-	if (execlist->elsp_dwords.index == 3)
+	if (execlist->elsp_dwords.index == 3) {
 		ret = intel_vgpu_submit_execlist(vgpu, ring_id);
+		if(ret)
+			gvt_err("fail submit workload on ring %d\n", ring_id);
+	}
 
 	++execlist->elsp_dwords.index;
 	execlist->elsp_dwords.index &= 0x3;
-	return 0;
+	return ret;
 }
 
 static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
