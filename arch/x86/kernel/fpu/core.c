@@ -138,35 +138,6 @@ void kernel_fpu_end(void)
 EXPORT_SYMBOL_GPL(kernel_fpu_end);
 
 /*
- * CR0::TS save/restore functions:
- */
-int irq_ts_save(void)
-{
-	/*
-	 * If in process context and not atomic, we can take a spurious DNA fault.
-	 * Otherwise, doing clts() in process context requires disabling preemption
-	 * or some heavy lifting like kernel_fpu_begin()
-	 */
-	if (!in_atomic())
-		return 0;
-
-	if (read_cr0() & X86_CR0_TS) {
-		clts();
-		return 1;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(irq_ts_save);
-
-void irq_ts_restore(int TS_state)
-{
-	if (TS_state)
-		stts();
-}
-EXPORT_SYMBOL_GPL(irq_ts_restore);
-
-/*
  * Save the FPU state (mark it for reload if necessary):
  *
  * This only ever gets called for the current task.
