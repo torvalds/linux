@@ -176,21 +176,35 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     패치가 무엇이며 그것을 커널의 다른 개발 브랜치들에 어떻게
     적용하는지에 관하여 자세히 설명하고 있는 좋은 입문서이다.
 
-커널은 소스 코드 그 자체에서 자동적으로 만들어질 수 있는 많은 문서들을
-가지고 있다. 이것은 커널 내의 API에 대한 모든 설명, 그리고 락킹을
-올바르게 처리하는 법에 관한 규칙을 포함하고 있다. 이 문서는
-Documentation/DocBook/ 디렉토리 내에서 만들어지며 PDF, Postscript, HTML,
-그리고 man 페이지들로 다음과 같이 실행하여 만들어 진다.
+커널은 소스 코드 그 자체에서 또는 이것과 같은 ReStructuredText 마크업 (ReST) 을
+통해 자동적으로 만들어질 수 있는 많은 문서들을 가지고 있다. 이것은 커널 내의
+API에 대한 모든 설명, 그리고 락킹을 올바르게 처리하는 법에 관한 규칙을 포함하고
+있다.
+
+모든 그런 문서들은 커널 소스 디렉토리에서 다음 커맨드를 실행하는 것을 통해 PDF
+나 HTML 의 형태로 만들어질 수 있다.
 
 ::
 
          make pdfdocs
-         make psdocs
          make htmldocs
+
+ReST 마크업을 사용하는 문서들은 Documentation/output 에 생성된다.  해당
+문서들은 다음의 커맨드를 사용하면 LaTeX 이나 ePub 로도 만들어질 수 있다:
+
+::
+
+         make latexdocs
+         make epubdocs
+
+현재, ReST 로의 변환이 진행중인, DocBook 으로 쓰인 문서들이 존재한다. 그런
+문서들은 Documentation/DocBook/ 디렉토리 안에 생성될 것이고 다음 커맨드를 통해
+Postscript 나 man page 로도 만들어질 수 있다:
+
+::
+
+         make psdocs
          make mandocs
-
-각각의 명령을 메인 커널 소스 디렉토리로부터 실행한다.
-
 
 커널 개발자가 되는 것
 ---------------------
