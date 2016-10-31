@@ -111,6 +111,12 @@ struct callchain_list {
 		bool		unfolded;
 		bool		has_children;
 	};
+	u64			branch_count;
+	u64			predicted_count;
+	u64			abort_count;
+	u64			cycles_count;
+	u64			iter_count;
+	u64			samples_count;
 	char		       *srcline;
 	struct list_head	list;
 };
@@ -263,8 +269,16 @@ char *callchain_node__scnprintf_value(struct callchain_node *node,
 int callchain_node__fprintf_value(struct callchain_node *node,
 				  FILE *fp, u64 total);
 
+int callchain_list_counts__printf_value(struct callchain_node *node,
+					struct callchain_list *clist,
+					FILE *fp, char *bf, int bfsize);
+
 void free_callchain(struct callchain_root *root);
 void decay_callchain(struct callchain_root *root);
 int callchain_node__make_parent_list(struct callchain_node *node);
+
+int callchain_branch_counts(struct callchain_root *root,
+			    u64 *branch_count, u64 *predicted_count,
+			    u64 *abort_count, u64 *cycles_count);
 
 #endif	/* __PERF_CALLCHAIN_H */
