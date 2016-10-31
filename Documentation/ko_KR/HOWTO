@@ -84,7 +84,7 @@ Documentation/process/howto.rst
 
 GPL에 관한 잦은 질문들과 답변들은 다음을 참조하라.
 
-    http://www.gnu.org/licenses/gpl-faq.html
+    https://www.gnu.org/licenses/gpl-faq.html
 
 
 문서
@@ -130,11 +130,9 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     올바른 패치들을 만드는 법에 관한 훌륭한 다른 문서들이 있다.
 
     "The Perfect Patch"
-
-        http://www.ozlabs.org/~akpm/stuff/tpp.txt
+        https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
     "Linux kernel patch submission format"
-
         http://linux.yyz.us/patch-format.html
 
    :ref:`Documentation/process/stable-api-nonsense.rst <stable_api_nonsense>`
@@ -212,7 +210,7 @@ Postscript 나 man page 로도 만들어질 수 있다:
 여러분이 리눅스 커널 개발에 관하여 아무것도 모른다면 Linux KernelNewbies
 프로젝트를 봐야 한다.
 
-    http://kernelnewbies.org
+    https://kernelnewbies.org
 
 그곳은 거의 모든 종류의 기본적인 커널 개발 질문들(질문하기 전에 먼저
 아카이브를 찾아봐라. 과거에 이미 답변되었을 수도 있다)을 할 수 있는 도움이
@@ -226,7 +224,7 @@ Postscript 나 man page 로도 만들어질 수 있다:
 여러분이 어디서 시작해야 할진 모르지만 커널 개발 커뮤니티에 참여할 수
 있는 일들을 찾길 원한다면 리눅스 커널 Janitor 프로젝트를 살펴봐라.
 
-	http://kernelnewbies.org/KernelJanitors
+	https://kernelnewbies.org/KernelJanitors
 
 그곳은 시작하기에 훌륭한 장소이다. 그곳은 리눅스 커널 소스 트리내에
 간단히 정리되고 수정될 수 있는 문제들에 관하여 설명한다. 여러분은 이
@@ -240,7 +238,7 @@ Postscript 나 man page 로도 만들어질 수 있다:
 만들어진 kernel-mentors 프로젝트가 있다. 그곳은 메일링 리스트이며
 다음에서 참조할 수 있다.
 
-         http://selenic.com/mailman/listinfo/kernel-mentors
+         https://selenic.com/mailman/listinfo/kernel-mentors
 
 리눅스 커널 코드에 실제 변경을 하기 전에 반드시 그 코드가 어떻게
 동작하는지 이해하고 있어야 한다. 코드를 분석하기 위하여 특정한 툴의
@@ -268,14 +266,14 @@ Postscript 나 man page 로도 만들어질 수 있다:
 
 4.x 커널 트리
 -------------
-4.x 커널들은 Linus Torvalds가 관리하며 kernel.org의 pub/linux/kernel/v4.x/
-디렉토리에서 참조될 수 있다.개발 프로세스는 다음과 같다.
+4.x 커널들은 Linus Torvalds가 관리하며 https://kernel.org의
+pub/linux/kernel/v4.x/ 디렉토리에서 참조될 수 있다.개발 프로세스는 다음과 같다.
 
   - 새로운 커널이 배포되자마자 2주의 시간이 주어진다. 이 기간동은
     메인테이너들은 큰 diff들을 Linus에게 제출할 수 있다. 대개 이 패치들은
     몇 주 동안 -next 커널내에 이미 있었던 것들이다. 큰 변경들을 제출하는 데
     선호되는 방법은  git(커널의 소스 관리 툴, 더 많은 정보들은
-    http://git-scm.com/ 에서 참조할 수 있다)를 사용하는 것이지만 순수한
+    https://git-scm.com/ 에서 참조할 수 있다)를 사용하는 것이지만 순수한
     패치파일의 형식으로 보내는 것도 무관하다.
   - 2주 후에 -rc1 커널이 배포되며 지금부터는 전체 커널의 안정성에 영향을
     미칠수 있는 새로운 기능들을 포함하지 않는 패치들만이 추가될 수 있다.
@@ -337,14 +335,14 @@ Linus의 트리의 현재 상태를 나타낸다. 이 패치들은 정상적인�
 
 대부분의 이러한 저장소는 git 트리지만, git이 아닌 SCM으로 관리되거나, quilt
 시리즈로 제공되는 패치들도 존재한다. 이러한 서브시스템 저장소들은 MAINTAINERS
-파일에 나열되어 있다. 대부분은 http://git.kernel.org 에서 볼 수 있다.
+파일에 나열되어 있다. 대부분은 https://git.kernel.org 에서 볼 수 있다.
 
 제안된 패치는 서브시스템 트리에 커밋되기 전에 메일링 리스트를 통해
 리뷰된다(아래의 관련 섹션을 참고하기 바란다). 일부 커널 서브시스템의 경우, 이
 리뷰 프로세스는 patchwork라는 도구를 통해 추적된다. patchwork은 등록된 패치와
 패치에 대한 코멘트, 패치의 버전을 볼 수 있는 웹 인터페이스를 제공하고,
 메인테이너는 패치를 리뷰 중, 리뷰 통과, 또는 반려됨으로 표시할 수 있다.
-대부분의 이러한 patchwork 사이트는 http://patchwork.kernel.org/ 또는
+대부분의 이러한 patchwork 사이트는 https://patchwork.kernel.org/ 또는
 http://patchwork.ozlabs.org/ 에 나열되어 있다.
 
 4.x - 통합 테스트를 위한 next 커널 트리
@@ -353,7 +351,7 @@ http://patchwork.ozlabs.org/ 에 나열되어 있다.
 테스트를 거쳐야 한다. 이런 목적으로, 모든 서브시스템 트리의 변경사항을 거의
 매일 받아가는 특수한 테스트 저장소가 존재한다:
 
-       http://git.kernel.org/?p=linux/kernel/git/sfr/linux-next.git
+       https://git.kernel.org/?p=linux/kernel/git/sfr/linux-next.git
 
 이런 식으로, -next 커널을 통해 다음 머지 기간에 메인라인 커널에 어떤 변경이
 가해질 것인지 간략히 알 수 있다. 모험심 강한 테스터라면 -next 커널에서 테스트를
@@ -363,11 +361,11 @@ http://patchwork.ozlabs.org/ 에 나열되어 있다.
 버그 보고
 ---------
 
-bugzilla.kernel.org는 리눅스 커널 개발자들이 커널의 버그를 추적하는 곳이다.
-사용자들은 발견한 모든 버그들을 보고하기 위하여 이 툴을 사용할 것을 권장한다.
-kernel bugzilla를 사용하는 자세한 방법은 다음을 참조하라.
+https://bugzilla.kernel.org는 리눅스 커널 개발자들이 커널의 버그를 추적하는
+곳이다. 사용자들은 발견한 모든 버그들을 보고하기 위하여 이 툴을 사용할 것을
+권장한다.  kernel bugzilla를 사용하는 자세한 방법은 다음을 참조하라.
 
-    http://bugzilla.kernel.org/page.cgi?id=faq.html
+    https://bugzilla.kernel.org/page.cgi?id=faq.html
 
 메인 커널 소스 디렉토리에 있는 admin-guide/reporting-bugs.rst 파일은 커널 버그라고 생각되는
 것을 보고하는 방법에 관한 좋은 템플릿이며 문제를 추적하기 위해서 커널
@@ -385,13 +383,14 @@ kernel bugzilla를 사용하는 자세한 방법은 다음을 참조하라.
 점수를 얻을 수 있는 가장 좋은 방법중의 하나이다. 왜냐하면 많은 사람들은
 다른 사람들의 버그들을 수정하기 위하여 시간을 낭비하지 않기 때문이다.
 
-이미 보고된 버그 리포트들을 가지고 작업하기 위해서 http://bugzilla.kernel.org를
+이미 보고된 버그 리포트들을 가지고 작업하기 위해서 https://bugzilla.kernel.org를
 참조하라. 여러분이 앞으로 생겨날 버그 리포트들의 조언자가 되길 원한다면
 bugme-new 메일링 리스트나(새로운 버그 리포트들만이 이곳에서 메일로 전해진다)
 bugme-janitor 메일링 리스트(bugzilla에 모든 변화들이 여기서 메일로 전해진다)
 에 등록하면 된다.
 
       https://lists.linux-foundation.org/mailman/listinfo/bugme-new
+
       https://lists.linux-foundation.org/mailman/listinfo/bugme-janitors
 
 
@@ -615,8 +614,6 @@ Pat이라는 이름을 가진 여자가 있을 수도 있는 것이다. 리눅�
     http://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 
-
-
 이 모든 것을 하는 것은 매우 어려운 일이다. 완벽히 소화하는 데는 적어도 몇년이
 걸릴 수도 있다. 많은 인내와 결심이 필요한 계속되는 개선의 과정이다. 그러나
 가능한한 포기하지 말라. 많은 사람들은 이전부터 해왔던 것이고 그 사람들도
@@ -627,7 +624,7 @@ Pat이라는 이름을 가진 여자가 있을 수도 있는 것이다. 리눅�
 
 ----------
 
-"개발 프로세스"(http://lwn.net/Articles/94386/) 섹션을
+"개발 프로세스"(https://lwn.net/Articles/94386/) 섹션을
 작성하는데 있어 참고할 문서를 사용하도록 허락해준 Paolo Ciarrocchi에게
 감사한다. 여러분들이 말해야 할 것과 말해서는 안되는 것의 목록 중 일부를 제공해준
 Randy Dunlap과 Gerrit Huizenga에게 감사한다. 또한 검토와 의견 그리고
