@@ -1030,6 +1030,19 @@ static void nfp_net_tx_timeout(struct net_device *netdev)
 
 /* Receive processing
  */
+static unsigned int
+nfp_net_calc_fl_bufsz(struct nfp_net *nn, unsigned int mtu)
+{
+	unsigned int fl_bufsz;
+
+	if (nn->rx_offset == NFP_NET_CFG_RX_OFFSET_DYNAMIC)
+		fl_bufsz = NFP_NET_MAX_PREPEND;
+	else
+		fl_bufsz = nn->rx_offset;
+	fl_bufsz += ETH_HLEN + VLAN_HLEN * 2 + mtu;
+
+	return fl_bufsz;
+}
 
 /**
  * nfp_net_rx_alloc_one() - Allocate and map skb for RX
@@ -2191,7 +2204,7 @@ static int nfp_net_change_mtu(struct net_device *netdev, int new_mtu)
 
 	old_mtu = netdev->mtu;
 	old_fl_bufsz = nn->fl_bufsz;
-	new_fl_bufsz = NFP_NET_MAX_PREPEND + ETH_HLEN + VLAN_HLEN * 2 + new_mtu;
+	new_fl_bufsz = nfp_net_calc_fl_bufsz(nn, new_mtu);
 
 	if (!netif_running(netdev)) {
 		netdev->mtu = new_mtu;
@@ -2731,12 +2744,18 @@ int nfp_net_netdev_init(struct net_device *netdev)
 
 	nfp_net_write_mac_addr(nn);
 
+	/* Determine RX packet/metadata boundary offset */
+	if (nn->fw_ver.major >= 2)
+		nn->rx_offset = nn_readl(nn, NFP_NET_CFG_RX_OFFSET);
+	else
+		nn->rx_offset = NFP_NET_RX_OFFSET;
+
 	/* Set default MTU and Freelist buffer size */
 	if (nn->max_mtu < NFP_NET_DEFAULT_MTU)
 		netdev->mtu = nn->max_mtu;
 	else
 		netdev->mtu = NFP_NET_DEFAULT_MTU;
-	nn->fl_bufsz = NFP_NET_DEFAULT_RX_BUFSZ;
+	nn->fl_bufsz = nfp_net_calc_fl_bufsz(nn, netdev->mtu);
 
 	/* Advertise/enable offloads based on capabilities
 	 *
@@ -2806,12 +2825,6 @@ int nfp_net_netdev_init(struct net_device *netdev)
 		nfp_net_irqmod_init(nn);
 		nn->ctrl |= NFP_NET_CFG_CTRL_IRQMOD;
 	}
-
-	/* Determine RX packet/metadata boundary offset */
-	if (nn->fw_ver.major >= 2)
-		nn->rx_offset = nn_readl(nn, NFP_NET_CFG_RX_OFFSET);
-	else
-		nn->rx_offset = NFP_NET_RX_OFFSET;
 
 	/* Stash the re-configuration queue away.  First odd queue in TX Bar */
 	nn->qcp_cfg = nn->tx_bar + NFP_QCP_QUEUE_ADDR_SZ;

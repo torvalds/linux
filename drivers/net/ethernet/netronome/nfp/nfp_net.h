@@ -75,7 +75,6 @@
 
 /* Default size for MTU and freelist buffer sizes */
 #define NFP_NET_DEFAULT_MTU		1500
-#define NFP_NET_DEFAULT_RX_BUFSZ	2048
 
 /* Maximum number of bytes prepended to a packet */
 #define NFP_NET_MAX_PREPEND		64
