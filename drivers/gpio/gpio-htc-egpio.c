@@ -17,7 +17,7 @@
 #include <linux/platform_data/gpio-htc-egpio.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/init.h>
 
 struct egpio_chip {
 	int              reg_start;
@@ -367,24 +367,6 @@ fail:
 	return ret;
 }
 
-static int __exit egpio_remove(struct platform_device *pdev)
-{
-	struct egpio_info *ei = platform_get_drvdata(pdev);
-	unsigned int      irq, irq_end;
-
-	if (ei->chained_irq) {
-		irq_end = ei->irq_start + ei->nirqs;
-		for (irq = ei->irq_start; irq < irq_end; irq++) {
-			irq_set_chip_and_handler(irq, NULL, NULL);
-			irq_set_status_flags(irq, IRQ_NOREQUEST | IRQ_NOPROBE);
-		}
-		irq_set_chained_handler(ei->chained_irq, NULL);
-		device_init_wakeup(&pdev->dev, 0);
-	}
-
-	return 0;
-}
-
 #ifdef CONFIG_PM
 static int egpio_suspend(struct platform_device *pdev, pm_message_t state)
 {
@@ -416,8 +398,8 @@ static int egpio_resume(struct platform_device *pdev)
 static struct platform_driver egpio_driver = {
 	.driver = {
 		.name = "htc-egpio",
+		.suppress_bind_attrs = true,
 	},
-	.remove       = __exit_p(egpio_remove),
 	.suspend      = egpio_suspend,
 	.resume       = egpio_resume,
 };
@@ -426,15 +408,5 @@ static int __init egpio_init(void)
 {
 	return platform_driver_probe(&egpio_driver, egpio_probe);
 }
-
-static void __exit egpio_exit(void)
-{
-	platform_driver_unregister(&egpio_driver);
-}
-
 /* start early for dependencies */
 subsys_initcall(egpio_init);
-module_exit(egpio_exit)
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Kevin O'Connor <kevin@koconnor.net>");
