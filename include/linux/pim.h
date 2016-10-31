@@ -10,7 +10,36 @@
 
 /* Message types - V2 */
 #define PIM_VERSION		2
-#define PIM_REGISTER		1
+
+/* RFC7761, sec 4.9:
+ *  Type
+ *        Types for specific PIM messages.  PIM Types are:
+ *
+ *  Message Type                          Destination
+ *  ---------------------------------------------------------------------
+ *  0 = Hello                             Multicast to ALL-PIM-ROUTERS
+ *  1 = Register                          Unicast to RP
+ *  2 = Register-Stop                     Unicast to source of Register
+ *                                        packet
+ *  3 = Join/Prune                        Multicast to ALL-PIM-ROUTERS
+ *  4 = Bootstrap                         Multicast to ALL-PIM-ROUTERS
+ *  5 = Assert                            Multicast to ALL-PIM-ROUTERS
+ *  6 = Graft (used in PIM-DM only)       Unicast to RPF'(S)
+ *  7 = Graft-Ack (used in PIM-DM only)   Unicast to source of Graft
+ *                                        packet
+ *  8 = Candidate-RP-Advertisement        Unicast to Domain's BSR
+ */
+enum {
+	PIM_TYPE_HELLO,
+	PIM_TYPE_REGISTER,
+	PIM_TYPE_REGISTER_STOP,
+	PIM_TYPE_JOIN_PRUNE,
+	PIM_TYPE_BOOTSTRAP,
+	PIM_TYPE_ASSERT,
+	PIM_TYPE_GRAFT,
+	PIM_TYPE_GRAFT_ACK,
+	PIM_TYPE_CANDIDATE_RP_ADV
+};
 
 #define PIM_NULL_REGISTER	cpu_to_be32(0x40000000)
 
