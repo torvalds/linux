@@ -1890,6 +1890,13 @@ free_node_inode:
 	mutex_lock(&sbi->umount_mutex);
 	release_ino_entry(sbi, true);
 	f2fs_leave_shrinker(sbi);
+	/*
+	 * Some dirty meta pages can be produced by recover_orphan_inodes()
+	 * failed by EIO. Then, iput(node_inode) can trigger balance_fs_bg()
+	 * followed by write_checkpoint() through f2fs_write_node_pages(), which
+	 * falls into an infinite loop in sync_meta_pages().
+	 */
+	truncate_inode_pages_final(META_MAPPING(sbi));
 	iput(sbi->node_inode);
 	mutex_unlock(&sbi->umount_mutex);
 free_nm:
