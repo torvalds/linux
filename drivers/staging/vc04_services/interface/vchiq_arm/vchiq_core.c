@@ -296,12 +296,13 @@ lock_service(VCHIQ_SERVICE_T *service)
 void
 unlock_service(VCHIQ_SERVICE_T *service)
 {
-	VCHIQ_STATE_T *state = service->state;
 	spin_lock(&service_spinlock);
 	BUG_ON(!service || (service->ref_count == 0));
 	if (service && service->ref_count) {
 		service->ref_count--;
 		if (!service->ref_count) {
+			VCHIQ_STATE_T *state = service->state;
+
 			BUG_ON(service->srvstate != VCHIQ_SRVSTATE_FREE);
 			state->services[service->localport] = NULL;
 		} else
