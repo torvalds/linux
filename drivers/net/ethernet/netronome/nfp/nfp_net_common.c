@@ -1098,6 +1098,26 @@ nfp_net_rx_alloc_one(struct nfp_net_rx_ring *rx_ring, dma_addr_t *dma_addr,
 	return frag;
 }
 
+static void *nfp_net_napi_alloc_one(struct nfp_net *nn, dma_addr_t *dma_addr)
+{
+	void *frag;
+
+	frag = napi_alloc_frag(nn->fl_bufsz);
+	if (!frag) {
+		nn_warn_ratelimit(nn, "Failed to alloc receive page frag\n");
+		return NULL;
+	}
+
+	*dma_addr = nfp_net_dma_map_rx(nn, frag, nn->fl_bufsz, DMA_FROM_DEVICE);
+	if (dma_mapping_error(&nn->pdev->dev, *dma_addr)) {
+		skb_free_frag(frag);
+		nn_warn_ratelimit(nn, "Failed to map DMA RX buffer\n");
+		return NULL;
+	}
+
+	return frag;
+}
+
 /**
  * nfp_net_rx_give_one() - Put mapped skb on the software and hardware rings
  * @rx_ring:	RX ring structure
@@ -1413,8 +1433,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			nfp_net_rx_drop(r_vec, rx_ring, rxbuf, NULL);
 			continue;
 		}
-		new_frag = nfp_net_rx_alloc_one(rx_ring, &new_dma_addr,
-						nn->fl_bufsz);
+		new_frag = nfp_net_napi_alloc_one(nn, &new_dma_addr);
 		if (unlikely(!new_frag)) {
 			nfp_net_rx_drop(r_vec, rx_ring, rxbuf, skb);
 			continue;
