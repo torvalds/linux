@@ -42,6 +42,7 @@
  */
 
 #include "meson-gx.dtsi"
+#include <dt-bindings/clock/gxbb-clkc.h>
 #include <dt-bindings/gpio/meson-gxbb-gpio.h>
 
 / {
@@ -212,5 +213,13 @@
 				function = "pwm_e";
 			};
 		};
+	};
+};
+
+&hiubus {
+	clkc: clock-controller@0 {
+		compatible = "amlogic,gxl-clkc", "amlogic,gxbb-clkc";
+		#clock-cells = <1>;
+		reg = <0x0 0x0 0x0 0x3db>;
 	};
 };
