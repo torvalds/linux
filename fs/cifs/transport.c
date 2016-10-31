@@ -221,7 +221,7 @@ rqst_len(struct smb_rqst *rqst)
 }
 
 static int
-smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst)
+__smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 {
 	int rc;
 	struct kvec *iov = rqst->rq_iov;
@@ -313,12 +313,27 @@ uncork:
 }
 
 static int
-smb_sendv(struct TCP_Server_Info *server, struct kvec *iov, int n_vec)
+smb_send_rqst(struct TCP_Server_Info *server, struct smb_rqst *rqst, int flags)
 {
-	struct smb_rqst rqst = { .rq_iov = iov,
-				 .rq_nvec = n_vec };
+	struct smb_rqst cur_rqst;
+	int rc;
 
-	return smb_send_rqst(server, &rqst);
+	if (!(flags & CIFS_TRANSFORM_REQ))
+		return __smb_send_rqst(server, rqst);
+
+	if (!server->ops->init_transform_rq ||
+	    !server->ops->free_transform_rq) {
+		cifs_dbg(VFS, "Encryption requested but transform callbacks are missed\n");
+		return -EIO;
+	}
+
+	rc = server->ops->init_transform_rq(server, &cur_rqst, rqst);
+	if (rc)
+		return rc;
+
+	rc = __smb_send_rqst(server, &cur_rqst);
+	server->ops->free_transform_rq(&cur_rqst);
+	return rc;
 }
 
 int
@@ -326,13 +341,15 @@ smb_send(struct TCP_Server_Info *server, struct smb_hdr *smb_buffer,
 	 unsigned int smb_buf_length)
 {
 	struct kvec iov[2];
+	struct smb_rqst rqst = { .rq_iov = iov,
+				 .rq_nvec = 2 };
 
 	iov[0].iov_base = smb_buffer;
 	iov[0].iov_len = 4;
 	iov[1].iov_base = (char *)smb_buffer + 4;
 	iov[1].iov_len = smb_buf_length;
 
-	return smb_sendv(server, iov, 2);
+	return __smb_send_rqst(server, &rqst);
 }
 
 static int
@@ -524,7 +541,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 
 
 	cifs_in_send_inc(server);
-	rc = smb_send_rqst(server, rqst);
+	rc = smb_send_rqst(server, rqst, flags);
 	cifs_in_send_dec(server);
 	cifs_save_when_sent(mid);
 
@@ -718,7 +735,7 @@ cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 	midQ->mid_state = MID_REQUEST_SUBMITTED;
 	cifs_in_send_inc(ses->server);
-	rc = smb_send_rqst(ses->server, rqst);
+	rc = smb_send_rqst(ses->server, rqst, flags);
 	cifs_in_send_dec(ses->server);
 	cifs_save_when_sent(midQ);
 

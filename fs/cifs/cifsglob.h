@@ -433,6 +433,11 @@ struct smb_version_operations {
 	bool (*dir_needs_close)(struct cifsFileInfo *);
 	long (*fallocate)(struct file *, struct cifs_tcon *, int, loff_t,
 			  loff_t);
+	/* init transform request - used for encryption for now */
+	int (*init_transform_rq)(struct TCP_Server_Info *, struct smb_rqst *,
+				 struct smb_rqst *);
+	/* free transform request */
+	void (*free_transform_rq)(struct smb_rqst *);
 };
 
 struct smb_version_values {
@@ -1475,7 +1480,9 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   CIFS_OBREAK_OP   0x0100    /* oplock break request */
 #define   CIFS_NEG_OP      0x0200    /* negotiate request */
 #define   CIFS_OP_MASK     0x0380    /* mask request type */
+
 #define   CIFS_HAS_CREDITS 0x0400    /* already has credits */
+#define   CIFS_TRANSFORM_REQ 0x0800    /* transform request before sending */
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001
