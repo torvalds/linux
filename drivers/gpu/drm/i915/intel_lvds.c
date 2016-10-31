@@ -985,7 +985,7 @@ void intel_lvds_init(struct drm_device *dev)
 	struct drm_display_mode *fixed_mode = NULL;
 	struct drm_display_mode *downclock_mode = NULL;
 	struct edid *edid;
-	struct drm_crtc *crtc;
+	struct intel_crtc *crtc;
 	i915_reg_t lvds_reg;
 	u32 lvds;
 	int pipe;
@@ -1166,7 +1166,7 @@ void intel_lvds_init(struct drm_device *dev)
 	crtc = intel_get_crtc_for_pipe(dev, pipe);
 
 	if (crtc && (lvds & LVDS_PORT_EN)) {
-		fixed_mode = intel_crtc_mode_get(dev, crtc);
+		fixed_mode = intel_crtc_mode_get(dev, &crtc->base);
 		if (fixed_mode) {
 			DRM_DEBUG_KMS("using current (BIOS) mode: ");
 			drm_mode_debug_printmodeline(fixed_mode);

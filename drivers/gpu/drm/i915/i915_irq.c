@@ -725,8 +725,7 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	i915_reg_t high_frame, low_frame;
 	u32 high1, high2, low, pixel, vbl_start, hsync_start, htotal;
-	struct intel_crtc *intel_crtc =
-		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+	struct intel_crtc *intel_crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	const struct drm_display_mode *mode = &intel_crtc->base.hwmode;
 
 	htotal = mode->crtc_htotal;
@@ -831,8 +830,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 				    const struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *intel_crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	int position;
 	int vbl_start, vbl_end, hsync_start, htotal, vtotal;
 	bool in_vbl = true;
@@ -967,7 +965,7 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 			      struct timeval *vblank_time,
 			      unsigned flags)
 {
-	struct drm_crtc *crtc;
+	struct intel_crtc *crtc;
 
 	if (pipe >= INTEL_INFO(dev)->num_pipes) {
 		DRM_ERROR("Invalid crtc %u\n", pipe);
@@ -981,7 +979,7 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 		return -EINVAL;
 	}
 
-	if (!crtc->hwmode.crtc_clock) {
+	if (!crtc->base.hwmode.crtc_clock) {
 		DRM_DEBUG_KMS("crtc %u is disabled\n", pipe);
 		return -EBUSY;
 	}
@@ -989,7 +987,7 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 	/* Helper routine in DRM core does all the work: */
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
 						     vblank_time, flags,
-						     &crtc->hwmode);
+						     &crtc->base.hwmode);
 }
 
 static void ironlake_rps_change_irq_handler(struct drm_i915_private *dev_priv)

@@ -1028,14 +1028,14 @@ vlv_pipe_to_channel(enum pipe pipe)
 	}
 }
 
-static inline struct drm_crtc *
+static inline struct intel_crtc *
 intel_get_crtc_for_pipe(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	return dev_priv->pipe_to_crtc_mapping[pipe];
 }
 
-static inline struct drm_crtc *
+static inline struct intel_crtc *
 intel_get_crtc_for_plane(struct drm_device *dev, int plane)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -1251,8 +1251,7 @@ intel_wait_for_vblank(struct drm_device *dev, int pipe)
 static inline void
 intel_wait_for_vblank_if_active(struct drm_device *dev, int pipe)
 {
-	const struct intel_crtc *crtc =
-		to_intel_crtc(intel_get_crtc_for_pipe(dev, pipe));
+	const struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev, pipe);
 
 	if (crtc->active)
 		intel_wait_for_vblank(dev, pipe);

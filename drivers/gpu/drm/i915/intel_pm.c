@@ -728,7 +728,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	int line_time_us, line_count;
 	int entries, tlb_miss;
 
-	crtc = to_intel_crtc(intel_get_crtc_for_plane(dev, plane));
+	crtc = intel_get_crtc_for_plane(dev, plane);
 	if (!intel_crtc_active(crtc)) {
 		*cursor_wm = cursor->guard_size;
 		*plane_wm = display->guard_size;
@@ -823,7 +823,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 		return false;
 	}
 
-	crtc = to_intel_crtc(intel_get_crtc_for_plane(dev, plane));
+	crtc = intel_get_crtc_for_plane(dev, plane);
 	adjusted_mode = &crtc->config->base.adjusted_mode;
 	fb = crtc->base.primary->state->fb;
 	clock = adjusted_mode->crtc_clock;
@@ -1546,7 +1546,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 		wm_info = &i830_a_wm_info;
 
 	fifo_size = dev_priv->display.get_fifo_size(dev, 0);
-	crtc = to_intel_crtc(intel_get_crtc_for_plane(dev, 0));
+	crtc = intel_get_crtc_for_plane(dev, 0);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode =
 			&crtc->config->base.adjusted_mode;
@@ -1573,7 +1573,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 		wm_info = &i830_bc_wm_info;
 
 	fifo_size = dev_priv->display.get_fifo_size(dev, 1);
-	crtc = to_intel_crtc(intel_get_crtc_for_plane(dev, 1));
+	crtc = intel_get_crtc_for_plane(dev, 1);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode =
 			&crtc->config->base.adjusted_mode;
@@ -3066,7 +3066,7 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 
 	/* Since we're now guaranteed to only have one active CRTC... */
 	pipe = ffs(intel_state->active_crtcs) - 1;
-	crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+	crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	cstate = to_intel_crtc_state(crtc->base.state);
 
 	if (crtc->base.state->adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)

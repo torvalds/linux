@@ -1030,10 +1030,9 @@ bool intel_crtc_active(struct intel_crtc *crtc)
 enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 					     enum pipe pipe)
 {
-	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 
-	return intel_crtc->config->cpu_transcoder;
+	return crtc->config->cpu_transcoder;
 }
 
 static bool pipe_dsl_stopped(struct drm_device *dev, enum pipe pipe)
@@ -1786,8 +1785,7 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 					   enum pipe pipe)
 {
-	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *intel_crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	i915_reg_t reg;
 	uint32_t val, pipeconf_val;
 
@@ -7073,7 +7071,7 @@ static int ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 		if (pipe_config->fdi_lanes <= 2)
 			return 0;
 
-		other_crtc = to_intel_crtc(intel_get_crtc_for_pipe(dev, PIPE_C));
+		other_crtc = intel_get_crtc_for_pipe(dev, PIPE_C);
 		other_crtc_state =
 			intel_atomic_get_crtc_state(state, other_crtc);
 		if (IS_ERR(other_crtc_state))
@@ -7092,7 +7090,7 @@ static int ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 			return -EINVAL;
 		}
 
-		other_crtc = to_intel_crtc(intel_get_crtc_for_pipe(dev, PIPE_B));
+		other_crtc = intel_get_crtc_for_pipe(dev, PIPE_B);
 		other_crtc_state =
 			intel_atomic_get_crtc_state(state, other_crtc);
 		if (IS_ERR(other_crtc_state))
@@ -8107,8 +8105,7 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 int vlv_force_pll_on(struct drm_device *dev, enum pipe pipe,
 		     const struct dpll *dpll)
 {
-	struct intel_crtc *crtc =
-		to_intel_crtc(intel_get_crtc_for_pipe(dev, pipe));
+	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev, pipe);
 	struct intel_crtc_state *pipe_config;
 
 	pipe_config = kzalloc(sizeof(*pipe_config), GFP_KERNEL);
@@ -11663,8 +11660,7 @@ static bool pageflip_finished(struct intel_crtc *crtc,
 void intel_finish_page_flip_cs(struct drm_i915_private *dev_priv, int pipe)
 {
 	struct drm_device *dev = &dev_priv->drm;
-	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_flip_work *work;
 	unsigned long flags;
 
@@ -11677,12 +11673,12 @@ void intel_finish_page_flip_cs(struct drm_i915_private *dev_priv, int pipe)
 	 * lost pageflips) so needs the full irqsave spinlocks.
 	 */
 	spin_lock_irqsave(&dev->event_lock, flags);
-	work = intel_crtc->flip_work;
+	work = crtc->flip_work;
 
 	if (work != NULL &&
 	    !is_mmio_work(work) &&
-	    pageflip_finished(intel_crtc, work))
-		page_flip_completed(intel_crtc);
+	    pageflip_finished(crtc, work))
+		page_flip_completed(crtc);
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
@@ -11690,8 +11686,7 @@ void intel_finish_page_flip_cs(struct drm_i915_private *dev_priv, int pipe)
 void intel_finish_page_flip_mmio(struct drm_i915_private *dev_priv, int pipe)
 {
 	struct drm_device *dev = &dev_priv->drm;
-	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_flip_work *work;
 	unsigned long flags;
 
@@ -11704,12 +11699,12 @@ void intel_finish_page_flip_mmio(struct drm_i915_private *dev_priv, int pipe)
 	 * lost pageflips) so needs the full irqsave spinlocks.
 	 */
 	spin_lock_irqsave(&dev->event_lock, flags);
-	work = intel_crtc->flip_work;
+	work = crtc->flip_work;
 
 	if (work != NULL &&
 	    is_mmio_work(work) &&
-	    pageflip_finished(intel_crtc, work))
-		page_flip_completed(intel_crtc);
+	    pageflip_finished(crtc, work))
+		page_flip_completed(crtc);
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
@@ -12121,8 +12116,7 @@ static bool __pageflip_stall_check_cs(struct drm_i915_private *dev_priv,
 void intel_check_page_flip(struct drm_i915_private *dev_priv, int pipe)
 {
 	struct drm_device *dev = &dev_priv->drm;
-	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_flip_work *work;
 
 	WARN_ON(!in_interrupt());
@@ -12131,19 +12125,19 @@ void intel_check_page_flip(struct drm_i915_private *dev_priv, int pipe)
 		return;
 
 	spin_lock(&dev->event_lock);
-	work = intel_crtc->flip_work;
+	work = crtc->flip_work;
 
 	if (work != NULL && !is_mmio_work(work) &&
-	    __pageflip_stall_check_cs(dev_priv, intel_crtc, work)) {
+	    __pageflip_stall_check_cs(dev_priv, crtc, work)) {
 		WARN_ONCE(1,
 			  "Kicking stuck page flip: queued at %d, now %d\n",
-			work->flip_queued_vblank, intel_crtc_get_vblank_counter(intel_crtc));
-		page_flip_completed(intel_crtc);
+			work->flip_queued_vblank, intel_crtc_get_vblank_counter(crtc));
+		page_flip_completed(crtc);
 		work = NULL;
 	}
 
 	if (work != NULL && !is_mmio_work(work) &&
-	    intel_crtc_get_vblank_counter(intel_crtc) - work->flip_queued_vblank > 1)
+	    intel_crtc_get_vblank_counter(crtc) - work->flip_queued_vblank > 1)
 		intel_queue_rps_boost_for_request(work->flip_queued_req);
 	spin_unlock(&dev->event_lock);
 }
@@ -14181,22 +14175,22 @@ static void intel_atomic_wait_for_vblanks(struct drm_device *dev,
 		return;
 
 	for_each_pipe(dev_priv, pipe) {
-		struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+		struct intel_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 
 		if (!((1 << pipe) & crtc_mask))
 			continue;
 
-		ret = drm_crtc_vblank_get(crtc);
+		ret = drm_crtc_vblank_get(&crtc->base);
 		if (WARN_ON(ret != 0)) {
 			crtc_mask &= ~(1 << pipe);
 			continue;
 		}
 
-		last_vblank_count[pipe] = drm_crtc_vblank_count(crtc);
+		last_vblank_count[pipe] = drm_crtc_vblank_count(&crtc->base);
 	}
 
 	for_each_pipe(dev_priv, pipe) {
-		struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+		struct intel_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 		long lret;
 
 		if (!((1 << pipe) & crtc_mask))
@@ -14204,12 +14198,12 @@ static void intel_atomic_wait_for_vblanks(struct drm_device *dev,
 
 		lret = wait_event_timeout(dev->vblank[pipe].queue,
 				last_vblank_count[pipe] !=
-					drm_crtc_vblank_count(crtc),
+					drm_crtc_vblank_count(&crtc->base),
 				msecs_to_jiffies(50));
 
 		WARN(!lret, "pipe %c vblank wait timed out\n", pipe_name(pipe));
 
-		drm_crtc_vblank_put(crtc);
+		drm_crtc_vblank_put(&crtc->base);
 	}
 }
 
@@ -15317,8 +15311,8 @@ static int intel_crtc_init(struct drm_device *dev, enum pipe pipe)
 
 	BUG_ON(pipe >= ARRAY_SIZE(dev_priv->plane_to_crtc_mapping) ||
 	       dev_priv->plane_to_crtc_mapping[intel_crtc->plane] != NULL);
-	dev_priv->plane_to_crtc_mapping[intel_crtc->plane] = &intel_crtc->base;
-	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = &intel_crtc->base;
+	dev_priv->plane_to_crtc_mapping[intel_crtc->plane] = intel_crtc;
+	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = intel_crtc;
 
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 
@@ -16871,7 +16865,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		pipe = 0;
 
 		if (encoder->get_hw_state(encoder, &pipe)) {
-			crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+			crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+
 			encoder->base.crtc = &crtc->base;
 			crtc->config->output_types |= 1 << encoder->type;
 			encoder->get_config(encoder, crtc->config);
@@ -16972,7 +16967,8 @@ intel_modeset_setup_hw_state(struct drm_device *dev)
 	}
 
 	for_each_pipe(dev_priv, pipe) {
-		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+		crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+
 		intel_sanitize_crtc(crtc);
 		intel_dump_pipe_config(crtc, crtc->config,
 				       "[setup_hw_state]");

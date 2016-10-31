@@ -4065,8 +4065,7 @@ static void hsw_trans_edp_pipe_A_crc_wa(struct drm_i915_private *dev_priv,
 					bool enable)
 {
 	struct drm_device *dev = &dev_priv->drm;
-	struct intel_crtc *crtc =
-		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_A]);
+	struct intel_crtc *crtc = dev_priv->pipe_to_crtc_mapping[PIPE_A];
 	struct intel_crtc_state *pipe_config;
 	struct drm_atomic_state *state;
 	int ret = 0;
@@ -4134,8 +4133,7 @@ static int pipe_crc_set_source(struct drm_i915_private *dev_priv,
 {
 	struct drm_device *dev = &dev_priv->drm;
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
-	struct intel_crtc *crtc =
-			to_intel_crtc(intel_get_crtc_for_pipe(dev, pipe));
+	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev, pipe);
 	enum intel_display_power_domain power_domain;
 	u32 val = 0; /* shut up gcc */
 	int ret;
@@ -4206,8 +4204,7 @@ static int pipe_crc_set_source(struct drm_i915_private *dev_priv,
 	/* real source -> none transition */
 	if (source == INTEL_PIPE_CRC_SOURCE_NONE) {
 		struct intel_pipe_crc_entry *entries;
-		struct intel_crtc *crtc =
-			to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+		struct intel_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 
 		DRM_DEBUG_DRIVER("stopping CRCs for pipe %c\n",
 				 pipe_name(pipe));

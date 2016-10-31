@@ -1935,8 +1935,8 @@ struct drm_i915_private {
 
 	/* Kernel Modesetting */
 
-	struct drm_crtc *plane_to_crtc_mapping[I915_MAX_PIPES];
-	struct drm_crtc *pipe_to_crtc_mapping[I915_MAX_PIPES];
+	struct intel_crtc *plane_to_crtc_mapping[I915_MAX_PIPES];
+	struct intel_crtc *pipe_to_crtc_mapping[I915_MAX_PIPES];
 	wait_queue_head_t pending_flip_queue;
 
 #ifdef CONFIG_DEBUG_FS
