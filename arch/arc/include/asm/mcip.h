@@ -13,7 +13,7 @@
 
 #ifdef CONFIG_ISA_ARCV2
 
-#include <asm/arcregs.h>
+#include <soc/arc/aux.h>
 
 #define ARC_REG_MCIP_BCR	0x0d0
 #define ARC_REG_MCIP_CMD	0x600
