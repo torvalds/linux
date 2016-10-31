@@ -731,7 +731,7 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 			  int entries, u32 **cqb,
 			  int *cqe_size, int *index, int *inlen)
 {
-	struct mlx5_ib_create_cq ucmd;
+	struct mlx5_ib_create_cq ucmd = {};
 	size_t ucmdlen;
 	int page_shift;
 	__be64 *pas;
@@ -792,7 +792,35 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 
 	*index = to_mucontext(context)->uuari.uars[0].index;
 
+	if (ucmd.cqe_comp_en == 1) {
+		if (unlikely((*cqe_size != 64) ||
+			     !MLX5_CAP_GEN(dev->mdev, cqe_compression))) {
+			err = -EOPNOTSUPP;
+			mlx5_ib_warn(dev, "CQE compression is not supported for size %d!\n",
+				     *cqe_size);
+			goto err_cqb;
+		}
+
+		if (unlikely(!ucmd.cqe_comp_res_format ||
+			     !(ucmd.cqe_comp_res_format <
+			       MLX5_IB_CQE_RES_RESERVED) ||
+			     (ucmd.cqe_comp_res_format &
+			      (ucmd.cqe_comp_res_format - 1)))) {
+			err = -EOPNOTSUPP;
+			mlx5_ib_warn(dev, "CQE compression res format %d is not supported!\n",
+				     ucmd.cqe_comp_res_format);
+			goto err_cqb;
+		}
+
+		MLX5_SET(cqc, cqc, cqe_comp_en, 1);
+		MLX5_SET(cqc, cqc, mini_cqe_res_format,
+			 ilog2(ucmd.cqe_comp_res_format));
+	}
+
 	return 0;
+
+err_cqb:
+	kfree(cqb);
 
 err_db:
 	mlx5_ib_db_unmap_user(to_mucontext(context), &cq->db);
