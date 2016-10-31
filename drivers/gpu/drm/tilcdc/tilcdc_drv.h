@@ -88,7 +88,10 @@ struct tilcdc_drm_private {
 
 	unsigned int num_connectors;
 	struct drm_connector *connectors[8];
-	const struct drm_connector_helper_funcs *connector_funcs[8];
+
+	struct drm_encoder *external_encoder;
+	struct drm_connector *external_connector;
+	const struct drm_connector_helper_funcs *connector_funcs;
 
 	bool is_registered;
 	bool is_componentized;

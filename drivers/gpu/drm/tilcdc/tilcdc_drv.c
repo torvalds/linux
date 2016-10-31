@@ -209,7 +209,7 @@ static void tilcdc_fini(struct drm_device *dev)
 
 	drm_irq_uninstall(dev);
 	drm_mode_config_cleanup(dev);
-	tilcdc_remove_external_encoders(dev);
+	tilcdc_remove_external_device(dev);
 
 #ifdef CONFIG_CPU_FREQ
 	if (priv->freq_transition.notifier_call)
@@ -381,12 +381,17 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 		if (ret < 0)
 			goto init_failed;
 
-		ret = tilcdc_add_external_encoders(ddev);
+		ret = tilcdc_add_component_encoder(ddev);
 		if (ret < 0)
+			goto init_failed;
+	} else {
+		ret = tilcdc_attach_external_device(ddev);
+		if (ret)
 			goto init_failed;
 	}
 
-	if ((priv->num_encoders == 0) || (priv->num_connectors == 0)) {
+	if (!priv->external_connector &&
+	    ((priv->num_encoders == 0) || (priv->num_connectors == 0))) {
 		dev_err(dev, "no encoders/connectors found\n");
 		ret = -ENXIO;
 		goto init_failed;
