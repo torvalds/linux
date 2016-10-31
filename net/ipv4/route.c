@@ -1980,25 +1980,35 @@ int ip_route_input_noref(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	 */
 	if (ipv4_is_multicast(daddr)) {
 		struct in_device *in_dev = __in_dev_get_rcu(dev);
+		int our = 0;
 
-		if (in_dev) {
-			int our = ip_check_mc_rcu(in_dev, daddr, saddr,
-						  ip_hdr(skb)->protocol);
-			if (our
+		if (in_dev)
+			our = ip_check_mc_rcu(in_dev, daddr, saddr,
+					      ip_hdr(skb)->protocol);
+
+		/* check l3 master if no match yet */
+		if ((!in_dev || !our) && netif_is_l3_slave(dev)) {
+			struct in_device *l3_in_dev;
+
+			l3_in_dev = __in_dev_get_rcu(skb->dev);
+			if (l3_in_dev)
+				our = ip_check_mc_rcu(l3_in_dev, daddr, saddr,
+						      ip_hdr(skb)->protocol);
+		}
+
+		res = -EINVAL;
+		if (our
 #ifdef CONFIG_IP_MROUTE
-				||
-			    (!ipv4_is_local_multicast(daddr) &&
-			     IN_DEV_MFORWARD(in_dev))
+			||
+		    (!ipv4_is_local_multicast(daddr) &&
+		     IN_DEV_MFORWARD(in_dev))
 #endif
-			   ) {
-				int res = ip_route_input_mc(skb, daddr, saddr,
-							    tos, dev, our);
-				rcu_read_unlock();
-				return res;
-			}
+		   ) {
+			res = ip_route_input_mc(skb, daddr, saddr,
+						tos, dev, our);
 		}
 		rcu_read_unlock();
-		return -EINVAL;
+		return res;
 	}
 	res = ip_route_input_slow(skb, daddr, saddr, tos, dev);
 	rcu_read_unlock();
@@ -2266,7 +2276,8 @@ struct rtable *__ip_route_output_key_hash(struct net *net, struct flowi4 *fl4,
 		res.fi = NULL;
 		res.table = NULL;
 		if (fl4->flowi4_oif &&
-		    !netif_index_is_l3_master(net, fl4->flowi4_oif)) {
+		    (ipv4_is_multicast(fl4->daddr) ||
+		    !netif_index_is_l3_master(net, fl4->flowi4_oif))) {
 			/* Apparently, routing tables are wrong. Assume,
 			   that the destination is on link.
 
