@@ -904,9 +904,9 @@ static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
 	if (!rc)
 		return NULL;
 
-	snprintf(rr3->name, sizeof(rr3->name), "RedRat3%s Infrared Remote Transceiver (%04x:%04x)",
-		 prod == USB_RR3IIUSB_PRODUCT_ID ? "-II" : "",
-		 le16_to_cpu(rr3->udev->descriptor.idVendor), prod);
+	snprintf(rr3->name, sizeof(rr3->name),
+		 "RedRat3%s Infrared Remote Transceiver",
+		 prod == USB_RR3IIUSB_PRODUCT_ID ? "-II" : "");
 
 	usb_make_path(rr3->udev, rr3->phys, sizeof(rr3->phys));
 
