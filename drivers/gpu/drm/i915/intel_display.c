@@ -5903,7 +5903,7 @@ static void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 
 static void intel_update_cdclk(struct drm_i915_private *dev_priv)
 {
-	dev_priv->cdclk_freq = dev_priv->display.get_display_clock_speed(&dev_priv->drm);
+	dev_priv->cdclk_freq = dev_priv->display.get_display_clock_speed(dev_priv);
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz, VCO: %d kHz, ref: %d kHz\n",
@@ -6421,7 +6421,7 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val, cmd;
 
-	WARN_ON(dev_priv->display.get_display_clock_speed(dev)
+	WARN_ON(dev_priv->display.get_display_clock_speed(dev_priv)
 					!= dev_priv->cdclk_freq);
 
 	if (cdclk >= 320000) /* jump to highest voltage for 400MHz too */
@@ -6486,7 +6486,7 @@ static void cherryview_set_cdclk(struct drm_device *dev, int cdclk)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 val, cmd;
 
-	WARN_ON(dev_priv->display.get_display_clock_speed(dev)
+	WARN_ON(dev_priv->display.get_display_clock_speed(dev_priv)
 						!= dev_priv->cdclk_freq);
 
 	switch (cdclk) {
@@ -7245,10 +7245,9 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	return 0;
 }
 
-static int skylake_get_display_clock_speed(struct drm_device *dev)
+static int skylake_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	uint32_t cdctl;
+	u32 cdctl;
 
 	skl_dpll0_update(dev_priv);
 
@@ -7307,9 +7306,8 @@ static void bxt_de_pll_update(struct drm_i915_private *dev_priv)
 		dev_priv->cdclk_pll.ref;
 }
 
-static int broxton_get_display_clock_speed(struct drm_device *dev)
+static int broxton_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	u32 divider;
 	int div, vco;
 
@@ -7342,9 +7340,8 @@ static int broxton_get_display_clock_speed(struct drm_device *dev)
 	return DIV_ROUND_CLOSEST(vco, div);
 }
 
-static int broadwell_get_display_clock_speed(struct drm_device *dev)
+static int broadwell_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t lcpll = I915_READ(LCPLL_CTL);
 	uint32_t freq = lcpll & LCPLL_CLK_FREQ_MASK;
 
@@ -7362,9 +7359,8 @@ static int broadwell_get_display_clock_speed(struct drm_device *dev)
 		return 675000;
 }
 
-static int haswell_get_display_clock_speed(struct drm_device *dev)
+static int haswell_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t lcpll = I915_READ(LCPLL_CTL);
 	uint32_t freq = lcpll & LCPLL_CLK_FREQ_MASK;
 
@@ -7380,35 +7376,35 @@ static int haswell_get_display_clock_speed(struct drm_device *dev)
 		return 540000;
 }
 
-static int valleyview_get_display_clock_speed(struct drm_device *dev)
+static int valleyview_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
-	return vlv_get_cck_clock_hpll(to_i915(dev), "cdclk",
+	return vlv_get_cck_clock_hpll(dev_priv, "cdclk",
 				      CCK_DISPLAY_CLOCK_CONTROL);
 }
 
-static int ilk_get_display_clock_speed(struct drm_device *dev)
+static int ilk_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
 	return 450000;
 }
 
-static int i945_get_display_clock_speed(struct drm_device *dev)
+static int i945_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
 	return 400000;
 }
 
-static int i915_get_display_clock_speed(struct drm_device *dev)
+static int i915_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
 	return 333333;
 }
 
-static int i9xx_misc_get_display_clock_speed(struct drm_device *dev)
+static int i9xx_misc_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
 	return 200000;
 }
 
-static int pnv_get_display_clock_speed(struct drm_device *dev)
+static int pnv_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u16 gcfgc = 0;
 
 	pci_read_config_word(pdev, GCFGC, &gcfgc);
@@ -7431,9 +7427,9 @@ static int pnv_get_display_clock_speed(struct drm_device *dev)
 	}
 }
 
-static int i915gm_get_display_clock_speed(struct drm_device *dev)
+static int i915gm_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u16 gcfgc = 0;
 
 	pci_read_config_word(pdev, GCFGC, &gcfgc);
@@ -7451,14 +7447,14 @@ static int i915gm_get_display_clock_speed(struct drm_device *dev)
 	}
 }
 
-static int i865_get_display_clock_speed(struct drm_device *dev)
+static int i865_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
 	return 266667;
 }
 
-static int i85x_get_display_clock_speed(struct drm_device *dev)
+static int i85x_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u16 hpllcc = 0;
 
 	/*
@@ -7494,14 +7490,13 @@ static int i85x_get_display_clock_speed(struct drm_device *dev)
 	return 0;
 }
 
-static int i830_get_display_clock_speed(struct drm_device *dev)
+static int i830_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
 	return 133333;
 }
 
-static unsigned int intel_hpll_vco(struct drm_device *dev)
+static unsigned int intel_hpll_vco(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	static const unsigned int blb_vco[8] = {
 		[0] = 3200000,
 		[1] = 4000000,
@@ -7548,16 +7543,16 @@ static unsigned int intel_hpll_vco(struct drm_device *dev)
 		vco_table = ctg_vco;
 	else if (IS_G4X(dev_priv))
 		vco_table = elk_vco;
-	else if (IS_CRESTLINE(dev))
+	else if (IS_CRESTLINE(dev_priv))
 		vco_table = cl_vco;
-	else if (IS_PINEVIEW(dev))
+	else if (IS_PINEVIEW(dev_priv))
 		vco_table = pnv_vco;
-	else if (IS_G33(dev))
+	else if (IS_G33(dev_priv))
 		vco_table = blb_vco;
 	else
 		return 0;
 
-	tmp = I915_READ(IS_MOBILE(dev) ? HPLLVCO_MOBILE : HPLLVCO);
+	tmp = I915_READ(IS_MOBILE(dev_priv) ? HPLLVCO_MOBILE : HPLLVCO);
 
 	vco = vco_table[tmp & 0x7];
 	if (vco == 0)
@@ -7568,10 +7563,10 @@ static unsigned int intel_hpll_vco(struct drm_device *dev)
 	return vco;
 }
 
-static int gm45_get_display_clock_speed(struct drm_device *dev)
+static int gm45_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev->pdev;
-	unsigned int cdclk_sel, vco = intel_hpll_vco(dev);
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+	unsigned int cdclk_sel, vco = intel_hpll_vco(dev_priv);
 	uint16_t tmp = 0;
 
 	pci_read_config_word(pdev, GCFGC, &tmp);
@@ -7591,14 +7586,14 @@ static int gm45_get_display_clock_speed(struct drm_device *dev)
 	}
 }
 
-static int i965gm_get_display_clock_speed(struct drm_device *dev)
+static int i965gm_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	static const uint8_t div_3200[] = { 16, 10,  8 };
 	static const uint8_t div_4000[] = { 20, 12, 10 };
 	static const uint8_t div_5333[] = { 24, 16, 14 };
 	const uint8_t *div_table;
-	unsigned int cdclk_sel, vco = intel_hpll_vco(dev);
+	unsigned int cdclk_sel, vco = intel_hpll_vco(dev_priv);
 	uint16_t tmp = 0;
 
 	pci_read_config_word(pdev, GCFGC, &tmp);
@@ -7629,15 +7624,15 @@ fail:
 	return 200000;
 }
 
-static int g33_get_display_clock_speed(struct drm_device *dev)
+static int g33_get_display_clock_speed(struct drm_i915_private *dev_priv)
 {
-	struct pci_dev *pdev = dev->pdev;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	static const uint8_t div_3200[] = { 12, 10,  8,  7, 5, 16 };
 	static const uint8_t div_4000[] = { 14, 12, 10,  8, 6, 20 };
 	static const uint8_t div_4800[] = { 20, 14, 12, 10, 8, 24 };
 	static const uint8_t div_5333[] = { 20, 16, 12, 12, 8, 28 };
 	const uint8_t *div_table;
-	unsigned int cdclk_sel, vco = intel_hpll_vco(dev);
+	unsigned int cdclk_sel, vco = intel_hpll_vco(dev_priv);
 	uint16_t tmp = 0;
 
 	pci_read_config_word(pdev, GCFGC, &tmp);

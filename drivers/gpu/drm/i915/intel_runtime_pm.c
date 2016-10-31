@@ -907,7 +907,7 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	WARN_ON(dev_priv->cdclk_freq !=
-		dev_priv->display.get_display_clock_speed(&dev_priv->drm));
+		dev_priv->display.get_display_clock_speed(dev_priv));
 
 	gen9_assert_dbuf_enabled(dev_priv);
 
