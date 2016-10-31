@@ -3740,7 +3740,7 @@ vchiq_dump_service_state(void *dump_context, VCHIQ_SERVICE_T *service)
 	char buf[80];
 	int len;
 
-	len = snprintf(buf, sizeof(buf), "Service %d: %s (ref %u)",
+	len = snprintf(buf, sizeof(buf), "Service %u: %s (ref %u)",
 		service->localport, srvstate_names[service->srvstate],
 		service->ref_count - 1); /*Don't include the lock just taken*/
 
@@ -3752,7 +3752,7 @@ vchiq_dump_service_state(void *dump_context, VCHIQ_SERVICE_T *service)
 		int tx_pending, rx_pending;
 		if (service->remoteport != VCHIQ_PORT_FREE) {
 			int len2 = snprintf(remoteport, sizeof(remoteport),
-				"%d", service->remoteport);
+				"%u", service->remoteport);
 			if (service->public_fourcc != VCHIQ_FOURCC_INVALID)
 				snprintf(remoteport + len2,
 					sizeof(remoteport) - len2,
