@@ -410,15 +410,9 @@ config ARC_HAS_DIV_REM
 	bool "Insn: div, divu, rem, remu"
 	default y
 
-config ARC_HAS_RTC
-	bool "Local 64-bit r/o cycle counter"
-	default n
-	depends on !SMP
-
-config ARC_HAS_GFRC
-	bool "SMP synchronized 64-bit cycle counter"
+config ARC_TIMERS_64BIT
+	bool "64-bit r/o cycle counters RTC (up) and GFRC (smp)"
 	default y
-	depends on SMP
 
 config ARC_NUMBER_OF_INTERRUPTS
 	int "Number of interrupts"
