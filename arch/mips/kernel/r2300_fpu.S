@@ -24,6 +24,13 @@
 	PTR	9b,fault;					\
 	.previous
 
+#define EX2(a,b)						\
+9:	a,##b;							\
+	.section __ex_table,"a";				\
+	PTR	9b,bad_stack;					\
+	PTR	9b+4,bad_stack;					\
+	.previous
+
 	.set	noreorder
 	.set	mips1
 
@@ -40,38 +47,22 @@ LEAF(_save_fp_context)
 	SET_HARDFLOAT
 	li	v0, 0					# assume success
 	cfc1	t1, fcr31
-	EX(swc1 $f0, 0(a0))
-	EX(swc1 $f1, 8(a0))
-	EX(swc1 $f2, 16(a0))
-	EX(swc1 $f3, 24(a0))
-	EX(swc1 $f4, 32(a0))
-	EX(swc1 $f5, 40(a0))
-	EX(swc1 $f6, 48(a0))
-	EX(swc1 $f7, 56(a0))
-	EX(swc1 $f8, 64(a0))
-	EX(swc1 $f9, 72(a0))
-	EX(swc1 $f10, 80(a0))
-	EX(swc1 $f11, 88(a0))
-	EX(swc1 $f12, 96(a0))
-	EX(swc1 $f13, 104(a0))
-	EX(swc1 $f14, 112(a0))
-	EX(swc1 $f15, 120(a0))
-	EX(swc1 $f16, 128(a0))
-	EX(swc1 $f17, 136(a0))
-	EX(swc1 $f18, 144(a0))
-	EX(swc1 $f19, 152(a0))
-	EX(swc1 $f20, 160(a0))
-	EX(swc1 $f21, 168(a0))
-	EX(swc1 $f22, 176(a0))
-	EX(swc1 $f23, 184(a0))
-	EX(swc1 $f24, 192(a0))
-	EX(swc1 $f25, 200(a0))
-	EX(swc1 $f26, 208(a0))
-	EX(swc1 $f27, 216(a0))
-	EX(swc1 $f28, 224(a0))
-	EX(swc1 $f29, 232(a0))
-	EX(swc1 $f30, 240(a0))
-	EX(swc1 $f31, 248(a0))
+	EX2(s.d $f0, 0(a0))
+	EX2(s.d $f2, 16(a0))
+	EX2(s.d $f4, 32(a0))
+	EX2(s.d $f6, 48(a0))
+	EX2(s.d $f8, 64(a0))
+	EX2(s.d $f10, 80(a0))
+	EX2(s.d $f12, 96(a0))
+	EX2(s.d $f14, 112(a0))
+	EX2(s.d $f16, 128(a0))
+	EX2(s.d $f18, 144(a0))
+	EX2(s.d $f20, 160(a0))
+	EX2(s.d $f22, 176(a0))
+	EX2(s.d $f24, 192(a0))
+	EX2(s.d $f26, 208(a0))
+	EX2(s.d $f28, 224(a0))
+	EX2(s.d $f30, 240(a0))
 	jr	ra
 	 EX(sw	t1, (a1))
 	.set	pop
@@ -90,38 +81,22 @@ LEAF(_restore_fp_context)
 	SET_HARDFLOAT
 	li	v0, 0					# assume success
 	EX(lw t0, (a1))
-	EX(lwc1 $f0, 0(a0))
-	EX(lwc1 $f1, 8(a0))
-	EX(lwc1 $f2, 16(a0))
-	EX(lwc1 $f3, 24(a0))
-	EX(lwc1 $f4, 32(a0))
-	EX(lwc1 $f5, 40(a0))
-	EX(lwc1 $f6, 48(a0))
-	EX(lwc1 $f7, 56(a0))
-	EX(lwc1 $f8, 64(a0))
-	EX(lwc1 $f9, 72(a0))
-	EX(lwc1 $f10, 80(a0))
-	EX(lwc1 $f11, 88(a0))
-	EX(lwc1 $f12, 96(a0))
-	EX(lwc1 $f13, 104(a0))
-	EX(lwc1 $f14, 112(a0))
-	EX(lwc1 $f15, 120(a0))
-	EX(lwc1 $f16, 128(a0))
-	EX(lwc1 $f17, 136(a0))
-	EX(lwc1 $f18, 144(a0))
-	EX(lwc1 $f19, 152(a0))
-	EX(lwc1 $f20, 160(a0))
-	EX(lwc1 $f21, 168(a0))
-	EX(lwc1 $f22, 176(a0))
-	EX(lwc1 $f23, 184(a0))
-	EX(lwc1 $f24, 192(a0))
-	EX(lwc1 $f25, 200(a0))
-	EX(lwc1 $f26, 208(a0))
-	EX(lwc1 $f27, 216(a0))
-	EX(lwc1 $f28, 224(a0))
-	EX(lwc1 $f29, 232(a0))
-	EX(lwc1 $f30, 240(a0))
-	EX(lwc1 $f31, 248(a0))
+	EX2(l.d $f0, 0(a0))
+	EX2(l.d $f2, 16(a0))
+	EX2(l.d $f4, 32(a0))
+	EX2(l.d $f6, 48(a0))
+	EX2(l.d $f8, 64(a0))
+	EX2(l.d $f10, 80(a0))
+	EX2(l.d $f12, 96(a0))
+	EX2(l.d $f14, 112(a0))
+	EX2(l.d $f16, 128(a0))
+	EX2(l.d $f18, 144(a0))
+	EX2(l.d $f20, 160(a0))
+	EX2(l.d $f22, 176(a0))
+	EX2(l.d $f24, 192(a0))
+	EX2(l.d $f26, 208(a0))
+	EX2(l.d $f28, 224(a0))
+	EX2(l.d $f30, 240(a0))
 	jr	ra
 	 ctc1	t0, fcr31
 	.set	pop
