@@ -714,8 +714,8 @@ swiotlb_full(struct device *dev, size_t size, enum dma_data_direction dir,
 	 * When the mapping is small enough return a static buffer to limit
 	 * the damage, or panic when the transfer is too big.
 	 */
-	printk(KERN_ERR "DMA: Out of SW-IOMMU space for %zu bytes at "
-	       "device %s\n", size, dev ? dev_name(dev) : "?");
+	dev_err_ratelimited(dev, "DMA: Out of SW-IOMMU space for %zu bytes\n",
+			    size);
 
 	if (size <= io_tlb_overflow || !do_panic)
 		return;
