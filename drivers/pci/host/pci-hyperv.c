@@ -755,7 +755,7 @@ static int hv_set_affinity(struct irq_data *data, const struct cpumask *dest,
 	return parent->chip->irq_set_affinity(parent, dest, force);
 }
 
-void hv_irq_mask(struct irq_data *data)
+static void hv_irq_mask(struct irq_data *data)
 {
 	pci_msi_mask_irq(data);
 }
@@ -770,7 +770,7 @@ void hv_irq_mask(struct irq_data *data)
  * is built out of this PCI bus's instance GUID and the function
  * number of the device.
  */
-void hv_irq_unmask(struct irq_data *data)
+static void hv_irq_unmask(struct irq_data *data)
 {
 	struct msi_desc *msi_desc = irq_data_get_msi_desc(data);
 	struct irq_cfg *cfg = irqd_cfg(data);
