@@ -209,6 +209,16 @@
 			};
 
 		};
+		cfgchip: chip-controller@1417c {
+			compatible = "ti,da830-cfgchip", "syscon", "simple-mfd";
+			reg = <0x1417c 0x14>;
+
+			usb_phy: usb-phy {
+				compatible = "ti,da830-usb-phy";
+				#phy-cells = <1>;
+				status = "disabled";
+			};
+		};
 		edma0: edma@0 {
 			compatible = "ti,edma3-tpcc";
 			/* eDMA3 CC0: 0x01c0 0000 - 0x01c0 7fff */
