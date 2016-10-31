@@ -1057,8 +1057,10 @@ int qed_hw_init(struct qed_dev *cdev,
 		bool allow_npar_tx_switch,
 		const u8 *bin_fw_data)
 {
-	u32 load_code, param;
-	int rc, mfw_rc, i;
+	u32 load_code, param, drv_mb_param;
+	bool b_default_mtu = true;
+	struct qed_hwfn *p_hwfn;
+	int rc = 0, mfw_rc, i;
 
 	if ((int_mode == QED_INT_MODE_MSI) && (cdev->num_hwfns > 1)) {
 		DP_NOTICE(cdev, "MSI mode is not supported for CMT devices\n");
@@ -1073,6 +1075,12 @@ int qed_hw_init(struct qed_dev *cdev,
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+
+		/* If management didn't provide a default, set one of our own */
+		if (!p_hwfn->hw_info.mtu) {
+			p_hwfn->hw_info.mtu = 1500;
+			b_default_mtu = false;
+		}
 
 		if (IS_VF(cdev)) {
 			p_hwfn->b_int_enabled = 1;
@@ -1155,6 +1163,38 @@ int qed_hw_init(struct qed_dev *cdev,
 		}
 
 		p_hwfn->hw_init_done = true;
+	}
+
+	if (IS_PF(cdev)) {
+		p_hwfn = QED_LEADING_HWFN(cdev);
+		drv_mb_param = (FW_MAJOR_VERSION << 24) |
+			       (FW_MINOR_VERSION << 16) |
+			       (FW_REVISION_VERSION << 8) |
+			       (FW_ENGINEERING_VERSION);
+		rc = qed_mcp_cmd(p_hwfn, p_hwfn->p_main_ptt,
+				 DRV_MSG_CODE_OV_UPDATE_STORM_FW_VER,
+				 drv_mb_param, &load_code, &param);
+		if (rc)
+			DP_INFO(p_hwfn, "Failed to update firmware version\n");
+
+		if (!b_default_mtu) {
+			rc = qed_mcp_ov_update_mtu(p_hwfn, p_hwfn->p_main_ptt,
+						   p_hwfn->hw_info.mtu);
+			if (rc)
+				DP_INFO(p_hwfn,
+					"Failed to update default mtu\n");
+		}
+
+		rc = qed_mcp_ov_update_driver_state(p_hwfn,
+						    p_hwfn->p_main_ptt,
+						  QED_OV_DRIVER_STATE_DISABLED);
+		if (rc)
+			DP_INFO(p_hwfn, "Failed to update driver state\n");
+
+		rc = qed_mcp_ov_update_eswitch(p_hwfn, p_hwfn->p_main_ptt,
+					       QED_OV_ESWITCH_VEB);
+		if (rc)
+			DP_INFO(p_hwfn, "Failed to update eswitch mode\n");
 	}
 
 	return 0;
@@ -1801,6 +1841,9 @@ qed_get_hw_info(struct qed_hwfn *p_hwfn,
 
 	qed_get_num_funcs(p_hwfn, p_ptt);
 
+	if (qed_mcp_is_init(p_hwfn))
+		p_hwfn->hw_info.mtu = p_hwfn->mcp_info->func_info.mtu;
+
 	return qed_hw_get_resc(p_hwfn);
 }
 
@@ -1975,7 +2018,12 @@ int qed_hw_prepare(struct qed_dev *cdev,
 
 void qed_hw_remove(struct qed_dev *cdev)
 {
+	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
 	int i;
+
+	if (IS_PF(cdev))
+		qed_mcp_ov_update_driver_state(p_hwfn, p_hwfn->p_main_ptt,
+					       QED_OV_DRIVER_STATE_NOT_LOADED);
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];

@@ -739,6 +739,8 @@ int qede_change_mtu(struct net_device *ndev, int new_mtu)
 
 	qede_update_mtu(edev, &args);
 
+	edev->ops->common->update_mtu(edev->cdev, args.mtu);
+
 	return 0;
 }
 

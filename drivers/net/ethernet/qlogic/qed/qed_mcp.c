@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/etherdevice.h>
 #include "qed.h"
 #include "qed_dcbx.h"
 #include "qed_hsi.h"
@@ -1068,6 +1069,8 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 
 	info->ovlan = (u16)(shmem_info.ovlan_stag & FUNC_MF_CFG_OV_STAG_MASK);
 
+	info->mtu = (u16)shmem_info.mtu_size;
+
 	DP_VERBOSE(p_hwfn, (QED_MSG_SP | NETIF_MSG_IFUP),
 		   "Read configuration from shmem: pause_on_host %02x protocol %02x BW [%02x - %02x] MAC %02x:%02x:%02x:%02x:%02x:%02x wwn port %llx node %llx ovlan %04x\n",
 		info->pause_on_host, info->protocol,
@@ -1221,6 +1224,166 @@ int qed_mcp_resume(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	cpu_mode = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_MODE);
 
 	return (cpu_mode & MCP_REG_CPU_MODE_SOFT_HALT) ? -EAGAIN : 0;
+}
+
+int qed_mcp_ov_update_current_config(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt,
+				     enum qed_ov_client client)
+{
+	u32 resp = 0, param = 0;
+	u32 drv_mb_param;
+	int rc;
+
+	switch (client) {
+	case QED_OV_CLIENT_DRV:
+		drv_mb_param = DRV_MB_PARAM_OV_CURR_CFG_OS;
+		break;
+	case QED_OV_CLIENT_USER:
+		drv_mb_param = DRV_MB_PARAM_OV_CURR_CFG_OTHER;
+		break;
+	case QED_OV_CLIENT_VENDOR_SPEC:
+		drv_mb_param = DRV_MB_PARAM_OV_CURR_CFG_VENDOR_SPEC;
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Invalid client type %d\n", client);
+		return -EINVAL;
+	}
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_OV_UPDATE_CURR_CFG,
+			 drv_mb_param, &resp, &param);
+	if (rc)
+		DP_ERR(p_hwfn, "MCP response failure, aborting\n");
+
+	return rc;
+}
+
+int qed_mcp_ov_update_driver_state(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt,
+				   enum qed_ov_driver_state drv_state)
+{
+	u32 resp = 0, param = 0;
+	u32 drv_mb_param;
+	int rc;
+
+	switch (drv_state) {
+	case QED_OV_DRIVER_STATE_NOT_LOADED:
+		drv_mb_param = DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE_NOT_LOADED;
+		break;
+	case QED_OV_DRIVER_STATE_DISABLED:
+		drv_mb_param = DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE_DISABLED;
+		break;
+	case QED_OV_DRIVER_STATE_ACTIVE:
+		drv_mb_param = DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE_ACTIVE;
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Invalid driver state %d\n", drv_state);
+		return -EINVAL;
+	}
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_OV_UPDATE_DRIVER_STATE,
+			 drv_mb_param, &resp, &param);
+	if (rc)
+		DP_ERR(p_hwfn, "Failed to send driver state\n");
+
+	return rc;
+}
+
+int qed_mcp_ov_update_mtu(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u16 mtu)
+{
+	u32 resp = 0, param = 0;
+	u32 drv_mb_param;
+	int rc;
+
+	drv_mb_param = (u32)mtu << DRV_MB_PARAM_OV_MTU_SIZE_SHIFT;
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_OV_UPDATE_MTU,
+			 drv_mb_param, &resp, &param);
+	if (rc)
+		DP_ERR(p_hwfn, "Failed to send mtu value, rc = %d\n", rc);
+
+	return rc;
+}
+
+int qed_mcp_ov_update_mac(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 *mac)
+{
+	struct qed_mcp_mb_params mb_params;
+	union drv_union_data union_data;
+	int rc;
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = DRV_MSG_CODE_SET_VMAC;
+	mb_params.param = DRV_MSG_CODE_VMAC_TYPE_MAC <<
+			  DRV_MSG_CODE_VMAC_TYPE_SHIFT;
+	mb_params.param |= MCP_PF_ID(p_hwfn);
+	ether_addr_copy(&union_data.raw_data[0], mac);
+	mb_params.p_data_src = &union_data;
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	if (rc)
+		DP_ERR(p_hwfn, "Failed to send mac address, rc = %d\n", rc);
+
+	return rc;
+}
+
+int qed_mcp_ov_update_wol(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, enum qed_ov_wol wol)
+{
+	u32 resp = 0, param = 0;
+	u32 drv_mb_param;
+	int rc;
+
+	switch (wol) {
+	case QED_OV_WOL_DEFAULT:
+		drv_mb_param = DRV_MB_PARAM_WOL_DEFAULT;
+		break;
+	case QED_OV_WOL_DISABLED:
+		drv_mb_param = DRV_MB_PARAM_WOL_DISABLED;
+		break;
+	case QED_OV_WOL_ENABLED:
+		drv_mb_param = DRV_MB_PARAM_WOL_ENABLED;
+		break;
+	default:
+		DP_ERR(p_hwfn, "Invalid wol state %d\n", wol);
+		return -EINVAL;
+	}
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_OV_UPDATE_WOL,
+			 drv_mb_param, &resp, &param);
+	if (rc)
+		DP_ERR(p_hwfn, "Failed to send wol mode, rc = %d\n", rc);
+
+	return rc;
+}
+
+int qed_mcp_ov_update_eswitch(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt,
+			      enum qed_ov_eswitch eswitch)
+{
+	u32 resp = 0, param = 0;
+	u32 drv_mb_param;
+	int rc;
+
+	switch (eswitch) {
+	case QED_OV_ESWITCH_NONE:
+		drv_mb_param = DRV_MB_PARAM_ESWITCH_MODE_NONE;
+		break;
+	case QED_OV_ESWITCH_VEB:
+		drv_mb_param = DRV_MB_PARAM_ESWITCH_MODE_VEB;
+		break;
+	case QED_OV_ESWITCH_VEPA:
+		drv_mb_param = DRV_MB_PARAM_ESWITCH_MODE_VEPA;
+		break;
+	default:
+		DP_ERR(p_hwfn, "Invalid eswitch mode %d\n", eswitch);
+		return -EINVAL;
+	}
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_OV_UPDATE_ESWITCH_MODE,
+			 drv_mb_param, &resp, &param);
+	if (rc)
+		DP_ERR(p_hwfn, "Failed to send eswitch mode, rc = %d\n", rc);
+
+	return rc;
 }
 
 int qed_mcp_set_led(struct qed_hwfn *p_hwfn,

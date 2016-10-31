@@ -267,6 +267,7 @@ struct qed_dev_info {
 	u8		mf_mode;
 	bool		tx_switching;
 	bool		rdma_supported;
+	u16		mtu;
 };
 
 enum qed_sb_type {
@@ -554,6 +555,33 @@ struct qed_common_ops {
  */
 	int (*set_led)(struct qed_dev *cdev,
 		       enum qed_led_mode mode);
+
+/**
+ * @brief update_drv_state - API to inform the change in the driver state.
+ *
+ * @param cdev
+ * @param active
+ *
+ */
+	int (*update_drv_state)(struct qed_dev *cdev, bool active);
+
+/**
+ * @brief update_mac - API to inform the change in the mac address
+ *
+ * @param cdev
+ * @param mac
+ *
+ */
+	int (*update_mac)(struct qed_dev *cdev, u8 *mac);
+
+/**
+ * @brief update_mtu - API to inform the change in the mtu
+ *
+ * @param cdev
+ * @param mtu
+ *
+ */
+	int (*update_mtu)(struct qed_dev *cdev, u16 mtu);
 };
 
 #define MASK_FIELD(_name, _value) \

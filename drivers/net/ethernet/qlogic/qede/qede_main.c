@@ -2396,6 +2396,8 @@ static void qede_init_ndev(struct qede_dev *edev)
 
 	/* Set network device HW mac */
 	ether_addr_copy(edev->ndev->dev_addr, edev->dev_info.common.hw_mac);
+
+	ndev->mtu = edev->dev_info.common.mtu;
 }
 
 /* This function converts from 32b param to two params of level and module
@@ -3751,6 +3753,8 @@ static int qede_open(struct net_device *ndev)
 
 	udp_tunnel_get_rx_info(ndev);
 
+	edev->ops->common->update_drv_state(edev->cdev, true);
+
 	return 0;
 }
 
@@ -3759,6 +3763,8 @@ static int qede_close(struct net_device *ndev)
 	struct qede_dev *edev = netdev_priv(ndev);
 
 	qede_unload(edev, QEDE_UNLOAD_NORMAL);
+
+	edev->ops->common->update_drv_state(edev->cdev, false);
 
 	return 0;
 }
@@ -3819,6 +3825,8 @@ static int qede_set_mac_addr(struct net_device *ndev, void *p)
 				   edev->primary_mac);
 	if (rc)
 		return rc;
+
+	edev->ops->common->update_mac(edev->cdev, addr->sa_data);
 
 	/* Add MAC filter according to the new unicast HW MAC address */
 	ether_addr_copy(edev->primary_mac, ndev->dev_addr);

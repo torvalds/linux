@@ -226,6 +226,7 @@ struct qed_hw_info {
 	u32				port_mode;
 	u32				hw_mode;
 	unsigned long		device_capabilities;
+	u16				mtu;
 };
 
 struct qed_hw_cid_data {

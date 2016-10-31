@@ -92,6 +92,8 @@ struct qed_mcp_function_info {
 
 #define QED_MCP_VLAN_UNSET              (0xffff)
 	u16				ovlan;
+
+	u16				mtu;
 };
 
 struct qed_mcp_nvm_common {
@@ -145,6 +147,30 @@ union qed_mcp_protocol_stats {
 	struct qed_mcp_fcoe_stats fcoe_stats;
 	struct qed_mcp_iscsi_stats iscsi_stats;
 	struct qed_mcp_rdma_stats rdma_stats;
+};
+
+enum qed_ov_eswitch {
+	QED_OV_ESWITCH_NONE,
+	QED_OV_ESWITCH_VEB,
+	QED_OV_ESWITCH_VEPA
+};
+
+enum qed_ov_client {
+	QED_OV_CLIENT_DRV,
+	QED_OV_CLIENT_USER,
+	QED_OV_CLIENT_VENDOR_SPEC
+};
+
+enum qed_ov_driver_state {
+	QED_OV_DRIVER_STATE_NOT_LOADED,
+	QED_OV_DRIVER_STATE_DISABLED,
+	QED_OV_DRIVER_STATE_ACTIVE
+};
+
+enum qed_ov_wol {
+	QED_OV_WOL_DEFAULT,
+	QED_OV_WOL_DISABLED,
+	QED_OV_WOL_ENABLED
 };
 
 /**
@@ -276,6 +302,69 @@ int
 qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 			 struct qed_ptt *p_ptt,
 			 struct qed_mcp_drv_version *p_ver);
+
+/**
+ * @brief Notify MFW about the change in base device properties
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param client - qed client type
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_current_config(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt,
+				     enum qed_ov_client client);
+
+/**
+ * @brief Notify MFW about the driver state
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param drv_state - Driver state
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_driver_state(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt,
+				   enum qed_ov_driver_state drv_state);
+
+/**
+ * @brief Send MTU size to MFW
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param mtu - MTU size
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_mtu(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u16 mtu);
+
+/**
+ * @brief Send MAC address to MFW
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param mac - MAC address
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_mac(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 *mac);
+
+/**
+ * @brief Send WOL mode to MFW
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param wol - WOL mode
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_wol(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt,
+			  enum qed_ov_wol wol);
 
 /**
  * @brief Set LED status
@@ -545,5 +634,18 @@ int __qed_configure_pf_min_bandwidth(struct qed_hwfn *p_hwfn,
 
 int qed_mcp_mask_parities(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt, u32 mask_parities);
+
+/**
+ * @brief Send eswitch mode to MFW
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param eswitch - eswitch mode
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_eswitch(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt,
+			      enum qed_ov_eswitch eswitch);
 
 #endif
