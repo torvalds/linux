@@ -308,28 +308,6 @@ static int nfp_net_msix_alloc(struct nfp_net *nn, int nr_vecs)
 }
 
 /**
- * nfp_net_irqs_wanted() - Work out how many interrupt vectors we want
- * @nn:       NFP Network structure
- *
- * We want a vector per CPU (or ring), whatever is smaller plus
- * NFP_NET_NON_Q_VECTORS for LSC etc.
- *
- * Return: Number of interrupts wanted
- */
-static int nfp_net_irqs_wanted(struct nfp_net *nn)
-{
-	unsigned int vecs;
-	int ncpus;
-
-	ncpus = num_online_cpus();
-
-	vecs = max_t(int, nn->num_tx_rings, nn->num_rx_rings);
-	vecs = min_t(int, vecs, ncpus);
-
-	return vecs + NFP_NET_NON_Q_VECTORS;
-}
-
-/**
  * nfp_net_irqs_alloc() - allocates MSI-X irqs
  * @nn:       NFP Network structure
  *
@@ -339,7 +317,7 @@ int nfp_net_irqs_alloc(struct nfp_net *nn)
 {
 	int wanted_irqs;
 
-	wanted_irqs = nfp_net_irqs_wanted(nn);
+	wanted_irqs = nn->num_r_vecs + NFP_NET_NON_Q_VECTORS;
 
 	nn->num_irqs = nfp_net_msix_alloc(nn, wanted_irqs);
 	if (nn->num_irqs == 0) {
@@ -2725,6 +2703,9 @@ struct nfp_net *nfp_net_netdev_alloc(struct pci_dev *pdev,
 	nqs = netif_get_num_default_rss_queues();
 	nn->num_tx_rings = min_t(int, nqs, max_tx_rings);
 	nn->num_rx_rings = min_t(int, nqs, max_rx_rings);
+
+	nn->num_r_vecs = max(nn->num_tx_rings, nn->num_rx_rings);
+	nn->num_r_vecs = min_t(unsigned int, nn->num_r_vecs, num_online_cpus());
 
 	nn->txd_cnt = NFP_NET_TX_DESCS_DEFAULT;
 	nn->rxd_cnt = NFP_NET_RX_DESCS_DEFAULT;
