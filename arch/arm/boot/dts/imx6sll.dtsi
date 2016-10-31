@@ -28,9 +28,9 @@
 		mmc2 = &usdhc3;
 		serial0 = &uart1;
 		serial1 = &uart2;
-		serial3 = &uart3;
-		serial4 = &uart4;
-		serial5 = &uart5;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		serial4 = &uart5;
 		spi0 = &ecspi1;
 		spi1 = &ecspi2;
 		spi3 = &ecspi3;
@@ -263,7 +263,7 @@
 				};
 
 				uart4: serial@02018000 {
-					compatible = "fsl,imx6sll-uart", "fsl-imx21-uart";
+					compatible = "fsl,imx6sll-uart", "fsl,imx6q-uart", "fsl-imx21-uart";
 					reg = <0x02018000 0x4000>;
 					interrupts =<GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 					dmas = <&sdma 31 4 0>, <&sdma 32 4 0>;
@@ -287,7 +287,7 @@
 				};
 
 				uart2: serial@02024000 {
-					compatible = "fsl,imx6sll-uart", "fsl,imx21-uart";
+					compatible = "fsl,imx6sll-uart", "fsl,imx6q-uart", "fsl-imx21-uart";
 					reg = <0x02024000 0x4000>;
 					interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 					dmas = <&sdma 27 4 0>, <&sdma 28 4 0>;
@@ -338,7 +338,7 @@
 				};
 
 				uart3: serial@02034000 {
-					compatible = "fsl,imx6sll-uart", "fsl,imx21-uart";
+					compatible = "fsl,imx6sll-uart", "fsl,imx6q-uart", "fsl-imx21-uart";
 					reg = <0x02034000 0x4000>;
 					interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 					dmas = <&sdma 29 4 0>, <&sdma 30 4 0>;
@@ -520,6 +520,7 @@
 				fsl,tempmon = <&anatop>;
 				fsl,tempmon-data = <&ocotp>;
 				clocks = <&clks IMX6SLL_CLK_PLL3_USB_OTG>;
+				status = "disabled";
 			};
 
 			usbphy1: usbphy@020c9000 {
@@ -834,7 +835,7 @@
 			};
 
 			uart5: serial@021f4000 {
-				compatible = "fsl,imx6sll-uart", "fsl-imx21-uart";
+				compatible = "fsl,imx6sll-uart", "fsl,imx6q-uart", "fsl-imx21-uart";
 				reg = <0x021f4000 0x4000>;
 				interrupts =<GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 				dmas = <&sdma 33 4 0>, <&sdma 34 4 0>;

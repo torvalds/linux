@@ -1,0 +1,67 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
+ * NOTE: This DTS file is written for plugging in Murata Wi-Fi/BT EVK into Slot
+ * SD1 and using Murata i.MX InterConnect Ver 2.0 Adapter. Bluetooth UART &
+ * control signals are connected via ribbon cable (J1701 connector).
+ */
+
+#include "imx6sll-evk.dts"
+
+/ {
+	regulators {
+		wlreg_on: fixedregulator@100 {
+			compatible = "regulator-fixed";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-name = "wlreg_on";
+			gpio = <&gpio3 24 0>;
+			startup-delay-us = <100>;
+			enable-active-high;
+		};
+	};
+
+	bcmdhd_wlan_0: bcmdhd_wlan@0 {
+		compatible = "android,bcmdhd_wlan";
+		wlreg_on-supply = <&wlreg_on>;
+	};
+};
+
+&iomuxc {
+	imx6ul-evk-murata-v2 {
+		pinctrl_wifi: wifigrp {
+			fsl,pins = <
+				MX6SLL_PAD_KEY_COL0__GPIO3_IO24 0x17059 /* WL_REG_ON */
+				MX6SLL_PAD_KEY_COL1__GPIO3_IO26 0x17059 /* WL_HOST_WAKE */
+			>;
+		};
+	};
+};
+
+&lcdif {
+	status = "disabled";
+};
+
+&reg_sd3_vmmc {
+	regulator-always-on;
+};
+
+&uart5 {
+	status = "okay";
+};
+
+&usdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc3_100mhz &pinctrl_wifi>;
+	no-1-8-v;
+	non-removable;
+	cd-post;
+	pm-ignore-notify;
+	wifi-host; /* add hook for SD card detect mechanism for BCMDHD driver */
+};

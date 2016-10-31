@@ -492,6 +492,25 @@
 			>;
 		};
 
+		pinctrl_uart5: uart5grp {
+			fsl,pins = <
+				MX6SLL_PAD_KEY_ROW1__GPIO3_IO27 0x1b0b1  /* bt reg on */
+				MX6SLL_PAD_ECSPI1_MOSI__UART5_DCE_TX 0x1b0b1
+				MX6SLL_PAD_ECSPI1_SCLK__UART5_DCE_RX 0x1b0b1
+				MX6SLL_PAD_ECSPI1_SS0__UART5_DCE_CTS 0x1b0b1
+				MX6SLL_PAD_ECSPI1_MISO__UART5_DCE_RTS 0x1b0b1
+			>;
+		};
+
+		pinctrl_uart5dte: uart5dtegrp {
+			fsl,pins = <
+				MX6SLL_PAD_ECSPI1_MOSI__UART5_DTE_RX 0x1b0b1
+				MX6SLL_PAD_ECSPI1_SCLK__UART5_DTE_TX 0x1b0b1
+				MX6SLL_PAD_ECSPI1_SS0__UART5_DTE_RTS 0x1b0b1
+				MX6SLL_PAD_ECSPI1_MISO__UART5_DTE_CTS 0x1b0b1
+			>;
+		};
+
 		pinctrl_usdhc1: usdhc1grp {
 			fsl,pins = <
 				MX6SLL_PAD_SD1_CMD__SD1_CMD	0x17059
@@ -648,6 +667,16 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";
+};
+
+&uart5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart5>;
+	fsl,uart-has-rtscts;
+	/* for DTE mode, add below change */
+	/* fsl,dte-mode; */
+	/* pinctrl-0 = <&pinctrl_uart5dte>; */
+	status = "disabled";
 };
 
 &usdhc1 {
