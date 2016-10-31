@@ -3224,8 +3224,6 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->min_mtu = 64;
 	dev->max_mtu = 9500;
 
-	SET_NETDEV_DEV(dev, &pdev->dev);
-
 	if (mp->shared->win_protect)
 		wrl(mp, WINDOW_PROTECT(mp->port_num), mp->shared->win_protect);
 
