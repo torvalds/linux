@@ -911,6 +911,9 @@ repeat:
 	if (itrace_synth_opts.last_branch)
 		has_br_stack = true;
 
+	if (has_br_stack && branch_call_mode)
+		symbol_conf.show_branchflag_count = true;
+
 	/*
 	 * Branch mode is a tristate:
 	 * -1 means default, so decide based on the file having branch data.
