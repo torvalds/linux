@@ -231,7 +231,7 @@ Documentation/DocBook/ 디렉토리 내에서 만들어지며 PDF, Postscript, H
 4.x 커널 트리
 ---------------
 
-4.x 커널들은 Linux Torvalds가 관리하며 kernel.org의 pub/linux/kernel/v4.x/
+4.x 커널들은 Linus Torvalds가 관리하며 kernel.org의 pub/linux/kernel/v4.x/
 디렉토리에서 참조될 수 있다.개발 프로세스는 다음과 같다.
   - 새로운 커널이 배포되자마자 2주의 시간이 주어진다. 이 기간동은
     메인테이너들은 큰 diff들을 Linus에게 제출할 수 있다. 대개 이 패치들은
