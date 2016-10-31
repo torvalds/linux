@@ -1525,21 +1525,15 @@ static int nfp_net_poll(struct napi_struct *napi, int budget)
 {
 	struct nfp_net_r_vector *r_vec =
 		container_of(napi, struct nfp_net_r_vector, napi);
-	struct nfp_net_rx_ring *rx_ring = r_vec->rx_ring;
-	struct nfp_net_tx_ring *tx_ring = r_vec->tx_ring;
-	struct nfp_net *nn = r_vec->nfp_net;
-	struct netdev_queue *txq;
 	unsigned int pkts_polled;
 
-	tx_ring = &nn->tx_rings[rx_ring->idx];
-	txq = netdev_get_tx_queue(nn->netdev, tx_ring->idx);
-	nfp_net_tx_complete(tx_ring);
+	nfp_net_tx_complete(r_vec->tx_ring);
 
-	pkts_polled = nfp_net_rx(rx_ring, budget);
+	pkts_polled = nfp_net_rx(r_vec->rx_ring, budget);
 
 	if (pkts_polled < budget) {
 		napi_complete_done(napi, pkts_polled);
-		nfp_net_irq_unmask(nn, r_vec->irq_idx);
+		nfp_net_irq_unmask(r_vec->nfp_net, r_vec->irq_idx);
 	}
 
 	return pkts_polled;
