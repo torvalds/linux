@@ -254,7 +254,8 @@ branches.  These different branches are:
   - the 4.x -next kernel tree for integration tests
 
 4.x kernel tree
------------------
+~~~~~~~~~~~~~~~
+
 4.x kernels are maintained by Linus Torvalds, and can be found on
 https://kernel.org in the pub/linux/kernel/v4.x/ directory.  Its development
 process is as follows:
@@ -289,7 +290,8 @@ mailing list about kernel releases:
 	preconceived timeline."*
 
 4.x.y -stable kernel tree
--------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Kernels with 3-part versions are -stable kernels. They contain
 relatively small and critical fixes for security problems or significant
 regressions discovered in a given 4.x kernel.
@@ -312,7 +314,8 @@ documents what kinds of changes are acceptable for the -stable tree, and
 how the release process works.
 
 4.x -git patches
-----------------
+~~~~~~~~~~~~~~~~
+
 These are daily snapshots of Linus' kernel tree which are managed in a
 git repository (hence the name.) These patches are usually released
 daily and represent the current state of Linus' tree.  They are more
@@ -320,7 +323,8 @@ experimental than -rc kernels since they are generated automatically
 without even a cursory glance to see if they are sane.
 
 Subsystem Specific kernel trees and patches
--------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 The maintainers of the various kernel subsystems --- and also many
 kernel subsystem developers --- expose their current state of
 development in source repositories.  That way, others can see what is
@@ -344,7 +348,8 @@ accepted, or rejected.  Most of these patchwork sites are listed at
 https://patchwork.kernel.org/.
 
 4.x -next kernel tree for integration tests
--------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Before updates from subsystem trees are merged into the mainline 4.x
 tree, they need to be integration-tested.  For this purpose, a special
 testing repository exists into which virtually all subsystem trees are
