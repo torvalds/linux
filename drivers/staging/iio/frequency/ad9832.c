@@ -222,10 +222,22 @@ static int ad9832_probe(struct spi_device *spi)
 		return ret;
 	}
 
+	st->dvdd = devm_regulator_get(&spi->dev, "dvdd");
+	if (IS_ERR(st->dvdd)) {
+		ret = PTR_ERR(st->dvdd);
+		goto error_disable_reg;
+	}
+
+	ret = regulator_enable(st->dvdd);
+	if (ret) {
+		dev_err(&spi->dev, "Failed to enable specified DVDD supply\n");
+		goto error_disable_reg;
+	}
+
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev) {
 		ret = -ENOMEM;
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 	}
 	spi_set_drvdata(spi, indio_dev);
 	st = iio_priv(indio_dev);
@@ -280,39 +292,41 @@ static int ad9832_probe(struct spi_device *spi)
 	ret = spi_sync(st->spi, &st->msg);
 	if (ret) {
 		dev_err(&spi->dev, "device init failed\n");
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 	}
 
 	ret = ad9832_write_frequency(st, AD9832_FREQ0HM, pdata->freq0);
 	if (ret)
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 
 	ret = ad9832_write_frequency(st, AD9832_FREQ1HM, pdata->freq1);
 	if (ret)
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 
 	ret = ad9832_write_phase(st, AD9832_PHASE0H, pdata->phase0);
 	if (ret)
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 
 	ret = ad9832_write_phase(st, AD9832_PHASE1H, pdata->phase1);
 	if (ret)
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 
 	ret = ad9832_write_phase(st, AD9832_PHASE2H, pdata->phase2);
 	if (ret)
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 
 	ret = ad9832_write_phase(st, AD9832_PHASE3H, pdata->phase3);
 	if (ret)
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_disable_reg;
+		goto error_disable_dvdd;
 
 	return 0;
 
+error_disable_dvdd:
+	regulator_disable(st->dvdd);
 error_disable_reg:
 	regulator_disable(reg);
 
@@ -325,6 +339,7 @@ static int ad9832_remove(struct spi_device *spi)
 	struct ad9832_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
+	regulator_disable(st->dvdd);
 	regulator_disable(st->reg);
 
 	return 0;
