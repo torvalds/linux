@@ -1052,6 +1052,7 @@ static long gyro_dev_ioctl(struct file *file,
 		result = sensor->status_cur;
 		if (copy_to_user(argp, &result, sizeof(result)))
 		{
+			mutex_unlock(&sensor->operation_mutex);
             		printk("%s:failed to copy sense data to user space.\n",__FUNCTION__);
 			return -EFAULT;
 		}
@@ -1060,9 +1061,9 @@ static long gyro_dev_ioctl(struct file *file,
         	DBG("%s:L3G4200D_IOCTL_SET_ENABLE OK\n", __func__);
 		break;
 	case L3G4200D_IOCTL_SET_DELAY:					
-		mutex_lock(&sensor->operation_mutex);
 		if (copy_from_user(&rate, argp, sizeof(rate)))
 		return -EFAULT;
+		mutex_lock(&sensor->operation_mutex);
 		if(sensor->status_cur == SENSOR_OFF)
 		{
 			if ( (result = sensor->ops->active(client, 1, rate) ) < 0 ) {
@@ -2041,11 +2042,11 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	if(result < 0)
 		goto out_free_memory;
 	
-	sensor->input_dev = input_allocate_device();
+	sensor->input_dev = devm_input_allocate_device(&client->dev);
 	if (!sensor->input_dev) {
 		result = -ENOMEM;
 		dev_err(&client->dev,
-			"Failed to allocate input device %s\n", sensor->input_dev->name);
+			"Failed to allocate input device\n");
 		goto out_free_memory;
 	}	
 
@@ -2189,11 +2190,8 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	return result;
 	
 out_misc_device_register_device_failed:
-	input_unregister_device(sensor->input_dev);	
 out_input_register_device_failed:
-	input_free_device(sensor->input_dev);	
 out_free_memory:
-	//kfree(sensor);
 out_no_free:
 	dev_err(&client->adapter->dev, "%s failed %d\n\n", __func__, result);
 	return result;
@@ -2219,9 +2217,6 @@ static int sensor_remove(struct i2c_client *client)
 	
 	cancel_delayed_work_sync(&sensor->delaywork);
 	misc_deregister(&sensor->miscdev);
-	input_unregister_device(sensor->input_dev);	
-	input_free_device(sensor->input_dev);	
-	kfree(sensor);
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	if((sensor->ops->suspend) && (sensor->ops->resume))
 		unregister_early_suspend(&sensor->early_suspend);
