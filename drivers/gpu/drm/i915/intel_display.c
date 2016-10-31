@@ -115,8 +115,9 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
 static void intel_begin_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
 static void intel_finish_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
-static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_crtc,
-	struct intel_crtc_state *crtc_state);
+static void skl_init_scalers(struct drm_i915_private *dev_priv,
+			     struct intel_crtc *crtc,
+			     struct intel_crtc_state *crtc_state);
 static void skylake_pfit_enable(struct intel_crtc *crtc);
 static void ironlake_pfit_disable(struct intel_crtc *crtc, bool force);
 static void ironlake_pfit_enable(struct intel_crtc *crtc);
@@ -10735,10 +10736,8 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 		I915_READ(GAMMA_MODE(crtc->pipe)) & GAMMA_MODE_MODE_MASK;
 
 	if (INTEL_INFO(dev)->gen >= 9) {
-		skl_init_scalers(dev, crtc, pipe_config);
-	}
+		skl_init_scalers(dev_priv, crtc, pipe_config);
 
-	if (INTEL_INFO(dev)->gen >= 9) {
 		pipe_config->scaler_state.scaler_id = -1;
 		pipe_config->scaler_state.scaler_users &= ~(1 << SKL_CRTC_INDEX);
 	}
@@ -15222,17 +15221,19 @@ fail:
 	return ERR_PTR(ret);
 }
 
-static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_crtc,
-	struct intel_crtc_state *crtc_state)
+static void skl_init_scalers(struct drm_i915_private *dev_priv,
+			     struct intel_crtc *crtc,
+			     struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc_scaler_state *scaler_state =
+		&crtc_state->scaler_state;
 	int i;
-	struct intel_scaler *intel_scaler;
-	struct intel_crtc_scaler_state *scaler_state = &crtc_state->scaler_state;
 
-	for (i = 0; i < intel_crtc->num_scalers; i++) {
-		intel_scaler = &scaler_state->scalers[i];
-		intel_scaler->in_use = 0;
-		intel_scaler->mode = PS_SCALER_MODE_DYN;
+	for (i = 0; i < crtc->num_scalers; i++) {
+		struct intel_scaler *scaler = &scaler_state->scalers[i];
+
+		scaler->in_use = 0;
+		scaler->mode = PS_SCALER_MODE_DYN;
 	}
 
 	scaler_state->scaler_id = -1;
@@ -15267,7 +15268,7 @@ static int intel_crtc_init(struct drm_device *dev, enum pipe pipe)
 		else
 			intel_crtc->num_scalers = SKL_NUM_SCALERS;
 
-		skl_init_scalers(dev, intel_crtc, crtc_state);
+		skl_init_scalers(dev_priv, intel_crtc, crtc_state);
 	}
 
 	primary = intel_primary_plane_create(dev_priv, pipe);
