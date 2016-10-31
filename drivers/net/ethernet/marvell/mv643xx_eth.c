@@ -3220,15 +3220,12 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->priv_flags |= IFF_UNICAST_FLT;
 	dev->gso_max_segs = MV643XX_MAX_TSO_SEGS;
 
-<<<<<<< HEAD
 	/* MTU range: 64 - 9500 */
 	dev->min_mtu = 64;
 	dev->max_mtu = 9500;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-=======
->>>>>>> 2a26d99b251b8625d27aed14e97fc10707a3a81f
 	if (mp->shared->win_protect)
 		wrl(mp, WINDOW_PROTECT(mp->port_num), mp->shared->win_protect);
 
