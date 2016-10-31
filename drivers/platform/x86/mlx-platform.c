@@ -1,5 +1,4 @@
 /*
- * arch/x86/platform/mellanox/mlx-platform.c
  * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2016 Vadim Pasternak <vadimp@mellanox.com>
  *

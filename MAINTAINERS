@@ -7879,7 +7879,7 @@ MELLANOX PLATFORM DRIVER
 M:      Vadim Pasternak <vadimp@mellanox.com>
 L:      platform-driver-x86@vger.kernel.org
 S:      Supported
-F:      arch/x86/platform/mellanox/mlx-platform.c
+F:      drivers/platform/x86/mlx-platform.c
 
 MELLANOX MLX CPLD HOTPLUG DRIVER
 M:	Vadim Pasternak <vadimp@mellanox.com>
