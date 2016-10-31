@@ -9,17 +9,20 @@ read for non English (read: korean) speakers and is not intended as
 a fork. So if you have any comments or updates for this file please
 try to update the original English file first.
 
-==================================
+----------------------------------
+
 이 문서는
 Documentation/process/howto.rst
 의 한글 번역입니다.
 
 역자： 김민찬 <minchan@kernel.org>
 감수： 이제이미 <jamee.lee@samsung.com>
-==================================
+
+----------------------------------
+
 
 어떻게 리눅스 커널 개발을 하는가
----------------------------------
+================================
 
 이 문서는 커널 개발에 있어 가장 중요한 문서이다. 이 문서는
 리눅스 커널 개발자가 되는 법과 리눅스 커널 개발 커뮤니티와 일하는
@@ -46,6 +49,7 @@ Documentation/process/howto.rst
 어셈블리(특정 아키텍쳐)는 잘 알아야 할 필요는 없다.
 다음의 참고서적들은 기본에 충실한 C 교육이나 수년간의 경험에 견주지는
 못하지만 적어도 참고 용도로는 좋을 것이다
+
  - "The C Programming Language" by Kernighan and Ritchie [Prentice Hall]
  - "Practical C Programming" by Steve Oualline [O'Reilly]
  - "C:  A Reference Manual" by Harbison and Steele [Prentice Hall]
@@ -79,6 +83,7 @@ Documentation/process/howto.rst
 그들의 말에 의지해서는 안된다.
 
 GPL에 관한 잦은 질문들과 답변들은 다음을 참조하라.
+
     http://www.gnu.org/licenses/gpl-faq.html
 
 
@@ -93,6 +98,7 @@ GPL에 관한 잦은 질문들과 답변들은 다음을 참조하라.
 mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
 
 다음은 커널 소스 트리에 있는 읽어야 할 파일들의 리스트이다.
+
   README
     이 파일은 리눅스 커널에 관하여 간단한 배경 설명과 커널을 설정하고
     빌드하기 위해 필요한 것을 설명한다. 커널에 입문하는 사람들은 여기서
@@ -112,26 +118,34 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
   Documentation/process/submitting-drivers.rst
     이 파일들은 성공적으로 패치를 만들고 보내는 법을 다음의 내용들로
     굉장히 상세히 설명하고 있다(그러나 다음으로 한정되진 않는다).
+
        - Email 내용들
        - Email 양식
        - 그것을 누구에게 보낼지
+
     이러한 규칙들을 따르는 것이 성공(역자주: 패치가 받아들여 지는 것)을
     보장하진 않는다(왜냐하면 모든 패치들은 내용과 스타일에 관하여
     면밀히 검토되기 때문이다). 그러나 규칙을 따르지 않는다면 거의
     성공하지도 못할 것이다.
 
     올바른 패치들을 만드는 법에 관한 훌륭한 다른 문서들이 있다.
+
     "The Perfect Patch"
+
         http://www.ozlabs.org/~akpm/stuff/tpp.txt
+
     "Linux kernel patch submission format"
+
         http://linux.yyz.us/patch-format.html
 
    Documentation/process/stable-api-nonsense.rst
     이 문서는 의도적으로 커널이 불변하는 API를 갖지 않도록 결정한
     이유를 설명하며 다음과 같은 것들을 포함한다.
+
        - 서브시스템 shim-layer(호환성을 위해?)
        - 운영체제들간의 드라이버 이식성
        - 커널 소스 트리내에 빠른 변화를 늦추는 것(또는 빠른 변화를 막는 것)
+
     이 문서는 리눅스 개발 철학을 이해하는데 필수적이며 다른 운영체제에서
     리눅스로 전향하는 사람들에게는 매우 중요하다.
 
@@ -168,10 +182,14 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
 올바르게 처리하는 법에 관한 규칙을 포함하고 있다. 이 문서는
 Documentation/DocBook/ 디렉토리 내에서 만들어지며 PDF, Postscript, HTML,
 그리고 man 페이지들로 다음과 같이 실행하여 만들어 진다.
+
+::
+
          make pdfdocs
          make psdocs
          make htmldocs
          make mandocs
+
 각각의 명령을 메인 커널 소스 디렉토리로부터 실행한다.
 
 
@@ -180,7 +198,9 @@ Documentation/DocBook/ 디렉토리 내에서 만들어지며 PDF, Postscript, H
 
 여러분이 리눅스 커널 개발에 관하여 아무것도 모른다면 Linux KernelNewbies
 프로젝트를 봐야 한다.
+
     http://kernelnewbies.org
+
 그곳은 거의 모든 종류의 기본적인 커널 개발 질문들(질문하기 전에 먼저
 아카이브를 찾아봐라. 과거에 이미 답변되었을 수도 있다)을 할 수 있는 도움이
 될만한 메일링 리스트가 있다. 또한 실시간으로 질문 할 수 있는 IRC 채널도
@@ -192,7 +212,9 @@ Documentation/DocBook/ 디렉토리 내에서 만들어지며 PDF, Postscript, H
 
 여러분이 어디서 시작해야 할진 모르지만 커널 개발 커뮤니티에 참여할 수
 있는 일들을 찾길 원한다면 리눅스 커널 Janitor 프로젝트를 살펴봐라.
+
 	http://kernelnewbies.org/KernelJanitors
+
 그곳은 시작하기에 훌륭한 장소이다. 그곳은 리눅스 커널 소스 트리내에
 간단히 정리되고 수정될 수 있는 문제들에 관하여 설명한다. 여러분은 이
 프로젝트를 대표하는 개발자들과 일하면서 자신의 패치를 리눅스 커널 트리에
@@ -204,6 +226,7 @@ Documentation/DocBook/ 디렉토리 내에서 만들어지며 PDF, Postscript, H
 올바른 포맷으로 포장하는데 도움이 필요하다면 그러한 문제를 돕기 위해
 만들어진 kernel-mentors 프로젝트가 있다. 그곳은 메일링 리스트이며
 다음에서 참조할 수 있다.
+
          http://selenic.com/mailman/listinfo/kernel-mentors
 
 리눅스 커널 코드에 실제 변경을 하기 전에 반드시 그 코드가 어떻게
@@ -213,6 +236,7 @@ Documentation/DocBook/ 디렉토리 내에서 만들어지며 PDF, Postscript, H
 것은 Linux Cross-Reference project이며 그것은 자기 참조 방식이며
 소스코드를 인덱스된 웹 페이지들의 형태로 보여준다. 최신의 멋진 커널
 코드 저장소는 다음을 통하여 참조할 수 있다.
+
       http://lxr.free-electrons.com/
 
 
@@ -222,6 +246,7 @@ Documentation/DocBook/ 디렉토리 내에서 만들어지며 PDF, Postscript, H
 리눅스 커널 개발 프로세스는 현재 몇몇 다른 메인 커널 "브랜치들"과
 서브시스템에 특화된 커널 브랜치들로 구성된다. 몇몇 다른 메인
 브랜치들은 다음과 같다.
+
   - main 4.x 커널 트리
   - 4.x.y - 안정된 커널 트리
   - 4.x -git 커널 패치들
@@ -232,6 +257,7 @@ Documentation/DocBook/ 디렉토리 내에서 만들어지며 PDF, Postscript, H
 -------------
 4.x 커널들은 Linus Torvalds가 관리하며 kernel.org의 pub/linux/kernel/v4.x/
 디렉토리에서 참조될 수 있다.개발 프로세스는 다음과 같다.
+
   - 새로운 커널이 배포되자마자 2주의 시간이 주어진다. 이 기간동은
     메인테이너들은 큰 diff들을 Linus에게 제출할 수 있다. 대개 이 패치들은
     몇 주 동안 -next 커널내에 이미 있었던 것들이다. 큰 변경들을 제출하는 데
@@ -255,6 +281,9 @@ Documentation/DocBook/ 디렉토리 내에서 만들어지며 PDF, Postscript, H
 
 커널 배포에 있어서 언급할만한 가치가 있는 리눅스 커널 메일링 리스트의
 Andrew Morton의 글이 있다.
+
+::
+
         "커널이 언제 배포될지는 아무도 모른다. 왜냐하면 배포는 알려진
          버그의 상황에 따라 배포되는 것이지 미리정해 놓은 시간에 따라
          배포되는 것은 아니기 때문이다."
@@ -312,6 +341,7 @@ http://patchwork.ozlabs.org/ 에 나열되어 있다.
 서브시스템 트리들의 변경사항들은 mainline 4.x 트리로 들어오기 전에 통합
 테스트를 거쳐야 한다. 이런 목적으로, 모든 서브시스템 트리의 변경사항을 거의
 매일 받아가는 특수한 테스트 저장소가 존재한다:
+
        http://git.kernel.org/?p=linux/kernel/git/sfr/linux-next.git
 
 이런 식으로, -next 커널을 통해 다음 머지 기간에 메인라인 커널에 어떤 변경이
@@ -325,6 +355,7 @@ http://patchwork.ozlabs.org/ 에 나열되어 있다.
 bugzilla.kernel.org는 리눅스 커널 개발자들이 커널의 버그를 추적하는 곳이다.
 사용자들은 발견한 모든 버그들을 보고하기 위하여 이 툴을 사용할 것을 권장한다.
 kernel bugzilla를 사용하는 자세한 방법은 다음을 참조하라.
+
     http://bugzilla.kernel.org/page.cgi?id=faq.html
 
 메인 커널 소스 디렉토리에 있는 admin-guide/reporting-bugs.rst 파일은 커널 버그라고 생각되는
@@ -360,10 +391,14 @@ bugme-janitor 메일링 리스트(bugzilla에 모든 변화들이 여기서 메�
 위의 몇몇 문서들이 설명하였지만 핵심 커널 개발자들의 대다수는
 리눅스 커널 메일링 리스트에 참여하고 있다. 리스트에 등록하고 해지하는
 방법에 관한 자세한 사항은 다음에서 참조할 수 있다.
+
     http://vger.kernel.org/vger-lists.html#linux-kernel
+
 웹상의 많은 다른 곳에도 메일링 리스트의 아카이브들이 있다.
 이러한 아카이브들을 찾으려면 검색 엔진을 사용하라. 예를 들어:
+
       http://dir.gmane.org/gmane.linux.kernel
+
 여러분이 새로운 문제에 관해 리스트에 올리기 전에 말하고 싶은 주제에 관한
 것을 아카이브에서 먼저 찾아보기를 강력히 권장한다. 이미 상세하게 토론된 많은
 것들이 메일링 리스트의 아카이브에 기록되어 있다.
@@ -373,11 +408,13 @@ bugme-janitor 메일링 리스트(bugzilla에 모든 변화들이 여기서 메�
 있는지는 MAINTAINERS 파일을 참조하라.
 
 많은 리스트들은 kernel.org에서 호스트되고 있다. 그 정보들은 다음에서 참조될 수 있다.
+
          http://vger.kernel.org/vger-lists.html
 
 리스트들을 사용할 때는 올바른 예절을 따를 것을 유념해라.
 대단하진 않지만 다음 URL은 리스트(혹은 모든 리스트)와 대화하는 몇몇 간단한
 가이드라인을 가지고 있다.
+
          http://www.albion.com/netiquette/
 
 여러 사람들이 여러분의 메일에 응답한다면 CC: 즉 수신 리스트는 꽤 커지게
@@ -409,6 +446,7 @@ bugme-janitor 메일링 리스트(bugzilla에 모든 변화들이 여기서 메�
 커널 커뮤니티의 목적은 가능한한 가장 좋은 커널을 제공하는 것이다. 여러분이
 받아들여질 패치를 제출하게 되면 그 패치의 기술적인 이점으로 검토될 것이다.
 그럼 여러분들은 무엇을 기대하고 있어야 하는가?
+
  - 비판
  - 의견
  - 변경을 위한 요구
@@ -422,6 +460,7 @@ bugme-janitor 메일링 리스트(bugzilla에 모든 변화들이 여기서 메�
 기다려보고 다시 시도해라. 때론 너무 많은 메일들 속에 묻혀버리기도 한다.
 
 여러분은 무엇을 해서는 안되는가?
+
  - 여러분의 패치가 아무 질문 없이 받아들여지기를 기대하는 것
  - 방어적이 되는 것
  - 의견을 무시하는 것
@@ -445,7 +484,9 @@ bugme-janitor 메일링 리스트(bugzilla에 모든 변화들이 여기서 메�
 ------------------------------------
 커널 커뮤니티는 가장 전통적인 회사의 개발 환경과는 다르다. 여기에 여러분들의
 문제를 피하기 위한 목록이 있다.
+
   여러분들이 제안한 변경들에 관하여 말할 때 좋은 것들 :
+
     - "이것은 여러 문제들을 해결합니다."
     - "이것은 2000 라인의 코드를 줄입니다."
     - "이것은 내가 말하려는 것에 관해 설명하는 패치입니다."
@@ -454,6 +495,7 @@ bugme-janitor 메일링 리스트(bugzilla에 모든 변화들이 여기서 메�
     - "이것은 일반적인 머신에서 성능을 향상함으로..."
 
   여러분들이 말할 때 피해야 할 좋지 않은 것들 :
+
     - "우리는 그것을 AIX/ptx/Solaris에서 이러한 방법으로 했다. 그러므로 그것은 좋은 것임에 틀림없다..."
     - "나는 20년동안 이것을 해왔다. 그러므로..."
     - "이것은 돈을 벌기위해 나의 회사가 필요로 하는 것이다."
@@ -513,6 +555,9 @@ Pat이라는 이름을 가진 여자가 있을 수도 있는 것이다. 리눅�
    간단하게(혹은 간단한게 재배치하여) 하는 것도 중요하다.
 
 여기에 커널 개발자 Al Viro의 이야기가 있다.
+
+::
+
     "학생의 수학 숙제를 채점하는 선생님을 생각해보라. 선생님은 학생들이
     답을 얻을때까지 겪은 시행착오를 보길 원하지 않는다. 선생님들은
     간결하고 가장 뛰어난 답을 보길 원한다. 훌륭한 학생은 이것을 알고
@@ -548,13 +593,16 @@ Pat이라는 이름을 가진 여자가 있을 수도 있는 것이다. 리눅�
 생각하여 이메일을 작성해야 한다. 이 정보는 패치를 위한 ChangeLog가 될
 것이다. 그리고 항상 그 내용을 보길 원하는 모든 사람들을 위해 보존될
 것이다. 패치는 완벽하게 다음과 같은 내용들을 포함하여 설명해야 한다.
+
   - 변경이 왜 필요한지
   - 패치에 관한 전체 설계 접근(approach)
   - 구현 상세들
   - 테스트 결과들
 
 이것이 무엇인지 더 자세한 것을 알고 싶다면 다음 문서의 ChageLog 항을 봐라.
+
    "The Perfect Patch"
+
     http://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 
@@ -569,6 +617,7 @@ Pat이라는 이름을 가진 여자가 있을 수도 있는 것이다. 리눅�
 
 
 ----------
+
 "개발 프로세스"(http://lwn.net/Articles/94386/) 섹션을
 작성하는데 있어 참고할 문서를 사용하도록 허락해준 Paolo Ciarrocchi에게
 감사한다. 여러분들이 말해야 할 것과 말해서는 안되는 것의 목록 중 일부를 제공해준
