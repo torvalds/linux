@@ -802,7 +802,7 @@ static long iep_ioctl(struct file *filp, uint32_t cmd, unsigned long arg)
 			if (copy_to_user((void __user *)arg, &iommu_enable,
 				sizeof(int))) {
 				IEP_ERR("error: copy_to_user failed\n");
-				return -EFAULT;
+				ret = -EFAULT;
 			}
 		}
 		break;
@@ -810,7 +810,7 @@ static long iep_ioctl(struct file *filp, uint32_t cmd, unsigned long arg)
 		if (copy_to_user((void __user *)arg, &iep_drvdata1->cap,
 			sizeof(struct IEP_CAP))) {
 			IEP_ERR("error: copy_to_user failed\n");
-			return -EFAULT;
+			ret = -EFAULT;
 		}
 		break;
 	default:
@@ -895,7 +895,7 @@ static long compat_iep_ioctl(struct file *filp, uint32_t cmd,
 			if (copy_to_user((void __user *)arg, &iommu_enable,
 				sizeof(int))) {
 				IEP_ERR("error: copy_to_user failed\n");
-				return -EFAULT;
+				ret = -EFAULT;
 			}
 		}
 		break;
@@ -903,7 +903,7 @@ static long compat_iep_ioctl(struct file *filp, uint32_t cmd,
 		if (copy_to_user((void __user *)arg, &iep_drvdata1->cap,
 			sizeof(struct IEP_CAP))) {
 			IEP_ERR("error: copy_to_user failed\n");
-			return -EFAULT;
+			ret = -EFAULT;
 		}
 		break;
 	default:
