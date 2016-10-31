@@ -35,6 +35,16 @@ config NVMEM_LPC18XX_EEPROM
 	  To compile this driver as a module, choose M here: the module
 	  will be called nvmem_lpc18xx_eeprom.
 
+config NVMEM_LPC18XX_OTP
+	tristate "NXP LPC18XX OTP Memory Support"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Say Y here to include support for NXP LPC18xx OTP memory found on
+	  all LPC18xx and LPC43xx devices.
+	  To compile this driver as a module, choose M here: the module
+	  will be called nvmem_lpc18xx_otp.
+
 config NVMEM_MXS_OCOTP
 	tristate "Freescale MXS On-Chip OTP Memory Support"
 	depends on ARCH_MXS || COMPILE_TEST
