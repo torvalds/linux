@@ -687,7 +687,7 @@ static bool xen_strict_xenbus_quirk(void)
 }
 static void xs_reset_watches(void)
 {
-	int err, supported = 0;
+	int err;
 
 	if (!xen_hvm_domain() || xen_initial_domain())
 		return;
@@ -695,9 +695,8 @@ static void xs_reset_watches(void)
 	if (xen_strict_xenbus_quirk())
 		return;
 
-	err = xenbus_scanf(XBT_NIL, "control",
-			"platform-feature-xs_reset_watches", "%d", &supported);
-	if (err != 1 || !supported)
+	if (!xenbus_read_unsigned("control",
+				  "platform-feature-xs_reset_watches", 0))
 		return;
 
 	err = xs_error(xs_single(XBT_NIL, XS_RESET_WATCHES, "", NULL));
