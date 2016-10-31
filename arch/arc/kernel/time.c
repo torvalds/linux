@@ -361,12 +361,3 @@ static int __init arc_of_timer_init(struct device_node *np)
 	return ret;
 }
 CLOCKSOURCE_OF_DECLARE(arc_clkevt, "snps,arc-timer", arc_of_timer_init);
-
-/*
- * Called from start_kernel() - boot CPU only
- */
-void __init time_init(void)
-{
-	of_clk_init(NULL);
-	clocksource_probe();
-}
