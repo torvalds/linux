@@ -728,7 +728,8 @@ merge_chain_branch(struct callchain_cursor *cursor,
 
 	list_for_each_entry_safe(list, next_list, &src->val, list) {
 		callchain_cursor_append(cursor, list->ip,
-					list->ms.map, list->ms.sym);
+					list->ms.map, list->ms.sym,
+					false, NULL, 0, 0);
 		list_del(&list->list);
 		free(list);
 	}
@@ -765,7 +766,9 @@ int callchain_merge(struct callchain_cursor *cursor,
 }
 
 int callchain_cursor_append(struct callchain_cursor *cursor,
-			    u64 ip, struct map *map, struct symbol *sym)
+			    u64 ip, struct map *map, struct symbol *sym,
+			    bool branch, struct branch_flags *flags,
+			    int nr_loop_iter, int samples)
 {
 	struct callchain_cursor_node *node = *cursor->last;
 
@@ -780,6 +783,13 @@ int callchain_cursor_append(struct callchain_cursor *cursor,
 	node->ip = ip;
 	node->map = map;
 	node->sym = sym;
+	node->branch = branch;
+	node->nr_loop_iter = nr_loop_iter;
+	node->samples = samples;
+
+	if (flags)
+		memcpy(&node->branch_flags, flags,
+			sizeof(struct branch_flags));
 
 	cursor->nr++;
 
