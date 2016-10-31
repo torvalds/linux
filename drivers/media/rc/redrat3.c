@@ -113,7 +113,7 @@
 #define RR3_NARROW_IN_EP_ADDR	0x82
 
 /* Size of the fixed-length portion of the signal */
-#define RR3_DRIVER_MAXLENS	128
+#define RR3_DRIVER_MAXLENS	255
 #define RR3_MAX_SIG_SIZE	512
 #define RR3_TIME_UNIT		50
 #define RR3_END_OF_SIGNAL	0x7f
