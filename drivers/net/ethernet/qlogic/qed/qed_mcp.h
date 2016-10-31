@@ -689,4 +689,19 @@ int qed_mcp_ov_update_eswitch(struct qed_hwfn *p_hwfn,
 			      struct qed_ptt *p_ptt,
 			      enum qed_ov_eswitch eswitch);
 
+/**
+ * @brief - Gets the MFW allocation info for the given resource
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param p_resc_info - descriptor of requested resource
+ *  @param p_mcp_resp
+ *  @param p_mcp_param
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_get_resc_info(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt,
+			  struct resource_info *p_resc_info,
+			  u32 *p_mcp_resp, u32 *p_mcp_param);
 #endif

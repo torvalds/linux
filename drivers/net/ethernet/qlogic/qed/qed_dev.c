@@ -1512,47 +1512,240 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 		   RESC_NUM(p_hwfn, QED_SB), num_features);
 }
 
+static enum resource_id_enum qed_hw_get_mfw_res_id(enum qed_resources res_id)
+{
+	enum resource_id_enum mfw_res_id = RESOURCE_NUM_INVALID;
+
+	switch (res_id) {
+	case QED_SB:
+		mfw_res_id = RESOURCE_NUM_SB_E;
+		break;
+	case QED_L2_QUEUE:
+		mfw_res_id = RESOURCE_NUM_L2_QUEUE_E;
+		break;
+	case QED_VPORT:
+		mfw_res_id = RESOURCE_NUM_VPORT_E;
+		break;
+	case QED_RSS_ENG:
+		mfw_res_id = RESOURCE_NUM_RSS_ENGINES_E;
+		break;
+	case QED_PQ:
+		mfw_res_id = RESOURCE_NUM_PQ_E;
+		break;
+	case QED_RL:
+		mfw_res_id = RESOURCE_NUM_RL_E;
+		break;
+	case QED_MAC:
+	case QED_VLAN:
+		/* Each VFC resource can accommodate both a MAC and a VLAN */
+		mfw_res_id = RESOURCE_VFC_FILTER_E;
+		break;
+	case QED_ILT:
+		mfw_res_id = RESOURCE_ILT_E;
+		break;
+	case QED_LL2_QUEUE:
+		mfw_res_id = RESOURCE_LL2_QUEUE_E;
+		break;
+	case QED_RDMA_CNQ_RAM:
+	case QED_CMDQS_CQS:
+		/* CNQ/CMDQS are the same resource */
+		mfw_res_id = RESOURCE_CQS_E;
+		break;
+	case QED_RDMA_STATS_QUEUE:
+		mfw_res_id = RESOURCE_RDMA_STATS_QUEUE_E;
+		break;
+	default:
+		break;
+	}
+
+	return mfw_res_id;
+}
+
+static u32 qed_hw_get_dflt_resc_num(struct qed_hwfn *p_hwfn,
+				    enum qed_resources res_id)
+{
+	u8 num_funcs = p_hwfn->num_funcs_on_engine;
+	struct qed_sb_cnt_info sb_cnt_info;
+	u32 dflt_resc_num = 0;
+
+	switch (res_id) {
+	case QED_SB:
+		memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
+		qed_int_get_num_sbs(p_hwfn, &sb_cnt_info);
+		dflt_resc_num = sb_cnt_info.sb_cnt;
+		break;
+	case QED_L2_QUEUE:
+		dflt_resc_num = MAX_NUM_L2_QUEUES_BB / num_funcs;
+		break;
+	case QED_VPORT:
+		dflt_resc_num = MAX_NUM_VPORTS_BB / num_funcs;
+		break;
+	case QED_RSS_ENG:
+		dflt_resc_num = ETH_RSS_ENGINE_NUM_BB / num_funcs;
+		break;
+	case QED_PQ:
+		/* The granularity of the PQs is 8 */
+		dflt_resc_num = MAX_QM_TX_QUEUES_BB / num_funcs;
+		dflt_resc_num &= ~0x7;
+		break;
+	case QED_RL:
+		dflt_resc_num = MAX_QM_GLOBAL_RLS / num_funcs;
+		break;
+	case QED_MAC:
+	case QED_VLAN:
+		/* Each VFC resource can accommodate both a MAC and a VLAN */
+		dflt_resc_num = ETH_NUM_MAC_FILTERS / num_funcs;
+		break;
+	case QED_ILT:
+		dflt_resc_num = PXP_NUM_ILT_RECORDS_BB / num_funcs;
+		break;
+	case QED_LL2_QUEUE:
+		dflt_resc_num = MAX_NUM_LL2_RX_QUEUES / num_funcs;
+		break;
+	case QED_RDMA_CNQ_RAM:
+	case QED_CMDQS_CQS:
+		/* CNQ/CMDQS are the same resource */
+		dflt_resc_num = NUM_OF_CMDQS_CQS / num_funcs;
+		break;
+	case QED_RDMA_STATS_QUEUE:
+		dflt_resc_num = RDMA_NUM_STATISTIC_COUNTERS_BB / num_funcs;
+		break;
+	default:
+		break;
+	}
+
+	return dflt_resc_num;
+}
+
+static const char *qed_hw_get_resc_name(enum qed_resources res_id)
+{
+	switch (res_id) {
+	case QED_SB:
+		return "SB";
+	case QED_L2_QUEUE:
+		return "L2_QUEUE";
+	case QED_VPORT:
+		return "VPORT";
+	case QED_RSS_ENG:
+		return "RSS_ENG";
+	case QED_PQ:
+		return "PQ";
+	case QED_RL:
+		return "RL";
+	case QED_MAC:
+		return "MAC";
+	case QED_VLAN:
+		return "VLAN";
+	case QED_RDMA_CNQ_RAM:
+		return "RDMA_CNQ_RAM";
+	case QED_ILT:
+		return "ILT";
+	case QED_LL2_QUEUE:
+		return "LL2_QUEUE";
+	case QED_CMDQS_CQS:
+		return "CMDQS_CQS";
+	case QED_RDMA_STATS_QUEUE:
+		return "RDMA_STATS_QUEUE";
+	default:
+		return "UNKNOWN_RESOURCE";
+	}
+}
+
+static int qed_hw_set_resc_info(struct qed_hwfn *p_hwfn,
+				enum qed_resources res_id)
+{
+	u32 dflt_resc_num = 0, dflt_resc_start = 0, mcp_resp, mcp_param;
+	u32 *p_resc_num, *p_resc_start;
+	struct resource_info resc_info;
+	int rc;
+
+	p_resc_num = &RESC_NUM(p_hwfn, res_id);
+	p_resc_start = &RESC_START(p_hwfn, res_id);
+
+	/* Default values assumes that each function received equal share */
+	dflt_resc_num = qed_hw_get_dflt_resc_num(p_hwfn, res_id);
+	if (!dflt_resc_num) {
+		DP_ERR(p_hwfn,
+		       "Failed to get default amount for resource %d [%s]\n",
+		       res_id, qed_hw_get_resc_name(res_id));
+		return -EINVAL;
+	}
+	dflt_resc_start = dflt_resc_num * p_hwfn->enabled_func_idx;
+
+	memset(&resc_info, 0, sizeof(resc_info));
+	resc_info.res_id = qed_hw_get_mfw_res_id(res_id);
+	if (resc_info.res_id == RESOURCE_NUM_INVALID) {
+		DP_ERR(p_hwfn,
+		       "Failed to match resource %d [%s] with the MFW resources\n",
+		       res_id, qed_hw_get_resc_name(res_id));
+		return -EINVAL;
+	}
+
+	rc = qed_mcp_get_resc_info(p_hwfn, p_hwfn->p_main_ptt, &resc_info,
+				   &mcp_resp, &mcp_param);
+	if (rc) {
+		DP_NOTICE(p_hwfn,
+			  "MFW response failure for an allocation request for resource %d [%s]\n",
+			  res_id, qed_hw_get_resc_name(res_id));
+		return rc;
+	}
+
+	/* Default driver values are applied in the following cases:
+	 * - The resource allocation MB command is not supported by the MFW
+	 * - There is an internal error in the MFW while processing the request
+	 * - The resource ID is unknown to the MFW
+	 */
+	if (mcp_resp != FW_MSG_CODE_RESOURCE_ALLOC_OK &&
+	    mcp_resp != FW_MSG_CODE_RESOURCE_ALLOC_DEPRECATED) {
+		DP_NOTICE(p_hwfn,
+			  "Resource %d [%s]: No allocation info was received [mcp_resp 0x%x]. Applying default values [num %d, start %d].\n",
+			  res_id,
+			  qed_hw_get_resc_name(res_id),
+			  mcp_resp, dflt_resc_num, dflt_resc_start);
+		*p_resc_num = dflt_resc_num;
+		*p_resc_start = dflt_resc_start;
+		goto out;
+	}
+
+	/* Special handling for status blocks; Would be revised in future */
+	if (res_id == QED_SB) {
+		resc_info.size -= 1;
+		resc_info.offset -= p_hwfn->enabled_func_idx;
+	}
+
+	*p_resc_num = resc_info.size;
+	*p_resc_start = resc_info.offset;
+
+out:
+	/* PQs have to divide by 8 [that's the HW granularity].
+	 * Reduce number so it would fit.
+	 */
+	if ((res_id == QED_PQ) && ((*p_resc_num % 8) || (*p_resc_start % 8))) {
+		DP_INFO(p_hwfn,
+			"PQs need to align by 8; Number %08x --> %08x, Start %08x --> %08x\n",
+			*p_resc_num,
+			(*p_resc_num) & ~0x7,
+			*p_resc_start, (*p_resc_start) & ~0x7);
+		*p_resc_num &= ~0x7;
+		*p_resc_start &= ~0x7;
+	}
+
+	return 0;
+}
+
 static int qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 {
-	u8 enabled_func_idx = p_hwfn->enabled_func_idx;
-	u32 *resc_start = p_hwfn->hw_info.resc_start;
-	u8 num_funcs = p_hwfn->num_funcs_on_engine;
-	u32 *resc_num = p_hwfn->hw_info.resc_num;
-	struct qed_sb_cnt_info sb_cnt_info;
-	int i, max_vf_vlan_filters;
+	u8 res_id;
+	int rc;
 
-	memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
-
-#ifdef CONFIG_QED_SRIOV
-	max_vf_vlan_filters = QED_ETH_MAX_VF_NUM_VLAN_FILTERS;
-#else
-	max_vf_vlan_filters = 0;
-#endif
-
-	qed_int_get_num_sbs(p_hwfn, &sb_cnt_info);
-
-	resc_num[QED_SB] = min_t(u32,
-				 (MAX_SB_PER_PATH_BB / num_funcs),
-				 sb_cnt_info.sb_cnt);
-	resc_num[QED_L2_QUEUE] = MAX_NUM_L2_QUEUES_BB / num_funcs;
-	resc_num[QED_VPORT] = MAX_NUM_VPORTS_BB / num_funcs;
-	resc_num[QED_RSS_ENG] = ETH_RSS_ENGINE_NUM_BB / num_funcs;
-	resc_num[QED_PQ] = MAX_QM_TX_QUEUES_BB / num_funcs;
-	resc_num[QED_RL] = min_t(u32, 64, resc_num[QED_VPORT]);
-	resc_num[QED_MAC] = ETH_NUM_MAC_FILTERS / num_funcs;
-	resc_num[QED_VLAN] = (ETH_NUM_VLAN_FILTERS - 1 /*For vlan0*/) /
-			     num_funcs;
-	resc_num[QED_ILT] = PXP_NUM_ILT_RECORDS_BB / num_funcs;
-	resc_num[QED_LL2_QUEUE] = MAX_NUM_LL2_RX_QUEUES / num_funcs;
-	resc_num[QED_RDMA_CNQ_RAM] = NUM_OF_CMDQS_CQS / num_funcs;
-	resc_num[QED_RDMA_STATS_QUEUE] = RDMA_NUM_STATISTIC_COUNTERS_BB /
-					 num_funcs;
-
-	for (i = 0; i < QED_MAX_RESC; i++)
-		resc_start[i] = resc_num[i] * enabled_func_idx;
+	for (res_id = 0; res_id < QED_MAX_RESC; res_id++) {
+		rc = qed_hw_set_resc_info(p_hwfn, res_id);
+		if (rc)
+			return rc;
+	}
 
 	/* Sanity for ILT */
-	if (RESC_END(p_hwfn, QED_ILT) > PXP_NUM_ILT_RECORDS_BB) {
+	if ((RESC_END(p_hwfn, QED_ILT) > PXP_NUM_ILT_RECORDS_BB)) {
 		DP_NOTICE(p_hwfn, "Can't assign ILT pages [%08x,...,%08x]\n",
 			  RESC_START(p_hwfn, QED_ILT),
 			  RESC_END(p_hwfn, QED_ILT) - 1);
@@ -1562,34 +1755,12 @@ static int qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 	qed_hw_set_feat(p_hwfn);
 
 	DP_VERBOSE(p_hwfn, NETIF_MSG_PROBE,
-		   "The numbers for each resource are:\n"
-		   "SB = %d start = %d\n"
-		   "L2_QUEUE = %d start = %d\n"
-		   "VPORT = %d start = %d\n"
-		   "PQ = %d start = %d\n"
-		   "RL = %d start = %d\n"
-		   "MAC = %d start = %d\n"
-		   "VLAN = %d start = %d\n"
-		   "ILT = %d start = %d\n"
-		   "LL2_QUEUE = %d start = %d\n",
-		   p_hwfn->hw_info.resc_num[QED_SB],
-		   p_hwfn->hw_info.resc_start[QED_SB],
-		   p_hwfn->hw_info.resc_num[QED_L2_QUEUE],
-		   p_hwfn->hw_info.resc_start[QED_L2_QUEUE],
-		   p_hwfn->hw_info.resc_num[QED_VPORT],
-		   p_hwfn->hw_info.resc_start[QED_VPORT],
-		   p_hwfn->hw_info.resc_num[QED_PQ],
-		   p_hwfn->hw_info.resc_start[QED_PQ],
-		   p_hwfn->hw_info.resc_num[QED_RL],
-		   p_hwfn->hw_info.resc_start[QED_RL],
-		   p_hwfn->hw_info.resc_num[QED_MAC],
-		   p_hwfn->hw_info.resc_start[QED_MAC],
-		   p_hwfn->hw_info.resc_num[QED_VLAN],
-		   p_hwfn->hw_info.resc_start[QED_VLAN],
-		   p_hwfn->hw_info.resc_num[QED_ILT],
-		   p_hwfn->hw_info.resc_start[QED_ILT],
-		   RESC_NUM(p_hwfn, QED_LL2_QUEUE),
-		   RESC_START(p_hwfn, QED_LL2_QUEUE));
+		   "The numbers for each resource are:\n");
+	for (res_id = 0; res_id < QED_MAX_RESC; res_id++)
+		DP_VERBOSE(p_hwfn, NETIF_MSG_PROBE, "%s = %d start = %d\n",
+			   qed_hw_get_resc_name(res_id),
+			   RESC_NUM(p_hwfn, res_id),
+			   RESC_START(p_hwfn, res_id));
 
 	return 0;
 }

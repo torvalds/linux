@@ -1683,3 +1683,45 @@ int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
 
 	return rc;
 }
+
+#define QED_RESC_ALLOC_VERSION_MAJOR    1
+#define QED_RESC_ALLOC_VERSION_MINOR    0
+#define QED_RESC_ALLOC_VERSION				     \
+	((QED_RESC_ALLOC_VERSION_MAJOR <<		     \
+	  DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR_SHIFT) | \
+	 (QED_RESC_ALLOC_VERSION_MINOR <<		     \
+	  DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MINOR_SHIFT))
+int qed_mcp_get_resc_info(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt,
+			  struct resource_info *p_resc_info,
+			  u32 *p_mcp_resp, u32 *p_mcp_param)
+{
+	struct qed_mcp_mb_params mb_params;
+	union drv_union_data *p_union_data;
+	int rc;
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = DRV_MSG_GET_RESOURCE_ALLOC_MSG;
+	mb_params.param = QED_RESC_ALLOC_VERSION;
+	p_union_data = (union drv_union_data *)p_resc_info;
+	mb_params.p_data_src = p_union_data;
+	mb_params.p_data_dst = p_union_data;
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	if (rc)
+		return rc;
+
+	*p_mcp_resp = mb_params.mcp_resp;
+	*p_mcp_param = mb_params.mcp_param;
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SP,
+		   "MFW resource_info: version 0x%x, res_id 0x%x, size 0x%x, offset 0x%x, vf_size 0x%x, vf_offset 0x%x, flags 0x%x\n",
+		   *p_mcp_param,
+		   p_resc_info->res_id,
+		   p_resc_info->size,
+		   p_resc_info->offset,
+		   p_resc_info->vf_size,
+		   p_resc_info->vf_offset, p_resc_info->flags);
+
+	return 0;
+}

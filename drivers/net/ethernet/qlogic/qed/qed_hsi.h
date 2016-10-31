@@ -8529,6 +8529,41 @@ struct mdump_config_stc {
 	u32 valid_logs;
 };
 
+enum resource_id_enum {
+	RESOURCE_NUM_SB_E = 0,
+	RESOURCE_NUM_L2_QUEUE_E = 1,
+	RESOURCE_NUM_VPORT_E = 2,
+	RESOURCE_NUM_VMQ_E = 3,
+	RESOURCE_FACTOR_NUM_RSS_PF_E = 4,
+	RESOURCE_FACTOR_RSS_PER_VF_E = 5,
+	RESOURCE_NUM_RL_E = 6,
+	RESOURCE_NUM_PQ_E = 7,
+	RESOURCE_NUM_VF_E = 8,
+	RESOURCE_VFC_FILTER_E = 9,
+	RESOURCE_ILT_E = 10,
+	RESOURCE_CQS_E = 11,
+	RESOURCE_GFT_PROFILES_E = 12,
+	RESOURCE_NUM_TC_E = 13,
+	RESOURCE_NUM_RSS_ENGINES_E = 14,
+	RESOURCE_LL2_QUEUE_E = 15,
+	RESOURCE_RDMA_STATS_QUEUE_E = 16,
+	RESOURCE_MAX_NUM,
+	RESOURCE_NUM_INVALID = 0xFFFFFFFF
+};
+
+/* Resource ID is to be filled by the driver in the MB request
+ * Size, offset & flags to be filled by the MFW in the MB response
+ */
+struct resource_info {
+	enum resource_id_enum res_id;
+	u32 size;		/* number of allocated resources */
+	u32 offset;		/* Offset of the 1st resource */
+	u32 vf_size;
+	u32 vf_offset;
+	u32 flags;
+#define RESOURCE_ELEMENT_STRICT (1 << 0)
+};
+
 union drv_union_data {
 	u32 ver_str[MCP_DRV_VER_STR_SIZE_DWORD];
 	struct mcp_mac wol_mac;
@@ -8549,6 +8584,7 @@ union drv_union_data {
 	u64 reserved_stats[11];
 	struct ocbb_data_stc ocbb_info;
 	struct temperature_status_stc temp_info;
+	struct resource_info resource;
 	struct bist_nvm_image_att nvm_image_att;
 	struct mdump_config_stc mdump_config;
 };
@@ -8576,6 +8612,7 @@ struct public_drv_mb {
 
 #define DRV_MSG_CODE_BW_UPDATE_ACK		0x32000000
 #define DRV_MSG_CODE_NIG_DRAIN			0x30000000
+#define DRV_MSG_GET_RESOURCE_ALLOC_MSG          0x34000000
 #define DRV_MSG_CODE_VF_DISABLED_DONE		0xc0000000
 #define DRV_MSG_CODE_CFG_VF_MSIX		0xc0010000
 #define DRV_MSG_CODE_NVM_GET_FILE_ATT		0x00030000
@@ -8666,6 +8703,12 @@ struct public_drv_mb {
 #define DRV_MB_PARAM_SET_LED_MODE_ON		0x1
 #define DRV_MB_PARAM_SET_LED_MODE_OFF		0x2
 
+	/* Resource Allocation params - Driver version support */
+#define DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR_MASK	0xFFFF0000
+#define DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR_SHIFT	16
+#define DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MINOR_MASK	0x0000FFFF
+#define DRV_MB_PARAM_RESOURCE_ALLOC_VERSION_MINOR_SHIFT	0
+
 #define DRV_MB_PARAM_BIST_REGISTER_TEST		1
 #define DRV_MB_PARAM_BIST_CLOCK_TEST		2
 #define DRV_MB_PARAM_BIST_NVM_TEST_NUM_IMAGES	3
@@ -8694,6 +8737,9 @@ struct public_drv_mb {
 #define FW_MSG_CODE_DRV_UNLOAD_PORT		0x20120000
 #define FW_MSG_CODE_DRV_UNLOAD_FUNCTION		0x20130000
 #define FW_MSG_CODE_DRV_UNLOAD_DONE		0x21100000
+#define FW_MSG_CODE_RESOURCE_ALLOC_OK           0x34000000
+#define FW_MSG_CODE_RESOURCE_ALLOC_UNKNOWN      0x35000000
+#define FW_MSG_CODE_RESOURCE_ALLOC_DEPRECATED   0x36000000
 #define FW_MSG_CODE_DRV_CFG_VF_MSIX_DONE	0xb0010000
 
 #define FW_MSG_CODE_NVM_OK			0x00010000
