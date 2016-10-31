@@ -2126,20 +2126,20 @@ static void
 output_timeout_error(VCHIQ_STATE_T *state)
 {
 	VCHIQ_ARM_STATE_T *arm_state = vchiq_platform_get_arm_state(state);
-	char service_err[50] = "";
+	char err[50] = "";
 	int vc_use_count = arm_state->videocore_use_count;
 	int active_services = state->unused_service;
 	int i;
 
 	if (!arm_state->videocore_use_count) {
-		snprintf(service_err, 50, " Videocore usecount is 0");
+		snprintf(err, sizeof(err), " Videocore usecount is 0");
 		goto output_msg;
 	}
 	for (i = 0; i < active_services; i++) {
 		VCHIQ_SERVICE_T *service_ptr = state->services[i];
 		if (service_ptr && service_ptr->service_use_count &&
 			(service_ptr->srvstate != VCHIQ_SRVSTATE_FREE)) {
-			snprintf(service_err, 50, " %c%c%c%c(%d) service has "
+			snprintf(err, sizeof(err), " %c%c%c%c(%d) service has "
 				"use count %d%s", VCHIQ_FOURCC_AS_4CHARS(
 					service_ptr->base.fourcc),
 				 service_ptr->client_id,
@@ -2153,7 +2153,7 @@ output_timeout_error(VCHIQ_STATE_T *state)
 output_msg:
 	vchiq_log_error(vchiq_susp_log_level,
 		"timed out waiting for vc suspend (%d).%s",
-		 arm_state->autosuspend_override, service_err);
+		 arm_state->autosuspend_override, err);
 
 }
 
