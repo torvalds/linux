@@ -223,3 +223,15 @@
 		reg = <0x0 0x0 0x0 0x3db>;
 	};
 };
+
+&i2c_A {
+	clocks = <&clkc CLKID_I2C>;
+};
+
+&i2c_B {
+	clocks = <&clkc CLKID_I2C>;
+};
+
+&i2c_C {
+	clocks = <&clkc CLKID_I2C>;
+};
