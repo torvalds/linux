@@ -935,10 +935,8 @@ static unsigned int vlv_wm_method2(unsigned int pixel_rate,
 	return ret;
 }
 
-static void vlv_setup_wm_latency(struct drm_device *dev)
+static void vlv_setup_wm_latency(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	/* all latencies in usec */
 	dev_priv->wm.pri_latency[VLV_WM_LEVEL_PM2] = 3;
 
@@ -2087,10 +2085,9 @@ hsw_compute_linetime_wm(const struct intel_crtc_state *cstate)
 	       PIPE_WM_LINETIME_TIME(linetime);
 }
 
-static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[8])
+static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
+				  uint16_t wm[8])
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	if (IS_GEN9(dev_priv)) {
 		uint32_t val;
 		int ret, i;
@@ -2176,14 +2173,14 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[8])
 		wm[2] = (sskpd >> 12) & 0xFF;
 		wm[3] = (sskpd >> 20) & 0x1FF;
 		wm[4] = (sskpd >> 32) & 0x1FF;
-	} else if (INTEL_INFO(dev)->gen >= 6) {
+	} else if (INTEL_GEN(dev_priv) >= 6) {
 		uint32_t sskpd = I915_READ(MCH_SSKPD);
 
 		wm[0] = (sskpd >> SSKPD_WM0_SHIFT) & SSKPD_WM_MASK;
 		wm[1] = (sskpd >> SSKPD_WM1_SHIFT) & SSKPD_WM_MASK;
 		wm[2] = (sskpd >> SSKPD_WM2_SHIFT) & SSKPD_WM_MASK;
 		wm[3] = (sskpd >> SSKPD_WM3_SHIFT) & SSKPD_WM_MASK;
-	} else if (INTEL_INFO(dev)->gen >= 5) {
+	} else if (INTEL_GEN(dev_priv) >= 5) {
 		uint32_t mltr = I915_READ(MLTR_ILK);
 
 		/* ILK primary LP0 latency is 700 ns */
@@ -2271,9 +2268,8 @@ static bool ilk_increase_wm_latency(struct drm_i915_private *dev_priv,
 	return true;
 }
 
-static void snb_wm_latency_quirk(struct drm_device *dev)
+static void snb_wm_latency_quirk(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	bool changed;
 
 	/*
@@ -2293,11 +2289,9 @@ static void snb_wm_latency_quirk(struct drm_device *dev)
 	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->wm.cur_latency);
 }
 
-static void ilk_setup_wm_latency(struct drm_device *dev)
+static void ilk_setup_wm_latency(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	intel_read_wm_latency(dev, dev_priv->wm.pri_latency);
+	intel_read_wm_latency(dev_priv, dev_priv->wm.pri_latency);
 
 	memcpy(dev_priv->wm.spr_latency, dev_priv->wm.pri_latency,
 	       sizeof(dev_priv->wm.pri_latency));
@@ -2312,14 +2306,12 @@ static void ilk_setup_wm_latency(struct drm_device *dev)
 	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->wm.cur_latency);
 
 	if (IS_GEN6(dev_priv))
-		snb_wm_latency_quirk(dev);
+		snb_wm_latency_quirk(dev_priv);
 }
 
-static void skl_setup_wm_latency(struct drm_device *dev)
+static void skl_setup_wm_latency(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	intel_read_wm_latency(dev, dev_priv->wm.skl_latency);
+	intel_read_wm_latency(dev_priv, dev_priv->wm.skl_latency);
 	intel_print_wm_latency(dev_priv, "Gen9 Plane", dev_priv->wm.skl_latency);
 }
 
@@ -7699,11 +7691,11 @@ void intel_init_pm(struct drm_device *dev)
 
 	/* For FIFO watermark updates */
 	if (INTEL_INFO(dev)->gen >= 9) {
-		skl_setup_wm_latency(dev);
+		skl_setup_wm_latency(dev_priv);
 		dev_priv->display.update_wm = skl_update_wm;
 		dev_priv->display.compute_global_watermarks = skl_compute_wm;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
-		ilk_setup_wm_latency(dev);
+		ilk_setup_wm_latency(dev_priv);
 
 		if ((IS_GEN5(dev_priv) && dev_priv->wm.pri_latency[1] &&
 		     dev_priv->wm.spr_latency[1] && dev_priv->wm.cur_latency[1]) ||
@@ -7721,10 +7713,10 @@ void intel_init_pm(struct drm_device *dev)
 				      "Disable CxSR\n");
 		}
 	} else if (IS_CHERRYVIEW(dev_priv)) {
-		vlv_setup_wm_latency(dev);
+		vlv_setup_wm_latency(dev_priv);
 		dev_priv->display.update_wm = vlv_update_wm;
 	} else if (IS_VALLEYVIEW(dev_priv)) {
-		vlv_setup_wm_latency(dev);
+		vlv_setup_wm_latency(dev_priv);
 		dev_priv->display.update_wm = vlv_update_wm;
 	} else if (IS_PINEVIEW(dev_priv)) {
 		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev_priv),
