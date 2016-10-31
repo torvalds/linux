@@ -361,8 +361,8 @@ struct drm_crtc_helper_funcs {
 	 *
 	 * Note that the power state of the display pipe when this function is
 	 * called depends upon the exact helpers and calling sequence the driver
-	 * has picked. See drm_atomic_commit_planes() for a discussion of the
-	 * tradeoffs and variants of plane commit helpers.
+	 * has picked. See drm_atomic_helper_commit_planes() for a discussion of
+	 * the tradeoffs and variants of plane commit helpers.
 	 *
 	 * This callback is used by the atomic modeset helpers and by the
 	 * transitional plane helpers, but it is optional.
@@ -385,8 +385,8 @@ struct drm_crtc_helper_funcs {
 	 *
 	 * Note that the power state of the display pipe when this function is
 	 * called depends upon the exact helpers and calling sequence the driver
-	 * has picked. See drm_atomic_commit_planes() for a discussion of the
-	 * tradeoffs and variants of plane commit helpers.
+	 * has picked. See drm_atomic_helper_commit_planes() for a discussion of
+	 * the tradeoffs and variants of plane commit helpers.
 	 *
 	 * This callback is used by the atomic modeset helpers and by the
 	 * transitional plane helpers, but it is optional.
@@ -940,8 +940,8 @@ struct drm_plane_helper_funcs {
 	 *
 	 * Note that the power state of the display pipe when this function is
 	 * called depends upon the exact helpers and calling sequence the driver
-	 * has picked. See drm_atomic_commit_planes() for a discussion of the
-	 * tradeoffs and variants of plane commit helpers.
+	 * has picked. See drm_atomic_helper_commit_planes() for a discussion of
+	 * the tradeoffs and variants of plane commit helpers.
 	 *
 	 * This callback is used by the atomic modeset helpers and by the
 	 * transitional plane helpers, but it is optional.
@@ -963,8 +963,8 @@ struct drm_plane_helper_funcs {
 	 *
 	 * Note that the power state of the display pipe when this function is
 	 * called depends upon the exact helpers and calling sequence the driver
-	 * has picked. See drm_atomic_commit_planes() for a discussion of the
-	 * tradeoffs and variants of plane commit helpers.
+	 * has picked. See drm_atomic_helper_commit_planes() for a discussion of
+	 * the tradeoffs and variants of plane commit helpers.
 	 *
 	 * This callback is used by the atomic modeset helpers and by the
 	 * transitional plane helpers, but it is optional.
