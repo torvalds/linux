@@ -124,11 +124,23 @@ struct mlx5_ib_rss_caps {
 	__u8 reserved[7];
 };
 
+enum mlx5_ib_cqe_comp_res_format {
+	MLX5_IB_CQE_RES_FORMAT_HASH	= 1 << 0,
+	MLX5_IB_CQE_RES_FORMAT_CSUM	= 1 << 1,
+	MLX5_IB_CQE_RES_RESERVED	= 1 << 2,
+};
+
+struct mlx5_ib_cqe_comp_caps {
+	__u32 max_num;
+	__u32 supported_format; /* enum mlx5_ib_cqe_comp_res_format */
+};
+
 struct mlx5_ib_query_device_resp {
 	__u32	comp_mask;
 	__u32	response_length;
 	struct	mlx5_ib_tso_caps tso_caps;
 	struct	mlx5_ib_rss_caps rss_caps;
+	struct	mlx5_ib_cqe_comp_caps cqe_comp_caps;
 	__u32	mlx5_ib_support_multi_pkt_send_wqes;
 	__u32	reserved;
 };
