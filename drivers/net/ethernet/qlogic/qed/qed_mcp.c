@@ -1024,28 +1024,89 @@ int qed_mcp_get_media_type(struct qed_dev *cdev, u32 *p_media_type)
 	return 0;
 }
 
+/* Old MFW has a global configuration for all PFs regarding RDMA support */
+static void
+qed_mcp_get_shmem_proto_legacy(struct qed_hwfn *p_hwfn,
+			       enum qed_pci_personality *p_proto)
+{
+	/* There wasn't ever a legacy MFW that published iwarp.
+	 * So at this point, this is either plain l2 or RoCE.
+	 */
+	if (test_bit(QED_DEV_CAP_ROCE, &p_hwfn->hw_info.device_capabilities))
+		*p_proto = QED_PCI_ETH_ROCE;
+	else
+		*p_proto = QED_PCI_ETH;
+
+	DP_VERBOSE(p_hwfn, NETIF_MSG_IFUP,
+		   "According to Legacy capabilities, L2 personality is %08x\n",
+		   (u32) *p_proto);
+}
+
+static int
+qed_mcp_get_shmem_proto_mfw(struct qed_hwfn *p_hwfn,
+			    struct qed_ptt *p_ptt,
+			    enum qed_pci_personality *p_proto)
+{
+	u32 resp = 0, param = 0;
+	int rc;
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt,
+			 DRV_MSG_CODE_GET_PF_RDMA_PROTOCOL, 0, &resp, &param);
+	if (rc)
+		return rc;
+	if (resp != FW_MSG_CODE_OK) {
+		DP_VERBOSE(p_hwfn, NETIF_MSG_IFUP,
+			   "MFW lacks support for command; Returns %08x\n",
+			   resp);
+		return -EINVAL;
+	}
+
+	switch (param) {
+	case FW_MB_PARAM_GET_PF_RDMA_NONE:
+		*p_proto = QED_PCI_ETH;
+		break;
+	case FW_MB_PARAM_GET_PF_RDMA_ROCE:
+		*p_proto = QED_PCI_ETH_ROCE;
+		break;
+	case FW_MB_PARAM_GET_PF_RDMA_BOTH:
+		DP_NOTICE(p_hwfn,
+			  "Current day drivers don't support RoCE & iWARP. Default to RoCE-only\n");
+		*p_proto = QED_PCI_ETH_ROCE;
+		break;
+	case FW_MB_PARAM_GET_PF_RDMA_IWARP:
+	default:
+		DP_NOTICE(p_hwfn,
+			  "MFW answers GET_PF_RDMA_PROTOCOL but param is %08x\n",
+			  param);
+		return -EINVAL;
+	}
+
+	DP_VERBOSE(p_hwfn,
+		   NETIF_MSG_IFUP,
+		   "According to capabilities, L2 personality is %08x [resp %08x param %08x]\n",
+		   (u32) *p_proto, resp, param);
+	return 0;
+}
+
 static int
 qed_mcp_get_shmem_proto(struct qed_hwfn *p_hwfn,
 			struct public_func *p_info,
+			struct qed_ptt *p_ptt,
 			enum qed_pci_personality *p_proto)
 {
 	int rc = 0;
 
 	switch (p_info->config & FUNC_MF_CFG_PROTOCOL_MASK) {
 	case FUNC_MF_CFG_PROTOCOL_ETHERNET:
-		if (test_bit(QED_DEV_CAP_ROCE,
-			     &p_hwfn->hw_info.device_capabilities))
-			*p_proto = QED_PCI_ETH_ROCE;
-		else
-			*p_proto = QED_PCI_ETH;
+		if (qed_mcp_get_shmem_proto_mfw(p_hwfn, p_ptt, p_proto))
+			qed_mcp_get_shmem_proto_legacy(p_hwfn, p_proto);
 		break;
 	case FUNC_MF_CFG_PROTOCOL_ISCSI:
 		*p_proto = QED_PCI_ISCSI;
 		break;
 	case FUNC_MF_CFG_PROTOCOL_ROCE:
 		DP_NOTICE(p_hwfn, "RoCE personality is not a valid value!\n");
-		rc = -EINVAL;
-		break;
+	/* Fallthrough */
 	default:
 		rc = -EINVAL;
 	}
@@ -1065,7 +1126,8 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 	info->pause_on_host = (shmem_info.config &
 			       FUNC_MF_CFG_PAUSE_ON_HOST_RING) ? 1 : 0;
 
-	if (qed_mcp_get_shmem_proto(p_hwfn, &shmem_info, &info->protocol)) {
+	if (qed_mcp_get_shmem_proto(p_hwfn, &shmem_info, p_ptt,
+				    &info->protocol)) {
 		DP_ERR(p_hwfn, "Unknown personality %08x\n",
 		       (u32)(shmem_info.config & FUNC_MF_CFG_PROTOCOL_MASK));
 		return -EINVAL;

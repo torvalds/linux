@@ -8601,6 +8601,7 @@ struct public_drv_mb {
 
 #define DRV_MSG_CODE_BIST_TEST			0x001e0000
 #define DRV_MSG_CODE_SET_LED_MODE		0x00200000
+#define DRV_MSG_CODE_GET_PF_RDMA_PROTOCOL	0x002b0000
 #define DRV_MSG_CODE_OS_WOL			0x002e0000
 
 #define DRV_MSG_SEQ_NUMBER_MASK			0x0000ffff
@@ -8704,6 +8705,12 @@ struct public_drv_mb {
 #define FW_MSG_SEQ_NUMBER_MASK			0x0000ffff
 
 	u32 fw_mb_param;
+
+	/* get pf rdma protocol command responce */
+#define FW_MB_PARAM_GET_PF_RDMA_NONE		0x0
+#define FW_MB_PARAM_GET_PF_RDMA_ROCE		0x1
+#define FW_MB_PARAM_GET_PF_RDMA_IWARP		0x2
+#define FW_MB_PARAM_GET_PF_RDMA_BOTH		0x3
 
 	u32 drv_pulse_mb;
 #define DRV_PULSE_SEQ_MASK			0x00007fff
