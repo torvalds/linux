@@ -1244,17 +1244,17 @@ intel_crtc_has_dp_encoder(const struct intel_crtc_state *crtc_state)
 		 (1 << INTEL_OUTPUT_EDP));
 }
 static inline void
-intel_wait_for_vblank(struct drm_device *dev, int pipe)
+intel_wait_for_vblank(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	drm_wait_one_vblank(dev, pipe);
+	drm_wait_one_vblank(&dev_priv->drm, pipe);
 }
 static inline void
-intel_wait_for_vblank_if_active(struct drm_device *dev, int pipe)
+intel_wait_for_vblank_if_active(struct drm_i915_private *dev_priv, int pipe)
 {
-	const struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev, pipe);
+	const struct intel_crtc *crtc = intel_get_crtc_for_pipe(&dev_priv->drm, pipe);
 
 	if (crtc->active)
-		intel_wait_for_vblank(dev, pipe);
+		intel_wait_for_vblank(dev_priv, pipe);
 }
 
 u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc);

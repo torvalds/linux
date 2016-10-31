@@ -4249,6 +4249,7 @@ static void ironlake_fdi_disable(struct drm_crtc *crtc)
 
 bool intel_has_pending_fb_unpin(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *crtc;
 
 	/* Note that we don't need to be called with mode_config.lock here
@@ -4263,7 +4264,7 @@ bool intel_has_pending_fb_unpin(struct drm_device *dev)
 			continue;
 
 		if (crtc->flip_work)
-			intel_wait_for_vblank(dev, crtc->pipe);
+			intel_wait_for_vblank(dev_priv, crtc->pipe);
 
 		return true;
 	}
@@ -4940,7 +4941,7 @@ void hsw_disable_ips(struct intel_crtc *crtc)
 	}
 
 	/* We need to wait for a vblank before we can disable the plane. */
-	intel_wait_for_vblank(dev, crtc->pipe);
+	intel_wait_for_vblank(dev_priv, crtc->pipe);
 }
 
 static void intel_crtc_dpms_overlay_disable(struct intel_crtc *intel_crtc)
@@ -5052,7 +5053,7 @@ intel_pre_disable_primary_noatomic(struct drm_crtc *crtc)
 	if (HAS_GMCH_DISPLAY(dev_priv)) {
 		intel_set_memory_cxsr(dev_priv, false);
 		dev_priv->wm.vlv.cxsr = false;
-		intel_wait_for_vblank(dev, pipe);
+		intel_wait_for_vblank(dev_priv, pipe);
 	}
 }
 
@@ -5129,7 +5130,7 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 		if (old_crtc_state->base.active) {
 			intel_set_memory_cxsr(dev_priv, false);
 			dev_priv->wm.vlv.cxsr = false;
-			intel_wait_for_vblank(dev, crtc->pipe);
+			intel_wait_for_vblank(dev_priv, crtc->pipe);
 		}
 	}
 
@@ -5142,7 +5143,7 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 	 */
 	if (pipe_config->disable_lp_wm) {
 		ilk_disable_lp_wm(dev);
-		intel_wait_for_vblank(dev, crtc->pipe);
+		intel_wait_for_vblank(dev_priv, crtc->pipe);
 	}
 
 	/*
@@ -5397,7 +5398,7 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	/* Must wait for vblank to avoid spurious PCH FIFO underruns */
 	if (intel_crtc->config->has_pch_encoder)
-		intel_wait_for_vblank(dev, pipe);
+		intel_wait_for_vblank(dev_priv, pipe);
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
 }
@@ -5507,8 +5508,8 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_encoders_enable(crtc, pipe_config, old_state);
 
 	if (intel_crtc->config->has_pch_encoder) {
-		intel_wait_for_vblank(dev, pipe);
-		intel_wait_for_vblank(dev, pipe);
+		intel_wait_for_vblank(dev_priv, pipe);
+		intel_wait_for_vblank(dev_priv, pipe);
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 		intel_set_pch_fifo_underrun_reporting(dev_priv, TRANSCODER_A,
 						      true);
@@ -5518,8 +5519,8 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	 * to change the workaround. */
 	hsw_workaround_pipe = pipe_config->hsw_workaround_pipe;
 	if (IS_HASWELL(dev_priv) && hsw_workaround_pipe != INVALID_PIPE) {
-		intel_wait_for_vblank(dev, hsw_workaround_pipe);
-		intel_wait_for_vblank(dev, hsw_workaround_pipe);
+		intel_wait_for_vblank(dev_priv, hsw_workaround_pipe);
+		intel_wait_for_vblank(dev_priv, hsw_workaround_pipe);
 	}
 }
 
@@ -6833,7 +6834,7 @@ static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	 * wait for planes to fully turn off before disabling the pipe.
 	 */
 	if (IS_GEN2(dev_priv))
-		intel_wait_for_vblank(dev, pipe);
+		intel_wait_for_vblank(dev_priv, pipe);
 
 	intel_encoders_disable(crtc, old_crtc_state, old_state);
 
@@ -11129,6 +11130,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_crtc *crtc = NULL;
 	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_framebuffer *fb;
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_atomic_state *state = NULL, *restore_state = NULL;
@@ -11281,7 +11283,7 @@ found:
 	old->restore_state = restore_state;
 
 	/* let the connector get through one full cycle before testing */
-	intel_wait_for_vblank(dev, intel_crtc->pipe);
+	intel_wait_for_vblank(dev_priv, intel_crtc->pipe);
 	return true;
 
 fail:
@@ -14277,7 +14279,7 @@ static void intel_update_crtcs(struct drm_atomic_state *state,
 static void skl_update_crtcs(struct drm_atomic_state *state,
 			     unsigned int *crtc_vblank_mask)
 {
-	struct drm_device *dev = state->dev;
+	struct drm_i915_private *dev_priv = to_i915(state->dev);
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_crtc *crtc;
 	struct intel_crtc *intel_crtc;
@@ -14328,7 +14330,7 @@ static void skl_update_crtcs(struct drm_atomic_state *state,
 					  crtc_vblank_mask);
 
 			if (vbl_wait)
-				intel_wait_for_vblank(dev, pipe);
+				intel_wait_for_vblank(dev_priv, pipe);
 
 			progress = true;
 		}

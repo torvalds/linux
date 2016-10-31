@@ -573,7 +573,7 @@ intel_crt_load_detect(struct intel_crt *crt, uint32_t pipe)
 		POSTING_READ(pipeconf_reg);
 		/* Wait for next Vblank to substitue
 		 * border color for Color info */
-		intel_wait_for_vblank(dev, pipe);
+		intel_wait_for_vblank(dev_priv, pipe);
 		st00 = I915_READ8(_VGA_MSR_WRITE);
 		status = ((st00 & (1 << 4)) != 0) ?
 			connector_status_connected :

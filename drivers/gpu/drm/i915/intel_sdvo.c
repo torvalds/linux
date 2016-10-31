@@ -1472,7 +1472,7 @@ static void intel_disable_sdvo(struct intel_encoder *encoder,
 		temp &= ~SDVO_ENABLE;
 		intel_sdvo_write_sdvox(intel_sdvo, temp);
 
-		intel_wait_for_vblank_if_active(&dev_priv->drm, PIPE_A);
+		intel_wait_for_vblank_if_active(dev_priv, PIPE_A);
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 	}
@@ -1509,7 +1509,7 @@ static void intel_enable_sdvo(struct intel_encoder *encoder,
 	intel_sdvo_write_sdvox(intel_sdvo, temp);
 
 	for (i = 0; i < 2; i++)
-		intel_wait_for_vblank(dev, intel_crtc->pipe);
+		intel_wait_for_vblank(dev_priv, intel_crtc->pipe);
 
 	success = intel_sdvo_get_trained_inputs(intel_sdvo, &input1, &input2);
 	/* Warn if the device reported failure to sync.

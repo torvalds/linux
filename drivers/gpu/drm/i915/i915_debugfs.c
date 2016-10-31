@@ -4211,7 +4211,7 @@ static int pipe_crc_set_source(struct drm_i915_private *dev_priv,
 
 		drm_modeset_lock(&crtc->base.mutex, NULL);
 		if (crtc->base.state->active)
-			intel_wait_for_vblank(dev, pipe);
+			intel_wait_for_vblank(dev_priv, pipe);
 		drm_modeset_unlock(&crtc->base.mutex);
 
 		spin_lock_irq(&pipe_crc->lock);
