@@ -2411,10 +2411,10 @@ static void
 intel_sdvo_add_hdmi_properties(struct intel_sdvo *intel_sdvo,
 			       struct intel_sdvo_connector *connector)
 {
-	struct drm_device *dev = connector->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(connector->base.base.dev);
 
 	intel_attach_force_audio_property(&connector->base.base);
-	if (INTEL_INFO(dev)->gen >= 4 && IS_MOBILE(dev)) {
+	if (INTEL_GEN(dev_priv) >= 4 && IS_MOBILE(dev_priv)) {
 		intel_attach_broadcast_rgb_property(&connector->base.base);
 		intel_sdvo->color_range_auto = true;
 	}

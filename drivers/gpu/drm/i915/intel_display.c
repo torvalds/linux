@@ -15374,11 +15374,9 @@ static int intel_encoder_clones(struct intel_encoder *encoder)
 	return index_mask;
 }
 
-static bool has_edp_a(struct drm_device *dev)
+static bool has_edp_a(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	if (!IS_MOBILE(dev))
+	if (!IS_MOBILE(dev_priv))
 		return false;
 
 	if ((I915_READ(DP_A) & DP_DETECTED) == 0)
@@ -15518,7 +15516,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		int found;
 		dpd_is_edp = intel_dp_is_edp(dev, PORT_D);
 
-		if (has_edp_a(dev))
+		if (has_edp_a(dev_priv))
 			intel_dp_init(dev, DP_A, PORT_A);
 
 		if (I915_READ(PCH_HDMIB) & SDVO_DETECTED) {
