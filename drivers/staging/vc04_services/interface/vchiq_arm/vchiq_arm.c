@@ -2975,6 +2975,7 @@ failed_debugfs_init:
 
 static int vchiq_remove(struct platform_device *pdev)
 {
+	vchiq_debugfs_deinit();
 	device_destroy(vchiq_class, vchiq_devid);
 	class_destroy(vchiq_class);
 	cdev_del(&vchiq_cdev);
