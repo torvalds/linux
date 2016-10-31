@@ -314,6 +314,10 @@ static void bgmac_dma_rx_enable(struct bgmac *bgmac,
 	u32 ctl;
 
 	ctl = bgmac_read(bgmac, ring->mmio_base + BGMAC_DMA_RX_CTL);
+
+	/* preserve ONLY bits 16-17 from current hardware value */
+	ctl &= BGMAC_DMA_RX_ADDREXT_MASK;
+
 	if (bgmac->core->id.rev >= 4) {
 		ctl &= ~BGMAC_DMA_RX_BL_MASK;
 		ctl |= BGMAC_DMA_RX_BL_128 << BGMAC_DMA_RX_BL_SHIFT;
@@ -324,7 +328,6 @@ static void bgmac_dma_rx_enable(struct bgmac *bgmac,
 		ctl &= ~BGMAC_DMA_RX_PT_MASK;
 		ctl |= BGMAC_DMA_RX_PT_1 << BGMAC_DMA_RX_PT_SHIFT;
 	}
-	ctl &= BGMAC_DMA_RX_ADDREXT_MASK;
 	ctl |= BGMAC_DMA_RX_ENABLE;
 	ctl |= BGMAC_DMA_RX_PARITY_DISABLE;
 	ctl |= BGMAC_DMA_RX_OVERFLOW_CONT;
