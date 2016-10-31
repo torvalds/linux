@@ -524,6 +524,14 @@ static const struct of_device_id meson_pinctrl_dt_match[] = {
 		.compatible = "amlogic,meson-gxbb-aobus-pinctrl",
 		.data = &meson_gxbb_aobus_pinctrl_data,
 	},
+	{
+		.compatible = "amlogic,meson-gxl-periphs-pinctrl",
+		.data = &meson_gxl_periphs_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson-gxl-aobus-pinctrl",
+		.data = &meson_gxl_aobus_pinctrl_data,
+	},
 	{ },
 };
 
