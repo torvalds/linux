@@ -424,6 +424,16 @@ static struct clk ehrpwm_clk = {
 	.gpsc		= 1,
 };
 
+static struct clk ehrpwm0_clk = {
+	.name		= "ehrpwm0",
+	.parent		= &ehrpwm_clk,
+};
+
+static struct clk ehrpwm1_clk = {
+	.name		= "ehrpwm1",
+	.parent		= &ehrpwm_clk,
+};
+
 #define DA8XX_EHRPWM_TBCLKSYNC	BIT(12)
 
 static void ehrpwm_tblck_enable(struct clk *clk)
@@ -451,11 +461,36 @@ static struct clk ehrpwm_tbclk = {
 	.clk_disable	= ehrpwm_tblck_disable,
 };
 
+static struct clk ehrpwm0_tbclk = {
+	.name		= "ehrpwm0_tbclk",
+	.parent		= &ehrpwm_tbclk,
+};
+
+static struct clk ehrpwm1_tbclk = {
+	.name		= "ehrpwm1_tbclk",
+	.parent		= &ehrpwm_tbclk,
+};
+
 static struct clk ecap_clk = {
 	.name		= "ecap",
 	.parent		= &async3_clk,
 	.lpsc		= DA8XX_LPSC1_ECAP,
 	.gpsc		= 1,
+};
+
+static struct clk ecap0_clk = {
+	.name		= "ecap0_clk",
+	.parent		= &ecap_clk,
+};
+
+static struct clk ecap1_clk = {
+	.name		= "ecap1_clk",
+	.parent		= &ecap_clk,
+};
+
+static struct clk ecap2_clk = {
+	.name		= "ecap2_clk",
+	.parent		= &ecap_clk,
 };
 
 static struct clk_lookup da850_clks[] = {
@@ -510,9 +545,16 @@ static struct clk_lookup da850_clks[] = {
 	CLK("vpif",		NULL,		&vpif_clk),
 	CLK("ahci_da850",		NULL,		&sata_clk),
 	CLK("davinci-rproc.0",	NULL,		&dsp_clk),
-	CLK("ehrpwm",		"fck",		&ehrpwm_clk),
-	CLK("ehrpwm",		"tbclk",	&ehrpwm_tbclk),
-	CLK("ecap",		"fck",		&ecap_clk),
+	CLK(NULL,		NULL,		&ehrpwm_clk),
+	CLK("ehrpwm.0",		"fck",		&ehrpwm0_clk),
+	CLK("ehrpwm.1",		"fck",		&ehrpwm1_clk),
+	CLK(NULL,		NULL,		&ehrpwm_tbclk),
+	CLK("ehrpwm.0",		"tbclk",	&ehrpwm0_tbclk),
+	CLK("ehrpwm.1",		"tbclk",	&ehrpwm1_tbclk),
+	CLK(NULL,		NULL,		&ecap_clk),
+	CLK("ecap.0",		"fck",		&ecap0_clk),
+	CLK("ecap.1",		"fck",		&ecap1_clk),
+	CLK("ecap.2",		"fck",		&ecap2_clk),
 	CLK(NULL,		NULL,		NULL),
 };
 
