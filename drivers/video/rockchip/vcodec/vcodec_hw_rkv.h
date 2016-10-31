@@ -91,6 +91,7 @@ static struct vpu_task_info task_rkv[TASK_TYPE_BUTT] = {
 	},
 	{
 		.name = "rkvdec",
+		.reg_rlc = 4,
 		.reg_en = RKV_REG_EN_DEC,
 		.reg_irq = RKV_DEC_INTERRUPT_REGISTER,
 		.reg_len = 4,

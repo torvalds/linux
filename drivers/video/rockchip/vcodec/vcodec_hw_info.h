@@ -46,12 +46,13 @@ enum VPU_HW_ID {
  *
  * These three type features composite a complete codec information structure
  */
-enum HW_TYPE {
-	HW_VPU,
-	HW_VPU2,
-	HW_RKV,
-	HW_TYPE_BUTT,
-};
+
+/* VPU1 and VPU2 */
+#define VCODEC_DEVICE_TYPE_VPUX		0x56505558
+/* VPU Combo */
+#define VCODEC_DEVICE_TYPE_VPUC		0x56505543
+#define VCODEC_DEVICE_TYPE_HEVC		0x56505532
+#define VCODEC_DEVICE_TYPE_RKVD		0x524B5644
 
 enum TASK_TYPE {
 	TASK_ENC,
@@ -129,6 +130,12 @@ struct vpu_task_info {
 	struct timeval end;
 
 	/*
+	 * input stream register
+	 * use for map/unmap drm buffer for avoiding
+	 * cache sync issue
+	 */
+	int reg_rlc;
+	/*
 	 * task enable register
 	 * use for enable hardware task process
 	 *  -1 for invalid
@@ -205,6 +212,11 @@ struct vcodec_info {
 	struct vpu_hw_info		*hw_info;
 	struct vpu_task_info		*task_info;
 	const struct vpu_trans_info	*trans_info;
+};
+
+struct vcodec_device_info {
+	int32_t device_type;
+	int8_t *name;
 };
 
 #define DEF_FMT_TRANS_TBL(fmt, args...) \

@@ -127,6 +127,7 @@ static enum FORMAT_TYPE vpu_enc_get_fmt(u32 *regs)
 static struct vpu_task_info task_vpu[TASK_TYPE_BUTT] = {
 	{
 		.name = "vpu_enc",
+		.reg_rlc = 11,
 		.reg_en = VPU_REG_EN_ENC,
 		.reg_irq = VPU_ENC_INTERRUPT_REGISTER,
 		.reg_len = -1,
@@ -143,6 +144,7 @@ static struct vpu_task_info task_vpu[TASK_TYPE_BUTT] = {
 	},
 	{
 		.name = "vpu_dec",
+		.reg_rlc = 12,
 		.reg_en = VPU_REG_EN_DEC,
 		.reg_irq = VPU_DEC_INTERRUPT_REGISTER,
 		.reg_len = 12,
