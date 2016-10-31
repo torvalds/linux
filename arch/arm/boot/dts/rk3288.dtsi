@@ -1072,6 +1072,24 @@
 		status = "disabled";
 	};
 
+	vpu_service: vpu-service@ff9a0000 {
+		compatible = "rockchip,vpu_service";
+		reg = <0xff9a0000 0x800>;
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_enc", "irq_dec";
+		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		power-domains = <&power RK3288_PD_VIDEO>;
+		rockchip,grf = <&grf>;
+		resets = <&cru SRST_VCODEC_AXI>, <&cru SRST_VCODEC_AHB>;
+		reset-names = "video_a", "video_h";
+		iommus = <&vpu_mmu>;
+		iommu_enabled = <1>;
+		dev_mode = <0>;
+		status = "disabled";
+	};
+
 	vpu_mmu: iommu@ff9a0800 {
 		compatible = "rockchip,iommu";
 		reg = <0xff9a0800 0x100>;
