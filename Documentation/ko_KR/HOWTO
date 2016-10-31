@@ -104,18 +104,17 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     빌드하기 위해 필요한 것을 설명한다. 커널에 입문하는 사람들은 여기서
     시작해야 한다.
 
-  Documentation/process/changes.rst
+  :ref:`Documentation/process/changes.rst <changes>`
     이 파일은 커널을 성공적으로 빌드하고 실행시키기 위해 필요한 다양한
     소프트웨어 패키지들의 최소 버젼을 나열한다.
 
-  Documentation/process/coding-style.rst
+  :ref:`Documentation/process/coding-style.rst <codingstyle>`
     이 문서는 리눅스 커널 코딩 스타일과 그렇게 한 몇몇 이유를 설명한다.
     모든 새로운 코드는 이 문서에 가이드라인들을 따라야 한다. 대부분의
     메인테이너들은 이 규칙을 따르는 패치들만을 받아들일 것이고 많은 사람들이
     그 패치가 올바른 스타일일 경우만 코드를 검토할 것이다.
 
-  Documentation/process/submitting-patches.rst
-  Documentation/process/submitting-drivers.rst
+  :ref:`Documentation/process/submitting-patches.rst <submittingpatches>` 와 :ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`
     이 파일들은 성공적으로 패치를 만들고 보내는 법을 다음의 내용들로
     굉장히 상세히 설명하고 있다(그러나 다음으로 한정되진 않는다).
 
@@ -138,7 +137,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
 
         http://linux.yyz.us/patch-format.html
 
-   Documentation/process/stable-api-nonsense.rst
+   :ref:`Documentation/process/stable-api-nonsense.rst <stable_api_nonsense>`
     이 문서는 의도적으로 커널이 불변하는 API를 갖지 않도록 결정한
     이유를 설명하며 다음과 같은 것들을 포함한다.
 
@@ -150,12 +149,12 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     리눅스로 전향하는 사람들에게는 매우 중요하다.
 
 
-  Documentation/admin-guide/security-bugs.rst
+  :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`
     여러분들이 리눅스 커널의 보안 문제를 발견했다고 생각한다면 이 문서에
     나온 단계에 따라서 커널 개발자들에게 알리고 그 문제를 해결할 수 있도록
     도와 달라.
 
-  Documentation/process/management-style.rst
+  :ref:`Documentation/process/management-style.rst <managementstyle>`
     이 문서는 리눅스 커널 메인테이너들이 그들의 방법론에 녹아 있는
     정신을 어떻게 공유하고 운영하는지를 설명한다. 이것은 커널 개발에 입문하는
     모든 사람들(또는 커널 개발에 작은 호기심이라도 있는 사람들)이
@@ -163,17 +162,17 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     독특한 행동에 관하여 흔히 있는 오해들과 혼란들을 해소하고 있기
     때문이다.
 
-  Documentation/process/stable-kernel-rules.rst
+  :ref:`Documentation/process/stable_kernel_rules.rst <stable_kernel_rules>`
     이 문서는 안정적인 커널 배포가 이루어지는 규칙을 설명하고 있으며
     여러분들이 이러한 배포들 중 하나에 변경을 하길 원한다면
     무엇을 해야 하는지를 설명한다.
 
-  Documentation/process/kernel-docs.rst
+  :ref:`Documentation/process/kernel-docs.rst <kernel_docs>`
     커널 개발에 관계된 외부 문서의 리스트이다. 커널 내의 포함된 문서들
     중에 여러분이 찾고 싶은 문서를 발견하지 못할 경우 이 리스트를
     살펴보라.
 
-  Documentation/process/applying-patches.rst
+  :ref:`Documentation/process/applying-patches.rst <applying_patches>`
     패치가 무엇이며 그것을 커널의 다른 개발 브랜치들에 어떻게
     적용하는지에 관하여 자세히 설명하고 있는 좋은 입문서이다.
 
