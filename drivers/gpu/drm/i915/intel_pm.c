@@ -320,7 +320,6 @@ static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 
 void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	u32 val;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
@@ -330,7 +329,7 @@ void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 	} else if (IS_G4X(dev_priv) || IS_CRESTLINE(dev_priv)) {
 		I915_WRITE(FW_BLC_SELF, enable ? FW_BLC_SELF_EN : 0);
 		POSTING_READ(FW_BLC_SELF);
-	} else if (IS_PINEVIEW(dev)) {
+	} else if (IS_PINEVIEW(dev_priv)) {
 		val = I915_READ(DSPFW3) & ~PINEVIEW_SELF_REFRESH_EN;
 		val |= enable ? PINEVIEW_SELF_REFRESH_EN : 0;
 		I915_WRITE(DSPFW3, val);
@@ -7628,7 +7627,7 @@ static void gen3_init_clock_gating(struct drm_device *dev)
 		DSTATE_DOT_CLOCK_GATING;
 	I915_WRITE(D_STATE, dstate);
 
-	if (IS_PINEVIEW(dev))
+	if (IS_PINEVIEW(dev_priv))
 		I915_WRITE(ECOSKPD, _MASKED_BIT_ENABLE(ECO_GATING_CX_ONLY));
 
 	/* IIR "flip pending" means done if this bit is set */
@@ -7744,7 +7743,7 @@ void intel_init_pm(struct drm_device *dev)
 	intel_fbc_init(dev_priv);
 
 	/* For cxsr */
-	if (IS_PINEVIEW(dev))
+	if (IS_PINEVIEW(dev_priv))
 		i915_pineview_get_mem_freq(dev);
 	else if (IS_GEN5(dev_priv))
 		i915_ironlake_get_mem_freq(dev);
@@ -7778,7 +7777,7 @@ void intel_init_pm(struct drm_device *dev)
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		vlv_setup_wm_latency(dev);
 		dev_priv->display.update_wm = vlv_update_wm;
-	} else if (IS_PINEVIEW(dev)) {
+	} else if (IS_PINEVIEW(dev_priv)) {
 		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev_priv),
 					    dev_priv->is_ddr3,
 					    dev_priv->fsb_freq,

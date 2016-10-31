@@ -2735,7 +2735,7 @@ struct drm_i915_cmd_table {
 #define IS_G4X(dev_priv)	((dev_priv)->info.is_g4x)
 #define IS_PINEVIEW_G(dev_priv)	(INTEL_DEVID(dev_priv) == 0xa001)
 #define IS_PINEVIEW_M(dev_priv)	(INTEL_DEVID(dev_priv) == 0xa011)
-#define IS_PINEVIEW(dev)	(INTEL_INFO(dev)->is_pineview)
+#define IS_PINEVIEW(dev_priv)	((dev_priv)->info.is_pineview)
 #define IS_G33(dev)		(INTEL_INFO(dev)->is_g33)
 #define IS_IRONLAKE_M(dev_priv)	(INTEL_DEVID(dev_priv) == 0x0046)
 #define IS_IVYBRIDGE(dev_priv)	((dev_priv)->info.is_ivybridge)
