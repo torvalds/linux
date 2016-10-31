@@ -483,6 +483,45 @@ static void qede_get_drvinfo(struct net_device *ndev,
 	strlcpy(info->bus_info, pci_name(edev->pdev), sizeof(info->bus_info));
 }
 
+static void qede_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
+{
+	struct qede_dev *edev = netdev_priv(ndev);
+
+	if (edev->dev_info.common.wol_support) {
+		wol->supported = WAKE_MAGIC;
+		wol->wolopts = edev->wol_enabled ? WAKE_MAGIC : 0;
+	}
+}
+
+static int qede_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
+{
+	struct qede_dev *edev = netdev_priv(ndev);
+	bool wol_requested;
+	int rc;
+
+	if (wol->wolopts & ~WAKE_MAGIC) {
+		DP_INFO(edev,
+			"Can't support WoL options other than magic-packet\n");
+		return -EINVAL;
+	}
+
+	wol_requested = !!(wol->wolopts & WAKE_MAGIC);
+	if (wol_requested == edev->wol_enabled)
+		return 0;
+
+	/* Need to actually change configuration */
+	if (!edev->dev_info.common.wol_support) {
+		DP_INFO(edev, "Device doesn't support WoL\n");
+		return -EINVAL;
+	}
+
+	rc = edev->ops->common->update_wol(edev->cdev, wol_requested);
+	if (!rc)
+		edev->wol_enabled = wol_requested;
+
+	return rc;
+}
+
 static u32 qede_get_msglevel(struct net_device *ndev)
 {
 	struct qede_dev *edev = netdev_priv(ndev);
@@ -1449,6 +1488,8 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_drvinfo = qede_get_drvinfo,
 	.get_regs_len = qede_get_regs_len,
 	.get_regs = qede_get_regs,
+	.get_wol = qede_get_wol,
+	.set_wol = qede_set_wol,
 	.get_msglevel = qede_get_msglevel,
 	.set_msglevel = qede_set_msglevel,
 	.nway_reset = qede_nway_reset,

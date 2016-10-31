@@ -195,6 +195,11 @@ enum qed_dev_cap {
 	QED_DEV_CAP_ROCE,
 };
 
+enum qed_wol_support {
+	QED_WOL_SUPPORT_NONE,
+	QED_WOL_SUPPORT_PME,
+};
+
 struct qed_hw_info {
 	/* PCI personality */
 	enum qed_pci_personality	personality;
@@ -227,6 +232,8 @@ struct qed_hw_info {
 	u32				hw_mode;
 	unsigned long		device_capabilities;
 	u16				mtu;
+
+	enum qed_wol_support b_wol_support;
 };
 
 struct qed_hw_cid_data {
@@ -539,7 +546,9 @@ struct qed_dev {
 	u8				mcp_rev;
 	u8				boot_mode;
 
-	u8				wol;
+	/* WoL related configurations */
+	u8 wol_config;
+	u8 wol_mac[ETH_ALEN];
 
 	u32				int_mode;
 	enum qed_coalescing_mode	int_coalescing_mode;

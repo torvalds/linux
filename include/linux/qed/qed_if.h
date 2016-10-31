@@ -268,6 +268,8 @@ struct qed_dev_info {
 	bool		tx_switching;
 	bool		rdma_supported;
 	u16		mtu;
+
+	bool wol_support;
 };
 
 enum qed_sb_type {
@@ -591,6 +593,14 @@ struct qed_common_ops {
  *
  */
 	int (*update_mtu)(struct qed_dev *cdev, u16 mtu);
+
+/**
+ * @brief update_wol - update of changes in the WoL configuration
+ *
+ * @param cdev
+ * @param enabled - true iff WoL should be enabled.
+ */
+	int (*update_wol) (struct qed_dev *cdev, bool enabled);
 };
 
 #define MASK_FIELD(_name, _value) \

@@ -330,6 +330,7 @@ static int qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 				 struct qed_mcp_mb_params *p_mb_params)
 {
 	u32 union_data_addr;
+
 	int rc;
 
 	/* MCP not initialized */
@@ -375,11 +376,32 @@ int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
 		u32 *o_mcp_param)
 {
 	struct qed_mcp_mb_params mb_params;
+	union drv_union_data data_src;
 	int rc;
 
 	memset(&mb_params, 0, sizeof(mb_params));
+	memset(&data_src, 0, sizeof(data_src));
 	mb_params.cmd = cmd;
 	mb_params.param = param;
+
+	/* In case of UNLOAD_DONE, set the primary MAC */
+	if ((cmd == DRV_MSG_CODE_UNLOAD_DONE) &&
+	    (p_hwfn->cdev->wol_config == QED_OV_WOL_ENABLED)) {
+		u8 *p_mac = p_hwfn->cdev->wol_mac;
+
+		data_src.wol_mac.mac_upper = p_mac[0] << 8 | p_mac[1];
+		data_src.wol_mac.mac_lower = p_mac[2] << 24 | p_mac[3] << 16 |
+					     p_mac[4] << 8 | p_mac[5];
+
+		DP_VERBOSE(p_hwfn,
+			   (QED_MSG_SP | NETIF_MSG_IFDOWN),
+			   "Setting WoL MAC: %pM --> [%08x,%08x]\n",
+			   p_mac, data_src.wol_mac.mac_upper,
+			   data_src.wol_mac.mac_lower);
+
+		mb_params.p_data_src = &data_src;
+	}
+
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc)
 		return rc;
@@ -1058,6 +1080,9 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 		info->mac[3] = (u8)(shmem_info.mac_lower >> 16);
 		info->mac[4] = (u8)(shmem_info.mac_lower >> 8);
 		info->mac[5] = (u8)(shmem_info.mac_lower);
+
+		/* Store primary MAC for later possible WoL */
+		memcpy(&p_hwfn->cdev->wol_mac, info->mac, ETH_ALEN);
 	} else {
 		DP_NOTICE(p_hwfn, "MAC is 0 in shmem\n");
 	}
@@ -1071,13 +1096,28 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 
 	info->mtu = (u16)shmem_info.mtu_size;
 
+	p_hwfn->hw_info.b_wol_support = QED_WOL_SUPPORT_NONE;
+	p_hwfn->cdev->wol_config = (u8)QED_OV_WOL_DEFAULT;
+	if (qed_mcp_is_init(p_hwfn)) {
+		u32 resp = 0, param = 0;
+		int rc;
+
+		rc = qed_mcp_cmd(p_hwfn, p_ptt,
+				 DRV_MSG_CODE_OS_WOL, 0, &resp, &param);
+		if (rc)
+			return rc;
+		if (resp == FW_MSG_CODE_OS_WOL_SUPPORTED)
+			p_hwfn->hw_info.b_wol_support = QED_WOL_SUPPORT_PME;
+	}
+
 	DP_VERBOSE(p_hwfn, (QED_MSG_SP | NETIF_MSG_IFUP),
-		   "Read configuration from shmem: pause_on_host %02x protocol %02x BW [%02x - %02x] MAC %02x:%02x:%02x:%02x:%02x:%02x wwn port %llx node %llx ovlan %04x\n",
+		   "Read configuration from shmem: pause_on_host %02x protocol %02x BW [%02x - %02x] MAC %02x:%02x:%02x:%02x:%02x:%02x wwn port %llx node %llx ovlan %04x wol %02x\n",
 		info->pause_on_host, info->protocol,
 		info->bandwidth_min, info->bandwidth_max,
 		info->mac[0], info->mac[1], info->mac[2],
 		info->mac[3], info->mac[4], info->mac[5],
-		info->wwn_port, info->wwn_node, info->ovlan);
+		info->wwn_port, info->wwn_node,
+		info->ovlan, (u8)p_hwfn->hw_info.b_wol_support);
 
 	return 0;
 }
@@ -1322,6 +1362,9 @@ int qed_mcp_ov_update_mac(struct qed_hwfn *p_hwfn,
 	if (rc)
 		DP_ERR(p_hwfn, "Failed to send mac address, rc = %d\n", rc);
 
+	/* Store primary MAC for later possible WoL */
+	memcpy(p_hwfn->cdev->wol_mac, mac, ETH_ALEN);
+
 	return rc;
 }
 
@@ -1331,6 +1374,12 @@ int qed_mcp_ov_update_wol(struct qed_hwfn *p_hwfn,
 	u32 resp = 0, param = 0;
 	u32 drv_mb_param;
 	int rc;
+
+	if (p_hwfn->hw_info.b_wol_support == QED_WOL_SUPPORT_NONE) {
+		DP_VERBOSE(p_hwfn, QED_MSG_SP,
+			   "Can't change WoL configuration when WoL isn't supported\n");
+		return -EINVAL;
+	}
 
 	switch (wol) {
 	case QED_OV_WOL_DEFAULT:
@@ -1351,6 +1400,9 @@ int qed_mcp_ov_update_wol(struct qed_hwfn *p_hwfn,
 			 drv_mb_param, &resp, &param);
 	if (rc)
 		DP_ERR(p_hwfn, "Failed to send wol mode, rc = %d\n", rc);
+
+	/* Store the WoL update for a future unload */
+	p_hwfn->cdev->wol_config = (u8)wol;
 
 	return rc;
 }

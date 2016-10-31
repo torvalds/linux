@@ -1364,7 +1364,23 @@ int qed_hw_reset(struct qed_dev *cdev)
 {
 	int rc = 0;
 	u32 unload_resp, unload_param;
+	u32 wol_param;
 	int i;
+
+	switch (cdev->wol_config) {
+	case QED_OV_WOL_DISABLED:
+		wol_param = DRV_MB_PARAM_UNLOAD_WOL_DISABLED;
+		break;
+	case QED_OV_WOL_ENABLED:
+		wol_param = DRV_MB_PARAM_UNLOAD_WOL_ENABLED;
+		break;
+	default:
+		DP_NOTICE(cdev,
+			  "Unknown WoL configuration %02x\n", cdev->wol_config);
+		/* Fallthrough */
+	case QED_OV_WOL_DEFAULT:
+		wol_param = DRV_MB_PARAM_UNLOAD_WOL_MCP;
+	}
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
@@ -1394,8 +1410,7 @@ int qed_hw_reset(struct qed_dev *cdev)
 
 		/* Send unload command to MCP */
 		rc = qed_mcp_cmd(p_hwfn, p_hwfn->p_main_ptt,
-				 DRV_MSG_CODE_UNLOAD_REQ,
-				 DRV_MB_PARAM_UNLOAD_WOL_MCP,
+				 DRV_MSG_CODE_UNLOAD_REQ, wol_param,
 				 &unload_resp, &unload_param);
 		if (rc) {
 			DP_NOTICE(p_hwfn, "qed_hw_reset: UNLOAD_REQ failed\n");

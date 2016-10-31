@@ -8601,6 +8601,7 @@ struct public_drv_mb {
 
 #define DRV_MSG_CODE_BIST_TEST			0x001e0000
 #define DRV_MSG_CODE_SET_LED_MODE		0x00200000
+#define DRV_MSG_CODE_OS_WOL			0x002e0000
 
 #define DRV_MSG_SEQ_NUMBER_MASK			0x0000ffff
 
@@ -8696,6 +8697,9 @@ struct public_drv_mb {
 
 #define FW_MSG_CODE_NVM_OK			0x00010000
 #define FW_MSG_CODE_OK				0x00160000
+
+#define FW_MSG_CODE_OS_WOL_SUPPORTED            0x00800000
+#define FW_MSG_CODE_OS_WOL_NOT_SUPPORTED        0x00810000
 
 #define FW_MSG_SEQ_NUMBER_MASK			0x0000ffff
 

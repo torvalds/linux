@@ -95,6 +95,7 @@ static int qede_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 #define TX_TIMEOUT		(5 * HZ)
 
 static void qede_remove(struct pci_dev *pdev);
+static void qede_shutdown(struct pci_dev *pdev);
 static int qede_alloc_rx_buffer(struct qede_dev *edev,
 				struct qede_rx_queue *rxq);
 static void qede_link_update(void *dev, struct qed_link_output *link);
@@ -166,6 +167,7 @@ static struct pci_driver qede_pci_driver = {
 	.id_table = qede_pci_tbl,
 	.probe = qede_probe,
 	.remove = qede_remove,
+	.shutdown = qede_shutdown,
 #ifdef CONFIG_QED_SRIOV
 	.sriov_configure = qede_sriov_configure,
 #endif
@@ -2705,12 +2707,19 @@ static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 
 	/* Use global ops since we've freed edev */
 	qed_ops->common->slowpath_stop(cdev);
+	if (system_state == SYSTEM_POWER_OFF)
+		return;
 	qed_ops->common->remove(cdev);
 
 	dev_info(&pdev->dev, "Ending qede_remove successfully\n");
 }
 
 static void qede_remove(struct pci_dev *pdev)
+{
+	__qede_remove(pdev, QEDE_REMOVE_NORMAL);
+}
+
+static void qede_shutdown(struct pci_dev *pdev)
 {
 	__qede_remove(pdev, QEDE_REMOVE_NORMAL);
 }
