@@ -715,7 +715,7 @@ ssize_t lirc_dev_fop_read(struct file *file,
 
 			if (!ir->attached) {
 				ret = -ENODEV;
-				break;
+				goto out_locked;
 			}
 		} else {
 			lirc_buffer_read(ir->buf, buf);
