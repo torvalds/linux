@@ -1060,13 +1060,9 @@ static void scsifront_read_backend_params(struct xenbus_device *dev,
 					  struct vscsifrnt_info *info)
 {
 	unsigned int sg_grant, nr_segs;
-	int ret;
 	struct Scsi_Host *host = info->host;
 
-	ret = xenbus_scanf(XBT_NIL, dev->otherend, "feature-sg-grant", "%u",
-			   &sg_grant);
-	if (ret != 1)
-		sg_grant = 0;
+	sg_grant = xenbus_read_unsigned(dev->otherend, "feature-sg-grant", 0);
 	nr_segs = min_t(unsigned int, sg_grant, SG_ALL);
 	nr_segs = max_t(unsigned int, nr_segs, VSCSIIF_SG_TABLESIZE);
 	nr_segs = min_t(unsigned int, nr_segs,
