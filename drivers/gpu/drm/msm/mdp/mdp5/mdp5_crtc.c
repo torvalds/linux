@@ -135,7 +135,6 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct drm_pending_vblank_event *event;
-	struct drm_plane *plane;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
@@ -152,10 +151,6 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 		}
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	drm_atomic_crtc_for_each_plane(plane, crtc) {
-		mdp5_plane_complete_flip(plane);
-	}
 
 	if (mdp5_crtc->ctl && !crtc->state->enable) {
 		/* set STAGE_UNUSED for all layers */

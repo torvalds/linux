@@ -852,20 +852,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	return ret;
 }
 
-void mdp5_plane_complete_flip(struct drm_plane *plane)
-{
-	struct mdp5_kms *mdp5_kms = get_kms(plane);
-	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
-	enum mdp5_pipe pipe = mdp5_plane->pipe;
-
-	DBG("%s: complete flip", mdp5_plane->name);
-
-	if (mdp5_kms->smp)
-		mdp5_smp_commit(mdp5_kms->smp, pipe);
-
-	to_mdp5_plane_state(plane->state)->pending = false;
-}
-
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane)
 {
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
@@ -887,10 +873,17 @@ void mdp5_plane_complete_commit(struct drm_plane *plane,
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	enum mdp5_pipe pipe = mdp5_plane->pipe;
 
-	if (!plane_enabled(plane->state) && mdp5_kms->smp) {
-		DBG("%s: free SMP", mdp5_plane->name);
-		mdp5_smp_release(mdp5_kms->smp, pipe);
+	if (mdp5_kms->smp) {
+		if (plane_enabled(plane->state)) {
+			DBG("%s: complete flip", mdp5_plane->name);
+			mdp5_smp_commit(mdp5_kms->smp, pipe);
+		} else {
+			DBG("%s: free SMP", mdp5_plane->name);
+			mdp5_smp_release(mdp5_kms->smp, pipe);
+		}
 	}
+
+	to_mdp5_plane_state(plane->state)->pending = false;
 }
 
 /* initialize plane */
