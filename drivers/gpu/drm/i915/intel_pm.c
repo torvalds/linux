@@ -375,10 +375,9 @@ static const int pessimal_latency_ns = 5000;
 #define VLV_FIFO_START(dsparb, dsparb2, lo_shift, hi_shift) \
 	((((dsparb) >> (lo_shift)) & 0xff) | ((((dsparb2) >> (hi_shift)) & 0x1) << 8))
 
-static int vlv_get_fifo_size(struct drm_device *dev,
+static int vlv_get_fifo_size(struct drm_i915_private *dev_priv,
 			      enum pipe pipe, int plane)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	int sprite0_start, sprite1_start, size;
 
 	switch (pipe) {
@@ -427,9 +426,8 @@ static int vlv_get_fifo_size(struct drm_device *dev,
 	return size;
 }
 
-static int i9xx_get_fifo_size(struct drm_device *dev, int plane)
+static int i9xx_get_fifo_size(struct drm_i915_private *dev_priv, int plane)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t dsparb = I915_READ(DSPARB);
 	int size;
 
@@ -443,9 +441,8 @@ static int i9xx_get_fifo_size(struct drm_device *dev, int plane)
 	return size;
 }
 
-static int i830_get_fifo_size(struct drm_device *dev, int plane)
+static int i830_get_fifo_size(struct drm_i915_private *dev_priv, int plane)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t dsparb = I915_READ(DSPARB);
 	int size;
 
@@ -460,9 +457,8 @@ static int i830_get_fifo_size(struct drm_device *dev, int plane)
 	return size;
 }
 
-static int i845_get_fifo_size(struct drm_device *dev, int plane)
+static int i845_get_fifo_size(struct drm_i915_private *dev_priv, int plane)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t dsparb = I915_READ(DSPARB);
 	int size;
 
@@ -1541,7 +1537,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 	else
 		wm_info = &i830_a_wm_info;
 
-	fifo_size = dev_priv->display.get_fifo_size(dev, 0);
+	fifo_size = dev_priv->display.get_fifo_size(dev_priv, 0);
 	crtc = intel_get_crtc_for_plane(dev_priv, 0);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode =
@@ -1568,7 +1564,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 	if (IS_GEN2(dev_priv))
 		wm_info = &i830_bc_wm_info;
 
-	fifo_size = dev_priv->display.get_fifo_size(dev, 1);
+	fifo_size = dev_priv->display.get_fifo_size(dev_priv, 1);
 	crtc = intel_get_crtc_for_plane(dev_priv, 1);
 	if (intel_crtc_active(crtc)) {
 		const struct drm_display_mode *adjusted_mode =
@@ -1686,7 +1682,7 @@ static void i845_update_wm(struct intel_crtc *unused_crtc)
 	adjusted_mode = &crtc->config->base.adjusted_mode;
 	planea_wm = intel_calculate_wm(adjusted_mode->crtc_clock,
 				       &i845_wm_info,
-				       dev_priv->display.get_fifo_size(dev, 0),
+				       dev_priv->display.get_fifo_size(dev_priv, 0),
 				       4, pessimal_latency_ns);
 	fwater_lo = I915_READ(FW_BLC) & ~0xfff;
 	fwater_lo |= (3<<8) | planea_wm;
@@ -4556,11 +4552,11 @@ void vlv_wm_get_hw_state(struct drm_device *dev)
 			plane->wm.fifo_size = 63;
 			break;
 		case DRM_PLANE_TYPE_PRIMARY:
-			plane->wm.fifo_size = vlv_get_fifo_size(dev, plane->pipe, 0);
+			plane->wm.fifo_size = vlv_get_fifo_size(dev_priv, plane->pipe, 0);
 			break;
 		case DRM_PLANE_TYPE_OVERLAY:
 			sprite = plane->plane;
-			plane->wm.fifo_size = vlv_get_fifo_size(dev, plane->pipe, sprite + 1);
+			plane->wm.fifo_size = vlv_get_fifo_size(dev_priv, plane->pipe, sprite + 1);
 			break;
 		}
 	}
