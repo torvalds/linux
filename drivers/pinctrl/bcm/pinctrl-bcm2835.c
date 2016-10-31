@@ -917,12 +917,14 @@ static int bcm2835_pinconf_set(struct pinctrl_dev *pctldev,
 
 		bcm2835_gpio_wr(pc, GPPUD, arg & 3);
 		/*
-		 * Docs say to wait 150 cycles, but not of what. We assume a
-		 * 1 MHz clock here, which is pretty slow...
+		 * BCM2835 datasheet say to wait 150 cycles, but not of what.
+		 * But the VideoCore firmware delay for this operation
+		 * based nearly on the same amount of VPU cycles and this clock
+		 * runs at 250 MHz.
 		 */
-		udelay(150);
+		udelay(1);
 		bcm2835_gpio_wr(pc, GPPUDCLK0 + (off * 4), BIT(bit));
-		udelay(150);
+		udelay(1);
 		bcm2835_gpio_wr(pc, GPPUDCLK0 + (off * 4), 0);
 	} /* for each config */
 
