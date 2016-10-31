@@ -21,7 +21,7 @@
 #define EX(a,b)							\
 9:	a,##b;							\
 	.section __ex_table,"a";				\
-	PTR	9b,bad_stack;					\
+	PTR	9b,fault;					\
 	.previous
 
 	.set	noreorder
