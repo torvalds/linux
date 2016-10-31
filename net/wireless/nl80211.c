@@ -11804,9 +11804,6 @@ static int nl80211_set_multicast_to_unicast(struct sk_buff *skb,
 	const struct nlattr *nla;
 	bool enabled;
 
-	if (netif_running(dev))
-		return -EBUSY;
-
 	if (!rdev->ops->set_multicast_to_unicast)
 		return -EOPNOTSUPP;
 
