@@ -1000,7 +1000,7 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		 * In case the user-specified fault handler returned
 		 * zero, try to fix up.
 		 */
-		if (fixup_exception(regs, trapnr))
+		if (fixup_exception(regs))
 			return 1;
 
 		/*

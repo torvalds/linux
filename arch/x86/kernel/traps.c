@@ -199,7 +199,7 @@ do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 	}
 
 	if (!user_mode(regs)) {
-		if (!fixup_exception(regs, trapnr)) {
+		if (!fixup_exception(regs)) {
 			tsk->thread.error_code = error_code;
 			tsk->thread.trap_nr = trapnr;
 			die(str, regs, error_code);
@@ -453,7 +453,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 
 	tsk = current;
 	if (!user_mode(regs)) {
-		if (fixup_exception(regs, X86_TRAP_GP))
+		if (fixup_exception(regs))
 			return;
 
 		tsk->thread.error_code = error_code;
@@ -699,7 +699,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 	conditional_sti(regs);
 
 	if (!user_mode(regs)) {
-		if (!fixup_exception(regs, trapnr)) {
+		if (!fixup_exception(regs)) {
 			task->thread.error_code = error_code;
 			task->thread.trap_nr = trapnr;
 			die(str, regs, error_code);
