@@ -576,7 +576,7 @@ static void nfp_net_aux_irq_free(struct nfp_net *nn, u32 ctrl_offset,
  *
  * Return: True if the ring is full.
  */
-static inline int nfp_net_tx_full(struct nfp_net_tx_ring *tx_ring, int dcnt)
+static int nfp_net_tx_full(struct nfp_net_tx_ring *tx_ring, int dcnt)
 {
 	return (tx_ring->wr_p - tx_ring->rd_p) >= (tx_ring->cnt - dcnt);
 }
@@ -1030,19 +1030,6 @@ static void nfp_net_tx_timeout(struct net_device *netdev)
 
 /* Receive processing
  */
-
-/**
- * nfp_net_rx_space() - return the number of free slots on the RX ring
- * @rx_ring:   RX ring structure
- *
- * Make sure we leave at least one slot free.
- *
- * Return: True if there is space on the RX ring
- */
-static inline int nfp_net_rx_space(struct nfp_net_rx_ring *rx_ring)
-{
-	return (rx_ring->cnt - 1) - (rx_ring->wr_p - rx_ring->rd_p);
-}
 
 /**
  * nfp_net_rx_alloc_one() - Allocate and map skb for RX
