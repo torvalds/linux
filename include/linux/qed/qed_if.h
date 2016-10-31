@@ -402,6 +402,15 @@ struct qed_selftest_ops {
  * @return 0 on success, error otherwise.
  */
 	int (*selftest_clock)(struct qed_dev *cdev);
+
+/**
+ * @brief selftest_nvram - Perform nvram test
+ *
+ * @param cdev
+ *
+ * @return 0 on success, error otherwise.
+ */
+	int (*selftest_nvram) (struct qed_dev *cdev);
 };
 
 struct qed_common_ops {

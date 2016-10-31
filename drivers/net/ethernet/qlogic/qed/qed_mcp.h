@@ -380,6 +380,18 @@ int qed_mcp_set_led(struct qed_hwfn *p_hwfn,
 		    enum qed_led_mode mode);
 
 /**
+ * @brief Read from nvm
+ *
+ *  @param cdev
+ *  @param addr - nvm offset
+ *  @param p_buf - nvm read buffer
+ *  @param len - buffer len
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_nvm_read(struct qed_dev *cdev, u32 addr, u8 *p_buf, u32 len);
+
+/**
  * @brief Bist register test
  *
  *  @param p_hwfn    - hw function
@@ -400,6 +412,35 @@ int qed_mcp_bist_register_test(struct qed_hwfn *p_hwfn,
  */
 int qed_mcp_bist_clock_test(struct qed_hwfn *p_hwfn,
 			    struct qed_ptt *p_ptt);
+
+/**
+ * @brief Bist nvm test - get number of images
+ *
+ *  @param p_hwfn       - hw function
+ *  @param p_ptt        - PTT required for register access
+ *  @param num_images   - number of images if operation was
+ *			  successful. 0 if not.
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_bist_nvm_test_get_num_images(struct qed_hwfn *p_hwfn,
+					 struct qed_ptt *p_ptt,
+					 u32 *num_images);
+
+/**
+ * @brief Bist nvm test - get image attributes by index
+ *
+ *  @param p_hwfn      - hw function
+ *  @param p_ptt       - PTT required for register access
+ *  @param p_image_att - Attributes of image
+ *  @param image_index - Index of image to get information for
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
+					struct qed_ptt *p_ptt,
+					struct bist_nvm_image_att *p_image_att,
+					u32 image_index);
 
 /* Using hwfn number (and not pf_num) is required since in CMT mode,
  * same pf_num may be used by two different hwfn

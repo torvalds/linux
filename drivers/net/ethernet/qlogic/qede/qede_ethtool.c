@@ -157,6 +157,7 @@ enum qede_ethtool_tests {
 	QEDE_ETHTOOL_MEMORY_TEST,
 	QEDE_ETHTOOL_REGISTER_TEST,
 	QEDE_ETHTOOL_CLOCK_TEST,
+	QEDE_ETHTOOL_NVRAM_TEST,
 	QEDE_ETHTOOL_TEST_MAX
 };
 
@@ -166,6 +167,7 @@ static const char qede_tests_str_arr[QEDE_ETHTOOL_TEST_MAX][ETH_GSTRING_LEN] = {
 	"Memory (online)\t\t",
 	"Register (online)\t",
 	"Clock (online)\t\t",
+	"Nvram (online)\t\t",
 };
 
 static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
@@ -1390,6 +1392,11 @@ static void qede_self_test(struct net_device *dev,
 
 	if (edev->ops->common->selftest->selftest_clock(edev->cdev)) {
 		buf[QEDE_ETHTOOL_CLOCK_TEST] = 1;
+		etest->flags |= ETH_TEST_FL_FAILED;
+	}
+
+	if (edev->ops->common->selftest->selftest_nvram(edev->cdev)) {
+		buf[QEDE_ETHTOOL_NVRAM_TEST] = 1;
 		etest->flags |= ETH_TEST_FL_FAILED;
 	}
 }

@@ -1434,6 +1434,52 @@ int qed_mcp_mask_parities(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+int qed_mcp_nvm_read(struct qed_dev *cdev, u32 addr, u8 *p_buf, u32 len)
+{
+	u32 bytes_left = len, offset = 0, bytes_to_copy, read_len = 0;
+	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
+	u32 resp = 0, resp_param = 0;
+	struct qed_ptt *p_ptt;
+	int rc = 0;
+
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt)
+		return -EBUSY;
+
+	while (bytes_left > 0) {
+		bytes_to_copy = min_t(u32, bytes_left, MCP_DRV_NVM_BUF_LEN);
+
+		rc = qed_mcp_nvm_rd_cmd(p_hwfn, p_ptt,
+					DRV_MSG_CODE_NVM_READ_NVRAM,
+					addr + offset +
+					(bytes_to_copy <<
+					 DRV_MB_PARAM_NVM_LEN_SHIFT),
+					&resp, &resp_param,
+					&read_len,
+					(u32 *)(p_buf + offset));
+
+		if (rc || (resp != FW_MSG_CODE_NVM_OK)) {
+			DP_NOTICE(cdev, "MCP command rc = %d\n", rc);
+			break;
+		}
+
+		/* This can be a lengthy process, and it's possible scheduler
+		 * isn't preemptable. Sleep a bit to prevent CPU hogging.
+		 */
+		if (bytes_left % 0x1000 <
+		    (bytes_left - read_len) % 0x1000)
+			usleep_range(1000, 2000);
+
+		offset += read_len;
+		bytes_left -= read_len;
+	}
+
+	cdev->mcp_nvm_resp = resp;
+	qed_ptt_release(p_hwfn, p_ptt);
+
+	return rc;
+}
+
 int qed_mcp_bist_register_test(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 drv_mb_param = 0, rsp, param;
@@ -1472,6 +1518,54 @@ int qed_mcp_bist_clock_test(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	if (((rsp & FW_MSG_CODE_MASK) != FW_MSG_CODE_OK) ||
 	    (param != DRV_MB_PARAM_BIST_RC_PASSED))
 		rc = -EAGAIN;
+
+	return rc;
+}
+
+int qed_mcp_bist_nvm_test_get_num_images(struct qed_hwfn *p_hwfn,
+					 struct qed_ptt *p_ptt,
+					 u32 *num_images)
+{
+	u32 drv_mb_param = 0, rsp;
+	int rc = 0;
+
+	drv_mb_param = (DRV_MB_PARAM_BIST_NVM_TEST_NUM_IMAGES <<
+			DRV_MB_PARAM_BIST_TEST_INDEX_SHIFT);
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_BIST_TEST,
+			 drv_mb_param, &rsp, num_images);
+	if (rc)
+		return rc;
+
+	if (((rsp & FW_MSG_CODE_MASK) != FW_MSG_CODE_OK))
+		rc = -EINVAL;
+
+	return rc;
+}
+
+int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
+					struct qed_ptt *p_ptt,
+					struct bist_nvm_image_att *p_image_att,
+					u32 image_index)
+{
+	u32 buf_size = 0, param, resp = 0, resp_param = 0;
+	int rc;
+
+	param = DRV_MB_PARAM_BIST_NVM_TEST_IMAGE_BY_INDEX <<
+		DRV_MB_PARAM_BIST_TEST_INDEX_SHIFT;
+	param |= image_index << DRV_MB_PARAM_BIST_TEST_IMAGE_INDEX_SHIFT;
+
+	rc = qed_mcp_nvm_rd_cmd(p_hwfn, p_ptt,
+				DRV_MSG_CODE_BIST_TEST, param,
+				&resp, &resp_param,
+				&buf_size,
+				(u32 *)p_image_att);
+	if (rc)
+		return rc;
+
+	if (((resp & FW_MSG_CODE_MASK) != FW_MSG_CODE_OK) ||
+	    (p_image_att->return_code != 1))
+		rc = -EINVAL;
 
 	return rc;
 }

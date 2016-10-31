@@ -1508,6 +1508,7 @@ static struct qed_selftest_ops qed_selftest_ops_pass = {
 	.selftest_interrupt = &qed_selftest_interrupt,
 	.selftest_register = &qed_selftest_register,
 	.selftest_clock = &qed_selftest_clock,
+	.selftest_nvram = &qed_selftest_nvram,
 };
 
 const struct qed_common_ops qed_common_ops_pass = {
