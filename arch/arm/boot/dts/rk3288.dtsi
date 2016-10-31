@@ -1099,6 +1099,35 @@
 		#iommu-cells = <0>;
 	};
 
+	hevc_service: hevc-service@ff9c0000 {
+		compatible = "rockchip,hevc_service";
+		reg = <0xff9c0000 0x400>;
+		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec";
+		clocks = <&cru ACLK_HEVC>, <&cru HCLK_HEVC>,
+			<&cru SCLK_HEVC_CORE>,
+			<&cru SCLK_HEVC_CABAC>;
+		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core",
+			"clk_cabac";
+		resets = <&cru SRST_HEVC>;
+		reset-names = "video";
+		power-domains = <&power RK3288_PD_HEVC>;
+		rockchip,grf = <&grf>;
+		dev_mode = <1>;
+		iommus = <&hevc_mmu>;
+		iommu_enabled = <1>;
+		status = "disabled";
+	};
+
+	hevc_mmu: iommu@ff9c0440 {
+		compatible = "rockchip,iommu";
+		reg = <0xff9c0440 0x40>, <0xff9c0480 0x40>;
+		interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "hevc_mmu";
+		power-domains = <&power RK3288_PD_HEVC>;
+		#iommu-cells = <0>;
+	};
+
 	gic: interrupt-controller@ffc01000 {
 		compatible = "arm,gic-400";
 		interrupt-controller;
