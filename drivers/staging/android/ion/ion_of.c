@@ -107,7 +107,7 @@ struct ion_platform_data *ion_parse_dt(struct platform_device *pdev,
 
 		heap_pdev = of_platform_device_create(node, heaps[i].name,
 						      &pdev->dev);
-		if (!pdev)
+		if (!heap_pdev)
 			return ERR_PTR(-ENOMEM);
 		heap_pdev->dev.platform_data = &heaps[i];
 

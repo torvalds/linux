@@ -31,7 +31,7 @@ struct stm32_usart_info {
 	struct stm32_usart_config cfg;
 };
 
-#define UNDEF_REG ~0
+#define UNDEF_REG 0xff
 
 /* Register offsets */
 struct stm32_usart_info stm32f4_info = {

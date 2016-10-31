@@ -911,6 +911,7 @@ const struct file_operations kernfs_file_fops = {
 	.open		= kernfs_fop_open,
 	.release	= kernfs_fop_release,
 	.poll		= kernfs_fop_poll,
+	.fsync		= noop_fsync,
 };
 
 /**
