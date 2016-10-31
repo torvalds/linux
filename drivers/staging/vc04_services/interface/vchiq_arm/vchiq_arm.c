@@ -2914,16 +2914,15 @@ static int vchiq_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, fw);
 
-	/* create debugfs entries */
-	err = vchiq_debugfs_init();
+	err = vchiq_platform_init(pdev, &g_state);
 	if (err != 0)
-		goto failed_debugfs_init;
+		goto failed_platform_init;
 
 	err = alloc_chrdev_region(&vchiq_devid, VCHIQ_MINOR, 1, DEVICE_NAME);
 	if (err != 0) {
 		vchiq_log_error(vchiq_arm_log_level,
 			"Unable to allocate device number");
-		goto failed_alloc_chrdev;
+		goto failed_platform_init;
 	}
 	cdev_init(&vchiq_cdev, &vchiq_fops);
 	vchiq_cdev.owner = THIS_MODULE;
@@ -2946,9 +2945,10 @@ static int vchiq_probe(struct platform_device *pdev)
 	if (IS_ERR(ptr_err))
 		goto failed_device_create;
 
-	err = vchiq_platform_init(pdev, &g_state);
+	/* create debugfs entries */
+	err = vchiq_debugfs_init();
 	if (err != 0)
-		goto failed_platform_init;
+		goto failed_debugfs_init;
 
 	vchiq_log_info(vchiq_arm_log_level,
 		"vchiq: initialised - version %d (min %d), device %d.%d",
@@ -2957,7 +2957,7 @@ static int vchiq_probe(struct platform_device *pdev)
 
 	return 0;
 
-failed_platform_init:
+failed_debugfs_init:
 	device_destroy(vchiq_class, vchiq_devid);
 failed_device_create:
 	class_destroy(vchiq_class);
@@ -2966,9 +2966,7 @@ failed_class_create:
 	err = PTR_ERR(ptr_err);
 failed_cdev_add:
 	unregister_chrdev_region(vchiq_devid, 1);
-failed_alloc_chrdev:
-	vchiq_debugfs_deinit();
-failed_debugfs_init:
+failed_platform_init:
 	vchiq_log_warning(vchiq_arm_log_level, "could not load vchiq");
 	return err;
 }
