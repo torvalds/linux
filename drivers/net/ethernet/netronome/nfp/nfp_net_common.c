@@ -249,43 +249,14 @@ int nfp_net_reconfig(struct nfp_net *nn, u32 update)
  */
 
 /**
- * nfp_net_irq_unmask_msix() - Unmask MSI-X after automasking
- * @nn:       NFP Network structure
- * @entry_nr: MSI-X table entry
- *
- * Clear the MSI-X table mask bit for the given entry bypassing Linux irq
- * handling subsystem.  Use *only* to reenable automasked vectors.
- */
-static void nfp_net_irq_unmask_msix(struct nfp_net *nn, unsigned int entry_nr)
-{
-	struct list_head *msi_head = &nn->pdev->dev.msi_list;
-	struct msi_desc *entry;
-	u32 off;
-
-	/* All MSI-Xs have the same mask_base */
-	entry = list_first_entry(msi_head, struct msi_desc, list);
-
-	off = (PCI_MSIX_ENTRY_SIZE * entry_nr) +
-		PCI_MSIX_ENTRY_VECTOR_CTRL;
-	writel(0, entry->mask_base + off);
-	readl(entry->mask_base);
-}
-
-/**
  * nfp_net_irq_unmask() - Unmask automasked interrupt
  * @nn:       NFP Network structure
  * @entry_nr: MSI-X table entry
  *
- * If MSI-X auto-masking is enabled clear the mask bit, otherwise
- * clear the ICR for the entry.
+ * Clear the ICR for the IRQ entry.
  */
 static void nfp_net_irq_unmask(struct nfp_net *nn, unsigned int entry_nr)
 {
-	if (nn->ctrl & NFP_NET_CFG_CTRL_MSIXAUTO) {
-		nfp_net_irq_unmask_msix(nn, entry_nr);
-		return;
-	}
-
 	nn_writeb(nn, NFP_NET_CFG_ICR(entry_nr), NFP_NET_CFG_ICR_UNMASKED);
 	nn_pci_flush(nn);
 }
@@ -1368,20 +1339,6 @@ nfp_net_parse_meta(struct net_device *netdev, struct sk_buff *skb,
  * more cleanly separate packet receive code from other bookkeeping
  * functions performed in the napi poll function.
  *
- * There are differences between the NFP-3200 firmware and the
- * NFP-6000 firmware.  The NFP-3200 firmware uses a dedicated RX queue
- * to indicate that new packets have arrived.  The NFP-6000 does not
- * have this queue and uses the DD bit in the RX descriptor. This
- * method cannot be used on the NFP-3200 as it causes a race
- * condition: The RX ring write pointer on the NFP-3200 is updated
- * after packets (and descriptors) have been DMAed.  If the DD bit is
- * used and subsequently the read pointer is updated this may lead to
- * the RX queue to underflow (if the firmware has not yet update the
- * write pointer).  Therefore we use slightly ugly conditional code
- * below to handle the differences.  We may, in the future update the
- * NFP-3200 firmware to behave the same as the firmware on the
- * NFP-6000.
- *
  * Return: Number of packets received.
  */
 static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
@@ -1389,41 +1346,19 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 	struct nfp_net_r_vector *r_vec = rx_ring->r_vec;
 	struct nfp_net *nn = r_vec->nfp_net;
 	unsigned int data_len, meta_len;
-	int avail = 0, pkts_polled = 0;
 	struct sk_buff *skb, *new_skb;
 	struct nfp_net_rx_desc *rxd;
 	dma_addr_t new_dma_addr;
-	u32 qcp_wr_p;
+	int pkts_polled = 0;
 	int idx;
 
-	if (nn->is_nfp3200) {
-		/* Work out how many packets arrived */
-		qcp_wr_p = nfp_qcp_wr_ptr_read(rx_ring->qcp_rx);
-		idx = rx_ring->rd_p % rx_ring->cnt;
-
-		if (qcp_wr_p == idx)
-			/* No new packets */
-			return 0;
-
-		if (qcp_wr_p > idx)
-			avail = qcp_wr_p - idx;
-		else
-			avail = qcp_wr_p + rx_ring->cnt - idx;
-	} else {
-		avail = budget + 1;
-	}
-
-	while (avail > 0 && pkts_polled < budget) {
+	while (pkts_polled < budget) {
 		idx = rx_ring->rd_p % rx_ring->cnt;
 
 		rxd = &rx_ring->rxds[idx];
-		if (!(rxd->rxd.meta_len_dd & PCIE_DESC_RX_DD)) {
-			if (nn->is_nfp3200)
-				nn_dbg(nn, "RX descriptor not valid (DD)%d:%u rxd[0]=%#x rxd[1]=%#x\n",
-				       rx_ring->idx, idx,
-				       rxd->vals[0], rxd->vals[1]);
+		if (!(rxd->rxd.meta_len_dd & PCIE_DESC_RX_DD))
 			break;
-		}
+
 		/* Memory barrier to ensure that we won't do other reads
 		 * before the DD bit.
 		 */
@@ -1431,7 +1366,6 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 
 		rx_ring->rd_p++;
 		pkts_polled++;
-		avail--;
 
 		skb = rx_ring->rxbufs[idx].skb;
 
@@ -1507,9 +1441,6 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 
 		napi_gro_receive(&rx_ring->r_vec->napi, skb);
 	}
-
-	if (nn->is_nfp3200)
-		nfp_qcp_rd_ptr_add(rx_ring->qcp_rx, pkts_polled);
 
 	return pkts_polled;
 }
@@ -1895,9 +1826,8 @@ static void nfp_net_write_mac_addr(struct nfp_net *nn)
 {
 	nn_writel(nn, NFP_NET_CFG_MACADDR + 0,
 		  get_unaligned_be32(nn->netdev->dev_addr));
-	/* We can't do writew for NFP-3200 compatibility */
-	nn_writel(nn, NFP_NET_CFG_MACADDR + 4,
-		  get_unaligned_be16(nn->netdev->dev_addr + 4) << 16);
+	nn_writew(nn, NFP_NET_CFG_MACADDR + 6,
+		  get_unaligned_be16(nn->netdev->dev_addr + 4));
 }
 
 static void nfp_net_vec_clear_ring_data(struct nfp_net *nn, unsigned int idx)
@@ -2675,8 +2605,7 @@ static const struct net_device_ops nfp_net_netdev_ops = {
  */
 void nfp_net_info(struct nfp_net *nn)
 {
-	nn_info(nn, "Netronome %s %sNetdev: TxQs=%d/%d RxQs=%d/%d\n",
-		nn->is_nfp3200 ? "NFP-32xx" : "NFP-6xxx",
+	nn_info(nn, "Netronome NFP-6xxx %sNetdev: TxQs=%d/%d RxQs=%d/%d\n",
 		nn->is_vf ? "VF " : "",
 		nn->num_tx_rings, nn->max_tx_rings,
 		nn->num_rx_rings, nn->max_rx_rings);
@@ -2891,13 +2820,7 @@ int nfp_net_netdev_init(struct net_device *netdev)
 		nn->ctrl |= NFP_NET_CFG_CTRL_IRQMOD;
 	}
 
-	/* On NFP-3200 enable MSI-X auto-masking, if supported and the
-	 * interrupts are not shared.
-	 */
-	if (nn->is_nfp3200 && nn->cap & NFP_NET_CFG_CTRL_MSIXAUTO)
-		nn->ctrl |= NFP_NET_CFG_CTRL_MSIXAUTO;
-
-	/* On NFP4000/NFP6000, determine RX packet/metadata boundary offset */
+	/* Determine RX packet/metadata boundary offset */
 	if (nn->fw_ver.major >= 2)
 		nn->rx_offset = nn_readl(nn, NFP_NET_CFG_RX_OFFSET);
 	else
