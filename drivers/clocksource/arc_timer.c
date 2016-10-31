@@ -1,32 +1,18 @@
 /*
+ * Copyright (C) 2016-17 Synopsys, Inc. (www.synopsys.com)
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * vineetg: Jan 1011
- *  -sched_clock( ) no longer jiffies based. Uses the same clocksource
- *   as gtod
- *
- * Rajeshwarr/Vineetg: Mar 2008
- *  -Implemented CONFIG_GENERIC_TIME (rather deleted arch specific code)
- *   for arch independent gettimeofday()
- *  -Implemented CONFIG_GENERIC_CLOCKEVENTS as base for hrtimers
- *
- * Vineetg: Mar 2008: Forked off from time.c which now is time-jiff.c
  */
 
-/* ARC700 has two 32bit independent prog Timers: TIMER0 and TIMER1
- * Each can programmed to go from @count to @limit and optionally
- * interrupt when that happens.
- * A write to Control Register clears the Interrupt
+/* ARC700 has two 32bit independent prog Timers: TIMER0 and TIMER1, Each can be
+ * programmed to go from @count to @limit and optionally interrupt.
+ * We've designated TIMER0 for clockevents and TIMER1 for clocksource
  *
- * We've designated TIMER0 for events (clockevents)
- * while TIMER1 for free running (clocksource)
- *
- * Newer ARC700 cores have 64bit clk fetching RTSC insn, preferred over TIMER1
- * which however is currently broken
+ * ARCv2 based HS38 cores have RTC (in-core) and GFRC (inside ARConnect/MCIP)
+ * which are suitable for UP and SMP based clocksources respectively
  */
 
 #include <linux/interrupt.h>
@@ -37,7 +23,6 @@
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include <asm/irq.h>
 
 #include <soc/arc/timers.h>
 #include <soc/arc/mcip.h>
