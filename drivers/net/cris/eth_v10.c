@@ -7,9 +7,6 @@
  *
  */
 
-
-#include <linux/module.h>
-
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/types.h>
@@ -411,6 +408,7 @@ etrax_ethernet_init(void)
 	led_next_time = jiffies;
 	return 0;
 }
+device_initcall(etrax_ethernet_init)
 
 /* set MAC address of the interface. called from the core after a
  * SIOCSIFADDR ioctl, and from the bootup above.
@@ -1714,11 +1712,6 @@ e100_netpoll(struct net_device* netdev)
 }
 #endif
 
-static int
-etrax_init_module(void)
-{
-	return etrax_ethernet_init();
-}
 
 static int __init
 e100_boot_setup(char* str)
@@ -1741,5 +1734,3 @@ e100_boot_setup(char* str)
 }
 
 __setup("etrax100_eth=", e100_boot_setup);
-
-module_init(etrax_init_module);
