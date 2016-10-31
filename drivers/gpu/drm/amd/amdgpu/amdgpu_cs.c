@@ -841,16 +841,6 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 	return amdgpu_cs_sync_rings(p);
 }
 
-static int amdgpu_cs_handle_lockup(struct amdgpu_device *adev, int r)
-{
-	if (r == -EDEADLK) {
-		r = amdgpu_gpu_reset(adev);
-		if (!r)
-			r = -EAGAIN;
-	}
-	return r;
-}
-
 static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 			     struct amdgpu_cs_parser *parser)
 {
@@ -1088,7 +1078,6 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 out:
 	amdgpu_cs_parser_fini(&parser, r, reserved_buffers);
-	r = amdgpu_cs_handle_lockup(adev, r);
 	return r;
 }
 
