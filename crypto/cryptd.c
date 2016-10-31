@@ -122,7 +122,6 @@ static int cryptd_enqueue_request(struct cryptd_queue *queue,
 {
 	int cpu, err;
 	struct cryptd_cpu_queue *cpu_queue;
-	struct crypto_tfm *tfm;
 	atomic_t *refcnt;
 	bool may_backlog;
 
@@ -141,7 +140,6 @@ static int cryptd_enqueue_request(struct cryptd_queue *queue,
 	if (!atomic_read(refcnt))
 		goto out_put_cpu;
 
-	tfm = request->tfm;
 	atomic_inc(refcnt);
 
 out_put_cpu:
