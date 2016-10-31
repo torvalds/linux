@@ -4158,6 +4158,7 @@ static const struct drm_i915_gem_object_ops i915_gem_object_ops = {
 struct drm_i915_gem_object *
 i915_gem_object_create(struct drm_device *dev, u64 size)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
 	struct address_space *mapping;
 	gfp_t mask;
@@ -4183,7 +4184,7 @@ i915_gem_object_create(struct drm_device *dev, u64 size)
 		goto fail;
 
 	mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
-	if (IS_CRESTLINE(dev) || IS_BROADWATER(dev)) {
+	if (IS_CRESTLINE(dev_priv) || IS_BROADWATER(dev_priv)) {
 		/* 965gm cannot relocate objects above 4GiB. */
 		mask &= ~__GFP_HIGHMEM;
 		mask |= __GFP_DMA32;
