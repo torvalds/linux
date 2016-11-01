@@ -291,6 +291,7 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 		struct drm_plane_state *state)
 {
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
+	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
 	struct drm_plane_state *old_state = plane->state;
 	const struct mdp_format *format;
 	bool vflip, hflip;
@@ -353,10 +354,10 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 			struct drm_crtc_state *crtc_state =
 					drm_atomic_get_crtc_state(state->state, state->crtc);
 			crtc_state->mode_changed = true;
-			to_mdp5_plane_state(state)->mode_changed = true;
+			mdp5_state->mode_changed = true;
 		}
 	} else {
-		to_mdp5_plane_state(state)->mode_changed = true;
+		mdp5_state->mode_changed = true;
 	}
 
 	return 0;
@@ -367,14 +368,15 @@ static void mdp5_plane_atomic_update(struct drm_plane *plane,
 {
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct drm_plane_state *state = plane->state;
+	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
 
 	DBG("%s: update", plane->name);
 
 	if (!plane_enabled(state)) {
-		to_mdp5_plane_state(state)->pending = true;
-	} else if (to_mdp5_plane_state(state)->mode_changed) {
+		mdp5_state->pending = true;
+	} else if (mdp5_state->mode_changed) {
 		int ret;
-		to_mdp5_plane_state(state)->pending = true;
+		mdp5_state->pending = true;
 		ret = mdp5_plane_mode_set(plane,
 				state->crtc, state->fb,
 				state->crtc_x, state->crtc_y,
