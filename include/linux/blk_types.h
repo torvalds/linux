@@ -177,6 +177,7 @@ enum req_flag_bits {
 	__REQ_FUA,		/* forced unit access */
 	__REQ_PREFLUSH,		/* request for cache flush */
 	__REQ_RAHEAD,		/* read ahead, can fail anytime */
+	__REQ_BACKGROUND,	/* background IO */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -192,6 +193,7 @@ enum req_flag_bits {
 #define REQ_FUA			(1ULL << __REQ_FUA)
 #define REQ_PREFLUSH		(1ULL << __REQ_PREFLUSH)
 #define REQ_RAHEAD		(1ULL << __REQ_RAHEAD)
+#define REQ_BACKGROUND		(1ULL << __REQ_BACKGROUND)
 
 #define REQ_FAILFAST_MASK \
 	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER)
