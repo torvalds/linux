@@ -93,6 +93,8 @@ struct mdp5_state *mdp5_get_state(struct drm_atomic_state *s)
 
 	/* Copy state: */
 	new_state->hwpipe = mdp5_kms->state->hwpipe;
+	if (mdp5_kms->smp)
+		new_state->smp = mdp5_kms->state->smp;
 
 	state->state = new_state;
 
@@ -108,7 +110,11 @@ static void mdp5_swap_state(struct msm_kms *kms, struct drm_atomic_state *state)
 static void mdp5_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+
 	mdp5_enable(mdp5_kms);
+
+	if (mdp5_kms->smp)
+		mdp5_smp_prepare_commit(mdp5_kms->smp, &mdp5_kms->state->smp);
 }
 
 static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *state)
@@ -120,6 +126,9 @@ static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *s
 
 	for_each_plane_in_state(state, plane, plane_state, i)
 		mdp5_plane_complete_commit(plane, plane_state);
+
+	if (mdp5_kms->smp)
+		mdp5_smp_complete_commit(mdp5_kms->smp, &mdp5_kms->state->smp);
 
 	mdp5_disable(mdp5_kms);
 }
@@ -825,7 +834,7 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 	 * this section initializes the SMP:
 	 */
 	if (mdp5_kms->caps & MDP_CAP_SMP) {
-		mdp5_kms->smp = mdp5_smp_init(mdp5_kms->dev, &config->hw->smp);
+		mdp5_kms->smp = mdp5_smp_init(mdp5_kms, &config->hw->smp);
 		if (IS_ERR(mdp5_kms->smp)) {
 			ret = PTR_ERR(mdp5_kms->smp);
 			mdp5_kms->smp = NULL;

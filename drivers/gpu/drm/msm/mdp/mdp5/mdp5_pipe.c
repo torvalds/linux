@@ -18,7 +18,7 @@
 #include "mdp5_kms.h"
 
 struct mdp5_hw_pipe *mdp5_pipe_assign(struct drm_atomic_state *s,
-		struct drm_plane *plane, uint32_t caps)
+		struct drm_plane *plane, uint32_t caps, uint32_t blkcfg)
 {
 	struct msm_drm_private *priv = s->dev->dev_private;
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(priv->kms));
@@ -64,6 +64,18 @@ struct mdp5_hw_pipe *mdp5_pipe_assign(struct drm_atomic_state *s,
 	if (!hwpipe)
 		return ERR_PTR(-ENOMEM);
 
+	if (mdp5_kms->smp) {
+		int ret;
+
+		DBG("%s: alloc SMP blocks", hwpipe->name);
+		ret = mdp5_smp_assign(mdp5_kms->smp, &state->smp,
+				hwpipe->pipe, blkcfg);
+		if (ret)
+			return ERR_PTR(-ENOMEM);
+
+		hwpipe->blkcfg = blkcfg;
+	}
+
 	DBG("%s: assign to plane %s for caps %x",
 			hwpipe->name, plane->name, caps);
 	new_state->hwpipe_to_plane[hwpipe->idx] = plane;
@@ -73,6 +85,8 @@ struct mdp5_hw_pipe *mdp5_pipe_assign(struct drm_atomic_state *s,
 
 void mdp5_pipe_release(struct drm_atomic_state *s, struct mdp5_hw_pipe *hwpipe)
 {
+	struct msm_drm_private *priv = s->dev->dev_private;
+	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(priv->kms));
 	struct mdp5_state *state = mdp5_get_state(s);
 	struct mdp5_hw_pipe_state *new_state = &state->hwpipe;
 
@@ -84,6 +98,11 @@ void mdp5_pipe_release(struct drm_atomic_state *s, struct mdp5_hw_pipe *hwpipe)
 
 	DBG("%s: release from plane %s", hwpipe->name,
 		new_state->hwpipe_to_plane[hwpipe->idx]->name);
+
+	if (mdp5_kms->smp) {
+		DBG("%s: free SMP blocks", hwpipe->name);
+		mdp5_smp_release(mdp5_kms->smp, &state->smp, hwpipe->pipe);
+	}
 
 	new_state->hwpipe_to_plane[hwpipe->idx] = NULL;
 }

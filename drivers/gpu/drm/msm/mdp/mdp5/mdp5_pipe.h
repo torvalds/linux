@@ -32,6 +32,11 @@ struct mdp5_hw_pipe {
 	uint32_t caps;
 
 	uint32_t flush_mask;      /* used to commit pipe registers */
+
+	/* number of smp blocks per plane, ie:
+	 *   nblks_y | (nblks_u << 8) | (nblks_v << 16)
+	 */
+	uint32_t blkcfg;
 };
 
 /* global atomic state of assignment between pipes and planes: */
@@ -41,7 +46,7 @@ struct mdp5_hw_pipe_state {
 
 struct mdp5_hw_pipe *__must_check
 mdp5_pipe_assign(struct drm_atomic_state *s, struct drm_plane *plane,
-		uint32_t caps);
+		uint32_t caps, uint32_t blkcfg);
 void mdp5_pipe_release(struct drm_atomic_state *s, struct mdp5_hw_pipe *hwpipe);
 
 struct mdp5_hw_pipe *mdp5_pipe_init(enum mdp5_pipe pipe,

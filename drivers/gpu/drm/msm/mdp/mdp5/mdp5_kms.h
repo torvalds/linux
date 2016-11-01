@@ -83,6 +83,7 @@ struct mdp5_kms {
  */
 struct mdp5_state {
 	struct mdp5_hw_pipe_state hwpipe;
+	struct mdp5_smp_state smp;
 };
 
 struct mdp5_state *__must_check

@@ -296,6 +296,8 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 	if (plane_enabled(state)) {
 		unsigned int rotation;
 		const struct mdp_format *format;
+		struct mdp5_kms *mdp5_kms = get_kms(plane);
+		uint32_t blkcfg = 0;
 
 		format = to_mdp_format(msm_framebuffer_format(state->fb));
 		if (MDP_FORMAT_IS_YUV(format))
@@ -320,23 +322,15 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 		if (!mdp5_state->hwpipe || (caps & ~mdp5_state->hwpipe->caps))
 			new_hwpipe = true;
 
-		if (plane_enabled(old_state)) {
-			bool full_modeset = false;
-			if (state->fb->pixel_format != old_state->fb->pixel_format) {
-				DBG("%s: pixel_format change!", plane->name);
-				full_modeset = true;
-			}
-			if (state->src_w != old_state->src_w) {
-				DBG("%s: src_w change!", plane->name);
-				full_modeset = true;
-			}
-			if (full_modeset) {
-				/* cannot change SMP block allocation during
-				 * scanout:
-				 */
-				if (get_kms(plane)->smp)
-					new_hwpipe = true;
-			}
+		if (mdp5_kms->smp) {
+			const struct mdp_format *format =
+				to_mdp_format(msm_framebuffer_format(state->fb));
+
+			blkcfg = mdp5_smp_calculate(mdp5_kms->smp, format,
+					state->src_w >> 16, false);
+
+			if (mdp5_state->hwpipe && (mdp5_state->hwpipe->blkcfg != blkcfg))
+				new_hwpipe = true;
 		}
 
 		/* (re)assign hwpipe if needed, otherwise keep old one: */
@@ -346,8 +340,8 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 			 * it available for other planes?
 			 */
 			struct mdp5_hw_pipe *old_hwpipe = mdp5_state->hwpipe;
-			mdp5_state->hwpipe =
-				mdp5_pipe_assign(state->state, plane, caps);
+			mdp5_state->hwpipe = mdp5_pipe_assign(state->state,
+					plane, caps, blkcfg);
 			if (IS_ERR(mdp5_state->hwpipe)) {
 				DBG("%s: failed to assign hwpipe!", plane->name);
 				return PTR_ERR(mdp5_state->hwpipe);
@@ -711,23 +705,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 			fb->base.id, src_x, src_y, src_w, src_h,
 			crtc->base.id, crtc_x, crtc_y, crtc_w, crtc_h);
 
-	/* Request some memory from the SMP: */
-	if (mdp5_kms->smp) {
-		ret = mdp5_smp_request(mdp5_kms->smp, pipe,
-				format, src_w, false);
-		if (ret)
-			return ret;
-	}
-
-	/*
-	 * Currently we update the hw for allocations/requests immediately,
-	 * but once atomic modeset/pageflip is in place, the allocation
-	 * would move into atomic->check_plane_state(), while updating the
-	 * hw would remain here:
-	 */
-	if (mdp5_kms->smp)
-		mdp5_smp_configure(mdp5_kms->smp, pipe);
-
 	ret = calc_scalex_steps(plane, pix_format, src_w, crtc_w, phasex_step);
 	if (ret)
 		return ret;
@@ -865,20 +842,7 @@ uint32_t mdp5_plane_get_flush(struct drm_plane *plane)
 void mdp5_plane_complete_commit(struct drm_plane *plane,
 	struct drm_plane_state *state)
 {
-	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	struct mdp5_plane_state *pstate = to_mdp5_plane_state(plane->state);
-
-	if (mdp5_kms->smp && pstate->hwpipe) {
-		enum mdp5_pipe pipe = pstate->hwpipe->pipe;
-
-		if (plane_enabled(plane->state)) {
-			DBG("%s: complete flip", plane->name);
-			mdp5_smp_commit(mdp5_kms->smp, pipe);
-		} else {
-			DBG("%s: free SMP", plane->name);
-			mdp5_smp_release(mdp5_kms->smp, pipe);
-		}
-	}
 
 	pstate->pending = false;
 }
