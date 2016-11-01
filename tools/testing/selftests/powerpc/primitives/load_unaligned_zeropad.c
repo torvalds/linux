@@ -73,7 +73,6 @@ extern char __stop___ex_table[];
 #error implement UCONTEXT_NIA
 #endif
 
-static int segv_error;
 
 static void segv_handler(int signr, siginfo_t *info, void *ptr)
 {
@@ -95,7 +94,7 @@ static void segv_handler(int signr, siginfo_t *info, void *ptr)
 	}
 
 	printf("No exception table match for NIA %lx ADDR %lx\n", *ip, addr);
-	segv_error++;
+	abort();
 }
 
 static void setup_segv_handler(void)
@@ -144,8 +143,6 @@ static int test_body(void)
 
 	for (i = 0; i < page_size; i++)
 		FAIL_IF(do_one_test(mem_region+i, i));
-
-	FAIL_IF(segv_error);
 
 	return 0;
 }
