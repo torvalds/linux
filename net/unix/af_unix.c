@@ -646,9 +646,6 @@ static int unix_stream_sendmsg(struct socket *, struct msghdr *, size_t);
 static int unix_stream_recvmsg(struct socket *, struct msghdr *, size_t, int);
 static ssize_t unix_stream_sendpage(struct socket *, struct page *, int offset,
 				    size_t size, int flags);
-static ssize_t unix_stream_splice_read(struct socket *,  loff_t *ppos,
-				       struct pipe_inode_info *, size_t size,
-				       unsigned int flags);
 static int unix_dgram_sendmsg(struct socket *, struct msghdr *, size_t);
 static int unix_dgram_recvmsg(struct socket *, struct msghdr *, size_t, int);
 static int unix_dgram_connect(struct socket *, struct sockaddr *,
@@ -690,7 +687,7 @@ static const struct proto_ops unix_stream_ops = {
 	.recvmsg =	unix_stream_recvmsg,
 	.mmap =		sock_no_mmap,
 	.sendpage =	unix_stream_sendpage,
-	.splice_read =	unix_stream_splice_read,
+	.splice_read =	generic_file_splice_read,
 	.set_peek_off =	unix_set_peek_off,
 };
 
@@ -2477,37 +2474,6 @@ static int unix_stream_recvmsg(struct socket *sock, struct msghdr *msg,
 	};
 
 	return unix_stream_read_generic(&state, true);
-}
-
-static int unix_stream_splice_actor(struct sk_buff *skb,
-				    int skip, int chunk,
-				    struct unix_stream_read_state *state)
-{
-	return skb_splice_bits(skb, state->socket->sk,
-			       UNIXCB(skb).consumed + skip,
-			       state->pipe, chunk);
-}
-
-static ssize_t unix_stream_splice_read(struct file *file,  loff_t *ppos,
-				       struct pipe_inode_info *pipe,
-				       size_t size, unsigned int flags)
-{
-	struct socket *sock = file->private_data;
-	struct unix_stream_read_state state = {
-		.recv_actor = unix_stream_splice_actor,
-		.socket = sock,
-		.pipe = pipe,
-		.size = size,
-	};
-
-	if (unlikely(*ppos))
-		return -ESPIPE;
-
-	if (sock->file->f_flags & O_NONBLOCK ||
-	    flags & SPLICE_F_NONBLOCK)
-		state.flags = MSG_DONTWAIT;
-
-	return unix_stream_read_generic(&state, false);
 }
 
 static int unix_shutdown(struct socket *sock, int mode)

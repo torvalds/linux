@@ -300,6 +300,8 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 	iov_iter_pipe(&to, ITER_PIPE | READ, pipe, len);
 	idx = to.idx;
 	init_sync_kiocb(&kiocb, in);
+	if (flags & SPLICE_F_NONBLOCK)
+		kiocb.ki_flags |= IOCB_NDELAY;
 	kiocb.ki_pos = *ppos;
 	ret = in->f_op->read_iter(&kiocb, &to);
 	if (ret > 0) {
