@@ -6100,7 +6100,7 @@ static noinline void btrfs_schedule_bio(struct btrfs_root *root,
 	bio->bi_next = NULL;
 
 	spin_lock(&device->io_lock);
-	if (bio->bi_opf & REQ_SYNC)
+	if (op_is_sync(bio->bi_opf))
 		pending_bios = &device->pending_sync_bios;
 	else
 		pending_bios = &device->pending_bios;
