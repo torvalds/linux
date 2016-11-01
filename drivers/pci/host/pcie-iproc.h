@@ -55,6 +55,7 @@ struct iproc_msi;
  * @root_bus: pointer to root bus
  * @phy: optional PHY device that controls the Serdes
  * @map_irq: function callback to map interrupts
+ * @ep_is_internal: indicates an internal emulated endpoint device is connected
  * @need_ob_cfg: indicates SW needs to configure the outbound mapping window
  * @ob: outbound mapping parameters
  * @msi: MSI data
@@ -62,7 +63,7 @@ struct iproc_msi;
 struct iproc_pcie {
 	struct device *dev;
 	enum iproc_pcie_type type;
-	const u16 *reg_offsets;
+	u16 *reg_offsets;
 	void __iomem *base;
 	phys_addr_t base_addr;
 #ifdef CONFIG_ARM
@@ -71,6 +72,7 @@ struct iproc_pcie {
 	struct pci_bus *root_bus;
 	struct phy *phy;
 	int (*map_irq)(const struct pci_dev *, u8, u8);
+	bool ep_is_internal;
 	bool need_ob_cfg;
 	struct iproc_pcie_ob ob;
 	struct iproc_msi *msi;

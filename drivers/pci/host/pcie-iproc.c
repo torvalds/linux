@@ -69,18 +69,35 @@
 
 #define IPROC_PCIE_REG_INVALID 0xffff
 
+/*
+ * iProc PCIe host registers
+ */
 enum iproc_pcie_reg {
+	/* clock/reset signal control */
 	IPROC_PCIE_CLK_CTRL = 0,
+
+	/* allow access to root complex configuration space */
 	IPROC_PCIE_CFG_IND_ADDR,
 	IPROC_PCIE_CFG_IND_DATA,
+
+	/* allow access to device configuration space */
 	IPROC_PCIE_CFG_ADDR,
 	IPROC_PCIE_CFG_DATA,
+
+	/* enable INTx */
 	IPROC_PCIE_INTX_EN,
+
+	/* outbound address mapping */
 	IPROC_PCIE_OARR_LO,
 	IPROC_PCIE_OARR_HI,
 	IPROC_PCIE_OMAP_LO,
 	IPROC_PCIE_OMAP_HI,
+
+	/* link status */
 	IPROC_PCIE_LINK_STATUS,
+
+	/* total number of core registers */
+	IPROC_PCIE_MAX_NUM_REG,
 };
 
 /* iProc PCIe PAXB registers */
@@ -105,12 +122,6 @@ static const u16 iproc_pcie_reg_paxc[] = {
 	[IPROC_PCIE_CFG_IND_DATA] = 0x1f4,
 	[IPROC_PCIE_CFG_ADDR]     = 0x1f8,
 	[IPROC_PCIE_CFG_DATA]     = 0x1fc,
-	[IPROC_PCIE_INTX_EN]      = IPROC_PCIE_REG_INVALID,
-	[IPROC_PCIE_OARR_LO]      = IPROC_PCIE_REG_INVALID,
-	[IPROC_PCIE_OARR_HI]      = IPROC_PCIE_REG_INVALID,
-	[IPROC_PCIE_OMAP_LO]      = IPROC_PCIE_REG_INVALID,
-	[IPROC_PCIE_OMAP_HI]      = IPROC_PCIE_REG_INVALID,
-	[IPROC_PCIE_LINK_STATUS]  = IPROC_PCIE_REG_INVALID,
 };
 
 static inline struct iproc_pcie *iproc_data(struct pci_bus *bus)
@@ -204,7 +215,7 @@ static void __iomem *iproc_pcie_map_cfg_bus(struct pci_bus *bus,
 	 * PAXC is connected to an internally emulated EP within the SoC.  It
 	 * allows only one device.
 	 */
-	if (pcie->type == IPROC_PCIE_PAXC)
+	if (pcie->ep_is_internal)
 		if (slot > 0)
 			return NULL;
 
@@ -232,7 +243,7 @@ static void iproc_pcie_reset(struct iproc_pcie *pcie)
 {
 	u32 val;
 
-	if (pcie->type == IPROC_PCIE_PAXC) {
+	if (pcie->ep_is_internal) {
 		val = iproc_pcie_read_reg(pcie, IPROC_PCIE_CLK_CTRL);
 		val &= ~PAXC_RESET_MASK;
 		iproc_pcie_write_reg(pcie, IPROC_PCIE_CLK_CTRL, val);
@@ -270,7 +281,7 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie, struct pci_bus *bus)
 	 * PAXC connects to emulated endpoint devices directly and does not
 	 * have a Serdes.  Therefore skip the link detection logic here.
 	 */
-	if (pcie->type == IPROC_PCIE_PAXC)
+	if (pcie->ep_is_internal)
 		return 0;
 
 	val = iproc_pcie_read_reg(pcie, IPROC_PCIE_LINK_STATUS);
@@ -454,6 +465,40 @@ static void iproc_pcie_msi_disable(struct iproc_pcie *pcie)
 	iproc_msi_exit(pcie);
 }
 
+static int iproc_pcie_rev_init(struct iproc_pcie *pcie)
+{
+	struct device *dev = pcie->dev;
+	unsigned int reg_idx;
+	const u16 *regs;
+
+	switch (pcie->type) {
+	case IPROC_PCIE_PAXB:
+		regs = iproc_pcie_reg_paxb;
+		break;
+	case IPROC_PCIE_PAXC:
+		regs = iproc_pcie_reg_paxc;
+		pcie->ep_is_internal = true;
+		break;
+	default:
+		dev_err(dev, "incompatible iProc PCIe interface\n");
+		return -EINVAL;
+	}
+
+	pcie->reg_offsets = devm_kcalloc(dev, IPROC_PCIE_MAX_NUM_REG,
+					 sizeof(*pcie->reg_offsets),
+					 GFP_KERNEL);
+	if (!pcie->reg_offsets)
+		return -ENOMEM;
+
+	/* go through the register table and populate all valid registers */
+	pcie->reg_offsets[0] = regs[0];
+	for (reg_idx = 1; reg_idx < IPROC_PCIE_MAX_NUM_REG; reg_idx++)
+		pcie->reg_offsets[reg_idx] = regs[reg_idx] ?
+			regs[reg_idx] : IPROC_PCIE_REG_INVALID;
+
+	return 0;
+}
+
 int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 {
 	struct device *dev;
@@ -462,6 +507,13 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	struct pci_bus *bus;
 
 	dev = pcie->dev;
+
+	ret = iproc_pcie_rev_init(pcie);
+	if (ret) {
+		dev_err(dev, "unable to initialize controller parameters\n");
+		return ret;
+	}
+
 	ret = devm_request_pci_bus_resources(dev, res);
 	if (ret)
 		return ret;
@@ -476,19 +528,6 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	if (ret) {
 		dev_err(dev, "unable to power on PCIe PHY\n");
 		goto err_exit_phy;
-	}
-
-	switch (pcie->type) {
-	case IPROC_PCIE_PAXB:
-		pcie->reg_offsets = iproc_pcie_reg_paxb;
-		break;
-	case IPROC_PCIE_PAXC:
-		pcie->reg_offsets = iproc_pcie_reg_paxc;
-		break;
-	default:
-		dev_err(dev, "incompatible iProc PCIe interface\n");
-		ret = -EINVAL;
-		goto err_power_off_phy;
 	}
 
 	iproc_pcie_reset(pcie);
