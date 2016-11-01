@@ -75,7 +75,6 @@
 
 /* Default size for MTU and freelist buffer sizes */
 #define NFP_NET_DEFAULT_MTU		1500
-#define NFP_NET_DEFAULT_RX_BUFSZ	2048
 
 /* Maximum number of bytes prepended to a packet */
 #define NFP_NET_MAX_PREPEND		64
@@ -88,6 +87,9 @@
 /* Queue/Ring definitions */
 #define NFP_NET_MAX_TX_RINGS	64	/* Max. # of Tx rings per device */
 #define NFP_NET_MAX_RX_RINGS	64	/* Max. # of Rx rings per device */
+#define NFP_NET_MAX_R_VECS	(NFP_NET_MAX_TX_RINGS > NFP_NET_MAX_RX_RINGS ? \
+				 NFP_NET_MAX_TX_RINGS : NFP_NET_MAX_RX_RINGS)
+#define NFP_NET_MAX_IRQS	(NFP_NET_NON_Q_VECTORS + NFP_NET_MAX_R_VECS)
 
 #define NFP_NET_MIN_TX_DESCS	256	/* Min. # of Tx descs per ring */
 #define NFP_NET_MIN_RX_DESCS	256	/* Min. # of Rx descs per ring */
@@ -101,6 +103,10 @@
 
 /* Offload definitions */
 #define NFP_NET_N_VXLAN_PORTS	(NFP_NET_CFG_VXLAN_SZ / sizeof(__be16))
+
+#define NFP_NET_RX_BUF_HEADROOM	(NET_SKB_PAD + NET_IP_ALIGN)
+#define NFP_NET_RX_BUF_NON_DATA	(NFP_NET_RX_BUF_HEADROOM +		\
+				 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 /* Forward declarations */
 struct nfp_net;
@@ -278,11 +284,11 @@ struct nfp_net_rx_hash {
 
 /**
  * struct nfp_net_rx_buf - software RX buffer descriptor
- * @skb:	sk_buff associated with this buffer
+ * @frag:	page fragment buffer
  * @dma_addr:	DMA mapping address of the buffer
  */
 struct nfp_net_rx_buf {
-	struct sk_buff *skb;
+	void *frag;
 	dma_addr_t dma_addr;
 };
 
@@ -421,7 +427,6 @@ struct nfp_stat_pair {
  * @netdev:             Backpointer to net_device structure
  * @nfp_fallback:       Is the driver used in fallback mode?
  * @is_vf:              Is the driver attached to a VF?
- * @is_nfp3200:         Is the driver for a NFP-3200 card?
  * @fw_loaded:          Is the firmware loaded?
  * @bpf_offload_skip_sw:  Offloaded BPF program will not be rerun by cls_bpf
  * @ctrl:               Local copy of the control register/word.
@@ -451,7 +456,7 @@ struct nfp_stat_pair {
  * @rxd_cnt:            Size of the RX ring in number of descriptors
  * @tx_rings:           Array of pre-allocated TX ring structures
  * @rx_rings:           Array of pre-allocated RX ring structures
- * @num_irqs:	        Number of allocated interrupt vectors
+ * @max_r_vecs:	        Number of allocated interrupt vectors for RX/TX
  * @num_r_vecs:         Number of used ring vectors
  * @r_vecs:             Pre-allocated array of ring vectors
  * @irq_entries:        Pre-allocated array of MSI-X entries
@@ -487,7 +492,6 @@ struct nfp_net {
 
 	unsigned nfp_fallback:1;
 	unsigned is_vf:1;
-	unsigned is_nfp3200:1;
 	unsigned fw_loaded:1;
 	unsigned bpf_offload_skip_sw:1;
 
@@ -524,11 +528,11 @@ struct nfp_net {
 	struct timer_list rx_filter_stats_timer;
 	spinlock_t rx_filter_lock;
 
-	int max_tx_rings;
-	int max_rx_rings;
+	unsigned int max_tx_rings;
+	unsigned int max_rx_rings;
 
-	int num_tx_rings;
-	int num_rx_rings;
+	unsigned int num_tx_rings;
+	unsigned int num_rx_rings;
 
 	int stride_tx;
 	int stride_rx;
@@ -536,11 +540,10 @@ struct nfp_net {
 	int txd_cnt;
 	int rxd_cnt;
 
-	u8 num_irqs;
-	u8 num_r_vecs;
-	struct nfp_net_r_vector r_vecs[NFP_NET_MAX_TX_RINGS];
-	struct msix_entry irq_entries[NFP_NET_NON_Q_VECTORS +
-				      NFP_NET_MAX_TX_RINGS];
+	unsigned int max_r_vecs;
+	unsigned int num_r_vecs;
+	struct nfp_net_r_vector r_vecs[NFP_NET_MAX_R_VECS];
+	struct msix_entry irq_entries[NFP_NET_MAX_IRQS];
 
 	irq_handler_t lsc_handler;
 	char lsc_name[IFNAMSIZ + 8];
@@ -593,16 +596,13 @@ static inline void nn_writeb(struct nfp_net *nn, int off, u8 val)
 	writeb(val, nn->ctrl_bar + off);
 }
 
-/* NFP-3200 can't handle 16-bit accesses too well */
 static inline u16 nn_readw(struct nfp_net *nn, int off)
 {
-	WARN_ON_ONCE(nn->is_nfp3200);
 	return readw(nn->ctrl_bar + off);
 }
 
 static inline void nn_writew(struct nfp_net *nn, int off, u16 val)
 {
-	WARN_ON_ONCE(nn->is_nfp3200);
 	writew(val, nn->ctrl_bar + off);
 }
 
@@ -650,7 +650,7 @@ static inline void nn_pci_flush(struct nfp_net *nn)
 #define NFP_QCP_QUEUE_STS_HI			0x000c
 #define NFP_QCP_QUEUE_STS_HI_WRITEPTR_mask	0x3ffff
 
-/* The offset of a QCP queues in the PCIe Target (same on NFP3200 and NFP6000 */
+/* The offset of a QCP queues in the PCIe Target */
 #define NFP_PCIE_QUEUE(_q) (0x80000 + (NFP_QCP_QUEUE_ADDR_SZ * ((_q) & 0xff)))
 
 /* nfp_qcp_ptr - Read or Write Pointer of a queue */
@@ -757,8 +757,9 @@ extern const char nfp_net_driver_version[];
 void nfp_net_get_fw_version(struct nfp_net_fw_version *fw_ver,
 			    void __iomem *ctrl_bar);
 
-struct nfp_net *nfp_net_netdev_alloc(struct pci_dev *pdev,
-				     int max_tx_rings, int max_rx_rings);
+struct nfp_net *
+nfp_net_netdev_alloc(struct pci_dev *pdev,
+		     unsigned int max_tx_rings, unsigned int max_rx_rings);
 void nfp_net_netdev_free(struct nfp_net *nn);
 int nfp_net_netdev_init(struct net_device *netdev);
 void nfp_net_netdev_clean(struct net_device *netdev);
