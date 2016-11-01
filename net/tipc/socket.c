@@ -67,7 +67,6 @@
  * @publications: list of publications for port
  * @pub_count: total # of publications port has made during its lifetime
  * @probing_state:
- * @probing_intv:
  * @conn_timeout: the time we can wait for an unresponded setup request
  * @dupl_rcvcnt: number of bytes counted twice, in both backlog and rcv queue
  * @link_cong: non-zero if owner must sleep because of link congestion
@@ -89,7 +88,6 @@ struct tipc_sock {
 	struct list_head publications;
 	u32 pub_count;
 	u32 probing_state;
-	unsigned long probing_intv;
 	uint conn_timeout;
 	atomic_t dupl_rcvcnt;
 	bool link_cong;
@@ -1153,9 +1151,8 @@ static void tipc_sk_finish_conn(struct tipc_sock *tsk, u32 peer_port,
 	msg_set_lookup_scope(msg, 0);
 	msg_set_hdr_sz(msg, SHORT_H_SIZE);
 
-	tsk->probing_intv = CONN_PROBING_INTERVAL;
 	tsk->probing_state = TIPC_CONN_OK;
-	sk_reset_timer(sk, &sk->sk_timer, jiffies + tsk->probing_intv);
+	sk_reset_timer(sk, &sk->sk_timer, jiffies + CONN_PROBING_INTERVAL);
 	tipc_node_add_conn(net, peer_node, tsk->portid, peer_port);
 	tsk->max_pkt = tipc_node_get_mtu(net, peer_node, tsk->portid);
 	tsk->peer_caps = tipc_node_get_capabilities(net, peer_node);
@@ -2240,13 +2237,15 @@ static void tipc_sk_timeout(unsigned long data)
 			sk_reset_timer(sk, &sk->sk_timer, (HZ / 20));
 		}
 
-	} else {
-		skb = tipc_msg_create(CONN_MANAGER, CONN_PROBE,
-				      INT_H_SIZE, 0, peer_node, own_node,
-				      peer_port, tsk->portid, TIPC_OK);
-		tsk->probing_state = TIPC_CONN_PROBING;
-		sk_reset_timer(sk, &sk->sk_timer, jiffies + tsk->probing_intv);
+		bh_unlock_sock(sk);
+		goto exit;
 	}
+
+	skb = tipc_msg_create(CONN_MANAGER, CONN_PROBE,
+			      INT_H_SIZE, 0, peer_node, own_node,
+			      peer_port, tsk->portid, TIPC_OK);
+	tsk->probing_state = TIPC_CONN_PROBING;
+	sk_reset_timer(sk, &sk->sk_timer, jiffies + CONN_PROBING_INTERVAL);
 	bh_unlock_sock(sk);
 	if (skb)
 		tipc_node_xmit_skb(sock_net(sk), skb, peer_node, tsk->portid);
