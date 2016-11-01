@@ -32,7 +32,7 @@ static struct class *fpga_mgr_class;
 /**
  * fpga_mgr_buf_load - load fpga from image in buffer
  * @mgr:	fpga manager
- * @flags:	flags setting fpga confuration modes
+ * @info:	fpga image specific information
  * @buf:	buffer contain fpga image
  * @count:	byte count of buf
  *
@@ -44,8 +44,8 @@ static struct class *fpga_mgr_class;
  *
  * Return: 0 on success, negative error code otherwise.
  */
-int fpga_mgr_buf_load(struct fpga_manager *mgr, u32 flags, const char *buf,
-		      size_t count)
+int fpga_mgr_buf_load(struct fpga_manager *mgr, struct fpga_image_info *info,
+		      const char *buf, size_t count)
 {
 	struct device *dev = &mgr->dev;
 	int ret;
@@ -56,7 +56,7 @@ int fpga_mgr_buf_load(struct fpga_manager *mgr, u32 flags, const char *buf,
 	 * ready to receive an FPGA image.
 	 */
 	mgr->state = FPGA_MGR_STATE_WRITE_INIT;
-	ret = mgr->mops->write_init(mgr, flags, buf, count);
+	ret = mgr->mops->write_init(mgr, info, buf, count);
 	if (ret) {
 		dev_err(dev, "Error preparing FPGA for writing\n");
 		mgr->state = FPGA_MGR_STATE_WRITE_INIT_ERR;
@@ -79,7 +79,7 @@ int fpga_mgr_buf_load(struct fpga_manager *mgr, u32 flags, const char *buf,
 	 * steps to finish and set the FPGA into operating mode.
 	 */
 	mgr->state = FPGA_MGR_STATE_WRITE_COMPLETE;
-	ret = mgr->mops->write_complete(mgr, flags);
+	ret = mgr->mops->write_complete(mgr, info);
 	if (ret) {
 		dev_err(dev, "Error after writing image data to FPGA\n");
 		mgr->state = FPGA_MGR_STATE_WRITE_COMPLETE_ERR;
@@ -94,7 +94,7 @@ EXPORT_SYMBOL_GPL(fpga_mgr_buf_load);
 /**
  * fpga_mgr_firmware_load - request firmware and load to fpga
  * @mgr:	fpga manager
- * @flags:	flags setting fpga confuration modes
+ * @info:	fpga image specific information
  * @image_name:	name of image file on the firmware search path
  *
  * Request an FPGA image using the firmware class, then write out to the FPGA.
@@ -105,7 +105,8 @@ EXPORT_SYMBOL_GPL(fpga_mgr_buf_load);
  *
  * Return: 0 on success, negative error code otherwise.
  */
-int fpga_mgr_firmware_load(struct fpga_manager *mgr, u32 flags,
+int fpga_mgr_firmware_load(struct fpga_manager *mgr,
+			   struct fpga_image_info *info,
 			   const char *image_name)
 {
 	struct device *dev = &mgr->dev;
@@ -123,7 +124,7 @@ int fpga_mgr_firmware_load(struct fpga_manager *mgr, u32 flags,
 		return ret;
 	}
 
-	ret = fpga_mgr_buf_load(mgr, flags, fw->data, fw->size);
+	ret = fpga_mgr_buf_load(mgr, info, fw->data, fw->size);
 
 	release_firmware(fw);
 
