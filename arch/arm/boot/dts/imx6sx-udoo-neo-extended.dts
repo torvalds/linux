@@ -46,7 +46,7 @@
 
 / {
 	model = "UDOO Neo Extended";
-	compatible = "fsl,imx6sx";
+	compatible = "udoo,neoextended", "fsl,imx6sx";
 
 	memory {
 		reg = <0x80000000 0x40000000>;
