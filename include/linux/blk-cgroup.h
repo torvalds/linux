@@ -599,7 +599,7 @@ static inline void blkg_rwstat_add(struct blkg_rwstat *rwstat,
 
 	__percpu_counter_add(cnt, val, BLKG_STAT_CPU_BATCH);
 
-	if (op & REQ_SYNC)
+	if (op_is_sync(op))
 		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_SYNC];
 	else
 		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_ASYNC];
