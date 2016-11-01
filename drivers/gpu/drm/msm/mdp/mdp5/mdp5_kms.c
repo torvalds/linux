@@ -92,7 +92,7 @@ struct mdp5_state *mdp5_get_state(struct drm_atomic_state *s)
 		return ERR_PTR(-ENOMEM);
 
 	/* Copy state: */
-	/* TODO */
+	new_state->hwpipe = mdp5_kms->state->hwpipe;
 
 	state->state = new_state;
 
@@ -377,7 +377,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		struct drm_plane *plane;
 		struct drm_crtc *crtc;
 
-		plane = mdp5_plane_init(dev, mdp5_kms->hwpipes[i], primary);
+		plane = mdp5_plane_init(dev, primary);
 		if (IS_ERR(plane)) {
 			ret = PTR_ERR(plane);
 			dev_err(dev->dev, "failed to construct plane %d (%d)\n", i, ret);

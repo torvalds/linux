@@ -82,7 +82,7 @@ struct mdp5_kms {
  * For atomic updates which require modifying global state,
  */
 struct mdp5_state {
-	uint32_t dummy;
+	struct mdp5_hw_pipe_state hwpipe;
 };
 
 struct mdp5_state *__must_check
@@ -93,6 +93,8 @@ mdp5_get_state(struct drm_atomic_state *s);
  */
 struct mdp5_plane_state {
 	struct drm_plane_state base;
+
+	struct mdp5_hw_pipe *hwpipe;
 
 	/* aligned with property */
 	uint8_t premultiplied;
@@ -232,8 +234,7 @@ uint32_t mdp5_plane_get_flush(struct drm_plane *plane);
 void mdp5_plane_complete_commit(struct drm_plane *plane,
 	struct drm_plane_state *state);
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane);
-struct drm_plane *mdp5_plane_init(struct drm_device *dev,
-		struct mdp5_hw_pipe *hwpipe, bool primary);
+struct drm_plane *mdp5_plane_init(struct drm_device *dev, bool primary);
 
 uint32_t mdp5_crtc_vblank(struct drm_crtc *crtc);
 

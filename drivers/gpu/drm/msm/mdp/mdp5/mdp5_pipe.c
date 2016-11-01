@@ -17,6 +17,77 @@
 
 #include "mdp5_kms.h"
 
+struct mdp5_hw_pipe *mdp5_pipe_assign(struct drm_atomic_state *s,
+		struct drm_plane *plane, uint32_t caps)
+{
+	struct msm_drm_private *priv = s->dev->dev_private;
+	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(priv->kms));
+	struct mdp5_state *state;
+	struct mdp5_hw_pipe_state *old_state, *new_state;
+	struct mdp5_hw_pipe *hwpipe = NULL;
+	int i;
+
+	state = mdp5_get_state(s);
+	if (IS_ERR(state))
+		return ERR_CAST(state);
+
+	/* grab old_state after mdp5_get_state(), since now we hold lock: */
+	old_state = &mdp5_kms->state->hwpipe;
+	new_state = &state->hwpipe;
+
+	for (i = 0; i < mdp5_kms->num_hwpipes; i++) {
+		struct mdp5_hw_pipe *cur = mdp5_kms->hwpipes[i];
+
+		/* skip if already in-use.. check both new and old state,
+		 * since we cannot immediately re-use a pipe that is
+		 * released in the current update in some cases:
+		 *  (1) mdp5 can have SMP (non-double-buffered)
+		 *  (2) hw pipe previously assigned to different CRTC
+		 *      (vblanks might not be aligned)
+		 */
+		if (new_state->hwpipe_to_plane[cur->idx] ||
+				old_state->hwpipe_to_plane[cur->idx])
+			continue;
+
+		/* skip if doesn't support some required caps: */
+		if (caps & ~cur->caps)
+			continue;
+
+		/* possible candidate, take the one with the
+		 * fewest unneeded caps bits set:
+		 */
+		if (!hwpipe || (hweight_long(cur->caps & ~caps) <
+				hweight_long(hwpipe->caps & ~caps)))
+			hwpipe = cur;
+	}
+
+	if (!hwpipe)
+		return ERR_PTR(-ENOMEM);
+
+	DBG("%s: assign to plane %s for caps %x",
+			hwpipe->name, plane->name, caps);
+	new_state->hwpipe_to_plane[hwpipe->idx] = plane;
+
+	return hwpipe;
+}
+
+void mdp5_pipe_release(struct drm_atomic_state *s, struct mdp5_hw_pipe *hwpipe)
+{
+	struct mdp5_state *state = mdp5_get_state(s);
+	struct mdp5_hw_pipe_state *new_state = &state->hwpipe;
+
+	if (!hwpipe)
+		return;
+
+	if (WARN_ON(!new_state->hwpipe_to_plane[hwpipe->idx]))
+		return;
+
+	DBG("%s: release from plane %s", hwpipe->name,
+		new_state->hwpipe_to_plane[hwpipe->idx]->name);
+
+	new_state->hwpipe_to_plane[hwpipe->idx] = NULL;
+}
+
 void mdp5_pipe_destroy(struct mdp5_hw_pipe *hwpipe)
 {
 	kfree(hwpipe);

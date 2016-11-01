@@ -403,7 +403,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	for (i = 0; i < cnt; i++) {
 		pstates[i].state->stage = STAGE_BASE + i + base;
 		DBG("%s: assign pipe %s on stage=%d", crtc->name,
-				pipe2name(mdp5_plane_pipe(pstates[i].plane)),
+				pstates[i].plane->name,
 				pstates[i].state->stage);
 	}
 

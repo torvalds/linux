@@ -34,6 +34,16 @@ struct mdp5_hw_pipe {
 	uint32_t flush_mask;      /* used to commit pipe registers */
 };
 
+/* global atomic state of assignment between pipes and planes: */
+struct mdp5_hw_pipe_state {
+	struct drm_plane *hwpipe_to_plane[SSPP_MAX];
+};
+
+struct mdp5_hw_pipe *__must_check
+mdp5_pipe_assign(struct drm_atomic_state *s, struct drm_plane *plane,
+		uint32_t caps);
+void mdp5_pipe_release(struct drm_atomic_state *s, struct mdp5_hw_pipe *hwpipe);
+
 struct mdp5_hw_pipe *mdp5_pipe_init(enum mdp5_pipe pipe,
 		uint32_t reg_offset, uint32_t caps);
 void mdp5_pipe_destroy(struct mdp5_hw_pipe *hwpipe);
