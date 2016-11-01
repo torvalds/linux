@@ -716,9 +716,9 @@ static bool gen8_ppgtt_clear_pt(struct i915_address_space *vm,
 				uint64_t length)
 {
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-	unsigned int pte_start = gen8_pte_index(start);
 	unsigned int num_entries = gen8_pte_count(start, length);
-	uint64_t pte;
+	unsigned int pte = gen8_pte_index(start);
+	unsigned int pte_end = pte + num_entries;
 	gen8_pte_t *pt_vaddr;
 	gen8_pte_t scratch_pte = gen8_pte_encode(vm->scratch_page.daddr,
 						 I915_CACHE_LLC);
@@ -726,7 +726,9 @@ static bool gen8_ppgtt_clear_pt(struct i915_address_space *vm,
 	if (WARN_ON(!px_page(pt)))
 		return false;
 
-	bitmap_clear(pt->used_ptes, pte_start, num_entries);
+	GEM_BUG_ON(pte_end > GEN8_PTES);
+
+	bitmap_clear(pt->used_ptes, pte, num_entries);
 
 	if (bitmap_empty(pt->used_ptes, GEN8_PTES)) {
 		free_pt(vm->dev, pt);
@@ -735,8 +737,8 @@ static bool gen8_ppgtt_clear_pt(struct i915_address_space *vm,
 
 	pt_vaddr = kmap_px(pt);
 
-	for (pte = pte_start; pte < num_entries; pte++)
-		pt_vaddr[pte] = scratch_pte;
+	while (pte < pte_end)
+		pt_vaddr[pte++] = scratch_pte;
 
 	kunmap_px(ppgtt, pt_vaddr);
 
