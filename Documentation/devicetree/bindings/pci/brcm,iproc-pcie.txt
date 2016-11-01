@@ -4,6 +4,8 @@ Required properties:
 - compatible:
       "brcm,iproc-pcie" for the first generation of PAXB based controller,
 used in SoCs including NSP, Cygnus, NS2, and Pegasus
+      "brcm,iproc-pcie-paxb-v2" for the second generation of PAXB-based
+controllers, used in Stingray
       "brcm,iproc-pcie-paxc" for the first generation of PAXC based
 controller, used in NS2
       "brcm,iproc-pcie-paxc-v2" for the second generation of PAXC based
