@@ -40,6 +40,13 @@ config FPGA_BRIDGE
 	  Say Y here if you want to support bridges connected between host
 	  processors and FPGAs or between FPGAs.
 
+config SOCFPGA_FPGA_BRIDGE
+	tristate "Altera SoCFPGA FPGA Bridges"
+	depends on ARCH_SOCFPGA && FPGA_BRIDGE
+	help
+	  Say Y to enable drivers for FPGA bridges for Altera SOCFPGA
+	  devices.
+
 endif # FPGA
 
 endmenu
