@@ -75,7 +75,7 @@ static void cancel_userptr(struct work_struct *work)
 
 	/* We are inside a kthread context and can't be interrupted */
 	if (i915_gem_object_unbind(obj) == 0)
-		__i915_gem_object_put_pages(obj);
+		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
 	WARN_ONCE(obj->mm.pages,
 		  "Failed to release pages: bind_count=%d, pages_pin_count=%d, pin_display=%d\n",
 		  obj->bind_count,

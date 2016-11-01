@@ -111,7 +111,7 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 static bool unsafe_drop_pages(struct drm_i915_gem_object *obj)
 {
 	if (i915_gem_object_unbind(obj) == 0)
-		__i915_gem_object_put_pages(obj);
+		__i915_gem_object_put_pages(obj, I915_MM_SHRINKER);
 	return !READ_ONCE(obj->mm.pages);
 }
 
@@ -225,7 +225,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 			if (unsafe_drop_pages(obj)) {
 				/* May arrive from get_pages on another bo */
 				mutex_lock_nested(&obj->mm.lock,
-						  SINGLE_DEPTH_NESTING);
+						  I915_MM_SHRINKER);
 				if (!obj->mm.pages) {
 					__i915_gem_object_invalidate(obj);
 					list_del_init(&obj->global_list);

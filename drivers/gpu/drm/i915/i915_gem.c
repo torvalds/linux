@@ -491,7 +491,7 @@ i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	__i915_gem_object_put_pages(obj);
+	__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
 	if (obj->mm.pages)
 		return -EBUSY;
 
@@ -2181,7 +2181,8 @@ static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
 		radix_tree_delete(&obj->mm.get_page.radix, iter.index);
 }
 
-void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
+void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
+				 enum i915_mm_subclass subclass)
 {
 	struct sg_table *pages;
 
@@ -2193,7 +2194,7 @@ void __i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 		return;
 
 	/* May be called by shrinker from within get_pages() (on another bo) */
-	mutex_lock_nested(&obj->mm.lock, SINGLE_DEPTH_NESTING);
+	mutex_lock_nested(&obj->mm.lock, subclass);
 	if (unlikely(atomic_read(&obj->mm.pages_pin_count)))
 		goto unlock;
 
@@ -4283,7 +4284,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 
 		if (WARN_ON(i915_gem_object_has_pinned_pages(obj)))
 			atomic_set(&obj->mm.pages_pin_count, 0);
-		__i915_gem_object_put_pages(obj);
+		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
 		GEM_BUG_ON(obj->mm.pages);
 
 		if (obj->base.import_attach)
