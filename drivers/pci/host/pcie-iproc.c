@@ -58,6 +58,9 @@
 #define PCIE_DL_ACTIVE_SHIFT         2
 #define PCIE_DL_ACTIVE               BIT(PCIE_DL_ACTIVE_SHIFT)
 
+#define APB_ERR_EN_SHIFT             0
+#define APB_ERR_EN                   BIT(APB_ERR_EN_SHIFT)
+
 #define OARR_VALID_SHIFT             0
 #define OARR_VALID                   BIT(OARR_VALID_SHIFT)
 #define OARR_SIZE_CFG_SHIFT          1
@@ -96,6 +99,9 @@ enum iproc_pcie_reg {
 	/* link status */
 	IPROC_PCIE_LINK_STATUS,
 
+	/* enable APB error for unsupported requests */
+	IPROC_PCIE_APB_ERR_EN,
+
 	/* total number of core registers */
 	IPROC_PCIE_MAX_NUM_REG,
 };
@@ -124,6 +130,7 @@ static const u16 iproc_pcie_reg_paxb[] = {
 	[IPROC_PCIE_OMAP_LO]      = 0xd40,
 	[IPROC_PCIE_OMAP_HI]      = 0xd44,
 	[IPROC_PCIE_LINK_STATUS]  = 0xf0c,
+	[IPROC_PCIE_APB_ERR_EN]   = 0xf40,
 };
 
 /* iProc PCIe PAXC v1 registers */
@@ -179,6 +186,28 @@ static inline void iproc_pcie_write_reg(struct iproc_pcie *pcie,
 		return;
 
 	writel(val, pcie->base + offset);
+}
+
+/**
+ * APB error forwarding can be disabled during access of configuration
+ * registers of the endpoint device, to prevent unsupported requests
+ * (typically seen during enumeration with multi-function devices) from
+ * triggering a system exception.
+ */
+static inline void iproc_pcie_apb_err_disable(struct pci_bus *bus,
+					      bool disable)
+{
+	struct iproc_pcie *pcie = iproc_data(bus);
+	u32 val;
+
+	if (bus->number && pcie->has_apb_err_disable) {
+		val = iproc_pcie_read_reg(pcie, IPROC_PCIE_APB_ERR_EN);
+		if (disable)
+			val &= ~APB_ERR_EN;
+		else
+			val |= APB_ERR_EN;
+		iproc_pcie_write_reg(pcie, IPROC_PCIE_APB_ERR_EN, val);
+	}
 }
 
 static inline void iproc_pcie_ob_write(struct iproc_pcie *pcie,
@@ -244,10 +273,34 @@ static void __iomem *iproc_pcie_map_cfg_bus(struct pci_bus *bus,
 		return (pcie->base + offset);
 }
 
+static int iproc_pcie_config_read32(struct pci_bus *bus, unsigned int devfn,
+				    int where, int size, u32 *val)
+{
+	int ret;
+
+	iproc_pcie_apb_err_disable(bus, true);
+	ret = pci_generic_config_read32(bus, devfn, where, size, val);
+	iproc_pcie_apb_err_disable(bus, false);
+
+	return ret;
+}
+
+static int iproc_pcie_config_write32(struct pci_bus *bus, unsigned int devfn,
+				     int where, int size, u32 val)
+{
+	int ret;
+
+	iproc_pcie_apb_err_disable(bus, true);
+	ret = pci_generic_config_write32(bus, devfn, where, size, val);
+	iproc_pcie_apb_err_disable(bus, false);
+
+	return ret;
+}
+
 static struct pci_ops iproc_pcie_ops = {
 	.map_bus = iproc_pcie_map_cfg_bus,
-	.read = pci_generic_config_read32,
-	.write = pci_generic_config_write32,
+	.read = iproc_pcie_config_read32,
+	.write = iproc_pcie_config_write32,
 };
 
 static void iproc_pcie_reset(struct iproc_pcie *pcie)
@@ -485,6 +538,7 @@ static int iproc_pcie_rev_init(struct iproc_pcie *pcie)
 		break;
 	case IPROC_PCIE_PAXB:
 		regs = iproc_pcie_reg_paxb;
+		pcie->has_apb_err_disable = true;
 		break;
 	case IPROC_PCIE_PAXC:
 		regs = iproc_pcie_reg_paxc;

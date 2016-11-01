@@ -57,6 +57,8 @@ struct iproc_msi;
  * @phy: optional PHY device that controls the Serdes
  * @map_irq: function callback to map interrupts
  * @ep_is_internal: indicates an internal emulated endpoint device is connected
+ * @has_apb_err_disable: indicates the controller can be configured to prevent
+ * unsupported request from being forwarded as an APB bus error
  * @need_ob_cfg: indicates SW needs to configure the outbound mapping window
  * @ob: outbound mapping parameters
  * @msi: MSI data
@@ -74,6 +76,7 @@ struct iproc_pcie {
 	struct phy *phy;
 	int (*map_irq)(const struct pci_dev *, u8, u8);
 	bool ep_is_internal;
+	bool has_apb_err_disable;
 	bool need_ob_cfg;
 	struct iproc_pcie_ob ob;
 	struct iproc_msi *msi;
