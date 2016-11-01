@@ -117,6 +117,8 @@ int fpga_mgr_firmware_load(struct fpga_manager *mgr, u32 flags,
 
 struct fpga_manager *of_fpga_mgr_get(struct device_node *node);
 
+struct fpga_manager *fpga_mgr_get(struct device *dev);
+
 void fpga_mgr_put(struct fpga_manager *mgr);
 
 int fpga_mgr_register(struct device *dev, const char *name,

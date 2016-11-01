@@ -39,7 +39,8 @@ static struct class *fpga_mgr_class;
  * Step the low level fpga manager through the device-specific steps of getting
  * an FPGA ready to be configured, writing the image to it, then doing whatever
  * post-configuration steps necessary.  This code assumes the caller got the
- * mgr pointer from of_fpga_mgr_get() and checked that it is not an error code.
+ * mgr pointer from of_fpga_mgr_get() or fpga_mgr_get() and checked that it is
+ * not an error code.
  *
  * Return: 0 on success, negative error code otherwise.
  */
@@ -99,7 +100,8 @@ EXPORT_SYMBOL_GPL(fpga_mgr_buf_load);
  * Request an FPGA image using the firmware class, then write out to the FPGA.
  * Update the state before each step to provide info on what step failed if
  * there is a failure.  This code assumes the caller got the mgr pointer
- * from of_fpga_mgr_get() and checked that it is not an error code.
+ * from of_fpga_mgr_get() or fpga_mgr_get() and checked that it is not an error
+ * code.
  *
  * Return: 0 on success, negative error code otherwise.
  */
@@ -181,29 +183,10 @@ static struct attribute *fpga_mgr_attrs[] = {
 };
 ATTRIBUTE_GROUPS(fpga_mgr);
 
-static int fpga_mgr_of_node_match(struct device *dev, const void *data)
-{
-	return dev->of_node == data;
-}
-
-/**
- * of_fpga_mgr_get - get an exclusive reference to a fpga mgr
- * @node:	device node
- *
- * Given a device node, get an exclusive reference to a fpga mgr.
- *
- * Return: fpga manager struct or IS_ERR() condition containing error code.
- */
-struct fpga_manager *of_fpga_mgr_get(struct device_node *node)
+struct fpga_manager *__fpga_mgr_get(struct device *dev)
 {
 	struct fpga_manager *mgr;
-	struct device *dev;
 	int ret = -ENODEV;
-
-	dev = class_find_device(fpga_mgr_class, NULL, node,
-				fpga_mgr_of_node_match);
-	if (!dev)
-		return ERR_PTR(-ENODEV);
 
 	mgr = to_fpga_manager(dev);
 	if (!mgr)
@@ -225,6 +208,55 @@ err_ll_mod:
 err_dev:
 	put_device(dev);
 	return ERR_PTR(ret);
+}
+
+static int fpga_mgr_dev_match(struct device *dev, const void *data)
+{
+	return dev->parent == data;
+}
+
+/**
+ * fpga_mgr_get - get an exclusive reference to a fpga mgr
+ * @dev:	parent device that fpga mgr was registered with
+ *
+ * Given a device, get an exclusive reference to a fpga mgr.
+ *
+ * Return: fpga manager struct or IS_ERR() condition containing error code.
+ */
+struct fpga_manager *fpga_mgr_get(struct device *dev)
+{
+	struct device *mgr_dev = class_find_device(fpga_mgr_class, NULL, dev,
+						   fpga_mgr_dev_match);
+	if (!mgr_dev)
+		return ERR_PTR(-ENODEV);
+
+	return __fpga_mgr_get(mgr_dev);
+}
+EXPORT_SYMBOL_GPL(fpga_mgr_get);
+
+static int fpga_mgr_of_node_match(struct device *dev, const void *data)
+{
+	return dev->of_node == data;
+}
+
+/**
+ * of_fpga_mgr_get - get an exclusive reference to a fpga mgr
+ * @node:	device node
+ *
+ * Given a device node, get an exclusive reference to a fpga mgr.
+ *
+ * Return: fpga manager struct or IS_ERR() condition containing error code.
+ */
+struct fpga_manager *of_fpga_mgr_get(struct device_node *node)
+{
+	struct device *dev;
+
+	dev = class_find_device(fpga_mgr_class, NULL, node,
+				fpga_mgr_of_node_match);
+	if (!dev)
+		return ERR_PTR(-ENODEV);
+
+	return __fpga_mgr_get(dev);
 }
 EXPORT_SYMBOL_GPL(of_fpga_mgr_get);
 

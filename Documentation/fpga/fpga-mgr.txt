@@ -38,11 +38,13 @@ To get/put a reference to a FPGA manager:
 -----------------------------------------
 
 	struct fpga_manager *of_fpga_mgr_get(struct device_node *node);
+	struct fpga_manager *fpga_mgr_get(struct device *dev);
+
+Given a DT node or device, get an exclusive reference to a FPGA manager.
 
 	void fpga_mgr_put(struct fpga_manager *mgr);
 
-Given a DT node, get an exclusive reference to a FPGA manager or release
-the reference.
+Release the reference.
 
 
 To register or unregister the low level FPGA-specific driver:
