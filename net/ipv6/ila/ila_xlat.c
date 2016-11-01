@@ -474,7 +474,15 @@ static int ila_nl_dump_start(struct netlink_callback *cb)
 {
 	struct net *net = sock_net(cb->skb->sk);
 	struct ila_net *ilan = net_generic(net, ila_net_id);
-	struct ila_dump_iter *iter = (struct ila_dump_iter *)cb->args;
+	struct ila_dump_iter *iter = (struct ila_dump_iter *)cb->args[0];
+
+	if (!iter) {
+		iter = kmalloc(sizeof(*iter), GFP_KERNEL);
+		if (!iter)
+			return -ENOMEM;
+
+		cb->args[0] = (long)iter;
+	}
 
 	return rhashtable_walk_init(&ilan->rhash_table, &iter->rhiter,
 				    GFP_KERNEL);
@@ -482,16 +490,18 @@ static int ila_nl_dump_start(struct netlink_callback *cb)
 
 static int ila_nl_dump_done(struct netlink_callback *cb)
 {
-	struct ila_dump_iter *iter = (struct ila_dump_iter *)cb->args;
+	struct ila_dump_iter *iter = (struct ila_dump_iter *)cb->args[0];
 
 	rhashtable_walk_exit(&iter->rhiter);
+
+	kfree(iter);
 
 	return 0;
 }
 
 static int ila_nl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct ila_dump_iter *iter = (struct ila_dump_iter *)cb->args;
+	struct ila_dump_iter *iter = (struct ila_dump_iter *)cb->args[0];
 	struct rhashtable_iter *rhiter = &iter->rhiter;
 	struct ila_map *ila;
 	int ret;
