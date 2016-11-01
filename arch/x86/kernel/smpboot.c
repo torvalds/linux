@@ -1409,15 +1409,17 @@ __init void prefill_possible_map(void)
 
 	/* No boot processor was found in mptable or ACPI MADT */
 	if (!num_processors) {
-		int apicid = boot_cpu_physical_apicid;
-		int cpu = hard_smp_processor_id();
+		if (boot_cpu_has(X86_FEATURE_APIC)) {
+			int apicid = boot_cpu_physical_apicid;
+			int cpu = hard_smp_processor_id();
 
-		pr_warn("Boot CPU (id %d) not listed by BIOS\n", cpu);
+			pr_warn("Boot CPU (id %d) not listed by BIOS\n", cpu);
 
-		/* Make sure boot cpu is enumerated */
-		if (apic->cpu_present_to_apicid(0) == BAD_APICID &&
-		    apic->apic_id_valid(apicid))
-			generic_processor_info(apicid, boot_cpu_apic_version);
+			/* Make sure boot cpu is enumerated */
+			if (apic->cpu_present_to_apicid(0) == BAD_APICID &&
+			    apic->apic_id_valid(apicid))
+				generic_processor_info(apicid, boot_cpu_apic_version);
+		}
 
 		if (!num_processors)
 			num_processors = 1;

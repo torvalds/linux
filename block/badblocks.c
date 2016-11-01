@@ -133,6 +133,26 @@ retry:
 }
 EXPORT_SYMBOL_GPL(badblocks_check);
 
+static void badblocks_update_acked(struct badblocks *bb)
+{
+	u64 *p = bb->page;
+	int i;
+	bool unacked = false;
+
+	if (!bb->unacked_exist)
+		return;
+
+	for (i = 0; i < bb->count ; i++) {
+		if (!BB_ACK(p[i])) {
+			unacked = true;
+			break;
+		}
+	}
+
+	if (!unacked)
+		bb->unacked_exist = 0;
+}
+
 /**
  * badblocks_set() - Add a range of bad blocks to the table.
  * @bb:		the badblocks structure that holds all badblock information
@@ -294,6 +314,8 @@ int badblocks_set(struct badblocks *bb, sector_t s, int sectors,
 	bb->changed = 1;
 	if (!acknowledged)
 		bb->unacked_exist = 1;
+	else
+		badblocks_update_acked(bb);
 	write_sequnlock_irqrestore(&bb->lock, flags);
 
 	return rv;
@@ -354,7 +376,8 @@ int badblocks_clear(struct badblocks *bb, sector_t s, int sectors)
 		 * current range.  Earlier ranges could also overlap,
 		 * but only this one can overlap the end of the range.
 		 */
-		if (BB_OFFSET(p[lo]) + BB_LEN(p[lo]) > target) {
+		if ((BB_OFFSET(p[lo]) + BB_LEN(p[lo]) > target) &&
+		    (BB_OFFSET(p[lo]) < target)) {
 			/* Partial overlap, leave the tail of this range */
 			int ack = BB_ACK(p[lo]);
 			sector_t a = BB_OFFSET(p[lo]);
@@ -377,7 +400,8 @@ int badblocks_clear(struct badblocks *bb, sector_t s, int sectors)
 			lo--;
 		}
 		while (lo >= 0 &&
-		       BB_OFFSET(p[lo]) + BB_LEN(p[lo]) > s) {
+		       (BB_OFFSET(p[lo]) + BB_LEN(p[lo]) > s) &&
+		       (BB_OFFSET(p[lo]) < target)) {
 			/* This range does overlap */
 			if (BB_OFFSET(p[lo]) < s) {
 				/* Keep the early parts of this range. */
@@ -399,6 +423,7 @@ int badblocks_clear(struct badblocks *bb, sector_t s, int sectors)
 		}
 	}
 
+	badblocks_update_acked(bb);
 	bb->changed = 1;
 out:
 	write_sequnlock_irq(&bb->lock);

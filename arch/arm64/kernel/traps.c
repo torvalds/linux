@@ -428,24 +428,28 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 	force_signal_inject(SIGILL, ILL_ILLOPC, regs, 0);
 }
 
-void cpu_enable_cache_maint_trap(void *__unused)
+int cpu_enable_cache_maint_trap(void *__unused)
 {
 	config_sctlr_el1(SCTLR_EL1_UCI, 0);
+	return 0;
 }
 
 #define __user_cache_maint(insn, address, res)			\
-	asm volatile (						\
-		"1:	" insn ", %1\n"				\
-		"	mov	%w0, #0\n"			\
-		"2:\n"						\
-		"	.pushsection .fixup,\"ax\"\n"		\
-		"	.align	2\n"				\
-		"3:	mov	%w0, %w2\n"			\
-		"	b	2b\n"				\
-		"	.popsection\n"				\
-		_ASM_EXTABLE(1b, 3b)				\
-		: "=r" (res)					\
-		: "r" (address), "i" (-EFAULT) )
+	if (untagged_addr(address) >= user_addr_max())		\
+		res = -EFAULT;					\
+	else							\
+		asm volatile (					\
+			"1:	" insn ", %1\n"			\
+			"	mov	%w0, #0\n"		\
+			"2:\n"					\
+			"	.pushsection .fixup,\"ax\"\n"	\
+			"	.align	2\n"			\
+			"3:	mov	%w0, %w2\n"		\
+			"	b	2b\n"			\
+			"	.popsection\n"			\
+			_ASM_EXTABLE(1b, 3b)			\
+			: "=r" (res)				\
+			: "r" (address), "i" (-EFAULT) )
 
 static void user_cache_maint_handler(unsigned int esr, struct pt_regs *regs)
 {

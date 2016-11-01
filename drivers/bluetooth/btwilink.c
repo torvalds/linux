@@ -310,7 +310,7 @@ static int bt_ti_probe(struct platform_device *pdev)
 	BT_DBG("HCI device registered (hdev %p)", hdev);
 
 	dev_set_drvdata(&pdev->dev, hst);
-	return err;
+	return 0;
 }
 
 static int bt_ti_remove(struct platform_device *pdev)

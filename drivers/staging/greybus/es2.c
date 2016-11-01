@@ -1548,7 +1548,8 @@ static int ap_probe(struct usb_interface *interface,
 	INIT_LIST_HEAD(&es2->arpcs);
 	spin_lock_init(&es2->arpc_lock);
 
-	if (es2_arpc_in_enable(es2))
+	retval = es2_arpc_in_enable(es2);
+	if (retval)
 		goto error;
 
 	retval = gb_hd_add(hd);

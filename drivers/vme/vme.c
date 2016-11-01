@@ -156,12 +156,16 @@ size_t vme_get_size(struct vme_resource *resource)
 	case VME_MASTER:
 		retval = vme_master_get(resource, &enabled, &base, &size,
 			&aspace, &cycle, &dwidth);
+		if (retval)
+			return 0;
 
 		return size;
 		break;
 	case VME_SLAVE:
 		retval = vme_slave_get(resource, &enabled, &base, &size,
 			&buf_base, &aspace, &cycle);
+		if (retval)
+			return 0;
 
 		return size;
 		break;

@@ -1312,6 +1312,13 @@ static int init_hyp_mode(void)
 		goto out_err;
 	}
 
+	err = create_hyp_mappings(kvm_ksym_ref(__bss_start),
+				  kvm_ksym_ref(__bss_stop), PAGE_HYP_RO);
+	if (err) {
+		kvm_err("Cannot map bss section\n");
+		goto out_err;
+	}
+
 	/*
 	 * Map the Hyp stack pages
 	 */
