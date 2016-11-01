@@ -977,6 +977,7 @@ M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.armlinux.org.uk/
 S:	Maintained
+T:	git git://git.armlinux.org.uk/~rmk/linux-arm.git
 F:	arch/arm/
 
 ARM SUB-ARCHITECTURES
@@ -1154,6 +1155,7 @@ ARM/CLKDEV SUPPORT
 M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+T:	git git://git.armlinux.org.uk/~rmk/linux-arm.git clkdev
 F:	arch/arm/include/asm/clkdev.h
 F:	drivers/clk/clkdev.c
 
@@ -7701,8 +7703,10 @@ F:	drivers/net/dsa/mv88e6xxx/
 F:	Documentation/devicetree/bindings/net/dsa/marvell.txt
 
 MARVELL ARMADA DRM SUPPORT
-M:	Russell King <rmk+kernel@armlinux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
+T:	git git://git.armlinux.org.uk/~rmk/linux-arm.git drm-armada-devel
+T:	git git://git.armlinux.org.uk/~rmk/linux-arm.git drm-armada-fixes
 F:	drivers/gpu/drm/armada/
 F:	include/uapi/drm/armada_drm.h
 F:	Documentation/devicetree/bindings/display/armada/
@@ -8893,8 +8897,10 @@ S:	Supported
 F:	drivers/nfc/nxp-nci
 
 NXP TDA998X DRM DRIVER
-M:	Russell King <rmk+kernel@armlinux.org.uk>
+M:	Russell King <linux@armlinux.org.uk>
 S:	Supported
+T:	git git://git.armlinux.org.uk/~rmk/linux-arm.git drm-tda998x-devel
+T:	git git://git.armlinux.org.uk/~rmk/linux-arm.git drm-tda998x-fixes
 F:	drivers/gpu/drm/i2c/tda998x_drv.c
 F:	include/drm/i2c/tda998x.h
 
