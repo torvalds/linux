@@ -621,9 +621,9 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 	 * readahead cache (if any); this forces an expensive refresh of
 	 * data for the next caller of mmap (or 'get_block' accesses)
 	 */
-	if (file->f_path.dentry->d_inode &&
-	    file->f_path.dentry->d_inode->i_mapping &&
-	    mapping_nrpages(&file->f_path.dentry->d_inode->i_data)) {
+	if (file_inode(file) &&
+	    file_inode(file)->i_mapping &&
+	    mapping_nrpages(&file_inode(file)->i_data)) {
 		if (orangefs_features & ORANGEFS_FEATURE_READAHEAD) {
 			gossip_debug(GOSSIP_INODE_DEBUG,
 			    "calling flush_racache on %pU\n",
@@ -632,7 +632,7 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 			gossip_debug(GOSSIP_INODE_DEBUG,
 			    "flush_racache finished\n");
 		}
-		truncate_inode_pages(file->f_path.dentry->d_inode->i_mapping,
+		truncate_inode_pages(file_inode(file)->i_mapping,
 				     0);
 	}
 	return 0;
@@ -648,7 +648,7 @@ static int orangefs_fsync(struct file *file,
 {
 	int ret = -EINVAL;
 	struct orangefs_inode_s *orangefs_inode =
-		ORANGEFS_I(file->f_path.dentry->d_inode);
+		ORANGEFS_I(file_inode(file));
 	struct orangefs_kernel_op_s *new_op = NULL;
 
 	/* required call */
@@ -661,7 +661,7 @@ static int orangefs_fsync(struct file *file,
 
 	ret = service_operation(new_op,
 			"orangefs_fsync",
-			get_interruptible_flag(file->f_path.dentry->d_inode));
+			get_interruptible_flag(file_inode(file)));
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "orangefs_fsync got return value of %d\n",
@@ -669,7 +669,7 @@ static int orangefs_fsync(struct file *file,
 
 	op_release(new_op);
 
-	orangefs_flush_inode(file->f_path.dentry->d_inode);
+	orangefs_flush_inode(file_inode(file));
 	return ret;
 }
 

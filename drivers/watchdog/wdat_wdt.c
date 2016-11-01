@@ -499,6 +499,10 @@ static int wdat_wdt_resume_noirq(struct device *dev)
 		ret = wdat_wdt_enable_reboot(wdat);
 		if (ret)
 			return ret;
+
+		ret = wdat_wdt_ping(&wdat->wdd);
+		if (ret)
+			return ret;
 	}
 
 	return wdat_wdt_start(&wdat->wdd);
