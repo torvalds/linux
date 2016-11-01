@@ -156,19 +156,20 @@ u32 r600_dpm_get_vblank_time(struct radeon_device *rdev)
 	struct drm_device *dev = rdev->ddev;
 	struct drm_crtc *crtc;
 	struct radeon_crtc *radeon_crtc;
-	u32 line_time_us, vblank_lines;
+	u32 vblank_in_pixels;
 	u32 vblank_time_us = 0xffffffff; /* if the displays are off, vblank time is max */
 
 	if (rdev->num_crtc && rdev->mode_info.mode_config_initialized) {
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 			radeon_crtc = to_radeon_crtc(crtc);
 			if (crtc->enabled && radeon_crtc->enabled && radeon_crtc->hw_mode.clock) {
-				line_time_us = (radeon_crtc->hw_mode.crtc_htotal * 1000) /
-					radeon_crtc->hw_mode.clock;
-				vblank_lines = radeon_crtc->hw_mode.crtc_vblank_end -
-					radeon_crtc->hw_mode.crtc_vdisplay +
-					(radeon_crtc->v_border * 2);
-				vblank_time_us = vblank_lines * line_time_us;
+				vblank_in_pixels =
+					radeon_crtc->hw_mode.crtc_htotal *
+					(radeon_crtc->hw_mode.crtc_vblank_end -
+					 radeon_crtc->hw_mode.crtc_vdisplay +
+					 (radeon_crtc->v_border * 2));
+
+				vblank_time_us = vblank_in_pixels * 1000 / radeon_crtc->hw_mode.clock;
 				break;
 			}
 		}

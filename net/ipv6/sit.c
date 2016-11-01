@@ -681,14 +681,15 @@ static int ipip6_rcv(struct sk_buff *skb)
 		skb->mac_header = skb->network_header;
 		skb_reset_network_header(skb);
 		IPCB(skb)->flags = 0;
-		skb->protocol = htons(ETH_P_IPV6);
+		skb->dev = tunnel->dev;
 
 		if (packet_is_spoofed(skb, iph, tunnel)) {
 			tunnel->dev->stats.rx_errors++;
 			goto out;
 		}
 
-		__skb_tunnel_rx(skb, tunnel->dev, tunnel->net);
+		if (iptunnel_pull_header(skb, 0, htons(ETH_P_IPV6)))
+			goto out;
 
 		err = IP_ECN_decapsulate(iph, skb);
 		if (unlikely(err)) {
