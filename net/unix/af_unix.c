@@ -2240,33 +2240,21 @@ static unsigned int unix_skb_len(const struct sk_buff *skb)
 	return skb->len - UNIXCB(skb).consumed;
 }
 
-struct unix_stream_read_state {
-	int (*recv_actor)(struct sk_buff *, int, int,
-			  struct unix_stream_read_state *);
-	struct socket *socket;
-	struct msghdr *msg;
-	struct pipe_inode_info *pipe;
-	size_t size;
-	int flags;
-};
-
-static int unix_stream_read_generic(struct unix_stream_read_state *state,
-				    bool freezable)
+static int unix_stream_recvmsg(struct socket *sock, struct msghdr *msg,
+			       size_t size, int flags)
 {
 	struct scm_cookie scm;
-	struct socket *sock = state->socket;
 	struct sock *sk = sock->sk;
 	struct unix_sock *u = unix_sk(sk);
 	int copied = 0;
-	int flags = state->flags;
 	int noblock = flags & MSG_DONTWAIT;
 	bool check_creds = false;
 	int target;
 	int err = 0;
 	long timeo;
 	int skip;
-	size_t size = state->size;
 	unsigned int last_len;
+	bool freezable = !(msg->msg_iter.type & ITER_PIPE);
 
 	if (unlikely(sk->sk_state != TCP_ESTABLISHED)) {
 		err = -EINVAL;
@@ -2295,7 +2283,6 @@ static int unix_stream_read_generic(struct unix_stream_read_state *state,
 
 	do {
 		int chunk;
-		bool drop_skb;
 		struct sk_buff *skb, *last;
 
 redo:
@@ -2369,38 +2356,22 @@ unlock:
 		}
 
 		/* Copy address just once */
-		if (state->msg && state->msg->msg_name) {
+		if (msg->msg_name) {
 			DECLARE_SOCKADDR(struct sockaddr_un *, sunaddr,
-					 state->msg->msg_name);
-			unix_copy_addr(state->msg, skb->sk);
+					 msg->msg_name);
+			unix_copy_addr(msg, skb->sk);
 			sunaddr = NULL;
 		}
 
 		chunk = min_t(unsigned int, unix_skb_len(skb) - skip, size);
-		skb_get(skb);
-		chunk = state->recv_actor(skb, skip, chunk, state);
-		drop_skb = !unix_skb_len(skb);
-		/* skb is only safe to use if !drop_skb */
-		consume_skb(skb);
-		if (chunk < 0) {
+		if (skb_copy_datagram_msg(skb, UNIXCB(skb).consumed + skip,
+				    msg, chunk)) {
 			if (copied == 0)
 				copied = -EFAULT;
 			break;
 		}
 		copied += chunk;
 		size -= chunk;
-
-		if (drop_skb) {
-			/* the skb was touched by a concurrent reader;
-			 * we should not expect anything from this skb
-			 * anymore and assume it invalid - we can be
-			 * sure it was dropped from the socket queue
-			 *
-			 * let's report a short read
-			 */
-			err = 0;
-			break;
-		}
 
 		/* Mark read part of skb as used */
 		if (!(flags & MSG_PEEK)) {
@@ -2443,37 +2414,10 @@ unlock:
 	} while (size);
 
 	mutex_unlock(&u->iolock);
-	if (state->msg)
-		scm_recv(sock, state->msg, &scm, flags);
-	else
-		scm_destroy(&scm);
+	if (msg)
+		scm_recv(sock, msg, &scm, flags);
 out:
 	return copied ? : err;
-}
-
-static int unix_stream_read_actor(struct sk_buff *skb,
-				  int skip, int chunk,
-				  struct unix_stream_read_state *state)
-{
-	int ret;
-
-	ret = skb_copy_datagram_msg(skb, UNIXCB(skb).consumed + skip,
-				    state->msg, chunk);
-	return ret ?: chunk;
-}
-
-static int unix_stream_recvmsg(struct socket *sock, struct msghdr *msg,
-			       size_t size, int flags)
-{
-	struct unix_stream_read_state state = {
-		.recv_actor = unix_stream_read_actor,
-		.socket = sock,
-		.msg = msg,
-		.size = size,
-		.flags = flags
-	};
-
-	return unix_stream_read_generic(&state, true);
 }
 
 static int unix_shutdown(struct socket *sock, int mode)
