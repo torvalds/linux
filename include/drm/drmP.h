@@ -941,8 +941,13 @@ static inline bool drm_is_primary_client(const struct drm_file *file_priv)
 extern int drm_ioctl_permit(u32 flags, struct drm_file *file_priv);
 extern long drm_ioctl(struct file *filp,
 		      unsigned int cmd, unsigned long arg);
+#ifdef CONFIG_COMPAT
 extern long drm_compat_ioctl(struct file *filp,
 			     unsigned int cmd, unsigned long arg);
+#else
+/* Let drm_compat_ioctl be assigned to .compat_ioctl unconditionally */
+#define drm_compat_ioctl NULL
+#endif
 extern bool drm_ioctl_flags(unsigned int nr, unsigned int *flags);
 
 /* File Operations (drm_fops.c) */

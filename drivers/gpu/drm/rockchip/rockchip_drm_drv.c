@@ -275,9 +275,7 @@ static const struct file_operations rockchip_drm_driver_fops = {
 	.poll = drm_poll,
 	.read = drm_read,
 	.unlocked_ioctl = drm_ioctl,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.release = drm_release,
 };
 
