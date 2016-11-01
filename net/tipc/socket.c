@@ -1599,6 +1599,7 @@ static bool filter_connect(struct tipc_sock *tsk, struct sk_buff *skb)
 			/* Let timer expire on it's own */
 			tipc_node_remove_conn(net, tsk_peer_node(tsk),
 					      tsk->portid);
+			sk->sk_state_change(sk);
 		}
 		return true;
 
