@@ -2181,6 +2181,7 @@ enum hdmi_force_audio {
 struct drm_i915_gem_object_ops {
 	unsigned int flags;
 #define I915_GEM_OBJECT_HAS_STRUCT_PAGE 0x1
+#define I915_GEM_OBJECT_IS_SHRINKABLE   0x2
 
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
@@ -2427,6 +2428,12 @@ static inline bool
 i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
 {
 	return obj->ops->flags & I915_GEM_OBJECT_HAS_STRUCT_PAGE;
+}
+
+static inline bool
+i915_gem_object_is_shrinkable(const struct drm_i915_gem_object *obj)
+{
+	return obj->ops->flags & I915_GEM_OBJECT_IS_SHRINKABLE;
 }
 
 static inline bool

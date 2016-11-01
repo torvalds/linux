@@ -132,7 +132,8 @@ static void i915_gem_object_put_pages_internal(struct drm_i915_gem_object *obj,
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_object_internal_ops = {
-	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE,
+	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE |
+		 I915_GEM_OBJECT_IS_SHRINKABLE,
 	.get_pages = i915_gem_object_get_pages_internal,
 	.put_pages = i915_gem_object_put_pages_internal,
 };

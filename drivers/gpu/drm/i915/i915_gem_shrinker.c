@@ -83,8 +83,8 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 	if (!obj->mm.pages)
 		return false;
 
-	/* Only shmemfs objects are backed by swap */
-	if (!obj->base.filp)
+	/* Consider only shrinkable ojects. */
+	if (!i915_gem_object_is_shrinkable(obj))
 		return false;
 
 	/* Only report true if by unbinding the object and putting its pages
