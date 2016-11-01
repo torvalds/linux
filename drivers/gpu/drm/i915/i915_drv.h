@@ -2230,6 +2230,7 @@ struct drm_i915_gem_object {
 
 	/** List of VMAs backed by this object */
 	struct list_head vma_list;
+	struct rb_root vma_tree;
 
 	/** Stolen memory for this object, instead of being backed by shmem. */
 	struct drm_mm_node *stolen;

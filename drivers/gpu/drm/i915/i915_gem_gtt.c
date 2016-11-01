@@ -3399,6 +3399,7 @@ void i915_vma_destroy(struct i915_vma *vma)
 	GEM_BUG_ON(!i915_vma_is_closed(vma));
 	GEM_BUG_ON(vma->fence);
 
+	rb_erase(&vma->obj_node, &vma->obj->vma_tree);
 	list_del(&vma->vm_link);
 	if (!i915_vma_is_ggtt(vma))
 		i915_ppgtt_put(i915_vm_to_ppgtt(vma->vm));
@@ -3416,12 +3417,33 @@ void i915_vma_close(struct i915_vma *vma)
 		WARN_ON(i915_vma_unbind(vma));
 }
 
+static inline long vma_compare(struct i915_vma *vma,
+			       struct i915_address_space *vm,
+			       const struct i915_ggtt_view *view)
+{
+	GEM_BUG_ON(view && !i915_vma_is_ggtt(vma));
+
+	if (vma->vm != vm)
+		return vma->vm - vm;
+
+	if (!view)
+		return vma->ggtt_view.type;
+
+	if (vma->ggtt_view.type != view->type)
+		return vma->ggtt_view.type - view->type;
+
+	return memcmp(&vma->ggtt_view.params,
+		      &view->params,
+		      sizeof(view->params));
+}
+
 static struct i915_vma *
 __i915_vma_create(struct drm_i915_gem_object *obj,
 		  struct i915_address_space *vm,
 		  const struct i915_ggtt_view *view)
 {
 	struct i915_vma *vma;
+	struct rb_node *rb, **p;
 	int i;
 
 	GEM_BUG_ON(vm->closed);
@@ -3455,33 +3477,28 @@ __i915_vma_create(struct drm_i915_gem_object *obj,
 
 	if (i915_is_ggtt(vm)) {
 		vma->flags |= I915_VMA_GGTT;
+		list_add(&vma->obj_link, &obj->vma_list);
 	} else {
 		i915_ppgtt_get(i915_vm_to_ppgtt(vm));
+		list_add_tail(&vma->obj_link, &obj->vma_list);
 	}
 
-	list_add_tail(&vma->obj_link, &obj->vma_list);
+	rb = NULL;
+	p = &obj->vma_tree.rb_node;
+	while (*p) {
+		struct i915_vma *pos;
+
+		rb = *p;
+		pos = rb_entry(rb, struct i915_vma, obj_node);
+		if (vma_compare(pos, vm, view) < 0)
+			p = &rb->rb_right;
+		else
+			p = &rb->rb_left;
+	}
+	rb_link_node(&vma->obj_node, rb, p);
+	rb_insert_color(&vma->obj_node, &obj->vma_tree);
+
 	return vma;
-}
-
-static inline bool vma_matches(struct i915_vma *vma,
-			       struct i915_address_space *vm,
-			       const struct i915_ggtt_view *view)
-{
-	if (vma->vm != vm)
-		return false;
-
-	if (!i915_vma_is_ggtt(vma))
-		return true;
-
-	if (!view)
-		return vma->ggtt_view.type == 0;
-
-	if (vma->ggtt_view.type != view->type)
-		return false;
-
-	return memcmp(&vma->ggtt_view.params,
-		      &view->params,
-		      sizeof(view->params)) == 0;
 }
 
 struct i915_vma *
@@ -3501,11 +3518,22 @@ i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
 		    struct i915_address_space *vm,
 		    const struct i915_ggtt_view *view)
 {
-	struct i915_vma *vma;
+	struct rb_node *rb;
 
-	list_for_each_entry_reverse(vma, &obj->vma_list, obj_link)
-		if (vma_matches(vma, vm, view))
+	rb = obj->vma_tree.rb_node;
+	while (rb) {
+		struct i915_vma *vma = rb_entry(rb, struct i915_vma, obj_node);
+		long cmp;
+
+		cmp = vma_compare(vma, vm, view);
+		if (cmp == 0)
 			return vma;
+
+		if (cmp < 0)
+			rb = rb->rb_right;
+		else
+			rb = rb->rb_left;
+	}
 
 	return NULL;
 }
@@ -3521,8 +3549,10 @@ i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
 	GEM_BUG_ON(view && !i915_is_ggtt(vm));
 
 	vma = i915_gem_obj_to_vma(obj, vm, view);
-	if (!vma)
+	if (!vma) {
 		vma = __i915_vma_create(obj, vm, view);
+		GEM_BUG_ON(vma != i915_gem_obj_to_vma(obj, vm, view));
+	}
 
 	GEM_BUG_ON(i915_vma_is_closed(vma));
 	return vma;

@@ -4266,6 +4266,8 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 			vma->flags &= ~I915_VMA_PIN_MASK;
 			i915_vma_close(vma);
 		}
+		GEM_BUG_ON(!list_empty(&obj->vma_list));
+		GEM_BUG_ON(!RB_EMPTY_ROOT(&obj->vma_tree));
 
 		list_del(&obj->global_list);
 	}
