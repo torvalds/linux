@@ -107,6 +107,8 @@ static inline int wbc_to_write_flags(struct writeback_control *wbc)
 {
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		return REQ_SYNC;
+	else if (wbc->for_kupdate || wbc->for_background)
+		return REQ_BACKGROUND;
 
 	return 0;
 }
