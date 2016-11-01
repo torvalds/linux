@@ -26,6 +26,12 @@ config FPGA_MGR_SOCFPGA
 	help
 	  FPGA manager driver support for Altera SOCFPGA.
 
+config FPGA_MGR_SOCFPGA_A10
+	tristate "Altera SoCFPGA Arria10"
+	depends on ARCH_SOCFPGA
+	help
+	  FPGA manager driver support for Altera Arria10 SoCFPGA.
+
 config FPGA_MGR_ZYNQ_FPGA
 	tristate "Xilinx Zynq FPGA"
 	depends on ARCH_ZYNQ || COMPILE_TEST
