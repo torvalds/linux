@@ -1348,9 +1348,8 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 
 		seq_printf(m, "%s:\n", engine->name);
 		seq_printf(m, "\tseqno = %x [current %x, last %x]\n",
-			   engine->hangcheck.seqno,
-			   seqno[id],
-			   engine->timeline->last_submitted_seqno);
+			   engine->hangcheck.seqno, seqno[id],
+			   intel_engine_last_submit(engine));
 		seq_printf(m, "\twaiters? %s, fake irq active? %s\n",
 			   yesno(intel_engine_has_waiter(engine)),
 			   yesno(test_bit(engine->id,
@@ -3167,7 +3166,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 		seq_printf(m, "%s\n", engine->name);
 		seq_printf(m, "\tcurrent seqno %x, last %x, hangcheck %x [score %d]\n",
 			   intel_engine_get_seqno(engine),
-			   engine->timeline->last_submitted_seqno,
+			   intel_engine_last_submit(engine),
 			   engine->hangcheck.seqno,
 			   engine->hangcheck.score);
 

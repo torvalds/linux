@@ -371,7 +371,7 @@ out:
 	if (flags & I915_WAIT_LOCKED && i915_gem_request_completed(rq))
 		i915_gem_request_retire_upto(rq);
 
-	if (rps && rq->fence.seqno == rq->timeline->last_submitted_seqno) {
+	if (rps && rq->global_seqno == intel_engine_last_submit(rq->engine)) {
 		/* The GPU is now idle and this client has stalled.
 		 * Since no other client has submitted a request in the
 		 * meantime, assume that this client is the only one
@@ -2674,7 +2674,7 @@ static void i915_gem_cleanup_engine(struct intel_engine_cs *engine)
 	 * reset it.
 	 */
 	intel_engine_init_global_seqno(engine,
-				       engine->timeline->last_submitted_seqno);
+				       intel_engine_last_submit(engine));
 
 	/*
 	 * Clear the execlists queue up before freeing the requests, as those

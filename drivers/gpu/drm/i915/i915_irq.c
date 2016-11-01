@@ -3168,7 +3168,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 
 		acthd = intel_engine_get_active_head(engine);
 		seqno = intel_engine_get_seqno(engine);
-		submit = READ_ONCE(engine->timeline->last_submitted_seqno);
+		submit = intel_engine_last_submit(engine);
 
 		if (engine->hangcheck.seqno == seqno) {
 			if (i915_seqno_passed(seqno, submit)) {
