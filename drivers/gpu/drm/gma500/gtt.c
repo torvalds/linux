@@ -131,7 +131,7 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r,
  *	page table entries with the dummy page. This is protected via the gtt
  *	mutex which the caller must hold.
  */
-void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
+static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 __iomem *gtt_slot;
