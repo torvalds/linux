@@ -901,7 +901,8 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	return ret;
 
 bail_ip:
-	kref_put(&qp->ip->ref, rvt_release_mmap_info);
+	if (qp->ip)
+		kref_put(&qp->ip->ref, rvt_release_mmap_info);
 
 bail_qpn:
 	free_qpn(&rdi->qp_dev->qpn_table, qp->ibqp.qp_num);
