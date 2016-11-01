@@ -403,7 +403,7 @@ static int ccp5_perform_rsa(struct ccp_op *op)
 	CCP5_CMD_PROT(&desc) = 0;
 
 	function.raw = 0;
-	CCP_RSA_SIZE(&function) = op->u.rsa.mod_size;
+	CCP_RSA_SIZE(&function) = op->u.rsa.mod_size >> 3;
 	CCP5_CMD_FUNCTION(&desc) = function.raw;
 
 	CCP5_CMD_LEN(&desc) = op->u.rsa.input_len;
@@ -418,10 +418,10 @@ static int ccp5_perform_rsa(struct ccp_op *op)
 	CCP5_CMD_DST_HI(&desc) = ccp_addr_hi(&op->dst.u.dma);
 	CCP5_CMD_DST_MEM(&desc) = CCP_MEMTYPE_SYSTEM;
 
-	/* Key (Exponent) is in external memory */
-	CCP5_CMD_KEY_LO(&desc) = ccp_addr_lo(&op->exp.u.dma);
-	CCP5_CMD_KEY_HI(&desc) = ccp_addr_hi(&op->exp.u.dma);
-	CCP5_CMD_KEY_MEM(&desc) = CCP_MEMTYPE_SYSTEM;
+	/* Exponent is in LSB memory */
+	CCP5_CMD_KEY_LO(&desc) = op->sb_key * LSB_ITEM_SIZE;
+	CCP5_CMD_KEY_HI(&desc) = 0;
+	CCP5_CMD_KEY_MEM(&desc) = CCP_MEMTYPE_SB;
 
 	return ccp5_do_cmd(&desc, op->cmd_q);
 }
