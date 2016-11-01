@@ -1668,7 +1668,7 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 
 		header = (VCHIQ_HEADER_T *)(state->rx_data +
 			(state->rx_pos & VCHIQ_SLOT_MASK));
-		DEBUG_VALUE(PARSE_HEADER, (int)header);
+		DEBUG_VALUE(PARSE_HEADER, (int)(long)header);
 		msgid = header->msgid;
 		DEBUG_VALUE(PARSE_MSGID, msgid);
 		size = header->size;
