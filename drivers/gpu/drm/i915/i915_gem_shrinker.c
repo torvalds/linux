@@ -228,6 +228,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 						  SINGLE_DEPTH_NESTING);
 				if (!obj->mm.pages) {
 					__i915_gem_object_invalidate(obj);
+					list_del_init(&obj->global_list);
 					count += obj->base.size >> PAGE_SHIFT;
 				}
 				mutex_unlock(&obj->mm.lock);
