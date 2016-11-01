@@ -3914,6 +3914,12 @@ cfq_update_io_seektime(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		cfqq->seek_history |= (sdist > CFQQ_SEEK_THR);
 }
 
+static inline bool req_noidle(struct request *req)
+{
+	return req_op(req) == REQ_OP_WRITE &&
+		(req->cmd_flags & (REQ_SYNC | REQ_IDLE)) == REQ_SYNC;
+}
+
 /*
  * Disable idle window if the process thinks too long or seeks so much that
  * it doesn't matter
@@ -3935,7 +3941,7 @@ cfq_update_idle_window(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	if (cfqq->queued[0] + cfqq->queued[1] >= 4)
 		cfq_mark_cfqq_deep(cfqq);
 
-	if (cfqq->next_rq && (cfqq->next_rq->cmd_flags & REQ_NOIDLE))
+	if (cfqq->next_rq && req_noidle(cfqq->next_rq))
 		enable_idle = 0;
 	else if (!atomic_read(&cic->icq.ioc->active_ref) ||
 		 !cfqd->cfq_slice_idle ||
@@ -4220,8 +4226,7 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 	const int sync = rq_is_sync(rq);
 	u64 now = ktime_get_ns();
 
-	cfq_log_cfqq(cfqd, cfqq, "complete rqnoidle %d",
-		     !!(rq->cmd_flags & REQ_NOIDLE));
+	cfq_log_cfqq(cfqd, cfqq, "complete rqnoidle %d", req_noidle(rq));
 
 	cfq_update_hw_tag(cfqd);
 
