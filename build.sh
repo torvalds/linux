@@ -1,5 +1,6 @@
-#!/bin/bash -x
+#!/bin/bash
 
+PROGNAME=$0
 
 if [ ! -f .dest ]; then
         echo -n "Prosim zadaj adresu kam sa maju kopirovat zdrojaky (NONE pre nikam): "
@@ -15,11 +16,17 @@ major=0
 [ -f .major ] && major=`cat .major`
 echo $(($minor + 1)) > .minor
 
+function do_exit {
+        echo $2
+        exit $1
+}
+
 function parse_argv {
         GRUB=1
         REBOOT=1
         MEDUSA_ONLY=0
         DELETE=0
+        INSTALL=1
 
         for arg in "$@"; do
                 if [[ "$arg" == '--delete' || "$arg" == '-delete' ]]; then
@@ -35,11 +42,15 @@ function parse_argv {
                         MEDUSA_ONLY=1
                         DELETE=1
                         GRUB=0
+                elif [[ "$arg" == '--build-only' || "$arg" == '-build-only' ]]; then
+                        INSTALL=0
+                        GRUB=0
+                        REBOOT=0
                 elif [[ "$arg" == '-h' || "$arg" == '--help' || "$arg" == '-help' ]]; then
                         help
                 else
                         echo "Error unknown parameter '$arg'"
-                        help
+                        help 
                 fi
         done
 
@@ -47,7 +58,7 @@ function parse_argv {
 }
 
 function help {
-        echo "$0 [--help] [--delete] [--clean] [--nogrub] [--noreboot] [--medusa-only] [--nogdb]";
+        echo "$PROGNAME [--help] [--delete] [--clean] [--nogrub] [--noreboot] [--medusa-only] [--nogdb]";
         echo "    --help           - Prints this help"
         echo "    --delete         - Deletes the medusa object files (handy when changing"
         echo "                       header files or makefiles)"
@@ -56,6 +67,7 @@ function help {
         echo "    --nogrub/--nogdb - Turns off the waiting for GDB connection during booting"
         echo "    --noreboot       - Does not reboot at the end"
         echo "    --medusa-only    - Rebuilds just medusa not the whole kernel"
+        echo "    --build-only     - Just rebuid the kernel(modue) no reboot no installation"
         exit 0
 }
 
@@ -72,12 +84,15 @@ function medusa_only {
         fi
         sudo make -j `expr $PROCESSORS + 1`
 
-        [ $? -ne 0 ] && exit 1
+        [ $? -ne 0 ] && do_exit 1 "Medusa compilation failed"
+}
+
+function install_module {
         sudo cp arch/x86/boot/bzImage /boot/vmlinuz-`uname -r`
-        [ $? -ne 0 ] && exit 1
+        [ $? -ne 0 ] && do_exit 1 "Copying of medusa module failed"
 
         sudo update-initramfs -u 
-        [ $? -ne 0 ] && exit 1
+        [ $? -ne 0 ] && do_exit 1 "Update-initramfs failed"
 }
 
 function create_package {
@@ -86,7 +101,7 @@ function create_package {
         export CONCURRENCY_LEVEL=`expr $PROCESSORS + 1`
         fakeroot make-kpkg --initrd --revision=1.2 kernel_image
 
-        [ $? -ne 0 ] && exit 1
+        [ $? -ne 0 ] && do_exit 1 "Make-kpkg failed"
 }
 
 function rsync_repo {
@@ -135,9 +150,11 @@ fi
 echo $(($major + 1)) > .major
 echo 0 > .minor
 
-[ $MEDUSA_ONLY -ne 1 ] && install_package
+if [ $INSTALL -eq 1 ]; then
+        [ $MEDUSA_ONLY -eq 0 ] && install_package
+        [ $MEDUSA_ONLY -ne 0 ] && install_module
+fi
 
-# [ $? -ne 0 ] && exit 1
 echo $major.$minor >> myversioning
 
 [ $GRUB -eq 1 ] && update_grub
