@@ -465,7 +465,7 @@ static int tipc_release(struct socket *sock)
 		skb = __skb_dequeue(&sk->sk_receive_queue);
 		if (skb == NULL)
 			break;
-		if (TIPC_SKB_CB(skb)->handle != NULL)
+		if (TIPC_SKB_CB(skb)->bytes_read)
 			kfree_skb(skb);
 		else {
 			if ((sock->state == SS_CONNECTING) ||
@@ -1435,7 +1435,7 @@ static int tipc_recv_stream(struct socket *sock, struct msghdr *m,
 	struct tipc_msg *msg;
 	long timeo;
 	unsigned int sz;
-	int sz_to_copy, target, needed;
+	int target;
 	int sz_copied = 0;
 	u32 err;
 	int res = 0, hlen;
@@ -1483,11 +1483,13 @@ restart:
 
 	/* Capture message data (if valid) & compute return value (always) */
 	if (!err) {
-		u32 offset = (u32)(unsigned long)(TIPC_SKB_CB(buf)->handle);
+		u32 offset = TIPC_SKB_CB(buf)->bytes_read;
+		u32 needed;
+		int sz_to_copy;
 
 		sz -= offset;
 		needed = (buf_len - sz_copied);
-		sz_to_copy = (sz <= needed) ? sz : needed;
+		sz_to_copy = min(sz, needed);
 
 		res = skb_copy_datagram_msg(buf, hlen + offset, m, sz_to_copy);
 		if (res)
@@ -1497,8 +1499,8 @@ restart:
 
 		if (sz_to_copy < sz) {
 			if (!(flags & MSG_PEEK))
-				TIPC_SKB_CB(buf)->handle =
-				(void *)(unsigned long)(offset + sz_to_copy);
+				TIPC_SKB_CB(buf)->bytes_read =
+					offset + sz_to_copy;
 			goto exit;
 		}
 	} else {
@@ -1742,7 +1744,7 @@ static bool filter_rcv(struct sock *sk, struct sk_buff *skb,
 	}
 
 	/* Enqueue message */
-	TIPC_SKB_CB(skb)->handle = NULL;
+	TIPC_SKB_CB(skb)->bytes_read = 0;
 	__skb_queue_tail(&sk->sk_receive_queue, skb);
 	skb_set_owner_r(skb, sk);
 
@@ -2177,7 +2179,7 @@ restart:
 		/* Disconnect and send a 'FIN+' or 'FIN-' message to peer */
 		skb = __skb_dequeue(&sk->sk_receive_queue);
 		if (skb) {
-			if (TIPC_SKB_CB(skb)->handle != NULL) {
+			if (TIPC_SKB_CB(skb)->bytes_read) {
 				kfree_skb(skb);
 				goto restart;
 			}
