@@ -21,7 +21,6 @@
 
 struct mdp5_plane {
 	struct drm_plane base;
-	const char *name;
 
 	enum mdp5_pipe pipe;
 
@@ -265,28 +264,26 @@ static const struct drm_plane_funcs mdp5_plane_funcs = {
 static int mdp5_plane_prepare_fb(struct drm_plane *plane,
 				 struct drm_plane_state *new_state)
 {
-	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	struct drm_framebuffer *fb = new_state->fb;
 
 	if (!new_state->fb)
 		return 0;
 
-	DBG("%s: prepare: FB[%u]", mdp5_plane->name, fb->base.id);
+	DBG("%s: prepare: FB[%u]", plane->name, fb->base.id);
 	return msm_framebuffer_prepare(fb, mdp5_kms->id);
 }
 
 static void mdp5_plane_cleanup_fb(struct drm_plane *plane,
 				  struct drm_plane_state *old_state)
 {
-	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct mdp5_kms *mdp5_kms = get_kms(plane);
 	struct drm_framebuffer *fb = old_state->fb;
 
 	if (!fb)
 		return;
 
-	DBG("%s: cleanup: FB[%u]", mdp5_plane->name, fb->base.id);
+	DBG("%s: cleanup: FB[%u]", plane->name, fb->base.id);
 	msm_framebuffer_cleanup(fb, mdp5_kms->id);
 }
 
@@ -298,7 +295,7 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 	const struct mdp_format *format;
 	bool vflip, hflip;
 
-	DBG("%s: check (%d -> %d)", mdp5_plane->name,
+	DBG("%s: check (%d -> %d)", plane->name,
 			plane_enabled(old_state), plane_enabled(state));
 
 	if (plane_enabled(state)) {
@@ -341,15 +338,15 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 		/* we cannot change SMP block configuration during scanout: */
 		bool full_modeset = false;
 		if (state->fb->pixel_format != old_state->fb->pixel_format) {
-			DBG("%s: pixel_format change!", mdp5_plane->name);
+			DBG("%s: pixel_format change!", plane->name);
 			full_modeset = true;
 		}
 		if (state->src_w != old_state->src_w) {
-			DBG("%s: src_w change!", mdp5_plane->name);
+			DBG("%s: src_w change!", plane->name);
 			full_modeset = true;
 		}
 		if (to_mdp5_plane_state(old_state)->pending) {
-			DBG("%s: still pending!", mdp5_plane->name);
+			DBG("%s: still pending!", plane->name);
 			full_modeset = true;
 		}
 		if (full_modeset) {
@@ -371,7 +368,7 @@ static void mdp5_plane_atomic_update(struct drm_plane *plane,
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 	struct drm_plane_state *state = plane->state;
 
-	DBG("%s: update", mdp5_plane->name);
+	DBG("%s: update", plane->name);
 
 	if (!plane_enabled(state)) {
 		to_mdp5_plane_state(state)->pending = true;
@@ -718,7 +715,7 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	src_w = src_w >> 16;
 	src_h = src_h >> 16;
 
-	DBG("%s: FB[%u] %u,%u,%u,%u -> CRTC[%u] %d,%d,%u,%u", mdp5_plane->name,
+	DBG("%s: FB[%u] %u,%u,%u,%u -> CRTC[%u] %d,%d,%u,%u", plane->name,
 			fb->base.id, src_x, src_y, src_w, src_h,
 			crtc->base.id, crtc_x, crtc_y, crtc_w, crtc_h);
 
@@ -875,10 +872,10 @@ void mdp5_plane_complete_commit(struct drm_plane *plane,
 
 	if (mdp5_kms->smp) {
 		if (plane_enabled(plane->state)) {
-			DBG("%s: complete flip", mdp5_plane->name);
+			DBG("%s: complete flip", plane->name);
 			mdp5_smp_commit(mdp5_kms->smp, pipe);
 		} else {
-			DBG("%s: free SMP", mdp5_plane->name);
+			DBG("%s: free SMP", plane->name);
 			mdp5_smp_release(mdp5_kms->smp, pipe);
 		}
 	}
@@ -905,7 +902,6 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 	plane = &mdp5_plane->base;
 
 	mdp5_plane->pipe = pipe;
-	mdp5_plane->name = pipe2name(pipe);
 	mdp5_plane->caps = caps;
 
 	mdp5_plane->nformats = mdp_get_formats(mdp5_plane->formats,
@@ -919,7 +915,7 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 	type = private_plane ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
 	ret = drm_universal_plane_init(dev, plane, 0xff, &mdp5_plane_funcs,
 				 mdp5_plane->formats, mdp5_plane->nformats,
-				 type, "%s", mdp5_plane->name);
+				 type, "%s", pipe2name(pipe));
 	if (ret)
 		goto fail;
 
