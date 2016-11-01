@@ -119,7 +119,7 @@ result.
 	transmit.
     * - __u32
       - ``flags``
-      - Flags. No flags are defined yet, so set this to 0.
+      - Flags. See :ref:`cec-msg-flags` for a list of available flags.
     * - __u8
       - ``tx_status``
       - The status bits of the transmitted message. See
@@ -178,6 +178,26 @@ result.
 	Lost or Not Acknowledged. This is only set if the hardware
 	supports this, otherwise it is always 0. This counter is only
 	valid if the :ref:`CEC_TX_STATUS_ERROR <CEC-TX-STATUS-ERROR>` status bit is set.
+
+
+.. _cec-msg-flags:
+
+.. flat-table:: Flags for struct cec_msg
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       3 1 4
+
+    * .. _`CEC-MSG-FL-REPLY-TO-FOLLOWERS`:
+
+      - ``CEC_MSG_FL_REPLY_TO_FOLLOWERS``
+      - 1
+      - If a CEC transmit expects a reply, then by default that reply is only sent to
+	the filehandle that called :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`. If this
+	flag is set, then the reply is also sent to all followers, if any. If the
+	filehandle that called :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>` is also a
+	follower, then that filehandle will receive the reply twice: once as the
+	result of the :ref:`ioctl CEC_TRANSMIT <CEC_TRANSMIT>`, and once via
+	:ref:`ioctl CEC_RECEIVE <CEC_RECEIVE>`.
 
 
 .. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|

@@ -175,7 +175,10 @@ static inline void cec_msg_set_reply_to(struct cec_msg *msg,
 	msg->reply = msg->timeout = 0;
 }
 
-/* cec status field */
+/* cec_msg flags field */
+#define CEC_MSG_FL_REPLY_TO_FOLLOWERS	(1 << 0)
+
+/* cec_msg tx/rx_status field */
 #define CEC_TX_STATUS_OK		(1 << 0)
 #define CEC_TX_STATUS_ARB_LOST		(1 << 1)
 #define CEC_TX_STATUS_NACK		(1 << 2)

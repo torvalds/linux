@@ -587,7 +587,6 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	msg->tx_nack_cnt = 0;
 	msg->tx_low_drive_cnt = 0;
 	msg->tx_error_cnt = 0;
-	msg->flags = 0;
 	msg->sequence = ++adap->sequence;
 	if (!msg->sequence)
 		msg->sequence = ++adap->sequence;
@@ -823,6 +822,7 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 			dst->rx_status = msg->rx_status;
 			if (abort)
 				dst->rx_status |= CEC_RX_STATUS_FEATURE_ABORT;
+			msg->flags = dst->flags;
 			/* Remove it from the wait_queue */
 			list_del_init(&data->list);
 
@@ -1575,8 +1575,8 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	}
 
 skip_processing:
-	/* If this was a reply, then we're done */
-	if (is_reply)
+	/* If this was a reply, then we're done, unless otherwise specified */
+	if (is_reply && !(msg->flags & CEC_MSG_FL_REPLY_TO_FOLLOWERS))
 		return 0;
 
 	/*

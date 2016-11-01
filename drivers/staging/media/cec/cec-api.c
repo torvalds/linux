@@ -190,6 +190,7 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 		return -ENOTTY;
 	if (copy_from_user(&msg, parg, sizeof(msg)))
 		return -EFAULT;
+	msg.flags &= CEC_MSG_FL_REPLY_TO_FOLLOWERS;
 	mutex_lock(&adap->lock);
 	if (!adap->is_configured)
 		err = -ENONET;
