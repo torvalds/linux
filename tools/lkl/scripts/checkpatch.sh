@@ -25,6 +25,11 @@ for c in `git log --no-merges --pretty=format:%h HEAD ^$origin_master ^$tag`; do
     git format-patch -1 -o $tmp $c
 done
 
+if [ -z "$c" ]; then
+    rmdir $tmp
+    exit 0
+fi
+
 ./scripts/checkpatch.pl --ignore FILE_PATH_CHANGES $tmp/*.patch
 rm $tmp/*.patch
 
