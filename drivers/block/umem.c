@@ -535,7 +535,7 @@ static blk_qc_t mm_make_request(struct request_queue *q, struct bio *bio)
 	*card->biotail = bio;
 	bio->bi_next = NULL;
 	card->biotail = &bio->bi_next;
-	if (bio->bi_opf & REQ_SYNC || !mm_check_plugged(card))
+	if (op_is_sync(bio->bi_opf) || !mm_check_plugged(card))
 		activate(card);
 	spin_unlock_irq(&card->lock);
 
