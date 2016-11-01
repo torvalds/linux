@@ -220,11 +220,6 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 	intel_engine_wakeup(engine);
 }
 
-void intel_engine_init_hangcheck(struct intel_engine_cs *engine)
-{
-	memset(&engine->hangcheck, 0, sizeof(engine->hangcheck));
-}
-
 static void intel_engine_init_timeline(struct intel_engine_cs *engine)
 {
 	engine->timeline = &engine->i915->gt.global_timeline.engine[engine->id];

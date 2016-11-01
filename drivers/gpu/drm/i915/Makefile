@@ -47,6 +47,7 @@ i915-y += i915_cmd_parser.o \
 	  i915_trace_points.o \
 	  intel_breadcrumbs.o \
 	  intel_engine_cs.o \
+	  intel_hangcheck.o \
 	  intel_lrc.o \
 	  intel_mocs.o \
 	  intel_ringbuffer.o \
