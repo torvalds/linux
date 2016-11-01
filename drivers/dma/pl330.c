@@ -2263,6 +2263,11 @@ static int pl330_get_current_xferred_count(struct dma_pl330_chan *pch,
 	}
 	pm_runtime_mark_last_busy(pch->dmac->ddma.dev);
 	pm_runtime_put_autosuspend(pl330->ddma.dev);
+
+	/* If DMAMOV hasn't finished yet, SAR/DAR can be zero */
+	if (!val)
+		return 0;
+
 	return val - addr;
 }
 
