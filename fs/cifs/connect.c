@@ -41,6 +41,7 @@
 #include <keys/user-type.h>
 #include <net/ipv6.h>
 #include <linux/parser.h>
+#include <linux/bvec.h>
 
 #include "cifspdu.h"
 #include "cifsglob.h"

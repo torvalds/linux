@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/freezer.h>
 #include <linux/tcp.h>
+#include <linux/bvec.h>
 #include <linux/highmem.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>

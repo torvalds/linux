@@ -34,6 +34,7 @@
 #include <linux/idr.h>
 #include <linux/sched.h>
 #include <linux/uio.h>
+#include <linux/bvec.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 

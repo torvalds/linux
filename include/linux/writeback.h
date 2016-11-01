@@ -10,6 +10,8 @@
 #include <linux/flex_proportions.h>
 #include <linux/backing-dev-defs.h>
 
+struct bio;
+
 DECLARE_PER_CPU(int, dirty_throttle_leaks);
 
 /*

@@ -11,6 +11,7 @@
 #include <linux/fs.h>
 #include <linux/atomic.h>
 #include <linux/page-flags.h>
+#include <linux/blk_types.h>
 #include <asm/page.h>
 
 struct notifier_block;

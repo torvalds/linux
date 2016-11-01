@@ -1,4 +1,5 @@
 #include <linux/export.h>
+#include <linux/bvec.h>
 #include <linux/uio.h>
 #include <linux/pagemap.h>
 #include <linux/slab.h>
