@@ -160,7 +160,7 @@
     In theory, all HCDs provide the same functionality through the same
     API.  In practice, that's becoming mostly true,
     but there are still differences that crop up especially with
-    fault handling on the less common controllers. 
+    fault handling on the less common controllers.
     Different controllers don't necessarily report
     the same aspects of failures, and recovery from faults (including
     software-induced ones like unlinking an URB) isn't yet fully
@@ -168,7 +168,7 @@
     Device driver authors should make a point of doing disconnect
     testing (while the device is active) with each different host
     controller driver, to make sure drivers don't have bugs of
-    thei1r own as well as to make sure they aren't relying on some
+    their own as well as to make sure they aren't relying on some
     HCD-specific behavior.
     </para>
 
