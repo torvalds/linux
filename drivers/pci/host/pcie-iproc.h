@@ -24,7 +24,8 @@
  * endpoint devices.
  */
 enum iproc_pcie_type {
-	IPROC_PCIE_PAXB = 0,
+	IPROC_PCIE_PAXB_BCMA = 0,
+	IPROC_PCIE_PAXB,
 	IPROC_PCIE_PAXC,
 };
 

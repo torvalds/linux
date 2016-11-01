@@ -100,6 +100,17 @@ enum iproc_pcie_reg {
 	IPROC_PCIE_MAX_NUM_REG,
 };
 
+/* iProc PCIe PAXB BCMA registers */
+static const u16 iproc_pcie_reg_paxb_bcma[] = {
+	[IPROC_PCIE_CLK_CTRL]         = 0x000,
+	[IPROC_PCIE_CFG_IND_ADDR]     = 0x120,
+	[IPROC_PCIE_CFG_IND_DATA]     = 0x124,
+	[IPROC_PCIE_CFG_ADDR]         = 0x1f8,
+	[IPROC_PCIE_CFG_DATA]         = 0x1fc,
+	[IPROC_PCIE_INTX_EN]          = 0x330,
+	[IPROC_PCIE_LINK_STATUS]      = 0xf0c,
+};
+
 /* iProc PCIe PAXB registers */
 static const u16 iproc_pcie_reg_paxb[] = {
 	[IPROC_PCIE_CLK_CTRL]     = 0x000,
@@ -469,6 +480,9 @@ static int iproc_pcie_rev_init(struct iproc_pcie *pcie)
 	const u16 *regs;
 
 	switch (pcie->type) {
+	case IPROC_PCIE_PAXB_BCMA:
+		regs = iproc_pcie_reg_paxb_bcma;
+		break;
 	case IPROC_PCIE_PAXB:
 		regs = iproc_pcie_reg_paxb;
 		break;
