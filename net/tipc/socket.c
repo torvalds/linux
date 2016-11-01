@@ -2093,7 +2093,7 @@ static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags)
 
 	buf = skb_peek(&sk->sk_receive_queue);
 
-	res = tipc_sk_create(sock_net(sock->sk), new_sock, 0, 1);
+	res = tipc_sk_create(sock_net(sock->sk), new_sock, 0, 0);
 	if (res)
 		goto exit;
 	security_sk_clone(sock->sk, new_sock->sk);
