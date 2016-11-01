@@ -216,9 +216,15 @@ static inline bool op_is_write(unsigned int op)
 	return (op & 1);
 }
 
+/*
+ * Reads are always treated as synchronous, as are requests with the FUA or
+ * PREFLUSH flag.  Other operations may be marked as synchronous using the
+ * REQ_SYNC flag.
+ */
 static inline bool op_is_sync(unsigned int op)
 {
-	return (op & REQ_OP_MASK) == REQ_OP_READ || (op & REQ_SYNC);
+	return (op & REQ_OP_MASK) == REQ_OP_READ ||
+		(op & (REQ_SYNC | REQ_FUA | REQ_PREFLUSH));
 }
 
 typedef unsigned int blk_qc_t;
