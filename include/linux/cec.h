@@ -391,6 +391,8 @@ struct cec_log_addrs {
 
 /* Allow a fallback to unregistered */
 #define CEC_LOG_ADDRS_FL_ALLOW_UNREG_FALLBACK	(1 << 0)
+/* Passthrough RC messages to the input subsystem */
+#define CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU	(1 << 1)
 
 /* Events */
 

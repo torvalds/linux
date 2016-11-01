@@ -166,6 +166,16 @@ logical address types are already defined will return with error ``EBUSY``.
 	it will go back to the unconfigured state. If this flag is set, then it will
 	fallback to the Unregistered logical address. Note that if the Unregistered
 	logical address was explicitly requested, then this flag has no effect.
+    * .. _`CEC-LOG-ADDRS-FL-ALLOW-RC-PASSTHRU`:
+
+      - ``CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU``
+      - 2
+      - By default the ``CEC_MSG_USER_CONTROL_PRESSED`` and ``CEC_MSG_USER_CONTROL_RELEASED``
+        messages are only passed on to the follower(s), if any. If this flag is set,
+	then these messages are also passed on to the remote control input subsystem
+	and will appear as keystrokes. This features needs to be enabled explicitly.
+	If CEC is used to enter e.g. passwords, then you may not want to enable this
+	to avoid trivial snooping of the keystrokes.
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 

@@ -1478,7 +1478,8 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	}
 
 	case CEC_MSG_USER_CONTROL_PRESSED:
-		if (!(adap->capabilities & CEC_CAP_RC))
+		if (!(adap->capabilities & CEC_CAP_RC) ||
+		    !(adap->log_addrs.flags & CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU))
 			break;
 
 #if IS_REACHABLE(CONFIG_RC_CORE)
@@ -1515,7 +1516,8 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		break;
 
 	case CEC_MSG_USER_CONTROL_RELEASED:
-		if (!(adap->capabilities & CEC_CAP_RC))
+		if (!(adap->capabilities & CEC_CAP_RC) ||
+		    !(adap->log_addrs.flags & CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU))
 			break;
 #if IS_REACHABLE(CONFIG_RC_CORE)
 		rc_keyup(adap->rc);
