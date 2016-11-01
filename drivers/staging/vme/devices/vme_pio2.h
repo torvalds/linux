@@ -48,8 +48,6 @@ static const int PIO2_REGS_INT_MASK[8] = { PIO2_REGS_INT_MASK0,
 					PIO2_REGS_INT_MASK6,
 					PIO2_REGS_INT_MASK7 };
 
-
-
 #define PIO2_REGS_CTRL			0x18
 #define PIO2_REGS_VME_VECTOR		0x19
 #define PIO2_REGS_CNTR0			0x20
@@ -62,7 +60,6 @@ static const int PIO2_REGS_INT_MASK[8] = { PIO2_REGS_INT_MASK0,
 #define PIO2_REGS_CTRL_WRD1		0x2e
 
 #define PIO2_REGS_ID			0x30
-
 
 /* PIO2_REGS_DATAx (0x0 - 0x3) */
 
@@ -203,8 +200,6 @@ static const int PIO2_CNTR_SC_DEV[6] = { PIO2_CNTR_SC_DEV0, PIO2_CNTR_SC_DEV1,
 #define PIO2_CNTR_MODE5			(5 << 1)
 
 #define PIO2_CNTR_BCD			1
-
-
 
 enum pio2_bank_config { NOFIT, INPUT, OUTPUT, BOTH };
 enum pio2_int_config { NONE = 0, LOW2HIGH = 1, HIGH2LOW = 2, EITHER = 4 };
