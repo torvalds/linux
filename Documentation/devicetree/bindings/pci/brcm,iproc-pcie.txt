@@ -25,6 +25,9 @@ Optional properties:
 - phys: phandle of the PCIe PHY device
 - phy-names: must be "pcie-phy"
 - dma-coherent: present if DMA operations are coherent
+- dma-ranges: Some PAXB-based root complexes do not have inbound mapping done
+  by the ASIC after power on reset.  In this case, SW is required to configure
+the mapping, based on inbound memory regions specified by this property.
 
 - brcm,pcie-ob: Some iProc SoCs do not have the outbound address mapping done
 by the ASIC after power on reset. In this case, SW needs to configure it
