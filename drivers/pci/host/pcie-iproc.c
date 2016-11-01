@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/irqchip/arm-gic-v3.h>
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
@@ -37,6 +38,12 @@
 #define RC_PCIE_RST_OUTPUT_SHIFT     0
 #define RC_PCIE_RST_OUTPUT           BIT(RC_PCIE_RST_OUTPUT_SHIFT)
 #define PAXC_RESET_MASK              0x7f
+
+#define GIC_V3_CFG_SHIFT             0
+#define GIC_V3_CFG                   BIT(GIC_V3_CFG_SHIFT)
+
+#define MSI_ENABLE_CFG_SHIFT         0
+#define MSI_ENABLE_CFG               BIT(MSI_ENABLE_CFG_SHIFT)
 
 #define CFG_IND_ADDR_MASK            0x00001ffc
 
@@ -78,6 +85,31 @@
 enum iproc_pcie_reg {
 	/* clock/reset signal control */
 	IPROC_PCIE_CLK_CTRL = 0,
+
+	/*
+	 * To allow MSI to be steered to an external MSI controller (e.g., ARM
+	 * GICv3 ITS)
+	 */
+	IPROC_PCIE_MSI_GIC_MODE,
+
+	/*
+	 * IPROC_PCIE_MSI_BASE_ADDR and IPROC_PCIE_MSI_WINDOW_SIZE define the
+	 * window where the MSI posted writes are written, for the writes to be
+	 * interpreted as MSI writes.
+	 */
+	IPROC_PCIE_MSI_BASE_ADDR,
+	IPROC_PCIE_MSI_WINDOW_SIZE,
+
+	/*
+	 * To hold the address of the register where the MSI writes are
+	 * programed.  When ARM GICv3 ITS is used, this should be programmed
+	 * with the address of the GITS_TRANSLATER register.
+	 */
+	IPROC_PCIE_MSI_ADDR_LO,
+	IPROC_PCIE_MSI_ADDR_HI,
+
+	/* enable MSI */
+	IPROC_PCIE_MSI_EN_CFG,
 
 	/* allow access to root complex configuration space */
 	IPROC_PCIE_CFG_IND_ADDR,
@@ -140,6 +172,20 @@ static const u16 iproc_pcie_reg_paxc[] = {
 	[IPROC_PCIE_CFG_IND_DATA] = 0x1f4,
 	[IPROC_PCIE_CFG_ADDR]     = 0x1f8,
 	[IPROC_PCIE_CFG_DATA]     = 0x1fc,
+};
+
+/* iProc PCIe PAXC v2 registers */
+static const u16 iproc_pcie_reg_paxc_v2[] = {
+	[IPROC_PCIE_MSI_GIC_MODE]     = 0x050,
+	[IPROC_PCIE_MSI_BASE_ADDR]    = 0x074,
+	[IPROC_PCIE_MSI_WINDOW_SIZE]  = 0x078,
+	[IPROC_PCIE_MSI_ADDR_LO]      = 0x07c,
+	[IPROC_PCIE_MSI_ADDR_HI]      = 0x080,
+	[IPROC_PCIE_MSI_EN_CFG]       = 0x09c,
+	[IPROC_PCIE_CFG_IND_ADDR]     = 0x1f0,
+	[IPROC_PCIE_CFG_IND_DATA]     = 0x1f4,
+	[IPROC_PCIE_CFG_ADDR]         = 0x1f8,
+	[IPROC_PCIE_CFG_DATA]         = 0x1fc,
 };
 
 static inline struct iproc_pcie *iproc_data(struct pci_bus *bus)
@@ -506,13 +552,131 @@ static int iproc_pcie_map_ranges(struct iproc_pcie *pcie,
 	return 0;
 }
 
+static int iproce_pcie_get_msi(struct iproc_pcie *pcie,
+			       struct device_node *msi_node,
+			       u64 *msi_addr)
+{
+	struct device *dev = pcie->dev;
+	int ret;
+	struct resource res;
+
+	/*
+	 * Check if 'msi-map' points to ARM GICv3 ITS, which is the only
+	 * supported external MSI controller that requires steering.
+	 */
+	if (!of_device_is_compatible(msi_node, "arm,gic-v3-its")) {
+		dev_err(dev, "unable to find compatible MSI controller\n");
+		return -ENODEV;
+	}
+
+	/* derive GITS_TRANSLATER address from GICv3 */
+	ret = of_address_to_resource(msi_node, 0, &res);
+	if (ret < 0) {
+		dev_err(dev, "unable to obtain MSI controller resources\n");
+		return ret;
+	}
+
+	*msi_addr = res.start + GITS_TRANSLATER;
+	return 0;
+}
+
+static void iproc_pcie_paxc_v2_msi_steer(struct iproc_pcie *pcie, u64 msi_addr)
+{
+	u32 val;
+
+	/*
+	 * Program bits [43:13] of address of GITS_TRANSLATER register into
+	 * bits [30:0] of the MSI base address register.  In fact, in all iProc
+	 * based SoCs, all I/O register bases are well below the 32-bit
+	 * boundary, so we can safely assume bits [43:32] are always zeros.
+	 */
+	iproc_pcie_write_reg(pcie, IPROC_PCIE_MSI_BASE_ADDR,
+			     (u32)(msi_addr >> 13));
+
+	/* use a default 8K window size */
+	iproc_pcie_write_reg(pcie, IPROC_PCIE_MSI_WINDOW_SIZE, 0);
+
+	/* steering MSI to GICv3 ITS */
+	val = iproc_pcie_read_reg(pcie, IPROC_PCIE_MSI_GIC_MODE);
+	val |= GIC_V3_CFG;
+	iproc_pcie_write_reg(pcie, IPROC_PCIE_MSI_GIC_MODE, val);
+
+	/*
+	 * Program bits [43:2] of address of GITS_TRANSLATER register into the
+	 * iProc MSI address registers.
+	 */
+	msi_addr >>= 2;
+	iproc_pcie_write_reg(pcie, IPROC_PCIE_MSI_ADDR_HI,
+			     upper_32_bits(msi_addr));
+	iproc_pcie_write_reg(pcie, IPROC_PCIE_MSI_ADDR_LO,
+			     lower_32_bits(msi_addr));
+
+	/* enable MSI */
+	val = iproc_pcie_read_reg(pcie, IPROC_PCIE_MSI_EN_CFG);
+	val |= MSI_ENABLE_CFG;
+	iproc_pcie_write_reg(pcie, IPROC_PCIE_MSI_EN_CFG, val);
+}
+
+static int iproc_pcie_msi_steer(struct iproc_pcie *pcie,
+				struct device_node *msi_node)
+{
+	struct device *dev = pcie->dev;
+	int ret;
+	u64 msi_addr;
+
+	ret = iproce_pcie_get_msi(pcie, msi_node, &msi_addr);
+	if (ret < 0) {
+		dev_err(dev, "msi steering failed\n");
+		return ret;
+	}
+
+	switch (pcie->type) {
+	case IPROC_PCIE_PAXC_V2:
+		iproc_pcie_paxc_v2_msi_steer(pcie, msi_addr);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int iproc_pcie_msi_enable(struct iproc_pcie *pcie)
 {
 	struct device_node *msi_node;
+	int ret;
+
+	/*
+	 * Either the "msi-parent" or the "msi-map" phandle needs to exist
+	 * for us to obtain the MSI node.
+	 */
 
 	msi_node = of_parse_phandle(pcie->dev->of_node, "msi-parent", 0);
-	if (!msi_node)
-		return -ENODEV;
+	if (!msi_node) {
+		const __be32 *msi_map = NULL;
+		int len;
+		u32 phandle;
+
+		msi_map = of_get_property(pcie->dev->of_node, "msi-map", &len);
+		if (!msi_map)
+			return -ENODEV;
+
+		phandle = be32_to_cpup(msi_map + 1);
+		msi_node = of_find_node_by_phandle(phandle);
+		if (!msi_node)
+			return -ENODEV;
+	}
+
+	/*
+	 * Certain revisions of the iProc PCIe controller require additional
+	 * configurations to steer the MSI writes towards an external MSI
+	 * controller.
+	 */
+	if (pcie->need_msi_steer) {
+		ret = iproc_pcie_msi_steer(pcie, msi_node);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * If another MSI controller is being used, the call below should fail
@@ -544,6 +708,11 @@ static int iproc_pcie_rev_init(struct iproc_pcie *pcie)
 		regs = iproc_pcie_reg_paxc;
 		pcie->ep_is_internal = true;
 		break;
+	case IPROC_PCIE_PAXC_V2:
+		regs = iproc_pcie_reg_paxc_v2;
+		pcie->ep_is_internal = true;
+		pcie->need_msi_steer = true;
+		break;
 	default:
 		dev_err(dev, "incompatible iProc PCIe interface\n");
 		return -EINVAL;
@@ -556,7 +725,8 @@ static int iproc_pcie_rev_init(struct iproc_pcie *pcie)
 		return -ENOMEM;
 
 	/* go through the register table and populate all valid registers */
-	pcie->reg_offsets[0] = regs[0];
+	pcie->reg_offsets[0] = (pcie->type == IPROC_PCIE_PAXC_V2) ?
+		IPROC_PCIE_REG_INVALID : regs[0];
 	for (reg_idx = 1; reg_idx < IPROC_PCIE_MAX_NUM_REG; reg_idx++)
 		pcie->reg_offsets[reg_idx] = regs[reg_idx] ?
 			regs[reg_idx] : IPROC_PCIE_REG_INVALID;

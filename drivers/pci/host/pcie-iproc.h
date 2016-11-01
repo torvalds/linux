@@ -27,6 +27,7 @@ enum iproc_pcie_type {
 	IPROC_PCIE_PAXB_BCMA = 0,
 	IPROC_PCIE_PAXB,
 	IPROC_PCIE_PAXC,
+	IPROC_PCIE_PAXC_V2,
 };
 
 /**
@@ -61,6 +62,8 @@ struct iproc_msi;
  * unsupported request from being forwarded as an APB bus error
  * @need_ob_cfg: indicates SW needs to configure the outbound mapping window
  * @ob: outbound mapping parameters
+ * @need_msi_steer: indicates additional configuration of the iProc PCIe
+ * controller is required to steer MSI writes to external interrupt controller
  * @msi: MSI data
  */
 struct iproc_pcie {
@@ -79,6 +82,7 @@ struct iproc_pcie {
 	bool has_apb_err_disable;
 	bool need_ob_cfg;
 	struct iproc_pcie_ob ob;
+	bool need_msi_steer;
 	struct iproc_msi *msi;
 };
 

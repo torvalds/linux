@@ -33,6 +33,9 @@ static const struct of_device_id iproc_pcie_of_match_table[] = {
 	}, {
 		.compatible = "brcm,iproc-pcie-paxc",
 		.data = (int *)IPROC_PCIE_PAXC,
+	}, {
+		.compatible = "brcm,iproc-pcie-paxc-v2",
+		.data = (int *)IPROC_PCIE_PAXC_V2,
 	},
 	{ /* sentinel */ }
 };
