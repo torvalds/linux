@@ -264,6 +264,7 @@ clean-files := $(DOCBOOKS) \
 	$(patsubst %.xml, %.aux.xml, $(DOCBOOKS)) \
 	$(patsubst %.xml, %.xml.db,  $(DOCBOOKS)) \
 	$(patsubst %.xml, %.xml,     $(DOCBOOKS)) \
+	$(patsubst %.xml, .%.xml.cmd, $(DOCBOOKS)) \
 	$(index)
 
 clean-dirs := $(patsubst %.xml,%,$(DOCBOOKS)) man
