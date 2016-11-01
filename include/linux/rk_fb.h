@@ -278,7 +278,8 @@ typedef enum {
 typedef enum {
 	GET_PAGE_FAULT	= 0x0,
 	CLR_PAGE_FAULT  = 0x1,
-	UNMASK_PAGE_FAULT = 0x2
+	UNMASK_PAGE_FAULT = 0x2,
+	UPDATE_CABC_PWM = 0x3
 } extern_func;
 
 enum rk_vop_feature {

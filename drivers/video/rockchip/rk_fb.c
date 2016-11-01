@@ -673,7 +673,8 @@ int rk_fb_set_vop_pwm(void)
 		return -1;
 
 	mutex_lock(&dev_drv->win_config);
-	dev_drv->ops->cfg_done(dev_drv);
+	if (dev_drv->ops->extern_func)
+		dev_drv->ops->extern_func(dev_drv, UPDATE_CABC_PWM);
 	mutex_unlock(&dev_drv->win_config);
 
 	return 0;

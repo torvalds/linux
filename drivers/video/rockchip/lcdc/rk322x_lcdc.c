@@ -4558,9 +4558,11 @@ static int vop_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode,
 		pr_err("%s wait vsync time out\n", __func__);
 
 	spin_lock(&vop_dev->reg_lock);
-	val = V_CABC_EN(1) | V_CABC_HANDLE_EN(1);
-	vop_msk_reg(vop_dev, CABC_CTRL0, val);
-	vop_cfg_done(vop_dev);
+	if (vop_dev->clk_on) {
+		val = V_CABC_EN(1) | V_CABC_HANDLE_EN(1);
+		vop_msk_reg(vop_dev, CABC_CTRL0, val);
+		vop_cfg_done(vop_dev);
+	}
 	spin_unlock(&vop_dev->reg_lock);
 
 	return 0;
@@ -4782,6 +4784,27 @@ static int vop_set_overscan(struct rk_lcdc_driver *dev_drv,
 	return 0;
 }
 
+static int vop_extern_func(struct rk_lcdc_driver *dev_drv, int cmd)
+{
+	struct vop_device *vop_dev =
+	    container_of(dev_drv, struct vop_device, driver);
+
+	if (unlikely(!vop_dev->clk_on)) {
+		pr_info("%s,clk_on = %d\n", __func__, vop_dev->clk_on);
+		return 0;
+	}
+
+	switch (cmd) {
+	case UPDATE_CABC_PWM:
+		vop_cfg_done(vop_dev);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.open = vop_open,
 	.win_direct_en = vop_win_direct_en,
@@ -4824,6 +4847,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.backlight_close = vop_backlight_close,
 	.mmu_en    = vop_mmu_en,
 	.set_overscan   = vop_set_overscan,
+	.extern_func	= vop_extern_func,
 };
 
 static irqreturn_t vop_isr(int irq, void *dev_id)
