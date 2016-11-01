@@ -947,13 +947,13 @@ static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 	g_hwcursor = 3;
 
 	if (!src || !*src) {
-		pr_warn("no specific g_option.\n");
+		dev_warn(&sm750_dev->pdev->dev, "no specific g_option.\n");
 		goto NO_PARAM;
 	}
 
 	while ((opt = strsep(&src, ":")) != NULL && *opt != 0) {
-		pr_info("opt=%s\n", opt);
-		pr_info("src=%s\n", src);
+		dev_info(&sm750_dev->pdev->dev, "opt=%s\n", opt);
+		dev_info(&sm750_dev->pdev->dev, "src=%s\n", src);
 
 		if (!strncmp(opt, "swap", strlen("swap")))
 			swap = 1;
@@ -974,12 +974,12 @@ static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 		else {
 			if (!g_fbmode[0]) {
 				g_fbmode[0] = opt;
-				pr_info("find fbmode0 : %s\n", g_fbmode[0]);
+				dev_info(&sm750_dev->pdev->dev, "find fbmode0 : %s\n", g_fbmode[0]);
 			} else if (!g_fbmode[1]) {
 				g_fbmode[1] = opt;
-				pr_info("find fbmode1 : %s\n", g_fbmode[1]);
+				dev_info(&sm750_dev->pdev->dev, "find fbmode1 : %s\n", g_fbmode[1]);
 			} else {
-				pr_warn("How many view you wann set?\n");
+				dev_warn(&sm750_dev->pdev->dev, "How many view you wann set?\n");
 			}
 		}
 	}
