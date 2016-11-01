@@ -829,12 +829,6 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 		return PTR_ERR(scodec->clk_module);
 	}
 
-	/* Enable the bus clock */
-	if (clk_prepare_enable(scodec->clk_apb)) {
-		dev_err(&pdev->dev, "Failed to enable the APB clock\n");
-		return -EINVAL;
-	}
-
 	scodec->gpio_pa = devm_gpiod_get_optional(&pdev->dev, "allwinner,pa",
 						  GPIOD_OUT_LOW);
 	if (IS_ERR(scodec->gpio_pa)) {
@@ -842,6 +836,12 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 		if (ret != -EPROBE_DEFER)
 			dev_err(&pdev->dev, "Failed to get pa gpio: %d\n", ret);
 		return ret;
+	}
+
+	/* Enable the bus clock */
+	if (clk_prepare_enable(scodec->clk_apb)) {
+		dev_err(&pdev->dev, "Failed to enable the APB clock\n");
+		return -EINVAL;
 	}
 
 	/* DMA configuration for TX FIFO */
