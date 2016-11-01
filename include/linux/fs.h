@@ -196,7 +196,7 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 #define READ			REQ_OP_READ
 #define WRITE			REQ_OP_WRITE
 
-#define READ_SYNC		REQ_SYNC
+#define READ_SYNC		0
 #define WRITE_SYNC		(REQ_SYNC | REQ_NOIDLE)
 #define WRITE_ODIRECT		REQ_SYNC
 #define WRITE_FLUSH		(REQ_SYNC | REQ_NOIDLE | REQ_PREFLUSH)
