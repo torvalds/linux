@@ -2324,8 +2324,10 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 		i915_gem_object_do_bit_17_swizzle(obj, st);
 
 	if (i915_gem_object_is_tiled(obj) &&
-	    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)
+	    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
 		__i915_gem_object_pin_pages(obj);
+		obj->mm.quirked = true;
+	}
 
 	return st;
 
@@ -4091,10 +4093,15 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	if (obj->mm.pages &&
 	    i915_gem_object_is_tiled(obj) &&
 	    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
-		if (obj->mm.madv == I915_MADV_WILLNEED)
+		if (obj->mm.madv == I915_MADV_WILLNEED) {
+			GEM_BUG_ON(!obj->mm.quirked);
 			__i915_gem_object_unpin_pages(obj);
-		if (args->madv == I915_MADV_WILLNEED)
+			obj->mm.quirked = false;
+		}
+		if (args->madv == I915_MADV_WILLNEED) {
 			__i915_gem_object_pin_pages(obj);
+			obj->mm.quirked = true;
+		}
 	}
 
 	if (obj->mm.madv != __I915_MADV_PURGED)
@@ -4335,13 +4342,11 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 {
 	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
 
+	if (obj->mm.quirked)
+		__i915_gem_object_unpin_pages(obj);
+
 	if (discard_backing_storage(obj))
 		obj->mm.madv = I915_MADV_DONTNEED;
-
-	if (obj->mm.pages && obj->mm.madv == I915_MADV_WILLNEED &&
-	    to_i915(obj->base.dev)->quirks & QUIRK_PIN_SWIZZLED_PAGES &&
-	    i915_gem_object_is_tiled(obj))
-		__i915_gem_object_unpin_pages(obj);
 
 	/* Before we free the object, make sure any pure RCU-only
 	 * read-side critical sections are complete, e.g.

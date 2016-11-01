@@ -2304,6 +2304,12 @@ struct drm_i915_gem_object {
 		 * pages were last acquired.
 		 */
 		bool dirty:1;
+
+		/**
+		 * This is set if the object has been pinned due to unknown
+		 * swizzling.
+		 */
+		bool quirked:1;
 	} mm;
 
 	/** Breadcrumb of last rendering to the buffer.
