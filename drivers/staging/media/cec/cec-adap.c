@@ -958,6 +958,18 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 		list_for_each_entry(data, &adap->wait_queue, list) {
 			struct cec_msg *dst = &data->msg;
 
+			/*
+			 * The *only* CEC message that has two possible replies
+			 * is CEC_MSG_INITIATE_ARC.
+			 * In this case allow either of the two replies.
+			 */
+			if (!abort && dst->msg[1] == CEC_MSG_INITIATE_ARC &&
+			    (cmd == CEC_MSG_REPORT_ARC_INITIATED ||
+			     cmd == CEC_MSG_REPORT_ARC_TERMINATED) &&
+			    (dst->reply == CEC_MSG_REPORT_ARC_INITIATED ||
+			     dst->reply == CEC_MSG_REPORT_ARC_TERMINATED))
+				dst->reply = cmd;
+
 			/* Does the command match? */
 			if ((abort && cmd != dst->msg[1]) ||
 			    (!abort && cmd != dst->reply))

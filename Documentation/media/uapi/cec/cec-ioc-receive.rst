@@ -142,6 +142,14 @@ result.
 	Feature Abort reply. In this case ``rx_status`` will either be set
 	to :ref:`CEC_RX_STATUS_TIMEOUT <CEC-RX-STATUS-TIMEOUT>` or
 	:ref:`CEC_RX_STATUS_FEATURE_ABORT <CEC-RX-STATUS-FEATURE-ABORT>`.
+
+	If the transmitter message is ``CEC_MSG_INITIATE_ARC`` then the ``reply``
+	values ``CEC_MSG_REPORT_ARC_INITIATED`` and ``CEC_MSG_REPORT_ARC_TERMINATED``
+	are processed differently: either value will match both possible replies.
+	The reason is that the ``CEC_MSG_INITIATE_ARC`` message is the only CEC
+	message that has two possible replies other than Feature Abort. The
+	``reply`` field will be updated with the actual reply so that it is
+	synchronized with the contents of the received message.
     * - __u8
       - ``rx_status``
       - The status bits of the received message. See
