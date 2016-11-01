@@ -1785,6 +1785,8 @@ static int cik_common_early_init(void *handle)
 		return -EINVAL;
 	}
 
+	adev->firmware.load_type = amdgpu_ucode_get_load_type(adev, amdgpu_fw_load_type);
+
 	amdgpu_get_pcie_info(adev);
 
 	return 0;

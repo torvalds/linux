@@ -217,6 +217,49 @@ bool amdgpu_ucode_hdr_version(union amdgpu_firmware_header *hdr,
 	return true;
 }
 
+enum amdgpu_firmware_load_type
+amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
+{
+	switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_SI
+	case CHIP_TAHITI:
+	case CHIP_PITCAIRN:
+	case CHIP_VERDE:
+	case CHIP_OLAND:
+		return AMDGPU_FW_LOAD_DIRECT;
+#endif
+#ifdef CONFIG_DRM_AMDGPU_CIK
+	case CHIP_BONAIRE:
+	case CHIP_KAVERI:
+	case CHIP_KABINI:
+	case CHIP_HAWAII:
+	case CHIP_MULLINS:
+		return AMDGPU_FW_LOAD_DIRECT;
+#endif
+	case CHIP_TOPAZ:
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
+		if (!load_type)
+			return AMDGPU_FW_LOAD_DIRECT;
+		else
+			return AMDGPU_FW_LOAD_SMU;
+	case CHIP_VEGA10:
+		if (!load_type)
+			return AMDGPU_FW_LOAD_DIRECT;
+		else
+			return AMDGPU_FW_LOAD_PSP;
+	default:
+		DRM_ERROR("Unknow firmware load type\n");
+	}
+
+	return AMDGPU_FW_LOAD_DIRECT;
+}
+
 static int amdgpu_ucode_init_single_fw(struct amdgpu_firmware_info *ucode,
 				uint64_t mc_addr, void *kptr)
 {
@@ -273,7 +316,7 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 	uint64_t fw_mc_addr;
 	void *fw_buf_ptr = NULL;
 	uint64_t fw_offset = 0;
-	int i, err;
+	int i, err, max;
 	struct amdgpu_firmware_info *ucode = NULL;
 	const struct common_firmware_header *header = NULL;
 
@@ -306,7 +349,16 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 
 	amdgpu_bo_unreserve(*bo);
 
-	for (i = 0; i < AMDGPU_UCODE_ID_MAXIMUM; i++) {
+	/*
+	 * if SMU loaded firmware, it needn't add SMC, UVD, and VCE
+	 * ucode info here
+	 */
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
+		max = AMDGPU_UCODE_ID_MAXIMUM - 3;
+	else
+		max = AMDGPU_UCODE_ID_MAXIMUM;
+
+	for (i = 0; i < max; i++) {
 		ucode = &adev->firmware.ucode[i];
 		if (ucode->fw) {
 			header = (const struct common_firmware_header *)ucode->fw->data;
@@ -331,7 +383,8 @@ failed_pin:
 failed_reserve:
 	amdgpu_bo_unref(bo);
 failed:
-	adev->firmware.smu_load = false;
+	if (err)
+		adev->firmware.load_type = AMDGPU_FW_LOAD_DIRECT;
 
 	return err;
 }
@@ -340,8 +393,14 @@ int amdgpu_ucode_fini_bo(struct amdgpu_device *adev)
 {
 	int i;
 	struct amdgpu_firmware_info *ucode = NULL;
+	int max;
 
-	for (i = 0; i < AMDGPU_UCODE_ID_MAXIMUM; i++) {
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
+		max = AMDGPU_UCODE_ID_MAXIMUM - 3;
+	else
+		max = AMDGPU_UCODE_ID_MAXIMUM;
+
+	for (i = 0; i < max; i++) {
 		ucode = &adev->firmware.ucode[i];
 		if (ucode->fw) {
 			ucode->mc_addr = 0;

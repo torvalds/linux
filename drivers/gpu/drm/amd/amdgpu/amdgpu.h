@@ -81,7 +81,7 @@ extern int amdgpu_pcie_gen2;
 extern int amdgpu_msi;
 extern int amdgpu_lockup_timeout;
 extern int amdgpu_dpm;
-extern int amdgpu_smc_load_fw;
+extern int amdgpu_fw_load_type;
 extern int amdgpu_aspm;
 extern int amdgpu_runtime_pm;
 extern unsigned amdgpu_ip_block_mask;
@@ -1063,9 +1063,15 @@ struct amdgpu_sdma {
 /*
  * Firmware
  */
+enum amdgpu_firmware_load_type {
+	AMDGPU_FW_LOAD_DIRECT = 0,
+	AMDGPU_FW_LOAD_SMU,
+	AMDGPU_FW_LOAD_PSP,
+};
+
 struct amdgpu_firmware {
 	struct amdgpu_firmware_info ucode[AMDGPU_UCODE_ID_MAXIMUM];
-	bool smu_load;
+	enum amdgpu_firmware_load_type load_type;
 	struct amdgpu_bo *fw_buf;
 	unsigned int fw_size;
 };

@@ -1117,8 +1117,8 @@ static int vi_common_early_init(void *handle)
 		return -EINVAL;
 	}
 
-	if (amdgpu_smc_load_fw && smc_enabled)
-		adev->firmware.smu_load = true;
+	/* vi use smc load by default */
+	adev->firmware.load_type = amdgpu_ucode_get_load_type(adev, amdgpu_fw_load_type);
 
 	amdgpu_get_pcie_info(adev);
 

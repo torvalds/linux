@@ -80,7 +80,7 @@ int amdgpu_pcie_gen2 = -1;
 int amdgpu_msi = -1;
 int amdgpu_lockup_timeout = 0;
 int amdgpu_dpm = -1;
-int amdgpu_smc_load_fw = 1;
+int amdgpu_fw_load_type = -1;
 int amdgpu_aspm = -1;
 int amdgpu_runtime_pm = -1;
 unsigned amdgpu_ip_block_mask = 0xffffffff;
@@ -140,8 +140,8 @@ module_param_named(lockup_timeout, amdgpu_lockup_timeout, int, 0444);
 MODULE_PARM_DESC(dpm, "DPM support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(dpm, amdgpu_dpm, int, 0444);
 
-MODULE_PARM_DESC(smc_load_fw, "SMC firmware loading(1 = enable, 0 = disable)");
-module_param_named(smc_load_fw, amdgpu_smc_load_fw, int, 0444);
+MODULE_PARM_DESC(fw_load_type, "firmware loading type (0 = direct, 1 = SMU, 2 = PSP, -1 = auto)");
+module_param_named(fw_load_type, amdgpu_fw_load_type, int, 0444);
 
 MODULE_PARM_DESC(aspm, "ASPM support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(aspm, amdgpu_aspm, int, 0444);
