@@ -4787,6 +4787,8 @@ void i915_gem_load_cleanup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
+	WARN_ON(!llist_empty(&dev_priv->mm.free_list));
+
 	kmem_cache_destroy(dev_priv->requests);
 	kmem_cache_destroy(dev_priv->vmas);
 	kmem_cache_destroy(dev_priv->objects);
