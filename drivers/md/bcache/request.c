@@ -404,8 +404,8 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 
 	if (!congested &&
 	    mode == CACHE_MODE_WRITEBACK &&
-	    op_is_write(bio_op(bio)) &&
-	    (bio->bi_opf & REQ_SYNC))
+	    op_is_write(bio->bi_opf) &&
+	    op_is_sync(bio->bi_opf))
 		goto rescale;
 
 	spin_lock(&dc->io_lock);
