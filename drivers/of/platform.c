@@ -45,6 +45,9 @@ static int of_dev_node_match(struct device *dev, void *data)
  * of_find_device_by_node - Find the platform_device associated with a node
  * @np: Pointer to device tree node
  *
+ * Takes a reference to the embedded struct device which needs to be dropped
+ * after use.
+ *
  * Returns platform_device pointer, or NULL if not found
  */
 struct platform_device *of_find_device_by_node(struct device_node *np)
