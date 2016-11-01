@@ -71,7 +71,7 @@
  *
  ***************************************************/
 
-static int iwl_queue_space(const struct iwl_txq *q)
+int iwl_queue_space(const struct iwl_txq *q)
 {
 	unsigned int max;
 	unsigned int used;
@@ -185,6 +185,7 @@ static void iwl_pcie_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 	__le16 bc_ent;
 	struct iwl_tx_cmd *tx_cmd =
 		(void *)txq->entries[txq->write_ptr].cmd->payload;
+	u8 sta_id = tx_cmd->sta_id;
 
 	scd_bc_tbl = trans_pcie->scd_bc_tbls.addr;
 
@@ -207,26 +208,7 @@ static void iwl_pcie_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 	if (WARN_ON(len > 0xFFF || write_ptr >= TFD_QUEUE_SIZE_MAX))
 		return;
 
-	if (trans->cfg->use_tfh) {
-		u8 filled_tfd_size = offsetof(struct iwl_tfh_tfd, tbs) +
-				     num_tbs * sizeof(struct iwl_tfh_tb);
-		/*
-		 * filled_tfd_size contains the number of filled bytes in the
-		 * TFD.
-		 * Dividing it by 64 will give the number of chunks to fetch
-		 * to SRAM- 0 for one chunk, 1 for 2 and so on.
-		 * If, for example, TFD contains only 3 TBs then 32 bytes
-		 * of the TFD are used, and only one chunk of 64 bytes should
-		 * be fetched
-		 */
-		u8 num_fetch_chunks = DIV_ROUND_UP(filled_tfd_size, 64) - 1;
-
-		bc_ent = cpu_to_le16(len | (num_fetch_chunks << 12));
-	} else {
-		u8 sta_id = tx_cmd->sta_id;
-
-		bc_ent = cpu_to_le16(len | (sta_id << 12));
-	}
+	bc_ent = cpu_to_le16(len | (sta_id << 12));
 
 	scd_bc_tbl[txq_id].tfd_offset[write_ptr] = bc_ent;
 
@@ -325,12 +307,6 @@ void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans)
 		}
 		spin_unlock_bh(&txq->lock);
 	}
-}
-
-static inline void *iwl_pcie_get_tfd(struct iwl_trans_pcie *trans_pcie,
-				     struct iwl_txq *txq, int idx)
-{
-	return txq->tfds + trans_pcie->tfd_size * idx;
 }
 
 static inline dma_addr_t iwl_pcie_tfd_tb_get_addr(struct iwl_trans *trans,
@@ -2104,10 +2080,10 @@ static void iwl_compute_pseudo_hdr_csum(void *iph, struct tcphdr *tcph,
 	}
 }
 
-static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
-				   struct iwl_txq *txq, u8 hdr_len,
-				   struct iwl_cmd_meta *out_meta,
-				   struct iwl_device_cmd *dev_cmd, u16 tb1_len)
+int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
+			    struct iwl_txq *txq, u8 hdr_len,
+			    struct iwl_cmd_meta *out_meta,
+			    struct iwl_device_cmd *dev_cmd, u16 tb1_len)
 {
 	struct iwl_tx_cmd *tx_cmd = (void *)dev_cmd->payload;
 	struct iwl_trans_pcie *trans_pcie = txq->trans_pcie;

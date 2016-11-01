@@ -2920,7 +2920,7 @@ static const struct iwl_trans_ops trans_ops_pcie_gen2 = {
 
 	.send_cmd = iwl_trans_pcie_send_hcmd,
 
-	.tx = iwl_trans_pcie_tx,
+	.tx = iwl_trans_pcie_gen2_tx,
 	.reclaim = iwl_trans_pcie_reclaim,
 
 	.txq_alloc = iwl_trans_pcie_dyn_txq_alloc,

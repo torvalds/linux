@@ -650,6 +650,12 @@ static inline void iwl_enable_fw_load_int(struct iwl_trans *trans)
 	}
 }
 
+static inline void *iwl_pcie_get_tfd(struct iwl_trans_pcie *trans_pcie,
+				     struct iwl_txq *txq, int idx)
+{
+	return txq->tfds + trans_pcie->tfd_size * idx;
+}
+
 static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -759,6 +765,11 @@ int iwl_pcie_prepare_card_hw(struct iwl_trans *trans);
 void iwl_pcie_synchronize_irqs(struct iwl_trans *trans);
 bool iwl_trans_check_hw_rf_kill(struct iwl_trans *trans);
 void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq);
+int iwl_queue_space(const struct iwl_txq *q);
+int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
+			    struct iwl_txq *txq, u8 hdr_len,
+			    struct iwl_cmd_meta *out_meta,
+			    struct iwl_device_cmd *dev_cmd, u16 tb1_len);
 
 /* transport gen 2 exported functions */
 int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
@@ -769,5 +780,7 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 				 int cmd_id,
 				 unsigned int timeout);
 void iwl_trans_pcie_dyn_txq_free(struct iwl_trans *trans, int queue);
+int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
+			   struct iwl_device_cmd *dev_cmd, int txq_id);
 
 #endif /* __iwl_trans_int_pcie_h__ */
