@@ -968,10 +968,13 @@
 			};
 
 			weim: weim@021b8000 {
+				#address-cells = <2>;
+				#size-cells = <1>;
 				compatible = "fsl,imx6sx-weim", "fsl,imx6q-weim";
 				reg = <0x021b8000 0x4000>;
 				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SX_CLK_EIM_SLOW>;
+				fsl,weim-cs-gpr = <&gpr>;
 			};
 
 			ocotp: ocotp@021bc000 {
