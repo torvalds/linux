@@ -1,5 +1,8 @@
+#include <linux/cpu.h>
+#include <linux/cpuidle.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/tick.h>
 #include <asm/host_ops.h>
 #include <asm/cpu.h>
 #include <asm/thread_info.h>
@@ -50,6 +53,10 @@ struct lkl_cpu {
 	struct lkl_sem *sem;
 	/* semaphore for the idle thread */
 	struct lkl_sem *idle_sem;
+	/* if the idle thread is pending */
+	bool idle_pending;
+	/* jmp_buf used for idle thread to restart */
+	struct lkl_jmp_buf idle_jb;
 	/* semaphore used for shutdown */
 	struct lkl_sem *shutdown_sem;
 } cpu;
@@ -126,18 +133,19 @@ void lkl_cpu_put(void)
 		lkl_ops->mutex_lock(cpu.lock);
 	}
 
-	if (need_resched()) {
+	if (need_resched() && cpu.count == 1) {
+		if (in_interrupt())
+			lkl_bug("%s: in interrupt\n", __func__);
+		lkl_ops->mutex_unlock(cpu.lock);
 		if (test_thread_flag(TIF_HOST_THREAD)) {
-			if (cpu.count == 1 && !in_interrupt()) {
-				lkl_ops->mutex_unlock(cpu.lock);
-				set_current_state(TASK_UNINTERRUPTIBLE);
-				if (!thread_set_sched_jmp())
-					schedule();
-				return;
-			}
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			if (!thread_set_sched_jmp())
+				schedule();
 		} else {
-			lkl_cpu_wakeup();
+			if (!thread_set_sched_jmp())
+				lkl_idle_tail_schedule();
 		}
+		return;
 	}
 
 	if (--cpu.count > 0) {
@@ -210,20 +218,37 @@ void arch_cpu_idle(void)
 
 		lkl_ops->thread_exit();
 	}
-
 	/* enable irqs now to allow direct irqs to run */
 	local_irq_enable();
 
+	if (need_resched())
+		return;
+
+	cpu.idle_pending = true;
 	lkl_cpu_put();
 
 	lkl_ops->sem_down(cpu.idle_sem);
 
-	lkl_cpu_get();
-
-	run_irqs();
+	cpu.idle_pending = false;
+	/* to match that of schedule_preempt_disabled() */
+	preempt_disable();
+	lkl_ops->jmp_buf_longjmp(&cpu.idle_jb, 1);
 }
 
-void lkl_cpu_wakeup(void)
+void arch_cpu_idle_prepare(void)
+{
+	set_ti_thread_flag(current_thread_info(), TIF_IDLE);
+	/*
+	 * We hijack the idle loop here so that we can let the idle thread
+	 * jump back to the beginning.
+	 */
+	while (1) {
+		if (!lkl_ops->jmp_buf_set(&cpu.idle_jb))
+			cpu_idle_loop();
+	}
+}
+
+void lkl_cpu_wakeup_idle(void)
 {
 	lkl_ops->sem_up(cpu.idle_sem);
 }
@@ -241,4 +266,48 @@ int lkl_cpu_init(void)
 	}
 
 	return 0;
+}
+
+/*
+ * Simulate the exit path of idle loop so that we can schedule when LKL is
+ * in idle.
+ * It's just a duplication of those in idle.c so a better way is to refactor
+ * idle.c to expose such function.
+ */
+void lkl_idle_tail_schedule(void)
+{
+
+	if (!cpu.idle_pending ||
+		!test_bit(TIF_IDLE, &current_thread_info()->flags))
+		lkl_bug("%s: not in idle\n", __func__);
+
+	start_critical_timings();
+	__current_set_polling();
+
+	if (WARN_ON_ONCE(irqs_disabled()))
+		local_irq_enable();
+
+	rcu_idle_exit();
+	arch_cpu_idle_exit();
+	preempt_set_need_resched();
+	tick_nohz_idle_exit();
+	__current_clr_polling();
+
+	/*
+	 * memory barrier copied from idle.c
+	 */
+	smp_mb__after_atomic();
+
+	/*
+	 * Didn't find a way to include kernel/sched/sched.h for
+	 * sched_ttwu_pending().
+	 * Anyway, it's no op when not CONFIG_SMP.
+	 */
+
+	schedule_preempt_disabled();
+}
+
+int lkl_cpu_idle_pending(void)
+{
+	return cpu.idle_pending;
 }

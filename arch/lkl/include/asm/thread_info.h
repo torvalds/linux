@@ -60,6 +60,7 @@ void threads_cleanup(void);
 #define TIF_SCHED_JB			7
 #define TIF_SCHED_EXIT			8
 #define TIF_HOST_THREAD			9
+#define TIF_IDLE			10
 
 static inline void set_ti_thread_flag(struct thread_info *ti, int flag);
 
