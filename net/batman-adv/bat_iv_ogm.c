@@ -717,17 +717,10 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 	if (direct_link)
 		forw_packet_aggr->direct_link_flags |= 1;
 
-	/* add new packet to packet list */
-	spin_lock_bh(&bat_priv->forw_bat_list_lock);
-	hlist_add_head(&forw_packet_aggr->list, &bat_priv->forw_bat_list);
-	spin_unlock_bh(&bat_priv->forw_bat_list_lock);
-
-	/* start timer for this packet */
 	INIT_DELAYED_WORK(&forw_packet_aggr->delayed_work,
 			  batadv_iv_send_outstanding_bat_ogm_packet);
-	queue_delayed_work(batadv_event_workqueue,
-			   &forw_packet_aggr->delayed_work,
-			   send_time - jiffies);
+
+	batadv_forw_packet_ogmv1_queue(bat_priv, forw_packet_aggr, send_time);
 }
 
 /* aggregate a new packet into the existing ogm packet */
@@ -1789,9 +1782,6 @@ static void batadv_iv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 	forw_packet = container_of(delayed_work, struct batadv_forw_packet,
 				   delayed_work);
 	bat_priv = netdev_priv(forw_packet->if_incoming->soft_iface);
-	spin_lock_bh(&bat_priv->forw_bat_list_lock);
-	hlist_del(&forw_packet->list);
-	spin_unlock_bh(&bat_priv->forw_bat_list_lock);
 
 	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING) {
 		dropped = true;
@@ -1813,7 +1803,10 @@ static void batadv_iv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 		batadv_iv_ogm_schedule(forw_packet->if_incoming);
 
 out:
-	batadv_forw_packet_free(forw_packet, dropped);
+	/* do we get something for free()? */
+	if (batadv_forw_packet_steal(forw_packet,
+				     &bat_priv->forw_bat_list_lock))
+		batadv_forw_packet_free(forw_packet, dropped);
 }
 
 static int batadv_iv_ogm_receive(struct sk_buff *skb,

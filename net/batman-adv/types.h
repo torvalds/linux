@@ -1385,6 +1385,7 @@ struct batadv_skb_cb {
 /**
  * struct batadv_forw_packet - structure for bcast packets to be sent/forwarded
  * @list: list node for batadv_priv::forw_{bat,bcast}_list
+ * @cleanup_list: list node for purging functions
  * @send_time: execution time for delayed_work (packet sending)
  * @own: bool for locally generated packets (local OGMs are re-scheduled after
  *  sending)
@@ -1401,6 +1402,7 @@ struct batadv_skb_cb {
  */
 struct batadv_forw_packet {
 	struct hlist_node list;
+	struct hlist_node cleanup_list;
 	unsigned long send_time;
 	u8 own;
 	struct sk_buff *skb;

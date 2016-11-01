@@ -21,6 +21,7 @@
 #include "main.h"
 
 #include <linux/compiler.h>
+#include <linux/spinlock.h>
 #include <linux/types.h>
 
 #include "packet.h"
@@ -34,6 +35,10 @@ batadv_forw_packet_alloc(struct batadv_hard_iface *if_incoming,
 			 struct batadv_hard_iface *if_outgoing,
 			 atomic_t *queue_left,
 			 struct batadv_priv *bat_priv);
+bool batadv_forw_packet_steal(struct batadv_forw_packet *packet, spinlock_t *l);
+void batadv_forw_packet_ogmv1_queue(struct batadv_priv *bat_priv,
+				    struct batadv_forw_packet *forw_packet,
+				    unsigned long send_time);
 
 int batadv_send_skb_to_orig(struct sk_buff *skb,
 			    struct batadv_orig_node *orig_node,
