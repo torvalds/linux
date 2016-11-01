@@ -902,7 +902,7 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dsz)
 	if (dsz > TIPC_MAX_USER_MSG_SIZE)
 		return -EMSGSIZE;
 	if (unlikely(!dest)) {
-		if (tsk->connected && sock->state == SS_READY)
+		if (sock->state == SS_READY && tsk->peer.family == AF_TIPC)
 			dest = &tsk->peer;
 		else
 			return -EDESTADDRREQ;
@@ -1939,12 +1939,10 @@ static int tipc_connect(struct socket *sock, struct sockaddr *dest,
 	if (sock->state == SS_READY) {
 		if (dst->family == AF_UNSPEC) {
 			memset(&tsk->peer, 0, sizeof(struct sockaddr_tipc));
-			tsk->connected = 0;
 		} else if (destlen != sizeof(struct sockaddr_tipc)) {
 			res = -EINVAL;
 		} else {
 			memcpy(&tsk->peer, dest, destlen);
-			tsk->connected = 1;
 		}
 		goto exit;
 	}
