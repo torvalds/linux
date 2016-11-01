@@ -2366,7 +2366,7 @@ static void qede_init_ndev(struct qede_dev *edev)
 
 	qede_set_ethtool_ops(ndev);
 
-	ndev->priv_flags = IFF_UNICAST_FLT;
+	ndev->priv_flags |= IFF_UNICAST_FLT;
 
 	/* user-changeble features */
 	hw_features = NETIF_F_GRO | NETIF_F_SG |
