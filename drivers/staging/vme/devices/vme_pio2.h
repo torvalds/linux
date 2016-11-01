@@ -235,10 +235,10 @@ struct pio2_card {
 	struct pio2_cntr cntr[6];
 };
 
-int pio2_cntr_reset(struct pio2_card *);
+int pio2_cntr_reset(struct pio2_card *card);
 
-int pio2_gpio_reset(struct pio2_card *);
-int pio2_gpio_init(struct pio2_card *);
-void pio2_gpio_exit(struct pio2_card *);
+int pio2_gpio_reset(struct pio2_card *card);
+int pio2_gpio_init(struct pio2_card *card);
+void pio2_gpio_exit(struct pio2_card *card);
 
 #endif /* _VME_PIO2_H_ */
