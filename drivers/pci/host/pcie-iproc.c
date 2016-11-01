@@ -243,16 +243,13 @@ static void iproc_pcie_reset(struct iproc_pcie *pcie)
 {
 	u32 val;
 
-	if (pcie->ep_is_internal) {
-		val = iproc_pcie_read_reg(pcie, IPROC_PCIE_CLK_CTRL);
-		val &= ~PAXC_RESET_MASK;
-		iproc_pcie_write_reg(pcie, IPROC_PCIE_CLK_CTRL, val);
-		udelay(100);
-		val |= PAXC_RESET_MASK;
-		iproc_pcie_write_reg(pcie, IPROC_PCIE_CLK_CTRL, val);
-		udelay(100);
+	/*
+	 * PAXC and the internal emulated endpoint device downstream should not
+	 * be reset.  If firmware has been loaded on the endpoint device at an
+	 * earlier boot stage, reset here causes issues.
+	 */
+	if (pcie->ep_is_internal)
 		return;
-	}
 
 	/*
 	 * Select perst_b signal as reset source. Put the device into reset,
