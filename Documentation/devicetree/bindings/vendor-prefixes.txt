@@ -233,6 +233,7 @@ richtek	Richtek Technology Corporation
 ricoh	Ricoh Co. Ltd.
 rockchip	Fuzhou Rockchip Electronics Co., Ltd
 samsung	Samsung Semiconductor
+samtec	Samtec/Softing company
 sandisk	Sandisk Corporation
 sbs	Smart Battery System
 schindler	Schindler
