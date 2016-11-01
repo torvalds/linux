@@ -24,6 +24,7 @@
 #include "mdp5_cfg.h"	/* must be included before mdp5.xml.h */
 #include "mdp5.xml.h"
 #include "mdp5_ctl.h"
+#include "mdp5_pipe.h"
 #include "mdp5_smp.h"
 
 struct mdp5_kms {
@@ -32,6 +33,9 @@ struct mdp5_kms {
 	struct drm_device *dev;
 
 	struct platform_device *pdev;
+
+	unsigned num_hwpipes;
+	struct mdp5_hw_pipe *hwpipes[SSPP_MAX];
 
 	struct mdp5_cfg_handler *cfg;
 	uint32_t caps;	/* MDP capabilities (MDP_CAP_XXX bits) */
@@ -207,8 +211,7 @@ void mdp5_plane_complete_commit(struct drm_plane *plane,
 	struct drm_plane_state *state);
 enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane);
 struct drm_plane *mdp5_plane_init(struct drm_device *dev,
-		enum mdp5_pipe pipe, bool private_plane,
-		uint32_t reg_offset, uint32_t caps);
+		struct mdp5_hw_pipe *hwpipe, bool primary);
 
 uint32_t mdp5_crtc_vblank(struct drm_crtc *crtc);
 

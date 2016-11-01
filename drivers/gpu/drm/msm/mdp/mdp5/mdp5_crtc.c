@@ -27,8 +27,6 @@
 #define CURSOR_WIDTH	64
 #define CURSOR_HEIGHT	64
 
-#define SSPP_MAX	(SSPP_RGB3 + 1) /* TODO: Add SSPP_MAX in mdp5.xml.h */
-
 struct mdp5_crtc {
 	struct drm_crtc base;
 	int id;

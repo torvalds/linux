@@ -119,6 +119,10 @@ static void mdp5_kms_destroy(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	struct msm_gem_address_space *aspace = mdp5_kms->aspace;
+	int i;
+
+	for (i = 0; i < mdp5_kms->num_hwpipes; i++)
+		mdp5_pipe_destroy(mdp5_kms->hwpipes[i]);
 
 	if (aspace) {
 		aspace->mmu->funcs->detach(aspace->mmu,
@@ -323,15 +327,6 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 
 static int modeset_init(struct mdp5_kms *mdp5_kms)
 {
-	static const enum mdp5_pipe rgb_planes[] = {
-			SSPP_RGB0, SSPP_RGB1, SSPP_RGB2, SSPP_RGB3,
-	};
-	static const enum mdp5_pipe vig_planes[] = {
-			SSPP_VIG0, SSPP_VIG1, SSPP_VIG2, SSPP_VIG3,
-	};
-	static const enum mdp5_pipe dma_planes[] = {
-			SSPP_DMA0, SSPP_DMA1,
-	};
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	const struct mdp5_cfg_hw *hw_cfg;
@@ -339,56 +334,32 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 
-	/* construct CRTCs and their private planes: */
-	for (i = 0; i < hw_cfg->pipe_rgb.count; i++) {
+	/* Construct planes equaling the number of hw pipes, and CRTCs
+	 * for the N layer-mixers (LM).  The first N planes become primary
+	 * planes for the CRTCs, with the remainder as overlay planes:
+	 */
+	for (i = 0; i < mdp5_kms->num_hwpipes; i++) {
+		bool primary = i < mdp5_cfg->lm.count;
 		struct drm_plane *plane;
 		struct drm_crtc *crtc;
 
-		plane = mdp5_plane_init(dev, rgb_planes[i], true,
-			hw_cfg->pipe_rgb.base[i], hw_cfg->pipe_rgb.caps);
+		plane = mdp5_plane_init(dev, mdp5_kms->hwpipes[i], primary);
 		if (IS_ERR(plane)) {
 			ret = PTR_ERR(plane);
-			dev_err(dev->dev, "failed to construct plane for %s (%d)\n",
-					pipe2name(rgb_planes[i]), ret);
+			dev_err(dev->dev, "failed to construct plane %d (%d)\n", i, ret);
 			goto fail;
 		}
+
+		if (!primary)
+			continue;
 
 		crtc  = mdp5_crtc_init(dev, plane, i);
 		if (IS_ERR(crtc)) {
 			ret = PTR_ERR(crtc);
-			dev_err(dev->dev, "failed to construct crtc for %s (%d)\n",
-					pipe2name(rgb_planes[i]), ret);
+			dev_err(dev->dev, "failed to construct crtc %d (%d)\n", i, ret);
 			goto fail;
 		}
 		priv->crtcs[priv->num_crtcs++] = crtc;
-	}
-
-	/* Construct video planes: */
-	for (i = 0; i < hw_cfg->pipe_vig.count; i++) {
-		struct drm_plane *plane;
-
-		plane = mdp5_plane_init(dev, vig_planes[i], false,
-			hw_cfg->pipe_vig.base[i], hw_cfg->pipe_vig.caps);
-		if (IS_ERR(plane)) {
-			ret = PTR_ERR(plane);
-			dev_err(dev->dev, "failed to construct %s plane: %d\n",
-					pipe2name(vig_planes[i]), ret);
-			goto fail;
-		}
-	}
-
-	/* DMA planes */
-	for (i = 0; i < hw_cfg->pipe_dma.count; i++) {
-		struct drm_plane *plane;
-
-		plane = mdp5_plane_init(dev, dma_planes[i], false,
-				hw_cfg->pipe_dma.base[i], hw_cfg->pipe_dma.caps);
-		if (IS_ERR(plane)) {
-			ret = PTR_ERR(plane);
-			dev_err(dev->dev, "failed to construct %s plane: %d\n",
-					pipe2name(dma_planes[i]), ret);
-			goto fail;
-		}
 	}
 
 	/* Construct encoders and modeset initialize connector devices
@@ -676,6 +647,67 @@ static void mdp5_destroy(struct platform_device *pdev)
 		pm_runtime_disable(&pdev->dev);
 }
 
+static int construct_pipes(struct mdp5_kms *mdp5_kms, int cnt,
+		const enum mdp5_pipe *pipes, const uint32_t *offsets,
+		uint32_t caps)
+{
+	struct drm_device *dev = mdp5_kms->dev;
+	int i, ret;
+
+	for (i = 0; i < cnt; i++) {
+		struct mdp5_hw_pipe *hwpipe;
+
+		hwpipe = mdp5_pipe_init(pipes[i], offsets[i], caps);
+		if (IS_ERR(hwpipe)) {
+			ret = PTR_ERR(hwpipe);
+			dev_err(dev->dev, "failed to construct pipe for %s (%d)\n",
+					pipe2name(pipes[i]), ret);
+			return ret;
+		}
+		hwpipe->idx = mdp5_kms->num_hwpipes;
+		mdp5_kms->hwpipes[mdp5_kms->num_hwpipes++] = hwpipe;
+	}
+
+	return 0;
+}
+
+static int hwpipe_init(struct mdp5_kms *mdp5_kms)
+{
+	static const enum mdp5_pipe rgb_planes[] = {
+			SSPP_RGB0, SSPP_RGB1, SSPP_RGB2, SSPP_RGB3,
+	};
+	static const enum mdp5_pipe vig_planes[] = {
+			SSPP_VIG0, SSPP_VIG1, SSPP_VIG2, SSPP_VIG3,
+	};
+	static const enum mdp5_pipe dma_planes[] = {
+			SSPP_DMA0, SSPP_DMA1,
+	};
+	const struct mdp5_cfg_hw *hw_cfg;
+	int ret;
+
+	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
+
+	/* Construct RGB pipes: */
+	ret = construct_pipes(mdp5_kms, hw_cfg->pipe_rgb.count, rgb_planes,
+			hw_cfg->pipe_rgb.base, hw_cfg->pipe_rgb.caps);
+	if (ret)
+		return ret;
+
+	/* Construct video (VIG) pipes: */
+	ret = construct_pipes(mdp5_kms, hw_cfg->pipe_vig.count, vig_planes,
+			hw_cfg->pipe_vig.base, hw_cfg->pipe_vig.caps);
+	if (ret)
+		return ret;
+
+	/* Construct DMA pipes: */
+	ret = construct_pipes(mdp5_kms, hw_cfg->pipe_dma.count, dma_planes,
+			hw_cfg->pipe_dma.base, hw_cfg->pipe_dma.caps);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -764,6 +796,10 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 		mdp5_kms->ctlm = NULL;
 		goto fail;
 	}
+
+	ret = hwpipe_init(mdp5_kms);
+	if (ret)
+		goto fail;
 
 	/* set uninit-ed kms */
 	priv->kms = &mdp5_kms->base.base;
