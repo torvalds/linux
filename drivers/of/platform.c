@@ -558,9 +558,6 @@ static int of_platform_device_destroy(struct device *dev, void *data)
  * of the given device (and, recurrently, their children) that have been
  * created from their respective device tree nodes (and only those,
  * leaving others - eg. manually created - unharmed).
- *
- * Returns 0 when all children devices have been removed or
- * -EBUSY when some children remained.
  */
 void of_platform_depopulate(struct device *parent)
 {
