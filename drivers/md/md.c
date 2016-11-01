@@ -394,7 +394,7 @@ static void submit_flushes(struct work_struct *ws)
 			bi->bi_end_io = md_end_flush;
 			bi->bi_private = rdev;
 			bi->bi_bdev = rdev->bdev;
-			bio_set_op_attrs(bi, REQ_OP_WRITE, WRITE_FLUSH);
+			bi->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 			atomic_inc(&mddev->flush_pending);
 			submit_bio(bi);
 			rcu_read_lock();
@@ -743,7 +743,7 @@ void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
 	bio_add_page(bio, page, size, 0);
 	bio->bi_private = rdev;
 	bio->bi_end_io = super_written;
-	bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_FLUSH_FUA);
+	bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH | REQ_FUA;
 
 	atomic_inc(&mddev->pending_writes);
 	submit_bio(bio);

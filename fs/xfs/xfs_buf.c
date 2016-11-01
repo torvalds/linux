@@ -1304,7 +1304,7 @@ _xfs_buf_ioapply(
 	if (bp->b_flags & XBF_WRITE) {
 		op = REQ_OP_WRITE;
 		if (bp->b_flags & XBF_SYNCIO)
-			op_flags = WRITE_SYNC;
+			op_flags = REQ_SYNC;
 		if (bp->b_flags & XBF_FUA)
 			op_flags |= REQ_FUA;
 		if (bp->b_flags & XBF_FLUSH)

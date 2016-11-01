@@ -913,7 +913,7 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 		if (test_and_clear_bit(R5_Wantwrite, &sh->dev[i].flags)) {
 			op = REQ_OP_WRITE;
 			if (test_and_clear_bit(R5_WantFUA, &sh->dev[i].flags))
-				op_flags = WRITE_FUA;
+				op_flags = REQ_FUA;
 			if (test_bit(R5_Discard, &sh->dev[i].flags))
 				op = REQ_OP_DISCARD;
 		} else if (test_and_clear_bit(R5_Wantread, &sh->dev[i].flags))

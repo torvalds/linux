@@ -1266,7 +1266,7 @@ static void submit_one_flush(struct drbd_device *device, struct issue_flush_cont
 	bio->bi_bdev = device->ldev->backing_bdev;
 	bio->bi_private = octx;
 	bio->bi_end_io = one_flush_endio;
-	bio_set_op_attrs(bio, REQ_OP_FLUSH, WRITE_FLUSH);
+	bio->bi_opf = REQ_OP_FLUSH | REQ_PREFLUSH;
 
 	device->flush_jif = jiffies;
 	set_bit(FLUSH_PENDING, &device->flags);

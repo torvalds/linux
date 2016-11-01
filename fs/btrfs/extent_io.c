@@ -127,7 +127,7 @@ struct extent_page_data {
 	 */
 	unsigned int extent_locked:1;
 
-	/* tells the submit_bio code to use a WRITE_SYNC */
+	/* tells the submit_bio code to use REQ_SYNC */
 	unsigned int sync_io:1;
 };
 
@@ -2047,7 +2047,7 @@ int repair_io_failure(struct inode *inode, u64 start, u64 length, u64 logical,
 		return -EIO;
 	}
 	bio->bi_bdev = dev->bdev;
-	bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_SYNC);
+	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC;
 	bio_add_page(bio, page, length, pg_offset);
 
 	if (btrfsic_submit_bio_wait(bio)) {
@@ -2388,7 +2388,7 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
 	struct inode *inode = page->mapping->host;
 	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 	struct bio *bio;
-	int read_mode;
+	int read_mode = 0;
 	int ret;
 
 	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
@@ -2404,9 +2404,7 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
 	}
 
 	if (failed_bio->bi_vcnt > 1)
-		read_mode = READ_SYNC | REQ_FAILFAST_DEV;
-	else
-		read_mode = READ_SYNC;
+		read_mode |= REQ_FAILFAST_DEV;
 
 	phy_offset >>= inode->i_sb->s_blocksize_bits;
 	bio = btrfs_create_repair_bio(inode, failed_bio, failrec, page,
@@ -3484,7 +3482,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	unsigned long nr_written = 0;
 
 	if (wbc->sync_mode == WB_SYNC_ALL)
-		write_flags = WRITE_SYNC;
+		write_flags = REQ_SYNC;
 
 	trace___extent_writepage(page, inode, wbc);
 
@@ -3729,7 +3727,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 	unsigned long i, num_pages;
 	unsigned long bio_flags = 0;
 	unsigned long start, end;
-	int write_flags = (epd->sync_io ? WRITE_SYNC : 0) | REQ_META;
+	int write_flags = (epd->sync_io ? REQ_SYNC : 0) | REQ_META;
 	int ret = 0;
 
 	clear_bit(EXTENT_BUFFER_WRITE_ERR, &eb->bflags);
@@ -4076,7 +4074,7 @@ static void flush_epd_write_bio(struct extent_page_data *epd)
 		int ret;
 
 		bio_set_op_attrs(epd->bio, REQ_OP_WRITE,
-				 epd->sync_io ? WRITE_SYNC : 0);
+				 epd->sync_io ? REQ_SYNC : 0);
 
 		ret = submit_one_bio(epd->bio, 0, epd->bio_flags);
 		BUG_ON(ret < 0); /* -ENOMEM */

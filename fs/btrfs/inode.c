@@ -7917,7 +7917,7 @@ static int dio_read_error(struct inode *inode, struct bio *failed_bio,
 	struct io_failure_record *failrec;
 	struct bio *bio;
 	int isector;
-	int read_mode;
+	int read_mode = 0;
 	int ret;
 
 	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
@@ -7936,9 +7936,7 @@ static int dio_read_error(struct inode *inode, struct bio *failed_bio,
 	if ((failed_bio->bi_vcnt > 1)
 		|| (failed_bio->bi_io_vec->bv_len
 			> BTRFS_I(inode)->root->sectorsize))
-		read_mode = READ_SYNC | REQ_FAILFAST_DEV;
-	else
-		read_mode = READ_SYNC;
+		read_mode |= REQ_FAILFAST_DEV;
 
 	isector = start - btrfs_io_bio(failed_bio)->logical;
 	isector >>= inode->i_sb->s_blocksize_bits;
