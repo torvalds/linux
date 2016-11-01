@@ -28,7 +28,6 @@
 
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
-#include <rdma/ib_cm.h>
 #include <linux/nvme-rdma.h>
 
 #include "nvme.h"
