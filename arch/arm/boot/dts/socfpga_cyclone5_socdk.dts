@@ -19,7 +19,7 @@
 
 / {
 	model = "Altera SOCFPGA Cyclone V SoC Development Kit";
-	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+	compatible = "altr,socfpga-cyclone5-socdk", "altr,socfpga-cyclone5", "altr,socfpga";
 
 	chosen {
 		bootargs = "earlyprintk";

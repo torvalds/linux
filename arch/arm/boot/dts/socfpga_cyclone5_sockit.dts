@@ -19,7 +19,7 @@
 
 / {
 	model = "Terasic SoCkit";
-	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+	compatible = "terasic,socfpga-cyclone5-sockit", "altr,socfpga-cyclone5", "altr,socfpga";
 
 	chosen {
 		bootargs = "earlyprintk";
