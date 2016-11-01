@@ -697,6 +697,9 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 	uint mtu;
 	int rc;
 
+	if (!timeo && tsk->link_cong)
+		return -ELINKCONG;
+
 	msg_set_type(mhdr, TIPC_MCAST_MSG);
 	msg_set_lookup_scope(mhdr, TIPC_CLUSTER_SCOPE);
 	msg_set_destport(mhdr, 0);
@@ -1072,6 +1075,9 @@ static int __tipc_send_stream(struct socket *sock, struct msghdr *m, size_t dsz)
 	}
 
 	timeo = sock_sndtimeo(sk, m->msg_flags & MSG_DONTWAIT);
+	if (!timeo && tsk->link_cong)
+		return -ELINKCONG;
+
 	dnode = tsk_peer_node(tsk);
 	skb_queue_head_init(&pktchain);
 
