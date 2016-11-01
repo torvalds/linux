@@ -13,6 +13,13 @@ config FPGA
 
 if FPGA
 
+config FPGA_REGION
+	tristate "FPGA Region"
+	depends on OF && FPGA_BRIDGE
+	help
+	  FPGA Regions allow loading FPGA images under control of
+	  the Device Tree.
+
 config FPGA_MGR_SOCFPGA
 	tristate "Altera SOCFPGA FPGA Manager"
 	depends on ARCH_SOCFPGA

@@ -65,8 +65,10 @@ enum fpga_mgr_states {
 /*
  * FPGA Manager flags
  * FPGA_MGR_PARTIAL_RECONFIG: do partial reconfiguration if supported
+ * FPGA_MGR_EXTERNAL_CONFIG: FPGA has been configured prior to Linux booting
  */
 #define FPGA_MGR_PARTIAL_RECONFIG	BIT(0)
+#define FPGA_MGR_EXTERNAL_CONFIG	BIT(1)
 
 /**
  * struct fpga_image_info - information specific to a FPGA image
