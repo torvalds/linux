@@ -703,6 +703,14 @@ int tpm_pcr_read(u32 chip_num, int pcr_idx, u8 *res_buf)
 }
 EXPORT_SYMBOL_GPL(tpm_pcr_read);
 
+#define TPM_ORD_PCR_EXTEND cpu_to_be32(20)
+#define EXTEND_PCR_RESULT_SIZE 34
+static const struct tpm_input_header pcrextend_header = {
+	.tag = TPM_TAG_RQU_COMMAND,
+	.length = cpu_to_be32(34),
+	.ordinal = TPM_ORD_PCR_EXTEND
+};
+
 /**
  * tpm_pcr_extend - extend pcr value with hash
  * @chip_num:	tpm idx # or AN&
@@ -713,14 +721,6 @@ EXPORT_SYMBOL_GPL(tpm_pcr_read);
  * isn't, protect against the chip disappearing, by incrementing
  * the module usage count.
  */
-#define TPM_ORD_PCR_EXTEND cpu_to_be32(20)
-#define EXTEND_PCR_RESULT_SIZE 34
-static const struct tpm_input_header pcrextend_header = {
-	.tag = TPM_TAG_RQU_COMMAND,
-	.length = cpu_to_be32(34),
-	.ordinal = TPM_ORD_PCR_EXTEND
-};
-
 int tpm_pcr_extend(u32 chip_num, int pcr_idx, const u8 *hash)
 {
 	struct tpm_cmd_t cmd;
