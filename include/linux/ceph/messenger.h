@@ -1,7 +1,7 @@
 #ifndef __FS_CEPH_MESSENGER_H
 #define __FS_CEPH_MESSENGER_H
 
-#include <linux/blk_types.h>
+#include <linux/bvec.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/net.h>
