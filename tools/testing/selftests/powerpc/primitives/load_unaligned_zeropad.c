@@ -118,8 +118,10 @@ static int do_one_test(char *p, int page_offset)
 
 	got = load_unaligned_zeropad(p);
 
-	if (should != got)
+	if (should != got) {
 		printf("offset %u load_unaligned_zeropad returned 0x%lx, should be 0x%lx\n", page_offset, got, should);
+		return 1;
+	}
 
 	return 0;
 }
