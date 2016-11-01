@@ -118,6 +118,7 @@ acr_r361_ls_gpccs_func = {
 
 const struct acr_r352_func
 acr_r361_func = {
+	.fixup_hs_desc = acr_r352_fixup_hs_desc,
 	.generate_hs_bl_desc = acr_r361_generate_hs_bl_desc,
 	.hs_bl_desc_size = sizeof(struct acr_r361_flcn_bl_desc),
 	.ls_ucode_img_load = acr_r352_ls_ucode_img_load,

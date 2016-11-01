@@ -583,10 +583,11 @@ acr_r352_hsf_patch_signature(struct nvkm_secboot *sb, void *acr_image)
 	memcpy(hs_data + fw_hdr->patch_loc, sig + fw_hdr->patch_sig, sig_size);
 }
 
-static void
+void
 acr_r352_fixup_hs_desc(struct acr_r352 *acr, struct nvkm_secboot *sb,
-		       struct hsflcn_acr_desc *desc)
+		       void *_desc)
 {
+	struct hsflcn_acr_desc *desc = _desc;
 	struct nvkm_gpuobj *ls_blob = acr->ls_blob;
 
 	/* WPR region information if WPR is not fixed */
@@ -668,7 +669,7 @@ acr_r352_prepare_hs_blob(struct acr_r352 *acr, struct nvkm_secboot *sb,
 		struct hsflcn_acr_desc *desc;
 
 		desc = acr_data + load_hdr->data_dma_base;
-		acr_r352_fixup_hs_desc(acr, sb, desc);
+		acr->func->fixup_hs_desc(acr, sb, desc);
 	}
 
 	if (load_hdr->num_apps > ACR_R352_MAX_APPS) {
@@ -952,6 +953,7 @@ acr_r352_ls_gpccs_func = {
 
 const struct acr_r352_func
 acr_r352_func = {
+	.fixup_hs_desc = acr_r352_fixup_hs_desc,
 	.generate_hs_bl_desc = acr_r352_generate_hs_bl_desc,
 	.hs_bl_desc_size = sizeof(struct acr_r352_flcn_bl_desc),
 	.ls_ucode_img_load = acr_r352_ls_ucode_img_load,
