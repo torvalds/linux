@@ -17,6 +17,7 @@
  * Copyright (C) 2006 Ingo Molnar <mingo@elte.hu>
  *
  */
+#include <linux/bvec.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/pagemap.h>

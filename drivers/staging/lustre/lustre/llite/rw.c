@@ -47,6 +47,7 @@
 #include <linux/pagemap.h>
 /* current_is_kswapd() */
 #include <linux/swap.h>
+#include <linux/bvec.h>
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
