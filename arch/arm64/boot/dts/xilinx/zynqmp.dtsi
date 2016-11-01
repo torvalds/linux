@@ -65,10 +65,10 @@
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupt-parent = <&gic>;
-		interrupts = <1 13 0xf01>,
-			     <1 14 0xf01>,
-			     <1 11 0xf01>,
-			     <1 10 0xf01>;
+		interrupts = <1 13 0xf08>,
+			     <1 14 0xf08>,
+			     <1 11 0xf08>,
+			     <1 10 0xf08>;
 	};
 
 	amba_apu {

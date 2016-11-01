@@ -18,8 +18,6 @@
  *
  */
 
-#include <linux/blkdev.h>
-#include <linux/blk-mq.h>
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/sem.h>
@@ -28,46 +26,42 @@
 #include <linux/miscdevice.h>
 #include <linux/lightnvm.h>
 #include <linux/sched/sysctl.h>
-#include <uapi/linux/lightnvm.h>
 
 static LIST_HEAD(nvm_tgt_types);
+static DECLARE_RWSEM(nvm_tgtt_lock);
 static LIST_HEAD(nvm_mgrs);
 static LIST_HEAD(nvm_devices);
-static LIST_HEAD(nvm_targets);
 static DECLARE_RWSEM(nvm_lock);
 
-static struct nvm_target *nvm_find_target(const char *name)
+struct nvm_tgt_type *nvm_find_target_type(const char *name, int lock)
 {
-	struct nvm_target *tgt;
+	struct nvm_tgt_type *tmp, *tt = NULL;
 
-	list_for_each_entry(tgt, &nvm_targets, list)
-		if (!strcmp(name, tgt->disk->disk_name))
-			return tgt;
+	if (lock)
+		down_write(&nvm_tgtt_lock);
 
-	return NULL;
+	list_for_each_entry(tmp, &nvm_tgt_types, list)
+		if (!strcmp(name, tmp->name)) {
+			tt = tmp;
+			break;
+		}
+
+	if (lock)
+		up_write(&nvm_tgtt_lock);
+	return tt;
 }
-
-static struct nvm_tgt_type *nvm_find_target_type(const char *name)
-{
-	struct nvm_tgt_type *tt;
-
-	list_for_each_entry(tt, &nvm_tgt_types, list)
-		if (!strcmp(name, tt->name))
-			return tt;
-
-	return NULL;
-}
+EXPORT_SYMBOL(nvm_find_target_type);
 
 int nvm_register_tgt_type(struct nvm_tgt_type *tt)
 {
 	int ret = 0;
 
-	down_write(&nvm_lock);
-	if (nvm_find_target_type(tt->name))
+	down_write(&nvm_tgtt_lock);
+	if (nvm_find_target_type(tt->name, 0))
 		ret = -EEXIST;
 	else
 		list_add(&tt->list, &nvm_tgt_types);
-	up_write(&nvm_lock);
+	up_write(&nvm_tgtt_lock);
 
 	return ret;
 }
@@ -110,7 +104,7 @@ static struct nvmm_type *nvm_find_mgr_type(const char *name)
 	return NULL;
 }
 
-struct nvmm_type *nvm_init_mgr(struct nvm_dev *dev)
+static struct nvmm_type *nvm_init_mgr(struct nvm_dev *dev)
 {
 	struct nvmm_type *mt;
 	int ret;
@@ -182,20 +176,6 @@ static struct nvm_dev *nvm_find_nvm_dev(const char *name)
 	return NULL;
 }
 
-struct nvm_block *nvm_get_blk_unlocked(struct nvm_dev *dev, struct nvm_lun *lun,
-							unsigned long flags)
-{
-	return dev->mt->get_blk_unlocked(dev, lun, flags);
-}
-EXPORT_SYMBOL(nvm_get_blk_unlocked);
-
-/* Assumes that all valid pages have already been moved on release to bm */
-void nvm_put_blk_unlocked(struct nvm_dev *dev, struct nvm_block *blk)
-{
-	return dev->mt->put_blk_unlocked(dev, blk);
-}
-EXPORT_SYMBOL(nvm_put_blk_unlocked);
-
 struct nvm_block *nvm_get_blk(struct nvm_dev *dev, struct nvm_lun *lun,
 							unsigned long flags)
 {
@@ -209,6 +189,12 @@ void nvm_put_blk(struct nvm_dev *dev, struct nvm_block *blk)
 	return dev->mt->put_blk(dev, blk);
 }
 EXPORT_SYMBOL(nvm_put_blk);
+
+void nvm_mark_blk(struct nvm_dev *dev, struct ppa_addr ppa, int type)
+{
+	return dev->mt->mark_blk(dev, ppa, type);
+}
+EXPORT_SYMBOL(nvm_mark_blk);
 
 int nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
@@ -251,9 +237,10 @@ void nvm_generic_to_addr_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
 EXPORT_SYMBOL(nvm_generic_to_addr_mode);
 
 int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
-				struct ppa_addr *ppas, int nr_ppas, int vblk)
+			const struct ppa_addr *ppas, int nr_ppas, int vblk)
 {
 	int i, plane_cnt, pl_idx;
+	struct ppa_addr ppa;
 
 	if ((!vblk || dev->plane_mode == NVM_PLANE_SINGLE) && nr_ppas == 1) {
 		rqd->nr_ppas = nr_ppas;
@@ -278,8 +265,9 @@ int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
 
 		for (i = 0; i < nr_ppas; i++) {
 			for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
-				ppas[i].g.pl = pl_idx;
-				rqd->ppa_list[(pl_idx * nr_ppas) + i] = ppas[i];
+				ppa = ppas[i];
+				ppa.g.pl = pl_idx;
+				rqd->ppa_list[(pl_idx * nr_ppas) + i] = ppa;
 			}
 		}
 	}
@@ -337,7 +325,7 @@ static void nvm_end_io_sync(struct nvm_rq *rqd)
 	complete(waiting);
 }
 
-int __nvm_submit_ppa(struct nvm_dev *dev, struct nvm_rq *rqd, int opcode,
+static int __nvm_submit_ppa(struct nvm_dev *dev, struct nvm_rq *rqd, int opcode,
 						int flags, void *buf, int len)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
@@ -367,7 +355,9 @@ int __nvm_submit_ppa(struct nvm_dev *dev, struct nvm_rq *rqd, int opcode,
 	/* Prevent hang_check timer from firing at us during very long I/O */
 	hang_check = sysctl_hung_task_timeout_secs;
 	if (hang_check)
-		while (!wait_for_completion_io_timeout(&wait, hang_check * (HZ/2)));
+		while (!wait_for_completion_io_timeout(&wait,
+							hang_check * (HZ/2)))
+			;
 	else
 		wait_for_completion_io(&wait);
 
@@ -510,7 +500,8 @@ static int nvm_init_mlc_tbl(struct nvm_dev *dev, struct nvm_id_group *grp)
 	/* The lower page table encoding consists of a list of bytes, where each
 	 * has a lower and an upper half. The first half byte maintains the
 	 * increment value and every value after is an offset added to the
-	 * previous incrementation value */
+	 * previous incrementation value
+	 */
 	dev->lptbl[0] = mlc->pairs[0] & 0xF;
 	for (i = 1; i < dev->lps_per_blk; i++) {
 		p = mlc->pairs[i >> 1];
@@ -596,41 +587,10 @@ err_fmtype:
 	return ret;
 }
 
-static void nvm_remove_target(struct nvm_target *t)
-{
-	struct nvm_tgt_type *tt = t->type;
-	struct gendisk *tdisk = t->disk;
-	struct request_queue *q = tdisk->queue;
-
-	lockdep_assert_held(&nvm_lock);
-
-	del_gendisk(tdisk);
-	blk_cleanup_queue(q);
-
-	if (tt->exit)
-		tt->exit(tdisk->private_data);
-
-	put_disk(tdisk);
-
-	list_del(&t->list);
-	kfree(t);
-}
-
 static void nvm_free_mgr(struct nvm_dev *dev)
 {
-	struct nvm_target *tgt, *tmp;
-
 	if (!dev->mt)
 		return;
-
-	down_write(&nvm_lock);
-	list_for_each_entry_safe(tgt, tmp, &nvm_targets, list) {
-		if (tgt->dev != dev)
-			continue;
-
-		nvm_remove_target(tgt);
-	}
-	up_write(&nvm_lock);
 
 	dev->mt->unregister_mgr(dev);
 	dev->mt = NULL;
@@ -778,91 +738,6 @@ void nvm_unregister(char *disk_name)
 }
 EXPORT_SYMBOL(nvm_unregister);
 
-static const struct block_device_operations nvm_fops = {
-	.owner		= THIS_MODULE,
-};
-
-static int nvm_create_target(struct nvm_dev *dev,
-						struct nvm_ioctl_create *create)
-{
-	struct nvm_ioctl_create_simple *s = &create->conf.s;
-	struct request_queue *tqueue;
-	struct gendisk *tdisk;
-	struct nvm_tgt_type *tt;
-	struct nvm_target *t;
-	void *targetdata;
-
-	if (!dev->mt) {
-		pr_info("nvm: device has no media manager registered.\n");
-		return -ENODEV;
-	}
-
-	down_write(&nvm_lock);
-	tt = nvm_find_target_type(create->tgttype);
-	if (!tt) {
-		pr_err("nvm: target type %s not found\n", create->tgttype);
-		up_write(&nvm_lock);
-		return -EINVAL;
-	}
-
-	t = nvm_find_target(create->tgtname);
-	if (t) {
-		pr_err("nvm: target name already exists.\n");
-		up_write(&nvm_lock);
-		return -EINVAL;
-	}
-	up_write(&nvm_lock);
-
-	t = kmalloc(sizeof(struct nvm_target), GFP_KERNEL);
-	if (!t)
-		return -ENOMEM;
-
-	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node);
-	if (!tqueue)
-		goto err_t;
-	blk_queue_make_request(tqueue, tt->make_rq);
-
-	tdisk = alloc_disk(0);
-	if (!tdisk)
-		goto err_queue;
-
-	sprintf(tdisk->disk_name, "%s", create->tgtname);
-	tdisk->flags = GENHD_FL_EXT_DEVT;
-	tdisk->major = 0;
-	tdisk->first_minor = 0;
-	tdisk->fops = &nvm_fops;
-	tdisk->queue = tqueue;
-
-	targetdata = tt->init(dev, tdisk, s->lun_begin, s->lun_end);
-	if (IS_ERR(targetdata))
-		goto err_init;
-
-	tdisk->private_data = targetdata;
-	tqueue->queuedata = targetdata;
-
-	blk_queue_max_hw_sectors(tqueue, 8 * dev->ops->max_phys_sect);
-
-	set_capacity(tdisk, tt->capacity(targetdata));
-	add_disk(tdisk);
-
-	t->type = tt;
-	t->disk = tdisk;
-	t->dev = dev;
-
-	down_write(&nvm_lock);
-	list_add_tail(&t->list, &nvm_targets);
-	up_write(&nvm_lock);
-
-	return 0;
-err_init:
-	put_disk(tdisk);
-err_queue:
-	blk_cleanup_queue(tqueue);
-err_t:
-	kfree(t);
-	return -ENOMEM;
-}
-
 static int __nvm_configure_create(struct nvm_ioctl_create *create)
 {
 	struct nvm_dev *dev;
@@ -871,9 +746,15 @@ static int __nvm_configure_create(struct nvm_ioctl_create *create)
 	down_write(&nvm_lock);
 	dev = nvm_find_nvm_dev(create->dev);
 	up_write(&nvm_lock);
+
 	if (!dev) {
 		pr_err("nvm: device not found\n");
 		return -EINVAL;
+	}
+
+	if (!dev->mt) {
+		pr_info("nvm: device has no media manager registered.\n");
+		return -ENODEV;
 	}
 
 	if (create->conf.type != NVM_CONFIG_TYPE_SIMPLE) {
@@ -888,25 +769,7 @@ static int __nvm_configure_create(struct nvm_ioctl_create *create)
 		return -EINVAL;
 	}
 
-	return nvm_create_target(dev, create);
-}
-
-static int __nvm_configure_remove(struct nvm_ioctl_remove *remove)
-{
-	struct nvm_target *t;
-
-	down_write(&nvm_lock);
-	t = nvm_find_target(remove->tgtname);
-	if (!t) {
-		pr_err("nvm: target \"%s\" doesn't exist.\n", remove->tgtname);
-		up_write(&nvm_lock);
-		return -EINVAL;
-	}
-
-	nvm_remove_target(t);
-	up_write(&nvm_lock);
-
-	return 0;
+	return dev->mt->create_tgt(dev, create);
 }
 
 #ifdef CONFIG_NVM_DEBUG
@@ -941,8 +804,9 @@ static int nvm_configure_show(const char *val)
 static int nvm_configure_remove(const char *val)
 {
 	struct nvm_ioctl_remove remove;
+	struct nvm_dev *dev;
 	char opcode;
-	int ret;
+	int ret = 0;
 
 	ret = sscanf(val, "%c %256s", &opcode, remove.tgtname);
 	if (ret != 2) {
@@ -952,7 +816,13 @@ static int nvm_configure_remove(const char *val)
 
 	remove.flags = 0;
 
-	return __nvm_configure_remove(&remove);
+	list_for_each_entry(dev, &nvm_devices, devices) {
+		ret = dev->mt->remove_tgt(dev, &remove);
+		if (!ret)
+			break;
+	}
+
+	return ret;
 }
 
 static int nvm_configure_create(const char *val)
@@ -1149,6 +1019,8 @@ static long nvm_ioctl_dev_create(struct file *file, void __user *arg)
 static long nvm_ioctl_dev_remove(struct file *file, void __user *arg)
 {
 	struct nvm_ioctl_remove remove;
+	struct nvm_dev *dev;
+	int ret = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -1163,7 +1035,13 @@ static long nvm_ioctl_dev_remove(struct file *file, void __user *arg)
 		return -EINVAL;
 	}
 
-	return __nvm_configure_remove(&remove);
+	list_for_each_entry(dev, &nvm_devices, devices) {
+		ret = dev->mt->remove_tgt(dev, &remove);
+		if (!ret)
+			break;
+	}
+
+	return ret;
 }
 
 static void nvm_setup_nvm_sb_info(struct nvm_sb_info *info)

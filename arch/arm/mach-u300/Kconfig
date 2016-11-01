@@ -1,11 +1,11 @@
 menuconfig ARCH_U300
 	bool "ST-Ericsson U300 Series"
 	depends on ARCH_MULTI_V5 && MMU
-	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_VIC
-	select CLKSRC_MMIO
+	select U300_TIMER
 	select CPU_ARM926T
+	select GPIOLIB
 	select HAVE_TCM
 	select PINCTRL
 	select PINCTRL_COH901

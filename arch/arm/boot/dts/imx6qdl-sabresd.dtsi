@@ -501,6 +501,12 @@
 				MX6QDL_PAD_SD4_DAT7__SD4_DATA7		0x17059
 			>;
 		};
+
+		pinctrl_wdog: wdoggrp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_1__WDOG2_B		0x1b0b0
+			>;
+		};
 	};
 
 	gpio_leds {
@@ -533,7 +539,7 @@
 &pcie {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pcie>;
-	reset-gpio = <&gpio7 12 0>;
+	reset-gpio = <&gpio7 12 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -594,5 +600,16 @@
 	bus-width = <8>;
 	non-removable;
 	no-1-8-v;
+	status = "okay";
+};
+
+&wdog1 {
+	status = "disabled";
+};
+
+&wdog2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog>;
+	fsl,ext-reset-output;
 	status = "okay";
 };

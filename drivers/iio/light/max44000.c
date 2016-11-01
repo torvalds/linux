@@ -511,7 +511,8 @@ static irqreturn_t max44000_trigger_handler(int irq, void *p)
 	}
 	mutex_unlock(&data->lock);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buf, iio_get_time_ns());
+	iio_push_to_buffers_with_timestamp(indio_dev, buf,
+					   iio_get_time_ns(indio_dev));
 	iio_trigger_notify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 

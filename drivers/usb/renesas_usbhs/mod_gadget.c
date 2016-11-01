@@ -585,6 +585,9 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 	struct usbhs_priv *priv = usbhsg_gpriv_to_priv(gpriv);
 	struct usbhs_pipe *pipe;
 	int ret = -EIO;
+	unsigned long flags;
+
+	usbhs_lock(priv, flags);
 
 	/*
 	 * if it already have pipe,
@@ -593,7 +596,8 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 	if (uep->pipe) {
 		usbhs_pipe_clear(uep->pipe);
 		usbhs_pipe_sequence_data0(uep->pipe);
-		return 0;
+		ret = 0;
+		goto usbhsg_ep_enable_end;
 	}
 
 	pipe = usbhs_pipe_malloc(priv,
@@ -613,13 +617,19 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 		 * use dmaengine if possible.
 		 * It will use pio handler if impossible.
 		 */
-		if (usb_endpoint_dir_in(desc))
+		if (usb_endpoint_dir_in(desc)) {
 			pipe->handler = &usbhs_fifo_dma_push_handler;
-		else
+		} else {
 			pipe->handler = &usbhs_fifo_dma_pop_handler;
+			usbhs_xxxsts_clear(priv, BRDYSTS,
+					   usbhs_pipe_number(pipe));
+		}
 
 		ret = 0;
 	}
+
+usbhsg_ep_enable_end:
+	usbhs_unlock(priv, flags);
 
 	return ret;
 }
@@ -1066,7 +1076,7 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 
 	gpriv->transceiver = usb_get_phy(USB_PHY_TYPE_UNDEFINED);
 	dev_info(dev, "%stransceiver found\n",
-		 gpriv->transceiver ? "" : "no ");
+		 !IS_ERR(gpriv->transceiver) ? "" : "no ");
 
 	/*
 	 * CAUTION

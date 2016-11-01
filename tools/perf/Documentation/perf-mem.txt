@@ -56,6 +56,9 @@ OPTIONS
 --all-user::
 	Configure all used events to run in user space.
 
+--ldload::
+	Specify desired latency for loads event.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1]

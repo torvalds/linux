@@ -40,6 +40,7 @@ config NFC_MEI_PHY
 
 config NFC_SIM
 	tristate "NFC hardware simulator driver"
+	depends on NFC_DIGITAL
 	help
 	  This driver declares two virtual NFC devices supporting NFC-DEP
 	  protocol. An LLCP connection can be established between them and

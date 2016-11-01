@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -84,11 +80,11 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 	/*
 	 * We got LOOKUP lock, but we really need attrs.
 	 */
-	pmode = it->d.lustre.it_lock_mode;
+	pmode = it->it_lock_mode;
 	if (pmode) {
-		plock.cookie = it->d.lustre.it_lock_handle;
-		it->d.lustre.it_lock_mode = 0;
-		it->d.lustre.it_data = NULL;
+		plock.cookie = it->it_lock_handle;
+		it->it_lock_mode = 0;
+		it->it_request = NULL;
 	}
 
 	LASSERT(fid_is_sane(&body->fid1));
@@ -134,14 +130,14 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 	 * maintain dcache consistency. Thus drop UPDATE|PERM lock here
 	 * and put LOOKUP in request.
 	 */
-	if (it->d.lustre.it_lock_mode != 0) {
-		it->d.lustre.it_remote_lock_handle =
-					it->d.lustre.it_lock_handle;
-		it->d.lustre.it_remote_lock_mode = it->d.lustre.it_lock_mode;
+	if (it->it_lock_mode != 0) {
+		it->it_remote_lock_handle =
+					it->it_lock_handle;
+		it->it_remote_lock_mode = it->it_lock_mode;
 	}
 
-	it->d.lustre.it_lock_handle = plock.cookie;
-	it->d.lustre.it_lock_mode = pmode;
+	it->it_lock_handle = plock.cookie;
+	it->it_lock_mode = pmode;
 
 out_free_op_data:
 	kfree(op_data);
@@ -201,9 +197,9 @@ static int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 	 * Nothing is found, do not access body->fid1 as it is zero and thus
 	 * pointless.
 	 */
-	if ((it->d.lustre.it_disposition & DISP_LOOKUP_NEG) &&
-	    !(it->d.lustre.it_disposition & DISP_OPEN_CREATE) &&
-	    !(it->d.lustre.it_disposition & DISP_OPEN_OPEN))
+	if ((it->it_disposition & DISP_LOOKUP_NEG) &&
+	    !(it->it_disposition & DISP_OPEN_CREATE) &&
+	    !(it->it_disposition & DISP_OPEN_OPEN))
 		return rc;
 
 	body = req_capsule_server_get(&(*reqp)->rq_pill, &RMF_MDT_BODY);

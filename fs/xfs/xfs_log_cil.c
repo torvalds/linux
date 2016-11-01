@@ -78,6 +78,157 @@ xlog_cil_init_post_recovery(
 	log->l_cilp->xc_ctx->sequence = 1;
 }
 
+static inline int
+xlog_cil_iovec_space(
+	uint	niovecs)
+{
+	return round_up((sizeof(struct xfs_log_vec) +
+					niovecs * sizeof(struct xfs_log_iovec)),
+			sizeof(uint64_t));
+}
+
+/*
+ * Allocate or pin log vector buffers for CIL insertion.
+ *
+ * The CIL currently uses disposable buffers for copying a snapshot of the
+ * modified items into the log during a push. The biggest problem with this is
+ * the requirement to allocate the disposable buffer during the commit if:
+ *	a) does not exist; or
+ *	b) it is too small
+ *
+ * If we do this allocation within xlog_cil_insert_format_items(), it is done
+ * under the xc_ctx_lock, which means that a CIL push cannot occur during
+ * the memory allocation. This means that we have a potential deadlock situation
+ * under low memory conditions when we have lots of dirty metadata pinned in
+ * the CIL and we need a CIL commit to occur to free memory.
+ *
+ * To avoid this, we need to move the memory allocation outside the
+ * xc_ctx_lock, but because the log vector buffers are disposable, that opens
+ * up a TOCTOU race condition w.r.t. the CIL committing and removing the log
+ * vector buffers between the check and the formatting of the item into the
+ * log vector buffer within the xc_ctx_lock.
+ *
+ * Because the log vector buffer needs to be unchanged during the CIL push
+ * process, we cannot share the buffer between the transaction commit (which
+ * modifies the buffer) and the CIL push context that is writing the changes
+ * into the log. This means skipping preallocation of buffer space is
+ * unreliable, but we most definitely do not want to be allocating and freeing
+ * buffers unnecessarily during commits when overwrites can be done safely.
+ *
+ * The simplest solution to this problem is to allocate a shadow buffer when a
+ * log item is committed for the second time, and then to only use this buffer
+ * if necessary. The buffer can remain attached to the log item until such time
+ * it is needed, and this is the buffer that is reallocated to match the size of
+ * the incoming modification. Then during the formatting of the item we can swap
+ * the active buffer with the new one if we can't reuse the existing buffer. We
+ * don't free the old buffer as it may be reused on the next modification if
+ * it's size is right, otherwise we'll free and reallocate it at that point.
+ *
+ * This function builds a vector for the changes in each log item in the
+ * transaction. It then works out the length of the buffer needed for each log
+ * item, allocates them and attaches the vector to the log item in preparation
+ * for the formatting step which occurs under the xc_ctx_lock.
+ *
+ * While this means the memory footprint goes up, it avoids the repeated
+ * alloc/free pattern that repeated modifications of an item would otherwise
+ * cause, and hence minimises the CPU overhead of such behaviour.
+ */
+static void
+xlog_cil_alloc_shadow_bufs(
+	struct xlog		*log,
+	struct xfs_trans	*tp)
+{
+	struct xfs_log_item_desc *lidp;
+
+	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
+		struct xfs_log_item *lip = lidp->lid_item;
+		struct xfs_log_vec *lv;
+		int	niovecs = 0;
+		int	nbytes = 0;
+		int	buf_size;
+		bool	ordered = false;
+
+		/* Skip items which aren't dirty in this transaction. */
+		if (!(lidp->lid_flags & XFS_LID_DIRTY))
+			continue;
+
+		/* get number of vecs and size of data to be stored */
+		lip->li_ops->iop_size(lip, &niovecs, &nbytes);
+
+		/*
+		 * Ordered items need to be tracked but we do not wish to write
+		 * them. We need a logvec to track the object, but we do not
+		 * need an iovec or buffer to be allocated for copying data.
+		 */
+		if (niovecs == XFS_LOG_VEC_ORDERED) {
+			ordered = true;
+			niovecs = 0;
+			nbytes = 0;
+		}
+
+		/*
+		 * We 64-bit align the length of each iovec so that the start
+		 * of the next one is naturally aligned.  We'll need to
+		 * account for that slack space here. Then round nbytes up
+		 * to 64-bit alignment so that the initial buffer alignment is
+		 * easy to calculate and verify.
+		 */
+		nbytes += niovecs * sizeof(uint64_t);
+		nbytes = round_up(nbytes, sizeof(uint64_t));
+
+		/*
+		 * The data buffer needs to start 64-bit aligned, so round up
+		 * that space to ensure we can align it appropriately and not
+		 * overrun the buffer.
+		 */
+		buf_size = nbytes + xlog_cil_iovec_space(niovecs);
+
+		/*
+		 * if we have no shadow buffer, or it is too small, we need to
+		 * reallocate it.
+		 */
+		if (!lip->li_lv_shadow ||
+		    buf_size > lip->li_lv_shadow->lv_size) {
+
+			/*
+			 * We free and allocate here as a realloc would copy
+			 * unecessary data. We don't use kmem_zalloc() for the
+			 * same reason - we don't need to zero the data area in
+			 * the buffer, only the log vector header and the iovec
+			 * storage.
+			 */
+			kmem_free(lip->li_lv_shadow);
+
+			lv = kmem_alloc(buf_size, KM_SLEEP|KM_NOFS);
+			memset(lv, 0, xlog_cil_iovec_space(niovecs));
+
+			lv->lv_item = lip;
+			lv->lv_size = buf_size;
+			if (ordered)
+				lv->lv_buf_len = XFS_LOG_VEC_ORDERED;
+			else
+				lv->lv_iovecp = (struct xfs_log_iovec *)&lv[1];
+			lip->li_lv_shadow = lv;
+		} else {
+			/* same or smaller, optimise common overwrite case */
+			lv = lip->li_lv_shadow;
+			if (ordered)
+				lv->lv_buf_len = XFS_LOG_VEC_ORDERED;
+			else
+				lv->lv_buf_len = 0;
+			lv->lv_bytes = 0;
+			lv->lv_next = NULL;
+		}
+
+		/* Ensure the lv is set up according to ->iop_size */
+		lv->lv_niovecs = niovecs;
+
+		/* The allocated data region lies beyond the iovec region */
+		lv->lv_buf = (char *)lv + xlog_cil_iovec_space(niovecs);
+	}
+
+}
+
 /*
  * Prepare the log item for insertion into the CIL. Calculate the difference in
  * log space and vectors it will consume, and if it is a new item pin it as
@@ -100,16 +251,19 @@ xfs_cil_prepare_item(
 	/*
 	 * If there is no old LV, this is the first time we've seen the item in
 	 * this CIL context and so we need to pin it. If we are replacing the
-	 * old_lv, then remove the space it accounts for and free it.
+	 * old_lv, then remove the space it accounts for and make it the shadow
+	 * buffer for later freeing. In both cases we are now switching to the
+	 * shadow buffer, so update the the pointer to it appropriately.
 	 */
-	if (!old_lv)
+	if (!old_lv) {
 		lv->lv_item->li_ops->iop_pin(lv->lv_item);
-	else if (old_lv != lv) {
+		lv->lv_item->li_lv_shadow = NULL;
+	} else if (old_lv != lv) {
 		ASSERT(lv->lv_buf_len != XFS_LOG_VEC_ORDERED);
 
 		*diff_len -= old_lv->lv_bytes;
 		*diff_iovecs -= old_lv->lv_niovecs;
-		kmem_free(old_lv);
+		lv->lv_item->li_lv_shadow = old_lv;
 	}
 
 	/* attach new log vector to log item */
@@ -133,11 +287,13 @@ xfs_cil_prepare_item(
  * write it out asynchronously without needing to relock the object that was
  * modified at the time it gets written into the iclog.
  *
- * This function builds a vector for the changes in each log item in the
- * transaction. It then works out the length of the buffer needed for each log
- * item, allocates them and formats the vector for the item into the buffer.
- * The buffer is then attached to the log item are then inserted into the
- * Committed Item List for tracking until the next checkpoint is written out.
+ * This function takes the prepared log vectors attached to each log item, and
+ * formats the changes into the log vector buffer. The buffer it uses is
+ * dependent on the current state of the vector in the CIL - the shadow lv is
+ * guaranteed to be large enough for the current modification, but we will only
+ * use that if we can't reuse the existing lv. If we can't reuse the existing
+ * lv, then simple swap it out for the shadow lv. We don't free it - that is
+ * done lazily either by th enext modification or the freeing of the log item.
  *
  * We don't set up region headers during this process; we simply copy the
  * regions into the flat buffer. We can do this because we still have to do a
@@ -170,59 +326,29 @@ xlog_cil_insert_format_items(
 	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
 		struct xfs_log_item *lip = lidp->lid_item;
 		struct xfs_log_vec *lv;
-		struct xfs_log_vec *old_lv;
-		int	niovecs = 0;
-		int	nbytes = 0;
-		int	buf_size;
+		struct xfs_log_vec *old_lv = NULL;
+		struct xfs_log_vec *shadow;
 		bool	ordered = false;
 
 		/* Skip items which aren't dirty in this transaction. */
 		if (!(lidp->lid_flags & XFS_LID_DIRTY))
 			continue;
 
-		/* get number of vecs and size of data to be stored */
-		lip->li_ops->iop_size(lip, &niovecs, &nbytes);
+		/*
+		 * The formatting size information is already attached to
+		 * the shadow lv on the log item.
+		 */
+		shadow = lip->li_lv_shadow;
+		if (shadow->lv_buf_len == XFS_LOG_VEC_ORDERED)
+			ordered = true;
 
 		/* Skip items that do not have any vectors for writing */
-		if (!niovecs)
+		if (!shadow->lv_niovecs && !ordered)
 			continue;
 
-		/*
-		 * Ordered items need to be tracked but we do not wish to write
-		 * them. We need a logvec to track the object, but we do not
-		 * need an iovec or buffer to be allocated for copying data.
-		 */
-		if (niovecs == XFS_LOG_VEC_ORDERED) {
-			ordered = true;
-			niovecs = 0;
-			nbytes = 0;
-		}
-
-		/*
-		 * We 64-bit align the length of each iovec so that the start
-		 * of the next one is naturally aligned.  We'll need to
-		 * account for that slack space here. Then round nbytes up
-		 * to 64-bit alignment so that the initial buffer alignment is
-		 * easy to calculate and verify.
-		 */
-		nbytes += niovecs * sizeof(uint64_t);
-		nbytes = round_up(nbytes, sizeof(uint64_t));
-
-		/* grab the old item if it exists for reservation accounting */
-		old_lv = lip->li_lv;
-
-		/*
-		 * The data buffer needs to start 64-bit aligned, so round up
-		 * that space to ensure we can align it appropriately and not
-		 * overrun the buffer.
-		 */
-		buf_size = nbytes +
-			   round_up((sizeof(struct xfs_log_vec) +
-				     niovecs * sizeof(struct xfs_log_iovec)),
-				    sizeof(uint64_t));
-
 		/* compare to existing item size */
-		if (lip->li_lv && buf_size <= lip->li_lv->lv_size) {
+		old_lv = lip->li_lv;
+		if (lip->li_lv && shadow->lv_size <= lip->li_lv->lv_size) {
 			/* same or smaller, optimise common overwrite case */
 			lv = lip->li_lv;
 			lv->lv_next = NULL;
@@ -236,32 +362,29 @@ xlog_cil_insert_format_items(
 			 */
 			*diff_iovecs -= lv->lv_niovecs;
 			*diff_len -= lv->lv_bytes;
+
+			/* Ensure the lv is set up according to ->iop_size */
+			lv->lv_niovecs = shadow->lv_niovecs;
+
+			/* reset the lv buffer information for new formatting */
+			lv->lv_buf_len = 0;
+			lv->lv_bytes = 0;
+			lv->lv_buf = (char *)lv +
+					xlog_cil_iovec_space(lv->lv_niovecs);
 		} else {
-			/* allocate new data chunk */
-			lv = kmem_zalloc(buf_size, KM_SLEEP|KM_NOFS);
+			/* switch to shadow buffer! */
+			lv = shadow;
 			lv->lv_item = lip;
-			lv->lv_size = buf_size;
 			if (ordered) {
 				/* track as an ordered logvec */
 				ASSERT(lip->li_lv == NULL);
-				lv->lv_buf_len = XFS_LOG_VEC_ORDERED;
 				goto insert;
 			}
-			lv->lv_iovecp = (struct xfs_log_iovec *)&lv[1];
 		}
 
-		/* Ensure the lv is set up according to ->iop_size */
-		lv->lv_niovecs = niovecs;
-
-		/* The allocated data region lies beyond the iovec region */
-		lv->lv_buf_len = 0;
-		lv->lv_bytes = 0;
-		lv->lv_buf = (char *)lv + buf_size - nbytes;
 		ASSERT(IS_ALIGNED((unsigned long)lv->lv_buf, sizeof(uint64_t)));
-
 		lip->li_ops->iop_format(lip, lv);
 insert:
-		ASSERT(lv->lv_buf_len <= nbytes);
 		xfs_cil_prepare_item(log, lv, old_lv, diff_len, diff_iovecs);
 	}
 }
@@ -782,6 +905,13 @@ xfs_log_commit_cil(
 {
 	struct xlog		*log = mp->m_log;
 	struct xfs_cil		*cil = log->l_cilp;
+
+	/*
+	 * Do all necessary memory allocation before we lock the CIL.
+	 * This ensures the allocation does not deadlock with a CIL
+	 * push in memory reclaim (e.g. from kswapd).
+	 */
+	xlog_cil_alloc_shadow_bufs(log, tp);
 
 	/* lock out background commit */
 	down_read(&cil->xc_ctx_lock);

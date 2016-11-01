@@ -1187,8 +1187,9 @@ static int fjes_probe(struct platform_device *plat_dev)
 	adapter->force_reset = false;
 	adapter->open_guard = false;
 
-	adapter->txrx_wq = create_workqueue(DRV_NAME "/txrx");
-	adapter->control_wq = create_workqueue(DRV_NAME "/control");
+	adapter->txrx_wq = alloc_workqueue(DRV_NAME "/txrx", WQ_MEM_RECLAIM, 0);
+	adapter->control_wq = alloc_workqueue(DRV_NAME "/control",
+					      WQ_MEM_RECLAIM, 0);
 
 	INIT_WORK(&adapter->tx_stall_task, fjes_tx_stall_task);
 	INIT_WORK(&adapter->raise_intr_rxdata_task,

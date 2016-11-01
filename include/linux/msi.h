@@ -47,6 +47,7 @@ struct fsl_mc_msi_desc {
  * @nvec_used:	The number of vectors used
  * @dev:	Pointer to the device which uses this descriptor
  * @msg:	The last set MSI message cached for reuse
+ * @affinity:	Optional pointer to a cpu affinity mask for this descriptor
  *
  * @masked:	[PCI MSI/X] Mask bits
  * @is_msix:	[PCI MSI/X] True if MSI-X
@@ -67,6 +68,7 @@ struct msi_desc {
 	unsigned int			nvec_used;
 	struct device			*dev;
 	struct msi_msg			msg;
+	const struct cpumask		*affinity;
 
 	union {
 		/* PCI MSI/X specific data */
@@ -264,12 +266,12 @@ enum {
 	 * callbacks.
 	 */
 	MSI_FLAG_USE_DEF_CHIP_OPS	= (1 << 1),
-	/* Build identity map between hwirq and irq */
-	MSI_FLAG_IDENTITY_MAP		= (1 << 2),
 	/* Support multiple PCI MSI interrupts */
-	MSI_FLAG_MULTI_PCI_MSI		= (1 << 3),
+	MSI_FLAG_MULTI_PCI_MSI		= (1 << 2),
 	/* Support PCI MSIX interrupts */
-	MSI_FLAG_PCI_MSIX		= (1 << 4),
+	MSI_FLAG_PCI_MSIX		= (1 << 3),
+	/* Needs early activate, required for PCI */
+	MSI_FLAG_ACTIVATE_EARLY		= (1 << 4),
 };
 
 int msi_domain_set_affinity(struct irq_data *data, const struct cpumask *mask,

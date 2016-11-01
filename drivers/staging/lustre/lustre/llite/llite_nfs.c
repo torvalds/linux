@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -172,6 +168,24 @@ ll_iget_for_nfs(struct super_block *sb, struct lu_fid *fid, struct lu_fid *paren
 
 	/* N.B. d_obtain_alias() drops inode ref on error */
 	result = d_obtain_alias(inode);
+	if (!IS_ERR(result)) {
+		int rc;
+
+		rc = ll_d_init(result);
+		if (rc < 0) {
+			dput(result);
+			result = ERR_PTR(rc);
+		} else {
+			struct ll_dentry_data *ldd = ll_d2d(result);
+
+			/*
+			 * Need to signal to the ll_intent_file_open that
+			 * we came from NFS and so opencache needs to be
+			 * enabled for this one
+			 */
+			ldd->lld_nfs_dentry = 1;
+		}
+	}
 
 	return result;
 }

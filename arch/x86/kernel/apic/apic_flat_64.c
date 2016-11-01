@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/hardirq.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <asm/smp.h>
 #include <asm/apic.h>
 #include <asm/ipi.h>
@@ -181,7 +181,6 @@ static struct apic apic_flat =  {
 
 	.get_apic_id			= flat_get_apic_id,
 	.set_apic_id			= set_apic_id,
-	.apic_id_mask			= 0xFFu << 24,
 
 	.cpu_mask_to_apicid_and		= flat_cpu_mask_to_apicid_and,
 
@@ -278,7 +277,6 @@ static struct apic apic_physflat =  {
 
 	.get_apic_id			= flat_get_apic_id,
 	.set_apic_id			= set_apic_id,
-	.apic_id_mask			= 0xFFu << 24,
 
 	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
 

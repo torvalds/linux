@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -577,7 +573,7 @@ static inline struct cl_env *cl_env_fetch(void)
 {
 	struct cl_env *cle;
 
-	cle = cfs_hash_lookup(cl_env_hash, (void *) (long) current->pid);
+	cle = cfs_hash_lookup(cl_env_hash, (void *)(long)current->pid);
 	LASSERT(ergo(cle, cle->ce_magic == &cl_env_init0));
 	return cle;
 }
@@ -588,7 +584,7 @@ static inline void cl_env_attach(struct cl_env *cle)
 		int rc;
 
 		LASSERT(!cle->ce_owner);
-		cle->ce_owner = (void *) (long) current->pid;
+		cle->ce_owner = (void *)(long)current->pid;
 		rc = cfs_hash_add_unique(cl_env_hash, cle->ce_owner,
 					 &cle->ce_node);
 		LASSERT(rc == 0);
@@ -599,7 +595,7 @@ static inline void cl_env_do_detach(struct cl_env *cle)
 {
 	void *cookie;
 
-	LASSERT(cle->ce_owner == (void *) (long) current->pid);
+	LASSERT(cle->ce_owner == (void *)(long)current->pid);
 	cookie = cfs_hash_del(cl_env_hash, cle->ce_owner,
 			      &cle->ce_node);
 	LASSERT(cookie == cle);

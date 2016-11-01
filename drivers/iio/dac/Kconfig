@@ -248,11 +248,12 @@ config MCP4922
 config STX104
 	tristate "Apex Embedded Systems STX104 DAC driver"
 	depends on X86 && ISA_BUS_API
+	select GPIOLIB
 	help
-	  Say yes here to build support for the 2-channel DAC on the Apex
-	  Embedded Systems STX104 integrated analog PC/104 card. The base port
-	  addresses for the devices may be configured via the "base" module
-	  parameter array.
+	  Say yes here to build support for the 2-channel DAC and GPIO on the
+	  Apex Embedded Systems STX104 integrated analog PC/104 card. The base
+	  port addresses for the devices may be configured via the base array
+	  module parameter.
 
 config VF610_DAC
 	tristate "Vybrid vf610 DAC driver"

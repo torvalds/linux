@@ -158,7 +158,6 @@ static const struct file_operations exports_proc_operations = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
-	.owner		= THIS_MODULE,
 };
 
 static int exports_nfsd_open(struct inode *inode, struct file *file)
@@ -171,7 +170,6 @@ static const struct file_operations exports_nfsd_operations = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
-	.owner		= THIS_MODULE,
 };
 
 static int export_features_show(struct seq_file *m, void *v)
@@ -217,7 +215,6 @@ static const struct file_operations pool_stats_operations = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= nfsd_pool_stats_release,
-	.owner		= THIS_MODULE,
 };
 
 static struct file_operations reply_cache_stats_operations = {
@@ -1154,20 +1151,15 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 #endif
 		/* last one */ {""}
 	};
-	struct net *net = data;
-	int ret;
-
-	ret = simple_fill_super(sb, 0x6e667364, nfsd_files);
-	if (ret)
-		return ret;
-	sb->s_fs_info = get_net(net);
-	return 0;
+	get_net(sb->s_fs_info);
+	return simple_fill_super(sb, 0x6e667364, nfsd_files);
 }
 
 static struct dentry *nfsd_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	return mount_ns(fs_type, flags, current->nsproxy->net_ns, nfsd_fill_super);
+	struct net *net = current->nsproxy->net_ns;
+	return mount_ns(fs_type, flags, data, net, net->user_ns, nfsd_fill_super);
 }
 
 static void nfsd_umount(struct super_block *sb)

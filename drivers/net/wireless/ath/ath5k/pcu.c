@@ -219,8 +219,8 @@ ath5k_hw_get_default_sifs(struct ath5k_hw *ah)
 		sifs = AR5K_INIT_SIFS_QUARTER_RATE;
 		break;
 	case AR5K_BWMODE_DEFAULT:
-		sifs = AR5K_INIT_SIFS_DEFAULT_BG;
 	default:
+		sifs = AR5K_INIT_SIFS_DEFAULT_BG;
 		if (channel->band == NL80211_BAND_5GHZ)
 			sifs = AR5K_INIT_SIFS_DEFAULT_A;
 		break;

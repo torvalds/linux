@@ -16,7 +16,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/reset.h>
@@ -183,39 +183,17 @@ err_clk_register:
 	return ret;
 }
 
-static int sun9i_a80_mmc_config_clk_remove(struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-	struct sun9i_mmc_clk_data *data = platform_get_drvdata(pdev);
-	struct clk_onecell_data *clk_data = &data->clk_data;
-	int i;
-
-	reset_controller_unregister(&data->rcdev);
-	of_clk_del_provider(np);
-	for (i = 0; i < clk_data->clk_num; i++)
-		clk_unregister(clk_data->clks[i]);
-
-	reset_control_assert(data->reset);
-
-	return 0;
-}
-
 static const struct of_device_id sun9i_a80_mmc_config_clk_dt_ids[] = {
 	{ .compatible = "allwinner,sun9i-a80-mmc-config-clk" },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, sun9i_a80_mmc_config_clk_dt_ids);
 
 static struct platform_driver sun9i_a80_mmc_config_clk_driver = {
 	.driver = {
 		.name = "sun9i-a80-mmc-config-clk",
+		.suppress_bind_attrs = true,
 		.of_match_table = sun9i_a80_mmc_config_clk_dt_ids,
 	},
 	.probe = sun9i_a80_mmc_config_clk_probe,
-	.remove = sun9i_a80_mmc_config_clk_remove,
 };
-module_platform_driver(sun9i_a80_mmc_config_clk_driver);
-
-MODULE_AUTHOR("Chen-Yu Tsai <wens@csie.org>");
-MODULE_DESCRIPTION("Allwinner A80 MMC clock/reset Driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(sun9i_a80_mmc_config_clk_driver);

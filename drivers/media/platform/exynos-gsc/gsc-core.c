@@ -1123,19 +1123,13 @@ static int gsc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_m2m;
 
-	/* Initialize continious memory allocator */
-	gsc->alloc_ctx = vb2_dma_contig_init_ctx(dev);
-	if (IS_ERR(gsc->alloc_ctx)) {
-		ret = PTR_ERR(gsc->alloc_ctx);
-		goto err_pm;
-	}
+	vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
 
 	dev_dbg(dev, "gsc-%d registered successfully\n", gsc->id);
 
 	pm_runtime_put(dev);
 	return 0;
-err_pm:
-	pm_runtime_put(dev);
+
 err_m2m:
 	gsc_unregister_m2m_device(gsc);
 err_v4l2:
@@ -1152,7 +1146,7 @@ static int gsc_remove(struct platform_device *pdev)
 	gsc_unregister_m2m_device(gsc);
 	v4l2_device_unregister(&gsc->v4l2_dev);
 
-	vb2_dma_contig_cleanup_ctx(gsc->alloc_ctx);
+	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	gsc_clk_put(gsc);
 

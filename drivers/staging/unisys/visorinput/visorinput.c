@@ -506,7 +506,7 @@ calc_button(int x)
 	case 3:
 		return BTN_RIGHT;
 	default:
-		return -1;
+		return -EINVAL;
 	}
 }
 

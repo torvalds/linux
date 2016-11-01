@@ -6,7 +6,7 @@
  */
  
 #include <linux/compiler.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <asm/checksum.h>
 
 static inline unsigned short from32to16(unsigned a) 

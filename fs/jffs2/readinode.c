@@ -674,7 +674,7 @@ static inline int read_direntry(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 		}
 	}
 
-	fd->nhash = full_name_hash(fd->name, rd->nsize);
+	fd->nhash = full_name_hash(NULL, fd->name, rd->nsize);
 	fd->next = NULL;
 	fd->name[rd->nsize] = '\0';
 

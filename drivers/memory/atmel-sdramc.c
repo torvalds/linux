@@ -1,6 +1,8 @@
 /*
  * Atmel (Multi-port DDR-)SDRAM Controller driver
  *
+ * Author: Alexandre Belloni <alexandre.belloni@free-electrons.com>
+ *
  * Copyright (C) 2014 Atmel
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,7 +22,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
@@ -48,7 +50,6 @@ static const struct of_device_id atmel_ramc_of_match[] = {
 	{ .compatible = "atmel,sama5d3-ddramc", .data = &sama5d3_caps, },
 	{},
 };
-MODULE_DEVICE_TABLE(of, atmel_ramc_of_match);
 
 static int atmel_ramc_probe(struct platform_device *pdev)
 {
@@ -90,8 +91,4 @@ static int __init atmel_ramc_init(void)
 {
 	return platform_driver_register(&atmel_ramc_driver);
 }
-module_init(atmel_ramc_init);
-
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Alexandre Belloni <alexandre.belloni@free-electrons.com>");
-MODULE_DESCRIPTION("Atmel (Multi-port DDR-)SDRAM Controller");
+device_initcall(atmel_ramc_init);

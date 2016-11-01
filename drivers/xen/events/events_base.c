@@ -895,7 +895,7 @@ static int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 		irq_set_chip_and_handler_name(irq, &xen_percpu_chip,
 					      handle_percpu_irq, "ipi");
 
-		bind_ipi.vcpu = cpu;
+		bind_ipi.vcpu = xen_vcpu_nr(cpu);
 		if (HYPERVISOR_event_channel_op(EVTCHNOP_bind_ipi,
 						&bind_ipi) != 0)
 			BUG();
@@ -991,7 +991,7 @@ int bind_virq_to_irq(unsigned int virq, unsigned int cpu, bool percpu)
 						      handle_edge_irq, "virq");
 
 		bind_virq.virq = virq;
-		bind_virq.vcpu = cpu;
+		bind_virq.vcpu = xen_vcpu_nr(cpu);
 		ret = HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq,
 						&bind_virq);
 		if (ret == 0)
@@ -1211,7 +1211,8 @@ void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector)
 
 #ifdef CONFIG_X86
 	if (unlikely(vector == XEN_NMI_VECTOR)) {
-		int rc =  HYPERVISOR_vcpu_op(VCPUOP_send_nmi, cpu, NULL);
+		int rc =  HYPERVISOR_vcpu_op(VCPUOP_send_nmi, xen_vcpu_nr(cpu),
+					     NULL);
 		if (rc < 0)
 			printk(KERN_WARNING "Sending nmi to CPU%d failed (rc:%d)\n", cpu, rc);
 		return;
@@ -1318,7 +1319,7 @@ static int rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 
 	/* Send future instances of this interrupt to other vcpu. */
 	bind_vcpu.port = evtchn;
-	bind_vcpu.vcpu = tcpu;
+	bind_vcpu.vcpu = xen_vcpu_nr(tcpu);
 
 	/*
 	 * Mask the event while changing the VCPU binding to prevent
@@ -1458,7 +1459,7 @@ static void restore_cpu_virqs(unsigned int cpu)
 
 		/* Get a new binding from Xen. */
 		bind_virq.virq = virq;
-		bind_virq.vcpu = cpu;
+		bind_virq.vcpu = xen_vcpu_nr(cpu);
 		if (HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq,
 						&bind_virq) != 0)
 			BUG();
@@ -1482,7 +1483,7 @@ static void restore_cpu_ipis(unsigned int cpu)
 		BUG_ON(ipi_from_irq(irq) != ipi);
 
 		/* Get a new binding from Xen. */
-		bind_ipi.vcpu = cpu;
+		bind_ipi.vcpu = xen_vcpu_nr(cpu);
 		if (HYPERVISOR_event_channel_op(EVTCHNOP_bind_ipi,
 						&bind_ipi) != 0)
 			BUG();

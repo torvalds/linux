@@ -33,6 +33,18 @@
  */
 #define IXGBE_HV_RESET_OFFSET           0x201
 
+static inline s32 ixgbevf_write_msg_read_ack(struct ixgbe_hw *hw, u32 *msg,
+					     u32 *retmsg, u16 size)
+{
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	s32 retval = mbx->ops.write_posted(hw, msg, size);
+
+	if (retval)
+		return retval;
+
+	return mbx->ops.read_posted(hw, retmsg, size);
+}
+
 /**
  *  ixgbevf_start_hw_vf - Prepare hardware for Tx/Rx
  *  @hw: pointer to hardware structure
@@ -255,8 +267,7 @@ static s32 ixgbevf_get_mac_addr_vf(struct ixgbe_hw *hw, u8 *mac_addr)
 
 static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 {
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
-	u32 msgbuf[3];
+	u32 msgbuf[3], msgbuf_chk;
 	u8 *msg_addr = (u8 *)(&msgbuf[1]);
 	s32 ret_val;
 
@@ -268,19 +279,18 @@ static s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 	 */
 	msgbuf[0] |= index << IXGBE_VT_MSGINFO_SHIFT;
 	msgbuf[0] |= IXGBE_VF_SET_MACVLAN;
+	msgbuf_chk = msgbuf[0];
+
 	if (addr)
 		ether_addr_copy(msg_addr, addr);
-	ret_val = mbx->ops.write_posted(hw, msgbuf, 3);
 
-	if (!ret_val)
-		ret_val = mbx->ops.read_posted(hw, msgbuf, 3);
+	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 3);
+	if (!ret_val) {
+		msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
-	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
-
-	if (!ret_val)
-		if (msgbuf[0] ==
-		    (IXGBE_VF_SET_MACVLAN | IXGBE_VT_MSGTYPE_NACK))
-			ret_val = -ENOMEM;
+		if (msgbuf[0] == (msgbuf_chk | IXGBE_VT_MSGTYPE_NACK))
+			return -ENOMEM;
+	}
 
 	return ret_val;
 }
@@ -423,7 +433,6 @@ int ixgbevf_get_rss_key_locked(struct ixgbe_hw *hw, u8 *rss_key)
 static s32 ixgbevf_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 			      u32 vmdq)
 {
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[3];
 	u8 *msg_addr = (u8 *)(&msgbuf[1]);
 	s32 ret_val;
@@ -431,10 +440,8 @@ static s32 ixgbevf_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 	memset(msgbuf, 0, sizeof(msgbuf));
 	msgbuf[0] = IXGBE_VF_SET_MAC_ADDR;
 	ether_addr_copy(msg_addr, addr);
-	ret_val = mbx->ops.write_posted(hw, msgbuf, 3);
 
-	if (!ret_val)
-		ret_val = mbx->ops.read_posted(hw, msgbuf, 3);
+	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
 
 	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
@@ -466,17 +473,6 @@ static s32 ixgbevf_hv_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 		return 0;
 
 	return -EOPNOTSUPP;
-}
-
-static void ixgbevf_write_msg_read_ack(struct ixgbe_hw *hw,
-				       u32 *msg, u16 size)
-{
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
-	u32 retmsg[IXGBE_VFMAILBOX_SIZE];
-	s32 retval = mbx->ops.write_posted(hw, msg, size);
-
-	if (!retval)
-		mbx->ops.read_posted(hw, retmsg, size);
 }
 
 /**
@@ -519,7 +515,7 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 		vector_list[i++] = ixgbevf_mta_vector(hw, ha->addr);
 	}
 
-	ixgbevf_write_msg_read_ack(hw, msgbuf, IXGBE_VFMAILBOX_SIZE);
+	ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, IXGBE_VFMAILBOX_SIZE);
 
 	return 0;
 }
@@ -542,7 +538,6 @@ static s32 ixgbevf_hv_update_mc_addr_list_vf(struct ixgbe_hw *hw,
  **/
 static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 {
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
 	s32 err;
 
@@ -556,11 +551,7 @@ static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 	msgbuf[0] = IXGBE_VF_UPDATE_XCAST_MODE;
 	msgbuf[1] = xcast_mode;
 
-	err = mbx->ops.write_posted(hw, msgbuf, 2);
-	if (err)
-		return err;
-
-	err = mbx->ops.read_posted(hw, msgbuf, 2);
+	err = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
 	if (err)
 		return err;
 
@@ -589,7 +580,6 @@ static s32 ixgbevf_hv_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 static s32 ixgbevf_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 			       bool vlan_on)
 {
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
 	s32 err;
 
@@ -598,11 +588,7 @@ static s32 ixgbevf_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	/* Setting the 8 bit field MSG INFO to TRUE indicates "add" */
 	msgbuf[0] |= vlan_on << IXGBE_VT_MSGINFO_SHIFT;
 
-	err = mbx->ops.write_posted(hw, msgbuf, 2);
-	if (err)
-		goto mbx_err;
-
-	err = mbx->ops.read_posted(hw, msgbuf, 2);
+	err = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
 	if (err)
 		goto mbx_err;
 
@@ -797,13 +783,22 @@ out:
  *  @hw: pointer to the HW structure
  *  @max_size: value to assign to max frame size
  **/
-static void ixgbevf_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
+static s32 ixgbevf_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
 {
 	u32 msgbuf[2];
+	s32 ret_val;
 
 	msgbuf[0] = IXGBE_VF_SET_LPE;
 	msgbuf[1] = max_size;
-	ixgbevf_write_msg_read_ack(hw, msgbuf, 2);
+
+	ret_val = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 2);
+	if (ret_val)
+		return ret_val;
+	if ((msgbuf[0] & IXGBE_VF_SET_LPE) &&
+	    (msgbuf[0] & IXGBE_VT_MSGTYPE_NACK))
+		return IXGBE_ERR_MBX;
+
+	return 0;
 }
 
 /**
@@ -812,7 +807,7 @@ static void ixgbevf_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
  * @max_size: value to assign to max frame size
  * Hyper-V variant.
  **/
-static void ixgbevf_hv_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
+static s32 ixgbevf_hv_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
 {
 	u32 reg;
 
@@ -823,6 +818,8 @@ static void ixgbevf_hv_set_rlpml_vf(struct ixgbe_hw *hw, u16 max_size)
 	/* CRC == 4 */
 	reg |= ((max_size + 4) | IXGBE_RXDCTL_RLPML_EN);
 	IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(0), reg);
+
+	return 0;
 }
 
 /**
@@ -839,11 +836,8 @@ static int ixgbevf_negotiate_api_version_vf(struct ixgbe_hw *hw, int api)
 	msg[0] = IXGBE_VF_API_NEGOTIATE;
 	msg[1] = api;
 	msg[2] = 0;
-	err = hw->mbx.ops.write_posted(hw, msg, 3);
 
-	if (!err)
-		err = hw->mbx.ops.read_posted(hw, msg, 3);
-
+	err = ixgbevf_write_msg_read_ack(hw, msg, msg, 3);
 	if (!err) {
 		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
@@ -892,11 +886,8 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 	/* Fetch queue configuration from the PF */
 	msg[0] = IXGBE_VF_GET_QUEUE;
 	msg[1] = msg[2] = msg[3] = msg[4] = 0;
-	err = hw->mbx.ops.write_posted(hw, msg, 5);
 
-	if (!err)
-		err = hw->mbx.ops.read_posted(hw, msg, 5);
-
+	err = ixgbevf_write_msg_read_ack(hw, msg, msg, 5);
 	if (!err) {
 		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
 
@@ -1004,4 +995,9 @@ const struct ixgbevf_info ixgbevf_X550EM_x_vf_info = {
 const struct ixgbevf_info ixgbevf_X550EM_x_vf_hv_info = {
 	.mac = ixgbe_mac_X550EM_x_vf,
 	.mac_ops = &ixgbevf_hv_mac_ops,
+};
+
+const struct ixgbevf_info ixgbevf_x550em_a_vf_info = {
+	.mac = ixgbe_mac_x550em_a_vf,
+	.mac_ops = &ixgbevf_mac_ops,
 };

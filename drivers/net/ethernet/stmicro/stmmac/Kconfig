@@ -40,7 +40,7 @@ config DWMAC_GENERIC
 config DWMAC_IPQ806X
 	tristate "QCA IPQ806x DWMAC support"
 	default ARCH_QCOM
-	depends on OF
+	depends on OF && (ARCH_QCOM || COMPILE_TEST)
 	select MFD_SYSCON
 	help
 	  Support for QCA IPQ806X DWMAC Ethernet.
@@ -53,7 +53,7 @@ config DWMAC_IPQ806X
 config DWMAC_LPC18XX
 	tristate "NXP LPC18xx/43xx DWMAC support"
 	default ARCH_LPC18XX
-	depends on OF
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
 	select MFD_SYSCON
 	---help---
 	  Support for NXP LPC18xx/43xx DWMAC Ethernet.
@@ -61,7 +61,7 @@ config DWMAC_LPC18XX
 config DWMAC_MESON
 	tristate "Amlogic Meson dwmac support"
 	default ARCH_MESON
-	depends on OF
+	depends on OF && (ARCH_MESON || COMPILE_TEST)
 	help
 	  Support for Ethernet controller on Amlogic Meson SoCs.
 
@@ -72,7 +72,7 @@ config DWMAC_MESON
 config DWMAC_ROCKCHIP
 	tristate "Rockchip dwmac support"
 	default ARCH_ROCKCHIP
-	depends on OF
+	depends on OF && (ARCH_ROCKCHIP || COMPILE_TEST)
 	select MFD_SYSCON
 	help
 	  Support for Ethernet controller on Rockchip RK3288 SoC.
@@ -83,7 +83,7 @@ config DWMAC_ROCKCHIP
 config DWMAC_SOCFPGA
 	tristate "SOCFPGA dwmac support"
 	default ARCH_SOCFPGA
-	depends on OF
+	depends on OF && (ARCH_SOCFPGA || COMPILE_TEST)
 	select MFD_SYSCON
 	help
 	  Support for ethernet controller on Altera SOCFPGA
@@ -95,7 +95,7 @@ config DWMAC_SOCFPGA
 config DWMAC_STI
 	tristate "STi GMAC support"
 	default ARCH_STI
-	depends on OF
+	depends on OF && (ARCH_STI || COMPILE_TEST)
 	select MFD_SYSCON
 	---help---
 	  Support for ethernet controller on STi SOCs.
@@ -107,7 +107,7 @@ config DWMAC_STI
 config DWMAC_SUNXI
 	tristate "Allwinner GMAC support"
 	default ARCH_SUNXI
-	depends on OF
+	depends on OF && (ARCH_SUNXI || COMPILE_TEST)
 	---help---
 	  Support for Allwinner A20/A31 GMAC ethernet controllers.
 

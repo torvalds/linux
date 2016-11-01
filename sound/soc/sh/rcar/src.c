@@ -226,8 +226,12 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	ifscr = 0;
 	fsrate = 0;
 	if (fin != fout) {
+		u64 n;
+
 		ifscr = 1;
-		fsrate = 0x0400000 / fout * fin;
+		n = (u64)0x0400000 * fin;
+		do_div(n, fout);
+		fsrate = n;
 	}
 
 	/*

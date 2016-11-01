@@ -46,9 +46,9 @@ batadv_hardif_neigh_get(const struct batadv_hard_iface *hard_iface,
 void
 batadv_hardif_neigh_put(struct batadv_hardif_neigh_node *hardif_neigh);
 struct batadv_neigh_node *
-batadv_neigh_node_new(struct batadv_orig_node *orig_node,
-		      struct batadv_hard_iface *hard_iface,
-		      const u8 *neigh_addr);
+batadv_neigh_node_get_or_create(struct batadv_orig_node *orig_node,
+				struct batadv_hard_iface *hard_iface,
+				const u8 *neigh_addr);
 void batadv_neigh_node_put(struct batadv_neigh_node *neigh_node);
 struct batadv_neigh_node *
 batadv_orig_router_get(struct batadv_orig_node *orig_node,

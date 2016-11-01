@@ -138,8 +138,10 @@ void machine__exit(struct machine *machine)
 
 void machine__delete(struct machine *machine)
 {
-	machine__exit(machine);
-	free(machine);
+	if (machine) {
+		machine__exit(machine);
+		free(machine);
+	}
 }
 
 void machines__init(struct machines *machines)
@@ -1091,11 +1093,19 @@ static int machine__set_modules_path(struct machine *machine)
 
 	return map_groups__set_modules_path_dir(&machine->kmaps, modules_path, 0);
 }
+int __weak arch__fix_module_text_start(u64 *start __maybe_unused,
+				const char *name __maybe_unused)
+{
+	return 0;
+}
 
 static int machine__create_module(void *arg, const char *name, u64 start)
 {
 	struct machine *machine = arg;
 	struct map *map;
+
+	if (arch__fix_module_text_start(&start, name) < 0)
+		return -1;
 
 	map = machine__findnew_module_map(machine, start, name);
 	if (map == NULL)
@@ -1353,11 +1363,16 @@ int machine__process_mmap2_event(struct machine *machine,
 	if (map == NULL)
 		goto out_problem_map;
 
-	thread__insert_map(thread, map);
+	ret = thread__insert_map(thread, map);
+	if (ret)
+		goto out_problem_insert;
+
 	thread__put(thread);
 	map__put(map);
 	return 0;
 
+out_problem_insert:
+	map__put(map);
 out_problem_map:
 	thread__put(thread);
 out_problem:
@@ -1403,11 +1418,16 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 	if (map == NULL)
 		goto out_problem_map;
 
-	thread__insert_map(thread, map);
+	ret = thread__insert_map(thread, map);
+	if (ret)
+		goto out_problem_insert;
+
 	thread__put(thread);
 	map__put(map);
 	return 0;
 
+out_problem_insert:
+	map__put(map);
 out_problem_map:
 	thread__put(thread);
 out_problem:

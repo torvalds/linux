@@ -165,7 +165,7 @@ SECTIONS
 	. = ALIGN(8);
 	.dynsym : AT(ADDR(.dynsym) - LOAD_OFFSET)
 	{
-#ifdef CONFIG_RELOCATABLE_PPC32
+#ifdef CONFIG_PPC32
 		__dynamic_symtab = .;
 #endif
 		*(.dynsym)

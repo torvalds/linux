@@ -448,7 +448,7 @@ static int null_lnvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	struct request *rq;
 	struct bio *bio = rqd->bio;
 
-	rq = blk_mq_alloc_request(q, bio_rw(bio), 0);
+	rq = blk_mq_alloc_request(q, bio_data_dir(bio), 0);
 	if (IS_ERR(rq))
 		return -ENOMEM;
 

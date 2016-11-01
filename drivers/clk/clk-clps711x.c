@@ -184,5 +184,5 @@ static void __init clps711x_clk_init_dt(struct device_node *np)
 	of_clk_add_provider(np, of_clk_src_onecell_get,
 			    &clps711x_clk->clk_data);
 }
-CLK_OF_DECLARE(clps711x, "cirrus,clps711x-clk", clps711x_clk_init_dt);
+CLK_OF_DECLARE(clps711x, "cirrus,ep7209-clk", clps711x_clk_init_dt);
 #endif

@@ -227,15 +227,24 @@ static int skl_pcm_prepare(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
+	struct skl *skl = get_skl_ctx(dai->dev);
 	unsigned int format_val;
 	int err;
+	struct skl_module_cfg *mconfig;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
+
+	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
 
 	format_val = skl_get_format(substream, dai);
 	dev_dbg(dai->dev, "stream_tag=%d formatvalue=%d\n",
 				hdac_stream(stream)->stream_tag, format_val);
 	snd_hdac_stream_reset(hdac_stream(stream));
+
+	/* In case of XRUN recovery, reset the FW pipe to clean state */
+	if (mconfig && (substream->runtime->status->state ==
+					SNDRV_PCM_STATE_XRUN))
+		skl_reset_pipe(skl->skl_sst, mconfig->pipe);
 
 	err = snd_hdac_stream_set_params(hdac_stream(stream), format_val);
 	if (err < 0)
@@ -521,6 +530,8 @@ static int skl_link_pcm_prepare(struct snd_pcm_substream *substream,
 	struct skl_dma_params *dma_params;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct hdac_ext_link *link;
+	struct skl *skl = get_skl_ctx(dai->dev);
+	struct skl_module_cfg *mconfig = NULL;
 
 	dma_params  = (struct skl_dma_params *)
 			snd_soc_dai_get_dma_data(codec_dai, substream);
@@ -534,6 +545,12 @@ static int skl_link_pcm_prepare(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	snd_hdac_ext_link_stream_reset(link_dev);
+
+	/* In case of XRUN recovery, reset the FW pipe to clean state */
+	mconfig = skl_tplg_be_get_cpr_module(dai, substream->stream);
+	if (mconfig && (substream->runtime->status->state ==
+					SNDRV_PCM_STATE_XRUN))
+		skl_reset_pipe(skl->skl_sst, mconfig->pipe);
 
 	snd_hdac_ext_link_stream_setup(link_dev, format_val);
 
@@ -1009,51 +1026,11 @@ static int skl_platform_pcm_trigger(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-/* calculate runtime delay from LPIB */
-static int skl_get_delay_from_lpib(struct hdac_ext_bus *ebus,
-				struct hdac_ext_stream *sstream,
-				unsigned int pos)
+static snd_pcm_uframes_t skl_platform_pcm_pointer
+			(struct snd_pcm_substream *substream)
 {
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
-	struct hdac_stream *hstream = hdac_stream(sstream);
-	struct snd_pcm_substream *substream = hstream->substream;
-	int stream = substream->stream;
-	unsigned int lpib_pos = snd_hdac_stream_get_pos_lpib(hstream);
-	int delay;
-
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-		delay = pos - lpib_pos;
-	else
-		delay = lpib_pos - pos;
-
-	if (delay < 0) {
-		if (delay >= hstream->delay_negative_threshold)
-			delay = 0;
-		else
-			delay += hstream->bufsize;
-	}
-
-	if (hstream->bufsize == delay)
-		delay = 0;
-
-	if (delay >= hstream->period_bytes) {
-		dev_info(bus->dev,
-			 "Unstable LPIB (%d >= %d); disabling LPIB delay counting\n",
-			 delay, hstream->period_bytes);
-		delay = 0;
-	}
-
-	return bytes_to_frames(substream->runtime, delay);
-}
-
-static unsigned int skl_get_position(struct hdac_ext_stream *hstream,
-					int codec_delay)
-{
-	struct hdac_stream *hstr = hdac_stream(hstream);
-	struct snd_pcm_substream *substream = hstr->substream;
-	struct hdac_ext_bus *ebus;
+	struct hdac_ext_stream *hstream = get_hdac_ext_stream(substream);
 	unsigned int pos;
-	int delay;
 
 	/* use the position buffer as default */
 	pos = snd_hdac_stream_get_pos_posbuf(hdac_stream(hstream));
@@ -1061,23 +1038,7 @@ static unsigned int skl_get_position(struct hdac_ext_stream *hstream,
 	if (pos >= hdac_stream(hstream)->bufsize)
 		pos = 0;
 
-	if (substream->runtime) {
-		ebus = get_bus_ctx(substream);
-		delay = skl_get_delay_from_lpib(ebus, hstream, pos)
-						 + codec_delay;
-		substream->runtime->delay += delay;
-	}
-
-	return pos;
-}
-
-static snd_pcm_uframes_t skl_platform_pcm_pointer
-			(struct snd_pcm_substream *substream)
-{
-	struct hdac_ext_stream *hstream = get_hdac_ext_stream(substream);
-
-	return bytes_to_frames(substream->runtime,
-			       skl_get_position(hstream, 0));
+	return bytes_to_frames(substream->runtime, pos);
 }
 
 static u64 skl_adjust_codec_delay(struct snd_pcm_substream *substream,
@@ -1180,9 +1141,17 @@ static int skl_pcm_new(struct snd_soc_pcm_runtime *rtd)
 static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 {
 	struct hdac_ext_bus *ebus = dev_get_drvdata(platform->dev);
+	struct skl *skl = ebus_to_skl(ebus);
+	int ret;
 
-	if (ebus->ppcap)
-		return skl_tplg_init(platform, ebus);
+	if (ebus->ppcap) {
+		ret = skl_tplg_init(platform, ebus);
+		if (ret < 0) {
+			dev_err(platform->dev, "Failed to init topology!\n");
+			return ret;
+		}
+		skl->platform = platform;
+	}
 
 	return 0;
 }

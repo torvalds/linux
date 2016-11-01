@@ -80,7 +80,8 @@ __cfg802154_wpan_dev_from_attrs(struct net *netns, struct nlattr **attrs)
 	list_for_each_entry(rdev, &cfg802154_rdev_list, list) {
 		struct wpan_dev *wpan_dev;
 
-		/* TODO netns compare */
+		if (wpan_phy_net(&rdev->wpan_phy) != netns)
+			continue;
 
 		if (have_wpan_dev_id && rdev->wpan_phy_idx != wpan_phy_idx)
 			continue;
@@ -175,7 +176,8 @@ __cfg802154_rdev_from_attrs(struct net *netns, struct nlattr **attrs)
 	if (!rdev)
 		return ERR_PTR(-ENODEV);
 
-	/* TODO netns compare */
+	if (netns != wpan_phy_net(&rdev->wpan_phy))
+		return ERR_PTR(-ENODEV);
 
 	return rdev;
 }
@@ -233,6 +235,8 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 
 	[NL802154_ATTR_ACKREQ_DEFAULT] = { .type = NLA_U8 },
 
+	[NL802154_ATTR_PID] = { .type = NLA_U32 },
+	[NL802154_ATTR_NETNS_FD] = { .type = NLA_U32 },
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 	[NL802154_ATTR_SEC_ENABLED] = { .type = NLA_U8, },
 	[NL802154_ATTR_SEC_OUT_LEVEL] = { .type = NLA_U32, },
@@ -590,7 +594,6 @@ static int nl802154_dump_wpan_phy_parse(struct sk_buff *skb,
 		struct cfg802154_registered_device *rdev;
 		int ifidx = nla_get_u32(tb[NL802154_ATTR_IFINDEX]);
 
-		/* TODO netns */
 		netdev = __dev_get_by_index(&init_net, ifidx);
 		if (!netdev)
 			return -ENODEV;
@@ -629,7 +632,8 @@ nl802154_dump_wpan_phy(struct sk_buff *skb, struct netlink_callback *cb)
 	}
 
 	list_for_each_entry(rdev, &cfg802154_rdev_list, list) {
-		/* TODO net ns compare */
+		if (!net_eq(wpan_phy_net(&rdev->wpan_phy), sock_net(skb->sk)))
+			continue;
 		if (++idx <= state->start)
 			continue;
 		if (state->filter_wpan_phy != -1 &&
@@ -871,7 +875,8 @@ nl802154_dump_interface(struct sk_buff *skb, struct netlink_callback *cb)
 
 	rtnl_lock();
 	list_for_each_entry(rdev, &cfg802154_rdev_list, list) {
-		/* TODO netns compare */
+		if (!net_eq(wpan_phy_net(&rdev->wpan_phy), sock_net(skb->sk)))
+			continue;
 		if (wp_idx < wp_start) {
 			wp_idx++;
 			continue;
@@ -1269,6 +1274,37 @@ nl802154_set_ackreq_default(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	return rdev_set_ackreq_default(rdev, wpan_dev, ackreq);
+}
+
+static int nl802154_wpan_phy_netns(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	struct net *net;
+	int err;
+
+	if (info->attrs[NL802154_ATTR_PID]) {
+		u32 pid = nla_get_u32(info->attrs[NL802154_ATTR_PID]);
+
+		net = get_net_ns_by_pid(pid);
+	} else if (info->attrs[NL802154_ATTR_NETNS_FD]) {
+		u32 fd = nla_get_u32(info->attrs[NL802154_ATTR_NETNS_FD]);
+
+		net = get_net_ns_by_fd(fd);
+	} else {
+		return -EINVAL;
+	}
+
+	if (IS_ERR(net))
+		return PTR_ERR(net);
+
+	err = 0;
+
+	/* check if anything to do */
+	if (!net_eq(wpan_phy_net(&rdev->wpan_phy), net))
+		err = cfg802154_switch_netns(rdev, net);
+
+	put_net(net);
+	return err;
 }
 
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
@@ -2256,6 +2292,14 @@ static const struct genl_ops nl802154_ops[] = {
 	{
 		.cmd = NL802154_CMD_SET_TX_POWER,
 		.doit = nl802154_set_tx_power,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_WPAN_PHY_NETNS,
+		.doit = nl802154_wpan_phy_netns,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |

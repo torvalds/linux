@@ -22,7 +22,6 @@
 
 #include <linux/kvm_host.h>
 #include "kvm_cache_regs.h"
-#include <linux/module.h>
 #include <asm/kvm_emulate.h>
 #include <linux/stringify.h>
 #include <asm/debugreg.h>

@@ -92,6 +92,7 @@ struct fsl_tcon *fsl_tcon_init(struct device *dev)
 		goto err_node_put;
 	}
 
+	of_node_put(np);
 	clk_prepare_enable(tcon->ipg_clk);
 
 	dev_info(dev, "Using TCON in bypass mode\n");

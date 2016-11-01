@@ -66,9 +66,7 @@ void __init mpc85xx_ds_pic_init(void)
 	struct device_node *cascade_node = NULL;
 	int cascade_irq;
 #endif
-	unsigned long root = of_get_flat_dt_root();
-
-	if (of_flat_dt_is_compatible(root, "fsl,MPC8572DS-CAMP")) {
+	if (of_machine_is_compatible("fsl,MPC8572DS-CAMP")) {
 		mpic = mpic_alloc(NULL, 0,
 			MPIC_NO_RESET |
 			MPIC_BIG_ENDIAN |
@@ -169,9 +167,7 @@ static void __init mpc85xx_ds_setup_arch(void)
  */
 static int __init mpc8544_ds_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return !!of_flat_dt_is_compatible(root, "MPC8544DS");
+	return !!of_machine_is_compatible("MPC8544DS");
 }
 
 machine_arch_initcall(mpc8544_ds, mpc85xx_common_publish_devices);
@@ -187,9 +183,7 @@ machine_arch_initcall(p2020_ds, swiotlb_setup_bus_notifier);
  */
 static int __init mpc8572_ds_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return !!of_flat_dt_is_compatible(root, "fsl,MPC8572DS");
+	return !!of_machine_is_compatible("fsl,MPC8572DS");
 }
 
 /*
@@ -197,9 +191,7 @@ static int __init mpc8572_ds_probe(void)
  */
 static int __init p2020_ds_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return !!of_flat_dt_is_compatible(root, "fsl,P2020DS");
+	return !!of_machine_is_compatible("fsl,P2020DS");
 }
 
 define_machine(mpc8544_ds) {

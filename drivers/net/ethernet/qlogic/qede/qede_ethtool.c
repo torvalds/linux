@@ -37,6 +37,7 @@ static const struct {
 } qede_rqstats_arr[] = {
 	QEDE_RQSTAT(rx_hw_errors),
 	QEDE_RQSTAT(rx_alloc_errors),
+	QEDE_RQSTAT(rx_ip_frags),
 };
 
 #define QEDE_NUM_RQSTATS ARRAY_SIZE(qede_rqstats_arr)
@@ -424,6 +425,59 @@ static u32 qede_get_link(struct net_device *dev)
 	edev->ops->common->get_link(edev->cdev, &current_link);
 
 	return current_link.link_up;
+}
+
+static int qede_get_coalesce(struct net_device *dev,
+			     struct ethtool_coalesce *coal)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	u16 rxc, txc;
+
+	memset(coal, 0, sizeof(struct ethtool_coalesce));
+	edev->ops->common->get_coalesce(edev->cdev, &rxc, &txc);
+
+	coal->rx_coalesce_usecs = rxc;
+	coal->tx_coalesce_usecs = txc;
+
+	return 0;
+}
+
+static int qede_set_coalesce(struct net_device *dev,
+			     struct ethtool_coalesce *coal)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	int i, rc = 0;
+	u16 rxc, txc;
+	u8 sb_id;
+
+	if (!netif_running(dev)) {
+		DP_INFO(edev, "Interface is down\n");
+		return -EINVAL;
+	}
+
+	if (coal->rx_coalesce_usecs > QED_COALESCE_MAX ||
+	    coal->tx_coalesce_usecs > QED_COALESCE_MAX) {
+		DP_INFO(edev,
+			"Can't support requested %s coalesce value [max supported value %d]\n",
+			coal->rx_coalesce_usecs > QED_COALESCE_MAX ? "rx"
+								   : "tx",
+			QED_COALESCE_MAX);
+		return -EINVAL;
+	}
+
+	rxc = (u16)coal->rx_coalesce_usecs;
+	txc = (u16)coal->tx_coalesce_usecs;
+	for_each_rss(i) {
+		sb_id = edev->fp_array[i].sb_info->igu_sb_id;
+		rc = edev->ops->common->set_coalesce(edev->cdev, rxc, txc,
+						     (u8)i, sb_id);
+		if (rc) {
+			DP_INFO(edev, "Set coalesce error, rc = %d\n", rc);
+			return rc;
+		}
+	}
+
+	return rc;
 }
 
 static void qede_get_ringparam(struct net_device *dev,
@@ -910,6 +964,8 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	memset(first_bd, 0, sizeof(*first_bd));
 	val = 1 << ETH_TX_1ST_BD_FLAGS_START_BD_SHIFT;
 	first_bd->data.bd_flags.bitfields = val;
+	val = skb->len & ETH_TX_DATA_1ST_BD_PKT_LEN_MASK;
+	first_bd->data.bitfields |= (val << ETH_TX_DATA_1ST_BD_PKT_LEN_SHIFT);
 
 	/* Map skb linear data for DMA and set in the first BD */
 	mapping = dma_map_single(&edev->pdev->dev, skb->data,
@@ -1129,6 +1185,48 @@ static void qede_self_test(struct net_device *dev,
 	}
 }
 
+static int qede_set_tunable(struct net_device *dev,
+			    const struct ethtool_tunable *tuna,
+			    const void *data)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	u32 val;
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		val = *(u32 *)data;
+		if (val < QEDE_MIN_PKT_LEN || val > QEDE_RX_HDR_SIZE) {
+			DP_VERBOSE(edev, QED_MSG_DEBUG,
+				   "Invalid rx copy break value, range is [%u, %u]",
+				   QEDE_MIN_PKT_LEN, QEDE_RX_HDR_SIZE);
+			return -EINVAL;
+		}
+
+		edev->rx_copybreak = *(u32 *)data;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int qede_get_tunable(struct net_device *dev,
+			    const struct ethtool_tunable *tuna, void *data)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		*(u32 *)data = edev->rx_copybreak;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static const struct ethtool_ops qede_ethtool_ops = {
 	.get_settings = qede_get_settings,
 	.set_settings = qede_set_settings,
@@ -1137,6 +1235,8 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.set_msglevel = qede_set_msglevel,
 	.nway_reset = qede_nway_reset,
 	.get_link = qede_get_link,
+	.get_coalesce = qede_get_coalesce,
+	.set_coalesce = qede_set_coalesce,
 	.get_ringparam = qede_get_ringparam,
 	.set_ringparam = qede_set_ringparam,
 	.get_pauseparam = qede_get_pauseparam,
@@ -1155,6 +1255,8 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_channels = qede_get_channels,
 	.set_channels = qede_set_channels,
 	.self_test = qede_self_test,
+	.get_tunable = qede_get_tunable,
+	.set_tunable = qede_set_tunable,
 };
 
 static const struct ethtool_ops qede_vf_ethtool_ops = {
@@ -1177,6 +1279,8 @@ static const struct ethtool_ops qede_vf_ethtool_ops = {
 	.set_rxfh = qede_set_rxfh,
 	.get_channels = qede_get_channels,
 	.set_channels = qede_set_channels,
+	.get_tunable = qede_get_tunable,
+	.set_tunable = qede_set_tunable,
 };
 
 void qede_set_ethtool_ops(struct net_device *dev)

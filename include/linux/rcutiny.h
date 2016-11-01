@@ -243,4 +243,11 @@ static inline void rcu_all_qs(void)
 	barrier(); /* Avoid RCU read-side critical sections leaking across. */
 }
 
+/* RCUtree hotplug events */
+#define rcutree_prepare_cpu      NULL
+#define rcutree_online_cpu       NULL
+#define rcutree_offline_cpu      NULL
+#define rcutree_dead_cpu         NULL
+#define rcutree_dying_cpu        NULL
+
 #endif /* __LINUX_RCUTINY_H */

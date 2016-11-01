@@ -89,6 +89,7 @@
 #include <linux/slab.h>
 #include <linux/perf_event.h>
 #include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include "../perf_event.h"
 
 MODULE_LICENSE("GPL");
@@ -365,7 +366,7 @@ static int cstate_pmu_event_add(struct perf_event *event, int mode)
  * Check if exiting cpu is the designated reader. If so migrate the
  * events when there is a valid target available
  */
-static void cstate_cpu_exit(int cpu)
+static int cstate_cpu_exit(unsigned int cpu)
 {
 	unsigned int target;
 
@@ -390,9 +391,10 @@ static void cstate_cpu_exit(int cpu)
 			perf_pmu_migrate_context(&cstate_pkg_pmu, cpu, target);
 		}
 	}
+	return 0;
 }
 
-static void cstate_cpu_init(int cpu)
+static int cstate_cpu_init(unsigned int cpu)
 {
 	unsigned int target;
 
@@ -414,30 +416,9 @@ static void cstate_cpu_init(int cpu)
 				 topology_core_cpumask(cpu));
 	if (has_cstate_pkg && target >= nr_cpu_ids)
 		cpumask_set_cpu(cpu, &cstate_pkg_cpu_mask);
+
+	return 0;
 }
-
-static int cstate_cpu_notifier(struct notifier_block *self,
-			       unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (long)hcpu;
-
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_STARTING:
-		cstate_cpu_init(cpu);
-		break;
-	case CPU_DOWN_PREPARE:
-		cstate_cpu_exit(cpu);
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block cstate_cpu_nb = {
-	.notifier_call	= cstate_cpu_notifier,
-	.priority       = CPU_PRI_PERF + 1,
-};
 
 static struct pmu cstate_core_pmu = {
 	.attr_groups	= core_attr_groups,
@@ -511,37 +492,37 @@ static const struct cstate_model slm_cstates __initconst = {
 	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long) &(states) }
 
 static const struct x86_cpu_id intel_cstates_match[] __initconst = {
-	X86_CSTATES_MODEL(30, nhm_cstates),    /* 45nm Nehalem              */
-	X86_CSTATES_MODEL(26, nhm_cstates),    /* 45nm Nehalem-EP           */
-	X86_CSTATES_MODEL(46, nhm_cstates),    /* 45nm Nehalem-EX           */
+	X86_CSTATES_MODEL(INTEL_FAM6_NEHALEM,    nhm_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_NEHALEM_EP, nhm_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_NEHALEM_EX, nhm_cstates),
 
-	X86_CSTATES_MODEL(37, nhm_cstates),    /* 32nm Westmere             */
-	X86_CSTATES_MODEL(44, nhm_cstates),    /* 32nm Westmere-EP          */
-	X86_CSTATES_MODEL(47, nhm_cstates),    /* 32nm Westmere-EX          */
+	X86_CSTATES_MODEL(INTEL_FAM6_WESTMERE,    nhm_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_WESTMERE_EP, nhm_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_WESTMERE_EX, nhm_cstates),
 
-	X86_CSTATES_MODEL(42, snb_cstates),    /* 32nm SandyBridge          */
-	X86_CSTATES_MODEL(45, snb_cstates),    /* 32nm SandyBridge-E/EN/EP  */
+	X86_CSTATES_MODEL(INTEL_FAM6_SANDYBRIDGE,   snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_SANDYBRIDGE_X, snb_cstates),
 
-	X86_CSTATES_MODEL(58, snb_cstates),    /* 22nm IvyBridge            */
-	X86_CSTATES_MODEL(62, snb_cstates),    /* 22nm IvyBridge-EP/EX      */
+	X86_CSTATES_MODEL(INTEL_FAM6_IVYBRIDGE,   snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_IVYBRIDGE_X, snb_cstates),
 
-	X86_CSTATES_MODEL(60, snb_cstates),    /* 22nm Haswell Core         */
-	X86_CSTATES_MODEL(63, snb_cstates),    /* 22nm Haswell Server       */
-	X86_CSTATES_MODEL(70, snb_cstates),    /* 22nm Haswell + GT3e       */
+	X86_CSTATES_MODEL(INTEL_FAM6_HASWELL_CORE, snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_HASWELL_X,	   snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_HASWELL_GT3E, snb_cstates),
 
-	X86_CSTATES_MODEL(69, hswult_cstates), /* 22nm Haswell ULT          */
+	X86_CSTATES_MODEL(INTEL_FAM6_HASWELL_ULT, hswult_cstates),
 
-	X86_CSTATES_MODEL(55, slm_cstates),    /* 22nm Atom Silvermont      */
-	X86_CSTATES_MODEL(77, slm_cstates),    /* 22nm Atom Avoton/Rangely  */
-	X86_CSTATES_MODEL(76, slm_cstates),    /* 22nm Atom Airmont         */
+	X86_CSTATES_MODEL(INTEL_FAM6_ATOM_SILVERMONT1, slm_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_ATOM_SILVERMONT2, slm_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_ATOM_AIRMONT,     slm_cstates),
 
-	X86_CSTATES_MODEL(61, snb_cstates),    /* 14nm Broadwell Core-M     */
-	X86_CSTATES_MODEL(86, snb_cstates),    /* 14nm Broadwell Xeon D     */
-	X86_CSTATES_MODEL(71, snb_cstates),    /* 14nm Broadwell + GT3e     */
-	X86_CSTATES_MODEL(79, snb_cstates),    /* 14nm Broadwell Server     */
+	X86_CSTATES_MODEL(INTEL_FAM6_BROADWELL_CORE,   snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_BROADWELL_XEON_D, snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_BROADWELL_GT3E,   snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_BROADWELL_X,      snb_cstates),
 
-	X86_CSTATES_MODEL(78, snb_cstates),    /* 14nm Skylake Mobile       */
-	X86_CSTATES_MODEL(94, snb_cstates),    /* 14nm Skylake Desktop      */
+	X86_CSTATES_MODEL(INTEL_FAM6_SKYLAKE_MOBILE,  snb_cstates),
+	X86_CSTATES_MODEL(INTEL_FAM6_SKYLAKE_DESKTOP, snb_cstates),
 	{ },
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_cstates_match);
@@ -599,18 +580,20 @@ static inline void cstate_cleanup(void)
 
 static int __init cstate_init(void)
 {
-	int cpu, err;
+	int err;
 
-	cpu_notifier_register_begin();
-	for_each_online_cpu(cpu)
-		cstate_cpu_init(cpu);
+	cpuhp_setup_state(CPUHP_AP_PERF_X86_CSTATE_STARTING,
+			  "AP_PERF_X86_CSTATE_STARTING", cstate_cpu_init,
+			  NULL);
+	cpuhp_setup_state(CPUHP_AP_PERF_X86_CSTATE_ONLINE,
+			  "AP_PERF_X86_CSTATE_ONLINE", NULL, cstate_cpu_exit);
 
 	if (has_cstate_core) {
 		err = perf_pmu_register(&cstate_core_pmu, cstate_core_pmu.name, -1);
 		if (err) {
 			has_cstate_core = false;
 			pr_info("Failed to register cstate core pmu\n");
-			goto out;
+			return err;
 		}
 	}
 
@@ -620,12 +603,10 @@ static int __init cstate_init(void)
 			has_cstate_pkg = false;
 			pr_info("Failed to register cstate pkg pmu\n");
 			cstate_cleanup();
-			goto out;
+			return err;
 		}
 	}
-	__register_cpu_notifier(&cstate_cpu_nb);
-out:
-	cpu_notifier_register_done();
+
 	return err;
 }
 
@@ -651,9 +632,8 @@ module_init(cstate_pmu_init);
 
 static void __exit cstate_pmu_exit(void)
 {
-	cpu_notifier_register_begin();
-	__unregister_cpu_notifier(&cstate_cpu_nb);
+	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_CSTATE_ONLINE);
+	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_CSTATE_STARTING);
 	cstate_cleanup();
-	cpu_notifier_register_done();
 }
 module_exit(cstate_pmu_exit);

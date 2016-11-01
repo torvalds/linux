@@ -533,6 +533,8 @@ struct mwifiex_private {
 	u16 tx_power_level;
 	u8 max_tx_power_level;
 	u8 min_tx_power_level;
+	u32 tx_ant;
+	u32 rx_ant;
 	u8 tx_rate;
 	u8 tx_htinfo;
 	u8 rxpd_htinfo;
@@ -1054,6 +1056,7 @@ int mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter);
 void mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter);
 void mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter);
 void mwifiex_cancel_pending_scan_cmd(struct mwifiex_adapter *adapter);
+void mwifiex_cancel_scan(struct mwifiex_adapter *adapter);
 
 void mwifiex_recycle_cmd_node(struct mwifiex_adapter *adapter,
 			      struct cmd_ctrl_node *cmd_node);
@@ -1128,7 +1131,8 @@ int mwifiex_cmd_802_11_associate(struct mwifiex_private *priv,
 				 struct mwifiex_bssdescriptor *bss_desc);
 int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 				 struct host_cmd_ds_command *resp);
-void mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason);
+void mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason,
+				 bool from_ap);
 u8 mwifiex_band_to_radio_type(u8 band);
 int mwifiex_deauthenticate(struct mwifiex_private *priv, u8 *mac);
 void mwifiex_deauthenticate_all(struct mwifiex_adapter *adapter);

@@ -29,8 +29,10 @@
 #define S626_ENCODER_CHANNELS   6
 #define S626_DIO_CHANNELS       48
 #define S626_DIO_BANKS		3	/* Number of DIO groups. */
-#define S626_DIO_EXTCHANS	40	/* Number of extended-capability
-					 * DIO channels. */
+#define S626_DIO_EXTCHANS	40	/*
+					 * Number of extended-capability
+					 * DIO channels.
+					 */
 
 #define S626_NUM_TRIMDACS	12	/* Number of valid TrimDAC channels. */
 
@@ -48,21 +50,29 @@
 #define S626_GSEL_BIPOLAR10V	0x00A0	/* S626_LP_GSEL setting 10V bipolar. */
 
 /* Error codes that must be visible to this base class. */
-#define S626_ERR_ILLEGAL_PARM	0x00010000	/* Illegal function parameter
-						 * value was specified. */
+#define S626_ERR_ILLEGAL_PARM	0x00010000	/*
+						 * Illegal function parameter
+						 * value was specified.
+						 */
 #define S626_ERR_I2C		0x00020000	/* I2C error. */
-#define S626_ERR_COUNTERSETUP	0x00200000	/* Illegal setup specified for
-						 * counter channel. */
+#define S626_ERR_COUNTERSETUP	0x00200000	/*
+						 * Illegal setup specified for
+						 * counter channel.
+						 */
 #define S626_ERR_DEBI_TIMEOUT	0x00400000	/* DEBI transfer timed out. */
 
 /*
  * Organization (physical order) and size (in DWORDs) of logical DMA buffers
  * contained by ANA_DMABUF.
  */
-#define S626_ADC_DMABUF_DWORDS	40	/* ADC DMA buffer must hold 16 samples,
-					 * plus pre/post garbage samples. */
-#define S626_DAC_WDMABUF_DWORDS	1	/* DAC output DMA buffer holds a single
-					 * sample. */
+#define S626_ADC_DMABUF_DWORDS	40	/*
+					 * ADC DMA buffer must hold 16 samples,
+					 * plus pre/post garbage samples.
+					 */
+#define S626_DAC_WDMABUF_DWORDS	1	/*
+					 * DAC output DMA buffer holds a single
+					 * sample.
+					 */
 
 /* All remaining space in 4KB DMA buffer is available for the RPS1 program. */
 
@@ -95,60 +105,90 @@
 #define S626_RPS_IRQ		0x60000000	/* IRQ */
 
 #define S626_RPS_LOGICAL_OR	0x08000000	/* Logical OR conditionals. */
-#define S626_RPS_INVERT		0x04000000	/* Test for negated
-						 * semaphores. */
+#define S626_RPS_INVERT		0x04000000	/*
+						 * Test for negated
+						 * semaphores.
+						 */
 #define S626_RPS_DEBI		0x00000002	/* DEBI done */
 
-#define S626_RPS_SIG0		0x00200000	/* RPS semaphore 0
-						 * (used by ADC). */
-#define S626_RPS_SIG1		0x00400000	/* RPS semaphore 1
-						 * (used by DAC). */
-#define S626_RPS_SIG2		0x00800000	/* RPS semaphore 2
-						 * (not used). */
+#define S626_RPS_SIG0		0x00200000	/*
+						 * RPS semaphore 0
+						 * (used by ADC).
+						 */
+#define S626_RPS_SIG1		0x00400000	/*
+						 * RPS semaphore 1
+						 * (used by DAC).
+						 */
+#define S626_RPS_SIG2		0x00800000	/*
+						 * RPS semaphore 2
+						 * (not used).
+						 */
 #define S626_RPS_GPIO2		0x00080000	/* RPS GPIO2 */
 #define S626_RPS_GPIO3		0x00100000	/* RPS GPIO3 */
 
-#define S626_RPS_SIGADC		S626_RPS_SIG0	/* Trigger/status for
-						 * ADC's RPS program. */
-#define S626_RPS_SIGDAC		S626_RPS_SIG1	/* Trigger/status for
-						 * DAC's RPS program. */
+#define S626_RPS_SIGADC		S626_RPS_SIG0	/*
+						 * Trigger/status for
+						 * ADC's RPS program.
+						 */
+#define S626_RPS_SIGDAC		S626_RPS_SIG1	/*
+						 * Trigger/status for
+						 * DAC's RPS program.
+						 */
 
 /* RPS clock parameters. */
-#define S626_RPSCLK_SCALAR	8	/* This is apparent ratio of
-					 * PCI/RPS clks (undocumented!!). */
+#define S626_RPSCLK_SCALAR	8	/*
+					 * This is apparent ratio of
+					 * PCI/RPS clks (undocumented!!).
+					 */
 #define S626_RPSCLK_PER_US	(33 / S626_RPSCLK_SCALAR)
-					/* Number of RPS clocks in one
-					 * microsecond. */
+					/*
+					 * Number of RPS clocks in one
+					 * microsecond.
+					 */
 
 /* Event counter source addresses. */
 #define S626_SBA_RPS_A0		0x27	/* Time of RPS0 busy, in PCI clocks. */
 
 /* GPIO constants. */
-#define S626_GPIO_BASE		0x10004000	/* GPIO 0,2,3 = inputs,
-						 * GPIO3 = IRQ; GPIO1 = out. */
+#define S626_GPIO_BASE		0x10004000	/*
+						 * GPIO 0,2,3 = inputs,
+						 * GPIO3 = IRQ; GPIO1 = out.
+						 */
 #define S626_GPIO1_LO		0x00000000	/* GPIO1 set to LOW. */
 #define S626_GPIO1_HI		0x00001000	/* GPIO1 set to HIGH. */
 
 /* Primary Status Register (PSR) constants. */
 #define S626_PSR_DEBI_E		0x00040000	/* DEBI event flag. */
 #define S626_PSR_DEBI_S		0x00080000	/* DEBI status flag. */
-#define S626_PSR_A2_IN		0x00008000	/* Audio output DMA2 protection
-						 * address reached. */
-#define S626_PSR_AFOU		0x00000800	/* Audio FIFO under/overflow
-						 * detected. */
-#define S626_PSR_GPIO2		0x00000020	/* GPIO2 input pin: 0=AdcBusy,
-						 * 1=AdcIdle. */
-#define S626_PSR_EC0S		0x00000001	/* Event counter 0 threshold
-						 * reached. */
+#define S626_PSR_A2_IN		0x00008000	/*
+						 * Audio output DMA2 protection
+						 * address reached.
+						 */
+#define S626_PSR_AFOU		0x00000800	/*
+						 * Audio FIFO under/overflow
+						 * detected.
+						 */
+#define S626_PSR_GPIO2		0x00000020	/*
+						 * GPIO2 input pin: 0=AdcBusy,
+						 * 1=AdcIdle.
+						 */
+#define S626_PSR_EC0S		0x00000001	/*
+						 * Event counter 0 threshold
+						 * reached.
+						 */
 
 /* Secondary Status Register (SSR) constants. */
-#define S626_SSR_AF2_OUT	0x00000200	/* Audio 2 output FIFO
-						 * under/overflow detected. */
+#define S626_SSR_AF2_OUT	0x00000200	/*
+						 * Audio 2 output FIFO
+						 * under/overflow detected.
+						 */
 
 /* Master Control Register 1 (MC1) constants. */
 #define S626_MC1_SOFT_RESET	0x80000000	/* Invoke 7146 soft reset. */
-#define S626_MC1_SHUTDOWN	0x3FFF0000	/* Shut down all MC1-controlled
-						 * enables. */
+#define S626_MC1_SHUTDOWN	0x3FFF0000	/*
+						 * Shut down all MC1-controlled
+						 * enables.
+						 */
 
 #define S626_MC1_ERPS1		0x2000	/* Enab/disable RPS task 1. */
 #define S626_MC1_ERPS0		0x1000	/* Enab/disable RPS task 0. */
@@ -177,15 +217,23 @@
 #define S626_P_DEBIAD		0x0088	/* DEBI target address. */
 #define S626_P_I2CCTRL		0x008C	/* I2C control. */
 #define S626_P_I2CSTAT		0x0090	/* I2C status. */
-#define S626_P_BASEA2_IN	0x00AC	/* Audio input 2 base physical DMAbuf
-					 * address. */
-#define S626_P_PROTA2_IN	0x00B0	/* Audio input 2 physical DMAbuf
-					 * protection address. */
+#define S626_P_BASEA2_IN	0x00AC	/*
+					 * Audio input 2 base physical DMAbuf
+					 * address.
+					 */
+#define S626_P_PROTA2_IN	0x00B0	/*
+					 * Audio input 2 physical DMAbuf
+					 * protection address.
+					 */
 #define S626_P_PAGEA2_IN	0x00B4	/* Audio input 2 paging attributes. */
-#define S626_P_BASEA2_OUT	0x00B8	/* Audio output 2 base physical DMAbuf
-					 * address. */
-#define S626_P_PROTA2_OUT	0x00BC	/* Audio output 2 physical DMAbuf
-					 * protection address. */
+#define S626_P_BASEA2_OUT	0x00B8	/*
+					 * Audio output 2 base physical DMAbuf
+					 * address.
+					 */
+#define S626_P_PROTA2_OUT	0x00BC	/*
+					 * Audio output 2 physical DMAbuf
+					 * protection address.
+					 */
 #define S626_P_PAGEA2_OUT	0x00C0	/* Audio output 2 paging attributes. */
 #define S626_P_RPSPAGE0		0x00C4	/* RPS0 page. */
 #define S626_P_RPSPAGE1		0x00C8	/* RPS1 page. */
@@ -205,8 +253,10 @@
 #define S626_P_PSR		0x0110	/* Primary status. */
 #define S626_P_SSR		0x0114	/* Secondary status. */
 #define S626_P_EC1R		0x0118	/* Event counter set 1. */
-#define S626_P_ADP4		0x0138	/* Logical audio DMA pointer of audio
-					 * input FIFO A2_IN. */
+#define S626_P_ADP4		0x0138	/*
+					 * Logical audio DMA pointer of audio
+					 * input FIFO A2_IN.
+					 */
 #define S626_P_FB_BUFFER1	0x0144	/* Audio feedback buffer 1. */
 #define S626_P_FB_BUFFER2	0x0148	/* Audio feedback buffer 2. */
 #define S626_P_TSL1		0x0180	/* Audio time slot list 1. */
@@ -243,13 +293,19 @@
 #define S626_LP_RDMISC2		0x0082	/* Read Misc2. */
 
 /* Bit masks for MISC1 register that are the same for reads and writes. */
-#define S626_MISC1_WENABLE	0x8000	/* enab writes to MISC2 (except Clear
-					 * Watchdog bit). */
+#define S626_MISC1_WENABLE	0x8000	/*
+					 * enab writes to MISC2 (except Clear
+					 * Watchdog bit).
+					 */
 #define S626_MISC1_WDISABLE	0x0000	/* Disable writes to MISC2. */
-#define S626_MISC1_EDCAP	0x1000	/* Enable edge capture on DIO chans
-					 * specified by S626_LP_WRCAPSELx. */
-#define S626_MISC1_NOEDCAP	0x0000	/* Disable edge capture on specified
-					 * DIO chans. */
+#define S626_MISC1_EDCAP	0x1000	/*
+					 * Enable edge capture on DIO chans
+					 * specified by S626_LP_WRCAPSELx.
+					 */
+#define S626_MISC1_NOEDCAP	0x0000	/*
+					 * Disable edge capture on specified
+					 * DIO chans.
+					 */
 
 /* Bit masks for MISC1 register reads. */
 #define S626_RDMISC1_WDTIMEOUT	0x4000	/* Watchdog timer timed out. */
@@ -268,35 +324,49 @@
 #define S626_A1_RUN		0x20000000	/* Run A1 based on TSL1. */
 #define S626_A1_SWAP		0x00200000	/* Use big-endian for A1. */
 #define S626_A2_SWAP		0x00100000	/* Use big-endian for A2. */
-#define S626_WS_MODES		0x00019999	/* WS0 = TSL1 trigger input,
-						 * WS1-WS4 = CS* outputs. */
+#define S626_WS_MODES		0x00019999	/*
+						 * WS0 = TSL1 trigger input,
+						 * WS1-WS4 = CS* outputs.
+						 */
 
-#if S626_PLATFORM == S626_INTEL		/* Base ACON1 config: always run
-					 * A1 based on TSL1. */
+#if S626_PLATFORM == S626_INTEL		/*
+					 * Base ACON1 config: always run
+					 * A1 based on TSL1.
+					 */
 #define S626_ACON1_BASE		(S626_WS_MODES | S626_A1_RUN)
 #elif S626_PLATFORM == S626_MOTOROLA
 #define S626_ACON1_BASE		\
 	(S626_WS_MODES | S626_A1_RUN | S626_A1_SWAP | S626_A2_SWAP)
 #endif
 
-#define S626_ACON1_ADCSTART	S626_ACON1_BASE	/* Start ADC: run A1
-						 * based on TSL1. */
+#define S626_ACON1_ADCSTART	S626_ACON1_BASE	/*
+						 * Start ADC: run A1
+						 * based on TSL1.
+						 */
 #define S626_ACON1_DACSTART	(S626_ACON1_BASE | S626_A2_RUN)
 /* Start transmit to DAC: run A2 based on TSL2. */
 #define S626_ACON1_DACSTOP	S626_ACON1_BASE	/* Halt A2. */
 
 /* Bit masks for ACON2 register. */
 #define S626_A1_CLKSRC_BCLK1	0x00000000	/* A1 bit rate = BCLK1 (ADC). */
-#define S626_A2_CLKSRC_X1	0x00800000	/* A2 bit rate = ACLK/1
-						 * (DACs). */
-#define S626_A2_CLKSRC_X2	0x00C00000	/* A2 bit rate = ACLK/2
-						 * (DACs). */
-#define S626_A2_CLKSRC_X4	0x01400000	/* A2 bit rate = ACLK/4
-						 * (DACs). */
+#define S626_A2_CLKSRC_X1	0x00800000	/*
+						 * A2 bit rate = ACLK/1
+						 * (DACs).
+						 */
+#define S626_A2_CLKSRC_X2	0x00C00000	/*
+						 * A2 bit rate = ACLK/2
+						 * (DACs).
+						 */
+#define S626_A2_CLKSRC_X4	0x01400000	/*
+						 * A2 bit rate = ACLK/4
+						 * (DACs).
+						 */
 #define S626_INVERT_BCLK2	0x00100000	/* Invert BCLK2 (DACs). */
 #define S626_BCLK2_OE		0x00040000	/* Enable BCLK2 (DACs). */
-#define S626_ACON2_XORMASK	0x000C0000	/* XOR mask for ACON2
-						 * active-low bits. */
+#define S626_ACON2_XORMASK	0x000C0000	/*
+						 * XOR mask for ACON2
+						 * active-low bits.
+						 */
 
 #define S626_ACON2_INIT		(S626_ACON2_XORMASK ^ \
 				 (S626_A1_CLKSRC_BCLK1 | S626_A2_CLKSRC_X2 | \
@@ -308,12 +378,18 @@
 #define S626_WS3		0x10000000
 #define S626_WS4		0x08000000
 #define S626_RSD1		0x01000000	/* Shift A1 data in on SD1. */
-#define S626_SDW_A1		0x00800000	/* Store rcv'd char at next char
-						 * slot of DWORD1 buffer. */
-#define S626_SIB_A1		0x00400000	/* Store rcv'd char at next
-						 * char slot of FB1 buffer. */
-#define S626_SF_A1		0x00200000	/* Write unsigned long
-						 * buffer to input FIFO. */
+#define S626_SDW_A1		0x00800000	/*
+						 * Store rcv'd char at next char
+						 * slot of DWORD1 buffer.
+						 */
+#define S626_SIB_A1		0x00400000	/*
+						 * Store rcv'd char at next
+						 * char slot of FB1 buffer.
+						 */
+#define S626_SF_A1		0x00200000	/*
+						 * Write unsigned long
+						 * buffer to input FIFO.
+						 */
 
 /* Select parallel-to-serial converter's data source: */
 #define S626_XFIFO_0		0x00000000	/* Data fifo byte 0. */
@@ -324,31 +400,45 @@
 #define S626_XFB1		0x00000050	/* FB_BUFFER byte 1. */
 #define S626_XFB2		0x00000060	/* FB_BUFFER byte 2. */
 #define S626_XFB3		0x00000070	/* FB_BUFFER byte 3. */
-#define S626_SIB_A2		0x00000200	/* Store next dword from A2's
+#define S626_SIB_A2		0x00000200	/*
+						 * Store next dword from A2's
 						 * input shifter to FB2
-						 * buffer. */
-#define S626_SF_A2		0x00000100	/* Store next dword from A2's
+						 * buffer.
+						 */
+#define S626_SF_A2		0x00000100	/*
+						 * Store next dword from A2's
 						 * input shifter to its input
-						 * fifo. */
-#define S626_LF_A2		0x00000080	/* Load next dword from A2's
+						 * fifo.
+						 */
+#define S626_LF_A2		0x00000080	/*
+						 * Load next dword from A2's
 						 * output fifo into its
-						 * output dword buffer. */
+						 * output dword buffer.
+						 */
 #define S626_XSD2		0x00000008	/* Shift data out on SD2. */
 #define S626_RSD3		0x00001800	/* Shift data in on SD3. */
 #define S626_RSD2		0x00001000	/* Shift data in on SD2. */
-#define S626_LOW_A2		0x00000002	/* Drive last SD low for 7 clks,
-						 * then tri-state. */
+#define S626_LOW_A2		0x00000002	/*
+						 * Drive last SD low for 7 clks,
+						 * then tri-state.
+						 */
 #define S626_EOS		0x00000001	/* End of superframe. */
 
 /* I2C configuration constants. */
-#define S626_I2C_CLKSEL		0x0400		/* I2C bit rate =
-						 * PCIclk/480 = 68.75 KHz. */
-#define S626_I2C_BITRATE	68.75		/* I2C bus data bit rate
+#define S626_I2C_CLKSEL		0x0400		/*
+						 * I2C bit rate =
+						 * PCIclk/480 = 68.75 KHz.
+						 */
+#define S626_I2C_BITRATE	68.75		/*
+						 * I2C bus data bit rate
 						 * (determined by
-						 * S626_I2C_CLKSEL) in KHz. */
-#define S626_I2C_WRTIME		15.0		/* Worst case time, in msec,
+						 * S626_I2C_CLKSEL) in KHz.
+						 */
+#define S626_I2C_WRTIME		15.0		/*
+						 * Worst case time, in msec,
 						 * for EEPROM internal write
-						 * op. */
+						 * op.
+						 */
 
 /* I2C manifest constants. */
 
@@ -368,8 +458,10 @@
 #define S626_I2C_B0(ATTR, VAL)	(((ATTR) << 2) | ((VAL) <<  8))
 
 /* DEBI command constants. */
-#define S626_DEBI_CMD_SIZE16	(2 << 17)	/* Transfer size is always
-						 * 2 bytes. */
+#define S626_DEBI_CMD_SIZE16	(2 << 17)	/*
+						 * Transfer size is always
+						 * 2 bytes.
+						 */
 #define S626_DEBI_CMD_READ	0x00010000	/* Read operation. */
 #define S626_DEBI_CMD_WRITE	0x00000000	/* Write operation. */
 
@@ -380,42 +472,58 @@
 #define S626_DEBI_CMD_WRWORD	(S626_DEBI_CMD_WRITE | S626_DEBI_CMD_SIZE16)
 
 /* DEBI configuration constants. */
-#define S626_DEBI_CFG_XIRQ_EN	0x80000000	/* Enable external interrupt
-						 * on GPIO3. */
+#define S626_DEBI_CFG_XIRQ_EN	0x80000000	/*
+						 * Enable external interrupt
+						 * on GPIO3.
+						 */
 #define S626_DEBI_CFG_XRESUME	0x40000000	/* Resume block */
-						/* Transfer when XIRQ
-						 * deasserted. */
+						/*
+						 * Transfer when XIRQ
+						 * deasserted.
+						 */
 #define S626_DEBI_CFG_TOQ	0x03C00000	/* Timeout (15 PCI cycles). */
 #define S626_DEBI_CFG_FAST	0x10000000	/* Fast mode enable. */
 
 /* 4-bit field that specifies DEBI timeout value in PCI clock cycles: */
-#define S626_DEBI_CFG_TOUT_BIT	22	/* Finish DEBI cycle after this many
-					 * clocks. */
+#define S626_DEBI_CFG_TOUT_BIT	22	/*
+					 * Finish DEBI cycle after this many
+					 * clocks.
+					 */
 
 /* 2-bit field that specifies Endian byte lane steering: */
-#define S626_DEBI_CFG_SWAP_NONE	0x00000000	/* Straight - don't swap any
-						 * bytes (Intel). */
+#define S626_DEBI_CFG_SWAP_NONE	0x00000000	/*
+						 * Straight - don't swap any
+						 * bytes (Intel).
+						 */
 #define S626_DEBI_CFG_SWAP_2	0x00100000	/* 2-byte swap (Motorola). */
 #define S626_DEBI_CFG_SWAP_4	0x00200000	/* 4-byte swap. */
-#define S626_DEBI_CFG_SLAVE16	0x00080000	/* Slave is able to serve
-						 * 16-bit cycles. */
-#define S626_DEBI_CFG_INC	0x00040000	/* Enable address increment
-						 * for block transfers. */
+#define S626_DEBI_CFG_SLAVE16	0x00080000	/*
+						 * Slave is able to serve
+						 * 16-bit cycles.
+						 */
+#define S626_DEBI_CFG_INC	0x00040000	/*
+						 * Enable address increment
+						 * for block transfers.
+						 */
 #define S626_DEBI_CFG_INTEL	0x00020000	/* Intel style local bus. */
 #define S626_DEBI_CFG_TIMEROFF	0x00010000	/* Disable timer. */
 
 #if S626_PLATFORM == S626_INTEL
 
-#define S626_DEBI_TOUT		7	/* Wait 7 PCI clocks (212 ns) before
-					 * polling RDY. */
+#define S626_DEBI_TOUT		7	/*
+					 * Wait 7 PCI clocks (212 ns) before
+					 * polling RDY.
+					 */
 
 /* Intel byte lane steering (pass through all byte lanes). */
 #define S626_DEBI_SWAP		S626_DEBI_CFG_SWAP_NONE
 
 #elif S626_PLATFORM == S626_MOTOROLA
 
-#define S626_DEBI_TOUT		15	/* Wait 15 PCI clocks (454 ns) maximum
-					 * before timing out. */
+#define S626_DEBI_TOUT		15	/*
+					 * Wait 15 PCI clocks (454 ns) maximum
+					 * before timing out.
+					 */
 
 /* Motorola byte lane steering. */
 #define S626_DEBI_SWAP		S626_DEBI_CFG_SWAP_2
@@ -429,10 +537,14 @@
 
 /* LoadSrc values: */
 #define S626_LOADSRC_INDX	0	/* Preload core in response to Index. */
-#define S626_LOADSRC_OVER	1	/* Preload core in response to
-					 * Overflow. */
-#define S626_LOADSRCB_OVERA	2	/* Preload B core in response to
-					 * A Overflow. */
+#define S626_LOADSRC_OVER	1	/*
+					 * Preload core in response to
+					 * Overflow.
+					 */
+#define S626_LOADSRCB_OVERA	2	/*
+					 * Preload B core in response to
+					 * A Overflow.
+					 */
 #define S626_LOADSRC_NONE	3	/* Never preload core. */
 
 /* IntSrc values: */
@@ -469,10 +581,14 @@
 #define S626_CNTSRC_SYSCLK_DOWN	3	/* System clock down */
 
 /* ClkPol values: */
-#define S626_CLKPOL_POS		0	/* Counter/Extender clock is
-					 * active high. */
-#define S626_CLKPOL_NEG		1	/* Counter/Extender clock is
-					 * active low. */
+#define S626_CLKPOL_POS		0	/*
+					 * Counter/Extender clock is
+					 * active high.
+					 */
+#define S626_CLKPOL_NEG		1	/*
+					 * Counter/Extender clock is
+					 * active low.
+					 */
 #define S626_CNTDIR_UP		0	/* Timer counts up. */
 #define S626_CNTDIR_DOWN	1	/* Timer counts down. */
 
@@ -488,8 +604,10 @@
 
 /* Sanity-check limits for parameters. */
 
-#define S626_NUM_COUNTERS	6	/* Maximum valid counter
-					 * logical channel number. */
+#define S626_NUM_COUNTERS	6	/*
+					 * Maximum valid counter
+					 * logical channel number.
+					 */
 #define S626_NUM_INTSOURCES	4
 #define S626_NUM_LATCHSOURCES	4
 #define S626_NUM_CLKMULTS	4

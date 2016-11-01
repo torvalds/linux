@@ -141,7 +141,7 @@ static int ti_qspi_setup(struct spi_device *spi)
 	u32 clk_ctrl_reg, clk_rate, clk_mask;
 
 	if (spi->master->busy) {
-		dev_dbg(qspi->dev, "master busy doing other trasnfers\n");
+		dev_dbg(qspi->dev, "master busy doing other transfers\n");
 		return -EBUSY;
 	}
 

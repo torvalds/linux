@@ -38,7 +38,7 @@ static inline void vsp1_rpf_write(struct vsp1_rwpf *rpf,
  * V4L2 Subdevice Operations
  */
 
-static struct v4l2_subdev_ops rpf_ops = {
+static const struct v4l2_subdev_ops rpf_ops = {
 	.pad    = &vsp1_rwpf_pad_ops,
 };
 
@@ -60,7 +60,7 @@ static void rpf_set_memory(struct vsp1_entity *entity, struct vsp1_dl_list *dl)
 
 static void rpf_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl)
+			  struct vsp1_dl_list *dl, bool full)
 {
 	struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
 	const struct vsp1_format_info *fmtinfo = rpf->fmtinfo;
@@ -72,6 +72,16 @@ static void rpf_configure(struct vsp1_entity *entity,
 	unsigned int top = 0;
 	u32 pstride;
 	u32 infmt;
+
+	if (!full) {
+		vsp1_rpf_write(rpf, dl, VI6_RPF_VRTCOL_SET,
+			       rpf->alpha << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
+		vsp1_rpf_write(rpf, dl, VI6_RPF_MULT_ALPHA, rpf->mult_alpha |
+			       (rpf->alpha << VI6_RPF_MULT_ALPHA_RATIO_SHIFT));
+
+		vsp1_pipeline_propagate_alpha(pipe, dl, rpf->alpha);
+		return;
+	}
 
 	/* Source size, stride and crop offsets.
 	 *
@@ -130,9 +140,10 @@ static void rpf_configure(struct vsp1_entity *entity,
 	if (pipe->bru) {
 		const struct v4l2_rect *compose;
 
-		compose = vsp1_entity_get_pad_compose(pipe->bru,
-						      pipe->bru->config,
-						      rpf->bru_input);
+		compose = vsp1_entity_get_pad_selection(pipe->bru,
+							pipe->bru->config,
+							rpf->bru_input,
+							V4L2_SEL_TGT_COMPOSE);
 		left = compose->left;
 		top = compose->top;
 	}
@@ -167,9 +178,6 @@ static void rpf_configure(struct vsp1_entity *entity,
 		       (fmtinfo->alpha ? VI6_RPF_ALPH_SEL_ASEL_PACKED
 				       : VI6_RPF_ALPH_SEL_ASEL_FIXED));
 
-	vsp1_rpf_write(rpf, dl, VI6_RPF_VRTCOL_SET,
-		       rpf->alpha << VI6_RPF_VRTCOL_SET_LAYA_SHIFT);
-
 	if (entity->vsp1->info->gen == 3) {
 		u32 mult;
 
@@ -187,8 +195,7 @@ static void rpf_configure(struct vsp1_entity *entity,
 			mult = VI6_RPF_MULT_ALPHA_A_MMD_RATIO
 			     | (premultiplied ?
 				VI6_RPF_MULT_ALPHA_P_MMD_RATIO :
-				VI6_RPF_MULT_ALPHA_P_MMD_NONE)
-			     | (rpf->alpha << VI6_RPF_MULT_ALPHA_RATIO_SHIFT);
+				VI6_RPF_MULT_ALPHA_P_MMD_NONE);
 		} else {
 			/* When the input doesn't contain an alpha channel the
 			 * global alpha value is applied in the unpacking unit,
@@ -199,10 +206,8 @@ static void rpf_configure(struct vsp1_entity *entity,
 			     | VI6_RPF_MULT_ALPHA_P_MMD_NONE;
 		}
 
-		vsp1_rpf_write(rpf, dl, VI6_RPF_MULT_ALPHA, mult);
+		rpf->mult_alpha = mult;
 	}
-
-	vsp1_pipeline_propagate_alpha(pipe, &rpf->entity, dl, rpf->alpha);
 
 	vsp1_rpf_write(rpf, dl, VI6_RPF_MSK_CTRL, 0);
 	vsp1_rpf_write(rpf, dl, VI6_RPF_CKEY_CTRL, 0);
@@ -236,17 +241,20 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 	rpf->entity.index = index;
 
 	sprintf(name, "rpf.%u", index);
-	ret = vsp1_entity_init(vsp1, &rpf->entity, name, 2, &rpf_ops);
+	ret = vsp1_entity_init(vsp1, &rpf->entity, name, 2, &rpf_ops,
+			       MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
 	/* Initialize the control handler. */
-	ret = vsp1_rwpf_init_ctrls(rpf);
+	ret = vsp1_rwpf_init_ctrls(rpf, 0);
 	if (ret < 0) {
 		dev_err(vsp1->dev, "rpf%u: failed to initialize controls\n",
 			index);
 		goto error;
 	}
+
+	v4l2_ctrl_handler_setup(&rpf->ctrls);
 
 	return rpf;
 

@@ -114,9 +114,15 @@ static ssize_t sysfs_kf_read(struct kernfs_open_file *of, char *buf,
 	 * If buf != of->prealloc_buf, we don't know how
 	 * large it is, so cannot safely pass it to ->show
 	 */
-	if (pos || WARN_ON_ONCE(buf != of->prealloc_buf))
+	if (WARN_ON_ONCE(buf != of->prealloc_buf))
 		return 0;
 	len = ops->show(kobj, of->kn->priv, buf);
+	if (pos) {
+		if (len <= pos)
+			return 0;
+		len -= pos;
+		memmove(buf, buf + pos, len);
+	}
 	return min(count, len);
 }
 

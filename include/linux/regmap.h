@@ -95,6 +95,45 @@ struct reg_sequence {
 #define	regmap_fields_force_update_bits(field, id, mask, val) \
 	regmap_fields_update_bits_base(field, id, mask, val, NULL, false, true)
 
+/**
+ * regmap_read_poll_timeout - Poll until a condition is met or a timeout occurs
+ * @map: Regmap to read from
+ * @addr: Address to poll
+ * @val: Unsigned integer variable to read the value into
+ * @cond: Break condition (usually involving @val)
+ * @sleep_us: Maximum time to sleep between reads in us (0
+ *            tight-loops).  Should be less than ~20ms since usleep_range
+ *            is used (see Documentation/timers/timers-howto.txt).
+ * @timeout_us: Timeout in us, 0 means never timeout
+ *
+ * Returns 0 on success and -ETIMEDOUT upon a timeout or the regmap_read
+ * error return value in case of a error read. In the two former cases,
+ * the last read value at @addr is stored in @val. Must not be called
+ * from atomic context if sleep_us or timeout_us are used.
+ *
+ * This is modelled after the readx_poll_timeout macros in linux/iopoll.h.
+ */
+#define regmap_read_poll_timeout(map, addr, val, cond, sleep_us, timeout_us) \
+({ \
+	ktime_t timeout = ktime_add_us(ktime_get(), timeout_us); \
+	int ret; \
+	might_sleep_if(sleep_us); \
+	for (;;) { \
+		ret = regmap_read((map), (addr), &(val)); \
+		if (ret) \
+			break; \
+		if (cond) \
+			break; \
+		if (timeout_us && ktime_compare(ktime_get(), timeout) > 0) { \
+			ret = regmap_read((map), (addr), &(val)); \
+			break; \
+		} \
+		if (sleep_us) \
+			usleep_range((sleep_us >> 2) + 1, sleep_us); \
+	} \
+	ret ?: ((cond) ? 0 : -ETIMEDOUT); \
+})
+
 #ifdef CONFIG_REGMAP
 
 enum regmap_endian {
@@ -851,6 +890,12 @@ struct regmap_irq {
  * @num_type_reg:    Number of type registers.
  * @type_reg_stride: Stride to use for chips where type registers are not
  *			contiguous.
+ * @handle_pre_irq:  Driver specific callback to handle interrupt from device
+ *		     before regmap_irq_handler process the interrupts.
+ * @handle_post_irq: Driver specific callback to handle interrupt from device
+ *		     after handling the interrupts in regmap_irq_handler().
+ * @irq_drv_data:    Driver specific IRQ data which is passed as parameter when
+ *		     driver specific pre/post interrupt handler is called.
  */
 struct regmap_irq_chip {
 	const char *name;
@@ -877,6 +922,10 @@ struct regmap_irq_chip {
 
 	int num_type_reg;
 	unsigned int type_reg_stride;
+
+	int (*handle_pre_irq)(void *irq_drv_data);
+	int (*handle_post_irq)(void *irq_drv_data);
+	void *irq_drv_data;
 };
 
 struct regmap_irq_chip_data;

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2015 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -57,6 +57,7 @@ struct lpfc_iocbq {
 	struct lpfc_cq_event cq_event;
 
 	IOCB_t iocb;		/* IOCB cmd */
+	uint8_t priority;	/* OAS priority */
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
 	uint32_t iocb_flag;
 #define LPFC_IO_LIBDFC		1	/* libdfc iocb */

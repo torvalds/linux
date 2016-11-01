@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/cpu.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/cache.h>
 #include <asm/sections.h>
 #include <asm/arcregs.h>
@@ -291,8 +291,10 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 			       cpu->dccm.base_addr, TO_KB(cpu->dccm.sz),
 			       cpu->iccm.base_addr, TO_KB(cpu->iccm.sz));
 
-	n += scnprintf(buf + n, len - n,
-		       "OS ABI [v3]\t: no-legacy-syscalls\n");
+	n += scnprintf(buf + n, len - n, "OS ABI [v%d]\t: %s\n",
+			EF_ARC_OSABI_CURRENT >> 8,
+			EF_ARC_OSABI_CURRENT == EF_ARC_OSABI_V3 ?
+			"no-legacy-syscalls" : "64-bit data any register aligned");
 
 	return buf;
 }
@@ -435,12 +437,6 @@ void __init setup_arch(char **cmdline_p)
 
 static int __init customize_machine(void)
 {
-	/*
-	 * Traverses flattened DeviceTree - registering platform devices
-	 * (if any) complete with their resources
-	 */
-	of_platform_default_populate(NULL, NULL, NULL);
-
 	if (machine_desc->init_machine)
 		machine_desc->init_machine();
 

@@ -8,7 +8,9 @@ The reset controller registers are part of the system-ctl block on
 hi6220 SoC.
 
 Required properties:
-- compatible: may be "hisilicon,hi6220-sysctrl"
+- compatible: should be one of the following:
+  - "hisilicon,hi6220-sysctrl", "syscon" : For peripheral reset controller.
+  - "hisilicon,hi6220-mediactrl", "syscon" : For media reset controller.
 - reg: should be register base and length as documented in the
   datasheet
 - #reset-cells: 1, see below

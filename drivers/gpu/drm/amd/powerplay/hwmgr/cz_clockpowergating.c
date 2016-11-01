@@ -177,12 +177,12 @@ int cz_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 		cz_dpm_powerdown_uvd(hwmgr);
 	} else {
 		cz_dpm_powerup_uvd(hwmgr);
-		cgs_set_clockgating_state(hwmgr->device,
-						AMD_IP_BLOCK_TYPE_UVD,
-						AMD_PG_STATE_GATE);
 		cgs_set_powergating_state(hwmgr->device,
 						AMD_IP_BLOCK_TYPE_UVD,
 						AMD_CG_STATE_UNGATE);
+		cgs_set_clockgating_state(hwmgr->device,
+						AMD_IP_BLOCK_TYPE_UVD,
+						AMD_PG_STATE_GATE);
 		cz_dpm_update_uvd_dpm(hwmgr, false);
 	}
 
@@ -206,25 +206,26 @@ int cz_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 							AMD_IP_BLOCK_TYPE_VCE,
 							AMD_PG_STATE_GATE);
 				cz_enable_disable_vce_dpm(hwmgr, false);
-			/* TODO: to figure out why vce can't be poweroff*/
+				cz_dpm_powerdown_vce(hwmgr);
 				cz_hwmgr->vce_power_gated = true;
 			} else {
 				cz_dpm_powerup_vce(hwmgr);
 				cz_hwmgr->vce_power_gated = false;
-				cgs_set_clockgating_state(
-							hwmgr->device,
-							AMD_IP_BLOCK_TYPE_VCE,
-							AMD_PG_STATE_GATE);
 				cgs_set_powergating_state(
 							hwmgr->device,
 							AMD_IP_BLOCK_TYPE_VCE,
 							AMD_CG_STATE_UNGATE);
+				cgs_set_clockgating_state(
+							hwmgr->device,
+							AMD_IP_BLOCK_TYPE_VCE,
+							AMD_PG_STATE_GATE);
 				cz_dpm_update_vce_dpm(hwmgr);
 				cz_enable_disable_vce_dpm(hwmgr, true);
 				return 0;
 			}
 		}
 	} else {
+		cz_hwmgr->vce_power_gated = bgate;
 		cz_dpm_update_vce_dpm(hwmgr);
 		cz_enable_disable_vce_dpm(hwmgr, !bgate);
 		return 0;

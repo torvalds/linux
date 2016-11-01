@@ -47,18 +47,13 @@ int arm_cpuidle_simple_enter(struct cpuidle_device *dev,
  * This function calls the underlying arch specific low level PM code as
  * registered at the init time.
  *
- * Returns -EOPNOTSUPP if no suspend callback is defined, the result of the
- * callback otherwise.
+ * Returns the result of the suspend callback.
  */
 int arm_cpuidle_suspend(int index)
 {
-	int ret = -EOPNOTSUPP;
 	int cpu = smp_processor_id();
 
-	if (cpuidle_ops[cpu].suspend)
-		ret = cpuidle_ops[cpu].suspend(index);
-
-	return ret;
+	return cpuidle_ops[cpu].suspend(index);
 }
 
 /**
@@ -92,7 +87,8 @@ static const struct cpuidle_ops *__init arm_cpuidle_get_ops(const char *method)
  * process.
  *
  * Return 0 on sucess, -ENOENT if no 'enable-method' is defined, -EOPNOTSUPP if
- * no cpuidle_ops is registered for the 'enable-method'.
+ * no cpuidle_ops is registered for the 'enable-method', or if either init or
+ * suspend callback isn't defined.
  */
 static int __init arm_cpuidle_read_ops(struct device_node *dn, int cpu)
 {
@@ -107,6 +103,12 @@ static int __init arm_cpuidle_read_ops(struct device_node *dn, int cpu)
 	if (!ops) {
 		pr_warn("%s: unsupported enable-method property: %s\n",
 			dn->full_name, enable_method);
+		return -EOPNOTSUPP;
+	}
+
+	if (!ops->init || !ops->suspend) {
+		pr_warn("cpuidle_ops '%s': no init or suspend callback\n",
+			enable_method);
 		return -EOPNOTSUPP;
 	}
 
@@ -129,7 +131,8 @@ static int __init arm_cpuidle_read_ops(struct device_node *dn, int cpu)
  * Returns:
  *  0 on success,
  *  -ENODEV if it fails to find the cpu node in the device tree,
- *  -EOPNOTSUPP if it does not find a registered cpuidle_ops for this cpu,
+ *  -EOPNOTSUPP if it does not find a registered and valid cpuidle_ops for
+ *  this cpu,
  *  -ENOENT if it fails to find an 'enable-method' property,
  *  -ENXIO if the HW reports a failure or a misconfiguration,
  *  -ENOMEM if the HW report an memory allocation failure 
@@ -143,7 +146,7 @@ int __init arm_cpuidle_init(int cpu)
 		return -ENODEV;
 
 	ret = arm_cpuidle_read_ops(cpu_node, cpu);
-	if (!ret && cpuidle_ops[cpu].init)
+	if (!ret)
 		ret = cpuidle_ops[cpu].init(cpu_node, cpu);
 
 	of_node_put(cpu_node);

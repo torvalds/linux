@@ -40,6 +40,17 @@ static void fsnotify_final_destroy_group(struct fsnotify_group *group)
 }
 
 /*
+ * Stop queueing new events for this group. Once this function returns
+ * fsnotify_add_event() will not add any new events to the group's queue.
+ */
+void fsnotify_group_stop_queueing(struct fsnotify_group *group)
+{
+	mutex_lock(&group->notification_mutex);
+	group->shutdown = true;
+	mutex_unlock(&group->notification_mutex);
+}
+
+/*
  * Trying to get rid of a group. Remove all marks, flush all events and release
  * the group reference.
  * Note that another thread calling fsnotify_clear_marks_by_group() may still
@@ -47,6 +58,14 @@ static void fsnotify_final_destroy_group(struct fsnotify_group *group)
  */
 void fsnotify_destroy_group(struct fsnotify_group *group)
 {
+	/*
+	 * Stop queueing new events. The code below is careful enough to not
+	 * require this but fanotify needs to stop queuing events even before
+	 * fsnotify_destroy_group() is called and this makes the other callers
+	 * of fsnotify_destroy_group() to see the same behavior.
+	 */
+	fsnotify_group_stop_queueing(group);
+
 	/* clear all inode marks for this group, attach them to destroy_list */
 	fsnotify_detach_group_marks(group);
 

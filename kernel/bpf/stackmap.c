@@ -99,7 +99,7 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 	if (err)
 		goto free_smap;
 
-	err = get_callchain_buffers();
+	err = get_callchain_buffers(sysctl_perf_event_max_stack);
 	if (err)
 		goto free_smap;
 

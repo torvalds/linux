@@ -3843,7 +3843,10 @@ static void ci_find_dpm_states_clocks_in_dpm_table(struct radeon_device *rdev,
 	if (i >= sclk_table->count) {
 		pi->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
 	} else {
-		/* XXX check display min clock requirements */
+		/* XXX The current code always reprogrammed the sclk levels,
+		 * but we don't currently handle disp sclk requirements
+		 * so just skip it.
+		 */
 		if (CISLAND_MINIMUM_ENGINE_CLOCK != CISLAND_MINIMUM_ENGINE_CLOCK)
 			pi->need_update_smu7_dpm_table |= DPMTABLE_UPDATE_SCLK;
 	}

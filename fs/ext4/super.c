@@ -945,9 +945,6 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	ei->i_datasync_tid = 0;
 	atomic_set(&ei->i_unwritten, 0);
 	INIT_WORK(&ei->i_rsv_conversion_work, ext4_end_io_rsv_work);
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
-	ei->i_crypt_info = NULL;
-#endif
 	return &ei->vfs_inode;
 }
 
@@ -1026,8 +1023,7 @@ void ext4_clear_inode(struct inode *inode)
 		EXT4_I(inode)->jinode = NULL;
 	}
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-	if (EXT4_I(inode)->i_crypt_info)
-		ext4_free_encryption_info(inode, EXT4_I(inode)->i_crypt_info);
+	fscrypt_put_encryption_info(inode, NULL);
 #endif
 }
 
@@ -1093,6 +1089,90 @@ static int bdev_try_to_free_page(struct super_block *sb, struct page *page,
 						wait & ~__GFP_DIRECT_RECLAIM);
 	return try_to_free_buffers(page);
 }
+
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+static int ext4_get_context(struct inode *inode, void *ctx, size_t len)
+{
+	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_ENCRYPTION,
+				 EXT4_XATTR_NAME_ENCRYPTION_CONTEXT, ctx, len);
+}
+
+static int ext4_key_prefix(struct inode *inode, u8 **key)
+{
+	*key = EXT4_SB(inode->i_sb)->key_prefix;
+	return EXT4_SB(inode->i_sb)->key_prefix_size;
+}
+
+static int ext4_prepare_context(struct inode *inode)
+{
+	return ext4_convert_inline_data(inode);
+}
+
+static int ext4_set_context(struct inode *inode, const void *ctx, size_t len,
+							void *fs_data)
+{
+	handle_t *handle;
+	int res, res2;
+
+	/* fs_data is null when internally used. */
+	if (fs_data) {
+		res  = ext4_xattr_set(inode, EXT4_XATTR_INDEX_ENCRYPTION,
+				EXT4_XATTR_NAME_ENCRYPTION_CONTEXT, ctx,
+				len, 0);
+		if (!res) {
+			ext4_set_inode_flag(inode, EXT4_INODE_ENCRYPT);
+			ext4_clear_inode_state(inode,
+					EXT4_STATE_MAY_INLINE_DATA);
+		}
+		return res;
+	}
+
+	handle = ext4_journal_start(inode, EXT4_HT_MISC,
+			ext4_jbd2_credits_xattr(inode));
+	if (IS_ERR(handle))
+		return PTR_ERR(handle);
+
+	res = ext4_xattr_set(inode, EXT4_XATTR_INDEX_ENCRYPTION,
+			EXT4_XATTR_NAME_ENCRYPTION_CONTEXT, ctx,
+			len, 0);
+	if (!res) {
+		ext4_set_inode_flag(inode, EXT4_INODE_ENCRYPT);
+		res = ext4_mark_inode_dirty(handle, inode);
+		if (res)
+			EXT4_ERROR_INODE(inode, "Failed to mark inode dirty");
+	}
+	res2 = ext4_journal_stop(handle);
+	if (!res)
+		res = res2;
+	return res;
+}
+
+static int ext4_dummy_context(struct inode *inode)
+{
+	return DUMMY_ENCRYPTION_ENABLED(EXT4_SB(inode->i_sb));
+}
+
+static unsigned ext4_max_namelen(struct inode *inode)
+{
+	return S_ISLNK(inode->i_mode) ? inode->i_sb->s_blocksize :
+		EXT4_NAME_LEN;
+}
+
+static struct fscrypt_operations ext4_cryptops = {
+	.get_context		= ext4_get_context,
+	.key_prefix		= ext4_key_prefix,
+	.prepare_context	= ext4_prepare_context,
+	.set_context		= ext4_set_context,
+	.dummy_context		= ext4_dummy_context,
+	.is_encrypted		= ext4_encrypted_inode,
+	.empty_dir		= ext4_empty_dir,
+	.max_namelen		= ext4_max_namelen,
+};
+#else
+static struct fscrypt_operations ext4_cryptops = {
+	.is_encrypted		= ext4_encrypted_inode,
+};
+#endif
 
 #ifdef CONFIG_QUOTA
 static char *quotatypes[] = INITQFNAMES;
@@ -2068,23 +2148,25 @@ failed:
 static __le16 ext4_group_desc_csum(struct super_block *sb, __u32 block_group,
 				   struct ext4_group_desc *gdp)
 {
-	int offset;
+	int offset = offsetof(struct ext4_group_desc, bg_checksum);
 	__u16 crc = 0;
 	__le32 le_group = cpu_to_le32(block_group);
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
 	if (ext4_has_metadata_csum(sbi->s_sb)) {
 		/* Use new metadata_csum algorithm */
-		__le16 save_csum;
 		__u32 csum32;
+		__u16 dummy_csum = 0;
 
-		save_csum = gdp->bg_checksum;
-		gdp->bg_checksum = 0;
 		csum32 = ext4_chksum(sbi, sbi->s_csum_seed, (__u8 *)&le_group,
 				     sizeof(le_group));
-		csum32 = ext4_chksum(sbi, csum32, (__u8 *)gdp,
-				     sbi->s_desc_size);
-		gdp->bg_checksum = save_csum;
+		csum32 = ext4_chksum(sbi, csum32, (__u8 *)gdp, offset);
+		csum32 = ext4_chksum(sbi, csum32, (__u8 *)&dummy_csum,
+				     sizeof(dummy_csum));
+		offset += sizeof(dummy_csum);
+		if (offset < sbi->s_desc_size)
+			csum32 = ext4_chksum(sbi, csum32, (__u8 *)gdp + offset,
+					     sbi->s_desc_size - offset);
 
 		crc = csum32 & 0xFFFF;
 		goto out;
@@ -2093,8 +2175,6 @@ static __le16 ext4_group_desc_csum(struct super_block *sb, __u32 block_group,
 	/* old crc16 code */
 	if (!ext4_has_feature_gdt_csum(sb))
 		return 0;
-
-	offset = offsetof(struct ext4_group_desc, bg_checksum);
 
 	crc = crc16(~0, sbi->s_es->s_uuid, sizeof(sbi->s_es->s_uuid));
 	crc = crc16(crc, (__u8 *)&le_group, sizeof(le_group));
@@ -2131,6 +2211,7 @@ void ext4_group_desc_csum_set(struct super_block *sb, __u32 block_group,
 
 /* Called at mount-time, super-block is locked */
 static int ext4_check_descriptors(struct super_block *sb,
+				  ext4_fsblk_t sb_block,
 				  ext4_group_t *first_not_zeroed)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -2161,6 +2242,11 @@ static int ext4_check_descriptors(struct super_block *sb,
 			grp = i;
 
 		block_bitmap = ext4_block_bitmap(sb, gdp);
+		if (block_bitmap == sb_block) {
+			ext4_msg(sb, KERN_ERR, "ext4_check_descriptors: "
+				 "Block bitmap for group %u overlaps "
+				 "superblock", i);
+		}
 		if (block_bitmap < first_block || block_bitmap > last_block) {
 			ext4_msg(sb, KERN_ERR, "ext4_check_descriptors: "
 			       "Block bitmap for group %u not in group "
@@ -2168,6 +2254,11 @@ static int ext4_check_descriptors(struct super_block *sb,
 			return 0;
 		}
 		inode_bitmap = ext4_inode_bitmap(sb, gdp);
+		if (inode_bitmap == sb_block) {
+			ext4_msg(sb, KERN_ERR, "ext4_check_descriptors: "
+				 "Inode bitmap for group %u overlaps "
+				 "superblock", i);
+		}
 		if (inode_bitmap < first_block || inode_bitmap > last_block) {
 			ext4_msg(sb, KERN_ERR, "ext4_check_descriptors: "
 			       "Inode bitmap for group %u not in group "
@@ -2175,6 +2266,11 @@ static int ext4_check_descriptors(struct super_block *sb,
 			return 0;
 		}
 		inode_table = ext4_inode_table(sb, gdp);
+		if (inode_table == sb_block) {
+			ext4_msg(sb, KERN_ERR, "ext4_check_descriptors: "
+				 "Inode table for group %u overlaps "
+				 "superblock", i);
+		}
 		if (inode_table < first_block ||
 		    inode_table + sbi->s_itb_per_group - 1 > last_block) {
 			ext4_msg(sb, KERN_ERR, "ext4_check_descriptors: "
@@ -2277,6 +2373,16 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 
 	while (es->s_last_orphan) {
 		struct inode *inode;
+
+		/*
+		 * We may have encountered an error during cleanup; if
+		 * so, skip the rest.
+		 */
+		if (EXT4_SB(sb)->s_mount_state & EXT4_ERROR_FS) {
+			jbd_debug(1, "Skipping orphan recovery on fs with errors.\n");
+			es->s_last_orphan = 0;
+			break;
+		}
 
 		inode = ext4_orphan_get(sb, le32_to_cpu(es->s_last_orphan));
 		if (IS_ERR(inode)) {
@@ -3416,6 +3522,13 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
+	if (le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks) > (blocksize / 4)) {
+		ext4_msg(sb, KERN_ERR,
+			 "Number of reserved GDT blocks insanely large: %d",
+			 le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks));
+		goto failed_mount;
+	}
+
 	if (sbi->s_mount_opt & EXT4_MOUNT_DAX) {
 		err = bdev_dax_supported(sb, blocksize);
 		if (err)
@@ -3660,7 +3773,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 			goto failed_mount2;
 		}
 	}
-	if (!ext4_check_descriptors(sb, &first_not_zeroed)) {
+	if (!ext4_check_descriptors(sb, logical_sb_block, &first_not_zeroed)) {
 		ext4_msg(sb, KERN_ERR, "group descriptors corrupted!");
 		ret = -EFSCORRUPTED;
 		goto failed_mount2;
@@ -3686,6 +3799,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op = &ext4_sops;
 	sb->s_export_op = &ext4_export_ops;
 	sb->s_xattr = ext4_xattr_handlers;
+	sb->s_cop = &ext4_cryptops;
 #ifdef CONFIG_QUOTA
 	sb->dq_op = &ext4_quota_operations;
 	if (ext4_has_feature_quota(sb))
@@ -3996,6 +4110,11 @@ no_journal:
 	ratelimit_state_init(&sbi->s_msg_ratelimit_state, 5 * HZ, 10);
 
 	kfree(orig_data);
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+	memcpy(sbi->key_prefix, EXT4_KEY_DESC_PREFIX,
+				EXT4_KEY_DESC_PREFIX_SIZE);
+	sbi->key_prefix_size = EXT4_KEY_DESC_PREFIX_SIZE;
+#endif
 	return 0;
 
 cantfind_ext4:
@@ -4204,7 +4323,7 @@ static journal_t *ext4_get_dev_journal(struct super_block *sb,
 		goto out_bdev;
 	}
 	journal->j_private = sb;
-	ll_rw_block(READ | REQ_META | REQ_PRIO, 1, &journal->j_sb_buffer);
+	ll_rw_block(REQ_OP_READ, REQ_META | REQ_PRIO, 1, &journal->j_sb_buffer);
 	wait_on_buffer(journal->j_sb_buffer);
 	if (!buffer_uptodate(journal->j_sb_buffer)) {
 		ext4_msg(sb, KERN_ERR, "I/O error on journal device");
@@ -4327,20 +4446,6 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 
 	if (!sbh || block_device_ejected(sb))
 		return error;
-	if (buffer_write_io_error(sbh)) {
-		/*
-		 * Oh, dear.  A previous attempt to write the
-		 * superblock failed.  This could happen because the
-		 * USB device was yanked out.  Or it could happen to
-		 * be a transient write error and maybe the block will
-		 * be remapped.  Nothing we can do but to retry the
-		 * write and hope for the best.
-		 */
-		ext4_msg(sb, KERN_ERR, "previous I/O error to "
-		       "superblock detected");
-		clear_buffer_write_io_error(sbh);
-		set_buffer_uptodate(sbh);
-	}
 	/*
 	 * If the file system is mounted read-only, don't update the
 	 * superblock write time.  This avoids updating the superblock
@@ -4371,7 +4476,23 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 				&EXT4_SB(sb)->s_freeinodes_counter));
 	BUFFER_TRACE(sbh, "marking dirty");
 	ext4_superblock_csum_set(sb);
+	lock_buffer(sbh);
+	if (buffer_write_io_error(sbh)) {
+		/*
+		 * Oh, dear.  A previous attempt to write the
+		 * superblock failed.  This could happen because the
+		 * USB device was yanked out.  Or it could happen to
+		 * be a transient write error and maybe the block will
+		 * be remapped.  Nothing we can do but to retry the
+		 * write and hope for the best.
+		 */
+		ext4_msg(sb, KERN_ERR, "previous I/O error to "
+		       "superblock detected");
+		clear_buffer_write_io_error(sbh);
+		set_buffer_uptodate(sbh);
+	}
 	mark_buffer_dirty(sbh);
+	unlock_buffer(sbh);
 	if (sync) {
 		error = __sync_dirty_buffer(sbh,
 			test_opt(sb, BARRIER) ? WRITE_FUA : WRITE_SYNC);
@@ -5422,7 +5543,6 @@ out5:
 
 static void __exit ext4_exit_fs(void)
 {
-	ext4_exit_crypto();
 	ext4_destroy_lazyinit_thread();
 	unregister_as_ext2();
 	unregister_as_ext3();

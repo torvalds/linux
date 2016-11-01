@@ -153,6 +153,18 @@ config AXP288_ADC
 	  To compile this driver as a module, choose M here: the module will be
 	  called axp288_adc.
 
+config BCM_IPROC_ADC
+	tristate "Broadcom IPROC ADC driver"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on MFD_SYSCON
+	default ARCH_BCM_CYGNUS
+	help
+	  Say Y here if you want to add support for the Broadcom static
+	  ADC driver.
+
+	  Broadcom iProc ADC driver. Broadcom iProc ADC controller has 8
+	  channels. The driver allows the user to read voltage values.
+
 config BERLIN2_ADC
 	tristate "Marvell Berlin2 ADC driver"
 	depends on ARCH_BERLIN
@@ -377,6 +389,7 @@ config QCOM_SPMI_VADC
 config ROCKCHIP_SARADC
 	tristate "Rockchip SARADC driver"
 	depends on ARCH_ROCKCHIP || (ARM && COMPILE_TEST)
+	depends on RESET_CONTROLLER
 	help
 	  Say yes here to build support for the SARADC found in SoCs from
 	  Rockchip.

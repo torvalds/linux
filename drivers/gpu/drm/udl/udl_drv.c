@@ -94,7 +94,6 @@ static void udl_usb_disconnect(struct usb_interface *interface)
 	struct drm_device *dev = usb_get_intfdata(interface);
 
 	drm_kms_helper_poll_disable(dev);
-	drm_connector_unregister_all(dev);
 	udl_fbdev_unplug(dev);
 	udl_drop_usb(dev);
 	drm_unplug_dev(dev);

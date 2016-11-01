@@ -1501,7 +1501,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
 			struct page *page = area->pages[i];
 
 			BUG_ON(!page);
-			__free_kmem_pages(page, 0);
+			__free_pages(page, 0);
 		}
 
 		kvfree(area->pages);
@@ -1629,9 +1629,9 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 		struct page *page;
 
 		if (node == NUMA_NO_NODE)
-			page = alloc_kmem_pages(alloc_mask, order);
+			page = alloc_pages(alloc_mask, order);
 		else
-			page = alloc_kmem_pages_node(node, alloc_mask, order);
+			page = alloc_pages_node(node, alloc_mask, order);
 
 		if (unlikely(!page)) {
 			/* Successfully allocated i pages, free them in __vunmap() */

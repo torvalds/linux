@@ -212,17 +212,6 @@ struct drm_fb_helper {
 	 * needs to be reprobe when fbdev is in control again.
 	 */
 	bool delayed_hotplug;
-
-	/**
-	 * @atomic:
-	 *
-	 * Use atomic updates for restore_fbdev_mode(), etc.  This defaults to
-	 * true if driver has DRIVER_ATOMIC feature flag, but drivers can
-	 * override it to true after drm_fb_helper_init() if they support atomic
-	 * modeset but do not yet advertise DRIVER_ATOMIC (note that fb-helper
-	 * does not require ASYNC commits).
-	 */
-	bool atomic;
 };
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION

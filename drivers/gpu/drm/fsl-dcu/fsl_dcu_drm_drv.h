@@ -175,6 +175,7 @@ struct fsl_dcu_soc_data {
 	unsigned int total_layer;
 	/*max layer number DCU supported*/
 	unsigned int max_layer;
+	unsigned int layer_regs;
 };
 
 struct fsl_dcu_drm_device {
@@ -193,6 +194,7 @@ struct fsl_dcu_drm_device {
 	struct drm_encoder encoder;
 	struct fsl_dcu_drm_connector connector;
 	const struct fsl_dcu_soc_data *soc;
+	struct drm_atomic_state *state;
 };
 
 void fsl_dcu_fbdev_init(struct drm_device *dev);

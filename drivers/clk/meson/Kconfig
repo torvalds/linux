@@ -1,0 +1,19 @@
+config COMMON_CLK_AMLOGIC
+	bool
+	depends on OF
+	depends on ARCH_MESON || COMPILE_TEST
+
+config COMMON_CLK_MESON8B
+	bool
+	depends on COMMON_CLK_AMLOGIC
+	help
+	  Support for the clock controller on AmLogic S805 devices, aka
+	  meson8b. Say Y if you want peripherals and CPU frequency scaling to
+	  work.
+
+config COMMON_CLK_GXBB
+	bool
+	depends on COMMON_CLK_AMLOGIC
+	help
+	  Support for the clock controller on AmLogic S905 devices, aka gxbb.
+	  Say Y if you want peripherals and CPU frequency scaling to work.

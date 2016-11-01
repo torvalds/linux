@@ -147,7 +147,7 @@ int mlx4_do_bond(struct mlx4_dev *dev, bool enable)
 	if (enable) {
 		dev->flags |= MLX4_FLAG_BONDED;
 	} else {
-		 ret = mlx4_virt2phy_port_map(dev, 1, 2);
+		ret = mlx4_virt2phy_port_map(dev, 1, 2);
 		if (ret) {
 			mlx4_err(dev, "Fail to reset port map\n");
 			return ret;
@@ -217,6 +217,9 @@ void mlx4_unregister_device(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_interface *intf;
+
+	if (!(dev->persist->interface_state & MLX4_INTERFACE_STATE_UP))
+		return;
 
 	mlx4_stop_catas_poll(dev);
 	mutex_lock(&intf_mutex);

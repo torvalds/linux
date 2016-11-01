@@ -1,9 +1,9 @@
-Last reviewed: 04/04/2016
+Last reviewed: 05/20/2016
 
                      HPE iLO NMI Watchdog Driver
               NMI sourcing for iLO based ProLiant Servers
                      Documentation and Driver by
-              Thomas Mingarelli <thomas.mingarelli@hpe.com>
+                         Thomas Mingarelli
 
  The HPE iLO NMI Watchdog driver is a kernel module that provides basic
  watchdog functionality and the added benefit of NMI sourcing. Both the
@@ -95,4 +95,3 @@ Last reviewed: 04/04/2016
 
 
  -- Tom Mingarelli
-    (thomas.mingarelli@hpe.com)

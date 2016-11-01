@@ -1145,10 +1145,8 @@ static int nfqnl_recv_verdict(struct net *net, struct sock *ctnl,
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 	int err;
 
-	queue = instance_lookup(q, queue_num);
-	if (!queue)
-		queue = verdict_instance_lookup(q, queue_num,
-						NETLINK_CB(skb).portid);
+	queue = verdict_instance_lookup(q, queue_num,
+					NETLINK_CB(skb).portid);
 	if (IS_ERR(queue))
 		return PTR_ERR(queue);
 

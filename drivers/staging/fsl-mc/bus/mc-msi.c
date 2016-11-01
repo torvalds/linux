@@ -20,11 +20,26 @@
 #include "../include/mc-sys.h"
 #include "dprc-cmd.h"
 
+/*
+ * Generate a unique ID identifying the interrupt (only used within the MSI
+ * irqdomain.  Combine the icid with the interrupt index.
+ */
+static irq_hw_number_t fsl_mc_domain_calc_hwirq(struct fsl_mc_device *dev,
+						struct msi_desc *desc)
+{
+	/*
+	 * Make the base hwirq value for ICID*10000 so it is readable
+	 * as a decimal value in /proc/interrupts.
+	 */
+	return (irq_hw_number_t)(desc->fsl_mc.msi_index + (dev->icid * 10000));
+}
+
 static void fsl_mc_msi_set_desc(msi_alloc_info_t *arg,
 				struct msi_desc *desc)
 {
 	arg->desc = desc;
-	arg->hwirq = (irq_hw_number_t)desc->fsl_mc.msi_index;
+	arg->hwirq = fsl_mc_domain_calc_hwirq(to_fsl_mc_device(desc->dev),
+					      desc);
 }
 
 static void fsl_mc_msi_update_dom_ops(struct msi_domain_info *info)

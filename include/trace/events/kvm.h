@@ -151,8 +151,9 @@ TRACE_EVENT(kvm_msi_set_irq,
 		__entry->data		= data;
 	),
 
-	TP_printk("dst %u vec %u (%s|%s|%s%s)",
-		  (u8)(__entry->address >> 12), (u8)__entry->data,
+	TP_printk("dst %llx vec %u (%s|%s|%s%s)",
+		  (u8)(__entry->address >> 12) | ((__entry->address >> 32) & 0xffffff00),
+		  (u8)__entry->data,
 		  __print_symbolic((__entry->data >> 8 & 0x7), kvm_deliver_mode),
 		  (__entry->address & (1<<2)) ? "logical" : "physical",
 		  (__entry->data & (1<<15)) ? "level" : "edge",

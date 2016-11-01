@@ -112,12 +112,12 @@ static __always_inline int trylock_clear_pending(struct qspinlock *lock)
 #else /* _Q_PENDING_BITS == 8 */
 static __always_inline void set_pending(struct qspinlock *lock)
 {
-	atomic_set_mask(_Q_PENDING_VAL, &lock->val);
+	atomic_or(_Q_PENDING_VAL, &lock->val);
 }
 
 static __always_inline void clear_pending(struct qspinlock *lock)
 {
-	atomic_clear_mask(_Q_PENDING_VAL, &lock->val);
+	atomic_andnot(_Q_PENDING_VAL, &lock->val);
 }
 
 static __always_inline int trylock_clear_pending(struct qspinlock *lock)
@@ -450,7 +450,7 @@ pv_wait_head_or_lock(struct qspinlock *lock, struct mcs_spinlock *node)
 				goto gotlock;
 			}
 		}
-		WRITE_ONCE(pn->state, vcpu_halted);
+		WRITE_ONCE(pn->state, vcpu_hashed);
 		qstat_inc(qstat_pv_wait_head, true);
 		qstat_inc(qstat_pv_wait_again, waitcnt);
 		pv_wait(&l->locked, _Q_SLOW_VAL);

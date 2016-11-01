@@ -35,7 +35,7 @@ EXPORT_TRACEPOINT_SYMBOL(fence_emit);
  * context or not. One device can have multiple separate contexts,
  * and they're used if some engine can run independently of another.
  */
-static atomic_t fence_context_counter = ATOMIC_INIT(0);
+static atomic64_t fence_context_counter = ATOMIC64_INIT(0);
 
 /**
  * fence_context_alloc - allocate an array of fence contexts
@@ -44,10 +44,10 @@ static atomic_t fence_context_counter = ATOMIC_INIT(0);
  * This function will return the first index of the number of fences allocated.
  * The fence context is used for setting fence->context to a unique number.
  */
-unsigned fence_context_alloc(unsigned num)
+u64 fence_context_alloc(unsigned num)
 {
 	BUG_ON(!num);
-	return atomic_add_return(num, &fence_context_counter) - num;
+	return atomic64_add_return(num, &fence_context_counter) - num;
 }
 EXPORT_SYMBOL(fence_context_alloc);
 
@@ -513,7 +513,7 @@ EXPORT_SYMBOL(fence_wait_any_timeout);
  */
 void
 fence_init(struct fence *fence, const struct fence_ops *ops,
-	     spinlock_t *lock, unsigned context, unsigned seqno)
+	     spinlock_t *lock, u64 context, unsigned seqno)
 {
 	BUG_ON(!lock);
 	BUG_ON(!ops || !ops->wait || !ops->enable_signaling ||

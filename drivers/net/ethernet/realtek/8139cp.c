@@ -467,8 +467,8 @@ static int cp_rx_poll(struct napi_struct *napi, int budget)
 	unsigned int rx_tail = cp->rx_tail;
 	int rx;
 
-rx_status_loop:
 	rx = 0;
+rx_status_loop:
 	cpw16(IntrStatus, cp_rx_intr_mask);
 
 	while (rx < budget) {

@@ -34,9 +34,9 @@ bool batadv_frag_skb_fwd(struct sk_buff *skb,
 			 struct batadv_orig_node *orig_node_src);
 bool batadv_frag_skb_buffer(struct sk_buff **skb,
 			    struct batadv_orig_node *orig_node);
-bool batadv_frag_send_packet(struct sk_buff *skb,
-			     struct batadv_orig_node *orig_node,
-			     struct batadv_neigh_node *neigh_node);
+int batadv_frag_send_packet(struct sk_buff *skb,
+			    struct batadv_orig_node *orig_node,
+			    struct batadv_neigh_node *neigh_node);
 
 /**
  * batadv_frag_check_entry - check if a list of fragments has timed out

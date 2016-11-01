@@ -257,8 +257,7 @@ static int uniphier_system_bus_probe(struct platform_device *pdev)
 	uniphier_system_bus_set_reg(priv);
 
 	/* Now, the bus is configured.  Populate platform_devices below it */
-	return of_platform_populate(dev->of_node, of_default_bus_match_table,
-				    NULL, dev);
+	return of_platform_default_populate(dev->of_node, NULL, dev);
 }
 
 static const struct of_device_id uniphier_system_bus_match[] = {

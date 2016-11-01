@@ -257,36 +257,12 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 	return v9fs_fid_lookup_with_uid(dentry, uid, any);
 }
 
-struct p9_fid *v9fs_fid_clone(struct dentry *dentry)
-{
-	struct p9_fid *fid, *ret;
-
-	fid = v9fs_fid_lookup(dentry);
-	if (IS_ERR(fid))
-		return fid;
-
-	ret = p9_client_walk(fid, 0, NULL, 1);
-	return ret;
-}
-
-static struct p9_fid *v9fs_fid_clone_with_uid(struct dentry *dentry, kuid_t uid)
-{
-	struct p9_fid *fid, *ret;
-
-	fid = v9fs_fid_lookup_with_uid(dentry, uid, 0);
-	if (IS_ERR(fid))
-		return fid;
-
-	ret = p9_client_walk(fid, 0, NULL, 1);
-	return ret;
-}
-
 struct p9_fid *v9fs_writeback_fid(struct dentry *dentry)
 {
 	int err;
 	struct p9_fid *fid;
 
-	fid = v9fs_fid_clone_with_uid(dentry, GLOBAL_ROOT_UID);
+	fid = clone_fid(v9fs_fid_lookup_with_uid(dentry, GLOBAL_ROOT_UID, 0));
 	if (IS_ERR(fid))
 		goto error_out;
 	/*

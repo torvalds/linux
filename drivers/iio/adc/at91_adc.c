@@ -381,8 +381,8 @@ static irqreturn_t at91_adc_rl_interrupt(int irq, void *private)
 		st->ts_bufferedmeasure = false;
 		input_report_key(st->ts_input, BTN_TOUCH, 0);
 		input_sync(st->ts_input);
-	} else if (status & AT91_ADC_EOC(3)) {
-		/* Conversion finished */
+	} else if (status & AT91_ADC_EOC(3) && st->ts_input) {
+		/* Conversion finished and we've a touchscreen */
 		if (st->ts_bufferedmeasure) {
 			/*
 			 * Last measurement is always discarded, since it can

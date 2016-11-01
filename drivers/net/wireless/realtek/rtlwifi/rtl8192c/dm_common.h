@@ -135,7 +135,7 @@ void rtl92c_dm_init_edca_turbo(struct ieee80211_hw *hw);
 void rtl92c_dm_check_txpower_tracking(struct ieee80211_hw *hw);
 void rtl92c_dm_init_rate_adaptive_mask(struct ieee80211_hw *hw);
 void rtl92c_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal);
-void rtl92c_phy_ap_calibrate(struct ieee80211_hw *hw, char delta);
+void rtl92c_phy_ap_calibrate(struct ieee80211_hw *hw, s8 delta);
 void rtl92c_phy_lc_calibrate(struct ieee80211_hw *hw);
 void rtl92c_phy_iq_calibrate(struct ieee80211_hw *hw, bool recovery);
 void rtl92c_dm_dynamic_txpower(struct ieee80211_hw *hw);

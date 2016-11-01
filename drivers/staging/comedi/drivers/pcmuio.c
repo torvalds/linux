@@ -307,7 +307,7 @@ static void pcmuio_stop_intr(struct comedi_device *dev,
 
 static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
-				      unsigned triggered)
+				      unsigned int triggered)
 {
 	struct pcmuio_private *devpriv = dev->private;
 	int asic = pcmuio_subdevice_to_asic(s);

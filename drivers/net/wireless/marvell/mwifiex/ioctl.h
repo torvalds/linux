@@ -83,6 +83,8 @@ struct wep_key {
 #define MWIFIEX_AUTH_MODE_AUTO  0xFF
 #define BAND_CONFIG_BG          0x00
 #define BAND_CONFIG_A           0x01
+#define MWIFIEX_SEC_CHAN_BELOW	0x30
+#define MWIFIEX_SEC_CHAN_ABOVE	0x10
 #define MWIFIEX_SUPPORTED_RATES                 14
 #define MWIFIEX_SUPPORTED_RATES_EXT             32
 #define MWIFIEX_TDLS_SUPPORTED_RATES		8
@@ -341,16 +343,16 @@ enum {
 };
 
 struct mwifiex_ds_reg_rw {
-	__le32 type;
-	__le32 offset;
-	__le32 value;
+	u32 type;
+	u32 offset;
+	u32 value;
 };
 
 #define MAX_EEPROM_DATA 256
 
 struct mwifiex_ds_read_eeprom {
-	__le16 offset;
-	__le16 byte_count;
+	u16 offset;
+	u16 byte_count;
 	u8 value[MAX_EEPROM_DATA];
 };
 

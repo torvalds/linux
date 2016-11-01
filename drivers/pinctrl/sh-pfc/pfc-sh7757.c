@@ -1625,7 +1625,6 @@ static const struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(VBIOS_CS),
 
 	/* PTW (mobule: LBSC, EVC, SCIF) */
-	GPIO_FN(A16),
 	GPIO_FN(A15),
 	GPIO_FN(A14),
 	GPIO_FN(A13),

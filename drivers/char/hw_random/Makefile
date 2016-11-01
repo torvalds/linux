@@ -34,3 +34,4 @@ obj-$(CONFIG_HW_RANDOM_ST) += st-rng.o
 obj-$(CONFIG_HW_RANDOM_XGENE) += xgene-rng.o
 obj-$(CONFIG_HW_RANDOM_STM32) += stm32-rng.o
 obj-$(CONFIG_HW_RANDOM_PIC32) += pic32-rng.o
+obj-$(CONFIG_HW_RANDOM_MESON) += meson-rng.o

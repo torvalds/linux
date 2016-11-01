@@ -177,7 +177,7 @@
 
 		apps_smsm: apps@0 {
 			reg = <0>;
-			#qcom,state-cells = <1>;
+			#qcom,smem-state-cells = <1>;
 		};
 
 		modem_smsm: modem@1 {
@@ -210,6 +210,12 @@
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
+		};
+	};
+
+	firmware {
+		scm {
+			compatible = "qcom,scm-apq8064";
 		};
 	};
 
@@ -247,7 +253,8 @@
 		};
 
 		timer@200a000 {
-			compatible = "qcom,kpss-timer", "qcom,msm-timer";
+			compatible = "qcom,kpss-timer",
+				     "qcom,kpss-wdt-apq8064", "qcom,msm-timer";
 			interrupts = <1 1 0x301>,
 				     <1 2 0x301>,
 				     <1 3 0x301>;
@@ -853,6 +860,8 @@
 			sdcc1: sdcc@12400000 {
 				status		= "disabled";
 				compatible	= "arm,pl18x", "arm,primecell";
+				pinctrl-names	= "default";
+				pinctrl-0	= <&sdcc1_pins>;
 				arm,primecell-periphid = <0x00051180>;
 				reg		= <0x12400000 0x2000>;
 				interrupts	= <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;

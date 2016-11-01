@@ -111,19 +111,11 @@ static struct notifier_block mvebu_hwcc_pci_nb __maybe_unused = {
 	.notifier_call = mvebu_hwcc_notifier,
 };
 
-static int armada_xp_clear_shared_l2_notifier_func(struct notifier_block *nfb,
-					unsigned long action, void *hcpu)
+static int armada_xp_clear_l2_starting(unsigned int cpu)
 {
-	if (action == CPU_STARTING || action == CPU_STARTING_FROZEN)
-		armada_xp_clear_shared_l2();
-
-	return NOTIFY_OK;
+	armada_xp_clear_shared_l2();
+	return 0;
 }
-
-static struct notifier_block armada_xp_clear_shared_l2_notifier = {
-	.notifier_call = armada_xp_clear_shared_l2_notifier_func,
-	.priority = 100,
-};
 
 static void __init armada_370_coherency_init(struct device_node *np)
 {
@@ -155,8 +147,9 @@ static void __init armada_370_coherency_init(struct device_node *np)
 
 	of_node_put(cpu_config_np);
 
-	register_cpu_notifier(&armada_xp_clear_shared_l2_notifier);
-
+	cpuhp_setup_state_nocalls(CPUHP_AP_ARM_MVEBU_COHERENCY,
+				  "AP_ARM_MVEBU_COHERENCY",
+				  armada_xp_clear_l2_starting, NULL);
 exit:
 	set_cpu_coherent();
 }

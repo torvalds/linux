@@ -2329,10 +2329,9 @@ static void DBGUNDO(struct sock *sk, const char *msg)
 	}
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (sk->sk_family == AF_INET6) {
-		struct ipv6_pinfo *np = inet6_sk(sk);
 		pr_debug("Undo %s %pI6/%u c%u l%u ss%u/%u p%u\n",
 			 msg,
-			 &np->daddr, ntohs(inet->inet_dport),
+			 &sk->sk_v6_daddr, ntohs(inet->inet_dport),
 			 tp->snd_cwnd, tcp_left_out(tp),
 			 tp->snd_ssthresh, tp->prior_ssthresh,
 			 tp->packets_out);
@@ -3115,6 +3114,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 	long ca_rtt_us = -1L;
 	struct sk_buff *skb;
 	u32 pkts_acked = 0;
+	u32 last_in_flight = 0;
 	bool rtt_update;
 	int flag = 0;
 
@@ -3154,6 +3154,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			if (!first_ackt.v64)
 				first_ackt = last_ackt;
 
+			last_in_flight = TCP_SKB_CB(skb)->tx.in_flight;
 			reord = min(pkts_acked, reord);
 			if (!after(scb->end_seq, tp->high_seq))
 				flag |= FLAG_ORIG_SACK_ACKED;
@@ -3250,7 +3251,8 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 
 	if (icsk->icsk_ca_ops->pkts_acked) {
 		struct ack_sample sample = { .pkts_acked = pkts_acked,
-					     .rtt_us = ca_rtt_us };
+					     .rtt_us = ca_rtt_us,
+					     .in_flight = last_in_flight };
 
 		icsk->icsk_ca_ops->pkts_acked(sk, &sample);
 	}
@@ -5169,6 +5171,7 @@ static bool tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
 				  const struct tcphdr *th, int syn_inerr)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	bool rst_seq_match = false;
 
 	/* RFC1323: H1. Apply PAWS check first. */
 	if (tcp_fast_parse_options(skb, th, tp) && tp->rx_opt.saw_tstamp &&
@@ -5205,13 +5208,32 @@ static bool tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
 
 	/* Step 2: check RST bit */
 	if (th->rst) {
-		/* RFC 5961 3.2 :
-		 * If sequence number exactly matches RCV.NXT, then
+		/* RFC 5961 3.2 (extend to match against SACK too if available):
+		 * If seq num matches RCV.NXT or the right-most SACK block,
+		 * then
 		 *     RESET the connection
 		 * else
 		 *     Send a challenge ACK
 		 */
-		if (TCP_SKB_CB(skb)->seq == tp->rcv_nxt)
+		if (TCP_SKB_CB(skb)->seq == tp->rcv_nxt) {
+			rst_seq_match = true;
+		} else if (tcp_is_sack(tp) && tp->rx_opt.num_sacks > 0) {
+			struct tcp_sack_block *sp = &tp->selective_acks[0];
+			int max_sack = sp[0].end_seq;
+			int this_sack;
+
+			for (this_sack = 1; this_sack < tp->rx_opt.num_sacks;
+			     ++this_sack) {
+				max_sack = after(sp[this_sack].end_seq,
+						 max_sack) ?
+					sp[this_sack].end_seq : max_sack;
+			}
+
+			if (TCP_SKB_CB(skb)->seq == max_sack)
+				rst_seq_match = true;
+		}
+
+		if (rst_seq_match)
 			tcp_reset(sk);
 		else
 			tcp_send_challenge_ack(sk, skb);
@@ -5862,7 +5884,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 		 * so release it.
 		 */
 		if (req) {
-			tp->total_retrans = req->num_retrans;
+			inet_csk(sk)->icsk_retransmits = 0;
 			reqsk_fastopen_remove(sk, req, false);
 		} else {
 			/* Make sure socket is routed, for correct metrics. */
@@ -6124,6 +6146,9 @@ struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,
 
 		kmemcheck_annotate_bitfield(ireq, flags);
 		ireq->opt = NULL;
+#if IS_ENABLED(CONFIG_IPV6)
+		ireq->pktopts = NULL;
+#endif
 		atomic64_set(&ireq->ir_cookie, 0);
 		ireq->ireq_state = TCP_NEW_SYN_RECV;
 		write_pnet(&ireq->ireq_net, sock_net(sk_listener));

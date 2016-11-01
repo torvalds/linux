@@ -443,23 +443,24 @@ typedef int (*test_func_t)(struct btrfs_trans_handle *,
 static int run_test(test_func_t test_func, int bitmaps,
 		u32 sectorsize, u32 nodesize)
 {
+	struct btrfs_fs_info *fs_info;
 	struct btrfs_root *root = NULL;
 	struct btrfs_block_group_cache *cache = NULL;
 	struct btrfs_trans_handle trans;
 	struct btrfs_path *path = NULL;
 	int ret;
 
-	root = btrfs_alloc_dummy_root(sectorsize, nodesize);
-	if (IS_ERR(root)) {
-		test_msg("Couldn't allocate dummy root\n");
-		ret = PTR_ERR(root);
+	fs_info = btrfs_alloc_dummy_fs_info();
+	if (!fs_info) {
+		test_msg("Couldn't allocate dummy fs info\n");
+		ret = -ENOMEM;
 		goto out;
 	}
 
-	root->fs_info = btrfs_alloc_dummy_fs_info();
-	if (!root->fs_info) {
-		test_msg("Couldn't allocate dummy fs info\n");
-		ret = -ENOMEM;
+	root = btrfs_alloc_dummy_root(fs_info, sectorsize, nodesize);
+	if (IS_ERR(root)) {
+		test_msg("Couldn't allocate dummy root\n");
+		ret = PTR_ERR(root);
 		goto out;
 	}
 
@@ -534,6 +535,7 @@ out:
 	btrfs_free_path(path);
 	btrfs_free_dummy_block_group(cache);
 	btrfs_free_dummy_root(root);
+	btrfs_free_dummy_fs_info(fs_info);
 	return ret;
 }
 

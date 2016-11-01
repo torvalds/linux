@@ -29,7 +29,7 @@ gk104_top_oneinit(struct nvkm_top *top)
 	struct nvkm_subdev *subdev = &top->subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_top_device *info = NULL;
-	u32 data, type;
+	u32 data, type, inst;
 	int i;
 
 	for (i = 0; i < 64; i++) {
@@ -37,6 +37,7 @@ gk104_top_oneinit(struct nvkm_top *top)
 			if (!(info = nvkm_top_device_new(top)))
 				return -ENOMEM;
 			type = ~0;
+			inst = 0;
 		}
 
 		data = nvkm_rd32(device, 0x022700 + (i * 0x04));
@@ -45,6 +46,7 @@ gk104_top_oneinit(struct nvkm_top *top)
 		case 0x00000000: /* NOT_VALID */
 			continue;
 		case 0x00000001: /* DATA */
+			inst        = (data & 0x3c000000) >> 26;
 			info->addr  = (data & 0x00fff000);
 			info->fault = (data & 0x000000f8) >> 3;
 			break;
@@ -67,27 +69,32 @@ gk104_top_oneinit(struct nvkm_top *top)
 			continue;
 
 		/* Translate engine type to NVKM engine identifier. */
+#define A_(A) if (inst == 0) info->index = NVKM_ENGINE_##A
+#define B_(A) if (inst + NVKM_ENGINE_##A##0 < NVKM_ENGINE_##A##_LAST + 1)      \
+		info->index = NVKM_ENGINE_##A##0 + inst
 		switch (type) {
-		case 0x00000000: info->index = NVKM_ENGINE_GR; break;
-		case 0x00000001: info->index = NVKM_ENGINE_CE0; break;
-		case 0x00000002: info->index = NVKM_ENGINE_CE1; break;
-		case 0x00000003: info->index = NVKM_ENGINE_CE2; break;
-		case 0x00000008: info->index = NVKM_ENGINE_MSPDEC; break;
-		case 0x00000009: info->index = NVKM_ENGINE_MSPPP; break;
-		case 0x0000000a: info->index = NVKM_ENGINE_MSVLD; break;
-		case 0x0000000b: info->index = NVKM_ENGINE_MSENC; break;
-		case 0x0000000c: info->index = NVKM_ENGINE_VIC; break;
-		case 0x0000000d: info->index = NVKM_ENGINE_SEC; break;
-		case 0x0000000e: info->index = NVKM_ENGINE_NVENC0; break;
-		case 0x0000000f: info->index = NVKM_ENGINE_NVENC1; break;
-		case 0x00000010: info->index = NVKM_ENGINE_NVDEC; break;
+		case 0x00000000: A_(GR    ); break;
+		case 0x00000001: A_(CE0   ); break;
+		case 0x00000002: A_(CE1   ); break;
+		case 0x00000003: A_(CE2   ); break;
+		case 0x00000008: A_(MSPDEC); break;
+		case 0x00000009: A_(MSPPP ); break;
+		case 0x0000000a: A_(MSVLD ); break;
+		case 0x0000000b: A_(MSENC ); break;
+		case 0x0000000c: A_(VIC   ); break;
+		case 0x0000000d: A_(SEC   ); break;
+		case 0x0000000e: B_(NVENC ); break;
+		case 0x0000000f: A_(NVENC1); break;
+		case 0x00000010: A_(NVDEC ); break;
+		case 0x00000013: B_(CE    ); break;
 			break;
 		default:
 			break;
 		}
 
-		nvkm_debug(subdev, "%02x (%8s): addr %06x fault %2d engine %2d "
-				   "runlist %2d intr %2d reset %2d\n", type,
+		nvkm_debug(subdev, "%02x.%d (%8s): addr %06x fault %2d "
+				   "engine %2d runlist %2d intr %2d "
+				   "reset %2d\n", type, inst,
 			   info->index == NVKM_SUBDEV_NR ? NULL :
 					  nvkm_subdev_name[info->index],
 			   info->addr, info->fault, info->engine, info->runlist,

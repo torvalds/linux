@@ -140,10 +140,30 @@ static ssize_t namespace_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(namespace);
 
+static ssize_t size_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_btt *nd_btt = to_nd_btt(dev);
+	ssize_t rc;
+
+	device_lock(dev);
+	if (dev->driver)
+		rc = sprintf(buf, "%llu\n", nd_btt->size);
+	else {
+		/* no size to convey if the btt instance is disabled */
+		rc = -ENXIO;
+	}
+	device_unlock(dev);
+
+	return rc;
+}
+static DEVICE_ATTR_RO(size);
+
 static struct attribute *nd_btt_attributes[] = {
 	&dev_attr_sector_size.attr,
 	&dev_attr_namespace.attr,
 	&dev_attr_uuid.attr,
+	&dev_attr_size.attr,
 	NULL,
 };
 
@@ -198,8 +218,7 @@ struct device *nd_btt_create(struct nd_region *nd_region)
 {
 	struct device *dev = __nd_btt_create(nd_region, 0, NULL, NULL);
 
-	if (dev)
-		__nd_device_register(dev);
+	__nd_device_register(dev);
 	return dev;
 }
 

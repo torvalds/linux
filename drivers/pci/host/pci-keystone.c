@@ -17,7 +17,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/msi.h>
 #include <linux/of_irq.h>
 #include <linux/of.h>
@@ -360,7 +360,6 @@ static const struct of_device_id ks_pcie_of_match[] = {
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, ks_pcie_of_match);
 
 static int __exit ks_pcie_remove(struct platform_device *pdev)
 {
@@ -439,9 +438,4 @@ static struct platform_driver ks_pcie_driver __refdata = {
 		.of_match_table = of_match_ptr(ks_pcie_of_match),
 	},
 };
-
-module_platform_driver(ks_pcie_driver);
-
-MODULE_AUTHOR("Murali Karicheri <m-karicheri2@ti.com>");
-MODULE_DESCRIPTION("Keystone PCIe host controller driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(ks_pcie_driver);

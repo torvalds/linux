@@ -20,19 +20,18 @@
 #define SEC4_SG_BPID_MASK	0x000000ff
 #define SEC4_SG_BPID_SHIFT	16
 #define SEC4_SG_LEN_MASK	0x3fffffff	/* Excludes EXT and FINAL */
-#define SEC4_SG_OFFS_MASK	0x00001fff
+#define SEC4_SG_OFFSET_MASK	0x00001fff
 
 struct sec4_sg_entry {
-#ifdef CONFIG_CRYPTO_DEV_FSL_CAAM_IMX
+#if !defined(CONFIG_ARCH_DMA_ADDR_T_64BIT) && \
+	defined(CONFIG_CRYPTO_DEV_FSL_CAAM_IMX)
 	u32 rsvd1;
 	dma_addr_t ptr;
 #else
 	u64 ptr;
 #endif /* CONFIG_CRYPTO_DEV_FSL_CAAM_IMX */
 	u32 len;
-	u8 rsvd2;
-	u8 buf_pool_id;
-	u16 offset;
+	u32 bpid_offset;
 };
 
 /* Max size of any CAAM descriptor in 32-bit words, inclusive of header */
@@ -454,6 +453,8 @@ struct sec4_sg_entry {
 #define OP_PCLID_PUBLICKEYPAIR	(0x14 << OP_PCLID_SHIFT)
 #define OP_PCLID_DSASIGN	(0x15 << OP_PCLID_SHIFT)
 #define OP_PCLID_DSAVERIFY	(0x16 << OP_PCLID_SHIFT)
+#define OP_PCLID_RSAENC_PUBKEY  (0x18 << OP_PCLID_SHIFT)
+#define OP_PCLID_RSADEC_PRVKEY  (0x19 << OP_PCLID_SHIFT)
 
 /* Assuming OP_TYPE = OP_TYPE_DECAP_PROTOCOL/ENCAP_PROTOCOL */
 #define OP_PCLID_IPSEC		(0x01 << OP_PCLID_SHIFT)

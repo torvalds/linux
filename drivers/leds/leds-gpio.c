@@ -165,6 +165,7 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 		return ERR_PTR(-ENOMEM);
 
 	device_for_each_child_node(dev, child) {
+		struct gpio_led_data *led_dat = &priv->leds[priv->num_leds];
 		struct gpio_led led = {};
 		const char *state = NULL;
 
@@ -205,12 +206,12 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 		if (fwnode_property_present(child, "panic-indicator"))
 			led.panic_indicator = 1;
 
-		ret = create_gpio_led(&led, &priv->leds[priv->num_leds],
-				      dev, NULL);
+		ret = create_gpio_led(&led, led_dat, dev, NULL);
 		if (ret < 0) {
 			fwnode_handle_put(child);
 			goto err;
 		}
+		led_dat->cdev.dev->of_node = np;
 		priv->num_leds++;
 	}
 

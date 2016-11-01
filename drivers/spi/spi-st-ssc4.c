@@ -68,32 +68,6 @@ struct spi_st {
 	struct completion	done;
 };
 
-static int spi_st_clk_enable(struct spi_st *spi_st)
-{
-	/*
-	 * Current platforms use one of the core clocks for SPI and I2C.
-	 * If we attempt to disable the clock, the system will hang.
-	 *
-	 * TODO: Remove this when platform supports power domains.
-	 */
-	return 0;
-
-	return clk_prepare_enable(spi_st->clk);
-}
-
-static void spi_st_clk_disable(struct spi_st *spi_st)
-{
-	/*
-	 * Current platforms use one of the core clocks for SPI and I2C.
-	 * If we attempt to disable the clock, the system will hang.
-	 *
-	 * TODO: Remove this when platform supports power domains.
-	 */
-	return;
-
-	clk_disable_unprepare(spi_st->clk);
-}
-
 /* Load the TX FIFO */
 static void ssc_write_tx_fifo(struct spi_st *spi_st)
 {
@@ -349,7 +323,7 @@ static int spi_st_probe(struct platform_device *pdev)
 		goto put_master;
 	}
 
-	ret = spi_st_clk_enable(spi_st);
+	ret = clk_prepare_enable(spi_st->clk);
 	if (ret)
 		goto put_master;
 
@@ -408,7 +382,7 @@ static int spi_st_probe(struct platform_device *pdev)
 	return 0;
 
 clk_disable:
-	spi_st_clk_disable(spi_st);
+	clk_disable_unprepare(spi_st->clk);
 put_master:
 	spi_master_put(master);
 	return ret;
@@ -419,7 +393,7 @@ static int spi_st_remove(struct platform_device *pdev)
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct spi_st *spi_st = spi_master_get_devdata(master);
 
-	spi_st_clk_disable(spi_st);
+	clk_disable_unprepare(spi_st->clk);
 
 	pinctrl_pm_select_sleep_state(&pdev->dev);
 
@@ -435,7 +409,7 @@ static int spi_st_runtime_suspend(struct device *dev)
 	writel_relaxed(0, spi_st->base + SSC_IEN);
 	pinctrl_pm_select_sleep_state(dev);
 
-	spi_st_clk_disable(spi_st);
+	clk_disable_unprepare(spi_st->clk);
 
 	return 0;
 }
@@ -446,7 +420,7 @@ static int spi_st_runtime_resume(struct device *dev)
 	struct spi_st *spi_st = spi_master_get_devdata(master);
 	int ret;
 
-	ret = spi_st_clk_enable(spi_st);
+	ret = clk_prepare_enable(spi_st->clk);
 	pinctrl_pm_select_default_state(dev);
 
 	return ret;

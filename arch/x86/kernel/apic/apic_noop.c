@@ -11,7 +11,6 @@
 
 #include <linux/threads.h>
 #include <linux/cpumask.h>
-#include <linux/module.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/ctype.h>
@@ -141,7 +140,6 @@ struct apic apic_noop = {
 
 	.get_apic_id			= noop_get_apic_id,
 	.set_apic_id			= NULL,
-	.apic_id_mask			= 0x0F << 24,
 
 	.cpu_mask_to_apicid_and		= flat_cpu_mask_to_apicid_and,
 

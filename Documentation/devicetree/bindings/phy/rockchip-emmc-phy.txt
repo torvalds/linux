@@ -7,6 +7,13 @@ Required properties:
  - reg: PHY register address offset and length in "general
    register files"
 
+Optional clocks using the clock bindings (see ../clock/clock-bindings.txt),
+specified by name:
+ - clock-names: Should contain "emmcclk".  Although this is listed as optional
+		(because most boards can get basic functionality without having
+		access to it), it is strongly suggested.
+ - clocks: Should have a phandle to the card clock exported by the SDHCI driver.
+
 Example:
 
 
@@ -20,6 +27,8 @@ grf: syscon@ff770000 {
 	emmcphy: phy@f780 {
 		compatible = "rockchip,rk3399-emmc-phy";
 		reg = <0xf780 0x20>;
+		clocks = <&sdhci>;
+		clock-names = "emmcclk";
 		#phy-cells = <0>;
 	};
 };

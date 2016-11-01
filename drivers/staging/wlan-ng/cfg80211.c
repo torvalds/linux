@@ -338,6 +338,8 @@ static int prism2_scan(struct wiphy *wiphy,
 	struct p80211msg_dot11req_scan msg1;
 	struct p80211msg_dot11req_scan_results msg2;
 	struct cfg80211_bss *bss;
+	struct cfg80211_scan_info info = {};
+
 	int result;
 	int err = 0;
 	int numbss = 0;
@@ -440,7 +442,8 @@ static int prism2_scan(struct wiphy *wiphy,
 		err = prism2_result2err(msg2.resultcode.data);
 
 exit:
-	cfg80211_scan_done(request, err ? 1 : 0);
+	info.aborted = !!(err);
+	cfg80211_scan_done(request, &info);
 	priv->scan_request = NULL;
 	return err;
 }

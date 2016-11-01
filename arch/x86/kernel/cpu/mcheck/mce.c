@@ -425,7 +425,7 @@ static u64 mce_rdmsrl(u32 msr)
 	}
 
 	if (rdmsrl_safe(msr, &v)) {
-		WARN_ONCE(1, "mce: Unable to read msr %d!\n", msr);
+		WARN_ONCE(1, "mce: Unable to read MSR 0x%x!\n", msr);
 		/*
 		 * Return zero in case the access faulted. This should
 		 * not happen normally but can happen if the CPU does
@@ -1309,7 +1309,7 @@ static void __restart_timer(struct timer_list *t, unsigned long interval)
 
 	if (timer_pending(t)) {
 		if (time_before(when, t->expires))
-			mod_timer_pinned(t, when);
+			mod_timer(t, when);
 	} else {
 		t->expires = round_jiffies(when);
 		add_timer_on(t, smp_processor_id());
@@ -1735,7 +1735,7 @@ static void __mcheck_cpu_init_timer(void)
 	struct timer_list *t = this_cpu_ptr(&mce_timer);
 	unsigned int cpu = smp_processor_id();
 
-	setup_timer(t, mce_timer_fn, cpu);
+	setup_pinned_timer(t, mce_timer_fn, cpu);
 	mce_start_timer(cpu, t);
 }
 

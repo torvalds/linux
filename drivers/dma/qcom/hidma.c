@@ -708,6 +708,7 @@ static int hidma_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(dmadev->ddev.dev);
 	dma_async_device_unregister(&dmadev->ddev);
 	devm_free_irq(dmadev->ddev.dev, dmadev->irq, dmadev->lldev);
+	tasklet_kill(&dmadev->task);
 	hidma_debug_uninit(dmadev);
 	hidma_ll_uninit(dmadev->lldev);
 	hidma_free(dmadev);

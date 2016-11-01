@@ -90,6 +90,7 @@ config NFSD_BLOCKLAYOUT
 	bool "NFSv4.1 server support for pNFS block layouts"
 	depends on NFSD_V4 && BLOCK
 	select NFSD_PNFS
+	select EXPORTFS_BLOCK_OPS
 	help
 	  This option enables support for the exporting pNFS block layouts
 	  in the kernel's NFS server. The pNFS block layout enables NFS
@@ -102,12 +103,30 @@ config NFSD_SCSILAYOUT
 	bool "NFSv4.1 server support for pNFS SCSI layouts"
 	depends on NFSD_V4 && BLOCK
 	select NFSD_PNFS
+	select EXPORTFS_BLOCK_OPS
 	help
 	  This option enables support for the exporting pNFS SCSI layouts
 	  in the kernel's NFS server. The pNFS SCSI layout enables NFS
 	  clients to directly perform I/O to SCSI devices accesible to both
 	  the server and the clients.  See draft-ietf-nfsv4-scsi-layout for
 	  more details.
+
+	  If unsure, say N.
+
+config NFSD_FLEXFILELAYOUT
+	bool "NFSv4.1 server support for pNFS Flex File layouts"
+	depends on NFSD_V4
+	select NFSD_PNFS
+	help
+	  This option enables support for the exporting pNFS Flex File
+	  layouts in the kernel's NFS server. The pNFS Flex File  layout
+	  enables NFS clients to directly perform I/O to NFSv3 devices
+	  accesible to both the server and the clients.  See
+	  draft-ietf-nfsv4-flex-files for more details.
+
+	  Warning, this server implements the bare minimum functionality
+	  to be a flex file server - it is for testing the client,
+	  not for use in production.
 
 	  If unsure, say N.
 

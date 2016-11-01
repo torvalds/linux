@@ -293,6 +293,7 @@ static void *sctp_transport_seq_start(struct seq_file *seq, loff_t *pos)
 		return ERR_PTR(err);
 	}
 
+	iter->start_fail = 0;
 	return sctp_transport_get_idx(seq_file_net(seq), &iter->hti, *pos);
 }
 

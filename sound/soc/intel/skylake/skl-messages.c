@@ -206,6 +206,12 @@ static const struct skl_dsp_ops dsp_ops[] = {
 		.cleanup = skl_sst_dsp_cleanup
 	},
 	{
+		.id = 0x9d71,
+		.loader_ops = skl_get_loader_ops,
+		.init = skl_sst_dsp_init,
+		.cleanup = skl_sst_dsp_cleanup
+	},
+	{
 		.id = 0x5a98,
 		.loader_ops = bxt_get_loader_ops,
 		.init = bxt_sst_dsp_init,
@@ -730,7 +736,7 @@ static int skl_set_module_format(struct skl_sst *ctx,
 
 	dev_dbg(ctx->dev, "Module type=%d config size: %d bytes\n",
 			module_config->id.module_id, param_size);
-	print_hex_dump(KERN_DEBUG, "Module params:", DUMP_PREFIX_OFFSET, 8, 4,
+	print_hex_dump_debug("Module params:", DUMP_PREFIX_OFFSET, 8, 4,
 			*param_data, param_size, false);
 	return 0;
 }
@@ -1046,7 +1052,7 @@ int skl_delete_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
 
 	dev_dbg(ctx->dev, "%s: pipe = %d\n", __func__, pipe->ppl_id);
 
-	/* If pipe is not started, do not try to stop the pipe in FW. */
+	/* If pipe is started, do stop the pipe in FW. */
 	if (pipe->state > SKL_PIPE_STARTED) {
 		ret = skl_set_pipe_state(ctx, pipe, PPL_PAUSED);
 		if (ret < 0) {
@@ -1055,17 +1061,19 @@ int skl_delete_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
 		}
 
 		pipe->state = SKL_PIPE_PAUSED;
-	} else {
-		/* If pipe was not created in FW, do not try to delete it */
-		if (pipe->state < SKL_PIPE_CREATED)
-			return 0;
-
-		ret = skl_ipc_delete_pipeline(&ctx->ipc, pipe->ppl_id);
-		if (ret < 0)
-			dev_err(ctx->dev, "Failed to delete pipeline\n");
-
-		pipe->state = SKL_PIPE_INVALID;
 	}
+
+	/* If pipe was not created in FW, do not try to delete it */
+	if (pipe->state < SKL_PIPE_CREATED)
+		return 0;
+
+	ret = skl_ipc_delete_pipeline(&ctx->ipc, pipe->ppl_id);
+	if (ret < 0) {
+		dev_err(ctx->dev, "Failed to delete pipeline\n");
+		return ret;
+	}
+
+	pipe->state = SKL_PIPE_INVALID;
 
 	return ret;
 }
@@ -1125,7 +1133,30 @@ int skl_stop_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
 		return ret;
 	}
 
-	pipe->state = SKL_PIPE_CREATED;
+	pipe->state = SKL_PIPE_PAUSED;
+
+	return 0;
+}
+
+/*
+ * Reset the pipeline by sending set pipe state IPC this will reset the DMA
+ * from the DSP side
+ */
+int skl_reset_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
+{
+	int ret;
+
+	/* If pipe was not created in FW, do not try to pause or delete */
+	if (pipe->state < SKL_PIPE_PAUSED)
+		return 0;
+
+	ret = skl_set_pipe_state(ctx, pipe, PPL_RESET);
+	if (ret < 0) {
+		dev_dbg(ctx->dev, "Failed to reset pipe ret=%d\n", ret);
+		return ret;
+	}
+
+	pipe->state = SKL_PIPE_RESET;
 
 	return 0;
 }

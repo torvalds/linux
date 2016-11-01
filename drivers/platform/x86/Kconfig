@@ -603,6 +603,8 @@ config ASUS_WIRELESS
 	tristate "Asus Wireless Radio Control Driver"
 	depends on ACPI
 	depends on INPUT
+	select NEW_LEDS
+	select LEDS_CLASS
 	---help---
 	  The Asus Wireless Radio Control handles the airplane mode hotkey
 	  present on some Asus laptops.
@@ -668,6 +670,7 @@ config ACPI_TOSHIBA
 	depends on SERIO_I8042 || SERIO_I8042 = n
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL || RFKILL = n
+	depends on IIO
 	select INPUT_POLLDEV
 	select INPUT_SPARSEKMAP
 	---help---
@@ -769,6 +772,18 @@ config INTEL_HID_EVENT
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called intel_hid.
+
+config INTEL_VBTN
+	tristate "INTEL VIRTUAL BUTTON"
+	depends on ACPI
+	depends on INPUT
+	select INPUT_SPARSEKMAP
+	help
+	  This driver provides support for the Intel Virtual Button interface.
+	  Some laptops require this driver for power button support.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called intel_vbtn.
 
 config INTEL_SCU_IPC
 	bool "Intel SCU IPC Support"

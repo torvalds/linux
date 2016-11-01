@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -180,11 +176,7 @@ LUSTRE_RO_ATTR(filesfree);
 static ssize_t client_type_show(struct kobject *kobj, struct attribute *attr,
 				char *buf)
 {
-	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
-					      ll_kobj);
-
-	return sprintf(buf, "%s client\n",
-			sbi->ll_flags & LL_SBI_RMT_CLIENT ? "remote" : "local");
+	return sprintf(buf, "local client\n");
 }
 LUSTRE_RO_ATTR(client_type);
 
@@ -364,7 +356,7 @@ static int ll_max_cached_mb_seq_show(struct seq_file *m, void *v)
 {
 	struct super_block     *sb    = m->private;
 	struct ll_sb_info      *sbi   = ll_s2sbi(sb);
-	struct cl_client_cache *cache = &sbi->ll_cache;
+	struct cl_client_cache *cache = sbi->ll_cache;
 	int shift = 20 - PAGE_SHIFT;
 	int max_cached_mb;
 	int unused_mb;
@@ -391,7 +383,7 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 {
 	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
-	struct cl_client_cache *cache = &sbi->ll_cache;
+	struct cl_client_cache *cache = sbi->ll_cache;
 	struct lu_env *env;
 	int refcheck;
 	int mult, rc, pages_number;
@@ -830,7 +822,7 @@ static ssize_t unstable_stats_show(struct kobject *kobj,
 {
 	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
 					      ll_kobj);
-	struct cl_client_cache *cache = &sbi->ll_cache;
+	struct cl_client_cache *cache = sbi->ll_cache;
 	int pages, mb;
 
 	pages = atomic_read(&cache->ccc_unstable_nr);

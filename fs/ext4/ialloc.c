@@ -214,7 +214,7 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 	trace_ext4_load_inode_bitmap(sb, block_group);
 	bh->b_end_io = ext4_end_bitmap_read;
 	get_bh(bh);
-	submit_bh(READ | REQ_META | REQ_PRIO, bh);
+	submit_bh(REQ_OP_READ, REQ_META | REQ_PRIO, bh);
 	wait_on_buffer(bh);
 	if (!buffer_uptodate(bh)) {
 		put_bh(bh);
@@ -767,10 +767,10 @@ struct inode *__ext4_new_inode(handle_t *handle, struct inode *dir,
 	if ((ext4_encrypted_inode(dir) ||
 	     DUMMY_ENCRYPTION_ENABLED(EXT4_SB(dir->i_sb))) &&
 	    (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode))) {
-		err = ext4_get_encryption_info(dir);
+		err = fscrypt_get_encryption_info(dir);
 		if (err)
 			return ERR_PTR(err);
-		if (ext4_encryption_info(dir) == NULL)
+		if (!fscrypt_has_encryption_key(dir))
 			return ERR_PTR(-EPERM);
 		if (!handle)
 			nblocks += EXT4_DATA_TRANS_BLOCKS(dir->i_sb);
@@ -1115,7 +1115,8 @@ got:
 	}
 
 	if (encrypt) {
-		err = ext4_inherit_context(dir, inode);
+		/* give pointer to avoid set_context with journal ops. */
+		err = fscrypt_inherit_context(dir, inode, &encrypt, true);
 		if (err)
 			goto fail_free_drop;
 	}

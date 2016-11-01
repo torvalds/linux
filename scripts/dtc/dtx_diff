@@ -266,7 +266,7 @@ DTC="${__KBUILD_OUTPUT}/scripts/dtc/dtc"
 
 if [ ! -x ${DTC} ] ; then
 	__DTC="dtc"
-	if grep -q "^CONFIG_DTC=y" ${__KBUILD_OUTPUT}/.config ; then
+	if grep -q "^CONFIG_DTC=y" ${__KBUILD_OUTPUT}/.config 2>/dev/null; then
 		make_command='
          make scripts'
 	else

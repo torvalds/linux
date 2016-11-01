@@ -2,7 +2,7 @@
 #include <linux/linkage.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/percpu.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
@@ -804,21 +804,20 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 		identify_cpu_without_cpuid(c);
 
 	/* cyrix could have cpuid enabled via c_identify()*/
-	if (!have_cpuid_p())
-		return;
+	if (have_cpuid_p()) {
+		cpu_detect(c);
+		get_cpu_vendor(c);
+		get_cpu_cap(c);
 
-	cpu_detect(c);
-	get_cpu_vendor(c);
-	get_cpu_cap(c);
+		if (this_cpu->c_early_init)
+			this_cpu->c_early_init(c);
 
-	if (this_cpu->c_early_init)
-		this_cpu->c_early_init(c);
+		c->cpu_index = 0;
+		filter_cpuid_features(c, false);
 
-	c->cpu_index = 0;
-	filter_cpuid_features(c, false);
-
-	if (this_cpu->c_bsp_init)
-		this_cpu->c_bsp_init(c);
+		if (this_cpu->c_bsp_init)
+			this_cpu->c_bsp_init(c);
+	}
 
 	setup_force_cpu_cap(X86_FEATURE_ALWAYS);
 	fpu__init_system(c);
@@ -1452,7 +1451,7 @@ void cpu_init(void)
 	struct task_struct *me;
 	struct tss_struct *t;
 	unsigned long v;
-	int cpu = stack_smp_processor_id();
+	int cpu = raw_smp_processor_id();
 	int i;
 
 	wait_for_master_cpu(cpu);

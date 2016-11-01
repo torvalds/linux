@@ -297,7 +297,7 @@
 		};
 	};
 
-	vcc_mmc0_reg: fixedregulator@0 {
+	vcc_mmc0_reg: fixedregulator_mmc0 {
 		compatible = "regulator-fixed";
 		gpio = <&pioE 2 GPIO_ACTIVE_LOW>;
 		regulator-name = "mmc0-card-supply";

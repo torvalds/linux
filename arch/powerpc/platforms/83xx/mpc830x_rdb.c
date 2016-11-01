@@ -46,7 +46,7 @@ static const char *board[] __initdata = {
  */
 static int __init mpc830x_rdb_probe(void)
 {
-	return of_flat_dt_match(of_get_flat_dt_root(), board);
+	return of_device_compatible_match(of_root, board);
 }
 
 machine_device_initcall(mpc830x_rdb, mpc83xx_declare_of_platform_devices);

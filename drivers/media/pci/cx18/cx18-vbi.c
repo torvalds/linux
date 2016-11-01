@@ -108,7 +108,7 @@ static void copy_vbi_data(struct cx18 *cx, int lines, u32 pts_stamp)
 /* FIXME - this function ignores the input size. */
 static u32 compress_raw_buf(struct cx18 *cx, u8 *buf, u32 size, u32 hdr_size)
 {
-	u32 line_size = vbi_active_samples;
+	u32 line_size = VBI_ACTIVE_SAMPLES;
 	u32 lines = cx->vbi.count * 2;
 	u8 *q = buf;
 	u8 *p;
@@ -145,8 +145,8 @@ static u32 compress_sliced_buf(struct cx18 *cx, u8 *buf, u32 size,
 	struct v4l2_decode_vbi_line vbi;
 	int i;
 	u32 line = 0;
-	u32 line_size = cx->is_60hz ? vbi_hblank_samples_60Hz
-				    : vbi_hblank_samples_50Hz;
+	u32 line_size = cx->is_60hz ? VBI_HBLANK_SAMPLES_60HZ
+				    : VBI_HBLANK_SAMPLES_50HZ;
 
 	/* find the first valid line */
 	for (i = hdr_size, buf += hdr_size; i < size; i++, buf++) {

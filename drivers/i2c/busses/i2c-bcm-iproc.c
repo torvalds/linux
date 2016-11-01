@@ -158,7 +158,7 @@ static irqreturn_t bcm_iproc_i2c_isr(int irq, void *data)
 
 	if (status & BIT(IS_M_START_BUSY_SHIFT)) {
 		iproc_i2c->xfer_is_done = 1;
-		complete_all(&iproc_i2c->done);
+		complete(&iproc_i2c->done);
 	}
 
 	writel(status, iproc_i2c->base + IS_OFFSET);

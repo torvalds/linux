@@ -71,14 +71,14 @@ static inline struct reset_control *__of_reset_control_get(
 					struct device_node *node,
 					const char *id, int index, int shared)
 {
-	return ERR_PTR(-EINVAL);
+	return ERR_PTR(-ENOTSUPP);
 }
 
 static inline struct reset_control *__devm_reset_control_get(
 					struct device *dev,
 					const char *id, int index, int shared)
 {
-	return ERR_PTR(-EINVAL);
+	return ERR_PTR(-ENOTSUPP);
 }
 
 #endif /* CONFIG_RESET_CONTROLLER */

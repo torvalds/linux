@@ -1104,6 +1104,7 @@ static struct wmi_pdev_param_map wmi_pdev_param_map = {
 	.wapi_mbssid_offset = WMI_PDEV_PARAM_UNSUPPORTED,
 	.arp_srcaddr = WMI_PDEV_PARAM_UNSUPPORTED,
 	.arp_dstaddr = WMI_PDEV_PARAM_UNSUPPORTED,
+	.enable_btcoex = WMI_PDEV_PARAM_UNSUPPORTED,
 };
 
 static struct wmi_pdev_param_map wmi_10x_pdev_param_map = {
@@ -1199,6 +1200,7 @@ static struct wmi_pdev_param_map wmi_10x_pdev_param_map = {
 	.wapi_mbssid_offset = WMI_PDEV_PARAM_UNSUPPORTED,
 	.arp_srcaddr = WMI_PDEV_PARAM_UNSUPPORTED,
 	.arp_dstaddr = WMI_PDEV_PARAM_UNSUPPORTED,
+	.enable_btcoex = WMI_PDEV_PARAM_UNSUPPORTED,
 };
 
 static struct wmi_pdev_param_map wmi_10_2_4_pdev_param_map = {
@@ -1294,6 +1296,7 @@ static struct wmi_pdev_param_map wmi_10_2_4_pdev_param_map = {
 	.wapi_mbssid_offset = WMI_PDEV_PARAM_UNSUPPORTED,
 	.arp_srcaddr = WMI_PDEV_PARAM_UNSUPPORTED,
 	.arp_dstaddr = WMI_PDEV_PARAM_UNSUPPORTED,
+	.enable_btcoex = WMI_PDEV_PARAM_UNSUPPORTED,
 };
 
 /* firmware 10.2 specific mappings */
@@ -1550,6 +1553,7 @@ static struct wmi_pdev_param_map wmi_10_4_pdev_param_map = {
 	.wapi_mbssid_offset = WMI_10_4_PDEV_PARAM_WAPI_MBSSID_OFFSET,
 	.arp_srcaddr = WMI_10_4_PDEV_PARAM_ARP_SRCADDR,
 	.arp_dstaddr = WMI_10_4_PDEV_PARAM_ARP_DSTADDR,
+	.enable_btcoex = WMI_10_4_PDEV_PARAM_ENABLE_BTCOEX,
 };
 
 static const struct wmi_peer_flags_map wmi_peer_flags_map = {
@@ -1822,7 +1826,7 @@ static struct sk_buff *
 ath10k_wmi_op_gen_mgmt_tx(struct ath10k *ar, struct sk_buff *msdu)
 {
 	struct ath10k_skb_cb *cb = ATH10K_SKB_CB(msdu);
-	struct ath10k_vif *arvif = (void *)cb->vif->drv_priv;
+	struct ath10k_vif *arvif;
 	struct wmi_mgmt_tx_cmd *cmd;
 	struct ieee80211_hdr *hdr;
 	struct sk_buff *skb;
@@ -1834,10 +1838,12 @@ ath10k_wmi_op_gen_mgmt_tx(struct ath10k *ar, struct sk_buff *msdu)
 	hdr = (struct ieee80211_hdr *)msdu->data;
 	fc = le16_to_cpu(hdr->frame_control);
 
-	if (cb->vif)
+	if (cb->vif) {
+		arvif = (void *)cb->vif->drv_priv;
 		vdev_id = arvif->vdev_id;
-	else
+	} else {
 		vdev_id = 0;
+	}
 
 	if (WARN_ON_ONCE(!ieee80211_is_mgmt(hdr->frame_control)))
 		return ERR_PTR(-EINVAL);
@@ -2920,6 +2926,7 @@ static int ath10k_wmi_10_4_op_pull_fw_stats(struct ath10k *ar,
 	u32 num_pdev_ext_stats;
 	u32 num_vdev_stats;
 	u32 num_peer_stats;
+	u32 num_bcnflt_stats;
 	u32 stats_id;
 	int i;
 
@@ -2930,6 +2937,7 @@ static int ath10k_wmi_10_4_op_pull_fw_stats(struct ath10k *ar,
 	num_pdev_ext_stats = __le32_to_cpu(ev->num_pdev_ext_stats);
 	num_vdev_stats = __le32_to_cpu(ev->num_vdev_stats);
 	num_peer_stats = __le32_to_cpu(ev->num_peer_stats);
+	num_bcnflt_stats = __le32_to_cpu(ev->num_bcnflt_stats);
 	stats_id = __le32_to_cpu(ev->stats_id);
 
 	for (i = 0; i < num_pdev_stats; i++) {
@@ -2970,30 +2978,55 @@ static int ath10k_wmi_10_4_op_pull_fw_stats(struct ath10k *ar,
 	/* fw doesn't implement vdev stats */
 
 	for (i = 0; i < num_peer_stats; i++) {
-		const struct wmi_10_4_peer_extd_stats *src;
+		const struct wmi_10_4_peer_stats *src;
 		struct ath10k_fw_stats_peer *dst;
-		int stats_len;
-		bool extd_peer_stats = !!(stats_id & WMI_10_4_STAT_PEER_EXTD);
-
-		if (extd_peer_stats)
-			stats_len = sizeof(struct wmi_10_4_peer_extd_stats);
-		else
-			stats_len = sizeof(struct wmi_10_4_peer_stats);
 
 		src = (void *)skb->data;
-		if (!skb_pull(skb, stats_len))
+		if (!skb_pull(skb, sizeof(*src)))
 			return -EPROTO;
 
 		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
 		if (!dst)
 			continue;
 
-		ath10k_wmi_10_4_pull_peer_stats(&src->common, dst);
-		/* FIXME: expose 10.4 specific values */
-		if (extd_peer_stats)
-			dst->rx_duration = __le32_to_cpu(src->rx_duration);
-
+		ath10k_wmi_10_4_pull_peer_stats(src, dst);
 		list_add_tail(&dst->list, &stats->peers);
+	}
+
+	for (i = 0; i < num_bcnflt_stats; i++) {
+		const struct wmi_10_4_bss_bcn_filter_stats *src;
+
+		src = (void *)skb->data;
+		if (!skb_pull(skb, sizeof(*src)))
+			return -EPROTO;
+
+		/* FIXME: expose values to userspace
+		 *
+		 * Note: Even though this loop seems to do nothing it is
+		 * required to parse following sub-structures properly.
+		 */
+	}
+
+	if ((stats_id & WMI_10_4_STAT_PEER_EXTD) == 0)
+		return 0;
+
+	stats->extended = true;
+
+	for (i = 0; i < num_peer_stats; i++) {
+		const struct wmi_10_4_peer_extd_stats *src;
+		struct ath10k_fw_extd_stats_peer *dst;
+
+		src = (void *)skb->data;
+		if (!skb_pull(skb, sizeof(*src)))
+			return -EPROTO;
+
+		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		if (!dst)
+			continue;
+
+		ether_addr_copy(dst->peer_macaddr, src->peer_macaddr.addr);
+		dst->rx_duration = __le32_to_cpu(src->rx_duration);
+		list_add_tail(&dst->list, &stats->peers_extd);
 	}
 
 	return 0;
@@ -3671,7 +3704,7 @@ void ath10k_wmi_event_dfs(struct ath10k *ar,
 		   phyerr->tsf_timestamp, tsf, buf_len);
 
 	/* Skip event if DFS disabled */
-	if (!config_enabled(CONFIG_ATH10K_DFS_CERTIFIED))
+	if (!IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED))
 		return;
 
 	ATH10K_DFS_STAT_INC(ar, pulses_total);
@@ -5252,6 +5285,9 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_4_PEER_STA_KICKOUT_EVENTID:
 		ath10k_wmi_event_peer_sta_kickout(ar, skb);
+		break;
+	case WMI_10_4_ROAM_EVENTID:
+		ath10k_wmi_event_roam(ar, skb);
 		break;
 	case WMI_10_4_HOST_SWBA_EVENTID:
 		ath10k_wmi_event_host_swba(ar, skb);
@@ -7899,6 +7935,7 @@ static const struct wmi_ops wmi_10_4_ops = {
 	.pull_phyerr = ath10k_wmi_10_4_op_pull_phyerr_ev,
 	.pull_svc_rdy = ath10k_wmi_main_op_pull_svc_rdy_ev,
 	.pull_rdy = ath10k_wmi_op_pull_rdy_ev,
+	.pull_roam_ev = ath10k_wmi_op_pull_roam_ev,
 	.get_txbf_conf_scheme = ath10k_wmi_10_4_txbf_conf_scheme,
 
 	.gen_pdev_suspend = ath10k_wmi_op_gen_pdev_suspend,

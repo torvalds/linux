@@ -23,8 +23,6 @@ struct mmu_psize_def {
 };
 extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 
-#define radix_enabled() mmu_has_feature(MMU_FTR_RADIX)
-
 #endif /* __ASSEMBLY__ */
 
 /* 64-bit classic hash table MMU */
@@ -102,6 +100,9 @@ extern int mmu_vmemmap_psize;
 extern int mmu_io_psize;
 
 /* MMU initialization */
+void mmu_early_init_devtree(void);
+void hash__early_init_devtree(void);
+void radix__early_init_devtree(void);
 extern void radix_init_native(void);
 extern void hash__early_init_mmu(void);
 extern void radix__early_init_mmu(void);
@@ -127,11 +128,15 @@ extern void radix__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 static inline void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 					      phys_addr_t first_memblock_size)
 {
-	if (radix_enabled())
+	if (early_radix_enabled())
 		return radix__setup_initial_memory_limit(first_memblock_base,
 						   first_memblock_size);
 	return hash__setup_initial_memory_limit(first_memblock_base,
 					   first_memblock_size);
 }
+
+extern int (*register_process_table)(unsigned long base, unsigned long page_size,
+				     unsigned long tbl_size);
+
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_MMU_H_ */

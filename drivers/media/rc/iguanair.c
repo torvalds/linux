@@ -330,7 +330,7 @@ static int iguanair_set_tx_carrier(struct rc_dev *dev, uint32_t carrier)
 
 	mutex_unlock(&ir->lock);
 
-	return carrier;
+	return 0;
 }
 
 static int iguanair_set_tx_mask(struct rc_dev *dev, uint32_t mask)

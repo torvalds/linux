@@ -16,10 +16,15 @@
  *
  */
 
-#include <video/omapdss.h>
-
 #ifndef __OMAP_HDMI_AUDIO_H__
 #define __OMAP_HDMI_AUDIO_H__
+
+#include <linux/platform_data/omapdss.h>
+
+struct omap_dss_audio {
+	struct snd_aes_iec958 *iec;
+	struct snd_cea_861_aud_if *cea;
+};
 
 struct omap_hdmi_audio_ops {
 	int (*audio_startup)(struct device *dev,

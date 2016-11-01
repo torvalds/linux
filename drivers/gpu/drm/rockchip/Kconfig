@@ -2,12 +2,9 @@ config DRM_ROCKCHIP
 	tristate "DRM Support for Rockchip"
 	depends on DRM && ROCKCHIP_IOMMU
 	depends on RESET_CONTROLLER
+	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_HELPER
-	select DRM_KMS_FB_HELPER
 	select DRM_PANEL
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
 	select VIDEOMODE_HELPERS
 	help
 	  Choose this option if you have a Rockchip soc chipset.

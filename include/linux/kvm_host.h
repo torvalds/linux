@@ -164,6 +164,8 @@ int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 			    int len, struct kvm_io_device *dev);
 int kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 			      struct kvm_io_device *dev);
+struct kvm_io_device *kvm_io_bus_get_dev(struct kvm *kvm, enum kvm_bus bus_idx,
+					 gpa_t addr);
 
 #ifdef CONFIG_KVM_ASYNC_PF
 struct kvm_async_pf {
@@ -315,7 +317,13 @@ struct kvm_kernel_irq_routing_entry {
 			unsigned irqchip;
 			unsigned pin;
 		} irqchip;
-		struct msi_msg msi;
+		struct {
+			u32 address_lo;
+			u32 address_hi;
+			u32 data;
+			u32 flags;
+			u32 devid;
+		} msi;
 		struct kvm_s390_adapter_int adapter;
 		struct kvm_hv_sint hv_sint;
 	};
@@ -371,7 +379,15 @@ struct kvm {
 	struct srcu_struct srcu;
 	struct srcu_struct irq_srcu;
 	struct kvm_vcpu *vcpus[KVM_MAX_VCPUS];
+
+	/*
+	 * created_vcpus is protected by kvm->lock, and is incremented
+	 * at the beginning of KVM_CREATE_VCPU.  online_vcpus is only
+	 * incremented after storing the kvm_vcpu pointer in vcpus,
+	 * and is accessed atomically.
+	 */
 	atomic_t online_vcpus;
+	int created_vcpus;
 	int last_boosted_vcpu;
 	struct list_head vm_list;
 	struct mutex lock;
@@ -867,45 +883,6 @@ static inline void kvm_iommu_unmap_pages(struct kvm *kvm,
 }
 #endif
 
-/* must be called with irqs disabled */
-static inline void __kvm_guest_enter(void)
-{
-	guest_enter();
-	/* KVM does not hold any references to rcu protected data when it
-	 * switches CPU into a guest mode. In fact switching to a guest mode
-	 * is very similar to exiting to userspace from rcu point of view. In
-	 * addition CPU may stay in a guest mode for quite a long time (up to
-	 * one time slice). Lets treat guest mode as quiescent state, just like
-	 * we do with user-mode execution.
-	 */
-	if (!context_tracking_cpu_is_enabled())
-		rcu_virt_note_context_switch(smp_processor_id());
-}
-
-/* must be called with irqs disabled */
-static inline void __kvm_guest_exit(void)
-{
-	guest_exit();
-}
-
-static inline void kvm_guest_enter(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	__kvm_guest_enter();
-	local_irq_restore(flags);
-}
-
-static inline void kvm_guest_exit(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	__kvm_guest_exit();
-	local_irq_restore(flags);
-}
-
 /*
  * search_memslots() and __gfn_to_memslot() are here because they are
  * used in non-modular code in arch/powerpc/kvm/book3s_hv_rm_mmu.c.
@@ -1032,17 +1009,18 @@ static inline int mmu_notifier_retry(struct kvm *kvm, unsigned long mmu_seq)
 
 #ifdef CONFIG_S390
 #define KVM_MAX_IRQ_ROUTES 4096 //FIXME: we can have more than that...
+#elif defined(CONFIG_ARM64)
+#define KVM_MAX_IRQ_ROUTES 4096
 #else
 #define KVM_MAX_IRQ_ROUTES 1024
 #endif
 
-int kvm_setup_default_irq_routing(struct kvm *kvm);
-int kvm_setup_empty_irq_routing(struct kvm *kvm);
 int kvm_set_irq_routing(struct kvm *kvm,
 			const struct kvm_irq_routing_entry *entries,
 			unsigned nr,
 			unsigned flags);
-int kvm_set_routing_entry(struct kvm_kernel_irq_routing_entry *e,
+int kvm_set_routing_entry(struct kvm *kvm,
+			  struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue);
 void kvm_free_irq_routing(struct kvm *kvm);
 
@@ -1097,12 +1075,6 @@ static inline int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 
 #endif /* CONFIG_HAVE_KVM_EVENTFD */
 
-#ifdef CONFIG_KVM_APIC_ARCHITECTURE
-bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu);
-#else
-static inline bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu) { return true; }
-#endif
-
 static inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
 {
 	/*
@@ -1141,7 +1113,19 @@ struct kvm_device {
 /* create, destroy, and name are mandatory */
 struct kvm_device_ops {
 	const char *name;
+
+	/*
+	 * create is called holding kvm->lock and any operations not suitable
+	 * to do while holding the lock should be deferred to init (see
+	 * below).
+	 */
 	int (*create)(struct kvm_device *dev, u32 type);
+
+	/*
+	 * init is called after create if create is successful and is called
+	 * outside of holding kvm->lock.
+	 */
+	void (*init)(struct kvm_device *dev);
 
 	/*
 	 * Destroy is responsible for freeing dev.

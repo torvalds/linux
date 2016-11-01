@@ -322,7 +322,7 @@ xfs_attr3_node_inactive(
  * Recurse (gasp!) through the attribute nodes until we find leaves.
  * We're doing a depth-first traversal in order to invalidate everything.
  */
-int
+static int
 xfs_attr3_root_inactive(
 	struct xfs_trans	**trans,
 	struct xfs_inode	*dp)

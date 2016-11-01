@@ -567,7 +567,7 @@
 			blocks = <0x5>;
 			irq-trigger = <0x1>;
 
-			stmpe_touchscreen {
+			stmpe_touchscreen@0 {
 				compatible = "st,stmpe-ts";
 				reg = <0>;
 				/* 3.25 MHz ADC clock speed */
@@ -674,13 +674,14 @@
 
 		clk32k_in: clk@0 {
 			compatible = "fixed-clock";
-			reg=<0>;
+			reg = <0>;
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
 		};
+
 		clk16m: clk@1 {
 			compatible = "fixed-clock";
-			reg=<1>;
+			reg = <1>;
 			#clock-cells = <0>;
 			clock-frequency = <16000000>;
 			clock-output-names = "clk16m";

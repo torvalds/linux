@@ -186,15 +186,6 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 			return 7 - ipd_port;
 		else
 			return -1;
-	case CVMX_BOARD_TYPE_CUST_DSR1000N:
-		/*
-		 * Port 2 connects to Broadcom PHY (B5081). Other ports (0-1)
-		 * connect to a switch (BCM53115).
-		 */
-		if (ipd_port == 2)
-			return 8;
-		else
-			return -1;
 	case CVMX_BOARD_TYPE_KONTRON_S1901:
 		if (ipd_port == CVMX_HELPER_BOARD_MGMT_IPD_PORT)
 			return 1;
@@ -287,18 +278,6 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
 			result.s.full_duplex = 1;
 			result.s.speed = 1000;
 			return result;
-		}
-		break;
-	case CVMX_BOARD_TYPE_CUST_DSR1000N:
-		if (ipd_port == 0 || ipd_port == 1) {
-			/* Ports 0 and 1 connect to a switch (BCM53115). */
-			result.s.link_up = 1;
-			result.s.full_duplex = 1;
-			result.s.speed = 1000;
-			return result;
-		} else {
-			/* Port 2 uses a Broadcom PHY (B5081). */
-			is_broadcom_phy = 1;
 		}
 		break;
 	}
@@ -765,7 +744,6 @@ enum cvmx_helper_board_usb_clock_types __cvmx_helper_board_usb_get_clock_type(vo
 	case CVMX_BOARD_TYPE_LANAI2_G:
 	case CVMX_BOARD_TYPE_NIC10E_66:
 	case CVMX_BOARD_TYPE_UBNT_E100:
-	case CVMX_BOARD_TYPE_CUST_DSR1000N:
 		return USB_CLOCK_TYPE_CRYSTAL_12;
 	case CVMX_BOARD_TYPE_NIC10E:
 		return USB_CLOCK_TYPE_REF_12;

@@ -175,6 +175,13 @@ struct ext4_journal_cb_entry {
  * There is no guaranteed calling order of multiple registered callbacks on
  * the same transaction.
  */
+static inline void _ext4_journal_callback_add(handle_t *handle,
+			struct ext4_journal_cb_entry *jce)
+{
+	/* Add the jce to transaction's private list */
+	list_add_tail(&jce->jce_list, &handle->h_transaction->t_private_list);
+}
+
 static inline void ext4_journal_callback_add(handle_t *handle,
 			void (*func)(struct super_block *sb,
 				     struct ext4_journal_cb_entry *jce,
@@ -187,9 +194,10 @@ static inline void ext4_journal_callback_add(handle_t *handle,
 	/* Add the jce to transaction's private list */
 	jce->jce_func = func;
 	spin_lock(&sbi->s_md_lock);
-	list_add_tail(&jce->jce_list, &handle->h_transaction->t_private_list);
+	_ext4_journal_callback_add(handle, jce);
 	spin_unlock(&sbi->s_md_lock);
 }
+
 
 /**
  * ext4_journal_callback_del: delete a registered callback

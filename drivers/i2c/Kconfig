@@ -88,8 +88,8 @@ config I2C_SMBUS
 	tristate "SMBus-specific protocols" if !I2C_HELPER_AUTO
 	help
 	  Say Y here if you want support for SMBus extensions to the I2C
-	  specification. At the moment, the only supported extension is
-	  the SMBus alert protocol.
+	  specification. At the moment, two extensions are supported:
+	  the SMBus Alert protocol and the SMBus Host Notify protocol.
 
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-smbus.

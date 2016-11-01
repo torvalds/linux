@@ -741,13 +741,6 @@ int radeon_acpi_init(struct radeon_device *rdev)
 		}
 
 		atif->encoder_for_bl = target;
-		if (!target) {
-			/* Brightness change notification is enabled, but we
-			 * didn't find a backlight controller, this should
-			 * never happen.
-			 */
-			DRM_ERROR("Cannot find a backlight controller\n");
-		}
 	}
 
 	if (atif->functions.sbios_requests && !atif->functions.system_params) {

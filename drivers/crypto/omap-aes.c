@@ -528,8 +528,6 @@ static int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd)
 
 	omap_aes_dma_stop(dd);
 
-	dmaengine_terminate_all(dd->dma_lch_in);
-	dmaengine_terminate_all(dd->dma_lch_out);
 
 	return 0;
 }
@@ -580,10 +578,12 @@ static int omap_aes_copy_sgs(struct omap_aes_dev *dd)
 	sg_init_table(&dd->in_sgl, 1);
 	sg_set_buf(&dd->in_sgl, buf_in, total);
 	dd->in_sg = &dd->in_sgl;
+	dd->in_sg_len = 1;
 
 	sg_init_table(&dd->out_sgl, 1);
 	sg_set_buf(&dd->out_sgl, buf_out, total);
 	dd->out_sg = &dd->out_sgl;
+	dd->out_sg_len = 1;
 
 	return 0;
 }
@@ -604,7 +604,6 @@ static int omap_aes_prepare_req(struct crypto_engine *engine,
 			crypto_ablkcipher_reqtfm(req));
 	struct omap_aes_dev *dd = omap_aes_find_dev(ctx);
 	struct omap_aes_reqctx *rctx;
-	int len;
 
 	if (!dd)
 		return -ENODEV;
@@ -616,6 +615,14 @@ static int omap_aes_prepare_req(struct crypto_engine *engine,
 	dd->in_sg = req->src;
 	dd->out_sg = req->dst;
 
+	dd->in_sg_len = sg_nents_for_len(dd->in_sg, dd->total);
+	if (dd->in_sg_len < 0)
+		return dd->in_sg_len;
+
+	dd->out_sg_len = sg_nents_for_len(dd->out_sg, dd->total);
+	if (dd->out_sg_len < 0)
+		return dd->out_sg_len;
+
 	if (omap_aes_check_aligned(dd->in_sg, dd->total) ||
 	    omap_aes_check_aligned(dd->out_sg, dd->total)) {
 		if (omap_aes_copy_sgs(dd))
@@ -624,11 +631,6 @@ static int omap_aes_prepare_req(struct crypto_engine *engine,
 	} else {
 		dd->sgs_copied = 0;
 	}
-
-	len = ALIGN(dd->total, AES_BLOCK_SIZE);
-	dd->in_sg_len = scatterwalk_bytes_sglen(dd->in_sg, len);
-	dd->out_sg_len = scatterwalk_bytes_sglen(dd->out_sg, len);
-	BUG_ON(dd->in_sg_len < 0 || dd->out_sg_len < 0);
 
 	rctx = ablkcipher_request_ctx(req);
 	ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
@@ -1185,17 +1187,19 @@ static int omap_aes_probe(struct platform_device *pdev)
 	spin_unlock(&list_lock);
 
 	for (i = 0; i < dd->pdata->algs_info_size; i++) {
-		for (j = 0; j < dd->pdata->algs_info[i].size; j++) {
-			algp = &dd->pdata->algs_info[i].algs_list[j];
+		if (!dd->pdata->algs_info[i].registered) {
+			for (j = 0; j < dd->pdata->algs_info[i].size; j++) {
+				algp = &dd->pdata->algs_info[i].algs_list[j];
 
-			pr_debug("reg alg: %s\n", algp->cra_name);
-			INIT_LIST_HEAD(&algp->cra_list);
+				pr_debug("reg alg: %s\n", algp->cra_name);
+				INIT_LIST_HEAD(&algp->cra_list);
 
-			err = crypto_register_alg(algp);
-			if (err)
-				goto err_algs;
+				err = crypto_register_alg(algp);
+				if (err)
+					goto err_algs;
 
-			dd->pdata->algs_info[i].registered++;
+				dd->pdata->algs_info[i].registered++;
+			}
 		}
 	}
 

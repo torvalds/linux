@@ -20,79 +20,6 @@
 
 #include "spi-pxa2xx.h"
 
-static int pxa2xx_spi_map_dma_buffer(struct driver_data *drv_data,
-				     enum dma_data_direction dir)
-{
-	int i, nents, len = drv_data->len;
-	struct scatterlist *sg;
-	struct device *dmadev;
-	struct sg_table *sgt;
-	void *buf, *pbuf;
-
-	if (dir == DMA_TO_DEVICE) {
-		dmadev = drv_data->tx_chan->device->dev;
-		sgt = &drv_data->tx_sgt;
-		buf = drv_data->tx;
-	} else {
-		dmadev = drv_data->rx_chan->device->dev;
-		sgt = &drv_data->rx_sgt;
-		buf = drv_data->rx;
-	}
-
-	nents = DIV_ROUND_UP(len, SZ_2K);
-	if (nents != sgt->nents) {
-		int ret;
-
-		sg_free_table(sgt);
-		ret = sg_alloc_table(sgt, nents, GFP_ATOMIC);
-		if (ret)
-			return ret;
-	}
-
-	pbuf = buf;
-	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
-		size_t bytes = min_t(size_t, len, SZ_2K);
-
-		sg_set_buf(sg, pbuf, bytes);
-		pbuf += bytes;
-		len -= bytes;
-	}
-
-	nents = dma_map_sg(dmadev, sgt->sgl, sgt->nents, dir);
-	if (!nents)
-		return -ENOMEM;
-
-	return nents;
-}
-
-static void pxa2xx_spi_unmap_dma_buffer(struct driver_data *drv_data,
-					enum dma_data_direction dir)
-{
-	struct device *dmadev;
-	struct sg_table *sgt;
-
-	if (dir == DMA_TO_DEVICE) {
-		dmadev = drv_data->tx_chan->device->dev;
-		sgt = &drv_data->tx_sgt;
-	} else {
-		dmadev = drv_data->rx_chan->device->dev;
-		sgt = &drv_data->rx_sgt;
-	}
-
-	dma_unmap_sg(dmadev, sgt->sgl, sgt->nents, dir);
-}
-
-static void pxa2xx_spi_unmap_dma_buffers(struct driver_data *drv_data)
-{
-	if (!drv_data->dma_mapped)
-		return;
-
-	pxa2xx_spi_unmap_dma_buffer(drv_data, DMA_FROM_DEVICE);
-	pxa2xx_spi_unmap_dma_buffer(drv_data, DMA_TO_DEVICE);
-
-	drv_data->dma_mapped = 0;
-}
-
 static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 					     bool error)
 {
@@ -125,8 +52,6 @@ static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 			pxa2xx_spi_write(drv_data, SSTO, 0);
 
 		if (!error) {
-			pxa2xx_spi_unmap_dma_buffers(drv_data);
-
 			msg->actual_length += drv_data->len;
 			msg->state = pxa2xx_spi_next_transfer(drv_data);
 		} else {
@@ -152,11 +77,12 @@ pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
 			   enum dma_transfer_direction dir)
 {
 	struct chip_data *chip = drv_data->cur_chip;
+	struct spi_transfer *xfer = drv_data->cur_transfer;
 	enum dma_slave_buswidth width;
 	struct dma_slave_config cfg;
 	struct dma_chan *chan;
 	struct sg_table *sgt;
-	int nents, ret;
+	int ret;
 
 	switch (drv_data->n_bytes) {
 	case 1:
@@ -178,17 +104,15 @@ pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
 		cfg.dst_addr_width = width;
 		cfg.dst_maxburst = chip->dma_burst_size;
 
-		sgt = &drv_data->tx_sgt;
-		nents = drv_data->tx_nents;
-		chan = drv_data->tx_chan;
+		sgt = &xfer->tx_sg;
+		chan = drv_data->master->dma_tx;
 	} else {
 		cfg.src_addr = drv_data->ssdr_physical;
 		cfg.src_addr_width = width;
 		cfg.src_maxburst = chip->dma_burst_size;
 
-		sgt = &drv_data->rx_sgt;
-		nents = drv_data->rx_nents;
-		chan = drv_data->rx_chan;
+		sgt = &xfer->rx_sg;
+		chan = drv_data->master->dma_rx;
 	}
 
 	ret = dmaengine_slave_config(chan, &cfg);
@@ -197,44 +121,8 @@ pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
 		return NULL;
 	}
 
-	return dmaengine_prep_slave_sg(chan, sgt->sgl, nents, dir,
+	return dmaengine_prep_slave_sg(chan, sgt->sgl, sgt->nents, dir,
 				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-}
-
-bool pxa2xx_spi_dma_is_possible(size_t len)
-{
-	return len <= MAX_DMA_LEN;
-}
-
-int pxa2xx_spi_map_dma_buffers(struct driver_data *drv_data)
-{
-	const struct chip_data *chip = drv_data->cur_chip;
-	int ret;
-
-	if (!chip->enable_dma)
-		return 0;
-
-	/* Don't bother with DMA if we can't do even a single burst */
-	if (drv_data->len < chip->dma_burst_size)
-		return 0;
-
-	ret = pxa2xx_spi_map_dma_buffer(drv_data, DMA_TO_DEVICE);
-	if (ret <= 0) {
-		dev_warn(&drv_data->pdev->dev, "failed to DMA map TX\n");
-		return 0;
-	}
-
-	drv_data->tx_nents = ret;
-
-	ret = pxa2xx_spi_map_dma_buffer(drv_data, DMA_FROM_DEVICE);
-	if (ret <= 0) {
-		pxa2xx_spi_unmap_dma_buffer(drv_data, DMA_TO_DEVICE);
-		dev_warn(&drv_data->pdev->dev, "failed to DMA map RX\n");
-		return 0;
-	}
-
-	drv_data->rx_nents = ret;
-	return 1;
 }
 
 irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
@@ -245,8 +133,8 @@ irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
 	if (status & SSSR_ROR) {
 		dev_err(&drv_data->pdev->dev, "FIFO overrun\n");
 
-		dmaengine_terminate_async(drv_data->rx_chan);
-		dmaengine_terminate_async(drv_data->tx_chan);
+		dmaengine_terminate_async(drv_data->master->dma_rx);
+		dmaengine_terminate_async(drv_data->master->dma_tx);
 
 		pxa2xx_spi_dma_transfer_complete(drv_data, true);
 		return IRQ_HANDLED;
@@ -285,16 +173,15 @@ int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst)
 	return 0;
 
 err_rx:
-	dmaengine_terminate_async(drv_data->tx_chan);
+	dmaengine_terminate_async(drv_data->master->dma_tx);
 err_tx:
-	pxa2xx_spi_unmap_dma_buffers(drv_data);
 	return err;
 }
 
 void pxa2xx_spi_dma_start(struct driver_data *drv_data)
 {
-	dma_async_issue_pending(drv_data->rx_chan);
-	dma_async_issue_pending(drv_data->tx_chan);
+	dma_async_issue_pending(drv_data->master->dma_rx);
+	dma_async_issue_pending(drv_data->master->dma_tx);
 
 	atomic_set(&drv_data->dma_running, 1);
 }
@@ -303,21 +190,22 @@ int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 {
 	struct pxa2xx_spi_master *pdata = drv_data->master_info;
 	struct device *dev = &drv_data->pdev->dev;
+	struct spi_master *master = drv_data->master;
 	dma_cap_mask_t mask;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	drv_data->tx_chan = dma_request_slave_channel_compat(mask,
+	master->dma_tx = dma_request_slave_channel_compat(mask,
 				pdata->dma_filter, pdata->tx_param, dev, "tx");
-	if (!drv_data->tx_chan)
+	if (!master->dma_tx)
 		return -ENODEV;
 
-	drv_data->rx_chan = dma_request_slave_channel_compat(mask,
+	master->dma_rx = dma_request_slave_channel_compat(mask,
 				pdata->dma_filter, pdata->rx_param, dev, "rx");
-	if (!drv_data->rx_chan) {
-		dma_release_channel(drv_data->tx_chan);
-		drv_data->tx_chan = NULL;
+	if (!master->dma_rx) {
+		dma_release_channel(master->dma_tx);
+		master->dma_tx = NULL;
 		return -ENODEV;
 	}
 
@@ -326,17 +214,17 @@ int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 
 void pxa2xx_spi_dma_release(struct driver_data *drv_data)
 {
-	if (drv_data->rx_chan) {
-		dmaengine_terminate_sync(drv_data->rx_chan);
-		dma_release_channel(drv_data->rx_chan);
-		sg_free_table(&drv_data->rx_sgt);
-		drv_data->rx_chan = NULL;
+	struct spi_master *master = drv_data->master;
+
+	if (master->dma_rx) {
+		dmaengine_terminate_sync(master->dma_rx);
+		dma_release_channel(master->dma_rx);
+		master->dma_rx = NULL;
 	}
-	if (drv_data->tx_chan) {
-		dmaengine_terminate_sync(drv_data->tx_chan);
-		dma_release_channel(drv_data->tx_chan);
-		sg_free_table(&drv_data->tx_sgt);
-		drv_data->tx_chan = NULL;
+	if (master->dma_tx) {
+		dmaengine_terminate_sync(master->dma_tx);
+		dma_release_channel(master->dma_tx);
+		master->dma_tx = NULL;
 	}
 }
 

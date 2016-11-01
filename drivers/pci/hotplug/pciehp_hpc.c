@@ -546,6 +546,10 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 	u8 present;
 	bool link;
 
+	/* Interrupts cannot originate from a controller that's asleep */
+	if (pdev->current_state == PCI_D3cold)
+		return IRQ_NONE;
+
 	/*
 	 * In order to guarantee that all interrupt events are
 	 * serviced, we need to re-inspect Slot Status register after

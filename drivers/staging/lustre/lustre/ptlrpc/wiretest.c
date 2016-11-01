@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -1269,8 +1265,6 @@ void lustre_assert_wire_constants(void)
 		 OBD_MD_FLXATTRRM);
 	LASSERTF(OBD_MD_FLACL == (0x0000008000000000ULL), "found 0x%.16llxULL\n",
 		 OBD_MD_FLACL);
-	LASSERTF(OBD_MD_FLRMTPERM == (0x0000010000000000ULL), "found 0x%.16llxULL\n",
-		 OBD_MD_FLRMTPERM);
 	LASSERTF(OBD_MD_FLMDSCAPA == (0x0000020000000000ULL), "found 0x%.16llxULL\n",
 		 OBD_MD_FLMDSCAPA);
 	LASSERTF(OBD_MD_FLOSSCAPA == (0x0000040000000000ULL), "found 0x%.16llxULL\n",
@@ -1281,14 +1275,6 @@ void lustre_assert_wire_constants(void)
 		 OBD_MD_FLCROSSREF);
 	LASSERTF(OBD_MD_FLGETATTRLOCK == (0x0000200000000000ULL), "found 0x%.16llxULL\n",
 		 OBD_MD_FLGETATTRLOCK);
-	LASSERTF(OBD_MD_FLRMTLSETFACL == (0x0001000000000000ULL), "found 0x%.16llxULL\n",
-		 OBD_MD_FLRMTLSETFACL);
-	LASSERTF(OBD_MD_FLRMTLGETFACL == (0x0002000000000000ULL), "found 0x%.16llxULL\n",
-		 OBD_MD_FLRMTLGETFACL);
-	LASSERTF(OBD_MD_FLRMTRSETFACL == (0x0004000000000000ULL), "found 0x%.16llxULL\n",
-		 OBD_MD_FLRMTRSETFACL);
-	LASSERTF(OBD_MD_FLRMTRGETFACL == (0x0008000000000000ULL), "found 0x%.16llxULL\n",
-		 OBD_MD_FLRMTRGETFACL);
 	LASSERTF(OBD_MD_FLDATAVERSION == (0x0010000000000000ULL), "found 0x%.16llxULL\n",
 		 OBD_MD_FLDATAVERSION);
 	CLASSERT(OBD_FL_INLINEDATA == 0x00000001);
@@ -1894,44 +1880,6 @@ void lustre_assert_wire_constants(void)
 		 (long long)(int)offsetof(struct mdt_ioepoch, padding));
 	LASSERTF((int)sizeof(((struct mdt_ioepoch *)0)->padding) == 4, "found %lld\n",
 		 (long long)(int)sizeof(((struct mdt_ioepoch *)0)->padding));
-
-	/* Checks for struct mdt_remote_perm */
-	LASSERTF((int)sizeof(struct mdt_remote_perm) == 32, "found %lld\n",
-		 (long long)(int)sizeof(struct mdt_remote_perm));
-	LASSERTF((int)offsetof(struct mdt_remote_perm, rp_uid) == 0, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_remote_perm, rp_uid));
-	LASSERTF((int)sizeof(((struct mdt_remote_perm *)0)->rp_uid) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_remote_perm *)0)->rp_uid));
-	LASSERTF((int)offsetof(struct mdt_remote_perm, rp_gid) == 4, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_remote_perm, rp_gid));
-	LASSERTF((int)sizeof(((struct mdt_remote_perm *)0)->rp_gid) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_remote_perm *)0)->rp_gid));
-	LASSERTF((int)offsetof(struct mdt_remote_perm, rp_fsuid) == 8, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_remote_perm, rp_fsuid));
-	LASSERTF((int)sizeof(((struct mdt_remote_perm *)0)->rp_fsuid) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_remote_perm *)0)->rp_fsuid));
-	LASSERTF((int)offsetof(struct mdt_remote_perm, rp_fsgid) == 16, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_remote_perm, rp_fsgid));
-	LASSERTF((int)sizeof(((struct mdt_remote_perm *)0)->rp_fsgid) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_remote_perm *)0)->rp_fsgid));
-	LASSERTF((int)offsetof(struct mdt_remote_perm, rp_access_perm) == 24, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_remote_perm, rp_access_perm));
-	LASSERTF((int)sizeof(((struct mdt_remote_perm *)0)->rp_access_perm) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_remote_perm *)0)->rp_access_perm));
-	LASSERTF((int)offsetof(struct mdt_remote_perm, rp_padding) == 28, "found %lld\n",
-		 (long long)(int)offsetof(struct mdt_remote_perm, rp_padding));
-	LASSERTF((int)sizeof(((struct mdt_remote_perm *)0)->rp_padding) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct mdt_remote_perm *)0)->rp_padding));
-	LASSERTF(CFS_SETUID_PERM == 0x00000001UL, "found 0x%.8xUL\n",
-		(unsigned)CFS_SETUID_PERM);
-	LASSERTF(CFS_SETGID_PERM == 0x00000002UL, "found 0x%.8xUL\n",
-		(unsigned)CFS_SETGID_PERM);
-	LASSERTF(CFS_SETGRP_PERM == 0x00000004UL, "found 0x%.8xUL\n",
-		(unsigned)CFS_SETGRP_PERM);
-	LASSERTF(CFS_RMTACL_PERM == 0x00000008UL, "found 0x%.8xUL\n",
-		(unsigned)CFS_RMTACL_PERM);
-	LASSERTF(CFS_RMTOWN_PERM == 0x00000010UL, "found 0x%.8xUL\n",
-		(unsigned)CFS_RMTOWN_PERM);
 
 	/* Checks for struct mdt_rec_setattr */
 	LASSERTF((int)sizeof(struct mdt_rec_setattr) == 136, "found %lld\n",

@@ -4,6 +4,9 @@
 
 # When adding new entries keep the list in alphabetical order
 obj-$(CONFIG_BMP280) += bmp280.o
+bmp280-objs := bmp280-core.o bmp280-regmap.o
+obj-$(CONFIG_BMP280_I2C) += bmp280-i2c.o
+obj-$(CONFIG_BMP280_SPI) += bmp280-spi.o
 obj-$(CONFIG_HID_SENSOR_PRESS)   += hid-sensor-press.o
 obj-$(CONFIG_HP03) += hp03.o
 obj-$(CONFIG_MPL115) += mpl115.o

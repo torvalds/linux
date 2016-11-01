@@ -21,7 +21,7 @@
 static unsigned long pci_sram_allocated = 0xbc000000;
 
 static void *mn10300_dma_alloc(struct device *dev, size_t size,
-		dma_addr_t *dma_handle, gfp_t gfp, struct dma_attrs *attrs)
+		dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)
 {
 	unsigned long addr;
 	void *ret;
@@ -63,7 +63,7 @@ done:
 }
 
 static void mn10300_dma_free(struct device *dev, size_t size, void *vaddr,
-		dma_addr_t dma_handle, struct dma_attrs *attrs)
+		dma_addr_t dma_handle, unsigned long attrs)
 {
 	unsigned long addr = (unsigned long) vaddr & ~0x20000000;
 
@@ -75,7 +75,7 @@ static void mn10300_dma_free(struct device *dev, size_t size, void *vaddr,
 
 static int mn10300_dma_map_sg(struct device *dev, struct scatterlist *sglist,
 		int nents, enum dma_data_direction direction,
-		struct dma_attrs *attrs)
+		unsigned long attrs)
 {
 	struct scatterlist *sg;
 	int i;
@@ -92,7 +92,7 @@ static int mn10300_dma_map_sg(struct device *dev, struct scatterlist *sglist,
 
 static dma_addr_t mn10300_dma_map_page(struct device *dev, struct page *page,
 		unsigned long offset, size_t size,
-		enum dma_data_direction direction, struct dma_attrs *attrs)
+		enum dma_data_direction direction, unsigned long attrs)
 {
 	return page_to_bus(page) + offset;
 }

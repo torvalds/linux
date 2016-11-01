@@ -4,7 +4,7 @@
  * Jeremy Fitzhardinge <jeremy@xensource.com>, XenSource Inc, 2007
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/pm.h>

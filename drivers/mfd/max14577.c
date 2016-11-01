@@ -561,7 +561,7 @@ static int __init max14577_i2c_init(void)
 
 	return i2c_add_driver(&max14577_i2c_driver);
 }
-subsys_initcall(max14577_i2c_init);
+module_init(max14577_i2c_init);
 
 static void __exit max14577_i2c_exit(void)
 {

@@ -367,13 +367,17 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 	dev_dbg(dev->dev, "Fast-mode HCNT:LCNT = %d:%d\n", hcnt, lcnt);
 
 	/* Configure SDA Hold Time if required */
-	if (dev->sda_hold_time) {
-		reg = dw_readl(dev, DW_IC_COMP_VERSION);
-		if (reg >= DW_IC_SDA_HOLD_MIN_VERS)
+	reg = dw_readl(dev, DW_IC_COMP_VERSION);
+	if (reg >= DW_IC_SDA_HOLD_MIN_VERS) {
+		if (dev->sda_hold_time) {
 			dw_writel(dev, dev->sda_hold_time, DW_IC_SDA_HOLD);
-		else
-			dev_warn(dev->dev,
-				"Hardware too old to adjust SDA hold time.");
+		} else {
+			/* Keep previous hold time setting if no one set it */
+			dev->sda_hold_time = dw_readl(dev, DW_IC_SDA_HOLD);
+		}
+	} else {
+		dev_warn(dev->dev,
+			"Hardware too old to adjust SDA hold time.\n");
 	}
 
 	/* Configure Tx/Rx FIFO threshold levels */
@@ -663,7 +667,7 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	i2c_dw_xfer_init(dev);
 
 	/* wait for tx to complete */
-	if (!wait_for_completion_timeout(&dev->cmd_complete, HZ)) {
+	if (!wait_for_completion_timeout(&dev->cmd_complete, adap->timeout)) {
 		dev_err(dev->dev, "controller timed out\n");
 		/* i2c_dw_init implicitly disables the adapter */
 		i2c_dw_init(dev);

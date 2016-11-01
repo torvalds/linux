@@ -30,7 +30,7 @@
 
 #define HASH_DEFAULT_SIZE	64UL
 #define HASH_MIN_SIZE		4U
-#define BUCKET_LOCKS_PER_CPU   128UL
+#define BUCKET_LOCKS_PER_CPU	32UL
 
 static u32 head_hashfn(struct rhashtable *ht,
 		       const struct bucket_table *tbl,
@@ -70,21 +70,25 @@ static int alloc_bucket_locks(struct rhashtable *ht, struct bucket_table *tbl,
 	unsigned int nr_pcpus = num_possible_cpus();
 #endif
 
-	nr_pcpus = min_t(unsigned int, nr_pcpus, 32UL);
+	nr_pcpus = min_t(unsigned int, nr_pcpus, 64UL);
 	size = roundup_pow_of_two(nr_pcpus * ht->p.locks_mul);
 
 	/* Never allocate more than 0.5 locks per bucket */
 	size = min_t(unsigned int, size, tbl->size >> 1);
 
 	if (sizeof(spinlock_t) != 0) {
+		tbl->locks = NULL;
 #ifdef CONFIG_NUMA
 		if (size * sizeof(spinlock_t) > PAGE_SIZE &&
 		    gfp == GFP_KERNEL)
 			tbl->locks = vmalloc(size * sizeof(spinlock_t));
-		else
 #endif
-		tbl->locks = kmalloc_array(size, sizeof(spinlock_t),
-					   gfp);
+		if (gfp != GFP_KERNEL)
+			gfp |= __GFP_NOWARN | __GFP_NORETRY;
+
+		if (!tbl->locks)
+			tbl->locks = kmalloc_array(size, sizeof(spinlock_t),
+						   gfp);
 		if (!tbl->locks)
 			return -ENOMEM;
 		for (i = 0; i < size; i++)
@@ -321,12 +325,14 @@ static int rhashtable_expand(struct rhashtable *ht)
 static int rhashtable_shrink(struct rhashtable *ht)
 {
 	struct bucket_table *new_tbl, *old_tbl = rht_dereference(ht->tbl, ht);
-	unsigned int size;
+	unsigned int nelems = atomic_read(&ht->nelems);
+	unsigned int size = 0;
 	int err;
 
 	ASSERT_RHT_MUTEX(ht);
 
-	size = roundup_pow_of_two(atomic_read(&ht->nelems) * 3 / 2);
+	if (nelems)
+		size = roundup_pow_of_two(nelems * 3 / 2);
 	if (size < ht->p.min_size)
 		size = ht->p.min_size;
 

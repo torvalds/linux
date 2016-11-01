@@ -5,6 +5,9 @@
  *
  * Copyright (C) 2016 Marvell Technology Group Ltd.
  *
+ * Author: Yehuda Yitshak <yehuday@marvell.com>
+ * Author: Shadi Ammouri <shadi@marvell.com>
+ *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
@@ -14,7 +17,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/pci.h>
 #include <linux/phy/phy.h>
@@ -244,7 +247,6 @@ static const struct of_device_id armada8k_pcie_of_match[] = {
 	{ .compatible = "marvell,armada8k-pcie", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, armada8k_pcie_of_match);
 
 static struct platform_driver armada8k_pcie_driver = {
 	.probe		= armada8k_pcie_probe,
@@ -253,10 +255,4 @@ static struct platform_driver armada8k_pcie_driver = {
 		.of_match_table = of_match_ptr(armada8k_pcie_of_match),
 	},
 };
-
-module_platform_driver(armada8k_pcie_driver);
-
-MODULE_DESCRIPTION("Armada 8k PCIe host controller driver");
-MODULE_AUTHOR("Yehuda Yitshak <yehuday@marvell.com>");
-MODULE_AUTHOR("Shadi Ammouri <shadi@marvell.com>");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(armada8k_pcie_driver);

@@ -128,7 +128,7 @@ static ssize_t hfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = file_inode(file)->i_mapping->host;
+	struct inode *inode = mapping->host;
 	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
@@ -177,7 +177,7 @@ const struct address_space_operations hfs_aops = {
 /*
  * hfs_new_inode
  */
-struct inode *hfs_new_inode(struct inode *dir, struct qstr *name, umode_t mode)
+struct inode *hfs_new_inode(struct inode *dir, const struct qstr *name, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
 	struct inode *inode = new_inode(sb);

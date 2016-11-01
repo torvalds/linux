@@ -22,26 +22,29 @@
 #include "fsl_dcu_drm_drv.h"
 #include "fsl_dcu_drm_plane.h"
 
-static void fsl_dcu_drm_crtc_atomic_begin(struct drm_crtc *crtc,
-					  struct drm_crtc_state *old_crtc_state)
-{
-}
-
-static int fsl_dcu_drm_crtc_atomic_check(struct drm_crtc *crtc,
-					 struct drm_crtc_state *state)
-{
-	return 0;
-}
-
 static void fsl_dcu_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 					  struct drm_crtc_state *old_crtc_state)
 {
+	struct drm_pending_vblank_event *event = crtc->state->event;
+
+	if (event) {
+		crtc->state->event = NULL;
+
+		spin_lock_irq(&crtc->dev->event_lock);
+		if (drm_crtc_vblank_get(crtc) == 0)
+			drm_crtc_arm_vblank_event(crtc, event);
+		else
+			drm_crtc_send_vblank_event(crtc, event);
+		spin_unlock_irq(&crtc->dev->event_lock);
+	}
 }
 
 static void fsl_dcu_drm_disable_crtc(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
+
+	drm_crtc_vblank_off(crtc);
 
 	regmap_update_bits(fsl_dev->regmap, DCU_DCU_MODE,
 			   DCU_MODE_DCU_MODE_MASK,
@@ -60,6 +63,8 @@ static void fsl_dcu_drm_crtc_enable(struct drm_crtc *crtc)
 			   DCU_MODE_DCU_MODE(DCU_MODE_NORMAL));
 	regmap_write(fsl_dev->regmap, DCU_UPDATE_MODE,
 		     DCU_UPDATE_MODE_READREG);
+
+	drm_crtc_vblank_on(crtc);
 }
 
 static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
@@ -117,8 +122,6 @@ static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_helper_funcs fsl_dcu_drm_crtc_helper_funcs = {
-	.atomic_begin = fsl_dcu_drm_crtc_atomic_begin,
-	.atomic_check = fsl_dcu_drm_crtc_atomic_check,
 	.atomic_flush = fsl_dcu_drm_crtc_atomic_flush,
 	.disable = fsl_dcu_drm_disable_crtc,
 	.enable = fsl_dcu_drm_crtc_enable,
@@ -138,8 +141,9 @@ int fsl_dcu_drm_crtc_create(struct fsl_dcu_drm_device *fsl_dev)
 {
 	struct drm_plane *primary;
 	struct drm_crtc *crtc = &fsl_dev->crtc;
-	unsigned int i, j, reg_num;
 	int ret;
+
+	fsl_dcu_drm_init_planes(fsl_dev->drm);
 
 	primary = fsl_dcu_drm_primary_create_plane(fsl_dev->drm);
 	if (!primary)
@@ -153,20 +157,6 @@ int fsl_dcu_drm_crtc_create(struct fsl_dcu_drm_device *fsl_dev)
 	}
 
 	drm_crtc_helper_add(crtc, &fsl_dcu_drm_crtc_helper_funcs);
-
-	if (!strcmp(fsl_dev->soc->name, "ls1021a"))
-		reg_num = LS1021A_LAYER_REG_NUM;
-	else
-		reg_num = VF610_LAYER_REG_NUM;
-	for (i = 0; i < fsl_dev->soc->total_layer; i++) {
-		for (j = 1; j <= reg_num; j++)
-			regmap_write(fsl_dev->regmap, DCU_CTRLDESCLN(i, j), 0);
-	}
-	regmap_update_bits(fsl_dev->regmap, DCU_DCU_MODE,
-			   DCU_MODE_DCU_MODE_MASK,
-			   DCU_MODE_DCU_MODE(DCU_MODE_OFF));
-	regmap_write(fsl_dev->regmap, DCU_UPDATE_MODE,
-		     DCU_UPDATE_MODE_READREG);
 
 	return 0;
 }

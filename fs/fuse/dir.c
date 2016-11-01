@@ -146,7 +146,7 @@ static void fuse_invalidate_entry(struct dentry *entry)
 }
 
 static void fuse_lookup_init(struct fuse_conn *fc, struct fuse_args *args,
-			     u64 nodeid, struct qstr *name,
+			     u64 nodeid, const struct qstr *name,
 			     struct fuse_entry_out *outarg)
 {
 	memset(outarg, 0, sizeof(struct fuse_entry_out));
@@ -282,7 +282,7 @@ int fuse_valid_type(int m)
 		S_ISBLK(m) || S_ISFIFO(m) || S_ISSOCK(m);
 }
 
-int fuse_lookup_name(struct super_block *sb, u64 nodeid, struct qstr *name,
+int fuse_lookup_name(struct super_block *sb, u64 nodeid, const struct qstr *name,
 		     struct fuse_entry_out *outarg, struct inode **inode)
 {
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
@@ -955,6 +955,7 @@ int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_nodeid,
 	if (!dir)
 		goto unlock;
 
+	name->hash = full_name_hash(dir, name->name, name->len);
 	entry = d_lookup(dir, name);
 	dput(dir);
 	if (!entry)
@@ -1204,7 +1205,7 @@ static int fuse_direntplus_link(struct file *file,
 
 	fc = get_fuse_conn(dir);
 
-	name.hash = full_name_hash(name.name, name.len);
+	name.hash = full_name_hash(parent, name.name, name.len);
 	dentry = d_lookup(parent, &name);
 	if (!dentry) {
 retry:

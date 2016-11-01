@@ -253,7 +253,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 	int i = 0;
 	int err = 0;
 	IEEE80211_DEBUG_WX("Getting scan\n");
-	down(&ieee->wx_sem);
+	mutex_lock(&ieee->wx_mutex);
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	list_for_each_entry(network, &ieee->network_list, list) {
@@ -262,7 +262,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 		{
 			err = -E2BIG;
 			break;
-												}
+		}
 		if (ieee->scan_age == 0 ||
 		    time_after(network->last_scanned + ieee->scan_age, jiffies))
 			ev = rtl819x_translate_scan(ieee, ev, stop, network, info);
@@ -277,7 +277,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
-	up(&ieee->wx_sem);
+	mutex_unlock(&ieee->wx_mutex);
 	wrqu->data.length = ev -  extra;
 	wrqu->data.flags = 0;
 

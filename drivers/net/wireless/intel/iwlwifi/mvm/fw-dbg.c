@@ -288,7 +288,8 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 			fifo_hdr->fifo_num = cpu_to_le32(i);
 
 			/* Mark the number of TXF we're pulling now */
-			iwl_trans_write_prph(mvm->trans, TXF_CPU2_NUM, i);
+			iwl_trans_write_prph(mvm->trans, TXF_CPU2_NUM, i +
+				ARRAY_SIZE(mvm->shared_mem_cfg.txfifo_size));
 
 			fifo_hdr->available_bytes =
 				cpu_to_le32(iwl_trans_read_prph(mvm->trans,
@@ -959,5 +960,6 @@ int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, u8 conf_id)
 	}
 
 	mvm->fw_dbg_conf = conf_id;
-	return ret;
+
+	return 0;
 }

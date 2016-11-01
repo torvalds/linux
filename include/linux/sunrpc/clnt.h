@@ -195,6 +195,8 @@ int		rpc_clnt_add_xprt(struct rpc_clnt *, struct xprt_create *,
 				struct rpc_xprt *,
 				void *),
 			void *data);
+void		rpc_cap_max_reconnect_timeout(struct rpc_clnt *clnt,
+			unsigned long timeo);
 
 const char *rpc_proc_name(const struct rpc_task *task);
 #endif /* __KERNEL__ */

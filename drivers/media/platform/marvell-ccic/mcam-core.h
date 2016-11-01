@@ -176,8 +176,6 @@ struct mcam_camera {
 
 	/* DMA buffers - DMA modes */
 	struct mcam_vb_buffer *vb_bufs[MAX_DMA_BUFS];
-	struct vb2_alloc_ctx *vb_alloc_ctx;
-	struct vb2_alloc_ctx *vb_alloc_ctx_sg;
 
 	/* Mode-specific ops, set at open time */
 	void (*dma_setup)(struct mcam_camera *cam);

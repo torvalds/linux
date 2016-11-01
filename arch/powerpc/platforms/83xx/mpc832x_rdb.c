@@ -220,9 +220,7 @@ machine_device_initcall(mpc832x_rdb, mpc83xx_declare_of_platform_devices);
  */
 static int __init mpc832x_rdb_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "MPC832xRDB");
+	return of_machine_is_compatible("MPC832xRDB");
 }
 
 define_machine(mpc832x_rdb) {

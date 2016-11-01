@@ -727,13 +727,7 @@ static int meson_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(pc->pcdev);
 	}
 
-	ret = meson_gpiolib_register(pc);
-	if (ret) {
-		pinctrl_unregister(pc->pcdev);
-		return ret;
-	}
-
-	return 0;
+	return meson_gpiolib_register(pc);
 }
 
 static struct platform_driver meson_pinctrl_driver = {

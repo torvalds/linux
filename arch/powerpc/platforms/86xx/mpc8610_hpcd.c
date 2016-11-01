@@ -319,9 +319,7 @@ static void __init mpc86xx_hpcd_setup_arch(void)
  */
 static int __init mpc86xx_hpcd_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (of_flat_dt_is_compatible(root, "fsl,MPC8610HPCD"))
+	if (of_machine_is_compatible("fsl,MPC8610HPCD"))
 		return 1;	/* Looks good */
 
 	return 0;

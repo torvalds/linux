@@ -25,8 +25,8 @@ config VIDEO_PXA27x
 	---help---
 	  This is a v4l2 driver for the PXA27x Quick Capture Interface
 
-config VIDEO_RCAR_VIN
-	tristate "R-Car Video Input (VIN) support"
+config VIDEO_RCAR_VIN_OLD
+	tristate "R-Car Video Input (VIN) support (DEPRECATED)"
 	depends on VIDEO_DEV && SOC_CAMERA
 	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on HAS_DMA

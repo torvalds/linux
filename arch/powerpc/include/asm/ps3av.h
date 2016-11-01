@@ -104,7 +104,7 @@
 #define PS3AV_CMD_AV_INPUTLEN_16			0x02
 #define PS3AV_CMD_AV_INPUTLEN_20			0x0a
 #define PS3AV_CMD_AV_INPUTLEN_24			0x0b
-/* alayout */
+/* av_layout */
 #define PS3AV_CMD_AV_LAYOUT_32				(1 << 0)
 #define PS3AV_CMD_AV_LAYOUT_44				(1 << 1)
 #define PS3AV_CMD_AV_LAYOUT_48				(1 << 2)

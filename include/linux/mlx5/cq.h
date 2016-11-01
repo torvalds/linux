@@ -58,6 +58,8 @@ struct mlx5_core_cq {
 		void (*comp)(struct mlx5_core_cq *);
 		void		*priv;
 	} tasklet_ctx;
+	int			reset_notify_added;
+	struct list_head	reset_notify;
 };
 
 

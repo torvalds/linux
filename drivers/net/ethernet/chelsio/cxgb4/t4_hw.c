@@ -3627,7 +3627,8 @@ void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
 }
 
 #define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
-		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G | \
+		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_25G | \
+		     FW_PORT_CAP_SPEED_40G | FW_PORT_CAP_SPEED_100G | \
 		     FW_PORT_CAP_ANEG)
 
 /**
@@ -7196,8 +7197,12 @@ void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl)
 		speed = 1000;
 	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
 		speed = 10000;
+	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_25G))
+		speed = 25000;
 	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
 		speed = 40000;
+	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100G))
+		speed = 100000;
 
 	lc = &pi->link_cfg;
 
@@ -7219,6 +7224,7 @@ void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl)
 		lc->speed = speed;
 		lc->fc = fc;
 		lc->supported = be16_to_cpu(p->u.info.pcap);
+		lc->lp_advertising = be16_to_cpu(p->u.info.lpacap);
 		t4_os_link_changed(adap, pi->port_id, link_ok);
 	}
 }
@@ -7284,6 +7290,7 @@ static void get_pci_mode(struct adapter *adapter, struct pci_params *p)
 static void init_link_config(struct link_config *lc, unsigned int caps)
 {
 	lc->supported = caps;
+	lc->lp_advertising = 0;
 	lc->requested_speed = 0;
 	lc->speed = 0;
 	lc->requested_fc = lc->fc = PAUSE_RX | PAUSE_TX;

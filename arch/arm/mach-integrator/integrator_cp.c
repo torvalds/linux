@@ -231,8 +231,7 @@ static void __init intcp_init_of(void)
 	if (!intcp_con_base)
 		return;
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     intcp_auxdata_lookup, NULL);
+	of_platform_default_populate(NULL, intcp_auxdata_lookup, NULL);
 }
 
 static const char * intcp_dt_board_compat[] = {

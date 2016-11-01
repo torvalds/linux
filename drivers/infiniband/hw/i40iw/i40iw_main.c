@@ -100,7 +100,7 @@ static struct notifier_block i40iw_net_notifier = {
 	.notifier_call = i40iw_net_event
 };
 
-static int i40iw_notifiers_registered;
+static atomic_t i40iw_notifiers_registered;
 
 /**
  * i40iw_find_i40e_handler - find a handler given a client info
@@ -1342,12 +1342,11 @@ exit:
  */
 static void i40iw_register_notifiers(void)
 {
-	if (!i40iw_notifiers_registered) {
+	if (atomic_inc_return(&i40iw_notifiers_registered) == 1) {
 		register_inetaddr_notifier(&i40iw_inetaddr_notifier);
 		register_inet6addr_notifier(&i40iw_inetaddr6_notifier);
 		register_netevent_notifier(&i40iw_net_notifier);
 	}
-	i40iw_notifiers_registered++;
 }
 
 /**
@@ -1429,8 +1428,7 @@ static void i40iw_deinit_device(struct i40iw_device *iwdev, bool reset, bool del
 			i40iw_del_macip_entry(iwdev, (u8)iwdev->mac_ip_table_idx);
 		/* fallthrough */
 	case INET_NOTIFIER:
-		if (i40iw_notifiers_registered > 0) {
-			i40iw_notifiers_registered--;
+		if (!atomic_dec_return(&i40iw_notifiers_registered)) {
 			unregister_netevent_notifier(&i40iw_net_notifier);
 			unregister_inetaddr_notifier(&i40iw_inetaddr_notifier);
 			unregister_inet6addr_notifier(&i40iw_inetaddr6_notifier);
@@ -1557,6 +1555,10 @@ static int i40iw_open(struct i40e_info *ldev, struct i40e_client *client)
 	struct i40iw_sc_dev *dev;
 	enum i40iw_status_code status;
 	struct i40iw_handler *hdl;
+
+	hdl = i40iw_find_netdev(ldev->netdev);
+	if (hdl)
+		return 0;
 
 	hdl = kzalloc(sizeof(*hdl), GFP_KERNEL);
 	if (!hdl)

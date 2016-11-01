@@ -345,16 +345,6 @@ config SENSORS_TSL2550
 	  This driver can also be built as a module.  If so, the module
 	  will be called tsl2550.
 
-config SENSORS_BH1780
-	tristate "ROHM BH1780GLI ambient light sensor"
-	depends on I2C && SYSFS
-	help
-	  If you say yes here you get support for the ROHM BH1780GLI
-	  ambient light sensor.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called bh1780gli.
-
 config SENSORS_BH1770
          tristate "BH1770GLC / SFH7770 combined ALS - Proximity sensor"
          depends on I2C

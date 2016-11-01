@@ -96,7 +96,7 @@ retry:
 			return 0;
 
 		if (have_drawable_releases && sc > 300) {
-			FENCE_WARN(fence, "failed to wait on release %d "
+			FENCE_WARN(fence, "failed to wait on release %llu "
 					  "after spincount %d\n",
 					  fence->context & ~0xf0000000, sc);
 			goto signaled;

@@ -164,6 +164,7 @@
 #define PTE_CONT		(_AT(pteval_t, 1) << 52)	/* Contiguous range */
 #define PTE_PXN			(_AT(pteval_t, 1) << 53)	/* Privileged XN */
 #define PTE_UXN			(_AT(pteval_t, 1) << 54)	/* User XN */
+#define PTE_HYP_XN		(_AT(pteval_t, 1) << 54)	/* HYP XN */
 
 /*
  * AttrIndx[2:0] encoding (mapping attributes defined in the MAIR* registers).

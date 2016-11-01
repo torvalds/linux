@@ -272,7 +272,7 @@ static void poll_health(unsigned long data)
 	if (in_fatal(dev) && !health->sick) {
 		health->sick = true;
 		print_health_info(dev);
-		queue_work(health->wq, &health->work);
+		schedule_work(&health->work);
 	}
 }
 
@@ -301,7 +301,7 @@ void mlx5_health_cleanup(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 
-	destroy_workqueue(health->wq);
+	flush_work(&health->work);
 }
 
 int mlx5_health_init(struct mlx5_core_dev *dev)
@@ -316,10 +316,7 @@ int mlx5_health_init(struct mlx5_core_dev *dev)
 
 	strcpy(name, "mlx5_health");
 	strcat(name, dev_name(&dev->pdev->dev));
-	health->wq = create_singlethread_workqueue(name);
 	kfree(name);
-	if (!health->wq)
-		return -ENOMEM;
 
 	INIT_WORK(&health->work, health_care);
 

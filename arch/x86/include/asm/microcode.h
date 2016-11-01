@@ -133,40 +133,14 @@ static inline unsigned int x86_cpuid_family(void)
 #ifdef CONFIG_MICROCODE
 extern void __init load_ucode_bsp(void);
 extern void load_ucode_ap(void);
-extern int __init save_microcode_in_initrd(void);
 void reload_early_microcode(void);
 extern bool get_builtin_firmware(struct cpio_data *cd, const char *name);
 #else
 static inline void __init load_ucode_bsp(void)			{ }
 static inline void load_ucode_ap(void)				{ }
-static inline int __init save_microcode_in_initrd(void)		{ return 0; }
 static inline void reload_early_microcode(void)			{ }
 static inline bool
 get_builtin_firmware(struct cpio_data *cd, const char *name)	{ return false; }
 #endif
-
-static inline unsigned long get_initrd_start(void)
-{
-#ifdef CONFIG_BLK_DEV_INITRD
-	return initrd_start;
-#else
-	return 0;
-#endif
-}
-
-static inline unsigned long get_initrd_start_addr(void)
-{
-#ifdef CONFIG_BLK_DEV_INITRD
-#ifdef CONFIG_X86_32
-	unsigned long *initrd_start_p = (unsigned long *)__pa_nodebug(&initrd_start);
-
-	return (unsigned long)__pa_nodebug(*initrd_start_p);
-#else
-	return get_initrd_start();
-#endif
-#else /* CONFIG_BLK_DEV_INITRD */
-	return 0;
-#endif
-}
 
 #endif /* _ASM_X86_MICROCODE_H */

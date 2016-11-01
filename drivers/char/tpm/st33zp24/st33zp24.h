@@ -1,6 +1,6 @@
 /*
  * STMicroelectronics TPM Linux driver for TPM ST33ZP24
- * Copyright (C) 2009 - 2015  STMicroelectronics
+ * Copyright (C) 2009 - 2016  STMicroelectronics
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -20,6 +20,18 @@
 
 #define TPM_WRITE_DIRECTION             0x80
 #define TPM_BUFSIZE                     2048
+
+struct st33zp24_dev {
+	struct tpm_chip *chip;
+	void *phy_id;
+	const struct st33zp24_phy_ops *ops;
+	int locality;
+	int irq;
+	u32 intrs;
+	int io_lpcpd;
+	wait_queue_head_t read_queue;
+};
+
 
 struct st33zp24_phy_ops {
 	int (*send)(void *phy_id, u8 tpm_register, u8 *tpm_data, int tpm_size);

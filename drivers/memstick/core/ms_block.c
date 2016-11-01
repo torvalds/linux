@@ -2002,8 +2002,7 @@ static int msb_bd_getgeo(struct block_device *bdev,
 
 static int msb_prepare_req(struct request_queue *q, struct request *req)
 {
-	if (req->cmd_type != REQ_TYPE_FS &&
-				req->cmd_type != REQ_TYPE_BLOCK_PC) {
+	if (req->cmd_type != REQ_TYPE_FS) {
 		blk_dump_rq_flags(req, "MS unsupported request");
 		return BLKPREP_KILL;
 	}
@@ -2146,7 +2145,6 @@ static int msb_init_disk(struct memstick_dev *card)
 	msb->disk->fops = &msb_bdops;
 	msb->disk->private_data = msb;
 	msb->disk->queue = msb->queue;
-	msb->disk->driverfs_dev = &card->dev;
 	msb->disk->flags |= GENHD_FL_EXT_DEVT;
 
 	capacity = msb->pages_in_block * msb->logical_block_count;
@@ -2163,7 +2161,7 @@ static int msb_init_disk(struct memstick_dev *card)
 		set_disk_ro(msb->disk, 1);
 
 	msb_start(card);
-	add_disk(msb->disk);
+	device_add_disk(&card->dev, msb->disk);
 	dbg("Disk added");
 	return 0;
 
@@ -2340,23 +2338,11 @@ static struct memstick_driver msb_driver = {
 	.resume   = msb_resume
 };
 
-static int major;
-
 static int __init msb_init(void)
 {
-	int rc = register_blkdev(0, DRIVER_NAME);
-
-	if (rc < 0) {
-		pr_err("failed to register major (error %d)\n", rc);
-		return rc;
-	}
-
-	major = rc;
-	rc = memstick_register_driver(&msb_driver);
-	if (rc) {
-		unregister_blkdev(major, DRIVER_NAME);
+	int rc = memstick_register_driver(&msb_driver);
+	if (rc)
 		pr_err("failed to register memstick driver (error %d)\n", rc);
-	}
 
 	return rc;
 }
@@ -2364,7 +2350,6 @@ static int __init msb_init(void)
 static void __exit msb_exit(void)
 {
 	memstick_unregister_driver(&msb_driver);
-	unregister_blkdev(major, DRIVER_NAME);
 	idr_destroy(&msb_disk_idr);
 }
 

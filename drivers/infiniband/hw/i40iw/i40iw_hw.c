@@ -265,6 +265,7 @@ void i40iw_next_iw_state(struct i40iw_qp *iwqp,
 		info.dont_send_fin = false;
 	if (iwqp->sc_qp.term_flags && (state == I40IW_QP_STATE_ERROR))
 		info.reset_tcp_conn = true;
+	iwqp->hw_iwarp_state = state;
 	i40iw_hw_modify_qp(iwqp->iwdev, iwqp, &info, 0);
 }
 

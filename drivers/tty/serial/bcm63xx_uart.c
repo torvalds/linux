@@ -813,8 +813,12 @@ static int bcm_uart_probe(struct platform_device *pdev)
 	struct clk *clk;
 	int ret;
 
-	if (pdev->dev.of_node)
-		pdev->id = of_alias_get_id(pdev->dev.of_node, "uart");
+	if (pdev->dev.of_node) {
+		pdev->id = of_alias_get_id(pdev->dev.of_node, "serial");
+
+		if (pdev->id < 0)
+			pdev->id = of_alias_get_id(pdev->dev.of_node, "uart");
+	}
 
 	if (pdev->id < 0 || pdev->id >= BCM63XX_NR_UARTS)
 		return -EINVAL;

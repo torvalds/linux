@@ -21,6 +21,7 @@
 #include <linux/skbuff.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
+#include <net/codel.h>
 #include <asm/unaligned.h>
 
 /**
@@ -895,7 +896,18 @@ struct ieee80211_tx_info {
 				unsigned long jiffies;
 			};
 			/* NB: vif can be NULL for injected frames */
-			struct ieee80211_vif *vif;
+			union {
+				/* NB: vif can be NULL for injected frames */
+				struct ieee80211_vif *vif;
+
+				/* When packets are enqueued on txq it's easy
+				 * to re-construct the vif pointer. There's no
+				 * more space in tx_info so it can be used to
+				 * store the necessary enqueue time for packet
+				 * sojourn time computation.
+				 */
+				codel_time_t enqueue_time;
+			};
 			struct ieee80211_key_conf *hw_key;
 			u32 flags;
 			/* 4 bytes free */
@@ -2147,9 +2159,6 @@ enum ieee80211_hw_flags {
  * @n_cipher_schemes: a size of an array of cipher schemes definitions.
  * @cipher_schemes: a pointer to an array of cipher scheme definitions
  *	supported by HW.
- *
- * @txq_ac_max_pending: maximum number of frames per AC pending in all txq
- *	entries for a vif.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -2180,7 +2189,6 @@ struct ieee80211_hw {
 	u8 uapsd_max_sp_len;
 	u8 n_cipher_schemes;
 	const struct ieee80211_cipher_scheme *cipher_schemes;
-	int txq_ac_max_pending;
 };
 
 static inline bool _ieee80211_hw_check(struct ieee80211_hw *hw,
@@ -3612,7 +3620,8 @@ struct ieee80211_ops {
 
 	int (*join_ibss)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 	void (*leave_ibss)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
-	u32 (*get_expected_throughput)(struct ieee80211_sta *sta);
+	u32 (*get_expected_throughput)(struct ieee80211_hw *hw,
+				       struct ieee80211_sta *sta);
 	int (*get_txpower)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			   int *dbm);
 
@@ -4689,9 +4698,10 @@ void ieee80211_wake_queues(struct ieee80211_hw *hw);
  * any context, including hardirq context.
  *
  * @hw: the hardware that finished the scan
- * @aborted: set to true if scan was aborted
+ * @info: information about the completed scan
  */
-void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted);
+void ieee80211_scan_completed(struct ieee80211_hw *hw,
+			      struct cfg80211_scan_info *info);
 
 /**
  * ieee80211_sched_scan_results - got results from scheduled scan

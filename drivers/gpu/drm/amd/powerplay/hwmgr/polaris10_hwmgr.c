@@ -389,6 +389,34 @@ static int polaris10_program_voting_clients(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int polaris10_clear_voting_clients(struct pp_hwmgr *hwmgr)
+{
+	/* Reset voting clients before disabling DPM */
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+			SCLK_PWRMGT_CNTL, RESET_SCLK_CNT, 1);
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+			SCLK_PWRMGT_CNTL, RESET_BUSY_CNT, 1);
+
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_0, 0);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_1, 0);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_2, 0);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_3, 0);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_4, 0);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_5, 0);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_6, 0);
+	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
+			ixCG_FREQ_TRAN_VOTING_7, 0);
+
+	return 0;
+}
+
 /**
 * Get the location of various tables inside the FW image.
 *
@@ -515,6 +543,11 @@ static int polaris10_copy_and_switch_arb_sets(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int polaris10_reset_to_default(struct pp_hwmgr *hwmgr)
+{
+	return smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_ResetToDefaults);
+}
+
 /**
 * Initial switch from ARB F0->F1
 *
@@ -526,6 +559,21 @@ static int polaris10_initial_switch_from_arbf0_to_f1(struct pp_hwmgr *hwmgr)
 {
 	return polaris10_copy_and_switch_arb_sets(hwmgr,
 			MC_CG_ARB_FREQ_F0, MC_CG_ARB_FREQ_F1);
+}
+
+static int polaris10_force_switch_to_arbf0(struct pp_hwmgr *hwmgr)
+{
+	uint32_t tmp;
+
+	tmp = (cgs_read_ind_register(hwmgr->device,
+			CGS_IND_REG__SMC, ixSMC_SCRATCH9) &
+			0x0000ff00) >> 8;
+
+	if (tmp == MC_CG_ARB_FREQ_F0)
+		return 0;
+
+	return polaris10_copy_and_switch_arb_sets(hwmgr,
+			tmp, MC_CG_ARB_FREQ_F0);
 }
 
 static int polaris10_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
@@ -1356,9 +1404,9 @@ static int polaris10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 			return result;
 	}
 
-	/* in order to prevent MC activity from stutter mode to push DPM up.
+	/* In order to prevent MC activity from stutter mode to push DPM up,
 	 * the UVD change complements this by putting the MCLK in
-	 * a higher state by default such that we are not effected by
+	 * a higher state by default such that we are not affected by
 	 * up threshold or and MCLK DPM latency.
 	 */
 	levels[0].ActivityLevel = 0x1f;
@@ -1425,7 +1473,7 @@ static int polaris10_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 
 	/* Get MinVoltage and Frequency from DPM0,
 	 * already converted to SMC_UL */
-	sclk_frequency = data->dpm_table.sclk_table.dpm_levels[0].value;
+	sclk_frequency = data->vbios_boot_state.sclk_bootup_value;
 	result = polaris10_get_dependency_volt_by_clk(hwmgr,
 			table_info->vdd_dep_on_sclk,
 			sclk_frequency,
@@ -1461,8 +1509,7 @@ static int polaris10_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 
 
 	/* Get MinVoltage and Frequency from DPM0, already converted to SMC_UL */
-	table->MemoryACPILevel.MclkFrequency =
-			data->dpm_table.mclk_table.dpm_levels[0].value;
+	table->MemoryACPILevel.MclkFrequency = data->vbios_boot_state.mclk_bootup_value;
 	result = polaris10_get_dependency_volt_by_clk(hwmgr,
 			table_info->vdd_dep_on_mclk,
 			table->MemoryACPILevel.MclkFrequency,
@@ -1780,7 +1827,7 @@ static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 {
 	uint32_t ro, efuse, volt_without_cks, volt_with_cks, value, max, min;
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
-	uint8_t i, stretch_amount, stretch_amount2, volt_offset = 0;
+	uint8_t i, stretch_amount, volt_offset = 0;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_clock_voltage_dependency_table *sclk_table =
@@ -1831,11 +1878,8 @@ static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 
 	data->smc_state_table.LdoRefSel = (table_info->cac_dtp_table->ucCKS_LDO_REFSEL != 0) ? table_info->cac_dtp_table->ucCKS_LDO_REFSEL : 6;
 	/* Populate CKS Lookup Table */
-	if (stretch_amount == 1 || stretch_amount == 2 || stretch_amount == 5)
-		stretch_amount2 = 0;
-	else if (stretch_amount == 3 || stretch_amount == 4)
-		stretch_amount2 = 1;
-	else {
+	if (stretch_amount != 1 && stretch_amount != 2 && stretch_amount != 3 &&
+			stretch_amount != 4 && stretch_amount != 5) {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_ClockStretcher);
 		PP_ASSERT_WITH_CODE(false,
@@ -1890,9 +1934,8 @@ static int polaris10_populate_vr_config(struct pp_hwmgr *hwmgr,
 	if (POLARIS10_VOLTAGE_CONTROL_BY_SVID2 == data->mvdd_control) {
 		config = VR_SVI2_PLANE_2;
 		table->VRConfig |= (config << VRCONF_MVDD_SHIFT);
-	} else if (POLARIS10_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control) {
-		config = VR_SMIO_PATTERN_2;
-		table->VRConfig |= (config << VRCONF_MVDD_SHIFT);
+		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, data->soft_regs_start +
+			offsetof(SMU74_SoftRegisters, AllowMvddSwitch), 0x1);
 	} else {
 		config = VR_STATIC_VOLTAGE;
 		table->VRConfig |= (config << VRCONF_MVDD_SHIFT);
@@ -2262,6 +2305,17 @@ static int polaris10_enable_ulv(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int polaris10_disable_ulv(struct pp_hwmgr *hwmgr)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_ulv_parm *ulv = &(data->ulv);
+
+	if (ulv->ulv_supported)
+		return smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_DisableULV);
+
+	return 0;
+}
+
 static int polaris10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -2271,6 +2325,21 @@ static int polaris10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 					"Attempt to enable Master Deep Sleep switch failed!",
 					return -1);
 	} else {
+		if (smum_send_msg_to_smc(hwmgr->smumgr,
+				PPSMC_MSG_MASTER_DeepSleep_OFF)) {
+			PP_ASSERT_WITH_CODE(false,
+					"Attempt to disable Master Deep Sleep switch failed!",
+					return -1);
+		}
+	}
+
+	return 0;
+}
+
+static int polaris10_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
+{
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_SclkDeepSleep)) {
 		if (smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_MASTER_DeepSleep_OFF)) {
 			PP_ASSERT_WITH_CODE(false,
@@ -2379,6 +2448,58 @@ static int polaris10_start_dpm(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int polaris10_disable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+
+	/* disable SCLK dpm */
+	if (!data->sclk_dpm_key_disabled)
+		PP_ASSERT_WITH_CODE(
+				(smum_send_msg_to_smc(hwmgr->smumgr,
+						PPSMC_MSG_DPM_Disable) == 0),
+				"Failed to disable SCLK DPM!",
+				return -1);
+
+	/* disable MCLK dpm */
+	if (!data->mclk_dpm_key_disabled) {
+		PP_ASSERT_WITH_CODE(
+				(smum_send_msg_to_smc(hwmgr->smumgr,
+						PPSMC_MSG_MCLKDPM_Disable) == 0),
+				"Failed to disable MCLK DPM!",
+				return -1);
+	}
+
+	return 0;
+}
+
+static int polaris10_stop_dpm(struct pp_hwmgr *hwmgr)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+
+	/* disable general power management */
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, GENERAL_PWRMGT,
+			GLOBAL_PWRMGT_EN, 0);
+	/* disable sclk deep sleep */
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SCLK_PWRMGT_CNTL,
+			DYNAMIC_PM_EN, 0);
+
+	/* disable PCIE dpm */
+	if (!data->pcie_dpm_key_disabled) {
+		PP_ASSERT_WITH_CODE(
+				(smum_send_msg_to_smc(hwmgr->smumgr,
+						PPSMC_MSG_PCIeDPM_Disable) == 0),
+				"Failed to disable pcie DPM during DPM Stop Function!",
+				return -1);
+	}
+
+	if (polaris10_disable_sclk_mclk_dpm(hwmgr)) {
+		printk(KERN_ERR "Failed to disable Sclk DPM and Mclk DPM!");
+		return -1;
+	}
+
+	return 0;
+}
+
 static void polaris10_set_dpm_event_sources(struct pp_hwmgr *hwmgr, uint32_t sources)
 {
 	bool protection;
@@ -2434,6 +2555,23 @@ static int polaris10_enable_auto_throttle_source(struct pp_hwmgr *hwmgr,
 static int polaris10_enable_thermal_auto_throttle(struct pp_hwmgr *hwmgr)
 {
 	return polaris10_enable_auto_throttle_source(hwmgr, PHM_AutoThrottleSource_Thermal);
+}
+
+static int polaris10_disable_auto_throttle_source(struct pp_hwmgr *hwmgr,
+		PHM_AutoThrottleSource source)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+
+	if (data->active_auto_throttle_sources & (1 << source)) {
+		data->active_auto_throttle_sources &= ~(1 << source);
+		polaris10_set_dpm_event_sources(hwmgr, data->active_auto_throttle_sources);
+	}
+	return 0;
+}
+
+static int polaris10_disable_thermal_auto_throttle(struct pp_hwmgr *hwmgr)
+{
+	return polaris10_disable_auto_throttle_source(hwmgr, PHM_AutoThrottleSource_Thermal);
 }
 
 int polaris10_pcie_performance_request(struct pp_hwmgr *hwmgr)
@@ -2530,6 +2668,10 @@ int polaris10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable deep sleep master switch!", result = tmp_result);
 
+	tmp_result = polaris10_enable_didt_config(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to enable deep sleep master switch!", result = tmp_result);
+
 	tmp_result = polaris10_start_dpm(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to start DPM!", result = tmp_result);
@@ -2559,8 +2701,60 @@ int polaris10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 int polaris10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
+	int tmp_result, result = 0;
 
-	return 0;
+	tmp_result = (polaris10_is_dpm_running(hwmgr)) ? 0 : -1;
+	PP_ASSERT_WITH_CODE(tmp_result == 0,
+			"DPM is not running right now, no need to disable DPM!",
+			return 0);
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_ThermalController))
+		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+				GENERAL_PWRMGT, THERMAL_PROTECTION_DIS, 1);
+
+	tmp_result = polaris10_disable_power_containment(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable power containment!", result = tmp_result);
+
+	tmp_result = polaris10_disable_smc_cac(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable SMC CAC!", result = tmp_result);
+
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+			CG_SPLL_SPREAD_SPECTRUM, SSEN, 0);
+	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
+			GENERAL_PWRMGT, DYN_SPREAD_SPECTRUM_EN, 0);
+
+	tmp_result = polaris10_disable_thermal_auto_throttle(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable thermal auto throttle!", result = tmp_result);
+
+	tmp_result = polaris10_stop_dpm(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to stop DPM!", result = tmp_result);
+
+	tmp_result = polaris10_disable_deep_sleep_master_switch(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable deep sleep master switch!", result = tmp_result);
+
+	tmp_result = polaris10_disable_ulv(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to disable ULV!", result = tmp_result);
+
+	tmp_result = polaris10_clear_voting_clients(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to clear voting clients!", result = tmp_result);
+
+	tmp_result = polaris10_reset_to_default(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to reset to default!", result = tmp_result);
+
+	tmp_result = polaris10_force_switch_to_arbf0(hwmgr);
+	PP_ASSERT_WITH_CODE((tmp_result == 0),
+			"Failed to force to switch arbf0!", result = tmp_result);
+
+	return result;
 }
 
 int polaris10_reset_asic_tasks(struct pp_hwmgr *hwmgr)
@@ -2571,13 +2765,6 @@ int polaris10_reset_asic_tasks(struct pp_hwmgr *hwmgr)
 
 int polaris10_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
-
-	if (data->soft_pp_table) {
-		kfree(data->soft_pp_table);
-		data->soft_pp_table = NULL;
-	}
-
 	return phm_hwmgr_backend_fini(hwmgr);
 }
 
@@ -2624,17 +2811,22 @@ int polaris10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 					PHM_PlatformCaps_DynamicUVDState);
 
 	/* power tune caps Assume disabled */
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_SQRamping);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_DBRamping);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_TDRamping);
-	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_TCPRamping);
 
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-					PHM_PlatformCaps_PowerContainment);
+	if (hwmgr->powercontainment_enabled)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			    PHM_PlatformCaps_PowerContainment);
+	else
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			    PHM_PlatformCaps_PowerContainment);
+
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 							PHM_PlatformCaps_CAC);
 
@@ -2706,12 +2898,12 @@ static int polaris10_get_evv_voltages(struct pp_hwmgr *hwmgr)
 				}
 			}
 
-
-			PP_ASSERT_WITH_CODE(0 == atomctrl_get_voltage_evv_on_sclk_ai(hwmgr,
-							VOLTAGE_TYPE_VDDC, sclk, vv_id, &vddc),
-						"Error retrieving EVV voltage value!",
-						continue);
-
+			if (atomctrl_get_voltage_evv_on_sclk_ai(hwmgr,
+						VOLTAGE_TYPE_VDDC,
+						sclk, vv_id, &vddc) != 0) {
+				printk(KERN_WARNING "failed to retrieving EVV voltage!\n");
+				continue;
+			}
 
 			/* need to make sure vddc is less than 2v or else, it could burn the ASIC.
 			 * real voltage level in unit of 0.01mv */
@@ -2968,12 +3160,18 @@ int polaris10_patch_voltage_workaround(struct pp_hwmgr *hwmgr)
 
 int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data;
 	struct pp_atomctrl_gpio_pin_assignment gpio_pin_assignment;
 	uint32_t temp_reg;
 	int result;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+
+	data = kzalloc(sizeof(struct polaris10_hwmgr), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	hwmgr->backend = data;
 
 	data->dll_default_on = false;
 	data->sram_end = SMC_RAM_END;
@@ -3063,7 +3261,7 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	if (0 == result) {
 		struct cgs_system_info sys_info = {0};
 
-		data->is_tlu_enabled = 0;
+		data->is_tlu_enabled = false;
 
 		hwmgr->platform_descriptor.hardwareActivityPerformanceLevels =
 							POLARIS10_MAX_HARDWARE_POWERLEVELS;
@@ -3148,7 +3346,7 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_GEN_INFO;
 		result = cgs_query_system_info(hwmgr->device, &sys_info);
 		if (result)
-			data->pcie_gen_cap = 0x30007;
+			data->pcie_gen_cap = AMDGPU_DEFAULT_PCIE_GEN_MASK;
 		else
 			data->pcie_gen_cap = (uint32_t)sys_info.value;
 		if (data->pcie_gen_cap & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
@@ -3157,7 +3355,7 @@ int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_MLW;
 		result = cgs_query_system_info(hwmgr->device, &sys_info);
 		if (result)
-			data->pcie_lane_cap = 0x2f0000;
+			data->pcie_lane_cap = AMDGPU_DEFAULT_PCIE_MLW_MASK;
 		else
 			data->pcie_lane_cap = (uint32_t)sys_info.value;
 
@@ -3445,6 +3643,7 @@ static int polaris10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	disable_mclk_switching_for_frame_lock = phm_cap_enabled(
 				    hwmgr->platform_descriptor.platformCaps,
 				    PHM_PlatformCaps_DisableMclkSwitchingForFrameLock);
+
 
 	disable_mclk_switching = (1 < info.display_count) ||
 				    disable_mclk_switching_for_frame_lock;
@@ -3950,8 +4149,8 @@ static int polaris10_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->sclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
 			(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
-		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
-				"Trying to freeze SCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(polaris10_is_dpm_running(hwmgr),
+				    "Trying to freeze SCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_SCLKDPM_FreezeLevel),
@@ -3962,8 +4161,8 @@ static int polaris10_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->mclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
 		 DPMTABLE_OD_UPDATE_MCLK)) {
-		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
-				"Trying to freeze MCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(polaris10_is_dpm_running(hwmgr),
+				    "Trying to freeze MCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_MCLKDPM_FreezeLevel),
@@ -4123,7 +4322,6 @@ static int polaris10_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
 static int polaris10_trim_dpm_states(struct pp_hwmgr *hwmgr,
 		const struct polaris10_power_state *polaris10_ps)
 {
-	int result = 0;
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint32_t high_limit_count;
 
@@ -4143,7 +4341,7 @@ static int polaris10_trim_dpm_states(struct pp_hwmgr *hwmgr,
 			polaris10_ps->performance_levels[0].memory_clock,
 			polaris10_ps->performance_levels[high_limit_count].memory_clock);
 
-	return result;
+	return 0;
 }
 
 static int polaris10_generate_dpm_level_enable_mask(
@@ -4226,25 +4424,20 @@ int polaris10_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 	return polaris10_enable_disable_uvd_dpm(hwmgr, !bgate);
 }
 
-static int polaris10_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input)
+int polaris10_update_vce_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	const struct phm_set_power_state_input *states =
-			(const struct phm_set_power_state_input *)input;
 	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
-	const struct polaris10_power_state *polaris10_nps =
-			cast_const_phw_polaris10_power_state(states->pnew_state);
-	const struct polaris10_power_state *polaris10_cps =
-			cast_const_phw_polaris10_power_state(states->pcurrent_state);
-
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
-	if (polaris10_nps->vce_clks.evclk > 0 &&
-	(polaris10_cps == NULL || polaris10_cps->vce_clks.evclk == 0)) {
-
-		data->smc_state_table.VceBootLevel =
+	if (!bgate) {
+		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+						PHM_PlatformCaps_StablePState))
+			data->smc_state_table.VceBootLevel =
 				(uint8_t) (table_info->mm_dep_table->count - 1);
+		else
+			data->smc_state_table.VceBootLevel = 0;
 
 		mm_boot_level_offset = data->dpm_table_start +
 				offsetof(SMU74_Discrete_DpmTable, VceBootLevel);
@@ -4257,17 +4450,13 @@ static int polaris10_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input)
 		cgs_write_ind_register(hwmgr->device,
 				CGS_IND_REG__SMC, mm_boot_level_offset, mm_boot_level_value);
 
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_StablePState)) {
+		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_StablePState))
 			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 					PPSMC_MSG_VCEDPM_SetEnabledMask,
 					(uint32_t)1 << data->smc_state_table.VceBootLevel);
-
-			polaris10_enable_disable_vce_dpm(hwmgr, true);
-		} else if (polaris10_nps->vce_clks.evclk == 0 &&
-				polaris10_cps != NULL &&
-				polaris10_cps->vce_clks.evclk > 0)
-			polaris10_enable_disable_vce_dpm(hwmgr, false);
 	}
+
+	polaris10_enable_disable_vce_dpm(hwmgr, !bgate);
 
 	return 0;
 }
@@ -4353,8 +4542,8 @@ static int polaris10_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		(data->need_update_smu7_dpm_table &
 		(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
 
-		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
-				"Trying to Unfreeze SCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(polaris10_is_dpm_running(hwmgr),
+				    "Trying to Unfreeze SCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_SCLKDPM_UnfreezeLevel),
@@ -4365,8 +4554,8 @@ static int polaris10_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->mclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_MCLK)) {
 
-		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
-				"Trying to Unfreeze MCLK DPM when DPM is disabled",
+		PP_ASSERT_WITH_CODE(polaris10_is_dpm_running(hwmgr),
+				    "Trying to Unfreeze MCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
 				PPSMC_MSG_SCLKDPM_UnfreezeLevel),
@@ -4422,6 +4611,8 @@ static int polaris10_notify_smc_display(struct pp_hwmgr *hwmgr)
 	return (smum_send_msg_to_smc(hwmgr->smumgr, (PPSMC_Msg)PPSMC_HasDisplay) == 0) ?  0 : -EINVAL;
 }
 
+
+
 static int polaris10_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
 {
 	int tmp_result, result = 0;
@@ -4453,11 +4644,6 @@ static int polaris10_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *i
 	tmp_result = polaris10_generate_dpm_level_enable_mask(hwmgr, input);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to generate DPM level enabled mask!",
-			result = tmp_result);
-
-	tmp_result = polaris10_update_vce_dpm(hwmgr, input);
-	PP_ASSERT_WITH_CODE((0 == tmp_result),
-			"Failed to update VCE DPM!",
 			result = tmp_result);
 
 	tmp_result = polaris10_update_sclk_threshold(hwmgr);
@@ -4530,6 +4716,7 @@ int polaris10_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwm
 	if (num_active_displays > 1)  /* to do && (pHwMgr->pPECI->displayConfiguration.bMultiMonitorInSync != TRUE)) */
 		polaris10_notify_smc_display_change(hwmgr, false);
 
+
 	return 0;
 }
 
@@ -4578,6 +4765,7 @@ int polaris10_program_display_gap(struct pp_hwmgr *hwmgr)
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, data->soft_regs_start + offsetof(SMU74_SoftRegisters, PreVBlankGap), 0x64);
 
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, data->soft_regs_start + offsetof(SMU74_SoftRegisters, VBlankTimeout), (frame_time_in_us - pre_vbi_time_in_us));
+
 
 	return 0;
 }
@@ -4820,42 +5008,6 @@ int polaris10_setup_asic_task(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-static int polaris10_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
-{
-	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
-
-	if (!data->soft_pp_table) {
-		data->soft_pp_table = kmemdup(hwmgr->soft_pp_table,
-					      hwmgr->soft_pp_table_size,
-					      GFP_KERNEL);
-		if (!data->soft_pp_table)
-			return -ENOMEM;
-	}
-
-	*table = (char *)&data->soft_pp_table;
-
-	return hwmgr->soft_pp_table_size;
-}
-
-static int polaris10_set_pp_table(struct pp_hwmgr *hwmgr, const char *buf, size_t size)
-{
-	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
-
-	if (!data->soft_pp_table) {
-		data->soft_pp_table = kzalloc(hwmgr->soft_pp_table_size, GFP_KERNEL);
-		if (!data->soft_pp_table)
-			return -ENOMEM;
-	}
-
-	memcpy(data->soft_pp_table, buf, size);
-
-	hwmgr->soft_pp_table = data->soft_pp_table;
-
-	/* TODO: re-init powerplay to implement modified pptable */
-
-	return 0;
-}
-
 static int polaris10_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask)
 {
@@ -4998,6 +5150,89 @@ static int polaris10_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 				CG_FDO_CTRL2, FDO_PWM_MODE);
 }
 
+static int polaris10_get_sclk_od(struct pp_hwmgr *hwmgr)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_single_dpm_table *sclk_table = &(data->dpm_table.sclk_table);
+	struct polaris10_single_dpm_table *golden_sclk_table =
+			&(data->golden_dpm_table.sclk_table);
+	int value;
+
+	value = (sclk_table->dpm_levels[sclk_table->count - 1].value -
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value) *
+			100 /
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
+
+	return value;
+}
+
+static int polaris10_set_sclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_single_dpm_table *golden_sclk_table =
+			&(data->golden_dpm_table.sclk_table);
+	struct pp_power_state  *ps;
+	struct polaris10_power_state  *polaris10_ps;
+
+	if (value > 20)
+		value = 20;
+
+	ps = hwmgr->request_ps;
+
+	if (ps == NULL)
+		return -EINVAL;
+
+	polaris10_ps = cast_phw_polaris10_power_state(&ps->hardware);
+
+	polaris10_ps->performance_levels[polaris10_ps->performance_level_count - 1].engine_clock =
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value *
+			value / 100 +
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
+
+	return 0;
+}
+
+static int polaris10_get_mclk_od(struct pp_hwmgr *hwmgr)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
+	struct polaris10_single_dpm_table *golden_mclk_table =
+			&(data->golden_dpm_table.mclk_table);
+	int value;
+
+	value = (mclk_table->dpm_levels[mclk_table->count - 1].value -
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value) *
+			100 /
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value;
+
+	return value;
+}
+
+static int polaris10_set_mclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_single_dpm_table *golden_mclk_table =
+			&(data->golden_dpm_table.mclk_table);
+	struct pp_power_state  *ps;
+	struct polaris10_power_state  *polaris10_ps;
+
+	if (value > 20)
+		value = 20;
+
+	ps = hwmgr->request_ps;
+
+	if (ps == NULL)
+		return -EINVAL;
+
+	polaris10_ps = cast_phw_polaris10_power_state(&ps->hardware);
+
+	polaris10_ps->performance_levels[polaris10_ps->performance_level_count - 1].memory_clock =
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value *
+			value / 100 +
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value;
+
+	return 0;
+}
 static const struct pp_hwmgr_func polaris10_hwmgr_funcs = {
 	.backend_init = &polaris10_hwmgr_backend_init,
 	.backend_fini = &polaris10_hwmgr_backend_fini,
@@ -5036,22 +5271,17 @@ static const struct pp_hwmgr_func polaris10_hwmgr_funcs = {
 	.check_states_equal = polaris10_check_states_equal,
 	.set_fan_control_mode = polaris10_set_fan_control_mode,
 	.get_fan_control_mode = polaris10_get_fan_control_mode,
-	.get_pp_table = polaris10_get_pp_table,
-	.set_pp_table = polaris10_set_pp_table,
 	.force_clock_level = polaris10_force_clock_level,
 	.print_clock_levels = polaris10_print_clock_levels,
 	.enable_per_cu_power_gating = polaris10_phm_enable_per_cu_power_gating,
+	.get_sclk_od = polaris10_get_sclk_od,
+	.set_sclk_od = polaris10_set_sclk_od,
+	.get_mclk_od = polaris10_get_mclk_od,
+	.set_mclk_od = polaris10_set_mclk_od,
 };
 
 int polaris10_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
-	struct polaris10_hwmgr  *data;
-
-	data = kzalloc (sizeof(struct polaris10_hwmgr), GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
-
-	hwmgr->backend = data;
 	hwmgr->hwmgr_func = &polaris10_hwmgr_funcs;
 	hwmgr->pptable_func = &tonga_pptable_funcs;
 	pp_polaris10_thermal_initialize(hwmgr);

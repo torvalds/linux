@@ -207,6 +207,8 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 	dev_info->pci_mem_start = cdev->pci_params.mem_start;
 	dev_info->pci_mem_end = cdev->pci_params.mem_end;
 	dev_info->pci_irq = cdev->pci_params.irq;
+	dev_info->rdma_supported =
+	    (cdev->hwfns[0].hw_info.personality == QED_PCI_ETH_ROCE);
 	dev_info->is_mf_default = IS_MF_DEFAULT(&cdev->hwfns[0]);
 	ether_addr_copy(dev_info->hw_mac, cdev->hwfns[0].hw_info.hw_mac_addr);
 
@@ -657,8 +659,13 @@ static int qed_slowpath_setup_int(struct qed_dev *cdev,
 	struct qed_sb_cnt_info sb_cnt_info;
 	int rc;
 	int i;
-	memset(&cdev->int_params, 0, sizeof(struct qed_int_params));
 
+	if ((int_mode == QED_INT_MODE_MSI) && (cdev->num_hwfns > 1)) {
+		DP_NOTICE(cdev, "MSI mode is not supported for CMT devices\n");
+		return -EINVAL;
+	}
+
+	memset(&cdev->int_params, 0, sizeof(struct qed_int_params));
 	cdev->int_params.in.int_mode = int_mode;
 	for_each_hwfn(cdev, i) {
 		memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
@@ -832,7 +839,8 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 			goto err2;
 		}
 
-		data = cdev->firmware->data;
+		/* First Dword used to diffrentiate between various sources */
+		data = cdev->firmware->data + sizeof(u32);
 	}
 
 	memset(&tunn_info, 0, sizeof(tunn_info));
@@ -900,7 +908,8 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 
 	if (IS_PF(cdev)) {
 		qed_free_stream_mem(cdev);
-		qed_sriov_disable(cdev, true);
+		if (IS_QED_ETH_IF(cdev))
+			qed_sriov_disable(cdev, true);
 
 		qed_nic_stop(cdev);
 		qed_slowpath_irq_free(cdev);
@@ -991,8 +1000,7 @@ static bool qed_can_link_change(struct qed_dev *cdev)
 	return true;
 }
 
-static int qed_set_link(struct qed_dev *cdev,
-			struct qed_link_params *params)
+static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 {
 	struct qed_hwfn *hwfn;
 	struct qed_mcp_link_params *link_params;
@@ -1032,7 +1040,7 @@ static int qed_set_link(struct qed_dev *cdev,
 				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G;
 		if (params->adv_speeds & 0)
 			link_params->speed.advertised_speeds |=
-				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_100G;
+			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G;
 	}
 	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_FORCED_SPEED)
 		link_params->speed.forced_speed = params->forced_speed;
@@ -1053,19 +1061,19 @@ static int qed_set_link(struct qed_dev *cdev,
 	if (params->override_flags & QED_LINK_OVERRIDE_LOOPBACK_MODE) {
 		switch (params->loopback_mode) {
 		case QED_LINK_LOOPBACK_INT_PHY:
-			link_params->loopback_mode = PMM_LOOPBACK_INT_PHY;
+			link_params->loopback_mode = ETH_LOOPBACK_INT_PHY;
 			break;
 		case QED_LINK_LOOPBACK_EXT_PHY:
-			link_params->loopback_mode = PMM_LOOPBACK_EXT_PHY;
+			link_params->loopback_mode = ETH_LOOPBACK_EXT_PHY;
 			break;
 		case QED_LINK_LOOPBACK_EXT:
-			link_params->loopback_mode = PMM_LOOPBACK_EXT;
+			link_params->loopback_mode = ETH_LOOPBACK_EXT;
 			break;
 		case QED_LINK_LOOPBACK_MAC:
-			link_params->loopback_mode = PMM_LOOPBACK_MAC;
+			link_params->loopback_mode = ETH_LOOPBACK_MAC;
 			break;
 		default:
-			link_params->loopback_mode = PMM_LOOPBACK_NONE;
+			link_params->loopback_mode = ETH_LOOPBACK_NONE;
 			break;
 		}
 	}
@@ -1185,7 +1193,7 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 		NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
 		if_link->advertised_caps |= 0;
 	if (params.speed.advertised_speeds &
-		NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_100G)
+	    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G)
 		if_link->advertised_caps |= 0;
 
 	if (link_caps.speed_capabilities &
@@ -1202,7 +1210,7 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 		NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G)
 		if_link->supported_caps |= 0;
 	if (link_caps.speed_capabilities &
-		NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_100G)
+	    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G)
 		if_link->supported_caps |= 0;
 
 	if (link.link_up)
@@ -1301,6 +1309,38 @@ static int qed_drain(struct qed_dev *cdev)
 	return 0;
 }
 
+static void qed_get_coalesce(struct qed_dev *cdev, u16 *rx_coal, u16 *tx_coal)
+{
+	*rx_coal = cdev->rx_coalesce_usecs;
+	*tx_coal = cdev->tx_coalesce_usecs;
+}
+
+static int qed_set_coalesce(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
+			    u8 qid, u16 sb_id)
+{
+	struct qed_hwfn *hwfn;
+	struct qed_ptt *ptt;
+	int hwfn_index;
+	int status = 0;
+
+	hwfn_index = qid % cdev->num_hwfns;
+	hwfn = &cdev->hwfns[hwfn_index];
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	status = qed_set_rxq_coalesce(hwfn, ptt, rx_coal,
+				      qid / cdev->num_hwfns, sb_id);
+	if (status)
+		goto out;
+	status = qed_set_txq_coalesce(hwfn, ptt, tx_coal,
+				      qid / cdev->num_hwfns, sb_id);
+out:
+	qed_ptt_release(hwfn, ptt);
+
+	return status;
+}
+
 static int qed_set_led(struct qed_dev *cdev, enum qed_led_mode mode)
 {
 	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
@@ -1347,5 +1387,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.update_msglvl = &qed_init_dp,
 	.chain_alloc = &qed_chain_alloc,
 	.chain_free = &qed_chain_free,
+	.get_coalesce = &qed_get_coalesce,
+	.set_coalesce = &qed_set_coalesce,
 	.set_led = &qed_set_led,
 };

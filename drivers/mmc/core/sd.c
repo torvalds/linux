@@ -675,7 +675,24 @@ MMC_DEV_ATTR(manfid, "0x%06x\n", card->cid.manfid);
 MMC_DEV_ATTR(name, "%s\n", card->cid.prod_name);
 MMC_DEV_ATTR(oemid, "0x%04x\n", card->cid.oemid);
 MMC_DEV_ATTR(serial, "0x%08x\n", card->cid.serial);
+MMC_DEV_ATTR(ocr, "%08x\n", card->ocr);
 
+
+static ssize_t mmc_dsr_show(struct device *dev,
+                           struct device_attribute *attr,
+                           char *buf)
+{
+       struct mmc_card *card = mmc_dev_to_card(dev);
+       struct mmc_host *host = card->host;
+
+       if (card->csd.dsr_imp && host->dsr_req)
+               return sprintf(buf, "0x%x\n", host->dsr);
+       else
+               /* return default DSR value */
+               return sprintf(buf, "0x%x\n", 0x404);
+}
+
+static DEVICE_ATTR(dsr, S_IRUGO, mmc_dsr_show, NULL);
 
 static struct attribute *sd_std_attrs[] = {
 	&dev_attr_cid.attr,
@@ -690,6 +707,8 @@ static struct attribute *sd_std_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_oemid.attr,
 	&dev_attr_serial.attr,
+	&dev_attr_ocr.attr,
+	&dev_attr_dsr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(sd_std);

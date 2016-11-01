@@ -24,6 +24,7 @@
 #include <linux/of_pci.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/irqchip/arm-gic.h>
 
 /*
 * MSI_TYPER:

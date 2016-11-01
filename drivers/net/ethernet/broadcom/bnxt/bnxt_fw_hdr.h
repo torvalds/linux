@@ -70,6 +70,7 @@ enum SUPPORTED_CODE {
 	CODE_KONG_PATCH,	/* 18 - KONG Patch firmware */
 	CODE_BONO_FW,		/* 19 - BONO firmware */
 	CODE_BONO_PATCH,	/* 20 - BONO Patch firmware */
+	CODE_CHIMP_PATCH,	/* 21 - ChiMP Patch firmware */
 
 	MAX_CODE_TYPE,
 };

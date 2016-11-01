@@ -34,42 +34,6 @@ struct pci_host_bridge;
 struct machdep_calls {
 	char		*name;
 #ifdef CONFIG_PPC64
-	void            (*hpte_invalidate)(unsigned long slot,
-					   unsigned long vpn,
-					   int bpsize, int apsize,
-					   int ssize, int local);
-	long		(*hpte_updatepp)(unsigned long slot, 
-					 unsigned long newpp, 
-					 unsigned long vpn,
-					 int bpsize, int apsize,
-					 int ssize, unsigned long flags);
-	void            (*hpte_updateboltedpp)(unsigned long newpp, 
-					       unsigned long ea,
-					       int psize, int ssize);
-	long		(*hpte_insert)(unsigned long hpte_group,
-				       unsigned long vpn,
-				       unsigned long prpn,
-				       unsigned long rflags,
-				       unsigned long vflags,
-				       int psize, int apsize,
-				       int ssize);
-	long		(*hpte_remove)(unsigned long hpte_group);
-	int             (*hpte_removebolted)(unsigned long ea,
-					     int psize, int ssize);
-	void		(*flush_hash_range)(unsigned long number, int local);
-	void		(*hugepage_invalidate)(unsigned long vsid,
-					       unsigned long addr,
-					       unsigned char *hpte_slot_array,
-					       int psize, int ssize, int local);
-	/*
-	 * Special for kexec.
-	 * To be called in real mode with interrupts disabled. No locks are
-	 * taken as such, concurrent access on pre POWER5 hardware could result
-	 * in a deadlock.
-	 * The linear mapping is destroyed as well.
-	 */
-	void		(*hpte_clear_all)(void);
-
 	void __iomem *	(*ioremap)(phys_addr_t addr, unsigned long size,
 				   unsigned long flags, void *caller);
 	void		(*iounmap)(volatile void __iomem *token);
@@ -89,7 +53,6 @@ struct machdep_calls {
 
 	int		(*probe)(void);
 	void		(*setup_arch)(void); /* Optional, may be NULL */
-	void		(*init_early)(void);
 	/* Optional, may be NULL. */
 	void		(*show_cpuinfo)(struct seq_file *m);
 	void		(*show_percpuinfo)(struct seq_file *m, int i);
@@ -111,8 +74,8 @@ struct machdep_calls {
 	/* To setup PHBs when using automatic OF platform driver for PCI */
 	int		(*pci_setup_phb)(struct pci_controller *host);
 
-	void		(*restart)(char *cmd);
-	void		(*halt)(void);
+	void __noreturn	(*restart)(char *cmd);
+	void __noreturn (*halt)(void);
 	void		(*panic)(char *str);
 	void		(*cpu_die)(void);
 
@@ -256,7 +219,6 @@ struct machdep_calls {
 #ifdef CONFIG_ARCH_RANDOM
 	int (*get_random_seed)(unsigned long *v);
 #endif
-	int (*update_partition_table)(u64);
 };
 
 extern void e500_idle(void);

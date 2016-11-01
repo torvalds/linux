@@ -35,6 +35,7 @@
 
 #include <linux/if_ether.h>
 #include <linux/if_link.h>
+#include <net/devlink.h>
 #include <linux/mlx5/device.h>
 
 #define MLX5_MAX_UC_PER_VPORT(dev) \
@@ -45,6 +46,8 @@
 
 #define MLX5_L2_ADDR_HASH_SIZE (BIT(BITS_PER_BYTE))
 #define MLX5_L2_ADDR_HASH(addr) (addr[5])
+
+#define FDB_UPLINK_VPORT 0xffff
 
 /* L2 -mac address based- hash helpers */
 struct l2addr_node {
@@ -134,9 +137,50 @@ struct mlx5_l2_table {
 
 struct mlx5_eswitch_fdb {
 	void *fdb;
-	struct mlx5_flow_group *addr_grp;
-	struct mlx5_flow_group *allmulti_grp;
-	struct mlx5_flow_group *promisc_grp;
+	union {
+		struct legacy_fdb {
+			struct mlx5_flow_group *addr_grp;
+			struct mlx5_flow_group *allmulti_grp;
+			struct mlx5_flow_group *promisc_grp;
+		} legacy;
+
+		struct offloads_fdb {
+			struct mlx5_flow_table *fdb;
+			struct mlx5_flow_group *send_to_vport_grp;
+			struct mlx5_flow_group *miss_grp;
+			struct mlx5_flow_rule  *miss_rule;
+		} offloads;
+	};
+};
+
+enum {
+	SRIOV_NONE,
+	SRIOV_LEGACY,
+	SRIOV_OFFLOADS
+};
+
+struct mlx5_esw_sq {
+	struct mlx5_flow_rule	*send_to_vport_rule;
+	struct list_head	 list;
+};
+
+struct mlx5_eswitch_rep {
+	int		       (*load)(struct mlx5_eswitch *esw,
+				       struct mlx5_eswitch_rep *rep);
+	void		       (*unload)(struct mlx5_eswitch *esw,
+					 struct mlx5_eswitch_rep *rep);
+	u16		       vport;
+	struct mlx5_flow_rule *vport_rx_rule;
+	void		      *priv_data;
+	struct list_head       vport_sqs_list;
+	bool		       valid;
+	u8		       hw_id[ETH_ALEN];
+};
+
+struct mlx5_esw_offload {
+	struct mlx5_flow_table *ft_offloads;
+	struct mlx5_flow_group *vport_rx_group;
+	struct mlx5_eswitch_rep *vport_reps;
 };
 
 struct mlx5_eswitch {
@@ -153,13 +197,15 @@ struct mlx5_eswitch {
 	 */
 	struct mutex            state_lock;
 	struct esw_mc_addr      *mc_promisc;
+	struct mlx5_esw_offload offloads;
+	int                     mode;
 };
 
 /* E-Switch API */
 int mlx5_eswitch_init(struct mlx5_core_dev *dev);
 void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw);
 void mlx5_eswitch_vport_event(struct mlx5_eswitch *esw, struct mlx5_eqe *eqe);
-int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs);
+int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode);
 void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw);
 int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
 			       int vport, u8 mac[ETH_ALEN]);
@@ -177,4 +223,36 @@ int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
 				 int vport,
 				 struct ifla_vf_stats *vf_stats);
 
+struct mlx5_flow_spec;
+
+struct mlx5_flow_rule *
+mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
+				struct mlx5_flow_spec *spec,
+				u32 action, u32 src_vport, u32 dst_vport);
+struct mlx5_flow_rule *
+mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn);
+
+int mlx5_eswitch_sqs2vport_start(struct mlx5_eswitch *esw,
+				 struct mlx5_eswitch_rep *rep,
+				 u16 *sqns_array, int sqns_num);
+void mlx5_eswitch_sqs2vport_stop(struct mlx5_eswitch *esw,
+				 struct mlx5_eswitch_rep *rep);
+
+int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode);
+int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode);
+void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
+				     struct mlx5_eswitch_rep *rep);
+void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
+				       int vport);
+
+#define MLX5_DEBUG_ESWITCH_MASK BIT(3)
+
+#define esw_info(dev, format, ...)				\
+	pr_info("(%s): E-Switch: " format, (dev)->priv.name, ##__VA_ARGS__)
+
+#define esw_warn(dev, format, ...)				\
+	pr_warn("(%s): E-Switch: " format, (dev)->priv.name, ##__VA_ARGS__)
+
+#define esw_debug(dev, format, ...)				\
+	mlx5_core_dbg_mask(dev, MLX5_DEBUG_ESWITCH_MASK, format, ##__VA_ARGS__)
 #endif /* __MLX5_ESWITCH_H__ */

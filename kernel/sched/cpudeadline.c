@@ -168,7 +168,7 @@ void cpudl_set(struct cpudl *cp, int cpu, u64 dl, int is_valid)
 
 	if (old_idx == IDX_INVALID) {
 		cp->size++;
-		cp->elements[cp->size - 1].dl = 0;
+		cp->elements[cp->size - 1].dl = dl;
 		cp->elements[cp->size - 1].cpu = cpu;
 		cp->elements[cpu].idx = cp->size - 1;
 		cpudl_change_key(cp, cp->size - 1, dl);

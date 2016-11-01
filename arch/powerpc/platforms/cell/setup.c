@@ -255,13 +255,10 @@ static void __init cell_setup_arch(void)
 
 static int __init cell_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "IBM,CBEA") &&
-	    !of_flat_dt_is_compatible(root, "IBM,CPBW-1.0"))
+	if (!of_machine_is_compatible("IBM,CBEA") &&
+	    !of_machine_is_compatible("IBM,CPBW-1.0"))
 		return 0;
 
-	hpte_init_native();
 	pm_power_off = rtas_power_off;
 
 	return 1;

@@ -632,19 +632,21 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 	}
 
 	case PIN_CONFIG_POWER_SOURCE: {
-		int ret;
+		u32 pocctrl, val;
+		int bit;
 
-		if (!pfc->info->ops || !pfc->info->ops->get_io_voltage)
+		if (!pfc->info->ops || !pfc->info->ops->pin_to_pocctrl)
 			return -ENOTSUPP;
 
+		bit = pfc->info->ops->pin_to_pocctrl(pfc, _pin, &pocctrl);
+		if (WARN(bit < 0, "invalid pin %#x", _pin))
+			return bit;
+
 		spin_lock_irqsave(&pfc->lock, flags);
-		ret = pfc->info->ops->get_io_voltage(pfc, _pin);
+		val = sh_pfc_read_reg(pfc, pocctrl, 32);
 		spin_unlock_irqrestore(&pfc->lock, flags);
 
-		if (ret < 0)
-			return ret;
-
-		*config = ret;
+		*config = (val & BIT(bit)) ? 3300 : 1800;
 		break;
 	}
 
@@ -696,19 +698,28 @@ static int sh_pfc_pinconf_set(struct pinctrl_dev *pctldev, unsigned _pin,
 		}
 
 		case PIN_CONFIG_POWER_SOURCE: {
-			unsigned int arg =
-				pinconf_to_config_argument(configs[i]);
-			int ret;
+			unsigned int mV = pinconf_to_config_argument(configs[i]);
+			u32 pocctrl, val;
+			int bit;
 
-			if (!pfc->info->ops || !pfc->info->ops->set_io_voltage)
+			if (!pfc->info->ops || !pfc->info->ops->pin_to_pocctrl)
 				return -ENOTSUPP;
 
-			spin_lock_irqsave(&pfc->lock, flags);
-			ret = pfc->info->ops->set_io_voltage(pfc, _pin, arg);
-			spin_unlock_irqrestore(&pfc->lock, flags);
+			bit = pfc->info->ops->pin_to_pocctrl(pfc, _pin, &pocctrl);
+			if (WARN(bit < 0, "invalid pin %#x", _pin))
+				return bit;
 
-			if (ret)
-				return ret;
+			if (mV != 1800 && mV != 3300)
+				return -EINVAL;
+
+			spin_lock_irqsave(&pfc->lock, flags);
+			val = sh_pfc_read_reg(pfc, pocctrl, 32);
+			if (mV == 3300)
+				val |= BIT(bit);
+			else
+				val &= ~BIT(bit);
+			sh_pfc_write_reg(pfc, pocctrl, 32, val);
+			spin_unlock_irqrestore(&pfc->lock, flags);
 
 			break;
 		}
@@ -803,8 +814,5 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	pmx->pctl_desc.npins = pfc->info->nr_pins;
 
 	pmx->pctl = devm_pinctrl_register(pfc->dev, &pmx->pctl_desc, pmx);
-	if (IS_ERR(pmx->pctl))
-		return PTR_ERR(pmx->pctl);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(pmx->pctl);
 }

@@ -1,0 +1,129 @@
+Owner Module/Drivers,Group,Property Name,Type,Property Values,Object attached,Description/Restrictions
+DRM,Generic,“rotation”,BITMASK,"{ 0, ""rotate-0"" }, { 1, ""rotate-90"" }, { 2, ""rotate-180"" }, { 3, ""rotate-270"" }, { 4, ""reflect-x"" }, { 5, ""reflect-y"" }","CRTC, Plane",rotate-(degrees) rotates the image by the specified amount in degrees in counter clockwise direction. reflect-x and reflect-y reflects the image along the specified axis prior to rotation
+,,“scaling mode”,ENUM,"{ ""None"", ""Full"", ""Center"", ""Full aspect"" }",Connector,"Supported by: amdgpu, gma500, i915, nouveau and radeon."
+,Connector,“EDID”,BLOB | IMMUTABLE,0,Connector,Contains id of edid blob ptr object.
+,,“DPMS”,ENUM,"{ “On”, “Standby”, “Suspend”, “Off” }",Connector,Contains DPMS operation mode value.
+,,“PATH”,BLOB | IMMUTABLE,0,Connector,Contains topology path to a connector.
+,,“TILE”,BLOB | IMMUTABLE,0,Connector,Contains tiling information for a connector.
+,,“CRTC_ID”,OBJECT,DRM_MODE_OBJECT_CRTC,Connector,CRTC that connector is attached to (atomic)
+,Plane,“type”,ENUM | IMMUTABLE,"{ ""Overlay"", ""Primary"", ""Cursor"" }",Plane,Plane type
+,,“SRC_X”,RANGE,"Min=0, Max=UINT_MAX",Plane,Scanout source x coordinate in 16.16 fixed point (atomic)
+,,“SRC_Y”,RANGE,"Min=0, Max=UINT_MAX",Plane,Scanout source y coordinate in 16.16 fixed point (atomic)
+,,“SRC_W”,RANGE,"Min=0, Max=UINT_MAX",Plane,Scanout source width in 16.16 fixed point (atomic)
+,,“SRC_H”,RANGE,"Min=0, Max=UINT_MAX",Plane,Scanout source height in 16.16 fixed point (atomic)
+,,“CRTC_X”,SIGNED_RANGE,"Min=INT_MIN, Max=INT_MAX",Plane,Scanout CRTC (destination) x coordinate (atomic)
+,,“CRTC_Y”,SIGNED_RANGE,"Min=INT_MIN, Max=INT_MAX",Plane,Scanout CRTC (destination) y coordinate (atomic)
+,,“CRTC_W”,RANGE,"Min=0, Max=UINT_MAX",Plane,Scanout CRTC (destination) width (atomic)
+,,“CRTC_H”,RANGE,"Min=0, Max=UINT_MAX",Plane,Scanout CRTC (destination) height (atomic)
+,,“FB_ID”,OBJECT,DRM_MODE_OBJECT_FB,Plane,Scanout framebuffer (atomic)
+,,“CRTC_ID”,OBJECT,DRM_MODE_OBJECT_CRTC,Plane,CRTC that plane is attached to (atomic)
+,,“zpos”,RANGE,"Min=0, Max=UINT_MAX","Plane,Z-order of the plane.Planes with higher Z-order values are displayed on top, planes with identical Z-order values are display in an undefined order"
+,DVI-I,“subconnector”,ENUM,"{ “Unknown”, “DVI-D”, “DVI-A” }",Connector,TBD
+,,“select subconnector”,ENUM,"{ “Automatic”, “DVI-D”, “DVI-A” }",Connector,TBD
+,TV,“subconnector”,ENUM,"{ ""Unknown"", ""Composite"", ""SVIDEO"", ""Component"", ""SCART"" }",Connector,TBD
+,,“select subconnector”,ENUM,"{ ""Automatic"", ""Composite"", ""SVIDEO"", ""Component"", ""SCART"" }",Connector,TBD
+,,“mode”,ENUM,"{ ""NTSC_M"", ""NTSC_J"", ""NTSC_443"", ""PAL_B"" } etc.",Connector,TBD
+,,“left margin”,RANGE,"Min=0, Max=100",Connector,TBD
+,,“right margin”,RANGE,"Min=0, Max=100",Connector,TBD
+,,“top margin”,RANGE,"Min=0, Max=100",Connector,TBD
+,,“bottom margin”,RANGE,"Min=0, Max=100",Connector,TBD
+,,“brightness”,RANGE,"Min=0, Max=100",Connector,TBD
+,,“contrast”,RANGE,"Min=0, Max=100",Connector,TBD
+,,“flicker reduction”,RANGE,"Min=0, Max=100",Connector,TBD
+,,“overscan”,RANGE,"Min=0, Max=100",Connector,TBD
+,,“saturation”,RANGE,"Min=0, Max=100",Connector,TBD
+,,“hue”,RANGE,"Min=0, Max=100",Connector,TBD
+,Virtual GPU,“suggested X”,RANGE,"Min=0, Max=0xffffffff",Connector,property to suggest an X offset for a connector
+,,“suggested Y”,RANGE,"Min=0, Max=0xffffffff",Connector,property to suggest an Y offset for a connector
+,Optional,"""aspect ratio""",ENUM,"{ ""None"", ""4:3"", ""16:9"" }",Connector,TDB
+,,“dirty”,ENUM | IMMUTABLE,"{ ""Off"", ""On"", ""Annotate"" }",Connector,TBD
+,,“DEGAMMA_LUT”,BLOB,0,CRTC,DRM property to set the degamma lookup table (LUT) mapping pixel data from the framebuffer before it is given to the transformation matrix. The data is an interpreted as an array of struct drm_color_lut elements. Hardware might choose not to use the full precision of the LUT elements nor use all the elements of the LUT (for example the hardware might choose to interpolate between LUT[0] and LUT[4]).
+,,“DEGAMMA_LUT_SIZE”,RANGE | IMMUTABLE,"Min=0, Max=UINT_MAX",CRTC,DRM property to gives the size of the lookup table to be set on the DEGAMMA_LUT property (the size depends on the underlying hardware).
+,,“CTM”,BLOB,0,CRTC,DRM property to set the current transformation matrix (CTM) apply to pixel data after the lookup through the degamma LUT and before the lookup through the gamma LUT. The data is an interpreted as a struct drm_color_ctm.
+,,“GAMMA_LUT”,BLOB,0,CRTC,DRM property to set the gamma lookup table (LUT) mapping pixel data after to the transformation matrix to data sent to the connector. The data is an interpreted as an array of struct drm_color_lut elements. Hardware might choose not to use the full precision of the LUT elements nor use all the elements of the LUT (for example the hardware might choose to interpolate between LUT[0] and LUT[4]).
+,,“GAMMA_LUT_SIZE”,RANGE | IMMUTABLE,"Min=0, Max=UINT_MAX",CRTC,DRM property to gives the size of the lookup table to be set on the GAMMA_LUT property (the size depends on the underlying hardware).
+i915,Generic,"""Broadcast RGB""",ENUM,"{ ""Automatic"", ""Full"", ""Limited 16:235"" }",Connector,"When this property is set to Limited 16:235 and CTM is set, the hardware will be programmed with the result of the multiplication of CTM by the limited range matrix to ensure the pixels normaly in the range 0..1.0 are remapped to the range 16/255..235/255."
+,,“audio”,ENUM,"{ ""force-dvi"", ""off"", ""auto"", ""on"" }",Connector,TBD
+,SDVO-TV,“mode”,ENUM,"{ ""NTSC_M"", ""NTSC_J"", ""NTSC_443"", ""PAL_B"" } etc.",Connector,TBD
+,,"""left_margin""",RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,"""right_margin""",RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,"""top_margin""",RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,"""bottom_margin""",RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“hpos”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“vpos”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“contrast”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“saturation”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“hue”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“sharpness”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“flicker_filter”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“flicker_filter_adaptive”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“flicker_filter_2d”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“tv_chroma_filter”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“tv_luma_filter”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“dot_crawl”,RANGE,"Min=0, Max=1",Connector,TBD
+,SDVO-TV/LVDS,“brightness”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+CDV gma-500,Generic,"""Broadcast RGB""",ENUM,"{ “Full”, “Limited 16:235” }",Connector,TBD
+,,"""Broadcast RGB""",ENUM,"{ “off”, “auto”, “on” }",Connector,TBD
+Poulsbo,Generic,“backlight”,RANGE,"Min=0, Max=100",Connector,TBD
+,SDVO-TV,“mode”,ENUM,"{ ""NTSC_M"", ""NTSC_J"", ""NTSC_443"", ""PAL_B"" } etc.",Connector,TBD
+,,"""left_margin""",RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,"""right_margin""",RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,"""top_margin""",RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,"""bottom_margin""",RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“hpos”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“vpos”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“contrast”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“saturation”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“hue”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“sharpness”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“flicker_filter”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“flicker_filter_adaptive”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“flicker_filter_2d”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“tv_chroma_filter”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“tv_luma_filter”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+,,“dot_crawl”,RANGE,"Min=0, Max=1",Connector,TBD
+,SDVO-TV/LVDS,“brightness”,RANGE,"Min=0, Max= SDVO dependent",Connector,TBD
+armada,CRTC,"""CSC_YUV""",ENUM,"{ ""Auto"" , ""CCIR601"", ""CCIR709"" }",CRTC,TBD
+,,"""CSC_RGB""",ENUM,"{ ""Auto"", ""Computer system"", ""Studio"" }",CRTC,TBD
+,Overlay,"""colorkey""",RANGE,"Min=0, Max=0xffffff",Plane,TBD
+,,"""colorkey_min""",RANGE,"Min=0, Max=0xffffff",Plane,TBD
+,,"""colorkey_max""",RANGE,"Min=0, Max=0xffffff",Plane,TBD
+,,"""colorkey_val""",RANGE,"Min=0, Max=0xffffff",Plane,TBD
+,,"""colorkey_alpha""",RANGE,"Min=0, Max=0xffffff",Plane,TBD
+,,"""colorkey_mode""",ENUM,"{ ""disabled"", ""Y component"", ""U component"" , ""V component"", ""RGB"", “R component"", ""G component"", ""B component"" }",Plane,TBD
+,,"""brightness""",RANGE,"Min=0, Max=256 + 255",Plane,TBD
+,,"""contrast""",RANGE,"Min=0, Max=0x7fff",Plane,TBD
+,,"""saturation""",RANGE,"Min=0, Max=0x7fff",Plane,TBD
+exynos,CRTC,“mode”,ENUM,"{ ""normal"", ""blank"" }",CRTC,TBD
+,Overlay,“zpos”,RANGE,"Min=0, Max=MAX_PLANE-1",Plane,TBD
+i2c/ch7006_drv,Generic,“scale”,RANGE,"Min=0, Max=2",Connector,TBD
+,TV,“mode”,ENUM,"{ ""PAL"", ""PAL-M"",""PAL-N""}, ”PAL-Nc"" , ""PAL-60"", ""NTSC-M"", ""NTSC-J"" }",Connector,TBD
+nouveau,NV10 Overlay,"""colorkey""",RANGE,"Min=0, Max=0x01ffffff",Plane,TBD
+,,“contrast”,RANGE,"Min=0, Max=8192-1",Plane,TBD
+,,“brightness”,RANGE,"Min=0, Max=1024",Plane,TBD
+,,“hue”,RANGE,"Min=0, Max=359",Plane,TBD
+,,“saturation”,RANGE,"Min=0, Max=8192-1",Plane,TBD
+,,“iturbt_709”,RANGE,"Min=0, Max=1",Plane,TBD
+,Nv04 Overlay,“colorkey”,RANGE,"Min=0, Max=0x01ffffff",Plane,TBD
+,,“brightness”,RANGE,"Min=0, Max=1024",Plane,TBD
+,Display,“dithering mode”,ENUM,"{ ""auto"", ""off"", ""on"" }",Connector,TBD
+,,“dithering depth”,ENUM,"{ ""auto"", ""off"", ""on"", ""static 2x2"", ""dynamic 2x2"", ""temporal"" }",Connector,TBD
+,,“underscan”,ENUM,"{ ""auto"", ""6 bpc"", ""8 bpc"" }",Connector,TBD
+,,“underscan hborder”,RANGE,"Min=0, Max=128",Connector,TBD
+,,“underscan vborder”,RANGE,"Min=0, Max=128",Connector,TBD
+,,“vibrant hue”,RANGE,"Min=0, Max=180",Connector,TBD
+,,“color vibrance”,RANGE,"Min=0, Max=200",Connector,TBD
+omap,Generic,“zorder”,RANGE,"Min=0, Max=3","CRTC, Plane",TBD
+qxl,Generic,"“hotplug_mode_update""",RANGE,"Min=0, Max=1",Connector,TBD
+radeon,DVI-I,“coherent”,RANGE,"Min=0, Max=1",Connector,TBD
+,DAC enable load detect,“load detection”,RANGE,"Min=0, Max=1",Connector,TBD
+,TV Standard,"""tv standard""",ENUM,"{ ""ntsc"", ""pal"", ""pal-m"", ""pal-60"", ""ntsc-j"" , ""scart-pal"", ""pal-cn"", ""secam"" }",Connector,TBD
+,legacy TMDS PLL detect,"""tmds_pll""",ENUM,"{ ""driver"", ""bios"" }",-,TBD
+,Underscan,"""underscan""",ENUM,"{ ""off"", ""on"", ""auto"" }",Connector,TBD
+,,"""underscan hborder""",RANGE,"Min=0, Max=128",Connector,TBD
+,,"""underscan vborder""",RANGE,"Min=0, Max=128",Connector,TBD
+,Audio,“audio”,ENUM,"{ ""off"", ""on"", ""auto"" }",Connector,TBD
+,FMT Dithering,“dither”,ENUM,"{ ""off"", ""on"" }",Connector,TBD
+rcar-du,Generic,"""alpha""",RANGE,"Min=0, Max=255",Plane,TBD
+,,"""colorkey""",RANGE,"Min=0, Max=0x01ffffff",Plane,TBD
+,,"""zpos""",RANGE,"Min=1, Max=7",Plane,TBD

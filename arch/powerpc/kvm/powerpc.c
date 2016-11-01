@@ -119,7 +119,7 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			continue;
 		}
 
-		__kvm_guest_enter();
+		guest_enter_irqoff();
 		return 1;
 	}
 
@@ -588,6 +588,10 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = 1;
 		break;
 #endif
+	case KVM_CAP_PPC_HTM:
+		r = cpu_has_feature(CPU_FTR_TM_COMP) &&
+		    is_kvmppc_hv_enabled(kvm);
+		break;
 	default:
 		r = 0;
 		break;

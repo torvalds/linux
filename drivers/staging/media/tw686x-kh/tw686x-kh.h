@@ -56,7 +56,6 @@ struct tw686x_video_channel {
 	struct video_device *device;
 	struct dma_desc sg_tables[2];
 	struct tw686x_vb2_buf *curr_bufs[2];
-	void *alloc_ctx;
 	struct vdma_desc *sg_descs[2];
 
 	struct v4l2_ctrl_handler ctrl_handler;

@@ -30,6 +30,8 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 
+struct platform_device;
+
 struct hisi_clock_data {
 	struct clk_onecell_data	clk_data;
 	void __iomem		*base;
@@ -110,19 +112,41 @@ struct clk *hi6220_register_clkdiv(struct device *dev, const char *name,
 	const char *parent_name, unsigned long flags, void __iomem *reg,
 	u8 shift, u8 width, u32 mask_bit, spinlock_t *lock);
 
+struct hisi_clock_data *hisi_clk_alloc(struct platform_device *, int);
 struct hisi_clock_data *hisi_clk_init(struct device_node *, int);
-void hisi_clk_register_fixed_rate(const struct hisi_fixed_rate_clock *,
+int hisi_clk_register_fixed_rate(const struct hisi_fixed_rate_clock *,
 				int, struct hisi_clock_data *);
-void hisi_clk_register_fixed_factor(const struct hisi_fixed_factor_clock *,
+int hisi_clk_register_fixed_factor(const struct hisi_fixed_factor_clock *,
 				int, struct hisi_clock_data *);
-void hisi_clk_register_mux(const struct hisi_mux_clock *, int,
+int hisi_clk_register_mux(const struct hisi_mux_clock *, int,
 				struct hisi_clock_data *);
-void hisi_clk_register_divider(const struct hisi_divider_clock *,
+int hisi_clk_register_divider(const struct hisi_divider_clock *,
 				int, struct hisi_clock_data *);
-void hisi_clk_register_gate(const struct hisi_gate_clock *,
+int hisi_clk_register_gate(const struct hisi_gate_clock *,
 				int, struct hisi_clock_data *);
 void hisi_clk_register_gate_sep(const struct hisi_gate_clock *,
 				int, struct hisi_clock_data *);
 void hi6220_clk_register_divider(const struct hi6220_divider_clock *,
 				int, struct hisi_clock_data *);
+
+#define hisi_clk_unregister(type) \
+static inline \
+void hisi_clk_unregister_##type(const struct hisi_##type##_clock *clks, \
+				int nums, struct hisi_clock_data *data) \
+{ \
+	struct clk **clocks = data->clk_data.clks; \
+	int i; \
+	for (i = 0; i < nums; i++) { \
+		int id = clks[i].id; \
+		if (clocks[id])  \
+			clk_unregister_##type(clocks[id]); \
+	} \
+}
+
+hisi_clk_unregister(fixed_rate)
+hisi_clk_unregister(fixed_factor)
+hisi_clk_unregister(mux)
+hisi_clk_unregister(divider)
+hisi_clk_unregister(gate)
+
 #endif	/* __HISI_CLK_H */

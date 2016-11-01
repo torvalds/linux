@@ -11,7 +11,7 @@ if ARCH_S3C24XX
 
 config PLAT_S3C24XX
 	def_bool y
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select NO_IOPORT_MAP
 	select S3C_DEV_NAND
 	select IRQ_DOMAIN

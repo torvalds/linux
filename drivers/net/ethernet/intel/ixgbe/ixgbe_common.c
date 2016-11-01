@@ -277,6 +277,7 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 {
 	s32 ret_val;
 	u32 ctrl_ext;
+	u16 device_caps;
 
 	/* Set the media type */
 	hw->phy.media_type = hw->mac.ops.get_media_type(hw);
@@ -300,6 +301,22 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 	ret_val = hw->mac.ops.setup_fc(hw);
 	if (ret_val)
 		return ret_val;
+
+	/* Cashe bit indicating need for crosstalk fix */
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_x550em_a:
+		hw->mac.ops.get_device_caps(hw, &device_caps);
+		if (device_caps & IXGBE_DEVICE_CAPS_NO_CROSSTALK_WR)
+			hw->need_crosstalk_fix = false;
+		else
+			hw->need_crosstalk_fix = true;
+		break;
+	default:
+		hw->need_crosstalk_fix = false;
+		break;
+	}
 
 	/* Clear adapter stopped flag */
 	hw->adapter_stopped = false;
@@ -763,6 +780,9 @@ s32 ixgbe_led_on_generic(struct ixgbe_hw *hw, u32 index)
 {
 	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
 
+	if (index > 3)
+		return IXGBE_ERR_PARAM;
+
 	/* To turn on the LED, set mode to ON. */
 	led_reg &= ~IXGBE_LED_MODE_MASK(index);
 	led_reg |= IXGBE_LED_ON << IXGBE_LED_MODE_SHIFT(index);
@@ -780,6 +800,9 @@ s32 ixgbe_led_on_generic(struct ixgbe_hw *hw, u32 index)
 s32 ixgbe_led_off_generic(struct ixgbe_hw *hw, u32 index)
 {
 	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
+
+	if (index > 3)
+		return IXGBE_ERR_PARAM;
 
 	/* To turn off the LED, set mode to OFF. */
 	led_reg &= ~IXGBE_LED_MODE_MASK(index);
@@ -2657,7 +2680,7 @@ s32 ixgbe_disable_rx_buff_generic(struct ixgbe_hw *hw)
  **/
 s32 ixgbe_enable_rx_buff_generic(struct ixgbe_hw *hw)
 {
-	int secrxreg;
+	u32 secrxreg;
 
 	secrxreg = IXGBE_READ_REG(hw, IXGBE_SECRXCTRL);
 	secrxreg &= ~IXGBE_SECRXCTRL_RX_DIS;
@@ -2697,6 +2720,9 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
 	bool locked = false;
 	s32 ret_val;
+
+	if (index > 3)
+		return IXGBE_ERR_PARAM;
 
 	/*
 	 * Link must be up to auto-blink the LEDs;
@@ -2740,6 +2766,9 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index)
 	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
 	bool locked = false;
 	s32 ret_val;
+
+	if (index > 3)
+		return IXGBE_ERR_PARAM;
 
 	ret_val = hw->mac.ops.prot_autoc_read(hw, &locked, &autoc_reg);
 	if (ret_val)
@@ -2929,8 +2958,10 @@ s32 ixgbe_clear_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 	}
 
 	/* was that the last pool using this rar? */
-	if (mpsar_lo == 0 && mpsar_hi == 0 && rar != 0)
+	if (mpsar_lo == 0 && mpsar_hi == 0 &&
+	    rar != 0 && rar != hw->mac.san_mac_rar_index)
 		hw->mac.ops.clear_rar(hw, rar);
+
 	return 0;
 }
 
@@ -3188,6 +3219,31 @@ s32 ixgbe_clear_vfta_generic(struct ixgbe_hw *hw)
 }
 
 /**
+ *  ixgbe_need_crosstalk_fix - Determine if we need to do cross talk fix
+ *  @hw: pointer to hardware structure
+ *
+ *  Contains the logic to identify if we need to verify link for the
+ *  crosstalk fix
+ **/
+static bool ixgbe_need_crosstalk_fix(struct ixgbe_hw *hw)
+{
+	/* Does FW say we need the fix */
+	if (!hw->need_crosstalk_fix)
+		return false;
+
+	/* Only consider SFP+ PHYs i.e. media type fiber */
+	switch (hw->mac.ops.get_media_type(hw)) {
+	case ixgbe_media_type_fiber:
+	case ixgbe_media_type_fiber_qsfp:
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+/**
  *  ixgbe_check_mac_link_generic - Determine link and speed status
  *  @hw: pointer to hardware structure
  *  @speed: pointer to link speed
@@ -3201,6 +3257,35 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 {
 	u32 links_reg, links_orig;
 	u32 i;
+
+	/* If Crosstalk fix enabled do the sanity check of making sure
+	 * the SFP+ cage is full.
+	 */
+	if (ixgbe_need_crosstalk_fix(hw)) {
+		u32 sfp_cage_full;
+
+		switch (hw->mac.type) {
+		case ixgbe_mac_82599EB:
+			sfp_cage_full = IXGBE_READ_REG(hw, IXGBE_ESDP) &
+					IXGBE_ESDP_SDP2;
+			break;
+		case ixgbe_mac_X550EM_x:
+		case ixgbe_mac_x550em_a:
+			sfp_cage_full = IXGBE_READ_REG(hw, IXGBE_ESDP) &
+					IXGBE_ESDP_SDP0;
+			break;
+		default:
+			/* sanity check - No SFP+ devices here */
+			sfp_cage_full = false;
+			break;
+		}
+
+		if (!sfp_cage_full) {
+			*link_up = false;
+			*speed = IXGBE_LINK_SPEED_UNKNOWN;
+			return 0;
+		}
+	}
 
 	/* clear the old state */
 	links_orig = IXGBE_READ_REG(hw, IXGBE_LINKS);

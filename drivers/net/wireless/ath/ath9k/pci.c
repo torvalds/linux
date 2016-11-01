@@ -19,7 +19,6 @@
 #include <linux/nl80211.h>
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
-#include <linux/ath9k_platform.h>
 #include <linux/module.h>
 #include "ath9k.h"
 
@@ -786,34 +785,20 @@ static void ath_pci_read_cachesize(struct ath_common *common, int *csz)
 
 static bool ath_pci_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 {
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
-	struct ath9k_platform_data *pdata = sc->dev->platform_data;
+	struct ath_hw *ah = (struct ath_hw *) common->ah;
 
-	if (pdata && !pdata->use_eeprom) {
-		if (off >= (ARRAY_SIZE(pdata->eeprom_data))) {
-			ath_err(common,
-				"%s: eeprom read failed, offset %08x is out of range\n",
-				__func__, off);
-		}
+	common->ops->read(ah, AR5416_EEPROM_OFFSET + (off << AR5416_EEPROM_S));
 
-		*data = pdata->eeprom_data[off];
-	} else {
-		struct ath_hw *ah = (struct ath_hw *) common->ah;
-
-		common->ops->read(ah, AR5416_EEPROM_OFFSET +
-				      (off << AR5416_EEPROM_S));
-
-		if (!ath9k_hw_wait(ah,
-				   AR_EEPROM_STATUS_DATA,
-				   AR_EEPROM_STATUS_DATA_BUSY |
-				   AR_EEPROM_STATUS_DATA_PROT_ACCESS, 0,
-				   AH_WAIT_TIMEOUT)) {
-			return false;
-		}
-
-		*data = MS(common->ops->read(ah, AR_EEPROM_STATUS_DATA),
-			   AR_EEPROM_STATUS_DATA_VAL);
+	if (!ath9k_hw_wait(ah,
+				AR_EEPROM_STATUS_DATA,
+				AR_EEPROM_STATUS_DATA_BUSY |
+				AR_EEPROM_STATUS_DATA_PROT_ACCESS, 0,
+				AH_WAIT_TIMEOUT)) {
+		return false;
 	}
+
+	*data = MS(common->ops->read(ah, AR_EEPROM_STATUS_DATA),
+			AR_EEPROM_STATUS_DATA_VAL);
 
 	return true;
 }

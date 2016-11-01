@@ -580,7 +580,7 @@ static struct pci_driver ahci_pci_driver = {
 	},
 };
 
-#if defined(CONFIG_PATA_MARVELL) || defined(CONFIG_PATA_MARVELL_MODULE)
+#if IS_ENABLED(CONFIG_PATA_MARVELL)
 static int marvell_enable;
 #else
 static int marvell_enable = 1;

@@ -101,21 +101,7 @@ static int rk_spdif_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	srate = params_rate(params);
-	switch (srate) {
-	case 32000:
-	case 48000:
-	case 96000:
-		mclk = 96000 * 128; /* 12288000 hz */
-		break;
-	case 44100:
-		mclk = 44100 * 256; /* 11289600 hz */
-		break;
-	case 192000:
-		mclk = 192000 * 128; /* 24576000 hz */
-		break;
-	default:
-		return -EINVAL;
-	}
+	mclk = srate * 128;
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -139,7 +125,6 @@ static int rk_spdif_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	val |= SPDIF_CFGR_CLK_DIV(mclk/(srate * 256));
 	ret = regmap_update_bits(spdif->regmap, SPDIF_CFGR,
 		SPDIF_CFGR_CLK_DIV_MASK | SPDIF_CFGR_HALFWORD_ENABLE |
 		SDPIF_CFGR_VDW_MASK,

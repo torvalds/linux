@@ -2695,7 +2695,7 @@ void rtl92d_phy_lc_calibrate(struct ieee80211_hw *hw)
 	RTPRINT(rtlpriv, FINIT, INIT_IQK,  "LCK:Finish!!!\n");
 }
 
-void rtl92d_phy_ap_calibrate(struct ieee80211_hw *hw, char delta)
+void rtl92d_phy_ap_calibrate(struct ieee80211_hw *hw, s8 delta)
 {
 	return;
 }

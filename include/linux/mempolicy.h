@@ -195,6 +195,7 @@ static inline bool vma_migratable(struct vm_area_struct *vma)
 }
 
 extern int mpol_misplaced(struct page *, struct vm_area_struct *, unsigned long);
+extern void mpol_put_task_policy(struct task_struct *);
 
 #else
 
@@ -297,5 +298,8 @@ static inline int mpol_misplaced(struct page *page, struct vm_area_struct *vma,
 	return -1; /* no node preference */
 }
 
+static inline void mpol_put_task_policy(struct task_struct *task)
+{
+}
 #endif /* CONFIG_NUMA */
 #endif

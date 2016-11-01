@@ -722,8 +722,20 @@ static struct omap_hwmod omap3xxx_dss_dispc_hwmod = {
  * display serial interface controller
  */
 
+static struct omap_hwmod_class_sysconfig omap3xxx_dsi_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0010,
+	.syss_offs	= 0x0014,
+	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_CLOCKACTIVITY |
+			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SIDLEMODE |
+			   SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
 static struct omap_hwmod_class omap3xxx_dsi_hwmod_class = {
 	.name = "dsi",
+	.sysc	= &omap3xxx_dsi_sysc,
 };
 
 static struct omap_hwmod_irq_info omap3xxx_dsi1_irqs[] = {
@@ -1322,16 +1334,8 @@ static struct omap_hwmod omap3xxx_mcbsp2_sidetone_hwmod = {
 	.name		= "mcbsp2_sidetone",
 	.class		= &omap3xxx_mcbsp_sidetone_hwmod_class,
 	.mpu_irqs	= omap3xxx_mcbsp2_sidetone_irqs,
-	.main_clk	= "mcbsp2_fck",
-	.prcm		= {
-		.omap2 = {
-			.prcm_reg_id = 1,
-			 .module_bit = OMAP3430_EN_MCBSP2_SHIFT,
-			.module_offs = OMAP3430_PER_MOD,
-			.idlest_reg_id = 1,
-			.idlest_idle_bit = OMAP3430_ST_MCBSP2_SHIFT,
-		},
-	},
+	.main_clk	= "mcbsp2_ick",
+	.flags		= HWMOD_NO_IDLEST,
 };
 
 /* mcbsp3_sidetone */
@@ -1344,16 +1348,8 @@ static struct omap_hwmod omap3xxx_mcbsp3_sidetone_hwmod = {
 	.name		= "mcbsp3_sidetone",
 	.class		= &omap3xxx_mcbsp_sidetone_hwmod_class,
 	.mpu_irqs	= omap3xxx_mcbsp3_sidetone_irqs,
-	.main_clk	= "mcbsp3_fck",
-	.prcm		= {
-		.omap2 = {
-			.prcm_reg_id = 1,
-			.module_bit = OMAP3430_EN_MCBSP3_SHIFT,
-			.module_offs = OMAP3430_PER_MOD,
-			.idlest_reg_id = 1,
-			.idlest_idle_bit = OMAP3430_ST_MCBSP3_SHIFT,
-		},
-	},
+	.main_clk	= "mcbsp3_ick",
+	.flags		= HWMOD_NO_IDLEST,
 };
 
 /* SR common */

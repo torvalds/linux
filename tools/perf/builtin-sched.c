@@ -494,7 +494,7 @@ force_again:
 		}
 		pr_err("Error: sys_perf_event_open() syscall returned "
 		       "with %d (%s)\n%s", fd,
-		       strerror_r(errno, sbuf, sizeof(sbuf)), info);
+		       str_error_r(errno, sbuf, sizeof(sbuf)), info);
 		exit(EXIT_FAILURE);
 	}
 	return fd;

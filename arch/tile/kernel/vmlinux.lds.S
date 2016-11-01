@@ -60,6 +60,18 @@ SECTIONS
   /* "Init" is divided into two areas with very different virtual addresses. */
   INIT_TEXT_SECTION(PAGE_SIZE)
 
+  /*
+   * Some things, like the __jump_table, may contain symbol references
+   * to __exit text, so include such text in the final image if so.
+   * In that case we also override the _einittext from INIT_TEXT_SECTION.
+   */
+#ifdef CONFIG_JUMP_LABEL
+  .exit.text : {
+    EXIT_TEXT
+    _einittext = .;
+  }
+#endif
+
   /* Now we skip back to PAGE_OFFSET for the data. */
   . = (. - TEXT_OFFSET + PAGE_OFFSET);
   #undef LOAD_OFFSET

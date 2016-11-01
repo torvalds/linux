@@ -26,6 +26,8 @@ void _cxgbit_free_cdev(struct kref *kref)
 	struct cxgbit_device *cdev;
 
 	cdev = container_of(kref, struct cxgbit_device, kref);
+
+	cxgbi_ppm_release(cdev2ppm(cdev));
 	kfree(cdev);
 }
 

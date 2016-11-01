@@ -52,6 +52,7 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 		pp_init->chip_family = adev->family;
 		pp_init->chip_id = adev->asic_type;
 		pp_init->device = amdgpu_cgs_create_device(adev);
+		pp_init->powercontainment_enabled = amdgpu_powercontainment;
 
 		ret = amd_powerplay_init(pp_init, amd_pp);
 		kfree(pp_init);

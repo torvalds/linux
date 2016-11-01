@@ -354,6 +354,7 @@ static int pic32_sqi_one_message(struct spi_master *master,
 	struct spi_transfer *xfer;
 	struct pic32_sqi *sqi;
 	int ret = 0, mode;
+	unsigned long timeout;
 	u32 val;
 
 	sqi = spi_master_get_devdata(master);
@@ -419,10 +420,10 @@ static int pic32_sqi_one_message(struct spi_master *master,
 	writel(val, sqi->regs + PESQI_BD_CTRL_REG);
 
 	/* wait for xfer completion */
-	ret = wait_for_completion_timeout(&sqi->xfer_done, 5 * HZ);
-	if (ret <= 0) {
+	timeout = wait_for_completion_timeout(&sqi->xfer_done, 5 * HZ);
+	if (timeout == 0) {
 		dev_err(&sqi->master->dev, "wait timedout/interrupted\n");
-		ret = -EIO;
+		ret = -ETIMEDOUT;
 		msg->status = ret;
 	} else {
 		/* success */

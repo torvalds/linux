@@ -83,3 +83,9 @@
 		status = "ok";
 	};
 };
+
+&mdio {
+	sgenet0phy: phy@0 {
+		reg = <0x0>;
+	};
+};

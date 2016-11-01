@@ -38,6 +38,13 @@ xattr_permission(struct inode *inode, const char *name, int mask)
 	if (mask & MAY_WRITE) {
 		if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 			return -EPERM;
+		/*
+		 * Updating an xattr will likely cause i_uid and i_gid
+		 * to be writen back improperly if their true value is
+		 * unknown to the vfs.
+		 */
+		if (HAS_UNMAPPED_ID(inode))
+			return -EPERM;
 	}
 
 	/*

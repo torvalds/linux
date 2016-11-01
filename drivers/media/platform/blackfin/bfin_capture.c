@@ -91,8 +91,6 @@ struct bcap_device {
 	struct bcap_buffer *cur_frm;
 	/* buffer queue used in videobuf2 */
 	struct vb2_queue buffer_queue;
-	/* allocator-specific contexts for each plane */
-	struct vb2_alloc_ctx *alloc_ctx;
 	/* queue of filled frames */
 	struct list_head dma_queue;
 	/* used in videobuf2 callback */
@@ -203,13 +201,12 @@ static void bcap_free_sensor_formats(struct bcap_device *bcap_dev)
 
 static int bcap_queue_setup(struct vb2_queue *vq,
 				unsigned int *nbuffers, unsigned int *nplanes,
-				unsigned int sizes[], void *alloc_ctxs[])
+				unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct bcap_device *bcap_dev = vb2_get_drv_priv(vq);
 
 	if (vq->num_buffers + *nbuffers < 2)
 		*nbuffers = 2;
-	alloc_ctxs[0] = bcap_dev->alloc_ctx;
 
 	if (*nplanes)
 		return sizes[0] < bcap_dev->fmt.sizeimage ? -EINVAL : 0;
@@ -820,12 +817,6 @@ static int bcap_probe(struct platform_device *pdev)
 	}
 	bcap_dev->ppi->priv = bcap_dev;
 
-	bcap_dev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
-	if (IS_ERR(bcap_dev->alloc_ctx)) {
-		ret = PTR_ERR(bcap_dev->alloc_ctx);
-		goto err_free_ppi;
-	}
-
 	vfd = &bcap_dev->video_dev;
 	/* initialize field of video device */
 	vfd->release            = video_device_release_empty;
@@ -839,7 +830,7 @@ static int bcap_probe(struct platform_device *pdev)
 	if (ret) {
 		v4l2_err(pdev->dev.driver,
 				"Unable to register v4l2 device\n");
-		goto err_cleanup_ctx;
+		goto err_free_ppi;
 	}
 	v4l2_info(&bcap_dev->v4l2_dev, "v4l2 device registered\n");
 
@@ -863,6 +854,7 @@ static int bcap_probe(struct platform_device *pdev)
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &bcap_dev->mutex;
 	q->min_buffers_needed = 1;
+	q->dev = &pdev->dev;
 
 	ret = vb2_queue_init(q);
 	if (ret)
@@ -967,8 +959,6 @@ err_free_handler:
 	v4l2_ctrl_handler_free(&bcap_dev->ctrl_handler);
 err_unreg_v4l2:
 	v4l2_device_unregister(&bcap_dev->v4l2_dev);
-err_cleanup_ctx:
-	vb2_dma_contig_cleanup_ctx(bcap_dev->alloc_ctx);
 err_free_ppi:
 	ppi_delete_instance(bcap_dev->ppi);
 err_free_dev:
@@ -986,7 +976,6 @@ static int bcap_remove(struct platform_device *pdev)
 	video_unregister_device(&bcap_dev->video_dev);
 	v4l2_ctrl_handler_free(&bcap_dev->ctrl_handler);
 	v4l2_device_unregister(v4l2_dev);
-	vb2_dma_contig_cleanup_ctx(bcap_dev->alloc_ctx);
 	ppi_delete_instance(bcap_dev->ppi);
 	kfree(bcap_dev);
 	return 0;

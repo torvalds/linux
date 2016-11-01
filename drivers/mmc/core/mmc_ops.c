@@ -480,6 +480,7 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 	u32 status = 0;
 	bool use_r1b_resp = use_busy_signal;
 	bool expired = false;
+	bool busy = false;
 
 	mmc_retune_hold(host);
 
@@ -533,21 +534,26 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		timeout_ms = MMC_OPS_TIMEOUT_MS;
 
 	/* Must check status to be sure of no errors. */
-	timeout = jiffies + msecs_to_jiffies(timeout_ms);
+	timeout = jiffies + msecs_to_jiffies(timeout_ms) + 1;
 	do {
+		/*
+		 * Due to the possibility of being preempted after
+		 * sending the status command, check the expiration
+		 * time first.
+		 */
+		expired = time_after(jiffies, timeout);
 		if (send_status) {
-			/*
-			 * Due to the possibility of being preempted after
-			 * sending the status command, check the expiration
-			 * time first.
-			 */
-			expired = time_after(jiffies, timeout);
 			err = __mmc_send_status(card, &status, ignore_crc);
 			if (err)
 				goto out;
 		}
 		if ((host->caps & MMC_CAP_WAIT_WHILE_BUSY) && use_r1b_resp)
 			break;
+		if (host->ops->card_busy) {
+			if (!host->ops->card_busy(host))
+				break;
+			busy = true;
+		}
 		if (mmc_host_is_spi(host))
 			break;
 
@@ -556,19 +562,20 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 		 * does'nt support MMC_CAP_WAIT_WHILE_BUSY, then we can only
 		 * rely on waiting for the stated timeout to be sufficient.
 		 */
-		if (!send_status) {
+		if (!send_status && !host->ops->card_busy) {
 			mmc_delay(timeout_ms);
 			goto out;
 		}
 
 		/* Timeout if the device never leaves the program state. */
-		if (expired && R1_CURRENT_STATE(status) == R1_STATE_PRG) {
+		if (expired &&
+		    (R1_CURRENT_STATE(status) == R1_STATE_PRG || busy)) {
 			pr_err("%s: Card stuck in programming state! %s\n",
 				mmc_hostname(host), __func__);
 			err = -ETIMEDOUT;
 			goto out;
 		}
-	} while (R1_CURRENT_STATE(status) == R1_STATE_PRG);
+	} while (R1_CURRENT_STATE(status) == R1_STATE_PRG || busy);
 
 	err = mmc_switch_status_error(host, status);
 out:

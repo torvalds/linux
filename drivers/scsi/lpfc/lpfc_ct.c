@@ -1510,6 +1510,10 @@ lpfc_fdmi_num_disc_check(struct lpfc_vport *vport)
 	if (!lpfc_is_link_up(phba))
 		return;
 
+	/* Must be connected to a Fabric */
+	if (!(vport->fc_flag & FC_FABRIC))
+		return;
+
 	if (!(vport->fdmi_port_mask & LPFC_FDMI_PORT_ATTR_num_disc))
 		return;
 

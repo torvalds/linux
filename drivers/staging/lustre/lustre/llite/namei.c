@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -144,7 +140,7 @@ static void ll_invalidate_negative_children(struct inode *dir)
 {
 	struct dentry *dentry, *tmp_subdir;
 
-	ll_lock_dcache(dir);
+	spin_lock(&dir->i_lock);
 	hlist_for_each_entry(dentry, &dir->i_dentry, d_u.d_alias) {
 		spin_lock(&dentry->d_lock);
 		if (!list_empty(&dentry->d_subdirs)) {
@@ -159,7 +155,7 @@ static void ll_invalidate_negative_children(struct inode *dir)
 		}
 		spin_unlock(&dentry->d_lock);
 	}
-	ll_unlock_dcache(dir);
+	spin_unlock(&dir->i_lock);
 }
 
 int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
@@ -318,9 +314,10 @@ static struct dentry *ll_find_alias(struct inode *inode, struct dentry *dentry)
 	if (hlist_empty(&inode->i_dentry))
 		return NULL;
 
-	discon_alias = invalid_alias = NULL;
+	discon_alias = NULL;
+	invalid_alias = NULL;
 
-	ll_lock_dcache(inode);
+	spin_lock(&inode->i_lock);
 	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
 		LASSERT(alias != dentry);
 
@@ -345,7 +342,7 @@ static struct dentry *ll_find_alias(struct inode *inode, struct dentry *dentry)
 		dget_dlock(alias);
 		spin_unlock(&alias->d_lock);
 	}
-	ll_unlock_dcache(inode);
+	spin_unlock(&inode->i_lock);
 
 	return alias;
 }
@@ -391,12 +388,13 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 	struct inode *inode = NULL;
 	__u64 bits = 0;
 	int rc = 0;
+	struct dentry *alias;
 
 	/* NB 1 request reference will be taken away by ll_intent_lock()
 	 * when I return
 	 */
 	CDEBUG(D_DENTRY, "it %p it_disposition %x\n", it,
-	       it->d.lustre.it_disposition);
+	       it->it_disposition);
 	if (!it_disposition(it, DISP_LOOKUP_NEG)) {
 		rc = ll_prep_inode(&inode, request, (*de)->d_sb, it);
 		if (rc)
@@ -415,26 +413,12 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 		 */
 	}
 
-	/* Only hash *de if it is unhashed (new dentry).
-	 * Atoimc_open may passing hashed dentries for open.
-	 */
-	if (d_unhashed(*de)) {
-		struct dentry *alias;
-
-		alias = ll_splice_alias(inode, *de);
-		if (IS_ERR(alias)) {
-			rc = PTR_ERR(alias);
-			goto out;
-		}
-		*de = alias;
-	} else if (!it_disposition(it, DISP_LOOKUP_NEG)  &&
-		   !it_disposition(it, DISP_OPEN_CREATE)) {
-		/* With DISP_OPEN_CREATE dentry will be
-		 * instantiated in ll_create_it.
-		 */
-		LASSERT(!d_inode(*de));
-		d_instantiate(*de, inode);
+	alias = ll_splice_alias(inode, *de);
+	if (IS_ERR(alias)) {
+		rc = PTR_ERR(alias);
+		goto out;
 	}
+	*de = alias;
 
 	if (!it_disposition(it, DISP_LOOKUP_NEG)) {
 		/* we have lookup look - unhide dentry */
@@ -448,7 +432,7 @@ static int ll_lookup_it_finish(struct ptlrpc_request *request,
 		/* Check that parent has UPDATE lock. */
 		struct lookup_intent parent_it = {
 					.it_op = IT_GETATTR,
-					.d.lustre.it_lock_handle = 0 };
+					.it_lock_handle = 0 };
 
 		if (md_revalidate_lock(ll_i2mdexp(parent), &parent_it,
 				       &ll_i2info(parent)->lli_fid, NULL)) {
@@ -590,6 +574,24 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 	       dentry, PFID(ll_inode2fid(dir)), dir, file, open_flags, mode,
 	       *opened);
 
+	/* Only negative dentries enter here */
+	LASSERT(!d_inode(dentry));
+
+	if (!d_in_lookup(dentry)) {
+		/* A valid negative dentry that just passed revalidation,
+		 * there's little point to try and open it server-side,
+		 * even though there's a minuscle chance it might succeed.
+		 * Either way it's a valid race to just return -ENOENT here.
+		 */
+		if (!(open_flags & O_CREAT))
+			return -ENOENT;
+
+		/* Otherwise we just unhash it to be rehashed afresh via
+		 * lookup if necessary
+		 */
+		d_drop(dentry);
+	}
+
 	it = kzalloc(sizeof(*it), GFP_NOFS);
 	if (!it)
 		return -ENOMEM;
@@ -625,13 +627,10 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 		if (d_really_is_positive(dentry) && it_disposition(it, DISP_OPEN_OPEN)) {
 			/* Open dentry. */
 			if (S_ISFIFO(d_inode(dentry)->i_mode)) {
-				/* We cannot call open here as it would
-				 * deadlock.
+				/* We cannot call open here as it might
+				 * deadlock. This case is unreachable in
+				 * practice because of OBD_CONNECT_NODEVOH.
 				 */
-				if (it_disposition(it, DISP_ENQ_OPEN_REF))
-					ptlrpc_req_finished(
-						       (struct ptlrpc_request *)
-							  it->d.lustre.it_data);
 				rc = finish_no_open(file, de);
 			} else {
 				file->private_data = it;
@@ -662,10 +661,10 @@ static struct inode *ll_create_node(struct inode *dir, struct lookup_intent *it)
 	struct ll_sb_info *sbi = ll_i2sbi(dir);
 	int rc;
 
-	LASSERT(it && it->d.lustre.it_disposition);
+	LASSERT(it && it->it_disposition);
 
 	LASSERT(it_disposition(it, DISP_ENQ_CREATE_REF));
-	request = it->d.lustre.it_data;
+	request = it->it_request;
 	it_clear_disposition(it, DISP_ENQ_CREATE_REF);
 	rc = ll_prep_inode(&inode, request, dir->i_sb, it);
 	if (rc) {

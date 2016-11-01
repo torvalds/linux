@@ -22,6 +22,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
+#include "xfs_defer.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_util.h"
@@ -385,7 +386,7 @@ xfs_filestream_new_ag(
 	}
 
 	flags = (ap->userdata ? XFS_PICK_USERDATA : 0) |
-	        (ap->flist->xbf_low ? XFS_PICK_LOWSPACE : 0);
+	        (ap->dfops->dop_low ? XFS_PICK_LOWSPACE : 0);
 
 	err = xfs_filestream_pick_ag(pip, startag, agp, flags, minlen);
 

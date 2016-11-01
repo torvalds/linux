@@ -18,6 +18,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
@@ -385,6 +386,7 @@ struct sdma_engine {
 	const struct sdma_driver_data	*drvdata;
 	u32				spba_start_addr;
 	u32				spba_end_addr;
+	unsigned int			irq;
 };
 
 static struct sdma_driver_data sdma_imx31 = {
@@ -571,28 +573,20 @@ static void sdma_enable_channel(struct sdma_engine *sdma, int channel)
 static int sdma_run_channel0(struct sdma_engine *sdma)
 {
 	int ret;
-	unsigned long timeout = 500;
+	u32 reg;
 
 	sdma_enable_channel(sdma, 0);
 
-	while (!(ret = readl_relaxed(sdma->regs + SDMA_H_INTR) & 1)) {
-		if (timeout-- <= 0)
-			break;
-		udelay(1);
-	}
-
-	if (ret) {
-		/* Clear the interrupt status */
-		writel_relaxed(ret, sdma->regs + SDMA_H_INTR);
-	} else {
+	ret = readl_relaxed_poll_timeout_atomic(sdma->regs + SDMA_H_STATSTOP,
+						reg, !(reg & 1), 1, 500);
+	if (ret)
 		dev_err(sdma->dev, "Timeout waiting for CH0 ready\n");
-	}
 
 	/* Set bits of CONFIG register with dynamic context switching */
 	if (readl(sdma->regs + SDMA_H_CONFIG) == 0)
 		writel_relaxed(SDMA_H_CONFIG_CSM, sdma->regs + SDMA_H_CONFIG);
 
-	return ret ? 0 : -ETIMEDOUT;
+	return ret;
 }
 
 static int sdma_load_script(struct sdma_engine *sdma, void *buf, int size,
@@ -727,9 +721,9 @@ static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 	unsigned long stat;
 
 	stat = readl_relaxed(sdma->regs + SDMA_H_INTR);
-	/* not interested in channel 0 interrupts */
-	stat &= ~1;
 	writel_relaxed(stat, sdma->regs + SDMA_H_INTR);
+	/* channel 0 is special and not handled here, see run_channel0() */
+	stat &= ~1;
 
 	while (stat) {
 		int channel = fls(stat) - 1;
@@ -758,7 +752,7 @@ static void sdma_get_pc(struct sdma_channel *sdmac,
 	 * These are needed once we start to support transfers between
 	 * two peripherals or memory-to-memory transfers
 	 */
-	int per_2_per = 0, emi_2_emi = 0;
+	int per_2_per = 0;
 
 	sdmac->pc_from_device = 0;
 	sdmac->pc_to_device = 0;
@@ -766,7 +760,6 @@ static void sdma_get_pc(struct sdma_channel *sdmac,
 
 	switch (peripheral_type) {
 	case IMX_DMATYPE_MEMORY:
-		emi_2_emi = sdma->script_addrs->ap_2_ap_addr;
 		break;
 	case IMX_DMATYPE_DSP:
 		emi_2_per = sdma->script_addrs->bp_2_ap_addr;
@@ -999,8 +992,6 @@ static int sdma_config_channel(struct dma_chan *chan)
 		} else
 			__set_bit(sdmac->event_id0, sdmac->event_mask);
 
-		/* Watermark Level */
-		sdmac->watermark_level |= sdmac->watermark_level;
 		/* Address */
 		sdmac->shp_addr = sdmac->per_address;
 		sdmac->per_addr = sdmac->per_address2;
@@ -1715,6 +1706,8 @@ static int sdma_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	sdma->irq = irq;
+
 	sdma->script_addrs = kzalloc(sizeof(*sdma->script_addrs), GFP_KERNEL);
 	if (!sdma->script_addrs)
 		return -ENOMEM;
@@ -1840,6 +1833,7 @@ static int sdma_remove(struct platform_device *pdev)
 	struct sdma_engine *sdma = platform_get_drvdata(pdev);
 	int i;
 
+	devm_free_irq(&pdev->dev, sdma->irq, sdma);
 	dma_async_device_unregister(&sdma->dma_device);
 	kfree(sdma->script_addrs);
 	/* Kill the tasklet */

@@ -43,7 +43,8 @@ static int multipath_map (struct mpconf *conf)
 	rcu_read_lock();
 	for (i = 0; i < disks; i++) {
 		struct md_rdev *rdev = rcu_dereference(conf->multipaths[i].rdev);
-		if (rdev && test_bit(In_sync, &rdev->flags)) {
+		if (rdev && test_bit(In_sync, &rdev->flags) &&
+		    !test_bit(Faulty, &rdev->flags)) {
 			atomic_inc(&rdev->nr_pending);
 			rcu_read_unlock();
 			return i;
@@ -90,7 +91,7 @@ static void multipath_end_request(struct bio *bio)
 
 	if (!bio->bi_error)
 		multipath_end_bh_io(mp_bh, 0);
-	else if (!(bio->bi_rw & REQ_RAHEAD)) {
+	else if (!(bio->bi_opf & REQ_RAHEAD)) {
 		/*
 		 * oops, IO error:
 		 */
@@ -111,7 +112,7 @@ static void multipath_make_request(struct mddev *mddev, struct bio * bio)
 	struct multipath_bh * mp_bh;
 	struct multipath_info *multipath;
 
-	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
+	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
 		md_flush_request(mddev, bio);
 		return;
 	}
@@ -134,24 +135,26 @@ static void multipath_make_request(struct mddev *mddev, struct bio * bio)
 
 	mp_bh->bio.bi_iter.bi_sector += multipath->rdev->data_offset;
 	mp_bh->bio.bi_bdev = multipath->rdev->bdev;
-	mp_bh->bio.bi_rw |= REQ_FAILFAST_TRANSPORT;
+	mp_bh->bio.bi_opf |= REQ_FAILFAST_TRANSPORT;
 	mp_bh->bio.bi_end_io = multipath_end_request;
 	mp_bh->bio.bi_private = mp_bh;
 	generic_make_request(&mp_bh->bio);
 	return;
 }
 
-static void multipath_status (struct seq_file *seq, struct mddev *mddev)
+static void multipath_status(struct seq_file *seq, struct mddev *mddev)
 {
 	struct mpconf *conf = mddev->private;
 	int i;
 
 	seq_printf (seq, " [%d/%d] [", conf->raid_disks,
 		    conf->raid_disks - mddev->degraded);
-	for (i = 0; i < conf->raid_disks; i++)
-		seq_printf (seq, "%s",
-			       conf->multipaths[i].rdev &&
-			       test_bit(In_sync, &conf->multipaths[i].rdev->flags) ? "U" : "_");
+	rcu_read_lock();
+	for (i = 0; i < conf->raid_disks; i++) {
+		struct md_rdev *rdev = rcu_dereference(conf->multipaths[i].rdev);
+		seq_printf (seq, "%s", rdev && test_bit(In_sync, &rdev->flags) ? "U" : "_");
+	}
+	rcu_read_unlock();
 	seq_printf (seq, "]");
 }
 
@@ -295,12 +298,14 @@ static int multipath_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 			goto abort;
 		}
 		p->rdev = NULL;
-		synchronize_rcu();
-		if (atomic_read(&rdev->nr_pending)) {
-			/* lost the race, try later */
-			err = -EBUSY;
-			p->rdev = rdev;
-			goto abort;
+		if (!test_bit(RemoveSynchronized, &rdev->flags)) {
+			synchronize_rcu();
+			if (atomic_read(&rdev->nr_pending)) {
+				/* lost the race, try later */
+				err = -EBUSY;
+				p->rdev = rdev;
+				goto abort;
+			}
 		}
 		err = md_integrity_register(mddev);
 	}
@@ -355,7 +360,7 @@ static void multipathd(struct md_thread *thread)
 			bio->bi_iter.bi_sector +=
 				conf->multipaths[mp_bh->path].rdev->data_offset;
 			bio->bi_bdev = conf->multipaths[mp_bh->path].rdev->bdev;
-			bio->bi_rw |= REQ_FAILFAST_TRANSPORT;
+			bio->bi_opf |= REQ_FAILFAST_TRANSPORT;
 			bio->bi_end_io = multipath_end_request;
 			bio->bi_private = mp_bh;
 			generic_make_request(bio);

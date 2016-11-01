@@ -144,6 +144,21 @@ __ftrace_make_nop(struct module *mod,
 		return -EINVAL;
 	}
 
+#ifdef CC_USING_MPROFILE_KERNEL
+	/* When using -mkernel_profile there is no load to jump over */
+	pop = PPC_INST_NOP;
+
+	if (probe_kernel_read(&op, (void *)(ip - 4), 4)) {
+		pr_err("Fetching instruction at %lx failed.\n", ip - 4);
+		return -EFAULT;
+	}
+
+	/* We expect either a mflr r0, or a std r0, LRSAVE(r1) */
+	if (op != PPC_INST_MFLR && op != PPC_INST_STD_LR) {
+		pr_err("Unexpected instruction %08x around bl _mcount\n", op);
+		return -EINVAL;
+	}
+#else
 	/*
 	 * Our original call site looks like:
 	 *
@@ -170,24 +185,10 @@ __ftrace_make_nop(struct module *mod,
 	}
 
 	if (op != PPC_INST_LD_TOC) {
-		unsigned int inst;
-
-		if (probe_kernel_read(&inst, (void *)(ip - 4), 4)) {
-			pr_err("Fetching instruction at %lx failed.\n", ip - 4);
-			return -EFAULT;
-		}
-
-		/* We expect either a mlfr r0, or a std r0, LRSAVE(r1) */
-		if (inst != PPC_INST_MFLR && inst != PPC_INST_STD_LR) {
-			pr_err("Unexpected instructions around bl _mcount\n"
-			       "when enabling dynamic ftrace!\t"
-			       "(%08x,bl,%08x)\n", inst, op);
-			return -EINVAL;
-		}
-
-		/* When using -mkernel_profile there is no load to jump over */
-		pop = PPC_INST_NOP;
+		pr_err("Expected %08x found %08x\n", PPC_INST_LD_TOC, op);
+		return -EINVAL;
 	}
+#endif /* CC_USING_MPROFILE_KERNEL */
 
 	if (patch_instruction((unsigned int *)ip, pop)) {
 		pr_err("Patching NOP failed.\n");
@@ -608,7 +609,7 @@ unsigned long __init arch_syscall_addr(int nr)
 }
 #endif /* CONFIG_FTRACE_SYSCALLS && CONFIG_PPC64 */
 
-#if defined(CONFIG_PPC64) && (!defined(_CALL_ELF) || _CALL_ELF != 2)
+#ifdef PPC64_ELF_ABI_v1
 char *arch_ftrace_match_adjust(char *str, const char *search)
 {
 	if (str[0] == '.' && search[0] != '.')
@@ -616,4 +617,4 @@ char *arch_ftrace_match_adjust(char *str, const char *search)
 	else
 		return str;
 }
-#endif /* defined(CONFIG_PPC64) && (!defined(_CALL_ELF) || _CALL_ELF != 2) */
+#endif /* PPC64_ELF_ABI_v1 */

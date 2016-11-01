@@ -24,7 +24,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2016.2"
+#define BATADV_SOURCE_VERSION "2016.3"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -100,6 +100,9 @@
 #define BATADV_NUM_BCASTS_WIRELESS 3
 #define BATADV_NUM_BCASTS_MAX 3
 
+/* length of the single packet used by the TP meter */
+#define BATADV_TP_PACKET_LEN ETH_DATA_LEN
+
 /* msecs after which an ARP_REQUEST is sent in broadcast as fallback */
 #define ARP_REQ_DELAY 250
 /* numbers of originator to contact for any PUT/GET DHT operation */
@@ -130,6 +133,11 @@
 #define BATADV_EXPECTED_SEQNO_RANGE	65536
 
 #define BATADV_NC_NODE_TIMEOUT 10000 /* Milliseconds */
+
+/**
+ * BATADV_TP_MAX_NUM - maximum number of simultaneously active tp sessions
+ */
+#define BATADV_TP_MAX_NUM 5
 
 enum batadv_mesh_state {
 	BATADV_MESH_INACTIVE,
@@ -175,29 +183,26 @@ enum batadv_uev_type {
 
 /* Kernel headers */
 
-#include <linux/atomic.h>
 #include <linux/bitops.h> /* for packet.h */
 #include <linux/compiler.h>
 #include <linux/cpumask.h>
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h> /* for packet.h */
-#include <linux/netdevice.h>
-#include <linux/printk.h>
-#include <linux/types.h>
-#include <linux/percpu.h>
-#include <linux/jiffies.h>
 #include <linux/if_vlan.h>
+#include <linux/jiffies.h>
+#include <linux/percpu.h>
+#include <linux/types.h>
 
 #include "types.h"
 
-struct batadv_ogm_packet;
+struct net_device;
+struct packet_type;
 struct seq_file;
 struct sk_buff;
 
 #define BATADV_PRINT_VID(vid) ((vid & BATADV_VLAN_HAS_TAG) ? \
 			       (int)(vid & VLAN_VID_MASK) : -1)
 
-extern char batadv_routing_algo[];
 extern struct list_head batadv_hardif_list;
 
 extern unsigned char batadv_broadcast_addr[];
@@ -218,72 +223,7 @@ batadv_recv_handler_register(u8 packet_type,
 			     int (*recv_handler)(struct sk_buff *,
 						 struct batadv_hard_iface *));
 void batadv_recv_handler_unregister(u8 packet_type);
-int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops);
-int batadv_algo_select(struct batadv_priv *bat_priv, char *name);
-int batadv_algo_seq_print_text(struct seq_file *seq, void *offset);
 __be32 batadv_skb_crc32(struct sk_buff *skb, u8 *payload_ptr);
-
-/**
- * enum batadv_dbg_level - available log levels
- * @BATADV_DBG_BATMAN: OGM and TQ computations related messages
- * @BATADV_DBG_ROUTES: route added / changed / deleted
- * @BATADV_DBG_TT: translation table messages
- * @BATADV_DBG_BLA: bridge loop avoidance messages
- * @BATADV_DBG_DAT: ARP snooping and DAT related messages
- * @BATADV_DBG_NC: network coding related messages
- * @BATADV_DBG_ALL: the union of all the above log levels
- */
-enum batadv_dbg_level {
-	BATADV_DBG_BATMAN = BIT(0),
-	BATADV_DBG_ROUTES = BIT(1),
-	BATADV_DBG_TT	  = BIT(2),
-	BATADV_DBG_BLA    = BIT(3),
-	BATADV_DBG_DAT    = BIT(4),
-	BATADV_DBG_NC	  = BIT(5),
-	BATADV_DBG_ALL    = 63,
-};
-
-#ifdef CONFIG_BATMAN_ADV_DEBUG
-int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
-__printf(2, 3);
-
-/* possibly ratelimited debug output */
-#define _batadv_dbg(type, bat_priv, ratelimited, fmt, arg...)	\
-	do {							\
-		if (atomic_read(&bat_priv->log_level) & type && \
-		    (!ratelimited || net_ratelimit()))		\
-			batadv_debug_log(bat_priv, fmt, ## arg);\
-	}							\
-	while (0)
-#else /* !CONFIG_BATMAN_ADV_DEBUG */
-__printf(4, 5)
-static inline void _batadv_dbg(int type __always_unused,
-			       struct batadv_priv *bat_priv __always_unused,
-			       int ratelimited __always_unused,
-			       const char *fmt __always_unused, ...)
-{
-}
-#endif
-
-#define batadv_dbg(type, bat_priv, arg...) \
-	_batadv_dbg(type, bat_priv, 0, ## arg)
-#define batadv_dbg_ratelimited(type, bat_priv, arg...) \
-	_batadv_dbg(type, bat_priv, 1, ## arg)
-
-#define batadv_info(net_dev, fmt, arg...)				\
-	do {								\
-		struct net_device *_netdev = (net_dev);                 \
-		struct batadv_priv *_batpriv = netdev_priv(_netdev);    \
-		batadv_dbg(BATADV_DBG_ALL, _batpriv, fmt, ## arg);	\
-		pr_info("%s: " fmt, _netdev->name, ## arg);		\
-	} while (0)
-#define batadv_err(net_dev, fmt, arg...)				\
-	do {								\
-		struct net_device *_netdev = (net_dev);                 \
-		struct batadv_priv *_batpriv = netdev_priv(_netdev);    \
-		batadv_dbg(BATADV_DBG_ALL, _batpriv, fmt, ## arg);	\
-		pr_err("%s: " fmt, _netdev->name, ## arg);		\
-	} while (0)
 
 /**
  * batadv_compare_eth - Compare two not u16 aligned Ethernet addresses
@@ -370,39 +310,6 @@ static inline u64 batadv_sum_counter(struct batadv_priv *bat_priv,  size_t idx)
  */
 #define BATADV_SKB_CB(__skb)       ((struct batadv_skb_cb *)&((__skb)->cb[0]))
 
-void batadv_tvlv_container_register(struct batadv_priv *bat_priv,
-				    u8 type, u8 version,
-				    void *tvlv_value, u16 tvlv_value_len);
-u16 batadv_tvlv_container_ogm_append(struct batadv_priv *bat_priv,
-				     unsigned char **packet_buff,
-				     int *packet_buff_len, int packet_min_len);
-void batadv_tvlv_ogm_receive(struct batadv_priv *bat_priv,
-			     struct batadv_ogm_packet *batadv_ogm_packet,
-			     struct batadv_orig_node *orig_node);
-void batadv_tvlv_container_unregister(struct batadv_priv *bat_priv,
-				      u8 type, u8 version);
-
-void batadv_tvlv_handler_register(struct batadv_priv *bat_priv,
-				  void (*optr)(struct batadv_priv *bat_priv,
-					       struct batadv_orig_node *orig,
-					       u8 flags,
-					       void *tvlv_value,
-					       u16 tvlv_value_len),
-				  int (*uptr)(struct batadv_priv *bat_priv,
-					      u8 *src, u8 *dst,
-					      void *tvlv_value,
-					      u16 tvlv_value_len),
-				  u8 type, u8 version, u8 flags);
-void batadv_tvlv_handler_unregister(struct batadv_priv *bat_priv,
-				    u8 type, u8 version);
-int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
-				   bool ogm_source,
-				   struct batadv_orig_node *orig_node,
-				   u8 *src, u8 *dst,
-				   void *tvlv_buff, u16 tvlv_buff_len);
-void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, u8 *src,
-			      u8 *dst, u8 type, u8 version,
-			      void *tvlv_value, u16 tvlv_value_len);
 unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len);
 bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid);
 

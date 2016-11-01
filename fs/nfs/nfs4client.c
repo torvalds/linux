@@ -349,10 +349,10 @@ static int nfs4_init_client_minor_version(struct nfs_client *clp)
  * Returns pointer to an NFS client, or an ERR_PTR value.
  */
 struct nfs_client *nfs4_init_client(struct nfs_client *clp,
-				    const struct rpc_timeout *timeparms,
-				    const char *ip_addr)
+				    const struct nfs_client_initdata *cl_init)
 {
 	char buf[INET6_ADDRSTRLEN + 1];
+	const char *ip_addr = cl_init->ip_addr;
 	struct nfs_client *old;
 	int error;
 
@@ -370,9 +370,9 @@ struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 	__set_bit(NFS_CS_DISCRTRY, &clp->cl_flags);
 	__set_bit(NFS_CS_NO_RETRANS_TIMEOUT, &clp->cl_flags);
 
-	error = nfs_create_rpc_client(clp, timeparms, RPC_AUTH_GSS_KRB5I);
+	error = nfs_create_rpc_client(clp, cl_init, RPC_AUTH_GSS_KRB5I);
 	if (error == -EINVAL)
-		error = nfs_create_rpc_client(clp, timeparms, RPC_AUTH_UNIX);
+		error = nfs_create_rpc_client(clp, cl_init, RPC_AUTH_UNIX);
 	if (error < 0)
 		goto error;
 
@@ -793,10 +793,12 @@ static int nfs4_set_client(struct nfs_server *server,
 		.hostname = hostname,
 		.addr = addr,
 		.addrlen = addrlen,
+		.ip_addr = ip_addr,
 		.nfs_mod = &nfs_v4,
 		.proto = proto,
 		.minorversion = minorversion,
 		.net = net,
+		.timeparms = timeparms,
 	};
 	struct nfs_client *clp;
 	int error;
@@ -809,9 +811,14 @@ static int nfs4_set_client(struct nfs_server *server,
 		set_bit(NFS_CS_MIGRATION, &cl_init.init_flags);
 
 	/* Allocate or find a client reference we can use */
-	clp = nfs_get_client(&cl_init, timeparms, ip_addr, authflavour);
+	clp = nfs_get_client(&cl_init, authflavour);
 	if (IS_ERR(clp)) {
 		error = PTR_ERR(clp);
+		goto error;
+	}
+
+	if (server->nfs_client == clp) {
+		error = -ELOOP;
 		goto error;
 	}
 
@@ -842,20 +849,24 @@ error:
  * low timeout interval so that if a connection is lost, we retry through
  * the MDS.
  */
-struct nfs_client *nfs4_set_ds_client(struct nfs_client* mds_clp,
+struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
 		const struct sockaddr *ds_addr, int ds_addrlen,
 		int ds_proto, unsigned int ds_timeo, unsigned int ds_retrans,
 		u32 minor_version, rpc_authflavor_t au_flavor)
 {
+	struct rpc_timeout ds_timeout;
+	struct nfs_client *mds_clp = mds_srv->nfs_client;
 	struct nfs_client_initdata cl_init = {
 		.addr = ds_addr,
 		.addrlen = ds_addrlen,
+		.nodename = mds_clp->cl_rpcclient->cl_nodename,
+		.ip_addr = mds_clp->cl_ipaddr,
 		.nfs_mod = &nfs_v4,
 		.proto = ds_proto,
 		.minorversion = minor_version,
 		.net = mds_clp->cl_net,
+		.timeparms = &ds_timeout,
 	};
-	struct rpc_timeout ds_timeout;
 	struct nfs_client *clp;
 	char buf[INET6_ADDRSTRLEN + 1];
 
@@ -863,14 +874,16 @@ struct nfs_client *nfs4_set_ds_client(struct nfs_client* mds_clp,
 		return ERR_PTR(-EINVAL);
 	cl_init.hostname = buf;
 
+	if (mds_srv->flags & NFS_MOUNT_NORESVPORT)
+		__set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
+
 	/*
 	 * Set an authflavor equual to the MDS value. Use the MDS nfs_client
 	 * cl_ipaddr so as to use the same EXCHANGE_ID co_ownerid as the MDS
 	 * (section 13.1 RFC 5661).
 	 */
 	nfs_init_timeout_values(&ds_timeout, ds_proto, ds_timeo, ds_retrans);
-	clp = nfs_get_client(&cl_init, &ds_timeout, mds_clp->cl_ipaddr,
-			     au_flavor);
+	clp = nfs_get_client(&cl_init, au_flavor);
 
 	dprintk("<-- %s %p\n", __func__, clp);
 	return clp;

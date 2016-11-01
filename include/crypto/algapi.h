@@ -244,6 +244,8 @@ static inline struct crypto_alg *crypto_attr_alg(struct rtattr *rta,
 }
 
 int crypto_attr_u32(struct rtattr *rta, u32 *num);
+int crypto_inst_setname(struct crypto_instance *inst, const char *name,
+			struct crypto_alg *alg);
 void *crypto_alloc_instance2(const char *name, struct crypto_alg *alg,
 			     unsigned int head);
 struct crypto_instance *crypto_alloc_instance(const char *name,
@@ -440,8 +442,10 @@ static inline int crypto_memneq(const void *a, const void *b, size_t size)
 
 static inline void crypto_yield(u32 flags)
 {
+#if !defined(CONFIG_PREEMPT) || defined(CONFIG_PREEMPT_VOLUNTARY)
 	if (flags & CRYPTO_TFM_REQ_MAY_SLEEP)
 		cond_resched();
+#endif
 }
 
 #endif	/* _CRYPTO_ALGAPI_H */

@@ -4,6 +4,7 @@
 #include <linux/atomic.h>
 #include <linux/types.h>
 #include <linux/rbtree.h>
+#include <sys/types.h>
 #include <stdbool.h>
 #include <pthread.h>
 #include <linux/types.h>
@@ -349,10 +350,17 @@ static inline bool dso__is_kcore(struct dso *dso)
 	       dso->binary_type == DSO_BINARY_TYPE__GUEST_KCORE;
 }
 
+static inline bool dso__is_kallsyms(struct dso *dso)
+{
+	return dso->kernel && dso->long_name[0] != '/';
+}
+
 void dso__free_a2l(struct dso *dso);
 
 enum dso_type dso__type(struct dso *dso, struct machine *machine);
 
 int dso__strerror_load(struct dso *dso, char *buf, size_t buflen);
+
+void reset_fd_limit(void);
 
 #endif /* __PERF_DSO */

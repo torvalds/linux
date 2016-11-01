@@ -249,7 +249,6 @@ struct cx25821_dev {
 	int hwrevision;
 	/* used by cx25821-alsa */
 	struct snd_card *card;
-	void *alloc_ctx;
 
 	u32 clk_freq;
 

@@ -19,7 +19,6 @@ obj-$(CONFIG_TIFM_CORE)       	+= tifm_core.o
 obj-$(CONFIG_TIFM_7XX1)       	+= tifm_7xx1.o
 obj-$(CONFIG_PHANTOM)		+= phantom.o
 obj-$(CONFIG_QCOM_COINCELL)	+= qcom-coincell.o
-obj-$(CONFIG_SENSORS_BH1780)	+= bh1780gli.o
 obj-$(CONFIG_SENSORS_BH1770)	+= bh1770glc.o
 obj-$(CONFIG_SENSORS_APDS990X)	+= apds990x.o
 obj-$(CONFIG_SGI_IOC4)		+= ioc4.o
@@ -57,3 +56,18 @@ obj-$(CONFIG_ECHO)		+= echo/
 obj-$(CONFIG_VEXPRESS_SYSCFG)	+= vexpress-syscfg.o
 obj-$(CONFIG_CXL_BASE)		+= cxl/
 obj-$(CONFIG_PANEL)             += panel.o
+
+lkdtm-$(CONFIG_LKDTM)		+= lkdtm_core.o
+lkdtm-$(CONFIG_LKDTM)		+= lkdtm_bugs.o
+lkdtm-$(CONFIG_LKDTM)		+= lkdtm_heap.o
+lkdtm-$(CONFIG_LKDTM)		+= lkdtm_perms.o
+lkdtm-$(CONFIG_LKDTM)		+= lkdtm_rodata_objcopy.o
+lkdtm-$(CONFIG_LKDTM)		+= lkdtm_usercopy.o
+
+OBJCOPYFLAGS :=
+OBJCOPYFLAGS_lkdtm_rodata_objcopy.o := \
+			--set-section-flags .text=alloc,readonly \
+			--rename-section .text=.rodata
+targets += lkdtm_rodata.o lkdtm_rodata_objcopy.o
+$(obj)/lkdtm_rodata_objcopy.o: $(obj)/lkdtm_rodata.o FORCE
+	$(call if_changed,objcopy)

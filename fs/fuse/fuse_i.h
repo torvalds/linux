@@ -259,6 +259,7 @@ struct fuse_io_priv {
 	struct kiocb *iocb;
 	struct file *file;
 	struct completion *done;
+	bool blocking;
 };
 
 #define FUSE_IO_PRIV_SYNC(f) \
@@ -703,7 +704,7 @@ struct inode *fuse_iget(struct super_block *sb, u64 nodeid,
 			int generation, struct fuse_attr *attr,
 			u64 attr_valid, u64 attr_version);
 
-int fuse_lookup_name(struct super_block *sb, u64 nodeid, struct qstr *name,
+int fuse_lookup_name(struct super_block *sb, u64 nodeid, const struct qstr *name,
 		     struct fuse_entry_out *outarg, struct inode **inode);
 
 /**

@@ -1165,9 +1165,12 @@ static int txx9dmac_chan_remove(struct platform_device *pdev)
 {
 	struct txx9dmac_chan *dc = platform_get_drvdata(pdev);
 
+
 	dma_async_device_unregister(&dc->dma);
-	if (dc->irq >= 0)
+	if (dc->irq >= 0) {
+		devm_free_irq(&pdev->dev, dc->irq, dc);
 		tasklet_kill(&dc->tasklet);
+	}
 	dc->ddev->chan[pdev->id % TXX9_DMA_MAX_NR_CHANNELS] = NULL;
 	return 0;
 }
@@ -1228,8 +1231,10 @@ static int txx9dmac_remove(struct platform_device *pdev)
 	struct txx9dmac_dev *ddev = platform_get_drvdata(pdev);
 
 	txx9dmac_off(ddev);
-	if (ddev->irq >= 0)
+	if (ddev->irq >= 0) {
+		devm_free_irq(&pdev->dev, ddev->irq, ddev);
 		tasklet_kill(&ddev->tasklet);
+	}
 	return 0;
 }
 

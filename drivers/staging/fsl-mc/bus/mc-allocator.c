@@ -717,7 +717,7 @@ static int fsl_mc_allocator_remove(struct fsl_mc_device *mc_dev)
 	return 0;
 }
 
-static const struct fsl_mc_device_match_id match_id_table[] = {
+static const struct fsl_mc_device_id match_id_table[] = {
 	{
 	 .vendor = FSL_MC_VENDOR_FREESCALE,
 	 .obj_type = "dpbp",

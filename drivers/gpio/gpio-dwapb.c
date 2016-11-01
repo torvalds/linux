@@ -486,6 +486,7 @@ dwapb_gpio_get_pdata(struct device *dev)
 		    pp->idx >= DWAPB_MAX_PORTS) {
 			dev_err(dev,
 				"missing/invalid port index for port%d\n", i);
+			fwnode_handle_put(fwnode);
 			return ERR_PTR(-EINVAL);
 		}
 

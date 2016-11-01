@@ -167,7 +167,7 @@ int mlx5_core_sriov_configure(struct pci_dev *pdev, int num_vfs)
 
 	mlx5_core_init_vfs(dev, num_vfs);
 #ifdef CONFIG_MLX5_CORE_EN
-	mlx5_eswitch_enable_sriov(dev->priv.eswitch, num_vfs);
+	mlx5_eswitch_enable_sriov(dev->priv.eswitch, num_vfs, SRIOV_LEGACY);
 #endif
 
 	return num_vfs;
@@ -209,7 +209,8 @@ int mlx5_sriov_init(struct mlx5_core_dev *dev)
 	mlx5_core_init_vfs(dev, cur_vfs);
 #ifdef CONFIG_MLX5_CORE_EN
 	if (cur_vfs)
-		mlx5_eswitch_enable_sriov(dev->priv.eswitch, cur_vfs);
+		mlx5_eswitch_enable_sriov(dev->priv.eswitch, cur_vfs,
+					  SRIOV_LEGACY);
 #endif
 
 	enable_vfs(dev, cur_vfs);

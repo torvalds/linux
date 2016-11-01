@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -1683,7 +1679,7 @@ lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 		   struct lustre_handle *lockh, void *lmm, int lmmsize,
 		   __u64 extra_lock_flags)
 {
-	struct ptlrpc_request      *req = it->d.lustre.it_data;
+	struct ptlrpc_request      *req = it->it_request;
 	struct obd_device	  *obd = exp->exp_obd;
 	struct lmv_obd	     *lmv = &obd->u.lmv;
 	struct lustre_handle	plock;
@@ -1705,11 +1701,11 @@ lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 	/*
 	 * We got LOOKUP lock, but we really need attrs.
 	 */
-	pmode = it->d.lustre.it_lock_mode;
+	pmode = it->it_lock_mode;
 	LASSERT(pmode != 0);
 	memcpy(&plock, lockh, sizeof(plock));
-	it->d.lustre.it_lock_mode = 0;
-	it->d.lustre.it_data = NULL;
+	it->it_lock_mode = 0;
+	it->it_request = NULL;
 	fid1 = body->fid1;
 
 	ptlrpc_req_finished(req);
@@ -2611,27 +2607,6 @@ static int lmv_clear_open_replay_data(struct obd_export *exp,
 	return md_clear_open_replay_data(tgt->ltd_exp, och);
 }
 
-static int lmv_get_remote_perm(struct obd_export *exp,
-			       const struct lu_fid *fid,
-			       __u32 suppgid, struct ptlrpc_request **request)
-{
-	struct obd_device       *obd = exp->exp_obd;
-	struct lmv_obd	  *lmv = &obd->u.lmv;
-	struct lmv_tgt_desc     *tgt;
-	int		      rc;
-
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
-
-	tgt = lmv_find_target(lmv, fid);
-	if (IS_ERR(tgt))
-		return PTR_ERR(tgt);
-
-	rc = md_get_remote_perm(tgt->ltd_exp, fid, suppgid, request);
-	return rc;
-}
-
 static int lmv_intent_getattr_async(struct obd_export *exp,
 				    struct md_enqueue_info *minfo,
 				    struct ldlm_enqueue_info *einfo)
@@ -2686,7 +2661,7 @@ static int lmv_quotactl(struct obd_device *unused, struct obd_export *exp,
 	struct lmv_obd      *lmv = &obd->u.lmv;
 	struct lmv_tgt_desc *tgt = lmv->tgts[0];
 	int		  rc = 0, i;
-	__u64		curspace, curinodes;
+	__u64 curspace = 0, curinodes = 0;
 
 	if (!tgt || !tgt->ltd_exp || !tgt->ltd_active ||
 	    !lmv->desc.ld_tgt_count) {
@@ -2699,7 +2674,6 @@ static int lmv_quotactl(struct obd_device *unused, struct obd_export *exp,
 		return rc;
 	}
 
-	curspace = curinodes = 0;
 	for (i = 0; i < lmv->desc.ld_tgt_count; i++) {
 		int err;
 
@@ -2796,7 +2770,6 @@ static struct md_ops lmv_md_ops = {
 	.free_lustre_md		= lmv_free_lustre_md,
 	.set_open_replay_data	= lmv_set_open_replay_data,
 	.clear_open_replay_data	= lmv_clear_open_replay_data,
-	.get_remote_perm	= lmv_get_remote_perm,
 	.intent_getattr_async	= lmv_intent_getattr_async,
 	.revalidate_lock	= lmv_revalidate_lock
 };

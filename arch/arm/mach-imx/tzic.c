@@ -9,12 +9,11 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/io.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -56,14 +55,14 @@ static struct irq_domain *domain;
 #define TZIC_NUM_IRQS 128
 
 #ifdef CONFIG_FIQ
-static int tzic_set_irq_fiq(unsigned int irq, unsigned int type)
+static int tzic_set_irq_fiq(unsigned int hwirq, unsigned int type)
 {
 	unsigned int index, mask, value;
 
-	index = irq >> 5;
+	index = hwirq >> 5;
 	if (unlikely(index >= 4))
 		return -EINVAL;
-	mask = 1U << (irq & 0x1F);
+	mask = 1U << (hwirq & 0x1F);
 
 	value = imx_readl(tzic_base + TZIC_INTSEC0(index)) | mask;
 	if (type)
@@ -153,13 +152,11 @@ static void __exception_irq_entry tzic_handle_irq(struct pt_regs *regs)
  * interrupts. It registers the interrupt enable and disable functions
  * to the kernel for each interrupt source.
  */
-void __init tzic_init_irq(void)
+static int __init tzic_init_dt(struct device_node *np, struct device_node *p)
 {
-	struct device_node *np;
 	int irq_base;
 	int i;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,tzic");
 	tzic_base = of_iomap(np, 0);
 	WARN_ON(!tzic_base);
 
@@ -199,7 +196,10 @@ void __init tzic_init_irq(void)
 #endif
 
 	pr_info("TrustZone Interrupt Controller (TZIC) initialized\n");
+
+	return 0;
 }
+IRQCHIP_DECLARE(tzic, "fsl,tzic", tzic_init_dt);
 
 /**
  * tzic_enable_wake() - enable wakeup interrupt

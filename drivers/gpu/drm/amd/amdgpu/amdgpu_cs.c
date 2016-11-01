@@ -216,11 +216,8 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 	if (ret)
 		goto free_all_kdata;
 
-	if (p->uf_entry.robj) {
-		p->job->uf_bo = amdgpu_bo_ref(p->uf_entry.robj);
-		p->job->uf_offset = uf_offset;
-	}
-
+	if (p->uf_entry.robj)
+		p->job->uf_addr = uf_offset;
 	kfree(chunk_array);
 	return 0;
 
@@ -459,7 +456,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		list_splice(&need_pages, &p->validated);
 	}
 
-	amdgpu_vm_get_pt_bos(&fpriv->vm, &duplicates);
+	amdgpu_vm_get_pt_bos(p->adev, &fpriv->vm, &duplicates);
 
 	p->bytes_moved_threshold = amdgpu_cs_get_threshold_for_moves(p->adev);
 	p->bytes_moved = 0;
@@ -471,6 +468,9 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	r = amdgpu_cs_list_validate(p, &p->validated);
 	if (r)
 		goto error_validate;
+
+	fpriv->vm.last_eviction_counter =
+		atomic64_read(&p->adev->num_evictions);
 
 	if (p->bo_list) {
 		struct amdgpu_bo *gds = p->bo_list->gds_obj;
@@ -498,6 +498,9 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 			p->job->oa_size = amdgpu_bo_size(oa);
 		}
 	}
+
+	if (p->uf_entry.robj)
+		p->job->uf_addr += amdgpu_bo_gpu_offset(p->uf_entry.robj);
 
 error_validate:
 	if (r) {
@@ -653,18 +656,21 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 
 	/* Only for UVD/VCE VM emulation */
 	if (ring->funcs->parse_cs) {
+		p->job->vm = NULL;
 		for (i = 0; i < p->job->num_ibs; i++) {
 			r = amdgpu_ring_parse_cs(ring, p, i);
 			if (r)
 				return r;
 		}
+	} else {
+		p->job->vm_pd_addr = amdgpu_bo_gpu_offset(vm->page_directory);
+
+		r = amdgpu_bo_vm_update_pte(p, vm);
+		if (r)
+			return r;
 	}
 
-	r = amdgpu_bo_vm_update_pte(p, vm);
-	if (!r)
-		amdgpu_cs_sync_rings(p);
-
-	return r;
+	return amdgpu_cs_sync_rings(p);
 }
 
 static int amdgpu_cs_handle_lockup(struct amdgpu_device *adev, int r)
@@ -761,7 +767,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 	}
 
 	/* UVD & VCE fw doesn't support user fences */
-	if (parser->job->uf_bo && (
+	if (parser->job->uf_addr && (
 	    parser->job->ring->type == AMDGPU_RING_TYPE_UVD ||
 	    parser->job->ring->type == AMDGPU_RING_TYPE_VCE))
 		return -EINVAL;
@@ -830,17 +836,13 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 {
 	struct amdgpu_ring *ring = p->job->ring;
 	struct amd_sched_entity *entity = &p->ctx->rings[ring->idx].entity;
-	struct fence *fence;
 	struct amdgpu_job *job;
 	int r;
 
 	job = p->job;
 	p->job = NULL;
 
-	r = amd_sched_job_init(&job->base, &ring->sched,
-			       entity, amdgpu_job_timeout_func,
-			       amdgpu_job_free_func,
-			       p->filp, &fence);
+	r = amd_sched_job_init(&job->base, &ring->sched, entity, p->filp);
 	if (r) {
 		amdgpu_job_free(job);
 		return r;
@@ -848,9 +850,10 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 
 	job->owner = p->filp;
 	job->ctx = entity->fence_context;
-	p->fence = fence_get(fence);
-	cs->out.handle = amdgpu_ctx_add_fence(p->ctx, ring, fence);
+	p->fence = fence_get(&job->base.s_fence->finished);
+	cs->out.handle = amdgpu_ctx_add_fence(p->ctx, ring, p->fence);
 	job->uf_sequence = cs->out.handle;
+	amdgpu_job_free_resources(job);
 
 	trace_amdgpu_cs_ioctl(job);
 	amd_sched_entity_push_job(&job->base);

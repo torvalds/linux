@@ -228,7 +228,8 @@ int __init opal_event_init(void)
 		}
 
 		/* Install interrupt handler */
-		rc = request_irq(virq, opal_interrupt, 0, "opal", NULL);
+		rc = request_irq(virq, opal_interrupt, IRQF_TRIGGER_LOW,
+				 "opal", NULL);
 		if (rc) {
 			irq_dispose_mapping(virq);
 			pr_warn("Error %d requesting irq %d (0x%x)\n",

@@ -45,9 +45,11 @@
 
 #include "hard-interface.h"
 #include "hash.h"
+#include "log.h"
 #include "originator.h"
 #include "send.h"
 #include "translation-table.h"
+#include "tvlv.h"
 
 static void batadv_dat_purge(struct work_struct *work);
 

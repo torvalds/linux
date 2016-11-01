@@ -585,3 +585,10 @@ in your dentry operations instead.
 	in the instances.  Rationale: !@#!@# security_d_instantiate() needs to be
 	called before we attach dentry to inode and !@#!@##!@$!$#!@#$!@$!@$ smack
 	->d_instantiate() uses not just ->getxattr() but ->setxattr() as well.
+--
+[mandatory]
+	->d_compare() doesn't get parent as a separate argument anymore.  If you
+	used it for finding the struct super_block involved, dentry->d_sb will
+	work just as well; if it's something more complicated, use dentry->d_parent.
+	Just be careful not to assume that fetching it more than once will yield
+	the same value - in RCU mode it could change under you.

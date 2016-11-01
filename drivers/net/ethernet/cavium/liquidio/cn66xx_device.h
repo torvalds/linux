@@ -82,8 +82,6 @@ void lio_cn6xxx_setup_iq_regs(struct octeon_device *oct, u32 iq_no);
 void lio_cn6xxx_setup_oq_regs(struct octeon_device *oct, u32 oq_no);
 void lio_cn6xxx_enable_io_queues(struct octeon_device *oct);
 void lio_cn6xxx_disable_io_queues(struct octeon_device *oct);
-void lio_cn6xxx_process_pcie_error_intr(struct octeon_device *oct, u64 intr64);
-int lio_cn6xxx_process_droq_intr_regs(struct octeon_device *oct);
 irqreturn_t lio_cn6xxx_process_interrupt_regs(void *dev);
 void lio_cn6xxx_reinit_regs(struct octeon_device *oct);
 void lio_cn6xxx_bar1_idx_setup(struct octeon_device *oct, u64 core_addr,
@@ -91,8 +89,7 @@ void lio_cn6xxx_bar1_idx_setup(struct octeon_device *oct, u64 core_addr,
 void lio_cn6xxx_bar1_idx_write(struct octeon_device *oct, u32 idx, u32 mask);
 u32 lio_cn6xxx_bar1_idx_read(struct octeon_device *oct, u32 idx);
 u32
-lio_cn6xxx_update_read_index(struct octeon_device *oct __attribute__((unused)),
-			     struct octeon_instr_queue *iq);
+lio_cn6xxx_update_read_index(struct octeon_instr_queue *iq);
 void lio_cn6xxx_enable_interrupt(void *chip);
 void lio_cn6xxx_disable_interrupt(void *chip);
 void cn6xxx_get_pcie_qlmport(struct octeon_device *oct);

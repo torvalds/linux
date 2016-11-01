@@ -977,7 +977,37 @@ static void emac_set_multicast_list(struct net_device *ndev)
 		dev->mcast_pending = 1;
 		return;
 	}
+
+	mutex_lock(&dev->link_lock);
 	__emac_set_multicast_list(dev);
+	mutex_unlock(&dev->link_lock);
+}
+
+static int emac_set_mac_address(struct net_device *ndev, void *sa)
+{
+	struct emac_instance *dev = netdev_priv(ndev);
+	struct sockaddr *addr = sa;
+	struct emac_regs __iomem *p = dev->emacp;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+	       return -EADDRNOTAVAIL;
+
+	mutex_lock(&dev->link_lock);
+
+	memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
+
+	emac_rx_disable(dev);
+	emac_tx_disable(dev);
+	out_be32(&p->iahr, (ndev->dev_addr[0] << 8) | ndev->dev_addr[1]);
+	out_be32(&p->ialr, (ndev->dev_addr[2] << 24) |
+		(ndev->dev_addr[3] << 16) | (ndev->dev_addr[4] << 8) |
+		ndev->dev_addr[5]);
+	emac_tx_enable(dev);
+	emac_rx_enable(dev);
+
+	mutex_unlock(&dev->link_lock);
+
+	return 0;
 }
 
 static int emac_resize_rx_ring(struct emac_instance *dev, int new_mtu)
@@ -2686,7 +2716,7 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_do_ioctl		= emac_ioctl,
 	.ndo_tx_timeout		= emac_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_set_mac_address	= emac_set_mac_address,
 	.ndo_start_xmit		= emac_start_xmit,
 	.ndo_change_mtu		= eth_change_mtu,
 };
@@ -2699,7 +2729,7 @@ static const struct net_device_ops emac_gige_netdev_ops = {
 	.ndo_do_ioctl		= emac_ioctl,
 	.ndo_tx_timeout		= emac_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_set_mac_address	= emac_set_mac_address,
 	.ndo_start_xmit		= emac_start_xmit_sg,
 	.ndo_change_mtu		= emac_change_mtu,
 };

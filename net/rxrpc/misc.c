@@ -15,6 +15,12 @@
 #include "ar-internal.h"
 
 /*
+ * The maximum listening backlog queue size that may be set on a socket by
+ * listen().
+ */
+unsigned int rxrpc_max_backlog __read_mostly = 10;
+
+/*
  * How long to wait before scheduling ACK generation after seeing a
  * packet with RXRPC_REQUEST_ACK set (in jiffies).
  */

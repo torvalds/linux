@@ -279,6 +279,7 @@ struct nicvf {
 	u8			sqs_id;
 	bool                    sqs_mode;
 	bool			hw_tso;
+	bool			t88;
 
 	/* Receive buffer alloc */
 	u32			rb_page_offset;

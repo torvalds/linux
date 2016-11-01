@@ -4093,7 +4093,7 @@ static const char *ipw_get_status_code(u16 status)
 	return "Unknown status value.";
 }
 
-static void inline average_init(struct average *avg)
+static inline void average_init(struct average *avg)
 {
 	memset(avg, 0, sizeof(*avg));
 }

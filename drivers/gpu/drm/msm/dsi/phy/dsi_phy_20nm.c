@@ -145,6 +145,8 @@ const struct msm_dsi_phy_cfg dsi_phy_20nm_cfgs = {
 	.ops = {
 		.enable = dsi_20nm_phy_enable,
 		.disable = dsi_20nm_phy_disable,
-	}
+	},
+	.io_start = { 0xfd998300, 0xfd9a0300 },
+	.num_dsi_phy = 2,
 };
 

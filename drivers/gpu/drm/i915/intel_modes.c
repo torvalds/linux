@@ -82,7 +82,7 @@ void
 intel_attach_force_audio_property(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_property *prop;
 
 	prop = dev_priv->force_audio_property;
@@ -109,7 +109,7 @@ void
 intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_property *prop;
 
 	prop = dev_priv->broadcast_rgb_property;

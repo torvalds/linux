@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -150,8 +146,8 @@ struct lu_context_key vvp_session_key = {
 	.lct_fini = vvp_session_key_fini
 };
 
-void *vvp_thread_key_init(const struct lu_context *ctx,
-			  struct lu_context_key *key)
+static void *vvp_thread_key_init(const struct lu_context *ctx,
+				 struct lu_context_key *key)
 {
 	struct vvp_thread_info *vti;
 
@@ -161,8 +157,8 @@ void *vvp_thread_key_init(const struct lu_context *ctx,
 	return vti;
 }
 
-void vvp_thread_key_fini(const struct lu_context *ctx,
-			 struct lu_context_key *key, void *data)
+static void vvp_thread_key_fini(const struct lu_context *ctx,
+				struct lu_context_key *key, void *data)
 {
 	struct vvp_thread_info *vti = data;
 
@@ -564,7 +560,7 @@ static int vvp_pgcache_show(struct seq_file *f, void *v)
 
 	env = cl_env_get(&refcheck);
 	if (!IS_ERR(env)) {
-		pos = *(loff_t *) v;
+		pos = *(loff_t *)v;
 		vvp_pgcache_id_unpack(pos, &id);
 		sbi = f->private;
 		clob = vvp_pgcache_obj(env, &sbi->ll_cl->cd_lu_dev, &id);

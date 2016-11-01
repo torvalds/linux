@@ -24,7 +24,7 @@
 #include <linux/qed/qed_eth_if.h>
 
 #define QEDE_MAJOR_VERSION		8
-#define QEDE_MINOR_VERSION		7
+#define QEDE_MINOR_VERSION		10
 #define QEDE_REVISION_VERSION		1
 #define QEDE_ENGINEERING_VERSION	20
 #define DRV_MODULE_VERSION __stringify(QEDE_MAJOR_VERSION) "."	\
@@ -143,6 +143,8 @@ struct qede_dev {
 	struct mutex			qede_lock;
 	u32				state; /* Protected by qede_lock */
 	u16				rx_buf_size;
+	u32				rx_copybreak;
+
 	/* L2 header size + 2*VLANs (8 bytes) + LLC SNAP (8 bytes) */
 #define ETH_OVERHEAD			(ETH_HLEN + 8 + 8)
 	/* Max supported alignment is 256 (8 shift)
@@ -235,6 +237,7 @@ struct qede_rx_queue {
 
 	u64			rx_hw_errors;
 	u64			rx_alloc_errors;
+	u64			rx_ip_frags;
 };
 
 union db_prod {
@@ -304,6 +307,9 @@ union qede_reload_args {
 	u16 mtu;
 };
 
+#ifdef CONFIG_DCB
+void qede_set_dcbnl_ops(struct net_device *ndev);
+#endif
 void qede_config_debug(uint debug, u32 *p_dp_module, u8 *p_dp_level);
 void qede_set_ethtool_ops(struct net_device *netdev);
 void qede_reload(struct qede_dev *edev,
@@ -329,6 +335,7 @@ void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, struct qede_dev *edev,
 #define NUM_TX_BDS_MIN		128
 #define NUM_TX_BDS_DEF		NUM_TX_BDS_MAX
 
+#define QEDE_MIN_PKT_LEN	64
 #define QEDE_RX_HDR_SIZE	256
 #define	for_each_rss(i) for (i = 0; i < edev->num_rss; i++)
 

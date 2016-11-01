@@ -378,8 +378,7 @@ static void acpi_table_attr_init(struct acpi_table_attr *table_attr,
 	return;
 }
 
-static acpi_status
-acpi_sysfs_table_handler(u32 event, void *table, void *context)
+acpi_status acpi_sysfs_table_handler(u32 event, void *table, void *context)
 {
 	struct acpi_table_attr *table_attr;
 
@@ -452,9 +451,8 @@ static int acpi_tables_sysfs_init(void)
 
 	kobject_uevent(tables_kobj, KOBJ_ADD);
 	kobject_uevent(dynamic_tables_kobj, KOBJ_ADD);
-	status = acpi_install_table_handler(acpi_sysfs_table_handler, NULL);
 
-	return ACPI_FAILURE(status) ? -EINVAL : 0;
+	return 0;
 err_dynamic_tables:
 	kobject_put(tables_kobj);
 err:

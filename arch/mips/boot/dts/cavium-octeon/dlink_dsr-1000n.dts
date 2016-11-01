@@ -9,6 +9,7 @@
  */
 
 /include/ "octeon_3xxx.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "dlink,dsr-1000n";
@@ -63,12 +64,27 @@
 
 		usb1 {
 			label = "usb1";
-			gpios = <&gpio 9 1>; /* Active low */
+			gpios = <&gpio 9 GPIO_ACTIVE_LOW>;
 		};
 
 		usb2 {
 			label = "usb2";
-			gpios = <&gpio 10 1>; /* Active low */
+			gpios = <&gpio 10 GPIO_ACTIVE_LOW>;
+		};
+
+		wps {
+			label = "wps";
+			gpios = <&gpio 11 GPIO_ACTIVE_LOW>;
+		};
+
+		wireless1 {
+			label = "5g";
+			gpios = <&gpio 17 GPIO_ACTIVE_LOW>;
+		};
+
+		wireless2 {
+			label = "2.4g";
+			gpios = <&gpio 18 GPIO_ACTIVE_LOW>;
 		};
 	};
 

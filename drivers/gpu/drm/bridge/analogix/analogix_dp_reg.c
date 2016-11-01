@@ -74,8 +74,12 @@ void analogix_dp_init_analog_param(struct analogix_dp_device *dp)
 	reg = SEL_24M | TX_DVDD_BIT_1_0625V;
 	writel(reg, dp->reg_base + ANALOGIX_DP_ANALOG_CTL_2);
 
-	if (dp->plat_data && (dp->plat_data->dev_type == RK3288_DP)) {
-		writel(REF_CLK_24M, dp->reg_base + ANALOGIX_DP_PLL_REG_1);
+	if (dp->plat_data && is_rockchip(dp->plat_data->dev_type)) {
+		reg = REF_CLK_24M;
+		if (dp->plat_data->dev_type == RK3288_DP)
+			reg ^= REF_CLK_MASK;
+
+		writel(reg, dp->reg_base + ANALOGIX_DP_PLL_REG_1);
 		writel(0x95, dp->reg_base + ANALOGIX_DP_PLL_REG_2);
 		writel(0x40, dp->reg_base + ANALOGIX_DP_PLL_REG_3);
 		writel(0x58, dp->reg_base + ANALOGIX_DP_PLL_REG_4);
@@ -244,7 +248,7 @@ void analogix_dp_set_analog_power_down(struct analogix_dp_device *dp,
 	u32 reg;
 	u32 phy_pd_addr = ANALOGIX_DP_PHY_PD;
 
-	if (dp->plat_data && (dp->plat_data->dev_type == RK3288_DP))
+	if (dp->plat_data && is_rockchip(dp->plat_data->dev_type))
 		phy_pd_addr = ANALOGIX_DP_PD;
 
 	switch (block) {
@@ -448,7 +452,7 @@ void analogix_dp_init_aux(struct analogix_dp_device *dp)
 	analogix_dp_reset_aux(dp);
 
 	/* Disable AUX transaction H/W retry */
-	if (dp->plat_data && (dp->plat_data->dev_type == RK3288_DP))
+	if (dp->plat_data && is_rockchip(dp->plat_data->dev_type))
 		reg = AUX_BIT_PERIOD_EXPECTED_DELAY(0) |
 		      AUX_HW_RETRY_COUNT_SEL(3) |
 		      AUX_HW_RETRY_INTERVAL_600_MICROSECONDS;

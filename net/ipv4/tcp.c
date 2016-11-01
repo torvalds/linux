@@ -2277,6 +2277,38 @@ static inline bool tcp_can_repair_sock(const struct sock *sk)
 		((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_ESTABLISHED));
 }
 
+static int tcp_repair_set_window(struct tcp_sock *tp, char __user *optbuf, int len)
+{
+	struct tcp_repair_window opt;
+
+	if (!tp->repair)
+		return -EPERM;
+
+	if (len != sizeof(opt))
+		return -EINVAL;
+
+	if (copy_from_user(&opt, optbuf, sizeof(opt)))
+		return -EFAULT;
+
+	if (opt.max_window < opt.snd_wnd)
+		return -EINVAL;
+
+	if (after(opt.snd_wl1, tp->rcv_nxt + opt.rcv_wnd))
+		return -EINVAL;
+
+	if (after(opt.rcv_wup, tp->rcv_nxt))
+		return -EINVAL;
+
+	tp->snd_wl1	= opt.snd_wl1;
+	tp->snd_wnd	= opt.snd_wnd;
+	tp->max_window	= opt.max_window;
+
+	tp->rcv_wnd	= opt.rcv_wnd;
+	tp->rcv_wup	= opt.rcv_wup;
+
+	return 0;
+}
+
 static int tcp_repair_options_est(struct tcp_sock *tp,
 		struct tcp_repair_opt __user *optbuf, unsigned int len)
 {
@@ -2604,6 +2636,9 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		else
 			tp->tsoffset = val - tcp_time_stamp;
 		break;
+	case TCP_REPAIR_WINDOW:
+		err = tcp_repair_set_window(tp, optval, optlen);
+		break;
 	case TCP_NOTSENT_LOWAT:
 		tp->notsent_lowat = val;
 		sk->sk_write_space(sk);
@@ -2860,6 +2895,28 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 			return -EINVAL;
 		break;
 
+	case TCP_REPAIR_WINDOW: {
+		struct tcp_repair_window opt;
+
+		if (get_user(len, optlen))
+			return -EFAULT;
+
+		if (len != sizeof(opt))
+			return -EINVAL;
+
+		if (!tp->repair)
+			return -EPERM;
+
+		opt.snd_wl1	= tp->snd_wl1;
+		opt.snd_wnd	= tp->snd_wnd;
+		opt.max_window	= tp->max_window;
+		opt.rcv_wnd	= tp->rcv_wnd;
+		opt.rcv_wup	= tp->rcv_wup;
+
+		if (copy_to_user(optval, &opt, len))
+			return -EFAULT;
+		return 0;
+	}
 	case TCP_QUEUE_SEQ:
 		if (tp->repair_queue == TCP_SEND_QUEUE)
 			val = tp->write_seq;
@@ -2969,8 +3026,18 @@ static void __tcp_alloc_md5sig_pool(void)
 		return;
 
 	for_each_possible_cpu(cpu) {
+		void *scratch = per_cpu(tcp_md5sig_pool, cpu).scratch;
 		struct ahash_request *req;
 
+		if (!scratch) {
+			scratch = kmalloc_node(sizeof(union tcp_md5sum_block) +
+					       sizeof(struct tcphdr),
+					       GFP_KERNEL,
+					       cpu_to_node(cpu));
+			if (!scratch)
+				return;
+			per_cpu(tcp_md5sig_pool, cpu).scratch = scratch;
+		}
 		if (per_cpu(tcp_md5sig_pool, cpu).md5_req)
 			continue;
 
@@ -3126,7 +3193,6 @@ int tcp_abort(struct sock *sk, int err)
 			local_bh_enable();
 			return 0;
 		}
-		sock_gen_put(sk);
 		return -EOPNOTSUPP;
 	}
 
@@ -3155,7 +3221,6 @@ int tcp_abort(struct sock *sk, int err)
 	bh_unlock_sock(sk);
 	local_bh_enable();
 	release_sock(sk);
-	sock_put(sk);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tcp_abort);

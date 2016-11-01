@@ -4,6 +4,11 @@ TODO:
 - remove custom debug and tracing functions
 - rework comments and function headers(also coding style)
 - replace all semaphores with mutexes or completions
+- Move handling for each individual members of 'union message_body' out
+  into a separate 'struct work_struct' and completely remove the multiplexer
+  that is currently part of host_if_work(), allowing movement of the
+  implementation of each message handler into the callsite of the function
+  that currently queues the 'host_if_msg'.
 - make spi and sdio components coexist in one build
 - turn compile-time platform configuration (BEAGLE_BOARD,
   PANDA_BOARD, PLAT_WMS8304, PLAT_RKXXXX, CUSTOMER_PLATFORM, ...)

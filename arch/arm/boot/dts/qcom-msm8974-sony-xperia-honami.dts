@@ -367,6 +367,10 @@
 		};
 
 	};
+
+	dma-controller@f9944000 {
+		qcom,controlled-remotely;
+	};
 };
 
 &spmi_bus {

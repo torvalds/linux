@@ -73,7 +73,7 @@ static const char * const board[] __initconst = {
  */
 static int __init mpc837x_rdb_probe(void)
 {
-	return of_flat_dt_match(of_get_flat_dt_root(), board);
+	return of_device_compatible_match(of_root, board);
 }
 
 define_machine(mpc837x_rdb) {

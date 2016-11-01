@@ -454,7 +454,11 @@ static void CfgScanResult(enum scan_event scan_event,
 			mutex_lock(&priv->scan_req_lock);
 
 			if (priv->pstrScanReq) {
-				cfg80211_scan_done(priv->pstrScanReq, false);
+				struct cfg80211_scan_info info = {
+					.aborted = false,
+				};
+
+				cfg80211_scan_done(priv->pstrScanReq, &info);
 				priv->u32RcvdChCount = 0;
 				priv->bCfgScanning = false;
 				priv->pstrScanReq = NULL;
@@ -464,10 +468,14 @@ static void CfgScanResult(enum scan_event scan_event,
 			mutex_lock(&priv->scan_req_lock);
 
 			if (priv->pstrScanReq) {
+				struct cfg80211_scan_info info = {
+					.aborted = false,
+				};
+
 				update_scan_time();
 				refresh_scan(priv, 1, false);
 
-				cfg80211_scan_done(priv->pstrScanReq, false);
+				cfg80211_scan_done(priv->pstrScanReq, &info);
 				priv->bCfgScanning = false;
 				priv->pstrScanReq = NULL;
 			}
@@ -625,8 +633,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 
 
 			for (i = 0; i < request->n_ssids; i++) {
-				if (request->ssids[i].ssid &&
-				    request->ssids[i].ssid_len != 0) {
+				if (request->ssids[i].ssid_len != 0) {
 					strHiddenNetwork.net_info[i].ssid = kmalloc(request->ssids[i].ssid_len, GFP_KERNEL);
 					memcpy(strHiddenNetwork.net_info[i].ssid, request->ssids[i].ssid, request->ssids[i].ssid_len);
 					strHiddenNetwork.net_info[i].ssid_len = request->ssids[i].ssid_len;
@@ -1184,7 +1191,7 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 	struct wilc_priv *priv;
 	struct wilc_vif *vif;
 	u32 i = 0;
-	u32 associatedsta = 0;
+	u32 associatedsta = ~0;
 	u32 inactive_time = 0;
 	priv = wiphy_priv(wiphy);
 	vif = netdev_priv(dev);
@@ -1197,7 +1204,7 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 			}
 		}
 
-		if (associatedsta == -1) {
+		if (associatedsta == ~0) {
 			netdev_err(dev, "sta required is not associated\n");
 			return -ENOENT;
 		}

@@ -81,7 +81,7 @@ static loff_t zisofs_uncompress_block(struct inode *inode, loff_t block_start,
 	blocknum = block_start >> bufshift;
 	memset(bhs, 0, (needblocks + 1) * sizeof(struct buffer_head *));
 	haveblocks = isofs_get_blocks(inode, blocknum, bhs, needblocks);
-	ll_rw_block(READ, haveblocks, bhs);
+	ll_rw_block(REQ_OP_READ, 0, haveblocks, bhs);
 
 	curbh = 0;
 	curpage = 0;
@@ -361,7 +361,6 @@ static int zisofs_readpage(struct file *file, struct page *page)
 
 const struct address_space_operations zisofs_aops = {
 	.readpage = zisofs_readpage,
-	/* No sync_page operation supported? */
 	/* No bmap operation supported */
 };
 

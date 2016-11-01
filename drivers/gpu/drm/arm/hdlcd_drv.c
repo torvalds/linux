@@ -102,21 +102,14 @@ static void hdlcd_fb_output_poll_changed(struct drm_device *drm)
 {
 	struct hdlcd_drm_private *hdlcd = drm->dev_private;
 
-	if (hdlcd->fbdev)
-		drm_fbdev_cma_hotplug_event(hdlcd->fbdev);
-}
-
-static int hdlcd_atomic_commit(struct drm_device *dev,
-			       struct drm_atomic_state *state, bool nonblock)
-{
-	return drm_atomic_helper_commit(dev, state, false);
+	drm_fbdev_cma_hotplug_event(hdlcd->fbdev);
 }
 
 static const struct drm_mode_config_funcs hdlcd_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
 	.output_poll_changed = hdlcd_fb_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = hdlcd_atomic_commit,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static void hdlcd_setup_mode_config(struct drm_device *drm)
@@ -296,7 +289,7 @@ static struct drm_driver hdlcd_driver = {
 	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = hdlcd_enable_vblank,
 	.disable_vblank = hdlcd_disable_vblank,
-	.gem_free_object = drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
 	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
@@ -344,14 +337,10 @@ static int hdlcd_drm_bind(struct device *dev)
 	if (ret)
 		goto err_free;
 
-	ret = drm_dev_register(drm, 0);
-	if (ret)
-		goto err_unload;
-
 	ret = component_bind_all(dev, drm);
 	if (ret) {
 		DRM_ERROR("Failed to bind all components\n");
-		goto err_unregister;
+		goto err_unload;
 	}
 
 	ret = pm_runtime_set_active(dev);
@@ -378,8 +367,17 @@ static int hdlcd_drm_bind(struct device *dev)
 		goto err_fbdev;
 	}
 
+	ret = drm_dev_register(drm, 0);
+	if (ret)
+		goto err_register;
+
 	return 0;
 
+err_register:
+	if (hdlcd->fbdev) {
+		drm_fbdev_cma_fini(hdlcd->fbdev);
+		hdlcd->fbdev = NULL;
+	}
 err_fbdev:
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
@@ -388,8 +386,6 @@ err_vblank:
 	pm_runtime_disable(drm->dev);
 err_pm_active:
 	component_unbind_all(dev, drm);
-err_unregister:
-	drm_dev_unregister(drm);
 err_unload:
 	drm_irq_uninstall(drm);
 	of_reserved_mem_device_release(drm->dev);
@@ -405,6 +401,7 @@ static void hdlcd_drm_unbind(struct device *dev)
 	struct drm_device *drm = dev_get_drvdata(dev);
 	struct hdlcd_drm_private *hdlcd = drm->dev_private;
 
+	drm_dev_unregister(drm);
 	if (hdlcd->fbdev) {
 		drm_fbdev_cma_fini(hdlcd->fbdev);
 		hdlcd->fbdev = NULL;
@@ -418,7 +415,6 @@ static void hdlcd_drm_unbind(struct device *dev)
 	pm_runtime_disable(drm->dev);
 	of_reserved_mem_device_release(drm->dev);
 	drm_mode_config_cleanup(drm);
-	drm_dev_unregister(drm);
 	drm_dev_unref(drm);
 	drm->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);

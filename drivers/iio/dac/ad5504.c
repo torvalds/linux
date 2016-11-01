@@ -223,7 +223,7 @@ static irqreturn_t ad5504_event_handler(int irq, void *private)
 					    0,
 					    IIO_EV_TYPE_THRESH,
 					    IIO_EV_DIR_RISING),
-		       iio_get_time_ns());
+		       iio_get_time_ns((struct iio_dev *)private));
 
 	return IRQ_HANDLED;
 }

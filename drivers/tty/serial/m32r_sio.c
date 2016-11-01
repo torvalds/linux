@@ -30,7 +30,6 @@
 #define SUPPORT_SYSRQ
 #endif
 
-#include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/ioport.h>
@@ -50,9 +49,6 @@
 #include "m32r_sio_reg.h"
 
 #define PASS_LIMIT	256
-
-/* Standard COM flags */
-#define STD_COM_FLAGS (UPF_BOOT_AUTOCONF | UPF_SKIP_TEST)
 
 static const struct {
 	unsigned int port;
@@ -892,7 +888,7 @@ static void __init m32r_sio_init_ports(void)
 		up->port.iobase   = old_serial_port[i].port;
 		up->port.irq      = irq_canonicalize(old_serial_port[i].irq);
 		up->port.uartclk  = BAUD_RATE * 16;
-		up->port.flags    = STD_COM_FLAGS;
+		up->port.flags    = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST;
 		up->port.membase  = 0;
 		up->port.iotype   = 0;
 		up->port.regshift = 0;
@@ -1060,19 +1056,4 @@ static int __init m32r_sio_init(void)
 
 	return ret;
 }
-
-static void __exit m32r_sio_exit(void)
-{
-	int i;
-
-	for (i = 0; i < UART_NR; i++)
-		uart_remove_one_port(&m32r_sio_reg, &m32r_sio_ports[i].port);
-
-	uart_unregister_driver(&m32r_sio_reg);
-}
-
-module_init(m32r_sio_init);
-module_exit(m32r_sio_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Generic M32R SIO serial driver");
+device_initcall(m32r_sio_init);

@@ -138,7 +138,6 @@ struct isert_conn {
 	u32			responder_resources;
 	u32			initiator_depth;
 	bool			pi_support;
-	u32			max_sge;
 	struct iser_rx_desc	*login_req_buf;
 	char			*login_rsp_buf;
 	u64			login_req_dma;
@@ -159,6 +158,8 @@ struct isert_conn {
 	struct work_struct	release_work;
 	bool                    logout_posted;
 	bool                    snd_w_inv;
+	wait_queue_head_t	rem_wait;
+	bool			dev_removed;
 };
 
 #define ISERT_MAX_CQ 64

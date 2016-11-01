@@ -116,19 +116,19 @@ static struct clocksource arc_counter_gfrc = {
 	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static void __init arc_cs_setup_gfrc(struct device_node *node)
+static int __init arc_cs_setup_gfrc(struct device_node *node)
 {
 	int exists = cpuinfo_arc700[0].extn.gfrc;
 	int ret;
 
 	if (WARN(!exists, "Global-64-bit-Ctr clocksource not detected"))
-		return;
+		return -ENXIO;
 
 	ret = arc_get_timer_clk(node);
 	if (ret)
-		return;
+		return ret;
 
-	clocksource_register_hz(&arc_counter_gfrc, arc_timer_freq);
+	return clocksource_register_hz(&arc_counter_gfrc, arc_timer_freq);
 }
 CLOCKSOURCE_OF_DECLARE(arc_gfrc, "snps,archs-timer-gfrc", arc_cs_setup_gfrc);
 
@@ -172,25 +172,25 @@ static struct clocksource arc_counter_rtc = {
 	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static void __init arc_cs_setup_rtc(struct device_node *node)
+static int __init arc_cs_setup_rtc(struct device_node *node)
 {
 	int exists = cpuinfo_arc700[smp_processor_id()].extn.rtc;
 	int ret;
 
 	if (WARN(!exists, "Local-64-bit-Ctr clocksource not detected"))
-		return;
+		return -ENXIO;
 
 	/* Local to CPU hence not usable in SMP */
 	if (WARN(IS_ENABLED(CONFIG_SMP), "Local-64-bit-Ctr not usable in SMP"))
-		return;
+		return -EINVAL;
 
 	ret = arc_get_timer_clk(node);
 	if (ret)
-		return;
+		return ret;
 
 	write_aux_reg(AUX_RTC_CTRL, 1);
 
-	clocksource_register_hz(&arc_counter_rtc, arc_timer_freq);
+	return clocksource_register_hz(&arc_counter_rtc, arc_timer_freq);
 }
 CLOCKSOURCE_OF_DECLARE(arc_rtc, "snps,archs-timer-rtc", arc_cs_setup_rtc);
 
@@ -213,23 +213,23 @@ static struct clocksource arc_counter_timer1 = {
 	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static void __init arc_cs_setup_timer1(struct device_node *node)
+static int __init arc_cs_setup_timer1(struct device_node *node)
 {
 	int ret;
 
 	/* Local to CPU hence not usable in SMP */
 	if (IS_ENABLED(CONFIG_SMP))
-		return;
+		return -EINVAL;
 
 	ret = arc_get_timer_clk(node);
 	if (ret)
-		return;
+		return ret;
 
 	write_aux_reg(ARC_REG_TIMER1_LIMIT, ARC_TIMER_MAX);
 	write_aux_reg(ARC_REG_TIMER1_CNT, 0);
 	write_aux_reg(ARC_REG_TIMER1_CTRL, TIMER_CTRL_NH);
 
-	clocksource_register_hz(&arc_counter_timer1, arc_timer_freq);
+	return clocksource_register_hz(&arc_counter_timer1, arc_timer_freq);
 }
 
 /********** Clock Event Device *********/
@@ -296,73 +296,76 @@ static irqreturn_t timer_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int arc_timer_cpu_notify(struct notifier_block *self,
-				unsigned long action, void *hcpu)
+
+static int arc_timer_starting_cpu(unsigned int cpu)
 {
 	struct clock_event_device *evt = this_cpu_ptr(&arc_clockevent_device);
 
 	evt->cpumask = cpumask_of(smp_processor_id());
 
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_STARTING:
-		clockevents_config_and_register(evt, arc_timer_freq,
-						0, ULONG_MAX);
-		enable_percpu_irq(arc_timer_irq, 0);
-		break;
-	case CPU_DYING:
-		disable_percpu_irq(arc_timer_irq);
-		break;
-	}
-
-	return NOTIFY_OK;
+	clockevents_config_and_register(evt, arc_timer_freq, 0, ARC_TIMER_MAX);
+	enable_percpu_irq(arc_timer_irq, 0);
+	return 0;
 }
 
-static struct notifier_block arc_timer_cpu_nb = {
-	.notifier_call = arc_timer_cpu_notify,
-};
+static int arc_timer_dying_cpu(unsigned int cpu)
+{
+	disable_percpu_irq(arc_timer_irq);
+	return 0;
+}
 
 /*
  * clockevent setup for boot CPU
  */
-static void __init arc_clockevent_setup(struct device_node *node)
+static int __init arc_clockevent_setup(struct device_node *node)
 {
 	struct clock_event_device *evt = this_cpu_ptr(&arc_clockevent_device);
 	int ret;
 
-	register_cpu_notifier(&arc_timer_cpu_nb);
-
 	arc_timer_irq = irq_of_parse_and_map(node, 0);
-	if (arc_timer_irq <= 0)
-		panic("clockevent: missing irq");
+	if (arc_timer_irq <= 0) {
+		pr_err("clockevent: missing irq");
+		return -EINVAL;
+	}
 
 	ret = arc_get_timer_clk(node);
-	if (ret)
-		panic("clockevent: missing clk");
-
-	evt->irq = arc_timer_irq;
-	evt->cpumask = cpumask_of(smp_processor_id());
-	clockevents_config_and_register(evt, arc_timer_freq,
-					0, ARC_TIMER_MAX);
+	if (ret) {
+		pr_err("clockevent: missing clk");
+		return ret;
+	}
 
 	/* Needs apriori irq_set_percpu_devid() done in intc map function */
 	ret = request_percpu_irq(arc_timer_irq, timer_irq_handler,
 				 "Timer0 (per-cpu-tick)", evt);
-	if (ret)
-		panic("clockevent: unable to request irq\n");
+	if (ret) {
+		pr_err("clockevent: unable to request irq\n");
+		return ret;
+	}
 
-	enable_percpu_irq(arc_timer_irq, 0);
+	ret = cpuhp_setup_state(CPUHP_AP_ARC_TIMER_STARTING,
+				"AP_ARC_TIMER_STARTING",
+				arc_timer_starting_cpu,
+				arc_timer_dying_cpu);
+	if (ret) {
+		pr_err("Failed to setup hotplug state");
+		return ret;
+	}
+	return 0;
 }
 
-static void __init arc_of_timer_init(struct device_node *np)
+static int __init arc_of_timer_init(struct device_node *np)
 {
 	static int init_count = 0;
+	int ret;
 
 	if (!init_count) {
 		init_count = 1;
-		arc_clockevent_setup(np);
+		ret = arc_clockevent_setup(np);
 	} else {
-		arc_cs_setup_timer1(np);
+		ret = arc_cs_setup_timer1(np);
 	}
+
+	return ret;
 }
 CLOCKSOURCE_OF_DECLARE(arc_clkevt, "snps,arc-timer", arc_of_timer_init);
 

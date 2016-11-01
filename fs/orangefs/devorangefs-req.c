@@ -116,6 +116,13 @@ static int orangefs_devreq_open(struct inode *inode, struct file *file)
 {
 	int ret = -EINVAL;
 
+	/* in order to ensure that the filesystem driver sees correct UIDs */
+	if (file->f_cred->user_ns != &init_user_ns) {
+		gossip_err("%s: device cannot be opened outside init_user_ns\n",
+			   __func__);
+		goto out;
+	}
+
 	if (!(file->f_flags & O_NONBLOCK)) {
 		gossip_err("%s: device cannot be opened in blocking mode\n",
 			   __func__);

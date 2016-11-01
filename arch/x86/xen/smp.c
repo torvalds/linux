@@ -322,6 +322,13 @@ static void __init xen_smp_prepare_boot_cpu(void)
 		xen_filter_cpu_maps();
 		xen_setup_vcpu_info_placement();
 	}
+
+	/*
+	 * Setup vcpu_info for boot CPU.
+	 */
+	if (xen_hvm_domain())
+		xen_vcpu_setup(0);
+
 	/*
 	 * The alternative logic (which patches the unlock/lock) runs before
 	 * the smp bootup up code is activated. Hence we need to set this up
@@ -454,7 +461,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 #endif
 	ctxt->user_regs.esp = idle->thread.sp0 - sizeof(struct pt_regs);
 	ctxt->ctrlreg[3] = xen_pfn_to_cr3(virt_to_gfn(swapper_pg_dir));
-	if (HYPERVISOR_vcpu_op(VCPUOP_initialise, cpu, ctxt))
+	if (HYPERVISOR_vcpu_op(VCPUOP_initialise, xen_vcpu_nr(cpu), ctxt))
 		BUG();
 
 	kfree(ctxt);
@@ -492,7 +499,7 @@ static int xen_cpu_up(unsigned int cpu, struct task_struct *idle)
 	if (rc)
 		return rc;
 
-	rc = HYPERVISOR_vcpu_op(VCPUOP_up, cpu, NULL);
+	rc = HYPERVISOR_vcpu_op(VCPUOP_up, xen_vcpu_nr(cpu), NULL);
 	BUG_ON(rc);
 
 	while (cpu_report_state(cpu) != CPU_ONLINE)
@@ -520,7 +527,8 @@ static int xen_cpu_disable(void)
 
 static void xen_cpu_die(unsigned int cpu)
 {
-	while (xen_pv_domain() && HYPERVISOR_vcpu_op(VCPUOP_is_up, cpu, NULL)) {
+	while (xen_pv_domain() && HYPERVISOR_vcpu_op(VCPUOP_is_up,
+						     xen_vcpu_nr(cpu), NULL)) {
 		__set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(HZ/10);
 	}
@@ -536,7 +544,7 @@ static void xen_cpu_die(unsigned int cpu)
 static void xen_play_dead(void) /* used only with HOTPLUG_CPU */
 {
 	play_dead_common();
-	HYPERVISOR_vcpu_op(VCPUOP_down, smp_processor_id(), NULL);
+	HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(smp_processor_id()), NULL);
 	cpu_bringup();
 	/*
 	 * commit 4b0c0f294 (tick: Cleanup NOHZ per cpu data on cpu down)
@@ -576,7 +584,7 @@ static void stop_self(void *v)
 
 	set_cpu_online(cpu, false);
 
-	HYPERVISOR_vcpu_op(VCPUOP_down, cpu, NULL);
+	HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(cpu), NULL);
 	BUG();
 }
 

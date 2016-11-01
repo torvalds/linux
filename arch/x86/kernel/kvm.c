@@ -21,7 +21,7 @@
  */
 
 #include <linux/context_tracking.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kvm_para.h>
 #include <linux/cpu.h>
@@ -300,8 +300,6 @@ static void kvm_register_steal_time(void)
 
 	if (!has_steal_clock)
 		return;
-
-	memset(st, 0, sizeof(*st));
 
 	wrmsrl(MSR_KVM_STEAL_TIME, (slow_virt_to_phys(st) | KVM_MSR_ENABLED));
 	pr_info("kvm-stealtime: cpu %d, msr %llx\n",

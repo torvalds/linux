@@ -80,6 +80,7 @@ MODULE_PARM_DESC(ql2xallocfwdump,
 
 int ql2xextended_error_logging;
 module_param(ql2xextended_error_logging, int, S_IRUGO|S_IWUSR);
+module_param_named(logging, ql2xextended_error_logging, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xextended_error_logging,
 		"Option to enable extended error logging,\n"
 		"\t\tDefault is 0 - no logging.  0x40000000 - Module Init & Probe.\n"
@@ -106,6 +107,7 @@ MODULE_PARM_DESC(ql2xshiftctondsd,
 
 int ql2xfdmienable=1;
 module_param(ql2xfdmienable, int, S_IRUGO|S_IWUSR);
+module_param_named(fdmi, ql2xfdmienable, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xfdmienable,
 		"Enables FDMI registrations. "
 		"0 - no FDMI. Default is 1 - perform FDMI.");
@@ -157,6 +159,7 @@ MODULE_PARM_DESC(ql2xmultique_tag,
 
 int ql2xfwloadbin;
 module_param(ql2xfwloadbin, int, S_IRUGO|S_IWUSR);
+module_param_named(fwload, ql2xfwloadbin, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xfwloadbin,
 		"Option to specify location from which to load ISP firmware:.\n"
 		" 2 -- load firmware via the request_firmware() (hotplug).\n"
@@ -894,12 +897,16 @@ static void
 qla2x00_wait_for_hba_ready(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
+	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
 	while (((qla2x00_reset_active(vha)) || ha->dpc_active ||
 	    ha->flags.mbox_busy) ||
 		test_bit(FX00_RESET_RECOVERY, &vha->dpc_flags) ||
-		test_bit(FX00_TARGET_SCAN, &vha->dpc_flags))
+		test_bit(FX00_TARGET_SCAN, &vha->dpc_flags)) {
+			if (test_bit(UNLOADING, &base_vha->dpc_flags))
+				break;
 		msleep(1000);
+	}
 }
 
 int
@@ -936,6 +943,30 @@ sp_get(struct srb *sp)
 	atomic_inc(&sp->ref_count);
 }
 
+#define ISP_REG_DISCONNECT 0xffffffffU
+/**************************************************************************
+* qla2x00_isp_reg_stat
+*
+* Description:
+*	Read the host status register of ISP before aborting the command.
+*
+* Input:
+*	ha = pointer to host adapter structure.
+*
+*
+* Returns:
+*	Either true or false.
+*
+* Note:	Return true if there is register disconnect.
+**************************************************************************/
+static inline
+uint32_t qla2x00_isp_reg_stat(struct qla_hw_data *ha)
+{
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	return ((RD_REG_DWORD(&reg->host_status)) == ISP_REG_DISCONNECT);
+}
+
 /**************************************************************************
 * qla2xxx_eh_abort
 *
@@ -963,6 +994,11 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	int rval, wait = 0;
 	struct qla_hw_data *ha = vha->hw;
 
+	if (qla2x00_isp_reg_stat(ha)) {
+		ql_log(ql_log_info, vha, 0x8042,
+		    "PCI/Register disconnect, exiting.\n");
+		return FAILED;
+	}
 	if (!CMD_SP(cmd))
 		return SUCCESS;
 
@@ -1146,6 +1182,12 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 	scsi_qla_host_t *vha = shost_priv(cmd->device->host);
 	struct qla_hw_data *ha = vha->hw;
 
+	if (qla2x00_isp_reg_stat(ha)) {
+		ql_log(ql_log_info, vha, 0x803e,
+		    "PCI/Register disconnect, exiting.\n");
+		return FAILED;
+	}
+
 	return __qla2xxx_eh_generic_reset("DEVICE", WAIT_LUN, cmd,
 	    ha->isp_ops->lun_reset);
 }
@@ -1155,6 +1197,12 @@ qla2xxx_eh_target_reset(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *vha = shost_priv(cmd->device->host);
 	struct qla_hw_data *ha = vha->hw;
+
+	if (qla2x00_isp_reg_stat(ha)) {
+		ql_log(ql_log_info, vha, 0x803f,
+		    "PCI/Register disconnect, exiting.\n");
+		return FAILED;
+	}
 
 	return __qla2xxx_eh_generic_reset("TARGET", WAIT_TARGET, cmd,
 	    ha->isp_ops->target_reset);
@@ -1183,6 +1231,13 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 	int ret = FAILED;
 	unsigned int id;
 	uint64_t lun;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (qla2x00_isp_reg_stat(ha)) {
+		ql_log(ql_log_info, vha, 0x8040,
+		    "PCI/Register disconnect, exiting.\n");
+		return FAILED;
+	}
 
 	id = cmd->device->id;
 	lun = cmd->device->lun;
@@ -1251,6 +1306,13 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 	unsigned int id;
 	uint64_t lun;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
+
+	if (qla2x00_isp_reg_stat(ha)) {
+		ql_log(ql_log_info, vha, 0x8041,
+		    "PCI/Register disconnect, exiting.\n");
+		schedule_work(&ha->board_disable);
+		return SUCCESS;
+	}
 
 	id = cmd->device->id;
 	lun = cmd->device->lun;
@@ -2103,27 +2165,27 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 	ha->device_type = DT_EXTENDED_IDS;
 	switch (ha->pdev->device) {
 	case PCI_DEVICE_ID_QLOGIC_ISP2100:
-		ha->device_type |= DT_ISP2100;
+		ha->isp_type |= DT_ISP2100;
 		ha->device_type &= ~DT_EXTENDED_IDS;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2100;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2200:
-		ha->device_type |= DT_ISP2200;
+		ha->isp_type |= DT_ISP2200;
 		ha->device_type &= ~DT_EXTENDED_IDS;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2100;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2300:
-		ha->device_type |= DT_ISP2300;
+		ha->isp_type |= DT_ISP2300;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2300;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2312:
-		ha->device_type |= DT_ISP2312;
+		ha->isp_type |= DT_ISP2312;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2300;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2322:
-		ha->device_type |= DT_ISP2322;
+		ha->isp_type |= DT_ISP2322;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		if (ha->pdev->subsystem_vendor == 0x1028 &&
 		    ha->pdev->subsystem_device == 0x0170)
@@ -2131,60 +2193,60 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		ha->fw_srisc_address = RISC_START_ADDRESS_2300;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP6312:
-		ha->device_type |= DT_ISP6312;
+		ha->isp_type |= DT_ISP6312;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2300;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP6322:
-		ha->device_type |= DT_ISP6322;
+		ha->isp_type |= DT_ISP6322;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2300;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2422:
-		ha->device_type |= DT_ISP2422;
+		ha->isp_type |= DT_ISP2422;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2432:
-		ha->device_type |= DT_ISP2432;
+		ha->isp_type |= DT_ISP2432;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP8432:
-		ha->device_type |= DT_ISP8432;
+		ha->isp_type |= DT_ISP8432;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP5422:
-		ha->device_type |= DT_ISP5422;
+		ha->isp_type |= DT_ISP5422;
 		ha->device_type |= DT_FWI2;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP5432:
-		ha->device_type |= DT_ISP5432;
+		ha->isp_type |= DT_ISP5432;
 		ha->device_type |= DT_FWI2;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2532:
-		ha->device_type |= DT_ISP2532;
+		ha->isp_type |= DT_ISP2532;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP8001:
-		ha->device_type |= DT_ISP8001;
+		ha->isp_type |= DT_ISP8001;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP8021:
-		ha->device_type |= DT_ISP8021;
+		ha->isp_type |= DT_ISP8021;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
@@ -2192,7 +2254,7 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		qla82xx_init_flags(ha);
 		break;
 	 case PCI_DEVICE_ID_QLOGIC_ISP8044:
-		ha->device_type |= DT_ISP8044;
+		ha->isp_type |= DT_ISP8044;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
@@ -2200,7 +2262,7 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		qla82xx_init_flags(ha);
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2031:
-		ha->device_type |= DT_ISP2031;
+		ha->isp_type |= DT_ISP2031;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
@@ -2208,7 +2270,7 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP8031:
-		ha->device_type |= DT_ISP8031;
+		ha->isp_type |= DT_ISP8031;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
@@ -2216,10 +2278,10 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISPF001:
-		ha->device_type |= DT_ISPFX00;
+		ha->isp_type |= DT_ISPFX00;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2071:
-		ha->device_type |= DT_ISP2071;
+		ha->isp_type |= DT_ISP2071;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
@@ -2227,7 +2289,7 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2271:
-		ha->device_type |= DT_ISP2271;
+		ha->isp_type |= DT_ISP2271;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
@@ -2235,7 +2297,7 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2261:
-		ha->device_type |= DT_ISP2261;
+		ha->isp_type |= DT_ISP2261;
 		ha->device_type |= DT_ZIO_SUPPORTED;
 		ha->device_type |= DT_FWI2;
 		ha->device_type |= DT_IIDMA;
@@ -2901,6 +2963,10 @@ skip_dpc:
 	qlt_add_target(ha, base_vha);
 
 	clear_bit(PFLG_DRIVER_PROBING, &base_vha->pci_flags);
+
+	if (test_bit(UNLOADING, &base_vha->dpc_flags))
+		return -ENODEV;
+
 	return 0;
 
 probe_init_failed:
@@ -3127,6 +3193,12 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	}
 
 	qla2x00_wait_for_hba_ready(base_vha);
+
+	/* if UNLOAD flag is already set, then continue unload,
+	 * where it was set first.
+	 */
+	if (test_bit(UNLOADING, &base_vha->dpc_flags))
+		return;
 
 	set_bit(UNLOADING, &base_vha->dpc_flags);
 
@@ -4907,6 +4979,12 @@ qla2x00_disable_board_on_pci_error(struct work_struct *work)
 	struct pci_dev *pdev = ha->pdev;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
+	/* if UNLOAD flag is already set, then continue unload,
+	 * where it was set first.
+	 */
+	if (test_bit(UNLOADING, &base_vha->dpc_flags))
+		return;
+
 	ql_log(ql_log_warn, base_vha, 0x015b,
 	    "Disabling adapter.\n");
 
@@ -5001,6 +5079,9 @@ qla2x00_do_dpc(void *data)
 		ql_dbg(ql_dbg_dpc + ql_dbg_verbose, base_vha, 0x4001,
 		    "DPC handler waking up, dpc_flags=0x%lx.\n",
 		    base_vha->dpc_flags);
+
+		if (test_bit(UNLOADING, &base_vha->dpc_flags))
+			break;
 
 		qla2x00_do_work(base_vha);
 

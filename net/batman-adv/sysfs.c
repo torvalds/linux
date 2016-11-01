@@ -25,8 +25,8 @@
 #include <linux/fs.h>
 #include <linux/if.h>
 #include <linux/if_vlan.h>
-#include <linux/kref.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/netdevice.h>
 #include <linux/printk.h>
 #include <linux/rculist.h>
@@ -38,11 +38,12 @@
 #include <linux/string.h>
 #include <linux/stringify.h>
 
+#include "bridge_loop_avoidance.h"
 #include "distributed-arp-table.h"
 #include "gateway_client.h"
 #include "gateway_common.h"
-#include "bridge_loop_avoidance.h"
 #include "hard-interface.h"
+#include "log.h"
 #include "network-coding.h"
 #include "packet.h"
 #include "soft-interface.h"
@@ -389,12 +390,12 @@ static int batadv_store_uint_attr(const char *buff, size_t count,
 	return count;
 }
 
-static inline ssize_t
-__batadv_store_uint_attr(const char *buff, size_t count,
-			 int min, int max,
-			 void (*post_func)(struct net_device *),
-			 const struct attribute *attr,
-			 atomic_t *attr_store, struct net_device *net_dev)
+static ssize_t __batadv_store_uint_attr(const char *buff, size_t count,
+					int min, int max,
+					void (*post_func)(struct net_device *),
+					const struct attribute *attr,
+					atomic_t *attr_store,
+					struct net_device *net_dev)
 {
 	int ret;
 
@@ -411,7 +412,7 @@ static ssize_t batadv_show_bat_algo(struct kobject *kobj,
 {
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 
-	return sprintf(buff, "%s\n", bat_priv->bat_algo_ops->name);
+	return sprintf(buff, "%s\n", bat_priv->algo_ops->name);
 }
 
 static void batadv_post_gw_reselect(struct net_device *net_dev)
@@ -427,7 +428,7 @@ static ssize_t batadv_show_gw_mode(struct kobject *kobj, struct attribute *attr,
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	int bytes_written;
 
-	switch (atomic_read(&bat_priv->gw_mode)) {
+	switch (atomic_read(&bat_priv->gw.mode)) {
 	case BATADV_GW_MODE_CLIENT:
 		bytes_written = sprintf(buff, "%s\n",
 					BATADV_GW_MODE_CLIENT_NAME);
@@ -476,10 +477,10 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 		return -EINVAL;
 	}
 
-	if (atomic_read(&bat_priv->gw_mode) == gw_mode_tmp)
+	if (atomic_read(&bat_priv->gw.mode) == gw_mode_tmp)
 		return count;
 
-	switch (atomic_read(&bat_priv->gw_mode)) {
+	switch (atomic_read(&bat_priv->gw.mode)) {
 	case BATADV_GW_MODE_CLIENT:
 		curr_gw_mode_str = BATADV_GW_MODE_CLIENT_NAME;
 		break;
@@ -508,7 +509,7 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 	 * state
 	 */
 	batadv_gw_check_client_stop(bat_priv);
-	atomic_set(&bat_priv->gw_mode, (unsigned int)gw_mode_tmp);
+	atomic_set(&bat_priv->gw.mode, (unsigned int)gw_mode_tmp);
 	batadv_gw_tvlv_container_update(bat_priv);
 	return count;
 }
@@ -624,7 +625,7 @@ BATADV_ATTR_SIF_UINT(orig_interval, orig_interval, S_IRUGO | S_IWUSR,
 		     2 * BATADV_JITTER, INT_MAX, NULL);
 BATADV_ATTR_SIF_UINT(hop_penalty, hop_penalty, S_IRUGO | S_IWUSR, 0,
 		     BATADV_TQ_MAX_VALUE, NULL);
-BATADV_ATTR_SIF_UINT(gw_sel_class, gw_sel_class, S_IRUGO | S_IWUSR, 1,
+BATADV_ATTR_SIF_UINT(gw_sel_class, gw.sel_class, S_IRUGO | S_IWUSR, 1,
 		     BATADV_TQ_MAX_VALUE, batadv_post_gw_reselect);
 static BATADV_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, batadv_show_gw_bwidth,
 		   batadv_store_gw_bwidth);

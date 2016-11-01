@@ -938,7 +938,7 @@ int analogix_dp_get_modes(struct drm_connector *connector)
 		num_modes += drm_panel_get_modes(dp->plat_data->panel);
 
 	if (dp->plat_data->get_modes)
-		num_modes += dp->plat_data->get_modes(dp->plat_data);
+		num_modes += dp->plat_data->get_modes(dp->plat_data, connector);
 
 	return num_modes;
 }
@@ -1208,6 +1208,7 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 
 	switch (dp->plat_data->dev_type) {
 	case RK3288_DP:
+	case RK3399_EDP:
 		/*
 		 * Like Rk3288 DisplayPort TRM indicate that "Main link
 		 * containing 4 physical lanes of 2.7/1.62 Gbps/lane".

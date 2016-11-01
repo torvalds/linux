@@ -17,11 +17,12 @@ static int none_init_connection_security(struct rxrpc_connection *conn)
 	return 0;
 }
 
-static void none_prime_packet_security(struct rxrpc_connection *conn)
+static int none_prime_packet_security(struct rxrpc_connection *conn)
 {
+	return 0;
 }
 
-static int none_secure_packet(const struct rxrpc_call *call,
+static int none_secure_packet(struct rxrpc_call *call,
 			       struct sk_buff *skb,
 			       size_t data_size,
 			       void *sechdr)
@@ -29,7 +30,7 @@ static int none_secure_packet(const struct rxrpc_call *call,
 	return 0;
 }
 
-static int none_verify_packet(const struct rxrpc_call *call,
+static int none_verify_packet(struct rxrpc_call *call,
 			       struct sk_buff *skb,
 			       u32 *_abort_code)
 {

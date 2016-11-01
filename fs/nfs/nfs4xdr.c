@@ -1985,9 +1985,14 @@ encode_layoutcommit(struct xdr_stream *xdr,
 	p = xdr_encode_hyper(p, args->lastbytewritten + 1);	/* length */
 	*p = cpu_to_be32(0); /* reclaim */
 	encode_nfs4_stateid(xdr, &args->stateid);
-	p = reserve_space(xdr, 20);
-	*p++ = cpu_to_be32(1); /* newoffset = TRUE */
-	p = xdr_encode_hyper(p, args->lastbytewritten);
+	if (args->lastbytewritten != U64_MAX) {
+		p = reserve_space(xdr, 20);
+		*p++ = cpu_to_be32(1); /* newoffset = TRUE */
+		p = xdr_encode_hyper(p, args->lastbytewritten);
+	} else {
+		p = reserve_space(xdr, 12);
+		*p++ = cpu_to_be32(0); /* newoffset = FALSE */
+	}
 	*p++ = cpu_to_be32(0); /* Never send time_modify_changed */
 	*p++ = cpu_to_be32(NFS_SERVER(args->inode)->pnfs_curr_ld->id);/* type */
 

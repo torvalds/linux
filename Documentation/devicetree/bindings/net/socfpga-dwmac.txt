@@ -17,8 +17,25 @@ Required properties:
 Optional properties:
 altr,emac-splitter: Should be the phandle to the emac splitter soft IP node if
 		DWMAC controller is connected emac splitter.
+phy-mode: The phy mode the ethernet operates in
+altr,sgmii-to-sgmii-converter: phandle to the TSE SGMII converter
+
+This device node has additional phandle dependency, the sgmii converter:
+
+Required properties:
+ - compatible	: Should be altr,gmii-to-sgmii-2.0
+ - reg-names	: Should be "eth_tse_control_port"
 
 Example:
+
+gmii_to_sgmii_converter: phy@0x100000240 {
+	compatible = "altr,gmii-to-sgmii-2.0";
+	reg = <0x00000001 0x00000240 0x00000008>,
+		<0x00000001 0x00000200 0x00000040>;
+	reg-names = "eth_tse_control_port";
+	clocks = <&sgmii_1_clk_0 &emac1 1 &sgmii_clk_125 &sgmii_clk_125>;
+	clock-names = "tse_pcs_ref_clk_clock_connection", "tse_rx_cdr_refclk";
+};
 
 gmac0: ethernet@ff700000 {
 	compatible = "altr,socfpga-stmmac", "snps,dwmac-3.70a", "snps,dwmac";
@@ -30,4 +47,6 @@ gmac0: ethernet@ff700000 {
 	mac-address = [00 00 00 00 00 00];/* Filled in by U-Boot */
 	clocks = <&emac_0_clk>;
 	clock-names = "stmmaceth";
+	phy-mode = "sgmii";
+	altr,gmii-to-sgmii-converter = <&gmii_to_sgmii_converter>;
 };

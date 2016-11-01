@@ -153,9 +153,12 @@ retry:
 		f2fs_delete_entry(de, page, dir, einode);
 		iput(einode);
 		goto retry;
+	} else if (IS_ERR(page)) {
+		err = PTR_ERR(page);
+	} else {
+		err = __f2fs_add_link(dir, &name, inode,
+					inode->i_ino, inode->i_mode);
 	}
-	err = __f2fs_add_link(dir, &name, inode, inode->i_ino, inode->i_mode);
-
 	goto out;
 
 out_unmap_put:
@@ -175,7 +178,7 @@ static void recover_inode(struct inode *inode, struct page *page)
 	char *name;
 
 	inode->i_mode = le16_to_cpu(raw->i_mode);
-	i_size_write(inode, le64_to_cpu(raw->i_size));
+	f2fs_i_size_write(inode, le64_to_cpu(raw->i_size));
 	inode->i_atime.tv_sec = le64_to_cpu(raw->i_mtime);
 	inode->i_ctime.tv_sec = le64_to_cpu(raw->i_ctime);
 	inode->i_mtime.tv_sec = le64_to_cpu(raw->i_mtime);
@@ -455,6 +458,9 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 			continue;
 		}
 
+		if ((start + 1) << PAGE_SHIFT > i_size_read(inode))
+			f2fs_i_size_write(inode, (start + 1) << PAGE_SHIFT);
+
 		/*
 		 * dest is reserved block, invalidate src block
 		 * and then reserve one new block in dnode page.
@@ -476,6 +482,8 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 #endif
 				/* We should not get -ENOSPC */
 				f2fs_bug_on(sbi, err);
+				if (err)
+					goto err;
 			}
 
 			/* Check the previous node page having this index */
@@ -489,9 +497,6 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 			recovered++;
 		}
 	}
-
-	if (IS_INODE(dn.node_page))
-		sync_inode_page(&dn);
 
 	copy_node_footer(dn.node_page, page);
 	fill_node_footer(dn.node_page, dn.nid, ni.ino,
@@ -624,8 +629,12 @@ out:
 	if (err) {
 		bool invalidate = false;
 
-		if (discard_next_dnode(sbi, blkaddr))
+		if (test_opt(sbi, LFS)) {
+			update_meta_page(sbi, NULL, blkaddr);
 			invalidate = true;
+		} else if (discard_next_dnode(sbi, blkaddr)) {
+			invalidate = true;
+		}
 
 		/* Flush all the NAT/SIT pages */
 		while (get_pages(sbi, F2FS_DIRTY_META))

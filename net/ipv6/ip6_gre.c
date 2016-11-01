@@ -519,8 +519,6 @@ static netdev_tx_t __gre6_xmit(struct sk_buff *skb,
 	gre_build_header(skb, tunnel->tun_hlen, tunnel->parms.o_flags,
 			 protocol, tunnel->parms.o_key, htonl(tunnel->o_seqno));
 
-	skb_set_inner_protocol(skb, protocol);
-
 	return ip6_tnl_xmit(skb, dev, dsfield, fl6, encap_limit, pmtu,
 			    NEXTHDR_GRE);
 }
@@ -650,7 +648,6 @@ static int ip6gre_xmit_other(struct sk_buff *skb, struct net_device *dev)
 		encap_limit = t->parms.encap_limit;
 
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
-	fl6.flowi6_proto = skb->protocol;
 
 	err = gre_handle_offloads(skb, !!(t->parms.o_flags & TUNNEL_CSUM));
 	if (err)

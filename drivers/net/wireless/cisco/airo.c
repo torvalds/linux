@@ -1102,8 +1102,8 @@ static const char version[] = "airo.c 0.6 (Ben Reed & Javier Achirica)";
 struct airo_info;
 
 static int get_dec_u16( char *buffer, int *start, int limit );
-static void OUT4500( struct airo_info *, u16 register, u16 value );
-static unsigned short IN4500( struct airo_info *, u16 register );
+static void OUT4500( struct airo_info *, u16 reg, u16 value );
+static unsigned short IN4500( struct airo_info *, u16 reg );
 static u16 setup_card(struct airo_info*, u8 *mac, int lock);
 static int enable_MAC(struct airo_info *ai, int lock);
 static void disable_MAC(struct airo_info *ai, int lock);

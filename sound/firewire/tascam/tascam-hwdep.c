@@ -16,31 +16,14 @@
 
 #include "tascam.h"
 
-static long hwdep_read_locked(struct snd_tscm *tscm, char __user *buf,
-			      long count)
-{
-	union snd_firewire_event event;
-
-	memset(&event, 0, sizeof(event));
-
-	event.lock_status.type = SNDRV_FIREWIRE_EVENT_LOCK_STATUS;
-	event.lock_status.status = (tscm->dev_lock_count > 0);
-	tscm->dev_lock_changed = false;
-
-	count = min_t(long, count, sizeof(event.lock_status));
-
-	if (copy_to_user(buf, &event, count))
-		return -EFAULT;
-
-	return count;
-}
-
 static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 		       loff_t *offset)
 {
 	struct snd_tscm *tscm = hwdep->private_data;
 	DEFINE_WAIT(wait);
-	union snd_firewire_event event;
+	union snd_firewire_event event = {
+		.lock_status.type = SNDRV_FIREWIRE_EVENT_LOCK_STATUS,
+	};
 
 	spin_lock_irq(&tscm->lock);
 
@@ -54,9 +37,15 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 		spin_lock_irq(&tscm->lock);
 	}
 
-	memset(&event, 0, sizeof(event));
-	count = hwdep_read_locked(tscm, buf, count);
+	event.lock_status.status = (tscm->dev_lock_count > 0);
+	tscm->dev_lock_changed = false;
+
 	spin_unlock_irq(&tscm->lock);
+
+	count = min_t(long, count, sizeof(event.lock_status));
+
+	if (copy_to_user(buf, &event, count))
+		return -EFAULT;
 
 	return count;
 }

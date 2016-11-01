@@ -80,7 +80,7 @@ static int orangefs_readpages(struct file *file,
 		if (!add_to_page_cache(page,
 				       mapping,
 				       page->index,
-				       GFP_KERNEL)) {
+				       readahead_gfp_mask(mapping))) {
 			ret = read_one_page(page);
 			gossip_debug(GOSSIP_INODE_DEBUG,
 				"failure adding page to cache, read_one_page returned: %d\n",
@@ -124,19 +124,16 @@ static int orangefs_releasepage(struct page *page, gfp_t foo)
  * will need to be able to use O_DIRECT on open in order to support
  * AIO. Modeled after NFS, they do this too.
  */
-/*
- * static ssize_t orangefs_direct_IO(int rw,
- *			struct kiocb *iocb,
- *			struct iov_iter *iter,
- *			loff_t offset)
- *{
- *	gossip_debug(GOSSIP_INODE_DEBUG,
- *		     "orangefs_direct_IO: %s\n",
- *		     iocb->ki_filp->f_path.dentry->d_name.name);
- *
- *	return -EINVAL;
- *}
- */
+
+static ssize_t orangefs_direct_IO(struct kiocb *iocb,
+				  struct iov_iter *iter)
+{
+	gossip_debug(GOSSIP_INODE_DEBUG,
+		     "orangefs_direct_IO: %s\n",
+		     iocb->ki_filp->f_path.dentry->d_name.name);
+
+	return -EINVAL;
+}
 
 struct backing_dev_info orangefs_backing_dev_info = {
 	.name = "orangefs",
@@ -150,7 +147,7 @@ const struct address_space_operations orangefs_address_operations = {
 	.readpages = orangefs_readpages,
 	.invalidatepage = orangefs_invalidatepage,
 	.releasepage = orangefs_releasepage,
-/*	.direct_IO = orangefs_direct_IO */
+	.direct_IO = orangefs_direct_IO,
 };
 
 static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
@@ -265,7 +262,7 @@ int orangefs_getattr(struct vfsmount *mnt,
 		     "orangefs_getattr: called on %s\n",
 		     dentry->d_name.name);
 
-	ret = orangefs_inode_getattr(inode, 0, 1);
+	ret = orangefs_inode_getattr(inode, 0, 0);
 	if (ret == 0) {
 		generic_fillattr(inode, kstat);
 
@@ -294,7 +291,7 @@ int orangefs_permission(struct inode *inode, int mask)
 }
 
 /* ORANGEDS2 implementation of VFS inode operations for files */
-struct inode_operations orangefs_file_inode_operations = {
+const struct inode_operations orangefs_file_inode_operations = {
 	.get_acl = orangefs_get_acl,
 	.set_acl = orangefs_set_acl,
 	.setattr = orangefs_setattr,
@@ -387,7 +384,7 @@ struct inode *orangefs_iget(struct super_block *sb, struct orangefs_object_kref 
 	if (!inode || !(inode->i_state & I_NEW))
 		return inode;
 
-	error = orangefs_inode_getattr(inode, 1, 0);
+	error = orangefs_inode_getattr(inode, 1, 1);
 	if (error) {
 		iget_failed(inode);
 		return ERR_PTR(error);
@@ -432,7 +429,7 @@ struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
 	orangefs_set_inode(inode, ref);
 	inode->i_ino = hash;	/* needed for stat etc */
 
-	error = orangefs_inode_getattr(inode, 1, 0);
+	error = orangefs_inode_getattr(inode, 1, 1);
 	if (error)
 		goto out_iput;
 

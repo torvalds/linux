@@ -1025,6 +1025,8 @@ static void  i40iw_ieq_compl_pfpdu(struct i40iw_puda_rsrc *ieq,
 	u16 txoffset, bufoffset;
 
 	buf = i40iw_puda_get_listbuf(pbufl);
+	if (!buf)
+		return;
 	nextseqnum = buf->seqnum + fpdu_len;
 	txbuf->totallen = buf->hdrlen + fpdu_len;
 	txbuf->data = (u8 *)txbuf->mem.va + buf->hdrlen;
@@ -1048,6 +1050,8 @@ static void  i40iw_ieq_compl_pfpdu(struct i40iw_puda_rsrc *ieq,
 		fpdu_len -= buf->datalen;
 		i40iw_puda_ret_bufpool(ieq, buf);
 		buf = i40iw_puda_get_listbuf(pbufl);
+		if (!buf)
+			return;
 		bufoffset = (u16)(buf->data - (u8 *)buf->mem.va);
 	} while (1);
 

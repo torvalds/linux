@@ -37,7 +37,6 @@ static int alloc_clips(struct qxl_device *qdev,
  * the qxl_clip_rects. This is *not* the same as the memory allocated
  * on the device, it is offset to qxl_clip_rects.chunk.data */
 static struct qxl_rect *drawable_set_clipping(struct qxl_device *qdev,
-					      struct qxl_drawable *drawable,
 					      unsigned num_clips,
 					      struct qxl_bo *clips_bo)
 {
@@ -136,6 +135,8 @@ static int qxl_palette_create_1bit(struct qxl_bo *palette_bo,
 				 * correctly globaly, since that would require
 				 * tracking all of our palettes. */
 	ret = qxl_bo_kmap(palette_bo, (void **)&pal);
+	if (ret)
+		return ret;
 	pal->num_ents = 2;
 	pal->unique = unique++;
 	if (visual == FB_VISUAL_TRUECOLOR || visual == FB_VISUAL_DIRECTCOLOR) {
@@ -349,7 +350,7 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 	if (ret)
 		goto out_release_backoff;
 
-	rects = drawable_set_clipping(qdev, drawable, num_clips, clips_bo);
+	rects = drawable_set_clipping(qdev, num_clips, clips_bo);
 	if (!rects)
 		goto out_release_backoff;
 

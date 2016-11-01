@@ -155,14 +155,24 @@ found:
 			/*
 			 * In 32-bits mode, if the [7:6] bits (mod bits of
 			 * ModRM) on the second byte are not 11b, it is
-			 * LDS or LES.
+			 * LDS or LES or BOUND.
 			 */
 			if (X86_MODRM_MOD(b2) != 3)
 				goto vex_end;
 		}
 		insn->vex_prefix.bytes[0] = b;
 		insn->vex_prefix.bytes[1] = b2;
-		if (inat_is_vex3_prefix(attr)) {
+		if (inat_is_evex_prefix(attr)) {
+			b2 = peek_nbyte_next(insn_byte_t, insn, 2);
+			insn->vex_prefix.bytes[2] = b2;
+			b2 = peek_nbyte_next(insn_byte_t, insn, 3);
+			insn->vex_prefix.bytes[3] = b2;
+			insn->vex_prefix.nbytes = 4;
+			insn->next_byte += 4;
+			if (insn->x86_64 && X86_VEX_W(b2))
+				/* VEX.W overrides opnd_size */
+				insn->opnd_bytes = 8;
+		} else if (inat_is_vex3_prefix(attr)) {
 			b2 = peek_nbyte_next(insn_byte_t, insn, 2);
 			insn->vex_prefix.bytes[2] = b2;
 			insn->vex_prefix.nbytes = 3;
@@ -221,7 +231,9 @@ void insn_get_opcode(struct insn *insn)
 		m = insn_vex_m_bits(insn);
 		p = insn_vex_p_bits(insn);
 		insn->attr = inat_get_avx_attribute(op, m, p);
-		if (!inat_accept_vex(insn->attr) && !inat_is_group(insn->attr))
+		if ((inat_must_evex(insn->attr) && !insn_is_evex(insn)) ||
+		    (!inat_accept_vex(insn->attr) &&
+		     !inat_is_group(insn->attr)))
 			insn->attr = 0;	/* This instruction is bad */
 		goto end;	/* VEX has only 1 byte for opcode */
 	}

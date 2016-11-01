@@ -7,50 +7,6 @@
 
 static struct class *bt_class;
 
-static inline char *link_typetostr(int type)
-{
-	switch (type) {
-	case ACL_LINK:
-		return "ACL";
-	case SCO_LINK:
-		return "SCO";
-	case ESCO_LINK:
-		return "eSCO";
-	case LE_LINK:
-		return "LE";
-	default:
-		return "UNKNOWN";
-	}
-}
-
-static ssize_t show_link_type(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-	struct hci_conn *conn = to_hci_conn(dev);
-	return sprintf(buf, "%s\n", link_typetostr(conn->type));
-}
-
-static ssize_t show_link_address(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	struct hci_conn *conn = to_hci_conn(dev);
-	return sprintf(buf, "%pMR\n", &conn->dst);
-}
-
-#define LINK_ATTR(_name, _mode, _show, _store) \
-struct device_attribute link_attr_##_name = __ATTR(_name, _mode, _show, _store)
-
-static LINK_ATTR(type, S_IRUGO, show_link_type, NULL);
-static LINK_ATTR(address, S_IRUGO, show_link_address, NULL);
-
-static struct attribute *bt_link_attrs[] = {
-	&link_attr_type.attr,
-	&link_attr_address.attr,
-	NULL
-};
-
-ATTRIBUTE_GROUPS(bt_link);
-
 static void bt_link_release(struct device *dev)
 {
 	struct hci_conn *conn = to_hci_conn(dev);
@@ -59,7 +15,6 @@ static void bt_link_release(struct device *dev)
 
 static struct device_type bt_link = {
 	.name    = "link",
-	.groups  = bt_link_groups,
 	.release = bt_link_release,
 };
 
@@ -124,59 +79,6 @@ void hci_conn_del_sysfs(struct hci_conn *conn)
 	hci_dev_put(hdev);
 }
 
-static inline char *host_typetostr(int type)
-{
-	switch (type) {
-	case HCI_BREDR:
-		return "BR/EDR";
-	case HCI_AMP:
-		return "AMP";
-	default:
-		return "UNKNOWN";
-	}
-}
-
-static ssize_t show_type(struct device *dev,
-			 struct device_attribute *attr, char *buf)
-{
-	struct hci_dev *hdev = to_hci_dev(dev);
-	return sprintf(buf, "%s\n", host_typetostr(hdev->dev_type));
-}
-
-static ssize_t show_name(struct device *dev,
-			 struct device_attribute *attr, char *buf)
-{
-	struct hci_dev *hdev = to_hci_dev(dev);
-	char name[HCI_MAX_NAME_LENGTH + 1];
-	int i;
-
-	for (i = 0; i < HCI_MAX_NAME_LENGTH; i++)
-		name[i] = hdev->dev_name[i];
-
-	name[HCI_MAX_NAME_LENGTH] = '\0';
-	return sprintf(buf, "%s\n", name);
-}
-
-static ssize_t show_address(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-	struct hci_dev *hdev = to_hci_dev(dev);
-	return sprintf(buf, "%pMR\n", &hdev->bdaddr);
-}
-
-static DEVICE_ATTR(type, S_IRUGO, show_type, NULL);
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
-static DEVICE_ATTR(address, S_IRUGO, show_address, NULL);
-
-static struct attribute *bt_host_attrs[] = {
-	&dev_attr_type.attr,
-	&dev_attr_name.attr,
-	&dev_attr_address.attr,
-	NULL
-};
-
-ATTRIBUTE_GROUPS(bt_host);
-
 static void bt_host_release(struct device *dev)
 {
 	struct hci_dev *hdev = to_hci_dev(dev);
@@ -186,7 +88,6 @@ static void bt_host_release(struct device *dev)
 
 static struct device_type bt_host = {
 	.name    = "host",
-	.groups  = bt_host_groups,
 	.release = bt_host_release,
 };
 

@@ -35,7 +35,6 @@
 #include <asm/amigahw.h>
 #include <asm/amigaints.h>
 #include <asm/irq.h>
-#include <asm/rtc.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
 

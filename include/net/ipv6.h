@@ -313,11 +313,19 @@ struct ipv6_txoptions *ipv6_renew_options(struct sock *sk,
 					  int newtype,
 					  struct ipv6_opt_hdr __user *newopt,
 					  int newoptlen);
+struct ipv6_txoptions *
+ipv6_renew_options_kern(struct sock *sk,
+			struct ipv6_txoptions *opt,
+			int newtype,
+			struct ipv6_opt_hdr *newopt,
+			int newoptlen);
 struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
 					  struct ipv6_txoptions *opt);
 
 bool ipv6_opt_accepted(const struct sock *sk, const struct sk_buff *skb,
 		       const struct inet6_skb_parm *opt);
+struct ipv6_txoptions *ipv6_update_options(struct sock *sk,
+					   struct ipv6_txoptions *opt);
 
 static inline bool ipv6_accept_ra(struct inet6_dev *idev)
 {
@@ -943,7 +951,7 @@ enum {
 int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset, int target,
 		  unsigned short *fragoff, int *fragflg);
 
-int ipv6_find_tlv(struct sk_buff *skb, int offset, int type);
+int ipv6_find_tlv(const struct sk_buff *skb, int offset, int type);
 
 struct in6_addr *fl6_update_dst(struct flowi6 *fl6,
 				const struct ipv6_txoptions *opt,

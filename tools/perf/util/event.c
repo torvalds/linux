@@ -1092,7 +1092,7 @@ size_t perf_event__fprintf_cpu_map(union perf_event *event, FILE *fp)
 	struct cpu_map *cpus = cpu_map__new_data(&event->cpu_map.data);
 	size_t ret;
 
-	ret = fprintf(fp, " nr: ");
+	ret = fprintf(fp, ": ");
 
 	if (cpus)
 		ret += cpu_map__fprintf(cpus, fp);

@@ -388,6 +388,8 @@ static int davinci_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	u8 day0, day1;
 	unsigned long flags;
 
+	alm->time.tm_sec = 0;
+
 	spin_lock_irqsave(&davinci_rtc_lock, flags);
 
 	davinci_rtcss_calendar_wait(davinci_rtc);

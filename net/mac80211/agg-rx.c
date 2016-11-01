@@ -261,9 +261,15 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 		.timeout = timeout,
 		.ssn = start_seq_num,
 	};
-
 	int i, ret = -EOPNOTSUPP;
 	u16 status = WLAN_STATUS_REQUEST_DECLINED;
+
+	if (tid >= IEEE80211_FIRST_TSPEC_TSID) {
+		ht_dbg(sta->sdata,
+		       "STA %pM requests BA session on unsupported tid %d\n",
+		       sta->sta.addr, tid);
+		goto end_no_lock;
+	}
 
 	if (!sta->sta.ht_cap.ht_supported) {
 		ht_dbg(sta->sdata,
@@ -306,6 +312,24 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 	mutex_lock(&sta->ampdu_mlme.mtx);
 
 	if (test_bit(tid, sta->ampdu_mlme.agg_session_valid)) {
+		tid_agg_rx = rcu_dereference_protected(
+				sta->ampdu_mlme.tid_rx[tid],
+				lockdep_is_held(&sta->ampdu_mlme.mtx));
+
+		if (tid_agg_rx->dialog_token == dialog_token) {
+			ht_dbg_ratelimited(sta->sdata,
+					   "updated AddBA Req from %pM on tid %u\n",
+					   sta->sta.addr, tid);
+			/* We have no API to update the timeout value in the
+			 * driver so reject the timeout update.
+			 */
+			status = WLAN_STATUS_REQUEST_DECLINED;
+			ieee80211_send_addba_resp(sta->sdata, sta->sta.addr,
+						  tid, dialog_token, status,
+						  1, buf_size, timeout);
+			goto end;
+		}
+
 		ht_dbg_ratelimited(sta->sdata,
 				   "unexpected AddBA Req from %pM on tid %u\n",
 				   sta->sta.addr, tid);

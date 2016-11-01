@@ -55,6 +55,11 @@
 #define ADS1015_DEFAULT_DATA_RATE	4
 #define ADS1015_DEFAULT_CHAN		0
 
+enum {
+	ADS1015,
+	ADS1115,
+};
+
 enum ads1015_channels {
 	ADS1015_AIN0_AIN1 = 0,
 	ADS1015_AIN0_AIN3,
@@ -69,6 +74,10 @@ enum ads1015_channels {
 
 static const unsigned int ads1015_data_rate[] = {
 	128, 250, 490, 920, 1600, 2400, 3300, 3300
+};
+
+static const unsigned int ads1115_data_rate[] = {
+	8, 16, 32, 64, 128, 250, 475, 860
 };
 
 static const struct {
@@ -101,6 +110,7 @@ static const struct {
 		.shift = 4,					\
 		.endianness = IIO_CPU,				\
 	},							\
+	.datasheet_name = "AIN"#_chan,				\
 }
 
 #define ADS1015_V_DIFF_CHAN(_chan, _chan2, _addr) {		\
@@ -121,6 +131,45 @@ static const struct {
 		.shift = 4,					\
 		.endianness = IIO_CPU,				\
 	},							\
+	.datasheet_name = "AIN"#_chan"-AIN"#_chan2,		\
+}
+
+#define ADS1115_V_CHAN(_chan, _addr) {				\
+	.type = IIO_VOLTAGE,					\
+	.indexed = 1,						\
+	.address = _addr,					\
+	.channel = _chan,					\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
+				BIT(IIO_CHAN_INFO_SCALE) |	\
+				BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
+	.scan_index = _addr,					\
+	.scan_type = {						\
+		.sign = 's',					\
+		.realbits = 16,					\
+		.storagebits = 16,				\
+		.endianness = IIO_CPU,				\
+	},							\
+	.datasheet_name = "AIN"#_chan,				\
+}
+
+#define ADS1115_V_DIFF_CHAN(_chan, _chan2, _addr) {		\
+	.type = IIO_VOLTAGE,					\
+	.differential = 1,					\
+	.indexed = 1,						\
+	.address = _addr,					\
+	.channel = _chan,					\
+	.channel2 = _chan2,					\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |		\
+				BIT(IIO_CHAN_INFO_SCALE) |	\
+				BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
+	.scan_index = _addr,					\
+	.scan_type = {						\
+		.sign = 's',					\
+		.realbits = 16,					\
+		.storagebits = 16,				\
+		.endianness = IIO_CPU,				\
+	},							\
+	.datasheet_name = "AIN"#_chan"-AIN"#_chan2,		\
 }
 
 struct ads1015_data {
@@ -131,6 +180,8 @@ struct ads1015_data {
 	 */
 	struct mutex lock;
 	struct ads1015_channel_data channel_data[ADS1015_CHANNELS];
+
+	unsigned int *data_rate;
 };
 
 static bool ads1015_is_writeable_reg(struct device *dev, unsigned int reg)
@@ -154,6 +205,18 @@ static const struct iio_chan_spec ads1015_channels[] = {
 	ADS1015_V_CHAN(1, ADS1015_AIN1),
 	ADS1015_V_CHAN(2, ADS1015_AIN2),
 	ADS1015_V_CHAN(3, ADS1015_AIN3),
+	IIO_CHAN_SOFT_TIMESTAMP(ADS1015_TIMESTAMP),
+};
+
+static const struct iio_chan_spec ads1115_channels[] = {
+	ADS1115_V_DIFF_CHAN(0, 1, ADS1015_AIN0_AIN1),
+	ADS1115_V_DIFF_CHAN(0, 3, ADS1015_AIN0_AIN3),
+	ADS1115_V_DIFF_CHAN(1, 3, ADS1015_AIN1_AIN3),
+	ADS1115_V_DIFF_CHAN(2, 3, ADS1015_AIN2_AIN3),
+	ADS1115_V_CHAN(0, ADS1015_AIN0),
+	ADS1115_V_CHAN(1, ADS1015_AIN1),
+	ADS1115_V_CHAN(2, ADS1015_AIN2),
+	ADS1115_V_CHAN(3, ADS1015_AIN3),
 	IIO_CHAN_SOFT_TIMESTAMP(ADS1015_TIMESTAMP),
 };
 
@@ -196,7 +259,7 @@ int ads1015_get_adc_result(struct ads1015_data *data, int chan, int *val)
 		return ret;
 
 	if (change) {
-		conv_time = DIV_ROUND_UP(USEC_PER_SEC, ads1015_data_rate[dr]);
+		conv_time = DIV_ROUND_UP(USEC_PER_SEC, data->data_rate[dr]);
 		usleep_range(conv_time, conv_time + 1);
 	}
 
@@ -225,7 +288,8 @@ static irqreturn_t ads1015_trigger_handler(int irq, void *p)
 	buf[0] = res;
 	mutex_unlock(&data->lock);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buf, iio_get_time_ns());
+	iio_push_to_buffers_with_timestamp(indio_dev, buf,
+					   iio_get_time_ns(indio_dev));
 
 err:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -263,7 +327,7 @@ static int ads1015_set_data_rate(struct ads1015_data *data, int chan, int rate)
 	int i, ret, rindex = -1;
 
 	for (i = 0; i < ARRAY_SIZE(ads1015_data_rate); i++)
-		if (ads1015_data_rate[i] == rate) {
+		if (data->data_rate[i] == rate) {
 			rindex = i;
 			break;
 		}
@@ -291,7 +355,9 @@ static int ads1015_read_raw(struct iio_dev *indio_dev,
 	mutex_lock(&indio_dev->mlock);
 	mutex_lock(&data->lock);
 	switch (mask) {
-	case IIO_CHAN_INFO_RAW:
+	case IIO_CHAN_INFO_RAW: {
+		int shift = chan->scan_type.shift;
+
 		if (iio_buffer_enabled(indio_dev)) {
 			ret = -EBUSY;
 			break;
@@ -307,8 +373,7 @@ static int ads1015_read_raw(struct iio_dev *indio_dev,
 			break;
 		}
 
-		/* 12 bit res, D0 is bit 4 in conversion register */
-		*val = sign_extend32(*val >> 4, 11);
+		*val = sign_extend32(*val >> shift, 15 - shift);
 
 		ret = ads1015_set_power_state(data, false);
 		if (ret < 0)
@@ -316,6 +381,7 @@ static int ads1015_read_raw(struct iio_dev *indio_dev,
 
 		ret = IIO_VAL_INT;
 		break;
+	}
 	case IIO_CHAN_INFO_SCALE:
 		idx = data->channel_data[chan->address].pga;
 		*val = ads1015_scale[idx].scale;
@@ -324,7 +390,7 @@ static int ads1015_read_raw(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		idx = data->channel_data[chan->address].data_rate;
-		*val = ads1015_data_rate[idx];
+		*val = data->data_rate[idx];
 		ret = IIO_VAL_INT;
 		break;
 	default:
@@ -380,12 +446,15 @@ static const struct iio_buffer_setup_ops ads1015_buffer_setup_ops = {
 };
 
 static IIO_CONST_ATTR(scale_available, "3 2 1 0.5 0.25 0.125");
-static IIO_CONST_ATTR(sampling_frequency_available,
-		      "128 250 490 920 1600 2400 3300");
+
+static IIO_CONST_ATTR_NAMED(ads1015_sampling_frequency_available,
+	sampling_frequency_available, "128 250 490 920 1600 2400 3300");
+static IIO_CONST_ATTR_NAMED(ads1115_sampling_frequency_available,
+	sampling_frequency_available, "8 16 32 64 128 250 475 860");
 
 static struct attribute *ads1015_attributes[] = {
 	&iio_const_attr_scale_available.dev_attr.attr,
-	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
+	&iio_const_attr_ads1015_sampling_frequency_available.dev_attr.attr,
 	NULL,
 };
 
@@ -393,17 +462,35 @@ static const struct attribute_group ads1015_attribute_group = {
 	.attrs = ads1015_attributes,
 };
 
-static const struct iio_info ads1015_info = {
+static struct attribute *ads1115_attributes[] = {
+	&iio_const_attr_scale_available.dev_attr.attr,
+	&iio_const_attr_ads1115_sampling_frequency_available.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group ads1115_attribute_group = {
+	.attrs = ads1115_attributes,
+};
+
+static struct iio_info ads1015_info = {
 	.driver_module	= THIS_MODULE,
 	.read_raw	= ads1015_read_raw,
 	.write_raw	= ads1015_write_raw,
-	.attrs		= &ads1015_attribute_group,
+	.attrs          = &ads1015_attribute_group,
+};
+
+static struct iio_info ads1115_info = {
+	.driver_module	= THIS_MODULE,
+	.read_raw	= ads1015_read_raw,
+	.write_raw	= ads1015_write_raw,
+	.attrs          = &ads1115_attribute_group,
 };
 
 #ifdef CONFIG_OF
 static int ads1015_get_channels_config_of(struct i2c_client *client)
 {
-	struct ads1015_data *data = i2c_get_clientdata(client);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct ads1015_data *data = iio_priv(indio_dev);
 	struct device_node *node;
 
 	if (!client->dev.of_node ||
@@ -500,11 +587,24 @@ static int ads1015_probe(struct i2c_client *client,
 	mutex_init(&data->lock);
 
 	indio_dev->dev.parent = &client->dev;
-	indio_dev->info = &ads1015_info;
+	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->name = ADS1015_DRV_NAME;
-	indio_dev->channels = ads1015_channels;
-	indio_dev->num_channels = ARRAY_SIZE(ads1015_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
+
+	switch (id->driver_data) {
+	case ADS1015:
+		indio_dev->channels = ads1015_channels;
+		indio_dev->num_channels = ARRAY_SIZE(ads1015_channels);
+		indio_dev->info = &ads1015_info;
+		data->data_rate = (unsigned int *) &ads1015_data_rate;
+		break;
+	case ADS1115:
+		indio_dev->channels = ads1115_channels;
+		indio_dev->num_channels = ARRAY_SIZE(ads1115_channels);
+		indio_dev->info = &ads1115_info;
+		data->data_rate = (unsigned int *) &ads1115_data_rate;
+		break;
+	}
 
 	/* we need to keep this ABI the same as used by hwmon ADS1015 driver */
 	ads1015_get_channels_config(client);
@@ -590,7 +690,8 @@ static const struct dev_pm_ops ads1015_pm_ops = {
 };
 
 static const struct i2c_device_id ads1015_id[] = {
-	{"ads1015", 0},
+	{"ads1015", ADS1015},
+	{"ads1115", ADS1115},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ads1015_id);

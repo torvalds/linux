@@ -327,7 +327,7 @@ struct i40iw_cq_ops {
 	void (*iw_cq_request_notification)(struct i40iw_cq_uk *,
 					   enum i40iw_completion_notify);
 	enum i40iw_status_code (*iw_cq_poll_completion)(struct i40iw_cq_uk *,
-							struct i40iw_cq_poll_info *, bool);
+							struct i40iw_cq_poll_info *);
 	enum i40iw_status_code (*iw_cq_post_entries)(struct i40iw_cq_uk *, u8 count);
 	void (*iw_cq_clean)(void *, struct i40iw_cq_uk *);
 };

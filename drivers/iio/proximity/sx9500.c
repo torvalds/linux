@@ -492,7 +492,7 @@ static void sx9500_push_events(struct iio_dev *indio_dev)
 		dir = new_prox ? IIO_EV_DIR_FALLING : IIO_EV_DIR_RISING;
 		ev = IIO_UNMOD_EVENT_CODE(IIO_PROXIMITY, chan,
 					  IIO_EV_TYPE_THRESH, dir);
-		iio_push_event(indio_dev, ev, iio_get_time_ns());
+		iio_push_event(indio_dev, ev, iio_get_time_ns(indio_dev));
 		data->prox_stat[chan] = new_prox;
 	}
 }
@@ -669,7 +669,7 @@ static irqreturn_t sx9500_trigger_handler(int irq, void *private)
 	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
-					   iio_get_time_ns());
+					   iio_get_time_ns(indio_dev));
 
 out:
 	mutex_unlock(&data->mutex);

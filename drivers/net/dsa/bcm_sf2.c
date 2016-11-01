@@ -22,6 +22,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_net.h>
+#include <linux/of_mdio.h>
 #include <net/dsa.h>
 #include <linux/ethtool.h>
 #include <linux/if_bridge.h>
@@ -460,19 +461,13 @@ static int bcm_sf2_sw_set_eee(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-/* Fast-ageing of ARL entries for a given port, equivalent to an ARL
- * flush for that port.
- */
-static int bcm_sf2_sw_fast_age_port(struct dsa_switch  *ds, int port)
+static int bcm_sf2_fast_age_op(struct bcm_sf2_priv *priv)
 {
-	struct bcm_sf2_priv *priv = ds_to_priv(ds);
 	unsigned int timeout = 1000;
 	u32 reg;
 
-	core_writel(priv, port, CORE_FAST_AGE_PORT);
-
 	reg = core_readl(priv, CORE_FAST_AGE_CTRL);
-	reg |= EN_AGE_PORT | EN_AGE_DYNAMIC | FAST_AGE_STR_DONE;
+	reg |= EN_AGE_PORT | EN_AGE_VLAN | EN_AGE_DYNAMIC | FAST_AGE_STR_DONE;
 	core_writel(priv, reg, CORE_FAST_AGE_CTRL);
 
 	do {
@@ -491,12 +486,97 @@ static int bcm_sf2_sw_fast_age_port(struct dsa_switch  *ds, int port)
 	return 0;
 }
 
+/* Fast-ageing of ARL entries for a given port, equivalent to an ARL
+ * flush for that port.
+ */
+static int bcm_sf2_sw_fast_age_port(struct dsa_switch *ds, int port)
+{
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+
+	core_writel(priv, port, CORE_FAST_AGE_PORT);
+
+	return bcm_sf2_fast_age_op(priv);
+}
+
+static int bcm_sf2_sw_fast_age_vlan(struct bcm_sf2_priv *priv, u16 vid)
+{
+	core_writel(priv, vid, CORE_FAST_AGE_VID);
+
+	return bcm_sf2_fast_age_op(priv);
+}
+
+static int bcm_sf2_vlan_op_wait(struct bcm_sf2_priv *priv)
+{
+	unsigned int timeout = 10;
+	u32 reg;
+
+	do {
+		reg = core_readl(priv, CORE_ARLA_VTBL_RWCTRL);
+		if (!(reg & ARLA_VTBL_STDN))
+			return 0;
+
+		usleep_range(1000, 2000);
+	} while (timeout--);
+
+	return -ETIMEDOUT;
+}
+
+static int bcm_sf2_vlan_op(struct bcm_sf2_priv *priv, u8 op)
+{
+	core_writel(priv, ARLA_VTBL_STDN | op, CORE_ARLA_VTBL_RWCTRL);
+
+	return bcm_sf2_vlan_op_wait(priv);
+}
+
+static void bcm_sf2_set_vlan_entry(struct bcm_sf2_priv *priv, u16 vid,
+				   struct bcm_sf2_vlan *vlan)
+{
+	int ret;
+
+	core_writel(priv, vid & VTBL_ADDR_INDEX_MASK, CORE_ARLA_VTBL_ADDR);
+	core_writel(priv, vlan->untag << UNTAG_MAP_SHIFT | vlan->members,
+		    CORE_ARLA_VTBL_ENTRY);
+
+	ret = bcm_sf2_vlan_op(priv, ARLA_VTBL_CMD_WRITE);
+	if (ret)
+		pr_err("failed to write VLAN entry\n");
+}
+
+static int bcm_sf2_get_vlan_entry(struct bcm_sf2_priv *priv, u16 vid,
+				  struct bcm_sf2_vlan *vlan)
+{
+	u32 entry;
+	int ret;
+
+	core_writel(priv, vid & VTBL_ADDR_INDEX_MASK, CORE_ARLA_VTBL_ADDR);
+
+	ret = bcm_sf2_vlan_op(priv, ARLA_VTBL_CMD_READ);
+	if (ret)
+		return ret;
+
+	entry = core_readl(priv, CORE_ARLA_VTBL_ENTRY);
+	vlan->members = entry & FWD_MAP_MASK;
+	vlan->untag = (entry >> UNTAG_MAP_SHIFT) & UNTAG_MAP_MASK;
+
+	return 0;
+}
+
 static int bcm_sf2_sw_br_join(struct dsa_switch *ds, int port,
 			      struct net_device *bridge)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	s8 cpu_port = ds->dst->cpu_port;
 	unsigned int i;
 	u32 reg, p_ctl;
+
+	/* Make this port leave the all VLANs join since we will have proper
+	 * VLAN entries from now on
+	 */
+	reg = core_readl(priv, CORE_JOIN_ALL_VLAN_EN);
+	reg &= ~BIT(port);
+	if ((reg & BIT(cpu_port)) == BIT(cpu_port))
+		reg &= ~BIT(cpu_port);
+	core_writel(priv, reg, CORE_JOIN_ALL_VLAN_EN);
 
 	priv->port_sts[port].bridge_dev = bridge;
 	p_ctl = core_readl(priv, CORE_PORT_VLAN_CTL_PORT(port));
@@ -529,6 +609,7 @@ static void bcm_sf2_sw_br_leave(struct dsa_switch *ds, int port)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
 	struct net_device *bridge = priv->port_sts[port].bridge_dev;
+	s8 cpu_port = ds->dst->cpu_port;
 	unsigned int i;
 	u32 reg, p_ctl;
 
@@ -552,6 +633,13 @@ static void bcm_sf2_sw_br_leave(struct dsa_switch *ds, int port)
 	core_writel(priv, p_ctl, CORE_PORT_VLAN_CTL_PORT(port));
 	priv->port_sts[port].vlan_ctl_mask = p_ctl;
 	priv->port_sts[port].bridge_dev = NULL;
+
+	/* Make this port join all VLANs without VLAN entries */
+	reg = core_readl(priv, CORE_JOIN_ALL_VLAN_EN);
+	reg |= BIT(port);
+	if (!(reg & BIT(cpu_port)))
+		reg |= BIT(cpu_port);
+	core_writel(priv, reg, CORE_JOIN_ALL_VLAN_EN);
 }
 
 static void bcm_sf2_sw_br_set_stp_state(struct dsa_switch *ds, int port,
@@ -804,7 +892,7 @@ static int bcm_sf2_sw_fdb_dump(struct dsa_switch *ds, int port,
 			       int (*cb)(struct switchdev_obj *obj))
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
-	struct net_device *dev = ds->ports[port];
+	struct net_device *dev = ds->ports[port].netdev;
 	struct bcm_sf2_arl_entry results[2];
 	unsigned int count = 0;
 	int ret;
@@ -832,6 +920,66 @@ static int bcm_sf2_sw_fdb_dump(struct dsa_switch *ds, int port,
 			break;
 
 	} while (count++ < CORE_ARLA_NUM_ENTRIES);
+
+	return 0;
+}
+
+static int bcm_sf2_sw_indir_rw(struct bcm_sf2_priv *priv, int op, int addr,
+			       int regnum, u16 val)
+{
+	int ret = 0;
+	u32 reg;
+
+	reg = reg_readl(priv, REG_SWITCH_CNTRL);
+	reg |= MDIO_MASTER_SEL;
+	reg_writel(priv, reg, REG_SWITCH_CNTRL);
+
+	/* Page << 8 | offset */
+	reg = 0x70;
+	reg <<= 2;
+	core_writel(priv, addr, reg);
+
+	/* Page << 8 | offset */
+	reg = 0x80 << 8 | regnum << 1;
+	reg <<= 2;
+
+	if (op)
+		ret = core_readl(priv, reg);
+	else
+		core_writel(priv, val, reg);
+
+	reg = reg_readl(priv, REG_SWITCH_CNTRL);
+	reg &= ~MDIO_MASTER_SEL;
+	reg_writel(priv, reg, REG_SWITCH_CNTRL);
+
+	return ret & 0xffff;
+}
+
+static int bcm_sf2_sw_mdio_read(struct mii_bus *bus, int addr, int regnum)
+{
+	struct bcm_sf2_priv *priv = bus->priv;
+
+	/* Intercept reads from Broadcom pseudo-PHY address, else, send
+	 * them to our master MDIO bus controller
+	 */
+	if (addr == BRCM_PSEUDO_PHY_ADDR && priv->indir_phy_mask & BIT(addr))
+		return bcm_sf2_sw_indir_rw(priv, 1, addr, regnum, 0);
+	else
+		return mdiobus_read(priv->master_mii_bus, addr, regnum);
+}
+
+static int bcm_sf2_sw_mdio_write(struct mii_bus *bus, int addr, int regnum,
+				 u16 val)
+{
+	struct bcm_sf2_priv *priv = bus->priv;
+
+	/* Intercept writes to the Broadcom pseudo-PHY address, else,
+	 * send them to our master MDIO bus controller
+	 */
+	if (addr == BRCM_PSEUDO_PHY_ADDR && priv->indir_phy_mask & BIT(addr))
+		bcm_sf2_sw_indir_rw(priv, 0, addr, regnum, val);
+	else
+		mdiobus_write(priv->master_mii_bus, addr, regnum, val);
 
 	return 0;
 }
@@ -932,133 +1080,70 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 	}
 }
 
-static int bcm_sf2_sw_setup(struct dsa_switch *ds)
+static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 {
-	const char *reg_names[BCM_SF2_REGS_NUM] = BCM_SF2_REGS_NAME;
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
 	struct device_node *dn;
-	void __iomem **base;
-	unsigned int port;
-	unsigned int i;
-	u32 reg, rev;
-	int ret;
+	static int index;
+	int err;
 
-	spin_lock_init(&priv->indir_lock);
-	mutex_init(&priv->stats_mutex);
+	/* Find our integrated MDIO bus node */
+	dn = of_find_compatible_node(NULL, NULL, "brcm,unimac-mdio");
+	priv->master_mii_bus = of_mdio_find_bus(dn);
+	if (!priv->master_mii_bus)
+		return -EPROBE_DEFER;
 
-	/* All the interesting properties are at the parent device_node
-	 * level
-	 */
-	dn = ds->cd->of_node->parent;
-	bcm_sf2_identify_ports(priv, ds->cd->of_node);
+	get_device(&priv->master_mii_bus->dev);
+	priv->master_mii_dn = dn;
 
-	priv->irq0 = irq_of_parse_and_map(dn, 0);
-	priv->irq1 = irq_of_parse_and_map(dn, 1);
+	priv->slave_mii_bus = devm_mdiobus_alloc(ds->dev);
+	if (!priv->slave_mii_bus)
+		return -ENOMEM;
 
-	base = &priv->core;
-	for (i = 0; i < BCM_SF2_REGS_NUM; i++) {
-		*base = of_iomap(dn, i);
-		if (*base == NULL) {
-			pr_err("unable to find register: %s\n", reg_names[i]);
-			ret = -ENOMEM;
-			goto out_unmap;
-		}
-		base++;
-	}
+	priv->slave_mii_bus->priv = priv;
+	priv->slave_mii_bus->name = "sf2 slave mii";
+	priv->slave_mii_bus->read = bcm_sf2_sw_mdio_read;
+	priv->slave_mii_bus->write = bcm_sf2_sw_mdio_write;
+	snprintf(priv->slave_mii_bus->id, MII_BUS_ID_SIZE, "sf2-%d",
+		 index++);
+	priv->slave_mii_bus->dev.of_node = dn;
 
-	ret = bcm_sf2_sw_rst(priv);
-	if (ret) {
-		pr_err("unable to software reset switch: %d\n", ret);
-		goto out_unmap;
-	}
-
-	/* Disable all interrupts and request them */
-	bcm_sf2_intr_disable(priv);
-
-	ret = request_irq(priv->irq0, bcm_sf2_switch_0_isr, 0,
-			  "switch_0", priv);
-	if (ret < 0) {
-		pr_err("failed to request switch_0 IRQ\n");
-		goto out_unmap;
-	}
-
-	ret = request_irq(priv->irq1, bcm_sf2_switch_1_isr, 0,
-			  "switch_1", priv);
-	if (ret < 0) {
-		pr_err("failed to request switch_1 IRQ\n");
-		goto out_free_irq0;
-	}
-
-	/* Reset the MIB counters */
-	reg = core_readl(priv, CORE_GMNCFGCFG);
-	reg |= RST_MIB_CNT;
-	core_writel(priv, reg, CORE_GMNCFGCFG);
-	reg &= ~RST_MIB_CNT;
-	core_writel(priv, reg, CORE_GMNCFGCFG);
-
-	/* Get the maximum number of ports for this switch */
-	priv->hw_params.num_ports = core_readl(priv, CORE_IMP0_PRT_ID) + 1;
-	if (priv->hw_params.num_ports > DSA_MAX_PORTS)
-		priv->hw_params.num_ports = DSA_MAX_PORTS;
-
-	/* Assume a single GPHY setup if we can't read that property */
-	if (of_property_read_u32(dn, "brcm,num-gphy",
-				 &priv->hw_params.num_gphy))
-		priv->hw_params.num_gphy = 1;
-
-	/* Enable all valid ports and disable those unused */
-	for (port = 0; port < priv->hw_params.num_ports; port++) {
-		/* IMP port receives special treatment */
-		if ((1 << port) & ds->enabled_port_mask)
-			bcm_sf2_port_setup(ds, port, NULL);
-		else if (dsa_is_cpu_port(ds, port))
-			bcm_sf2_imp_setup(ds, port);
-		else
-			bcm_sf2_port_disable(ds, port, NULL);
-	}
-
-	/* Include the pseudo-PHY address and the broadcast PHY address to
-	 * divert reads towards our workaround. This is only required for
-	 * 7445D0, since 7445E0 disconnects the internal switch pseudo-PHY such
-	 * that we can use the regular SWITCH_MDIO master controller instead.
+	/* Include the pseudo-PHY address to divert reads towards our
+	 * workaround. This is only required for 7445D0, since 7445E0
+	 * disconnects the internal switch pseudo-PHY such that we can use the
+	 * regular SWITCH_MDIO master controller instead.
 	 *
-	 * By default, DSA initializes ds->phys_mii_mask to
-	 * ds->enabled_port_mask to have a 1:1 mapping between Port address
-	 * and PHY address in order to utilize the slave_mii_bus instance to
-	 * read from Port PHYs. This is not what we want here, so we
-	 * initialize phys_mii_mask 0 to always utilize the "master" MDIO
-	 * bus backed by the "mdio-unimac" driver.
+	 * Here we flag the pseudo PHY as needing special treatment and would
+	 * otherwise make all other PHY read/writes go to the master MDIO bus
+	 * controller that comes with this switch backed by the "mdio-unimac"
+	 * driver.
 	 */
 	if (of_machine_is_compatible("brcm,bcm7445d0"))
-		ds->phys_mii_mask |= ((1 << BRCM_PSEUDO_PHY_ADDR) | (1 << 0));
+		priv->indir_phy_mask |= (1 << BRCM_PSEUDO_PHY_ADDR);
 	else
-		ds->phys_mii_mask = 0;
+		priv->indir_phy_mask = 0;
 
-	rev = reg_readl(priv, REG_SWITCH_REVISION);
-	priv->hw_params.top_rev = (rev >> SWITCH_TOP_REV_SHIFT) &
-					SWITCH_TOP_REV_MASK;
-	priv->hw_params.core_rev = (rev & SF2_REV_MASK);
+	ds->phys_mii_mask = priv->indir_phy_mask;
+	ds->slave_mii_bus = priv->slave_mii_bus;
+	priv->slave_mii_bus->parent = ds->dev->parent;
+	priv->slave_mii_bus->phy_mask = ~priv->indir_phy_mask;
 
-	rev = reg_readl(priv, REG_PHY_REVISION);
-	priv->hw_params.gphy_rev = rev & PHY_REVISION_MASK;
+	if (dn)
+		err = of_mdiobus_register(priv->slave_mii_bus, dn);
+	else
+		err = mdiobus_register(priv->slave_mii_bus);
 
-	pr_info("Starfighter 2 top: %x.%02x, core: %x.%02x base: 0x%p, IRQs: %d, %d\n",
-		priv->hw_params.top_rev >> 8, priv->hw_params.top_rev & 0xff,
-		priv->hw_params.core_rev >> 8, priv->hw_params.core_rev & 0xff,
-		priv->core, priv->irq0, priv->irq1);
+	if (err)
+		of_node_put(dn);
 
-	return 0;
+	return err;
+}
 
-out_free_irq0:
-	free_irq(priv->irq0, priv);
-out_unmap:
-	base = &priv->core;
-	for (i = 0; i < BCM_SF2_REGS_NUM; i++) {
-		if (*base)
-			iounmap(*base);
-		base++;
-	}
-	return ret;
+static void bcm_sf2_mdio_unregister(struct bcm_sf2_priv *priv)
+{
+	mdiobus_unregister(priv->slave_mii_bus);
+	if (priv->master_mii_dn)
+		of_node_put(priv->master_mii_dn);
 }
 
 static int bcm_sf2_sw_set_addr(struct dsa_switch *ds, u8 *addr)
@@ -1076,68 +1161,6 @@ static u32 bcm_sf2_sw_get_phy_flags(struct dsa_switch *ds, int port)
 	 */
 
 	return priv->hw_params.gphy_rev;
-}
-
-static int bcm_sf2_sw_indir_rw(struct dsa_switch *ds, int op, int addr,
-			       int regnum, u16 val)
-{
-	struct bcm_sf2_priv *priv = ds_to_priv(ds);
-	int ret = 0;
-	u32 reg;
-
-	reg = reg_readl(priv, REG_SWITCH_CNTRL);
-	reg |= MDIO_MASTER_SEL;
-	reg_writel(priv, reg, REG_SWITCH_CNTRL);
-
-	/* Page << 8 | offset */
-	reg = 0x70;
-	reg <<= 2;
-	core_writel(priv, addr, reg);
-
-	/* Page << 8 | offset */
-	reg = 0x80 << 8 | regnum << 1;
-	reg <<= 2;
-
-	if (op)
-		ret = core_readl(priv, reg);
-	else
-		core_writel(priv, val, reg);
-
-	reg = reg_readl(priv, REG_SWITCH_CNTRL);
-	reg &= ~MDIO_MASTER_SEL;
-	reg_writel(priv, reg, REG_SWITCH_CNTRL);
-
-	return ret & 0xffff;
-}
-
-static int bcm_sf2_sw_phy_read(struct dsa_switch *ds, int addr, int regnum)
-{
-	/* Intercept reads from the MDIO broadcast address or Broadcom
-	 * pseudo-PHY address
-	 */
-	switch (addr) {
-	case 0:
-	case BRCM_PSEUDO_PHY_ADDR:
-		return bcm_sf2_sw_indir_rw(ds, 1, addr, regnum, 0);
-	default:
-		return 0xffff;
-	}
-}
-
-static int bcm_sf2_sw_phy_write(struct dsa_switch *ds, int addr, int regnum,
-				u16 val)
-{
-	/* Intercept writes to the MDIO broadcast address or Broadcom
-	 * pseudo-PHY address
-	 */
-	switch (addr) {
-	case 0:
-	case BRCM_PSEUDO_PHY_ADDR:
-		bcm_sf2_sw_indir_rw(ds, 0, addr, regnum, val);
-		break;
-	}
-
-	return 0;
 }
 
 static void bcm_sf2_sw_adjust_link(struct dsa_switch *ds, int port,
@@ -1248,7 +1271,7 @@ static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,
 		 * state machine and make it go in PHY_FORCING state instead.
 		 */
 		if (!status->link)
-			netif_carrier_off(ds->ports[port]);
+			netif_carrier_off(ds->ports[port].netdev);
 		status->duplex = 1;
 	} else {
 		status->link = 1;
@@ -1370,14 +1393,310 @@ static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 	return p->ethtool_ops->set_wol(p, wol);
 }
 
+static void bcm_sf2_enable_vlan(struct bcm_sf2_priv *priv, bool enable)
+{
+	u32 mgmt, vc0, vc1, vc4, vc5;
+
+	mgmt = core_readl(priv, CORE_SWMODE);
+	vc0 = core_readl(priv, CORE_VLAN_CTRL0);
+	vc1 = core_readl(priv, CORE_VLAN_CTRL1);
+	vc4 = core_readl(priv, CORE_VLAN_CTRL4);
+	vc5 = core_readl(priv, CORE_VLAN_CTRL5);
+
+	mgmt &= ~SW_FWDG_MODE;
+
+	if (enable) {
+		vc0 |= VLAN_EN | VLAN_LEARN_MODE_IVL;
+		vc1 |= EN_RSV_MCAST_UNTAG | EN_RSV_MCAST_FWDMAP;
+		vc4 &= ~(INGR_VID_CHK_MASK << INGR_VID_CHK_SHIFT);
+		vc4 |= INGR_VID_CHK_DROP;
+		vc5 |= DROP_VTABLE_MISS | EN_VID_FFF_FWD;
+	} else {
+		vc0 &= ~(VLAN_EN | VLAN_LEARN_MODE_IVL);
+		vc1 &= ~(EN_RSV_MCAST_UNTAG | EN_RSV_MCAST_FWDMAP);
+		vc4 &= ~(INGR_VID_CHK_MASK << INGR_VID_CHK_SHIFT);
+		vc5 &= ~(DROP_VTABLE_MISS | EN_VID_FFF_FWD);
+		vc4 |= INGR_VID_CHK_VID_VIOL_IMP;
+	}
+
+	core_writel(priv, vc0, CORE_VLAN_CTRL0);
+	core_writel(priv, vc1, CORE_VLAN_CTRL1);
+	core_writel(priv, 0, CORE_VLAN_CTRL3);
+	core_writel(priv, vc4, CORE_VLAN_CTRL4);
+	core_writel(priv, vc5, CORE_VLAN_CTRL5);
+	core_writel(priv, mgmt, CORE_SWMODE);
+}
+
+static void bcm_sf2_sw_configure_vlan(struct dsa_switch *ds)
+{
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	unsigned int port;
+
+	/* Clear all VLANs */
+	bcm_sf2_vlan_op(priv, ARLA_VTBL_CMD_CLEAR);
+
+	for (port = 0; port < priv->hw_params.num_ports; port++) {
+		if (!((1 << port) & ds->enabled_port_mask))
+			continue;
+
+		core_writel(priv, 1, CORE_DEFAULT_1Q_TAG_P(port));
+	}
+}
+
+static int bcm_sf2_sw_vlan_filtering(struct dsa_switch *ds, int port,
+				     bool vlan_filtering)
+{
+	return 0;
+}
+
+static int bcm_sf2_sw_vlan_prepare(struct dsa_switch *ds, int port,
+				   const struct switchdev_obj_port_vlan *vlan,
+				   struct switchdev_trans *trans)
+{
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+
+	bcm_sf2_enable_vlan(priv, true);
+
+	return 0;
+}
+
+static void bcm_sf2_sw_vlan_add(struct dsa_switch *ds, int port,
+				const struct switchdev_obj_port_vlan *vlan,
+				struct switchdev_trans *trans)
+{
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
+	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
+	s8 cpu_port = ds->dst->cpu_port;
+	struct bcm_sf2_vlan *vl;
+	u16 vid;
+
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
+		vl = &priv->vlans[vid];
+
+		bcm_sf2_get_vlan_entry(priv, vid, vl);
+
+		vl->members |= BIT(port) | BIT(cpu_port);
+		if (untagged)
+			vl->untag |= BIT(port) | BIT(cpu_port);
+		else
+			vl->untag &= ~(BIT(port) | BIT(cpu_port));
+
+		bcm_sf2_set_vlan_entry(priv, vid, vl);
+		bcm_sf2_sw_fast_age_vlan(priv, vid);
+	}
+
+	if (pvid) {
+		core_writel(priv, vlan->vid_end, CORE_DEFAULT_1Q_TAG_P(port));
+		core_writel(priv, vlan->vid_end,
+			    CORE_DEFAULT_1Q_TAG_P(cpu_port));
+		bcm_sf2_sw_fast_age_vlan(priv, vid);
+	}
+}
+
+static int bcm_sf2_sw_vlan_del(struct dsa_switch *ds, int port,
+			       const struct switchdev_obj_port_vlan *vlan)
+{
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
+	s8 cpu_port = ds->dst->cpu_port;
+	struct bcm_sf2_vlan *vl;
+	u16 vid, pvid;
+	int ret;
+
+	pvid = core_readl(priv, CORE_DEFAULT_1Q_TAG_P(port));
+
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
+		vl = &priv->vlans[vid];
+
+		ret = bcm_sf2_get_vlan_entry(priv, vid, vl);
+		if (ret)
+			return ret;
+
+		vl->members &= ~BIT(port);
+		if ((vl->members & BIT(cpu_port)) == BIT(cpu_port))
+			vl->members = 0;
+		if (pvid == vid)
+			pvid = 0;
+		if (untagged) {
+			vl->untag &= ~BIT(port);
+			if ((vl->untag & BIT(port)) == BIT(cpu_port))
+				vl->untag = 0;
+		}
+
+		bcm_sf2_set_vlan_entry(priv, vid, vl);
+		bcm_sf2_sw_fast_age_vlan(priv, vid);
+	}
+
+	core_writel(priv, pvid, CORE_DEFAULT_1Q_TAG_P(port));
+	core_writel(priv, pvid, CORE_DEFAULT_1Q_TAG_P(cpu_port));
+	bcm_sf2_sw_fast_age_vlan(priv, vid);
+
+	return 0;
+}
+
+static int bcm_sf2_sw_vlan_dump(struct dsa_switch *ds, int port,
+				struct switchdev_obj_port_vlan *vlan,
+				int (*cb)(struct switchdev_obj *obj))
+{
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	struct bcm_sf2_port_status *p = &priv->port_sts[port];
+	struct bcm_sf2_vlan *vl;
+	u16 vid, pvid;
+	int err = 0;
+
+	pvid = core_readl(priv, CORE_DEFAULT_1Q_TAG_P(port));
+
+	for (vid = 0; vid < VLAN_N_VID; vid++) {
+		vl = &priv->vlans[vid];
+
+		if (!(vl->members & BIT(port)))
+			continue;
+
+		vlan->vid_begin = vlan->vid_end = vid;
+		vlan->flags = 0;
+
+		if (vl->untag & BIT(port))
+			vlan->flags |= BRIDGE_VLAN_INFO_UNTAGGED;
+		if (p->pvid == vid)
+			vlan->flags |= BRIDGE_VLAN_INFO_PVID;
+
+		err = cb(&vlan->obj);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
+static int bcm_sf2_sw_setup(struct dsa_switch *ds)
+{
+	const char *reg_names[BCM_SF2_REGS_NUM] = BCM_SF2_REGS_NAME;
+	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	struct device_node *dn;
+	void __iomem **base;
+	unsigned int port;
+	unsigned int i;
+	u32 reg, rev;
+	int ret;
+
+	spin_lock_init(&priv->indir_lock);
+	mutex_init(&priv->stats_mutex);
+
+	/* All the interesting properties are at the parent device_node
+	 * level
+	 */
+	dn = ds->cd->of_node->parent;
+	bcm_sf2_identify_ports(priv, ds->cd->of_node);
+
+	priv->irq0 = irq_of_parse_and_map(dn, 0);
+	priv->irq1 = irq_of_parse_and_map(dn, 1);
+
+	base = &priv->core;
+	for (i = 0; i < BCM_SF2_REGS_NUM; i++) {
+		*base = of_iomap(dn, i);
+		if (*base == NULL) {
+			pr_err("unable to find register: %s\n", reg_names[i]);
+			ret = -ENOMEM;
+			goto out_unmap;
+		}
+		base++;
+	}
+
+	ret = bcm_sf2_sw_rst(priv);
+	if (ret) {
+		pr_err("unable to software reset switch: %d\n", ret);
+		goto out_unmap;
+	}
+
+	ret = bcm_sf2_mdio_register(ds);
+	if (ret) {
+		pr_err("failed to register MDIO bus\n");
+		goto out_unmap;
+	}
+
+	/* Disable all interrupts and request them */
+	bcm_sf2_intr_disable(priv);
+
+	ret = request_irq(priv->irq0, bcm_sf2_switch_0_isr, 0,
+			  "switch_0", priv);
+	if (ret < 0) {
+		pr_err("failed to request switch_0 IRQ\n");
+		goto out_mdio;
+	}
+
+	ret = request_irq(priv->irq1, bcm_sf2_switch_1_isr, 0,
+			  "switch_1", priv);
+	if (ret < 0) {
+		pr_err("failed to request switch_1 IRQ\n");
+		goto out_free_irq0;
+	}
+
+	/* Reset the MIB counters */
+	reg = core_readl(priv, CORE_GMNCFGCFG);
+	reg |= RST_MIB_CNT;
+	core_writel(priv, reg, CORE_GMNCFGCFG);
+	reg &= ~RST_MIB_CNT;
+	core_writel(priv, reg, CORE_GMNCFGCFG);
+
+	/* Get the maximum number of ports for this switch */
+	priv->hw_params.num_ports = core_readl(priv, CORE_IMP0_PRT_ID) + 1;
+	if (priv->hw_params.num_ports > DSA_MAX_PORTS)
+		priv->hw_params.num_ports = DSA_MAX_PORTS;
+
+	/* Assume a single GPHY setup if we can't read that property */
+	if (of_property_read_u32(dn, "brcm,num-gphy",
+				 &priv->hw_params.num_gphy))
+		priv->hw_params.num_gphy = 1;
+
+	/* Enable all valid ports and disable those unused */
+	for (port = 0; port < priv->hw_params.num_ports; port++) {
+		/* IMP port receives special treatment */
+		if ((1 << port) & ds->enabled_port_mask)
+			bcm_sf2_port_setup(ds, port, NULL);
+		else if (dsa_is_cpu_port(ds, port))
+			bcm_sf2_imp_setup(ds, port);
+		else
+			bcm_sf2_port_disable(ds, port, NULL);
+	}
+
+	bcm_sf2_sw_configure_vlan(ds);
+
+	rev = reg_readl(priv, REG_SWITCH_REVISION);
+	priv->hw_params.top_rev = (rev >> SWITCH_TOP_REV_SHIFT) &
+					SWITCH_TOP_REV_MASK;
+	priv->hw_params.core_rev = (rev & SF2_REV_MASK);
+
+	rev = reg_readl(priv, REG_PHY_REVISION);
+	priv->hw_params.gphy_rev = rev & PHY_REVISION_MASK;
+
+	pr_info("Starfighter 2 top: %x.%02x, core: %x.%02x base: 0x%p, IRQs: %d, %d\n",
+		priv->hw_params.top_rev >> 8, priv->hw_params.top_rev & 0xff,
+		priv->hw_params.core_rev >> 8, priv->hw_params.core_rev & 0xff,
+		priv->core, priv->irq0, priv->irq1);
+
+	return 0;
+
+out_free_irq0:
+	free_irq(priv->irq0, priv);
+out_mdio:
+	bcm_sf2_mdio_unregister(priv);
+out_unmap:
+	base = &priv->core;
+	for (i = 0; i < BCM_SF2_REGS_NUM; i++) {
+		if (*base)
+			iounmap(*base);
+		base++;
+	}
+	return ret;
+}
+
 static struct dsa_switch_driver bcm_sf2_switch_driver = {
 	.tag_protocol		= DSA_TAG_PROTO_BRCM,
 	.probe			= bcm_sf2_sw_drv_probe,
 	.setup			= bcm_sf2_sw_setup,
 	.set_addr		= bcm_sf2_sw_set_addr,
 	.get_phy_flags		= bcm_sf2_sw_get_phy_flags,
-	.phy_read		= bcm_sf2_sw_phy_read,
-	.phy_write		= bcm_sf2_sw_phy_write,
 	.get_strings		= bcm_sf2_sw_get_strings,
 	.get_ethtool_stats	= bcm_sf2_sw_get_ethtool_stats,
 	.get_sset_count		= bcm_sf2_sw_get_sset_count,
@@ -1398,6 +1717,11 @@ static struct dsa_switch_driver bcm_sf2_switch_driver = {
 	.port_fdb_add		= bcm_sf2_sw_fdb_add,
 	.port_fdb_del		= bcm_sf2_sw_fdb_del,
 	.port_fdb_dump		= bcm_sf2_sw_fdb_dump,
+	.port_vlan_filtering	= bcm_sf2_sw_vlan_filtering,
+	.port_vlan_prepare	= bcm_sf2_sw_vlan_prepare,
+	.port_vlan_add		= bcm_sf2_sw_vlan_add,
+	.port_vlan_del		= bcm_sf2_sw_vlan_del,
+	.port_vlan_dump		= bcm_sf2_sw_vlan_dump,
 };
 
 static int __init bcm_sf2_init(void)

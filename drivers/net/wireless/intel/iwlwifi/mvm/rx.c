@@ -101,7 +101,7 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 					    struct napi_struct *napi,
 					    struct sk_buff *skb,
 					    struct ieee80211_hdr *hdr, u16 len,
-					    u32 ampdu_status, u8 crypt_len,
+					    u8 crypt_len,
 					    struct iwl_rx_cmd_buffer *rxb)
 {
 	unsigned int hdrlen, fraglen;
@@ -268,7 +268,6 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct ieee80211_sta *sta = NULL;
 	struct sk_buff *skb;
 	u32 len;
-	u32 ampdu_status;
 	u32 rate_n_flags;
 	u32 rx_pkt_status;
 	u8 crypt_len = 0;
@@ -354,13 +353,22 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	if (sta) {
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+		struct ieee80211_vif *tx_blocked_vif =
+			rcu_dereference(mvm->csa_tx_blocked_vif);
 
 		/* We have tx blocked stations (with CS bit). If we heard
 		 * frames from a blocked station on a new channel we can
 		 * TX to it again.
 		 */
-		if (unlikely(mvm->csa_tx_block_bcn_timeout))
-			iwl_mvm_sta_modify_disable_tx_ap(mvm, sta, false);
+		if (unlikely(tx_blocked_vif) &&
+		    mvmsta->vif == tx_blocked_vif) {
+			struct iwl_mvm_vif *mvmvif =
+				iwl_mvm_vif_from_mac80211(tx_blocked_vif);
+
+			if (mvmvif->csa_target_freq == rx_status->freq)
+				iwl_mvm_sta_modify_disable_tx_ap(mvm, sta,
+								 false);
+		}
 
 		rs_update_last_rssi(mvm, &mvmsta->lq_sta, rx_status);
 
@@ -471,7 +479,7 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 		iwl_mvm_ref(mvm, IWL_MVM_REF_RX);
 
 	iwl_mvm_pass_packet_to_mac80211(mvm, sta, napi, skb, hdr, len,
-					ampdu_status, crypt_len, rxb);
+					crypt_len, rxb);
 
 	if (take_ref)
 		iwl_mvm_unref(mvm, IWL_MVM_REF_RX);
@@ -490,6 +498,7 @@ struct iwl_mvm_stat_data {
 	__le32 mac_id;
 	u8 beacon_filter_average_energy;
 	struct mvm_statistics_general_v8 *general;
+	struct mvm_statistics_load *load;
 };
 
 static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
@@ -606,13 +615,15 @@ iwl_mvm_rx_stats_check_trigger(struct iwl_mvm *mvm, struct iwl_rx_packet *pkt)
 void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 				  struct iwl_rx_packet *pkt)
 {
-	struct iwl_notif_statistics_v10 *stats = (void *)&pkt->data;
+	struct iwl_notif_statistics_v11 *stats = (void *)&pkt->data;
 	struct iwl_mvm_stat_data data = {
 		.mvm = mvm,
 	};
+	int expected_size = iwl_mvm_has_new_rx_api(mvm) ? sizeof(*stats) :
+			    sizeof(struct iwl_notif_statistics_v10);
 	u32 temperature;
 
-	if (iwl_rx_packet_payload_len(pkt) != sizeof(*stats))
+	if (iwl_rx_packet_payload_len(pkt) != expected_size)
 		goto invalid;
 
 	temperature = le32_to_cpu(stats->general.radio_temperature);
@@ -630,6 +641,25 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 		le64_to_cpu(stats->general.on_time_scan);
 
 	data.general = &stats->general;
+	if (iwl_mvm_has_new_rx_api(mvm)) {
+		int i;
+
+		data.load = &stats->load_stats;
+
+		rcu_read_lock();
+		for (i = 0; i < IWL_MVM_STATION_COUNT; i++) {
+			struct iwl_mvm_sta *sta;
+
+			if (!data.load->avg_energy[i])
+				continue;
+
+			sta = iwl_mvm_sta_from_staid_rcu(mvm, i);
+			if (!sta)
+				continue;
+			sta->avg_energy = data.load->avg_energy[i];
+		}
+		rcu_read_unlock();
+	}
 
 	iwl_mvm_rx_stats_check_trigger(mvm, pkt);
 

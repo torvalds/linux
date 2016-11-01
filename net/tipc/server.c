@@ -418,13 +418,12 @@ static struct outqueue_entry *tipc_alloc_entry(void *data, int len)
 	if (!entry)
 		return NULL;
 
-	buf = kmalloc(len, GFP_ATOMIC);
+	buf = kmemdup(data, len, GFP_ATOMIC);
 	if (!buf) {
 		kfree(entry);
 		return NULL;
 	}
 
-	memcpy(buf, data, len);
 	entry->iov.iov_base = buf;
 	entry->iov.iov_len = len;
 

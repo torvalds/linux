@@ -70,13 +70,12 @@
 		 * associativity as these may be erroneously set
 		 * up by boot loader(s).
 		 */
-		cache-size = <1048576>; // 1MB
-		cache-sets = <4096>;
+		cache-size = <131072>; // 128KB
+		cache-sets = <512>;
 		cache-line-size = <32>;
 		arm,parity-disable;
-		arm,tag-latency = <1>;
-		arm,data-latency = <1 1>;
-		arm,dirty-latency = <1>;
+		arm,tag-latency = <1 1 1>;
+		arm,data-latency = <1 1 1>;
 	};
 
 	scu: scu@1f000000 {

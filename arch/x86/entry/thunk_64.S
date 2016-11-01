@@ -33,7 +33,7 @@
 	.endif
 
 	call \func
-	jmp  restore
+	jmp  .L_restore
 	_ASM_NOKPROBE(\name)
 	.endm
 
@@ -54,7 +54,7 @@
 #if defined(CONFIG_TRACE_IRQFLAGS) \
  || defined(CONFIG_DEBUG_LOCK_ALLOC) \
  || defined(CONFIG_PREEMPT)
-restore:
+.L_restore:
 	popq %r11
 	popq %r10
 	popq %r9
@@ -66,5 +66,5 @@ restore:
 	popq %rdi
 	popq %rbp
 	ret
-	_ASM_NOKPROBE(restore)
+	_ASM_NOKPROBE(.L_restore)
 #endif

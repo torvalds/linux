@@ -34,6 +34,8 @@
 #include <linux/bootmem.h>
 #include <linux/earlycpio.h>
 #include <linux/memblock.h>
+#include <linux/initrd.h>
+#include <linux/acpi.h>
 #include "internal.h"
 
 #ifdef CONFIG_ACPI_CUSTOM_DSDT
@@ -481,8 +483,10 @@ static DECLARE_BITMAP(acpi_initrd_installed, NR_ACPI_INITRD_TABLES);
 
 #define MAP_CHUNK_SIZE   (NR_FIX_BTMAPS << PAGE_SHIFT)
 
-static void __init acpi_table_initrd_init(void *data, size_t size)
+void __init acpi_table_upgrade(void)
 {
+	void *data = (void *)initrd_start;
+	size_t size = initrd_end - initrd_start;
 	int sig, no, table_nr = 0, total_offset = 0;
 	long offset = 0;
 	struct acpi_table_header *table;
@@ -540,7 +544,7 @@ static void __init acpi_table_initrd_init(void *data, size_t size)
 		return;
 
 	acpi_tables_addr =
-		memblock_find_in_range(0, max_low_pfn_mapped << PAGE_SHIFT,
+		memblock_find_in_range(0, ACPI_TABLE_UPGRADE_MAX_PHYS,
 				       all_tables_size, PAGE_SIZE);
 	if (!acpi_tables_addr) {
 		WARN_ON(1);
@@ -578,10 +582,10 @@ static void __init acpi_table_initrd_init(void *data, size_t size)
 			clen = size;
 			if (clen > MAP_CHUNK_SIZE - slop)
 				clen = MAP_CHUNK_SIZE - slop;
-			dest_p = early_ioremap(dest_addr & PAGE_MASK,
-						 clen + slop);
+			dest_p = early_memremap(dest_addr & PAGE_MASK,
+						clen + slop);
 			memcpy(dest_p + slop, src_p, clen);
-			early_iounmap(dest_p, clen + slop);
+			early_memunmap(dest_p, clen + slop);
 			src_p += clen;
 			dest_addr += clen;
 			size -= clen;
@@ -696,10 +700,6 @@ next_table:
 	}
 }
 #else
-static void __init acpi_table_initrd_init(void *data, size_t size)
-{
-}
-
 static acpi_status
 acpi_table_initrd_override(struct acpi_table_header *existing_table,
 			   acpi_physical_address *address,
@@ -740,11 +740,6 @@ acpi_os_table_override(struct acpi_table_header *existing_table,
 	if (*new_table != NULL)
 		acpi_table_taint(existing_table);
 	return AE_OK;
-}
-
-void __init early_acpi_table_init(void *data, size_t size)
-{
-	acpi_table_initrd_init(data, size);
 }
 
 /*

@@ -39,7 +39,7 @@
 		      <0xc2000000 0x1000>;
 	};
 
-	L2: cache-controller {
+	L2: cache-controller@f0100000 {
 		compatible = "arm,pl310-cache";
 		reg = <0xf0100000 0x1000>;
 		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;

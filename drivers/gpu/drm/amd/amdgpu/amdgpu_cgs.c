@@ -312,6 +312,8 @@ static uint32_t amdgpu_cgs_read_ind_register(struct cgs_device *cgs_device,
 		return RREG32_UVD_CTX(index);
 	case CGS_IND_REG__DIDT:
 		return RREG32_DIDT(index);
+	case CGS_IND_REG_GC_CAC:
+		return RREG32_GC_CAC(index);
 	case CGS_IND_REG__AUDIO_ENDPT:
 		DRM_ERROR("audio endpt register access not implemented.\n");
 		return 0;
@@ -336,6 +338,8 @@ static void amdgpu_cgs_write_ind_register(struct cgs_device *cgs_device,
 		return WREG32_UVD_CTX(index, value);
 	case CGS_IND_REG__DIDT:
 		return WREG32_DIDT(index, value);
+	case CGS_IND_REG_GC_CAC:
+		return WREG32_GC_CAC(index, value);
 	case CGS_IND_REG__AUDIO_ENDPT:
 		DRM_ERROR("audio endpt register access not implemented.\n");
 		return;
@@ -748,6 +752,9 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 
 		if (!adev->pm.fw) {
 			switch (adev->asic_type) {
+			case CHIP_TOPAZ:
+				strcpy(fw_name, "amdgpu/topaz_smc.bin");
+				break;
 			case CHIP_TONGA:
 				strcpy(fw_name, "amdgpu/tonga_smc.bin");
 				break;
@@ -787,6 +794,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 		}
 
 		hdr = (const struct smc_firmware_header_v1_0 *)	adev->pm.fw->data;
+		amdgpu_ucode_print_smc_hdr(&hdr->header);
 		adev->pm.fw_version = le32_to_cpu(hdr->header.ucode_version);
 		ucode_size = le32_to_cpu(hdr->header.ucode_size_bytes);
 		ucode_start_address = le32_to_cpu(hdr->ucode_start_addr);
@@ -795,13 +803,14 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 
 		info->version = adev->pm.fw_version;
 		info->image_size = ucode_size;
+		info->ucode_start_address = ucode_start_address;
 		info->kptr = (void *)src;
 	}
 	return 0;
 }
 
 static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
-				struct cgs_system_info *sys_info)
+					struct cgs_system_info *sys_info)
 {
 	CGS_FUNC_ADEV;
 
@@ -821,6 +830,12 @@ static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
 	case CGS_SYSTEM_INFO_PCIE_MLW:
 		sys_info->value = adev->pm.pcie_mlw_mask;
 		break;
+	case CGS_SYSTEM_INFO_PCIE_DEV:
+		sys_info->value = adev->pdev->device;
+		break;
+	case CGS_SYSTEM_INFO_PCIE_REV:
+		sys_info->value = adev->pdev->revision;
+		break;
 	case CGS_SYSTEM_INFO_CG_FLAGS:
 		sys_info->value = adev->cg_flags;
 		break;
@@ -829,6 +844,9 @@ static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
 		break;
 	case CGS_SYSTEM_INFO_GFX_CU_INFO:
 		sys_info->value = adev->gfx.cu_info.number;
+		break;
+	case CGS_SYSTEM_INFO_GFX_SE_INFO:
+		sys_info->value = adev->gfx.config.max_shader_engines;
 		break;
 	default:
 		return -ENODEV;
@@ -903,14 +921,12 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 	acpi_handle handle;
 	struct acpi_object_list input;
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *params = NULL;
-	union acpi_object *obj = NULL;
+	union acpi_object *params, *obj;
 	uint8_t name[5] = {'\0'};
-	struct cgs_acpi_method_argument *argument = NULL;
+	struct cgs_acpi_method_argument *argument;
 	uint32_t i, count;
 	acpi_status status;
-	int result = 0;
-	uint32_t func_no = 0xFFFFFFFF;
+	int result;
 
 	handle = ACPI_HANDLE(&adev->pdev->dev);
 	if (!handle)
@@ -927,7 +943,6 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 		if (info->pinput_argument == NULL)
 			return -EINVAL;
 		argument = info->pinput_argument;
-		func_no = argument->value;
 		for (i = 0; i < info->input_count; i++) {
 			if (((argument->type == ACPI_TYPE_STRING) ||
 			     (argument->type == ACPI_TYPE_BUFFER)) &&
@@ -972,11 +987,11 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 				params->integer.value = argument->value;
 				break;
 			case ACPI_TYPE_STRING:
-				params->string.length = argument->method_length;
+				params->string.length = argument->data_length;
 				params->string.pointer = argument->pointer;
 				break;
 			case ACPI_TYPE_BUFFER:
-				params->buffer.length = argument->method_length;
+				params->buffer.length = argument->data_length;
 				params->buffer.pointer = argument->pointer;
 				break;
 			default:
@@ -996,7 +1011,7 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 
 	if (ACPI_FAILURE(status)) {
 		result = -EIO;
-		goto error;
+		goto free_input;
 	}
 
 	/* return the output info */
@@ -1006,7 +1021,7 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 		if ((obj->type != ACPI_TYPE_PACKAGE) ||
 			(obj->package.count != count)) {
 			result = -EIO;
-			goto error;
+			goto free_obj;
 		}
 		params = obj->package.elements;
 	} else
@@ -1014,13 +1029,13 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 
 	if (params == NULL) {
 		result = -EIO;
-		goto error;
+		goto free_obj;
 	}
 
 	for (i = 0; i < count; i++) {
 		if (argument->type != params->type) {
 			result = -EIO;
-			goto error;
+			goto free_obj;
 		}
 		switch (params->type) {
 		case ACPI_TYPE_INTEGER:
@@ -1030,7 +1045,7 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 			if ((params->string.length != argument->data_length) ||
 				(params->string.pointer == NULL)) {
 				result = -EIO;
-				goto error;
+				goto free_obj;
 			}
 			strncpy(argument->pointer,
 				params->string.pointer,
@@ -1039,7 +1054,7 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 		case ACPI_TYPE_BUFFER:
 			if (params->buffer.pointer == NULL) {
 				result = -EIO;
-				goto error;
+				goto free_obj;
 			}
 			memcpy(argument->pointer,
 				params->buffer.pointer,
@@ -1052,9 +1067,10 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 		params++;
 	}
 
-error:
-	if (obj != NULL)
-		kfree(obj);
+	result = 0;
+free_obj:
+	kfree(obj);
+free_input:
 	kfree((void *)input.pointer);
 	return result;
 }
@@ -1066,7 +1082,7 @@ static int amdgpu_cgs_acpi_eval_object(struct cgs_device *cgs_device,
 }
 #endif
 
-int amdgpu_cgs_call_acpi_method(struct cgs_device *cgs_device,
+static int amdgpu_cgs_call_acpi_method(struct cgs_device *cgs_device,
 					uint32_t acpi_method,
 					uint32_t acpi_function,
 					void *pinput, void *poutput,
@@ -1079,17 +1095,14 @@ int amdgpu_cgs_call_acpi_method(struct cgs_device *cgs_device,
 	struct cgs_acpi_method_info info = {0};
 
 	acpi_input[0].type = CGS_ACPI_TYPE_INTEGER;
-	acpi_input[0].method_length = sizeof(uint32_t);
 	acpi_input[0].data_length = sizeof(uint32_t);
 	acpi_input[0].value = acpi_function;
 
 	acpi_input[1].type = CGS_ACPI_TYPE_BUFFER;
-	acpi_input[1].method_length = CGS_ACPI_MAX_BUFFER_SIZE;
 	acpi_input[1].data_length = input_size;
 	acpi_input[1].pointer = pinput;
 
 	acpi_output.type = CGS_ACPI_TYPE_BUFFER;
-	acpi_output.method_length = CGS_ACPI_MAX_BUFFER_SIZE;
 	acpi_output.data_length = output_size;
 	acpi_output.pointer = poutput;
 

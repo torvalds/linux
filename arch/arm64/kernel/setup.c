@@ -39,9 +39,7 @@
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
 #include <linux/memblock.h>
-#include <linux/of_iommu.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 #include <linux/efi.h>
 #include <linux/psci.h>
 
@@ -202,7 +200,7 @@ static void __init request_standard_resources(void)
 	struct resource *res;
 
 	kernel_code.start   = virt_to_phys(_text);
-	kernel_code.end     = virt_to_phys(_etext - 1);
+	kernel_code.end     = virt_to_phys(__init_begin - 1);
 	kernel_data.start   = virt_to_phys(_sdata);
 	kernel_data.end     = virt_to_phys(_end - 1);
 
@@ -257,13 +255,16 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	cpu_uninstall_idmap();
 
+	xen_early_init();
 	efi_init();
 	arm64_memblock_init();
 
+	paging_init();
+
+	acpi_table_upgrade();
+
 	/* Parse the ACPI tables for possible boot-time configuration */
 	acpi_boot_table_init();
-
-	paging_init();
 
 	if (acpi_disabled)
 		unflatten_device_tree();
@@ -280,8 +281,6 @@ void __init setup_arch(char **cmdline_p)
 		psci_dt_init();
 	else
 		psci_acpi_init();
-
-	xen_early_init();
 
 	cpu_read_bootcpu_ops();
 	smp_init_cpus();
@@ -301,19 +300,6 @@ void __init setup_arch(char **cmdline_p)
 			boot_args[1], boot_args[2], boot_args[3]);
 	}
 }
-
-static int __init arm64_device_init(void)
-{
-	if (of_have_populated_dt()) {
-		of_iommu_init();
-		of_platform_populate(NULL, of_default_bus_match_table,
-				     NULL, NULL);
-	} else if (acpi_disabled) {
-		pr_crit("Device tree not populated\n");
-	}
-	return 0;
-}
-arch_initcall_sync(arm64_device_init);
 
 static int __init topology_init(void)
 {

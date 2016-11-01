@@ -768,16 +768,12 @@ static enum dma_status s3c24xx_dma_tx_status(struct dma_chan *chan,
 
 	spin_lock_irqsave(&s3cchan->vc.lock, flags);
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_COMPLETE) {
-		spin_unlock_irqrestore(&s3cchan->vc.lock, flags);
-		return ret;
-	}
 
 	/*
 	 * There's no point calculating the residue if there's
 	 * no txstate to store the value.
 	 */
-	if (!txstate) {
+	if (ret == DMA_COMPLETE || !txstate) {
 		spin_unlock_irqrestore(&s3cchan->vc.lock, flags);
 		return ret;
 	}
@@ -1105,11 +1101,8 @@ static int s3c24xx_dma_init_virtual_channels(struct s3c24xx_dma_engine *s3cdma,
 	 */
 	for (i = 0; i < channels; i++) {
 		chan = devm_kzalloc(dmadev->dev, sizeof(*chan), GFP_KERNEL);
-		if (!chan) {
-			dev_err(dmadev->dev,
-				"%s no memory for channel\n", __func__);
+		if (!chan)
 			return -ENOMEM;
-		}
 
 		chan->id = i;
 		chan->host = s3cdma;
@@ -1143,8 +1136,10 @@ static void s3c24xx_dma_free_virtual_channels(struct dma_device *dmadev)
 	struct s3c24xx_dma_chan *next;
 
 	list_for_each_entry_safe(chan,
-				 next, &dmadev->channels, vc.chan.device_node)
+				 next, &dmadev->channels, vc.chan.device_node) {
 		list_del(&chan->vc.chan.device_node);
+		tasklet_kill(&chan->vc.task);
+	}
 }
 
 /* s3c2410, s3c2440 and s3c2442 have a 0x40 stride without separate clocks */
@@ -1366,6 +1361,18 @@ err_memcpy:
 	return ret;
 }
 
+static void s3c24xx_dma_free_irq(struct platform_device *pdev,
+				struct s3c24xx_dma_engine *s3cdma)
+{
+	int i;
+
+	for (i = 0; i < s3cdma->pdata->num_phy_channels; i++) {
+		struct s3c24xx_dma_phy *phy = &s3cdma->phy_chans[i];
+
+		devm_free_irq(&pdev->dev, phy->irq, phy);
+	}
+}
+
 static int s3c24xx_dma_remove(struct platform_device *pdev)
 {
 	const struct s3c24xx_dma_platdata *pdata = dev_get_platdata(&pdev->dev);
@@ -1375,6 +1382,8 @@ static int s3c24xx_dma_remove(struct platform_device *pdev)
 
 	dma_async_device_unregister(&s3cdma->slave);
 	dma_async_device_unregister(&s3cdma->memcpy);
+
+	s3c24xx_dma_free_irq(pdev, s3cdma);
 
 	s3c24xx_dma_free_virtual_channels(&s3cdma->slave);
 	s3c24xx_dma_free_virtual_channels(&s3cdma->memcpy);

@@ -2027,7 +2027,8 @@ void igb_reset(struct igb_adapter *adapter)
 	wr32(E1000_VET, ETHERNET_IEEE_VLAN_TYPE);
 
 	/* Re-enable PTP, where applicable. */
-	igb_ptp_reset(adapter);
+	if (adapter->ptp_flags & IGB_PTP_ENABLED)
+		igb_ptp_reset(adapter);
 
 	igb_get_phy_info(hw);
 }
@@ -2323,9 +2324,7 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
-	err = pci_request_selected_regions(pdev, pci_select_bars(pdev,
-					   IORESOURCE_MEM),
-					   igb_driver_name);
+	err = pci_request_mem_regions(pdev, igb_driver_name);
 	if (err)
 		goto err_pci_reg;
 
@@ -2749,8 +2748,7 @@ err_sw_init:
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
-	pci_release_selected_regions(pdev,
-				     pci_select_bars(pdev, IORESOURCE_MEM));
+	pci_release_mem_regions(pdev);
 err_pci_reg:
 err_dma:
 	pci_disable_device(pdev);
@@ -2915,8 +2913,7 @@ static void igb_remove(struct pci_dev *pdev)
 	pci_iounmap(pdev, adapter->io_addr);
 	if (hw->flash_address)
 		iounmap(hw->flash_address);
-	pci_release_selected_regions(pdev,
-				     pci_select_bars(pdev, IORESOURCE_MEM));
+	pci_release_mem_regions(pdev);
 
 	kfree(adapter->shadow_vfta);
 	free_netdev(netdev);
@@ -6855,12 +6852,12 @@ static bool igb_can_reuse_rx_page(struct igb_rx_buffer *rx_buffer,
  **/
 static bool igb_add_rx_frag(struct igb_ring *rx_ring,
 			    struct igb_rx_buffer *rx_buffer,
+			    unsigned int size,
 			    union e1000_adv_rx_desc *rx_desc,
 			    struct sk_buff *skb)
 {
 	struct page *page = rx_buffer->page;
 	unsigned char *va = page_address(page) + rx_buffer->page_offset;
-	unsigned int size = le16_to_cpu(rx_desc->wb.upper.length);
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = IGB_RX_BUFSZ;
 #else
@@ -6912,6 +6909,7 @@ static struct sk_buff *igb_fetch_rx_buffer(struct igb_ring *rx_ring,
 					   union e1000_adv_rx_desc *rx_desc,
 					   struct sk_buff *skb)
 {
+	unsigned int size = le16_to_cpu(rx_desc->wb.upper.length);
 	struct igb_rx_buffer *rx_buffer;
 	struct page *page;
 
@@ -6947,11 +6945,11 @@ static struct sk_buff *igb_fetch_rx_buffer(struct igb_ring *rx_ring,
 	dma_sync_single_range_for_cpu(rx_ring->dev,
 				      rx_buffer->dma,
 				      rx_buffer->page_offset,
-				      IGB_RX_BUFSZ,
+				      size,
 				      DMA_FROM_DEVICE);
 
 	/* pull page into skb */
-	if (igb_add_rx_frag(rx_ring, rx_buffer, rx_desc, skb)) {
+	if (igb_add_rx_frag(rx_ring, rx_buffer, size, rx_desc, skb)) {
 		/* hand second half of page back to the ring */
 		igb_reuse_rx_page(rx_ring, rx_buffer);
 	} else {
@@ -7526,6 +7524,8 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake,
 
 	if (netif_running(netdev))
 		__igb_close(netdev, true);
+
+	igb_ptp_suspend(adapter);
 
 	igb_clear_interrupt_scheme(adapter);
 

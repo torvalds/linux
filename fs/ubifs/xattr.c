@@ -575,7 +575,8 @@ static int ubifs_xattr_get(const struct xattr_handler *handler,
 	dbg_gen("xattr '%s', ino %lu ('%pd'), buf size %zd", name,
 		inode->i_ino, dentry, size);
 
-	return  __ubifs_getxattr(inode, name, buffer, size);
+	name = xattr_full_name(handler, name);
+	return __ubifs_getxattr(inode, name, buffer, size);
 }
 
 static int ubifs_xattr_set(const struct xattr_handler *handler,
@@ -586,25 +587,27 @@ static int ubifs_xattr_set(const struct xattr_handler *handler,
 	dbg_gen("xattr '%s', host ino %lu ('%pd'), size %zd",
 		name, inode->i_ino, dentry, size);
 
+	name = xattr_full_name(handler, name);
+
 	if (value)
 		return __ubifs_setxattr(inode, name, value, size, flags);
 	else
 		return __ubifs_removexattr(inode, name);
 }
 
-const struct xattr_handler ubifs_user_xattr_handler = {
+static const struct xattr_handler ubifs_user_xattr_handler = {
 	.prefix = XATTR_USER_PREFIX,
 	.get = ubifs_xattr_get,
 	.set = ubifs_xattr_set,
 };
 
-const struct xattr_handler ubifs_trusted_xattr_handler = {
+static const struct xattr_handler ubifs_trusted_xattr_handler = {
 	.prefix = XATTR_TRUSTED_PREFIX,
 	.get = ubifs_xattr_get,
 	.set = ubifs_xattr_set,
 };
 
-const struct xattr_handler ubifs_security_xattr_handler = {
+static const struct xattr_handler ubifs_security_xattr_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
 	.get = ubifs_xattr_get,
 	.set = ubifs_xattr_set,

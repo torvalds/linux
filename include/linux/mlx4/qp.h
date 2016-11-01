@@ -291,16 +291,18 @@ enum {
 	MLX4_WQE_CTRL_FORCE_LOOPBACK	= 1 << 0,
 };
 
+union mlx4_wqe_qpn_vlan {
+	struct {
+		__be16	vlan_tag;
+		u8	ins_vlan;
+		u8	fence_size;
+	};
+	__be32		bf_qpn;
+};
+
 struct mlx4_wqe_ctrl_seg {
 	__be32			owner_opcode;
-	union {
-		struct {
-			__be16			vlan_tag;
-			u8			ins_vlan;
-			u8			fence_size;
-		};
-		__be32			bf_qpn;
-	};
+	union mlx4_wqe_qpn_vlan	qpn_vlan;
 	/*
 	 * High 24 bits are SRC remote buffer; low 8 bits are flags:
 	 * [7]   SO (strong ordering)

@@ -44,9 +44,6 @@
  * version here in tcp_internal.h should not need to be bumped for
  * filesystem locking changes.
  *
- * New in version 12
- *	- Negotiate hb timeout when storage is down.
- *
  * New in version 11
  * 	- Negotiation of filesystem locking in the dlm join.
  *
@@ -78,7 +75,7 @@
  * 	- full 64 bit i_size in the metadata lock lvbs
  * 	- introduction of "rw" lock and pushing meta/data locking down
  */
-#define O2NET_PROTOCOL_VERSION 12ULL
+#define O2NET_PROTOCOL_VERSION 11ULL
 struct o2net_handshake {
 	__be64	protocol_version;
 	__be64	connector_id;

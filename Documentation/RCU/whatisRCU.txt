@@ -5,6 +5,9 @@ to start learning about RCU:
 2.	What is RCU? Part 2: Usage   http://lwn.net/Articles/263130/
 3.	RCU part 3: the RCU API      http://lwn.net/Articles/264090/
 4.	The RCU API, 2010 Edition    http://lwn.net/Articles/418853/
+	2010 Big API Table           http://lwn.net/Articles/419086/
+5.	The RCU API, 2014 Edition    http://lwn.net/Articles/609904/
+	2014 Big API Table           http://lwn.net/Articles/609973/
 
 
 What is RCU?
