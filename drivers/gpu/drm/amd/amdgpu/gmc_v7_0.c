@@ -242,13 +242,16 @@ static int gmc_v7_0_mc_load_microcode(struct amdgpu_device *adev)
 static void gmc_v7_0_vram_gtt_location(struct amdgpu_device *adev,
 				       struct amdgpu_mc *mc)
 {
+	u64 base = RREG32(mmMC_VM_FB_LOCATION) & 0xFFFF;
+	base <<= 24;
+
 	if (mc->mc_vram_size > 0xFFC0000000ULL) {
 		/* leave room for at least 1024M GTT */
 		dev_warn(adev->dev, "limiting VRAM\n");
 		mc->real_vram_size = 0xFFC0000000ULL;
 		mc->mc_vram_size = 0xFFC0000000ULL;
 	}
-	amdgpu_vram_location(adev, &adev->mc, 0);
+	amdgpu_vram_location(adev, &adev->mc, base);
 	adev->mc.gtt_base_align = 0;
 	amdgpu_gtt_location(adev, mc);
 }
