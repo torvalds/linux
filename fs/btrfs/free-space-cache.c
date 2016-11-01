@@ -75,8 +75,6 @@ static struct inode *__lookup_free_space_inode(struct btrfs_root *root,
 	btrfs_release_path(path);
 
 	inode = btrfs_iget(root->fs_info->sb, &location, root, NULL);
-	if (!inode)
-		return ERR_PTR(-ENOENT);
 	if (IS_ERR(inode))
 		return inode;
 	if (is_bad_inode(inode)) {
