@@ -44,8 +44,6 @@
 #include "bcast.h"
 #include "netlink.h"
 
-#define SS_LISTENING		-1	/* socket is listening */
-
 #define CONN_TIMEOUT_DEFAULT	8000	/* default connect timeout = 8s */
 #define CONN_PROBING_INTERVAL	msecs_to_jiffies(3600000)  /* [ms] => 1 h */
 #define TIPC_FWD_MSG		1
@@ -53,6 +51,10 @@
 #define TIPC_CONN_PROBING	1
 #define TIPC_MAX_PORT		0xffffffff
 #define TIPC_MIN_PORT		1
+
+enum {
+	TIPC_LISTEN = TCP_LISTEN,
+};
 
 /**
  * struct tipc_sock - TIPC socket structure
@@ -335,6 +337,31 @@ static bool tsk_peer_msg(struct tipc_sock *tsk, struct tipc_msg *msg)
 		return true;
 
 	return false;
+}
+
+/* tipc_set_sk_state - set the sk_state of the socket
+ * @sk: socket
+ *
+ * Caller must hold socket lock
+ *
+ * Returns 0 on success, errno otherwise
+ */
+static int tipc_set_sk_state(struct sock *sk, int state)
+{
+	int oldstate = sk->sk_socket->state;
+	int res = -EINVAL;
+
+	switch (state) {
+	case TIPC_LISTEN:
+		if (oldstate == SS_UNCONNECTED)
+			res = 0;
+		break;
+	}
+
+	if (!res)
+		sk->sk_state = state;
+
+	return res;
 }
 
 /**
@@ -666,15 +693,22 @@ static unsigned int tipc_poll(struct file *file, struct socket *sock,
 
 	switch ((int)sock->state) {
 	case SS_UNCONNECTED:
-		if (!tsk->link_cong)
-			mask |= POLLOUT;
+		switch (sk->sk_state) {
+		case TIPC_LISTEN:
+			if (!skb_queue_empty(&sk->sk_receive_queue))
+				mask |= (POLLIN | POLLRDNORM);
+			break;
+		default:
+			if (!tsk->link_cong)
+				mask |= POLLOUT;
+			break;
+		}
 		break;
 	case SS_CONNECTED:
 		if (!tsk->link_cong && !tsk_conn_cong(tsk))
 			mask |= POLLOUT;
 		/* fall thru' */
 	case SS_CONNECTING:
-	case SS_LISTENING:
 		if (!skb_queue_empty(&sk->sk_receive_queue))
 			mask |= (POLLIN | POLLRDNORM);
 		break;
@@ -925,7 +959,7 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dsz)
 		return -EINVAL;
 	}
 	if (!is_connectionless) {
-		if (sock->state == SS_LISTENING)
+		if (sk->sk_state == TIPC_LISTEN)
 			return -EPIPE;
 		if (sock->state != SS_UNCONNECTED)
 			return -EISCONN;
@@ -1651,7 +1685,6 @@ static bool filter_connect(struct tipc_sock *tsk, struct sk_buff *skb)
 		msg_set_dest_droppable(hdr, 1);
 		return false;
 
-	case SS_LISTENING:
 	case SS_UNCONNECTED:
 
 		/* Accept only SYN message */
@@ -2026,15 +2059,9 @@ static int tipc_listen(struct socket *sock, int len)
 	int res;
 
 	lock_sock(sk);
-
-	if (sock->state != SS_UNCONNECTED)
-		res = -EINVAL;
-	else {
-		sock->state = SS_LISTENING;
-		res = 0;
-	}
-
+	res = tipc_set_sk_state(sk, TIPC_LISTEN);
 	release_sock(sk);
+
 	return res;
 }
 
@@ -2059,9 +2086,6 @@ static int tipc_wait_for_accept(struct socket *sock, long timeo)
 		}
 		err = 0;
 		if (!skb_queue_empty(&sk->sk_receive_queue))
-			break;
-		err = -EINVAL;
-		if (sock->state != SS_LISTENING)
 			break;
 		err = -EAGAIN;
 		if (!timeo)
@@ -2093,7 +2117,7 @@ static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags)
 
 	lock_sock(sk);
 
-	if (sock->state != SS_LISTENING) {
+	if (sk->sk_state != TIPC_LISTEN) {
 		res = -EINVAL;
 		goto exit;
 	}
