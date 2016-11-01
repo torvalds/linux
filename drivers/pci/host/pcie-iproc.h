@@ -32,17 +32,16 @@ enum iproc_pcie_type {
 
 /**
  * iProc PCIe outbound mapping
- * @set_oarr_size: indicates the OARR size bit needs to be set
  * @axi_offset: offset from the AXI address to the internal address used by
  * the iProc PCIe core
- * @window_size: outbound window size
+ * @nr_windows: total number of supported outbound mapping windows
  */
 struct iproc_pcie_ob {
-	bool set_oarr_size;
 	resource_size_t axi_offset;
-	resource_size_t window_size;
+	unsigned int nr_windows;
 };
 
+struct iproc_pcie_ob_map;
 struct iproc_msi;
 
 /**
@@ -60,8 +59,11 @@ struct iproc_msi;
  * @ep_is_internal: indicates an internal emulated endpoint device is connected
  * @has_apb_err_disable: indicates the controller can be configured to prevent
  * unsupported request from being forwarded as an APB bus error
+ *
  * @need_ob_cfg: indicates SW needs to configure the outbound mapping window
- * @ob: outbound mapping parameters
+ * @ob: outbound mapping related parameters
+ * @ob_map: outbound mapping related parameters specific to the controller
+ *
  * @need_msi_steer: indicates additional configuration of the iProc PCIe
  * controller is required to steer MSI writes to external interrupt controller
  * @msi: MSI data
@@ -80,8 +82,11 @@ struct iproc_pcie {
 	int (*map_irq)(const struct pci_dev *, u8, u8);
 	bool ep_is_internal;
 	bool has_apb_err_disable;
+
 	bool need_ob_cfg;
 	struct iproc_pcie_ob ob;
+	const struct iproc_pcie_ob_map *ob_map;
+
 	bool need_msi_steer;
 	struct iproc_msi *msi;
 };

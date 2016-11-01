@@ -87,19 +87,6 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 			return ret;
 		}
 		pcie->ob.axi_offset = val;
-
-		ret = of_property_read_u32(np, "brcm,pcie-ob-window-size",
-					   &val);
-		if (ret) {
-			dev_err(dev,
-				"missing brcm,pcie-ob-window-size property\n");
-			return ret;
-		}
-		pcie->ob.window_size = (resource_size_t)val * SZ_1M;
-
-		if (of_property_read_bool(np, "brcm,pcie-ob-oarr-size"))
-			pcie->ob.set_oarr_size = true;
-
 		pcie->need_ob_cfg = true;
 	}
 
