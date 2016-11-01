@@ -371,12 +371,13 @@ struct smca_hwid_mcatype {
 	u32 xec_bitmap;		/* Bitmap of valid ExtErrorCodes; current max is 21. */
 };
 
-struct smca_bank_info {
+struct smca_bank {
 	struct smca_hwid_mcatype *type;
-	u32 type_instance;
+	/* Instance ID */
+	u32 id;
 };
 
-extern struct smca_bank_info smca_banks[MAX_NR_BANKS];
+extern struct smca_bank smca_banks[MAX_NR_BANKS];
 
 #endif
 
