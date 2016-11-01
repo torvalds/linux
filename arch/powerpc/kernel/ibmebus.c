@@ -262,6 +262,7 @@ static ssize_t ibmebus_store_probe(struct bus_type *bus,
 				   const char *buf, size_t count)
 {
 	struct device_node *dn = NULL;
+	struct device *dev;
 	char *path;
 	ssize_t rc = 0;
 
@@ -269,8 +270,10 @@ static ssize_t ibmebus_store_probe(struct bus_type *bus,
 	if (!path)
 		return -ENOMEM;
 
-	if (bus_find_device(&ibmebus_bus_type, NULL, path,
-			    ibmebus_match_path)) {
+	dev = bus_find_device(&ibmebus_bus_type, NULL, path,
+			      ibmebus_match_path);
+	if (dev) {
+		put_device(dev);
 		printk(KERN_WARNING "%s: %s has already been probed\n",
 		       __func__, path);
 		rc = -EEXIST;
@@ -307,6 +310,7 @@ static ssize_t ibmebus_store_remove(struct bus_type *bus,
 	if ((dev = bus_find_device(&ibmebus_bus_type, NULL, path,
 				   ibmebus_match_path))) {
 		of_device_unregister(to_platform_device(dev));
+		put_device(dev);
 
 		kfree(path);
 		return count;
