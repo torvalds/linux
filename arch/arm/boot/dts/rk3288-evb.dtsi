@@ -368,6 +368,10 @@
 	};
 };
 
+&hevc_service {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 };
@@ -445,7 +449,7 @@
 	status = "okay";
 };
 
-&vpu {
+&vpu_service {
 	status = "okay";
 };
 
