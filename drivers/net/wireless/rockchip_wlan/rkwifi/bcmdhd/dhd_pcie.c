@@ -1243,7 +1243,7 @@ dhdpcie_download_firmware(struct dhd_bus *bus, osl_t *osh)
 	/* External conf takes precedence if specified */
 	dhd_conf_preinit(bus->dhd);
 	dhd_conf_read_config(bus->dhd, bus->dhd->conf_path);
-	dhd_conf_set_fw_name_by_chip(bus->dhd, bus->fw_path);
+	dhd_conf_set_fw_name_by_chip(bus->dhd, bus->fw_path, bus->nv_path);
 	dhd_conf_set_nv_name_by_chip(bus->dhd, bus->nv_path);
 
 	printf("Final fw_path=%s\n", bus->fw_path);
