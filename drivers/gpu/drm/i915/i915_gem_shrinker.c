@@ -234,7 +234,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 				mutex_unlock(&obj->mm.lock);
 			}
 		}
-		list_splice(&still_in_list, phase->list);
+		list_splice_tail(&still_in_list, phase->list);
 	}
 
 	if (flags & I915_SHRINK_BOUND)
