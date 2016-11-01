@@ -280,6 +280,7 @@ static bool fl_destroy(struct tcf_proto *tp, bool force)
 	list_for_each_entry_safe(f, next, &head->filters, list) {
 		fl_hw_destroy_filter(tp, (unsigned long)f);
 		list_del_rcu(&f->list);
+		tcf_unbind_filter(tp, &f->res);
 		call_rcu(&f->rcu, fl_destroy_filter);
 	}
 	RCU_INIT_POINTER(tp->root, NULL);
